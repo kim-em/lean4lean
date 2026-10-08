@@ -54,7 +54,7 @@ or projection step at a lower level.
 
 ## Assumptions on `Params`
 
-The prefix computation lemmas use the `Params` fields `pat_const_native`,
+The prefix computation lemmas use the `Params` fields `pat_const_not_unfolding`,
 `recursorData_quot`, `pat_ctor_rigid`, `projection_ctor_rigid`,
 `pat_struct_major`, `pat_iota_params` and `schema_struct_major`. They state that
 registered definition patterns do not overlap native and quotient prefix
@@ -95,11 +95,11 @@ inductive DeltaPar : List VExpr → VExpr → VExpr → Prop where
       DeltaPar Γ (.forallE A body) (.forallE A' body')
   | delta {args args' : List VExpr} (hlen : args.length = args'.length) :
       (∀ i (hi : i < args.length) (hi' : i < args'.length), DeltaPar Γ args[i] args'[i]) →
-      NativeDeltaRule env univs recursorData Γ name levels args' rhs →
+      PrefixUnfold env univs recursorData Γ name levels args' rhs →
       DeltaPar Γ (VExpr.mkApps (.const name levels) args) rhs
   | quotDelta {args args' : List VExpr} (hlen : args.length = args'.length) :
       (∀ i (hi : i < args.length) (hi' : i < args'.length), DeltaPar Γ args[i] args'[i]) →
-      QuotDeltaRule env univs Γ levels args' rhs →
+      QuotPrefixUnfold env univs Γ levels args' rhs →
       DeltaPar Γ (VExpr.mkApps (.const ``Quot.lift levels) args) rhs
   | projIota {args args' : List VExpr} (hlen : args.length = args'.length) :
       (∀ i (hi : i < args.length) (hi' : i < args'.length), DeltaPar Γ args[i] args'[i]) →
@@ -840,22 +840,22 @@ theorem rhs_rel_join {R : List VExpr → VExpr → VExpr → Prop} (I : CongrRel
   have hB' := (J.defeq hctx hb hB).hasType.2
   exact ⟨I.wrapLams hb, NormalEqF.wrapLams_congr hΓ hl ht (.refl hB')⟩
 
-theorem NativeDeltaRule.congr_red {R : List VExpr → VExpr → VExpr → Prop}
+theorem PrefixUnfold.congr_red {R : List VExpr → VExpr → VExpr → Prop}
     (I : CongrRel R) (J : ArgRel R) (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NativeDeltaRule env univs recursorData Γ name levels args rhs)
+    (H : PrefixUnfold env univs recursorData Γ name levels args rhs)
     (ha : List.Forall₂ (R Γ) args args') :
-    ∃ rhs' X, NativeDeltaRule env univs recursorData Γ name levels args' rhs' ∧
+    ∃ rhs' X, PrefixUnfold env univs recursorData Γ name levels args' rhs' ∧
       R Γ rhs X ∧ NormalEq₀ Γ X rhs' := by
   obtain ⟨_, hd⟩ := H.defeq henv hΓ
   obtain ⟨rhs', hr, ds, ds', B, B', res, res', rfl, rfl, hl, ht, hb⟩ := H.congr_rel J hΓ ha
   obtain ⟨h1, h2⟩ := rhs_rel_join I J hΓ hl ht hb hd.hasType.2
   exact ⟨_, _, hr, h1, h2⟩
 
-theorem QuotDeltaRule.congr_red {R : List VExpr → VExpr → VExpr → Prop}
+theorem QuotPrefixUnfold.congr_red {R : List VExpr → VExpr → VExpr → Prop}
     (I : CongrRel R) (J : ArgRel R) (hΓ : OnCtx Γ (env.IsType univs))
-    (H : QuotDeltaRule env univs Γ levels args rhs)
+    (H : QuotPrefixUnfold env univs Γ levels args rhs)
     (ha : List.Forall₂ (R Γ) args args') :
-    ∃ rhs' X, QuotDeltaRule env univs Γ levels args' rhs' ∧ R Γ rhs X ∧ NormalEq₀ Γ X rhs' := by
+    ∃ rhs' X, QuotPrefixUnfold env univs Γ levels args' rhs' ∧ R Γ rhs X ∧ NormalEq₀ Γ X rhs' := by
   obtain ⟨_, hd⟩ := H.defeq henv hΓ
   obtain ⟨rhs', hr, ds, ds', B, B', res, res', rfl, rfl, hl, ht, hb⟩ := H.congr_rel J hΓ ha
   obtain ⟨h1, h2⟩ := rhs_rel_join I J hΓ hl ht hb hd.hasType.2
@@ -963,16 +963,16 @@ theorem defeqU_argRel : ArgRel (fun Γ a b => IsDefEqU env univs Γ a b) where
       exact .inr (List.forall₂_getElem hs _ (by omega) (by omega))
     · exact .inl (Eq.refl _)
 
-theorem NativeDeltaRule.congr_defeq (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NativeDeltaRule env univs recursorData Γ name levels args rhs)
+theorem PrefixUnfold.congr_defeq (hΓ : OnCtx Γ (env.IsType univs))
+    (H : PrefixUnfold env univs recursorData Γ name levels args rhs)
     (ha : List.Forall₂ (IsDefEqU env univs Γ) args args') :
-    ∃ rhs', NativeDeltaRule env univs recursorData Γ name levels args' rhs' :=
+    ∃ rhs', PrefixUnfold env univs recursorData Γ name levels args' rhs' :=
   let ⟨rhs', h, _⟩ := H.congr_rel defeqU_argRel hΓ ha; ⟨rhs', h⟩
 
-theorem QuotDeltaRule.congr_defeq (hΓ : OnCtx Γ (env.IsType univs))
-    (H : QuotDeltaRule env univs Γ levels args rhs)
+theorem QuotPrefixUnfold.congr_defeq (hΓ : OnCtx Γ (env.IsType univs))
+    (H : QuotPrefixUnfold env univs Γ levels args rhs)
     (ha : List.Forall₂ (IsDefEqU env univs Γ) args args') :
-    ∃ rhs', QuotDeltaRule env univs Γ levels args' rhs' :=
+    ∃ rhs', QuotPrefixUnfold env univs Γ levels args' rhs' :=
   let ⟨rhs', h, _⟩ := H.congr_rel defeqU_argRel hΓ ha; ⟨rhs', h⟩
 
 end DefRel
@@ -987,15 +987,15 @@ theorem eq_nil_or_snoc' (l : List α) : l = [] ∨ ∃ L b, l = L ++ [b] := by
 
 
 
-theorem NativeDeltaRule.not_rigid
-    (H : NativeDeltaRule env univs recursorData Γ name ls args rhs) :
+theorem PrefixUnfold.not_rigid
+    (H : PrefixUnfold env univs recursorData Γ name ls args rhs) :
     ¬ env.NativeHeadRigid name := by
   intro hrig
   cases H with
   | @intro data program hl hreg hname _ _ _ hg _ =>
-    obtain ⟨_, _, _, _, hse, _, _⟩ := InductiveSignature.NativeRecursorData.singletonProgram_spec hg
+    obtain ⟨_, _, _, _, hse, _, _⟩ := InductiveSignature.RecursorData.singletonProgram_spec hg
     have hinst := hreg.singletonEquation hse
-    unfold InductiveSignature.NativeRecursorData.singletonEquation at hse
+    unfold InductiveSignature.RecursorData.singletonEquation at hse
     dsimp only at hse
     split at hse <;> try contradiction
     rename_i ctorIndex hfilter
@@ -1008,7 +1008,7 @@ theorem NativeDeltaRule.not_rigid
     subst hname
     exact hrig _ hinst _ ((VExpr.nativeEquationHead_eq _).trans hhead)
 
-theorem QuotDeltaRule.not_rigid (H : QuotDeltaRule env univs Γ ls args rhs) :
+theorem QuotPrefixUnfold.not_rigid (H : QuotPrefixUnfold env univs Γ ls args rhs) :
     ¬ env.NativeHeadRigid ``Quot.lift := by
   intro hrig
   cases H with
@@ -1031,7 +1031,7 @@ theorem Params.no_match_delta_prefix (hdata : recursorData name = some data) (hp
     generalize he : VExpr.mkApps (.const name ls) pre = E at hm
     cases hm
     obtain ⟨rfl, -, -⟩ := VExpr.mkApps_const_inj (as' := []) he
-    rw [(pat_const_native hp).1] at hdata
+    rw [(pat_const_not_unfolding hp).1] at hdata
     cases hdata
   | iota rc mr cc kc =>
     obtain ⟨vs, M, he, hvs⟩ := iota_matches_spine hm
@@ -1055,7 +1055,7 @@ theorem Params.no_match_quot_prefix (hqr : QuotRegistered env) (hp : Pat p r)
     generalize he : VExpr.mkApps (.const ``Quot.lift ls) pre = E at hm
     cases hm
     obtain ⟨rfl, -, -⟩ := VExpr.mkApps_const_inj (as' := []) he
-    exact (pat_const_native hp).2 hqr rfl
+    exact (pat_const_not_unfolding hp).2 hqr rfl
   | iota rc mr cc kc =>
     obtain ⟨vs, M, he, hvs⟩ := iota_matches_spine hm
     rw [← VExpr.mkApps_snoc] at he
@@ -1070,7 +1070,7 @@ theorem Params.no_match_quot_prefix (hqr : QuotRegistered env) (hp : Pat p r)
 theorem Params.iota_no_delta
     (hp : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r)
     (hck : r.2.OK df m1 m2)
-    (H : NativeDeltaRule env univs recursorData Γ rc m1 pre rhs) : False := by
+    (H : PrefixUnfold env univs recursorData Γ rc m1 pre rhs) : False := by
   cases H with
   | @intro data program hl _ hname hlarge _ hz _ _ =>
     rcases pat_recursor (recursor := rc) (major := mr) (ctor := cc) (fields := kc) hp with
@@ -1088,7 +1088,7 @@ theorem Params.iota_no_delta
 theorem Params.iota_no_quotDelta
     (hp : Pat (.app ((Pattern.const ``Quot.lift).varN mr) ((Pattern.const cc).varN kc)) r)
     (hck : r.2.OK df m1 m2)
-    (H : QuotDeltaRule env univs Γ m1 pre rhs) : False := by
+    (H : QuotPrefixUnfold env univs Γ m1 pre rhs) : False := by
   cases H with
   | intro _ _ hz _ _ =>
     rcases pat_recursor (recursor := ``Quot.lift) (major := mr) (ctor := cc) (fields := kc) hp with
@@ -1139,9 +1139,9 @@ theorem ParRed.const_spine_of (n : Nat)
 
 theorem DeltaPar.const_spine_of (n : Nat)
     (hno : ∀ {pre rhs}, pre.length ≤ n →
-      ¬ NativeDeltaRule env univs recursorData Γ name levels pre rhs)
+      ¬ PrefixUnfold env univs recursorData Γ name levels pre rhs)
     (hnoq : ∀ {pre rhs}, pre.length ≤ n → name = ``Quot.lift →
-      ¬ QuotDeltaRule env univs Γ levels pre rhs)
+      ¬ QuotPrefixUnfold env univs Γ levels pre rhs)
     (hlen : args.length ≤ n) (H : DeltaPar Γ (VExpr.mkApps (.const name levels) args) out) :
     ∃ args', out = VExpr.mkApps (.const name levels) args' ∧
       List.Forall₂ (DeltaPar Γ) args args' := by
@@ -1426,11 +1426,11 @@ theorem NormalEq₀.spine_expose (hΓ : OnCtx Γ (env.IsType univs)) (hh : Rigid
           List.Forall₂.append' hargs (.cons ⟨_, l6⟩ .nil)⟩
     | _ => cases hR
 
-theorem NativeDeltaRule.congr₀ (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NativeDeltaRule env univs recursorData Γ name levels args rhs)
+theorem PrefixUnfold.congr₀ (hΓ : OnCtx Γ (env.IsType univs))
+    (H : PrefixUnfold env univs recursorData Γ name levels args rhs)
     (hw : ∀ level ∈ levels', level.WF univs) (hls : List.Forall₂ (· ≈ ·) levels levels')
     (ha : List.Forall₂ (NormalEq₀ Γ) args args') :
-    ∃ rhs', NativeDeltaRule env univs recursorData Γ name levels' args' rhs' ∧
+    ∃ rhs', PrefixUnfold env univs recursorData Γ name levels' args' rhs' ∧
       NormalEq₀ Γ rhs rhs' := by
   obtain ⟨rhs₁, h1, e1⟩ := H.congr_normal hΓ ha
   obtain ⟨rhs₂, h2, e2⟩ := h1.congr_levels henv hΓ hw hls
@@ -1438,11 +1438,11 @@ theorem NativeDeltaRule.congr₀ (hΓ : OnCtx Γ (env.IsType univs))
   obtain ⟨_, hd⟩ := h1.defeq henv hΓ
   exact ⟨rhs₂, h2, e1.trans hΓ (NormalEqF.of_levelEquiv hΓ (.of_eqUpToLevels e2) hd.hasType.2)⟩
 
-theorem QuotDeltaRule.congr₀ (hΓ : OnCtx Γ (env.IsType univs))
-    (H : QuotDeltaRule env univs Γ levels args rhs)
+theorem QuotPrefixUnfold.congr₀ (hΓ : OnCtx Γ (env.IsType univs))
+    (H : QuotPrefixUnfold env univs Γ levels args rhs)
     (hw : ∀ level ∈ levels', level.WF univs) (hls : List.Forall₂ (· ≈ ·) levels levels')
     (ha : List.Forall₂ (NormalEq₀ Γ) args args') :
-    ∃ rhs', QuotDeltaRule env univs Γ levels' args' rhs' ∧ NormalEq₀ Γ rhs rhs' := by
+    ∃ rhs', QuotPrefixUnfold env univs Γ levels' args' rhs' ∧ NormalEq₀ Γ rhs rhs' := by
   obtain ⟨rhs₁, h1, e1⟩ := H.congr_normal hΓ ha
   obtain ⟨rhs₂, h2, e2⟩ := h1.congr_levels henv hΓ hw hls
     (eqUpToLevels_forall₂_rfl hΓ (NormalEqF.forall₂_typed_right hΓ ha))
@@ -1491,7 +1491,7 @@ abbrev MirrorArgs (Γ : List VExpr) (args args' : List VExpr) : Prop :=
 theorem DeltaPar.mirror_delta (hΓ : OnCtx Γ (env.IsType univs))
     (hlen : args.length = args'.length)
     (hargs : ∀ i (hi : i < args.length) (hi' : i < args'.length), DeltaPar Γ args[i] args'[i])
-    (hr : NativeDeltaRule env univs recursorData Γ name ls args' rhs)
+    (hr : PrefixUnfold env univs recursorData Γ name ls args' rhs)
     (ih : MirrorArgs Γ args args')
     (hc : NormalEq₀ Γ c (VExpr.mkApps (.const name ls) args))
     (ha : Γ ⊢ VExpr.mkApps (.const name ls) args : A) :
@@ -1514,7 +1514,7 @@ theorem DeltaPar.mirror_delta (hΓ : OnCtx Γ (env.IsType univs))
 theorem DeltaPar.mirror_quotDelta (hΓ : OnCtx Γ (env.IsType univs))
     (hlen : args.length = args'.length)
     (hargs : ∀ i (hi : i < args.length) (hi' : i < args'.length), DeltaPar Γ args[i] args'[i])
-    (hr : QuotDeltaRule env univs Γ ls args' rhs)
+    (hr : QuotPrefixUnfold env univs Γ ls args' rhs)
     (ih : MirrorArgs Γ args args')
     (hc : NormalEq₀ Γ c (VExpr.mkApps (.const ``Quot.lift ls) args))
     (ha : Γ ⊢ VExpr.mkApps (.const ``Quot.lift ls) args : A) :
@@ -1804,7 +1804,7 @@ theorem ParRed.mirror_iota
 theorem ParRed.mirror_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
     {actual : InductiveSignature.CaseSchema.Application}
     (hΓ : OnCtx Γ (env.IsType univs))
-    (hm : MatchedCaseStep env univs Γ rule actual)
+    (hm : CaseRedex env univs Γ rule actual)
     (hl : arguments.length = (rule.capture actual).length)
     (hr : ∀ i (hi : i < (rule.capture actual).length),
       ParRed Γ (rule.capture actual)[i] (arguments[i]'(by omega)))
@@ -1852,7 +1852,7 @@ theorem ParRed.mirror_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
     have hm' := hm.congr_levels henv hΓ hw₁ hlsSymm hls₂Symm he''
     have hspine : CaseApplicationRelated (NormalEq₀ Γ) actual₃ actual'' :=
       ⟨rfl, rfl, rfl, rfl, rfl, hvs, hcs⟩
-    have hm₃ := MatchedCaseStep.of_normalEq_spine hΓ hm' hspine
+    have hm₃ := CaseRedex.of_normalEq_spine hΓ hm' hspine
     have hcap : List.Forall₂ (NormalEq₀ Γ) (rule.capture actual₃) (rule.capture actual) :=
       hspine.capture
     have hS : List.Forall₂ (MirrorP Γ) (rule.capture actual) arguments :=
@@ -2033,15 +2033,15 @@ theorem forall₂_getElem?_left {R : α → β → Prop} :
     simp only [List.getElem?_cons_succ] at hx ⊢; exact forall₂_getElem?_left t hx
   | [], [], _, _, .nil, hx => by cases hx
 
-theorem NativeDeltaRule.length_le (H : NativeDeltaRule env univs recursorData Γ name ls args rhs) :
+theorem PrefixUnfold.length_le (H : PrefixUnfold env univs recursorData Γ name ls args rhs) :
     ∃ data, recursorData name = some data ∧ args.length ≤ data.majorOffset := by
   cases H with
   | @intro data program hl _ _ _ _ _ hg _ =>
-    exact ⟨data, hl, (InductiveSignature.NativeRecursorData.singletonProgram_spec hg).1⟩
+    exact ⟨data, hl, (InductiveSignature.RecursorData.singletonProgram_spec hg).1⟩
 
-theorem QuotDeltaRule.length_le (H : QuotDeltaRule env univs Γ ls args rhs) : args.length ≤ 5 := by
+theorem QuotPrefixUnfold.length_le (H : QuotPrefixUnfold env univs Γ ls args rhs) : args.length ≤ 5 := by
   cases H with
-  | intro _ _ _ hg _ => exact (QuotPrefixProgram.generate_spec hg).2.1
+  | intro _ _ _ hg _ => exact (QuotPrefixUnfolding.generate_spec hg).2.1
 
 theorem HasType.mkApps_args_typed (hΓ : OnCtx Γ (env.IsType univs))
     (ht : Γ ⊢ VExpr.mkApps f args : T) : ∀ x ∈ args, ∃ A, Γ ⊢ x : A :=
@@ -2148,7 +2148,7 @@ theorem forall₂_defeq_of_rel {R : List VExpr → VExpr → VExpr → Prop}
 theorem DeltaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
     {actual : InductiveSignature.CaseSchema.Application}
     (hΓ : OnCtx Γ (env.IsType univs)) (IH : DPDiaBelow (sizeOf actual.expr))
-    (hm : MatchedCaseStep env univs Γ rule actual)
+    (hm : CaseRedex env univs Γ rule actual)
     (hl : arguments.length = (rule.capture actual).length)
     (hr : ∀ i (hi : i < (rule.capture actual).length),
       ParRed Γ (rule.capture actual)[i] (arguments[i]'(by omega)))
@@ -2369,12 +2369,12 @@ theorem ParRedS.mkApps_head (hf : ReflTransGen (ParRed Γ) f f') (args : List VE
   | rfl => exact .rfl
   | tail _ h ih => exact ih.tail (ParRed.mkApps_head h args)
 
-theorem prefixProgram_supply_many {data : InductiveSignature.NativeRecursorData}
-    {packed : List VLevel} (hr : NativeRecursorRegistered env data)
+theorem prefixProgram_supply_many {data : InductiveSignature.RecursorData}
+    {packed : List VLevel} (hr : RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero) :
-    ∀ (more : List VExpr) {xs : List VExpr} {p q : InductiveSignature.NativeRecursorData.PrefixProgram},
-      data.singletonProgram env univs levels xs = some p →
-      data.singletonProgram env univs levels (xs ++ more) = some q →
+    ∀ (more : List VExpr) {xs : List VExpr} {p q : InductiveSignature.RecursorData.PrefixUnfolding},
+      data.singletonUnfolding env univs levels xs = some p →
+      data.singletonUnfolding env univs levels (xs ++ more) = some q →
       p.equationBody.rhs.ClosedN p.captures.length →
       ReflTransGen (ParRed Γ) (VExpr.mkApps p.rhs more) q.rhs
   | [], xs, p, q, hp, hq, _ => by
@@ -2382,13 +2382,13 @@ theorem prefixProgram_supply_many {data : InductiveSignature.NativeRecursorData}
     cases hp.symm.trans hq
     exact .rfl
   | m :: rest, xs, p, q, hp, hq, hclosed => by
-    have hbound := (InductiveSignature.NativeRecursorData.singletonProgram_spec hq).1
-    obtain ⟨p₁, hp₁⟩ := InductiveSignature.NativeRecursorData.singletonProgram_anyArity hp
+    have hbound := (InductiveSignature.RecursorData.singletonProgram_spec hq).1
+    obtain ⟨p₁, hp₁⟩ := InductiveSignature.RecursorData.singletonProgram_anyArity hp
       (args' := xs ++ [m]) (by simp at hbound ⊢; omega)
     obtain ⟨d, body, he, hb⟩ :=
-      InductiveSignature.NativeRecursorData.singletonProgram_supply_one henv hr hlarge hzero hp hp₁ hclosed
-    have hspec := InductiveSignature.NativeRecursorData.singletonProgram_spec hp
-    have hspec₁ := InductiveSignature.NativeRecursorData.singletonProgram_spec hp₁
+      InductiveSignature.RecursorData.singletonProgram_supply_one henv hr hlarge hzero hp hp₁ hclosed
+    have hspec := InductiveSignature.RecursorData.singletonProgram_spec hp
+    have hspec₁ := InductiveSignature.RecursorData.singletonProgram_spec hp₁
     have heq : p.equation = p₁.equation :=
       Option.some.inj (hspec.2.2.2.2.1.symm.trans hspec₁.2.2.2.2.1)
     have hbody : p.equationBody = p₁.equationBody := by
@@ -2398,7 +2398,7 @@ theorem prefixProgram_supply_many {data : InductiveSignature.NativeRecursorData}
       exact Option.some.inj (h1.symm.trans h2)
     have hclosed₁ : p₁.equationBody.rhs.ClosedN p₁.captures.length := by
       rw [hspec₁.2.2.2.2.2.2, ← hbody, ← hspec.2.2.2.2.2.2]; exact hclosed
-    have hq' : data.singletonProgram env univs levels ((xs ++ [m]) ++ rest) = some q := by
+    have hq' : data.singletonUnfolding env univs levels ((xs ++ [m]) ++ rest) = some q := by
       simpa using hq
     have ih := prefixProgram_supply_many (Γ := Γ) hr hlarge hzero rest hp₁ hq' hclosed₁
     refine ReflTransGen.trans (.tail .rfl ?_) ih
@@ -2406,9 +2406,9 @@ theorem prefixProgram_supply_many {data : InductiveSignature.NativeRecursorData}
     rw [he, ← hb]
     exact ParRed.mkApps_head (.beta .rfl .rfl) rest
 
-theorem NativeDeltaRule.supply_many
-    (H₁ : NativeDeltaRule env univs recursorData Γ name levels xs rhs₁)
-    (H₂ : NativeDeltaRule env univs recursorData Γ name levels (xs ++ more) rhs₂) :
+theorem PrefixUnfold.supply_many
+    (H₁ : PrefixUnfold env univs recursorData Γ name levels xs rhs₁)
+    (H₂ : PrefixUnfold env univs recursorData Γ name levels (xs ++ more) rhs₂) :
     ReflTransGen (ParRed Γ) (VExpr.mkApps rhs₁ more) rhs₂ := by
   cases H₁ with
   | @intro data p hl hr _ hlarge _ hz hp replay =>
@@ -2418,9 +2418,9 @@ theorem NativeDeltaRule.supply_many
       exact prefixProgram_supply_many hr hlarge hz more hp hq (replay.templateScope henv).2.1
 
 theorem quot_supply_many {levels : List VLevel} :
-    ∀ (more : List VExpr) {xs : List VExpr} {p q : InductiveSignature.NativeRecursorData.PrefixProgram},
-      QuotPrefixProgram.generate levels xs = some p →
-      QuotPrefixProgram.generate levels (xs ++ more) = some q →
+    ∀ (more : List VExpr) {xs : List VExpr} {p q : InductiveSignature.RecursorData.PrefixUnfolding},
+      QuotPrefixUnfolding.generate levels xs = some p →
+      QuotPrefixUnfolding.generate levels (xs ++ more) = some q →
       p.equationBody.rhs.ClosedN p.captures.length →
       ReflTransGen (ParRed Γ) (VExpr.mkApps p.rhs more) q.rhs
   | [], xs, p, q, hp, hq, _ => by
@@ -2428,12 +2428,12 @@ theorem quot_supply_many {levels : List VLevel} :
     cases hp.symm.trans hq
     exact .rfl
   | m :: rest, xs, p, q, hp, hq, hclosed => by
-    have hbound := (QuotPrefixProgram.generate_spec hq).2.1
-    obtain ⟨p₁, hp₁⟩ := QuotPrefixProgram.generate_anyArity hp
+    have hbound := (QuotPrefixUnfolding.generate_spec hq).2.1
+    obtain ⟨p₁, hp₁⟩ := QuotPrefixUnfolding.generate_anyArity hp
       (args' := xs ++ [m]) (by simp at hbound ⊢; omega)
-    obtain ⟨d, body, he, hb⟩ := QuotPrefixProgram.generate_supply_one hp hp₁ hclosed
-    have hspec := QuotPrefixProgram.generate_spec hp
-    have hspec₁ := QuotPrefixProgram.generate_spec hp₁
+    obtain ⟨d, body, he, hb⟩ := QuotPrefixUnfolding.generate_supply_one hp hp₁ hclosed
+    have hspec := QuotPrefixUnfolding.generate_spec hp
+    have hspec₁ := QuotPrefixUnfolding.generate_spec hp₁
     have hbody : p.equationBody = p₁.equationBody := by
       have h1 := hspec.2.2.2.2.2.1
       have h2 := hspec₁.2.2.2.2.2.1
@@ -2442,7 +2442,7 @@ theorem quot_supply_many {levels : List VLevel} :
       exact Option.some.inj (h1.symm.trans h2)
     have hclosed₁ : p₁.equationBody.rhs.ClosedN p₁.captures.length := by
       rw [hspec₁.2.2.2.2.2.2, ← hbody, ← hspec.2.2.2.2.2.2]; exact hclosed
-    have hq' : QuotPrefixProgram.generate levels ((xs ++ [m]) ++ rest) = some q := by
+    have hq' : QuotPrefixUnfolding.generate levels ((xs ++ [m]) ++ rest) = some q := by
       simpa using hq
     have ih := quot_supply_many (Γ := Γ) rest hp₁ hq' hclosed₁
     refine ReflTransGen.trans (.tail .rfl ?_) ih
@@ -2450,9 +2450,9 @@ theorem quot_supply_many {levels : List VLevel} :
     rw [he, ← hb]
     exact ParRed.mkApps_head (.beta .rfl .rfl) rest
 
-theorem QuotDeltaRule.supply_many
-    (H₁ : QuotDeltaRule env univs Γ levels xs rhs₁)
-    (H₂ : QuotDeltaRule env univs Γ levels (xs ++ more) rhs₂) :
+theorem QuotPrefixUnfold.supply_many
+    (H₁ : QuotPrefixUnfold env univs Γ levels xs rhs₁)
+    (H₂ : QuotPrefixUnfold env univs Γ levels (xs ++ more) rhs₂) :
     ReflTransGen (ParRed Γ) (VExpr.mkApps rhs₁ more) rhs₂ := by
   cases H₁ with
   | intro _ _ _ hp replay =>
@@ -2466,8 +2466,8 @@ theorem DeltaPar.const_spine_cases
     ∃ args', List.Forall₂ (DeltaPar Γ) args args' ∧
       (out = VExpr.mkApps (.const name ls) args' ∨
         ∃ k rhs, k ≤ args.length ∧
-          (NativeDeltaRule env univs recursorData Γ name ls (args'.take k) rhs ∨
-            (name = ``Quot.lift ∧ QuotDeltaRule env univs Γ ls (args'.take k) rhs)) ∧
+          (PrefixUnfold env univs recursorData Γ name ls (args'.take k) rhs ∨
+            (name = ``Quot.lift ∧ QuotPrefixUnfold env univs Γ ls (args'.take k) rhs)) ∧
           out = VExpr.mkApps rhs (args'.drop k)) := by
   induction args using List.snoc_induction generalizing out with
   | nil =>
@@ -2562,17 +2562,17 @@ theorem rule_chain {Rule : List VExpr → VExpr → Prop}
     obtain ⟨rhs₂, H₂, c₂⟩ := ih (pre := pre ++ [y]) (by simpa using H₁)
     exact ⟨rhs₂, by simpa using H₂, c₁.trans c₂⟩
 
-theorem NativeDeltaRule.chain (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NativeDeltaRule env univs recursorData Γ name levels xs rhs)
+theorem PrefixUnfold.chain (hΓ : OnCtx Γ (env.IsType univs))
+    (H : PrefixUnfold env univs recursorData Γ name levels xs rhs)
     (hc : List.Forall₂ (ReflTransGen (Below Γ 2)) xs ys) :
-    ∃ rhs', NativeDeltaRule env univs recursorData Γ name levels ys rhs' ∧
+    ∃ rhs', PrefixUnfold env univs recursorData Γ name levels ys rhs' ∧
       ReflTransGen (Below Γ 2) rhs rhs' := by
-  have htyped : ∀ {xs rhs}, NativeDeltaRule env univs recursorData Γ name levels xs rhs →
+  have htyped : ∀ {xs rhs}, PrefixUnfold env univs recursorData Γ name levels xs rhs →
       ∀ x ∈ xs, ∃ T, Γ ⊢ x : T := fun H => by
     obtain ⟨_, hd⟩ := H.defeq henv hΓ
     exact HasType.mkApps_args_typed hΓ hd.hasType.1
   exact rule_chain (pre := [])
-    (Rule := fun xs rhs => NativeDeltaRule env univs recursorData Γ name levels xs rhs)
+    (Rule := fun xs rhs => PrefixUnfold env univs recursorData Γ name levels xs rhs)
     (fun H h => H.congr_red ParRed.congrRel ParRed.argRel hΓ h)
     (fun H h => by
       obtain ⟨_, hd⟩ := H.defeq henv hΓ
@@ -2581,16 +2581,16 @@ theorem NativeDeltaRule.chain (hΓ : OnCtx Γ (env.IsType univs))
       exact H.congr₀ hΓ hw (VLevel.forall₂_equiv_refl _) h)
     htyped H hc
 
-theorem QuotDeltaRule.chain (hΓ : OnCtx Γ (env.IsType univs))
-    (H : QuotDeltaRule env univs Γ levels xs rhs)
+theorem QuotPrefixUnfold.chain (hΓ : OnCtx Γ (env.IsType univs))
+    (H : QuotPrefixUnfold env univs Γ levels xs rhs)
     (hc : List.Forall₂ (ReflTransGen (Below Γ 2)) xs ys) :
-    ∃ rhs', QuotDeltaRule env univs Γ levels ys rhs' ∧ ReflTransGen (Below Γ 2) rhs rhs' := by
-  have htyped : ∀ {xs rhs}, QuotDeltaRule env univs Γ levels xs rhs →
+    ∃ rhs', QuotPrefixUnfold env univs Γ levels ys rhs' ∧ ReflTransGen (Below Γ 2) rhs rhs' := by
+  have htyped : ∀ {xs rhs}, QuotPrefixUnfold env univs Γ levels xs rhs →
       ∀ x ∈ xs, ∃ T, Γ ⊢ x : T := fun H => by
     obtain ⟨_, hd⟩ := H.defeq henv hΓ
     exact HasType.mkApps_args_typed hΓ hd.hasType.1
   exact rule_chain (pre := [])
-    (Rule := fun xs rhs => QuotDeltaRule env univs Γ levels xs rhs)
+    (Rule := fun xs rhs => QuotPrefixUnfold env univs Γ levels xs rhs)
     (fun H h => H.congr_red ParRed.congrRel ParRed.argRel hΓ h)
     (fun H h => by
       obtain ⟨_, hd⟩ := H.defeq henv hΓ
@@ -2635,8 +2635,8 @@ theorem exists_spine : ∀ e : VExpr, ∃ h args, e = VExpr.mkApps h args ∧ �
 /-- A native or quotient prefix rule at a constant spine. -/
 def SpineRule (Γ : List VExpr) (name : Name) (ls : List VLevel) (xs : List VExpr) (rhs : VExpr) :
     Prop :=
-  NativeDeltaRule env univs recursorData Γ name ls xs rhs ∨
-    (name = ``Quot.lift ∧ QuotDeltaRule env univs Γ ls xs rhs)
+  PrefixUnfold env univs recursorData Γ name ls xs rhs ∨
+    (name = ``Quot.lift ∧ QuotPrefixUnfold env univs Γ ls xs rhs)
 
 theorem SpineRule.step (hs : List.Forall₂ (DeltaPar Γ) xs ys) (hr : SpineRule Γ name ls ys rhs) :
     DeltaPar Γ (VExpr.mkApps (.const name ls) xs) rhs := by
@@ -3507,8 +3507,8 @@ theorem _root_.Lean4Lean.Pattern.Matches.constVarN_of_values :
       funext x; cases x <;> rfl
     exact hv ▸ this
 
-theorem MatchedCaseStep.transport (hΓ : OnCtx Γ (env.IsType univs))
-    (H : MatchedCaseStep env univs Γ rule actual)
+theorem CaseRedex.transport (hΓ : OnCtx Γ (env.IsType univs))
+    (H : CaseRedex env univs Γ rule actual)
     {actual' : InductiveSignature.CaseSchema.Application}
     (hb : actual'.block = actual.block) (ho : actual'.owner = actual.owner)
     (hlv : actual'.levels = actual.levels) (hc : actual'.ctorName = actual.ctorName)
@@ -3517,7 +3517,7 @@ theorem MatchedCaseStep.transport (hΓ : OnCtx Γ (env.IsType univs))
     (hcal : actual'.ctorArguments.length = actual.ctorArguments.length)
     (hcap : List.Forall₂ (IsDefEqU env univs Γ) (rule.capture actual) (rule.capture actual'))
     (he : IsDefEqU env univs Γ actual.expr actual'.expr) :
-    MatchedCaseStep env univs Γ rule actual' := by
+    CaseRedex env univs Γ rule actual' := by
   have hlen := (Lean4Lean.List.Forall₂.length_eq hcap).symm
   have hargs := fun (i : Nat) hi hi' => case_forall₂_get (i := i) hcap hi hi'
   refine {
@@ -3928,7 +3928,7 @@ theorem capture_replace {R : α → α → Prop} (hrefl : ∀ x, R x x) {A C D :
 theorem EtaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
     {actual : InductiveSignature.CaseSchema.Application}
     (hΓ : OnCtx Γ (env.IsType univs)) (IH : EPBelow (sizeOf actual.expr))
-    (hm : MatchedCaseStep env univs Γ rule actual)
+    (hm : CaseRedex env univs Γ rule actual)
     (hl : arguments.length = (rule.capture actual).length)
     (hr : ∀ i (hi : i < (rule.capture actual).length),
       ParRed Γ (rule.capture actual)[i] (arguments[i]'(by omega)))
@@ -3942,7 +3942,7 @@ theorem EtaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
   obtain ⟨_, _, tF, tM⟩ := ha'.app_inv henv hΓ
   obtain ⟨args', hargs', hy⟩ := EtaPar.collapse_elim hΓ hF tF
   have hnotpi : ∀ D B, ¬ Γ ⊢ VExpr.mkApps (.const actual.ctorName actual.ctorLevels)
-      actual.ctorArguments : .forallE D B := fun _ _ h => MatchedCaseStep.major_not_pi henv hΓ hm h
+      actual.ctorArguments : .forallE D B := fun _ _ h => CaseRedex.major_not_pi henv hΓ hm h
   obtain ⟨fs₀, lsc', ps₀, hfs₀, cM, hdisj⟩ := EtaPar.collapse_major
     (kc := actual.ctorArguments.length) hΓ
     (fun hl' hs => let ⟨h1, h2, _⟩ := schema_struct_major hm hΓ hl' hs; ⟨h1, h2⟩) hM tM hnotpi rfl

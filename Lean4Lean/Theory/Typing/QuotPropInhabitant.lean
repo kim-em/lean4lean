@@ -11,14 +11,14 @@ set_option maxHeartbeats 1000000
 /-- The closed source selector has its exact three-binder type. -/
 theorem QuotRegistered.witness_type {env : VEnv} (hr : QuotRegistered env) {U : Nat} {u : VLevel}
     (hu : u.WF U) (hz : u ≈ .zero) :
-    env.HasType U Γ (QuotPrefixProgram.witness u)
+    env.HasType U Γ (QuotPrefixUnfolding.propInhabitant u)
       (wrapForalls [.sort u,
         .forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero)),
         mkApps (.const ``Quot [u]) [.bvar 1, .bvar 0]] (.bvar 2)) := by
   have hquot := hr.quotient
   have hind := hr.induction
   have hmk := hr.constructor
-  unfold QuotPrefixProgram.witness
+  unfold QuotPrefixUnfolding.propInhabitant
   simp only [wrapLams, wrapForalls]
   refine HasType.lam (HasType.sort hu) ?_
   refine HasType.lam (HasType.forallE (HasType.bvar .zero)
@@ -86,7 +86,7 @@ theorem QuotRegistered.witness_app {env : VEnv} (H : QuotRegistered env)
     (ha : env.HasType U Γ alpha (.sort u))
     (hr : env.HasType U Γ relation (.forallE alpha (.forallE alpha.lift (.sort .zero))))
     (hq : env.HasType U Γ major (mkApps (.const ``Quot [u]) [alpha, relation])) :
-    env.HasType U Γ (mkApps (QuotPrefixProgram.witness u) [alpha, relation, major]) alpha := by
+    env.HasType U Γ (mkApps (QuotPrefixUnfolding.propInhabitant u) [alpha, relation, major]) alpha := by
   have hw := H.witness_type (Γ := Γ) hu hz
   have h1 := HasType.app hw ha
   simp [mkApps, inst] at h1

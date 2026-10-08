@@ -198,7 +198,7 @@ theorem defeq_major {env : VEnv} (H : env.WF) (hdf : env.defeqs df)
       hleX, _, _, hfamX⟩ := hevX
     have hgX' : (compilationRestoration srcX auxX).equation (dX.nativeInstance.equation iX) =
         some df := by
-      simpa only [NativeRecursorData.equation, hrX] using hgX
+      simpa only [RecursorData.equation, hrX] using hgX
     have htypesE : ∀ t ∈ srcX.types, env.constants t.name = some t.toVConstant := fun t ht =>
       hleX.constants (install_type_lookup hinstX (by
         rw [hdataX.types]; exact List.mem_map.mpr ⟨t, ht, rfl⟩))

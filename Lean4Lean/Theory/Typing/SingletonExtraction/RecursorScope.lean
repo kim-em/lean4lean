@@ -28,12 +28,12 @@ theorem VExpr.ClosedN.wrapForalls_inv_singleton : ∀ {doms : List VExpr} {body 
 theorem VExpr.ClosedN.instL_iff {e : VExpr} {ls : List VLevel} {n : Nat} :
     (e.instL ls).ClosedN n ↔ e.ClosedN n := ⟨ClosedN.instL_rev, ClosedN.instL⟩
 
-namespace InductiveSignature.NativeRecursorData
-variable {env : VEnv} {data : NativeRecursorData}
+namespace InductiveSignature.RecursorData
+variable {env : VEnv} {data : RecursorData}
 
-theorem propElim_closed (henv : env.WF) (H : NativeRecursorRegistered env data)
+theorem propElim_closed (henv : env.WF) (H : RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
-    {ls : List VLevel} {S : CastSpec} {E : PropElim}
+    {ls : List VLevel} {S : SingletonLayout} {E : PropElim}
     (hS : data.castSpec env ls = some S) (hE : data.propElim ls = some E) :
     PropElim.Closed S (data.propParams ls) E := by
   have F := singletonFacts H hlarge hzero
@@ -101,42 +101,42 @@ theorem propElim_closed (henv : env.WF) (H : NativeRecursorRegistered env data)
     List.getElem_singleton] at hMin
   obtain ⟨hD, hbody⟩ := VExpr.ClosedN.wrapForalls_inv_singleton hMin
   -- closedness of the specialized telescopes
-  have hI : ∀ k (h : k < (gp.sIndices data.owner).length),
-      ((gp.sIndices data.owner)[k]).ClosedN (gp.params.length + k) := by
+  have hI : ∀ k (h : k < (gp.indicesAt data.owner).length),
+      ((gp.indicesAt data.owner)[k]).ClosedN (gp.params.length + k) := by
     intro k hk
     have := hIM k (by simp; omega)
     rwa [List.getElem_append_left hk] at this
-  have hF : ∀ j (h : j < (gp.sFields c).length),
-      ((gp.sFields c)[j]).ClosedN (gp.params.length + j) := by
+  have hF : ∀ j (h : j < (gp.fieldsAt c).length),
+      ((gp.fieldsAt c)[j]).ClosedN (gp.params.length + j) := by
     intro j hj
     have := hD j (by simp; omega)
     rw [List.getElem_append_left (by simp; omega), VEnv.getElem_insertBinders (by simp; omega)] at this
     exact VExpr.ClosedN.of_liftN (k := gp.params.length + j)
       (by simpa [Nat.add_right_comm, Nat.add_assoc] using this) (by omega)
-  have hCI : ∀ e ∈ gp.sCtorIndices c, e.ClosedN (gp.params.length + (gp.sFields c).length) := by
+  have hCI : ∀ e ∈ gp.ctorIndicesAt c, e.ClosedN (gp.params.length + (gp.fieldsAt c).length) := by
     intro e he
     have := (VExpr.ClosedN.mkApps_inv hbody).2 _
       (List.mem_append_left _ (List.mem_map_of_mem he))
     simp only [List.length_append, InductiveSignature.Instance.length_insertBinders] at this
     have h1 := VExpr.ClosedN.of_liftN
-      (k := gp.params.length + (gp.sFields c).length + (gp.sHyps c).length)
-      (j := (gp.sFields c).length + (gp.sHyps c).length) (by
+      (k := gp.params.length + (gp.fieldsAt c).length + (gp.hypotheses c).length)
+      (j := (gp.fieldsAt c).length + (gp.hypotheses c).length) (by
         simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using this) (by omega)
-    exact VExpr.ClosedN.of_liftN (j := 0) (n := (gp.sHyps c).length)
-      (k := gp.params.length + (gp.sFields c).length) h1 (Nat.zero_le _)
+    exact VExpr.ClosedN.of_liftN (j := 0) (n := (gp.hypotheses c).length)
+      (k := gp.params.length + (gp.fieldsAt c).length) h1 (Nat.zero_le _)
   -- transfer between the occurrence universes and the `Prop` instance
-  have hsF : gp.sFields c = (data.nativeInstance.sFields c).map (·.instL (ls.set k .zero)) :=
+  have hsF : gp.fieldsAt c = (data.nativeInstance.fieldsAt c).map (·.instL (ls.set k .zero)) :=
     Instance.sFields_specialize _ _ _ _
-  have hsI : gp.sIndices data.owner =
-      (data.nativeInstance.sIndices data.owner).map (·.instL (ls.set k .zero)) :=
+  have hsI : gp.indicesAt data.owner =
+      (data.nativeInstance.indicesAt data.owner).map (·.instL (ls.set k .zero)) :=
     Instance.sIndices_specialize _ _ _ _
   have hsP : gp.params = data.nativeInstance.params.map (·.instL (ls.set k .zero)) :=
     Instance.params_specialize' _ _ _
-  have hlF : (gp.sFields c).length = (data.nativeInstance.sFields c).length := by simp [hsF]
-  have hlI : (gp.sIndices data.owner).length = (data.nativeInstance.sIndices data.owner).length := by
+  have hlF : (gp.fieldsAt c).length = (data.nativeInstance.fieldsAt c).length := by simp [hsF]
+  have hlI : (gp.indicesAt data.owner).length = (data.nativeInstance.indicesAt data.owner).length := by
     simp [hsI]
-  have hlCI : (gp.sCtorIndices c).length = (gp.sIndices data.owner).length := by
-    simp [Instance.sCtorIndices, Instance.sIndices, harity]
+  have hlCI : (gp.ctorIndicesAt c).length = (gp.indicesAt data.owner).length := by
+    simp [Instance.ctorIndicesAt, Instance.indicesAt, harity]
   have hlP : (data.propParams ls).length = gp.params.length := by simp [propParams, hsP]
   refine {
     scope := ⟨fun j hj => ?_, fun j hj => ?_, fun j k' h => ?_⟩
@@ -146,40 +146,40 @@ theorem propElim_closed (henv : env.WF) (H : NativeRecursorRegistered env data)
     ctorIndices := fun e he => ?_
     ctorIndices_length := ?_
     minorOf := fun M b hM hb => ?_ }
-  · simp only [CastSpec.instL, Instance.singletonCast, List.getElem_map, ClosedN.instL_iff] at hj ⊢
+  · simp only [SingletonLayout.instL, Instance.singletonCast, List.getElem_map, ClosedN.instL_iff] at hj ⊢
     have := hF j (by rw [hlF]; simpa using hj)
     simp only [hsF, List.getElem_map, ClosedN.instL_iff] at this
     simpa [hlP] using this
-  · simp only [CastSpec.instL, Instance.singletonCast, List.getElem_map, ClosedN.instL_iff] at hj ⊢
+  · simp only [SingletonLayout.instL, Instance.singletonCast, List.getElem_map, ClosedN.instL_iff] at hj ⊢
     have := hI j (by rw [hlI]; simpa using hj)
     simp only [hsI, List.getElem_map, ClosedN.instL_iff] at this
     simpa [hlP] using this
-  · simp only [CastSpec.instL, Instance.singletonCast] at h ⊢
-    by_cases hjl : j < (data.nativeInstance.sFields c).length
+  · simp only [SingletonLayout.instL, Instance.singletonCast] at h ⊢
+    by_cases hjl : j < (data.nativeInstance.fieldsAt c).length
     · rw [getD_of_lt (by simpa using hjl)] at h
       simp only [List.getElem_map, List.getElem_range] at h
       obtain ⟨hk1, _⟩ := fieldSlot_spec h
       simp only [List.length_map]
-      have : (data.nativeInstance.sCtorIndices c).length =
-          (data.nativeInstance.sIndices data.owner).length := by
-        simp [Instance.sCtorIndices, Instance.sIndices, harity]
+      have : (data.nativeInstance.ctorIndicesAt c).length =
+          (data.nativeInstance.indicesAt data.owner).length := by
+        simp [Instance.ctorIndicesAt, Instance.indicesAt, harity]
       omega
     · simp [List.getD_eq_getElem?_getD, List.getElem?_range, hjl] at h
   · simp only [propParams, List.getElem_map, ClosedN.instL_iff]
     have := hP j (by rw [← hlP]; exact hj)
     simp only [hsP, List.getElem_map, ClosedN.instL_iff] at this
     exact this
-  · change e ∈ gp.sCtorIndices c at he
+  · change e ∈ gp.ctorIndicesAt c at he
     have := hCI e he
-    simpa [hlP, CastSpec.instL, Instance.singletonCast, hlF] using this
-  · show (gp.sCtorIndices c).length = _
-    simpa [CastSpec.instL, Instance.singletonCast] using hlCI.trans hlI
+    simpa [hlP, SingletonLayout.instL, Instance.singletonCast, hlF] using this
+  · show (gp.ctorIndicesAt c).length = _
+    simpa [SingletonLayout.instL, Instance.singletonCast] using hlCI.trans hlI
   · simp only [Instance.singletonElim]
-    change (VExpr.wrapLams (VExpr.instDomains (insertBinders (gp.sFields c) 1 ++ gp.sHyps c) M 0)
-      (b.liftN (gp.sHyps c).length)).ClosedN _
+    change (VExpr.wrapLams (VExpr.instDomains (insertBinders (gp.fieldsAt c) 1 ++ gp.hypotheses c) M 0)
+      (b.liftN (gp.hypotheses c).length)).ClosedN _
     have hbF : ((data.nativeInstance.singletonCast data.owner c (genericSorts env data c)).instL
-        ls).fields.length = (gp.sFields c).length := by
-      simp [CastSpec.instL, Instance.singletonCast, hlF]
+        ls).fields.length = (gp.fieldsAt c).length := by
+      simp [SingletonLayout.instL, Instance.singletonCast, hlF]
     rw [hbF, hlP] at hb
     rw [hlP] at hM ⊢
     apply ClosedN.wrapLams_closed
@@ -192,8 +192,8 @@ theorem propElim_closed (henv : env.WF) (H : NativeRecursorRegistered env data)
       simpa using h2
     · simp only [VExpr.instDomains_length, List.length_append,
         InductiveSignature.Instance.length_insertBinders]
-      have := hb.liftN (n := (gp.sHyps c).length) (j := 0)
+      have := hb.liftN (n := (gp.hypotheses c).length) (j := 0)
       simpa [Nat.add_assoc] using this
 
-end InductiveSignature.NativeRecursorData
+end InductiveSignature.RecursorData
 end Lean4Lean

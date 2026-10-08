@@ -5,23 +5,23 @@ import Lean4Lean.Theory.Typing.RecursorRuleRegistration
 /-! Native metadata is installed from the same finite instance and abstract
 schema as the actual recursor block. Registry lookup adds no semantic data. -/
 
-namespace Lean4Lean.InductiveSignature.NativeRecursorData
+namespace Lean4Lean.InductiveSignature.RecursorData
 
 /-- One occurrence descriptor for each family of the shared native instance. -/
 def compilationEntries (key : Name) (source : VInductDecl) (s : InductiveSignature)
-    (auxiliaries : List ContainerSpecialization) (g : Instance s) : List NativeRecursorData :=
+    (auxiliaries : List ContainerSpecialization) (g : Instance s) : List RecursorData :=
   (List.finRange s.families.size).map fun owner =>
     ofInstance key (CaseSchema.ofCompilation source s auxiliaries) g owner
 
 /-- Extend the metadata table with the entries of one installed block. -/
-def installEntries (old : Name → Option NativeRecursorData) (entries : List NativeRecursorData)
-    (name : Name) : Option NativeRecursorData :=
+def installEntries (old : Name → Option RecursorData) (entries : List RecursorData)
+    (name : Name) : Option RecursorData :=
   (entries.find? (fun data => data.name == name)).orElse (fun _ => old name)
 
-end Lean4Lean.InductiveSignature.NativeRecursorData
+end Lean4Lean.InductiveSignature.RecursorData
 
 namespace Lean4Lean.VEnv
-open InductiveSignature NativeRecursorData
+open InductiveSignature RecursorData
 variable {block : VInductBlock} {name : Name}
 
 /-- The metadata table has exactly the names of the restored installed
@@ -77,8 +77,8 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.nativeEntries_fresh
 
 /-- Restoration succeeds for every selected native family because the
 entire restored recursor list was actually installed. -/
-theorem NativeRecursorRegistered.recursorType_exists
-    (H : NativeRecursorRegistered env data) : ∃ type, data.recursorType = some type := by
+theorem RecursorRegistered.recursorType_exists
+    (H : RecursorRegistered env data) : ∃ type, data.recursorType = some type := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, _, _, hr, _, hu, hl, ht, hi, he⟩ := H
   have hinstance : data.nativeInstance = g := by
@@ -92,10 +92,10 @@ theorem NativeRecursorRegistered.recursorType_exists
     (List.mapM_eq_some.mp hdata.recursors) _ hgenerated
   simp only [Restoration.recursor, Instance.recursor, bind, Option.bind_eq_some_iff] at hrestore
   obtain ⟨type, htype, _⟩ := hrestore
-  exact ⟨type, by simpa only [NativeRecursorData.recursorType, hinstance, hr] using htype⟩
+  exact ⟨type, by simpa only [RecursorData.recursorType, hinstance, hr] using htype⟩
 
-theorem NativeRecursorRegistered.constant_exists
-    (H : NativeRecursorRegistered env data) :
+theorem RecursorRegistered.constant_exists
+    (H : RecursorRegistered env data) :
     ∃ value, env.constants data.name = some value := by
   obtain ⟨type, htype⟩ := H.recursorType_exists
   exact ⟨_, H.recursorType htype⟩
@@ -108,7 +108,7 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.nativeEntries_nodup
   simp only [List.map_append, List.nodup_append] at hh
   exact hh.2.1
 
-private theorem nativeEntries_find (entries : List NativeRecursorData)
+private theorem nativeEntries_find (entries : List RecursorData)
     (hnodup : (entries.map (·.name)).Nodup) (hmem : data ∈ entries) :
     entries.find? (fun value => value.name == data.name) = some data := by
   induction entries with
@@ -130,9 +130,9 @@ actual restored name. -/
 theorem _root_.Lean4Lean.InductiveSignature.CompilationData.nativeEntries_lookup
     (hdata : CompilationData base source expanded s g auxiliaries block)
     (hmem : data ∈ compilationEntries key source s auxiliaries g) :
-    NativeRecursorData.installEntries old (compilationEntries key source s auxiliaries g)
+    RecursorData.installEntries old (compilationEntries key source s auxiliaries g)
       data.name = some data := by
-  unfold NativeRecursorData.installEntries
+  unfold RecursorData.installEntries
   rw [nativeEntries_find _ hdata.nativeEntries_nodup hmem]
   rfl
 
@@ -143,7 +143,7 @@ actual inductive installation. Abstract eliminator metadata is not needed.
 The original compilation base is preserved across `CompiledInductive.replay`.
 -/
 namespace Lean4Lean
-open InductiveSignature InductiveSignature.NativeRecursorData VEnv
+open InductiveSignature InductiveSignature.RecursorData VEnv
 set_option Elab.async false
 set_option maxRecDepth 2048
 variable {base installBase extended env : VEnv} {source expanded : VInductDecl}

@@ -44,7 +44,7 @@ inductive HistTables : VEnv → Tables → Prop
     block.eliminators = [] → block.install env = some env' →
     cbase ≤ env → CompilationData cbase decl expanded s g aux block →
     CertifiedSpecializations cbase aux →
-    HistTables env' (T.addNative decl (NativeRecursorData.compilationEntries default decl s aux g))
+    HistTables env' (T.addNative decl (RecursorData.compilationEntries default decl s aux g))
   /-- A native installation that also installs the certified case eliminator of its
   declaration: the native views, then the views of the remaining families of the schema. -/
   | inductCases {env env' cbase : VEnv} {T : Tables} {decl expanded : VInductDecl}
@@ -56,7 +56,7 @@ inductive HistTables : VEnv → Tables → Prop
     cbase ≤ env → CompilationData cbase decl expanded s g aux block →
     CertifiedSpecializations cbase aux →
     HistTables env'
-      ((T.addNative decl (NativeRecursorData.compilationEntries default decl s aux g)).addSchema
+      ((T.addNative decl (RecursorData.compilationEntries default decl s aux g)).addSchema
         env' decl)
   | elim {base env : VEnv} {T : Tables} {source : VInductDecl} {block : VInductBlock}
       {schema : CaseSchema} {key : Name} :
@@ -102,9 +102,9 @@ theorem Tables.Inv.inductCases {decl : VInductDecl} {block : VInductBlock} {key 
     {aux : List ContainerSpecialization} (hcle : cbase ≤ env)
     (hdata : CompilationData cbase decl expanded s g aux block)
     (hprior : CertifiedSpecializations cbase aux) :
-    T.Extends ((T.addNative decl (NativeRecursorData.compilationEntries default decl s aux g)).addSchema
+    T.Extends ((T.addNative decl (RecursorData.compilationEntries default decl s aux g)).addSchema
         env' decl) ∧
-      ((T.addNative decl (NativeRecursorData.compilationEntries default decl s aux g)).addSchema
+      ((T.addNative decl (RecursorData.compilationEntries default decl s aux g)).addSchema
         env' decl).Inv env' := by
   classical
   obtain ⟨hext, hinv⟩ := H.install' henv hcomp hblock hinstall hcle hdata hprior

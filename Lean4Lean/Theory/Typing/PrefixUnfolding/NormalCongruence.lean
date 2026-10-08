@@ -5,16 +5,16 @@ import Lean4Lean.Theory.Typing.RecursorRuleRegistration
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Arity
 
 namespace Lean4Lean.VEnv
-open VExpr Params InductiveSignature InductiveSignature.NativeRecursorData
+open VExpr Params InductiveSignature InductiveSignature.RecursorData
 variable [Params]
 
 omit [Params] in
 theorem nativeEtaBody_spine (n : Nat) (fn : VExpr) :
-    nativeEtaBody n fn = mkApps (fn.liftN n) (vars n 0) := by
+    etaOpen n fn = mkApps (fn.liftN n) (vars n 0) := by
   induction n generalizing fn with
-  | zero => simp [nativeEtaBody, vars, mkApps, liftN_zero]
+  | zero => simp [etaOpen, vars, mkApps, liftN_zero]
   | succ n ih =>
-    rw [nativeEtaBody, ih]
+    rw [etaOpen, ih]
     have hv : vars (n+1) 0 = .bvar n :: vars n 0 := by
       simp only [vars, List.range_succ, List.reverse_append, List.reverse_singleton,
         List.singleton_append, List.map_cons, Nat.zero_add]
@@ -23,16 +23,16 @@ theorem nativeEtaBody_spine (n : Nat) (fn : VExpr) :
     rfl
 
 omit [Params] in
-theorem NativeSpineMatch.symm {env : VEnv} (H : NativeSpineMatch env U Γ actual expected) :
-    NativeSpineMatch env U Γ expected actual := by
+theorem ConstSpineDefEq.symm {env : VEnv} (H : ConstSpineDefEq env U Γ actual expected) :
+    ConstSpineDefEq env U Γ expected actual := by
   obtain ⟨n, ls, ls', a, a', ha, ha', hw, hw', he, hs⟩ := H
   exact ⟨n, ls', ls, a', a, ha', ha, hw', hw,
     Lean4Lean.List.Forall₂.imp (fun _ _ h => h.symm) (Lean4Lean.List.Forall₂.flip he),
     Lean4Lean.List.Forall₂.imp (fun _ _ h => IsDefEqU.symm h) (Lean4Lean.List.Forall₂.flip hs)⟩
 
-theorem NativeSpineMatch.trans (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NativeSpineMatch env univs Γ a b)
-    (H' : NativeSpineMatch env univs Γ b c) : NativeSpineMatch env univs Γ a c := by
+theorem ConstSpineDefEq.trans (hΓ : OnCtx Γ (env.IsType univs))
+    (H : ConstSpineDefEq env univs Γ a b)
+    (H' : ConstSpineDefEq env univs Γ b c) : ConstSpineDefEq env univs Γ a c := by
   obtain ⟨n, ls, ls', as, bs, ha, hb, hw, hw', he, hs⟩ := H
   obtain ⟨n', ls₁, ls₂, bs', cs, hb', hc, hw₁, hw₂, he', hs'⟩ := H'
   have hh := congrArg VExpr.getAppFnArgs (hb.symm.trans hb')
@@ -45,11 +45,11 @@ theorem NativeSpineMatch.trans (hΓ : OnCtx Γ (env.IsType univs))
     Lean4Lean.List.Forall₂.trans (T := env.IsDefEqU univs Γ)
       (fun _ _ _ h h' => h.trans henv hΓ h') hs hs'⟩
 
-theorem NativeSpineMatch.instOuter_normal {name : Name} {levels : List VLevel} (hΓ : OnCtx Γ (env.IsType univs))
+theorem ConstSpineDefEq.instOuter_normal {name : Name} {levels : List VLevel} (hΓ : OnCtx Γ (env.IsType univs))
     (hhead : e = mkApps (.const name levels) templates)
     (hc : List.Forall₂ (NormalEqF η Γ) captures captures')
     (ht : HasType env univs Γ (e.instOuter captures) type) :
-    NativeSpineMatch env univs Γ (e.instOuter captures) (e.instOuter captures') := by
+    ConstSpineDefEq env univs Γ (e.instOuter captures) (e.instOuter captures') := by
   subst e
   simp only [instOuter_mkApps, instOuter_const] at ht ⊢
   obtain ⟨_, hconst⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, ht⟩
@@ -74,9 +74,9 @@ private theorem native_eta_match {domains : List VExpr} (hpos : 0 < domains.leng
     (hargs : List.Forall₂ (NormalEqF η Γ) args args')
     (hctor : NormalEqF η (domains.reverse ++ Γ) ctor ctor')
     (hctx : OnCtx (domains.reverse ++ Γ) (env.IsType univs)) :
-    NativeSpineMatch env univs (domains.reverse ++ Γ)
-      (.app (nativeEtaBody (domains.length - 1) (mkApps (.const name levels) args)).lift ctor)
-      (.app (nativeEtaBody (domains.length - 1) (mkApps (.const name levels) args')).lift ctor') := by
+    ConstSpineDefEq env univs (domains.reverse ++ Γ)
+      (.app (etaOpen (domains.length - 1) (mkApps (.const name levels) args)).lift ctor)
+      (.app (etaOpen (domains.length - 1) (mkApps (.const name levels) args')).lift ctor') := by
   rw [nativeEtaBody_spine, nativeEtaBody_spine]
   simp only [lift, liftN_mkApps, liftN, List.map_append]
   refine ⟨name, levels, levels,
@@ -108,9 +108,9 @@ private theorem native_eta_match {domains : List VExpr} (hpos : 0 < domains.leng
 /-- Replay a fixed installed native equation after normal changes to its
 supplied arguments. The concrete constant head is preserved, and every
 capture and reconstructed constructor remains tied to the generated program. -/
-theorem NativePrefixReplay.congr_normal {name : Name} {levels : List VLevel}
-    {p p' : PrefixProgram} (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NativePrefixReplay env univs Γ (mkApps (.const name levels) args) p)
+theorem UnfoldingCheck.congr_normal {name : Name} {levels : List VLevel}
+    {p p' : PrefixUnfolding} (hΓ : OnCtx Γ (env.IsType univs))
+    (H : UnfoldingCheck env univs Γ (mkApps (.const name levels) args) p)
     (hlen : p.domains.length = p'.domains.length)
     (heq : p.equation = p'.equation) (hbody : p.equationBody = p'.equationBody)
     (hlevels : p.levels = p'.levels)
@@ -119,7 +119,7 @@ theorem NativePrefixReplay.congr_normal {name : Name} {levels : List VLevel}
     (hctor : NormalEqF η (p.domains.reverse ++ Γ) p.constructor p'.constructor)
     (hsource : HasType env univs Γ (mkApps (.const name levels) args') p'.type)
     (hhead : ∃ n ls as, p.equationBody.lhs = mkApps (.const n ls) as) :
-    NativePrefixReplay env univs Γ (mkApps (.const name levels) args') p' ∧
+    UnfoldingCheck env univs Γ (mkApps (.const name levels) args') p' ∧
       NormalEqF η Γ p.rhs p'.rhs := by
   obtain ⟨_, hh⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, H.source_typed⟩
   have hs := NormalEqF.mkApps_spine hΓ (.refl hh) ha H.source_typed
@@ -169,28 +169,28 @@ theorem NativePrefixReplay.congr_normal {name : Name} {levels : List VLevel}
     · obtain ⟨P, hp, hm, hc⟩ := H.major_prop
       exact ⟨P, hp.defeqDFC henv W, hm.defeqDFC henv W,
         (((hctor.defeq hctx).of_l henv hctx hc).hasType.2).defeqDFC henv W⟩
-    · apply NativeSpineMatch.defeqDFC henv W
+    · apply ConstSpineDefEq.defeqDFC henv W
       rw [← hlen, ← hbody, ← hlevels]
       obtain ⟨_, _, hw, _⟩ := HasType.const_inv henv.ordered hΓ hh
       have hleft := native_eta_match (name := name) hpos hΓ hw ha hctor hctx
       obtain ⟨n, ls, as, hhead⟩ := hhead
-      have hright := NativeSpineMatch.instOuter_normal hctx
+      have hright := ConstSpineDefEq.instOuter_normal hctx
         (by rw [hhead, instL_mkApps]; rfl) hcaptures hiota.hasType.1
       exact (hleft.symm.trans hctx H.native_lhs).trans hctx hright
   · have hn := NormalEqF.instantiateParams_args
       (e := p.equationBody.rhs.instL p.levels) hctx hcaptures
       (by simpa only [instantiateParams_eq_instOuter] using hiota.hasType.2)
-    unfold PrefixProgram.rhs
+    unfold PrefixUnfolding.rhs
     rw [← hbody, ← hlevels]
     exact NormalEqF.wrapLams_congr hΓ hlen htypes hn
 
 /-- The actual installed native program transports along normal equality of
 its supplied arguments; no new capture or index-alignment certificate is needed. -/
-theorem NativeDeltaRule.congr_normal {name : Name} {levels : List VLevel}
+theorem PrefixUnfold.congr_normal {name : Name} {levels : List VLevel}
     (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NativeDeltaRule env univs registry Γ name levels args rhs)
+    (H : PrefixUnfold env univs registry Γ name levels args rhs)
     (ha : List.Forall₂ (NormalEqF η Γ) args args') :
-    ∃ rhs', NativeDeltaRule env univs registry Γ name levels args' rhs' ∧ NormalEqF η Γ rhs rhs' := by
+    ∃ rhs', PrefixUnfold env univs registry Γ name levels args' rhs' ∧ NormalEqF η Γ rhs rhs' := by
   cases H with
   | @intro data program hlookup hregistered hname hlarge hw hz hg replay =>
     obtain ⟨program', hg'⟩ := singletonProgram_sameArity hg (Lean4Lean.List.Forall₂.length_eq ha).symm
@@ -210,7 +210,7 @@ theorem NativeDeltaRule.congr_normal {name : Name} {levels : List VLevel}
       (by simpa only [hname] using
         (show VExpr.WF env univs Γ _ from
           ⟨_, ((hs.defeq hΓ).of_l henv hΓ replay.source_typed).hasType.2⟩))
-    have replayData : NativePrefixReplay env univs Γ (mkApps (.const data.name levels) args) program := by
+    have replayData : UnfoldingCheck env univs Γ (mkApps (.const data.name levels) args) program := by
       simpa only [hname] using replay
     obtain ⟨hcaptures, hctor⟩ := replayData.singleton_rel_components (R := NormalEqF η)
       (fun _ h => .refl h) (fun W h => h.weakN W)
@@ -223,20 +223,20 @@ theorem NativeDeltaRule.congr_normal {name : Name} {levels : List VLevel}
 
 end Lean4Lean.VEnv
 
-namespace Lean4Lean.QuotPrefixProgram
-open VExpr InductiveSignature InductiveSignature.NativeRecursorData
+namespace Lean4Lean.QuotPrefixUnfolding
+open VExpr InductiveSignature InductiveSignature.RecursorData
 variable {levels : List VLevel}
 
-def prefixArguments (args : List VExpr) : List VExpr :=
+def openedArguments (args : List VExpr) : List VExpr :=
   args.map (·.liftN (6 - args.length)) ++ vars (6 - args.length) 0
 
 def prefixProof (levels : List VLevel) (args : List VExpr) : VExpr :=
-  let all := prefixArguments args
-  mkApps (witness (levels[0]?.getD .zero))
+  let all := openedArguments args
+  mkApps (propInhabitant (levels[0]?.getD .zero))
     [all[0]?.getD default, all[1]?.getD default, all[5]?.getD default]
 
-theorem prefixArguments_length (h : args.length ≤ 6) : (prefixArguments args).length = 6 := by
-  simp [prefixArguments, vars]
+theorem prefixArguments_length (h : args.length ≤ 6) : (openedArguments args).length = 6 := by
+  simp [openedArguments, vars]
   omega
 
 theorem equationBody_head
@@ -250,9 +250,9 @@ theorem equationBody_head
 theorem generate_layout (H : generate levels args = some program) :
     program.domains.length = 6 - args.length ∧
     program.constructor = mkApps (.const ``Quot.mk [levels[0]?.getD .zero])
-      [(prefixArguments args)[0]?.getD default, (prefixArguments args)[1]?.getD default,
+      [(openedArguments args)[0]?.getD default, (openedArguments args)[1]?.getD default,
         prefixProof levels args] ∧
-    program.captures = (prefixArguments args).take 5 ++ [prefixProof levels args] := by
+    program.captures = (openedArguments args).take 5 ++ [prefixProof levels args] := by
   unfold generate at H
   split at H <;> try contradiction
   simp only [bind, Option.bind_eq_some_iff] at H
@@ -277,7 +277,7 @@ theorem generate_sameArity (H : generate levels args = some program)
     supplyType_wrapForalls_exists (body := body.instL levels) hbound
   have hremaining' : remaining.length = 6 - args'.length := by
     simpa only [List.length_map, hcount] using hremaining
-  have htake := NativeRecursorData.takeForalls_wrapForalls remaining result
+  have htake := RecursorData.takeForalls_wrapForalls remaining result
   rw [hremaining'] at htake
   unfold generate
   rw [if_neg (by simp [hlevels, hlen, hargs])]
@@ -285,21 +285,21 @@ theorem generate_sameArity (H : generate levels args = some program)
   simp only [bind, hsupply, Option.bind_some, hresidual, htake]
   exact ⟨_, rfl⟩
 
-end Lean4Lean.QuotPrefixProgram
+end Lean4Lean.QuotPrefixUnfolding
 
 namespace Lean4Lean.VEnv
-open VExpr Params InductiveSignature InductiveSignature.NativeRecursorData
+open VExpr Params InductiveSignature InductiveSignature.RecursorData
 
 /-- The fixed quotient telescope determines the type of every successful
 generated prefix whose actual source occurrence is well formed. -/
 theorem QuotRegistered.prefixType {env : VEnv} {levels : List VLevel}
     (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     (H : QuotRegistered env) (hw : ∀ level ∈ levels, level.WF U)
-    (hg : QuotPrefixProgram.generate levels args = some program)
+    (hg : QuotPrefixUnfolding.generate levels args = some program)
     (ht : VExpr.WF env U Γ (mkApps (.const ``Quot.lift levels) args)) :
     env.HasType U Γ (mkApps (.const ``Quot.lift levels) args) program.type := by
-  have hlen := (QuotPrefixProgram.generate_spec hg).1
-  unfold QuotPrefixProgram.generate at hg
+  have hlen := (QuotPrefixUnfolding.generate_spec hg).1
+  unfold QuotPrefixUnfolding.generate at hg
   split at hg <;> try contradiction
   simp only [bind, Option.bind_eq_some_iff] at hg
   obtain ⟨residual, hsupply, ⟨domains, result⟩, htake, body, _, hg⟩ := hg
@@ -314,24 +314,24 @@ variable [Params]
 
 /-- The concrete quotient selector and every installed-equation capture
 respect normal equality of supplied arguments, in the original open telescope. -/
-theorem NativePrefixReplay.quot_normal_components {levels : List VLevel}
+theorem UnfoldingCheck.quot_normal_components {levels : List VLevel}
     (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NativePrefixReplay env univs Γ (mkApps (.const ``Quot.lift levels) args) program)
-    (hg : QuotPrefixProgram.generate levels args = some program)
-    (hg' : QuotPrefixProgram.generate levels args' = some program')
+    (H : UnfoldingCheck env univs Γ (mkApps (.const ``Quot.lift levels) args) program)
+    (hg : QuotPrefixUnfolding.generate levels args = some program)
+    (hg' : QuotPrefixUnfolding.generate levels args' = some program')
     (ha : List.Forall₂ (NormalEqF η Γ) args args') :
     List.Forall₂ (NormalEqF η (program.domains.reverse ++ Γ)) program.captures program'.captures ∧
       NormalEqF η (program.domains.reverse ++ Γ) program.constructor program'.constructor := by
-  obtain ⟨hlen, hctor, hcaptures⟩ := QuotPrefixProgram.generate_layout hg
-  obtain ⟨hlen', hctor', hcaptures'⟩ := QuotPrefixProgram.generate_layout hg'
-  have hargs := (QuotPrefixProgram.generate_spec hg).2.1
+  obtain ⟨hlen, hctor, hcaptures⟩ := QuotPrefixUnfolding.generate_layout hg
+  obtain ⟨hlen', hctor', hcaptures'⟩ := QuotPrefixUnfolding.generate_layout hg'
+  have hargs := (QuotPrefixUnfolding.generate_spec hg).2.1
   have halen := Lean4Lean.List.Forall₂.length_eq ha
   have hctx := (IsType.wrapForalls_inv henv hΓ (H.source_typed.isType henv hΓ)).1
   have W : Ctx.LiftN (6 - args.length) 0 Γ (program.domains.reverse ++ Γ) :=
     .zero _ (by simpa only [List.length_reverse] using hlen)
   have hall : List.Forall₂ (NormalEqF η (program.domains.reverse ++ Γ))
-      (QuotPrefixProgram.prefixArguments args) (QuotPrefixProgram.prefixArguments args') := by
-    unfold QuotPrefixProgram.prefixArguments
+      (QuotPrefixUnfolding.openedArguments args) (QuotPrefixUnfolding.openedArguments args') := by
+    unfold QuotPrefixUnfolding.openedArguments
     rw [← halen]
     apply List.Forall₂.append'
     · apply List.forall₂_map_left_iff.mpr
@@ -344,25 +344,25 @@ theorem NativePrefixReplay.quot_normal_components {levels : List VLevel}
       exact .refl (.bvar (Lookup.ofLt (by simp only [List.length_append, List.length_reverse]; omega)).2)
   have hnorm (i : Nat) (hi : i < 6) :
       NormalEqF η (program.domains.reverse ++ Γ)
-        ((QuotPrefixProgram.prefixArguments args)[i]?.getD default)
-        ((QuotPrefixProgram.prefixArguments args')[i]?.getD default) := by
-    have hil : i < (QuotPrefixProgram.prefixArguments args).length := by
-      rw [QuotPrefixProgram.prefixArguments_length (by omega)]
+        ((QuotPrefixUnfolding.openedArguments args)[i]?.getD default)
+        ((QuotPrefixUnfolding.openedArguments args')[i]?.getD default) := by
+    have hil : i < (QuotPrefixUnfolding.openedArguments args).length := by
+      rw [QuotPrefixUnfolding.prefixArguments_length (by omega)]
       exact hi
-    have hir : i < (QuotPrefixProgram.prefixArguments args').length := by
+    have hir : i < (QuotPrefixUnfolding.openedArguments args').length := by
       rw [← Lean4Lean.List.Forall₂.length_eq hall]
       exact hil
     simpa only [List.getElem?_eq_getElem hil, List.getElem?_eq_getElem hir, Option.getD_some] using
       List.forall₂_getElem hall i hil hir
   have hp : NormalEqF η (program.domains.reverse ++ Γ)
-      (QuotPrefixProgram.prefixProof levels args) (QuotPrefixProgram.prefixProof levels args') := by
-    have hm : QuotPrefixProgram.prefixProof levels args ∈ program.captures := by
+      (QuotPrefixUnfolding.prefixProof levels args) (QuotPrefixUnfolding.prefixProof levels args') := by
+    have hm : QuotPrefixUnfolding.prefixProof levels args ∈ program.captures := by
       rw [hcaptures]
       simp
     obtain ⟨i, hi, he⟩ := List.getElem_of_mem hm
     have ht := H.captures_typed i hi (by rw [← H.captures_length]; exact hi)
     rw [he] at ht
-    unfold QuotPrefixProgram.prefixProof at ht ⊢
+    unfold QuotPrefixUnfolding.prefixProof at ht ⊢
     obtain ⟨_, hfn⟩ := VExpr.WF.of_mkApps henv.ordered hctx
       (show VExpr.WF env univs _ _ from ⟨_, ht⟩)
     exact NormalEqF.mkApps_spine hctx (.refl hfn)
@@ -380,20 +380,20 @@ theorem NativePrefixReplay.quot_normal_components {levels : List VLevel}
 
 /-- Normal changes to the actual supplied quotient arguments preserve the
 generated delta rule and relate its two resulting lambda telescopes. -/
-theorem QuotDeltaRule.congr_normal {levels : List VLevel}
+theorem QuotPrefixUnfold.congr_normal {levels : List VLevel}
     (hΓ : OnCtx Γ (env.IsType univs))
-    (H : QuotDeltaRule env univs Γ levels args rhs)
+    (H : QuotPrefixUnfold env univs Γ levels args rhs)
     (ha : List.Forall₂ (NormalEqF η Γ) args args') :
-    ∃ rhs', QuotDeltaRule env univs Γ levels args' rhs' ∧ NormalEqF η Γ rhs rhs' := by
+    ∃ rhs', QuotPrefixUnfold env univs Γ levels args' rhs' ∧ NormalEqF η Γ rhs rhs' := by
   cases H with
   | @intro program hr hw hz hg replay =>
     have halen := Lean4Lean.List.Forall₂.length_eq ha
-    obtain ⟨program', hg'⟩ := QuotPrefixProgram.generate_sameArity hg halen.symm
-    obtain ⟨_, _, _, hl, he, hb, _⟩ := QuotPrefixProgram.generate_spec hg
-    obtain ⟨_, _, _, hl', he', hb', _⟩ := QuotPrefixProgram.generate_spec hg'
+    obtain ⟨program', hg'⟩ := QuotPrefixUnfolding.generate_sameArity hg halen.symm
+    obtain ⟨_, _, _, hl, he, hb, _⟩ := QuotPrefixUnfolding.generate_spec hg
+    obtain ⟨_, _, _, hl', he', hb', _⟩ := QuotPrefixUnfolding.generate_spec hg'
     have hlen : program.domains.length = program'.domains.length := by
-      rw [(QuotPrefixProgram.generate_layout hg).1,
-        (QuotPrefixProgram.generate_layout hg').1, halen]
+      rw [(QuotPrefixUnfolding.generate_layout hg).1,
+        (QuotPrefixUnfolding.generate_layout hg').1, halen]
     have heq : program.equation = program'.equation := he.trans he'.symm
     have hbody : program.equationBody = program'.equationBody := by
       rw [heq] at hb
@@ -405,7 +405,7 @@ theorem QuotDeltaRule.congr_normal {levels : List VLevel}
     obtain ⟨hcaptures, hctor⟩ := replay.quot_normal_components hΓ hg hg' ha
     have hnative : ∃ n ls as, program.equationBody.lhs = mkApps (.const n ls) as := by
       rw [he] at hb
-      exact QuotPrefixProgram.equationBody_head hb
+      exact QuotPrefixUnfolding.equationBody_head hb
     obtain ⟨replay', hnormal⟩ := replay.congr_normal hΓ hlen heq hbody (hl.trans hl'.symm)
       ha hcaptures hctor ht hnative
     exact ⟨_, .intro hr hw hz hg' replay', hnormal⟩

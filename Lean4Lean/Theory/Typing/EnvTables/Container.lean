@@ -324,10 +324,10 @@ theorem container_ctor {T : Tables} {env base : VEnv} {aux : List ContainerSpeci
     obtain ⟨bX, ibX, srcX, expX, auxX, blockX, instX, hdataX, _, _, hrX, _, _, _, _, _, hfamX⟩ := hevX
     have hgX' : (compilationRestoration srcX auxX).equation (dX.nativeInstance.equation iX) =
         some ρ := by
-      simpa only [NativeRecursorData.equation, hrX] using hgX
+      simpa only [RecursorData.equation, hrX] using hgX
     have hdXname : dX.name = (compilationRestoration srcX auxX).recursorName
         (dX.schema.signature.families[dX.owner].name.str "rec") := by
-      simp only [NativeRecursorData.name, hrX]
+      simp only [RecursorData.name, hrX]
     by_cases hoX : dX.owner.val < srcX.types.length
     · have hoX' : dX.schema.signature.constructors[iX].owner.val < srcX.types.length := by
         rw [hiX]; exact hoX
@@ -388,10 +388,10 @@ theorem container_ctor {T : Tables} {env base : VEnv} {aux : List ContainerSpeci
         simp only [hts, List.head?_cons, Option.map_some, Option.getD_some] at hF0
         simp [o0, hts, hF0]
       have hnd := hdataX.nativeEntries_nodup (key := default)
-      simp only [NativeRecursorData.compilationEntries] at hnd
-      have heq : (NativeRecursorData.ofInstance default
+      simp only [RecursorData.compilationEntries] at hnd
+      have heq : (RecursorData.ofInstance default
             (CaseSchema.ofCompilation srcX dX.schema.signature auxX) dX.nativeInstance o0).name =
-          (NativeRecursorData.ofInstance default
+          (RecursorData.ofInstance default
             (CaseSchema.ofCompilation srcX dX.schema.signature auxX) dX.nativeInstance dX.owner).name := by
         change (compilationRestoration srcX auxX).recursorName
             (dX.schema.signature.families[o0].name.str "rec") =
@@ -401,8 +401,8 @@ theorem container_ctor {T : Tables} {env base : VEnv} {aux : List ContainerSpeci
       have hsame := List.eq_of_mem_of_nodup_map hnd
         (List.mem_map_of_mem (List.mem_finRange o0)) (List.mem_map_of_mem (List.mem_finRange dX.owner))
         heq
-      have := congrArg (fun d : NativeRecursorData => d.owner.val) hsame
-      simp [o0, NativeRecursorData.ofInstance] at this
+      have := congrArg (fun d : RecursorData => d.owner.val) hsame
+      simp [o0, RecursorData.ofInstance] at this
       omega
 
 end Lean4Lean.EnvTables

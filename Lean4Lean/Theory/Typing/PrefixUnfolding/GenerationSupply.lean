@@ -8,15 +8,15 @@ at one, and supplying further arguments to a generated right-hand side beta
 reduces to the program generated at the longer prefix.
 -/
 
-namespace Lean4Lean.InductiveSignature.NativeRecursorData
+namespace Lean4Lean.InductiveSignature.RecursorData
 open VExpr
 
-theorem singletonProgram_anyArity {data : NativeRecursorData} {levels : List VLevel} {env : VEnv}
-    (H : data.singletonProgram env U levels args = some program)
+theorem singletonProgram_anyArity {data : RecursorData} {levels : List VLevel} {env : VEnv}
+    (H : data.singletonUnfolding env U levels args = some program)
     (hargs : args'.length ≤ data.majorOffset) :
-    ∃ program', data.singletonProgram env U levels args' = some program' := by
+    ∃ program', data.singletonUnfolding env U levels args' = some program' := by
   have hbound := (singletonProgram_spec H).1
-  unfold singletonProgram at H ⊢
+  unfold singletonUnfolding at H ⊢
   split at H <;> try contradiction
   rename_i hguard
   have hguard' : ¬((levels.length != data.uvars || args'.length > data.majorOffset) = true) := by
@@ -38,7 +38,7 @@ theorem singletonProgram_anyArity {data : NativeRecursorData} {levels : List VLe
     simpa only [List.length_map, hlen] using hlen'
   have htake' := takeForalls_wrapForalls domains' result'
   rw [hlen''] at htake'
-  have hrecon' : ∃ p, data.singletonRecon env levels
+  have hrecon' : ∃ p, data.singletonReconstruction env levels
       (args'.map (·.liftN (data.majorOffset + 1 - args'.length)) ++
         vars (data.majorOffset + 1 - args'.length) 0) = some p := by
     have h := singletonRecon_isSome env data levels
@@ -47,7 +47,7 @@ theorem singletonProgram_anyArity {data : NativeRecursorData} {levels : List VLe
       (args.map (·.liftN (data.majorOffset + 1 - args.length)) ++
         vars (data.majorOffset + 1 - args.length) 0)
     rw [hrecon] at h
-    cases hg : data.singletonRecon env levels
+    cases hg : data.singletonReconstruction env levels
         (args'.map (·.liftN (data.majorOffset + 1 - args'.length)) ++
           vars (data.majorOffset + 1 - args'.length) 0) with
     | none => rw [hg] at h; cases h
@@ -71,10 +71,10 @@ theorem singletonProgram_anyArity {data : NativeRecursorData} {levels : List VLe
   rw [if_neg hcaptures]
   exact ⟨_, rfl⟩
 
-end Lean4Lean.InductiveSignature.NativeRecursorData
+end Lean4Lean.InductiveSignature.RecursorData
 
-namespace Lean4Lean.QuotPrefixProgram
-open VExpr InductiveSignature InductiveSignature.NativeRecursorData VEnv
+namespace Lean4Lean.QuotPrefixUnfolding
+open VExpr InductiveSignature InductiveSignature.RecursorData VEnv
 
 /-- Quotient prefix generation succeeds at every admissible prefix length. -/
 theorem generate_anyArity {levels : List VLevel} (H : generate levels args = some program)
@@ -92,7 +92,7 @@ theorem generate_anyArity {levels : List VLevel} (H : generate levels args = som
     supplyType_wrapForalls_exists (body := body.instL levels) hbound
   have hremaining' : remaining.length = 6 - args'.length := by
     simpa only [List.length_map, hcount] using hremaining
-  have htake := NativeRecursorData.takeForalls_wrapForalls remaining result
+  have htake := RecursorData.takeForalls_wrapForalls remaining result
   rw [hremaining'] at htake
   unfold generate
   rw [if_neg (by simp [hlevels]; omega)]
@@ -106,7 +106,7 @@ private theorem getD_inst (l : List VExpr) (i : Nat) :
 
 /-- Adjacent quotient prefixes meet by one beta step. -/
 theorem generate_supply_one {levels : List VLevel} {args : List VExpr}
-    {early late : PrefixProgram}
+    {early late : PrefixUnfolding}
     (hEarly : generate levels args = some early)
     (hLate : generate levels (args ++ [arg]) = some late)
     (hclosed : early.equationBody.rhs.ClosedN early.captures.length) :
@@ -127,7 +127,7 @@ theorem generate_supply_one {levels : List VLevel} {args : List VExpr}
   rw [hearlyLen] at htake
   cases residual <;> try contradiction
   rename_i domain residualBody
-  simp only [NativeRecursorData.takeForalls, bind, Option.bind_eq_some_iff] at htake
+  simp only [RecursorData.takeForalls, bind, Option.bind_eq_some_iff] at htake
   obtain ⟨⟨ds, body⟩, htake, he⟩ := htake
   cases he
   have hds := takeForalls_length htake
@@ -154,4 +154,4 @@ theorem generate_supply_one {levels : List VLevel} {args : List VExpr}
   simp only [List.map_cons, List.map_nil, getD_inst, hall, List.map_append, List.map_cons,
     List.map_nil, List.append_assoc, List.cons_append, List.nil_append]
 
-end Lean4Lean.QuotPrefixProgram
+end Lean4Lean.QuotPrefixUnfolding

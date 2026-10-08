@@ -28,7 +28,7 @@ inductive NativeReductionTrace (env : VEnv) (U : Nat)
   | native : Pat p r → p.Matches e levels values →
       r.2.OK (IsDefEqU env U Γ) levels values →
       NativeReductionTrace env U Pat Γ e (r.1.apply levels values)
-  | schema : AppliedSchemaReduction env U Γ e e' → NativeReductionTrace env U Pat Γ e e'
+  | schema : CaseIota env U Γ e e' → NativeReductionTrace env U Pat Γ e e'
   | beta : NativeReductionTrace env U Pat Γ (.app (.lam domain body) arg) (body.inst arg)
   | app : NativeReductionTrace env U Pat Γ fn fn' → NativeReductionTrace env U Pat Γ arg arg' →
       NativeReductionTrace env U Pat Γ (.app fn arg) (.app fn' arg')
@@ -39,16 +39,16 @@ class Params where
   env : VEnv
   henv : env.WF
   univs : Nat
-  recursorData : Name → Option InductiveSignature.NativeRecursorData
+  recursorData : Name → Option InductiveSignature.RecursorData
   recursorData_registered : recursorData name = some data →
-    NativeRecursorRegistered env data ∧ data.name = name
+    RecursorRegistered env data ∧ data.name = name
   Pat : (p : Pattern) → p.RHS × p.Check → Prop
-  pat_origin : Pat p r → NativePatternOrigin env p
+  pat_origin : Pat p r → PatternHeadsStoredRule env p
   /-- Inductive iota heads retain finite compilation and their case registry.
   Primitive quotient iota retains its exact installed declarations instead.
   Both large-elimination paths exclude zero-source computation here. -/
   pat_recursor : Pat (SimplePattern.iota recursor major ctor fields).toPattern r →
-    (∃ data, NativeRecursorRegistered env data ∧ data.name = recursor ∧ data.majorOffset = major ∧ recursorData recursor = some data ∧
+    (∃ data, RecursorRegistered env data ∧ data.name = recursor ∧ data.majorOffset = major ∧ recursorData recursor = some data ∧
       (∃ index : Fin data.schema.signature.constructors.size,
         data.schema.signature.constructors[index].owner = data.owner) ∧
       (data.largeTarget = true → ∃ rest,
@@ -68,7 +68,7 @@ class Params where
   /-- Definition patterns unfold definitions, never a native recursor or the
   registered quotient lift, whose prefixes compute by native and quotient prefix
   unfolding. Without the quotient declaration, `Quot.lift` is an ordinary name. -/
-  pat_const_native : Pat (.const c) r → recursorData c = none ∧ (QuotRegistered env → c ≠ ``Quot.lift)
+  pat_const_not_unfolding : Pat (.const c) r → recursorData c = none ∧ (QuotRegistered env → c ≠ ``Quot.lift)
   /-- The registered quotient lift is not a native recursor. -/
   recursorData_quot : QuotRegistered env → recursorData ``Quot.lift = none
   /-- The constructor of a native iota pattern carries no computation of its own. -/
@@ -104,7 +104,7 @@ class Params where
           df m1 (Sum.elim g1 g') r.2)
   /-- A case major of structure type is a saturated application of the structure's
   constructor, and the case rule captures only its fields. -/
-  schema_struct_major : MatchedCaseStep env univs Γ rule actual → OnCtx Γ (env.IsType univs) →
+  schema_struct_major : CaseRedex env univs Γ rule actual → OnCtx Γ (env.IsType univs) →
     env.projections family info →
     HasType env univs Γ (VExpr.mkApps (.const actual.ctorName actual.ctorLevels) actual.ctorArguments)
       (VExpr.mkApps (.const family ls) ps) →
@@ -121,23 +121,23 @@ theorem Params.pat_not_elim (H : Pat p r)
   cases sp <;> cases hm
 
 /-- Every fixed node of a native pattern has a native constant head. -/
-def NativeHeads : Pattern → Prop
+def ConstHeaded : Pattern → Prop
   | .const _ => True
   | .elim _ _ => False
-  | .app fn arg => NativeHeads fn ∧ NativeHeads arg
-  | .var fn => NativeHeads fn
+  | .app fn arg => ConstHeaded fn ∧ ConstHeaded arg
+  | .var fn => ConstHeaded fn
 
 omit [Params] in
-theorem NativeHeads.varN (h : NativeHeads p) : NativeHeads (p.varN n) := by
+theorem ConstHeaded.varN (h : ConstHeaded p) : ConstHeaded (p.varN n) := by
   induction n with
   | zero => exact h
   | succ _ ih => exact ih
 
-theorem Params.nativeHeads (h : Pat p r) : NativeHeads p := by
+theorem Params.nativeHeads (h : Pat p r) : ConstHeaded p := by
   obtain ⟨sp, rfl⟩ := pat_simple h
   cases sp with
   | defn => trivial
-  | iota => exact ⟨NativeHeads.varN trivial, NativeHeads.varN trivial⟩
+  | iota => exact ⟨ConstHeaded.varN trivial, ConstHeaded.varN trivial⟩
 
 omit [Params] in
 private theorem native_spine_go_head (e : VExpr) (args : List VExpr) :
@@ -147,7 +147,7 @@ private theorem native_spine_go_head (e : VExpr) (args : List VExpr) :
   | _ => rfl
 
 omit [Params] in
-theorem NativeHeads.matches_head (hp : NativeHeads p) (hm : p.Matches e levels values) :
+theorem ConstHeaded.matches_head (hp : ConstHeaded p) (hm : p.Matches e levels values) :
     ∃ name, e.getAppFnArgs.1 = .const name levels := by
   induction hm with
   | const => exact ⟨_, rfl⟩
@@ -160,7 +160,7 @@ theorem NativeHeads.matches_head (hp : NativeHeads p) (hm : p.Matches e levels v
     exact ⟨name, (native_spine_go_head _ [_]).trans h⟩
 
 omit [Params] in
-theorem NativeHeads.subpattern (H : NativeHeads parent) (hs : Subpattern child parent) : NativeHeads child := by
+theorem ConstHeaded.subpattern (H : ConstHeaded parent) (hs : Subpattern child parent) : ConstHeaded child := by
   induction hs with
   | refl => exact H
   | appL _ ih => exact ih H.1
@@ -169,7 +169,7 @@ theorem NativeHeads.subpattern (H : NativeHeads parent) (hs : Subpattern child p
 
 omit [Params] in
 theorem matches_nativeHead {p : Pattern} {e : VExpr} {levels : List VLevel} {values : p.Path → VExpr} (hm : p.Matches e levels values)
-    (hh : e.getAppFnArgs.1 = .const name us) : p.nativeHead = some name := by
+    (hh : e.getAppFnArgs.1 = .const name us) : p.constHead = some name := by
   induction hm with
   | const => cases hh; rfl
   | elim => cases hh
@@ -746,7 +746,7 @@ local notation:65 Γ " ⊢ " e1 " ⋙ " e2:36 => CParRed Γ e1 e2
 inductive ParRed : List VExpr → VExpr → VExpr → Prop where
   | schema {rule : InductiveSignature.CaseSchema.AppliedRule}
       {actual : InductiveSignature.CaseSchema.Application} :
-    MatchedCaseStep env univs Γ rule actual →
+    CaseRedex env univs Γ rule actual →
     (hlength : arguments.length = (rule.capture actual).length) →
     (∀ i (hi : i < (rule.capture actual).length),
       Γ ⊢ (rule.capture actual)[i] ≫ arguments[i]'(by omega)) →
@@ -773,7 +773,7 @@ inductive HeadParallelReduction (Γ : List VExpr) : VExpr → VExpr → Prop whe
     HeadParallelReduction Γ e (r.1.apply m1 m2')
   | schema {rule : InductiveSignature.CaseSchema.AppliedRule}
       {actual : InductiveSignature.CaseSchema.Application} :
-    MatchedCaseStep env univs Γ rule actual →
+    CaseRedex env univs Γ rule actual →
     (hlength : arguments.length = (rule.capture actual).length) →
     (∀ i (hi : i < (rule.capture actual).length),
       Γ ⊢ (rule.capture actual)[i] ≫ arguments[i]'(by omega)) →
@@ -800,12 +800,12 @@ theorem ParRed.app_lam_cases (H : Γ ⊢ .app (.lam A body) arg ≫ out) :
 def NonNeutral (Γ : List VExpr) (e : VExpr) : Prop :=
   (∃ A e₁ e₂, e = .app (.lam A e₁) e₂) ∨
   ((∃ p r m1 m2, Pat p r ∧ p.Matches e m1 m2 ∧ r.2.OK (IsDefEqU env univs Γ) m1 m2) ∨
-    ∃ rule actual, MatchedCaseStep env univs Γ rule actual ∧ e = actual.expr)
+    ∃ rule actual, CaseRedex env univs Γ rule actual ∧ e = actual.expr)
 
 inductive CParRed : List VExpr → VExpr → VExpr → Prop where
   | schema {rule : InductiveSignature.CaseSchema.AppliedRule}
       {actual : InductiveSignature.CaseSchema.Application} :
-    MatchedCaseStep env univs Γ rule actual →
+    CaseRedex env univs Γ rule actual →
     (hlength : arguments.length = (rule.capture actual).length) →
     (∀ i (hi : i < (rule.capture actual).length),
       Γ ⊢ (rule.capture actual)[i] ⋙ arguments[i]'(by omega)) →
@@ -946,7 +946,7 @@ theorem NormalEqF.instantiate_variables (H : VariableApplications body)
 alias NormalEq.instantiate_variables := NormalEqF.instantiate_variables
 
 
-theorem ParRed.of_schema (H : AppliedSchemaReduction env univs Γ e e') : Γ ⊢ e ≫ e' := by
+theorem ParRed.of_schema (H : CaseIota env univs Γ e e') : Γ ⊢ e ≫ e' := by
   cases H with
   | iota hm => exact .schema hm rfl fun _ _ => .rfl
 
@@ -1028,7 +1028,7 @@ variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRed.defeq (H : Γ ⊢ e ≫ e') (he : Γ ⊢ e : A) : Γ ⊢ e ≡ e' : A := by
   induction H generalizing A with
   | schema hm hl _ ih =>
-    have hbase := (AppliedSchemaReduction.iota hm).defeq henv hΓ
+    have hbase := (CaseIota.iota hm).defeq henv hΓ
     have hargs := hm.source.rhs_congr henv hΓ hl fun i hi _ =>
       let ⟨_, ht⟩ := hm.capture_typed (List.getElem_mem hi)
       ⟨_, ih i hi hΓ ht⟩
@@ -1258,7 +1258,7 @@ theorem CaseApplicationRelated.parRed_defeq
 
 /-- A structural parallel step keeps a registered case application's fixed
 heads and moves only its two argument spines. -/
-theorem ParRed.case_spines (hm : MatchedCaseStep env univs Γ rule actual)
+theorem ParRed.case_spines (hm : CaseRedex env univs Γ rule actual)
     (hrigid : env.NativeHeadRigid actual.ctorName)
     (hf : Γ ⊢ mkApps (.elim actual.block actual.owner actual.levels) actual.arguments ≫ fn')
     (ha : Γ ⊢ mkApps (.const actual.ctorName actual.ctorLevels) actual.ctorArguments ≫ major') :
@@ -1271,7 +1271,7 @@ theorem ParRed.case_spines (hm : MatchedCaseStep env univs Γ rule actual)
     ⟨rfl, rfl, rfl, rfl, rfl, hargs, hfields⟩⟩
   simp only [InductiveSignature.CaseSchema.Application.expr, hefn, hemajor, hm.block_eq, hm.owner_eq]
 
-theorem MatchedCaseStep.ctor_rigid (H : MatchedCaseStep env univs Γ rule actual) :
+theorem CaseRedex.ctor_rigid (H : CaseRedex env univs Γ rule actual) :
     env.NativeHeadRigid actual.ctorName := by
   obtain ⟨schema, block, owner, hl, hg⟩ := H.source.generates
   rw [H.ctor_eq]
@@ -1279,7 +1279,7 @@ theorem MatchedCaseStep.ctor_rigid (H : MatchedCaseStep env univs Γ rule actual
 
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRed.schema_app_triangle
-    (hm : MatchedCaseStep env univs Γ rule actual)
+    (hm : CaseRedex env univs Γ rule actual)
     (hrigid : env.NativeHeadRigid actual.ctorName)
     (hlen : args.length = (rule.capture actual).length)
     (hcomplete : ∀ i (hi : i < (rule.capture actual).length),
@@ -1672,10 +1672,10 @@ theorem CaseApplicationRelated.normalEq_defeq
   ctorArguments := H.ctorArguments.imp fun _ _ h => h.defeq hΓ
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem MatchedCaseStep.of_normalEq_spine
-    (H : MatchedCaseStep env univs Γ rule actual')
+theorem CaseRedex.of_normalEq_spine
+    (H : CaseRedex env univs Γ rule actual')
     (hspine : CaseApplicationRelated (NormalEqF η Γ) actual actual') :
-    MatchedCaseStep env univs Γ rule actual := by
+    CaseRedex env univs Γ rule actual := by
   obtain ⟨_, hactual⟩ := H.guard
   have hs := hspine.normalEq_symm hΓ
   exact H.congr henv hΓ (hs.normalEq_defeq hΓ)

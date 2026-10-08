@@ -6,7 +6,7 @@ import Lean4Lean.Theory.Typing.PrefixUnfolding.SpineDefEq
 /-! Term renaming of the actual native prefix generator and its remaining
 binder telescope. -/
 
-namespace Lean4Lean.InductiveSignature.NativeRecursorData
+namespace Lean4Lean.InductiveSignature.RecursorData
 open VExpr CaseSchema
 variable {levels : List VLevel} {args : List VExpr} {type : VExpr}
 
@@ -51,7 +51,7 @@ theorem takeForalls_lift' (H : takeForalls count type = some (domains, result)) 
 
 /-- Every term field records its exact position relative to the remaining
 native telescope. The stored equation and universe occurrence stay fixed. -/
-def PrefixProgram.rename (program : PrefixProgram) (ρ : Lift) : PrefixProgram :=
+def PrefixUnfolding.rename (program : PrefixUnfolding) (ρ : Lift) : PrefixUnfolding :=
   { program with
     domains := renameDomains ρ program.domains
     result := program.result.lift' (ρ.consN program.domains.length)
@@ -77,13 +77,13 @@ private theorem vars_lift'_consN (n : Nat) (ρ : Lift) :
   · simpa only [VExpr.ClosedN, Nat.zero_add] using hi
   · exact hfix
 
-theorem singletonProgram_lift' {data : NativeRecursorData} {nativeType : VExpr} {env : VEnv}
-    {packed : List VLevel} (henv : env.WF) (hr : VEnv.NativeRecursorRegistered env data)
+theorem singletonProgram_lift' {data : RecursorData} {nativeType : VExpr} {env : VEnv}
+    {packed : List VLevel} (henv : env.WF) (hr : VEnv.RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
     (htype : data.recursorType = some nativeType) (hclosed : nativeType.Closed)
-    (H : data.singletonProgram env U levels args = some program) :
-    data.singletonProgram env U levels (args.map (·.lift' ρ)) = some (program.rename ρ) := by
-  unfold singletonProgram at H ⊢
+    (H : data.singletonUnfolding env U levels args = some program) :
+    data.singletonUnfolding env U levels (args.map (·.lift' ρ)) = some (program.rename ρ) := by
+  unfold singletonUnfolding at H ⊢
   simp only [List.length_map]
   split at H <;> try contradiction
   rename_i hguard
@@ -116,7 +116,7 @@ theorem singletonProgram_lift' {data : NativeRecursorData} {nativeType : VExpr} 
   simp only [bind, htype, Option.bind_some, hsupply', htake', hrecon', hequation, hbody,
     List.length_map, List.length_append, List.length_take, InductiveSignature.length_vars] at hcaptureCount ⊢
   rw [if_neg hcaptureCount]
-  simp only [Option.pure_def, Option.some.injEq, PrefixProgram.rename, PrefixProgram.mk.injEq,
+  simp only [Option.pure_def, Option.some.injEq, PrefixUnfolding.rename, PrefixUnfolding.mk.injEq,
     hlen, and_true, true_and]
   dsimp only [remaining] at hall
   rw [hall]
@@ -144,14 +144,14 @@ theorem wrapForalls_renameDomains (domains : List VExpr) (body : VExpr) (ρ : Li
         (body.lift' (ρ.consN (domains.length + 1))))
     rw [ih, consN_cons]
 
-theorem PrefixProgram.rename_type (program : PrefixProgram) (ρ : Lift) :
+theorem PrefixUnfolding.rename_type (program : PrefixUnfolding) (ρ : Lift) :
     (program.rename ρ).type = program.type.lift' ρ := by
-  simp only [PrefixProgram.rename, PrefixProgram.type, wrapForalls_renameDomains]
+  simp only [PrefixUnfolding.rename, PrefixUnfolding.type, wrapForalls_renameDomains]
 
-theorem PrefixProgram.rename_rhs {program : PrefixProgram}
+theorem PrefixUnfolding.rename_rhs {program : PrefixUnfolding}
     (hbody : program.equationBody.rhs.ClosedN program.captures.length) :
     (program.rename ρ).rhs = program.rhs.lift' ρ := by
-  simp only [PrefixProgram.rename, PrefixProgram.rhs, wrapLams_renameDomains]
+  simp only [PrefixUnfolding.rename, PrefixUnfolding.rhs, wrapLams_renameDomains]
   rw [instantiateParams_lift' (hbody.instL (ls := program.levels))]
 
 /-- Context renaming follows exactly the generated residual telescope. -/
@@ -164,13 +164,13 @@ theorem renameDomains_context (domains : List VExpr) (W : Ctx.Lift' ρ Γ Γ') :
     simpa only [renameDomains, List.reverse_cons, List.append_assoc, List.singleton_append,
       List.length_cons, consN_cons] using ih (ρ := ρ.cons) W.cons
 
-end Lean4Lean.InductiveSignature.NativeRecursorData
+end Lean4Lean.InductiveSignature.RecursorData
 
 namespace Lean4Lean.VEnv
-open VExpr InductiveSignature.NativeRecursorData
+open VExpr InductiveSignature.RecursorData
 
 theorem nativeEtaBody_lift' (n : Nat) (e : VExpr) (ρ : Lift) :
-    nativeEtaBody n (e.lift' ρ) = (nativeEtaBody n e).lift' (ρ.consN n) := by
+    etaOpen n (e.lift' ρ) = (etaOpen n e).lift' (ρ.consN n) := by
   induction n with
   | zero => rfl
   | succ n ih =>

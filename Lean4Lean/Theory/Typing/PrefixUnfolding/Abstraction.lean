@@ -7,7 +7,7 @@ import Batteries.Tactic.OpenPrivate
 /-! Typed abstraction of an opened native prefix. -/
 
 namespace Lean4Lean.VEnv
-open VExpr InductiveSignature InductiveSignature.NativeRecursorData
+open VExpr InductiveSignature InductiveSignature.RecursorData
 
 theorem HasType.nativeSupply (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     (hf : env.HasType U Γ fn type) (H : VExpr.WF env U Γ (mkApps fn args))
@@ -26,28 +26,28 @@ theorem HasType.nativeSupply (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     exact ih (hf.app harg) H hg
 
 theorem native_takeForalls_sound
-    (H : NativeRecursorData.takeForalls count type = some (domains, result)) :
+    (H : RecursorData.takeForalls count type = some (domains, result)) :
     type = wrapForalls domains result := by
   induction count generalizing type domains result with
   | zero => cases H; rfl
   | succ count ih =>
     cases type <;> try contradiction
-    simp only [NativeRecursorData.takeForalls, bind, Option.bind_eq_some_iff] at H
+    simp only [RecursorData.takeForalls, bind, Option.bind_eq_some_iff] at H
     obtain ⟨⟨ds, body⟩, ht, he⟩ := H
     cases he
     exact congrArg (VExpr.forallE _) (ih ht)
 
 /-- Successful native generation determines the actual type of any
 well-formed occurrence of that registered recursor prefix. -/
-theorem NativeRecursorRegistered.prefixType {data : NativeRecursorData}
-    {levels : List VLevel} {program : PrefixProgram}
+theorem RecursorRegistered.prefixType {data : RecursorData}
+    {levels : List VLevel} {program : PrefixUnfolding}
     (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
-    (H : NativeRecursorRegistered env data)
+    (H : RecursorRegistered env data)
     (hlevels : ∀ level ∈ levels, level.WF U)
-    (hg : data.singletonProgram env U levels args = some program)
+    (hg : data.singletonUnfolding env U levels args = some program)
     (ht : VExpr.WF env U Γ (mkApps (.const data.name levels) args)) :
     env.HasType U Γ (mkApps (.const data.name levels) args) program.type := by
-  unfold singletonProgram at hg
+  unfold singletonUnfolding at hg
   dsimp only at hg
   split at hg <;> try contradiction
   rename_i hguard

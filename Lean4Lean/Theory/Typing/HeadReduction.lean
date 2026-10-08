@@ -67,7 +67,7 @@ theorem IsMajorPremise.not_rigid (H : IsMajorPremise e) (hrigid : env.NativeHead
   cases Params.simple_app hp hs
   have hn := matches_nativeHead hm hhead
   obtain ⟨equation, originalName, originalLevels, hd, hh, he⟩ := pat_origin hp
-  change p₁.nativeHead = some originalName at hh
+  change p₁.constHead = some originalName at hh
   have heq : originalName = name := Option.some.inj (hh.symm.trans hn)
   subst originalName
   exact hrigid equation hd originalLevels he
@@ -91,7 +91,7 @@ theorem IsCaseMajorPremise.not_native_match (H : IsCaseMajorPremise env fn)
 set_option hygiene false
 local notation:65 Γ " ⊢ " e1 " ⤳ " e2:36 => WHRed Γ e1 e2
 inductive WHRed (Γ : List VExpr) : VExpr → VExpr → Prop where
-  | schema : AppliedSchemaReduction env univs Γ e e' → Γ ⊢ e ⤳ e'
+  | schema : CaseIota env univs Γ e e' → Γ ⊢ e ⤳ e'
   | caseMajor : IsCaseMajorPremise env f → Γ ⊢ a ⤳ a' → Γ ⊢ .app f a ⤳ .app f a'
   | app : Γ ⊢ f ⤳ f' → Γ ⊢ .app f a ⤳ .app f' a
   | major : IsMajorPremise f → Γ ⊢ a ⤳ a' → Γ ⊢ .app f a ⤳ .app f a'
@@ -221,14 +221,14 @@ theorem WHNF.subpattern
   clear h3
   induction H2 generalizing n with
   | schema h =>
-    obtain ⟨name, hn⟩ := (NativeHeads.varN (p := .const c) trivial).matches_head h4
+    obtain ⟨name, hn⟩ := (ConstHeaded.varN (p := .const c) trivial).matches_head h4
     obtain ⟨_, _, _, hb⟩ := h.head
     rw [hb] at hn
     cases hn
   | caseMajor hm _ _ =>
     let n+1 := n
     let .var h4 := h4
-    obtain ⟨name, hn⟩ := (NativeHeads.varN (p := .const c) trivial).matches_head h4
+    obtain ⟨name, hn⟩ := (ConstHeaded.varN (p := .const c) trivial).matches_head h4
     obtain ⟨_, _, _, hb⟩ := hm.head
     rw [hb] at hn
     cases hn
@@ -256,7 +256,7 @@ theorem IsMajorPremise.whnf : IsMajorPremise e → WHNF Γ e := by
   refine .subpattern h1 (.trans (.appL .refl) h2) ?_ h3
   rintro rfl; cases h2.antisymm (.appL .refl)
 
-theorem WHRed.schema_determ (H : AppliedSchemaReduction env univs Γ e out)
+theorem WHRed.schema_determ (H : CaseIota env univs Γ e out)
     (H' : Γ ⊢ e ⤳ out') : out = out' := by
   cases H with
   | @iota rule actual hm =>
@@ -264,7 +264,7 @@ theorem WHRed.schema_determ (H : AppliedSchemaReduction env univs Γ e out)
     cases H' with
     | schema hs =>
       subst source
-      exact (AppliedSchemaReduction.iota hm).determ henv hs
+      exact (CaseIota.iota hm).determ henv hs
     | app hf =>
       cases he
       exact False.elim (hm.majorPremise henv |>.whnf _ hf)
@@ -283,7 +283,7 @@ theorem WHRed.schema_determ (H : AppliedSchemaReduction env univs Γ e out)
     | extra hp hmatch _ =>
       subst source
       obtain ⟨sp, rfl⟩ := pat_simple hp
-      exact False.elim ((AppliedSchemaReduction.iota hm).not_native_match hmatch)
+      exact False.elim ((CaseIota.iota hm).not_native_match hmatch)
 
 theorem WHRed.determ (H1 : Γ ⊢ e ⤳ e₁) (H2 : Γ ⊢ e ⤳ e₂) : e₁ = e₂ := by
   induction H1 generalizing e₂ with
@@ -584,7 +584,7 @@ theorem StRed.expose_spine
     · simpa only [List.reverse_cons] using List.Forall₂.append' hargs (.cons harg .nil)
 
 open InductiveSignature.CaseSchema in
-theorem StRed.expose_case (hm : MatchedCaseStep env univs Γ₂ rule actual)
+theorem StRed.expose_case (hm : CaseRedex env univs Γ₂ rule actual)
     (H : Γ ⊢ e ⤳< actual.expr) :
     ∃ source, Γ ⊢ e ⤳* source.expr ∧ CaseApplicationRelated (StRed Γ) source actual := by
   let .app hroot hfn hmajor := H

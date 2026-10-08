@@ -371,8 +371,8 @@ theorem HasType.caseMajor_not_proof (henv : env.WF) (hΓ : OnCtx Γ (env.IsType 
 
 /-- When a matched constructor is a proof, the case permission forces the
 result into Prop. This supplies the proof-irrelevance branch of compatibility. -/
-theorem MatchedCaseStep.result_prop_of_major_proof (henv : env.WF)
-    (hΓ : OnCtx Γ (env.IsType U)) (H : MatchedCaseStep env U Γ rule actual)
+theorem CaseRedex.result_prop_of_major_proof (henv : env.WF)
+    (hΓ : OnCtx Γ (env.IsType U)) (H : CaseRedex env U Γ rule actual)
     {proposition : VExpr}
     (hprop : env.HasType U Γ proposition (.sort .zero))
     (hproof : env.HasType U Γ

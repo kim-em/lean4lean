@@ -18,9 +18,9 @@ theorem Restoration.wrapForalls_shape {r : Restoration}
     obtain ⟨domains', body', rfl, hlen⟩ := ih hout
     exact ⟨domain' :: domains', body', rfl, congrArg Nat.succ hlen⟩
 
-namespace NativeRecursorData
+namespace RecursorData
 
-theorem recursorType_telescope {data : NativeRecursorData}
+theorem recursorType_telescope {data : RecursorData}
     (H : data.recursorType = some type) :
     ∃ domains body, type = VExpr.wrapForalls domains body ∧ domains.length = data.majorOffset + 1 := by
   unfold recursorType Instance.recursorType at H
@@ -57,11 +57,11 @@ theorem takeForalls_wrapForalls (domains : List VExpr) (body : VExpr) :
     rw [ih]
     rfl
 
-theorem singletonProgram_sameArity {data : NativeRecursorData} {levels : List VLevel} {env : VEnv}
-    (H : data.singletonProgram env U levels args = some program) (hargs : args'.length = args.length) :
-    ∃ program', data.singletonProgram env U levels args' = some program' := by
+theorem singletonProgram_sameArity {data : RecursorData} {levels : List VLevel} {env : VEnv}
+    (H : data.singletonUnfolding env U levels args = some program) (hargs : args'.length = args.length) :
+    ∃ program', data.singletonUnfolding env U levels args' = some program' := by
   have hbound := (singletonProgram_spec H).1
-  unfold singletonProgram at H ⊢
+  unfold singletonUnfolding at H ⊢
   simp only [hargs]
   split at H <;> try contradiction
   rename_i hguard
@@ -82,7 +82,7 @@ theorem singletonProgram_sameArity {data : NativeRecursorData} {levels : List VL
     simpa only [List.length_map, hlen, hargs] using hlen'
   have htake' := takeForalls_wrapForalls domains' result'
   rw [hlen''] at htake'
-  have hrecon' : ∃ p, data.singletonRecon env levels
+  have hrecon' : ∃ p, data.singletonReconstruction env levels
       (args'.map (·.liftN (data.majorOffset + 1 - args.length)) ++
         vars (data.majorOffset + 1 - args.length) 0) = some p := by
     have h := singletonRecon_isSome env data levels
@@ -91,7 +91,7 @@ theorem singletonProgram_sameArity {data : NativeRecursorData} {levels : List VL
       (args.map (·.liftN (data.majorOffset + 1 - args.length)) ++
         vars (data.majorOffset + 1 - args.length) 0)
     rw [hrecon] at h
-    cases hg : data.singletonRecon env levels
+    cases hg : data.singletonReconstruction env levels
         (args'.map (·.liftN (data.majorOffset + 1 - args.length)) ++
           vars (data.majorOffset + 1 - args.length) 0) with
     | none => rw [hg] at h; cases h
@@ -106,5 +106,5 @@ theorem singletonProgram_sameArity {data : NativeRecursorData} {levels : List VL
   rw [if_neg hcaptures]
   exact ⟨_, rfl⟩
 
-end NativeRecursorData
+end RecursorData
 end Lean4Lean.InductiveSignature

@@ -379,10 +379,10 @@ theorem selCtors_iff {t : VInductiveType} : selCtors t = true ↔ t.ctors ≠ []
   simp [selCtors, List.isEmpty_iff]
 
 /-- Record a native installation. -/
-def Tables.addNative (T : Tables) (decl : VInductDecl) (entries : List NativeRecursorData) :
+def Tables.addNative (T : Tables) (decl : VInductDecl) (entries : List RecursorData) :
     Tables :=
   { T.addViews (viewFams decl selCtors) (viewCtors decl selCtors) with
-    natives := NativeRecursorData.installEntries T.natives entries }
+    natives := RecursorData.installEntries T.natives entries }
 
 theorem Tables.Inv.freshT (H : T.Inv env) (hn : env.constants n = none) :
     T.fam n = none ∧ T.ctor n = none ∧ T.defs n = none ∧ T.natives n = none := by
@@ -400,23 +400,23 @@ theorem Tables.Inv.freshT (H : T.Inv env) (hn : env.constants n = none) :
     | none => rfl
     | some _ => obtain ⟨_, hc⟩ := H.natives_const (n := n) (by simp [hx]); rw [hn] at hc; cases hc
 
-theorem installEntries_old {old : Name → Option NativeRecursorData}
-    {entries : List NativeRecursorData} (h : ∀ data ∈ entries, data.name ≠ n) :
-    NativeRecursorData.installEntries old entries n = old n := by
-  unfold NativeRecursorData.installEntries
-  rw [find?_name_none (f := fun d : NativeRecursorData => d.name) h]
+theorem installEntries_old {old : Name → Option RecursorData}
+    {entries : List RecursorData} (h : ∀ data ∈ entries, data.name ≠ n) :
+    RecursorData.installEntries old entries n = old n := by
+  unfold RecursorData.installEntries
+  rw [find?_name_none (f := fun d : RecursorData => d.name) h]
   rfl
 
-theorem installEntries_some {old : Name → Option NativeRecursorData}
-    {entries : List NativeRecursorData}
-    (h : NativeRecursorData.installEntries old entries n = some data) :
+theorem installEntries_some {old : Name → Option RecursorData}
+    {entries : List RecursorData}
+    (h : RecursorData.installEntries old entries n = some data) :
     (data ∈ entries ∧ data.name = n) ∨ ((∀ d ∈ entries, d.name ≠ n) ∧ old n = some data) := by
-  unfold NativeRecursorData.installEntries at h
+  unfold RecursorData.installEntries at h
   cases hf : entries.find? (fun d => d.name == n) with
   | some d =>
     rw [hf] at h
     cases h
-    exact .inl (find?_name_some (f := fun d : NativeRecursorData => d.name) hf)
+    exact .inl (find?_name_some (f := fun d : RecursorData => d.name) hf)
   | none =>
     rw [hf] at h
     refine .inr ⟨fun d hd hn => ?_, h⟩
@@ -432,9 +432,9 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
     {aux : List ContainerSpecialization} (hcle : cbase ≤ env)
     (hdata : CompilationData cbase decl expanded s g aux block)
     (hprior : CertifiedSpecializations cbase aux) :
-    T.Extends (T.addNative decl (NativeRecursorData.compilationEntries default decl s aux g)) ∧
-      (T.addNative decl (NativeRecursorData.compilationEntries default decl s aux g)).Inv env' := by
-  let entries := NativeRecursorData.compilationEntries default decl s aux g
+    T.Extends (T.addNative decl (RecursorData.compilationEntries default decl s aux g)) ∧
+      (T.addNative decl (RecursorData.compilationEntries default decl s aux g)).Inv env' := by
+  let entries := RecursorData.compilationEntries default decl s aux g
   let T' := T.addNative decl entries
   have hle := VInductBlock.install_base_le hinstall
   obtain ⟨envTypes, envCtors, envRecs, htypes, hctors, hrecs, hinst⟩ := install_parts hinstall
@@ -469,7 +469,7 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
     cases hci
   have hext : T.Extends T' := by
     refine ⟨id, fun {n d} h => ?_, id, addView_of_old, addView_of_old⟩
-    change NativeRecursorData.installEntries T.natives entries n = some d
+    change RecursorData.installEntries T.natives entries n = some d
     rw [installEntries_old (hentryNe n (H.natives_const (by simp [h])))]
     exact h
   have hTypeConst : ∀ t ∈ decl.types, env'.constants t.name = some t.toVConstant := by
@@ -554,7 +554,7 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
   have hnewEvidence : ∀ data ∈ entries, NativeEvidence env' T' data := by
     intro data hd
     obtain ⟨owner, _, rfl⟩ := List.mem_map.mp hd
-    have hinstance : (NativeRecursorData.ofInstance default (CaseSchema.ofCompilation decl s aux)
+    have hinstance : (RecursorData.ofInstance default (CaseSchema.ofCompilation decl s aux)
         g owner).nativeInstance = g := by
       cases g with
       | mk U levels target names =>
@@ -576,11 +576,11 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
       exact ⟨h1, h2.mono hle hext⟩
   · obtain ⟨hQI, h2, h3, h4, h5, h6, h7⟩ := H.quot hq
     refine ⟨hQI.mono hle, addView_of_old h2, addView_of_old h3, h4, ?_, h6, ?_⟩
-    · change NativeRecursorData.installEntries T.natives entries _ = none
+    · change RecursorData.installEntries T.natives entries _ = none
       rw [installEntries_old (hentryNe _ ⟨_, hQI.lift⟩)]; exact h5
-    · change NativeRecursorData.installEntries T.natives entries _ = none
+    · change RecursorData.installEntries T.natives entries _ = none
       rw [installEntries_old (hentryNe _ ⟨_, hQI.ind⟩)]; exact h7
-  · change NativeRecursorData.installEntries T.natives entries n = none
+  · change RecursorData.installEntries T.natives entries n = none
     rw [installEntries_old (hentryNe _ (H.defs_const hn))]
     exact H.defs_natives hn
   · rcases (install_defeqs hinstall).mp hdf with hnew | hold

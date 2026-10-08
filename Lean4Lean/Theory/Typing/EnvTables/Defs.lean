@@ -131,7 +131,7 @@ theorem Witness.mono (H : Witness env X) (hle : env ≤ env') : Witness env' X :
 
 structure Tables where
   defs : Name → Option VDefVal
-  natives : Name → Option NativeRecursorData
+  natives : Name → Option RecursorData
   quot : Bool
   fam : Name → Option FamData
   ctor : Name → Option CtorData
@@ -165,7 +165,7 @@ theorem QuotInstalled.mono (H : QuotInstalled env) (hle : env ≤ env') : QuotIn
 
 /-- Actual provenance of a native recursor entry: the finite compilation of the very block that
 installed it, together with the family views it recorded. -/
-def NativeEvidence (env : VEnv) (T : Tables) (data : NativeRecursorData) : Prop :=
+def NativeEvidence (env : VEnv) (T : Tables) (data : RecursorData) : Prop :=
   ∃ base installBase source expanded auxiliaries block installed,
     CompilationData base source expanded data.schema.signature data.nativeInstance
       auxiliaries block ∧
@@ -185,7 +185,7 @@ theorem NativeEvidence.mono (H : NativeEvidence env T data) (hle : env ≤ env')
     h1, h2, h3, h4, h5, h6, h7.trans hle, h9, h10, fun type ht hc => hT.fam (h8 type ht hc)⟩
 
 theorem NativeEvidence.registered (H : NativeEvidence env T data) :
-    NativeRecursorRegistered env data := by
+    RecursorRegistered env data := by
   obtain ⟨base, installBase, source, expanded, auxiliaries, block, installed,
     h1, h2, h3, h4, h5, h6, h7, _, _, _⟩ := H
   exact ⟨base, installBase, source, expanded, data.nativeInstance, auxiliaries, block, installed,

@@ -7,9 +7,9 @@ For equality, opening an arbitrary endpoint does not make reflexivity a
 constructor at that endpoint. The typing rule must check that alignment.
 -/
 
-namespace Lean4Lean.InductiveSignature.NativeRecursorData
+namespace Lean4Lean.InductiveSignature.RecursorData
 
-structure PrefixProgram where
+structure PrefixUnfolding where
   domains : List VExpr
   result : VExpr
   constructor : VExpr
@@ -18,10 +18,10 @@ structure PrefixProgram where
   captures : List VExpr
   levels : List VLevel
 
-def PrefixProgram.type (program : PrefixProgram) : VExpr :=
+def PrefixUnfolding.type (program : PrefixUnfolding) : VExpr :=
   VExpr.wrapForalls program.domains program.result
 
-def PrefixProgram.rhs (program : PrefixProgram) : VExpr :=
+def PrefixUnfolding.rhs (program : PrefixUnfolding) : VExpr :=
   VExpr.wrapLams program.domains (instantiateParams (program.equationBody.rhs.instL program.levels) program.captures)
 
 /-- Supply only the actual occurrence prefix to the dependent native type. -/
@@ -33,8 +33,8 @@ def supplyType : List VExpr → VExpr → Option VExpr
 /-- Retain the selected equation and its exact deterministic captures. The
 generated body is obtained from that equation directly, rather than by
 constructing an ill-typed generic delta function and applying it later. -/
-def prefixProgram (data : NativeRecursorData) (U : Nat) (levels : List VLevel)
-    (arguments : List VExpr) : Option PrefixProgram := do
+def prefixProgram (data : RecursorData) (U : Nat) (levels : List VLevel)
+    (arguments : List VExpr) : Option PrefixUnfolding := do
   if levels.length != data.uvars || arguments.length > data.majorOffset then none else
   let type ← data.recursorType
   let type ← supplyType arguments (type.instL levels)
@@ -54,4 +54,4 @@ def prefixProgram (data : NativeRecursorData) (U : Nat) (levels : List VLevel)
   if captures.length != equationBody.domains.length then none else
   return ⟨domains, result, constructor, equation, equationBody, captures, levels⟩
 
-end Lean4Lean.InductiveSignature.NativeRecursorData
+end Lean4Lean.InductiveSignature.RecursorData

@@ -147,11 +147,11 @@ theorem SynRel.levels (U : Nat) :
   zero := ⟨by simp [VLevel.WF], by simp [VLevel.WF], rfl⟩
   succ h := ⟨h.1, h.2.1, VLevel.succ_congr h.2.2⟩
 
-namespace CastSpec
+namespace SingletonLayout
 
 /-- Related cast specifications: related telescopes and sorts, the same slots. -/
 structure Rel (R : VExpr → VExpr → Prop) (RL : VLevel → VLevel → Prop)
-    (S S' : CastSpec) : Prop where
+    (S S' : SingletonLayout) : Prop where
   fields : List.Forall₂ R S.fields S'.fields
   indices : List.Forall₂ R S.indices S'.indices
   slot : S.slot = S'.slot
@@ -197,7 +197,7 @@ theorem target_rel (H : SynRel R RL) (hS : Rel R RL S S') (hpa : List.Forall₂ 
   H.instOuter (H.getD hS.fields j)
     (SynRel.append (H.map_liftN hpa j 0) (tel_rel H hS hpa hia j).2)
 
-end CastSpec
+end SingletonLayout
 
 namespace PropElim
 
@@ -212,7 +212,7 @@ structure Rel (R : VExpr → VExpr → Prop) (E E' : PropElim) : Prop where
 
 variable {R : VExpr → VExpr → Prop} {RL : VLevel → VLevel → Prop}
 
-theorem value_rel (H : SynRel R RL) (hS : CastSpec.Rel R RL S S')
+theorem value_rel (H : SynRel R RL) (hS : SingletonLayout.Rel R RL S S')
     (hP : List.Forall₂ R params params') (hE : Rel R E E') (j : Nat) :
     R (value S params E j) (value S' params' E' j) := by
   have hPl := Lean4Lean.List.Forall₂.length_eq hP
@@ -228,19 +228,19 @@ theorem value_rel (H : SynRel R RL) (hS : CastSpec.Rel R RL S S')
     rw [hgpa, hgia]
     have hpa := H.refl_bvarRange (params'.length) (params'.length + S'.indices.length + 1)
     have hia := H.refl_bvarRange S'.indices.length (S'.indices.length + 1)
-    exact H.wrapLams (H.wrapForalls (CastSpec.target_rel H hS hpa hia j)
-      (CastSpec.tel_rel H hS hpa hia j).1) (SynRel.append hS.indices (.cons hmaj .nil))
+    exact H.wrapLams (H.wrapForalls (SingletonLayout.target_rel H hS hpa hia j)
+      (SingletonLayout.tel_rel H hS hpa hia j).1) (SynRel.append hS.indices (.cons hmaj .nil))
   have hbr : R (branch S params E j) (branch S' params' E' j) := by
     simp only [branch, branchPa, hPl, hFl]
     exact H.wrapLams (H.bvar _)
-      (CastSpec.tel_rel H hS (H.refl_bvarRange _ _) hE.ctorIndices j).1
+      (SingletonLayout.tel_rel H hS (H.refl_bvarRange _ _) hE.ctorIndices j).1
   simp only [value, genericPa, hPl, hIl]
   apply H.wrapLams _ (SynRel.append (SynRel.append hP hS.indices) (.cons hmaj .nil))
   apply H.mkApps hE.elimHead
   refine SynRel.append (SynRel.append (H.refl_bvarRange _ _) ?_) (H.refl_bvarRange _ _)
   exact .cons (H.liftN _ 0 hmot) (.cons (H.liftN _ 0 (hE.minorOf hmot hbr)) .nil)
 
-theorem occ_rel (H : SynRel R RL) (hS : CastSpec.Rel R RL S S')
+theorem occ_rel (H : SynRel R RL) (hS : SingletonLayout.Rel R RL S S')
     (hP : List.Forall₂ R params params') (hE : Rel R E E')
     (hps : List.Forall₂ R ps ps') (hidx : List.Forall₂ R idx idx') (hm : R m m') :
     ∀ i, List.Forall₂ R (occ S params E ps idx m i).1 (occ S' params' E' ps' idx' m' i).1 ∧

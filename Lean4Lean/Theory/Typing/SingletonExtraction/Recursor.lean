@@ -10,69 +10,69 @@ import Lean4Lean.Theory.Typing.CaseReduction
 
 The cast specification and the elimination into `Prop` of a registered native recursor
 of a large-eliminating inductive proposition, at an occurrence's universes. Pure
-definitions; their well-formedness is `NativeRecursorData.propElim_wf`
+definitions; their well-formedness is `RecursorData.propElim_wf`
 (`NativeSingletonPropElim.lean`). -/
 
 namespace Lean4Lean
 open VExpr InductiveSignature VEnv
 
-namespace InductiveSignature.NativeRecursorData
+namespace InductiveSignature.RecursorData
 
 /-- Universe instantiation of a cast specification. -/
-def _root_.Lean4Lean.CastSpec.instL (S : CastSpec) (ls : List VLevel) : CastSpec where
+def _root_.Lean4Lean.SingletonLayout.instL (S : SingletonLayout) (ls : List VLevel) : SingletonLayout where
   fields := S.fields.map (·.instL ls)
   indices := S.indices.map (·.instL ls)
   slot := S.slot
   sorts := S.sorts.map (·.inst ls)
 
 /-- The free elimination universe parameter. -/
-def targetParam (data : NativeRecursorData) : Option Nat :=
+def targetParam (data : RecursorData) : Option Nat :=
   match data.target with
   | .param k => some k
   | _ => none
 
 /-- The owner's unique constructor. -/
-def singletonCtor (data : NativeRecursorData) : Option (Fin data.schema.signature.constructors.size) :=
+def singletonCtor (data : RecursorData) : Option (Fin data.schema.signature.constructors.size) :=
   match (List.finRange data.schema.signature.constructors.size).filter
       (fun i => data.schema.signature.constructors[i].owner == data.owner) with
   | [i] => some i
   | _ => none
 
 /-- The sorts of the data fields, chosen at the generic universes. Proof fields get `Prop`. -/
-noncomputable def genericSorts (env : VEnv) (data : NativeRecursorData)
+noncomputable def genericSorts (env : VEnv) (data : RecursorData)
     (c : Constructor data.schema.signature.families.size) : List VLevel :=
-  (List.range (data.nativeInstance.sFields c).length).map fun i =>
-    match fieldSlot (data.nativeInstance.sCtorIndices c) (data.nativeInstance.sFields c).length i with
+  (List.range (data.nativeInstance.fieldsAt c).length).map fun i =>
+    match fieldSlot (data.nativeInstance.ctorIndicesAt c) (data.nativeInstance.fieldsAt c).length i with
     | some _ => Classical.epsilon fun u =>
       env.HasType data.uvars
-        (data.nativeInstance.params ++ (data.nativeInstance.sFields c).take i).reverse
-        ((data.nativeInstance.sFields c).getD i default) (.sort u)
+        (data.nativeInstance.params ++ (data.nativeInstance.fieldsAt c).take i).reverse
+        ((data.nativeInstance.fieldsAt c).getD i default) (.sort u)
     | none => .zero
 
 /-- The cast specification at the generic universes. -/
-noncomputable def castSpecGeneric (env : VEnv) (data : NativeRecursorData) : Option CastSpec := do
+noncomputable def castSpecGeneric (env : VEnv) (data : RecursorData) : Option SingletonLayout := do
   let i ← data.singletonCtor
   let c := data.schema.signature.constructors[i]
   return data.nativeInstance.singletonCast data.owner c (data.genericSorts env c)
 
 /-- The cast specification at an occurrence's universes: the generic one, instantiated. -/
-noncomputable def castSpec (env : VEnv) (data : NativeRecursorData) (packed : List VLevel) :
-    Option CastSpec :=
+noncomputable def castSpec (env : VEnv) (data : RecursorData) (packed : List VLevel) :
+    Option SingletonLayout :=
   (data.castSpecGeneric env).map (·.instL packed)
 
 /-- The parameter telescope at an occurrence's universes. -/
-def propParams (data : NativeRecursorData) (packed : List VLevel) : List VExpr :=
+def propParams (data : RecursorData) (packed : List VLevel) : List VExpr :=
   data.nativeInstance.params.map (·.instL packed)
 
 /-- Elimination into `Prop` through the native recursor itself, at an occurrence's universes
 with the free elimination universe set to zero. -/
-def propElim (data : NativeRecursorData) (packed : List VLevel) : Option PropElim := do
+def propElim (data : RecursorData) (packed : List VLevel) : Option PropElim := do
   let k ← data.targetParam
   let i ← data.singletonCtor
   return (data.nativeInstance.specialize 0 (packed.set k .zero)).singletonElim data.owner
     data.schema.signature.constructors[i] (.const data.name (packed.set k .zero))
 
-end InductiveSignature.NativeRecursorData
+end InductiveSignature.RecursorData
 end Lean4Lean
 
 /-! # Facts about a registered native large-eliminating proposition
@@ -84,13 +84,13 @@ free elimination universe (`Instance.FreeTarget`). -/
 namespace Lean4Lean
 open VExpr InductiveSignature VEnv
 
-namespace InductiveSignature.NativeRecursorData
+namespace InductiveSignature.RecursorData
 variable {env : VEnv}
 
 /-- What a registered native large-eliminating proposition provides: a singleton
 signature, identity restoration, free elimination universe, and the installed
 recursor typed by the generator. -/
-structure SingletonFacts (env : VEnv) (data : NativeRecursorData) : Prop where
+structure SingletonSignature (env : VEnv) (data : RecursorData) : Prop where
   families : data.schema.signature.families.size = 1
   constructors : data.schema.signature.constructors.size ≤ 1
   restoration : data.schema.restoration = {}
@@ -105,14 +105,14 @@ structure SingletonFacts (env : VEnv) (data : NativeRecursorData) : Prop where
     ctor.indices.length = data.schema.signature.families[ctor.owner].indices.length
   uvars : data.levels.length = data.schema.signature.uvars
 
-theorem singletonFacts (H : NativeRecursorRegistered env data) (hlarge : data.largeTarget = true)
-    (hzero : data.sourceLevel packed ≈ .zero) : SingletonFacts env data := by
+theorem singletonFacts (H : RecursorRegistered env data) (hlarge : data.largeTarget = true)
+    (hzero : data.sourceLevel packed ≈ .zero) : SingletonSignature env data := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, _, hbase, hr, _, hu, hl, ht, hi, he⟩ := H
   have hinstance : data.nativeInstance = g := by
     cases g with
     | mk U levels target recNames =>
-      simp only [NativeRecursorData.nativeInstance, Instance.mk.injEq]
+      simp only [RecursorData.nativeInstance, Instance.mk.injEq]
       exact ⟨hu, hl, ht, funext fun owner => (hdata.recursorNames owner).symm⟩
   obtain ⟨envTypes, htypes0, hadm⟩ := hdata.admissible
   have hsingle : data.schema.signature.SingletonElimination envTypes g.uvars g.levels ∧
@@ -163,13 +163,13 @@ theorem singletonFacts (H : NativeRecursorRegistered env data) (hlarge : data.la
     exact ⟨k, ht.trans hk, by rw [hu]; simpa [VLevel.WF] using hwf, by rw [hl]; exact hlv⟩
   · have hgen : data.recursorType = some (data.nativeInstance.recursorType data.owner) := by
       simp [recursorType, hrest]
-    exact NativeRecursorRegistered.recursorType
+    exact RecursorRegistered.recursorType
       ⟨base, installBase, source, expanded, g, auxiliaries, block, _, hdata, ‹_›, hbase, hr, ‹_›,
         hu, hl, ht, hi, he⟩ hgen
   · exact ⟨envTypes, htypesLE, by rw [hu, hl]; exact hsingle.1⟩
   · rw [hl]; exact hadm.levels_length
 
-end InductiveSignature.NativeRecursorData
+end InductiveSignature.RecursorData
 end Lean4Lean
 
 /-! Scope and term-renaming facts for the actual singleton reconstruction
@@ -196,8 +196,8 @@ theorem instantiateParams_lift' {body : VExpr} {args : List VExpr}
 
 end Lean4Lean.InductiveSignature.CaseSchema
 
-namespace Lean4Lean.InductiveSignature.NativeRecursorData
+namespace Lean4Lean.InductiveSignature.RecursorData
 open VExpr CaseSchema
 variable {levels : List VLevel}
 
-end Lean4Lean.InductiveSignature.NativeRecursorData
+end Lean4Lean.InductiveSignature.RecursorData

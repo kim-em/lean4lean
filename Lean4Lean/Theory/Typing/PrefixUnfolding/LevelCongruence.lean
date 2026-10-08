@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Typing.LevelEquiv
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Rule
 
 namespace Lean4Lean.VEnv
-open VExpr InductiveSignature InductiveSignature.NativeRecursorData
+open VExpr InductiveSignature InductiveSignature.RecursorData
 
 theorem EqUpToLevels.wrapForalls (hd : List.Forall₂ (EqUpToLevels U) ds ds')
     (hb : EqUpToLevels U body body') :
@@ -18,8 +18,8 @@ theorem EqUpToLevels.wrapLams (hd : List.Forall₂ (EqUpToLevels U) ds ds')
   | nil => exact hb
   | cons h hs ih => exact .lam h ih
 
-theorem EqUpToLevels.nativeEtaBody (H : EqUpToLevels U e e') (n : Nat) :
-    EqUpToLevels U (VEnv.nativeEtaBody n e) (VEnv.nativeEtaBody n e') := by
+theorem EqUpToLevels.etaOpen (H : EqUpToLevels U e e') (n : Nat) :
+    EqUpToLevels U (VEnv.etaOpen n e) (VEnv.etaOpen n e') := by
   induction n generalizing e e' with
   | zero => exact H
   | succ n ih => exact ih (.app H.weakN .bvar)
@@ -51,10 +51,10 @@ private theorem levels_spine_inv (H : EqUpToLevels U (VExpr.mkApps fn args) outp
     cases hf with
     | app hfn harg => exact ⟨_, _ :: args', rfl, hfn, .cons harg ha⟩
 
-theorem NativeSpineMatch.congr_levels (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
-    (H : NativeSpineMatch env U Γ actual expected)
+theorem ConstSpineDefEq.congr_levels (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (H : ConstSpineDefEq env U Γ actual expected)
     (ha : EqUpToLevels U actual actual') (he : EqUpToLevels U expected expected') :
-    NativeSpineMatch env U Γ actual' expected' := by
+    ConstSpineDefEq env U Γ actual' expected' := by
   obtain ⟨name, levels, levels', args, args', rfl, rfl, hw, hw', hl, hargs⟩ := H
   obtain ⟨fn, args₁, rfl, hfn, has⟩ := levels_spine_inv ha
   obtain ⟨fn', args₂, rfl, hfn', hes⟩ := levels_spine_inv he
@@ -76,12 +76,12 @@ theorem NativeSpineMatch.congr_levels (henv : env.WF) (hΓ : OnCtx Γ (env.IsTyp
 
 end Lean4Lean.VEnv
 
-namespace Lean4Lean.InductiveSignature.NativeRecursorData
+namespace Lean4Lean.InductiveSignature.RecursorData
 open VEnv
 
 /-- The finite replay program varies only at scoped equivalent universes.
 Its installed equation and the parsed generic body remain exactly the same. -/
-structure PrefixProgram.LevelEquiv (U : Nat) (p p' : PrefixProgram) : Prop where
+structure PrefixUnfolding.LevelEquiv (U : Nat) (p p' : PrefixUnfolding) : Prop where
   domains : List.Forall₂ (EqUpToLevels U) p.domains p'.domains
   result : EqUpToLevels U p.result p'.result
   constructor : EqUpToLevels U p.constructor p'.constructor
@@ -91,24 +91,24 @@ structure PrefixProgram.LevelEquiv (U : Nat) (p p' : PrefixProgram) : Prop where
   levels : List.Forall₂ (· ≈ ·) p.levels p'.levels
   levels_wf : ∀ level ∈ p'.levels, level.WF U
 
-theorem PrefixProgram.LevelEquiv.type (H : PrefixProgram.LevelEquiv U p p') :
+theorem PrefixUnfolding.LevelEquiv.type (H : PrefixUnfolding.LevelEquiv U p p') :
     EqUpToLevels U p.type p'.type := EqUpToLevels.wrapForalls H.domains H.result
 
-theorem PrefixProgram.LevelEquiv.rhs (H : PrefixProgram.LevelEquiv U p p')
+theorem PrefixUnfolding.LevelEquiv.rhs (H : PrefixUnfolding.LevelEquiv U p p')
     (hw : ∀ level ∈ p.levels, level.WF U) : EqUpToLevels U p.rhs p'.rhs := by
   apply EqUpToLevels.wrapLams H.domains
   rw [← H.equationBody]
   exact (EqUpToLevels.instL_expr _ hw H.levels_wf H.levels).instantiateParams_args H.captures
 
-end Lean4Lean.InductiveSignature.NativeRecursorData
+end Lean4Lean.InductiveSignature.RecursorData
 
 namespace Lean4Lean.VEnv
-open VExpr InductiveSignature InductiveSignature.NativeRecursorData
+open VExpr InductiveSignature InductiveSignature.RecursorData
 
-theorem NativePrefixReplay.congr_levels (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
-    (H : NativePrefixReplay env U Γ source p)
-    (hp : PrefixProgram.LevelEquiv U p p') (hs : EqUpToLevels U source source') :
-    NativePrefixReplay env U Γ source' p' := by
+theorem UnfoldingCheck.congr_levels (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (H : UnfoldingCheck env U Γ source p)
+    (hp : PrefixUnfolding.LevelEquiv U p p') (hs : EqUpToLevels U source source') :
+    UnfoldingCheck env U Γ source' p' := by
   have hctx := (IsType.wrapForalls_inv henv hΓ (H.source_typed.isType henv.ordered hΓ)).1
   have W := levelsContext henv hΓ (List.Forall₂.reverse.mpr hp.domains) hctx
   have hlength := Lean4Lean.List.Forall₂.length_eq hp.domains
@@ -149,10 +149,10 @@ theorem NativePrefixReplay.congr_levels (henv : env.WF) (hΓ : OnCtx Γ (env.IsT
   · obtain ⟨proposition, hprop, hmajor, hctor⟩ := H.major_prop
     exact ⟨proposition, hprop.defeqDFC henv W, hmajor.defeqDFC henv W,
       ((hctor.eqUpToLevels henv.ordered hctx hp.constructor).hasType.2).defeqDFC henv W⟩
-  · apply NativeSpineMatch.defeqDFC henv W
+  · apply ConstSpineDefEq.defeqDFC henv W
     apply H.native_lhs.congr_levels henv hctx
     · rw [← hlength]
-      exact .app (hs.nativeEtaBody _).weakN hp.constructor
+      exact .app (hs.etaOpen _).weakN hp.constructor
     · rw [← hp.equationBody, ← instantiateParams_eq_instOuter, ← instantiateParams_eq_instOuter]
       exact (EqUpToLevels.instL_expr _ H.levels_wf hp.levels_wf hp.levels).instantiateParams_args hp.captures
 

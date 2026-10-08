@@ -41,7 +41,7 @@ namespace Lean4Lean.VEnv
 open InductiveSignature
 
 /-- Concrete whole-block provenance for generated native occurrence data. -/
-def NativeRecursorRegistered (env : VEnv) (data : NativeRecursorData) : Prop :=
+def RecursorRegistered (env : VEnv) (data : RecursorData) : Prop :=
   ∃ base installBase source expanded, ∃ (g : Instance data.schema.signature), ∃ auxiliaries block installed,
     CompilationData base source expanded data.schema.signature g auxiliaries block ∧
     CertifiedSpecializations base auxiliaries ∧
@@ -53,15 +53,15 @@ def NativeRecursorRegistered (env : VEnv) (data : NativeRecursorData) : Prop :=
 
 /-- The singleton replay equation is taken from the actual installed finite
 block, with the original instance's universe packing and canonical names. -/
-theorem NativeRecursorRegistered.singletonEquation
-    (H : NativeRecursorRegistered env data)
+theorem RecursorRegistered.singletonEquation
+    (H : RecursorRegistered env data)
     (hgen : data.singletonEquation = some equation) : env.defeqs equation := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, _, _, hr, _, hu, hl, ht, hi, he⟩ := H
   have hinstance : data.nativeInstance = g := by
     cases g with
     | mk U levels target recNames =>
-      simp only [NativeRecursorData.nativeInstance, Instance.mk.injEq]
+      simp only [RecursorData.nativeInstance, Instance.mk.injEq]
       exact ⟨hu, hl, ht, funext fun owner => (hdata.recursorNames owner).symm⟩
   have every (index : Fin data.schema.signature.constructors.size)
       (hg : (compilationRestoration source auxiliaries).equation (g.equation index) = some equation) :
@@ -73,7 +73,7 @@ theorem NativeRecursorRegistered.singletonEquation
     have heq : actual = equation := Option.some.inj (hrestore.symm.trans hg)
     rw [← heq]
     exact he.defeqs (VInductBlock.install_rule hi hmem)
-  unfold NativeRecursorData.singletonEquation at hgen
+  unfold RecursorData.singletonEquation at hgen
   dsimp only at hgen
   split at hgen <;> try contradiction
   rw [hinstance, hr] at hgen
@@ -81,8 +81,8 @@ theorem NativeRecursorRegistered.singletonEquation
 
 /-- The type returned by native reconstruction is exactly the type of its
 installed recursor, selected from the same finite compilation instance. -/
-theorem NativeRecursorRegistered.recursorType
-    (H : NativeRecursorRegistered env data)
+theorem RecursorRegistered.recursorType
+    (H : RecursorRegistered env data)
     (hgen : data.recursorType = some type) :
     env.constants data.name = some { uvars := data.uvars, type := type } := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
@@ -90,7 +90,7 @@ theorem NativeRecursorRegistered.recursorType
   have hinstance : data.nativeInstance = g := by
     cases g with
     | mk U levels target recNames =>
-      simp only [NativeRecursorData.nativeInstance, Instance.mk.injEq]
+      simp only [RecursorData.nativeInstance, Instance.mk.injEq]
       exact ⟨hu, hl, ht, funext fun owner => (hdata.recursorNames owner).symm⟩
   have hgenerated : g.recursor data.owner ∈ g.recursors :=
     List.mem_map.mpr ⟨data.owner, List.mem_finRange _, rfl⟩
@@ -98,12 +98,12 @@ theorem NativeRecursorRegistered.recursorType
     (List.mapM_eq_some.mp hdata.recursors) _ hgenerated
   have htarget : (compilationRestoration source auxiliaries).expr
       (g.recursorType data.owner) = some type := by
-    simpa only [NativeRecursorData.recursorType, hinstance, hr] using hgen
+    simpa only [RecursorData.recursorType, hinstance, hr] using hgen
   have hexact : actual = { name := data.name, uvars := data.uvars, type := type } := by
     simp only [Restoration.recursor, Instance.recursor, htarget] at hrestore
     have heq := Option.some.inj hrestore
     rw [← heq]
-    simp only [NativeRecursorData.name, hr, hdata.recursorNames, hu]
+    simp only [RecursorData.name, hr, hdata.recursorNames, hu]
   rw [hexact] at hmem
   simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
     Option.pure_def, Option.some.injEq] at hi
@@ -112,8 +112,8 @@ theorem NativeRecursorRegistered.recursorType
     (VEnv.addConstVals_get hrecursors hmem))
 
 /-- Scope comes from the actual installed recursor's well-formed type. -/
-theorem NativeRecursorRegistered.recursorType_closed (henv : env.WF)
-    (H : NativeRecursorRegistered env data) (hgen : data.recursorType = some type) :
+theorem RecursorRegistered.recursorType_closed (henv : env.WF)
+    (H : RecursorRegistered env data) (hgen : data.recursorType = some type) :
     type.Closed := by
   obtain ⟨_, htype⟩ := henv.ordered.constWF (H.recursorType hgen)
   exact VExpr.WF.closedN henv.ordered ⟨_, htype⟩ (by trivial)
@@ -150,8 +150,8 @@ end Lean4Lean.VLevel
 namespace Lean4Lean.VEnv
 open InductiveSignature
 
-theorem NativeRecursorRegistered.small_target
-    (H : NativeRecursorRegistered env data) (hsmall : data.largeTarget = false) :
+theorem RecursorRegistered.small_target
+    (H : RecursorRegistered env data) (hsmall : data.largeTarget = false) :
     data.target ≈ .zero := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, _, _, hr, _, hu, hl, ht, hi, he⟩ := H
@@ -160,6 +160,6 @@ theorem NativeRecursorRegistered.small_target
     obtain ⟨_, _, hadmissible⟩ := hdata.admissible
     exact hadmissible.target_wf
   apply VLevel.zero_of_eval_ones hw
-  simpa only [NativeRecursorData.largeTarget, bne_eq_false_iff_eq] using hsmall
+  simpa only [RecursorData.largeTarget, bne_eq_false_iff_eq] using hsmall
 
 end Lean4Lean.VEnv

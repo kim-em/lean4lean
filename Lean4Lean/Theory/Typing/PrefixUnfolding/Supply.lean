@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.PrefixUnfolding.Renaming
 /-! Supplying the next native argument specializes the generated residual
 lambda program. This is the concrete overlap between two native prefixes. -/
 
-namespace Lean4Lean.InductiveSignature.NativeRecursorData
+namespace Lean4Lean.InductiveSignature.RecursorData
 open VExpr CaseSchema VEnv
 variable {type : VExpr} {levels : List VLevel}
 
@@ -38,12 +38,12 @@ theorem _root_.Lean4Lean.InductiveSignature.instantiateParams_inst {body : VExpr
   simp only [Subst.comp, Subst.ofList, List.length_map, dif_pos hi,
     List.getElem_map, ← instN_eq]
 
-theorem singletonProgram_supply_one {data : NativeRecursorData} {env : VEnv}
-    {args : List VExpr} {early late : PrefixProgram}
-    {packed : List VLevel} (henv : env.WF) (hr : NativeRecursorRegistered env data)
+theorem singletonProgram_supply_one {data : RecursorData} {env : VEnv}
+    {args : List VExpr} {early late : PrefixUnfolding}
+    {packed : List VLevel} (henv : env.WF) (hr : RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
-    (hEarly : data.singletonProgram env U levels args = some early)
-    (hLate : data.singletonProgram env U levels (args ++ [arg]) = some late)
+    (hEarly : data.singletonUnfolding env U levels args = some early)
+    (hLate : data.singletonUnfolding env U levels (args ++ [arg]) = some late)
     (hclosed : early.equationBody.rhs.ClosedN early.captures.length) :
     ∃ domain body, early.rhs = .lam domain body ∧ body.inst arg = late.rhs := by
   have hbound := (singletonProgram_spec hLate).1
@@ -53,7 +53,7 @@ theorem singletonProgram_supply_one {data : NativeRecursorData} {env : VEnv}
   have hearlyLen : data.majorOffset + 1 - args.length = n + 1 := by dsimp [n]; omega
   have hlateLen : data.majorOffset + 1 - (args ++ [arg]).length = n := by
     simp only [List.length_append, List.length_singleton]; dsimp [n]; omega
-  unfold singletonProgram at hEarly hLate
+  unfold singletonUnfolding at hEarly hLate
   dsimp only at hEarly hLate
   split at hEarly <;> try contradiction
   split at hLate <;> try contradiction
@@ -93,4 +93,4 @@ theorem singletonProgram_supply_one {data : NativeRecursorData} {env : VEnv}
     List.map_map, Function.comp_def, inst_liftN_lo, InductiveSignature.vars_inst_last,
     List.map_cons, List.map_nil, List.append_assoc, List.cons_append, List.nil_append]
 
-end Lean4Lean.InductiveSignature.NativeRecursorData
+end Lean4Lean.InductiveSignature.RecursorData

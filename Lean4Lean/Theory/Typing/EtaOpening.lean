@@ -7,12 +7,12 @@ namespace Lean4Lean.VEnv
 open VExpr
 
 /-- Open the unsupplied telescope with fresh variables in binder order. -/
-def nativeEtaBody : Nat → VExpr → VExpr
+def etaOpen : Nat → VExpr → VExpr
   | 0, fn => fn
-  | n + 1, fn => nativeEtaBody n (.app fn.lift (.bvar 0))
+  | n + 1, fn => etaOpen n (.app fn.lift (.bvar 0))
 
 theorem nativeEtaBody_succ (n : Nat) (fn : VExpr) :
-    nativeEtaBody (n + 1) fn = .app (nativeEtaBody n fn).lift (.bvar 0) := by
+    etaOpen (n + 1) fn = .app (etaOpen n fn).lift (.bvar 0) := by
   induction n generalizing fn with
   | zero => rfl
   | succ n ih => exact ih _
@@ -23,7 +23,7 @@ theorem HasType.native_open (henv : env.Ordered)
     (hΓ : OnCtx Γ (env.IsType U))
     (H : HasType env U Γ fn (wrapForalls domains result)) :
     OnCtx (domains.reverse ++ Γ) (env.IsType U) ∧
-      HasType env U (domains.reverse ++ Γ) (nativeEtaBody domains.length fn) result := by
+      HasType env U (domains.reverse ++ Γ) (etaOpen domains.length fn) result := by
   induction domains generalizing Γ fn with
   | nil => exact ⟨hΓ, H⟩
   | cons domain domains ih =>
@@ -32,14 +32,14 @@ theorem HasType.native_open (henv : env.Ordered)
       (IsDefEq.bvar (Lookup.zero (Γ := Γ) (ty := domain)))
     simp only [lift, VExpr.inst_liftN_bvar] at hbody
     simpa only [List.reverse_cons, List.append_assoc, List.singleton_append,
-      List.length_cons, nativeEtaBody] using ih (Γ := domain :: Γ) ⟨hΓ, u, hd⟩ hbody
+      List.length_cons, etaOpen] using ih (Γ := domain :: Γ) ⟨hΓ, u, hd⟩ hbody
 
 /-- Eta expansion through a dependent telescope preserves the exact native
 type. Functional result types remain below the supplied telescope. -/
 theorem HasType.native_eta (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U))
     (H : HasType env U Γ fn (wrapForalls domains result)) :
-    IsDefEq env U Γ fn (wrapLams domains (nativeEtaBody domains.length fn))
+    IsDefEq env U Γ fn (wrapLams domains (etaOpen domains.length fn))
       (wrapForalls domains result) := by
   induction domains generalizing Γ fn with
   | nil => exact H

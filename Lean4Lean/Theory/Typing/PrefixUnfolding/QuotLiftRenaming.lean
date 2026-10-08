@@ -1,8 +1,8 @@
 import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
 import Batteries.Tactic.OpenPrivate
 
-namespace Lean4Lean.QuotPrefixProgram
-open VExpr InductiveSignature InductiveSignature.NativeRecursorData
+namespace Lean4Lean.QuotPrefixUnfolding
+open VExpr InductiveSignature InductiveSignature.RecursorData
 open private liftN_lift'_consN vars_lift'_consN
   from Lean4Lean.Theory.Typing.PrefixUnfolding.Renaming
 
@@ -28,7 +28,7 @@ theorem generate_rename {levels : List VLevel}
   have htake' := takeForalls_lift' (ρ := ρ) htake
   have hlen := takeForalls_length htake
   simp only [bind, hsupply', Option.bind_some, htake', hbody, Option.pure_def,
-    Option.some.injEq, PrefixProgram.rename, PrefixProgram.mk.injEq, hlen]
+    Option.some.injEq, PrefixUnfolding.rename, PrefixUnfolding.mk.injEq, hlen]
   have hall : (args.map (fun e => (e.lift' ρ).liftN (6 - args.length)) ++ vars (6 - args.length) 0) =
       (args.map (·.liftN (6 - args.length)) ++ vars (6 - args.length) 0).map
         (·.lift' (ρ.consN (6 - args.length))) := by
@@ -40,25 +40,25 @@ theorem generate_rename {levels : List VLevel}
   simp only [VExpr.lift'_mkApps, List.map_cons, List.map_nil, List.map_append,
     List.map_take, VExpr.lift', (witness_closed _).lift'_eq Lift.Fixes.zero, and_self]
 
-end Lean4Lean.QuotPrefixProgram
+end Lean4Lean.QuotPrefixUnfolding
 
 namespace Lean4Lean.VEnv
-open VExpr InductiveSignature.NativeRecursorData
+open VExpr InductiveSignature.RecursorData
 
-theorem QuotDeltaRule.weak' {levels : List VLevel} (henv : env.WF)
-    (W : Ctx.Lift' ρ Γ Γ') (H : QuotDeltaRule env U Γ levels args rhs) :
-    QuotDeltaRule env U Γ' levels (args.map (·.lift' ρ)) (rhs.lift' ρ) := by
+theorem QuotPrefixUnfold.weak' {levels : List VLevel} (henv : env.WF)
+    (W : Ctx.Lift' ρ Γ Γ') (H : QuotPrefixUnfold env U Γ levels args rhs) :
+    QuotPrefixUnfold env U Γ' levels (args.map (·.lift' ρ)) (rhs.lift' ρ) := by
   cases H with
   | intro hr hw hz hg replay =>
-    have hg' := QuotPrefixProgram.generate_rename (ρ := ρ) hg
+    have hg' := QuotPrefixUnfolding.generate_rename (ρ := ρ) hg
     have replay' := replay.weak' henv W
     rw [VExpr.lift'_mkApps] at replay'
-    rw [← PrefixProgram.rename_rhs (replay.templateScope henv).2.1]
+    rw [← PrefixUnfolding.rename_rhs (replay.templateScope henv).2.1]
     exact .intro hr hw hz hg' replay'
 
-theorem QuotDeltaRule.weakN {levels : List VLevel} (henv : env.WF)
-    (W : Ctx.LiftN n k Γ Γ') (H : QuotDeltaRule env U Γ levels args rhs) :
-    QuotDeltaRule env U Γ' levels (args.map (·.liftN n k)) (rhs.liftN n k) := by
+theorem QuotPrefixUnfold.weakN {levels : List VLevel} (henv : env.WF)
+    (W : Ctx.LiftN n k Γ Γ') (H : QuotPrefixUnfold env U Γ levels args rhs) :
+    QuotPrefixUnfold env U Γ' levels (args.map (·.liftN n k)) (rhs.liftN n k) := by
   simpa only [lift'_consN_skipN] using H.weak' henv (Ctx.liftN_iff_lift'.mp W)
 
 end Lean4Lean.VEnv

@@ -5,12 +5,12 @@ import Lean4Lean.Theory.Quot
 recovers a proof of the source proposition from the quotient major. The
 program retains the actual primitive quotient equation for typed replay. -/
 
-namespace Lean4Lean.QuotPrefixProgram
-open VExpr InductiveSignature InductiveSignature.NativeRecursorData
+namespace Lean4Lean.QuotPrefixUnfolding
+open VExpr InductiveSignature InductiveSignature.RecursorData
 
 /-- A closed selector. It is typable when `level` is equivalent to zero;
 that occurrence guard belongs to the typed quotient reduction rule. -/
-def witness (level : VLevel) : VExpr :=
+def propInhabitant (level : VLevel) : VExpr :=
   let alpha := VExpr.bvar 2
   let relation := VExpr.bvar 1
   let major := VExpr.bvar 0
@@ -21,22 +21,22 @@ def witness (level : VLevel) : VExpr :=
     (mkApps (.const ``Quot.ind [level]) [alpha, relation,
       .lam quotient alpha.lift, .lam alpha (.bvar 0), major])
 
-theorem witness_closed (level : VLevel) : (witness level).Closed := by
-  simp [witness, VExpr.wrapLams, VExpr.mkApps, VExpr.Closed, VExpr.ClosedN, VExpr.lift, VExpr.liftN]
+theorem witness_closed (level : VLevel) : (propInhabitant level).Closed := by
+  simp [propInhabitant, VExpr.wrapLams, VExpr.mkApps, VExpr.Closed, VExpr.ClosedN, VExpr.lift, VExpr.liftN]
 
 /-- Open the remaining quotient-lift prefix, reconstruct its major, and
 retain the exact six captures of the primitive equation. -/
-def generate (levels : List VLevel) (arguments : List VExpr) : Option PrefixProgram := do
+def generate (levels : List VLevel) (arguments : List VExpr) : Option PrefixUnfolding := do
   if levels.length != 2 || arguments.length > 5 then none else
   let residual ← supplyType arguments (quotLiftConst.type.instL levels)
   let remaining := 6 - arguments.length
-  let (domains, result) ← NativeRecursorData.takeForalls remaining residual
+  let (domains, result) ← RecursorData.takeForalls remaining residual
   let allArguments := arguments.map (·.liftN remaining) ++ vars remaining 0
   let alpha := allArguments[0]?.getD default
   let relation := allArguments[1]?.getD default
   let major := allArguments[5]?.getD default
   let level := levels[0]?.getD .zero
-  let proof := mkApps (witness level) [alpha, relation, major]
+  let proof := mkApps (propInhabitant level) [alpha, relation, major]
   let constructor := mkApps (.const ``Quot.mk [level]) [alpha, relation, proof]
   let captures := allArguments.take 5 ++ [proof]
   let body ← CaseSchema.EquationBody.extract quotDefEq.lhs quotDefEq.rhs quotDefEq.type
@@ -78,4 +78,4 @@ theorem generate_spec {levels : List VLevel} (H : generate levels args = some pr
       List.length_nil, vars, List.length_reverse, List.length_range, hbodylen]
     omega
 
-end Lean4Lean.QuotPrefixProgram
+end Lean4Lean.QuotPrefixUnfolding

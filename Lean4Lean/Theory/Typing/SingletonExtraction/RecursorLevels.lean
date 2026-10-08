@@ -5,7 +5,7 @@ import Lean4Lean.Theory.Typing.SingletonExtraction.Congruence
 
 Universe instantiation and level congruence of the cast specification, the elimination
 into `Prop` and the reconstruction of a registered native recursor
-(`NativeRecursorData.castSpec`, `propElim`, `PropElim.occ`). -/
+(`RecursorData.castSpec`, `propElim`, `PropElim.occ`). -/
 
 set_option linter.unusedSimpArgs false
 
@@ -16,20 +16,20 @@ namespace InductiveSignature.Instance
 variable {s : InductiveSignature} (g : Instance s)
 
 theorem sFields_specialize (c : Constructor s.families.size) (U ls) :
-    (g.specialize U ls).sFields c = (g.sFields c).map (·.instL ls) := by
-  simp [sFields, specialize, List.map_map, Function.comp_def, VExpr.instL_instL]
+    (g.specialize U ls).fieldsAt c = (g.fieldsAt c).map (·.instL ls) := by
+  simp [fieldsAt, specialize, List.map_map, Function.comp_def, VExpr.instL_instL]
 
 theorem sIndices_specialize (owner : Fin s.families.size) (U ls) :
-    (g.specialize U ls).sIndices owner = (g.sIndices owner).map (·.instL ls) := by
-  simp [sIndices, specialize, List.map_map, Function.comp_def, VExpr.instL_instL]
+    (g.specialize U ls).indicesAt owner = (g.indicesAt owner).map (·.instL ls) := by
+  simp [indicesAt, specialize, List.map_map, Function.comp_def, VExpr.instL_instL]
 
 theorem sCtorIndices_specialize (c : Constructor s.families.size) (U ls) :
-    (g.specialize U ls).sCtorIndices c = (g.sCtorIndices c).map (·.instL ls) := by
-  simp [sCtorIndices, specialize, List.map_map, Function.comp_def, VExpr.instL_instL]
+    (g.specialize U ls).ctorIndicesAt c = (g.ctorIndicesAt c).map (·.instL ls) := by
+  simp [ctorIndicesAt, specialize, List.map_map, Function.comp_def, VExpr.instL_instL]
 
 theorem sHyps_specialize (c : Constructor s.families.size) (U ls) :
-    (g.specialize U ls).sHyps c = (g.sHyps c).map (·.instL ls) := by
-  simp [sHyps, List.map_map, Function.comp_def, hypothesis_specialize g U ls]
+    (g.specialize U ls).hypotheses c = (g.hypotheses c).map (·.instL ls) := by
+  simp [hypotheses, List.map_map, Function.comp_def, hypothesis_specialize g U ls]
 
 theorem params_specialize' (U ls) : (g.specialize U ls).params = g.params.map (·.instL ls) :=
   (params_specialize g U ls).symm
@@ -71,9 +71,9 @@ theorem singletonElim_levels (owner : Fin s.families.size) (c : Constructor s.fa
     simp only [singletonElim, sFields_specialize, sHyps_specialize, List.length_map,
       ← instL_insertBinders, ← List.map_append]
     apply (SynRel.levels U).wrapLams (hb.weakN)
-    have hd := hlist (insertBinders (g.sFields c) 1 ++ g.sHyps c)
-    generalize (insertBinders (g.sFields c) 1 ++ g.sHyps c).map (·.instL ls) = D at hd
-    generalize (insertBinders (g.sFields c) 1 ++ g.sHyps c).map (·.instL ls') = D' at hd
+    have hd := hlist (insertBinders (g.fieldsAt c) 1 ++ g.hypotheses c)
+    generalize (insertBinders (g.fieldsAt c) 1 ++ g.hypotheses c).map (·.instL ls) = D at hd
+    generalize (insertBinders (g.fieldsAt c) 1 ++ g.hypotheses c).map (·.instL ls') = D' at hd
     suffices ∀ k, List.Forall₂ (EqUpToLevels U) (VExpr.instDomains D M k)
         (VExpr.instDomains D' M' k) from this 0
     induction hd with
@@ -81,37 +81,37 @@ theorem singletonElim_levels (owner : Fin s.families.size) (c : Constructor s.fa
     | cons hx _ ih => intro k; exact .cons (EqUpToLevels.instN hM hx) (ih (k + 1))
 
 end InductiveSignature.Instance
-namespace CastSpec
+namespace SingletonLayout
 
 theorem getD_sorts_map (l : List VLevel) (ls : List VLevel) (i : Nat) :
     (l.map (·.inst ls)).getD i .zero = (l.getD i .zero).inst ls := by
   simp only [List.getD_eq_getElem?_getD, List.getElem?_map]
   cases l[i]? <;> simp [VLevel.inst]
 
-theorem rel_levels (S : CastSpec) {U : Nat} {ls ls' : List VLevel}
+theorem rel_levels (S : SingletonLayout) {U : Nat} {ls ls' : List VLevel}
     (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
     Rel (EqUpToLevels U) (fun u v => u.WF U ∧ v.WF U ∧ u ≈ v) (S.instL ls) (S.instL ls') where
   fields := by
-    simp only [CastSpec.instL]
+    simp only [SingletonLayout.instL]
     generalize S.fields = l
     induction l with
     | nil => exact .nil
     | cons x l ih => exact .cons (EqUpToLevels.instL_expr x hls hls' heq) ih
   indices := by
-    simp only [CastSpec.instL]
+    simp only [SingletonLayout.instL]
     generalize S.indices = l
     induction l with
     | nil => exact .nil
     | cons x l ih => exact .cons (EqUpToLevels.instL_expr x hls hls' heq) ih
   slot := rfl
   sorts i := by
-    simp only [CastSpec.instL, getD_sorts_map]
+    simp only [SingletonLayout.instL, getD_sorts_map]
     exact ⟨VLevel.WF.inst hls, VLevel.WF.inst hls', VLevel.inst_congr rfl heq⟩
 
-end CastSpec
+end SingletonLayout
 
-namespace InductiveSignature.NativeRecursorData
-variable {env : VEnv} {data : NativeRecursorData}
+namespace InductiveSignature.RecursorData
+variable {env : VEnv} {data : RecursorData}
 
 theorem forall₂_set {R : α → α → Prop} (hd : R d d) :
     ∀ {l l' : List α}, List.Forall₂ R l l' → ∀ k, List.Forall₂ R (l.set k d) (l'.set k d)
@@ -141,14 +141,14 @@ theorem propElim_levels {ls ls' : List VLevel} {E : PropElim} (hE : data.propEli
   have hset := forall₂_set (R := (· ≈ ·)) (d := VLevel.zero) rfl heq k
   exact Instance.singletonElim_levels _ _ _ h0 h0' hset (.const h0 h0' hset)
 
-theorem castSpec_levels {ls ls' : List VLevel} {S : CastSpec}
+theorem castSpec_levels {ls ls' : List VLevel} {S : SingletonLayout}
     (hS : data.castSpec env ls = some S)
     (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
     ∃ S', data.castSpec env ls' = some S' ∧
-      CastSpec.Rel (EqUpToLevels U) (fun u v => u.WF U ∧ v.WF U ∧ u ≈ v) S S' := by
+      SingletonLayout.Rel (EqUpToLevels U) (fun u v => u.WF U ∧ v.WF U ∧ u ≈ v) S S' := by
   unfold castSpec at hS ⊢
   obtain ⟨G, hG, rfl⟩ := Option.map_eq_some_iff.1 hS
-  exact ⟨_, by simp [hG], CastSpec.rel_levels G hls hls' heq⟩
+  exact ⟨_, by simp [hG], SingletonLayout.rel_levels G hls hls' heq⟩
 
 theorem propParams_levels {ls ls' : List VLevel}
     (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
@@ -161,7 +161,7 @@ theorem propParams_levels {ls ls' : List VLevel}
 
 /-- The reconstruction at equivalent universes, from arguments equal up to levels, is equal
 up to levels. -/
-theorem occ_levels {ls ls' : List VLevel} {S : CastSpec} {E : PropElim}
+theorem occ_levels {ls ls' : List VLevel} {S : SingletonLayout} {E : PropElim}
     (hS : data.castSpec env ls = some S) (hE : data.propElim ls = some E)
     (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
     ∃ S' E', data.castSpec env ls' = some S' ∧ data.propElim ls' = some E' ∧
@@ -178,6 +178,6 @@ theorem occ_levels {ls ls' : List VLevel} {S : CastSpec} {E : PropElim}
   exact PropElim.occ_rel (SynRel.levels U) hSrel (propParams_levels hls hls' heq) hErel
     hps hidx hm i
 
-end InductiveSignature.NativeRecursorData
+end InductiveSignature.RecursorData
 
 end Lean4Lean

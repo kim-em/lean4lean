@@ -313,7 +313,7 @@ theorem CaseStep.instN (henv : env.WF) (hvalue : env.HasType U Γ₀ value value
 complete generated left template is checked at deterministically recovered
 arguments, including restored parameter specializations and dependent indices.
 The equality check permits duplicated occurrences to reduce independently. -/
-structure MatchedCaseStep (env : VEnv) (U : Nat) (Γ : List VExpr)
+structure CaseRedex (env : VEnv) (U : Nat) (Γ : List VExpr)
     (rule : AppliedRule) (actual : Application) : Prop where
   source : CaseStep env U Γ rule actual.levels (rule.capture actual)
   block_eq : actual.block = rule.application.block
@@ -374,9 +374,9 @@ theorem CaseStep.arguments_typed (H : CaseStep env U Γ rule levels arguments)
   cases H with
   | iota _ _ _ _ _ _ ha => exact ⟨_, ha.2 j hj (by simpa [← ha.1] using hj)⟩
 
-theorem MatchedCaseStep.weakN (henv : env.WF) (W : Ctx.LiftN n k Γ Γ')
-    (H : MatchedCaseStep env U Γ rule actual) :
-    MatchedCaseStep env U Γ' rule (CaseApplicationMap actual fun e => e.liftN n k) where
+theorem CaseRedex.weakN (henv : env.WF) (W : Ctx.LiftN n k Γ Γ')
+    (H : CaseRedex env U Γ rule actual) :
+    CaseRedex env U Γ' rule (CaseApplicationMap actual fun e => e.liftN n k) where
   source := by simpa only [case_capture_map, case_application_map_levels] using H.source.weakN henv W
   block_eq := H.block_eq
   owner_eq := H.owner_eq
@@ -390,9 +390,9 @@ theorem MatchedCaseStep.weakN (henv : env.WF) (W : Ctx.LiftN n k Γ Γ')
     simpa only [case_application_liftN, case_capture_map, case_application_map_levels, AppliedRule.lhs,
       instantiateParams_liftN H.source.closed.1.instL] using h
 
-theorem MatchedCaseStep.weak' (henv : env.WF) (W : Ctx.Lift' ρ Γ Γ')
-    (H : MatchedCaseStep env U Γ rule actual) :
-    MatchedCaseStep env U Γ' rule (CaseApplicationMap actual fun e => e.lift' ρ) where
+theorem CaseRedex.weak' (henv : env.WF) (W : Ctx.Lift' ρ Γ Γ')
+    (H : CaseRedex env U Γ rule actual) :
+    CaseRedex env U Γ' rule (CaseApplicationMap actual fun e => e.lift' ρ) where
   source := by simpa only [case_capture_map, case_application_map_levels] using H.source.weak' henv W
   block_eq := H.block_eq
   owner_eq := H.owner_eq
@@ -406,9 +406,9 @@ theorem MatchedCaseStep.weak' (henv : env.WF) (W : Ctx.Lift' ρ Γ Γ')
     simpa only [case_application_lift', case_capture_map, case_application_map_levels, AppliedRule.lhs,
       instantiateParams_lift' H.source.closed.1.instL ρ] using h
 
-theorem MatchedCaseStep.instN (henv : env.WF) (hvalue : env.HasType U Γ₀ value valueType)
-    (W : Ctx.InstN Γ₀ value valueType k Γ Γ') (H : MatchedCaseStep env U Γ rule actual) :
-    MatchedCaseStep env U Γ' rule (CaseApplicationMap actual fun e => e.inst value k) where
+theorem CaseRedex.instN (henv : env.WF) (hvalue : env.HasType U Γ₀ value valueType)
+    (W : Ctx.InstN Γ₀ value valueType k Γ Γ') (H : CaseRedex env U Γ rule actual) :
+    CaseRedex env U Γ' rule (CaseApplicationMap actual fun e => e.inst value k) where
   source := by simpa only [case_capture_map, case_application_map_levels] using H.source.instN henv hvalue W
   block_eq := H.block_eq
   owner_eq := H.owner_eq
@@ -422,7 +422,7 @@ theorem MatchedCaseStep.instN (henv : env.WF) (hvalue : env.HasType U Γ₀ valu
     simpa only [case_application_instN, case_capture_map, case_application_map_levels, AppliedRule.lhs,
       instantiateParams_instN H.source.closed.1.instL] using h
 
-theorem MatchedCaseStep.capture_typed (H : MatchedCaseStep env U Γ rule actual)
+theorem CaseRedex.capture_typed (H : CaseRedex env U Γ rule actual)
     (h : e ∈ rule.capture actual) : ∃ type, env.HasType U Γ e type :=
   H.source.arguments_typed h
 
@@ -455,10 +455,10 @@ theorem below_case_capture {motive : VExpr → Prop} {rule : AppliedRule} {actua
   · exact below_mkApps_args h.2.2 arg (List.mem_of_mem_drop ha)
 
 /-- Existential closure of a matched generated rule at its computed endpoints. -/
-inductive AppliedSchemaReduction (env : VEnv) (U : Nat) (Γ : List VExpr) :
+inductive CaseIota (env : VEnv) (U : Nat) (Γ : List VExpr) :
     VExpr → VExpr → Prop where
-  | iota : MatchedCaseStep env U Γ rule actual →
-    AppliedSchemaReduction env U Γ actual.expr (rule.rhs actual.levels (rule.capture actual))
+  | iota : CaseRedex env U Γ rule actual →
+    CaseIota env U Γ actual.expr (rule.rhs actual.levels (rule.capture actual))
 
 theorem instantiateParams_eq_instOuter (body : VExpr) (args : List VExpr) :
     instantiateParams body args = body.instOuter args := by
@@ -503,7 +503,7 @@ theorem CaseStep.defeq
 concrete match. Certification makes its designated capture positions exact. -/
 theorem CaseStep.canonicalMatch (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     (H : CaseStep env U Γ rule levels arguments) :
-    MatchedCaseStep env U Γ rule (rule.application.specialize levels arguments) := by
+    CaseRedex env U Γ rule (rule.application.specialize levels arguments) := by
   have Hsaved := H
   cases H with
   | @iota block levels target arguments schema owner rule hl hg hc hp ht hr ha =>
@@ -543,7 +543,7 @@ theorem generated_case_body (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
       (rule.equation.type.instL (target :: levels))) :
     let domains := rule.body.domains.map (VExpr.instL (target :: levels))
     OnCtx (domains.reverse ++ Γ) (env.IsType U) ∧
-      AppliedSchemaReduction env U (domains.reverse ++ Γ)
+      CaseIota env U (domains.reverse ++ Γ)
         (rule.body.lhs.instL (target :: levels)) (rule.body.rhs.instL (target :: levels)) := by
   dsimp only
   let domains := rule.body.domains.map (VExpr.instL (target :: levels))
@@ -575,13 +575,13 @@ theorem generated_case_body (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     rw [VExpr.instOuter_range_bvar' _ _ _ (hdomain i hd).instL (Nat.le_of_lt hi')]
     simpa only [domains, List.getElem_map] using hty
   have hmatch := H.canonicalMatch henv hctx
-  have hstep := AppliedSchemaReduction.iota hmatch
+  have hstep := CaseIota.iota hmatch
   have hcapture := henv.eliminator_origin hlookup
   obtain ⟨base, source, sourceBlock, _, _, hcert, _, _⟩ := hcapture
   rw [hcert.capture_specialize hgen H.length] at hstep
   have hlevels := hgen.application_levels_inst (levels := target :: levels)
     (by simp only [List.length_cons, hgen.equation_uvars, genericUvars, hpermission.length])
-  change AppliedSchemaReduction env U _ (rule.application.specialize (target :: levels) args).expr
+  change CaseIota env U _ (rule.application.specialize (target :: levels) args).expr
     (rule.rhs ((rule.application.specialize (target :: levels) args).levels) args) at hstep
   have hactuallevels : (rule.application.specialize (target :: levels) args).levels = target :: levels := hlevels
   rw [hactuallevels, ← hgen.lhs_exact] at hstep
@@ -713,9 +713,9 @@ theorem CaseStep.arity_eq (henv : env.WF)
       obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ := henv.eliminator_origin hl
       exact hcert.arguments_length_eq hbase hg hg'
 
-theorem MatchedCaseStep.not_elim_prefix (henv : env.WF)
+theorem CaseRedex.not_elim_prefix (henv : env.WF)
     (H : CaseStep env U Γ rule levels arguments)
-    (H' : MatchedCaseStep env U' Γ' rule' actual)
+    (H' : CaseRedex env U' Γ' rule' actual)
     (he : actual.expr = VExpr.mkApps (.elim rule.application.block rule.application.owner packed) prefixArgs)
     (hlen : prefixArgs.length ≤ rule.application.arguments.length) : False := by
   have hs := congrArg VExpr.getAppFnArgs he
@@ -748,17 +748,17 @@ theorem CaseStep.rule_unique (henv : env.WF)
       cases hslot
       exact henv.case_rule_unique hl hg hg' hctor
 
-theorem MatchedCaseStep.rule_unique (henv : env.WF)
-    (H : MatchedCaseStep env U Γ rule actual) (H' : MatchedCaseStep env U Γ rule' actual) :
+theorem CaseRedex.rule_unique (henv : env.WF)
+    (H : CaseRedex env U Γ rule actual) (H' : CaseRedex env U Γ rule' actual) :
     rule = rule' :=
   H.source.rule_unique henv H'.source (H.block_eq.symm.trans H'.block_eq)
     (H.owner_eq.symm.trans H'.owner_eq) (H.ctor_eq.symm.trans H'.ctor_eq)
 
-theorem MatchedCaseStep.congr (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
-    (H : MatchedCaseStep env U Γ rule actual)
+theorem CaseRedex.congr (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (H : CaseRedex env U Γ rule actual)
     (hspine : CaseApplicationRelated (env.IsDefEqU U Γ) actual actual')
     (he : env.IsDefEqU U Γ actual.expr actual'.expr) :
-    MatchedCaseStep env U Γ rule actual' := by
+    CaseRedex env U Γ rule actual' := by
   have hcapture := hspine.capture (rule := rule)
   have hlen := hcapture.length_eq.symm
   have hargs := fun (i : Nat) hi hi' => case_forall₂_get (i := i) hcapture hi hi'
@@ -787,37 +787,37 @@ theorem CaseStep.defeqDFC (henv : env.WF)
     exact .iota hl hg hc hp (ht.defeqDFC henv W) (hr.defeqDFC henv W)
       ⟨ha.1, fun i hi hd => (ha.2 i hi hd).defeqDFC henv W⟩
 
-theorem MatchedCaseStep.defeqDFC (henv : env.WF)
-    (W : IsDefEqCtx env U Γ₀ Γ Γ') (H : MatchedCaseStep env U Γ rule actual) :
-    MatchedCaseStep env U Γ' rule actual :=
+theorem CaseRedex.defeqDFC (henv : env.WF)
+    (W : IsDefEqCtx env U Γ₀ Γ Γ') (H : CaseRedex env U Γ rule actual) :
+    CaseRedex env U Γ' rule actual :=
   { H with source := H.source.defeqDFC henv W, guard := H.guard.defeqDFC henv W }
 
-theorem AppliedSchemaReduction.defeq
+theorem CaseIota.defeq
     (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
-    (H : AppliedSchemaReduction env U Γ lhs rhs) : env.IsDefEqU U Γ lhs rhs := by
+    (H : CaseIota env U Γ lhs rhs) : env.IsDefEqU U Γ lhs rhs := by
   cases H with | iota h => exact h.guard.trans henv hΓ (h.source.defeq henv hΓ)
 
-theorem AppliedSchemaReduction.defeqDFC (henv : env.WF)
-    (W : IsDefEqCtx env U Γ₀ Γ Γ') (H : AppliedSchemaReduction env U Γ lhs rhs) :
-    AppliedSchemaReduction env U Γ' lhs rhs := by
+theorem CaseIota.defeqDFC (henv : env.WF)
+    (W : IsDefEqCtx env U Γ₀ Γ Γ') (H : CaseIota env U Γ lhs rhs) :
+    CaseIota env U Γ' lhs rhs := by
   cases H with | iota hm => exact .iota (hm.defeqDFC henv W)
 
-theorem AppliedSchemaReduction.weak' (henv : env.WF) (W : Ctx.Lift' ρ Γ Γ')
-    (H : AppliedSchemaReduction env U Γ lhs rhs) :
-    AppliedSchemaReduction env U Γ' (lhs.lift' ρ) (rhs.lift' ρ) := by
+theorem CaseIota.weak' (henv : env.WF) (W : Ctx.Lift' ρ Γ Γ')
+    (H : CaseIota env U Γ lhs rhs) :
+    CaseIota env U Γ' (lhs.lift' ρ) (rhs.lift' ρ) := by
   cases H with
   | iota hm =>
-    have h := AppliedSchemaReduction.iota (hm.weak' henv W)
+    have h := CaseIota.iota (hm.weak' henv W)
     simpa only [case_application_lift', case_capture_map, case_application_map_levels,
       AppliedRule.rhs, instantiateParams_lift' hm.source.closed.2.1.instL ρ] using h
 
-theorem AppliedSchemaReduction.instN (henv : env.WF)
+theorem CaseIota.instN (henv : env.WF)
     (hvalue : env.HasType U Γ₀ value valueType) (W : Ctx.InstN Γ₀ value valueType k Γ Γ')
-    (H : AppliedSchemaReduction env U Γ lhs rhs) :
-    AppliedSchemaReduction env U Γ' (lhs.inst value k) (rhs.inst value k) := by
+    (H : CaseIota env U Γ lhs rhs) :
+    CaseIota env U Γ' (lhs.inst value k) (rhs.inst value k) := by
   cases H with
   | iota hm =>
-    have h := AppliedSchemaReduction.iota (hm.instN henv hvalue W)
+    have h := CaseIota.iota (hm.instN henv hvalue W)
     simpa only [case_application_instN, case_capture_map, case_application_map_levels,
       AppliedRule.rhs, instantiateParams_instN hm.source.closed.2.1.instL] using h
 
@@ -897,7 +897,7 @@ theorem IsCaseMajorPremise.not_strict_prefix (henv : env.WF)
   omega
 
 theorem IsCasePrefix.not_reduction (henv : env.WF) (hm : IsCasePrefix env e)
-    (H : AppliedSchemaReduction env U Γ e out) : False := by
+    (H : CaseIota env U Γ e out) : False := by
   rcases hm with ⟨schema, block, owner, levels, args, hlookup, he, hlen⟩
   cases H with
   | iota hmatch =>
@@ -920,8 +920,8 @@ theorem IsCasePrefix.not_reduction (henv : env.WF) (hm : IsCasePrefix env e)
     unfold caseMajorArity at hlen
     omega
 
-theorem MatchedCaseStep.majorPremise (henv : env.WF)
-    (H : MatchedCaseStep env U Γ rule actual) :
+theorem CaseRedex.majorPremise (henv : env.WF)
+    (H : CaseRedex env U Γ rule actual) :
     IsCaseMajorPremise env (VExpr.mkApps (.elim actual.block actual.owner actual.levels) actual.arguments) := by
   obtain ⟨schema, block, owner, hl, hg⟩ := H.source.generates
   obtain ⟨hb, ho⟩ := hg.owned
@@ -930,8 +930,8 @@ theorem MatchedCaseStep.majorPremise (henv : env.WF)
   · rw [H.block_eq, H.owner_eq, hb, ho]
   · exact H.arguments_length.trans (hcert.arguments_length hbase hg)
 
-theorem AppliedSchemaReduction.determ (henv : env.WF)
-    (H : AppliedSchemaReduction env U Γ lhs rhs) (H' : AppliedSchemaReduction env U Γ lhs rhs') :
+theorem CaseIota.determ (henv : env.WF)
+    (H : CaseIota env U Γ lhs rhs) (H' : CaseIota env U Γ lhs rhs') :
     rhs = rhs' := by
   cases H with
   | @iota rule actual hm =>
@@ -942,12 +942,12 @@ theorem AppliedSchemaReduction.determ (henv : env.WF)
       cases hm.rule_unique henv hm'
       rfl
 
-theorem AppliedSchemaReduction.head (H : AppliedSchemaReduction env U Γ lhs rhs) :
+theorem CaseIota.head (H : CaseIota env U Γ lhs rhs) :
     ∃ block owner levels, lhs.getAppFnArgs.1 = .elim block owner levels := by
   cases H with | iota h => exact ⟨_, _, _, Application.head _⟩
 
-theorem AppliedSchemaReduction.not_native_match
-    (H : AppliedSchemaReduction env U Γ lhs rhs) {pattern : SimplePattern}
+theorem CaseIota.not_native_match
+    (H : CaseIota env U Γ lhs rhs) {pattern : SimplePattern}
     {values : pattern.toPattern.Path → VExpr}
     (hm : pattern.toPattern.Matches lhs levels values) : False := by
   obtain ⟨_, _, _, hhead⟩ := H.head
@@ -1003,15 +1003,15 @@ private theorem levels_inst_forall₂ (levels : List VLevel)
   exact List.forall₂_map_left_iff.mpr <| List.forall₂_map_right_iff.mpr <|
     List.Forall₂.rfl fun _ _ => VLevel.inst_congr rfl H
 
-theorem MatchedCaseStep.congr_levels (henv : env.WF)
+theorem CaseRedex.congr_levels (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U))
-    (H : MatchedCaseStep env U Γ rule actual)
+    (H : CaseRedex env U Γ rule actual)
     (hwf : ∀ level ∈ levels', level.WF U)
     (heq : List.Forall₂ (· ≈ ·) actual.levels levels')
     (hctorEq : List.Forall₂ (· ≈ ·) actual.ctorLevels ctorLevels')
     (he : env.IsDefEqU U Γ actual.expr
       ({ actual with levels := levels', ctorLevels := ctorLevels' } : Application).expr) :
-    MatchedCaseStep env U Γ rule
+    CaseRedex env U Γ rule
       { actual with levels := levels', ctorLevels := ctorLevels' } := by
   have hs := H.source.congr_levels henv hΓ hwf heq
   have hbody : rule.rhs actual.levels (rule.capture actual) =

@@ -187,8 +187,8 @@ theorem CaseStep.endpoints_typed (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
 
 /-- A case occurrence eliminating into Prop has a proposition as its actual
 result type, even when the matched left template is checked by conversion. -/
-theorem MatchedCaseStep.result_prop_of_target_zero (henv : env.WF)
-    (hΓ : OnCtx Γ (env.IsType U)) (H : MatchedCaseStep env U Γ rule actual)
+theorem CaseRedex.result_prop_of_target_zero (henv : env.WF)
+    (hΓ : OnCtx Γ (env.IsType U)) (H : CaseRedex env U Γ rule actual)
     (htarget : actual.levels.head?.getD .zero ≈ .zero) :
     ∃ resultType, env.HasType U Γ resultType (.sort .zero) ∧
       env.HasType U Γ actual.expr resultType := by

@@ -16,14 +16,14 @@ extracted from the major by the native recursor itself at the motive universe
 typed whenever the indices are aligned with a constructor instance, without an
 eliminator registration; the earlier selectors of `prefixProgram` were not. -/
 
-namespace Lean4Lean.InductiveSignature.NativeRecursorData
+namespace Lean4Lean.InductiveSignature.RecursorData
 open VExpr VEnv
-variable {env : VEnv} {data : NativeRecursorData} {levels levels' packed : List VLevel}
+variable {env : VEnv} {data : RecursorData} {levels levels' packed : List VLevel}
   {all : List VExpr} {c : VExpr} {fs : List VExpr}
 
 /-- The reconstructed constructor and fields at the opened arguments
 (parameters, motives, minors, indices, then the major as `bvar 0`). -/
-noncomputable def singletonRecon (env : VEnv) (data : NativeRecursorData) (levels : List VLevel)
+noncomputable def singletonReconstruction (env : VEnv) (data : RecursorData) (levels : List VLevel)
     (allArguments : List VExpr) : Option (VExpr × List VExpr) := do
   let S ← data.castSpec env levels
   let E ← data.propElim levels
@@ -32,15 +32,15 @@ noncomputable def singletonRecon (env : VEnv) (data : NativeRecursorData) (level
   let fields := (PropElim.occ S (data.propParams levels) E ps idx (.bvar 0) S.fields.length).2
   return (VExpr.mkApps E.ctor (ps ++ fields), fields)
 
-theorem singletonRecon_isSome (env : VEnv) (data : NativeRecursorData) (levels : List VLevel)
+theorem singletonRecon_isSome (env : VEnv) (data : RecursorData) (levels : List VLevel)
     (all all' : List VExpr) :
-    (data.singletonRecon env levels all).isSome = (data.singletonRecon env levels all').isSome := by
-  unfold singletonRecon
+    (data.singletonReconstruction env levels all).isSome = (data.singletonReconstruction env levels all').isSome := by
+  unfold singletonReconstruction
   cases data.castSpec env levels <;> cases data.propElim levels <;> rfl
 
-theorem singletonRecon_fields_length (H : data.singletonRecon env levels all = some (c, fs)) :
+theorem singletonRecon_fields_length (H : data.singletonReconstruction env levels all = some (c, fs)) :
     ∃ S, data.castSpec env levels = some S ∧ fs.length = S.fields.length := by
-  unfold singletonRecon at H
+  unfold singletonReconstruction at H
   simp only [bind, Option.bind_eq_some_iff, pure, Option.some.injEq, Prod.mk.injEq] at H
   obtain ⟨S, hS, E, hE, -, rfl⟩ := H
   exact ⟨S, hS, (PropElim.occ_length S _ E _ _ _ _).2⟩
@@ -61,18 +61,18 @@ theorem castSpec_lengths (hS : data.castSpec env levels = some S) :
   simp only [Option.bind_eq_bind, Option.pure_def, Option.bind_eq_some_iff, Option.map_eq_some_iff,
     Option.some.injEq] at hS
   obtain ⟨_, ⟨i, hi, rfl⟩, rfl⟩ := hS
-  simp [CastSpec.instL, Instance.singletonCast, Instance.sIndices, propParams, Instance.params,
+  simp [SingletonLayout.instL, Instance.singletonCast, Instance.indicesAt, propParams, Instance.params,
     numIndices, numParams]
 
 /-- The reconstruction commutes with substitutions of the opened arguments
 that fix the major. -/
-theorem singletonRecon_subst {σ : VExpr.Subst} (henv : env.WF) (hr : NativeRecursorRegistered env data)
+theorem singletonRecon_subst {σ : VExpr.Subst} (henv : env.WF) (hr : RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
     (hall : all.length = data.majorOffset + 1) (hσ : σ 0 = .bvar 0)
-    (H : data.singletonRecon env levels all = some (c, fs)) :
-    data.singletonRecon env levels (all.map (·.subst σ)) =
+    (H : data.singletonReconstruction env levels all = some (c, fs)) :
+    data.singletonReconstruction env levels (all.map (·.subst σ)) =
       some (c.subst σ, fs.map (·.subst σ)) := by
-  unfold singletonRecon at H ⊢
+  unfold singletonReconstruction at H ⊢
   simp only [bind, Option.bind_eq_some_iff, pure, Option.some.injEq, Prod.mk.injEq] at H
   obtain ⟨S, hS, E, hE, rfl, rfl⟩ := H
   have hC := propElim_closed henv hr hlarge hzero hS hE
@@ -89,22 +89,22 @@ theorem singletonRecon_subst {σ : VExpr.Subst} (henv : env.WF) (hr : NativeRecu
   rw [← hsub.2]
   simp only [VExpr.subst_mkApps, hct, VExpr.subst_const, List.map_append]
 
-theorem singletonRecon_inst {a : VExpr} {K : Nat} (henv : env.WF) (hr : NativeRecursorRegistered env data)
+theorem singletonRecon_inst {a : VExpr} {K : Nat} (henv : env.WF) (hr : RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
     (hall : all.length = data.majorOffset + 1) (hK : 0 < K)
-    (H : data.singletonRecon env levels all = some (c, fs)) :
-    data.singletonRecon env levels (all.map (·.inst a K)) =
+    (H : data.singletonReconstruction env levels all = some (c, fs)) :
+    data.singletonReconstruction env levels (all.map (·.inst a K)) =
       some (c.inst a K, fs.map (·.inst a K)) := by
   have h := singletonRecon_subst (σ := .liftN (.one a) K) henv hr hlarge hzero hall
     (by cases K with | zero => omega | succ K => rfl) H
   simpa only [← VExpr.instN_eq] using h
 
 theorem singletonRecon_lift' {ρ : Lift} {n : Nat} (henv : env.WF)
-    (hr : NativeRecursorRegistered env data)
+    (hr : RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
     (hall : all.length = data.majorOffset + 1) (hn : 0 < n)
-    (H : data.singletonRecon env levels all = some (c, fs)) :
-    data.singletonRecon env levels (all.map (·.lift' (ρ.consN n))) =
+    (H : data.singletonReconstruction env levels all = some (c, fs)) :
+    data.singletonReconstruction env levels (all.map (·.lift' (ρ.consN n))) =
       some (c.lift' (ρ.consN n), fs.map (·.lift' (ρ.consN n))) := by
   have h := singletonRecon_subst (σ := .lift_r .id (ρ.consN n)) henv hr hlarge hzero hall
     (by cases n with | zero => omega | succ n => rfl) H
@@ -114,10 +114,10 @@ theorem singletonRecon_levels
     (hl : ∀ level ∈ levels, level.WF U) (hl' : ∀ level ∈ levels', level.WF U)
     (he : List.Forall₂ (· ≈ ·) levels levels')
     (ha : List.Forall₂ (VEnv.EqUpToLevels U) all all')
-    (H : data.singletonRecon env levels all = some (c, fs)) :
-    ∃ c' fs', data.singletonRecon env levels' all' = some (c', fs') ∧
+    (H : data.singletonReconstruction env levels all = some (c, fs)) :
+    ∃ c' fs', data.singletonReconstruction env levels' all' = some (c', fs') ∧
       VEnv.EqUpToLevels U c c' ∧ List.Forall₂ (VEnv.EqUpToLevels U) fs fs' := by
-  unfold singletonRecon at H ⊢
+  unfold singletonReconstruction at H ⊢
   simp only [bind, Option.bind_eq_some_iff, pure, Option.some.injEq, Prod.mk.injEq] at H
   obtain ⟨S, hS, E, hE, rfl, rfl⟩ := H
   obtain ⟨S', E', hS', hE', hlenF, hocc⟩ := occ_levels hS hE hl hl' he
@@ -130,36 +130,36 @@ theorem singletonRecon_levels
   exact ⟨_, _, rfl, hrel.ctor.mkApps_args (List.Forall₂.append' hps h), h⟩
 
 /-- The singleton prefix program: `prefixProgram` with the reconstruction of
-`singletonRecon`. -/
-noncomputable def singletonProgram (env : VEnv) (data : NativeRecursorData) (_U : Nat)
-    (levels : List VLevel) (arguments : List VExpr) : Option PrefixProgram := do
+`singletonReconstruction`. -/
+noncomputable def singletonUnfolding (env : VEnv) (data : RecursorData) (_U : Nat)
+    (levels : List VLevel) (arguments : List VExpr) : Option PrefixUnfolding := do
   if levels.length != data.uvars || arguments.length > data.majorOffset then none else
   let type ← data.recursorType
   let type ← supplyType arguments (type.instL levels)
   let remaining := data.majorOffset + 1 - arguments.length
   let (domains, result) ← takeForalls remaining type
   let allArguments := arguments.map (·.liftN remaining) ++ vars remaining 0
-  let (constructor, fields) ← data.singletonRecon env levels allArguments
+  let (constructor, fields) ← data.singletonReconstruction env levels allArguments
   let captures := allArguments.take data.indexOffset ++ fields
   let equation ← data.singletonEquation
   let equationBody ← CaseSchema.EquationBody.extract equation.lhs equation.rhs equation.type
   if captures.length != equationBody.domains.length then none else
   return ⟨domains, result, constructor, equation, equationBody, captures, levels⟩
 
-theorem singletonProgram_unique {data : NativeRecursorData} {levels : List VLevel}
-    (h : data.singletonProgram env U levels arguments = some p)
-    (h' : data.singletonProgram env U levels arguments = some p') : p = p' :=
+theorem singletonProgram_unique {data : RecursorData} {levels : List VLevel}
+    (h : data.singletonUnfolding env U levels arguments = some p)
+    (h' : data.singletonUnfolding env U levels arguments = some p') : p = p' :=
   Option.some.inj (h.symm.trans h')
 
-theorem singletonProgram_spec {data : NativeRecursorData} {levels : List VLevel}
-    (h : data.singletonProgram env U levels arguments = some program) :
+theorem singletonProgram_spec {data : RecursorData} {levels : List VLevel}
+    (h : data.singletonUnfolding env U levels arguments = some program) :
     arguments.length ≤ data.majorOffset ∧ program.domains ≠ [] ∧
     program.levels = levels ∧ program.levels.length = program.equation.uvars ∧
     data.singletonEquation = some program.equation ∧
     CaseSchema.EquationBody.extract program.equation.lhs program.equation.rhs
       program.equation.type = some program.equationBody ∧
     program.captures.length = program.equationBody.domains.length := by
-  unfold singletonProgram at h
+  unfold singletonUnfolding at h
   dsimp only at h
   split at h <;> try contradiction
   rename_i hguard
@@ -181,4 +181,4 @@ theorem singletonProgram_spec {data : NativeRecursorData} {levels : List VLevel}
     omega
   · simpa using hcaptures
 
-end Lean4Lean.InductiveSignature.NativeRecursorData
+end Lean4Lean.InductiveSignature.RecursorData

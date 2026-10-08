@@ -22,8 +22,8 @@ open InductiveSignature
 /-- Every replay datum is fixed by the generated program. These are the
 ordinary typing and syntactic checks of the actual stored equation, not a
 caller-provided proof that an arbitrary replacement computes correctly. -/
-structure NativePrefixReplay (env : VEnv) (U : Nat) (Γ : List VExpr)
-    (source : VExpr) (program : NativeRecursorData.PrefixProgram) : Prop where
+structure UnfoldingCheck (env : VEnv) (U : Nat) (Γ : List VExpr)
+    (source : VExpr) (program : RecursorData.PrefixUnfolding) : Prop where
   source_typed : HasType env U Γ source program.type
   remaining_nonempty : program.domains ≠ []
   equation_present : env.defeqs program.equation
@@ -41,47 +41,47 @@ structure NativePrefixReplay (env : VEnv) (U : Nat) (Γ : List VExpr)
     HasType env U (program.domains.reverse ++ Γ) majorType (.sort .zero) ∧
     HasType env U (program.domains.reverse ++ Γ) (.bvar 0) majorType ∧
     HasType env U (program.domains.reverse ++ Γ) program.constructor majorType
-  native_lhs : NativeSpineMatch env U (program.domains.reverse ++ Γ)
-    (.app (nativeEtaBody (program.domains.length - 1) source).lift program.constructor)
+  native_lhs : ConstSpineDefEq env U (program.domains.reverse ++ Γ)
+    (.app (etaOpen (program.domains.length - 1) source).lift program.constructor)
     ((program.equationBody.lhs.instL program.levels).instOuter program.captures)
 
 /-- An aligned prefix of the actual finite singleton program. All remaining
 binders are opened before checking its reconstructed constructor. -/
-inductive NativeDeltaRule (env : VEnv) (U : Nat)
-    (registry : Name → Option NativeRecursorData) (Γ : List VExpr) :
+inductive PrefixUnfold (env : VEnv) (U : Nat)
+    (registry : Name → Option RecursorData) (Γ : List VExpr) :
     Name → List VLevel → List VExpr → VExpr → Prop where
-  | intro {data : NativeRecursorData} {program : NativeRecursorData.PrefixProgram} :
-      registry name = some data → NativeRecursorRegistered env data → data.name = name →
+  | intro {data : RecursorData} {program : RecursorData.PrefixUnfolding} :
+      registry name = some data → RecursorRegistered env data → data.name = name →
       data.largeTarget = true → (∀ level ∈ levels, level.WF U) →
       data.sourceLevel levels ≈ .zero →
-      data.singletonProgram env U levels arguments = some program →
-      NativePrefixReplay env U Γ (VExpr.mkApps (.const name levels) arguments) program →
-      NativeDeltaRule env U registry Γ name levels arguments program.rhs
+      data.singletonUnfolding env U levels arguments = some program →
+      UnfoldingCheck env U Γ (VExpr.mkApps (.const name levels) arguments) program →
+      PrefixUnfold env U registry Γ name levels arguments program.rhs
 
 /-- With the same supplied prefix, program generation is deterministic.
 Different prefix lengths may unfold the same larger application; those
 steps require a beta-join, not literal equality of one-step outputs. -/
-theorem NativeDeltaRule.unique
-    (H : NativeDeltaRule env U registry Γ name levels arguments rhs)
-    (H' : NativeDeltaRule env U registry Γ name levels arguments rhs') : rhs = rhs' := by
+theorem PrefixUnfold.unique
+    (H : PrefixUnfold env U registry Γ name levels arguments rhs)
+    (H' : PrefixUnfold env U registry Γ name levels arguments rhs') : rhs = rhs' := by
   cases H with | intro hl _ _ _ _ _ hg _ =>
     cases H' with | intro hl' _ _ _ _ _ hg' _ =>
       cases Option.some.inj (hl.symm.trans hl')
-      cases NativeRecursorData.singletonProgram_unique hg hg'
+      cases RecursorData.singletonProgram_unique hg hg'
       rfl
 
 /-- Replaying the installed equation under the fresh telescope is sound.
 The proof uses only ordinary equation application, beta, eta, and proof
 irrelevance at the explicitly checked major proposition. -/
-theorem NativePrefixReplay.defeq (henv : env.WF)
+theorem UnfoldingCheck.defeq (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U))
-    (H : NativePrefixReplay env U Γ source program) :
+    (H : UnfoldingCheck env U Γ source program) :
     IsDefEq env U Γ source program.rhs program.type := by
   have heta := H.source_typed.native_eta henv hΓ
   obtain ⟨hctx, hopen⟩ := H.source_typed.native_open henv.ordered hΓ
   have hpos : 0 < program.domains.length := List.length_pos_iff.mpr H.remaining_nonempty
-  have hetaBody : nativeEtaBody program.domains.length source =
-      .app (nativeEtaBody (program.domains.length - 1) source).lift (.bvar 0) := by
+  have hetaBody : etaOpen program.domains.length source =
+      .app (etaOpen (program.domains.length - 1) source).lift (.bvar 0) := by
     have hlen : program.domains.length = (program.domains.length - 1) + 1 := by omega
     conv => lhs; rw [hlen]
     exact nativeEtaBody_succ _ _
@@ -98,20 +98,20 @@ theorem NativePrefixReplay.defeq (henv : env.WF)
   have hbody := IsDefEqU.of_l henv hctx
     ((IsDefEqU.trans henv hctx ⟨_, hreplace⟩ halign).trans henv hctx ⟨_, hiota⟩) hopen
   rw [← hetaBody] at hbody
-  simpa only [NativeRecursorData.PrefixProgram.rhs, NativeRecursorData.PrefixProgram.type, instantiateParams_eq_instOuter] using
+  simpa only [RecursorData.PrefixUnfolding.rhs, RecursorData.PrefixUnfolding.type, instantiateParams_eq_instOuter] using
     heta.trans (hbody.native_wrapLams henv hΓ hctx)
 
-theorem NativeDeltaRule.defeq (henv : env.WF)
+theorem PrefixUnfold.defeq (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U))
-    (H : NativeDeltaRule env U registry Γ name levels arguments rhs) :
+    (H : PrefixUnfold env U registry Γ name levels arguments rhs) :
     IsDefEqU env U Γ (VExpr.mkApps (.const name levels) arguments) rhs := by
   cases H with | intro _ _ _ _ _ _ _ replay => exact ⟨_, replay.defeq henv hΓ⟩
 
-theorem NativePrefixReplay.defeqDFC (henv : env.WF)
+theorem UnfoldingCheck.defeqDFC (henv : env.WF)
     (hΓ : OnCtx Γ₀ (env.IsType U))
     (W : IsDefEqCtx env U Γ₀ Γ₁ Γ₂)
-    (H : NativePrefixReplay env U Γ₁ source program) :
-    NativePrefixReplay env U Γ₂ source program := by
+    (H : UnfoldingCheck env U Γ₁ source program) :
+    UnfoldingCheck env U Γ₂ source program := by
   have hctx := (H.source_typed.native_open henv.ordered (W.isType' hΓ)).1
   have extend {xs : List VExpr} (h : OnCtx (xs ++ Γ₁) (env.IsType U)) :
       IsDefEqCtx env U Γ₀ (xs ++ Γ₁) (xs ++ Γ₂) := by
@@ -126,10 +126,10 @@ theorem NativePrefixReplay.defeqDFC (henv : env.WF)
   obtain ⟨majorType, hp, hm, hc⟩ := H.major_prop
   exact ⟨majorType, hp.defeqDFC henv W', hm.defeqDFC henv W', hc.defeqDFC henv W'⟩
 
-theorem NativeDeltaRule.defeqDFC (henv : env.WF)
+theorem PrefixUnfold.defeqDFC (henv : env.WF)
     (hΓ : OnCtx Γ₀ (env.IsType U)) (W : IsDefEqCtx env U Γ₀ Γ₁ Γ₂)
-    (H : NativeDeltaRule env U registry Γ₁ name levels arguments rhs) :
-    NativeDeltaRule env U registry Γ₂ name levels arguments rhs := by
+    (H : PrefixUnfold env U registry Γ₁ name levels arguments rhs) :
+    PrefixUnfold env U registry Γ₂ name levels arguments rhs := by
   cases H with | intro hl hr hn ht hw hp hg replay =>
     exact .intro hl hr hn ht hw hp hg (replay.defeqDFC henv hΓ W)
 
@@ -137,8 +137,8 @@ open private closed_wrapLams_body closed_wrapForalls_domain
   from Lean4Lean.Theory.Typing.CaseReduction
 
 /-- Installed equation syntax bounds all replay captures and their domains. -/
-theorem NativePrefixReplay.templateScope (henv : env.WF)
-    (H : NativePrefixReplay env U Γ source program) :
+theorem UnfoldingCheck.templateScope (henv : env.WF)
+    (H : UnfoldingCheck env U Γ source program) :
     program.equationBody.lhs.ClosedN program.captures.length ∧
       program.equationBody.rhs.ClosedN program.captures.length ∧
       ∀ j (hj : j < program.equationBody.domains.length),

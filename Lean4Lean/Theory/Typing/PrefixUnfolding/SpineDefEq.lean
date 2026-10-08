@@ -8,7 +8,7 @@ open VExpr
 /-- Matching reconstructed dependent indices keeps the literal native head
 and compares its scoped universe packets by level equivalence. Only the finite generated argument positions are
 compared; an arbitrary source major is never matched through equality. -/
-def NativeSpineMatch (env : VEnv) (U : Nat) (Γ : List VExpr)
+def ConstSpineDefEq (env : VEnv) (U : Nat) (Γ : List VExpr)
     (actual expected : VExpr) : Prop :=
   ∃ name levels levels' args args', actual = mkApps (.const name levels) args ∧
     expected = mkApps (.const name levels') args' ∧
@@ -28,8 +28,8 @@ private theorem nativeSpine_congr {env : VEnv} {U : Nat} {Γ : List VExpr}
     obtain ⟨_, _, hf, ha⟩ := happ.app_inv henv.ordered hΓ
     exact ih ⟨_, IsDefEq.appDF (head.of_l henv hΓ hf) (h.of_l henv hΓ ha)⟩ ht
 
-theorem NativeSpineMatch.defeq (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
-    (H : NativeSpineMatch env U Γ actual expected)
+theorem ConstSpineDefEq.defeq (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (H : ConstSpineDefEq env U Γ actual expected)
     (ht : env.HasType U Γ actual type) : env.IsDefEqU U Γ actual expected := by
   obtain ⟨name, levels, levels', args, args', rfl, rfl, hw, hw', heq, hargs⟩ := H
   have hhead := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, ht⟩
@@ -37,10 +37,10 @@ theorem NativeSpineMatch.defeq (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
   exact nativeSpine_congr henv hΓ hargs
     ⟨_, hhead.eqUpToLevels henv.ordered hΓ (.const hw hw' heq)⟩ ht
 
-theorem NativeSpineMatch.defeqDFC (henv : env.WF)
+theorem ConstSpineDefEq.defeqDFC (henv : env.WF)
     (W : IsDefEqCtx env U Γ₀ Γ₁ Γ₂)
-    (H : NativeSpineMatch env U Γ₁ actual expected) :
-    NativeSpineMatch env U Γ₂ actual expected := by
+    (H : ConstSpineDefEq env U Γ₁ actual expected) :
+    ConstSpineDefEq env U Γ₂ actual expected := by
   obtain ⟨name, levels, levels', args, args', ha, he, hw, hw', heq, hargs⟩ := H
   refine ⟨name, levels, levels', args, args', ha, he, hw, hw', heq, ?_⟩
   clear ha he actual expected

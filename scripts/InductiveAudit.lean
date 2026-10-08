@@ -98,20 +98,20 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.genericEquations
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.genericProjectionPrefix
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.Generates
-#inductive_audit Lean4Lean.VEnv.MatchedCaseStep
+#inductive_audit Lean4Lean.VEnv.CaseRedex
 
 #inductive_audit Lean4Lean.VEnv.NormalEq.parRed
 #inductive_audit Lean4Lean.VEnv.HeadParallelReduction
 #inductive_audit Lean4Lean.VerifyInductive.CompletedRecursorConstruction.canonicalTypeTranslations
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.singletonReconstruction
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.singletonReconstructAt
-#inductive_audit Lean4Lean.InductiveSignature.NativeRecursorData.singletonEquation
-#inductive_audit Lean4Lean.VEnv.NativeRecursorRegistered
+#inductive_audit Lean4Lean.InductiveSignature.RecursorData.singletonEquation
+#inductive_audit Lean4Lean.VEnv.RecursorRegistered
 #inductive_audit Lean4Lean.VEnv.NativeReductionTrace
-#inductive_audit Lean4Lean.VEnv.NativeDeltaRule
-#inductive_audit Lean4Lean.VEnv.NativeDeltaRule.defeq
+#inductive_audit Lean4Lean.VEnv.PrefixUnfold
+#inductive_audit Lean4Lean.VEnv.PrefixUnfold.defeq
 
-#inductive_audit Lean4Lean.InductiveSignature.NativeRecursorData.prefixProgram
+#inductive_audit Lean4Lean.InductiveSignature.RecursorData.prefixProgram
 
 #inductive_audit Lean4Lean.VEnv.FullStep
 
@@ -126,16 +126,16 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean.Level.paramsIn
 #inductive_audit Lean.Expr.levelParamsIn
 
-#inductive_audit Lean4Lean.QuotPrefixProgram.witness
-#inductive_audit Lean4Lean.QuotPrefixProgram.generate
+#inductive_audit Lean4Lean.QuotPrefixUnfolding.propInhabitant
+#inductive_audit Lean4Lean.QuotPrefixUnfolding.generate
 #inductive_audit Lean4Lean.VEnv.QuotRegistered
-#inductive_audit Lean4Lean.VEnv.QuotDeltaRule
+#inductive_audit Lean4Lean.VEnv.QuotPrefixUnfold
 #inductive_audit Lean4Lean.VEnv.DefinitionRegistered
 #inductive_audit Lean4Lean.VEnv.DefinitionPattern
 #inductive_audit Lean4Lean.VEnv.installDefinitions
-#inductive_audit Lean4Lean.InductiveSignature.NativeRecursorData.compilationEntries
-#inductive_audit Lean4Lean.InductiveSignature.NativeRecursorData.installEntries
-#inductive_audit Lean4Lean.VEnv.QuotDeltaRule.defeq
+#inductive_audit Lean4Lean.InductiveSignature.RecursorData.compilationEntries
+#inductive_audit Lean4Lean.InductiveSignature.RecursorData.installEntries
+#inductive_audit Lean4Lean.VEnv.QuotPrefixUnfold.defeq
 
 #inductive_audit Lean4Lean.VEnv.QuotRegistered.witness_app
 

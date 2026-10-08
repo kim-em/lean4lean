@@ -10,7 +10,7 @@ def VDefEq.HasConstructorMajor (equation : VDefEq) (name : Name) : Prop :=
   ∃ fn levels args, equation.lhs.stripLams = .app fn (VExpr.mkApps (.const name levels) args)
 
 theorem VExpr.nativeEquationHead_eq (e : VExpr) :
-    e.nativeEquationHead = e.stripLams.getAppFnArgs.1 := by
+    e.equationHead = e.stripLams.getAppFnArgs.1 := by
   induction e with
   | lam _ _ _ ih => exact ih
   | _ => rfl
@@ -244,7 +244,7 @@ def CtorResultRigid (env : VEnv) (name : Name) : Prop :=
   ∃ ci, env.constants name = some ci ∧ ∃ F ls, ci.type.forallResult.getAppFnArgs.1 = .const F ls ∧
     (∃ ciF, env.constants F = some ciF) ∧ env.Rigid F
 
-private def ConstructorHistory (env : VEnv) : Prop :=
+private def ConstructorHeadsRigid (env : VEnv) : Prop :=
   (∀ equation, env.defeqs equation → ∀ name, equation.HasConstructorMajor name →
     (∃ ci, env.constants name = some ci) ∧ env.Rigid name ∧ env.CtorResultRigid name) ∧
   (∀ key schema, env.eliminators key schema →
@@ -265,10 +265,10 @@ private theorem CtorResultRigid.mono {env env' : VEnv} (H : env.CtorResultRigid 
   obtain ⟨ci, hci, F, ls, hF, ⟨ciF, hciF⟩, hrF⟩ := H
   exact ⟨ci, hle.constants hci, F, ls, hF, ⟨ciF, hle.constants hciF⟩, hr ⟨ciF, hciF⟩ hrF⟩
 
-private theorem ConstructorHistory.transport {env env' : VEnv}
-    (H : ConstructorHistory env) (hle : env ≤ env')
+private theorem ConstructorHeadsRigid.transport {env env' : VEnv}
+    (H : ConstructorHeadsRigid env) (hle : env ≤ env')
     (hdf : env'.defeqs = env.defeqs) (helim : env'.eliminators = env.eliminators) :
-    ConstructorHistory env' := by
+    ConstructorHeadsRigid env' := by
   have move {name} : ((∃ ci, env.constants name = some ci) ∧ env.Rigid name) →
       ((∃ ci, env'.constants name = some ci) ∧ env'.Rigid name) := by
     rintro ⟨⟨ci, hci⟩, hr⟩
@@ -289,28 +289,28 @@ private theorem ConstructorHistory.transport {env env' : VEnv}
     rw [helim] at hs
     exact move (H.2.2.2 key schema hs owner rule hr)
 
-private theorem ConstructorHistory.addConst {env env' : VEnv}
-    (H : ConstructorHistory env) (hadd : env.addConst name ci = some env') :
-    ConstructorHistory env' :=
+private theorem ConstructorHeadsRigid.addConst {env env' : VEnv}
+    (H : ConstructorHeadsRigid env) (hadd : env.addConst name ci = some env') :
+    ConstructorHeadsRigid env' :=
   H.transport (VEnv.addConst_le hadd) (VEnv.addConst_defeqs hadd)
     (VEnv.addConst_eliminators hadd)
 
-private theorem ConstructorHistory.addConstVals {env env' : VEnv}
-    (H : ConstructorHistory env) (hadd : env.addConstVals values = some env') :
-    ConstructorHistory env' :=
+private theorem ConstructorHeadsRigid.addConstVals {env env' : VEnv}
+    (H : ConstructorHeadsRigid env) (hadd : env.addConstVals values = some env') :
+    ConstructorHeadsRigid env' :=
   H.transport (VEnv.addConstVals_le hadd) (VEnv.addConstVals_defeqs hadd)
     (VEnv.addConstVals_eliminators hadd)
 
 /-- Fresh recursor heads preserve constructors known before the recursor
 constants and equations were added. -/
-private theorem ConstructorHistory.addRules {pre env : VEnv} {rules : List VDefEq}
-    (H : ConstructorHistory pre) (hle : pre ≤ env)
+private theorem ConstructorHeadsRigid.addRules {pre env : VEnv} {rules : List VDefEq}
+    (H : ConstructorHeadsRigid pre) (hle : pre ≤ env)
     (hdf : env.defeqs = pre.defeqs) (helim : env.eliminators = pre.eliminators)
     (hhead : ∀ df ∈ rules, ∀ name levels,
       df.lhs.stripLams.getAppFnArgs.1 = .const name levels → pre.constants name = none)
     (hmajor : ∀ df ∈ rules, ∀ name, df.HasConstructorMajor name →
       (∃ ci, pre.constants name = some ci) ∧ pre.Rigid name ∧ pre.CtorResultRigid name) :
-    ConstructorHistory (env.addDefEqRules rules) := by
+    ConstructorHeadsRigid (env.addDefEqRules rules) := by
   have hconstants : (env.addDefEqRules rules).constants = env.constants :=
     VEnv.addDefEqRules_constants _ _
   have heliminators : (env.addDefEqRules rules).eliminators = pre.eliminators :=
@@ -350,14 +350,14 @@ private theorem ConstructorHistory.addRules {pre env : VEnv} {rules : List VDefE
     rw [heliminators] at hs
     exact move (H.2.2.2 key schema hs owner rule hr)
 
-private theorem ConstructorHistory.compileRules {pre env : VEnv}
+private theorem ConstructorHeadsRigid.compileRules {pre env : VEnv}
     {recursors : List VConstVal} {rules : List VDefEq}
-    (H : ConstructorHistory pre) (hrecs : pre.addConstVals recursors = some env)
+    (H : ConstructorHeadsRigid pre) (hrecs : pre.addConstVals recursors = some env)
     (hheads : ∀ df ∈ rules, ∃ recursor ∈ recursors, ∃ levels,
       df.lhs.stripLams.getAppFnArgs.1 = .const recursor.name levels)
     (hmajor : ∀ df ∈ rules, ∀ name, df.HasConstructorMajor name →
       (∃ ci, pre.constants name = some ci) ∧ pre.Rigid name ∧ pre.CtorResultRigid name) :
-    ConstructorHistory (env.addDefEqRules rules) := by
+    ConstructorHeadsRigid (env.addDefEqRules rules) := by
   apply H.addRules (VEnv.addConstVals_le hrecs) (VEnv.addConstVals_defeqs hrecs)
     (VEnv.addConstVals_eliminators hrecs) _ hmajor
   intro df hdf name levels hhead
@@ -366,14 +366,14 @@ private theorem ConstructorHistory.compileRules {pre env : VEnv}
   rw [← hn]
   exact VEnv.addConstVals_names_fresh hrecs recursor hrecursor
 
-private theorem ConstructorHistory.addProjections
-    (H : ConstructorHistory env) : ConstructorHistory (env.addProjections entries) :=
+private theorem ConstructorHeadsRigid.addProjections
+    (H : ConstructorHeadsRigid env) : ConstructorHeadsRigid (env.addProjections entries) :=
   H.transport VEnv.addProjections_le (VEnv.addProjections_defeqs _ _)
     (VEnv.addProjections_eliminators _ _)
 
-private theorem ConstructorHistory.addDefinitions {env env' : VEnv}
-    (H : ConstructorHistory env) (hadd : env.addConsts cis = some env') :
-    ConstructorHistory (env'.addDefEqs cis) := by
+private theorem ConstructorHeadsRigid.addDefinitions {env env' : VEnv}
+    (H : ConstructorHeadsRigid env) (hadd : env.addConsts cis = some env') :
+    ConstructorHeadsRigid (env'.addDefEqs cis) := by
   rw [VEnv.addDefEqs_eq_addDefEqRules]
   apply H.compileRules (recursors := cis.map (·.toVConstVal))
     (by rwa [← VEnv.addConsts_eq_addConstVals])
@@ -390,9 +390,9 @@ private theorem rigid_of_defeqs_eq {base env : VEnv} (h : env.defeqs = base.defe
     (hr : base.Rigid name) : env.Rigid name := by
   simpa only [Rigid, h] using hr
 
-private theorem ConstructorHistory.addQuot {env env' : VEnv}
-    (H : ConstructorHistory env) (hordered : env.Ordered)
-    (hadd : env.addQuot = some env') : ConstructorHistory env' := by
+private theorem ConstructorHeadsRigid.addQuot {env env' : VEnv}
+    (H : ConstructorHeadsRigid env) (hordered : env.Ordered)
+    (hadd : env.addQuot = some env') : ConstructorHeadsRigid env' := by
   simp [VEnv.addQuot] at hadd
   obtain ⟨e1, h1, e2, h2, e3, h3, pre, h4, rfl⟩ := hadd
   let recursors : List VConstVal := [
@@ -419,15 +419,15 @@ private theorem ConstructorHistory.addQuot {env env' : VEnv}
       ⟨quotConst, (VEnv.addConst_le h2).constants (VEnv.addConst_self h1)⟩,
       rigid_of_defeqs_eq hdf2 hquot⟩
 
-private theorem ConstructorHistory.register {base env : VEnv}
+private theorem ConstructorHeadsRigid.register {base env : VEnv}
     {schema : InductiveSignature.CaseSchema}
-    (Hbase : ConstructorHistory base) (Henv : ConstructorHistory env)
+    (Hbase : ConstructorHeadsRigid base) (Henv : ConstructorHeadsRigid env)
     (hbase : base.Ordered) (hle : base ≤ env)
     (hcert : schema.Certified base source block)
     (hconstants : ∀ value ∈ block.types ++ block.ctors,
       env.constants value.name = some value.toVConstant)
     (hdf : env.defeqs = base.defeqs) :
-    ConstructorHistory (env.addEliminator key schema) := by
+    ConstructorHeadsRigid (env.addEliminator key schema) := by
   refine ⟨?_, ?_, ?_, ?_⟩
   · exact Henv.1
   · intro k s hs owner rule hr
@@ -480,9 +480,9 @@ private theorem ConstructorHistory.register {base env : VEnv}
         exact ⟨⟨ciF, hle.constants hciF⟩, rigid_of_defeqs_eq hdf hFr⟩
     · exact Henv.2.2.2 k s hs owner rule hr
 
-private theorem ConstructorHistory.addInduct
-    (H : ConstructorHistory env) (hordered : env.Ordered)
-    (hadd : env.AddInduct decl env') : ConstructorHistory env' := by
+private theorem ConstructorHeadsRigid.addInduct
+    (H : ConstructorHeadsRigid env) (hordered : env.Ordered)
+    (hadd : env.AddInduct decl env') : ConstructorHeadsRigid env' := by
   cases hadd with
   | @intro block installed hdecl hcompile hblock helim hinstall =>
     obtain ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs, _⟩ := hblock
@@ -497,7 +497,7 @@ private theorem ConstructorHistory.addInduct
     subst env'
     have hdf0 : envCtors.defeqs = env.defeqs :=
       (VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)
-    have hpre := (show ConstructorHistory (envCtors.addEliminators block.eliminators) by
+    have hpre := (show ConstructorHeadsRigid (envCtors.addEliminators block.eliminators) by
       rcases helim with ⟨-, hE⟩ | ⟨key, schema, hE, ⟨hcert, hkey, -⟩, hprojs⟩
       · rw [hE]; exact (H.addConstVals htypes).addConstVals hctors
       · rw [hE]
@@ -549,8 +549,8 @@ private theorem ConstructorHistory.addInduct
       exact ⟨⟨ci, hle.constants hci⟩, rigid_of_defeqs_eq hdf hr,
         hres.mono hle fun _ hr => rigid_of_defeqs_eq hdf hr⟩
 
-private theorem WF.constructorHistory {env : VEnv} (H : env.WF) : ConstructorHistory env := by
-  suffices h : ∀ {ds env}, VEnv.WF' ds env → ConstructorHistory env from h H.choose_spec
+private theorem WF.constructorHistory {env : VEnv} (H : env.WF) : ConstructorHeadsRigid env := by
+  suffices h : ∀ {ds env}, VEnv.WF' ds env → ConstructorHeadsRigid env from h H.choose_spec
   intro ds env H
   induction H with
   | empty =>

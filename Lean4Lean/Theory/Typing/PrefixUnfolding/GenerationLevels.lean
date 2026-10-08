@@ -5,7 +5,7 @@ import Lean4Lean.Theory.Typing.LevelEquiv
 import Lean4Lean.Theory.Inductive.SingletonReconstruction
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Generation
 
-namespace Lean4Lean.InductiveSignature.NativeRecursorData
+namespace Lean4Lean.InductiveSignature.RecursorData
 open VEnv VExpr
 
 theorem supplyType_levels (ha : List.Forall₂ (EqUpToLevels U) args args')
@@ -33,7 +33,7 @@ theorem takeForalls_levels (ht : EqUpToLevels U type type')
     obtain ⟨ds', body', htake', hds, hbody⟩ := ih hb htake
     exact ⟨_, _, by simp only [takeForalls, bind, htake', Option.bind_some]; rfl, .cons hd hds, hbody⟩
 
-end Lean4Lean.InductiveSignature.NativeRecursorData
+end Lean4Lean.InductiveSignature.RecursorData
 
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature
@@ -63,14 +63,14 @@ private theorem levels_lift (H : List.Forall₂ (EqUpToLevels U) args args') (n 
 
 end Lean4Lean.VEnv
 
-namespace Lean4Lean.QuotPrefixProgram
-open VEnv VExpr InductiveSignature InductiveSignature.NativeRecursorData
+namespace Lean4Lean.QuotPrefixUnfolding
+open VEnv VExpr InductiveSignature InductiveSignature.RecursorData
 
 theorem witness_levels (hl : l.WF U) (hl' : l'.WF U) (he : l ≈ l') :
-    EqUpToLevels U (witness l) (witness l') := by
-  have H := EqUpToLevels.instL_expr (witness (.param 0))
+    EqUpToLevels U (propInhabitant l) (propInhabitant l') := by
+  have H := EqUpToLevels.instL_expr (propInhabitant (.param 0))
     (ls := [l]) (ls' := [l']) (by simpa) (by simpa) (.cons he .nil)
-  simpa [witness, VExpr.instL_wrapLams, VExpr.instL_mkApps, VExpr.instL, VLevel.inst,
+  simpa [propInhabitant, VExpr.instL_wrapLams, VExpr.instL_mkApps, VExpr.instL, VLevel.inst,
     VExpr.lift, VExpr.liftN] using H
 
 theorem generate_levels {levels levels' : List VLevel}
@@ -78,7 +78,7 @@ theorem generate_levels {levels levels' : List VLevel}
     (he : List.Forall₂ (· ≈ ·) levels levels')
     (ha : List.Forall₂ (EqUpToLevels U) args args')
     (H : generate levels args = some program) :
-    ∃ program', generate levels' args' = some program' ∧ PrefixProgram.LevelEquiv U program program' := by
+    ∃ program', generate levels' args' = some program' ∧ PrefixUnfolding.LevelEquiv U program program' := by
   have hlen := Lean4Lean.List.Forall₂.length_eq he
   have hargslen := Lean4Lean.List.Forall₂.length_eq ha
   unfold generate at H ⊢
@@ -116,23 +116,23 @@ theorem generate_levels {levels levels' : List VLevel}
   simp only [bind, hsupply', htake', hbody, Option.bind_some]
   exact ⟨_, rfl, ⟨hdoms, hresult, hconstructor, rfl, rfl, hcaptures, he, hl'⟩⟩
 
-end Lean4Lean.QuotPrefixProgram
+end Lean4Lean.QuotPrefixUnfolding
 
 
-namespace Lean4Lean.InductiveSignature.NativeRecursorData
+namespace Lean4Lean.InductiveSignature.RecursorData
 open VEnv VExpr CaseSchema
 
-theorem singletonProgram_levels {data : NativeRecursorData} {levels levels' : List VLevel}
-    {env : VEnv} (hr : NativeRecursorRegistered env data)
+theorem singletonProgram_levels {data : RecursorData} {levels levels' : List VLevel}
+    {env : VEnv} (hr : RecursorRegistered env data)
     (hl : ∀ level ∈ levels, level.WF U) (hl' : ∀ level ∈ levels', level.WF U)
     (he : List.Forall₂ (· ≈ ·) levels levels')
     (ha : List.Forall₂ (EqUpToLevels U) args args')
-    (H : data.singletonProgram env U levels args = some program) :
-    ∃ program', data.singletonProgram env U levels' args' = some program' ∧
-      PrefixProgram.LevelEquiv U program program' := by
+    (H : data.singletonUnfolding env U levels args = some program) :
+    ∃ program', data.singletonUnfolding env U levels' args' = some program' ∧
+      PrefixUnfolding.LevelEquiv U program program' := by
   have hlen := Lean4Lean.List.Forall₂.length_eq he
   have hargslen := Lean4Lean.List.Forall₂.length_eq ha
-  unfold singletonProgram at H ⊢
+  unfold singletonUnfolding at H ⊢
   simp only [← hlen, ← hargslen]
   split at H <;> try contradiction
   rename_i hguard
@@ -160,4 +160,4 @@ theorem singletonProgram_levels {data : NativeRecursorData} {levels levels' : Li
   rw [← hcaplen, if_neg hcaptures]
   exact ⟨_, rfl, ⟨hdoms, hresult, heconstructor, rfl, rfl, hecaptures, he, hl'⟩⟩
 
-end Lean4Lean.InductiveSignature.NativeRecursorData
+end Lean4Lean.InductiveSignature.RecursorData

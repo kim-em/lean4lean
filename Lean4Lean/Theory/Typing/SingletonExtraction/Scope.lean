@@ -50,8 +50,8 @@ theorem VExpr.ClosedN.typeCast_closed (hX : X.ClosedN m) (hY : Y.ClosedN m) (he 
   · exact VExpr.ClosedN.eqApp_closed trivial hX.liftN (by show 0 < m + 1; omega)
   · show 1 < m + 1 + 1; omega
 
-namespace CastSpec
-variable (S : CastSpec)
+namespace SingletonLayout
+variable (S : SingletonLayout)
 
 theorem tel_closed (hS : S.Scoped pa.length) (hial : ia.length = S.indices.length)
     (hpa : ∀ a ∈ pa, a.ClosedN n) (hia : ∀ a ∈ ia, a.ClosedN n) :
@@ -115,14 +115,14 @@ theorem target_closed (hS : S.Scoped pa.length) (hial : ia.length = S.indices.le
     · exact closed_map_liftN hpa j a ha
     · exact (S.tel_closed hS hial hpa hia j).2 a ha
 
-end CastSpec
+end SingletonLayout
 
 namespace PropElim
-variable {S : CastSpec} {params : List VExpr} {E : PropElim}
+variable {S : SingletonLayout} {params : List VExpr} {E : PropElim}
 
 /-- Scoping of an elimination: closed heads, scoped constructor indices, and minor premises
 of closed motives and branches are closed. -/
-structure Closed (S : CastSpec) (params : List VExpr) (E : PropElim) : Prop where
+structure Closed (S : SingletonLayout) (params : List VExpr) (E : PropElim) : Prop where
   scope : S.Scoped params.length
   params_closed : ∀ j (h : j < params.length), (params[j]).ClosedN j
   family : E.family.ClosedN 0

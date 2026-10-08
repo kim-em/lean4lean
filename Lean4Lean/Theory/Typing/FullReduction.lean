@@ -25,9 +25,9 @@ variable [Params]
 the deterministic finite program and its actual declaration replay checks. -/
 inductive FullStep : List VExpr → VExpr → VExpr → Prop where
   | core : ParRed Γ source target → FullStep Γ source target
-  | delta : NativeDeltaRule env univs recursorData Γ name levels arguments rhs →
+  | delta : PrefixUnfold env univs recursorData Γ name levels arguments rhs →
       FullStep Γ (VExpr.mkApps (.const name levels) arguments) rhs
-  | quotDelta : QuotDeltaRule env univs Γ levels arguments rhs →
+  | quotDelta : QuotPrefixUnfold env univs Γ levels arguments rhs →
       FullStep Γ (VExpr.mkApps (.const ``Quot.lift levels) arguments) rhs
   | projIota : env.projections family info →
       HasType env univs Γ (.proj family index (VExpr.mkApps (.const info.ctorName levels) args)) fieldType →
@@ -311,7 +311,7 @@ private theorem const_eq_mkApps (h : VExpr.const c ls = VExpr.mkApps (.const nam
   exact ⟨rfl, rfl, rfl⟩
 
 theorem NormalEq.fullStep_delta_levels (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NativeDeltaRule env univs recursorData Γ name levels args rhs)
+    (H : PrefixUnfold env univs recursorData Γ name levels args rhs)
     (hw' : ∀ level ∈ levels', level.WF univs)
     (he : List.Forall₂ (· ≈ ·) levels levels')
     (ha : List.Forall₂ (EqUpToLevels univs) args args') :
@@ -321,7 +321,7 @@ theorem NormalEq.fullStep_delta_levels (hΓ : OnCtx Γ (env.IsType univs))
   exact ⟨_, .tail .rfl (.delta hh), (NormalEq.of_levelEquiv hΓ (.of_eqUpToLevels hr) hd.hasType.2).symm hΓ⟩
 
 theorem NormalEq.fullStep_quotDelta_levels (hΓ : OnCtx Γ (env.IsType univs))
-    (H : QuotDeltaRule env univs Γ levels args rhs)
+    (H : QuotPrefixUnfold env univs Γ levels args rhs)
     (hw' : ∀ level ∈ levels', level.WF univs)
     (he : List.Forall₂ (· ≈ ·) levels levels')
     (ha : List.Forall₂ (EqUpToLevels univs) args args') :
@@ -951,8 +951,8 @@ local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 => IsDefEqU env univs Γ e1 e2
 /-- The constructor major of a matched generated case redex is never a
 function: its type is an application of the registered family head, which is
 rigid. -/
-theorem MatchedCaseStep.major_not_pi {E : VEnv} {U : Nat} (hE : E.WF)
-    (hΓ : OnCtx Γ (E.IsType U)) (H : MatchedCaseStep E U Γ rule actual) :
+theorem CaseRedex.major_not_pi {E : VEnv} {U : Nat} (hE : E.WF)
+    (hΓ : OnCtx Γ (E.IsType U)) (H : CaseRedex E U Γ rule actual) :
     ¬ E.HasType U Γ (VExpr.mkApps (.const actual.ctorName actual.ctorLevels)
       actual.ctorArguments) (.forallE A B) := by
   intro hpi
@@ -1000,7 +1000,7 @@ theorem Params.major_not_pi (hΓ : OnCtx Γ (env.IsType univs)) (hp : Pat p r)
       ⟨hr, rfl, rfl, rfl, rfl, _⟩
     · subst hname
       rw [hFeq] at ht
-      exact NativeRecursorRegistered.major_not_pi henv hΓ hreg index hown ht
+      exact RecursorRegistered.major_not_pi henv hΓ hreg index hown ht
         (by simp [Pattern.argumentRHS_length, hoff])
     · intro hpi
       rw [hFeq] at ht
@@ -1051,7 +1051,7 @@ theorem Params.major_proof (hΓ : OnCtx Γ (env.IsType univs)) (hp : Pat p r)
       | true =>
         obtain ⟨rest, hrest⟩ := hlarge hlt
         rw [hrest] at hc
-        exact (NativeRecursorRegistered.major_not_proof henv hΓ hreg ht
+        exact (RecursorRegistered.major_not_proof henv hΓ hreg ht
           (by simpa using hvl) hc.1 hM hP).elim
       | false =>
         have hsmall := hreg.small_target hlt
@@ -1522,7 +1522,7 @@ theorem CaseStep.rhs_normalEq_full (hΓ : OnCtx Γ (env.IsType univs))
 theorem SpineTransport.schema
     {rule : InductiveSignature.CaseSchema.AppliedRule}
     {actual : InductiveSignature.CaseSchema.Application}
-    (hm : MatchedCaseStep env univs Γ rule actual)
+    (hm : CaseRedex env univs Γ rule actual)
     (hl : arguments.length = (rule.capture actual).length)
     (hr : ∀ i (hi : i < (rule.capture actual).length),
       ParRed Γ (rule.capture actual)[i] (arguments[i]'(by omega)))
@@ -1589,7 +1589,7 @@ theorem SpineTransport.schema
     have hm' := hmℓ.congr_levels henv hΓ hw₁ hlsSymm hls₂Symm he'
     have hspine : CaseApplicationRelated (NormalEq Γ') actual₃ actual'' :=
       ⟨rfl, rfl, rfl, rfl, rfl, hvs, hcs⟩
-    have hm₃ := MatchedCaseStep.of_normalEq_spine hΓ hm' hspine
+    have hm₃ := CaseRedex.of_normalEq_spine hΓ hm' hspine
     have hred₃ : FullReduction Γ' (.app (VExpr.mkApps (.elim actual.block actual.owner ls₁) vs₁) M₁)
         actual₃.expr := FullReduction.app .rfl hred
     have hfire := FullStep.core (ParRed.schema (arguments := rule.capture actual₃) hm₃ rfl
@@ -1618,7 +1618,7 @@ theorem SpineTransport.schema
     obtain ⟨_, hcc⟩ := schema_mkApps_head_type hΓ hty
     have hMℓ' := NormalEq.mkApps_spine hΓ (NormalEq.refl hcc) hrel hty
     have hpi := hty.defeqU_l henv hΓ (hMℓ'.defeq hΓ)
-    exact MatchedCaseStep.major_not_pi henv hΓ hmℓ (by simpa [CaseApplicationMap] using hpi)
+    exact CaseRedex.major_not_pi henv hΓ hmℓ (by simpa [CaseApplicationMap] using hpi)
 
 theorem ParRed.spineTransport (H : ParRed Γ e e') : ∀ n, SpineTransport Γ e e' n := by
   induction H with
@@ -1863,26 +1863,26 @@ theorem NormalEqN.fullStep : ∀ n {Γ left right result},
     | delta h =>
       have H' : NormalEqN true _ Γ (.app f a) _ := hs ▸ NormalEqN.appDF l1 l2 l3 l4 l5 l6
       exact NormalEqN.fullStep_rigidRule
-        (fun Γ ls args rhs => NativeDeltaRule env univs recursorData Γ _ ls args rhs)
-        (fun h => .delta h) (fun hΓ h => NativeDeltaRule.defeq henv hΓ h)
+        (fun Γ ls args rhs => PrefixUnfold env univs recursorData Γ _ ls args rhs)
+        (fun h => .delta h) (fun hΓ h => PrefixUnfold.defeq henv hΓ h)
         (fun hΓ h hls hw hargs hT => by
-          obtain ⟨rhs₁, hr₁, hn₁⟩ := NativeDeltaRule.congr_normal hΓ h hargs
-          obtain ⟨rhs₂, hr₂, hu⟩ := NativeDeltaRule.congr_levels henv hΓ hr₁ hw hls
+          obtain ⟨rhs₁, hr₁, hn₁⟩ := PrefixUnfold.congr_normal hΓ h hargs
+          obtain ⟨rhs₂, hr₂, hu⟩ := PrefixUnfold.congr_levels henv hΓ hr₁ hw hls
             (eqUpToLevels_forall₂_rfl hΓ hT)
-          have ht₁ := (Exists.choose_spec (NativeDeltaRule.defeq henv hΓ hr₁)).hasType.2
+          have ht₁ := (Exists.choose_spec (PrefixUnfold.defeq henv hΓ hr₁)).hasType.2
           exact ⟨rhs₂, hr₂, ((NormalEq.of_levelEquiv hΓ (.of_eqUpToLevels hu) ht₁).symm hΓ).trans
             hΓ (hn₁.symm hΓ)⟩)
         (fun m hm => ihn m (by omega)) hΓ H' h
     | quotDelta h =>
       have H' : NormalEqN true _ Γ (.app f a) _ := hs ▸ NormalEqN.appDF l1 l2 l3 l4 l5 l6
       exact NormalEqN.fullStep_rigidRule
-        (fun Γ ls args rhs => QuotDeltaRule env univs Γ ls args rhs)
-        (fun h => .quotDelta h) (fun hΓ h => QuotDeltaRule.defeq henv hΓ h)
+        (fun Γ ls args rhs => QuotPrefixUnfold env univs Γ ls args rhs)
+        (fun h => .quotDelta h) (fun hΓ h => QuotPrefixUnfold.defeq henv hΓ h)
         (fun hΓ h hls hw hargs hT => by
-          obtain ⟨rhs₁, hr₁, hn₁⟩ := QuotDeltaRule.congr_normal hΓ h hargs
-          obtain ⟨rhs₂, hr₂, hu⟩ := QuotDeltaRule.congr_levels henv hΓ hr₁ hw hls
+          obtain ⟨rhs₁, hr₁, hn₁⟩ := QuotPrefixUnfold.congr_normal hΓ h hargs
+          obtain ⟨rhs₂, hr₂, hu⟩ := QuotPrefixUnfold.congr_levels henv hΓ hr₁ hw hls
             (eqUpToLevels_forall₂_rfl hΓ hT)
-          have ht₁ := (Exists.choose_spec (QuotDeltaRule.defeq henv hΓ hr₁)).hasType.2
+          have ht₁ := (Exists.choose_spec (QuotPrefixUnfold.defeq henv hΓ hr₁)).hasType.2
           exact ⟨rhs₂, hr₂, ((NormalEq.of_levelEquiv hΓ (.of_eqUpToLevels hu) ht₁).symm hΓ).trans
             hΓ (hn₁.symm hΓ)⟩)
         (fun m hm => ihn m (by omega)) hΓ H' h

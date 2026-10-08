@@ -15,34 +15,34 @@ structure QuotRegistered (env : VEnv) : Prop where
 
 /-- Checked zero-source unfolding at a primitive quotient-lift prefix.
 The selector is Quot.ind, and all replay data come from quotDefEq. -/
-inductive QuotDeltaRule (env : VEnv) (U : Nat) (Γ : List VExpr) :
+inductive QuotPrefixUnfold (env : VEnv) (U : Nat) (Γ : List VExpr) :
     List VLevel → List VExpr → VExpr → Prop where
-  | intro {program : NativeRecursorData.PrefixProgram} :
+  | intro {program : RecursorData.PrefixUnfolding} :
       QuotRegistered env → (∀ level ∈ levels, level.WF U) →
       levels[0]?.getD .zero ≈ .zero →
-      QuotPrefixProgram.generate levels arguments = some program →
-      NativePrefixReplay env U Γ (VExpr.mkApps (.const ``Quot.lift levels) arguments) program →
-      QuotDeltaRule env U Γ levels arguments program.rhs
+      QuotPrefixUnfolding.generate levels arguments = some program →
+      UnfoldingCheck env U Γ (VExpr.mkApps (.const ``Quot.lift levels) arguments) program →
+      QuotPrefixUnfold env U Γ levels arguments program.rhs
 
-theorem QuotDeltaRule.registered (H : QuotDeltaRule env U Γ levels arguments rhs) :
+theorem QuotPrefixUnfold.registered (H : QuotPrefixUnfold env U Γ levels arguments rhs) :
     QuotRegistered env := by
   cases H with | intro hr _ _ _ _ => exact hr
 
-theorem QuotDeltaRule.unique (H : QuotDeltaRule env U Γ levels args rhs)
-    (H' : QuotDeltaRule env U Γ levels args rhs') : rhs = rhs' := by
+theorem QuotPrefixUnfold.unique (H : QuotPrefixUnfold env U Γ levels args rhs)
+    (H' : QuotPrefixUnfold env U Γ levels args rhs') : rhs = rhs' := by
   cases H with | intro _ _ _ hg _ =>
     cases H' with | intro _ _ _ hg' _ =>
-      cases QuotPrefixProgram.generate_unique hg hg'
+      cases QuotPrefixUnfolding.generate_unique hg hg'
       rfl
 
-theorem QuotDeltaRule.defeq (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
-    (H : QuotDeltaRule env U Γ levels args rhs) :
+theorem QuotPrefixUnfold.defeq (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (H : QuotPrefixUnfold env U Γ levels args rhs) :
     IsDefEqU env U Γ (VExpr.mkApps (.const ``Quot.lift levels) args) rhs := by
   cases H with | intro _ _ _ _ replay => exact ⟨_, replay.defeq henv hΓ⟩
 
-theorem QuotDeltaRule.defeqDFC (henv : env.WF)
+theorem QuotPrefixUnfold.defeqDFC (henv : env.WF)
     (hΓ : OnCtx Γ₀ (env.IsType U)) (W : IsDefEqCtx env U Γ₀ Γ₁ Γ₂)
-    (H : QuotDeltaRule env U Γ₁ levels args rhs) : QuotDeltaRule env U Γ₂ levels args rhs := by
+    (H : QuotPrefixUnfold env U Γ₁ levels args rhs) : QuotPrefixUnfold env U Γ₂ levels args rhs := by
   cases H with
   | intro hr hw hz hg replay => exact .intro hr hw hz hg (replay.defeqDFC henv hΓ W)
 

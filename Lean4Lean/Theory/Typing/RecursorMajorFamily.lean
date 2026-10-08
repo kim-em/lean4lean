@@ -15,8 +15,8 @@ namespace Lean4Lean
 namespace VEnv
 open InductiveSignature
 
-theorem NativeRecursorRegistered.family_head_rigid {data : NativeRecursorData} (henv : env.WF)
-    (H : NativeRecursorRegistered env data)
+theorem RecursorRegistered.family_head_rigid {data : RecursorData} (henv : env.WF)
+    (H : RecursorRegistered env data)
     (index : Fin data.schema.signature.constructors.size)
     {owner : Fin data.schema.signature.families.size}
     (hown : data.schema.signature.constructors[index].owner = owner) :
@@ -88,7 +88,7 @@ open InductiveSignature
 
 /-- The restored native recursor type is a telescope whose major domain is an
 application of the restored family head of its owner. -/
-theorem NativeRecursorData.recursorType_major {data : NativeRecursorData}
+theorem RecursorData.recursorType_major {data : RecursorData}
     (H : data.recursorType = some type) :
     ∃ domains body args, type = VExpr.wrapForalls domains body ∧
       domains.length = data.majorOffset + 1 ∧
@@ -96,15 +96,15 @@ theorem NativeRecursorData.recursorType_major {data : NativeRecursorData}
         (data.schema.restoration.headName data.schema.signature.families[data.owner].name)
         (data.schema.restoration.headLevels data.schema.signature.families[data.owner].name
           data.levels)) args) := by
-  unfold NativeRecursorData.recursorType Instance.recursorType at H
+  unfold RecursorData.recursorType Instance.recursorType at H
   obtain ⟨domains, body, rfl, hrel, _⟩ := Restoration.wrapForalls_forall₂ H
   obtain ⟨pre', x', rfl, hpre, hx⟩ := List.forall₂_snoc_left hrel
   have hpl := Lean4Lean.List.Forall₂.length_eq hpre
   have hoff : pre'.length = data.majorOffset := by
     rw [← hpl]
     simp [Instance.params, Instance.motives, Instance.minors, insertBinders,
-      NativeRecursorData.majorOffset, NativeRecursorData.indexOffset,
-      NativeRecursorData.numParams, NativeRecursorData.numIndices, Nat.add_assoc]
+      RecursorData.majorOffset, RecursorData.indexOffset,
+      RecursorData.numParams, RecursorData.numIndices, Nat.add_assoc]
   obtain ⟨args, hmajor⟩ := Restoration.const_mkApps_exact hx
   refine ⟨pre' ++ [x'], body, args, rfl, by simp [hoff], ?_⟩
   rw [List.getElem?_append_right (by omega)]
@@ -112,8 +112,8 @@ theorem NativeRecursorData.recursorType_major {data : NativeRecursorData}
 
 /-- The major of a typed native recursor application at its major offset has
 an application of the owner's restored family head as type. -/
-theorem NativeRecursorRegistered.major_type {data : NativeRecursorData} (henv : env.WF)
-    (hΓ : OnCtx Γ (env.IsType U)) (H : NativeRecursorRegistered env data)
+theorem RecursorRegistered.major_type {data : RecursorData} (henv : env.WF)
+    (hΓ : OnCtx Γ (env.IsType U)) (H : RecursorRegistered env data)
     (ht : env.HasType U Γ (.app (VExpr.mkApps (.const data.name ls) vs) M) T)
     (hlen : vs.length = data.majorOffset) :
     (∀ l ∈ ls, l.WF U) ∧ ls.length = data.uvars ∧ ∃ args,
@@ -124,7 +124,7 @@ theorem NativeRecursorRegistered.major_type {data : NativeRecursorData} (henv : 
   obtain ⟨type, htype⟩ := H.recursorType_exists
   have hconst := H.recursorType htype
   obtain ⟨domains, body, args, rfl, hdl, hdom⟩ :=
-    NativeRecursorData.recursorType_major htype
+    RecursorData.recursorType_major htype
   have happ : VExpr.mkApps (.const data.name ls) (vs ++ [M]) =
       .app (VExpr.mkApps (.const data.name ls) vs) M := by
     simp [VExpr.mkApps, List.foldl_append]
@@ -152,8 +152,8 @@ theorem NativeRecursorRegistered.major_type {data : NativeRecursorData} (henv : 
 /-- The major of a typed native recursor application at its major offset is
 never a function: its type is an application of the owner's family head,
 which is rigid when the owner has a constructor. -/
-theorem NativeRecursorRegistered.major_not_pi {data : NativeRecursorData} (henv : env.WF)
-    (hΓ : OnCtx Γ (env.IsType U)) (H : NativeRecursorRegistered env data)
+theorem RecursorRegistered.major_not_pi {data : RecursorData} (henv : env.WF)
+    (hΓ : OnCtx Γ (env.IsType U)) (H : RecursorRegistered env data)
     (index : Fin data.schema.signature.constructors.size)
     (hown : data.schema.signature.constructors[index].owner = data.owner)
     (ht : env.HasType U Γ (.app (VExpr.mkApps (.const data.name ls) vs) M) T)
@@ -196,7 +196,7 @@ theorem QuotRegistered.major_type (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)
 /-- The restored native recursor type returns its owner's motive applied to
 the indices and the major, and that motive's binder is a telescope ending in
 the native target sort. -/
-theorem NativeRecursorData.recursorType_shape {data : NativeRecursorData}
+theorem RecursorData.recursorType_shape {data : RecursorData}
     (H : data.recursorType = some type) :
     ∃ domains motiveDomains, type = VExpr.wrapForalls domains (VExpr.mkApps
         (.bvar (data.numIndices + 1 + data.schema.signature.constructors.size +
@@ -206,7 +206,7 @@ theorem NativeRecursorData.recursorType_shape {data : NativeRecursorData}
       domains[data.numParams + data.owner.val]? =
         some (VExpr.wrapForalls motiveDomains (.sort data.target)) ∧
       motiveDomains.length = data.numIndices + 1 := by
-  unfold NativeRecursorData.recursorType Instance.recursorType at H
+  unfold RecursorData.recursorType Instance.recursorType at H
   obtain ⟨domains, body, rfl, hrel, hbody⟩ := Restoration.wrapForalls_forall₂ H
   have hbodyEq : body = VExpr.mkApps
       (.bvar (data.numIndices + 1 + data.schema.signature.constructors.size +
@@ -217,13 +217,13 @@ theorem NativeRecursorData.recursorType_shape {data : NativeRecursorData}
     simp only [List.mapM_append, InductiveSignature.Restoration.mapM_expr_vars, bind, Option.bind_some,
       List.mapM_cons, List.mapM_nil] at hbody
     simpa [Restoration.expr, Restoration.expr.go, VExpr.mkApps, insertBinders,
-      NativeRecursorData.numIndices] using hbody.symm
+      RecursorData.numIndices] using hbody.symm
   subst hbodyEq
   have hlen := Lean4Lean.List.Forall₂.length_eq hrel
   have hpos : data.numParams + data.owner.val < domains.length := by
     rw [← hlen]
     simp [Instance.params, Instance.motives, Instance.minors, insertBinders,
-      NativeRecursorData.numParams]
+      RecursorData.numParams]
     omega
   have hrel' := Lean4Lean.List.Forall₂.getElem_of hrel (data.numParams + data.owner.val)
     (by rw [hlen]; exact hpos) hpos
@@ -235,10 +235,10 @@ theorem NativeRecursorData.recursorType_shape {data : NativeRecursorData}
         rw [hlen]; exact hpos) =
       data.nativeInstance.motive data.schema.signature.families[data.owner] data.owner.val := by
     simp only [List.append_assoc]
-    rw [List.getElem_append_right (by simp [Instance.params, NativeRecursorData.numParams])]
+    rw [List.getElem_append_right (by simp [Instance.params, RecursorData.numParams])]
     rw [List.getElem_append_left (by simp [Instance.params, Instance.motives,
-      NativeRecursorData.numParams])]
-    simp [Instance.params, Instance.motives, NativeRecursorData.numParams]
+      RecursorData.numParams])]
+    simp [Instance.params, Instance.motives, RecursorData.numParams]
   rw [hsrc] at hrel'
   unfold Instance.motive at hrel'
   obtain ⟨mds, sbody, heqm, hmrel, hsort⟩ := Restoration.wrapForalls_forall₂ hrel'
@@ -247,24 +247,24 @@ theorem NativeRecursorData.recursorType_shape {data : NativeRecursorData}
   refine ⟨domains, mds, rfl, ?_, ?_, ?_⟩
   · rw [← hlen]
     simp [Instance.params, Instance.motives, Instance.minors, insertBinders,
-      NativeRecursorData.majorOffset, NativeRecursorData.indexOffset,
-      NativeRecursorData.numParams, NativeRecursorData.numIndices, Nat.add_assoc]
+      RecursorData.majorOffset, RecursorData.indexOffset,
+      RecursorData.numParams, RecursorData.numIndices, Nat.add_assoc]
   · rw [List.getElem?_eq_getElem hpos, heqm]; rfl
   · have := Lean4Lean.List.Forall₂.length_eq hmrel
-    simp [insertBinders, NativeRecursorData.numIndices] at this ⊢
+    simp [insertBinders, RecursorData.numIndices] at this ⊢
     omega
 
 /-- A saturated native recursor application has a type living in the
 native target universe. -/
-theorem NativeRecursorRegistered.result_sort {data : NativeRecursorData} (henv : env.WF)
-    (hΓ : OnCtx Γ (env.IsType U)) (H : NativeRecursorRegistered env data)
+theorem RecursorRegistered.result_sort {data : RecursorData} (henv : env.WF)
+    (hΓ : OnCtx Γ (env.IsType U)) (H : RecursorRegistered env data)
     (ht : env.HasType U Γ (VExpr.mkApps (.const data.name ls) args) T)
     (hlen : args.length = data.majorOffset + 1) :
     ∃ T', env.HasType U Γ (VExpr.mkApps (.const data.name ls) args) T' ∧
       env.HasType U Γ T' (.sort (data.target.inst ls)) := by
   obtain ⟨type, htype⟩ := H.recursorType_exists
   have hconst := H.recursorType htype
-  obtain ⟨domains, mds, rfl, hdl, hmot, hmdl⟩ := NativeRecursorData.recursorType_shape htype
+  obtain ⟨domains, mds, rfl, hdl, hmot, hmdl⟩ := RecursorData.recursorType_shape htype
   obtain ⟨_, hc⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, ht⟩
   obtain ⟨ci, hci, hw, hl⟩ := HasType.const_inv henv.ordered hΓ hc
   rw [hconst] at hci
@@ -294,7 +294,7 @@ theorem NativeRecursorRegistered.result_sort {data : NativeRecursorData} (henv :
   obtain ⟨hctx, lv, hbody⟩ := IsType.wrapForalls_inv henv hΓ ⟨_, hT⟩
   have hpos : data.numParams + data.owner.val < domains.length := by
     have := data.owner.isLt
-    simp [hdl, NativeRecursorData.majorOffset, NativeRecursorData.indexOffset]; omega
+    simp [hdl, RecursorData.majorOffset, RecursorData.indexOffset]; omega
   have hposL : data.numParams + data.owner.val < (domains.map (·.instL ls)).length := by
     simpa using hpos
   have hvar : env.HasType U ((domains.map (·.instL ls)).reverse ++ Γ)
@@ -313,7 +313,7 @@ theorem NativeRecursorRegistered.result_sort {data : NativeRecursorData} (henv :
       data.numIndices + 1 + data.schema.signature.constructors.size +
         (data.schema.signature.families.size - 1 - data.owner.val) := by
     have := data.owner.isLt
-    simp [hdl, NativeRecursorData.majorOffset, NativeRecursorData.indexOffset]; omega
+    simp [hdl, RecursorData.majorOffset, RecursorData.indexOffset]; omega
   rw [hidx] at hvar
   have hbody' : env.HasType U ((domains.map (·.instL ls)).reverse ++ Γ)
       (VExpr.mkApps (.bvar (data.numIndices + 1 + data.schema.signature.constructors.size +
@@ -333,8 +333,8 @@ theorem _root_.Lean4Lean.InductiveSignature.Restoration.headLevels_inst
 
 /-- A native recursor whose source universe is never zero at the occurrence
 cannot eliminate a proof. -/
-theorem NativeRecursorRegistered.major_not_proof {data : NativeRecursorData} (henv : env.WF)
-    (hΓ : OnCtx Γ (env.IsType U)) (H : NativeRecursorRegistered env data)
+theorem RecursorRegistered.major_not_proof {data : RecursorData} (henv : env.WF)
+    (hΓ : OnCtx Γ (env.IsType U)) (H : RecursorRegistered env data)
     (ht : env.HasType U Γ (.app (VExpr.mkApps (.const data.name ls) vs) M) T)
     (hlen : vs.length = data.majorOffset)
     (hnz : ¬ (data.schema.sourceLevel data.owner data.levels).inst ls ≈ .zero)

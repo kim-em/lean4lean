@@ -57,25 +57,25 @@ namespace InductiveSignature.Instance
 variable {s : InductiveSignature} (g : Instance s)
 
 /-- The index telescope at the instance's universes. -/
-def sIndices (owner : Fin s.families.size) : List VExpr :=
+def indicesAt (owner : Fin s.families.size) : List VExpr :=
   s.families[owner].indices.map (·.instL g.levels)
 
 /-- The family applied to its parameter and index variables. -/
-def sMajor (owner : Fin s.families.size) : VExpr :=
+def majorType (owner : Fin s.families.size) : VExpr :=
   VExpr.mkApps (.const s.families[owner].name g.levels)
     (vars s.params.length s.families[owner].indices.length ++
       vars s.families[owner].indices.length 0)
 
 /-- The field telescope at the instance's universes. -/
-def sFields (c : Constructor s.families.size) : List VExpr :=
+def fieldsAt (c : Constructor s.families.size) : List VExpr :=
   (s.fieldTypes c).map (·.instL g.levels)
 
 /-- The constructor's result indices at the instance's universes. -/
-def sCtorIndices (c : Constructor s.families.size) : List VExpr :=
+def ctorIndicesAt (c : Constructor s.families.size) : List VExpr :=
   c.indices.map (·.instL g.levels)
 
 /-- The induction hypotheses of the first minor premise. -/
-def sHyps (c : Constructor s.families.size) : List VExpr :=
+def hypotheses (c : Constructor s.families.size) : List VExpr :=
   (recursiveFields c).zipIdx.map fun ((field, r), i) => g.hypothesis c 0 i field r
 
 @[simp] theorem length_insertBinders (l : List VExpr) (n : Nat) :
@@ -88,19 +88,19 @@ theorem insertBinders_zero (l : List VExpr) : insertBinders l 0 = l := by
 
 theorem motive_shape (owner : Fin s.families.size) (htarget : g.targetLevel = .zero) :
     g.motive s.families[owner] 0 =
-      VExpr.wrapForalls (g.sIndices owner ++ [g.sMajor owner]) (.sort .zero) := by
-  simp only [motive, insertBinders_zero, htarget, sIndices, sMajor, List.length_map, Nat.zero_add]
+      VExpr.wrapForalls (g.indicesAt owner ++ [g.majorType owner]) (.sort .zero) := by
+  simp only [motive, insertBinders_zero, htarget, indicesAt, majorType, List.length_map, Nat.zero_add]
 
 theorem minor_shape (hfam : s.families.size = 1) (c : Constructor s.families.size)
     (hown : c.owner.val = 0) :
     g.minor c 0 =
-      VExpr.wrapForalls (insertBinders (g.sFields c) 1 ++ g.sHyps c)
-        (VExpr.mkApps (.bvar ((g.sFields c).length + (g.sHyps c).length))
-          ((g.sCtorIndices c).map (fun e => (e.liftN (g.sHyps c).length).liftN 1
-              ((g.sFields c).length + (g.sHyps c).length)) ++
-            [g.constructorApp c 1 (g.sHyps c).length])) := by
-  have hnf : (g.sFields c).length = c.fields.length := by simp [sFields, fieldTypes]
-  simp only [minor, hfam, hown, Nat.add_zero, Nat.sub_self, sFields, sHyps, sCtorIndices,
+      VExpr.wrapForalls (insertBinders (g.fieldsAt c) 1 ++ g.hypotheses c)
+        (VExpr.mkApps (.bvar ((g.fieldsAt c).length + (g.hypotheses c).length))
+          ((g.ctorIndicesAt c).map (fun e => (e.liftN (g.hypotheses c).length).liftN 1
+              ((g.fieldsAt c).length + (g.hypotheses c).length)) ++
+            [g.constructorApp c 1 (g.hypotheses c).length])) := by
+  have hnf : (g.fieldsAt c).length = c.fields.length := by simp [fieldsAt, fieldTypes]
+  simp only [minor, hfam, hown, Nat.add_zero, Nat.sub_self, fieldsAt, hypotheses, ctorIndicesAt,
     List.length_map, List.length_zipIdx, List.map_map, Function.comp_def]
   have : (s.fieldTypes c).length = c.fields.length := by simp [fieldTypes]
   rw [this]
@@ -115,18 +115,18 @@ theorem recursorType_shape (hfam : s.families.size = 1) (hcs : s.constructors.si
     (owner : Fin s.families.size) (index : Fin s.constructors.size) :
     g.recursorType owner =
       VExpr.wrapForalls (g.params ++ [g.motive s.families[owner] 0] ++
-          [g.minor s.constructors[index] 0] ++ insertBinders (g.sIndices owner) 2 ++
-          [g.familyApp owner (vars s.params.length (2 + (g.sIndices owner).length))
-            (vars (g.sIndices owner).length 0)])
-        (VExpr.mkApps (.bvar ((g.sIndices owner).length + 2))
-          (vars (g.sIndices owner).length 1 ++ [.bvar 0])) := by
+          [g.minor s.constructors[index] 0] ++ insertBinders (g.indicesAt owner) 2 ++
+          [g.familyApp owner (vars s.params.length (2 + (g.indicesAt owner).length))
+            (vars (g.indicesAt owner).length 0)])
+        (VExpr.mkApps (.bvar ((g.indicesAt owner).length + 2))
+          (vars (g.indicesAt owner).length 1 ++ [.bvar 0])) := by
   have ho : owner.val = 0 := by have := owner.isLt; omega
   have hi : index.val = 0 := by have := index.isLt; omega
   have hm : g.motives = [g.motive s.families[owner] 0] := by
     simp [motives, toList_of_size_one s.families hfam owner, ho]
   have hn : g.minors = [g.minor s.constructors[index] 0] := by
     simp [minors, toList_of_size_one s.constructors hcs index, hi]
-  simp only [recursorType, hm, hn, hfam, hcs, ho, sIndices, List.length_map, Nat.sub_self,
+  simp only [recursorType, hm, hn, hfam, hcs, ho, indicesAt, List.length_map, Nat.sub_self,
     Nat.add_zero, length_insertBinders]
 
 end InductiveSignature.Instance
@@ -184,19 +184,19 @@ namespace Instance
 variable {s : InductiveSignature} (g : Instance s)
 
 /-- The constructor applied to the parameter and field variables. -/
-def sCtorApp (c : Constructor s.families.size) : VExpr :=
+def ctorApp (c : Constructor s.families.size) : VExpr :=
   VExpr.mkApps (.const c.name g.levels)
-    (bvarRange (s.params.length + (g.sFields c).length) (s.params.length + (g.sFields c).length))
+    (bvarRange (s.params.length + (g.fieldsAt c).length) (s.params.length + (g.fieldsAt c).length))
 
 theorem constructorApp_shape (c : Constructor s.families.size) :
-    g.constructorApp c 1 (g.sHyps c).length =
-      ((g.sCtorApp c).liftN (g.sHyps c).length).liftN 1
-        ((g.sFields c).length + (g.sHyps c).length) := by
-  have hnf : (g.sFields c).length = c.fields.length := by simp [sFields, fieldTypes]
-  simp only [constructorApp, sCtorApp, VExpr.liftN_mkApps, hnf]
+    g.constructorApp c 1 (g.hypotheses c).length =
+      ((g.ctorApp c).liftN (g.hypotheses c).length).liftN 1
+        ((g.fieldsAt c).length + (g.hypotheses c).length) := by
+  have hnf : (g.fieldsAt c).length = c.fields.length := by simp [fieldsAt, fieldTypes]
+  simp only [constructorApp, ctorApp, VExpr.liftN_mkApps, hnf]
   have hv := vars_eq_bvarRange c.fields.length 0
   simp only [Nat.add_zero] at hv
-  rw [CastSpec.bvarRange_split, ← vars_eq_bvarRange, ← hv]
+  rw [SingletonLayout.bvarRange_split, ← vars_eq_bvarRange, ← hv]
   simp only [List.map_append, List.map_map, Function.comp_def]
   congr 1
   congr 1 <;>
@@ -208,21 +208,21 @@ theorem constructorApp_shape (c : Constructor s.families.size) :
     split <;> split <;> (congr 1; omega)
 
 theorem major_lift (owner : Fin s.families.size) :
-    g.familyApp owner (vars s.params.length (2 + (g.sIndices owner).length))
-        (vars (g.sIndices owner).length 0) =
-      (g.sMajor owner).liftN 2 (g.sIndices owner).length := by
-  simp only [familyApp, InductiveSignature.familyApp, sMajor, sIndices, List.length_map,
+    g.familyApp owner (vars s.params.length (2 + (g.indicesAt owner).length))
+        (vars (g.indicesAt owner).length 0) =
+      (g.majorType owner).liftN 2 (g.indicesAt owner).length := by
+  simp only [familyApp, InductiveSignature.familyApp, majorType, indicesAt, List.length_map,
     VExpr.liftN_mkApps, List.map_append]
   rw [InductiveSignature.vars_map_liftN_hi _ _ _ _ (Nat.le_refl _), InductiveSignature.vars_map_liftN_lo _ _ _ _ (by omega)]
   simp [VExpr.liftN, Nat.add_comm]
 
 /-- The cast specification of a singleton family at the instance's universes. -/
 def singletonCast (owner : Fin s.families.size) (c : Constructor s.families.size)
-    (sorts : List VLevel) : CastSpec where
-  fields := g.sFields c
-  indices := g.sIndices owner
-  slot := (List.range (g.sFields c).length).map
-    (fieldSlot (g.sCtorIndices c) (g.sFields c).length)
+    (sorts : List VLevel) : SingletonLayout where
+  fields := g.fieldsAt c
+  indices := g.indicesAt owner
+  slot := (List.range (g.fieldsAt c).length).map
+    (fieldSlot (g.ctorIndicesAt c) (g.fieldsAt c).length)
   sorts := sorts
 
 /-- The elimination into `Prop` of a singleton family through its recursor `h` at motive
@@ -231,11 +231,11 @@ def singletonElim (owner : Fin s.families.size) (c : Constructor s.families.size
     (h : VExpr) : PropElim where
   family := .const s.families[owner].name g.levels
   ctor := .const c.name g.levels
-  ctorIndices := g.sCtorIndices c
+  ctorIndices := g.ctorIndicesAt c
   elimHead := h
   minorOf M b := VExpr.wrapLams
-    (VExpr.instDomains (insertBinders (g.sFields c) 1 ++ g.sHyps c) M 0)
-    (b.liftN (g.sHyps c).length)
+    (VExpr.instDomains (insertBinders (g.fieldsAt c) 1 ++ g.hypotheses c) M 0)
+    (b.liftN (g.hypotheses c).length)
 
 end Instance
 end InductiveSignature

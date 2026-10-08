@@ -28,7 +28,7 @@ In the constructor branch every equation relates definitionally equal types, so
 each cast computes by K (`IsDefEq.typeCast_refl`); at an aligned occurrence the
 equations are proved by `Eq.refl`.
 
-This file contains the syntax (`CastSpec`, `CastSpec.tel`) and its behaviour under
+This file contains the syntax (`SingletonLayout`, `SingletonLayout.tel`) and its behaviour under
 substitution. All telescopes are closed: `fields[i]` is scoped over the parameters
 and the earlier fields, `indices[k]` over the parameters and the earlier indices.
 The construction is parametric in the *providers*: the parameter arguments `pa` and
@@ -57,7 +57,7 @@ theorem instOuter_subst_closed (X : VExpr) (args : List VExpr) (hX : X.ClosedN a
 end VExpr
 
 /-- Pure syntax of a singleton family's field and index telescopes. -/
-structure CastSpec where
+structure SingletonLayout where
   /-- `fields[i]` is scoped over `params ++ fields.take i`. -/
   fields : List VExpr
   /-- `indices[k]` is scoped over `params ++ indices.take k`. -/
@@ -68,8 +68,8 @@ structure CastSpec where
   /-- The sort of each data field (unused for proof fields). -/
   sorts : List VLevel
 
-namespace CastSpec
-variable (S : CastSpec)
+namespace SingletonLayout
+variable (S : SingletonLayout)
 
 /-- One step of the cast telescope at depth `i` (the number of cast binders already
 opened), given the substitution `σ` for the first `i` fields at that depth. Returns the
@@ -110,21 +110,21 @@ structure Scoped (P : Nat) : Prop where
   indices : ∀ k (h : k < S.indices.length), (S.indices[k]).ClosedN (P + k)
   slot_lt : ∀ i k, S.slot.getD i none = some k → k < S.indices.length
 
-theorem Scoped.fields_getD {S : CastSpec} (H : S.Scoped P) (i : Nat) :
+theorem Scoped.fields_getD {S : SingletonLayout} (H : S.Scoped P) (i : Nat) :
     (S.fields.getD i default).ClosedN (P + i) := by
   rw [List.getD_eq_getElem?_getD]
   by_cases hi : i < S.fields.length
   · simpa [List.getElem?_eq_getElem hi] using H.fields i hi
   · simp [List.getElem?_eq_none (Nat.le_of_not_gt hi)]
 
-theorem Scoped.indices_getD {S : CastSpec} (H : S.Scoped P) (k : Nat) :
+theorem Scoped.indices_getD {S : SingletonLayout} (H : S.Scoped P) (k : Nat) :
     (S.indices.getD k default).ClosedN (P + k) := by
   rw [List.getD_eq_getElem?_getD]
   by_cases hk : k < S.indices.length
   · simpa [List.getElem?_eq_getElem hk] using H.indices k hk
   · simp [List.getElem?_eq_none (Nat.le_of_not_gt hk)]
 
-end CastSpec
+end SingletonLayout
 
 namespace VEnv
 variable {env : VEnv} {U : Nat}
@@ -148,7 +148,7 @@ theorem _root_.Lean4Lean.VExpr.Subst.ofList_snoc_head (args : List VExpr) (a : V
 
 end VEnv
 
-namespace CastSpec
+namespace SingletonLayout
 open VEnv
 variable {env : VEnv} {U : Nat}
 
@@ -166,7 +166,7 @@ theorem bvarRange_split (P r : Nat) :
       rw [bvarRange_getElem _ _ _ (by omega)]
       congr 1; omega
 
-end CastSpec
+end SingletonLayout
 
 /-- The syntax of a singleton family's elimination into `Prop`, at fixed universe levels:
 the family and constructor heads (closed terms applied to parameters and indices), the
@@ -181,7 +181,7 @@ structure PropElim where
   minorOf : VExpr → VExpr → VExpr
 
 namespace PropElim
-variable (S : CastSpec) (params : List VExpr) (E : PropElim)
+variable (S : SingletonLayout) (params : List VExpr) (E : PropElim)
 
 /-- The major premise's type, scoped over the parameters and the indices. -/
 def majorTy : VExpr :=
