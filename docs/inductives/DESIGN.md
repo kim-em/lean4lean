@@ -53,7 +53,7 @@ projections and computation rules, may be added. The theorem does not address co
 the declarative theory `VEnv.IsDefEq` itself.
 
 For inductive declarations there is also a source-facing statement,
-`addInductiveDeclaration.finalResultWF` (same file). It returns an `InductiveFinalResult`,
+`addInductiveDeclaration.finalResultWF` (same file). It returns an `InductiveExtension`,
 whose `specification` field ties the output to an abstract `VEnv.AddInduct` of the exact
 translation of the submitted source declaration (`TrInductDeclCore`), so a model cannot be
 attributed to a different (for example lowered) declaration. It assumes that the source has
@@ -312,7 +312,7 @@ by `Primitive.checkInductive`) go through `Lean4Lean/Verify/Inductive/Primitive/
 other declarations the verified lowering result decides: no auxiliary families means the
 ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
 (`Nested/Restoration/SourceTranslations.lean`, `NestedFinalSpecification.lean`). All three produce an
-`InductiveFinalResult`.
+`InductiveExtension`.
 
 ### 3.2 Phases of the ordinary path
 

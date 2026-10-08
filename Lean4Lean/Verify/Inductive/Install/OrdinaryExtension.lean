@@ -89,9 +89,9 @@ private theorem GeneratedRecursors.entrySafety_eq_unsafe
 /-- A completed safe ordinary run extends the complete safety-indexed model.
 The result depends only on the successful run and the source environment
 model; equality bootstrap state is irrelevant to inductive soundness. -/
-theorem SemanticRunWithStatsResult.extendSafeExact
+theorem OrdinaryInstallation.extendSafeExact
     {ves : VEnvs}
-    (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
+    (Hrun : OrdinaryInstallation c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
     (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (hsafety : c.safety = .safe)
@@ -154,9 +154,9 @@ theorem SemanticRunWithStatsResult.extendSafeExact
 /-- A completed unsafe ordinary run extends the unsafe model and is hidden
 from the partial and safe observers. Uniform entry safety is obtained from
 the actual staged installation rather than assumed separately. -/
-theorem SemanticRunWithStatsResult.extendUnsafeExact
+theorem OrdinaryInstallation.extendUnsafeExact
     {ves : VEnvs}
-    (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
+    (Hrun : OrdinaryInstallation c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
     (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (hsafety : c.safety = .unsafe)
@@ -246,9 +246,9 @@ namespace VerifyInductive
 /-- A source-aligned ordinary checker result extends the complete
 safety-indexed abstract environment. The result is independent of whether
 the source environment has already bootstrapped canonical equality. -/
-theorem VerifiedSemanticInductiveRunResultSourceAligned.extendWithSpecification
+theorem OrdinaryRunResult.extendWithSpecification
     {ves : VEnvs}
-    (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
+    (Hrun : OrdinaryRunResult source sourceEnv
       nparams types numNested outEnv)
     (wf : ves.WFCore source.env) (hcorner : ∀ safety, CtorTelescopes safety source.env (ves.venv safety))
     (hsource : sourceEnv = ves.venv source.safety)
@@ -257,7 +257,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendWithSpecification
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       VEnvs.CertPres source.env outEnv ves ves' ∧
-      Nonempty (InductiveSpecificationResult sourceEnv source.lparams nparams types
+      Nonempty (SourceAddInduct sourceEnv source.lparams nparams types
         (source.safety != .safe)
         (ves'.venv (if source.safety != .safe then .unsafe else .safe))) := by
   rcases Hrun with
@@ -278,11 +278,11 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendWithSpecification
       have hproduction :
           (source.safety != .safe) = (c'.safety != .safe) :=
         congrArg (fun safety => safety != .safe) hsafety.symm
-      rcases SemanticRunWithStatsResult.extendUnsafeExact Hphases wf' hcorner'
+      rcases OrdinaryInstallation.extendUnsafeExact Hphases wf' hcorner'
           hcSafety hcVEnv hproduction hnonempty' with
         ⟨ves', decl, envTypes, envCtors, wf'', hle, hcore, hadd, hcert⟩
       refine ⟨ves', wf'', hle, henv ▸ hcert, ?_⟩
-      have hspec : InductiveSpecificationResult (ves.venv .unsafe)
+      have hspec : SourceAddInduct (ves.venv .unsafe)
           c'.lparams nparams types (source.safety != .safe)
           (ves'.venv .unsafe) := {
         decl := decl
@@ -296,11 +296,11 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendWithSpecification
       have hcSafety : c'.safety = .safe := hsafety.trans hs
       have hcVEnv : Hc'.venv = ves.venv .safe := by
         exact hvenv.trans (hsource.trans (congrArg ves.venv hs))
-      rcases SemanticRunWithStatsResult.extendSafeExact Hphases wf' hcorner'
+      rcases OrdinaryInstallation.extendSafeExact Hphases wf' hcorner'
           hcSafety hcVEnv hnonempty' with
         ⟨ves', decl, envTypes, envCtors, wf'', hle, hcore, hadd, hcert⟩
       refine ⟨ves', wf'', hle, henv ▸ hcert, ?_⟩
-      have hspec : InductiveSpecificationResult (ves.venv .safe)
+      have hspec : SourceAddInduct (ves.venv .safe)
           c'.lparams nparams types (source.safety != .safe)
           (ves'.venv .safe) := {
         decl := decl
@@ -335,7 +335,7 @@ theorem AddInductive.run.semanticFinalSpecificationModelWF
         checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
           Hc'.venv c'.lparams nparams commonParams commonLevel
             types.toArray.toList) →
-      SemanticRunVerificationInputs c' stats nparams depth numNested
+      PrimitiveNamesFresh c' stats nparams depth numNested
         types.toArray (c.safety != .safe) Hc') :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
@@ -638,9 +638,9 @@ namespace VerifyInductive
 /-- The ordinary production branch cannot request a reserved primitive name.
 Consequently all three primitive-name side conditions are vacuous; the only
 remaining run inputs are facts retained by the shared producer pipeline. -/
-theorem SemanticRunVerificationInputs.ofAllowPrimitiveFalse
+theorem PrimitiveNamesFresh.ofAllowPrimitiveFalse
     (hallow : c.allowPrimitive = false) :
-    SemanticRunVerificationInputs c stats nparams depth numNested indTypes
+    PrimitiveNamesFresh c stats nparams depth numNested indTypes
       isUnsafe Hc where
   freshTypes htrue := by simp_all
   freshConstructors htrue := by simp_all
@@ -709,10 +709,10 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalModelWF
         checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
           Hc'.venv c'.lparams nparams commonParams commonLevel
             res.types.toArray.toList) →
-      SemanticRunVerificationInputs c' stats nparams depth 0
+      PrimitiveNamesFresh c' stats nparams depth 0
         res.types.toArray (c.safety != .safe) Hc' := by
     intro c' stats depth commonParams commonLevel Hc' hallow _hfuel _Hsemantic
-    exact SemanticRunVerificationInputs.ofAllowPrimitiveFalse
+    exact PrimitiveNamesFresh.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
   have Hrun := AddInductive.run.semanticFinalSpecificationModelWF
     (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf hcorner hsource
@@ -744,7 +744,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
       isUnsafe false fuel res).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-          Nonempty (InductiveSpecificationResult
+          Nonempty (SourceAddInduct
             (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
             sourceTypes isUnsafe
             (ves'.venv (if isUnsafe then .unsafe else .safe))) ∧
@@ -773,10 +773,10 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
         checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
           Hc'.venv c'.lparams nparams commonParams commonLevel
             res.types.toArray.toList) →
-      SemanticRunVerificationInputs c' stats nparams depth 0
+      PrimitiveNamesFresh c' stats nparams depth 0
         res.types.toArray (c.safety != .safe) Hc' := by
     intro c' stats depth commonParams commonLevel Hc' hallow _hfuel _Hsemantic
-    exact SemanticRunVerificationInputs.ofAllowPrimitiveFalse
+    exact PrimitiveNamesFresh.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
   have Hrun := AddInductive.run.semanticFinalSpecificationModelWF
     (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf hcorner hsource

@@ -14,12 +14,12 @@ namespace VerifyInductive
 /-- Complete post-analysis result when the declaration is synthesized by the
 successful header and constructor traversals rather than fixed before
 execution. -/
-def SemanticRunWithStatsResult
+def OrdinaryInstallation
     (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
     (nparams depth : Nat) (indTypes : Array InductiveType)
     (isUnsafe : Bool) (sourceEnv : VEnv) (outEnv : Environment) : Prop :=
   ∃ decl headerEnv ctorEnv,
-    ∃ Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    ∃ Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv,
     ∃ R : OrdinaryConstructorCheck Hheaders ctorEnv,
       Nonempty (RecursorCheck R.toConstructorCheck outEnv)
@@ -38,7 +38,7 @@ theorem AddInductive.runWithStats.semanticWF
             AddInductive.checkConstructors indTypes stats isUnsafe
             AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
         fun ctorEnv => ∃ decl headerEnv,
-          ∃ Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe
+          ∃ Hheaders : HeaderEnvironment c stats decl nparams isUnsafe
             depth sourceEnv indTypes headerEnv,
           ∃ _ : OrdinaryConstructorCheck Hheaders ctorEnv,
             MutualInductivesClosed ctorEnv)
@@ -50,7 +50,7 @@ theorem AddInductive.runWithStats.semanticWF
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
-      (SemanticRunWithStatsResult c stats nparams depth indTypes isUnsafe
+      (OrdinaryInstallation c stats nparams depth indTypes isUnsafe
         sourceEnv) := by
   unfold AddInductive.runWithStats
   have Hcombined := Hformation.bind fun ctorEnv Hresult => by
@@ -64,7 +64,7 @@ theorem AddInductive.runWithStats.semanticWF
       exact (hlitCtors.addEliminators _).addProjections _
     exact (R.toConstructorCheck.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams hlit hnotPartial hnprim).mono
         fun outEnv Hrecursors =>
-          show SemanticRunWithStatsResult c stats nparams depth indTypes
+          show OrdinaryInstallation c stats nparams depth indTypes
             isUnsafe sourceEnv outEnv
           from ⟨decl, headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
   simpa [AddInductive.withEnv, bind, ReaderT.bind] using Hcombined
@@ -117,7 +117,7 @@ theorem AddInductive.runWithStats.semanticClosedWF
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
-      (SemanticRunWithStatsResult c stats nparams depth indTypes isUnsafe
+      (OrdinaryInstallation c stats nparams depth indTypes isUnsafe
         Hc.venv) := by
   apply AddInductive.runWithStats.semanticWF (hsourceSafety := hsourceSafety) stats nparams indTypes numNested
     isUnsafe c depth Hc.venv
@@ -133,7 +133,7 @@ theorem AddInductive.runWithStats.semanticClosedWF
 declaration, its constructor targets, literal disjointness, formation, and
 all equation data are deliberately absent: successful execution produces
 them. -/
-structure SemanticRunVerificationInputs
+structure PrimitiveNamesFresh
     (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
     (nparams depth numNested : Nat) (indTypes : Array InductiveType)
     (isUnsafe : Bool) (Hc : ContextWF c) : Prop where
@@ -152,7 +152,7 @@ structure SemanticRunVerificationInputs
 /-- Source-aligned declaration-facing result of the complete ordinary
 checker.  In addition to the semantic certificate, this retains the exact
 verification environment from which header checking began. -/
-def VerifiedSemanticInductiveRunResultSourceAligned
+def OrdinaryRunResult
     (source : AddInductive.Context) (sourceEnv : VEnv) (nparams : Nat)
     (types : List InductiveType)
     (numNested : Nat) (outEnv : Environment) : Prop :=
@@ -168,7 +168,7 @@ def VerifiedSemanticInductiveRunResultSourceAligned
       checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
         Hc'.venv c'.lparams nparams commonParams commonLevel
           types.toArray.toList,
-      SemanticRunWithStatsResult c' stats nparams depth
+      OrdinaryInstallation c' stats nparams depth
         types.toArray (source.safety != .safe) Hc'.venv outEnv
 
 /-- The complete executable ordinary checker refines a skeleton-free
@@ -193,10 +193,10 @@ theorem AddInductive.run.semanticSourceAlignedWF
         checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
           Hc'.venv c'.lparams nparams commonParams commonLevel
             types.toArray.toList) →
-      SemanticRunVerificationInputs c' stats nparams depth numNested
+      PrimitiveNamesFresh c' stats nparams depth numNested
         types.toArray (c.safety != .safe) Hc') :
     (AddInductive.run nparams types numNested c).WF
-      (VerifiedSemanticInductiveRunResultSourceAligned c Hc.venv nparams
+      (OrdinaryRunResult c Hc.venv nparams
         types numNested) := by
   have Hduplicates :
       (Kernel.Environment.checkDuplicatedUnivParams c.lparams).WF
@@ -206,7 +206,7 @@ theorem AddInductive.run.semanticSourceAlignedWF
     apply checkInductiveTypes.loopInd.checkInductiveTypes.accumulatesSemanticHeadersSourceAligned
       (fun stats => AddInductive.runWithStats stats nparams
         types.toArray numNested (c.safety != .safe))
-      (VerifiedSemanticInductiveRunResultSourceAligned c Hc.venv nparams
+      (OrdinaryRunResult c Hc.venv nparams
         types numNested)
       Hc hctx hnonempty Lean4Lean.consumeTypeAnnotationsCompat
     intro c' stats depth commonParams commonLevel Hc' henv hsafety

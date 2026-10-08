@@ -14,17 +14,17 @@ namespace VerifyInductive
 /-- Internal completed primitive prefix before its persistent production
 origin/coherence fields are packaged for the common recursor boundary. -/
 structure PrimitiveConstructorCorePhasesResult
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (outEnv : Environment) where
   checked : CheckedConstructorCertificate sourceEnv decl H.context.venv
     H.headers.params
   parameterPrefixes : CheckedRecursorParameterPrefixes stats indTypes
   constructorTails : CheckedRecursorConstructorTails H.context.venv c.lparams
-    H.materialized.parameterScope stats decl indTypes
+    H.statsWF.parameterScope stats decl indTypes
   ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
   telescopes : SourceCtorsCertified H.context.venv c.lparams indTypes.toList
-  declared : PrimitiveDeclaredConstructorsResult H outEnv
+  declared : PrimitiveConstructorEnvironment H outEnv
   formation : FormationCertificate sourceEnv decl
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
     isUnsafe decl H.context.venv declared.venvCtors
@@ -38,7 +38,7 @@ theorem PrimitiveConstructorCorePhasesResult.installedConstructorSemanticCoheren
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
-    {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     (R : PrimitiveConstructorCorePhasesResult H outEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
@@ -56,7 +56,7 @@ theorem PrimitiveConstructorCorePhasesResult.installedConstructorSemanticCoheren
   have hindicesSize : stats.nindices.size = indTypes.size := by
     calc
       stats.nindices.size = decl.types.length := by
-        rw [Array.size_eq_length_toList, H.materialized.indices,
+        rw [Array.size_eq_length_toList, H.statsWF.indices,
           List.length_map]
       _ = indTypes.toList.length :=
         (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core).symm
@@ -131,7 +131,7 @@ theorem PrimitiveConstructorCorePhasesResult.installedConstructorSemanticCoheren
     exact R.declared.context.checking.tr.wf
   have hparamsSize : stats.params.size = decl.nparams := by
     have hlength := List.Forall₂.length_eq
-      H.materialized.params
+      H.statsWF.params
     simpa [VInductDecl.paramVars] using hlength
   let C : CtorInfoCoherentAt outEnv familyInfo.name familyInfo
       ctorIdx hi := {
@@ -172,7 +172,7 @@ theorem PrimitiveConstructorCorePhasesResult.productionInductiveOrigins
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
-    {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     (R : PrimitiveConstructorCorePhasesResult H outEnv) :
     InductInfosFromDecl c.env.constants outEnv.constants decl := by
@@ -206,7 +206,7 @@ theorem PrimitiveConstructorCorePhasesResult.productionInductiveOrigins
       have hindicesSize : stats.nindices.size = indTypes.size := by
         calc
           stats.nindices.size = decl.types.length := by
-            rw [Array.size_eq_length_toList, H.materialized.indices,
+            rw [Array.size_eq_length_toList, H.statsWF.indices,
               List.length_map]
           _ = indTypes.toList.length :=
             (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
@@ -214,7 +214,7 @@ theorem PrimitiveConstructorCorePhasesResult.productionInductiveOrigins
           _ = indTypes.size := by simp
       have hparamsSize : stats.params.size = decl.nparams := by
         have hlength := List.Forall₂.length_eq
-          H.materialized.params
+          H.statsWF.params
         simpa [VInductDecl.paramVars] using hlength
       have hinfosSize : infos.size = indTypes.size := by
         simp [infos, AddInductive.inductiveTypeInfos, hindicesSize]
@@ -270,7 +270,7 @@ theorem PrimitiveConstructorCorePhasesResult.productionInductiveOrigins
           AddInductive.inductiveTypeInfos, R.core.nparams]
       · have hindex : stats.nindices[familyIdx]? =
             some decl.types[familyIdx].numIndices := by
-          rw [← Array.getElem?_toList, H.materialized.indices]
+          rw [← Array.getElem?_toList, H.statsWF.indices]
           simp [htargetIdx]
         have hstats : familyIdx < stats.nindices.size := by
           simpa [hindicesSize] using hfamilyIdx
@@ -418,7 +418,7 @@ theorem PrimitiveConstructorCorePhasesResult.ctorParamsAgree
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
-    {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     (R : PrimitiveConstructorCorePhasesResult H outEnv)
     (Hsource : CtorParamsAgree
@@ -453,7 +453,7 @@ theorem PrimitiveConstructorCorePhasesResult.ctorParamsAgree
       have hindicesSize : stats.nindices.size = indTypes.size := by
         calc
           stats.nindices.size = decl.types.length := by
-            rw [Array.size_eq_length_toList, H.materialized.indices,
+            rw [Array.size_eq_length_toList, H.statsWF.indices,
               List.length_map]
           _ = indTypes.toList.length :=
             (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
@@ -509,7 +509,7 @@ def PrimitiveConstructorCorePhasesResult.complete
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
-    {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     (R : PrimitiveConstructorCorePhasesResult H outEnv) :
     PrimitiveConstructorCheck H outEnv where
@@ -528,7 +528,7 @@ def PrimitiveConstructorCorePhasesResult.complete
 constructor fold.  Validity is regained only at the fold's completed Bool/Nat
 endpoint. -/
 theorem AddInductive.primitiveConstructorCorePhases.WF
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe)
@@ -549,18 +549,18 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
             typesInstalled := H.translation.typesAdded
             constructorParameters := Hchecked.1.parameterShapes
               H.context.checking.wf H.translation.types
-              (H.materialized.runtimeScope.scopeWF H.context.checking.wf)
+              (H.statsWF.runtimeScope.scopeWF H.context.checking.wf)
               (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
-                H.materialized).params_size
-              H.materialized.uvars.symm (by
+                H.statsWF).params_size
+              H.statsWF.uvars.symm (by
                 rw [← H.headerParams]
-                exact H.materialized.paramsContext)
+                exact H.statsWF.paramsContext)
             constructors := Hchecked.1.checked.formation
             rawShapes := Hchecked.1.rawShapes H.context.checking.wf
               H.translation.types
-              (H.materialized.runtimeScope.scopeWF H.context.checking.wf)
+              (H.statsWF.runtimeScope.scopeWF H.context.checking.wf)
               (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
-                H.materialized).params_size }
+                H.statsWF).params_size }
           exact ⟨{
             checked := Hchecked.1.checked
             parameterPrefixes := Hchecked.1.parameterPrefixes
@@ -576,7 +576,7 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
 /-- The complete executable primitive constructor prefix, including the
 persistent production-origin and constructor-semantic invariants. -/
 theorem AddInductive.primitiveConstructorPhases.WF
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe)
@@ -603,14 +603,14 @@ namespace VerifyInductive
 
 /-- The non-inductive constructor half of a completed primitive batch
 preserves closure of every mutual family visible after the header half. -/
-theorem PrimitiveDeclaredConstructorsResult.closesMutuals
+theorem PrimitiveConstructorEnvironment.closesMutuals
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv outEnv : Environment}
-    {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    (R : PrimitiveDeclaredConstructorsResult H outEnv)
+    (R : PrimitiveConstructorEnvironment H outEnv)
     (hclosed : MutualInductivesClosed headerEnv) :
     MutualInductivesClosed outEnv :=
   R.installed.closesMutuals H.context.checking.map_wf hclosed

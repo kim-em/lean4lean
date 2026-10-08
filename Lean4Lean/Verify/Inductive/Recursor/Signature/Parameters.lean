@@ -71,9 +71,9 @@ theorem RecursorConstruction.sourceParameterTranslation
 theorem ConstructorCheck.sourceParameterContext
     (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     sourceEnv.IsDefEqCtx decl.uvars [] R.params.reverse R.parameterScope.toCtx := by
-  have Hctx := R.sourceMaterialized.paramsContext
+  have Hctx := R.sourceStatsWF.paramsContext
   rw [R.sourceHeaderParams, R.sourceParameterScope,
-    R.sourceContextVEnv, R.sourceMaterialized.uvars] at Hctx
+    R.sourceContextVEnv, R.sourceStatsWF.uvars] at Hctx
   exact Hctx
 
 end Lean4Lean.VerifyInductive

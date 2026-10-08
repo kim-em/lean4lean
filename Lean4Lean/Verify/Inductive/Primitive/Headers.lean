@@ -227,7 +227,7 @@ def AssembledSemanticHeadersOf.primitiveDeclaredResult
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
       some commonLevel)
     (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero) :
-    PrimitiveDeclaredHeadersResult c stats H.decl nparams isUnsafe depth
+    PrimitiveHeaderEnvironment c stats H.decl nparams isUnsafe depth
       Hc.venv indTypes outEnv := by
   let infos := AddInductive.inductiveTypeInfos stats nparams indTypes
     numNested isUnsafe c.lparams
@@ -273,8 +273,8 @@ def AssembledSemanticHeadersOf.primitiveDeclaredResult
   have hsourceHeaders : sourceMaterialized.headers = H.headers := by
     change H.semanticPrefix.complete H.materialized = H.headers
     exact H.headers_eq.symm
-  let context : StagedContextWF { c with env := outEnv } :=
-    Hc.toStaged.withEnv (venv' := envTypes)
+  let context : LocalContextWF { c with env := outEnv } :=
+    Hc.toLocal.withEnv (venv' := envTypes)
       (Hinstalled.checking Hc.checking.tr) Hinstalled.le
       ((Hc.checking.corner.ofCtors
         (Hinstalled.ctors_of_noCtor Hc.checking.tr.map_wf inductInfo_zip_noCtor)).mono
@@ -286,7 +286,7 @@ def AssembledSemanticHeadersOf.primitiveDeclaredResult
   let materialized := materializedMono.retargetScope hscope
   exact {
     entries := entries
-    production := ⟨numNested, by simpa [infos] using hentriesFst⟩
+    infos := ⟨numNested, by simpa [infos] using hentriesFst⟩
     sourceAligned := ⟨numNested, by
       change InductiveHeaderEntries infos.toList entries
       exact InductiveHeaderEntries.ofZip hinfosLength⟩
@@ -297,9 +297,9 @@ def AssembledSemanticHeadersOf.primitiveDeclaredResult
     installed := by rw [hcontextVEnv]; simpa [entries, infos] using Hinstalled
     sourceContext := Hc
     sourceContextVEnv := rfl
-    sourceMaterialized := sourceMaterialized
+    sourceStatsWF := sourceMaterialized
     sourceHeaderParams := congrArg (fun headers => headers.params) hsourceHeaders
-    materialized := materialized
+    statsWF := materialized
     headerParams := by
       calc
         materialized.headers.params = materializedMono.headers.params := by
@@ -352,7 +352,7 @@ theorem AddInductive.declareInductiveTypes.primitiveSemanticHeadersWF
     (AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe c).WF fun outEnv =>
         ∃ decl, ∃ envTypes : VEnv,
-          ∃ Hheaders : PrimitiveDeclaredHeadersResult c stats decl nparams
+          ∃ Hheaders : PrimitiveHeaderEnvironment c stats decl nparams
             isUnsafe depth Hc.venv indTypes outEnv, True := by
   have Hinstall :=
     AddInductive.declareInductiveTypes.installsSemanticHeadersAtomicWF

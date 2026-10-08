@@ -290,8 +290,8 @@ private theorem primitiveNatSuccCtorShape
 
 /-- The abstract common-parameter telescope recovered from a canonical
 primitive header is empty. -/
-theorem PrimitiveDeclaredHeadersResult.headerParams_eq_nil
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+theorem PrimitiveHeaderEnvironment.headerParams_eq_nil
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
@@ -334,8 +334,8 @@ theorem PrimitiveDeclaredHeadersResult.headerParams_eq_nil
 
 /-- With no common parameters, every canonical primitive constructor has the
 identity recursor-prefix replay. -/
-theorem PrimitiveDeclaredHeadersResult.parameterPrefixes
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+theorem PrimitiveHeaderEnvironment.parameterPrefixes
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
@@ -387,8 +387,8 @@ theorem PrimitiveDeclaredHeadersResult.parameterPrefixes
 which may be admitted through the primitive-name gate.  This proof uses the
 canonical Bool/Nat source syntax and the staged header translation; it does
 not claim that the header-only environment is a complete checking context. -/
-theorem PrimitiveDeclaredHeadersResult.checkedConstructors
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+theorem PrimitiveHeaderEnvironment.checkedConstructors
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
@@ -583,13 +583,13 @@ theorem PrimitiveDeclaredHeadersResult.checkedConstructors
 parameter scope.  The abstract tail certificates are built directly above;
 the executable source/target correspondence comes from the staged header
 translation. -/
-theorem PrimitiveDeclaredHeadersResult.constructorTails
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+theorem PrimitiveHeaderEnvironment.constructorTails
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
     CheckedRecursorConstructorTails H.context.venv c.lparams
-      H.materialized.parameterScope stats decl indTypes := by
+      H.statsWF.parameterScope stats decl indTypes := by
   have hparams := H.params_size_eq_zero Hshape
   have hscope := H.parameterScope_eq_nil Hshape
   have hheaderParams := H.headerParams_eq_nil Hshape
@@ -771,8 +771,8 @@ theorem PrimitiveDeclaredHeadersResult.constructorTails
 
 /-- The checker-independent canonical constructor syntax also fixes the owner
 normal forms later consumed by recursor construction. -/
-theorem PrimitiveDeclaredHeadersResult.ownerNormalForms
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+theorem PrimitiveHeaderEnvironment.ownerNormalForms
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
@@ -784,7 +784,7 @@ theorem PrimitiveDeclaredHeadersResult.ownerNormalForms
   rcases Hshape with ⟨hlparams, hnparams, _hunsafe, htypes⟩
   have hdeclParams : decl.nparams = 0 := H.translation.nparams.trans hnparams
   have hlevels : stats.levels = [] := by
-    rw [H.materialized.levelParams, hlparams]
+    rw [H.statsWF.levelParams, hlparams]
     rfl
   rcases htypes with hbool | ⟨binderName, binderInfo, hnat⟩
   · have hindTypes : indTypes = #[{
@@ -811,9 +811,9 @@ theorem PrimitiveDeclaredHeadersResult.ownerNormalForms
     rcases hmetadata with ⟨hnindices, _⟩
     have hstatsIndices : stats.nindices = #[0] := by
       apply Array.toList_inj.mp
-      simpa [hdeclTypes, hnindices] using H.materialized.indices
+      simpa [hdeclTypes, hnindices] using H.statsWF.indices
     have hstatsConsts : stats.indConsts = #[.const ``Bool []] := by
-      rw [H.materialized.consts, hlevels, hdeclTypes]
+      rw [H.statsWF.consts, hlevels, hdeclTypes]
       simp [Htarget.header.name]
     rw [hindTypes]
     refine ⟨?_⟩
@@ -853,9 +853,9 @@ theorem PrimitiveDeclaredHeadersResult.ownerNormalForms
     rcases hmetadata with ⟨hnindices, _⟩
     have hstatsIndices : stats.nindices = #[0] := by
       apply Array.toList_inj.mp
-      simpa [hdeclTypes, hnindices] using H.materialized.indices
+      simpa [hdeclTypes, hnindices] using H.statsWF.indices
     have hstatsConsts : stats.indConsts = #[.const ``Nat []] := by
-      rw [H.materialized.consts, hlevels, hdeclTypes]
+      rw [H.statsWF.consts, hlevels, hdeclTypes]
       simp [Htarget.header.name]
     rw [hindTypes]
     refine ⟨?_⟩
@@ -874,7 +874,7 @@ theorem PrimitiveDeclaredHeadersResult.ownerNormalForms
 when it succeeds, the finite canonical argument above supplies its first two
 semantic products without requiring a valid header-only context. -/
 theorem AddInductive.checkConstructors.primitiveCoreWF
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
@@ -882,7 +882,7 @@ theorem AddInductive.checkConstructors.primitiveCoreWF
       { c with env := headerEnv }).WF fun _ =>
         CheckedConstructorsResult sourceEnv decl H.context.venv
             H.headers.params stats indTypes c.lparams
-            H.materialized.parameterScope ∧
+            H.statsWF.parameterScope ∧
           CheckedConstructorOwnerNormalForms stats indTypes := by
   intro _ _
   exact ⟨{

@@ -936,22 +936,22 @@ theorem BuiltAuxiliary.nested_getAppFn
 /-- The common parameter context recorded by the header phase of a declared
 block (in context order).  Every generated auxiliary's parameter telescope
 is definitionally this context. -/
-def DeclaredHeadersResult.commonParameterContext
+def HeaderEnvironment.commonParameterContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {outEnv : Environment}
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv) : List VExpr :=
-  (H.sourceMaterialized.parameterSuffix.toRecursorContext
+  (H.sourceStatsWF.parameterSuffix.toRecursorContext
     (elimLevel := .zero) (by trivial)).parameterDecls.toCtx
 
-theorem DeclaredHeadersResult.commonParameterContext_eq
+theorem HeaderEnvironment.commonParameterContext_eq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {outEnv : Environment}
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv) :
-    H.commonParameterContext = H.materialized.parameterScope.toCtx := by
+    H.commonParameterContext = H.statsWF.parameterScope.toCtx := by
   rw [H.parameterScopeEq]
   rfl
 
@@ -962,7 +962,7 @@ theorem OrdinaryConstructorCheck.completed_parameterScope_toCtx
     {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv : Environment}
-    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+    {H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv} (R : OrdinaryConstructorCheck H ctorEnv) :
     R.toConstructorCheck.parameterScope.toCtx = H.commonParameterContext :=
   H.commonParameterContext_eq.symm
@@ -1020,7 +1020,7 @@ private theorem loweredConstructor_facts
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {types : List InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (H : RecursorCheck R.toConstructorCheck outEnv)
@@ -1059,7 +1059,7 @@ private theorem loweredNames_nodup
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {types : List InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv) :
@@ -1167,7 +1167,7 @@ theorem NestedValidatedRunResult.containerSpecializations
     simpa only [henv, hnparams, hlparams, initialState] using E.lowering
   rcases Hlower with ⟨finalState, Hrun, Hcache, Hparams⟩
   let PhasePack := fun indTypes =>
-    Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
+    Sigma fun Hheaders : HeaderEnvironment P.c P.stats P.loweredDecl
         P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
       Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
         RecursorCheck R.toConstructorCheck E.loweredEnv
@@ -1370,10 +1370,10 @@ theorem NestedValidatedRunResult.commonParameterContext_refl
     VEnv.IsDefEqCtx (ves.venv (if isUnsafe then .unsafe else .safe))
       sourceDecl.uvars [] E.production.headers.commonParameterContext
       E.production.headers.commonParameterContext := by
-  have hctx := E.production.headers.sourceMaterialized.paramsContext
+  have hctx := E.production.headers.sourceStatsWF.paramsContext
   change VEnv.IsDefEqCtx _ _ [] _ E.production.headers.commonParameterContext at hctx
   generalize E.production.headers.commonParameterContext = L₂ at hctx ⊢
-  generalize E.production.headers.sourceMaterialized.headers.params.reverse = L₁
+  generalize E.production.headers.sourceStatsWF.headers.params.reverse = L₁
     at hctx
   rw [E.production.headers.sourceContextVEnv, E.production_initialEnv] at hctx
   have henv : (ves.venv (if isUnsafe then .unsafe else .safe)).WF :=

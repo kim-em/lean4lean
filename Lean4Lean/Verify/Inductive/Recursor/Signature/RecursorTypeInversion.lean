@@ -442,7 +442,7 @@ theorem RecursorConstruction.statsLevelsTranslation
     (H : RecursorConstruction R) :
     stats.levels.mapM (VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)) =
       some (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) :=
-  R.materialized.recursorLevelTranslation' H.lparamsNodup H.elimLevelAdmissible
+  R.statsWF.recursorLevelTranslation' H.lparamsNodup H.elimLevelAdmissible
 
 /-- The source motive application of a minor, with the owner of its motive
 resolved through the validated terminal application. -/

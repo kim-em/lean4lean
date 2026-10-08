@@ -582,14 +582,14 @@ theorem AddConstants.closesMutuals
     exact ih hnextWF hclosedNext fun entry hentry value =>
       hnind entry (by simp [hentry]) value
 
-theorem DeclaredConstructorsResult.closesMutuals
+theorem RecursorCheckingEnvironment.closesMutuals
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv outEnv : Environment}
-    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+    {H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv}
-    (R : DeclaredConstructorsResult H outEnv)
+    (R : RecursorCheckingEnvironment H outEnv)
     (hclosed : MutualInductivesClosed headerEnv) :
     MutualInductivesClosed outEnv :=
   R.installed.closesMutuals H.context.checking.tr.map_wf hclosed

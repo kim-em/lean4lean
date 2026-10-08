@@ -80,7 +80,7 @@ def NestedRestoredFamilyParameterScopes
       decl lparams nparams isUnsafe safety outEnv) : Prop :=
   ∀ familyIdx (hfamily : familyIdx < decl.types.length),
     Nonempty (RestoredFamilyParameterScope E.assembly.canonical.venvCtors
-      lparams nparams E.production.headers.materialized.parameterScope
+      lparams nparams E.production.headers.statsWF.parameterScope
       decl.types[familyIdx].toVConstVal.toVConstant)
 
 /-- The independently restored source family has the same semantic parameter
@@ -143,9 +143,9 @@ theorem NestedExactFinalRunResult.restoredFamilyParameterScopes
           sourceTarget, loweredTarget]
         using HloweredHeader.type)
   have HloweredShape : E.production.loweredDecl.TypeShape sourceEnv
-      E.production.headers.sourceMaterialized.headers.params loweredTarget := by
+      E.production.headers.sourceStatsWF.headers.params loweredTarget := by
     have Hshape :=
-      E.production.headers.sourceMaterialized.headers.typeShapes loweredTarget
+      E.production.headers.sourceStatsWF.headers.typeShapes loweredTarget
         (List.getElem_mem hloweredFamily)
     simpa only [E.production.headers.sourceContextVEnv,
       E.production_initialEnv] using Hshape
@@ -169,21 +169,21 @@ theorem NestedExactFinalRunResult.restoredFamilyParameterScopes
     exact ⟨exprType, HsourceNormalized.mono hsourceLE⟩
   have HownCommon : E.assembly.canonical.venvCtors.IsDefEqCtx
       lparams.length [] ownParams.reverse
-      E.production.headers.sourceMaterialized.headers.params.reverse := by
+      E.production.headers.sourceStatsWF.headers.params.reverse := by
     have Hparams' : sourceEnv.IsDefEqCtx lparams.length []
-        E.production.headers.sourceMaterialized.headers.params.reverse
+        E.production.headers.sourceStatsWF.headers.params.reverse
         ownParams.reverse := by
       simpa [VInductDecl.ParamsDefEq,
         E.production.constructors.core.uvars, hlparams] using Hparams
     exact (Hparams'.symm hsourceWF.ordered).mono hsourceLE
   have HcommonCached : E.assembly.canonical.venvCtors.IsDefEqCtx
       lparams.length []
-      E.production.headers.sourceMaterialized.headers.params.reverse
-      E.production.headers.sourceMaterialized.parameterScope.toCtx := by
-    have Hcached₀ := E.production.headers.sourceMaterialized.paramsContext
+      E.production.headers.sourceStatsWF.headers.params.reverse
+      E.production.headers.sourceStatsWF.parameterScope.toCtx := by
+    have Hcached₀ := E.production.headers.sourceStatsWF.paramsContext
     have Hcached : sourceEnv.IsDefEqCtx lparams.length []
-        E.production.headers.sourceMaterialized.headers.params.reverse
-        E.production.headers.sourceMaterialized.parameterScope.toCtx := by
+        E.production.headers.sourceStatsWF.headers.params.reverse
+        E.production.headers.sourceStatsWF.parameterScope.toCtx := by
       simpa only [E.production.headers.sourceContextVEnv,
         E.production_initialEnv, hlparams] using Hcached₀
     exact Hcached.mono hsourceLE
@@ -282,7 +282,7 @@ theorem NestedExactFinalRunResult.restoredConstructorParameterDomainsNative
       simpa using HownFamily)
   have HparamsScope : E.assembly.canonical.venvCtors.IsDefEqCtx
       lparams.length [] params.reverse
-        E.production.headers.materialized.parameterScope.toCtx :=
+        E.production.headers.statsWF.parameterScope.toCtx :=
     VEnv.IsDefEqCtx.trans_empty hcanonicalWF HparamsFamily Hfamily.context
   simpa [family, constructor] using
     Hfamily.constructorDomains hcanonicalWF Hconstructor

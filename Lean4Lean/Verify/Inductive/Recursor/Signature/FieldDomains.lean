@@ -222,7 +222,7 @@ theorem ConstructorCheck.headerAnonymousParameterWF
     (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     VLCtx.WF R.headerVEnv c.lparams.length
       (abstractForallContext R.parameterScope.toCtx.reverse []) := by
-  have Hparams := R.materialized.paramsContext
+  have Hparams := R.statsWF.paramsContext
   rw [R.materializedParameterScope] at Hparams
   have Hctx := abstractForallContext.isDefEq
     (right := R.parameterScope.toCtx.reverse) (by simpa using Hparams)
@@ -245,7 +245,7 @@ theorem ConstructorCheck.sourceConstructorTailType
       (R.sourceSignature.familyApp (R.sourceSignatureConstructor index).owner
         (VLevel.params R.sourceSignature.uvars)
         (InductiveSignature.vars R.sourceSignature.params.length (R.sourceSignatureConstructor index).fields.length)
-        (R.sourceSignatureConstructor index).indices))) R.materialized.uvars.symm) Htype
+        (R.sourceSignatureConstructor index).indices))) R.statsWF.uvars.symm) Htype
 
 /-- Consume the original source constructor directly in the header
 checking environment, using the actual production trace to identify its

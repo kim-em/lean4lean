@@ -14,7 +14,7 @@ namespace VerifyInductive
 inductive declaration is only partly installed.  In particular this record
 does not assert `HasPrimitives`: that invariant is false between installing
 the `Bool`/`Nat` family header and its constructors. -/
-structure StagedContextWF (c : AddInductive.Context) where
+structure LocalContextWF (c : AddInductive.Context) where
   venv : VEnv
   checking : CheckingEnv c.safety c.env venv
   mlctx : TypeChecker.MLCtx
@@ -31,7 +31,7 @@ structure StagedContextWF (c : AddInductive.Context) where
   /-- The open projection-walk corner, carried to the restored checker context. -/
   corner : CtorTelescopes c.safety c.env venv
 
-def ContextWF.toStaged (H : ContextWF c) : StagedContextWF c where
+def ContextWF.toLocal (H : ContextWF c) : LocalContextWF c where
   venv := H.venv
   checking := H.checking.tr
   corner := H.checking.corner
@@ -48,11 +48,11 @@ def ContextWF.toStaged (H : ContextWF c) : StagedContextWF c where
 /-- Move a staged local context across a production/abstract environment
 extension.  Unlike `ContextWF.withEnv`, this operation intentionally needs no
 primitive invariant. -/
-def StagedContextWF.withEnv (H : StagedContextWF c)
+def LocalContextWF.withEnv (H : LocalContextWF c)
     (hchecking : CheckingEnv c.safety env' venv')
     (hle : H.venv <= venv')
     (hcorner : CtorTelescopes c.safety env' venv') :
-    StagedContextWF { c with env := env' } where
+    LocalContextWF { c with env := env' } where
   venv := venv'
   checking := hchecking
   corner := hcorner
@@ -69,7 +69,7 @@ def StagedContextWF.withEnv (H : StagedContextWF c)
 /-- Restore the ordinary checker context exactly at an atomic completion
 point.  Callers must provide the global facts that are deliberately absent
 from a partial primitive batch. -/
-def StagedContextWF.complete (H : StagedContextWF c)
+def LocalContextWF.toContextWF (H : LocalContextWF c)
     (hprimitives : H.venv.HasPrimitives)
     (hsafe : forall {n ci}, c.env.find? n = some ci ->
       Kernel.Environment.primitives.contains n ->
@@ -836,7 +836,7 @@ def AtomicAddConstants.bootstrap
 /-- The completed staged trace regains `ContextWF` in one step.  The three
 global premises are intentionally stated only for the final environment. -/
 def AtomicAddConstants.completeContext
-    (source : StagedContextWF c)
+    (source : LocalContextWF c)
     (H : AtomicAddConstants c.safety c.env source.venv entries outEnv outVEnv)
     (hprimitives : outVEnv.HasPrimitives)
     (hsafe : forall {n ci}, outEnv.find? n = some ci ->
@@ -848,19 +848,19 @@ def AtomicAddConstants.completeContext
     (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv)
     (hcorner : CtorTelescopes c.safety outEnv outVEnv) :
     ContextWF { c with env := outEnv } :=
-  (source.withEnv (H.checking source.checking) H.le hcorner).complete
+  (source.withEnv (H.checking source.checking) H.le hcorner).toContextWF
     hprimitives hsafe howners hregistry hrecursors hquot
 
 /-- Header result for the primitive branch.  It mirrors the ordinary
-`DeclaredHeadersResult`, except that its checking context and installation
+`HeaderEnvironment`, except that its checking context and installation
 trace are explicitly staged and therefore do not claim `HasPrimitives`. -/
-structure PrimitiveDeclaredHeadersResult (c : AddInductive.Context)
+structure PrimitiveHeaderEnvironment (c : AddInductive.Context)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (nparams : Nat) (isUnsafe : Bool)
     (depth : Nat) (sourceEnv : VEnv)
     (indTypes : Array InductiveType) (outEnv : Environment) where
   entries : List (ConstantInfo × VConstVal)
-  production : exists numNested,
+  infos : exists numNested,
     entries.map Prod.fst =
       (AddInductive.inductiveTypeInfos stats nparams indTypes numNested
         isUnsafe c.lparams).toList.map (fun info => .inductInfo info)
@@ -869,7 +869,7 @@ structure PrimitiveDeclaredHeadersResult (c : AddInductive.Context)
       (AddInductive.inductiveTypeInfos stats nparams indTypes numNested
         isUnsafe c.lparams).toList entries
   values : entries.map Prod.snd = decl.typeConstants
-  context : StagedContextWF { c with env := outEnv }
+  context : LocalContextWF { c with env := outEnv }
   headers : HeaderCertificate sourceEnv decl
   translation : TrInductDeclHeaders sourceEnv c.lparams nparams
     indTypes.toList isUnsafe decl context.venv
@@ -877,18 +877,18 @@ structure PrimitiveDeclaredHeadersResult (c : AddInductive.Context)
     outEnv context.venv
   sourceContext : ContextWF c
   sourceContextVEnv : sourceContext.venv = sourceEnv
-  sourceMaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+  sourceStatsWF : checkInductiveTypes.loopInd.MaterializedHeaderResult
     sourceContext.venv c.lparams sourceContext.mlctx.vlctx stats decl depth
-  sourceHeaderParams : sourceMaterialized.headers.params = headers.params
-  materialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+  sourceHeaderParams : sourceStatsWF.headers.params = headers.params
+  statsWF : checkInductiveTypes.loopInd.MaterializedHeaderResult
     context.venv c.lparams context.mlctx.vlctx stats decl depth
-  headerParams : materialized.headers.params = headers.params
-  parameterScopeEq : materialized.parameterScope = sourceMaterialized.parameterScope
+  headerParams : statsWF.headers.params = headers.params
+  parameterScopeEq : statsWF.parameterScope = sourceStatsWF.parameterScope
 
 /-- Constructor installation completes the primitive batch and is the first
 point at which the ordinary valid checking context is restored. -/
-structure PrimitiveDeclaredConstructorsResult
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+structure PrimitiveConstructorEnvironment
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (outEnv : Environment) where
   venvCtors : VEnv
@@ -899,7 +899,7 @@ structure PrimitiveDeclaredConstructorsResult
   sourceAligned : ConstructorTypeEntries
     (AddInductive.constructorInfo stats c.lparams isUnsafe)
     indTypes.toList entries
-  production : forall (entry : ConstantInfo × VConstVal), entry ∈ entries ->
+  infos : forall (entry : ConstantInfo × VConstVal), entry ∈ entries ->
     exists info : ConstructorVal, entry.1 = ConstantInfo.ctorInfo info
   nonInductive : forall (entry : ConstantInfo × VConstVal), entry ∈ entries ->
     forall value : InductiveVal,
@@ -924,17 +924,17 @@ needed by recursor generation as the ordinary constructor phases, but keeps
 its atomic installation history separate.  A later shared-interface adapter
 can consume either result without manufacturing a valid header-only context. -/
 structure PrimitiveConstructorCheck
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (outEnv : Environment) where
   checked : CheckedConstructorCertificate sourceEnv decl H.context.venv
     H.headers.params
   parameterPrefixes : CheckedRecursorParameterPrefixes stats indTypes
   constructorTails : CheckedRecursorConstructorTails H.context.venv c.lparams
-    H.materialized.parameterScope stats decl indTypes
+    H.statsWF.parameterScope stats decl indTypes
   ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
   telescopes : SourceCtorsCertified H.context.venv c.lparams indTypes.toList
-  declared : PrimitiveDeclaredConstructorsResult H outEnv
+  declared : PrimitiveConstructorEnvironment H outEnv
   formation : FormationCertificate sourceEnv decl
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
     isUnsafe decl H.context.venv declared.venvCtors

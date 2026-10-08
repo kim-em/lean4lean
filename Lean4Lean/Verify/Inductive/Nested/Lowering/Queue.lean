@@ -2050,7 +2050,7 @@ theorem RestoredConstructorMappingTrace.ofInstalled
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)

@@ -93,7 +93,7 @@ theorem RecursorConstruction.sourceConstructorIndices_eq_header
   have hargs := congrArg (fun e => e.getAppFnArgs.2) hbody
   simp only [InductiveSignature.familyApp, VExpr.getAppFnArgs_mkApps_const] at hargs
   have hstats : stats.params.size = decl.nparams := by
-    have hlength := List.Forall₂.length_eq R.materialized.params
+    have hlength := List.Forall₂.length_eq R.statsWF.params
     simpa [VInductDecl.paramVars] using hlength
   have hsig : R.sourceSignature.params.length = decl.nparams := R.sourceSignature_models.nparams
   have hvars := (List.append_inj hargs (by simp [InductiveSignature.vars, hstats, hsig])).2
@@ -210,7 +210,7 @@ theorem RecursorConstruction.elimLevelDecision
       (AddInductive.getElimLevel.large_of_checked H.elimLevelChecked hzero) with
     hnotzero | ⟨ind, hind, hctors⟩
   · exact .inl fun _ hfamily =>
-      R.sourceMaterialized.familyNeverZero hnotzero hfamily
+      R.sourceStatsWF.familyNeverZero hnotzero hfamily
   · refine .inr (.inr ⟨ind, hind, ?_⟩)
     rcases hctors with hnil | ⟨ctor, hctor, hchecked⟩
     · exact .inl hnil
@@ -283,7 +283,7 @@ theorem RecursorConstruction.consumedSingletonElimination
   have hheader := Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF R.core henvSource
   have hscope : R.parameterScope.WF R.headerVEnv c.lparams.length := by
     rw [← R.materializedParameterScope]
-    exact R.materialized.runtimeScope.scopeWF hheader
+    exact R.statsWF.runtimeScope.scopeWF hheader
   have hspine := R.parameterPrefixes.spines 0 (by simp [hind]) 0 (by simp [hind, hsource])
   simp only [hind, Array.getElem_singleton, hsource, List.getElem_cons_zero] at hspine
   obtain ⟨arity, hspine⟩ := hspine

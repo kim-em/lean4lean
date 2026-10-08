@@ -165,7 +165,7 @@ theorem ConstructorCheck.checkedConstructorPrefixSeedAt
     apply List.mem_flatMap.mpr
     exact ⟨decl.types[familyIdx], List.getElem_mem hfamilyDecl, hctorMem⟩
   have hctorWFHeader : ctorVal.toVConstant.WF R.headerVEnv := by
-    simpa [VConstant.WF, hctorUvars, R.materialized.uvars,
+    simpa [VConstant.WF, hctorUvars, R.statsWF.uvars,
       R.materializedParams, R.headerParams] using
       R.checked.types ctorVal hctorConstantMem
   have hctorWF : ctorVal.toVConstant.WF Rbase.venv := by
@@ -599,7 +599,7 @@ theorem ConstructorCheck.mkRecInfosWF
       HmajorTypesOut HmajorShapesOut HmotiveTypesOut HmotiveShapesOut
       HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HorderOut
       HaritiesOut houtCounts
-      (RecursorCardinalityCertificate.ofResult R.core R.materialized
+      (RecursorCardinalityCertificate.ofResult R.core R.statsWF
         houtSize houtCounts HaritiesOut)
       HrootOut
 

@@ -497,7 +497,7 @@ theorem BlockCertificate.installedInductiveHeadersUnsafe
     (hwf : prodEnv.constants.WF)
     (hunsafe : ∀ entry ∈ types ++ ctors ++ recursors,
       entry.1.safety = .unsafe) :
-    InstalledInductiveHeadersUnsafe prodEnv outEnv := by
+    NewFamiliesUnsafe prodEnv outEnv := by
   intro familyName familyInfo hfamily hfresh
   rcases H.installation.atomic.entryOrigin hwf hfamily with hold | hnew
   · rw [hfresh] at hold
@@ -525,7 +525,7 @@ theorem BlockCertificate.hiddenUnsafeConstructorSemantics
     (Hsource : CtorParamsAgree
       observer prodEnv observerBase)
     (hobserver : observer ≠ .unsafe)
-    (Hhidden : InstalledInductiveHeadersUnsafe prodEnv outEnv) :
+    (Hhidden : NewFamiliesUnsafe prodEnv outEnv) :
     CtorParamsAgree observer outEnv observerBase := by
   intro familyName familyInfo hfamily hvisible i hi
   let Hinstall := H.installation.atomic
@@ -580,7 +580,7 @@ theorem BlockCertificate.extendUnsafeExact
         | .unsafe => H.installedVEnv
         | .partial => ves.venv .partial
         | .safe => ves.venv .safe))
-    (hheadersUnsafe : InstalledInductiveHeadersUnsafe prodEnv outEnv) :
+    (hheadersUnsafe : NewFamiliesUnsafe prodEnv outEnv) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       ves'.venv .unsafe = H.installedVEnv := by

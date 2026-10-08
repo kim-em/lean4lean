@@ -94,8 +94,8 @@ theorem TrInductDeclHeaders.eqBootstrapConstant
 
 /-- An exact bootstrap header certificate identifies one installed production
 `Eq` entry and the corresponding canonical abstract value. -/
-theorem DeclaredHeadersResult.eqBootstrapEntry
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+theorem HeaderEnvironment.eqBootstrapEntry
+    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
     (Hshape : PreludeEqShape c.lparams nparams indTypes.toList isUnsafe) :
     ∃ (info : InductiveVal) (target : VInductiveType),
@@ -192,9 +192,9 @@ creates the canonical abstract equality constant at every observer safety.
 Unlike later ordinary declarations, this theorem assumes only that production
 `Eq` is absent at the source; canonical equality is obtained from the actual
 header translation and staged installation of this block. -/
-theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
+theorem OrdinaryInstallation.extendSafeEqBootstrap
     {ves : VEnvs}
-    (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
+    (Hrun : OrdinaryInstallation c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
     (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (_hAbsent : c.env.constants.find? ``Eq = none)
@@ -203,7 +203,7 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     (Hshape : PreludeEqShape c.lparams nparams indTypes.toList isUnsafe) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-      Nonempty (InductiveSpecificationResult (ves.venv .safe) c.lparams
+      Nonempty (SourceAddInduct (ves.venv .safe) c.lparams
         nparams indTypes.toList isUnsafe (ves'.venv .safe)) ∧
       (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
@@ -535,9 +535,9 @@ theorem checkPrimitiveInductive_eq_false_of_eqBootstrapShape
 
 /-- Source-aligned ordinary execution of the exact safe bootstrap `Eq`
 declaration establishes the first canonical equality environment. -/
-theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
+theorem OrdinaryRunResult.extendEqBootstrap
     {ves : VEnvs}
-    (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
+    (Hrun : OrdinaryRunResult source sourceEnv
       nparams types numNested outEnv)
     (wf : ves.WFCore source.env) (hcorner : ∀ safety, CtorTelescopes safety source.env (ves.venv safety))
     (hAbsent : source.env.constants.find? ``Eq = none)
@@ -547,7 +547,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
       (source.safety != .safe)) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-      Nonempty (InductiveSpecificationResult sourceEnv source.lparams
+      Nonempty (SourceAddInduct sourceEnv source.lparams
         nparams types (source.safety != .safe) (ves'.venv .safe)) ∧
       (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
@@ -601,12 +601,12 @@ theorem AddInductive.run.eqBootstrapFinalWF
         checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
           Hc'.venv c'.lparams nparams commonParams commonLevel
             types.toArray.toList) →
-      SemanticRunVerificationInputs c' stats nparams depth numNested
+      PrimitiveNamesFresh c' stats nparams depth numNested
         types.toArray (c.safety != .safe) Hc') :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-        Nonempty (InductiveSpecificationResult Hc.venv c.lparams
+        Nonempty (SourceAddInduct Hc.venv c.lparams
           nparams types (c.safety != .safe) (ves'.venv .safe)) ∧
       (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
@@ -636,7 +636,7 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
       false fuel res).WF fun outEnv =>
       ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-          Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
+          Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
       (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
@@ -664,10 +664,10 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
         checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
           Hc'.venv c'.lparams nparams commonParams commonLevel
             res.types.toArray.toList) →
-      SemanticRunVerificationInputs c' stats nparams depth 0
+      PrimitiveNamesFresh c' stats nparams depth 0
         res.types.toArray (c.safety != .safe) Hc' := by
     intro c' stats depth commonParams commonLevel Hc' hallow _hfuel _Hsemantic
-    exact SemanticRunVerificationInputs.ofAllowPrimitiveFalse
+    exact PrimitiveNamesFresh.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
   have Hrun := AddInductive.run.eqBootstrapFinalWF
     (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf hcorner hAbsent
@@ -676,7 +676,7 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
   rw [haux]
   simpa [c, initialContext] using Hrun.mono fun _ h => by
     rcases h with ⟨ves', wf', hEq', hle, Hspec, hcanonical⟩
-    have Hspec' : Nonempty (InductiveSpecificationResult
+    have Hspec' : Nonempty (SourceAddInduct
         (ves.venv .safe) lparams nparams types false (ves'.venv .safe)) := by
       rw [hsource] at Hspec
       simpa [c, initialContext, htypes] using Hspec
@@ -695,7 +695,7 @@ theorem Environment.addInductive.eqBootstrapFinalEnvironmentWF
       fun outEnv =>
         ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-          Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
+          Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
       (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
@@ -728,7 +728,7 @@ theorem addInductiveDeclaration.eqBootstrapFinalEnvironmentWF
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-          Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
+          Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
       (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by

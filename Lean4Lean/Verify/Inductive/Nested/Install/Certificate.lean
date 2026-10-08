@@ -783,7 +783,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
         checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
           Hc'.venv c'.lparams nparams commonParams commonLevel
             res.types.toArray.toList) →
-      SemanticRunVerificationInputs c' stats nparams depth
+      PrimitiveNamesFresh c' stats nparams depth
         res.aux2nested.size res.types.toArray
         ((nestedAddInductiveContext env lparams isUnsafe allowPrimitive
           fuel).safety != .safe) Hc')

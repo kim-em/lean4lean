@@ -16,7 +16,7 @@ open Kernel
 namespace VerifyInductive
 
 /-- Data-valued package for the exact completed recursor phase selected by a
-successful semantic run.  Unlike `SemanticRunWithStatsResult`, this retains
+successful semantic run.  Unlike `OrdinaryInstallation`, this retains
 the existential witnesses as data and can therefore index later certificates
 without proof-irrelevance erasing run identity. -/
 structure NestedInstalledProduction (outEnv : Environment) where
@@ -30,7 +30,7 @@ structure NestedInstalledProduction (outEnv : Environment) where
   indTypes : Array InductiveType
   headerEnv : Environment
   ctorEnv : Environment
-  headers : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
+  headers : HeaderEnvironment c stats loweredDecl nparams isUnsafe depth
     initialEnv indTypes headerEnv
   constructors : OrdinaryConstructorCheck headers ctorEnv
   production : RecursorCheck constructors.toConstructorCheck outEnv

@@ -1208,7 +1208,7 @@ theorem RecursorCheck.sourceHeaderFresh
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv)
@@ -1219,7 +1219,7 @@ theorem RecursorCheck.sourceHeaderFresh
     simpa using Lean4Lean.List.Forall₂.length_eq
       Hheaders.translation.types
   have hsize : stats.nindices.size = indTypes.size := by
-    rw [Array.size_eq_length_toList, Hheaders.materialized.indices,
+    rw [Array.size_eq_length_toList, Hheaders.statsWF.indices,
       List.length_map]
     exact htypesLength.symm
   rcases inductiveTypeInfos_source_mem stats nparams indTypes numNested
@@ -1243,7 +1243,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.installedContainerBeforeHeaders
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
@@ -1311,7 +1311,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.formationHeaderParameterDomains
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv targetTypesVEnv : VEnv}
     {headerEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv indTypes headerEnv}
     (H : FinalLoweredGeneratedFamilyOrigin c.env params nparams finalState
       targetConcrete)
@@ -1321,7 +1321,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.formationHeaderParameterDomains
     (hparams : params.size = nparams)
     (HenvB : EnvironmentTypesBVarClosed c.env) :
     let parameterDomains :=
-      (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+      (Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
         (elimLevel := .zero) (by trivial)).parameterDecls.toCtx.reverse
     ∃ domains targetResidual,
       domains.length = nparams ∧
@@ -1356,7 +1356,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.formationHeaderParameterDomains
       H.source.name H.source.type targetAbstract.toVConstVal := by
     rw [Hheaders.sourceContextVEnv]
     exact HsourceHeader
-  rcases Hheaders.sourceMaterialized.sourceParameterDomainsAt H.source
+  rcases Hheaders.sourceStatsWF.sourceParameterDomainsAt H.source
       targetAbstract HsourceHeader' htarget (elimLevel := .zero) (by trivial)
       Htelescope' with
     ⟨domains, targetResidual, hdomains, Htranslation, Hcontext⟩
@@ -1378,7 +1378,7 @@ theorem NestedLoweringResultClosed.auxiliaryFormationParameterContext
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv}
     {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -1397,7 +1397,7 @@ theorem NestedLoweringResultClosed.auxiliaryFormationParameterContext
     (selection : LocalForallSelection result.lctx result.params)
     (Haux : ClosedNestedAuxiliaryTranslation sourceTypesVEnv c.lparams
       result selection e) :
-    let Hsuffix := Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+    let Hsuffix := Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
       (elimLevel := .zero) (by trivial)
     let parameterDomains := Hsuffix.parameterDecls.toCtx.reverse
     VEnv.IsDefEqCtx sourceTypesVEnv c.lparams.length []
@@ -1439,7 +1439,7 @@ theorem NestedLoweringResultClosed.auxiliaryFormationParameterContext
       residual := by
     rw [R.core.nparams]
     exact Htelescope
-  rcases Hheaders.sourceMaterialized.sourceParameterDomainsAt first
+  rcases Hheaders.sourceStatsWF.sourceParameterDomainsAt first
       loweredDecl.types[0] Hheader' (List.getElem_mem hdecl)
       (elimLevel := .zero) (by trivial) Htelescope' with
     ⟨sourceDomains, sourceResidual, hsourceDomains,
@@ -1480,7 +1480,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv}
     {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -1505,7 +1505,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
     (Horigin : FinalLoweredGeneratedFamilyOrigin c.env result.params nparams
       finalState target) :
     let parameterDomains :=
-      (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+      (Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
         (elimLevel := .zero) (by trivial)).parameterDecls.toCtx.reverse
     let sourceApplication :=
       (mkAppRange (.const Horigin.generated.sourceName
@@ -1543,7 +1543,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
   have Hcontexts : ∀ Haux : ClosedNestedAuxiliaryTranslation sourceTypesVEnv
       c.lparams result selection Horigin.generated.data.nested,
       VEnv.IsDefEqCtx sourceTypesVEnv c.lparams.length []
-        ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+        ((Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
           (elimLevel := .zero) (by trivial)).parameterDecls.toCtx.reverse).reverse
         Haux.domains.reverse := by
     intro Haux
@@ -1551,14 +1551,14 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
       HsourceHeaders HsourceAdded HsourceTypesWF hempty selection Haux
   rcases Horigin.generated.cachedFamilyHeadRealization Hmap
       hselectionNodup Htranslations henvTypesWF
-      ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+      ((Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
         (elimLevel := .zero) (by trivial)).parameterDecls.toCtx.reverse)
       Hcontexts with
     ⟨realization⟩
   rcases Horigin.generated.abstractContainerApplication realization
       henvTypesWF (by
         have Hwf :=
-          (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+          (Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
             (elimLevel := .zero) (by trivial)).parameterWF
         have hbaseLE :
             (Hheaders.sourceContext.toAdmissibleRecursorContextWF
@@ -1584,7 +1584,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv targetTypesVEnv targetCtorsVEnv : VEnv}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
@@ -1619,11 +1619,11 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
     ∃ N : FinalLoweredGeneratedFamilyNativeSource H sourceVEnv
       sourceTypesVEnv c.lparams targetAbstract,
       VEnv.IsDefEqCtx sourceVEnv c.lparams.length [] N.sourceParams.reverse
-        (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+        (Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
           (elimLevel := .zero) (by trivial)).parameterDecls.toCtx := by
   subst sourceVEnv
   let parameterDomains :=
-    (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+    (Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
       (elimLevel := .zero) (by trivial)).parameterDecls.toCtx.reverse
   rcases H.abstractContainerApplication (R := R) Hrun Hcache Hparams Hsources
       HsourceHeaders HsourceAdded HsourceTypesWF hempty selection Htranslations
@@ -1760,7 +1760,7 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv targetTypesVEnv targetCtorsVEnv : VEnv}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
@@ -1791,11 +1791,11 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
     ∃ N : NestedGeneratedFamilyNativeSources Hrun sourceVEnv
       sourceTypesVEnv c.lparams loweredDecl,
       N.parameterContext =
-        (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+        (Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
           (elimLevel := .zero) (by trivial)).parameterDecls.toCtx := by
   subst sourceVEnv
   let parameterContext :=
-    (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+    (Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
       (elimLevel := .zero) (by trivial)).parameterDecls.toCtx
   let count := result.types.length - sourceTypes.length
   have hle : sourceTypes.length ≤ result.types.length :=

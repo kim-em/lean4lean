@@ -273,7 +273,7 @@ theorem RecursorConstruction.majorSourceType
       simpa [Array.getElem!_eq_getD, Array.getD, howner] using D.expression }
   have htype := (H.origins.majors.type_eq Dall).trans (H.majorShapes.shape owner howner)
   have hconst : stats.indConsts[owner]! = .const decl.types[owner].name stats.levels := by
-    rw [R.materialized.consts]
+    rw [R.statsWF.consts]
     simp [hfamily]
   rw [hconst] at htype
   change D.type = _ at htype

@@ -51,8 +51,8 @@ theorem unreservedLiteralConstructorsOfStringOfList
 /-- An ordinary installed family cannot use a production-reserved primitive
 name.  This is the exact reusable consequence of successful `checkName` for
 the materialized family-name list. -/
-theorem DeclaredHeadersResult.familyNamesExcludePrimitive
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+theorem HeaderEnvironment.familyNamesExcludePrimitive
+    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
     (hprimitive : Kernel.Environment.primitives.contains name) :
     name ∉ decl.types.map (·.name) := by
@@ -66,8 +66,8 @@ theorem DeclaredHeadersResult.familyNamesExcludePrimitive
 
 /-- Successful ordinary header installation excludes every literal expansion
 name except the three names not reserved by the kernel. -/
-theorem DeclaredHeadersResult.literalNamesDisjointOfUnreserved
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+theorem HeaderEnvironment.literalNamesDisjointOfUnreserved
+    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
     (hunreserved :
       checkPositivityStep.UnreservedLiteralConstructorNamesDisjoint
@@ -101,8 +101,8 @@ theorem DeclaredHeadersResult.literalNamesDisjointOfUnreserved
 /-- If the three unreserved expansion names already exist in the abstract
 source environment, successful fresh header installation discharges the
 residual condition too. -/
-theorem DeclaredHeadersResult.unreservedLiteralNamesDisjointOfSourceContains
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+theorem HeaderEnvironment.unreservedLiteralNamesDisjointOfSourceContains
+    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
     (hpresent : ∀ name ∈
       checkPositivityStep.unreservedLiteralConstructorNames,
@@ -132,8 +132,8 @@ theorem DeclaredHeadersResult.unreservedLiteralNamesDisjointOfSourceContains
 /-- In an environment where the unreserved literal constants are already
 present, ordinary header installation supplies the original global condition
 without any caller premise. -/
-theorem DeclaredHeadersResult.literalNamesDisjointOfSourceContains
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+theorem HeaderEnvironment.literalNamesDisjointOfSourceContains
+    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
     (hpresent : ∀ name ∈
       checkPositivityStep.unreservedLiteralConstructorNames,
@@ -145,8 +145,8 @@ theorem DeclaredHeadersResult.literalNamesDisjointOfSourceContains
 
 /-- After string-literal support has been installed, the existing checking
 context supplies the residual source-presence evidence automatically. -/
-theorem DeclaredHeadersResult.literalNamesDisjointOfStringOfList
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+theorem HeaderEnvironment.literalNamesDisjointOfStringOfList
+    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
     (hstring : sourceEnv.contains ``String.ofList) :
     checkPositivityStep.LiteralConstructorNamesDisjoint
@@ -160,8 +160,8 @@ theorem DeclaredHeadersResult.literalNamesDisjointOfStringOfList
 /-- A primitive lookup visible after ordinary header installation was already
 present in the source environment: all newly installed header values have
 non-primitive names. -/
-theorem DeclaredHeadersResult.sourceContainsOfTargetContainsPrimitive
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+theorem HeaderEnvironment.sourceContainsOfTargetContainsPrimitive
+    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
     (hprimitive : Kernel.Environment.primitives.contains name)
     (htarget : H.context.venv.contains name) :
@@ -181,15 +181,15 @@ literals only expose reserved natural constructors.  A supported string
 literal implies that the reserved `String.ofList` lookup predates this
 ordinary header batch; `HasPrimitives`, orderedness, and source freshness then
 exclude the remaining `Char`/`List` expansion names. -/
-theorem DeclaredHeadersResult.materializedAvailableLiteralDisjoint
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+theorem HeaderEnvironment.materializedAvailableLiteralDisjoint
+    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv) :
     checkPositivityStep.AvailableLiteralDisjoint
       H.context.venv stats.indConsts := by
   intro literal havailable
   cases literal with
   | natVal n =>
-      exact H.materialized.natLiteralDisjoint
+      exact H.statsWF.natLiteralDisjoint
         (H.familyNamesExcludePrimitive (by
           simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList]))
         (H.familyNamesExcludePrimitive (by
@@ -199,7 +199,7 @@ theorem DeclaredHeadersResult.materializedAvailableLiteralDisjoint
         H.sourceContainsOfTargetContainsPrimitive (by
           simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])
           havailable.2
-      exact H.materialized.literalDisjoint
+      exact H.statsWF.literalDisjoint
         (H.literalNamesDisjointOfStringOfList hsourceString) (.strVal s)
 
 end VerifyInductive

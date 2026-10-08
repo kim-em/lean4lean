@@ -13,7 +13,7 @@ namespace VerifyInductive
 /-! # Final model dispatch for exact nested runs
 
 This module is the narrow bridge between the exact executable nested run and
-the public `InductiveFinalResult`.  Formation, recursors, equations, closure,
+the public `InductiveExtension`.  Formation, recursors, equations, closure,
 and unsafe restoration tags are already consequences of the exact run.  The
 only remaining model premise is semantic coherence of the restored source
 constructors in the exact final abstract environment.
@@ -50,7 +50,7 @@ theorem NestedExactFinalRunResult.inductiveFinalResult
     (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
       sourceProdEnv.find? name = some (.ctorInfo ci) ∨
         (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt venvH ci)) :
-    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
+    Nonempty (InductiveExtension sourceProdEnv outEnv ves lparams nparams sourceTypes
       isUnsafe) := by
   have Hlower' : NestedLoweringResultClosed E.productionContext.env fuel
       nparams sourceTypes
@@ -82,7 +82,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
     (hnested : res.aux2nested.size ≠ 0) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
       isUnsafe false fuel res).WF fun outEnv =>
-        Nonempty (InductiveFinalResult env outEnv ves lparams nparams sourceTypes
+        Nonempty (InductiveExtension env outEnv ves lparams nparams sourceTypes
           isUnsafe) := by
   let Hc' : ContextWF
       (nestedAddInductiveContext env lparams isUnsafe false fuel) :=
@@ -99,12 +99,12 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
       checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
         Hctx.venv c'.lparams nparams commonParams commonLevel
           res.types.toArray.toList →
-      SemanticRunVerificationInputs c' stats nparams depth
+      PrimitiveNamesFresh c' stats nparams depth
         res.aux2nested.size res.types.toArray
         ((nestedAddInductiveContext env lparams isUnsafe false fuel).safety !=
           .safe) Hctx := by
     intro c' stats depth commonParams commonLevel Hctx hallow _hfuel _Hsemantic
-    exact SemanticRunVerificationInputs.ofNoPrimitive hallow
+    exact PrimitiveNamesFresh.ofNoPrimitive hallow
   have HlowerInitialClosed : NestedLoweringResultClosed env
       fuel.inductiveFuel nparams sourceTypes
       { ({ lvls := lparams.map .param, newTypes := #[] } :

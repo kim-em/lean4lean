@@ -1402,7 +1402,7 @@ variable {result : Lean4Lean.ElimNestedInductive.Result}
 /-- The production statistics carry the declaration's universe parameters. -/
 theorem NestedValidatedRunResult.statsLevels :
     E.production.stats.levels = lparams.map Level.param := by
-  have h := E.production.headers.materialized.levelParams
+  have h := E.production.headers.statsWF.levelParams
   rwa [E.production_c, E.productionContext_lparams] at h
 
 /-- The production statistics carry exactly the lowered run's parameters. -/

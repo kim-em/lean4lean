@@ -57,7 +57,7 @@ theorem AddInductive.semanticFormationCoreWF
           AddInductive.checkConstructors indTypes stats isUnsafe
           AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
       fun outEnv => ∃ decl headerEnv,
-        ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
+        ∃ Hheaders : HeaderEnvironment c stats decl nparams
           isUnsafe depth Hc.venv indTypes headerEnv,
         ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True := by
   have HheadersAndLoop :=
@@ -73,7 +73,7 @@ theorem AddInductive.semanticFormationCoreWF
             AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
         fun outEnv =>
         ∃ decl headerEnv,
-          ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
+          ∃ Hheaders : HeaderEnvironment c stats decl nparams
             isUnsafe depth Hc.venv indTypes headerEnv,
           ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True :=
     HheadersAndLoop.bind fun headerEnv Hloop => by
@@ -81,11 +81,11 @@ theorem AddInductive.semanticFormationCoreWF
         (AddInductive.checkConstructors indTypes stats isUnsafe
           { c with env := headerEnv }).WF fun _ =>
             ∃ decl,
-            ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
+            ∃ Hheaders : HeaderEnvironment c stats decl nparams
               isUnsafe depth Hc.venv indTypes headerEnv,
               CheckedConstructorsResult Hc.venv decl Hheaders.context.venv
                   Hheaders.headers.params stats indTypes c.lparams
-                  Hheaders.materialized.parameterScope /\
+                  Hheaders.statsWF.parameterScope /\
                 CheckedConstructorOwnerNormalForms stats indTypes ∧
                 SourceCtorsCertified Hheaders.context.venv c.lparams indTypes.toList := by
       intro checkedOut hfull
@@ -112,7 +112,7 @@ theorem AddInductive.semanticFormationCoreWF
           AddInductive.declareConstructors stats indTypes isUnsafe)
             { c with env := headerEnv }).WF fun outEnv =>
               ∃ decl,
-              ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
+              ∃ Hheaders : HeaderEnvironment c stats decl nparams
                 isUnsafe depth Hc.venv indTypes headerEnv,
               ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True :=
       Hcheck.bind fun _ Hchecked => by
@@ -136,7 +136,7 @@ theorem AddInductive.semanticFormationCoreWF
           AddInductive.declareConstructors stats indTypes isUnsafe)
             { c with env := headerEnv }).WF fun outEnv =>
           ∃ decl headerEnv',
-            ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
+            ∃ Hheaders : HeaderEnvironment c stats decl nparams
               isUnsafe depth Hc.venv indTypes headerEnv',
             ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True := by
       intro outEnv hout
@@ -163,23 +163,23 @@ namespace VerifyInductive
 enough to close the newly installed mutual block.  This proof uses the
 lockstep installation certificate, not a replay of the executable header
 fold. -/
-theorem DeclaredHeadersResult.closesMutuals
+theorem HeaderEnvironment.closesMutuals
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv : Environment}
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv)
     (Hclosed : MutualInductivesClosed c.env) :
     MutualInductivesClosed headerEnv := by
-  rcases H.production with ⟨numNested, hproduction⟩
+  rcases H.infos with ⟨numNested, hproduction⟩
   let infos := (AddInductive.inductiveTypeInfos stats nparams indTypes
     numNested isUnsafe c.lparams).toList
   have htypesLength : indTypes.size = decl.types.length := by
     simpa using
       List.Forall₂.length_eq H.translation.types
   have hsize : stats.nindices.size = indTypes.size := by
-    rw [Array.size_eq_length_toList, H.materialized.indices,
+    rw [Array.size_eq_length_toList, H.statsWF.indices,
       List.length_map]
     exact htypesLength.symm
   have huniform : ∀ info ∈ infos,
@@ -343,7 +343,7 @@ theorem AddInductive.semanticFormationCoreClosedWF
           AddInductive.checkConstructors indTypes stats isUnsafe
           AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
       fun outEnv => ∃ decl headerEnv,
-        ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
+        ∃ Hheaders : HeaderEnvironment c stats decl nparams
           isUnsafe depth Hc.venv indTypes headerEnv,
         ∃ _ : OrdinaryConstructorCheck Hheaders outEnv,
           MutualInductivesClosed outEnv := by

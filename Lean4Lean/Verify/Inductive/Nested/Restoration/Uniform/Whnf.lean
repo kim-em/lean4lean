@@ -800,7 +800,7 @@ theorem NestedValidatedRunResult.generatedFamilyType_forall
     simpa only [henv, hnparams, hlparams, initialState] using E.lowering
   rcases Hlower with ⟨finalState, Hrun, Hcache, Hparams⟩
   let PhasePack := fun indTypes =>
-    Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
+    Sigma fun Hheaders : HeaderEnvironment P.c P.stats P.loweredDecl
         P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
       Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
         RecursorCheck R.toConstructorCheck E.loweredEnv

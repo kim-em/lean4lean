@@ -13,9 +13,9 @@ namespace VerifyInductive
 
 /-- A successful primitive Bool/Nat run extends the complete environment
 model without any premise about the bootstrap state of `Eq`. -/
-theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
+theorem PrimitiveInstallation.extendSafeExact
     {ves : VEnvs}
-    (Hrun : SemanticPrimitiveRunWithStatsResult c stats nparams depth
+    (Hrun : PrimitiveInstallation c stats nparams depth
       (ves.venv .safe) indTypes (c.safety != .safe) outEnv)
     (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
@@ -87,15 +87,15 @@ namespace VerifyInductive
 
 /-- The primitive execution path retains its independent source judgment and
 complete final model without any equality-bootstrap premise. -/
-theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeWithSpecification
+theorem PrimitiveRunResult.extendSafeWithSpecification
     {ves : VEnvs}
-    (Hrun : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned source
+    (Hrun : PrimitiveRunResult source
       (ves.venv .safe) nparams types numNested outEnv)
     (wf : ves.WFCore source.env) (hcorner : ∀ safety, CtorTelescopes safety source.env (ves.venv safety)) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       VEnvs.CertPres source.env outEnv ves ves' ∧
-      Nonempty (InductiveSpecificationResult (ves.venv .safe)
+      Nonempty (SourceAddInduct (ves.venv .safe)
         source.lparams nparams types (source.safety != .safe)
         (ves'.venv .safe)) := by
   rcases Hrun with
@@ -105,7 +105,7 @@ theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeWithS
   have wf' : ves.WFCore c'.env := by simpa [henv] using wf
   have hcorner' : ∀ safety, CtorTelescopes safety c'.env (ves.venv safety) := by
     rw [henv]; exact hcorner
-  have Hphases' : SemanticPrimitiveRunWithStatsResult c' stats nparams
+  have Hphases' : PrimitiveInstallation c' stats nparams
       depth (ves.venv .safe) types.toArray (c'.safety != .safe) outEnv := by
     simpa [hvenv, hsafety] using Hphases
   have Hshape' : PrimitiveInductiveShape c'.lparams nparams
@@ -139,13 +139,13 @@ theorem AddInductive.run.primitiveFinalSpecificationModelWF
       ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         VEnvs.CertPres c.env outEnv ves ves' ∧
-        Nonempty (InductiveSpecificationResult (ves.venv .safe) c.lparams
+        Nonempty (SourceAddInduct (ves.venv .safe) c.lparams
           nparams types (c.safety != .safe) (ves'.venv .safe)) := by
   have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
     nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty
     HnotPartial
   exact Hrun.mono fun outEnv Hresult => by
-    have Hresult' : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned
+    have Hresult' : PrimitiveRunResult
         c (ves.venv .safe) nparams types numNested outEnv := by
       simpa [hsource] using Hresult
     exact Hresult'.extendSafeWithSpecification wf hcorner
@@ -164,7 +164,7 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
         ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           VEnvs.CertPres env outEnv ves ves' ∧
-          Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
+          Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types isUnsafe (ves'.venv .safe)) := by
   let c := primitiveAddInductiveContext env lparams isUnsafe fuel
   have hisUnsafe : isUnsafe = false := Hshape.2.2.1
@@ -203,7 +203,7 @@ theorem Environment.addInductive.primitiveFinalSpecificationModelWF
         ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           VEnvs.CertPres env outEnv ves ves' ∧
-          Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
+          Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types isUnsafe (ves'.venv .safe)) := by
   have Hsources : (Lean4Lean.checkInductiveSources env types).WF
       fun _ => SourceSyntaxChecks types :=
@@ -229,7 +229,7 @@ theorem addInductiveDeclaration.primitiveFinalSpecificationModelWF
         ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           VEnvs.CertPres env outEnv ves ves' ∧
-          Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
+          Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types isUnsafe (ves'.venv .safe)) := by
   have Hrun := Environment.addInductive.primitiveFinalSpecificationModelWF
     env lparams nparams types isUnsafe fuel ves wf hcorner Hshape

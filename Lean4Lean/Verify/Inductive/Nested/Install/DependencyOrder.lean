@@ -229,7 +229,7 @@ theorem RestoredInductiveStep.restoredHeaderTranslationAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -551,7 +551,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactCanonicalPrimaryReplay
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
     {headerEnv ctorEnv loweredEnv sourceProdEnv targetProdEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -622,7 +622,7 @@ theorem RecursorCheck.restoredTelescopeAlignmentOfGeneratedName
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -666,7 +666,7 @@ structure RestoredAuxiliaryGeneratedStepAlignment
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -688,7 +688,7 @@ inductive RestoredAuxiliaryGeneratedAlignmentTrace
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -715,7 +715,7 @@ theorem StateForMTrace.generatedAlignmentTrace
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -751,7 +751,7 @@ theorem NestedLoweringResultClosed.auxRecNameGeneratedAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -805,7 +805,7 @@ theorem RestoredNestedDeclarationsResult.generatedAlignmentTraceOfProduction
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -1166,7 +1166,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
     {loweredDecl decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
     {headerEnv ctorEnv loweredEnv primaryProdEnv outProdEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}

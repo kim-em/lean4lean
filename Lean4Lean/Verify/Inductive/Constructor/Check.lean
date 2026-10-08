@@ -392,7 +392,7 @@ theorem ConstructorCheck.constructorOwnersPresent
   have hindicesSize : stats.nindices.size = indTypes.size := by
     calc
       stats.nindices.size = decl.types.length := by
-        rw [Array.size_eq_length_toList, R.materialized.indices,
+        rw [Array.size_eq_length_toList, R.statsWF.indices,
           List.length_map]
       _ = indTypes.toList.length :=
         (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core).symm
@@ -425,7 +425,7 @@ def ConstructorCheck.recursorHeaders
       sourceEnv indTypes ctorEnv) :
     checkInductiveTypes.loopInd.MaterializedHeaderResult
       R.context.venv c.lparams R.context.mlctx.vlctx stats decl depth := by
-  let M := R.materialized.mono (R.installation.constructorLE.trans R.ctorLE)
+  let M := R.statsWF.mono (R.installation.constructorLE.trans R.ctorLE)
   exact {
     headers := M.headers
     isNotZero := M.isNotZero
@@ -464,7 +464,7 @@ def OrdinaryConstructorCheck.toConstructorCheck
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv : Environment}
-    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+    {H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv}
     (R : OrdinaryConstructorCheck H ctorEnv) :
     ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
@@ -477,7 +477,7 @@ def OrdinaryConstructorCheck.toConstructorCheck
   constructorValues := R.declared.values
   sourceContext := H.sourceContext
   sourceContextVEnv := H.sourceContextVEnv
-  sourceMaterialized := H.sourceMaterialized
+  sourceStatsWF := H.sourceStatsWF
   context := R.declared.context
   headerMLCtx := H.context.mlctx
   contextMLCtx := R.declared.contextMLCtx
@@ -485,9 +485,9 @@ def OrdinaryConstructorCheck.toConstructorCheck
   params := H.headers.params
   headerParams := rfl
   sourceHeaderParams := H.sourceHeaderParams
-  parameterScope := H.materialized.parameterScope
+  parameterScope := H.statsWF.parameterScope
   sourceParameterScope := H.parameterScopeEq.symm
-  materialized := H.materialized
+  statsWF := H.statsWF
   materializedParams := H.headerParams
   materializedParameterScope := rfl
   checked := R.checked
@@ -497,7 +497,7 @@ def OrdinaryConstructorCheck.toConstructorCheck
   telescopes := R.telescopes
   headerSourceAligned := H.sourceAligned
   constructorSourceAligned := R.declared.sourceAligned
-  constructorProduction := R.declared.production
+  constructorProduction := R.declared.infos
   constructorNonInductive := R.declared.nonInductive
   ctorVEnv := R.declared.venvCtors
   eliminators := R.declared.eliminators
@@ -518,22 +518,22 @@ noncomputable def PrimitiveConstructorCheck.toCheckedFormation
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv : Environment}
-    {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     (R : PrimitiveConstructorCheck H ctorEnv) :
     CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes where
   headerVEnv := H.context.venv
   sourceContext := H.sourceContext
   sourceContextVEnv := H.sourceContextVEnv
-  sourceMaterialized := H.sourceMaterialized
+  sourceStatsWF := H.sourceStatsWF
   headerMLCtx := H.context.mlctx
   headers := H.headers
   params := H.headers.params
   headerParams := rfl
   sourceHeaderParams := H.sourceHeaderParams
-  parameterScope := H.materialized.parameterScope
+  parameterScope := H.statsWF.parameterScope
   sourceParameterScope := H.parameterScopeEq.symm
-  materialized := H.materialized
+  statsWF := H.statsWF
   materializedParams := H.headerParams
   materializedParameterScope := rfl
   constructorTails := R.constructorTails
@@ -548,7 +548,7 @@ theorem PrimitiveConstructorCheck.projectedChecking
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv : Environment}
-    {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     (R : PrimitiveConstructorCheck H ctorEnv) :
     CheckingEnv.Valid c.safety ctorEnv
@@ -566,7 +566,7 @@ noncomputable def PrimitiveConstructorCheck.toConstructorCheck
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv : Environment}
-    {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     (R : PrimitiveConstructorCheck H ctorEnv) :
     ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
@@ -579,7 +579,7 @@ noncomputable def PrimitiveConstructorCheck.toConstructorCheck
   constructorValues := R.declared.values
   sourceContext := H.sourceContext
   sourceContextVEnv := H.sourceContextVEnv
-  sourceMaterialized := H.sourceMaterialized
+  sourceStatsWF := H.sourceStatsWF
   context := R.declared.context.withEnv R.projectedChecking (by
     rw [R.declared.contextVEnv]
     exact VEnv.addEliminators_addProjections_le)
@@ -589,9 +589,9 @@ noncomputable def PrimitiveConstructorCheck.toConstructorCheck
   params := H.headers.params
   headerParams := rfl
   sourceHeaderParams := H.sourceHeaderParams
-  parameterScope := H.materialized.parameterScope
+  parameterScope := H.statsWF.parameterScope
   sourceParameterScope := H.parameterScopeEq.symm
-  materialized := H.materialized
+  statsWF := H.statsWF
   materializedParams := H.headerParams
   materializedParameterScope := rfl
   checked := R.checked
@@ -601,7 +601,7 @@ noncomputable def PrimitiveConstructorCheck.toConstructorCheck
   telescopes := R.telescopes
   headerSourceAligned := H.sourceAligned
   constructorSourceAligned := R.declared.sourceAligned
-  constructorProduction := R.declared.production
+  constructorProduction := R.declared.infos
   constructorNonInductive := R.declared.nonInductive
   ctorVEnv := R.declared.venvCtors
   eliminators := R.toCheckedFormation.caseEliminators

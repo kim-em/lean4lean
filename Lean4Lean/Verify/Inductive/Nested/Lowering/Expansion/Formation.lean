@@ -264,7 +264,7 @@ def NestedFormationAssembly.ofConstructorPhases
     {expanded source : VInductDecl} {nparams depth : Nat}
     {isUnsafe : Bool} {env : VEnv} {indTypes : Array InductiveType}
     {headerEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats expanded nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats expanded nparams isUnsafe depth
       env indTypes headerEnv}
     (R : OrdinaryConstructorCheck Hheaders outEnv)
     (generated : List VInductiveType)

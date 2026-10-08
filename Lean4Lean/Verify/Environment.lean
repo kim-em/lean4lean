@@ -173,10 +173,10 @@ theorem addInductiveDeclaration.finalResultWF
     (HsourcesB : VerifyInductive.SourceBVarClosed types) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
-        Nonempty (VerifyInductive.InductiveFinalResult env outEnv ves lparams
+        Nonempty (VerifyInductive.InductiveExtension env outEnv ves lparams
           nparams types isUnsafe) := by
   apply addInductiveDeclaration.WF env lparams nparams types isUnsafe fuel
-    (fun outEnv => Nonempty (VerifyInductive.InductiveFinalResult env outEnv ves
+    (fun outEnv => Nonempty (VerifyInductive.InductiveExtension env outEnv ves
       lparams nparams types isUnsafe))
   intro allowPrimitive hallow
   cases allowPrimitive with

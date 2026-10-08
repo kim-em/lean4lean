@@ -331,7 +331,7 @@ theorem RecursorCheck.ctorIsUnsafe
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType} {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (H : RecursorCheck R.toConstructorCheck outEnv) :
@@ -354,7 +354,7 @@ theorem NestedLoweringResultClosed.familyConstructorTypeOrigins
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -448,7 +448,7 @@ theorem NestedLoweringResultClosed.familiesConstructorTypeOrigins
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -499,7 +499,7 @@ theorem NestedLoweringResultClosed.restorationConstructorTypeOrigins
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -540,7 +540,7 @@ theorem NestedLoweringResultClosed.familyConstructorTypesInstalled
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -600,7 +600,7 @@ theorem NestedLoweringResultClosed.familiesConstructorTypesInstalled
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -649,7 +649,7 @@ theorem NestedLoweringResultClosed.restorationConstructorTypesInstalled
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -684,7 +684,7 @@ theorem NestedLoweringResultClosed.constructorTypeRoundTripOfSource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv} {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}

@@ -28,7 +28,7 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl 
 theorem stats_params_fvars
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     ∃ pfvs : List FVarId, stats.params = (pfvs.map Expr.fvar).toArray := by
-  have h := R.materialized.paramFVars
+  have h := R.statsWF.paramFVars
   refine ⟨stats.params.toList.map fun e => match e with | .fvar fv => fv | _ => default, ?_⟩
   apply Array.ext'
   simp only [List.map_map]
@@ -83,7 +83,7 @@ theorem sourceSignature_headsApplied
   have hscope : ∀ x ∈ R.parameterScope, VExpr.HeadsApplied heads stats.params.size
       stats.levels.length x.2.value := by
     intro x hx
-    have hcached := R.sourceMaterialized.cachedScope
+    have hcached := R.sourceStatsWF.cachedScope
     rw [R.sourceParameterScope] at hcached
     obtain ⟨p, -, hp⟩ := Lean4Lean.List.Forall₂.forall_exists_r hcached x hx
     obtain ⟨fv, deps, type, -, rfl⟩ := hp
@@ -254,9 +254,9 @@ theorem params_avoid
 theorem params_scope
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     sourceEnv.IsDefEqCtx decl.uvars [] R.params.reverse R.parameterScope.toCtx := by
-  have Hctx := R.sourceMaterialized.paramsContext
+  have Hctx := R.sourceStatsWF.paramsContext
   rw [R.sourceHeaderParams, R.sourceParameterScope,
-    R.sourceContextVEnv, R.sourceMaterialized.uvars] at Hctx
+    R.sourceContextVEnv, R.sourceStatsWF.uvars] at Hctx
   exact Hctx
 
 end CheckedFormation

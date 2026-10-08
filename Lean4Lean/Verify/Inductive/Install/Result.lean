@@ -12,7 +12,7 @@ checker run, including the translation of the exact source syntax.  Keeping
 the source translation beside `AddInduct` prevents a final-environment model
 from silently being attributed to a different (for example, lowered)
 declaration. -/
-structure InductiveSpecificationResult
+structure SourceAddInduct
     (sourceEnv : VEnv) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (installedVEnv : VEnv) where
@@ -25,7 +25,7 @@ structure InductiveSpecificationResult
 
 /-- Ordinary runs and primitive-bootstrap runs share the same independent
 source judgment; this alias documents the ordinary use site. -/
-abbrev OrdinaryInductiveSpecificationResult := InductiveSpecificationResult
+abbrev OrdinaryInductiveSpecificationResult := SourceAddInduct
 
 end VerifyInductive
 end Lean4Lean
@@ -44,14 +44,14 @@ exact submitted source declaration, and preservation of the constructor
 telescope certificate from the source environment to the returned one.
 Equality bootstrap state is deliberately absent: it is not an
 inductive-soundness precondition. -/
-structure InductiveFinalResult
+structure InductiveExtension
     (sourceEnv outEnv : Environment) (sourceModels : VEnvs)
     (lparams : List Name) (nparams : Nat) (sourceTypes : List InductiveType)
     (isUnsafe : Bool) where
   targetModels : VEnvs
   wf : targetModels.WFCore outEnv
   mono : ∀ safety, sourceModels.venv safety ≤ targetModels.venv safety
-  specification : InductiveSpecificationResult
+  specification : SourceAddInduct
     (sourceModels.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
     sourceTypes isUnsafe
     (targetModels.venv (if isUnsafe then .unsafe else .safe))
@@ -59,15 +59,15 @@ structure InductiveFinalResult
 
 /-- Construct the uniform result directly from the environment model and
 independent source specification. -/
-def InductiveFinalResult.ofModel
+def InductiveExtension.ofModel
     (targetModels : VEnvs) (wf : targetModels.WFCore outEnv)
     (mono : ∀ safety, sourceModels.venv safety ≤ targetModels.venv safety)
-    (specification : InductiveSpecificationResult
+    (specification : SourceAddInduct
       (sourceModels.venv (if isUnsafe then .unsafe else .safe)) lparams
       nparams sourceTypes isUnsafe
       (targetModels.venv (if isUnsafe then .unsafe else .safe)))
     (certPres : VEnvs.CertPres sourceEnv outEnv sourceModels targetModels) :
-    InductiveFinalResult sourceEnv outEnv sourceModels lparams nparams sourceTypes
+    InductiveExtension sourceEnv outEnv sourceModels lparams nparams sourceTypes
       isUnsafe where
   targetModels := targetModels
   wf := wf
@@ -77,8 +77,8 @@ def InductiveFinalResult.ofModel
 
 /-- Forget the inductive-specific evidence and recover the traditional
 environment-preservation postcondition used by `addDecl.WF`. -/
-theorem InductiveFinalResult.modelExtension
-    (H : InductiveFinalResult sourceEnv outEnv sourceModels lparams nparams sourceTypes
+theorem InductiveExtension.modelExtension
+    (H : InductiveExtension sourceEnv outEnv sourceModels lparams nparams sourceTypes
       isUnsafe) :
     ∃ targetModels : VEnvs, targetModels.WFCore outEnv ∧
       (∀ safety, sourceModels.venv safety ≤ targetModels.venv safety) ∧

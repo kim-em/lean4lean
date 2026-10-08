@@ -211,7 +211,7 @@ def AssembledSemanticHeadersOf.declaredResult
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
       some commonLevel)
     (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero) :
-    DeclaredHeadersResult c stats H.decl nparams isUnsafe depth Hc.venv
+    HeaderEnvironment c stats H.decl nparams isUnsafe depth Hc.venv
       indTypes outEnv := by
   let infos := AddInductive.inductiveTypeInfos stats nparams indTypes
     numNested isUnsafe c.lparams
@@ -268,7 +268,7 @@ def AssembledSemanticHeadersOf.declaredResult
   let materialized := materializedMono.retargetScope hscope
   exact {
     entries := entries
-    production := ⟨numNested, by simpa [infos] using hentriesFst⟩
+    infos := ⟨numNested, by simpa [infos] using hentriesFst⟩
     sourceAligned := ⟨numNested, by
       change InductiveHeaderEntries infos.toList entries
       exact InductiveHeaderEntries.ofZip hinfosLength⟩
@@ -281,9 +281,9 @@ def AssembledSemanticHeadersOf.declaredResult
         Hinstalled.installed
     sourceContext := Hc
     sourceContextVEnv := rfl
-    sourceMaterialized := sourceMaterialized
+    sourceStatsWF := sourceMaterialized
     sourceHeaderParams := congrArg (fun headers => headers.params) hsourceHeaders
-    materialized := materialized
+    statsWF := materialized
     headerParams := by
       calc
         materialized.headers.params = materializedMono.headers.params := by
@@ -348,7 +348,7 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
       isUnsafe c).WF fun headerEnv =>
         (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
           { headerCheckContext c stats with env := headerEnv }).WF fun _ =>
-            ∃ decl, Nonempty (DeclaredHeadersResult c stats decl nparams
+            ∃ decl, Nonempty (HeaderEnvironment c stats decl nparams
               isUnsafe depth Hc.venv indTypes headerEnv) := by
   let HheaderMaterialized := Hsemantic.materializedResult
     (isUnsafe := isUnsafe) hlevels hlevelParams hindices hconsts hparams

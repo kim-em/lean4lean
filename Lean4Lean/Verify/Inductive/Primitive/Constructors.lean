@@ -103,29 +103,29 @@ private theorem AddInductive.inductiveTypeInfos.primitiveMetadata
     hinfo
 
 /-- Canonical primitive declarations have no cached common parameters. -/
-theorem PrimitiveDeclaredHeadersResult.params_size_eq_zero
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+theorem PrimitiveHeaderEnvironment.params_size_eq_zero
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
     stats.params.size = 0 := by
   have hparams : stats.params.size = decl.nparams := by
     have hlength := List.Forall₂.length_eq
-      H.materialized.params
+      H.statsWF.params
     simpa [VInductDecl.paramVars] using hlength
   rw [hparams, H.translation.nparams]
   exact Hshape.2.1
 
 /-- The independently retained parameter scope is empty on the canonical
 primitive branch. -/
-theorem PrimitiveDeclaredHeadersResult.parameterScope_eq_nil
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+theorem PrimitiveHeaderEnvironment.parameterScope_eq_nil
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
-    H.materialized.parameterScope = [] := by
+    H.statsWF.parameterScope = [] := by
   have hlength := List.Forall₂.length_eq
-    H.materialized.cachedScope
+    H.statsWF.cachedScope
   have hzero := H.params_size_eq_zero Hshape
   apply List.eq_nil_of_length_eq_zero
   simpa [hzero] using hlength.symm
@@ -291,7 +291,7 @@ canonical primitive branch.  Validity is restored only after the family
 header and all constructors have been identified as one complete bootstrap
 batch. -/
 theorem AddInductive.declareConstructors.primitiveWF
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe)
@@ -301,7 +301,7 @@ theorem AddInductive.declareConstructors.primitiveWF
       (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
     (AddInductive.declareConstructors stats indTypes isUnsafe
       { c with env := headerEnv }).WF fun outEnv =>
-        ∃ _ : PrimitiveDeclaredConstructorsResult H outEnv, True := by
+        ∃ _ : PrimitiveConstructorEnvironment H outEnv, True := by
   let mkInfo := AddInductive.constructorInfo stats c.lparams isUnsafe
   have Htranslated := Hchecked.translated H.translation
   have hctors : SourceCtorsCertified H.context.venv c.lparams indTypes.toList :=
@@ -354,7 +354,7 @@ theorem AddInductive.declareConstructors.primitiveWF
         entry.1.safety = .safe ∧ entry.1.levelParams = [] := by
       intro entry hentry _hprimitive
       rcases List.mem_append.mp hentry with hheader | hctor
-      · rcases H.production with ⟨numNested, hproductionHeaders⟩
+      · rcases H.infos with ⟨numNested, hproductionHeaders⟩
         have hmember : entry.1 ∈ H.entries.map Prod.fst :=
           List.mem_map.mpr ⟨entry, hheader, rfl⟩
         rw [hproductionHeaders] at hmember
@@ -379,7 +379,7 @@ theorem AddInductive.declareConstructors.primitiveWF
     have hindicesSize : stats.nindices.size = indTypes.size := by
       calc
         stats.nindices.size = decl.types.length := by
-          rw [Array.size_eq_length_toList, H.materialized.indices,
+          rw [Array.size_eq_length_toList, H.statsWF.indices,
             List.length_map]
         _ = indTypes.toList.length :=
           (List.Forall₂.length_eq H.translation.types).symm
@@ -515,7 +515,7 @@ theorem AddInductive.declareConstructors.primitiveWF
       values := hctorValues
       installed := Hinstalled
       sourceAligned := by simpa [mkInfo] using Haligned
-      production := hproduction
+      infos := hproduction
       nonInductive := hnind
       translation := Htranslation
       primitiveConstants := H.translation.primitiveAbstractConstants Hshape

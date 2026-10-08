@@ -259,19 +259,19 @@ structure CheckedFormation (c : AddInductive.Context)
   headerVEnv : VEnv
   sourceContext : ContextWF c
   sourceContextVEnv : sourceContext.venv = sourceEnv
-  sourceMaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+  sourceStatsWF : checkInductiveTypes.loopInd.MaterializedHeaderResult
     sourceContext.venv c.lparams sourceContext.mlctx.vlctx stats decl depth
   headerMLCtx : TypeChecker.MLCtx
   headers : HeaderCertificate sourceEnv decl
   params : List VExpr
   headerParams : headers.params = params
-  sourceHeaderParams : sourceMaterialized.headers.params = params
+  sourceHeaderParams : sourceStatsWF.headers.params = params
   parameterScope : VLCtx
-  sourceParameterScope : sourceMaterialized.parameterScope = parameterScope
-  materialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+  sourceParameterScope : sourceStatsWF.parameterScope = parameterScope
+  statsWF : checkInductiveTypes.loopInd.MaterializedHeaderResult
     headerVEnv c.lparams headerMLCtx.vlctx stats decl depth
-  materializedParams : materialized.headers.params = params
-  materializedParameterScope : materialized.parameterScope = parameterScope
+  materializedParams : statsWF.headers.params = params
+  materializedParameterScope : statsWF.parameterScope = parameterScope
   constructorTails : CheckedRecursorConstructorTails headerVEnv c.lparams
     parameterScope stats decl indTypes
   ctorVEnv : VEnv
@@ -473,7 +473,7 @@ theorem productionConstructorNames_nodup
 eliminator's additional universe is introduced. -/
 noncomputable def sourceSignatureHeader
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) : InductiveSignature :=
-  R.sourceMaterialized.signatureHeader
+  R.sourceStatsWF.signatureHeader
 
 theorem sourceSignatureHeader_params
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) : R.sourceSignatureHeader.params = R.params :=
@@ -481,7 +481,7 @@ theorem sourceSignatureHeader_params
 
 theorem sourceSignatureHeader_params_length
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) : R.sourceSignatureHeader.params.length = decl.nparams :=
-  R.sourceMaterialized.signatureParams_length
+  R.sourceStatsWF.signatureParams_length
 
 theorem sourceSignatureHeader_families
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
@@ -500,7 +500,7 @@ theorem sourceSignatureHeader_families
   have hu : decl.types[i].uvars = decl.uvars := htr.header.uvars.trans R.core.uvars.symm
   have htype : R.sourceContext.venv.IsType decl.uvars [] decl.types[i].type := by
     simpa only [R.sourceContextVEnv, VConstant.WF, hu] using htr.header.wf
-  obtain ⟨hn, hiCount, hl, ht⟩ := R.sourceMaterialized.signatureFamily_model
+  obtain ⟨hn, hiCount, hl, ht⟩ := R.sourceStatsWF.signatureFamily_model
     R.sourceContext.checking.tr.wf i hi' htype
   simpa [sourceSignatureHeader,
     checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureHeader,
@@ -537,8 +537,8 @@ theorem sourceSignatureHeader_constructor
     simpa only [R.sourceContextVEnv] using R.sourceContext.checking.tr.wf
   have hctx : R.headerVEnv.IsDefEqCtx decl.uvars []
       R.sourceSignatureHeader.params.reverse R.parameterScope.toCtx := by
-    simpa only [R.materialized.uvars, R.materializedParams,
-      R.materializedParameterScope, R.sourceSignatureHeader_params] using R.materialized.paramsContext
+    simpa only [R.statsWF.uvars, R.materializedParams,
+      R.materializedParameterScope, R.sourceSignatureHeader_params] using R.statsWF.paramsContext
   let owner : Fin R.sourceSignatureHeader.families.size :=
     ⟨i, by simpa [sourceSignatureHeader,
       checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureHeader] using hi⟩
@@ -550,7 +550,7 @@ theorem sourceSignatureHeader_constructor
   obtain ⟨sourceCtor, hmem, ctor, hsourceName, hname, hctorOwner, htype, hfields, hreplay⟩ :=
     (R.constructorTails.replay i hip j hjp).signatureConstructor
       (Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF R.core henv) R.core.uvars.symm rfl
-      R.sourceSignatureHeader_params_length R.sourceMaterialized.signatureFamilies_names
+      R.sourceSignatureHeader_params_length R.sourceStatsWF.signatureFamilies_names
       rfl hctx owner howner
   have hmem' : sourceCtor ∈ decl.constructorConstants :=
     List.mem_flatMap.mpr ⟨decl.types[i], List.getElem_mem hi, hmem⟩
@@ -615,7 +615,7 @@ theorem sourceSignatureConstructor_owner
     (R.sourceSignatureHeader_ownedConstructor _ (List.getElem_mem i.isLt))
   let ctor := R.sourceSignatureConstructor i
   have hsize : R.sourceSignatureHeader.families.size = decl.types.length :=
-    R.sourceMaterialized.signatureFamilies_size
+    R.sourceStatsWF.signatureFamilies_size
   have hc : ctor.owner.val < decl.types.length := by
     have := ctor.owner.isLt
     omega

@@ -76,7 +76,7 @@ private theorem StateForMTrace.restoredSourceMemberInfos
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
     {result : Lean4Lean.ElimNestedInductive.Result}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -184,7 +184,7 @@ theorem NestedFinalAssemblyCertificate.mutualInductivesClosed
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat}
     {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -268,7 +268,7 @@ private theorem RestoredConstructorMappingTrace.unsafeFreshTrace
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -321,7 +321,7 @@ private theorem RestoredRecursorStep.unsafeFreshTrace
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -375,7 +375,7 @@ private theorem RestoredInductiveStep.unsafeFreshTraceAt
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -477,7 +477,7 @@ private theorem StateForMTrace.unsafeInductiveFreshTrace
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -535,7 +535,7 @@ private theorem StateForMTrace.unsafeRecursorFreshTrace
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -576,7 +576,7 @@ theorem RestoredNestedDeclarationsResult.unsafeFreshTraceOfProduction
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {sourceVEnv envTypes envCtors : VEnv}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams true
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams true
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -632,7 +632,7 @@ theorem NestedFinalAssemblyCertificate.entriesUnsafe
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat}
     {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams true depth
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams true depth
       sourceEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -695,7 +695,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProductionClose
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat}
     {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams false depth
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams false depth
       (ves.venv .safe) result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -718,7 +718,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProductionClose
     (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
       sourceProdEnv.find? name = some (.ctorInfo ci) ∨
         (ci.isUnsafe = false ∧ CtorTelescopeAt venvH ci)) :
-    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
+    Nonempty (InductiveExtension sourceProdEnv outEnv ves lparams nparams sourceTypes
       false) := by
   have Howners : ConstructorOwnersPresent c.env := by
     rw [henv]
@@ -746,7 +746,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProductionClo
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat}
     {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams true depth
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams true depth
       (ves.venv .unsafe) result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -774,7 +774,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProductionClo
     (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
       sourceProdEnv.find? name = some (.ctorInfo ci) ∨
         (ci.isUnsafe = true ∧ CtorTelescopeAt venvH ci)) :
-    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
+    Nonempty (InductiveExtension sourceProdEnv outEnv ves lparams nparams sourceTypes
       true) := by
   have Howners : ConstructorOwnersPresent c.env := by
     rw [henv]
@@ -797,7 +797,7 @@ private theorem NestedInstalledProduction.reindex
     (hunsafe : P.isUnsafe = isUnsafe')
     (henv : P.initialEnv = initialEnv')
     (htypes : P.indTypes = indTypes') :
-    ∃ Hheaders : DeclaredHeadersResult c' P.stats P.loweredDecl nparams'
+    ∃ Hheaders : HeaderEnvironment c' P.stats P.loweredDecl nparams'
         isUnsafe' P.depth initialEnv' indTypes' P.headerEnv,
       ∃ Hconstructors : OrdinaryConstructorCheck Hheaders P.ctorEnv,
         Nonempty (RecursorCheck Hconstructors.toConstructorCheck loweredEnv) := by
@@ -827,7 +827,7 @@ theorem NestedExactFinalRunResult.safeInductiveFinalResult
     (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
       sourceProdEnv.find? name = some (.ctorInfo ci) ∨
         (ci.isUnsafe = false ∧ CtorTelescopeAt venvH ci)) :
-    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
+    Nonempty (InductiveExtension sourceProdEnv outEnv ves lparams nparams sourceTypes
       false) := by
   have hisUnsafe : E.production.isUnsafe = false := by
     rw [E.production_isUnsafe, E.productionContext_safety]
@@ -866,7 +866,7 @@ theorem NestedExactFinalRunResult.unsafeInductiveFinalResult
     (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
       sourceProdEnv.find? name = some (.ctorInfo ci) ∨
         (ci.isUnsafe = true ∧ CtorTelescopeAt venvH ci)) :
-    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
+    Nonempty (InductiveExtension sourceProdEnv outEnv ves lparams nparams sourceTypes
       true) := by
   have hisUnsafe : E.production.isUnsafe = true := by
     rw [E.production_isUnsafe, E.productionContext_safety]

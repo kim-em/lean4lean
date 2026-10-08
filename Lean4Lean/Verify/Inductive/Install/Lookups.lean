@@ -24,7 +24,7 @@ theorem RecursorCheck.findHeaderOfMem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hc : ContextWF c)
@@ -47,7 +47,7 @@ theorem RecursorCheck.findSourceHeader
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv)
@@ -61,7 +61,7 @@ theorem RecursorCheck.findSourceHeader
     simpa using List.Forall₂.length_eq
       Hheaders.translation.types
   have hsize : stats.nindices.size = indTypes.size := by
-    rw [Array.size_eq_length_toList, Hheaders.materialized.indices,
+    rw [Array.size_eq_length_toList, Hheaders.statsWF.indices,
       List.length_map]
     exact htypesLength.symm
   rcases inductiveTypeInfos_source_mem stats nparams indTypes numNested
@@ -208,7 +208,7 @@ theorem RecursorCheck.findConstructorOfMem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (H : RecursorCheck R.toConstructorCheck outEnv)
@@ -229,7 +229,7 @@ theorem RecursorCheck.findSourceConstructor
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (H : RecursorCheck R.toConstructorCheck outEnv)
@@ -252,7 +252,7 @@ theorem RestoredConstructorStep.oldType_eq_ofInstalled
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hstep : RestoredConstructorStep result outEnv ctorName
@@ -280,7 +280,7 @@ theorem RestoredConstructorStep.metadataOfInstalled
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hstep : RestoredConstructorStep result outEnv ctorName
@@ -318,7 +318,7 @@ theorem RestoredInductiveStep.oldConstructors_eq_ofInstalled
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hstep : RestoredInductiveStep result outEnv auxRec allIndNames indType
@@ -346,7 +346,7 @@ theorem RecursorCheck.findRecursorOfMem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (H : RecursorCheck R.toConstructorCheck outEnv)
@@ -365,7 +365,7 @@ theorem RecursorCheck.findSourceRecursor
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (H : RecursorCheck R.toConstructorCheck outEnv)
@@ -406,7 +406,7 @@ theorem RecursorCheck.restorationSources
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv)
@@ -452,7 +452,7 @@ theorem RecursorCheck.restoredPrimaryRecursorMetadata
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (H : RecursorCheck R.toConstructorCheck outEnv)
@@ -496,7 +496,7 @@ theorem RecursorCheck.restoredPrimaryTelescopeAlignment
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (H : RecursorCheck R.toConstructorCheck outEnv)
@@ -549,7 +549,7 @@ theorem RecursorCheck.restoredPrimaryRecursorUvars
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (H : RecursorCheck R.toConstructorCheck outEnv)
@@ -591,7 +591,7 @@ def RecursorCheck.restoredSourcePrimaryRecursorRealization
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (H : RecursorCheck R.toConstructorCheck outEnv)

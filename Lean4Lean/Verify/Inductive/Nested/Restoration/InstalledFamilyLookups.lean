@@ -477,7 +477,7 @@ theorem RecursorCheck.findSourceHeaderAt
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv)
@@ -497,7 +497,7 @@ theorem RecursorCheck.findSourceHeaderAt
   have hindicesSize : stats.nindices.size = indTypes.size := by
     calc
       stats.nindices.size = decl.types.length := by
-        rw [Array.size_eq_length_toList, Hheaders.materialized.indices,
+        rw [Array.size_eq_length_toList, Hheaders.statsWF.indices,
           List.length_map]
       _ = indTypes.toList.length :=
         (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core).symm
@@ -533,7 +533,7 @@ theorem RecursorCheck.findSourceHeaderNumIndicesAt
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (H : RecursorCheck R.toConstructorCheck outEnv)
@@ -549,7 +549,7 @@ theorem RecursorCheck.findSourceHeaderNumIndicesAt
   have hindicesSize : stats.nindices.size = indTypes.size := by
     calc
       stats.nindices.size = decl.types.length := by
-        rw [Array.size_eq_length_toList, Hheaders.materialized.indices,
+        rw [Array.size_eq_length_toList, Hheaders.statsWF.indices,
           List.length_map]
       _ = indTypes.toList.length :=
         (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core).symm
@@ -592,7 +592,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -697,7 +697,7 @@ theorem RestoredInductiveStep.constructorOwnersPresent
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -762,7 +762,7 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -843,7 +843,7 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
     Hlower.resultParamsSize.symm.trans hparamsSize
   have hstatsParams : stats.params.size = nparams := by
     have hlength := Lean4Lean.List.Forall₂.length_eq
-      Hheaders.materialized.params
+      Hheaders.statsWF.params
     simpa [VInductDecl.paramVars, R.core.nparams] using hlength
   have hheaderFresh : stepSource.find?
       (ConstantInfo.inductInfo Hstep.restored.header.newInfo).name = none :=
@@ -866,7 +866,7 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
       (Hstep.restored.headerFind hstepWF)
   have hstats : familyIdx < stats.nindices.size := by
     rw [Array.size_eq_length_toList,
-      Hheaders.materialized.indices, List.length_map]
+      Hheaders.statsWF.indices, List.length_map]
     exact hloweredDecl
   refine {
     familyIdx_lt := hsourceDecl
@@ -924,7 +924,7 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
         have hindex : stats.nindices[familyIdx]? =
             some loweredDecl.types[familyIdx].numIndices := by
           rw [← Array.getElem?_toList,
-            Hheaders.materialized.indices]
+            Hheaders.statsWF.indices]
           simp [hloweredDecl]
         simpa [Array.getElem?_eq_getElem hstats] using hindex
       _ = sourceDecl.types[familyIdx].numIndices :=
@@ -1246,7 +1246,7 @@ theorem StateForMTrace.sourceFamiliesConstructorOwnersPresent
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -1289,7 +1289,7 @@ theorem RestoredNestedDeclarationsResult.constructorOwnersPresent
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -1320,7 +1320,7 @@ theorem StateForMTrace.sourceFamiliesProductionInductiveOrigins
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -1376,7 +1376,7 @@ theorem RestoredNestedDeclarationsResult.productionInductiveOrigins
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
     {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}

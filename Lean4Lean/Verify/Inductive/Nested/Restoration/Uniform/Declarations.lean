@@ -759,12 +759,12 @@ theorem RecursorConstruction.paramDecls_hitOK
   have hparam : Expr.fvar fv ∈ stats.params := H.params.mem_fvars_iff.1 hfv
   have hc : fv ∈ c.lctx.fvars := by
     obtain ⟨fvars, hparams, hdecls⟩ :=
-      cachedParameterDecls_fvars R.sourceMaterialized.cachedScope
+      cachedParameterDecls_fvars R.sourceStatsWF.cachedScope
     have hmem : Expr.fvar fv ∈ stats.params.toList.reverse := by simpa using hparam
     rw [hparams] at hmem
     simp only [List.mem_map, Expr.fvar.injEq, exists_eq_right] at hmem
     rw [← R.sourceContext.lctx_eq, R.sourceContext.mlctx_wf.tr.fvars_eq,
-      R.sourceMaterialized.scopeDecomposition, VLCtx.fvars_append, hdecls]
+      R.sourceStatsWF.scopeDecomposition, VLCtx.fvars_append, hdecls]
     exact List.mem_append_right _ hmem
   have hfind' : c.lctx.find? fv = some d := by
     rw [← hfind]; exact (H.localExtends.declarations fv hc).symm
@@ -875,7 +875,7 @@ theorem RecursorConstruction.paramsFree_of_fresh
     (hfresh : ∀ name ∈ heads, sourceEnv.constants name = none) :
     ∀ A ∈ R.parameterScope.toCtx, A.containsAnyConst heads = false := by
   have hwf := R.sourceContext.mlctx_wf.tr.wf
-  rw [R.sourceMaterialized.scopeDecomposition, R.sourceParameterScope] at hwf
+  rw [R.sourceStatsWF.scopeDecomposition, R.sourceParameterScope] at hwf
   have hon := VLCtx.WF.toCtx (VLCtx.WF.append_right hwf)
   have hfresh' : ∀ name ∈ heads, R.sourceContext.venv.constants name = none := by
     rw [R.sourceContextVEnv]; exact hfresh
@@ -919,7 +919,7 @@ theorem RecursorConstruction.normalizedHeadsApplied
     rw [H.consumedGeneration_signature]
   have hsp : H.consumedGeneration.signature.params.length = stats.params.size := by
     rw [H.consumedGeneration.params, List.length_reverse, H.sourceParameterCount]
-  have hlevels : stats.levels.length = decl.uvars := R.sourceMaterialized.levels
+  have hlevels : stats.levels.length = decl.uvars := R.sourceStatsWF.levels
   simp only [InductiveSignature.constructorType, InductiveSignature.familyApp]
   refine VExpr.HeadsApplied.wrapForalls (fun d hd => ?_) ?_
   · rcases List.mem_append.1 hd with hd | hd
@@ -1015,7 +1015,7 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
     simpa only [henv, hnparams, hlparams, initialState] using E.lowering
   rcases Hlower with ⟨finalState, Hrun, Hcache, Hparams⟩
   let PhasePack := fun indTypes =>
-    Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
+    Sigma fun Hheaders : HeaderEnvironment P.c P.stats P.loweredDecl
         P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
       Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
         RecursorCheck R.toConstructorCheck E.loweredEnv

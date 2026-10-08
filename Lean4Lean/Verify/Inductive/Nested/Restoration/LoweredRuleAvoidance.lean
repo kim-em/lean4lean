@@ -1419,12 +1419,12 @@ theorem RecursorConstruction.paramDecls_trail
   have hparam : Expr.fvar fv ∈ stats.params := H.params.mem_fvars_iff.1 hfv
   have hc : fv ∈ c.lctx.fvars := by
     obtain ⟨fvars, hparams, hdecls⟩ :=
-      cachedParameterDecls_fvars R.sourceMaterialized.cachedScope
+      cachedParameterDecls_fvars R.sourceStatsWF.cachedScope
     have hmem : Expr.fvar fv ∈ stats.params.toList.reverse := by simpa using hparam
     rw [hparams] at hmem
     simp only [List.mem_map, Expr.fvar.injEq, exists_eq_right] at hmem
     rw [← R.sourceContext.lctx_eq, R.sourceContext.mlctx_wf.tr.fvars_eq,
-      R.sourceMaterialized.scopeDecomposition, VLCtx.fvars_append, hdecls]
+      R.sourceStatsWF.scopeDecomposition, VLCtx.fvars_append, hdecls]
     exact List.mem_append_right _ hmem
   have hfind' : c.lctx.find? fv = some d := by
     rw [← hfind]; exact (H.localExtends.declarations fv hc).symm

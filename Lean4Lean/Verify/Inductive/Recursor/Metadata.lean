@@ -184,8 +184,8 @@ theorem RecursorCheck.kShape
       simp only [Fin.getElem_fin, hfamCons]
     rw [hlevel]
     exact (VLevel.equiv_congr_left
-      (R.materialized.headers.commonLevels _ (List.getElem_mem _))).2
-      (ofLevel_isAlwaysZero R.materialized.commonLevel hzero)
+      (R.statsWF.headers.commonLevels _ (List.getElem_mem _))).2
+      (ofLevel_isAlwaysZero R.statsWF.commonLevel hzero)
   · intro ct hct
     obtain ⟨k, hk, rfl⟩ := List.mem_iff_getElem.mp hct
     have hk0 : k = 0 := by simp only [Array.length_toList] at hk; omega
@@ -211,7 +211,7 @@ theorem RecursorCheck.kShape
       rw [hlocalIdx, hsrcCtors] at hsc
       simpa [hind, hctors] using hsc.symm
     have hA := traversal.parameterPrefix.constructorArity
-      (hstats ▸ R.materialized.paramFVars)
+      (hstats ▸ R.statsWF.paramFVars)
     have hB := traversal.fieldTelescope.constructorArity
     rw [hcons, hSctor, hstats] at hA
     have hfields0 : traversal.fields.size = 0 := by omega

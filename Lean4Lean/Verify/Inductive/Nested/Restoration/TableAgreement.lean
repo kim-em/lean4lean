@@ -1158,7 +1158,7 @@ theorem RecursorCheck.ctorInfoOrigin
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (H : RecursorCheck R.toConstructorCheck outEnv) (hwf : c.env.constants.WF)
@@ -1173,7 +1173,7 @@ theorem RecursorCheck.ctorInfoOrigin
     rcases List.mem_append.mp hentry with h12 | hrec
     · rcases List.mem_append.mp h12 with hhead | hctor
       · exfalso
-        obtain ⟨k, hk⟩ := Hheaders.production
+        obtain ⟨k, hk⟩ := Hheaders.infos
         have hm : entry.1 ∈ Hheaders.entries.map Prod.fst := List.mem_map_of_mem hhead
         rw [hk] at hm
         obtain ⟨i, _, he⟩ := List.mem_map.mp hm
@@ -1277,7 +1277,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
     simpa only [henv, hnparams, hlparams, initialState] using E.lowering
   rcases Hlower with ⟨finalState, Hrun, Hcache, Hparams⟩
   let PhasePack := fun indTypes =>
-    Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
+    Sigma fun Hheaders : HeaderEnvironment P.c P.stats P.loweredDecl
         P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
       Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
         RecursorCheck R.toConstructorCheck E.loweredEnv
