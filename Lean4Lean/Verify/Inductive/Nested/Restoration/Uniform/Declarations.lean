@@ -3,9 +3,9 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.CompilationDataConstructors
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Levels
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Commutation
 
-/-! # Discharging the non-`whnf` hit-shape inputs of a nested run
+/-! # Discharging the non-`whnf` parameter-uniformity inputs of a nested run
 
-For an exact validated nested run `E`, at the auxiliary heads `E.auxHeads`
+For a validated nested run `E`, at the auxiliary heads `E.auxHeads`
 (the names of the lowered families after the source families and of their
 constructors):
 
@@ -15,20 +15,19 @@ constructors):
 * Ingredients of `RecursorConstruction.ParamUniformDeclarations` (assembled at
   the head set `E.uniformHeads` by `NestedRun.paramUniformDeclarations_of` in
   `Nested/Restoration/Uniform/Whnf.lean`):
-  - `NestedRun.familyHeadersAvoid`: headers are not lowered,
-    and both source and auxiliary headers are translated in the source
-    environment, where the heads are fresh.
-  - `RecursorConstruction.paramDecls_of_fresh` and
-    `paramDecls_paramUniformIn`: the parameters are declarations of the source
-    context, translated in the source environment where the heads are fresh
-    (`TrExprS.sourceAvoidsFresh`) and only its structures are registered
+  - `RecursorConstruction.paramDecls_paramUniformIn`: the parameters are
+    declarations of the source context, translated in the source environment
+    where the heads are fresh (`TrExprS.sourceAvoidsFresh`) and only its
+    structures are registered
     (`TrExprS.projsRegistered`).
-  - `NestedRun.constructorTypesParamUniform`: every lowered family
+  - `NestedRun.loweredFamilyMappings`: every lowered family
     has a lowering mapping from a pre-lowering family whose constructor types
-    are translated in the source-header environment (`loweredFamilyMappings`:
-    the source translations for the source families, the native payload
-    `AuxiliaryFamilySources` for the generated ones), so
-    `ConstructorLowering.Resolved.paramUniformTele` applies.
+    are translated in the source-header environment (the source translations
+    for the source families, the pre-lowering data `AuxiliaryFamilySources`
+    for the auxiliary ones), so
+    `ConstructorLowering.Resolved.paramUniformTele` applies
+    (`NestedRun.constructorTypesParamUniform`). The family headers are handled
+    in `Nested/Restoration/Uniform/Whnf.lean` (`NestedRun.familyType_tr`).
   - `RecursorConstruction.recursorNames_not_mem`: from the
     distinctness of family and recursor names.
 * `NestedRun.normalizedTotal_of`: `Restoration.expr` is total
@@ -38,9 +37,9 @@ constructors):
   (`VExpr.HeadsApplied.restorationExpr`); it is transported from the arity
   form `Expr.HeadsApplied` of `ParamUniform` along `TrExprS`
   (`Expr.HeadsApplied.trExprS`), applied to the field-telescope replay
-  `sourceConstructorIndices_replay` of every consumed constructor.
-* `NestedRun.compilationData_of_pendingTotal`:
-  `compilationData_of_pending'` with that premise discharged. -/
+  `sourceConstructorIndices_replay` of every unannotated constructor. This is
+  the `normalizedTotal` field of `LoweredConstructorsRestore`, used by
+  `NestedRun.compilationData_of_tables`. -/
 
 namespace Lean.Expr
 
@@ -48,7 +47,8 @@ open Lean4Lean
 
 /-- `HeadsApplied heads n k e`: every application spine of `e` headed by a constant
 `c ∈ heads` has at least `n` arguments and exactly `k` universe levels. This is
-the arity content of `ParamUniform`, forgetting which arguments the hit carries. -/
+the arity content of `ParamUniform`, forgetting which arguments the head occurrence
+carries. -/
 inductive HeadsApplied (heads : List Name) (n k : Nat) : Expr → Prop
   | occurrence {c : Name} {us : List Level} {args : List Expr} : c ∈ heads → us.length = k →
       n ≤ args.length → (∀ a ∈ args, HeadsApplied heads n k a) →
@@ -458,7 +458,7 @@ theorem TrExprS.headsApplied_of_avoids {env : VEnv} {Us : List Name} {Δ : VLCtx
     rw [hproj.target_eq]
     cases hav with | proj _ _ _ h => exact .proj (ih h hΔ)
 
-/-- **Transport of hit arity along the expression translation.** -/
+/-- **Transport of head arity along the expression translation.** -/
 theorem _root_.Lean.Expr.HeadsApplied.trExprS {env : VEnv} {Us : List Name}
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts heads)
     {e : Expr} (H : e.HeadsApplied heads n k) :
@@ -581,10 +581,10 @@ theorem namePrefix_of_isPrefixOf {P : Name} :
 
 /-! ### Run-level facts about the auxiliary heads -/
 
-/-- **The auxiliary heads of an exact validated nested run** are fresh in the
+/-- **The auxiliary heads of a validated nested run** are fresh in the
 source environment (and in the environment extended by the source family
 headers), lie in the reserved `_nested` namespace, and contain every key of
-the final `aux2nested` map. The lowered family and recursor names are
+the `aux2nested` map of the lowering result. The lowered family and recursor names are
 moreover pairwise distinct. -/
 theorem NestedRun.auxHeadsFacts
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -671,7 +671,7 @@ theorem _root_.Lean4Lean.TrExprS.projsRegistered {env : VEnv} {Us : List Name} {
 
 
 
-/-! ### Generic discharges at a completed recursor construction -/
+/-! ### Generic discharges at a recursor construction -/
 
 section Completed
 
@@ -795,8 +795,8 @@ theorem abstractForallContext_headsApplied {heads : List Name} {n k : Nat}
 
 /-- The source expression replayed by `sourceConstructorIndices_replay` (the
 constructor's field telescope over its checked result, with the parameters
-abstracted) has hit arity, given the hit shape of the lowered constructor
-types. -/
+abstracted) is head-applied, given the parameter uniformity of the lowered
+constructor types. -/
 theorem RecursorConstruction.minorSourceHeadsApplied
     (H : RecursorConstruction R) {heads : List Name}
     (hctorTypes : ∀ i, i < indTypes.size → ∀ ctor ∈ indTypes[i]!.ctors,
@@ -848,7 +848,7 @@ theorem RecursorConstruction.minorSourceHeadsApplied
   simp only [Array.length_toList] at hA
   exact hA.abstractList _ 0
 
-/-- The field domains and result indices selected for a consumed constructor
+/-- The field domains and result indices selected for an unannotated constructor
 are head-applied. -/
 theorem RecursorConstruction.minorReplayHeadsApplied
     (H : RecursorConstruction R) {heads : List Name}
@@ -881,7 +881,7 @@ theorem RecursorConstruction.paramsFree_of_fresh
     rw [R.sourceContextVEnv]; exact hfresh
   exact VEnv.Ordered.ctxNoFreshConsts R.sourceContext.checking.tr.wf.ordered hfresh' hon
 
-/-- **Every normalized constructor type of the consumed generation signature
+/-- **Every normalized constructor type of the construction's signature
 is head-applied** at the parameter count and universe arity of the
 construction. -/
 theorem RecursorConstruction.normalizedHeadsApplied
@@ -967,11 +967,11 @@ theorem ConstructorLowerings.Resolved.forall_mem
     · obtain ⟨src, hsrc, before, after, hlv, M⟩ := ih t ht
       exact ⟨src, List.mem_cons_of_mem _ hsrc, before, after, hlv.trans Hhead.lvls, M⟩
 
-/-- **Every lowered family of an exact validated nested run has a lowering
+/-- **Every lowered family of a validated nested run has a lowering
 mapping from a pre-lowering family whose constructor types avoid the
 auxiliary heads**, at a state carrying the declaration's universe levels.
-Source families use the checked source translations; generated families use
-the native pre-lowering payload of the run (`AuxiliaryFamilySources`),
+Source families use the checked source translations; auxiliary families use
+the pre-lowering data of the run (`AuxiliaryFamilySources`),
 whose constructor types are translated in the environment of the source
 headers, where the auxiliary names are fresh. -/
 theorem NestedRun.loweredFamilyMappings
@@ -1119,9 +1119,9 @@ theorem NestedRun.loweredFamilyMappings
       Nsource.payload.translation.ctors ctor hctor
     exact checkPositivityStep.TrExprS.sourceAvoidsFresh hfreshN hC.type
 
-/-- **Lowered constructor types of an exact validated nested run are parameter
-telescopes in hit shape** for the auxiliary heads, at the production
-statistics' parameter count and levels. -/
+/-- **Lowered constructor types of a validated nested run are parameter-uniform
+parameter telescopes** for the auxiliary heads, at the lowered run's
+parameter count and levels. -/
 theorem NestedRun.constructorTypesParamUniform
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -1151,11 +1151,11 @@ theorem NestedRun.constructorTypesParamUniform
 
 /-! ### Totality of restoration on the normalized constructor types -/
 
-/-- **Restoration is total on the normalized constructor types of an exact
+/-- **Restoration is total on the normalized constructor types of a
 validated nested run** (source and auxiliary families alike), for every
 specialisation list whose head names are the run's auxiliary family and
-constructor names. This is the `normalizedTotal` premise of
-`compilationData_of_pending'`. -/
+constructor names. This gives the `normalizedTotal` field of
+`LoweredConstructorsRestore` (used by `NestedRun.compilationData_of_tables`). -/
 theorem NestedRun.normalizedTotal_of
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}

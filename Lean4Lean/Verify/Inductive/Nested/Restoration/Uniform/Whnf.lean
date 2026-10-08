@@ -1,26 +1,26 @@
 import Lean4Lean.Verify.TypeChecker.ParamUniformWHNF
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Declarations
 
-/-! # The `whnf` hit-shape fact of a nested run
+/-! # `whnf` preserves parameter uniformity in a nested run
 
 `TypeChecker.whnf.paramUniform` (`Lean4Lean/Verify/TypeChecker/ParamUniform.lean`) says
-that `whnf` preserves `Expr.ParamUniformIn` (hit shape together with the projection
-condition `ProjsOK (projAvoidsHeads env heads)`) under a hit scope whose environment
-satisfies `EnvParamUniform`. This file instantiates it for the recursor pass of an
-exact validated nested run.
+that `whnf` preserves `Expr.ParamUniformIn` (parameter uniformity together with the
+projection condition `ProjsOK (projAvoidsHeads env heads)`) under a parameter-uniform scope
+whose environment satisfies `EnvParamUniform`. This file instantiates it for the recursor
+pass of a validated nested run.
 
 * `whnfInRecursorContext.paramUniformIn`: the lift to the inductive checker's
   `monadLift (TypeChecker.whnf e)` in a `RecursorContextWF` (mirrors
   `whnfInRecursorContext.levelsWF`).
 * `NestedRun.envParamUniform`: `EnvParamUniform` of the constructor-phase
   environment (where the recursor pass runs) for the head set
-  `E.uniformHeads = E.auxHeads ++ E.mainCtorNames`. The main constructors must be
+  `E.uniformHeads = E.auxHeads ++ E.mainCtorNames`. The source constructors must be
   heads: their lowered types mention auxiliary families, so they cannot satisfy
-  `type_avoids`. Old constants are handled through the unsafe model of the
+  `type_avoids`. Base constants are handled through the unsafe model of the
   source environment (types, values and recursor rules translate there, the
-  heads are fresh there, and registered projections name old structures);
+  heads are fresh there, and registered projections name base structures);
   the installed family headers and constructors through the header and
-  constructor translations and the lowering trace (`mkForall` telescopes).
+  constructor translations and the lowering (`mkForall` telescopes).
 * `NestedRun.paramsUngeneratedParams`: the run's parameters are never
   names of the checker's name generator (`RecursorContextWF.kernelFresh`; the
   checker's generator starts at index `0`).
@@ -28,13 +28,13 @@ exact validated nested run.
   (`Nested/Restoration/Uniform/Recursors.lean`).
 * `NestedRun.paramUniformDeclarations_of`: the non-`whnf` inputs
   `RecursorConstruction.ParamUniformDeclarations` at `E.uniformHeads`.
-* `NestedRun.recursorParamUniform_of_wfCore`: the hit shape of the lowered
+* `NestedRun.recursorParamUniform_of_wfCore`: the parameter uniformity of the lowered
   recursor types and rule right-hand sides at the auxiliary heads, from the run
   alone.
 
-The provenance chain of `Nested/Restoration/Uniform/Recursors.lean` runs at `E.uniformHeads`
+The chain of `Nested/Restoration/Uniform/Recursors.lean` runs at `E.uniformHeads`
 rather than at the auxiliary heads, with the projection condition on inputs
-and scope declarations, both forced by the invariant: the main constructors'
+and scope declarations, both forced by the invariant: the source constructors'
 types mention auxiliary families, and the projection registry of the
 recursor pass contains the block's own structures. `ParamUniform.shrink`,
 `ParamUniformBV.shrink` and `ParamUniformTele.shrink` return from `E.uniformHeads` to
@@ -255,7 +255,7 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! ### Old constants -/
+/-! ### Base constants -/
 
 section Old
 
@@ -266,7 +266,7 @@ private theorem find_constants (wf : ves.WFCore env₀) {n : Name} {ci : Constan
   have hwf := (wf.tr (safety := .unsafe)).map_wf
   rw [← hwf.find?'_eq_find?]; exact h
 
-/-- A name absent from the production environment is absent from its unsafe
+/-- A name absent from the kernel environment is absent from its unsafe
 abstract model. -/
 theorem _root_.Lean4Lean.VEnvs.WFCore.unsafe_fresh (wf : ves.WFCore env₀) {n : Name} (h : env₀.find? n = none) :
     (ves.venv .unsafe).constants n = none := by
@@ -276,7 +276,7 @@ theorem _root_.Lean4Lean.VEnvs.WFCore.unsafe_fresh (wf : ves.WFCore env₀) {n :
     obtain ⟨ci', hfind, -⟩ := (wf.tr (safety := .unsafe)).find?_iff.2 ⟨ci, hc⟩
     rw [h] at hfind; cases hfind
 
-/-- A constant of the unsafe abstract model is a production constant. -/
+/-- A constant of the unsafe abstract model is a constant of the kernel environment. -/
 theorem _root_.Lean4Lean.VEnvs.WFCore.unsafe_present (wf : ves.WFCore env₀) {n : Name} {ci : VConstant}
     (h : (ves.venv .unsafe).constants n = some ci) : ∃ ci', env₀.find? n = some ci' := by
   obtain ⟨ci', hfind, -⟩ := (wf.tr (safety := .unsafe)).find?_iff.2 ⟨ci, h⟩
@@ -287,8 +287,8 @@ variable (wf : ves.WFCore env₀)
   (hfresh : ∀ h ∈ heads, env₀.find? h = none)
 
 include wf hpres hfresh in
-/-- **Projections on old structures are compatible with the head set**: an old
-structure is not a head, and its constructors (old constants as well) are not
+/-- **Projections on base structures are compatible with the head set**: a base
+structure is not a head, and its constructors (base constants as well) are not
 heads. -/
 theorem projParamUniformIn_of_old {s : Name} {ci : ConstantInfo} (hs : env₀.find? s = some ci) :
     projAvoidsHeads env₁ heads s := by
@@ -302,7 +302,7 @@ theorem projParamUniformIn_of_old {s : Name} {ci : ConstantInfo} (hs : env₀.fi
   cases hl
 
 include wf hpres hfresh in
-/-- Projections in syntax translated in the unsafe model of the old environment. -/
+/-- Projections in syntax translated in the unsafe model of the base environment. -/
 theorem projsOK_of_unsafe_tr {Us : List Name} {e : Expr} {e' : VExpr}
     (H : TrExprS (ves.venv .unsafe) Us [] e e') :
     e.ProjsOK (projAvoidsHeads env₁ heads) := by
@@ -316,7 +316,7 @@ theorem projsOK_of_unsafe_tr {Us : List Name} {e : Expr} {e' : VExpr}
 
 include wf hpres hfresh in
 /-- Projections in syntax translated in any abstract environment whose
-registered projections are registered in some safety model of the old
+registered projections are registered in some safety model of the base
 environment. -/
 theorem projsOK_of_tr_sub (sf : DefinitionSafety) {V : VEnv} (hV : V.Ordered)
     (hsub : ∀ s info, V.projections s info → ∃ info', (ves.venv sf).projections s info')
@@ -347,7 +347,7 @@ theorem avoids_of_unsafe_tr {Us : List Name} {Δ : VLCtx} {e : Expr} {e' : VExpr
     (fun h hh => wf.unsafe_fresh (hfresh h hh)) H
 
 include wf hfresh in
-/-- Old constant types translate in the unsafe model, so they avoid the heads. -/
+/-- Base constant types translate in the unsafe model, so they avoid the heads. -/
 theorem old_type_avoids {n : Name} {ci : ConstantInfo} (h : env₀.find? n = some ci) :
     ci.type.AvoidsConsts heads ∧ ∃ e', TrExprS (ves.venv .unsafe) ci.levelParams [] ci.type e' := by
   obtain ⟨ci', -, -, -, htr⟩ := (wf.tr (safety := .unsafe)).find? h DefinitionSafety.unsafe_le
@@ -372,7 +372,7 @@ theorem old_rules_avoid {n : Name} {r : RecursorVal}
   exact ⟨avoids_of_unsafe_tr wf hfresh hdf.rhs, _, hdf.rhs⟩
 
 include wf hpres hfresh in
-/-- The major family of an old recursor is an old inductive, so neither it nor
+/-- The major family of a base recursor is a base inductive, so neither it nor
 its constructors are heads. -/
 theorem old_rec_major {n : Name} {r : RecursorVal} (h : env₀.find? n = some (.recInfo r)) :
     r.getMajorInduct ∉ heads ∧
@@ -456,7 +456,7 @@ theorem AddConstants.entryNonprimitive
 variable {outEnv : Environment} (P : LoweredRun outEnv)
 
 /-- **Lookups in the constructor-phase environment** (where the recursor pass
-runs): either an old constant, an installed family header, or an installed
+runs): either a base constant, an installed family header, or an installed
 constructor. -/
 theorem LoweredRun.ctorEnv_find_cases (hwf : P.c.env.constants.WF)
     {n : Name} {ci : ConstantInfo} (h : P.ctorEnv.find? n = some ci) :
@@ -529,7 +529,7 @@ theorem LoweredRun.nonprimitive_familyNames
     have := P.constructors.declared.installed.entryNonprimitive hentry
     simpa [hname] using this
 
-/-- A constant of the constructor-phase environment that is not an old
+/-- A constant of the constructor-phase environment that is not a base
 constant was installed by the run, hence is not a reserved primitive name. -/
 theorem LoweredRun.ctorEnv_new_nonprimitive (hwf : P.c.env.constants.WF)
     {n : Name} {ci : ConstantInfo} (h : P.ctorEnv.find? n = some ci)
@@ -583,17 +583,17 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {safety : DefinitionSafety} {outEnv : Environment}
 
-/-- The constructor names of the source (main) families of a nested run. Their
+/-- The constructor names of the source families of a nested run. Their
 lowered types mention auxiliary families, so they are heads of the type
-checker's hit-shape invariant. -/
+checker's parameter-uniformity invariant. -/
 def NestedRun.mainCtorNames
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv) : List Name :=
   (E.lowered.loweredDecl.types.take sourceDecl.types.length).flatMap
     fun t => t.ctors.map (·.name)
 
-/-- The head set of the type checker's hit-shape invariant at the recursor
-pass: the auxiliary families and constructors together with the main
+/-- The head set of the type checker's parameter-uniformity invariant at the recursor
+pass: the auxiliary families and constructors together with the source
 constructors. -/
 def NestedRun.uniformHeads
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
@@ -629,7 +629,7 @@ theorem NestedRun.ctorName_mem_uniformHeads
   · exact List.mem_append_left _
       (List.mem_flatMap.2 ⟨t, ht, List.mem_cons_of_mem _ (List.mem_map_of_mem hc)⟩)
 
-/-- A main family name is not a head. -/
+/-- A source family name is not a head. -/
 theorem NestedRun.mainFamily_not_mem_uniformHeads
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
@@ -738,7 +738,7 @@ theorem NestedRun.ctorTypes_headType
     obtain ⟨source, st, ls, havoid, -, hlv, M⟩ := hmaps i hi
     obtain ⟨src, hsrc, before, after, hbefore, Mc⟩ := M.constructors.forall_mem ctor hctor
     exact Mc.headType hkeys (havoid src hsrc) (hbefore.trans hlv)
-  -- the constructor type avoids the main constructor names
+  -- the constructor type avoids the source constructor names
   have hcore := E.lowered.constructors.core
   obtain ⟨t, ht, HT⟩ := Lean4Lean.List.Forall₂.forall_exists_l hcore.types owner howner
   obtain ⟨c', hc', HC⟩ := Lean4Lean.List.Forall₂.forall_exists_l HT.ctors ctor hctor
@@ -765,7 +765,7 @@ theorem LeadingForalls.mkForall_selection {lctx : LocalContext} {As : Array Expr
     obtain ⟨index, name, type, bi, kind, hfind⟩ := hdecl x hx
     exact ⟨index, x, name, type, bi, kind, hfind⟩) b
 
-/-- **Generated (auxiliary) family types are parameter telescopes**: the
+/-- **Auxiliary family types are parameter telescopes**: the
 lowering builds them as `LocalContext.mkForall As _` over the `nparams`
 lowering parameters. -/
 theorem NestedRun.generatedFamilyType_forall
@@ -893,7 +893,7 @@ theorem NestedRun.lowered_c_lparams
     E.lowered.c.lparams = lparams := by
   rw [E.lowered_c, E.context_lparams]
 
-/-- The heads are absent from the source production environment. -/
+/-- The heads are absent from the source kernel environment. -/
 theorem NestedRun.uniformHeads_fresh
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
@@ -906,7 +906,7 @@ theorem NestedRun.uniformHeads_fresh
   have := E.lowered.fresh_familyNames hwfP (E.uniformHeads_subset hn)
   rwa [E.lowered_c_env] at this
 
-/-- Old lookups persist into the constructor-phase environment. -/
+/-- Lookups of base constants persist into the constructor-phase environment. -/
 theorem NestedRun.ctorEnv_preserves
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
@@ -990,20 +990,20 @@ theorem NestedRun.familyType_headType
     avoids_of_tr wf (E.uniformHeads_fresh wf) _ htr
   exact ⟨body, hl, Expr.ParamUniformBV.of_avoidsConsts (hl.avoidsConsts havoid) 0⟩
 
-/-- **The environment condition of the type checker's hit-shape invariant
-holds in the environment of the recursor pass** of an exact validated nested
+/-- **The environment condition of the type checker's parameter-uniformity invariant
+holds in the environment of the recursor pass** of a validated nested
 run, for the head set `E.uniformHeads` (auxiliary families and constructors, and
-the main constructors), `nparams` parameters and the declaration's level
+the source constructors), `nparams` parameters and the declaration's level
 parameters.
 
 The constants the checker builds on its own are not heads: the reserved ones
 (`checkerPrimNames`) because every head was installed by a `checkName` without
 primitive permission (`LoweredRun.nonprimitive_familyNames`);
 the other string-literal constants (`strLitNames`) because, once the
-environment declares `Char.ofNat` and `String.ofList`, these two are old
+environment declares `Char.ofNat` and `String.ofList`, these two are base
 constants (they are reserved, so the run did not install them), and then
 `HasPrimitives` of the source model forces `String`, `Char`, `List.nil` and
-`List.cons` to be old constants as well, while every head is fresh
+`List.cons` to be base constants as well, while every head is fresh
 (`uniformHeads_fresh`). -/
 theorem NestedRun.envParamUniform
     (E : NestedRun result sourceProdEnv sourceTypes
@@ -1168,10 +1168,10 @@ theorem NestedRun.envParamUniform
 
 end RunEnv
 
-/-- **`whnf` preserves hit shape in a recursor context.** The lifted
+/-- **`whnf` preserves parameter uniformity in a recursor context.** The lifted
 `TypeChecker.whnf` call of the inductive checker, run from the empty checker
-state, maps an input in hit shape (with projections respecting `projAvoidsHeads`)
-whose free variables lie in a hit scope to an output with the same property.
+state, maps a parameter-uniform input (with projections respecting `projAvoidsHeads`)
+whose free variables lie in a parameter-uniform scope to an output with the same property.
 This is `TypeChecker.whnf.paramUniform` transported along the same lift as
 `whnfInRecursorContext.levelsWF`. -/
 theorem whnfInRecursorContext.paramUniformIn
@@ -1186,7 +1186,7 @@ theorem whnfInRecursorContext.paramUniformIn
     (hin : e.ParamUniformIn c.env heads As ls) (hP : FVarsIn P e) :
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
       e₁.ParamUniformIn c.env heads As ls := by
-  -- the run is verified in the checker context, whose hit scope is the part
+  -- the run is verified in the checker context, whose parameter-uniform scope is the part
   -- of `P` among the checker variables
   let P₀ : FVarId → Prop := fun fv => P fv ∧ fv ∈ Hc.chk.vlctx.fvars
   have hs : Hc.checkTC.ParamUniformScope `_kernel_fresh heads As ls P₀ := by
@@ -1263,8 +1263,8 @@ theorem NestedRun.paramsUngeneratedParams
   have := E.lowered.recursors.recursorWF.kernelFresh fv hv i heq
   exact Nat.not_lt_zero _ this
 
-/-- **The `whnf` hit-shape fact of an exact validated nested run**, at the head
-set `E.uniformHeads` (auxiliary families and constructors, and the main
+/-- **`whnf` preserves parameter uniformity in a validated nested run**, at the head
+set `E.uniformHeads` (auxiliary families and constructors, and the source
 constructors), the run's parameters and the declaration's levels, in the
 environment of the recursor pass. -/
 theorem NestedRun.whnfPreservesParamUniform
@@ -1281,12 +1281,12 @@ theorem NestedRun.whnfPreservesParamUniform
   rw [E.recursorPassEnv, hlen]
   exact E.envParamUniform wf Hsources
 
-/-- **The non-`whnf` hit-shape inputs of an exact validated nested run**, at the
+/-- **The non-`whnf` parameter-uniformity inputs of a validated nested run**, at the
 head set `E.uniformHeads`, with the projection condition at the environment of the
 recursor pass, derived from the run alone:
 
 * parameter declarations: translated in the source environment, where the
-  heads are fresh and every registered projection names an old structure
+  heads are fresh and every registered projection names a base structure
   (`RecursorConstruction.paramDecls_paramUniformIn`, `projParamUniformIn_of_old`);
 * family headers: translated in the source environment
   (`NestedRun.familyType_tr`);
@@ -1355,8 +1355,8 @@ theorem NestedRun.paramUniformDeclarations_of
   · exact E.lowered.recursors.toRecursorConstruction.recursorNames_not_mem
       (fun _ hh => E.uniformHeads_subset hh) hnodup
 
-/-- **Hit shape of the lowered recursor type and rule right-hand sides of an
-exact validated nested run, at the checker's head set `E.uniformHeads`**:
+/-- **Parameter uniformity of the lowered recursor type and rule right-hand sides of a
+validated nested run, at the checker's head set `E.uniformHeads`**:
 `recursorParamUniform` with its two hypotheses discharged by
 `paramUniformDeclarations_of` and `whnfPreservesParamUniform`. -/
 theorem NestedRun.recursorParamUniform_uniformHeads
@@ -1377,16 +1377,16 @@ theorem NestedRun.recursorParamUniform_uniformHeads
   E.recursorParamUniform (E.paramUniformDeclarations_of wf Hsources) (E.whnfPreservesParamUniform wf Hsources)
     owner Hstep
 
-/-- **Hit shape of the lowered recursor type and rule right-hand sides of an
-exact validated nested run**, at the auxiliary heads `E.auxHeads`: for every
+/-- **Parameter uniformity of the lowered recursor type and rule right-hand sides of a
+validated nested run**, at the auxiliary heads `E.auxHeads`: for every
 generated owner and every executable restoration step at the owner's lowered
 recursor name, the stored recursor type and every stored rule right-hand side
-are closed parameter telescopes of `result.nparams` binders whose body is in
-bound-variable hit shape for the auxiliary heads at the levels
+are closed parameter telescopes of `result.nparams` binders whose body is
+parameter-uniform in bound-variable form for the auxiliary heads at the levels
 `lparams.map Level.param`.
 
-The proof runs the provenance chain at the checker's head set `E.uniformHeads`
-(`recursorParamUniform_uniformHeads`) and drops the main constructors with
+The proof runs the parameter-uniformity chain at the checker's head set `E.uniformHeads`
+(`recursorParamUniform_uniformHeads`) and drops the source constructors with
 `ParamUniformTele.shrink`. -/
 theorem NestedRun.recursorParamUniform_of_wfCore
     (E : NestedRun result sourceProdEnv sourceTypes
