@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Inductive.RestorationDefEq
-import Lean4Lean.Theory.Typing.ConstantHeaderProvenance
+import Lean4Lean.Theory.Typing.EnvLemmas
 import Lean4Lean.Verify.Typing.ConstSupport
 import Lean4Lean.Theory.Inductive.SignatureLemmas
 import Lean4Lean.Theory.Inductive.CompilationNames

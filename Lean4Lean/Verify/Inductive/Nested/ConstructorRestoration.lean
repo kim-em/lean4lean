@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Inductive.RestorationDefEq
 import Lean4Lean.Theory.Inductive.BetaSubjectReduction
 import Lean4Lean.Verify.Inductive.Nested.CompilationDataAssembly
-import Lean4Lean.Theory.Typing.ConstantHeaderProvenance
+import Lean4Lean.Theory.Typing.EnvLemmas
 import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Verify.Typing.ConstSupport
 import Lean4Lean.Verify.Inductive.Nested.EliminatorAvoidance

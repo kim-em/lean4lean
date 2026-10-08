@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.QuotPrefixReduction
+import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
 
 /-! Concrete native delta patterns of ordinary definitions. The right-hand
 side is the actual installed value, and lookup fixes one value per name. -/

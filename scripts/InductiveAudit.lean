@@ -1,7 +1,7 @@
-import Lean4Lean.Theory.Typing.QuotWitnessTyping
-import Lean4Lean.Theory.Typing.QuotPrefixReduction
+import Lean4Lean.Theory.Typing.QuotPropInhabitant
+import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
 import Lean4Lean.Theory.Typing.DefinitionRegistryInstallation
-import Lean4Lean.Theory.Typing.NativeRegistryInstallation
+import Lean4Lean.Theory.Typing.RecursorRegistryInstallation
 import Lean4Lean.Verify.Inductive.Dispatch
 import Lean4Lean.Verify.Environment
 import Lean4Lean.Verify.TypeChecker
@@ -10,7 +10,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRestoredRecursorVal
 import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Inductive.CaseRegistration
 import Lean4Lean.Theory.Typing.FullChurchRosser
-import Lean4Lean.Theory.Typing.NativeDeltaReduction
+import Lean4Lean.Theory.Typing.PrefixUnfolding.Rule
 import Lean4Lean.Theory.Typing.NativeCaptureTransport
 import Lean4Lean.Theory.Typing.CaseReduction
 import Lean4Lean.Theory.Typing.ChurchRosser

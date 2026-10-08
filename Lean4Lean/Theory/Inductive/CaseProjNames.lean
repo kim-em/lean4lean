@@ -1,5 +1,18 @@
 import Lean4Lean.Theory.Inductive.ProjNamesAvoid
-import Lean4Lean.Theory.Typing.ProjectionCornerCase
+import Lean4Lean.Theory.Typing.TelescopeConversion
+import Lean4Lean.Theory.Typing.SingletonExtraction.TelescopeTyping
+import Lean4Lean.Theory.Typing.RecursorRegistration
+import Lean4Lean.Theory.Typing.ConstructorRigidity
+import Lean4Lean.Theory.Inductive.SingletonCompilation
+import Lean4Lean.Theory.Inductive.Formation
+import Lean4Lean.Theory.CanonicalEq
+import Lean4Lean.Theory.Typing.ProjectionShape
+import Lean4Lean.Theory.Typing.ProjectionLemmas
+import Lean4Lean.Theory.Typing.RecursorLemmas
+import Lean4Lean.Theory.Typing.RestorationShapes
+import Lean4Lean.Theory.Inductive.CaseRuleConstructors
+import Lean4Lean.Theory.Typing.LevelEquiv
+import Lean4Lean.Theory.Inductive.CaseSchemaLemmas
 import Lean4Lean.Theory.Typing.ProjNamesTyping
 
 /-! # Projection names of a case schema from those of its signature

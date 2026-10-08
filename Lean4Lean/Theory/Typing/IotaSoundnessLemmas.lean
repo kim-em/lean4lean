@@ -17,12 +17,11 @@ import Lean4Lean.Theory.Inductive.SignatureLemmas
 import Lean4Lean.Theory.Inductive.SourceModelNames
 import Lean4Lean.Theory.Quot
 import Lean4Lean.Theory.Typing.Basic
-import Lean4Lean.Theory.Typing.CaseMotiveCoherence
+import Lean4Lean.Theory.Typing.CaseMotive
 import Lean4Lean.Theory.Typing.CaseReduction
 import Lean4Lean.Theory.Typing.CaseSourceSort
-import Lean4Lean.Theory.Typing.ConstantHeaderProvenance
-import Lean4Lean.Theory.Typing.Env
 import Lean4Lean.Theory.Typing.EnvLemmas
+import Lean4Lean.Theory.Typing.Env
 import Lean4Lean.Theory.Typing.Injectivity
 import Lean4Lean.Theory.Typing.Lemmas
 import Lean4Lean.Theory.Typing.LevelEquiv
@@ -34,7 +33,7 @@ import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.SignatureArity
 import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Typing.RestorationShapes
-import Lean4Lean.Theory.Typing.ProjectionCornerSubst
+import Lean4Lean.Theory.Typing.SingletonExtraction.TelescopeTyping
 import Lean4Lean.Theory.VExpr
 import Lean4Lean.Theory.VLevel
 

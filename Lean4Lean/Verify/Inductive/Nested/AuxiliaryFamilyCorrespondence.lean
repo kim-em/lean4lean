@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.CompilationDataAssembly
 import Lean4Lean.Theory.Typing.CaseSourceSort
-import Lean4Lean.Theory.Typing.CaseMotiveCoherence
+import Lean4Lean.Theory.Typing.CaseMotive
 import Lean4Lean.Theory.Typing.CaseReduction
 import Lean4Lean.Theory.Typing.Injectivity
 

@@ -4,7 +4,7 @@ import Lean4Lean.Theory.VLevel
 import Lean4Lean.Theory.Typing.EnvTables.EnvSigSyntax
 import Lean4Lean.Theory.Typing.HeadInversionDefs
 import Lean4Lean.Theory.Typing.EnvTables.EnvSigCtor
-import Lean4Lean.Theory.Typing.NativeConstructorRigidity
+import Lean4Lean.Theory.Typing.ConstructorRigidity
 
 /-!
 # Syntax of restored generated equations and recursor types

@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.PatShape
-import Lean4Lean.Theory.Typing.NativeRecursorRegistration
-import Lean4Lean.Theory.Typing.NativeConstructorRigidity
+import Lean4Lean.Theory.Typing.RecursorRegistration
+import Lean4Lean.Theory.Typing.ConstructorRigidity
 import Lean4Lean.Theory.Inductive.CaseRegistration
 import Batteries.Tactic.OpenPrivate
 

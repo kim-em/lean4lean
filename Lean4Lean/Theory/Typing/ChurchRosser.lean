@@ -3,11 +3,11 @@ import Lean4Lean.Theory.Typing.Pattern
 import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Typing.Injectivity
 import Lean4Lean.Theory.Typing.CaseReduction
-import Lean4Lean.Theory.Typing.NativeOrigin
-import Lean4Lean.Theory.Typing.NativeConstructorRigidity
+import Lean4Lean.Theory.Typing.StoredRuleHeads
+import Lean4Lean.Theory.Typing.ConstructorRigidity
 import Lean4Lean.Theory.Typing.CaseSourceSort
-import Lean4Lean.Theory.Typing.NativeRecursorRegistration
-import Lean4Lean.Theory.Typing.QuotPrefixReduction
+import Lean4Lean.Theory.Typing.RecursorRegistration
+import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
 
 namespace Lean4Lean
 open Lean4Lean

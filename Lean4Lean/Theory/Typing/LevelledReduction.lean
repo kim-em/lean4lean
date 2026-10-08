@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.FullReduction
-import Lean4Lean.Theory.Typing.PrefixRuleCongruence
-import Lean4Lean.Theory.Typing.PrefixSupply
-import Lean4Lean.Theory.Typing.CanonicalRegistryMetadata
+import Lean4Lean.Theory.Typing.PrefixUnfolding.ArgumentCongruence
+import Lean4Lean.Theory.Typing.PrefixUnfolding.GenerationSupply
+import Lean4Lean.Theory.Typing.ProjectionConstructorFamily
 import Lean4Lean.Theory.LevelledConfluence
 import Lean4Lean.Std.List
 

@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Classes
-import Lean4Lean.Theory.Typing.NativeConstructorRigidity
+import Lean4Lean.Theory.Typing.ConstructorRigidity
 
 /-! # Observations, subsumption and observation typing (milestone M1)
 

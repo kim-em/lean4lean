@@ -152,12 +152,12 @@ def main():
                         "Lean4Lean.Theory.Inductive.CaseRegistration",
                         "Lean4Lean.Theory.Inductive.CaseProjections",
                         "Lean4Lean.Theory.Typing.CaseReduction",
-                        "Lean4Lean.Theory.Typing.NativeDeltaReduction",
+                        "Lean4Lean.Theory.Typing.PrefixUnfolding.Rule",
                         "Lean4Lean.Theory.Typing.FullChurchRosser",
-                        "Lean4Lean.Theory.Typing.QuotPrefixReduction",
-                        "Lean4Lean.Theory.Typing.QuotWitnessTyping",
+                        "Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift",
+                        "Lean4Lean.Theory.Typing.QuotPropInhabitant",
                         "Lean4Lean.Theory.Typing.DefinitionRegistryInstallation",
-                        "Lean4Lean.Theory.Typing.NativeRegistryInstallation",
+                        "Lean4Lean.Theory.Typing.RecursorRegistryInstallation",
 
                         "Lean4Lean.Theory.Typing.ChurchRosser",
                         "Lean4Lean.Verify.Replay"], cwd=ROOT, check=True)

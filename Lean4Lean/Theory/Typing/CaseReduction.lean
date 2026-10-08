@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Inductive.CaseRegistration
 import Lean4Lean.Theory.Inductive.CaseCapture
 import Lean4Lean.Theory.Inductive.CaseRuleConstructors
-import Lean4Lean.Theory.Typing.NativeTelescope
+import Lean4Lean.Theory.Typing.EtaOpening
 import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Inductive.CaseReductionLemmas
 import Lean4Lean.Theory.Inductive.RestorationNaturality

@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.EliminatorCoherence
-import Lean4Lean.Theory.Typing.NativeConstructorRigidity
-import Lean4Lean.Theory.Typing.QuotPrefixReduction
+import Lean4Lean.Theory.Typing.ConstructorRigidity
+import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
 import Batteries.Tactic.OpenPrivate
 
 /-! Eliminator coherence is a consequence of well-formedness.

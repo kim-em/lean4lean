@@ -1,14 +1,14 @@
 import Lean4Lean.Theory.Typing.ChurchRosser
-import Lean4Lean.Theory.Typing.NativePrefixWeakening
-import Lean4Lean.Theory.Typing.NativePrefixLevelTyping
-import Lean4Lean.Theory.Typing.NativePrefixSubstitution
-import Lean4Lean.Theory.Typing.QuotPrefixNormalCongruence
-import Lean4Lean.Theory.Typing.QuotPrefixRenaming
-import Lean4Lean.Theory.Typing.NativePrefixSpecialization
+import Lean4Lean.Theory.Typing.PrefixUnfolding.Weakening
+import Lean4Lean.Theory.Typing.PrefixUnfolding.RuleLevelCongruence
+import Lean4Lean.Theory.Typing.PrefixUnfolding.Substitution
+import Lean4Lean.Theory.Typing.PrefixUnfolding.NormalCongruence
+import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLiftRenaming
+import Lean4Lean.Theory.Typing.PrefixUnfolding.Supply
 import Lean4Lean.Theory.Typing.ProjectionIndexBound
 import Lean4Lean.Theory.Typing.ProjectionProofResult
 import Lean4Lean.Theory.Typing.PatternCaptures
-import Lean4Lean.Theory.Typing.NativeMajorFamily
+import Lean4Lean.Theory.Typing.RecursorMajorFamily
 
 /-! The native/schema parallel calculus is the core of this presentation.
 Checked singleton and quotient prefixes extend it with declaration-generated

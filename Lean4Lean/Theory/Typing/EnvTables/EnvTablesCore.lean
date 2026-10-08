@@ -1,6 +1,6 @@
-import Lean4Lean.Theory.Typing.NativeConstructorRigidity
-import Lean4Lean.Theory.Typing.NativeRuleRegistration
-import Lean4Lean.Theory.Typing.NativeCompiledRegistration
+import Lean4Lean.Theory.Typing.ConstructorRigidity
+import Lean4Lean.Theory.Typing.RecursorRuleRegistration
+import Lean4Lean.Theory.Typing.RecursorRegistryInstallation
 import Lean4Lean.Theory.Typing.QuotLemmas
 import Lean4Lean.Theory.Typing.InductiveLemmas
 import Lean4Lean.Theory.Typing.Strong
