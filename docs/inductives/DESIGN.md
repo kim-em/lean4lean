@@ -74,9 +74,12 @@ constant table (default fuel) yields an environment modelled by well-formed `VEn
 safe, non-partial source constant is present and `==` to the source constant (`Expr.eqv`, so up to
 binder names and annotations). It has no hypothesis beyond the source table: the walk is turned
 into an `AddDeclChain` from `Kernel.Environment.empty` (`AddDeclChain.WF_empty`). The kernel's `checkEqType`
-compares `Eq` only up to `Expr.eqv` and does not look at `Eq.rec` or at safety, so before the step
-that initializes the quotient module the driver also checks that `Eq`, `Eq.refl` and `Eq.rec` are
-the prelude's (`hasPreludeEq`, sound for `HasPreludeEq`). `replayPure.WF_fromImports` states the same for the
+compares the type of `Eq` with the prelude's up to `Expr.eqv` but does not look at its safety, so
+before the step that initializes the quotient module the driver also checks that `Eq` is safe,
+with one universe parameter and a type `==` to the prelude's (`hasCanonicalEqType`, sound for
+`HasCanonicalEqType`: every translation of the type is the canonical one, by `TrExprS.eqv`). This
+is exactly what the abstract model of `quotDecl` consumes (`QuotReady`); nothing is required of
+`Eq.refl` or `Eq.rec`. `replayPure.WF_fromImports` states the same for the
 pure replay `replayPure` on top of imports whose well-formedness and canonical `Eq` are assumed:
 imports are trusted in that mode. It does not cover the module loading of the executable's
 `replayFromImports` (`importModulesCore`, `finalizeImport`), only the replay that follows it.
@@ -109,9 +112,9 @@ imports are trusted in that mode. It does not cover the module loading of the ex
 A replay from the empty environment is covered by `AddDeclChain.WF_empty`
 (`Lean4Lean/Verify/Replay.lean`): every environment reached by adding a list
 of declarations one at a time with the checked `addDecl`, starting from
-`Kernel.Environment.empty`, has a well-formed model, provided each `quotDecl` comes after the
-prelude's `Eq`, `Eq.refl` and `Eq.rec` (`HasPreludeEq`, a decidable property of the
-executable environment; before `Eq` exists `quotDecl` has no model).
+`Kernel.Environment.empty`, has a well-formed model, provided each `quotDecl` comes after a safe
+`Eq` with the canonical type (`HasCanonicalEqType`, established by the executable check
+`hasCanonicalEqType`; before `Eq` exists `quotDecl` has no model).
 
 Canonical `Eq` holds in every environment obtained by replaying `Init.Prelude` past `Eq`.
 Realizability is proved up to a fact about the prelude's concrete declaration that is checked

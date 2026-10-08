@@ -92,9 +92,14 @@ run_meta do
 
 end Lean4Lean.Tests.Replay
 
-/-! An `Eq` that differs from the prelude's only in the binder annotation of `α` passes the
-kernel's `checkEqType` (which compares up to `Expr.eqv`), but the driver refuses to initialize the
-quotient module on it. -/
+/-! Quotient initialization needs a safe `Eq` with the prelude's type, up to `==`.
+
+* An `Eq` and `Eq.refl` that differ from the prelude's only in the binder annotation of `α` are
+  accepted: `==` ignores binder annotations, so the translated type of `Eq` is the canonical one,
+  and nothing is required of `Eq.refl` or `Eq.rec`.
+* An unsafe `Eq` with the prelude's type passes the kernel's `checkEqType`, which does not look at
+  safety, but the driver refuses to initialize the quotient module on it.
+* An `Eq` whose type differs from the prelude's is rejected. -/
 
 namespace Lean4Lean.Tests.Replay
 open Lean Lean4Lean.Replay
@@ -103,34 +108,58 @@ def explicitOuter : Expr → Expr
   | .forallE n t b _ => .forallE n t b .default
   | e => e
 
+/-- The `Eq` declaration with the types of `Eq` and `Eq.refl` changed by `f` and `g`. -/
+def eqDecl (eqI : InductiveVal) (reflI : ConstructorVal) (f g : Expr → Expr)
+    (isUnsafe := false) : Declaration :=
+  .inductDecl eqI.levelParams eqI.numParams
+    [{ name := ``Eq, type := f eqI.type,
+       ctors := [{ name := ``Eq.refl, type := g reflI.type }] }] isUnsafe
+
 run_meta do
   let env ← getEnv
   let some (.inductInfo eqI) := env.find? ``Eq | throwError "no Eq"
   let some (.ctorInfo reflI) := env.find? ``Eq.refl | throwError "no Eq.refl"
   let some quotI := env.find? ``Quot | throwError "no Quot"
+  -- Nonstandard binder annotations on `Eq` and `Eq.refl`: the replay succeeds.
   let src : Std.HashMap Name ConstantInfo := ({} : Std.HashMap Name ConstantInfo)
     |>.insert ``Eq (.inductInfo { eqI with type := explicitOuter eqI.type })
     |>.insert ``Eq.refl (.ctorInfo { reflI with type := explicitOuter reflI.type })
     |>.insert ``Quot quotI
   match replayFresh src with
-  | .ok _ => throwError "quotient initialization on a non-prelude Eq was accepted"
+  | .error e => throwError "quotient initialization on an Eq with the prelude's type up to `==` \
+      was rejected: {errorText e}"
+  | .ok r => check r.env.quotInit "the quotient module was not initialized"
+  let some kenv := (Lean4Lean.addDecl (freshStart .anonymous)
+      (eqDecl eqI reflI explicitOuter explicitOuter)).toOption
+    | throwError "the kernel rejected the modified Eq"
+  check (hasCanonicalEqType kenv) "hasCanonicalEqType rejected the modified Eq"
+  -- The prelude's `Eq` passes.
+  let some kenv := (Lean4Lean.addDecl (freshStart .anonymous) (eqDecl eqI reflI id id)).toOption
+    | throwError "the kernel rejected the prelude's Eq"
+  check (hasCanonicalEqType kenv) "hasCanonicalEqType rejected the prelude's Eq"
+  -- An unsafe `Eq`: the kernel alone accepts quotient initialization, the driver does not.
+  let some kenv := (Lean4Lean.addDecl (freshStart .anonymous)
+      (eqDecl eqI reflI id id (isUnsafe := true))).toOption
+    | throwError "the kernel rejected the unsafe Eq"
+  check (Lean4Lean.addDecl kenv .quotDecl).toBool "the kernel's checkEqType rejected it"
+  check (!hasCanonicalEqType kenv) "hasCanonicalEqType accepted an unsafe Eq"
+  let src : Std.HashMap Name ConstantInfo := ({} : Std.HashMap Name ConstantInfo)
+    |>.insert ``Eq (.inductInfo { eqI with isUnsafe := true })
+    |>.insert ``Eq.refl (.ctorInfo { reflI with isUnsafe := true })
+    |>.insert ``Quot quotI
+  match replayFresh src with
+  | .ok _ => throwError "quotient initialization on an unsafe Eq was accepted"
   | .error e =>
     let msg := errorText e
-    check (msg == s!"at {``Quot}: initializing the quotient module needs the prelude's Eq, \
-      Eq.refl and Eq.rec") s!"unexpected error: {msg}"
-  -- The kernel alone accepts it.
-  let eqDecl := Declaration.inductDecl eqI.levelParams eqI.numParams
-    [{ name := ``Eq, type := explicitOuter eqI.type,
-       ctors := [{ name := ``Eq.refl, type := explicitOuter reflI.type }] }] false
-  let some kenv := (Lean4Lean.addDecl (freshStart .anonymous) eqDecl).toOption
-    | throwError "the kernel rejected the modified Eq"
-  check (Lean4Lean.addDecl kenv .quotDecl).toBool "the kernel's checkEqType rejected it"
-  check (!hasPreludeEq kenv) "hasPreludeEq accepted the modified Eq"
-  -- The prelude's `Eq` passes.
-  let eqDecl := Declaration.inductDecl eqI.levelParams eqI.numParams
-    [{ name := ``Eq, type := eqI.type, ctors := [{ name := ``Eq.refl, type := reflI.type }] }] false
-  let some kenv := (Lean4Lean.addDecl (freshStart .anonymous) eqDecl).toOption
-    | throwError "the kernel rejected the prelude's Eq"
-  check (hasPreludeEq kenv) "hasPreludeEq rejected the prelude's Eq"
+    check (msg == s!"at {``Quot}: initializing the quotient module needs a safe Eq with the \
+      prelude's type") s!"unexpected error: {msg}"
+  -- An `Eq` valued in `Type` instead of `Prop` is rejected.
+  let toType : Expr → Expr := fun e => e.replace fun
+    | .sort .zero => some (.sort (.succ .zero))
+    | _ => none
+  let some kenv := (Lean4Lean.addDecl (freshStart .anonymous)
+      (eqDecl eqI reflI toType id)).toOption
+    | throwError "the kernel rejected the Type-valued Eq"
+  check (!hasCanonicalEqType kenv) "hasCanonicalEqType accepted a Type-valued Eq"
 
 end Lean4Lean.Tests.Replay

@@ -34,23 +34,23 @@ open Kernel
 
 /-! ### Replays -/
 
-/-- The prelude's `Eq`, `Eq.refl` and `Eq.rec` are declared in `env` with the prelude's
-types. -/
-def HasPreludeEq (env : Environment) : Prop :=
-  ∃ eqInfo reflInfo recInfo,
-    env.find? ``Eq = some eqInfo ∧ IsPreludeEq eqInfo ∧
-    env.find? ``Eq.refl = some reflInfo ∧ IsPreludeEqRefl reflInfo ∧
-    env.find? ``Eq.rec = some recInfo ∧ IsPreludeEqRec recInfo
+/-- `Eq` is a safe constant of `env` with one universe parameter `u`, and every translation of
+its type is the canonical type of `Eq`. This is what the abstract model of `quotDecl` consumes
+(`VEnvs.WFCore.quotReady_of_eqType`). -/
+def HasCanonicalEqType (env : Environment) : Prop :=
+  ∃ ci, env.find? ``Eq = some ci ∧ ci.safety = .safe ∧ ∃ u, ci.levelParams = [u] ∧
+    ∀ {venv : VEnv} {e : VExpr}, TrExprS venv [u] [] ci.type e → e = canonicalEqType
 
 /-- A replay: the declarations `ds` added one after another by the checked `addDecl`, from
-`env` to `env'`. A `quotDecl` step records that the prelude's `Eq` is already present
-(`HasPreludeEq`): `quotDecl` is modelled by an abstract rule that types `Quot.lift` against
-`Eq`, so before `Eq` exists it has no model (and the executable rejects it, `checkEqType`). -/
+`env` to `env'`. A `quotDecl` step records that a safe `Eq` with the canonical type is already
+present (`HasCanonicalEqType`): `quotDecl` is modelled by an abstract rule that types `Quot.lift`
+against `Eq`, so before `Eq` exists it has no model (and the executable rejects it,
+`checkEqType`). -/
 inductive AddDeclChain : Environment → List Declaration → Environment → Prop
   | nil (env : Environment) : AddDeclChain env [] env
   | cons {env env₁ env₂ : Environment} {d : Declaration} {ds : List Declaration} :
     addDecl env d (check := true) (fuel := {}) = .ok env₁ →
-    (d = .quotDecl → HasPreludeEq env) →
+    (d = .quotDecl → HasCanonicalEqType env) →
     AddDeclChain env₁ ds env₂ → AddDeclChain env (d :: ds) env₂
 
 /-- Every step of a replay preserves `VEnvs.WF`. -/
@@ -61,8 +61,8 @@ theorem AddDeclChain.WF {env env' : Environment} {ds : List Declaration}
   | nil => exact ⟨ves, wf, fun _ => VEnv.LE.rfl⟩
   | @cons env env₁ env₂ d ds hadd hquot _ ih =>
     have hq : d = .quotDecl → ∀ safety, (ves.venv safety).QuotReady := fun hd safety => by
-      obtain ⟨_, _, _, hEq, hEqP, hRefl, hReflP, hRec, hRecP⟩ := hquot hd
-      exact (wf.toWFCore.canonicalEq_constants hEq hEqP hRefl hReflP hRec hRecP safety).1
+      obtain ⟨_, hEq, hsafe, _, hlps, htype⟩ := hquot hd
+      exact wf.toWFCore.quotReady_of_eqType hEq hsafe hlps htype safety
     obtain ⟨ves₁, wf₁, hle₁, hcert⟩ :=
       addDecl.WF_quotReadyAt wf.toWFCore wf.ctorTelescopes d hq _ hadd
     obtain ⟨ves₂, wf₂, hle₂⟩ := ih ⟨wf₁, hcert wf.ctorTelescopes⟩
@@ -88,7 +88,7 @@ preserved by every successful checked `addDecl` holds for every replayed environ
 theorem Replayed.induction {fuel : FuelConfig} {Start : Environment → Prop}
     (Inv : Environment → Prop) (hstart : ∀ env, Start env → Inv env)
     (hstep : ∀ env d env', Inv env → Lean4Lean.addDecl env d true fuel = .ok env' →
-      (d = .quotDecl → env.quotInit = false → hasPreludeEq env = true) → Inv env')
+      (d = .quotDecl → env.quotInit = false → hasCanonicalEqType env = true) → Inv env')
     {env : Environment} (h : Replayed fuel Start env) : Inv env := by
   induction h with
   | start h => exact hstart _ h
@@ -111,91 +111,31 @@ theorem Replayed.foldlM {fuel : FuelConfig} {Start : Environment → Prop} {env 
     simp only [bind, Except.bind, hadd]
     rfl
 
-/-! ### The prelude's `Eq` -/
+/-! ### The type of `Eq` -/
 
-namespace PreludeEq
-
-theorem strictEq_eq : ∀ {a b : Expr}, strictEq a b = true → a = b
-  | .bvar _, .bvar _, h => by simp [strictEq] at h; rw [h]
-  | .sort _, .sort _, h => by simp [strictEq] at h; rw [h]
-  | .const _ _, .const _ _, h => by simp [strictEq] at h; rw [h.1, h.2]
-  | .app _ _, .app _ _, h => by
-    simp only [strictEq, Bool.and_eq_true] at h
-    rw [strictEq_eq h.1, strictEq_eq h.2]
-  | .forallE _ _ _ bi, .forallE _ _ _ bi', h => by
-    simp only [strictEq, Bool.and_eq_true, beq_iff_eq] at h
-    obtain ⟨⟨⟨hn, ht⟩, hb⟩, hbi⟩ := h
-    have : bi = bi' := by cases bi <;> cases bi' <;> first | rfl | cases hbi
-    rw [hn, strictEq_eq ht, strictEq_eq hb, this]
-  | .bvar _, .sort _, h | .bvar _, .const .., h | .bvar _, .app .., h | .bvar _, .forallE .., h
-  | .bvar _, .fvar _, h | .bvar _, .mvar _, h | .bvar _, .lam .., h | .bvar _, .letE .., h
-  | .bvar _, .lit _, h | .bvar _, .mdata .., h | .bvar _, .proj .., h => by cases h
-  | .sort _, .bvar _, h | .sort _, .const .., h | .sort _, .app .., h | .sort _, .forallE .., h
-  | .sort _, .fvar _, h | .sort _, .mvar _, h | .sort _, .lam .., h | .sort _, .letE .., h
-  | .sort _, .lit _, h | .sort _, .mdata .., h | .sort _, .proj .., h => by cases h
-  | .const .., .bvar _, h | .const .., .sort _, h | .const .., .app .., h
-  | .const .., .forallE .., h | .const .., .fvar _, h | .const .., .mvar _, h
-  | .const .., .lam .., h | .const .., .letE .., h | .const .., .lit _, h
-  | .const .., .mdata .., h | .const .., .proj .., h => by cases h
-  | .app .., .bvar _, h | .app .., .sort _, h | .app .., .const .., h
-  | .app .., .forallE .., h | .app .., .fvar _, h | .app .., .mvar _, h
-  | .app .., .lam .., h | .app .., .letE .., h | .app .., .lit _, h
-  | .app .., .mdata .., h | .app .., .proj .., h => by cases h
-  | .forallE .., .bvar _, h | .forallE .., .sort _, h | .forallE .., .const .., h
-  | .forallE .., .app .., h | .forallE .., .fvar _, h | .forallE .., .mvar _, h
-  | .forallE .., .lam .., h | .forallE .., .letE .., h | .forallE .., .lit _, h
-  | .forallE .., .mdata .., h | .forallE .., .proj .., h => by cases h
-  | .fvar _, _, h | .mvar _, _, h | .lam .., _, h | .letE .., _, h | .lit _, _, h
-  | .mdata .., _, h | .proj .., _, h => by cases h
-
-theorem isSafe_spec {ci : ConstantInfo} (h : isSafe ci = true) : ci.safety = .safe := by
-  simp only [isSafe, Bool.and_eq_true, Bool.not_eq_true'] at h
+theorem PreludeEq.isSafe_spec {ci : ConstantInfo} (h : PreludeEq.isSafe ci = true) :
+    ci.safety = .safe := by
+  simp only [PreludeEq.isSafe, Bool.and_eq_true, Bool.not_eq_true'] at h
   simp [ConstantInfo.safety, h.1, h.2]
 
-theorem eqType_eq (u a b c : Name) : eqType u a b c = VerifyInductive.preludeEqType u a b c :=
+theorem PreludeEq.eqType_eq (u a b c : Name) :
+    PreludeEq.eqType u a b c = VerifyInductive.preludeEqType u a b c :=
   rfl
 
-theorem reflType_eq (u a b : Name) :
-    reflType u a b = VerifyInductive.preludeEqReflType u a b := rfl
-
-theorem recType_eq (u v a b c d e f g h : Name) :
-    recType u v a b c d e f g h = eqRecTypeExpr u v ⟨a, b, c, d, e, f, g, h⟩ := rfl
-
-theorem isEq_spec {ci : ConstantInfo} (h : isEq ci = true) : IsPreludeEq ci := by
-  simp only [isEq, Bool.and_eq_true] at h
-  refine ⟨isSafe_spec h.1, ?_⟩
-  have h2 := h.2
-  split at h2
-  · exact ⟨_, _, _, _, ‹ci.levelParams = _›, (strictEq_eq h2).trans (eqType_eq ..)⟩
-  · cases h2
-
-theorem isRefl_spec {ci : ConstantInfo} (h : isRefl ci = true) : IsPreludeEqRefl ci := by
-  simp only [isRefl, Bool.and_eq_true] at h
-  refine ⟨isSafe_spec h.1, ?_⟩
-  have h2 := h.2
-  split at h2
-  · exact ⟨_, _, _, ‹ci.levelParams = _›, (strictEq_eq h2).trans (reflType_eq ..)⟩
-  · cases h2
-
-theorem isRec_spec {ci : ConstantInfo} (h : isRec ci = true) : IsPreludeEqRec ci := by
-  simp only [isRec, Bool.and_eq_true] at h
-  refine ⟨isSafe_spec h.1, ?_⟩
-  have h2 := h.2
-  split at h2
-  · simp only [Bool.and_eq_true, bne_iff_ne, ne_eq] at h2
-    exact ⟨_, _, _, h2.1, ‹ci.levelParams = _›, (strictEq_eq h2.2).trans (recType_eq ..)⟩
-  · cases h2
-
-end PreludeEq
-
-theorem hasPreludeEq_spec {env : Environment} (h : hasPreludeEq env = true) :
-    HasPreludeEq env := by
-  unfold hasPreludeEq at h
+/-- The executable check is sound: `TrExprS.eqv` moves a translation of the type of `Eq` onto the
+prelude's type, which translates only to the canonical type. -/
+theorem hasCanonicalEqType_spec {env : Environment} (h : hasCanonicalEqType env = true) :
+    HasCanonicalEqType env := by
+  unfold hasCanonicalEqType at h
   split at h
-  · rename_i e r c he hr hc
+  · rename_i ci hci
     simp only [Bool.and_eq_true] at h
-    exact ⟨e, r, c, he, PreludeEq.isEq_spec h.1.1, hr, PreludeEq.isRefl_spec h.1.2, hc,
-      PreludeEq.isRec_spec h.2⟩
+    obtain ⟨hsafe, h2⟩ := h
+    split at h2
+    · rename_i u hlps
+      refine ⟨ci, hci, PreludeEq.isSafe_spec hsafe, u, hlps, fun H => ?_⟩
+      exact TrExprS.eq_canonicalEqType ((PreludeEq.eqType_eq ..) ▸ H.eqv h2)
+    · cases h2
   · cases h
 
 /-! ### From the driver's walk to `AddDeclChain` -/
@@ -203,7 +143,7 @@ theorem hasPreludeEq_spec {env : Environment} (h : hasPreludeEq env = true) :
 /-- Appending a step to an `AddDeclChain`. -/
 theorem _root_.Lean4Lean.AddDeclChain.snoc {env env₁ env₂ : Environment} {ds : List Declaration} {d : Declaration}
     (H : AddDeclChain env ds env₁) (hadd : Lean4Lean.addDecl env₁ d (check := true) (fuel := {}) =
-      .ok env₂) (hq : d = .quotDecl → HasPreludeEq env₁) : AddDeclChain env (ds ++ [d]) env₂ := by
+      .ok env₂) (hq : d = .quotDecl → HasCanonicalEqType env₁) : AddDeclChain env (ds ++ [d]) env₂ := by
   induction H with
   | nil => exact .cons hadd hq (.nil _)
   | cons h₁ h₂ _ ih => exact .cons h₁ h₂ (ih hadd hq)
@@ -227,7 +167,7 @@ theorem Replayed.replay {start env : Environment} (h : Replayed {} (· = start) 
     by_cases hd : d = .quotDecl
     · subst hd
       cases hi : env.quotInit
-      · exact ⟨_, H.snoc hadd fun _ => hasPreludeEq_spec (hq rfl hi)⟩
+      · exact ⟨_, H.snoc hadd fun _ => hasCanonicalEqType_spec (hq rfl hi)⟩
       · exact ⟨ds, addDecl_quotDecl_of_quotInit hi hadd ▸ H⟩
     · exact ⟨_, H.snoc hadd fun h => absurd h hd⟩
 
@@ -263,8 +203,8 @@ empty environment (`--fresh` mode, default fuel, all constants) succeeds, the en
 built is modelled by well-formed abstract environments, and every safe, non-partial source
 constant is present in it and agrees with the source constant (up to `==`, see the module
 docstring). There is no hypothesis: the base case is `VEnvs.WF.empty`, and the driver only
-initializes the quotient module once the prelude's `Eq` is present (`hasPreludeEq`), which is
-what the abstract model of `quotDecl` needs (`AddDeclChain.WF`). -/
+initializes the quotient module once a safe `Eq` with the prelude's type is present
+(`hasCanonicalEqType`), which is what the abstract model of `quotDecl` needs (`AddDeclChain.WF`). -/
 theorem replayFresh.WF {src : Std.HashMap Name ConstantInfo} {mainModule : Name} :
     (replayFresh src mainModule).WF fun r =>
       (∃ ves' : VEnvs, ves'.WF r.env) ∧
