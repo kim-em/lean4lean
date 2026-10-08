@@ -81,7 +81,8 @@ theorem NestedValidatedRunResult.assemblyNative
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) //
       C.production = E.production } :=
-  E.assemblyNative_of_restoredWF wf Hsources hnested hcorner (E.hrestoredWF_of wf Hsources)
+  E.assemblyNative_of_restoredWF wf Hsources hnested hcorner (fun auxiliaries D C hC hV =>
+    E.hrestoredWF_of wf Hsources auxiliaries D C hC hV)
 
 end VerifyInductive
 
