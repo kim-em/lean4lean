@@ -9,8 +9,8 @@ theorem enumFiniteCompilation : CompiledInductive .empty enumDecl enumBlock :=
   .ordinary enumDecl_wf.1 enumFormation enumCanonicalCompilation
     enumBlockWellFormed rfl rfl rfl enumOrdinaryCompilation.names
 
-/-- The certificate that installation reads (`CompilesTo`) contains the finite judgment. -/
-example : CompiledInductive .empty enumDecl enumBlock := enumCompiles.compiled
+/-- The certificate that installation reads (`CompilesTo`) is the finite judgment. -/
+example : CompiledInductive .empty enumDecl enumBlock := enumCompiles
 
 /-- A finite derivation can be reused as the certificate of a container,
 and the leaf points to the actual installed environment. -/

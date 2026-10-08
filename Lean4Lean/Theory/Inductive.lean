@@ -3,18 +3,33 @@ import Lean4Lean.Theory.Inductive.CaseFormation
 
 namespace Lean4Lean
 
-/-- Abstract compilation, separate from the executable compiler. The block
-lays out the declaration's families, constructors and projections, its
-installed names are distinct, and the shared finite derivation
-`CompiledInductive` (ordinary compilation being its zero-specialization case)
-generates the block. -/
-structure VInductDecl.CompilesTo
-    (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Prop where
-  types : block.types = decl.typeConstants
-  ctors : block.ctors = decl.constructorConstants
-  projections : block.projections = decl.projectionEntries
-  names : ((block.types ++ block.ctors ++ block.recursors).map (·.name)).Nodup
-  compiled : CompiledInductive env decl block
+/-- Abstract compilation, separate from the executable compiler: the shared
+finite derivation `CompiledInductive` (ordinary compilation being its
+zero-specialization case) generates the block. That the block lays out the
+declaration's families, constructors and projections, and that its installed
+names are distinct, are consequences (`CompilesTo.types`, `.ctors`,
+`.projections`, `.names`). -/
+abbrev VInductDecl.CompilesTo
+    (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Prop :=
+  CompiledInductive env decl block
+
+theorem VInductDecl.CompilesTo.types {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (H : decl.CompilesTo env block) : block.types = decl.typeConstants :=
+  CompiledInductive.types_eq H
+
+theorem VInductDecl.CompilesTo.ctors {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (H : decl.CompilesTo env block) : block.ctors = decl.constructorConstants :=
+  CompiledInductive.ctors_eq H
+
+theorem VInductDecl.CompilesTo.projections {env : VEnv} {decl : VInductDecl}
+    {block : VInductBlock} (H : decl.CompilesTo env block) :
+    block.projections = decl.projectionEntries :=
+  CompiledInductive.projections_eq H
+
+theorem VInductDecl.CompilesTo.names {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (H : decl.CompilesTo env block) :
+    ((block.types ++ block.ctors ++ block.recursors).map (·.name)).Nodup :=
+  CompiledInductive.names_nodup H
 
 theorem InductiveSignature.FamilyTypesWF.mono {s : InductiveSignature}
     {env env' : VEnv} {uvars : Nat}
@@ -57,7 +72,7 @@ theorem VInductDecl.CompilesTo.mono
     (henv : env ≤ env')
     (Hblock : block.WF env')
     (H : decl.CompilesTo env block) : decl.CompilesTo env' block :=
-  { H with compiled := H.compiled.mono henv Hblock }
+  CompiledInductive.mono H henv Hblock
 
 theorem VInductDecl.CompilesTo.sourceNames
     {env : VEnv} {decl : VInductDecl} {block : VInductBlock}

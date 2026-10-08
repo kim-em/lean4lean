@@ -315,12 +315,12 @@ theorem WF'.quot_projections : ∀ {ds env}, VEnv.WF' ds env → env.defeqs quot
           VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at hq
         rcases hq with hm | hq
         · exfalso
-          obtain ⟨recursor, hrec, ls, hhead⟩ := compiled.compiled.equation_head_owned _ hm
+          obtain ⟨recursor, hrec, ls, hhead⟩ := compiled.equation_head_owned _ hm
           rw [quotDefEq_head] at hhead
           have hn := (VExpr.const.inj hhead).1
           have hlook := VInductBlock.install_recursor_lookup hinst hrec
           rw [← hn, hlift] at hlook
-          obtain ⟨_, _, _, _, _, _, C, _⟩ := compiled.compiled.exists_compilation
+          obtain ⟨_, _, _, _, _, _, C, _⟩ := compiled.exists_compilation
           obtain ⟨f, x, hfx⟩ := InductiveSignature.CompilationData.recursor_forallResult_app C hrec
           have := congrArg VConstant.type (Option.some.inj hlook)
           exact quotLiftConst_forallResult_not_app f x (by rw [this]; exact hfx)
@@ -330,7 +330,7 @@ theorem WF'.quot_projections : ∀ {ds env}, VEnv.WF' ds env → env.defeqs quot
           VEnv.addProjections_iff, VEnv.addEliminators_projections, VEnv.addConstVals_projections hc,
           VEnv.addConstVals_projections ht] at hp
         rcases hp with ⟨entry, hentry, rfl, rfl⟩ | hp
-        · obtain ⟨hfS, hfC⟩ := entry_fresh compiled.compiled.types_eq compiled.compiled.ctors_eq
+        · obtain ⟨hfS, hfC⟩ := entry_fresh compiled.types_eq compiled.ctors_eq
             compiled.projections ht hc hentry
           obtain ⟨hQ, hM, -⟩ := ih hq (by
             obtain ⟨ci, hci⟩ := quotLift_declared hord0 hq

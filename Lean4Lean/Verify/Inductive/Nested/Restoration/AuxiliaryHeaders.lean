@@ -74,7 +74,7 @@ theorem _root_.Lean4Lean.VEnv.InstalledBelow.familyFacts {env : VEnv} {decl : VI
       (hheaders type htype).mono hbase, typeShape_mono hbase' (hshapes type htype)⟩⟩
     apply hle.constants
     apply install_type_lookup hinstall
-    rw [hcompile.compiled.types_eq]
+    rw [hcompile.types_eq]
     exact List.mem_map.mpr ⟨type, htype, rfl⟩
 
 /-! ### Telescopes ending in sorts -/

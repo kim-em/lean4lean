@@ -36,7 +36,7 @@ theorem compilesTo_rejects_sortEquation {env : VEnv} {source : VInductDecl}
     {block : VInductBlock} (h : sortEquation ∈ block.rules) :
     ¬ source.CompilesTo env block := by
   intro H
-  exact sortEquation_not_compiled h H.compiled
+  exact sortEquation_not_compiled h H
 
 /-- Rejection is independent of the bad rule's position in the block. -/
 theorem compilesTo_rejects_sortEquation_among_rules

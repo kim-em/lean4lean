@@ -9,8 +9,8 @@ compilation derivation (`ContainersInstalled`). The chosen family fixes both the
 ordered constructor list. The normalized expanded signature determines every
 recursor and equation; restoration accepts no independent equation templates.
 
-`VInductDecl.CompilesTo` exposes this derivation together with the block
-layout and name uniqueness read by installation.
+`VInductDecl.CompilesTo` abbreviates this derivation; the block layout and
+name uniqueness read by installation are accessor theorems of it.
 -/
 
 namespace Lean4Lean
@@ -281,6 +281,44 @@ theorem CompiledInductive.mono {base env source block}
     (H : CompiledInductive base source block) (hle : base ≤ env)
     (Hblock : block.WF env) : CompiledInductive env source block :=
   .replay H hle Hblock
+
+/-- The block of a compilation lays out the source declaration's families. -/
+theorem CompiledInductive.types_eq {env source block} (H : CompiledInductive env source block) :
+    block.types = source.typeConstants := by
+  induction H using CompiledInductive.rec (motive_2 := fun _ _ _ => True) with
+  | intro h _ _ => exact h.types
+  | replay _ _ _ ih => exact ih
+  | nil => trivial
+  | cons _ _ _ _ _ _ _ => trivial
+
+/-- The block of a compilation lays out the source declaration's constructors. -/
+theorem CompiledInductive.ctors_eq {env source block} (H : CompiledInductive env source block) :
+    block.ctors = source.constructorConstants := by
+  induction H using CompiledInductive.rec (motive_2 := fun _ _ _ => True) with
+  | intro h _ _ => exact h.ctors
+  | replay _ _ _ ih => exact ih
+  | nil => trivial
+  | cons _ _ _ _ _ _ _ => trivial
+
+/-- The block of a compilation lays out the source declaration's projections. -/
+theorem CompiledInductive.projections_eq {env source block}
+    (H : CompiledInductive env source block) :
+    block.projections = source.projectionEntries := by
+  induction H using CompiledInductive.rec (motive_2 := fun _ _ _ => True) with
+  | intro h _ _ => exact h.projections
+  | replay _ _ _ ih => exact ih
+  | nil => trivial
+  | cons _ _ _ _ _ _ _ => trivial
+
+/-- The installed names of a compiled block are distinct. -/
+theorem CompiledInductive.names_nodup {env source block}
+    (H : CompiledInductive env source block) :
+    ((block.types ++ block.ctors ++ block.recursors).map (·.name)).Nodup := by
+  induction H using CompiledInductive.rec (motive_2 := fun _ _ _ => True) with
+  | intro h _ _ => exact h.names
+  | replay _ _ _ ih => exact ih
+  | nil => trivial
+  | cons _ _ _ _ _ _ _ => trivial
 
 /-- Ordinary compilation (`Compiles`) is the zero-specialization case of the
 same finite derivation. Formation and output checking are supplied by their

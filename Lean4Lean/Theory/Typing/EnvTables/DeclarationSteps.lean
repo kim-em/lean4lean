@@ -484,7 +484,7 @@ theorem Tables.Inv.install {decl : VInductDecl} {block : VInductBlock}
   have hruleHead : ∀ df ∈ block.rules, ∃ h ls, df.lhs.stripLams.getAppFnArgs.1 = .const h ls ∧
       h ∈ block.recursors.map (·.name) := by
     intro df hdf
-    obtain ⟨r, hr, ls, hh⟩ := hcomp.compiled.equation_head_owned df hdf
+    obtain ⟨r, hr, ls, hh⟩ := hcomp.equation_head_owned df hdf
     exact ⟨r.name, ls, hh, List.mem_map.mpr ⟨r, hr, rfl⟩⟩
   have hnotRec : ∀ n ∈ block.types.map (·.name) ++ block.ctors.map (·.name),
       n ∉ block.recursors.map (·.name) := by
@@ -545,7 +545,7 @@ theorem Tables.Inv.install {decl : VInductDecl} {block : VInductBlock}
     · intro t ht hsel
       refine ⟨?_, hctorWitness t ht⟩
       obtain ⟨c, hc⟩ := List.exists_mem_of_ne_nil _ (selCtors_iff.mp hsel)
-      obtain ⟨ls, hres⟩ := hcomp.compiled.ctor_result t ht c hc
+      obtain ⟨ls, hres⟩ := hcomp.ctor_result t ht c hc
       obtain ⟨df, hdf, hm⟩ := hctorMention t ht c hc
       exact .inr <| .inl ⟨df, c.name, _, hdf, hm, hCtorConst t ht c hc,
         Mentions.of_forallResult hres⟩
