@@ -653,7 +653,7 @@ wrapper name. The other changes cannot change a decision except through checker 
   requires the listed constructor and applies structure eta only at never-zero sorts;
   `toCtorWhenK` checks the arity of the type's spine; `inferProj`
   rejects field indices beyond `numFields`; constructor owner and `isUnsafe` agreement are
-  checked wherever a structure's constructor is looked up; `toCtorWhenStruct` and
+  checked wherever a structure's constructor is looked up (only the owner in `isDefEqUnitLike`); `toCtorWhenStruct` and
   `expandEtaStruct` return the term unchanged where the C++ kernel has `unreachable!`. Each
   guard lets the verification justify a step from the registry entry alone, without
   injectivity or head separation. All are redundant on well-formed environments and

@@ -631,8 +631,6 @@ theorem isDefEqUnitLike.WF {c : VContext} {s : VState}
   split <;> [rename_i cval hcval; exact .pure nofun]
   split <;> [skip; exact .pure nofun]
   rename_i hinduct
-  split <;> [skip; exact .pure nofun]
-  rename_i hunsafe
   refine (inferType.WF he₂).bind fun sty _ _ ⟨sty', _, _, hsty, hsty'⟩ => ?_
   refine (isDefEqCore.WF htT hsty).mono fun b _ _ h hb => ?_
   have hb := h (by simpa using hb)
