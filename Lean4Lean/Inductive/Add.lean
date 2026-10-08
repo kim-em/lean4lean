@@ -1305,7 +1305,7 @@ def restoreNestedDeclarations (res : ElimNestedInductive.Result)
     restoreRecursorDecl res loweredEnv recNameMap allIndNames
       allowPrimitive recName
 
-namespace validateRestoredConstructorParameters
+namespace validateSourceConstructorTypes
 
 /-- Recheck every source constructor type in the environment of the restored source
 headers. -/
@@ -1320,7 +1320,7 @@ def run (env : Environment) (lparams : List Name) (safety : DefinitionSafety)
           let type ← TypeChecker.checkType ctor.type
           TypeChecker.ensureSort type ctor.type)
 
-end validateRestoredConstructorParameters
+end validateSourceConstructorTypes
 
 namespace validateRestoredRecursorTypes
 
@@ -1439,7 +1439,7 @@ def Environment.restoreNestedAfterInstall (env loweredEnv : Environment)
     (restoreNestedConstructors res loweredEnv allIndNames allowPrimitive types)
   let auxiliaryHeaderEnv ← (·.2) <$> StateT.run (s := env)
     (restoreNestedHeaders loweredEnv allIndNames allowPrimitive types)
-  validateRestoredConstructorParameters.run auxiliaryHeaderEnv lparams safety
+  validateSourceConstructorTypes.run auxiliaryHeaderEnv lparams safety
     fuel types res
   validateRestoredRecursorTypes.run validationEnv loweredEnv lparams safety
     fuel res recNameMap' allIndNames types recNames'

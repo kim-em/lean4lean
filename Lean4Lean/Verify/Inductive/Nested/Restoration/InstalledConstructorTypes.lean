@@ -7,7 +7,7 @@ import Lean4Lean.Verify.EquivManager
 
 Nested installation stores `restoreNested loweredEnv loweredCtor.type`
 (`Lean4Lean.restoreConstructorDecl`), while
-`validateRestoredConstructorParameters.run` checks the source type
+`validateSourceConstructorTypes.run` checks the source type
 `ctor.type`. This file relates the two for every successful nested run.
 
 **Literal equality is false.** `ElimNestedInductive.findCachedAux?` reuses an
