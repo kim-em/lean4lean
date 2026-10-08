@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjCtor
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjValid
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjCtorField
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.ProjFamily
 
 /-! # The eta binding of rule clauses on majors of projection-registered families (D16)
@@ -46,24 +47,6 @@ def MajorFam (env : VEnv) (U : Nat) (Δ Γ : List VExpr) (I ctor : Name)
           env.HasType U Δ P (.sort .zero)) ∧
         ∀ τ, Obs env U Δ v vS (binderTy doms ls x) τ →
           ∃ cv', TypedOb env U Δ cv' τ [.sort fun _ => 0])
-
-/-- **Field observations of constructor spines** (stage C, item 2 of section 10.7 of the
-notes): for a never-zero projection entry, every observation of a field of a semantically typed
-full constructor spine gives a field observation of the spine. This is the statement of
-`ctor_field_obs` (being proved separately); the right-to-left direction of the eta binding takes
-it as a hypothesis until it is available. -/
-def CtorFieldObs (env : VEnv) : Prop :=
-  ∀ (U : Nat) (Δ : List VExpr), env.Ordered → OnCtx Δ (env.IsType U) →
-    ∀ {S : Name} {info : VProjectionInfo}, env.projections S info → ProjValid env S info →
-    ∀ {ls : List VLevel}, (∀ l ∈ ls, l.WF U) → ls.length = info.uvars →
-    (info.resultLevel.inst ls).IsNeverZero →
-    ∀ {Γ : List VExpr} {σ : VExpr.Subst} {S0 : ObSets},
-    Ctx.SubstEq env U Δ σ σ Γ → TV env U Δ Γ σ S0 →
-    ∀ {ps fs : List VExpr} {T : VExpr},
-    HTS env U Δ Γ (.mkApps (.const info.ctorName ls) (ps ++ fs)) T →
-    ps.length = info.nparams → fs.length = info.numFields →
-    ∀ {j : Nat} (hj : j < fs.length) {k : Ob}, Obs env U Δ σ S0 fs[j] k →
-    ∃ L, Obs env U Δ σ S0 (.mkApps (.const info.ctorName ls) (ps ++ fs)) (.fieldOb S j L k)
 
 /-- Finitely many witnesses, one for each element of a list. -/
 theorem exists_list_witness {α : Type} {Q : Ob → Prop} {P : α → Ob → Prop} :

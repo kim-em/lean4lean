@@ -12,7 +12,7 @@ follows from the soundness and semantic typing (`HTS`) of its typing premises
 (`docs/inductives/PHASE1B_NOTES.md`, section 10.2, "Soundness of the rule cases"). For a major
 of a projection-registered family (`MajorFam`, decision D16) the rule clause is identified from
 the head type and the fields are bound by the eta binding (never-zero entries; right to left via
-`eta_field_cls` and the field observations of the major, `CtorFieldObs`) or the proof binding. -/
+`eta_field_cls` and the field observations of the major, `ctor_field_obs`) or the proof binding. -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -321,7 +321,6 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
     (hcf : CtorFam env ctor I)
     (hcis : IsCtor env ctor) (hfam : MajorFam env U Δ Γ I ctor doms lead ms fs ls lsC)
-    (hcfo : (∃ info, env.projections I info) → CtorFieldObs env)
     (hC : ∀ keys : List Key, keys.length = lead.length →
       Obs' .id .empty (ci.type.instL ls) (piCodChain keys
         (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length fun _ => 0))) →
@@ -567,7 +566,7 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
           have hkx : Obs' v vS ((ms.map (·.instL ls) ++ fs.map VExpr.bvar).drop info.nparams)[
               ms.length + j - info.nparams] k := by
             rw [hget]; exact .bvar (by rw [hLx x hxd]; exact hk)
-          have := hcfo ⟨info, hpI⟩ U Δ henv hΔ hpI hPV hlsW hlsl hnz Wv tvv H'
+          have := ctor_field_obs henv hΔ hpI hPV hlsW hlsl hnz Wv tvv H'
             (by simp; omega) (by simp; omega) hjd hkx
           rwa [List.take_append_drop] at this
         classical
@@ -944,7 +943,8 @@ theorem sound_pat {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms : L
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
     (hcf : CtorFam env ctor I)
     (hcis : IsCtor env ctor) (hfam : MajorFam env U Δ Γ I ctor doms lead ms fs ls lsC)
-    (hcfo : (∃ info, env.projections I info) → CtorFieldObs env) (hcrig : env.Rigid ctor)
+   
+    (hcrig : env.Rigid ctor)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
     (hdr : env.DefRules)
     (huniq : ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
@@ -980,7 +980,7 @@ theorem sound_pat {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms : L
       hci eH hlenH hkH hfam ihR.2 ihR.1 W.left tv o h
     exact ⟨o', (Obs.closed_iff_id hRc).2 ((Obs.closed_iff_id hRc).1 h1), l⟩
   · obtain ⟨o', h1, l⟩ := pat_rhs_sub henv hΔ hdf hl hr hcov hlsP hci eH hlenH hkH hIrig hcf
-      hcis hfam hcfo hC ihL.2 ihR.1 heq W' tv' o h
+      hcis hfam hC ihL.2 ihR.1 heq W' tv' o h
     exact ⟨o', (Obs.closed_iff_id hLc).2 ((Obs.closed_iff_id hLc).1 h1), l⟩
 
 end

@@ -146,7 +146,6 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
     (hcf : CtorFam env ctor I)
     (hcis : IsCtor env ctor) (hfam : MajorFam env U Δ Γ I ctor doms lead ms fs ls lsC)
-    (hcfo : (∃ info, env.projections I info) → CtorFieldObs env)
     (hC : ∀ keys : List Key, keys.length = lead.length →
       Obs' .id .empty (type.instL ls) (piCodChain keys
         (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length fun _ => 0))) →
@@ -366,7 +365,7 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
           have hkx : Obs' v vS ((ms.map (·.instL ls) ++ fs.map VExpr.bvar).drop info.nparams)[
               ms.length + j - info.nparams] k := by
             rw [hget]; exact .bvar (by rw [hLx x hxd]; exact hk)
-          have := hcfo ⟨info, hpI⟩ U Δ henv hΔ hpI hPV hlsW hlsl hnz Wv tvv H'
+          have := ctor_field_obs henv hΔ hpI hPV hlsW hlsl hnz Wv tvv H'
             (by simp; omega) (by simp; omega) hjd hkx
           rwa [List.take_append_drop] at this
         classical
@@ -733,7 +732,8 @@ theorem sound_pat_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.Cas
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
     (hcf : CtorFam env ctor I)
     (hcis : IsCtor env ctor) (hfam : MajorFam env U Δ Γ I ctor doms lead ms fs ls lsC)
-    (hcfo : (∃ info, env.projections I info) → CtorFieldObs env) (hcrig : env.Rigid ctor)
+   
+    (hcrig : env.Rigid ctor)
     (huniq : ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
       (ctor' : Name) (lsC' : List VLevel) (ms' : List VExpr) (fs' : List Nat) (body' : VExpr),
       df' ∈ rules →
@@ -761,7 +761,7 @@ theorem sound_pat_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.Cas
       huniq htype eH hlenH hkH hfam ihR.2 ihR.1 W.left tv o h
     exact ⟨o', (Obs.closed_iff_id hRc).2 ((Obs.closed_iff_id hRc).1 h1), l⟩
   · obtain ⟨o', h1, l⟩ := pat_rhs_sub_elim henv hΔ hEu hb hrules hmem hl hr hcov hlsP htype eH
-      hlenH hkH hIrig hcf hcis hfam hcfo hC ihL.2 ihR.1 heq W' tv' o h
+      hlenH hkH hIrig hcf hcis hfam hC ihL.2 ihR.1 heq W' tv' o h
     exact ⟨o', (Obs.closed_iff_id hLc).2 ((Obs.closed_iff_id hLc).1 h1), l⟩
 
 /-- Soundness of an eliminator rule whose right-hand side has no observations. -/
