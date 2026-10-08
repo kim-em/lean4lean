@@ -1,6 +1,12 @@
 import Lean4Lean.Verify.Inductive.Recursor.Binders.MotivesAndIndices
 import Lean4Lean.Verify.Inductive.Recursor.Binders.MotiveFrames
 
+/-! Typing of the motive frames and recursive calls of the recursor construction:
+the generated motive telescope of each family and its agreement with the
+executable motive (`motiveDecl`, `resultTyping` of the motive pass), the
+refinement of `loopUArgs` to a recursive-domain judgment, and the recursive-call
+syntax (`RecursiveCall`) and typing (`TypedRecursiveCall`) used by the rules. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -28,8 +34,8 @@ theorem checkInductiveTypes.loopType.FrontFVLift.fvars_take
     simp [VLCtx.fvars_cons_some, ih]
 
 /-- Close a major-premise motive body over the most recent checker
-declarations.  Everything happens in the checker `MLCtx`, so no runtime
-translation is restricted. -/
+declarations.  Everything happens in the checker `MLCtx`, so no translation
+in the executable context is restricted. -/
 theorem RecursorContextWF.scopedMotiveClosure
     {c : AddInductive.Context} {U : List Name}
     (R : RecursorContextWF c U) (n : Nat) (hn : n ≤ R.chk.length)
@@ -80,9 +86,9 @@ theorem RecursorContextWF.scopedMotiveClosure
 
 namespace mkRecInfos.loopInd1
 
-/-- The canonical application of family `dIdx` to all of its parameter and
-index variables splits as the canonical parameter application, lifted over
-the indices, applied to the canonical index variables. -/
+/-- The application of family `dIdx` to all of its parameter and
+index variables (a bvar spine) splits as the application to the parameter
+variables, lifted over the indices, applied to the index variables. -/
 theorem canonicalFamilyApp_split
     {base : AddInductive.Context} {Hbase : ContextWF base}
     {decl : VInductDecl} {baseDepth : Nat}
@@ -134,10 +140,10 @@ theorem canonicalFamilyApp_split
   rw [hcv]
   simpa [VExpr.liftN] using hsplit
 
-/-- Replaying the completed motive of family `dIdx` in the checker context of
-the index loop and closing it over the indices translates it in the narrow
+/-- Rebuilding the motive of family `dIdx` in the checker context of
+the index loop and closing it over the indices translates it in the
 parameter scope `motiveSourceScope` below those indices, to a type that is
-definitionally equal to the canonical motive telescope of the family. -/
+definitionally equal to the generated motive telescope of the family. -/
 theorem motiveSourceReplay
     {base current cIndices : AddInductive.Context} {Hbase : ContextWF base}
     {decl : VInductDecl} {baseDepth : Nat}
@@ -332,8 +338,8 @@ theorem motiveSourceReplay
   exact ⟨motiveSourceTarget, HmotiveSourceTr, HmotiveSourceType,
     HmotiveSourceCanonical, hdropAlign.wf⟩
 
-/-- Every free variable of the completed motive type of family `dIdx`, built
-over its indices and major premise, lies in the narrow scope below those
+/-- Every free variable of the motive type of family `dIdx`, built
+over its indices and major premise, lies in the parameter scope below those
 indices. -/
 theorem motiveSourceFVars
     {base current cIndices : AddInductive.Context} {Hbase : ContextWF base}
@@ -480,10 +486,10 @@ theorem motiveSourceFVars
         hfrontLE majorBody HmajorBodyFVars
   exact HmotiveSourceFVarsAtBase
 
-/-- The canonical, permutation-free motive telescope of family `dIdx`, over
-the parameter and index domains synthesized from its checked header.  Its
+/-- The generated, permutation-free motive telescope of family `dIdx`, over
+the parameter and index domains of its checked header.  Its
 parameter domains are those of `Hsynthesis`, and its motive type is the
-canonical index telescope closed over the canonical major premise. -/
+index telescope closed over the major premise. -/
 theorem canonicalMotiveTelescope
     {base cIndices : AddInductive.Context} {Hbase : ContextWF base}
     {decl : VInductDecl} {baseDepth : Nat}
@@ -610,8 +616,8 @@ theorem canonicalMotiveTelescope
           (bvarSpine Hsynthesis.params.length))
         narrowTarget resultLevel }, rfl, rfl⟩
 
-/-- Once the major premise and then the motive of a completed frame have been
-declared, the annotation-consumed motive type is the binder telescope over
+/-- Once the major premise and then the motive of a frame have been
+declared, the unannotated motive type is the binder telescope over
 the frame's indices and major premise read in the extended local context. -/
 theorem motiveTypeShape
     {cIndices : AddInductive.Context} {recLparams : List Name}
@@ -672,10 +678,10 @@ theorem motiveTypeShape
       congrArg (fun body => cMotive.lctx.mkForall indices body)
         (HmajorAtMajor.mkForall_mono hMotiveFrame _).symm
 
-/-- The narrow scope below the genuine indices of a runtime index front is
+/-- The scope below the indices of an executable index front is
 the parameter scope `P`: it has no bound variables, its typing context is the
-synthesized parameter telescope, and its literal weakening is definitionally
-equal to the runtime context with those indices dropped. -/
+abstract parameter telescope, and its literal weakening is definitionally
+equal to the executable context with those indices dropped. -/
 theorem motiveSourceScopeFacts
     {cIndices : AddInductive.Context} {recLparams : List Name}
     (Rindices : RecursorContextWF cIndices recLparams)
@@ -768,10 +774,10 @@ theorem motiveTargetDefEqAfterMajor
   rw [Hframe.motiveTarget_eq, hmajorLift]
   exact HmajorExtension.weakDefEqU H
 
-/-- The motive-telescope seed for family `dIdx`, established once its major
-premise and motive have been opened over the completed index telescope.  The
-seed lives over the recursor context extended by both new declarations, and
-its canonical parameter domains are aligned with the shared recursor
+/-- The motive data `MotiveDecl` for family `dIdx`, established once its major
+premise and motive have been opened over the index telescope.  It
+lives over the recursor context extended by both new declarations, and
+its generated parameter domains are aligned with the shared recursor
 parameter context of `Hsuffix`. -/
 theorem motiveDecl
     {base current cIndices : AddInductive.Context} {Hbase : ContextWF base}
@@ -970,7 +976,7 @@ theorem motiveDecl
       (· ∈ VLCtx.fvars motiveSourceScope) := by
     rw [← hmotiveSourceScope']
     simpa [hfront] using HmotiveSourceFVarsAtBase
-  -- The motive replayed in the checker context of the index loop.
+  -- The motive rebuilt in the checker context of the index loop.
   obtain ⟨motiveSourceTarget, HmotiveSourceTr, HmotiveSourceType,
       HmotiveSourceCanonical, HmotiveSourceWF⟩ :=
     motiveSourceReplay Hheader hconsume Rindices henvIndices Hsynthesis
@@ -1135,10 +1141,10 @@ theorem motiveDecl
     hcanonicalParams ▸ HparamsSelf
   exact ⟨Hseed, HseedParams0⟩
 
-/-- Semantic strengthening of the first mutual recursor pass.  In addition
-to the operational binder certificates retained by `resultBindings`, every
-family is replayed against its independently checked header under the common
-recursor universe list, and the exact index/major/motive origin-type rows
+/-- Typing for the motive pass of `mkRecInfos`.  In addition
+to the binder facts of `resultBindings`, every
+family is opened against its checked header under the common
+recursor universe list, and the index/major/motive binder-type rows
 remain translated and typed after all later mutual frames. -/
 theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     {base current : AddInductive.Context} (Hbase : ContextWF base)
@@ -1505,7 +1511,7 @@ end mkRecInfos.loopInd1
 
 namespace mkRecInfos.loopUArgs.loop
 
-/-- Semantic refinement of `loopUArgs.loop` which reconstructs the complete
+/-- Refinement of `loopUArgs.loop` which reconstructs the complete
 higher-order recursive-domain judgment on the way back out of the forall
 telescope.  The terminal executable check supplies the direct family
 application; each traversed binder contributes one `RecursiveArgAtTarget`
@@ -1614,7 +1620,7 @@ theorem resultRecursiveDomain {alpha : Type}
         ⟨consumedDom₀, Hdom₀⟩
       rcases Hdom₀.body R.atCheckLCtx hbodyN₀ with
         ⟨consumedBody₀, hbodyConsumed₀, hbodyEq₀⟩
-      -- the closed checker type stays fixed across the narrow binder
+      -- the closed checker type stays fixed across the checking-context binder
       have hchkWF := R.check.wf.tr.wf
       have HforallConsumed₀ : R.venv.IsDefEqU recLparams.length
           R.chk.vlctx.toCtx (.forallE dom₀ bodyN₀)
@@ -1892,10 +1898,10 @@ theorem resultRecursiveDomain {alpha : Type}
 
 end mkRecInfos.loopUArgs.loop
 
-/-- The public recursive-field interface retains the complete source domain,
+/-- The recursive-field interface keeps the complete source domain,
 not merely the validated family application exposed after traversing its
-higher-order binders.  This is the semantic certificate needed to align the
-implementation's selected recursive calls with `VInductDecl.RecursiveField`.
+higher-order binders.  This is the fact needed to align the
+executable's selected recursive calls with `VInductDecl.RecursiveField`.
 -/
 theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
     (fv : FVarId) (stats : AddInductive.InductiveStats)
@@ -2069,8 +2075,8 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
             t₀, htr, htrTy, hcl⟩))
   exact Hloop.mono fun out hout => ⟨inferredTarget, hfieldTyping, hout⟩
 
-/-- Source-level construction retained for one induction-hypothesis type.
-It records the terminal family application and exact higher-order telescope
+/-- Source-level construction of one induction-hypothesis type.
+It records the terminal family application and the higher-order telescope
 selected by `loopUArgs`, before the resulting type is installed as a local
 declaration by `loopU`. -/
 structure InductionHypothesisTypeAt
@@ -2099,8 +2105,8 @@ structure InductionHypothesisTypeAt
       (mkAppN field args)
     type = current.lctx.mkForall args motiveApp
 
-/-- Forget that an origin was retained by the in-progress hypothesis loop;
-the completed minor certificate has the same transparent payload. -/
+/-- Forget that the construction was recorded by the in-progress hypothesis loop;
+`InductionHypothesisType` for the finished minor has the same data. -/
 def InductionHypothesisTypeAt.toMinor
     (O : InductionHypothesisTypeAt stats recInfos root field type) :
     InductionHypothesisType stats recInfos root field type := {
@@ -2118,9 +2124,9 @@ def InductionHypothesisTypeAt.toMinor
   motive_is_fvar := O.motive_is_fvar
   type_eq := O.type_eq }
 
-/-- Pointwise source origins for the prefix of recursive fields already
-processed by `loopU`.  Each installed declaration is tied to the unconsumed
-type returned by the corresponding `loopUArgs` run. -/
+/-- Pointwise source constructions for the prefix of recursive fields already
+processed by `loopU`.  Each declared hypothesis is tied to the type (before
+annotation stripping) returned by the corresponding `loopUArgs` run. -/
 structure InductionHypothesisTypesPrefix
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
@@ -2195,9 +2201,9 @@ def InductionHypothesisTypesPrefix.pushCurrent
     exact ⟨oldRoot, oldType, HoldRoot, Hold,
       (D.pushArray (.fvar ⟨c.ngen.curr⟩)).mono hstep, htype⟩
 
-/-- The call-blueprint row produced beside a hypothesis prefix, indexed by
-the same producer witnesses as `InductionHypothesisTypesPrefix`.  `rooted`
-additionally retains the recursor-context certificate of each call's
+/-- The call-template row produced beside a hypothesis prefix, indexed by
+the same constructions as `InductionHypothesisTypesPrefix`.  `rooted`
+additionally records the recursor-context well-formedness of each call's
 `loopUArgs` root and the up-set `rootScope` in it. -/
 structure CallTemplatesMatchPrefix
     (H : InductionHypothesisTypesPrefix stats recInfos fieldRoot c
@@ -2349,7 +2355,7 @@ theorem CallTemplatesMatchPrefix.pushCurrent
       rw [hpush j hjOld]
       exact hcallOld
 
-/-- Exact recursive-call syntax together with the inner binding context used
+/-- Recursive-call syntax together with the inner binding context used
 to close its higher-order arguments. -/
 structure RecursiveCall
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
@@ -2372,10 +2378,10 @@ structure RecursiveCall
       (mkAppN (.bvar localArgs.size) indices).app
         (mkAppN field localArgs)).instantiate1 recursor
 
-/-- Pre-installation semantics of one generated recursive call.  The
-blueprint-producing pass installs hypotheses for earlier recursive fields,
-so the higher-order argument telescope is recent relative to its exact
-producer root.  The common constructor-field root remains separate. -/
+/-- Typing of one generated recursive call before installation.  The
+template-producing minor pass declares hypotheses for earlier recursive fields,
+so the higher-order argument telescope is recent relative to the root of its
+own `loopUArgs` run.  The common constructor-field root remains separate. -/
 structure TypedRecursiveCall
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
@@ -2388,8 +2394,8 @@ structure TypedRecursiveCall
   recent : RecursorFVarSuffix R current_context
     generated.localArgs
   rootScope : FVarId → Prop
-  /-- Exact source scope established by the successful recursive-field
-  producer.  This is trace evidence, not a replay or caller premise. -/
+  /-- Source scope established by the successful recursive-field
+  traversal.  It is a fact about that run, not a premise supplied by the caller. -/
   exposed_scope : generated.exposedType.FVarsIn
     (fun fv => fv ∈ recent.fvars ∨ rootScope fv)
   current_scope_up : IsFVarUpSet
@@ -2428,13 +2434,13 @@ structure TypedRecursiveCall
     (mkAppN field generated.localArgs) appliedFieldTarget
   applied_field_typing : current_context.venv.HasType recLparams.length
     current_context.mlctx.vlctx.toCtx appliedFieldTarget terminalTarget
-  /-- The exact validated inductive application produced at this call site. -/
+  /-- The validated inductive application produced at this call site. -/
   validated : RecursorValidatedIndAppAt current_context.venv recLparams
     current_context.mlctx.vlctx stats decl
     (depth + generated.localArgs.size) generated.exposedType exposedTarget
     generated.ownerIdx
   /-- The call-local telescope closed and restricted to the common
-  constructor-field context.  In the blueprint-producing pass this removes
+  constructor-field context.  In the template-producing minor pass this removes
   the irrelevant hypotheses installed for earlier recursive fields. -/
   commonDomains : List VExpr
   commonDomains_length : commonDomains.length = generated.localArgs.size
@@ -2451,9 +2457,9 @@ structure TypedRecursiveCall
   common_applied_typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
     (VExpr.wrapLams commonDomains appliedFieldTarget)
     (VExpr.wrapForalls commonDomains exposedTarget)
-  /-- Exact recursive-domain judgment retained from positivity.  These facts
+  /-- Recursive-domain judgment from positivity.  These facts
   are produced by the successful field check and discharge source closedness
-  obligations without replaying the checker. -/
+  obligations without rerunning the checker. -/
   fieldTarget : VExpr
   domain : VExpr
   field_translation : TrExprS R.venv recLparams R.mlctx.vlctx
@@ -2465,7 +2471,7 @@ structure TypedRecursiveCall
     (decl.types[generated.ownerIdx]'owner_lt).name
     R.mlctx.vlctx.toCtx depth domain
 
-/-- The exact higher-order argument suffix of a recursive constructor field,
+/-- The higher-order argument suffix of a recursive constructor field,
 closed back to the rule's field context.  The exposed result type and the
 eta-expanded field use one shared domain list; this is the typed major premise
 later supplied to the recursively selected generated recursor. -/
@@ -2489,7 +2495,7 @@ structure TypedRecursiveCall.AppliedFieldTelescope
     (VExpr.wrapLams domains S.appliedFieldTarget)
     (VExpr.wrapForalls domains S.exposedTarget)
 
-/-- The recursive field syntax retained by the successful producer has no
+/-- The recursive field syntax recorded by the successful traversal has no
 ambient loose variables. -/
 theorem TypedRecursiveCall.fieldClosed
     {R : RecursorContextWF root recLparams}
@@ -2500,9 +2506,9 @@ theorem TypedRecursiveCall.fieldClosed
   rw [R.mlctx.noBV] at hclosed
   exact hclosed.looseBVarRange_zero
 
-/-- Recover the shared higher-order field telescope from the semantic facts
+/-- Recover the shared higher-order field telescope from the facts
 already established by `loopUArgs`.  The executable normalizer may expose a
-definitionally equal terminal type, so it is transported back to the exact
+definitionally equal terminal type, so it is transported back to the
 syntax translation before the suffix is closed. -/
 def TypedRecursiveCall.appliedFieldTelescope
     {R : RecursorContextWF root recLparams}
@@ -2541,7 +2547,7 @@ theorem RecursiveCall.value_eq_body
               lvls) stats.params) motives) minors) := by
   simpa using H.value_eq
 
-/-- The exact lambda telescope closed by one generated recursive call. -/
+/-- The lambda telescope closed by one generated recursive call. -/
 theorem RecursiveCall.lambdaTelescope
     (H : RecursiveCall indTypes stats motives minors lvls
       root field value) :
@@ -2574,10 +2580,10 @@ theorem RecursiveCall.lambdaTelescope
     (body := templateBody) Hdecl
   simpa using Htemplate.instantiate1 recursor
 
-/-- The successful semantic producer proves that the eta-expanded field is
-closed with respect to loose variables.  Instantiating the retained outer
+/-- The eta-expanded field is closed with respect to loose variables
+(`TypedRecursiveCall.fieldClosed`).  Instantiating the outer
 recursor placeholder therefore changes only the call template, while
-preserving its concrete higher-order lambda prefix. -/
+preserving its executable higher-order lambda prefix. -/
 theorem TypedRecursiveCall.sameAppliedFieldLambdaPrefix
     (H : TypedRecursiveCall indTypes stats motives minors
       lvls R decl depth field value) :
@@ -2640,7 +2646,7 @@ theorem RecursiveCall.outerAbstractedLambdaTelescope
   simpa using H.lambdaTelescope.abstractList binders
 
 /-- Simultaneous abstraction preserves the generated recursor spine and
-turns the freshly opened local arguments into the canonical de Bruijn spine
+turns the freshly opened local arguments into the bvar spine
 on the recursive field. -/
 theorem RecursiveCall.abstractedBody_eq
     (H : RecursiveCall indTypes stats motives minors lvls
@@ -2688,8 +2694,8 @@ def RecursiveCall.recursorName
       root field value) : Name :=
   Lean.mkRecName indTypes[(AddInductive.getIIndices stats H.exposedType).1]!.name
 
-/-- The owner retained at the successful validation branch is exactly the
-family index consumed by the partial production helper. -/
+/-- The owner returned by the successful validation branch is exactly the
+family index used by the partial executable helper. -/
 theorem RecursiveCall.recursorName_eq_owner
     (H : RecursiveCall indTypes stats motives minors lvls
       root field value) :
@@ -2728,9 +2734,9 @@ def RecursiveCall.outerAbstractedMajor
   H.abstractedMajor.abstractList binders H.localArgs.size
 
 /-- The eta-expanded recursive field used as the generated recursor's major
-premise closes over the same exact fresh higher-order arguments as the call
+premise closes over the same fresh higher-order arguments as the call
 itself.  Its residual is `abstractedMajor`, rather than the complete call
-body retained by `lambdaTelescope`. -/
+body of `lambdaTelescope`. -/
 theorem RecursiveCall.appliedFieldLambdaTelescope
     (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
@@ -2792,7 +2798,7 @@ theorem RecursiveCall.appliedFieldLambdaTelescope
   rw [habstractedMajor]
   simpa [Expr.abstractN_mkAppN, hlocal, major] using Htel
 
-/-- When the producer field expression is closed, the exact instantiated
+/-- When the field expression is closed, the instantiated
 template major reduces to the ordinary eta-expanded field residual. -/
 theorem RecursiveCall.abstractedMajor_eq_of_closed
     (H : RecursiveCall indTypes stats motives minors lvls
@@ -2866,8 +2872,8 @@ theorem RecursiveCall.outerAbstractedRootFVar_eq_lift
     exact H.arguments_bound.fresh fv hmem hroot
   exact H.outerAbstractedFVar_eq_lift_of_fresh hfresh hbinders hfv
 
-/-- Array form for binders retained in a context other than the call root.
-The producer supplies exact disjointness from temporary call-local arguments. -/
+/-- Array form for binders declared in a context other than the call root.
+The traversal supplies disjointness from the temporary call-local arguments. -/
 theorem RecursiveCall.outerAbstractedBoundArray_eq_lift_of_fresh
     (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
@@ -2897,8 +2903,8 @@ def RecursiveCall.localIndices
   List.ofFn fun i : Fin H.arguments_bound.fvars.length =>
     H.arguments_bound.fvars.length - 1 - i
 
-/-- Alpha-normalized payload of the recursive-result `loopUArgs` run.  It is
-the second-pass counterpart of
+/-- Alpha-normalized shape of the recursive-result `loopUArgs` run.  It is
+the rule-construction counterpart of
 `InductionHypothesisType.replayTrace`. -/
 def RecursiveCall.replayTrace
     (H : RecursiveCall indTypes stats motives minors lvls
@@ -2918,7 +2924,7 @@ def RecursiveCall.replayTrace
         (index.abstractList H.arguments_bound.fvars).abstractList
           fieldBinders H.localArgs.size)
 
-/-- The second-pass counterpart of
+/-- The rule-construction counterpart of
 `InductionHypothesisType.outerAbstractedMotiveApp`. -/
 def RecursiveCall.outerAbstractedMotiveApp
     (H : RecursiveCall indTypes stats motives minors lvls

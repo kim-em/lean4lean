@@ -1,5 +1,11 @@
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Counts
 
+/-! Common-parameter prefixes of constructor types: the comparisons of
+`checkConstructors.loopCtor` against the cached parameters
+(`CheckedConstructorParameterPrefix`), the refinement of a constructor tail to its
+abstract shape in the parameter/field scope, and the per-constructor parameter
+prefixes (`ConstructorParameterPrefixes`) used by the recursor construction. -/
+
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
@@ -7,17 +13,17 @@ open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
-/-- Regard a constructor constant as the root of a telescope synthesis.  The
-existing narrow header certificate only uses the constant fields of its
-`target`; the empty constructor list therefore lets the same, already proved
-wrapping invariant serve constructor parameter prefixes without duplicating
-it. -/
+/-- Regard a constructor constant as the root of a header telescope.  The
+header telescope invariant (`checkInductiveTypes.loopType.ScopedHeaderTelescope`)
+only uses the constant fields of its `target`; the empty constructor list
+therefore lets the same invariant serve constructor parameter prefixes
+without duplicating it. -/
 def constructorTelescopeTarget (ctorVal : VConstVal) :
     VInductiveTypeSkeleton where
   toVConstVal := ctorVal
   ctors := []
 
-/-- Initialize constructor telescope synthesis from the independently
+/-- Initialize the constructor telescope from the
 translated source constant. -/
 noncomputable def ConstructorSynthesisState.initial
     (Hctor : TrSourceConstRaw env Us ctor type ctorVal)
@@ -29,9 +35,9 @@ noncomputable def ConstructorSynthesisState.initial
   exact checkInductiveTypes.loopType.ScopedHeaderTelescope.empty
     htype htype htyped
 
-/-- Exact semantic record of the common-parameter comparisons performed
-by `checkConstructors.loopCtor`.  Unlike `ParameterPrefix`, this trace
-does not forget the translated concrete constructor domain or the
+/-- The common-parameter comparisons performed
+by `checkConstructors.loopCtor`.  Unlike `ParameterPrefix`, this relation
+keeps the translated constructor domain and the
 definitional equality returned by the executable `isDefEq` call.
 
 The list of `sourceDomains` is in telescope order.  The scope is the cached
@@ -58,7 +64,7 @@ inductive CheckedConstructorParameterPrefix
         ((some (fv, deps), .vlam paramType) :: scope)
         (sourceDomains ++ [sourceDomain])
 
-/-- A successful cached-parameter comparison advances the semantic
+/-- A successful cached-parameter comparison advances the abstract
 constructor telescope directly.  The executable loop performs no
 normalization in this branch: after converting the binder context from the
 source domain to the cached parameter type, opening the source body with the
@@ -115,8 +121,8 @@ theorem checkInductiveTypes.loopType.ScopedHeaderTelescope.consumeConstructorPar
     exact ⟨next', hopened', Hnext⟩
 
 /-- Traverse the executable constructor's common-parameter prefix while
-building its independent semantic telescope.  The two callbacks isolate the
-control-flow boundaries: exact parameter coverage hands the synthesized tail
+building its abstract telescope.  The two callbacks isolate the
+control-flow boundaries: exact parameter coverage hands the constructed tail
 to the field verifier, while an early non-forall is discharged separately by
 the invalid-result argument. -/
 theorem checkConstructors.loopCtor.parameterTelescopeWF
@@ -293,7 +299,7 @@ theorem _root_.Lean4Lean.FVarsIn.getAppArgsList
 
 /-- Abstracting a free variable removes precisely that variable from the
 free-variable obligation. This is the structural lemma needed for nested
-parameter replacement, whose runtime `Expr.abstract` boundary is opaque. -/
+parameter replacement, which goes through the opaque executable `Expr.abstract`. -/
 theorem _root_.Lean4Lean.FVarsIn.abstract1_of
     (H : FVarsIn (fun fv => fv = selected ∨ P fv) e) :
     FVarsIn P (Expr.abstract1 selected e k) := by
@@ -326,10 +332,10 @@ theorem _root_.Lean4Lean.FVarsIn.abstractList_of
         · exact Or.inr (Or.inl hrest)
       · exact Or.inr (Or.inr hP)
 
-/-- A front retained by narrow index synthesis closes back to its narrow
+/-- An index front built in the checking scope closes back to its
 base, even when the executable `MLCtx` contains an interleaved ambient
-prefix below that front.  `FrontFVLift` retains the decisive fact that each
-new concrete domain depends only on the preceding narrow scope, while the
+prefix below that front.  `FrontFVLift` records the fact that each
+new executable domain depends only on the preceding checking scope, while the
 context equality identifies those dependency lists with the executable
 declarations selected by `MLCtx.mkForall`. -/
 theorem _root_.Lean4Lean.VerifyInductive.checkInductiveTypes.loopType.FrontFVLift.mkForall_fvarsIn_sourceBase
@@ -556,8 +562,8 @@ theorem checkConstructors.loopCtor.earlyParameterResult.WF
       (hsuffixWF.2.1 Hscope.fv Hscope.deps rfl).1
     exact False.elim (hfresh hargScope)
 
-/-- Constructor-tail refinement in the independent parameter/field scope.
-The executable traversal remains in the retained mutual-header context, but
+/-- Constructor-tail refinement in the parameter/field scope.
+The executable traversal runs in the mutual-header context, but
 the resulting `CtorTailWF` never mentions those ambient declarations. -/
 theorem checkConstructors.loopCtor.tailRefinesScoped
     {decl : VInductDecl} {target : VInductiveType}
@@ -857,10 +863,10 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
             .result hvalidAt (by rw [hspine, hlevelsEq])⟩,
             0, .codomain hhead⟩
 
-/-- Public constructor-shape refinement from the independent cached-parameter
+/-- Constructor-shape refinement from the cached-parameter
 scope.  `tailCtx` is allowed to be definitionally equal to the normalized
-constructor parameters, which is the semantic relation supplied by mutual
-header materialization. -/
+constructor parameters, which is the relation supplied by the
+header phase. -/
 theorem checkConstructors.loopCtor.ctorShapeRefinesScoped
     {decl : VInductDecl} {target : VInductiveType}
     {ctorVal : VConstVal} {params ownParams : List VExpr}
@@ -923,10 +929,10 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesScoped
     exact ⟨⟨normalized, ownParams, tail, exprType, scope.toCtx,
       hctor, htake, hparams, htailCtx, htail.shape⟩, hctorType⟩
 
-/-- Close a completely consumed constructor-parameter synthesis directly
+/-- Close a constructor-parameter telescope covering all parameters directly
 against the verified field tail.  In particular, the normalized constructor
-type and its `takeForalls` decomposition are outputs of the synthesis
-certificate rather than assumptions reconstructed by the caller. -/
+type and its `takeForalls` decomposition are outputs of the
+telescope rather than assumptions reconstructed by the caller. -/
 theorem checkConstructors.loopCtor.ctorShapeRefinesOfTelescope
     {decl : VInductDecl} {target : VInductiveType}
     {ctorVal : VConstVal} {params : List VExpr}
@@ -995,12 +1001,12 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesOfTelescope
   · exact htrNarrow
   · exact htrFull
 
-/-- End-to-end constructor telescope refinement in a single verifier
-environment.  The source constructor is independently translated in the
-empty scope; the executable closed-type result supplies its retained-runtime
-translation.  Cached common parameters are consumed by
-`parameterTelescopeWF`, and all remaining binders are checked by the narrow
-positivity refinement. -/
+/-- End-to-end constructor telescope refinement in a single
+environment.  The source constructor is translated in the
+empty scope; the executable closed-type result supplies its translation in
+the executable context.  Cached common parameters are handled by
+`parameterTelescopeWF`, and all remaining binders are checked by the
+positivity refinement in the checking context. -/
 theorem checkConstructors.loopCtor.refinesCtorShape
     {decl : VInductDecl} {target : VInductiveType}
     {ctorVal : VConstVal} {params : List VExpr}
@@ -1238,8 +1244,8 @@ theorem checkConstructors.loopCtor.refinesCtorShape
           (Hsuffix := Hsuffix) hiStats hnoFVars)
         (by omega) hforall
 
-/-- Checked concrete parameter replays accumulated within one production
-constructor array. -/
+/-- Parameter prefixes (`ParameterPrefix`) of the first `done` constructors
+of one executable constructor list. -/
 structure ConstructorParamPrefixRow
     (stats : AddInductive.InductiveStats) (ctors : List Constructor)
     (done : Nat) : Prop where
@@ -1275,8 +1281,8 @@ def ConstructorParamPrefixRow.push
       exact Hspine
     · exact H.spines i (by omega) hi'
 
-/-- Completed replay rows accumulated across the production mutual-family
-array. -/
+/-- Constructor parameter-prefix rows of the first `done` families of the
+executable mutual-family array. -/
 structure ConstructorParamPrefixRows
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) (done : Nat) : Prop where
@@ -1305,7 +1311,7 @@ def ConstructorParamPrefixRows.push
       exact Hrow
     · exact H.rows i (by omega) hi'
 
-/-- Public completed concrete replay certificate selected by family and
+/-- Parameter prefixes of every constructor, selected by family and
 constructor positions. -/
 structure ConstructorParameterPrefixes
     (stats : AddInductive.InductiveStats)
@@ -1314,7 +1320,7 @@ structure ConstructorParameterPrefixes
       (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length),
     ∃ tail, ParameterPrefix stats 0
       indTypes[familyIdx].ctors[ctorIdx].type tail
-  /-- Every production constructor type is a pure syntactic forall spine,
+  /-- Every executable constructor type is a pure syntactic forall spine,
   as walked by the executable check. -/
   spines : ∀ (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
       (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length),
@@ -1328,7 +1334,7 @@ def ConstructorParamPrefixRows.complete
   spines familyIdx hfamily ctorIdx hctor :=
     (H.rows familyIdx hfamily hfamily).spines ctorIdx hctor hctor
 
-/-- Full independently checked tail replay for one production constructor. -/
+/-- The checked parameter prefix and tail of one executable constructor. -/
 def CheckedConstructorTailAt
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)

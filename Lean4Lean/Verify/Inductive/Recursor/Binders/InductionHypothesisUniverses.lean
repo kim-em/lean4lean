@@ -12,8 +12,8 @@ local context.  Starting from a universe scope in which the inferred field
 type lives, every argument declaration opened by the traversal, and the
 exposed family application, therefore mention only the universe parameters
 of that scope.  These lemmas only need the recursor context and the
-`loopUArgs` trace, so they sit below the second pass, which retains their
-conclusion in each generated recursive-call row. -/
+`loopUArgs` run (`LoopUArgsRun`), so they sit below the minor pass, which records their
+conclusion for each generated recursive call. -/
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -105,9 +105,9 @@ theorem getTypeFVarInRecursorContext.levelsWF
 
 /-! ### The `loopUArgs` traversal -/
 
-/-- Universe support along an exact `loopUArgs.loop` trace.  If the
+/-- Universe support along a `loopUArgs.loop` run.  If the
 normalized input type lies in a universe scope `P` of a recursor context and
-mentions only `Us`, then at the terminal context of the trace there is a
+mentions only `Us`, then at the terminal context of the run there is a
 universe scope containing every opened argument, and the exposed type mentions
 only `Us` and lies in that scope. -/
 theorem LoopUArgsRun.universeSupport
@@ -237,7 +237,7 @@ theorem ConstructorTails.levelParamsIn
   rw [Hprefix.tail_eq Hprefix']
   exact Htail'.levelParamsIn
 
-/-! ### Retained recursive calls -/
+/-! ### Recursive calls -/
 
 /-- Universe support of the payload of one `loopUArgs` traversal: the
 argument telescope closed over the opened arguments and the exposed family

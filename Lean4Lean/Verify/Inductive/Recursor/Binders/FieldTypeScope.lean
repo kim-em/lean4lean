@@ -6,7 +6,7 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! Scope of a retained constructor field's declared type.
+/-! Scope of the declared type of a constructor field opened by the minor pass.
 
 A recursive field's induction hypothesis must be generated from binder
 domains scoped over the parameters and the *earlier* fields only.  The
@@ -94,7 +94,7 @@ theorem TypeChecker.MLCtx.recentTypeScope {env : VEnv} {Us : List Name} :
       · simpa only [TypeChecker.MLCtx.fvarRevList, TypeChecker.MLCtx.dropN,
           List.drop_succ_cons] using hscope
 
-/-- The declared type of a retained field is scoped over the root scope `P`
+/-- The declared type of an opened field is scoped over the root scope `P`
 and the earlier fields: its dependencies are older binders, and an older
 binder in the root is in `P` by the field up-set since fields are fresh. -/
 theorem RecursorFVarSuffix.fieldTypeScope

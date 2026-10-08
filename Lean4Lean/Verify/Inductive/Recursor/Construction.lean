@@ -11,9 +11,10 @@ open Lean hiding Environment Exception
 open Kernel
 namespace VerifyInductive
 
-/-- Retained executable recursor construction before abstract targets are
-selected and installed. Every canonical translation is derived at this
-boundary from the shared source signature and these construction traces. -/
+/-- The recursor construction: the executable's elimination level and `mkRecInfos` result,
+run on top of a constructor check, with their translations, before the recursor entries are
+chosen and installed. The construction's signature and generator (`generator`) are derived
+from these fields. -/
 structure RecursorConstruction
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -25,8 +26,8 @@ structure RecursorConstruction
   sourceSafety : isUnsafe = (c.safety != .safe)
   elimLevel : Level
   elimLevelAdmissible : AddInductive.AdmissibleElimLevel c.lparams elimLevel
-  /-- Retain the actual elimination decision in the constructor-stage context.
-  Freshness of a universe parameter alone does not justify large elimination. -/
+  /-- The elimination level is the one `getElimLevel` computes in the constructor
+  environment. Freshness of a universe parameter alone does not justify large elimination. -/
   elimLevelChecked : AddInductive.getElimLevel stats indTypes
     { c with env := ctorEnv } = .ok elimLevel
   lparamsNodup : c.lparams.Nodup
@@ -47,7 +48,7 @@ structure RecursorConstruction
   recursor is installed.  These translations are the only derivations of the
   closed recursor telescopes available before installation: the minor
   premises mention motives, so their translations cannot be rebuilt from the
-  free-variable contexts of the first pass without strengthening. -/
+  free-variable contexts of the motive pass without strengthening. -/
   recursorTypes : TrRecursorTypes R.context.venv localContext.lparams elimLevel
     localContext stats indTypes recInfos
   parameterSuffix : RecursorParameterContextSuffix recursorWF stats

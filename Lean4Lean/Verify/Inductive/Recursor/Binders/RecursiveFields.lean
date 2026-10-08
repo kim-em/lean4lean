@@ -1,5 +1,11 @@
 import Lean4Lean.Verify.Inductive.Recursor.Context.ParameterContext
 
+/-! Recursive-field classification at the recursor universe arity: application
+statistics under the recursor universes (`RecursorValidAppStatsWF`), the validated
+recursive-field application (`RecursorValidatedIndAppAt`), and the field selections
+and decisions of a constructor traversal (`RecursiveFieldSelectionsAt`,
+`RecursorFieldDecisions`). -/
+
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
@@ -10,8 +16,8 @@ namespace VerifyInductive
 /-- Application statistics interpreted under recursor universes.  Unlike
 `ValidAppStatsWF`, this structure does not claim that the recursor universe
 list has the declaration's arity: large elimination has one additional
-parameter.  The original constant-level arity remains recorded by `levels`,
-while all concrete cached parameters are translated in the actual recursor
+parameter.  The declaration's constant-level arity remains recorded by `levels`,
+while all cached executable parameters are translated in the actual recursor
 context. -/
 structure RecursorValidAppStatsWF
     (env : VEnv) (recLparams : List Name) (Δ : VLCtx)
@@ -110,7 +116,7 @@ def RecursorParameterContextSuffix.scopedStats
     exact H.suffixParams
   paramFVars := Hstats.paramFVars
 
-/-- Opening one semantic index under recursor universes weakens every cached
+/-- Opening one index under recursor universes weakens every cached
 parameter target by exactly one binder. -/
 theorem RecursorValidAppStatsWF.withFVar
     (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
@@ -295,7 +301,7 @@ theorem RecursorValidAppStatsWF.translatedIndexNoOccurrence
     harg hno
 
 /-- Recursor-universe form of application validation.  The executable
-classifier depends on the declaration's original constant levels, while the
+classifier depends on the declaration's constant levels, while the
 translated expression may live under the extra large-elimination universe. -/
 theorem RecursorValidAppStatsWF.validIndAppAtTarget
     (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
@@ -349,8 +355,8 @@ theorem RecursorValidAppStatsWF.validIndAppAtTarget
     hvalidIdx hargs hlit hctx
     (by rw [H.params_size]; omega) (by simpa [Nat.add_comm] using hj)
 
-/-- The concrete suffix consumed by motive application translates exactly to
-the abstract index suffix of a validated mutual-family application. -/
+/-- The executable argument suffix after the parameters (the indices to which the
+motive is applied) translates exactly to the abstract index suffix of a validated mutual-family application. -/
 theorem RecursorValidAppStatsWF.translatedIndices
     (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
     (htr : TrExprS env recLparams scope type type')
@@ -487,9 +493,9 @@ theorem RecursorValidAppStatsWF.translatedIndices
   · simpa [hsplit] using hspine
   · rwa [hfamilyTargetEq] at hfamilyTr
 
-/-- Complete terminal payload produced by the explicit recursive-result
-validation branch.  It packages the targeted abstract application together
-with the exact concrete/abstract index correspondence used by the motive. -/
+/-- The result of the recursive-field validation branch: the abstract
+application of the target family together with the executable/abstract index
+correspondence used by the motive. -/
 structure RecursorValidatedIndAppAt
     (env : VEnv) (recLparams : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
@@ -528,7 +534,7 @@ def RecursorValidAppStatsWF.validatedIndAppAt
 namespace isRecArg.loop
 
 /-- The recursive-field classifier remains sound after generated recursor
-frames rebase the semantic universe list. -/
+frames rebase the abstract universe list. -/
 theorem refinesRecursor
     {decl : VInductDecl} {depth : Nat} {type' : VExpr}
     {recLparams : List Name}
@@ -650,7 +656,7 @@ theorem isRecArg.refinesRecursor
     htype htype₀
 
 /-- Recursive-domain metadata interpreted at an explicit universe arity.
-This is the second-pass analogue of `RecursiveFieldDomain`; it is needed
+This is the minor-pass analogue of `RecursiveFieldDomain`; it is needed
 while large-elimination recursors are being built under their fresh leading
 universe parameter. -/
 structure RecursiveFieldDomainAt
@@ -664,7 +670,8 @@ structure RecursiveFieldDomainAt
   recursive : decl.RecursiveArgAtTarget env uvars
     (decl.types[ownerIdx]'owner_lt).name ctx depth domain
 
-/-- Exact field-selection trace at the recursor universe arity. -/
+/-- Recursive-field selections along a constructor telescope, at the recursor
+universe arity. -/
 inductive RecursiveFieldSelectionsAt
     (env : VEnv) (decl : VInductDecl) (uvars : Nat) :
     Array Expr → Array Expr →
@@ -677,10 +684,10 @@ inductive RecursiveFieldSelectionsAt
       RecursiveFieldSelectionsAt env decl uvars (bu.push arg) (u.push arg)
         (fields ++ [cert])
 
-/-- Exact successful classifier decisions made while traversing constructor
-fields.  Unlike `RecursiveFieldSelectionsAt`, this trace retains the `none`
-branches as well as the selected ordinals, so independently replayed passes
-can later be compared by an operational alpha-invariance theorem. -/
+/-- The successful classifier decisions made while traversing constructor
+fields.  Unlike `RecursiveFieldSelectionsAt`, this relation records the `none`
+branches as well as the selected ordinals, so that two traversals of the same
+telescope can be compared by an alpha-invariance theorem. -/
 inductive RecursorFieldDecisions (stats : AddInductive.InductiveStats)
     (root : AddInductive.Context) (source : Expr) :
     AddInductive.Context → Expr → Array Expr → Array Expr →
@@ -752,8 +759,8 @@ theorem RecursorFieldDecisions.positions_lt
 /-- The decision mask is not merely cardinality metadata: its `j`th ordinal
 selects the exact `j`th member of the recursive-field array from the complete
 field array.  This formulation is independent of the fresh identifiers used
-by a particular traversal and is therefore the pointwise companion to replay
-compatibility. -/
+by a particular traversal, so it is the pointwise companion of the
+alpha-invariance comparison. -/
 theorem RecursorFieldDecisions.selected_at
     (H : RecursorFieldDecisions stats root source c t bu u positions)
     (j : Nat) (hj : j < u.size) :
@@ -860,7 +867,7 @@ theorem RecursiveFieldSelectionsAt.positions_lt
     · simp only [Array.size_push, hindex]
       omega
 
-/-- The target-indexed recursor trace retains the same pointwise alignment
+/-- The selections at the recursor universe arity have the same pointwise alignment
 between selected recursive fields and the complete constructor-field array
 as its declaration-universe counterpart. -/
 theorem RecursiveFieldSelectionsAt.arguments_at_positions
@@ -902,9 +909,9 @@ theorem RecursiveFieldSelectionsAt.arguments_at_positions
       simpa [hindex] using (@Array.getElem_push_eq Expr bu arg).symm
     · exact .nil
 
-/-- Specialize a recursor-universe recursive-domain witness to the declaration
-universe arity.  Zero is a valid specialization for every recursor universe;
-the concrete field selection remains unchanged, while the semantic context
+/-- Specialize recursive-domain metadata at the recursor universe arity to the
+declaration universe arity.  Zero is a valid specialization for every recursor universe;
+the executable field selection is unchanged, while the abstract context
 and domain are instantiated in lockstep. -/
 def RecursiveFieldDomainAt.toSource
     (cert : RecursiveFieldDomainAt env decl uvars) :
@@ -922,9 +929,10 @@ def RecursiveFieldDomainAt.toSource
     (cert : RecursiveFieldDomainAt env decl uvars) :
     cert.toSource.fieldIndex = cert.fieldIndex := rfl
 
-/-- Field selection is operationally universe-insensitive.  Specializing each
-semantic domain therefore converts the second-pass trace directly into the
-source-universe trace consumed by the independent iota specification. -/
+/-- Field selection does not depend on the universe arity.  Specializing each
+abstract domain therefore converts the minor-pass selections into the
+declaration-universe selections `RecursiveFieldSelections` used by the iota
+specification. -/
 theorem RecursiveFieldSelectionsAt.toSource
     (H : RecursiveFieldSelectionsAt env decl uvars bu u fields) :
     RecursiveFieldSelections env decl bu u

@@ -1,5 +1,13 @@
 import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope
 
+/-! Applying a function to arguments along a translated forall telescope.
+
+The de Bruijn lemmas identify the source-side instantiation of a forall body
+(`Expr.instantiateForallBody`) with `instantiateRevList` for closed arguments.
+`Expr.ForallTelescopeTypeTranslation.applyTranslatedArguments` then instantiates the source
+and abstract telescopes of a type with translated arguments in lockstep and types the
+abstract application at the instantiated residual. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -8,7 +16,7 @@ open Kernel
 namespace VerifyInductive
 
 /-- Opening two closed terms at different de Bruijn depths commutes, with
-the outer depth decreasing by one after the inner binder is consumed. -/
+the outer depth decreasing by one once the inner binder is instantiated. -/
 theorem Expr.instantiate1'_instantiate1'_closed
     (e outer inner : Expr) (j d : Nat)
     (houter : outer.Closed 0) (hinner : inner.Closed 0) :
@@ -84,9 +92,9 @@ theorem Expr.instantiateRevList_instantiate1'_closed
     exact Expr.instantiate1'_instantiate1'_closed _ _ _ k d harg
       (hargs head (by simp))
 
-/-- For closed concrete arguments, the source-side operation used while
-consuming a translated forall telescope is exactly Lean's reverse
-simultaneous instantiation of the exposed residual. -/
+/-- For closed arguments, the source-side instantiation of a forall body used along a
+translated forall telescope is Lean's reverse simultaneous instantiation
+`instantiateRevList`. -/
 theorem Expr.instantiateForallBody_eq_instantiateRevList
     (body : Expr) (args : List Expr)
     (hargs : ∀ arg ∈ args, arg.Closed 0) :
@@ -108,10 +116,9 @@ theorem Expr.instantiateForallBody_eq_instantiateRevList
         simpa using Expr.instantiateRevList_instantiate1'_closed
           body arg args 0 0 (hargs arg (by simp)) htail
 
-/-- Substitute one translated argument through a binder-by-binder telescope
-certificate.  Reconstructing the certificate from its translated whole type
-keeps the dependent source residual and abstract residual synchronized at the
-correct binder depth. -/
+/-- Substitute one translated argument, typed at the first domain, into a forall
+telescope translation. The result is rebuilt from the instantiated whole type, so the
+source and abstract residuals stay at the same binder depth. -/
 theorem Expr.ForallTelescopeTypeTranslation.inst
     (henv : env.Ordered)
     (HargType : env.HasType Us.length Δ.toCtx argTarget domainTarget)
@@ -127,10 +134,10 @@ theorem Expr.ForallTelescopeTypeTranslation.inst
   exact Expr.ForallTelescopeTypeTranslation.ofTrExprS
     Htelescope' Htranslation Htype
 
-/-- Apply a translated function to a translated dependent argument spine
-while consuming its concrete and abstract forall telescopes in lockstep.
-The result retains the translation of the literally instantiated concrete
-residual and gives the application its exact abstract residual type. -/
+/-- Apply a function of the translated type to translated dependent arguments,
+instantiating the source and abstract forall telescopes in lockstep. The instantiated
+source residual translates to the abstract residual type, and the abstract application
+has that type. -/
 theorem Expr.ForallTelescopeTypeTranslation.applyTranslatedArguments
     (henv : env.WF)
     (hctx : OnCtx Δ.toCtx (env.IsType Us.length))

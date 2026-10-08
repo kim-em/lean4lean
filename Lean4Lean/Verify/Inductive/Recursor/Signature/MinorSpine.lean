@@ -2,7 +2,9 @@ import Lean4Lean.Verify.Inductive.Recursor.Construction
 import Lean4Lean.Verify.Inductive.Constructor.Check
 import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
 
-/-! Exact source telescopes for the retained first recursor pass. -/
+/-! Source telescopes of the constructor traversals recorded for each minor premise during the
+minor pass of the recursor construction: each traversal's parameter tail translates to the
+generator's field and result-index telescope of the matching signature constructor. -/
 
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
@@ -16,9 +18,8 @@ private theorem forallSpine_of_telescope
   | nil => exact .codomain hhead
   | cons _ ih => exact .step (ih hhead)
 
-/-- A retained traversal ends at a literal mutual-family application. Its
-field array therefore counts the entire forall prefix, with no hidden
-binders in the residual. -/
+/-- A constructor traversal ends at an application of a block family, so its field array
+covers the whole forall prefix of its parameter tail. -/
 theorem ConstructorFieldTraversal.sourceSpine
     (T : ConstructorFieldTraversal)
     (hconsts : checkPositivityStep.IndConstArray T.stats.levels T.stats.indConsts names)
@@ -34,9 +35,11 @@ theorem ConstructorFieldTraversal.sourceSpine
   rw [← T.fieldClosed, Expr.getAppFn_abstractList, hhead]
   induction T.fieldFVars <;> simp_all [Expr.abstractList, Expr.abstract1]
 
-/-- The first recursor pass and the independent generator use the same
-constructor at the same flattened offset. Replaying the cached parameter
-prefix recovers the generator's literal field and result-index telescope. -/
+/-- The minor at position `localIndex` of family `owner` was built from the signature
+constructor at flattened offset `recursorMinorOffset indTypes owner + localIndex`: its recorded
+traversal has the same owner, name and number of fields, and its parameter tail translates, in
+the header environment over the parameter scope, to the constructor's field types followed by
+its family application. -/
 theorem RecursorConstruction.minorSourceReplay
     {isUnsafe : Bool}
     {R : ConstructorCheck c stats decl nparams isUnsafe depth

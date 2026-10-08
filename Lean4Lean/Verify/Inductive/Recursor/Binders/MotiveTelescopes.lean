@@ -1,5 +1,11 @@
 import Lean4Lean.Verify.Inductive.Recursor.Binders.InductionHypothesisTypes
 
+/-! Motive application properties used by the minor pass: the lookup of a generated
+motive (`MotiveBindingAt`, `MotiveBinding`), the shared family/motive telescope
+(`MotiveAppliesTo`, `MotiveAppliesAbove`), the motive data recorded by the motive
+pass (`MotiveDecl`, `ClosedMotiveTelescope`), and their per-family arrays
+(`RecInfoMotiveTelescopes`, `RecInfoMotiveApplications`). -/
+
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
@@ -7,9 +13,9 @@ open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
-/-- Semantic lookup package for one generated motive.  It connects the
-retained executable free variable to the exact independently recorded
-index/major telescope used when the motive was introduced. -/
+/-- Lookup data for one generated motive.  It connects the
+executable free variable to the index/major telescope recorded when the
+motive was introduced. -/
 structure MotiveBindingAt
     {c : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF c recLparams)
@@ -29,8 +35,8 @@ structure MotiveBindingAt
   typeIsType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
     motiveTypeTarget
 
-/-- Context-local semantic package for a generated motive, stated directly
-against one `RecInfo`.  The indexed lookup package below is converted to this
+/-- Context-local data for a generated motive, stated directly
+against one `RecInfo`.  The indexed lookup data `MotiveBindingAt` is converted to this
 form before invoking the context-independent motive application invariant. -/
 structure MotiveBinding
     {c : AddInductive.Context} {recLparams : List Name}
@@ -59,16 +65,16 @@ def MotiveBindingAt.toBinding
   typing := H.typing
   typeIsType := H.typeIsType
 
-/-- Independent semantic contract for applying one generated motive.  It is
-deliberately quantified over the eventual reader context: the first
-`mkRecInfos` pass records this property once for each `RecInfo`, while the
-second pass may use it after opening any number of constructor or
+/-- The typing property for applying one generated motive.  It is
+quantified over the later context in which it is used: the motive pass of
+`mkRecInfos` records this property once for each `RecInfo`, while the
+minor pass uses it after opening any number of constructor or
 higher-order recursive binders.
 
-The validated application supplies the exact source/abstract index payload.
+The validated application supplies the executable/abstract index correspondence.
 The other two typing premises say that the exposed family application is a
-type and that the proposed major premise inhabits it.  Thus this contract is
-precisely the declarative fact needed to justify production's motive
+type and that the proposed major premise inhabits it.  Thus this property is
+the declarative fact needed to justify the executable's motive
 application, rather than an assertion about the executable classifier. -/
 def MotiveApplicationAbove
     {root : AddInductive.Context} {recLparams : List Name}
@@ -95,10 +101,10 @@ def MotiveApplicationAbove
       TrExprS R.venv recLparams R.mlctx.vlctx motiveApp motiveTarget ∧
       R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx motiveTarget
 
-/-- The smaller semantic payload from which a motive application follows.
-It states that the validated terminal family application and the retained
-motive type consume the same abstract index telescope.  Keeping this
-separate makes the first-pass obligation reviewable: it need not mention a
+/-- The smaller fact from which a motive application follows.
+It states that the validated terminal family application and the
+motive type range over the same abstract index telescope.  Keeping this
+separate keeps the motive-pass obligation small: it need not mention a
 particular recursive field or induction-hypothesis major. -/
 structure MotiveAppliesTo
     {c : AddInductive.Context} {recLparams : List Name}
@@ -125,9 +131,9 @@ structure MotiveAppliesTo
   telescope : RecursorMotiveTelescope resultLevel indices.length family
     familyType motiveType
 
-/-- Fill the syntactic half of shared-telescope evidence directly from the
-validated terminal payload.  The only remaining inputs are the semantic
-typing of the family prefix and its parallel relation to the retained motive
+/-- Fill the syntactic half of `MotiveAppliesTo` directly from the
+validated terminal application.  The only remaining inputs are the
+typing of the family prefix and its parallel relation to the motive
 type. -/
 theorem RecursorValidatedIndAppAt.motiveAppliesTo
     {c : AddInductive.Context} {recLparams : List Name}
@@ -182,8 +188,8 @@ theorem RecursorValidatedIndAppAt.motiveAppliesTo
     telescope := Htelescope }⟩
 
 /-- Exact-target form of motive application.  Besides typing the result, it
-records that the strict translation target is literally the retained motive
-local applied to the evidence's index spine and the checked major premise. -/
+records that the strict translation target is literally the motive
+local applied to the index spine of `MotiveAppliesTo` and the checked major premise. -/
 theorem MotiveAppliesTo.applyMajorTypedExact
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
@@ -234,8 +240,8 @@ theorem MotiveAppliesTo.applyMajorTypedExact
       Expr.mkAppList_append, VExpr.mkApps, List.foldl_append] using Htranslated,
     Hresult'⟩
 
-/-- A shared family/motive telescope supplies the complete independently
-typed motive application.  The exact result sort is retained for equation
+/-- A shared family/motive telescope types the complete
+motive application.  The result sort is stated exactly for equation
 typing; the abstract spine is assembled without invoking executable
 inference. -/
 theorem MotiveAppliesTo.applyMajorTyped
@@ -280,8 +286,8 @@ theorem MotiveAppliesTo.applyMajor
   rcases H.applyMajorTyped Hmajor HmajorType with ⟨target, Htr, Htyped⟩
   exact ⟨target, Htr, H.resultLevel, Htyped⟩
 
-/-- Rooted, context-polymorphic form of the shared telescope evidence.  This
-is the invariant established by the first `mkRecInfos` pass; later recursive
+/-- Rooted, context-polymorphic form of `MotiveAppliesTo`.  This
+is the invariant established by the motive pass of `mkRecInfos`; later recursive
 field traversals supply only the validated terminal application. -/
 def MotiveAppliesAbove
     {root : AddInductive.Context} {recLparams : List Name}
@@ -309,10 +315,10 @@ theorem MotiveAppliesAbove.toApplication
   rcases H R Hext binding Hexposed HsyntaxType Hvalidated with ⟨Hevidence⟩
   exact Hevidence.applyMajor Hmajor HmajorType
 
-/-- Canonical, permutation-free motive telescope produced while replaying a
-family header.  Unlike the executable seed below, this package lives only
-under the common parameter domains: later first-pass index/major frames have
-not yet been interleaved with sibling motives.  It is therefore the stable
+/-- Permutation-free motive telescope produced while opening a
+family header.  Unlike `MotiveDecl` below, this structure lives only
+under the common parameter domains: later motive-pass index/major frames have
+not yet been interleaved with sibling motives.  It is therefore the
 form that can be compared with the grouped generated-recursor telescope. -/
 structure ClosedMotiveTelescope
     (env : VEnv) (levelParams : List Name)
@@ -344,9 +350,9 @@ structure ClosedMotiveTelescope
       (.sort resultLevel))
   family_typing : env.HasType levelParams.length params.reverse family
     (VExpr.wrapForalls indices familyResult)
-  /-- The canonical full index application is itself a type.  This is the
-  semantic result-sort invariant needed to form the major binder of the
-  canonical motive, retained directly at the expression consumed there. -/
+  /-- The full index application is itself a type.  This is the
+  result-sort fact needed to form the major binder of the
+  motive, stated at the expression used there. -/
   familyApplicationType : env.IsType levelParams.length
     (indices.reverse ++ params.reverse)
     (VExpr.mkApps (family.liftN indices.length 0)
@@ -379,8 +385,8 @@ def ClosedMotiveTelescope.mono
   familyApplicationType := H.familyApplicationType.mono henv
   telescope := H.telescope
 
-/-- Context-converted form of `applyMajorTypedAfter`.  This is the equation
-typing interface: the canonical first-pass parameter scope may be replaced
+/-- Context-converted form of the telescope's `applyMajorTyped`.  This is the equation
+typing interface: the motive-pass parameter scope may be replaced
 by the cached or generated parameter scope before the common inner binder
 block is introduced. -/
 theorem ClosedMotiveTelescope.applyMajorTypedAfterDefEq
@@ -408,9 +414,9 @@ theorem ClosedMotiveTelescope.applyMajorTypedAfterDefEq
   rw [← hindices] at Htelescope
   exact Htelescope.applyMajorTyped henv hctx Hfamily Hmotive Hmajor
 
-/-- Context-rooted semantic seed for one generated motive.  The first
-`mkRecInfos` pass establishes this package at the point where the motive is
-introduced.  Its family prefix has unique concrete translation, while the
+/-- Context-rooted data for one generated motive.  The motive pass of
+`mkRecInfos` establishes it at the point where the motive is
+introduced.  Its family prefix has a unique translation, while the
 stored motive type is compared definitionally after later context extension. -/
 structure MotiveDecl
     {root : AddInductive.Context} {recLparams : List Name}
@@ -423,7 +429,7 @@ structure MotiveDecl
   target_lt : target < decl.types.length
   indexCount : info.indices.size =
     (decl.types[target]'target_lt).numIndices
-  /-- The actual completed index telescope passed the original-universe
+  /-- The index telescope passed the declaration-universe
   guard before this family's major and motive declarations were added. -/
   indexUniverses : (root.lctx.mkForall info.indices (.sort .zero)).levelParamsIn root.lparams = true
   family : VExpr
@@ -432,7 +438,7 @@ structure MotiveDecl
   motiveActualType : VExpr
   motiveType : VExpr
   resultLevel : VLevel
-  /-- The exact production motive telescope before it is weakened through
+  /-- The executable motive telescope before it is weakened through
   this family's opened indices, major, and motive declarations.  Keeping
   the closed scope explicit is what permits later inverse weakening to
   discard the interleaved executable frames and return to the cached
@@ -447,10 +453,10 @@ structure MotiveDecl
   motiveParameterDecls : List.Forall₂
     checkInductiveTypes.loopType.CachedParameterDecl
     stats.params.toList.reverse motiveParameterScope
-  /-- The genuine-index front also exposes the narrow scope below those
+  /-- The index front also exposes the parameter scope below those
   indices, together with its literal weakening into the closed executable
-  context.  This is the context in which the canonical motive is originally
-  synthesized. -/
+  context.  This is the context in which the generated motive is first
+  built. -/
   motiveSourceScope : VLCtx
   motiveSourceExpanded : VLCtx
   motiveSourceShift : Lift
@@ -465,7 +471,7 @@ structure MotiveDecl
   motiveSourceFVars : FVarsIn (· ∈ motiveSourceScope.fvars)
     (root.lctx.mkForall info.indices
       (root.lctx.mkForall #[info.major] (.sort elimLevel)))
-  /-- The motive translated directly in its narrow parameter scope, from the
+  /-- The motive translated directly in its parameter scope, from the
 checker context in which its indices were opened. -/
   motiveSourceTarget : VExpr
   motiveSourceTr : TrExprS Rroot.venv recLparams motiveSourceScope
@@ -510,9 +516,9 @@ checker context in which its indices were opened. -/
   telescope : RecursorMotiveTelescope resultLevel info.indices.size
     family familyType motiveType
 
-/-- A motive seed remains valid after later executable frames extend its
-root context.  The paired canonical telescope is unchanged, while every
-runtime target is weakened by the exact retained recursor-context lift. -/
+/-- `MotiveDecl` remains valid after later executable frames extend its
+root context.  The paired generated telescope is unchanged, while every
+executable target is weakened by the recursor-context lift. -/
 def MotiveDecl.mono
     {root current : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -620,7 +626,7 @@ def MotiveDecl.mono
     telescope := H.telescope.lift' (Hext.shift.consN 0) }
 
 /-- Changing only irrelevant `RecInfo` fields, such as the accumulated minor
-array, preserves the paired first-pass seed. -/
+array, preserves `MotiveDecl`. -/
 def MotiveDecl.congrInfo
     (H : MotiveDecl Rroot stats decl target info elimLevel)
     (hindices : info'.indices = info.indices)
@@ -677,11 +683,11 @@ def MotiveDecl.congrInfo
   motiveTypeDefEq := H.motiveTypeDefEq
   telescope := by simpa [hindices] using H.telescope
 
-/-- A first-pass telescope seed supplies the context-polymorphic contract
-used by recursive constructor traversal.  Exact context extensions preserve
-the seed; unique translation identifies the validated family prefix, and
-translation uniqueness relates the later motive binding to the stored
-canonical motive telescope. -/
+/-- `MotiveDecl` supplies the context-polymorphic property `MotiveAppliesAbove`
+used by recursive constructor traversal.  Context extensions preserve
+`MotiveDecl`; unique translation identifies the validated family prefix and
+relates the later motive binding to the stored
+generated motive telescope. -/
 theorem MotiveDecl.toTelescopeAt
     {root : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -753,9 +759,9 @@ theorem MotiveDecl.toTelescopeAt
     (H.motiveType.lift' (Hext.shift.consN 0)) H.resultLevel hspine Hindices
     HfamilyTyping' HfamilyTypeDefEq HmotiveDefEq Htelescope'
 
-/-- The motive-telescope contract is insensitive to the minor array stored
-beside the motive, indices, and major.  This extensional form is useful for
-the in-place record updates performed by the second `mkRecInfos` pass. -/
+/-- `MotiveAppliesAbove` is insensitive to the minor array stored
+beside the motive, indices, and major.  This extensional form is used for
+the in-place record updates performed by the minor pass of `mkRecInfos`. -/
 theorem MotiveAppliesAbove.congrInfo
     (H : MotiveAppliesAbove Rroot stats decl target info elimLevel)
     (hmotive : info'.motive = info.motive)
@@ -786,7 +792,7 @@ theorem MotiveAppliesAbove.congrInfo
     motive_type_defeq := Hevidence.motive_type_defeq
     telescope := Hevidence.telescope }⟩
 
-/-- Pointwise shared family/motive telescopes for a completed mutual record
+/-- Pointwise shared family/motive telescopes for a mutual `RecInfo`
 array.  This is stronger and easier to establish than storing applications
 for arbitrary majors directly. -/
 structure RecInfoMotiveTelescopes
@@ -901,8 +907,8 @@ def RecInfoMotiveTelescopes.push
       exact H.canonical target hold
 
 /-- Adding a minor premise does not change any family's motive telescope.
-The executable second pass updates `RecInfo.minors` in place; making this
-transport explicit keeps the first-pass semantic contract available after
+The executable minor pass updates `RecInfo.minors` in place; this
+lemma keeps the motive-pass property available after
 every constructor. -/
 def RecInfoMotiveTelescopes.modifyMinors
     (H : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
@@ -943,11 +949,11 @@ def RecInfoMotiveTelescopes.modifyMinors
           hold howner]
       exact ⟨C, hparams⟩
 
-/-- Pointwise motive-application contracts for the complete mutual `RecInfo`
-array.  Array indexing, rather than family names, is intentional: production
+/-- Pointwise motive-application properties for the complete mutual `RecInfo`
+array.  Array indexing, rather than family names, is intentional: the executable
 selects motives with the target returned by `isValidIndApp?`, and the
-validated application certificate proves that the same target denotes the
-independent source family. -/
+validated application (`RecursorValidatedIndAppAt`) shows that the same target denotes the
+source family. -/
 structure RecInfoMotiveApplications
     {root : AddInductive.Context} {recLparams : List Name}
     (Rroot : RecursorContextWF root recLparams)
@@ -971,8 +977,8 @@ def RecInfoMotiveTelescopes.applications
   application target htarget :=
     MotiveAppliesAbove.toApplication (H.telescope target htarget)
 
-/-- Recover one motive's complete semantic lookup package from the binding,
-origin, and telescope-shape invariants retained by the first mutual pass. -/
+/-- Recover one motive's lookup data `MotiveBindingAt` from the binding,
+binder-type, and telescope-shape invariants established by the motive pass. -/
 theorem MotiveTypes.motiveBindingAt
     (R : RecursorContextWF c recLparams)
     (Hbindings : RecInfoBindings c recInfos)

@@ -36,8 +36,8 @@ theorem checkInductiveTypes.loopType.ParameterContextSuffix.recursorDomains
   | succ level | max left right | imax left right | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-/-- The generated parameter domains descend from the actual cached source
-scope, with exactly the executable recursor universe substitution. -/
+/-- The recursor parameter context is the source parameter scope instantiated at the
+recursor's universe levels (`recursorDeclarationAbstractLevels`). -/
 theorem RecursorConstruction.parameterDomains
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -52,8 +52,9 @@ theorem RecursorConstruction.parameterDomains
     R.recursorHeaders_parameterScope
   rw [hscope]
 
-/-- Translate the concrete closed parameter telescope to that source-boundary
-choice, without deriving a literal target from translation uniqueness. -/
+/-- The executable's closed parameter telescope (ending in `Prop`) translates, at the recursor's
+universe parameters, to the source parameter scope instantiated at the recursor's universe
+levels. -/
 theorem RecursorConstruction.sourceParameterTranslation
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}

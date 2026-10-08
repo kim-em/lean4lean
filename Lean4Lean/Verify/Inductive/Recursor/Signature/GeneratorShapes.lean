@@ -2,16 +2,17 @@ import Lean4Lean.Theory.Typing.SignatureArity
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Inductive.CompilationLemmas
 import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
-/-! Generated ordinary recursor and iota shapes.
+/-! Shapes of the generated recursors and iota equations.
 
-The operational shape contracts follow from the independent generator's
-syntax. Constructor index arity is a separate formation consequence.
+The shape records used by the reduction proofs (`VRecursorShape`, `VIotaRuleShape`) follow
+from the generator's syntax. The index arity of each constructor is a separate hypothesis,
+supplied by formation.
 -/
 
 namespace Lean4Lean
 namespace InductiveSignature
 
-/-- An ordinary generated equation is headed by its owner recursor. -/
+/-- A generated iota equation is headed by the recursor of its constructor's family. -/
 theorem Instance.equation_head {s : InductiveSignature} (g : Instance s)
     (index : Fin s.constructors.size) :
     (g.equation index).lhs.stripLams.getAppFnArgs.1 =
@@ -20,8 +21,9 @@ theorem Instance.equation_head {s : InductiveSignature} (g : Instance s)
     (fun _ h => by cases h) ?_ (Restoration.expr_empty (g.equation index).lhs)
   exact VExpr.getAppFnArgs_mkApps_head _ _
 
-/-- The generated telescope has exactly the major-family shape consumed by
-the recursor reducer, with ordinary uniform constructor parameters. -/
+/-- A generated recursor installed with its generated type has the shape expected by recursor
+reduction (`VRecursorShape`): its last domain is the family applied to the parameters and the
+indices, and constructors take the recursor's parameters. -/
 theorem Instance.recursor_shape {s : InductiveSignature} (g : Instance s)
     (owner : Fin s.families.size) {env : VEnv}
     (hlookup : env.constants (g.recursorName owner) = some (g.recursor owner).toVConstant) :
@@ -78,8 +80,10 @@ theorem insertBinders_defeq {env : VEnv} (henv : VEnv.WF env) {U n i e : Nat}
   rw [insertBinders_getElem, VExpr.instOuter_insert_bvars _ _ _ _ hclosed]
   exact hW
 
-/-- Generation fixes the complete iota pattern; only family index arity and
-installation of that exact equation are supplied separately. -/
+/-- A generated iota equation has the iota-rule shape (`VIotaRuleShape`), given that the
+equation is stored, the recursor is installed with its generated type, the constructor has its
+family's number of indices, and the installed constructor type is definitionally the
+signature's. -/
 theorem Instance.iota_shape {s : InductiveSignature} (g : Instance s)
     (index : Fin s.constructors.size) {env₀ env : VEnv}
     (henv : VEnv.WF env₀) (hle : env₀ ≤ env) (hconst : ∀ n, env.constants n = env₀.constants n)

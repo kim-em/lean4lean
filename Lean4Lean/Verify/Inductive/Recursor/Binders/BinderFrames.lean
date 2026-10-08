@@ -1,5 +1,11 @@
 import Lean4Lean.Verify.Inductive.Recursor.Binders.MotiveTelescopes
 
+/-! Binder frames of the recursor construction: the binder groups (parameters,
+motives, minors, indices, major) that one generated recursor type is built from,
+their order in the executable local context (`RecInfoOuterOrder`), the motive
+shapes `MotiveTypes`, and the row counts of the motive and minor passes of
+`mkRecInfos`. Part of the recursor phase (section 3.2 of `docs/inductives/DESIGN.md`). -/
+
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
@@ -13,7 +19,7 @@ def MotiveTypes.empty (c : AddInductive.Context)
   size_eq := rfl
   shape i hi := by simp at hi
 
-/-- Row-wise inverse image of one declaration in production's flattened
+/-- Row-wise inverse image of one declaration in the executable's flattened
 minor array.  It records the mutual-family owner, the constructor-local
 position, and the exact type used when that minor premise was introduced. -/
 structure RecInfoBinderTypes.FlatMinorBinderType
@@ -30,8 +36,8 @@ structure RecInfoBinderTypes.FlatMinorBinderType
 
 /-- Every flattened minor declaration comes from an actual owner row.  The
 proof follows the executable `Array.flatMap` membership, then uses local
-declaration uniqueness to connect the row certificate to the flattened
-witness. -/
+declaration uniqueness to connect the row's binder type to the flattened
+declaration. -/
 theorem RecInfoBinderTypes.flatMinorBinderType
     (H : RecInfoBinderTypes c recInfos)
     (D : FVarDeclAt c (recInfos.flatMap (·.minors)) i) :
@@ -109,7 +115,7 @@ def RecInfoBindings.flatIndices
     rcases hfv with ⟨fvs, ⟨i, rfl⟩, hfv⟩
     exact (H.indices i i.isLt).members fv hfv
 
-/-- All binder identities retained for recursor generation, in the category
+/-- All binder identities recorded for recursor generation, in the category
 order used by the generated telescope. Keeping this global list distinct is
 stronger than the per-owner fact needed by any one recursor. -/
 def RecInfoBindings.allFvars
@@ -175,8 +181,8 @@ theorem RecInfoBindings.outerNodup
 
 /-- The outer binders selected by the generated recursor telescope occur in
 their category order inside the executable local context.  Local contexts
-store newest declarations first, hence the reversal.  This operational fact
-is deliberately separate from `NoAlias`: membership and distinctness alone
+store newest declarations first, hence the reversal.  This fact
+is separate from `NoAlias`: membership and distinctness alone
 do not determine binder order when indices and majors are interleaved. -/
 def RecInfoOuterOrder
     {stats : AddInductive.InductiveStats}
@@ -207,8 +213,8 @@ def RecInfoBindings.major
     exact H.majors.members fv (List.getElem_mem (by simpa [hsize] using hi))
 
 /-- Motive telescope shapes are stable under verified local-context
-extension because all selected index and major declarations retain their
-original declaration data. -/
+extension because all selected index and major declarations keep their
+declaration data. -/
 def MotiveTypes.mono
     (H : MotiveTypes c recInfos motiveTypes elimLevel)
     (Hbindings : RecInfoBindings c recInfos)
@@ -277,8 +283,8 @@ def MotiveTypes.push
       rw [hmotivesPush, hinfoPush]
       exact hnew
 
-/-- The five executable binder groups used to build one production recursor
-type, all selected from the same retained local context. -/
+/-- The five executable binder groups used to build one executable recursor
+type, all selected from the same local context. -/
 structure RecursorBinderGroups (c : AddInductive.Context)
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo) (ownerIdx : Nat) where
@@ -376,7 +382,7 @@ theorem RecInfoBindings.selectionNoAlias
             hindices.append hmajor)
   apply hnoalias.sublist hsub
 
-/-- The replayed index telescope of every accumulated recursor frame has the
+/-- The opened index telescope of every recursor frame has the
 arity recorded by the checked inductive header. -/
 def RecInfoArities (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo) : Prop :=
@@ -436,8 +442,8 @@ theorem RecInfoMinorsEmpty.push
     rw [hget]
     exact H i hiOld
 
-/-- The executable rule-blueprint row stays synchronized with the minor row.
-The first pass establishes two empty rows; the second pass appends one entry
+/-- The executable rule-template row stays synchronized with the minor row.
+The motive pass creates two empty rows; the minor pass appends one entry
 to each in the same successful `withLocalDecl` continuation. -/
 def RecInfoTemplateCounts (recInfos : Array AddInductive.RecInfo) : Prop :=
   ∀ i, i < recInfos.size →
@@ -467,8 +473,8 @@ theorem RecInfoTemplateCounts.pushEmpty
     rw [hget]
     exact H i hiOld
 
-/-- The completed first pass has no minors and therefore its two empty
-blueprint/minor rows satisfy the exact origin-indexed alignment vacuously. -/
+/-- After the motive pass there are no minors, so the two empty
+template/minor rows satisfy `RuleTemplatesMatch` vacuously. -/
 theorem RuleTemplatesMatch.ofEmpty
     (Horigins : RecInfoBinderTypes c recInfos)
     (Hempty : RecInfoMinorsEmpty recInfos)
@@ -498,7 +504,7 @@ theorem RuleTemplatesMatch.mono
     simpa [RecInfoBinderTypes.mono] using
       B.fields_outer_fresh owner howner localIndex hlocal fv hfv
 
-/-- If every recursor-info minor row is empty, the retained flattened minor
+/-- If every recursor-info minor row is empty, the flattened minor
 selection contains no identifiers either. -/
 theorem RecInfoMinorsEmpty.flatMinors_fvars
     (Hempty : RecInfoMinorsEmpty recInfos)
@@ -555,7 +561,7 @@ theorem MajorPremiseTypes.modifyMinors
           hiOld hdi]
       exact H.shape i hiOld
 
-/-- Motive declaration shapes likewise depend only on the retained indices
+/-- Motive declaration shapes likewise depend only on the indices
 and major, not on the accumulating minor row. -/
 theorem MotiveTypes.modifyMinors
     (H : MotiveTypes c recInfos motiveTypes elimLevel)
@@ -604,9 +610,9 @@ theorem RecInfoOuterOrder.empty
   exact (List.nil_sublist Hsuffix.ambientDecls.fvars).append
     (List.Sublist.refl Hparams.fvars.reverse)
 
-/-- Adding one first-pass motive preserves the selected outer-binder order.
+/-- Adding one motive in the motive pass preserves the selected outer-binder order.
 The declarations opened for its indices and major may be interleaved in the
-runtime context, but they are deliberately not part of the outer recursor
+executable context, but they are not part of the outer recursor
 prefix. -/
 theorem RecInfoOuterOrder.pushMotive
     {stats : AddInductive.InductiveStats}
@@ -677,7 +683,7 @@ def RecInfoBindings.mono
   indices i hi := (H.indices i hi).mono hle
   minors i hi := (H.minors i hi).mono hle
 
-/-- Exact recent local extensions only add a newest-first prefix, so any
+/-- Recent local extensions only add a newest-first prefix, so any
 previous outer selection remains ordered after weakening. -/
 theorem RecInfoOuterOrder.monoRecent
     {stats : AddInductive.InductiveStats}
@@ -696,8 +702,8 @@ theorem RecInfoOuterOrder.monoRecent
   rw [Hrecent.contextFVars]
   exact (List.nil_sublist Hrecent.fvars.reverse).append Horder
 
-/-- Select a motive in any later executable binding context.  All declaration
-origins and the exact telescope shape are monotone; the semantic lookup is
+/-- Select a motive in any later executable binding context.  All binder
+types and the telescope shape are monotone; the abstract lookup is
 then reconstructed from the later context's own `RecursorContextWF`. -/
 theorem MotiveTypes.motiveBindingAtMono
     {root current : AddInductive.Context} {recLparams : List Name}
@@ -731,11 +737,11 @@ theorem MotiveTypes.motiveBindingAtRecent
   Hshape.motiveBindingAtMono Hbindings Horigins Hrecent.contextLE target
     htarget
 
-/-- Use a retained target-indexed motive contract after a higher-order local
-suffix has been opened.  The executable traversal exposes a terminal type
-only up to definitional equality; this bridge transports both typehood and
-the major's typing back to the validated syntax target before invoking the
-independent motive property. -/
+/-- Use the target-indexed motive applications `RecInfoMotiveApplications` after
+a higher-order local suffix has been opened.  The executable traversal exposes a
+terminal type only up to definitional equality; this lemma transports both
+typehood and the major's typing back to the validated syntax target before
+applying the motive property. -/
 theorem RecInfoMotiveApplications.applyAtMono
     {root current : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}

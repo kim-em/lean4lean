@@ -1,5 +1,17 @@
 import Lean4Lean.Verify.Inductive.Constructor.CheckedConstructors
 
+/-! The parameter context of the recursor construction.
+
+The executable chooses the elimination level with `getElimLevel` (zero, or a universe
+parameter fresh for the declaration) and runs the recursor construction under the universe
+list `getRecLevelParams`, which prepends that parameter in the large-elimination case.
+This file moves the facts established in the header and constructor phases to that universe
+list: `ContextWF.toAdmissibleRecursorContextWF` builds the recursor context, and
+`RecursorParameterContextSuffix` records that the cached parameters sit, unchanged, below the
+locals the recursor construction adds (motives, majors, minors, induction hypotheses).
+`RecursorReusedParameterScope` exposes one cached parameter of that suffix, for the header
+steps that are run again for later families. -/
+
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
@@ -11,8 +23,8 @@ namespace VerifyInductive
     (decl : VInductDecl) (type : VInductiveType) :
     decl.recursorName type = Lean.mkRecName type.name := rfl
 
-/-- The production choice of an extra eliminator universe has exactly the two
-universe arities admitted by `RecursorShape`. -/
+/-- The recursor's universe list has either the declaration's universe count or one more
+(the fresh elimination universe). -/
 theorem AddInductive.getRecLevelParams_length :
     (AddInductive.getRecLevelParams elimLevel lparams).length = lparams.length ∨
     (AddInductive.getRecLevelParams elimLevel lparams).length =
@@ -21,10 +33,8 @@ theorem AddInductive.getRecLevelParams_length :
   | param u => simp [AddInductive.getRecLevelParams]
   | _ => simp [AddInductive.getRecLevelParams]
 
-/-- Universe-level side condition required by recursor-frame semantics.  A
-small eliminator uses `0`; a large eliminator uses a parameter fresh for the
-inductive declaration.  Other level syntax is never produced by
-`getElimLevel`. -/
+/-- The elimination levels `getElimLevel` can produce: `0` for a small eliminator, or a
+universe parameter fresh for the declaration for a large one. -/
 def AddInductive.AdmissibleElimLevel (lparams : List Name) : Level → Prop
   | .zero => True
   | .param name => name ∉ lparams
@@ -54,8 +64,8 @@ theorem AddInductive.getElimLevel.loop.WF
       rw [if_neg hcontains]
       exact hp
 
-/-- The production eliminator-level search returns only a small eliminator
-level or a parameter fresh for the declaration's existing universe list. -/
+/-- `getElimLevel` returns an admissible elimination level: zero, or a universe parameter
+fresh for the declaration's universe list. -/
 theorem AddInductive.getElimLevel.WF
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) (c : AddInductive.Context) :
@@ -82,8 +92,8 @@ theorem AddInductive.getElimLevel.WF
         rcases Hlevel with ⟨name, rfl, hfresh⟩
         exact hfresh
 
-/-- An admissible eliminator level is well formed under the exact universe
-parameter list later assigned to generated recursors. -/
+/-- An admissible elimination level translates under the recursor's universe list
+`getRecLevelParams`. -/
 theorem AddInductive.AdmissibleElimLevel.ofLevel
     (H : AddInductive.AdmissibleElimLevel lparams elimLevel) :
     ∃ level, VLevel.ofLevel
@@ -97,9 +107,8 @@ theorem AddInductive.AdmissibleElimLevel.ofLevel
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at H
 
-/-- Independent semantic seed for the codomain of every generated motive.
-The concrete sort is interpreted under the exact universe list assigned to
-the generated recursor, without consulting `checkRecursorTypes`. -/
+/-- The motive codomain `Sort elimLevel` translates under the recursor's universe list
+to a well-formed sort. The fact is proved directly, without `checkRecursorTypes`. -/
 theorem AddInductive.AdmissibleElimLevel.sortType
     (H : AddInductive.AdmissibleElimLevel lparams elimLevel) :
     ∃ level,
@@ -112,8 +121,8 @@ theorem AddInductive.AdmissibleElimLevel.sortType
   refine ⟨level, TrExprS.sort hlevel, ?_⟩
   exact ⟨.succ level, VEnv.HasType.sort (.of_ofLevel hlevel)⟩
 
-/-- Uniform entry into recursor-universe semantics for the exact two cases
-produced by `getElimLevel`. -/
+/-- A header context, moved to the recursor's universe list, is a recursor context, for
+either admissible elimination level. -/
 def ContextWF.toAdmissibleRecursorContextWF
     (H : ContextWF c)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
@@ -140,12 +149,11 @@ def ContextWF.toAdmissibleRecursorContextWF
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-/-- Exact cached-parameter suffix after the local context has moved to the
-recursor universe list.  The declaration itself still has `decl.uvars`
-universes; this invariant deliberately mentions only the translations that
-remain meaningful after the optional fresh eliminator parameter is prepended.
-Generated major and motive locals accumulate in `ambientDecls`, while later
-family replay starts from the unchanged `parameterDecls` suffix. -/
+/-- The cached parameters form the bottom of the recursor context, translated under the
+recursor's universe list. The locals the recursor construction adds (motives, majors and
+so on) accumulate in `ambientDecls`, and the header steps run again for later families
+start from the unchanged suffix `parameterDecls`. Only translations that remain valid after
+the optional fresh elimination universe is prepended are recorded. -/
 structure RecursorParameterContextSuffix
     {c : AddInductive.Context}
     (R : RecursorContextWF c recLparams)
@@ -164,8 +172,8 @@ structure RecursorParameterContextSuffix
   sources : checkInductiveTypes.loopType.SourceTelescope
     R.venv recLparams parameterDecls
 
-/-- The cached parameter suffix is independently well formed after dropping
-the ambient declarations that precede it in the recursor context. -/
+/-- The cached parameter suffix is well formed on its own, without the ambient
+declarations above it in the recursor context. -/
 theorem RecursorParameterContextSuffix.parameterWF
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
@@ -197,9 +205,8 @@ theorem VEnv.IsDefEqCtx.instL
   | _, _, _, .succ hctx htype =>
     .succ (VEnv.IsDefEqCtx.instL hls hctx) (htype.instL hls)
 
-/-- Universe-instantiated view of a synthesized header target.  The stored
-constant arity and identity are unchanged; only the type interpreted under
-the new universe context is substituted. -/
+/-- Universe instantiation of a header target: only the type is instantiated, the name
+and arity are unchanged. -/
 def _root_.Lean4Lean.VInductiveTypeSkeleton.instL
     (target : VInductiveTypeSkeleton) (levels : List VLevel) :
     VInductiveTypeSkeleton :=
@@ -222,9 +229,9 @@ def checkInductiveTypes.loopType.ScopedHeaderTelescope.mono
   exprType := H.exprType
   header := H.header.mono henv
 
-/-- Reinterpret an exact narrow telescope synthesis under an arbitrary
-universe substitution.  This is the semantic bridge used by constructor
-replay when large elimination prepends its fresh universe parameter. -/
+/-- A scoped header telescope (in the checking context) instantiated by a well-formed
+universe substitution. It moves constructor facts to the recursor's universe list when
+large elimination prepends its fresh universe parameter. -/
 noncomputable def
     checkInductiveTypes.loopType.ScopedHeaderTelescope.instL
     {Us' : List Name}
@@ -271,8 +278,8 @@ noncomputable def
     simpa [VInductiveTypeSkeleton.instL, List.map_append] using
       hsource.instL hlevels
 
-/-- Applying an installed constant to the canonical variables of an exact
-narrow parameter synthesis produces the retained residual tail type. -/
+/-- An installed constant whose instantiated type is the telescope's target, applied to
+the bvar spine of the telescope's parameters, has the remaining type `current`. -/
 theorem checkInductiveTypes.loopType.ScopedHeaderTelescope.canonicalApplication
     {ctorVal : VConstVal} {levels : List VLevel}
     (H : checkInductiveTypes.loopType.ScopedHeaderTelescope
@@ -301,10 +308,10 @@ theorem checkInductiveTypes.loopType.ScopedHeaderTelescope.canonicalApplication
   simpa [hindices, H.scopeCtx, bvarSpine,
     VExpr.liftN] using happ
 
-/-- Rebase the independently checked parameter suffix into the exact
-recursor universe context.  In the small-elimination case this is identity;
-in the large-elimination case concrete declarations and free-variable names
-are unchanged and their abstract types are shifted by one universe slot. -/
+/-- Move the parameter suffix of the header phase to the recursor context. For small
+elimination nothing changes; for large elimination the executable declarations and
+free-variable names are unchanged and the abstract types are shifted by one universe
+parameter. -/
 def checkInductiveTypes.loopType.ParameterContextSuffix.toRecursorContext
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : checkInductiveTypes.loopType.ParameterContextSuffix Hc stats depth)
@@ -406,8 +413,8 @@ def checkInductiveTypes.loopType.ParameterContextSuffix.toRecursorContext
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-/-- The exact constructor telescope target as interpreted by generated
-recursor code. -/
+/-- The constructor telescope target under the recursor's universe list (shifted by one
+universe parameter for large elimination). -/
 def recursorConstructorTelescopeTarget
     (ctorVal : VConstVal)
     (Helim : AddInductive.AdmissibleElimLevel lparams elimLevel) :
@@ -463,10 +470,9 @@ theorem checkInductiveTypes.loopInd.HeaderStatsWF.recursorLevelTranslation
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-/-- The complete concrete universe list attached to a generated recursor
-translates to the identity instantiation of its exact recursor universe
-context.  For large elimination this prepends the fresh eliminator level to
-the shifted declaration levels. -/
+/-- The universe list of a generated recursor translates to the identity instantiation of
+the recursor's universe parameters. For large elimination this is the fresh elimination
+universe followed by the shifted declaration universes. -/
 theorem
     checkInductiveTypes.loopInd.HeaderStatsWF.recursorLevelsTranslation
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -583,8 +589,8 @@ theorem VConstVal.type_instL_recursorDeclarationAbstractLevels
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-/-- Rebase one retained constructor replay into the exact parameter scope
-and universe list used at the start of recursor generation. -/
+/-- Move one checked constructor tail to the parameter scope and universe list in which
+the recursor construction starts. -/
 theorem CheckedConstructorTailAt.toRecursorContext
     {c : AddInductive.Context} {Hc : ContextWF c}
     {sourceEnv : VEnv} {decl : VInductDecl}
@@ -687,8 +693,7 @@ theorem RecursorParameterContextSuffix.noIndConsts
   intro v mapped type hfind
   exact go H.cached hfind
 
-/-- Recover the narrow semantic parameter scope embedded in the complete
-universe-rebased runtime context. -/
+/-- The parameter suffix embeds, as a front scope, into the full recursor context. -/
 def RecursorParameterContextSuffix.parameterEmbedding
     {c : AddInductive.Context}
     {R : RecursorContextWF c recLparams}
@@ -737,9 +742,8 @@ def RecursorParameterContextSuffix.parameterEmbedding
       exact R.mlctx_wf.tr.wf
     exact hwf.append_right
 
-/-- Any generated recursor local extends only the ambient prefix.  The cached
-parameter suffix and all of its narrow translations remain literally
-unchanged. -/
+/-- A local added by the recursor construction extends only the ambient prefix. The
+cached parameter suffix and its translations are unchanged. -/
 def RecursorParameterContextSuffix.withAmbient
     {c : AddInductive.Context}
     {R : RecursorContextWF c recLparams}
@@ -804,8 +808,8 @@ theorem RecursorParameterContextSuffix.depth_le
   rw [H.context, List.length_append, H.prefixLength]
   omega
 
-/-- Removing the recorded generated-local prefix leaves exactly the cached
-parameter scope, not merely a context of the same length. -/
+/-- Dropping the ambient prefix of the recursor context leaves exactly the cached
+parameter suffix. -/
 theorem RecursorParameterContextSuffix.dropAmbient_vlctx
     (H : RecursorParameterContextSuffix R stats depth) :
     (R.mlctx.dropN depth H.depth_le).vlctx = H.parameterDecls := by
@@ -908,8 +912,8 @@ theorem RecursorParameterContextSuffix.fvLiftAt
   exact ⟨added, newer, older, fv, deps, paramType, hdecls, hnewer,
     rfl, hcontext, hparam, hlift⟩
 
-/-- Cursor exposing cached parameter `i` while later-family header replay is
-performed in a universe-rebased recursor context. -/
+/-- The position of cached parameter `i` in the recursor context, used when the header
+steps are run again for a later family. -/
 structure RecursorReusedParameterScope
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
@@ -1322,8 +1326,8 @@ theorem RecursorReusedParameterScope.olderLift
   rw [← hcontext] at hlift
   simpa [current, VLCtx.toCtx] using hlift
 
-/-- Recover the cached parameter's concrete type and its recursor-universe
-translation from the exact generated local context. -/
+/-- The executable type of the cached parameter and its translation under the recursor's
+universe list, read from the recursor context. -/
 theorem RecursorReusedParameterScope.typing
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
@@ -1431,8 +1435,8 @@ noncomputable def RecursorReusedParameterScope.next
       lift := hlift
       fvars := hnextFVars }⟩
 
-/-- Consecutive universe-rebased cached-parameter cursors expose the same
-consumed suffix. -/
+/-- The older part of the scope of parameter `i + 1` is the entry of parameter `i`
+followed by the older part of the scope of parameter `i`. -/
 theorem RecursorReusedParameterScope.nextOlder
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}

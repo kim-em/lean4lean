@@ -26,9 +26,8 @@ theorem MLCtxLamPrefix.le
   | cons _ ih => simpa using Nat.succ_le_succ ih
 
 /-- Every bounded prefix of an all-lambda checker context has an exact
-`MLCtxLamPrefix` certificate.  This packages the structural induction needed
-when a later proof must replay a retained recent suffix one declaration at a
-time. -/
+`MLCtxLamPrefix` certificate. This packages the structural induction needed
+when a later proof walks a recent suffix one declaration at a time. -/
 theorem MLCtxOnlyLams.lamPrefix
     (H : MLCtxOnlyLams c) (n : Nat) (hn : n ≤ c.length) :
     ∃ domains, MLCtxLamPrefix c n domains := by
@@ -44,8 +43,8 @@ theorem MLCtxOnlyLams.lamPrefix
     | vlet fv name type value type' value' tail =>
       exact H.vlet_false.elim
 
-/-- `extendNarrowRuntimeScope` when the recent prefix was also opened in a
-checker context aligned with the base scope.  Each retained domain is the
+/-- Extend a `FrontScopeEmbedding` by a recent prefix of lambda declarations that was also
+opened in a checker context aligned with the base scope. Each domain is the
 checker translation transported along the alignment, so no runtime
 translation is restricted, and the resulting scope stays aligned with the
 checker context. -/
@@ -151,8 +150,8 @@ theorem MLCtxLamPrefix.extendFrontScopeEmbeddingAligned
     · exact halignTail.consAligned hfreshScope hdeps
         (hNU'.of_l henv halignTail.wf.toCtx hv)
 
-/-- A certificate that a list of production constants and abstract constants
-are installed in lockstep. Each translation and typing premise is stated in
+/-- A list of executable constants and abstract constants installed in lockstep.
+Each translation and typing premise is stated in
 the environment at the exact point where that constant is introduced. -/
 inductive AddConstants (safety : DefinitionSafety) :
     Environment → VEnv → List (ConstantInfo × VConstVal) →
@@ -215,10 +214,10 @@ theorem AddConstants.hasPrimitives
     exact ih (Lean4Lean.VEnv.HasPrimitives.addConst Hprimitives
       hnonprim hadd)
 
-/-- Replay a lockstep constant installation in a larger abstract source
-environment.  The production trace and generated constants are unchanged;
+/-- A lockstep constant installation also holds over a larger abstract source
+environment. The executable environments and the generated constants are unchanged;
 translations and typing are weakened monotonically, and the resulting target
-extends the original abstract target. -/
+extends the given abstract target. -/
 theorem AddConstants.rebase
     (H : AddConstants checkSafety prodEnv base entries outProd outBase)
     (Hvalid : CheckingEnv safety prodEnv largerBase)
@@ -257,7 +256,7 @@ theorem AddConstants.rebase
       .cons hn hnprim htrLarger hwfLarger hlargerAdd hdelta Htail, hout⟩
 
 /-- A lockstep installation checked at a stronger visibility level is also a
-valid installation trace for every weaker observer.  The installed abstract
+valid installation for every weaker observer. The installed abstract
 constants and all freshness/typing facts are unchanged. -/
 def AddConstants.sf_mono
     (hsafety : safety ≤ checkSafety)
@@ -276,9 +275,9 @@ theorem AddConstants.quotInit_eq
   | nil => rfl
   | cons _ _ _ _ _ _ _ ih => exact ih
 
-/-- Lockstep installation preserves concrete/abstract alignment.  This is
-the production-map component of `AddInduct`; it follows from the executable
-staging trace and need not be supplied by a later compilation proof. -/
+/-- Lockstep installation preserves executable/abstract alignment (`Aligned`). This is
+the kernel-environment component of `AddInduct`; it follows from the lockstep installation
+and need not be supplied by a later compilation proof. -/
 theorem AddConstants.aligned
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (Haligned : Aligned safety env.constants venv) :
@@ -292,7 +291,7 @@ theorem AddConstants.aligned
       exact hn
     exact ih (Haligned.const hnMap htr.1 hadd rfl)
 
-/-- If every newly installed production constant is hidden from an observer,
+/-- If every newly installed executable constant is hidden from an observer,
 the observer's abstract environment is unchanged across the whole lockstep
 installation. -/
 theorem AddConstants.trEnvIgnore
@@ -312,8 +311,8 @@ theorem AddConstants.trEnvIgnore
       TrEnv'.ignore hnMap (hhidden (ci, ci') (by simp)) htr
     exact ih (fun entry hentry => hhidden entry (by simp [hentry])) htrHead
 
-/-- Constants introduced by an inductive staging trace have no delta value,
-so every delta-bearing entry in the final production map was already present
+/-- Constants introduced by a lockstep installation have no delta value,
+so every delta-bearing entry in the output constant map was already present
 in the source map. -/
 theorem AddConstants.deltaConservative
     (H : AddConstants safety env venv entries outEnv outVEnv)
@@ -367,7 +366,7 @@ theorem CheckingEnv.exists_addConst
     rw [hn] at hsource
     contradiction
 
-/-- The inner production constructor fold installs a translated constructor
+/-- The inner executable constructor fold installs a translated constructor
 list in lockstep with its abstract constants.  Constructor metadata is kept
 parametric because only the source name, type, level parameters, and safety
 participate in the translation relation. -/
@@ -472,7 +471,7 @@ theorem ConstructorListEntries.findSource
       exact ⟨info, value, by simp [hmem], hname, htype, hlevels, hunsafe⟩
 
 /-- Positional form of constructor-source alignment, retaining the exact
-owner-local constructor index used to build production metadata. -/
+owner-local constructor index used to build the executable metadata. -/
 theorem ConstructorListEntries.findAt
     (H : ConstructorListEntries mkInfo initial ctors entries)
     (i : Nat) (hi : i < ctors.length) :
@@ -662,7 +661,7 @@ theorem AddConstants.ofConstructorList
                   · simp
                   · exact hnind (entryInfo, entryValue) htail value⟩
 
-/-- The outer mutual-family fold concatenates the independently verified
+/-- The outer mutual-family fold concatenates the per-family
 constructor batches in the same family-major order as
 `VInductDecl.constructorConstants`. -/
 theorem AddConstants.ofConstructorTypes
@@ -784,8 +783,8 @@ theorem AddConstants.checking
   | cons hn _ htr hwf hadd hdelta _ ih =>
     exact ih (hchecking.add hn htr.1 hwf hadd hdelta)
 
-/-- A lockstep installation preserves the projection-walk corner, given the constructor steps
-of its entries (stated in the environment before the installation). -/
+/-- A lockstep installation preserves the constructor telescopes (`CtorTelescopes`), given
+the constructor steps of its entries (stated in the environment before the installation). -/
 theorem AddConstants.ctorTelescopes
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (hchecking : CheckingEnv safety env venv)
@@ -865,7 +864,7 @@ theorem AddConstants.existsEntryOfValue
   subst entryValue
   exact ⟨info, hentry⟩
 
-/-- Every production entry in a lockstep batch satisfies the visibility
+/-- Every executable entry in a lockstep batch satisfies the visibility
 bound at which the batch was checked. -/
 theorem AddConstants.entrySafety
     (H : AddConstants safety env venv entries outEnv outVEnv)
@@ -916,7 +915,7 @@ theorem InductiveHeaderEntries.findInfo
       exact ⟨value, by simp [hmem]⟩
 
 /-- Reverse the header-entry alignment: every installed entry is the exact
-production metadata for one member of the mutual family. -/
+executable metadata for one member of the mutual family. -/
 theorem InductiveHeaderEntries.originInfo
     (H : InductiveHeaderEntries infos entries)
     (hentry : entry ∈ entries) :
@@ -930,7 +929,7 @@ theorem InductiveHeaderEntries.originInfo
     · rcases ih htail with ⟨info, hinfo, heq⟩
       exact ⟨info, by simp [hinfo], heq⟩
 
-/-- Every source family occurs in the production header array when the
+/-- Every source family occurs in the executable header array when the
 computed index-count array has the checked family cardinality. -/
 theorem inductiveTypeInfos_owner
     (stats : AddInductive.InductiveStats) (numParams : Nat)
@@ -959,8 +958,8 @@ theorem AddConstants.le
     venv ≤ outVEnv :=
   VEnv.addConstVals_le H.abstract
 
-/-- A lockstep installation preserves lookups from its source production
-environment.  This low-level form is kept with the installation certificate
+/-- A lockstep installation preserves lookups from its source kernel
+environment. This low-level form is kept with `AddConstants`
 so positional entry lookup does not depend on the nested compilation layer. -/
 theorem AddConstants.preservesSourceFind
     (H : AddConstants safety env venv entries outEnv outVEnv)
@@ -1095,8 +1094,8 @@ theorem AddConstants.entryFresh
         rw [hpreserved] at hnext
         contradiction
 
-/-- Every final production lookup either existed before the lockstep fold or
-is one of its exact source-aligned entries. -/
+/-- Every lookup in the output kernel environment either existed before the lockstep fold
+or is one of its entries. -/
 theorem AddConstants.entryOrigin
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (hwf : env.constants.WF)
@@ -1129,7 +1128,7 @@ theorem AddConstants.entryOrigin
     · exact Or.inr ⟨entry, by simp [hentry], hname, hfound⟩
 
 /-- Constructor-owner presence is preserved by a lockstep batch when every
-new constructor entry is accompanied by its owner at the completed endpoint. -/
+new constructor entry is accompanied by its owner at the endpoint. -/
 theorem AddConstants.constructorOwnersPresent
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (hwf : env.constants.WF)
@@ -1145,8 +1144,8 @@ theorem AddConstants.constructorOwnersPresent
     exact ⟨owner, H.preservesSourceFind hwf howner⟩
   · exact hentries entry hentry info hfound.symm
 
-/-- Every production entry named by an `AddConstants` certificate is present
-with its exact metadata in the final environment. -/
+/-- Every executable entry of an `AddConstants` installation is present
+with its exact metadata in the output environment. -/
 theorem AddConstants.findEntry
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (hwf : env.constants.WF)
@@ -1175,9 +1174,9 @@ theorem AddConstants.findEntry
     · exact ih hnextWF htail
 
 /-- Installing a batch containing no inductive headers preserves the
-persistent constructor-parameter semantics.  Exact production lookups are
-transported through the lockstep fold; all abstract semantic judgments use
-the monotone target environment supplied by the same certificate. -/
+constructor-parameter agreement `CtorParamsAgree`. Exact kernel-environment lookups are
+transported through the lockstep fold; all abstract judgments use
+the larger target environment of the same installation. -/
 theorem AddConstants.preservesConstructorTyping
     (H : AddConstants installSafety env venv entries outEnv outVEnv)
     (hwf : env.constants.WF)
@@ -1194,9 +1193,10 @@ theorem AddConstants.preservesConstructorTyping
   · rcases hnew with ⟨entry, hentry, _hname, hinfo⟩
     exact False.elim (hnind entry.1 entry.2 hentry familyInfo hinfo.symm)
 
-/-- Semantic refinement of the production recursor loop.  In addition to
-the ordinary generated-entry and installation certificates, every recursor
-entry retains the classifier/call trace of each generated iota rule. -/
+/-- Refinement of the executable recursor loop `declareRecursors.loop`. In addition to
+the generated entries (`GeneratedRecursorsRange`) and their installation (`AddConstants`),
+every recursor entry carries its typed rules (`TypedRecursorRulesRange`): the field
+classification and recursive calls of each generated iota rule. -/
 theorem AddInductive.declareRecursors.loop.typingWF
     {sourceVEnv currentVEnv envTypes envCtors : VEnv}
     {decl : VInductDecl} {indTypes : Array InductiveType}
@@ -1470,9 +1470,9 @@ theorem AddInductive.declareRecursors.loop.typingWF
       .nil, by intro i hi; simp at hi⟩
 termination_by indTypes.size - dIdx
 
-/-- Install the selected source-generator targets through the actual
-recursor declaration pass. The checker supplies their typing; the result
-retains exact target equality alongside constructor-rule semantics. -/
+/-- Install the chosen generator targets through the executable recursor declaration pass.
+The executable's type check supplies their typing; the result records that every entry is
+exactly its target, alongside the typed rules. -/
 theorem AddInductive.declareRecursors.bindingWFOfTargets
     {envTypes envCtors : VEnv} {decl : VInductDecl}
     {indTypes : Array InductiveType} {parameterDecls : VLCtx}

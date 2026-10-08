@@ -4,20 +4,20 @@ import Lean4Lean.Verify.Inductive.Recursor.Signature.Constructors
 
 /-! Inversion of the executable's pre-installation recursor type check.
 
-`RecursorConstruction.recursorTypes` retains the translation of every
-closed generated recursor type produced by `checkRecursorTypes`.  Decomposing
-that translation along the five executable binder groups gives translations of
-each parameter, motive, minor, index and major domain in the abstract contexts
-used by the independent generator.  Translations are syntactically unique
-(`TrExprS.uniqueS`), so the parameter and motive groups coincide with the
-canonical choices already made before this stage. -/
+`RecursorConstruction.recursorTypes` records the translation of every closed generated
+recursor type checked by `checkRecursorTypes`. Decomposing that translation along the five
+executable binder groups gives translations of each parameter, motive, minor, index and major
+domain in the abstract contexts used by the generator. Translations are syntactically unique
+(`TrExprS.uniqueS`), so the parameter and motive groups coincide with the parameter scope and
+the generated motives chosen earlier. -/
 
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- The retained type check, with the universe parameters named through the
-outer context. -/
+/-- The executable's recursor type of each family translates, in the recursor-checking
+environment at the recursor's universe parameters, to a closed type (from the executable's
+check of the recursor type). -/
 theorem RecursorConstruction.recursorTypeTranslation
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < indTypes.size) :
@@ -30,9 +30,8 @@ theorem RecursorConstruction.recursorTypeTranslation
   have h := H.recursorTypes.typeAt owner howner
   rwa [H.localExtends.lparams_eq] at h
 
-/-- Five-group decomposition of the checked recursor type, obtained solely by
-inverting the retained translation along the exact binder selections of
-`declareRecursors`. -/
+/-- Five-group decomposition of the checked recursor type, obtained only by inverting its
+translation along the binder groups of `declareRecursors`. -/
 theorem RecursorConstruction.recursorTelescope
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
@@ -70,8 +69,8 @@ theorem RecursorConstruction.recursorTelescope
   · simpa [hdomains] using htarget
   · simpa [hdomains] using Hresult
 
-/-- The parameter group of the checked recursor type is the cached parameter
-telescope: both translate the same closed parameter prefix. -/
+/-- The parameter group of the checked recursor type is the recursor parameter context: both
+translate the same closed parameter prefix. -/
 theorem RecursorConstruction.recursorTelescope_params
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} {target : VExpr}
@@ -151,9 +150,9 @@ theorem RecursorConstruction.recursorTelescope_motives
   exact VExpr.wrapForalls_prefix_domains_eq (suffix := []) T.motives_length
     (by simp [InductiveSignature.Instance.motives, hf]) (by simpa using heq)
 
-/-- `RecursorBinderGroups.minorBinderAt` before `inferImplicit`: the flat
-minor slot of the raw recursor type is the retained minor declaration type
-closed over parameters, motives and the strictly earlier minors. -/
+/-- `RecursorBinderGroups.minorBinderAt` before `inferImplicit`: the flat minor slot of the
+recursor type is the minor's declared type closed over parameters, motives and the strictly
+earlier minors. -/
 theorem RecursorBinderGroups.minorBinderAtRaw
     (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (hnoalias : H.NoAlias)
@@ -303,9 +302,9 @@ theorem RecursorTypeTelescope.getElem_minor
   congr 1
   omega
 
-/-- The flat minor slot of the checked recursor type translates the retained
-minor declaration type, closed over parameters, motives and earlier minors,
-in the generator's abstract context for that slot. -/
+/-- The flat minor slot of the checked recursor type translates the minor's declared type,
+closed over parameters, motives and earlier minors, in the generator's abstract context for
+that slot. -/
 theorem RecursorConstruction.recursorTelescope_minor
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
@@ -338,8 +337,8 @@ theorem RecursorConstruction.recursorTelescope_minor
   rw [T.take_minorPrefix minorIdx (Nat.le_of_lt hminor), T.getElem_minor minorIdx hminor hi] at Ht
   exact Ht
 
-/-- The field domains of a flat minor slot of the checked recursor type are
-the `insertBinders` lift of the selected source field domains; the residual
+/-- The field domains of a flat minor slot of the checked recursor type are the
+`insertBinders` lift of the minor's field domains (`declFieldDomains`); the residual
 is the translation of the hypothesis telescope and motive application closed
 over the fields. -/
 theorem RecursorConstruction.recursorTelescope_minorFields
@@ -416,8 +415,8 @@ theorem RecursorConstruction.recursorTelescope_minorFields
   rw [← hF']
   simpa [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc] using Hres
 
-/-- The executable's universe arguments translate to the recursor's abstract
-level list, for any materialized header over the same parameter names. -/
+/-- The executable's universe arguments translate to the recursor's abstract level list, for
+any checked header statistics (`HeaderStatsWF`) over the same universe parameter names. -/
 theorem checkInductiveTypes.loopInd.HeaderStatsWF.recursorLevelTranslation_general
     {env : VEnv} {Us : List Name} {Δ : VLCtx} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat}
@@ -444,8 +443,9 @@ theorem RecursorConstruction.statsLevelsTranslation
       some (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) :=
   R.statsWF.recursorLevelTranslation_general H.lparamsNodup H.elimLevelAdmissible
 
-/-- The source motive application of a minor, with the owner of its motive
-resolved through the validated terminal application. -/
+/-- The motive application of a minor: the motive of the minor's family applied to the indices
+of the traversal's terminal family application, then to the constructor applied to the
+parameters and fields. -/
 theorem RecursorConstruction.minorMotiveAppForm
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
@@ -472,8 +472,8 @@ theorem RecursorConstruction.minorMotiveAppForm
   subst this
   rfl
 
-/-- Closing a list of distinct free variables over itself yields the
-canonical descending de Bruijn spine above the abstraction depth. -/
+/-- Closing a list of distinct free variables over itself yields the descending de Bruijn spine
+above the abstraction depth. -/
 theorem Expr.abstractList_fvar_spine (fvs : List FVarId) (hnd : fvs.Nodup) (k : Nat) :
     (fvs.map Expr.fvar).map (fun e => e.abstractList fvs k) =
       List.ofFn fun j : Fin fvs.length => Expr.bvar (k + (fvs.length - 1 - j)) := by
@@ -516,9 +516,9 @@ theorem Expr.abstractList_bvar_spine (n below : Nat) (fvs : List FVarId) (k : Na
     exact Expr.abstractList_bvar_lt fvs (by omega)
 
 /-- The motive application of a minor after closing hypotheses, fields, and
-the outer parameter, motive and earlier-minor binders: the motive is the
-canonical outer variable, the constructor spine is the canonical parameter
-and field spine, and the indices are closed pointwise. -/
+the outer parameter, motive and earlier-minor binders: the motive is the bound variable of the
+family's motive, the constructor is applied to the bvar spine of parameters and fields, and the
+indices are closed pointwise. -/
 theorem RecursorConstruction.minorResidualSource
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
@@ -693,9 +693,9 @@ theorem RecursorConstruction.minorResidualSource
   rw [Expr.mkAppList_append]
 
 /-- Shape of a flat minor slot of the checked recursor type: the field
-domains are the lifted source field domains, followed by one domain per
+domains are the lifted field domains of the minor, followed by one domain per
 hypothesis and the motive application, whose head is the owner's motive
-variable, whose last argument is the canonical constructor spine, and whose
+variable, whose last argument is the constructor applied to the bvar spine, and whose
 index arguments translate the closed terminal indices. -/
 theorem RecursorConstruction.recursorTelescope_minorResidual
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
@@ -896,8 +896,8 @@ theorem Expr.closeIndexSource (e : Expr) (fields params rest : List FVarId) (nf 
   · exact hnotp hp
   · exact hnotf hf
 
-/-- The index translations of a flat minor slot are the selected source
-constructor indices, instantiated at the recursor universes and lifted
+/-- The index translations of a flat minor slot are the minor's result indices
+(`declConstructorIndices`), instantiated at the recursor universes and lifted
 beneath the motives, earlier minors, fields and hypotheses. -/
 theorem RecursorConstruction.recursorTelescope_minorIndices
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
@@ -938,7 +938,7 @@ theorem RecursorConstruction.recursorTelescope_minorIndices
   have heqT : traversal = HS.semantic.traversal :=
     Option.some.inj (htraversal.symm.trans HS.semantic.traversal_eq)
   subst heqT
-  -- The header-environment replay of the field telescope and its indices.
+  -- The translations of the field telescope and its indices in the header environment.
   obtain ⟨Hsrc, _, Hindices⟩ := H.sourceConstructorIndices_replay mowner hmowner localIndex hlocal
   have Hle := R.installation.constructorLE.trans R.ctorLE
   have Hlift := H.liftDeclUnivType (Hsrc.mono Hle)
@@ -1071,8 +1071,8 @@ theorem RecursorConstruction.recursorTelescope_minorIndices
   simp only [Function.comp_def, hhyps, hdomLen] at hright
   simpa using hright.symm
 
-/-- The `j`-th hypothesis domain of a flat minor slot translates the retained
-hypothesis declaration type, closed over the earlier hypotheses, the fields,
+/-- The `j`-th hypothesis domain of a flat minor slot translates the hypothesis's declared
+type, closed over the earlier hypotheses, the fields,
 and the outer binders, in the generator context of that hypothesis. -/
 theorem RecursorConstruction.recursorTelescope_hypothesisSlot
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
@@ -1138,10 +1138,9 @@ theorem RecursorConstruction.recursorTelescope_hypothesisSlot
   simpa [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc] using Ht
 
 /-- The closed source of a hypothesis's motive application: after closing the
-higher-order arguments, the earlier hypotheses, the fields and the outer
-binders, the motive is the canonical outer variable, the recursive field is
-the canonical field variable applied to the canonical argument spine, and
-the indices are closed pointwise. -/
+higher-order arguments, the earlier hypotheses, the fields and the outer binders, the motive
+is the bound variable of the target family's motive, the recursive field is its field's bound
+variable applied to the bvar spine of the arguments, and the indices are closed pointwise. -/
 theorem RecursorConstruction.hypothesisResidualSource
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
@@ -1294,7 +1293,7 @@ theorem RecursorConstruction.hypothesisResidualSource
 /-- Shape of the `j`-th hypothesis domain of a flat minor slot: a telescope
 of one domain per higher-order argument, then the owner's motive variable
 applied to translations of the closed exposed indices and to the recursive
-field variable applied to the canonical argument spine. -/
+field variable applied to the bvar spine of the arguments. -/
 theorem RecursorConstruction.recursorTelescope_hypothesisShape
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
@@ -1432,9 +1431,9 @@ theorem _root_.Lean4Lean.FVarsIn.forallDomainsOnly {P : FVarId → Prop} {e : Ex
       exact ⟨h.1, ih h.2⟩
     | _ => simp [Expr.forallDomainsOnly, FVarsIn, Level.hasMVar']
 
-/-- The owner's index and major groups of the checked recursor type are the
-owner's motive telescope (its source indices and the canonical major
-domain) lifted beneath the motives and all minors. -/
+/-- The owner's index and major groups of the checked recursor type are the owner's motive
+telescope (its index domains and the major domain, the family applied to the bvar spine)
+lifted beneath the motives and all minors. -/
 theorem RecursorConstruction.recursorTelescope_indicesMajor
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
@@ -1605,8 +1604,8 @@ theorem insertBinders_append_singleton (domains : List VExpr) (x : VExpr) (n : N
     List.singleton_append]
   simp [liftContextPrefixAt]
 
-/-- The canonical major domain lifted beneath `extra` binders above the
-indices is the generator's family application. -/
+/-- The major domain (the family applied to the bvar spine) lifted beneath `extra` binders
+above the indices is the generator's family application. -/
 theorem majorDomain_lift (name : Name) (levels : List VLevel) (nparams nidx extra : Nat) :
     (VExpr.mkApps (.const name levels) (bvarSpine (nparams + nidx))).liftN extra nidx =
       VExpr.mkApps (.const name levels)

@@ -7,9 +7,9 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The executable recursor checker supplies typing for a separately chosen
-canonical translation. Translation agreement is typed equality, which also
-covers the different parameter terms admitted by projection desugaring. -/
+/-- The executable's check of a generated recursor type (`TrRecursorTypes`) makes every
+translation of that type a well-formed type: the checked translation and the given one are
+definitionally equal by uniqueness of translations. -/
 theorem TrRecursorTypes.typeOfTranslation
     (H : TrRecursorTypes env lparams elimLevel c stats indTypes recInfos)
     (henv : env.WF) (owner : Nat) (howner : owner < indTypes.size)
@@ -22,9 +22,9 @@ theorem TrRecursorTypes.typeOfTranslation
       (AddInductive.getRecLevelParams elimLevel lparams).length [] [] from
         .refl henv trivial) Hcanonical)
 
-/-- Install the specified canonical target, retaining its exact name, type,
-and universe arity. The checker witness supplies well-formedness without
-choosing another abstract translation for this owner. -/
+/-- The recursor info built by `declareRecursors` for `owner` translates to the given
+target, with its exact name, type and universe arity, and the target is well formed by
+`typeOfTranslation`. No other abstract translation is chosen for this owner. -/
 theorem TrRecursorTypes.recursorInfoTranslationOfTarget
     (H : TrRecursorTypes env lparams elimLevel c stats indTypes recInfos)
     (henv : env.WF) (k : Bool) (owner : Nat) (howner : owner < indTypes.size)

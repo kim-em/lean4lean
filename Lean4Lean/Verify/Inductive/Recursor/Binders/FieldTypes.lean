@@ -4,12 +4,13 @@ import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldOpening
 
 The executable field loop (`AddInductive.mkRecInfos.loopCtorArgs`) performs no
 `whnf`: at each field binder `.forallE name dom body bi` it declares a fresh
-local with type `(dom.consumeTypeAnnotationsVerified annOk)` and continues with
+local with the unannotated type
+`dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper` and continues with
 `body.instantiate1 (.fvar _)`. Consequently every syntactic predicate on
-expressions that is inherited by the consumed domain and by the instantiated
+expressions that is inherited by the unannotated domain and by the instantiated
 body of a forall holds of every field declaration type and of the terminal
-expression, as soon as it holds of the traversed source. This file proves that
-transport for the retained trace `RecursorFieldDecisions`. -/
+expression, as soon as it holds of the traversed source. This file proves this
+for the field-decision relation `RecursorFieldDecisions`. -/
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -56,8 +57,9 @@ private theorem fieldDeclsSatisfy_push {P : Expr → Prop}
         Ne.symm hfv] using hfind
   · exact ⟨_, _, _, _, _, _, rfl, hmemNew, hnew, hdom⟩
 
-/-- **Field declaration types.** Along a retained field-decision trace, any
-predicate `P` that passes from a forall to its consumed domain and to its body
+/-- **Field declaration types.** Along a field-decision run
+(`RecursorFieldDecisions`), any
+predicate `P` that passes from a forall to its unannotated domain and to its body
 instantiated with a free variable holds of the terminal expression and of the
 declared type of every opened field. -/
 theorem RecursorFieldDecisions.fieldDeclsSatisfy

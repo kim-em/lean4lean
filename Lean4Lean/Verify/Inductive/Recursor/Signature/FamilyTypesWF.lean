@@ -4,15 +4,15 @@ import Lean4Lean.Verify.Inductive.Recursor.Signature.MotiveGroup
 import Lean4Lean.Verify.Inductive.Constructor.Check
 import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
 
-/-! Well-formed family applications (`InductiveSignature.FamilyTypesWF`) for
-the two signatures the checker produces: the header-phase source signature and
-the signature over the families consumed by the recursor pass.
+/-! Well-formed family applications (`InductiveSignature.FamilyTypesWF`) for the signatures
+over the families of the recursor construction (`RecursorConstruction.families`). The
+corresponding fact for the checked-formation source signature is in
+`Constructor/CheckedFormation.lean`.
 
-Neither proof compares a signature's index telescope definitionally with the
-declared family type in the telescope's own prefix.  The source signature
-reads its telescope off the header phase's definitional equality; the
-consumed families read theirs off the recursor pass's index replay and
-generated motive, and recover the result sort from the declared constant. -/
+The proof does not compare the index telescope definitionally with the declared family type:
+the telescope and the family application are read off the index domains of the motive pass
+(`sourceIndexDomains`) and the generated motive, and the result sort off the declared family
+constant. -/
 
 namespace Lean4Lean
 
@@ -37,9 +37,8 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
   {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
-/-- The consumed index telescope of each family, over the cached parameter
-context, is a well-formed context.  It is read off the recursor pass's index
-replay (`sourceIndexDomains`). -/
+/-- The index domains of each family (`declIndexDomains`), over the source parameter scope, form
+a well-formed context in the recursor-checking environment (from `sourceIndexDomains`). -/
 theorem RecursorConstruction.unannotatedIndices_onCtx
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     OnCtx ((H.declIndexDomains owner).reverse ++ R.parameterScope.toCtx)
@@ -50,10 +49,9 @@ theorem RecursorConstruction.unannotatedIndices_onCtx
   have hdomains := Classical.choose_spec (H.sourceIndexDomains owner owner.isLt)
   exact (VEnv.IsType.wrapForalls_inv henv.ordered hP hdomains.2.2.1).1
 
-/-- The generated motive of each consumed family, brought back to the source
-universes, contains the family applied to the canonical parameter and index
-variables, over the consumed index telescope in the cached parameter
-context. -/
+/-- The family applied to the bvar spine of parameters and indices is a type over the family's
+index domains and the source parameter scope, at the source universes. It is read off the
+family's generated motive, brought back to the source universes. -/
 theorem RecursorConstruction.unannotatedFamilyApp_isType
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     R.context.venv.IsType c.lparams.length
@@ -120,14 +118,13 @@ theorem RecursorConstruction.unannotatedFamilyApp_isType
     rw [hcv, heta, hPId, hidxId] at hdrop
     exact hpeel rfl rfl hdrop
 
-/-- The families consumed by the recursor pass have well-formed family
-applications, in the environment in which the recursors are declared.  The
-telescope's well-formedness comes from the recursor pass's index replay; the
-application's well-formedness from the generated motive (at the source
-universes); its sort from the declared family constant, whose header is
-definitionally a telescope ending in the recorded sort (source formation).
-No definitional agreement of the consumed index domains with the declared
-ones is used, and the checked recursor type is not consulted. -/
+/-- A signature with the source parameter scope and the families of the recursor construction
+has well-formed family applications in the recursor-checking environment. The telescope's
+well-formedness comes from `unannotatedIndices_onCtx`, the application's from the generated
+motive (at the source universes), and its sort from the declared family constant, whose
+header is definitionally a telescope ending in the recorded sort (source formation). No
+definitional agreement of these index domains with the declared ones is used, and the checked
+recursor type is not consulted. -/
 theorem RecursorConstruction.unannotatedFamilyTypesWF
     (H : RecursorConstruction R) {s : InductiveSignature}
     (hp : s.params = R.parameterScope.toCtx.reverse) (hf : s.families = H.families) :

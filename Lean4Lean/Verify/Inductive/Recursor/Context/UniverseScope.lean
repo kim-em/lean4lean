@@ -8,7 +8,7 @@ input (`VContext.LevelsBelow`), relative to any universe scope of the local
 context.  This file collects the lemmas transporting that invariant to the
 inductive checker's reader contexts: closing bound telescopes, building
 universe scopes from declared types, and the universe support of the header
-parameters.  They sit below the first recursor pass, which uses them to show
+parameters.  The motive pass of the recursor construction uses them to show
 that the index telescope of each family mentions only the declaration's
 universe parameters. -/
 

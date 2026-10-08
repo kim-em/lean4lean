@@ -1,11 +1,13 @@
 import Lean4Lean.Verify.Inductive.Recursor.Check
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 
-/-! Recursor metadata realization for completed recursor phases.
+/-! Recursor metadata of a recursor check.
 
-Every field of `TrRecursorVal` except the rule list is established for
-each installed recursor entry of a `RecursorCheck`, against the
-single canonical generation instance chosen by that result.
+Every field of `TrRecursorVal` except the rule list is established for each installed
+recursor entry of a `RecursorCheck`, against the one instance of the construction's signature
+(`RecursorCheck.canonicalGeneration`). Together with the rule translations of `Rules/` this
+shows that the executable's recursors are the translations of the generated ones (section 3.2
+of `docs/inductives/DESIGN.md`).
 -/
 
 namespace Lean4Lean
@@ -31,7 +33,7 @@ structure RecursorMetadata {s : InductiveSignature} (g : Instance s)
     s.families[owner].resultLevel ≈ .zero ∧
     ∀ ctor ∈ s.constructors.toList, ctor.fields = []
 
-/-- Metadata together with rule coverage is a full recursor realization. -/
+/-- Metadata together with rule coverage gives `TrRecursorVal`. -/
 theorem RecursorMetadata.toTrRecursorVal
     {s : InductiveSignature} {g : Instance s} {venv : VEnv}
     {owner : Fin s.families.size} {rec : Lean.RecursorVal}
@@ -85,7 +87,7 @@ theorem Expr.ForallTelescope.constructorArity
   | nil => simp
   | cons _ ih => simp [AddInductive.constructorArity, ih]; omega
 
-/-- Consuming the cached parameter prefix removes exactly the remaining
+/-- Instantiating the parameter prefix from position `i` removes exactly the remaining
 parameter binders. -/
 theorem ParameterPrefix.constructorArity
     (H : ParameterPrefix stats i source tail)
@@ -102,8 +104,8 @@ theorem ParameterPrefix.constructorArity
     simp only [AddInductive.constructorArity, ih]
     omega
 
-/-- Installed recursor entries are indexed by the canonical signature's
-families. -/
+/-- Installed recursor entries are indexed by the families of the construction's
+signature. -/
 theorem RecursorCheck.entries_length_eq
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -141,7 +143,7 @@ theorem RecursorCheck.generated_getMajorInduct
   simp [Expr.abstractN_mkAppN, Expr.getAppFn_mkAppN, Expr.abstractN, Expr.getAppFn,
     Expr.constName!]
 
-/-- A successful K check pins down the canonical signature: one family, one
+/-- A successful K check pins down the construction's signature: one family, one
 constructor without fields beyond the parameters, in `Prop`. -/
 theorem RecursorCheck.kShape
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
@@ -219,8 +221,8 @@ theorem RecursorCheck.kShape
     rw [← htravEq, hfields0] at hlen
     exact List.eq_nil_of_length_eq_zero hlen
 
-/-- Every installed recursor realizes all non-rule metadata of the canonical
-generated recursor for its owner. -/
+/-- Every installed recursor translates all non-rule metadata of the generated recursor
+for its owner. -/
 theorem RecursorCheck.trMetadata
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}

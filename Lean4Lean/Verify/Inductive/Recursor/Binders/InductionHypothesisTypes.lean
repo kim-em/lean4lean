@@ -1,5 +1,12 @@
 import Lean4Lean.Verify.Inductive.Recursor.Binders.BinderTypes
 
+/-! Induction-hypothesis and minor-premise types of the minor pass of
+`mkRecInfos`: the source construction of each hypothesis
+(`InductionHypothesisType`) and minor (`MinorPremiseType`), the per-family binder
+types `RecInfoBinderTypes`, the alignment of the recorded rule templates with the
+minors (`CallTemplatesMatch`, `RuleTemplatesMatch`), and the executable shapes of
+major and motive domains (`MajorPremiseTypes`, `MotiveTypes`). -/
+
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
@@ -33,8 +40,8 @@ structure InductionHypothesisType
       (mkAppN field args)
     type = current.lctx.mkForall args motiveApp
 
-/-- The exact higher-order telescope retained by a minor hypothesis before
-the installed declaration consumes top-level annotations. -/
+/-- The higher-order telescope of an induction hypothesis before the
+type annotations of the installed declaration are stripped. -/
 theorem InductionHypothesisType.sourceTelescope
     (O : InductionHypothesisType stats recInfos root field type) :
     let indices : Array Expr :=
@@ -54,7 +61,7 @@ theorem InductionHypothesisType.sourceTelescope
       current_wf _
 
 /-- Closing the fresh higher-order arguments turns the selected field
-application into its canonical de Bruijn spine.  This is the first-pass
+application into its bvar spine.  This is the minor-pass
 counterpart of `RecursiveCall.abstractedMajor`. -/
 theorem InductionHypothesisType.abstractedMotiveApp_eq
     (O : InductionHypothesisType stats recInfos root field type) :
@@ -109,9 +116,9 @@ def InductionHypothesisType.outerAbstractedField
     (binders : List FVarId) : Expr :=
   O.abstractedField.abstractList binders O.args.size
 
-/-- Alpha-normalized payload of the first-pass `loopUArgs` run.  Closing the
-fresh higher-order suffix and then the constructor fields removes allocation
-identities while retaining exactly the owner, local arity, and index spine
+/-- Alpha-normalized shape of the minor-pass `loopUArgs` run.  Closing the
+fresh higher-order suffix and then the constructor fields removes the fresh
+identifiers while keeping exactly the owner, local arity, and index spine
 which determine the generated induction-hypothesis type. -/
 def InductionHypothesisType.replayTrace
     (O : InductionHypothesisType stats recInfos root field type)
@@ -129,8 +136,8 @@ def InductionHypothesisType.replayTrace
         (index.abstractList O.arguments_bound.fvars).abstractList
           fieldBinders O.args.size)
 
-/-- The first-pass hypothesis result after closing its higher-order arguments
-and all constructor fields.  This is the exact motive application payload;
+/-- The minor-pass hypothesis result after closing its higher-order arguments
+and all constructor fields.  This is the motive application;
 the surrounding forall telescope is handled separately. -/
 def InductionHypothesisType.outerAbstractedMotiveApp
     (O : InductionHypothesisType stats recInfos root field type)
@@ -202,9 +209,9 @@ theorem InductionHypothesisType.sourceTelescopeList
   dsimp only at h
   rwa [Expr.abstractN_eq_abstractList_of_closed O.arguments_bound.nodup hclosed] at h
 
-/-- After also closing an outer binder list, the selected first-pass field
-is the canonical outer de Bruijn variable shifted beneath its higher-order
-arguments and applied to their canonical local spine. -/
+/-- After also closing an outer binder list, the selected field
+is the outer de Bruijn variable shifted beneath its higher-order
+arguments and applied to their bvar spine. -/
 theorem InductionHypothesisType.outerAbstractedField_eq_bvar
     (O : InductionHypothesisType stats recInfos root field type)
     (hfieldEq : field = .fvar fv)
@@ -263,7 +270,7 @@ theorem InductionHypothesisType.outerAbstractedField_eq_bvar
       simpa [InductionHypothesisType.localIndices] using hjRight
     omega
 
-/-- Positional form of `outerAbstractedField_eq_bvar`.  When the retained
+/-- Positional form of `outerAbstractedField_eq_bvar`.  When the
 field is known to occupy binder position `i`, its de Bruijn index is no
 longer existential: it is exactly the reverse ordinal of that position. -/
 theorem InductionHypothesisType.outerAbstractedField_eq_bvar_at
@@ -289,7 +296,7 @@ theorem InductionHypothesisType.outerAbstractedField_eq_bvar_at
     exact Expr.bvar.inj (habstract.symm.trans hexact')
   simpa [hfieldVarExact] using houter
 
-/-- The constructed hypothesis origin cannot itself be a top-level parameter
+/-- The constructed hypothesis type cannot itself be a top-level parameter
 annotation: a nonempty local suffix produces a forall, while the empty case
 is the explicit motive application. -/
 theorem InductionHypothesisType.consumeTypeAnnotationsVerified_eq_self
@@ -325,7 +332,8 @@ theorem InductionHypothesisType.consumeTypeAnnotationsVerified_eq_self
     · change (Expr.app _ _).isAppOfArity `semiOutParam 1 = false
       exact Expr.isAppOfArity_eq_false_of_getAppFn_fvar hhead _ _
 
-/-- Completed pointwise origin data retained by one generated minor. -/
+/-- The source type of each induction hypothesis of one generated minor,
+before annotation stripping, with the run (`InductionHypothesisType`) that built it. -/
 structure MinorInductionHypothesisTypes
     (c : AddInductive.Context) (fields hypotheses : Array Expr) where
   stats : AddInductive.InductiveStats
@@ -344,8 +352,9 @@ structure MinorInductionHypothesisTypes
       ∃ D : FVarDeclAt c hypotheses j,
         D.type = (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
 
-/-- The exact source construction retained for one generated minor domain.
-The source local context is intentionally stored in the certificate: after
+/-- The source construction of one generated minor domain: `origin` is the
+declared (unannotated) domain and `sourceType` the expression before annotation
+stripping.  The source local context is stored in the structure: after
 `mkForall` closes the freshly introduced fields and recursive hypotheses, the
 resulting expression is stable under every later ambient-context extension. -/
 structure MinorPremiseType where
@@ -384,8 +393,8 @@ structure MinorPremiseType where
   unannotated_eq :
     (sourceType.consumeTypeAnnotationsVerified sourceFullContext.env.isTypeAnnotationWrapper) = origin
 
-/-- A semantic minor retained its completed hypothesis-origin table, and the
-table was produced with the expected inductive statistics. -/
+/-- A minor carries its induction-hypothesis types (`hypothesis_type_origins`),
+produced with the expected inductive statistics and motives. -/
 def MinorPremiseType.HasInductionHypothesisTypes
     (S : MinorPremiseType) (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo) : Prop :=
@@ -407,9 +416,9 @@ theorem MinorPremiseType.hypothesisTypeOrigins_exists
       exact ⟨origins, rfl, by
         simpa [MinorPremiseType.HasInductionHypothesisTypes, h] using H⟩
 
-/-- The retained first-pass hypothesis array is the exact inner forall
+/-- The hypothesis array is the inner forall
 telescope of the generated minor source type.  Its residual is expressed
-after simultaneous abstraction by the corresponding retained hypothesis
+after simultaneous abstraction by the corresponding hypothesis
 identifiers, matching the representation used for generated rule bodies. -/
 theorem MinorPremiseType.hypothesisTelescope
     (S : MinorPremiseType) :
@@ -439,7 +448,7 @@ theorem MinorPremiseType.hypothesisTelescope
   rw [houter]
   simpa only [B, ← hsize] using Htelescope
 
-/-- The retained constructor fields likewise form the exact outer telescope
+/-- The constructor fields likewise form the outer telescope
 of the minor source type around any chosen body. -/
 theorem MinorPremiseType.fieldTelescope
     (S : MinorPremiseType) (body : Expr) :
@@ -455,8 +464,8 @@ theorem MinorPremiseType.fieldTelescope
   rw [houter]
   exact Htelescope
 
-/-- Combining the two retained arrays exposes the complete field/hypothesis
-telescope of the unconsumed minor source type, including the precise
+/-- Combining the two arrays exposes the complete field/hypothesis
+telescope of the minor source type (before annotation stripping), including the precise
 abstraction cutoff beneath the inner hypothesis binders. -/
 theorem MinorPremiseType.sourceTelescope
     (S : MinorPremiseType) :
@@ -489,8 +498,8 @@ theorem MinorPremiseType.sourceTelescopeList
     simpa [hlen] using hc)] at h
   exact h
 
-/-- The annotation-consumed origin installed as the minor declaration keeps
-the complete field/hypothesis arity of its unconsumed production source. -/
+/-- The unannotated domain `origin` declared for the minor keeps
+the complete field/hypothesis arity of its source type. -/
 theorem MinorPremiseType.originTelescope
     (S : MinorPremiseType) :
     ∃ residual, Expr.ForallTelescope S.origin
@@ -500,9 +509,9 @@ theorem MinorPremiseType.originTelescope
   rw [S.unannotated_eq] at Htelescope
   exact ⟨residual, Htelescope⟩
 
-/-- Exact `withLocalDecl` origin types retained in the same row structure as
-production `RecInfo`s.  Per-owner rows avoid losing the insertion position of
-minor premises during the second mutual pass. -/
+/-- The types passed to `withLocalDecl` for each motive, major, index and minor,
+in the same row structure as the executable's `RecInfo`s.  Per-owner rows keep
+the insertion position of minor premises during the minor pass. -/
 structure RecInfoBinderTypes (c : AddInductive.Context)
     (recInfos : Array AddInductive.RecInfo) where
   motiveTypes : Array Expr
@@ -521,10 +530,10 @@ structure RecInfoBinderTypes (c : AddInductive.Context)
     (hj : j < minorTypes[i]!.size),
     MinorPremiseType
 
-/-- The exact first-pass recursive-call blueprints paired with one retained
-minor hypothesis-origin table.  This is producer evidence, not a replay
-compatibility premise: every field comes from the single successful
-`loopUTemplates` run which introduced the corresponding hypothesis. -/
+/-- The recursive-call templates recorded in the minor pass, matched with the
+induction-hypothesis types of one minor.  Every entry comes from the
+`loopUTemplates` run which introduced the corresponding hypothesis, so no
+comparison of two separate runs is needed. -/
 structure CallTemplatesMatch
     {sourceFullContext : AddInductive.Context}
     (origins : MinorInductionHypothesisTypes
@@ -551,10 +560,10 @@ structure CallTemplatesMatch
               (mkAppN (.bvar O.args.size)
                 O.exposedType.getAppArgs[origins.stats.params.size:]).app
                   (mkAppN fields[j]! O.args) }
-  /-- The same producer witnesses as `entry`, additionally retaining the
-  recursor-context certificate of each call's `loopUArgs` root and the
+  /-- The same data as `entry`, together with the
+  recursor-context well-formedness of each call's `loopUArgs` root and the
   up-set of the constructor fields (`allFields`) and common parameters in
-  it.  These are what a per-call `whnf` fact needs along the retained
+  it.  These are what a per-call `whnf` fact needs along the
   `LoopUArgsRun`. -/
   rooted : ∀ j (hj : j < hypotheses.size),
     ∃ originRoot sourceType,
@@ -580,8 +589,8 @@ structure CallTemplatesMatch
               O.exposedType.getAppArgs[origins.stats.params.size:]).app
                 (mkAppN fields[j]! O.args) }
 
-/-- One executable rule blueprint is the exact product of its retained minor
-source shape. -/
+/-- One executable rule template is determined by the source shape of its
+minor (`MinorPremiseType`). -/
 def RuleTemplateMatchesMinor
     (stats : AddInductive.InductiveStats)
     (S : MinorPremiseType)
@@ -599,10 +608,10 @@ def RuleTemplateMatchesMinor
         (AddInductive.getIIndices stats traversal.terminal).2 ∧
       CallTemplatesMatch origins S.fields B.recursiveCalls
 
-/-- Owner- and minor-indexed alignment between the executable rule blueprint
-rows and the independently retained first-pass minor origins.  A rule builder
-which consumes this certificate never reruns field classification, inference,
-or WHNF and therefore needs no alpha/replay oracle. -/
+/-- Owner- and minor-indexed alignment between the executable rule template
+rows and the minor binder types recorded in the minor pass.  A rule builder
+using this alignment never reruns field classification, inference,
+or `whnf`, and so needs no comparison of two runs up to alpha. -/
 structure RuleTemplatesMatch
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
@@ -624,9 +633,9 @@ structure RuleTemplatesMatch
       ExprArrayFVarIds (recInfos.map (·.motive))) ++
       ExprArrayFVarIds (recInfos.flatMap (·.minors))
 
-/-- Exact production shape of every generated major-premise declaration.
-This positional certificate is independent of translation: it records that
-the stored origin is the selected family applied to the retained common
+/-- Executable shape of every generated major-premise declaration.
+This positional fact is independent of translation: it records that
+the stored binder type is the selected family applied to the common
 parameters and this record's indices. -/
 structure MajorPremiseTypes (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo) (majorTypes : Array Expr)
@@ -642,7 +651,7 @@ def MajorPremiseTypes.empty (stats : AddInductive.InductiveStats) (ok : Name →
   size_eq := rfl
   shape i hi := by simp at hi
 
-/-- Append one family frame to the positional major-domain certificate. -/
+/-- Append one family frame to the positional major-domain shapes. -/
 def MajorPremiseTypes.push
     (H : MajorPremiseTypes stats recInfos majorTypes ok)
     (info : AddInductive.RecInfo) (majorType : Expr)
@@ -714,9 +723,9 @@ def RecInfoBinderTypes.mono
   minors i hi := (H.minors i hi).mono hle
   minorShapes i hi j hj := H.minorShapes i hi j hj
 
-/-- Exact production shape of every motive declaration domain.  This is
-kept separately from `TrBinderTypes`: the latter certifies
-that the stored domain translates to a type, while this certificate states
+/-- Executable shape of every motive declaration domain.  This is
+kept separately from `TrBinderTypes`: the latter states
+that the stored domain translates to a type, while this structure states
 which dependent forall telescope that domain is supposed to be. -/
 structure MotiveTypes (c : AddInductive.Context)
     (recInfos : Array AddInductive.RecInfo) (motiveTypes : Array Expr)

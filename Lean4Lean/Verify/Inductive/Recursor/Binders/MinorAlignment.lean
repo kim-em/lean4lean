@@ -7,18 +7,18 @@ open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
-/-! ### Retained `loopArgs1` traces
+/-! ### `loopArgs1` runs
 
 `mkRecInfos.loopInd1` normalizes each family header with `whnf` and opens its
 parameter and index binders with `mkRecInfos.loopArgs1`, normalizing every
 instantiated body again.  The index declarations of the recursor context are
-domains of these `whnf` outputs.  The certificates below retain each such call
-together with the recursor-context certificate of the context it ran in, so
+domains of these `whnf` outputs.  The relations below record each such call
+together with the recursor-context well-formedness of the context it ran in, so
 that facts about the lifted `whnf` (for example preservation of a syntactic
-shape) apply along the trace. -/
+shape) apply along the run. -/
 
-/-- One retained lifted `whnf` call of the recursor pass, run in a context
-`ctx` below `final`.  `P` is a free-variable up-set of the semantic context
+/-- One lifted `whnf` call of the motive pass, run in a context
+`ctx` below `final`.  `P` is a free-variable up-set of the abstract context
 containing the input's free variables; its members satisfy `Q` and are
 variables of `ctx`. -/
 def WhnfRunAt (final : AddInductive.Context) (Q : FVarId → Prop)
@@ -43,11 +43,11 @@ theorem WhnfRunAt.mono {final final' : AddInductive.Context}
   exact ⟨ctx, recLparams, Rc, P, target, hctx.trans hle, htr, hup,
     fun fv h => ⟨hQ fv (hP fv h).1, (hP fv h).2⟩, hin, hrun, htr₀⟩
 
-/-- Exact successful prefix of `whnf header >>= loopArgs1 stats · 0 #[]`:
+/-- Successful prefix of `whnf header >>= loopArgs1 stats · 0 #[]`:
 the header normalization, the parameter steps (instantiating the cached
 parameters `stats.params`) and the index steps (opening a fresh index
-variable `x`, declared in `final` with the annotation-consumed domain). The
-`Nat` index is the number of parameters consumed, the `Expr` the current
+variable `x`, declared in `final` with the unannotated domain). The
+`Nat` index is the number of parameters instantiated, the `Expr` the current
 normalized type and the array the opened indices. -/
 inductive IndexTelescopeRun (stats : AddInductive.InductiveStats)
     (final : AddInductive.Context) (header : Expr) :
@@ -96,8 +96,8 @@ theorem IndexTelescopeRun.mono {stats : AddInductive.InductiveStats}
     rw [hle.declarations _ member, hle.env_eq]
     exact hfind
 
-/-- Every family's index telescope was opened by a retained `loopArgs1`
-trace starting at the family header `indTypes[i].type`. -/
+/-- Every family's index telescope was opened by a `loopArgs1`
+run (`IndexTelescopeRun`) starting at the family header `indTypes[i].type`. -/
 def IndexTelescopeRuns (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) (c : AddInductive.Context)
     (recInfos : Array AddInductive.RecInfo) : Prop :=
@@ -143,7 +143,7 @@ theorem IndexTelescopeRuns.push {stats : AddInductive.InductiveStats}
     rw [hget]
     exact H i hold
 
-/-- The traces only see the index arrays of the records. -/
+/-- The runs only see the index arrays of the records. -/
 theorem IndexTelescopeRuns.congr {stats : AddInductive.InductiveStats}
     {indTypes : Array InductiveType} {c : AddInductive.Context}
     {left right : Array AddInductive.RecInfo}
@@ -169,10 +169,10 @@ theorem IndexTelescopeRuns.modifyMinors {stats : AddInductive.InductiveStats}
     rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hi]
   · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hi hdi]
 
-/-- Every retained minor shape names the concrete constructor list of its
-owning source family.  This is the final cross-pass provenance invariant:
-the second `mkRecInfos` traversal and rule generation may allocate different
-locals, but they replay the same owner-indexed constructor arrays. -/
+/-- Every minor shape names the executable constructor list of its
+owning source family, together with the constructor traversal that produced it.
+The minor pass of `mkRecInfos` and rule generation may allocate different
+locals, but they traverse the same owner-indexed constructor arrays. -/
 def MinorsMatchConstructors
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType)
@@ -205,9 +205,9 @@ def MinorsMatchConstructors
           BindingContextLE traversal.terminalContext c ∧
           BindingContextLE S.sourceFullContext c
 
-/-- The cross-pass source alignment of a completed recursor construction: the
-minor rows (`MinorsMatchConstructors`) together with the retained `loopArgs1`
-traces of every family's index telescope (`IndexTelescopeRuns`). -/
+/-- The source alignment of a recursor construction: the
+minor rows (`MinorsMatchConstructors`) together with the `loopArgs1`
+runs of every family's index telescope (`IndexTelescopeRuns`). -/
 def MinorsAndIndicesMatchSource
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType)
@@ -225,12 +225,12 @@ theorem MinorsAndIndicesMatchSource.traces
     (A : MinorsAndIndicesMatchSource stats indTypes H) :
     IndexTelescopeRuns stats indTypes c recInfos := A.2
 
-/-- Semantic counterpart of `MinorsAndIndicesMatchSource` for one retained
-minor.  The structural alignment remembers that the source context embeds in
-the final local context; this certificate additionally remembers the exact
+/-- Typed counterpart of `MinorsAndIndicesMatchSource` for one
+minor.  The structural alignment records that the source context embeds in
+the current local context; this structure also records the
 translation-side lift produced by that executable extension.  Keeping the
-source `RecursorContextWF` existential avoids baking a particular sequence of
-intermediate field and hypothesis binders into the stable minor shape. -/
+source `RecursorContextWF` existential avoids fixing a particular sequence of
+intermediate field and hypothesis binders in the minor shape. -/
 structure TypedMinorTraversal
     {c : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF c recLparams)
@@ -271,8 +271,8 @@ structure TypedMinorTraversal
           terminalWF.venv.IsDefEqU recLparams.length
             parameterSuffix.parameterDecls.toCtx T₀
             (M.mkForall' S.fields.size hn t₀')
-  /-- The exact opening chosen by the successful first-pass constructor
-  traversal.  Later rule construction reads this certificate instead of
+  /-- The opening chosen by the minor-pass constructor
+  traversal.  Rule construction reads this opening instead of
   opening the constructor telescope a second time. -/
   fieldOpening : ConstructorFieldOpening traversal.parameterTail
     traversal.terminal S.fields
@@ -286,10 +286,10 @@ structure TypedMinorTraversal
     terminalWF.mlctx.vlctx traversal.terminal terminalTarget
   terminalType : terminalWF.venv.IsType recLparams.length
     terminalWF.mlctx.vlctx.toCtx terminalTarget
-  /-- The exact checked constructor application at the end of the retained
-  field traversal.  Keeping this producer evidence allows the later
-  blueprint-only rule builder to recover its constructor typing without
-  replaying either field classification or type checking. -/
+  /-- The checked constructor application at the end of the
+  field traversal.  This lets the template-based rule builder recover its
+  constructor typing without repeating field classification or type
+  checking. -/
   constructorApplication : ConstructorApplicationAt terminalWF
     traversal.stats traversal.constructor traversal.terminal S.fields
     terminalTarget
@@ -298,7 +298,7 @@ structure TypedMinorTraversal
       (terminalWF.mlctx.mkForall' S.fields.size fieldsRecent.size_le
         terminalTarget)
   /-- The source motive application is assembled before recursive-hypothesis
-  locals are opened.  Retaining this pre-weakening derivation makes the later
+  locals are opened.  Recording this derivation before weakening makes the later
   hypothesis closure visibly alpha-invariant. -/
   motivePreTarget : VExpr
   motivePreTranslation : TrExprS terminalWF.venv recLparams
@@ -392,7 +392,7 @@ theorem TypedMinorTraversal.abstractHypotheses_motiveApp
     exact hterminal
   exact havoids.abstractList_eq_self hclosed
 
-/-- Consuming binder annotations cannot change a generated minor type.  A
+/-- Stripping binder annotations cannot change a generated minor type.  A
 nonempty field/hypothesis telescope starts with a genuine forall binder.  In
 the degenerate empty-telescope case the residual is an application headed by
 the freshly bound motive variable, so it cannot be any of Lean's four
@@ -427,7 +427,7 @@ theorem TypedMinorTraversal.sourceType_consumeTypeAnnotations_eq_self
 
 /-- Restrict the shared constructor-tail translation to the cached parameter
 suffix.  The ambient motives and previously generated minors cannot occur in
-that source by the retained field-traversal scope invariant. -/
+that source by the field-traversal scope invariant. -/
 theorem TypedMinorTraversal.parameterTranslationAtSuffix
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams} {S : MinorPremiseType}
@@ -455,7 +455,7 @@ def TypedMinorTraversalAt.mono
   semantic := HS.semantic.mono Hext
   parameterDecls_eq := HS.parameterDecls_eq
 
-/-- Every retained minor source carries its exact semantic extension into the
+/-- Every minor source carries its typed extension (`TypedMinorTraversal`) into the
 current recursor context.  Unlike `BindingContextLE`, this invariant is strong
 enough to transport or restrict translated declaration types without guessing
 how later named locals shift their de Bruijn targets. -/

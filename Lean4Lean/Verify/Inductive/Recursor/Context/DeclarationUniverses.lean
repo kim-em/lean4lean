@@ -1,11 +1,21 @@
 import Lean4Lean.Verify.Typing.Lemmas
 import Lean4Lean.Verify.ExprUniverses
+
+/-! Universe substitution in translations, used to drop the recursor's elimination universe.
+
+`TrExprS.substLevelParamsCore` instantiates the universe parameters of a translated term
+with the executable's non-reducing level substitution. Its instance
+`TrExprS.dropFreshLevelParam` replaces the extra elimination universe of a recursor
+context by zero and leaves the declaration's universe parameters unchanged, which brings a
+translation over the recursor's universe parameters back to the declaration's. -/
+
 namespace Lean4Lean
 open Lean hiding Environment Exception
 
-/-- Exact universe substitution for nonreducing native level replacement.
-In particular, dropping an unused recursor universe must not simplify other
-native universe expressions while reconstructing their strict translation. -/
+/-- Translations are preserved by the executable's non-reducing level substitution
+(`instantiateLevelParamsCore' false`), provided it agrees with the abstract instantiation
+`ls` on every level of the source. Because the substitution does not simplify, the other
+universe expressions of the term are kept as they are. -/
 theorem TrExprS.substLevelParamsCore
     (hΔ : VLCtx.WF env ps.length Δ)
     (hls : ∀ level ∈ ls, level.WF Us.length)
@@ -45,9 +55,8 @@ theorem TrExprS.substLevelParamsCore
   | proj _ hproj ih =>
     exact .proj (ih hΔ) (VLCtx.instL_toCtx _ ▸ hproj.instL hls)
 
-/-- Replace the extra elimination universe by zero, leaving source universe
-syntax unchanged. This is used to choose a fresh original-universe witness;
-it is not an assertion that the old witness omitted the extra universe. -/
+/-- Replace the extra elimination universe `fresh` by zero and leave every other universe
+parameter unchanged. -/
 def recursorDropLevel (fresh : Name) (name : Name) : Level :=
   if name = fresh then .zero else .param name
 

@@ -16,10 +16,10 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- Complete output of the executable recursor suffix, indexed only by the
-sound completed-constructor boundary.  In particular, this result does not
-require a valid header-only environment or an ordinary `AddConstants` trace
-for primitive family and constructor names. -/
+/-- The recursor check: the recursor construction together with the installation of the
+generated recursors (`declareRecursors`), indexed only by the constructor check. In particular
+it does not require a well-formed header-only environment or an ordinary `AddConstants`
+derivation for primitive family and constructor names. -/
 structure RecursorCheck
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -43,8 +43,8 @@ structure RecursorCheck
   targets : ∀ i (hi : i < entries.length),
     entries[i].2 = toRecursorConstruction.recursorTarget i
 
-/-- Installation retains the exact ordered generator output; equality is
-established by choosing these targets before the loop, not by translation uniqueness. -/
+/-- The installed recursor values are exactly the generator's recursors, in order. Equality
+holds because the targets are chosen before the loop, not by uniqueness of translations. -/
 theorem RecursorCheck.recursors
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -75,9 +75,9 @@ theorem RecursorCheck.generated_k
   (H.generated.entry owner howner).kChecked.unique H.kTargetChecked
     H.localContext
 
-/-- The installed recursor rules are literally the builds of the blueprints
-retained by `mkRecInfos`, as `declareRecursors.loop` constructs them through
-`mkRecRulesFromTemplates` in the recursor-construction local context. -/
+/-- The installed recursor rules are literally the instantiations of the rule templates
+recorded by `mkRecInfos`, as `declareRecursors.loop` builds them through
+`mkRecRulesFromTemplates` in the local context of the recursor construction. -/
 theorem RecursorCheck.generated_rules_eq
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -91,7 +91,7 @@ theorem RecursorCheck.generated_rules_eq
           H.localContext.lctx :=
   (H.generated.entry owner howner).rules_eq
 
-/-- Each installed recursor has exactly one rule per retained blueprint. -/
+/-- Each installed recursor has exactly one rule per rule template. -/
 theorem RecursorCheck.generated_rules_length
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -120,7 +120,7 @@ theorem RecursorCheck.rulesLiteral
     Array.getElem_toList, getElem!_pos H.recInfos[owner]!.ruleTemplates i hi']
 
 /-- The recursor safety metadata agrees with the source declaration because
-both flags originate in the same declaration checking context. -/
+both flags come from the same declaration checking context. -/
 theorem RecursorCheck.generated_isUnsafe
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -130,11 +130,10 @@ theorem RecursorCheck.generated_isUnsafe
   rw [(H.generated.entry owner howner).isUnsafe, H.localExtends.safety_eq,
     ← H.sourceSafety, R.core.isUnsafe]
 
-/-- The concrete constructor and recursor installation traces preserve the
-persistent constructor-owner invariant through the complete inductive block.
-Constructor entries obtain owners from the formation trace, while generated
-recursor entries are definitionally `recInfo` and therefore add no new
-constructor metadata. -/
+/-- Installing the constructors and recursors preserves the constructor-owner invariant
+through the whole inductive block. Constructor entries get their owners from the checked
+formation, while generated recursor entries are definitionally `recInfo` and therefore add
+no constructor metadata. -/
 theorem RecursorCheck.constructorOwnersPresent
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -157,8 +156,9 @@ theorem RecursorCheck.constructorOwnersPresent
   have hne := H.generated.nonConstructor entry.1 entry.2 (by simpa using hentry) info
   exact False.elim (hne hinfo)
 
-/-- The recursor phase adds no constructor: every constructor of the output is old, or a new
-constructor of the declaration with its safety flag and a certified type. -/
+/-- The recursor phase adds no constructor: every constructor of the output is a base
+constant, or a new constructor of the declaration with its safety flag and a constructor
+telescope certificate (`CtorTelescopeAt`) in the header environment. -/
 theorem RecursorCheck.ctorOrigin
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -178,9 +178,9 @@ theorem RecursorCheck.ctorOrigin
   rw [H.localExtends.env_eq] at h
   exact R.ctorOrigin h
 
-/-- The exact `getElimLevel`/`mkRecInfos`/`declareRecursors` suffix, entered
-from a completed and valid constructor context.  This is shared by ordinary
-and atomic primitive formation. -/
+/-- The recursor phase (`getElimLevel`, `mkRecInfos`, `declareRecursors`) run after a
+constructor check succeeds and yields a `RecursorCheck`. This is shared by ordinary and
+atomic primitive formation. -/
 theorem ConstructorCheck.recursorPhasesWF
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -359,7 +359,7 @@ theorem ConstructorCheck.recursorPhasesWF
         rw [Htargets i hi]
         exact ((construction T).recursorTarget_eq i hbound).symm }⟩
 
-/-- The production universe-parameter guard succeeds only for a duplicate-free
+/-- The executable's universe-parameter check succeeds only for a duplicate-free
 parameter list. -/
 theorem Kernel.Environment.checkDuplicatedUnivParams.WF
     (lparams : List Name) :
@@ -388,8 +388,8 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The completed run fixes both the source signature and its universe
-instance. Generation and concrete metadata must use this same choice. -/
+/-- The construction's signature instance (`generationInstance`) of a recursor check. The
+generated recursors and the executable metadata are both compared with this one instance. -/
 noncomputable def RecursorCheck.canonicalGeneration
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -397,8 +397,8 @@ noncomputable def RecursorCheck.canonicalGeneration
     InductiveSignature.Instance H.toRecursorConstruction.generationSignature :=
   H.toRecursorConstruction.generationInstance
 
-/-- Admissibility belongs to the same consumed signature selected before
-installation, including the actual singleton decision and universe policy. -/
+/-- The construction's instance is admissible in the header environment, with the elimination
+level and singleton decision the executable computed. -/
 theorem RecursorCheck.canonicalGeneration_admissible
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}

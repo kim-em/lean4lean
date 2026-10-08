@@ -56,8 +56,10 @@ theorem TrExprS.forallTelescope_residual_typed
         simpa [abstractForallContext, List.map_append, List.append_assoc] using
           ih (by simpa using hlen) Hbody HbodyType
 
-/-- Reuse the chosen strict translations of an index-only prefix while
-restoring its independently typed major-and-sort residual. -/
+/-- If the first `n` domains of `source` (closed with `Prop`, `Expr.forallDomainsOnly`)
+translate to `domains`, and the residual after them translates to a type `result` in the
+context extended by `domains`, then `source` translates to `wrapForalls domains result`, which
+is a type. -/
 theorem TrExprS.rebuildForallPrefix
     (Htel : Expr.ForallTelescope source n residual)
     (hlen : domains.length = n)
@@ -83,10 +85,12 @@ theorem TrExprS.rebuildForallPrefix
           (by simpa [abstractForallContext, List.map_append, List.append_assoc] using HresType)
         exact ⟨.forallE HdomType HbodyType Hdom Hbody', .forallE HdomType HbodyType⟩
 
-/-- A family index choice determines its full consumed motive translation.
-The original checker supplies typehood of the residual; conversion transports
-it into the chosen index context, whose major syntax is then forced by the
-actual family-application origin. -/
+/-- Given index domains `indices` that translate the executable index telescope of family
+`owner` (`indexDomainSource`), the executable motive type (indices, major, elimination sort,
+abstracted over the parameters) translates in the recursor-checking environment to
+`∀ indices, (family applied to the bvar spine) → Sort level`, which is a type in the recursor
+parameter context. Typehood of the major-and-sort residual comes from the executable's own
+check, moved into the index context by conversion. -/
 theorem RecursorConstruction.replayMotiveWithIndexDomains
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)

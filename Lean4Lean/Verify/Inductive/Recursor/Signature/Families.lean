@@ -3,8 +3,10 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- One actual source-universe index choice, shared by its original source
-model and the recursor-universe generated motive. -/
+/-- Each family has index domains in the source universes that translate its executable index
+telescope (`indexDomainSource`) over the source parameter scope and form a type there, and
+whose instantiation at the recursor's universe levels translates the same telescope over the
+recursor parameter context. -/
 theorem RecursorConstruction.sourceIndexDomains
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
@@ -58,8 +60,8 @@ theorem RecursorConstruction.sourceIndices_length
     (H.declIndexDomains owner).length = H.recInfos[owner.val]!.indices.size :=
   (Classical.choose_spec (H.sourceIndexDomains owner owner.isLt)).1
 
-/-- Family metadata is chosen once from the actual accepted index replay.
-Names and result universes remain the original declaration's metadata. -/
+/-- The families of the construction's signature: names and result levels are those of the
+source declaration, index domains are `declIndexDomains` (chosen by `sourceIndexDomains`). -/
 noncomputable def RecursorConstruction.families
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) : Array InductiveSignature.Family :=

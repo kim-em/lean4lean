@@ -1,5 +1,21 @@
 import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope
 
+/-! Free-variable arrays opened by the recursor construction.
+
+The recursor construction opens binders (indices, majors, constructor fields, the arguments
+of recursive fields) and closes them again with `LocalContext.mkForall`/`mkLambda`. This file
+records how such an array sits in the local context: `FVarArrayAfter` (opened after a root
+context), `FVarSuffix` and `RecursorFVarSuffix` (the exact consecutive suffix above a root,
+in introduction order), and `RecursorContextExtension` (the de Bruijn lift of the abstract
+context along an extension). With these, translations and typings move from a root context
+to the extended one, and closing the suffix gives a translated forall or lambda in the root
+context (`RecursorFVarSuffix.mkForall`, `mkLambda`).
+
+It also proves that the constructor phase records, for every constructor, its owner normal
+form (`ConstructorOwnerNormalForm`: the field telescope ends in a valid application of its
+family), and that the minor pass's traversal of constructor fields
+(`mkRecInfos.loopCtorArgs`) opens the fields as such a suffix. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -65,11 +81,10 @@ theorem BindingContextLE.withCheckedLocalDecl
   allowPrimitive_eq := rfl
   fuel_eq := rfl
 
-/-- An executable recursor-context extension together with its exact semantic
-free-variable weakening.  `BindingContextLE` is enough for looking up raw
-local declarations, but it does not determine how translated de Bruijn
-targets move.  The explicit `FVLift'` is the missing transport datum for
-first-pass motive certificates consumed under later constructor binders. -/
+/-- An extension of recursor contexts together with the lift of the abstract local
+context. `BindingContextLE` is enough to look up local declarations, but it does not
+determine how translated de Bruijn targets move; the `FVLift'` does. It is used to move
+motive-pass facts under later constructor binders. -/
 structure RecursorContextExtension
     {root current : AddInductive.Context} {recLparams : List Name}
     (Rroot : RecursorContextWF root recLparams)
@@ -97,8 +112,7 @@ def RecursorContextExtension.trans
   shift := H₁.shift.comp H₂.shift
   lift := H₁.lift.comp H₂.lift
 
-/-- The exact one-local extension corresponding to
-`RecursorContextWF.withLocalDecl`. -/
+/-- The one-local extension corresponding to `RecursorContextWF.withLocalDecl`. -/
 def RecursorContextExtension.withLocalDecl
     (R : RecursorContextWF c recLparams)
     (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
@@ -111,9 +125,8 @@ def RecursorContextExtension.withLocalDecl
   shift := (.refl : Lift).skipN 1
   lift := .skip_fvar _ _ .refl
 
-/-- Transport a syntax translation along an exact recursor-context
-extension.  The concrete expression is unchanged; its abstract target is
-shifted by precisely the retained `Lift`. -/
+/-- Weaken a translation along a recursor-context extension. The executable expression is
+unchanged; its abstract target is lifted by the extension's `Lift`. -/
 theorem RecursorContextExtension.weakTrExprS
     {root current : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -129,8 +142,7 @@ theorem RecursorContextExtension.weakTrExprS
     hcurrentWF
   simpa only [H.venv_eq] using hweak
 
-/-- Transport a typing derivation along the context lift carried by an exact
-recursor extension. -/
+/-- Weaken a typing along the lift of a recursor-context extension. -/
 theorem RecursorContextExtension.weakHasType
     {root current : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -144,7 +156,7 @@ theorem RecursorContextExtension.weakHasType
   have hweak := htype.weak' Rroot.checking.tr.wf.ordered H.lift.toCtx
   simpa only [H.venv_eq] using hweak
 
-/-- Transport typehood along an exact recursor extension. -/
+/-- Weaken typehood along a recursor-context extension. -/
 theorem RecursorContextExtension.weakIsType
     {root current : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -157,7 +169,7 @@ theorem RecursorContextExtension.weakIsType
   have hweak := htype.weak' Rroot.checking.tr.wf.ordered H.lift.toCtx
   simpa only [H.venv_eq] using hweak
 
-/-- Transport definitional equality along an exact recursor extension. -/
+/-- Weaken definitional equality along a recursor-context extension. -/
 theorem RecursorContextExtension.weakDefEqU
     {root current : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -335,10 +347,9 @@ theorem FVarArrayIn.mkForall_closed
       exact ⟨_, h⟩)
     hnodup hb hl.declsClosed
 
-/-- A retained array introduced strictly after `root`. Besides recording that
-its entries remain selectable, this packages the two facts needed to combine
-it with selections already present at `root`: its entries are distinct and
-none of them occurred in the root context. -/
+/-- An array of local declarations of `c` opened after `root`: its entries are distinct
+and none of them occurs in the root context, which is what is needed to combine it with
+arrays already present at `root`. -/
 structure FVarArrayAfter (root c : AddInductive.Context)
     (xs : Array Expr) extends FVarArrayIn c xs where
   nodup : toFVarArrayIn.fvars.Nodup
@@ -421,10 +432,9 @@ def FVarArrayAfter.rebaseRoot
     intro fv hfv hroot'
     exact H.fresh fv hfv (hle hroot')
 
-/-- The exact ordered suffix of ordinary locals introduced after `root`.
-Unlike `FVarArrayAfter`, this remembers both that no unrelated local was
-interleaved and that `xs` lists the suffix in introduction order.  These are
-the equations required by `RecursorContextWF.mkForallRecent`. -/
+/-- The suffix of ordinary locals introduced after `root`, in order. Unlike
+`FVarArrayAfter`, it records that no other local is interleaved and that `xs` lists the
+suffix in introduction order, as `RecursorContextWF.mkForallRecent` requires. -/
 structure FVarSuffix {root c : AddInductive.Context}
     (Hroot : ContextWF root) (Hc : ContextWF c) (xs : Array Expr)
     extends FVarArrayAfter root c xs where
@@ -472,8 +482,9 @@ def FVarSuffix.pushCurrentChecked {root c : AddInductive.Context}
     simpa only [Array.size_push, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.dropN] using H.drop_eq
 
-/-- Exact consecutive index-local suffix tracked wholly inside one recursor
-universe interpretation. -/
+/-- The consecutive suffix `xs` of a recursor context above the root context `Rroot`,
+under the same universe list: the abstract context of `R` is that of `Rroot` with the
+entries of `xs` on top. -/
 structure RecursorFVarSuffix
     {root c : AddInductive.Context} {recLparams : List Name}
     (Rroot : RecursorContextWF root recLparams)
@@ -610,8 +621,8 @@ def RecursorFVarSuffix.pushCurrentOn
     simpa only [Array.size_push, RecursorContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.dropN] using H.drop_eq
 
-/-- An exact consecutive recursor suffix induces the semantic context
-extension needed to weaken certificates rooted before that suffix. -/
+/-- A recursor suffix induces a recursor-context extension (lifting by the suffix
+length), used to weaken facts established at the root. -/
 def RecursorFVarSuffix.contextExtension
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -625,8 +636,8 @@ def RecursorFVarSuffix.contextExtension
     have W := (R.onlyLams.dropN_fvlift xs.size H.size_le).toFVLift'
     simpa only [H.drop_eq] using W
 
-/-- The newest-first free-variable prefix of the semantic metacontext is
-exactly the retained recent array, reversed. -/
+/-- The newest-first free-variable prefix of the abstract metacontext is the suffix
+array, reversed. -/
 theorem RecursorFVarSuffix.fvarRevList_eq
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -643,9 +654,8 @@ theorem RecursorFVarSuffix.fvarRevList_eq
     _ = (H.fvars.map Expr.fvar).reverse := by rw [hmapped]
     _ = H.fvars.reverse.map Expr.fvar := by simp
 
-/-- The current recursor context is the exact recent binder prefix followed
-by its retained root.  This is the identifier-level counterpart of
-`abstractRecent_toCtx`; unlike `BindingContextLE`, it preserves order. -/
+/-- The free variables of the current recursor context are those of the suffix, newest
+first, followed by those of the root. Unlike `BindingContextLE`, this preserves order. -/
 theorem RecursorFVarSuffix.contextFVars
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -661,10 +671,9 @@ theorem RecursorFVarSuffix.contextFVars
     exact H.fvarRevList_eq
   rw [hsplit, VLCtx.fvars_append, hprefix]
 
-/-- A source up-set on the retained root remains an up-set after an exact
-recent suffix, provided the source predicate denotes only root variables.
-The freshly allocated suffix binders are outside the predicate, while their
-dependencies may still lie inside it. -/
+/-- An up-set of the root context that contains only root variables remains an up-set
+after the suffix: the suffix binders are outside the predicate, while their dependencies
+may lie inside it. -/
 theorem RecursorFVarSuffix.upsetRoot
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -690,9 +699,9 @@ theorem RecursorFVarSuffix.upsetRoot
     rw [← Rroot.lctx_eq, Rroot.mlctx_wf.tr.fvars_eq]
     exact hscope fv hp
 
-/-- Opening an exact consecutive suffix preserves the independently checked
-parameter context.  The fresh locals become additional ambient declarations;
-the cached parameter declarations and their source translations are unchanged. -/
+/-- Opening a recursor suffix preserves the parameter suffix: the fresh locals become
+additional ambient declarations, and the cached parameter declarations and their
+translations are unchanged. -/
 def RecursorParameterContextSuffix.weakenRecent
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -727,9 +736,9 @@ def RecursorParameterContextSuffix.weakenRecent
     sources := by
       simpa only [Hrecent.venv_eq] using H.sources }
 
-/-- Cached inductive parameters remain aligned after `loopUArgs` opens an
-exact suffix of higher-order arguments.  The semantic parameter variables
-shift by the suffix length, matching the executable context extension. -/
+/-- The cached parameters stay translated after a recursor suffix is opened (for example
+the arguments of a recursive field opened by `loopUArgs`): their abstract variables are
+lifted by the suffix length. -/
 def RecursorValidAppStatsWF.weakenRecent
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -758,8 +767,8 @@ def RecursorValidAppStatsWF.weakenRecent
     params := by simpa using hparams
     paramFVars := H.paramFVars }
 
-/-- Lookup values in the exact higher-order suffix are fresh bound variables,
-so a no-inductive-constants context invariant extends across that suffix. -/
+/-- The suffix entries are fresh bound variables, so a context without the block's
+inductive constants stays so across the suffix. -/
 theorem RecursorFVarSuffix.noIndConsts
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -772,9 +781,8 @@ theorem RecursorFVarSuffix.noIndConsts
   rw [H.drop_eq]
   exact hroot
 
-/-- Every recursively selected constructor argument is one of the exact
-fresh field variables opened by `loopCtorArgs`, with its pointwise semantic
-translation recovered at the same array position. -/
+/-- Every recursive constructor field selected by `loopCtorArgs` is a free variable with a
+translation. -/
 theorem RecursiveFieldSelectionsAt.selectedFVars
     (H : RecursiveFieldSelectionsAt env decl uvars bu u fields)
     (Hbu : FVarArrayIn c bu)
@@ -823,8 +831,8 @@ theorem ConstructorFieldOpening.fvars_eq_bound
     simpa using congrArg Array.toList harrays
   exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlists
 
-/-- Reopening a constructor telescope adds only the explicitly selected
-field identifiers to the free-variable scope of the original source. -/
+/-- If the source type mentions only free variables in `P`, the result of opening its
+telescope mentions only the opened field variables and variables in `P`. -/
 theorem ConstructorFieldOpening.currentFVarsIn
     (H : ConstructorFieldOpening source current fields)
     (hsource : source.FVarsIn P) :
@@ -841,9 +849,10 @@ theorem ConstructorFieldOpening.currentFVarsIn
   rw [← H.closed] at hresidual
   exact FVarsIn.of_abstractList hresidual
 
-/-- Alpha-independent result of the checker constructor traversal.  The
-terminal application itself contains checker-chosen free variables, so the
-certificate retains only its maximal closed telescope residual. -/
+/-- The owner normal form of a constructor type: its maximal forall telescope ends in a
+valid application of family `targetIdx`. The terminal application of the constructor check
+contains the fresh field variables the checker chose, so only the closed residual is
+recorded, which does not depend on those names. -/
 structure ConstructorOwnerNormalForm
     (stats : AddInductive.InductiveStats) (targetIdx : Nat)
     (source : Expr) : Type where
@@ -853,9 +862,9 @@ structure ConstructorOwnerNormalForm
   maximal : residual.isForall = false
   valid : AddInductive.isValidIndAppIdx stats residual targetIdx = true
 
-/-- Close a successful checker traversal to its canonical owner normal form.
-The parameter array belongs to the root context, while every field belongs to
-the fresh suffix, which is exactly the disjointness needed by validation. -/
+/-- The owner normal form of a successful constructor check. The parameters belong to
+the root context and the fields to the fresh array opened after it, so the two are
+disjoint, which is what the validity check of the closed residual needs. -/
 def ConstructorOwnerNormalForm.ofOpening
     {root current : AddInductive.Context}
     (Hopening : ConstructorFieldOpening source terminal fields)
@@ -883,8 +892,8 @@ def ConstructorOwnerNormalForm.ofOpening
       hvalid hconst Hparams.fvars Hopening.fvars Hparams.expressions
       hdisjoint
 
-/-- Reopening a checked constructor telescope with a different fresh suffix
-recovers the same validated family application. -/
+/-- Reopening a constructor telescope with any fresh field array gives a valid
+application of the owner family. -/
 theorem ConstructorOwnerNormalForm.validOfOpening
     {root current : AddInductive.Context}
     (H : ConstructorOwnerNormalForm stats targetIdx source)
@@ -913,11 +922,9 @@ theorem ConstructorOwnerNormalForm.validOfOpening
     Hparams.fvars Hopening.fvars 0 hclosedValid hconst
     Hparams.expressions hdisjoint
 
-/-- The production constructor checker emits a canonical owner certificate
-at its terminal success.  This traversal is intentionally separate from the
-semantic `CtorTailWF` projection: both inspect the same executable run, while
-this one retains the concrete alpha-normalized evidence needed later by
-`mkRecInfos`. -/
+/-- A successful run of the constructor check `loopCtor` yields the owner normal form of
+the constructor type. This is separate from `CtorTailWF`: both read the same run, but this
+one keeps the executable normal form that `mkRecInfos` needs later. -/
 theorem checkConstructors.loopCtor.ownerNormalFormWF
     {decl : VInductDecl} {scope : VLCtx} {depth : Nat}
     {narrowType fullType : VExpr}
@@ -1091,10 +1098,8 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
             Hfields.toFVarArrayAfter (Hstats.indConstAt hi)
             (by cases type <;> simp_all [Expr.isForall]) hvalid⟩
 
-/-- Public owner-normal-form projection from the beginning of a constructor
-telescope.  Cached parameters are replayed exactly as in
-`refinesCtorShape`; only genuine constructor fields enter the alpha-closed
-normal form. -/
+/-- The owner normal form from the start of a constructor type. The cached parameters are
+instantiated as in `refinesCtorShape`; only the constructor fields enter the normal form. -/
 theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
     {decl : VInductDecl} {ctorVal : VConstVal}
     (Hc : ContextWF c)
@@ -1218,7 +1223,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
           (Hsuffix := Hsuffix) hiStats hnoFVars)
         (by omega) hforall
 
-/-- Checked owner normal form selected by a concrete constructor position. -/
+/-- The owner normal form of the constructor type after its parameter prefix. -/
 def ConstructorOwnerNormalFormAt
     (stats : AddInductive.InductiveStats) (targetIdx : Nat)
     (ctor : Constructor) : Prop :=
@@ -1280,8 +1285,8 @@ def ConstructorOwnerNormalFormRows.push
       exact Hrow
     · exact H.rows i (by omega) hi'
 
-/-- Public matrix of checker-produced owner normal forms, indexed in the
-same family/constructor coordinates later traversed by `mkRecInfos`. -/
+/-- The owner normal forms of every constructor of every family, indexed by the family
+and constructor positions that `mkRecInfos` traverses. -/
 structure ConstructorOwnerNormalForms
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) : Prop where
@@ -1298,7 +1303,8 @@ def ConstructorOwnerNormalFormRows.complete
 
 namespace checkConstructors.loopCtors
 
-/-- Accumulate owner normal forms across the executable constructor loop. -/
+/-- The constructor loop of one family records the owner normal form of each of its
+constructors. -/
 theorem ownerNormalFormsWF
     {decl : VInductDecl} {sourceEnv : VEnv}
     {source : InductiveType} {target : VInductiveType}
@@ -1350,7 +1356,7 @@ end checkConstructors.loopCtors
 
 namespace checkConstructors.loopTypes
 
-/-- Accumulate the owner-normal-form rows across every mutual family. -/
+/-- The family loop records the owner normal forms of the constructors of every family. -/
 theorem ownerNormalFormsWF
     {decl : VInductDecl} {sourceEnv : VEnv}
     (Hc : ContextWF c)
@@ -1487,10 +1493,9 @@ theorem RecursorContextWF.fieldBaseNext_fvarList
 
 namespace mkRecInfos.loopCtorArgs.loop
 
-/-- Strengthening of `recursiveDomainsRecursor` which also records that the
-complete constructor-field array is the exact consecutive suffix opened by
-the production traversal.  This trace is required when the second pass closes
-all field binders around the generated minor premise. -/
+/-- The traversal of constructor fields in the minor pass classifies the recursive fields
+and opens the complete field array as a recursor suffix (`RecursorFVarSuffix`). The suffix
+is needed when the minor pass closes all field binders around the minor premise. -/
 theorem recursiveDomainsRecursorRecent {alpha : Type}
     (stats : AddInductive.InductiveStats)
     (head : Expr)
@@ -1959,8 +1964,8 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
 
 end mkRecInfos.loopCtorArgs.loop
 
-/-- Public constructor-field traversal retaining both the semantic recursive
-selection and the exact consecutive all-field suffix. -/
+/-- `loopCtorArgs` from the start of a constructor's fields: it selects the recursive
+fields and opens the complete field array as a recursor suffix. -/
 theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
     (stats : AddInductive.InductiveStats) (t tail : Expr)
     (head : Expr)
@@ -2074,9 +2079,8 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
   exact mkRecInfos.loopCtorArgs.loop.followsParamPrefix stats k hprefix Htail
     inputContext.fuel.inductiveFuel
 
-/-- Close the exact higher-order suffix retained by `loopUArgs` around a
-well-typed body.  The result is interpreted back in the root recursor
-context, exactly matching the executable `LocalContext.mkForall`. -/
+/-- Closing a recursor suffix around a translated type with `LocalContext.mkForall` gives
+a translated type in the root context. -/
 theorem RecursorFVarSuffix.mkForall
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -2097,8 +2101,8 @@ theorem RecursorFVarSuffix.mkForall
   · simpa only [H.venv_eq, H.drop_eq] using htr
   · simpa only [H.venv_eq, H.drop_eq] using htype
 
-/-- Exact-target form of `mkForall`, exposing the semantic domain list
-instead of hiding it behind an existential. -/
+/-- `mkForall` with the abstract target given explicitly: the suffix's abstract domains
+wrapped around the body's translation. -/
 theorem RecursorFVarSuffix.mkForallExact
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -2118,11 +2122,9 @@ theorem RecursorFVarSuffix.mkForallExact
   simpa only [H.venv_eq, H.drop_eq,
     TypeChecker.MLCtx.mkForall'_eq_wrapForalls] using And.intro htr htype
 
-/-- Close the exact higher-order suffix retained by `loopCtorArgs` around a
-well-typed term.  This is the term-level counterpart of `mkForall`: the
-abstract lambda and its forall type use the very same semantic domain list,
-so later equation typing cannot accidentally choose a different constructor
-field telescope. -/
+/-- Closing a recursor suffix around a typed term with `LocalContext.mkLambda` gives a
+translated term in the root context. The abstract lambda and its forall type use the same
+domain list, so the typing of the rules sees a single constructor field telescope. -/
 theorem RecursorFVarSuffix.mkLambda
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}

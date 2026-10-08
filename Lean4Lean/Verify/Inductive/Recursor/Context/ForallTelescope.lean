@@ -1,5 +1,18 @@
 import Lean4Lean.Verify.Inductive.Recursor.Binders.RecursiveFields
 
+/-! Forall and lambda telescopes of executable expressions and their translations.
+
+The recursor construction opens forall telescopes binder by binder and closes them again
+with `LocalContext.mkForall`/`mkLambda`. This file provides the syntactic relations it is
+verified against (`Expr.ForallTelescope`, `Expr.ForallBinderAt`, `Expr.LambdaTelescope`, and
+the shared-prefix relations `Expr.SameLambdaPrefix`, `Expr.SameForallLambdaPrefix`), the de
+Bruijn lemmas relating abstraction, instantiation and lifting, and their translations:
+`Expr.ForallTelescopeTypeTranslation` is a binder-by-binder translation of a forall type,
+each domain typed in the context of the earlier ones. It also closes the checking scopes of
+the header phase (`SourceTelescope`, `ScopeEmbedding`, `FrontScopeEmbedding`) and the
+recursor's parameter suffix into closed translated telescopes, and defines the local
+context arrays (`CDeclArray`, `FVarArrayIn`) that the recursor construction opens. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -14,10 +27,9 @@ attribute [simp] Lean.Expr.abstractList_const Lean.Expr.abstractList_app Lean.Ex
   Lean.Expr.abstractList_forallE Lean.Expr.abstractList_letE Lean.Expr.abstractList_mdata
   Lean.Expr.abstractList_proj
 
-/-- `Expr.inferImplicit` changes only concrete binder annotations, which are
-erased by the abstract expression translation.  In particular the abstract
-recursor type proved before this production post-processing step remains the
-translation of the type installed in the environment. -/
+/-- `Expr.inferImplicit` changes only binder annotations, which the translation erases.
+In particular the abstract recursor type proved for the generated type is still the
+translation of the type after `inferImplicit`, which is the one installed. -/
 theorem TrExprS.inferImplicit
     (H : TrExprS env Us Δ e e') (numParams : Nat) (considerRange : Bool) :
     TrExprS env Us Δ (e.inferImplicit numParams considerRange) e' := by
@@ -34,8 +46,8 @@ theorem TrExprS.inferImplicit
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj => simpa [Expr.inferImplicit] using H
 
-/-- Conversely, the annotation-only `inferImplicit` pass can be erased from
-the concrete side of a translation derivation. -/
+/-- Conversely, `inferImplicit` can be removed from the executable side of a
+translation. -/
 theorem TrExprS.of_inferImplicit
     (H : TrExprS env Us Δ (e.inferImplicit numParams considerRange) e') :
     TrExprS env Us Δ e e' := by
@@ -50,9 +62,9 @@ theorem TrExprS.of_inferImplicit
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj => simpa [Expr.inferImplicit] using H
 
-/-- A concrete expression consists of exactly `arity` leading forall binders
-and the indicated residual body.  This deliberately forgets binder domains:
-`RecursorShape` records them existentially but constrains their cardinality. -/
+/-- An expression consists of `arity` leading forall binders and the residual body
+`result`. Binder domains are not recorded: `VInductDecl.RecursorShape` records them
+existentially and constrains only their number. -/
 inductive Expr.ForallTelescope : Expr → Nat → Expr → Prop
   | nil (body : Expr) : ForallTelescope body 0 body
   | cons : ForallTelescope body arity result →
@@ -232,9 +244,8 @@ theorem Expr.ForallTelescope.eq_of_residual_not_forall
       rcases ih Hright hleft hright with ⟨harity, hresidual⟩
       exact ⟨by omega, hresidual⟩
 
-/-- Substitution by a free variable cannot manufacture a leading forall.
-This reflection lemma is the converse shape fact needed to recover the
-original source telescope from lowering's successively opened one. -/
+/-- Substituting a free variable cannot create a leading forall, so a telescope of the
+instantiated expression gives one of the same arity for the expression itself. -/
 theorem Expr.ForallTelescope.reflect_instantiate1'_fvar
     (H : Expr.ForallTelescope
       (e.instantiate1' (.fvar fv) k) arity residual) :
@@ -1310,10 +1321,10 @@ theorem checkPositivityStep.isValidIndAppIdx.abstractList
   exact checkPositivityStep.isValidIndAppIdx.intro hheadClosed harityClosed
     hparamsClosed hindicesClosed
 
-/-- Conversely, closing fresh field variables cannot turn an invalid
-application into a valid one.  Together with `abstractList`, this is the
-alpha-invariance bridge used between constructor checking and recursor
-generation. -/
+/-- Conversely, closing fresh field variables cannot turn an invalid application into a
+valid one. With `abstractList`, this shows that validity does not depend on the names of
+the field variables, which differ between the constructor check and the recursor
+construction. -/
 theorem checkPositivityStep.isValidIndAppIdx.of_abstractList
     (paramFvars binders : List FVarId) (k : Nat := 0)
     (hvalid : AddInductive.isValidIndAppIdx stats
@@ -1438,10 +1449,10 @@ constructor, so in particular it cannot create or remove a leading forall. -/
       · rw [if_pos h]
       · rw [if_neg h]
 
-/-- Canonical alpha-normalization trace for a constructor-field traversal.
-`current` is the opened residual seen by production, while `residual` is the
-same point of the original telescope with all opened fields closed back to
-de Bruijn variables. -/
+/-- The opening of a constructor telescope by a field traversal. `current` is the opened
+residual the executable sees, while `residual` is the same point of the source telescope
+with all opened fields closed back to de Bruijn variables, which does not depend on the
+names chosen for the fields. -/
 structure ConstructorFieldOpening
     (source current : Expr) (fields : Array Expr) : Type where
   fvars : List FVarId
@@ -1460,8 +1471,7 @@ def ConstructorFieldOpening.empty (source : Expr) :
   telescope := .nil source
   closed := rfl
 
-/-- Extend the canonical opening trace by the fresh field chosen by
-`withLocalDecl`. -/
+/-- Extend the opening by the fresh field chosen by `withLocalDecl`. -/
 def ConstructorFieldOpening.push
     (H : ConstructorFieldOpening source
       (.forallE name dom body bi) fields)
@@ -1644,8 +1654,8 @@ theorem abstractForallContext.isDefEq
     VLCtx.IsDefEq.ofDefEqCtxAnonymous H
 
 /-- Translation uniqueness over two independently assembled anonymous
-dependent contexts, stated directly in the plain-context conversion form
-produced by telescope replay. -/
+dependent contexts, stated in the plain-context conversion form that the telescope
+lemmas produce. -/
 theorem TrExprS.uniqAbstractForallContext
     {domainsLeft domainsRight : List VExpr}
     (Hleft : TrExprS env Us (abstractForallContext domainsLeft []) source
@@ -1766,10 +1776,9 @@ theorem TrExprS.abstractFVarLambdaPrefix
     rw [hsource] at Htail
     simpa [VLCtx.toCtx, List.reverse_cons, List.append_assoc] using Htail
 
-/-- Close the complete source front retained by a narrow runtime scope.  The
-executable target is unchanged; the concrete source is abstracted over the
-front's free variables in oldest-first order, and the resulting anonymous
-telescope sits directly above the identified base scope. -/
+/-- Close the front of a front scope embedding. The abstract target is unchanged; the
+source is abstracted over the front's free variables in oldest-first order, and the
+resulting anonymous telescope sits directly above the base scope. -/
 theorem checkInductiveTypes.loopType.FrontScopeEmbedding.abstractFront
     (H : checkInductiveTypes.loopType.FrontScopeEmbedding
       env Us scope runtime)
@@ -1797,8 +1806,8 @@ theorem checkInductiveTypes.loopType.FrontScopeEmbedding.abstractFront
   simpa [scopePrefix, tail, H.front.sourceTakenContext, hbase] using
     Habstract
 
-/-- The names in a retained front are exactly the free-variable prefix of
-the full narrow scope; after the front, only the identified base remains. -/
+/-- The free variables of a scope are those of its front followed by those of its
+base. -/
 theorem checkInductiveTypes.loopType.FrontScopeEmbedding.frontFVars
     (H : checkInductiveTypes.loopType.FrontScopeEmbedding
       env Us scope runtime)
@@ -1853,10 +1862,10 @@ theorem TrExprS.abstractFVarLambdaSuffix
     rw [hsource] at Hrest
     simpa [VLCtx.toCtx, List.reverse_cons, List.append_assoc] using Hrest
 
-/-- Close every retained declaration in a non-contiguous free-variable
-scope.  Exact binder order is recorded by `scope.fvars`, so the resulting
-anonymous telescope abstracts the source in oldest-first order without
-assuming that the selected declarations formed a runtime prefix. -/
+/-- Close every declaration of a (not necessarily contiguous) scope embedding. The binder
+order is `scope.fvars`, so the resulting anonymous telescope abstracts the source in
+oldest-first order without assuming that the declarations form a prefix of the executable
+context. -/
 theorem checkInductiveTypes.loopType.ScopeEmbedding.abstractAll
     (H : checkInductiveTypes.loopType.ScopeEmbedding
       env Us scope runtime)
@@ -1873,7 +1882,7 @@ theorem checkInductiveTypes.loopType.ScopeEmbedding.abstractAll
   simpa using TrExprS.abstractFVarLambdaSuffix
     H.declarations hnodup Htr'
 
-/-- Closing an exact free-variable scope preserves its typing context. -/
+/-- The anonymous telescope obtained by closing a scope embedding is well formed. -/
 theorem checkInductiveTypes.loopType.ScopeEmbedding.abstractAllWF
     (H : checkInductiveTypes.loopType.ScopeEmbedding
       env Us scope runtime)
@@ -1908,7 +1917,7 @@ theorem Expr.abstractList_after_inner
     exact ih htail
 
 /-- Exact-model form of `abstractList_after_inner`; no distinctness is needed, since the
-last occurrence of a variable wins in both the combined and the staged abstraction. -/
+last occurrence of a variable wins in both the combined and the two-step abstraction. -/
 theorem Expr.abstractN_after_inner {e : Expr} {outer inner : List FVarId} {k : Nat} :
     (e.abstractN inner k).abstractN outer (k + inner.length) =
       e.abstractN (outer ++ inner) k :=
@@ -2036,8 +2045,8 @@ theorem TrExprS.insertBeforeInner
   let W := abstractForallContext.bvInsertBeforeInner outer inserted inner
   simpa using Htr.weakBV henv W
 
-/-- Strengthened telescope inversion retaining the exact abstract context in
-which the concrete residual is translated. -/
+/-- Telescope inversion that also records the abstract context in which the residual is
+translated. -/
 theorem TrExprS.forallTelescope_shape_with_context
     (Htel : Expr.ForallTelescope e arity result)
     (Htr : TrExprS env Us Δ e e') :
@@ -2123,8 +2132,8 @@ theorem Expr.ForallTelescopeTypeTranslation.telescope
 
 /-- Expose the abstract domains and residual carried by a binder-by-binder
 translation.  The residual is typed in precisely the context obtained by
-opening those domains, so callers can apply a term to the canonical binder
-variables without reconstructing any domain syntax. -/
+opening those domains, so callers can apply a term to the bvar spine of the binders
+without reconstructing any domain syntax. -/
 theorem Expr.ForallTelescopeTypeTranslation.toWrapForalls
     (H : Expr.ForallTelescopeTypeTranslation env Us Δ source n target) :
     ∃ domains sourceResidual targetResidual,
@@ -2155,7 +2164,7 @@ theorem Expr.ForallTelescopeTypeTranslation.toWrapForalls
 
 /-- Split an exactly sized typed telescope after `prefixArity` binders,
 retaining both the translated prefix domains and the binder-by-binder typed
-suffix in their canonical abstract context. -/
+suffix in the anonymous abstract context of the prefix. -/
 theorem Expr.ForallTelescopeTypeTranslation.dropPrefix
     (H : Expr.ForallTelescopeTypeTranslation env Us Δ source
       (prefixArity + suffixArity) target) :
@@ -2185,17 +2194,16 @@ theorem Expr.ForallTelescopeTypeTranslation.dropPrefix
       · simpa [abstractForallContext, List.map_append,
           List.append_assoc] using Hsuffix
 
-/-- The domain at one exact position of a concrete forall telescope.  This
-small source-only relation avoids carrying an arbitrary residual body when a
-semantic proof needs to identify which local declaration production closed
-at a generated-recursors slot. -/
+/-- The domain at position `i` of a forall telescope. Unlike `Expr.ForallTelescope` it
+carries no residual body; it identifies which local declaration the executable closed at
+a given binder of a generated recursor type. -/
 inductive Expr.ForallBinderAt : Expr → Nat → Expr → Prop
   | here : Expr.ForallBinderAt (.forallE name domain body bi) 0 domain
   | there : Expr.ForallBinderAt body i domain →
       Expr.ForallBinderAt (.forallE name outerDomain body bi) (i + 1) domain
 
-/-- Selecting any forall binder proves that consuming a possible annotation
-at the top level leaves the enclosing expression unchanged. -/
+/-- An expression with a forall binder is a forall, so stripping a top-level type
+annotation leaves it unchanged. -/
 theorem Expr.ForallBinderAt.consumeTypeAnnotationsVerified_eq_self
     (H : Expr.ForallBinderAt source i domain) :
     (source.consumeTypeAnnotationsVerified annOk) = source := by
@@ -2620,9 +2628,7 @@ theorem Expr.ForallTelescopeTypeTranslation.commonPrefixDefEqCtxOver
     simpa only [List.reverse_append, List.reverse_singleton,
       List.singleton_append, List.append_assoc] using Hnext
 
-/-- A translated telescope known to be a type decomposes canonically into
-the binder-by-binder certificate. This establishes that the new interface
-loses no information while exposing exactly where restoration must act. -/
+/-- A translated telescope that is a type has a binder-by-binder translation. -/
 theorem Expr.ForallTelescopeTypeTranslation.ofTrExprS
     (Htel : Expr.ForallTelescope e n residual)
     (Htr : TrExprS env Us Δ e e')
@@ -2635,9 +2641,8 @@ theorem Expr.ForallTelescopeTypeTranslation.ofTrExprS
     | forallE HdomType HbodyType Hdom Hbody =>
       exact .cons Hdom HdomType (ih Hbody HbodyType)
 
-/-- The source closure retained by non-contiguous narrowing has exactly one
-forall per selected free variable, and its residual is exact simultaneous
-abstraction in oldest-first order. -/
+/-- Closing a body over a source telescope gives one forall per declaration of the scope,
+with the simultaneous abstraction in oldest-first order as residual. -/
 theorem checkInductiveTypes.loopType.SourceTelescope.closeSource_telescope
     (H : checkInductiveTypes.loopType.SourceTelescope env Us scope)
     (_hnodup : scope.fvars.Nodup) (body : Expr) :
@@ -2675,9 +2680,8 @@ theorem checkInductiveTypes.loopType.SourceTelescope.closeSource_telescope
     rw [hresidual] at Hcombined
     simpa [SourceTelescope.closeSource] using Hcombined
 
-/-- Translate a source body while closing every retained named declaration.
-The target is the ordinary anonymous forall telescope over the narrowed
-semantic domains, in oldest-first order. -/
+/-- Closing a translated type over a source telescope translates to the forall telescope
+over the scope's abstract domains, in oldest-first order. -/
 theorem checkInductiveTypes.loopType.SourceTelescope.closeTranslation
     (H : checkInductiveTypes.loopType.SourceTelescope env Us scope)
     (henv : env.WF) (Hscope : scope.WF env Us.length)
@@ -2715,9 +2719,7 @@ theorem checkInductiveTypes.loopType.SourceTelescope.closeTranslation
     simpa [h1, SourceTelescope.closeSource, VLCtx.toCtx,
       List.reverse_cons, VExpr.wrapForalls] using Hclosed
 
-/-- Typed telescope form of `closeTranslation` when the exact semantic
-source provenance is retained directly, without an ambient narrowing
-wrapper. -/
+/-- Binder-by-binder form of `closeTranslation`. -/
 theorem checkInductiveTypes.loopType.SourceTelescope.closeTypedTelescope
     (H : checkInductiveTypes.loopType.SourceTelescope env Us scope)
     (henv : env.WF) (Hscope : scope.WF env Us.length)
@@ -2736,10 +2738,9 @@ theorem checkInductiveTypes.loopType.SourceTelescope.closeTypedTelescope
   exact Expr.ForallTelescopeTypeTranslation.ofTrExprS
     Htelescope Htranslation HtargetType
 
-/-- Typed telescope form of `closeTranslation` for an arbitrary body.  This
-is the reusable boundary between a named, non-contiguously narrowed scope and
-the completely closed source declaration used by an independent
-specification: the body may itself be a dependent telescope. -/
+/-- Binder-by-binder form of `closeTranslation` for a scope embedding: closing a
+translated type over the scope (which need not be contiguous) gives a closed typed
+telescope. The body may itself be a dependent telescope. -/
 theorem checkInductiveTypes.loopType.ScopeEmbedding.closeTypedTelescope
     (H : checkInductiveTypes.loopType.ScopeEmbedding
       env Us scope runtime)
@@ -2752,9 +2753,9 @@ theorem checkInductiveTypes.loopType.ScopeEmbedding.closeTypedTelescope
   exact H.sourceTelescope.closeTypedTelescope henv (H.scopeWF henv)
     Hbody HbodyType
 
-/-- Close the retained source declarations around a trivial sort.  This is
-an independent translation of the complete narrowed prefix, rather than a
-translation of only a later expression under that prefix. -/
+/-- Close the source declarations of a scope embedding around `Sort 0`. This is a
+translation of the scope's telescope on its own, rather than of a later expression
+under it. -/
 theorem checkInductiveTypes.loopType.ScopeEmbedding.closedSortTranslation
     (H : checkInductiveTypes.loopType.ScopeEmbedding
       env Us scope runtime)
@@ -2784,9 +2785,7 @@ theorem checkInductiveTypes.loopType.ScopeEmbedding.closedSortTranslation
     · simpa using HsortType
   exact ⟨Hclosed, HtargetType⟩
 
-/-- Binder-by-binder form of `closedSortTranslation`.  The retained concrete
-source expression and narrowed abstract target constitute a complete typed
-forall telescope, not merely a whole-expression translation. -/
+/-- Binder-by-binder form of `closedSortTranslation`. -/
 theorem checkInductiveTypes.loopType.ScopeEmbedding.closedSortTelescope
     (H : checkInductiveTypes.loopType.ScopeEmbedding
       env Us scope runtime)
@@ -2862,7 +2861,7 @@ theorem abstractForallContext.find?_bvar
   simpa using hi
 
 /-- Every in-range source de Bruijn variable translates to the identically
-numbered abstract variable in a canonical forall context. -/
+numbered abstract variable in an anonymous forall context. -/
 theorem TrExprS.bvar_of_abstractForallContext
     (domains : List VExpr) (Δ : VLCtx) (i : Nat)
     (hi : i < domains.length) :
@@ -2872,8 +2871,8 @@ theorem TrExprS.bvar_of_abstractForallContext
     ⟨type, hfind⟩
   exact .bvar hfind
 
-/-- Canonically ordered binder variables translate pointwise in any larger
-abstract forall context. -/
+/-- The bvar spine of length `n` translates pointwise in any abstract forall context with
+at least `n` domains. -/
 theorem TrExprS.bvarSpine_of_abstractForallContext
     (domains : List VExpr) (Δ : VLCtx) (n : Nat)
     (hn : n ≤ domains.length) :
@@ -2958,8 +2957,8 @@ theorem LocalContext.mkBindingListN_forallTelescope
     go fvs.reverse (body.abstractN fvs) (fun fv hfv =>
       hdecl fv (by simpa using hfv))
 
-/-- The production `LocalContext.mkForall` interface specialized to an
-explicit list of free variables known to denote ordinary declarations. -/
+/-- `LocalContext.mkForall` over a list of free variables denoting ordinary declarations
+gives a forall telescope with the simultaneous abstraction as residual. -/
 theorem LocalContext.mkForall_fvars_forallTelescope
     {lctx : LocalContext} {fvs : List FVarId} {body : Expr}
     (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
@@ -2977,20 +2976,18 @@ inductive Expr.LambdaTelescope : Expr → Nat → Expr → Prop
   | cons : LambdaTelescope body arity result →
       LambdaTelescope (.lam name dom body bi) (arity + 1) result
 
-/-- Two expressions have the same concrete leading lambda binders, while
-their residual bodies may differ.  Generated recursive calls and the
-eta-expanded fields used as their major premises are related in exactly this
-way: production closes both over one shared local-context selection. -/
+/-- Two expressions have the same leading lambda binders, while their residual bodies may
+differ. Generated recursive calls and the eta-expanded fields used as their major premises
+are related in this way: the executable closes both over the same local declarations. -/
 inductive Expr.SameLambdaPrefix : Nat → Expr → Expr → Prop
   | nil : Expr.SameLambdaPrefix 0 left right
   | cons : Expr.SameLambdaPrefix n left right →
       Expr.SameLambdaPrefix (n + 1)
         (.lam name dom left bi) (.lam name dom right bi)
 
-/-- A concrete forall telescope and lambda telescope use the same literal
-binder prefix.  This is the source-syntax bridge used when a checked local
-forall supplies the binder-domain translations for the eta-expanded lambda
-over the same selected local declarations. -/
+/-- A forall telescope and a lambda telescope have the same binder domains. It lets the
+domain translations of a checked forall be reused for the eta-expanded lambda over the
+same local declarations. -/
 inductive Expr.SameForallLambdaPrefix : Nat → Expr → Expr → Prop
   | nil : Expr.SameForallLambdaPrefix 0 forallBody lambdaBody
   | cons : Expr.SameForallLambdaPrefix n forallBody lambdaBody →
@@ -3249,8 +3246,7 @@ theorem Expr.LambdaTelescope.result_eq
 
 /-- Instantiating an outer loose variable preserves a concrete lambda
 telescope.  In the residual the substitution depth is shifted past every
-leading binder, exactly as it is when a closed recursive-call template is
-instantiated with its final recursor prefix. -/
+leading binder, as when a closed recursive-call template is instantiated. -/
 theorem Expr.LambdaTelescope.instantiate1'
     (H : Expr.LambdaTelescope outer arity result)
     (value : Expr) (k : Nat := 0) :
@@ -3511,9 +3507,8 @@ theorem TrExprS.lambdaTelescope_contextWF
             List.map_append, List.append_assoc] using
               ih htail HbodyTr hnext
 
-/-- The production `LocalContext.mkLambda` interface specialized to an
-explicit array of ordinary local free variables, with the exact (simultaneous)
-abstraction as residual. -/
+/-- `LocalContext.mkLambda` over a list of free variables denoting ordinary declarations
+gives a lambda telescope with the simultaneous abstraction as residual. -/
 theorem LocalContext.mkBindingListN_lambdaTelescope
     (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
       lctx.find? fv = some (.cdecl index fv name type bi kind)) :
@@ -3692,8 +3687,8 @@ theorem CDeclArray.sameForallLambdaPrefix
   simpa using LocalContext.sameForallLambdaPrefixN_fold hdecl
     forallBody lambdaBody
 
-/-- Operational form of a local selection, convenient to preserve while the
-reader context is extended by generated binders. -/
+/-- An array of free variables, each a member of the local context of `c`. Membership is
+preserved when the recursor construction adds binders. -/
 structure FVarArrayIn (c : AddInductive.Context) (xs : Array Expr) where
   fvars : List FVarId
   expressions : xs = (fvars.map Expr.fvar).toArray
@@ -3733,10 +3728,9 @@ theorem RecursorParameterContextSuffix.parameterDecls_fvars
   simpa [ExprArrayFVarIds, List.map_reverse, Function.comp_def,
     recursorFVarId] using hids.symm
 
-/-- Close the independently cached parameter suffix outside an existing
-anonymous inner telescope.  The source parameter order is supplied by the
-same bound array used by recursor generation, while the target domains come
-from the cache established during header checking. -/
+/-- Close the cached parameter suffix outside an anonymous inner telescope. The source
+parameter order is that of the parameter array used by the recursor construction, and the
+abstract domains are those cached by the header phase. -/
 theorem RecursorParameterContextSuffix.abstractParameters
     {c root : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
@@ -3774,9 +3768,9 @@ theorem RecursorParameterContextSuffix.abstractParameters
   simp only [List.reverse_reverse] at Hclosed
   simpa using Hclosed
 
-/-- The cached parameter identifiers form a dependency-closed subset of the
-whole recursor context.  Generated motives and minors are newer ambient
-declarations, so excluding them cannot hide a dependency of a parameter. -/
+/-- The cached parameters form a dependency-closed subset (an up-set) of the recursor
+context: motives and minors are newer ambient declarations, so no parameter depends on
+them. -/
 theorem RecursorParameterContextSuffix.parameterFVarsUp
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
@@ -3800,9 +3794,8 @@ theorem RecursorParameterContextSuffix.parameterFVarsUp
     (IsFVarUpSet.congr hwf.fvwf hcongr).mp hcached
   simpa [H.context] using hconverted
 
-/-- Typed form of `closedSortTranslation`.  Besides translating the cached
-parameter telescope, it retains the abstract typehood needed to open those
-domains as the base context of a later dependent telescope transport. -/
+/-- Typed form of `closedSortTranslation`: the closed parameter telescope translates and
+is a type, so its domains can be opened as the base context of a later telescope. -/
 theorem RecursorParameterContextSuffix.closedSortTyped
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
@@ -3880,10 +3873,9 @@ theorem RecursorParameterContextSuffix.closedSortTyped
   rw [hlocalSource]
   exact hclosed
 
-/-- A deliberately trivial body can be closed over the exact cached
-parameter declarations.  This supplies an independently translated source
-telescope whose prefix can be compared with any production telescope built
-from the same parameter selection. -/
+/-- `Sort 0` closed over the cached parameter declarations translates. This gives a
+translation of the parameter telescope on its own, whose prefix can be compared with any
+executable telescope closed over the same parameters. -/
 theorem RecursorParameterContextSuffix.closedSortTranslation
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
@@ -3896,8 +3888,8 @@ theorem RecursorParameterContextSuffix.closedSortTranslation
         (.sort (.zero : VLevel))) :=
   H.closedSortTyped.1
 
-/-- The exact cached-parameter suffix reconstructed by header checking is
-the bound, duplicate-free parameter array consumed by `mkRecInfos`. -/
+/-- The parameter array `stats.params` used by `mkRecInfos` is an array of free variables
+of the header context. -/
 def checkInductiveTypes.loopType.ParameterContextSuffix.paramsBound
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : ParameterContextSuffix Hc stats depth) :

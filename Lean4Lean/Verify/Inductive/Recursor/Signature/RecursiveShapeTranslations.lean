@@ -1,14 +1,12 @@
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Generator
 
-/-! Translation facts of the recursive shapes of the consumed generation.
+/-! Translation facts of the recursive shapes of the construction's generator.
 
-`H.consumedGeneration` is the explicit witness `consumedGenerationOf`, whose
-signature is `H.consumedSignature H.argumentUniverses`.  The recursive shapes
-of its constructors were read off the checked recursor type and returned to
-the declaration's universes; the facts retained by that construction
-(`RecursiveShapesSpec`, `RecursiveShapeDomains`) are exported here against the
-retained blueprint calls `B.recursiveCalls[j]!` from which
-`RecRuleTemplate.build` produces the installed rules.
+`H.generator` is the explicit construction `generatorOf`, whose signature is
+`H.signature H.argumentUniverses`. The recursive shapes of its constructors are stated in the
+declaration's universes; the facts proved about them (`RecursiveShapesSpec`,
+`RecursiveShapeDomains`) are stated here against the recursive calls `B.recursiveCalls[j]!`
+of the rule templates, from which `RecRuleTemplate.build` produces the installed rules.
 
 The sources are stated in one closed form:
 * the `i`-th explicit binder source is the `i`-th literal domain of the call's
@@ -28,7 +26,8 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
   {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
-/-- The recursive shapes of a consumed constructor, for any universe support. -/
+/-- The recursive shapes of a constructor of the construction's signature `H.signature HU`,
+for any proof `HU` of the universe support; see `generatedBy_shapeTranslations`. -/
 theorem RecursorConstruction.signature_shapeTranslations
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
@@ -94,13 +93,13 @@ theorem RecursorConstruction.signature_shapeTranslations
   rw [hx, hft]
   exact ⟨h1, hpos, hfield, h2, h3, h4, h5, h6, h7⟩
 
-/-- The recursive shapes of the consumed generation's constructor for minor
-`(owner, localIndex)`: for every induction hypothesis `j`, the retained
-blueprint call `C := B.recursiveCalls[j]!` is the call of this hypothesis
-(same target, arity, major and template), and the shape's binders and indices
-are the declaration-universe translations, in the small context
-`parameters ++ fields.take pos ++ binders`, of `C`'s argument domains and
-target indices closed over the earlier fields and the parameters. -/
+/-- The recursive shapes of the generator's constructor for minor `(owner, localIndex)`: its
+field types are the minor's field domains, and for every induction hypothesis `j` the
+recursive call `C := B.recursiveCalls[j]!` of the rule template is the call of this hypothesis
+(same target, arity, major and template), and the shape's binders and indices are the
+translations at the declaration's universes, in the context
+`parameters ++ fields.take pos ++ binders`, of `C`'s argument domains and target indices closed
+over the earlier fields and the parameters. -/
 theorem RecursorConstruction.generatedBy_shapeTranslations
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :

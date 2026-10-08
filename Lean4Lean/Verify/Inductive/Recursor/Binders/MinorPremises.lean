@@ -2,6 +2,12 @@ import Lean4Lean.Verify.Inductive.Rules.RuleSyntax
 import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldTypeScope
 import Lean4Lean.Verify.Inductive.Recursor.Binders.InductionHypothesisUniverses
 
+/-! Typing of the minor pass of `mkRecInfos` (`loopUTemplates`, `loopCtors`,
+`loopInd2`): every induction hypothesis, recursive-call template and minor premise
+the executable declares is translated and well typed in the recursor context, and
+the recorded rule templates are typed (`TypedRuleTemplates`). Part of the recursor
+phase (section 3.2 of `docs/inductives/DESIGN.md`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -12,9 +18,9 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- The allocation-insensitive payload represented by a retained recursive-
-call blueprint.  This is the common normal form of the first-pass
-`loopUArgs` origin and the second-pass generated call. -/
+/-- The alpha-invariant shape of a recursive-call template.  This is the
+common normal form of the minor-pass `loopUArgs` run and the call generated
+during rule construction. -/
 def recCallTemplateReplayTrace
     (call : AddInductive.RecCallTemplate) (motives : Array Expr)
     (fieldBinders : List FVarId) : InductionHypothesisShape where
@@ -29,11 +35,11 @@ def recCallTemplateReplayTrace
     (index.abstractList (ExprArrayFVarIds call.args)).abstractList
       fieldBinders call.args.size
 
-/-- Semantic evidence retained by one successful recursive-call blueprint
-producer.  The first pass does not yet know the completed mutual minor array,
-so the certificate is deliberately polymorphic in that array and in the
+/-- Typing of one recursive-call template produced by the minor pass.  The
+minor pass does not yet know the complete mutual minor array, so this
+structure is polymorphic in that array and in the
 generated recursor levels.  Instantiation is nevertheless exact: its value is
-the executable `RecCallTemplate.build`, not a replayed call. -/
+the executable `RecCallTemplate.build`, not a separately rebuilt call. -/
 structure TypedCallTemplate
     (stats : AddInductive.InductiveStats)
     (motives : Array Expr)
@@ -52,14 +58,14 @@ structure TypedCallTemplate
         ∀ fieldBinders,
           S.generated.replayTrace fieldBinders =
             recCallTemplateReplayTrace call motives fieldBinders
-  /-- The retained argument telescope and exposed indices mention only the
+  /-- The argument telescope and exposed indices mention only the
   declaration's universe parameters. -/
   universes : (call.lctx.mkForall call.args (.sort .zero)).levelParamsIn root.lparams = true ∧
     ∀ e ∈ call.targetIndices.toList, e.levelParamsIn root.lparams = true
 
-/-- Array alignment for the semantic call certificates emitted by
+/-- Array alignment for the typed call templates (`TypedCallTemplate`) produced by
 `loopUTemplates`.  Entry `j` is rooted after exactly the `j` earlier
-hypotheses installed by that same loop, hence its validation depth is
+hypotheses declared by that same loop, hence its validation depth is
 `depth + j`. -/
 structure TypedCallTemplates
     {recLparams : List Name}
@@ -132,7 +138,7 @@ theorem TypedCallTemplates.pushCurrent
       hpriorSize, hchkO, S⟩
 
 /-- Sharpening a field up-set to a binder-order prefix of the fields.  The
-retained fields form the exact newest-first prefix of the context, each
+fields form the newest-first prefix of the context, each
 depends only on earlier binders, and no field lies in the root scope `P`. -/
 theorem IsFVarUpSet.sharpenPrefix {P : FVarId → Prop} :
     ∀ (Δpre Δroot : VLCtx) (L : List FVarId),
@@ -212,8 +218,8 @@ theorem IsFVarUpSet.sharpenPrefix {P : FVarId → Prop} :
       · exact Or.inr hxP
 
 /-- Per-field variant of `TypedCallTemplates`: entry `j`
-is scoped by `fieldScope j`, the exact up-set established for the `j`-th
-selected recursive field.  The producer establishes both rows from the same
+is scoped by `fieldScope j`, the up-set established for the `j`-th
+selected recursive field.  Both rows come from the same
 executable run; the coarse row serves the equation layer while this one
 supports strengthening the call context to the field's own prefix. -/
 structure TypedCallTemplatesAt
@@ -288,7 +294,7 @@ theorem TypedCallTemplatesAt.pushCurrent
     exact ⟨originRoot, Rorigin, priorHypotheses, Hprior,
       hpriorSize, hchkO, S⟩
 
-/-- The exact scope of one selected recursive field: the parameters together
+/-- The scope of one selected recursive field: the parameters together
 with the constructor fields before that field, in binder order.  The
 field's declared type and the domains of its induction hypothesis can
 therefore be strengthened to the field's own prefix context. -/
@@ -297,7 +303,8 @@ def RecursorFieldPrefixScope (params : Array Expr) (fields : List FVarId)
   fv ∈ fields.take (fields.idxOf (recursorFVarId field)) ∨
     fv ∈ ExprArrayFVarIds params
 
-/-- Field-traversal semantics retained at the exact producer contexts. -/
+/-- Typing of a constructor field traversal, at the contexts where the
+traversal ran. -/
 structure TypedRuleFieldTraversal
     {recLparams : List Name}
     (Rambient : RecursorContextWF c recLparams)
@@ -360,9 +367,9 @@ def TypedRuleFieldTraversal.mono
     TypedRuleFieldTraversal R' stats S :=
   { F with terminalExtension := F.terminalExtension.trans E }
 
-/-- Producer-rooted lookup of the motive binder and its canonical telescope
-for every member of a completed mutual block.  This package is constructed
-from first-pass bindings, origins, shapes, and telescopes; consumers supply
+/-- Lookup of the motive binder and its generated telescope, rooted at the
+context of the minor pass, for every member of a mutual block.  It is built
+from the motive pass's bindings, binder types, shapes, and telescopes; users supply
 only the later context and the inductive application already validated by the
 checker. -/
 structure MotiveTelescopesAt
@@ -370,8 +377,8 @@ structure MotiveTelescopesAt
     (Rroot : RecursorContextWF root recLparams)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (recInfos : Array AddInductive.RecInfo) (elimLevel : Level) : Prop where
-  /-- The motive binding already exists at the producer root.  Retaining it
-  prevents later equation proofs from reconstructing a false extension
+  /-- The motive binding already exists at the root.  Recording it
+  spares later equation proofs from constructing a false extension
   between sibling constructor contexts merely to recover binder freshness. -/
   rootBinding : ∀ target (htarget : target < recInfos.size),
     Nonempty (MotiveBinding Rroot recInfos[target]! elimLevel)
@@ -413,9 +420,9 @@ def MotiveTelescopesAt.of
     exact ⟨binding, T.telescope target htarget Rcurrent Hext binding
       Hexposed HsyntaxType Hvalidated⟩
 
-/-- Stable rule-row form of the producer semantic origins.  It is indexed by
-the exact retained minor shape and blueprint, so later installation cannot
-pair a semantic call row with an unrelated executable rule. -/
+/-- Typing of one rule-template row.  It is indexed by
+the minor shape and template, so later installation cannot
+pair a typed call row with an unrelated executable rule. -/
 def TypedRuleTemplateAt
     {recLparams : List Name}
     (Rambient : RecursorContextWF c recLparams) (decl : VInductDecl)
@@ -487,8 +494,8 @@ theorem TypedRuleTemplateAt.mono
     ownerIdx, htargetValid, Hvalidated, binding, Hevidence, Hlookup, Hcalls,
     Hsharp⟩
 
-/-- Owner/minor-indexed persistence of the semantic blueprint rows through
-the complete mutual second pass. -/
+/-- Owner/minor-indexed typed rule-template rows (`TypedRuleTemplateAt`),
+maintained through the minor pass. -/
 structure TypedRuleTemplates
     {recLparams : List Name}
     (R : RecursorContextWF c recLparams) (decl : VInductDecl)
@@ -507,10 +514,10 @@ structure TypedRuleTemplates
       owner
       (Horigins.minorShapes owner howner localIndex hlocal)
       recInfos[owner]!.ruleTemplates[localIndex]!)
-  /-- Every retained field binder is distinct from every binder in the
-  completed recursor prefix.  This is producer evidence: later minor
+  /-- Every field binder is distinct from every binder in the
+  recursor prefix.  Later minor
   allocations preserve earlier rows because their fresh id is not in the
-  current context, while a newly completed row was opened after the prefix
+  current context, while a new row was opened after the prefix
   that already existed. -/
   fields_outer_fresh : ∀ owner (howner : owner < recInfos.size)
       (localIndex : Nat)
@@ -544,8 +551,8 @@ theorem TypedRuleTemplates.mono
     simpa [RecInfoBinderTypes.mono] using
       H.fields_outer_fresh owner howner localIndex hlocal fv hfv
 
-/-- Before the executable second pass begins, every minor/blueprint row is
-empty, so the semantic-origin table is established without any entries. -/
+/-- Before the minor pass begins, every minor/template row is
+empty, so `TypedRuleTemplates` holds without any entries. -/
 theorem TypedRuleTemplates.ofEmpty
     {recLparams : List Name}
     (R : RecursorContextWF c recLparams) (decl : VInductDecl)
@@ -584,9 +591,9 @@ end mkRecInfos.loopU
 
 namespace mkRecInfos.loopUTemplates
 
-/-- Semantic orchestration for the blueprint-retaining hypothesis loop.  The
-proof follows the exact producer run; the continuation receives both the
-fresh hypotheses and the equally-sized retained call-blueprint row. -/
+/-- Typing of the hypothesis loop `loopUTemplates`.  The
+proof follows the executable run; the continuation receives both the
+fresh hypotheses and the call-template row of the same size. -/
 theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (bu u : Array Expr)
     (recInfos : Array AddInductive.RecInfo)
@@ -728,8 +735,8 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
       HsharpSemantics (by omega) hcalls
 termination_by u.size - i
 
-/-- Pointwise semantic certificate for the exact pair returned by the
-blueprint-producing `loopUArgs` callback. -/
+/-- Pointwise typing of the pair returned by the
+template-producing `loopUArgs` callback. -/
 theorem inductionHypothesisTypeOriginOfInferredScope
     (fv : FVarId) (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
@@ -1148,9 +1155,9 @@ theorem inductionHypothesisTypeOrigin
         hrootUniverses rfl (by simpa only [FVarsIn] using hfieldScope)⟩
     Hmotives hrecords Happ
 
-/-- Close the retained-blueprint hypothesis loop from the independently
+/-- Close the template-producing hypothesis loop from the
 verified motive applications.  The additional output is produced by the same
-successful traversal, so no replay or alpha-compatibility premise is needed. -/
+successful traversal, so no premise comparing two runs up to alpha is needed. -/
 theorem resultTypingOfMotiveApplications
     {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (bu u : Array Expr)
@@ -1324,7 +1331,7 @@ theorem resultTypingOfMotiveApplications
     · simpa using hsize
     · exact hcallSize
 
-/-- Shared-telescope form of the blueprint-retaining first pass. -/
+/-- Shared-telescope form of `resultTypingOfMotiveApplications`. -/
 theorem resultTypingOfMotiveTelescopes
     {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (bu u : Array Expr)
@@ -1393,9 +1400,9 @@ theorem resultTypingOfMotiveTelescopes
 
 end mkRecInfos.loopUTemplates
 
-/-- Equality of the four semantic projections (motive, minors, indices and
+/-- Equality of the four binder projections (motive, minors, indices and
 major) of two `RecInfo` arrays of the same size.  Arrays related this way may
-differ in their rule blueprints but have the same bindings, type origins and
+differ in their rule templates but have the same bindings, binder types and
 telescopes. -/
 structure RecInfoEqExceptRules (left right : Array AddInductive.RecInfo) : Prop where
   size_eq : left.size = right.size
@@ -1838,7 +1845,7 @@ theorem modifyMinorAndTemplate_motiveCoreEq
 namespace mkRecInfos.loopCtors
 
 /-- Inserting the minor premise for the current constructor at the end of row
-`dIdx` keeps the rule-blueprint rows the same length as the minor-type rows,
+`dIdx` keeps the rule-template rows the same length as the minor-type rows,
 given that the old rows had equal lengths. -/
 theorem continueMinor_rowsSize
     {recLparams : List Name} {c : AddInductive.Context}
@@ -1903,7 +1910,7 @@ theorem continueMinor_rowsSize
       dIdx owner _ hownerTypes hdi]
     exact hrow
 
-/-- Every retained field binder of every minor row stays distinct from the
+/-- Every field binder of every minor row stays distinct from the
 recursor prefix after the current constructor's minor premise is opened as a
 fresh local and appended to row `dIdx`.  Old rows use the old freshness fact
 `Hfresh`; the new row uses `HminorFieldsFresh`; the fresh minor itself is not
@@ -2111,8 +2118,8 @@ theorem continueMinor_fieldsOuterFresh
         ((Horigins.minorShapes owner hownerOld localIndex hlocalOld
           ).fields_bound.members _ hfv)
 
-/-- Syntactic rule-blueprint origins survive inserting the current
-constructor's minor premise and its blueprint at the end of row `dIdx`. -/
+/-- The syntactic rule-template alignment `RuleTemplatesMatch` survives inserting
+the current constructor's minor premise and its template at the end of row `dIdx`. -/
 theorem continueMinor_templateOrigins
     (stats : AddInductive.InductiveStats)
     {recLparams : List Name} {c : AddInductive.Context}
@@ -2276,8 +2283,9 @@ theorem continueMinor_templateOrigins
       mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx owner _
         hownerOld hdi] using Hentry
 
-/-- Semantic rule-blueprint origins survive opening the current constructor's
-minor premise as a local and inserting it with its blueprint at the end of row
+/-- The typed rule-template rows `TypedRuleTemplates` survive opening the
+current constructor's minor premise as a local and inserting it with its template
+at the end of row
 `dIdx`: old entries are transported along the context extension, and the new
 entry is `HminorTemplateTyped`. -/
 theorem continueMinor_templateSemanticOrigins
@@ -2441,10 +2449,10 @@ theorem continueMinor_templateSemanticOrigins
       mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx owner _
         hownerOld hdi, hmotivesNext] using Hentry
 
-/-- Semantic boundary for the final action of one constructor iteration.
-Once the complete minor domain has been independently translated and typed,
-this mirrors production's `withLocalDecl`, updates the owning minor row, and
-transports every first-pass semantic invariant into the new context. -/
+/-- Typing of the final action of one constructor iteration.
+Once the complete minor domain has been translated and typed,
+this mirrors the executable's `withLocalDecl`, updates the owning minor row, and
+transports every invariant of the recursor frames into the new context. -/
 theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType)
@@ -2835,8 +2843,8 @@ theorem constructorFieldsOuterFresh
     · exact Hbindings.motives.members fv hmotive
   · exact Hbindings.flatMinors.members fv hminor
 
-/-- The call blueprints recorded while generating the induction hypotheses
-are call-blueprint origins for any completed origin table with the same
+/-- The call templates recorded while generating the induction hypotheses
+match (`CallTemplatesMatch`) any induction-hypothesis type table with the same
 statistics, records and field root. -/
 theorem CallTemplatesMatch.ofHypothesisCalls
     {stats : AddInductive.InductiveStats}
@@ -2877,12 +2885,12 @@ theorem CallTemplatesMatch.ofHypothesisCalls
     rw [hids]
     exact hup
 
-/-- Final phase of one constructor iteration in the second `mkRecInfos` pass.
+/-- Final step of one constructor iteration in the minor pass of `mkRecInfos`.
 Given the opened constructor fields, the checked owner application of the
 terminal type, its motive application, and the generated induction
-hypotheses with their call blueprints, the minor premise closed over fields
+hypotheses with their call templates, the minor premise closed over fields
 and hypotheses is translated, typed and inserted into row `dIdx`, and every
-second-pass invariant is handed to the continuation `k`. -/
+minor-pass invariant is handed to the continuation `k`. -/
 theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (indTypes : Array InductiveType)
     (indTypeName : Name)
@@ -3370,10 +3378,10 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
     HtelescopesNext HindexRowsNext HparamsNext HnoAliasNext HorderNext
     HaritiesNext HrootNext
 
-/-- Complete semantic refinement of one constructor iteration in the second
-`mkRecInfos` pass.  The only constructor-specific premise is the independent
-introduction certificate for the exact terminal application exposed by the
-field traversal; all recursive-field motives, generated IH binders, telescope
+/-- Refinement of one constructor iteration in the minor pass of
+`mkRecInfos`.  The only constructor-specific premise is the typing of the
+constructor applied to the parameters (`Hintro`, `HintroType`) at
+`tailTarget`; all recursive-field motives, generated IH binders, telescope
 closure, and minor insertion are derived here. -/
 theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (indTypes : Array InductiveType)
@@ -3780,8 +3788,8 @@ theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
     HhypothesesRecent HhypothesisOrigins HhypothesisCallOrigins
     HhypothesisCallSemantics HhypothesisCallSharpSemantics hhypothesesSize
 
-/-- Semantic refinement of the complete constructor list for one mutual
-family.  Each iteration consumes the checker-produced runtime seed for its
+/-- Refinement of the complete constructor list for one mutual
+family.  Each iteration uses the checked constructor data for its
 constructor and adds exactly one verified minor to the owning recursor row. -/
 theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (indTypes : Array InductiveType)
@@ -3995,10 +4003,10 @@ end mkRecInfos.loopCtors
 
 namespace mkRecInfos.loopInd2
 
-/-- Semantic refinement of the complete second mutual pass.  The processed
-prefix has its exact constructor/minor cardinalities, the unprocessed suffix
-is empty, and every checker-produced constructor seed is consumed at its
-original mutual-family owner. -/
+/-- Refinement of the complete minor pass (`loopInd2`).  The processed
+prefix has its constructor/minor cardinalities, the unprocessed suffix
+is empty, and the checked data of every constructor is used at its
+mutual-family owner. -/
 theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) (dIdx : Nat)
