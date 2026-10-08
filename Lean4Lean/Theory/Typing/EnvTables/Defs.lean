@@ -108,7 +108,7 @@ theorem Mentions.mkApps_head : Mentions X (VExpr.mkApps (.const X ls) args) :=
 
 /-- The source constructor names of a certified schema, as determined by the schema. -/
 def schemaCtorNames (schema : CaseSchema) : List Name :=
-  (schema.signature.declaration.types.take schema.originalFamilies.length).flatMap
+  (schema.signature.declaration.types.take schema.sourceFamilies.length).flatMap
     fun type => type.ctors.map (·.name)
 
 /-- Metadata witnessing that a table entry is declared in every well-formed environment
@@ -119,7 +119,7 @@ def Witness (env : VEnv) (X : Name) : Prop :=
     Mentions X ci.type) ∨
   (∃ s info, env.projections s info ∧ (X = s ∨ X = info.ctorName)) ∨
   (∃ key schema, env.eliminators key schema ∧
-    (X ∈ schema.originalFamilies ∨ X ∈ schemaCtorNames schema))
+    (X ∈ schema.sourceFamilies ∨ X ∈ schemaCtorNames schema))
 
 theorem Witness.mono (H : Witness env X) (hle : env ≤ env') : Witness env' X := by
   rcases H with ⟨df, h1, h2⟩ | ⟨df, Y, ci, h1, h2, h3, h4⟩ | ⟨s, info, h1, h2⟩ |
@@ -169,10 +169,10 @@ def NativeEvidence (env : VEnv) (T : Tables) (data : RecursorData) : Prop :=
   ∃ base installBase source expanded auxiliaries block installed,
     CompilationData base source expanded data.schema.signature data.nativeInstance
       auxiliaries block ∧
-    CertifiedSpecializations base auxiliaries ∧
+    ContainersInstalled base auxiliaries ∧
     base ≤ installBase ∧
     data.schema.restoration = compilationRestoration source auxiliaries ∧
-    data.schema.originalFamilies = source.types.map (·.name) ∧
+    data.schema.sourceFamilies = source.types.map (·.name) ∧
     block.install installBase = some installed ∧ installed ≤ env ∧
     installBase.WF ∧ VInductBlock.WF installBase block ∧
     ∀ type ∈ source.types, type.ctors ≠ [] → T.fam type.name = some (famView source type)

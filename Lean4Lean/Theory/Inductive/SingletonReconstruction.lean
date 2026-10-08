@@ -12,7 +12,7 @@ namespace Lean4Lean.InductiveSignature.CaseSchema
 /-- Select the first index that is literally the chosen constructor field.
 An arbitrary equality between field and index terms is not a reconstruction
 program and is deliberately not searched for here. -/
-def ProjectionData.fieldIndex (data : ProjectionData) (field : Nat) : Option Nat :=
+def StructureTelescope.fieldIndex (data : StructureTelescope) (field : Nat) : Option Nat :=
   (data.constructorIndices.zipIdx.find? fun (index, _) =>
     match index with
     | .bvar i => i == data.fields.length - 1 - field
@@ -20,7 +20,7 @@ def ProjectionData.fieldIndex (data : ProjectionData) (field : Nat) : Option Nat
 
 /-- A closed selector for an actual index, retaining the generated dependent
 field type after earlier reconstruction steps. -/
-def ProjectionData.indexSelector (data : ProjectionData) (domain : VExpr)
+def StructureTelescope.indexSelector (data : StructureTelescope) (domain : VExpr)
     (target : VLevel) (previous : List ProjectionFunction) (index : Nat) : ProjectionFunction :=
   let domains := data.params ++ data.indices ++ [data.major]
   { targetLevel := target
@@ -29,7 +29,7 @@ def ProjectionData.indexSelector (data : ProjectionData) (domain : VExpr)
 
 /-- Project a proof field with a motive specialized at elimination level zero.
 Earlier fields may be index selectors as well as proof projections. -/
-def ProjectionData.proofSelector (data : ProjectionData) (block : Name) (owner : Nat)
+def StructureTelescope.proofSelector (data : StructureTelescope) (block : Name) (owner : Nat)
     (levels : List VLevel) (domain : VExpr)
     (previous : List ProjectionFunction) : ProjectionFunction :=
   let fieldType := data.fieldTarget domain previous
@@ -47,7 +47,7 @@ def ProjectionData.proofSelector (data : ProjectionData) (block : Name) (owner :
 /-- A single normalized sort is supplied per source field. Only a literal
 zero sort permits proof projection; all other fields require a direct index
 selector. Typing must establish those normalized sort assignments. -/
-def ProjectionData.reconstructionPrefix (data : ProjectionData) (block : Name)
+def StructureTelescope.reconstructionPrefix (data : StructureTelescope) (block : Name)
     (owner : Nat) (levels : List VLevel) : List VExpr → List VLevel →
       List ProjectionFunction → Option (List ProjectionFunction)
   | [], [], previous => some previous
@@ -73,7 +73,7 @@ def singletonReconstruction (schema : CaseSchema) (block : Name)
     (levels fieldSorts : List VLevel) : Option VExpr := do
   if !(levels.all (fun level => decide (level.WF U)) &&
       fieldSorts.all (fun level => decide (level.WF U))) then none else
-  let data ← schema.projectionData owner levels
+  let data ← schema.structureTelescope owner levels
   let fields ← data.reconstructionPrefix block owner.val levels data.fields fieldSorts []
   let constructor := instantiateParams data.constructor <|
     vars data.params.length (data.indices.length + 1) ++
@@ -89,7 +89,7 @@ def singletonReconstructAt (schema : CaseSchema) (block : Name)
     (major : VExpr) : Option VExpr := do
   if !(levels.all (fun level => decide (level.WF U)) &&
       fieldSorts.all (fun level => decide (level.WF U))) then none else
-  let data ← schema.projectionData owner levels
+  let data ← schema.structureTelescope owner levels
   if parameters.length != data.params.length || indices.length != data.indices.length then none else
   let fields ← data.reconstructionPrefix block owner.val levels data.fields fieldSorts []
   return instantiateParams data.constructor <|

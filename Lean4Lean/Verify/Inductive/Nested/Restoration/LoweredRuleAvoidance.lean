@@ -2017,7 +2017,7 @@ theorem NestedValidatedRunResult.restorableRenamed_auxCtorNames
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
@@ -2068,7 +2068,7 @@ theorem NestedValidatedRunResult.loweredRulesAvoid_renamed
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv

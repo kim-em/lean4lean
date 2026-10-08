@@ -105,8 +105,8 @@ structure Instance (s : InductiveSignature) where
 /-- Native declarations and abstract eliminators share one equation generator.
 Abstract symbols are disjoint syntax, indexed within their certified block. -/
 inductive HeadMode where
-  | native
-  | abstract (block : Name) (firstOwner : Nat)
+  | recursor
+  | elim (block : Name) (firstOwner : Nat)
 
 namespace Instance
 
@@ -115,8 +115,8 @@ variable {s : InductiveSignature}
 @[simp] def recursorHead (g : Instance s) (mode : HeadMode)
     (owner : Fin s.families.size) : VExpr :=
   match mode with
-  | .native => .const (g.recursorName owner) (VLevel.params g.uvars)
-  | .abstract block firstOwner =>
+  | .recursor => .const (g.recursorName owner) (VLevel.params g.uvars)
+  | .elim block firstOwner =>
     .elim block (firstOwner + owner.val) (g.targetLevel :: g.levels)
 
 def params (g : Instance s) : List VExpr := s.params.map (·.instL g.levels)
@@ -219,7 +219,7 @@ def recursor (g : Instance s) (owner : Fin s.families.size) : VConstVal where
 /-- Recursive calls in an equation are generated from the same field data as
 its minor's induction hypotheses. No call template is accepted as input. -/
 def recursiveCall (g : Instance s) (ctor : Constructor s.families.size)
-    (field : Nat) (r : Recursive s.families.size) (mode : HeadMode := .native) : VExpr :=
+    (field : Nat) (r : Recursive s.families.size) (mode : HeadMode := .recursor) : VExpr :=
   let nf := ctor.fields.length
   let extra := s.families.size + s.constructors.size
   let embed := fun e localDepth => underFields (e.instL g.levels) field nf 0 extra localDepth
@@ -234,7 +234,7 @@ def recursiveCall (g : Instance s) (ctor : Constructor s.families.size)
 /-- One equation per constructor, with its exact owner and minor position.
 Both sides and the equation type are generated, including the binder domains. -/
 def equation (g : Instance s) (index : Fin s.constructors.size)
-    (mode : HeadMode := .native) : VDefEq :=
+    (mode : HeadMode := .recursor) : VDefEq :=
   let ctor := s.constructors[index]
   let nf := ctor.fields.length
   let extra := s.families.size + s.constructors.size
@@ -256,7 +256,7 @@ def equation (g : Instance s) (index : Fin s.constructors.size)
 def recursors (g : Instance s) : List VConstVal :=
   (List.finRange s.families.size).map g.recursor
 
-def equations (g : Instance s) (mode : HeadMode := .native) : List VDefEq :=
+def equations (g : Instance s) (mode : HeadMode := .recursor) : List VDefEq :=
   (List.finRange s.constructors.size).map fun index => g.equation index mode
 
 end Instance

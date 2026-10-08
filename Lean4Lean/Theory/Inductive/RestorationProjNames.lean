@@ -257,22 +257,22 @@ theorem projNamesOK_of_pieces_restored {schema : CaseSchema} {ok : Name → Prop
     obtain ⟨index, -, rfl⟩ := List.mem_map.1 hdf0
     have hall := fun n hn =>
       Instance.equation_projNamesAvoid_of_recursorType _ _ (htype owner n hn) index
-        (.abstract key owner.val)
+        (.elim key owner.val)
     unfold Restoration.equation at hrestore
     simp only [Option.bind_eq_bind, Option.pure_def] at hrestore
     cases hl : schema.restoration.expr
         ((schema.specialize owner schema.genericUvars schema.genericLevels (.param 0)).equation
-          index (.abstract key owner.val)).lhs with
+          index (.elim key owner.val)).lhs with
     | none => simp [hl] at hrestore
     | some l =>
       cases hr : schema.restoration.expr
           ((schema.specialize owner schema.genericUvars schema.genericLevels (.param 0)).equation
-            index (.abstract key owner.val)).rhs with
+            index (.elim key owner.val)).rhs with
       | none => simp [hl, hr] at hrestore
       | some r' =>
         cases ht : schema.restoration.expr
             ((schema.specialize owner schema.genericUvars schema.genericLevels (.param 0)).equation
-              index (.abstract key owner.val)).type with
+              index (.elim key owner.val)).type with
         | none => simp [hl, hr, ht] at hrestore
         | some t =>
           simp only [hl, hr, ht, Option.bind_some, Option.some.injEq] at hrestore

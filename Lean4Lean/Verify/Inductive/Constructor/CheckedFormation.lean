@@ -79,10 +79,10 @@ theorem VInductDecl.SourceWF.mono_of_addConstVals {decl : VInductDecl} {env env'
     fun type htype => (hsourceTypesWF type htype).mono hle,
     fun ctor hctor => (hsourceCtorsWF ctor hctor).mono hsourceTypesLE⟩
 
-theorem VInductDecl.FormationWF.mono_of_addConstVals {decl : VInductDecl} {env env' envTypes : VEnv}
-    (H : decl.FormationWF env) (hle : env ≤ env')
+theorem VInductDecl.OrdinaryFormationWF.mono_of_addConstVals {decl : VInductDecl} {env env' envTypes : VEnv}
+    (H : decl.OrdinaryFormationWF env) (hle : env ≤ env')
     (htypes : env'.addConstVals decl.typeConstants = some envTypes) :
-    decl.FormationWF env' := by
+    decl.OrdinaryFormationWF env' := by
   rcases H with ⟨params, resultLevel, formationTypes, hformationTypes, htypeShapes,
     hctorShapes, hraw⟩
   have hformationTypesLE : formationTypes ≤ envTypes :=
@@ -168,7 +168,7 @@ private def ordinaryCaseIngredients (env : VEnv) (decl : VInductDecl)
   ∃ (s : InductiveSignature) (key : Name),
     es = [(key, InductiveSignature.CaseSchema.ofCompilation decl s [])] ∧
     decl.types.head?.map (·.name) = some key ∧
-    decl.SourceWF env ∧ decl.FormationWF env ∧ s.Models env decl ∧
+    decl.SourceWF env ∧ decl.OrdinaryFormationWF env ∧ s.Models env decl ∧
     ∃ envTypes envCtors, env.addConstVals decl.typeConstants = some envTypes ∧
       envTypes.addConstVals decl.constructorConstants = some envCtors ∧
       s.FamilyTypesWF (envCtors.addProjections decl.projectionEntries) decl.uvars ∧

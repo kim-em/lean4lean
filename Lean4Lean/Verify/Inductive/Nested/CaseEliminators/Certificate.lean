@@ -212,7 +212,7 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
@@ -280,7 +280,7 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
     rwa [← auxiliarySpecializations_headNames Haux Hexpansion,
       ← compilationRestoration_heads_auxiliary] at h
   have HauxRestore : ∀ direct,
-      auxiliaries.mapM (fun a => a.directFamily sourceDecl.uvars B.sourceSignature.params) =
+      auxiliaries.mapM (fun a => a.specializedFamily sourceDecl.uvars B.sourceSignature.params) =
         some direct →
       List.Forall₂ (fun normalized family : VInductiveType =>
           List.Forall₂ (fun normalized ctor : VConstVal =>
@@ -297,7 +297,7 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
     rw [E.nativeSourceDecl_eq] at h
     rw [h, E.production_c, E.productionContext_lparams]
   have HauxFamilies : ∀ direct,
-      auxiliaries.mapM (fun a => a.directFamily sourceDecl.uvars B.sourceSignature.params) =
+      auxiliaries.mapM (fun a => a.specializedFamily sourceDecl.uvars B.sourceSignature.params) =
         some direct →
       List.Forall₂ (fun normalized family : VInductiveType =>
           normalized.numIndices = family.numIndices ∧
@@ -435,7 +435,7 @@ theorem NestedValidatedRunResult.restorationRecursorNames
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnames : auxiliaries.map (·.auxiliary) =
@@ -605,7 +605,7 @@ theorem NestedValidatedRunResult.caseEliminators
             auxiliaries generated ∧
           List.Forall₂ (VInductDecl.NestedTypeExpansion
               (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-              (VInductDecl.NestedAuxiliarySourceAbsolute
+              (VInductDecl.NestedOccurrenceReplacementAbs
                 (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
             generated (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
           result.params.size = result.nparams ∧

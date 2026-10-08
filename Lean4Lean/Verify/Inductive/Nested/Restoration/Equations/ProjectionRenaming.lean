@@ -10,9 +10,9 @@ reduces to its restoration (`Restoration.expr_betaRed`): each inserted restorati
 replacement (`VProjectionInfo.fieldType_replaceRen'`), and field types computed from a beta
 reduct of the constructor type are beta reducts of the field types
 (`VProjectionInfo.fieldType_betaRed`), as instantiating parameters and preceding fields is
-substitution. `ProjectionTransportOnCtx` receives the well-formedness of the image context in
+substitution. `ProjectionRulesRenamedOnCtx` receives the well-formedness of the image context in
 every projection rule, so beta subject reduction (`VExpr.BetaRed.simAt`) applies and the primary
-transport needs no hypothesis (`ProjectionTransportOnCtx.of_ctorType_betaRed`). The auxiliary
+transport needs no hypothesis (`ProjectionRulesRenamedOnCtx.of_ctorType_betaRed`). The auxiliary
 transport is in `Nested/Restoration/AuxiliaryProjections.lean`.
 -/
 
@@ -354,7 +354,7 @@ namespace VEnv
 replacement, registered in `envS` with a constructor type that is a beta
 reduct of the transported constructor type (of the same syntactic arity),
 transports in well-formed contexts, by beta subject reduction of `envS`. -/
-theorem ProjectionTransportOnCtx.of_ctorType_betaRed {envS : VEnv}
+theorem ProjectionRulesRenamedOnCtx.of_ctorType_betaRed {envS : VEnv}
     {ρ : Name → Option VExpr} {σ : Name → Name} {typeName : Name}
     {info : VProjectionInfo} {ctorType' : VExpr}
     (henv : envS.Ordered) (hβ : ∀ U, envS.BetaSubjectReduction U)
@@ -364,7 +364,7 @@ theorem ProjectionTransportOnCtx.of_ctorType_betaRed {envS : VEnv}
     (hctorName : ρ info.ctorName = none) (hσctor : σ info.ctorName = info.ctorName)
     (hclosed : ctorType'.Closed) (harity : ctorType'.forallArity = info.ctorType.forallArity)
     (hBR : VExpr.BetaRed (info.ctorType.replaceRen ρ σ) ctorType') :
-    ProjectionTransportOnCtx envS ρ σ typeName info where
+    ProjectionRulesRenamedOnCtx envS ρ σ typeName info where
   projDF := by
     intro U Γ levels params index sourceMajor fieldType fieldLevel major indexArgs major'
       hΓ hlevels huvars hparams hindices hfield _ hguard ihField ihLeft ihRight

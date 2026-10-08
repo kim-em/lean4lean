@@ -19,7 +19,7 @@ the final abstract environment `C.finalBaseVEnv` transports the typing of both
 sides to the restored equation (`Restoration.equation_wf_onCtx`), using beta
 subject reduction of the well-formed final environment. The substitution
 transports the projection rules only in well-formed image contexts
-(`VEnv.ProjectionTransportOnCtx`); the equations are stated in the empty
+(`VEnv.ProjectionRulesRenamedOnCtx`); the equations are stated in the empty
 context, so every transported derivation starts in a well-formed context. The substitution
 replaces each restoration head (auxiliary family or constructor) by its
 restoration lambda `λ params, target levels args`
@@ -111,7 +111,7 @@ theorem NestedValidatedRunResult.constructorRenamingReplacement
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.production.loweredDecl.types ++
@@ -144,7 +144,7 @@ theorem NestedValidatedRunResult.constructorRenamingReplacement
             (VExpr.wrapLams E.production.compilationSignature.params
               (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored)
     (Hproj : ∀ entry ∈ E.production.loweredDecl.projectionEntries,
-      VEnv.ProjectionTransportOnCtx envS
+      VEnv.ProjectionRulesRenamedOnCtx envS
         ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
           fun _ => E.production.compilationSignature.params)
         (compilationRestoration sourceDecl auxiliaries).renaming
@@ -357,7 +357,7 @@ structure NestedRestoredEquationGaps
   /-- The projection rules of the lowered declaration's projections
   transport to the final abstract environment. -/
   projections : ∀ entry ∈ E.production.loweredDecl.projectionEntries,
-    VEnv.ProjectionTransportOnCtx B.finalBaseVEnv
+    VEnv.ProjectionRulesRenamedOnCtx B.finalBaseVEnv
       ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
         fun _ => E.production.compilationSignature.params)
       (compilationRestoration sourceDecl auxiliaries).renaming
@@ -390,7 +390,7 @@ theorem NestedValidatedRunResult.restoredEliminators
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.production.loweredDecl.types ++
@@ -498,7 +498,7 @@ theorem NestedValidatedRunResult.restoredEquationSubstitution
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hparamsSize : result.params.size = result.nparams)

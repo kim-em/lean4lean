@@ -15,7 +15,7 @@ node callback stops traversal at that node; otherwise the relation records
 the recursively restored children and the same update combinators used by
 Lean's implementation. -/
 inductive ExprReplacement (replaceNode : Expr → Option Expr) : Expr → Expr → Prop
-  | hit (h : replaceNode input = some output) :
+  | occurrence (h : replaceNode input = some output) :
       ExprReplacement replaceNode input output
   | bvar (h : replaceNode (.bvar i) = none) :
       ExprReplacement replaceNode (.bvar i) (.bvar i)
@@ -75,7 +75,7 @@ theorem ExprReplacement.forallTelescope_residual
   | nil => exact ⟨output, .nil output, Hreplace⟩
   | @cons body arity residual name dom bi Htail ih =>
     cases Hreplace with
-    | hit h =>
+    | occurrence h =>
       rw [Hnone] at h
       contradiction
     | forallE h hdom hbody =>
@@ -119,7 +119,7 @@ theorem ExprReplacement.forallTelescopeReplacement
   | nil => exact ⟨output, .nil Hreplace⟩
   | @cons body arity residual name dom bi Htail ih =>
     cases Hreplace with
-    | hit h =>
+    | occurrence h =>
       rw [Hnone] at h
       contradiction
     | forallE h hdom hbody =>
@@ -156,37 +156,37 @@ theorem ExprReplacement.ofReplace
     | none => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
         (ExprReplacement.bvar h)
     | some output => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
-        (ExprReplacement.hit h)
+        (ExprReplacement.occurrence h)
   | fvar i =>
     cases h : replaceNode (.fvar i) with
     | none => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
         (ExprReplacement.fvar h)
     | some output => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
-        (ExprReplacement.hit h)
+        (ExprReplacement.occurrence h)
   | mvar i =>
     cases h : replaceNode (.mvar i) with
     | none => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
         (ExprReplacement.mvar h)
     | some output => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
-        (ExprReplacement.hit h)
+        (ExprReplacement.occurrence h)
   | sort level =>
     cases h : replaceNode (.sort level) with
     | none => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
         (ExprReplacement.sort h)
     | some output => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
-        (ExprReplacement.hit h)
+        (ExprReplacement.occurrence h)
   | const name levels =>
     cases h : replaceNode (.const name levels) with
     | none => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
         (ExprReplacement.const h)
     | some output => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
-        (ExprReplacement.hit h)
+        (ExprReplacement.occurrence h)
   | lit literal =>
     cases h : replaceNode (.lit literal) with
     | none => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
         (ExprReplacement.lit h)
     | some output => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
-        (ExprReplacement.hit h)
+        (ExprReplacement.occurrence h)
   | app fn arg hfn harg =>
     cases h : replaceNode (.app fn arg) with
     | none =>
@@ -195,7 +195,7 @@ theorem ExprReplacement.ofReplace
       exact .app h hfn harg
     | some output =>
       simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
-        (ExprReplacement.hit h)
+        (ExprReplacement.occurrence h)
 
   | lam name dom body bi hdom hbody =>
     cases h : replaceNode (.lam name dom body bi) with
@@ -205,7 +205,7 @@ theorem ExprReplacement.ofReplace
       exact .lam h hdom hbody
     | some output =>
       simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
-        (ExprReplacement.hit h)
+        (ExprReplacement.occurrence h)
   | forallE name dom body bi hdom hbody =>
     cases h : replaceNode (.forallE name dom body bi) with
     | none =>
@@ -214,7 +214,7 @@ theorem ExprReplacement.ofReplace
       exact .forallE h hdom hbody
     | some output =>
       simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
-        (ExprReplacement.hit h)
+        (ExprReplacement.occurrence h)
   | letE name type value body nondep htype hvalue hbody =>
     cases h : replaceNode (.letE name type value body nondep) with
     | none =>
@@ -223,7 +223,7 @@ theorem ExprReplacement.ofReplace
       exact .letE h htype hvalue hbody
     | some output =>
       simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
-        (ExprReplacement.hit h)
+        (ExprReplacement.occurrence h)
   | mdata data body hbody =>
     cases h : replaceNode (.mdata data body) with
     | none =>
@@ -232,7 +232,7 @@ theorem ExprReplacement.ofReplace
       exact .mdata h hbody
     | some output =>
       simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
-        (ExprReplacement.hit h)
+        (ExprReplacement.occurrence h)
   | proj typeName index body hbody =>
     cases h : replaceNode (.proj typeName index body) with
     | none =>
@@ -241,7 +241,7 @@ theorem ExprReplacement.ofReplace
       exact .proj h hbody
     | some output =>
       simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
-        (ExprReplacement.hit h)
+        (ExprReplacement.occurrence h)
 
 /-- The relational restoration traversal is functional and computes exactly
 `Expr.replace`.  This lets later semantic inverse theorems consume the
@@ -250,7 +250,7 @@ theorem ExprReplacement.eq_replace
     (H : ExprReplacement replaceNode input output) :
     output = input.replace replaceNode := by
   induction H with
-  | hit h => simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, h]
+  | occurrence h => simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, h]
   | bvar h | fvar h | mvar h | sort h | const h | lit h =>
     simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, h]
   | app h hfn harg ihFn ihArg =>

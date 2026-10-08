@@ -50,7 +50,7 @@ open Lean4Lean
 `c ∈ heads` has at least `n` arguments and exactly `k` universe levels. This is
 the arity content of `ParamUniform`, forgetting which arguments the hit carries. -/
 inductive HeadsApplied (heads : List Name) (n k : Nat) : Expr → Prop
-  | hit {c : Name} {us : List Level} {args : List Expr} : c ∈ heads → us.length = k →
+  | occurrence {c : Name} {us : List Level} {args : List Expr} : c ∈ heads → us.length = k →
       n ≤ args.length → (∀ a ∈ args, HeadsApplied heads n k a) →
       HeadsApplied heads n k (mkAppList (.const c us) args)
   | app {f a : Expr} : HeadsApplied heads n k f → HeadsApplied heads n k a →
@@ -77,7 +77,7 @@ theorem ParamUniform.hitArity {heads : List Name} {params : List Expr} {ls : Lis
     (hp : ∀ p ∈ params, HeadsApplied heads params.length ls.length p) :
     HeadsApplied heads params.length ls.length e := by
   induction H with
-  | head hc => exact .hit hc rfl (Nat.le_refl _) hp
+  | head hc => exact .occurrence hc rfl (Nat.le_refl _) hp
   | app _ _ ihf iha => exact .app ihf iha
   | const hc => exact .const hc
   | bvar => exact .bvar _
@@ -101,9 +101,9 @@ theorem HeadsApplied.abstract1 {heads : List Name} {n k : Nat} {e : Expr}
     (H : HeadsApplied heads n k e) (v : FVarId) (d : Nat) :
     HeadsApplied heads n k (Expr.abstract1 v e d) := by
   induction H generalizing d with
-  | @hit c us args hc hus hlen _ ih =>
+  | @occurrence c us args hc hus hlen _ ih =>
     rw [abstract1_mkAppList]
-    refine .hit hc hus (by simpa using hlen) fun a ha => ?_
+    refine .occurrence hc hus (by simpa using hlen) fun a ha => ?_
     simp only [List.mem_map] at ha
     obtain ⟨a, ha, rfl⟩ := ha
     exact ih a ha d
@@ -140,7 +140,7 @@ open Lean hiding Environment Exception
 `e` heads an application spine with at least `n` arguments, at exactly `k`
 universe levels. On such terms `Restoration.expr` is total. -/
 inductive VExpr.HeadsApplied (heads : List Name) (n k : Nat) : VExpr → Prop
-  | hit {c : Name} {us : List VLevel} {args : List VExpr} : c ∈ heads → us.length = k →
+  | occurrence {c : Name} {us : List VLevel} {args : List VExpr} : c ∈ heads → us.length = k →
       n ≤ args.length → (∀ a ∈ args, HeadsApplied heads n k a) →
       HeadsApplied heads n k (VExpr.mkApps (.const c us) args)
   | app {f a : VExpr} : HeadsApplied heads n k f → HeadsApplied heads n k a →
@@ -163,9 +163,9 @@ variable {heads : List Name} {n k : Nat}
 theorem liftN {e : VExpr} (H : HeadsApplied heads n k e) (m j : Nat) :
     HeadsApplied heads n k (e.liftN m j) := by
   induction H generalizing j with
-  | @hit c us args hc hus hlen _ ih =>
+  | @occurrence c us args hc hus hlen _ ih =>
     rw [VExpr.liftN_mkApps]
-    refine .hit hc hus (by simpa using hlen) fun a ha => ?_
+    refine .occurrence hc hus (by simpa using hlen) fun a ha => ?_
     simp only [List.mem_map] at ha
     obtain ⟨a, ha, rfl⟩ := ha
     exact ih a ha j
@@ -234,7 +234,7 @@ theorem spine {e : VExpr} (H : HeadsApplied heads n k e) :
       ∀ c us, (appSpine e).1 = .const c us → c ∈ heads →
         us.length = k ∧ n ≤ (appSpine e).2.length := by
   induction H with
-  | @hit c us args hc hus hlen hargs _ =>
+  | @occurrence c us args hc hus hlen hargs _ =>
     rw [appSpine_mkApps]
     simp only [appSpine, List.nil_append]
     refine ⟨hargs, fun c' us' h _ => ?_⟩
@@ -265,7 +265,7 @@ theorem forallE_inv {A B : VExpr} (H : HeadsApplied heads n k (.forallE A B)) :
   generalize he : VExpr.forallE A B = e at H
   cases H with
   | forallE ht hb => cases he; exact ⟨ht, hb⟩
-  | hit =>
+  | occurrence =>
     have := congrArg (fun e => (appSpine e).1) he
     simp [appSpine_mkApps, appSpine] at this
   | _ => cases he
@@ -304,7 +304,7 @@ theorem VExpr.HeadsApplied.restorationGo {heads : List Name} {n k : Nat}
     {e : VExpr} (H : VExpr.HeadsApplied heads n k e) :
     ∀ args, ∃ e', Restoration.expr.go r e args = some e' := by
   induction H with
-  | @hit c us xs hc hus hlen _ ih =>
+  | @occurrence c us xs hc hus hlen _ ih =>
     intro args
     obtain ⟨ys, hys⟩ := exists_forall₂_of_forall'
       (P := fun x y => Restoration.expr.go r x [] = some y) fun x hx => ih x hx []
@@ -465,10 +465,10 @@ theorem _root_.Lean.Expr.HeadsApplied.trExprS {env : VEnv} {Us : List Name}
     ∀ {Δ : VLCtx} {e' : VExpr}, (∀ x ∈ Δ, VExpr.HeadsApplied heads n k x.2.value) →
       TrExprS env Us Δ e e' → VExpr.HeadsApplied heads n k e' := by
   induction H with
-  | @hit c us args hc hus hlen _ ih =>
+  | @occurrence c us args hc hus hlen _ ih =>
     intro Δ e' hΔ Htr
     obtain ⟨us', args', rfl, hus', Hargs⟩ := TrExprS.mkAppList_const_inv Htr
-    refine .hit hc (hus'.trans hus) (by rw [← List.Forall₂.length_eq Hargs]; exact hlen)
+    refine .occurrence hc (hus'.trans hus) (by rw [← List.Forall₂.length_eq Hargs]; exact hlen)
       fun a' ha' => ?_
     obtain ⟨a, ha, Ha⟩ := Lean4Lean.List.Forall₂.forall_exists_r Hargs a' ha'
     exact ih a ha hΔ Ha
@@ -941,7 +941,7 @@ theorem CompletedRecursorConstruction.normalizedHeadsApplied
     by_cases hname : (H.consumedGeneration.signature.families[
         (H.consumedGeneration.signature.constructors[(⟨k, by simpa using hk⟩ : Fin _)]).owner]).name
         ∈ heads
-    · refine .hit hname (by simp [VLevel.params, hsu, hlevels]) ?_ hargs
+    · refine .occurrence hname (by simp [VLevel.params, hsu, hlevels]) ?_ hargs
       simp [InductiveSignature.vars, hsp]
     · exact .mkApps (.const hname) hargs
 

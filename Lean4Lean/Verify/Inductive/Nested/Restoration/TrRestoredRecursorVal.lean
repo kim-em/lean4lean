@@ -94,7 +94,7 @@ structure RestoredCompilationRealization (env : VEnv) (source : VInductDecl)
   generated : ∃ (expanded : VInductDecl) (s : InductiveSignature) (g : Instance s)
       (auxiliaries : List ContainerSpecialization),
     CompilationData env source expanded s g auxiliaries block ∧
-    CertifiedSpecializations env auxiliaries ∧
+    ContainersInstalled env auxiliaries ∧
     List.Forall₂
       (RestoredRecursorEntryRealization g (compilationRestoration source auxiliaries)
         (source.types.map (·.name)) venv)

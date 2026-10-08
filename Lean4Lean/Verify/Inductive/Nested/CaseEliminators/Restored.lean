@@ -55,9 +55,9 @@ theorem equation_restoreOK_of_recursorType {s : InductiveSignature} (g : Instanc
     {r : Restoration} (owner : Fin s.families.size)
     (h : RestoreOK r (g.recursorType owner) 0) (index : Fin s.constructors.size)
     (hrec : Instance.recursiveFields s.constructors[index] = []) (block : Name) (first : Nat) :
-    RestoreOK r (g.equation index (.abstract block first)).lhs 0 ∧
-      RestoreOK r (g.equation index (.abstract block first)).rhs 0 ∧
-      RestoreOK r (g.equation index (.abstract block first)).type 0 := by
+    RestoreOK r (g.equation index (.elim block first)).lhs 0 ∧
+      RestoreOK r (g.equation index (.elim block first)).rhs 0 ∧
+      RestoreOK r (g.equation index (.elim block first)).type 0 := by
   unfold Instance.recursorType at h
   rw [restoreOK_wrapForalls] at h
   obtain ⟨hdoms, -⟩ := h

@@ -29,7 +29,7 @@ theorem famSort_container {envF env0 base : VEnv} {aux : List ContainerSpecializ
     {a : ContainerSpecialization}
     (henvF : envF.Ordered) (h0 : env0.Ordered) (h0F : env0 ≤ envF)
     (V : EnvValid envF env0)
-    (hprior : CertifiedSpecializations base aux) (hb : base ≤ env0) (ha : a ∈ aux) :
+    (hprior : ContainersInstalled base aux) (hb : base ≤ env0) (ha : a ∈ aux) :
     FamSort envF a.source.name a.source.resultLevel := by
   obtain ⟨base', block', inst', hcomp, -, hinst', hle'⟩ := hprior.mem a ha
   obtain ⟨base'', expanded'', s'', g'', aux'', hb'', C'', -⟩ := hcomp.compilationOrigin
@@ -73,7 +73,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsNativeCtor env c → env.CtorResultRigid c)
     (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
     (C : CompilationData base source expanded s g aux block)
-    (hprior : CertifiedSpecializations base aux) (haux : aux ≠ []) (hbF : base ≤ env)
+    (hprior : ContainersInstalled base aux) (haux : aux ≠ []) (hbF : base ≤ env)
     (hinst : block.install base' = some installed) (hle : installed ≤ env)
     (index : Fin s.constructors.size)
     (hres : (compilationRestoration source aux).equation (g.equation index) = some df)

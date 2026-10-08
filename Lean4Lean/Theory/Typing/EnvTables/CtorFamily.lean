@@ -86,7 +86,7 @@ theorem generic_major_origin {env : VEnv} (H : env.WF) {schema : CaseSchema}
     (hreg : env.eliminators key schema) {owner : Fin schema.signature.families.size}
     {rules : List VDefEq} (hgen : schema.genericEquations key owner = some rules) (hdf : df ∈ rules)
     (hm : df.lhs.stripLams = .app fn (VExpr.mkApps (.const c ls) args)) :
-    ctorOf env c ≠ none ∨ (schema.originalFamilies[owner.val]? = ctorFamily env c ∧
+    ctorOf env c ≠ none ∨ (schema.sourceFamilies[owner.val]? = ctorFamily env c ∧
       c ∈ (schema.view owner).constructors.toList.map (·.name)) := by
   obtain ⟨base, source, block, _, hle, hcert, _, hconsts⟩ := H.eliminator_origin hreg
   have hcert' := hcert

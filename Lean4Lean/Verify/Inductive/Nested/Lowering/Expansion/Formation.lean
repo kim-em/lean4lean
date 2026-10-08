@@ -11,7 +11,7 @@ namespace VerifyInductive
 /-- A finite installed-declaration derivation exposes the exact abstract
 family constant at every source position. -/
 theorem installedInductCertificate_familyLookup
-    (H : VEnv.InstalledInductCertificate env decl)
+    (H : VEnv.InstalledBelow env decl)
     (i : Nat) (hi : i < decl.types.length) :
     env.constants decl.types[i].name = some decl.types[i].toVConstant := by
   cases H with
@@ -53,7 +53,7 @@ structure GeneratedFamilyInstalledContainer
   container : VInductDecl
   familyIdx : Nat
   familyIdx_lt : familyIdx < container.types.length
-  installed : VEnv.InstalledInductCertificate venv container
+  installed : VEnv.InstalledBelow venv container
   lookupName : H.sourceName = H.sourceInfo.name
   familyName : H.sourceInfo.name = container.types[familyIdx].name
   numParams : H.sourceInfo.numParams = container.nparams
@@ -132,14 +132,14 @@ theorem GeneratedFamilyWitness.installedContainerOfAbstractLookup
 strictly-positive carrier used by the finite formation derivation. -/
 theorem nestedExprExpansion_toNestedExprWFExpansion
     (H : VExpr.NestedExprExpansion
-      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+      (VInductDecl.NestedOccurrenceReplacementAbs env source generated)
       depth input output) :
     VInductDecl.NestedExprWFExpansion env source generated depth input
       output := by
   induction H with
-  | hit Hleaf =>
+  | occurrence Hleaf =>
     rcases Hleaf with ⟨relativeDepth, hdepth, Hrelative⟩
-    exact .hit hdepth Hrelative
+    exact .occurrence hdepth Hrelative
   | bvar => exact .bvar
   | sort => exact .sort
   | const => exact .const
@@ -153,7 +153,7 @@ theorem nestedExprExpansion_toNestedExprWFExpansion
 strictly-positive formation carrier. -/
 theorem nestedForallPrefixExpansion_toNestedForallPrefixWFExpansion
     (H : VExpr.NestedForallPrefixExpansion
-      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+      (VInductDecl.NestedOccurrenceReplacementAbs env source generated)
       depth arity input output) :
     VInductDecl.NestedForallPrefixWFExpansion env source generated depth
       arity input output := by
@@ -168,7 +168,7 @@ strict-positivity encoding required by `NestedFormationWF`. -/
 theorem nestedConstructorWFExpansions_ofForall₂
     (H : List.Forall₂
       (VInductDecl.NestedConstructorExpansion
-        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+        (VInductDecl.NestedOccurrenceReplacementAbs env source generated)
         source.nparams)
       sourceCtors targetCtors) :
     VInductDecl.NestedConstructorWFExpansions env source generated
@@ -186,7 +186,7 @@ strict-positivity encoding required by `NestedFormationWF`. -/
 theorem nestedTypeWFExpansions_ofForall₂
     (H : List.Forall₂
       (VInductDecl.NestedTypeExpansion env source
-        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated))
+        (VInductDecl.NestedOccurrenceReplacementAbs env source generated))
       sourceTypes targetTypes) :
     VInductDecl.NestedTypeWFExpansions env source generated sourceTypes
       targetTypes := by
@@ -206,14 +206,14 @@ theorem VInductDecl.NestedFormationWF.ofForall₂
     {env : VEnv} {source expanded : VInductDecl}
     {generated : List VInductiveType}
     (Hsource : expanded.SourceWF env)
-    (Hformation : expanded.FormationWF env)
+    (Hformation : expanded.OrdinaryFormationWF env)
     (HsourceParameters : source.SourceParameterWF env)
     (huvars : expanded.uvars = source.uvars)
     (hnparams : expanded.nparams = source.nparams)
     (hunsafe : expanded.isUnsafe = source.isUnsafe)
     (Htypes : List.Forall₂
       (VInductDecl.NestedTypeExpansion env source
-        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated))
+        (VInductDecl.NestedOccurrenceReplacementAbs env source generated))
       (source.types ++ generated) expanded.types) :
     source.NestedFormationWF env :=
   .intro Hsource Hformation HsourceParameters huvars hnparams hunsafe
@@ -226,14 +226,14 @@ structure NestedFormationAssembly (env : VEnv) (source : VInductDecl) where
   expanded : VInductDecl
   generated : List VInductiveType
   expandedSource : expanded.SourceWF env
-  expandedFormation : expanded.FormationWF env
+  expandedFormation : expanded.OrdinaryFormationWF env
   sourceParameters : source.SourceParameterWF env
   uvars : expanded.uvars = source.uvars
   nparams : expanded.nparams = source.nparams
   isUnsafe : expanded.isUnsafe = source.isUnsafe
   types : List.Forall₂
     (VInductDecl.NestedTypeExpansion env source
-      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated))
+      (VInductDecl.NestedOccurrenceReplacementAbs env source generated))
     (source.types ++ generated) expanded.types
 
 theorem NestedFormationAssembly.formation
@@ -275,7 +275,7 @@ def NestedFormationAssembly.ofConstructorPhases
     (hunsafe : expanded.isUnsafe = source.isUnsafe)
     (Htypes : List.Forall₂
       (VInductDecl.NestedTypeExpansion env source
-        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated))
+        (VInductDecl.NestedOccurrenceReplacementAbs env source generated))
       (source.types ++ generated) expanded.types) :
     NestedFormationAssembly env source where
   expanded := expanded

@@ -77,7 +77,7 @@ theorem auxiliaryLoweredConstructors_restore
     (hfresh : ∀ name ∈ r.restorableNames, envTypes.constants name = none)
     (hlevels : ∀ t ∈ targets, ∀ lc ∈ t.ctors,
       lc.type.ConstLevelsAt (r.heads.map (·.auxiliary)) (VLevel.params decl.uvars))
-    (hmapM : auxiliaries.mapM (fun a => a.directFamily decl.uvars params) = some direct) :
+    (hmapM : auxiliaries.mapM (fun a => a.specializedFamily decl.uvars params) = some direct) :
     List.Forall₂ (fun t d : VInductiveType => List.Forall₂
         (fun lc dc : VConstVal => ∃ restored, r.expr lc.type = some restored ∧
           envTypes.SimAt decl.uvars [] restored dc.type)
@@ -148,7 +148,7 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.production.loweredDecl.types ++
@@ -236,7 +236,7 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
         AuxiliarySpecializationEvidence (ves.venv (if isUnsafe then .unsafe else .safe))
           envTypes E.production.headers.commonParameterContext sourceDecl a g ∧
         VInductDecl.NestedTypeExpansion (ves.venv (if isUnsafe then .unsafe else .safe))
-          sourceDecl (VInductDecl.NestedAuxiliarySourceAbsolute
+          sourceDecl (VInductDecl.NestedOccurrenceReplacementAbs
             (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated) g t := by
     intro t ht
     obtain ⟨g, hg, hexp⟩ := Lean4Lean.List.Forall₂.forall_exists_r Hexpansion t ht
@@ -360,7 +360,7 @@ theorem NestedValidatedRunResult.auxiliaryConstructors_of_evidence
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (HauxRestoring : List.Forall₂ (VInductDecl.NestedTypeExpansion
@@ -377,7 +377,7 @@ theorem NestedValidatedRunResult.auxiliaryConstructors_of_evidence
     ∀ envTypes direct,
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some envTypes →
-      auxiliaries.mapM (fun a => a.directFamily sourceDecl.uvars
+      auxiliaries.mapM (fun a => a.specializedFamily sourceDecl.uvars
         E.production.compilationSignature.params) = some direct →
       List.Forall₂ (fun normalized family : VInductiveType =>
           List.Forall₂ (fun normalized ctor : VConstVal =>

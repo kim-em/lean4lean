@@ -323,7 +323,7 @@ theorem ConstructorTypesPrefix.checkedComplete
     exact H.types i hi hi j hj
 
 /-- Fielded aggregation target for the executable header and constructor
-traversals. The public specification remains `VInductDecl.FormationWF`; this
+traversals. The public specification remains `VInductDecl.OrdinaryFormationWF`; this
 certificate gives the refinement proof stable, named obligations instead of
 repeatedly unpacking a large existential. -/
 structure FormationCertificate (env : VEnv) (decl : VInductDecl) where
@@ -339,7 +339,7 @@ structure FormationCertificate (env : VEnv) (decl : VInductDecl) where
     decl.RawCtorShape type ctor
 
 theorem FormationCertificate.formationWF
-    (H : FormationCertificate env decl) : decl.FormationWF env := by
+    (H : FormationCertificate env decl) : decl.OrdinaryFormationWF env := by
   exact ⟨H.headers.params, H.headers.resultLevel, H.envTypes, H.typesInstalled,
     fun type htype => ⟨H.headers.commonLevels type htype,
       H.headers.typeShapes type htype⟩,

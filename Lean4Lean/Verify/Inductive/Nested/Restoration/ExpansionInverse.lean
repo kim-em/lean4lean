@@ -126,7 +126,7 @@ theorem _root_.Lean4Lean.VExpr.NestedExprExpansion.restore {r : Restoration}
     (ht : target.ConstLevelsAt (r.heads.map (·.auxiliary)) levels) :
     r.expr target = some source := by
   induction H with
-  | hit h => exact h hs ht
+  | occurrence h => exact h hs ht
   | bvar | sort | elim => rfl
   | const => exact Restoration.expr_of_avoid hs
   | proj _ ih =>
@@ -207,7 +207,7 @@ theorem VExpr.NestedExprExpansion.constLevelsAt {names : List Lean.Name}
     (hs : source.containsAnyConst names = false) :
     target.ConstLevelsAt names levels := by
   induction H with
-  | hit h => exact Hleaf h hs
+  | occurrence h => exact Hleaf h hs
   | bvar | sort | elim => trivial
   | const =>
     intro hmem

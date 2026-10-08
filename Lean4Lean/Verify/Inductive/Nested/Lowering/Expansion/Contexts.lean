@@ -81,18 +81,18 @@ def NestedExpansionLeafLiftCompat
 /-- The formation leaf is stable under precisely the binder lift exercised by
 the structural projection.  Its two trailing application spines are lifted
 pointwise, while retaining their recursively nested correspondence. -/
-theorem VInductDecl.NestedAuxiliarySource.liftDepth
-    (H : VInductDecl.NestedAuxiliarySource env source generated depth input
+theorem VInductDecl.NestedOccurrenceReplacement.liftDepth
+    (H : VInductDecl.NestedOccurrenceReplacement env source generated depth input
       output)
     (cutoff : Nat) (Hcutoff : cutoff ≤ depth) :
-    VInductDecl.NestedAuxiliarySource env source generated (depth + 1)
+    VInductDecl.NestedOccurrenceReplacement env source generated (depth + 1)
       (input.liftN 1 cutoff) (output.liftN 1 cutoff) := by
-  exact VInductDecl.NestedAuxiliarySource.rec
+  exact VInductDecl.NestedOccurrenceReplacement.rec
     (motive_1 := fun _ _ _ => True)
     (motive_2 := fun _ _ _ => True)
     (motive_3 := fun env source generated depth input output _ =>
       ∀ cutoff, cutoff ≤ depth →
-        VInductDecl.NestedAuxiliarySource env source generated (depth + 1)
+        VInductDecl.NestedOccurrenceReplacement env source generated (depth + 1)
           (input.liftN 1 cutoff) (output.liftN 1 cutoff))
     (motive_4 := fun env source generated absoluteDepth input output _ =>
       ∀ relativeDepth, absoluteDepth = source.nparams + relativeDepth →
@@ -165,7 +165,7 @@ theorem VInductDecl.NestedAuxiliarySource.liftDepth
         _Hleaf ihLeaf requestedDepth habsolute cutoff Hcutoff => by
       have hrelative : requestedDepth = relativeDepth := by omega
       subst requestedDepth
-      exact .hit (by omega) (ihLeaf cutoff Hcutoff))
+      exact .occurrence (by omega) (ihLeaf cutoff Hcutoff))
     (fun relativeDepth _ cutoff _ => .bvar)
     (fun relativeDepth _ cutoff _ => .sort)
     (fun relativeDepth _ cutoff _ => .const)
@@ -196,17 +196,17 @@ theorem VInductDecl.NestedAuxiliarySource.liftDepth
 constructor fields.  The arithmetic premise says exactly that the cutoff is
 below the common-parameter prefix, ruling out the semantically invalid lift
 that would insert a binder inside that prefix. -/
-theorem VInductDecl.NestedAuxiliarySourceAbsolute.liftFieldDepth
-    (H : VInductDecl.NestedAuxiliarySourceAbsolute env source generated
+theorem VInductDecl.NestedOccurrenceReplacementAbs.liftFieldDepth
+    (H : VInductDecl.NestedOccurrenceReplacementAbs env source generated
       depth input output)
     (cutoff : Nat) (Hcutoff : source.nparams + cutoff ≤ depth) :
-    VInductDecl.NestedAuxiliarySourceAbsolute env source generated
+    VInductDecl.NestedOccurrenceReplacementAbs env source generated
       (depth + 1) (input.liftN 1 cutoff) (output.liftN 1 cutoff) := by
   rcases H with ⟨relativeDepth, hdepth, Hrelative⟩
   have hrelative : cutoff ≤ relativeDepth := by omega
   refine ⟨relativeDepth + 1, by omega, ?_⟩
   exact
-    Lean4Lean.VerifyInductive.VInductDecl.NestedAuxiliarySource.liftDepth
+    Lean4Lean.VerifyInductive.VInductDecl.NestedOccurrenceReplacement.liftDepth
       Hrelative cutoff hrelative
 
 /-- Structural nested expansion is stable under entering one surrounding
@@ -218,7 +218,7 @@ theorem VExpr.NestedExprExpansion.liftDepth
     VExpr.NestedExprExpansion leaf (depth + 1)
       (source.liftN 1 cutoff) (target.liftN 1 cutoff) := by
   induction H generalizing cutoff with
-  | hit Hleaf => exact .hit (Hlift cutoff Hcutoff Hleaf)
+  | occurrence Hleaf => exact .occurrence (Hlift cutoff Hcutoff Hleaf)
   | bvar => exact VExpr.NestedExprExpansion.refl leaf _ _
   | sort => exact .sort
   | const => exact .const
@@ -284,9 +284,9 @@ def NestedExpansionLeafLiftAbove (np : Nat)
 
 theorem nestedAuxiliarySourceAbsolute_liftAbove :
     NestedExpansionLeafLiftAbove source.nparams
-      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated) :=
+      (VInductDecl.NestedOccurrenceReplacementAbs env source generated) :=
   fun cutoff Hcutoff Hleaf =>
-    VInductDecl.NestedAuxiliarySourceAbsolute.liftFieldDepth Hleaf cutoff Hcutoff
+    VInductDecl.NestedOccurrenceReplacementAbs.liftFieldDepth Hleaf cutoff Hcutoff
 
 /-- An expansion whose leaves lift below a prefix of `np` binders can be
 lifted below that prefix. -/
@@ -297,7 +297,7 @@ theorem VExpr.NestedExprExpansion.liftAbove
     VExpr.NestedExprExpansion leaf
       (depth + 1) (input.liftN 1 cutoff) (output.liftN 1 cutoff) := by
   induction H generalizing cutoff with
-  | hit Hleaf => exact .hit (Hlift cutoff Hcutoff Hleaf)
+  | occurrence Hleaf => exact .occurrence (Hlift cutoff Hcutoff Hleaf)
   | bvar => exact VExpr.NestedExprExpansion.refl _ _ _
   | sort => exact .sort
   | const => exact .const
@@ -667,7 +667,7 @@ theorem TrExprS.forall₂_abstractExpansionAbove
 
 theorem TrExprS.forall₂_abstractExpansionAbsolute
     (Hctx : NestedExpansionLookupCtx
-      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+      (VInductDecl.NestedOccurrenceReplacementAbs env source generated)
       depth sourceCtx targetCtx)
     (Hbase : source.nparams ≤ depth)
     (Hsource : List.Forall₂ (TrExprS sourceVEnv lparams sourceCtx)
@@ -675,7 +675,7 @@ theorem TrExprS.forall₂_abstractExpansionAbsolute
     (Htarget : List.Forall₂ (TrExprS targetVEnv lparams targetCtx)
       concrete targetTargets) :
     List.Forall₂ (VExpr.NestedExprExpansion
-      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated) depth)
+      (VInductDecl.NestedOccurrenceReplacementAbs env source generated) depth)
       sourceTargets targetTargets :=
   TrExprS.forall₂_abstractExpansionAbove nestedAuxiliarySourceAbsolute_liftAbove
     Hctx Hbase Hsource Htarget
@@ -699,7 +699,7 @@ by the mutually positive abstract formation judgment. -/
 theorem forall₂_nestedTrailingExpansion
     (Hargs : List.Forall₂
       (VExpr.NestedExprExpansion
-        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+        (VInductDecl.NestedOccurrenceReplacementAbs env source generated)
         depth)
       sourceArgs targetArgs) :
     VInductDecl.NestedExprWFExpansion env source generated depth
@@ -957,7 +957,7 @@ theorem SelectedParameterTargets.vlet
 /-- The executable opening selection, together with the retained target
 context lookups, determines the abstract translation of the complete selected
 parameter array.  This is the exact bridge from concrete `As` to the
-de-Bruijn prefix required by `NestedAuxiliarySource`. -/
+de-Bruijn prefix required by `NestedOccurrenceReplacement`. -/
 theorem SelectedParameterTargets.translatedSelection
     {sourceDecl : VInductDecl}
     (Hselection : LocalForallSelection lctx As)
@@ -1429,8 +1429,8 @@ theorem NestedExprMapping.abstractExpansionAbove
       depth sourceTarget targetTarget := by
   induction H generalizing sourceCtx targetCtx sourceTarget targetTarget depth
       fieldDepth with
-  | hit Hnode =>
-      exact .hit (Hhit Hnode Hctx Hselection HselectionNodup Harity Hdepth
+  | occurrence Hnode =>
+      exact .occurrence (Hhit Hnode Hctx Hselection HselectionNodup Harity Hdepth
         HsourceParams Hparams Hscope Hsource Htarget hlvls)
   | bvar =>
     cases Hsource with
@@ -1892,7 +1892,7 @@ theorem LoweredInductiveMapping.abstractExpansionAbove
       Hmapping.constructors.abstractExpansionsAbove Hlift hlvls Hsource.ctors Htarget.ctors
         Hclosed HbClosed HsourceEnvWF HtargetEnvWF hparamsSize hnparams Hhit
 
-/-- `abstractExpansionAbove` at the formation leaf `NestedAuxiliarySourceAbsolute`. -/
+/-- `abstractExpansionAbove` at the formation leaf `NestedOccurrenceReplacementAbs`. -/
 theorem LoweredInductiveMapping.abstractExpansion
     (Hmapping : LoweredInductiveMapping prodEnv params nparams result
       sourceConcrete state (targetConcrete, nextState))
@@ -1913,7 +1913,7 @@ theorem LoweredInductiveMapping.abstractExpansion
       NestedReplacementFinalTrace prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
-        (VInductDecl.NestedAuxiliarySourceAbsolute headerVEnv decl generated)
+        (VInductDecl.NestedOccurrenceReplacementAbs headerVEnv decl generated)
         depth sourceCtx targetCtx →
       (selection : LocalForallSelection lctx As) →
       selection.fvars.Nodup →
@@ -1924,11 +1924,11 @@ theorem LoweredInductiveMapping.abstractExpansion
       input.FVarsIn (· ∈ selection.fvars) →
       TrExprS sourceVEnv lparams sourceCtx input sourceValue →
       TrExprS targetVEnv lparams targetCtx output targetValue →
-      VInductDecl.NestedAuxiliarySourceAbsolute headerVEnv decl generated
+      VInductDecl.NestedOccurrenceReplacementAbs headerVEnv decl generated
         depth sourceValue targetValue)
     :
     VInductDecl.NestedTypeExpansion headerVEnv decl
-      (VInductDecl.NestedAuxiliarySourceAbsolute headerVEnv decl generated)
+      (VInductDecl.NestedOccurrenceReplacementAbs headerVEnv decl generated)
       sourceTarget targetTarget :=
   LoweredInductiveMapping.abstractExpansionAbove nestedAuxiliarySourceAbsolute_liftAbove
     Hmapping rfl Hsource Htarget Hheader Hclosed HsourceEnvWF HtargetEnvWF hparamsSize hnparams
@@ -2003,7 +2003,7 @@ def NestedFormationReplacementCompat
     NestedReplacementFinalTrace prodEnv lctx result.params As input state output
       nextState result finalState →
     NestedExpansionLookupCtx
-      (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated)
+      (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv sourceDecl generated)
       depth sourceCtx targetCtx →
     (selection : LocalForallSelection lctx As) →
     selection.fvars.Nodup →
@@ -2014,7 +2014,7 @@ def NestedFormationReplacementCompat
     input.FVarsIn (· ∈ selection.fvars) →
     TrExprS sourceVEnv lparams sourceCtx input sourceValue →
     TrExprS targetVEnv lparams targetCtx output targetValue →
-    VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated depth
+    VInductDecl.NestedOccurrenceReplacementAbs baseVEnv sourceDecl generated depth
       sourceValue targetValue
 
 /-- An exact family translation at the empty source context already proves
@@ -2069,7 +2069,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractExpansion
       NestedReplacementFinalTrace prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
-        (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv decl generated)
+        (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv decl generated)
         depth sourceCtx targetCtx →
       (selection : LocalForallSelection lctx As) →
       selection.fvars.Nodup →
@@ -2080,11 +2080,11 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractExpansion
       input.FVarsIn (· ∈ selection.fvars) →
       TrExprS sourceTypesVEnv lparams sourceCtx input sourceValue →
       TrExprS targetTypesVEnv lparams targetCtx output targetValue →
-      VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv decl generated depth
+      VInductDecl.NestedOccurrenceReplacementAbs baseVEnv decl generated depth
         sourceValue targetValue)
     :
     VInductDecl.NestedTypeExpansion baseVEnv decl
-      (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv decl generated)
+      (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv decl generated)
       Hsource.source target := by
   have Hmapping := H.finalMapping Hmap
   have Hheader : NestedTypeExpansionHeader baseVEnv decl Hsource.source target :=
@@ -2280,7 +2280,7 @@ theorem NestedLoweringResultClosed.originalExpansionsAbove
     (fun Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt _ =>
       Hhit Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt)
 
-/-- `originalExpansionsAbove` at the formation leaf `NestedAuxiliarySourceAbsolute`. -/
+/-- `originalExpansionsAbove` at the formation leaf `NestedOccurrenceReplacementAbs`. -/
 theorem NestedLoweringResultClosed.originalExpansions
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed prodEnv fuel nparams sourceTypes
@@ -2299,7 +2299,7 @@ theorem NestedLoweringResultClosed.originalExpansions
     :
     List.Forall₂
       (VInductDecl.NestedTypeExpansion sourceVEnv sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute sourceVEnv sourceDecl
+        (VInductDecl.NestedOccurrenceReplacementAbs sourceVEnv sourceDecl
           generated))
       sourceDecl.types (loweredDecl.types.take sourceDecl.types.length) :=
   NestedLoweringResultClosed.originalExpansionsAbove

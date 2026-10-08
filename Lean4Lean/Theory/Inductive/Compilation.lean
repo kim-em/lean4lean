@@ -43,7 +43,7 @@ def heads (a : ContainerSpecialization) (uvars nparams : Nat) : List HeadSpecial
 /-- The direct auxiliary before recursive occurrences in its fields are
 expanded. Its types are specialized from the prior source, never supplied by
 the caller. Partial parameter telescopes fail explicitly. -/
-def directFamily (a : ContainerSpecialization) (uvars : Nat)
+def specializedFamily (a : ContainerSpecialization) (uvars : Nat)
     (params : List VExpr) : Option VInductiveType := do
   let type ← specializeType (a.source.type.instL a.levels) a.arguments
   let ctors ← a.source.ctors.mapM fun ctor => do
@@ -160,7 +160,7 @@ structure CaseCompilationData (env : VEnv) (source expanded : VInductDecl)
   sourceParameters : VInductDecl.SourceParameterWF env source
   expandedWF : VInductDecl.SourceWF env expanded
   headerPrefix : source.typeConstants = expanded.typeConstants.take source.types.length
-  expandedFormation : VInductDecl.FormationWF env expanded
+  expandedFormation : VInductDecl.OrdinaryFormationWF env expanded
   model : s.Models env expanded
   uvars : expanded.uvars = source.uvars
   nparams : expanded.nparams = source.nparams
@@ -168,7 +168,7 @@ structure CaseCompilationData (env : VEnv) (source expanded : VInductDecl)
   restorationScoped : (compilationRestoration source auxiliaries).Scoped
   correspondence : ∃ envTypes direct,
     env.addConstVals source.typeConstants = some envTypes ∧
-    auxiliaries.mapM (fun a => a.directFamily source.uvars s.params) = some direct ∧
+    auxiliaries.mapM (fun a => a.specializedFamily source.uvars s.params) = some direct ∧
     (∀ a ∈ auxiliaries, a.WellFormed envTypes source s.params) ∧
     List.Forall₂
       (RestoresFamily (compilationRestoration source auxiliaries) envTypes source.uvars)
@@ -248,7 +248,7 @@ same judgment, so arbitrary environment lookups cannot serve as provenance. -/
 inductive CompiledInductive : VEnv → VInductDecl → VInductBlock → Prop
   | intro {env source expanded s g auxiliaries block} :
       InductiveSignature.CompilationData env source expanded s g auxiliaries block →
-      CertifiedSpecializations env auxiliaries →
+      ContainersInstalled env auxiliaries →
       CompiledInductive env source block
   | replay {base env source block} :
       CompiledInductive base source block →
@@ -259,16 +259,16 @@ inductive CompiledInductive : VEnv → VInductDecl → VInductBlock → Prop
 /-- Each selected container was installed below the original source
 environment. Current headers, current recursors, and future blocks cannot
 justify a specialization. The constructors make the provenance tree finite. -/
-inductive CertifiedSpecializations : VEnv →
+inductive ContainersInstalled : VEnv →
     List InductiveSignature.ContainerSpecialization → Prop
-  | nil {env} : CertifiedSpecializations env []
+  | nil {env} : ContainersInstalled env []
   | cons {env a rest base block installed} :
       CompiledInductive base a.container block →
       block.WF base →
       VInductBlock.install base block = some installed →
       installed ≤ env →
-      CertifiedSpecializations env rest →
-      CertifiedSpecializations env (a :: rest)
+      ContainersInstalled env rest →
+      ContainersInstalled env (a :: rest)
 
 end
 
@@ -286,7 +286,7 @@ existing independent judgments. -/
 theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}
     {block : VInductBlock}
     (Hsource : VInductDecl.SourceWF env source)
-    (Hformation : VInductDecl.FormationWF env source)
+    (Hformation : VInductDecl.OrdinaryFormationWF env source)
     (Hcanonical : InductiveSignature.Compiles env source block)
     (Hblock : block.WF env)
     (htypes : block.types = source.typeConstants)
@@ -355,7 +355,7 @@ judgments, a model of the declaration, and the family typing of the signature. -
 theorem CaseCompilationData.ofOrdinary {env : VEnv} {source : VInductDecl}
     {s : InductiveSignature} {block : VInductBlock} {envTypes envCtors : VEnv}
     (Hsource : VInductDecl.SourceWF env source)
-    (Hformation : VInductDecl.FormationWF env source)
+    (Hformation : VInductDecl.OrdinaryFormationWF env source)
     (Hmodel : s.Models env source)
     (hadded : env.addConstVals source.typeConstants = some envTypes)
     (hctorsAdded : envTypes.addConstVals source.constructorConstants = some envCtors)

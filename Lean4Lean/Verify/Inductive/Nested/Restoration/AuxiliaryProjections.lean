@@ -4,14 +4,14 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.ProjectionRenamin
 contexts, with no hypothesis.
 
 The renaming restoration substitution of `Nested/Restoration/Equations/WF.lean`
-transports projection rules through `ProjectionTransportOnCtx`, which only
+transports projection rules through `ProjectionRulesRenamedOnCtx`, which only
 asks for the rules in well-formed image contexts. There beta conversion of a
 typed term is beta subject reduction (`VExpr.BetaRed.simAt`) and level
 equivalence is definitional equality (`VExpr.LEquiv.defeq`).
 
 * Primary projections (of original structures): the transported lowered
   constructor type beta reduces to the source constructor type registered by
-  the final environment (`ProjectionTransportOnCtx.of_ctorType_betaRed`).
+  the final environment (`ProjectionRulesRenamedOnCtx.of_ctorType_betaRed`).
 * Auxiliary projections (of an auxiliary structure-like family `A`, renamed to
   its container `J`): the restoration lambdas of `A` and its constructor are
   `λ params, J levels args` and `λ params, J.c levels args`. The generated
@@ -23,7 +23,7 @@ equivalence is definitional equality (`VExpr.LEquiv.defeq`).
   instantiated specialization arguments
   (`VEnv.fieldTransport_of_specialization`), and each projection rule of `A`
   is the corresponding rule of `J` after beta reducing the restoration
-  lambdas (`VEnv.ProjectionTransportOnCtx.of_specialization`).
+  lambdas (`VEnv.ProjectionRulesRenamedOnCtx.of_specialization`).
 
 The composition is `NestedValidatedRunResult.restoredEquationGaps` and
 `NestedValidatedRunResult.hrestoredWF_of`.
@@ -252,7 +252,7 @@ registering the projection `infoJ` in `envS`, with matching index count,
 field count and result-level guard, and with transported field types
 definitionally those of `J` (`fieldTransport_of_specialization`), transports
 in well-formed contexts. -/
-theorem ProjectionTransportOnCtx.of_specialization {envS : VEnv} (henv : envS.WF)
+theorem ProjectionRulesRenamedOnCtx.of_specialization {envS : VEnv} (henv : envS.WF)
     {ρ : Name → Option VExpr} {σ : Name → Name} {typeName J : Name}
     {info infoJ : VProjectionInfo} {P hargs : List VExpr} {ls : List VLevel}
     (hS : envS.projections J infoJ)
@@ -275,7 +275,7 @@ theorem ProjectionTransportOnCtx.of_specialization {envS : VEnv} (henv : envS.WF
           (major.replaceRen ρ σ) = some F' ∧
         ∀ {ℓ : VLevel}, envS.HasType U Γ (F.replaceRen ρ σ) (.sort ℓ) →
           envS.IsDefEq U Γ (F.replaceRen ρ σ) F' (.sort ℓ)) :
-    ProjectionTransportOnCtx envS ρ σ typeName info where
+    ProjectionRulesRenamedOnCtx envS ρ σ typeName info where
   projDF := by
     intro U Γ lv params index sourceMajor F fieldLevel major indexArgs major'
       hΓ hlv hlvLen hparams hindices hfield _ hguardA ihField ihLeft ihRight
@@ -408,7 +408,7 @@ theorem NestedValidatedRunResult.projectionPrimaryOnCtx_of
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
         ∀ entry ∈ E.production.loweredDecl.projectionEntries,
           entry.typeName ∉ (compilationRestoration sourceDecl auxiliaries).restorableNames →
-          VEnv.ProjectionTransportOnCtx B.finalBaseVEnv
+          VEnv.ProjectionRulesRenamedOnCtx B.finalBaseVEnv
             ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
               fun _ => E.production.compilationSignature.params)
             (compilationRestoration sourceDecl auxiliaries).renaming
@@ -537,7 +537,7 @@ theorem NestedValidatedRunResult.projectionPrimaryOnCtx_of
       (fun c t' h => Restoration.lambdaReplacement_shape r (fun h hh => (hnp h hh).symm) h)
       (fun c h hf => by simp [Restoration.lambdaReplacement, hf])
       (fun c hf => Restoration.renaming_of_find_none hf) hfixLc hrestore
-  exact VEnv.ProjectionTransportOnCtx.of_ctorType_betaRed hSwf.ordered
+  exact VEnv.ProjectionRulesRenamedOnCtx.of_ctorType_betaRed hSwf.ordered
     (fun _ => hSwf.betaSubjectReduction) hclosed hS' hρtn hσtn hρctor hσctor hscClosed
     harity hBR
 
@@ -571,7 +571,7 @@ theorem NestedValidatedRunResult.projectionAuxiliaryOnCtx_of
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
         ∀ entry ∈ E.production.loweredDecl.projectionEntries,
           entry.typeName ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames →
-          VEnv.ProjectionTransportOnCtx C.finalBaseVEnv
+          VEnv.ProjectionRulesRenamedOnCtx C.finalBaseVEnv
             ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
               fun _ => E.production.compilationSignature.params)
             (compilationRestoration sourceDecl auxiliaries).renaming
@@ -770,7 +770,7 @@ theorem NestedValidatedRunResult.projectionAuxiliaryOnCtx_of
       VExpr.forallArity_wrapForalls_mkApps_const_instOuter, harityJ, List.length_map,
       List.length_drop, hPsrcLen, hloweredNparams]
     omega
-  refine VEnv.ProjectionTransportOnCtx.of_specialization hSwf
+  refine VEnv.ProjectionRulesRenamedOnCtx.of_specialization hSwf
     (info := ⟨E.production.loweredDecl.uvars, E.production.loweredDecl.nparams,
       t.numIndices, t.resultLevel, lc.name, lc.type⟩)
     (infoJ := ⟨a.container.uvars, a.container.nparams, a.source.numIndices,

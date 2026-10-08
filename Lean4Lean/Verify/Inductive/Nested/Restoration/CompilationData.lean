@@ -121,7 +121,7 @@ structure NestedCompilationPending (env : VEnv) (decl : VInductDecl)
   against the direct specializations of their containers. -/
   auxiliaryFamilies : ∀ envTypes direct,
     env.addConstVals decl.typeConstants = some envTypes →
-    auxiliaries.mapM (fun a => a.directFamily decl.uvars s.params) = some direct →
+    auxiliaries.mapM (fun a => a.specializedFamily decl.uvars s.params) = some direct →
     List.Forall₂ (fun normalized family : VInductiveType =>
         normalized.numIndices = family.numIndices ∧
         normalized.resultLevel ≈ family.resultLevel ∧
@@ -165,7 +165,7 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
       E.production.constructors.completed.parameterScope.toCtx.reverse)
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped)
     (hdirect : ∀ (U : Nat) (params : List VExpr), ∃ direct,
-      auxiliaries.mapM (fun a => a.directFamily U params) = some direct ∧
+      auxiliaries.mapM (fun a => a.specializedFamily U params) = some direct ∧
       List.Forall₂ (DirectFamilyShape U) auxiliaries direct)
     (Hpending : NestedCompilationPending
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl

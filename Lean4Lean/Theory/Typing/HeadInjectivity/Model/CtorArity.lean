@@ -124,8 +124,8 @@ theorem Model.tele_arity_end {envF E : VEnv} (hE : E.Ordered) (hEF : E ≤ envF)
   exact tele_arity hE hEF hsnd hrig hrig' hd
 
 theorem directFamily_name {a : ContainerSpecialization} {uvars : Nat} {params : List VExpr}
-    {fam : VInductiveType} (H : a.directFamily uvars params = some fam) : fam.name = a.auxiliary := by
-  unfold ContainerSpecialization.directFamily at H
+    {fam : VInductiveType} (H : a.specializedFamily uvars params = some fam) : fam.name = a.auxiliary := by
+  unfold ContainerSpecialization.specializedFamily at H
   cases htype : specializeType (a.source.type.instL a.levels) a.arguments with
   | none => simp [htype] at H
   | some type =>
@@ -142,7 +142,7 @@ theorem CaseCompilationData.ctor_arity_sem {envF base E : VEnv} {src exp : VIndu
     {block : VInductBlock}
     (hdata : CaseCompilationData base src exp s aux block)
     (hfresh : RecursorNamesFresh base src exp aux)
-    (hprior : CertifiedSpecializations base aux)
+    (hprior : ContainersInstalled base aux)
     (hE : E.Ordered) (hEF : E ≤ envF)
     (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → Model.SoundEnvAtH envF E U Δ) (hle : base ≤ E)
     (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
@@ -230,7 +230,7 @@ theorem CaseCompilationData.source_arity_sem {envF base E : VEnv} {src exp : VIn
     {s : InductiveSignature} {aux : List ContainerSpecialization}
     {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)
     (hfresh : RecursorNamesFresh base src exp aux)
-    (hprior : CertifiedSpecializations base aux) (hE : E.Ordered) (hEF : E ≤ envF)
+    (hprior : ContainersInstalled base aux) (hE : E.Ordered) (hEF : E ≤ envF)
     (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → Model.SoundEnvAtH envF E U Δ) (hle : base ≤ E)
     (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
     (j : Fin s.constructors.size)
@@ -259,7 +259,7 @@ theorem CaseCompilationData.container_arity_sem {envF base E : VEnv} {src exp : 
     {s : InductiveSignature} {aux : List ContainerSpecialization}
     {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)
     (hfresh : RecursorNamesFresh base src exp aux)
-    (hprior : CertifiedSpecializations base aux) (hE : E.Ordered) (hEF : E ≤ envF)
+    (hprior : ContainersInstalled base aux) (hE : E.Ordered) (hEF : E ≤ envF)
     (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → Model.SoundEnvAtH envF E U Δ) (hle : base ≤ E)
     (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
     (j : Fin s.constructors.size)

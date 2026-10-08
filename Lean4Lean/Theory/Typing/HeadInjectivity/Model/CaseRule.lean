@@ -80,7 +80,7 @@ theorem case_ctorFam {schema : CaseSchema} {owner : Fin schema.signature.familie
     {aux : List ContainerSpecialization} {i : Fin schema.signature.constructors.size}
     (C : CaseCompilationData base source expanded schema.signature aux block)
     (hfresh : RecursorNamesFresh base source expanded aux)
-    (hprior : CertifiedSpecializations base aux)
+    (hprior : ContainersInstalled base aux)
     (hrr : schema.restoration = compilationRestoration source aux)
     (hio : schema.signature.constructors[i].owner = owner)
     (hctorsIn : ∀ value ∈ block.ctors, env.constants value.name = some value.toVConstant)

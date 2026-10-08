@@ -85,12 +85,12 @@ theorem VInductBlock.install_rule
 /-- A prior specialization carries an actual already-installed constructor
 equation. Environment extension transports this witness, without asserting
 that rigidity itself is monotone. -/
-theorem CertifiedSpecializations.constructor_equation
-    (H : CertifiedSpecializations env auxiliaries) :
+theorem ContainersInstalled.constructor_equation
+    (H : ContainersInstalled env auxiliaries) :
     ∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors, ∃ equation,
       env.defeqs equation ∧ ∃ fn levels args,
         equation.lhs.stripLams = .app fn (VExpr.mkApps (.const ctor.name levels) args) := by
-  exact CertifiedSpecializations.rec
+  exact ContainersInstalled.rec
     (motive_1 := fun _ source block _ =>
       ∀ ctor ∈ source.constructorConstants, ∃ equation ∈ block.rules, ∃ fn levels args,
         equation.lhs.stripLams = .app fn (VExpr.mkApps (.const ctor.name levels) args))

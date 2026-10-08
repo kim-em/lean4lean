@@ -259,7 +259,7 @@ open Kernel
 
 * `loweredConstructors`: each lowered constructor type of a source family
   restores to (a term defeq at every type to) the source constructor type.
-  The abstract expansion relation `NestedAuxiliarySourceAbsolute` records the
+  The abstract expansion relation `NestedOccurrenceReplacementAbs` records the
   leaf's container, levels and arguments only up to definitional equality of
   the auxiliary family's type, not syntactically as the specialization of
   the auxiliary, so it does not determine the restoration of a leaf.
@@ -318,7 +318,7 @@ theorem NestedValidatedRunResult.sourceConstructors_of_evidence
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.production.loweredDecl.types ++
@@ -415,7 +415,7 @@ theorem NestedValidatedRunResult.sourceConstructors_of_evidence
         AuxiliarySpecializationEvidence (ves.venv (if isUnsafe then .unsafe else .safe))
           envTypes E.production.headers.commonParameterContext sourceDecl a g ∧
         VInductDecl.NestedTypeExpansion (ves.venv (if isUnsafe then .unsafe else .safe))
-          sourceDecl (VInductDecl.NestedAuxiliarySourceAbsolute
+          sourceDecl (VInductDecl.NestedOccurrenceReplacementAbs
             (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated) g t := by
     intro t ht
     obtain ⟨g, hg, hexp⟩ := Lean4Lean.List.Forall₂.forall_exists_r Hexpansion t ht

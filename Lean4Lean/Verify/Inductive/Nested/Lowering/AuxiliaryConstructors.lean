@@ -860,7 +860,7 @@ theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.directAuxi
           simpa [H.family_eq] using B.targetIdx_lt)).name
         (concrete.ctors[i]'(by
           simpa [H.family_eq] using B.targetIdx_lt)).type target ∧
-      VInductDecl.DirectAuxConstructor (ves.venv safety) lparams.length
+      VInductDecl.SpecializedAuxConstructor (ves.venv safety) lparams.length
         parameterDomains baseArgs abstractLevels containerFamily
           auxiliaryFamily
         (containerFamily.ctors[i]'B.abstractIdx_lt) target ∧

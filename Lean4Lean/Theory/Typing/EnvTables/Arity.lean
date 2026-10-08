@@ -175,11 +175,11 @@ theorem teleArity_of_forallResult {e : VExpr} (h : e.forallResult.getAppFnArgs.1
     simpa [VExpr.forallArity] using teleArity_of_head h
 
 theorem directFamily_ctor {a : ContainerSpecialization} {uvars : Nat} {params : List VExpr}
-    {direct : VInductiveType} (H : a.directFamily uvars params = some direct)
+    {direct : VInductiveType} (H : a.specializedFamily uvars params = some direct)
     (hdc : dc ∈ direct.ctors) :
     ∃ c ∈ a.source.ctors, ∃ t, specializeType (c.type.instL a.levels) a.arguments = some t ∧
       dc.name = a.constructorName c ∧ dc.type = VExpr.wrapForalls params t := by
-  unfold ContainerSpecialization.directFamily at H
+  unfold ContainerSpecialization.specializedFamily at H
   cases htype : specializeType (a.source.type.instL a.levels) a.arguments with
   | none => simp [htype] at H
   | some type =>
@@ -222,7 +222,7 @@ theorem CaseCompilationData.ctor_arity {base E : VEnv} {src exp : VInductDecl}
     {block : VInductBlock}
     (hdata : CaseCompilationData base src exp s aux block)
     (hrfresh : RecursorNamesFresh base src exp aux)
-    (hprior : CertifiedSpecializations base aux)
+    (hprior : ContainersInstalled base aux)
     (hP : ForallArityRigid E) (hle : base ≤ E)
     (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
     (index : Fin s.constructors.size) :

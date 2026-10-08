@@ -99,7 +99,7 @@ theorem ExprReplacement.binderAt
   induction Hbinder generalizing output with
   | @here name dom body bi =>
       cases Hreplace with
-      | hit h => rw [Hnone] at h; contradiction
+      | occurrence h => rw [Hnone] at h; contradiction
       | forallE h hdom hbody =>
           refine ⟨_, ?_, hdom⟩
           simpa [Expr.updateForallE!] using
@@ -107,7 +107,7 @@ theorem ExprReplacement.binderAt
               (domain := _))
   | @there body i domain name outerDomain bi H ih =>
       cases Hreplace with
-      | hit h => rw [Hnone] at h; contradiction
+      | occurrence h => rw [Hnone] at h; contradiction
       | forallE h hdom hbody =>
           rcases ih hbody with ⟨domain', Hd, Hr⟩
           refine ⟨domain', ?_, Hr⟩
@@ -126,7 +126,7 @@ theorem ExprReplacement.constHead {Good : Name → Prop}
     (hhead : input.getAppFn = .const c ls) :
     ∃ c' ls', output.getAppFn = .const c' ls' ∧ Good c' := by
   induction Hreplace with
-  | hit h => exact Hhit _ _ ⟨ls, hhead⟩ h
+  | occurrence h => exact Hhit _ _ ⟨ls, hhead⟩ h
   | @const name levels h =>
       exact ⟨name, levels, rfl, by
         simp only [Expr.getAppFn, Expr.const.injEq] at hhead
@@ -698,7 +698,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_steps
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.production.loweredDecl.types ++
@@ -773,7 +773,7 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.production.loweredDecl.types ++

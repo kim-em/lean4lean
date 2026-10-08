@@ -69,7 +69,7 @@ constructors with the registered one (see `SchemaStructCompat`). -/
 def StructCompat (schema : CaseSchema) (env : VEnv) : Prop :=
   ∀ {s : Name} {info : VProjectionInfo}, env.projections s info →
     ∀ owner : Fin schema.signature.families.size,
-      schema.originalFamilies[owner.val]? = some s →
+      schema.sourceFamilies[owner.val]? = some s →
       (schema.view owner).constructors.toList.map (·.name) = [info.ctorName]
 
 /-- Compatibility is antitone in the projection table. -/
@@ -83,7 +83,7 @@ theorem StructCompat.of_projections {schema : CaseSchema} {env env' : VEnv}
 signature and restoration data as the native generated block. -/
 def ofCompilation (source : VInductDecl) (signature : InductiveSignature)
     (auxiliaries : List ContainerSpecialization) : CaseSchema where
-  originalFamilies := source.types.map (·.name)
+  sourceFamilies := source.types.map (·.name)
   signature := signature
   restoration := compilationRestoration source auxiliaries
 
@@ -97,9 +97,9 @@ def Certified (schema : CaseSchema) (base : VEnv)
     (source : VInductDecl) (block : VInductBlock) : Prop :=
   ∃ expanded, ∃ auxiliaries,
     CaseCompilationData base source expanded schema.signature auxiliaries block ∧
-    CertifiedSpecializations base auxiliaries ∧
+    ContainersInstalled base auxiliaries ∧
     schema.restoration = compilationRestoration source auxiliaries ∧
-    schema.originalFamilies = source.types.map (·.name) ∧
+    schema.sourceFamilies = source.types.map (·.name) ∧
     RecursorNamesFresh base source expanded auxiliaries
 
 /-- The family index domains of the signature restore, and the declared header of every original
@@ -133,11 +133,11 @@ not reserve native names: they are identified by their block and owner slot. -/
 def Fresh (schema : CaseSchema) (env : VEnv) (key : Name) : Prop :=
   (∀ previous, ¬env.eliminators key previous) ∧
   ∀ previousKey previous, env.eliminators previousKey previous →
-    List.Disjoint schema.originalFamilies previous.originalFamilies
+    List.Disjoint schema.sourceFamilies previous.sourceFamilies
 
 theorem ofCaseCompilation_certified {s : InductiveSignature}
     (H : CaseCompilationData base source expanded s auxiliaries block)
-    (hprior : CertifiedSpecializations base auxiliaries)
+    (hprior : ContainersInstalled base auxiliaries)
     (hdisj : RecursorNamesFresh base source expanded auxiliaries) :
     (ofCompilation source s auxiliaries).Certified base source block :=
   ⟨expanded, auxiliaries, H, hprior, rfl, rfl, hdisj⟩

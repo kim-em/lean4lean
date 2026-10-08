@@ -241,7 +241,7 @@ theorem extract_of_genericEquation {schema : CaseSchema}
   let args := vars ((schema.view owner).params.length + extra) ctor.fields.length ++ indices
   refine extract_restored_rule
     (levels := g.targetLevel :: g.levels) (ctor := ctor.name) (ctorLevels := g.levels)
-    (fn := VExpr.mkApps (g.recursorHead (.abstract block owner.val) ctor.owner) args)
+    (fn := VExpr.mkApps (g.recursorHead (.elim block owner.val) ctor.owner) args)
     (major := g.constructorApp ctor extra 0) ?_ ?_ ?_ hr ht
   · rw [VExpr.reduction_head_mkApps]
     simp [Instance.recursorHead, VExpr.getAppFnArgs, VExpr.getAppFnArgs.go]

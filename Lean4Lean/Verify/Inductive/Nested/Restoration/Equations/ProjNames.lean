@@ -593,7 +593,7 @@ theorem NestedValidatedRunResult.constructorProjNames_of
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.production.loweredDecl.types ++
@@ -634,7 +634,7 @@ theorem NestedValidatedRunResult.recursorProjNames_of
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.production.loweredDecl.types ++
@@ -722,7 +722,7 @@ theorem NestedValidatedRunResult.equationProjNames_of
           (compilationRestoration sourceDecl auxiliaries).restorableNames = true := by
   intro k
   exact Instance.equation_projNamesAvoid_of_recursorType _ _
-    (Hrec E.production.production.generationSignature.constructors[k].owner) k .native
+    (Hrec E.production.production.generationSignature.constructors[k].owner) k .recursor
 
 /-- **Fields `constructorProjNames`, `recursorProjNames` and
 `equationProjNames` of `NestedRestoredEquationGaps`**, for every restoration
@@ -829,7 +829,7 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of
                   (VExpr.wrapLams E.production.compilationSignature.params
                     (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored) ∧
         ∀ entry ∈ E.production.loweredDecl.projectionEntries,
-          VEnv.ProjectionTransportOnCtx B.finalBaseVEnv
+          VEnv.ProjectionRulesRenamedOnCtx B.finalBaseVEnv
             ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
               fun _ => E.production.compilationSignature.params)
             (compilationRestoration sourceDecl auxiliaries).renaming
@@ -891,7 +891,7 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of'
                   (VExpr.wrapLams E.production.compilationSignature.params
                     (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored) ∧
         ∀ entry ∈ E.production.loweredDecl.projectionEntries,
-          VEnv.ProjectionTransportOnCtx B.finalBaseVEnv
+          VEnv.ProjectionRulesRenamedOnCtx B.finalBaseVEnv
             ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
               fun _ => E.production.compilationSignature.params)
             (compilationRestoration sourceDecl auxiliaries).renaming

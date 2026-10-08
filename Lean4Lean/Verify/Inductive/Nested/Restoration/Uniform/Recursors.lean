@@ -1513,7 +1513,7 @@ theorem NestedExprMapping.hitShape {heads : List Name} {ls : List Level}
     (hin : input.AvoidsConsts heads) (hlvls : state.lvls = ls) :
     out.1.ParamUniform heads As.toList ls := by
   induction H with
-  | hit Hnode =>
+  | occurrence Hnode =>
     rcases Hnode.mapping with
       ⟨value, targetName, levels, auxName, auxLevels, nested,
         Hcandidate, hauxLevels, hhead, hlowered, hnested, hlookup⟩

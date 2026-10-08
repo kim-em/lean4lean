@@ -15,7 +15,7 @@ namespace Lean4Lean.InductiveSignature
 structure CaseSchema where
   /-- Native families owned by this block, excluding lowering auxiliaries.
   Certification identifies this list with the checked source declaration. -/
-  originalFamilies : List Name
+  sourceFamilies : List Name
   signature : InductiveSignature
   restoration : Restoration
 
@@ -70,7 +70,7 @@ for auxiliary families. Both sides and the type undergo the same restoration. -/
 def equations (schema : CaseSchema) (block : Name)
     (owner : Fin schema.signature.families.size)
     (uvars : Nat) (levels : List VLevel) (target : VLevel) : Option (List VDefEq) :=
-  ((schema.specialize owner uvars levels target).equations (.abstract block owner.val)).mapM
+  ((schema.specialize owner uvars levels target).equations (.elim block owner.val)).mapM
     schema.restoration.equation
 
 /-- Generic schemas reserve universe parameter zero for the elimination

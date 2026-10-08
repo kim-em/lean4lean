@@ -36,7 +36,7 @@ theorem compilationRestoration_heads_names
     {params : List VExpr} {source : VInductDecl}
     {auxiliaries : List ContainerSpecialization}
     (hparams : params.length = source.nparams)
-    (H : auxiliaries.mapM (fun a => a.directFamily source.uvars params) = some direct) :
+    (H : auxiliaries.mapM (fun a => a.specializedFamily source.uvars params) = some direct) :
     ((compilationRestoration source auxiliaries).heads.map (·.auxiliary)) = familyNames direct := by
   have hrel := List.mapM_eq_some.mp H
   clear H
@@ -71,7 +71,7 @@ theorem CaseCompilationData.source_head_disjoint
 
 theorem ContainerSpecialization.directFamily_name
     {a : ContainerSpecialization} {params : List VExpr}
-    (H : a.directFamily U params = some direct) : direct.name = a.auxiliary := by
+    (H : a.specializedFamily U params = some direct) : direct.name = a.auxiliary := by
   have h := a.directFamily_heads H
   simp only [ContainerSpecialization.heads, List.map_cons, List.cons.injEq] at h
   exact h.1.symm

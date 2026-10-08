@@ -303,7 +303,7 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     have hrule : (ves'.venv .safe).defeqs canonicalEqRecRule :=
       hsafeReplay.defeqs (VInductBlock.install_rule hinstall (by simp [hrules]))
     -- `Eq.refl` is installed with the translated constructor type.
-    have hcert : VEnv.InstalledInductCertificate (ves'.venv .safe) decl := by
+    have hcert : VEnv.InstalledBelow (ves'.venv .safe) decl := by
       cases hadd with
       | intro hdecl' hcompile' hblock' _helim' hinstall' =>
         exact .intro hdecl'.1 hdecl'.2 hcompile' hblock' hinstall' VEnv.LE.rfl

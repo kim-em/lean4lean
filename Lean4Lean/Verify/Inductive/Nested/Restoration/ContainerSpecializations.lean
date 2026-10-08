@@ -208,14 +208,14 @@ structure DirectFamilyShape (U : Nat) (a : ContainerSpecialization)
   ctorNames : direct.ctors.map (·.name) = a.source.ctors.map a.constructorName
   ctorUvars : ∀ ctor ∈ direct.ctors, ctor.uvars = U
 
-/-- `directFamily` succeeds as soon as the selected family and all of its
+/-- `specializedFamily` succeeds as soon as the selected family and all of its
 constructors carry a syntactic parameter telescope. -/
 theorem ContainerSpecialization.directFamily_isSome
     (a : ContainerSpecialization) (uvars : Nat) (params : List VExpr)
     (hfamily : HasForallPrefix a.source.type a.arguments.length)
     (hctors : ∀ ctor ∈ a.source.ctors,
       HasForallPrefix ctor.type a.arguments.length) :
-    ∃ direct, a.directFamily uvars params = some direct ∧
+    ∃ direct, a.specializedFamily uvars params = some direct ∧
       DirectFamilyShape uvars a direct := by
   rcases specializeType_isSome (hfamily.instL a.levels) with ⟨type, htype⟩
   let ctorFn := fun ctor : VConstVal => (do
@@ -260,7 +260,7 @@ theorem ContainerSpecialization.directFamily_isSome
     numIndices := a.source.numIndices
     resultLevel := a.source.resultLevel.inst a.levels
     ctors := cs }, ?_, ⟨rfl, rfl, rfl, rfl, hnames, hcsUvars⟩⟩
-  simp only [ContainerSpecialization.directFamily, htype]
+  simp only [ContainerSpecialization.specializedFamily, htype]
   change (do
     let ctors ← a.source.ctors.mapM ctorFn
     pure _) = _
@@ -272,7 +272,7 @@ theorem directFamilies_isSome (auxiliaries : List ContainerSpecialization)
     (H : ∀ a ∈ auxiliaries,
       HasForallPrefix a.source.type a.arguments.length ∧
       ∀ ctor ∈ a.source.ctors, HasForallPrefix ctor.type a.arguments.length) :
-    ∃ direct, auxiliaries.mapM (fun a => a.directFamily uvars params) = some direct ∧
+    ∃ direct, auxiliaries.mapM (fun a => a.specializedFamily uvars params) = some direct ∧
       List.Forall₂ (DirectFamilyShape uvars) auxiliaries direct := by
   induction auxiliaries with
   | nil => exact ⟨[], rfl, .nil⟩
@@ -287,22 +287,22 @@ end InductiveSignature
 
 /-- Finite provenance for every selected container from installed-container
 certificates in the same ambient environment. -/
-theorem CertifiedSpecializations.of_installed {env : VEnv} :
+theorem ContainersInstalled.of_installed {env : VEnv} :
     ∀ {auxiliaries : List InductiveSignature.ContainerSpecialization},
-      (∀ a ∈ auxiliaries, VEnv.InstalledInductCertificate env a.container) →
-      CertifiedSpecializations env auxiliaries
+      (∀ a ∈ auxiliaries, VEnv.InstalledBelow env a.container) →
+      ContainersInstalled env auxiliaries
   | [], _ => .nil
   | a :: rest, H => by
     cases H a List.mem_cons_self with
     | intro _ _ hcompile hblock hinstall hle =>
       exact .cons hcompile.compiled hblock hinstall hle
-        (CertifiedSpecializations.of_installed fun b hb =>
+        (ContainersInstalled.of_installed fun b hb =>
           H b (List.mem_cons_of_mem _ hb))
 
 /-- Every installed container retains its source parameter formation. -/
-theorem VEnv.InstalledInductCertificate.sourceParameterWF
+theorem VEnv.InstalledBelow.sourceParameterWF
     {env : VEnv} {decl : VInductDecl}
-    (H : VEnv.InstalledInductCertificate env decl) :
+    (H : VEnv.InstalledBelow env decl) :
     ∃ base, VInductDecl.SourceParameterWF base decl := by
   cases H with
   | intro _ hformation _ _ _ _ =>
@@ -314,9 +314,9 @@ theorem VEnv.InstalledInductCertificate.sourceParameterWF
 
 /-- Constructors of an installed container carry a syntactic parameter
 telescope. -/
-theorem VEnv.InstalledInductCertificate.ctorForallPrefix
+theorem VEnv.InstalledBelow.ctorForallPrefix
     {env : VEnv} {decl : VInductDecl}
-    (H : VEnv.InstalledInductCertificate env decl)
+    (H : VEnv.InstalledBelow env decl)
     {type : VInductiveType} (htype : type ∈ decl.types)
     {ctor : VConstVal} (hctor : ctor ∈ type.ctors) :
     InductiveSignature.HasForallPrefix ctor.type decl.nparams := by
@@ -471,7 +471,7 @@ structure AuxiliarySpecializationEvidence (sourceEnv envTypes : VEnv)
     (paramCtx : List VExpr)
     (decl : VInductDecl) (a : ContainerSpecialization)
     (generated : VInductiveType) : Prop where
-  installed : VEnv.InstalledInductCertificate sourceEnv a.container
+  installed : VEnv.InstalledBelow sourceEnv a.container
   auxiliary : a.auxiliary = generated.name
   generatedUvars : generated.uvars = decl.uvars
   argumentsLength : a.arguments.length = a.container.nparams
@@ -493,7 +493,7 @@ structure AuxiliarySpecializationEvidence (sourceEnv envTypes : VEnv)
         (VExpr.instantiateForallPrefix (a.source.type.instL a.levels)
           a.arguments)) ∧
     List.Forall₂
-      (VInductDecl.DirectAuxConstructor envTypes decl.uvars sourceParams
+      (VInductDecl.SpecializedAuxConstructor envTypes decl.uvars sourceParams
         a.arguments a.levels a.source generated)
       a.source.ctors generated.ctors
   /-- Each generated constructor type is syntactically the parameter closure
@@ -510,7 +510,7 @@ structure AuxiliarySpecializationEvidence (sourceEnv envTypes : VEnv)
 
 private theorem directAuxConstructors_names
     {sourceCtors targetCtors : List VConstVal}
-    (H : List.Forall₂ (VInductDecl.DirectAuxConstructor env U sourceParams
+    (H : List.Forall₂ (VInductDecl.SpecializedAuxConstructor env U sourceParams
       baseArgs levels containerFamily auxiliaryFamily) sourceCtors targetCtors) :
     targetCtors.map (·.name) = sourceCtors.map
       (fun ctor => ctor.name.replacePrefix containerFamily.name
@@ -567,8 +567,8 @@ variable {sourceEnv envTypes : VEnv} {paramCtx : List VExpr} {decl : VInductDecl
 theorem auxiliarySpecializations_certified
     (H : List.Forall₂ (AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl)
       auxiliaries generated) :
-    CertifiedSpecializations sourceEnv auxiliaries := by
-  apply CertifiedSpecializations.of_installed
+    ContainersInstalled sourceEnv auxiliaries := by
+  apply ContainersInstalled.of_installed
   intro a ha
   rcases Lean4Lean.List.Forall₂.forall_exists_l H a ha with ⟨_, _, h⟩
   exact h.installed
@@ -621,7 +621,7 @@ theorem auxiliarySpecializations_directFamilies
     (H : List.Forall₂ (AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl)
       auxiliaries generated)
     (uvars : Nat) (params : List VExpr) :
-    ∃ direct, auxiliaries.mapM (fun a => a.directFamily uvars params) =
+    ∃ direct, auxiliaries.mapM (fun a => a.specializedFamily uvars params) =
         some direct ∧
       List.Forall₂ (DirectFamilyShape uvars) auxiliaries direct := by
   apply directFamilies_isSome
@@ -1131,7 +1131,7 @@ theorem NestedValidatedRunResult.containerSpecializations
         auxiliaries generated ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-          (VInductDecl.NestedAuxiliarySourceAbsolute
+          (VInductDecl.NestedOccurrenceReplacementAbs
             (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
         generated (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
       (familyNames E.production.loweredDecl.types ++

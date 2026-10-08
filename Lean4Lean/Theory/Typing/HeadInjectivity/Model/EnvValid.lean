@@ -319,7 +319,7 @@ theorem restored_family_rigid {envF base installed env0 : VEnv} {source expanded
     {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
     {block : VInductBlock} {df : VDefEq} (hF : envF.WF)
     (C : CompilationData base source expanded s g aux block)
-    (hprior : CertifiedSpecializations base aux) (hbF : base ≤ envF)
+    (hprior : ContainersInstalled base aux) (hbF : base ≤ envF)
     (hinst : block.install env0 = some installed) (hle : installed ≤ envF)
     (index : Fin s.constructors.size) (hdf : envF.defeqs df)
     (hm : df.HasConstructorMajor ((compilationRestoration source aux).headName

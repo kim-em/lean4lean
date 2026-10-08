@@ -431,7 +431,7 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
     {cbase : VEnv} {expanded : VInductDecl} {s : InductiveSignature} {g : Instance s}
     {aux : List ContainerSpecialization} (hcle : cbase ≤ env)
     (hdata : CompilationData cbase decl expanded s g aux block)
-    (hprior : CertifiedSpecializations cbase aux) :
+    (hprior : ContainersInstalled cbase aux) :
     T.Extends (T.addNative decl (RecursorData.compilationEntries default decl s aux g)) ∧
       (T.addNative decl (RecursorData.compilationEntries default decl s aux g)).Inv env' := by
   let entries := RecursorData.compilationEntries default decl s aux g

@@ -19,14 +19,14 @@ theorem CompiledInductive.compilationOrigin
       (generated : Instance signature) (auxiliaries : List ContainerSpecialization),
       base ≤ installBase ∧
       CompilationData base source expanded signature generated auxiliaries block ∧
-      CertifiedSpecializations base auxiliaries := by
+      ContainersInstalled base auxiliaries := by
   exact CompiledInductive.rec
     (motive_1 := fun installBase source block _ =>
       ∃ (base : VEnv) (expanded : VInductDecl) (signature : InductiveSignature)
         (generated : Instance signature) (auxiliaries : List ContainerSpecialization),
         base ≤ installBase ∧
         CompilationData base source expanded signature generated auxiliaries block ∧
-        CertifiedSpecializations base auxiliaries)
+        ContainersInstalled base auxiliaries)
     (motive_2 := fun _ _ _ => True)
     (fun compilation specializations _ => ⟨_, _, _, _, _, .rfl, compilation, specializations⟩)
     (fun _ below _ ih => by
@@ -44,10 +44,10 @@ open InductiveSignature
 def RecursorRegistered (env : VEnv) (data : RecursorData) : Prop :=
   ∃ base installBase source expanded, ∃ (g : Instance data.schema.signature), ∃ auxiliaries block installed,
     CompilationData base source expanded data.schema.signature g auxiliaries block ∧
-    CertifiedSpecializations base auxiliaries ∧
+    ContainersInstalled base auxiliaries ∧
     base ≤ installBase ∧
     data.schema.restoration = compilationRestoration source auxiliaries ∧
-    data.schema.originalFamilies = source.types.map (·.name) ∧
+    data.schema.sourceFamilies = source.types.map (·.name) ∧
     data.uvars = g.uvars ∧ data.levels = g.levels ∧ data.target = g.targetLevel ∧
     block.install installBase = some installed ∧ installed ≤ env
 

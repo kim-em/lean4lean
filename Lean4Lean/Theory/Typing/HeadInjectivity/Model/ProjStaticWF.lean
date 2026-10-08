@@ -84,7 +84,7 @@ an original family of the schema which is its syntactic family. -/
 theorem WF.caseCtor_origin (henv : env.WF) (h : Model.IsCaseCtor env c) :
     EnvTables.ctorOf env c ≠ none ∨ ∃ (key : Name) (schema : CaseSchema)
       (owner : Fin schema.signature.families.size), env.eliminators key schema ∧
-      schema.originalFamilies[owner.val]? = EnvTables.ctorFamily env c ∧
+      schema.sourceFamilies[owner.val]? = EnvTables.ctorFamily env c ∧
       c ∈ (schema.view owner).constructors.toList.map (·.name) := by
   obtain ⟨key, schema, owner, rule, hreg, hgen, rfl⟩ := h
   obtain ⟨fn, ls, args, hm⟩ := Model.generates_major hgen

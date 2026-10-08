@@ -465,7 +465,7 @@ applications use depth-indexed canonical parameters. -/
 inductive VExpr.NestedExprExpansion
     (leaf : Nat → VExpr → VExpr → Prop) :
     Nat → VExpr → VExpr → Prop
-  | hit : leaf depth source target →
+  | occurrence : leaf depth source target →
       NestedExprExpansion leaf depth source target
   | bvar : NestedExprExpansion leaf depth (.bvar index) (.bvar index)
   | sort : NestedExprExpansion leaf depth (.sort level) (.sort level)
@@ -495,7 +495,7 @@ theorem VExpr.NestedExprExpansion.map
     (H : VExpr.NestedExprExpansion leaf depth source target) :
     VExpr.NestedExprExpansion leaf' depth source target := by
   induction H with
-  | hit h => exact .hit (Hleaf h)
+  | occurrence h => exact .occurrence (Hleaf h)
   | bvar => exact .bvar
   | sort => exact .sort
   | const => exact .const
@@ -627,7 +627,7 @@ theorem VExpr.NestedExprExpansion.eq_of_sourceConstFree
     (H : VExpr.NestedExprExpansion leaf depth source target)
     (hfree : VExpr.SourceConstFree names target) : source = target := by
   induction H with
-  | hit h =>
+  | occurrence h =>
     rcases hleaf h with ⟨name, hname, levels, args, hhead⟩
     exact absurd hname (hfree.head_not_mem hhead)
   | bvar => rfl
@@ -663,7 +663,7 @@ theorem VExpr.NestedExprExpansion.wrapForalls_inv
   | cons dom doms ih =>
     simp only [VExpr.wrapForalls, List.foldr_cons] at H
     cases H with
-    | hit h =>
+    | occurrence h =>
       rcases hleaf h with ⟨name, levels, args, hhead⟩
       simp at hhead
     | forallE Hdomain Hbody =>
@@ -711,7 +711,7 @@ theorem VExpr.NestedExprExpansion.const_spine_inv
       List.Forall₂ (VExpr.NestedExprExpansion leaf depth)
         source.getAppFnArgs.2 target.getAppFnArgs.2 := by
   induction H with
-  | hit h => exact (hleaf h _ hhead).elim
+  | occurrence h => exact (hleaf h _ hhead).elim
   | const => exact ⟨hhead, .nil⟩
   | @app d sf tf sa ta hfn harg ihfn _ =>
     simp only [VExpr.getAppFnArgs_app] at hhead ⊢
@@ -889,7 +889,7 @@ def VInductDecl.SourceWF (env : VEnv) (decl : VInductDecl) : Prop :=
 /-- Formation conditions for ordinary and mutually recursive inductive blocks.
 Nested declarations use the same source judgment; their lowering must later
 produce these conditions for the expanded mutual family. -/
-def VInductDecl.FormationWF (env : VEnv) (decl : VInductDecl) : Prop :=
+def VInductDecl.OrdinaryFormationWF (env : VEnv) (decl : VInductDecl) : Prop :=
   ∃ params resultLevel envTypes,
     env.addConstVals decl.typeConstants = some envTypes ∧
     (∀ type ∈ decl.types,
@@ -899,9 +899,9 @@ def VInductDecl.FormationWF (env : VEnv) (decl : VInductDecl) : Prop :=
       decl.CtorShape envTypes params type ctor) ∧
     ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor
 
-theorem VInductDecl.FormationWF.sourceParameterWF
+theorem VInductDecl.OrdinaryFormationWF.sourceParameterWF
     {env : VEnv} {decl : VInductDecl}
-    (H : VInductDecl.FormationWF env decl) :
+    (H : VInductDecl.OrdinaryFormationWF env decl) :
     VInductDecl.SourceParameterWF env decl := by
   rcases H with
     ⟨params, _resultLevel, envTypes, htypes, Htypes, Hconstructors, Hraw⟩

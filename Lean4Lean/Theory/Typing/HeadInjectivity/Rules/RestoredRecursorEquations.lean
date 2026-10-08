@@ -143,7 +143,7 @@ theorem restored_equation {r : Restoration} {df : VDefEq}
 /-- **Shape of a restored generated equation in abstract mode** (generic case equations). -/
 theorem restored_equation_abstract {r : Restoration} {df : VDefEq} (blk : Name) (first : Nat)
     (hparams : ∀ h ∈ r.heads, h.nparams ≤ s.params.length)
-    (he : r.equation (g.equation index (.abstract blk first)) = some df) :
+    (he : r.equation (g.equation index (.elim blk first)) = some df) :
     ∃ ds' idx' lsC' ms' body' T',
       (g.eqDoms index).mapM r.expr = some ds' ∧
       (g.eqIndices index).mapM r.expr = some idx' ∧
@@ -196,7 +196,7 @@ certified container, installed in the base environment. -/
 theorem CaseCompilationData.ctor_origin {s : InductiveSignature}
     (H : CaseCompilationData base source expanded s aux block)
     (hfresh : RecursorNamesFresh base source expanded aux)
-    (hprior : CertifiedSpecializations base aux) (index : Fin s.constructors.size) :
+    (hprior : ContainersInstalled base aux) (index : Fin s.constructors.size) :
     (∃ fc ∈ source.constructorConstants,
       fc.name = (compilationRestoration source aux).headName s.constructors[index].name ∧
       ∃ ls, fc.type.forallResult.getAppFnArgs.1 = .const ((compilationRestoration source aux).headName
@@ -248,7 +248,7 @@ theorem CaseCompilationData.ctor_origin {s : InductiveSignature}
 /-- `CaseCompilationData.ctor_origin` for a full compilation. -/
 theorem CompilationData.ctor_origin {s : InductiveSignature} {g : Instance s}
     (H : CompilationData base source expanded s g aux block)
-    (hprior : CertifiedSpecializations base aux) (index : Fin s.constructors.size) :
+    (hprior : ContainersInstalled base aux) (index : Fin s.constructors.size) :
     (∃ fc ∈ source.constructorConstants,
       fc.name = (compilationRestoration source aux).headName s.constructors[index].name ∧
       ∃ ls, fc.type.forallResult.getAppFnArgs.1 = .const ((compilationRestoration source aux).headName
@@ -308,7 +308,7 @@ theorem CompilationData.restored_recursorName_inj {s : InductiveSignature} {g : 
 /-- Restored constructor names are distinct within an owner. -/
 theorem CompilationData.restored_ctor_inj {s : InductiveSignature} {g : Instance s}
     (H : CompilationData base source expanded s g aux block)
-    (hprior : CertifiedSpecializations base aux) {i j : Fin s.constructors.size}
+    (hprior : ContainersInstalled base aux) {i j : Fin s.constructors.size}
     (ho : s.constructors[i].owner = s.constructors[j].owner)
     (hn : (compilationRestoration source aux).headName s.constructors[i].name =
       (compilationRestoration source aux).headName s.constructors[j].name) : i = j := by
@@ -351,9 +351,9 @@ theorem CompilationData.restored_ctor_inj {s : InductiveSignature} {g : Instance
     simp [this]
 
 theorem ContainerSpecialization.directFamily_resultLevel_nested {a : ContainerSpecialization}
-    {params : List VExpr} (H : a.directFamily U params = some direct) :
+    {params : List VExpr} (H : a.specializedFamily U params = some direct) :
     direct.resultLevel = a.source.resultLevel.inst a.levels := by
-  simp only [ContainerSpecialization.directFamily, bind, Option.bind_eq_some_iff, pure,
+  simp only [ContainerSpecialization.specializedFamily, bind, Option.bind_eq_some_iff, pure,
     Option.some.injEq] at H
   obtain ⟨_, _, _, _, rfl⟩ := H
   rfl
@@ -435,12 +435,12 @@ where
 
 end InductiveSignature
 
-theorem CertifiedSpecializations.mem {env : VEnv}
+theorem ContainersInstalled.mem {env : VEnv}
     {aux : List InductiveSignature.ContainerSpecialization}
-    (H : CertifiedSpecializations env aux) :
+    (H : ContainersInstalled env aux) :
     ∀ a ∈ aux, ∃ base block installed, CompiledInductive base a.container block ∧
       block.WF base ∧ VInductBlock.install base block = some installed ∧ installed ≤ env := by
-  exact CertifiedSpecializations.rec
+  exact ContainersInstalled.rec
     (motive_1 := fun _ _ _ _ => True)
     (motive_2 := fun env aux _ => ∀ a ∈ aux, ∃ base block installed,
       CompiledInductive base a.container block ∧ block.WF base ∧

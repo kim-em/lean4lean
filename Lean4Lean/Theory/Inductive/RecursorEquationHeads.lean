@@ -29,7 +29,7 @@ theorem Instance.restored_equation_major {s : InductiveSignature} {g : Instance 
   let extra := s.families.size + s.constructors.size
   let indices := ctor.indices.map fun e => (e.instL g.levels).liftN extra ctor.fields.length
   let preArgs := vars (s.params.length + extra) ctor.fields.length ++ indices
-  let head := g.recursorHead .native ctor.owner
+  let head := g.recursorHead .recursor ctor.owner
   change r.expr (VExpr.mkApps head (preArgs ++ [g.constructorApp ctor extra 0])) = some lhs' at hl'
   simp only [VExpr.mkApps, List.foldl_append, List.foldl_cons, List.foldl_nil] at hl'
   change (do let major' ← r.expr (g.constructorApp ctor extra 0)

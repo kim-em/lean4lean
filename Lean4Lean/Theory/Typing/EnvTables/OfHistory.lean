@@ -43,7 +43,7 @@ inductive HistTables : VEnv → Tables → Prop
     VInductBlock.WF env block → VInductBlock.EliminatorsWF env decl block →
     block.eliminators = [] → block.install env = some env' →
     cbase ≤ env → CompilationData cbase decl expanded s g aux block →
-    CertifiedSpecializations cbase aux →
+    ContainersInstalled cbase aux →
     HistTables env' (T.addNative decl (RecursorData.compilationEntries default decl s aux g))
   /-- A native installation that also installs the certified case eliminator of its
   declaration: the native views, then the views of the remaining families of the schema. -/
@@ -54,7 +54,7 @@ inductive HistTables : VEnv → Tables → Prop
     VInductBlock.WF env block → VInductBlock.EliminatorsWF env decl block →
     block.eliminators = [(key, schema)] → block.install env = some env' →
     cbase ≤ env → CompilationData cbase decl expanded s g aux block →
-    CertifiedSpecializations cbase aux →
+    ContainersInstalled cbase aux →
     HistTables env'
       ((T.addNative decl (RecursorData.compilationEntries default decl s aux g)).addSchema
         env' decl)
@@ -101,7 +101,7 @@ theorem Tables.Inv.inductCases {decl : VInductDecl} {block : VInductBlock} {key 
     {cbase : VEnv} {expanded : VInductDecl} {s : InductiveSignature} {g : Instance s}
     {aux : List ContainerSpecialization} (hcle : cbase ≤ env)
     (hdata : CompilationData cbase decl expanded s g aux block)
-    (hprior : CertifiedSpecializations cbase aux) :
+    (hprior : ContainersInstalled cbase aux) :
     T.Extends ((T.addNative decl (RecursorData.compilationEntries default decl s aux g)).addSchema
         env' decl) ∧
       ((T.addNative decl (RecursorData.compilationEntries default decl s aux g)).addSchema

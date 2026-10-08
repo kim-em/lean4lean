@@ -671,10 +671,10 @@ structure FinalLoweredGeneratedFamilyNativeSource
   sourceParams : List VExpr
   baseArgs : List VExpr
   levels : List VLevel
-  installed : VEnv.InstalledInductCertificate sourceTypesVEnv container
+  installed : VEnv.InstalledBelow sourceTypesVEnv container
   /-- The same container is already installed below the pre-header
-  observer, as required by `CertifiedSpecializations`. -/
-  installedBase : VEnv.InstalledInductCertificate baseVEnv container
+  observer, as required by `ContainersInstalled`. -/
+  installedBase : VEnv.InstalledBelow baseVEnv container
   /-- The concrete looked-up family's safety flag is the container's. -/
   containerUnsafe : H.generated.sourceInfo.isUnsafe = container.isUnsafe
   familyMember : containerFamily ∈ container.types
@@ -708,7 +708,7 @@ structure FinalLoweredGeneratedFamilyNativeSource
     (VExpr.instantiateForallPrefix (containerFamily.type.instL levels)
       baseArgs)
   constructors : List.Forall₂
-    (VInductDecl.DirectAuxConstructor sourceTypesVEnv lparams.length sourceParams
+    (VInductDecl.SpecializedAuxConstructor sourceTypesVEnv lparams.length sourceParams
       baseArgs levels containerFamily payload.source)
     containerFamily.ctors payload.source.ctors
   /-- Each generated constructor type is syntactically the parameter closure
@@ -900,7 +900,7 @@ theorem FinalLoweredGeneratedFamilyNativeSource.nestedAuxiliarySource
     (houtput : output = VExpr.mkApps
       (.const N.payload.source.name auxiliaryLevels)
       (sourceDecl.paramVars depth ++ targetTrailing)) :
-    VInductDecl.NestedAuxiliarySource baseVEnv sourceDecl generated depth
+    VInductDecl.NestedOccurrenceReplacement baseVEnv sourceDecl generated depth
       input output := by
   refine .intro hsourceTypes N.installed N.familyMember hfamily
     hnparams.symm N.baseArgsLength
@@ -987,7 +987,7 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
               simpa [← Horigin.generated.built.constructors_length] using hi
             simpa [Horigin.generated.family_eq] using htarget)).type
           targetCtor ∧
-        VInductDecl.DirectAuxConstructor sourceTypesVEnv lparams.length
+        VInductDecl.SpecializedAuxConstructor sourceTypesVEnv lparams.length
           sourceParams baseArgs levels
           (Ctypes.container.types[Ctypes.familyIdx]'Ctypes.familyIdx_lt)
           auxiliaryFamily
@@ -1040,7 +1040,7 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
         simpa [← hlength] using hsource
       simpa [targets, targetCtor] using (HtargetCtor ⟨i, hi⟩).1
   have HdirectConstructors : List.Forall₂
-      (VInductDecl.DirectAuxConstructor sourceTypesVEnv lparams.length
+      (VInductDecl.SpecializedAuxConstructor sourceTypesVEnv lparams.length
         sourceParams baseArgs levels
           (Ctypes.container.types[Ctypes.familyIdx]'Ctypes.familyIdx_lt)
         auxiliaryFamily)
@@ -1110,18 +1110,18 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
         ctor.type target) Horigin.source.ctors targets :=
     HconstructorTranslations
   have HdirectConstructors' : List.Forall₂
-      (VInductDecl.DirectAuxConstructor sourceTypesVEnv lparams.length
+      (VInductDecl.SpecializedAuxConstructor sourceTypesVEnv lparams.length
         sourceParams baseArgs levels containerFamily source)
       containerFamily.ctors targets := by
     have go : ∀ {sources targets : List VConstVal}, List.Forall₂
-        (VInductDecl.DirectAuxConstructor sourceTypesVEnv lparams.length
+        (VInductDecl.SpecializedAuxConstructor sourceTypesVEnv lparams.length
           sourceParams baseArgs levels containerFamily
             (VInductiveType.directAuxiliary sourceParams baseArgs levels
               containerFamily Horigin.generated.auxName lparams.length
                 target.numIndices target.resultLevel))
         sources targets →
         List.Forall₂
-          (VInductDecl.DirectAuxConstructor sourceTypesVEnv lparams.length
+          (VInductDecl.SpecializedAuxConstructor sourceTypesVEnv lparams.length
             sourceParams baseArgs levels containerFamily source)
           sources targets := by
       intro sources targets Hdirect
@@ -2034,13 +2034,13 @@ theorem NestedGeneratedFamilyNativeSources.replacementCompat
       hparamLength Hscope
   have HbaseAbsolute : List.Forall₂
       (VExpr.NestedExprExpansion
-        (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl
+        (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv sourceDecl
           N.generated) depth)
       (Nsource.baseArgs.map (fun arg => arg.liftN fieldDepth 0))
       S.baseArgsAtDepth := by
     have Hmapped := Lean4Lean.List.Forall₂.imp
       (fun _ _ Hentry => Hentry.map
-        (leaf' := VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl
+        (leaf' := VInductDecl.NestedOccurrenceReplacementAbs baseVEnv sourceDecl
           N.generated) (fun Hfalse => False.elim Hfalse)) Hbase
     simpa [Hdepth] using Hmapped
   have HbaseWF : VInductDecl.NestedExprWFExpansion baseVEnv sourceDecl
@@ -2154,7 +2154,7 @@ theorem NestedLoweringRun.generatedExpansionsOfNativeSources
     (hnparams : sourceDecl.nparams = nparams) :
     List.Forall₂
       (VInductDecl.NestedTypeExpansion baseVEnv sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl
+        (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv sourceDecl
           N.generated))
       N.generated (loweredDecl.types.drop sourceTypes.length) := by
   have hloweredLength : loweredDecl.types.length = result.types.length :=
@@ -2216,7 +2216,7 @@ theorem NestedLoweringRun.allExpansionsOfNativeSources
     (resultSelection : LocalForallSelection result.lctx result.params) :
     List.Forall₂
       (VInductDecl.NestedTypeExpansion baseVEnv sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl
+        (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv sourceDecl
           N.generated))
       (sourceDecl.types ++ N.generated) loweredDecl.types := by
   let Hclosed : NestedLoweringResultClosed prodEnv fuel nparams sourceTypes

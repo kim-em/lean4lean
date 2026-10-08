@@ -79,7 +79,7 @@ private theorem covered_of_certified {decl : VInductDecl} {block : VInductBlock}
     {schema : CaseSchema} {base : VEnv} (hcert : schema.Certified base decl block)
     (hprojections : block.projections = decl.projectionEntries)
     {entry : VProjectionEntry} (hentry : entry ∈ block.projections) :
-    entry.typeName ∈ schema.originalFamilies := by
+    entry.typeName ∈ schema.sourceFamilies := by
   rw [hprojections] at hentry
   obtain ⟨type, htype, ctor, _, rfl⟩ := VInductDecl.projectionEntries_origin hentry
   obtain ⟨_, _, _, _, _, hnames, _⟩ := hcert
@@ -100,13 +100,13 @@ structure VEnv.RegistryInv (env : VEnv) : Prop where
   unique : ∀ {key left right}, env.eliminators key left → env.eliminators key right →
     left = right
   projectionsEliminated : ∀ {name info}, env.projections name info →
-    ∃ key schema, env.eliminators key schema ∧ name ∈ schema.originalFamilies
+    ∃ key schema, env.eliminators key schema ∧ name ∈ schema.sourceFamilies
 
 namespace VEnv.RegistryInv
 
 /-- Schema ownership cannot precede the native family it describes. -/
 theorem family_present {env : VEnv} (H : env.RegistryInv)
-    (hlookup : env.eliminators key schema) (hname : name ∈ schema.originalFamilies) :
+    (hlookup : env.eliminators key schema) (hname : name ∈ schema.sourceFamilies) :
     ∃ value, env.constants name = some value := by
   obtain ⟨base, source, block, _, _, hreg, hconstants⟩ := H.origin hlookup
   obtain ⟨expanded, auxiliaries, hdata, _, _, hnames, hdisj⟩ := hreg.certified
@@ -118,7 +118,7 @@ theorem family_present {env : VEnv} (H : env.RegistryInv)
   exact List.mem_map.mpr ⟨family, hfamily, rfl⟩
 
 theorem key_mem {env : VEnv} (H : env.RegistryInv)
-    (hlookup : env.eliminators key schema) : key ∈ schema.originalFamilies := by
+    (hlookup : env.eliminators key schema) : key ∈ schema.sourceFamilies := by
   obtain ⟨base, source, block, _, _, hreg, _⟩ := H.origin hlookup
   obtain ⟨expanded, auxiliaries, _, _, _, hnames, hdisj⟩ := hreg.certified
   have hkey := hreg.keyHead
@@ -141,13 +141,13 @@ theorem Certified.freshOfInv {schema : CaseSchema} {base : VEnv}
     (hkey : source.types.head?.map (·.name) = some key) : schema.Fresh base key := by
   obtain ⟨expanded, auxiliaries, hdata, _, _, hnames, hdisj⟩ := H
   obtain ⟨types, ctors, htypes, _, _, _⟩ := hdata.sourceWF.2.2.2.2
-  have hnew : ∀ name ∈ schema.originalFamilies, base.constants name = none := by
+  have hnew : ∀ name ∈ schema.sourceFamilies, base.constants name = none := by
     intro name hname
     rw [hnames] at hname
     obtain ⟨family, hfamily, rfl⟩ := List.mem_map.mp hname
     exact VEnv.addConstVals_names_fresh htypes family.toVConstVal
       (List.mem_map.mpr ⟨family, hfamily, rfl⟩)
-  have hkeyMem : key ∈ schema.originalFamilies := by
+  have hkeyMem : key ∈ schema.sourceFamilies := by
     rw [hnames]
     cases ht : source.types with
     | nil => simp [ht] at hkey
@@ -312,12 +312,12 @@ theorem VEnv.WF.eliminator_headerAgreement {env : VEnv} (H : env.WF)
 
 /-- Schema ownership cannot precede the native family it describes. -/
 theorem VEnv.WF.eliminator_family_present {env : VEnv} (H : env.WF)
-    (hlookup : env.eliminators key schema) (hname : name ∈ schema.originalFamilies) :
+    (hlookup : env.eliminators key schema) (hname : name ∈ schema.sourceFamilies) :
     ∃ value, env.constants name = some value :=
   H.registryInv.family_present hlookup hname
 
 theorem VEnv.WF.eliminator_key_mem {env : VEnv} (H : env.WF)
-    (hlookup : env.eliminators key schema) : key ∈ schema.originalFamilies :=
+    (hlookup : env.eliminators key schema) : key ∈ schema.sourceFamilies :=
   H.registryInv.key_mem hlookup
 
 /-- Every registered case schema projects only out of structures registered in
@@ -337,7 +337,7 @@ theorem VEnv.WF.eliminators_unique (H : VEnv.WF env)
 registered together with, and after, the certified case eliminator of their declaration. -/
 theorem VEnv.WF.projections_eliminated {env : VEnv} (H : env.WF)
     (hp : env.projections name info) :
-    ∃ key schema, env.eliminators key schema ∧ name ∈ schema.originalFamilies :=
+    ∃ key schema, env.eliminators key schema ∧ name ∈ schema.sourceFamilies :=
   H.registryInv.projectionsEliminated hp
 
 theorem InductiveSignature.CaseSchema.Certified.fresh {schema : InductiveSignature.CaseSchema}

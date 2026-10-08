@@ -82,7 +82,7 @@ cycle through `AddInduct`. -/
 
 /-- Exact construction of one direct auxiliary constructor before its own
 body is recursively lowered. -/
-structure VInductDecl.DirectAuxConstructor
+structure VInductDecl.SpecializedAuxConstructor
     (env : VEnv) (U : Nat)
     (sourceParams baseArgs : List VExpr) (levels : List VLevel)
     (containerFamily auxiliaryFamily : VInductiveType)
@@ -104,25 +104,25 @@ mutual
 
 /-- Formation evidence is either the ordinary judgment or a finite nested
 expansion into an independently ordinary well-formed declaration. -/
-inductive VInductDecl.FormationEvidence : VEnv → VInductDecl → Prop
-  | ordinary {env decl} : VInductDecl.FormationWF env decl →
-      VInductDecl.FormationEvidence env decl
+inductive VInductDecl.FormationWF : VEnv → VInductDecl → Prop
+  | ordinary {env decl} : VInductDecl.OrdinaryFormationWF env decl →
+      VInductDecl.FormationWF env decl
   | nested {base env decl} : VInductDecl.NestedFormationWF base decl →
       base ≤ env →
-      VInductDecl.FormationEvidence env decl
+      VInductDecl.FormationWF env decl
 
 /-- Cycle-free provenance for a prior container block. The prior declaration
 has its own finite source/formation derivation, compiles to the exact block,
 and that well-formed block occurs below the ambient environment. -/
-inductive VEnv.InstalledInductCertificate : VEnv → VInductDecl → Prop
+inductive VEnv.InstalledBelow : VEnv → VInductDecl → Prop
   | intro {env container base block installed} :
       VInductDecl.SourceWF base container →
-      VInductDecl.FormationEvidence base container →
+      VInductDecl.FormationWF base container →
       container.CompilesTo base block →
       block.WF base →
       VInductBlock.install base block = some installed →
       installed ≤ env →
-      VEnv.InstalledInductCertificate env container
+      VEnv.InstalledBelow env container
 
 /-- One legal maximal nested-application replacement. The generated family
 is an exact parameter specialization of a family in a previously installed
@@ -135,14 +135,14 @@ projections opaquely, so a concrete occurrence need not survive in `VExpr`.
 Such an erased-only occurrence may generate a semantically unused auxiliary;
 this remains sound because the prior-container specialization is exact and
 ordinary formation checks the complete expanded finite block. -/
-inductive VInductDecl.NestedAuxiliarySource :
+inductive VInductDecl.NestedOccurrenceReplacement :
     VEnv → VInductDecl → List VInductiveType →
       Nat → VExpr → VExpr → Prop
   | intro {env sourceTypesEnv source generated depth input output container
       containerFamily auxiliaryFamily sourceParams baseArgs levels
       auxiliaryLevels inputBaseArgs sourceTrailing targetTrailing} :
       env.addConstVals source.typeConstants = some sourceTypesEnv →
-      VEnv.InstalledInductCertificate sourceTypesEnv container →
+      VEnv.InstalledBelow sourceTypesEnv container →
       containerFamily ∈ container.types →
       auxiliaryFamily ∈ generated →
       sourceParams.length = source.nparams →
@@ -156,7 +156,7 @@ inductive VInductDecl.NestedAuxiliarySource :
           (VExpr.instantiateForallPrefix
             (containerFamily.type.instL levels) baseArgs)) →
       List.Forall₂
-        (VInductDecl.DirectAuxConstructor sourceTypesEnv source.uvars sourceParams
+        (VInductDecl.SpecializedAuxConstructor sourceTypesEnv source.uvars sourceParams
           baseArgs levels containerFamily auxiliaryFamily)
         containerFamily.ctors auxiliaryFamily.ctors →
       auxiliaryLevels.length = source.uvars →
@@ -173,7 +173,7 @@ inductive VInductDecl.NestedAuxiliarySource :
         (inputBaseArgs ++ sourceTrailing) →
       output = VExpr.mkApps (.const auxiliaryFamily.name auxiliaryLevels)
         (source.paramVars depth ++ targetTrailing) →
-      VInductDecl.NestedAuxiliarySource env source generated depth input output
+      VInductDecl.NestedOccurrenceReplacement env source generated depth input output
 
 /-- Specialized structural expansion used inside the mutual formation
 derivation. It has a forgetful map to `VExpr.NestedExprExpansion`; spelling it
@@ -181,9 +181,9 @@ out here is required by Lean's strict-positivity checker for the mutual leaf. -/
 inductive VInductDecl.NestedExprWFExpansion :
     VEnv → VInductDecl → List VInductiveType →
       Nat → VExpr → VExpr → Prop
-  | hit {env source generated depth relativeDepth input output} :
+  | occurrence {env source generated depth relativeDepth input output} :
       depth = source.nparams + relativeDepth →
-      VInductDecl.NestedAuxiliarySource env source generated relativeDepth
+      VInductDecl.NestedOccurrenceReplacement env source generated relativeDepth
         input output →
       VInductDecl.NestedExprWFExpansion env source generated depth input output
   | bvar {env source generated index depth} :
@@ -292,7 +292,7 @@ ordinary source and formation judgments. -/
 inductive VInductDecl.NestedFormationWF : VEnv → VInductDecl → Prop
   | intro {env source expanded generated} :
       VInductDecl.SourceWF env expanded →
-      VInductDecl.FormationWF env expanded →
+      VInductDecl.OrdinaryFormationWF env expanded →
       VInductDecl.SourceParameterWF env source →
       expanded.uvars = source.uvars →
       expanded.nparams = source.nparams →
@@ -304,16 +304,16 @@ inductive VInductDecl.NestedFormationWF : VEnv → VInductDecl → Prop
 end
 
 /-- Constructor expressions count every enclosing forall binder, whereas
-`NestedAuxiliarySource` counts only constructor-field binders below the common
+`NestedOccurrenceReplacement` counts only constructor-field binders below the common
 parameter prefix.  This wrapper is the explicit boundary between those two
 depth conventions. -/
-def VInductDecl.NestedAuxiliarySourceAbsolute
+def VInductDecl.NestedOccurrenceReplacementAbs
     (env : VEnv) (source : VInductDecl)
     (generated : List VInductiveType) (depth : Nat)
     (input output : VExpr) : Prop :=
   ∃ relativeDepth,
     depth = source.nparams + relativeDepth ∧
-    VInductDecl.NestedAuxiliarySource env source generated relativeDepth
+    VInductDecl.NestedOccurrenceReplacement env source generated relativeDepth
       input output
 
 
@@ -336,10 +336,10 @@ theorem VExpr.getAppFnArgs_mkApps_const (name : Name) (levels : List VLevel)
 
 /-- Every generated-family leaf replaces a source expression by an
 application headed by one of the generated auxiliary families. -/
-theorem VInductDecl.NestedAuxiliarySourceAbsolute.headConst
+theorem VInductDecl.NestedOccurrenceReplacementAbs.headConst
     {env : VEnv} {source : VInductDecl} {generated : List VInductiveType}
     {depth : Nat} {input output : VExpr}
-    (H : VInductDecl.NestedAuxiliarySourceAbsolute env source generated depth
+    (H : VInductDecl.NestedOccurrenceReplacementAbs env source generated depth
       input output) :
     ∃ auxiliary ∈ generated, ∃ levels args,
       output.getAppFnArgs = (.const auxiliary.name levels, args) := by
@@ -363,7 +363,7 @@ theorem VInductDecl.rawShapesOfNestedExpansions
     {generated : List VInductiveType}
     (Htypes : List.Forall₂
       (VInductDecl.NestedTypeExpansion env source
-        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated))
+        (VInductDecl.NestedOccurrenceReplacementAbs env source generated))
       (source.types ++ generated) expanded.types)
     (Hraw : ∀ type ∈ expanded.types, ∀ ctor ∈ type.ctors,
       expanded.RawCtorShape type ctor)
@@ -381,7 +381,7 @@ theorem VInductDecl.rawShapesOfNestedExpansions
   rcases Lean4Lean.List.Forall₂.forall_exists_l Hexp.constructors ctor hctor with
     ⟨targetCtor, htargetCtor, Hctor⟩
   exact VInductDecl.RawCtorShape.ofNestedExpansion
-    (fun h => VInductDecl.NestedAuxiliarySourceAbsolute.headConst h)
+    (fun h => VInductDecl.NestedOccurrenceReplacementAbs.headConst h)
     huvars hnparams hnames hnodup htype htarget Hexp.name Hexp.numIndices
     Hctor.type (Hraw target htarget targetCtor htargetCtor)
 
@@ -392,7 +392,7 @@ theorem VInductDecl.constructorArityPrefixOfNestedExpansions
     {generated : List VInductiveType}
     (Htypes : List.Forall₂
       (VInductDecl.NestedTypeExpansion env source
-        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated))
+        (VInductDecl.NestedOccurrenceReplacementAbs env source generated))
       (source.types ++ generated) expanded.types)
     (Hraw : ∀ type ∈ expanded.types, ∀ ctor ∈ type.ctors,
       expanded.RawCtorShape type ctor)
@@ -415,7 +415,7 @@ theorem VInductDecl.constructorArityPrefixOfNestedExpansions
   have Hctor := Lean4Lean.List.Forall₂.getElem_of Hexp.constructors ctorIdx
     hsourceCtor hexpandedCtor
   exact (VInductDecl.RawCtorShape.ofNestedExpansion_core
-    (fun h => VInductDecl.NestedAuxiliarySourceAbsolute.headConst h)
+    (fun h => VInductDecl.NestedOccurrenceReplacementAbs.headConst h)
     huvars hnparams hnames hnodup (List.getElem_mem hsource)
     (List.getElem_mem hexpanded) Hexp.name Hexp.numIndices Hctor.type
     (Hraw _ (List.getElem_mem hexpanded) _ (List.getElem_mem hexpandedCtor))).2
@@ -423,7 +423,7 @@ theorem VInductDecl.constructorArityPrefixOfNestedExpansions
 /-- Abstract well-formedness always retains the original source judgment;
 formation is a finite ordinary-or-nested derivation. -/
 def VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop :=
-  decl.SourceWF env ∧ decl.FormationEvidence env
+  decl.SourceWF env ∧ decl.FormationWF env
 
 /-- Source constructor typing at the exact header environment named by an
 installation. -/
@@ -438,9 +438,9 @@ theorem VInductDecl.SourceWF.constructorsWF_at
 
 /-- Both ordinary and nested formation evidence retain the source
 parameter judgment at any environment in which the headers install. -/
-theorem VInductDecl.FormationEvidence.sourceParameterWF
+theorem VInductDecl.FormationWF.sourceParameterWF
     {env envTypes : VEnv} {decl : VInductDecl}
-    (H : decl.FormationEvidence env)
+    (H : decl.FormationWF env)
     (htypes : env.addConstVals decl.typeConstants = some envTypes) :
     decl.SourceParameterWF env := by
   cases H with
@@ -457,11 +457,11 @@ theorem VInductDecl.WF.sourceParameterWF
     decl.SourceParameterWF env :=
   H.2.sourceParameterWF htypes
 
-theorem VEnv.InstalledInductCertificate.mono
+theorem VEnv.InstalledBelow.mono
     {env env' : VEnv} {decl : VInductDecl}
     (henv : env ≤ env')
-    (H : VEnv.InstalledInductCertificate env decl) :
-    VEnv.InstalledInductCertificate env' decl := by
+    (H : VEnv.InstalledBelow env decl) :
+    VEnv.InstalledBelow env' decl := by
   cases H with
   | intro hsource hformation hcompile hblock hinstall hle =>
     exact .intro hsource hformation hcompile hblock hinstall (hle.trans henv)
@@ -470,9 +470,9 @@ theorem VEnv.InstalledInductCertificate.mono
 in the ambient projection registry.  This is the registry fact carried by an
 installation certificate; clients do not need to reconstruct the internal
 type/constructor/recursor staging of `VInductBlock.install`. -/
-theorem VEnv.InstalledInductCertificate.projection
+theorem VEnv.InstalledBelow.projection
     {env : VEnv} {decl : VInductDecl} {entry : VProjectionEntry}
-    (H : VEnv.InstalledInductCertificate env decl)
+    (H : VEnv.InstalledBelow env decl)
     (hentry : entry ∈ decl.projectionEntries) :
     env.projections entry.typeName entry.info := by
   cases H with
@@ -489,9 +489,9 @@ theorem VEnv.InstalledInductCertificate.projection
 
 /-- An installed declaration exposes each of its family constants at the
 exact abstract value recorded by the source declaration. -/
-theorem VEnv.InstalledInductCertificate.familyConstant
+theorem VEnv.InstalledBelow.familyConstant
     {env : VEnv} {decl : VInductDecl}
-    (H : VEnv.InstalledInductCertificate env decl)
+    (H : VEnv.InstalledBelow env decl)
     (familyIdx : Nat) (hfamily : familyIdx < decl.types.length) :
     env.constants decl.types[familyIdx].name =
       some decl.types[familyIdx].toVConstant := by
@@ -520,27 +520,27 @@ theorem VEnv.InstalledInductCertificate.familyConstant
 
 /-- Every family of an installed declaration carries the declaration's
 universe arity. -/
-theorem VEnv.InstalledInductCertificate.typeUvars
+theorem VEnv.InstalledBelow.typeUvars
     {env : VEnv} {decl : VInductDecl}
-    (H : VEnv.InstalledInductCertificate env decl) :
+    (H : VEnv.InstalledBelow env decl) :
     ∀ type ∈ decl.types, type.uvars = decl.uvars := by
   cases H with
   | intro Hsource _ _ _ _ _ => exact Hsource.2.2.1
 
 /-- Every constructor of an installed declaration carries the declaration's
 universe arity. -/
-theorem VEnv.InstalledInductCertificate.constructorUvars
+theorem VEnv.InstalledBelow.constructorUvars
     {env : VEnv} {decl : VInductDecl}
-    (H : VEnv.InstalledInductCertificate env decl) :
+    (H : VEnv.InstalledBelow env decl) :
     ∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars := by
   cases H with
   | intro Hsource _ _ _ _ _ => exact Hsource.2.2.2.1
 
 /-- An installed declaration exposes each of its constructor constants at
 the exact abstract value recorded by the source declaration. -/
-theorem VEnv.InstalledInductCertificate.constructorConstant
+theorem VEnv.InstalledBelow.constructorConstant
     {env : VEnv} {decl : VInductDecl}
-    (H : VEnv.InstalledInductCertificate env decl)
+    (H : VEnv.InstalledBelow env decl)
     (familyIdx ctorIdx : Nat) (hfamily : familyIdx < decl.types.length)
     (hctor : ctorIdx < decl.types[familyIdx].ctors.length) :
     env.constants decl.types[familyIdx].ctors[ctorIdx].name =

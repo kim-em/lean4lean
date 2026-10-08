@@ -135,13 +135,13 @@ theorem CompiledInductive.original_family_header (H : CompiledInductive base sou
 /-- Every certified container retains both its exact native family lookup
 and its normalized result-sort telescope in every well-formed extension of
 the specialization environment. -/
-theorem CertifiedSpecializations.family_header (H : CertifiedSpecializations env auxiliaries) :
+theorem ContainersInstalled.family_header (H : ContainersInstalled env auxiliaries) :
     ∀ current : VEnv, current.WF → env ≤ current →
     ∀ a ∈ auxiliaries, ∀ family ∈ a.container.types,
       env.constants family.name = some family.toVConstant ∧
       ∃ domains level, family.uvars = a.container.uvars ∧ level ≈ family.resultLevel ∧
         current.IsDefEqU a.container.uvars [] family.type (VExpr.wrapForalls domains (.sort level)) := by
-  exact CertifiedSpecializations.rec
+  exact ContainersInstalled.rec
     (motive_1 := fun _ _ _ _ => True)
     (motive_2 := fun env auxiliaries _ =>
       ∀ current : VEnv, current.WF → env ≤ current →
@@ -193,9 +193,9 @@ namespace Lean4Lean.InductiveSignature
 
 private theorem ContainerSpecialization.directFamily_resultLevel
     {a : ContainerSpecialization} {U : Nat} {params : List VExpr} {direct : VInductiveType}
-    (H : a.directFamily U params = some direct) :
+    (H : a.specializedFamily U params = some direct) :
     direct.resultLevel = a.source.resultLevel.inst a.levels := by
-  unfold ContainerSpecialization.directFamily at H
+  unfold ContainerSpecialization.specializedFamily at H
   simp only [bind, Option.bind_eq_some_iff] at H
   obtain ⟨type, _, ctors, _, he⟩ := H
   cases Option.some.inj he
@@ -208,7 +208,7 @@ theorem _root_.Lean4Lean.InductiveSignature.CaseCompilationData.family_head_type
     {s : InductiveSignature}
     (hdata : CaseCompilationData base source expanded s auxiliaries sourceBlock)
     (hdisj : RecursorNamesFresh base source expanded auxiliaries)
-    (hprior : CertifiedSpecializations base auxiliaries)
+    (hprior : ContainersInstalled base auxiliaries)
     (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)) (hle : base ≤ env)
     (hconstants : ∀ family ∈ source.types,
       env.constants family.name = some family.toVConstant)

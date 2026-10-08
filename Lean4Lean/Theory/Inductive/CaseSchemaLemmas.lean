@@ -90,7 +90,7 @@ theorem Restoration.wrapLams_head_elim {r : Restoration} {e output : VExpr}
 /-- Exact abstract head ownership survives restoration. -/
 theorem Instance.restored_abstract_equation_head {s : InductiveSignature} (g : Instance s)
     (index : Fin s.constructors.size) {r : Restoration} {equation : VDefEq}
-    (h : r.equation (g.equation index (.abstract block firstOwner)) = some equation) :
+    (h : r.equation (g.equation index (.elim block firstOwner)) = some equation) :
     equation.lhs.stripLams.getAppFnArgs.1 =
       .elim block (firstOwner + s.constructors[index].owner.val) (g.targetLevel :: g.levels) := by
   have hl := (Restoration.equation_parts h).1
@@ -123,7 +123,7 @@ theorem equation_origin {schema : CaseSchema} {owner : Fin schema.signature.fami
     (h : schema.equations block owner U levels target = some rules) (hmem : rule ∈ rules) :
     ∃ index : Fin (schema.view owner).constructors.size,
       schema.restoration.equation
-        ((schema.specialize owner U levels target).equation index (.abstract block owner.val)) =
+        ((schema.specialize owner U levels target).equation index (.elim block owner.val)) =
       some rule := by
   have hrel := List.mapM_eq_some.mp h
   have horigin : ∀ {xs ys}, List.Forall₂ (fun x y => schema.restoration.equation x = some y) xs ys →

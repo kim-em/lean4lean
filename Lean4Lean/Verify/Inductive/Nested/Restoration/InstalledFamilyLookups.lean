@@ -47,7 +47,7 @@ private theorem NestedExprMapping.constructorArity_eq
     AddInductive.constructorArity output.1 =
       AddInductive.constructorArity input := by
   induction H with
-  | hit Hnode =>
+  | occurrence Hnode =>
       exact Hnode.output_constructorArity_eq_zero.trans
         Hnode.input_constructorArity_eq_zero.symm
   | bvar | fvar | mvar | sort | const | lit => rfl

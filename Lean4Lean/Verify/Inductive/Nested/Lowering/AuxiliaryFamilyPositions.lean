@@ -85,7 +85,7 @@ theorem NestedExprReplacement.familyPositions
     (Hpositions : NestedAuxFamilyPositions initialSize state) :
     NestedAuxFamilyPositions initialSize out.2 := by
   induction H with
-  | hit Hnode => exact Hnode.familyPositions Hpositions
+  | occurrence Hnode => exact Hnode.familyPositions Hpositions
   | bvar | fvar | mvar | sort | const | lit => exact Hpositions
   | app Hnode _ _ ihFn ihArg =>
     exact ihArg (ihFn (Hnode.familyPositions Hpositions))
@@ -288,7 +288,7 @@ theorem NestedExprReplacement.pendingGeneratedFamilyOrigins
       state) :
     PendingGeneratedFamilyOrigins env params initialSize cursor out.2 := by
   induction H with
-  | hit Hnode =>
+  | occurrence Hnode =>
     exact Hnode.pendingGeneratedFamilyOrigins Hselection hselectionNodup
       Hclosing hclosures Hinput Horigins
   | bvar | fvar | mvar | sort | const | lit => exact Horigins

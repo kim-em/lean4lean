@@ -23,12 +23,12 @@ namespace VerifyInductive
 
 theorem ContainerSpecialization.directFamily_fields
     {a : ContainerSpecialization} {U : Nat} {params : List VExpr}
-    {direct : VInductiveType} (H : a.directFamily U params = some direct) :
+    {direct : VInductiveType} (H : a.specializedFamily U params = some direct) :
     direct.type = VExpr.wrapForalls params
         (VExpr.instantiateForallPrefix (a.source.type.instL a.levels) a.arguments) ∧
       direct.numIndices = a.source.numIndices ∧
       direct.resultLevel = a.source.resultLevel.inst a.levels := by
-  unfold ContainerSpecialization.directFamily at H
+  unfold ContainerSpecialization.specializedFamily at H
   simp only [bind, Option.bind_eq_some_iff] at H
   obtain ⟨type, htype, ctors, _, he⟩ := H
   cases Option.some.inj he
@@ -52,8 +52,8 @@ private theorem install_type_lookup' {base installed : VEnv} {block : VInductBlo
 /-- An installed container's families are present in the ambient environment,
 are well-formed headers at the container's universe arity, and carry the
 normalized type shape of their recorded index count and result level. -/
-theorem _root_.Lean4Lean.VEnv.InstalledInductCertificate.familyFacts {env : VEnv} {decl : VInductDecl}
-    (H : VEnv.InstalledInductCertificate env decl) :
+theorem _root_.Lean4Lean.VEnv.InstalledBelow.familyFacts {env : VEnv} {decl : VInductDecl}
+    (H : VEnv.InstalledBelow env decl) :
     ∃ params, ∀ type ∈ decl.types,
       env.constants type.name = some type.toVConstant ∧
       type.uvars = decl.uvars ∧
@@ -149,7 +149,7 @@ theorem auxiliaryFamily_header
     (hshape : lowered.TypeShape base headerParams t)
     (huvars : lowered.uvars = decl.uvars) (hnparams : lowered.nparams = decl.nparams)
     (hparams : VEnv.IsDefEqCtx envTypes decl.uvars [] params.reverse paramCtx)
-    (hd : a.directFamily decl.uvars params = some d)
+    (hd : a.specializedFamily decl.uvars params = some d)
     (hni : n.numIndices = t.numIndices) (hrl : n.resultLevel ≈ t.resultLevel) :
     n.numIndices = d.numIndices ∧ n.resultLevel ≈ d.resultLevel ∧
     (∃ domains body level exprType, level ≈ n.resultLevel ∧
@@ -262,7 +262,7 @@ theorem auxiliaryFamilies_of_evidence
     (huvars : lowered.uvars = decl.uvars) (hnparams : lowered.nparams = decl.nparams)
     (hparams : VEnv.IsDefEqCtx envTypes decl.uvars [] params.reverse paramCtx)
     (hctorUvars : ∀ n ∈ normalized, ∀ c ∈ n.ctors, c.uvars = decl.uvars)
-    (hmapM : auxiliaries.mapM (fun a => a.directFamily decl.uvars params) = some direct)
+    (hmapM : auxiliaries.mapM (fun a => a.specializedFamily decl.uvars params) = some direct)
     (Hrestores : List.Forall₂ (fun normalized family : VInductiveType =>
         List.Forall₂ (fun normalized ctor : VConstVal =>
           RestoresType r envTypes decl.uvars normalized.type ctor.type)

@@ -138,13 +138,13 @@ theorem Instance.equation_patShape_strong {s : InductiveSignature} (g : Instance
     have hh := hhead
     simp only [head]
     cases mode with
-    | native =>
+    | recursor =>
       have hnone : r.heads.find? (fun h => h.auxiliary == g.recursorName ctor.owner) = none := by
         apply List.find?_eq_none.mpr
         intro spec hs
         simpa only [beq_iff_eq] using hh _ _ rfl spec hs
       simp [Instance.recursorHead, Restoration.expr.go, hnone, Restoration.headOf]
-    | abstract block first => rfl
+    | elim block first => rfl
   rw [hgo, Option.some.injEq] at hout
   subst hout
   obtain ⟨cn, cl, ms, rfl⟩ := Restoration.ctorApp_fields hparams hmajor

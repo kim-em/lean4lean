@@ -27,7 +27,7 @@ theorem Certified.mem_schemaCtorNames {schema : CaseSchema}
   obtain ⟨expanded, aux, hdata, _, _, hnames, _⟩ := H
   obtain ⟨envTypes, direct, _, _, _, hfamilies⟩ := hdata.correspondence
   have hpre := forall₂_prefix hfamilies
-  have hlen : schema.originalFamilies.length = source.types.length := by rw [hnames]; simp
+  have hlen : schema.sourceFamilies.length = source.types.length := by rw [hnames]; simp
   simp only [schemaCtorNames, hlen, List.mem_flatMap, List.mem_map]
   constructor
   · rintro ⟨nt, hnt, nc, hnc, rfl⟩

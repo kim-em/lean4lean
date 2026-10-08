@@ -19,8 +19,8 @@ environment. A lowered recursor environment additionally contains
 names by `σ`. `VEnv.RenamingReplacement` collects the facts that transport
 every derivation along `replaceRen` (`RenamingReplacement.isDefEq`); kept
 constants only need definitionally equal types, and the projection rules are
-transported through the abstract `ProjectionTransport` clause
-(`ProjectionTransport.of_fixed` discharges it for projections untouched by the
+transported through the abstract `ProjectionRulesRenamed` clause
+(`ProjectionRulesRenamed.of_fixed` discharges it for projections untouched by the
 replacement). `RenamingRestorationSubstitution` relates `replaceRen` to
 `Restoration.expr` up to beta (`go_simAt`), for terms whose projection names are
 fixed by `σ`; restoration then preserves typing (`Restoration.expr_hasType'`).
@@ -217,7 +217,7 @@ namespace VEnv
 /-- The four projection rules of `envL` at the projection `(typeName, info)`,
 transported along `replaceRen ρ σ` to `envS`: each conclusion holds in `envS`
 once the replaced premises do. -/
-structure ProjectionTransport (envS : VEnv) (ρ : Name → Option VExpr) (σ : Name → Name)
+structure ProjectionRulesRenamed (envS : VEnv) (ρ : Name → Option VExpr) (σ : Name → Name)
     (typeName : Name) (info : VProjectionInfo) : Prop where
   projDF : ∀ {U : Nat} {Γ : List VExpr} {levels : List VLevel} {params : List VExpr}
       {index : Nat} {sourceMajor fieldType : VExpr} {fieldLevel : VLevel}
@@ -270,13 +270,13 @@ structure ProjectionTransport (envS : VEnv) (ρ : Name → Option VExpr) (σ : N
       ((VExpr.mkApps (.const typeName levels) params).replaceRen ρ σ)
 
 /-- A projection of `envS` untouched by the replacement transports. -/
-theorem ProjectionTransport.of_fixed {envS : VEnv} {ρ : Name → Option VExpr}
+theorem ProjectionRulesRenamed.of_fixed {envS : VEnv} {ρ : Name → Option VExpr}
     {σ : Name → Name} (hρ : VExpr.ReplacementsClosed ρ)
     (hS : envS.projections typeName info) (htn : ρ typeName = none)
     (hσtn : σ typeName = typeName) (hctorName : ρ info.ctorName = none)
     (hσctor : σ info.ctorName = info.ctorName)
     (hctor : info.ctorType.replaceRen ρ σ = info.ctorType) :
-    ProjectionTransport envS ρ σ typeName info where
+    ProjectionRulesRenamed envS ρ σ typeName info where
   projDF := by
     intro U Γ levels params index sourceMajor fieldType fieldLevel major indexArgs major'
       hlevels huvars hparams hindices hfield hclosed hguard ihField ihLeft ihRight
@@ -329,7 +329,7 @@ structure RenamingReplacement (envS envL : VEnv) (ρ : Name → Option VExpr)
       df.lhs.replaceRen ρ σ = df.lhs ∧ df.rhs.replaceRen ρ σ = df.rhs ∧
       df.type.replaceRen ρ σ = df.type)
   projections : ∀ typeName info, envL.projections typeName info →
-    ProjectionTransport envS ρ σ typeName info
+    ProjectionRulesRenamed envS ρ σ typeName info
 
 variable {envS envL : VEnv} {ρ : Name → Option VExpr} {σ : Name → Name}
 
@@ -483,7 +483,7 @@ theorem RenamingReplacement.of_le {base : VEnv} (hρ : VExpr.ReplacementsClosed 
     have hctor := hbase.projectionConstructor hp
     obtain ⟨h1, h2, _⟩ := hconst _ _ htn
     obtain ⟨h3, h4, h5⟩ := hconst _ _ hctor
-    exact ProjectionTransport.of_fixed hρ (hle.projections hp) h1 h2 h3 h4 h5
+    exact ProjectionRulesRenamed.of_fixed hρ (hle.projections hp) h1 h2 h3 h4 h5
 
 end VEnv
 

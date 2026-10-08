@@ -7,10 +7,10 @@ import Lean4Lean.Theory.Inductive.CaseTypeClosed
 /-! Context-carrying renaming replacement.
 
 `VEnv.RenamingReplacement` transports derivations of a lowered environment in
-every context, so its projection clause `ProjectionTransport` must transport
+every context, so its projection clause `ProjectionRulesRenamed` must transport
 the projection rules in arbitrary, possibly ill-formed, image contexts. The
 variant `RenamingReplacementOnCtx` asks for the projection rules only in
-well-formed image contexts (`ProjectionTransportOnCtx`); its transport
+well-formed image contexts (`ProjectionRulesRenamedOnCtx`); its transport
 `RenamingReplacementOnCtx.isDefEq` carries the well-formedness of the image
 context through the binders of the derivation. Every derivation starting in a
 well-formed image context (in particular the empty context, where the
@@ -35,9 +35,9 @@ namespace VEnv
 
 /-- The four projection rules of `envL` at the projection `(typeName, info)`,
 transported along `replaceRen ρ σ` to `envS`, in well-formed image contexts
-(`ProjectionTransport` with the well-formedness of the context as an extra
+(`ProjectionRulesRenamed` with the well-formedness of the context as an extra
 premise). -/
-structure ProjectionTransportOnCtx (envS : VEnv) (ρ : Name → Option VExpr) (σ : Name → Name)
+structure ProjectionRulesRenamedOnCtx (envS : VEnv) (ρ : Name → Option VExpr) (σ : Name → Name)
     (typeName : Name) (info : VProjectionInfo) : Prop where
   projDF : ∀ {U : Nat} {Γ : List VExpr} {levels : List VLevel} {params : List VExpr}
       {index : Nat} {sourceMajor fieldType : VExpr} {fieldLevel : VLevel}
@@ -93,10 +93,10 @@ structure ProjectionTransportOnCtx (envS : VEnv) (ρ : Name → Option VExpr) (�
     envS.IsDefEq U Γ (e.replaceRen ρ σ) (e'.replaceRen ρ σ)
       ((VExpr.mkApps (.const typeName levels) params).replaceRen ρ σ)
 
-theorem ProjectionTransport.onCtx {envS : VEnv} {ρ : Name → Option VExpr} {σ : Name → Name}
+theorem ProjectionRulesRenamed.onCtx {envS : VEnv} {ρ : Name → Option VExpr} {σ : Name → Name}
     {typeName : Name} {info : VProjectionInfo}
-    (H : ProjectionTransport envS ρ σ typeName info) :
-    ProjectionTransportOnCtx envS ρ σ typeName info where
+    (H : ProjectionRulesRenamed envS ρ σ typeName info) :
+    ProjectionRulesRenamedOnCtx envS ρ σ typeName info where
   projDF _ := H.projDF
   projIota _ := H.projIota
   structEta _ := H.structEta
@@ -120,7 +120,7 @@ structure RestoredEliminator (envS : VEnv) (ρ : Name → Option VExpr) (σ : Na
   /-- The source schema, with the same signature, the original families
   `families` and the restoration `r`, is registered under the same key. -/
   registered : envS.eliminators block
-    { schema with originalFamilies := families, restoration := r }
+    { schema with sourceFamilies := families, restoration := r }
   /-- The restoration agrees with the renaming replacement. -/
   agreement : InductiveSignature.RenamingRestorationAgreement r ρ σ
   /-- The restoration table is scoped (the head arguments are closed under the
@@ -140,7 +140,7 @@ families and restoration replaced. -/
 theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.eq_with_of_signature
     {schema schemaS : InductiveSignature.CaseSchema} (h : schemaS.signature = schema.signature) :
     schemaS = { schema with
-      originalFamilies := schemaS.originalFamilies
+      sourceFamilies := schemaS.sourceFamilies
       restoration := schemaS.restoration } := by
   cases schemaS
   cases h
@@ -153,7 +153,7 @@ theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.genericType_withRestorati
     {owner : Fin schema.signature.families.size} {type : VExpr}
     (h : schema.genericType owner = some type) (families : List Name)
     (r : InductiveSignature.Restoration) :
-    ({ schema with originalFamilies := families, restoration := r } :
+    ({ schema with sourceFamilies := families, restoration := r } :
       InductiveSignature.CaseSchema).genericType owner =
       r.expr type := by
   simp only [InductiveSignature.CaseSchema.genericType, InductiveSignature.CaseSchema.type,
@@ -168,7 +168,7 @@ theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.genericEquations_withRest
     {owner : Fin schema.signature.families.size} {rules : List VDefEq}
     (h : schema.genericEquations block owner = some rules) (families : List Name)
     (r : InductiveSignature.Restoration) :
-    ({ schema with originalFamilies := families, restoration := r } :
+    ({ schema with sourceFamilies := families, restoration := r } :
       InductiveSignature.CaseSchema).genericEquations block owner = rules.mapM r.equation := by
   have hempty : (({} : InductiveSignature.Restoration).equation) = fun e => some e := by
     funext e
@@ -190,7 +190,7 @@ theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.Permission.withRestoratio
     {U : Nat} {levels : List VLevel} {target : VLevel}
     (H : schema.Permission U owner levels target) (families : List Name)
     (r : InductiveSignature.Restoration) :
-    ({ schema with originalFamilies := families, restoration := r } :
+    ({ schema with sourceFamilies := families, restoration := r } :
       InductiveSignature.CaseSchema).Permission U owner levels target :=
   ⟨H.length, H.levels_wf, H.target_wf, H.admissible⟩
 
@@ -241,7 +241,7 @@ theorem RestoredEliminator.elimDF {envS : VEnv} {ρ : Name → Option VExpr}
   have hdef := R.agreement.expr_simAt henv (R.betaSubjectReduction U) hΓ hfixT.instL
     (restoredEliminator_instL htype' (target :: levels)) _ htyped
   have hS := VEnv.IsDefEq.elimDF
-    (schema := { schema with originalFamilies := families, restoration := r }) (owner := owner)
+    (schema := { schema with sourceFamilies := families, restoration := r }) (owner := owner)
     R.registered hgen (restoredEliminator_closedN R.restorationScoped hclosed htype')
     (hperm.withRestoration families r) hright heq hdef.hasType.2
   exact .defeqDF hdef.symm hS
@@ -292,7 +292,7 @@ theorem RestoredEliminator.elimIota {envS : VEnv} {ρ : Name → Option VExpr}
   have hTT := R.agreement.expr_simAt henv hβ hΓ hfixT.instL
     (restoredEliminator_instL ht (target :: levels)) _ hT
   have hι := VEnv.IsDefEq.elimIota
-    (schema := { schema with originalFamilies := families, restoration := r })
+    (schema := { schema with sourceFamilies := families, restoration := r })
     (owner := owner) R.registered hgen' hmem' hclosed' (hperm.withRestoration families r)
     (.defeqDF hTT hL.hasType.2) (.defeqDF hTT hR.hasType.2)
   exact hL.trans ((VEnv.IsDefEq.defeqDF hTT.symm hι).trans hR.symm)
@@ -323,7 +323,7 @@ structure RenamingReplacementOnCtx (envS envL : VEnv) (ρ : Name → Option VExp
         df.type.replaceRen ρ σ = df.type)) ∨
     ∃ families r, RestoredEliminator envS ρ σ block schema families r
   projections : ∀ typeName info, envL.projections typeName info →
-    ProjectionTransportOnCtx envS ρ σ typeName info
+    ProjectionRulesRenamedOnCtx envS ρ σ typeName info
 
 variable {envS envL : VEnv} {ρ : Name → Option VExpr} {σ : Name → Name}
 
@@ -463,7 +463,7 @@ theorem RenamingReplacementOnCtx.addConst {env env' : VEnv} {n : Name} {ci : VCo
 /-- Extend a context-carrying renaming replacement by projections. -/
 theorem RenamingReplacementOnCtx.addProjections {env : VEnv}
     (S : RenamingReplacementOnCtx envS env ρ σ) {entries : List VProjectionEntry}
-    (hp : ∀ entry ∈ entries, ProjectionTransportOnCtx envS ρ σ entry.typeName entry.info) :
+    (hp : ∀ entry ∈ entries, ProjectionRulesRenamedOnCtx envS ρ σ entry.typeName entry.info) :
     RenamingReplacementOnCtx envS (env.addProjections entries) ρ σ where
   closed := S.closed
   ordered := S.ordered
@@ -503,7 +503,7 @@ theorem RestoredEliminator.of_wf {block : Name} {schema : InductiveSignature.Cas
     {families : List Name} {r : InductiveSignature.Restoration} (hS : envS.WF)
     (h0 : schema.restoration = {})
     (hreg : envS.eliminators block
-      { schema with originalFamilies := families, restoration := r })
+      { schema with sourceFamilies := families, restoration := r })
     (A : InductiveSignature.RenamingRestorationAgreement r ρ σ)
     (htype : ∀ owner type, schema.genericType owner = some type → type.ProjNamesFixed σ)
     (heqs : ∀ owner rules, schema.genericEquations block owner = some rules →

@@ -34,8 +34,8 @@ theorem VInductDecl.SourceParameterWF.rebaseToTypes
 formation in the ambient observer.  Ordinary formation supplies it directly;
 the nested branch carries the native source certificate and rebases it through
 the exact type-header installation used by this block. -/
-theorem VEnv.InstalledInductCertificate.sourceParameterWF
-    (H : VEnv.InstalledInductCertificate env decl) :
+theorem VEnv.InstalledBelow.sourceParameterWF
+    (H : VEnv.InstalledBelow env decl) :
     ∃ params,
       (∀ type ∈ decl.types, decl.TypeShape env params type) ∧
       ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
@@ -84,7 +84,7 @@ theorem VEnv.InstalledInductCertificate.sourceParameterWF
 /-- Finite installation provenance exposes the exact abstract constructor at
 each family/constructor position, just as it exposes the family header. -/
 theorem installedInductCertificate_constructorLookup
-    (H : VEnv.InstalledInductCertificate env decl)
+    (H : VEnv.InstalledBelow env decl)
     (familyIdx ctorIdx : Nat) (hfamily : familyIdx < decl.types.length)
     (hctor : ctorIdx < decl.types[familyIdx].ctors.length) :
     env.constants decl.types[familyIdx].ctors[ctorIdx].name =
@@ -245,7 +245,7 @@ theorem GeneratedFamilyInstalledContainer.specializedConstructorApplicationHasTy
   let family := C.container.types[C.familyIdx]'C.familyIdx_lt
   have habstractCtor' : i < family.ctors.length := by
     simpa [family] using habstractCtor
-  rcases Lean4Lean.VerifyInductive.VEnv.InstalledInductCertificate.sourceParameterWF
+  rcases Lean4Lean.VerifyInductive.VEnv.InstalledBelow.sourceParameterWF
       C.installed with
     ⟨canonicalParams, Hfamilies, Hconstructors⟩
   have Hfamily := Hfamilies family (List.getElem_mem C.familyIdx_lt)

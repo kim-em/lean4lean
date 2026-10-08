@@ -162,7 +162,7 @@ open VExpr VEnv
 namespace InductiveSignature
 
 /-- The first index that is literally the given field: the selector rule of
-`CaseSchema.ProjectionData.fieldIndex`. -/
+`CaseSchema.StructureTelescope.fieldIndex`. -/
 def fieldSlot (CI : List VExpr) (nF i : Nat) : Option Nat :=
   (CI.zipIdx.find? fun (index, _) =>
     match index with

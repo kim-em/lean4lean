@@ -228,7 +228,7 @@ theorem NestedValidatedRunResult.compilationData_of_tables
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hparamsSize : result.params.size = result.nparams)
@@ -247,7 +247,7 @@ theorem NestedValidatedRunResult.compilationData_of_tables
         generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hequations : E.production.compilationInstance.restoredEquations
       (compilationRestoration sourceDecl auxiliaries) = some (C.primaryRules ++ C.auxiliaryRules)) :
-    CertifiedSpecializations (ves.venv (if isUnsafe then .unsafe else .safe))
+    ContainersInstalled (ves.venv (if isUnsafe then .unsafe else .safe))
         auxiliaries ∧
       Nonempty (CompilationData (ves.venv (if isUnsafe then .unsafe else .safe))
         sourceDecl E.production.loweredDecl E.production.compilationSignature
@@ -315,7 +315,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntryInfos
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.production.loweredDecl.types ++
@@ -382,7 +382,7 @@ theorem NestedValidatedRunResult.restoredMajorInduct
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.production.loweredDecl.types ++

@@ -183,10 +183,10 @@ theorem ctorNames_eq_of_forall₂ {left right : List VConstVal}
 
 theorem ContainerSpecialization.directFamily_heads
     {a : ContainerSpecialization} {uvars : Nat} {params : List VExpr}
-    {direct : VInductiveType} (H : a.directFamily uvars params = some direct) :
+    {direct : VInductiveType} (H : a.specializedFamily uvars params = some direct) :
     (a.heads uvars params.length).map (·.auxiliary) =
       direct.name :: direct.ctors.map (·.name) := by
-  unfold ContainerSpecialization.directFamily at H
+  unfold ContainerSpecialization.specializedFamily at H
   cases htype : specializeType (a.source.type.instL a.levels) a.arguments with
   | none => simp [htype] at H
   | some type =>

@@ -30,7 +30,7 @@ private def dependentSpecialization : ContainerSpecialization where
 the correct depth in each field and result. Its recursive domains still name
 the source container: recursive expansion is a subsequent operation. -/
 theorem dependentDirectFamily :
-    dependentSpecialization.directFamily 1 [.sort (.param 0)] =
+    dependentSpecialization.specializedFamily 1 [.sort (.param 0)] =
     some {
       name := `AuxBoxList
       uvars := 1
@@ -73,8 +73,8 @@ private def missingConstructorParameter : ContainerSpecialization :=
           uvars := 1
           type := list (.param 0) (.bvar 0) }] }] } }
 
-example : missingFamilyParameter.directFamily 1 [.sort (.param 0)] = none := rfl
-example : missingConstructorParameter.directFamily 1 [.sort (.param 0)] = none := rfl
+example : missingFamilyParameter.specializedFamily 1 [.sort (.param 0)] = none := rfl
+example : missingConstructorParameter.specializedFamily 1 [.sort (.param 0)] = none := rfl
 
 private def tree : VExpr := .const `Tree []
 

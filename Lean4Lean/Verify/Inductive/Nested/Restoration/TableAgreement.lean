@@ -860,7 +860,7 @@ private theorem nestedExprExpansion_false_eq :
         source = target := by
   intro depth source target H
   induction H with
-  | hit h => exact h.elim
+  | occurrence h => exact h.elim
   | bvar | sort | const | elim => rfl
   | proj _ ih => rw [ih]
   | app _ _ ihf iha => rw [ihf, iha]
@@ -1227,7 +1227,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
         auxiliaries generated ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-          (VInductDecl.NestedAuxiliarySourceAbsolute
+          (VInductDecl.NestedOccurrenceReplacementAbs
             (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
         generated (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
       result.params.size = result.nparams ∧
@@ -1419,7 +1419,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
         AuxiliarySpecializationEvidence (ves.venv safety) E.nativeSource.envTypes
           P.headers.commonParameterContext sourceDecl a g ∧
         VInductDecl.NestedTypeExpansion (ves.venv safety) sourceDecl
-          (VInductDecl.NestedAuxiliarySourceAbsolute (ves.venv safety) sourceDecl
+          (VInductDecl.NestedOccurrenceReplacementAbs (ves.venv safety) sourceDecl
             generated) g t ∧
         t ∈ P.loweredDecl.types ∧ t.name = a.auxiliary ∧
         t.ctors.map (·.name) = a.source.ctors.map a.constructorName ∧
@@ -1716,7 +1716,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAll
         auxiliaries generated ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-          (VInductDecl.NestedAuxiliarySourceAbsolute
+          (VInductDecl.NestedOccurrenceReplacementAbs
             (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
         generated (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
       result.params.size = result.nparams ∧
@@ -1760,7 +1760,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoring
         auxiliaries generated ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-          (VInductDecl.NestedAuxiliarySourceAbsolute
+          (VInductDecl.NestedOccurrenceReplacementAbs
             (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
         generated (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
       result.params.size = result.nparams ∧
@@ -1840,7 +1840,7 @@ theorem ExprReplacement.closed {replaceNode : Expr → Option Expr}
     {input output : Expr} (H : ExprReplacement replaceNode input output) :
     ∀ k, Closed input k → Closed output k := by
   induction H with
-  | hit h => exact fun k hk => hnode _ _ k h hk
+  | occurrence h => exact fun k hk => hnode _ _ k h hk
   | bvar | fvar | mvar | sort | const | lit => exact fun _ hk => hk
   | app _ _ _ ihf iha =>
     intro k hk

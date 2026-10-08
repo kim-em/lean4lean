@@ -41,8 +41,8 @@ def prefixProgram (data : RecursorData) (U : Nat) (levels : List VLevel)
   let remaining := data.majorOffset + 1 - arguments.length
   let (domains, result) ← takeForalls remaining type
   let allArguments := arguments.map (·.liftN remaining) ++ vars remaining 0
-  let constructor ← data.reconstructCanonical U levels allArguments
-  let source ← data.schema.projectionData data.owner (data.sourceLevels levels)
+  let constructor ← data.reconstructWithPropFields U levels allArguments
+  let source ← data.schema.structureTelescope data.owner (data.sourceLevels levels)
   let fields ← source.reconstructionPrefix data.block data.owner.val (data.sourceLevels levels)
     source.fields (List.replicate source.fields.length .zero) []
   let projectionArguments := allArguments.take data.numParams ++

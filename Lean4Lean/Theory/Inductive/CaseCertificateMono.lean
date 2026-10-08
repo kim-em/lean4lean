@@ -19,9 +19,9 @@ private theorem sourceWF_mono {decl : VInductDecl} {env env' envTypes envCtors :
     fun ctor hctor => (hsourceCtorsWF ctor hctor).mono hsourceTypesLE⟩
 
 private theorem formationWF_mono {decl : VInductDecl} {env env' envTypes : VEnv}
-    (H : decl.FormationWF env) (hle : env ≤ env')
+    (H : decl.OrdinaryFormationWF env) (hle : env ≤ env')
     (htypes : env'.addConstVals decl.typeConstants = some envTypes) :
-    decl.FormationWF env' := by
+    decl.OrdinaryFormationWF env' := by
   rcases H with ⟨params, resultLevel, formationTypes, hformationTypes, htypeShapes,
     hctorShapes, hraw⟩
   have hformationTypesLE : formationTypes ≤ envTypes :=
@@ -99,10 +99,10 @@ theorem RecursorNamesFresh.mono {env env' : VEnv} {source expanded : VInductDecl
     RecursorNamesFresh env' source expanded auxiliaries :=
   fun n hn => ⟨hfresh n hn, (H n hn).2⟩
 
-theorem _root_.Lean4Lean.CertifiedSpecializations.mono {env env' : VEnv}
+theorem _root_.Lean4Lean.ContainersInstalled.mono {env env' : VEnv}
     {auxiliaries : List ContainerSpecialization}
-    (H : CertifiedSpecializations env auxiliaries) (hle : env ≤ env') :
-    CertifiedSpecializations env' auxiliaries := by
+    (H : ContainersInstalled env auxiliaries) (hle : env ≤ env') :
+    ContainersInstalled env' auxiliaries := by
   induction auxiliaries with
   | nil => exact .nil
   | cons a rest ih =>

@@ -92,7 +92,7 @@ theorem projMajor_of_entry {envF base E : VEnv} {source expanded : VInductDecl}
     {block : VInductBlock} (hF : envF.WF)
     (C : CaseCompilationData base source expanded s aux block)
     (hfresh : RecursorNamesFresh base source expanded aux)
-    (hprior : CertifiedSpecializations base aux) (hE : E.Ordered) (hEF : E ≤ envF)
+    (hprior : ContainersInstalled base aux) (hE : E.Ordered) (hEF : E ≤ envF)
     (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → SoundEnvAtH envF E U Δ) (hbE : base ≤ E)
     (htypesE : ∀ t ∈ source.types, E.constants t.name = some t.toVConstant)
     (index : Fin s.constructors.size)
@@ -141,7 +141,7 @@ theorem projMajor_source {envF env0 installed base E : VEnv} {source expanded : 
     {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
     {block : VInductBlock} (hF : envF.WF)
     (C : CompilationData base source expanded s g aux block)
-    (hprior : CertifiedSpecializations base aux) (h0 : env0.Ordered)
+    (hprior : ContainersInstalled base aux) (h0 : env0.Ordered)
     (hinst : block.install env0 = some installed) (hle : installed ≤ envF)
     (hpc : ProjsClosed envF installed)
     (hPV : ∀ S info, installed.projections S info → ProjValid envF S info)
@@ -208,7 +208,7 @@ theorem projMajor_source {envF env0 installed base E : VEnv} {source expanded : 
 
 /-- **`ProjMajor` of a container family.** -/
 theorem projMajor_container {envF env0 base : VEnv} {aux : List ContainerSpecialization}
-    (hF : envF.WF) (hprior : CertifiedSpecializations base aux) (hb0 : base ≤ env0)
+    (hF : envF.WF) (hprior : ContainersInstalled base aux) (hb0 : base ≤ env0)
     (h0F : env0 ≤ envF) (hpc : ProjsClosed envF env0)
     (hPV : ∀ S info, env0.projections S info → ProjValid envF S info)
     {a : ContainerSpecialization} (ha : a ∈ aux) {c : VConstVal} (hc : c ∈ a.source.ctors)
@@ -233,7 +233,7 @@ theorem projMajor_restored {envF env0 installed base E : VEnv} {source expanded 
     {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
     {block : VInductBlock} {df : VDefEq} (hF : envF.WF)
     (C : CompilationData base source expanded s g aux block)
-    (hprior : CertifiedSpecializations base aux) (h0 : env0.Ordered)
+    (hprior : ContainersInstalled base aux) (h0 : env0.Ordered)
     (hinst : block.install env0 = some installed) (hle : installed ≤ envF)
     (hpc : ProjsClosed envF installed)
     (hPV : ∀ S info, installed.projections S info → ProjValid envF S info)
@@ -300,7 +300,7 @@ theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
     (hle : env.addEliminator key schema ≤ envF)
     (C : CaseCompilationData base source expanded schema.signature aux block)
     (hfresh : RecursorNamesFresh base source expanded aux)
-    (hprior : CertifiedSpecializations base aux)
+    (hprior : ContainersInstalled base aux)
     (hrr : schema.restoration = compilationRestoration source aux) (hble : base ≤ env)
     (hpc0 : ProjsClosed envF env) (V : EnvValid envF env)
     (hsrc : ∀ F ∈ source.types, ∀ info, envF.projections F.name info →

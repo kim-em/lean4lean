@@ -58,7 +58,7 @@ def equationMajor (g : Instance s) (index : Fin s.constructors.size) : VExpr :=
 
 /-- The open left-hand side of equation `index`. -/
 def equationLhsBody (g : Instance s) (index : Fin s.constructors.size)
-    (mode : HeadMode := .native) : VExpr :=
+    (mode : HeadMode := .recursor) : VExpr :=
   VExpr.mkApps (g.recursorHead mode s.constructors[index].owner)
     (vars (s.params.length + (s.families.size + s.constructors.size))
         s.constructors[index].fields.length ++
@@ -66,7 +66,7 @@ def equationLhsBody (g : Instance s) (index : Fin s.constructors.size)
 
 /-- The open right-hand side of equation `index`. -/
 def equationRhsBody (g : Instance s) (index : Fin s.constructors.size)
-    (mode : HeadMode := .native) : VExpr :=
+    (mode : HeadMode := .recursor) : VExpr :=
   VExpr.mkApps
     (.bvar (s.constructors[index].fields.length + s.constructors.size - 1 - index.val))
     (vars s.constructors[index].fields.length 0 ++
@@ -82,7 +82,7 @@ def equationTypeBody (g : Instance s) (index : Fin s.constructors.size) : VExpr 
 
 /-- `equation` is the telescope closure of its components. -/
 theorem equation_eq (g : Instance s) (index : Fin s.constructors.size)
-    (mode : HeadMode := .native) :
+    (mode : HeadMode := .recursor) :
     g.equation index mode =
       { uvars := g.uvars
         lhs := VExpr.wrapLams (g.equationDomains index) (g.equationLhsBody index mode)

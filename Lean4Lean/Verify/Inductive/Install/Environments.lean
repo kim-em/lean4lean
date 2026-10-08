@@ -1189,7 +1189,7 @@ theorem VInductDecl.WF.rebaseOfBlock
         hctorShapes, hraw⟩
     have hformationTypesLE : formationTypes ≤ largerTypes :=
       VEnv.addConstVals_mono hbase hformationTypes hlargerTypes'
-    have Hformation : decl.FormationWF largerBase :=
+    have Hformation : decl.OrdinaryFormationWF largerBase :=
       ⟨params, resultLevel, largerTypes, hlargerTypes',
         fun type htype =>
           ⟨(htypeShapes type htype).1,

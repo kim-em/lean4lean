@@ -57,11 +57,11 @@ theorem list_eq_single_of_names {l : List VConstVal} {c : VConstVal} {k : Name}
 /-- Every constructor of a certified container family is a native constructor of a later
 environment. -/
 theorem container_ctor_native {base : VEnv} {aux : List ContainerSpecialization}
-    (hprior : CertifiedSpecializations base aux) (hle : base ≤ env)
+    (hprior : ContainersInstalled base aux) (hle : base ≤ env)
     {a : ContainerSpecialization} (ha : a ∈ aux) {c : VConstVal} (hc : c ∈ a.source.ctors) :
     Model.IsNativeCtor env c.name := by
   obtain ⟨base', block', inst', hcomp', hinst', hle'⟩ :=
-    EnvTables.CertifiedSpecializations.member hprior ha
+    EnvTables.ContainersInstalled.member hprior ha
   obtain ⟨b'', exp', s', g', aux', hb'', hdata', hprior'⟩ := hcomp'.compilationOrigin
   have hfam_lt : a.family.val < s'.families.size :=
     Nat.lt_of_lt_of_le a.family.isLt (EnvTables.CaseCompilationData.families_size_ge hdata'.toCaseCompilationData)
@@ -87,7 +87,7 @@ theorem container_ctor_native {base : VEnv} {aux : List ContainerSpecialization}
 /-- **The entry of a projection-registered container family** is the container declaration's
 own entry, and the family has the single constructor of the major. -/
 theorem WF.container_entry {base : VEnv} {aux : List ContainerSpecialization} (henv : env.WF)
-    (hprior : CertifiedSpecializations base aux) (hle : base ≤ env)
+    (hprior : ContainersInstalled base aux) (hle : base ≤ env)
     {a : ContainerSpecialization} (ha : a ∈ aux) {c : VConstVal} (hc : c ∈ a.source.ctors)
     {info : VProjectionInfo} (hp : env.projections a.source.name info) :
     a.source.ctors = [c] ∧
@@ -99,7 +99,7 @@ theorem WF.container_entry {base : VEnv} {aux : List ContainerSpecialization} (h
     exact henv.ctor_of_projFamily hp (.inl (container_ctor_native hprior hle ha hc'))
       ⟨_, ls, hle.constants h1, h2⟩
   obtain ⟨base', block', inst', hcomp', hinst', hle'⟩ :=
-    EnvTables.CertifiedSpecializations.member hprior ha
+    EnvTables.ContainersInstalled.member hprior ha
   obtain ⟨b'', exp', s', g', aux', hb'', hdata', hprior'⟩ := hcomp'.compilationOrigin
   have hsrc : a.source ∈ a.container.types := List.getElem_mem a.family.isLt
   have hnd := EnvTables.sourceNames_ctors_nodup hdata'.sourceWF.2.1 hsrc
@@ -119,7 +119,7 @@ theorem generic_major_at {schema : CaseSchema} {owner : Fin schema.signature.fam
     {index : Fin (schema.view owner).constructors.size} {key : Name} {df : VDefEq}
     {fn major : VExpr}
     (hrestore : schema.restoration.equation ((schema.specialize owner schema.genericUvars
-      schema.genericLevels (.param 0)).equation index (.abstract key owner.val)) = some df)
+      schema.genericLevels (.param 0)).equation index (.elim key owner.val)) = some df)
     (hm : df.lhs.stripLams = .app fn major) :
     ∃ j : Fin schema.signature.constructors.size, schema.signature.constructors[j].owner = owner ∧
       (schema.view owner).constructors[index] = schema.caseConstructor schema.signature.constructors[j] ∧

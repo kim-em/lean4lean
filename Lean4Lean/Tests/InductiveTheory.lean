@@ -61,8 +61,8 @@ theorem enumDecl_wf : enumDecl.WF .empty := by
         List.flatMap_cons, List.flatMap_nil, List.append_nil, List.mem_singleton] at hmem
       subst ctor
       exact hctor
-  · apply VInductDecl.FormationEvidence.ordinary
-    unfold VInductDecl.FormationWF
+  · apply VInductDecl.FormationWF.ordinary
+    unfold VInductDecl.OrdinaryFormationWF
     refine ⟨[], .succ .zero, enumTypesEnv, haddType, ?_, ?_⟩
     · intro type hmem
       simp [enumDecl] at hmem
@@ -288,7 +288,7 @@ private theorem addEnumConstructors :
     VInductDecl.constructorConstants, VEnv.addConstVals, VEnv.addConst]
 
 /-- Formation is proved independently of the generated recursor and equation. -/
-theorem enumFormation : VInductDecl.FormationWF .empty enumDecl := by
+theorem enumFormation : VInductDecl.OrdinaryFormationWF .empty enumDecl := by
   have hlookup : enumTypesEnv.constants `Enum0 = some enumType.toVConstant := by
     simp [enumTypesEnv]
   refine ⟨[], .succ .zero, enumTypesEnv, addEnumTypes, ?_, ?_, ?_⟩

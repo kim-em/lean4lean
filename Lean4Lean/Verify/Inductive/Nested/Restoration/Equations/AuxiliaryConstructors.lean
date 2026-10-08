@@ -11,7 +11,7 @@ of the certified container `J` of the specialization. The container's
 installation certificate records its source parameter formation: the
 parameter prefix of the constructor type of `J.c` is definitionally the
 parameter prefix of the family type of `J`
-(`InstalledInductCertificate.ctorParameterContext`). The specialization
+(`InstalledBelow.ctorParameterContext`). The specialization
 evidence types the family application `J levels args` in the source parameter
 context, so the constructor application `J.c levels args` has the
 instantiated constructor type (`HasType.const_mkApps_of_family`). Closing over
@@ -20,7 +20,7 @@ definitionally the generated constructor type, the syntactic restoration of
 the lowered constructor type.
 
 **Projections.** The projection rules of the lowered declaration are transported in
-well-formed image contexts (`ProjectionTransportOnCtx`,
+well-formed image contexts (`ProjectionRulesRenamedOnCtx`,
 `Nested/Restoration/Equations/ProjectionRenaming.lean` and `Nested/Restoration/AuxiliaryProjections.lean`), where beta
 subject reduction applies.
 -/
@@ -121,8 +121,8 @@ theorem VEnv.HasType.const_mkApps_of_family {env : VEnv} {U N : Nat} (henv : env
 /-- The parameter prefix of every constructor type of an installed container
 is definitionally the parameter prefix of its family type, given that the
 family type has a syntactic parameter prefix. -/
-theorem _root_.Lean4Lean.VEnv.InstalledInductCertificate.ctorParameterContext {env : VEnv}
-    {decl : VInductDecl} (henv : env.WF) (H : VEnv.InstalledInductCertificate env decl)
+theorem _root_.Lean4Lean.VEnv.InstalledBelow.ctorParameterContext {env : VEnv}
+    {decl : VInductDecl} (henv : env.WF) (H : VEnv.InstalledBelow env decl)
     {type : VInductiveType} (htype : type ∈ decl.types)
     {ctor : VConstVal} (hctor : ctor ∈ type.ctors)
     (hpre : HasForallPrefix type.type decl.nparams) :
@@ -175,8 +175,8 @@ theorem _root_.Lean4Lean.VEnv.InstalledInductCertificate.ctorParameterContext {e
 
 /-- An installed declaration exposes each of its constructor constants at the
 exact abstract value recorded by the source declaration (membership form). -/
-theorem _root_.Lean4Lean.VEnv.InstalledInductCertificate.constructorConstant_mem {env : VEnv}
-    {decl : VInductDecl} (H : VEnv.InstalledInductCertificate env decl)
+theorem _root_.Lean4Lean.VEnv.InstalledBelow.constructorConstant_mem {env : VEnv}
+    {decl : VInductDecl} (H : VEnv.InstalledBelow env decl)
     {type : VInductiveType} (htype : type ∈ decl.types)
     {ctor : VConstVal} (hctor : ctor ∈ type.ctors) :
     env.constants ctor.name = some ctor.toVConstant := by

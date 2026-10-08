@@ -169,7 +169,7 @@ inductive NestedExprReplacement
     (env : Environment) (lctx : LocalContext) (params As : Array Expr) :
     Expr → Lean4Lean.ElimNestedInductive.State →
       Expr × Lean4Lean.ElimNestedInductive.State → Prop
-  | hit : NestedReplacement env lctx params As input state
+  | occurrence : NestedReplacement env lctx params As input state
       (some output, nextState) →
       NestedExprReplacement env lctx params As input state (output, nextState)
   | bvar : NestedReplacement env lctx params As (.bvar i) state (none, state) →
@@ -1245,7 +1245,7 @@ inductive NestedExprMapping
     (finalResult : Lean4Lean.ElimNestedInductive.Result) :
     Expr → Lean4Lean.ElimNestedInductive.State →
       Expr × Lean4Lean.ElimNestedInductive.State → Prop
-  | hit : NestedReplacementFinalTrace env lctx params As input state output
+  | occurrence : NestedReplacementFinalTrace env lctx params As input state output
       nextState finalResult finalState →
       NestedExprMapping env lctx params As finalResult input state
         (output, nextState)
@@ -1323,7 +1323,7 @@ theorem NestedExprMapping.outputFVarIdsIn
     (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
     out.1.FVarIdsIn (· ∈ Hselection.fvars) := by
   induction H with
-  | hit Hnode => exact Hnode.outputFVarsIn Hselection Hinput
+  | occurrence Hnode => exact Hnode.outputFVarsIn Hselection Hinput
   | bvar | fvar | mvar | sort | const | lit => exact Hinput
   | app Hnode Hfn Harg ihFn ihArg =>
     simp only [Expr.FVarIdsIn] at Hinput
@@ -1357,7 +1357,7 @@ theorem NestedExprMapping.closed
     (Hselection : LocalForallSelection lctx As)
     (Hinput : Closed input k) : Closed out.1 k := by
   induction H generalizing k with
-  | hit Hnode =>
+  | occurrence Hnode =>
     rcases Hnode.mapping with
       ⟨value, targetName, levels, auxName, auxLevels, nested,
         Hcandidate, _hauxLevels, hhead, hlowered, hnested, hlookup⟩
@@ -1406,7 +1406,7 @@ inductive NestedExprReopening
     (restoreAs : Array Expr) :
     Expr → Lean4Lean.ElimNestedInductive.State →
       Expr × Lean4Lean.ElimNestedInductive.State → Prop
-  | hit : NestedReplacementReopens env lctx params As input state output
+  | occurrence : NestedReplacementReopens env lctx params As input state output
       finalResult restoreAs →
       NestedExprReopening env lctx params As finalResult restoreAs input state
         (output, nextState)
@@ -1488,7 +1488,7 @@ theorem NestedExprReopening.closed
     (Hselection : LocalForallSelection lctx As)
     (Hinput : Closed input k) : Closed out.1 k := by
   induction H generalizing k with
-  | hit Hnode =>
+  | occurrence Hnode =>
     rcases Hnode with
       ⟨value, targetName, levels, auxName, auxLevels, nested,
         Hcandidate, hhead, hlowered, hlookup, hreopens⟩
@@ -1544,8 +1544,8 @@ theorem NestedExprMapping.reopens
     NestedExprReopening env lctx params As finalResult restoreAs input state
       out := by
   induction H with
-  | hit Hnode =>
-    exact .hit (Hnode.reopensOfFVars hresultParams fvars hparams hnodup
+  | occurrence Hnode =>
+    exact .occurrence (Hnode.reopensOfFVars hresultParams fvars hparams hnodup
       Hselection hAs Hinput)
   | bvar Hnode => exact .bvar Hnode
   | fvar Hnode => exact .fvar Hnode
@@ -1582,7 +1582,7 @@ theorem NestedExprReopening.constHead_of_noCandidate
     (Hhead : out.1.getAppFn = .const name levels) :
     input.getAppFn = .const name levels := by
   induction H with
-  | hit Hnode =>
+  | occurrence Hnode =>
     rcases Hnode with
       ⟨value, targetName, levels, auxName, auxLevels, nested,
         Hcandidate, hhead, hlowered, hlookup, hreopens⟩
@@ -1676,7 +1676,7 @@ theorem NestedExprReopening.restore_eqv
         (finalResult.restoreNestedNode restoreEnv targetAs {}) ==
       Expr.reopenFVarsAt input Hselection.fvars restoreFvars k) = true := by
   induction H generalizing k with
-  | @hit hitInput hitState hitOutput nextState Hnode =>
+  | @occurrence hitInput hitState hitOutput nextState Hnode =>
     rcases Hnode.restoreNode restoreEnv Hselection hnd restoreFvars hrestore
         hsize hresultNParams k with
       ⟨restored, hrestored, heqv⟩
@@ -2049,7 +2049,7 @@ theorem NestedExprReplacement.newTypesLE
     (H : NestedExprReplacement env lctx params As e state out) :
     NestedNewTypesLE state out.2 := by
   induction H with
-  | hit Hnode => exact Hnode.newTypesLE
+  | occurrence Hnode => exact Hnode.newTypesLE
   | bvar | fvar | mvar | sort | const | lit => exact .refl _
   | app Hnode _ _ ihFn ihArg =>
     exact Hnode.newTypesLE.trans (ihFn.trans ihArg)
@@ -2064,7 +2064,7 @@ theorem NestedExprReplacement.nestedAuxLE
     (H : NestedExprReplacement env lctx params As e state out) :
     NestedAuxLE state out.2 := by
   induction H with
-  | hit Hnode => exact Hnode.nestedAuxLE
+  | occurrence Hnode => exact Hnode.nestedAuxLE
   | bvar | fvar | mvar | sort | const | lit => exact .refl _
   | app Hnode _ _ ihFn ihArg =>
     exact Hnode.nestedAuxLE.trans (ihFn.trans ihArg)
@@ -2089,7 +2089,7 @@ theorem NestedExprMapping.lvls
     (H : NestedExprMapping env lctx params As finalResult input state out) :
     out.2.lvls = state.lvls := by
   induction H with
-  | hit Hnode => exact Hnode.lvls
+  | occurrence Hnode => exact Hnode.lvls
   | bvar | fvar | mvar | sort | const | lit => rfl
   | app _ _ _ ihFn ihArg => exact ihArg.trans ihFn
   | lam _ _ _ ihDom ihBody | forallE _ _ _ ihDom ihBody => exact ihBody.trans ihDom
@@ -2100,7 +2100,7 @@ theorem NestedExprReplacement.namesWF
     (H : NestedExprReplacement env lctx params As e state out)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   induction H with
-  | hit Hnode => exact Hnode.namesWF Hstate
+  | occurrence Hnode => exact Hnode.namesWF Hstate
   | bvar | fvar | mvar | sort | const | lit => exact Hstate
   | app Hnode Hfn Harg ihFn ihArg =>
     exact ihArg (ihFn (Hnode.namesWF Hstate))
@@ -2118,7 +2118,7 @@ theorem NestedExprReplacement.namesFresh
     (Hstate : NestedAuxNamesFresh env state) :
     NestedAuxNamesFresh env out.2 := by
   induction H with
-  | hit Hnode => exact Hnode.namesFresh Hstate
+  | occurrence Hnode => exact Hnode.namesFresh Hstate
   | bvar | fvar | mvar | sort | const | lit => exact Hstate
   | app Hnode Hfn Harg ihFn ihArg =>
     exact ihArg (ihFn (Hnode.namesFresh Hstate))
@@ -2138,7 +2138,7 @@ theorem NestedExprReplacement.pendingNewTypesClosed
     (Hstate : PendingNewTypesClosed cursor state) :
     PendingNewTypesClosed cursor out.2 := by
   induction H with
-  | hit Hnode =>
+  | occurrence Hnode =>
     exact Hnode.pendingNewTypesClosed Henv Hclosing Hinput Hstate
   | bvar Hnode | fvar Hnode | mvar Hnode | sort Hnode | const Hnode
       | lit Hnode =>
@@ -2175,7 +2175,7 @@ theorem NestedExprReplacement.auxFVarsIn
     (Hstate : NestedAuxFVarsIn P state) :
     NestedAuxFVarsIn P out.2 := by
   induction H generalizing P with
-  | hit Hnode => exact Hnode.auxFVarsIn HAs Hinput Hparams Hstate
+  | occurrence Hnode => exact Hnode.auxFVarsIn HAs Hinput Hparams Hstate
   | bvar Hnode | fvar Hnode | mvar Hnode | sort Hnode | const Hnode
       | lit Hnode =>
     exact Hnode.auxFVarsIn HAs Hinput Hparams Hstate
@@ -2207,7 +2207,7 @@ theorem NestedExprReplacement.finalMapping
     (Hmap : NestedAuxMapModels finalResult finalState) :
     NestedExprMapping env lctx params As finalResult input state out := by
   induction H generalizing finalState with
-  | hit Hnode => exact .hit (Hnode.finalTrace Hlater Hmap)
+  | occurrence Hnode => exact .occurrence (Hnode.finalTrace Hlater Hmap)
   | bvar Hnode => exact .bvar Hnode
   | fvar Hnode => exact .fvar Hnode
   | mvar Hnode => exact .mvar Hnode
@@ -2248,7 +2248,7 @@ theorem replaceAllNested_refines
     intro replacement nextState Hnode
     rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
     · cases hnone; exact Except.WF.pure (.bvar Hnode)
-    · cases hsome; exact Except.WF.pure (.hit Hnode)
+    · cases hsome; exact Except.WF.pure (.occurrence Hnode)
   | fvar id =>
     simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
       Expr.replaceM, Expr.replaceNoCacheT]
@@ -2257,7 +2257,7 @@ theorem replaceAllNested_refines
     intro replacement nextState Hnode
     rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
     · cases hnone; exact Except.WF.pure (.fvar Hnode)
-    · cases hsome; exact Except.WF.pure (.hit Hnode)
+    · cases hsome; exact Except.WF.pure (.occurrence Hnode)
   | mvar id =>
     simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
       Expr.replaceM, Expr.replaceNoCacheT]
@@ -2266,7 +2266,7 @@ theorem replaceAllNested_refines
     intro replacement nextState Hnode
     rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
     · cases hnone; exact Except.WF.pure (.mvar Hnode)
-    · cases hsome; exact Except.WF.pure (.hit Hnode)
+    · cases hsome; exact Except.WF.pure (.occurrence Hnode)
   | sort level =>
     simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
       Expr.replaceM, Expr.replaceNoCacheT]
@@ -2275,7 +2275,7 @@ theorem replaceAllNested_refines
     intro replacement nextState Hnode
     rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
     · cases hnone; exact Except.WF.pure (.sort Hnode)
-    · cases hsome; exact Except.WF.pure (.hit Hnode)
+    · cases hsome; exact Except.WF.pure (.occurrence Hnode)
   | const name levels =>
     simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
       Expr.replaceM, Expr.replaceNoCacheT]
@@ -2284,7 +2284,7 @@ theorem replaceAllNested_refines
     intro replacement nextState Hnode
     rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
     · cases hnone; exact Except.WF.pure (.const Hnode)
-    · cases hsome; exact Except.WF.pure (.hit Hnode)
+    · cases hsome; exact Except.WF.pure (.occurrence Hnode)
   | lit literal =>
     simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
       Expr.replaceM, Expr.replaceNoCacheT]
@@ -2293,7 +2293,7 @@ theorem replaceAllNested_refines
     intro replacement nextState Hnode
     rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
     · cases hnone; exact Except.WF.pure (.lit Hnode)
-    · cases hsome; exact Except.WF.pure (.hit Hnode)
+    · cases hsome; exact Except.WF.pure (.occurrence Hnode)
   | app fn arg ihFn ihArg =>
     simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
       Expr.replaceM, Expr.replaceNoCacheT]
@@ -2307,7 +2307,7 @@ theorem replaceAllNested_refines
       refine nestedBind.WF (ihArg fnState) ?_
       intro arg' outState Harg
       exact Except.WF.pure (.app Hnode Hfn Harg)
-    · cases hsome; exact Except.WF.pure (.hit Hnode)
+    · cases hsome; exact Except.WF.pure (.occurrence Hnode)
   | lam name dom body bi ihDom ihBody =>
     simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
       Expr.replaceM, Expr.replaceNoCacheT]
@@ -2321,7 +2321,7 @@ theorem replaceAllNested_refines
       refine nestedBind.WF (ihBody domState) ?_
       intro body' outState Hbody
       exact Except.WF.pure (.lam Hnode Hdom Hbody)
-    · cases hsome; exact Except.WF.pure (.hit Hnode)
+    · cases hsome; exact Except.WF.pure (.occurrence Hnode)
   | forallE name dom body bi ihDom ihBody =>
     simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
       Expr.replaceM, Expr.replaceNoCacheT]
@@ -2335,7 +2335,7 @@ theorem replaceAllNested_refines
       refine nestedBind.WF (ihBody domState) ?_
       intro body' outState Hbody
       exact Except.WF.pure (.forallE Hnode Hdom Hbody)
-    · cases hsome; exact Except.WF.pure (.hit Hnode)
+    · cases hsome; exact Except.WF.pure (.occurrence Hnode)
   | letE name type value body nondep ihType ihValue ihBody =>
     simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
       Expr.replaceM, Expr.replaceNoCacheT]
@@ -2351,7 +2351,7 @@ theorem replaceAllNested_refines
       refine nestedBind.WF (ihBody valueState) ?_
       intro body' outState Hbody
       exact Except.WF.pure (.letE Hnode Htype Hvalue Hbody)
-    · cases hsome; exact Except.WF.pure (.hit Hnode)
+    · cases hsome; exact Except.WF.pure (.occurrence Hnode)
   | mdata data body ihBody =>
     simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
       Expr.replaceM, Expr.replaceNoCacheT]
@@ -2363,7 +2363,7 @@ theorem replaceAllNested_refines
       refine nestedBind.WF (ihBody state) ?_
       intro body' outState Hbody
       exact Except.WF.pure (.mdata Hnode Hbody)
-    · cases hsome; exact Except.WF.pure (.hit Hnode)
+    · cases hsome; exact Except.WF.pure (.occurrence Hnode)
   | proj name idx body ihBody =>
     simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
       Expr.replaceM, Expr.replaceNoCacheT]
@@ -2375,7 +2375,7 @@ theorem replaceAllNested_refines
       refine nestedBind.WF (ihBody state) ?_
       intro body' outState Hbody
       exact Except.WF.pure (.proj Hnode Hbody)
-    · cases hsome; exact Except.WF.pure (.hit Hnode)
+    · cases hsome; exact Except.WF.pure (.occurrence Hnode)
 
 end VerifyInductive
 end Lean4Lean

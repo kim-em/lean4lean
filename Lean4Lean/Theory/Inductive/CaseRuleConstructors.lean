@@ -127,7 +127,7 @@ selected by the generator. It cannot be chosen independently by a match. -/
 theorem Instance.parsed_constructor {s : InductiveSignature} (g : Instance s)
     (index : Fin s.constructors.size) {r : Restoration} {equation : VDefEq}
     {rule : AppliedRule}
-    (hrestore : r.equation (g.equation index (.abstract block firstOwner)) = some equation)
+    (hrestore : r.equation (g.equation index (.elim block firstOwner)) = some equation)
     (hparse : AppliedRule.extract key owner equation = some rule) :
     rule.application.ctorName = r.headName s.constructors[index].name := by
   obtain ⟨hl, hr, ht⟩ := Restoration.equation_parts hrestore
@@ -137,7 +137,7 @@ theorem Instance.parsed_constructor {s : InductiveSignature} (g : Instance s)
   let extra := s.families.size + s.constructors.size
   let indices := ctor.indices.map fun e => (e.instL g.levels).liftN extra ctor.fields.length
   let preArgs := vars (s.params.length + extra) ctor.fields.length ++ indices
-  let head := g.recursorHead (.abstract block firstOwner) ctor.owner
+  let head := g.recursorHead (.elim block firstOwner) ctor.owner
   change r.expr (VExpr.mkApps head (preArgs ++ [g.constructorApp ctor extra 0])) = some lhs' at hl'
   simp only [VExpr.mkApps, List.foldl_append, List.foldl_cons, List.foldl_nil] at hl'
   change (do let major' ← r.expr (g.constructorApp ctor extra 0)
@@ -176,7 +176,7 @@ theorem directFamily_restored_constructor_names
     {s : InductiveSignature}
     {params : List VExpr}
     (H : CaseCompilationData env source expanded s auxiliaries block)
-    (ha : a ∈ auxiliaries) (hd : a.directFamily U params = some direct) :
+    (ha : a ∈ auxiliaries) (hd : a.specializedFamily U params = some direct) :
     direct.ctors.map (fun ctor => (compilationRestoration source auxiliaries).headName ctor.name) =
       a.source.ctors.map (·.name) := by
   have hnames := a.directFamily_heads hd
@@ -201,9 +201,9 @@ end Lean4Lean.InductiveSignature
 
 namespace Lean4Lean
 
-theorem CertifiedSpecializations.container_names (H : CertifiedSpecializations env auxiliaries) :
+theorem ContainersInstalled.container_names (H : ContainersInstalled env auxiliaries) :
     ∀ a ∈ auxiliaries, a.container.sourceNames.Nodup := by
-  exact CertifiedSpecializations.rec
+  exact ContainersInstalled.rec
     (motive_1 := fun _ source _ _ => source.sourceNames.Nodup)
     (motive_2 := fun _ auxiliaries _ => ∀ a ∈ auxiliaries, a.container.sourceNames.Nodup)
     (fun data _ _ => data.sourceWF.2.1)

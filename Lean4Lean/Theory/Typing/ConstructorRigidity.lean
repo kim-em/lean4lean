@@ -22,7 +22,7 @@ theorem VEnv.nativeHeadRigid_iff {env : VEnv} {name : Name} :
 theorem InductiveSignature.CompilationData.equation_major_origin
     {s : InductiveSignature} {g : s.Instance}
     (H : InductiveSignature.CompilationData env source expanded s g auxiliaries block)
-    (hprior : CertifiedSpecializations env auxiliaries) (hdf : df ∈ block.rules) :
+    (hprior : ContainersInstalled env auxiliaries) (hdf : df ∈ block.rules) :
     ∃ name, df.HasConstructorMajor name ∧
       ((∃ ctor ∈ source.constructorConstants, name = ctor.name) ∨
         ∃ prior, env.defeqs prior ∧ prior.HasConstructorMajor name) := by
@@ -123,11 +123,11 @@ theorem VInductBlock.install_ctor_lookup (H : VInductBlock.install base block = 
 
 /-- Constructors of certified containers are installed with their exact
 declared types, which return applications of their own container family. -/
-theorem CertifiedSpecializations.container_ctor (H : CertifiedSpecializations env auxiliaries) :
+theorem ContainersInstalled.container_ctor (H : ContainersInstalled env auxiliaries) :
     ∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors,
       env.constants ctor.name = some ctor.toVConstant ∧
       ∃ ls, ctor.type.forallResult.getAppFnArgs.1 = .const a.source.name ls := by
-  exact CertifiedSpecializations.rec
+  exact ContainersInstalled.rec
     (motive_1 := fun _ _ _ _ => True)
     (motive_2 := fun env auxiliaries _ => ∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors,
       env.constants ctor.name = some ctor.toVConstant ∧
@@ -153,7 +153,7 @@ theorem InductiveSignature.CaseCompilationData.family_head_origin
     {s : InductiveSignature}
     (hdata : InductiveSignature.CaseCompilationData base source expanded s auxiliaries block)
     (hdisj : InductiveSignature.RecursorNamesFresh base source expanded auxiliaries)
-    (hprior : CertifiedSpecializations base auxiliaries) (index : Fin s.constructors.size) :
+    (hprior : ContainersInstalled base auxiliaries) (index : Fin s.constructors.size) :
     (∃ family ∈ source.types, s.families[s.constructors[index].owner].name = family.name ∧
       (InductiveSignature.compilationRestoration source auxiliaries).headName family.name =
         family.name ∧
@@ -213,7 +213,7 @@ theorem InductiveSignature.CaseSchema.Certified.family_head_origin
     {schema : InductiveSignature.CaseSchema}
     {owner : Fin schema.signature.families.size} {rule : InductiveSignature.CaseSchema.AppliedRule}
     (H : schema.Certified base source sourceBlock) (hgen : schema.Generates key owner rule) :
-    schema.restoration.headName schema.signature.families[owner].name ∈ schema.originalFamilies ∨
+    schema.restoration.headName schema.signature.families[owner].name ∈ schema.sourceFamilies ∨
     ∃ (ctor : VConstVal) (equation : VDefEq), base.defeqs equation ∧
       equation.HasConstructorMajor ctor.name ∧
       base.constants ctor.name = some ctor.toVConstant ∧
@@ -250,7 +250,7 @@ private def ConstructorHeadsRigid (env : VEnv) : Prop :=
   (∀ key schema, env.eliminators key schema →
     ∀ (owner : Fin schema.signature.families.size) rule, schema.Generates key owner rule →
     (∃ ci, env.constants rule.application.ctorName = some ci) ∧ env.Rigid rule.application.ctorName) ∧
-  (∀ key schema, env.eliminators key schema → ∀ name ∈ schema.originalFamilies,
+  (∀ key schema, env.eliminators key schema → ∀ name ∈ schema.sourceFamilies,
     (∃ ci, env.constants name = some ci) ∧ env.Rigid name) ∧
   (∀ key schema, env.eliminators key schema →
     ∀ (owner : Fin schema.signature.families.size) rule, schema.Generates key owner rule →
@@ -590,7 +590,7 @@ rigid throughout declaration extension. This uses registration provenance,
 not a primitive projection entry or a general monotonicity assumption. -/
 theorem WF.case_original_family_rigid {env : VEnv} (H : env.WF)
     (hregistered : env.eliminators key schema)
-    (hfamily : name ∈ schema.originalFamilies) : env.NativeHeadRigid name :=
+    (hfamily : name ∈ schema.sourceFamilies) : env.NativeHeadRigid name :=
   nativeHeadRigid_iff.mpr ((H.constructorHistory.2.2.1 _ _ hregistered _ hfamily).2)
 
 /-- The family head of every registered case owner that generates a rule is

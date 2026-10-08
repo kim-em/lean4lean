@@ -30,7 +30,7 @@ def SchemaStructCompat (env : VEnv) : Prop :=
   ∀ {key : Name} {schema : InductiveSignature.CaseSchema} {s : Name} {info : VProjectionInfo},
     env.eliminators key schema → env.projections s info →
     ∀ owner : Fin schema.signature.families.size,
-      schema.originalFamilies[owner.val]? = some s →
+      schema.sourceFamilies[owner.val]? = some s →
       (schema.view owner).constructors.toList.map (·.name) = [info.ctorName]
 
 /-- Projections registered by the entries of one inductive declaration name its
@@ -87,7 +87,7 @@ private theorem install_projections {env env' envTypes envCtors : VEnv} {block :
 is not an original family of a schema registered before the step. -/
 private theorem fresh_not_family {env : VEnv} (H : env.WF)
     (hlookup : env.eliminators key schema) (hfresh : env.constants s = none)
-    {owner : Nat} (hname : schema.originalFamilies[owner]? = some s) : False := by
+    {owner : Nat} (hname : schema.sourceFamilies[owner]? = some s) : False := by
   obtain ⟨value, hvalue⟩ := H.eliminator_family_present hlookup (List.mem_of_getElem? hname)
   rw [hfresh] at hvalue
   contradiction

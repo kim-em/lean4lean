@@ -166,11 +166,11 @@ open InductiveSignature
 specialized at the arguments and closed over the given parameters. -/
 theorem ContainerSpecialization.directFamily_ctors
     {a : ContainerSpecialization} {U : Nat} {params : List VExpr}
-    {direct : VInductiveType} (H : a.directFamily U params = some direct) :
+    {direct : VInductiveType} (H : a.specializedFamily U params = some direct) :
     List.Forall₂ (fun ctor dc : VConstVal => dc.type = VExpr.wrapForalls params
         (VExpr.instantiateForallPrefix (ctor.type.instL a.levels) a.arguments))
       a.source.ctors direct.ctors := by
-  unfold ContainerSpecialization.directFamily at H
+  unfold ContainerSpecialization.specializedFamily at H
   simp only [bind, Option.bind_eq_some_iff] at H
   obtain ⟨type, _, ctors, hctors, he⟩ := H
   cases Option.some.inj he
@@ -865,9 +865,9 @@ open InductiveSignature
 
 theorem ContainerSpecialization.directFamily_numIndices
     {a : ContainerSpecialization} {uvars : Nat} {params : List VExpr}
-    {direct : VInductiveType} (H : a.directFamily uvars params = some direct) :
+    {direct : VInductiveType} (H : a.specializedFamily uvars params = some direct) :
     direct.numIndices = a.source.numIndices := by
-  unfold ContainerSpecialization.directFamily at H
+  unfold ContainerSpecialization.specializedFamily at H
   cases htype : specializeType (a.source.type.instL a.levels) a.arguments with
   | none => simp [htype] at H
   | some type =>
@@ -902,9 +902,9 @@ open InductiveSignature
 
 /-- The constructors of a certified container are installed with their
 recorded values and have the raw constructor shape of their container. -/
-theorem CertifiedSpecializations.containerConstructors {env : VEnv} :
+theorem ContainersInstalled.containerConstructors {env : VEnv} :
     ∀ {auxiliaries : List InductiveSignature.ContainerSpecialization},
-      CertifiedSpecializations env auxiliaries →
+      ContainersInstalled env auxiliaries →
       ∀ a ∈ auxiliaries, a.container.sourceNames.Nodup ∧
         ∀ type ∈ a.container.types, ∀ ctor ∈ type.ctors,
           a.container.RawCtorShape type ctor ∧
@@ -925,7 +925,7 @@ theorem CertifiedSpecializations.containerConstructors {env : VEnv} :
           (List.mem_append_right _ (by rw [hctors]; exact hmem)))
         have hu : ctor.uvars = a.container.uvars := Hsrc.2.2 ctor hmem
         rw [h, ← hu]
-    · exact CertifiedSpecializations.containerConstructors hrest a ha
+    · exact ContainersInstalled.containerConstructors hrest a ha
 end Lean4Lean
 
 -- from Lean4Lean/Verify/Inductive/Nested/Restoration/RecursorAlignment.lean
@@ -941,7 +941,7 @@ theorem CompilationData.restoredConstructorShape
     {env : VEnv} {source expanded : VInductDecl} {s : InductiveSignature}
     {g : Instance s} {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
     (Hd : CompilationData env source expanded s g auxiliaries block)
-    (Hcert : CertifiedSpecializations env auxiliaries)
+    (Hcert : ContainersInstalled env auxiliaries)
     {envTypes envCtors : VEnv}
     (hadded : env.addConstVals source.typeConstants = some envTypes)
     (hctorsAdded : envTypes.addConstVals source.constructorConstants = some envCtors)
@@ -1063,7 +1063,7 @@ theorem CompilationData.restoredConstructorShape
     have hidx' : owner.val - source.types.length < auxiliaries.length := hauxLen ▸ hidx
     let a := auxiliaries[owner.val - source.types.length]'hidx'
     have ha : a ∈ auxiliaries := List.getElem_mem hidx'
-    have hdf : a.directFamily source.uvars s.params =
+    have hdf : a.specializedFamily source.uvars s.params =
         some (direct[owner.val - source.types.length]'hidx) :=
       Lean4Lean.List.forall₂_getElem hFdirect _ hidx' hidx
     have hdirectName : (direct[owner.val - source.types.length]'hidx).name = a.auxiliary :=
@@ -1149,7 +1149,7 @@ theorem CompilationData.restoredConstructorFieldDomains
     {env : VEnv} {source expanded : VInductDecl} {s : InductiveSignature}
     {g : Instance s} {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
     (Hd : CompilationData env source expanded s g auxiliaries block)
-    (Hcert : CertifiedSpecializations env auxiliaries)
+    (Hcert : ContainersInstalled env auxiliaries)
     {envTypes envCtors : VEnv}
     (hadded : env.addConstVals source.typeConstants = some envTypes)
     (hctorsAdded : envTypes.addConstVals source.constructorConstants = some envCtors)
@@ -1336,7 +1336,7 @@ theorem CompilationData.restoredConstructorFieldDomains
     have hidx' : owner.val - source.types.length < auxiliaries.length := hauxLen ▸ hidx
     let a := auxiliaries[owner.val - source.types.length]'hidx'
     have ha : a ∈ auxiliaries := List.getElem_mem hidx'
-    have hdf : a.directFamily source.uvars s.params =
+    have hdf : a.specializedFamily source.uvars s.params =
         some (direct[owner.val - source.types.length]'hidx) :=
       Lean4Lean.List.forall₂_getElem hFdirect _ hidx' hidx
     have hdirectName : (direct[owner.val - source.types.length]'hidx).name = a.auxiliary :=
@@ -1638,7 +1638,7 @@ theorem CompilationData.restoredFamilyHead_spec
     have hidx' : owner.val - source.types.length < auxiliaries.length := hauxLen ▸ hidx
     let a := auxiliaries[owner.val - source.types.length]'hidx'
     have ha : a ∈ auxiliaries := List.getElem_mem hidx'
-    have hdf : a.directFamily source.uvars s.params =
+    have hdf : a.specializedFamily source.uvars s.params =
         some (direct[owner.val - source.types.length]'hidx) :=
       Lean4Lean.List.forall₂_getElem hFdirect _ hidx' hidx
     have hdirectName : (direct[owner.val - source.types.length]'hidx).name = a.auxiliary :=

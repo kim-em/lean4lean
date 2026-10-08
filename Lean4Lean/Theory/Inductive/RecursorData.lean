@@ -55,9 +55,9 @@ def reconstruct (data : RecursorData) (U : Nat) (packed fieldSorts : List VLevel
 Prop selectors for every remaining field. The native compilation's singleton
 elimination evidence must justify those remaining proof fields. The sort
 annotations do not choose any reconstructed value. -/
-def reconstructCanonical (data : RecursorData) (U : Nat) (packed : List VLevel)
+def reconstructWithPropFields (data : RecursorData) (U : Nat) (packed : List VLevel)
     (arguments : List VExpr) : Option VExpr := do
-  let source ← data.schema.projectionData data.owner (data.sourceLevels packed)
+  let source ← data.schema.structureTelescope data.owner (data.sourceLevels packed)
   data.reconstruct U packed (List.replicate source.fields.length .zero) arguments
 
 /-- Recover a fixed-length native telescope without inspecting the

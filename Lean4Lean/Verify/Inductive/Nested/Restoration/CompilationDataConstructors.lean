@@ -58,7 +58,7 @@ theorem NestedValidatedRunResult.restorationPrefix_of {X : Prop}
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.production.loweredDecl.types ++
@@ -74,7 +74,7 @@ theorem NestedValidatedRunResult.restorationPrefix_of {X : Prop}
           (·.name) ∧
       auxiliaries.flatMap (·.headNames) =
         familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
-      CertifiedSpecializations (ves.venv (if isUnsafe then .unsafe else .safe))
+      ContainersInstalled (ves.venv (if isUnsafe then .unsafe else .safe))
         auxiliaries ∧
       (∀ params : List VExpr,
         VEnv.IsDefEqCtx envTypes sourceDecl.uvars [] params.reverse
@@ -84,7 +84,7 @@ theorem NestedValidatedRunResult.restorationPrefix_of {X : Prop}
         E.production.constructors.completed.parameterScope.toCtx.reverse) ∧
       (compilationRestoration sourceDecl auxiliaries).Scoped ∧
       (∀ (U : Nat) (params : List VExpr), ∃ direct,
-        auxiliaries.mapM (fun a => a.directFamily U params) = some direct ∧
+        auxiliaries.mapM (fun a => a.specializedFamily U params) = some direct ∧
         List.Forall₂ (DirectFamilyShape U) auxiliaries direct) ∧
       (∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors,
         result.restoreCtorName E.loweredEnv (a.constructorName ctor) =
@@ -238,13 +238,13 @@ theorem NestedValidatedRunResult.auxiliaryFamiliesField_of_evidence
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
+        (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (Hrestores : ∀ envTypes direct,
         (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
           sourceDecl.typeConstants = some envTypes →
-        auxiliaries.mapM (fun a => a.directFamily sourceDecl.uvars
+        auxiliaries.mapM (fun a => a.specializedFamily sourceDecl.uvars
           E.production.compilationSignature.params) = some direct →
         List.Forall₂ (fun normalized family : VInductiveType =>
             List.Forall₂ (fun normalized ctor : VConstVal =>
@@ -256,7 +256,7 @@ theorem NestedValidatedRunResult.auxiliaryFamiliesField_of_evidence
     ∀ envTypes direct,
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some envTypes →
-      auxiliaries.mapM (fun a => a.directFamily sourceDecl.uvars
+      auxiliaries.mapM (fun a => a.specializedFamily sourceDecl.uvars
         E.production.compilationSignature.params) = some direct →
       List.Forall₂ (fun normalized family : VInductiveType =>
           normalized.numIndices = family.numIndices ∧

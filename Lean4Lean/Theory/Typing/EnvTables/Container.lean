@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.EnvTables.Arity
 /-!
 # Container constructors are recorded with their container's parameter count
 
-A nested compilation specializes earlier *containers* (`CertifiedSpecializations`). The
+A nested compilation specializes earlier *containers* (`ContainersInstalled`). The
 certification is existential: it exhibits some finite compilation of the container installed
 below the current environment, not necessarily the one of the actual history. This file shows
 that the tables nevertheless record each container constructor with the container's own
@@ -57,7 +57,7 @@ theorem CaseCompilationData.family_slot {base : VEnv} {src exp : VInductDecl}
     {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)
     (o : Fin s.families.size) :
     ∃ envTypes direct, base.addConstVals src.typeConstants = some envTypes ∧
-      aux.mapM (fun a => a.directFamily src.uvars s.params) = some direct ∧
+      aux.mapM (fun a => a.specializedFamily src.uvars s.params) = some direct ∧
       ∃ h : o.val < (src.types ++ direct).length,
         RestoresFamily (compilationRestoration src aux) envTypes src.uvars
           (s.declarationFamily o) ((src.types ++ direct)[o.val]) := by
@@ -165,11 +165,11 @@ theorem mkApps_const_inj {h h' : Name} {ls ls' : List VLevel} {xs xs' : List VEx
   exact ⟨h1.1.1, h1.1.2, h1.2⟩
 
 /-- A certified container was compiled and installed below the environment. -/
-theorem CertifiedSpecializations.member {env : VEnv} {aux : List ContainerSpecialization}
-    (H : CertifiedSpecializations env aux) {a : ContainerSpecialization} (ha : a ∈ aux) :
+theorem ContainersInstalled.member {env : VEnv} {aux : List ContainerSpecialization}
+    (H : ContainersInstalled env aux) {a : ContainerSpecialization} (ha : a ∈ aux) :
     ∃ base block installed, CompiledInductive base a.container block ∧
       block.install base = some installed ∧ installed ≤ env := by
-  exact CertifiedSpecializations.rec
+  exact ContainersInstalled.rec
     (motive_1 := fun _ _ _ _ => True)
     (motive_2 := fun env aux _ => ∀ a ∈ aux, ∃ base block installed,
       CompiledInductive base a.container block ∧ block.install base = some installed ∧
@@ -277,10 +277,10 @@ theorem CaseCompilationData.families_size_ge {base : VEnv} {src exp : VInductDec
 
 /-- Every constructor of a certified container is recorded with the container's own view. -/
 theorem container_ctor {T : Tables} {env base : VEnv} {aux : List ContainerSpecialization}
-    (HT : T.Inv env) (hprior : CertifiedSpecializations base aux) (hle : base ≤ env)
+    (HT : T.Inv env) (hprior : ContainersInstalled base aux) (hle : base ≤ env)
     {a : ContainerSpecialization} (ha : a ∈ aux) {c : VConstVal} (hc : c ∈ a.source.ctors) :
     T.ctor c.name = some (ctorView a.container a.source c) := by
-  obtain ⟨base', block', inst', hcomp', hinst', hle'⟩ := CertifiedSpecializations.member hprior ha
+  obtain ⟨base', block', inst', hcomp', hinst', hle'⟩ := ContainersInstalled.member hprior ha
   obtain ⟨b'', exp', s', g', aux', hb'', hdata', hprior'⟩ := hcomp'.compilationOrigin
   have hfam_lt : a.family.val < s'.families.size :=
     Nat.lt_of_lt_of_le a.family.isLt (CaseCompilationData.families_size_ge hdata'.toCaseCompilationData)

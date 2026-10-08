@@ -97,7 +97,7 @@ theorem CaseCompilationData.source_arity {base E : VEnv} {src exp : VInductDecl}
     {s : InductiveSignature} {aux : List ContainerSpecialization}
     {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)
     (hrfresh : RecursorNamesFresh base src exp aux)
-    (hprior : CertifiedSpecializations base aux) (hP : ForallArityRigid E) (hle : base ≤ E)
+    (hprior : ContainersInstalled base aux) (hP : ForallArityRigid E) (hle : base ≤ E)
     (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
     (j : Fin s.constructors.size) {F : VInductiveType} (hF : F ∈ src.types)
     {c : VConstVal} (hc : c ∈ F.ctors) (hcn : c.name = s.constructors[j].name) :
@@ -121,7 +121,7 @@ theorem CaseCompilationData.container_arity {base E : VEnv} {src exp : VInductDe
     {s : InductiveSignature} {aux : List ContainerSpecialization}
     {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)
     (hrfresh : RecursorNamesFresh base src exp aux)
-    (hprior : CertifiedSpecializations base aux) (hP : ForallArityRigid E) (hle : base ≤ E)
+    (hprior : ContainersInstalled base aux) (hP : ForallArityRigid E) (hle : base ≤ E)
     (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
     (j : Fin s.constructors.size) {a : ContainerSpecialization} (ha : a ∈ aux)
     {c : VConstVal} (hc : c ∈ a.source.ctors) (hcn : s.constructors[j].name = a.constructorName c) :

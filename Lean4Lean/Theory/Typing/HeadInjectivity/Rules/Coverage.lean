@@ -36,7 +36,7 @@ theorem InductiveSignature.CompilationData.equation_not_const {s : InductiveSign
     (index : Fin s.constructors.size) {df : VDefEq}
     (he : (compilationRestoration source auxiliaries).equation (g.equation index) = some df) :
     ∀ n ls, df.lhs ≠ .const n ls :=
-  (g.equation_patShape_strong index .native
+  (g.equation_patShape_strong index .recursor
     (fun h hh => Nat.le_of_eq (H.restoration_nparams h hh))
     (fun _ _ heq h hh => by
       cases heq

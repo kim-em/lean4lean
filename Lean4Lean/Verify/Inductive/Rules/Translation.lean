@@ -759,7 +759,7 @@ theorem CompletedRecursorConstruction.ruleCallSyn (H : CompletedRecursorConstruc
           H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
         (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
           H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].2
-        .native) := by
+        .recursor) := by
   obtain ⟨_, hft, hrfLen, Hshape⟩ := H.consumedGeneration_shapeTranslations o ho i hlocal
   obtain ⟨hjB, hpos, hfield, htarget, hbinders, hmajor, htemplate, Hdom, Hidx⟩ := Hshape j hj
   have hjS : j < (H.origins.minorShapes o ho i hlocal).hypotheses.size := hrfLen ▸ hj
@@ -1405,7 +1405,7 @@ theorem CompletedRecursorConstruction.ruleRhsSyn (H : CompletedRecursorConstruct
       (callsG := (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
           H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i]).map
         fun x => H.consumedGeneration.generation.recursiveCall
-          H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i] x.1 x.2 .native)
+          H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i] x.1 x.2 .recursor)
       (by
         apply List.forall₂_of_getElem (by simp [hcallsLen])
         intro j h1 h2

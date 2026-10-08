@@ -24,7 +24,7 @@ variable {data : RecursorData} {equation : VDefEq}
 private theorem registeredInstance (H : RecursorRegistered env data) :
     ∃ base installBase source expanded auxiliaries block installed,
       CompilationData base source expanded data.schema.signature data.nativeInstance auxiliaries block ∧
-      CertifiedSpecializations base auxiliaries ∧
+      ContainersInstalled base auxiliaries ∧
       data.schema.restoration = compilationRestoration source auxiliaries ∧
       block.install installBase = some installed ∧ installed ≤ env := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,

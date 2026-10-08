@@ -378,9 +378,9 @@ theorem SigAvoids.recursorType (owner : Fin s.families.size) :
       rfl
 
 theorem SigAvoids.equation (index : Fin s.constructors.size) (block : Name) (first : Nat) :
-    (g.equation index (.abstract block first)).lhs.containsAnyConst L = false ∧
-    (g.equation index (.abstract block first)).rhs.containsAnyConst L = false ∧
-    (g.equation index (.abstract block first)).type.containsAnyConst L = false := by
+    (g.equation index (.elim block first)).lhs.containsAnyConst L = false ∧
+    (g.equation index (.elim block first)).rhs.containsAnyConst L = false ∧
+    (g.equation index (.elim block first)).type.containsAnyConst L = false := by
   have hc : s.constructors[index] ∈ s.constructors.toList := by simp
   have hdomains : ∀ d ∈ g.params ++ g.motives ++ g.minors ++
       insertBinders ((s.fieldTypes s.constructors[index]).map (·.instL g.levels))
@@ -431,9 +431,9 @@ end InductiveSignature
 
 /-- Every restoration target of a certified specialization is a constant of
 the environment certifying it. -/
-theorem CertifiedSpecializations.target_present {env : VEnv}
+theorem ContainersInstalled.target_present {env : VEnv}
     {auxiliaries : List ContainerSpecialization}
-    (H : CertifiedSpecializations env auxiliaries) :
+    (H : ContainersInstalled env auxiliaries) :
     ∀ a ∈ auxiliaries, ∀ h ∈ a.heads U n, env.constants h.target ≠ none := by
   induction auxiliaries with
   | nil => intro a ha; cases ha
@@ -457,9 +457,9 @@ theorem CertifiedSpecializations.target_present {env : VEnv}
 
 theorem ContainerSpecialization.directFamily_type
     {a : ContainerSpecialization} {uvars : Nat} {params : List VExpr}
-    {direct : VInductiveType} (H : a.directFamily uvars params = some direct) :
+    {direct : VInductiveType} (H : a.specializedFamily uvars params = some direct) :
     ∃ body, direct.type = VExpr.wrapForalls params body := by
-  unfold ContainerSpecialization.directFamily at H
+  unfold ContainerSpecialization.specializedFamily at H
   cases htype : specializeType (a.source.type.instL a.levels) a.arguments with
   | none => simp [htype] at H
   | some type =>

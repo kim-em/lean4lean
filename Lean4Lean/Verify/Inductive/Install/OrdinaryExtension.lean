@@ -399,7 +399,7 @@ theorem NestedExprMapping.eq_of_aux2nested_size_eq_zero
     (hsize : result.aux2nested.size = 0) :
     out = (input, state) := by
   induction H with
-  | hit Hhit =>
+  | occurrence Hhit =>
       rcases Hhit.mapping with
         ⟨_value, _targetName, _levels, auxName, _auxLevels, nested,
           _Hcandidate, _hauxLevels, _hhead, _hlowered, _hnested, hlookup⟩

@@ -16,7 +16,7 @@ example : CompiledInductive .empty enumDecl enumBlock := enumCompiles.compiled
 and the leaf points to the actual installed environment. -/
 theorem enumCertifiedContainer : ∃ installed,
     VInductBlock.install .empty enumBlock = some installed ∧
-    CertifiedSpecializations installed [{
+    ContainersInstalled installed [{
       container := enumDecl
       family := ⟨0, by decide⟩
       auxiliary := `AuxEnum0

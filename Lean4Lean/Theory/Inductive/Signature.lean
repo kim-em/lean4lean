@@ -138,7 +138,7 @@ checked in the constructor environment extended by these eliminators and the dec
 projection entries (`VInductBlock.install`). -/
 def _root_.Lean4Lean.VInductDecl.OwnCaseEliminators (env : VEnv) (decl : VInductDecl)
     (es : List (Name × CaseSchema)) : Prop :=
-  ∀ p ∈ es, p.2.restoration = {} ∧ p.2.originalFamilies = decl.types.map (·.name) ∧
+  ∀ p ∈ es, p.2.restoration = {} ∧ p.2.sourceFamilies = decl.types.map (·.name) ∧
     p.2.signature.Models env decl
 
 /-- Ordinary canonical generation fixes every motive, minor, recursive call,

@@ -886,7 +886,7 @@ structure InstalledInductiveFamilyProvenanceAt
   familyIdx : Nat
   name : familyName = familyInfo.name
   alignment : ProductionFamilyAlignment C decl familyIdx familyInfo
-  installed : VEnv.InstalledInductCertificate env decl
+  installed : VEnv.InstalledBelow env decl
 
 /-- A singleton production family with installed provenance has the exact
 abstract projection entry derived from its source declaration.  The
@@ -1506,7 +1506,7 @@ theorem InstalledInductiveProvenance.insertNonInductive
 
 theorem AddInduct.installedCertificate
     (H : AddInduct safety source base decl target installed) :
-    VEnv.InstalledInductCertificate installed decl := by
+    VEnv.InstalledBelow installed decl := by
   cases H with
   | intro block hdecl hcompile hblock hinstall =>
     exact .intro hdecl.1 hdecl.2 hcompile hblock hinstall VEnv.LE.rfl

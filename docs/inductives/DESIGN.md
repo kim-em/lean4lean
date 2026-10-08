@@ -184,7 +184,7 @@ The declaration data is syntax only (`Lean4Lean/Theory/DeclarationData.lean`): `
 (universe count, parameter count, families with index counts, result levels and
 constructors, `isUnsafe`) and the derived `projectionEntries` (one entry for each family with
 exactly one constructor). `VInductDecl.WF env decl` (`Lean4Lean/Theory/Inductive.lean`) is
-`decl.SourceWF env ∧ decl.FormationEvidence env`: the source judgment (headers typed, a common
+`decl.SourceWF env ∧ decl.FormationWF env`: the source judgment (headers typed, a common
 parameter telescope, constructor types typed in the environment with the headers, raw
 constructor shapes) together with either ordinary formation (positivity, universe bounds) or a
 finite nested expansion into an ordinary well-formed declaration
@@ -209,7 +209,7 @@ generated syntax of auxiliary families back to applications of their containers,
 recursor renaming. The installed block's recursors and rules are exactly the restored
 generated ones. `CompiledInductive` makes the certificate a finite tree: each container used
 by a nested declaration is itself certified by an earlier `CompiledInductive`
-(`CertifiedSpecializations`), so no environment lookup can serve as provenance.
+(`ContainersInstalled`), so no environment lookup can serve as provenance.
 `VInductDecl.CompilesTo env decl block` is the record that installation reads: the block's
 families, constructors and projection entries are those of the declaration, its installed
 names are distinct, and `CompiledInductive` derives the block.

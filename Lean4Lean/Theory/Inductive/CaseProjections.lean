@@ -25,7 +25,7 @@ namespace InductiveSignature.CaseSchema
 are scoped over parameters and preceding indices; field domains over
 parameters and preceding fields. `major` is under parameters and all indices,
 while `constructor` and `constructorIndices` are under parameters and fields. -/
-structure ProjectionData where
+structure StructureTelescope where
   params : List VExpr
   indices : List VExpr
   major : VExpr
@@ -40,8 +40,8 @@ def telescopeScoped (outer : Nat) (domains : List VExpr) : Bool :=
 /-- Extract exactly one constructor and restore its original syntax before
 building dependent projections. No identity of restored parameter spines is
 assumed, so auxiliary families retain their certified specializations. -/
-def projectionData (schema : CaseSchema) (owner : Fin schema.signature.families.size)
-    (levels : List VLevel) : Option ProjectionData := do
+def structureTelescope (schema : CaseSchema) (owner : Fin schema.signature.families.size)
+    (levels : List VLevel) : Option StructureTelescope := do
   if levels.length != schema.signature.uvars then none else
   let [ctor] := schema.signature.constructors.toList.filter (fun c => c.owner == owner)
     | none
@@ -75,14 +75,14 @@ structure ProjectionFunction where
   type : VExpr
 
 /-- Arguments in the complete parameter/index/major context. -/
-def ProjectionData.arguments (data : ProjectionData) : List VExpr :=
+def StructureTelescope.arguments (data : StructureTelescope) : List VExpr :=
   vars data.params.length (data.indices.length + 1) ++
     vars data.indices.length 1 ++ [.bvar 0]
 
 /-- The selected field's domain after simultaneous substitution of parameters
 and previously generated field projections. The result is scoped under all
 parameters, indices, and the major premise. -/
-def ProjectionData.fieldTarget (data : ProjectionData) (domain : VExpr)
+def StructureTelescope.fieldTarget (data : StructureTelescope) (domain : VExpr)
     (previous : List ProjectionFunction) : VExpr :=
   instantiateParams domain <|
     vars data.params.length (data.indices.length + 1) ++
@@ -92,7 +92,7 @@ def ProjectionData.fieldTarget (data : ProjectionData) (domain : VExpr)
 all indices and the major; its sole minor abstracts every original field and
 selects the current one. Motive and minor are lifted past the call's indices
 and major while their common parameters remain free. -/
-def ProjectionData.step (data : ProjectionData) (block : Name) (owner : Nat)
+def StructureTelescope.step (data : StructureTelescope) (block : Name) (owner : Nat)
     (levels : List VLevel) (domain : VExpr) (target : VLevel)
     (previous : List ProjectionFunction) : ProjectionFunction :=
   let fieldType := data.fieldTarget domain previous
@@ -107,7 +107,7 @@ def ProjectionData.step (data : ProjectionData) (block : Name) (owner : Nat)
     value := VExpr.wrapLams domains body
     type := VExpr.wrapForalls domains fieldType }
 
-def ProjectionData.prefix (data : ProjectionData) (block : Name) (owner : Nat)
+def StructureTelescope.prefix (data : StructureTelescope) (block : Name) (owner : Nat)
     (levels : List VLevel) : List VExpr → List VLevel → List ProjectionFunction →
       Option (List ProjectionFunction)
   | _, [], previous => some previous
@@ -128,7 +128,7 @@ def projectionPrefix (schema : CaseSchema) (block : Name)
     (levels fieldSorts : List VLevel) : Option (List ProjectionFunction) := do
   if !(levels.all (fun level => decide (level.WF uvars)) &&
       fieldSorts.all (fun level => decide (level.WF uvars))) then none else
-  let data ← schema.projectionData owner levels
+  let data ← schema.structureTelescope owner levels
   data.prefix block owner.val levels data.fields fieldSorts []
 
 end InductiveSignature.CaseSchema
@@ -200,7 +200,7 @@ theorem telescopeScoped_iff : telescopeScoped n domains = true ↔
     exact h i hlt
 
 variable {left right domains : List VExpr} {e domain : VExpr}
-  {data : ProjectionData} {previous result : List ProjectionFunction}
+  {data : StructureTelescope} {previous result : List ProjectionFunction}
   {block : Name} {owner : Nat} {levels targets : List VLevel} {target : VLevel}
   {n : Nat}
 
@@ -224,7 +224,7 @@ namespace Lean4Lean.InductiveSignature.CaseSchema
 
 /-- Reconstruct the original constructor from all its generated field
 projections in the common-parameter/major context. -/
-def ProjectionData.etaReconstruction (data : ProjectionData)
+def StructureTelescope.etaReconstruction (data : StructureTelescope)
     (projections : List ProjectionFunction) : VExpr :=
   instantiateParams data.constructor <|
     vars data.params.length 1 ++ projections.map fun projection =>
@@ -236,7 +236,7 @@ field is supplied by this schema's actual projection generator. -/
 def structureEta (schema : CaseSchema) (block : Name)
     (owner : Fin schema.signature.families.size) (uvars : Nat)
     (levels fieldSorts : List VLevel) : Option VDefEq := do
-  let data ← schema.projectionData owner levels
+  let data ← schema.structureTelescope owner levels
   if data.indices.length != 0 || data.fields.length != fieldSorts.length then none else
   let projections ← schema.projectionPrefix block owner uvars levels fieldSorts
   let domains := data.params ++ [data.major]
