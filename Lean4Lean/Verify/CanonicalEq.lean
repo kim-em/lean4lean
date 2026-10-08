@@ -26,6 +26,7 @@ declaration `Init.Prelude` submits.
 * `VEnvs.WFCore.canonicalEq_constants` (below): in any well-formed model of an
   environment whose `Eq`, `Eq.refl` and `Eq.rec` have the prelude's
   types, the three constant clauses of `HasCanonicalEq` hold at every safety.
+  `VEnvs.WFCore.quotReady_of_eqType` needs only `Eq` and concludes `QuotReady`.
 -/
 
 namespace Lean4Lean
@@ -78,6 +79,16 @@ theorem VEnvs.WFCore.canonicalEq_constants {env : Environment} {ves : VEnvs}
   · intro _ _ H
     rw [hRecLps, hRecType] at H
     exact TrExprS.eq_canonicalEqRecType hvw H
+
+/-- Quotient readiness holds in every well-formed model of an environment whose `Eq` is a safe
+constant with one universe parameter and whose type translates only to the canonical type of
+`Eq`. This is the part of `canonicalEq_constants` that quotient initialization consumes. -/
+theorem VEnvs.WFCore.quotReady_of_eqType {env : Environment} {ves : VEnvs}
+    (wf : ves.WFCore env) {eqInfo : ConstantInfo} (hEq : env.find? ``Eq = some eqInfo)
+    (hsafe : eqInfo.safety = .safe) {u : Name} (hlps : eqInfo.levelParams = [u])
+    (htype : ∀ {venv e}, TrExprS venv [u] [] eqInfo.type e → e = canonicalEqType)
+    (safety : DefinitionSafety) : (ves.venv safety).QuotReady :=
+  wf.constant_of_kernel hEq hsafe (by simp [hlps]) (fun H => htype (hlps ▸ H)) safety
 
 /-- Checked addition of the prelude's `Eq` declaration realizes canonical
 equality: the output environment has well-formed abstract models extending the
