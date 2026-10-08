@@ -405,17 +405,6 @@ theorem instantiateRevList_mkAppList (As : List Expr) (dk : Nat) :
 
 /-! ### Container applications recorded by lowering -/
 
-/-- The recorded container application of one auxiliary, abstracted over the
-lowering parameters, is the container family applied to arguments whose
-translations in the parameter telescope are the specialisation arguments. -/
-def AuxNestedSpec (result : Lean4Lean.ElimNestedInductive.Result) (Us₀ : List Name)
-    (nested : Expr) (a : InductiveSignature.ContainerSpecialization) : Prop :=
-  ∃ (envS : VEnv) (domains : List VExpr) (lvls : List Level) (Ys : List Expr),
-    domains.length = result.nparams ∧
-    nested.abstract result.params = Expr.mkAppList (.const a.source.name lvls) Ys ∧
-    lvls.mapM (VLevel.ofLevel Us₀) = some a.levels ∧
-    List.Forall₂ (TrExprS envS Us₀ (abstractForallContext domains [])) Ys a.arguments
-
 private theorem forall₂_instantiate_inv {envS env : VEnv} {Us₀ Us : List Name}
     {ls : List VLevel}
     (hls : (Us₀.map Level.param).mapM (VLevel.ofLevel Us) = some ls)
@@ -490,34 +479,6 @@ theorem AuxNestedSpec.reopen {result : Lean4Lean.ElimNestedInductive.Result}
   rw [h, Expr.instantiateRev_eq_instantiateList, Expr.instantiateList_reverse,
     instantiateRevList_mkAppList,
     instantiateRevList_closed rfl]
-
-/-- Executable facts about one run that fix the executable restoration
-tables relative to the abstract specialisation list `auxiliaries`. -/
-structure RestorationTableData (decl : VInductDecl)
-    (auxiliaries : List InductiveSignature.ContainerSpecialization)
-    (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment)
-    (auxRec : NameMap Name) (Us₀ : List Name) : Prop where
-  headNodup : (auxiliaries.flatMap (·.headNames)).Nodup
-  uvars : decl.uvars = Us₀.length
-  nparams : decl.nparams = result.nparams
-  paramsFVars : ∃ xs : List FVarId, result.params = ⟨xs.map .fvar⟩
-  recursorName : ∀ c,
-    (InductiveSignature.compilationRestoration decl auxiliaries).recursorName c =
-    (auxRec.find? c).getD c
-  recursorNotHead : ∀ c new, auxRec.find? c = some new →
-    c ∉ auxiliaries.flatMap (·.headNames)
-  familyKey : ∀ c nested, result.aux2nested.find? c = some nested →
-    ∃ a ∈ auxiliaries, a.auxiliary = c ∧ AuxNestedSpec result Us₀ nested a
-  familyLookup : ∀ a ∈ auxiliaries, ∃ nested,
-    result.aux2nested.find? a.auxiliary = some nested
-  ctorLookup : ∀ c info, env.find? c = some (.ctorInfo info) →
-    ∀ a ∈ auxiliaries, info.induct = a.auxiliary →
-      ∃ ctor ∈ a.source.ctors, c = a.constructorName ctor
-  ctorInstalled : ∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors, ∃ info,
-    env.find? (a.constructorName ctor) = some (.ctorInfo info) ∧
-      info.induct = a.auxiliary
-  ctorRenamed : ∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors,
-    a.constructorName ctor ≠ ctor.name
 
 private theorem find?_auxiliary_of_nodup {l : List InductiveSignature.HeadSpecialization}
     (hnodup : (l.map (·.auxiliary)).Nodup) {x : InductiveSignature.HeadSpecialization}
