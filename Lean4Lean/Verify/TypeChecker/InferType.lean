@@ -473,8 +473,6 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
   have hpfx₂ := VState.LE.namePrefix_eq hpfx₁ le₂
   split <;> [rename_i c_val; exact hfail']
   split <;> [exact hfail; rename_i hinduct]
-  split <;> [exact hfail; rename_i hidx]
-  have hidx : i < c_val.numFields := by simpa using hidx
   -- the spine of the whnf'd structure type
   have htT' : c.TrExprS ((Expr.const st I_levels).mkAppList type.getAppArgsList) tT' := by
     rw [← hI, type.mkAppList_getAppArgsList]; exact htT
@@ -535,7 +533,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
       (j := 0) (Nat.le_refl 0)] at this
   have L₀ := L
   rw [hshape, VExpr.instL_wrapForalls] at L
-  obtain ⟨doms₀, result₀, rfl, hdoms, -⟩ := L.wrapForalls_inv
+  obtain ⟨doms₀, result₀, rfl, hdoms, hres₀⟩ := L.wrapForalls_inv
   have hdomsLen : doms₀.length = doms.length := by
     simpa using Lean4Lean.List.Forall₂.length_eq hdoms
   have hdomsK : ∀ k (hk : k < doms.length),
@@ -549,12 +547,14 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
   -- the parameters
   have hP'len : (args'.take info.nparams).length = info.nparams := by simp; omega
   have hnpLen : info.nparams ≤ doms₀.length := by omega
-  refine (instantiateProjectionParameters.WF_cert hT₀ (fun hc => (hcertT hc).2)
-      (fun hc => ?_) (ds := doms₀) (position := 0)
+  -- the certificate covers the parameters when the constructor type has syntactically at least
+  -- as many binders as parameters, which holds whenever there is a field to select
+  refine (instantiateProjectionParameters.WF_cert hT₀
+      (Cert := CtorTelescopes c.safety c.env c.venv ∧
+        I_val.numParams ≤ AddInductive.constructorArity c_val.type)
+      (fun hc => (hcertT hc.1).2) (fun hc => hc.2) (ds := doms₀) (position := 0)
       (xs' := args'.take info.nparams) (by rw [hsp]; exact hnpLen) (by rw [hP'len, hsp]) ?_ ?_
       hpfx₂).bind fun r _ le₃ H => ?_
-  · have := (hcertT hc).1
-    omega
   · intro k hk
     rw [hsp] at hk
     refine ⟨type.getAppArgs[k]'(by omega), ?_, ?_⟩
@@ -625,6 +625,58 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
       (by rw [List.take_append_drop]; exact hety) hclosed hGu
     exact hp.hasType.2.defeqU_r c.Ewf c.Δwf hL.symm
   -- the fields
+  by_cases hidx : c_val.numFields ≤ i
+  · -- past the fields, the walk reaches the constructor's result type, an application of the
+    -- rigid structure type, which `whnf` does not turn into a binder: the walk fails
+    obtain ⟨r, rfl⟩ : ∃ r, i = ds.length + r := ⟨i - ds.length, by omega⟩
+    have hrigid := c.Ewf.projectionRigid hinfo
+    rw [instantiateProjectionFields_add, bind_assoc]
+    refine (instantiateProjectionFields.WF_corner (st := st) (G := G)
+      (m := AddInductive.constructorArity c_val.type - I_val.numParams) he ⟨_, hety⟩ (.inr rfl) hG
+      hafter' (Nat.le_refl _)
+      (fun m hm u hu hGu => by simpa using hproj m (by omega) u (by simpa using hu) hGu)
+      ?corner hpfx₄).bind fun o _ _ H => ?_
+    case corner =>
+      rcases c.corner with hch | hcert
+      · exact .inr fun _ m _ D body' hres hD hnG body hbody hcl =>
+          projectionWalkCorner_choice c.Ewf hch c.Δwf hinfo hlsWF hlen' L₀ hP'len
+            (idx := args'.drop info.nparams) (by rw [List.take_append_drop]; exact hety)
+            (j := m) (by
+              rw [VProjectionInfo.instantiateProjectionParameters_append, hR₁0]
+              simpa [projs] using hres)
+            hD hnG hbody hcl
+      · have hnf := (hcertT hcert).1
+        by_cases hnp : I_val.numParams ≤ AddInductive.constructorArity c_val.type
+        · obtain ⟨R, hR, hRT⟩ := hafterCert ⟨hcert, hnp⟩
+          rw [VProjectionInfo.instantiateProjectionParameters_wrapForalls _ _ _
+            (by rw [hP'len]; exact hnpLen)] at hR
+          cases hR
+          rw [hP'len] at hRT
+          refine .inl ⟨?_, ?_⟩
+          · rw [← hds_def]; exact hRT
+          · omega
+        · -- no field at all: the walk has nothing to cross
+          exact .inr fun _ m hm => absurd hm (by omega)
+    rcases o with _ | t
+    · exact hfail'
+    obtain ⟨⟨⟨⟨R, hR, htR⟩, -⟩, -⟩, -⟩ := H t rfl
+    rw [VProjectionInfo.instantiateProjectionParameters_wrapForalls _ _ _ (by simp),
+      projs_length, List.drop_length, Nat.sub_self] at hR
+    simp only [VExpr.instDomsAt, VExpr.wrapForalls, List.foldr_nil, Option.some.injEq] at hR
+    subst hR
+    have hRn : (VExpr.instOuterAt (result₀.instOuterAt (List.take info.nparams args')
+        (doms₀.length - info.nparams)) (projs st e' 0 ds.length) 0).HeadName st :=
+      (((VExpr.HeadName.of_getAppFnArgs hhead).instL).of_lequiv hres₀).instOuterAt _ _
+        |>.instOuterAt _ _
+    refine (instantiateProjectionFields.WF_stuck htR hRn hrigid r _ _).bind fun o' _ _ H' => ?_
+    rcases o' with _ | t'
+    · exact hfail'
+    obtain rfl := H' t' rfl
+    refine (whnf.WF_not_forallE htR hRn hrigid).bind fun w _ _ hw => ?_
+    split
+    · exact absurd rfl (hw _ _ _ _)
+    · exact hfail'
+  replace hidx : i < c_val.numFields := by omega
   have hile : i ≤ ds.length := by omega
   refine (instantiateProjectionFields.WF_corner (st := st) (G := G)
     (m := AddInductive.constructorArity c_val.type - I_val.numParams) he ⟨_, hety⟩ (.inr rfl) hG
@@ -639,8 +691,8 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
             rw [VProjectionInfo.instantiateProjectionParameters_append, hR₁0]
             simpa [projs] using hres)
           hD hnG hbody hcl
-    · obtain ⟨R, hR, hRT⟩ := hafterCert hcert
-      have hnf := (hcertT hcert).1
+    · have hnf := (hcertT hcert).1
+      obtain ⟨R, hR, hRT⟩ := hafterCert ⟨hcert, by omega⟩
       rw [VProjectionInfo.instantiateProjectionParameters_wrapForalls _ _ _
         (by rw [hP'len]; exact hnpLen)] at hR
       cases hR

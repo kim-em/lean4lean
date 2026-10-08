@@ -61,7 +61,6 @@ theorem toCtorWhenK.framed (he : GF G e) :
     split <;> [skip; exact .pure he]
     split <;> [exact .pure he; skip]
     split <;> [exact .pure he; skip]
-    split <;> [exact .pure he; skip]
     split <;> [skip; exact .pure he]
     rename_i c hc
     have hc := mkNullaryCtor_gf ht hc
@@ -80,7 +79,6 @@ theorem expandEtaStruct_gf (ht : GF G eType) (he : GF G e) :
   split <;> [skip; exact he]
   split <;> [skip; exact he]
   split <;> [skip; exact he]
-  split <;> [exact he; skip]
   split <;> [exact he; skip]
   have hfold : ∀ (l : List Nat) (r : Expr), GF G r →
       GF G (l.foldl (fun result i => result.app (.proj I i e)) r) := by
@@ -217,12 +215,7 @@ theorem reduceProjCoreCont.framed (hc : GF G c) :
   split <;> [skip; exact .pure OGF.none]
   refine RecM.Framed.getEnv.bind fun env _ => ?_
   refine (RecM.Framed.liftExcept (R := fun _ => True) fun _ _ => trivial).bind fun _ _ => ?_
-  split <;> [skip; exact .pure OGF.none]
-  split <;> [skip; exact .pure OGF.none]
-  split <;> [skip; exact .pure OGF.none]
-  split <;> [skip; exact .pure OGF.none]
-  split <;> [skip; exact .pure OGF.none]
-  split <;> [skip; exact .pure OGF.none]
+  repeat (split <;> [skip; exact .pure OGF.none])
   exact .pure fun _ h => hargs.getElem? h
 
 theorem reduceProjCore.framed (hs : GF G struct) :

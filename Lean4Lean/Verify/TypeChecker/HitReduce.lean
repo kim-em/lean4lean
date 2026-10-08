@@ -113,19 +113,20 @@ theorem mkNullaryCtor_eq_some {env : Environment} {A : Expr}
 shape: recursors in the environment never eliminate families with head constructors. -/
 theorem toCtorWhenK.Post_hit {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : info.k = true)
     (hrec : c.env.find? recFn = some (.recInfo info))
+    (hK : ∃ ind ctorName, c.env.constants.find? info.getMajorInduct = some (.inductInfo ind) ∧
+      ind.ctors = [ctorName] ∧ KLikeAlignment c.venv info ctorName)
     (he : c.TrExprS major m') (hp : s.ngen.namePrefix = pfx) :
     RecM.Post c s (toCtorWhenK c.env whnf inferType isDefEq info major) fun r =>
       c.HitBelow pfx major r := by
   unfold toCtorWhenK
   split <;> [skip; exact absurd hk ‹_›]
-  refine RecM.Post.bind (inferType.WF_fhit he hp) fun T _ le ⟨⟨T', hfvT, _, hTS, _⟩, hT⟩ => ?_
+  refine RecM.Post.bind (inferType.WF_fhit he hp) fun T _ le ⟨⟨T', hfvT, _, hTS, hT'⟩, hT⟩ => ?_
   refine RecM.Post.bind (whnf.WF_fhit hTS (VState.LE.namePrefix_eq hp le))
-    fun A _ _ ⟨⟨hfvA, _⟩, hA⟩ => ?_
+    fun A _ _ ⟨⟨hfvA, A', hAS, hAdefeq⟩, hA⟩ => ?_
   refine RecM.Res.post ?_
   have hid : ∀ {x : Expr}, x = major → c.HitBelow pfx major x := by rintro _ rfl; exact .rfl
   split <;> [rename_i I lsI hAfn; exact .pure (hid rfl)]
   split <;> [exact .pure (hid rfl); rename_i hI]
-  split <;> [exact .pure (hid rfl); rename_i hnum]
   split <;> [exact .pure (hid rfl); skip]
   split <;> [rename_i newCtorApp hnull; exact .pure (hid rfl)]
   simp only [bne_iff_ne, ne_eq, Classical.not_not] at hI
@@ -136,11 +137,11 @@ theorem toCtorWhenK.Post_hit {info : RecursorVal} {major : Expr} {m' : VExpr} (h
     rw [hAfn] at hfn'; cases hfn'
     obtain ⟨v, hv, hname⟩ := getFirstCtor_eq_some hfirst
     rw [hI] at hv
+    -- the type of the major premise is a type, so it supplies the parameters
     have hsize : info.numParams ≤ A.getAppArgs.size := by
-      simp only [bne_iff_ne, ne_eq, Classical.not_not] at hnum
-      have hsz : A.getAppArgs.size = A.getAppNumArgs := by
-        rw [← Array.length_toList, Expr.getAppArgs_toList_rev, Expr.getAppNumArgs_eq,
-          List.length_reverse]
+      have ⟨_, hsortT⟩ := hT'.isType c.Ewf.ordered c.Δwf.toCtx
+      rw [toCtorWhenK.majorType_size hK hAS (hI ▸ hAfn)
+        (hsortT.defeqU_l c.Ewf c.Δwf hAdefeq.symm)]
       omega
     refine .mkAppRange hsize (.const ((hs.env.rec_major hrec).2 v hv name hname)) fun a h =>
       hAok.of_mem_getAppArgs hs.params.fvars h
@@ -153,7 +154,7 @@ theorem expandEtaStruct_eq {env : Environment} {eType e r : Expr}
     (h : expandEtaStruct env eType e = r) :
     r = e ∨ ∃ I ls sInfo ctor mkInfo, eType.getAppFn = .const I ls ∧
       env.find? I = some (.inductInfo sInfo) ∧ sInfo.ctors.head? = some ctor ∧
-      env.find? ctor = some (.ctorInfo mkInfo) ∧ eType.getAppArgs.size = mkInfo.numParams ∧
+      env.find? ctor = some (.ctorInfo mkInfo) ∧ mkInfo.induct = I ∧
       r = (List.range mkInfo.numFields).foldl (fun result i => .app result (.proj I i e))
         (mkAppRange (.const ctor ls) 0 mkInfo.numParams eType.getAppArgs) := by
   subst h
@@ -163,9 +164,8 @@ theorem expandEtaStruct_eq {env : Environment} {eType e r : Expr}
   split <;> [rename_i sInfo hs; exact .inl rfl]
   split <;> [rename_i ctor hc; exact .inl rfl]
   split <;> [rename_i mkInfo hm; exact .inl rfl]
-  split <;> [exact .inl rfl; skip]
-  split <;> [exact .inl rfl; rename_i hsize]
-  exact .inr ⟨I, ls, sInfo, ctor, mkInfo, hfn, hs, hc, hm, by simpa using hsize, rfl⟩
+  split <;> [exact .inl rfl; rename_i hinduct]
+  exact .inr ⟨I, ls, sInfo, ctor, mkInfo, hfn, hs, hc, hm, by simpa using hinduct, rfl⟩
 
 /-- The structure-eta expansion built by `toCtorWhenStruct` is in hit shape. -/
 theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
@@ -175,10 +175,12 @@ theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
       c.HitBelow pfx w r := by
   have hid : ∀ {x : Expr}, x = w → c.HitBelow pfx w x := by rintro _ rfl; exact .rfl
   unfold toCtorWhenStruct
-  split <;> [exact .pure (hid rfl); skip]
-  refine RecM.Post.bind (inferType.WF_fhit he hp) fun T _ le ⟨⟨T', hfvT, _, hTS, _⟩, hT⟩ => ?_
+  split <;> [exact .pure (hid rfl); rename_i hguard]
+  have hnonrec : c.env.isNonRecStructure info.getMajorInduct = true := by
+    revert hguard; cases c.env.isNonRecStructure info.getMajorInduct <;> simp
+  refine RecM.Post.bind (inferType.WF_fhit he hp) fun T _ le ⟨⟨T', hfvT, _, hTS, hT'⟩, hT⟩ => ?_
   refine RecM.Post.bind (whnf.WF_fhit hTS (VState.LE.namePrefix_eq hp le))
-    fun A _ _ ⟨⟨hfvA, _⟩, hA⟩ => ?_
+    fun A _ _ ⟨⟨hfvA, A', hAS, hAdefeq⟩, hA⟩ => ?_
   refine RecM.Res.post ?_
   split <;> [exact .pure (hid rfl); rename_i hisConst]
   have hisConst' : A.getAppFn.isConstOf info.getMajorInduct = true := by simpa using hisConst
@@ -189,8 +191,16 @@ theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
     have ⟨hInot, hctors⟩ := hs.env.rec_major hrec
     rcases expandEtaStruct_eq (env := c.env) (eType := A) (e := w) rfl with h | h
     · rw [h]; exact hl
-    obtain ⟨I, ls', sInfo, ctor, mkInfo, hfn, hsI, hctor, -, hsize, hr⟩ := h
+    obtain ⟨I, ls', sInfo, ctor, mkInfo, hfn, hsI, hctor, hm, hinduct, hr⟩ := h
     rw [hAfn] at hfn; cases hfn
+    have hsize : A.getAppArgs.size = mkInfo.numParams := by
+      obtain ⟨sInfo', ctor', hfind', hsingle', hnind'⟩ :=
+        Kernel.Environment.isNonRecStructure_inv hnonrec
+      rw [hsI] at hfind'; cases hfind'
+      rw [hsingle'] at hctor; cases hctor
+      obtain ⟨_, hTsort⟩ := hT'.isType c.Ewf.ordered c.Δwf.toCtx
+      exact VContext.structTypeArgs hAS ⟨_, hTsort.defeqU_l c.Ewf c.Δwf hAdefeq.symm⟩ hAfn hsI
+        hsingle' hnind' hm hinduct
     rw [hr, foldl_app_proj]
     refine .mkAppList (.mkAppRange (Nat.le_of_eq hsize.symm)
       (.const (hctors sInfo hsI ctor (List.mem_of_head? hctor))) fun a h =>
@@ -267,7 +277,7 @@ theorem inductiveReduceRec.Post_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefi
   split
   · rename_i hk
     refine RecM.Post.bind ((toCtorWhenK.WF_all hk (hK hk) hm').and_post
-      (toCtorWhenK.Post_hit hk hinfo hm' hp)) fun m₁ s₁ le ⟨⟨⟨h1, ⟨_, h2, _⟩⟩, _⟩, hh⟩ => ?_
+      (toCtorWhenK.Post_hit hk hinfo (hK hk) hm' hp)) fun m₁ s₁ le ⟨⟨⟨h1, ⟨_, h2, _⟩⟩, _⟩, hh⟩ => ?_
     exact hjp m₁ (VState.LE.namePrefix_eq hp le) h1 hh h2
   · exact hjp _ hp .rfl .rfl hm'
 
