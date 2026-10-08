@@ -552,8 +552,10 @@ Recorded under Kim's standing instruction (decide, record, continue).
    eliminator of the lowered environment to be present in the source environment. Decision: the
    source block registers the restored schema `(k, ofCompilation source sL auxiliaries)` (same
    signature sL, restoration of the nested compilation), certified from the validated run
-   (`Nested/CaseEliminators.lean`), and `RenamingReplacement.eliminators` gains a second
-   alternative: a lowered schema without restoration may be matched by a registered source
+   (`Nested/CaseEliminators.lean`), and `RenamingReplacementOnCtx.eliminators` gains a second
+   alternative (`RestoredEliminator`, added by `RenamingReplacementOnCtx.addEliminator`; the
+   context-free `RenamingReplacement` keeps the first alternative only, since the conversion up
+   to beta needs a well-formed image context): a lowered schema without restoration may be matched by a registered source
    schema with the same signature whose restoration agrees with the replacement (shape,
    heads replaced, renaming), the elimination rules being transported through the agreement of
    restoration with renaming replacement up to beta (`RenamingRestorationSubstitution.expr_simAt`).

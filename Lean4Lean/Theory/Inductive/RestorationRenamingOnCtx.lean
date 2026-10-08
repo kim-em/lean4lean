@@ -1,4 +1,7 @@
 import Lean4Lean.Theory.Inductive.RestorationRenaming
+import Lean4Lean.Theory.Inductive.RestorationNaturality
+import Lean4Lean.Theory.Inductive.BetaSubjectReduction
+import Lean4Lean.Theory.Typing.CanonicalDataRegistryScope
 
 /-! Context-carrying renaming replacement.
 
@@ -11,6 +14,14 @@ well-formed image contexts (`ProjectionTransportOnCtx`); its transport
 context through the binders of the derivation. Every derivation starting in a
 well-formed image context (in particular the empty context, where the
 generated equations are stated) is transported.
+
+Its eliminator clause also admits restoration-free lowered eliminators matched
+by a registered restored source schema with the same signature
+(`RestoredEliminator`, added by `RenamingReplacementOnCtx.addEliminator`): their
+rules are transported through the agreement of restoration with the renaming
+replacement up to beta (`RenamingRestorationAgreement.expr_simAt`), which needs
+the well-formed image context and so is not available to the context-free
+`RenamingReplacement`.
 
 `RenamingRestorationSubstitutionOnCtx` is the corresponding variant of
 `RenamingRestorationSubstitution`, and `Restoration.equation_wf_onCtx` the
@@ -90,6 +101,188 @@ theorem ProjectionTransport.onCtx {envS : VEnv} {ρ : Name → Option VExpr} {σ
   structEta _ := H.structEta
   unitLike _ := H.unitLike
 
+/-- A restoration-free eliminator `(block, schema)` of the lowered environment,
+matched in `envS` by the registered schema with the same signature and the
+restoration `r`, which agrees with the renaming replacement `(ρ, σ)`. Its
+elimination rules are transported through the agreement of restoration with
+`replaceRen ρ σ` up to beta
+(`InductiveSignature.RenamingRestorationAgreement.expr_simAt`), which needs beta
+subject reduction in `envS`, the projection names of the generic type and
+equations fixed by `σ`, and their restorations to succeed. -/
+structure RestoredEliminator (envS : VEnv) (ρ : Name → Option VExpr) (σ : Name → Name)
+    (block : Name) (schema : InductiveSignature.CaseSchema)
+    (r : InductiveSignature.Restoration) : Prop where
+  /-- The lowered schema carries no restoration. -/
+  restorationFree : schema.restoration = {}
+  /-- The source schema, with the same signature and the restoration `r`, is
+  registered under the same key. -/
+  registered : envS.eliminators block { schema with restoration := r }
+  /-- The restoration agrees with the renaming replacement. -/
+  agreement : InductiveSignature.RenamingRestorationAgreement r ρ σ
+  /-- The restoration table is scoped (the head arguments are closed under the
+  head parameters, so restoration preserves closedness). -/
+  restorationScoped : r.Scoped
+  betaSubjectReduction : ∀ U, envS.BetaSubjectReduction U
+  /-- The generic type has its projection names fixed and is restorable. -/
+  genericType : ∀ owner type, schema.genericType owner = some type →
+    type.ProjNamesFixed σ ∧ (r.expr type).isSome
+  /-- The generic equations have their projection names fixed and are restorable. -/
+  genericEquations : ∀ owner rules, schema.genericEquations block owner = some rules →
+    ∀ df ∈ rules, df.lhs.ProjNamesFixed σ ∧ df.rhs.ProjNamesFixed σ ∧
+      df.type.ProjNamesFixed σ ∧ (r.equation df).isSome
+
+theorem RestoredEliminator.mono_envS {envS envS' : VEnv} {ρ : Name → Option VExpr}
+    {σ : Name → Name} {block : Name} {schema : InductiveSignature.CaseSchema}
+    {r : InductiveSignature.Restoration} (R : RestoredEliminator envS ρ σ block schema r)
+    (heq : envS'.eliminators = envS.eliminators)
+    (hβ : ∀ U, envS'.BetaSubjectReduction U) :
+    RestoredEliminator envS' ρ σ block schema r :=
+  { R with registered := heq ▸ R.registered, betaSubjectReduction := hβ }
+
+/-- The generic type of the restored schema is the restoration of the generic
+type of the restoration-free schema. -/
+theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.genericType_withRestoration
+    {schema : InductiveSignature.CaseSchema} (h0 : schema.restoration = {})
+    {owner : Fin schema.signature.families.size} {type : VExpr}
+    (h : schema.genericType owner = some type) (r : InductiveSignature.Restoration) :
+    ({ schema with restoration := r } : InductiveSignature.CaseSchema).genericType owner =
+      r.expr type := by
+  simp only [InductiveSignature.CaseSchema.genericType, InductiveSignature.CaseSchema.type,
+    h0, InductiveSignature.Restoration.expr_empty, Option.some.injEq] at h ⊢
+  rw [← h]
+  rfl
+
+/-- The generic equations of the restored schema are the restorations of the
+generic equations of the restoration-free schema. -/
+theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.genericEquations_withRestoration
+    {schema : InductiveSignature.CaseSchema} (h0 : schema.restoration = {}) {block : Name}
+    {owner : Fin schema.signature.families.size} {rules : List VDefEq}
+    (h : schema.genericEquations block owner = some rules)
+    (r : InductiveSignature.Restoration) :
+    ({ schema with restoration := r } : InductiveSignature.CaseSchema).genericEquations
+      block owner = rules.mapM r.equation := by
+  have hempty : (({} : InductiveSignature.Restoration).equation) = fun e => some e := by
+    funext e
+    exact InductiveSignature.Restoration.equation_empty e
+  simp only [InductiveSignature.CaseSchema.genericEquations,
+    InductiveSignature.CaseSchema.equations, h0, hempty] at h ⊢
+  have hsome : ∀ l : List VDefEq, l.mapM (fun e => some e) = some l := by
+    intro l
+    induction l with
+    | nil => rfl
+    | cons a l ih => simp [List.mapM_cons, ih]
+  rw [hsome] at h
+  cases h
+  rfl
+
+/-- `Permission` only reads the signature. -/
+theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.Permission.withRestoration
+    {schema : InductiveSignature.CaseSchema} {owner : Fin schema.signature.families.size}
+    {U : Nat} {levels : List VLevel} {target : VLevel}
+    (H : schema.Permission U owner levels target) (r : InductiveSignature.Restoration) :
+    ({ schema with restoration := r } : InductiveSignature.CaseSchema).Permission U owner
+      levels target :=
+  ⟨H.length, H.levels_wf, H.target_wf, H.admissible⟩
+
+private theorem restoredEliminator_closedN {r : InductiveSignature.Restoration}
+    (hr : r.Scoped) {e e' : VExpr} (he : e.Closed) (h : r.expr e = some e') : e'.Closed :=
+  ShapeModel.restore_go_closedN r (fun h hh a ha => (hr.2.2.1 h hh).2 a ha) e [] 0 e' he
+    (by simp) h
+
+private theorem restoredEliminator_instL {r : InductiveSignature.Restoration} {e e' : VExpr}
+    (h : r.expr e = some e') (ls : List VLevel) :
+    r.expr (e.instL ls) = some (e'.instL ls) := by
+  rw [← InductiveSignature.Restoration.expr_instL, h]
+  rfl
+
+private theorem mapM_equation_of_isSome (r : InductiveSignature.Restoration) :
+    ∀ {l : List VDefEq}, (∀ d ∈ l, (r.equation d).isSome) → ∃ l', l.mapM r.equation = some l'
+  | [], _ => ⟨[], rfl⟩
+  | a :: l, h => by
+    obtain ⟨a', ha⟩ := Option.isSome_iff_exists.mp (h a List.mem_cons_self)
+    obtain ⟨l', hl⟩ := mapM_equation_of_isSome r (l := l)
+      (fun d hd => h d (List.mem_cons_of_mem _ hd))
+    exact ⟨a' :: l', by simp [List.mapM_cons, ha, hl]⟩
+
+/-- The congruence rule of a restoration-free lowered eliminator, transported to
+`envS` through the registered restored schema. -/
+theorem RestoredEliminator.elimDF {envS : VEnv} {ρ : Name → Option VExpr}
+    {σ : Name → Name} {block : Name} {schema : InductiveSignature.CaseSchema}
+    {r : InductiveSignature.Restoration} (R : RestoredEliminator envS ρ σ block schema r)
+    (henv : envS.Ordered) {owner : Fin schema.signature.families.size} {type : VExpr}
+    {U : Nat} {Γ : List VExpr} {levels levels' : List VLevel} {target target' : VLevel}
+    {typeLevel : VLevel}
+    (htype : schema.genericType owner = some type) (hclosed : type.Closed)
+    (hperm : schema.Permission U owner levels target)
+    (hright : ∀ level ∈ target' :: levels', level.WF U)
+    (heq : List.Forall₂ (· ≈ ·) (target :: levels) (target' :: levels'))
+    (hΓ : OnCtx Γ (envS.IsType U))
+    (htyped : envS.HasType U Γ ((type.instL (target :: levels)).replaceRen ρ σ)
+      (.sort typeLevel)) :
+    envS.IsDefEq U Γ (.elim block owner.val (target :: levels))
+      (.elim block owner.val (target' :: levels'))
+      ((type.instL (target :: levels)).replaceRen ρ σ) := by
+  obtain ⟨hfixT, hsome⟩ := R.genericType owner type htype
+  obtain ⟨type', htype'⟩ := Option.isSome_iff_exists.mp hsome
+  have hgen := InductiveSignature.CaseSchema.genericType_withRestoration
+    R.restorationFree htype r
+  rw [htype'] at hgen
+  have hdef := R.agreement.expr_simAt henv (R.betaSubjectReduction U) hΓ hfixT.instL
+    (restoredEliminator_instL htype' (target :: levels)) _ htyped
+  have hS := VEnv.IsDefEq.elimDF (schema := { schema with restoration := r }) (owner := owner)
+    R.registered hgen (restoredEliminator_closedN R.restorationScoped hclosed htype')
+    (hperm.withRestoration r) hright heq hdef.hasType.2
+  exact .defeqDF hdef.symm hS
+
+/-- The iota rule of a restoration-free lowered eliminator, transported to
+`envS` through the restored rule of the registered restored schema. -/
+theorem RestoredEliminator.elimIota {envS : VEnv} {ρ : Name → Option VExpr}
+    {σ : Name → Name} {block : Name} {schema : InductiveSignature.CaseSchema}
+    {r : InductiveSignature.Restoration} (R : RestoredEliminator envS ρ σ block schema r)
+    (henv : envS.Ordered) {owner : Fin schema.signature.families.size}
+    {rules : List VDefEq} {df : VDefEq}
+    {U : Nat} {Γ : List VExpr} {levels : List VLevel} {target : VLevel}
+    (hgen : schema.genericEquations block owner = some rules) (hmem : df ∈ rules)
+    (hclosed : InductiveSignature.CaseSchema.RuleClosed df)
+    (hperm : schema.Permission U owner levels target)
+    (hΓ : OnCtx Γ (envS.IsType U))
+    (hleft : envS.HasType U Γ ((df.lhs.instL (target :: levels)).replaceRen ρ σ)
+      ((df.type.instL (target :: levels)).replaceRen ρ σ))
+    (hright : envS.HasType U Γ ((df.rhs.instL (target :: levels)).replaceRen ρ σ)
+      ((df.type.instL (target :: levels)).replaceRen ρ σ)) :
+    envS.IsDefEq U Γ ((df.lhs.instL (target :: levels)).replaceRen ρ σ)
+      ((df.rhs.instL (target :: levels)).replaceRen ρ σ)
+      ((df.type.instL (target :: levels)).replaceRen ρ σ) := by
+  obtain ⟨hfixL, hfixR, hfixT, hsome⟩ := R.genericEquations owner rules hgen df hmem
+  obtain ⟨df', hdf'⟩ := Option.isSome_iff_exists.mp hsome
+  obtain ⟨rules', hrules'⟩ := mapM_equation_of_isSome r
+    (fun d hd => (R.genericEquations owner rules hgen d hd).2.2.2)
+  have hgen' := InductiveSignature.CaseSchema.genericEquations_withRestoration
+    R.restorationFree hgen r
+  rw [hrules'] at hgen'
+  have hmem' : df' ∈ rules' := by
+    obtain ⟨d, hd, hdd⟩ := List.Forall₂.forall_exists_l (List.mapM_eq_some.mp hrules') df hmem
+    rw [hdf'] at hdd
+    cases hdd
+    exact hd
+  obtain ⟨hl, hr, ht⟩ := InductiveSignature.Restoration.equation_parts hdf'
+  have hclosed' : InductiveSignature.CaseSchema.RuleClosed df' :=
+    ⟨restoredEliminator_closedN R.restorationScoped hclosed.1 hl,
+      restoredEliminator_closedN R.restorationScoped hclosed.2.1 hr,
+      restoredEliminator_closedN R.restorationScoped hclosed.2.2 ht⟩
+  have hβ := R.betaSubjectReduction U
+  have hL := R.agreement.expr_simAt henv hβ hΓ hfixL.instL
+    (restoredEliminator_instL hl (target :: levels)) _ hleft
+  have hR := R.agreement.expr_simAt henv hβ hΓ hfixR.instL
+    (restoredEliminator_instL hr (target :: levels)) _ hright
+  obtain ⟨u, hT⟩ := hleft.isType henv hΓ
+  have hTT := R.agreement.expr_simAt henv hβ hΓ hfixT.instL
+    (restoredEliminator_instL ht (target :: levels)) _ hT
+  have hι := VEnv.IsDefEq.elimIota (schema := { schema with restoration := r })
+    (owner := owner) R.registered hgen' hmem' hclosed' (hperm.withRestoration r)
+    (.defeqDF hTT hL.hasType.2) (.defeqDF hTT hR.hasType.2)
+  exact hL.trans ((VEnv.IsDefEq.defeqDF hTT.symm hι).trans hR.symm)
+
 /-- `RenamingReplacement` with projection rules transported only in
 well-formed image contexts. -/
 structure RenamingReplacementOnCtx (envS envL : VEnv) (ρ : Name → Option VExpr)
@@ -104,12 +297,17 @@ structure RenamingReplacementOnCtx (envS envL : VEnv) (ρ : Name → Option VExp
   defeqs : ∀ df, envL.defeqs df → ∃ df', envS.defeqs df' ∧ df'.uvars = df.uvars ∧
     df'.lhs = df.lhs.replaceRen ρ σ ∧ df'.rhs = df.rhs.replaceRen ρ σ ∧
     df'.type = df.type.replaceRen ρ σ
+  /-- Every eliminator of `envL` is either registered in `envS` with the same
+  schema, whose generic type and equations are fixed by the replacement, or is
+  restoration-free and matched by a registered restored schema of `envS`
+  (`RestoredEliminator`). -/
   eliminators : ∀ block schema, envL.eliminators block schema →
-    envS.eliminators block schema ∧
-    (∀ owner type, schema.genericType owner = some type → type.replaceRen ρ σ = type) ∧
-    (∀ owner rules, schema.genericEquations block owner = some rules → ∀ df ∈ rules,
-      df.lhs.replaceRen ρ σ = df.lhs ∧ df.rhs.replaceRen ρ σ = df.rhs ∧
-      df.type.replaceRen ρ σ = df.type)
+    (envS.eliminators block schema ∧
+      (∀ owner type, schema.genericType owner = some type → type.replaceRen ρ σ = type) ∧
+      (∀ owner rules, schema.genericEquations block owner = some rules → ∀ df ∈ rules,
+        df.lhs.replaceRen ρ σ = df.lhs ∧ df.rhs.replaceRen ρ σ = df.rhs ∧
+        df.type.replaceRen ρ σ = df.type)) ∨
+    ∃ r, RestoredEliminator envS ρ σ block schema r
   projections : ∀ typeName info, envL.projections typeName info →
     ProjectionTransportOnCtx envS ρ σ typeName info
 
@@ -122,7 +320,7 @@ theorem RenamingReplacement.toOnCtx (S : RenamingReplacement envS envL ρ σ) :
   replaced := S.replaced
   kept := S.kept
   defeqs := S.defeqs
-  eliminators := S.eliminators
+  eliminators block schema h := .inl (S.eliminators block schema h)
   projections typeName info h := (S.projections typeName info h).onCtx
 
 /-- Renaming replacement transports definitional equality to every
@@ -158,19 +356,22 @@ theorem RenamingReplacementOnCtx.isDefEq (S : RenamingReplacementOnCtx envS envL
       exact .defeqDF ht' hconst
   | elimDF hlookup htype hclosed hperm hright heq _ ih =>
     intro hΓ'
-    obtain ⟨hS, htypes, _⟩ := S.eliminators _ _ hlookup
-    have hfix := htypes _ _ htype
     have ih := ih hΓ'
-    simp only [VExpr.replaceRen_instL, hfix, VExpr.replaceRen] at ih ⊢
-    exact .elimDF hS htype hclosed hperm hright heq ih
+    rcases S.eliminators _ _ hlookup with ⟨hS, htypes, _⟩ | ⟨r, R⟩
+    · have hfix := htypes _ _ htype
+      simp only [VExpr.replaceRen_instL, hfix, VExpr.replaceRen] at ih ⊢
+      exact .elimDF hS htype hclosed hperm hright heq ih
+    · simp only [VExpr.replaceRen] at ih ⊢
+      exact R.elimDF S.ordered htype hclosed hperm hright heq hΓ' ih
   | elimIota hlookup hgen hmem hclosed hperm _ _ ihLeft ihRight =>
     intro hΓ'
-    obtain ⟨hS, _, hrules⟩ := S.eliminators _ _ hlookup
-    obtain ⟨hl, hr, ht⟩ := hrules _ _ hgen _ hmem
     have ihLeft := ihLeft hΓ'
     have ihRight := ihRight hΓ'
-    simp only [VExpr.replaceRen_instL, hl, hr, ht] at ihLeft ihRight ⊢
-    exact .elimIota hS hgen hmem hclosed hperm ihLeft ihRight
+    rcases S.eliminators _ _ hlookup with ⟨hS, _, hrules⟩ | ⟨r, R⟩
+    · obtain ⟨hl, hr, ht⟩ := hrules _ _ hgen _ hmem
+      simp only [VExpr.replaceRen_instL, hl, hr, ht] at ihLeft ihRight ⊢
+      exact .elimIota hS hgen hmem hclosed hperm ihLeft ihRight
+    · exact R.elimIota S.ordered hgen hmem hclosed hperm hΓ' ihLeft ihRight
   | appDF _ _ ih1 ih2 =>
     intro hΓ'
     rw [VExpr.replaceRen_inst hρ]
@@ -269,6 +470,77 @@ theorem RenamingReplacementOnCtx.addProjections {env : VEnv}
     · exact hp entry hmem
     · exact S.projections typeName info h
 
+/-- A context-carrying renaming replacement restricts to every smaller lowered
+environment. -/
+theorem RenamingReplacementOnCtx.mono {envL₀ : VEnv} (S : RenamingReplacementOnCtx envS envL ρ σ)
+    (hle : envL₀ ≤ envL) : RenamingReplacementOnCtx envS envL₀ ρ σ where
+  closed := S.closed
+  ordered := S.ordered
+  replaced c ci t h := S.replaced c ci t (hle.constants h)
+  kept c ci h := S.kept c ci (hle.constants h)
+  defeqs df h := S.defeqs df (hle.defeqs h)
+  eliminators block schema h := S.eliminators block schema (hle.eliminators h)
+  projections typeName info h := S.projections typeName info (hle.projections h)
+
+/-- Extend a context-carrying renaming replacement by restoration-free lowered
+eliminators, each matched by a registered restored schema of `envS`. -/
+theorem RenamingReplacementOnCtx.addEliminators {env : VEnv}
+    (S : RenamingReplacementOnCtx envS env ρ σ)
+    {es : List (Name × InductiveSignature.CaseSchema)}
+    (hes : ∀ e ∈ es, ∃ r, RestoredEliminator envS ρ σ e.1 e.2 r) :
+    RenamingReplacementOnCtx envS (env.addEliminators es) ρ σ where
+  closed := S.closed
+  ordered := S.ordered
+  replaced c ci t hc ht := S.replaced c ci t (by rwa [VEnv.addEliminators_constants] at hc) ht
+  kept c ci hc ht := S.kept c ci (by rwa [VEnv.addEliminators_constants] at hc) ht
+  defeqs df hdf := S.defeqs df (by rwa [VEnv.addEliminators_defeqs] at hdf)
+  eliminators block schema hs := by
+    rcases VEnv.addEliminators_iff.mp hs with hmem | hs
+    · exact .inr (hes _ hmem)
+    · exact S.eliminators block schema hs
+  projections typeName info hp :=
+    S.projections typeName info (by rwa [VEnv.addEliminators_projections] at hp)
+
+/-- Extend a context-carrying renaming replacement by one restoration-free
+lowered eliminator `(block, schema)` (the lowered window's case eliminator),
+matched by the registered restored schema `{ schema with restoration := r }`
+of `envS`. -/
+theorem RenamingReplacementOnCtx.addEliminator {env : VEnv}
+    (S : RenamingReplacementOnCtx envS env ρ σ) {block : Name}
+    {schema : InductiveSignature.CaseSchema} {r : InductiveSignature.Restoration}
+    (R : RestoredEliminator envS ρ σ block schema r) :
+    RenamingReplacementOnCtx envS (env.addEliminators [(block, schema)]) ρ σ :=
+  S.addEliminators fun e he => by
+    rw [List.mem_singleton] at he
+    subst he
+    exact ⟨r, R⟩
+
+/-- A restored eliminator in a well-formed source environment: beta subject
+reduction, the scope of the restoration and the restorability of the generic
+types follow from well-formedness. -/
+theorem RestoredEliminator.of_wf {block : Name} {schema : InductiveSignature.CaseSchema}
+    {r : InductiveSignature.Restoration} (hS : envS.WF)
+    (h0 : schema.restoration = {})
+    (hreg : envS.eliminators block { schema with restoration := r })
+    (A : InductiveSignature.RenamingRestorationAgreement r ρ σ)
+    (htype : ∀ owner type, schema.genericType owner = some type → type.ProjNamesFixed σ)
+    (heqs : ∀ owner rules, schema.genericEquations block owner = some rules →
+      ∀ df ∈ rules, df.lhs.ProjNamesFixed σ ∧ df.rhs.ProjNamesFixed σ ∧
+        df.type.ProjNamesFixed σ ∧ (r.equation df).isSome) :
+    RestoredEliminator envS ρ σ block schema r where
+  restorationFree := h0
+  registered := hreg
+  agreement := A
+  restorationScoped := VEnv.WF.eliminator_restoration_scoped hS hreg
+  betaSubjectReduction _ := hS.betaSubjectReduction
+  genericType owner type h := by
+    refine ⟨htype owner type h, ?_⟩
+    obtain ⟨type', h', -⟩ := ShapeModel.VEnv.WF.eliminator_genericType_closed hS hreg owner
+    rw [InductiveSignature.CaseSchema.genericType_withRestoration h0 h r] at h'
+    rw [h']
+    rfl
+  genericEquations := heqs
+
 end VEnv
 
 namespace InductiveSignature
@@ -289,14 +561,16 @@ structure RenamingRestorationSubstitutionOnCtx (envS envL : VEnv) (r : Restorati
   /-- Away from the heads, the renaming is the recursor renaming. -/
   renamed : ∀ c, r.heads.find? (fun h => h.auxiliary == c) = none → σ c = r.recursorName c
 
-private theorem instantiateParams_eq_instOuter_onCtx (body : VExpr) (args : List VExpr) :
-    instantiateParams body args = body.instOuter args := by
-  rw [VExpr.instOuter_eq_subst]
-  rfl
+/-- The agreement clauses of a context-carrying renaming restoration substitution. -/
+theorem RenamingRestorationSubstitutionOnCtx.agreement {envS envL : VEnv} {r : Restoration}
+    {ρ : Name → Option VExpr} {σ : Name → Name}
+    (S : RenamingRestorationSubstitutionOnCtx envS envL r ρ σ) :
+    RenamingRestorationAgreement r ρ σ :=
+  ⟨S.shape, S.headsReplaced, S.renamed⟩
 
 /-- Restoration agrees with the renaming replacement up to beta, at every
 type of the replaced term, for terms whose projection names are fixed
-(`RenamingRestorationSubstitution.go_simAt`, which uses only the shape of the
+(`RenamingRestorationAgreement.go_simAt`, which uses only the shape of the
 replacement). -/
 theorem RenamingRestorationSubstitutionOnCtx.go_simAt {envS envL : VEnv} {r : Restoration}
     {ρ : Name → Option VExpr} {σ : Name → Name} {U : Nat}
@@ -306,97 +580,8 @@ theorem RenamingRestorationSubstitutionOnCtx.go_simAt {envS envL : VEnv} {r : Re
       e.ProjNamesFixed σ →
       OnCtx Γ (envS.IsType U) → List.Forall₂ (envS.SimAt U Γ) as as' →
       Restoration.expr.go r e as' = some out →
-      envS.SimAt U Γ (VExpr.mkApps (e.replaceRen ρ σ) as) out := by
-  have henv := S.ordered
-  intro e
-  induction e with
-  | bvar i =>
-    intro Γ as as' out _ hΓ has h
-    simp only [Restoration.expr.go, Option.some.injEq] at h
-    subst h
-    exact SimAt.mkApps henv hΓ SimAt.refl has
-  | sort u =>
-    intro Γ as as' out _ hΓ has h
-    simp only [Restoration.expr.go, Option.some.injEq] at h
-    subst h
-    exact SimAt.mkApps henv hΓ SimAt.refl has
-  | elim block owner ls =>
-    intro Γ as as' out _ hΓ has h
-    simp only [Restoration.expr.go, Option.some.injEq] at h
-    subst h
-    exact SimAt.mkApps henv hΓ SimAt.refl has
-  | app fn arg ihfn iharg =>
-    intro Γ as as' out hfix hΓ has h
-    simp only [Restoration.expr.go, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
-    obtain ⟨arg', harg, hfn⟩ := h
-    have h1 := iharg (as := []) (as' := []) hfix.2 hΓ .nil harg
-    exact ihfn (as := arg.replaceRen ρ σ :: as) hfix.1 hΓ (.cons h1 has) hfn
-  | lam d b ihd ihb =>
-    intro Γ as as' out hfix hΓ has h
-    simp only [Restoration.expr.go, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.pure_def, Option.some.injEq] at h
-    obtain ⟨d', hd, b', hb, rfl⟩ := h
-    exact SimAt.mkApps henv hΓ (SimAt.lam henv hΓ (ihd (as := []) hfix.1 hΓ .nil hd)
-      fun hΓ' => ihb (as := []) hfix.2 hΓ' .nil hb) has
-  | forallE d b ihd ihb =>
-    intro Γ as as' out hfix hΓ has h
-    simp only [Restoration.expr.go, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.pure_def, Option.some.injEq] at h
-    obtain ⟨d', hd, b', hb, rfl⟩ := h
-    exact SimAt.mkApps henv hΓ (SimAt.forallE henv hΓ (ihd (as := []) hfix.1 hΓ .nil hd)
-      fun hΓ' => ihb (as := []) hfix.2 hΓ' .nil hb) has
-  | proj n i m ih =>
-    intro Γ as as' out hfix hΓ has h
-    simp only [Restoration.expr.go, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.pure_def, Option.some.injEq] at h
-    obtain ⟨m', hm, rfl⟩ := h
-    simp only [VExpr.replaceRen, hfix.1]
-    exact SimAt.mkApps henv hΓ (SimAt.proj henv hΓ (ih (as := []) hfix.2 hΓ .nil hm)) has
-  | const c ls =>
-    intro Γ as as' out _ hΓ has h
-    simp only [Restoration.expr.go] at h
-    split at h
-    · next hd hfind =>
-      cases hρ : ρ c with
-      | none => exact absurd hρ (S.headsReplaced c hd hfind)
-      | some t =>
-        rw [VExpr.replaceRen_const_some hρ]
-        obtain ⟨hd', doms, hfind', hdoms, rfl⟩ := S.shape c t hρ
-        rw [hfind] at hfind'
-        cases hfind'
-        have hsim := SimAt.mkApps henv hΓ (SimAt.refl (x := (VExpr.wrapLams doms
-          (VExpr.mkApps (.const hd.target hd.levels) hd.arguments)).instL ls)) has
-        refine hsim.trans ?_
-        unfold HeadSpecialization.apply at h
-        split at h
-        · cases h
-        · next hlen =>
-          simp only [Bool.or_eq_true, bne_iff_ne, ne_eq, decide_eq_true_eq, not_or,
-            Nat.not_lt] at hlen
-          simp only [Option.pure_def, Option.some.injEq] at h
-          subst h
-          rw [VExpr.instL_wrapLams]
-          have := SimAt.mkApps_wrapLams henv hβ hΓ (doms.map (VExpr.instL ls))
-            ((VExpr.mkApps (.const hd.target hd.levels) hd.arguments).instL ls) as'
-            (by simp [hdoms]; omega)
-          simp only [List.length_map, hdoms] at this
-          refine this.trans ?_
-          simp only [VExpr.instL_mkApps, VExpr.instL, VExpr.instOuter_mkApps,
-            VExpr.instOuter_const, ← VExpr.mkApps_append, List.map_map,
-            Function.comp_def, instantiateParams_eq_instOuter_onCtx]
-          exact SimAt.refl
-    · next hfind =>
-      have hρ : ρ c = none := by
-        cases hρ : ρ c with
-        | none => rfl
-        | some t =>
-          obtain ⟨_, _, hfind', _⟩ := S.shape c t hρ
-          rw [hfind] at hfind'
-          cases hfind'
-      simp only [Option.some.injEq] at h
-      subst h
-      rw [VExpr.replaceRen_const_none hρ, S.renamed c hfind]
-      exact SimAt.mkApps henv hΓ SimAt.refl has
+      envS.SimAt U Γ (VExpr.mkApps (e.replaceRen ρ σ) as) out :=
+  S.agreement.go_simAt S.ordered hβ
 
 theorem RenamingRestorationSubstitutionOnCtx.expr_simAt {envS envL : VEnv} {r : Restoration}
     {ρ : Name → Option VExpr} {σ : Name → Name} {U : Nat} {Γ : List VExpr} {e e' : VExpr}
