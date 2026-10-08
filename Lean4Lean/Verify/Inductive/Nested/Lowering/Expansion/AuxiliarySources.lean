@@ -72,13 +72,13 @@ producer-retained selections and scope evidence. -/
 theorem NestedReplacementTargetSpine.cachedSourceApplicationEqv
     {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result traceFinalState}
-    {Hselection : LocalForallSelection lctx As}
+    {Hselection : CDeclArray lctx As}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
     (T : NestedReplacementTargetSpine Htrace Hselection Htarget sourceDecl
       fieldDepth)
     (O : FinalCachedGeneratedFamilyOrigin prodEnv result.params nparams
       initialSize runFinalState T.nested T.auxName)
-    (resultSelection : LocalForallSelection result.lctx result.params)
+    (resultSelection : CDeclArray result.lctx result.params)
     (hresultNodup : resultSelection.fvars.Nodup)
     (hselectionNodup : Hselection.fvars.Nodup)
     (hAs : As.size = result.params.size)
@@ -151,13 +151,13 @@ theorem NestedReplacementTargetSpine.cachedSourceApplicationEqv
 theorem NestedReplacementTargetSpine.cachedSourceSpines
     {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result traceFinalState}
-    {Hselection : LocalForallSelection lctx As}
+    {Hselection : CDeclArray lctx As}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
     (T : NestedReplacementTargetSpine Htrace Hselection Htarget sourceDecl
       fieldDepth)
     (O : FinalCachedGeneratedFamilyOrigin prodEnv result.params nparams
       initialSize runFinalState T.nested T.auxName)
-    (resultSelection : LocalForallSelection result.lctx result.params)
+    (resultSelection : CDeclArray result.lctx result.params)
     (hresultNodup : resultSelection.fvars.Nodup)
     (hselectionNodup : Hselection.fvars.Nodup)
     (hAs : As.size = result.params.size)
@@ -731,7 +731,7 @@ their environment-indexed support certificates. -/
 theorem FinalLoweredGeneratedFamilyNativeSource.baseExpansionsAtReplacement
     {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result traceFinalState}
-    {Hselection : LocalForallSelection lctx As}
+    {Hselection : CDeclArray lctx As}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
     (T : NestedReplacementTargetSpine Htrace Hselection Htarget sourceDecl
       fieldDepth)
@@ -743,7 +743,7 @@ theorem FinalLoweredGeneratedFamilyNativeSource.baseExpansionsAtReplacement
       initialSize runFinalState T.nested T.auxName)
     (N : FinalLoweredGeneratedFamilyNativeSource O.origin baseVEnv
       sourceTypesVEnv lparams target)
-    (resultSelection : LocalForallSelection result.lctx result.params)
+    (resultSelection : CDeclArray result.lctx result.params)
     (hresultNodup : resultSelection.fvars.Nodup)
     (hselectionNodup : Hselection.fvars.Nodup)
     (hAs : As.size = result.params.size)
@@ -1394,7 +1394,7 @@ theorem NestedLoweringResultClosed.auxiliaryFormationParameterContext
         VInductiveType.toVConstVal) = some sourceTypesVEnv)
     (HsourceTypesWF : sourceTypesVEnv.WF)
     (hempty : initialState.nestedAux = #[])
-    (selection : LocalForallSelection result.lctx result.params)
+    (selection : CDeclArray result.lctx result.params)
     (Haux : ClosedNestedAuxiliaryTranslation sourceTypesVEnv c.lparams
       result selection e) :
     let Hsuffix := Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
@@ -1499,7 +1499,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
         VInductiveType.toVConstVal) = some sourceTypesVEnv)
     (HsourceTypesWF : sourceTypesVEnv.WF)
     (hempty : initialState.nestedAux = #[])
-    (selection : LocalForallSelection result.lctx result.params)
+    (selection : CDeclArray result.lctx result.params)
     (Htranslations : ClosedNestedAuxiliaryTranslations sourceTypesVEnv
       c.lparams result selection)
     (Horigin : FinalLoweredGeneratedFamilyOrigin c.env result.params nparams
@@ -1607,7 +1607,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
         VInductiveType.toVConstVal) = some sourceTypesVEnv)
     (HsourceTypesWF : sourceTypesVEnv.WF)
     (hempty : initialState.nestedAux = #[])
-    (selection : LocalForallSelection result.lctx result.params)
+    (selection : CDeclArray result.lctx result.params)
     (Htranslations : ClosedNestedAuxiliaryTranslations sourceTypesVEnv
       c.lparams result selection)
     (H : FinalLoweredGeneratedFamilyOrigin c.env result.params nparams
@@ -1783,7 +1783,7 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
         VInductiveType.toVConstVal) = some sourceTypesVEnv)
     (HsourceTypesWF : sourceTypesVEnv.WF)
     (hempty : initialState.nestedAux = #[])
-    (selection : LocalForallSelection result.lctx result.params)
+    (selection : CDeclArray result.lctx result.params)
     (Htranslations : ClosedNestedAuxiliaryTranslations sourceTypesVEnv
       c.lparams result selection)
     (Htarget : TrInductDeclCore sourceVEnv c.lparams nparams result.types
@@ -1882,7 +1882,7 @@ theorem NestedGeneratedFamilyNativeSources.sourceForReplacement
       isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
     {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result traceFinalState}
-    {Hselection : LocalForallSelection lctx As}
+    {Hselection : CDeclArray lctx As}
     {HtargetExpr : TrExprS targetEnvTypes lparams targetCtx output targetValue}
     (T : NestedReplacementTargetSpine Htrace Hselection HtargetExpr sourceDecl
       fieldDepth)
@@ -1998,7 +1998,7 @@ theorem NestedGeneratedFamilyNativeSources.replacementCompat
     (Hsources : SourceSyntaxChecks sourceTypes)
     (hsourceTypes : baseVEnv.addConstVals sourceDecl.typeConstants =
       some sourceTypesVEnv)
-    (resultSelection : LocalForallSelection result.lctx result.params)
+    (resultSelection : CDeclArray result.lctx result.params)
     (hresultNodup : resultSelection.fvars.Nodup)
     (hempty : initialState.nestedAux = #[])
     (huvars : sourceDecl.uvars = lparams.length)
@@ -2147,7 +2147,7 @@ theorem NestedLoweringRun.generatedExpansionsOfNativeSources
     (Hsources : SourceSyntaxChecks sourceTypes)
     (hsourceTypes : baseVEnv.addConstVals sourceDecl.typeConstants =
       some sourceTypesVEnv)
-    (resultSelection : LocalForallSelection result.lctx result.params)
+    (resultSelection : CDeclArray result.lctx result.params)
     (hresultNodup : resultSelection.fvars.Nodup)
     (hempty : initialState.nestedAux = #[])
     (huvars : sourceDecl.uvars = lparams.length)
@@ -2213,7 +2213,7 @@ theorem NestedLoweringRun.allExpansionsOfNativeSources
     (hempty : initialState.nestedAux = #[])
     (N : NestedGeneratedFamilyNativeSources Hrun baseVEnv sourceEnvTypes
       lparams loweredDecl)
-    (resultSelection : LocalForallSelection result.lctx result.params) :
+    (resultSelection : CDeclArray result.lctx result.params) :
     List.Forall₂
       (VInductDecl.NestedTypeExpansion baseVEnv sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv sourceDecl

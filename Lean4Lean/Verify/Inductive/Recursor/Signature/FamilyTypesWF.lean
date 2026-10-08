@@ -29,7 +29,7 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
 end ConstructorCheck
 
 theorem vars_append_canonical (a b : Nat) :
-    InductiveSignature.vars a b ++ InductiveSignature.vars b 0 = recursorCanonicalVars (a + b) := by
+    InductiveSignature.vars a b ++ InductiveSignature.vars b 0 = bvarSpine (a + b) := by
   rw [recursorCanonicalVars_add, ← vars_eq_canonical, ← vars_eq_canonical, vars_lift, Nat.add_zero]
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -42,7 +42,7 @@ context, is a well-formed context.  It is read off the recursor pass's index
 replay (`sourceIndexDomains`). -/
 theorem RecursorConstruction.consumedIndices_onCtx
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
-    OnCtx ((H.sourceIndices owner).reverse ++ R.parameterScope.toCtx)
+    OnCtx ((H.declIndexDomains owner).reverse ++ R.parameterScope.toCtx)
       (R.context.venv.IsType c.lparams.length) := by
   have henv : R.context.venv.WF := R.context.checking.tr.wf
   have hP : OnCtx R.parameterScope.toCtx (R.context.venv.IsType c.lparams.length) := by
@@ -57,17 +57,17 @@ context. -/
 theorem RecursorConstruction.consumedFamilyApp_isType
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     R.context.venv.IsType c.lparams.length
-      ((H.sourceIndices owner).reverse ++ R.parameterScope.toCtx)
+      ((H.declIndexDomains owner).reverse ++ R.parameterScope.toCtx)
       (VExpr.mkApps
         (.const (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).name
           (VLevel.params c.lparams.length))
-        (recursorCanonicalVars (stats.params.size + H.recInfos[owner.val]!.indices.size))) := by
+        (bvarSpine (stats.params.size + H.recInfos[owner.val]!.indices.size))) := by
   have henv : R.context.venv.WF := R.context.checking.tr.wf
   have hP : OnCtx R.parameterScope.toCtx (R.context.venv.IsType c.lparams.length) := by
     simpa [VLCtx.toCtx] using R.sourceAnonymousParameterWF.toCtx
   have hIdx := H.consumedIndices_onCtx owner
-  have hidxId : (H.sourceIndices owner).map (VExpr.instL (VLevel.params c.lparams.length)) =
-      H.sourceIndices owner := by
+  have hidxId : (H.declIndexDomains owner).map (VExpr.instL (VLevel.params c.lparams.length)) =
+      H.declIndexDomains owner := by
     have h := onCtx_isType_instL_id hIdx
     rw [List.map_append, hP |> onCtx_isType_instL_id] at h
     have h2 := List.append_cancel_right h
@@ -84,11 +84,11 @@ theorem RecursorConstruction.consumedFamilyApp_isType
     have ha := H.elimLevelAdmissible
     cases helim : H.elimLevel <;> simp_all [AddInductive.AdmissibleElimLevel]
   have hpeel : ∀ {level : VLevel} {indices : List VExpr} {Γ : List VExpr} {A : VExpr},
-      Γ = R.parameterScope.toCtx → indices = H.sourceIndices owner →
+      Γ = R.parameterScope.toCtx → indices = H.declIndexDomains owner →
       R.context.venv.IsType c.lparams.length Γ
         (VExpr.wrapForalls indices (.forallE A (.sort level))) →
       R.context.venv.IsType c.lparams.length
-        ((H.sourceIndices owner).reverse ++ R.parameterScope.toCtx) A := by
+        ((H.declIndexDomains owner).reverse ++ R.parameterScope.toCtx) A := by
     intro level indices Γ A hΓ hindices hM
     subst hΓ hindices
     have hbody := (VEnv.IsType.wrapForalls_inv henv.ordered hP hM).2
@@ -111,10 +111,10 @@ theorem RecursorConstruction.consumedFamilyApp_isType
     simp only [List.map_map, Function.comp_def, VExpr.instL_instL,
       VExpr.instL_wrapForalls, VExpr.instL, VExpr.instL_mkApps,
       recursorDropLevels_prependShift] at hdrop
-    have hcv : (recursorCanonicalVars (stats.params.size + H.recInfos[owner.val]!.indices.size)).map
+    have hcv : (bvarSpine (stats.params.size + H.recInfos[owner.val]!.indices.size)).map
         (fun e => e.instL (recursorDropLevels c.lparams.length)) =
-        recursorCanonicalVars (stats.params.size + H.recInfos[owner.val]!.indices.size) := by
-      simp [recursorCanonicalVars, List.map_map, Function.comp_def, VExpr.instL]
+        bvarSpine (stats.params.size + H.recInfos[owner.val]!.indices.size) := by
+      simp [bvarSpine, List.map_map, Function.comp_def, VExpr.instL]
     have heta : (fun x => VExpr.instL (VLevel.params c.lparams.length) x) =
         VExpr.instL (VLevel.params c.lparams.length) := rfl
     rw [hcv, heta, hPId, hidxId] at hdrop
@@ -141,7 +141,7 @@ theorem RecursorConstruction.consumedFamilyTypesWF
   have hdecl : owner.val < decl.types.length := by rw [← H.cardinality.records]; exact hown
   have hfam : s.families[owner] = H.consumedFamilies[owner.val]'(by simp [hown]) := by
     simp only [Fin.getElem_fin, hf]
-  have hidx : s.families[owner].indices = H.sourceIndices o := by
+  have hidx : s.families[owner].indices = H.declIndexDomains o := by
     rw [hfam]; exact H.consumedFamilies_indices o
   have hname : s.families[owner].name = (decl.types[owner.val]'hdecl).name := by
     rw [hfam]; exact H.consumedFamilies_name o
@@ -151,7 +151,7 @@ theorem RecursorConstruction.consumedFamilyTypesWF
   have hPrev : s.params.reverse = R.parameterScope.toCtx := by rw [hp, List.reverse_reverse]
   have hplen : s.params.length = stats.params.size := by
     rw [hp, List.length_reverse, H.sourceParameterCount]
-  have hilen : (H.sourceIndices o).length = H.recInfos[owner.val]!.indices.size :=
+  have hilen : (H.declIndexDomains o).length = H.recInfos[owner.val]!.indices.size :=
     H.sourceIndices_length o
   have henv : R.context.venv.WF := R.context.checking.tr.wf
   have hIdx := H.consumedIndices_onCtx o
@@ -185,11 +185,11 @@ theorem RecursorConstruction.consumedFamilyTypesWF
   obtain ⟨doms, body, exprType, hdlen, h1, h2⟩ := (Htypes _ hmem).header
   have hclose := VEnv.IsDefEq.close_sort_header henv hT (h1.mono hle) (h2.mono hle)
   have hW := (hconst.defeqU_r henv trivial hclose).weak0 henv.ordered
-    (Γ := (H.sourceIndices o).reverse ++ R.parameterScope.toCtx)
-  have hlen : (recursorCanonicalVars (stats.params.size + H.recInfos[owner.val]!.indices.size)).length =
+    (Γ := (H.declIndexDomains o).reverse ++ R.parameterScope.toCtx)
+  have hlen : (bvarSpine (stats.params.size + H.recInfos[owner.val]!.indices.size)).length =
       doms.length := by
     rw [hdlen, ← H.cardinality.params, ← H.cardinality.indices owner.val hown]
-    simp [recursorCanonicalVars]
+    simp [bvarSpine]
   have happ := (VEnv.HasType.mkApps_wrapForalls henv hIdx hW ⟨_, hAty⟩ hlen).2
   simp only [VExpr.instOuter_sort] at happ
   change R.context.venv.HasType decl.uvars

@@ -255,7 +255,7 @@ theorem AddInductive.checkConstructors.ownerNormalFormsWF
       H.context.venv stats.indConsts) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := outEnv }).WF fun _ =>
-        CheckedConstructorOwnerNormalForms stats indTypes := by
+        ConstructorOwnerNormalForms stats indTypes := by
   let Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       H.statsWF.parameterSuffix.headerCheck stats depth :=
     H.statsWF.parameterSuffix.toHeaderCheck
@@ -263,7 +263,7 @@ theorem AddInductive.checkConstructors.ownerNormalFormsWF
     checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
       H.statsWF
   have Hloops := checkConstructors.loopTypes.ownerNormalFormsWF
-    (Q := fun _ => CheckedConstructorOwnerNormalForms stats indTypes)
+    (Q := fun _ => ConstructorOwnerNormalForms stats indTypes)
     (isUnsafe := isUnsafe)
     H.statsWF.parameterSuffix.headerCheck H.translation.types
     (ConstructorOwnerNormalFormRows.empty stats indTypes)
@@ -1061,10 +1061,10 @@ structure OrdinaryConstructorCheck
     (outEnv : Environment) where
   checked : CheckedConstructorCertificate sourceEnv decl H.context.venv
     H.headers.params
-  parameterPrefixes : CheckedRecursorParameterPrefixes stats indTypes
-  constructorTails : CheckedRecursorConstructorTails H.context.venv c.lparams
+  parameterPrefixes : ConstructorParameterPrefixes stats indTypes
+  constructorTails : ConstructorTails H.context.venv c.lparams
     H.statsWF.parameterScope stats decl indTypes
-  ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
+  ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
   /-- The telescope certificates of the source constructor types, read off their checks. -/
   telescopes : SourceCtorsCertified H.context.venv c.lparams indTypes.toList
   declared : RecursorCheckingEnvironment H outEnv

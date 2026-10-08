@@ -960,7 +960,7 @@ parameter array.  This is the exact bridge from concrete `As` to the
 de-Bruijn prefix required by `NestedOccurrenceReplacement`. -/
 theorem SelectedParameterTargets.translatedSelection
     {sourceDecl : VInductDecl}
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (Hparams : SelectedParameterTargets Hselection.fvars fieldDepth targetCtx)
     (Htargets : List.Forall₂ (TrExprS targetVEnv lparams targetCtx)
       As.toList targets)
@@ -1003,7 +1003,7 @@ constructor context fixes the translated common-parameter prefix. -/
 structure NestedReplacementTargetSpine
     (Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result finalState)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (Htarget : TrExprS targetVEnv lparams targetCtx output targetValue)
     (sourceDecl : VInductDecl) (fieldDepth : Nat) where
   value : InductiveVal
@@ -1037,7 +1037,7 @@ structure NestedReplacementTargetSpine
 theorem NestedReplacementFinalTrace.targetSpine
     (Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result finalState)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (Harity : As.size = result.params.size)
     (Hparams : SelectedParameterTargets Hselection.fvars fieldDepth targetCtx)
     (hsourceParams : result.params.size = sourceDecl.nparams)
@@ -1110,7 +1110,7 @@ theorem NestedReplacementTargetSpine.sourceSpine
       Lean4Lean.ElimNestedInductive.State}
     {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result finalState}
-    {Hselection : LocalForallSelection lctx As}
+    {Hselection : CDeclArray lctx As}
     {targetVEnv : VEnv} {lparams : List Name} {targetCtx : VLCtx}
     {targetValue : VExpr}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
@@ -1153,7 +1153,7 @@ theorem NestedReplacementTargetSpine.finalGeneratedFamilyOrigin
       Lean4Lean.ElimNestedInductive.State}
     {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result finalState}
-    {Hselection : LocalForallSelection lctx As}
+    {Hselection : CDeclArray lctx As}
     {targetVEnv : VEnv} {lparams : List Name} {targetCtx : VLCtx}
     {targetValue : VExpr}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
@@ -1395,7 +1395,7 @@ theorem NestedExprMapping.abstractExpansionAbove
       leaf
       depth sourceCtx targetCtx)
     (Hbase : sourceDecl.nparams ≤ depth)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (HselectionNodup : Hselection.fvars.Nodup)
     (Harity : As.size = params.size)
     (Hdepth : depth = Hselection.fvars.length + fieldDepth)
@@ -1410,7 +1410,7 @@ theorem NestedExprMapping.abstractExpansionAbove
       NestedExpansionLookupCtx
         leaf
         depth sourceCtx targetCtx →
-      (selection : LocalForallSelection lctx As) →
+      (selection : CDeclArray lctx As) →
       selection.fvars.Nodup →
       As.size = params.size →
       depth = selection.fvars.length + fieldDepth →
@@ -1632,7 +1632,7 @@ theorem LoweredConstructorMapping.abstractExpansionAbove
       NestedExpansionLookupCtx
         leaf
         depth sourceCtx targetCtx →
-      (selection : LocalForallSelection lctx As) →
+      (selection : CDeclArray lctx As) →
       selection.fvars.Nodup →
       As.size = params.size →
       depth = selection.fvars.length + fieldDepth →
@@ -1757,7 +1757,7 @@ theorem LoweredConstructorMappings.abstractExpansionsAbove
       NestedExpansionLookupCtx
         leaf
         depth sourceCtx targetCtx →
-      (selection : LocalForallSelection lctx As) →
+      (selection : CDeclArray lctx As) →
       selection.fvars.Nodup →
       As.size = params.size →
       depth = selection.fvars.length + fieldDepth →
@@ -1860,7 +1860,7 @@ theorem LoweredInductiveMapping.abstractExpansionAbove
       NestedExpansionLookupCtx
         leaf
         depth sourceCtx targetCtx →
-      (selection : LocalForallSelection lctx As) →
+      (selection : CDeclArray lctx As) →
       selection.fvars.Nodup →
       As.size = params.size →
       depth = selection.fvars.length + fieldDepth →
@@ -1915,7 +1915,7 @@ theorem LoweredInductiveMapping.abstractExpansion
       NestedExpansionLookupCtx
         (VInductDecl.NestedOccurrenceReplacementAbs headerVEnv decl generated)
         depth sourceCtx targetCtx →
-      (selection : LocalForallSelection lctx As) →
+      (selection : CDeclArray lctx As) →
       selection.fvars.Nodup →
       As.size = params.size →
       depth = selection.fvars.length + fieldDepth →
@@ -2005,7 +2005,7 @@ def NestedFormationReplacementCompat
     NestedExpansionLookupCtx
       (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv sourceDecl generated)
       depth sourceCtx targetCtx →
-    (selection : LocalForallSelection lctx As) →
+    (selection : CDeclArray lctx As) →
     selection.fvars.Nodup →
     As.size = result.params.size →
     depth = selection.fvars.length + fieldDepth →
@@ -2071,7 +2071,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractExpansion
       NestedExpansionLookupCtx
         (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv decl generated)
         depth sourceCtx targetCtx →
-      (selection : LocalForallSelection lctx As) →
+      (selection : CDeclArray lctx As) →
       selection.fvars.Nodup →
       As.size = params.size →
       depth = selection.fvars.length + fieldDepth →
@@ -2119,7 +2119,7 @@ theorem NestedLoweringResultClosed.originalExpansionAtFreshAboveLvls
         output nextState result finalState →
       NestedExpansionLookupCtx
         leaf depth sourceCtx targetCtx →
-      (selection : LocalForallSelection lctx As) →
+      (selection : CDeclArray lctx As) →
       selection.fvars.Nodup →
       As.size = result.params.size →
       depth = selection.fvars.length + fieldDepth →
@@ -2198,7 +2198,7 @@ theorem NestedLoweringResultClosed.originalExpansionsAboveLvls
       NestedReplacementFinalTrace prodEnv lctx result.params As input state
         output nextState result finalState →
       NestedExpansionLookupCtx leaf depth sourceCtx targetCtx →
-      (selection : LocalForallSelection lctx As) →
+      (selection : CDeclArray lctx As) →
       selection.fvars.Nodup →
       As.size = result.params.size →
       depth = selection.fvars.length + fieldDepth →
@@ -2261,7 +2261,7 @@ theorem NestedLoweringResultClosed.originalExpansionsAbove
       NestedReplacementFinalTrace prodEnv lctx result.params As input state
         output nextState result finalState →
       NestedExpansionLookupCtx leaf depth sourceCtx targetCtx →
-      (selection : LocalForallSelection lctx As) →
+      (selection : CDeclArray lctx As) →
       selection.fvars.Nodup →
       As.size = result.params.size →
       depth = selection.fvars.length + fieldDepth →

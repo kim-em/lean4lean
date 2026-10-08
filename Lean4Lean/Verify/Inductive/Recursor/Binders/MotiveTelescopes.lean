@@ -10,7 +10,7 @@ namespace VerifyInductive
 /-- Semantic lookup package for one generated motive.  It connects the
 retained executable free variable to the exact independently recorded
 index/major telescope used when the motive was introduced. -/
-structure RecursorMotiveBindingAt
+structure MotiveBindingAt
     {c : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF c recLparams)
     (recInfos : Array AddInductive.RecInfo) (target : Nat)
@@ -32,7 +32,7 @@ structure RecursorMotiveBindingAt
 /-- Context-local semantic package for a generated motive, stated directly
 against one `RecInfo`.  The indexed lookup package below is converted to this
 form before invoking the context-independent motive application invariant. -/
-structure RecursorMotiveBinding
+structure MotiveBinding
     {c : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF c recLparams)
     (info : AddInductive.RecInfo) (elimLevel : Level) : Type where
@@ -49,9 +49,9 @@ structure RecursorMotiveBinding
   typeIsType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
     motiveTypeTarget
 
-def RecursorMotiveBindingAt.toBinding
-    (H : RecursorMotiveBindingAt R recInfos target elimLevel) :
-    RecursorMotiveBinding R recInfos[target]! elimLevel where
+def MotiveBindingAt.toBinding
+    (H : MotiveBindingAt R recInfos target elimLevel) :
+    MotiveBinding R recInfos[target]! elimLevel where
   motiveTarget := H.motiveTarget
   motiveTypeTarget := H.motiveTypeTarget
   motive := H.motive
@@ -70,7 +70,7 @@ The other two typing premises say that the exposed family application is a
 type and that the proposed major premise inhabits it.  Thus this contract is
 precisely the declarative fact needed to justify production's motive
 application, rather than an assertion about the executable classifier. -/
-def RecursorMotiveApplicationAt
+def MotiveApplicationAbove
     {root : AddInductive.Context} {recLparams : List Name}
     (Rroot : RecursorContextWF root recLparams)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
@@ -81,7 +81,7 @@ def RecursorMotiveApplicationAt
     (_Hext : RecursorContextExtension Rroot R)
     {depth : Nat}
     {exposedType major : Expr} {syntaxTarget majorTarget : VExpr},
-    RecursorMotiveBinding R info elimLevel →
+    MotiveBinding R info elimLevel →
     TrExprS R.venv recLparams R.mlctx.vlctx exposedType syntaxTarget →
     R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx syntaxTarget →
     TrExprS R.venv recLparams R.mlctx.vlctx major majorTarget →
@@ -100,11 +100,11 @@ It states that the validated terminal family application and the retained
 motive type consume the same abstract index telescope.  Keeping this
 separate makes the first-pass obligation reviewable: it need not mention a
 particular recursive field or induction-hypothesis major. -/
-structure RecursorMotiveTelescopeEvidence
+structure MotiveAppliesTo
     {c : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF c recLparams)
     (stats : AddInductive.InductiveStats) (info : AddInductive.RecInfo)
-    (binding : RecursorMotiveBinding R info elimLevel)
+    (binding : MotiveBinding R info elimLevel)
     (exposedType : Expr) (syntaxTarget : VExpr) : Type where
   indices : List VExpr
   family : VExpr
@@ -134,7 +134,7 @@ theorem RecursorValidatedIndAppAt.motiveTelescopeEvidence
     {R : RecursorContextWF c recLparams}
     (H : RecursorValidatedIndAppAt R.venv recLparams R.mlctx.vlctx
       stats decl depth exposedType syntaxTarget target)
-    (binding : RecursorMotiveBinding R info elimLevel)
+    (binding : MotiveBinding R info elimLevel)
     (familyActualType familyType motiveType : VExpr)
     (resultLevel : VLevel)
     {levels : List VLevel} {params indices : List VExpr}
@@ -158,7 +158,7 @@ theorem RecursorValidatedIndAppAt.motiveTelescopeEvidence
         (VExpr.mkApps
           (.const (decl.types[target]'H.target_lt).name levels) params)
         familyType motiveType) :
-    Nonempty (RecursorMotiveTelescopeEvidence R stats info binding
+    Nonempty (MotiveAppliesTo R stats info binding
       exposedType syntaxTarget) := by
   let family := VExpr.mkApps
     (.const (decl.types[target]'H.target_lt).name levels) params
@@ -184,13 +184,13 @@ theorem RecursorValidatedIndAppAt.motiveTelescopeEvidence
 /-- Exact-target form of motive application.  Besides typing the result, it
 records that the strict translation target is literally the retained motive
 local applied to the evidence's index spine and the checked major premise. -/
-theorem RecursorMotiveTelescopeEvidence.applyMajorTypedExact
+theorem MotiveAppliesTo.applyMajorTypedExact
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {elimLevel : Level}
     {info : AddInductive.RecInfo}
-    {binding : RecursorMotiveBinding R info elimLevel}
-    (H : RecursorMotiveTelescopeEvidence R stats info binding
+    {binding : MotiveBinding R info elimLevel}
+    (H : MotiveAppliesTo R stats info binding
       exposedType syntaxTarget)
     {major : Expr} {majorTarget : VExpr}
     (Hmajor : TrExprS R.venv recLparams R.mlctx.vlctx major majorTarget)
@@ -238,13 +238,13 @@ theorem RecursorMotiveTelescopeEvidence.applyMajorTypedExact
 typed motive application.  The exact result sort is retained for equation
 typing; the abstract spine is assembled without invoking executable
 inference. -/
-theorem RecursorMotiveTelescopeEvidence.applyMajorTyped
+theorem MotiveAppliesTo.applyMajorTyped
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {elimLevel : Level}
     {info : AddInductive.RecInfo}
-    {binding : RecursorMotiveBinding R info elimLevel}
-    (H : RecursorMotiveTelescopeEvidence R stats info binding
+    {binding : MotiveBinding R info elimLevel}
+    (H : MotiveAppliesTo R stats info binding
       exposedType syntaxTarget)
     {major : Expr} {majorTarget : VExpr}
     (Hmajor : TrExprS R.venv recLparams R.mlctx.vlctx major majorTarget)
@@ -260,13 +260,13 @@ theorem RecursorMotiveTelescopeEvidence.applyMajorTyped
   exact ⟨_, Htr, Htyped⟩
 
 /-- Typehood wrapper around `applyMajorTyped`. -/
-theorem RecursorMotiveTelescopeEvidence.applyMajor
+theorem MotiveAppliesTo.applyMajor
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {elimLevel : Level}
     {info : AddInductive.RecInfo}
-    {binding : RecursorMotiveBinding R info elimLevel}
-    (H : RecursorMotiveTelescopeEvidence R stats info binding
+    {binding : MotiveBinding R info elimLevel}
+    (H : MotiveAppliesTo R stats info binding
       exposedType syntaxTarget)
     {major : Expr} {majorTarget : VExpr}
     (Hmajor : TrExprS R.venv recLparams R.mlctx.vlctx major majorTarget)
@@ -283,7 +283,7 @@ theorem RecursorMotiveTelescopeEvidence.applyMajor
 /-- Rooted, context-polymorphic form of the shared telescope evidence.  This
 is the invariant established by the first `mkRecInfos` pass; later recursive
 field traversals supply only the validated terminal application. -/
-def RecursorMotiveTelescopeAt
+def MotiveAppliesAbove
     {root : AddInductive.Context} {recLparams : List Name}
     (Rroot : RecursorContextWF root recLparams)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
@@ -293,17 +293,17 @@ def RecursorMotiveTelescopeAt
     (R : RecursorContextWF current recLparams)
     (_Hext : RecursorContextExtension Rroot R)
     {depth : Nat} {exposedType : Expr} {syntaxTarget : VExpr}
-    (binding : RecursorMotiveBinding R info elimLevel),
+    (binding : MotiveBinding R info elimLevel),
     TrExprS R.venv recLparams R.mlctx.vlctx exposedType syntaxTarget →
     R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx syntaxTarget →
     RecursorValidatedIndAppAt R.venv recLparams R.mlctx.vlctx stats decl
       depth exposedType syntaxTarget target →
-    Nonempty (RecursorMotiveTelescopeEvidence R stats info binding
+    Nonempty (MotiveAppliesTo R stats info binding
       exposedType syntaxTarget)
 
-theorem RecursorMotiveTelescopeAt.toApplication
-    (H : RecursorMotiveTelescopeAt Rroot stats decl target info elimLevel) :
-    RecursorMotiveApplicationAt Rroot stats decl target info elimLevel := by
+theorem MotiveAppliesAbove.toApplication
+    (H : MotiveAppliesAbove Rroot stats decl target info elimLevel) :
+    MotiveApplicationAbove Rroot stats decl target info elimLevel := by
   intro current R Hext depth exposedType major syntaxTarget
     majorTarget binding Hexposed HsyntaxType Hmajor HmajorType Hvalidated
   rcases H R Hext binding Hexposed HsyntaxType Hvalidated with ⟨Hevidence⟩
@@ -314,7 +314,7 @@ family header.  Unlike the executable seed below, this package lives only
 under the common parameter domains: later first-pass index/major frames have
 not yet been interleaved with sibling motives.  It is therefore the stable
 form that can be compared with the grouped generated-recursor telescope. -/
-structure RecursorCanonicalMotiveTelescope
+structure ClosedMotiveTelescope
     (env : VEnv) (levelParams : List Name)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (target : Nat) (info : AddInductive.RecInfo)
@@ -336,11 +336,11 @@ structure RecursorCanonicalMotiveTelescope
   family_eq : family = VExpr.mkApps
     ((VExpr.const (decl.types[target]'target_lt).name
       levels).liftN params.length 0)
-    (recursorCanonicalVars params.length)
+    (bvarSpine params.length)
   motiveType_eq : motiveType = VExpr.wrapForalls indices
     (.forallE
       (VExpr.mkApps (family.liftN indices.length 0)
-        (recursorCanonicalVars indices.length))
+        (bvarSpine indices.length))
       (.sort resultLevel))
   family_typing : env.HasType levelParams.length params.reverse family
     (VExpr.wrapForalls indices familyResult)
@@ -350,15 +350,15 @@ structure RecursorCanonicalMotiveTelescope
   familyApplicationType : env.IsType levelParams.length
     (indices.reverse ++ params.reverse)
     (VExpr.mkApps (family.liftN indices.length 0)
-      (recursorCanonicalVars indices.length))
+      (bvarSpine indices.length))
   telescope : RecursorMotiveTelescope resultLevel indices.length family
     (VExpr.wrapForalls indices familyResult) motiveType
 
-def RecursorCanonicalMotiveTelescope.mono
-    (H : RecursorCanonicalMotiveTelescope env levelParams stats decl target info
+def ClosedMotiveTelescope.mono
+    (H : ClosedMotiveTelescope env levelParams stats decl target info
       elimLevel)
     (henv : env ≤ env') :
-    RecursorCanonicalMotiveTelescope env' levelParams stats decl target info
+    ClosedMotiveTelescope env' levelParams stats decl target info
       elimLevel where
   target_lt := H.target_lt
   params := H.params
@@ -383,8 +383,8 @@ def RecursorCanonicalMotiveTelescope.mono
 typing interface: the canonical first-pass parameter scope may be replaced
 by the cached or generated parameter scope before the common inner binder
 block is introduced. -/
-theorem RecursorCanonicalMotiveTelescope.applyMajorTypedAfterDefEq
-    (C : RecursorCanonicalMotiveTelescope env levelParams stats decl target info
+theorem ClosedMotiveTelescope.applyMajorTypedAfterDefEq
+    (C : ClosedMotiveTelescope env levelParams stats decl target info
       elimLevel)
     (henv : env.WF) (base added : List VExpr)
     (Hbase : VEnv.IsDefEqCtx env levelParams.length [] C.params.reverse base)
@@ -412,13 +412,13 @@ theorem RecursorCanonicalMotiveTelescope.applyMajorTypedAfterDefEq
 `mkRecInfos` pass establishes this package at the point where the motive is
 introduced.  Its family prefix has unique concrete translation, while the
 stored motive type is compared definitionally after later context extension. -/
-structure RecursorMotiveTelescopeSeed
+structure MotiveDecl
     {root : AddInductive.Context} {recLparams : List Name}
     (Rroot : RecursorContextWF root recLparams)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (target : Nat) (info : AddInductive.RecInfo)
     (elimLevel : Level) : Type where
-  canonical : RecursorCanonicalMotiveTelescope Rroot.venv recLparams stats
+  canonical : ClosedMotiveTelescope Rroot.venv recLparams stats
     decl target info elimLevel
   target_lt : target < decl.types.length
   indexCount : info.indices.size =
@@ -500,8 +500,8 @@ checker context in which its indices were opened. -/
     Rroot.mlctx.vlctx.toCtx family familyActualType
   familyTypeDefEq : Rroot.venv.IsDefEqU recLparams.length
     Rroot.mlctx.vlctx.toCtx familyActualType familyType
-  indicesBound : BoundFVarArray root info.indices
-  majorBound : BoundFVarArray root #[info.major]
+  indicesBound : FVarArrayIn root info.indices
+  majorBound : FVarArrayIn root #[info.major]
   motiveTypeTr : TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
     (root.lctx.mkForall info.indices
       (root.lctx.mkForall #[info.major] (.sort elimLevel))) motiveActualType
@@ -513,13 +513,13 @@ checker context in which its indices were opened. -/
 /-- A motive seed remains valid after later executable frames extend its
 root context.  The paired canonical telescope is unchanged, while every
 runtime target is weakened by the exact retained recursor-context lift. -/
-def RecursorMotiveTelescopeSeed.mono
+def MotiveDecl.mono
     {root current : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {Rcurrent : RecursorContextWF current recLparams}
-    (H : RecursorMotiveTelescopeSeed Rroot stats decl target info elimLevel)
+    (H : MotiveDecl Rroot stats decl target info elimLevel)
     (Hext : RecursorContextExtension Rroot Rcurrent) :
-    RecursorMotiveTelescopeSeed Rcurrent stats decl target info elimLevel := by
+    MotiveDecl Rcurrent stats decl target info elimLevel := by
   have hmajorSource :
       current.lctx.mkForall #[info.major] (.sort elimLevel) =
         root.lctx.mkForall #[info.major] (.sort elimLevel) :=
@@ -621,11 +621,11 @@ def RecursorMotiveTelescopeSeed.mono
 
 /-- Changing only irrelevant `RecInfo` fields, such as the accumulated minor
 array, preserves the paired first-pass seed. -/
-def RecursorMotiveTelescopeSeed.congrInfo
-    (H : RecursorMotiveTelescopeSeed Rroot stats decl target info elimLevel)
+def MotiveDecl.congrInfo
+    (H : MotiveDecl Rroot stats decl target info elimLevel)
     (hindices : info'.indices = info.indices)
     (hmajor : info'.major = info.major) :
-    RecursorMotiveTelescopeSeed Rroot stats decl target info' elimLevel where
+    MotiveDecl Rroot stats decl target info' elimLevel where
   canonical := {
     H.canonical with
     indices_length := by simpa [hindices] using H.canonical.indices_length }
@@ -682,12 +682,12 @@ used by recursive constructor traversal.  Exact context extensions preserve
 the seed; unique translation identifies the validated family prefix, and
 translation uniqueness relates the later motive binding to the stored
 canonical motive telescope. -/
-theorem RecursorMotiveTelescopeSeed.toTelescopeAt
+theorem MotiveDecl.toTelescopeAt
     {root : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
-    (H : RecursorMotiveTelescopeSeed Rroot stats decl target info
+    (H : MotiveDecl Rroot stats decl target info
       elimLevel) :
-    RecursorMotiveTelescopeAt Rroot stats decl target info elimLevel := by
+    MotiveAppliesAbove Rroot stats decl target info elimLevel := by
   intro current R Hext depth exposedType syntaxTarget binding Hexposed
     HsyntaxType Hvalidated
   rcases Hvalidated.indices_payload with
@@ -756,15 +756,15 @@ theorem RecursorMotiveTelescopeSeed.toTelescopeAt
 /-- The motive-telescope contract is insensitive to the minor array stored
 beside the motive, indices, and major.  This extensional form is useful for
 the in-place record updates performed by the second `mkRecInfos` pass. -/
-theorem RecursorMotiveTelescopeAt.congrInfo
-    (H : RecursorMotiveTelescopeAt Rroot stats decl target info elimLevel)
+theorem MotiveAppliesAbove.congrInfo
+    (H : MotiveAppliesAbove Rroot stats decl target info elimLevel)
     (hmotive : info'.motive = info.motive)
     (hindices : info'.indices = info.indices)
     (hmajor : info'.major = info.major) :
-    RecursorMotiveTelescopeAt Rroot stats decl target info' elimLevel := by
+    MotiveAppliesAbove Rroot stats decl target info' elimLevel := by
   intro current R Hext depth exposedType syntaxTarget binding' Hexposed
     HsyntaxType Hvalidated
-  let binding : RecursorMotiveBinding R info elimLevel := {
+  let binding : MotiveBinding R info elimLevel := {
     motiveTarget := binding'.motiveTarget
     motiveTypeTarget := binding'.motiveTypeTarget
     motive := by simpa [hmotive] using binding'.motive
@@ -796,15 +796,15 @@ structure RecInfoMotiveTelescopes
     (parameterCtx : List VExpr)
     (recInfos : Array AddInductive.RecInfo) (elimLevel : Level) : Prop where
   telescope : ∀ target (htarget : target < recInfos.size),
-    RecursorMotiveTelescopeAt Rroot stats decl target recInfos[target]!
+    MotiveAppliesAbove Rroot stats decl target recInfos[target]!
       elimLevel
   seed : ∀ target (htarget : target < recInfos.size),
-    ∃ S : RecursorMotiveTelescopeSeed Rroot stats decl target
+    ∃ S : MotiveDecl Rroot stats decl target
         recInfos[target]! elimLevel,
       VEnv.IsDefEqCtx Rroot.venv recLparams.length []
         S.canonical.params.reverse parameterCtx
   canonical : ∀ target (htarget : target < recInfos.size),
-    ∃ C : RecursorCanonicalMotiveTelescope Rroot.venv recLparams stats
+    ∃ C : ClosedMotiveTelescope Rroot.venv recLparams stats
         decl target recInfos[target]! elimLevel,
       VEnv.IsDefEqCtx Rroot.venv recLparams.length []
         C.params.reverse parameterCtx
@@ -830,8 +830,8 @@ def RecInfoMotiveTelescopes.mono
   seed target htarget := by
     rcases H.seed target htarget with ⟨S, hparams⟩
     refine ⟨S.mono Hext, ?_⟩
-    simpa [RecursorMotiveTelescopeSeed.mono,
-      RecursorCanonicalMotiveTelescope.mono, Hext.venv_eq] using hparams
+    simpa [MotiveDecl.mono,
+      ClosedMotiveTelescope.mono, Hext.venv_eq] using hparams
   canonical target htarget := by
     rw [Hext.venv_eq]
     exact H.canonical target htarget
@@ -842,9 +842,9 @@ def RecInfoMotiveTelescopes.push
     (H : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
       elimLevel)
     (next : AddInductive.RecInfo)
-    (Hnext : RecursorMotiveTelescopeAt Rroot stats decl recInfos.size next
+    (Hnext : MotiveAppliesAbove Rroot stats decl recInfos.size next
       elimLevel)
-    (Hseed : RecursorMotiveTelescopeSeed Rroot stats decl recInfos.size next
+    (Hseed : MotiveDecl Rroot stats decl recInfos.size next
       elimLevel)
     (Hparams :
       VEnv.IsDefEqCtx Rroot.venv recLparams.length []
@@ -913,7 +913,7 @@ def RecInfoMotiveTelescopes.modifyMinors
         { info with minors := f info.minors }) elimLevel where
   telescope target htarget := by
     have hold : target < recInfos.size := by simpa using htarget
-    apply RecursorMotiveTelescopeAt.congrInfo (H.telescope target hold)
+    apply MotiveAppliesAbove.congrInfo (H.telescope target hold)
     all_goals
       by_cases howner : owner = target
       · subst target
@@ -927,7 +927,7 @@ def RecInfoMotiveTelescopes.modifyMinors
     · subst target
       rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos owner _ hold]
       refine ⟨S.congrInfo rfl rfl, ?_⟩
-      simpa [RecursorMotiveTelescopeSeed.congrInfo] using hparams
+      simpa [MotiveDecl.congrInfo] using hparams
     · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos owner target _
             hold howner]
       exact ⟨S, hparams⟩
@@ -954,7 +954,7 @@ structure RecInfoMotiveApplications
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (recInfos : Array AddInductive.RecInfo) (elimLevel : Level) : Prop where
   application : ∀ target (htarget : target < recInfos.size),
-    RecursorMotiveApplicationAt Rroot stats decl target recInfos[target]!
+    MotiveApplicationAbove Rroot stats decl target recInfos[target]!
       elimLevel
 
 def RecInfoMotiveApplications.empty
@@ -969,18 +969,18 @@ def RecInfoMotiveTelescopes.applications
       elimLevel) :
     RecInfoMotiveApplications Rroot stats decl recInfos elimLevel where
   application target htarget :=
-    RecursorMotiveTelescopeAt.toApplication (H.telescope target htarget)
+    MotiveAppliesAbove.toApplication (H.telescope target htarget)
 
 /-- Recover one motive's complete semantic lookup package from the binding,
 origin, and telescope-shape invariants retained by the first mutual pass. -/
-theorem RecInfoMotiveTypeShapes.motiveBindingAt
+theorem MotiveTypes.motiveBindingAt
     (R : RecursorContextWF c recLparams)
     (Hbindings : RecInfoBindings c recInfos)
-    (Horigins : RecInfoTypeOrigins c recInfos)
-    (Hshape : RecInfoMotiveTypeShapes c recInfos
+    (Horigins : RecInfoBinderTypes c recInfos)
+    (Hshape : MotiveTypes c recInfos
       Horigins.motiveTypes elimLevel)
     (target : Nat) (htarget : target < recInfos.size) :
-    Nonempty (RecursorMotiveBindingAt R recInfos target elimLevel) := by
+    Nonempty (MotiveBindingAt R recInfos target elimLevel) := by
   have htargetMap : target < (recInfos.map (·.motive)).size := by
     simpa using htarget
   rcases Hbindings.motives.declarationAt R.toBindingContextWF target

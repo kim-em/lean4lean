@@ -34,11 +34,11 @@ theorem RecursorFieldDecisions.freshBindings
     (Hroot : BindingContextWF root) :
     ∃ Hcurrent : BindingContextWF current,
       BindingContextLE root current ∧
-      Nonempty (FreshBoundFVarArray root current all) := by
+      Nonempty (FVarArrayAfter root current all) := by
   induction H with
   | nil =>
       exact ⟨Hroot, BindingContextLE.refl root,
-        ⟨FreshBoundFVarArray.empty root⟩⟩
+        ⟨FVarArrayAfter.empty root⟩⟩
   | @nonrecursive c name dom body bi bu u positions H _ ih =>
       rcases ih with ⟨Hc, HrootCurrent, ⟨Hbindings⟩⟩
       let Hnext := Hc.withCheckedLocalDecl (base := ctorFieldCheck c stats bu) name
@@ -76,13 +76,13 @@ theorem RecursorFieldDecisions.fieldOpening
         all selected positions →
       ∃ Hcurrent : BindingContextWF current,
         BindingContextLE root current ∧
-        ∃ Hbindings : FreshBoundFVarArray root current all,
+        ∃ Hbindings : FVarArrayAfter root current all,
           Nonempty (ConstructorFieldOpening source terminal all) := by
     intro current terminal all selected positions Htrace
     induction Htrace with
     | nil =>
         exact ⟨Hroot, BindingContextLE.refl root,
-          FreshBoundFVarArray.empty root,
+          FVarArrayAfter.empty root,
           ⟨ConstructorFieldOpening.empty source⟩⟩
     | @nonrecursive c name dom body bi bu u positions Hprev _ ih =>
         rcases ih with ⟨Hc, HrootCurrent, Hbindings, ⟨Hopening⟩⟩
@@ -92,13 +92,13 @@ theorem RecursorFieldDecisions.fieldOpening
           (base := ctorFieldCheck c stats bu) c Hc name
           (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
         have hopenFvars : Hopening.fvars = Hbindings.fvars :=
-          Hopening.fvars_eq_bound Hbindings.toBoundFVarArray
+          Hopening.fvars_eq_bound Hbindings.toFVarArrayIn
         have hcurrentFresh :
             (⟨c.ngen.curr⟩ : FVarId) ∉ Hopening.fvars := by
           rw [hopenFvars]
           intro hmem
           exact Hc.current_not_mem
-            (Hbindings.toBoundFVarArray.members _ hmem)
+            (Hbindings.toFVarArrayIn.members _ hmem)
         have hbodyFresh : body.FVarsIn
             (fun fv => fv ≠ (⟨c.ngen.curr⟩ : FVarId)) := by
           have hbodyScope := (Hopening.currentFVarsIn hsource).2
@@ -107,7 +107,7 @@ theorem RecursorFieldDecisions.fieldOpening
           subst fv
           rcases hfv with hopen | hroot
           · apply Hc.current_not_mem
-            apply Hbindings.toBoundFVarArray.members
+            apply Hbindings.toFVarArrayIn.members
             rwa [← hopenFvars]
           · exact Hc.current_not_mem (HrootCurrent hroot)
         exact ⟨Hnext, HrootCurrent.trans Hstep,
@@ -122,13 +122,13 @@ theorem RecursorFieldDecisions.fieldOpening
           (base := ctorFieldCheck c stats bu) c Hc name
           (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
         have hopenFvars : Hopening.fvars = Hbindings.fvars :=
-          Hopening.fvars_eq_bound Hbindings.toBoundFVarArray
+          Hopening.fvars_eq_bound Hbindings.toFVarArrayIn
         have hcurrentFresh :
             (⟨c.ngen.curr⟩ : FVarId) ∉ Hopening.fvars := by
           rw [hopenFvars]
           intro hmem
           exact Hc.current_not_mem
-            (Hbindings.toBoundFVarArray.members _ hmem)
+            (Hbindings.toFVarArrayIn.members _ hmem)
         have hbodyFresh : body.FVarsIn
             (fun fv => fv ≠ (⟨c.ngen.curr⟩ : FVarId)) := by
           have hbodyScope := (Hopening.currentFVarsIn hsource).2
@@ -137,7 +137,7 @@ theorem RecursorFieldDecisions.fieldOpening
           subst fv
           rcases hfv with hopen | hroot
           · apply Hc.current_not_mem
-            apply Hbindings.toBoundFVarArray.members
+            apply Hbindings.toFVarArrayIn.members
             rwa [← hopenFvars]
           · exact Hc.current_not_mem (HrootCurrent hroot)
         exact ⟨Hnext, HrootCurrent.trans Hstep,
@@ -160,7 +160,7 @@ theorem RecursorFieldDecisions.currentFVarsIn
     ⟨_Hcurrent, HrootCurrent, ⟨Hbindings⟩⟩
   rcases H.fieldOpening Hroot hsource with ⟨Hopening⟩
   have hopenFvars : Hopening.fvars = Hbindings.fvars :=
-    Hopening.fvars_eq_bound Hbindings.toBoundFVarArray
+    Hopening.fvars_eq_bound Hbindings.toFVarArrayIn
   apply (Hopening.currentFVarsIn hsource).mono
   intro fv hfv
   rcases hfv with hopen | hroot

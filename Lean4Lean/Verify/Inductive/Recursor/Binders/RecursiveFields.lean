@@ -650,10 +650,10 @@ theorem isRecArg.refinesRecursor
     htype htype₀
 
 /-- Recursive-domain metadata interpreted at an explicit universe arity.
-This is the second-pass analogue of `RecursorRecursiveDomain`; it is needed
+This is the second-pass analogue of `RecursiveFieldDomain`; it is needed
 while large-elimination recursors are being built under their fresh leading
 universe parameter. -/
-structure RecursorRecursiveDomainAt
+structure RecursiveFieldDomainAt
     (env : VEnv) (decl : VInductDecl) (uvars : Nat) where
   fieldIndex : Nat
   ownerIdx : Nat
@@ -665,20 +665,20 @@ structure RecursorRecursiveDomainAt
     (decl.types[ownerIdx]'owner_lt).name ctx depth domain
 
 /-- Exact field-selection trace at the recursor universe arity. -/
-inductive RecursorFieldSelectionsAt
+inductive RecursiveFieldSelectionsAt
     (env : VEnv) (decl : VInductDecl) (uvars : Nat) :
     Array Expr → Array Expr →
-      List (RecursorRecursiveDomainAt env decl uvars) → Prop
-  | nil : RecursorFieldSelectionsAt env decl uvars #[] #[] []
-  | nonrecursive : RecursorFieldSelectionsAt env decl uvars bu u fields →
-      RecursorFieldSelectionsAt env decl uvars (bu.push arg) u fields
-  | recursive : RecursorFieldSelectionsAt env decl uvars bu u fields →
+      List (RecursiveFieldDomainAt env decl uvars) → Prop
+  | nil : RecursiveFieldSelectionsAt env decl uvars #[] #[] []
+  | nonrecursive : RecursiveFieldSelectionsAt env decl uvars bu u fields →
+      RecursiveFieldSelectionsAt env decl uvars (bu.push arg) u fields
+  | recursive : RecursiveFieldSelectionsAt env decl uvars bu u fields →
       cert.fieldIndex = bu.size →
-      RecursorFieldSelectionsAt env decl uvars (bu.push arg) (u.push arg)
+      RecursiveFieldSelectionsAt env decl uvars (bu.push arg) (u.push arg)
         (fields ++ [cert])
 
 /-- Exact successful classifier decisions made while traversing constructor
-fields.  Unlike `RecursorFieldSelectionsAt`, this trace retains the `none`
+fields.  Unlike `RecursiveFieldSelectionsAt`, this trace retains the `none`
 branches as well as the selected ordinals, so independently replayed passes
 can later be compared by an operational alpha-invariance theorem. -/
 inductive RecursorFieldDecisions (stats : AddInductive.InductiveStats)
@@ -832,16 +832,16 @@ theorem RecursorFieldDecisions.positions_ordered
     subst hnew
     exact H.positions_lt old hold
 
-theorem RecursorFieldSelectionsAt.fields_length
-    (H : RecursorFieldSelectionsAt env decl uvars bu u fields) :
+theorem RecursiveFieldSelectionsAt.fields_length
+    (H : RecursiveFieldSelectionsAt env decl uvars bu u fields) :
     fields.length = u.size := by
   induction H with
   | nil => rfl
   | nonrecursive _ ih => exact ih
   | recursive _ _ ih => simp [ih]
 
-theorem RecursorFieldSelectionsAt.positions_lt
-    (H : RecursorFieldSelectionsAt env decl uvars bu u fields) :
+theorem RecursiveFieldSelectionsAt.positions_lt
+    (H : RecursiveFieldSelectionsAt env decl uvars bu u fields) :
     ∀ cert ∈ fields, cert.fieldIndex < bu.size := by
   induction H with
   | nil => simp
@@ -863,8 +863,8 @@ theorem RecursorFieldSelectionsAt.positions_lt
 /-- The target-indexed recursor trace retains the same pointwise alignment
 between selected recursive fields and the complete constructor-field array
 as its declaration-universe counterpart. -/
-theorem RecursorFieldSelectionsAt.arguments_at_positions
-    (H : RecursorFieldSelectionsAt env decl uvars bu u fields) :
+theorem RecursiveFieldSelectionsAt.arguments_at_positions
+    (H : RecursiveFieldSelectionsAt env decl uvars bu u fields) :
     List.Forall₂ (fun cert arg =>
       ∃ h : cert.fieldIndex < bu.size, arg = bu[cert.fieldIndex]'h)
       fields u.toList := by
@@ -906,9 +906,9 @@ theorem RecursorFieldSelectionsAt.arguments_at_positions
 universe arity.  Zero is a valid specialization for every recursor universe;
 the concrete field selection remains unchanged, while the semantic context
 and domain are instantiated in lockstep. -/
-def RecursorRecursiveDomainAt.toSource
-    (cert : RecursorRecursiveDomainAt env decl uvars) :
-    RecursorRecursiveDomain env decl where
+def RecursiveFieldDomainAt.toSource
+    (cert : RecursiveFieldDomainAt env decl uvars) :
+    RecursiveFieldDomain env decl where
   fieldIndex := cert.fieldIndex
   ownerIdx := cert.ownerIdx
   owner_lt := cert.owner_lt
@@ -918,22 +918,22 @@ def RecursorRecursiveDomainAt.toSource
   recursive := cert.recursive.instL (List.replicate uvars .zero)
     (by simp [VLevel.WF])
 
-@[simp] theorem RecursorRecursiveDomainAt.toSource_fieldIndex
-    (cert : RecursorRecursiveDomainAt env decl uvars) :
+@[simp] theorem RecursiveFieldDomainAt.toSource_fieldIndex
+    (cert : RecursiveFieldDomainAt env decl uvars) :
     cert.toSource.fieldIndex = cert.fieldIndex := rfl
 
 /-- Field selection is operationally universe-insensitive.  Specializing each
 semantic domain therefore converts the second-pass trace directly into the
 source-universe trace consumed by the independent iota specification. -/
-theorem RecursorFieldSelectionsAt.toSource
-    (H : RecursorFieldSelectionsAt env decl uvars bu u fields) :
-    RecursorFieldSelections env decl bu u
-      (fields.map RecursorRecursiveDomainAt.toSource) := by
+theorem RecursiveFieldSelectionsAt.toSource
+    (H : RecursiveFieldSelectionsAt env decl uvars bu u fields) :
+    RecursiveFieldSelections env decl bu u
+      (fields.map RecursiveFieldDomainAt.toSource) := by
   induction H with
   | nil => exact .nil
   | nonrecursive _ ih => exact .nonrecursive ih
   | @recursive bu u fields arg cert H hindex ih =>
-    simpa using RecursorFieldSelections.recursive
+    simpa using RecursiveFieldSelections.recursive
       (cert := cert.toSource) ih hindex
 
 end VerifyInductive

@@ -87,8 +87,8 @@ theorem Expr.ForallTelescope.constructorArity
 
 /-- Consuming the cached parameter prefix removes exactly the remaining
 parameter binders. -/
-theorem RecursorParamPrefix.constructorArity
-    (H : RecursorParamPrefix stats i source tail)
+theorem ParameterPrefix.constructorArity
+    (H : ParameterPrefix stats i source tail)
     (hfv : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv) :
     AddInductive.constructorArity source =
       (stats.params.size - i) + AddInductive.constructorArity tail := by
@@ -125,7 +125,7 @@ theorem RecursorCheck.generated_getMajorInduct
   have hrecInfo : owner < H.recInfos.size := by
     rw [← H.generated.length]; exact howner
   let E := H.generated.entry owner howner
-  let S := H.bindings.toRecursorLocalSelections H.localWF H.params owner hrecInfo
+  let S := H.bindings.toRecursorBinderGroups H.localWF H.params owner hrecInfo
   have hnoalias : S.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
   obtain ⟨D⟩ := (H.bindings.major owner hrecInfo).declarationAt H.localWF 0 (by simp)
@@ -152,7 +152,7 @@ theorem RecursorCheck.kShape
     (∀ owner : Fin H.generationSignature.families.size,
       H.generationSignature.families[owner].resultLevel ≈ .zero) ∧
     ∀ ctor ∈ H.generationSignature.constructors.toList, ctor.fields = [] := by
-  have HK : KTargetCheck stats indTypes true := hk ▸ H.kTargetChecked
+  have HK : KEligible stats indTypes true := hk ▸ H.kTargetChecked
   obtain ⟨ind, ctor, hind, hzero, hctors, harity⟩ :=
     HK.true_shape stats indTypes H.localContext
   have hfamCons : H.generationSignature.families = H.consumedFamilies :=

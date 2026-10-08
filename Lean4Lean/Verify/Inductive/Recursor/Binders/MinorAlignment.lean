@@ -21,7 +21,7 @@ shape) apply along the trace. -/
 `ctx` below `final`.  `P` is a free-variable up-set of the semantic context
 containing the input's free variables; its members satisfy `Q` and are
 variables of `ctx`. -/
-def RecursorWhnfCallAt (final : AddInductive.Context) (Q : FVarId → Prop)
+def WhnfRunAt (final : AddInductive.Context) (Q : FVarId → Prop)
     (input output : Expr) : Prop :=
   ∃ (ctx : AddInductive.Context) (recLparams : List Name)
     (Rc : RecursorContextWF ctx recLparams) (P : FVarId → Prop)
@@ -34,11 +34,11 @@ def RecursorWhnfCallAt (final : AddInductive.Context) (Q : FVarId → Prop)
     (monadLift (TypeChecker.whnf input) : AddInductive.M Expr) ctx = .ok output ∧
     ∃ target₀, TrExprS Rc.venv recLparams Rc.chk.vlctx input target₀
 
-theorem RecursorWhnfCallAt.mono {final final' : AddInductive.Context}
+theorem WhnfRunAt.mono {final final' : AddInductive.Context}
     {Q Q' : FVarId → Prop} {input output : Expr}
-    (H : RecursorWhnfCallAt final Q input output)
+    (H : WhnfRunAt final Q input output)
     (hle : BindingContextLE final final') (hQ : ∀ fv, Q fv → Q' fv) :
-    RecursorWhnfCallAt final' Q' input output := by
+    WhnfRunAt final' Q' input output := by
   obtain ⟨ctx, recLparams, Rc, P, target, hctx, htr, hup, hP, hin, hrun, htr₀⟩ := H
   exact ⟨ctx, recLparams, Rc, P, target, hctx.trans hle, htr, hup,
     fun fv h => ⟨hQ fv (hP fv h).1, (hP fv h).2⟩, hin, hrun, htr₀⟩
@@ -49,43 +49,43 @@ parameters `stats.params`) and the index steps (opening a fresh index
 variable `x`, declared in `final` with the annotation-consumed domain). The
 `Nat` index is the number of parameters consumed, the `Expr` the current
 normalized type and the array the opened indices. -/
-inductive RecursorIndexTrace (stats : AddInductive.InductiveStats)
+inductive IndexTelescopeRun (stats : AddInductive.InductiveStats)
     (final : AddInductive.Context) (header : Expr) :
     Nat → Expr → Array Expr → Prop
   | start {normalized : Expr}
-      (call : RecursorWhnfCallAt final (fun _ => False) header normalized) :
-      RecursorIndexTrace stats final header 0 normalized #[]
+      (call : WhnfRunAt final (fun _ => False) header normalized) :
+      IndexTelescopeRun stats final header 0 normalized #[]
   | param {i : Nat} {name : Name} {dom body normalized : Expr}
       {bi : BinderInfo}
-      (previous : RecursorIndexTrace stats final header i
+      (previous : IndexTelescopeRun stats final header i
         (.forallE name dom body bi) #[])
       (hi : i < stats.params.size)
-      (call : RecursorWhnfCallAt final
+      (call : WhnfRunAt final
         (fun fv => fv ∈ ExprArrayFVarIds stats.params)
         (body.instantiate1 stats.params[i]!) normalized) :
-      RecursorIndexTrace stats final header (i + 1) normalized #[]
+      IndexTelescopeRun stats final header (i + 1) normalized #[]
   | index {indices : Array Expr} {name : Name} {dom body normalized : Expr}
       {bi : BinderInfo} {x : FVarId}
-      (previous : RecursorIndexTrace stats final header stats.params.size
+      (previous : IndexTelescopeRun stats final header stats.params.size
         (.forallE name dom body bi) indices)
       (member : x ∈ final.lctx.fvars)
       (declaration : ∃ index userName binderInfo kind,
         final.lctx.find? x = some (.cdecl index x userName
           (dom.consumeTypeAnnotationsVerified final.env.isTypeAnnotationWrapper)
           binderInfo kind))
-      (call : RecursorWhnfCallAt final
+      (call : WhnfRunAt final
         (fun fv => fv ∈ ExprArrayFVarIds stats.params ∨
           fv ∈ ExprArrayFVarIds (indices.push (.fvar x)))
         (body.instantiate1 (.fvar x)) normalized) :
-      RecursorIndexTrace stats final header stats.params.size normalized
+      IndexTelescopeRun stats final header stats.params.size normalized
         (indices.push (.fvar x))
 
-theorem RecursorIndexTrace.mono {stats : AddInductive.InductiveStats}
+theorem IndexTelescopeRun.mono {stats : AddInductive.InductiveStats}
     {final final' : AddInductive.Context} {header : Expr}
     (hle : BindingContextLE final final') {i : Nat} {type : Expr}
     {indices : Array Expr}
-    (H : RecursorIndexTrace stats final header i type indices) :
-    RecursorIndexTrace stats final' header i type indices := by
+    (H : IndexTelescopeRun stats final header i type indices) :
+    IndexTelescopeRun stats final' header i type indices := by
   induction H with
   | start call => exact .start (call.mono hle fun _ h => h)
   | param _ hi call ih => exact .param ih hi (call.mono hle fun _ h => h)
@@ -98,37 +98,37 @@ theorem RecursorIndexTrace.mono {stats : AddInductive.InductiveStats}
 
 /-- Every family's index telescope was opened by a retained `loopArgs1`
 trace starting at the family header `indTypes[i].type`. -/
-def RecInfoIndexTraces (stats : AddInductive.InductiveStats)
+def IndexTelescopeRuns (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) (c : AddInductive.Context)
     (recInfos : Array AddInductive.RecInfo) : Prop :=
   ∀ i, i < recInfos.size → ∃ type,
-    RecursorIndexTrace stats c indTypes[i]!.type stats.params.size type
+    IndexTelescopeRun stats c indTypes[i]!.type stats.params.size type
       recInfos[i]!.indices
 
-theorem RecInfoIndexTraces.empty {stats : AddInductive.InductiveStats}
+theorem IndexTelescopeRuns.empty {stats : AddInductive.InductiveStats}
     {indTypes : Array InductiveType} {c : AddInductive.Context} :
-    RecInfoIndexTraces stats indTypes c #[] := by
+    IndexTelescopeRuns stats indTypes c #[] := by
   intro i hi
   simp at hi
 
-theorem RecInfoIndexTraces.mono {stats : AddInductive.InductiveStats}
+theorem IndexTelescopeRuns.mono {stats : AddInductive.InductiveStats}
     {indTypes : Array InductiveType} {c c' : AddInductive.Context}
     {recInfos : Array AddInductive.RecInfo}
-    (H : RecInfoIndexTraces stats indTypes c recInfos)
+    (H : IndexTelescopeRuns stats indTypes c recInfos)
     (hle : BindingContextLE c c') :
-    RecInfoIndexTraces stats indTypes c' recInfos := by
+    IndexTelescopeRuns stats indTypes c' recInfos := by
   intro i hi
   obtain ⟨type, T⟩ := H i hi
   exact ⟨type, T.mono hle⟩
 
-theorem RecInfoIndexTraces.push {stats : AddInductive.InductiveStats}
+theorem IndexTelescopeRuns.push {stats : AddInductive.InductiveStats}
     {indTypes : Array InductiveType} {c : AddInductive.Context}
     {recInfos : Array AddInductive.RecInfo}
-    (H : RecInfoIndexTraces stats indTypes c recInfos)
+    (H : IndexTelescopeRuns stats indTypes c recInfos)
     (info : AddInductive.RecInfo) {type : Expr}
-    (T : RecursorIndexTrace stats c indTypes[recInfos.size]!.type
+    (T : IndexTelescopeRun stats c indTypes[recInfos.size]!.type
       stats.params.size type info.indices) :
-    RecInfoIndexTraces stats indTypes c (recInfos.push info) := by
+    IndexTelescopeRuns stats indTypes c (recInfos.push info) := by
   intro i hi
   by_cases hlast : i = recInfos.size
   · subst i
@@ -144,24 +144,24 @@ theorem RecInfoIndexTraces.push {stats : AddInductive.InductiveStats}
     exact H i hold
 
 /-- The traces only see the index arrays of the records. -/
-theorem RecInfoIndexTraces.congr {stats : AddInductive.InductiveStats}
+theorem IndexTelescopeRuns.congr {stats : AddInductive.InductiveStats}
     {indTypes : Array InductiveType} {c : AddInductive.Context}
     {left right : Array AddInductive.RecInfo}
-    (H : RecInfoIndexTraces stats indTypes c left)
+    (H : IndexTelescopeRuns stats indTypes c left)
     (hsize : left.size = right.size)
     (hindices : ∀ i, i < left.size → left[i]!.indices = right[i]!.indices) :
-    RecInfoIndexTraces stats indTypes c right := by
+    IndexTelescopeRuns stats indTypes c right := by
   intro i hi
   have hi' : i < left.size := by omega
   rw [← hindices i hi']
   exact H i hi'
 
-theorem RecInfoIndexTraces.modifyMinors {stats : AddInductive.InductiveStats}
+theorem IndexTelescopeRuns.modifyMinors {stats : AddInductive.InductiveStats}
     {indTypes : Array InductiveType} {c : AddInductive.Context}
     {recInfos : Array AddInductive.RecInfo}
-    (H : RecInfoIndexTraces stats indTypes c recInfos)
+    (H : IndexTelescopeRuns stats indTypes c recInfos)
     (dIdx : Nat) (f : Array Expr → Array Expr) :
-    RecInfoIndexTraces stats indTypes c (recInfos.modify dIdx fun info =>
+    IndexTelescopeRuns stats indTypes c (recInfos.modify dIdx fun info =>
       { info with minors := f info.minors }) := by
   refine H.congr (by simp) fun i hi => ?_
   by_cases hdi : dIdx = i
@@ -173,10 +173,10 @@ theorem RecInfoIndexTraces.modifyMinors {stats : AddInductive.InductiveStats}
 owning source family.  This is the final cross-pass provenance invariant:
 the second `mkRecInfos` traversal and rule generation may allocate different
 locals, but they replay the same owner-indexed constructor arrays. -/
-def RecInfoMinorSourceRows
+def MinorsMatchConstructors
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType)
-    (H : RecInfoTypeOrigins c recInfos) : Prop :=
+    (H : RecInfoBinderTypes c recInfos) : Prop :=
   ∀ owner (howner : owner < recInfos.size)
     (hsourceOwner : owner < indTypes.size)
     localIndex (hlocal : localIndex < H.minorTypes[owner]!.size),
@@ -206,38 +206,38 @@ def RecInfoMinorSourceRows
           BindingContextLE S.sourceFullContext c
 
 /-- The cross-pass source alignment of a completed recursor construction: the
-minor rows (`RecInfoMinorSourceRows`) together with the retained `loopArgs1`
-traces of every family's index telescope (`RecInfoIndexTraces`). -/
-def RecInfoMinorSourceAlignment
+minor rows (`MinorsMatchConstructors`) together with the retained `loopArgs1`
+traces of every family's index telescope (`IndexTelescopeRuns`). -/
+def MinorsAndIndicesMatchSource
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType)
-    (H : RecInfoTypeOrigins c recInfos) : Prop :=
-  RecInfoMinorSourceRows stats indTypes H ∧
-    RecInfoIndexTraces stats indTypes c recInfos
+    (H : RecInfoBinderTypes c recInfos) : Prop :=
+  MinorsMatchConstructors stats indTypes H ∧
+    IndexTelescopeRuns stats indTypes c recInfos
 
-theorem RecInfoMinorSourceAlignment.rows
-    {H : RecInfoTypeOrigins c recInfos}
-    (A : RecInfoMinorSourceAlignment stats indTypes H) :
-    RecInfoMinorSourceRows stats indTypes H := A.1
+theorem MinorsAndIndicesMatchSource.rows
+    {H : RecInfoBinderTypes c recInfos}
+    (A : MinorsAndIndicesMatchSource stats indTypes H) :
+    MinorsMatchConstructors stats indTypes H := A.1
 
-theorem RecInfoMinorSourceAlignment.traces
-    {H : RecInfoTypeOrigins c recInfos}
-    (A : RecInfoMinorSourceAlignment stats indTypes H) :
-    RecInfoIndexTraces stats indTypes c recInfos := A.2
+theorem MinorsAndIndicesMatchSource.traces
+    {H : RecInfoBinderTypes c recInfos}
+    (A : MinorsAndIndicesMatchSource stats indTypes H) :
+    IndexTelescopeRuns stats indTypes c recInfos := A.2
 
-/-- Semantic counterpart of `RecInfoMinorSourceAlignment` for one retained
+/-- Semantic counterpart of `MinorsAndIndicesMatchSource` for one retained
 minor.  The structural alignment remembers that the source context embeds in
 the final local context; this certificate additionally remembers the exact
 translation-side lift produced by that executable extension.  Keeping the
 source `RecursorContextWF` existential avoids baking a particular sequence of
 intermediate field and hypothesis binders into the stable minor shape. -/
-structure RecInfoMinorSemanticSource
+structure TypedMinorTraversal
     {c : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF c recLparams)
-    (S : RecInfoMinorTypeShape) where
+    (S : MinorPremiseType) where
   sourceWF : RecursorContextWF S.sourceFullContext recLparams
   extension : RecursorContextExtension sourceWF R
-  traversal : RecInfoMinorTraversalShape
+  traversal : ConstructorFieldTraversal
   traversal_eq : S.traversal = some traversal
   traversal_fields : traversal.fields = S.fields
   rootWF : RecursorContextWF traversal.rootContext recLparams
@@ -255,7 +255,7 @@ structure RecInfoMinorSemanticSource
   /-- The same tail translated directly in the cached parameter suffix. -/
   parameterTranslation₀ : ∃ t, TrExprS rootWF.venv recLparams
     parameterSuffix.parameterDecls traversal.parameterTail t
-  fieldsRecent : RecursorRecentBoundFVarArray rootWF terminalWF S.fields
+  fieldsRecent : RecursorFVarSuffix rootWF terminalWF S.fields
   /-- The fields were also opened in the checker context directly above the
   parameter declarations, and the checker closure of the terminal agrees
   with the parameter-scope translation of the tail. -/
@@ -279,7 +279,7 @@ structure RecInfoMinorSemanticSource
   fieldParameterUp : IsFVarUpSet (fun fv =>
     fv ∈ fieldsRecent.fvars ∨
       fv ∈ ExprArrayFVarIds traversal.stats.params) terminalWF.mlctx.vlctx
-  hypothesesRecent : RecursorRecentBoundFVarArray terminalWF sourceWF
+  hypothesesRecent : RecursorFVarSuffix terminalWF sourceWF
     S.hypotheses
   terminalTarget : VExpr
   terminalTranslation : TrExprS terminalWF.venv recLparams
@@ -290,7 +290,7 @@ structure RecInfoMinorSemanticSource
   field traversal.  Keeping this producer evidence allows the later
   blueprint-only rule builder to recover its constructor typing without
   replaying either field classification or type checking. -/
-  constructorApplication : RecursorConstructorApplicationAt terminalWF
+  constructorApplication : ConstructorApplicationAt terminalWF
     traversal.stats traversal.constructor traversal.terminal S.fields
     terminalTarget
   fieldTargetDefEq : rootWF.venv.IsDefEqU recLparams.length
@@ -320,14 +320,14 @@ structure RecInfoMinorSemanticSource
   consumption : sourceWF.UnannotatedDomain S.sourceType sourceTarget
     consumedTarget
 
-def RecInfoMinorSemanticSource.mono
+def TypedMinorTraversal.mono
     {root current : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {Rcurrent : RecursorContextWF current recLparams}
-    {S : RecInfoMinorTypeShape}
-    (HS : RecInfoMinorSemanticSource Rroot S)
+    {S : MinorPremiseType}
+    (HS : TypedMinorTraversal Rroot S)
     (Hext : RecursorContextExtension Rroot Rcurrent) :
-    RecInfoMinorSemanticSource Rcurrent S where
+    TypedMinorTraversal Rcurrent S where
   sourceWF := HS.sourceWF
   extension := HS.extension.trans Hext
   traversal := HS.traversal
@@ -366,10 +366,10 @@ def RecInfoMinorSemanticSource.mono
 /-- Recursive hypotheses are introduced only after the selected-motive
 application has been assembled.  Closing their fresh identifiers therefore
 leaves that source application unchanged. -/
-theorem RecInfoMinorSemanticSource.abstractHypotheses_motiveApp
+theorem TypedMinorTraversal.abstractHypotheses_motiveApp
     {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
-    (HS : RecInfoMinorSemanticSource R S) :
+    {R : RecursorContextWF c recLparams} {S : MinorPremiseType}
+    (HS : TypedMinorTraversal R S) :
     S.motiveApp.abstractList S.hypotheses_bound.fvars = S.motiveApp := by
   have hclosed : Closed S.motiveApp 0 := by
     have h := HS.motivePreTranslation.closed
@@ -382,8 +382,8 @@ theorem RecInfoMinorSemanticSource.abstractHypotheses_motiveApp
     intro fv hterminal hhypothesis
     have hhypothesisFVars : HS.hypothesesRecent.fvars =
         S.hypotheses_bound.fvars :=
-      BoundFVarArray.fvars_eq_of_array_eq
-        HS.hypothesesRecent.toFreshBoundFVarArray.toBoundFVarArray
+      FVarArrayIn.fvars_eq_of_array_eq
+        HS.hypothesesRecent.toFVarArrayAfter.toFVarArrayIn
         S.hypotheses_bound rfl
     rw [← hhypothesisFVars] at hhypothesis
     apply HS.hypothesesRecent.fresh fv hhypothesis
@@ -397,10 +397,10 @@ nonempty field/hypothesis telescope starts with a genuine forall binder.  In
 the degenerate empty-telescope case the residual is an application headed by
 the freshly bound motive variable, so it cannot be any of Lean's four
 top-level parameter-annotation encodings either. -/
-theorem RecInfoMinorSemanticSource.sourceType_consumeTypeAnnotations_eq_self
+theorem TypedMinorTraversal.sourceType_consumeTypeAnnotations_eq_self
     {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
-    (HS : RecInfoMinorSemanticSource R S) {ok : Name → Bool} :
+    {R : RecursorContextWF c recLparams} {S : MinorPremiseType}
+    (HS : TypedMinorTraversal R S) {ok : Name → Bool} :
     (S.sourceType.consumeTypeAnnotationsVerified ok) = S.sourceType := by
   by_cases hpositive : 0 < S.fields.size + S.hypotheses.size
   · exact S.sourceTelescope.consumeTypeAnnotationsVerified_eq_self_of_pos hpositive
@@ -428,30 +428,30 @@ theorem RecInfoMinorSemanticSource.sourceType_consumeTypeAnnotations_eq_self
 /-- Restrict the shared constructor-tail translation to the cached parameter
 suffix.  The ambient motives and previously generated minors cannot occur in
 that source by the retained field-traversal scope invariant. -/
-theorem RecInfoMinorSemanticSource.parameterTranslationAtSuffix
+theorem TypedMinorTraversal.parameterTranslationAtSuffix
     {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
-    (HS : RecInfoMinorSemanticSource R S) :
+    {R : RecursorContextWF c recLparams} {S : MinorPremiseType}
+    (HS : TypedMinorTraversal R S) :
     ∃ target, TrExprS HS.rootWF.venv recLparams
       HS.parameterSuffix.parameterDecls HS.traversal.parameterTail target :=
   HS.parameterTranslation₀
 
-structure RecInfoMinorSemanticSourceAt
+structure TypedMinorTraversalAt
     {c : AddInductive.Context} {recLparams : List Name}
-    (R : RecursorContextWF c recLparams) (S : RecInfoMinorTypeShape)
+    (R : RecursorContextWF c recLparams) (S : MinorPremiseType)
     (parameterDecls : VLCtx) where
-  semantic : RecInfoMinorSemanticSource R S
+  semantic : TypedMinorTraversal R S
   parameterDecls_eq : semantic.parameterSuffix.parameterDecls =
     parameterDecls
 
-def RecInfoMinorSemanticSourceAt.mono
+def TypedMinorTraversalAt.mono
     {root current : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {Rcurrent : RecursorContextWF current recLparams}
-    {S : RecInfoMinorTypeShape} {parameterDecls : VLCtx}
-    (HS : RecInfoMinorSemanticSourceAt Rroot S parameterDecls)
+    {S : MinorPremiseType} {parameterDecls : VLCtx}
+    (HS : TypedMinorTraversalAt Rroot S parameterDecls)
     (Hext : RecursorContextExtension Rroot Rcurrent) :
-    RecInfoMinorSemanticSourceAt Rcurrent S parameterDecls where
+    TypedMinorTraversalAt Rcurrent S parameterDecls where
   semantic := HS.semantic.mono Hext
   parameterDecls_eq := HS.parameterDecls_eq
 
@@ -459,47 +459,47 @@ def RecInfoMinorSemanticSourceAt.mono
 current recursor context.  Unlike `BindingContextLE`, this invariant is strong
 enough to transport or restrict translated declaration types without guessing
 how later named locals shift their de Bruijn targets. -/
-def RecInfoMinorSemanticAlignment
+def TypedMinors
     {c : AddInductive.Context} {recInfos : Array AddInductive.RecInfo}
     {recLparams : List Name}
     (R : RecursorContextWF c recLparams)
-    (H : RecInfoTypeOrigins c recInfos) (parameterDecls : VLCtx) : Prop :=
+    (H : RecInfoBinderTypes c recInfos) (parameterDecls : VLCtx) : Prop :=
   ∀ owner (howner : owner < recInfos.size)
     localIndex (hlocal : localIndex < H.minorTypes[owner]!.size),
-    Nonempty (RecInfoMinorSemanticSourceAt R
+    Nonempty (TypedMinorTraversalAt R
       (H.minorShapes owner howner localIndex hlocal) parameterDecls)
 
-theorem RecInfoMinorSemanticAlignment.ofEmpty
+theorem TypedMinors.ofEmpty
     (R : RecursorContextWF c recLparams)
-    (H : RecInfoTypeOrigins c recInfos)
+    (H : RecInfoBinderTypes c recInfos)
     (Hempty : RecInfoMinorsEmpty recInfos) :
-    RecInfoMinorSemanticAlignment R H parameterDecls := by
+    TypedMinors R H parameterDecls := by
   intro owner howner localIndex hlocal
   have hsize := (H.minors owner howner).size_eq
   rw [Hempty owner howner] at hsize
   omega
 
-theorem RecInfoMinorSemanticAlignment.mono
+theorem TypedMinors.mono
     {root current : AddInductive.Context} {recLparams : List Name}
     {recInfos : Array AddInductive.RecInfo}
     {Rroot : RecursorContextWF root recLparams}
     {Rcurrent : RecursorContextWF current recLparams}
-    {H : RecInfoTypeOrigins root recInfos}
-    (A : RecInfoMinorSemanticAlignment Rroot H parameterDecls)
+    {H : RecInfoBinderTypes root recInfos}
+    (A : TypedMinors Rroot H parameterDecls)
     (Hext : RecursorContextExtension Rroot Rcurrent) :
-    RecInfoMinorSemanticAlignment Rcurrent (H.mono Hext.contextLE)
+    TypedMinors Rcurrent (H.mono Hext.contextLE)
       parameterDecls := by
   intro owner howner localIndex hlocal
   rcases A owner howner localIndex hlocal with ⟨HS⟩
   exact ⟨HS.mono Hext⟩
 
-theorem RecInfoMinorSemanticAlignment.addMinor
+theorem TypedMinors.addMinor
     {root current : AddInductive.Context} {recLparams : List Name}
     {recInfos : Array AddInductive.RecInfo}
     {Rroot : RecursorContextWF root recLparams}
     {Rcurrent : RecursorContextWF current recLparams}
-    {H : RecInfoTypeOrigins root recInfos}
-    (A : RecInfoMinorSemanticAlignment Rroot H parameterDecls)
+    {H : RecInfoBinderTypes root recInfos}
+    (A : TypedMinors Rroot H parameterDecls)
     (Hext : RecursorContextExtension Rroot Rcurrent)
     (dIdx : Nat) (hidx : dIdx < recInfos.size)
     (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo)
@@ -508,13 +508,13 @@ theorem RecInfoMinorSemanticAlignment.addMinor
       minorTy minorTarget)
     (HminorType : Rcurrent.venv.IsType recLparams.length
       Rcurrent.mlctx.vlctx.toCtx minorTarget)
-    (Hshape : RecInfoMinorTypeShape)
+    (Hshape : MinorPremiseType)
     (HshapePosition :
       Hshape.localIndex = H.minorTypes[dIdx]!.size ∧
       Hshape.origin = minorTy)
     (HshapeSemantic : Nonempty
-      (RecInfoMinorSemanticSourceAt Rcurrent Hshape parameterDecls)) :
-    RecInfoMinorSemanticAlignment
+      (TypedMinorTraversalAt Rcurrent Hshape parameterDecls)) :
+    TypedMinors
       (Rcurrent.withLocalDecl (name := minorName) (bi := minorBi)
         Hminor HminorType)
       (H.addMinor dIdx hidx Hext.contextLE Rcurrent.toBindingContextWF
@@ -542,11 +542,11 @@ theorem RecInfoMinorSemanticAlignment.addMinor
     by_cases hlast : localIndex = H.minorTypes[dIdx]!.size
     · subst localIndex
       rcases HshapeSemantic with ⟨HS⟩
-      simpa [RecInfoTypeOrigins.addMinor, nextMinorTypes,
+      simpa [RecInfoBinderTypes.addMinor, nextMinorTypes,
         mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx
           (fun types => types.push minorTy) hownerTypes] using
         (show Nonempty
-            (RecInfoMinorSemanticSourceAt Rnext Hshape parameterDecls) from
+            (TypedMinorTraversalAt Rnext Hshape parameterDecls) from
           ⟨HS.mono Hstep⟩)
     · have hold : localIndex < H.minorTypes[dIdx]!.size := by
         simp only [Array.size_push] at hlocal
@@ -559,10 +559,10 @@ theorem RecInfoMinorSemanticAlignment.addMinor
         rw [getElem!_pos (H.minorTypes[dIdx]!.push minorTy) localIndex hpush,
           getElem!_pos H.minorTypes[dIdx]! localIndex hold]
         exact Array.getElem_push_lt hold
-      simpa [RecInfoTypeOrigins.addMinor, hlast,
+      simpa [RecInfoBinderTypes.addMinor, hlast,
         mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx
           (fun types => types.push minorTy) hownerTypes, hget] using
-        (show Nonempty (RecInfoMinorSemanticSourceAt Rnext
+        (show Nonempty (TypedMinorTraversalAt Rnext
             (H.minorShapes dIdx hidx localIndex hold) parameterDecls) from
           ⟨HS.mono (Hext.trans Hstep)⟩)
   · have horigin : nextMinorTypes[owner]! = H.minorTypes[owner]! := by
@@ -572,30 +572,30 @@ theorem RecInfoMinorSemanticAlignment.addMinor
     change localIndex < nextMinorTypes[owner]!.size at hlocal
     rw [horigin] at hlocal
     rcases A owner hownerOld localIndex hlocal with ⟨HS⟩
-    simpa [RecInfoTypeOrigins.addMinor, hdi,
+    simpa [RecInfoBinderTypes.addMinor, hdi,
       mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx owner
         (fun types => types.push minorTy) hownerTypes hdi] using
-      (show Nonempty (RecInfoMinorSemanticSourceAt Rnext
+      (show Nonempty (TypedMinorTraversalAt Rnext
           (H.minorShapes owner hownerOld localIndex hlocal)
             parameterDecls) from
         ⟨HS.mono (Hext.trans Hstep)⟩)
 
-theorem RecInfoMinorSourceRows.ofEmpty
-    (H : RecInfoTypeOrigins c recInfos)
+theorem MinorsMatchConstructors.ofEmpty
+    (H : RecInfoBinderTypes c recInfos)
     (Hempty : RecInfoMinorsEmpty recInfos) :
-    RecInfoMinorSourceRows stats indTypes H := by
+    MinorsMatchConstructors stats indTypes H := by
   intro owner howner _ localIndex hlocal
   have hsize := (H.minors owner howner).size_eq
   rw [Hempty owner howner] at hsize
   omega
 
-theorem RecInfoMinorSourceRows.mono
+theorem MinorsMatchConstructors.mono
     {c c' : AddInductive.Context}
     {recInfos : Array AddInductive.RecInfo}
-    {H : RecInfoTypeOrigins c recInfos}
-    (A : RecInfoMinorSourceRows stats indTypes H)
+    {H : RecInfoBinderTypes c recInfos}
+    (A : MinorsMatchConstructors stats indTypes H)
     (hle : BindingContextLE c c') :
-    RecInfoMinorSourceRows stats indTypes (H.mono hle) := by
+    MinorsMatchConstructors stats indTypes (H.mono hle) := by
   intro owner howner hsourceOwner localIndex hlocal
   rcases A owner howner hsourceOwner localIndex hlocal with
     ⟨horigin, hindex, hsource, hhypothesisOrigins,
@@ -609,17 +609,17 @@ theorem RecInfoMinorSourceRows.mono
     hroot.trans hle,
     hterminal.trans hle, hsourceContext.trans hle⟩
 
-theorem RecInfoMinorSourceRows.addMinor
+theorem MinorsMatchConstructors.addMinor
     {c cMinorTy : AddInductive.Context}
     {recInfos : Array AddInductive.RecInfo}
-    {H : RecInfoTypeOrigins c recInfos}
-    (A : RecInfoMinorSourceRows stats indTypes H)
+    {H : RecInfoBinderTypes c recInfos}
+    (A : MinorsMatchConstructors stats indTypes H)
     (dIdx : Nat) (hidx : dIdx < recInfos.size)
     (hsourceIdx : dIdx < indTypes.size)
     (hle : BindingContextLE c cMinorTy)
     (HcMinorTy : BindingContextWF cMinorTy)
     (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo)
-    (Hshape : RecInfoMinorTypeShape)
+    (Hshape : MinorPremiseType)
     (HshapePosition :
       Hshape.localIndex = H.minorTypes[dIdx]!.size ∧
       Hshape.origin = minorTy)
@@ -645,7 +645,7 @@ theorem RecInfoMinorSourceRows.addMinor
       BindingContextLE traversal.rootContext cMinorTy ∧
       BindingContextLE traversal.terminalContext cMinorTy ∧
       BindingContextLE Hshape.sourceFullContext cMinorTy) :
-    RecInfoMinorSourceRows stats indTypes
+    MinorsMatchConstructors stats indTypes
       (H.addMinor dIdx hidx hle HcMinorTy minorName minorTy minorBi
         Hshape HshapePosition) := by
   let cMinor : AddInductive.Context := { cMinorTy with
@@ -664,8 +664,8 @@ theorem RecInfoMinorSourceRows.addMinor
     · intro owner hleft hright
       by_cases howner : dIdx = owner <;>
         simp [nextRecInfos, Array.getElem_modify, howner]
-  have motiveAppNext (S : RecInfoMinorTypeShape)
-      (traversal : RecInfoMinorTraversalShape)
+  have motiveAppNext (S : MinorPremiseType)
+      (traversal : ConstructorFieldTraversal)
       (Happ : S.motiveApp = (
         let (motiveOwner, indices) :=
           AddInductive.getIIndices stats traversal.terminal
@@ -696,10 +696,10 @@ theorem RecInfoMinorSourceRows.addMinor
       ⟨motiveOwner, indices⟩
     simp only
     rw [hmotiveGet]
-  have hypothesisOriginsNext (S : RecInfoMinorTypeShape)
+  have hypothesisOriginsNext (S : MinorPremiseType)
       (HS : S.HasHypothesisTypeOrigins stats recInfos) :
       S.HasHypothesisTypeOrigins stats nextRecInfos := by
-    unfold RecInfoMinorTypeShape.HasHypothesisTypeOrigins at HS ⊢
+    unfold MinorPremiseType.HasHypothesisTypeOrigins at HS ⊢
     cases horigins : S.hypothesis_type_origins with
     | none => simp [horigins] at HS
     | some origins =>
@@ -789,7 +789,7 @@ theorem RecInfoMinorSourceRows.addMinor
     rw [horigin] at hlocal
     by_cases hlast : localIndex = H.minorTypes[dIdx]!.size
     · subst localIndex
-      simpa [RecInfoTypeOrigins.addMinor,
+      simpa [RecInfoBinderTypes.addMinor,
         mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx
           (fun types => types.push minorTy) hiTypes,
         getElem!_pos (H.minorTypes[dIdx]!.push minorTy)
@@ -806,7 +806,7 @@ theorem RecInfoMinorSourceRows.addMinor
         rw [getElem!_pos (H.minorTypes[dIdx]!.push minorTy) localIndex hpush,
           getElem!_pos H.minorTypes[dIdx]! localIndex hold]
         exact Array.getElem_push_lt hold
-      simpa [RecInfoTypeOrigins.addMinor, hlast,
+      simpa [RecInfoBinderTypes.addMinor, hlast,
         mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx
           (fun types => types.push minorTy) hiTypes, hget] using
         Aextended dIdx hidx hsourceIdx localIndex hold
@@ -823,38 +823,38 @@ theorem RecInfoMinorSourceRows.addMinor
     rw [horigin] at hlocal
     have hlocalOld : localIndex < H.minorTypes[owner]!.size := by
       exact hlocal
-    simpa [RecInfoTypeOrigins.addMinor, hdi,
+    simpa [RecInfoBinderTypes.addMinor, hdi,
       mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx owner
         (fun types => types.push minorTy) hownerTypes hdi] using
       Aextended owner hownerOld hsourceOwner localIndex hlocalOld
 
-theorem RecInfoMinorSourceAlignment.ofEmpty
-    (H : RecInfoTypeOrigins c recInfos)
+theorem MinorsAndIndicesMatchSource.ofEmpty
+    (H : RecInfoBinderTypes c recInfos)
     (Hempty : RecInfoMinorsEmpty recInfos)
-    (Htraces : RecInfoIndexTraces stats indTypes c recInfos) :
-    RecInfoMinorSourceAlignment stats indTypes H :=
-  ⟨RecInfoMinorSourceRows.ofEmpty H Hempty, Htraces⟩
+    (Htraces : IndexTelescopeRuns stats indTypes c recInfos) :
+    MinorsAndIndicesMatchSource stats indTypes H :=
+  ⟨MinorsMatchConstructors.ofEmpty H Hempty, Htraces⟩
 
-theorem RecInfoMinorSourceAlignment.mono
+theorem MinorsAndIndicesMatchSource.mono
     {c c' : AddInductive.Context}
     {recInfos : Array AddInductive.RecInfo}
-    {H : RecInfoTypeOrigins c recInfos}
-    (A : RecInfoMinorSourceAlignment stats indTypes H)
+    {H : RecInfoBinderTypes c recInfos}
+    (A : MinorsAndIndicesMatchSource stats indTypes H)
     (hle : BindingContextLE c c') :
-    RecInfoMinorSourceAlignment stats indTypes (H.mono hle) :=
+    MinorsAndIndicesMatchSource stats indTypes (H.mono hle) :=
   ⟨A.rows.mono hle, A.traces.mono hle⟩
 
-theorem RecInfoMinorSourceAlignment.addMinor
+theorem MinorsAndIndicesMatchSource.addMinor
     {c cMinorTy : AddInductive.Context}
     {recInfos : Array AddInductive.RecInfo}
-    {H : RecInfoTypeOrigins c recInfos}
-    (A : RecInfoMinorSourceAlignment stats indTypes H)
+    {H : RecInfoBinderTypes c recInfos}
+    (A : MinorsAndIndicesMatchSource stats indTypes H)
     (dIdx : Nat) (hidx : dIdx < recInfos.size)
     (hsourceIdx : dIdx < indTypes.size)
     (hle : BindingContextLE c cMinorTy)
     (HcMinorTy : BindingContextWF cMinorTy)
     (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo)
-    (Hshape : RecInfoMinorTypeShape)
+    (Hshape : MinorPremiseType)
     (HshapePosition :
       Hshape.localIndex = H.minorTypes[dIdx]!.size ∧
       Hshape.origin = minorTy)
@@ -880,7 +880,7 @@ theorem RecInfoMinorSourceAlignment.addMinor
       BindingContextLE traversal.rootContext cMinorTy ∧
       BindingContextLE traversal.terminalContext cMinorTy ∧
       BindingContextLE Hshape.sourceFullContext cMinorTy) :
-    RecInfoMinorSourceAlignment stats indTypes
+    MinorsAndIndicesMatchSource stats indTypes
       (H.addMinor dIdx hidx hle HcMinorTy minorName minorTy minorBi
         Hshape HshapePosition) :=
   ⟨A.rows.addMinor dIdx hidx hsourceIdx hle HcMinorTy minorName minorTy
@@ -1047,7 +1047,7 @@ private theorem recInfoMinorIds_modify_perm
 theorem RecInfoBindings.addMinor_allFvars_perm
     {stats : AddInductive.InductiveStats}
     (H : RecInfoBindings c recInfos)
-    (Hparams : BoundFVarArray c stats.params)
+    (Hparams : FVarArrayIn c stats.params)
     (dIdx : Nat) (hidx : dIdx < recInfos.size)
     (hle : BindingContextLE c cMinorTy)
     (HcMinorTy : BindingContextWF cMinorTy)
@@ -1128,7 +1128,7 @@ theorem RecInfoBindings.addMinor_allFvars_perm
 theorem RecInfoBindings.addMinor_noAlias
     {stats : AddInductive.InductiveStats}
     (H : RecInfoBindings c recInfos)
-    (Hparams : BoundFVarArray c stats.params)
+    (Hparams : FVarArrayIn c stats.params)
     (hnoalias : H.NoAlias Hparams)
     (dIdx : Nat) (hidx : dIdx < recInfos.size)
     (hle : BindingContextLE c cMinorTy)

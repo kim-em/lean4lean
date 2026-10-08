@@ -45,7 +45,7 @@ theorem NestedReplacementFinalTrace.levelLeaf
       output nextState result traceFinalState)
     (Hctx : NestedExpansionLookupCtx
       (VExpr.LevelLeaf names (VLevel.params sourceDecl.uvars)) depth sourceCtx targetCtx)
-    (selection : LocalForallSelection lctx As)
+    (selection : CDeclArray lctx As)
     (Harity : As.size = result.params.size)
     (Hdepth : depth = selection.fvars.length + fieldDepth)
     (HtargetParams : SelectedParameterTargets selection.fvars fieldDepth targetCtx)
@@ -117,7 +117,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractExpansionAboveLvls
       NestedReplacementFinalTrace prodEnv lctx params As input state output
         nextState result finalState' →
       NestedExpansionLookupCtx leaf depth sourceCtx targetCtx →
-      (selection : LocalForallSelection lctx As) →
+      (selection : CDeclArray lctx As) →
       selection.fvars.Nodup →
       As.size = params.size →
       depth = selection.fvars.length + fieldDepth →

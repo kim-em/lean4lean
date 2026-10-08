@@ -47,7 +47,7 @@ theorem RecursorConstruction.recursorTelescope
         (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner) := by
   have hsourceOwner : owner < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨target, Htr, Htype⟩ := H.recursorTypeTranslation owner hsourceOwner
-  let Hsel := H.bindings.toRecursorLocalSelections H.localWF H.params owner howner
+  let Hsel := H.bindings.toRecursorBinderGroups H.localWF H.params owner howner
   have hnoalias := H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner howner
   have Htel := Hsel.forallTelescope
     (.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices) H.recInfos[owner]!.major)
@@ -151,13 +151,13 @@ theorem RecursorConstruction.recursorTelescope_motives
   exact VExpr.wrapForalls_prefix_domains_eq (suffix := []) T.motives_length
     (by simp [InductiveSignature.Instance.motives, hf]) (by simpa using heq)
 
-/-- `RecursorLocalSelections.minorBinderAt` before `inferImplicit`: the flat
+/-- `RecursorBinderGroups.minorBinderAt` before `inferImplicit`: the flat
 minor slot of the raw recursor type is the retained minor declaration type
 closed over parameters, motives and the strictly earlier minors. -/
-theorem RecursorLocalSelections.minorBinderAtRaw
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.minorBinderAtRaw
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (hnoalias : H.NoAlias)
-    (D : BoundFVarDeclarationAt c (recInfos.flatMap (·.minors)) minorIdx) :
+    (D : FVarDeclAt c (recInfos.flatMap (·.minors)) minorIdx) :
     Expr.ForallBinderAt
       (c.lctx.mkForall stats.params <|
        c.lctx.mkForall (recInfos.map (·.motive)) <|
@@ -246,10 +246,10 @@ theorem RecursorLocalSelections.minorBinderAtRaw
     hmotivesLength, Nat.add_assoc] using Hraw
 
 /-- Sequential-model form of `minorBinderAtRaw` for a locally closed context. -/
-theorem RecursorLocalSelections.minorBinderAtRawList
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.minorBinderAtRawList
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (hnoalias : H.NoAlias) (hl : LocalContext.LctxClosed c.lctx)
-    (D : BoundFVarDeclarationAt c (recInfos.flatMap (·.minors)) minorIdx) :
+    (D : FVarDeclAt c (recInfos.flatMap (·.minors)) minorIdx) :
     Expr.ForallBinderAt
       (c.lctx.mkForall stats.params <|
        c.lctx.mkForall (recInfos.map (·.motive)) <|
@@ -316,13 +316,13 @@ theorem RecursorConstruction.recursorTelescope_minor
       target stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
     (minorIdx : Nat)
-    (D : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx) :
+    (D : FVarDeclAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx) :
     TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (abstractForallContext (T.params ++ T.motives ++ T.minors.take minorIdx) [])
       (D.type.abstractList (H.params.fvars ++ H.bindings.motives.fvars ++
         H.bindings.flatMinors.fvars.take minorIdx))
       (T.minors[minorIdx]'(by rw [T.minors_length]; exact D.inBounds)) := by
-  let Hsel := H.bindings.toRecursorLocalSelections H.localWF H.params owner howner
+  let Hsel := H.bindings.toRecursorBinderGroups H.localWF H.params owner howner
   have hnoalias := H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner howner
   have Hb := Hsel.minorBinderAtRawList hnoalias H.recursorWF.lctxClosed D
   have Htr := T.typed.translation
@@ -352,13 +352,13 @@ theorem RecursorConstruction.recursorTelescope_minorFields
       target stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
     (minorIdx : Nat)
-    (D : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
+    (D : FVarDeclAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (hD : D.type = H.origins.minorTypes[mowner]![localIndex]!) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
     let fields := InductiveSignature.insertBinders
-      ((H.sourceFields mowner hmowner localIndex hlocal).map
+      ((H.declFieldDomains mowner hmowner localIndex hlocal).map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
       ((H.recInfos.map (·.motive)).size + minorIdx)
     let ys := H.params.fvars ++ H.bindings.motives.fvars ++
@@ -556,8 +556,8 @@ theorem RecursorConstruction.minorResidualSource
     H.minorMotiveAppForm mowner hmowner localIndex hlocal]
   -- Freshness of the fields relative to the traversal root.
   have hfieldsFvars : HS.semantic.fieldsRecent.fvars = S.fields_bound.fvars :=
-    BoundFVarArray.fvars_eq_of_array_eq
-      HS.semantic.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray S.fields_bound rfl
+    FVarArrayIn.fvars_eq_of_array_eq
+      HS.semantic.fieldsRecent.toFVarArrayAfter.toFVarArrayIn S.fields_bound rfl
   have hrootFresh : ∀ fv, fv ∈ HS.semantic.rootWF.mlctx.vlctx.fvars →
       fv ∉ S.fields_bound.fvars := by
     intro fv hroot hfield
@@ -707,14 +707,14 @@ theorem RecursorConstruction.recursorTelescope_minorResidual
       target stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
     (minorIdx : Nat)
-    (D : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
+    (D : FVarDeclAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (hD : D.type = H.origins.minorTypes[mowner]![localIndex]!) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
     let HS := H.sourceMinorSemantics mowner hmowner localIndex hlocal
     let fields := InductiveSignature.insertBinders
-      ((H.sourceFields mowner hmowner localIndex hlocal).map
+      ((H.declFieldDomains mowner hmowner localIndex hlocal).map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
       ((H.recInfos.map (·.motive)).size + minorIdx)
     let ys := H.params.fvars ++ H.bindings.motives.fvars ++
@@ -914,7 +914,7 @@ theorem RecursorConstruction.recursorTelescope_minorIndices
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
     let HS := H.sourceMinorSemantics mowner hmowner localIndex hlocal
     let fields := InductiveSignature.insertBinders
-      ((H.sourceFields mowner hmowner localIndex hlocal).map
+      ((H.declFieldDomains mowner hmowner localIndex hlocal).map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
       ((H.recInfos.map (·.motive)).size + minorIdx)
     let ys := H.params.fvars ++ H.bindings.motives.fvars ++
@@ -928,7 +928,7 @@ theorem RecursorConstruction.recursorTelescope_minorIndices
           (arg.abstractList S.fields_bound.fvars S.hypotheses.size).abstractList ys
             (S.fields.size + S.hypotheses.size))
         idx →
-      idx = (H.sourceConstructorIndices mowner hmowner localIndex hlocal).map fun e =>
+      idx = (H.declConstructorIndices mowner hmowner localIndex hlocal).map fun e =>
         ((e.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)).liftN
           ((H.recInfos.map (·.motive)).size + minorIdx) S.fields.size).liftN S.hypotheses.size 0 := by
   intro S HS fields ys hyps idx hhyps Hidx
@@ -945,21 +945,21 @@ theorem RecursorConstruction.recursorTelescope_minorIndices
   rw [VExpr.instL_wrapForalls] at Hlift
   -- Peel the field telescope.
   have hfv : (S.fields_bound.mono hsourceLE).fvars = S.fields_bound.fvars :=
-    BoundFVarArray.fvars_eq_of_array_eq _ _ rfl
+    FVarArrayIn.fvars_eq_of_array_eq _ _ rfl
   have Htel := ((S.fields_bound.mono hsourceLE).mkForall_forallTelescope H.localWF
     HS.semantic.traversal.terminal).abstractList H.params.fvars
   rw [hfv, Nat.zero_add] at Htel
-  have hdomLen : ((H.sourceFields mowner hmowner localIndex hlocal).map
+  have hdomLen : ((H.declFieldDomains mowner hmowner localIndex hlocal).map
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))).length =
       S.fields.size := by
     simp only [List.length_map]
     exact H.sourceFields_length mowner hmowner localIndex hlocal
   have Hres := TrExprS.forallTelescope_residual Htel hdomLen Hlift
-  have hctx₁ : abstractForallContext ((H.sourceFields mowner hmowner localIndex hlocal).map
+  have hctx₁ : abstractForallContext ((H.declFieldDomains mowner hmowner localIndex hlocal).map
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
       (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse []) =
       abstractForallContext (H.parameterSuffix.parameterDecls.toCtx.reverse ++
-        (H.sourceFields mowner hmowner localIndex hlocal).map
+        (H.declFieldDomains mowner hmowner localIndex hlocal).map
           (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))) [] := by
     simp [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc]
   rw [hctx₁] at Hres
@@ -977,7 +977,7 @@ theorem RecursorConstruction.recursorTelescope_minorIndices
       (abstractForallContext (H.parameterSuffix.parameterDecls.toCtx.reverse ++
         (T.motives ++ T.minors.take minorIdx) ++
         (liftContextPrefix (T.motives ++ T.minors.take minorIdx).length
-          ((H.sourceFields mowner hmowner localIndex hlocal).map
+          ((H.declFieldDomains mowner hmowner localIndex hlocal).map
             (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))).reverse).reverse)
         []) =
       abstractForallContext (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields ++ hyps) [] := by
@@ -1029,7 +1029,7 @@ theorem RecursorConstruction.recursorTelescope_minorIndices
     rw [← Lean4Lean.List.Forall₂.length_eq Hleft]
     simp [hparamsList, H.params.length_fvars]
   have hindicesLen := Lean4Lean.List.Forall₂.length_eq Hindices
-  have hrightLen : right'.length = (H.sourceConstructorIndices mowner hmowner localIndex hlocal).length := by
+  have hrightLen : right'.length = (H.declConstructorIndices mowner hmowner localIndex hlocal).length := by
     rw [← Lean4Lean.List.Forall₂.length_eq Hright]
     simpa using hindicesLen
   obtain ⟨_, hargs⟩ := VExpr.mkApps_inj (by
@@ -1084,13 +1084,13 @@ theorem RecursorConstruction.recursorTelescope_hypothesisSlot
       target stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
     (minorIdx : Nat)
-    (D₀ : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
+    (D₀ : FVarDeclAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (hD : D₀.type = H.origins.minorTypes[mowner]![localIndex]!) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
     let fields := InductiveSignature.insertBinders
-      ((H.sourceFields mowner hmowner localIndex hlocal).map
+      ((H.declFieldDomains mowner hmowner localIndex hlocal).map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
       ((H.recInfos.map (·.motive)).size + minorIdx)
     let ys := H.params.fvars ++ H.bindings.motives.fvars ++
@@ -1098,7 +1098,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisSlot
     ∀ (hyps : List VExpr) (res : VExpr) (hhyps : hyps.length = S.hypotheses.size),
       T.minors[minorIdx]'(by rw [T.minors_length]; exact D₀.inBounds) =
         VExpr.wrapForalls fields (VExpr.wrapForalls hyps res) →
-      ∀ (j : Nat) (D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j),
+      ∀ (j : Nat) (D : FVarDeclAt S.sourceFullContext S.hypotheses j),
       TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
         (abstractForallContext
           (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields ++ hyps.take j) [])
@@ -1152,11 +1152,11 @@ theorem RecursorConstruction.hypothesisResidualSource
     let ys := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
     ∀ (j : Nat)
-      (origins : RecInfoMinorHypothesisTypeOrigins S.sourceFullContext S.recursiveFields
+      (origins : MinorInductionHypothesisTypes S.sourceFullContext S.recursiveFields
         S.hypotheses)
       (hmotives : origins.recInfos.map (·.motive) = H.recInfos.map (·.motive))
       {root : AddInductive.Context} {sourceType : Expr}
-      (O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos root
+      (O : InductionHypothesisType origins.stats origins.recInfos root
         (S.recursiveFields[j]!) sourceType)
       (howner : O.ownerIdx < H.recInfos.size)
       (pos : Nat) (hpos : pos < S.fields_bound.fvars.length)
@@ -1305,13 +1305,13 @@ theorem RecursorConstruction.recursorTelescope_hypothesisShape
       target stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
     (minorIdx : Nat)
-    (D₀ : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
+    (D₀ : FVarDeclAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (hD : D₀.type = H.origins.minorTypes[mowner]![localIndex]!) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
     let fields := InductiveSignature.insertBinders
-      ((H.sourceFields mowner hmowner localIndex hlocal).map
+      ((H.declFieldDomains mowner hmowner localIndex hlocal).map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
       ((H.recInfos.map (·.motive)).size + minorIdx)
     let ys := H.params.fvars ++ H.bindings.motives.fvars ++
@@ -1320,13 +1320,13 @@ theorem RecursorConstruction.recursorTelescope_hypothesisShape
       T.minors[minorIdx]'(by rw [T.minors_length]; exact D₀.inBounds) =
         VExpr.wrapForalls fields (VExpr.wrapForalls hyps res) →
       ∀ (j : Nat)
-        (origins : RecInfoMinorHypothesisTypeOrigins S.sourceFullContext S.recursiveFields
+        (origins : MinorInductionHypothesisTypes S.sourceFullContext S.recursiveFields
           S.hypotheses)
         (hmotives : origins.recInfos.map (·.motive) = H.recInfos.map (·.motive))
         {root : AddInductive.Context} {sourceType : Expr}
-        (O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos root
+        (O : InductionHypothesisType origins.stats origins.recInfos root
           (S.recursiveFields[j]!) sourceType)
-        (D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j)
+        (D : FVarDeclAt S.sourceFullContext S.hypotheses j)
         (hDtype : D.type = (sourceType.consumeTypeAnnotationsVerified S.sourceFullContext.env.isTypeAnnotationWrapper))
         (howner' : O.ownerIdx < H.recInfos.size)
         (pos : Nat) (hpos : pos < S.fields_bound.fvars.length)
@@ -1401,8 +1401,8 @@ theorem RecursorConstruction.recursorTelescope_hypothesisShape
 
 /-- Closing a concatenated selection of distinct declarations closes the
 suffix first. -/
-theorem BoundFVarArray.mkForall_append_eq
-    (H₁ : BoundFVarArray c xs) (H₂ : BoundFVarArray c ys) (Hc : BindingContextWF c)
+theorem FVarArrayIn.mkForall_append_eq
+    (H₁ : FVarArrayIn c xs) (H₂ : FVarArrayIn c ys) (Hc : BindingContextWF c)
     (hnodup : (H₁.fvars ++ H₂.fvars).Nodup) (body : Expr) :
     c.lctx.mkForall (xs ++ ys) body = c.lctx.mkForall xs (c.lctx.mkForall ys body) := by
   have hdecl : ∀ fv ∈ H₁.fvars ++ H₂.fvars, ∃ d, c.lctx.find? fv = some d := by
@@ -1448,12 +1448,12 @@ theorem RecursorConstruction.recursorTelescope_indicesMajor
     (hu : VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams) H.elimLevel =
       some level) :
     T.indices ++ T.major = InductiveSignature.insertBinders
-      ((H.sourceIndices ⟨owner, howner⟩).map
+      ((H.declIndexDomains ⟨owner, howner⟩).map
           (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)) ++
         [VExpr.mkApps
           (.const (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name
             (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
-          (recursorCanonicalVars (stats.params.size + H.recInfos[owner]!.indices.size))])
+          (bvarSpine (stats.params.size + H.recInfos[owner]!.indices.size))])
       ((H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size) := by
   obtain ⟨Sseed, _⟩ := H.motiveTelescopes.seed owner howner
   have houter := H.bindings.outerNodup H.params H.noAlias
@@ -1464,9 +1464,9 @@ theorem RecursorConstruction.recursorTelescope_indicesMajor
   have hnoalias := H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner howner
   have hIM : (Sseed.indicesBound.fvars ++ Sseed.majorBound.fvars).Nodup := by
     have h1 : Sseed.indicesBound.fvars = (H.bindings.indices owner howner).fvars :=
-      BoundFVarArray.fvars_eq_of_array_eq _ _ rfl
+      FVarArrayIn.fvars_eq_of_array_eq _ _ rfl
     have h2 : Sseed.majorBound.fvars = (H.bindings.major owner howner).fvars :=
-      BoundFVarArray.fvars_eq_of_array_eq _ _ rfl
+      FVarArrayIn.fvars_eq_of_array_eq _ _ rfl
     rw [h1, h2]
     have hall : (H.params.fvars ++ (H.bindings.motives.fvars ++
         (H.bindings.flatMinors.fvars ++ ((H.bindings.indices owner howner).fvars ++
@@ -1502,24 +1502,24 @@ theorem RecursorConstruction.recursorTelescope_indicesMajor
       ((H.localContext.lctx.mkForall (H.recInfos[owner]!.indices ++ #[H.recInfos[owner]!.major])
         (.sort H.elimLevel)).abstractList H.params.fvars)
       (VExpr.wrapForalls
-        ((H.sourceIndices ⟨owner, howner⟩).map
+        ((H.declIndexDomains ⟨owner, howner⟩).map
           (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)) ++
           [VExpr.mkApps
             (.const (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name
               (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
-            (recursorCanonicalVars (stats.params.size + H.recInfos[owner]!.indices.size))])
+            (bvarSpine (stats.params.size + H.recInfos[owner]!.indices.size))])
         (.sort level)) := by
     rw [hsplit]
     simpa [VExpr.wrapForalls_append, VExpr.wrapForalls] using Hmot
   have HtelF := (IM.mkForall_forallTelescope H.localWF (.sort H.elimLevel)).abstractList
     H.params.fvars
   simp only [hsortN, hsort] at HtelF
-  have hlenF : ((H.sourceIndices ⟨owner, howner⟩).map
+  have hlenF : ((H.declIndexDomains ⟨owner, howner⟩).map
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)) ++
       [VExpr.mkApps
         (.const (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name
           (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
-        (recursorCanonicalVars (stats.params.size + H.recInfos[owner]!.indices.size))]).length =
+        (bvarSpine (stats.params.size + H.recInfos[owner]!.indices.size))]).length =
       (H.recInfos[owner]!.indices ++ #[H.recInfos[owner]!.major]).size := by
     simp [H.sourceIndices_length]
   have HdomF := (TrExprS.forallDomainsOnly HtelF hlenF Hmot').1
@@ -1608,7 +1608,7 @@ theorem insertBinders_append_singleton (domains : List VExpr) (x : VExpr) (n : N
 /-- The canonical major domain lifted beneath `extra` binders above the
 indices is the generator's family application. -/
 theorem majorDomain_lift (name : Name) (levels : List VLevel) (nparams nidx extra : Nat) :
-    (VExpr.mkApps (.const name levels) (recursorCanonicalVars (nparams + nidx))).liftN extra nidx =
+    (VExpr.mkApps (.const name levels) (bvarSpine (nparams + nidx))).liftN extra nidx =
       VExpr.mkApps (.const name levels)
         (InductiveSignature.vars nparams (extra + nidx) ++ InductiveSignature.vars nidx 0) := by
   simp only [VExpr.liftN_mkApps, VExpr.liftN]
@@ -1658,21 +1658,21 @@ theorem RecursorConstruction.recursorTarget_eq_of_minors
       H.consumedFamilies[owner]'(by simpa using howner) := by
     simp [hf]
   have hidxLen : (InductiveSignature.insertBinders
-      ((H.sourceIndices ⟨owner, howner⟩).map
+      ((H.declIndexDomains ⟨owner, howner⟩).map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
       ((H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size)).length =
       H.recInfos[owner]!.indices.size := by
     simp [InductiveSignature.insertBinders, H.sourceIndices_length]
   have hsplit : InductiveSignature.insertBinders
-      ((H.sourceIndices ⟨owner, howner⟩).map
+      ((H.declIndexDomains ⟨owner, howner⟩).map
           (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)) ++
         [VExpr.mkApps
           (.const (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name
             (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
-          (recursorCanonicalVars (stats.params.size + H.recInfos[owner]!.indices.size))])
+          (bvarSpine (stats.params.size + H.recInfos[owner]!.indices.size))])
       ((H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size) =
       InductiveSignature.insertBinders
-        ((H.sourceIndices ⟨owner, howner⟩).map
+        ((H.declIndexDomains ⟨owner, howner⟩).map
           (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
         ((H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size) ++
       [VExpr.mkApps
@@ -1692,7 +1692,7 @@ theorem RecursorConstruction.recursorTarget_eq_of_minors
     simp [H.sourceParameterCount]
   have him' : T.indices ++ T.major =
       InductiveSignature.insertBinders
-        ((H.sourceIndices ⟨owner, howner⟩).map
+        ((H.declIndexDomains ⟨owner, howner⟩).map
           (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
         (s.families.size + s.constructors.size) ++
       [VExpr.mkApps
@@ -1711,7 +1711,7 @@ theorem RecursorConstruction.recursorTarget_eq_of_minors
     rw [hres]
     simp only [← hfam, ← hctors]
   have hidxLen' : (InductiveSignature.insertBinders
-      ((H.sourceIndices ⟨owner, howner⟩).map
+      ((H.declIndexDomains ⟨owner, howner⟩).map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
       (s.families.size + s.constructors.size)).length = H.recInfos[owner]!.indices.size := by
     simp [InductiveSignature.insertBinders, H.sourceIndices_length]
@@ -1795,12 +1795,12 @@ telescope, in order, exactly as they sit in the hypothesis type
 type, since `(type.consumeTypeAnnotationsVerified annOk) = type`).  The `i`-th domain
 is therefore already closed over the arguments before it: its loose bound
 variables `0, …, i - 1` refer to those arguments. -/
-def RecInfoMinorHypothesisTypeOrigin.argDomains
-    (_O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) : List Expr :=
+def InductionHypothesisType.argDomains
+    (_O : InductionHypothesisType stats recInfos root field type) : List Expr :=
   Expr.forallDomainList _O.args.size type
 
-theorem RecInfoMinorHypothesisTypeOrigin.argDomains_length
-    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) :
+theorem InductionHypothesisType.argDomains_length
+    (O : InductionHypothesisType stats recInfos root field type) :
     O.argDomains.length = O.args.size :=
   O.sourceTelescope.forallDomainList_length
 
@@ -1820,13 +1820,13 @@ theorem RecursorConstruction.recursorTelescope_hypothesisDomains
       target stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
     (minorIdx : Nat)
-    (D₀ : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
+    (D₀ : FVarDeclAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (hD : D₀.type = H.origins.minorTypes[mowner]![localIndex]!) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
     let fields := InductiveSignature.insertBinders
-      ((H.sourceFields mowner hmowner localIndex hlocal).map
+      ((H.declFieldDomains mowner hmowner localIndex hlocal).map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
       ((H.recInfos.map (·.motive)).size + minorIdx)
     let ys := H.params.fvars ++ H.bindings.motives.fvars ++
@@ -1835,13 +1835,13 @@ theorem RecursorConstruction.recursorTelescope_hypothesisDomains
       T.minors[minorIdx]'(by rw [T.minors_length]; exact D₀.inBounds) =
         VExpr.wrapForalls fields (VExpr.wrapForalls hyps res) →
       ∀ (j : Nat)
-        (origins : RecInfoMinorHypothesisTypeOrigins S.sourceFullContext S.recursiveFields
+        (origins : MinorInductionHypothesisTypes S.sourceFullContext S.recursiveFields
           S.hypotheses)
         (hmotives : origins.recInfos.map (·.motive) = H.recInfos.map (·.motive))
         {root : AddInductive.Context} {sourceType : Expr}
-        (O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos root
+        (O : InductionHypothesisType origins.stats origins.recInfos root
           (S.recursiveFields[j]!) sourceType)
-        (D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j)
+        (D : FVarDeclAt S.sourceFullContext S.hypotheses j)
         (hDtype : D.type = (sourceType.consumeTypeAnnotationsVerified S.sourceFullContext.env.isTypeAnnotationWrapper))
         (howner' : O.ownerIdx < H.recInfos.size)
         (pos : Nat) (hpos : pos < S.fields_bound.fvars.length)

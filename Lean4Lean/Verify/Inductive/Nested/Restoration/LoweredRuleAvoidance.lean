@@ -712,8 +712,8 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- `RecursorIndexTrace.hitShape` at an arbitrary parameter list. -/
-theorem RecursorIndexTrace.hitShapeAt
+/-- `IndexTelescopeRun.hitShape` at an arbitrary parameter list. -/
+theorem IndexTelescopeRun.hitShapeAt
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
     {stats : AddInductive.InductiveStats}
     (W : WhnfPreservesParamUniform heads params ls env)
@@ -724,7 +724,7 @@ theorem RecursorIndexTrace.hitShapeAt
       final.lctx.find? fv = some d → d.ParamUniformIn env heads params ls)
     {header : Expr} (hheader : header.ParamUniformIn env heads params ls)
     {i : Nat} {type : Expr} {indices : Array Expr}
-    (T : RecursorIndexTrace stats final header i type indices) :
+    (T : IndexTelescopeRun stats final header i type indices) :
     type.ParamUniformIn env heads params ls ∧
       ∀ fv ∈ ExprArrayFVarIds indices, ∀ d, final.lctx.find? fv = some d →
         d.ParamUniformIn env heads params ls := by
@@ -781,14 +781,14 @@ theorem RecursorContextWF.declType_closed {c : AddInductive.Context} {recLparams
 /-- **The pieces of a recursive-call template**: the declarations of its
 higher-order arguments satisfy `ParamUniformIn` and have closed types, and its exposed
 target type satisfies `ParamUniformIn` and is closed. The same chain as
-`RecInfoMinorHypothesisTypeOrigin.hitShape`, retaining closedness. -/
-theorem RecInfoMinorHypothesisTypeOrigin.templateFacts
+`InductionHypothesisType.hitShape`, retaining closedness. -/
+theorem InductionHypothesisType.templateFacts
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
     (W : WhnfPreservesParamUniform heads params ls env)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv)
     {stats : AddInductive.InductiveStats} {recInfos : Array AddInductive.RecInfo}
     {root : AddInductive.Context} {field type : Expr}
-    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+    (O : InductionHypothesisType stats recInfos root field type)
     (henv : root.env = env)
     {recLparams : List Name} (Rroot : RecursorContextWF root recLparams)
     {P : FVarId → Prop} (hscope : Rroot.ParamUniformScope env heads params ls P)
@@ -917,7 +917,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs name
         0) := by
   have hsourceOwner := H.sourceOwner howner
   have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
-  have hcallRoots : RecInfoRuleBlueprintOriginAt stats
+  have hcallRoots : RuleTemplateMatchesMinor stats
       (H.origins.minorShapes owner howner localIndex hlocal)
       H.recInfos[owner]!.minors[localIndex]!
       H.recInfos[owner]!.ruleBlueprints[localIndex]! :=
@@ -939,7 +939,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs name
   have hTL : BindingContextLE F.traversal.terminalContext H.localContext :=
     F.terminalExtension.contextLE
   -- Field declarations (the lowered constructor's syntactic domains).
-  have Hprefix : RecursorParamPrefix stats 0 S.constructor.type
+  have Hprefix : ParameterPrefix stats 0 S.constructor.type
       F.traversal.parameterTail := by
     have := F.traversal.parameterPrefix
     rwa [F.traversal_stats, F.traversal_constructor] at this
@@ -971,7 +971,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs name
   have hfr : origins.fieldRoot = F.traversal.terminalContext :=
     S.hypothesis_origins_fieldRoot origins F.traversal hshape F.traversal_eq
   have hper : ∀ j, j < S.hypotheses.size →
-      (∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+      (∃ D : FVarDeclAt S.sourceFullContext S.hypotheses j,
         D.type.ParamUniform names [] ls) ∧
       ((B.recursiveCalls[j]!).template.ParamUniform names [] ls ∧
         (B.recursiveCalls[j]!).targetTypeIdx < stats.indConsts.size ∧
@@ -1074,7 +1074,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs name
       have hfv : ∃ fv, a = .fvar fv := by
         rcases List.mem_append.1 ha with ha | ha
         · exact H.params_fvar a ha
-        · obtain ⟨y, rfl, -⟩ := BoundFVarArray.fvar_of_mem S.fields_bound
+        · obtain ⟨y, rfl, -⟩ := FVarArrayIn.fvar_of_mem S.fields_bound
             (Array.mem_toList_iff.1 ha)
           exact ⟨y, rfl⟩
       obtain ⟨fv, rfl⟩ := hfv
@@ -1173,7 +1173,7 @@ theorem majorDeclNil (I : H.TrailInputs names ls) {y : FVarId}
     fun a ha => ?_) fun a ha => ?_
   · obtain ⟨fv, rfl⟩ := H.params_fvar a ha
     exact .fvar fv
-  · obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem (H.bindings.indices i hi')
+  · obtain ⟨fv, rfl, -⟩ := FVarArrayIn.fvar_of_mem (H.bindings.indices i hi')
       (Array.mem_toList_iff.1 ha)
     exact .fvar fv
 
@@ -1217,7 +1217,7 @@ theorem minorDeclTrail (I : H.TrailInputs names ls)
   rw [← hsrc.1]
   exact (H.minorTrail I W heads np Fm.owner howner Fm.localIndex hlocal).2.1
 
-private theorem cdecl_of_mem {xs : Array Expr} (B : BoundFVarArray H.localContext xs)
+private theorem cdecl_of_mem {xs : Array Expr} (B : FVarArrayIn H.localContext xs)
     {y : FVarId} (hy : y ∈ B.fvars) :
     ∃ i fv n ty bi kind, H.localContext.lctx.find? y = some (.cdecl i fv n ty bi kind) := by
   obtain ⟨index, name, type, bi, kind, hfind⟩ := H.localWF.findCDecl y (B.members y hy)
@@ -1277,7 +1277,7 @@ theorem ruleRhsTrail (I : H.TrailInputs names ls)
   have hminorMem : blueprint.minor ∈ H.recInfos[owner]!.minors := by
     rw [hBminor, getElem!_pos _ localIndex hminorsSize]; exact Array.getElem_mem hminorsSize
   obtain ⟨minorFv, hminorFv, -⟩ :=
-    BoundFVarArray.fvar_of_mem (H.bindings.minors owner howner) hminorMem
+    FVarArrayIn.fvar_of_mem (H.bindings.minors owner howner) hminorMem
   simp only [AddInductive.RecRuleBlueprint.build]
   have hQ : ∀ (ys : List FVarId) x d, Expr.ParamUniform names [] ls x →
       Expr.ParamUniform names [] ls (x.abstractN ys d) :=
@@ -1293,7 +1293,7 @@ theorem ruleRhsTrail (I : H.TrailInputs names ls)
     refine Expr.TrailingArgs.mkAppList_of_not_const (by rw [hminorFv]; exact .fvar _)
       (by rw [hminorFv]; intro c us h; cases h) fun a ha => ?_
     rcases List.mem_append.1 ha with ha | ha
-    · obtain ⟨y, rfl, -⟩ := BoundFVarArray.fvar_of_mem S.fields_bound
+    · obtain ⟨y, rfl, -⟩ := FVarArrayIn.fvar_of_mem S.fields_bound
         (Array.mem_toList_iff.1 ha)
       exact .fvar y
     · simp only [Array.toList_map, List.mem_map] at ha
@@ -1315,10 +1315,10 @@ theorem ruleRhsTrail (I : H.TrailInputs names ls)
         rcases List.mem_append.1 ha with ha | ha
         · rcases List.mem_append.1 ha with ha | ha
           · exact H.params_fvar a ha
-          · obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.bindings.motives
+          · obtain ⟨fv, rfl, -⟩ := FVarArrayIn.fvar_of_mem H.bindings.motives
               (Array.mem_toList_iff.1 ha)
             exact ⟨fv, rfl⟩
-        · obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.bindings.flatMinors
+        · obtain ⟨fv, rfl, -⟩ := FVarArrayIn.fvar_of_mem H.bindings.flatMinors
             (Array.mem_toList_iff.1 ha)
           exact ⟨fv, rfl⟩
       obtain ⟨hv, hvT, hvargs⟩ := Expr.TrailingArgs.constSpine_fvars (heads := heads)

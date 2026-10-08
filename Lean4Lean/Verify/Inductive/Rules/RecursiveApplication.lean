@@ -35,9 +35,9 @@ theorem
     let sourceIndices :=
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
     let parameterDecls := H.parameterSuffix.parameterDecls
-    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+    ∃ binding : MotiveBinding F.semantic.current_context
         H.recInfos[selectedOwner]! H.elimLevel,
-      ∃ evidence : RecursorMotiveTelescopeEvidence
+      ∃ evidence : MotiveAppliesTo
           F.semantic.current_context stats H.recInfos[selectedOwner]!
           binding F.semantic.generated.exposedType F.semantic.exposedTarget,
         ∃ scope,
@@ -233,7 +233,7 @@ theorem
       (abstractForallContext Hscope.frontSourceDomains parameterDecls)
       (F.semantic.generated.outerAbstractedMajor
         A.rule.all_args_bound.fvars) narrowMajor := by
-    simpa [BoundGeneratedRecursiveCall.outerAbstractedMajor] using
+    simpa [RecursiveCall.outerAbstractedMajor] using
       HclosedMajor
   have HclosedExposed := Hscope.abstractFront
     H.outVEnvWF hscopeBase HnarrowExposed
@@ -319,7 +319,7 @@ theorem
     A.rule.all_args_outer_fresh fv hfield
   have hfieldFullExact : (Expr.fvar fv).abstractList A.rule.binders =
       .bvar (A.rule.allArgs.size - 1 - fieldPosition) := by
-    unfold BoundGeneratedRecursorRule.binders
+    unfold RecursorRuleSyntax.binders
     rw [Expr.abstractList_append,
       Expr.abstractList_fvar_of_not_mem hnotOuter]
     simpa [A.rule.all_args_bound.length_fvars] using hfieldExact
@@ -330,7 +330,7 @@ theorem
       F.semantic.generated.outerAbstractedMajor A.rule.binders =
         mkAppN (.bvar (F.semantic.generated.localArgs.size + fieldVar))
           (F.semantic.generated.localIndices.map Expr.bvar).toArray := by
-    simpa only [BoundGeneratedRecursorRule.binders] using hmajor
+    simpa only [RecursorRuleSyntax.binders] using hmajor
   simpa [fieldPosition, hfieldVarExact] using hmajor'
 
 /-- Closing the neutral call-local telescope over constructor fields leaves
@@ -373,8 +373,8 @@ theorem
     · left
       have hfield' : fv ∈ A.semantics.fieldsRecent.fvars :=
         List.mem_reverse.mp hfield
-      rw [BoundFVarArray.fvars_eq
-        A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+      rw [FVarArrayIn.fvars_eq
+        A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
         A.rule.all_args_bound rfl] at hfield'
       exact hfield'
     · exact Or.inr (List.mem_reverse.mp hparam)
@@ -408,9 +408,9 @@ theorem
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
     let parameterDecls := H.parameterSuffix.parameterDecls
     let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
-    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+    ∃ binding : MotiveBinding F.semantic.current_context
         H.recInfos[selectedOwner]! H.elimLevel,
-      ∃ evidence : RecursorMotiveTelescopeEvidence
+      ∃ evidence : MotiveAppliesTo
           F.semantic.current_context stats H.recInfos[selectedOwner]!
           binding F.semantic.generated.exposedType F.semantic.exposedTarget,
         ∃ scope,
@@ -789,9 +789,9 @@ theorem
     let parameterDecls := H.parameterSuffix.parameterDecls
     let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
     let inserted := T.motives ++ T.minors
-    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+    ∃ binding : MotiveBinding F.semantic.current_context
         H.recInfos[selectedOwner]! H.elimLevel,
-      ∃ evidence : RecursorMotiveTelescopeEvidence
+      ∃ evidence : MotiveAppliesTo
           F.semantic.current_context stats H.recInfos[selectedOwner]!
           binding F.semantic.generated.exposedType F.semantic.exposedTarget,
         ∃ scope,
@@ -1181,7 +1181,7 @@ theorem
         ((VExpr.const recursor.name (VLevel.params Us.length)).liftN
           (F.telescope.params ++ F.telescope.motives ++
             F.telescope.minors).length 0)
-        (recursorCanonicalVars
+        (bvarSpine
           (F.telescope.params ++ F.telescope.motives ++
             F.telescope.minors).length))
       (VExpr.wrapForalls
@@ -1236,7 +1236,7 @@ theorem
           ((VExpr.const recursor.name
             (VLevel.params Us.length)).liftN
             (T.params ++ T.motives ++ T.minors).length 0)
-          (recursorCanonicalVars
+          (bvarSpine
             (T.params ++ T.motives ++ T.minors).length)).liftN
         fieldDomains.length 0)
       ((VExpr.wrapForalls
@@ -1298,7 +1298,7 @@ theorem
     (F : A.RecursiveCallFrame j hj) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
-    ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl
+    ∃ S : MotiveDecl H.recursorWF stats decl
         selectedOwner H.recInfos[selectedOwner]! H.elimLevel,
       VEnv.IsDefEqCtx H.outVEnv Us.length []
           F.telescope.params.reverse S.motiveSourceScope.toCtx ∧
@@ -1339,7 +1339,7 @@ theorem
     (F : A.RecursiveCallFrame j hj) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
-    ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl
+    ∃ S : MotiveDecl H.recursorWF stats decl
         selectedOwner H.recInfos[selectedOwner]! H.elimLevel,
       VEnv.IsDefEqCtx H.outVEnv Us.length []
           F.telescope.params.reverse S.canonical.params.reverse ∧
@@ -1936,7 +1936,7 @@ theorem
           (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
           ((VExpr.mkApps
               (introTarget.liftN A.rule.allArgs.size 0)
-              (recursorCanonicalVars A.rule.allArgs.size)).liftN
+              (bvarSpine A.rule.allArgs.size)).liftN
             (T.motives ++ T.minors).length A.rule.allArgs.size)
           (fieldResult.liftN
             (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
@@ -1946,7 +1946,7 @@ theorem
               ((VExpr.const recursor.name
                 (VLevel.params Us.length)).liftN
                 (T.params ++ T.motives ++ T.minors).length 0)
-              (recursorCanonicalVars
+              (bvarSpine
                 (T.params ++ T.motives ++ T.minors).length)).liftN
             fieldDomains.length 0)
           ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
@@ -1963,7 +1963,7 @@ theorem
             ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
             (recursorDeclarationAbstractLevels c.lparams
               H.elimLevelAdmissible))
-          (recursorCanonicalVars stats.params.size) := by
+          (bvarSpine stats.params.size) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let recursor := H.entries[owner].2
   let parameterDecls :=

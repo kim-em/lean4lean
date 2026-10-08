@@ -171,15 +171,15 @@ theorem RecursorContextExtension.weakDefEqU
   have hweak := hdefeq.weak' Rroot.checking.tr.wf.ordered H.lift.toCtx
   simpa only [H.venv_eq] using hweak
 
-def BoundFVarArray.empty (c : AddInductive.Context) :
-    BoundFVarArray c #[] where
+def FVarArrayIn.empty (c : AddInductive.Context) :
+    FVarArrayIn c #[] where
   fvars := []
   expressions := rfl
   members _ h := by simp at h
 
-def BoundFVarArray.weaken
-    (H : BoundFVarArray c xs) (name : Name) (ty : Expr) (bi : BinderInfo) :
-    BoundFVarArray { c with
+def FVarArrayIn.weaken
+    (H : FVarArrayIn c xs) (name : Name) (ty : Expr) (bi : BinderInfo) :
+    FVarArrayIn { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } xs where
   fvars := H.fvars
@@ -190,24 +190,24 @@ def BoundFVarArray.weaken
       List.map_cons, LocalDecl.fvarId, List.mem_cons]
     exact Or.inr (H.members fv hfv)
 
-def BoundFVarArray.mono
-    (H : BoundFVarArray c xs) (hle : BindingContextLE c c') :
-    BoundFVarArray c' xs where
+def FVarArrayIn.mono
+    (H : FVarArrayIn c xs) (hle : BindingContextLE c c') :
+    FVarArrayIn c' xs where
   fvars := H.fvars
   expressions := H.expressions
   members fv hfv := hle (H.members fv hfv)
 
-def BoundFVarArray.monoFVars
-    (H : BoundFVarArray c xs)
+def FVarArrayIn.monoFVars
+    (H : FVarArrayIn c xs)
     (hle : c.lctx.fvars ⊆ c'.lctx.fvars) :
-    BoundFVarArray c' xs where
+    FVarArrayIn c' xs where
   fvars := H.fvars
   expressions := H.expressions
   members fv hfv := hle (H.members fv hfv)
 
-def BoundFVarArray.pushCurrent
-    (H : BoundFVarArray c xs) (name : Name) (ty : Expr) (bi : BinderInfo) :
-    BoundFVarArray { c with
+def FVarArrayIn.pushCurrent
+    (H : FVarArrayIn c xs) (name : Name) (ty : Expr) (bi : BinderInfo) :
+    FVarArrayIn { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
       (xs.push (.fvar ⟨c.ngen.curr⟩)) where
@@ -227,11 +227,11 @@ def BoundFVarArray.pushCurrent
     · exact Or.inr (H.members fv hfv)
     · exact Or.inl rfl
 
-/-- Variant of `BoundFVarArray.pushCurrent` for a binder opened in both contexts. -/
-def BoundFVarArray.pushCurrentChecked
+/-- Variant of `FVarArrayIn.pushCurrent` for a binder opened in both contexts. -/
+def FVarArrayIn.pushCurrentChecked
     {base : LocalContext}
-    (H : BoundFVarArray c xs) (name : Name) (ty : Expr) (bi : BinderInfo) :
-    BoundFVarArray { c with
+    (H : FVarArrayIn c xs) (name : Name) (ty : Expr) (bi : BinderInfo) :
+    FVarArrayIn { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
       checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
@@ -252,16 +252,16 @@ def BoundFVarArray.pushCurrentChecked
     · exact Or.inr (H.members fv hfv)
     · exact Or.inl rfl
 
-def BoundFVarArray.toLocalForallSelection
-    (H : BoundFVarArray c xs) (Hc : BindingContextWF c) :
-    LocalForallSelection c.lctx xs where
+def FVarArrayIn.toCDeclArray
+    (H : FVarArrayIn c xs) (Hc : BindingContextWF c) :
+    CDeclArray c.lctx xs where
   fvars := H.fvars
   expressions := H.expressions
   declarations fv hfv := Hc.findCDecl fv (H.members fv hfv)
 
-def BoundFVarArray.append
-    (H₁ : BoundFVarArray c xs) (H₂ : BoundFVarArray c ys) :
-    BoundFVarArray c (xs ++ ys) where
+def FVarArrayIn.append
+    (H₁ : FVarArrayIn c xs) (H₂ : FVarArrayIn c ys) :
+    FVarArrayIn c (xs ++ ys) where
   fvars := H₁.fvars ++ H₂.fvars
   expressions := by
     simp [H₁.expressions, H₂.expressions]
@@ -272,8 +272,8 @@ def BoundFVarArray.append
     · exact H₁.members fv hfv
     · exact H₂.members fv hfv
 
-theorem BoundFVarArray.mkForall_mono
-    (H : BoundFVarArray c xs) (hle : BindingContextLE c c')
+theorem FVarArrayIn.mkForall_mono
+    (H : FVarArrayIn c xs) (hle : BindingContextLE c c')
     (body : Expr) :
     c'.lctx.mkForall xs body = c.lctx.mkForall xs body := by
   rcases H with ⟨fvars, rfl, members⟩
@@ -283,8 +283,8 @@ theorem BoundFVarArray.mkForall_mono
   intro fv hfv
   exact hle.declarations fv (members fv hfv)
 
-theorem BoundFVarArray.mkLambda_mono
-    (H : BoundFVarArray c xs) (hle : BindingContextLE c c')
+theorem FVarArrayIn.mkLambda_mono
+    (H : FVarArrayIn c xs) (hle : BindingContextLE c c')
     (body : Expr) :
     c'.lctx.mkLambda xs body = c.lctx.mkLambda xs body := by
   rcases H with ⟨fvars, rfl, members⟩
@@ -296,8 +296,8 @@ theorem BoundFVarArray.mkLambda_mono
 
 /-- Closing a bound free-variable array with `LocalContext.mkForall` exposes
 exactly that array as a concrete forall telescope. -/
-theorem BoundFVarArray.mkForall_forallTelescope
-    (H : BoundFVarArray c xs) (Hc : BindingContextWF c) (body : Expr) :
+theorem FVarArrayIn.mkForall_forallTelescope
+    (H : FVarArrayIn c xs) (Hc : BindingContextWF c) (body : Expr) :
     Expr.ForallTelescope (c.lctx.mkForall xs body) xs.size
       (body.abstractN H.fvars) := by
   have hsize : H.fvars.length = xs.size := by
@@ -314,8 +314,8 @@ theorem BoundFVarArray.mkForall_forallTelescope
   simpa only [← hsize] using Htelescope
 
 /-- Sequential-model form of `mkForall_forallTelescope` for locally closed bodies. -/
-theorem BoundFVarArray.mkForall_forallTelescopeList
-    (H : BoundFVarArray c xs) (Hc : BindingContextWF c) (body : Expr)
+theorem FVarArrayIn.mkForall_forallTelescopeList
+    (H : FVarArrayIn c xs) (Hc : BindingContextWF c) (body : Expr)
     (hnodup : H.fvars.Nodup) (hb : Closed body) :
     Expr.ForallTelescope (c.lctx.mkForall xs body) xs.size
       (body.abstractList H.fvars) := by
@@ -324,8 +324,8 @@ theorem BoundFVarArray.mkForall_forallTelescopeList
 
 /-- Closing a locally closed body over selected declarations of a locally closed context
 yields a locally closed expression. -/
-theorem BoundFVarArray.mkForall_closed
-    (H : BoundFVarArray c xs) (Hc : BindingContextWF c) (hnodup : H.fvars.Nodup)
+theorem FVarArrayIn.mkForall_closed
+    (H : FVarArrayIn c xs) (Hc : BindingContextWF c) (hnodup : H.fvars.Nodup)
     (hl : LocalContext.LctxClosed c.lctx) (hb : Closed body) :
     Closed (c.lctx.mkForall xs body) := by
   rw [H.expressions, LocalContext.mkForall]
@@ -339,39 +339,39 @@ theorem BoundFVarArray.mkForall_closed
 its entries remain selectable, this packages the two facts needed to combine
 it with selections already present at `root`: its entries are distinct and
 none of them occurred in the root context. -/
-structure FreshBoundFVarArray (root c : AddInductive.Context)
-    (xs : Array Expr) extends BoundFVarArray c xs where
-  nodup : toBoundFVarArray.fvars.Nodup
-  fresh : ∀ fv ∈ toBoundFVarArray.fvars, fv ∉ root.lctx.fvars
+structure FVarArrayAfter (root c : AddInductive.Context)
+    (xs : Array Expr) extends FVarArrayIn c xs where
+  nodup : toFVarArrayIn.fvars.Nodup
+  fresh : ∀ fv ∈ toFVarArrayIn.fvars, fv ∉ root.lctx.fvars
 
-def FreshBoundFVarArray.empty (c : AddInductive.Context) :
-    FreshBoundFVarArray c c #[] where
-  toBoundFVarArray := BoundFVarArray.empty c
+def FVarArrayAfter.empty (c : AddInductive.Context) :
+    FVarArrayAfter c c #[] where
+  toFVarArrayIn := FVarArrayIn.empty c
   nodup := List.nodup_nil
   fresh _ h := nomatch h
 
-def FreshBoundFVarArray.pushCurrent
-    (H : FreshBoundFVarArray root c xs)
+def FVarArrayAfter.pushCurrent
+    (H : FVarArrayAfter root c xs)
     (Hc : BindingContextWF c) (Hroot : BindingContextLE root c)
     (name : Name) (ty : Expr) (bi : BinderInfo) :
-    FreshBoundFVarArray root { c with
+    FVarArrayAfter root { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
       (xs.push (.fvar ⟨c.ngen.curr⟩)) where
-  toBoundFVarArray := H.toBoundFVarArray.pushCurrent name ty bi
+  toFVarArrayIn := H.toFVarArrayIn.pushCurrent name ty bi
   nodup := by
-    rw [show (H.toBoundFVarArray.pushCurrent name ty bi).fvars =
-      H.toBoundFVarArray.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)] from rfl]
+    rw [show (H.toFVarArrayIn.pushCurrent name ty bi).fvars =
+      H.toFVarArrayIn.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)] from rfl]
     apply List.nodup_append.mpr
     refine ⟨H.nodup, by simp, ?_⟩
     intro fv hfv fv' hfv'
     simp only [List.mem_singleton] at hfv'
     subst fv'
     exact fun heq => Hc.current_not_mem <| heq ▸
-      H.toBoundFVarArray.members fv hfv
+      H.toFVarArrayIn.members fv hfv
   fresh := by
     intro fv hfv
-    change fv ∈ H.toBoundFVarArray.fvars ++
+    change fv ∈ H.toFVarArrayIn.fvars ++
       [(⟨c.ngen.curr⟩ : FVarId)] at hfv
     simp only [List.mem_append, List.mem_singleton] at hfv
     rcases hfv with hfv | rfl
@@ -379,31 +379,31 @@ def FreshBoundFVarArray.pushCurrent
     · intro hroot
       exact Hc.current_not_mem (Hroot hroot)
 
-/-- Variant of `FreshBoundFVarArray.pushCurrent` for a binder opened in both contexts. -/
-def FreshBoundFVarArray.pushCurrentChecked
+/-- Variant of `FVarArrayAfter.pushCurrent` for a binder opened in both contexts. -/
+def FVarArrayAfter.pushCurrentChecked
     {base : LocalContext}
-    (H : FreshBoundFVarArray root c xs)
+    (H : FVarArrayAfter root c xs)
     (Hc : BindingContextWF c) (Hroot : BindingContextLE root c)
     (name : Name) (ty : Expr) (bi : BinderInfo) :
-    FreshBoundFVarArray root { c with
+    FVarArrayAfter root { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
       checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
       (xs.push (.fvar ⟨c.ngen.curr⟩)) where
-  toBoundFVarArray := H.toBoundFVarArray.pushCurrentChecked (base := base) name ty bi
+  toFVarArrayIn := H.toFVarArrayIn.pushCurrentChecked (base := base) name ty bi
   nodup := by
-    rw [show (H.toBoundFVarArray.pushCurrentChecked (base := base) name ty bi).fvars =
-      H.toBoundFVarArray.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)] from rfl]
+    rw [show (H.toFVarArrayIn.pushCurrentChecked (base := base) name ty bi).fvars =
+      H.toFVarArrayIn.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)] from rfl]
     apply List.nodup_append.mpr
     refine ⟨H.nodup, by simp, ?_⟩
     intro fv hfv fv' hfv'
     simp only [List.mem_singleton] at hfv'
     subst fv'
     exact fun heq => Hc.current_not_mem <| heq ▸
-      H.toBoundFVarArray.members fv hfv
+      H.toFVarArrayIn.members fv hfv
   fresh := by
     intro fv hfv
-    change fv ∈ H.toBoundFVarArray.fvars ++
+    change fv ∈ H.toFVarArrayIn.fvars ++
       [(⟨c.ngen.curr⟩ : FVarId)] at hfv
     simp only [List.mem_append, List.mem_singleton] at hfv
     rcases hfv with hfv | rfl
@@ -411,52 +411,52 @@ def FreshBoundFVarArray.pushCurrentChecked
     · intro hroot
       exact Hc.current_not_mem (Hroot hroot)
 
-def FreshBoundFVarArray.rebaseRoot
-    (H : FreshBoundFVarArray root c xs)
+def FVarArrayAfter.rebaseRoot
+    (H : FVarArrayAfter root c xs)
     (hle : BindingContextLE root' root) :
-    FreshBoundFVarArray root' c xs where
-  toBoundFVarArray := H.toBoundFVarArray
+    FVarArrayAfter root' c xs where
+  toFVarArrayIn := H.toFVarArrayIn
   nodup := H.nodup
   fresh := by
     intro fv hfv hroot'
     exact H.fresh fv hfv (hle hroot')
 
 /-- The exact ordered suffix of ordinary locals introduced after `root`.
-Unlike `FreshBoundFVarArray`, this remembers both that no unrelated local was
+Unlike `FVarArrayAfter`, this remembers both that no unrelated local was
 interleaved and that `xs` lists the suffix in introduction order.  These are
 the equations required by `RecursorContextWF.mkForallRecent`. -/
-structure RecentBoundFVarArray {root c : AddInductive.Context}
+structure FVarSuffix {root c : AddInductive.Context}
     (Hroot : ContextWF root) (Hc : ContextWF c) (xs : Array Expr)
-    extends FreshBoundFVarArray root c xs where
+    extends FVarArrayAfter root c xs where
   contextLE : BindingContextLE root c
   size_le : xs.size ≤ Hc.mlctx.length
   reverse_eq : xs.toList.reverse =
     (Hc.mlctx.fvarRevList xs.size size_le).map Expr.fvar
   drop_eq : Hc.mlctx.dropN xs.size size_le = Hroot.mlctx
 
-def RecentBoundFVarArray.empty (Hc : ContextWF c) :
-    RecentBoundFVarArray Hc Hc #[] where
-  toFreshBoundFVarArray := FreshBoundFVarArray.empty c
+def FVarSuffix.empty (Hc : ContextWF c) :
+    FVarSuffix Hc Hc #[] where
+  toFVarArrayAfter := FVarArrayAfter.empty c
   contextLE := BindingContextLE.refl c
   size_le := by simp
   reverse_eq := by simp
   drop_eq := rfl
 
-/-- Variant of `RecentBoundFVarArray.pushCurrent` for a binder opened in both contexts. -/
-def RecentBoundFVarArray.pushCurrentChecked {root c : AddInductive.Context}
+/-- Variant of `FVarSuffix.pushCurrent` for a binder opened in both contexts. -/
+def FVarSuffix.pushCurrentChecked {root c : AddInductive.Context}
     {Hroot : ContextWF root} {Hc : ContextWF c} {xs : Array Expr}
-    (H : RecentBoundFVarArray Hroot Hc xs)
+    (H : FVarSuffix Hroot Hc xs)
     (name : Name) (ty : Expr) (ty' : VExpr) (bi : BinderInfo)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
     {ty₀ : VExpr}
     (htr₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx ty ty₀)
     (hty₀ : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx ty₀) :
-    RecentBoundFVarArray Hroot
+    FVarSuffix Hroot
       (ContextWF.withCheckedLocalDecl (c := c) (name := name) (ty := ty)
         (ty' := ty') (bi := bi) (H := Hc) htr hty htr₀ hty₀)
       (xs.push (.fvar ⟨c.ngen.curr⟩)) where
-  toFreshBoundFVarArray := H.toFreshBoundFVarArray.pushCurrentChecked
+  toFVarArrayAfter := H.toFVarArrayAfter.pushCurrentChecked
     Hc.toBindingContextWF H.contextLE name ty bi
   contextLE := H.contextLE.trans <|
     BindingContextLE.withCheckedLocalDecl c Hc.toBindingContextWF name ty bi
@@ -474,11 +474,11 @@ def RecentBoundFVarArray.pushCurrentChecked {root c : AddInductive.Context}
 
 /-- Exact consecutive index-local suffix tracked wholly inside one recursor
 universe interpretation. -/
-structure RecursorRecentBoundFVarArray
+structure RecursorFVarSuffix
     {root c : AddInductive.Context} {recLparams : List Name}
     (Rroot : RecursorContextWF root recLparams)
     (R : RecursorContextWF c recLparams) (xs : Array Expr)
-    extends FreshBoundFVarArray root c xs where
+    extends FVarArrayAfter root c xs where
   contextLE : BindingContextLE root c
   venv_eq : R.venv = Rroot.venv
   size_le : xs.size ≤ R.mlctx.length
@@ -488,14 +488,14 @@ structure RecursorRecentBoundFVarArray
 
 /-- A recent suffix rooted at a checker-context variant of `Rroot` is rooted
 at `Rroot` itself: the root's checker context plays no role. -/
-def RecursorRecentBoundFVarArray.ofCheckRoot
+def RecursorFVarSuffix.ofCheckRoot
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
     {l : LocalContext} {B : Rroot.Base l}
-    (H : RecursorRecentBoundFVarArray (Rroot.withCheckLCtx l B) R xs) :
-    RecursorRecentBoundFVarArray Rroot R xs where
-  toBoundFVarArray := H.toBoundFVarArray
+    (H : RecursorFVarSuffix (Rroot.withCheckLCtx l B) R xs) :
+    RecursorFVarSuffix Rroot R xs where
+  toFVarArrayIn := H.toFVarArrayIn
   nodup := H.nodup
   fresh := H.fresh
   contextLE := ⟨H.contextLE.fvars, H.contextLE.declarations, H.contextLE.env_eq,
@@ -506,28 +506,28 @@ def RecursorRecentBoundFVarArray.ofCheckRoot
   reverse_eq := H.reverse_eq
   drop_eq := H.drop_eq
 
-def RecursorRecentBoundFVarArray.empty
+def RecursorFVarSuffix.empty
     (R : RecursorContextWF c recLparams) :
-    RecursorRecentBoundFVarArray R R #[] where
-  toFreshBoundFVarArray := FreshBoundFVarArray.empty c
+    RecursorFVarSuffix R R #[] where
+  toFVarArrayAfter := FVarArrayAfter.empty c
   contextLE := BindingContextLE.refl c
   venv_eq := rfl
   size_le := by simp
   reverse_eq := by simp
   drop_eq := rfl
 
-def RecursorRecentBoundFVarArray.pushCurrent
+def RecursorFVarSuffix.pushCurrent
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (H : RecursorFVarSuffix Rroot R xs)
     (name : Name) (ty : Expr) (ty' : VExpr) (bi : BinderInfo)
     (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
     (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
-    RecursorRecentBoundFVarArray Rroot
+    RecursorFVarSuffix Rroot
       (R.withLocalDecl (name := name) (bi := bi) htr hty)
       (xs.push (.fvar ⟨c.ngen.curr⟩)) where
-  toFreshBoundFVarArray := H.toFreshBoundFVarArray.pushCurrent
+  toFVarArrayAfter := H.toFVarArrayAfter.pushCurrent
     R.toBindingContextWF H.contextLE name ty bi
   contextLE := H.contextLE.trans <|
     BindingContextLE.withLocalDecl c R.toBindingContextWF name ty bi
@@ -544,22 +544,22 @@ def RecursorRecentBoundFVarArray.pushCurrent
     simpa only [Array.size_push, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.dropN] using H.drop_eq
 
-/-- Variant of `RecursorRecentBoundFVarArray.pushCurrent` for a binder opened in both contexts. -/
-def RecursorRecentBoundFVarArray.pushCurrentChecked
+/-- Variant of `RecursorFVarSuffix.pushCurrent` for a binder opened in both contexts. -/
+def RecursorFVarSuffix.pushCurrentChecked
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (H : RecursorFVarSuffix Rroot R xs)
     (name : Name) (ty : Expr) (ty' : VExpr) (bi : BinderInfo)
     (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
     (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty')
     {ty₀ : VExpr}
     (htr₀ : TrExprS R.venv recLparams R.chk.vlctx ty ty₀)
     (hty₀ : R.venv.IsType recLparams.length R.chk.vlctx.toCtx ty₀) :
-    RecursorRecentBoundFVarArray Rroot
+    RecursorFVarSuffix Rroot
       (R.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀)
       (xs.push (.fvar ⟨c.ngen.curr⟩)) where
-  toFreshBoundFVarArray := H.toFreshBoundFVarArray.pushCurrentChecked
+  toFVarArrayAfter := H.toFVarArrayAfter.pushCurrentChecked
     R.toBindingContextWF H.contextLE name ty bi
   contextLE := H.contextLE.trans <|
     BindingContextLE.withCheckedLocalDecl c R.toBindingContextWF name ty bi
@@ -576,13 +576,13 @@ def RecursorRecentBoundFVarArray.pushCurrentChecked
     simpa only [Array.size_push, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.dropN] using H.drop_eq
 
-/-- Variant of `RecursorRecentBoundFVarArray.pushCurrent` for a binder opened
+/-- Variant of `RecursorFVarSuffix.pushCurrent` for a binder opened
 on an explicit checker base. -/
-def RecursorRecentBoundFVarArray.pushCurrentOn
+def RecursorFVarSuffix.pushCurrentOn
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (H : RecursorFVarSuffix Rroot R xs)
     (name : Name) (ty : Expr) (ty' : VExpr) (bi : BinderInfo)
     (base : LocalContext) (B : R.Base base)
     (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
@@ -590,10 +590,10 @@ def RecursorRecentBoundFVarArray.pushCurrentOn
     {ty₀ : VExpr}
     (htr₀ : TrExprS R.venv recLparams B.m.vlctx ty ty₀)
     (hty₀ : R.venv.IsType recLparams.length B.m.vlctx.toCtx ty₀) :
-    RecursorRecentBoundFVarArray Rroot
+    RecursorFVarSuffix Rroot
       (R.withCheckedLocalDeclOn (name := name) (bi := bi) base B htr hty htr₀ hty₀)
       (xs.push (.fvar ⟨c.ngen.curr⟩)) where
-  toFreshBoundFVarArray := H.toFreshBoundFVarArray.pushCurrentChecked
+  toFVarArrayAfter := H.toFVarArrayAfter.pushCurrentChecked
     R.toBindingContextWF H.contextLE name ty bi
   contextLE := H.contextLE.trans <|
     BindingContextLE.withCheckedLocalDecl c R.toBindingContextWF name ty bi
@@ -612,11 +612,11 @@ def RecursorRecentBoundFVarArray.pushCurrentOn
 
 /-- An exact consecutive recursor suffix induces the semantic context
 extension needed to weaken certificates rooted before that suffix. -/
-def RecursorRecentBoundFVarArray.contextExtension
+def RecursorFVarSuffix.contextExtension
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs) :
+    (H : RecursorFVarSuffix Rroot R xs) :
     RecursorContextExtension Rroot R where
   contextLE := H.contextLE
   venv_eq := H.venv_eq
@@ -627,11 +627,11 @@ def RecursorRecentBoundFVarArray.contextExtension
 
 /-- The newest-first free-variable prefix of the semantic metacontext is
 exactly the retained recent array, reversed. -/
-theorem RecursorRecentBoundFVarArray.fvarRevList_eq
+theorem RecursorFVarSuffix.fvarRevList_eq
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs) :
+    (H : RecursorFVarSuffix Rroot R xs) :
     R.mlctx.fvarRevList xs.size H.size_le = H.fvars.reverse := by
   have hexpressions := congrArg Array.toList H.expressions
   have hmapped : xs.toList = H.fvars.map Expr.fvar := by
@@ -646,11 +646,11 @@ theorem RecursorRecentBoundFVarArray.fvarRevList_eq
 /-- The current recursor context is the exact recent binder prefix followed
 by its retained root.  This is the identifier-level counterpart of
 `abstractRecent_toCtx`; unlike `BindingContextLE`, it preserves order. -/
-theorem RecursorRecentBoundFVarArray.contextFVars
+theorem RecursorFVarSuffix.contextFVars
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs) :
+    (H : RecursorFVarSuffix Rroot R xs) :
     R.mlctx.vlctx.fvars = H.fvars.reverse ++ Rroot.mlctx.vlctx.fvars := by
   have hsplit := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
     R.mlctx xs.size H.size_le
@@ -665,11 +665,11 @@ theorem RecursorRecentBoundFVarArray.contextFVars
 recent suffix, provided the source predicate denotes only root variables.
 The freshly allocated suffix binders are outside the predicate, while their
 dependencies may still lie inside it. -/
-theorem RecursorRecentBoundFVarArray.upsetRoot
+theorem RecursorFVarSuffix.upsetRoot
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (H : RecursorFVarSuffix Rroot R xs)
     {P : FVarId → Prop}
     (hscope : ∀ fv, P fv → fv ∈ Rroot.mlctx.vlctx.fvars)
     (hup : IsFVarUpSet P Rroot.mlctx.vlctx) :
@@ -698,7 +698,7 @@ def RecursorParameterContextSuffix.weakenRecent
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
     (H : RecursorParameterContextSuffix Rroot stats depth)
-    (Hrecent : RecursorRecentBoundFVarArray Rroot R xs) :
+    (Hrecent : RecursorFVarSuffix Rroot R xs) :
     RecursorParameterContextSuffix R stats (depth + xs.size) := by
   let added := R.mlctx.vlctx.take xs.size
   have hadded : added.length = xs.size := by
@@ -736,7 +736,7 @@ def RecursorValidAppStatsWF.weakenRecent
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
     (H : RecursorValidAppStatsWF Rroot.venv recLparams
       Rroot.mlctx.vlctx stats decl depth)
-    (Hrecent : RecursorRecentBoundFVarArray Rroot R xs) :
+    (Hrecent : RecursorFVarSuffix Rroot R xs) :
     RecursorValidAppStatsWF R.venv recLparams R.mlctx.vlctx
       stats decl (depth + xs.size) := by
   let W := R.onlyLams.dropN_fvlift xs.size Hrecent.size_le
@@ -760,11 +760,11 @@ def RecursorValidAppStatsWF.weakenRecent
 
 /-- Lookup values in the exact higher-order suffix are fresh bound variables,
 so a no-inductive-constants context invariant extends across that suffix. -/
-theorem RecursorRecentBoundFVarArray.noIndConsts
+theorem RecursorFVarSuffix.noIndConsts
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (H : RecursorFVarSuffix Rroot R xs)
     (hroot : VLCtx.NoIndConsts names Rroot.mlctx.vlctx) :
     VLCtx.NoIndConsts names R.mlctx.vlctx := by
   apply checkInductiveTypes.loopType.MLCtxOnlyLams.noIndConsts_of_dropN
@@ -775,9 +775,9 @@ theorem RecursorRecentBoundFVarArray.noIndConsts
 /-- Every recursively selected constructor argument is one of the exact
 fresh field variables opened by `loopCtorArgs`, with its pointwise semantic
 translation recovered at the same array position. -/
-theorem RecursorFieldSelectionsAt.selectedFVars
-    (H : RecursorFieldSelectionsAt env decl uvars bu u fields)
-    (Hbu : BoundFVarArray c bu)
+theorem RecursiveFieldSelectionsAt.selectedFVars
+    (H : RecursiveFieldSelectionsAt env decl uvars bu u fields)
+    (Hbu : FVarArrayIn c bu)
     (Hargs : List.Forall₂ (TrExprS env Us Delta) u.toList args) :
     ∀ j (hj : j < u.size),
       ∃ fv target,
@@ -814,7 +814,7 @@ theorem RecursorFieldSelectionsAt.selectedFVars
 
 theorem ConstructorFieldOpening.fvars_eq_bound
     (H : ConstructorFieldOpening source current fields)
-    (B : BoundFVarArray c fields) :
+    (B : FVarArrayIn c fields) :
     H.fvars = B.fvars := by
   have harrays : (H.fvars.map Expr.fvar).toArray =
       (B.fvars.map Expr.fvar).toArray :=
@@ -844,7 +844,7 @@ theorem ConstructorFieldOpening.currentFVarsIn
 /-- Alpha-independent result of the checker constructor traversal.  The
 terminal application itself contains checker-chosen free variables, so the
 certificate retains only its maximal closed telescope residual. -/
-structure CheckedConstructorOwnerNormalForm
+structure ConstructorOwnerNormalForm
     (stats : AddInductive.InductiveStats) (targetIdx : Nat)
     (source : Expr) : Type where
   arity : Nat
@@ -856,17 +856,17 @@ structure CheckedConstructorOwnerNormalForm
 /-- Close a successful checker traversal to its canonical owner normal form.
 The parameter array belongs to the root context, while every field belongs to
 the fresh suffix, which is exactly the disjointness needed by validation. -/
-def CheckedConstructorOwnerNormalForm.ofOpening
+def ConstructorOwnerNormalForm.ofOpening
     {root current : AddInductive.Context}
     (Hopening : ConstructorFieldOpening source terminal fields)
-    (Hparams : BoundFVarArray root stats.params)
-    (Hfields : FreshBoundFVarArray root current fields)
+    (Hparams : FVarArrayIn root stats.params)
+    (Hfields : FVarArrayAfter root current fields)
     (hconst : stats.indConsts[targetIdx]? = some (.const name levels))
     (hterminal : terminal.isForall = false)
     (hvalid : AddInductive.isValidIndAppIdx stats terminal targetIdx = true) :
-    CheckedConstructorOwnerNormalForm stats targetIdx source := by
-  have hopenFvars : Hopening.fvars = Hfields.toBoundFVarArray.fvars :=
-    Hopening.fvars_eq_bound Hfields.toBoundFVarArray
+    ConstructorOwnerNormalForm stats targetIdx source := by
+  have hopenFvars : Hopening.fvars = Hfields.toFVarArrayIn.fvars :=
+    Hopening.fvars_eq_bound Hfields.toFVarArrayIn
   have hdisjoint : ∀ fv, fv ∈ Hparams.fvars → fv ∉ Hopening.fvars := by
     intro fv hparam hfield
     rw [hopenFvars] at hfield
@@ -885,17 +885,17 @@ def CheckedConstructorOwnerNormalForm.ofOpening
 
 /-- Reopening a checked constructor telescope with a different fresh suffix
 recovers the same validated family application. -/
-theorem CheckedConstructorOwnerNormalForm.validOfOpening
+theorem ConstructorOwnerNormalForm.validOfOpening
     {root current : AddInductive.Context}
-    (H : CheckedConstructorOwnerNormalForm stats targetIdx source)
+    (H : ConstructorOwnerNormalForm stats targetIdx source)
     (Hopening : ConstructorFieldOpening source terminal fields)
-    (Hparams : BoundFVarArray root stats.params)
-    (Hfields : FreshBoundFVarArray root current fields)
+    (Hparams : FVarArrayIn root stats.params)
+    (Hfields : FVarArrayAfter root current fields)
     (hconst : stats.indConsts[targetIdx]? = some (.const name levels))
     (hterminal : terminal.isForall = false) :
     AddInductive.isValidIndAppIdx stats terminal targetIdx = true := by
-  have hopenFvars : Hopening.fvars = Hfields.toBoundFVarArray.fvars :=
-    Hopening.fvars_eq_bound Hfields.toBoundFVarArray
+  have hopenFvars : Hopening.fvars = Hfields.toFVarArrayIn.fvars :=
+    Hopening.fvars_eq_bound Hfields.toFVarArrayIn
   have hdisjoint : ∀ fv, fv ∈ Hparams.fvars → fv ∉ Hopening.fvars := by
     intro fv hparam hfield
     rw [hopenFvars] at hfield
@@ -933,15 +933,15 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
     (hparamAt : stats.params[i]? = none)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
-    (Hparams : BoundFVarArray root stats.params)
-    (Hfields : RecentBoundFVarArray Hroot Hc fields)
+    (Hparams : FVarArrayIn root stats.params)
+    (Hfields : FVarSuffix Hroot Hc fields)
     (Hopening : ConstructorFieldOpening source type fields)
     (htrNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htrFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       type i fuel c).WF
       (fun _ => Nonempty
-        (CheckedConstructorOwnerNormalForm stats targetIdx source)) := by
+        (ConstructorOwnerNormalForm stats targetIdx source)) := by
   induction fuel generalizing c type scope narrowType fullType depth i fields with
   | zero => exact checkConstructors.loopCtor.zero.WF
   | succ fuel ih =>
@@ -978,7 +978,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
               (hdomFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
             refine checkConstructors.loopCtor.safeField.sourceWF
               (Q := fun _ => Nonempty
-                (CheckedConstructorOwnerNormalForm stats targetIdx source))
+                (ConstructorOwnerNormalForm stats targetIdx source))
               Hc hparamAt Hdom hbodyFull Hdom₀ hbody₀ Hpos ?_
             intro _fieldType _fieldLevel _fieldLevel' _hfield _hlevel
               _htyped _ _ _ _hfieldBound _hpositive bodyFull' _hbodyFullEq
@@ -1009,14 +1009,14 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
               (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom bi
               Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
             have hopenFvars : Hopening.fvars =
-                Hfields.toBoundFVarArray.fvars :=
-              Hopening.fvars_eq_bound Hfields.toBoundFVarArray
+                Hfields.toFVarArrayIn.fvars :=
+              Hopening.fvars_eq_bound Hfields.toFVarArrayIn
             have hcurrentFresh :
                 (⟨c.ngen.curr⟩ : FVarId) ∉ Hopening.fvars := by
               rw [hopenFvars]
               intro hmem
               exact Hc.toBindingContextWF.current_not_mem
-                (Hfields.toBoundFVarArray.members _ hmem)
+                (Hfields.toFVarArrayIn.members _ hmem)
             have hbodyFresh : body.FVarsIn
                 (fun other => other ≠ (⟨c.ngen.curr⟩ : FVarId)) := by
               apply hbodyFull.fvarsIn.mono
@@ -1032,7 +1032,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
           | true =>
             refine checkConstructors.loopCtor.unsafeField.sourceWF
               (Q := fun _ => Nonempty
-                (CheckedConstructorOwnerNormalForm stats targetIdx source))
+                (ConstructorOwnerNormalForm stats targetIdx source))
               Hc hparamAt Hdom hbodyFull Hdom₀ hbody₀ ?_
             intro _fieldType _fieldLevel _fieldLevel' _hfield _hlevel
               _htyped _ _ _ _hfieldBound bodyFull' _hbodyFullEq _ _
@@ -1063,14 +1063,14 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
               (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom bi
               Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
             have hopenFvars : Hopening.fvars =
-                Hfields.toBoundFVarArray.fvars :=
-              Hopening.fvars_eq_bound Hfields.toBoundFVarArray
+                Hfields.toFVarArrayIn.fvars :=
+              Hopening.fvars_eq_bound Hfields.toFVarArrayIn
             have hcurrentFresh :
                 (⟨c.ngen.curr⟩ : FVarId) ∉ Hopening.fvars := by
               rw [hopenFvars]
               intro hmem
               exact Hc.toBindingContextWF.current_not_mem
-                (Hfields.toBoundFVarArray.members _ hmem)
+                (Hfields.toFVarArrayIn.members _ hmem)
             have hbodyFresh : body.FVarsIn
                 (fun other => other ≠ (⟨c.ngen.curr⟩ : FVarId)) := by
               apply hbodyFull.fvarsIn.mono
@@ -1087,8 +1087,8 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
           AddInductive.isValidIndAppIdx stats type targetIdx
       · exact checkConstructors.loopCtor.invalidResult.WF hforall hvalid
       · exact checkConstructors.loopCtor.result.WF hforall hvalid
-          ⟨CheckedConstructorOwnerNormalForm.ofOpening Hopening Hparams
-            Hfields.toFreshBoundFVarArray (Hstats.indConstAt hi)
+          ⟨ConstructorOwnerNormalForm.ofOpening Hopening Hparams
+            Hfields.toFVarArrayAfter (Hstats.indConstAt hi)
             (by cases type <;> simp_all [Expr.isForall]) hvalid⟩
 
 /-- Public owner-normal-form projection from the beginning of a constructor
@@ -1114,9 +1114,9 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       source 0 fuel c).WF
       (fun _ => ∃ tail,
-        RecursorParamPrefix stats 0 source tail ∧
+        ParameterPrefix stats 0 source tail ∧
         Nonempty
-          (CheckedConstructorOwnerNormalForm stats targetIdx tail)) := by
+          (ConstructorOwnerNormalForm stats targetIdx tail)) := by
   have hnoFVars : FVarsIn (fun _ => False) source := by
     simpa [VLCtx.fvars] using Hctor.type.fvarsIn
   by_cases hzero : decl.nparams = 0
@@ -1139,7 +1139,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
         (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
           Hc Hsuffix) halign
         Hstats hi hparamAt hconsume hlit Hsuffix.paramsBound
-        (RecentBoundFVarArray.empty Hc)
+        (FVarSuffix.empty Hc)
         (ConstructorFieldOpening.empty source)
         (by simpa [hscope] using Hctor.type)
         (hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
@@ -1158,9 +1158,9 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
     apply checkConstructors.loopCtor.parameterSynthesisWF
       (decl := decl) (ctorVal := ctorVal) Hc
       (Q := fun _ => ∃ tail,
-        RecursorParamPrefix stats 0 (.forallE name dom body bi) tail ∧
+        ParameterPrefix stats 0 (.forallE name dom body bi) tail ∧
         Nonempty
-          (CheckedConstructorOwnerNormalForm stats targetIdx tail))
+          (ConstructorOwnerNormalForm stats targetIdx tail))
       (Hresult := by
         intro source' current' fullCurrent' fuel' sourceDomains
           _Hsynthesis htrNarrow htrFull Hsegment _Hcomparisons
@@ -1175,11 +1175,11 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
           (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
             Hc Hsuffix) halign
           Hstats hi hparamAt hconsume hlit Hsuffix.paramsBound
-          (RecentBoundFVarArray.empty Hc)
+          (FVarSuffix.empty Hc)
           (ConstructorFieldOpening.empty source') htrNarrow htrFull
         exact Hnormal.mono fun _ Hnormal =>
           ⟨source', by
-            have Hcomplete : RecursorParamSegment stats 0 stats.params.size
+            have Hcomplete : ParameterSegment stats 0 stats.params.size
                 (.forallE name dom body bi) source' := by
               simpa only [Hstats.params_size] using Hsegment
             exact Hcomplete.complete rfl,
@@ -1223,8 +1223,8 @@ def CheckedConstructorOwnerNormalFormAt
     (stats : AddInductive.InductiveStats) (targetIdx : Nat)
     (ctor : Constructor) : Prop :=
   ∃ tail,
-    RecursorParamPrefix stats 0 ctor.type tail ∧
-    Nonempty (CheckedConstructorOwnerNormalForm stats targetIdx tail)
+    ParameterPrefix stats 0 ctor.type tail ∧
+    Nonempty (ConstructorOwnerNormalForm stats targetIdx tail)
 
 structure ConstructorOwnerNormalFormRow
     (stats : AddInductive.InductiveStats) (targetIdx : Nat)
@@ -1282,7 +1282,7 @@ def ConstructorOwnerNormalFormRows.push
 
 /-- Public matrix of checker-produced owner normal forms, indexed in the
 same family/constructor coordinates later traversed by `mkRecInfos`. -/
-structure CheckedConstructorOwnerNormalForms
+structure ConstructorOwnerNormalForms
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) : Prop where
   replay : ∀ familyIdx (hfamily : familyIdx < indTypes.size)
@@ -1292,7 +1292,7 @@ structure CheckedConstructorOwnerNormalForms
 
 def ConstructorOwnerNormalFormRows.complete
     (H : ConstructorOwnerNormalFormRows stats indTypes indTypes.size) :
-    CheckedConstructorOwnerNormalForms stats indTypes where
+    ConstructorOwnerNormalForms stats indTypes where
   replay familyIdx hfamily ctorIdx hctor :=
     (H.rows familyIdx hfamily hfamily).entries ctorIdx hctor hctor
 
@@ -1501,7 +1501,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     {root c : AddInductive.Context} {Q : alpha → Prop}
     (Rroot : RecursorContextWF root recLparams)
     (R : RecursorContextWF c recLparams)
-    {fields : List (RecursorRecursiveDomainAt
+    {fields : List (RecursiveFieldDomainAt
       R.venv decl recLparams.length)}
     {positions : List Nat}
     {args : List VExpr}
@@ -1527,12 +1527,12 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     (hchkB : 0 < bu.size → R.chk = B.m)
     (htypeType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx typeTarget)
-    (hfields : RecursorFieldSelectionsAt R.venv decl recLparams.length
+    (hfields : RecursiveFieldSelectionsAt R.venv decl recLparams.length
       bu u fields)
     (hdecisions : RecursorFieldDecisions stats root source c t bu u positions)
     (hargs : List.Forall₂
       (TrExprS R.venv recLparams R.mlctx.vlctx) u.toList args)
-    (Hrecent : RecursorRecentBoundFVarArray Rroot R bu)
+    (Hrecent : RecursorFVarSuffix Rroot R bu)
     (Hopening : ConstructorFieldOpening source t bu)
     (hrootType : Rroot.venv.IsDefEqU recLparams.length
       Rroot.mlctx.vlctx.toCtx rootTypeTarget
@@ -1550,7 +1550,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       (Rcurrent : RecursorContextWF current recLparams)
       {t' : Expr} {typeTarget' appliedTarget' : VExpr}
       {bu' u' : Array Expr}
-      {fields' : List (RecursorRecursiveDomainAt
+      {fields' : List (RecursiveFieldDomainAt
         Rcurrent.venv decl recLparams.length)} {positions' : List Nat}
       {args' : List VExpr},
       t'.isForall = false →
@@ -1558,14 +1558,14 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         t' typeTarget' →
       Rcurrent.venv.IsType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx typeTarget' →
-      RecursorFieldSelectionsAt Rcurrent.venv decl recLparams.length
+      RecursiveFieldSelectionsAt Rcurrent.venv decl recLparams.length
         bu' u' fields' →
       RecursorFieldDecisions stats root source current t'
         bu' u' positions' →
       List.Forall₂
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
-      (Hrecent' : RecursorRecentBoundFVarArray Rroot Rcurrent bu') →
+      (Hrecent' : RecursorFVarSuffix Rroot Rcurrent bu') →
       (Hopening' : ConstructorFieldOpening source t' bu') →
       Rroot.venv.IsDefEqU recLparams.length Rroot.mlctx.vlctx.toCtx
         rootTypeTarget
@@ -1844,13 +1844,13 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         RB.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
           Hdom₀.consumed Hdom₀.isType hbody₀''
       have hopenFvars : Hopening.fvars =
-          Hrecent.toBoundFVarArray.fvars :=
-        Hopening.fvars_eq_bound Hrecent.toBoundFVarArray
+          Hrecent.toFVarArrayIn.fvars :=
+        Hopening.fvars_eq_bound Hrecent.toFVarArrayIn
       have hcurrentFresh : (⟨c.ngen.curr⟩ : FVarId) ∉ Hopening.fvars := by
         rw [hopenFvars]
         intro hmem
         exact R.toBindingContextWF.current_not_mem
-          (Hrecent.toBoundFVarArray.members _ hmem)
+          (Hrecent.toFVarArrayIn.members _ hmem)
       have hbodyFresh : body.FVarsIn
           (fun other => other ≠ (⟨c.ngen.curr⟩ : FVarId)) := by
         apply hbody.fvarsIn.mono
@@ -1928,7 +1928,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           Hopening' hrootType' hnextUp happlied' happliedType'
       | some target =>
         rcases hselected.2 target rfl with ⟨howner, hrecursive⟩
-        let cert : RecursorRecursiveDomainAt
+        let cert : RecursiveFieldDomainAt
             R'.venv decl recLparams.length := {
           fieldIndex := bu.size
           ownerIdx := target
@@ -1971,7 +1971,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hprefix : RecursorParamPrefix stats 0 t tail)
+    (hprefix : ParameterPrefix stats 0 t tail)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts
@@ -1996,7 +1996,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
       (Rcurrent : RecursorContextWF current recLparams)
       {t' : Expr} {typeTarget' appliedTarget' : VExpr}
       {bu' u' : Array Expr}
-      {fields' : List (RecursorRecursiveDomainAt
+      {fields' : List (RecursiveFieldDomainAt
         Rcurrent.venv decl recLparams.length)} {positions' : List Nat}
       {args' : List VExpr},
       t'.isForall = false →
@@ -2004,13 +2004,13 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
         t' typeTarget' →
       Rcurrent.venv.IsType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx typeTarget' →
-      RecursorFieldSelectionsAt Rcurrent.venv decl recLparams.length
+      RecursiveFieldSelectionsAt Rcurrent.venv decl recLparams.length
         bu' u' fields' →
       RecursorFieldDecisions stats c tail current t' bu' u' positions' →
       List.Forall₂
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
-      (Hrecent : RecursorRecentBoundFVarArray R Rcurrent bu') →
+      (Hrecent : RecursorFVarSuffix R Rcurrent bu') →
       (Hopening : ConstructorFieldOpening tail t' bu') →
       R.venv.IsDefEqU recLparams.length R.mlctx.vlctx.toCtx tailTarget
         (Rcurrent.mlctx.mkForall' bu'.size Hrecent.size_le typeTarget') →
@@ -2063,7 +2063,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
         rcases htail₀Type with ⟨level₀, Htype₀⟩
         exact ⟨.sort level₀, Htype₀⟩⟩
       (fun h => by simp at h)
-      htailType .nil .nil .nil (RecursorRecentBoundFVarArray.empty R)
+      htailType .nil .nil .nil (RecursorFVarSuffix.empty R)
       (ConstructorFieldOpening.empty tail)
       hrootType
       htailScope (by
@@ -2077,11 +2077,11 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
 /-- Close the exact higher-order suffix retained by `loopUArgs` around a
 well-typed body.  The result is interpreted back in the root recursor
 context, exactly matching the executable `LocalContext.mkForall`. -/
-theorem RecursorRecentBoundFVarArray.mkForall
+theorem RecursorFVarSuffix.mkForall
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (H : RecursorFVarSuffix Rroot R xs)
     {body : Expr} {bodyTarget : VExpr}
     (hbody : TrExprS R.venv recLparams R.mlctx.vlctx body bodyTarget)
     (hbodyType : R.venv.IsType recLparams.length
@@ -2099,11 +2099,11 @@ theorem RecursorRecentBoundFVarArray.mkForall
 
 /-- Exact-target form of `mkForall`, exposing the semantic domain list
 instead of hiding it behind an existential. -/
-theorem RecursorRecentBoundFVarArray.mkForallExact
+theorem RecursorFVarSuffix.mkForallExact
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (H : RecursorFVarSuffix Rroot R xs)
     {body : Expr} {bodyTarget : VExpr}
     (hbody : TrExprS R.venv recLparams R.mlctx.vlctx body bodyTarget)
     (hbodyType : R.venv.IsType recLparams.length
@@ -2123,11 +2123,11 @@ well-typed term.  This is the term-level counterpart of `mkForall`: the
 abstract lambda and its forall type use the very same semantic domain list,
 so later equation typing cannot accidentally choose a different constructor
 field telescope. -/
-theorem RecursorRecentBoundFVarArray.mkLambda
+theorem RecursorFVarSuffix.mkLambda
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (H : RecursorFVarSuffix Rroot R xs)
     {body : Expr} {bodyTarget typeTarget : VExpr}
     (hbody : TrExprS R.venv recLparams R.mlctx.vlctx body bodyTarget)
     (hbodyType : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx

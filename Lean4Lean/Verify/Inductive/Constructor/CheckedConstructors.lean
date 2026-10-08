@@ -37,7 +37,7 @@ theorem refinesTypeWithReplay
       (AddInductive.checkConstructors.loopCtor stats isUnsafe
         source.ctors[i].name targetIdx source.ctors[i].type 0
         c.fuel.inductiveFuel c).WF fun _ => ∃ tail tailTarget,
-          RecursorParamPrefix stats 0 source.ctors[i].type tail ∧
+          ParameterPrefix stats 0 source.ctors[i].type tail ∧
           ∃ sourceDomains,
           CheckedConstructorParameterPrefix Hc.venv c.lparams stats
             source.ctors[i].type stats.params.size tail tailScope
@@ -138,7 +138,7 @@ theorem refinesBlockWithReplay
         indTypes[targetIdx].ctors[i].name targetIdx
         indTypes[targetIdx].ctors[i].type 0 c.fuel.inductiveFuel c).WF
         fun _ => ∃ tail tailTarget,
-          RecursorParamPrefix stats 0 indTypes[targetIdx].ctors[i].type tail ∧
+          ParameterPrefix stats 0 indTypes[targetIdx].ctors[i].type tail ∧
           ∃ sourceDomains,
           CheckedConstructorParameterPrefix Hc.venv c.lparams stats
             indTypes[targetIdx].ctors[i].type stats.params.size tail
@@ -223,8 +223,8 @@ structure CheckedConstructors
     (indTypes : Array InductiveType) (Us : List Name)
     (scope : VLCtx) : Prop where
   checked : CheckedConstructorCertificate sourceEnv decl envTypes params
-  parameterPrefixes : CheckedRecursorParameterPrefixes stats indTypes
-  constructorTails : CheckedRecursorConstructorTails envTypes Us scope stats
+  parameterPrefixes : ConstructorParameterPrefixes stats indTypes
+  constructorTails : ConstructorTails envTypes Us scope stats
     decl indTypes
 
 /-- Fold the end-to-end constructor theorem over the production's nested

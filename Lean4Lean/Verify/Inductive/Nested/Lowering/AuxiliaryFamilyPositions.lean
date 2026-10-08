@@ -144,7 +144,7 @@ def PendingGeneratedFamilyOrigins
 theorem GeneratedAuxiliary.pendingGeneratedFamilyOrigins
     (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
       sourceName sourceInfo state out)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
     (Hclosing : NestedClosingContext lctx As ngen)
     (hnparams : nparams ≤ args.size)
@@ -196,7 +196,7 @@ theorem GeneratedAuxiliary.pendingGeneratedFamilyOrigins
 theorem GeneratedAuxiliaryBatch.pendingGeneratedFamilyOrigins
     (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
       args result sourceNames state out)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
     (Hclosing : NestedClosingContext lctx As ngen)
     (hnparams : nparams ≤ args.size)
@@ -230,7 +230,7 @@ theorem GeneratedAuxiliaryBatch.pendingGeneratedFamilyOrigins
 theorem RecognizedNestedReplacement.pendingGeneratedFamilyOrigins
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
       value state out)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
     (Hclosing : NestedClosingContext lctx As ngen)
     (hnparams : value.numParams ≤ args.size)
@@ -251,7 +251,7 @@ theorem RecognizedNestedReplacement.pendingGeneratedFamilyOrigins
 
 theorem NestedReplacement.pendingGeneratedFamilyOrigins
     (H : NestedReplacement env lctx params As e state out)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
     (Hclosing : NestedClosingContext lctx As ngen)
     (hclosures : MutualInductivesClosed env)
@@ -279,7 +279,7 @@ theorem NestedReplacement.pendingGeneratedFamilyOrigins
 
 theorem NestedExprReplacement.pendingGeneratedFamilyOrigins
     (H : NestedExprReplacement env lctx params As e state out)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
     (Hclosing : NestedClosingContext lctx As ngen)
     (hclosures : MutualInductivesClosed env)

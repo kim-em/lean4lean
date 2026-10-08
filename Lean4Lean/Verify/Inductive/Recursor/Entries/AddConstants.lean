@@ -1202,7 +1202,7 @@ theorem AddInductive.declareRecursors.loop.semanticWF
     {decl : VInductDecl} {indTypes : Array InductiveType}
     {parameterDecls : VLCtx}
     {recursors : Nat → VConstVal}
-    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (Hcard : RecursorCounts stats recInfos decl)
     (Hdecl : TrInductDeclCore sourceEnv lparams nparams
       indTypes.toList sourceIsUnsafe decl envTypes envCtors)
     {recLparams : List Name} {depth : Nat}
@@ -1213,14 +1213,14 @@ theorem AddInductive.declareRecursors.loop.semanticWF
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (Hbindings : RecInfoBindings c recInfos)
-    (Horigins : RecInfoTypeOrigins c recInfos)
-    (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
-    (HblueprintSemantics : RecInfoRuleBlueprintSemanticOrigins R decl stats
+    (Horigins : RecInfoBinderTypes c recInfos)
+    (Hblueprints : RuleTemplatesMatch stats recInfos Horigins)
+    (HblueprintSemantics : TypedRuleTemplates R decl stats
       recInfos elimLevel parameterDecls Horigins)
-    (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
-    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
+    (HminorSources : MinorsAndIndicesMatchSource stats indTypes Horigins)
+    (HminorSemantics : TypedMinors R Horigins
       parameterDecls)
-    (Hparams : BoundFVarArray c stats.params)
+    (Hparams : FVarArrayIn c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
     (hcounts : ∀ i, i < recInfos.size →
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
@@ -1229,9 +1229,9 @@ theorem AddInductive.declareRecursors.loop.semanticWF
     (Hseed : ∀ owner (howner : owner < indTypes.size),
       ∀ ctor, ctor ∈ indTypes[owner]!.ctors →
         ∃ tail tailTarget introTarget,
-          RecursorParamPrefix stats 0 ctor.type tail ∧
+          ParameterPrefix stats 0 ctor.type tail ∧
           Nonempty
-            (CheckedConstructorOwnerNormalForm stats owner tail) ∧
+            (ConstructorOwnerNormalForm stats owner tail) ∧
           tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
           TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
           R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx tailTarget ∧
@@ -1246,7 +1246,7 @@ theorem AddInductive.declareRecursors.loop.semanticWF
     (k isUnsafe : Bool) (allowPrimitive : Bool)
     (hisUnsafe : isUnsafe = (c.safety != .safe))
     (hall : all = (indTypes.map (·.name)).toList)
-    (hk : KTargetCheck stats indTypes k)
+    (hk : KEligible stats indTypes k)
     (dIdx : Nat) (hdone : dIdx ≤ indTypes.size)
     (env : Environment)
     (Hvalid : CheckingEnv.ValidCore c.safety env currentVEnv)
@@ -1271,7 +1271,7 @@ theorem AddInductive.declareRecursors.loop.semanticWF
           out.2 = recursorMinorOffset indTypes indTypes.size ∧
           Nonempty (GeneratedRecursorsRange c.safety sourceVEnv lparams
             elimLevel c stats indTypes recInfos dIdx entries) ∧
-          Nonempty (GeneratedRecursorRuleSemanticsRange R decl stats
+          Nonempty (TypedRecursorRulesRange R decl stats
             indTypes recInfos Horigins elimLevel parameterDecls dIdx entries) ∧
           AddConstants c.safety env currentVEnv entries out.1 outVEnv ∧
           ∀ i (hi : i < entries.length), entries[i].2 = recursors (dIdx + i) := by
@@ -1408,7 +1408,7 @@ theorem AddInductive.declareRecursors.loop.semanticWF
               | succ i =>
                 have hi' : i < entries.length := by simpa using hi
                 simpa [Nat.add_assoc, Nat.add_comm 1 i] using Hrange.entry i hi'
-            have HsemRange' : GeneratedRecursorRuleSemanticsRange R decl
+            have HsemRange' : TypedRecursorRulesRange R decl
                 stats indTypes recInfos Horigins elimLevel parameterDecls dIdx
                 (entry :: entries) := by
               refine {
@@ -1478,7 +1478,7 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
     {indTypes : Array InductiveType} {parameterDecls : VLCtx}
     {currentVEnv : VEnv} {recLparams : List Name} {depth : Nat}
     (k : Bool)
-    (hk : KTargetCheck stats indTypes k)
+    (hk : KEligible stats indTypes k)
     (Hvalid : CheckingEnv.Valid c.safety c.env currentVEnv)
     (Hcontext : BindingContextWF c)
     (R : RecursorContextWF c recLparams)
@@ -1487,18 +1487,18 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (Hcard : RecursorCounts stats recInfos decl)
     (Hdecl : TrInductDeclCore sourceEnv c.lparams nparams
       indTypes.toList sourceIsUnsafe decl envTypes envCtors)
     (Hbindings : RecInfoBindings c recInfos)
-    (Horigins : RecInfoTypeOrigins c recInfos)
-    (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
-    (HblueprintSemantics : RecInfoRuleBlueprintSemanticOrigins R decl stats
+    (Horigins : RecInfoBinderTypes c recInfos)
+    (Hblueprints : RuleTemplatesMatch stats recInfos Horigins)
+    (HblueprintSemantics : TypedRuleTemplates R decl stats
       recInfos elimLevel parameterDecls Horigins)
-    (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
-    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
+    (HminorSources : MinorsAndIndicesMatchSource stats indTypes Horigins)
+    (HminorSemantics : TypedMinors R Horigins
       parameterDecls)
-    (Hparams : BoundFVarArray c stats.params)
+    (Hparams : FVarArrayIn c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
     (hcounts : ∀ i, i < recInfos.size →
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
@@ -1507,9 +1507,9 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
     (Hseed : ∀ owner (howner : owner < indTypes.size),
       ∀ ctor, ctor ∈ indTypes[owner]!.ctors →
         ∃ tail tailTarget introTarget,
-          RecursorParamPrefix stats 0 ctor.type tail ∧
+          ParameterPrefix stats 0 ctor.type tail ∧
           Nonempty
-            (CheckedConstructorOwnerNormalForm stats owner tail) ∧
+            (ConstructorOwnerNormalForm stats owner tail) ∧
           tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
           TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
           R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx tailTarget ∧
@@ -1518,9 +1518,9 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
             introTarget ∧
           R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx introTarget
             tailTarget)
-    (targets : RecursorTypeTranslations currentVEnv c.lparams elimLevel c
+    (targets : TrRecursorTypes currentVEnv c.lparams elimLevel c
       stats indTypes recInfos → Nat → VExpr)
-    (Hcanonical : ∀ (T : RecursorTypeTranslations currentVEnv c.lparams elimLevel c
+    (Hcanonical : ∀ (T : TrRecursorTypes currentVEnv c.lparams elimLevel c
       stats indTypes recInfos) owner (howner : owner < indTypes.size),
       TrExprS currentVEnv (AddInductive.getRecLevelParams elimLevel c.lparams) []
         (AddInductive.declareRecursors.recursorType stats recInfos c.lctx owner)
@@ -1537,11 +1537,11 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
         ∃ entries : List (ConstantInfo × VConstVal),
           Nonempty (GeneratedRecursors c.safety currentVEnv c.lparams
             elimLevel c stats indTypes recInfos entries) ∧
-          Nonempty (GeneratedRecursorRuleSemanticsRange R decl stats
+          Nonempty (TypedRecursorRulesRange R decl stats
             indTypes recInfos Horigins elimLevel parameterDecls 0 entries) ∧
           AddConstants c.safety c.env currentVEnv entries outEnv
             outVEnv ∧
-          ∃ T : RecursorTypeTranslations currentVEnv c.lparams elimLevel c
+          ∃ T : TrRecursorTypes currentVEnv c.lparams elimLevel c
             stats indTypes recInfos,
           ∀ i (hi : i < entries.length), entries[i].2 = {
             name := Lean.mkRecName indTypes[i]!.name
@@ -1555,7 +1555,7 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
           elimLevel recInfos (recInfos.flatMap (·.minors)).size
           (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList
           c.lctx k (c.safety != .safe) c.lparams 0 c).WF fun _ =>
-            RecursorTypeTranslations currentVEnv c.lparams elimLevel c
+            TrRecursorTypes currentVEnv c.lparams elimLevel c
               stats indTypes recInfos := by
       simpa using
         (AddInductive.declareRecursors.checkRecursorTypes.recursorTypeTranslationsWF

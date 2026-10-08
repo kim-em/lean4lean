@@ -117,7 +117,7 @@ structure RecursorMotiveFrameWF
 completed executable frame.  Its motive type is still compared with the
 annotation-consumed production target in a separate step; this package
 records the exact declarative telescope and types its family endpoint. -/
-structure RecursorMotiveCanonicalFrameWF
+structure RecursorMotiveClosedFrameWF
     {c : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF c recLparams)
     (stats : AddInductive.InductiveStats) (familyIdx : Nat)

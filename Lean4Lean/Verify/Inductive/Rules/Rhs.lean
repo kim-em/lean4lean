@@ -1060,7 +1060,7 @@ theorem
         (equationFieldDomains.reverse ++ outer)
         (VExpr.mkApps (.bvar
           (equationFieldDomains.length + later.length))
-          (recursorCanonicalVars equationFieldDomains.length))
+          (bvarSpine equationFieldDomains.length))
         (VExpr.wrapForalls installedEquationHypotheses
           installedEquationResidual) := by
   dsimp only at HfieldContext ⊢
@@ -1157,7 +1157,7 @@ theorem
     simpa [Us, inserted, equationFieldDomains, outer, later, shift,
       installedEquationFields, installedEquationHypotheses,
       installedEquationResidual, hequationLength, hfields,
-      B.fieldDomains_length, VExpr.liftN, recursorCanonicalVars,
+      B.fieldDomains_length, VExpr.liftN, bvarSpine,
       List.length_drop, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using
       HpartialFixed⟩
 
@@ -1214,7 +1214,7 @@ theorem
           VExpr.WF H.outVEnv Us.length
             (abstractForallContext equationDomains []).toCtx
             (VExpr.mkApps (.bvar minorVar)
-              (recursorCanonicalVars equationFieldDomains.length)) ∧
+              (bvarSpine equationFieldDomains.length)) ∧
           let outer := inserted.reverse ++
             H.parameterSuffix.parameterDecls.toCtx
           let shift := later.length + 1
@@ -1231,7 +1231,7 @@ theorem
             H.outVEnv.HasType Us.length
               (abstractForallContext equationDomains []).toCtx
               (VExpr.mkApps (.bvar minorVar)
-                (recursorCanonicalVars equationFieldDomains.length))
+                (bvarSpine equationFieldDomains.length))
               (VExpr.wrapForalls installedEquationHypotheses
                 installedEquationResidual) := by
   dsimp only
@@ -1340,7 +1340,7 @@ theorem
   have HinstalledTyping : H.outVEnv.HasType Us.length
       (abstractForallContext equationDomains []).toCtx
       (VExpr.mkApps (.bvar minorVar)
-        (recursorCanonicalVars equationFieldDomains.length))
+        (bvarSpine equationFieldDomains.length))
       (VExpr.wrapForalls
         (liftContextPrefixAt (later.length + 1) fieldDomains.length
           hypothesisDomains.reverse).reverse
@@ -1422,7 +1422,7 @@ theorem
       H.outVEnv.HasType Us.length
         (abstractForallContext equationDomains []).toCtx
         (VExpr.mkApps (.bvar (equationFields.length + later.length))
-          (recursorCanonicalVars equationFields.length))
+          (bvarSpine equationFields.length))
         (VExpr.wrapForalls installedHypotheses installedResidual)) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
@@ -1435,7 +1435,7 @@ theorem
     let later := T.minors.drop (minorIdx + 1)
     let fn := VExpr.mkApps
       (.bvar (equationFields.length + later.length))
-      (recursorCanonicalVars equationFields.length)
+      (bvarSpine equationFields.length)
     let finalType := VExpr.applyForallType
       (VExpr.wrapForalls (VExpr.liftClosedDomains C.bodyTypes 0)
         (targetResidual.liftN (later.length + 1)
@@ -1463,7 +1463,7 @@ theorem
     (fieldDomains.length + hypothesisDomains.length)
   let fn := VExpr.mkApps
     (.bvar (equationFields.length + later.length))
-    (recursorCanonicalVars equationFields.length)
+    (bvarSpine equationFields.length)
   have hminor : minorIdx < T.minors.length := by
     rw [T.minors_length]
     exact A.rule.minor_valid
@@ -1660,11 +1660,11 @@ theorem
           (fieldDomains.length + hypothesisDomains.length)
         rhsBody = VExpr.mkApps
             (VExpr.mkApps (.bvar minorVar)
-              (recursorCanonicalVars equationFields.length)) C.bodies ∧
+              (bvarSpine equationFields.length)) C.bodies ∧
           H.outVEnv.HasType Us.length
             (abstractForallContext equationDomains []).toCtx
             (VExpr.mkApps (.bvar minorVar)
-              (recursorCanonicalVars equationFields.length))
+              (bvarSpine equationFields.length))
             (VExpr.wrapForalls installedEquationHypotheses
               installedEquationResidual) ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
@@ -1694,7 +1694,7 @@ theorem
   let later := T.minors.drop (minorIdx + 1)
   let minorVar := equationFields.length + later.length
   let fn := VExpr.mkApps (.bvar minorVar)
-    (recursorCanonicalVars equationFields.length)
+    (bvarSpine equationFields.length)
   have Hrhs := A.finalCanonicalMinorRecursiveApplicationOfContext B T C
       fieldDomains hypothesisDomains targetResidual hfields hhypotheses
       hminorType Hctx Hfield Hpartial

@@ -31,7 +31,7 @@ structure RecursorConstruction
     { c with env := ctorEnv } = .ok elimLevel
   lparamsNodup : c.lparams.Nodup
   kTarget : Bool
-  kTargetChecked : KTargetCheck stats indTypes kTarget
+  kTargetChecked : KEligible stats indTypes kTarget
   recInfos : Array AddInductive.RecInfo
   localContext : AddInductive.Context
   localWF : BindingContextWF localContext
@@ -48,7 +48,7 @@ structure RecursorConstruction
   closed recursor telescopes available before installation: the minor
   premises mention motives, so their translations cannot be rebuilt from the
   free-variable contexts of the first pass without strengthening. -/
-  recursorTypes : RecursorTypeTranslations R.context.venv localContext.lparams elimLevel
+  recursorTypes : TrRecursorTypes R.context.venv localContext.lparams elimLevel
     localContext stats indTypes recInfos
   parameterSuffix : RecursorParameterContextSuffix recursorWF stats
     recursorDepth
@@ -61,30 +61,30 @@ structure RecursorConstruction
   noIndConsts : VLCtx.NoIndConsts (decl.types.map (·.name))
     recursorWF.mlctx.vlctx
   bindings : RecInfoBindings localContext recInfos
-  origins : RecInfoTypeOrigins localContext recInfos
-  blueprints : RecInfoRuleBlueprintOrigins stats recInfos origins
-  blueprintSemantics : RecInfoRuleBlueprintSemanticOrigins recursorWF decl
+  origins : RecInfoBinderTypes localContext recInfos
+  blueprints : RuleTemplatesMatch stats recInfos origins
+  blueprintSemantics : TypedRuleTemplates recursorWF decl
     stats recInfos elimLevel parameterSuffix.parameterDecls origins
-  minorSources : RecInfoMinorSourceAlignment stats indTypes origins
-  minorSemantics : RecInfoMinorSemanticAlignment recursorWF origins
+  minorSources : MinorsAndIndicesMatchSource stats indTypes origins
+  minorSemantics : TypedMinors recursorWF origins
     parameterSuffix.parameterDecls
-  majorTypes : RecursorTranslatedOriginTypes recursorWF origins.majorTypes
-  majorShapes : RecInfoMajorTypeShapes stats recInfos origins.majorTypes
+  majorTypes : TrBinderTypes recursorWF origins.majorTypes
+  majorShapes : MajorPremiseTypes stats recInfos origins.majorTypes
     localContext.env.isTypeAnnotationWrapper
-  motiveTypes : RecursorTranslatedOriginTypes recursorWF origins.motiveTypes
-  motiveShapes : RecInfoMotiveTypeShapes localContext recInfos
+  motiveTypes : TrBinderTypes recursorWF origins.motiveTypes
+  motiveShapes : MotiveTypes localContext recInfos
     origins.motiveTypes elimLevel
   motiveTelescopes : RecInfoMotiveTelescopes recursorWF stats decl
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       elimLevelAdmissible).parameterDecls.toCtx recInfos elimLevel
-  indexRows : RecursorTranslatedOriginTypeRows recursorWF origins.indexTypes
-  params : BoundFVarArray localContext stats.params
+  indexRows : TrBinderTypesPerFamily recursorWF origins.indexTypes
+  params : FVarArrayIn localContext stats.params
   noAlias : bindings.NoAlias params
   outerOrder : RecInfoOuterOrder recursorWF params bindings
   arities : RecInfoArities stats recInfos
   minorCounts : forall i, i < recInfos.size ->
     recInfos[i]!.minors.size = indTypes[i]!.ctors.length
-  cardinality : RecursorCardinalityCertificate stats recInfos decl
+  cardinality : RecursorCounts stats recInfos decl
 
 end VerifyInductive
 end Lean4Lean

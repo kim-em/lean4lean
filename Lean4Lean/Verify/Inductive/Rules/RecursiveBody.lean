@@ -39,7 +39,7 @@ theorem
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let parameterDecls := H.parameterSuffix.parameterDecls
-    ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us stats decl
+    ∃ C : ClosedMotiveTelescope H.outVEnv Us stats decl
           selectedOwner H.recInfos[selectedOwner]! H.elimLevel,
       ∃ (equationDomains fieldDomains localDomains added frontDomains
           exactIndexTargets : List VExpr)
@@ -120,7 +120,7 @@ theorem
   let C := S.canonical.mono henvLe
   have HcanonicalSource : VEnv.IsDefEqCtx H.outVEnv Us.length []
       C.params.reverse S.motiveSourceScope.toCtx := by
-    simpa [C, RecursorCanonicalMotiveTelescope.mono] using
+    simpa [C, ClosedMotiveTelescope.mono] using
       S.motiveSourceAlignment.mono henvLe
   have HselectedCanonical : VEnv.IsDefEqCtx H.outVEnv Us.length []
       F.telescope.params.reverse C.params.reverse :=
@@ -157,11 +157,11 @@ theorem
     have hparams : A.rule.params_bound.fvars.length = stats.params.size := by
       have h := congrArg Array.size A.rule.params_bound.expressions
       simpa using h.symm
-    unfold BoundGeneratedRecursorRule.binders
+    unfold RecursorRuleSyntax.binders
     simp only [List.length_append]
     omega
   have hparameterTargetsLifted : parameterTargets =
-      (recursorCanonicalVars stats.params.size).map
+      (bvarSpine stats.params.size).map
         (fun target => target.liftN added.length 0) := by
     rw [hparameterTargets,
       recursorCanonicalVars_liftN_zero_eq_ofFn]
@@ -322,7 +322,7 @@ theorem
       F.telescope.motives[selectedOwner]!
       (C.motiveType.liftN
         (F.telescope.motives.take selectedOwner).length 0) := by
-    simpa [C, RecursorCanonicalMotiveTelescope.mono] using HmotiveDomain₀
+    simpa [C, ClosedMotiveTelescope.mono] using HmotiveDomain₀
   have hearlierCtx :
       (abstractForallContext
         (F.telescope.params ++
@@ -484,7 +484,7 @@ theorem
             ((VExpr.const recursor.name
               (VLevel.params Us.length)).liftN
               (T.params ++ T.motives ++ T.minors).length 0)
-            (recursorCanonicalVars
+            (bvarSpine
               (T.params ++ T.motives ++ T.minors).length)).liftN
           fieldDomains.length 0)
         prefixType) :
@@ -508,7 +508,7 @@ theorem
           ((VExpr.const recursor.name
             (VLevel.params Us.length)).liftN
             (T.params ++ T.motives ++ T.minors).length 0)
-          (recursorCanonicalVars
+          (bvarSpine
             (T.params ++ T.motives ++ T.minors).length)).liftN
         fieldDomains.length 0) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -537,7 +537,7 @@ theorem
       (abstractForallContext domains []).toCtx
       (VExpr.mkApps
         (.const recursor.name (VLevel.params Us.length))
-        ((recursorCanonicalVars
+        ((bvarSpine
           (T.params ++ T.motives ++ T.minors).length).map fun arg =>
             arg.liftN fieldDomains.length 0)) := by
     exact ⟨prefixType, by
@@ -545,7 +545,7 @@ theorem
         (abstractForallContext domains []).toCtx
         (VExpr.mkApps
           (.const recursor.name (VLevel.params Us.length))
-          ((recursorCanonicalVars
+          ((bvarSpine
             (T.params ++ T.motives ++ T.minors).length).map fun arg =>
               arg.liftN fieldDomains.length 0)) prefixType
       simpa [abstractForallContext, htoCtx, htoCtxReverse, domains,
@@ -605,7 +605,7 @@ theorem
           ((VExpr.const recursor.name
             (VLevel.params Us.length)).liftN
             (T.params ++ T.motives ++ T.minors).length 0)
-          (recursorCanonicalVars
+          (bvarSpine
             (T.params ++ T.motives ++ T.minors).length)).liftN
         fieldDomains.length 0) := by
   exact F.selectedPrefixResidualTranslation T fieldDomains hfields Hctx
@@ -665,7 +665,7 @@ theorem
           ((VExpr.const recursor.name
             (VLevel.params Us.length)).liftN
             (T.params ++ T.motives ++ T.minors).length 0)
-          (recursorCanonicalVars
+          (bvarSpine
             (T.params ++ T.motives ++ T.minors).length)).liftN
         fieldDomains.length 0) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -835,7 +835,7 @@ theorem
     (VExpr.mkApps
       ((VExpr.const recursor.name (VLevel.params Us.length)).liftN
         outer.length 0)
-      (recursorCanonicalVars outer.length)).liftN fieldDomains.length 0
+      (bvarSpine outer.length)).liftN fieldDomains.length 0
   let prefixTarget := prefixBase.liftN localDomains.length 0
   have hcallCtx :
       (abstractForallContext
@@ -1073,7 +1073,7 @@ theorem
   have hselectedMotiveRoot : motiveFVar ∈ F.originRoot.lctx.fvars :=
     F.originExtension.contextLE.fvars hselectedMotiveRuleRoot
   have hselectedMotiveBinder : motiveFVar ∈ A.rule.binders := by
-    simp [BoundGeneratedRecursorRule.binders, motiveFVar,
+    simp [RecursorRuleSyntax.binders, motiveFVar,
       List.getElem_mem hselectedMotiveFVars]
   have hsourceMotiveHead :=
     F.semantic.generated.outerAbstractedRootFVar_eq_lift
@@ -1084,9 +1084,9 @@ theorem
           (fun info : AddInductive.RecInfo => info.motive))[selectedOwner]!
             ).abstractList A.rule.binders).liftLooseBVars' 0
             F.semantic.generated.localArgs.size := by
-    simpa [BoundGeneratedRecursiveCall.replayTrace,
+    simpa [RecursiveCall.replayTrace,
       selectedOwner, hselectedMappedMotive,
-      BoundGeneratedRecursorRule.binders,
+      RecursorRuleSyntax.binders,
       List.append_assoc] using hsourceMotiveHead
   have hfrontLength : frontDomains.length =
       fieldDomains.length + localDomains.length := by
@@ -1103,7 +1103,7 @@ theorem
     have hmotivesLength := A.rule.motives_bound.length_fvars
     have hminorsLength := A.rule.minors_bound.length_fvars
     have hfieldsLength := A.rule.all_args_bound.length_fvars
-    unfold BoundGeneratedRecursorRule.binders
+    unfold RecursorRuleSyntax.binders
     simp only [List.length_append, List.length_drop]
     rw [hmotivesLength, hminorsLength, hfieldsLength, hfrontLength, hfields,
       F.telescope.motives_length, F.telescope.minors_length]
@@ -1137,8 +1137,8 @@ theorem
             (index.abstractList
               F.semantic.generated.arguments_bound.fvars).abstractList
                 A.rule.binders F.semantic.generated.localArgs.size := by
-      simp [BoundGeneratedRecursiveCall.replayTrace, sourceIndices]
-    unfold BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
+      simp [RecursiveCall.replayTrace, sourceIndices]
+    unfold RecursiveCall.outerAbstractedMotiveApp
     rw [Expr.mkAppN_eq_mkAppList, hreplayIndices]
     simpa [Expr.mkAppList_append, args,
       VExpr.mkApps_append, VExpr.mkApps] using HmotiveApplication₀
@@ -1168,7 +1168,7 @@ theorem
   have hresultCanonical :
       F.telescope.result.liftN frontDomains.length suffix.length =
         VExpr.mkApps (ownerTarget.liftN expectedDomains.length 0)
-          (recursorCanonicalVars expectedDomains.length) := by
+          (bvarSpine expectedDomains.length) := by
     rw [F.telescope.resultShape hselectedMotive,
       concreteRecursorResultArgs_eq_canonical]
     rw [VExpr.liftN_mkApps]

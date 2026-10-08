@@ -190,8 +190,8 @@ theorem RecursorCheck.RuleAlignment.typeTranslation
   · have hlen : (H.canonicalGeneration.equationDomains ⟨minorIdx, hk⟩).length =
         A.rule.binders.length := A.equationDomains_length hk
     simp only [List.length_append, hlen]
-    simp [remaining, sourceOuter, hhypotheses, hfields, BoundGeneratedRecursorRule.binders,
-      T.params_length, T.motives_length, T.minors_length, BoundFVarArray.length_fvars]
+    simp [remaining, sourceOuter, hhypotheses, hfields, RecursorRuleSyntax.binders,
+      T.params_length, T.motives_length, T.minors_length, FVarArrayIn.length_fvars]
     omega
   obtain ⟨tf, ta, htargetApp⟩ : ∃ tf ta, targetResidual = .app tf ta := by
     rw [hmotiveApp] at HsourceResidual
@@ -256,7 +256,7 @@ theorem RecursorCheck.RuleAlignment.lhsTranslation
   obtain ⟨recLevels, leadingArgs, ctorLevels, ctorArgs, hLeq, hrecLevels, -, Hleading, -⟩ :=
     A.rule.translatedLhsResidual htarget HL
   have HL' := HL
-  simp only [BoundGeneratedRecursorRule.sourceLhsBody, htarget, Expr.abstractList_app] at HL'
+  simp only [RecursorRuleSyntax.sourceLhsBody, htarget, Expr.abstractList_app] at HL'
   simp only [Expr.abstractList_app] at HY
   rw [InductiveSignature.Instance.equationTypeBody, VExpr.mkApps_snoc] at HY
   cases HY with
@@ -280,7 +280,7 @@ theorem RecursorCheck.RuleAlignment.lhsTranslation
       .fvar (A.rule.motives_bound.fvars[owner]'hmotiveFVars) := by
     rw [← hmotiveFVar]; simp [getElem!_pos, hrec]
   have hmem : A.rule.motives_bound.fvars[owner]'hmotiveFVars ∈ A.rule.binders := by
-    unfold BoundGeneratedRecursorRule.binders
+    unfold RecursorRuleSyntax.binders
     exact List.mem_append_left _ <| List.mem_append_left _ <|
       List.mem_append_right _ (List.getElem_mem hmotiveFVars)
   obtain ⟨j, hj, hjeq⟩ := RuleLhs.abstractList_mem_bvar hbindersNodup hmem
@@ -298,7 +298,7 @@ theorem RecursorCheck.RuleAlignment.lhsTranslation
   let n := stats.params.size + (H.recInfos.map (·.motive)).size +
     (H.recInfos.flatMap (·.minors)).size
   have hbindersLength : A.rule.binders.length = n + A.rule.allArgs.size := by
-    simp [n, BoundGeneratedRecursorRule.binders, BoundFVarArray.length_fvars]
+    simp [n, RecursorRuleSyntax.binders, FVarArrayIn.length_fvars]
     omega
   have hsource :
       (stats.params.map fun arg => arg.abstractList A.rule.binders).toList ++

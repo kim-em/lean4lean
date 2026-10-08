@@ -351,7 +351,7 @@ theorem TrExprSyn.recursiveCall {Us : List Name}
   let recApp := Lean.Expr.mkAppList (.const name lvls) (PMN.map .fvar)
   let T : Lean.Expr := (mkAppN (.bvar A.length) I).app
     (mkAppN (.fvar F[pos]) (A.map Lean.Expr.fvar).toArray)
-  let Hsel : LocalForallSelection lctxC (A.map Lean.Expr.fvar).toArray := ⟨A, rfl, hdecl⟩
+  let Hsel : CDeclArray lctxC (A.map Lean.Expr.fvar).toArray := ⟨A, rfl, hdecl⟩
   have Hsame := Hsel.sameForallLambdaPrefix (show A.Nodup from hA) (.sort .zero) T
   rw [hn] at Hsame
   have HL := LocalContext.mkLambda_fvars_lambdaTelescopeN (body := T) hdecl
@@ -829,7 +829,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
           i])[j].2.binders.zipIdx).length = O.args.size := by
     simp [hbinders]
   have hA : ExprArrayFVarIds O.args = O.arguments_bound.fvars :=
-    O.arguments_bound.toBoundFVarArray.exprArrayFVarIds
+    O.arguments_bound.toFVarArrayIn.exprArrayFVarIds
   rw [hA] at Hidx
   have hbl : (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
       H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.length =
@@ -891,7 +891,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
     rw [hlen'] at X
     simpa using X
   have hFa : Closed (O.current.lctx.mkForall O.args (.sort .zero)) := by
-    have HFtel := O.arguments_bound.toBoundFVarArray.mkForall_forallTelescope O.current_wf
+    have HFtel := O.arguments_bound.toFVarArrayIn.mkForall_forallTelescope O.current_wf
       (.sort .zero)
     apply VerifyInductive.Expr.ForallTelescope.closed_of_domains HFtel 0
     · intro i' hi'
@@ -1056,7 +1056,7 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
   have HFtel := LocalContext.mkForall_fvars_forallTelescope (lctx := H.localContext.lctx)
     (body := .sort .zero) hdeclPMN
   simp only [LocalContext.mkForall] at HFtel
-  let Sel : LocalForallSelection H.localContext.lctx
+  let Sel : CDeclArray H.localContext.lctx
       ((H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)).map
         Lean.Expr.fvar).toArray := ⟨_, rfl, hdeclPMN⟩
   have Hsame := Sel.sameForallLambdaPrefix (show (H.params.fvars ++ (H.bindings.motives.fvars ++
@@ -1093,7 +1093,7 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
           some (.cdecl index fv name type bi kind) :=
     fun fv h => (H.origins.minorShapes o ho i hlocal).sourceFullWF.findCDecl fv
       ((H.origins.minorShapes o ho i hlocal).fields_bound.members fv h)
-  let SelF : LocalForallSelection (H.origins.minorShapes o ho i hlocal).sourceFullContext.lctx
+  let SelF : CDeclArray (H.origins.minorShapes o ho i hlocal).sourceFullContext.lctx
       ((H.origins.minorShapes o ho i hlocal).fields_bound.fvars.map Lean.Expr.fvar).toArray :=
     ⟨_, rfl, hdeclF⟩
   have HsameF := (SelF.sameForallLambdaPrefix
@@ -1258,7 +1258,7 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
     (body := .sort .zero) hdeclPMN
   simp only [LocalContext.mkForall] at HFtel
   have Hdoms := fun i hi => (TrExprS.forallTelescope_domains HFtel Hforall hlenD i hi).toSyn
-  let Sel : LocalForallSelection H.localContext.lctx
+  let Sel : CDeclArray H.localContext.lctx
       ((H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)).map
         Lean.Expr.fvar).toArray := ⟨_, rfl, hdeclPMN⟩
   have Hsame := Sel.sameForallLambdaPrefix (show (H.params.fvars ++ (H.bindings.motives.fvars ++
@@ -1297,7 +1297,7 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
           some (.cdecl index fv name type bi kind) :=
     fun fv h => (H.origins.minorShapes o ho i hlocal).sourceFullWF.findCDecl fv
       ((H.origins.minorShapes o ho i hlocal).fields_bound.members fv h)
-  let SelF : LocalForallSelection (H.origins.minorShapes o ho i hlocal).sourceFullContext.lctx
+  let SelF : CDeclArray (H.origins.minorShapes o ho i hlocal).sourceFullContext.lctx
       ((H.origins.minorShapes o ho i hlocal).fields_bound.fvars.map Lean.Expr.fvar).toArray :=
     ⟨_, rfl, hdeclF⟩
   have HsameF := (SelF.sameForallLambdaPrefix

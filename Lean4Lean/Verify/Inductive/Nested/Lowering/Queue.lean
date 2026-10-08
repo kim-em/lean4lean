@@ -24,7 +24,7 @@ structure LoweredConstructorTranslation
   translated : ∃ lctx tail As lowered openedState,
     NestedParamOpening {} #[] source.type nparams lctx tail As ∧
     NestedBindingContextWF lctx openedState.ngen ∧
-    ∃ Hselection : LocalForallSelection lctx As,
+    ∃ Hselection : CDeclArray lctx As,
       Hselection.fvars.Nodup ∧
       openedState.newTypes = state.newTypes ∧
       openedState.nestedAux = state.nestedAux ∧
@@ -42,7 +42,7 @@ execution invariant. -/
 def NestedParamOpening.closingContext
     (H : NestedParamOpening {} #[] source n lctx tail As)
     (Hbinding : NestedBindingContextWF lctx ngen)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (hnodup : Hselection.fvars.Nodup)
     (Hsource : source.FVarsIn fun _ => False) :
     NestedClosingContext lctx As ngen := by
@@ -164,7 +164,7 @@ structure LoweredConstructorMapping
   mapped : ∃ lctx tail As lowered openedState,
     NestedParamOpening {} #[] source.type nparams lctx tail As ∧
     lctx.WF ∧
-    ∃ Hselection : LocalForallSelection lctx As,
+    ∃ Hselection : CDeclArray lctx As,
       Hselection.fvars.Nodup ∧
       openedState.newTypes = state.newTypes ∧
       openedState.nestedAux = state.nestedAux ∧
@@ -187,7 +187,7 @@ structure LoweredConstructorReopening
   name : out.1.name = source.name
   reopened : ∃ lctx tail As lowered openedState,
     NestedParamOpening {} #[] source.type nparams lctx tail As ∧
-    ∃ Hselection : LocalForallSelection lctx As,
+    ∃ Hselection : CDeclArray lctx As,
       Hselection.fvars.Nodup ∧
       openedState.newTypes = state.newTypes ∧
       openedState.nestedAux = state.nestedAux ∧
@@ -276,7 +276,7 @@ theorem LoweredConstructorReopening.restoreTail
       restoreAs restoredTail) :
     ∃ lctx tail As lowered openedState,
       NestedParamOpening {} #[] source.type nparams lctx tail As ∧
-      ∃ Hselection : LocalForallSelection lctx As,
+      ∃ Hselection : CDeclArray lctx As,
         Hselection.fvars.Nodup ∧
         openedState.newTypes = state.newTypes ∧
         openedState.nestedAux = state.nestedAux ∧
@@ -315,7 +315,7 @@ theorem LoweredConstructorReopening.restoreTail_inverse
     (hsourceBVar : Closed source.type) :
     ∃ lctx tail As lowered openedState,
       NestedParamOpening {} #[] source.type nparams lctx tail As ∧
-      ∃ Hselection : LocalForallSelection lctx As,
+      ∃ Hselection : CDeclArray lctx As,
         Hselection.fvars.Nodup ∧
         openedState.newTypes = state.newTypes ∧
         openedState.nestedAux = state.nestedAux ∧
@@ -395,7 +395,7 @@ theorem LoweredConstructorMapping.restoredBody_inverse
     (Hsource : RestoreSourceDisjoint finalResult restoreEnv source.type) :
     ∃ lctx tail As,
       NestedParamOpening {} #[] source.type nparams lctx tail As ∧
-      ∃ Hselection : LocalForallSelection lctx As,
+      ∃ Hselection : CDeclArray lctx As,
         Hselection.fvars.Nodup ∧ As.size = nparams ∧
         (restoredBody == Expr.reopenParams tail As restoreAs) = true := by
   have Hreopening : LoweredConstructorReopening env params nparams finalResult
@@ -428,7 +428,7 @@ structure ConstructorRestorationBodyInverse
   loweredOpening : RestoreParamOpening {} #[] lowered.type nparams
     restoreLctx restoreAs openedBody
   restoreLctxWF : restoreLctx.WF
-  restoreSelection : LocalForallSelection restoreLctx restoreAs
+  restoreSelection : CDeclArray restoreLctx restoreAs
   restoreNodup : restoreSelection.fvars.Nodup
   bodyRestoration : ExprReplacement
     (result.restoreNestedNode env restoreAs {}) openedBody restoredBody
@@ -445,7 +445,7 @@ structure ConstructorRestorationBodyInverse
     Expr.SameForallPrefix nparams source.type lowered.type
   sourceOpening : NestedParamOpening {} #[] source.type nparams sourceLctx
     sourceTail sourceAs
-  sourceSelection : LocalForallSelection sourceLctx sourceAs
+  sourceSelection : CDeclArray sourceLctx sourceAs
   sourceNodup : sourceSelection.fvars.Nodup
   sourceArity : sourceAs.size = nparams
   bodyInverse :
@@ -1494,7 +1494,7 @@ structure NestedLoweringRun
     paramsState.nextIdx = initialState.nextIdx ∧
     paramsState.ngen.namePrefix = initialState.ngen.namePrefix ∧
     NestedBindingContextWF lctx paramsState.ngen ∧
-    Nonempty (LocalForallSelection lctx params) ∧
+    Nonempty (CDeclArray lctx params) ∧
     LoweringQueueTrace env params nparams lctx 0 fuel
       paramsState out
   /-- The run never modifies the universe arguments `lvls` of the state. -/
@@ -1526,7 +1526,7 @@ theorem NestedLoweringRun.resultParamsSize
 opened before the dynamic lowering queue starts. -/
 theorem NestedLoweringRun.resultContextSelection
     (H : NestedLoweringRun env fuel nparams types initialState out) :
-    Nonempty (LocalForallSelection out.1.lctx out.1.params) := by
+    Nonempty (CDeclArray out.1.lctx out.1.params) := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _,
       _hprefix, _Hctx, Hselection, Hqueue⟩
@@ -1650,7 +1650,7 @@ theorem NestedLoweringRun.validatedAuxiliaryResidualTranslations
     (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
     (hlctx : mlctx.lctx = res.lctx)
     (Hvalidated : ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res) :
-    ∃ selection : LocalForallSelection res.lctx res.params,
+    ∃ selection : CDeclArray res.lctx res.params,
       ClosedNestedAuxiliaryTranslations venv lparams res selection := by
   rcases H.resultContextSelection with ⟨selection⟩
   have hparams : res.params.toList.reverse =

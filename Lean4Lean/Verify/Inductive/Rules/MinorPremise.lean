@@ -35,23 +35,23 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ D : BoundFVarDeclarationAt H.localContext
+      ∃ D : FVarDeclAt H.localContext
           (H.recInfos.flatMap (·.minors)) minorIdx,
         ∃ O : H.origins.FlatMinorOrigin D,
-          ∃ S : RecInfoMinorTypeShape,
+          ∃ S : MinorPremiseType,
             S.origin = D.type ∧
             S.localIndex = i ∧
             S.sourceConstructors = indTypes[owner]!.ctors ∧
             S.constructor = indTypes[owner]!.ctors[i] ∧
             S.fields.size = A.rule.allArgs.size ∧
-            Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+            Nonempty (TypedMinorTraversalAt H.recursorWF S
               H.parameterSuffix.parameterDecls) ∧
             ∃ hypothesisOrigins,
               S.hypothesis_type_origins = some hypothesisOrigins ∧
               hypothesisOrigins.stats = stats ∧
               hypothesisOrigins.recInfos.map (·.motive) =
                 H.recInfos.map (·.motive) ∧
-              ∃ traversal : RecInfoMinorTraversalShape,
+              ∃ traversal : ConstructorFieldTraversal,
                 S.traversal = some traversal ∧
                 traversal.constructor = S.constructor ∧
                 traversal.fields = S.fields ∧
@@ -162,7 +162,7 @@ theorem
       A.semantics.fieldOpening.telescope
       traversal.fieldResidual_not_forall hsemanticResidual).1
   have Hsemantic :
-      Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+      Nonempty (TypedMinorTraversalAt H.recursorWF S
         H.parameterSuffix.parameterDecls) := by
     simpa [S] using
       H.minorSemantics O.owner O.owner_lt O.localIndex hshapeBound
@@ -209,8 +209,8 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
-    ∃ S : RecInfoMinorTypeShape,
-      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+    ∃ S : MinorPremiseType,
+      ∃ HS : TypedMinorTraversalAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
         S.localIndex = i ∧
         HS.semantic.traversal.parameterTail =
@@ -275,8 +275,8 @@ theorem
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
-    ∃ S : RecInfoMinorTypeShape,
-      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+    ∃ S : MinorPremiseType,
+      ∃ HS : TypedMinorTraversalAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
         ∃ target,
           S.localIndex = i ∧
@@ -327,8 +327,8 @@ theorem
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
-    ∃ S : RecInfoMinorTypeShape,
-      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+    ∃ S : MinorPremiseType,
+      ∃ HS : TypedMinorTraversalAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
         ∃ target fieldDomains fieldResult,
           S.localIndex = i ∧
@@ -385,8 +385,8 @@ theorem
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
-    ∃ S : RecInfoMinorTypeShape,
-      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+    ∃ S : MinorPremiseType,
+      ∃ HS : TypedMinorTraversalAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
         ∃ minorFieldDomains minorFieldResult checkedFieldDomains
             checkedFieldResult,
@@ -468,10 +468,10 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecInfoMinorTypeShape,
-        ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+      ∃ S : MinorPremiseType,
+        ∃ hypothesisOrigins : MinorInductionHypothesisTypes
             S.sourceFullContext S.recursiveFields S.hypotheses,
-        ∃ traversal : RecInfoMinorTraversalShape,
+        ∃ traversal : ConstructorFieldTraversal,
         S.hypothesis_type_origins = some hypothesisOrigins ∧
         hypothesisOrigins.stats = stats ∧
         hypothesisOrigins.recInfos.map (·.motive) =
@@ -486,7 +486,7 @@ theorem
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
         BindingContextLE S.sourceFullContext H.localContext ∧
-        Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+        Nonempty (TypedMinorTraversalAt H.recursorWF S
           H.parameterSuffix.parameterDecls) ∧
         A.minorShape = S ∧
         let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
@@ -571,8 +571,8 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecInfoMinorTypeShape,
-      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+      ∃ S : MinorPremiseType,
+      ∃ HS : TypedMinorTraversalAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
       ∃ scope,
       ∃ Hscope : checkInductiveTypes.loopType.ScopeEmbedding
@@ -629,7 +629,7 @@ theorem
     Option.some.inj (HS.semantic.traversal_eq.symm.trans htraversal)
   have hsemanticParameterTail :
       HS.semantic.traversal.parameterTail = A.semantics.parameterTail :=
-    (congrArg RecInfoMinorTraversalShape.parameterTail
+    (congrArg ConstructorFieldTraversal.parameterTail
       hsemanticTraversal).trans hparameterTail
   rcases A.finalSelectedMinorPrefixDefEqCtx with
     ⟨T₀, scope, Hscope, hscope, hscopeShift, hscopeSource, Hprefix₀⟩
@@ -724,10 +724,10 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecInfoMinorTypeShape,
-        ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+      ∃ S : MinorPremiseType,
+        ∃ hypothesisOrigins : MinorInductionHypothesisTypes
             S.sourceFullContext S.recursiveFields S.hypotheses,
-        ∃ traversal : RecInfoMinorTraversalShape,
+        ∃ traversal : ConstructorFieldTraversal,
         ∃ fieldDomains hypothesisDomains sourceResidual targetResidual,
           S.hypothesis_type_origins = some hypothesisOrigins ∧
           hypothesisOrigins.stats = stats ∧
@@ -743,7 +743,7 @@ theorem
           S.fields.size = A.rule.allArgs.size ∧
           S.hypotheses.size = A.rule.recursiveArgs.size ∧
           BindingContextLE S.sourceFullContext H.localContext ∧
-          Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+          Nonempty (TypedMinorTraversalAt H.recursorWF S
             H.parameterSuffix.parameterDecls) ∧
           A.minorShape = S ∧
           fieldDomains.length = A.rule.allArgs.size ∧
@@ -830,11 +830,11 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecInfoMinorTypeShape,
-      ∃ traversal : RecInfoMinorTraversalShape,
-      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+      ∃ S : MinorPremiseType,
+      ∃ traversal : ConstructorFieldTraversal,
+      ∃ HS : TypedMinorTraversalAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
-      ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+      ∃ hypothesisOrigins : MinorInductionHypothesisTypes
           S.sourceFullContext S.recursiveFields S.hypotheses,
       ∃ fieldDomains hypothesisDomains targetResidual,
         hypothesisOrigins.stats = stats ∧
@@ -1074,7 +1074,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    (S : RecInfoMinorTypeShape) (traversal : RecInfoMinorTraversalShape)
+    (S : MinorPremiseType) (traversal : ConstructorFieldTraversal)
     (hconstructor : S.constructor = indTypes[owner]!.ctors[i])
     (htraversalFields : traversal.fields = S.fields)
     (hfieldFVars : traversal.fieldFVars = S.fields_bound.fvars)
@@ -1164,7 +1164,7 @@ theorem
     rw [hlength] at hleft
     exact hleft.trans hright.symm
   rw [hmotiveApp, hconstructor]
-  unfold BoundGeneratedRecursorRule.sourceConstructorMajor
+  unfold RecursorRuleSyntax.sourceConstructorMajor
   simp only [Expr.abstractList_app, Expr.abstractList_mkAppN,
     Expr.abstractList_const]
   rw [hindices, hparams, hsourceFields]
@@ -1185,7 +1185,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    (S : RecInfoMinorTypeShape)
+    (S : MinorPremiseType)
     (hfieldClosure :
       S.motiveApp.abstractList S.fields_bound.fvars =
         Expr.app
@@ -1219,8 +1219,8 @@ theorem
     exact Or.inr <| List.mem_append_right _
       (List.getElem_mem hownerMotiveFVars)
   have hsemanticFields : A.semantics.fieldsRecent.fvars = fieldFVars :=
-    BoundFVarArray.fvars_eq
-      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+    FVarArrayIn.fvars_eq
+      A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
       A.rule.all_args_bound rfl
   have hparameterFVars : ExprArrayFVarIds stats.params =
       A.rule.params_bound.fvars := by
@@ -1261,7 +1261,7 @@ theorem
   have Hmajor :
       (A.rule.sourceConstructorMajor.abstractList fieldFVars).FVarsIn P := by
     have HconstructorScope := A.semantics.constructor_translation.fvarsIn
-    unfold BoundGeneratedRecursorRule.sourceConstructorMajor at HconstructorScope
+    unfold RecursorRuleSyntax.sourceConstructorMajor at HconstructorScope
     rw [Expr.mkAppN_eq_mkAppList, Expr.mkAppN_eq_mkAppList] at HconstructorScope
     have HconstContext :=
       (FVarsIn.mkAppList.mp (FVarsIn.mkAppList.mp HconstructorScope).1).1
@@ -1271,7 +1271,7 @@ theorem
       change ∀ level ∈ stats.levels, level.hasMVar' = false at HconstContext
       exact HconstContext
     apply FVarsIn.abstractList_of
-    unfold BoundGeneratedRecursorRule.sourceConstructorMajor
+    unfold RecursorRuleSyntax.sourceConstructorMajor
     rw [Expr.mkAppN_eq_mkAppList, Expr.mkAppN_eq_mkAppList]
     apply FVarsIn.mkAppList.mpr
     constructor
@@ -1316,8 +1316,8 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    (S : RecInfoMinorTypeShape)
-    (HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+    (S : MinorPremiseType)
+    (HS : TypedMinorTraversalAt H.recursorWF S
       H.parameterSuffix.parameterDecls)
     (indices : Array Expr) (major : Expr)
     (hmotiveApp : S.motiveApp =
@@ -1347,8 +1347,8 @@ theorem
     exact hheadRoot
   have hfieldFVars : HS.semantic.fieldsRecent.fvars =
       S.fields_bound.fvars :=
-    BoundFVarArray.fvars_eq_of_array_eq
-      HS.semantic.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+    FVarArrayIn.fvars_eq_of_array_eq
+      HS.semantic.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
       S.fields_bound rfl
   have hnotField : motiveFVar ∉ S.fields_bound.fvars := by
     intro hfield
@@ -1372,10 +1372,10 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    (S : RecInfoMinorTypeShape)
-    (HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+    (S : MinorPremiseType)
+    (HS : TypedMinorTraversalAt H.recursorWF S
       H.parameterSuffix.parameterDecls)
-    (traversal : RecInfoMinorTraversalShape)
+    (traversal : ConstructorFieldTraversal)
     (hmotiveApp : S.motiveApp =
       Expr.app
         (mkAppN H.recInfos[owner]!.motive
@@ -1422,14 +1422,14 @@ theorem
       (AddInductive.getIIndices stats A.rule.target).2)
     A.rule.sourceConstructorMajor
   have hsourceParams : H.params.fvars = A.rule.params_bound.fvars :=
-    BoundFVarArray.fvars_eq_of_array_eq H.params A.rule.params_bound rfl
+    FVarArrayIn.fvars_eq_of_array_eq H.params A.rule.params_bound rfl
   have hsourceMotives : H.bindings.motives.fvars =
       A.rule.motives_bound.fvars :=
-    BoundFVarArray.fvars_eq_of_array_eq H.bindings.motives
+    FVarArrayIn.fvars_eq_of_array_eq H.bindings.motives
       A.rule.motives_bound rfl
   have hsourceMinors : H.bindings.flatMinors.fvars =
       A.rule.minors_bound.fvars :=
-    BoundFVarArray.fvars_eq_of_array_eq H.bindings.flatMinors
+    FVarArrayIn.fvars_eq_of_array_eq H.bindings.flatMinors
       A.rule.minors_bound rfl
   have hsourceBinders : sourceBinders = generatedPrefix := by
     simp only [sourceBinders, generatedPrefix, outer]
@@ -1540,9 +1540,9 @@ theorem
     have Hclose := Expr.abstractList_after_inner
       (e := expected) (outer := outer ++ A.rule.minors_bound.fvars)
       (inner := A.rule.all_args_bound.fvars) (k := 0) (by
-        simpa [outer, BoundGeneratedRecursorRule.binders,
+        simpa [outer, RecursorRuleSyntax.binders,
           List.append_assoc] using A.rule.binders_nodup)
-    simpa [outer, BoundGeneratedRecursorRule.binders,
+    simpa [outer, RecursorRuleSyntax.binders,
       A.rule.all_args_bound.length_fvars, List.append_assoc] using Hclose
   have hsourcePrefix :
       (((S.motiveApp.abstractList S.hypotheses_bound.fvars).abstractList
@@ -1672,10 +1672,10 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecInfoMinorTypeShape,
-        ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+      ∃ S : MinorPremiseType,
+        ∃ hypothesisOrigins : MinorInductionHypothesisTypes
             S.sourceFullContext S.recursiveFields S.hypotheses,
-        ∃ traversal : RecInfoMinorTraversalShape,
+        ∃ traversal : ConstructorFieldTraversal,
         ∃ fieldDomains hypothesisDomains targetResidual sourceDomain,
           S.hypothesis_type_origins = some hypothesisOrigins ∧
           hypothesisOrigins.stats = stats ∧
@@ -1691,7 +1691,7 @@ theorem
           S.fields.size = A.rule.allArgs.size ∧
           S.hypotheses.size = A.rule.recursiveArgs.size ∧
           BindingContextLE S.sourceFullContext H.localContext ∧
-          Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+          Nonempty (TypedMinorTraversalAt H.recursorWF S
             H.parameterSuffix.parameterDecls) ∧
           A.minorShape = S ∧
           fieldDomains.length = A.rule.allArgs.size ∧
@@ -1788,12 +1788,12 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecInfoMinorTypeShape,
-        ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+      ∃ S : MinorPremiseType,
+        ∃ hypothesisOrigins : MinorInductionHypothesisTypes
             S.sourceFullContext S.recursiveFields S.hypotheses,
-        ∃ traversal : RecInfoMinorTraversalShape,
+        ∃ traversal : ConstructorFieldTraversal,
         ∃ fieldDomains hypothesisDomains targetResidual,
-          ∃ D : BoundFVarDeclarationAt
+          ∃ D : FVarDeclAt
               S.sourceFullContext S.hypotheses j,
             S.hypothesis_type_origins = some hypothesisOrigins ∧
             hypothesisOrigins.stats = stats ∧
@@ -1813,7 +1813,7 @@ theorem
             S.fields.size = A.rule.allArgs.size ∧
             S.hypotheses.size = A.rule.recursiveArgs.size ∧
             BindingContextLE S.sourceFullContext H.localContext ∧
-            Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+            Nonempty (TypedMinorTraversalAt H.recursorWF S
               H.parameterSuffix.parameterDecls) ∧
             A.minorShape = S ∧
             fieldDomains.length = A.rule.allArgs.size ∧
@@ -1845,7 +1845,7 @@ theorem
                   (T.params ++ T.motives ++ T.minors.take minorIdx) [])).toCtx
               hypothesisDomains[j]! ∧
             ∃ originRoot sourceType,
-              ∃ O : RecInfoMinorHypothesisTypeOrigin
+              ∃ O : InductionHypothesisType
                 hypothesisOrigins.stats hypothesisOrigins.recInfos
                 originRoot S.recursiveFields[j]! sourceType,
               D.type = (sourceType.consumeTypeAnnotationsVerified

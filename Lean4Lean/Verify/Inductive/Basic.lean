@@ -785,32 +785,32 @@ theorem VEnv.TypedApplicationSpine.hasType
       simpa [VExpr.mkApps] using ih
 
 /-- Canonical variables for a telescope, in source binder order. -/
-def recursorCanonicalVars (n : Nat) : List VExpr :=
+def bvarSpine (n : Nat) : List VExpr :=
   (List.range n).reverse.map .bvar
 
-@[simp] theorem recursorCanonicalVars_zero : recursorCanonicalVars 0 = [] :=
+@[simp] theorem recursorCanonicalVars_zero : bvarSpine 0 = [] :=
   rfl
 
 theorem recursorCanonicalVars_eq_ofFn (n : Nat) :
-    recursorCanonicalVars n =
+    bvarSpine n =
       List.ofFn fun i : Fin n => VExpr.bvar (n - 1 - i) := by
   apply List.ext_getElem
-  · simp [recursorCanonicalVars]
+  · simp [bvarSpine]
   · intro i hleft hright
-    simp [recursorCanonicalVars]
+    simp [bvarSpine]
 
 theorem recursorCanonicalVars_succ_cons (n : Nat) :
-    recursorCanonicalVars (n + 1) =
-      .bvar n :: recursorCanonicalVars n := by
-  simp [recursorCanonicalVars, List.range_succ]
+    bvarSpine (n + 1) =
+      .bvar n :: bvarSpine n := by
+  simp [bvarSpine, List.range_succ]
 
 /-- Split canonical telescope variables into an older applied initial block,
 weakened below the still-open suffix, followed by the suffix variables. -/
 theorem recursorCanonicalVars_add (initialCount suffixCount : Nat) :
-    recursorCanonicalVars (initialCount + suffixCount) =
-      (recursorCanonicalVars initialCount).map
+    bvarSpine (initialCount + suffixCount) =
+      (bvarSpine initialCount).map
           (fun arg => arg.liftN suffixCount 0) ++
-        recursorCanonicalVars suffixCount := by
+        bvarSpine suffixCount := by
   induction initialCount with
   | zero => simp
   | succ initialCount ih =>
@@ -834,17 +834,17 @@ application of any older initial block, weakened below the remaining suffix. -/
 theorem VExpr.mkApps_canonical_add
     (fn : VExpr) (initialCount suffixCount : Nat) :
     VExpr.mkApps (fn.liftN (initialCount + suffixCount) 0)
-        (recursorCanonicalVars (initialCount + suffixCount)) =
+        (bvarSpine (initialCount + suffixCount)) =
       VExpr.mkApps
         ((VExpr.mkApps (fn.liftN initialCount 0)
-          (recursorCanonicalVars initialCount)).liftN suffixCount 0)
-        (recursorCanonicalVars suffixCount) := by
+          (bvarSpine initialCount)).liftN suffixCount 0)
+        (bvarSpine suffixCount) := by
   have hinitialApp :
       VExpr.mkApps (fn.liftN (initialCount + suffixCount) 0)
-          ((recursorCanonicalVars initialCount).map
+          ((bvarSpine initialCount).map
             (fun arg => arg.liftN suffixCount 0)) =
         (VExpr.mkApps (fn.liftN initialCount 0)
-          (recursorCanonicalVars initialCount)).liftN suffixCount 0 := by
+          (bvarSpine initialCount)).liftN suffixCount 0 := by
     rw [VExpr.liftN_mkApps]
     simp [VExpr.liftN_liftN]
   rw [recursorCanonicalVars_add]
@@ -927,7 +927,7 @@ the major exactly as the canonical variables of one combined telescope. -/
 theorem concreteRecursorResultArgs_eq_canonical (numIndices : Nat) :
     ((List.range numIndices).reverse.map fun index =>
         VExpr.bvar (index + 1)) ++ [.bvar 0] =
-      recursorCanonicalVars (numIndices + 1) := by
+      bvarSpine (numIndices + 1) := by
   induction numIndices with
   | zero => rfl
   | succ numIndices ih =>
@@ -937,8 +937,8 @@ theorem concreteRecursorResultArgs_eq_canonical (numIndices : Nat) :
 
 @[simp] theorem recursorCanonicalVars_liftN_at_length
     (n shift : Nat) :
-    (recursorCanonicalVars n).map (fun arg => arg.liftN shift n) =
-      recursorCanonicalVars n := by
+    (bvarSpine n).map (fun arg => arg.liftN shift n) =
+      bvarSpine n := by
   rw [recursorCanonicalVars_eq_ofFn]
   apply List.ext_getElem
   · simp
@@ -949,9 +949,9 @@ theorem concreteRecursorResultArgs_eq_canonical (numIndices : Nat) :
 
 theorem recursorCanonicalVars_liftN_comp
     (n inner outer : Nat) :
-    ((recursorCanonicalVars n).map (fun arg => arg.liftN inner 0)).map
+    ((bvarSpine n).map (fun arg => arg.liftN inner 0)).map
         (fun arg => arg.liftN outer inner) =
-      (recursorCanonicalVars n).map
+      (bvarSpine n).map
         (fun arg => arg.liftN (inner + outer) 0) := by
   rw [recursorCanonicalVars_eq_ofFn]
   apply List.ext_getElem
@@ -967,7 +967,7 @@ theorem recursorCanonicalVars_liftN_comp
 block gives the direct de Bruijn numbering in the combined context. -/
 theorem recursorCanonicalVars_liftN_zero_eq_ofFn
     (outer inner : Nat) :
-    (recursorCanonicalVars outer).map
+    (bvarSpine outer).map
         (fun arg => arg.liftN inner 0) =
       List.ofFn fun i : Fin outer =>
         VExpr.bvar (outer + inner - 1 - i) := by
@@ -1252,8 +1252,8 @@ theorem VExpr.inst_mkApps
 
 @[simp] theorem recursorCanonicalVars_inst_at_length
     (n : Nat) (arg : VExpr) :
-    (recursorCanonicalVars n).map (fun e => e.inst arg n) =
-      recursorCanonicalVars n := by
+    (bvarSpine n).map (fun e => e.inst arg n) =
+      bvarSpine n := by
   rw [recursorCanonicalVars_eq_ofFn]
   apply List.ext_getElem
   · simp
@@ -1266,9 +1266,9 @@ theorem VExpr.inst_mkApps
 theorem VExpr.inst_canonicalResult
     (fn arg : VExpr) (n : Nat) :
     (VExpr.mkApps (fn.liftN (n + 1) 0)
-        (recursorCanonicalVars (n + 1))).inst arg n =
+        (bvarSpine (n + 1))).inst arg n =
       VExpr.mkApps ((VExpr.app fn arg).liftN n 0)
-        (recursorCanonicalVars n) := by
+        (bvarSpine n) := by
   rw [VExpr.inst_mkApps, recursorCanonicalVars_succ_cons,
     List.map_cons, recursorCanonicalVars_inst_at_length,
     VExpr.inst_liftN_lo]
@@ -1283,14 +1283,14 @@ theorem VExpr.applyForallType_wrapForalls_canonical
     VExpr.applyForallType
         (VExpr.wrapForalls domains
           (VExpr.mkApps (fn.liftN domains.length 0)
-            (recursorCanonicalVars domains.length))) args =
+            (bvarSpine domains.length))) args =
       VExpr.mkApps fn args := by
   have go : ∀ n (domains args : List VExpr) (fn : VExpr),
       domains.length = n → args.length = n →
       VExpr.applyForallType
           (VExpr.wrapForalls domains
             (VExpr.mkApps (fn.liftN n 0)
-              (recursorCanonicalVars n))) args =
+              (bvarSpine n))) args =
         VExpr.mkApps fn args := by
     intro n
     induction n with
@@ -1318,7 +1318,7 @@ theorem VExpr.applyForallType_wrapForalls_canonical
           change VExpr.applyForallType
             ((VExpr.wrapForalls domains
               (VExpr.mkApps (fn.liftN (n + 1) 0)
-                (recursorCanonicalVars (n + 1)))).inst arg) args =
+                (bvarSpine (n + 1)))).inst arg) args =
             VExpr.mkApps fn (arg :: args)
           rw [VExpr.inst_wrapForalls]
           simp only [Nat.zero_add]
@@ -1383,7 +1383,7 @@ theorem RecursorMotiveTelescope.wrapForalls
       (VExpr.wrapForalls domains
         (.forallE
           (VExpr.mkApps (family.liftN domains.length 0)
-            (recursorCanonicalVars domains.length))
+            (bvarSpine domains.length))
           (.sort resultLevel))) := by
   induction domains generalizing family with
   | nil =>

@@ -331,7 +331,7 @@ theorem GeneratedAuxiliaryBatch.resultSome
 theorem GeneratedAuxiliaryBatch.auxFVarsIn
     (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
       args result sourceNames state out)
-    (HAs : LocalForallSelection lctx As)
+    (HAs : CDeclArray lctx As)
     (hnparams : nparams ≤ args.size)
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args,

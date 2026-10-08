@@ -272,7 +272,7 @@ structure CheckedFormation (c : AddInductive.Context)
     headerVEnv c.lparams headerMLCtx.vlctx stats decl depth
   materializedParams : statsWF.headers.params = params
   materializedParameterScope : statsWF.parameterScope = parameterScope
-  constructorTails : CheckedRecursorConstructorTails headerVEnv c.lparams
+  constructorTails : ConstructorTails headerVEnv c.lparams
     parameterScope stats decl indTypes
   ctorVEnv : VEnv
   formation : FormationCertificate sourceEnv decl
@@ -325,7 +325,7 @@ def SourceConstructorReplay (env : VEnv) (Us : List Name) (scope : VLCtx)
     (s : InductiveSignature) (ctor : InductiveSignature.Constructor s.families.size) : Prop :=
   ∃ tail tailTarget sourceDomains,
     TrSourceConstRaw env Us source.name source.type sourceCtor ∧
-    RecursorParamPrefix stats 0 source.type tail ∧
+    ParameterPrefix stats 0 source.type tail ∧
     CheckedConstructorParameterPrefix env Us stats source.type stats.params.size tail scope sourceDomains ∧
     TrExprS env Us scope tail tailTarget ∧
     ConstructorTailCertificate env decl target scope.toCtx 0 tailTarget ∧
@@ -371,7 +371,7 @@ theorem SourceConstructorReplay.tailTranslation
     {s : InductiveSignature}
     {ctor : InductiveSignature.Constructor s.families.size}
     (H : SourceConstructorReplay env Us scope stats decl target source sourceCtor s ctor)
-    (hprefix : RecursorParamPrefix stats 0 source.type residual) :
+    (hprefix : ParameterPrefix stats 0 source.type residual) :
     TrExprS env Us scope residual
       (VExpr.wrapForalls (s.fieldTypes ctor)
         (s.familyApp ctor.owner (VLevel.params s.uvars)

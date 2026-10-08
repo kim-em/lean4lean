@@ -327,7 +327,7 @@ structure GeneratedFamilyWitness
   sourceInfo : InductiveVal
   sourceNumParams : nestedNParams = sourceInfo.numParams
   data : Lean4Lean.ElimNestedInductive.AuxiliaryData
-  selection : LocalForallSelection lctx As
+  selection : CDeclArray lctx As
   selectionNodup : selection.fvars.Nodup
   ngen : NameGenerator
   closing : NestedClosingContext lctx As ngen
@@ -345,7 +345,7 @@ application over the parameters selected when the auxiliary was built.  The
 retained argument-scope invariant is the essential alpha-conversion premise. -/
 theorem GeneratedFamilyWitness.cachedClosureAlpha
     (H : GeneratedFamilyWitness env params nestedAux family)
-    (resultSelection : LocalForallSelection resultLctx params)
+    (resultSelection : CDeclArray resultLctx params)
     (hresultNodup : resultSelection.fvars.Nodup) :
     H.data.nested.abstractList resultSelection.fvars =
       (mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
@@ -377,7 +377,7 @@ closure of the source application over the parameters selected when the
 auxiliary was built. -/
 theorem GeneratedFamilyWitness.cachedClosureAlphaExact
     (H : GeneratedFamilyWitness env params nestedAux family)
-    (resultSelection : LocalForallSelection resultLctx params)
+    (resultSelection : CDeclArray resultLctx params)
     (hresultNodup : resultSelection.fvars.Nodup) :
     H.data.nested.abstract params =
       (mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
@@ -962,7 +962,7 @@ all trailing arguments are inherited from the source application. -/
 theorem NestedReplacementHasFinalMapping.outputFVarsIn
     (H : NestedReplacementHasFinalMapping env lctx params As input state
       lowered finalResult)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
     lowered.FVarIdsIn (· ∈ Hselection.fvars) := by
   rcases H with
@@ -989,7 +989,7 @@ theorem NestedReplacementHasFinalMapping.outputFVarsIn
 theorem NestedReplacementFinalTrace.outputFVarsIn
     (H : NestedReplacementFinalTrace env lctx params As input state lowered
       nextState finalResult finalState)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
     lowered.FVarIdsIn (· ∈ Hselection.fvars) :=
   H.mapping.outputFVarsIn Hselection Hinput
@@ -1022,7 +1022,7 @@ theorem NestedReplacementReopens.restoreNode
     (H : NestedReplacementReopens env lctx params As input state lowered
       finalResult restoreAs)
     (restoreEnv : Environment)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (hnd : Hselection.fvars.Nodup)
     (restoreFvars : List FVarId)
     (hrestore : restoreAs = (restoreFvars.map Expr.fvar).toArray)
@@ -1122,7 +1122,7 @@ theorem NestedReplacementHasFinalMapping.reopens
     (fvars : List FVarId)
     (hparams : params = (fvars.map Expr.fvar).toArray)
     (hnodup : fvars.Nodup)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (hAs : Hselection.fvars.length ≤ fvars.length)
     (hclosed : ∀ value targetName levels,
       NestedAppCandidate env state input value →
@@ -1172,7 +1172,7 @@ theorem NestedReplacementHasFinalMapping.reopens
 once all constructor-opening free variables are abstracted. -/
 theorem NestedAppCandidate.abstractedPrefixClosed
     (H : NestedAppCandidate env state input value)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (Hinput : FVarsIn (· ∈ Hselection.fvars) input)
     (hhead : input.getAppFn = .const targetName levels) :
     FVarsIn (fun _ => False)
@@ -1199,7 +1199,7 @@ theorem NestedReplacementHasFinalMapping.reopensOfFVars
     (fvars : List FVarId)
     (hparams : params = (fvars.map Expr.fvar).toArray)
     (hnodup : fvars.Nodup)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (hAs : Hselection.fvars.length ≤ fvars.length)
     (Hinput : FVarsIn (· ∈ Hselection.fvars) input) :
     NestedReplacementReopens env lctx params As input state lowered
@@ -1215,7 +1215,7 @@ theorem NestedReplacementFinalTrace.reopensOfFVars
     (fvars : List FVarId)
     (hparams : params = (fvars.map Expr.fvar).toArray)
     (hnodup : fvars.Nodup)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (hAs : Hselection.fvars.length ≤ fvars.length)
     (Hinput : FVarsIn (· ∈ Hselection.fvars) input) :
     NestedReplacementReopens env lctx params As input state lowered
@@ -1319,7 +1319,7 @@ inductive NestedExprMapping
 `outputFVarsIn`; structural misses inherit the property componentwise. -/
 theorem NestedExprMapping.outputFVarIdsIn
     (H : NestedExprMapping env lctx params As finalResult input state out)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
     out.1.FVarIdsIn (· ∈ Hselection.fvars) := by
   induction H with
@@ -1354,7 +1354,7 @@ hit replaces a closed parameter prefix by an auxiliary head applied to the
 copied parameter variables, and structural misses recurse componentwise. -/
 theorem NestedExprMapping.closed
     (H : NestedExprMapping env lctx params As finalResult input state out)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (Hinput : Closed input k) : Closed out.1 k := by
   induction H generalizing k with
   | occurrence Hnode =>
@@ -1485,7 +1485,7 @@ at every depth. -/
 theorem NestedExprReopening.closed
     (H : NestedExprReopening env lctx params As finalResult restoreAs input
       state out)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (Hinput : Closed input k) : Closed out.1 k := by
   induction H generalizing k with
   | occurrence Hnode =>
@@ -1538,7 +1538,7 @@ theorem NestedExprMapping.reopens
     (fvars : List FVarId)
     (hparams : params = (fvars.map Expr.fvar).toArray)
     (hnodup : fvars.Nodup)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (hAs : Hselection.fvars.length ≤ fvars.length)
     (Hinput : FVarsIn (· ∈ Hselection.fvars) input) :
     NestedExprReopening env lctx params As finalResult restoreAs input state
@@ -1664,7 +1664,7 @@ theorem NestedExprReopening.restore_eqv
     (H : NestedExprReopening env lctx params As finalResult targetAs input
       state out)
     (restoreEnv : Environment)
-    (Hselection : LocalForallSelection lctx As)
+    (Hselection : CDeclArray lctx As)
     (hnd : Hselection.fvars.Nodup)
     (restoreFvars : List FVarId)
     (hrestore : targetAs = (restoreFvars.map Expr.fvar).toArray)
@@ -1916,7 +1916,7 @@ theorem NestedExprReopening.restore_eqv
 theorem RecognizedNestedReplacement.auxFVarsIn
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
       value state out)
-    (HAs : LocalForallSelection lctx As)
+    (HAs : CDeclArray lctx As)
     (hnparams : value.numParams ≤ args.size)
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args,
@@ -1931,7 +1931,7 @@ theorem RecognizedNestedReplacement.auxFVarsIn
 
 theorem NestedReplacement.auxFVarsIn
     (H : NestedReplacement env lctx params As e state out)
-    (HAs : LocalForallSelection lctx As)
+    (HAs : CDeclArray lctx As)
     (Hinput : e.FVarsIn (fun fv => fv ∈ HAs.fvars ∨ P fv))
     (Hparams : ∀ param ∈ params, param.FVarsIn P)
     (Hstate : NestedAuxFVarsIn P state) :
@@ -2169,7 +2169,7 @@ theorem NestedExprReplacement.pendingNewTypesClosed
 
 theorem NestedExprReplacement.auxFVarsIn
     (H : NestedExprReplacement env lctx params As e state out)
-    (HAs : LocalForallSelection lctx As)
+    (HAs : CDeclArray lctx As)
     (Hinput : e.FVarsIn (fun fv => fv ∈ HAs.fvars ∨ P fv))
     (Hparams : ∀ param ∈ params, param.FVarsIn P)
     (Hstate : NestedAuxFVarsIn P state) :

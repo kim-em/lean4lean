@@ -339,7 +339,7 @@ theorem PrimitiveHeaderEnvironment.parameterPrefixes
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
-    CheckedRecursorParameterPrefixes stats indTypes := by
+    ConstructorParameterPrefixes stats indTypes := by
   have hparams := H.params_size_eq_zero Hshape
   refine ⟨?_, ?_⟩
   · intro familyIdx hfamily ctorIdx hctor
@@ -588,7 +588,7 @@ theorem PrimitiveHeaderEnvironment.constructorTails
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
-    CheckedRecursorConstructorTails H.context.venv c.lparams
+    ConstructorTails H.context.venv c.lparams
       H.statsWF.parameterScope stats decl indTypes := by
   have hparams := H.params_size_eq_zero Hshape
   have hscope := H.parameterScope_eq_nil Hshape
@@ -776,7 +776,7 @@ theorem PrimitiveHeaderEnvironment.ownerNormalForms
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
-    CheckedConstructorOwnerNormalForms stats indTypes := by
+    ConstructorOwnerNormalForms stats indTypes := by
   have hparams := H.params_size_eq_zero Hshape
   have hparamsArray : stats.params = #[] :=
     Array.eq_empty_of_size_eq_zero hparams
@@ -883,7 +883,7 @@ theorem AddInductive.checkConstructors.primitiveCoreWF
         CheckedConstructors sourceEnv decl H.context.venv
             H.headers.params stats indTypes c.lparams
             H.statsWF.parameterScope ∧
-          CheckedConstructorOwnerNormalForms stats indTypes := by
+          ConstructorOwnerNormalForms stats indTypes := by
   intro _ _
   exact ⟨{
     checked := H.checkedConstructors Hshape

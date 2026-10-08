@@ -924,7 +924,7 @@ def GeneratedRecursors.toBlockCertificate
       indTypes recInfos recursors)
     (Hc : BindingContextWF c)
     (Hbindings : RecInfoBindings c recInfos)
-    (Hparams : BoundFVarArray c stats.params)
+    (Hparams : FVarArrayIn c stats.params)
     (htypes : ∀ ci ∈ types.map Prod.snd, ci.toVConstant.WF venv)
     (hctors : ∀ ci ∈ ctors.map Prod.snd,
       ci.toVConstant.WF installation.venvTypes)
@@ -1128,7 +1128,7 @@ theorem RecursorCheck.generatedTelescopeTranslations
     rw [← H.generated.length]
     exact hentry
   let E := H.generated.entry ownerIdx hentry
-  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+  let selections := H.bindings.toRecursorBinderGroups H.localWF H.params
     ownerIdx hrecInfo
   have hnoalias : selections.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias ownerIdx hrecInfo
@@ -1157,9 +1157,9 @@ theorem RecursorCheck.generatedRecursorCommonPrefixBinderDomainAt
     simpa [H.generated.length] using howner₂
   let E₁ := H.generated.entry owner₁ howner₁
   let E₂ := H.generated.entry owner₂ howner₂
-  let S₁ := H.bindings.toRecursorLocalSelections H.localWF H.params
+  let S₁ := H.bindings.toRecursorBinderGroups H.localWF H.params
     owner₁ hrecInfo₁
-  let S₂ := H.bindings.toRecursorLocalSelections H.localWF H.params
+  let S₂ := H.bindings.toRecursorBinderGroups H.localWF H.params
     owner₂ hrecInfo₂
   have hnoalias₁ : S₁.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias

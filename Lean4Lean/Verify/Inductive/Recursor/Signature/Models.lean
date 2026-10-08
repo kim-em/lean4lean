@@ -304,7 +304,7 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
 parameters, the consumed families, and one constructor per minor whose field
 types are the consumed field domains and whose indices are the consumed
 terminal indices. The classification of its fields is unconstrained here. -/
-structure RecursorConstruction.ConsumedSignatureData
+structure RecursorConstruction.SignatureSpec
     (H : RecursorConstruction R) (s : InductiveSignature) : Prop where
   uvars : s.uvars = decl.uvars
   params : s.params = R.parameterScope.toCtx.reverse
@@ -317,29 +317,29 @@ structure RecursorConstruction.ConsumedSignatureData
     ∃ hk : k < s.constructors.size,
       s.constructors[k].name = (H.origins.minorShapes owner howner localIndex hlocal).constructor.name ∧
       s.constructors[k].owner.val = owner ∧
-      s.fieldTypes s.constructors[k] = H.sourceFields owner howner localIndex hlocal ∧
-      s.constructors[k].indices = H.sourceConstructorIndices owner howner localIndex hlocal
+      s.fieldTypes s.constructors[k] = H.declFieldDomains owner howner localIndex hlocal ∧
+      s.constructors[k].indices = H.declConstructorIndices owner howner localIndex hlocal
 
-theorem RecursorConstruction.ConsumedSignatureData.family_getElem
+theorem RecursorConstruction.SignatureSpec.family_getElem
     {H : RecursorConstruction R} {s : InductiveSignature}
-    (D : H.ConsumedSignatureData s) (i : Nat) (hi : i < s.families.size) :
+    (D : H.SignatureSpec s) (i : Nat) (hi : i < s.families.size) :
     s.families[i] = H.consumedFamilies[i]'(by rw [← D.families]; exact hi) := by
   simp only [D.families]
 
-theorem RecursorConstruction.ConsumedSignatureData.family_name
+theorem RecursorConstruction.SignatureSpec.family_name
     {H : RecursorConstruction R} {s : InductiveSignature}
-    (D : H.ConsumedSignatureData s) (i : Fin s.families.size) (owner : Nat)
+    (D : H.SignatureSpec s) (i : Fin s.families.size) (owner : Nat)
     (howner : owner < H.recInfos.size) (heq : i.val = owner) :
     s.families[i].name = (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name := by
   subst heq
   rw [Fin.getElem_fin, D.family_getElem]
   exact H.consumedFamilies_name ⟨i.val, howner⟩
 
-theorem RecursorConstruction.ConsumedSignatureData.family_indices
+theorem RecursorConstruction.SignatureSpec.family_indices
     {H : RecursorConstruction R} {s : InductiveSignature}
-    (D : H.ConsumedSignatureData s) (i : Fin s.families.size) (owner : Nat)
+    (D : H.SignatureSpec s) (i : Fin s.families.size) (owner : Nat)
     (howner : owner < H.recInfos.size) (heq : i.val = owner) :
-    s.families[i].indices = H.sourceIndices ⟨owner, howner⟩ := by
+    s.families[i].indices = H.declIndexDomains ⟨owner, howner⟩ := by
   subst heq
   rw [Fin.getElem_fin, D.family_getElem]
   exact H.consumedFamilies_indices ⟨i.val, howner⟩
@@ -347,9 +347,9 @@ theorem RecursorConstruction.ConsumedSignatureData.family_indices
 /-- The closed type of each consumed constructor is definitionally the
 source constructor at the same flattened position, in the header
 environment. -/
-theorem RecursorConstruction.ConsumedSignatureData.constructorType_defeq
+theorem RecursorConstruction.SignatureSpec.constructorType_defeq
     {H : RecursorConstruction R} {s : InductiveSignature}
-    (D : H.ConsumedSignatureData s)
+    (D : H.SignatureSpec s)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (hk : recursorMinorOffset indTypes owner + localIndex < s.constructors.size) :
@@ -382,13 +382,13 @@ theorem RecursorConstruction.ConsumedSignatureData.constructorType_defeq
     (by simpa using hctx) (by simpa using hreplay) (by simpa using hdefeq)
   have hlhs : s.constructorType s.constructors[recursorMinorOffset indTypes owner + localIndex] =
       VExpr.wrapForalls R.parameterScope.toCtx.reverse
-        (VExpr.wrapForalls (H.sourceFields owner howner localIndex hlocal)
+        (VExpr.wrapForalls (H.declFieldDomains owner howner localIndex hlocal)
           (VExpr.mkApps
             (.const (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name
               (VLevel.params decl.uvars))
             (InductiveSignature.vars stats.params.size
                 (H.origins.minorShapes owner howner localIndex hlocal).fields.size ++
-              H.sourceConstructorIndices owner howner localIndex hlocal))) := by
+              H.declConstructorIndices owner howner localIndex hlocal))) := by
     have hlen : s.constructors[recursorMinorOffset indTypes owner + localIndex].fields.length =
         (H.origins.minorShapes owner howner localIndex hlocal).fields.size := by
       rw [← InductiveSignature.fieldTypes_length, hfields, H.sourceFields_length]
@@ -419,9 +419,9 @@ theorem RecursorConstruction.ConsumedSignatureData.constructorType_defeq
 
 /-- Every consumed field is, in its own consumed prefix scope, definitionally a
 strictly positive normal form: the header's normal form for the same field. -/
-theorem RecursorConstruction.ConsumedSignatureData.fieldPositive
+theorem RecursorConstruction.SignatureSpec.fieldPositive
     {H : RecursorConstruction R} {s : InductiveSignature}
-    (D : H.ConsumedSignatureData s)
+    (D : H.SignatureSpec s)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (hk : recursorMinorOffset indTypes owner + localIndex < s.constructors.size)
@@ -448,12 +448,12 @@ theorem RecursorConstruction.ConsumedSignatureData.fieldPositive
           R.sourceSignatureHeader.params.reverse) k hdr.fields[k] := by
     rw [← hhdr]
     exact hmodel.2.2.2.1
-  have hconsLen : (H.sourceFields owner howner localIndex hlocal).length =
+  have hconsLen : (H.declFieldDomains owner howner localIndex hlocal).length =
       (s.constructors[recursorMinorOffset indTypes owner + localIndex]).fields.length := by
     rw [← hfields, InductiveSignature.fieldTypes_length]
   have hhdrLen : (R.sourceSignature.fieldTypes hdr).length = hdr.fields.length :=
     InductiveSignature.fieldTypes_length _ _
-  have hiC : i < (H.sourceFields owner howner localIndex hlocal).length := by omega
+  have hiC : i < (H.declFieldDomains owner howner localIndex hlocal).length := by omega
   have hiA : i < (R.sourceSignature.fieldTypes hdr).length := by omega
   have hiF : i < hdr.fields.length := by omega
   obtain ⟨normalized, hN, hshape⟩ := (hfm i hiF).2.resolve_left (by
@@ -478,7 +478,7 @@ theorem RecursorConstruction.ConsumedSignatureData.fieldPositive
   have hres := hcd.trans henv (hctxI.symm henv.ordered).isType hN'
   refine ⟨normalized, ?_, hshape⟩
   have hget : s.fieldType i (s.constructors[recursorMinorOffset indTypes owner + localIndex]).fields[i] =
-      (H.sourceFields owner howner localIndex hlocal)[i] := by
+      (H.declFieldDomains owner howner localIndex hlocal)[i] := by
     rw [← InductiveSignature.fieldTypes_getElem _ _ i
       (by rw [InductiveSignature.fieldTypes_length]; exact hi) hi]
     simp only [hfields]
@@ -487,9 +487,9 @@ theorem RecursorConstruction.ConsumedSignatureData.fieldPositive
 
 /-- The consumed constructor at a flattened position names the source
 constructor's family and constructor at that position. -/
-theorem RecursorConstruction.ConsumedSignatureData.constructorNames
+theorem RecursorConstruction.SignatureSpec.constructorNames
     {H : RecursorConstruction R} {s : InductiveSignature}
-    (D : H.ConsumedSignatureData s)
+    (D : H.SignatureSpec s)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (hk : recursorMinorOffset indTypes owner + localIndex < s.constructors.size) :
@@ -528,9 +528,9 @@ theorem RecursorConstruction.ConsumedSignatureData.constructorNames
   · exact hname.trans (hhdrName.symm.trans (R.sourceSignatureConstructor_name _))
 
 /-- Consumed signatures model the source declaration. -/
-theorem RecursorConstruction.ConsumedSignatureData.models
+theorem RecursorConstruction.SignatureSpec.models
     {H : RecursorConstruction R} {s : InductiveSignature}
-    (D : H.ConsumedSignatureData s) :
+    (D : H.SignatureSpec s) :
     s.Models sourceEnv decl := by
   have hparams : s.params.length = decl.nparams := by
     rw [D.params, List.length_reverse, H.sourceParameterCount, H.cardinality.params]

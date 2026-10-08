@@ -31,7 +31,7 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+      ∃ S : MotiveDecl H.recursorWF stats decl owner
           H.recInfos[owner]! H.elimLevel,
         VEnv.IsDefEqCtx H.outVEnv Us.length []
             T.params.reverse S.canonical.params.reverse ∧
@@ -48,7 +48,7 @@ theorem
       _Hsource, _hsource, hsourceDomain, Hdomain, HdomainType⟩
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
-  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+  let selections := H.bindings.toRecursorBinderGroups H.localWF H.params
     owner hrecInfo
   have hsortAbstract (fvars : List FVarId) (k : Nat) :
       (Expr.sort H.elimLevel).abstractList fvars k =
@@ -119,7 +119,7 @@ theorem
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+    ∃ S : MotiveDecl H.recursorWF stats decl owner
         H.recInfos[owner]! H.elimLevel,
       VEnv.IsDefEqCtx H.outVEnv Us.length []
           T.params.reverse S.canonical.params.reverse ∧
@@ -223,7 +223,7 @@ theorem RecursorConstruction.recursorTelescopeNative
       (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
       (H.nativeTarget owner).type :=
     Htype₀.defeqU_l henv (by trivial) Heq.symm
-  let Hsel := H.bindings.toRecursorLocalSelections H.localWF H.params owner howner
+  let Hsel := H.bindings.toRecursorBinderGroups H.localWF H.params owner howner
   have hnoalias := H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner howner
   have Htel := Hsel.forallTelescope
     (.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices)
@@ -304,7 +304,7 @@ theorem RecursorCheck.ownerSuffix_eq_expected
   have hplen : H.familySignature.params.length = stats.params.size := by
     simp [RecursorConstruction.familySignature, H.sourceParameterCount]
   rw [hplen] at hmotive
-  let A₀ := (H.sourceIndices ⟨owner, hrec⟩).map
+  let A₀ := (H.declIndexDomains ⟨owner, hrec⟩).map
     (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
   have hA₀len : A₀.length = H.recInfos[owner]!.indices.size := by
     simp [A₀, hsrcLen]
@@ -397,7 +397,7 @@ theorem
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+    ∃ S : MotiveDecl H.recursorWF stats decl owner
         H.recInfos[owner]! H.elimLevel,
       VEnv.IsDefEqCtx H.outVEnv Us.length []
           T.params.reverse S.canonical.params.reverse ∧
@@ -455,7 +455,7 @@ theorem
       (H.outVEnv.IsType
         (AddInductive.getRecLevelParams H.elimLevel c.lparams).length)) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+    ∃ S : MotiveDecl H.recursorWF stats decl owner
         H.recInfos[owner]! H.elimLevel,
       VEnv.IsDefEqCtx H.outVEnv Us.length []
           T.params.reverse S.canonical.params.reverse ∧
@@ -945,7 +945,7 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+      ∃ S : MotiveDecl H.recursorWF stats decl owner
           H.recInfos[owner]! H.elimLevel,
         VEnv.IsDefEqCtx H.outVEnv Us.length []
             T.params.reverse S.motiveParameterScope.toCtx ∧
@@ -1013,7 +1013,7 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+      ∃ S : MotiveDecl H.recursorWF stats decl owner
           H.recInfos[owner]! H.elimLevel,
         ∃ narrowTarget,
           VEnv.IsDefEqCtx H.outVEnv Us.length []
@@ -1064,7 +1064,7 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+      ∃ S : MotiveDecl H.recursorWF stats decl owner
           H.recInfos[owner]! H.elimLevel,
         VEnv.IsDefEqCtx H.outVEnv Us.length []
             T.params.reverse S.motiveSourceScope.toCtx ∧

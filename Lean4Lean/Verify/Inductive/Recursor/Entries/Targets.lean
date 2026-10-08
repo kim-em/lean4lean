@@ -10,8 +10,8 @@ namespace VerifyInductive
 /-- The executable recursor checker supplies typing for a separately chosen
 canonical translation. Translation agreement is typed equality, which also
 covers the different parameter terms admitted by projection desugaring. -/
-theorem RecursorTypeTranslations.typeOfTranslation
-    (H : RecursorTypeTranslations env lparams elimLevel c stats indTypes recInfos)
+theorem TrRecursorTypes.typeOfTranslation
+    (H : TrRecursorTypes env lparams elimLevel c stats indTypes recInfos)
     (henv : env.WF) (owner : Nat) (howner : owner < indTypes.size)
     (Hcanonical : TrExprS env (AddInductive.getRecLevelParams elimLevel lparams) []
       (AddInductive.declareRecursors.recursorType stats recInfos c.lctx owner) target) :
@@ -25,8 +25,8 @@ theorem RecursorTypeTranslations.typeOfTranslation
 /-- Install the specified canonical target, retaining its exact name, type,
 and universe arity. The checker witness supplies well-formedness without
 choosing another abstract translation for this owner. -/
-theorem RecursorTypeTranslations.recursorInfoTranslationOfTarget
-    (H : RecursorTypeTranslations env lparams elimLevel c stats indTypes recInfos)
+theorem TrRecursorTypes.recursorInfoTranslationOfTarget
+    (H : TrRecursorTypes env lparams elimLevel c stats indTypes recInfos)
     (henv : env.WF) (k : Bool) (owner : Nat) (howner : owner < indTypes.size)
     (rules : List RecursorRule)
     (Hcanonical : TrExprS env (AddInductive.getRecLevelParams elimLevel lparams) []

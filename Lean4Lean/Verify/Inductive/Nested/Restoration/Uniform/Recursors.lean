@@ -27,21 +27,21 @@ The hits come from three sources.
 
 * (a) Recursor-built hits: the major premise domains `I params indices`, the motives'
   major binders, and the minor premises' constructor applications `c params fields`. These
-  are read off `RecInfoMajorTypeShapes`, `RecInfoMotiveTypeShapes` and
-  `RecInfoMinorSourceAlignment`; the head is a hit exactly when it is auxiliary, and
+  are read off `MajorPremiseTypes`, `MotiveTypes` and
+  `MinorsAndIndicesMatchSource`; the head is a hit exactly when it is auxiliary, and
   `Expr.ParamUniform.mkAppN_const_params` treats both cases uniformly.
 * (b) Constructor field domains (minor premises and rule field lambdas): the field loop does
   no `whnf`, so each declared field type is the consumed domain of the lowered constructor
-  type after instantiating its parameters (`RecursorParamPrefix.hitOK`,
+  type after instantiating its parameters (`ParameterPrefix.hitOK`,
   `RecursorFieldDecisions.fieldDeclsSatisfy` in `Recursor/FieldDeclarationTypes.lean`).
   The lowered constructor types themselves are parameter telescopes in hit shape by
   `LoweredConstructorMapping.hitShapeTele` (from `NestedExprMapping.hitShape`).
 * (c) The `whnf`-produced regions: index domains (R1, `loopArgs1`), induction-hypothesis
   binder domains (R2) and their exposed indices (R3, `loopUArgs`). R1 follows along the
-  retained `loopArgs1` traces (`RecursorIndexTrace.hitShape`, from the family header), R2
-  and R3 along the retained `loopUArgs` traces (`RecursorLoopUArgsPrefix.hitShape`,
-  `RecInfoMinorHypothesisTypeOrigin.hitShape`, rooted by
-  `RecInfoCallBlueprintOrigins.rooted`), all from the single hypothesis
+  retained `loopArgs1` traces (`IndexTelescopeRun.hitShape`, from the family header), R2
+  and R3 along the retained `loopUArgs` traces (`LoopUArgsRun.hitShape`,
+  `InductionHypothesisType.hitShape`, rooted by
+  `CallTemplatesMatch.rooted`), all from the single hypothesis
   `WhnfPreservesParamUniform` on the lifted `whnf` calls.
 
 The `whnf` regions are tracked under `Expr.ParamUniformIn` (hit shape together with the
@@ -308,18 +308,18 @@ structure WhnfPreservesParamUniform (heads : List Name) (params : List Expr) (ls
 /-! ### The `loopUArgs` traversal (regions R2 and R3) -/
 
 /-- `ParamUniformIn` along an exact `loopUArgs.loop` trace: mirrors
-`RecursorLoopUArgsPrefix.universeSupport`. If the normalized input type
+`LoopUArgsRun.universeSupport`. If the normalized input type
 satisfies `ParamUniformIn` and lies in a hit scope `P` of a recursor context, then at
 the terminal context there is a hit scope containing every opened argument,
 and the exposed type satisfies `ParamUniformIn` and lies in that scope. -/
-theorem RecursorLoopUArgsPrefix.hitShape
+theorem LoopUArgsRun.hitShape
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
     (W : WhnfPreservesParamUniform heads params ls env)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     {root : AddInductive.Context} {l : LocalContext} {source : Expr}
     {current : AddInductive.Context} {exposed : Expr} {args : Array Expr}
-    (trace : RecursorLoopUArgsPrefix root l source current exposed args)
+    (trace : LoopUArgsRun root l source current exposed args)
     (henv : root.env = env)
     {recLparams : List Name}
     (Rroot : RecursorContextWF { root with checkLCtx := l } recLparams)
@@ -450,13 +450,13 @@ a recursor-context certificate for the origin's root, a hit-shape scope `P`
 containing the recursive field, and the parameters among the root's variables,
 every argument declaration opened by `loopUArgs`, the exposed family
 application and the hypothesis type are in hit shape. -/
-theorem RecInfoMinorHypothesisTypeOrigin.hitShape
+theorem InductionHypothesisType.hitShape
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
     (W : WhnfPreservesParamUniform heads params ls env)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv)
     {stats : AddInductive.InductiveStats} {recInfos : Array AddInductive.RecInfo}
     {root : AddInductive.Context} {field type : Expr}
-    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+    (O : InductionHypothesisType stats recInfos root field type)
     (henv : root.env = env)
     {recLparams : List Name} (Rroot : RecursorContextWF root recLparams)
     {P : FVarId → Prop} (hscope : Rroot.ParamUniformScope env heads params ls P)
@@ -543,12 +543,12 @@ theorem RecInfoMinorHypothesisTypeOrigin.hitShape
 /-- `ParamUniformIn` of the output of one retained recursor `whnf` call, given that
 the declarations of every variable admitted by `Q` (read in `final`) and the
 input satisfy it. -/
-theorem RecursorWhnfCallAt.hitShape
+theorem WhnfRunAt.hitShape
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
     (W : WhnfPreservesParamUniform heads params ls env)
     {final : AddInductive.Context} (henv : final.env = env)
     {Q : FVarId → Prop} {input output : Expr}
-    (H : RecursorWhnfCallAt final Q input output)
+    (H : WhnfRunAt final Q input output)
     (hQ : ∀ fv, Q fv → ∀ d, final.lctx.find? fv = some d →
       d.ParamUniformIn env heads params ls)
     (hin : input.ParamUniformIn env heads params ls) :
@@ -564,7 +564,7 @@ theorem RecursorWhnfCallAt.hitShape
 family header and the parameter declarations of `final` satisfy `ParamUniformIn`, then
 so does every normalized type of the trace and every opened index
 declaration. -/
-theorem RecursorIndexTrace.hitShape
+theorem IndexTelescopeRun.hitShape
     {heads : List Name} {ls : List Level} {env : Environment}
     {stats : AddInductive.InductiveStats}
     (W : WhnfPreservesParamUniform heads stats.params.toList ls env)
@@ -574,7 +574,7 @@ theorem RecursorIndexTrace.hitShape
       final.lctx.find? fv = some d → d.ParamUniformIn env heads stats.params.toList ls)
     {header : Expr} (hheader : header.ParamUniformIn env heads stats.params.toList ls)
     {i : Nat} {type : Expr} {indices : Array Expr}
-    (T : RecursorIndexTrace stats final header i type indices) :
+    (T : IndexTelescopeRun stats final header i type indices) :
     type.ParamUniformIn env heads stats.params.toList ls ∧
       ∀ fv ∈ ExprArrayFVarIds indices, ∀ d, final.lctx.find? fv = some d →
         d.ParamUniformIn env heads stats.params.toList ls := by
@@ -618,10 +618,10 @@ theorem RecursorIndexTrace.hitShape
 
 /-- The executable common-parameter prefix replay instantiates the parameter
 telescope with the parameter free variables, all at once. -/
-theorem RecursorParamPrefix.tail_eq_instantiateRevList
+theorem ParameterPrefix.tail_eq_instantiateRevList
     {stats : AddInductive.InductiveStats} {pfvs : List FVarId}
     (hparams : stats.params = (pfvs.map Expr.fvar).toArray) :
-    ∀ {i : Nat} {src tail : Expr}, RecursorParamPrefix stats i src tail →
+    ∀ {i : Nat} {src tail : Expr}, ParameterPrefix stats i src tail →
       ∀ {body : Expr}, Expr.LeadingBinders (pfvs.length - i) src body →
         tail = body.instantiateRevList ((pfvs.drop i).map Expr.fvar) 0 := by
   intro i src tail H
@@ -660,9 +660,9 @@ theorem RecursorParamPrefix.tail_eq_instantiateRevList
 
 /-- The parameter-instantiated tail of a lowered constructor type in parameter
 telescope hit shape is in free-variable hit shape over the parameters. -/
-theorem RecursorParamPrefix.hitShape {heads : List Name} {ls : List Level}
+theorem ParameterPrefix.hitShape {heads : List Name} {ls : List Level}
     {stats : AddInductive.InductiveStats} {pfvs : List FVarId} {src tail : Expr}
-    (H : RecursorParamPrefix stats 0 src tail)
+    (H : ParameterPrefix stats 0 src tail)
     (hparams : stats.params = (pfvs.map Expr.fvar).toArray)
     (Hsrc : Expr.ParamUniformTele heads stats.params.size ls src) :
     tail.ParamUniform heads stats.params.toList ls := by
@@ -672,11 +672,11 @@ theorem RecursorParamPrefix.hitShape {heads : List Name} {ls : List Level}
   rw [H.tail_eq_instantiateRevList hparams (by simpa using Hlead), hparams]
   simpa using Hbody.instantiateRevList_fvars
 
-/-- `RecursorParamPrefix.hitShape` together with the projection condition. -/
-theorem RecursorParamPrefix.hitOK {env : Environment} {heads : List Name}
+/-- `ParameterPrefix.hitShape` together with the projection condition. -/
+theorem ParameterPrefix.hitOK {env : Environment} {heads : List Name}
     {ls : List Level} {stats : AddInductive.InductiveStats} {pfvs : List FVarId}
     {src tail : Expr}
-    (H : RecursorParamPrefix stats 0 src tail)
+    (H : ParameterPrefix stats 0 src tail)
     (hparams : stats.params = (pfvs.map Expr.fvar).toArray)
     (Hsrc : Expr.ParamUniformTele heads stats.params.size ls src)
     (Hproj : src.ProjsOK (projAvoidsHeads env heads)) :
@@ -720,13 +720,13 @@ theorem RecursorFieldDecisions.hitOK {env : Environment} {heads : List Name}
 
 /-! ### Bound free-variable arrays -/
 
-theorem BoundFVarArray.mem_fvars_iff {c : AddInductive.Context} {xs : Array Expr}
-    (B : BoundFVarArray c xs) {fv : FVarId} : fv ∈ B.fvars ↔ Expr.fvar fv ∈ xs := by
+theorem FVarArrayIn.mem_fvars_iff {c : AddInductive.Context} {xs : Array Expr}
+    (B : FVarArrayIn c xs) {fv : FVarId} : fv ∈ B.fvars ↔ Expr.fvar fv ∈ xs := by
   rcases B with ⟨fvars, rfl, _⟩
   simp
 
-theorem BoundFVarArray.fvar_of_mem {c : AddInductive.Context} {xs : Array Expr}
-    (B : BoundFVarArray c xs) {e : Expr} (he : e ∈ xs) : ∃ fv, e = .fvar fv ∧ fv ∈ B.fvars := by
+theorem FVarArrayIn.fvar_of_mem {c : AddInductive.Context} {xs : Array Expr}
+    (B : FVarArrayIn c xs) {e : Expr} (he : e ∈ xs) : ∃ fv, e = .fvar fv ∧ fv ∈ B.fvars := by
   rcases B with ⟨fvars, rfl, _⟩
   simp only [List.mem_toArray, List.mem_map] at he
   obtain ⟨fv, hfv, rfl⟩ := he
@@ -738,9 +738,9 @@ theorem mem_exprArrayFVarIds_of_fvar_mem {xs : Array Expr} {fv : FVarId}
   exact ⟨_, Array.mem_toList_iff.2 h, rfl⟩
 
 /-- Declaration shapes from exact `withLocalDecl` origin types. -/
-theorem BoundFVarTypeOrigins.declHitShape {heads : List Name} {params : List Expr}
+theorem FVarArrayBinderTypes.declHitShape {heads : List Name} {params : List Expr}
     {ls : List Level} {c : AddInductive.Context} {xs origins : Array Expr}
-    (Ho : BoundFVarTypeOrigins c xs origins)
+    (Ho : FVarArrayBinderTypes c xs origins)
     (hQ : ∀ i, i < xs.size → origins[i]!.ParamUniform heads params ls)
     {fv : FVarId} (hfv : Expr.fvar fv ∈ xs) :
     ∃ d, c.lctx.find? fv = some d ∧ d.ParamUniform heads params ls := by
@@ -807,7 +807,7 @@ of the recursor context.
 * `familyHeaders`: the family headers `indTypes[i].type` mention no head and
   satisfy the projection condition. The header is the input of the first
   `whnf` call of `mkRecInfos.loopInd1`, so this is what `WhnfPreservesParamUniform.whnf`
-  needs at the start of the retained `loopArgs1` trace (`RecInfoIndexTraces`,
+  needs at the start of the retained `loopArgs1` trace (`IndexTelescopeRuns`,
   retained in `RecursorConstruction.minorSources`).
 * `constructorTypes`: the lowered constructor types are parameter telescopes in
   hit shape (from the lowering trace: every hit is
@@ -817,8 +817,8 @@ of the recursor context.
 
 The index domains (region R1) and the induction-hypothesis regions (R2, R3)
 need no hypothesis beyond these and `WhnfPreservesParamUniform`: they follow along the
-retained `RecursorIndexTrace`s and the rooted call origins
-(`RecInfoCallBlueprintOrigins.rooted`). -/
+retained `IndexTelescopeRun`s and the rooted call origins
+(`CallTemplatesMatch.rooted`). -/
 structure RecursorConstruction.ParamUniformDeclarations
     (H : RecursorConstruction R) (heads : List Name) : Prop where
   paramDecls : ∀ fv ∈ H.params.fvars, ∀ d, H.localContext.lctx.find? fv = some d →
@@ -837,7 +837,7 @@ variable (H : RecursorConstruction R)
 include H in
 theorem params_fvar : ∀ p ∈ stats.params.toList, ∃ fv, p = .fvar fv := by
   intro p hp
-  obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.params (Array.mem_toList_iff.1 hp)
+  obtain ⟨fv, rfl, -⟩ := FVarArrayIn.fvar_of_mem H.params (Array.mem_toList_iff.1 hp)
   exact ⟨fv, rfl⟩
 
 theorem params_toList : stats.params.toList = H.params.fvars.map Expr.fvar := by
@@ -905,7 +905,7 @@ theorem motive_fvar {k : Nat} (hk : k < stats.indConsts.size) :
   have hmem : H.recInfos[k]!.motive ∈ H.recInfos.map (·.motive) := by
     rw [getElem!_pos H.recInfos k hk']
     exact Array.mem_map.2 ⟨_, Array.getElem_mem hk', rfl⟩
-  obtain ⟨fv, h, -⟩ := BoundFVarArray.fvar_of_mem H.bindings.motives hmem
+  obtain ⟨fv, h, -⟩ := FVarArrayIn.fvar_of_mem H.bindings.motives hmem
   exact ⟨fv, h⟩
 
 /-- **Hit shape of one generated minor**: its field declarations (in the
@@ -928,7 +928,7 @@ theorem minorHitShape {heads : List Name} (I : H.ParamUniformDeclarations heads)
         stats.indConsts.size) := by
   have hsourceOwner := H.sourceOwner howner
   have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
-  have hcallRoots : RecInfoRuleBlueprintOriginAt stats
+  have hcallRoots : RuleTemplateMatchesMinor stats
       (H.origins.minorShapes owner howner localIndex hlocal)
       H.recInfos[owner]!.minors[localIndex]!
       H.recInfos[owner]!.ruleBlueprints[localIndex]! :=
@@ -951,7 +951,7 @@ theorem minorHitShape {heads : List Name} (I : H.ParamUniformDeclarations heads)
   have hTL : BindingContextLE F.traversal.terminalContext H.localContext :=
     F.terminalExtension.contextLE
   -- Field declarations (the lowered constructor's syntactic domains).
-  have Hprefix : RecursorParamPrefix stats 0 S.constructor.type
+  have Hprefix : ParameterPrefix stats 0 S.constructor.type
       F.traversal.parameterTail := by
     have := F.traversal.parameterPrefix
     rwa [F.traversal_stats, F.traversal_constructor] at this
@@ -981,7 +981,7 @@ theorem minorHitShape {heads : List Name} (I : H.ParamUniformDeclarations heads)
   have hfr : origins.fieldRoot = F.traversal.terminalContext :=
     S.hypothesis_origins_fieldRoot origins F.traversal hshape F.traversal_eq
   have hper : ∀ j, j < S.hypotheses.size →
-      (∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+      (∃ D : FVarDeclAt S.sourceFullContext S.hypotheses j,
         D.type.ParamUniform heads stats.params.toList stats.levels) ∧
       ((B.recursiveCalls[j]!).template.ParamUniform heads stats.params.toList stats.levels ∧
         (B.recursiveCalls[j]!).targetTypeIdx < stats.indConsts.size) := by
@@ -1026,7 +1026,7 @@ theorem minorHitShape {heads : List Name} (I : H.ParamUniformDeclarations heads)
     have hparamsRoot : ∀ p ∈ stats.params.toList, ∃ fv, p = .fvar fv ∧
         fv ∈ originRoot.lctx.fvars := by
       intro p hpm
-      obtain ⟨pv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.params (Array.mem_toList_iff.1 hpm)
+      obtain ⟨pv, rfl, -⟩ := FVarArrayIn.fvar_of_mem H.params (Array.mem_toList_iff.1 hpm)
       exact ⟨pv, rfl, hle.fvars (hparamTerm pv (Array.mem_toList_iff.1 hpm))⟩
     obtain ⟨hargs, hexp, htype⟩ :=
       O.hitShape W hp henv Rorigin hscope hfieldP hparamsRoot
@@ -1067,11 +1067,11 @@ theorem minorHitShape {heads : List Name} (I : H.ParamUniformDeclarations heads)
       · simp only [AddInductive.getIIndices] at hmfv
         rw [hmfv]; exact .fvar mfv
       · intro a ha
-        obtain ⟨y, rfl, -⟩ := BoundFVarArray.fvar_of_mem S.fields_bound
+        obtain ⟨y, rfl, -⟩ := FVarArrayIn.fvar_of_mem S.fields_bound
           (Array.mem_toList_iff.1 ha)
         exact .fvar y
     · intro p hpm
-      obtain ⟨pv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.params (Array.mem_toList_iff.1 hpm)
+      obtain ⟨pv, rfl, -⟩ := FVarArrayIn.fvar_of_mem H.params (Array.mem_toList_iff.1 hpm)
       refine ⟨pv, rfl, fun hy => ?_⟩
       have hpvP : pv ∈ ExprArrayFVarIds origins.stats.params := by
         rw [hstats]; exact mem_exprArrayFVarIds_of_fvar_mem (Array.mem_toList_iff.1 hpm)
@@ -1090,7 +1090,7 @@ theorem minorHitShape {heads : List Name} (I : H.ParamUniformDeclarations heads)
       subst hDy
       exact ⟨_, D.declaration, hDshape⟩
   · intro p hpm
-    obtain ⟨pv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.params (Array.mem_toList_iff.1 hpm)
+    obtain ⟨pv, rfl, -⟩ := FVarArrayIn.fvar_of_mem H.params (Array.mem_toList_iff.1 hpm)
     refine ⟨pv, rfl, fun hy => hfresh pv hy ?_⟩
     exact List.mem_append_left _ (List.mem_append_left _
       (mem_exprArrayFVarIds_of_fvar_mem (Array.mem_toList_iff.1 hpm)))
@@ -1147,7 +1147,7 @@ theorem majorDeclHitShape {y : FVarId} (hy : Expr.fvar y ∈ H.recInfos.map (·.
   obtain ⟨n, hn⟩ := H.indConst_eq hi'
   rw [hn]
   refine Expr.ParamUniform.mkAppN_const_paramsArray (fun a ha => ?_) H.params_fvar
-  obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem (H.bindings.indices i hi')
+  obtain ⟨fv, rfl, -⟩ := FVarArrayIn.fvar_of_mem (H.bindings.indices i hi')
     (Array.mem_toList_iff.1 ha)
   exact .fvar fv
 
@@ -1240,13 +1240,13 @@ theorem recursorTypeHitShape {heads : List Name} (I : H.ParamUniformDeclarations
     rw [H.validStats.types_size, ← H.recInfos_size_eq]; exact howner
   obtain ⟨mfv, hmfv⟩ := H.motive_fvar hownerC
   have hmajorMem : H.recInfos[owner]!.major ∈ #[H.recInfos[owner]!.major] := by simp
-  obtain ⟨jfv, hjfv, -⟩ := BoundFVarArray.fvar_of_mem (H.bindings.major owner howner) hmajorMem
+  obtain ⟨jfv, hjfv, -⟩ := FVarArrayIn.fvar_of_mem (H.bindings.major owner howner) hmajorMem
   -- body
   have hbody : (Expr.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices)
       H.recInfos[owner]!.major).ParamUniform heads stats.params.toList stats.levels := by
     refine .app (Expr.ParamUniform.mkAppN (by rw [hmfv]; exact .fvar mfv) fun a ha => ?_)
       (by rw [hjfv]; exact .fvar jfv)
-    obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem (H.bindings.indices owner howner)
+    obtain ⟨fv, rfl, -⟩ := FVarArrayIn.fvar_of_mem (H.bindings.indices owner howner)
       (Array.mem_toList_iff.1 ha)
     exact .fvar fv
   refine Expr.ParamUniform.mkForall_of_disjoint H.bindings.motives.expressions ?_
@@ -1303,7 +1303,7 @@ theorem ruleRhsHitShape {heads : List Name} (I : H.ParamUniformDeclarations head
   have hminorMem : blueprint.minor ∈ H.recInfos[owner]!.minors := by
     rw [hBminor, getElem!_pos _ localIndex hminorsSize]; exact Array.getElem_mem hminorsSize
   obtain ⟨minorFv, hminorFv, -⟩ :=
-    BoundFVarArray.fvar_of_mem (H.bindings.minors owner howner) hminorMem
+    FVarArrayIn.fvar_of_mem (H.bindings.minors owner howner) hminorMem
   simp only [AddInductive.RecRuleBlueprint.build]
   refine Expr.ParamUniform.mkLambda_params ?_ H.params_toList H.params_nodup H.paramCDecls
   refine Expr.ParamUniform.mkLambda_of_disjoint H.bindings.motives.expressions ?_
@@ -1316,7 +1316,7 @@ theorem ruleRhsHitShape {heads : List Name} (I : H.ParamUniformDeclarations head
   refine Expr.ParamUniform.mkLambda_of_disjoint S.fields_bound.expressions ?_ ?_ hfieldDecls
   · refine Expr.ParamUniform.mkAppN (Expr.ParamUniform.mkAppN (by rw [hminorFv]; exact .fvar _)
       fun a ha => ?_) fun a ha => ?_
-    · obtain ⟨y, rfl, -⟩ := BoundFVarArray.fvar_of_mem S.fields_bound
+    · obtain ⟨y, rfl, -⟩ := FVarArrayIn.fvar_of_mem S.fields_bound
         (Array.mem_toList_iff.1 ha)
       exact .fvar y
     · simp only [Array.toList_map, List.mem_map] at ha
@@ -1334,14 +1334,14 @@ theorem ruleRhsHitShape {heads : List Name} (I : H.ParamUniformDeclarations head
           fun a ha => ?_) fun a ha => ?_
       · obtain ⟨fv, rfl⟩ := hp a ha
         exact .fvar fv
-      · obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.bindings.motives
+      · obtain ⟨fv, rfl, -⟩ := FVarArrayIn.fvar_of_mem H.bindings.motives
           (Array.mem_toList_iff.1 ha)
         exact .fvar fv
-      · obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.bindings.flatMinors
+      · obtain ⟨fv, rfl, -⟩ := FVarArrayIn.fvar_of_mem H.bindings.flatMinors
           (Array.mem_toList_iff.1 ha)
         exact .fvar fv
   · intro p hpm
-    obtain ⟨pv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.params (Array.mem_toList_iff.1 hpm)
+    obtain ⟨pv, rfl, -⟩ := FVarArrayIn.fvar_of_mem H.params (Array.mem_toList_iff.1 hpm)
     exact ⟨pv, rfl, fun hy => hfresh pv hy (List.mem_append_left _ (List.mem_append_left _
       (mem_exprArrayFVarIds_of_fvar_mem (Array.mem_toList_iff.1 hpm))))⟩
 

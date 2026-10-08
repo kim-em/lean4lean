@@ -184,9 +184,9 @@ namespace VerifyInductive
 
 /-- The bound free-variable arrays of the recursor construction declare their
 variables with the projection condition when their origin types satisfy it. -/
-theorem BoundFVarTypeOrigins.declProjsOK {ok : Name → Prop} {c : AddInductive.Context}
+theorem FVarArrayBinderTypes.declProjsOK {ok : Name → Prop} {c : AddInductive.Context}
     {xs origins : Array Expr}
-    (Ho : BoundFVarTypeOrigins c xs origins)
+    (Ho : FVarArrayBinderTypes c xs origins)
     (hQ : ∀ i, i < xs.size → origins[i]!.ProjsOK ok)
     {fv : FVarId} (hfv : Expr.fvar fv ∈ xs) :
     ∃ d, c.lctx.find? fv = some d ∧ d.DeclProjsOK ok := by
@@ -201,14 +201,14 @@ theorem BoundFVarTypeOrigins.declProjsOK {ok : Name → Prop} {c : AddInductive.
   rw [hD]; exact hQ i hi
 
 /-- **The projection condition of one induction-hypothesis type** (regions R2
-and R3): the projection component of `RecInfoMinorHypothesisTypeOrigin.hitShape`. -/
-theorem RecInfoMinorHypothesisTypeOrigin.projsOK
+and R3): the projection component of `InductionHypothesisType.hitShape`. -/
+theorem InductionHypothesisType.projsOK
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
     (W : WhnfPreservesParamUniform heads params ls env)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv)
     {stats : AddInductive.InductiveStats} {recInfos : Array AddInductive.RecInfo}
     {root : AddInductive.Context} {field type : Expr}
-    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+    (O : InductionHypothesisType stats recInfos root field type)
     (henv : root.env = env)
     {recLparams : List Name} (Rroot : RecursorContextWF root recLparams)
     {P : FVarId → Prop} (hscope : Rroot.ParamUniformScope env heads params ls P)
@@ -305,7 +305,7 @@ theorem minorProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads)
       (projAvoidsHeads H.localContext.env heads) := by
   have hsourceOwner := H.sourceOwner howner
   have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
-  have hcallRoots : RecInfoRuleBlueprintOriginAt stats
+  have hcallRoots : RuleTemplateMatchesMinor stats
       (H.origins.minorShapes owner howner localIndex hlocal)
       H.recInfos[owner]!.minors[localIndex]!
       H.recInfos[owner]!.ruleBlueprints[localIndex]! :=
@@ -326,7 +326,7 @@ theorem minorProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads)
   have Hroot := F.rootWF.toBindingContextWF
   have hTL : BindingContextLE F.traversal.terminalContext H.localContext :=
     F.terminalExtension.contextLE
-  have Hprefix : RecursorParamPrefix stats 0 S.constructor.type
+  have Hprefix : ParameterPrefix stats 0 S.constructor.type
       F.traversal.parameterTail := by
     have := F.traversal.parameterPrefix
     rwa [F.traversal_stats, F.traversal_constructor] at this
@@ -354,7 +354,7 @@ theorem minorProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads)
   have hfr : origins.fieldRoot = F.traversal.terminalContext :=
     S.hypothesis_origins_fieldRoot origins F.traversal hshape F.traversal_eq
   have hper : ∀ j, j < S.hypotheses.size →
-      ∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+      ∃ D : FVarDeclAt S.sourceFullContext S.hypotheses j,
         D.type.ProjsOK (projAvoidsHeads H.localContext.env heads) := by
     intro j hj
     obtain ⟨originRoot, sourceType, recL, Rorigin, O, D, hle, hup, hD, -⟩ :=
@@ -413,7 +413,7 @@ theorem minorProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads)
       obtain ⟨fv, rfl⟩ := hp a ha
       trivial
     · intro a ha
-      obtain ⟨y, rfl, -⟩ := BoundFVarArray.fvar_of_mem S.fields_bound
+      obtain ⟨y, rfl, -⟩ := FVarArrayIn.fvar_of_mem S.fields_bound
         (Array.mem_toList_iff.1 ha)
       trivial
   · intro y hy
@@ -472,7 +472,7 @@ theorem majorDeclProjsOK {ok : Name → Prop} {y : FVarId}
   refine Expr.ProjsOK.mkAppN' (Expr.ProjsOK.mkAppN' trivial fun a ha => ?_) fun a ha => ?_
   · obtain ⟨fv, rfl⟩ := H.params_fvar a ha
     trivial
-  · obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem (H.bindings.indices i hi')
+  · obtain ⟨fv, rfl, -⟩ := FVarArrayIn.fvar_of_mem (H.bindings.indices i hi')
       (Array.mem_toList_iff.1 ha)
     trivial
 
@@ -530,12 +530,12 @@ theorem recursorTypeProjsOK (I : H.ParamUniformDeclarations heads)
     rw [H.validStats.types_size, ← H.recInfos_size_eq]; exact howner
   obtain ⟨mfv, hmfv⟩ := H.motive_fvar hownerC
   have hmajorMem : H.recInfos[owner]!.major ∈ #[H.recInfos[owner]!.major] := by simp
-  obtain ⟨jfv, hjfv, -⟩ := BoundFVarArray.fvar_of_mem (H.bindings.major owner howner) hmajorMem
+  obtain ⟨jfv, hjfv, -⟩ := FVarArrayIn.fvar_of_mem (H.bindings.major owner howner) hmajorMem
   have hbody : (Expr.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices)
       H.recInfos[owner]!.major).ProjsOK (projAvoidsHeads H.localContext.env heads) := by
     refine ⟨Expr.ProjsOK.mkAppN' (by rw [hmfv]; trivial) fun a ha => ?_,
       by rw [hjfv]; trivial⟩
-    obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem (H.bindings.indices owner howner)
+    obtain ⟨fv, rfl, -⟩ := FVarArrayIn.fvar_of_mem (H.bindings.indices owner howner)
       (Array.mem_toList_iff.1 ha)
     trivial
   unfold AddInductive.declareRecursors.recursorType

@@ -287,7 +287,7 @@ theorem
             F.semantic.generated.localArgs)).abstractList A.rule.binders)
       localDomains.length
       (F.semantic.generated.outerAbstractedMajor A.rule.binders) := by
-    simpa [hlocal, BoundGeneratedRecursiveCall.outerAbstractedMajor] using
+    simpa [hlocal, RecursiveCall.outerAbstractedMajor] using
       ((F.semantic.generated.appliedFieldLambdaTelescope
         F.semantic.fieldClosed).abstractList A.rule.binders)
   have HsamePrefix : Expr.SameLambdaPrefix localDomains.length
@@ -373,7 +373,7 @@ theorem
     (mkAppN A.rule.recursiveArgs[j]
       E.frame.semantic.generated.localArgs)
   let selection :=
-    E.frame.semantic.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+    E.frame.semantic.generated.arguments_bound.toFVarArrayIn.toCDeclArray
       E.frame.semantic.generated.current_wf
   have Hsame := (selection.sameForallPrefix
     E.frame.semantic.generated.arguments_bound.nodup
@@ -561,7 +561,7 @@ theorem
         (liftContextPrefix (T.motives ++ T.minors).length
           B.fieldDomains.reverse).reverse
   let selection :=
-    E.frame.semantic.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+    E.frame.semantic.generated.arguments_bound.toFVarArrayIn.toCDeclArray
       E.frame.semantic.generated.current_wf
   have Hsame := (selection.sameForallLambdaPrefix
     E.frame.semantic.generated.arguments_bound.nodup
@@ -698,14 +698,14 @@ theorem
     (E : A.RecursiveResult T B j hj) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
-    ∃ S : RecInfoMinorTypeShape,
-      ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+    ∃ S : MinorPremiseType,
+      ∃ hypothesisOrigins : MinorInductionHypothesisTypes
           S.sourceFullContext S.recursiveFields S.hypotheses,
-      ∃ traversal : RecInfoMinorTraversalShape,
+      ∃ traversal : ConstructorFieldTraversal,
       ∃ fieldDomains hypothesisDomains targetResidual,
-      ∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+      ∃ D : FVarDeclAt S.sourceFullContext S.hypotheses j,
       ∃ originRoot sourceType,
-      ∃ O : RecInfoMinorHypothesisTypeOrigin
+      ∃ O : InductionHypothesisType
           hypothesisOrigins.stats hypothesisOrigins.recInfos
           originRoot S.recursiveFields[j]! sourceType,
         S.hypothesis_type_origins = some hypothesisOrigins ∧
@@ -739,7 +739,7 @@ theorem
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
         BindingContextLE S.sourceFullContext H.localContext ∧
-        Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+        Nonempty (TypedMinorTraversalAt H.recursorWF S
           H.parameterSuffix.parameterDecls) ∧
         fieldDomains.length = A.rule.allArgs.size ∧
         hypothesisDomains.length = A.rule.recursiveArgs.size ∧
@@ -1002,10 +1002,10 @@ theorem
         (E.frame.semantic.generated.current.lctx.mkForall
             E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
           A.rule.all_args_bound.fvars := by
-    exact congrArg RecursorLoopUArgsTrace.localTelescope Hreplay
+    exact congrArg InductionHypothesisShape.localTelescope Hreplay
   have hownerReplay : O.ownerIdx =
       E.frame.semantic.generated.ownerIdx :=
-    congrArg RecursorLoopUArgsTrace.ownerIdx Hreplay
+    congrArg InductionHypothesisShape.ownerIdx Hreplay
   have hmotiveReplay :
       ((hypothesisOrigins.recInfos[O.ownerIdx]!.motive.abstractList
             O.arguments_bound.fvars).abstractList
@@ -1016,7 +1016,7 @@ theorem
             E.frame.semantic.generated.arguments_bound.fvars).abstractList
           A.rule.all_args_bound.fvars
             E.frame.semantic.generated.localArgs.size) := by
-    exact congrArg RecursorLoopUArgsTrace.motive Hreplay
+    exact congrArg InductionHypothesisShape.motive Hreplay
   have hindicesReplay :
       (((O.exposedType.getAppArgs[
             hypothesisOrigins.stats.params.size:] : Array Expr).map
@@ -1030,10 +1030,10 @@ theorem
               E.frame.semantic.generated.arguments_bound.fvars).abstractList
                 A.rule.all_args_bound.fvars
                 E.frame.semantic.generated.localArgs.size)) := by
-    exact congrArg RecursorLoopUArgsTrace.indices Hreplay
+    exact congrArg InductionHypothesisShape.indices Hreplay
   have hlocalArity : O.args.size =
       E.frame.semantic.generated.localArgs.size :=
-    congrArg RecursorLoopUArgsTrace.localArity Hreplay
+    congrArg InductionHypothesisShape.localArity Hreplay
   have HlocalForallReplay : ∀ left right,
       Expr.SameForallPrefix O.args.size
         ((O.current.lctx.mkForall O.args left).abstractList
@@ -1043,9 +1043,9 @@ theorem
           A.rule.all_args_bound.fvars) := by
     intro left right
     let Oselection :=
-      O.arguments_bound.toBoundFVarArray.toLocalForallSelection O.current_wf
+      O.arguments_bound.toFVarArrayIn.toCDeclArray O.current_wf
     let Gselection :=
-      E.frame.semantic.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+      E.frame.semantic.generated.arguments_bound.toFVarArrayIn.toCDeclArray
         E.frame.semantic.generated.current_wf
     have Hleft := (Oselection.sameForallPrefix
       O.arguments_bound.nodup left (.sort .zero)).abstractList
@@ -1167,20 +1167,20 @@ theorem
       A.rule.allArgs.size :=
     S.fields_bound.length_fvars.trans hsourceFields
   have horiginLocal : O.arguments_bound.fvars.length = O.args.size :=
-    O.arguments_bound.toBoundFVarArray.length_fvars
+    O.arguments_bound.toFVarArrayIn.length_fvars
   have hgeneratedLocal :
       E.frame.semantic.generated.arguments_bound.fvars.length =
         E.frame.semantic.generated.localArgs.size :=
-    E.frame.semantic.generated.arguments_bound.toBoundFVarArray.length_fvars
+    E.frame.semantic.generated.arguments_bound.toFVarArrayIn.length_fvars
   have hlocalIndices : O.localIndices =
       E.frame.semantic.generated.localIndices := by
     apply List.ext_getElem
-    · simp [RecInfoMinorHypothesisTypeOrigin.localIndices,
-        BoundGeneratedRecursiveCall.localIndices, horiginLocal,
+    · simp [InductionHypothesisType.localIndices,
+        RecursiveCall.localIndices, horiginLocal,
         hgeneratedLocal, hlocalArity]
     · intro k hkOrigin hkGenerated
-      simp [RecInfoMinorHypothesisTypeOrigin.localIndices,
-        BoundGeneratedRecursiveCall.localIndices, horiginLocal,
+      simp [InductionHypothesisType.localIndices,
+        RecursiveCall.localIndices, horiginLocal,
         hgeneratedLocal, hlocalArity]
   have hmajorAlignment :
       O.outerAbstractedField S.fields_bound.fvars =
@@ -1225,8 +1225,8 @@ theorem
       O.outerAbstractedMotiveApp S.fields_bound.fvars =
         E.frame.semantic.generated.outerAbstractedMotiveApp
           A.rule.all_args_bound.fvars := by
-    unfold RecInfoMinorHypothesisTypeOrigin.outerAbstractedMotiveApp
-      BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
+    unfold InductionHypothesisType.outerAbstractedMotiveApp
+      RecursiveCall.outerAbstractedMotiveApp
     rw [Hreplay, hmajorFieldAlignment]
   rcases E.frame.motiveApplication with ⟨HproducerMotive⟩
   have HrawGeneratedMotiveClosed : Closed
@@ -1304,7 +1304,7 @@ theorem
       E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
         A.rule.all_args_bound.fvars
   let Gselection :=
-    E.frame.semantic.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+    E.frame.semantic.generated.arguments_bound.toFVarArrayIn.toCDeclArray
       E.frame.semantic.generated.current_wf
   have HgeneratedActualNeutral : Expr.SameForallPrefix
       E.frame.semantic.generated.localArgs.size
@@ -1341,7 +1341,7 @@ theorem
       rw [E.frame.semantic.current_context.mlctx.noBV, hselectedMotive] at hclosed
       simpa [generatedMotiveApp] using hclosed
     have Hsource :=
-      E.frame.semantic.generated.arguments_bound.toBoundFVarArray.mkForall_forallTelescopeList
+      E.frame.semantic.generated.arguments_bound.toFVarArrayIn.mkForall_forallTelescopeList
         E.frame.semantic.generated.current_wf generatedMotiveApp
         E.frame.semantic.generated.arguments_bound.nodup hgenClosed
     have Hsource' := Hsource.abstractList
@@ -1478,8 +1478,8 @@ theorem
               ).map fun index =>
               index.abstractList O.arguments_bound.fvars))
           O.abstractedField := by
-    simpa [RecInfoMinorHypothesisTypeOrigin.abstractedField,
-      RecInfoMinorHypothesisTypeOrigin.localIndices, List.map_ofFn,
+    simpa [InductionHypothesisType.abstractedField,
+      InductionHypothesisType.localIndices, List.map_ofFn,
       Function.comp_def] using hlocalMotiveApp
   have hsourceResidualStructured : sourceResidual =
       ((((Expr.app
@@ -1525,15 +1525,15 @@ theorem
       Nat.add_left_comm, Nat.add_assoc] using hcommute
   have hsourceParamsRule : H.params.fvars =
       A.rule.params_bound.fvars :=
-    BoundFVarArray.fvars_eq_of_array_eq H.params
+    FVarArrayIn.fvars_eq_of_array_eq H.params
       A.rule.params_bound rfl
   have hsourceMotivesRule : H.bindings.motives.fvars =
       A.rule.motives_bound.fvars :=
-    BoundFVarArray.fvars_eq_of_array_eq H.bindings.motives
+    FVarArrayIn.fvars_eq_of_array_eq H.bindings.motives
       A.rule.motives_bound rfl
   have hsourceMinorsRule : H.bindings.flatMinors.fvars =
       A.rule.minors_bound.fvars :=
-    BoundFVarArray.fvars_eq_of_array_eq H.bindings.flatMinors
+    FVarArrayIn.fvars_eq_of_array_eq H.bindings.flatMinors
       A.rule.minors_bound rfl
   have hsourceBindersRule : sourceBinders =
       A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars ++
@@ -1809,14 +1809,14 @@ theorem
     (E : A.RecursiveResult T B j hj) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
-    ∃ S : RecInfoMinorTypeShape,
-    ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+    ∃ S : MinorPremiseType,
+    ∃ hypothesisOrigins : MinorInductionHypothesisTypes
         S.sourceFullContext S.recursiveFields S.hypotheses,
     ∃ fieldDomains hypothesisDomains : List VExpr,
     ∃ targetResidual : VExpr,
-    ∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+    ∃ D : FVarDeclAt S.sourceFullContext S.hypotheses j,
     ∃ originRoot sourceType,
-    ∃ O : RecInfoMinorHypothesisTypeOrigin
+    ∃ O : InductionHypothesisType
         hypothesisOrigins.stats hypothesisOrigins.recInfos
         originRoot S.recursiveFields[j]! sourceType,
     ∃ hypothesisLocalDomains : List VExpr,
@@ -2211,7 +2211,7 @@ theorem
       E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
         A.rule.all_args_bound.fvars
   let Gselection :=
-    E.frame.semantic.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+    E.frame.semantic.generated.arguments_bound.toFVarArrayIn.toCDeclArray
       E.frame.semantic.generated.current_wf
   have HgeneratedActualNeutral : Expr.SameForallPrefix
       E.frame.semantic.generated.localArgs.size
@@ -2249,7 +2249,7 @@ theorem
       rw [E.frame.semantic.current_context.mlctx.noBV, hselectedMotive] at hclosed
       simpa [generatedMotiveApp] using hclosed
     have Hsource :=
-      E.frame.semantic.generated.arguments_bound.toBoundFVarArray.mkForall_forallTelescopeList
+      E.frame.semantic.generated.arguments_bound.toFVarArrayIn.mkForall_forallTelescopeList
         E.frame.semantic.generated.current_wf generatedMotiveApp
         E.frame.semantic.generated.arguments_bound.nodup hgenClosed
     have Hsource' := Hsource.abstractList
@@ -2296,15 +2296,15 @@ theorem
     exact hdisjoint fv houter fv hminor rfl
   have hsourceParamsRule : H.params.fvars =
       A.rule.params_bound.fvars :=
-    BoundFVarArray.fvars_eq_of_array_eq H.params
+    FVarArrayIn.fvars_eq_of_array_eq H.params
       A.rule.params_bound rfl
   have hsourceMotivesRule : H.bindings.motives.fvars =
       A.rule.motives_bound.fvars :=
-    BoundFVarArray.fvars_eq_of_array_eq H.bindings.motives
+    FVarArrayIn.fvars_eq_of_array_eq H.bindings.motives
       A.rule.motives_bound rfl
   have hsourceMinorsRule : H.bindings.flatMinors.fvars =
       A.rule.minors_bound.fvars :=
-    BoundFVarArray.fvars_eq_of_array_eq H.bindings.flatMinors
+    FVarArrayIn.fvars_eq_of_array_eq H.bindings.flatMinors
       A.rule.minors_bound rfl
   have hsourceBindersRule : sourceBinders = generatedPrefix := by
     dsimp only [sourceBinders, generatedPrefix, generatedOuter]
@@ -2362,11 +2362,11 @@ theorem
         E.frame.semantic.generated.localArgs generatedMotiveApp)
       (outer := generatedOuter ++ A.rule.minors_bound.fvars)
       (inner := A.rule.all_args_bound.fvars) (k := 0)
-      (by simpa [generatedOuter, BoundGeneratedRecursorRule.binders,
+      (by simpa [generatedOuter, RecursorRuleSyntax.binders,
         List.append_assoc] using A.rule.binders_nodup)
     exact hcombined.trans <| by
       simpa [generatedFieldSource, generatedOuter,
-        BoundGeneratedRecursorRule.binders,
+        RecursorRuleSyntax.binders,
         A.rule.all_args_bound.length_fvars, List.append_assoc] using hclose
   have Htransformed := ((HfieldPrefix.liftLooseBVars' 0 j).abstractList
     sourceBinders position).liftLooseBVars' position remaining.length

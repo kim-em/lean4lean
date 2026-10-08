@@ -44,8 +44,8 @@ theorem
     {fv : FVarId} (hfv : fv ∈ A.rule.all_args_bound.fvars) :
     fv ∈ F.originRoot.lctx.fvars := by
   have hfieldRecent : fv ∈ A.semantics.fieldsRecent.fvars := by
-    rw [BoundFVarArray.fvars_eq
-      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+    rw [FVarArrayIn.fvars_eq
+      A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
       A.rule.all_args_bound rfl]
     exact hfv
   exact F.originExtension.contextLE.fvars
@@ -74,7 +74,7 @@ theorem
     rcases hfv with hfield | hparam
     · have hfieldRecent : fv ∈ A.semantics.fieldsRecent.fvars := by
         rw [← A.semantics.fieldOpening.fvars_eq_bound
-          A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
+          A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn]
         exact hfield
       have hraw := A.semantics.fieldsRecent.members fv hfieldRecent
       rw [← A.semantics.context.lctx_eq,
@@ -202,8 +202,8 @@ theorem
         A.semantics.fieldsRecent.fvars.reverse :=
     List.append_cancel_right happend
   rw [hfields, List.reverse_reverse]
-  exact BoundFVarArray.fvars_eq
-    A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+  exact FVarArrayIn.fvars_eq
+    A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
     A.rule.all_args_bound rfl
 
 private theorem cachedParameterCoreDeclarations
@@ -383,7 +383,7 @@ theorem
     rw [F.root_scope, hlocalRev, B.scope_fvars,
       A.parameterDecls_eq, H.parameterSuffix.parameterDecls_fvars]
     rw [A.semantics.fieldOpening.fvars_eq_bound
-      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
+      A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn]
     simp [List.append_assoc]
   have hposFields : 0 < A.rule.allArgs.size := by
     have hlen := A.semantics.selection.fields_length
@@ -486,9 +486,9 @@ theorem
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
-    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+    ∃ binding : MotiveBinding F.semantic.current_context
         H.recInfos[selectedOwner]! H.elimLevel,
-      ∃ evidence : RecursorMotiveTelescopeEvidence
+      ∃ evidence : MotiveAppliesTo
           F.semantic.current_context stats H.recInfos[selectedOwner]!
           binding F.semantic.generated.exposedType F.semantic.exposedTarget,
       ∃ scope,
@@ -603,10 +603,10 @@ theorem TrExprS.mkAppList_fvarPrefix {env : VEnv} {Us : List Name}
       TrExprS env Us (pre ++ Δ₀)
           (Expr.mkAppList f ((VLCtx.fvars pre).reverse.map Expr.fvar))
           (VExpr.mkApps (bF.liftN pre.length)
-            (recursorCanonicalVars pre.length)) ∧
+            (bvarSpine pre.length)) ∧
         env.HasType Us.length (pre ++ Δ₀).toCtx
           (VExpr.mkApps (bF.liftN pre.length)
-            (recursorCanonicalVars pre.length))
+            (bvarSpine pre.length))
           (VExpr.wrapForalls rest body)
   | [], rest, body, _, _, hty => by
     simpa [Expr.mkAppList, VExpr.mkApps, VLCtx.toCtx, VLCtx.fvars] using
@@ -642,18 +642,18 @@ theorem TrExprS.mkAppList_fvarPrefix {env : VEnv} {Us : List Name}
     have hfnTy : env.HasType Us.length
         (VLCtx.toCtx ((some (fv, deps), .vlam d) :: (pre ++ Δ₀)))
         ((VExpr.mkApps (bF.liftN pre.length)
-          (recursorCanonicalVars pre.length)).liftN 1)
+          (bvarSpine pre.length)).liftN 1)
         (.forallE (d.liftN 1) ((VExpr.wrapForalls rest body).liftN 1 1)) := by
       simpa [VExpr.wrapForalls, VExpr.liftN] using htyW
     have happ := TrExprS.app hfnTy hargTy htrW harg
     have happTy := VEnv.HasType.app hfnTy hargTy
     have hvars : VExpr.mkApps (bF.liftN (pre.length + 1))
-        (recursorCanonicalVars (pre.length + 1)) =
+        (bvarSpine (pre.length + 1)) =
         .app ((VExpr.mkApps (bF.liftN pre.length)
-          (recursorCanonicalVars pre.length)).liftN 1) (.bvar 0) := by
+          (bvarSpine pre.length)).liftN 1) (.bvar 0) := by
       rw [recursorCanonicalVars_add pre.length 1, VExpr.mkApps_append,
         VExpr.liftN_mkApps]
-      simp [recursorCanonicalVars, VExpr.mkApps, VExpr.liftN_liftN]
+      simp [bvarSpine, VExpr.mkApps, VExpr.liftN_liftN]
     refine ⟨?_, ?_⟩
     · simpa [Expr.mkAppList, List.reverse_cons, List.map_append,
         Expr.mkAppList_append, hvars] using happ
@@ -682,9 +682,9 @@ theorem
     let sourceIndices :=
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
     let parameterDecls := H.parameterSuffix.parameterDecls
-    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+    ∃ binding : MotiveBinding F.semantic.current_context
         H.recInfos[selectedOwner]! H.elimLevel,
-      ∃ evidence : RecursorMotiveTelescopeEvidence
+      ∃ evidence : MotiveAppliesTo
           F.semantic.current_context stats H.recInfos[selectedOwner]!
           binding F.semantic.generated.exposedType F.semantic.exposedTarget,
       ∃ scope,
@@ -766,8 +766,8 @@ theorem
           (List.getElem_mem hjFVars)
       have hfieldRecent : A.rule.recursive_args_bound.fvars[j] ∈
           A.semantics.fieldsRecent.fvars := by
-        rw [BoundFVarArray.fvars_eq
-          A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+        rw [FVarArrayIn.fvars_eq
+          A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
           A.rule.all_args_bound rfl]
         exact hfieldAll
       rw [hscopeFVars]
@@ -779,9 +779,9 @@ theorem
         simpa [F.semantic.generated.arguments_bound.expressions] using harg
       rcases List.mem_map.mp harg' with ⟨localFv, hlocalFv, rfl⟩
       have hlocalRecent : localFv ∈ F.semantic.recent.fvars := by
-        rw [BoundFVarArray.fvars_eq
-          F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
-          F.semantic.generated.arguments_bound.toBoundFVarArray rfl]
+        rw [FVarArrayIn.fvars_eq
+          F.semantic.recent.toFVarArrayAfter.toFVarArrayIn
+          F.semantic.generated.arguments_bound.toFVarArrayIn rfl]
         exact hlocalFv
       rw [hscopeFVars]
       exact List.mem_append_left _
@@ -792,7 +792,7 @@ theorem
     intro fv hfv
     rw [F.root_scope,
       A.semantics.fieldOpening.fvars_eq_bound
-        A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
+        A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn]
       at hfv
     rw [hscopeFVars, H.parameterSuffix.parameterDecls_fvars]
     rcases hfv with hlocalFv | hfield | hparam
@@ -935,8 +935,8 @@ theorem
       A.rule.all_args_bound A.rule.recursive_args_sublist
       (List.getElem_mem hjFVars)
   have hfieldRecent : fvF ∈ A.semantics.fieldsRecent.fvars := by
-    rw [BoundFVarArray.fvars_eq
-      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+    rw [FVarArrayIn.fvars_eq
+      A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
       A.rule.all_args_bound rfl]
     exact hfieldAll
   have hmemMc : fvF ∈ A.semantics.context.chk.vlctx.fvars := by
@@ -969,7 +969,7 @@ theorem
     obtain ⟨d', hd'main, hdeq⟩ := A.semantics.context.checkSub fvF d hd'
     have hfvRoot : fvF ∈ A.rule.root.lctx.fvars := by
       rw [← A.semantics.context.lctx_eq, A.semantics.context.mlctx_wf.tr.fvars_eq]
-      have := A.semantics.fieldsRecent.toBoundFVarArray.members fvF hfieldRecent
+      have := A.semantics.fieldsRecent.toFVarArrayIn.members fvF hfieldRecent
       rw [← A.semantics.context.lctx_eq] at this
       rw [A.semantics.context.mlctx_wf.tr.fvars_eq] at this
       exact this
@@ -1029,7 +1029,7 @@ theorem
     rw [Hscope.fvars_take, hscopeFVars]
     have hlen : F.semantic.recent.fvars.length =
         F.semantic.generated.localArgs.size := by
-      rw [F.semantic.recent.toBoundFVarArray.length_fvars]
+      rw [F.semantic.recent.toFVarArrayIn.length_fvars]
     rw [List.append_assoc, List.take_left' (by simp [hlen]),
       List.reverse_reverse]
   rw [hlocalFVars] at Happ
@@ -1055,7 +1055,7 @@ theorem
       F.semantic.generated.localArgs.size := Nat.min_eq_left hnScope
   let narrowMajor := VExpr.mkApps
     (bF.liftN F.semantic.generated.localArgs.size)
-    (recursorCanonicalVars F.semantic.generated.localArgs.size)
+    (bvarSpine F.semantic.generated.localArgs.size)
   have Hmajor : TrExprS H.outVEnv Us scope sourceMajor narrowMajor := by
     rw [hsourceMajor]
     simpa [List.length_take, hmin] using Happ.1
@@ -1092,13 +1092,13 @@ theorem
         F.semantic.generated.arguments_bound.fvars := by
     have hlocalFVars : F.semantic.recent.fvars =
         F.semantic.generated.arguments_bound.fvars :=
-      BoundFVarArray.fvars_eq
-        F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
-        F.semantic.generated.arguments_bound.toBoundFVarArray rfl
+      FVarArrayIn.fvars_eq
+        F.semantic.recent.toFVarArrayAfter.toFVarArrayIn
+        F.semantic.generated.arguments_bound.toFVarArrayIn rfl
     have hfieldFVars : A.semantics.fieldsRecent.fvars =
         A.rule.all_args_bound.fvars :=
-      BoundFVarArray.fvars_eq
-        A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+      FVarArrayIn.fvars_eq
+        A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
         A.rule.all_args_bound rfl
     have hparts := congrArg VLCtx.fvars hscopeParts
     rw [VLCtx.fvars_append, hscopeFVars] at hparts
@@ -1256,7 +1256,7 @@ theorem
     B.fieldDomains_length, rfl, hlocal, HlocalTemplate,
     HlocalTemplateType, HclosedCtx, hlength,
     by simpa using HindicesClosed',
-    by simpa [BoundGeneratedRecursiveCall.outerAbstractedMajor] using
+    by simpa [RecursiveCall.outerAbstractedMajor] using
       HmajorClosed,
     HexposedClosed, HclosedTyping, HindexEq, HmajorEq⟩
 
@@ -1540,7 +1540,7 @@ theorem
   have hZ := HS.semantic.hypothesesRecent.mkForallExact
     HS.semantic.motiveTranslation HS.semantic.motiveType
   have hfieldsMono :=
-    HS.semantic.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.mkForall_mono
+    HS.semantic.fieldsRecent.toFVarArrayAfter.toFVarArrayIn.mkForall_mono
       HS.semantic.hypothesesRecent.contextLE
       (S.sourceFullContext.lctx.mkForall S.hypotheses S.motiveApp)
   have hZclosed : Closed
@@ -1714,8 +1714,8 @@ theorem
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ S : RecInfoMinorTypeShape,
-      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+    ∃ S : MinorPremiseType,
+      ∃ HS : TypedMinorTraversalAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
         ∃ narrowDomains narrowResidual,
           narrowDomains.length = A.rule.allArgs.size ∧
@@ -2405,9 +2405,9 @@ theorem
     (k := F.semantic.generated.localArgs.size) Hlocal
   have hlocalFvars : F.semantic.recent.fvars =
       F.semantic.generated.arguments_bound.fvars :=
-    BoundFVarArray.fvars_eq
-      F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
-      F.semantic.generated.arguments_bound.toBoundFVarArray rfl
+    FVarArrayIn.fvars_eq
+      F.semantic.recent.toFVarArrayAfter.toFVarArrayIn
+      F.semantic.generated.arguments_bound.toFVarArrayIn rfl
   have hopenFvars : A.semantics.fieldOpening.fvars =
       A.rule.all_args_bound.fvars :=
     A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound
@@ -2475,7 +2475,7 @@ theorem
         A.rule.all_args_bound.fvars).indices,
       index.FVarsIn P := by
     intro index hindex
-    simp only [BoundGeneratedRecursiveCall.replayTrace] at hindex
+    simp only [RecursiveCall.replayTrace] at hindex
     rcases Array.mem_map.mp hindex with ⟨source, hsource, rfl⟩
     apply (Hindices _ ?_).mono
     · intro fv hparam
@@ -2509,13 +2509,13 @@ theorem
         simpa using harg
       rcases List.mem_map.mp harg' with ⟨index, _hindex, rfl⟩
       trivial
-  unfold BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
+  unfold RecursiveCall.outerAbstractedMotiveApp
   change FVarsIn P (Expr.app _ _)
   constructor
   · rw [Expr.mkAppN_eq_mkAppList]
     apply FVarsIn.mkAppList.mpr
     constructor
-    · simpa [BoundGeneratedRecursiveCall.replayTrace, hmotBang]
+    · simpa [RecursiveCall.replayTrace, hmotBang]
         using hmotiveFields
     · intro index hindex
       exact hindicesScope index (Array.mem_toList_iff.mp hindex)
@@ -2564,7 +2564,7 @@ theorem
       F.semantic.generated.arguments_bound.fvars)
     (outer := outer) (inner := A.rule.all_args_bound.fvars)
     (k := F.semantic.generated.localArgs.size) (by
-      simpa [outer, BoundGeneratedRecursorRule.binders,
+      simpa [outer, RecursorRuleSyntax.binders,
         List.append_assoc] using A.rule.binders_nodup)
   have hfields' :
       (motiveApp.abstractList
@@ -2580,7 +2580,7 @@ theorem
           (outer ++ A.rule.all_args_bound.fvars)
             F.semantic.generated.localArgs.size =
         F.semantic.generated.outerAbstractedMotiveApp A.rule.binders := by
-    simpa [motiveApp, outer, BoundGeneratedRecursorRule.binders,
+    simpa [motiveApp, outer, RecursorRuleSyntax.binders,
       List.append_assoc] using hfull
   rw [hfields'] at happend
   exact happend.trans hfull'

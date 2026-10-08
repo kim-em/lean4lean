@@ -150,7 +150,7 @@ end mkRecRules.loopCtors
 /-- Proof-side metadata retained for every field selected by `isRecArg`.
 The executable code stores only the field free variable; this record retains
 the independent recursive-domain certificate needed by `IotaRule`. -/
-structure RecursorRecursiveDomain (env : VEnv) (decl : VInductDecl) where
+structure RecursiveFieldDomain (env : VEnv) (decl : VInductDecl) where
   fieldIndex : Nat
   ownerIdx : Nat
   owner_lt : ownerIdx < decl.types.length
@@ -163,18 +163,18 @@ structure RecursorRecursiveDomain (env : VEnv) (decl : VInductDecl) where
 /-- Exact correspondence between the two arrays built by `loopCtorArgs` and
 the proof-side recursive-domain certificates. Constructors preserve the
 left-to-right field order and record the field ordinal at selection time. -/
-inductive RecursorFieldSelections (env : VEnv) (decl : VInductDecl) :
-    Array Expr → Array Expr → List (RecursorRecursiveDomain env decl) → Prop
-  | nil : RecursorFieldSelections env decl #[] #[] []
-  | nonrecursive : RecursorFieldSelections env decl bu u fields →
-      RecursorFieldSelections env decl (bu.push arg) u fields
-  | recursive : RecursorFieldSelections env decl bu u fields →
+inductive RecursiveFieldSelections (env : VEnv) (decl : VInductDecl) :
+    Array Expr → Array Expr → List (RecursiveFieldDomain env decl) → Prop
+  | nil : RecursiveFieldSelections env decl #[] #[] []
+  | nonrecursive : RecursiveFieldSelections env decl bu u fields →
+      RecursiveFieldSelections env decl (bu.push arg) u fields
+  | recursive : RecursiveFieldSelections env decl bu u fields →
       cert.fieldIndex = bu.size →
-      RecursorFieldSelections env decl (bu.push arg) (u.push arg)
+      RecursiveFieldSelections env decl (bu.push arg) (u.push arg)
         (fields ++ [cert])
 
-theorem RecursorFieldSelections.selectedSublist
-    (H : RecursorFieldSelections env decl bu u fields) :
+theorem RecursiveFieldSelections.selectedSublist
+    (H : RecursiveFieldSelections env decl bu u fields) :
     u.toList.Sublist bu.toList := by
   induction H with
   | nil => exact .slnil
@@ -287,17 +287,17 @@ def VInductDecl.IotaRule.ofCertificates
 The relation is intentionally separate from field classification: agreement
 of these substitutions with the abstract parameter telescope is established
 during constructor checking. -/
-inductive RecursorParamPrefix (stats : AddInductive.InductiveStats) :
+inductive ParameterPrefix (stats : AddInductive.InductiveStats) :
     Nat → Expr → Expr → Prop
-  | done : i = stats.params.size → RecursorParamPrefix stats i tail tail
+  | done : i = stats.params.size → ParameterPrefix stats i tail tail
   | step : stats.params[i]? = some param →
-      RecursorParamPrefix stats (i + 1) (body.instantiate1 param) tail →
-      RecursorParamPrefix stats i (.forallE name dom body bi) tail
+      ParameterPrefix stats (i + 1) (body.instantiate1 param) tail →
+      ParameterPrefix stats i (.forallE name dom body bi) tail
 
 /-- Replaying the cached parameter prefix is deterministic. -/
-theorem RecursorParamPrefix.tail_eq
-    (Hleft : RecursorParamPrefix stats i source left)
-    (Hright : RecursorParamPrefix stats i source right) : left = right := by
+theorem ParameterPrefix.tail_eq
+    (Hleft : ParameterPrefix stats i source left)
+    (Hright : ParameterPrefix stats i source right) : left = right := by
   induction Hleft with
   | done hi =>
     cases Hright with
@@ -322,8 +322,8 @@ theorem RecursorParamPrefix.tail_eq
 /-- A pure forall spine of the cached-parameter tail extends to the closed
 constructor type: the consumed parameters are free variables, which cannot
 alter the binder structure. -/
-theorem RecursorParamPrefix.forallSpine
-    (H : RecursorParamPrefix stats i source tail)
+theorem ParameterPrefix.forallSpine
+    (H : ParameterPrefix stats i source tail)
     (hfv : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv)
     (hspine : Expr.ForallSpine tail k) :
     Expr.ForallSpine source (stats.params.size - i + k) := by
@@ -346,37 +346,37 @@ theorem RecursorParamPrefix.forallSpine
 /-- A partially consumed common-parameter prefix.  Constructor checking
 builds this left-to-right; when `stop = stats.params.size`, it is exactly the
 complete prefix replay required by recursor generation. -/
-inductive RecursorParamSegment (stats : AddInductive.InductiveStats) :
+inductive ParameterSegment (stats : AddInductive.InductiveStats) :
     Nat → Nat → Expr → Expr → Prop
-  | done : RecursorParamSegment stats i i source source
+  | done : ParameterSegment stats i i source source
   | step {i stop : Nat} {param body tail dom : Expr}
       {name : Name} {bi : BinderInfo} :
       stats.params[i]? = some param →
-      RecursorParamSegment stats (i + 1) stop
+      ParameterSegment stats (i + 1) stop
         (body.instantiate1 param) tail →
-      RecursorParamSegment stats i stop (.forallE name dom body bi) tail
+      ParameterSegment stats i stop (.forallE name dom body bi) tail
 
-theorem RecursorParamSegment.trans
-    (H₁ : RecursorParamSegment stats start middle source current)
-    (H₂ : RecursorParamSegment stats middle stop current tail) :
-    RecursorParamSegment stats start stop source tail := by
+theorem ParameterSegment.trans
+    (H₁ : ParameterSegment stats start middle source current)
+    (H₂ : ParameterSegment stats middle stop current tail) :
+    ParameterSegment stats start stop source tail := by
   induction H₁ with
   | done => exact H₂
   | step hparam _ ih => exact .step hparam (ih H₂)
 
-theorem RecursorParamSegment.push
+theorem ParameterSegment.push
     {body param dom : Expr} {name : Name} {bi : BinderInfo}
-    (H : RecursorParamSegment stats start i source
+    (H : ParameterSegment stats start i source
       (.forallE name dom body bi))
     (hparam : stats.params[i]? = some param) :
-    RecursorParamSegment stats start (i + 1) source
+    ParameterSegment stats start (i + 1) source
       (body.instantiate1 param) := by
   exact H.trans (.step hparam .done)
 
-theorem RecursorParamSegment.complete
-    (H : RecursorParamSegment stats start stop source tail)
+theorem ParameterSegment.complete
+    (H : ParameterSegment stats start stop source tail)
     (hstop : stop = stats.params.size) :
-    RecursorParamPrefix stats start source tail := by
+    ParameterPrefix stats start source tail := by
   induction H with
   | done => exact .done hstop
   | step hparam _ ih => exact .step hparam (ih hstop)
@@ -391,7 +391,7 @@ theorem followsParamPrefix {α : Type}
     (k : Expr → Array Expr → Array Expr → AddInductive.M α)
     {t tail : Expr} {i : Nat} {bu u : Array Expr}
     {c : AddInductive.Context} {Q : α → Prop}
-    (hprefix : RecursorParamPrefix stats i t tail)
+    (hprefix : ParameterPrefix stats i t tail)
     (Htail : ∀ fuel,
       (AddInductive.mkRecInfos.loopCtorArgs.loop stats k tail
         stats.params.size bu u fuel c).WF Q) :

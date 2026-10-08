@@ -15,23 +15,23 @@ open Kernel
 /-- Source identities and recursive choices for one consumed constructor.
 The original first-pass traversal and hypothesis inputs remain available;
 canonical binder syntax is selected from those actual consumed sources. -/
-structure ConsumedConstructorOrigins
-    (s : InductiveSignature) (S : RecInfoMinorTypeShape)
+structure ConstructorMatchesMinor
+    (s : InductiveSignature) (S : MinorPremiseType)
     (ctor : InductiveSignature.Constructor s.families.size) where
-  traversal : RecInfoMinorTraversalShape
+  traversal : ConstructorFieldTraversal
   traversal_eq : S.traversal = some traversal
   name : ctor.name = S.constructor.name
   fields : ctor.fields.length = traversal.fields.size
   recursivePositions : (InductiveSignature.Instance.recursiveFields (s := s) ctor).map Prod.fst =
     traversal.recursivePositions
-  hypotheses : RecInfoMinorHypothesisTypeOrigins S.sourceFullContext S.recursiveFields S.hypotheses
+  hypotheses : MinorInductionHypothesisTypes S.sourceFullContext S.recursiveFields S.hypotheses
   hypotheses_eq : S.hypothesis_type_origins = some hypotheses
   recursiveCount : (InductiveSignature.Instance.recursiveFields (s := s) ctor).length = S.hypotheses.size
   recursive : ∀ j (hj : j < (InductiveSignature.Instance.recursiveFields (s := s) ctor).length),
     ∃ root sourceType,
-      ∃ O : RecInfoMinorHypothesisTypeOrigin hypotheses.stats hypotheses.recInfos
+      ∃ O : InductionHypothesisType hypotheses.stats hypotheses.recInfos
         root S.recursiveFields[j]! sourceType,
-      ∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+      ∃ D : FVarDeclAt S.sourceFullContext S.hypotheses j,
         BindingContextLE hypotheses.fieldRoot root ∧
         D.type = (sourceType.consumeTypeAnnotationsVerified
           S.sourceFullContext.env.isTypeAnnotationWrapper) ∧
@@ -41,7 +41,7 @@ structure ConsumedConstructorOrigins
 /-- One source-normalized generation witness, selected from the complete
 actual construction before installation. The raw formation signature is not
 forced to retain the consumed binder syntax of the generated declarations. -/
-structure RecursorConstruction.ConsumedGeneration
+structure RecursorConstruction.GeneratedBy
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) where
@@ -82,9 +82,9 @@ structure RecursorConstruction.ConsumedGeneration
     ∃ index : Fin signature.constructors.size,
       index.val = recursorMinorOffset indTypes owner + localIndex ∧
       signature.constructors[index].owner.val = owner ∧
-      signature.fieldTypes signature.constructors[index] = H.sourceFields owner howner localIndex hlocal ∧
-      signature.constructors[index].indices = H.sourceConstructorIndices owner howner localIndex hlocal ∧
-      Nonempty (ConsumedConstructorOrigins signature (H.origins.minorShapes owner howner localIndex hlocal)
+      signature.fieldTypes signature.constructors[index] = H.declFieldDomains owner howner localIndex hlocal ∧
+      signature.constructors[index].indices = H.declConstructorIndices owner howner localIndex hlocal ∧
+      Nonempty (ConstructorMatchesMinor signature (H.origins.minorShapes owner howner localIndex hlocal)
         signature.constructors[index])
 
 /-- The consumed signature's constructors carry the retained source origins
@@ -95,7 +95,7 @@ theorem RecursorConstruction.consumedSignature_origins
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    Nonempty (ConsumedConstructorOrigins (H.consumedSignature HU)
+    Nonempty (ConstructorMatchesMinor (H.consumedSignature HU)
       (H.origins.minorShapes owner howner localIndex hlocal)
       (H.consumedConstructorAt HU owner howner localIndex hlocal)) := by
   have hsourceOwner : owner < indTypes.size := by rwa [← H.sourceFamilyCount]
@@ -135,7 +135,7 @@ noncomputable def RecursorConstruction.consumedGenerationOf
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
-    H.ConsumedGeneration := by
+    H.GeneratedBy := by
   have D := H.consumedSignatureData HU
   have hfamCount : (H.consumedSignature HU).families.size = indTypes.size := by
     simp [H.consumedFamilies_size, H.sourceFamilyCount]
@@ -197,7 +197,7 @@ definitionally `H.consumedSignature H.argumentUniverses` and the facts
 retained by the construction (for instance
 `consumedGeneration_shapeTranslations`) are available about it. -/
 noncomputable def RecursorConstruction.consumedGeneration
-    (H : RecursorConstruction R) : H.ConsumedGeneration :=
+    (H : RecursorConstruction R) : H.GeneratedBy :=
   H.consumedGenerationOf H.argumentUniverses
 
 theorem RecursorConstruction.consumedGeneration_signature

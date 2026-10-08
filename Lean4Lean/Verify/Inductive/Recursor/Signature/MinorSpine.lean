@@ -19,8 +19,8 @@ private theorem forallSpine_of_telescope
 /-- A retained traversal ends at a literal mutual-family application. Its
 field array therefore counts the entire forall prefix, with no hidden
 binders in the residual. -/
-theorem RecInfoMinorTraversalShape.sourceSpine
-    (T : RecInfoMinorTraversalShape)
+theorem ConstructorFieldTraversal.sourceSpine
+    (T : ConstructorFieldTraversal)
     (hconsts : checkPositivityStep.IndConstArray T.stats.levels T.stats.indConsts names)
     (hvalid : AddInductive.isValidIndApp? T.stats T.terminal = some owner) :
     Expr.ForallSpine T.parameterTail T.fields.size := by

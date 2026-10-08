@@ -102,7 +102,7 @@ theorem RecursorConstruction.replayMotiveWithIndexDomains
     let motive := VExpr.wrapForalls indices (.forallE
       (VExpr.mkApps (.const (decl.types[owner]'(by simpa [H.cardinality.records] using howner)).name
         levels)
-        (recursorCanonicalVars (stats.params.size + H.recInfos[owner]!.indices.size))) (.sort level))
+        (bvarSpine (stats.params.size + H.recInfos[owner]!.indices.size))) (.sort level))
     TrExprS H.recursorWF.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse [])

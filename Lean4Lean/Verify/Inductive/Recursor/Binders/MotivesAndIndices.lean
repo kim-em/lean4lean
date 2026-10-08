@@ -16,32 +16,32 @@ namespace mkRecInfos.loopArgs1
 
 /-- Canonical abstract variables for indices retained in source binder order
 inside a context that stores the most recently opened index first. -/
-def canonicalIndexVars (n : Nat) : List VExpr :=
+def indexBVarSpine (n : Nat) : List VExpr :=
   (List.range n).reverse.map .bvar
 
-@[simp] theorem canonicalIndexVars_zero : canonicalIndexVars 0 = [] := rfl
+@[simp] theorem canonicalIndexVars_zero : indexBVarSpine 0 = [] := rfl
 
 @[simp] theorem canonicalIndexVars_succ (n : Nat) :
-    (canonicalIndexVars n).map (fun target => target.liftN 1 0) ++
-      [.bvar 0] = canonicalIndexVars (n + 1) := by
+    (indexBVarSpine n).map (fun target => target.liftN 1 0) ++
+      [.bvar 0] = indexBVarSpine (n + 1) := by
   induction n with
   | zero => rfl
   | succ n ih =>
-    rw [show canonicalIndexVars (n + 1) =
-        .bvar n :: canonicalIndexVars n by
-      simp [canonicalIndexVars, List.range_succ]]
+    rw [show indexBVarSpine (n + 1) =
+        .bvar n :: indexBVarSpine n by
+      simp [indexBVarSpine, List.range_succ]]
     simp only [List.map_cons, VExpr.liftN, Nat.zero_le, ↓reduceIte,
       List.cons_append]
     rw [ih]
-    simp [canonicalIndexVars, List.range_succ]
+    simp [indexBVarSpine, List.range_succ]
 
 /-- Common parameters beneath `n` index binders followed by those index
 variables are exactly the canonical variables for the whole header. -/
 theorem VInductDecl.paramVars_append_canonicalIndexVars
     (decl : VInductDecl) (n : Nat) :
-    decl.paramVars n ++ canonicalIndexVars n =
-      canonicalIndexVars (decl.nparams + n) := by
-  unfold VInductDecl.paramVars canonicalIndexVars
+    decl.paramVars n ++ indexBVarSpine n =
+      indexBVarSpine (decl.nparams + n) := by
+  unfold VInductDecl.paramVars indexBVarSpine
   rw [Nat.add_comm decl.nparams n, List.range_add,
     List.reverse_append, List.map_append]
   simp [Function.comp_def, Nat.add_comm]
@@ -77,7 +77,7 @@ def recursorTargetSkeletonOf
 header during recursor construction.  The family index is retained in the
 package, so parameter/index arities cannot be borrowed from another member
 of a mutual block. -/
-structure CheckedRecursorHeaderAt
+structure MotivePassHeaderAt
     (Hc : ContextWF c) (stats : AddInductive.InductiveStats)
     (decl : VInductDecl) (depth : Nat) (source : InductiveType)
     (familyIdx : Nat) where
@@ -112,9 +112,9 @@ structure CheckedRecursorHeaderAt
 elimination keeps the checked header unchanged.  Large elimination shifts
 the header's abstract universe indices under the fresh leading recursor
 parameter; its stored declaration arity is intentionally not changed. -/
-def CheckedRecursorHeaderAt.recursorTargetSkeleton
+def MotivePassHeaderAt.recursorTargetSkeleton
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     VInductiveTypeSkeleton :=
   recursorTargetSkeletonOf H.target c.lparams elimLevel Helim
@@ -122,9 +122,9 @@ def CheckedRecursorHeaderAt.recursorTargetSkeleton
 /-- Common header parameters after the optional leading recursor universe is
 introduced.  Term-variable indices are unchanged; only universe indices in
 their domain types move. -/
-def CheckedRecursorHeaderAt.recursorParams
+def MotivePassHeaderAt.recursorParams
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     List VExpr :=
   match elimLevel with
@@ -135,9 +135,9 @@ def CheckedRecursorHeaderAt.recursorParams
 
 /-- The independently specified common parameters remain definitionally
 equal to the exact cached executable suffix after universe rebasing. -/
-theorem CheckedRecursorHeaderAt.recursorParamsContext
+theorem MotivePassHeaderAt.recursorParamsContext
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     let R := Hc.toAdmissibleRecursorContextWF Helim
     let Hsuffix := H.materialized.parameterSuffix.toRecursorContext Helim
@@ -158,7 +158,7 @@ theorem CheckedRecursorHeaderAt.recursorParamsContext
         VLevel.prependShift_wf (n := c.lparams.length)
     have hctx := Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.instL hshift
       H.materialized.paramsContext
-    simpa only [CheckedRecursorHeaderAt.recursorParams,
+    simpa only [MotivePassHeaderAt.recursorParams,
       List.map_reverse, List.map_nil, TypeChecker.MLCtx.prependLevelParam_vlctx,
       VLCtx.instL_toCtx, shift] using hctx
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
@@ -167,7 +167,7 @@ theorem CheckedRecursorHeaderAt.recursorParamsContext
 /-- Recover the exact abstract domains of a concrete source header directly
 in the universe context used by generated recursors, and relate those domains
 to the independently cached parameter suffix.  Unlike
-`CheckedRecursorHeaderAt.recursorParameterPresentation`, this theorem needs
+`MotivePassHeaderAt.recursorParameterPresentation`, this theorem needs
 neither an installed target lookup nor the lowered constructor environment;
 it can therefore be used at the source-environment side of nested lowering. -/
 theorem _root_.Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.HeaderStatsWF.sourceParameterDomainsAt
@@ -271,9 +271,9 @@ theorem _root_.Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.HeaderStats
 
 /-- Expose the next family-local parameter from the independent `TypeShape`
 after shifting it beneath the optional fresh recursor universe parameter. -/
-theorem CheckedRecursorHeaderAt.recursorNextParameter
+theorem MotivePassHeaderAt.recursorNextParameter
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     (hi : i < decl.nparams) :
     ∃ (ownParams : List VExpr)
@@ -295,8 +295,8 @@ theorem CheckedRecursorHeaderAt.recursorNextParameter
   cases elimLevel with
   | zero =>
     simpa [AddInductive.getRecLevelParams,
-      CheckedRecursorHeaderAt.recursorParams,
-      CheckedRecursorHeaderAt.recursorTargetSkeleton,
+      MotivePassHeaderAt.recursorParams,
+      MotivePassHeaderAt.recursorTargetSkeleton,
       VInductDecl.ParamsDefEq, VInductiveType.toSkeleton,
       H.materialized.uvars] using
       VInductDecl.TypeShape.nextParameter hshape hi
@@ -330,7 +330,7 @@ theorem CheckedRecursorHeaderAt.recursorNextParameter
     · simp [ownParams', expectedDomain', hget]
     · have hown' :=
         Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.instL hshift hown
-      simpa only [CheckedRecursorHeaderAt.recursorParams,
+      simpa only [MotivePassHeaderAt.recursorParams,
         ownParams', List.map_reverse, List.map_nil, shift] using hown'
     · have hpresentation' := hpresentation.instL hshift
       have instL_wrapForalls (domains : List VExpr) (result : VExpr) :
@@ -346,7 +346,7 @@ theorem CheckedRecursorHeaderAt.recursorNextParameter
               (VExpr.wrapForalls (domains.map (VExpr.instL shift))
                 (result.instL shift))
           exact congrArg (VExpr.forallE (domain.instL shift)) ih
-      simpa only [CheckedRecursorHeaderAt.recursorTargetSkeleton,
+      simpa only [MotivePassHeaderAt.recursorTargetSkeleton,
         ownParams', expectedDomain', expectedBody', targetType',
         List.map_nil, List.map_take, List.map_reverse,
         VExpr.instL, instL_wrapForalls] using hpresentation'
@@ -356,9 +356,9 @@ theorem CheckedRecursorHeaderAt.recursorNextParameter
 /-- The next domain exposed by independent rebased header synthesis is the
 exact cached parameter declaration selected in the current recursor context.
 No successful executable `isDefEq` result is used to establish the match. -/
-theorem CheckedRecursorHeaderAt.recursorCurrentDomainDefEq
+theorem MotivePassHeaderAt.recursorCurrentDomainDefEq
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {c' : AddInductive.Context}
     {R : RecursorContextWF c'
@@ -435,9 +435,9 @@ theorem CheckedRecursorHeaderAt.recursorCurrentDomainDefEq
         _ = H.materialized.parameterScope.length := hcachedCtx
         _ = stats.params.size := by simpa using hcachedLength.symm
     cases elimLevel with
-    | zero => simpa [CheckedRecursorHeaderAt.recursorParams]
+    | zero => simpa [MotivePassHeaderAt.recursorParams]
         using hbaseLength
-    | param fresh => simpa [CheckedRecursorHeaderAt.recursorParams]
+    | param fresh => simpa [MotivePassHeaderAt.recursorParams]
         using hbaseLength
     | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
       simp [AddInductive.AdmissibleElimLevel] at Helim
@@ -456,17 +456,17 @@ theorem CheckedRecursorHeaderAt.recursorCurrentDomainDefEq
     (Hscope.lift.wf R.checking.tr.wf R.mlctx_wf.tr.wf).1.toCtx
     hcached'⟩
 
-@[simp] theorem CheckedRecursorHeaderAt.recursorTargetSkeleton_zero
+@[simp] theorem MotivePassHeaderAt.recursorTargetSkeleton_zero
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams (.zero)) :
     H.recursorTargetSkeleton Helim = H.target.toSkeleton := rfl
 
 /-- The closed concrete source header translates to the rebased semantic
 header under the exact universe list assigned to generated recursors. -/
-theorem CheckedRecursorHeaderAt.recursorSourceTranslation
+theorem MotivePassHeaderAt.recursorSourceTranslation
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     TrExprS Hc.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams) []
@@ -483,9 +483,9 @@ theorem CheckedRecursorHeaderAt.recursorSourceTranslation
 
 /-- The rebased semantic header remains a type in the recursor universe
 context. -/
-theorem CheckedRecursorHeaderAt.recursorTargetType
+theorem MotivePassHeaderAt.recursorTargetType
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     Hc.venv.IsType
       (AddInductive.getRecLevelParams elimLevel c.lparams).length []
@@ -510,9 +510,9 @@ theorem CheckedRecursorHeaderAt.recursorTargetType
 context and restart independent narrow synthesis in the empty closed scope.
 This is the first operational step that remains valid after earlier major and
 motive frames have introduced the fresh large-elimination universe. -/
-theorem CheckedRecursorHeaderAt.startRecursorHeaderSemantics
+theorem MotivePassHeaderAt.startRecursorHeaderSemantics
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {c' : AddInductive.Context}
     (R : RecursorContextWF c'
@@ -577,9 +577,9 @@ theorem CheckedRecursorHeaderAt.startRecursorHeaderSemantics
 /-- The header normalization of `loopInd1` as a retained recursor `whnf`
 call: the closed header translates in the recursor context and has no free
 variables. -/
-theorem CheckedRecursorHeaderAt.headerWhnfCall
+theorem MotivePassHeaderAt.headerWhnfCall
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {c' : AddInductive.Context}
     (R : RecursorContextWF c'
@@ -587,7 +587,7 @@ theorem CheckedRecursorHeaderAt.headerWhnfCall
     (henv : R.venv = Hc.venv) :
     ((monadLift (TypeChecker.whnf source.type) :
         AddInductive.M Expr) c').WF fun normalized =>
-      RecursorWhnfCallAt c' (fun _ => False) source.type normalized := by
+      WhnfRunAt c' (fun _ => False) source.type normalized := by
   let recLparams :=
     AddInductive.getRecLevelParams elimLevel c.lparams
   have htarget : TrExprS R.venv recLparams [] source.type
@@ -611,25 +611,25 @@ theorem CheckedRecursorHeaderAt.headerWhnfCall
     htarget.weakFV R.checking.tr.wf.ordered
       (VLCtx.FVLift.from_nil R.chk.noBV) R.check.wf.tr.wf⟩
 
-theorem CheckedRecursorHeaderAt.target_mem
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+theorem MotivePassHeaderAt.target_mem
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx) :
     H.target ∈ decl.types :=
   List.mem_of_getElem? H.targetAt
 
-theorem CheckedRecursorHeaderAt.shape
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+theorem MotivePassHeaderAt.shape
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx) :
     decl.TypeShape Hc.venv H.materialized.headers.params H.target :=
   H.materialized.headers.typeShapes H.target H.target_mem
 
-theorem CheckedRecursorHeaderAt.parameterCount
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+theorem MotivePassHeaderAt.parameterCount
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx) :
     stats.params.size = decl.nparams := by
   have hlength := List.Forall₂.length_eq
     H.materialized.suffixParams
   simpa [VInductDecl.paramVars] using hlength
 
-theorem CheckedRecursorHeaderAt.indexCount
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+theorem MotivePassHeaderAt.indexCount
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx) :
     stats.nindices[familyIdx]? = some H.target.numIndices := by
   have htargetBound : familyIdx < decl.types.length :=
     List.getElem?_eq_some_iff.mp H.targetAt |>.1
@@ -643,27 +643,27 @@ theorem CheckedRecursorHeaderAt.indexCount
     List.getElem?_map, H.targetAt, Option.map_some] at hentry
   exact hentry
 
-def CheckedRecursorHeaderAt.abstractLevels
+def MotivePassHeaderAt.abstractLevels
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx) :
     List VLevel :=
   c.lparams.map fun name => .param (c.lparams.idxOf name)
 
-theorem CheckedRecursorHeaderAt.abstractLevels_eq_params
+theorem MotivePassHeaderAt.abstractLevels_eq_params
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx) :
     H.abstractLevels = VLevel.params c.lparams.length := by
   apply List.ext_getElem
-  · simp [CheckedRecursorHeaderAt.abstractLevels, VLevel.params]
+  · simp [MotivePassHeaderAt.abstractLevels, VLevel.params]
   · intro i hleft hright
     have hi : i < c.lparams.length := by
       simpa [VLevel.params] using hright
-    simp [CheckedRecursorHeaderAt.abstractLevels, VLevel.params,
+    simp [MotivePassHeaderAt.abstractLevels, VLevel.params,
       H.lparamsNodup.idxOf_getElem i hi]
 
-theorem CheckedRecursorHeaderAt.targetType_inst_abstractLevels
+theorem MotivePassHeaderAt.targetType_inst_abstractLevels
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx) :
     H.target.type.instL H.abstractLevels = H.target.type := by
   rw [H.abstractLevels_eq_params, ← H.sourceTranslation.uvars]
   have htyped := Classical.choose_spec H.sourceTranslation.wf
@@ -672,9 +672,9 @@ theorem CheckedRecursorHeaderAt.targetType_inst_abstractLevels
 /-- Universe arguments of the installed family constant as seen from the
 generated recursor.  Large elimination inserts one fresh leading universe,
 so every original declaration argument is shifted by one slot. -/
-def CheckedRecursorHeaderAt.recursorAbstractLevels
+def MotivePassHeaderAt.recursorAbstractLevels
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     List VLevel :=
   match elimLevel with
@@ -683,24 +683,24 @@ def CheckedRecursorHeaderAt.recursorAbstractLevels
       (VLevel.inst (VLevel.prependShift c.lparams.length))
   | .succ _ | .max _ _ | .imax _ _ | .mvar _ => False.elim Helim
 
-theorem CheckedRecursorHeaderAt.recursorAbstractLevels_length
+theorem MotivePassHeaderAt.recursorAbstractLevels_length
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     (H.recursorAbstractLevels Helim).length = H.target.uvars := by
   cases elimLevel with
   | zero =>
-    simp [CheckedRecursorHeaderAt.recursorAbstractLevels,
+    simp [MotivePassHeaderAt.recursorAbstractLevels,
       H.abstractLevels_eq_params, H.sourceTranslation.uvars]
   | param fresh =>
-    simp [CheckedRecursorHeaderAt.recursorAbstractLevels,
+    simp [MotivePassHeaderAt.recursorAbstractLevels,
       H.abstractLevels_eq_params, H.sourceTranslation.uvars]
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-theorem CheckedRecursorHeaderAt.recursorAbstractLevels_wf
+theorem MotivePassHeaderAt.recursorAbstractLevels_wf
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     ∀ level ∈ H.recursorAbstractLevels Helim,
       level.WF
@@ -708,7 +708,7 @@ theorem CheckedRecursorHeaderAt.recursorAbstractLevels_wf
   cases elimLevel with
   | zero =>
     intro level hlevel
-    rw [CheckedRecursorHeaderAt.recursorAbstractLevels,
+    rw [MotivePassHeaderAt.recursorAbstractLevels,
       H.abstractLevels_eq_params] at hlevel
     exact VLevel.params_wf hlevel
   | param fresh =>
@@ -717,7 +717,7 @@ theorem CheckedRecursorHeaderAt.recursorAbstractLevels_wf
         level.WF (fresh :: c.lparams).length := by
       simpa [shift] using
         VLevel.prependShift_wf (n := c.lparams.length)
-    rw [CheckedRecursorHeaderAt.recursorAbstractLevels]
+    rw [MotivePassHeaderAt.recursorAbstractLevels]
     intro level hlevel
     rw [List.mem_map] at hlevel
     rcases hlevel with ⟨sourceLevel, hsourceLevel, rfl⟩
@@ -727,9 +727,9 @@ theorem CheckedRecursorHeaderAt.recursorAbstractLevels_wf
 
 /-- The installed family constant at its concrete translated universe
 arguments has the original abstract header type. -/
-theorem CheckedRecursorHeaderAt.constHasType
+theorem MotivePassHeaderAt.constHasType
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx) :
     Hc.venv.HasType c.lparams.length []
       (.const H.target.name H.abstractLevels) H.target.type := by
   have hlevels : ∀ level ∈ H.abstractLevels,
@@ -745,9 +745,9 @@ theorem CheckedRecursorHeaderAt.constHasType
 /-- The family constant remains typed after the optional recursor-universe
 shift, independently of how many earlier mutual frames are in the local
 context. -/
-theorem CheckedRecursorHeaderAt.recursorConstHasType
+theorem MotivePassHeaderAt.recursorConstHasType
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -759,8 +759,8 @@ theorem CheckedRecursorHeaderAt.recursorConstHasType
       (H.recursorTargetSkeleton Helim).type := by
   cases elimLevel with
   | zero =>
-    simpa [CheckedRecursorHeaderAt.recursorAbstractLevels,
-      CheckedRecursorHeaderAt.recursorTargetSkeleton,
+    simpa [MotivePassHeaderAt.recursorAbstractLevels,
+      MotivePassHeaderAt.recursorTargetSkeleton,
       AddInductive.getRecLevelParams, VInductiveType.toSkeleton, henv] using
       H.constHasType
   | param fresh =>
@@ -770,8 +770,8 @@ theorem CheckedRecursorHeaderAt.recursorConstHasType
       simpa [shift] using
         VLevel.prependShift_wf (n := c.lparams.length)
     have htyped := H.constHasType.instL hshift
-    simpa [CheckedRecursorHeaderAt.recursorAbstractLevels,
-      CheckedRecursorHeaderAt.recursorTargetSkeleton,
+    simpa [MotivePassHeaderAt.recursorAbstractLevels,
+      MotivePassHeaderAt.recursorTargetSkeleton,
       AddInductive.getRecLevelParams, VExpr.instL, shift, henv] using
       htyped
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
@@ -780,9 +780,9 @@ theorem CheckedRecursorHeaderAt.recursorConstHasType
 /-- Recursor-universe analogue of `indConstTranslation`.  It selects the
 same executable family constant but translates its universe arguments after
 the optional fresh leading recursor parameter. -/
-theorem CheckedRecursorHeaderAt.recursorIndConstTranslation
+theorem MotivePassHeaderAt.recursorIndConstTranslation
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -816,15 +816,15 @@ theorem CheckedRecursorHeaderAt.recursorIndConstTranslation
       some (H.recursorAbstractLevels Helim) := by
     cases elimLevel with
     | zero =>
-      simpa [CheckedRecursorHeaderAt.recursorAbstractLevels,
-        CheckedRecursorHeaderAt.abstractLevels,
+      simpa [MotivePassHeaderAt.recursorAbstractLevels,
+        MotivePassHeaderAt.abstractLevels,
         AddInductive.getRecLevelParams] using
         H.materialized.levelTranslation
     | param fresh =>
       have hshifted := VLevel.mapM_ofLevel_fresh_cons Helim
         H.materialized.levelTranslation
-      simpa [CheckedRecursorHeaderAt.recursorAbstractLevels,
-        CheckedRecursorHeaderAt.abstractLevels,
+      simpa [MotivePassHeaderAt.recursorAbstractLevels,
+        MotivePassHeaderAt.abstractLevels,
         AddInductive.getRecLevelParams] using hshifted
     | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
       simp [AddInductive.AdmissibleElimLevel] at Helim
@@ -836,9 +836,9 @@ theorem CheckedRecursorHeaderAt.recursorIndConstTranslation
 
 /-- Completed executable arguments in the independently synthesized scope,
 interpreted under the recursor universe list. -/
-theorem CheckedRecursorHeaderAt.completedRecursorNarrowArguments
+theorem MotivePassHeaderAt.completedRecursorNarrowArguments
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -852,12 +852,12 @@ theorem CheckedRecursorHeaderAt.completedRecursorNarrowArguments
       (AddInductive.getRecLevelParams elimLevel c.lparams) scope)
       indices.toList indexTargets)
     (hreplay : indexTargets.length = nindices)
-    (hcanonical : indexTargets = canonicalIndexVars nindices)
+    (hcanonical : indexTargets = indexBVarSpine nindices)
     (harity : (indices.size == stats.nindices[familyIdx]!) = true) :
     List.Forall₂ (TrExprS R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams) scope)
       (stats.params.toList ++ indices.toList)
-      (canonicalIndexVars (decl.nparams + H.target.numIndices)) := by
+      (indexBVarSpine (decl.nparams + H.target.numIndices)) := by
   have htranslated : indices.size = indexTargets.length := by
     simpa using List.Forall₂.length_eq Hindices
   have hguard : indices.size = stats.nindices[familyIdx]! := by
@@ -872,9 +872,9 @@ theorem CheckedRecursorHeaderAt.completedRecursorNarrowArguments
 
 /-- Applying the installed family constant to the canonical variables of a
 rebased completed header yields its residual synthesized type. -/
-theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyPrefix
+theorem MotivePassHeaderAt.recursorCanonicalFamilyPrefix
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -892,7 +892,7 @@ theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyPrefix
       (VExpr.mkApps
         ((VExpr.const H.target.name (H.recursorAbstractLevels Helim)).liftN
           Hsynthesis.params.length 0)
-        (recursorCanonicalVars Hsynthesis.params.length))
+        (bvarSpine Hsynthesis.params.length))
       (VExpr.wrapForalls Hsynthesis.indices narrowTarget) := by
   have hhead := H.recursorConstHasType Helim R henv
   have hheadTelescope : R.venv.HasType
@@ -902,16 +902,16 @@ theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyPrefix
         narrowTarget) := by
     apply hhead.defeqU_r R.checking.tr.wf (by trivial)
     exact ⟨Hsynthesis.exprType, Hsynthesis.header⟩
-  simpa [recursorCanonicalVars] using
+  simpa [bvarSpine] using
     VEnv.HasType.mkApps_wrapForalls_prefix_canonical
       R.checking.tr.wf.ordered hheadTelescope
 
 /-- The canonical family prefix remains typed after reopening the exact
 index scope; both the prefix and its residual index telescope are shifted
 beneath those ambient index variables. -/
-theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyPrefixAtScope
+theorem MotivePassHeaderAt.recursorCanonicalFamilyPrefixAtScope
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -928,7 +928,7 @@ theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyPrefixAtScope
       ((VExpr.mkApps
         ((VExpr.const H.target.name (H.recursorAbstractLevels Helim)).liftN
           Hsynthesis.params.length 0)
-        (recursorCanonicalVars Hsynthesis.params.length)).liftN
+        (bvarSpine Hsynthesis.params.length)).liftN
           Hsynthesis.indices.length 0)
       ((VExpr.wrapForalls Hsynthesis.indices narrowTarget).liftN
         Hsynthesis.indices.length 0) := by
@@ -941,9 +941,9 @@ theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyPrefixAtScope
 to the canonical parameter application in the completed narrow replay scope.
 This is the translation counterpart of
 `recursorCanonicalFamilyPrefixAtScope`. -/
-theorem CheckedRecursorHeaderAt.recursorNarrowFamilyPrefixTranslation
+theorem MotivePassHeaderAt.recursorNarrowFamilyPrefixTranslation
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -983,7 +983,7 @@ theorem CheckedRecursorHeaderAt.recursorNarrowFamilyPrefixTranslation
         (decl.paramVars nindices))
       ((VExpr.wrapForalls Hsynthesis.indices narrowTarget).liftN
         nindices 0) := by
-    simpa [recursorCanonicalVars, VInductDecl.paramVars, hparamCount,
+    simpa [bvarSpine, VInductDecl.paramVars, hparamCount,
       hindexCount, VExpr.liftN_mkApps, VExpr.liftN,
       ← List.map_reverse, Function.comp_def, Nat.add_comm] using hcanonical
   have hhead := H.recursorIndConstTranslation Helim R Hstats henv
@@ -1002,9 +1002,9 @@ theorem CheckedRecursorHeaderAt.recursorNarrowFamilyPrefixTranslation
 index context and identify its term with the prefix retained in the motive
 frame.  Strict equality is available because the concrete constant/free-
 variable application has unique translation. -/
-theorem CheckedRecursorHeaderAt.completedRecursorFamilyPrefixTyping
+theorem MotivePassHeaderAt.completedRecursorFamilyPrefixTyping
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -1063,9 +1063,9 @@ theorem CheckedRecursorHeaderAt.completedRecursorFamilyPrefixTyping
 executable motive frame are not merely definitionally equal.  Their source
 is syntax-directed and the narrow/runtime contexts have the same declaration
 spine, so translation uniqueness identifies the terms strictly. -/
-theorem CheckedRecursorHeaderAt.completedRecursorFamilyPrefixEq
+theorem MotivePassHeaderAt.completedRecursorFamilyPrefixEq
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -1111,9 +1111,9 @@ theorem CheckedRecursorHeaderAt.completedRecursorFamilyPrefixEq
 exactly the weakened canonical variables of the independent narrow replay.
 The source array contains only retained free variables, so the same
 cross-context uniqueness argument applies pointwise. -/
-theorem CheckedRecursorHeaderAt.completedRecursorIndexTargetsEq
+theorem MotivePassHeaderAt.completedRecursorIndexTargetsEq
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -1131,10 +1131,10 @@ theorem CheckedRecursorHeaderAt.completedRecursorIndexTargetsEq
     (Hindices : List.Forall₂ (TrExprS R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams) scope)
       indices.toList indexTargets)
-    (hcanonical : indexTargets = canonicalIndexVars nindices)
-    (Hbound : BoundFVarArray current indices)
+    (hcanonical : indexTargets = indexBVarSpine nindices)
+    (Hbound : FVarArrayIn current indices)
     (Hframe : RecursorMotiveFrameWF R stats familyIdx indices elimLevel) :
-    (canonicalIndexVars nindices).map (fun target =>
+    (indexBVarSpine nindices).map (fun target =>
         target.lift' Hruntime.shift) = Hframe.familyIndexTargets := by
   have Hweak : List.Forall₂ (TrExprS R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
@@ -1161,9 +1161,9 @@ theorem CheckedRecursorHeaderAt.completedRecursorIndexTargetsEq
 /-- Instantiate the abstract parallel motive telescope from the independently
 checked header, weaken it through the exact runtime embedding, and identify
 its family head with the executable frame by strict translation uniqueness. -/
-theorem CheckedRecursorHeaderAt.completedRecursorCanonicalMotiveFrame
+theorem MotivePassHeaderAt.completedRecursorCanonicalMotiveFrame
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -1184,7 +1184,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorCanonicalMotiveFrame
     (henv : R.venv = Hc.venv)
     (hindices : indices.size = nindices)
     (Hframe : RecursorMotiveFrameWF R stats familyIdx indices elimLevel) :
-    ∃ Hcanonical : RecursorMotiveCanonicalFrameWF R stats familyIdx
+    ∃ Hcanonical : RecursorMotiveClosedFrameWF R stats familyIdx
         indices elimLevel Hframe,
       Hcanonical.familyType =
         ((VExpr.wrapForalls Hsynthesis.indices narrowTarget).liftN
@@ -1195,14 +1195,14 @@ theorem CheckedRecursorHeaderAt.completedRecursorCanonicalMotiveFrame
             (VExpr.mkApps
               ((VExpr.mkApps
                 (.const H.target.name (H.recursorAbstractLevels Helim))
-                (recursorCanonicalVars Hsynthesis.params.length)).liftN
+                (bvarSpine Hsynthesis.params.length)).liftN
                   Hsynthesis.indices.length 0)
-              (recursorCanonicalVars Hsynthesis.indices.length))
+              (bvarSpine Hsynthesis.indices.length))
             (.sort Hframe.resultLevel))).liftN nindices 0).lift'
               Hruntime.shift := by
   let familyBase := VExpr.mkApps
     (.const H.target.name (H.recursorAbstractLevels Helim))
-    (recursorCanonicalVars Hsynthesis.params.length)
+    (bvarSpine Hsynthesis.params.length)
   let Hbase := RecursorMotiveTelescope.wrapForalls Hsynthesis.indices
     familyBase narrowTarget Hframe.resultLevel
   let Hscope := Hbase.liftN nindices 0
@@ -1213,7 +1213,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorCanonicalMotiveFrame
       VExpr.mkApps
         (.const H.target.name (H.recursorAbstractLevels Helim))
         (decl.paramVars nindices) := by
-    simp [familyBase, recursorCanonicalVars, VInductDecl.paramVars,
+    simp [familyBase, bvarSpine, VInductDecl.paramVars,
       VExpr.liftN_mkApps, VExpr.liftN, hparameterCount,
       ← List.map_reverse, Function.comp_def, Nat.add_comm]
   have hfamily := H.completedRecursorFamilyPrefixEq Helim R Hsynthesis
@@ -1230,7 +1230,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorCanonicalMotiveFrame
       (((VExpr.wrapForalls Hsynthesis.indices
         (.forallE
           (VExpr.mkApps (familyBase.liftN Hsynthesis.indices.length 0)
-            (recursorCanonicalVars Hsynthesis.indices.length))
+            (bvarSpine Hsynthesis.indices.length))
           (.sort Hframe.resultLevel))).liftN nindices 0).lift'
             Hruntime.shift) := by
     have harity : Hsynthesis.indices.length = indices.size :=
@@ -1246,7 +1246,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorCanonicalMotiveFrame
       ((VExpr.wrapForalls Hsynthesis.indices
         (.forallE
           (VExpr.mkApps (familyBase.liftN Hsynthesis.indices.length 0)
-            (recursorCanonicalVars Hsynthesis.indices.length))
+            (bvarSpine Hsynthesis.indices.length))
           (.sort Hframe.resultLevel))).liftN nindices 0).lift'
             Hruntime.shift
     familyTyping := H.completedRecursorFamilyPrefixTyping Helim R Hsynthesis
@@ -1260,9 +1260,9 @@ leading index declarations on both sides of the narrow/runtime context
 conversion, compares the canonical family application with the consumed
 major domain, and then reopens the closed telescope in the executable
 context. -/
-theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
+theorem MotivePassHeaderAt.completedRecursorMotiveTypeDefEq
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -1283,13 +1283,13 @@ theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
     (Hindices : List.Forall₂ (TrExprS R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams) scope)
       indices.toList indexTargets)
-    (hcanonical : indexTargets = canonicalIndexVars nindices)
-    (Hbound : BoundFVarArray current indices)
+    (hcanonical : indexTargets = indexBVarSpine nindices)
+    (Hbound : FVarArrayIn current indices)
     (henv : R.venv = Hc.venv)
     (hindices : indices.size = nindices)
     (hfront : Hruntime.frontSourceDomains = Hsynthesis.indices)
     (Hframe : RecursorMotiveFrameWF R stats familyIdx indices elimLevel) :
-    ∃ Hcanonical : RecursorMotiveCanonicalFrameWF R stats familyIdx
+    ∃ Hcanonical : RecursorMotiveClosedFrameWF R stats familyIdx
         indices elimLevel Hframe,
       R.venv.IsDefEqU
           (AddInductive.getRecLevelParams elimLevel c.lparams).length
@@ -1313,10 +1313,10 @@ theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
               (.sort Hframe.resultLevel))).liftN indices.size 0 ∧
         (let familyBase := VExpr.mkApps
             (.const H.target.name (H.recursorAbstractLevels Helim))
-            (recursorCanonicalVars Hsynthesis.params.length)
+            (bvarSpine Hsynthesis.params.length)
          let canonicalMajor := VExpr.mkApps
             (familyBase.liftN Hsynthesis.indices.length 0)
-            (recursorCanonicalVars Hsynthesis.indices.length)
+            (bvarSpine Hsynthesis.indices.length)
          let canonicalBody :=
             VExpr.forallE canonicalMajor (.sort Hframe.resultLevel)
          canonicalBody.lift' Hruntime.shift =
@@ -1327,10 +1327,10 @@ theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
     ⟨Hcanonical, _hfamilyType, hmotiveType⟩
   let familyBase := VExpr.mkApps
     (.const H.target.name (H.recursorAbstractLevels Helim))
-    (recursorCanonicalVars Hsynthesis.params.length)
+    (bvarSpine Hsynthesis.params.length)
   let canonicalMajor := VExpr.mkApps
     (familyBase.liftN Hsynthesis.indices.length 0)
-    (recursorCanonicalVars Hsynthesis.indices.length)
+    (bvarSpine Hsynthesis.indices.length)
   let canonicalBody :=
     VExpr.forallE canonicalMajor (.sort Hframe.resultLevel)
   have hparameterCount : Hsynthesis.params.length = decl.nparams := by
@@ -1339,7 +1339,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
       VExpr.mkApps
         (.const H.target.name (H.recursorAbstractLevels Helim))
         (decl.paramVars nindices) := by
-    simp [familyBase, recursorCanonicalVars, VInductDecl.paramVars,
+    simp [familyBase, bvarSpine, VInductDecl.paramVars,
       VExpr.liftN_mkApps, VExpr.liftN, hparameterCount,
       ← List.map_reverse, Function.comp_def, Nat.add_comm]
   have hfamily := H.completedRecursorFamilyPrefixEq Helim R Hsynthesis
@@ -1361,10 +1361,10 @@ theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
       simpa [Hsynthesis.indexCount] using hfamilyFull
     rw [hfamilyFull']
     have hindexTargets' :
-        (recursorCanonicalVars Hsynthesis.indices.length).map
+        (bvarSpine Hsynthesis.indices.length).map
             (fun target => target.lift' Hruntime.shift) =
           Hframe.familyIndexTargets := by
-      simpa [recursorCanonicalVars, canonicalIndexVars,
+      simpa [bvarSpine, indexBVarSpine,
         List.map_reverse, Function.comp_def, Hsynthesis.indexCount] using
         hindexTargets
     rw [hindexTargets']
@@ -1442,9 +1442,9 @@ theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
   exact ⟨Hcanonical, ⟨_, hresult⟩, ⟨_, hclosedRuntime.symm⟩,
     hmotiveType'.trans hnatural', hcanonicalBody⟩
 
-theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyApplication
+theorem MotivePassHeaderAt.recursorCanonicalFamilyApplication
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -1461,7 +1461,7 @@ theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyApplication
       (AddInductive.getRecLevelParams elimLevel c.lparams).length scope.toCtx
       (VExpr.mkApps
         (.const H.target.name (H.recursorAbstractLevels Helim))
-        (canonicalIndexVars (decl.nparams + H.target.numIndices)))
+        (indexBVarSpine (decl.nparams + H.target.numIndices)))
       narrowTarget := by
   have hhead := H.recursorConstHasType Helim R henv
   have hheadTelescope : R.venv.HasType
@@ -1478,12 +1478,12 @@ theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyApplication
   have hindexCount : Hsynthesis.indices.length = H.target.numIndices := by
     rw [Hsynthesis.indexCount, hnindices]
   simpa [List.reverse_append, Hsynthesis.scopeCtx, hparamCount,
-    hindexCount, canonicalIndexVars, VExpr.liftN, ← List.map_reverse] using happ
+    hindexCount, indexBVarSpine, VExpr.liftN, ← List.map_reverse] using happ
 
 /-- Recursor-universe form of the completed family application theorem. -/
-theorem CheckedRecursorHeaderAt.completedRecursorNarrowFamilyApplication
+theorem MotivePassHeaderAt.completedRecursorNarrowFamilyApplication
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -1502,7 +1502,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorNarrowFamilyApplication
       (AddInductive.getRecLevelParams elimLevel c.lparams) scope)
       indices.toList indexTargets)
     (hreplay : indexTargets.length = nindices)
-    (hcanonical : indexTargets = canonicalIndexVars nindices)
+    (hcanonical : indexTargets = indexBVarSpine nindices)
     (harity : (indices.size == stats.nindices[familyIdx]!) = true)
     (henv : R.venv = Hc.venv) :
     TrExprS R.venv
@@ -1510,17 +1510,17 @@ theorem CheckedRecursorHeaderAt.completedRecursorNarrowFamilyApplication
       (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params) indices)
       (VExpr.mkApps
         (.const H.target.name (H.recursorAbstractLevels Helim))
-        (canonicalIndexVars (decl.nparams + H.target.numIndices))) ∧
+        (indexBVarSpine (decl.nparams + H.target.numIndices))) ∧
     R.venv.HasType
       (AddInductive.getRecLevelParams elimLevel c.lparams).length scope.toCtx
       (VExpr.mkApps
         (.const H.target.name (H.recursorAbstractLevels Helim))
-        (canonicalIndexVars (decl.nparams + H.target.numIndices))) type ∧
+        (indexBVarSpine (decl.nparams + H.target.numIndices))) type ∧
     R.venv.IsType
       (AddInductive.getRecLevelParams elimLevel c.lparams).length scope.toCtx
       (VExpr.mkApps
         (.const H.target.name (H.recursorAbstractLevels Helim))
-        (canonicalIndexVars (decl.nparams + H.target.numIndices))) := by
+        (indexBVarSpine (decl.nparams + H.target.numIndices))) := by
   have htranslated : indices.size = indexTargets.length := by
     simpa using List.Forall₂.length_eq Hindices
   have hguard : indices.size = stats.nindices[familyIdx]! := by
@@ -1567,10 +1567,10 @@ theorem CheckedRecursorHeaderAt.completedRecursorNarrowFamilyApplication
       (AddInductive.getRecLevelParams elimLevel c.lparams).length scope.toCtx
       (VExpr.mkApps
         (.const H.target.name (H.recursorAbstractLevels Helim))
-        (canonicalIndexVars (decl.nparams + H.target.numIndices))) := by
+        (indexBVarSpine (decl.nparams + H.target.numIndices))) := by
     apply VEnv.HasType.mkApps_isType R.checking.tr.wf
       Hsynthesis.scopeWF.toCtx hconstType
-    · simpa [canonicalIndexVars] using
+    · simpa [indexBVarSpine] using
         hfunctionShape.instL (H.recursorAbstractLevels Helim)
     · exact ⟨type, happ⟩
   have htr : TrExprS R.venv
@@ -1579,7 +1579,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorNarrowFamilyApplication
         (stats.params.toList ++ indices.toList))
       (VExpr.mkApps
         (.const H.target.name (H.recursorAbstractLevels Helim))
-        (canonicalIndexVars (decl.nparams + H.target.numIndices))) :=
+        (indexBVarSpine (decl.nparams + H.target.numIndices))) :=
     checkPositivityStep.TrExprS.mkAppList R.checking.tr.wf.ordered
       Hsynthesis.scopeWF.toCtx hhead hargs ⟨_, happ⟩
   refine ⟨?_, happ, happType⟩
@@ -1587,9 +1587,9 @@ theorem CheckedRecursorHeaderAt.completedRecursorNarrowFamilyApplication
 
 /-- The completed executable family application has a checked consumed
 domain directly in the current recursor context. -/
-theorem CheckedRecursorHeaderAt.completedRecursorMajorDomain
+theorem MotivePassHeaderAt.completedRecursorMajorDomain
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
@@ -1611,7 +1611,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorMajorDomain
       (AddInductive.getRecLevelParams elimLevel c.lparams) scope)
       indices.toList indexTargets)
     (hreplay : indexTargets.length = nindices)
-    (hcanonical : indexTargets = canonicalIndexVars nindices)
+    (hcanonical : indexTargets = indexBVarSpine nindices)
     (harity : (indices.size == stats.nindices[familyIdx]!) = true)
     (henv : R.venv = Hc.venv)
     (hconsume : RecursorConsumeTypeAnnotationsCompat) :
@@ -1633,9 +1633,9 @@ existing recursor context.  This is the mutual-recursion form of
 `completedInitialRecursorFrame`: earlier family frames remain in the ambient
 prefix, while only this family's recent index suffix is closed into the
 motive telescope. -/
-theorem CheckedRecursorHeaderAt.completedRecursorFrame
+theorem MotivePassHeaderAt.completedRecursorFrame
     {base root current : AddInductive.Context} {Hbase : ContextWF base}
-    (H : CheckedRecursorHeaderAt Hbase stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hbase stats decl depth source familyIdx)
     {elimLevel : Level}
     (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
     (Rroot : RecursorContextWF root
@@ -1661,11 +1661,11 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
       (AddInductive.getRecLevelParams elimLevel base.lparams) scope)
       indices.toList indexTargets)
     (hreplay : indexTargets.length = nindices)
-    (hcanonical : indexTargets = canonicalIndexVars nindices)
+    (hcanonical : indexTargets = indexBVarSpine nindices)
     (harity : (indices.size == stats.nindices[familyIdx]!) = true)
     (henv : Rindices.venv = Hbase.venv)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (Hrecent : RecursorRecentBoundFVarArray Rroot Rindices indices) :
+    (Hrecent : RecursorFVarSuffix Rroot Rindices indices) :
     Nonempty (RecursorMotiveFrameWF Rindices stats familyIdx indices
       elimLevel) := by
   let majorTy :=
@@ -1725,7 +1725,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
   have hmotiveConcrete : motiveTy =
       current.lctx.mkForall indices majorBody := by
     dsimp [motiveTy]
-    exact Hrecent.toFreshBoundFVarArray.toBoundFVarArray.mkForall_mono
+    exact Hrecent.toFVarArrayAfter.toFVarArrayIn.mkForall_mono
       hmajorLE majorBody
   rw [← hmotiveConcrete] at hmotiveClosed
   let Windices := Rindices.onlyLams.dropN_fvlift indices.size hindicesSize
@@ -1867,7 +1867,7 @@ theorem recursorParameterStep
 rebased family header and the exact retained suffix. -/
 theorem parameterStepOfCheckedRecursorHeader
     {base current : AddInductive.Context} {Hbase : ContextWF base}
-    (H : CheckedRecursorHeaderAt Hbase stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hbase stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
     (R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams))
@@ -1969,7 +1969,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
     {Q : alpha → Prop}
     {base root : AddInductive.Context} {Hbase : ContextWF base}
     {decl : VInductDecl} {depth familyIdx : Nat} {source : InductiveType}
-    (H : CheckedRecursorHeaderAt Hbase stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hbase stats decl depth source familyIdx)
     {elimLevel : Level}
     (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
     (Rroot : RecursorContextWF root
@@ -2025,11 +2025,11 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope) indices.toList indexTargets →
       indexTargets.length = nindices →
-      indexTargets = canonicalIndexVars nindices →
-      BoundFVarTypeOrigins current indices originTypes →
-      RecursorTranslatedOriginTypes R originTypes →
-      RecursorRecentBoundFVarArray Rroot R indices →
-      RecursorIndexTrace stats current source.type stats.params.size type
+      indexTargets = indexBVarSpine nindices →
+      FVarArrayBinderTypes current indices originTypes →
+      TrBinderTypes R originTypes →
+      RecursorFVarSuffix Rroot R indices →
+      IndexTelescopeRun stats current source.type stats.params.size type
         indices →
       (k indices current).WF Q) :
     ∀ {current : AddInductive.Context} {runtimeDepth : Nat}
@@ -2079,11 +2079,11 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope) indices.toList indexTargets →
       indexTargets.length = nindices →
-      indexTargets = canonicalIndexVars nindices →
-      BoundFVarTypeOrigins current indices originTypes →
-      RecursorTranslatedOriginTypes R originTypes →
-      RecursorRecentBoundFVarArray Rroot R indices →
-      RecursorIndexTrace stats current source.type stats.params.size type
+      indexTargets = indexBVarSpine nindices →
+      FVarArrayBinderTypes current indices originTypes →
+      TrBinderTypes R originTypes →
+      RecursorFVarSuffix Rroot R indices →
+      IndexTelescopeRun stats current source.type stats.params.size type
         indices →
       (∀ fv ∈ scope.fvars, fv ∈ ExprArrayFVarIds stats.params ∨
         fv ∈ ExprArrayFVarIds indices) →
@@ -2396,7 +2396,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                 · rw [List.mem_singleton.mp h]
                   exact mem_fvars_mkLocalDecl_self current name
                     (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) bi
-            have hcallIndex : RecursorWhnfCallAt c'
+            have hcallIndex : WhnfRunAt c'
                 (fun fv => fv ∈ ExprArrayFVarIds stats.params ∨
                   fv ∈ ExprArrayFVarIds (indices.push (.fvar x)))
                 (body.instantiate1 (.fvar x)) next :=
@@ -2404,7 +2404,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                 Hruntime'.upset, fun fv hfv =>
                   ⟨hscopeFVars' fv hfv, hQmem fv (hscopeFVars' fv hfv)⟩,
                 hopenedFVars, hrun, _, hopened₀⟩
-            have Htrace' : RecursorIndexTrace stats c' source.type
+            have Htrace' : IndexTelescopeRun stats c' source.type
                 stats.params.size next (indices.push (.fvar x)) :=
               .index (Htrace.mono hstep)
                 (mem_fvars_mkLocalDecl_self current name
@@ -2475,7 +2475,7 @@ theorem continueRecursorParameterSemantics {alpha : Type}
     {base current : AddInductive.Context} {Hbase : ContextWF base}
     {decl : VInductDecl} {depth runtimeDepth familyIdx : Nat}
     {source : InductiveType}
-    (H : CheckedRecursorHeaderAt Hbase stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hbase stats decl depth source familyIdx)
     {elimLevel : Level}
     (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
     (R : RecursorContextWF current
@@ -2514,7 +2514,7 @@ theorem continueRecursorParameterSemantics {alpha : Type}
       R.venv.IsType
         (AddInductive.getRecLevelParams elimLevel base.lparams).length
         R.mlctx.vlctx.toCtx fullTarget →
-      RecursorIndexTrace stats current source.type stats.params.size type
+      IndexTelescopeRun stats current source.type stats.params.size type
         #[] →
       ∀ indices fuel,
         indices = #[] →
@@ -2541,7 +2541,7 @@ theorem continueRecursorParameterSemantics {alpha : Type}
         (AddInductive.getRecLevelParams elimLevel base.lparams).length
         R.mlctx.vlctx.toCtx fullTarget →
       indices = #[] →
-      RecursorIndexTrace stats current source.type i type #[] →
+      IndexTelescopeRun stats current source.type i type #[] →
       (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel
         k current).WF Q
   | _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _ => by
@@ -2636,7 +2636,7 @@ theorem continueRecursorParameterSemantics {alpha : Type}
               exact (htypeFVars.2.mono holderMem).instantiate1 hparamMem
             exact ((hnormalize.and hnormalizeLevels).and (Except.WF.self _)).bind
               fun next ⟨⟨⟨hnext, _, hnext₀⟩, hnextLevels⟩, hrun⟩ => by
-              have hcallParam : RecursorWhnfCallAt current
+              have hcallParam : WhnfRunAt current
                   (fun fv => fv ∈ ExprArrayFVarIds stats.params)
                   (body.instantiate1 stats.params[i]!) next := by
                 refine ⟨_, _, Ri, (· ∈ Hsuffix.parameterDecls.fvars), _,
@@ -2690,10 +2690,10 @@ termination_by
 /-- Start universe-rebased cached-parameter replay from the exact production
 `whnf` boundary.  This wrapper is valid after arbitrary earlier mutual
 recursor frames have accumulated in the executable reader context. -/
-theorem CheckedRecursorHeaderAt.startRecursorParameterSemantics
+theorem MotivePassHeaderAt.startRecursorParameterSemantics
     {alpha : Type} {Q : alpha → Prop}
     {base current : AddInductive.Context} {Hbase : ContextWF base}
-    (H : CheckedRecursorHeaderAt Hbase stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hbase stats decl depth source familyIdx)
     {elimLevel : Level}
     (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
     (R : RecursorContextWF current
@@ -2733,7 +2733,7 @@ theorem CheckedRecursorHeaderAt.startRecursorParameterSemantics
       R.venv.IsType
         (AddInductive.getRecLevelParams elimLevel base.lparams).length
         R.mlctx.vlctx.toCtx fullTarget →
-      RecursorIndexTrace stats current source.type stats.params.size type
+      IndexTelescopeRun stats current source.type stats.params.size type
         #[] →
       ∀ indices fuel,
         indices = #[] →
@@ -2752,7 +2752,7 @@ theorem CheckedRecursorHeaderAt.startRecursorParameterSemantics
   have hcall := H.headerWhnfCall Helim
     (R.withCheckLCtx {} R.baseNil) henv
   exact (hstart.and hcall).bind fun normalized ⟨⟨hnormalizedU, hnormalized⟩, hcallHeader₀⟩ => by
-    have hcallHeader : RecursorWhnfCallAt current (fun _ => False) source.type normalized :=
+    have hcallHeader : WhnfRunAt current (fun _ => False) source.type normalized :=
       hcallHeader₀.mono (BindingContextLE.checkLCtx current _) fun _ h => h
     refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
     subst hL
@@ -2814,16 +2814,16 @@ theorem CheckedRecursorHeaderAt.startRecursorParameterSemantics
 
 /-- The index telescope opened by `loopArgs1` mentions only `Us` when its
 declarations lie in a universe scope of the narrow index scope. -/
-theorem _root_.Lean4Lean.VerifyInductive.RecursorRecentBoundFVarArray.indexUniverses
+theorem _root_.Lean4Lean.VerifyInductive.RecursorFVarSuffix.indexUniverses
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (H : RecursorFVarSuffix Rroot R xs)
     {Us : List Name} {scope : VLCtx} {targets : List VExpr}
     (hscope : R.typeChecker.UniverseScope Us (· ∈ scope.fvars))
     (Hxs : List.Forall₂ (TrExprS R.venv recLparams scope) xs.toList targets) :
     (c.lctx.mkForall xs (.sort .zero)).levelParamsIn Us = true := by
-  refine H.toBoundFVarArray.mkForall_levelParamsIn R.toBindingContextWF H.nodup ?_
+  refine H.toFVarArrayIn.mkForall_levelParamsIn R.toBindingContextWF H.nodup ?_
     (by simp [Expr.levelParamsIn, Level.paramsIn])
   intro x hx decl hdecl
   have hxArg : Expr.fvar x ∈ xs.toList := by
@@ -2851,10 +2851,10 @@ theorem _root_.Lean4Lean.VerifyInductive.RecursorRecentBoundFVarArray.indexUnive
 context.  The continuation is reached with the exact retained parameter
 suffix, canonical index variables, and a recent-index certificate rooted at
 the context in which this family began. -/
-theorem CheckedRecursorHeaderAt.startRecursorSemantics
+theorem MotivePassHeaderAt.startRecursorSemantics
     {alpha : Type} {Q : alpha → Prop}
     {base current : AddInductive.Context} {Hbase : ContextWF base}
-    (H : CheckedRecursorHeaderAt Hbase stats decl depth source familyIdx)
+    (H : MotivePassHeaderAt Hbase stats decl depth source familyIdx)
     {elimLevel : Level}
     (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
     (R : RecursorContextWF current
@@ -2919,12 +2919,12 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope) indices.toList indexTargets →
       indexTargets.length = nindices →
-      indexTargets = canonicalIndexVars nindices →
-      BoundFVarTypeOrigins next indices originTypes →
-      RecursorTranslatedOriginTypes Rnext originTypes →
-      RecursorRecentBoundFVarArray R Rnext indices →
+      indexTargets = indexBVarSpine nindices →
+      FVarArrayBinderTypes next indices originTypes →
+      TrBinderTypes Rnext originTypes →
+      RecursorFVarSuffix R Rnext indices →
       (next.lctx.mkForall indices (.sort .zero)).levelParamsIn base.lparams = true →
-      RecursorIndexTrace stats next source.type stats.params.size type
+      IndexTelescopeRun stats next source.type stats.params.size type
         indices →
       (k indices next).WF Q)
     (fuel : Nat) :
@@ -2965,9 +2965,9 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
     Hstats Hruntime hfront Hsuffix.headerCheck_paramAligned
     htypeNarrow htypeFVars htypeU hparamScope
     htypeFull htypeFullType .nil .nil
-    rfl rfl (BoundFVarTypeOrigins.empty _)
-    (RecursorTranslatedOriginTypes.empty RL)
-    (RecursorRecentBoundFVarArray.empty RL)
+    rfl rfl (FVarArrayBinderTypes.empty _)
+    (TrBinderTypes.empty RL)
+    (RecursorFVarSuffix.empty RL)
     (Htrace.mono (BindingContextLE.checkLCtx' current _)) (by
       intro fv hfv
       rw [Hsuffix.parameterDecls_fvars] at hfv

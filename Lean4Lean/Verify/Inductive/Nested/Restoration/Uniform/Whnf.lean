@@ -755,7 +755,7 @@ theorem NestedValidatedRunResult.ctorTypes_headType
     · exact h) havoid
 
 theorem LeadingForalls.mkForall_selection {lctx : LocalContext} {As : Array Expr}
-    (S : LocalForallSelection lctx As) (b : Expr) :
+    (S : CDeclArray lctx As) (b : Expr) :
     Expr.LeadingForalls As.size (lctx.mkForall As b) (b.abstractN S.fvars) := by
   obtain ⟨fvars, hAs, hdecl⟩ := S
   subst hAs
@@ -1252,7 +1252,7 @@ theorem NestedValidatedRunResult.paramsHitParams
     TypeChecker.UngeneratedParams `_kernel_fresh E.production.stats.params.toList := by
   intro a ha
   obtain ⟨fv, rfl, hmem⟩ :=
-    BoundFVarArray.fvar_of_mem E.production.production.params (Array.mem_toList_iff.1 ha)
+    FVarArrayIn.fvar_of_mem E.production.production.params (Array.mem_toList_iff.1 ha)
   refine ⟨fv, rfl, fun i heq => ?_⟩
   have hlctx : fv ∈ E.production.production.localContext.lctx.fvars :=
     E.production.production.params.members fv hmem

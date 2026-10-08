@@ -372,8 +372,8 @@ theorem Expr.LambdaTelescope.restorePrefix
 
 /-- Production iota RHSs always expose at least the common-parameter lambda
 prefix consumed by `restoreNested`. -/
-theorem BoundGeneratedRecursorRule.rhsRestoreTelescope
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.rhsRestoreTelescope
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule)
     (hparams : nparams = stats.params.size) :
     RestoreTelescope rule.rhs nparams := by
@@ -381,7 +381,7 @@ theorem BoundGeneratedRecursorRule.rhsRestoreTelescope
   rw [hparams]
   have hp : stats.params.size = H.params_bound.fvars.length := by
     simpa using congrArg Array.size H.params_bound.expressions
-  unfold BoundGeneratedRecursorRule.binders
+  unfold RecursorRuleSyntax.binders
   simp only [List.length_append]
   omega
 
@@ -390,7 +390,7 @@ that was bound while generating its telescope. -/
 theorem GeneratedRecursorEntry.typeRestoreTelescope
     (H : GeneratedRecursorEntry safety env lparams elimLevel c stats
       indTypes recInfos ownerIdx entry)
-    (Hparams : LocalForallSelection c.lctx stats.params)
+    (Hparams : CDeclArray c.lctx stats.params)
     (hparams : nparams = stats.params.size) :
     RestoreTelescope H.info.type nparams := by
   rw [H.type, hparams]
@@ -711,7 +711,7 @@ theorem GeneratedRecursorTelescopeTranslation.prefixTyping
       (T.params ++ T.motives ++ T.minors).reverse
       (VExpr.mkApps (fn.liftN
         (T.params ++ T.motives ++ T.minors).length 0)
-        (recursorCanonicalVars
+        (bvarSpine
           (T.params ++ T.motives ++ T.minors).length))
       (VExpr.wrapForalls (T.indices ++ T.major) T.result) := by
   have hfn' : env.HasType Us.length [] fn
@@ -721,7 +721,7 @@ theorem GeneratedRecursorTelescopeTranslation.prefixTyping
     rw [T.target_eq] at hfn
     simpa [List.append_assoc] using hfn
   have happ := VEnv.HasType.mkApps_wrapForalls_prefix_canonical henv hfn'
-  simpa [recursorCanonicalVars] using happ
+  simpa [bvarSpine] using happ
 
 /-- The common parameter/motive/minor prefix is itself a well-formed local
 context, independently of the owner-specific index and major suffix. -/
@@ -865,7 +865,7 @@ translation and the exact binder selections used by `declareRecursors`. -/
 theorem GeneratedRecursorEntry.telescopeTranslation
     (H : GeneratedRecursorEntry safety env lparams elimLevel c stats
       indTypes recInfos ownerIdx entry)
-    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (Hselections : RecursorBinderGroups c stats recInfos ownerIdx)
     (howner : ownerIdx < recInfos.size)
     (hnoalias : Hselections.NoAlias) :
     Nonempty (GeneratedRecursorTelescopeTranslation env H.info.levelParams

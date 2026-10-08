@@ -923,7 +923,7 @@ theorem BuiltAuxiliary.nested_getAppFn
     {data : Lean4Lean.ElimNestedInductive.AuxiliaryData}
     (H : BuiltAuxiliary env lctx params As levels nparams args sourceName
       auxName sourceInfo data)
-    (sel : LocalForallSelection lctx As) (harity : nparams ≤ args.size) :
+    (sel : CDeclArray lctx As) (harity : nparams ≤ args.size) :
     data.nested.getAppFn = .const sourceName levels := by
   rw [H.nested, sel.expressions, Expr.instantiateRev_eq, Expr.instantiate_eq]
   apply Expr.getAppFn_instantiateList_of_const

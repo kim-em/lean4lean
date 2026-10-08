@@ -434,7 +434,7 @@ theorem
       using HbaseMixed
   have Hpartial' : H.outVEnv.HasType Us.length equationDomains.reverse
       (VExpr.mkApps (.bvar (equationFields.length + later.length))
-        (recursorCanonicalVars equationFields.length))
+        (bvarSpine equationFields.length))
       (VExpr.wrapForalls installedHypotheses installedResidual) := by
     simpa [equationDomains, installedHypotheses, installedResidual,
       equationFields, hremainingLength, later, remaining, inserted,
@@ -528,7 +528,7 @@ theorem
       hhypotheses] using Hclosed
   have HfnCanonical : H.outVEnv.HasType Us.length equationDomains.reverse
       (VExpr.mkApps (.bvar (equationFields.length + later.length))
-        (recursorCanonicalVars equationFields.length))
+        (bvarSpine equationFields.length))
       (VExpr.wrapForalls canonicalDomains
         (lhsType.liftN canonicalDomains.length 0)) :=
     Hpartial'.defeqU_r H.outVEnvWF HlhsCtx' Hwhole

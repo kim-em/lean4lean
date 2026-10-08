@@ -269,7 +269,7 @@ theorem RecursorCheck.finalPairedParameterAlignmentAt
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+      ∃ S : MotiveDecl H.recursorWF stats decl owner
           H.recInfos[owner]! H.elimLevel,
         VEnv.IsDefEqCtx H.outVEnv Us.length []
           T.params.reverse S.canonical.params.reverse := by
@@ -308,11 +308,11 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+      ∃ S : MotiveDecl H.recursorWF stats decl owner
           H.recInfos[owner]! H.elimLevel,
         VEnv.IsDefEqCtx H.outVEnv Us.length []
             T.params.reverse S.canonical.params.reverse ∧
-        ∃ D : BoundFVarDeclarationAt H.localContext
+        ∃ D : FVarDeclAt H.localContext
             (H.recInfos.map (·.motive)) owner,
           D.type = H.origins.motiveTypes[owner]! ∧
           D.type = H.localContext.lctx.mkForall
@@ -353,7 +353,7 @@ theorem
       (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
         (.sort H.elimLevel)) :=
     hdeclarationOrigin.trans (H.motiveShapes.shape owner hrecInfo)
-  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+  let selections := H.bindings.toRecursorBinderGroups H.localWF H.params
     owner hrecInfo
   have hselectionNoAlias : selections.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
@@ -365,8 +365,8 @@ theorem
       (D.type.abstractList
         (H.params.fvars ++ H.bindings.motives.fvars.take owner)) := by
     rw [(H.generated.entry owner howner).type]
-    simpa [selections, RecInfoBindings.toRecursorLocalSelections,
-      BoundFVarArray.toLocalForallSelection] using HoriginBinder
+    simpa [selections, RecInfoBindings.toRecursorBinderGroups,
+      FVarArrayIn.toCDeclArray] using HoriginBinder
   have HoriginBinder' : Expr.ForallBinderAt
       (H.generated.entry owner howner).info.type
       (T.params.length + owner)
@@ -380,7 +380,7 @@ theorem
   have hsourceDomain : sourceDomain = D.type.abstractList
       (H.params.fvars ++ H.bindings.motives.fvars.take owner) := by
     have heq := HsourceBinder.unique HoriginBinder'
-    simpa [selections, RecInfoBindings.toRecursorLocalSelections] using heq
+    simpa [selections, RecInfoBindings.toRecursorBinderGroups] using heq
   exact ⟨T, S, hparameters, D, hdeclarationOrigin, hdeclarationShape,
     suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
     Hsource, hsource, hsourceDomain,
@@ -407,7 +407,7 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+      ∃ S : MotiveDecl H.recursorWF stats decl owner
           H.recInfos[owner]! H.elimLevel,
         VEnv.IsDefEqCtx H.outVEnv Us.length []
             T.params.reverse S.canonical.params.reverse ∧
@@ -454,10 +454,10 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ D : BoundFVarDeclarationAt H.localContext
+      ∃ D : FVarDeclAt H.localContext
           (H.recInfos.flatMap (·.minors)) minorIdx,
         ∃ O : H.origins.FlatMinorOrigin D,
-          ∃ S : RecInfoMinorTypeShape,
+          ∃ S : MinorPremiseType,
           let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
               H.bindings.flatMinors.fvars.take minorIdx
@@ -488,7 +488,7 @@ theorem
   let S := H.origins.minorShapes O.owner O.owner_lt O.localIndex hshapeBound
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
-  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+  let selections := H.bindings.toRecursorBinderGroups H.localWF H.params
     owner hrecInfo
   have hselectionNoAlias : selections.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
@@ -501,8 +501,8 @@ theorem
           H.bindings.flatMinors.fvars.take minorIdx)) := by
     rw [(H.generated.entry owner howner).type]
     simpa [selections,
-      RecInfoBindings.toRecursorLocalSelections,
-      BoundFVarArray.toLocalForallSelection, List.append_assoc] using
+      RecInfoBindings.toRecursorBinderGroups,
+      FVarArrayIn.toCDeclArray, List.append_assoc] using
       HoriginBinder
   have HoriginBinder' : Expr.ForallBinderAt
       (H.generated.entry owner howner).info.type
@@ -552,7 +552,7 @@ theorem
     H.bindings.flatMinors.fvars.take minorLimit
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
-  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+  let selections := H.bindings.toRecursorBinderGroups H.localWF H.params
     owner hrecInfo
   have hselectionParams : selections.params.fvars = H.params.fvars := rfl
   have hselectionMotives :
@@ -1205,10 +1205,10 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ D : BoundFVarDeclarationAt H.localContext
+      ∃ D : FVarDeclAt H.localContext
           (H.recInfos.flatMap (·.minors)) minorIdx,
       ∃ O : H.origins.FlatMinorOrigin D,
-      ∃ S : RecInfoMinorTypeShape,
+      ∃ S : MinorPremiseType,
       ∃ scope,
       ∃ Hscope : checkInductiveTypes.loopType.ScopeEmbedding
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
@@ -1427,7 +1427,7 @@ theorem
     H.bindings.flatMinors.fvars.take minorLimit
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
-  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+  let selections := H.bindings.toRecursorBinderGroups H.localWF H.params
     owner hrecInfo
   have hselectionNoAlias : selections.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
@@ -1794,7 +1794,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    {D : BoundFVarDeclarationAt H.localContext
+    {D : FVarDeclAt H.localContext
       (H.recInfos.flatMap (·.minors))
       (recursorMinorOffset indTypes owner + i)}
     (O : H.origins.FlatMinorOrigin D) :
@@ -1827,7 +1827,7 @@ theorem
     simpa [ownedConstructors, List.length_flatMap] using hconcrete
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
-  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+  let selections := H.bindings.toRecursorBinderGroups H.localWF H.params
     owner hrecInfo
   have hnoalias : selections.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
@@ -1842,8 +1842,8 @@ theorem
       | @cons fv xs hnotmem _ ih =>
           exact .cons (by simpa using hnotmem) ih
     have hminorNodup : H.bindings.flatMinors.fvars.Nodup := by
-      simpa [selections, RecInfoBindings.toRecursorLocalSelections,
-        BoundFVarArray.toLocalForallSelection] using hnoalias.parts.minors
+      simpa [selections, RecInfoBindings.toRecursorBinderGroups,
+        FVarArrayIn.toCDeclArray] using hnoalias.parts.minors
     exact mapFVarNodup _ hminorNodup
   have htoListFlatMap :
       (H.recInfos.flatMap (·.minors)).toList =

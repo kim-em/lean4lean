@@ -269,7 +269,7 @@ theorem blueprintProjsOK {heads : List Name} (I : H.ParamUniformDeclarations hea
         (projAvoidsHeads H.localContext.env heads)) := by
   have hsourceOwner := H.sourceOwner howner
   have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
-  have hcallRoots : RecInfoRuleBlueprintOriginAt stats
+  have hcallRoots : RuleTemplateMatchesMinor stats
       (H.origins.minorShapes owner howner localIndex hlocal)
       H.recInfos[owner]!.minors[localIndex]!
       H.recInfos[owner]!.ruleBlueprints[localIndex]! :=
@@ -290,7 +290,7 @@ theorem blueprintProjsOK {heads : List Name} (I : H.ParamUniformDeclarations hea
   have Hroot := F.rootWF.toBindingContextWF
   have hTL : BindingContextLE F.traversal.terminalContext H.localContext :=
     F.terminalExtension.contextLE
-  have Hprefix : RecursorParamPrefix stats 0 S.constructor.type
+  have Hprefix : ParameterPrefix stats 0 S.constructor.type
       F.traversal.parameterTail := by
     have := F.traversal.parameterPrefix
     rwa [F.traversal_stats, F.traversal_constructor] at this
@@ -402,7 +402,7 @@ theorem ruleRhsProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads
   have hminorMem : blueprint.minor ∈ H.recInfos[owner]!.minors := by
     rw [hBminor, getElem!_pos _ localIndex hminorsSize]; exact Array.getElem_mem hminorsSize
   obtain ⟨minorFv, hminorFv, -⟩ :=
-    BoundFVarArray.fvar_of_mem (H.bindings.minors owner howner) hminorMem
+    FVarArrayIn.fvar_of_mem (H.bindings.minors owner howner) hminorMem
   simp only [AddInductive.RecRuleBlueprint.build]
   have hbody : (mkAppN (mkAppN blueprint.minor blueprint.fields)
       (blueprint.recursiveCalls.map fun call =>
@@ -412,7 +412,7 @@ theorem ruleRhsProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads
     refine Expr.ProjsOK.mkAppN' (Expr.ProjsOK.mkAppN' (by rw [hminorFv]; trivial)
       fun a ha => ?_) fun a ha => ?_
     · rw [hBfields] at ha
-      obtain ⟨y, rfl, -⟩ := BoundFVarArray.fvar_of_mem S.fields_bound
+      obtain ⟨y, rfl, -⟩ := FVarArrayIn.fvar_of_mem S.fields_bound
         (Array.mem_toList_iff.1 ha)
       trivial
     · simp only [Array.toList_map, List.mem_map] at ha
@@ -429,10 +429,10 @@ theorem ruleRhsProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads
         fun a ha => ?_) fun a ha => ?_) fun a ha => ?_
       · obtain ⟨fv, rfl⟩ := H.params_fvar a ha
         trivial
-      · obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.bindings.motives
+      · obtain ⟨fv, rfl, -⟩ := FVarArrayIn.fvar_of_mem H.bindings.motives
           (Array.mem_toList_iff.1 ha)
         trivial
-      · obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.bindings.flatMinors
+      · obtain ⟨fv, rfl, -⟩ := FVarArrayIn.fvar_of_mem H.bindings.flatMinors
           (Array.mem_toList_iff.1 ha)
         trivial
   have hfields : (blueprint.lctx.mkLambda blueprint.fields

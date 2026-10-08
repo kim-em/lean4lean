@@ -52,7 +52,7 @@ required to be a type: for a nested indexed family it is a type family. -/
 structure ClosedNestedAuxiliaryTranslation
     (venv : VEnv) (lparams : List Name)
     (res : Lean4Lean.ElimNestedInductive.Result)
-    (selection : LocalForallSelection res.lctx res.params)
+    (selection : CDeclArray res.lctx res.params)
     (e : Expr) where
   /-- The type inferred for the open witness by validation. -/
   type : Expr
@@ -138,7 +138,7 @@ theorem ClosedNestedAuxiliaryTranslation.sourceClosed
 def ClosedNestedAuxiliaryTranslations
     (venv : VEnv) (lparams : List Name)
     (res : Lean4Lean.ElimNestedInductive.Result)
-    (selection : LocalForallSelection res.lctx res.params) : Prop :=
+    (selection : CDeclArray res.lctx res.params) : Prop :=
   ∀ name e, res.aux2nested.find? name = some e →
     Nonempty (ClosedNestedAuxiliaryTranslation venv lparams res selection e)
 
@@ -148,7 +148,7 @@ recursor parameter binders. -/
 theorem ClosedValidatedNestedAuxiliaries.residualTranslations
     (H : ClosedValidatedNestedAuxiliaries venv lparams res)
     (henv : venv.WF)
-    (selection : LocalForallSelection res.lctx res.params)
+    (selection : CDeclArray res.lctx res.params)
     (hnodup : selection.fvars.Nodup) :
     ClosedNestedAuxiliaryTranslations venv lparams res selection := by
   intro name e hfind
@@ -388,7 +388,7 @@ def NestedBoundParams.push
 
 def NestedBoundParams.toSelection
     (H : NestedBoundParams lctx params) (Hctx : NestedBindingContextWF lctx ngen) :
-    LocalForallSelection lctx params where
+    CDeclArray lctx params where
   fvars := H.fvars
   expressions := H.expressions
   declarations fv hfv := Hctx.findCDecl fv (H.members fv hfv)
@@ -400,7 +400,7 @@ generated auxiliary family is itself processed by the dynamic queue. -/
 structure NestedClosingContext (lctx : LocalContext) (params : Array Expr)
     (ngen : NameGenerator) where
   binding : NestedBindingContextWF lctx ngen
-  selection : LocalForallSelection lctx params
+  selection : CDeclArray lctx params
   nodup : selection.fvars.Nodup
   close : ∀ body, body.FVarsIn (· ∈ selection.fvars) →
     (lctx.mkForall params body).FVarsIn fun _ => False
@@ -441,7 +441,7 @@ def NestedClosingContext.push
       rw [H.binding.wf.find?_eq_find?_toList] at hfind
       exact ⟨.cdecl index id oldName oldType oldBi kind,
         List.mem_of_find?_eq_some hfind, rfl⟩)
-  let nextSelection : LocalForallSelection nextLctx nextParams := {
+  let nextSelection : CDeclArray nextLctx nextParams := {
     fvars := H.selection.fvars ++ [id]
     expressions := by
       simp [nextParams, H.selection.expressions]
@@ -549,7 +549,7 @@ theorem NestedParamOpening.forallTelescope
 
 theorem NestedParamOpening.tailFVarsIn
     (H : NestedParamOpening lctx params type n outLctx tail outParams)
-    (Hselection : LocalForallSelection outLctx outParams)
+    (Hselection : CDeclArray outLctx outParams)
     (Htype : type.FVarsIn (· ∈ Hselection.fvars)) :
     tail.FVarsIn (· ∈ Hselection.fvars) := by
   induction H with
@@ -1065,7 +1065,7 @@ what forces this residual to be definitionally a sort. -/
 theorem BuiltAuxiliary.generatedFamilyTelescope
     (H : BuiltAuxiliary env lctx params As levels nparams args sourceName
       auxName sourceInfo data)
-    (Hselection : LocalForallSelection lctx As) :
+    (Hselection : CDeclArray lctx As) :
     ∃ sourceTail,
       Expr.ForallTelescope
         (sourceInfo.type.instantiateLevelParams sourceInfo.levelParams levels)
@@ -1140,7 +1140,7 @@ def NestedAuxFVarsIn (P : FVarId → Prop)
 theorem BuiltAuxiliary.nestedFVarsIn
     (H : BuiltAuxiliary env lctx params As levels nparams args sourceName
       auxName sourceInfo data)
-    (HAs : LocalForallSelection lctx As)
+    (HAs : CDeclArray lctx As)
     (hnparams : nparams ≤ args.size)
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args,
@@ -1249,7 +1249,7 @@ theorem generateAuxiliary_refines
 theorem GeneratedAuxiliary.auxFVarsIn
     (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
       sourceName sourceInfo state out)
-    (HAs : LocalForallSelection lctx As)
+    (HAs : CDeclArray lctx As)
     (hnparams : nparams ≤ args.size)
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args,

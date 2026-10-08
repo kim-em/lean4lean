@@ -86,7 +86,7 @@ theorem AddInductive.semanticFormationCoreWF
               CheckedConstructors Hc.venv decl Hheaders.context.venv
                   Hheaders.headers.params stats indTypes c.lparams
                   Hheaders.statsWF.parameterScope /\
-                CheckedConstructorOwnerNormalForms stats indTypes ∧
+                ConstructorOwnerNormalForms stats indTypes ∧
                 SourceCtorsCertified Hheaders.context.venv c.lparams indTypes.toList := by
       intro checkedOut hfull
       have hcheckedOut : AddInductive.checkConstructors.loopTypes indTypes stats

@@ -89,7 +89,7 @@ theorem canonicalFamilyApp_split
     {stats : AddInductive.InductiveStats} {source : InductiveType}
     {dIdx : Nat} {elimLevel : Level}
     {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
-    (Hheader : mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl
+    (Hheader : mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
       baseDepth source dIdx)
     {env : VEnv} {Us : List Name} {scope : VLCtx} {narrowTarget : VExpr}
     {nindices : Nat}
@@ -101,16 +101,16 @@ theorem canonicalFamilyApp_split
     (harity : (indices.size == stats.nindices[dIdx]!) = true) :
     VExpr.mkApps
       (.const Hheader.target.name (Hheader.recursorAbstractLevels Helim))
-      (mkRecInfos.loopArgs1.canonicalIndexVars
+      (mkRecInfos.loopArgs1.indexBVarSpine
         (decl.nparams + Hheader.target.numIndices)) =
       VExpr.mkApps
         ((VExpr.mkApps
           ((VExpr.const Hheader.target.name
             (Hheader.recursorAbstractLevels Helim)).liftN
               Hsynthesis.params.length 0)
-          (recursorCanonicalVars Hsynthesis.params.length)).liftN
+          (bvarSpine Hsynthesis.params.length)).liftN
             Hsynthesis.indices.length 0)
-        (recursorCanonicalVars Hsynthesis.indices.length) := by
+        (bvarSpine Hsynthesis.indices.length) := by
   have hp : Hsynthesis.params.length = decl.nparams :=
     Hsynthesis.parameterCount.trans Hheader.parameterCount
   have hn : Hsynthesis.indices.length =
@@ -126,9 +126,9 @@ theorem canonicalFamilyApp_split
     (.const Hheader.target.name
       (Hheader.recursorAbstractLevels Helim))
     Hsynthesis.params.length Hsynthesis.indices.length
-  have hcv : mkRecInfos.loopArgs1.canonicalIndexVars
+  have hcv : mkRecInfos.loopArgs1.indexBVarSpine
       (decl.nparams + Hheader.target.numIndices) =
-      recursorCanonicalVars
+      bvarSpine
         (Hsynthesis.params.length + Hsynthesis.indices.length) := by
     rw [hp, hn]; rfl
   rw [hcv]
@@ -144,7 +144,7 @@ theorem motiveSourceReplay
     {stats : AddInductive.InductiveStats} {source : InductiveType}
     {dIdx : Nat} {elimLevel : Level}
     {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
-    (Hheader : mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl
+    (Hheader : mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
       baseDepth source dIdx)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     {R : RecursorContextWF current
@@ -174,8 +174,8 @@ theorem motiveSourceReplay
       indices.toList indexTargets)
     (hindexCount : indexTargets.length = nindices)
     (hcanonical :
-      indexTargets = mkRecInfos.loopArgs1.canonicalIndexVars nindices)
-    (Hrecent : RecursorRecentBoundFVarArray R Rindices indices)
+      indexTargets = mkRecInfos.loopArgs1.indexBVarSpine nindices)
+    (Hrecent : RecursorFVarSuffix R Rindices indices)
     (harity : (indices.size == stats.nindices[dIdx]!) = true)
     {resultLevel : VLevel}
     (hresultLevel : VLevel.ofLevel
@@ -208,9 +208,9 @@ theorem motiveSourceReplay
                 ((VExpr.const Hheader.target.name
                   (Hheader.recursorAbstractLevels Helim)).liftN
                     Hsynthesis.params.length 0)
-                (recursorCanonicalVars Hsynthesis.params.length)).liftN
+                (bvarSpine Hsynthesis.params.length)).liftN
                   Hsynthesis.indices.length 0)
-              (recursorCanonicalVars Hsynthesis.indices.length))
+              (bvarSpine Hsynthesis.indices.length))
             (.sort resultLevel))) ∧
       motiveSourceScope.WF Rindices.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams).length := by
@@ -322,9 +322,9 @@ theorem motiveSourceReplay
               ((VExpr.const Hheader.target.name
                 (Hheader.recursorAbstractLevels Helim)).liftN
                   Hsynthesis.params.length 0)
-              (recursorCanonicalVars Hsynthesis.params.length)).liftN
+              (bvarSpine Hsynthesis.params.length)).liftN
                 Hsynthesis.indices.length 0)
-            (recursorCanonicalVars Hsynthesis.indices.length))
+            (bvarSpine Hsynthesis.indices.length))
           (.sort resultLevel))) := by
     have hNT := HmotiveSourceEq.defeqDFC henvR.ordered
       (hdropAlign.symm henvR.ordered).defeqCtx
@@ -341,7 +341,7 @@ theorem motiveSourceFVars
     {stats : AddInductive.InductiveStats} {source : InductiveType}
     {dIdx : Nat} {elimLevel : Level}
     {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
-    (Hheader : mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl
+    (Hheader : mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
       baseDepth source dIdx)
     {R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams)}
@@ -366,7 +366,7 @@ theorem motiveSourceFVars
       (AddInductive.getRecLevelParams elimLevel base.lparams) scope)
       indices.toList indexTargets)
     (hindexCount : indexTargets.length = nindices)
-    (Hrecent : RecursorRecentBoundFVarArray R Rindices indices)
+    (Hrecent : RecursorFVarSuffix R Rindices indices)
     (Hframe : RecursorMotiveFrameWF Rindices stats dIdx indices elimLevel) :
     let majorTy :=
       ((mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
@@ -454,7 +454,7 @@ theorem motiveSourceFVars
   have hmotiveConcrete : motiveTy =
       cIndices.lctx.mkForall indices majorBody := by
     dsimp [motiveTy, majorBody]
-    exact Hrecent.toFreshBoundFVarArray.toBoundFVarArray.mkForall_mono
+    exact Hrecent.toFVarArrayAfter.toFVarArrayIn.mkForall_mono
       hmajorLE _
   have hmotiveMkForall : motiveTy =
       Rindices.mlctx.mkForall indices.size Hrecent.size_le
@@ -490,7 +490,7 @@ theorem canonicalMotiveTelescope
     {stats : AddInductive.InductiveStats} {source : InductiveType}
     {dIdx : Nat} {elimLevel : Level}
     {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
-    (Hheader : mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl
+    (Hheader : mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
       baseDepth source dIdx)
     (Rindices : RecursorContextWF cIndices
       (AddInductive.getRecLevelParams elimLevel base.lparams))
@@ -510,11 +510,11 @@ theorem canonicalMotiveTelescope
       indices.toList indexTargets)
     (hindexCount : indexTargets.length = nindices)
     (hcanonical :
-      indexTargets = mkRecInfos.loopArgs1.canonicalIndexVars nindices)
+      indexTargets = mkRecInfos.loopArgs1.indexBVarSpine nindices)
     (harity : (indices.size == stats.nindices[dIdx]!) = true)
     (info : AddInductive.RecInfo) (hinfo : info.indices = indices)
     (resultLevel : VLevel) :
-    ∃ C : RecursorCanonicalMotiveTelescope Rindices.venv
+    ∃ C : ClosedMotiveTelescope Rindices.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         stats decl dIdx info elimLevel,
       C.params = Hsynthesis.params ∧
@@ -525,9 +525,9 @@ theorem canonicalMotiveTelescope
               ((VExpr.const Hheader.target.name
                 (Hheader.recursorAbstractLevels Helim)).liftN
                   Hsynthesis.params.length 0)
-              (recursorCanonicalVars Hsynthesis.params.length)).liftN
+              (bvarSpine Hsynthesis.params.length)).liftN
                 Hsynthesis.indices.length 0)
-            (recursorCanonicalVars Hsynthesis.indices.length))
+            (bvarSpine Hsynthesis.indices.length))
           (.sort resultLevel)) := by
   subst hinfo
   have hindicesSize : info.indices.size = nindices := by
@@ -546,15 +546,15 @@ theorem canonicalMotiveTelescope
       some (Hheader.recursorAbstractLevels Helim) := by
     cases elimLevel with
     | zero =>
-      simpa [mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.recursorAbstractLevels,
-        mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.abstractLevels,
+      simpa [mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels,
+        mkRecInfos.loopArgs1.MotivePassHeaderAt.abstractLevels,
         AddInductive.getRecLevelParams] using
         Hheader.materialized.levelTranslation
     | param fresh =>
       have hshifted := VLevel.mapM_ofLevel_fresh_cons Helim
         Hheader.materialized.levelTranslation
-      simpa [mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.recursorAbstractLevels,
-        mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.abstractLevels,
+      simpa [mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels,
+        mkRecInfos.loopArgs1.MotivePassHeaderAt.abstractLevels,
         AddInductive.getRecLevelParams] using hshifted
     | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
       simp [AddInductive.AdmissibleElimLevel] at Helim
@@ -567,7 +567,7 @@ theorem canonicalMotiveTelescope
       ((VExpr.const Hheader.target.name
         (Hheader.recursorAbstractLevels Helim)).liftN
           Hsynthesis.params.length 0)
-      (recursorCanonicalVars Hsynthesis.params.length)
+      (bvarSpine Hsynthesis.params.length)
     familyResult := narrowTarget
     motiveType := VExpr.wrapForalls Hsynthesis.indices
       (.forallE
@@ -576,9 +576,9 @@ theorem canonicalMotiveTelescope
             ((VExpr.const Hheader.target.name
               (Hheader.recursorAbstractLevels Helim)).liftN
                 Hsynthesis.params.length 0)
-            (recursorCanonicalVars Hsynthesis.params.length)).liftN
+            (bvarSpine Hsynthesis.params.length)).liftN
               Hsynthesis.indices.length 0)
-          (recursorCanonicalVars Hsynthesis.indices.length))
+          (bvarSpine Hsynthesis.indices.length))
         (.sort resultLevel))
     resultLevel := resultLevel
     params_length := Hsynthesis.parameterCount
@@ -607,7 +607,7 @@ theorem canonicalMotiveTelescope
           ((VExpr.const Hheader.target.name
             (Hheader.recursorAbstractLevels Helim)).liftN
               Hsynthesis.params.length 0)
-          (recursorCanonicalVars Hsynthesis.params.length))
+          (bvarSpine Hsynthesis.params.length))
         narrowTarget resultLevel }, rfl, rfl⟩
 
 /-- Once the major premise and then the motive of a completed frame have been
@@ -619,7 +619,7 @@ theorem motiveTypeShape
     {indices : Array Expr} {elimLevel : Level}
     (Rindices : RecursorContextWF cIndices recLparams)
     (Hframe : RecursorMotiveFrameWF Rindices stats dIdx indices elimLevel)
-    (Hbound : BoundFVarArray cIndices indices) (motiveName : Name) :
+    (Hbound : FVarArrayIn cIndices indices) (motiveName : Name) :
     let majorTy :=
       ((mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
         indices).consumeTypeAnnotationsVerified
@@ -648,11 +648,11 @@ theorem motiveTypeShape
     (Rindices.toBindingContextWF.withLocalDecl
       `t majorTy .default)
     motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
-  let HindicesAtMajor : BoundFVarArray cMajor indices :=
+  let HindicesAtMajor : FVarArrayIn cMajor indices :=
     Hbound.mono hMajorFrame
-  let HmajorAtMajor : BoundFVarArray cMajor #[major] := by
+  let HmajorAtMajor : FVarArrayIn cMajor #[major] := by
     simpa [cMajor, major] using
-      (BoundFVarArray.empty cIndices).pushCurrent
+      (FVarArrayIn.empty cIndices).pushCurrent
         `t majorTy .default
   have hsourceShape : (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) =
       cMajor.lctx.mkForall indices
@@ -779,7 +779,7 @@ theorem motiveTelescopeSeed
     {stats : AddInductive.InductiveStats} {source : InductiveType}
     {dIdx : Nat} {elimLevel : Level}
     {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
-    (Hheader : mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl
+    (Hheader : mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
       baseDepth source dIdx)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     {R : RecursorContextWF current
@@ -814,16 +814,16 @@ theorem motiveTelescopeSeed
       indices.toList indexTargets)
     (hindexCount : indexTargets.length = nindices)
     (hcanonical :
-      indexTargets = mkRecInfos.loopArgs1.canonicalIndexVars nindices)
-    (Hbound : BoundFVarArray cIndices indices)
-    (Hrecent : RecursorRecentBoundFVarArray R Rindices indices)
+      indexTargets = mkRecInfos.loopArgs1.indexBVarSpine nindices)
+    (Hbound : FVarArrayIn cIndices indices)
+    (Hrecent : RecursorFVarSuffix R Rindices indices)
     (hindexUniverses :
       (cIndices.lctx.mkForall indices (.sort .zero)).levelParamsIn
         base.lparams = true)
     (harity : (indices.size == stats.nindices[dIdx]!) = true)
     (Hframe : RecursorMotiveFrameWF Rindices stats dIdx indices elimLevel)
     (motiveName : Name) :
-    ∃ S : RecursorMotiveTelescopeSeed
+    ∃ S : MotiveDecl
         ((Rindices.withLocalDecl (name := `t) (bi := .default)
           Hframe.majorTr Hframe.majorType).withLocalDecl
             (name := motiveName) (bi := .default)
@@ -873,11 +873,11 @@ theorem motiveTelescopeSeed
     motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
   let hAllFrames : BindingContextLE current cMotive :=
     hIndices.trans (hMajorFrame.trans hMotiveFrame)
-  let HindicesAtMajor : BoundFVarArray cMajor indices :=
+  let HindicesAtMajor : FVarArrayIn cMajor indices :=
     Hbound.mono hMajorFrame
-  let HmajorAtMajor : BoundFVarArray cMajor #[major] := by
+  let HmajorAtMajor : FVarArrayIn cMajor #[major] := by
     simpa [cMajor, major] using
-      (BoundFVarArray.empty cIndices).pushCurrent
+      (FVarArrayIn.empty cIndices).pushCurrent
         `t majorTy .default
   have hnewMotiveShape := motiveTypeShape Rindices Hframe Hbound motiveName
   let nextInfo : AddInductive.RecInfo := {
@@ -916,9 +916,9 @@ theorem motiveTelescopeSeed
       simpa using harity
     exact hguard.trans (by
       simp [Array.getElem!_eq_getD, Hheader.indexCount])
-  let HindicesAtMotive : BoundFVarArray cMotive indices :=
+  let HindicesAtMotive : FVarArrayIn cMotive indices :=
     Hbound.mono (hMajorFrame.trans hMotiveFrame)
-  let HmajorAtMotiveBound : BoundFVarArray cMotive #[major] :=
+  let HmajorAtMotiveBound : FVarArrayIn cMotive #[major] :=
     HmajorAtMajor.mono hMotiveFrame
   rcases Hframe.motiveClosed with
     ⟨hclosedSize, motiveClosedTarget, HmotiveClosedTr,
@@ -941,7 +941,7 @@ theorem motiveTelescopeSeed
   have hmotiveConcrete : motiveTy =
       cIndices.lctx.mkForall indices majorBody := by
     dsimp [motiveTy, majorBody]
-    exact Hrecent.toFreshBoundFVarArray.toBoundFVarArray.mkForall_mono
+    exact Hrecent.toFVarArrayAfter.toFVarArrayIn.mkForall_mono
       hmajorLE _
   have HmotiveSourceFVarsAtBase := motiveSourceFVars Hheader Rindices
     henvIndices Hsynthesis HnarrowStats Hruntime hfront HnarrowIndices
@@ -1006,7 +1006,7 @@ theorem motiveTelescopeSeed
     exact VEnv.IsDefEqCtx.refl (OnCtx.of_append (by
       rw [← Hsynthesis.scopeCtx]
       exact Hsynthesis.scopeWF.toCtx))
-  let Hseed : RecursorMotiveTelescopeSeed Rmotive stats decl dIdx
+  let Hseed : MotiveDecl Rmotive stats decl dIdx
       nextInfo elimLevel := {
     canonical := Ccanonical
     target_lt := htargetLt
@@ -1080,9 +1080,9 @@ theorem motiveTelescopeSeed
           ((VExpr.mkApps
             (.const Hheader.target.name
               (Hheader.recursorAbstractLevels Helim))
-            (recursorCanonicalVars Hsynthesis.params.length)).liftN
+            (bvarSpine Hsynthesis.params.length)).liftN
               Hsynthesis.indices.length 0)
-          (recursorCanonicalVars Hsynthesis.indices.length))
+          (bvarSpine Hsynthesis.indices.length))
         (.sort Hframe.resultLevel)
       have Hclose := Hruntime.front.closeAtBase motiveSourceShift
         hmotiveSourceShift canonicalBody
@@ -1147,7 +1147,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (indTypes : Array InductiveType) (elimLevel : Level)
     (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
     (Hheaders : ∀ i (hi : i < indTypes.size),
-      mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl
+      mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
         baseDepth indTypes[i] i)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
@@ -1165,18 +1165,18 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (AddInductive.getRecLevelParams elimLevel base.lparams)
       R.mlctx.vlctx stats decl runtimeDepth)
     (Hbindings : RecInfoBindings current recInfos)
-    (Horigins : RecInfoTypeOrigins current recInfos)
-    (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
-    (HmajorShapes : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
+    (Horigins : RecInfoBinderTypes current recInfos)
+    (HmajorTypes : TrBinderTypes R Horigins.majorTypes)
+    (HmajorShapes : MajorPremiseTypes stats recInfos Horigins.majorTypes
       current.env.isTypeAnnotationWrapper)
-    (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
-    (HmotiveShapes : RecInfoMotiveTypeShapes current recInfos
+    (HmotiveTypes : TrBinderTypes R Horigins.motiveTypes)
+    (HmotiveShapes : MotiveTypes current recInfos
       Horigins.motiveTypes elimLevel)
     (Htelescopes : RecInfoMotiveTelescopes R stats decl
       Hsuffix.parameterDecls.toCtx recInfos elimLevel)
     (HindexTypeRows :
-      RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
-    (Hparams : BoundFVarArray current stats.params)
+      TrBinderTypesPerFamily R Horigins.indexTypes)
+    (Hparams : FVarArrayIn current stats.params)
     (HnoAlias : Hbindings.NoAlias Hparams)
     (Horder : RecInfoOuterOrder R Hparams Hbindings)
     (Hroot : BindingContextLE base current)
@@ -1185,7 +1185,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (Hempty : RecInfoMinorsEmpty recInfos)
     (Hblueprints : RecInfoBlueprintCounts recInfos)
     (hparamU : ParameterUniverseSupport current stats.params)
-    (HindexTraces : RecInfoIndexTraces stats indTypes current recInfos)
+    (HindexTraces : IndexTelescopeRuns stats indTypes current recInfos)
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx
@@ -1198,16 +1198,16 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Rout.mlctx.vlctx stats decl outDepth)
       (HbindingsOut : RecInfoBindings outCtx out)
-      (HoriginsOut : RecInfoTypeOrigins outCtx out),
-      RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
-      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes
+      (HoriginsOut : RecInfoBinderTypes outCtx out),
+      TrBinderTypes Rout HoriginsOut.majorTypes →
+      MajorPremiseTypes stats out HoriginsOut.majorTypes
         outCtx.env.isTypeAnnotationWrapper →
-      RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
-      RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
+      TrBinderTypes Rout HoriginsOut.motiveTypes →
+      MotiveTypes outCtx out HoriginsOut.motiveTypes elimLevel →
       RecInfoMotiveTelescopes Rout stats decl
         HsuffixOut.parameterDecls.toCtx out elimLevel →
-      RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
-      (HparamsOut : BoundFVarArray outCtx stats.params) →
+      TrBinderTypesPerFamily Rout HoriginsOut.indexTypes →
+      (HparamsOut : FVarArrayIn outCtx stats.params) →
       HbindingsOut.NoAlias HparamsOut →
       RecInfoOuterOrder Rout HparamsOut HbindingsOut →
       RecInfoArities stats out →
@@ -1215,7 +1215,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       RecInfoBlueprintCounts out →
       BindingContextLE base outCtx →
       out.size = recInfos.size + (indTypes.size - dIdx) →
-      RecInfoIndexTraces stats indTypes outCtx out →
+      IndexTelescopeRuns stats indTypes outCtx out →
       (k out outCtx).WF Q) :
     (AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel dIdx
       recInfos k current).WF Q := by
@@ -1344,7 +1344,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           hIndices.trans (hMajorFrame.trans hMotiveFrame)
         let Hbindings' := Hbindings.pushFrame hIndices
           Rindices.toBindingContextWF
-          Hrecent.toFreshBoundFVarArray.toBoundFVarArray
+          Hrecent.toFVarArrayAfter.toFVarArrayIn
           `t majorTy .default motiveName
           (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         let Horigins' := Horigins.pushFrame hIndices
@@ -1355,7 +1355,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         have HnoAlias' : Hbindings'.NoAlias Hparams' := by
           exact Hbindings.pushFrame_noAlias Hparams HnoAlias hIndices
             Rindices.toBindingContextWF
-            Hrecent.toFreshBoundFVarArray
+            Hrecent.toFVarArrayAfter
             `t majorTy .default motiveName
             (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         have holdMinors : Hbindings.flatMinors.fvars = [] :=
@@ -1415,7 +1415,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               nextInfo.indices).consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) := by
           simp only [majorTy, nextInfo]
           rw [hprogress]
-        have HmajorShapesI : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
+        have HmajorShapesI : MajorPremiseTypes stats recInfos Horigins.majorTypes
             cIndices.env.isTypeAnnotationWrapper := by
           rw [hIndices.env_eq]; exact HmajorShapes
         let HmajorShapes' := HmajorShapesI.push nextInfo majorTy hnewMajorShape
@@ -1432,7 +1432,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         let HrootExtension : RecursorContextExtension R Rmotive :=
           Hrecent.contextExtension.trans HframeExtension
         have HseedPair :
-            ∃ S : RecursorMotiveTelescopeSeed Rmotive stats decl
+            ∃ S : MotiveDecl Rmotive stats decl
                 recInfos.size nextInfo elimLevel,
               VEnv.IsDefEqCtx Rmotive.venv
                 (AddInductive.getRecLevelParams elimLevel base.lparams).length
@@ -1445,12 +1445,12 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             HindexOrigins.bound Hrecent hindexUniverses harity Hframe
             motiveName
         rcases HseedPair with ⟨Hseed', HseedParams⟩
-        have HseedAt : RecursorMotiveTelescopeAt Rmotive stats decl
+        have HseedAt : MotiveAppliesAbove Rmotive stats decl
             recInfos.size nextInfo elimLevel := Hseed'.toTelescopeAt
         let Htelescopes' :=
           (Htelescopes.mono HrootExtension).push nextInfo
             HseedAt Hseed' HseedParams
-        have HindexTraces' : RecInfoIndexTraces stats indTypes cMotive
+        have HindexTraces' : IndexTelescopeRuns stats indTypes cMotive
             (recInfos.push nextInfo) := by
           refine (HindexTraces.mono hAllFrames).push nextInfo (type := type) ?_
           have hsrc : indTypes[recInfos.size]!.type = indTypes[dIdx].type := by
@@ -1534,14 +1534,14 @@ theorem resultRecursiveDomain {alpha : Type}
     {typeTarget₀ : VExpr}
     (htype₀ : TrExpr R.venv recLparams R.chk.vlctx uiTy typeTarget₀)
     (htypeType₀ : R.venv.IsType recLparams.length R.chk.vlctx.toCtx typeTarget₀)
-    (Hxs : RecursorRecentBoundFVarArray Rroot R xs)
+    (Hxs : RecursorFVarSuffix Rroot R xs)
     {M₀ : TypeChecker.MLCtx} {T₀ : VExpr}
     (hagreeR : ∃ hn : xs.size ≤ R.chk.length,
       MLCtxTopAgree R.mlctx R.chk xs.size ∧ R.chk.dropN xs.size hn = M₀ ∧
         R.venv.IsDefEqU recLparams.length M₀.vlctx.toCtx T₀
           (R.chk.mkForall' xs.size hn typeTarget₀))
     {l : LocalContext}
-    (Htrace : RecursorLoopUArgsPrefix root l initialType c uiTy xs)
+    (Htrace : LoopUArgsRun root l initialType c uiTy xs)
     {P : FVarId → Prop}
     (htypeScope : uiTy.FVarsIn
       (fun fv => fv ∈ Hxs.fvars ∨ P fv))
@@ -1556,14 +1556,14 @@ theorem resultRecursiveDomain {alpha : Type}
       (Rcurrent : RecursorContextWF current recLparams)
       {exposedType : Expr} {syntaxTarget terminalTarget : VExpr}
       {appliedTarget : VExpr} {args : Array Expr} {target : Nat},
-      RecursorLoopUArgsPrefix root l initialType current exposedType args →
+      LoopUArgsRun root l initialType current exposedType args →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         exposedType syntaxTarget →
       Rcurrent.venv.IsDefEqU recLparams.length
         Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
       Rcurrent.venv.IsType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx terminalTarget →
-      (Hrecent : RecursorRecentBoundFVarArray Rroot Rcurrent args) →
+      (Hrecent : RecursorFVarSuffix Rroot Rcurrent args) →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         (mkAppN head args) appliedTarget →
       Rcurrent.venv.HasType recLparams.length
@@ -1809,7 +1809,7 @@ theorem resultRecursiveDomain {alpha : Type}
         apply VLCtx.NoIndConsts.cons hctx
         rfl
       have hnormalizedScope := hnormalized.1 _ hnextUp hbodyScope
-      let Htrace' : RecursorLoopUArgsPrefix root l initialType c' normalized
+      let Htrace' : LoopUArgsRun root l initialType c' normalized
           (xs.push (.fvar ⟨c.ngen.curr⟩)) :=
         .push Htrace rfl hnormalizeRun
       have hagreeR' : ∃ hn : (xs.push (.fvar ⟨c.ngen.curr⟩)).size ≤ R'.chk.length,
@@ -1920,12 +1920,12 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
     (hinferredScopeRun : (AddInductive.getType (.fvar fv) c).WF fun ty => ty.FVarsIn P)
     (hrootUp : IsFVarUpSet P R.mlctx.vlctx)
     {Q : Nat → alpha → Prop}
-    (Hk : ∀ (Hinput : RecursorLoopUArgsInput c (.fvar fv))
+    (Hk : ∀ (Hinput : LoopUArgsInput c (.fvar fv))
       {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
       {exposedType : Expr} {syntaxTarget terminalTarget : VExpr}
       {appliedTarget : VExpr} {args : Array Expr} {target : Nat},
-      RecursorLoopUArgsPrefix c (loopUArgsCheckLCtx c Hinput.prior)
+      LoopUArgsRun c (loopUArgsCheckLCtx c Hinput.prior)
         Hinput.normalizedType current exposedType args →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         exposedType syntaxTarget →
@@ -1933,7 +1933,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
         Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
       Rcurrent.venv.IsType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx terminalTarget →
-      (Hrecent : RecursorRecentBoundFVarArray R Rcurrent args) →
+      (Hrecent : RecursorFVarSuffix R Rcurrent args) →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         (mkAppN (.fvar fv) args) appliedTarget →
       Rcurrent.venv.HasType recLparams.length
@@ -2020,7 +2020,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
   refine AddInductive.M.WF_bind hnormalize fun normalized hnormalized => ?_
   rcases hnormalized with ⟨hnormalizeRun, ⟨hnormalizedScope,
     hnormalizedTr⟩, hnormalized₀⟩
-  let Hinput : RecursorLoopUArgsInput c (.fvar fv) := {
+  let Hinput : LoopUArgsInput c (.fvar fv) := {
     prior := prior
     priorFVars := hpriorFVars
     inferredType := inferred
@@ -2042,12 +2042,12 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
     (fuel := c.fuel.inductiveFuel) (.fvar fv) stats k RF
     hconsume hlit RF Hstats hctx hnormalizedTr hinferredType hnormalized₀
     hfieldType₀Ty
-    (RecursorRecentBoundFVarArray.empty RF)
+    (RecursorFVarSuffix.empty RF)
     (M₀ := RF.chk) (T₀ := fieldType₀)
     ⟨Nat.zero_le _, .zero _ _, rfl, by
       obtain ⟨u, h⟩ := hfieldType₀Ty
       exact ⟨_, h⟩⟩
-    (RecursorLoopUArgsPrefix.root (root := { c with checkLCtx := F }) (l := F)
+    (LoopUArgsRun.root (root := { c with checkLCtx := F }) (l := F)
       (source := normalized))
     (hnormalizedScope.mono fun _ h => Or.inr h)
     (by
@@ -2073,7 +2073,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
 It records the terminal family application and exact higher-order telescope
 selected by `loopUArgs`, before the resulting type is installed as a local
 declaration by `loopU`. -/
-structure RecInfoHypothesisTypeOrigin
+structure InductionHypothesisTypeAt
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
     (root : AddInductive.Context) (field type : Expr) where
@@ -2082,9 +2082,9 @@ structure RecInfoHypothesisTypeOrigin
   current_extends : BindingContextLE root current
   exposedType : Expr
   args : Array Expr
-  arguments_bound : FreshBoundFVarArray root current args
-  loopInput : RecursorLoopUArgsInput root field
-  loopTrace : RecursorLoopUArgsPrefix root
+  arguments_bound : FVarArrayAfter root current args
+  loopInput : LoopUArgsInput root field
+  loopTrace : LoopUArgsRun root
     (loopUArgsCheckLCtx root loopInput.prior) loopInput.normalizedType current
     exposedType args
   field_fvar : ∃ fv, field = .fvar fv ∧ fv ∈ root.lctx.fvars
@@ -2101,9 +2101,9 @@ structure RecInfoHypothesisTypeOrigin
 
 /-- Forget that an origin was retained by the in-progress hypothesis loop;
 the completed minor certificate has the same transparent payload. -/
-def RecInfoHypothesisTypeOrigin.toMinor
-    (O : RecInfoHypothesisTypeOrigin stats recInfos root field type) :
-    RecInfoMinorHypothesisTypeOrigin stats recInfos root field type := {
+def InductionHypothesisTypeAt.toMinor
+    (O : InductionHypothesisTypeAt stats recInfos root field type) :
+    InductionHypothesisType stats recInfos root field type := {
   current := O.current
   current_wf := O.current_wf
   current_extends := O.current_extends
@@ -2121,7 +2121,7 @@ def RecInfoHypothesisTypeOrigin.toMinor
 /-- Pointwise source origins for the prefix of recursive fields already
 processed by `loopU`.  Each installed declaration is tied to the unconsumed
 type returned by the corresponding `loopUArgs` run. -/
-structure RecInfoHypothesisTypeOrigins
+structure InductionHypothesisTypesPrefix
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
     (fieldRoot c : AddInductive.Context)
@@ -2130,29 +2130,29 @@ structure RecInfoHypothesisTypeOrigins
   entry : ∀ j (hj : j < hypotheses.size),
     ∃ root sourceType,
       BindingContextLE fieldRoot root ∧
-      Nonempty (RecInfoHypothesisTypeOrigin
+      Nonempty (InductionHypothesisTypeAt
         stats recInfos root fields[j]! sourceType) ∧
-      ∃ D : BoundFVarDeclarationAt c hypotheses j,
+      ∃ D : FVarDeclAt c hypotheses j,
         D.type = (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
 
-def RecInfoHypothesisTypeOrigins.empty
+def InductionHypothesisTypesPrefix.empty
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
     (c : AddInductive.Context) (fields : Array Expr) :
-    RecInfoHypothesisTypeOrigins stats recInfos c c fields #[] where
+    InductionHypothesisTypesPrefix stats recInfos c c fields #[] where
   size_le := by simp
   entry := by intro j hj; simp at hj
 
-def RecInfoHypothesisTypeOrigins.pushCurrent
-    (H : RecInfoHypothesisTypeOrigins stats recInfos fieldRoot c
+def InductionHypothesisTypesPrefix.pushCurrent
+    (H : InductionHypothesisTypesPrefix stats recInfos fieldRoot c
       fields hypotheses)
     (Hc : BindingContextWF c)
     (name : Name) (sourceType : Expr) (bi : BinderInfo)
     (hnext : hypotheses.size < fields.size)
     (Hroot : BindingContextLE fieldRoot root)
-    (Horigin : Nonempty (RecInfoHypothesisTypeOrigin stats recInfos root
+    (Horigin : Nonempty (InductionHypothesisTypeAt stats recInfos root
       fields[hypotheses.size]! sourceType)) :
-    RecInfoHypothesisTypeOrigins stats recInfos fieldRoot
+    InductionHypothesisTypesPrefix stats recInfos fieldRoot
       { c with
         ngen := c.ngen.next
         lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
@@ -2169,7 +2169,7 @@ def RecInfoHypothesisTypeOrigins.pushCurrent
   intro j hj
   by_cases hilast : j = hypotheses.size
   · subst j
-    let D : BoundFVarDeclarationAt c'
+    let D : FVarDeclAt c'
         (hypotheses.push (.fvar ⟨c.ngen.curr⟩)) hypotheses.size := {
       inBounds := by simp
       fvar := ⟨c.ngen.curr⟩
@@ -2196,20 +2196,20 @@ def RecInfoHypothesisTypeOrigins.pushCurrent
       (D.pushArray (.fvar ⟨c.ngen.curr⟩)).mono hstep, htype⟩
 
 /-- The call-blueprint row produced beside a hypothesis prefix, indexed by
-the same producer witnesses as `RecInfoHypothesisTypeOrigins`.  `rooted`
+the same producer witnesses as `InductionHypothesisTypesPrefix`.  `rooted`
 additionally retains the recursor-context certificate of each call's
 `loopUArgs` root and the up-set `rootScope` in it. -/
-structure RecInfoHypothesisCallBlueprintOrigins
-    (H : RecInfoHypothesisTypeOrigins stats recInfos fieldRoot c
+structure CallTemplatesMatchPrefix
+    (H : InductionHypothesisTypesPrefix stats recInfos fieldRoot c
       fields hypotheses)
     (rootScope : FVarId → Prop)
     (calls : Array AddInductive.RecCallBlueprint) : Prop where
   size_eq : calls.size = hypotheses.size
   entry : ∀ j (hj : j < hypotheses.size),
     ∃ root sourceType,
-      ∃ (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root
+      ∃ (O : InductionHypothesisType stats recInfos root
         fields[j]! sourceType),
-        ∃ (D : BoundFVarDeclarationAt c hypotheses j),
+        ∃ (D : FVarDeclAt c hypotheses j),
           BindingContextLE fieldRoot root ∧
           D.type = (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) ∧
           calls[j]! = {
@@ -2225,9 +2225,9 @@ structure RecInfoHypothesisCallBlueprintOrigins
   rooted : ∀ j (hj : j < hypotheses.size),
     ∃ root sourceType,
       ∃ (recLparams : List Name) (Rroot : RecursorContextWF root recLparams)
-        (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root
+        (O : InductionHypothesisType stats recInfos root
           fields[j]! sourceType)
-        (D : BoundFVarDeclarationAt c hypotheses j),
+        (D : FVarDeclAt c hypotheses j),
         BindingContextLE fieldRoot root ∧
         IsFVarUpSet rootScope Rroot.mlctx.vlctx ∧
         D.type = (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) ∧
@@ -2242,27 +2242,27 @@ structure RecInfoHypothesisCallBlueprintOrigins
               O.exposedType.getAppArgs[stats.params.size:]).app
                 (mkAppN fields[j]! O.args) }
 
-theorem RecInfoHypothesisCallBlueprintOrigins.empty
-    (H : RecInfoHypothesisTypeOrigins stats recInfos c c fields #[])
+theorem CallTemplatesMatchPrefix.empty
+    (H : InductionHypothesisTypesPrefix stats recInfos c c fields #[])
     (rootScope : FVarId → Prop) :
-    RecInfoHypothesisCallBlueprintOrigins H rootScope #[] where
+    CallTemplatesMatchPrefix H rootScope #[] where
   size_eq := rfl
   entry j hj := by simp at hj
   rooted j hj := by simp at hj
 
-theorem RecInfoHypothesisCallBlueprintOrigins.pushCurrent
-    {H : RecInfoHypothesisTypeOrigins stats recInfos fieldRoot c
+theorem CallTemplatesMatchPrefix.pushCurrent
+    {H : InductionHypothesisTypesPrefix stats recInfos fieldRoot c
       fields hypotheses}
     {rootScope : FVarId → Prop}
     {calls : Array AddInductive.RecCallBlueprint}
-    (Hcalls : RecInfoHypothesisCallBlueprintOrigins H rootScope calls)
+    (Hcalls : CallTemplatesMatchPrefix H rootScope calls)
     (Hc : BindingContextWF c)
     (name : Name) (sourceType : Expr) (bi : BinderInfo)
     (hnext : hypotheses.size < fields.size)
     (Hroot : BindingContextLE fieldRoot root)
     {recLparams : List Name} (Rroot : RecursorContextWF root recLparams)
     (hup : IsFVarUpSet rootScope Rroot.mlctx.vlctx)
-    (O : RecInfoHypothesisTypeOrigin stats recInfos root
+    (O : InductionHypothesisTypeAt stats recInfos root
       fields[hypotheses.size]! sourceType)
     (call : AddInductive.RecCallBlueprint)
     (hcall : call = {
@@ -2275,7 +2275,7 @@ theorem RecInfoHypothesisCallBlueprintOrigins.pushCurrent
         (mkAppN (.bvar O.args.size)
           O.exposedType.getAppArgs[stats.params.size:]).app
             (mkAppN fields[hypotheses.size]! O.args) }) :
-    RecInfoHypothesisCallBlueprintOrigins
+    CallTemplatesMatchPrefix
       (H.pushCurrent Hc name sourceType bi hnext Hroot ⟨O⟩) rootScope
       (calls.push call) := by
   let ty := (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
@@ -2283,7 +2283,7 @@ theorem RecInfoHypothesisCallBlueprintOrigins.pushCurrent
     ngen := c.ngen.next
     lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
   let hstep := BindingContextLE.withLocalDecl c Hc name ty bi
-  let D : BoundFVarDeclarationAt c'
+  let D : FVarDeclAt c'
       (hypotheses.push (.fvar ⟨c.ngen.curr⟩)) hypotheses.size := {
     inBounds := by simp
     fvar := ⟨c.ngen.curr⟩
@@ -2351,7 +2351,7 @@ theorem RecInfoHypothesisCallBlueprintOrigins.pushCurrent
 
 /-- Exact recursive-call syntax together with the inner binding context used
 to close its higher-order arguments. -/
-structure BoundGeneratedRecursiveCall
+structure RecursiveCall
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     (root : AddInductive.Context) (field value : Expr) where
@@ -2362,7 +2362,7 @@ structure BoundGeneratedRecursiveCall
   current : AddInductive.Context
   current_wf : BindingContextWF current
   current_extends : BindingContextLE root current
-  arguments_bound : FreshBoundFVarArray root current localArgs
+  arguments_bound : FVarArrayAfter root current localArgs
   value_eq :
     let (typeIdx, indices) := AddInductive.getIIndices stats exposedType
     let recursor := .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls
@@ -2376,16 +2376,16 @@ structure BoundGeneratedRecursiveCall
 blueprint-producing pass installs hypotheses for earlier recursive fields,
 so the higher-order argument telescope is recent relative to its exact
 producer root.  The common constructor-field root remains separate. -/
-structure SemanticBoundGeneratedRecursiveCall
+structure TypedRecursiveCall
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     {root : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF root recLparams)
     (decl : VInductDecl) (depth : Nat) (field value : Expr) where
-  generated : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+  generated : RecursiveCall indTypes stats motives minors lvls
     root field value
   current_context : RecursorContextWF generated.current recLparams
-  recent : RecursorRecentBoundFVarArray R current_context
+  recent : RecursorFVarSuffix R current_context
     generated.localArgs
   rootScope : FVarId → Prop
   /-- Exact source scope established by the successful recursive-field
@@ -2469,9 +2469,9 @@ structure SemanticBoundGeneratedRecursiveCall
 closed back to the rule's field context.  The exposed result type and the
 eta-expanded field use one shared domain list; this is the typed major premise
 later supplied to the recursively selected generated recursor. -/
-structure SemanticBoundGeneratedRecursiveCall.AppliedFieldTelescope
+structure TypedRecursiveCall.AppliedFieldTelescope
     {R : RecursorContextWF root recLparams}
-    (S : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+    (S : TypedRecursiveCall indTypes stats motives minors
       lvls R decl depth field value) where
   domains : List VExpr
   domains_length : domains.length = S.generated.localArgs.size
@@ -2491,9 +2491,9 @@ structure SemanticBoundGeneratedRecursiveCall.AppliedFieldTelescope
 
 /-- The recursive field syntax retained by the successful producer has no
 ambient loose variables. -/
-theorem SemanticBoundGeneratedRecursiveCall.fieldClosed
+theorem TypedRecursiveCall.fieldClosed
     {R : RecursorContextWF root recLparams}
-    (S : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+    (S : TypedRecursiveCall indTypes stats motives minors
       lvls R decl depth field value) :
     field.looseBVarRange' = 0 := by
   have hclosed := S.field_translation.closed
@@ -2504,9 +2504,9 @@ theorem SemanticBoundGeneratedRecursiveCall.fieldClosed
 already established by `loopUArgs`.  The executable normalizer may expose a
 definitionally equal terminal type, so it is transported back to the exact
 syntax translation before the suffix is closed. -/
-def SemanticBoundGeneratedRecursiveCall.appliedFieldTelescope
+def TypedRecursiveCall.appliedFieldTelescope
     {R : RecursorContextWF root recLparams}
-    (S : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+    (S : TypedRecursiveCall indTypes stats motives minors
       lvls R decl depth field value) :
     S.AppliedFieldTelescope where
   domains := S.commonDomains
@@ -2516,8 +2516,8 @@ def SemanticBoundGeneratedRecursiveCall.appliedFieldTelescope
   applied_translation := S.common_applied_translation
   applied_typing := S.common_applied_typing
 
-def BoundGeneratedRecursiveCall.body
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+def RecursiveCall.body
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) : Expr :=
   let (typeIdx, indices) := AddInductive.getIIndices stats H.exposedType
   let recursor := .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls
@@ -2528,8 +2528,8 @@ def BoundGeneratedRecursiveCall.body
   (templateBody.abstractN H.arguments_bound.fvars).instantiate1'
     recursor H.localArgs.size
 
-theorem BoundGeneratedRecursiveCall.value_eq_body
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.value_eq_body
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) :
     value = (H.current.lctx.mkLambda H.localArgs <|
       let indices := (AddInductive.getIIndices stats H.exposedType).2
@@ -2542,8 +2542,8 @@ theorem BoundGeneratedRecursiveCall.value_eq_body
   simpa using H.value_eq
 
 /-- The exact lambda telescope closed by one generated recursive call. -/
-theorem BoundGeneratedRecursiveCall.lambdaTelescope
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.lambdaTelescope
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) :
     Expr.LambdaTelescope value H.localArgs.size
       H.body := by
@@ -2566,7 +2566,7 @@ theorem BoundGeneratedRecursiveCall.lambdaTelescope
       recursor localArgs.size)
   rw [Hvalue']
   let Hselection :=
-    Hargs.toBoundFVarArray.toLocalForallSelection Hwf
+    Hargs.toFVarArrayIn.toCDeclArray Hwf
   have Hfvars : Hselection.fvars = Hargs.fvars := rfl
   rcases Hselection with ⟨fvars, rfl, Hdecl⟩
   rw [← Hfvars]
@@ -2578,14 +2578,14 @@ theorem BoundGeneratedRecursiveCall.lambdaTelescope
 closed with respect to loose variables.  Instantiating the retained outer
 recursor placeholder therefore changes only the call template, while
 preserving its concrete higher-order lambda prefix. -/
-theorem SemanticBoundGeneratedRecursiveCall.sameAppliedFieldLambdaPrefix
-    (H : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+theorem TypedRecursiveCall.sameAppliedFieldLambdaPrefix
+    (H : TypedRecursiveCall indTypes stats motives minors
       lvls R decl depth field value) :
     Expr.SameLambdaPrefix H.generated.localArgs.size value
       (H.generated.current.lctx.mkLambda H.generated.localArgs
         (mkAppN field H.generated.localArgs)) := by
   let Hselection :=
-    H.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+    H.generated.arguments_bound.toFVarArrayIn.toCDeclArray
       H.generated.current_wf
   let templateBody : Expr :=
     let indices :=
@@ -2631,8 +2631,8 @@ theorem SemanticBoundGeneratedRecursiveCall.sameAppliedFieldLambdaPrefix
 preserves its higher-order lambda arity. The residual records the necessary
 binder-depth shift explicitly, avoiding any assumption that translation and
 simultaneous abstraction commute definitionally. -/
-theorem BoundGeneratedRecursiveCall.outerAbstractedLambdaTelescope
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.outerAbstractedLambdaTelescope
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) (binders : List FVarId) :
     Expr.LambdaTelescope (value.abstractList binders)
       H.localArgs.size
@@ -2642,8 +2642,8 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedLambdaTelescope
 /-- Simultaneous abstraction preserves the generated recursor spine and
 turns the freshly opened local arguments into the canonical de Bruijn spine
 on the recursive field. -/
-theorem BoundGeneratedRecursiveCall.abstractedBody_eq
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.abstractedBody_eq
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) :
     let (typeIdx, indices) :=
       AddInductive.getIIndices stats H.exposedType
@@ -2678,27 +2678,27 @@ theorem BoundGeneratedRecursiveCall.abstractedBody_eq
       _ = _ := by
         simpa using Expr.abstractN_fvarArray
           H.arguments_bound.fvars 0 H.arguments_bound.nodup
-  simp only [BoundGeneratedRecursiveCall.body, hindices,
+  simp only [RecursiveCall.body, hindices,
     Expr.abstractN_app, Expr.abstractN_mkAppN]
   rw [hlocal]
   rfl
 
-def BoundGeneratedRecursiveCall.recursorName
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+def RecursiveCall.recursorName
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) : Name :=
   Lean.mkRecName indTypes[(AddInductive.getIIndices stats H.exposedType).1]!.name
 
 /-- The owner retained at the successful validation branch is exactly the
 family index consumed by the partial production helper. -/
-theorem BoundGeneratedRecursiveCall.recursorName_eq_owner
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.recursorName_eq_owner
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) :
     H.recursorName = Lean.mkRecName indTypes[H.ownerIdx]!.name := by
-  simp only [BoundGeneratedRecursiveCall.recursorName,
+  simp only [RecursiveCall.recursorName,
     checkPositivityStep.getIIndices.fst_eq_of_valid H.owner_valid]
 
-def BoundGeneratedRecursiveCall.abstractedRecursor
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+def RecursiveCall.abstractedRecursor
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) : Expr :=
   let indices := (AddInductive.getIIndices stats H.exposedType).2
   let recursor := mkAppN (mkAppN (mkAppN
@@ -2707,8 +2707,8 @@ def BoundGeneratedRecursiveCall.abstractedRecursor
     (indices.map fun e => e.abstractN H.arguments_bound.fvars)).instantiate1'
       recursor H.localArgs.size
 
-def BoundGeneratedRecursiveCall.abstractedMajor
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+def RecursiveCall.abstractedMajor
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) : Expr :=
   let recursor := mkAppN (mkAppN (mkAppN
     (.const H.recursorName lvls) stats.params) motives) minors
@@ -2717,13 +2717,13 @@ def BoundGeneratedRecursiveCall.abstractedMajor
       Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray).instantiate1'
         recursor H.localArgs.size
 
-def BoundGeneratedRecursiveCall.outerAbstractedRecursor
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+def RecursiveCall.outerAbstractedRecursor
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) (binders : List FVarId) : Expr :=
   H.abstractedRecursor.abstractList binders H.localArgs.size
 
-def BoundGeneratedRecursiveCall.outerAbstractedMajor
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+def RecursiveCall.outerAbstractedMajor
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) (binders : List FVarId) : Expr :=
   H.abstractedMajor.abstractList binders H.localArgs.size
 
@@ -2731,15 +2731,15 @@ def BoundGeneratedRecursiveCall.outerAbstractedMajor
 premise closes over the same exact fresh higher-order arguments as the call
 itself.  Its residual is `abstractedMajor`, rather than the complete call
 body retained by `lambdaTelescope`. -/
-theorem BoundGeneratedRecursiveCall.appliedFieldLambdaTelescope
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.appliedFieldLambdaTelescope
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
     (hfieldClosed : field.looseBVarRange' = 0) :
     Expr.LambdaTelescope
       (H.current.lctx.mkLambda H.localArgs (mkAppN field H.localArgs))
       H.localArgs.size H.abstractedMajor := by
   let Hselection :=
-    H.arguments_bound.toBoundFVarArray.toLocalForallSelection H.current_wf
+    H.arguments_bound.toFVarArrayIn.toCDeclArray H.current_wf
   have Hdecl := Hselection.declarations
   have HselectionFvars : Hselection.fvars =
       H.arguments_bound.fvars := rfl
@@ -2794,8 +2794,8 @@ theorem BoundGeneratedRecursiveCall.appliedFieldLambdaTelescope
 
 /-- When the producer field expression is closed, the exact instantiated
 template major reduces to the ordinary eta-expanded field residual. -/
-theorem BoundGeneratedRecursiveCall.abstractedMajor_eq_of_closed
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.abstractedMajor_eq_of_closed
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
     (hfieldClosed : field.looseBVarRange' = 0) :
     H.abstractedMajor =
@@ -2826,8 +2826,8 @@ theorem BoundGeneratedRecursiveCall.abstractedMajor_eq_of_closed
 
 /-- Closing the shared higher-order prefix over the surrounding rule binders
 preserves its literal equality. -/
-theorem SemanticBoundGeneratedRecursiveCall.sameOuterAppliedFieldLambdaPrefix
-    (H : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+theorem TypedRecursiveCall.sameOuterAppliedFieldLambdaPrefix
+    (H : TypedRecursiveCall indTypes stats motives minors
       lvls R decl depth field value) (binders : List FVarId) :
     Expr.SameLambdaPrefix H.generated.localArgs.size
       (value.abstractList binders)
@@ -2838,8 +2838,8 @@ theorem SemanticBoundGeneratedRecursiveCall.sameOuterAppliedFieldLambdaPrefix
 /-- A root free variable is untouched by the fresh call-local binders.
 Abstracting it over the surrounding rule telescope below those locals is
 therefore exactly weakening its ordinary rule abstraction. -/
-theorem BoundGeneratedRecursiveCall.outerAbstractedFVar_eq_lift_of_fresh
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.outerAbstractedFVar_eq_lift_of_fresh
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
     (hfresh : fv ∉ H.arguments_bound.fvars)
     (hbinders : binders.Nodup) (hfv : fv ∈ binders) :
@@ -2852,8 +2852,8 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedFVar_eq_lift_of_fresh
     (e := .fvar fv) (fvars := binders) (depth := 0)
     (extra := H.localArgs.size) (by trivial) hbinders
 
-theorem BoundGeneratedRecursiveCall.outerAbstractedRootFVar_eq_lift
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.outerAbstractedRootFVar_eq_lift
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
     (hroot : fv ∈ root.lctx.fvars)
     (hbinders : binders.Nodup) (hfv : fv ∈ binders) :
@@ -2868,10 +2868,10 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedRootFVar_eq_lift
 
 /-- Array form for binders retained in a context other than the call root.
 The producer supplies exact disjointness from temporary call-local arguments. -/
-theorem BoundGeneratedRecursiveCall.outerAbstractedBoundArray_eq_lift_of_fresh
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.outerAbstractedBoundArray_eq_lift_of_fresh
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
-    (B : BoundFVarArray c xs)
+    (B : FVarArrayIn c xs)
     (hfresh : ∀ fv ∈ B.fvars, fv ∉ H.arguments_bound.fvars)
     (hbinders : binders.Nodup)
     (hselected : ∀ fv ∈ B.fvars, fv ∈ binders) :
@@ -2891,19 +2891,19 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedBoundArray_eq_lift_of_fresh
       (hfresh B.fvars[j] (List.getElem_mem hjFvars)) hbinders
       (hselected B.fvars[j] (List.getElem_mem hjFvars))
 
-def BoundGeneratedRecursiveCall.localIndices
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+def RecursiveCall.localIndices
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) : List Nat :=
   List.ofFn fun i : Fin H.arguments_bound.fvars.length =>
     H.arguments_bound.fvars.length - 1 - i
 
 /-- Alpha-normalized payload of the recursive-result `loopUArgs` run.  It is
 the second-pass counterpart of
-`RecInfoMinorHypothesisTypeOrigin.replayTrace`. -/
-def BoundGeneratedRecursiveCall.replayTrace
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+`InductionHypothesisType.replayTrace`. -/
+def RecursiveCall.replayTrace
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
-    (fieldBinders : List FVarId) : RecursorLoopUArgsTrace where
+    (fieldBinders : List FVarId) : InductionHypothesisShape where
   ownerIdx := H.ownerIdx
   localArity := H.localArgs.size
   localTelescope :=
@@ -2919,9 +2919,9 @@ def BoundGeneratedRecursiveCall.replayTrace
           fieldBinders H.localArgs.size)
 
 /-- The second-pass counterpart of
-`RecInfoMinorHypothesisTypeOrigin.outerAbstractedMotiveApp`. -/
-def BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+`InductionHypothesisType.outerAbstractedMotiveApp`. -/
+def RecursiveCall.outerAbstractedMotiveApp
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
     (fieldBinders : List FVarId) : Expr :=
   Expr.app
@@ -2929,8 +2929,8 @@ def BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
       (H.replayTrace fieldBinders).indices)
     (H.outerAbstractedMajor fieldBinders)
 
-theorem BoundGeneratedRecursiveCall.outerAbstractedMotiveApp_eq
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.outerAbstractedMotiveApp_eq
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
     (fieldBinders : List FVarId)
     (hfieldClosed : field.looseBVarRange' = 0) :
@@ -2962,13 +2962,13 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedMotiveApp_eq
           H.arguments_bound.fvars 0 H.arguments_bound.nodup
   simp only [Expr.abstractList_app, Expr.abstractList_mkAppN]
   rw [hlocal]
-  unfold BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
-  unfold BoundGeneratedRecursiveCall.outerAbstractedMajor
+  unfold RecursiveCall.outerAbstractedMotiveApp
+  unfold RecursiveCall.outerAbstractedMajor
   rw [H.abstractedMajor_eq_of_closed hfieldClosed,
     Expr.abstractN_eq_abstractList H.arguments_bound.nodup field 0 (Nat.le_of_eq hfieldClosed)]
-  simp [BoundGeneratedRecursiveCall.outerAbstractedMotiveApp,
-    BoundGeneratedRecursiveCall.replayTrace,
-    BoundGeneratedRecursiveCall.outerAbstractedMajor,
+  simp [RecursiveCall.outerAbstractedMotiveApp,
+    RecursiveCall.replayTrace,
+    RecursiveCall.outerAbstractedMajor,
     Expr.abstractList_mkAppN, Array.map_map, Array.map_ofFn, Function.comp_def]
 
 end VerifyInductive

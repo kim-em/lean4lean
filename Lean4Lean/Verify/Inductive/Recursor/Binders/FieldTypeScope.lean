@@ -97,11 +97,11 @@ theorem TypeChecker.MLCtx.recentTypeScope {env : VEnv} {Us : List Name} :
 /-- The declared type of a retained field is scoped over the root scope `P`
 and the earlier fields: its dependencies are older binders, and an older
 binder in the root is in `P` by the field up-set since fields are fresh. -/
-theorem RecursorRecentBoundFVarArray.fieldTypeScope
+theorem RecursorFVarSuffix.fieldTypeScope
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (H : RecursorFVarSuffix Rroot R xs)
     {P : FVarId → Prop}
     (hup : IsFVarUpSet (fun fv => fv ∈ H.fvars ∨ P fv) R.mlctx.vlctx)
     (pos : Nat) (hpos : pos < H.fvars.length) (decl : LocalDecl)

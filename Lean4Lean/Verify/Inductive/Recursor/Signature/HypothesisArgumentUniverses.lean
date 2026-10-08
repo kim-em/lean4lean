@@ -30,7 +30,7 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The universe support of every retained recursive call, read off the
-producer's semantic call rows (`RecInfoCallBlueprintSemanticOrigin.universes`).
+producer's semantic call rows (`TypedCallTemplate.universes`).
 Every row's root context extends the recursor context and so has the
 declaration's universe parameters. -/
 theorem RecursorConstruction.argumentUniverses (H : RecursorConstruction R) :

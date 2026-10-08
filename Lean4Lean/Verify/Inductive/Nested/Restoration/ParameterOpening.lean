@@ -172,8 +172,8 @@ theorem RestoreParamOpening.context_extension
 /-- A positional bound-variable witness and a declaration occurring at the
 same free-variable identifier in a well-formed context are the same local
 declaration. -/
-theorem BoundFVarDeclarationAt.declaration_eq_of_mem
-    (D : BoundFVarDeclarationAt c xs i)
+theorem FVarDeclAt.declaration_eq_of_mem
+    (D : FVarDeclAt c xs i)
     (Hc : BindingContextWF c)
     (d : LocalDecl) (hd : d ∈ c.lctx.toList)
     (hfv : d.fvarId = D.fvar) :
@@ -642,7 +642,7 @@ theorem RestoreParamOpening.root_mkForall_fvarIdsClosed
     (Hwf : outLctx.WF)
     (Htel : Expr.ForallTelescope e n residual)
     (Hsource : e.FVarIdsIn fun _ => False)
-    (Hselection : LocalForallSelection outLctx outAs)
+    (Hselection : CDeclArray outLctx outAs)
     (Hbody : body.FVarIdsIn (· ∈ Hselection.fvars)) :
     (outLctx.mkForall outAs body).FVarIdsIn fun _ => False := by
   rcases Hopen.forall_closing_data Hwf Htel Hsource with
@@ -684,7 +684,7 @@ theorem RestoreParamOpening.root_mkForall_fvarsClosed
     (Hwf : outLctx.WF)
     (Htel : Expr.ForallTelescope e n residual)
     (Hsource : e.FVarsIn fun _ => False)
-    (Hselection : LocalForallSelection outLctx outAs)
+    (Hselection : CDeclArray outLctx outAs)
     (Hbody : body.FVarsIn (· ∈ Hselection.fvars)) :
     (outLctx.mkForall outAs body).FVarsIn fun _ => False := by
   rcases Hopen.forall_closing_data' Hwf Htel Hsource with
@@ -1102,8 +1102,8 @@ theorem LocalContext.sameForallPrefixN_fold
 
 /-- Closing two bodies over the same duplicate-free local selection gives
 the same concrete forall prefix, independently of the bodies. -/
-theorem LocalForallSelection.sameForallPrefix
-    (H : LocalForallSelection lctx xs)
+theorem CDeclArray.sameForallPrefix
+    (H : CDeclArray lctx xs)
     (hnodup : H.fvars.Nodup) (left right : Expr) :
     Expr.SameForallPrefix xs.size
       (lctx.mkForall xs left) (lctx.mkForall xs right) := by
@@ -1147,8 +1147,8 @@ theorem Expr.SameForallPrefix.transferRestoreOpening
 
 /-- Lean expression equivalence of residual bodies is preserved when both
 are closed by the same selected forall declarations. -/
-theorem LocalForallSelection.mkForall_eqv
-    (Hselection : LocalForallSelection lctx As)
+theorem CDeclArray.mkForall_eqv
+    (Hselection : CDeclArray lctx As)
     (hnodup : Hselection.fvars.Nodup)
     (Hbody : (left == right) = true) :
     ((lctx.mkForall As left == lctx.mkForall As right)) = true := by
@@ -1304,7 +1304,7 @@ def RestoreParamOpeningSelected
     (outLctx : LocalContext) (outAs : Array Expr) (tail : Expr) : Prop :=
   RestoreParamOpening lctx As e n outLctx outAs tail ∧
   outLctx.WF ∧
-  ∃ Hselection : LocalForallSelection outLctx outAs,
+  ∃ Hselection : CDeclArray outLctx outAs,
     Hselection.fvars.Nodup
 
 theorem openRestoreParams_refinesSelected
@@ -1369,7 +1369,7 @@ structure NestedRestorationOpening
   restoredBody : Expr
   opening : RestoreParamOpening {} #[] input result.nparams lctx params body
   lctxWF : lctx.WF
-  selection : LocalForallSelection lctx params
+  selection : CDeclArray lctx params
   selectionNodup : selection.fvars.Nodup
   selectionLength : selection.fvars.length = result.params.size
   replacement : ExprReplacement (result.restoreNestedNode env params auxRec)

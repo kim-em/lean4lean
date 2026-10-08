@@ -13,8 +13,8 @@ theorem insertBinders_eq_prefix (domains : List VExpr) (n : Nat) :
     have hget := liftContextPrefixAt_reverse_getElem n 0 domains i hi
     simpa [InductiveSignature.insertBinders, getElem!_pos, hi] using hget.symm
 
-theorem vars_eq_canonical (n : Nat) : InductiveSignature.vars n 0 = recursorCanonicalVars n := by
-  simp [InductiveSignature.vars, recursorCanonicalVars]
+theorem vars_eq_canonical (n : Nat) : InductiveSignature.vars n 0 = bvarSpine n := by
+  simp [InductiveSignature.vars, bvarSpine]
 
 theorem vars_lift (count below n : Nat) :
     (InductiveSignature.vars count below).map (fun e => e.liftN n 0) =
@@ -52,7 +52,7 @@ theorem motive_eq_scalar_lift (g : InductiveSignature.Instance s)
       (VExpr.wrapForalls (family.indices.map (VExpr.instL g.levels))
         (.forallE
           (VExpr.mkApps (.const family.name g.levels)
-            (recursorCanonicalVars (s.params.length + family.indices.length)))
+            (bvarSpine (s.params.length + family.indices.length)))
           (.sort g.targetLevel))).liftN prior 0 := by
   rw [VExpr.liftN_wrapForalls]
   simp only [Nat.zero_add, VExpr.liftN, VExpr.liftN_mkApps, List.length_map]
@@ -132,7 +132,7 @@ theorem RecursorConstruction.motiveBinderSource
   have hparts := (H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner howner).parts
   have hmotives : H.bindings.motives.fvars.Nodup := hparts.motives
   have hparams : H.params.fvars.Nodup := hparts.params
-  have Hb := ((H.bindings.motives.toLocalForallSelection H.localWF).forallBinderAt
+  have Hb := ((H.bindings.motives.toCDeclArray H.localWF).forallBinderAt
     hmotives D (body := .sort .zero)).abstractList H.params.fvars
   have Htype := (H.origins.motives.type_eq D).trans (H.motiveShapes.shape owner howner)
   have Hsupport := H.motiveSource_support owner howner
@@ -142,9 +142,9 @@ theorem RecursorConstruction.motiveBinderSource
     intro fv hfv hmem
     have hm := List.mem_of_mem_take hmem
     exact hparts.params_later fv hfv fv (by
-      simp [RecInfoBindings.toRecursorLocalSelections, BoundFVarArray.toLocalForallSelection, hm]) rfl
+      simp [RecInfoBindings.toRecursorBinderGroups, FVarArrayIn.toCDeclArray, hm]) rfl
   have Hclosed : Closed D.type 0 := Htype ▸ Hsupport.2
-  simp only [BoundFVarArray.toLocalForallSelection, Nat.zero_add] at Hb
+  simp only [FVarArrayIn.toCDeclArray, Nat.zero_add] at Hb
   change Expr.ForallBinderAt _ owner
     ((D.type.abstractN (H.bindings.motives.fvars.take owner)).abstractList H.params.fvars owner) at Hb
   rw [Expr.abstractN_eq_abstractList_of_closed

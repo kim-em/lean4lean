@@ -85,7 +85,7 @@ theorem RecursorCheck.RuleAlignment.canonicalEquationDomains_length
       A.rule.allArgs.size := by
     have h := congrArg Array.size A.rule.all_args_bound.expressions
     simpa using h.symm
-  unfold BoundGeneratedRecursorRule.binders
+  unfold RecursorRuleSyntax.binders
   simp only [List.length_append]
   rw [T.params_length, T.motives_length, T.minors_length,
     hfields, hparams, hmotives, hminors, hallArgs]
@@ -249,7 +249,7 @@ theorem
   have hmotives := A.rule.motives_bound.length_fvars
   have hminors := A.rule.minors_bound.length_fvars
   have hallArgs := A.rule.all_args_bound.length_fvars
-  unfold BoundGeneratedRecursorRule.binders
+  unfold RecursorRuleSyntax.binders
   simp only [List.length_append, List.length_drop]
   rw [hparams, hmotives, hminors, hallArgs, hfields,
     T.motives_length, T.minors_length]
@@ -286,7 +286,7 @@ theorem
       (TrExprS H.outVEnv Us (abstractForallContext domains []))
       ((A.rule.allArgs.map fun arg =>
         arg.abstractList A.rule.binders).toList)
-      (recursorCanonicalVars fieldDomains.length) := by
+      (bvarSpine fieldDomains.length) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   dsimp only
@@ -311,7 +311,7 @@ theorem
           (((A.rule.params_bound.fvars ++
             A.rule.motives_bound.fvars) ++
             A.rule.minors_bound.fvars).length + i))) =
-        recursorCanonicalVars fieldDomains.length := by
+        bvarSpine fieldDomains.length := by
     rw [recursorCanonicalVars_eq_ofFn]
     apply List.ext_getElem
     · simpa using hfields.symm
@@ -357,7 +357,7 @@ theorem
       (TrExprS H.outVEnv Us (abstractForallContext equationDomains []))
       ((A.rule.allArgs.map fun arg =>
         arg.abstractList A.rule.binders).toList)
-      (recursorCanonicalVars equationFieldDomains.length) := by
+      (bvarSpine equationFieldDomains.length) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let inserted := T.motives ++ T.minors
   let equationFieldDomains :=
@@ -384,7 +384,7 @@ theorem
         (abstractForallContext checkedEquationDomains []))
       ((A.rule.allArgs.map fun arg =>
         arg.abstractList A.rule.binders).toList)
-      (recursorCanonicalVars checkedEquationFieldDomains.length) := by
+      (bvarSpine checkedEquationFieldDomains.length) := by
     simpa [checkedEquationDomains, inserted, List.append_assoc] using
       Hcanonical
   have HdomainContext : VEnv.IsDefEqCtx H.outVEnv Us.length []
@@ -415,7 +415,7 @@ theorem
       exact ⟨target :: targets, .cons Htarget Htargets⟩
   have Htransported := transport Hcanonical'
   rcases Htransported with ⟨targets, Htargets⟩
-  have htargets : recursorCanonicalVars checkedEquationFieldDomains.length =
+  have htargets : bvarSpine checkedEquationFieldDomains.length =
       targets :=
     Lean4Lean.VerifyInductive.TrExprS.forall₂_unique HuniqueCtx
       (fun source hsource => A.rule.abstractedAllArgsUnique source
@@ -458,10 +458,10 @@ theorem
         (A.rule.allArgs.map fun arg =>
           arg.abstractList A.rule.binders).toList)
       (List.append
-        ((recursorCanonicalVars T.params.length).map (fun arg =>
+        ((bvarSpine T.params.length).map (fun arg =>
           arg.liftN
             ((T.motives ++ T.minors).length + fieldDomains.length) 0))
-        (recursorCanonicalVars fieldDomains.length)) := by
+        (bvarSpine fieldDomains.length)) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   dsimp only
@@ -488,7 +488,7 @@ theorem
   have htarget :
       (List.ofFn fun i : Fin stats.params.size =>
         VExpr.bvar (A.rule.binders.length - 1 - i)) =
-      (recursorCanonicalVars T.params.length).map (fun arg =>
+      (bvarSpine T.params.length).map (fun arg =>
         arg.liftN
           ((T.motives ++ T.minors).length + fieldDomains.length) 0) := by
     rw [recursorCanonicalVars_eq_ofFn]
@@ -539,25 +539,25 @@ theorem
         ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
         (recursorDeclarationAbstractLevels c.lparams
           H.elimLevelAdmissible))
-      (recursorCanonicalVars stats.params.size)) :
+      (bvarSpine stats.params.size)) :
     VExpr.mkApps
         (.const
           ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
           (recursorDeclarationAbstractLevels c.lparams
             H.elimLevelAdmissible))
         (List.append
-          ((recursorCanonicalVars T.params.length).map (fun arg =>
+          ((bvarSpine T.params.length).map (fun arg =>
             arg.liftN
               ((T.motives ++ T.minors).length + fieldDomains.length) 0))
-          (recursorCanonicalVars fieldDomains.length)) =
+          (bvarSpine fieldDomains.length)) =
       ((VExpr.mkApps
           (introTarget.liftN A.rule.allArgs.size 0)
-          (recursorCanonicalVars A.rule.allArgs.size)).liftN
+          (bvarSpine A.rule.allArgs.size)).liftN
         (T.motives ++ T.minors).length A.rule.allArgs.size) := by
   have hcanonicalVars :
-      recursorCanonicalVars stats.params.size =
-        recursorCanonicalVars T.params.length := by
-    exact congrArg recursorCanonicalVars T.params_length.symm
+      bvarSpine stats.params.size =
+        bvarSpine T.params.length := by
+    exact congrArg bvarSpine T.params_length.symm
   rw [HintroShape, hcanonicalVars, ← hfields]
   simp only [VExpr.liftN_mkApps, VExpr.liftN, List.map_append,
     recursorCanonicalVars_liftN_at_length]
@@ -595,7 +595,7 @@ theorem
       (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
       ((VExpr.mkApps
           (introTarget.liftN A.rule.allArgs.size 0)
-          (recursorCanonicalVars A.rule.allArgs.size)).liftN
+          (bvarSpine A.rule.allArgs.size)).liftN
         (T.motives ++ T.minors).length A.rule.allArgs.size)
       (fieldResult.liftN
         (T.motives ++ T.minors).length A.rule.allArgs.size))
@@ -604,7 +604,7 @@ theorem
         ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
         (recursorDeclarationAbstractLevels c.lparams
           H.elimLevelAdmissible))
-      (recursorCanonicalVars stats.params.size)) :
+      (bvarSpine stats.params.size)) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
     TrExprS H.outVEnv Us (abstractForallContext domains [])
@@ -619,7 +619,7 @@ theorem
           arg.abstractList A.rule.binders))
       ((VExpr.mkApps
           (introTarget.liftN A.rule.allArgs.size 0)
-          (recursorCanonicalVars A.rule.allArgs.size)).liftN
+          (bvarSpine A.rule.allArgs.size)).liftN
         (T.motives ++ T.minors).length A.rule.allArgs.size) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
@@ -630,14 +630,14 @@ theorem
       (recursorDeclarationAbstractLevels c.lparams
         H.elimLevelAdmissible))
     (List.append
-      ((recursorCanonicalVars T.params.length).map (fun arg =>
+      ((bvarSpine T.params.length).map (fun arg =>
         arg.liftN
           ((T.motives ++ T.minors).length + fieldDomains.length) 0))
-      (recursorCanonicalVars fieldDomains.length))
+      (bvarSpine fieldDomains.length))
   have hmajorShape : directMajor =
       ((VExpr.mkApps
           (introTarget.liftN A.rule.allArgs.size 0)
-          (recursorCanonicalVars A.rule.allArgs.size)).liftN
+          (bvarSpine A.rule.allArgs.size)).liftN
         (T.motives ++ T.minors).length A.rule.allArgs.size) := by
     exact A.canonicalConstructorMajor_eq T fieldDomains introTarget
       hfields HintroShape
@@ -714,7 +714,7 @@ theorem
           arg.abstractList A.rule.binders).toList) ++
         ((H.recInfos.flatMap (·.minors)).map fun arg =>
           arg.abstractList A.rule.binders).toList)
-      ((recursorCanonicalVars
+      ((bvarSpine
         (T.params ++ T.motives ++ T.minors).length).map fun arg =>
           arg.liftN fieldDomains.length 0) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -752,7 +752,7 @@ theorem
           VExpr.bvar (A.rule.binders.length - 1 -
             ((A.rule.params_bound.fvars ++
               A.rule.motives_bound.fvars).length + i)))) =
-        (recursorCanonicalVars
+        (bvarSpine
           (T.params ++ T.motives ++ T.minors).length).map fun arg =>
             arg.liftN fieldDomains.length 0 := by
     rw [recursorCanonicalVars_eq_ofFn]
@@ -816,7 +816,7 @@ theorem
             (VLevel.params
               (AddInductive.getRecLevelParams H.elimLevel c.lparams).length)).liftN
             (T.params ++ T.motives ++ T.minors).length 0)
-          (recursorCanonicalVars
+          (bvarSpine
             (T.params ++ T.motives ++ T.minors).length)).liftN
         fieldDomains.length 0)
       ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
@@ -839,7 +839,7 @@ theorem
           ((VExpr.const H.entries[owner].2.name
             (VLevel.params Us.length)).liftN
             (T.params ++ T.motives ++ T.minors).length 0)
-          (recursorCanonicalVars
+          (bvarSpine
             (T.params ++ T.motives ++ T.minors).length)).liftN
         fieldDomains.length 0) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -867,7 +867,7 @@ theorem
       (abstractForallContext domains []).toCtx
       (VExpr.mkApps
         (.const H.entries[owner].2.name (VLevel.params Us.length))
-        ((recursorCanonicalVars
+        ((bvarSpine
           (T.params ++ T.motives ++ T.minors).length).map fun arg =>
             arg.liftN fieldDomains.length 0)) := by
     exact ⟨_, by
@@ -875,7 +875,7 @@ theorem
         (abstractForallContext domains []).toCtx
         (VExpr.mkApps
           (.const H.entries[owner].2.name (VLevel.params Us.length))
-          ((recursorCanonicalVars
+          ((bvarSpine
             (T.params ++ T.motives ++ T.minors).length).map fun arg =>
               arg.liftN fieldDomains.length 0)) _
       simpa [abstractForallContext, htoCtx, htoCtxReverse, domains,
@@ -985,7 +985,7 @@ theorem
     exact go args.toList head hhead (by
       intro arg harg
       exact hargs arg (by simpa using harg))
-  have boundClosed : ∀ {root xs} (B : BoundFVarArray root xs),
+  have boundClosed : ∀ {root xs} (B : FVarArrayIn root xs),
       ∀ arg ∈ xs, Closed arg := by
     intro root xs B arg harg
     rw [B.expressions] at harg
@@ -1037,8 +1037,8 @@ theorem
             F.semantic.generated.arguments_bound.fvars).abstractList
             A.rule.binders F.semantic.generated.localArgs.size) := by
   dsimp only
-  unfold BoundGeneratedRecursiveCall.outerAbstractedRecursor
-  rw [SemanticBoundGeneratedRecursiveCall.abstractedRecursor_eq
+  unfold RecursiveCall.outerAbstractedRecursor
+  rw [TypedRecursiveCall.abstractedRecursor_eq
     F.originContext F.semantic]
   have hclosed := F.rawRecursorPrefixClosed
   rw [Expr.liftLooseBVars_eq_self hclosed.looseBVarRange_le]
@@ -1133,7 +1133,7 @@ theorem
     exact go args.toList head hhead (by
       intro arg harg
       exact hargs arg (by simpa using harg))
-  have boundClosed : ∀ {root xs} (B : BoundFVarArray root xs),
+  have boundClosed : ∀ {root xs} (B : FVarArrayIn root xs),
       ∀ arg ∈ xs, Closed arg := by
     intro root xs B arg harg
     rw [B.expressions] at harg
@@ -1203,9 +1203,9 @@ theorem
     (outer := outer) (inner := A.rule.all_args_bound.fvars)
     (k := F.semantic.generated.localArgs.size)
     (by
-      simpa [outer, BoundGeneratedRecursorRule.binders,
+      simpa [outer, RecursorRuleSyntax.binders,
         List.append_assoc] using A.rule.binders_nodup)
-  simpa [outer, BoundGeneratedRecursorRule.binders,
+  simpa [outer, RecursorRuleSyntax.binders,
     List.append_assoc] using Habstract
 
 /-- The source produced by closing cached parameters and then inserting the
@@ -1353,7 +1353,7 @@ theorem
         (A.rule.params_bound.fvars ++ insertedFVars) cutoff := hfirst
     _ = _ := by
       simpa [closedSources, sourceIndices, cutoff, insertedFVars,
-        BoundGeneratedRecursorRule.binders,
+        RecursorRuleSyntax.binders,
         A.rule.all_args_bound.length_fvars,
         List.append_assoc] using houter
 
@@ -1436,9 +1436,9 @@ theorem
   have hscope : source.FVarsIn (· ∈ A.rule.params_bound.fvars) := by
     have hlocalFvars : F.semantic.recent.fvars =
         F.semantic.generated.arguments_bound.fvars :=
-      BoundFVarArray.fvars_eq
-        F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
-        F.semantic.generated.arguments_bound.toBoundFVarArray rfl
+      FVarArrayIn.fvars_eq
+        F.semantic.recent.toFVarArrayAfter.toFVarArrayIn
+        F.semantic.generated.arguments_bound.toFVarArrayIn rfl
     have Hlocal := FVarsIn.abstractList_of
       (selected := F.semantic.recent.fvars) (k := 0)
       F.semantic.exposed_scope
@@ -1479,14 +1479,14 @@ theorem
     (outer := A.rule.params_bound.fvars ++ insertedFVars)
     (inner := A.rule.all_args_bound.fvars)
     (k := F.semantic.generated.localArgs.size)
-    (by simpa [insertedFVars, BoundGeneratedRecursorRule.binders,
+    (by simpa [insertedFVars, RecursorRuleSyntax.binders,
       List.append_assoc] using A.rule.binders_nodup)
   calc
     _ = source.abstractList
         (A.rule.params_bound.fvars ++ insertedFVars) cutoff := hfirst
     _ = _ := by
       simpa [source, cutoff, insertedFVars,
-        BoundGeneratedRecursorRule.binders,
+        RecursorRuleSyntax.binders,
         A.rule.all_args_bound.length_fvars,
         List.append_assoc] using houter
 
@@ -1549,7 +1549,7 @@ theorem
     List.getElem_mem hfieldPositionFVars
   have hfieldFull : A.rule.all_args_bound.fvars[fieldPosition] ∈
       A.rule.binders := by
-    unfold BoundGeneratedRecursorRule.binders
+    unfold RecursorRuleSyntax.binders
     exact List.mem_append_right _ hfieldMem
   rcases F.semantic.generated.outerAbstractedMajor_eq_bvar_of_field_eq
       hfieldEq hfieldRoot A.rule.binders_nodup hfieldFull with
@@ -1564,7 +1564,7 @@ theorem
       (Expr.fvar A.rule.all_args_bound.fvars[fieldPosition]).abstractList
           A.rule.binders =
         .bvar (A.rule.allArgs.size - 1 - fieldPosition) := by
-    unfold BoundGeneratedRecursorRule.binders
+    unfold RecursorRuleSyntax.binders
     rw [Expr.abstractList_append,
       Expr.abstractList_fvar_of_not_mem hnotOuter]
     simpa [A.rule.all_args_bound.length_fvars] using hfieldExact
@@ -1576,7 +1576,7 @@ theorem
         mkAppN
           (.bvar (F.semantic.generated.localArgs.size + fullFieldVar))
           (F.semantic.generated.localIndices.map Expr.bvar).toArray := by
-    simpa only [BoundGeneratedRecursorRule.binders] using hfullShape
+    simpa only [RecursorRuleSyntax.binders] using hfullShape
   have hbaseFull :
       F.semantic.generated.outerAbstractedMajor
           A.rule.all_args_bound.fvars =
@@ -1753,7 +1753,7 @@ theorem
     (e := raw)
     (outer := A.rule.params_bound.fvars ++ insertedFVars)
     (inner := A.rule.all_args_bound.fvars) (k := 0)
-    (by simpa [insertedFVars, BoundGeneratedRecursorRule.binders,
+    (by simpa [insertedFVars, RecursorRuleSyntax.binders,
       List.append_assoc] using A.rule.binders_nodup)
   dsimp only
   calc
@@ -1763,7 +1763,7 @@ theorem
       simpa [source, raw, inserted] using hfirst
     _ = _ := by
       simpa [source, raw, insertedFVars,
-        BoundGeneratedRecursorRule.binders,
+        RecursorRuleSyntax.binders,
         A.rule.all_args_bound.length_fvars,
         List.append_assoc] using houter
 
@@ -1800,9 +1800,9 @@ theorem
     let parameterDecls := H.parameterSuffix.parameterDecls
     let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
     let inserted := T.motives ++ T.minors
-    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+    ∃ binding : MotiveBinding F.semantic.current_context
         H.recInfos[selectedOwner]! H.elimLevel,
-      ∃ evidence : RecursorMotiveTelescopeEvidence
+      ∃ evidence : MotiveAppliesTo
           F.semantic.current_context stats H.recInfos[selectedOwner]!
           binding F.semantic.generated.exposedType F.semantic.exposedTarget,
         ∃ scope,
@@ -2156,7 +2156,7 @@ theorem
       A.rule.params_bound F.parameterFVarsFresh
       A.rule.binders_nodup (by
         intro fv hfv
-        simp [BoundGeneratedRecursorRule.binders, hfv])
+        simp [RecursorRuleSyntax.binders, hfv])
   have hparameterSources :
       ((stats.params.map fun param =>
         (param.abstractList
@@ -2177,7 +2177,7 @@ theorem
             param.abstractList A.rule.binders).toList).map
               (fun source => source.liftLooseBVars' 0
                 F.semantic.generated.localArgs.size) := by
-      simpa [BoundGeneratedRecursorRule.binders] using HouterParameters'
+      simpa [RecursorRuleSyntax.binders] using HouterParameters'
     exact HouterParameters''.trans (congrArg
       (List.map fun source => source.liftLooseBVars' 0
         F.semantic.generated.localArgs.size)
@@ -2220,7 +2220,7 @@ theorem
     have hparams : A.rule.params_bound.fvars.length = stats.params.size := by
       have h := congrArg Array.size A.rule.params_bound.expressions
       simpa using h.symm
-    unfold BoundGeneratedRecursorRule.binders
+    unfold RecursorRuleSyntax.binders
     simp only [List.length_append]
     omega
   have hparameterTargets : parameterTargets =

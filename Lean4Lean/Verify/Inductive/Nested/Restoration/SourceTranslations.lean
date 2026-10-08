@@ -51,7 +51,7 @@ validated auxiliary translation associated with its surviving cache entry. -/
 theorem GeneratedFamilyWitness.closedAuxiliaryTranslation
     (H : GeneratedFamilyWitness sourceEnv params finalState.nestedAux family)
     (Hmap : NestedAuxMapModels result finalState)
-    {selection : LocalForallSelection result.lctx result.params}
+    {selection : CDeclArray result.lctx result.params}
     (Htranslations : ClosedNestedAuxiliaryTranslations venv lparams result
       selection) :
     Nonempty (ClosedNestedAuxiliaryTranslation venv lparams result selection
@@ -66,7 +66,7 @@ theorem NestedLoweringResultClosed.resultParamsNodup
 
 theorem NestedLoweringResultClosed.selectionNodup
     (H : NestedLoweringResultClosed env fuel nparams types initialState result)
-    (selection : LocalForallSelection result.lctx result.params) :
+    (selection : CDeclArray result.lctx result.params) :
     selection.fvars.Nodup := by
   rcases H.resultParamsNodup with ⟨fvars, hparams, hnodup⟩
   have harrays : (selection.fvars.map Expr.fvar).toArray =
@@ -141,7 +141,7 @@ theorem NestedLoweringResultClosed.sourceParameterPrefix
   have hclosed := Hopening.toRestoreParamOpening.root_mkForall_tail Hctx.wf
     Htelescope (FVarsIn_to_FVarIdsIn hsourceClosed)
     (HbClosed first (by rw [htypes]; simp))
-  have HselectionResult : LocalForallSelection result.lctx result.params := by
+  have HselectionResult : CDeclArray result.lctx result.params := by
     rcases Hqueue.resultContext with ⟨hlctx, hparams⟩
     rw [hlctx, hparams]
     exact Hselection
@@ -1341,14 +1341,14 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
           (fun _ =>
             ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res ∧
-            ∃ selection : LocalForallSelection res.lctx res.params,
+            ∃ selection : CDeclArray res.lctx res.params,
               ClosedNestedAuxiliaryTranslations venv lparams res selection)
           outEnv := by
   apply Environment.restoreNestedAfterInstall.ofLoweringWF Hc H
     Hlower.toResult hsourceWF lparams safety allowPrimitive fuel
     (fun _ =>
       ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res ∧
-      ∃ selection : LocalForallSelection res.lctx res.params,
+      ∃ selection : CDeclArray res.lctx res.params,
         ClosedNestedAuxiliaryTranslations venv lparams res selection)
   intro _restoredEnv _validationEnv auxiliaryHeaderEnv _Hrestoration
     _Hvalidation HheaderValidation _Hparameters _HrecursorTypes

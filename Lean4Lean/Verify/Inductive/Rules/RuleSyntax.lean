@@ -12,8 +12,8 @@ namespace VerifyInductive
 
 /-- Rule-level abstraction turns the selected field free variable into its
 outer de Bruijn index beneath the generated call's local lambda binders. -/
-theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.outerAbstractedMajor_eq_bvar
+    (H : RecursiveCall indTypes stats motives minors lvls
       root (.fvar fv) value)
     (hfieldRoot : fv ∈ root.lctx.fvars)
     (hbinders : binders.Nodup)
@@ -52,10 +52,10 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar
       (List.ofFn fun i : Fin H.arguments_bound.fvars.length =>
         Expr.bvar (H.arguments_bound.fvars.length - 1 - i)) =
       H.localIndices.map Expr.bvar := by
-    simp [BoundGeneratedRecursiveCall.localIndices,
+    simp [RecursiveCall.localIndices,
       List.map_ofFn, Function.comp_def]
   refine ⟨fieldVar, by omega, hfieldBase', ?_⟩
-  unfold BoundGeneratedRecursiveCall.outerAbstractedMajor
+  unfold RecursiveCall.outerAbstractedMajor
   rw [H.abstractedMajor_eq_of_closed (by simp [Lean.Expr.looseBVarRange'])]
   rw [Expr.abstractList_mkAppN, hfieldLocal, hfieldOuter']
   apply congrArg (mkAppN (.bvar (H.localArgs.size + fieldVar)))
@@ -68,15 +68,15 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar
     apply Expr.abstractList_bvar_lt
     have hj : j < H.localIndices.length := by simpa using hjRight
     have hj' : j < H.arguments_bound.fvars.length := by
-      simpa [BoundGeneratedRecursiveCall.localIndices] using hj
-    simp only [BoundGeneratedRecursiveCall.localIndices,
+      simpa [RecursiveCall.localIndices] using hj
+    simp only [RecursiveCall.localIndices,
       List.getElem_ofFn]
     omega
 
 /-- Dependent array-selection wrapper for
 `outerAbstractedMajor_eq_bvar`. -/
-theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar_of_field_eq
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.outerAbstractedMajor_eq_bvar_of_field_eq
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
     (hfieldEq : field = .fvar fv)
     (hfieldRoot : fv ∈ root.lctx.fvars)
@@ -92,8 +92,8 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar_of_field_eq
   exact H.outerAbstractedMajor_eq_bvar hfieldRoot hbinders hfield
 
 /-- Positional form of `outerAbstractedMajor_eq_bvar_of_field_eq`. -/
-theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar_at
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.outerAbstractedMajor_eq_bvar_at
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
     (hfieldEq : field = .fvar fv)
     (hfieldRoot : fv ∈ root.lctx.fvars)
@@ -117,17 +117,17 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar_at
     exact Expr.bvar.inj (habstract.symm.trans hexact')
   simpa [hfieldVarExact] using houter
 
-theorem BoundGeneratedRecursiveCall.abstractedBody_eq_named
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.abstractedBody_eq_named
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) :
     H.body =
       H.abstractedRecursor.app H.abstractedMajor := by
-  simpa [BoundGeneratedRecursiveCall.abstractedRecursor,
-    BoundGeneratedRecursiveCall.abstractedMajor,
-    BoundGeneratedRecursiveCall.recursorName] using H.abstractedBody_eq
+  simpa [RecursiveCall.abstractedRecursor,
+    RecursiveCall.abstractedMajor,
+    RecursiveCall.recursorName] using H.abstractedBody_eq
 
-theorem BoundGeneratedRecursiveCall.outerAbstractedBody_eq_named
-    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+theorem RecursiveCall.outerAbstractedBody_eq_named
+    (H : RecursiveCall indTypes stats motives minors lvls
       root field value) :
     H.body.abstractList binders H.localArgs.size =
       (H.outerAbstractedRecursor binders).app
@@ -172,10 +172,10 @@ private theorem avoidsConsts_liftLooseBVars'
 
 /-- The retained closed call template instantiates its single recursor
 placeholder and leaves the locally abstracted index arguments unchanged. -/
-theorem SemanticBoundGeneratedRecursiveCall.abstractedRecursor_eq
+theorem TypedRecursiveCall.abstractedRecursor_eq
     {root : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF root recLparams)
-    (H : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+    (H : TypedRecursiveCall indTypes stats motives minors
       lvls R decl depth field value) :
     let indices := (AddInductive.getIIndices stats
       H.generated.exposedType).2
@@ -249,7 +249,7 @@ theorem SemanticBoundGeneratedRecursiveCall.abstractedRecursor_eq
             H.generated.arguments_bound.fvars.length := by
           simpa [hclosed] using hrange
         _ = H.generated.localArgs.size := hsize.symm
-  unfold BoundGeneratedRecursiveCall.abstractedRecursor
+  unfold RecursiveCall.abstractedRecursor
   rw [show (Expr.bvar H.generated.localArgs.size).abstractN H.generated.arguments_bound.fvars =
     .bvar H.generated.localArgs.size from rfl]
   simp only [Expr.instantiate1'_mkAppN]
@@ -271,7 +271,7 @@ theorem SemanticBoundGeneratedRecursiveCall.abstractedRecursor_eq
 
 /-- Prefix invariant for rule generation retaining both exact syntax and the
 binding evidence needed to translate every higher-order recursive result. -/
-structure BoundGeneratedRecursiveCalls
+structure RecursiveCallsPrefix
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     (root : AddInductive.Context)
@@ -279,13 +279,13 @@ structure BoundGeneratedRecursiveCalls
   covered : done ≤ u.size
   size : v.size = done
   entries : ∀ i, i < done → (hi : i < u.size) →
-    Nonempty (BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+    Nonempty (RecursiveCall indTypes stats motives minors lvls
       root u[i] v[i]!)
 
 /-- Prefix invariant for recursive-result generation with each executable
 call coupled to the independent recursive-domain judgment for its exact
 selected field. -/
-structure SemanticBoundGeneratedRecursiveCalls
+structure TypedRecursiveCalls
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     {root : AddInductive.Context} {recLparams : List Name}
@@ -295,7 +295,7 @@ structure SemanticBoundGeneratedRecursiveCalls
   covered : done ≤ u.size
   size : v.size = done
   entries : ∀ i, i < done → (hi : i < u.size) →
-    ∃ S : SemanticBoundGeneratedRecursiveCall indTypes stats motives
+    ∃ S : TypedRecursiveCall indTypes stats motives
         minors lvls R decl depth u[i] v[i]!,
       S.rootScope = P
 
@@ -303,7 +303,7 @@ structure SemanticBoundGeneratedRecursiveCalls
 advances both the local context and validation depth; the closed generated
 rule does not justify collapsing these origins to the later installation
 context. -/
-structure StagedSemanticBoundGeneratedRecursiveCalls
+structure TypedRecursiveCallsAbove
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     {fieldRoot : AddInductive.Context} {recLparams : List Name}
@@ -317,7 +317,7 @@ structure StagedSemanticBoundGeneratedRecursiveCalls
       ∃ Rorigin : RecursorContextWF originRoot recLparams,
         ∃ _ : RecursorContextExtension Rfield Rorigin,
           ∃ callDepth,
-            ∃ S : SemanticBoundGeneratedRecursiveCall indTypes stats
+            ∃ S : TypedRecursiveCall indTypes stats
               motives minors lvls Rorigin decl callDepth u[i] v[i]!,
               S.rootScope = P
 
@@ -325,14 +325,14 @@ structure StagedSemanticBoundGeneratedRecursiveCalls
 pass checks one recursive field.  This evidence belongs to the call producer:
 later completed recursor contexts are siblings of the producer context and
 cannot soundly reconstruct it by weakening. -/
-structure SemanticBoundGeneratedRecursiveCall.ProducerMotiveApplication
+structure TypedRecursiveCall.MotiveApplication
     {indTypes : Array InductiveType}
     {stats : AddInductive.InductiveStats}
     {motives minors : Array Expr} {lvls : List Level}
     {root : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF root recLparams}
     {decl : VInductDecl} {depth : Nat} {field value : Expr}
-    (S : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+    (S : TypedRecursiveCall indTypes stats motives minors
       lvls R decl depth field value) : Type where
   target : VExpr
   translation : TrExprS S.current_context.venv recLparams
@@ -348,7 +348,7 @@ structure SemanticBoundGeneratedRecursiveCall.ProducerMotiveApplication
 retained at every call origin.  Unlike the compatibility staging above, this
 is populated only by `loopUBlueprints`, whose accumulator supplies the
 literal recent suffix and its position in the call row. -/
-structure ProducerStagedSemanticBoundGeneratedRecursiveCalls
+structure TypedRecursiveCallsAfterHypotheses
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     {fieldRoot : AddInductive.Context} {recLparams : List Name}
@@ -361,19 +361,19 @@ structure ProducerStagedSemanticBoundGeneratedRecursiveCalls
     ∃ originRoot,
       ∃ Rorigin : RecursorContextWF originRoot recLparams,
         ∃ priorHypotheses : Array Expr,
-          ∃ _ : RecursorRecentBoundFVarArray Rfield Rorigin
+          ∃ _ : RecursorFVarSuffix Rfield Rorigin
               priorHypotheses,
             priorHypotheses.size = i ∧ Rorigin.chk = Rfield.chk ∧
               ∃ callDepth,
-                ∃ S : SemanticBoundGeneratedRecursiveCall indTypes stats
+                ∃ S : TypedRecursiveCall indTypes stats
                   motives minors lvls Rorigin decl callDepth u[i] v[i]!,
                   S.rootScope = P ∧
-                    Nonempty S.ProducerMotiveApplication
+                    Nonempty S.MotiveApplication
 
-theorem ProducerStagedSemanticBoundGeneratedRecursiveCalls.toStaged
-    (H : ProducerStagedSemanticBoundGeneratedRecursiveCalls indTypes stats
+theorem TypedRecursiveCallsAfterHypotheses.toStaged
+    (H : TypedRecursiveCallsAfterHypotheses indTypes stats
       motives minors lvls Rfield decl P u v done) :
-    StagedSemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
+    TypedRecursiveCallsAbove indTypes stats motives minors
       lvls Rfield decl P u v done where
   covered := H.covered
   size := H.size
@@ -384,24 +384,24 @@ theorem ProducerStagedSemanticBoundGeneratedRecursiveCalls.toStaged
     exact ⟨originRoot, Rorigin, Hrecent.contextExtension,
       callDepth, S, hscope⟩
 
-def SemanticBoundGeneratedRecursiveCalls.empty
+def TypedRecursiveCalls.empty
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     {root : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF root recLparams)
     (decl : VInductDecl) (depth : Nat) (P : FVarId → Prop)
     (u : Array Expr) :
-    SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+    TypedRecursiveCalls indTypes stats motives minors lvls
       R decl depth P u #[] 0 where
   covered := Nat.zero_le _
   size := rfl
   entries _ h := by omega
 
-def BoundGeneratedRecursiveCalls.empty
+def RecursiveCallsPrefix.empty
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     (root : AddInductive.Context) (u : Array Expr) :
-    BoundGeneratedRecursiveCalls indTypes stats motives minors lvls root
+    RecursiveCallsPrefix indTypes stats motives minors lvls root
       u #[] 0 where
   covered := Nat.zero_le _
   size := rfl
@@ -409,7 +409,7 @@ def BoundGeneratedRecursiveCalls.empty
 
 /-- One generated iota rule retaining the constructor-field context and the
 binder-aware certificate for every recursive result. -/
-structure BoundGeneratedRecursorRule
+structure RecursorRuleSyntax
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     (ctor : Constructor) (minorIdx : Nat) (rule : RecursorRule) where
@@ -426,20 +426,20 @@ structure BoundGeneratedRecursorRule
   recursiveArgs : Array Expr
   recursiveResults : Array Expr
   minor_valid : minorIdx < minors.size
-  params_bound : BoundFVarArray outerRoot stats.params
-  motives_bound : BoundFVarArray outerRoot motives
-  minors_bound : BoundFVarArray outerRoot minors
+  params_bound : FVarArrayIn outerRoot stats.params
+  motives_bound : FVarArrayIn outerRoot motives
+  minors_bound : FVarArrayIn outerRoot minors
   outer_binders_nodup :
     ((params_bound.fvars ++ motives_bound.fvars) ++
       minors_bound.fvars).Nodup
-  all_args_bound : BoundFVarArray root allArgs
-  recursive_args_bound : BoundFVarArray root recursiveArgs
+  all_args_bound : FVarArrayIn root allArgs
+  recursive_args_bound : FVarArrayIn root recursiveArgs
   recursive_args_sublist : recursiveArgs.toList.Sublist allArgs.toList
   all_args_nodup : all_args_bound.fvars.Nodup
   recursive_args_nodup : recursive_args_bound.fvars.Nodup
   all_args_outer_fresh : ∀ fv ∈ all_args_bound.fvars,
     fv ∉ (params_bound.fvars ++ motives_bound.fvars) ++ minors_bound.fvars
-  recursive_calls : BoundGeneratedRecursiveCalls indTypes stats motives
+  recursive_calls : RecursiveCallsPrefix indTypes stats motives
     minors lvls root recursiveArgs recursiveResults recursiveArgs.size
   ctor_eq : rule.ctor = ctor.name
   fields_eq : rule.nfields = allArgs.size
@@ -452,8 +452,8 @@ structure BoundGeneratedRecursorRule
 /-- All source binders closed by a generated rule are globally distinct:
 outer recursor binders are no-alias by construction, while constructor fields
 are fresh relative to that outer context. -/
-theorem BoundGeneratedRecursorRule.binders_nodup
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.binders_nodup
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) :
     (((H.params_bound.fvars ++ H.motives_bound.fvars) ++
       H.minors_bound.fvars) ++ H.all_args_bound.fvars).Nodup := by
@@ -463,28 +463,28 @@ theorem BoundGeneratedRecursorRule.binders_nodup
   subst outer
   exact H.all_args_outer_fresh field hfield houter
 
-def BoundGeneratedRecursorRule.binders
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+def RecursorRuleSyntax.binders
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) : List FVarId :=
   ((H.params_bound.fvars ++ H.motives_bound.fvars) ++
     H.minors_bound.fvars) ++ H.all_args_bound.fvars
 
-def BoundGeneratedRecursorRule.sourceRhsBody
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+def RecursorRuleSyntax.sourceRhsBody
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) : Expr :=
   mkAppN (mkAppN minors[minorIdx]! H.allArgs) H.recursiveResults
 
 /-- Constructor application appearing as the major premise of the generated
 iota left-hand side. -/
-def BoundGeneratedRecursorRule.sourceConstructorMajor
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+def RecursorRuleSyntax.sourceConstructorMajor
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) : Expr :=
   mkAppN (mkAppN (.const ctor.name stats.levels) stats.params) H.allArgs
 
 /-- Canonical source left-hand-side body determined by the residual target
 returned from `loopCtorArgs`. -/
-def BoundGeneratedRecursorRule.sourceLhsBody
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+def RecursorRuleSyntax.sourceLhsBody
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) : Expr :=
   let (ownerIdx, indices) := AddInductive.getIIndices stats H.target
   let recursor := .const (Lean.mkRecName indTypes[ownerIdx]!.name) lvls
@@ -492,17 +492,17 @@ def BoundGeneratedRecursorRule.sourceLhsBody
     (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
       indices).app H.sourceConstructorMajor
 
-def BoundGeneratedRecursorRule.all_binders_bound
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
-      ctor minorIdx rule) : BoundFVarArray H.outerRoot
+def RecursorRuleSyntax.all_binders_bound
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
+      ctor minorIdx rule) : FVarArrayIn H.outerRoot
       (stats.params ++ motives ++ minors ++ H.allArgs) :=
   ((H.params_bound.append H.motives_bound).append H.minors_bound).append
     (H.all_args_bound.mono H.root_le_outer)
 
 /-- Simultaneously closing the complete rule-binder payload produces the
 canonical de Bruijn variables in source-binder order. -/
-theorem BoundGeneratedRecursorRule.abstractedBinders_eq
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.abstractedBinders_eq
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) :
     (((stats.params ++ motives ++ minors ++ H.allArgs).map
       fun arg => arg.abstractList H.binders).toList) =
@@ -521,8 +521,8 @@ theorem BoundGeneratedRecursorRule.abstractedBinders_eq
 
 /-- The parameter prefix of the simultaneously abstracted rule binders is
 the corresponding prefix of canonical de Bruijn variables. -/
-theorem BoundGeneratedRecursorRule.abstractedParams_eq
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.abstractedParams_eq
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) :
     ((stats.params.map fun arg => arg.abstractList H.binders).toList) =
       List.ofFn (fun i : Fin stats.params.size =>
@@ -532,7 +532,7 @@ theorem BoundGeneratedRecursorRule.abstractedParams_eq
     have := congrArg Array.size H.params_bound.expressions
     simpa using this.symm
   have hle : stats.params.size ≤ H.binders.length := by
-    unfold BoundGeneratedRecursorRule.binders
+    unfold RecursorRuleSyntax.binders
     simp only [List.length_append]
     omega
   have htake :
@@ -554,8 +554,8 @@ theorem BoundGeneratedRecursorRule.abstractedParams_eq
       List.take_of_length_le] using h
   exact hprefix.trans htake
 
-theorem BoundGeneratedRecursorRule.abstractedParamsTranslation
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.abstractedParamsTranslation
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule)
     (domains : List VExpr) (Δ : VLCtx)
     (hdomains : domains.length = H.binders.length) :
@@ -568,12 +568,12 @@ theorem BoundGeneratedRecursorRule.abstractedParamsTranslation
     (env := env) (Us := Us) H.binders []
       (H.motives_bound.fvars ++ H.minors_bound.fvars ++
         H.all_args_bound.fvars)
-      (by simp [BoundGeneratedRecursorRule.binders, List.append_assoc])
+      (by simp [RecursorRuleSyntax.binders, List.append_assoc])
       H.binders_nodup domains Δ hdomains
   simpa using Htr
 
-theorem BoundGeneratedRecursorRule.abstractedMotivesTranslation
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.abstractedMotivesTranslation
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule)
     (domains : List VExpr) (Δ : VLCtx)
     (hdomains : domains.length = H.binders.length) :
@@ -586,11 +586,11 @@ theorem BoundGeneratedRecursorRule.abstractedMotivesTranslation
   exact H.motives_bound.abstractedTranslationAt
     (env := env) (Us := Us) H.binders H.params_bound.fvars
       (H.minors_bound.fvars ++ H.all_args_bound.fvars)
-      (by simp [BoundGeneratedRecursorRule.binders, List.append_assoc])
+      (by simp [RecursorRuleSyntax.binders, List.append_assoc])
       H.binders_nodup domains Δ hdomains
 
-theorem BoundGeneratedRecursorRule.abstractedMinorsTranslation
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.abstractedMinorsTranslation
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule)
     (domains : List VExpr) (Δ : VLCtx)
     (hdomains : domains.length = H.binders.length) :
@@ -604,11 +604,11 @@ theorem BoundGeneratedRecursorRule.abstractedMinorsTranslation
     (env := env) (Us := Us) H.binders
       (H.params_bound.fvars ++ H.motives_bound.fvars)
       H.all_args_bound.fvars
-      (by simp [BoundGeneratedRecursorRule.binders, List.append_assoc])
+      (by simp [RecursorRuleSyntax.binders, List.append_assoc])
       H.binders_nodup domains Δ hdomains
 
-theorem BoundGeneratedRecursorRule.abstractedAllArgsTranslation
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.abstractedAllArgsTranslation
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule)
     (domains : List VExpr) (Δ : VLCtx)
     (hdomains : domains.length = H.binders.length) :
@@ -623,20 +623,20 @@ theorem BoundGeneratedRecursorRule.abstractedAllArgsTranslation
     (env := env) (Us := Us) H.binders
       ((H.params_bound.fvars ++ H.motives_bound.fvars) ++
         H.minors_bound.fvars) []
-      (by simp [BoundGeneratedRecursorRule.binders])
+      (by simp [RecursorRuleSyntax.binders])
       H.binders_nodup domains Δ hdomains
 
 /-- The four nested production `mkLambda` calls are one exact, globally
 no-alias lambda telescope over the retained binder sequence. -/
-theorem BoundGeneratedRecursorRule.rhs_eq_bindingList
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.rhs_eq_bindingList
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) :
     rule.rhs = LocalContext.mkBindingListN true H.outerRoot.lctx
       H.binders H.sourceRhsBody := by
   rw [H.rhs_eq]
   symm
-  unfold BoundGeneratedRecursorRule.binders
-    BoundGeneratedRecursorRule.sourceRhsBody
+  unfold RecursorRuleSyntax.binders
+    RecursorRuleSyntax.sourceRhsBody
   have hdecl : ∀ fv ∈
       ((H.params_bound.fvars ++ H.motives_bound.fvars) ++
         H.minors_bound.fvars) ++ H.all_args_bound.fvars,
@@ -676,20 +676,20 @@ theorem BoundGeneratedRecursorRule.rhs_eq_bindingList
         H.outerRoot.lctx.mkLambda motives <|
           H.outerRoot.lctx.mkLambda minors body) hfields
 
-theorem BoundGeneratedRecursorRule.rhsLambdaTelescope
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.rhsLambdaTelescope
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) :
     Expr.LambdaTelescope rule.rhs H.binders.length
       (H.sourceRhsBody.abstractN H.binders) := by
   rw [H.rhs_eq_bindingList]
   exact LocalContext.mkBindingListN_lambdaTelescope
-    (H.all_binders_bound.toLocalForallSelection
+    (H.all_binders_bound.toCDeclArray
       H.outer_wf).declarations
 
 /-- Simultaneous closing preserves the canonical recursor/constructor LHS
 spines and abstracts every source argument pointwise. -/
-theorem BoundGeneratedRecursorRule.abstractedSourceLhs
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.abstractedSourceLhs
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) :
     let (ownerIdx, indices) := AddInductive.getIIndices stats H.target
     H.sourceLhsBody.abstractList H.binders =
@@ -708,15 +708,15 @@ theorem BoundGeneratedRecursorRule.abstractedSourceLhs
         (H.allArgs.map fun arg => arg.abstractList H.binders)) := by
   rcases htarget : AddInductive.getIIndices stats H.target with
     ⟨ownerIdx, indices⟩
-  simp only [BoundGeneratedRecursorRule.sourceLhsBody, htarget,
-    BoundGeneratedRecursorRule.sourceConstructorMajor,
+  simp only [RecursorRuleSyntax.sourceLhsBody, htarget,
+    RecursorRuleSyntax.sourceConstructorMajor,
     Expr.abstractList_app, Expr.abstractList_mkAppN,
     Expr.abstractList_const]
 
 /-- Inverting the translated canonical LHS exposes the exact recursor and
 constructor constant spines used by `IotaEquationCertificate`. -/
-theorem BoundGeneratedRecursorRule.translatedLhsResidual
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.translatedLhsResidual
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule)
     (htarget : AddInductive.getIIndices stats H.target =
       (ownerIdx, indices))
@@ -818,8 +818,8 @@ theorem BoundGeneratedRecursorRule.translatedLhsResidual
 production `RecursorRule`. The executable record stores only its constructor,
 field count, and RHS; this certificate makes the reconstructed LHS, common
 telescope, and equation type an explicit refinement boundary. -/
-structure BoundGeneratedRecursorRule.EquationTranslation
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+structure RecursorRuleSyntax.EquationTranslation
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
     (trEnv : VEnv) (Us : List Name) (Δ : VLCtx) (rule : VDefEq) where
   domains : List VExpr
@@ -837,8 +837,8 @@ structure BoundGeneratedRecursorRule.EquationTranslation
 
 /-- Any bound free-variable array selected by a duplicate-free closing list
 becomes pointwise unique de Bruijn syntax after simultaneous abstraction. -/
-theorem BoundFVarArray.abstractedUnique
-    (B : BoundFVarArray root args)
+theorem FVarArrayIn.abstractedUnique
+    (B : FVarArrayIn root args)
     (hbinders : binders.Nodup)
     (hselected : ∀ fv ∈ B.fvars, fv ∈ binders) :
     ∀ e ∈ (args.map fun arg => arg.abstractList binders).toList,
@@ -872,8 +872,8 @@ theorem BoundFVarArray.abstractedUnique
 
 /-- Common recursor parameters become closed de Bruijn variables under the
 generated rule telescope, so their syntax translation is unique. -/
-theorem BoundGeneratedRecursorRule.abstractedParamsUnique
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.abstractedParamsUnique
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) :
     ∀ e ∈ (stats.params.map fun arg =>
       arg.abstractList H.binders).toList,
@@ -886,18 +886,18 @@ theorem BoundGeneratedRecursorRule.abstractedParamsUnique
   let fv := H.params_bound.fvars[i]
   have hsource' : stats.params[i] = .fvar fv := hsource
   have hselected : fv ∈ H.binders := by
-    unfold BoundGeneratedRecursorRule.binders
+    unfold RecursorRuleSyntax.binders
     exact List.mem_append_left _ <| List.mem_append_left _ <|
       List.mem_append_left _ (List.getElem_mem hiFvars)
   rcases List.mem_iff_getElem.mp hselected with ⟨j, hj, hget⟩
   let paramVar := H.binders.length - 1 - j
   have habstract := Expr.abstractList_fvar_getElem
     H.binders_nodup j hj (k := 0)
-  unfold BoundGeneratedRecursorRule.binders at hget
+  unfold RecursorRuleSyntax.binders at hget
   rw [hget] at habstract
   have habstract' : (Expr.fvar fv).abstractList H.binders =
       .bvar paramVar := by
-    simpa [BoundGeneratedRecursorRule.binders, paramVar,
+    simpa [RecursorRuleSyntax.binders, paramVar,
       List.append_assoc] using habstract
   have hentry :
       (stats.params.map fun arg => arg.abstractList H.binders).toList[i] =
@@ -909,26 +909,26 @@ theorem BoundGeneratedRecursorRule.abstractedParamsUnique
   rw [← heq, hentry]
   trivial
 
-theorem BoundGeneratedRecursorRule.abstractedMotivesUnique
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.abstractedMotivesUnique
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) :
     ∀ e ∈ (motives.map fun arg => arg.abstractList H.binders).toList,
       TrExprS.IsUnique e := by
   apply H.motives_bound.abstractedUnique H.binders_nodup
   intro fv hfv
-  simpa [BoundGeneratedRecursorRule.binders, List.append_assoc] using
+  simpa [RecursorRuleSyntax.binders, List.append_assoc] using
     (List.mem_append_left H.all_args_bound.fvars <|
       List.mem_append_left H.minors_bound.fvars <|
         List.mem_append_right H.params_bound.fvars hfv)
 
-theorem BoundGeneratedRecursorRule.abstractedMinorsUnique
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.abstractedMinorsUnique
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) :
     ∀ e ∈ (minors.map fun arg => arg.abstractList H.binders).toList,
       TrExprS.IsUnique e := by
   apply H.minors_bound.abstractedUnique H.binders_nodup
   intro fv hfv
-  simpa [BoundGeneratedRecursorRule.binders, List.append_assoc] using
+  simpa [RecursorRuleSyntax.binders, List.append_assoc] using
     (List.mem_append_left H.all_args_bound.fvars <|
       List.mem_append_right
         (H.params_bound.fvars ++ H.motives_bound.fvars) hfv)
@@ -936,8 +936,8 @@ theorem BoundGeneratedRecursorRule.abstractedMinorsUnique
 /-- The selected minor has a canonical de Bruijn position in the closed rule
 telescope: constructor fields are newer, and the remaining minors occur in
 reverse order immediately behind them. -/
-theorem BoundGeneratedRecursorRule.abstractedSourceRhsAtMinor
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.abstractedSourceRhsAtMinor
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) :
     let minorVar := H.all_args_bound.fvars.length +
       (H.minors_bound.fvars.length - 1 - minorIdx)
@@ -996,12 +996,12 @@ theorem BoundGeneratedRecursorRule.abstractedSourceRhsAtMinor
   have hminorBang : minors[minorIdx]! = .fvar fv := by
     rw [Array.getElem!_eq_getD, Array.getD, dif_pos H.minor_valid]
     exact hminor
-  unfold BoundGeneratedRecursorRule.sourceRhsBody
+  unfold RecursorRuleSyntax.sourceRhsBody
   rw [Expr.abstractList_mkAppN, Expr.abstractList_mkAppN,
     hminorBang, habstractFinal]
 
-theorem BoundGeneratedRecursorRule.abstractedSourceRhsAtMinorArray
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.abstractedSourceRhsAtMinorArray
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) :
     let minorVar := H.allArgs.size + (minors.size - 1 - minorIdx)
     H.sourceRhsBody.abstractList H.binders =
@@ -1020,8 +1020,8 @@ theorem BoundGeneratedRecursorRule.abstractedSourceRhsAtMinorArray
 
 /-- Closing the generated rule turns every constructor-field source into a
 de Bruijn variable, hence into syntax with a unique translation. -/
-theorem BoundGeneratedRecursorRule.abstractedAllArgsUnique
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.abstractedAllArgsUnique
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule) :
     ∀ e ∈ (H.allArgs.map fun arg => arg.abstractList H.binders).toList,
       TrExprS.IsUnique e := by
@@ -1033,17 +1033,17 @@ theorem BoundGeneratedRecursorRule.abstractedAllArgsUnique
   let fv := H.all_args_bound.fvars[i]
   have hsource' : H.allArgs[i] = .fvar fv := hsource
   have hselected : fv ∈ H.binders := by
-    unfold BoundGeneratedRecursorRule.binders
+    unfold RecursorRuleSyntax.binders
     exact List.mem_append_right _ (List.getElem_mem hiFvars)
   rcases List.mem_iff_getElem.mp hselected with ⟨j, hj, hget⟩
   let fieldVar := H.binders.length - 1 - j
   have habstract := Expr.abstractList_fvar_getElem
     H.binders_nodup j hj (k := 0)
-  unfold BoundGeneratedRecursorRule.binders at hget
+  unfold RecursorRuleSyntax.binders at hget
   rw [hget] at habstract
   have habstract' : (Expr.fvar fv).abstractList H.binders =
       .bvar fieldVar := by
-    simpa [BoundGeneratedRecursorRule.binders, fieldVar] using habstract
+    simpa [RecursorRuleSyntax.binders, fieldVar] using habstract
   have hentry :
       (H.allArgs.map fun arg => arg.abstractList H.binders).toList[i] =
         .bvar fieldVar := by
@@ -1058,8 +1058,8 @@ theorem BoundGeneratedRecursorRule.abstractedAllArgsUnique
 recursive-call loops.  The concrete arrays and generated results are fixed by
 `H`; this record stores only the independently checked classification and
 recursive-domain evidence that the operational `RecursorRule` omits. -/
-structure BoundGeneratedRecursorRule.Semantics
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+structure RecursorRuleSyntax.Semantics
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     (Rroot : RecursorContextWF semanticRoot recLparams) (decl : VInductDecl)
@@ -1077,10 +1077,10 @@ structure BoundGeneratedRecursorRule.Semantics
   Retained blueprints must preserve this direction; reversing it would amount
   to pretending that the fields were freshly replayed after installation. -/
   fieldRootExtension : RecursorContextExtension fieldRootContext Rroot
-  fieldsRecent : RecursorRecentBoundFVarArray fieldRootContext context
+  fieldsRecent : RecursorFVarSuffix fieldRootContext context
     H.allArgs
   parameterTail : Expr
-  parameterPrefix : RecursorParamPrefix stats 0 sourceCtor.type parameterTail
+  parameterPrefix : ParameterPrefix stats 0 sourceCtor.type parameterTail
   parameterTail_fvars :
     parameterTail.FVarsIn (· ∈ ExprArrayFVarIds stats.params)
   parameterTarget : VExpr
@@ -1136,13 +1136,13 @@ structure BoundGeneratedRecursorRule.Semantics
   validated : RecursorValidatedIndAppAt context.venv recLparams
     context.mlctx.vlctx stats decl depth H.target targetTarget ownerIdx
   fields : List
-    (RecursorRecursiveDomainAt context.venv decl recLparams.length)
-  selection : RecursorFieldSelectionsAt context.venv decl recLparams.length
+    (RecursiveFieldDomainAt context.venv decl recLparams.length)
+  selection : RecursiveFieldSelectionsAt context.venv decl recLparams.length
     H.allArgs H.recursiveArgs fields
   decisionPositions : List Nat
   decisions : RecursorFieldDecisions stats fieldRoot parameterTail H.root
     H.target H.allArgs H.recursiveArgs decisionPositions
-  calls : StagedSemanticBoundGeneratedRecursiveCalls indTypes stats motives
+  calls : TypedRecursiveCallsAbove indTypes stats motives
     minors lvls context decl
       (fun fv => fv ∈ fieldOpening.fvars ∨
         fv ∈ ExprArrayFVarIds stats.params)
@@ -1150,8 +1150,8 @@ structure BoundGeneratedRecursorRule.Semantics
       H.recursiveArgs.size
 
 /-- Alpha-independent mask selected by the rule-generation field traversal. -/
-def BoundGeneratedRecursorRule.Semantics.recursivePositions
-    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+def RecursorRuleSyntax.Semantics.recursivePositions
+    {H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule}
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
@@ -1159,8 +1159,8 @@ def BoundGeneratedRecursorRule.Semantics.recursivePositions
   S.decisionPositions
 
 @[simp] theorem
-    BoundGeneratedRecursorRule.Semantics.recursivePositions_length
-    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+    RecursorRuleSyntax.Semantics.recursivePositions_length
+    {H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule}
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
@@ -1171,13 +1171,13 @@ def BoundGeneratedRecursorRule.Semantics.recursivePositions
 /-- Once the two alpha-independent masks agree, their executable recursive
 arrays have the same cardinality.  This isolates the sole cross-pass fact
 needed by recursive minor application from either pass's fresh identifiers. -/
-theorem RecInfoMinorTraversalShape.recursiveFields_size_eq_rule
+theorem ConstructorFieldTraversal.recursiveFields_size_eq_rule
     {stats : AddInductive.InductiveStats}
-    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+    {H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule}
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
-    (T : RecInfoMinorTraversalShape)
+    (T : ConstructorFieldTraversal)
     (S : H.Semantics Rroot decl expectedOwnerIdx)
     (hpositions : T.recursivePositions = S.recursivePositions) :
     T.recursiveFields.size = H.recursiveArgs.size := by
@@ -1186,13 +1186,13 @@ theorem RecInfoMinorTraversalShape.recursiveFields_size_eq_rule
 
 /-- The generated minor introduces exactly one hypothesis per rule recursive
 result as soon as its retained traversal mask is aligned with the rule mask. -/
-theorem RecInfoMinorTypeShape.hypotheses_size_eq_rule
+theorem MinorPremiseType.hypotheses_size_eq_rule
     {stats : AddInductive.InductiveStats}
-    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+    {H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule}
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
-    (M : RecInfoMinorTypeShape) (T : RecInfoMinorTraversalShape)
+    (M : MinorPremiseType) (T : ConstructorFieldTraversal)
     (S : H.Semantics Rroot decl expectedOwnerIdx)
     (hrecursive : T.recursiveFields = M.recursiveFields)
     (hpositions : T.recursivePositions = S.recursivePositions) :
@@ -1204,8 +1204,8 @@ theorem RecInfoMinorTypeShape.hypotheses_size_eq_rule
 that preceded `loopCtorArgs`.  Both sides are deliberately retained: the
 forall telescope types the constructor target, while the lambda telescope
 types the constructor application used as the iota major premise. -/
-structure BoundGeneratedRecursorRule.Semantics.FieldTelescope
-    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+structure RecursorRuleSyntax.Semantics.FieldTelescope
+    {H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule}
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
@@ -1230,8 +1230,8 @@ structure BoundGeneratedRecursorRule.Semantics.FieldTelescope
 
 /-- The terminal constructor target mentions only the exact fields opened by
 the constructor traversal and the cached inductive parameters. -/
-theorem BoundGeneratedRecursorRule.Semantics.targetFVarsIn
-    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.Semantics.targetFVarsIn
+    {H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule}
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
@@ -1241,13 +1241,13 @@ theorem BoundGeneratedRecursorRule.Semantics.targetFVarsIn
       fv ∈ ExprArrayFVarIds stats.params) := by
   have hscope := S.fieldOpening.currentFVarsIn S.parameterTail_fvars
   rw [S.fieldOpening.fvars_eq_bound
-    S.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at hscope
+    S.fieldsRecent.toFVarArrayAfter.toFVarArrayIn] at hscope
   exact hscope
 
 /-- Recover the typed field telescope directly from the consecutive-suffix
 certificate retained by the production constructor traversal. -/
-def BoundGeneratedRecursorRule.Semantics.fieldTelescope
-    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+def RecursorRuleSyntax.Semantics.fieldTelescope
+    {H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule}
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
@@ -1273,8 +1273,8 @@ def BoundGeneratedRecursorRule.Semantics.fieldTelescope
 completed recursor context.  The consumed telescope is exposed after the
 exact free-variable lift retained by `fieldRootExtension`; no equality of
 the producer and completed local contexts is assumed. -/
-theorem BoundGeneratedRecursorRule.Semantics.fieldContextDefEqMono
-    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.Semantics.fieldContextDefEqMono
+    {H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule}
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
@@ -1302,7 +1302,7 @@ theorem BoundGeneratedRecursorRule.Semantics.fieldContextDefEqMono
   have HfieldTarget : S.fieldRootContext.venv.IsDefEqU recLparams.length
       S.fieldRootContext.mlctx.vlctx.toCtx S.parameterTarget
       (VExpr.wrapForalls F.domains S.targetTarget) := by
-    simpa [F, BoundGeneratedRecursorRule.Semantics.fieldTelescope,
+    simpa [F, RecursorRuleSyntax.Semantics.fieldTelescope,
       TypeChecker.MLCtx.mkForall'_eq_wrapForalls] using S.fieldTargetDefEq
   have Htarget := S.fieldRootExtension.weakDefEqU HfieldTarget
   rw [hsourceTarget, hconsumedTarget] at Htarget
@@ -1322,8 +1322,8 @@ theorem BoundGeneratedRecursorRule.Semantics.fieldContextDefEqMono
 `isValidIndApp?` with the constructor owner certified by the earlier checker
 pass.  This is the explicit bridge between the scan used by rule generation
 and the outer mutual-family traversal. -/
-theorem BoundGeneratedRecursorRule.Semantics.owner_eq
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+theorem RecursorRuleSyntax.Semantics.owner_eq
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
     (Hsemantic : H.Semantics Rroot decl expectedOwnerIdx)
     (hnames : (decl.types.map (·.name)).Nodup) :
@@ -1357,66 +1357,66 @@ theorem BoundGeneratedRecursorRule.Semantics.owner_eq
   simpa only [List.getElem_map] using hname
 
 /-- Ordered binder-aware coverage of a constructor suffix. -/
-inductive BoundGeneratedRecursorRules
+inductive RecursorRulesSyntax
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level) :
     List Constructor → Nat → List RecursorRule → Prop
-  | nil : BoundGeneratedRecursorRules indTypes stats motives minors lvls
+  | nil : RecursorRulesSyntax indTypes stats motives minors lvls
       [] start []
   | cons :
-      Nonempty (BoundGeneratedRecursorRule indTypes stats motives minors
+      Nonempty (RecursorRuleSyntax indTypes stats motives minors
         lvls ctor start rule) →
-      BoundGeneratedRecursorRules indTypes stats motives minors lvls
+      RecursorRulesSyntax indTypes stats motives minors lvls
         ctors (start + 1) rules →
-      BoundGeneratedRecursorRules indTypes stats motives minors lvls
+      RecursorRulesSyntax indTypes stats motives minors lvls
         (ctor :: ctors) start (rule :: rules)
 
-/-- Semantic strengthening of `BoundGeneratedRecursorRules`.  Each emitted
+/-- Semantic strengthening of `RecursorRulesSyntax`.  Each emitted
 source rule is paired with the exact classifier and recursive-call evidence
 from the same executable iteration; the tail advances the flattened minor
 ordinal in lockstep. -/
-inductive SemanticBoundGeneratedRecursorRules
+inductive TypedRecursorRules
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     (Rroot : RecursorContextWF semanticRoot recLparams) (decl : VInductDecl)
     (ownerIdx : Nat) :
     List Constructor → Nat → List RecursorRule → Prop
-  | nil : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
+  | nil : TypedRecursorRules indTypes stats motives minors
       lvls Rroot decl ownerIdx [] start []
   | cons
-      (Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      (Hrule : RecursorRuleSyntax indTypes stats motives minors lvls
         ctor start rule)
       (Hsemantic : Nonempty
         (Hrule.Semantics Rroot decl ownerIdx))
-      (Htail : SemanticBoundGeneratedRecursorRules indTypes stats motives
+      (Htail : TypedRecursorRules indTypes stats motives
         minors lvls Rroot decl ownerIdx ctors (start + 1)
           rules) :
-      SemanticBoundGeneratedRecursorRules indTypes stats motives minors lvls
+      TypedRecursorRules indTypes stats motives minors lvls
         Rroot decl ownerIdx (ctor :: ctors) start
           (rule :: rules)
 
-theorem SemanticBoundGeneratedRecursorRules.bound
-    (H : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
+theorem TypedRecursorRules.bound
+    (H : TypedRecursorRules indTypes stats motives minors
       lvls Rroot decl ownerIdx ctors start rules) :
-    BoundGeneratedRecursorRules indTypes stats motives minors lvls ctors
+    RecursorRulesSyntax indTypes stats motives minors lvls ctors
       start rules := by
   induction H with
   | nil => exact .nil
   | cons Hrule _ _ ih => exact .cons ⟨Hrule⟩ ih
 
-theorem BoundGeneratedRecursorRules.length
-    (H : BoundGeneratedRecursorRules indTypes stats motives minors lvls
+theorem RecursorRulesSyntax.length
+    (H : RecursorRulesSyntax indTypes stats motives minors lvls
       ctors start rules) : rules.length = ctors.length := by
   induction H with
   | nil => rfl
   | cons _ _ ih => simp [ih]
 
-theorem BoundGeneratedRecursorRules.entry
-    (H : BoundGeneratedRecursorRules indTypes stats motives minors lvls
+theorem RecursorRulesSyntax.entry
+    (H : RecursorRulesSyntax indTypes stats motives minors lvls
       ctors start rules) :
     ∀ i (hctor : i < ctors.length) (hrule : i < rules.length),
-      Nonempty (BoundGeneratedRecursorRule indTypes stats motives minors
+      Nonempty (RecursorRuleSyntax indTypes stats motives minors
         lvls ctors[i] (start + i) rules[i]) := by
   induction H with
   | nil =>

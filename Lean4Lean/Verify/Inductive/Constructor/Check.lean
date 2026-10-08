@@ -291,8 +291,8 @@ structure ConstructorCheck (c : AddInductive.Context)
   contextMLCtx : context.mlctx = headerMLCtx
   checked : CheckedConstructorCertificate sourceEnv decl headerVEnv
     params
-  parameterPrefixes : CheckedRecursorParameterPrefixes stats indTypes
-  ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
+  parameterPrefixes : ConstructorParameterPrefixes stats indTypes
+  ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
   /-- The telescope certificates of the source constructor types. -/
   telescopes : SourceCtorsCertified headerVEnv c.lparams indTypes.toList
   headerSourceAligned : exists numNested,

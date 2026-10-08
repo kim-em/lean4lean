@@ -384,7 +384,7 @@ theorem RecursorCheck.findSourceRecursor
     rw [H.generated.length]
     exact hrecInfo
   let E := H.generated.entry ownerIdx hentry
-  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+  let selections := H.bindings.toRecursorBinderGroups H.localWF H.params
     ownerIdx hrecInfo
   have hparams : nparams = stats.params.size :=
     R.core.nparams.symm.trans H.cardinality.params.symm
@@ -527,7 +527,7 @@ theorem RecursorCheck.restoredPrimaryTelescopeAlignment
       simpa [holdRecName] using Hstep.lookup
     exact ConstantInfo.recInfo.inj (Option.some.inj
       (hstepLookup.symm.trans hlookupE))
-  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+  let selections := H.bindings.toRecursorBinderGroups H.localWF H.params
     ownerIdx hrecInfo
   have hselectionNoAlias : selections.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias ownerIdx hrecInfo
@@ -638,7 +638,7 @@ def RecursorCheck.restoredSourcePrimaryRecursorRealization
       simpa [holdRecName] using Hstep.lookup
     exact ConstantInfo.recInfo.inj (Option.some.inj
       (hstepLookup.symm.trans hlookupE))
-  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+  let selections := H.bindings.toRecursorBinderGroups H.localWF H.params
     ownerIdx hrecInfo
   have hselectionNoAlias : selections.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias ownerIdx hrecInfo

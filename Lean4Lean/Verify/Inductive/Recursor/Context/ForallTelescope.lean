@@ -3648,7 +3648,7 @@ theorem LocalContext.mkBindingListN_append_four
 
 /-- A selected executable array consists solely of ordinary free-variable
 declarations in the retained local context. -/
-structure LocalForallSelection (lctx : LocalContext) (xs : Array Expr) where
+structure CDeclArray (lctx : LocalContext) (xs : Array Expr) where
   fvars : List FVarId
   expressions : xs = (fvars.map Expr.fvar).toArray
   declarations : ∀ fv ∈ fvars, ∃ index name type bi kind,
@@ -3656,8 +3656,8 @@ structure LocalForallSelection (lctx : LocalContext) (xs : Array Expr) where
 
 /-- `LocalContext.mkLambda` uses one literal binder prefix for any two
 residual bodies when it closes the same duplicate-free local selection. -/
-theorem LocalForallSelection.sameLambdaPrefix
-    (H : LocalForallSelection lctx xs)
+theorem CDeclArray.sameLambdaPrefix
+    (H : CDeclArray lctx xs)
     (hnodup : H.fvars.Nodup) (left right : Expr) :
     Expr.SameLambdaPrefix xs.size
       (lctx.mkLambda xs left) (lctx.mkLambda xs right) := by
@@ -3675,8 +3675,8 @@ theorem LocalForallSelection.sameLambdaPrefix
 /-- `mkForall` and `mkLambda` close two residuals with the same literal
 ordinary-declaration prefix when they use the same duplicate-free local
 selection. -/
-theorem LocalForallSelection.sameForallLambdaPrefix
-    (H : LocalForallSelection lctx xs)
+theorem CDeclArray.sameForallLambdaPrefix
+    (H : CDeclArray lctx xs)
     (hnodup : H.fvars.Nodup) (forallBody lambdaBody : Expr) :
     Expr.SameForallLambdaPrefix xs.size
       (lctx.mkForall xs forallBody) (lctx.mkLambda xs lambdaBody) := by
@@ -3694,7 +3694,7 @@ theorem LocalForallSelection.sameForallLambdaPrefix
 
 /-- Operational form of a local selection, convenient to preserve while the
 reader context is extended by generated binders. -/
-structure BoundFVarArray (c : AddInductive.Context) (xs : Array Expr) where
+structure FVarArrayIn (c : AddInductive.Context) (xs : Array Expr) where
   fvars : List FVarId
   expressions : xs = (fvars.map Expr.fvar).toArray
   members : ∀ fv ∈ fvars, fv ∈ c.lctx.fvars
@@ -3741,7 +3741,7 @@ theorem RecursorParameterContextSuffix.abstractParameters
     {c root : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     (H : RecursorParameterContextSuffix R stats depth)
-    (Hparams : BoundFVarArray root stats.params)
+    (Hparams : FVarArrayIn root stats.params)
     (hnodup : Hparams.fvars.Nodup)
     (Htr : TrExprS env Us
       (abstractForallContext domains H.parameterDecls) source target) :
@@ -3901,7 +3901,7 @@ the bound, duplicate-free parameter array consumed by `mkRecInfos`. -/
 def checkInductiveTypes.loopType.ParameterContextSuffix.paramsBound
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : ParameterContextSuffix Hc stats depth) :
-    BoundFVarArray c stats.params := by
+    FVarArrayIn c stats.params := by
   refine {
     fvars := ExprArrayFVarIds stats.params
     expressions := ?_

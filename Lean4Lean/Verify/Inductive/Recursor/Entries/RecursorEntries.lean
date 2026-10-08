@@ -10,13 +10,13 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-theorem LocalForallSelection.size
-    (H : LocalForallSelection lctx xs) : xs.size = H.fvars.length := by
+theorem CDeclArray.size
+    (H : CDeclArray lctx xs) : xs.size = H.fvars.length := by
   rcases H with ⟨fvars, rfl, declarations⟩
   simp
 
-theorem LocalForallSelection.fvarsIn
-    (H : LocalForallSelection lctx xs) (Hlctx : lctx.WF) :
+theorem CDeclArray.fvarsIn
+    (H : CDeclArray lctx xs) (Hlctx : lctx.WF) :
     ∀ e ∈ xs, e.FVarsIn (· ∈ lctx.fvars) := by
   rcases H with ⟨fvars, rfl, declarations⟩
   intro e he
@@ -31,8 +31,8 @@ theorem LocalForallSelection.fvarsIn
     ⟨.cdecl index fv name type bi kind,
       List.mem_of_find?_eq_some hfind, rfl⟩
 
-theorem LocalForallSelection.fvar_mem
-    (H : LocalForallSelection lctx xs) (hfv : (.fvar fv : Expr) ∈ xs) :
+theorem CDeclArray.fvar_mem
+    (H : CDeclArray lctx xs) (hfv : (.fvar fv : Expr) ∈ xs) :
     fv ∈ H.fvars := by
   rcases H with ⟨fvars, rfl, declarations⟩
   rw [List.mem_toArray, List.mem_map] at hfv
@@ -142,10 +142,10 @@ theorem LocalContext.mkForall_fvars_forallBinderAtList
   exact LocalContext.mkForall_fvars_forallBinderAt hdecl hnodup i hi index name
     type bi kind hselected
 
-/-- `LocalForallSelection` form of the positional source-domain theorem. -/
-theorem LocalForallSelection.forallBinderAt
-    (H : LocalForallSelection c.lctx xs) (hnodup : H.fvars.Nodup)
-    (D : BoundFVarDeclarationAt c xs i) :
+/-- `CDeclArray` form of the positional source-domain theorem. -/
+theorem CDeclArray.forallBinderAt
+    (H : CDeclArray c.lctx xs) (hnodup : H.fvars.Nodup)
+    (D : FVarDeclAt c xs i) :
     Expr.ForallBinderAt (c.lctx.mkForall xs body) i
       (D.type.abstractN (H.fvars.take i)) := by
   rcases H with ⟨fvars, rfl, declarations⟩
@@ -161,9 +161,9 @@ theorem LocalForallSelection.forallBinderAt
   exact D.declaration
 
 /-- Sequential-model form of `forallBinderAt` for a locally closed declaration type. -/
-theorem LocalForallSelection.forallBinderAtList
-    (H : LocalForallSelection c.lctx xs) (hnodup : H.fvars.Nodup)
-    (D : BoundFVarDeclarationAt c xs i) (htype : Closed D.type) :
+theorem CDeclArray.forallBinderAtList
+    (H : CDeclArray c.lctx xs) (hnodup : H.fvars.Nodup)
+    (D : FVarDeclAt c xs i) (htype : Closed D.type) :
     Expr.ForallBinderAt (c.lctx.mkForall xs body) i
       (D.type.abstractList (H.fvars.take i)) := by
   rw [← Expr.abstractN_eq_abstractList_of_closed hnodup.take htype]
@@ -172,13 +172,13 @@ theorem LocalForallSelection.forallBinderAtList
 /-- The hypothesis binder at position `j` in a generated minor is the exact
 local declaration type used by the first pass, closed first over preceding
 hypotheses and then over the outer constructor fields. -/
-theorem RecInfoMinorTypeShape.hypothesisBinderAt
-    (S : RecInfoMinorTypeShape)
-    (D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j) :
+theorem MinorPremiseType.hypothesisBinderAt
+    (S : MinorPremiseType)
+    (D : FVarDeclAt S.sourceFullContext S.hypotheses j) :
     Expr.ForallBinderAt S.origin (S.fields.size + j)
       ((D.type.abstractN (S.hypotheses_bound.fvars.take j)).abstractN
         S.fields_bound.fvars j) := by
-  let Hselection := S.hypotheses_bound.toLocalForallSelection S.sourceFullWF
+  let Hselection := S.hypotheses_bound.toCDeclArray S.sourceFullWF
   have HinnerFull := Hselection.forallBinderAt S.hypotheses_nodup D
     (body := S.motiveApp)
   have Hinner : Expr.ForallBinderAt
@@ -203,9 +203,9 @@ theorem RecInfoMinorTypeShape.hypothesisBinderAt
 
 /-- Sequential-model form of `hypothesisBinderAt` for a closed hypothesis
 type. -/
-theorem RecInfoMinorTypeShape.hypothesisBinderAtList
-    (S : RecInfoMinorTypeShape)
-    (D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j)
+theorem MinorPremiseType.hypothesisBinderAtList
+    (S : MinorPremiseType)
+    (D : FVarDeclAt S.sourceFullContext S.hypotheses j)
     (hclosed : Closed D.type) :
     Expr.ForallBinderAt S.origin (S.fields.size + j)
       ((D.type.abstractList (S.hypotheses_bound.fvars.take j)).abstractList
@@ -222,16 +222,16 @@ theorem RecInfoMinorTypeShape.hypothesisBinderAtList
     simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hj)] using hc)] at h
   exact h
 
-theorem LocalForallSelection.forallTelescope
-    (H : LocalForallSelection lctx xs) (body : Expr) :
+theorem CDeclArray.forallTelescope
+    (H : CDeclArray lctx xs) (body : Expr) :
     Expr.ForallTelescope (lctx.mkForall xs body) xs.size
       (body.abstractN H.fvars) := by
   rcases H with ⟨fvars, rfl, declarations⟩
   simpa using LocalContext.mkForall_fvars_forallTelescope declarations
 
 /-- Sequential-model form of `forallTelescope` for locally closed bodies. -/
-theorem LocalForallSelection.forallTelescopeList
-    (H : LocalForallSelection lctx xs) (body : Expr) (hnodup : H.fvars.Nodup)
+theorem CDeclArray.forallTelescopeList
+    (H : CDeclArray lctx xs) (body : Expr) (hnodup : H.fvars.Nodup)
     (hb : Closed body) :
     Expr.ForallTelescope (lctx.mkForall xs body) xs.size
       (body.abstractList H.fvars) := by
@@ -240,8 +240,8 @@ theorem LocalForallSelection.forallTelescopeList
 
 /-- Prepending one retained binder group to an existing telescope preserves
 the inner telescope and abstracts its residual below exactly the inner arity. -/
-theorem LocalForallSelection.prependTelescope
-    (Hsel : LocalForallSelection lctx xs)
+theorem CDeclArray.prependTelescope
+    (Hsel : CDeclArray lctx xs)
     (Hinner : Expr.ForallTelescope inner innerArity result) :
     Expr.ForallTelescope (lctx.mkForall xs inner)
       (xs.size + innerArity)
@@ -253,9 +253,9 @@ theorem LocalForallSelection.prependTelescope
 simultaneously closing its declaration type over the outer group.  The
 explicit inner-prefix list makes this reusable for each successive group of
 the generated recursor telescope. -/
-theorem LocalForallSelection.prependBinderAtClosed
+theorem CDeclArray.prependBinderAtClosed
     {type : Expr}
-    (Houter : LocalForallSelection lctx outer)
+    (Houter : CDeclArray lctx outer)
     (Hinner : Expr.ForallBinderAt inner i
       (type.abstractN innerPrefix))
     (hinnerLength : innerPrefix.length = i)
@@ -273,8 +273,8 @@ theorem LocalForallSelection.prependBinderAtClosed
   have Hresult := Hprefix.prependBinderAt Hclosed
   simpa only [Nat.zero_add, hdomain] using Hresult
 
-def RecursorLocalSelections.residual
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+def RecursorBinderGroups.residual
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (body : Expr) : Expr :=
   let afterMajor := body.abstractN H.major.fvars
   let afterIndices := afterMajor.abstractN H.indices.fvars 1
@@ -371,8 +371,8 @@ theorem TrExprS.concreteRecursorResult_eq
 /-- Distinct retained binders make the executable five-stage abstraction
 compute to the canonical de Bruijn result used by the abstract recursor
 specification. -/
-theorem RecursorLocalSelections.residual_eq_concreteRecursorResult
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.residual_eq_concreteRecursorResult
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (howner : ownerIdx < recInfos.size) (hnoalias : H.NoAlias) :
     H.residual
       (.app (mkAppN recInfos[ownerIdx]!.motive
@@ -497,7 +497,7 @@ theorem RecursorLocalSelections.residual_eq_concreteRecursorResult
       Expr.abstractN_bvar_lt H.params.fvars (by
         simp [allBase, motiveBase]
         omega)]
-  dsimp only [RecursorLocalSelections.residual]
+  dsimp only [RecursorBinderGroups.residual]
   change ((afterIndices.abstractN minorFVars
       (recInfos[ownerIdx]!.indices.size + 1)).abstractN motiveFVars
         ((recInfos.flatMap (·.minors)).size +
@@ -513,8 +513,8 @@ theorem RecursorLocalSelections.residual_eq_concreteRecursorResult
 
 /-- Exact concrete telescope produced by the five nested `mkForall` calls in
 `AddInductive.run`. -/
-theorem RecursorLocalSelections.forallTelescope
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.forallTelescope
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (body : Expr) :
     Expr.ForallTelescope
       (c.lctx.mkForall stats.params <|
@@ -531,15 +531,15 @@ theorem RecursorLocalSelections.forallTelescope
   have hMinors := H.minors.prependTelescope hIndices
   have hMotives := H.motives.prependTelescope hMinors
   have hParams := H.params.prependTelescope hMotives
-  simpa [RecursorLocalSelections.residual, Nat.add_assoc] using hParams
+  simpa [RecursorBinderGroups.residual, Nat.add_assoc] using hParams
 
 /-- Every retained parameter slot has the same concrete domain in every
 generated recursor.  The owner-specific suffix only supplies the body below
 the common parameter prefix. -/
-theorem RecursorLocalSelections.parameterBinderAt
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.parameterBinderAt
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (hnoalias : H.NoAlias)
-    (D : BoundFVarDeclarationAt c stats.params paramIdx) :
+    (D : FVarDeclAt c stats.params paramIdx) :
     let raw :=
       c.lctx.mkForall stats.params <|
       c.lctx.mkForall (recInfos.map (·.motive)) <|
@@ -554,10 +554,10 @@ theorem RecursorLocalSelections.parameterBinderAt
   exact (H.params.forallBinderAt hnoalias.parts.params D).inferImplicit
     1000 false
 
-theorem RecursorLocalSelections.parameterBinderAtList
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.parameterBinderAtList
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (hnoalias : H.NoAlias) (hl : LocalContext.LctxClosed c.lctx)
-    (D : BoundFVarDeclarationAt c stats.params paramIdx) :
+    (D : FVarDeclAt c stats.params paramIdx) :
     let raw :=
       c.lctx.mkForall stats.params <|
       c.lctx.mkForall (recInfos.map (·.motive)) <|
@@ -578,10 +578,10 @@ theorem RecursorLocalSelections.parameterBinderAtList
 /-- Every retained motive slot has a source domain independent of the
 recursor owner.  It is closed over the common parameters and the strictly
 earlier motives; the owner's indices and major occur only below this slot. -/
-theorem RecursorLocalSelections.motiveBinderAt
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.motiveBinderAt
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (hnoalias : H.NoAlias)
-    (D : BoundFVarDeclarationAt c
+    (D : FVarDeclAt c
       (recInfos.map (·.motive)) motiveIdx) :
     let raw :=
       c.lctx.mkForall stats.params <|
@@ -638,10 +638,10 @@ theorem RecursorLocalSelections.motiveBinderAt
   simpa [motiveSource, motiveBody, hparamsLength] using
     Hraw.inferImplicit 1000 false
 
-theorem RecursorLocalSelections.motiveBinderAtList
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.motiveBinderAtList
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (hnoalias : H.NoAlias) (hl : LocalContext.LctxClosed c.lctx)
-    (D : BoundFVarDeclarationAt c
+    (D : FVarDeclAt c
       (recInfos.map (·.motive)) motiveIdx) :
     let raw :=
       c.lctx.mkForall stats.params <|
@@ -669,10 +669,10 @@ theorem RecursorLocalSelections.motiveBinderAtList
 exact retained motive declaration over precisely the common parameters and
 strictly earlier motives.  The subsequent `inferImplicit` pass preserves
 that domain and changes only binder annotations. -/
-theorem RecursorLocalSelections.ownerMotiveBinderAt
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.ownerMotiveBinderAt
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (hnoalias : H.NoAlias)
-    (D : BoundFVarDeclarationAt c
+    (D : FVarDeclAt c
       (recInfos.map (·.motive)) ownerIdx) :
     let raw :=
       c.lctx.mkForall stats.params <|
@@ -729,10 +729,10 @@ theorem RecursorLocalSelections.ownerMotiveBinderAt
   simpa [motiveSource, motiveBody, hparamsLength] using
     Hraw.inferImplicit 1000 false
 
-theorem RecursorLocalSelections.ownerMotiveBinderAtList
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.ownerMotiveBinderAtList
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (hnoalias : H.NoAlias) (hl : LocalContext.LctxClosed c.lctx)
-    (D : BoundFVarDeclarationAt c
+    (D : FVarDeclAt c
       (recInfos.map (·.motive)) ownerIdx) :
     let raw :=
       c.lctx.mkForall stats.params <|
@@ -761,10 +761,10 @@ exact recorded minor declaration over all parameters, all motives, and the
 strictly earlier minors.  This is the source-side identity used to compare
 the translated generated domain with the independently retained minor
 semantics. -/
-theorem RecursorLocalSelections.minorBinderAt
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.minorBinderAt
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (hnoalias : H.NoAlias)
-    (D : BoundFVarDeclarationAt c
+    (D : FVarDeclAt c
       (recInfos.flatMap (·.minors)) minorIdx) :
     let raw :=
       c.lctx.mkForall stats.params <|
@@ -875,10 +875,10 @@ theorem RecursorLocalSelections.minorBinderAt
   simpa [motiveSource, minorSource, minorBody, hparamsLength,
     hmotivesLength, Nat.add_assoc] using Hraw.inferImplicit 1000 false
 
-theorem RecursorLocalSelections.minorBinderAtList
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.minorBinderAtList
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (hnoalias : H.NoAlias) (hl : LocalContext.LctxClosed c.lctx)
-    (D : BoundFVarDeclarationAt c
+    (D : FVarDeclAt c
       (recInfos.flatMap (·.minors)) minorIdx) :
     let raw :=
       c.lctx.mkForall stats.params <|
@@ -908,10 +908,10 @@ theorem RecursorLocalSelections.minorBinderAtList
 
 /-- The final major-premise slot is the exact retained major declaration
 closed over all four preceding generated recursor groups. -/
-theorem RecursorLocalSelections.majorBinderAt
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.majorBinderAt
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (hnoalias : H.NoAlias)
-    (D : BoundFVarDeclarationAt c #[recInfos[ownerIdx]!.major] 0) :
+    (D : FVarDeclAt c #[recInfos[ownerIdx]!.major] 0) :
     let raw :=
       c.lctx.mkForall stats.params <|
       c.lctx.mkForall (recInfos.map (·.motive)) <|
@@ -1010,8 +1010,8 @@ theorem RecursorLocalSelections.majorBinderAt
 
 /-- The same installed `.recInfo` translation independently proves semantic
 well-formedness of the generated recursor constant. -/
-theorem RecursorLocalSelections.recursorWF_of_recInfo
-    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+theorem RecursorBinderGroups.recursorWF_of_recInfo
+    (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (howner : ownerIdx < recInfos.size)
     (info : RecursorVal) (recursor : VConstVal)
     (Hinfo : TrConstVal safety env (.recInfo info) recursor)
@@ -1050,7 +1050,7 @@ recursor telescope translates, before the annotation-only `inferImplicit`
 pass, to an abstract type in the pre-recursor environment. Keeping this
 separate from operational fvar binding makes the remaining proof obligation
 both explicit and independently reviewable. -/
-structure RecursorTypeTranslations
+structure TrRecursorTypes
     (env : VEnv) (lparams : List Name) (elimLevel : Level)
     (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType)
@@ -1067,7 +1067,7 @@ structure RecursorTypeTranslations
 /-- Soundness of the executable pre-installation validation loop.  Each
 successful iteration checks the fully closed generated recursor type with the
 recursor's exact universe parameters; erasing `inferImplicit` recovers the
-pre-annotation telescope used by `RecursorTypeTranslations`. -/
+pre-annotation telescope used by `TrRecursorTypes`. -/
 theorem AddInductive.declareRecursors.checkRecursorTypes.translationsWF
     (Hvalid : CheckingEnv.Valid c.safety c.env venv)
     (stats : AddInductive.InductiveStats)
@@ -1132,7 +1132,7 @@ theorem AddInductive.declareRecursors.checkRecursorTypes.recursorTypeTranslation
     (lparams : List Name) :
     (AddInductive.declareRecursors.checkRecursorTypes stats indTypes elimLevel
       recInfos numMinors numMotives all lctx k isUnsafe lparams 0 c).WF
-      fun _ => RecursorTypeTranslations venv lparams elimLevel
+      fun _ => TrRecursorTypes venv lparams elimLevel
         { c with lctx := lctx } stats indTypes recInfos := by
   refine (AddInductive.declareRecursors.checkRecursorTypes.translationsWF
     Hvalid stats indTypes elimLevel recInfos numMinors numMotives
@@ -1144,13 +1144,13 @@ theorem AddInductive.declareRecursors.checkRecursorTypes.recursorTypeTranslation
 /-- The exact result of the executable, context-independent K eligibility
 check. Keeping the successful return value prevents generated recursor metadata
 from silently enabling K for a family the production check rejected. -/
-def KTargetCheck (stats : AddInductive.InductiveStats)
+def KEligible (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) (k : Bool) : Prop :=
   ∀ c, AddInductive.isKTarget stats indTypes c = .ok k
 
 /-- The same executable check cannot certify two different metadata bits. -/
-theorem KTargetCheck.unique (H : KTargetCheck stats indTypes k)
-    (H' : KTargetCheck stats indTypes k') (c : AddInductive.Context) : k = k' :=
+theorem KEligible.unique (H : KEligible stats indTypes k)
+    (H' : KEligible stats indTypes k') (c : AddInductive.Context) : k = k' :=
   Except.ok.inj ((H c).symm.trans (H' c))
 
 private theorem isKTarget_context_eq
@@ -1186,7 +1186,7 @@ theorem AddInductive.isKTarget.checkedWF
     (stats : AddInductive.InductiveStats) (indTypes : Array InductiveType)
     (c : AddInductive.Context) :
     (AddInductive.isKTarget stats indTypes c).WF
-      (KTargetCheck stats indTypes) := by
+      (KEligible stats indTypes) := by
   intro k hk c'
   exact (isKTarget_context_eq stats indTypes c' c).trans hk
 
@@ -1202,9 +1202,9 @@ private theorem isKTarget_loop_bound (stats : AddInductive.InductiveStats) (type
 
 /-- A successful K check permits one propositional family with one constructor
 and no constructor binders beyond the common parameters. -/
-theorem KTargetCheck.true_shape
+theorem KEligible.true_shape
     (stats : AddInductive.InductiveStats) (indTypes : Array InductiveType)
-    (H : KTargetCheck stats indTypes true) (c : AddInductive.Context) :
+    (H : KEligible stats indTypes true) (c : AddInductive.Context) :
     ∃ ind ctor, indTypes = #[ind] ∧ stats.resultLevel.isAlwaysZero = true ∧
       ind.ctors = [ctor] ∧ AddInductive.constructorArity ctor.type ≤ stats.params.size := by
   have h := H c
@@ -1254,7 +1254,7 @@ structure GeneratedRecursorEntry
     AddInductive.getRecLevelParams elimLevel lparams
   name : info.name = Lean.mkRecName indTypes[ownerIdx]!.name
   all : info.all = (indTypes.map (·.name)).toList
-  kChecked : KTargetCheck stats indTypes info.k
+  kChecked : KEligible stats indTypes info.k
   /-- The production recursor pass chooses safety from the checking context.
   Retaining this exact bit is needed when an unsafe block is hidden from the
   partial and safe environment observers. -/
@@ -1272,7 +1272,7 @@ structure GeneratedRecursorEntry
        (.app (mkAppN recInfos[ownerIdx]!.motive
          recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)).inferImplicit
       1000 false
-  rules : BoundGeneratedRecursorRules indTypes stats
+  rules : RecursorRulesSyntax indTypes stats
     (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
     (AddInductive.getRecLevels elimLevel stats.levels)
     indTypes[ownerIdx]!.ctors (recursorMinorOffset indTypes ownerIdx)
@@ -1298,12 +1298,12 @@ def GeneratedRecursorEntry.ofRecursorInfo
     (recursor : VConstVal)
     (hunsafe : isUnsafe = (c.safety != .safe))
     (hall : all = (indTypes.map (·.name)).toList)
-    (hk : KTargetCheck stats indTypes k)
+    (hk : KEligible stats indTypes k)
     (Htr : TrConstVal safety env
       (.recInfo (AddInductive.declareRecursors.recursorInfo stats indTypes
         elimLevel recInfos numMinors numMotives all c.lctx k isUnsafe
         lparams ownerIdx rules)) recursor)
-    (Hrules : BoundGeneratedRecursorRules indTypes stats
+    (Hrules : RecursorRulesSyntax indTypes stats
       (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
       (AddInductive.getRecLevels elimLevel stats.levels)
       indTypes[ownerIdx]!.ctors (recursorMinorOffset indTypes ownerIdx)
@@ -1386,13 +1386,13 @@ certificate records the source/target recursor entry and bounded rule batch;
 this certificate retains, for the same owner slice, the exact field
 classification and recursive-call evidence produced while constructing each
 rule.  It deliberately does not duplicate the translated recursor value. -/
-structure GeneratedRecursorRuleSemanticsRange
+structure TypedRecursorRulesRange
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     (Rroot : RecursorContextWF semanticRoot recLparams) (decl : VInductDecl)
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType)
     (recInfos : Array AddInductive.RecInfo)
-    (Horigins : RecInfoTypeOrigins semanticRoot recInfos)
+    (Horigins : RecInfoBinderTypes semanticRoot recInfos)
     (elimLevel : Level)
     (parameterDecls : VLCtx)
     (start : Nat) (entries : List (ConstantInfo × VConstVal)) where
@@ -1400,23 +1400,23 @@ structure GeneratedRecursorRuleSemanticsRange
   entry : ∀ i (hi : i < entries.length),
     ∃ info : RecursorVal,
       entries[i].1 = .recInfo info ∧
-      ∃ Hrules : SemanticBoundGeneratedRecursorRules indTypes stats
+      ∃ Hrules : TypedRecursorRules indTypes stats
           (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
           (AddInductive.getRecLevels elimLevel stats.levels) Rroot decl
           (start + i) indTypes[start + i]!.ctors
           (recursorMinorOffset indTypes (start + i)) info.rules,
-        Nonempty (Hrules.ProducerMotiveEvidence recInfos elimLevel) ∧
+        Nonempty (Hrules.MotiveAt recInfos elimLevel) ∧
         ∀ localIndex
             (hctor : localIndex < indTypes[start + i]!.ctors.length)
             (hrule : localIndex < info.rules.length),
-          ∃ Hrule : BoundGeneratedRecursorRule indTypes stats
+          ∃ Hrule : RecursorRuleSyntax indTypes stats
               (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
               (AddInductive.getRecLevels elimLevel stats.levels)
               indTypes[start + i]!.ctors[localIndex]
               (recursorMinorOffset indTypes (start + i) + localIndex)
               info.rules[localIndex],
             ∃ S : Hrule.Semantics Rroot decl (start + i),
-              Nonempty (Hrule.ProducerOriginEvidence S recInfos elimLevel
+              Nonempty (Hrule.MinorAt S recInfos elimLevel
                 Horigins (start + i) localIndex) ∧
               S.parameterDecls = parameterDecls
 
@@ -1500,7 +1500,7 @@ theorem GeneratedRecursors.recursorsWF
       recInfos entries)
     (Hc : BindingContextWF c)
     (Hbindings : RecInfoBindings c recInfos)
-    (Hparams : BoundFVarArray c stats.params) :
+    (Hparams : FVarArrayIn c stats.params) :
     ∀ recursor ∈ entries.map Prod.snd, recursor.toVConstant.WF env := by
   intro recursor hrec
   rcases List.mem_iff_getElem.mp hrec with ⟨i, hi, heq⟩
@@ -1508,7 +1508,7 @@ theorem GeneratedRecursors.recursorsWF
   have heqTarget : entries[i].2 = recursor := by simpa using heq
   subst recursor
   have howner : i < recInfos.size := by simpa [H.length] using hentry
-  let Hlocal := Hbindings.toRecursorLocalSelections Hc Hparams i howner
+  let Hlocal := Hbindings.toRecursorBinderGroups Hc Hparams i howner
   let E := H.entry i hentry
   have hwf := Hlocal.recursorWF_of_recInfo howner E.info entries[i].2
     E.translated E.type

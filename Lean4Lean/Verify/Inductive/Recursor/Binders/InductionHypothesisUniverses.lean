@@ -110,11 +110,11 @@ normalized input type lies in a universe scope `P` of a recursor context and
 mentions only `Us`, then at the terminal context of the trace there is a
 universe scope containing every opened argument, and the exposed type mentions
 only `Us` and lies in that scope. -/
-theorem RecursorLoopUArgsPrefix.universeSupport
+theorem LoopUArgsRun.universeSupport
     (hconsume : RecursorConsumeTypeAnnotationsCompat) {Us : List Name}
     {root : AddInductive.Context} {l : LocalContext} {source : Expr}
     {current : AddInductive.Context} {exposed : Expr} {args : Array Expr}
-    (trace : RecursorLoopUArgsPrefix root l source current exposed args)
+    (trace : LoopUArgsRun root l source current exposed args)
     {recLparams : List Name}
     (Rroot : RecursorContextWF { root with checkLCtx := l } recLparams)
     {P : FVarId → Prop} (hscope : Rroot.typeChecker.UniverseScope Us P)
@@ -225,11 +225,11 @@ theorem RecursorLoopUArgsPrefix.universeSupport
 
 /-- Checked constructor tails are translated at the declaration's universe
 parameters. -/
-theorem CheckedRecursorConstructorTails.levelParamsIn
-    (H : CheckedRecursorConstructorTails env Us scope stats decl indTypes)
+theorem ConstructorTails.levelParamsIn
+    (H : ConstructorTails env Us scope stats decl indTypes)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (ctor : Constructor) (hctor : ctor ∈ indTypes[familyIdx].ctors)
-    (tail : Expr) (Hprefix : RecursorParamPrefix stats 0 ctor.type tail) :
+    (tail : Expr) (Hprefix : ParameterPrefix stats 0 ctor.type tail) :
     tail.levelParamsIn Us = true := by
   rcases List.mem_iff_getElem.mp hctor with ⟨ctorIdx, hctorIdx, rfl⟩
   obtain ⟨_, tail', _, _, _, _, Hprefix', _, Htail', _⟩ :=
@@ -243,12 +243,12 @@ theorem CheckedRecursorConstructorTails.levelParamsIn
 argument telescope closed over the opened arguments and the exposed family
 arguments mention only `Us`, provided the inferred field type does and lies
 in a universe scope `P` of the root context. -/
-theorem RecursorLoopUArgsInput.callUniverses
+theorem LoopUArgsInput.callUniverses
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     {root : AddInductive.Context} {fv : FVarId}
-    (Hinput : RecursorLoopUArgsInput root (.fvar fv))
+    (Hinput : LoopUArgsInput root (.fvar fv))
     {current : AddInductive.Context} {exposed : Expr} {args : Array Expr}
-    (trace : RecursorLoopUArgsPrefix root (loopUArgsCheckLCtx root Hinput.prior)
+    (trace : LoopUArgsRun root (loopUArgsCheckLCtx root Hinput.prior)
       Hinput.normalizedType current exposed args)
     {recLparams : List Name} (Rroot : RecursorContextWF root recLparams)
     {Us : List Name} {P : FVarId → Prop} (hscope : Rroot.typeChecker.UniverseScope Us P)
@@ -256,7 +256,7 @@ theorem RecursorLoopUArgsInput.callUniverses
     (hfield : TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx (.fvar fv) fieldTarget)
     (hinferredU : Hinput.inferredType.levelParamsIn Us = true)
     (hinferredP : Hinput.inferredType.FVarsIn P)
-    (Hargs : FreshBoundFVarArray root current args)
+    (Hargs : FVarArrayAfter root current args)
     (Hcurrent : BindingContextWF current) (n : Nat) :
     (current.lctx.mkForall args (.sort .zero)).levelParamsIn Us = true ∧
       ∀ e ∈ (exposed.getAppArgs[n:] : Array Expr).toList, e.levelParamsIn Us = true := by
@@ -298,7 +298,7 @@ theorem RecursorLoopUArgsInput.callUniverses
         rw [Rcurrent.lctx_eq]
         exact hdecl
       exact (hsc'.2 x decl hyP hdecl').1
-    exact Hargs.toBoundFVarArray.mkForall_levelParamsIn Hcurrent Hargs.nodup hargTypes
+    exact Hargs.toFVarArrayIn.mkForall_levelParamsIn Hcurrent Hargs.nodup hargTypes
       (by simp [Expr.levelParamsIn, Level.paramsIn])
   · intro e he
     rw [Expr.getAppArgs_slice_toList] at he

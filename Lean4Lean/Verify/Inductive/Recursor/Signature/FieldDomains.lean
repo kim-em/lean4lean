@@ -80,7 +80,7 @@ theorem RecursorConstruction.minorRootEnv
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
-    (HS : RecInfoMinorSemanticSourceAt H.recursorWF
+    (HS : TypedMinorTraversalAt H.recursorWF
       (H.origins.minorShapes owner howner localIndex hlocal) H.parameterSuffix.parameterDecls) :
     HS.semantic.traversal.rootContext.env = ctorEnv := by
   have h1 := HS.semantic.fieldsRecent.contextLE.env_eq
@@ -94,7 +94,7 @@ theorem RecursorConstruction.constructorConsumedSource
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
-    (HS : RecInfoMinorSemanticSourceAt H.recursorWF
+    (HS : TypedMinorTraversalAt H.recursorWF
       (H.origins.minorShapes owner howner localIndex hlocal) H.parameterSuffix.parameterDecls) :
     let S := H.origins.minorShapes owner howner localIndex hlocal
     (H.localContext.lctx.mkForall S.fields HS.semantic.traversal.terminal).abstractList H.params.fvars =
@@ -130,7 +130,7 @@ theorem RecursorConstruction.constructorConsumedSource
     exact hterminalConst _ _ _ hhead
   rw [hterminal, HS.semantic.traversal_fields] at hclosed
   have Hext := HS.semantic.hypothesesRecent.contextLE.trans HS.semantic.extension.contextLE
-  have hcontext := HS.semantic.fieldsRecent.toBoundFVarArray.mkForall_mono Hext
+  have hcontext := HS.semantic.fieldsRecent.toFVarArrayIn.mkForall_mono Hext
     HS.semantic.traversal.terminal
   dsimp only
   rw [hcontext, hclosed, Lean4Lean.Expr.abstractList_consumeForallTypes]
@@ -140,7 +140,7 @@ in the original universe context. -/
 theorem TrExprS.abstractCachedParameters {scope : VLCtx}
     (Hcached : List.Forall₂ checkInductiveTypes.loopType.CachedParameterDecl
       params.toList.reverse scope)
-    (Hparams : BoundFVarArray root params) (hnd : Hparams.fvars.Nodup)
+    (Hparams : FVarArrayIn root params) (hnd : Hparams.fvars.Nodup)
     (Htr : TrExprS env Us scope source target) :
     TrExprS env Us (abstractForallContext scope.toCtx.reverse [])
       (source.abstractList Hparams.fvars) target := by
@@ -164,7 +164,7 @@ theorem RecursorConstruction.constructorRawSourceReplay
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
-    (HS : RecInfoMinorSemanticSourceAt H.recursorWF
+    (HS : TypedMinorTraversalAt H.recursorWF
       (H.origins.minorShapes owner howner localIndex hlocal) H.parameterSuffix.parameterDecls) :
     let ctor := R.sourceSignatureConstructor
       ⟨recursorMinorOffset indTypes owner + localIndex, H.sourceMinorOffsetBound owner howner localIndex hlocal⟩
@@ -255,7 +255,7 @@ theorem RecursorConstruction.constructorConsumedHeaderReplay
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
-    (HS : RecInfoMinorSemanticSourceAt H.recursorWF
+    (HS : TypedMinorTraversalAt H.recursorWF
       (H.origins.minorShapes owner howner localIndex hlocal) H.parameterSuffix.parameterDecls) :
     let S := H.origins.minorShapes owner howner localIndex hlocal
     let ctor := R.sourceSignatureConstructor
@@ -374,7 +374,7 @@ theorem RecursorConstruction.sourceFieldDomains
   obtain ⟨HS⟩ := H.minorSemantics owner howner localIndex hlocal
   obtain ⟨target, Htr, _⟩ := H.constructorConsumedHeaderReplay owner howner localIndex hlocal HS
   have Hext := HS.semantic.hypothesesRecent.contextLE.trans HS.semantic.extension.contextLE
-  let Hbound := HS.semantic.fieldsRecent.toBoundFVarArray.mono Hext
+  let Hbound := HS.semantic.fieldsRecent.toFVarArrayIn.mono Hext
   have Htel := (Hbound.mkForall_forallTelescope H.localWF HS.semantic.traversal.terminal).abstractList H.params.fvars
   obtain ⟨domains, result, hlen, heq, _⟩ := TrExprS.forallTelescope_shape_with_context Htel Htr
   rw [heq] at Htr
@@ -394,7 +394,7 @@ open Kernel
 
 /-- The field domains of each source-owned constructor are selected once
 before installation, in the original universe and parameter scope. -/
-noncomputable def RecursorConstruction.sourceFields
+noncomputable def RecursorConstruction.declFieldDomains
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) : List VExpr :=
@@ -405,7 +405,7 @@ theorem RecursorConstruction.sourceFields_length
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    (H.sourceFields owner howner localIndex hlocal).length =
+    (H.declFieldDomains owner howner localIndex hlocal).length =
       (H.origins.minorShapes owner howner localIndex hlocal).fields.size :=
   (Classical.choose_spec (H.sourceFieldDomains owner howner (by rwa [← H.sourceFamilyCount])
     localIndex hlocal (H.sourceMinorOffsetBound owner howner localIndex hlocal))).1
@@ -417,13 +417,13 @@ theorem RecursorConstruction.sourceFields_headerReplay
     let S := H.origins.minorShapes owner howner localIndex hlocal
     let source := (H.localContext.lctx.mkForall S.fields (.sort .zero)).abstractList H.params.fvars
     TrExprS R.headerVEnv c.lparams (abstractForallContext R.parameterScope.toCtx.reverse [])
-        source (VExpr.wrapForalls (H.sourceFields owner howner localIndex hlocal) (.sort .zero)) ∧
+        source (VExpr.wrapForalls (H.declFieldDomains owner howner localIndex hlocal) (.sort .zero)) ∧
       R.headerVEnv.IsType c.lparams.length R.parameterScope.toCtx
-        (VExpr.wrapForalls (H.sourceFields owner howner localIndex hlocal) (.sort .zero)) ∧
+        (VExpr.wrapForalls (H.declFieldDomains owner howner localIndex hlocal) (.sort .zero)) ∧
       TrExprS H.recursorWF.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
         (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse []) source
         (VExpr.wrapForalls
-          ((H.sourceFields owner howner localIndex hlocal).map
+          ((H.declFieldDomains owner howner localIndex hlocal).map
             (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
           (.sort .zero)) :=
   (Classical.choose_spec (H.sourceFieldDomains owner howner (by rwa [← H.sourceFamilyCount])
@@ -436,13 +436,13 @@ theorem RecursorConstruction.sourceFields_replay
     let S := H.origins.minorShapes owner howner localIndex hlocal
     let source := (H.localContext.lctx.mkForall S.fields (.sort .zero)).abstractList H.params.fvars
     TrExprS R.context.venv c.lparams (abstractForallContext R.parameterScope.toCtx.reverse [])
-        source (VExpr.wrapForalls (H.sourceFields owner howner localIndex hlocal) (.sort .zero)) ∧
+        source (VExpr.wrapForalls (H.declFieldDomains owner howner localIndex hlocal) (.sort .zero)) ∧
       R.context.venv.IsType c.lparams.length R.parameterScope.toCtx
-        (VExpr.wrapForalls (H.sourceFields owner howner localIndex hlocal) (.sort .zero)) ∧
+        (VExpr.wrapForalls (H.declFieldDomains owner howner localIndex hlocal) (.sort .zero)) ∧
       TrExprS H.recursorWF.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
         (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse []) source
         (VExpr.wrapForalls
-          ((H.sourceFields owner howner localIndex hlocal).map
+          ((H.declFieldDomains owner howner localIndex hlocal).map
             (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
           (.sort .zero)) := by
   obtain ⟨Hsource, Htype, Hrec⟩ := H.sourceFields_headerReplay owner howner localIndex hlocal

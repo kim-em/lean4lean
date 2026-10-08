@@ -24,14 +24,14 @@ theorem RecursorCheck.generatedRuleSemantic
     (owner : Nat) (howner : owner < H.entries.length)
     (i : Nat) (hctor : i < indTypes[owner]!.ctors.length)
     (hrule : i < (H.generated.entry owner howner).info.rules.length) :
-      ∃ Hrule : BoundGeneratedRecursorRule indTypes stats
+      ∃ Hrule : RecursorRuleSyntax indTypes stats
         (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
         (AddInductive.getRecLevels H.elimLevel stats.levels)
         indTypes[owner]!.ctors[i]
         (recursorMinorOffset indTypes owner + i)
         (H.generated.entry owner howner).info.rules[i],
       ∃ S : Hrule.Semantics H.recursorWF decl owner,
-        Nonempty (Hrule.ProducerOriginEvidence S H.recInfos H.elimLevel
+        Nonempty (Hrule.MinorAt S H.recInfos H.elimLevel
           H.origins owner i) ∧
         S.parameterDecls = H.parameterSuffix.parameterDecls := by
   rcases H.ruleSemantics.entry owner howner with
@@ -60,7 +60,7 @@ theorem RecursorCheck.generatedRuleSemanticOwner
     (owner : Nat) (howner : owner < H.entries.length)
     (i : Nat) (hctor : i < indTypes[owner]!.ctors.length)
     (hrule : i < (H.generated.entry owner howner).info.rules.length) :
-    ∃ Hrule : BoundGeneratedRecursorRule indTypes stats
+    ∃ Hrule : RecursorRuleSyntax indTypes stats
         (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
         (AddInductive.getRecLevels H.elimLevel stats.levels)
         indTypes[owner]!.ctors[i]
@@ -68,7 +68,7 @@ theorem RecursorCheck.generatedRuleSemanticOwner
         (H.generated.entry owner howner).info.rules[i],
       ∃ Hsemantic : Hrule.Semantics
           H.recursorWF decl owner,
-        Nonempty (Hrule.ProducerOriginEvidence Hsemantic H.recInfos
+        Nonempty (Hrule.MinorAt Hsemantic H.recInfos
           H.elimLevel H.origins owner i) ∧
         Hsemantic.parameterDecls = H.parameterSuffix.parameterDecls ∧
         Hsemantic.ownerIdx = owner := by
@@ -110,7 +110,7 @@ structure RecursorCheck.RuleAlignment
     indTypes[owner].ctors[i].name indTypes[owner].ctors[i].type
     decl.types[owner].ctors[i]
   sourceRule_lt : i < (H.generated.entry owner howner).info.rules.length
-  rule : BoundGeneratedRecursorRule indTypes stats
+  rule : RecursorRuleSyntax indTypes stats
     (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
     (AddInductive.getRecLevels H.elimLevel stats.levels)
     indTypes[owner]!.ctors[i]
@@ -120,9 +120,9 @@ structure RecursorCheck.RuleAlignment
     H.recursorWF decl owner
   parameterDecls_eq : semantics.parameterSuffix.parameterDecls =
     H.parameterSuffix.parameterDecls
-  motiveOrigins : Nonempty (rule.ProducerMotiveEvidence semantics
+  motiveOrigins : Nonempty (rule.MotiveAt semantics
     H.recInfos H.elimLevel)
-  minorOrigins : Nonempty (rule.ProducerOriginEvidence semantics
+  minorOrigins : Nonempty (rule.MinorAt semantics
     H.recInfos H.elimLevel H.origins owner i)
   semantic_owner : semantics.ownerIdx = owner
 
@@ -137,7 +137,7 @@ noncomputable def RecursorCheck.RuleAlignment.minorOrigin
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
-    A.rule.ProducerOriginEvidence A.semantics H.recInfos H.elimLevel
+    A.rule.MinorAt A.semantics H.recInfos H.elimLevel
       H.origins owner i :=
   Classical.choice A.minorOrigins
 
@@ -152,7 +152,7 @@ noncomputable def RecursorCheck.RuleAlignment.minorShape
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
-    RecInfoMinorTypeShape :=
+    MinorPremiseType :=
   A.minorOrigin.producer.minorShape
 
 noncomputable def RecursorCheck.RuleAlignment.minorReplayAt
@@ -167,7 +167,7 @@ noncomputable def RecursorCheck.RuleAlignment.minorReplayAt
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
-    A.rule.ProducerCallReplayAt (recInfos := H.recInfos) A.semantics
+    A.rule.CallAt (recInfos := H.recInfos) A.semantics
       A.minorShape j hj :=
   Classical.choice (A.minorOrigin.producer.replay j hj)
 
@@ -211,7 +211,7 @@ theorem RecursorCheck.generatedRuleAlignment
     exact hctor
   rcases H.generatedRuleSemanticOwner owner howner i hctor hsourceRule with
     ⟨Hrule, Hsemantic, ⟨Horigin⟩, hparameterDecls, hsemanticOwner⟩
-  let Hmotive : Nonempty (Hrule.ProducerMotiveEvidence Hsemantic H.recInfos
+  let Hmotive : Nonempty (Hrule.MotiveAt Hsemantic H.recInfos
       H.elimLevel) := ⟨Horigin.producer⟩
   exact ⟨{
     sourceOwner_lt := hsourceOwner
@@ -370,7 +370,7 @@ theorem
   let E := H.generated.entry owner howner
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
-  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+  let selections := H.bindings.toRecursorBinderGroups H.localWF H.params
     owner hrecInfo
   have hselectionNoAlias : selections.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
@@ -555,7 +555,7 @@ theorem
             ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
             (recursorDeclarationAbstractLevels c.lparams
               H.elimLevelAdmissible))
-          (recursorCanonicalVars stats.params.size) := by
+          (bvarSpine stats.params.size) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
@@ -566,7 +566,7 @@ theorem
     ⟨_ctorVal, tail, tailTarget, introTarget, _hctorMem, _hctorName,
       Hprefix, Htail, HtailType, Hintro, HintroShape,
       HintroType, _Hsynthesis⟩
-  have HsemanticPrefix : RecursorParamPrefix stats 0
+  have HsemanticPrefix : ParameterPrefix stats 0
       ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).type
       A.semantics.parameterTail := by
     simpa [Array.getElem!_eq_getD, Array.getD, A.sourceOwner_lt] using
@@ -871,7 +871,7 @@ theorem
     (inner := middle ++ fields) (k := 0) (by
       simpa [params, motives, minors, fields, middle,
         A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound,
-        BoundGeneratedRecursorRule.binders, List.append_assoc] using
+        RecursorRuleSyntax.binders, List.append_assoc] using
         A.rule.binders_nodup)
   rw [Expr.abstractList_append, hmiddleAbstract] at hfullShape
   have hmiddleLength : middle.length =
@@ -900,7 +900,7 @@ theorem
     _ = A.rule.target.abstractList (params ++ (middle ++ fields)) :=
       hfullShape'
     _ = A.rule.target.abstractList A.rule.binders := by
-      simp [BoundGeneratedRecursorRule.binders, params, motives, minors,
+      simp [RecursorRuleSyntax.binders, params, motives, minors,
         fields, middle,
         A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound,
         List.append_assoc]
@@ -1085,7 +1085,7 @@ theorem
           (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
           ((VExpr.mkApps
               (introTarget.liftN A.rule.allArgs.size 0)
-              (recursorCanonicalVars A.rule.allArgs.size)).liftN
+              (bvarSpine A.rule.allArgs.size)).liftN
             (T.motives ++ T.minors).length A.rule.allArgs.size)
           (fieldResult.liftN
             (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
@@ -1101,7 +1101,7 @@ theorem
             ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
             (recursorDeclarationAbstractLevels c.lparams
               H.elimLevelAdmissible))
-          (recursorCanonicalVars stats.params.size) := by
+          (bvarSpine stats.params.size) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
@@ -1161,7 +1161,7 @@ theorem
   · simpa [fieldDomains, liftedPrefix, added, inserted, List.reverse_append,
       List.append_assoc] using Hcontext
   · simpa [fieldDomains, liftedPrefix, added, inserted, hfields, List.reverse_append,
-      List.append_assoc, Nat.add_comm, recursorCanonicalVars] using Hweak
+      List.append_assoc, Nat.add_comm, bvarSpine] using Hweak
   · simpa [parameterDecls, inserted, fieldDomains, liftedPrefix, added,
       hfields, List.append_assoc] using HtargetWeak
 

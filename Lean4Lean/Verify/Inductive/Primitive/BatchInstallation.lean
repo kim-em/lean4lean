@@ -929,10 +929,10 @@ structure PrimitiveConstructorCheck
     (outEnv : Environment) where
   checked : CheckedConstructorCertificate sourceEnv decl H.context.venv
     H.headers.params
-  parameterPrefixes : CheckedRecursorParameterPrefixes stats indTypes
-  constructorTails : CheckedRecursorConstructorTails H.context.venv c.lparams
+  parameterPrefixes : ConstructorParameterPrefixes stats indTypes
+  constructorTails : ConstructorTails H.context.venv c.lparams
     H.statsWF.parameterScope stats decl indTypes
-  ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
+  ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
   telescopes : SourceCtorsCertified H.context.venv c.lparams indTypes.toList
   declared : PrimitiveConstructorEnvironment H outEnv
   formation : FormationCertificate sourceEnv decl

@@ -658,7 +658,7 @@ structure NestedValidatedRunResult
   auxiliaryMLCtxWF : auxiliaryMLCtx.WF auxiliaryVEnv lparams
   validatedAuxiliaries : ValidatedNestedAuxiliaries auxiliaryVEnv lparams
     auxiliaryMLCtx.vlctx res
-  auxiliarySelection : LocalForallSelection res.lctx res.params
+  auxiliarySelection : CDeclArray res.lctx res.params
   auxiliaryTranslations : ClosedNestedAuxiliaryTranslations auxiliaryVEnv
     lparams res auxiliarySelection
   nativeSource : NativeNestedSourceCoreResult sourceEnv lparams nparams
@@ -734,7 +734,7 @@ structure NestedExactFinalRunResult
   auxiliaryMLCtxWF : auxiliaryMLCtx.WF auxiliaryVEnv lparams
   validatedAuxiliaries : ValidatedNestedAuxiliaries auxiliaryVEnv lparams
     auxiliaryMLCtx.vlctx res
-  auxiliarySelection : LocalForallSelection res.lctx res.params
+  auxiliarySelection : CDeclArray res.lctx res.params
   auxiliaryTranslations : ClosedNestedAuxiliaryTranslations auxiliaryVEnv
     lparams res auxiliarySelection
   nativeSource : NativeNestedSourceCoreResult sourceEnv lparams nparams

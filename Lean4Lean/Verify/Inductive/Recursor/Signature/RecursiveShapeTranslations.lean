@@ -6,7 +6,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Signature.Generator
 signature is `H.consumedSignature H.argumentUniverses`.  The recursive shapes
 of its constructors were read off the checked recursor type and returned to
 the declaration's universes; the facts retained by that construction
-(`MinorShapeSpec`, `RecursiveShapeSources`) are exported here against the
+(`RecursiveShapesSpec`, `RecursiveShapeDomains`) are exported here against the
 retained blueprint calls `B.recursiveCalls[j]!` from which
 `RecRuleBlueprint.build` produces the installed rules.
 
@@ -40,7 +40,7 @@ theorem RecursorConstruction.consumedSignature_shapeTranslations
     let B := H.recInfos[owner]!.ruleBlueprints[localIndex]!
     let ctor := s.constructors[recursorMinorOffset indTypes owner + localIndex]
     let rf := InductiveSignature.Instance.recursiveFields (s := s) ctor
-    s.fieldTypes ctor = H.sourceFields owner howner localIndex hlocal ∧
+    s.fieldTypes ctor = H.declFieldDomains owner howner localIndex hlocal ∧
     rf.length = S.hypotheses.size ∧
     ∀ j (hj : j < rf.length),
       let pos := rf[j].1
@@ -74,7 +74,7 @@ theorem RecursorConstruction.consumedSignature_shapeTranslations
   intro s S B ctor rf
   have hctor : ctor = H.consumedConstructorAt HU owner howner localIndex hlocal :=
     H.consumedSignature_constructor HU owner howner localIndex hlocal hk
-  have hft : s.fieldTypes ctor = H.sourceFields owner howner localIndex hlocal := by
+  have hft : s.fieldTypes ctor = H.declFieldDomains owner howner localIndex hlocal := by
     rw [hctor]; exact H.consumedConstructorAt_fieldTypes HU owner howner localIndex hlocal
   have hrec : rf = H.consumedShapes HU owner howner localIndex hlocal := by
     simp only [rf]
@@ -88,7 +88,7 @@ theorem RecursorConstruction.consumedSignature_shapeTranslations
   have hx : rf[j] = (H.consumedShapes HU owner howner localIndex hlocal)[j] :=
     List.getElem_of_eq hrec hj
   obtain ⟨hpos, hfield, hsrc⟩ := hspec.2.2.2.2 j hj'
-  dsimp only [RecursorConstruction.RecursiveShapeSources] at hsrc
+  dsimp only [RecursorConstruction.RecursiveShapeDomains] at hsrc
   obtain ⟨h1, h2, h3, h4, h5, h6, h7⟩ := hsrc
   dsimp only
   rw [hx, hft]
@@ -111,7 +111,7 @@ theorem RecursorConstruction.consumedGeneration_shapeTranslations
     ∃ hk : k < G.signature.constructors.size,
       let ctor := G.signature.constructors[k]
       let rf := InductiveSignature.Instance.recursiveFields (s := G.signature) ctor
-      G.signature.fieldTypes ctor = H.sourceFields owner howner localIndex hlocal ∧
+      G.signature.fieldTypes ctor = H.declFieldDomains owner howner localIndex hlocal ∧
       rf.length = S.hypotheses.size ∧
       ∀ j (hj : j < rf.length),
         let pos := rf[j].1

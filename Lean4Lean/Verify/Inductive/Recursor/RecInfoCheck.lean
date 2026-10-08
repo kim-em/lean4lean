@@ -27,7 +27,7 @@ def ConstructorCheck.checkedRecursorHeaderAt
       sourceEnv indTypes ctorEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (hlparams : c.lparams.Nodup) :
-    mkRecInfos.loopArgs1.CheckedRecursorHeaderAt R.context stats decl depth
+    mkRecInfos.loopArgs1.MotivePassHeaderAt R.context stats decl depth
       indTypes[familyIdx] familyIdx := by
   have htarget : familyIdx < decl.types.length := by
     rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core]
@@ -107,7 +107,7 @@ theorem ConstructorCheck.checkedConstructorPrefixSeedAt
         rw [← R.constructorTails.size_eq]
         exact hfamily)).ctors ∧
       ctorVal.name = indTypes[familyIdx].ctors[ctorIdx].name ∧
-      RecursorParamPrefix stats 0
+      ParameterPrefix stats 0
         indTypes[familyIdx].ctors[ctorIdx].type tail ∧
       TrExprS Rbase.venv
         (AddInductive.getRecLevelParams elimLevel c.lparams)
@@ -124,7 +124,7 @@ theorem ConstructorCheck.checkedConstructorPrefixSeedAt
       introTarget = VExpr.mkApps
         (.const indTypes[familyIdx].ctors[ctorIdx].name
           (recursorDeclarationAbstractLevels c.lparams Helim))
-        (recursorCanonicalVars stats.params.size) ∧
+        (bvarSpine stats.params.size) ∧
       Rbase.venv.HasType
         (AddInductive.getRecLevelParams elimLevel c.lparams).length
         Hsuffix.parameterDecls.toCtx introTarget tailTarget ∧
@@ -210,7 +210,7 @@ theorem ConstructorCheck.checkedConstructorPrefixSeedAt
       hsourceLevelsLength
   have hcanonical :
       checkInductiveTypes.loopType.cachedParamVars stats.params.size 0 =
-        recursorCanonicalVars Hsynthesis.params.length := by
+        bvarSpine Hsynthesis.params.length := by
     rw [checkInductiveTypes.loopType.cachedParamVars_zero_eq_recursorCanonicalVars,
       Hsynthesis.parameterCount]
   have Hargs : List.Forall₂
@@ -218,7 +218,7 @@ theorem ConstructorCheck.checkedConstructorPrefixSeedAt
         (AddInductive.getRecLevelParams elimLevel c.lparams)
         Hsuffix.parameterDecls)
       stats.params.toList
-      (recursorCanonicalVars Hsynthesis.params.length) := by
+      (bvarSpine Hsynthesis.params.length) := by
     rw [← hcanonical]
     exact Hsuffix.suffixParams
   have Hintro : TrExprS Rbase.venv
@@ -227,12 +227,12 @@ theorem ConstructorCheck.checkedConstructorPrefixSeedAt
       (Expr.mkAppList (.const ctorVal.name stats.levels)
         stats.params.toList)
       (VExpr.mkApps (.const ctorVal.name levels)
-        (recursorCanonicalVars Hsynthesis.params.length)) :=
+        (bvarSpine Hsynthesis.params.length)) :=
     checkPositivityStep.TrExprS.mkAppList Rbase.checking.tr.wf.ordered
       Hsynthesis.scopeWF.toCtx Hhead Hargs ⟨tailTarget, HintroType⟩
   refine ⟨ctorVal, tail, tailTarget,
     VExpr.mkApps (.const ctorVal.name levels)
-      (recursorCanonicalVars Hsynthesis.params.length),
+      (bvarSpine Hsynthesis.params.length),
     hctorMem, hctorName, Hprefix, Htail, HtailType, ?_, ?_, HintroType,
     ⟨Hsynthesis⟩⟩
   · simpa [Expr.mkAppN_eq_mkAppList, hctorName, Rbase, Hbase,
@@ -260,9 +260,9 @@ theorem ConstructorCheck.checkedConstructorRuntimeSeedAt
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
     exists tail tailTarget introTarget,
-      RecursorParamPrefix stats 0
+      ParameterPrefix stats 0
         indTypes[familyIdx].ctors[ctorIdx].type tail ∧
-      Nonempty (CheckedConstructorOwnerNormalForm stats familyIdx tail) ∧
+      Nonempty (ConstructorOwnerNormalForm stats familyIdx tail) ∧
       tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
       TrExprS Rcurrent.venv
         (AddInductive.getRecLevelParams elimLevel c.lparams)
@@ -358,17 +358,17 @@ theorem ConstructorCheck.loopInd1SemanticWF
         (AddInductive.getRecLevelParams elimLevel c.lparams)
         Rout.mlctx.vlctx stats decl outDepth)
       (Hbindings : RecInfoBindings cOut recInfos)
-      (Horigins : RecInfoTypeOrigins cOut recInfos),
-      RecursorTranslatedOriginTypes Rout Horigins.majorTypes ->
-      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
+      (Horigins : RecInfoBinderTypes cOut recInfos),
+      TrBinderTypes Rout Horigins.majorTypes ->
+      MajorPremiseTypes stats recInfos Horigins.majorTypes
         cOut.env.isTypeAnnotationWrapper ->
-      RecursorTranslatedOriginTypes Rout Horigins.motiveTypes ->
-      RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel ->
+      TrBinderTypes Rout Horigins.motiveTypes ->
+      MotiveTypes cOut recInfos Horigins.motiveTypes elimLevel ->
       RecInfoMotiveTelescopes Rout stats decl
         (R.recursorHeaders.parameterSuffix.toRecursorContext
           Helim).parameterDecls.toCtx recInfos elimLevel ->
-      RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes ->
-      (Hparams : BoundFVarArray cOut stats.params) ->
+      TrBinderTypesPerFamily Rout Horigins.indexTypes ->
+      (Hparams : FVarArrayIn cOut stats.params) ->
       Hbindings.NoAlias Hparams ->
       RecInfoOuterOrder Rout Hparams Hbindings ->
       RecInfoArities stats recInfos ->
@@ -379,7 +379,7 @@ theorem ConstructorCheck.loopInd1SemanticWF
         typeCheckerLParams := some <|
           AddInductive.getRecLevelParams elimLevel c.lparams } cOut ->
       recInfos.size = indTypes.size ->
-      RecInfoIndexTraces stats indTypes cOut recInfos ->
+      IndexTelescopeRuns stats indTypes cOut recInfos ->
       (k recInfos cOut).WF Q) :
     (AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel 0 #[] k
       { c with
@@ -394,7 +394,7 @@ theorem ConstructorCheck.loopInd1SemanticWF
     checkPositivityStep.ValidAppStatsWF.ofMaterializedHeader Hmaterialized
   let Hstats := HstatsOrdinary.toRecursorContext Helim
   let Hheaders : forall i (hi : i < indTypes.size),
-      mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl depth
+      mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl depth
         indTypes[i] i := fun i hi =>
     R.checkedRecursorHeaderAt i hi hlparams
   have HparamsCtx : forall i (hi : i < indTypes.size),
@@ -411,9 +411,9 @@ theorem ConstructorCheck.loopInd1SemanticWF
         Helim).parameterDecls.toCtx
     rw [← hmaterialized]
     exact (Hheaders i hi).recursorParamsContext Helim
-  let HparamsBase : BoundFVarArray { c with env := ctorEnv } stats.params :=
+  let HparamsBase : FVarArrayIn { c with env := ctorEnv } stats.params :=
     Hmaterialized.parameterSuffix.paramsBound
-  let Hparams : BoundFVarArray { c with
+  let Hparams : FVarArrayIn { c with
       env := ctorEnv
       typeCheckerLParams := some <|
         AddInductive.getRecLevelParams elimLevel c.lparams } stats.params :=
@@ -424,14 +424,14 @@ theorem ConstructorCheck.loopInd1SemanticWF
   refine mkRecInfos.loopInd1.resultSemantics Hbase stats indTypes elimLevel
     Helim Hheaders hconsume 0 #[] k Rbase (by simp [Rbase, Hbase])
     Hsuffix HparamsCtx
-    Hstats (RecInfoBindings.empty _) (RecInfoTypeOrigins.empty _)
-    (RecursorTranslatedOriginTypes.empty Rbase)
-    (RecInfoMajorTypeShapes.empty stats _)
-    (RecursorTranslatedOriginTypes.empty Rbase)
-    (RecInfoMotiveTypeShapes.empty _ elimLevel)
+    Hstats (RecInfoBindings.empty _) (RecInfoBinderTypes.empty _)
+    (TrBinderTypes.empty Rbase)
+    (MajorPremiseTypes.empty stats _)
+    (TrBinderTypes.empty Rbase)
+    (MotiveTypes.empty _ elimLevel)
     (RecInfoMotiveTelescopes.empty Rbase stats decl
       Hsuffix.parameterDecls.toCtx elimLevel)
-    (RecursorTranslatedOriginTypeRows.empty Rbase) Hparams
+    (TrBinderTypesPerFamily.empty Rbase) Hparams
     (RecInfoBindings.empty_noAlias _ Hparams hparamsNodup)
     (RecInfoOuterOrder.empty Hsuffix Hparams)
     (BindingContextLE.rebaseTypeCheckerLParams
@@ -444,7 +444,7 @@ theorem ConstructorCheck.loopInd1SemanticWF
         env := ctorEnv
         typeCheckerLParams := some <|
           AddInductive.getRecLevelParams elimLevel c.lparams })
-      Hbase HparamsBase rfl rfl (BindingContextLE.refl _)) RecInfoIndexTraces.empty ?_
+      Hbase HparamsBase rfl rfl (BindingContextLE.refl _)) IndexTelescopeRuns.empty ?_
   intro cOut outDepth recInfos Rout henvOut HsuffixOut hparameterDeclsOut
     HstatsOut Hbindings Horigins HmajorTypes HmajorShapes HmotiveTypes
     HmotiveShapes Htelescopes HindexRows HparamsOut HnoAlias Horder Harities
@@ -486,29 +486,29 @@ theorem ConstructorCheck.mkRecInfosWF
         Rout.mlctx.vlctx stats decl outDepth ->
       VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx ->
       (Hbindings : RecInfoBindings cOut recInfos) ->
-      (Horigins : RecInfoTypeOrigins cOut recInfos) ->
-      RecInfoRuleBlueprintOrigins stats recInfos Horigins ->
-      RecInfoRuleBlueprintSemanticOrigins Rout decl stats recInfos elimLevel
+      (Horigins : RecInfoBinderTypes cOut recInfos) ->
+      RuleTemplatesMatch stats recInfos Horigins ->
+      TypedRuleTemplates Rout decl stats recInfos elimLevel
         HsuffixOut.parameterDecls Horigins ->
-      RecInfoMinorSourceAlignment stats indTypes Horigins ->
-      RecInfoMinorSemanticAlignment Rout Horigins
+      MinorsAndIndicesMatchSource stats indTypes Horigins ->
+      TypedMinors Rout Horigins
         HsuffixOut.parameterDecls ->
-      RecursorTranslatedOriginTypes Rout Horigins.majorTypes ->
-      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
+      TrBinderTypes Rout Horigins.majorTypes ->
+      MajorPremiseTypes stats recInfos Horigins.majorTypes
         cOut.env.isTypeAnnotationWrapper ->
-      RecursorTranslatedOriginTypes Rout Horigins.motiveTypes ->
-      RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel ->
+      TrBinderTypes Rout Horigins.motiveTypes ->
+      MotiveTypes cOut recInfos Horigins.motiveTypes elimLevel ->
       RecInfoMotiveTelescopes Rout stats decl
         (R.recursorHeaders.parameterSuffix.toRecursorContext
           Helim).parameterDecls.toCtx recInfos elimLevel ->
-      RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes ->
-      (Hparams : BoundFVarArray cOut stats.params) ->
+      TrBinderTypesPerFamily Rout Horigins.indexTypes ->
+      (Hparams : FVarArrayIn cOut stats.params) ->
       Hbindings.NoAlias Hparams ->
       RecInfoOuterOrder Rout Hparams Hbindings ->
       RecInfoArities stats recInfos ->
       (forall i, i < recInfos.size ->
         recInfos[i]!.minors.size = indTypes[i]!.ctors.length) ->
-      RecursorCardinalityCertificate stats recInfos decl ->
+      RecursorCounts stats recInfos decl ->
       BindingContextLE { c with
         env := ctorEnv
         typeCheckerLParams := some <|
@@ -546,13 +546,13 @@ theorem ConstructorCheck.mkRecInfosWF
     (checkInductiveTypes.loopType.MLCtxOnlyLams.noIndConsts
       Rframes.onlyLams)
     HbindingsFrames HoriginsFrames
-    (RecInfoRuleBlueprintOrigins.ofEmpty HoriginsFrames HemptyFrames
+    (RuleTemplatesMatch.ofEmpty HoriginsFrames HemptyFrames
       HblueprintCountsFrames)
-    (RecInfoRuleBlueprintSemanticOrigins.ofEmpty Rframes decl HoriginsFrames
+    (TypedRuleTemplates.ofEmpty Rframes decl HoriginsFrames
       HemptyFrames HblueprintCountsFrames elimLevel)
-    (RecInfoMinorSourceAlignment.ofEmpty HoriginsFrames HemptyFrames
+    (MinorsAndIndicesMatchSource.ofEmpty HoriginsFrames HemptyFrames
       HindexTracesFrames)
-    (RecInfoMinorSemanticAlignment.ofEmpty
+    (TypedMinors.ofEmpty
       (parameterDecls := HsuffixFrames.parameterDecls)
       Rframes HoriginsFrames HemptyFrames)
     HmajorTypesFrames HmajorShapesFrames HmotiveTypesFrames
@@ -599,7 +599,7 @@ theorem ConstructorCheck.mkRecInfosWF
       HmajorTypesOut HmajorShapesOut HmotiveTypesOut HmotiveShapesOut
       HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HorderOut
       HaritiesOut houtCounts
-      (RecursorCardinalityCertificate.ofResult R.core R.statsWF
+      (RecursorCounts.ofResult R.core R.statsWF
         houtSize houtCounts HaritiesOut)
       HrootOut
 
@@ -616,7 +616,7 @@ theorem ConstructorCheck.getElimLevelMkRecInfosWF
       (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) ->
       AddInductive.getElimLevel stats indTypes { c with env := ctorEnv } =
         .ok elimLevel ->
-      forall kTarget, KTargetCheck stats indTypes kTarget ->
+      forall kTarget, KEligible stats indTypes kTarget ->
       forall {cOut : AddInductive.Context} {outDepth : Nat}
       (recInfos : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF cOut
@@ -631,29 +631,29 @@ theorem ConstructorCheck.getElimLevelMkRecInfosWF
         Rout.mlctx.vlctx stats decl outDepth ->
       VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx ->
       (Hbindings : RecInfoBindings cOut recInfos) ->
-      (Horigins : RecInfoTypeOrigins cOut recInfos) ->
-      RecInfoRuleBlueprintOrigins stats recInfos Horigins ->
-      RecInfoRuleBlueprintSemanticOrigins Rout decl stats recInfos elimLevel
+      (Horigins : RecInfoBinderTypes cOut recInfos) ->
+      RuleTemplatesMatch stats recInfos Horigins ->
+      TypedRuleTemplates Rout decl stats recInfos elimLevel
         HsuffixOut.parameterDecls Horigins ->
-      RecInfoMinorSourceAlignment stats indTypes Horigins ->
-      RecInfoMinorSemanticAlignment Rout Horigins
+      MinorsAndIndicesMatchSource stats indTypes Horigins ->
+      TypedMinors Rout Horigins
         HsuffixOut.parameterDecls ->
-      RecursorTranslatedOriginTypes Rout Horigins.majorTypes ->
-      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
+      TrBinderTypes Rout Horigins.majorTypes ->
+      MajorPremiseTypes stats recInfos Horigins.majorTypes
         cOut.env.isTypeAnnotationWrapper ->
-      RecursorTranslatedOriginTypes Rout Horigins.motiveTypes ->
-      RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel ->
+      TrBinderTypes Rout Horigins.motiveTypes ->
+      MotiveTypes cOut recInfos Horigins.motiveTypes elimLevel ->
       RecInfoMotiveTelescopes Rout stats decl
         (R.recursorHeaders.parameterSuffix.toRecursorContext
           Helim).parameterDecls.toCtx recInfos elimLevel ->
-      RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes ->
-      (Hparams : BoundFVarArray cOut stats.params) ->
+      TrBinderTypesPerFamily Rout Horigins.indexTypes ->
+      (Hparams : FVarArrayIn cOut stats.params) ->
       Hbindings.NoAlias Hparams ->
       RecInfoOuterOrder Rout Hparams Hbindings ->
       RecInfoArities stats recInfos ->
       (forall i, i < recInfos.size ->
         recInfos[i]!.minors.size = indTypes[i]!.ctors.length) ->
-      RecursorCardinalityCertificate stats recInfos decl ->
+      RecursorCounts stats recInfos decl ->
       BindingContextLE { c with
         env := ctorEnv
         typeCheckerLParams := some <|
@@ -679,7 +679,7 @@ theorem ConstructorCheck.getElimLevelMkRecInfosWF
         env := ctorEnv
         typeCheckerLParams := some <|
           AddInductive.getRecLevelParams elimLevel c.lparams }).WF
-        (KTargetCheck stats indTypes) from
+        (KEligible stats indTypes) from
           AddInductive.isKTarget.checkedWF stats indTypes _).bind fun kTarget hk =>
       R.mkRecInfosWF elimLevel hElim hlparams hconsume hlit
         (k elimLevel kTarget) (Hk elimLevel hElim hElimRun kTarget hk)

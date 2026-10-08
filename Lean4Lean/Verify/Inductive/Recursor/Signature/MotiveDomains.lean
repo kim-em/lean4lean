@@ -6,9 +6,9 @@ open Kernel
 
 /-- The actual consumed motive telescope in its original narrow parameter
 scope, as replayed in the checker context of the index loop. -/
-theorem RecursorMotiveTelescopeSeed.consumedTranslation
+theorem MotiveDecl.consumedTranslation
     {Rroot : RecursorContextWF root recLparams}
-    (S : RecursorMotiveTelescopeSeed Rroot stats decl owner info elimLevel) :
+    (S : MotiveDecl Rroot stats decl owner info elimLevel) :
     ∃ target,
       TrExprS Rroot.venv recLparams S.motiveSourceScope
         (root.lctx.mkForall info.indices
@@ -25,7 +25,7 @@ theorem RecursorConstruction.consumedMotiveAtParameters
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size) :
-    ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner H.recInfos[owner]! H.elimLevel,
+    ∃ S : MotiveDecl H.recursorWF stats decl owner H.recInfos[owner]! H.elimLevel,
       ∃ target,
         TrExprS H.recursorWF.venv
           (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -120,7 +120,7 @@ theorem RecursorConstruction.consumedMotiveDomains
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size) :
-    ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner H.recInfos[owner]! H.elimLevel,
+    ∃ S : MotiveDecl H.recursorWF stats decl owner H.recInfos[owner]! H.elimLevel,
       ∃ indices major level,
         indices.length = H.recInfos[owner]!.indices.size ∧
         VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams) H.elimLevel = some level ∧
@@ -261,12 +261,12 @@ and indices; reserved wrapper names cannot occur among the fresh families. -/
 theorem RecursorConstruction.majorSourceType
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
-    (D : BoundFVarDeclarationAt H.localContext #[H.recInfos[owner]!.major] 0) :
+    (D : FVarDeclAt H.localContext #[H.recInfos[owner]!.major] 0) :
     D.type = mkAppN (mkAppN
       (.const (decl.types[owner]'(by simpa [H.cardinality.records] using howner)).name
         stats.levels) stats.params) H.recInfos[owner]!.indices := by
   have hfamily : owner < decl.types.length := by simpa [H.cardinality.records] using howner
-  let Dall : BoundFVarDeclarationAt H.localContext (H.recInfos.map (·.major)) owner := {
+  let Dall : FVarDeclAt H.localContext (H.recInfos.map (·.major)) owner := {
     D with
     inBounds := by simpa using howner
     expression := by
@@ -338,8 +338,8 @@ theorem RecursorConstruction.majorBinderSource
     apply List.nodup_append.mpr
     refine ⟨hparams, hindices, ?_⟩
     intro a ha b hb
-    exact hparts.params_later a ha b (by simp [RecInfoBindings.toRecursorLocalSelections,
-      BoundFVarArray.toLocalForallSelection, I, hb])
+    exact hparts.params_later a ha b (by simp [RecInfoBindings.toRecursorBinderGroups,
+      FVarArrayIn.toCDeclArray, I, hb])
   have hsizeI : I.fvars.length = H.recInfos[owner]!.indices.size := by
     simpa using congrArg Array.size I.expressions.symm
   have hsizeP : H.params.fvars.length = stats.params.size := by
@@ -347,7 +347,7 @@ theorem RecursorConstruction.majorBinderSource
   obtain ⟨D⟩ := M.declarationAt H.localWF 0 (by simp)
   have hlctx : LocalContext.LctxClosed H.localContext.lctx := H.recursorWF.lctxClosed
   have hDtype : Closed D.type := hlctx.cdecl D.declaration
-  have Hb := (M.toLocalForallSelection H.localWF).forallBinderAtList hmajor D hDtype
+  have Hb := (M.toCDeclArray H.localWF).forallBinderAtList hmajor D hDtype
     (body := .sort H.elimLevel)
   simp only [List.take_zero, Expr.abstractList] at Hb
   have hmajorClosed : Closed (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
@@ -388,7 +388,7 @@ theorem TrExprS.const_canonicalBvars_eq
       (Expr.mkAppList (.const name levels)
         (List.ofFn fun i : Fin n => Expr.bvar (n - 1 - i))) target)
     (hn : n ≤ domains.length) :
-    target = VExpr.mkApps (.const name vlevels) (recursorCanonicalVars n) := by
+    target = VExpr.mkApps (.const name vlevels) (bvarSpine n) := by
   let args := List.ofFn fun i : Fin n => n - 1 - i
   have hargs : ∀ i ∈ args, i < domains.length := by
     intro i hi
@@ -409,7 +409,7 @@ theorem TrExprS.const_canonicalBvars_eq
         rw [Hlevels] at hlevels
         cases Option.some.inj hlevels
         rfl) Htr
-  have htargets : recursorCanonicalVars n = args.map VExpr.bvar := by
+  have htargets : bvarSpine n = args.map VExpr.bvar := by
     simp [recursorCanonicalVars_eq_ofFn, args, List.map_ofFn, Function.comp_def]
   simpa [VExpr.mkApps, htargets, List.foldl_map] using heq
 
@@ -430,7 +430,7 @@ theorem RecursorConstruction.consumedMotiveMajor
       (VExpr.wrapForalls indices (.forallE major result))) :
     major = VExpr.mkApps
       (.const (decl.types[owner]'(by simpa [H.cardinality.records] using howner)).name levels)
-      (recursorCanonicalVars (stats.params.size + H.recInfos[owner]!.indices.size)) := by
+      (bvarSpine (stats.params.size + H.recInfos[owner]!.indices.size)) := by
   have Hclosed := H.majorBinderSource owner howner
   have Htr' : TrExprS H.recursorWF.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)

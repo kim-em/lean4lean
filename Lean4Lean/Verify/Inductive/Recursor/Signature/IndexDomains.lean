@@ -155,8 +155,8 @@ theorem LocalContext.forallDomainsOnly_foldN
       congrArg (fun e => Expr.forallE name (type.abstractN []) (e.abstractN [fv]) bi)
         (ih (fun other hother => hdecl other (by simp [hother])))
 
-theorem BoundFVarArray.forallDomainsOnly
-    (H : BoundFVarArray c xs) (Hc : BindingContextWF c)
+theorem FVarArrayIn.forallDomainsOnly
+    (H : FVarArrayIn c xs) (Hc : BindingContextWF c)
     (hnodup : H.fvars.Nodup) (body : Expr) :
     Expr.forallDomainsOnly xs.size (c.lctx.mkForall xs body) =
       c.lctx.mkForall xs (.sort .zero) := by

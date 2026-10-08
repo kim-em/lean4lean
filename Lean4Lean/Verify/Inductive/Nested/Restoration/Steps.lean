@@ -110,7 +110,7 @@ theorem RecursorRestoration.typeConcreteRecursorResultForallTelescope
       indTypes recInfos ownerIdx entry)
     (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
       oldRecName newRecName Hentry.info newInfo)
-    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (Hselections : RecursorBinderGroups c stats recInfos ownerIdx)
     (howner : ownerIdx < recInfos.size)
     (hnoalias : Hselections.NoAlias)
     (hparams : result.nparams = stats.params.size) :
@@ -164,7 +164,7 @@ theorem RecursorRestoration.generatedTelescopeTrace
       indTypes recInfos ownerIdx entry)
     (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
       oldRecName newRecName Hentry.info newInfo)
-    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (Hselections : RecursorBinderGroups c stats recInfos ownerIdx)
     (howner : ownerIdx < recInfos.size)
     (hnoalias : Hselections.NoAlias)
     (hparams : result.nparams = stats.params.size)
@@ -214,7 +214,7 @@ structure GeneratedRecursorRestorationTelescopeAlignment
       indTypes recInfos ownerIdx entry) where
   trace : GeneratedRecursorRestorationTelescopeTrace result prodEnv auxRec
     newInfo Hentry
-  selections : RecursorLocalSelections c stats recInfos ownerIdx
+  selections : RecursorBinderGroups c stats recInfos ownerIdx
   noAlias : selections.NoAlias
   nparams_eq : result.nparams = stats.params.size
   oldParamDomains : List VExpr
@@ -282,7 +282,7 @@ theorem RecursorRestoration.generatedTelescopeAlignment
       indTypes recInfos ownerIdx entry)
     (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
       oldRecName newRecName Hentry.info newInfo)
-    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (Hselections : RecursorBinderGroups c stats recInfos ownerIdx)
     (howner : ownerIdx < recInfos.size)
     (hnoalias : Hselections.NoAlias)
     (hparams : result.nparams = stats.params.size)
@@ -331,7 +331,7 @@ theorem RecursorRestoration.translatedTypeIsType
       indTypes recInfos ownerIdx entry)
     (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
       oldRecName newRecName Hentry.info newInfo)
-    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (Hselections : RecursorBinderGroups c stats recInfos ownerIdx)
     (howner : ownerIdx < recInfos.size)
     (hnoalias : Hselections.NoAlias)
     (hparams : result.nparams = stats.params.size)
@@ -351,7 +351,7 @@ theorem RecursorRestoration.nestedRecursorShape
       indTypes recInfos ownerIdx entry)
     (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
       oldRecName newRecName Hentry.info newInfo)
-    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (Hselections : RecursorBinderGroups c stats recInfos ownerIdx)
     (howner : ownerIdx < recInfos.size)
     (hnoalias : Hselections.NoAlias)
     (hparams : result.nparams = stats.params.size)

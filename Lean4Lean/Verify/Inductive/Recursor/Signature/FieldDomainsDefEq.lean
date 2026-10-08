@@ -6,17 +6,17 @@ open Kernel
 
 /-- The first `n` binders of `consumed` are those of `raw`, with each domain
 annotation-consumed; the bodies after the `n`-th binder are unrelated. -/
-inductive Expr.ConsumedForallPrefix (ok : Name → Bool) : Nat → Lean.Expr → Lean.Expr → Prop
-  | zero (raw consumed : Lean.Expr) : ConsumedForallPrefix ok 0 raw consumed
-  | succ : ConsumedForallPrefix ok n body body' →
-      ConsumedForallPrefix ok (n + 1) (.forallE name dom body bi)
+inductive Expr.UnannotatedForallPrefix (ok : Name → Bool) : Nat → Lean.Expr → Lean.Expr → Prop
+  | zero (raw consumed : Lean.Expr) : UnannotatedForallPrefix ok 0 raw consumed
+  | succ : UnannotatedForallPrefix ok n body body' →
+      UnannotatedForallPrefix ok (n + 1) (.forallE name dom body bi)
         (.forallE name' (dom.consumeTypeAnnotationsVerified ok) body' bi')
 
 /-- Consuming a telescope and keeping only its first `n` domains consumes
 each of those domains in place. -/
 theorem Expr.ForallTelescope.consumedForallPrefix
     (H : Expr.ForallTelescope raw n residual) :
-    Expr.ConsumedForallPrefix ok n raw
+    Expr.UnannotatedForallPrefix ok n raw
       (Expr.forallDomainsOnly n (Lean4Lean.Expr.consumeForallTypes ok raw)) := by
   induction H with
   | nil => exact .zero _ _
@@ -29,7 +29,7 @@ theorem TrExprS.consumedForallPrefix_defeq
     {env : Environment} {venv : VEnv} {safety : DefinitionSafety} {Us : List Name}
     (Hchecking : CheckingEnv safety env venv)
     (Hwrappers : TypeAnnotationWrappers env ok)
-    (Hpre : Expr.ConsumedForallPrefix ok n raw consumed) :
+    (Hpre : Expr.UnannotatedForallPrefix ok n raw consumed) :
     ∀ {Δ₁ Δ₂ : VLCtx} {As Cs : List VExpr} {B D : VExpr},
       VLCtx.IsDefEq venv Us.length Δ₁ Δ₂ →
       TrExprS venv Us Δ₁ raw (VExpr.wrapForalls As B) →
@@ -84,7 +84,7 @@ theorem RecursorConstruction.sourceFields_defeq_header
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     let ctor := R.sourceSignatureConstructor
       ⟨recursorMinorOffset indTypes owner + localIndex, H.sourceMinorOffsetBound owner howner localIndex hlocal⟩
-    let consumed := H.sourceFields owner howner localIndex hlocal
+    let consumed := H.declFieldDomains owner howner localIndex hlocal
     let header := R.sourceSignature.fieldTypes ctor
     consumed.length = header.length ∧
     ∀ i (hi : i < consumed.length) (hh : i < header.length),
@@ -117,7 +117,7 @@ theorem RecursorConstruction.sourceFields_defeq_header
   have Hpre := Htel.consumedForallPrefix (ok := ctorEnv.isTypeAnnotationWrapper)
   have Hsrc := (H.sourceFields_headerReplay owner howner localIndex hlocal).1
   have Hext := HS.semantic.hypothesesRecent.contextLE.trans HS.semantic.extension.contextLE
-  let Hbound := HS.semantic.fieldsRecent.toBoundFVarArray.mono Hext
+  let Hbound := HS.semantic.fieldsRecent.toFVarArrayIn.mono Hext
   have hsrc : (H.localContext.lctx.mkForall S.fields (.sort .zero)).abstractList H.params.fvars =
       Expr.forallDomainsOnly S.fields.size (Lean4Lean.Expr.consumeForallTypes ctorEnv.isTypeAnnotationWrapper
         (HS.semantic.traversal.parameterTail.abstractList H.params.fvars)) := by

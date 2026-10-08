@@ -284,7 +284,7 @@ theorem checkInductiveTypes.loopType.ScopedHeaderTelescope.canonicalApplication
     (htarget : ctorVal.type.instL levels = target.type) :
     env.HasType Us.length scope.toCtx
       (VExpr.mkApps (.const ctorVal.name levels)
-        (recursorCanonicalVars H.params.length)) current := by
+        (bvarSpine H.params.length)) current := by
   have hindices : H.indices = [] :=
     List.eq_nil_of_length_eq_zero H.indexCount
   have hconst := VEnv.HasType.const (Γ := []) hlookup hlevels hlength
@@ -298,7 +298,7 @@ theorem checkInductiveTypes.loopType.ScopedHeaderTelescope.canonicalApplication
     exact ⟨H.exprType, by simpa [hindices] using H.header⟩
   have happ := VEnv.HasType.mkApps_wrapForalls_canonical
     henv.ordered htelescope
-  simpa [hindices, H.scopeCtx, recursorCanonicalVars,
+  simpa [hindices, H.scopeCtx, bvarSpine,
     VExpr.liftN] using happ
 
 /-- Rebase the independently checked parameter suffix into the exact
@@ -602,7 +602,7 @@ theorem CheckedConstructorTailReplayAt.toRecursorContext
       ctorVal ∈ target.ctors ∧
       ctorVal.name = source.name ∧
       ctorVal.uvars = c.lparams.length ∧
-      RecursorParamPrefix stats 0 source.type tail ∧
+      ParameterPrefix stats 0 source.type tail ∧
       TrExprS R.venv
         (AddInductive.getRecLevelParams elimLevel c.lparams)
         Hsuffix.parameterDecls tail tailTarget ∧

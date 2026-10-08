@@ -175,7 +175,7 @@ theorem RecursorCheck.generated_majorBinder
   have hrecInfo : owner < H.recInfos.size := by
     rw [← H.generated.length]; exact howner
   let E := H.generated.entry owner howner
-  let S := H.bindings.toRecursorLocalSelections H.localWF H.params owner hrecInfo
+  let S := H.bindings.toRecursorBinderGroups H.localWF H.params owner hrecInfo
   have hnoalias : S.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
   obtain ⟨D⟩ := (H.bindings.major owner hrecInfo).declarationAt H.localWF 0 (by simp)

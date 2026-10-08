@@ -89,36 +89,36 @@ theorem TrExprS.prependLevelParam_of_fresh
 /-- Levels returning recursor-universe syntax to the declaration's
 universes: the fresh elimination universe is dropped to zero, or nothing
 happens when there is none. -/
-def recursorUnshiftLevels (n : Nat) : Level → List VLevel
+def recursorToDeclLevels (n : Nat) : Level → List VLevel
   | .param _ => recursorDropLevels n
   | _ => VLevel.params n
 
 theorem recursorUnshiftLevels_roundtrip
     (ha : AddInductive.AdmissibleElimLevel Us elim) :
     ((recursorDeclarationAbstractLevels Us ha).map
-        (VLevel.inst (recursorUnshiftLevels Us.length elim))).map
+        (VLevel.inst (recursorToDeclLevels Us.length elim))).map
       (VLevel.inst (recursorDeclarationAbstractLevels Us ha)) =
       recursorDeclarationAbstractLevels Us ha := by
   cases elim with
   | zero =>
     rw [recursorDeclarationAbstractLevels_zero ha rfl]
-    simp only [recursorUnshiftLevels]
+    simp only [recursorToDeclLevels]
     rw [VLevel.inst_map_id VLevel.params_length, VLevel.inst_map_id VLevel.params_length]
   | param fresh =>
     rw [recursorDeclarationAbstractLevels_param ha rfl]
-    simp only [recursorUnshiftLevels]
+    simp only [recursorToDeclLevels]
     rw [recursorDropLevels_prependShift, VLevel.inst_map_id VLevel.prependShift_length]
   | succ | max | imax | mvar => simp [AddInductive.AdmissibleElimLevel] at ha
 
 /-- Recursor-universe syntax that is the image of declaration-universe syntax. -/
-def UnshiftFixed (L Q : List VLevel) (e : VExpr) : Prop :=
+def IsDeclUnivImage (L Q : List VLevel) (e : VExpr) : Prop :=
   (e.instL Q).instL L = e
 
 theorem unshiftFixed_instL
     (ha : AddInductive.AdmissibleElimLevel Us elim) (e : VExpr) :
-    UnshiftFixed (recursorDeclarationAbstractLevels Us ha) (recursorUnshiftLevels Us.length elim)
+    IsDeclUnivImage (recursorDeclarationAbstractLevels Us ha) (recursorToDeclLevels Us.length elim)
       (e.instL (recursorDeclarationAbstractLevels Us ha)) := by
-  unfold UnshiftFixed
+  unfold IsDeclUnivImage
   rw [VExpr.instL_instL (e := e), VExpr.instL_instL, recursorUnshiftLevels_roundtrip]
 
 theorem VLCtx.instL_abstractForallContext_nil (domains : List VExpr) (levels : List VLevel) :
@@ -128,7 +128,7 @@ theorem VLCtx.instL_abstractForallContext_nil (domains : List VExpr) (levels : L
   rfl
 
 theorem unshiftFixed_context {L Q : List VLevel} {domains : List VExpr}
-    (h : ∀ d ∈ domains, UnshiftFixed L Q d) :
+    (h : ∀ d ∈ domains, IsDeclUnivImage L Q d) :
     ((abstractForallContext domains []).instL Q).instL L = abstractForallContext domains [] := by
   rw [VLCtx.instL_abstractForallContext_nil, VLCtx.instL_abstractForallContext_nil, List.map_map]
   congr 1
@@ -144,16 +144,16 @@ theorem TrExprS.unshiftFixed
     {env : VEnv} {Us : List Name} {elim : Level}
     (ha : AddInductive.AdmissibleElimLevel Us elim)
     {Δ : VLCtx} {e : Expr} {e' : VExpr}
-    (hΔ : (Δ.instL (recursorUnshiftLevels Us.length elim)).instL
+    (hΔ : (Δ.instL (recursorToDeclLevels Us.length elim)).instL
       (recursorDeclarationAbstractLevels Us ha) = Δ)
     (hsrc : e.levelParamsIn Us = true)
     (Htr : TrExprS env (AddInductive.getRecLevelParams elim Us) Δ e e') :
-    UnshiftFixed (recursorDeclarationAbstractLevels Us ha) (recursorUnshiftLevels Us.length elim) e' := by
-  unfold UnshiftFixed
+    IsDeclUnivImage (recursorDeclarationAbstractLevels Us ha) (recursorToDeclLevels Us.length elim) e' := by
+  unfold IsDeclUnivImage
   cases elim with
   | zero =>
     rw [recursorDeclarationAbstractLevels_zero ha rfl] at hΔ ⊢
-    simp only [recursorUnshiftLevels, AddInductive.getRecLevelParams] at hΔ Htr ⊢
+    simp only [recursorToDeclLevels, AddInductive.getRecLevelParams] at hΔ Htr ⊢
     have hid : (Δ.instL (VLevel.params Us.length)) = Δ := by
       have h := hΔ
       rw [VLCtx.instL_instL, VLevel.inst_map_id VLevel.params_length] at h
@@ -169,7 +169,7 @@ theorem TrExprS.unshiftFixed
     have hfresh : fresh ∉ Us := by
       simpa [AddInductive.AdmissibleElimLevel] using ha
     rw [recursorDeclarationAbstractLevels_param ha rfl] at hΔ ⊢
-    simp only [recursorUnshiftLevels, AddInductive.getRecLevelParams] at hΔ Htr ⊢
+    simp only [recursorToDeclLevels, AddInductive.getRecLevelParams] at hΔ Htr ⊢
     have H1 := TrExprS.substLevelParamsCore_of_levels (Us := Us) (F := recursorDropLevel fresh)
       (ls := recursorDropLevels Us.length) recursorDropLevels_wf
       (fun _ _ hu => ofLevel_dropFresh hu) Htr
@@ -182,13 +182,13 @@ theorem TrExprS.unshiftFixed
 theorem TrExprS.unshiftFixed_forall₂
     {env : VEnv} {Us : List Name} {elim : Level}
     (ha : AddInductive.AdmissibleElimLevel Us elim) {Δ : VLCtx}
-    (hΔ : (Δ.instL (recursorUnshiftLevels Us.length elim)).instL
+    (hΔ : (Δ.instL (recursorToDeclLevels Us.length elim)).instL
       (recursorDeclarationAbstractLevels Us ha) = Δ)
     {srcs : List Expr} {targets : List VExpr}
     (hsrc : ∀ e ∈ srcs, e.levelParamsIn Us = true)
     (Htr : List.Forall₂ (TrExprS env (AddInductive.getRecLevelParams elim Us) Δ) srcs targets) :
-    ∀ d ∈ targets, UnshiftFixed (recursorDeclarationAbstractLevels Us ha)
-      (recursorUnshiftLevels Us.length elim) d := by
+    ∀ d ∈ targets, IsDeclUnivImage (recursorDeclarationAbstractLevels Us ha)
+      (recursorToDeclLevels Us.length elim) d := by
   induction Htr with
   | nil => intro d hd; simp at hd
   | @cons a b as bs hab _ ih =>
@@ -204,17 +204,17 @@ theorem TrExprS.unshiftFixed_telescope
     {env : VEnv} {Us : List Name} {elim : Level}
     (ha : AddInductive.AdmissibleElimLevel Us elim)
     {base binders : List VExpr} {srcs : Nat → Expr}
-    (hbase : ∀ d ∈ base, UnshiftFixed (recursorDeclarationAbstractLevels Us ha)
-      (recursorUnshiftLevels Us.length elim) d)
+    (hbase : ∀ d ∈ base, IsDeclUnivImage (recursorDeclarationAbstractLevels Us ha)
+      (recursorToDeclLevels Us.length elim) d)
     (hsrc : ∀ i, i < binders.length → (srcs i).levelParamsIn Us = true)
     (Htr : ∀ i (hi : i < binders.length),
       TrExprS env (AddInductive.getRecLevelParams elim Us)
         (abstractForallContext (base ++ binders.take i) []) (srcs i) (binders[i]'hi)) :
-    ∀ d ∈ binders, UnshiftFixed (recursorDeclarationAbstractLevels Us ha)
-      (recursorUnshiftLevels Us.length elim) d := by
+    ∀ d ∈ binders, IsDeclUnivImage (recursorDeclarationAbstractLevels Us ha)
+      (recursorToDeclLevels Us.length elim) d := by
   have key : ∀ n, n ≤ binders.length → ∀ d ∈ binders.take n,
-      UnshiftFixed (recursorDeclarationAbstractLevels Us ha)
-        (recursorUnshiftLevels Us.length elim) d := by
+      IsDeclUnivImage (recursorDeclarationAbstractLevels Us ha)
+        (recursorToDeclLevels Us.length elim) d := by
     intro n
     induction n with
     | zero => intro _ d hd; simp at hd
@@ -237,18 +237,18 @@ theorem TrExprS.unshiftFixed_telescope
 
 /-- A recursor-universe translation of declaration-universe syntax, returned
 to the declaration's universes: the target and the context are un-shifted by
-`recursorUnshiftLevels`. -/
+`recursorToDeclLevels`. -/
 theorem TrExprS.unshift
     {env : VEnv} {Us : List Name} {elim : Level}
     (ha : AddInductive.AdmissibleElimLevel Us elim)
     {Δ : VLCtx} {e : Expr} {e' : VExpr}
     (hsrc : e.levelParamsIn Us = true)
     (Htr : TrExprS env (AddInductive.getRecLevelParams elim Us) Δ e e') :
-    TrExprS env Us (Δ.instL (recursorUnshiftLevels Us.length elim)) e
-      (e'.instL (recursorUnshiftLevels Us.length elim)) := by
+    TrExprS env Us (Δ.instL (recursorToDeclLevels Us.length elim)) e
+      (e'.instL (recursorToDeclLevels Us.length elim)) := by
   cases elim with
   | zero =>
-    simp only [recursorUnshiftLevels, AddInductive.getRecLevelParams] at Htr ⊢
+    simp only [recursorToDeclLevels, AddInductive.getRecLevelParams] at Htr ⊢
     have H1 := TrExprS.substLevelParamsCore_of_levels (F := Level.param)
       (ls := VLevel.params Us.length) (fun level hlevel => VLevel.params_wf hlevel)
       (fun u u' hu => by
@@ -257,7 +257,7 @@ theorem TrExprS.unshift
   | param fresh =>
     have hfresh : fresh ∉ Us := by
       simpa [AddInductive.AdmissibleElimLevel] using ha
-    simp only [recursorUnshiftLevels, AddInductive.getRecLevelParams] at Htr ⊢
+    simp only [recursorToDeclLevels, AddInductive.getRecLevelParams] at Htr ⊢
     have H1 := TrExprS.substLevelParamsCore_of_levels (Us := Us) (F := recursorDropLevel fresh)
       (ls := recursorDropLevels Us.length) recursorDropLevels_wf
       (fun _ _ hu => ofLevel_dropFresh hu) Htr
@@ -270,8 +270,8 @@ theorem TrExprS.unshift_forall₂
     {srcs : List Expr} {targets : List VExpr}
     (hsrc : ∀ e ∈ srcs, e.levelParamsIn Us = true)
     (Htr : List.Forall₂ (TrExprS env (AddInductive.getRecLevelParams elim Us) Δ) srcs targets) :
-    List.Forall₂ (TrExprS env Us (Δ.instL (recursorUnshiftLevels Us.length elim))) srcs
-      (targets.map (VExpr.instL (recursorUnshiftLevels Us.length elim))) := by
+    List.Forall₂ (TrExprS env Us (Δ.instL (recursorToDeclLevels Us.length elim))) srcs
+      (targets.map (VExpr.instL (recursorToDeclLevels Us.length elim))) := by
   induction Htr with
   | nil => exact .nil
   | cons hab _ ih =>
@@ -281,15 +281,15 @@ theorem TrExprS.unshift_forall₂
 theorem recursorUnshiftLevels_abstract
     (ha : AddInductive.AdmissibleElimLevel Us elim) :
     (recursorDeclarationAbstractLevels Us ha).map
-        (VLevel.inst (recursorUnshiftLevels Us.length elim)) = VLevel.params Us.length := by
+        (VLevel.inst (recursorToDeclLevels Us.length elim)) = VLevel.params Us.length := by
   cases elim with
   | zero =>
     rw [recursorDeclarationAbstractLevels_zero ha rfl]
-    simp only [recursorUnshiftLevels]
+    simp only [recursorToDeclLevels]
     rw [VLevel.inst_map_id VLevel.params_length]
   | param fresh =>
     rw [recursorDeclarationAbstractLevels_param ha rfl]
-    simp only [recursorUnshiftLevels]
+    simp only [recursorToDeclLevels]
     rw [recursorDropLevels_prependShift]
   | succ | max | imax | mvar => simp [AddInductive.AdmissibleElimLevel] at ha
 
@@ -297,7 +297,7 @@ theorem List.map_unshift_abstract
     (ha : AddInductive.AdmissibleElimLevel Us elim) {xs : List VExpr}
     (h : ∀ x ∈ xs, x.LevelWF Us.length) :
     (xs.map (VExpr.instL (recursorDeclarationAbstractLevels Us ha))).map
-      (VExpr.instL (recursorUnshiftLevels Us.length elim)) = xs := by
+      (VExpr.instL (recursorToDeclLevels Us.length elim)) = xs := by
   rw [List.map_map]
   conv => rhs; rw [← List.map_id xs]
   apply List.map_congr_left
@@ -441,7 +441,7 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
 retained by the rule blueprints mention only the declaration's universe
 parameters (never the fresh elimination universe).  The blueprint producer
 retains this fact in each semantic call row
-(`RecInfoCallBlueprintSemanticOrigin.universes`); see
+(`TypedCallTemplate.universes`); see
 `RecursorConstruction.argumentUniverses`. -/
 def RecursorConstruction.ArgumentUniverses (H : RecursorConstruction R) : Prop :=
   ∀ owner (_howner : owner < H.recInfos.size) localIndex
@@ -469,15 +469,15 @@ theorem Expr.forallDomainList_levelParamsIn {Us : List Name} :
 
 /-- The argument domains of a first-pass induction-hypothesis origin mention
 only `Us` when its argument telescope and exposed indices do. -/
-theorem RecInfoMinorHypothesisTypeOrigin.argDomains_levelParamsIn
+theorem InductionHypothesisType.argDomains_levelParamsIn
     {stats : AddInductive.InductiveStats} {recInfos : Array AddInductive.RecInfo}
     {root : AddInductive.Context} {field type : Expr}
-    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) {Us : List Name}
+    (O : InductionHypothesisType stats recInfos root field type) {Us : List Name}
     (htel : (O.current.lctx.mkForall O.args (.sort .zero)).levelParamsIn Us = true)
     (hidx : ∀ e ∈ (O.exposedType.getAppArgs[stats.params.size:] : Array Expr).toList,
       e.levelParamsIn Us = true) :
     ∀ d ∈ O.argDomains, d.levelParamsIn Us = true := by
-  have hargTypes := O.arguments_bound.toBoundFVarArray.mkForall_levelParamsIn_types
+  have hargTypes := O.arguments_bound.toFVarArrayIn.mkForall_levelParamsIn_types
     O.current_wf O.arguments_bound.nodup htel
   obtain ⟨fv, hfv, _⟩ := O.field_fvar
   have hmotiveApp : (Expr.app
@@ -495,7 +495,7 @@ theorem RecInfoMinorHypothesisTypeOrigin.argDomains_levelParamsIn
     rfl
   have htypeU : type.levelParamsIn Us = true := by
     rw [O.type_eq]
-    exact O.arguments_bound.toBoundFVarArray.mkForall_levelParamsIn O.current_wf
+    exact O.arguments_bound.toFVarArrayIn.mkForall_levelParamsIn O.current_wf
       O.arguments_bound.nodup hargTypes hmotiveApp
   exact Expr.forallDomainList_levelParamsIn _ htypeU
 
@@ -536,7 +536,7 @@ blueprint call `C` of that induction hypothesis (the call from which
   (`abstractN (ExprArrayFVarIds C.args)`), then over the fields before `pos`
   and the parameters at depths `C.args.size` and `pos + C.args.size`, in
   `parameters ++ sourceFields.take pos ++ binders`. -/
-def RecursorConstruction.RecursiveShapeSources
+def RecursorConstruction.RecursiveShapeDomains
     (H : RecursorConstruction R)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
@@ -544,7 +544,7 @@ def RecursorConstruction.RecursiveShapeSources
   let S := H.origins.minorShapes mowner hmowner localIndex hlocal
   let C := H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!
   let base := R.parameterScope.toCtx.reverse ++
-    (H.sourceFields mowner hmowner localIndex hlocal).take pos
+    (H.declFieldDomains mowner hmowner localIndex hlocal).take pos
   let fvs := S.fields_bound.fvars.take pos
   j < (H.recInfos[mowner]!.ruleBlueprints[localIndex]!).recursiveCalls.size ∧
   target = C.targetTypeIdx ∧
@@ -576,7 +576,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisHeader
       target stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
     (minorIdx : Nat)
-    (D₀ : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
+    (D₀ : FVarDeclAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (hD : D₀.type = H.origins.minorTypes[mowner]![localIndex]!) :
@@ -584,7 +584,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisHeader
     let L := recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible
     let nmot := (H.recInfos.map (·.motive)).size
     let fields := InductiveSignature.insertBinders
-      ((H.sourceFields mowner hmowner localIndex hlocal).map (VExpr.instL L)) (nmot + minorIdx)
+      ((H.declFieldDomains mowner hmowner localIndex hlocal).map (VExpr.instL L)) (nmot + minorIdx)
     ∀ (hyps : List VExpr) (res : VExpr) (hhyps : hyps.length = S.hypotheses.size),
       T.minors[minorIdx]'(by rw [T.minors_length]; exact D₀.inBounds) =
         VExpr.wrapForalls fields (VExpr.wrapForalls hyps res) →
@@ -595,7 +595,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisHeader
         S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos) ∧
         hyps[j]'(by rw [hhyps]; exact hj) =
           hypothesisForm L S.fields.size nmot minorIdx j pos t binders indices ∧
-        H.RecursiveShapeSources mowner hmowner localIndex hlocal j pos t binders indices := by
+        H.RecursiveShapeDomains mowner hmowner localIndex hlocal j pos t binders indices := by
   intro S L nmot fields hyps res hhyps hminorEq j hj
   obtain ⟨origins, root, sourceType, O, pos, hpos, binders, indices, horig, _hstats, _hmotives,
     hfield, hblen, howner', heq, Hbinders, Hindices, hcallArgs, hcallLctx, hcallIdx, hcallT,
@@ -611,10 +611,10 @@ theorem RecursorConstruction.recursorTelescope_hypothesisHeader
   rw [hcallLctx, hcallArgs] at htelU
   rw [hcallIdx] at hidxU
   have hdomU := O.argDomains_levelParamsIn htelU hidxU
-  let Q := recursorUnshiftLevels c.lparams.length H.elimLevel
+  let Q := recursorToDeclLevels c.lparams.length H.elimLevel
   have hbase : ∀ d ∈ H.parameterSuffix.parameterDecls.toCtx.reverse ++
-      ((H.sourceFields mowner hmowner localIndex hlocal).map (VExpr.instL L)).take pos,
-      UnshiftFixed L Q d := by
+      ((H.declFieldDomains mowner hmowner localIndex hlocal).map (VExpr.instL L)).take pos,
+      IsDeclUnivImage L Q d := by
     intro d hd
     rw [H.parameterDomains] at hd
     rcases List.mem_append.mp hd with hd | hd
@@ -638,9 +638,9 @@ theorem RecursorConstruction.recursorTelescope_hypothesisHeader
     obtain ⟨e₀, he₀, rfl⟩ := List.mem_map.mp he
     simp only [Expr.levelParamsIn_abstractList, Expr.levelParamsIn_abstractN]
     exact hidxU e₀ he₀
-  have hbinders : ∀ d ∈ binders, UnshiftFixed L Q d :=
+  have hbinders : ∀ d ∈ binders, IsDeclUnivImage L Q d :=
     TrExprS.unshiftFixed_telescope H.elimLevelAdmissible hbase hsrcB Hbinders
-  have hindices : ∀ d ∈ indices, UnshiftFixed L Q d := by
+  have hindices : ∀ d ∈ indices, IsDeclUnivImage L Q d := by
     refine TrExprS.unshiftFixed_forall₂ H.elimLevelAdmissible ?_ hsrcI Hindices
     apply unshiftFixed_context
     intro x hx
@@ -656,22 +656,22 @@ theorem RecursorConstruction.recursorTelescope_hypothesisHeader
   have hwf := OnCtx.levelWF_mem hFctx
   have hPwf : ∀ x ∈ R.parameterScope.toCtx.reverse, x.LevelWF c.lparams.length :=
     fun x hx => hwf x (List.mem_append_right _ (List.mem_reverse.mp hx))
-  have hFwf : ∀ x ∈ (H.sourceFields mowner hmowner localIndex hlocal).take pos,
+  have hFwf : ∀ x ∈ (H.declFieldDomains mowner hmowner localIndex hlocal).take pos,
       x.LevelWF c.lparams.length :=
     fun x hx => hwf x (List.mem_append_left _ (List.mem_reverse.mpr (List.mem_of_mem_take hx)))
   have hctx : ∀ X : List VExpr,
       (abstractForallContext (H.parameterSuffix.parameterDecls.toCtx.reverse ++
-        ((H.sourceFields mowner hmowner localIndex hlocal).map (VExpr.instL L)).take pos ++ X)
+        ((H.declFieldDomains mowner hmowner localIndex hlocal).map (VExpr.instL L)).take pos ++ X)
           []).instL Q =
       abstractForallContext (R.parameterScope.toCtx.reverse ++
-        (H.sourceFields mowner hmowner localIndex hlocal).take pos ++ X.map (VExpr.instL Q)) [] := by
+        (H.declFieldDomains mowner hmowner localIndex hlocal).take pos ++ X.map (VExpr.instL Q)) [] := by
     intro X
     rw [VLCtx.instL_abstractForallContext_nil, H.parameterDomains, ← List.map_take,
       List.map_append, List.map_append, List.map_unshift_abstract H.elimLevelAdmissible hPwf,
       List.map_unshift_abstract H.elimLevelAdmissible hFwf]
-  have Hsources : H.RecursiveShapeSources mowner hmowner localIndex hlocal j pos O.ownerIdx
+  have Hsources : H.RecursiveShapeDomains mowner hmowner localIndex hlocal j pos O.ownerIdx
       (binders.map (VExpr.instL Q)) (indices.map (VExpr.instL Q)) := by
-    dsimp only [RecursiveShapeSources]
+    dsimp only [RecursiveShapeDomains]
     refine ⟨hjCalls, hcallT.symm, by rw [List.length_map, hblen, hcallArgs], hcallMajor, ?_, ?_, ?_⟩
     · rw [hcallTemplate, hcallLctx, hcallArgs, hcallIdx, hcallMajor]
     · intro i hi
@@ -747,7 +747,7 @@ theorem RecursorConstruction.flatMinorDeclaration
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    ∃ D : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors))
+    ∃ D : FVarDeclAt H.localContext (H.recInfos.flatMap (·.minors))
         (recursorMinorOffset indTypes owner + localIndex),
       D.type = H.origins.minorTypes[owner]![localIndex]! := by
   let minorIdx := recursorMinorOffset indTypes owner + localIndex
@@ -880,7 +880,7 @@ theorem RecursorConstruction.recursorTelescope_minors_eq
     T₁.minors = T₂.minors := by
   obtain ⟨hp, hm⟩ := H.recursorTelescope_motives_eq T₁ T₂
   let n := (H.recInfos.flatMap (·.minors)).size
-  let D : (i : Fin n) → BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) i.val :=
+  let D : (i : Fin n) → FVarDeclAt H.localContext (H.recInfos.flatMap (·.minors)) i.val :=
     fun i => Classical.choice (H.bindings.flatMinors.declarationAt H.localWF i.val i.isLt)
   let sources : List Expr := List.ofFn fun i : Fin n =>
     (D i).type.abstractList (H.params.fvars ++ H.bindings.motives.fvars ++
@@ -946,8 +946,8 @@ theorem exists_list_of_forall_lt {X : Type} {n : Nat} {P : Nat → X → Prop}
   simp only [List.getElem_ofFn]
   exact Classical.choose_spec (h j (by simpa using hj))
 
-theorem RecInfoMinorHypothesisTypeOrigin.ownerIdx_lt
-    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) :
+theorem InductionHypothesisType.ownerIdx_lt
+    (O : InductionHypothesisType stats recInfos root field type) :
     O.ownerIdx < recInfos.size := by
   by_contra hge
   obtain ⟨fv, hfv, _⟩ := O.motive_is_fvar
@@ -960,7 +960,7 @@ theorem RecInfoMinorHypothesisTypeOrigin.ownerIdx_lt
 are the traversal's recursive positions, each induction hypothesis of the
 checked recursor type is the generator's hypothesis for its shape, and each
 shape's target and arity are those of the retained hypothesis origin. -/
-def RecursorConstruction.MinorShapeSpec
+def RecursorConstruction.RecursiveShapesSpec
     (H : RecursorConstruction R)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
@@ -970,7 +970,7 @@ def RecursorConstruction.MinorShapeSpec
   let nmot := (H.recInfos.map (·.motive)).size
   let minorIdx := recursorMinorOffset indTypes mowner + localIndex
   let fields := InductiveSignature.insertBinders
-    ((H.sourceFields mowner hmowner localIndex hlocal).map (VExpr.instL L)) (nmot + minorIdx)
+    ((H.declFieldDomains mowner hmowner localIndex hlocal).map (VExpr.instL L)) (nmot + minorIdx)
   (∀ traversal, S.traversal = some traversal →
     shapes.map Prod.fst = traversal.recursivePositions) ∧
   shapes.length = S.hypotheses.size ∧
@@ -988,9 +988,9 @@ def RecursorConstruction.MinorShapeSpec
         shapes[j].2.target.val shapes[j].2.binders shapes[j].2.indices) ∧
   (∀ origins, S.hypothesis_type_origins = some origins → ∀ j (hj : j < shapes.length),
     ∃ root sourceType,
-      ∃ O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos
+      ∃ O : InductionHypothesisType origins.stats origins.recInfos
         root S.recursiveFields[j]! sourceType,
-      ∃ _D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+      ∃ _D : FVarDeclAt S.sourceFullContext S.hypotheses j,
         BindingContextLE origins.fieldRoot root ∧
         _D.type = (sourceType.consumeTypeAnnotationsVerified
           S.sourceFullContext.env.isTypeAnnotationWrapper) ∧
@@ -999,14 +999,14 @@ def RecursorConstruction.MinorShapeSpec
   (∀ j (hj : j < shapes.length),
     ∃ hpos : shapes[j].1 < S.fields_bound.fvars.length,
       S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[shapes[j].1]'hpos) ∧
-      H.RecursiveShapeSources mowner hmowner localIndex hlocal j shapes[j].1
+      H.RecursiveShapeDomains mowner hmowner localIndex hlocal j shapes[j].1
         shapes[j].2.target.val shapes[j].2.binders shapes[j].2.indices)
 
 theorem RecursorConstruction.minorShapes_exist
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size) :
-    ∃ shapes, H.MinorShapeSpec mowner hmowner localIndex hlocal shapes := by
+    ∃ shapes, H.RecursiveShapesSpec mowner hmowner localIndex hlocal shapes := by
   let S := H.origins.minorShapes mowner hmowner localIndex hlocal
   let L := recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible
   let nmot := (H.recInfos.map (·.motive)).size
@@ -1029,12 +1029,12 @@ theorem RecursorConstruction.minorShapes_exist
         S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[x.1]'hpos) ∧
         hyps[j] = hypothesisForm L S.fields.size nmot minorIdx j x.1 x.2.target.val
           x.2.binders x.2.indices ∧
-        H.RecursiveShapeSources mowner hmowner localIndex hlocal j x.1 x.2.target.val
+        H.RecursiveShapeDomains mowner hmowner localIndex hlocal j x.1 x.2.target.val
           x.2.binders x.2.indices ∧
         ∃ root sourceType,
-          ∃ O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos
+          ∃ O : InductionHypothesisType origins.stats origins.recInfos
             root S.recursiveFields[j]! sourceType,
-          ∃ _D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+          ∃ _D : FVarDeclAt S.sourceFullContext S.hypotheses j,
             BindingContextLE origins.fieldRoot root ∧
             _D.type = (sourceType.consumeTypeAnnotationsVerified
           S.sourceFullContext.env.isTypeAnnotationWrapper) ∧
@@ -1122,7 +1122,7 @@ theorem RecursorConstruction.consumedShapes_spec
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    H.MinorShapeSpec owner howner localIndex hlocal
+    H.RecursiveShapesSpec owner howner localIndex hlocal
       (H.consumedShapes HU owner howner localIndex hlocal) :=
   Classical.choose_spec (H.minorShapes_exist HU owner howner localIndex hlocal)
 
@@ -1134,9 +1134,9 @@ noncomputable def RecursorConstruction.consumedConstructorAt
     InductiveSignature.Constructor H.consumedFamilies.size where
   name := (H.origins.minorShapes owner howner localIndex hlocal).constructor.name
   owner := ⟨owner, by rw [H.consumedFamilies_size]; exact howner⟩
-  fields := InductiveSignature.markFields (H.sourceFields owner howner localIndex hlocal)
+  fields := InductiveSignature.markFields (H.declFieldDomains owner howner localIndex hlocal)
     (H.consumedShapes HU owner howner localIndex hlocal)
-  indices := H.sourceConstructorIndices owner howner localIndex hlocal
+  indices := H.declConstructorIndices owner howner localIndex hlocal
 
 /-- The consumed constructor at a flattened constructor position. -/
 noncomputable def RecursorConstruction.consumedConstructor
@@ -1203,7 +1203,7 @@ theorem RecursorConstruction.consumedConstructorAt_fieldTypes
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     (H.consumedSignature HU).fieldTypes (H.consumedConstructorAt HU owner howner localIndex hlocal) =
-      H.sourceFields owner howner localIndex hlocal :=
+      H.declFieldDomains owner howner localIndex hlocal :=
   InductiveSignature.fieldTypes_markFields _ _ _ _ rfl
 
 theorem RecursorConstruction.consumedConstructorAt_recursiveFields
@@ -1232,7 +1232,7 @@ theorem RecursorConstruction.consumedConstructorAt_recursiveFields
 
 theorem RecursorConstruction.consumedSignatureData
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
-    H.ConsumedSignatureData (H.consumedSignature HU) where
+    H.SignatureSpec (H.consumedSignature HU) where
   uvars := rfl
   params := rfl
   families := rfl
@@ -1308,7 +1308,7 @@ theorem RecursorConstruction.recursorTelescope_minor_eq
   have hlev : (H.consumedInstance (H.consumedSignature HU)).levels =
       recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible := rfl
   have hind : (H.consumedConstructorAt HU mowner hmowner localIndex hlocal).indices =
-      H.sourceConstructorIndices mowner hmowner localIndex hlocal := rfl
+      H.declConstructorIndices mowner hmowner localIndex hlocal := rfl
   have hown : ((H.consumedConstructorAt HU mowner hmowner localIndex hlocal).owner : Nat) =
       mowner := rfl
   have hname : (H.consumedConstructorAt HU mowner hmowner localIndex hlocal).name =
@@ -1318,10 +1318,10 @@ theorem RecursorConstruction.recursorTelescope_minor_eq
   simp only [hlev, hnf, hhyps, hind, hown, hname, hpl, VExpr.wrapForalls_append, VExpr.mkApps_append,
     InductiveSignature.Instance.constructorApp, H.consumedFamilies_size, Array.size_map]
   rw [show ∀ (f a : VExpr), VExpr.mkApps f [a] = .app f a from fun _ _ => rfl]
-  have hidxs : (H.sourceConstructorIndices mowner hmowner localIndex hlocal).map (fun e =>
+  have hidxs : (H.declConstructorIndices mowner hmowner localIndex hlocal).map (fun e =>
       ((e.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)).liftN
         (H.origins.minorShapes mowner hmowner localIndex hlocal).hypotheses.size).liftN (H.recInfos.size + minorIdx) ((H.origins.minorShapes mowner hmowner localIndex hlocal).fields.size + (H.origins.minorShapes mowner hmowner localIndex hlocal).hypotheses.size)) =
-      (H.sourceConstructorIndices mowner hmowner localIndex hlocal).map (fun e =>
+      (H.declConstructorIndices mowner hmowner localIndex hlocal).map (fun e =>
       ((e.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)).liftN
         (H.recInfos.size + minorIdx) (H.origins.minorShapes mowner hmowner localIndex hlocal).fields.size).liftN (H.origins.minorShapes mowner hmowner localIndex hlocal).hypotheses.size) :=
     List.map_congr_left (fun e _ => (VExpr.liftN_liftN_comm _ _ _ _ _ (Nat.zero_le _)).symm)
@@ -1390,8 +1390,8 @@ theorem LocalContext.forallDomainsOnly_foldN_add
       congrArg (fun e => Expr.forallE name (type.abstractN []) (e.abstractN [fv]) bi)
         (ih (fun other hother => hdecl other (by simp [hother])))
 
-theorem BoundFVarArray.forallDomainsOnly_add
-    (H : BoundFVarArray c xs) (Hc : BindingContextWF c)
+theorem FVarArrayIn.forallDomainsOnly_add
+    (H : FVarArrayIn c xs) (Hc : BindingContextWF c)
     (hnodup : H.fvars.Nodup) (k : Nat) (body : Expr) :
     Expr.forallDomainsOnly (xs.size + k) (c.lctx.mkForall xs body) =
       c.lctx.mkForall xs (Expr.forallDomainsOnly k body) := by

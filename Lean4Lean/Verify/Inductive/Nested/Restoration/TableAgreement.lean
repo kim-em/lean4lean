@@ -736,7 +736,7 @@ theorem FinalLoweredGeneratedFamilyNativeSource.auxNestedSpec
     (hsrcName : a.source.name = H.generated.sourceName)
     (hlevels : a.levels = N.levels) (hargs : a.arguments = N.baseArgs)
     {fvars : List FVarId} (hfvars : result.params = (fvars.map Expr.fvar).toArray)
-    (hnodup : fvars.Nodup) (sel : LocalForallSelection result.lctx result.params)
+    (hnodup : fvars.Nodup) (sel : CDeclArray result.lctx result.params)
     (hclosed : H.generated.data.nested.looseBVarRange' = 0)
     (hnp : result.nparams = nparams) :
     AuxNestedSpec result lparams H.generated.data.nested a := by
@@ -775,7 +775,7 @@ theorem FinalLoweredGeneratedFamilyNativeSource.auxNestedSpecAt
     (hsrcName : a.source.name = H.generated.sourceName)
     (hlevels : a.levels = N.levels) (hargs : a.arguments = N.baseArgs)
     {fvars : List FVarId} (hfvars : result.params = (fvars.map Expr.fvar).toArray)
-    (hnodup : fvars.Nodup) (sel : LocalForallSelection result.lctx result.params)
+    (hnodup : fvars.Nodup) (sel : CDeclArray result.lctx result.params)
     (hclosed : H.generated.data.nested.looseBVarRange' = 0)
     (hnp : result.nparams = nparams) {ctx : List VExpr}
     (hctx : VEnv.IsDefEqCtx sourceTypesVEnv lparams.length [] N.sourceParams.reverse ctx) :
@@ -922,7 +922,7 @@ theorem NestedGeneratedFamilyNativeSources.restoringReplacement
     (Henv : EnvironmentTypesClosed prodEnv)
     (hclosures : MutualInductivesClosed prodEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
-    (resultSelection : LocalForallSelection result.lctx result.params)
+    (resultSelection : CDeclArray result.lctx result.params)
     (hresultNodup : resultSelection.fvars.Nodup)
     (hempty : initialState.nestedAux = #[])
     (hnparams : sourceDecl.nparams = nparams)
@@ -949,7 +949,7 @@ theorem NestedGeneratedFamilyNativeSources.restoringReplacement
       NestedExpansionLookupCtx
         ((compilationRestoration sourceDecl auxiliaries).RestoringLeaf
           (VLevel.params sourceDecl.uvars)) depth sourceCtx targetCtx →
-      (selection : LocalForallSelection lctx As) →
+      (selection : CDeclArray lctx As) →
       selection.fvars.Nodup →
       As.size = result.params.size →
       depth = selection.fvars.length + fieldDepth →

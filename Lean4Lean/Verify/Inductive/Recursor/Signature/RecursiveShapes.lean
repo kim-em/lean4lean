@@ -12,7 +12,7 @@ the `j`-th hypothesis of a minor premise of the checked recursor type as a
 telescope `A` whose domains translate the first-pass origin's argument domains
 in the full generator context (parameters, motives, earlier minors, all fields
 and the earlier hypotheses).  The per-field semantic row
-(`RecInfoHypothesisCallSemanticOriginsAt`) records that the generated recursive
+(`TypedCallTemplatesAt`) records that the generated recursive
 call is scoped by the field's own prefix: its argument telescope mentions only
 the parameters and the fields before the recursive field.  Since the
 first-pass origin and the semantic call have the same replay trace, the
@@ -296,10 +296,10 @@ theorem InductiveSignature.insertBinders_take (l : List VExpr) (n k : Nat) :
     simp [InductiveSignature.insertBinders]
 
 /-- A selected recursive field is one of the opened field variables. -/
-theorem RecInfoMinorTypeShape.recursiveField_pos (S : RecInfoMinorTypeShape)
+theorem MinorPremiseType.recursiveField_pos (S : MinorPremiseType)
     {env : VEnv} {decl : VInductDecl} {uvars : Nat}
-    {sel : List (RecursorRecursiveDomainAt env decl uvars)}
-    (Hsel : RecursorFieldSelectionsAt env decl uvars S.fields S.recursiveFields sel)
+    {sel : List (RecursiveFieldDomainAt env decl uvars)}
+    (Hsel : RecursiveFieldSelectionsAt env decl uvars S.fields S.recursiveFields sel)
     (j : Nat) (hj : j < S.recursiveFields.size) :
     ∃ pos, ∃ hpos : pos < S.fields_bound.fvars.length,
       S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos) := by
@@ -321,9 +321,9 @@ theorem RecInfoMinorTypeShape.recursiveField_pos (S : RecInfoMinorTypeShape)
 /-- The call-local argument telescope of a semantic recursive call mentions
 only variables satisfying any predicate `P` equivalent to the call's root
 scope. -/
-theorem SemanticBoundGeneratedRecursiveCall.localTelescope_fvarsIn
+theorem TypedRecursiveCall.localTelescope_fvarsIn
     {R : RecursorContextWF root recLparams}
-    (Sc : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors lvls R decl
+    (Sc : TypedRecursiveCall indTypes stats motives minors lvls R decl
       callDepth field value)
     {P : FVarId → Prop} (hP : ∀ fv, Sc.rootScope fv ↔ P fv) :
     (Sc.generated.current.lctx.mkForall Sc.generated.localArgs (.sort .zero)).FVarsIn P := by
@@ -364,8 +364,8 @@ theorem SemanticBoundGeneratedRecursiveCall.localTelescope_fvarsIn
 
 /-- The argument domains of a first-pass hypothesis origin are the domains of
 its argument telescope over `Sort 0`. -/
-theorem RecInfoMinorHypothesisTypeOrigin.argDomains_eq_mkForall
-    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) :
+theorem InductionHypothesisType.argDomains_eq_mkForall
+    (O : InductionHypothesisType stats recInfos root field type) :
     O.argDomains =
       Expr.forallDomainList O.args.size (O.current.lctx.mkForall O.args (.sort .zero)) := by
   have key : ∀ t body, t = O.current.lctx.mkForall O.args body →
@@ -373,7 +373,7 @@ theorem RecInfoMinorHypothesisTypeOrigin.argDomains_eq_mkForall
         Expr.forallDomainList O.args.size (O.current.lctx.mkForall O.args (.sort .zero)) := by
     intro t body ht
     rw [ht, ← Expr.forallDomainList_forallDomainsOnly O.args.size (O.current.lctx.mkForall _ body),
-      O.arguments_bound.toBoundFVarArray.forallDomainsOnly O.current_wf O.arguments_bound.nodup]
+      O.arguments_bound.toFVarArrayIn.forallDomainsOnly O.current_wf O.arguments_bound.nodup]
   exact key _ _ O.type_eq
 
 /-- A first-pass hypothesis origin with the same replay trace as a semantic
@@ -382,10 +382,10 @@ the call's root scope, every argument domain of the origin mentions only
 variables satisfying `P`, and every exposed index, closed over the origin's
 own arguments, mentions only such variables; on these indices `abstractN`
 agrees with `abstractList`. -/
-theorem RecInfoMinorHypothesisTypeOrigin.scope_of_replayTrace
-    (O : RecInfoMinorHypothesisTypeOrigin stats' recInfos root' field' type)
+theorem InductionHypothesisType.scope_of_replayTrace
+    (O : InductionHypothesisType stats' recInfos root' field' type)
     {R : RecursorContextWF root recLparams}
-    (Sc : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors lvls R decl
+    (Sc : TypedRecursiveCall indTypes stats motives minors lvls R decl
       callDepth field value)
     {fieldBinders : List FVarId}
     (hreplay : O.replayTrace fieldBinders = Sc.generated.replayTrace fieldBinders)
@@ -397,16 +397,16 @@ theorem RecInfoMinorHypothesisTypeOrigin.scope_of_replayTrace
   have hScT := Sc.localTelescope_fvarsIn hP
   have hOT : O.current.lctx.mkForall O.args (.sort .zero) =
       Sc.generated.current.lctx.mkForall Sc.generated.localArgs (.sort .zero) := by
-    have h := congrArg RecursorLoopUArgsTrace.localTelescope hreplay
-    simp only [RecInfoMinorHypothesisTypeOrigin.replayTrace,
-      BoundGeneratedRecursiveCall.replayTrace] at h
+    have h := congrArg InductionHypothesisShape.localTelescope hreplay
+    simp only [InductionHypothesisType.replayTrace,
+      RecursiveCall.replayTrace] at h
     exact Expr.abstractList_injective h
   have hna : O.args.size = Sc.generated.localArgs.size :=
-    congrArg RecursorLoopUArgsTrace.localArity hreplay
+    congrArg InductionHypothesisShape.localArity hreplay
   have hnaO : O.arguments_bound.fvars.length = O.args.size := O.arguments_bound.length_fvars
   have hargsSc : Sc.generated.arguments_bound.fvars = Sc.recent.fvars :=
-    Sc.generated.arguments_bound.toBoundFVarArray.exprArrayFVarIds.symm.trans
-      Sc.recent.toBoundFVarArray.exprArrayFVarIds
+    Sc.generated.arguments_bound.toFVarArrayIn.exprArrayFVarIds.symm.trans
+      Sc.recent.toFVarArrayIn.exprArrayFVarIds
   have hnaSc : Sc.generated.arguments_bound.fvars.length = Sc.generated.localArgs.size :=
     Sc.generated.arguments_bound.length_fvars
   have hdom := O.argDomains_eq_mkForall
@@ -421,8 +421,8 @@ theorem RecInfoMinorHypothesisTypeOrigin.scope_of_replayTrace
     have h := Sc.exposed_translation.closed
     rwa [Sc.current_context.mlctx.noBV] at h
   have hind := congrArg (fun t => t.indices.toList) hreplay
-  simp only [RecInfoMinorHypothesisTypeOrigin.replayTrace,
-    BoundGeneratedRecursiveCall.replayTrace, Array.toList_map] at hind
+  simp only [InductionHypothesisType.replayTrace,
+    RecursiveCall.replayTrace, Array.toList_map] at hind
   have hmem := List.mem_map_of_mem
     (f := fun index => (index.abstractList O.arguments_bound.fvars).abstractList
       fieldBinders O.args.size) he
@@ -465,21 +465,21 @@ theorem RecursorConstruction.recursorTelescope_hypothesisSmall
     (H : RecursorConstruction R)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
-    (F : RecInfoRuleFieldSemanticSource H.recursorWF stats
+    (F : TypedRuleFieldTraversal H.recursorWF stats
       (H.origins.minorShapes mowner hmowner localIndex hlocal))
     (hparams : F.parameterSuffix.parameterDecls = H.parameterSuffix.parameterDecls)
     {Rorigin : RecursorContextWF originRoot (AddInductive.getRecLevelParams H.elimLevel c.lparams)}
-    {prior : Array Expr} (Hprior : RecursorRecentBoundFVarArray F.terminalWF Rorigin prior)
+    {prior : Array Expr} (Hprior : RecursorFVarSuffix F.terminalWF Rorigin prior)
     (hchkO : Rorigin.chk = F.terminalWF.chk) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
-    let sourceFields := (H.sourceFields mowner hmowner localIndex hlocal).map
+    let sourceFields := (H.declFieldDomains mowner hmowner localIndex hlocal).map
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
     ∀ (j : Nat)
-      (Sc : SemanticBoundGeneratedRecursiveCall indTypes' stats motives minors lvls Rorigin decl'
+      (Sc : TypedRecursiveCall indTypes' stats motives minors lvls Rorigin decl'
         callDepth (S.recursiveFields[j]!) value)
       (pos : Nat) (hpos : pos < S.fields_bound.fvars.length),
       S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos) →
-      ∀ (O : RecInfoMinorHypothesisTypeOrigin stats' recInfos' root field type),
+      ∀ (O : InductionHypothesisType stats' recInfos' root field type),
       stats'.params.size = stats.params.size →
       O.replayTrace S.fields_bound.fvars = Sc.generated.replayTrace S.fields_bound.fvars →
       ∃ B0 indices : List VExpr, B0.length = O.args.size ∧
@@ -502,21 +502,21 @@ theorem RecursorConstruction.recursorTelescope_hypothesisSmall
   intro S sourceFields j Sc pos hpos hfield O hPS hreplay
   have hnf : S.fields_bound.fvars.length = S.fields.size := S.fields_bound.length_fvars
   have hfR : F.fieldsRecent.fvars = S.fields_bound.fvars :=
-    F.fieldsRecent.toBoundFVarArray.exprArrayFVarIds.symm.trans S.fields_bound.exprArrayFVarIds
+    F.fieldsRecent.toFVarArrayIn.exprArrayFVarIds.symm.trans S.fields_bound.exprArrayFVarIds
   have hPids : ExprArrayFVarIds stats.params = H.params.fvars := H.params.exprArrayFVarIds
   have hvRc : Sc.current_context.venv = R.context.venv := by
     rw [Sc.recent.venv_eq, Hprior.venv_eq, ← F.terminalExtension.venv_eq, H.recursorEnv]
   have hOT : O.current.lctx.mkForall O.args (.sort .zero) =
       Sc.generated.current.lctx.mkForall Sc.generated.localArgs (.sort .zero) := by
-    have h := congrArg RecursorLoopUArgsTrace.localTelescope hreplay
-    simp only [RecInfoMinorHypothesisTypeOrigin.replayTrace,
-      BoundGeneratedRecursiveCall.replayTrace] at h
+    have h := congrArg InductionHypothesisShape.localTelescope hreplay
+    simp only [InductionHypothesisType.replayTrace,
+      RecursiveCall.replayTrace] at h
     exact Expr.abstractList_injective h
   have hna : O.args.size = Sc.generated.localArgs.size :=
-    congrArg RecursorLoopUArgsTrace.localArity hreplay
+    congrArg InductionHypothesisShape.localArity hreplay
   have hargsSc : Sc.generated.arguments_bound.fvars = Sc.recent.fvars :=
-    Sc.generated.arguments_bound.toBoundFVarArray.exprArrayFVarIds.symm.trans
-      Sc.recent.toBoundFVarArray.exprArrayFVarIds
+    Sc.generated.arguments_bound.toFVarArrayIn.exprArrayFVarIds.symm.trans
+      Sc.recent.toFVarArrayIn.exprArrayFVarIds
   have hnaSc : Sc.generated.arguments_bound.fvars.length = Sc.generated.localArgs.size :=
     Sc.generated.arguments_bound.length_fvars
   have hdom := O.argDomains_eq_mkForall
@@ -580,7 +580,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisSmall
       (by simpa [abstractForallContext] using HMsort)
     have hsrcEq : H.localContext.lctx.mkForall S.fields (.sort .zero) =
         M.mkForall S.fields.size hnM (.sort .zero) := by
-      rw [F.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.mkForall_mono
+      rw [F.fieldsRecent.toFVarArrayAfter.toFVarArrayIn.mkForall_mono
         F.terminalExtension.contextLE, ← F.terminalWF.lctx_eq,
         F.terminalWF.mlctx_wf.mkForall_eq _ _ F.fieldsRecent.reverse_eq (by simp [Closed])]
       exact hagM.mkForall_eq _ _ _
@@ -694,8 +694,8 @@ theorem RecursorConstruction.recursorTelescope_hypothesisSmall
         e.abstractList (H.params.fvars ++ S.fields_bound.fvars.take pos ++
           Sc.generated.arguments_bound.fvars) 0 := by
     have hind := congrArg (fun t => t.indices.toList) hreplay
-    simp only [RecInfoMinorHypothesisTypeOrigin.replayTrace,
-      BoundGeneratedRecursiveCall.replayTrace, Array.toList_map] at hind
+    simp only [InductionHypothesisType.replayTrace,
+      RecursiveCall.replayTrace, Array.toList_map] at hind
     rw [hPS, ← hna] at hind
     have hcore : (O.exposedType.getAppArgs[stats.params.size:] : Array Expr).toList.map
           (fun e => e.abstractList O.arguments_bound.fvars) =
@@ -755,12 +755,12 @@ theorem RecursorConstruction.recursorTelescope_hypothesisLift
       target stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
     (minorIdx : Nat)
-    (D₀ : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
+    (D₀ : FVarDeclAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (hD : D₀.type = H.origins.minorTypes[mowner]![localIndex]!) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
-    let sourceFields := (H.sourceFields mowner hmowner localIndex hlocal).map
+    let sourceFields := (H.declFieldDomains mowner hmowner localIndex hlocal).map
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
     let nmot := (H.recInfos.map (·.motive)).size
     let fields := InductiveSignature.insertBinders sourceFields (nmot + minorIdx)
@@ -768,14 +768,14 @@ theorem RecursorConstruction.recursorTelescope_hypothesisLift
       T.minors[minorIdx]'(by rw [T.minors_length]; exact D₀.inBounds) =
         VExpr.wrapForalls fields (VExpr.wrapForalls hyps res) →
       ∀ (j : Nat) (hj : j < S.hypotheses.size)
-        (origins : RecInfoMinorHypothesisTypeOrigins S.sourceFullContext S.recursiveFields
+        (origins : MinorInductionHypothesisTypes S.sourceFullContext S.recursiveFields
           S.hypotheses),
       origins.stats = stats →
       origins.recInfos.map (·.motive) = H.recInfos.map (·.motive) →
       ∀ {root : AddInductive.Context} {sourceType : Expr}
-        (O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos root
+        (O : InductionHypothesisType origins.stats origins.recInfos root
           (S.recursiveFields[j]!) sourceType)
-        (D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j),
+        (D : FVarDeclAt S.sourceFullContext S.hypotheses j),
       D.type = (sourceType.consumeTypeAnnotationsVerified
         S.sourceFullContext.env.isTypeAnnotationWrapper) →
       O.ownerIdx < H.recInfos.size →
@@ -981,12 +981,12 @@ theorem RecursorConstruction.recursorTelescope_hypothesisUnlift
       target stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
     (minorIdx : Nat)
-    (D₀ : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
+    (D₀ : FVarDeclAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (hD : D₀.type = H.origins.minorTypes[mowner]![localIndex]!) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
-    let sourceFields := (H.sourceFields mowner hmowner localIndex hlocal).map
+    let sourceFields := (H.declFieldDomains mowner hmowner localIndex hlocal).map
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
     let nmot := (H.recInfos.map (·.motive)).size
     let fields := InductiveSignature.insertBinders sourceFields (nmot + minorIdx)
@@ -994,10 +994,10 @@ theorem RecursorConstruction.recursorTelescope_hypothesisUnlift
       T.minors[minorIdx]'(by rw [T.minors_length]; exact D₀.inBounds) =
         VExpr.wrapForalls fields (VExpr.wrapForalls hyps res) →
       ∀ (j : Nat) (hj : j < S.hypotheses.size),
-      ∃ (origins : RecInfoMinorHypothesisTypeOrigins S.sourceFullContext S.recursiveFields
+      ∃ (origins : MinorInductionHypothesisTypes S.sourceFullContext S.recursiveFields
           S.hypotheses)
         (root : AddInductive.Context) (sourceType : Expr)
-        (O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos root
+        (O : InductionHypothesisType origins.stats origins.recInfos root
           (S.recursiveFields[j]!) sourceType)
         (pos : Nat) (hpos : pos < S.fields_bound.fvars.length) (binders indices : List VExpr),
         S.hypothesis_type_origins = some origins ∧ origins.stats = stats ∧
@@ -1075,7 +1075,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisUnlift
     rw [O.replayTrace_eq_blueprint _ hcall hoLt, hmotives, hSreplay]
   -- The semantic call is scoped by the parameters and the fields before `pos`.
   have hfR : F.fieldsRecent.fvars = S.fields_bound.fvars :=
-    F.fieldsRecent.toBoundFVarArray.exprArrayFVarIds.symm.trans S.fields_bound.exprArrayFVarIds
+    F.fieldsRecent.toFVarArrayIn.exprArrayFVarIds.symm.trans S.fields_bound.exprArrayFVarIds
   have hPids : ExprArrayFVarIds stats.params = H.params.fvars := H.params.exprArrayFVarIds
   have hrootScope : ∀ fv, Sc.rootScope fv ↔
       fv ∈ S.fields_bound.fvars.take pos ∨ fv ∈ H.params.fvars := by
@@ -1093,6 +1093,6 @@ theorem RecursorConstruction.recursorTelescope_hypothesisUnlift
   exact ⟨origins₁, originRoot, sourceType, O, pos, hpos, B0, indices, horig, hstats, hmotives,
     hfield, hB0na, howner', hEq, Hsmall, HIsmall, by rw [hcall], by rw [hcall], by rw [hcall],
     by rw [hcall], by rw [hcall], by rw [hcall], O.argDomains_eq_mkForall,
-    O.arguments_bound.toBoundFVarArray.exprArrayFVarIds⟩
+    O.arguments_bound.toFVarArrayIn.exprArrayFVarIds⟩
 
 end Lean4Lean.VerifyInductive

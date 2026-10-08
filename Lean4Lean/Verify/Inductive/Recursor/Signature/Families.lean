@@ -49,13 +49,13 @@ theorem RecursorConstruction.sourceIndexDomains
       recursorDeclarationAbstractLevels_param H.elimLevelAdmissible helim]
     simpa [helim, AddInductive.getRecLevelParams] using Hrec
 
-noncomputable def RecursorConstruction.sourceIndices
+noncomputable def RecursorConstruction.declIndexDomains
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) : List VExpr :=
   Classical.choose (H.sourceIndexDomains owner owner.isLt)
 
 theorem RecursorConstruction.sourceIndices_length
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
-    (H.sourceIndices owner).length = H.recInfos[owner.val]!.indices.size :=
+    (H.declIndexDomains owner).length = H.recInfos[owner.val]!.indices.size :=
   (Classical.choose_spec (H.sourceIndexDomains owner owner.isLt)).1
 
 /-- Family metadata is chosen once from the actual accepted index replay.
@@ -65,7 +65,7 @@ noncomputable def RecursorConstruction.consumedFamilies
     (H : RecursorConstruction R) : Array InductiveSignature.Family :=
   Array.ofFn fun owner : Fin H.recInfos.size =>
     { name := (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).name
-      indices := H.sourceIndices owner
+      indices := H.declIndexDomains owner
       resultLevel := (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).resultLevel }
 
 @[simp] theorem RecursorConstruction.consumedFamilies_size
@@ -78,12 +78,12 @@ theorem RecursorConstruction.sourceIndices_motive
     (hlevel : VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       H.elimLevel = some level) :
     let motive := VExpr.wrapForalls
-      ((H.sourceIndices owner).map
+      ((H.declIndexDomains owner).map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
       (.forallE
         (VExpr.mkApps (.const (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).name
           (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
-          (recursorCanonicalVars (stats.params.size + H.recInfos[owner.val]!.indices.size)))
+          (bvarSpine (stats.params.size + H.recInfos[owner.val]!.indices.size)))
         (.sort level))
     TrExprS H.recursorWF.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -103,7 +103,7 @@ theorem RecursorConstruction.sourceIndices_motive
 @[simp] theorem RecursorConstruction.consumedFamilies_indices
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
-    (H.consumedFamilies[owner.val]'(by simp [owner.isLt])).indices = H.sourceIndices owner := by
+    (H.consumedFamilies[owner.val]'(by simp [owner.isLt])).indices = H.declIndexDomains owner := by
   simp [consumedFamilies]
 
 @[simp] theorem RecursorConstruction.consumedFamilies_name

@@ -295,7 +295,7 @@ theorem GeneratedFamilyWitness.cachedFamilyHeadRealization
     (H : GeneratedFamilyWitness sourceEnv result.params
       finalState.nestedAux family)
     (Hmap : NestedAuxMapModels result finalState)
-    {resultSelection : LocalForallSelection result.lctx result.params}
+    {resultSelection : CDeclArray result.lctx result.params}
     (hresultNodup : resultSelection.fvars.Nodup)
     (Htranslations : ClosedNestedAuxiliaryTranslations venv lparams result
       resultSelection)

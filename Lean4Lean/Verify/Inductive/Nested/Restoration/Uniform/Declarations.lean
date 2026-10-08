@@ -819,7 +819,7 @@ theorem RecursorConstruction.minorSourceHitArity
   rw [hT] at Hroot
   rw [hT]
   have hp := H.params_fvar
-  have Hprefix : RecursorParamPrefix stats 0 S.constructor.type traversal.parameterTail := by
+  have Hprefix : ParameterPrefix stats 0 S.constructor.type traversal.parameterTail := by
     have := traversal.parameterPrefix
     rwa [hstatsEq, hctorEq] at this
   have hctorMem : S.constructor ∈ indTypes[owner]!.ctors := by
@@ -832,7 +832,7 @@ theorem RecursorConstruction.minorSourceHitArity
       stats.params.toList stats.levels := by
     refine Expr.ParamUniform.mkForall_of_disjoint S.fields_bound.expressions hterm ?_ ?_
     · intro p hpm
-      obtain ⟨pv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.params (Array.mem_toList_iff.1 hpm)
+      obtain ⟨pv, rfl, -⟩ := FVarArrayIn.fvar_of_mem H.params (Array.mem_toList_iff.1 hpm)
       refine ⟨pv, rfl, fun hy => hfresh pv hy ?_⟩
       exact List.mem_append_left _ (List.mem_append_left _
         (mem_exprArrayFVarIds_of_fvar_mem (Array.mem_toList_iff.1 hpm)))
@@ -857,9 +857,9 @@ theorem RecursorConstruction.minorReplayHeadsApplied
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts heads)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    (∀ d ∈ H.sourceFields owner howner localIndex hlocal,
+    (∀ d ∈ H.declFieldDomains owner howner localIndex hlocal,
       VExpr.HeadsApplied heads stats.params.size stats.levels.length d) ∧
-    ∀ x ∈ H.sourceConstructorIndices owner howner localIndex hlocal,
+    ∀ x ∈ H.declConstructorIndices owner howner localIndex hlocal,
       VExpr.HeadsApplied heads stats.params.size stats.levels.length x := by
   have Hrep := (H.sourceConstructorIndices_replay owner howner localIndex hlocal).1
   have hA := (H.minorSourceHitArity hctorTypes owner howner localIndex hlocal).trExprS hlit

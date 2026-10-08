@@ -63,7 +63,7 @@ theorem RecursorConstruction.sourceConstructorIndices_eq_header
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    H.sourceConstructorIndices owner howner localIndex hlocal =
+    H.declConstructorIndices owner howner localIndex hlocal =
       (R.sourceSignatureConstructor
         ⟨recursorMinorOffset indTypes owner + localIndex,
           H.sourceMinorOffsetBound owner howner localIndex hlocal⟩).indices := by
@@ -231,8 +231,8 @@ theorem RecursorConstruction.consumedSingletonElimination
       let k := recursorMinorOffset indTypes owner + localIndex
       ∃ hk : k < s.constructors.size,
         s.constructors[k].owner.val = owner ∧
-        s.fieldTypes s.constructors[k] = H.sourceFields owner howner localIndex hlocal ∧
-        s.constructors[k].indices = H.sourceConstructorIndices owner howner localIndex hlocal)
+        s.fieldTypes s.constructors[k] = H.declFieldDomains owner howner localIndex hlocal ∧
+        s.constructors[k].indices = H.declConstructorIndices owner howner localIndex hlocal)
     (hls : ∀ level ∈ levels, level.WF U)
     (Hsingleton : ∃ ind, indTypes = #[ind] ∧
       (ind.ctors = [] ∨ ∃ ctor, ind.ctors = [ctor] ∧
@@ -265,9 +265,9 @@ theorem RecursorConstruction.consumedSingletonElimination
   have hoff : recursorMinorOffset indTypes 0 + 0 = 0 := by simp [recursorMinorOffset]
   have hc : s.constructors[recursorMinorOffset indTypes 0 + 0]'hk = s.constructors.toList[0]'hj := by
     simp [hoff]
-  have hft : s.fieldTypes (s.constructors.toList[0]'hj) = H.sourceFields 0 h0 0 hl0 := by
+  have hft : s.fieldTypes (s.constructors.toList[0]'hj) = H.declFieldDomains 0 h0 0 hl0 := by
     rw [← hc]; exact hft0
-  have hidx : (s.constructors.toList[0]'hj).indices = H.sourceConstructorIndices 0 h0 0 hl0 := by
+  have hidx : (s.constructors.toList[0]'hj).indices = H.declConstructorIndices 0 h0 0 hl0 := by
     rw [← hc]; exact hidx0
   clear hft0 hidx0 hc hctor
   generalize s.constructors.toList[0]'hj = ctor at hft hidx hi ⊢
@@ -301,11 +301,11 @@ theorem RecursorConstruction.consumedSingletonElimination
   have hlenFields : (s.fieldTypes ctor).length =
       ctor.fields.length := by
     simp [InductiveSignature.fieldTypes]
-  have hiC : i < (H.sourceFields 0 h0 0 hl0).length := by rw [← hft, hlenFields]; exact hi
+  have hiC : i < (H.declFieldDomains 0 h0 0 hl0).length := by rw [← hft, hlenFields]; exact hi
   have hiH : i < (R.sourceSignature.fieldTypes (R.sourceSignatureConstructor
       ⟨recursorMinorOffset indTypes 0 + 0, hbound⟩)).length := by omega
   have hfieldEq : s.fieldType i ctor.fields[i] =
-      (H.sourceFields 0 h0 0 hl0)[i]'hiC := by
+      (H.declFieldDomains 0 h0 0 hl0)[i]'hiC := by
     have h : (s.fieldTypes ctor)[i]'(by rw [hlenFields]; exact hi) =
         s.fieldType i ctor.fields[i] := by
       simp [InductiveSignature.fieldTypes]
@@ -350,8 +350,8 @@ theorem RecursorConstruction.consumedInstance_admissible
       let k := recursorMinorOffset indTypes owner + localIndex
       ∃ hk : k < s.constructors.size,
         s.constructors[k].owner.val = owner ∧
-        s.fieldTypes s.constructors[k] = H.sourceFields owner howner localIndex hlocal ∧
-        s.constructors[k].indices = H.sourceConstructorIndices owner howner localIndex hlocal) :
+        s.fieldTypes s.constructors[k] = H.declFieldDomains owner howner localIndex hlocal ∧
+        s.constructors[k].indices = H.declConstructorIndices owner howner localIndex hlocal) :
     (H.consumedInstance s).Admissible R.headerVEnv := by
   refine {
     levels_length := ?_

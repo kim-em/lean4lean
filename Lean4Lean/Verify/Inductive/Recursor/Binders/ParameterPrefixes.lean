@@ -30,7 +30,7 @@ noncomputable def ConstructorSynthesisState.initial
     htype htype htyped
 
 /-- Exact semantic record of the common-parameter comparisons performed
-by `checkConstructors.loopCtor`.  Unlike `RecursorParamPrefix`, this trace
+by `checkConstructors.loopCtor`.  Unlike `ParameterPrefix`, this trace
 does not forget the translated concrete constructor domain or the
 definitional equality returned by the executable `isDefEq` call.
 
@@ -135,7 +135,7 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
           Hsuffix.parameterDecls current' decl.nparams 0) →
       TrExprS Hc.venv c.lparams Hsuffix.parameterDecls source' current' →
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx source' fullCurrent' →
-      RecursorParamSegment stats 0 decl.nparams original source' →
+      ParameterSegment stats 0 decl.nparams original source' →
       CheckedConstructorParameterPrefix Hc.venv c.lparams stats original
         decl.nparams source' Hsuffix.parameterDecls sourceDomains →
       (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
@@ -159,7 +159,7 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
         source' i' (fuel' + 1) c).WF Q)
     (hparams : stats.params.size = decl.nparams)
     (hbound : i ≤ decl.nparams)
-    (Hsegment : RecursorParamSegment stats 0 i original source)
+    (Hsegment : ParameterSegment stats 0 i original source)
     (Hscope : ∀ h : i < stats.params.size,
       checkInductiveTypes.loopType.ReusedParameterScope Hsuffix i source)
     (hscopeEq : ∀ h : i < stats.params.size,
@@ -1036,7 +1036,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       source 0 fuel c).WF
       (fun _ => ∃ tail tailTarget,
-        RecursorParamPrefix stats 0 source tail ∧
+        ParameterPrefix stats 0 source tail ∧
         ∃ sourceDomains,
         CheckedConstructorParameterPrefix Hc.venv c.lparams stats source
           decl.nparams tail Hsuffix.parameterDecls sourceDomains ∧
@@ -1136,7 +1136,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       (decl := decl) (ctorVal := ctorVal) Hc
       (Q := fun _ => ∃ tail,
         ∃ tailTarget,
-        RecursorParamPrefix stats 0 (.forallE name dom body bi) tail ∧
+        ParameterPrefix stats 0 (.forallE name dom body bi) tail ∧
         ∃ sourceDomains,
         CheckedConstructorParameterPrefix Hc.venv c.lparams stats
           (.forallE name dom body bi) decl.nparams tail
@@ -1192,7 +1192,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         intro out hout
         have Hchecked := Hshape out hout
         have Htail' := Htail out hout
-        have HsegmentComplete : RecursorParamSegment stats 0
+        have HsegmentComplete : ParameterSegment stats 0
             stats.params.size (.forallE name dom body bi) source' := by
           simpa only [Hstats.params_size] using Hsegment'
         have Hprefix := HsegmentComplete.complete rfl
@@ -1245,7 +1245,7 @@ structure ConstructorParamPrefixRow
     (done : Nat) : Prop where
   covered : done ≤ ctors.length
   prefixes : ∀ i, i < done → (hi : i < ctors.length) →
-    ∃ tail, RecursorParamPrefix stats 0 ctors[i].type tail
+    ∃ tail, ParameterPrefix stats 0 ctors[i].type tail
   /-- Every checked constructor type is a pure syntactic forall spine. -/
   spines : ∀ i, i < done → (hi : i < ctors.length) →
     ∃ k, Expr.ForallSpine ctors[i].type k
@@ -1260,7 +1260,7 @@ def ConstructorParamPrefixRow.empty
 def ConstructorParamPrefixRow.push
     (H : ConstructorParamPrefixRow stats ctors done)
     (hi : done < ctors.length)
-    (Hprefix : RecursorParamPrefix stats 0 ctors[done].type tail)
+    (Hprefix : ParameterPrefix stats 0 ctors[done].type tail)
     (Hspine : ∃ k, Expr.ForallSpine ctors[done].type k) :
     ConstructorParamPrefixRow stats ctors (done + 1) where
   covered := by omega
@@ -1307,12 +1307,12 @@ def ConstructorParamPrefixRows.push
 
 /-- Public completed concrete replay certificate selected by family and
 constructor positions. -/
-structure CheckedRecursorParameterPrefixes
+structure ConstructorParameterPrefixes
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) : Prop where
   replay : ∀ (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
       (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length),
-    ∃ tail, RecursorParamPrefix stats 0
+    ∃ tail, ParameterPrefix stats 0
       indTypes[familyIdx].ctors[ctorIdx].type tail
   /-- Every production constructor type is a pure syntactic forall spine,
   as walked by the executable check. -/
@@ -1322,7 +1322,7 @@ structure CheckedRecursorParameterPrefixes
 
 def ConstructorParamPrefixRows.complete
     (H : ConstructorParamPrefixRows stats indTypes indTypes.size) :
-    CheckedRecursorParameterPrefixes stats indTypes where
+    ConstructorParameterPrefixes stats indTypes where
   replay familyIdx hfamily ctorIdx hctor :=
     (H.rows familyIdx hfamily hfamily).prefixes ctorIdx hctor hctor
   spines familyIdx hfamily ctorIdx hctor :=
@@ -1336,7 +1336,7 @@ def CheckedConstructorTailReplayAt
   ∃ ctorVal tail tailTarget sourceDomains,
     ctorVal ∈ target.ctors ∧
     TrSourceConstRaw env Us source.name source.type ctorVal ∧
-    RecursorParamPrefix stats 0 source.type tail ∧
+    ParameterPrefix stats 0 source.type tail ∧
     CheckedConstructorParameterPrefix env Us stats source.type
       stats.params.size tail scope sourceDomains ∧
     TrExprS env Us scope tail tailTarget ∧
@@ -1411,7 +1411,7 @@ def ConstructorTailReplayRows.push
       exact Hrow
     · exact H.rows i (by omega) hi'
 
-structure CheckedRecursorConstructorTails
+structure ConstructorTails
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (indTypes : Array InductiveType) : Prop where
@@ -1424,7 +1424,7 @@ structure CheckedRecursorConstructorTails
 def ConstructorTailReplayRows.complete
     (H : ConstructorTailReplayRows env Us scope stats decl indTypes
       indTypes.size) :
-    CheckedRecursorConstructorTails env Us scope stats decl indTypes where
+    ConstructorTails env Us scope stats decl indTypes where
   size_eq := H.size_eq
   replay familyIdx hfamily ctorIdx hctor :=
     (H.rows familyIdx hfamily hfamily).replays ctorIdx hctor hctor

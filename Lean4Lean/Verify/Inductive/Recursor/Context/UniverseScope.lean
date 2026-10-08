@@ -117,8 +117,8 @@ theorem LocalContext.levelParamsIn_mkForall_foldN
 
 /-- A telescope closed over bound ordinary declarations whose types mention
 only `Us` mentions only `Us` when its body does. -/
-theorem BoundFVarArray.mkForall_levelParamsIn
-    (H : BoundFVarArray c xs) (Hc : BindingContextWF c)
+theorem FVarArrayIn.mkForall_levelParamsIn
+    (H : FVarArrayIn c xs) (Hc : BindingContextWF c)
     (hnodup : H.fvars.Nodup) {Us : List Name}
     (htypes : ∀ fv ∈ H.fvars, ∀ decl, c.lctx.find? fv = some decl →
       decl.type.levelParamsIn Us = true)
@@ -166,8 +166,8 @@ theorem LocalContext.levelParamsIn_mkForall_foldN_types
 
 /-- A telescope closed over bound ordinary declarations mentions only `Us`
 only if their declared types do. -/
-theorem BoundFVarArray.mkForall_levelParamsIn_types
-    (H : BoundFVarArray c xs) (Hc : BindingContextWF c)
+theorem FVarArrayIn.mkForall_levelParamsIn_types
+    (H : FVarArrayIn c xs) (Hc : BindingContextWF c)
     (hnodup : H.fvars.Nodup) {Us : List Name} {body : Expr}
     (h : (c.lctx.mkForall xs body).levelParamsIn Us = true) :
     ∀ fv ∈ H.fvars, ∀ decl, c.lctx.find? fv = some decl →
@@ -207,11 +207,11 @@ theorem RecursorContextWF.universeScope_of_types
 /-- A universe scope of the root of an exact recent suffix, denoting only
 root variables, remains a universe scope after the suffix: the fresh binders
 are outside it and the root declarations are unchanged. -/
-theorem RecursorRecentBoundFVarArray.universeScope
+theorem RecursorFVarSuffix.universeScope
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (H : RecursorFVarSuffix Rroot R xs)
     {Us : List Name} {P : FVarId → Prop}
     (hscope : ∀ fv, P fv → fv ∈ Rroot.mlctx.vlctx.fvars)
     (hU : Rroot.typeChecker.UniverseScope Us P) :
@@ -246,7 +246,7 @@ def ParameterUniverseSupport (c : AddInductive.Context) (params : Array Expr) : 
     decl.type.levelParamsIn c.lparams = true
 
 theorem ParameterUniverseSupport.mono
-    (H : ParameterUniverseSupport c params) (Hparams : BoundFVarArray c params)
+    (H : ParameterUniverseSupport c params) (Hparams : FVarArrayIn c params)
     (hle : BindingContextLE c c') : ParameterUniverseSupport c' params := by
   intro fv hfv decl hfind
   have hmem : fv ∈ c.lctx.fvars := by
@@ -260,7 +260,7 @@ theorem ParameterUniverseSupport.mono
 /-- The parameters of a header context, transported to any later binding
 context of a root with the same local context and universe parameters. -/
 theorem ParameterUniverseSupport.of_contextWF {c root c' : AddInductive.Context}
-    (Hc : ContextWF c) (Hparams : BoundFVarArray c params)
+    (Hc : ContextWF c) (Hparams : FVarArrayIn c params)
     (hlctx : root.lctx = c.lctx) (hlparams : root.lparams = c.lparams)
     (hle : BindingContextLE root c') : ParameterUniverseSupport c' params := by
   intro fv hfv decl hfind

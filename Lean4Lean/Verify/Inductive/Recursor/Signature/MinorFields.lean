@@ -53,7 +53,7 @@ theorem RecursorConstruction.minorFieldsTemplate
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (inserted : List VExpr) (extra : List FVarId) (hextra : extra.length = inserted.length) :
     let S := H.origins.minorShapes owner howner localIndex hlocal
-    let fields := (H.sourceFields owner howner localIndex hlocal).map
+    let fields := (H.declFieldDomains owner howner localIndex hlocal).map
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
     TrExprS H.recursorWF.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (abstractForallContext (H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted) [])

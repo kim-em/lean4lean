@@ -28,18 +28,18 @@ structure
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) where
-  sourceShape : RecInfoMinorTypeShape
-  hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+  sourceShape : MinorPremiseType
+  hypothesisOrigins : MinorInductionHypothesisTypes
     sourceShape.sourceFullContext sourceShape.recursiveFields
       sourceShape.hypotheses
   hypothesisOrigins_eq :
     sourceShape.hypothesis_type_origins = some hypothesisOrigins
   sourceOriginRoot : AddInductive.Context
   sourceType : Expr
-  sourceOrigin : RecInfoMinorHypothesisTypeOrigin hypothesisOrigins.stats
+  sourceOrigin : InductionHypothesisType hypothesisOrigins.stats
     hypothesisOrigins.recInfos sourceOriginRoot
       sourceShape.recursiveFields[j]! sourceType
-  sourceDeclaration : BoundFVarDeclarationAt sourceShape.sourceFullContext
+  sourceDeclaration : FVarDeclAt sourceShape.sourceFullContext
     sourceShape.hypotheses j
   sourceDeclaration_type : sourceDeclaration.type =
     (sourceType.consumeTypeAnnotationsVerified
@@ -48,18 +48,18 @@ structure
   originContext : RecursorContextWF originRoot
     (AddInductive.getRecLevelParams H.elimLevel c.lparams)
   priorHypotheses : Array Expr
-  originRecent : RecursorRecentBoundFVarArray A.semantics.context
+  originRecent : RecursorFVarSuffix A.semantics.context
     originContext priorHypotheses
   originCheck : originContext.chk = A.semantics.context.chk
   priorHypotheses_size : priorHypotheses.size = j
   callDepth : Nat
-  semantic : SemanticBoundGeneratedRecursiveCall indTypes stats
+  semantic : TypedRecursiveCall indTypes stats
     (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
     (AddInductive.getRecLevels H.elimLevel stats.levels)
     originContext decl callDepth
     A.rule.recursiveArgs[j] A.rule.recursiveResults[j]!
-  motiveApplication : Nonempty semantic.ProducerMotiveApplication
-  motiveLookup : RecInfoMotiveTelescopeLookup A.semantics.context stats decl
+  motiveApplication : Nonempty semantic.MotiveApplication
+  motiveLookup : MotiveTelescopesAt A.semantics.context stats decl
     H.recInfos H.elimLevel
   root_scope : semantic.rootScope = fun fv =>
     fv ∈ A.semantics.fieldOpening.fvars ∨
@@ -526,9 +526,9 @@ theorem
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj) :
     let selectedOwner := F.semantic.generated.ownerIdx
-    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+    ∃ binding : MotiveBinding F.semantic.current_context
         H.recInfos[selectedOwner]! H.elimLevel,
-      Nonempty (RecursorMotiveTelescopeEvidence
+      Nonempty (MotiveAppliesTo
         F.semantic.current_context stats H.recInfos[selectedOwner]!
         binding F.semantic.generated.exposedType F.semantic.exposedTarget) := by
   let selectedOwner := F.semantic.generated.ownerIdx

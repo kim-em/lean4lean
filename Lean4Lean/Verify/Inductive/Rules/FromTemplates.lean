@@ -7,19 +7,19 @@ open Kernel
 
 namespace VerifyInductive
 
-def RecursorRecentBoundFVarArray.castRoot
+def RecursorFVarSuffix.castRoot
     {c c' origin : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {Rorigin : RecursorContextWF origin recLparams} {xs : Array Expr}
-    (h : c = c') (H : RecursorRecentBoundFVarArray R Rorigin xs) :
-    RecursorRecentBoundFVarArray (h ▸ R) Rorigin xs := by
+    (h : c = c') (H : RecursorFVarSuffix R Rorigin xs) :
+    RecursorFVarSuffix (h ▸ R) Rorigin xs := by
   cases h
   exact H
 
 /-- A first-pass recursive-hypothesis origin and the blueprint emitted beside
 it have the same allocation-insensitive replay payload. -/
-theorem RecInfoMinorHypothesisTypeOrigin.replayTrace_eq_blueprint
-    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+theorem InductionHypothesisType.replayTrace_eq_blueprint
+    (O : InductionHypothesisType stats recInfos root field type)
     (call : AddInductive.RecCallBlueprint)
     (hcall : call = {
       major := field
@@ -38,9 +38,9 @@ theorem RecInfoMinorHypothesisTypeOrigin.replayTrace_eq_blueprint
       recCallBlueprintReplayTrace call (recInfos.map (·.motive))
         fieldBinders := by
   subst call
-  simp [RecInfoMinorHypothesisTypeOrigin.replayTrace,
+  simp [InductionHypothesisType.replayTrace,
     recCallBlueprintReplayTrace,
-    O.arguments_bound.toBoundFVarArray.exprArrayFVarIds,
+    O.arguments_bound.toFVarArrayIn.exprArrayFVarIds,
     Array.getElem!_eq_getD, Array.getD, howner]
 
 /-- The retained-blueprint rule builder is a transparent read of the current
@@ -63,15 +63,15 @@ theorem AddInductive.mkRecRulesFromBlueprints.WF
 /-- Instantiate the producer-retained semantic call row with the completed
 minor array and the exact recursor levels.  No call generation, inference,
 or constructor traversal is replayed here. -/
-theorem RecInfoHypothesisCallSemanticOrigins.retainedGeneratedCalls
+theorem TypedCallTemplates.retainedGeneratedCalls
     {recLparams : List Name}
     {Rfield : RecursorContextWF fieldRoot recLparams}
-    (H : RecInfoHypothesisCallSemanticOrigins Rfield decl depth stats
+    (H : TypedCallTemplates Rfield decl depth stats
       motives rootScope fields hypotheses calls)
     (hsize : hypotheses.size = fields.size)
     (indTypes : Array InductiveType) (minors : Array Expr)
     (lvls : List Level) :
-    ProducerStagedSemanticBoundGeneratedRecursiveCalls indTypes stats motives
+    TypedRecursiveCallsAfterHypotheses indTypes stats motives
       minors lvls Rfield decl rootScope fields
         (calls.map fun call => call.build indTypes stats motives minors lvls)
         fields.size := by
@@ -98,19 +98,19 @@ theorem RecInfoHypothesisCallSemanticOrigins.retainedGeneratedCalls
   exact ⟨originRoot, Rorigin, priorHypotheses, Hrecent,
     hpriorSize, hchkO, depth + i, S, hscope, ⟨Hmotive⟩⟩
 
-theorem RecInfoCallBlueprintOrigins.boundGeneratedCalls
+theorem CallTemplatesMatch.boundGeneratedCalls
     {sourceFullContext fieldRoot : AddInductive.Context}
     {recursiveFields hypotheses : Array Expr}
-    {origins : RecInfoMinorHypothesisTypeOrigins sourceFullContext
+    {origins : MinorInductionHypothesisTypes sourceFullContext
       recursiveFields hypotheses}
     {calls : Array AddInductive.RecCallBlueprint}
     {allFields : Array Expr}
-    (H : RecInfoCallBlueprintOrigins origins allFields calls)
+    (H : CallTemplatesMatch origins allFields calls)
     (hfieldRoot : origins.fieldRoot = fieldRoot)
     (hsize : hypotheses.size = recursiveFields.size)
     (indTypes : Array InductiveType) (minors : Array Expr)
     (lvls : List Level) :
-    BoundGeneratedRecursiveCalls indTypes origins.stats
+    RecursiveCallsPrefix indTypes origins.stats
       (origins.recInfos.map (·.motive)) minors lvls fieldRoot recursiveFields
       (calls.map fun call => call.build indTypes origins.stats
         (origins.recInfos.map (·.motive)) minors lvls)
@@ -154,13 +154,13 @@ theorem RecInfoCallBlueprintOrigins.boundGeneratedCalls
 /-- A bound rule together with the exact producer components used to build
 it.  These projection equalities prevent later semantic assembly from
 recovering them by replay or alpha-conversion. -/
-structure RetainedBlueprintBoundRule
+structure RuleFromTemplate
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
-    (S : RecInfoMinorTypeShape) (T : RecInfoMinorTraversalShape)
+    (S : MinorPremiseType) (T : ConstructorFieldTraversal)
     (B : AddInductive.RecRuleBlueprint)
     (minorIdx : Nat) (fieldRoot outerRoot : AddInductive.Context) where
-  certificate : BoundGeneratedRecursorRule indTypes stats motives minors
+  certificate : RecursorRuleSyntax indTypes stats motives minors
     lvls S.constructor minorIdx
       (B.build indTypes stats motives minors lvls outerRoot.lctx)
   root_eq : certificate.root = fieldRoot
@@ -170,16 +170,16 @@ structure RetainedBlueprintBoundRule
   recursiveResults_eq : certificate.recursiveResults =
     B.recursiveCalls.map fun call =>
       call.build indTypes stats motives minors lvls
-  callOrigins : ∃ origins : RecInfoMinorHypothesisTypeOrigins
+  callOrigins : ∃ origins : MinorInductionHypothesisTypes
       S.sourceFullContext S.recursiveFields S.hypotheses,
     S.hypothesis_type_origins = some origins ∧
-      RecInfoCallBlueprintOrigins origins S.fields B.recursiveCalls
+      CallTemplatesMatch origins S.fields B.recursiveCalls
 
-theorem RecInfoRuleBlueprintOriginAt.boundGeneratedRule
+theorem RuleTemplateMatchesMinor.boundGeneratedRule
     {stats : AddInductive.InductiveStats}
-    {S : RecInfoMinorTypeShape} {minor : Expr}
+    {S : MinorPremiseType} {minor : Expr}
     {B : AddInductive.RecRuleBlueprint}
-    (Horigin : RecInfoRuleBlueprintOriginAt stats S minor B)
+    (Horigin : RuleTemplateMatchesMinor stats S minor B)
     (indTypes : Array InductiveType) (motives minors : Array Expr)
     (lvls : List Level) (minorIdx : Nat)
     {fieldRoot outerRoot : AddInductive.Context}
@@ -187,32 +187,32 @@ theorem RecInfoRuleBlueprintOriginAt.boundGeneratedRule
     (HouterWF : BindingContextWF outerRoot)
     (HfieldSource : BindingContextLE fieldRoot S.sourceFullContext)
     (HfieldOuter : BindingContextLE fieldRoot outerRoot)
-    (Hparams : BoundFVarArray outerRoot stats.params)
-    (Hmotives : BoundFVarArray outerRoot motives)
-    (Hminors : BoundFVarArray outerRoot minors)
+    (Hparams : FVarArrayIn outerRoot stats.params)
+    (Hmotives : FVarArrayIn outerRoot motives)
+    (Hminors : FVarArrayIn outerRoot minors)
     (HouterNodup : ((Hparams.fvars ++ Hmotives.fvars) ++
       Hminors.fvars).Nodup)
-    (Hfields : BoundFVarArray fieldRoot S.fields)
+    (Hfields : FVarArrayIn fieldRoot S.fields)
     (HfieldsNodup : Hfields.fvars.Nodup)
-    (Hrecursive : BoundFVarArray fieldRoot S.recursiveFields)
+    (Hrecursive : FVarArrayIn fieldRoot S.recursiveFields)
     (hrecursive : S.recursiveFields.toList.Sublist S.fields.toList)
     (HrecursiveNodup : Hrecursive.fvars.Nodup)
     (hfieldsFresh : ∀ fv ∈ Hfields.fvars,
       fv ∉ (Hparams.fvars ++ Hmotives.fvars) ++ Hminors.fvars)
     (hminor : minorIdx < minors.size)
     (hminorEq : minors[minorIdx]! = minor)
-    (Hcalls : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+    (Hcalls : RecursiveCallsPrefix indTypes stats motives minors lvls
       fieldRoot S.recursiveFields
       (B.recursiveCalls.map fun call =>
         call.build indTypes stats motives minors lvls)
       S.recursiveFields.size) :
     ∃ T, S.traversal = some T ∧
-      Nonempty (RetainedBlueprintBoundRule indTypes stats motives minors lvls
+      Nonempty (RuleFromTemplate indTypes stats motives minors lvls
         S T B minorIdx fieldRoot outerRoot) := by
   rcases Horigin with
     ⟨hctor, hfields, hlctx, hminorBlueprint, traversal, origins,
       htraversal, horigins, htargetOwner, htargetIndices, HcallOrigins⟩
-  let Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+  let Hrule : RecursorRuleSyntax indTypes stats motives minors lvls
       S.constructor minorIdx
       (B.build indTypes stats motives minors lvls outerRoot.lctx) := {
     root := fieldRoot
@@ -275,12 +275,12 @@ theorem RecursorFieldDecisions.selectedSublist
 of its source owner.  This is derived from the completed second-pass row
 counts; the blueprint builder itself does not need to rerun the constructor
 traversal to discover its output cardinality. -/
-theorem RecInfoRuleBlueprintOrigins.ownerRowSize
+theorem RuleTemplatesMatch.ownerRowSize
     {indTypes : Array InductiveType}
     {stats : AddInductive.InductiveStats}
     {recInfos : Array AddInductive.RecInfo}
-    {Horigins : RecInfoTypeOrigins c recInfos}
-    (H : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
+    {Horigins : RecInfoBinderTypes c recInfos}
+    (H : RuleTemplatesMatch stats recInfos Horigins)
     (hcounts : ∀ i, i < recInfos.size →
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
     (owner : Nat) (howner : owner < recInfos.size) :
@@ -377,30 +377,30 @@ theorem recInfoFlatMinorAtOffset
     getElem!_pos recInfos[owner]!.minors localIndex hlocal]
   exact Hget'
 
-theorem RecInfoRuleBlueprintOriginAt.boundGeneratedRuleOfSemanticSource
+theorem RuleTemplateMatchesMinor.boundGeneratedRuleOfSemanticSource
     {stats : AddInductive.InductiveStats}
     {recInfos : Array AddInductive.RecInfo}
-    {S : RecInfoMinorTypeShape} {minor : Expr}
+    {S : MinorPremiseType} {minor : Expr}
     {B : AddInductive.RecRuleBlueprint}
-    (Horigin : RecInfoRuleBlueprintOriginAt stats S minor B)
+    (Horigin : RuleTemplateMatchesMinor stats S minor B)
     {outerRoot : AddInductive.Context} {recLparams : List Name}
     {Router : RecursorContextWF outerRoot recLparams}
-    (HS : RecInfoMinorSemanticSource Router S)
+    (HS : TypedMinorTraversal Router S)
     (Hhas : S.HasHypothesisTypeOrigins stats recInfos)
     (hrecursiveFields : HS.traversal.recursiveFields = S.recursiveFields)
     (indTypes : Array InductiveType) (lvls : List Level)
     (minorIdx : Nat)
-    (Hparams : BoundFVarArray outerRoot stats.params)
+    (Hparams : FVarArrayIn outerRoot stats.params)
     (Hbindings : RecInfoBindings outerRoot recInfos)
     (HouterNodup : ((Hparams.fvars ++ Hbindings.motives.fvars) ++
       Hbindings.flatMinors.fvars).Nodup)
     (hminor : minorIdx < (recInfos.flatMap (·.minors)).size)
     (hminorEq : (recInfos.flatMap (·.minors))[minorIdx]! = minor)
     (hfieldsFresh : ∀ fv ∈
-      HS.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.fvars,
+      HS.fieldsRecent.toFVarArrayAfter.toFVarArrayIn.fvars,
       fv ∉ (Hparams.fvars ++ Hbindings.motives.fvars) ++
         Hbindings.flatMinors.fvars) :
-    Nonempty (RetainedBlueprintBoundRule indTypes stats
+    Nonempty (RuleFromTemplate indTypes stats
       (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
       S HS.traversal B minorIdx HS.traversal.terminalContext outerRoot) := by
   rcases Horigin with
@@ -417,7 +417,7 @@ theorem RecInfoRuleBlueprintOriginAt.boundGeneratedRuleOfSemanticSource
     S.hypotheses_size indTypes (recInfos.flatMap (·.minors)) lvls
   have Hhas' : origins.stats = stats ∧
       origins.recInfos.map (·.motive) = recInfos.map (·.motive) := by
-    simpa [RecInfoMinorTypeShape.HasHypothesisTypeOrigins, horigins] using Hhas
+    simpa [MinorPremiseType.HasHypothesisTypeOrigins, horigins] using Hhas
   have hstats : origins.stats = stats := by
     exact Hhas'.1
   have hmotives : origins.recInfos.map (·.motive) =
@@ -427,15 +427,15 @@ theorem RecInfoRuleBlueprintOriginAt.boundGeneratedRuleOfSemanticSource
   have hselected : S.recursiveFields.toList.Sublist S.fields.toList := by
     rw [← HS.traversal_fields, ← hrecursiveFields]
     exact HS.traversal.decisions.selectedSublist
-  rcases BoundFVarArray.ofSublist
-      HS.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray hselected with
+  rcases FVarArrayIn.ofSublist
+      HS.fieldsRecent.toFVarArrayAfter.toFVarArrayIn hselected with
     ⟨Hrecursive⟩
   have HrecursiveNodup : Hrecursive.fvars.Nodup := by
     have hallExpr : S.fields.toList.Nodup := by
-      rw [HS.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.expressions]
+      rw [HS.fieldsRecent.toFVarArrayAfter.toFVarArrayIn.expressions]
       exact List.Pairwise.map Expr.fvar
         (fun _ _ hne heq => hne (Expr.fvar.inj heq))
-        HS.fieldsRecent.toFreshBoundFVarArray.nodup
+        HS.fieldsRecent.toFVarArrayAfter.nodup
     have hselectedExpr : S.recursiveFields.toList.Nodup :=
       hallExpr.sublist hselected
     rw [Hrecursive.expressions] at hselectedExpr
@@ -445,7 +445,7 @@ theorem RecInfoRuleBlueprintOriginAt.boundGeneratedRuleOfSemanticSource
     change List.Pairwise (fun a b : FVarId => a ≠ b) Hrecursive.fvars
     exact hselectedExpr.imp fun hneq heq =>
       hneq (congrArg Expr.fvar heq)
-  rcases RecInfoRuleBlueprintOriginAt.boundGeneratedRule
+  rcases RuleTemplateMatchesMinor.boundGeneratedRule
     (Horigin := ⟨hctor, hfields, hlctx, hminorBlueprint,
       HS.traversal, origins, HS.traversal_eq, horigins,
       htargetOwner, htargetIndices, HcallOrigins⟩)
@@ -454,8 +454,8 @@ theorem RecInfoRuleBlueprintOriginAt.boundGeneratedRuleOfSemanticSource
     HS.hypothesesRecent.contextLE
     (HS.hypothesesRecent.contextLE.trans HS.extension.contextLE)
     Hparams Hbindings.motives Hbindings.flatMinors HouterNodup
-    HS.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
-    HS.fieldsRecent.toFreshBoundFVarArray.nodup Hrecursive hselected
+    HS.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
+    HS.fieldsRecent.toFVarArrayAfter.nodup Hrecursive hselected
     HrecursiveNodup hfieldsFresh hminor hminorEq HcallsRaw with
       ⟨T, hT, ⟨Hretained⟩⟩
   have hTeq : T = HS.traversal := Option.some.inj
@@ -465,7 +465,7 @@ theorem RecInfoRuleBlueprintOriginAt.boundGeneratedRuleOfSemanticSource
 
 /-- Semantic payload indexed by the producer's literal components, before
 transport to the projections of the retained bound-rule certificate. -/
-structure RetainedGeneratedRuleSemantics
+structure RuleFromTemplateTyping
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     (sourceCtor : Constructor) (minorIdx : Nat) (sourceRule : RecursorRule)
@@ -484,9 +484,9 @@ structure RetainedGeneratedRuleSemantics
   parameterDecls : VLCtx
   parameterDecls_eq : parameterSuffix.parameterDecls = parameterDecls
   fieldRootExtension : RecursorContextExtension fieldRootContext Rroot
-  fieldsRecent : RecursorRecentBoundFVarArray fieldRootContext context allArgs
+  fieldsRecent : RecursorFVarSuffix fieldRootContext context allArgs
   parameterTail : Expr
-  parameterPrefix : RecursorParamPrefix stats 0 sourceCtor.type parameterTail
+  parameterPrefix : ParameterPrefix stats 0 sourceCtor.type parameterTail
   parameterTail_fvars : parameterTail.FVarsIn
     (· ∈ ExprArrayFVarIds stats.params)
   parameterTarget : VExpr
@@ -540,48 +540,48 @@ structure RetainedGeneratedRuleSemantics
   target_valid : AddInductive.isValidIndApp? stats target = some ownerIdx
   validated : RecursorValidatedIndAppAt context.venv recLparams
     context.mlctx.vlctx stats decl depth target targetTarget ownerIdx
-  fields : List (RecursorRecursiveDomainAt context.venv decl recLparams.length)
-  selection : RecursorFieldSelectionsAt context.venv decl recLparams.length
+  fields : List (RecursiveFieldDomainAt context.venv decl recLparams.length)
+  selection : RecursiveFieldSelectionsAt context.venv decl recLparams.length
     allArgs recursiveArgs fields
   decisionPositions : List Nat
   decisions : RecursorFieldDecisions stats fieldRoot parameterTail producerRoot
     target allArgs recursiveArgs decisionPositions
-  calls : ProducerStagedSemanticBoundGeneratedRecursiveCalls indTypes stats motives
+  calls : TypedRecursiveCallsAfterHypotheses indTypes stats motives
     minors lvls context decl
       (fun fv => fv ∈ fieldOpening.fvars ∨
         fv ∈ ExprArrayFVarIds stats.params)
       recursiveArgs recursiveResults recursiveArgs.size
 
-theorem RetainedGeneratedRuleSemantics.toSemantics
+theorem RuleFromTemplateTyping.toSemantics
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
-    (C : RetainedGeneratedRuleSemantics indTypes stats motives minors lvls
+    (C : RuleFromTemplateTyping indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule producerRoot target allArgs recursiveArgs
       recursiveResults Rroot decl expectedOwnerIdx)
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
     (hroot : H.root = producerRoot) (htarget : H.target = target)
     (hall : H.allArgs = allArgs) (hrecursive : H.recursiveArgs = recursiveArgs)
     (hresults : H.recursiveResults = recursiveResults)
     {recInfos : Array AddInductive.RecInfo} {elimLevel : Level}
-    (binding : RecursorMotiveBinding C.context
+    (binding : MotiveBinding C.context
       recInfos[C.ownerIdx]! elimLevel)
     (HmotiveTelescope : Nonempty
-      (RecursorMotiveTelescopeEvidence C.context stats
+      (MotiveAppliesTo C.context stats
         recInfos[C.ownerIdx]! binding target C.targetTarget))
-    (Hlookup : RecInfoMotiveTelescopeLookup C.context stats decl recInfos
+    (Hlookup : MotiveTelescopesAt C.context stats decl recInfos
       elimLevel) :
     ∃ S : H.Semantics Rroot decl expectedOwnerIdx,
-      ∃ binding' : RecursorMotiveBinding S.context
+      ∃ binding' : MotiveBinding S.context
           recInfos[S.ownerIdx]! elimLevel,
-        Nonempty (RecursorMotiveTelescopeEvidence S.context stats
+        Nonempty (MotiveAppliesTo S.context stats
           recInfos[S.ownerIdx]! binding' H.target S.targetTarget) ∧
-        RecInfoMotiveTelescopeLookup S.context stats decl recInfos elimLevel ∧
+        MotiveTelescopesAt S.context stats decl recInfos elimLevel ∧
         S.recursivePositions = C.decisionPositions ∧
         S.parameterDecls = C.parameterDecls ∧
         S.context = (hroot.symm ▸ C.context) ∧
         S.fieldOpening.fvars = C.fieldsRecent.fvars ∧
-        Nonempty (ProducerStagedSemanticBoundGeneratedRecursiveCalls
+        Nonempty (TypedRecursiveCallsAfterHypotheses
           indTypes stats motives minors lvls S.context decl
             (fun fv => fv ∈ S.fieldOpening.fvars ∨
               fv ∈ ExprArrayFVarIds stats.params)
@@ -625,7 +625,7 @@ theorem RetainedGeneratedRuleSemantics.toSemantics
     fieldTargetDefEq := C.fieldTargetDefEq
     constructorTarget := C.constructorTarget
     constructor_translation := by
-      simpa [BoundGeneratedRecursorRule.sourceConstructorMajor] using
+      simpa [RecursorRuleSyntax.sourceConstructorMajor] using
         C.constructor_translation
     constructor_typing := C.constructor_typing
     target_valid := C.target_valid
@@ -637,7 +637,7 @@ theorem RetainedGeneratedRuleSemantics.toSemantics
     calls := C.calls.toStaged }
   exact ⟨S, binding, HmotiveTelescope, Hlookup, rfl, rfl, rfl,
     C.fieldOpening.fvars_eq_bound
-      C.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray,
+      C.fieldsRecent.toFVarArrayAfter.toFVarArrayIn,
     ⟨C.calls⟩⟩
 
 /-- Exact paired first- and second-pass provenance for one recursive call.
@@ -649,26 +649,26 @@ theorem RecursorContextWF.chk_cast {c c' : AddInductive.Context}
   subst h
   rfl
 
-structure BoundGeneratedRecursorRule.ProducerCallReplayAt
+structure RecursorRuleSyntax.CallAt
     {recInfos : Array AddInductive.RecInfo}
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
     (S : H.Semantics Rroot decl expectedOwnerIdx)
-    (minorShape : RecInfoMinorTypeShape)
+    (minorShape : MinorPremiseType)
     (j : Nat) (hj : j < H.recursiveArgs.size) where
-  hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+  hypothesisOrigins : MinorInductionHypothesisTypes
     minorShape.sourceFullContext minorShape.recursiveFields
       minorShape.hypotheses
   hypothesisOrigins_eq :
     minorShape.hypothesis_type_origins = some hypothesisOrigins
   sourceOriginRoot : AddInductive.Context
   sourceType : Expr
-  sourceOrigin : RecInfoMinorHypothesisTypeOrigin hypothesisOrigins.stats
+  sourceOrigin : InductionHypothesisType hypothesisOrigins.stats
     hypothesisOrigins.recInfos sourceOriginRoot
       minorShape.recursiveFields[j]! sourceType
-  sourceDeclaration : BoundFVarDeclarationAt minorShape.sourceFullContext
+  sourceDeclaration : FVarDeclAt minorShape.sourceFullContext
     minorShape.hypotheses j
   sourceDeclaration_type : sourceDeclaration.type =
     (sourceType.consumeTypeAnnotationsVerified
@@ -676,96 +676,96 @@ structure BoundGeneratedRecursorRule.ProducerCallReplayAt
   originRoot : AddInductive.Context
   originContext : RecursorContextWF originRoot recLparams
   priorHypotheses : Array Expr
-  originRecent : RecursorRecentBoundFVarArray S.context originContext
+  originRecent : RecursorFVarSuffix S.context originContext
     priorHypotheses
   originCheck : originContext.chk = S.context.chk
   priorHypotheses_size : priorHypotheses.size = j
   callDepth : Nat
-  semantic : SemanticBoundGeneratedRecursiveCall indTypes stats
+  semantic : TypedRecursiveCall indTypes stats
     motives minors lvls originContext decl callDepth
       H.recursiveArgs[j] H.recursiveResults[j]!
   root_scope : semantic.rootScope = fun fv =>
     fv ∈ S.fieldOpening.fvars ∨ fv ∈ ExprArrayFVarIds stats.params
-  motiveApplication : Nonempty semantic.ProducerMotiveApplication
+  motiveApplication : Nonempty semantic.MotiveApplication
   replay : sourceOrigin.replayTrace minorShape.fields_bound.fvars =
     semantic.generated.replayTrace H.all_args_bound.fvars
 
 /-- The motive binder and telescope retained at the exact context in which
 the rule target was validated.  This is producer evidence, not a replay of
 the completed recursor pass. -/
-structure BoundGeneratedRecursorRule.ProducerMotiveEvidence
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+structure RecursorRuleSyntax.MotiveAt
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
     (S : H.Semantics Rroot decl expectedOwnerIdx)
     (recInfos : Array AddInductive.RecInfo) (elimLevel : Level) where
-  minorShape : RecInfoMinorTypeShape
-  minorTraversal : RecInfoMinorTraversalShape
+  minorShape : MinorPremiseType
+  minorTraversal : ConstructorFieldTraversal
   minorTraversal_eq : minorShape.traversal = some minorTraversal
   decisionPositions_eq : minorTraversal.recursivePositions =
     S.recursivePositions
-  calls : ProducerStagedSemanticBoundGeneratedRecursiveCalls indTypes stats
+  calls : TypedRecursiveCallsAfterHypotheses indTypes stats
     motives minors lvls S.context decl
       (fun fv => fv ∈ S.fieldOpening.fvars ∨
         fv ∈ ExprArrayFVarIds stats.params)
       H.recursiveArgs H.recursiveResults H.recursiveArgs.size
   replay : ∀ j (hj : j < H.recursiveArgs.size),
-    Nonempty (BoundGeneratedRecursorRule.ProducerCallReplayAt
+    Nonempty (RecursorRuleSyntax.CallAt
       (recInfos := recInfos) H S minorShape j hj)
-  binding : RecursorMotiveBinding S.context recInfos[S.ownerIdx]! elimLevel
-  telescope : Nonempty (RecursorMotiveTelescopeEvidence S.context stats
+  binding : MotiveBinding S.context recInfos[S.ownerIdx]! elimLevel
+  telescope : Nonempty (MotiveAppliesTo S.context stats
     recInfos[S.ownerIdx]! binding H.target S.targetTarget)
-  motiveLookup : RecInfoMotiveTelescopeLookup S.context stats decl recInfos
+  motiveLookup : MotiveTelescopesAt S.context stats decl recInfos
     elimLevel
 
 /-- Row-wise producer motive evidence, indexed by the exact semantic batch
 stored for installation.  Indexing by the batch prevents a later consumer
 from pairing a telescope with a different semantic reconstruction. -/
-inductive SemanticBoundGeneratedRecursorRules.ProducerMotiveEvidence
+inductive TypedRecursorRules.MotiveAt
     (recInfos : Array AddInductive.RecInfo) (elimLevel : Level) :
     {ctors : List Constructor} → {start : Nat} →
     {rules : List RecursorRule} →
-    SemanticBoundGeneratedRecursorRules indTypes stats
+    TypedRecursorRules indTypes stats
       (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
       Rroot decl ownerIdx ctors start rules → Prop
-  | nil : ProducerMotiveEvidence recInfos elimLevel
-      (.nil : SemanticBoundGeneratedRecursorRules indTypes stats
+  | nil : MotiveAt recInfos elimLevel
+      (.nil : TypedRecursorRules indTypes stats
         (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
         Rroot decl ownerIdx [] start [])
   | cons
-      (Hrule : BoundGeneratedRecursorRule indTypes stats
+      (Hrule : RecursorRuleSyntax indTypes stats
         (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
         ctor start rule)
       (S : Hrule.Semantics Rroot decl ownerIdx)
       (Hmotive : Nonempty
-        (Hrule.ProducerMotiveEvidence S recInfos elimLevel))
-      (Htail : SemanticBoundGeneratedRecursorRules indTypes stats
+        (Hrule.MotiveAt S recInfos elimLevel))
+      (Htail : TypedRecursorRules indTypes stats
         (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
         Rroot decl ownerIdx ctors (start + 1) rules)
-      (HtailMotive : ProducerMotiveEvidence recInfos elimLevel Htail) :
-      ProducerMotiveEvidence recInfos elimLevel
+      (HtailMotive : MotiveAt recInfos elimLevel Htail) :
+      MotiveAt recInfos elimLevel
         (.cons Hrule ⟨S⟩ Htail)
 
 /-- The producer evidence for one rule, tied to the exact persistent origin
 row and local constructor slot from which its blueprint was emitted. -/
-structure BoundGeneratedRecursorRule.ProducerOriginEvidence
-    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+structure RecursorRuleSyntax.MinorAt
+    (H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
     (S : H.Semantics Rroot decl expectedOwnerIdx)
     (recInfos : Array AddInductive.RecInfo) (elimLevel : Level)
-    (Horigins : RecInfoTypeOrigins semanticRoot recInfos)
+    (Horigins : RecInfoBinderTypes semanticRoot recInfos)
     (owner localIndex : Nat) where
-  producer : H.ProducerMotiveEvidence S recInfos elimLevel
+  producer : H.MotiveAt S recInfos elimLevel
   owner_lt : owner < recInfos.size
   local_lt : localIndex < Horigins.minorTypes[owner]!.size
   shape_eq : producer.minorShape =
     Horigins.minorShapes owner owner_lt localIndex local_lt
 
-theorem RecInfoTypeOrigins.minorShapes_congr
-    (H : RecInfoTypeOrigins c recInfos)
+theorem RecInfoBinderTypes.minorShapes_congr
+    (H : RecInfoBinderTypes c recInfos)
     {owner owner' localIndex localIndex' : Nat}
     (howner : owner = owner')
     (owner_lt : owner < recInfos.size) (owner_lt' : owner' < recInfos.size)
@@ -781,26 +781,26 @@ theorem RecInfoTypeOrigins.minorShapes_congr
 /-- Assemble the semantic certificate for the exact retained blueprint rule.
 Every field comes from first-pass producer evidence; no constructor traversal,
 call generation, inference, or alpha-renaming is replayed. -/
-theorem RetainedBlueprintBoundRule.semanticsOfProducer
+theorem RuleFromTemplate.semanticsOfProducer
     {stats : AddInductive.InductiveStats}
     {recInfos : Array AddInductive.RecInfo}
-    {S : RecInfoMinorTypeShape} {B : AddInductive.RecRuleBlueprint}
+    {S : MinorPremiseType} {B : AddInductive.RecRuleBlueprint}
     {outerRoot : AddInductive.Context} {recLparams : List Name}
     {Router : RecursorContextWF outerRoot recLparams}
     {indTypes : Array InductiveType} {lvls : List Level}
     {minorIdx expectedOwnerIdx : Nat} {elimLevel : Level}
-    (HS : RecInfoMinorSemanticSource Router S)
-    (H : RetainedBlueprintBoundRule indTypes stats
+    (HS : TypedMinorTraversal Router S)
+    (H : RuleFromTemplate indTypes stats
       (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
       S HS.traversal B minorIdx HS.traversal.terminalContext outerRoot)
-    (Hsem : RecInfoRuleBlueprintSemanticOriginAt Router decl stats recInfos
+    (Hsem : TypedRuleTemplateAt Router decl stats recInfos
       elimLevel parameterDecls expectedOwnerIdx S B) :
     ∃ Ssemantic : H.certificate.Semantics Router decl expectedOwnerIdx,
-      ∃ producer : H.certificate.ProducerMotiveEvidence Ssemantic recInfos
+      ∃ producer : H.certificate.MotiveAt Ssemantic recInfos
           elimLevel,
         producer.minorShape = S ∧
         Ssemantic.parameterDecls = parameterDecls := by
-  unfold RecInfoRuleBlueprintSemanticOriginAt at Hsem
+  unfold TypedRuleTemplateAt at Hsem
   rcases Hsem with
     ⟨semanticOrigins, hsemanticOrigins, hsemanticStats, hsemanticMotives,
       F, hparameterDecls, depth,
@@ -831,7 +831,7 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
     exact F.traversal.fieldResidual_not_forall
   have Hstaged := Hcalls.retainedGeneratedCalls S.hypotheses_size
     indTypes (recInfos.flatMap (·.minors)) lvls
-  let C : RetainedGeneratedRuleSemantics indTypes stats
+  let C : RuleFromTemplateTyping indTypes stats
       (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
       S.constructor minorIdx
       (B.build indTypes stats (recInfos.map (·.motive))
@@ -891,7 +891,7 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
         F.traversal_recursiveFields] using F.traversal.decisions
     calls := by
       rw [F.fieldOpening.fvars_eq_bound
-        F.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
+        F.fieldsRecent.toFVarArrayAfter.toFVarArrayIn]
       exact Hstaged }
   rcases C.toSemantics H.certificate hroot htarget H.allArgs_eq
       H.recursiveArgs_eq H.recursiveResults_eq binding HmotiveTelescope
@@ -904,7 +904,7 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
     rw [← S.fields_bound.exprArrayFVarIds,
       ← H.certificate.all_args_bound.exprArrayFVarIds, H.allArgs_eq]
   have Hreplay : ∀ j (hj : j < H.certificate.recursiveArgs.size),
-      Nonempty (BoundGeneratedRecursorRule.ProducerCallReplayAt
+      Nonempty (RecursorRuleSyntax.CallAt
         (recInfos := recInfos) H.certificate Ssemantic S j hj) := by
     intro j hj
     have hjSource : j < S.recursiveFields.size := by
@@ -957,7 +957,7 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
       rw [getElem!_pos _ j (by simpa using hjCalls)]
       simp [getElem!_pos B.recursiveCalls j hjCalls]
     have HpackageSource :
-        ∃ Scall' : SemanticBoundGeneratedRecursiveCall indTypes stats
+        ∃ Scall' : TypedRecursiveCall indTypes stats
             (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
             Rorigin decl (depth + j) S.recursiveFields[j]!
               (B.recursiveCalls[j]!.build indTypes stats
@@ -966,7 +966,7 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
           Scall'.rootScope = (fun fv =>
               fv ∈ F.fieldsRecent.fvars ∨
                 fv ∈ ExprArrayFVarIds stats.params) ∧
-          Nonempty Scall'.ProducerMotiveApplication ∧
+          Nonempty Scall'.MotiveApplication ∧
           O.replayTrace S.fields_bound.fvars =
             Scall'.generated.replayTrace
               H.certificate.all_args_bound.fvars :=
@@ -983,14 +983,14 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
     have hscopeFVars : F.fieldsRecent.fvars =
         Ssemantic.fieldOpening.fvars := hsemanticFieldFVars.symm
     have Hpackage :
-        ∃ Scall' : SemanticBoundGeneratedRecursiveCall indTypes stats
+        ∃ Scall' : TypedRecursiveCall indTypes stats
             (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
             Rorigin decl (depth + j) H.certificate.recursiveArgs[j]
               H.certificate.recursiveResults[j]!,
           Scall'.rootScope = (fun fv =>
               fv ∈ Ssemantic.fieldOpening.fvars ∨
                 fv ∈ ExprArrayFVarIds stats.params) ∧
-          Nonempty Scall'.ProducerMotiveApplication ∧
+          Nonempty Scall'.MotiveApplication ∧
           O.replayTrace S.fields_bound.fvars =
             Scall'.generated.replayTrace
               H.certificate.all_args_bound.fvars := by
@@ -1009,11 +1009,11 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
       originContext := Rorigin
       priorHypotheses := priorHypotheses
       originRecent := by
-        have HrecentC : RecursorRecentBoundFVarArray C.context Rorigin
+        have HrecentC : RecursorFVarSuffix C.context Rorigin
             priorHypotheses := Hrecent
-        have HrecentCast : RecursorRecentBoundFVarArray
+        have HrecentCast : RecursorFVarSuffix
             (hroot.symm ▸ C.context) Rorigin priorHypotheses := by
-          exact RecursorRecentBoundFVarArray.castRoot hroot.symm HrecentC
+          exact RecursorFVarSuffix.castRoot hroot.symm HrecentC
         rw [hsemanticContext]
         exact HrecentCast
       originCheck := by
@@ -1025,7 +1025,7 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
       root_scope := hscope'
       motiveApplication := Hmotive'
       replay := hreplay' }⟩
-  let producer : H.certificate.ProducerMotiveEvidence Ssemantic recInfos
+  let producer : H.certificate.MotiveAt Ssemantic recInfos
       elimLevel := {
     minorShape := S
     minorTraversal := F.traversal
@@ -1038,19 +1038,19 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
     motiveLookup := Hlookup' }
   exact ⟨Ssemantic, producer, rfl, hsemanticParameterDecls⟩
 
-theorem SemanticBoundGeneratedRecursorRules.ofEntriesWithProducer
+theorem TypedRecursorRules.ofEntriesWithProducer
     {ctors : List Constructor} {rules : List RecursorRule} {start : Nat}
     (hsize : ctors.length = rules.length)
     (H : ∀ i (hi : i < ctors.length),
-      ∃ Hrule : BoundGeneratedRecursorRule indTypes stats
+      ∃ Hrule : RecursorRuleSyntax indTypes stats
           (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
           ctors[i] (start + i) rules[i],
         ∃ S : Hrule.Semantics Rroot decl ownerIdx,
-          Nonempty (Hrule.ProducerMotiveEvidence S recInfos elimLevel)) :
-    ∃ Hrules : SemanticBoundGeneratedRecursorRules indTypes stats
+          Nonempty (Hrule.MotiveAt S recInfos elimLevel)) :
+    ∃ Hrules : TypedRecursorRules indTypes stats
         (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
         Rroot decl ownerIdx ctors start rules,
-      Nonempty (Hrules.ProducerMotiveEvidence recInfos elimLevel) := by
+      Nonempty (Hrules.MotiveAt recInfos elimLevel) := by
   induction ctors generalizing rules start with
   | nil =>
     cases rules with
@@ -1072,21 +1072,21 @@ theorem SemanticBoundGeneratedRecursorRules.ofEntriesWithProducer
 
 /-- Semantic owner row assembled from the exact retained blueprint and the
 semantic-origin row produced by the same second-pass iteration. -/
-theorem RecInfoRuleBlueprintOrigins.semanticBoundGeneratedRules
+theorem RuleTemplatesMatch.semanticBoundGeneratedRules
     {indTypes : Array InductiveType}
     {stats : AddInductive.InductiveStats}
     {recInfos : Array AddInductive.RecInfo}
     {c : AddInductive.Context}
-    {Horigins : RecInfoTypeOrigins c recInfos}
-    (H : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
-    (Hsources : RecInfoMinorSourceAlignment stats indTypes Horigins)
+    {Horigins : RecInfoBinderTypes c recInfos}
+    (H : RuleTemplatesMatch stats recInfos Horigins)
+    (Hsources : MinorsAndIndicesMatchSource stats indTypes Horigins)
     {recLparams : List Name} {R : RecursorContextWF c recLparams}
     (elimLevel : Level)
-    (HsemanticOrigins : RecInfoRuleBlueprintSemanticOrigins R decl stats
+    (HsemanticOrigins : TypedRuleTemplates R decl stats
       recInfos elimLevel parameterDecls Horigins)
-    (Hsemantics : RecInfoMinorSemanticAlignment R Horigins parameterDecls)
+    (Hsemantics : TypedMinors R Horigins parameterDecls)
     (Hbindings : RecInfoBindings c recInfos)
-    (Hparams : BoundFVarArray c stats.params)
+    (Hparams : FVarArrayIn c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
     (hsize : recInfos.size = indTypes.size)
     (hcounts : ∀ i, i < recInfos.size →
@@ -1096,21 +1096,21 @@ theorem RecInfoRuleBlueprintOrigins.semanticBoundGeneratedRules
       blueprint.build indTypes stats (recInfos.map (·.motive))
         (recInfos.flatMap (·.minors))
         (AddInductive.getRecLevels elimLevel stats.levels) c.lctx
-    ∃ Hrules : SemanticBoundGeneratedRecursorRules indTypes stats
+    ∃ Hrules : TypedRecursorRules indTypes stats
         (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
         (AddInductive.getRecLevels elimLevel stats.levels) R decl owner
         indTypes[owner]!.ctors (recursorMinorOffset indTypes owner) rules,
-      Nonempty (Hrules.ProducerMotiveEvidence recInfos elimLevel) ∧
+      Nonempty (Hrules.MotiveAt recInfos elimLevel) ∧
       ∀ localIndex (hlocal : localIndex < indTypes[owner]!.ctors.length)
           (hrule : localIndex < rules.length),
-        ∃ Hrule : BoundGeneratedRecursorRule indTypes stats
+        ∃ Hrule : RecursorRuleSyntax indTypes stats
             (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
             (AddInductive.getRecLevels elimLevel stats.levels)
             indTypes[owner]!.ctors[localIndex]
             (recursorMinorOffset indTypes owner + localIndex)
             (rules[localIndex]'hrule),
           ∃ S : Hrule.Semantics R decl owner,
-            Nonempty (Hrule.ProducerOriginEvidence S recInfos elimLevel
+            Nonempty (Hrule.MinorAt S recInfos elimLevel
               Horigins owner localIndex) ∧
             S.parameterDecls = parameterDecls := by
   dsimp only
@@ -1123,14 +1123,14 @@ theorem RecInfoRuleBlueprintOrigins.semanticBoundGeneratedRules
   have Hentry : ∀ localIndex
       (hlocal : localIndex < indTypes[owner]!.ctors.length)
       (hrule : localIndex < rules.length),
-      ∃ Hrule : BoundGeneratedRecursorRule indTypes stats
+      ∃ Hrule : RecursorRuleSyntax indTypes stats
           (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
           (AddInductive.getRecLevels elimLevel stats.levels)
           indTypes[owner]!.ctors[localIndex]
           (recursorMinorOffset indTypes owner + localIndex)
           (rules[localIndex]'hrule),
         ∃ S : Hrule.Semantics R decl owner,
-          Nonempty (Hrule.ProducerOriginEvidence S recInfos elimLevel
+          Nonempty (Hrule.MinorAt S recInfos elimLevel
             Horigins owner localIndex) ∧
           S.parameterDecls = parameterDecls := by
     intro localIndex hlocal hrule
@@ -1139,7 +1139,7 @@ theorem RecInfoRuleBlueprintOrigins.semanticBoundGeneratedRules
       exact hlocal
     let S := Horigins.minorShapes owner hownerRec localIndex hshapeLocal
     let B := recInfos[owner]!.ruleBlueprints[localIndex]!
-    have Horigin : RecInfoRuleBlueprintOriginAt stats S
+    have Horigin : RuleTemplateMatchesMinor stats S
         recInfos[owner]!.minors[localIndex]! B :=
       H.entry owner hownerRec localIndex hshapeLocal
     have Hsource := Hsources.rows owner hownerRec howner localIndex hshapeLocal
@@ -1165,14 +1165,14 @@ theorem RecInfoRuleBlueprintOrigins.semanticBoundGeneratedRules
       rw [htotalList]
       omega
     have hfieldsFresh : ∀ fv ∈
-        HS.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.fvars,
+        HS.fieldsRecent.toFVarArrayAfter.toFVarArrayIn.fvars,
         fv ∉ (Hparams.fvars ++ Hbindings.motives.fvars) ++
           Hbindings.flatMinors.fvars := by
       intro fv hfv
       have hshapeFields :
-          HS.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.fvars =
+          HS.fieldsRecent.toFVarArrayAfter.toFVarArrayIn.fvars =
             S.fields_bound.fvars :=
-        HS.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+        HS.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
           |>.exprArrayFVarIds.symm.trans S.fields_bound.exprArrayFVarIds
       rw [hshapeFields] at hfv
       have hfresh := H.fields_outer_fresh owner hownerRec localIndex
@@ -1223,7 +1223,7 @@ theorem RecInfoRuleBlueprintOrigins.semanticBoundGeneratedRules
       shape_eq := hshapeEq }⟩, hsemanticParameterDecls⟩
   have hrulesSize : indTypes[owner]!.ctors.length = rules.length := by
     simpa [rules] using hrowSize.symm
-  rcases SemanticBoundGeneratedRecursorRules.ofEntriesWithProducer
+  rcases TypedRecursorRules.ofEntriesWithProducer
       hrulesSize (fun localIndex hlocal => by
         have hrule : localIndex < rules.length := by omega
         rcases Hentry localIndex hlocal hrule with

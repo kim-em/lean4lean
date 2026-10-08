@@ -284,7 +284,7 @@ theorem mkRecInfos.flatMinors_size_of_translation
 
 /-- Structural portion of the independent recursor shape, assembled before
 the generated telescope itself is translated. -/
-structure RecursorCardinalityCertificate
+structure RecursorCounts
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
     (decl : VInductDecl) : Prop where
@@ -298,7 +298,7 @@ structure RecursorCardinalityCertificate
     recInfos[i]!.indices.size =
       (decl.types[i]'(by simpa [records] using hi)).numIndices
 
-theorem RecursorCardinalityCertificate.ofResult
+theorem RecursorCounts.ofResult
     {indTypes : Array InductiveType}
     {recInfos : Array AddInductive.RecInfo}
     {envTypes envCtors : VEnv}
@@ -312,7 +312,7 @@ theorem RecursorCardinalityCertificate.ofResult
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
     (harities : ∀ i, i < recInfos.size →
       recInfos[i]!.indices.size = stats.nindices[i]!) :
-    RecursorCardinalityCertificate stats recInfos decl where
+    RecursorCounts stats recInfos decl where
   records := hsize.trans (by
     simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl)
   families := by

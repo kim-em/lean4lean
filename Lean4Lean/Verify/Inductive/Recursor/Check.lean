@@ -33,7 +33,7 @@ structure RecursorCheck
   generated : GeneratedRecursors localContext.safety
     R.context.venv
     localContext.lparams elimLevel localContext stats indTypes recInfos entries
-  ruleSemantics : GeneratedRecursorRuleSemanticsRange
+  ruleSemantics : TypedRecursorRulesRange
     recursorWF decl stats indTypes recInfos origins elimLevel
       parameterSuffix.parameterDecls 0 entries
   installed : AddConstants localContext.safety localContext.env
@@ -228,9 +228,9 @@ theorem ConstructorCheck.recursorPhasesWF
   have Hseed : forall owner (howner : owner < indTypes.size),
       forall ctor, ctor ∈ indTypes[owner]!.ctors ->
         exists tail tailTarget introTarget,
-          RecursorParamPrefix stats 0 ctor.type tail ∧
+          ParameterPrefix stats 0 ctor.type tail ∧
           Nonempty
-            (CheckedConstructorOwnerNormalForm stats owner tail) ∧
+            (ConstructorOwnerNormalForm stats owner tail) ∧
           tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
           TrExprS Rlocal.venv
             (AddInductive.getRecLevelParams elimLevel c.lparams)
@@ -258,7 +258,7 @@ theorem ConstructorCheck.recursorPhasesWF
         HtailType, Hintro, HintroType, _⟩
     exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars,
       Htail, HtailType, Hintro, HintroType⟩
-  let construction (T : RecursorTypeTranslations R.context.venv localContext.lparams
+  let construction (T : TrRecursorTypes R.context.venv localContext.lparams
       elimLevel localContext stats indTypes recInfos) :
       RecursorConstruction R := {
     sourceSafety := hsourceSafety
@@ -324,13 +324,13 @@ theorem ConstructorCheck.recursorPhasesWF
               R.context.venv
               localContext.lparams elimLevel localContext stats indTypes
               recInfos entries) ∧
-            Nonempty (GeneratedRecursorRuleSemanticsRange Rlocal decl stats
+            Nonempty (TypedRecursorRulesRange Rlocal decl stats
               indTypes recInfos Horigins elimLevel
                 HsuffixLocal.parameterDecls 0 entries) ∧
             AddConstants localContext.safety localContext.env
               R.context.venv
               entries outEnv outVEnv ∧
-            ∃ T : RecursorTypeTranslations R.context.venv localContext.lparams
+            ∃ T : TrRecursorTypes R.context.venv localContext.lparams
               elimLevel localContext stats indTypes recInfos,
             ∀ i (hi : i < entries.length), entries[i].2 = {
               name := Lean.mkRecName indTypes[i]!.name
