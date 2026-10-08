@@ -76,6 +76,47 @@ theorem _root_.Lean4Lean.ProjectionCorner.add {env : Environment}
     · exact absurd ⟨ci₂, heq.symm, heq ▸ hvis⟩ hctor
     · exact (hcert hold hvis).mono hle
 
+/-- Certificates of an installed constant: none for a non-constructor; for a visible constructor,
+its certificate in the environment before the installation. -/
+theorem _root_.Lean4Lean.CtorTelescopes.add {env : Environment}
+    (H : CtorTelescopes safety env venv) (hwf : env.constants.WF)
+    (hn : env.find? ci.name = none) (hle : venv ≤ venv')
+    (hstep : ∀ info, ci = .ctorInfo info → safety ≤ ci.safety → CtorTelescopeAt venv info) :
+    CtorTelescopes safety (env.add ci) venv' := by
+  intro name ci₂ hfind hvis
+  rcases find?_add_cases hwf _ hn hfind with ⟨-, heq⟩ | hold
+  · exact (hstep ci₂ heq.symm (heq ▸ hvis)).mono hle
+  · exact (H hold hvis).mono hle
+
+theorem _root_.Lean4Lean.CtorTelescopes.addNonCtor {env : Environment}
+    (H : CtorTelescopes safety env venv) (hwf : env.constants.WF)
+    (hn : env.find? ci.name = none) (hle : venv ≤ venv')
+    (hnot : ∀ info, ci ≠ .ctorInfo info) : CtorTelescopes safety (env.add ci) venv' :=
+  H.add hwf hn hle fun info e => absurd e (hnot info)
+
+/-- A fresh batch of non-constructor constants preserves the certificates. -/
+theorem _root_.Lean4Lean.CtorTelescopes.foldlAdd {α} {f : α → ConstantInfo}
+    (hnot : ∀ v info, f v ≠ .ctorInfo info) (hle : venv ≤ venv') :
+    ∀ (vs : List α) {env : Environment}, CtorTelescopes safety env venv →
+      env.constants.WF → (∀ v ∈ vs, env.find? (f v).name = none) →
+      (vs.map (fun v => (f v).name)).Nodup →
+      CtorTelescopes safety (vs.foldl (fun e v => e.add (f v)) env) venv'
+  | [], _, H, _, _, _ => H.mono hle
+  | v :: vs, env, H, hwf, hfresh, hnd => by
+    rw [List.map_cons, List.nodup_cons] at hnd
+    have hn := hfresh v List.mem_cons_self
+    have hnMap : env.constants.find? (f v).name = none := by
+      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
+    have hwf' : (env.add (f v)).constants.WF := hwf.insert _ _ hnMap
+    refine CtorTelescopes.foldlAdd hnot hle vs (H.addNonCtor hwf hn VEnv.LE.rfl (hnot v))
+      hwf' (fun w hw => ?_) hnd.2
+    cases hfind : (env.add (f v)).find? (f w).name with
+    | none => rfl
+    | some found =>
+      rcases find?_add_cases hwf _ hn hfind with ⟨hname, -⟩ | hold
+      · exact absurd (List.mem_map.2 ⟨w, hw, hname⟩) hnd.1
+      · rw [hfresh w (List.mem_cons_of_mem _ hw)] at hold; cases hold
+
 /-- The corner transports to an environment whose constructors are constructors of the source. -/
 theorem _root_.Lean4Lean.ProjectionCorner.ofCtors {source target : Environment}
     (H : ProjectionCorner safety source venv)
@@ -92,6 +133,35 @@ theorem _root_.Lean4Lean.ProjectionCorner.mapExt {source target : Environment}
   H.ofCtors fun hfind => by
     rw [Lean.Kernel.Environment.find?, hs.find?'_eq_find?, heq, ← ht.find?'_eq_find?]
     exact hfind
+
+theorem _root_.Lean4Lean.ProjectionCorner.addNonCtor {env : Environment}
+    (H : ProjectionCorner safety env venv) (hwf : env.constants.WF)
+    (hn : env.find? ci.name = none) (hle : venv ≤ venv')
+    (hnot : ∀ info, ci ≠ .ctorInfo info) : ProjectionCorner safety (env.add ci) venv' :=
+  H.add hwf hn hle (.of_not_ctor hnot)
+
+/-- A fresh batch of non-constructor constants preserves the corner. -/
+theorem _root_.Lean4Lean.ProjectionCorner.foldlAdd {α} {f : α → ConstantInfo}
+    (hnot : ∀ v info, f v ≠ .ctorInfo info) (hle : venv ≤ venv') :
+    ∀ (vs : List α) {env : Environment}, ProjectionCorner safety env venv →
+      env.constants.WF → (∀ v ∈ vs, env.find? (f v).name = none) →
+      (vs.map (fun v => (f v).name)).Nodup →
+      ProjectionCorner safety (vs.foldl (fun e v => e.add (f v)) env) venv'
+  | [], _, H, _, _, _ => H.mono hle
+  | v :: vs, env, H, hwf, hfresh, hnd => by
+    rw [List.map_cons, List.nodup_cons] at hnd
+    have hn := hfresh v List.mem_cons_self
+    have hnMap : env.constants.find? (f v).name = none := by
+      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
+    have hwf' : (env.add (f v)).constants.WF := hwf.insert _ _ hnMap
+    refine ProjectionCorner.foldlAdd hnot hle vs (H.addNonCtor hwf hn VEnv.LE.rfl (hnot v))
+      hwf' (fun w hw => ?_) hnd.2
+    cases hfind : (env.add (f v)).find? (f w).name with
+    | none => rfl
+    | some found =>
+      rcases find?_add_cases hwf _ hn hfind with ⟨hname, -⟩ | hold
+      · exact absurd (List.mem_map.2 ⟨w, hw, hname⟩) hnd.1
+      · rw [hfresh w (List.mem_cons_of_mem _ hw)] at hold; cases hold
 
 theorem TypeAnnotationWrappers.addConstant
     (H : TypeAnnotationWrappers env)

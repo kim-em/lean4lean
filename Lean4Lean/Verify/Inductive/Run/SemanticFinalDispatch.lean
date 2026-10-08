@@ -15,7 +15,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendWithSpecification
     {ves : VEnvs}
     (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
       nparams types numNested outEnv)
-    (wf : ves.WF source.env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WF source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
     (hsource : sourceEnv = ves.venv source.safety)
     (hnotPartial : source.safety ≠ .partial)
     (hnonempty : types ≠ []) :
@@ -30,6 +30,8 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendWithSpecification
   have wf' : ves.WF c'.env := by
     rw [henv]
     exact wf
+  have hcorner' : ∀ safety, ProjectionCorner safety c'.env (ves.venv safety) := by
+    rw [henv]; exact hcorner
   have hnonempty' : types.toArray.toList ≠ [] := by
     simpa using hnonempty
   cases hs : source.safety with
@@ -40,7 +42,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendWithSpecification
       have hproduction :
           (source.safety != .safe) = (c'.safety != .safe) :=
         congrArg (fun safety => safety != .safe) hsafety.symm
-      rcases SemanticRunWithStatsResult.extendUnsafeExact Hphases wf' hch
+      rcases SemanticRunWithStatsResult.extendUnsafeExact Hphases wf' hcorner'
           hcSafety hcVEnv hproduction hnonempty' with
         ⟨ves', decl, envTypes, envCtors, wf'', hle, hcore, hadd⟩
       refine ⟨ves', wf'', hle, ?_⟩
@@ -58,7 +60,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendWithSpecification
       have hcSafety : c'.safety = .safe := hsafety.trans hs
       have hcVEnv : Hc'.venv = ves.venv .safe := by
         exact hvenv.trans (hsource.trans (congrArg ves.venv hs))
-      rcases SemanticRunWithStatsResult.extendSafeExact Hphases wf' hch
+      rcases SemanticRunWithStatsResult.extendSafeExact Hphases wf' hcorner'
           hcSafety hcVEnv hnonempty' with
         ⟨ves', decl, envTypes, envCtors, wf'', hle, hcore, hadd⟩
       refine ⟨ves', wf'', hle, ?_⟩
@@ -80,13 +82,13 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extend
     {ves : VEnvs}
     (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
       nparams types numNested outEnv)
-    (wf : ves.WF source.env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WF source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
     (hsource : sourceEnv = ves.venv source.safety)
     (hnotPartial : source.safety ≠ .partial)
     (hnonempty : types ≠ []) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases Hrun.extendWithSpecification wf hch hsource hnotPartial hnonempty with
+  rcases Hrun.extendWithSpecification wf hcorner hsource hnotPartial hnonempty with
     ⟨ves', wf', hle, _spec⟩
   exact ⟨ves', wf', hle⟩
 
@@ -95,14 +97,14 @@ when it is present in the source model. -/
 theorem VerifiedSemanticInductiveRunResultSourceAligned.extendOfQuotReady
     (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
       nparams types numNested outEnv)
-    (wf : ves.WF source.env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WF source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
     (hEq : CanonicalEqEnvs ves)
     (hsource : sourceEnv = ves.venv source.safety)
     (hnotPartial : source.safety ≠ .partial)
     (hnonempty : types ≠ []) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases Hrun.extend wf hch hsource hnotPartial hnonempty with
+  rcases Hrun.extend wf hcorner hsource hnotPartial hnonempty with
     ⟨ves', wf', hle⟩
   exact ⟨ves', wf', hEq.mono hle, hle⟩
 
@@ -112,7 +114,7 @@ theorem AddInductive.run.semanticFinalModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WF c.env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hsource : Hc.venv = ves.venv c.safety)
     (Hclosed : MutualInductivesClosed c.env)
     (hctx : Hc.mlctx.vlctx = [])
@@ -139,7 +141,7 @@ theorem AddInductive.run.semanticFinalModelWF
     | cons _ _ => simp [htypes]
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
     Hclosed wf.envGF hctx hsize HnotPartial Hinputs).mono fun _ Hrun =>
-      Hrun.extend wf hch hsource HnotPartial hnonempty
+      Hrun.extend wf hcorner hsource HnotPartial hnonempty
 
 /-- Complete ordinary refinement retaining the independent source judgment,
 without any equality-bootstrap premise. -/
@@ -147,7 +149,7 @@ theorem AddInductive.run.semanticFinalSpecificationModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WF c.env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hsource : Hc.venv = ves.venv c.safety)
     (Hclosed : MutualInductivesClosed c.env)
     (hctx : Hc.mlctx.vlctx = [])
@@ -177,7 +179,7 @@ theorem AddInductive.run.semanticFinalSpecificationModelWF
     | cons _ _ => simp [htypes]
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
     Hclosed wf.envGF hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
-      exact Hrun.extendWithSpecification wf hch hsource HnotPartial hnonempty
+      exact Hrun.extendWithSpecification wf hcorner hsource HnotPartial hnonempty
 
 /-- Complete ordinary `AddInductive.run` refinement at the final environment
 boundary.  The executable run supplies the abstract declaration and every
@@ -186,7 +188,7 @@ invariants and the explicitly isolated shared metatheory properties. -/
 theorem AddInductive.run.semanticFinalWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WF c.env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hEq : CanonicalEqEnvs ves)
     (hsource : Hc.venv = ves.venv c.safety)
     (Hclosed : MutualInductivesClosed c.env)
@@ -214,7 +216,7 @@ theorem AddInductive.run.semanticFinalWF
     | cons _ _ => simp [htypes]
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
     Hclosed wf.envGF hctx hsize HnotPartial Hinputs).mono fun _ Hrun =>
-      Hrun.extendOfQuotReady wf hch hEq hsource HnotPartial hnonempty
+      Hrun.extendOfQuotReady wf hcorner hEq hsource HnotPartial hnonempty
 
 /-- Complete ordinary refinement without projecting away the independent
 source judgment.  The final safety-indexed model, the exact source
@@ -223,7 +225,7 @@ executable run. -/
 theorem AddInductive.run.semanticFinalSpecificationWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WF c.env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hEq : CanonicalEqEnvs ves)
     (hsource : Hc.venv = ves.venv c.safety)
     (Hclosed : MutualInductivesClosed c.env)
@@ -254,7 +256,7 @@ theorem AddInductive.run.semanticFinalSpecificationWF
     | cons _ _ => simp [htypes]
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
     Hclosed wf.envGF hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
-      rcases Hrun.extendWithSpecification wf hch hsource HnotPartial hnonempty with
+      rcases Hrun.extendWithSpecification wf hcorner hsource HnotPartial hnonempty with
         ⟨ves', wf', hle, Hspec⟩
       exact ⟨ves', wf', hEq.mono hle, hle, Hspec⟩
 

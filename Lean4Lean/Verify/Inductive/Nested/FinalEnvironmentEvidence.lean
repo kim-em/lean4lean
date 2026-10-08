@@ -697,7 +697,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProductionClose
       (ves.venv .safe) result.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WF sourceProdEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WF sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
@@ -718,7 +718,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProductionClose
     exact wf.constructorOwners
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
     Harity Howners hempty henv hlparams hnames wf.inductivesClosed
-  exact C.safeInductiveFinalResultOfProduction wf hch Hlower Hc Hprod
+  exact C.safeInductiveFinalResultOfProduction wf hcorner Hlower Hc Hprod
     Hmetadata Hsources Harity hempty henv hlparams hnames hclosed
       hconstructorSemantics
 
@@ -743,7 +743,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProductionClo
       (ves.venv .unsafe) result.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WF sourceProdEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WF sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
@@ -771,7 +771,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProductionClo
     Howners hempty henv hlparams hnames hauxRec hauxNames hsafety
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
     Harity Howners hempty henv hlparams hnames wf.inductivesClosed
-  exact C.unsafeInductiveFinalResultOfProduction wf hch Hlower Hc Hprod
+  exact C.unsafeInductiveFinalResultOfProduction wf hcorner Hlower Hc Hprod
     Hmetadata Hsources Harity hempty henv hlparams hnames hentries hclosed
       hconstructorSemantics
 
@@ -799,7 +799,7 @@ private theorem NestedInstalledProduction.reindex
 theorem NestedExactFinalRunResult.safeInductiveFinalResult
     (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes
       (ves.venv .safe) decl lparams nparams false .safe outEnv)
-    (wf : ves.WF sourceProdEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WF sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed E.productionContext.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
@@ -822,7 +822,7 @@ theorem NestedExactFinalRunResult.safeInductiveFinalResult
     have h := E.assembly.constructorArityPrefix
     rw [E.production_eq] at h
     exact h
-  exact E.assembly.safeInductiveFinalResultOfProductionClosed wf hch Hlower
+  exact E.assembly.safeInductiveFinalResultOfProductionClosed wf hcorner Hlower
     E.productionContextWF Hproduction Hmetadata Hsources Harity hempty
     E.productionContext_env E.productionContext_lparams rfl
       hconstructorSemantics
@@ -833,7 +833,7 @@ and restoration traces. -/
 theorem NestedExactFinalRunResult.unsafeInductiveFinalResult
     (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes
       (ves.venv .unsafe) decl lparams nparams true .unsafe outEnv)
-    (wf : ves.WF sourceProdEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WF sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed E.productionContext.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
@@ -856,7 +856,7 @@ theorem NestedExactFinalRunResult.unsafeInductiveFinalResult
     have h := E.assembly.constructorArityPrefix
     rw [E.production_eq] at h
     exact h
-  exact E.assembly.unsafeInductiveFinalResultOfProductionClosed wf hch Hlower
+  exact E.assembly.unsafeInductiveFinalResultOfProductionClosed wf hcorner Hlower
     E.productionContextWF Hproduction Hmetadata Hsources Harity hempty
     E.productionContext_env E.productionContext_lparams rfl rfl rfl
       E.productionContext_safety hconstructorSemantics

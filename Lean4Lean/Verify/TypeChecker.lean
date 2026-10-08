@@ -43,10 +43,10 @@ theorem VEnvs.WF.projectionRegistryCoherent
 
 theorem VEnvs.WF.toCheckingValid
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (safety : DefinitionSafety) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice) :
+    (safety : DefinitionSafety) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) :
     CheckingEnv.Valid safety env (ves.venv safety) :=
   wf.tr.toCheckingValid wf.hasPrimitives wf.safePrimitives
-    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (.inl (hch _))
+    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
 
 /-- Assemble a `VEnvs` from a pointwise existential by case analysis on the
 three safety levels. -/
@@ -163,7 +163,7 @@ def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
   lctx_eq := rfl
 
 def VContext.mk1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
-    (wf : VEnvAt env safety venv) (hch : venv.HasCanonicalChoice) (lparams : List Name := [])
+    (wf : VEnvAt env safety venv) (hcorner : ProjectionCorner safety env venv) (lparams : List Name := [])
     (fuel : FuelConfig := {}) : VContext where
   env; safety; lparams; fuel; venv
   hasPrimitives := wf.hasPrimitives
@@ -172,20 +172,20 @@ def VContext.mk1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
   projectionRegistry := wf.projectionRegistry
   recursors := wf.recursors
   quot := wf.quot
-  corner := .inl hch
+  corner := hcorner
   mlctx := .nil
   mlctx_wf := trivial
   lctx_eq := rfl
 
 def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (safety : DefinitionSafety := .safe) (lparams : List Name := [])
-    (fuel : FuelConfig := {}) : VContext := .mk1 (wf.toVEnvAt safety) (hch _) lparams fuel
+    (fuel : FuelConfig := {}) : VContext := .mk1 (wf.toVEnvAt safety) (hcorner _) lparams fuel
 
 theorem VState.WF.empty1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
-    {wf : VEnvAt env safety venv} {hch : venv.HasCanonicalChoice} {lparams : List Name}
+    {wf : VEnvAt env safety venv} {hcorner : ProjectionCorner safety env venv} {lparams : List Name}
     {fuel : FuelConfig} :
-    VState.WF (.mk1 wf hch lparams fuel) {} where
+    VState.WF (.mk1 wf hcorner lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
   ectx := .empty
@@ -262,13 +262,13 @@ theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
 
 theorem VState.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WF env}
     {safety : DefinitionSafety} {lparams : List Name} {fuel : FuelConfig}
-    {hch : ∀ safety, (ves.venv safety).HasCanonicalChoice} :
-    VState.WF (.mk' wf hch safety lparams fuel) {} := by
+    {hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)} :
+    VState.WF (.mk' wf hcorner safety lparams fuel) {} := by
   unfold VContext.mk'; exact .empty1
 
 theorem M.WF.run1 {env : Environment} {venv : VEnv} (wf : VEnvAt env safety venv)
-    {hch : venv.HasCanonicalChoice}
-    {x : M α} {Q} (H : x.WF (.mk1 wf hch lparams fuel) {} fun a _ => Q a) :
+    {hcorner : ProjectionCorner safety env venv}
+    {x : M α} {Q} (H : x.WF (.mk1 wf hcorner lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
   intro a eq
   simp [M.run, Functor.map, Except.map] at eq
@@ -320,8 +320,8 @@ theorem M.WF.runCheckingValidMLC {env : Environment} {venv : VEnv}
   exact hQ
 
 theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    {hch : ∀ safety, (ves.venv safety).HasCanonicalChoice}
-    {x : M α} {Q} (H : x.WF (.mk' wf hch safety lparams fuel) {} fun a _ => Q a) :
+    {hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)}
+    {x : M α} {Q} (H : x.WF (.mk' wf hcorner safety lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
   unfold VContext.mk' at H; exact M.WF.run1 _ H
 
