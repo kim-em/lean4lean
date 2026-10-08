@@ -774,8 +774,8 @@ theorem RecursorConstruction.recursorTelescope_minorResidual
     obtain ⟨m', idx, Hm, Hidx, hf'⟩ := checkPositivityStep.TrExprS.mkAppList_inv Hf
     have hm' := TrExprS.bvar_eq_of_abstractForallContext Hm (by rw [hlenCtx]; omega)
     obtain ⟨c', P', F', Hc, HP, HF, ha'⟩ := checkPositivityStep.TrExprS.mkAppList_append_inv Ha
-    have hP := TrExprS.shiftedCanonicalBvars_eq HP (by rw [hlenCtx]; omega)
-    have hF := TrExprS.shiftedCanonicalBvars_eq HF (by rw [hlenCtx]; omega)
+    have hP := TrExprS.shiftedBvarSpine_eq HP (by rw [hlenCtx]; omega)
+    have hF := TrExprS.shiftedBvarSpine_eq HF (by rw [hlenCtx]; omega)
     cases Hc with
     | const _ hlevels _ =>
       have hus := Option.some.inj (hlevels.symm.trans H.statsLevelsTranslation)
@@ -1395,7 +1395,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisShape
         List.ofFn fun l : Fin O.args.size => Expr.bvar (0 + (O.args.size - 1 - l)) := by
       simp
     rw [hspine] at Hargs
-    have hargs' := TrExprS.shiftedCanonicalBvars_eq Hargs (by rw [hlenCtx]; omega)
+    have hargs' := TrExprS.shiftedBvarSpine_eq Hargs (by rw [hlenCtx]; omega)
     refine ⟨A, I, hA, ?_, HI⟩
     rw [hEq, hf', ha', hm', hf'', hargs']
 
@@ -1612,8 +1612,8 @@ theorem majorDomain_lift (name : Name) (levels : List VLevel) (nparams nidx extr
       VExpr.mkApps (.const name levels)
         (InductiveSignature.vars nparams (extra + nidx) ++ InductiveSignature.vars nidx 0) := by
   simp only [VExpr.liftN_mkApps, VExpr.liftN]
-  rw [bvarSpine_add, List.map_append, List.map_map, ← vars_eq_canonical,
-    ← vars_eq_canonical]
+  rw [bvarSpine_add, List.map_append, List.map_map, ← vars_eq_bvarSpine,
+    ← vars_eq_bvarSpine]
   congr 1
   congr 1
   · have h : (InductiveSignature.vars nparams 0).map

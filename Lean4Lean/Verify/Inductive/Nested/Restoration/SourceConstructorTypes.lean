@@ -139,7 +139,7 @@ theorem NestedRun.restorableNames_fresh
   have hrecursorsAdded := E.lowered.recursors.installed.abstract
   have hrecursorValues : E.lowered.recursors.entries.map Prod.snd =
       E.lowered.generatedInstance.recursors :=
-    E.lowered.recursors.canonicalRecursors
+    E.lowered.recursors.recursors
   rw [hrecursorValues, E.lowered.constructors.toConstructorCheck.contextVEnv]
     at hrecursorsAdded
   have hrecursorsFresh := VEnv.addConstVals_names_fresh hrecursorsAdded

@@ -656,7 +656,7 @@ theorem NestedRun.recursorProjNames_of
   have hrec : owner.val <
       E.lowered.recursors.toRecursorConstruction.recInfos.size := by
     omega
-  have htr := E.lowered.recursors.toRecursorConstruction.canonicalTypeTranslations
+  have htr := E.lowered.recursors.toRecursorConstruction.typeTranslations
     owner.val howner
   have hnative : (E.lowered.recursors.toRecursorConstruction.recursorTarget
       owner.val).type =

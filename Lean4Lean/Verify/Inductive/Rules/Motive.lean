@@ -217,7 +217,7 @@ theorem RecursorConstruction.recursorTelescopeNative
     rw [← H.recursorEnv]
     exact H.recursorWF.checking.tr.wf
   obtain ⟨target, Htr₀, Htype₀⟩ := H.recursorTypeTranslation owner hsourceOwner
-  have Htr := H.canonicalTypeTranslations owner hsourceOwner
+  have Htr := H.typeTranslations owner hsourceOwner
   have Heq := Htr.uniq henv .nil Htr₀
   have Htype : R.context.venv.IsType
       (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
@@ -279,7 +279,7 @@ theorem RecursorCheck.ownerSuffix_eq_expected
     simpa [H.generated.length] using howner
   obtain ⟨T₀⟩ := H.recursorTelescopeNative owner hrec
   have htgt : H.entries[owner].2.type = (H.recursorTarget owner).type := by
-    rw [H.canonicalTargets owner howner]
+    rw [H.targets owner howner]
   obtain ⟨hmot, hidx⟩ := T.motivesSuffix_eq_of_target T₀ htgt
   let g := H.generatedInstance H.familySignature
   have hm := H.recursorTelescope_motives T₀ g rfl rfl rfl
@@ -1049,7 +1049,7 @@ motive, then transport it to the generated parameter telescope.  Earlier
 mutual motives are absent from the concrete source, so adding their abstract
 binders is precisely ordinary bound-variable weakening. -/
 theorem
-    RecursorCheck.installedOwnerCanonicalMotiveDomainAt
+    RecursorCheck.installedOwnerMotiveDomainAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}

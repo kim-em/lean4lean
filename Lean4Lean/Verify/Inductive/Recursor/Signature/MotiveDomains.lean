@@ -382,7 +382,7 @@ theorem RecursorConstruction.majorBinderSource
       simp [hsizeP, hsizeI]
   rwa [hvars] at Hclosed
 
-theorem TrExprS.const_canonicalBvars_eq
+theorem TrExprS.const_bvarSpine_eq
     (Hlevels : levels.mapM (VLevel.ofLevel Us) = some vlevels)
     (Htr : TrExprS env Us (abstractForallContext domains Δ)
       (Expr.mkAppList (.const name levels)
@@ -455,7 +455,7 @@ theorem RecursorConstruction.consumedMotiveMajor
         (List.ofFn fun i : Fin (stats.params.size + H.recInfos[owner]!.indices.size) =>
           Expr.bvar (stats.params.size + H.recInfos[owner]!.indices.size - 1 - i))) major := by
     simpa [abstractForallContext, List.map_append, List.append_assoc] using Hdomain
-  apply TrExprS.const_canonicalBvars_eq hlevels Hdomain'
+  apply TrExprS.const_bvarSpine_eq hlevels Hdomain'
   have hlength := Lean4Lean.List.Forall₂.length_eq H.parameterSuffix.cached
   have hctxLength := checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length
     H.parameterSuffix.cached

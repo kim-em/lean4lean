@@ -40,12 +40,12 @@ structure RecursorCheck
     R.context.venv
     entries outEnv outVEnv
   closed : MutualInductivesClosed outEnv
-  canonicalTargets : ∀ i (hi : i < entries.length),
+  targets : ∀ i (hi : i < entries.length),
     entries[i].2 = toRecursorConstruction.recursorTarget i
 
 /-- Installation retains the exact ordered generator output; equality is
 established by choosing these targets before the loop, not by translation uniqueness. -/
-theorem RecursorCheck.canonicalRecursors
+theorem RecursorCheck.recursors
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) :
@@ -62,7 +62,7 @@ theorem RecursorCheck.canonicalRecursors
     have hiFamily : i < H.toRecursorConstruction.generationSignature.families.size := by
       simpa [InductiveSignature.Instance.recursors] using hi'
     simp only [List.getElem_map]
-    rw [H.canonicalTargets i hiEntry]
+    rw [H.targets i hiEntry]
     simp [RecursorConstruction.recursorTarget, hiFamily,
       InductiveSignature.Instance.recursors]
 
@@ -307,7 +307,7 @@ theorem ConstructorCheck.recursorPhasesWF
     Hparams hnoalias HminorCounts HsuffixLocal.parameterFVarsUp Hseed
     (fun T owner => ((construction T).recursorTarget owner).type) (by
       intro T owner howner
-      simpa only [Hle.lparams_eq] using (construction T).canonicalTypeTranslations owner howner) (by
+      simpa only [Hle.lparams_eq] using (construction T).typeTranslations owner howner) (by
       rw [Hle.safety_eq]
       exact hnotPartial) (by
         intro hallow
@@ -349,7 +349,7 @@ theorem ConstructorCheck.recursorPhasesWF
       installed := Hinstalled
       closed := Hgenerated.closesMutuals Hinstalled Hvalid.tr.map_wf
         hclosedLocal
-      canonicalTargets := by
+      targets := by
         intro i hi
         have hbound : i < indTypes.size := by
           have hc := Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hcore

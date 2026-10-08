@@ -210,7 +210,7 @@ theorem RecursorConstruction.constructorClosedParameters
   rw [hlength] at hcombined
   simpa only [hsource, List.map_map, Function.comp_def] using hcombined
 
-theorem TrExprS.shiftedCanonicalBvars_eq
+theorem TrExprS.shiftedBvarSpine_eq
     (Hargs : List.Forall₂ (TrExprS env Us (abstractForallContext domains Δ))
       (List.ofFn (fun i : Fin n => Expr.bvar (below + (n - 1 - i)))) targets)
     (hbound : n + below ≤ domains.length) :
@@ -276,7 +276,7 @@ theorem RecursorConstruction.constructorResultIndices
   obtain ⟨params, indices, hargsEq, Hparams, Hindices⟩ :=
     checkPositivityStep.List.Forall₂.split_left Hargs
   rw [abstractForallContext_append] at Hparams
-  have hparamsEq := TrExprS.shiftedCanonicalBvars_eq Hparams (by
+  have hparamsEq := TrExprS.shiftedBvarSpine_eq Hparams (by
     simp only [List.length_append, List.length_reverse]
     rw [H.sourceParameterCount, H.sourceFields_length]
     omega)

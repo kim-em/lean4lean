@@ -587,7 +587,7 @@ theorem NestedRun.restoredEquationSubstitution
       ∃ w, (compilationRestoration sourceDecl auxiliaries).recursor v = some w ∧
         B.recursorVEnv.constants w.name = some w.toVConstant := by
     intro v hv
-    have hcanon := E.lowered.recursors.canonicalRecursors
+    have hcanon := E.lowered.recursors.recursors
     change E.lowered.recursors.entries.map Prod.snd = _ at hcanon
     rw [hcanon] at hv
     simp only [InductiveSignature.Instance.recursors, List.mem_map, List.mem_finRange,

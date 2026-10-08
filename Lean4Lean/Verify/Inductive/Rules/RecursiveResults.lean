@@ -15,7 +15,7 @@ recursor telescope and rule-wide field narrowing are parameters, so every
 array position is closed and typed in the same literal `equationDomains`;
 only its higher-order local telescope varies with the recursive field. -/
 theorem
-    RecursorCheck.RuleAlignment.canonicalRecursiveResultTypingFor
+    RecursorCheck.RuleAlignment.recursiveResultTypingFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -85,7 +85,7 @@ theorem
         (liftContextPrefix (T.motives ++ T.minors).length
           B.fieldDomains.reverse).reverse
   rcases A.recursiveCallFrame j hj with ⟨F⟩
-  rcases F.canonicalRecursiveCallBodyWF T (B := B) with
+  rcases F.recursiveCallBodyWF T (B := B) with
     ⟨actualDomains, localDomains, prefixTarget, indexTargets,
       majorTarget, ownerTarget, hlocal, hdomains, hequation, _Hctx,
       HlocalTemplate, Hbody, HtemplateResidual, HmotiveApplication,
@@ -276,7 +276,7 @@ theorem
     (B : A.FieldFrame)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
     Nonempty (A.RecursiveResult T B j hj) := by
-  rcases A.canonicalRecursiveResultTypingFor T B j hj with
+  rcases A.recursiveResultTypingFor T B j hj with
     ⟨F, localDomains, resultBody, resultType, templateTarget, hequation,
       hlocal, HequationCtx, HlocalForall, Htelescope, Htranslation,
       HtemplateResidual, HtypeTranslation, HresultType, Htyping⟩
@@ -676,7 +676,7 @@ while the corresponding recursive result is already closed and typed in the
 fixed equation context.  The remaining RHS argument proof can therefore
 focus solely on relating these two displayed types. -/
 theorem
-    RecursorCheck.RuleAlignment.installedSelectedMinorHypothesisCanonicalResultFrame
+    RecursorCheck.RuleAlignment.installedSelectedMinorHypothesisResultFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1787,7 +1787,7 @@ the canonical recursive-result domain is transported past the already
 consumed hypotheses.  Both targets expose their exact dependent local
 domain lists, ready for `SameForallPrefix.translatedContextsExact`. -/
 theorem
-    RecursorCheck.RuleAlignment.installedSelectedMinorHypothesisCanonicalWholeDomains
+    RecursorCheck.RuleAlignment.installedSelectedMinorHypothesisWholeDomains
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1904,7 +1904,7 @@ theorem
           (equationDomains ++ liftedPrevious ++ liftedCanonicalLocals) []).toCtx
         (E.resultType.liftN liftedPrevious.length E.localDomains.length) := by
   dsimp only
-  rcases A.installedSelectedMinorHypothesisCanonicalResultFrame j hj B T E with
+  rcases A.installedSelectedMinorHypothesisResultFrame j hj B T E with
     ⟨S, hypothesisOrigins, _traversal, fieldDomains,
       hypothesisDomains, targetResidual, D, originRoot, sourceType, O,
       _hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos,

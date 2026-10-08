@@ -107,7 +107,7 @@ theorem OrdinaryInstallation.extendSafeExact
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
-  rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
+  rcases Hrecursors.generatedRuleTranslation with ⟨T⟩
   let B0 := Hrecursors.blockCertificate T.rules T.rulesWF
   let B := B0.sf_mono (safety := .safe) (by
     rw [hsafety]
@@ -173,7 +173,7 @@ theorem OrdinaryInstallation.extendUnsafeExact
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
-  rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
+  rcases Hrecursors.generatedRuleTranslation with ⟨T⟩
   let B0 := Hrecursors.blockCertificate T.rules T.rulesWF
   let B := B0.sf_mono (safety := .unsafe) (by
     rw [hsafety]

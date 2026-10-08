@@ -265,7 +265,7 @@ theorem SourceFamilyTranslations.core
 
 /-- Installation semantics for one complete restored source family: header,
 its exact constructor fold, and its primary recursor. -/
-def canonicalRestoredBlock (decl : VInductDecl)
+def restoredBlock (decl : VInductDecl)
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq) : VInductBlock where
   types := decl.typeConstants

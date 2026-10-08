@@ -28,9 +28,9 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
 
 end ConstructorCheck
 
-theorem vars_append_canonical (a b : Nat) :
+theorem vars_append_bvarSpine (a b : Nat) :
     InductiveSignature.vars a b ++ InductiveSignature.vars b 0 = bvarSpine (a + b) := by
-  rw [bvarSpine_add, ← vars_eq_canonical, ← vars_eq_canonical, vars_lift, Nat.add_zero]
+  rw [bvarSpine_add, ← vars_eq_bvarSpine, ← vars_eq_bvarSpine, vars_lift, Nat.add_zero]
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -198,7 +198,7 @@ theorem RecursorConstruction.consumedFamilyTypesWF
       (InductiveSignature.vars s.params.length s.families[owner].indices.length ++
         InductiveSignature.vars s.families[owner].indices.length 0))
     (.sort s.families[owner].resultLevel)
-  rw [hidx, hPrev, hname, hlev, hplen, vars_append_canonical, hilen]
+  rw [hidx, hPrev, hname, hlev, hplen, vars_append_bvarSpine, hilen]
   exact happ
 
 end VerifyInductive

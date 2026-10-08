@@ -15,7 +15,7 @@ mutual family at the exact recursive-index targets.  The exposed production
 spine is first identified at canonical parameters, then its merely
 convertible index suffix is transported pointwise. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.canonicalInsertedMajorTyping
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedMajorTyping
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -103,7 +103,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
   let parameterDecls := H.parameterSuffix.parameterDecls
-  rcases F.canonicalInsertedExposedSpine T (B := B) with
+  rcases F.insertedExposedSpine T (B := B) with
     ⟨equationDomains, fieldDomains, localDomains, added, frontDomains,
       exactIndexTargets, majorTarget, exposedTarget, hdecomposition,
       hequation, hadded, hfront, hfields, hfixedFields, hlocal,
@@ -112,7 +112,7 @@ theorem
       levels, parameterTargets,
       spineIndexTargets, hspine, hlevels, _HparameterTranslation,
       hparameterTargets, HindexDefEq⟩
-  rcases F.canonicalOwnerMotiveDomain with
+  rcases F.ownerMotiveDomain with
     ⟨S, HselectedSource, HmotiveDomain₀⟩
   have henvLe : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
@@ -517,7 +517,7 @@ theorem
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   dsimp only
   have Hhead := F.headTranslation (abstractForallContext domains [])
-  have Hargs := A.canonicalRecursorPrefixTranslation T fieldDomains hfields
+  have Hargs := A.recursorPrefixTranslation T fieldDomains hfields
   have htoCtx : ∀ types : List VExpr,
       VLCtx.toCtx (types.map fun type => (none, .vlam type)) = types := by
     intro types
@@ -560,7 +560,7 @@ theorem
 context conversion and weakening under the constructor fields are recovered
 from the two retained recursor telescopes. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.canonicalPrefixResidualTranslation
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.prefixResidualTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -699,7 +699,7 @@ theorem
       List.reverse_append, List.append_assoc] using this
   have HcanonicalCtx : OnCtx canonicalDomains.reverse
       (H.outVEnv.IsType Us.length) := Hfull.isType
-  have Hcanonical := F.canonicalPrefixResidualTranslation
+  have Hcanonical := F.prefixResidualTranslation
     T fieldDomains hfields (by
       simpa [canonicalDomains] using HcanonicalCtx)
   have Hvlctx := abstractForallContext.isDefEq Hfull
@@ -739,7 +739,7 @@ theorem
 selected motive application discharged from the independent canonical
 inductive specification. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.canonicalRecursiveCallBodyWF
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.recursiveCallBodyWF
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -823,7 +823,7 @@ theorem
           stats.params)
         (H.recInfos.map (·.motive)))
       (H.recInfos.flatMap (·.minors))
-  rcases F.canonicalInsertedMajorTyping T (B := B) with
+  rcases F.insertedMajorTyping T (B := B) with
     ⟨C, equationDomains, fieldDomains, localDomains, added, frontDomains,
       indexTargets, majorTarget, ownerTarget, hdecomposition, hequation,
       hadded, hfront, hfields, hfixedFields, hlocal, hownerTarget, Hctx,
@@ -1170,7 +1170,7 @@ theorem
         VExpr.mkApps (ownerTarget.liftN expectedDomains.length 0)
           (bvarSpine expectedDomains.length) := by
     rw [F.telescope.resultShape hselectedMotive,
-      concreteRecursorResultArgs_eq_canonical]
+      concreteRecursorResultArgs_eq_bvarSpine]
     rw [VExpr.liftN_mkApps]
     rw [hsuffixLength]
     congr 1
@@ -1196,7 +1196,7 @@ theorem
     · rw [hexpectedArity]
       exact bvarSpine_liftN_at_length _ _
   rw [hresultCanonical] at Hleft
-  have htypeResult := VExpr.applyForallType_wrapForalls_canonical
+  have htypeResult := VExpr.applyForallType_wrapForalls_bvarSpine
     expectedDomains args ownerTarget hargsLength
   rw [htypeResult] at Hleft
   have HleftWF : VExpr.WF H.outVEnv Us.length

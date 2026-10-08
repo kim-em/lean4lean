@@ -5,7 +5,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Whnf
 /-! Restored recursor list of the canonical restored block of a validated
 nested run.
 
-The recursor entries of `canonicalRestoredBlock` are the translations of the
+The recursor entries of `restoredBlock` are the translations of the
 restored recursors of the executable restoration folds: the primary recursors
 selected by the source semantic trace, then the auxiliary recursors selected by
 the auxiliary shape trace. Each of these is the abstract restoration
@@ -983,7 +983,7 @@ theorem NestedRun.restoredRecursors_of_paramUniform
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped) :
     E.lowered.generatedInstance.restoredRecursors
         (compilationRestoration sourceDecl auxiliaries) =
-      some (canonicalRestoredBlock sourceDecl C.sourceRecursors
+      some (restoredBlock sourceDecl C.sourceRecursors
         C.auxiliaryRecursors C.sourceRules C.auxiliaryRules).recursors :=
   E.restoredRecursorList_of_paramUniform C hC wf Hsources hadded Haux Hexpansion hnodup
     hparamsSize D hscoped

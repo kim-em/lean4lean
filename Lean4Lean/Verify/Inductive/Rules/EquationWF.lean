@@ -249,7 +249,7 @@ structure RecursorCheck.RuleAlignment.EquationFrame
 /-- Positive-arity case of `equationFrame`; the proof is that of
 `finalCanonicalPositiveEquationWitness`, retaining its context. -/
 theorem
-    RecursorCheck.RuleAlignment.canonicalPositiveEquationFrame
+    RecursorCheck.RuleAlignment.positiveEquationFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -264,7 +264,7 @@ theorem
     Nonempty A.EquationFrame := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
-  rcases A.installedCanonicalRhsPositiveArityDetailed hpositive with
+  rcases A.installedRhsPositiveArityDetailed hpositive with
     ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
       equationFields, rhsBody, _rhsType, hfields, hhypotheses,
       hminorType, hequationFieldsLength, hequationFields, _hrhsType,
@@ -291,7 +291,7 @@ theorem
     (mkAppN H.recInfos[owner]!.motive
       (AddInductive.getIIndices stats A.rule.target).2)
     A.rule.sourceConstructorMajor
-  rcases A.installedFixedCanonicalLhsBodyFor B T with
+  rcases A.installedFixedLhsBodyFor B T with
     ⟨lhsBody, lhsType, HlhsCtx, HlhsTranslation, HlhsTyping,
       HlhsType, HexpectedTranslation⟩
   have HlhsCtx' : OnCtx equationDomains.reverse
@@ -462,7 +462,7 @@ theorem
     have Hvlctx := abstractForallContext.isDefEq HfullBase'
     simpa [abstractForallContext, List.reverse_append, List.map_append,
       List.append_assoc] using Hinserted.defeqDFC' H.outVEnvWF Hvlctx
-  have Hhypotheses := A.installedCanonicalRecursiveHypothesisContext B T C
+  have Hhypotheses := A.installedRecursiveHypothesisContext B T C
     fieldDomains hypothesisDomains targetResidual hfields hhypotheses
       hminorType (by simpa [minorIdx, remaining, installedFields,
         equationDomains, equationFields, inserted, List.append_assoc]
@@ -578,7 +578,7 @@ theorem
 /-- Zero-arity case of `equationFrame`; the proof is that of
 `finalCanonicalZeroEquationWitness`, retaining its context. -/
 theorem
-    RecursorCheck.RuleAlignment.canonicalZeroEquationFrame
+    RecursorCheck.RuleAlignment.zeroEquationFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -595,7 +595,7 @@ theorem
   let minorIdx := recursorMinorOffset indTypes owner + i
   have hfieldsZero : A.rule.allArgs.size = 0 := by omega
   have hhypothesesZero : A.rule.recursiveArgs.size = 0 := by omega
-  rcases A.installedCanonicalMinorApplicationZeroArity hzero with
+  rcases A.installedMinorApplicationZeroArity hzero with
     ⟨B, T, C, targetResidual, hbodies, hminorType, Hctx, Hminor⟩
   have hframeFields : B.fieldDomains = [] :=
     List.eq_nil_of_length_eq_zero
@@ -616,7 +616,7 @@ theorem
     simpa [equationDomains, inserted, hframeFields, liftContextPrefix,
       liftContextPrefixAt, abstractForallContext_toCtx, VLCtx.toCtx,
       List.append_assoc] using Hctx
-  rcases A.installedFixedCanonicalLhsBodyFor B T with
+  rcases A.installedFixedLhsBodyFor B T with
     ⟨lhsBody, lhsType, HlhsCtx, HlhsTranslation, HlhsTyping,
       HlhsType, HexpectedTranslation⟩
   have HlhsTranslation' : TrExprS H.outVEnv Us
@@ -832,8 +832,8 @@ theorem
     (A : H.RuleAlignment owner howner i hctor) :
     Nonempty A.EquationFrame := by
   by_cases hzero : A.rule.allArgs.size + A.rule.recursiveArgs.size = 0
-  · exact A.canonicalZeroEquationFrame hzero
-  · exact A.canonicalPositiveEquationFrame (Nat.pos_of_ne_zero hzero)
+  · exact A.zeroEquationFrame hzero
+  · exact A.positiveEquationFrame (Nat.pos_of_ne_zero hzero)
 
 /-! ### The generator's telescope against the production frame -/
 
@@ -849,7 +849,7 @@ theorem RecursorCheck.entry_type_eq
     (howner : owner < H.entries.length)
     (hf : owner < H.generationSignature.families.size) :
     H.entries[owner].2.type = H.canonicalGeneration.recursorType ⟨owner, hf⟩ := by
-  rw [H.canonicalTargets owner howner]
+  rw [H.targets owner howner]
   unfold RecursorConstruction.recursorTarget
   rw [dif_pos hf]
   rfl
@@ -872,7 +872,7 @@ theorem RecursorCheck.minors_size_eq
   H.cardinality.minors.trans H.generator.constructorCount.symm
 
 /-- The cached parameter declarations are the canonical generation's parameters. -/
-theorem RecursorCheck.parameterDecls_canonical
+theorem RecursorCheck.parameterDecls_eq_generation
     (H : RecursorCheck R outEnv) :
     H.parameterSuffix.parameterDecls.toCtx.reverse = H.canonicalGeneration.params := by
   rw [H.toRecursorConstruction.parameterDomains]
@@ -1039,7 +1039,7 @@ theorem RecursorCheck.RuleAlignment.EquationFrame.domains_defeq
     omega
   rw [hsum] at Hfields
   unfold canonicalEquationDomains InductiveSignature.Instance.equationDomains
-  rw [← hmotives, ← hminors, ← H.parameterDecls_canonical]
+  rw [← hmotives, ← hminors, ← H.parameterDecls_eq_generation]
   simp only [liftContextPrefix_reverse_reverse]
   simpa [List.reverse_append, List.append_assoc] using Hfields
 

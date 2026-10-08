@@ -319,7 +319,7 @@ theorem RecursorCheck.RuleAlignment.lhsTranslation
       show A.rule.binders.length - n = A.rule.allArgs.size by omega] at h
     exact h
   rw [hsource] at Hpmm
-  have hpmm := TrExprS.shiftedCanonicalBvars_eq Hpmm
+  have hpmm := TrExprS.shiftedBvarSpine_eq Hpmm
     (Nat.le_of_eq (hbindersLength.symm.trans hdomainsLength.symm))
   subst hpmm
   have hn : n = H.generationSignature.params.length +

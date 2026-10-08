@@ -6,7 +6,7 @@ import Lean4Lean.Verify.Inductive.Rules.Translation
 
 /-! Assembly of the completed rule translation from the closed RHS translations.
 
-`RecursorCheck.canonicalCompletedRuleTranslation` (in
+`RecursorCheck.generatedRuleTranslation` (in
 `CompletedRuleTranslation`) asks for the
 full `RuleTranslations` of a completed recursor run.  Everything
 except the translation of each installed rule's closed right-hand side to the
@@ -292,7 +292,7 @@ theorem RecursorCheck.ruleTranslation_of
       H.trEntries Hrhs⟩⟩
     · rw [← R.contextVEnv]; exact H.generator.recursiveTypesWF
     · rw [← R.contextVEnv]; exact H.generator.familyTypesWF
-    · exact H.canonicalRecursors
+    · exact H.recursors
 
 end
 end VerifyInductive
@@ -309,7 +309,7 @@ namespace VerifyInductive
 metadata witness. No rule, telescope, or equation witness is chosen by the
 caller. Source nonemptiness is needed only when forming the installation
 certificate. -/
-theorem RecursorCheck.canonicalCompletedRuleTranslation
+theorem RecursorCheck.generatedRuleTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}

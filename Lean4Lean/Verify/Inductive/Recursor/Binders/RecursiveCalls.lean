@@ -122,7 +122,7 @@ theorem canonicalFamilyApp_split
       simp [Array.getElem!_eq_getD, Hheader.indexCount]
     rw [Hsynthesis.indexCount]
     omega
-  have hsplit := VExpr.mkApps_canonical_add
+  have hsplit := VExpr.mkApps_bvarSpine_add
     (.const Hheader.target.name
       (Hheader.recursorAbstractLevels Helim))
     Hsynthesis.params.length Hsynthesis.indices.length

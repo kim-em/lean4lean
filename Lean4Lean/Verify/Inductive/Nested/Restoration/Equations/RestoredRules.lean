@@ -508,7 +508,7 @@ theorem NestedRun.sourceNestedIotaRule
     (hj : j < (sourceDecl.types[f]'hf).ctors.length)
     (hk : k.val = recursorMinorOffset E.lowered.indTypes f + j) :
     Nonempty (sourceDecl.NestedIotaRule
-      (canonicalRestoredShapeBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors)
+      (restoredShapeBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors)
       (sourceDecl.types[f]'hf) ((sourceDecl.types[f]'hf).ctors[j]'hj) rule) := by
   have hfamSize : E.lowered.recursors.generationSignature.families.size =
       E.lowered.indTypes.size := by
@@ -733,8 +733,8 @@ theorem NestedRun.sourceNestedIotaRule
   have hS0uvars := S0.uvars
   have hrecMemPrim : Hrecursor.recursor ∈ C.sourceRecursors := hrecEq ▸ List.getElem_mem hr
   have hrecMem : Hrecursor.recursor ∈
-      (canonicalRestoredShapeBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors).recursors := by
-    simp only [canonicalRestoredShapeBlock, canonicalRestoredBlock]
+      (restoredShapeBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors).recursors := by
+    simp only [restoredShapeBlock, restoredBlock]
     exact List.mem_append_left _ hrecMemPrim
   have hrecName : Hrecursor.recursor.name = Hstep.restored.recursor.restored.newInfo.name :=
     Hrecursor.name.trans Hstep.restored.recursor.restored.restoration.name.symm
@@ -887,10 +887,10 @@ theorem NestedRun.sourceNestedIotaRule
   obtain ⟨hord, hlt⟩ := recursiveFields_positions
     E.lowered.recursors.generationSignature.constructors[k]
   have hguard := hguardGen.congrRecursors (recursors' :=
-    (canonicalRestoredShapeBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors).recursors.map
+    (restoredShapeBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors).recursors.map
       (·.name)) (by
         intro name
-        simp [canonicalRestoredShapeBlock, canonicalRestoredBlock])
+        simp [restoredShapeBlock, restoredBlock])
   have hsub := recursiveFields_args_sublist
     E.lowered.recursors.generationSignature.constructors[k]
   refine ⟨nestedIotaRuleOfGenerated Hrecursor.recursor hrecMem S1

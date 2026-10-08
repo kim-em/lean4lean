@@ -13,7 +13,7 @@ theorem insertBinders_eq_prefix (domains : List VExpr) (n : Nat) :
     have hget := liftContextPrefixAt_reverse_getElem n 0 domains i hi
     simpa [InductiveSignature.insertBinders, getElem!_pos, hi] using hget.symm
 
-theorem vars_eq_canonical (n : Nat) : InductiveSignature.vars n 0 = bvarSpine n := by
+theorem vars_eq_bvarSpine (n : Nat) : InductiveSignature.vars n 0 = bvarSpine n := by
   simp [InductiveSignature.vars, bvarSpine]
 
 theorem vars_lift (count below n : Nat) :
@@ -56,8 +56,8 @@ theorem motive_eq_scalar_lift (g : InductiveSignature.Instance s)
           (.sort g.targetLevel))).liftN prior 0 := by
   rw [VExpr.liftN_wrapForalls]
   simp only [Nat.zero_add, VExpr.liftN, VExpr.liftN_mkApps, List.length_map]
-  rw [bvarSpine_add, List.map_append, ← vars_eq_canonical,
-    ← vars_eq_canonical, vars_lift, Nat.add_zero, vars_lift_below, vars_lift_above]
+  rw [bvarSpine_add, List.map_append, ← vars_eq_bvarSpine,
+    ← vars_eq_bvarSpine, vars_lift, Nat.add_zero, vars_lift_below, vars_lift_above]
   simp [InductiveSignature.Instance.motive, insertBinders_eq_prefix,
     VExpr.wrapForalls]
 

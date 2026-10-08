@@ -831,7 +831,7 @@ theorem VExpr.liftN_mkApps
 
 /-- Applying all canonical variables factors through the canonical
 application of any older initial block, weakened below the remaining suffix. -/
-theorem VExpr.mkApps_canonical_add
+theorem VExpr.mkApps_bvarSpine_add
     (fn : VExpr) (initialCount suffixCount : Nat) :
     VExpr.mkApps (fn.liftN (initialCount + suffixCount) 0)
         (bvarSpine (initialCount + suffixCount)) =
@@ -854,7 +854,7 @@ theorem VExpr.mkApps_canonical_add
 that telescope and applied to the canonical variables for all of its binders.
 The result has the unabstracted residual type in the completed telescope
 context. -/
-theorem VEnv.HasType.mkApps_wrapForalls_canonical
+theorem VEnv.HasType.mkApps_wrapForalls_bvarSpine
     {env : VEnv} {uvars : Nat} {ctx : List VExpr} {fn : VExpr}
     {domains : List VExpr} {body : VExpr}
     (henv : VEnv.Ordered env)
@@ -878,7 +878,7 @@ theorem VEnv.HasType.mkApps_wrapForalls_canonical
 
 /-- Applying only an initial segment of a dependent telescope leaves the
 remaining suffix as the type of the canonical partial application. -/
-theorem VEnv.HasType.mkApps_wrapForalls_prefix_canonical
+theorem VEnv.HasType.mkApps_wrapForalls_prefix_bvarSpine
     {env : VEnv} {uvars : Nat} {ctx : List VExpr} {fn : VExpr}
     {initial suffix : List VExpr} {body : VExpr}
     (henv : VEnv.Ordered env)
@@ -889,7 +889,7 @@ theorem VEnv.HasType.mkApps_wrapForalls_prefix_canonical
         ((List.range initial.length).reverse.map .bvar))
       (VExpr.wrapForalls suffix body) := by
   rw [VExpr.wrapForalls_append] at H
-  exact VEnv.HasType.mkApps_wrapForalls_canonical henv H
+  exact VEnv.HasType.mkApps_wrapForalls_bvarSpine henv H
 
 /-- Transport a canonical application from an independently reconstructed
 argument context before inverting its declared forall telescope.  Keeping
@@ -924,7 +924,7 @@ theorem VEnv.HasType.mkApps_isType
 
 /-- The concrete owner-result spine numbers the index variables followed by
 the major exactly as the canonical variables of one combined telescope. -/
-theorem concreteRecursorResultArgs_eq_canonical (numIndices : Nat) :
+theorem concreteRecursorResultArgs_eq_bvarSpine (numIndices : Nat) :
     ((List.range numIndices).reverse.map fun index =>
         VExpr.bvar (index + 1)) ++ [.bvar 0] =
       bvarSpine (numIndices + 1) := by
@@ -1277,7 +1277,7 @@ theorem VExpr.inst_canonicalResult
 /-- Opening a canonical result spine and substituting one argument for each
 telescope binder produces the same application with those concrete
 arguments. -/
-theorem VExpr.applyForallType_wrapForalls_canonical
+theorem VExpr.applyForallType_wrapForalls_bvarSpine
     (domains args : List VExpr) (fn : VExpr)
     (hlength : args.length = domains.length) :
     VExpr.applyForallType

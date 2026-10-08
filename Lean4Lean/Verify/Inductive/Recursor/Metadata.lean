@@ -237,7 +237,7 @@ theorem RecursorCheck.trMetadata
     H.generator.families
   let E := H.generated.entry owner.val hi
   have htarget : H.entries[owner.val].2 = H.canonicalGeneration.recursor owner := by
-    rw [H.canonicalTargets owner.val hi]
+    rw [H.targets owner.val hi]
     unfold RecursorConstruction.recursorTarget
     rw [dif_pos owner.isLt]
     rfl

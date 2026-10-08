@@ -903,7 +903,7 @@ theorem MotivePassHeaderAt.recursorCanonicalFamilyPrefix
     apply hhead.defeqU_r R.checking.tr.wf (by trivial)
     exact ⟨Hsynthesis.exprType, Hsynthesis.header⟩
   simpa [bvarSpine] using
-    VEnv.HasType.mkApps_wrapForalls_prefix_canonical
+    VEnv.HasType.mkApps_wrapForalls_prefix_bvarSpine
       R.checking.tr.wf.ordered hheadTelescope
 
 /-- The canonical family prefix remains typed after reopening the exact
@@ -1471,7 +1471,7 @@ theorem MotivePassHeaderAt.recursorCanonicalFamilyApplication
         narrowTarget) := by
     apply hhead.defeqU_r R.checking.tr.wf (by trivial)
     exact ⟨Hsynthesis.exprType, Hsynthesis.header⟩
-  have happ := VEnv.HasType.mkApps_wrapForalls_canonical
+  have happ := VEnv.HasType.mkApps_wrapForalls_bvarSpine
     R.checking.tr.wf.ordered hheadTelescope
   have hparamCount : Hsynthesis.params.length = decl.nparams := by
     rw [Hsynthesis.parameterCount, H.parameterCount]

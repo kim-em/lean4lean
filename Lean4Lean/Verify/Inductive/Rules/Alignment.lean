@@ -732,7 +732,7 @@ This follows from strict-translation scoping: the constructor result can only
 mention parameters and genuine fields, hence motives and minors merely shift
 the already abstracted parameter variables. -/
 theorem
-    RecursorCheck.RuleAlignment.canonicalTargetBinderLift_eq
+    RecursorCheck.RuleAlignment.targetBinderLift_eq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1116,7 +1116,7 @@ theorem
   have Wtarget := abstractForallContext.bvInsertBeforeInner
     parameterDecls.toCtx.reverse inserted originalDomains
   have HtargetWeak := HcachedTarget.weakBV H.outVEnvWF.ordered Wtarget
-  have hsource := A.canonicalTargetBinderLift_eq
+  have hsource := A.targetBinderLift_eq
     T originalDomains fieldResult hfields HcachedTarget
   have hsource' :
       ((A.rule.target.abstractList
@@ -1126,7 +1126,7 @@ theorem
         A.rule.target.abstractList A.rule.binders := by
     simpa [inserted, hfields] using hsource
   rw [hsource'] at HtargetWeak
-  have Happ := VEnv.HasType.mkApps_wrapForalls_canonical
+  have Happ := VEnv.HasType.mkApps_wrapForalls_bvarSpine
     H.outVEnvWF.ordered HintroType
   let added := inserted.reverse
   let liftedPrefix := liftContextPrefix inserted.length originalDomains.reverse

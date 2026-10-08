@@ -121,9 +121,9 @@ theorem NestedIotaBuildCertificate.rebaseRecursors
 
 /-- Rule-free block used while the primary restoration fold discovers the
 actual primary rule list. -/
-def canonicalRestoredShapeBlock (decl : VInductDecl)
+def restoredShapeBlock (decl : VInductDecl)
     (primaryRecursors auxiliaryRecursors : List VConstVal) : VInductBlock :=
-  canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors [] []
+  restoredBlock decl primaryRecursors auxiliaryRecursors [] []
 
 /-- The final result of nested restoration, relating the returned production
 environment to the constant stage of the abstract extension and retaining the
@@ -248,15 +248,15 @@ structure RestoredBlockDerivation
   sourceRules : List VDefEq
   auxiliaryRules : List VDefEq
   sourceIota : SourceIotaRulesAll decl
-    (canonicalRestoredShapeBlock decl sourceRecursors auxiliaryRecursors)
+    (restoredShapeBlock decl sourceRecursors auxiliaryRecursors)
       recursorVEnv lowered sourceTranslations
       (main :: rest) sourceRules
   auxiliaryGuarded : AuxiliaryRecursorsGuardedRules decl
-    (canonicalRestoredBlock decl sourceRecursors auxiliaryRecursors
+    (restoredBlock decl sourceRecursors auxiliaryRecursors
       sourceRules auxiliaryRules) main safety ((install.venvCtors.addEliminators install.eliminators).addProjections decl.projectionEntries) H.auxiliaries
       [] [] auxiliaryRecursors auxiliaryRules
   auxiliaryWF : RestoredAuxiliaryRecursorsWF decl
-    (canonicalRestoredBlock decl sourceRecursors auxiliaryRecursors
+    (restoredBlock decl sourceRecursors auxiliaryRecursors
       sourceRules auxiliaryRules) main safety ((install.venvCtors.addEliminators install.eliminators).addProjections decl.projectionEntries)
       ((install.venvCtors.addEliminators install.eliminators).addProjections decl.projectionEntries)
       recursorVEnv auxiliaryGuarded [] [] auxiliaryRecursors auxiliaryRules
@@ -320,13 +320,13 @@ structure NestedFinalAssemblyRemainder
         (typeEntries ++ constructorEntries ++ recursorEntries).map Prod.fst
   sourceMapWF : sourceProdEnv.constants.WF
   auxiliaryTyping : AuxiliaryRecursorsGuardedRules decl
-    (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+    (restoredBlock decl primaryRecursors auxiliaryRecursors
       primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.auxiliaries
       [] [] auxiliaryRecursors auxiliaryRules
   recursorValues : recursorEntries.map Prod.snd =
     primaryRecursors ++ auxiliaryRecursors
   auxiliaryWF : RestoredAuxiliaryRecursorsWF decl
-    (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+    (restoredBlock decl primaryRecursors auxiliaryRecursors
       primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
       ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
       finalBaseVEnv auxiliaryTyping [] [] auxiliaryRecursors auxiliaryRules
@@ -361,7 +361,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
       sourceEnv canonical.venvTypes ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.inductives
       (main :: rest) primaryRecursors)
     (Hprimary : SourceIotaRulesAll decl
-      (canonicalRestoredShapeBlock decl primaryRecursors auxiliaryRecursors)
+      (restoredShapeBlock decl primaryRecursors auxiliaryRecursors)
         finalBaseVEnv P Hsource
       (main :: rest) primaryRules)
     (HauxiliaryRecursors : AuxiliaryRecursorTranslations safety
@@ -498,10 +498,10 @@ theorem RestoredBlockDerivation.sourceIotaBuild
     (C : RestoredBlockDerivation H sourceEnv decl lparams nparams
       isUnsafe safety) :
     NestedIotaBuildCertificate decl
-      (canonicalRestoredBlock decl C.sourceRecursors C.auxiliaryRecursors
+      (restoredBlock decl C.sourceRecursors C.auxiliaryRecursors
         C.sourceRules C.auxiliaryRules) C.sourceRules :=
   (C.sourceIota.build C.typesSource).rebaseRecursors (by
-    simp [canonicalRestoredShapeBlock, canonicalRestoredBlock])
+    simp [restoredShapeBlock, restoredBlock])
 
 /-- Actual producer result. The finite derivation and concrete recursor
 provenance describe the exact same selected rules and restored constants.
@@ -517,7 +517,7 @@ structure RestoredBlockCertificate
     (nparams : Nat) (isUnsafe : Bool) (safety : DefinitionSafety)
     extends RestoredBlockDerivation H sourceEnv decl lparams nparams isUnsafe safety where
   trCompilation : InductiveSignature.TrRestoredCompilation sourceEnv decl
-    (canonicalRestoredBlock decl sourceRecursors auxiliaryRecursors
+    (restoredBlock decl sourceRecursors auxiliaryRecursors
       sourceRules auxiliaryRules) recursorVEnv recursorEntries
   recursorsAligned : NewRecursorsAligned .unsafe sourceProdEnv.constants sourceEnv
     outEnv.constants (recursorVEnv.addDefEqRules (sourceRules ++ auxiliaryRules))

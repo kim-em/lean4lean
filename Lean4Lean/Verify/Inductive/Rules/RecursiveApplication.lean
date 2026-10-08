@@ -1283,7 +1283,7 @@ mutual-family owner.  This is stated against the frame's fixed generated
 telescope, so the subsequent index/major application cannot silently switch
 to another structural decomposition of the recursor type. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.canonicalOwnerMotiveDomain
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.ownerMotiveDomain
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1311,7 +1311,7 @@ theorem
           (F.telescope.motives.take selectedOwner).length 0) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
-  rcases H.installedOwnerCanonicalMotiveDomainAt selectedOwner F.entry_lt with
+  rcases H.installedOwnerMotiveDomainAt selectedOwner F.entry_lt with
     ⟨T, S, hparameters, Hdomain⟩
   rcases T.groupsResult_eq F.telescope with
     ⟨hparams, hmotives, _hminors, _hindices, _hmajor, _hresult⟩

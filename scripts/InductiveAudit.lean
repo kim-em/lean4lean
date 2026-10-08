@@ -102,7 +102,7 @@ elab "#inductive_audit " ids:ident* : command => do
 
 #inductive_audit Lean4Lean.VEnv.NormalEq.parRed
 #inductive_audit Lean4Lean.VEnv.HeadParallelReduction
-#inductive_audit Lean4Lean.VerifyInductive.RecursorConstruction.canonicalTypeTranslations
+#inductive_audit Lean4Lean.VerifyInductive.RecursorConstruction.typeTranslations
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.singletonReconstruction
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.singletonReconstructAt
 #inductive_audit Lean4Lean.InductiveSignature.RecursorData.singletonEquation

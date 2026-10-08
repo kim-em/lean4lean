@@ -171,12 +171,12 @@ theorem NestedRun.compilationData_of_specializations
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
       E.lowered.signature E.lowered.generatedInstance
       auxiliaries
-      (canonicalRestoredBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors
+      (restoredBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors
         C.sourceRules C.auxiliaryRules)) :
     CompilationData (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
       E.lowered.loweredDecl E.lowered.signature
       E.lowered.generatedInstance auxiliaries
-      (canonicalRestoredBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors
+      (restoredBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors
         C.sourceRules C.auxiliaryRules) := by
   have hinit : E.lowered.initialEnv =
       ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
@@ -209,7 +209,7 @@ theorem NestedRun.compilationData_of_specializations
   have hrecursorsAdded := E.lowered.recursors.installed.abstract
   have hrecursorValues : E.lowered.recursors.entries.map Prod.snd =
       E.lowered.generatedInstance.recursors :=
-    E.lowered.recursors.canonicalRecursors
+    E.lowered.recursors.recursors
   rw [hrecursorValues, E.lowered.constructors.toConstructorCheck.contextVEnv]
     at hrecursorsAdded
   have hrecursorsFresh := VEnv.addConstVals_names_fresh hrecursorsAdded
@@ -342,13 +342,13 @@ theorem NestedRun.compilationData_of_specializations
       have hvalues :
           (C.typeEntries ++ C.constructorEntries ++ C.recursorEntries).map
               Prod.snd =
-            (canonicalRestoredBlock sourceDecl C.sourceRecursors
+            (restoredBlock sourceDecl C.sourceRecursors
                 C.auxiliaryRecursors C.sourceRules C.auxiliaryRules).types ++
-              (canonicalRestoredBlock sourceDecl C.sourceRecursors
+              (restoredBlock sourceDecl C.sourceRecursors
                 C.auxiliaryRecursors C.sourceRules C.auxiliaryRules).ctors ++
-              (canonicalRestoredBlock sourceDecl C.sourceRecursors
+              (restoredBlock sourceDecl C.sourceRecursors
                 C.auxiliaryRecursors C.sourceRules C.auxiliaryRules).recursors := by
-        simp only [List.map_append, canonicalRestoredBlock]
+        simp only [List.map_append, restoredBlock]
         rw [C.typeValues, C.constructorValues, C.recursorValues]
       rw [← hvalues]
       exact VEnv.addConstVals_names_nodup C.install.atomic.abstract }

@@ -296,7 +296,7 @@ theorem checkInductiveTypes.loopType.ScopedHeaderTelescope.canonicalApplication
       (VExpr.wrapForalls H.params current) := by
     apply hhead.defeqU_r henv (by trivial)
     exact ⟨H.exprType, by simpa [hindices] using H.header⟩
-  have happ := VEnv.HasType.mkApps_wrapForalls_canonical
+  have happ := VEnv.HasType.mkApps_wrapForalls_bvarSpine
     henv.ordered htelescope
   simpa [hindices, H.scopeCtx, bvarSpine,
     VExpr.liftN] using happ

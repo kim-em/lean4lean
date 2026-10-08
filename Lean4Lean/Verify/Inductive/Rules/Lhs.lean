@@ -15,7 +15,7 @@ the matching abstract prefix and constructor major already typed.  All
 components share the same telescope witnesses, which is the handoff point
 for consuming the target indices and major premise. -/
 theorem
-    RecursorCheck.RuleAlignment.installedCanonicalRecursorPrefixFrame
+    RecursorCheck.RuleAlignment.installedRecursorPrefixFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -131,9 +131,9 @@ theorem
     ⟨T, originalDomains, fieldDomains, fieldResult, introTarget,
       hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hctx, Hmajor, Hprefix,
       Htarget, HintroShape⟩
-  have Htr := A.canonicalRecursorPrefixResidualTranslation
+  have Htr := A.recursorPrefixResidualTranslation
     T fieldDomains hfields Hctx Hprefix
-  have HmajorTr := A.canonicalConstructorMajorResidualTranslation
+  have HmajorTr := A.constructorMajorResidualTranslation
     T fieldDomains fieldResult introTarget hfields Hctx Hmajor HintroShape
   exact ⟨T, originalDomains, fieldDomains, fieldResult, introTarget,
     hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hctx, Hmajor, Hprefix,
@@ -145,7 +145,7 @@ translation target; uniqueness of the closed rule binders shows that both
 applications retain the exact abstract terms already typed by the recursor
 and constructor phases. -/
 theorem
-    RecursorCheck.RuleAlignment.installedCachedCanonicalRecursorPrefixFrame
+    RecursorCheck.RuleAlignment.installedCachedRecursorPrefixFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -305,11 +305,11 @@ theorem
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
-  rcases A.installedCanonicalRecursorPrefixFrame with
+  rcases A.installedRecursorPrefixFrame with
     ⟨T, originalDomains, fieldDomains, fieldResult, introTarget,
       hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hctx, Hmajor, Hprefix,
       Htarget, HintroShape, HprefixTr, HmajorTr⟩
-  rcases H.installedOwnerCanonicalMotiveDomainAt owner howner with
+  rcases H.installedOwnerMotiveDomainAt owner howner with
     ⟨T₀, S, hgeneratedSource, HmotiveDomain₀⟩
   rcases T₀.groupsResult_eq T with
     ⟨hparams₀, hmotives₀, _hminors₀, _hindices₀, _hmajor₀, _hresult₀⟩
@@ -437,7 +437,7 @@ theorem
       recursorDeclarationAbstractLevels c.lparams
         H.elimLevelAdmissible := by
     exact Option.some.inj (hlevels.symm.trans hcanonicalLevels)
-  rcases A.canonicalEquationBinderTranslations T fieldDomains hfields with
+  rcases A.equationBinderTranslations T fieldDomains hfields with
     ⟨HcanonicalParameters, HcanonicalMotives, _HcanonicalMinors,
       _HcanonicalFields⟩
   have hownerRecInfo : owner < H.recInfos.size := by
@@ -476,7 +476,7 @@ theorem
     TrExprS.unique' HuniqueCtx HownerMotiveUnique
       HownerMotiveCanonical HownerMotiveCached
   rw [← hownerMotiveTarget] at HownerMotiveCached
-  rw [A.canonicalOwnerMotiveBvarIndex T fieldDomains hfields] at HownerMotiveCached
+  rw [A.ownerMotiveBvarIndex T fieldDomains hfields] at HownerMotiveCached
   have HownerMotive' : TrExprS H.outVEnv Us
       (abstractForallContext cachedDomains [])
       (H.recInfos[owner]!.motive.abstractList A.rule.binders)
@@ -682,7 +682,7 @@ is applied to the independently recovered constructor indices and major;
 canonical-result instantiation identifies its exact type with the parallel
 owner-motive application. -/
 theorem
-    RecursorCheck.RuleAlignment.installedCachedCanonicalLhsBodyWithFrame
+    RecursorCheck.RuleAlignment.installedCachedLhsBodyWithFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -736,7 +736,7 @@ theorem
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
-  rcases A.installedCachedCanonicalRecursorPrefixFrame with
+  rcases A.installedCachedRecursorPrefixFrame with
     ⟨T, C, originalDomains, fieldDomains, fieldResult, introTarget,
       levels, parameterTargets, indexTargets, hparams, hcanonicalParams,
       horiginal, hlifted, Htail, HoriginalCtx, hfields, Hfull, HcachedCtx,
@@ -841,7 +841,7 @@ theorem
       VExpr.mkApps (ownerTarget.liftN expectedDomains.length 0)
         (bvarSpine expectedDomains.length) := by
     rw [T.resultShape hownerMotive,
-      concreteRecursorResultArgs_eq_canonical]
+      concreteRecursorResultArgs_eq_bvarSpine]
     rw [VExpr.liftN_mkApps]
     rw [hsuffixLength]
     congr 1
@@ -864,7 +864,7 @@ theorem
     · rw [hexpectedArity]
       exact bvarSpine_liftN_at_length _ _
   rw [hresultCanonical] at Hlhs
-  have htypeResult := VExpr.applyForallType_wrapForalls_canonical
+  have htypeResult := VExpr.applyForallType_wrapForalls_bvarSpine
     expectedDomains args ownerTarget hargsLength
   rw [htypeResult] at Hlhs
   have Hlhs' : H.outVEnv.HasType Us.length cachedDomains.reverse
@@ -964,12 +964,12 @@ theorem
     hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hfull,
     HcachedCtx, HlhsResidual, Hlhs', HtypeBody, HtypeTranslation⟩
 
-/-- MetadataMentions-stable framed form of `installedCachedCanonicalLhsBodyWithFrame`.
+/-- MetadataMentions-stable framed form of `installedCachedLhsBodyWithFrame`.
 Besides fixing the recursor telescope, this retains the checked constructor
 tail needed to compare the LHS context with the independently narrowed RHS
 context. -/
 theorem
-    RecursorCheck.RuleAlignment.installedCachedCanonicalLhsBodyWithFrameFor
+    RecursorCheck.RuleAlignment.installedCachedLhsBodyWithFrameFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1021,7 +1021,7 @@ theorem
             A.rule.sourceConstructorMajor).abstractList A.rule.binders)
           typeBody := by
   dsimp only
-  rcases A.installedCachedCanonicalLhsBodyWithFrame with
+  rcases A.installedCachedLhsBodyWithFrame with
     ⟨T₀, originalDomains, fieldDomains, fieldResult, lhsBody, typeBody,
       Hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hfull,
       Hctx, Htranslation, Htyping, Htype, HtypeTranslation⟩
@@ -1038,7 +1038,7 @@ equation context used by the canonical RHS.  Projection translation need not
 be syntactically unique, so the transported strict targets are retained and
 their typing is recovered through semantic translation uniqueness. -/
 theorem
-    RecursorCheck.RuleAlignment.installedFixedCanonicalLhsBodyFor
+    RecursorCheck.RuleAlignment.installedFixedLhsBodyFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1087,7 +1087,7 @@ theorem
     (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
   let equationDomains :=
     parameterDecls.toCtx.reverse ++ inserted ++ equationFields
-  rcases A.installedCachedCanonicalLhsBodyWithFrameFor T with
+  rcases A.installedCachedLhsBodyWithFrameFor T with
     ⟨originalDomains, fieldDomains, fieldResult, cachedLhs, cachedType,
       Hparams, horiginal, hlifted, Htail, HoriginalCtx, _hfields, Hfull,
       HcachedCtx, HlhsTranslation, HlhsTyping, HcachedType,

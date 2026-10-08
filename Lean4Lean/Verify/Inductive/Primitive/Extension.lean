@@ -36,7 +36,7 @@ theorem PrimitiveInstallation.extendSafeExact
     rcases Hshape with ⟨_, _, _, hbool | ⟨binderName, binderInfo, hnat⟩⟩
     · simp [hbool]
     · simp [hnat]
-  rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
+  rcases Hrecursors.generatedRuleTranslation with ⟨T⟩
   let Hcert0 := Hrecursors.blockCertificate T.rules T.rulesWF
   let Hcert := Hcert0.sf_mono (safety := .safe) (by
     rw [hsafety]

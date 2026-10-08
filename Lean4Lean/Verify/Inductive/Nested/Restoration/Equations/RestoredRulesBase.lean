@@ -172,7 +172,7 @@ noncomputable def RestoredBlockBase.withRules
       sourceTypes (B.main :: B.rest))
     (Hprimary : List.Forall₂ (fun (oc : VInductiveType × VConstVal) rule =>
       Nonempty (decl.NestedIotaRule
-        (canonicalRestoredShapeBlock decl B.sourceRecursors B.auxiliaryRecursors)
+        (restoredShapeBlock decl B.sourceRecursors B.auxiliaryRecursors)
         oc.1 oc.2 rule) ∧ rule.WF B.recursorVEnv)
       (ownedConstructorsFor (B.main :: B.rest)) primaryRules)
     {counts : List Nat}
@@ -183,7 +183,7 @@ noncomputable def RestoredBlockBase.withRules
     (Hwf : ∀ rule ∈ auxiliaryRules, rule.WF B.recursorVEnv) :
     RestoredBlockDerivation H sourceEnv decl lparams nparams isUnsafe safety :=
   have Haux := B.auxiliaryRecursorTrace.shapeWF decl
-    (canonicalRestoredBlock decl B.sourceRecursors B.auxiliaryRecursors
+    (restoredBlock decl B.sourceRecursors B.auxiliaryRecursors
       primaryRules auxiliaryRules) B.main B.recursorVEnv hauxCounts [] auxiliaryRules
     auxiliaryRules (by simp) hauxLen Hwf
   { toRestoredBlockBase := B
@@ -395,7 +395,7 @@ theorem NestedRun.hruleShape_of_base
   -- the primary rules
   have Hprim : List.Forall₂ (fun (oc : VInductiveType × VConstVal) rule =>
       Nonempty (sourceDecl.NestedIotaRule
-        (canonicalRestoredShapeBlock sourceDecl B.sourceRecursors B.auxiliaryRecursors)
+        (restoredShapeBlock sourceDecl B.sourceRecursors B.auxiliaryRecursors)
         oc.1 oc.2 rule) ∧ rule.WF B.recursorVEnv)
       (ownedConstructorsFor (B.main :: B.rest))
       (rules.take (recursorMinorOffset E.lowered.indTypes sourceDecl.types.length)) := by

@@ -2874,7 +2874,7 @@ theorem TrExprS.bvar_of_abstractForallContext
 
 /-- Canonically ordered binder variables translate pointwise in any larger
 abstract forall context. -/
-theorem TrExprS.canonicalBvars_of_abstractForallContext
+theorem TrExprS.bvarSpine_of_abstractForallContext
     (domains : List VExpr) (Δ : VLCtx) (n : Nat)
     (hn : n ≤ domains.length) :
     List.Forall₂ (TrExprS env Us (abstractForallContext domains Δ))

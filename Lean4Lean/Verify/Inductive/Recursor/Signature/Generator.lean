@@ -236,7 +236,7 @@ theorem RecursorConstruction.recursorTarget_eq
   congr 1
   exact congrArg (fun name : Name => name.str "rec") hfName
 
-theorem RecursorConstruction.canonicalTypeTranslations
+theorem RecursorConstruction.typeTranslations
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)

@@ -252,7 +252,7 @@ theorem NestedRun.compilationData_of_tables
       Nonempty (CompilationData (ves.venv (if isUnsafe then .unsafe else .safe))
         sourceDecl E.lowered.loweredDecl E.lowered.signature
         E.lowered.generatedInstance auxiliaries
-        (canonicalRestoredBlock sourceDecl C.sourceRecursors
+        (restoredBlock sourceDecl C.sourceRecursors
           C.auxiliaryRecursors C.sourceRules C.auxiliaryRules)) := by
   have hnodup :
       (familyNames E.lowered.loweredDecl.types ++

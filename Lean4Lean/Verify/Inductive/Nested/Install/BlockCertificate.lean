@@ -126,7 +126,7 @@ def RestoredBlockCertificate.blockCertificate
     · exact C.sourceIota.rulesWF df hprimary
     · exact C.auxiliaryWF.rulesWF (by simp) df hauxiliary
 
-theorem RestoredBlockCertificate.block_eq_canonicalRestoredBlock
+theorem RestoredBlockCertificate.block_eq_restoredBlock
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -138,9 +138,9 @@ theorem RestoredBlockCertificate.block_eq_canonicalRestoredBlock
     (C : RestoredBlockCertificate H sourceEnv decl lparams nparams
       isUnsafe safety) :
     C.blockCertificate.block =
-      { canonicalRestoredBlock decl C.sourceRecursors C.auxiliaryRecursors
+      { restoredBlock decl C.sourceRecursors C.auxiliaryRecursors
         C.sourceRules C.auxiliaryRules with eliminators := C.install.eliminators } := by
-  simp [BlockCertificate.block, canonicalRestoredBlock,
+  simp [BlockCertificate.block, restoredBlock,
     RestoredBlockCertificate.blockCertificate, C.typeValues,
     C.constructorValues, C.recursorValues]
 
@@ -158,14 +158,14 @@ theorem RestoredBlockCertificate.compilation
     (C : RestoredBlockCertificate H sourceEnv decl lparams nparams
       isUnsafe safety) :
     decl.CompilesTo sourceEnv C.blockCertificate.block := by
-  rw [C.block_eq_canonicalRestoredBlock]
-  let block : VInductBlock := { canonicalRestoredBlock decl C.sourceRecursors
+  rw [C.block_eq_restoredBlock]
+  let block : VInductBlock := { restoredBlock decl C.sourceRecursors
     C.auxiliaryRecursors C.sourceRules C.auxiliaryRules with
       eliminators := C.install.eliminators }
   have hvalues :
       (C.typeEntries ++ C.constructorEntries ++ C.recursorEntries).map
           Prod.snd = block.types ++ block.ctors ++ block.recursors := by
-    simp only [List.map_append, block, canonicalRestoredBlock]
+    simp only [List.map_append, block, restoredBlock]
     rw [C.typeValues, C.constructorValues, C.recursorValues]
   have hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name)) := by
@@ -355,7 +355,7 @@ private theorem RestoredBlockCertificate.extendSafe
           outEnv.constants Breplay.installedVEnv ∧
         B.installedVEnv ≤ Breplay.installedVEnv ∧
         Breplay.installation.eliminators = B.installation.eliminators := by
-    have hB : B.block = _ := C.block_eq_canonicalRestoredBlock
+    have hB : B.block = _ := C.block_eq_restoredBlock
     have Hreplay : VInductBlock.EliminatorsReplay (ves.venv observer) decl B.block :=
       (C.eliminatorsCertified (ves.venv observer) (wf.mono DefinitionSafety.le_safe)
         (fun n hn => by

@@ -720,7 +720,7 @@ theorem RecursorTypeTelescope.prefixTyping
           (T.indices ++ T.major)) T.result) := by
     rw [T.target_eq] at hfn
     simpa [List.append_assoc] using hfn
-  have happ := VEnv.HasType.mkApps_wrapForalls_prefix_canonical henv hfn'
+  have happ := VEnv.HasType.mkApps_wrapForalls_prefix_bvarSpine henv hfn'
   simpa [bvarSpine] using happ
 
 /-- The common parameter/motive/minor prefix is itself a well-formed local

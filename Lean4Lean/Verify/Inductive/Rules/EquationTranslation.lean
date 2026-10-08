@@ -151,7 +151,7 @@ groups separate mirrors the two generated equation spines: the recursor uses
 parameters, motives, and minors, while the constructor uses parameters and
 fields. -/
 theorem
-    RecursorCheck.RuleAlignment.canonicalEquationBinderTranslations
+    RecursorCheck.RuleAlignment.equationBinderTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -214,7 +214,7 @@ theorem
 the same de Bruijn index as the owner-motive witness obtained by weakening
 the generated telescope beneath minors and constructor fields. -/
 theorem
-    RecursorCheck.RuleAlignment.canonicalOwnerMotiveBvarIndex
+    RecursorCheck.RuleAlignment.ownerMotiveBvarIndex
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -261,7 +261,7 @@ to precisely the innermost canonical variables.  This identifies the direct
 source translation with the field application typed by the framed equation
 context construction. -/
 theorem
-    RecursorCheck.RuleAlignment.canonicalAllArgsTranslation
+    RecursorCheck.RuleAlignment.allArgsTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -375,7 +375,7 @@ theorem
       equationFieldDomains.length := by
     simp [equationFieldDomains, hcheckedEquationFields, hchecked,
       B.fieldDomains_length]
-  have Hcanonical := A.canonicalAllArgsTranslation T
+  have Hcanonical := A.allArgsTranslation T
     checkedEquationFieldDomains hcheckedEquationLength
   let checkedEquationDomains :=
     (T.params ++ inserted) ++ checkedEquationFieldDomains
@@ -430,7 +430,7 @@ below motives, minors, and fields, followed by the innermost canonical field
 variables.  This is the exact spine of the independently checked constructor
 major in the canonical equation context. -/
 theorem
-    RecursorCheck.RuleAlignment.canonicalConstructorArgsTranslation
+    RecursorCheck.RuleAlignment.constructorArgsTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -465,9 +465,9 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   dsimp only
-  rcases A.canonicalEquationBinderTranslations T fieldDomains hfields with
+  rcases A.equationBinderTranslations T fieldDomains hfields with
     ⟨Hp, _Hm, _Hmi, _Ha⟩
-  have Ha := A.canonicalAllArgsTranslation T fieldDomains hfields
+  have Ha := A.allArgsTranslation T fieldDomains hfields
   have Htr := List.Forall₂.append' Hp Ha
   have hdomains := A.canonicalEquationDomains_length T fieldDomains hfields
   have hparams : A.rule.params_bound.fvars.length = T.params.length := by
@@ -515,7 +515,7 @@ motive/minor block.  Its apparent two-stage lifting is precisely the flat
 constructor spine produced by translating the source parameter and field
 arguments in the full equation context. -/
 theorem
-    RecursorCheck.RuleAlignment.canonicalConstructorMajor_eq
+    RecursorCheck.RuleAlignment.constructorMajor_eq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -567,7 +567,7 @@ theorem
 /-- Translate the concrete constructor major in the generated equation to
 the exact checked abstract major retained by the constructor phase. -/
 theorem
-    RecursorCheck.RuleAlignment.canonicalConstructorMajorResidualTranslation
+    RecursorCheck.RuleAlignment.constructorMajorResidualTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -639,11 +639,11 @@ theorem
           (introTarget.liftN A.rule.allArgs.size 0)
           (bvarSpine A.rule.allArgs.size)).liftN
         (T.motives ++ T.minors).length A.rule.allArgs.size) := by
-    exact A.canonicalConstructorMajor_eq T fieldDomains introTarget
+    exact A.constructorMajor_eq T fieldDomains introTarget
       hfields HintroShape
   have Hhead := A.installedConstructorHeadTranslation
     (abstractForallContext domains [])
-  have Hargs := A.canonicalConstructorArgsTranslation
+  have Hargs := A.constructorArgsTranslation
     T fieldDomains hfields
   have htoCtx : ∀ types : List VExpr,
       VLCtx.toCtx (types.map fun type => (none, .vlam type)) = types := by
@@ -685,7 +685,7 @@ theorem
 recursor-prefix variables, shifted below the genuine field telescope.  This
 is the exact argument list appearing in the weakened prefix typing theorem. -/
 theorem
-    RecursorCheck.RuleAlignment.canonicalRecursorPrefixTranslation
+    RecursorCheck.RuleAlignment.recursorPrefixTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -721,7 +721,7 @@ theorem
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   dsimp only
   have hdomains := A.canonicalEquationDomains_length T fieldDomains hfields
-  rcases A.canonicalEquationBinderTranslations T fieldDomains hfields with
+  rcases A.equationBinderTranslations T fieldDomains hfields with
     ⟨Hp, Hm, Hmi, _Ha⟩
   have Htr := List.Forall₂.append' (List.Forall₂.append' Hp Hm) Hmi
   have hparams : A.rule.params_bound.fvars.length = T.params.length := by
@@ -785,7 +785,7 @@ binder groups into the exact weakened canonical prefix application.  The
 independently established typing derivation supplies every application
 premise required by `TrExprS`. -/
 theorem
-    RecursorCheck.RuleAlignment.canonicalRecursorPrefixResidualTranslation
+    RecursorCheck.RuleAlignment.recursorPrefixResidualTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -847,7 +847,7 @@ theorem
   dsimp only
   have Hhead := A.installedRecursorHeadTranslation
     (abstractForallContext domains [])
-  have Hargs := A.canonicalRecursorPrefixTranslation T fieldDomains hfields
+  have Hargs := A.recursorPrefixTranslation T fieldDomains hfields
   have htoCtx : ∀ types : List VExpr,
       VLCtx.toCtx (types.map fun type => (none, .vlam type)) = types := by
     intro types
@@ -1916,7 +1916,7 @@ pointwise to the exact recursive-index targets retained by the call frame;
 the relation is definitional equality, which is the strongest conclusion
 available for arbitrary translated index expressions. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.canonicalInsertedExposedSpine
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedExposedSpine
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}

@@ -20,7 +20,7 @@ theorem NestedRestorationFolds.addInductOfInstallation
     (primaryRules auxiliaryRules : List VDefEq)
     (es : List (Name × InductiveSignature.CaseSchema))
     (Hcanonical : CompiledInductive sourceEnv decl
-      { canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+      { restoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules with eliminators := es })
     (Hformation : decl.NestedFormationWF sourceEnv)
     (Hsource : TrInductDeclCore sourceEnv lparams nparams sourceTypes
@@ -41,7 +41,7 @@ theorem NestedRestorationFolds.addInductOfInstallation
     (Helim : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock es)) :
     VEnv.AddInduct sourceEnv decl
       (outVEnv.addDefEqRules (primaryRules ++ auxiliaryRules)) := by
-  let block : VInductBlock := { canonicalRestoredBlock decl primaryRecursors
+  let block : VInductBlock := { restoredBlock decl primaryRecursors
     auxiliaryRecursors primaryRules auxiliaryRules with eliminators := es }
   have hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name)) := by
@@ -59,23 +59,23 @@ theorem NestedRestorationFolds.addInductOfInstallation
           (primaryRecursors ++ auxiliaryRecursors)) = some rawOut := by
       simp [VEnv.addConstVals_append, Hsource.typesAdded,
         Hsource.ctorsAdded, hraw]
-    simpa [block, canonicalRestoredBlock] using
+    simpa [block, restoredBlock] using
       VEnv.addConstVals_names_nodup hall
   have HblockWF : block.WF sourceEnv := by
     refine ⟨envTypes, envCtors, outVEnv, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
-    · simpa [block, canonicalRestoredBlock] using Hsource.typesAdded
-    · simpa [block, canonicalRestoredBlock] using Hsource.ctorsAdded
-    · simpa [block, canonicalRestoredBlock] using HrecursorsAdded
+    · simpa [block, restoredBlock] using Hsource.typesAdded
+    · simpa [block, restoredBlock] using Hsource.ctorsAdded
+    · simpa [block, restoredBlock] using HrecursorsAdded
     ·
-      simpa [block, canonicalRestoredBlock] using HtypesWF
+      simpa [block, restoredBlock] using HtypesWF
     ·
-      simpa [block, canonicalRestoredBlock] using HctorsWF
+      simpa [block, restoredBlock] using HctorsWF
     ·
-      simpa [block, canonicalRestoredBlock] using HrecursorsWF
-    · simpa [block, canonicalRestoredBlock] using HrulesWF
+      simpa [block, restoredBlock] using HrecursorsWF
+    · simpa [block, restoredBlock] using HrulesWF
   have Hinstall : block.install sourceEnv = some
       (outVEnv.addDefEqRules (primaryRules ++ auxiliaryRules)) := by
-    simp [VInductBlock.install, block, canonicalRestoredBlock,
+    simp [VInductBlock.install, block, restoredBlock,
       Hsource.typesAdded, Hsource.ctorsAdded, HrecursorsAdded]
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
