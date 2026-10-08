@@ -1029,7 +1029,7 @@ theorem CompletedRecursorPhasesResult.blockEliminatorsReplay
     (rules : List VDefEq)
     (hrules : ∀ df ∈ rules, df.WF H.outVEnv) {env' : VEnv} (hle : sourceEnv ≤ env') :
     VInductBlock.EliminatorsReplay env' decl (H.blockCertificate rules hrules).block :=
-  R.eliminatorsOrdinary.replay hle R.headerValues R.constructorValues rfl rfl
+  R.eliminatorsCertified.replay hle (fun _ h => h.elim) R.headerValues R.constructorValues rfl rfl
 
 end VerifyInductive
 end Lean4Lean

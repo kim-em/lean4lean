@@ -312,7 +312,8 @@ structure CompletedConstructorPhases (c : AddInductive.Context)
   /-- The declaration's certified case eliminator, registered over the constructors. -/
   eliminators : List (Name × InductiveSignature.CaseSchema)
   eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock eliminators)
-  eliminatorsOrdinary : decl.OrdinaryCaseEliminators sourceEnv eliminators
+  eliminatorsCertified : decl.CaseEliminators sourceEnv (fun _ => False) eliminators
+  eliminatorsOwn : decl.OwnCaseEliminators sourceEnv eliminators
   /-- The eliminators are those of a constructor boundary of the declaration. -/
   eliminatorsBoundary : ∃ B : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv
     indTypes, eliminators = B.caseEliminators ∧ B.params = params ∧
@@ -501,7 +502,8 @@ def ConstructorPhasesResult.completed
   ctorVEnv := R.declared.venvCtors
   eliminators := R.declared.eliminators
   eliminatorsWF := R.declared.eliminatorsWF
-  eliminatorsOrdinary := R.declared.eliminatorsOrdinary
+  eliminatorsCertified := R.declared.eliminatorsCertified
+  eliminatorsOwn := R.declared.eliminatorsOwn
   eliminatorsBoundary := R.declared.eliminatorsBoundary
   contextVEnv := R.declared.contextVEnv
   installation := .ordinary H.installed R.declared.installed
@@ -604,7 +606,8 @@ noncomputable def PrimitiveConstructorPhasesResult.completed
   ctorVEnv := R.declared.venvCtors
   eliminators := R.boundary.caseEliminators
   eliminatorsWF := R.boundary.caseEliminatorsWF
-  eliminatorsOrdinary := R.boundary.caseEliminatorsOrdinary
+  eliminatorsCertified := R.boundary.caseEliminatorsCertified
+  eliminatorsOwn := R.boundary.caseEliminatorsOwn
   eliminatorsBoundary := ⟨R.boundary, rfl, rfl, rfl⟩
   contextVEnv := rfl
   installation := .primitive H.installed R.declared.installed

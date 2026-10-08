@@ -1232,22 +1232,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
   have HsourceChecking : CheckingEnv c.safety c.env sourceVEnv := by
     simpa only [Hheaders.sourceContextVEnv] using
       Hheaders.sourceContext.checking.tr
-  have HcasesWF : (envCtors.addEliminators es).WF :=
-    Hcases.casesWF HsourceChecking.wf (TrInductDeclCore.envCtorsWF Hcore HsourceChecking.wf)
-      Hcore.typesAdded Hcore.ctorsAdded
-  have HprojectedWF :
-      ((envCtors.addEliminators es).addProjections decl.projectionEntries).WF := by
-    obtain ⟨_, _, ht, hc, helim⟩ := Hcases
-    rcases helim with ⟨hT, -⟩ | ⟨key, schema, hE, hreg, -⟩
-    · rw [VInductDecl.projectionEntries_eq_nil hT]
-      exact HcasesWF
-    exact VEnv.WF.inductProjections (base := sourceVEnv) (envTypes := envTypes)
-      (decl := decl) (block := decl.caseBlock es)
-      HsourceChecking.wf HcasesWF ⟨key, schema, hE, hreg⟩
-      (TrInductDeclCore.sourceNames_nodup Hcore) (TrInductDeclCore.typeHeadersWF Hcore)
-      (Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hcore)
-      (Lean4Lean.VerifyInductive.TrInductDeclCore.constructorsWF Hcore)
-      Hparams Hparams.rawCtorShape rfl rfl rfl Hcore.typesAdded Hcore.ctorsAdded
+  obtain ⟨HcasesWF, HprojectedWF⟩ := Hcases.windowWF HsourceChecking.wf Hcore Hparams
   rcases replay.existsStagedBlock decl.projectionEntries es HsourceChecking
       HcasesWF HprojectedWF Hprimitive Hnondelta
       hnondelta htypesAbstract hconstructorsAbstract with

@@ -93,44 +93,6 @@ theorem VInductDecl.FormationWF.mono_of_addConstVals {decl : VInductDecl} {env e
       let Hctor := hctorShapes type htype ctor hctor
       ⟨Hctor.1.mono hformationTypesLE, Hctor.2.mono hformationTypesLE⟩, hraw⟩
 
-/-- The case eliminators registered with an ordinary declaration at its constructor boundary:
-none for a declaration without families, otherwise the case schema of a source signature of
-the declaration (`CaseSchema.ofCompilation decl s []`) under the key of its first family, with
-the ingredients of its certificate. Unlike `VInductBlock.EliminatorsWF`, these ingredients are
-monotone along larger environments in which the declaration's families and constructors are
-fresh (`OrdinaryCaseEliminators.mono`). -/
-def VInductDecl.OrdinaryCaseEliminators (env : VEnv) (decl : VInductDecl)
-    (es : List (Name × InductiveSignature.CaseSchema)) : Prop :=
-  (decl.types = [] ∧ es = []) ∨
-  ∃ (s : InductiveSignature) (key : Name),
-    es = [(key, InductiveSignature.CaseSchema.ofCompilation decl s [])] ∧
-    decl.types.head?.map (·.name) = some key ∧
-    decl.SourceWF env ∧ decl.FormationWF env ∧ s.Models env decl ∧
-    ∃ envTypes envCtors, env.addConstVals decl.typeConstants = some envTypes ∧
-      envTypes.addConstVals decl.constructorConstants = some envCtors ∧
-      s.FamilyTypesWF (envCtors.addProjections decl.projectionEntries) decl.uvars ∧
-      (InductiveSignature.CaseSchema.ofCompilation decl s []).ProjNamesRegistered envCtors key ∧
-      (InductiveSignature.CaseSchema.ofCompilation decl s []).HeaderAgreement env decl
-
-theorem VInductDecl.OrdinaryCaseEliminators.eliminatorsWF {env : VEnv} {decl : VInductDecl}
-    {es : List (Name × InductiveSignature.CaseSchema)} {block : VInductBlock}
-    (H : decl.OrdinaryCaseEliminators env es)
-    (htypes : block.types = decl.typeConstants) (hctors : block.ctors = decl.constructorConstants)
-    (hprojections : block.projections = decl.projectionEntries)
-    (heliminators : block.eliminators = es)
-    (hadded : ∃ envTypes envCtors, env.addConstVals decl.typeConstants = some envTypes ∧
-      envTypes.addConstVals decl.constructorConstants = some envCtors) :
-    VInductBlock.EliminatorsWF env decl block := by
-  rcases H with ⟨hT, hE⟩ | ⟨s, key, hE, hkey, hsource, hformation, hmodel, envTypes, envCtors,
-    ht, hc, hfam, hprojs, hhdr⟩
-  · obtain ⟨envTypes, envCtors, ht, hc⟩ := hadded
-    exact ⟨envTypes, envCtors, htypes ▸ ht, hctors ▸ hc, .inl ⟨hT, heliminators.trans hE⟩⟩
-  · refine ⟨envTypes, envCtors, htypes ▸ ht, hctors ▸ hc,
-      .inr ⟨key, _, heliminators.trans hE, ⟨?_, hkey, hhdr⟩, hprojs⟩⟩
-    exact InductiveSignature.CaseSchema.ofCaseCompilation_certified
-      (InductiveSignature.CaseCompilationData.ofOrdinary hsource hformation hmodel ht hc
-        (es := []) (fun _ h => by cases h) hfam htypes hctors hprojections) .nil InductiveSignature.recursorNamesFresh_nil
-
 /-- The block's eliminators are certified over every environment in which its families and
 constructors install. Larger safety models of the same production environment are such
 environments. -/
@@ -150,12 +112,91 @@ theorem VInductBlock.EliminatorsReplay.congr_block {env : VEnv} {decl : VInductD
     {block block' : VInductBlock} (H : VInductBlock.EliminatorsReplay env decl block)
     (h : block' = block) : VInductBlock.EliminatorsReplay env decl block' := h ▸ H
 
-theorem VInductDecl.OrdinaryCaseEliminators.mono {env env' envTypes' envCtors' : VEnv}
+theorem VInductBlock.EliminatorsReplay.congr_fields {env : VEnv} {decl : VInductDecl}
+    {block block' : VInductBlock} (H : VInductBlock.EliminatorsReplay env decl block)
+    (htypes : block'.types = block.types) (hctors : block'.ctors = block.ctors)
+    (hprojections : block'.projections = block.projections)
+    (heliminators : block'.eliminators = block.eliminators) :
+    VInductBlock.EliminatorsReplay env decl block' := fun T C ht hc =>
+  (H T C ht hc).congr_block htypes hctors hprojections heliminators
+
+/-- **Case eliminators certified along extensions**, the monotone form of
+`VInductBlock.EliminatorsWF`. The case eliminators `es` of `decl` are certified
+(`EliminatorsWF`) over every extension of `env` in which the names satisfying `reserved` are
+fresh and the declaration's families and constructors install. `EliminatorsWF` itself is not
+monotone: its certificate fixes freshness of the declaration's names in the base. An ordinary
+declaration reserves no names (its certificate only needs its own names fresh, which
+installation provides); a nested one reserves the names fresh in its production environment,
+which include its auxiliary families and recursors. Views: `EliminatorsReplay` at one
+environment (`CaseEliminators.replay`) and `EliminatorsWF` at the base
+(`CaseEliminators.eliminatorsWF`). -/
+def VInductDecl.CaseEliminators (env : VEnv) (decl : VInductDecl) (reserved : Name → Prop)
+    (es : List (Name × InductiveSignature.CaseSchema)) : Prop :=
+  ∀ env', env ≤ env' → (∀ n, reserved n → env'.constants n = none) →
+    VInductBlock.EliminatorsReplay env' decl (decl.caseBlock es)
+
+theorem VInductDecl.CaseEliminators.mono {env env' : VEnv} {decl : VInductDecl}
+    {reserved : Name → Prop} {es : List (Name × InductiveSignature.CaseSchema)}
+    (H : decl.CaseEliminators env reserved es) (hle : env ≤ env') :
+    decl.CaseEliminators env' reserved es := fun env'' hle' =>
+  H env'' (hle.trans hle')
+
+theorem VInductDecl.CaseEliminators.replay {env env' : VEnv} {decl : VInductDecl}
+    {reserved : Name → Prop} {es : List (Name × InductiveSignature.CaseSchema)}
+    {block : VInductBlock} (H : decl.CaseEliminators env reserved es) (hle : env ≤ env')
+    (hfresh : ∀ n, reserved n → env'.constants n = none)
+    (htypes : block.types = decl.typeConstants) (hctors : block.ctors = decl.constructorConstants)
+    (hprojections : block.projections = decl.projectionEntries)
+    (heliminators : block.eliminators = es) :
+    VInductBlock.EliminatorsReplay env' decl block :=
+  (H env' hle hfresh).congr_fields htypes hctors hprojections heliminators
+
+theorem VInductDecl.CaseEliminators.eliminatorsWF {env : VEnv} {decl : VInductDecl}
+    {reserved : Name → Prop} {es : List (Name × InductiveSignature.CaseSchema)}
+    (H : decl.CaseEliminators env reserved es)
+    (hfresh : ∀ n, reserved n → env.constants n = none) (hdecl : decl.SourceWF env) :
+    VInductBlock.EliminatorsWF env decl (decl.caseBlock es) :=
+  (H env .rfl hfresh).eliminatorsWF hdecl
+
+/-- The monotone ingredients of the certificate of the case eliminators of an ordinary
+declaration: none for a declaration without families, otherwise the case schema of a source
+signature of the declaration (`CaseSchema.ofCompilation decl s []`) under the key of its first
+family. -/
+private def ordinaryCaseIngredients (env : VEnv) (decl : VInductDecl)
+    (es : List (Name × InductiveSignature.CaseSchema)) : Prop :=
+  (decl.types = [] ∧ es = []) ∨
+  ∃ (s : InductiveSignature) (key : Name),
+    es = [(key, InductiveSignature.CaseSchema.ofCompilation decl s [])] ∧
+    decl.types.head?.map (·.name) = some key ∧
+    decl.SourceWF env ∧ decl.FormationWF env ∧ s.Models env decl ∧
+    ∃ envTypes envCtors, env.addConstVals decl.typeConstants = some envTypes ∧
+      envTypes.addConstVals decl.constructorConstants = some envCtors ∧
+      s.FamilyTypesWF (envCtors.addProjections decl.projectionEntries) decl.uvars ∧
+      (InductiveSignature.CaseSchema.ofCompilation decl s []).ProjNamesRegistered envCtors key ∧
+      (InductiveSignature.CaseSchema.ofCompilation decl s []).HeaderAgreement env decl
+
+private theorem ordinaryCaseIngredients.eliminatorsWF {env : VEnv} {decl : VInductDecl}
+    {es : List (Name × InductiveSignature.CaseSchema)}
+    (H : ordinaryCaseIngredients env decl es)
+    (hadded : ∃ envTypes envCtors, env.addConstVals decl.typeConstants = some envTypes ∧
+      envTypes.addConstVals decl.constructorConstants = some envCtors) :
+    VInductBlock.EliminatorsWF env decl (decl.caseBlock es) := by
+  rcases H with ⟨hT, hE⟩ | ⟨s, key, hE, hkey, hsource, hformation, hmodel, envTypes, envCtors,
+    ht, hc, hfam, hprojs, hhdr⟩
+  · obtain ⟨envTypes, envCtors, ht, hc⟩ := hadded
+    exact ⟨envTypes, envCtors, ht, hc, .inl ⟨hT, hE⟩⟩
+  · refine ⟨envTypes, envCtors, ht, hc, .inr ⟨key, _, hE, ⟨?_, hkey, hhdr⟩, hprojs⟩⟩
+    exact InductiveSignature.CaseSchema.ofCaseCompilation_certified
+      (InductiveSignature.CaseCompilationData.ofOrdinary hsource hformation hmodel ht hc
+        (es := []) (fun _ h => by cases h) hfam rfl rfl rfl) .nil
+      InductiveSignature.recursorNamesFresh_nil
+
+private theorem ordinaryCaseIngredients.mono {env env' envTypes' envCtors' : VEnv}
     {decl : VInductDecl} {es : List (Name × InductiveSignature.CaseSchema)}
-    (H : decl.OrdinaryCaseEliminators env es) (hle : env ≤ env')
+    (H : ordinaryCaseIngredients env decl es) (hle : env ≤ env')
     (htypes' : env'.addConstVals decl.typeConstants = some envTypes')
     (hctors' : envTypes'.addConstVals decl.constructorConstants = some envCtors') :
-    decl.OrdinaryCaseEliminators env' es := by
+    ordinaryCaseIngredients env' decl es := by
   rcases H with H | ⟨s, key, hE, hkey, hsource, hformation, hmodel, envTypes, envCtors,
     ht, hc, hfam, hprojs, ⟨RP, hRP, hhdr⟩⟩
   · exact .inl H
@@ -169,6 +210,25 @@ theorem VInductDecl.OrdinaryCaseEliminators.mono {env env' envTypes' envCtors' :
   refine ⟨RI, hRI, fun type htype hname => ?_⟩
   obtain ⟨envTypes₀, ht₀, hdefeq⟩ := hagree type htype hname
   exact ⟨envTypes', htypes', hdefeq.mono (VEnv.addConstVals_mono hle ht₀ htypes')⟩
+
+/-- Ordinary case eliminators are certified along every extension: their ingredients are
+monotone once the families and constructors install. -/
+private theorem ordinaryCaseIngredients.caseEliminators {env : VEnv} {decl : VInductDecl}
+    {es : List (Name × InductiveSignature.CaseSchema)}
+    (H : ordinaryCaseIngredients env decl es) : decl.CaseEliminators env (fun _ => False) es :=
+  fun _ hle _ _ _ ht hc => (H.mono hle ht hc).eliminatorsWF ⟨_, _, ht, hc⟩
+
+/-- The case eliminators of an ordinary declaration are its own restoration-free case
+schemas. -/
+private theorem ordinaryCaseIngredients.own {env : VEnv} {decl : VInductDecl}
+    {es : List (Name × InductiveSignature.CaseSchema)}
+    (H : ordinaryCaseIngredients env decl es) : decl.OwnCaseEliminators env es := by
+  rcases H with ⟨-, hE⟩ | ⟨s, key, hE, -, -, -, hmodel, -⟩
+  · intro p hp; rw [hE] at hp; cases hp
+  · intro p hp
+    rw [hE] at hp
+    rcases List.mem_singleton.mp hp with rfl
+    exact ⟨rfl, rfl, hmodel⟩
 
 /-- The constructor stage of a block with its certified eliminators is well formed, given that
 the constructor stage itself is. -/
@@ -185,35 +245,6 @@ theorem VInductBlock.EliminatorsWF.casesWF {base envTypes envCtors : VEnv} {decl
   · rw [hE]; exact hctorsWF
   · rw [hE]
     exact hreg.register_after_constructors hbase htypes hctors hprojs
-
-/-- The case eliminators registered at an ordinary constructor boundary are the declaration's
-own restoration-free case schemas. -/
-theorem VInductDecl.OrdinaryCaseEliminators.own {env : VEnv} {decl : VInductDecl}
-    {es : List (Name × InductiveSignature.CaseSchema)}
-    (H : decl.OrdinaryCaseEliminators env es) : decl.OwnCaseEliminators env es := by
-  rcases H with ⟨-, hE⟩ | ⟨s, key, hE, -, -, -, hmodel, -⟩
-  · intro p hp; rw [hE] at hp; cases hp
-  · intro p hp
-    rw [hE] at hp
-    rcases List.mem_singleton.mp hp with rfl
-    exact ⟨rfl, rfl, hmodel⟩
-
-theorem VInductBlock.EliminatorsReplay.congr_fields {env : VEnv} {decl : VInductDecl}
-    {block block' : VInductBlock} (H : VInductBlock.EliminatorsReplay env decl block)
-    (htypes : block'.types = block.types) (hctors : block'.ctors = block.ctors)
-    (hprojections : block'.projections = block.projections)
-    (heliminators : block'.eliminators = block.eliminators) :
-    VInductBlock.EliminatorsReplay env decl block' := fun T C ht hc =>
-  (H T C ht hc).congr_block htypes hctors hprojections heliminators
-
-theorem VInductDecl.OrdinaryCaseEliminators.replay {env env' : VEnv}
-    {decl : VInductDecl} {es : List (Name × InductiveSignature.CaseSchema)} {block : VInductBlock}
-    (H : decl.OrdinaryCaseEliminators env es) (hle : env ≤ env')
-    (htypes : block.types = decl.typeConstants) (hctors : block.ctors = decl.constructorConstants)
-    (hprojections : block.projections = decl.projectionEntries)
-    (heliminators : block.eliminators = es) :
-    VInductBlock.EliminatorsReplay env' decl block := fun _ _ ht hc =>
-  (H.mono hle ht hc).eliminatorsWF htypes hctors hprojections heliminators ⟨_, _, ht, hc⟩
 
 end Lean4Lean
 
@@ -970,10 +1001,9 @@ theorem caseEliminatorsWF
     | nil => exact absurd htypes hne
     | cons family families => simp [caseKey, htypes]
 
-/-- The declaration's case eliminators, with the monotone ingredients of their certificate. -/
-theorem caseEliminatorsOrdinary
+private theorem caseIngredients
     (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
-    decl.OrdinaryCaseEliminators sourceEnv R.caseEliminators := by
+    ordinaryCaseIngredients sourceEnv decl R.caseEliminators := by
   by_cases hne : decl.types = []
   · exact .inl ⟨hne, by simp [caseEliminators, hne]⟩
   refine .inr ⟨R.sourceSignature, R.caseKey, by simp [caseEliminators, hne, caseSchema], ?_,
@@ -988,43 +1018,40 @@ theorem caseEliminatorsOrdinary
   | nil => exact absurd htypes hne
   | cons family families => simp [caseKey, htypes]
 
+/-- **The declaration's case eliminators are certified along every extension.** -/
+theorem caseEliminatorsCertified
+    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    decl.CaseEliminators sourceEnv (fun _ => False) R.caseEliminators :=
+  R.caseIngredients.caseEliminators
+
+/-- The declaration's case eliminators are its own restoration-free case schemas. -/
+theorem caseEliminatorsOwn
+    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    decl.OwnCaseEliminators sourceEnv R.caseEliminators :=
+  R.caseIngredients.own
+
+/-- The window of the declaration: its constructor stage with its case eliminators, and then
+with its projection entries, is well formed. -/
+theorem windowWF
+    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R.ctorVEnv.addEliminators R.caseEliminators).WF ∧
+      ((R.ctorVEnv.addEliminators R.caseEliminators).addProjections
+        decl.projectionEntries).WF :=
+  R.caseEliminatorsWF.windowWF (by rw [← R.sourceContextVEnv]; exact R.sourceContext.checking.tr.wf)
+    R.core R.formation.formationWF.sourceParameterWF
+
 /-- The constructor stage with the declaration's case eliminators is well formed. -/
 theorem casesWF
     (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
-    (R.ctorVEnv.addEliminators R.caseEliminators).WF := by
-  have hsourceWF : sourceEnv.WF := by
-    rw [← R.sourceContextVEnv]; exact R.sourceContext.checking.tr.wf
-  obtain ⟨eT, eC, ht, hc, helim⟩ := R.caseEliminatorsWF
-  obtain rfl : R.headerVEnv = eT := Option.some.inj (R.core.typesAdded.symm.trans ht)
-  obtain rfl : R.ctorVEnv = eC := Option.some.inj (R.core.ctorsAdded.symm.trans hc)
-  rcases helim with ⟨-, hE⟩ | ⟨key, schema, hE, hreg, hprojs⟩
-  · rw [show R.caseEliminators = [] from hE]
-    exact Lean4Lean.VerifyInductive.TrInductDeclCore.envCtorsWF R.core hsourceWF
-  · rw [show R.caseEliminators = [(key, schema)] from hE]
-    have := hreg.register_after_constructors hsourceWF ht hc hprojs
-    simpa [VInductDecl.caseBlock, VEnv.addEliminators] using this
+    (R.ctorVEnv.addEliminators R.caseEliminators).WF :=
+  R.windowWF.1
 
 /-- The constructor stage with the declaration's case eliminators and projections is well
 formed. -/
 theorem projectedWF
     (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
-    ((R.ctorVEnv.addEliminators R.caseEliminators).addProjections decl.projectionEntries).WF := by
-  have hsourceWF : sourceEnv.WF := by
-    rw [← R.sourceContextVEnv]; exact R.sourceContext.checking.tr.wf
-  have hcases := R.casesWF
-  obtain ⟨_, _, ht, hc, helim⟩ := R.caseEliminatorsWF
-  rcases helim with ⟨hT, -⟩ | ⟨key, schema, hE, hreg, -⟩
-  · rw [VInductDecl.projectionEntries_eq_nil hT]
-    exact hcases
-  have hparams : decl.SourceParameterWF sourceEnv := R.formation.formationWF.sourceParameterWF
-  exact VEnv.WF.inductProjections (base := sourceEnv) (envTypes := R.headerVEnv)
-    (decl := decl) (block := decl.caseBlock R.caseEliminators)
-    hsourceWF hcases ⟨key, schema, hE, hreg⟩
-    (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core)
-    (Lean4Lean.VerifyInductive.TrInductDeclCore.typeHeadersWF R.core)
-    (Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars R.core)
-    (Lean4Lean.VerifyInductive.TrInductDeclCore.constructorsWF R.core)
-    hparams hparams.rawCtorShape rfl rfl rfl R.core.typesAdded R.core.ctorsAdded
+    ((R.ctorVEnv.addEliminators R.caseEliminators).addProjections decl.projectionEntries).WF :=
+  R.windowWF.2
 
 end ConstructorBoundary
 end Lean4Lean.VerifyInductive

@@ -1356,9 +1356,8 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
     (hsourceNonempty : sourceTypes ≠ [])
     (hcanonicalElims : canonical.eliminators = es)
     (Hcases : VInductBlock.EliminatorsWF sourceVEnv sourceDecl (sourceDecl.caseBlock es))
-    (Hreplay : ∀ env', sourceVEnv ≤ env' →
-      (∀ n, c.env.constants.find? n = none → env'.constants n = none) →
-      VInductBlock.EliminatorsReplay env' sourceDecl (sourceDecl.caseBlock es))
+    (Hreplay : sourceDecl.CaseEliminators sourceVEnv
+      (fun n => c.env.constants.find? n = none) es)
     (HelimRestored : NestedEliminatorsRestored P result
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 sourceDecl c.lparams es) :
     Nonempty { C : NestedFinalAssemblyShape Hrestored sourceVEnv

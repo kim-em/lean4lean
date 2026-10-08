@@ -366,7 +366,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
         Breplay.staged.eliminators = B.staged.eliminators := by
     have hB : B.block = _ := C.block_eq_canonicalRestoredBlock
     have Hreplay : VInductBlock.EliminatorsReplay (ves.venv observer) decl B.block :=
-      (C.eliminatorsReplay (ves.venv observer) (wf.mono DefinitionSafety.le_safe)
+      (C.eliminatorsCertified (ves.venv observer) (wf.mono DefinitionSafety.le_safe)
         (fun n hn => by
           cases h : (ves.venv observer).constants n with
           | none => rfl

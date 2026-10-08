@@ -328,7 +328,8 @@ structure DeclaredConstructorsResult
   (`ConstructorBoundary.caseEliminatorsWF`). -/
   eliminators : List (Name × InductiveSignature.CaseSchema)
   eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock eliminators)
-  eliminatorsOrdinary : decl.OrdinaryCaseEliminators sourceEnv eliminators
+  eliminatorsCertified : decl.CaseEliminators sourceEnv (fun _ => False) eliminators
+  eliminatorsOwn : decl.OwnCaseEliminators sourceEnv eliminators
   /-- The eliminators are those of a constructor boundary of the declaration, so their
   signature is the boundary's source signature. -/
   eliminatorsBoundary : ∃ B : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv
@@ -1042,44 +1043,7 @@ theorem AddInductive.declareConstructors.WF
         (fun h => h) VEnv.addProjections_le hrecursors.heads
     let B := H.boundary Hchecked venvCtors core
     have helimsWF := B.caseEliminatorsWF
-    have helimWF : (venvCtors.addEliminators B.caseEliminators).WF := by
-      obtain ⟨eT, eC, ht, hc, helim⟩ := helimsWF
-      obtain rfl : H.context.venv = eT := Option.some.inj (core.typesAdded.symm.trans ht)
-      obtain rfl : venvCtors = eC := Option.some.inj (core.ctorsAdded.symm.trans hc)
-      rcases helim with ⟨-, hE⟩ | ⟨key, schema, hE, hreg, hprojs⟩
-      · rw [show B.caseEliminators = [] from hE]
-        exact hvalidCore.tr.wf
-      · rw [show B.caseEliminators = [(key, schema)] from hE]
-        have := hreg.register_after_constructors hsourceWF ht hc hprojs
-        simpa [VInductDecl.caseBlock, VEnv.addEliminators] using this
-    have hprojectedWF :
-        ((venvCtors.addEliminators B.caseEliminators).addProjections
-          decl.projectionEntries).WF := by
-      obtain ⟨_, _, ht, hc, helim⟩ := helimsWF
-      rcases helim with ⟨hT, -⟩ | ⟨key, schema, hE, hreg, -⟩
-      · rw [VInductDecl.projectionEntries_eq_nil hT]
-        exact helimWF
-      apply VEnv.WF.inductProjections
-          (base := sourceEnv) (envTypes := H.context.venv)
-          (decl := decl) (block := decl.caseBlock B.caseEliminators)
-      · exact hsourceWF
-      · exact helimWF
-      · exact ⟨key, schema, hE, hreg⟩
-      · exact Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup core
-      · exact Lean4Lean.VerifyInductive.TrInductDeclCore.typeHeadersWF core
-      · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars core
-      · intro ctor hctor
-        change H.context.venv.IsType ctor.uvars [] ctor.type
-        rw [Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars core ctor
-          hctor]
-        exact Hchecked.checked.types ctor hctor
-      · exact hparams
-      · exact hparams.rawCtorShape
-      · rfl
-      · rfl
-      · rfl
-      · exact core.typesAdded
-      · exact core.ctorsAdded
+    obtain ⟨helimWF, hprojectedWF⟩ := helimsWF.windowWF hsourceWF core hparams
     have hle : venvCtors.addProjections decl.projectionEntries ≤
         (venvCtors.addEliminators B.caseEliminators).addProjections decl.projectionEntries :=
       VEnv.addProjections_mono VEnv.addEliminators_le
@@ -1097,7 +1061,8 @@ theorem AddInductive.declareConstructors.WF
       toDeclaredConstructorsCore := D
       eliminators := B.caseEliminators
       eliminatorsWF := helimsWF
-      eliminatorsOrdinary := B.caseEliminatorsOrdinary
+      eliminatorsCertified := B.caseEliminatorsCertified
+      eliminatorsOwn := B.caseEliminatorsOwn
       eliminatorsBoundary := ⟨B, rfl, rfl, rfl⟩
       context := H.context.withEnv hvalid
         (Hinstalled.le.trans VEnv.addEliminators_addProjections_le)

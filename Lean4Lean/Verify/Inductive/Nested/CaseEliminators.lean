@@ -432,7 +432,7 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
         E.production.constructors.completed.core.typesAdded)
     refine ⟨_, _, E.production.constructors.completed.eliminators, hloweredTypes,
       hloweredCtors, ?_, ?_⟩
-    · have hown := E.production.constructors.completed.eliminatorsOrdinary.own
+    · have hown := E.production.constructors.completed.eliminatorsOwn
       generalize E.production.constructors.completed.eliminators = es at hown ⊢
       rw [hinit] at hown
       exact hown
@@ -618,9 +618,8 @@ theorem NestedValidatedRunResult.caseEliminators
     ∃ es : List (Name × InductiveSignature.CaseSchema),
       VInductBlock.EliminatorsWF (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
         (sourceDecl.caseBlock es) ∧
-      (∀ env', ves.venv (if isUnsafe then .unsafe else .safe) ≤ env' →
-        (∀ n, sourceProdEnv.constants.find? n = none → env'.constants n = none) →
-        VInductBlock.EliminatorsReplay env' sourceDecl (sourceDecl.caseBlock es)) ∧
+      sourceDecl.CaseEliminators (ves.venv (if isUnsafe then .unsafe else .safe))
+        (fun n => sourceProdEnv.constants.find? n = none) es ∧
       ∃ (key : Name) (sL : InductiveSignature) (auxiliaries : List ContainerSpecialization),
         E.production.constructors.completed.eliminators =
           [(key, CaseSchema.ofCompilation E.production.loweredDecl sL [])] ∧

@@ -231,9 +231,8 @@ structure NestedFinalAssemblyShape
   eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock canonical.eliminators)
   /-- The certificate of the case eliminators replays over larger safety models of the same
   production environment. -/
-  eliminatorsReplay : ∀ env', sourceEnv ≤ env' →
-    (∀ n, sourceProdEnv.constants.find? n = none → env'.constants n = none) →
-    VInductBlock.EliminatorsReplay env' decl (decl.caseBlock canonical.eliminators)
+  eliminatorsCertified : decl.CaseEliminators sourceEnv
+    (fun n => sourceProdEnv.constants.find? n = none) canonical.eliminators
   /-- The case eliminators restore the case eliminator of the lowered window. -/
   eliminatorsRestored : NestedEliminatorsRestored production result auxRec decl lparams
     canonical.eliminators
@@ -339,9 +338,8 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
     (htypesSource : decl.types = main :: rest)
     (hsourceNonempty : sourceTypes ≠ [])
     (Helim : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock canonical.eliminators))
-    (Hreplay : ∀ env', sourceEnv ≤ env' →
-      (∀ n, sourceProdEnv.constants.find? n = none → env'.constants n = none) →
-      VInductBlock.EliminatorsReplay env' decl (decl.caseBlock canonical.eliminators))
+    (Hreplay : decl.CaseEliminators sourceEnv
+      (fun n => sourceProdEnv.constants.find? n = none) canonical.eliminators)
     (Hrestored : NestedEliminatorsRestored P result auxRec decl lparams canonical.eliminators) :
     NestedFinalAssemblyShape (sourceTypes := sourceTypes) H sourceEnv
       decl lparams nparams isUnsafe safety where
@@ -380,7 +378,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
   sourceNonempty := hsourceNonempty
   auxiliaryWF := R.auxiliaryWF
   eliminatorsWF := Helim
-  eliminatorsReplay := Hreplay
+  eliminatorsCertified := Hreplay
   eliminatorsRestored := Hrestored
 
 /-- Fold primary equations while retaining membership of both the concrete
