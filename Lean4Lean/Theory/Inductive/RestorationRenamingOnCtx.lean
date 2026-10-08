@@ -102,21 +102,24 @@ theorem ProjectionTransport.onCtx {envS : VEnv} {ρ : Name → Option VExpr} {σ
   unitLike _ := H.unitLike
 
 /-- A restoration-free eliminator `(block, schema)` of the lowered environment,
-matched in `envS` by the registered schema with the same signature and the
-restoration `r`, which agrees with the renaming replacement `(ρ, σ)`. Its
+matched in `envS` by the registered schema with the same signature, the
+original families `families` and the restoration `r`, which agrees with the
+renaming replacement `(ρ, σ)` (`CaseSchema.eq_with_of_signature` puts a source
+schema with the same signature in this form). Its
 elimination rules are transported through the agreement of restoration with
 `replaceRen ρ σ` up to beta
 (`InductiveSignature.RenamingRestorationAgreement.expr_simAt`), which needs beta
 subject reduction in `envS`, the projection names of the generic type and
 equations fixed by `σ`, and their restorations to succeed. -/
 structure RestoredEliminator (envS : VEnv) (ρ : Name → Option VExpr) (σ : Name → Name)
-    (block : Name) (schema : InductiveSignature.CaseSchema)
+    (block : Name) (schema : InductiveSignature.CaseSchema) (families : List Name)
     (r : InductiveSignature.Restoration) : Prop where
   /-- The lowered schema carries no restoration. -/
   restorationFree : schema.restoration = {}
-  /-- The source schema, with the same signature and the restoration `r`, is
-  registered under the same key. -/
-  registered : envS.eliminators block { schema with restoration := r }
+  /-- The source schema, with the same signature, the original families
+  `families` and the restoration `r`, is registered under the same key. -/
+  registered : envS.eliminators block
+    { schema with originalFamilies := families, restoration := r }
   /-- The restoration agrees with the renaming replacement. -/
   agreement : InductiveSignature.RenamingRestorationAgreement r ρ σ
   /-- The restoration table is scoped (the head arguments are closed under the
@@ -133,19 +136,33 @@ structure RestoredEliminator (envS : VEnv) (ρ : Name → Option VExpr) (σ : Na
 
 theorem RestoredEliminator.mono_envS {envS envS' : VEnv} {ρ : Name → Option VExpr}
     {σ : Name → Name} {block : Name} {schema : InductiveSignature.CaseSchema}
-    {r : InductiveSignature.Restoration} (R : RestoredEliminator envS ρ σ block schema r)
+    {families : List Name} {r : InductiveSignature.Restoration}
+    (R : RestoredEliminator envS ρ σ block schema families r)
     (heq : envS'.eliminators = envS.eliminators)
     (hβ : ∀ U, envS'.BetaSubjectReduction U) :
-    RestoredEliminator envS' ρ σ block schema r :=
+    RestoredEliminator envS' ρ σ block schema families r :=
   { R with registered := heq ▸ R.registered, betaSubjectReduction := hβ }
+
+/-- A schema with the same signature as `schema` is `schema` with its original
+families and restoration replaced. -/
+theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.eq_with_of_signature
+    {schema schemaS : InductiveSignature.CaseSchema} (h : schemaS.signature = schema.signature) :
+    schemaS = { schema with
+      originalFamilies := schemaS.originalFamilies
+      restoration := schemaS.restoration } := by
+  cases schemaS
+  cases h
+  rfl
 
 /-- The generic type of the restored schema is the restoration of the generic
 type of the restoration-free schema. -/
 theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.genericType_withRestoration
     {schema : InductiveSignature.CaseSchema} (h0 : schema.restoration = {})
     {owner : Fin schema.signature.families.size} {type : VExpr}
-    (h : schema.genericType owner = some type) (r : InductiveSignature.Restoration) :
-    ({ schema with restoration := r } : InductiveSignature.CaseSchema).genericType owner =
+    (h : schema.genericType owner = some type) (families : List Name)
+    (r : InductiveSignature.Restoration) :
+    ({ schema with originalFamilies := families, restoration := r } :
+      InductiveSignature.CaseSchema).genericType owner =
       r.expr type := by
   simp only [InductiveSignature.CaseSchema.genericType, InductiveSignature.CaseSchema.type,
     h0, InductiveSignature.Restoration.expr_empty, Option.some.injEq] at h ⊢
@@ -157,10 +174,10 @@ generic equations of the restoration-free schema. -/
 theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.genericEquations_withRestoration
     {schema : InductiveSignature.CaseSchema} (h0 : schema.restoration = {}) {block : Name}
     {owner : Fin schema.signature.families.size} {rules : List VDefEq}
-    (h : schema.genericEquations block owner = some rules)
+    (h : schema.genericEquations block owner = some rules) (families : List Name)
     (r : InductiveSignature.Restoration) :
-    ({ schema with restoration := r } : InductiveSignature.CaseSchema).genericEquations
-      block owner = rules.mapM r.equation := by
+    ({ schema with originalFamilies := families, restoration := r } :
+      InductiveSignature.CaseSchema).genericEquations block owner = rules.mapM r.equation := by
   have hempty : (({} : InductiveSignature.Restoration).equation) = fun e => some e := by
     funext e
     exact InductiveSignature.Restoration.equation_empty e
@@ -179,9 +196,10 @@ theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.genericEquations_withRest
 theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.Permission.withRestoration
     {schema : InductiveSignature.CaseSchema} {owner : Fin schema.signature.families.size}
     {U : Nat} {levels : List VLevel} {target : VLevel}
-    (H : schema.Permission U owner levels target) (r : InductiveSignature.Restoration) :
-    ({ schema with restoration := r } : InductiveSignature.CaseSchema).Permission U owner
-      levels target :=
+    (H : schema.Permission U owner levels target) (families : List Name)
+    (r : InductiveSignature.Restoration) :
+    ({ schema with originalFamilies := families, restoration := r } :
+      InductiveSignature.CaseSchema).Permission U owner levels target :=
   ⟨H.length, H.levels_wf, H.target_wf, H.admissible⟩
 
 private theorem restoredEliminator_closedN {r : InductiveSignature.Restoration}
@@ -208,7 +226,8 @@ private theorem mapM_equation_of_isSome (r : InductiveSignature.Restoration) :
 `envS` through the registered restored schema. -/
 theorem RestoredEliminator.elimDF {envS : VEnv} {ρ : Name → Option VExpr}
     {σ : Name → Name} {block : Name} {schema : InductiveSignature.CaseSchema}
-    {r : InductiveSignature.Restoration} (R : RestoredEliminator envS ρ σ block schema r)
+    {families : List Name} {r : InductiveSignature.Restoration}
+    (R : RestoredEliminator envS ρ σ block schema families r)
     (henv : envS.Ordered) {owner : Fin schema.signature.families.size} {type : VExpr}
     {U : Nat} {Γ : List VExpr} {levels levels' : List VLevel} {target target' : VLevel}
     {typeLevel : VLevel}
@@ -225,20 +244,22 @@ theorem RestoredEliminator.elimDF {envS : VEnv} {ρ : Name → Option VExpr}
   obtain ⟨hfixT, hsome⟩ := R.genericType owner type htype
   obtain ⟨type', htype'⟩ := Option.isSome_iff_exists.mp hsome
   have hgen := InductiveSignature.CaseSchema.genericType_withRestoration
-    R.restorationFree htype r
+    R.restorationFree htype families r
   rw [htype'] at hgen
   have hdef := R.agreement.expr_simAt henv (R.betaSubjectReduction U) hΓ hfixT.instL
     (restoredEliminator_instL htype' (target :: levels)) _ htyped
-  have hS := VEnv.IsDefEq.elimDF (schema := { schema with restoration := r }) (owner := owner)
+  have hS := VEnv.IsDefEq.elimDF
+    (schema := { schema with originalFamilies := families, restoration := r }) (owner := owner)
     R.registered hgen (restoredEliminator_closedN R.restorationScoped hclosed htype')
-    (hperm.withRestoration r) hright heq hdef.hasType.2
+    (hperm.withRestoration families r) hright heq hdef.hasType.2
   exact .defeqDF hdef.symm hS
 
 /-- The iota rule of a restoration-free lowered eliminator, transported to
 `envS` through the restored rule of the registered restored schema. -/
 theorem RestoredEliminator.elimIota {envS : VEnv} {ρ : Name → Option VExpr}
     {σ : Name → Name} {block : Name} {schema : InductiveSignature.CaseSchema}
-    {r : InductiveSignature.Restoration} (R : RestoredEliminator envS ρ σ block schema r)
+    {families : List Name} {r : InductiveSignature.Restoration}
+    (R : RestoredEliminator envS ρ σ block schema families r)
     (henv : envS.Ordered) {owner : Fin schema.signature.families.size}
     {rules : List VDefEq} {df : VDefEq}
     {U : Nat} {Γ : List VExpr} {levels : List VLevel} {target : VLevel}
@@ -258,7 +279,7 @@ theorem RestoredEliminator.elimIota {envS : VEnv} {ρ : Name → Option VExpr}
   obtain ⟨rules', hrules'⟩ := mapM_equation_of_isSome r
     (fun d hd => (R.genericEquations owner rules hgen d hd).2.2.2)
   have hgen' := InductiveSignature.CaseSchema.genericEquations_withRestoration
-    R.restorationFree hgen r
+    R.restorationFree hgen families r
   rw [hrules'] at hgen'
   have hmem' : df' ∈ rules' := by
     obtain ⟨d, hd, hdd⟩ := List.Forall₂.forall_exists_l (List.mapM_eq_some.mp hrules') df hmem
@@ -278,8 +299,9 @@ theorem RestoredEliminator.elimIota {envS : VEnv} {ρ : Name → Option VExpr}
   obtain ⟨u, hT⟩ := hleft.isType henv hΓ
   have hTT := R.agreement.expr_simAt henv hβ hΓ hfixT.instL
     (restoredEliminator_instL ht (target :: levels)) _ hT
-  have hι := VEnv.IsDefEq.elimIota (schema := { schema with restoration := r })
-    (owner := owner) R.registered hgen' hmem' hclosed' (hperm.withRestoration r)
+  have hι := VEnv.IsDefEq.elimIota
+    (schema := { schema with originalFamilies := families, restoration := r })
+    (owner := owner) R.registered hgen' hmem' hclosed' (hperm.withRestoration families r)
     (.defeqDF hTT hL.hasType.2) (.defeqDF hTT hR.hasType.2)
   exact hL.trans ((VEnv.IsDefEq.defeqDF hTT.symm hι).trans hR.symm)
 
@@ -307,7 +329,7 @@ structure RenamingReplacementOnCtx (envS envL : VEnv) (ρ : Name → Option VExp
       (∀ owner rules, schema.genericEquations block owner = some rules → ∀ df ∈ rules,
         df.lhs.replaceRen ρ σ = df.lhs ∧ df.rhs.replaceRen ρ σ = df.rhs ∧
         df.type.replaceRen ρ σ = df.type)) ∨
-    ∃ r, RestoredEliminator envS ρ σ block schema r
+    ∃ families r, RestoredEliminator envS ρ σ block schema families r
   projections : ∀ typeName info, envL.projections typeName info →
     ProjectionTransportOnCtx envS ρ σ typeName info
 
@@ -357,7 +379,7 @@ theorem RenamingReplacementOnCtx.isDefEq (S : RenamingReplacementOnCtx envS envL
   | elimDF hlookup htype hclosed hperm hright heq _ ih =>
     intro hΓ'
     have ih := ih hΓ'
-    rcases S.eliminators _ _ hlookup with ⟨hS, htypes, _⟩ | ⟨r, R⟩
+    rcases S.eliminators _ _ hlookup with ⟨hS, htypes, _⟩ | ⟨families, r, R⟩
     · have hfix := htypes _ _ htype
       simp only [VExpr.replaceRen_instL, hfix, VExpr.replaceRen] at ih ⊢
       exact .elimDF hS htype hclosed hperm hright heq ih
@@ -367,7 +389,7 @@ theorem RenamingReplacementOnCtx.isDefEq (S : RenamingReplacementOnCtx envS envL
     intro hΓ'
     have ihLeft := ihLeft hΓ'
     have ihRight := ihRight hΓ'
-    rcases S.eliminators _ _ hlookup with ⟨hS, _, hrules⟩ | ⟨r, R⟩
+    rcases S.eliminators _ _ hlookup with ⟨hS, _, hrules⟩ | ⟨families, r, R⟩
     · obtain ⟨hl, hr, ht⟩ := hrules _ _ hgen _ hmem
       simp only [VExpr.replaceRen_instL, hl, hr, ht] at ihLeft ihRight ⊢
       exact .elimIota hS hgen hmem hclosed hperm ihLeft ihRight
@@ -487,7 +509,7 @@ eliminators, each matched by a registered restored schema of `envS`. -/
 theorem RenamingReplacementOnCtx.addEliminators {env : VEnv}
     (S : RenamingReplacementOnCtx envS env ρ σ)
     {es : List (Name × InductiveSignature.CaseSchema)}
-    (hes : ∀ e ∈ es, ∃ r, RestoredEliminator envS ρ σ e.1 e.2 r) :
+    (hes : ∀ e ∈ es, ∃ families r, RestoredEliminator envS ρ σ e.1 e.2 families r) :
     RenamingReplacementOnCtx envS (env.addEliminators es) ρ σ where
   closed := S.closed
   ordered := S.ordered
@@ -503,31 +525,33 @@ theorem RenamingReplacementOnCtx.addEliminators {env : VEnv}
 
 /-- Extend a context-carrying renaming replacement by one restoration-free
 lowered eliminator `(block, schema)` (the lowered window's case eliminator),
-matched by the registered restored schema `{ schema with restoration := r }`
-of `envS`. -/
+matched by the registered restored schema
+`{ schema with originalFamilies := families, restoration := r }` of `envS`. -/
 theorem RenamingReplacementOnCtx.addEliminator {env : VEnv}
     (S : RenamingReplacementOnCtx envS env ρ σ) {block : Name}
-    {schema : InductiveSignature.CaseSchema} {r : InductiveSignature.Restoration}
-    (R : RestoredEliminator envS ρ σ block schema r) :
+    {schema : InductiveSignature.CaseSchema} {families : List Name}
+    {r : InductiveSignature.Restoration}
+    (R : RestoredEliminator envS ρ σ block schema families r) :
     RenamingReplacementOnCtx envS (env.addEliminators [(block, schema)]) ρ σ :=
   S.addEliminators fun e he => by
     rw [List.mem_singleton] at he
     subst he
-    exact ⟨r, R⟩
+    exact ⟨families, r, R⟩
 
 /-- A restored eliminator in a well-formed source environment: beta subject
 reduction, the scope of the restoration and the restorability of the generic
 types follow from well-formedness. -/
 theorem RestoredEliminator.of_wf {block : Name} {schema : InductiveSignature.CaseSchema}
-    {r : InductiveSignature.Restoration} (hS : envS.WF)
+    {families : List Name} {r : InductiveSignature.Restoration} (hS : envS.WF)
     (h0 : schema.restoration = {})
-    (hreg : envS.eliminators block { schema with restoration := r })
+    (hreg : envS.eliminators block
+      { schema with originalFamilies := families, restoration := r })
     (A : InductiveSignature.RenamingRestorationAgreement r ρ σ)
     (htype : ∀ owner type, schema.genericType owner = some type → type.ProjNamesFixed σ)
     (heqs : ∀ owner rules, schema.genericEquations block owner = some rules →
       ∀ df ∈ rules, df.lhs.ProjNamesFixed σ ∧ df.rhs.ProjNamesFixed σ ∧
         df.type.ProjNamesFixed σ ∧ (r.equation df).isSome) :
-    RestoredEliminator envS ρ σ block schema r where
+    RestoredEliminator envS ρ σ block schema families r where
   restorationFree := h0
   registered := hreg
   agreement := A
@@ -536,7 +560,7 @@ theorem RestoredEliminator.of_wf {block : Name} {schema : InductiveSignature.Cas
   genericType owner type h := by
     refine ⟨htype owner type h, ?_⟩
     obtain ⟨type', h', -⟩ := ShapeModel.VEnv.WF.eliminator_genericType_closed hS hreg owner
-    rw [InductiveSignature.CaseSchema.genericType_withRestoration h0 h r] at h'
+    rw [InductiveSignature.CaseSchema.genericType_withRestoration h0 h families r] at h'
     rw [h']
     rfl
   genericEquations := heqs
