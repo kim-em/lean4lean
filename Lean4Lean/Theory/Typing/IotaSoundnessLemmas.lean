@@ -11,7 +11,6 @@ import Lean4Lean.Theory.Inductive.Normalization
 import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Inductive.RawShape
 import Lean4Lean.Theory.Inductive.Restoration
-import Lean4Lean.Theory.Inductive.RestorationDefEq
 import Lean4Lean.Theory.Inductive.Signature
 import Lean4Lean.Theory.Inductive.SignatureLemmas
 import Lean4Lean.Theory.Inductive.SourceModelNames
@@ -246,6 +245,20 @@ theorem Restoration.heads_find?_eq_none {r : Restoration} {name : Name}
   apply List.find?_eq_none.mpr
   intro head hmem heq
   exact h (List.mem_map.mpr ⟨head, hmem, by simpa using heq⟩)
+
+theorem Restoration.recursorName_of_constants {r : Restoration} {env : VEnv}
+    (hfresh : ∀ p ∈ r.recursors, env.constants p.1 = none)
+    (hc : env.constants c = some ci) : r.recursorName c = c := by
+  unfold Restoration.recursorName
+  split
+  · next pair hfind =>
+    have hmem := List.mem_of_find?_eq_some hfind
+    have heq := List.find?_some hfind
+    simp only [beq_iff_eq] at heq
+    have := hfresh _ hmem
+    rw [heq, hc] at this
+    cases this
+  · rfl
 end Lean4Lean.InductiveSignature
 
 namespace Lean4Lean
