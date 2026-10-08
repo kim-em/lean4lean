@@ -34,8 +34,8 @@ theorem RecursorConstruction.consumedSignature_shapeTranslations
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (hk : recursorMinorOffset indTypes owner + localIndex <
-      (H.consumedSignature HU).constructors.size) :
-    let s := H.consumedSignature HU
+      (H.signature HU).constructors.size) :
+    let s := H.signature HU
     let S := H.origins.minorShapes owner howner localIndex hlocal
     let B := H.recInfos[owner]!.ruleBlueprints[localIndex]!
     let ctor := s.constructors[recursorMinorOffset indTypes owner + localIndex]
@@ -72,20 +72,20 @@ theorem RecursorConstruction.consumedSignature_shapeTranslations
                 (pos + C.args.size))
           r.indices := by
   intro s S B ctor rf
-  have hctor : ctor = H.consumedConstructorAt HU owner howner localIndex hlocal :=
+  have hctor : ctor = H.constructorAt HU owner howner localIndex hlocal :=
     H.consumedSignature_constructor HU owner howner localIndex hlocal hk
   have hft : s.fieldTypes ctor = H.declFieldDomains owner howner localIndex hlocal := by
     rw [hctor]; exact H.consumedConstructorAt_fieldTypes HU owner howner localIndex hlocal
-  have hrec : rf = H.consumedShapes HU owner howner localIndex hlocal := by
+  have hrec : rf = H.recursiveShapes HU owner howner localIndex hlocal := by
     simp only [rf]
     rw [hctor]
     exact H.consumedConstructorAt_recursiveFields HU owner howner localIndex hlocal
   have hspec := H.consumedShapes_spec HU owner howner localIndex hlocal
   refine ⟨hft, by rw [hrec]; exact hspec.2.1, ?_⟩
   intro j hj
-  have hj' : j < (H.consumedShapes HU owner howner localIndex hlocal).length := by
+  have hj' : j < (H.recursiveShapes HU owner howner localIndex hlocal).length := by
     rw [hrec] at hj; exact hj
-  have hx : rf[j] = (H.consumedShapes HU owner howner localIndex hlocal)[j] :=
+  have hx : rf[j] = (H.recursiveShapes HU owner howner localIndex hlocal)[j] :=
     List.getElem_of_eq hrec hj
   obtain ⟨hpos, hfield, hsrc⟩ := hspec.2.2.2.2 j hj'
   dsimp only [RecursorConstruction.RecursiveShapeDomains] at hsrc
@@ -104,7 +104,7 @@ target indices closed over the earlier fields and the parameters. -/
 theorem RecursorConstruction.consumedGeneration_shapeTranslations
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    let G := H.consumedGeneration
+    let G := H.generator
     let S := H.origins.minorShapes owner howner localIndex hlocal
     let k := recursorMinorOffset indTypes owner + localIndex
     let B := H.recInfos[owner]!.ruleBlueprints[localIndex]!
@@ -143,8 +143,8 @@ theorem RecursorConstruction.consumedGeneration_shapeTranslations
                   (pos + C.args.size))
             r.indices := by
   intro G S k B
-  have hk : k < (H.consumedSignature H.argumentUniverses).constructors.size := by
-    simp only [RecursorConstruction.consumedSignature, Array.size_ofFn]
+  have hk : k < (H.signature H.argumentUniverses).constructors.size := by
+    simp only [RecursorConstruction.signature, Array.size_ofFn]
     exact H.sourceMinorOffsetBound owner howner localIndex hlocal
   exact ⟨hk, H.consumedSignature_shapeTranslations H.argumentUniverses owner howner localIndex
     hlocal hk⟩

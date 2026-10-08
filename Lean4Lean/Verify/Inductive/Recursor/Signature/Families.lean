@@ -60,7 +60,7 @@ theorem RecursorConstruction.sourceIndices_length
 
 /-- Family metadata is chosen once from the actual accepted index replay.
 Names and result universes remain the original declaration's metadata. -/
-noncomputable def RecursorConstruction.consumedFamilies
+noncomputable def RecursorConstruction.families
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) : Array InductiveSignature.Family :=
   Array.ofFn fun owner : Fin H.recInfos.size =>
@@ -69,8 +69,8 @@ noncomputable def RecursorConstruction.consumedFamilies
       resultLevel := (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).resultLevel }
 
 @[simp] theorem RecursorConstruction.consumedFamilies_size
-    (H : RecursorConstruction R) : H.consumedFamilies.size = H.recInfos.size := by
-  simp [consumedFamilies]
+    (H : RecursorConstruction R) : H.families.size = H.recInfos.size := by
+  simp [families]
 
 theorem RecursorConstruction.sourceIndices_motive
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
@@ -103,21 +103,21 @@ theorem RecursorConstruction.sourceIndices_motive
 @[simp] theorem RecursorConstruction.consumedFamilies_indices
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
-    (H.consumedFamilies[owner.val]'(by simp [owner.isLt])).indices = H.declIndexDomains owner := by
-  simp [consumedFamilies]
+    (H.families[owner.val]'(by simp [owner.isLt])).indices = H.declIndexDomains owner := by
+  simp [families]
 
 @[simp] theorem RecursorConstruction.consumedFamilies_name
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
-    (H.consumedFamilies[owner.val]'(by simp [owner.isLt])).name =
+    (H.families[owner.val]'(by simp [owner.isLt])).name =
       (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).name := by
-  simp [consumedFamilies]
+  simp [families]
 
 @[simp] theorem RecursorConstruction.consumedFamilies_level
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
-    (H.consumedFamilies[owner.val]'(by simp [owner.isLt])).resultLevel =
+    (H.families[owner.val]'(by simp [owner.isLt])).resultLevel =
       (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).resultLevel := by
-  simp [consumedFamilies]
+  simp [families]
 
 end Lean4Lean.VerifyInductive

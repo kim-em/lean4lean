@@ -324,7 +324,7 @@ theorem MLCtxOnlyLams.mkForall_fvarsIn_upset
 
 /-- Lift a previously selected original-universe translation into the actual
 recursor context without making another target choice. -/
-theorem RecursorConstruction.liftOriginalType
+theorem RecursorConstruction.liftDeclUnivType
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (Hsource : TrExprS R.context.venv c.lparams
@@ -384,7 +384,7 @@ theorem RecursorConstruction.sourceFieldDomains
   refine ⟨domains, hlen, Hprefix, ?_, ?_⟩
   · simpa [abstractForallContext_toCtx, VLCtx.toCtx] using HprefixType
   · simpa [VExpr.instL_wrapForalls, VExpr.instL, VLevel.inst] using
-      H.liftOriginalType (Hprefix.mono (R.installation.constructorLE.trans R.ctorLE))
+      H.liftDeclUnivType (Hprefix.mono (R.installation.constructorLE.trans R.ctorLE))
 
 end Lean4Lean.VerifyInductive
 

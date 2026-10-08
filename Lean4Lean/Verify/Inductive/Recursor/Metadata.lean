@@ -110,8 +110,8 @@ theorem RecursorCheck.entries_length_eq
     (H : RecursorCheck R outEnv) :
     H.entries.length = H.generationSignature.families.size := by
   rw [H.generated.length]
-  change _ = H.consumedGeneration.signature.families.size
-  rw [H.consumedGeneration.families, H.consumedFamilies_size]
+  change _ = H.generator.signature.families.size
+  rw [H.generator.families, H.consumedFamilies_size]
 
 /-- The head constant of the generated major premise is the owner family. -/
 theorem RecursorCheck.generated_getMajorInduct
@@ -155,11 +155,11 @@ theorem RecursorCheck.kShape
   have HK : KEligible stats indTypes true := hk ▸ H.kTargetChecked
   obtain ⟨ind, ctor, hind, hzero, hctors, harity⟩ :=
     HK.true_shape stats indTypes H.localContext
-  have hfamCons : H.generationSignature.families = H.consumedFamilies :=
-    H.consumedGeneration.families
+  have hfamCons : H.generationSignature.families = H.families :=
+    H.generator.families
   have hsize1 : indTypes.size = 1 := by simp [hind]
   have hfam1 : H.generationSignature.families.size = 1 :=
-    H.consumedGeneration.familyCount.trans hsize1
+    H.generator.familyCount.trans hsize1
   have hrec1 : H.recInfos.size = 1 := by
     rw [← H.consumedFamilies_size, ← hfamCons]; exact hfam1
   have h0 : 0 < H.recInfos.size := by omega
@@ -173,7 +173,7 @@ theorem RecursorCheck.kShape
     rw [hr] at hminors0 ⊢
     simpa using hminors0
   have hctor1 : H.generationSignature.constructors.size = 1 :=
-    H.consumedGeneration.constructorCount.trans (H.cardinality.minors.symm.trans hflat)
+    H.generator.constructorCount.trans (H.cardinality.minors.symm.trans hflat)
   refine ⟨hfam1, hctor1, ?_, ?_⟩
   · intro owner
     have howner : owner.val < H.recInfos.size := by
@@ -192,13 +192,13 @@ theorem RecursorCheck.kShape
     subst hk0
     have hlocal : 0 < H.origins.minorTypes[0]!.size := by
       rw [(H.origins.minors 0 h0).size_eq, hminors0]; omega
-    obtain ⟨index, -, -, -, -, ⟨O⟩⟩ := H.consumedGeneration.sourceOrigins 0 h0 0 hlocal
+    obtain ⟨index, -, -, -, -, ⟨O⟩⟩ := H.generator.sourceOrigins 0 h0 0 hlocal
     have hindex0 : index.val = 0 := by
       have := index.isLt
       change _ < H.generationSignature.constructors.size at this
       omega
     have hget : H.generationSignature.constructors.toList[0] =
-        H.consumedGeneration.signature.constructors[index] := by
+        H.generator.signature.constructors[index] := by
       simp only [Array.getElem_toList, Fin.getElem_fin, hindex0]
       rfl
     rw [hget]
@@ -233,12 +233,12 @@ theorem RecursorCheck.metadataRealization
       InductiveSignature.RecursorMetadata H.canonicalGeneration H.outVEnv owner rec := by
   have hi : owner.val < H.entries.length := by rw [H.entries_length_eq]; exact owner.isLt
   have hrecInfo : owner.val < H.recInfos.size := by rw [← H.generated.length]; exact hi
-  have hfamCons : H.generationSignature.families = H.consumedFamilies :=
-    H.consumedGeneration.families
+  have hfamCons : H.generationSignature.families = H.families :=
+    H.generator.families
   let E := H.generated.entry owner.val hi
   have htarget : H.entries[owner.val].2 = H.canonicalGeneration.recursor owner := by
     rw [H.canonicalTargets owner.val hi]
-    unfold RecursorConstruction.nativeTarget
+    unfold RecursorConstruction.recursorTarget
     rw [dif_pos owner.isLt]
     rfl
   have Htr := E.translated
@@ -247,7 +247,7 @@ theorem RecursorCheck.metadataRealization
   refine ⟨E.info, E.source_eq, htarget, ?_⟩
   have hfamily : ∀ k (hk : k < H.generationSignature.families.size),
       H.generationSignature.families[k] =
-        H.consumedFamilies[k]'(by rw [← hfamCons]; exact hk) := by
+        H.families[k]'(by rw [← hfamCons]; exact hk) := by
     intro k hk
     simp only [hfamCons]
   have hdecl : owner.val < decl.types.length := by
@@ -257,15 +257,15 @@ theorem RecursorCheck.metadataRealization
     uvars := huvars
     type := htype.mono H.installed.le
     numParams := E.numParams.trans
-      (H.cardinality.params.trans H.consumedGeneration.models.nparams.symm)
+      (H.cardinality.params.trans H.generator.models.nparams.symm)
     numIndices := ?_
     numMotives := ?_
     numMinors := E.numMinors.trans
-      (H.cardinality.minors.trans H.consumedGeneration.constructorCount.symm)
+      (H.cardinality.minors.trans H.generator.constructorCount.symm)
     major := ?_
     all := ?_
     isUnsafe := (H.generated_isUnsafe owner.val hi).trans
-      H.consumedGeneration.models.safety.symm
+      H.generator.models.safety.symm
     k := ?_ }
   · rw [E.numIndices, ← H.arities _ hrecInfo,
       ← H.sourceIndices_length ⟨owner.val, hrecInfo⟩,
@@ -277,13 +277,13 @@ theorem RecursorCheck.metadataRealization
   · rw [E.all]
     apply List.ext_getElem
     · simp only [List.length_map, Array.length_toList, Array.size_map]
-      exact H.consumedGeneration.familyCount.symm
+      exact H.generator.familyCount.symm
     · intro k hk₁ hk₂
       have hk : k < H.generationSignature.families.size := by simpa using hk₂
       simp only [Array.toList_map, List.getElem_map, Array.getElem_toList]
       have hk' : k < indTypes.size := by
-        rw [← H.consumedGeneration.familyCount]; exact hk
-      have h := H.consumedGeneration.familyName k hk
+        rw [← H.generator.familyCount]; exact hk
+      have h := H.generator.familyName k hk
       rw [getElem!_pos indTypes k hk'] at h
       exact h.symm
   · intro hk

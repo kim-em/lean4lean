@@ -325,7 +325,7 @@ theorem NestedValidatedRunResult.restoredEquationAuxiliaryConstructors_of
       (E.commonParameterContext_refl wf)
   have hparams : E.production.compilationSignature.params =
       E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
-    E.production.loweredConstruction.consumedGeneration.params
+    E.production.loweredConstruction.generator.params
   have hP : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
       E.production.compilationSignature.params.reverse
       E.production.headers.commonParameterContext := by

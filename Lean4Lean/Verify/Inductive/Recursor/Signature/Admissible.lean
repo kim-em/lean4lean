@@ -176,7 +176,7 @@ theorem IsDefEqCtx.ofFieldPrefixes {env : VEnv} {U : Nat} {P xs ys : List VExpr}
 /-- The consumed signature's universe instance. The universe policy and
 naming are fixed by the retained construction, independently of the
 supplied signature. -/
-noncomputable def RecursorConstruction.consumedInstance
+noncomputable def RecursorConstruction.generatedInstance
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (s : InductiveSignature) :
     InductiveSignature.Instance s where
@@ -189,7 +189,7 @@ theorem RecursorConstruction.consumedInstance_target
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (s : InductiveSignature) :
     VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      H.elimLevel = some (H.consumedInstance s).targetLevel :=
+      H.elimLevel = some (H.generatedInstance s).targetLevel :=
   Classical.choose_spec H.elimLevelAdmissible.ofLevel
 
 /-- The retained construction keeps the reason for its elimination
@@ -224,7 +224,7 @@ theorem RecursorConstruction.consumedSingletonElimination
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {s : InductiveSignature}
     (hparams : s.params = R.parameterScope.toCtx.reverse)
-    (hfam : s.families = H.consumedFamilies)
+    (hfam : s.families = H.families)
     (hsize : s.constructors.size = decl.ownedConstructors.length)
     (hfields : ∀ owner (howner : owner < H.recInfos.size) localIndex
       (hlocal : localIndex < H.origins.minorTypes[owner]!.size),
@@ -343,7 +343,7 @@ theorem RecursorConstruction.consumedInstance_admissible
     (H : RecursorConstruction R)
     {s : InductiveSignature} (huvars : s.uvars = decl.uvars)
     (hparams : s.params = R.parameterScope.toCtx.reverse)
-    (hfam : s.families = H.consumedFamilies)
+    (hfam : s.families = H.families)
     (hsize : s.constructors.size = decl.ownedConstructors.length)
     (hfields : ∀ owner (howner : owner < H.recInfos.size) localIndex
       (hlocal : localIndex < H.origins.minorTypes[owner]!.size),
@@ -352,7 +352,7 @@ theorem RecursorConstruction.consumedInstance_admissible
         s.constructors[k].owner.val = owner ∧
         s.fieldTypes s.constructors[k] = H.declFieldDomains owner howner localIndex hlocal ∧
         s.constructors[k].indices = H.declConstructorIndices owner howner localIndex hlocal) :
-    (H.consumedInstance s).Admissible R.headerVEnv := by
+    (H.generatedInstance s).Admissible R.headerVEnv := by
   refine {
     levels_length := ?_
     levels_wf := recursorDeclarationAbstractLevels_wf H.elimLevelAdmissible
@@ -373,14 +373,14 @@ theorem RecursorConstruction.consumedInstance_admissible
     · apply Or.inr; apply Or.inl
       have ht := H.consumedInstance_target s
       rw [hsmall] at ht
-      have : (H.consumedInstance s).targetLevel = .zero := Option.some.inj ht.symm
+      have : (H.generatedInstance s).targetLevel = .zero := Option.some.inj ht.symm
       rw [this]
       rfl
     · by_cases hz : H.elimLevel = .zero
       · apply Or.inr; apply Or.inl
         have ht := H.consumedInstance_target s
         rw [hz] at ht
-        have : (H.consumedInstance s).targetLevel = .zero := Option.some.inj ht.symm
+        have : (H.generatedInstance s).targetLevel = .zero := Option.some.inj ht.symm
         rw [this]
         rfl
       · obtain ⟨htarget, hfree⟩ := recursorDeclarationAbstractLevels_freeTarget

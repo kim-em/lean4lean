@@ -114,7 +114,7 @@ theorem RecursorConstruction.recursorTelescope_motives
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
     (g : InductiveSignature.Instance s)
     (hp : s.params = R.parameterScope.toCtx.reverse)
-    (hf : s.families = H.consumedFamilies)
+    (hf : s.families = H.families)
     (hl : g.levels = recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)
     (hu : VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       H.elimLevel = some g.targetLevel) :
@@ -941,7 +941,7 @@ theorem RecursorConstruction.recursorTelescope_minorIndices
   -- The header-environment replay of the field telescope and its indices.
   obtain ⟨Hsrc, _, Hindices⟩ := H.sourceConstructorIndices_replay mowner hmowner localIndex hlocal
   have Hle := R.installation.constructorLE.trans R.ctorLE
-  have Hlift := H.liftOriginalType (Hsrc.mono Hle)
+  have Hlift := H.liftDeclUnivType (Hsrc.mono Hle)
   rw [VExpr.instL_wrapForalls] at Hlift
   -- Peel the field telescope.
   have hfv : (S.fields_bound.mono hsourceLE).fvars = S.fields_bound.fvars :=
@@ -1637,7 +1637,7 @@ theorem RecursorConstruction.recursorTarget_eq_of_minors
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
     (g : InductiveSignature.Instance s)
     (hp : s.params = R.parameterScope.toCtx.reverse)
-    (hf : s.families = H.consumedFamilies)
+    (hf : s.families = H.families)
     (hl : g.levels = recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)
     (hu : VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       H.elimLevel = some g.targetLevel)
@@ -1655,7 +1655,7 @@ theorem RecursorConstruction.recursorTarget_eq_of_minors
   have hres := T.resultShape hmotivesLt
   have hfin : owner < s.families.size := by rw [hf]; simpa using howner
   have hfam' : s.families[(⟨owner, hfin⟩ : Fin s.families.size)] =
-      H.consumedFamilies[owner]'(by simpa using howner) := by
+      H.families[owner]'(by simpa using howner) := by
     simp [hf]
   have hidxLen : (InductiveSignature.insertBinders
       ((H.declIndexDomains ⟨owner, howner⟩).map

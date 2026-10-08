@@ -209,7 +209,7 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
     exact hloweredTypes
   have Hmodels : E.production.compilationSignature.Models
       (ves.venv (if isUnsafe then .unsafe else .safe)) E.production.loweredDecl := by
-    have h := E.production.loweredConstruction.consumedGeneration.models
+    have h := E.production.loweredConstruction.generator.models
     change E.production.compilationSignature.Models E.production.initialEnv
       E.production.loweredDecl at h
     rwa [hinit] at h
@@ -219,7 +219,7 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
     exact auxiliarySpecializations_headNames Haux Hexpansion
   have hparams : E.production.compilationSignature.params =
       E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
-    E.production.loweredConstruction.consumedGeneration.params
+    E.production.loweredConstruction.generator.params
   have hP : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
       E.production.compilationSignature.params.reverse
       E.production.headers.commonParameterContext := by
@@ -407,7 +407,7 @@ theorem NestedValidatedRunResult.auxiliaryConstructors_of_evidence
       (E.commonParameterContext_refl wf)
   have hparams : E.production.compilationSignature.params =
       E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
-    E.production.loweredConstruction.consumedGeneration.params
+    E.production.loweredConstruction.generator.params
   have hP : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
       E.production.compilationSignature.params.reverse
       E.production.headers.commonParameterContext := by

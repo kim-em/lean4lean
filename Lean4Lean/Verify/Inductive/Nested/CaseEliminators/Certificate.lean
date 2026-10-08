@@ -519,7 +519,7 @@ theorem NestedValidatedRunResult.loweredRecursorNames_fresh
       ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
   have Hmodels : E.production.compilationSignature.Models
       (ves.venv (if isUnsafe then .unsafe else .safe)) E.production.loweredDecl := by
-    have h := E.production.loweredConstruction.consumedGeneration.models
+    have h := E.production.loweredConstruction.generator.models
     change E.production.compilationSignature.Models E.production.initialEnv
       E.production.loweredDecl at h
     rwa [hinit] at h
@@ -534,7 +534,7 @@ theorem NestedValidatedRunResult.loweredRecursorNames_fresh
   let owner : Fin E.production.compilationSignature.families.size := ⟨i, hi'⟩
   have hrname : (E.production.compilationInstance.recursor owner).name = t.name.str "rec" := by
     change E.production.compilationInstance.recursorName owner = _
-    have hn := E.production.loweredConstruction.consumedGeneration.names owner
+    have hn := E.production.loweredConstruction.generator.names owner
     change E.production.compilationInstance.recursorName owner =
       E.production.compilationSignature.families[owner].name.str "rec" at hn
     rw [hn]

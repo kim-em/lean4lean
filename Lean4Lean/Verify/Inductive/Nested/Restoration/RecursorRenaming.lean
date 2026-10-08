@@ -377,7 +377,7 @@ theorem NestedValidatedRunResult.finalBaseVEnv_restorableNames_fresh_of_not_rena
       rfl
   have hgenName : E.production.production.canonicalGeneration.recursorName owner =
       E.production.production.generationSignature.families[owner].name.str "rec" :=
-    E.production.loweredConstruction.consumedGeneration.names owner
+    E.production.loweredConstruction.generator.names owner
   rw [hgenName] at hename
   obtain ⟨c, hcdef⟩ : ∃ c, c =
       E.production.production.generationSignature.families[owner].name.str "rec" :=
@@ -388,7 +388,7 @@ theorem NestedValidatedRunResult.finalBaseVEnv_restorableNames_fresh_of_not_rena
     have hnc : n = c := hname.symm.trans hename
     -- `c` is the lowered recursor name of a lowered family
     obtain ⟨src, hsrc, hsrcName, -⟩ :=
-      E.production.loweredConstruction.consumedGeneration.models.family owner
+      E.production.loweredConstruction.generator.models.family owner
     have hcRec : c ∈ E.production.loweredDecl.types.map (fun t => t.name.str "rec") :=
       List.mem_map.mpr ⟨src, hsrc, by
         rw [hcdef]; exact (congrArg (fun n : Name => n.str "rec") hsrcName).symm⟩

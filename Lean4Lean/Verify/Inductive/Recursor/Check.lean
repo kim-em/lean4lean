@@ -41,7 +41,7 @@ structure RecursorCheck
     entries outEnv outVEnv
   closed : MutualInductivesClosed outEnv
   canonicalTargets : ∀ i (hi : i < entries.length),
-    entries[i].2 = toRecursorConstruction.nativeTarget i
+    entries[i].2 = toRecursorConstruction.recursorTarget i
 
 /-- Installation retains the exact ordered generator output; equality is
 established by choosing these targets before the loop, not by translation uniqueness. -/
@@ -52,8 +52,8 @@ theorem RecursorCheck.canonicalRecursors
     H.entries.map Prod.snd = H.toRecursorConstruction.generationInstance.recursors := by
   have hsize : H.entries.length = H.toRecursorConstruction.generationSignature.families.size := by
     rw [H.generated.length, H.cardinality.records]
-    change decl.types.length = H.toRecursorConstruction.consumedGeneration.signature.families.size
-    rw [H.toRecursorConstruction.consumedGeneration.familyCount]
+    change decl.types.length = H.toRecursorConstruction.generator.signature.families.size
+    rw [H.toRecursorConstruction.generator.familyCount]
     exact (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core).symm
   apply List.ext_getElem
   · simp [InductiveSignature.Instance.recursors, hsize]
@@ -63,7 +63,7 @@ theorem RecursorCheck.canonicalRecursors
       simpa [InductiveSignature.Instance.recursors] using hi'
     simp only [List.getElem_map]
     rw [H.canonicalTargets i hiEntry]
-    simp [RecursorConstruction.nativeTarget, hiFamily,
+    simp [RecursorConstruction.recursorTarget, hiFamily,
       InductiveSignature.Instance.recursors]
 
 /-- Every emitted recursor carries the single bit selected by the executable
@@ -305,7 +305,7 @@ theorem ConstructorCheck.recursorPhasesWF
     (by simpa only [henvLocal] using hlit) hctxLocal Hcard Hcore Hbindings
     Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics
     Hparams hnoalias HminorCounts HsuffixLocal.parameterFVarsUp Hseed
-    (fun T owner => ((construction T).nativeTarget owner).type) (by
+    (fun T owner => ((construction T).recursorTarget owner).type) (by
       intro T owner howner
       simpa only [Hle.lparams_eq] using (construction T).canonicalTypeTranslations owner howner) (by
       rw [Hle.safety_eq]
@@ -335,7 +335,7 @@ theorem ConstructorCheck.recursorPhasesWF
             ∀ i (hi : i < entries.length), entries[i].2 = {
               name := Lean.mkRecName indTypes[i]!.name
               uvars := (AddInductive.getRecLevelParams elimLevel c.lparams).length
-              type := ((construction T).nativeTarget i).type } := by
+              type := ((construction T).recursorTarget i).type } := by
     simpa only [Hle.lparams_eq] using Hrecursors
   exact Hrecursors'.mono fun outEnv Hout => by
     rcases Hout with
@@ -404,7 +404,7 @@ theorem RecursorCheck.canonicalGeneration_admissible
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) :
     H.canonicalGeneration.Admissible R.headerVEnv :=
-  H.toRecursorConstruction.consumedGeneration.admissible
+  H.toRecursorConstruction.generator.admissible
 
 end VerifyInductive
 end Lean4Lean

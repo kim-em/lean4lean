@@ -850,35 +850,35 @@ theorem RecursorCheck.entry_type_eq
     (hf : owner < H.generationSignature.families.size) :
     H.entries[owner].2.type = H.canonicalGeneration.recursorType ⟨owner, hf⟩ := by
   rw [H.canonicalTargets owner howner]
-  unfold RecursorConstruction.nativeTarget
+  unfold RecursorConstruction.recursorTarget
   rw [dif_pos hf]
   rfl
 
 theorem RecursorCheck.params_size_eq
     (H : RecursorCheck R outEnv) :
     stats.params.size = H.generationSignature.params.length :=
-  H.cardinality.params.trans H.consumedGeneration.models.nparams.symm
+  H.cardinality.params.trans H.generator.models.nparams.symm
 
 theorem RecursorCheck.motives_size_eq
     (H : RecursorCheck R outEnv) :
     (H.recInfos.map (·.motive)).size = H.generationSignature.families.size := by
   rw [Array.size_map, ← H.consumedFamilies_size]
-  change _ = H.consumedGeneration.signature.families.size
-  rw [H.consumedGeneration.families]
+  change _ = H.generator.signature.families.size
+  rw [H.generator.families]
 
 theorem RecursorCheck.minors_size_eq
     (H : RecursorCheck R outEnv) :
     (H.recInfos.flatMap (·.minors)).size = H.generationSignature.constructors.size :=
-  H.cardinality.minors.trans H.consumedGeneration.constructorCount.symm
+  H.cardinality.minors.trans H.generator.constructorCount.symm
 
 /-- The cached parameter declarations are the canonical generation's parameters. -/
 theorem RecursorCheck.parameterDecls_canonical
     (H : RecursorCheck R outEnv) :
     H.parameterSuffix.parameterDecls.toCtx.reverse = H.canonicalGeneration.params := by
   rw [H.toRecursorConstruction.parameterDomains]
-  change _ = H.consumedGeneration.signature.params.map
-    (·.instL H.consumedGeneration.generation.levels)
-  rw [H.consumedGeneration.params, H.consumedGeneration.levels]
+  change _ = H.generator.signature.params.map
+    (·.instL H.generator.generation.levels)
+  rw [H.generator.params, H.generator.levels]
 
 /-- Any telescope decomposition of an installed recursor type has the
 canonical generation's parameter, motive and minor groups, syntactically. -/
@@ -952,16 +952,16 @@ theorem RecursorCheck.RuleAlignment.generatedConstructor
   have hrec : owner < H.recInfos.size := A.minorOrigin.owner_lt
   have hlocal : i < H.origins.minorTypes[owner]!.size := A.minorOrigin.local_lt
   obtain ⟨index, hindex, hown, hfields, -, -⟩ :=
-    H.consumedGeneration.sourceOrigins owner hrec i hlocal
+    H.generator.sourceOrigins owner hrec i hlocal
   have hk : recursorMinorOffset indTypes owner + i <
       H.generationSignature.constructors.size := hindex ▸ index.isLt
   refine ⟨hk, ?_, ?_⟩
   · have : H.generationSignature.constructors[recursorMinorOffset indTypes owner + i] =
-        H.consumedGeneration.signature.constructors[index] := by
+        H.generator.signature.constructors[index] := by
       simp only [Fin.getElem_fin, hindex]; rfl
     rw [this]; exact hown
   · have : H.generationSignature.constructors[recursorMinorOffset indTypes owner + i] =
-        H.consumedGeneration.signature.constructors[index] := by
+        H.generator.signature.constructors[index] := by
       simp only [Fin.getElem_fin, hindex]; rfl
     have hlen := congrArg List.length hfields
     simp only [InductiveSignature.fieldTypes, List.length_map, List.length_zipIdx] at hlen
@@ -1090,7 +1090,7 @@ theorem RecursorCheck.RuleAlignment.generatorEquationWF
   have D := F.domains_defeq hk hnf
   have huvars : H.canonicalGeneration.uvars =
       (AddInductive.getRecLevelParams H.elimLevel c.lparams).length :=
-    H.consumedGeneration.uvars
+    H.generator.uvars
   rw [InductiveSignature.Instance.equation_eq, huvars]
   exact VDefEq.WF.transportTranslatedWrapped H.outVEnvWF F.ctx F.lhs_typing F.rhs_typing D
     F.lhs_translation F.rhs_translation F.type_translation Htr.lhs Htr.rhs Htr.type
@@ -1116,8 +1116,8 @@ theorem RecursorCheck.equationsWF
   obtain ⟨k, rfl⟩ := hdf
   have hkOwned : k.val < decl.ownedConstructors.length := by
     have := k.isLt
-    change k.val < H.consumedGeneration.signature.constructors.size at this
-    rwa [H.consumedGeneration.constructorCount] at this
+    change k.val < H.generator.signature.constructors.size at this
+    rwa [H.generator.constructorCount] at this
   obtain ⟨owner, hrec, localIndex, hlocal, hkEq⟩ :=
     H.toRecursorConstruction.flatMinorIndex k.val hkOwned
   have howner : owner < H.entries.length := by

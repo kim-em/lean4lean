@@ -890,7 +890,7 @@ theorem RecursorConstruction.normalizedHeadsApplied
       Expr.ParamUniformTele heads stats.params.size stats.levels ctor.type)
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts heads)
     (hparamsFree : ∀ A ∈ R.parameterScope.toCtx, A.containsAnyConst heads = false) :
-    ∀ normalized ∈ H.consumedGeneration.signature.declaration.types,
+    ∀ normalized ∈ H.generator.signature.declaration.types,
       ∀ ctor ∈ normalized.ctors,
         VExpr.HeadsApplied heads stats.params.size stats.levels.length ctor.type := by
   intro normalized hnorm ctor hctor
@@ -903,33 +903,33 @@ theorem RecursorConstruction.normalizedHeadsApplied
   cases hsome
   obtain ⟨k, hk, rfl⟩ := List.getElem_of_mem hcc
   have hk' : k < decl.ownedConstructors.length := by
-    rw [← H.consumedGeneration.constructorCount]; simpa using hk
+    rw [← H.generator.constructorCount]; simpa using hk
   obtain ⟨owner, howner, localIndex, hlocal, hkeq⟩ := H.flatMinorIndex k hk'
   obtain ⟨index, hidx, -, hft, hind, -⟩ :=
-    H.consumedGeneration.sourceOrigins owner howner localIndex hlocal
+    H.generator.sourceOrigins owner howner localIndex hlocal
   have hindex : index = ⟨k, by simpa using hk⟩ := Fin.ext (hidx.trans hkeq.symm)
   subst hindex
-  have hget : H.consumedGeneration.signature.constructors.toList[k] =
-      H.consumedGeneration.signature.constructors[(⟨k, by simpa using hk⟩ : Fin _)] := by
+  have hget : H.generator.signature.constructors.toList[k] =
+      H.generator.signature.constructors[(⟨k, by simpa using hk⟩ : Fin _)] := by
     simp
   rw [hget]
   obtain ⟨hfields, hindices⟩ :=
     H.minorReplayHeadsApplied hctorTypes hlit owner howner localIndex hlocal
-  have hsu : H.consumedGeneration.signature.uvars = decl.uvars := by
+  have hsu : H.generator.signature.uvars = decl.uvars := by
     rw [H.consumedGeneration_signature]
-  have hsp : H.consumedGeneration.signature.params.length = stats.params.size := by
-    rw [H.consumedGeneration.params, List.length_reverse, H.sourceParameterCount]
+  have hsp : H.generator.signature.params.length = stats.params.size := by
+    rw [H.generator.params, List.length_reverse, H.sourceParameterCount]
   have hlevels : stats.levels.length = decl.uvars := R.sourceStatsWF.levels
   simp only [InductiveSignature.constructorType, InductiveSignature.familyApp]
   refine VExpr.HeadsApplied.wrapForalls (fun d hd => ?_) ?_
   · rcases List.mem_append.1 hd with hd | hd
-    · rw [H.consumedGeneration.params, List.mem_reverse] at hd
+    · rw [H.generator.params, List.mem_reverse] at hd
       exact .of_containsAnyConst (hparamsFree d hd)
     · rw [hft] at hd
       exact hfields d hd
-  · have hargs : ∀ a ∈ InductiveSignature.vars H.consumedGeneration.signature.params.length
-        (H.consumedGeneration.signature.constructors[(⟨k, by simpa using hk⟩ : Fin _)]).fields.length ++
-        (H.consumedGeneration.signature.constructors[(⟨k, by simpa using hk⟩ : Fin _)]).indices,
+  · have hargs : ∀ a ∈ InductiveSignature.vars H.generator.signature.params.length
+        (H.generator.signature.constructors[(⟨k, by simpa using hk⟩ : Fin _)]).fields.length ++
+        (H.generator.signature.constructors[(⟨k, by simpa using hk⟩ : Fin _)]).indices,
         VExpr.HeadsApplied heads stats.params.size stats.levels.length a := by
       intro a ha
       rcases List.mem_append.1 ha with ha | ha
@@ -938,8 +938,8 @@ theorem RecursorConstruction.normalizedHeadsApplied
         exact .bvar _
       · rw [hind] at ha
         exact hindices a ha
-    by_cases hname : (H.consumedGeneration.signature.families[
-        (H.consumedGeneration.signature.constructors[(⟨k, by simpa using hk⟩ : Fin _)]).owner]).name
+    by_cases hname : (H.generator.signature.families[
+        (H.generator.signature.constructors[(⟨k, by simpa using hk⟩ : Fin _)]).owner]).name
         ∈ heads
     · refine .occurrence hname (by simp [VLevel.params, hsu, hlevels]) ?_ hargs
       simp [InductiveSignature.vars, hsp]

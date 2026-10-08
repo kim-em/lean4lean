@@ -643,7 +643,7 @@ theorem NestedValidatedRunResult.recursorProjNames_of
       (E.production.production.canonicalGeneration.recursorType owner).projNamesAvoid
         (compilationRestoration sourceDecl auxiliaries).restorableNames = true := by
   intro owner
-  have hfam := E.production.production.toRecursorConstruction.consumedGeneration.familyCount
+  have hfam := E.production.production.toRecursorConstruction.generator.familyCount
   have howner : owner.val < E.production.indTypes.size := by
     have := owner.isLt
     simp only [RecursorConstruction.generationSignature] at this
@@ -658,10 +658,10 @@ theorem NestedValidatedRunResult.recursorProjNames_of
     omega
   have htr := E.production.production.toRecursorConstruction.canonicalTypeTranslations
     owner.val howner
-  have hnative : (E.production.production.toRecursorConstruction.nativeTarget
+  have hnative : (E.production.production.toRecursorConstruction.recursorTarget
       owner.val).type =
       E.production.production.canonicalGeneration.recursorType owner := by
-    simp only [RecursorConstruction.nativeTarget, dif_pos owner.isLt,
+    simp only [RecursorConstruction.recursorTarget, dif_pos owner.isLt,
       Instance.recursor]
     rfl
   rw [hnative] at htr

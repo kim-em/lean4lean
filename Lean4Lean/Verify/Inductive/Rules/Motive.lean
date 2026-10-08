@@ -208,7 +208,7 @@ theorem RecursorConstruction.recursorTelescopeNative
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos
         H.localContext.lctx owner)
-      (H.nativeTarget owner).type stats.params.size
+      (H.recursorTarget owner).type stats.params.size
       (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size
       owner) := by
@@ -221,7 +221,7 @@ theorem RecursorConstruction.recursorTelescopeNative
   have Heq := Htr.uniq henv .nil Htr₀
   have Htype : R.context.venv.IsType
       (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
-      (H.nativeTarget owner).type :=
+      (H.recursorTarget owner).type :=
     Htype₀.defeqU_l henv (by trivial) Heq.symm
   let Hsel := H.bindings.toRecursorBinderGroups H.localWF H.params owner howner
   have hnoalias := H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner howner
@@ -278,16 +278,16 @@ theorem RecursorCheck.ownerSuffix_eq_expected
   have hrec : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
   obtain ⟨T₀⟩ := H.recursorTelescopeNative owner hrec
-  have htgt : H.entries[owner].2.type = (H.nativeTarget owner).type := by
+  have htgt : H.entries[owner].2.type = (H.recursorTarget owner).type := by
     rw [H.canonicalTargets owner howner]
   obtain ⟨hmot, hidx⟩ := T.motivesSuffix_eq_of_target T₀ htgt
-  let g := H.consumedInstance H.familySignature
+  let g := H.generatedInstance H.familySignature
   have hm := H.recursorTelescope_motives T₀ g rfl rfl rfl
     (H.consumedInstance_target _)
   have him := H.recursorTelescope_indicesMajor hrec T₀
     (H.consumedInstance_target H.familySignature)
-  have hfam : owner < H.consumedFamilies.size := by simpa using hrec
-  have hgm : g.motives[owner]! = g.motive (H.consumedFamilies[owner]'hfam) owner := by
+  have hfam : owner < H.families.size := by simpa using hrec
+  have hgm : g.motives[owner]! = g.motive (H.families[owner]'hfam) owner := by
     have hlt : owner < g.motives.length := by
       simp [InductiveSignature.Instance.motives,
         RecursorConstruction.familySignature, hrec]

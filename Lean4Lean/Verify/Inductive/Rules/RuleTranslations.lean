@@ -112,8 +112,8 @@ theorem RecursorCheck.recInfos_size_eq_source
 theorem RecursorCheck.constructors_size_offset
     (H : RecursorCheck R outEnv) :
     H.generationSignature.constructors.size = recursorMinorOffset indTypes indTypes.size := by
-  change H.consumedGeneration.signature.constructors.size = _
-  rw [H.consumedGeneration.constructorCount]
+  change H.generator.signature.constructors.size = _
+  rw [H.generator.constructorCount]
   exact H.toRecursorConstruction.ownedConstructors_length_offset
 
 /-- The generated constructor at a flattened source position is owned by that
@@ -128,17 +128,17 @@ theorem RecursorCheck.generatedConstructor_owner
   have hrec : owner < H.recInfos.size := by rw [H.recInfos_size_eq_source]; exact howner
   have hlocal : l < H.origins.minorTypes[owner]!.size := by
     rw [H.toRecursorConstruction.minorTypes_size owner hrec]; exact hl
-  obtain ⟨index, hindex, hown, -, -, -⟩ := H.consumedGeneration.sourceOrigins owner hrec l hlocal
+  obtain ⟨index, hindex, hown, -, -, -⟩ := H.generator.sourceOrigins owner hrec l hlocal
   have : H.generationSignature.constructors[recursorMinorOffset indTypes owner + l] =
-      H.consumedGeneration.signature.constructors[index] := by
+      H.generator.signature.constructors[index] := by
     simp only [Fin.getElem_fin, hindex]; rfl
   rw [this]; exact hown
 
 theorem RecursorCheck.ownedConstructors_length_eq
     (H : RecursorCheck R outEnv) :
     decl.ownedConstructors.length = H.generationSignature.constructors.size := by
-  change _ = H.consumedGeneration.signature.constructors.size
-  rw [H.consumedGeneration.constructorCount]
+  change _ = H.generator.signature.constructors.size
+  rw [H.generator.constructorCount]
 
 /-- The installed rule names the generated constructor at its flattened
 position. -/
@@ -154,7 +154,7 @@ theorem RecursorCheck.RuleAlignment.ruleCtor_eq
     rw [H.ownedConstructors_length_eq]; exact hk
   have hpair := Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructorAtMinorOffset R.core
     owner i A.sourceOwner_lt hctor A.abstractOwner_lt A.abstractCtor_lt hindex
-  have horder := List.forall₂_getElem H.consumedGeneration.constructorOrder
+  have horder := List.forall₂_getElem H.generator.constructorOrder
     (recursorMinorOffset indTypes owner + i) (by rw [Array.length_toList]; exact hk) hindex
   rw [hpair] at horder
   have hname := horder.2
@@ -286,12 +286,12 @@ theorem RecursorCheck.completedRuleTranslation_of
             rulesWF := hrulesWF
             realization := ?_ }⟩
   · refine ⟨⟨H.generationSignature, H.canonicalGeneration, R.headerVEnv,
-      H.consumedGeneration.models, R.core.typesAdded, H.canonicalGeneration_admissible,
+      H.generator.models, R.core.typesAdded, H.canonicalGeneration_admissible,
       ⟨R.ctorVEnv, R.eliminators, R.core.ctorsAdded, R.eliminatorsOwn, ?_, ?_⟩,
-      H.consumedGeneration.names, ?_, rfl,
+      H.generator.names, ?_, rfl,
       H.entryRealizations Hrhs⟩⟩
-    · rw [← R.contextVEnv]; exact H.consumedGeneration.recursiveTypesWF
-    · rw [← R.contextVEnv]; exact H.consumedGeneration.familyTypesWF
+    · rw [← R.contextVEnv]; exact H.generator.recursiveTypesWF
+    · rw [← R.contextVEnv]; exact H.generator.familyTypesWF
     · exact H.canonicalRecursors
 
 end

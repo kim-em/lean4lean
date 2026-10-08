@@ -287,7 +287,7 @@ theorem NestedValidatedRunResult.auxiliaryFamiliesField_of_evidence
       ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
   have Hmodels : E.production.compilationSignature.Models
       (ves.venv (if isUnsafe then .unsafe else .safe)) E.production.loweredDecl := by
-    have h := E.production.loweredConstruction.consumedGeneration.models
+    have h := E.production.loweredConstruction.generator.models
     change E.production.compilationSignature.Models E.production.initialEnv
       E.production.loweredDecl at h
     rwa [hinit] at h
@@ -303,7 +303,7 @@ theorem NestedValidatedRunResult.auxiliaryFamiliesField_of_evidence
     rw [h, E.production.constructors.core.nparams, E.production_nparams]
   have hparams : E.production.compilationSignature.params =
       E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
-    E.production.loweredConstruction.consumedGeneration.params
+    E.production.loweredConstruction.generator.params
   refine auxiliaryFamilies_of_evidence (base := ves.venv (if isUnsafe then .unsafe else .safe))
     (headerParams := E.production.headers.headers.params)
     henvTypes (VEnv.addConstVals_le hadded) Haux Hexpansion ?_ ?_ hloweredUvars

@@ -333,10 +333,10 @@ theorem RecursorCheck.RuleAlignment.lhsTranslation
   have hname : H.canonicalGeneration.recursorName
       H.generationSignature.constructors[minorIdx].owner =
       mkRecName indTypes[owner]!.name := by
-    refine (H.consumedGeneration.names _).trans ?_
-    have hfam := H.consumedGeneration.familyName _
+    refine (H.generator.names _).trans ?_
+    have hfam := H.generator.familyName _
       (Fin.isLt H.generationSignature.constructors[minorIdx].owner)
-    show (H.consumedGeneration.signature.families[
+    show (H.generator.signature.families[
       (H.generationSignature.constructors[minorIdx].owner : Nat)]'(Fin.isLt _)).name.str "rec" = _
     rw [hfam]
     have hown' : (H.generationSignature.constructors[minorIdx].owner : Nat) = owner := hown

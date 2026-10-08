@@ -49,7 +49,7 @@ structure RecursorConstruction.GeneratedBy
   generation : InductiveSignature.Instance signature
   models : signature.Models sourceEnv decl
   params : signature.params = R.parameterScope.toCtx.reverse
-  families : signature.families = H.consumedFamilies
+  families : signature.families = H.families
   admissible : generation.Admissible R.headerVEnv
   uvars : generation.uvars = (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
   levels : generation.levels = recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible
@@ -95,9 +95,9 @@ theorem RecursorConstruction.consumedSignature_origins
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    Nonempty (ConstructorMatchesMinor (H.consumedSignature HU)
+    Nonempty (ConstructorMatchesMinor (H.signature HU)
       (H.origins.minorShapes owner howner localIndex hlocal)
-      (H.consumedConstructorAt HU owner howner localIndex hlocal)) := by
+      (H.constructorAt HU owner howner localIndex hlocal)) := by
   have hsourceOwner : owner < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨_, _, _, hHas, traversal, htrav, _, hfieldsT, _, _, _, _, _, _, _⟩ :=
     H.minorSources.rows owner howner hsourceOwner localIndex hlocal
@@ -116,11 +116,11 @@ theorem RecursorConstruction.consumedSignature_origins
     hypotheses_eq := horig
     recursiveCount := ?_
     recursive := ?_ }⟩
-  · simp [RecursorConstruction.consumedConstructorAt, H.sourceFields_length, hfieldsT]
+  · simp [RecursorConstruction.constructorAt, H.sourceFields_length, hfieldsT]
   · rw [hrec]; exact hspec.1 traversal htrav
   · rw [hrec]; exact hspec.2.1
   · intro j hj
-    have hj' : j < (H.consumedShapes HU owner howner localIndex hlocal).length := by
+    have hj' : j < (H.recursiveShapes HU owner howner localIndex hlocal).length := by
       rw [hrec] at hj; exact hj
     obtain ⟨root, sourceType, O, D, hLE, hD, htarget, hbinders⟩ := hspec.2.2.2.1 origins horig j hj'
     refine ⟨root, sourceType, O, D, hLE, hD, ?_, ?_⟩
@@ -131,17 +131,17 @@ theorem RecursorConstruction.consumedSignature_origins
 
 /-- The junction, under the universe support of the hypothesis arguments: the
 explicit generation witness whose signature is `H.consumedSignature HU`. -/
-noncomputable def RecursorConstruction.consumedGenerationOf
+noncomputable def RecursorConstruction.generatorOf
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
     H.GeneratedBy := by
   have D := H.consumedSignatureData HU
-  have hfamCount : (H.consumedSignature HU).families.size = indTypes.size := by
+  have hfamCount : (H.signature HU).families.size = indTypes.size := by
     simp [H.consumedFamilies_size, H.sourceFamilyCount]
   refine {
-    signature := H.consumedSignature HU
-    generation := H.consumedInstance (H.consumedSignature HU)
+    signature := H.signature HU
+    generation := H.generatedInstance (H.signature HU)
     models := D.models
     params := rfl
     families := rfl
@@ -180,7 +180,7 @@ noncomputable def RecursorConstruction.consumedGenerationOf
     intro k hk hk'
     obtain ⟨owner, howner, localIndex, hlocal, rfl⟩ := H.flatMinorIndex k hk'
     have hk2 : recursorMinorOffset indTypes owner + localIndex <
-        (H.consumedSignature HU).constructors.size := by
+        (H.signature HU).constructors.size := by
       simpa using hk
     simp only [Array.getElem_toList]
     exact D.constructorNames owner howner localIndex hlocal hk2
@@ -196,22 +196,22 @@ noncomputable def RecursorConstruction.consumedGenerationOf
 definitionally `H.consumedSignature H.argumentUniverses` and the facts
 retained by the construction (for instance
 `consumedGeneration_shapeTranslations`) are available about it. -/
-noncomputable def RecursorConstruction.consumedGeneration
+noncomputable def RecursorConstruction.generator
     (H : RecursorConstruction R) : H.GeneratedBy :=
-  H.consumedGenerationOf H.argumentUniverses
+  H.generatorOf H.argumentUniverses
 
 theorem RecursorConstruction.consumedGeneration_signature
     (H : RecursorConstruction R) :
-    H.consumedGeneration.signature = H.consumedSignature H.argumentUniverses := rfl
+    H.generator.signature = H.signature H.argumentUniverses := rfl
 
 noncomputable def RecursorConstruction.generationSignature
-    (H : RecursorConstruction R) : InductiveSignature := H.consumedGeneration.signature
+    (H : RecursorConstruction R) : InductiveSignature := H.generator.signature
 
 noncomputable def RecursorConstruction.generationInstance
     (H : RecursorConstruction R) : InductiveSignature.Instance H.generationSignature :=
-  H.consumedGeneration.generation
+  H.generator.generation
 
-noncomputable def RecursorConstruction.nativeTarget
+noncomputable def RecursorConstruction.recursorTarget
     (H : RecursorConstruction R) (owner : Nat) : VConstVal :=
   if h : owner < H.generationSignature.families.size then
     H.generationInstance.recursor ⟨owner, h⟩
@@ -221,18 +221,18 @@ theorem RecursorConstruction.nativeTarget_eq
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < indTypes.size) :
-    H.nativeTarget owner = {
+    H.recursorTarget owner = {
       name := Lean.mkRecName indTypes[owner]!.name
       uvars := (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
-      type := (H.nativeTarget owner).type } := by
+      type := (H.recursorTarget owner).type } := by
   have hf : owner < H.generationSignature.families.size := by
-    simpa [generationSignature, H.consumedGeneration.familyCount] using howner
-  simp only [nativeTarget, dif_pos hf, InductiveSignature.Instance.recursor]
-  have hn := H.consumedGeneration.names ⟨owner, hf⟩
-  have hfName := H.consumedGeneration.familyName owner hf
+    simpa [generationSignature, H.generator.familyCount] using howner
+  simp only [recursorTarget, dif_pos hf, InductiveSignature.Instance.recursor]
+  have hn := H.generator.names ⟨owner, hf⟩
+  have hfName := H.generator.familyName owner hf
   change H.generationInstance.recursorName ⟨owner, hf⟩ = _ at hn
   rw [hn]
-  simp only [generationInstance, H.consumedGeneration.uvars]
+  simp only [generationInstance, H.generator.uvars]
   congr 1
   exact congrArg (fun name : Name => name.str "rec") hfName
 
@@ -244,10 +244,10 @@ theorem RecursorConstruction.canonicalTypeTranslations
     TrExprS R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
-      (H.nativeTarget owner).type := by
+      (H.recursorTarget owner).type := by
   have hf : owner < H.generationSignature.families.size := by
-    simpa [generationSignature, H.consumedGeneration.familyCount] using howner
-  simp only [nativeTarget, dif_pos hf, InductiveSignature.Instance.recursor]
-  exact H.consumedGeneration.types owner hf
+    simpa [generationSignature, H.generator.familyCount] using howner
+  simp only [recursorTarget, dif_pos hf, InductiveSignature.Instance.recursor]
+  exact H.generator.types owner hf
 
 end Lean4Lean.VerifyInductive

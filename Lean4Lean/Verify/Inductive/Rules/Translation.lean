@@ -717,35 +717,35 @@ theorem RecursorConstruction.recAppEq (H : RecursorConstruction R)
 
 theorem RecursorConstruction.ruleCounts (H : RecursorConstruction R)
     (o : Nat) (ho : o < H.recInfos.size) (i : Nat) (hlocal : i < H.origins.minorTypes[o]!.size)
-    (hk : recursorMinorOffset indTypes o + i < H.consumedGeneration.signature.constructors.size) :
-    H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i].fields.length =
+    (hk : recursorMinorOffset indTypes o + i < H.generator.signature.constructors.size) :
+    H.generator.signature.constructors[recursorMinorOffset indTypes o + i].fields.length =
         (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length ∧
-      H.consumedGeneration.signature.params.length = H.params.fvars.length ∧
-      H.consumedGeneration.signature.families.size = H.bindings.motives.fvars.length ∧
-      H.consumedGeneration.signature.constructors.size = H.bindings.flatMinors.fvars.length := by
+      H.generator.signature.params.length = H.params.fvars.length ∧
+      H.generator.signature.families.size = H.bindings.motives.fvars.length ∧
+      H.generator.signature.constructors.size = H.bindings.flatMinors.fvars.length := by
   obtain ⟨_, hft, _, _⟩ := H.consumedGeneration_shapeTranslations o ho i hlocal
   refine ⟨?_, ?_, ?_, ?_⟩
   · rw [← InductiveSignature.fieldTypes_length, hft, H.sourceFields_length,
       (H.origins.minorShapes o ho i hlocal).fields_bound.length_fvars]
-  · rw [H.consumedGeneration.params, List.length_reverse, H.sourceParameterCount,
+  · rw [H.generator.params, List.length_reverse, H.sourceParameterCount,
       H.params.length_fvars]
-  · rw [H.consumedGeneration.familyCount, H.bindings.motives.length_fvars, Array.size_map,
+  · rw [H.generator.familyCount, H.bindings.motives.length_fvars, Array.size_map,
       H.sourceFamilyCount]
-  · rw [H.consumedGeneration.constructorCount, H.bindings.flatMinors.length_fvars,
+  · rw [H.generator.constructorCount, H.bindings.flatMinors.length_fvars,
       H.flatMinors_size_eq]
 
 /-- Every generated recursive call of a rule, closed over the fields and the
 outer binders, translates syntactically to the generator's recursive call. -/
 theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
     (o : Nat) (ho : o < H.recInfos.size) (i : Nat) (hlocal : i < H.origins.minorTypes[o]!.size)
-    (hk : recursorMinorOffset indTypes o + i < H.consumedGeneration.signature.constructors.size)
+    (hk : recursorMinorOffset indTypes o + i < H.generator.signature.constructors.size)
     (Γdoms : List VExpr)
     (hΓ : Γdoms.length = (H.params.fvars ++ (H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars)).length +
       (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length)
     (j : Nat) (hj : j < (InductiveSignature.Instance.recursiveFields
-      (s := H.consumedGeneration.signature)
-      H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i]).length) :
+      (s := H.generator.signature)
+      H.generator.signature.constructors[recursorMinorOffset indTypes o + i]).length) :
     TrExprSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams) (abstractForallContext Γdoms [])
       ((((H.recInfos[o]!.ruleBlueprints[i]!).recursiveCalls[j]!).build indTypes stats
         (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
@@ -753,12 +753,12 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
           (H.origins.minorShapes o ho i hlocal).fields_bound.fvars |>.abstractN
           (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars))
           (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length)
-      (H.consumedGeneration.generation.recursiveCall
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i]
-        (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-          H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
-        (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-          H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].2
+      (H.generator.generation.recursiveCall
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i]
+        (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+          H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
+        (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+          H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2
         .recursor) := by
   obtain ⟨_, hft, hrfLen, Hshape⟩ := H.consumedGeneration_shapeTranslations o ho i hlocal
   obtain ⟨hjB, hpos, hfield, htarget, hbinders, hmajor, htemplate, Hdom, Hidx⟩ := Hshape j hj
@@ -775,7 +775,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
   rw [hlctx] at Hdom ⊢
   obtain ⟨hnf, hnp, hnfam, hnctor⟩ := H.ruleCounts o ho i hlocal hk
   unfold InductiveSignature.Instance.recursiveCall
-  simp only [InductiveSignature.Instance.recursorHead, H.consumedGeneration.levels, hnf, hnfam,
+  simp only [InductiveSignature.Instance.recursorHead, H.generator.levels, hnf, hnfam,
     hnctor, hnp]
   have houter := H.bindings.outerNodup H.params H.noAlias
   have hPMN : (H.params.fvars ++ (H.bindings.motives.fvars ++
@@ -788,8 +788,8 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
     rw [H.params.exprArrayFVarIds, H.bindings.motives.exprArrayFVarIds,
       H.bindings.flatMinors.exprArrayFVarIds] at this
     exact this (by simpa [List.append_assoc] using hx)
-  have hmajA : (H.origins.minorShapes o ho i hlocal).fields_bound.fvars[(InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1]'hpos ∉
+  have hmajA : (H.origins.minorShapes o ho i hlocal).fields_bound.fvars[(InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].1]'hpos ∉
       O.arguments_bound.fvars := by
     obtain ⟨fv, hfv, hmem⟩ := O.field_fvar
     rw [hfield] at hfv
@@ -799,60 +799,60 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
   have hdecl : ∀ fv ∈ O.arguments_bound.fvars, ∃ index name type bi kind,
       O.current.lctx.find? fv = some (.cdecl index fv name type bi kind) :=
     fun fv h => O.current_wf.findCDecl fv (O.arguments_bound.members fv h)
-  have hname : H.consumedGeneration.generation.recursorName
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.target =
+  have hname : H.generator.generation.recursorName
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.target =
       mkRecName indTypes[(H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls[j]!).targetTypeIdx]!.name := by
-    rw [H.consumedGeneration.names]
+    rw [H.generator.names]
     simp only [Fin.getElem_fin]
-    rw [H.consumedGeneration.familyName _ (Fin.isLt _), ← htarget]
+    rw [H.generator.familyName _ (Fin.isLt _), ← htarget]
     rfl
-  rw [hname, H.consumedGeneration.uvars]
+  rw [hname, H.generator.uvars]
   have hsp : R.parameterScope.toCtx.reverse.length = H.params.fvars.length := by
     rw [List.length_reverse, H.sourceParameterCount, H.params.length_fvars]
-  have hsfT : ((H.consumedGeneration.signature.fieldTypes
-      H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i]).take
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1).length =
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1 := by
+  have hsfT : ((H.generator.signature.fieldTypes
+      H.generator.signature.constructors[recursorMinorOffset indTypes o + i]).take
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].1).length =
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].1 := by
     rw [List.length_take, InductiveSignature.fieldTypes_length, hnf]
     omega
   have hdomsLen : (List.map (fun x => InductiveSignature.Instance.underFields
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) x.fst)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
       (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length 0
       (H.bindings.motives.fvars.length + H.bindings.flatMinors.fvars.length) x.snd)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o +
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o +
           i])[j].2.binders.zipIdx).length = O.args.size := by
     simp [hbinders]
   have hA : ExprArrayFVarIds O.args = O.arguments_bound.fvars :=
     O.arguments_bound.toFVarArrayIn.exprArrayFVarIds
   rw [hA] at Hidx
-  have hbl : (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-      H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.length =
+  have hbl : (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+      H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.length =
       O.args.size := hbinders
   have hlev := recursorLevelLift H.elimLevelAdmissible
   have Hdoms' : ∀ i' (hi' : i' < (List.map (fun x => InductiveSignature.Instance.underFields
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) x.fst)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
       (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length 0
       (H.bindings.motives.fvars.length + H.bindings.flatMinors.fvars.length) x.snd)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o +
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o +
           i])[j].2.binders.zipIdx).length),
       TrExprSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams)
         (abstractForallContext (Γdoms ++ (List.map (fun x => InductiveSignature.Instance.underFields
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) x.fst)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
       (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length 0
       (H.bindings.motives.fvars.length + H.bindings.flatMinors.fvars.length) x.snd)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o +
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o +
           i])[j].2.binders.zipIdx).take i') [])
         (((Expr.forallDomainList O.args.size (O.current.lctx.mkForall O.args (.sort .zero)))[i']!.abstractN
           (H.origins.minorShapes o ho i hlocal).fields_bound.fvars i').abstractN
@@ -860,33 +860,33 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
           ((H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length + i'))
         (List.map (fun x => InductiveSignature.Instance.underFields
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) x.fst)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
       (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length 0
       (H.bindings.motives.fvars.length + H.bindings.flatMinors.fvars.length) x.snd)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o +
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o +
           i])[j].2.binders.zipIdx)[i'] := by
     intro i' hi'
-    have hib : i' < (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.length := by
+    have hib : i' < (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.length := by
       simpa using hi'
     have Hd := Hdom i' hib
-    have hlen' : ((InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.take
+    have hlen' : ((InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.take
           i').length = i' := by simp; omega
     have X := TrExprSyn.shapeToEquation hlev (Nat.le_of_lt hpos) hsp hsfT
       (H.origins.minorShapes o ho i hlocal).fields_nodup hPMN hdisj
       (Γ := Γdoms ++ (List.map (fun x => InductiveSignature.Instance.underFields
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) x.fst)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
       (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length 0
       (H.bindings.motives.fvars.length + H.bindings.flatMinors.fvars.length) x.snd)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o +
-          i])[j].2.binders.zipIdx).take i') (rbT := (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.take i')
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o +
+          i])[j].2.binders.zipIdx).take i') (rbT := (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.take i')
       (by simp [hΓ]) (by rw [hlen']; exact Hd)
     rw [hlen'] at X
     simpa using X
@@ -895,11 +895,11 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
       (.sort .zero)
     apply VerifyInductive.Expr.ForallTelescope.closed_of_domains HFtel 0
     · intro i' hi'
-      have hib : i' < (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-          H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.length := by
+      have hib : i' < (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+          H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.length := by
         omega
-      have hlen' : ((InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-          H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.take
+      have hlen' : ((InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+          H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.take
             i').length = i' := by simp; omega
       have := (TrExprS.shapeSourceFacts (Nat.le_of_lt hpos) hsp hsfT
         (by rw [hlen']; exact Hdom i' hib)).1
@@ -918,24 +918,24 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
   have Hidx'' : List.Forall₂ (TrExprSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (abstractForallContext (Γdoms ++ (List.map (fun x => InductiveSignature.Instance.underFields
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) x.fst)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
       (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length 0
       (H.bindings.motives.fvars.length + H.bindings.flatMinors.fvars.length) x.snd)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o +
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o +
           i])[j].2.binders.zipIdx)) []))
       ((H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls[j]!).targetIndices.toList.map fun e =>
         ((e.abstractN O.arguments_bound.fvars).abstractN
           (H.origins.minorShapes o ho i hlocal).fields_bound.fvars O.args.size).abstractN
           (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars))
           ((H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length + O.args.size))
-      ((InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.indices.map
+      ((InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.indices.map
         fun e => InductiveSignature.Instance.underFields
           (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) e)
-          (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-            H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
+          (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+            H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
           (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length 0
           (H.bindings.motives.fvars.length + H.bindings.flatMinors.fvars.length) O.args.size) := by
     rw [List.forall₂_map_left_iff, List.forall₂_map_right_iff]
@@ -944,14 +944,14 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
       (H.origins.minorShapes o ho i hlocal).fields_nodup hPMN hdisj
       (Γ := Γdoms ++ (List.map (fun x => InductiveSignature.Instance.underFields
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) x.fst)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
       (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length 0
       (H.bindings.motives.fvars.length + H.bindings.flatMinors.fvars.length) x.snd)
-      (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o +
-          i])[j].2.binders.zipIdx)) (rbT := (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders)
+      (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o +
+          i])[j].2.binders.zipIdx)) (rbT := (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders)
       (by simp [hΓ, hbl]) (by rw [hbl]; exact he)
     rw [hbl] at X
     simpa using X
@@ -962,12 +962,12 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
     hpos (H.origins.minorShapes o ho i hlocal).fields_nodup hPMN hdisj hmajA
     (name := mkRecName indTypes[(H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls[j]!).targetTypeIdx]!.name)
     (recLevelsTranslationOf H.elimLevelAdmissible H.statsLevelsTranslation) (Γdoms := Γdoms) hΓ hdomsLen
-    (idxG := (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-        H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.indices.map
+    (idxG := (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+        H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.indices.map
         fun e => InductiveSignature.Instance.underFields
           (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) e)
-          (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-            H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
+          (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+            H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].1
           (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length 0
           (H.bindings.motives.fvars.length + H.bindings.flatMinors.fvars.length) O.args.size)
     hFa Hdoms' hIclosed Hidx''
@@ -980,16 +980,16 @@ right-hand side: the binder domains are typed by the checked minor-premise
 telescope (`minorTranslation`) and the field template (`minorFieldsTemplate`). -/
 theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
     (o : Nat) (ho : o < H.recInfos.size) (i : Nat) (hlocal : i < H.origins.minorTypes[o]!.size)
-    (hk : recursorMinorOffset indTypes o + i < H.consumedGeneration.signature.constructors.size)
+    (hk : recursorMinorOffset indTypes o + i < H.generator.signature.constructors.size)
     {env : VEnv} (hle : R.context.venv ≤ env) {res : Lean.Expr} {e₂ : VExpr}
     (Htel : Expr.LambdaTelescope
       ((H.recInfos[o]!.ruleBlueprints[i]!).build indTypes stats
           (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
           (AddInductive.getRecLevels H.elimLevel stats.levels) H.localContext.lctx).rhs
-      (H.consumedGeneration.generation.equationDomains
+      (H.generator.generation.equationDomains
         ⟨recursorMinorOffset indTypes o + i, hk⟩).length res)
     (Hres : TrExprS env (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (abstractForallContext (H.consumedGeneration.generation.equationDomains
+      (abstractForallContext (H.generator.generation.equationDomains
         ⟨recursorMinorOffset indTypes o + i, hk⟩) []) res e₂) :
     ∃ X, TrExprS env (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
       ((H.recInfos[o]!.ruleBlueprints[i]!).build indTypes stats
@@ -1045,12 +1045,12 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
   have hFexpr := (H.origins.minorShapes o ho i hlocal).fields_bound.expressions
   simp only [hFexpr, LocalContext.mkLambda] at Htel ⊢
   rw [hnest true] at Htel ⊢
-  have hlenD : (H.consumedGeneration.generation.params ++ H.consumedGeneration.generation.motives ++
-      H.consumedGeneration.generation.minors).length =
+  have hlenD : (H.generator.generation.params ++ H.generator.generation.motives ++
+      H.generator.generation.minors).length =
       (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)).length := by
     simp [InductiveSignature.Instance.params, InductiveSignature.Instance.motives,
       InductiveSignature.Instance.length_minors, hnp, hnfam, hnctor]
-  have Hforall := (H.consumedGeneration.minorTranslation).mono hle
+  have Hforall := (H.generator.minorTranslation).mono hle
   simp only [LocalContext.mkForall] at Hforall
   rw [hnest false] at Hforall
   have HFtel := LocalContext.mkForall_fvars_forallTelescope (lctx := H.localContext.lctx)
@@ -1123,20 +1123,20 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
   simp only [LocalContext.mkForall, LocalContext.mkLambda, List.size_toArray, List.length_map]
     at HsameF HLF HFtelF
   have hlenF : (InductiveSignature.insertBinders
-        (List.map (fun x => VExpr.instL H.consumedGeneration.generation.levels x)
-          (H.consumedGeneration.signature.fieldTypes
-            H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i]))
-        (H.consumedGeneration.signature.families.size +
-          H.consumedGeneration.signature.constructors.size)).length =
+        (List.map (fun x => VExpr.instL H.generator.generation.levels x)
+          (H.generator.signature.fieldTypes
+            H.generator.signature.constructors[recursorMinorOffset indTypes o + i]))
+        (H.generator.signature.families.size +
+          H.generator.signature.constructors.size)).length =
       (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length := by
     simp [InductiveSignature.insertBinders, InductiveSignature.fieldTypes_length, hnf]
-  have hins : (H.consumedGeneration.generation.motives ++
-      H.consumedGeneration.generation.minors).length =
+  have hins : (H.generator.generation.motives ++
+      H.generator.generation.minors).length =
       (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars).length := by
     simp [InductiveSignature.Instance.motives, InductiveSignature.Instance.length_minors,
       hnfam, hnctor]
   have Htemp := H.minorFieldsTemplate o ho i hlocal
-    (H.consumedGeneration.generation.motives ++ H.consumedGeneration.generation.minors)
+    (H.generator.generation.motives ++ H.generator.generation.minors)
     (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars) hins.symm
   simp only at Htemp
   have hclosed : Closed (H.localContext.lctx.mkForall (H.origins.minorShapes o ho i hlocal).fields
@@ -1152,13 +1152,13 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
     at Htemp
   rw [hFexpr] at Htemp
   simp only [LocalContext.mkForall] at Htemp
-  rw [hins, ← hft, ← H.consumedGeneration.levels] at Htemp
+  rw [hins, ← hft, ← H.generator.levels] at Htemp
   have hins' : (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars).length =
-      H.consumedGeneration.signature.families.size +
-        H.consumedGeneration.signature.constructors.size := by
+      H.generator.signature.families.size +
+        H.generator.signature.constructors.size := by
     simp [hnfam, hnctor]
   rw [hins'] at Htemp
-  have hEqLen : (H.consumedGeneration.generation.equationDomains
+  have hEqLen : (H.generator.generation.equationDomains
       ⟨recursorMinorOffset indTypes o + i, hk⟩).length =
       (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)).length +
         (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length := by
@@ -1170,9 +1170,9 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
   have Hres' := Hres
   simp only [InductiveSignature.Instance.equationDomains, Fin.getElem_fin] at Hres'
   rw [← abstractForallContext_append] at Hres'
-  have hpd : H.parameterSuffix.parameterDecls.toCtx.reverse = H.consumedGeneration.generation.params := by
-    rw [H.parameterDomains, InductiveSignature.Instance.params, H.consumedGeneration.params,
-      H.consumedGeneration.levels]
+  have hpd : H.parameterSuffix.parameterDecls.toCtx.reverse = H.generator.generation.params := by
+    rw [H.parameterDomains, InductiveSignature.Instance.params, H.generator.params,
+      H.generator.levels]
   rw [hpd, H.recursorEnv, ← List.append_assoc] at Htemp
   rw [Nat.zero_add] at HLF
   have H2 := HsameF.translateLambda HFtelF HLF hlenF (Htemp.mono hle) Hres'
@@ -1184,12 +1184,12 @@ consumed generation's equation for the constructor at the canonical minor
 offset. -/
 theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
     (o : Nat) (ho : o < H.recInfos.size) (i : Nat) (hlocal : i < H.origins.minorTypes[o]!.size) :
-    ∃ hk : recursorMinorOffset indTypes o + i < H.consumedGeneration.signature.constructors.size,
+    ∃ hk : recursorMinorOffset indTypes o + i < H.generator.signature.constructors.size,
       TrExprSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
         ((H.recInfos[o]!.ruleBlueprints[i]!).build indTypes stats
           (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
           (AddInductive.getRecLevels H.elimLevel stats.levels) H.localContext.lctx).rhs
-        (H.consumedGeneration.generation.equation
+        (H.generator.generation.equation
           ⟨recursorMinorOffset indTypes o + i, hk⟩).rhs := by
   obtain ⟨hk, hft, hrfLen, Hshape⟩ := H.consumedGeneration_shapeTranslations o ho i hlocal
   refine ⟨hk, ?_⟩
@@ -1244,14 +1244,14 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
   simp only [LocalContext.mkLambda]
   rw [hnest true]
   simp only [InductiveSignature.Instance.equation, Fin.getElem_fin]
-  rw [VExpr.wrapLams_append (H.consumedGeneration.generation.params ++
-    H.consumedGeneration.generation.motives ++ H.consumedGeneration.generation.minors)]
-  have hlenD : (H.consumedGeneration.generation.params ++ H.consumedGeneration.generation.motives ++
-      H.consumedGeneration.generation.minors).length =
+  rw [VExpr.wrapLams_append (H.generator.generation.params ++
+    H.generator.generation.motives ++ H.generator.generation.minors)]
+  have hlenD : (H.generator.generation.params ++ H.generator.generation.motives ++
+      H.generator.generation.minors).length =
       (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)).length := by
     simp [InductiveSignature.Instance.params, InductiveSignature.Instance.motives,
       InductiveSignature.Instance.length_minors, hnp, hnfam, hnctor]
-  have Hforall := H.consumedGeneration.minorTranslation
+  have Hforall := H.generator.minorTranslation
   simp only [LocalContext.mkForall] at Hforall
   rw [hnest false] at Hforall
   have HFtel := LocalContext.mkForall_fvars_forallTelescope (lctx := H.localContext.lctx)
@@ -1327,21 +1327,21 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
   simp only [LocalContext.mkForall, LocalContext.mkLambda, List.size_toArray, List.length_map]
     at HsameF HLF HFtelF
   have hlenF : (InductiveSignature.insertBinders
-        (List.map (fun x => VExpr.instL H.consumedGeneration.generation.levels x)
-          (H.consumedGeneration.signature.fieldTypes
-            H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i]))
-        (H.consumedGeneration.signature.families.size +
-          H.consumedGeneration.signature.constructors.size)).length =
+        (List.map (fun x => VExpr.instL H.generator.generation.levels x)
+          (H.generator.signature.fieldTypes
+            H.generator.signature.constructors[recursorMinorOffset indTypes o + i]))
+        (H.generator.signature.families.size +
+          H.generator.signature.constructors.size)).length =
       (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length := by
     simp [InductiveSignature.insertBinders, InductiveSignature.fieldTypes_length, hnf]
   refine TrExprSyn.lambdaTelescope HsameF HLF hlenF ?_ ?_
-  · have hins : (H.consumedGeneration.generation.motives ++
-        H.consumedGeneration.generation.minors).length =
+  · have hins : (H.generator.generation.motives ++
+        H.generator.generation.minors).length =
         (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars).length := by
       simp [InductiveSignature.Instance.motives, InductiveSignature.Instance.length_minors,
         hnfam, hnctor]
     have Htemp := H.minorFieldsTemplate o ho i hlocal
-      (H.consumedGeneration.generation.motives ++ H.consumedGeneration.generation.minors)
+      (H.generator.generation.motives ++ H.generator.generation.minors)
       (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars) hins.symm
     simp only at Htemp
     have hclosed : Closed (H.localContext.lctx.mkForall (H.origins.minorShapes o ho i hlocal).fields
@@ -1357,17 +1357,17 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
       at Htemp
     rw [hFexpr] at Htemp
     simp only [LocalContext.mkForall] at Htemp
-    rw [hins, ← hft, ← H.consumedGeneration.levels] at Htemp
+    rw [hins, ← hft, ← H.generator.levels] at Htemp
     have hins' : (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars).length =
-        H.consumedGeneration.signature.families.size +
-          H.consumedGeneration.signature.constructors.size := by
+        H.generator.signature.families.size +
+          H.generator.signature.constructors.size := by
       simp [hnfam, hnctor]
     rw [hins'] at Htemp
     intro i' hi'
     have Hd := (TrExprS.forallTelescope_domains HFtelF Htemp hlenF i' hi').toSyn
     rw [abstractForallContext_append] at Hd ⊢
     refine Hd.transportAbstract ?_
-    simp [H.parameterDomains, InductiveSignature.Instance.params, H.consumedGeneration.params]
+    simp [H.parameterDomains, InductiveSignature.Instance.params, H.generator.params]
   · rw [abstractForallContext_append, Nat.zero_add]
     have hm : H.params.fvars.length + H.bindings.motives.fvars.length +
         (recursorMinorOffset indTypes o + i) <
@@ -1382,19 +1382,19 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
       congr 1
       omega
     rw [← hPMNk]
-    have hΓ : (H.consumedGeneration.generation.params ++ H.consumedGeneration.generation.motives ++
-        H.consumedGeneration.generation.minors ++ InductiveSignature.insertBinders
-        (List.map (fun x => VExpr.instL H.consumedGeneration.generation.levels x)
-          (H.consumedGeneration.signature.fieldTypes
-            H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i]))
-        (H.consumedGeneration.signature.families.size +
-          H.consumedGeneration.signature.constructors.size)).length =
+    have hΓ : (H.generator.generation.params ++ H.generator.generation.motives ++
+        H.generator.generation.minors ++ InductiveSignature.insertBinders
+        (List.map (fun x => VExpr.instL H.generator.generation.levels x)
+          (H.generator.signature.fieldTypes
+            H.generator.signature.constructors[recursorMinorOffset indTypes o + i]))
+        (H.generator.signature.families.size +
+          H.generator.signature.constructors.size)).length =
         (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)).length +
           (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length := by
       rw [List.length_append, hlenD, hlenF]
     have hcallsLen : H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls.size =
-        (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-          H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i]).length := by
+        (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+          H.generator.signature.constructors[recursorMinorOffset indTypes o + i]).length := by
       rw [Hcalls.size_eq, hrfLen]
     have Hcalls' := TrExprSyn.ruleBody (Us := AddInductive.getRecLevelParams H.elimLevel c.lparams)
       hm (H.origins.minorShapes o ho i hlocal).fields_nodup hPMN hdisj hΓ
@@ -1402,15 +1402,15 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
         call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
           (Array.flatMap (fun x => x.minors) H.recInfos)
           (AddInductive.getRecLevels H.elimLevel stats.levels))
-      (callsG := (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-          H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i]).map
-        fun x => H.consumedGeneration.generation.recursiveCall
-          H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i] x.1 x.2 .recursor)
+      (callsG := (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+          H.generator.signature.constructors[recursorMinorOffset indTypes o + i]).map
+        fun x => H.generator.generation.recursiveCall
+          H.generator.signature.constructors[recursorMinorOffset indTypes o + i] x.1 x.2 .recursor)
       (by
         apply List.forall₂_of_getElem (by simp [hcallsLen])
         intro j h1 h2
-        have hj : j < (InductiveSignature.Instance.recursiveFields (s := H.consumedGeneration.signature)
-            H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i]).length := by
+        have hj : j < (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
+            H.generator.signature.constructors[recursorMinorOffset indTypes o + i]).length := by
           simpa using h2
         have hjB : j < H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls.size := by omega
         simp only [List.getElem_map, Array.getElem_toList, Array.getElem_map]
@@ -1418,7 +1418,7 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
         exact H.ruleCallSyn o ho i hlocal hk _ hΓ j hj)
     simp only [hnf]
     have hidx : (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length +
-        H.consumedGeneration.signature.constructors.size - 1 - (recursorMinorOffset indTypes o + i) =
+        H.generator.signature.constructors.size - 1 - (recursorMinorOffset indTypes o + i) =
         (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length +
           ((H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)).length - 1 -
             (H.params.fvars.length + H.bindings.motives.fvars.length +
@@ -1435,10 +1435,10 @@ theorem RecursorCheck.ruleRhsSyn {outEnv : Environment}
     (H : RecursorCheck R outEnv)
     (o : Nat) (ho : o < H.entries.length)
     (i : Nat) (hi : i < (H.generated.entry o ho).info.rules.length) :
-    ∃ hk : recursorMinorOffset indTypes o + i < H.consumedGeneration.signature.constructors.size,
+    ∃ hk : recursorMinorOffset indTypes o + i < H.generator.signature.constructors.size,
       TrExprSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
         ((H.generated.entry o ho).info.rules[i]).rhs
-        (H.consumedGeneration.generation.equation ⟨recursorMinorOffset indTypes o + i, hk⟩).rhs := by
+        (H.generator.generation.equation ⟨recursorMinorOffset indTypes o + i, hk⟩).rhs := by
   have howner : o < H.recInfos.size := by simpa [H.generated.length] using ho
   have hlocal : i < H.origins.minorTypes[o]!.size := by
     rw [← H.blueprints.rows_size o howner, ← H.generated_rules_length o ho]
@@ -1491,10 +1491,10 @@ theorem RecursorCheck.ruleRhsTranslation {outEnv : Environment}
     (i : Nat) (hi : i < (H.generated.entry o ho).info.rules.length)
     (htyped : ∃ X, TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
       ((H.generated.entry o ho).info.rules[i]).rhs X) :
-    ∃ hk : recursorMinorOffset indTypes o + i < H.consumedGeneration.signature.constructors.size,
+    ∃ hk : recursorMinorOffset indTypes o + i < H.generator.signature.constructors.size,
       TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
         ((H.generated.entry o ho).info.rules[i]).rhs
-        (H.consumedGeneration.generation.equation ⟨recursorMinorOffset indTypes o + i, hk⟩).rhs := by
+        (H.generator.generation.equation ⟨recursorMinorOffset indTypes o + i, hk⟩).rhs := by
   obtain ⟨hk, Hsyn⟩ := H.ruleRhsSyn o ho i hi
   obtain ⟨X, HX⟩ := htyped
   exact ⟨hk, HX.of_syn Hsyn⟩

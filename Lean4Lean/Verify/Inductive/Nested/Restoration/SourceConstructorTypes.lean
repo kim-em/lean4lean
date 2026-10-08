@@ -88,7 +88,7 @@ theorem NestedValidatedRunResult.restorableNames_fresh
     rw [this, List.map_take]
   have Hmodels : E.production.compilationSignature.Models
       (ves.venv (if isUnsafe then .unsafe else .safe)) E.production.loweredDecl := by
-    have h := E.production.loweredConstruction.consumedGeneration.models
+    have h := E.production.loweredConstruction.generator.models
     change E.production.compilationSignature.Models E.production.initialEnv
       E.production.loweredDecl at h
     rwa [hinit] at h
@@ -163,7 +163,7 @@ theorem NestedValidatedRunResult.restorableNames_fresh
     let owner : Fin E.production.compilationSignature.families.size :=
       ⟨j, by simpa using hj⟩
     have hname : E.production.compilationInstance.recursorName owner = t.name.str "rec" := by
-      have h := E.production.loweredConstruction.consumedGeneration.names owner
+      have h := E.production.loweredConstruction.generator.names owner
       change E.production.compilationInstance.recursorName owner =
         E.production.compilationSignature.families[owner].name.str "rec" at h
       rw [h, ← hdname]

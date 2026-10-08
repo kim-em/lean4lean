@@ -631,12 +631,12 @@ theorem NestedValidatedRunResult.restoredGeneratedAvoidance
   intro o
   let H := E.production.loweredConstruction
   have ho : o.val < E.production.indTypes.size := by
-    have := H.consumedGeneration.familyCount
+    have := H.generator.familyCount
     have ho := o.isLt
-    change o.val < H.consumedGeneration.signature.families.size at ho
+    change o.val < H.generator.signature.families.size at ho
     omega
   obtain ⟨type, Htr, Htype⟩ := H.recursorTypeTranslation o.val ho
-  have heq := Htr.uniqueS (H.consumedGeneration.types o.val o.isLt)
+  have heq := Htr.uniqueS (H.generator.types o.val o.isLt)
   have hord := E.production.constructors.toConstructorCheck.context.checking.tr.wf.ordered
   obtain ⟨u, hu⟩ := Htype
   have := (VEnv.IsDefEq.noFreshConsts hord hLfresh (by intro t ht; simp at ht) hu).1

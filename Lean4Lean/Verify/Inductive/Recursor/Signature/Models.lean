@@ -308,7 +308,7 @@ structure RecursorConstruction.SignatureSpec
     (H : RecursorConstruction R) (s : InductiveSignature) : Prop where
   uvars : s.uvars = decl.uvars
   params : s.params = R.parameterScope.toCtx.reverse
-  families : s.families = H.consumedFamilies
+  families : s.families = H.families
   safety : s.isUnsafe = decl.isUnsafe
   size : s.constructors.size = decl.ownedConstructors.length
   constructor : ∀ owner (howner : owner < H.recInfos.size) localIndex
@@ -323,7 +323,7 @@ structure RecursorConstruction.SignatureSpec
 theorem RecursorConstruction.SignatureSpec.family_getElem
     {H : RecursorConstruction R} {s : InductiveSignature}
     (D : H.SignatureSpec s) (i : Nat) (hi : i < s.families.size) :
-    s.families[i] = H.consumedFamilies[i]'(by rw [← D.families]; exact hi) := by
+    s.families[i] = H.families[i]'(by rw [← D.families]; exact hi) := by
   simp only [D.families]
 
 theorem RecursorConstruction.SignatureSpec.family_name
@@ -599,7 +599,7 @@ theorem RecursorConstruction.SignatureSpec.models
     simp [hfamSize, H.cardinality.records])
   intro i hi hi'
   have howner : i < H.recInfos.size := by rw [H.cardinality.records]; exact hi'
-  have hget : s.families.toList[i] = H.consumedFamilies[i]'(by simpa using howner) := by
+  have hget : s.families.toList[i] = H.families[i]'(by simpa using howner) := by
     simp only [Array.getElem_toList]
     exact D.family_getElem i (by simpa using hi)
   rw [hget, H.consumedFamilies_name ⟨i, howner⟩, H.consumedFamilies_indices ⟨i, howner⟩,

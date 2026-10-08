@@ -130,7 +130,7 @@ No definitional agreement of the consumed index domains with the declared
 ones is used, and the checked recursor type is not consulted. -/
 theorem RecursorConstruction.consumedFamilyTypesWF
     (H : RecursorConstruction R) {s : InductiveSignature}
-    (hp : s.params = R.parameterScope.toCtx.reverse) (hf : s.families = H.consumedFamilies) :
+    (hp : s.params = R.parameterScope.toCtx.reverse) (hf : s.families = H.families) :
     s.FamilyTypesWF R.context.venv decl.uvars := by
   intro owner
   have hown : owner.val < H.recInfos.size := by
@@ -139,7 +139,7 @@ theorem RecursorConstruction.consumedFamilyTypesWF
     omega
   let o : Fin H.recInfos.size := ⟨owner.val, hown⟩
   have hdecl : owner.val < decl.types.length := by rw [← H.cardinality.records]; exact hown
-  have hfam : s.families[owner] = H.consumedFamilies[owner.val]'(by simp [hown]) := by
+  have hfam : s.families[owner] = H.families[owner.val]'(by simp [hown]) := by
     simp only [Fin.getElem_fin, hf]
   have hidx : s.families[owner].indices = H.declIndexDomains o := by
     rw [hfam]; exact H.consumedFamilies_indices o

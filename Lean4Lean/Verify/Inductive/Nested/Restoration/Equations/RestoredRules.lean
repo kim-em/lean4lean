@@ -580,7 +580,7 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
   have hfLow : f < E.production.loweredDecl.types.length := by omega
   have HTf := Lean4Lean.List.forall₂_getElem HT f (by simp; omega) hfLow
   rw [List.getElem_append_left hf] at HTf
-  have HM := E.production.loweredConstruction.consumedGeneration.models.families
+  have HM := E.production.loweredConstruction.generator.models.families
   have hlenHM := Lean4Lean.List.Forall₂.length_eq HM
   have hfDecl : f < E.production.compilationSignature.declaration.types.length := by
     have h : f < E.production.compilationSignature.families.size := hfFam
@@ -628,7 +628,7 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
     Restoration.find_none_of_mem_prefix hheadsAux hnodupFam
       (mem_familyNames.mpr ⟨_, hlowMem, .inl hfamName⟩)
   -- the primary recursor is not renamed
-  have hrecNames := E.production.loweredConstruction.consumedGeneration.names
+  have hrecNames := E.production.loweredConstruction.generator.names
   have hnotRec : E.production.production.canonicalGeneration.recursorName ⟨f, hfFam⟩ ∉
       (compilationRestoration sourceDecl auxiliaries).recursors.map Prod.fst := by
     intro hmem
@@ -765,7 +765,7 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
     rfl
   have hctorIdx : E.production.production.generationSignature.constructors[k].indices.length =
       (E.production.production.generationSignature.families[f]'hfFam).indices.length := by
-    have h := E.production.loweredConstruction.consumedGeneration.models.constructorArity
+    have h := E.production.loweredConstruction.generator.models.constructorArity
       _ (Array.getElem_mem_toList k.isLt)
     simp only [Fin.getElem_fin] at hkOwner ⊢
     refine h.trans ?_
@@ -773,8 +773,8 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
     rfl
   have hlevels : E.production.production.canonicalGeneration.levels.length =
       sourceDecl.uvars := by
-    have h1 := E.production.loweredConstruction.consumedGeneration.admissible.levels_length
-    have h2 := E.production.loweredConstruction.consumedGeneration.models.uvars
+    have h1 := E.production.loweredConstruction.generator.admissible.levels_length
+    have h2 := E.production.loweredConstruction.generator.models.uvars
     have h3 := C.formationAssembly.uvars
     rw [hloweredDecl] at h3
     exact h1.trans (h2.trans h3)

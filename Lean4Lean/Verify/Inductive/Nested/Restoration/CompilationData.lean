@@ -91,13 +91,13 @@ noncomputable def NestedInstalledProduction.loweredConstruction
 noncomputable def NestedInstalledProduction.compilationSignature
     {loweredEnv : Environment} (P : NestedInstalledProduction loweredEnv) :
     InductiveSignature :=
-  P.loweredConstruction.consumedGeneration.signature
+  P.loweredConstruction.generator.signature
 
 /-- The generation instance of the lowered declaration. -/
 noncomputable def NestedInstalledProduction.compilationInstance
     {loweredEnv : Environment} (P : NestedInstalledProduction loweredEnv) :
     Instance P.compilationSignature :=
-  P.loweredConstruction.consumedGeneration.generation
+  P.loweredConstruction.generator.generation
 
 /-- The fields of `CompilationData` not yet derived from a validated nested
 run.  The source families' names, universes, index counts, result levels and
@@ -187,7 +187,7 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
     hexpanded ▸ C.formationAssembly.expandedSource
   have Hmodels : E.production.compilationSignature.Models
       (ves.venv (if isUnsafe then .unsafe else .safe)) E.production.loweredDecl := by
-    have h := E.production.loweredConstruction.consumedGeneration.models
+    have h := E.production.loweredConstruction.generator.models
     change E.production.compilationSignature.Models E.production.initialEnv
       E.production.loweredDecl at h
     rwa [hinit] at h
@@ -237,7 +237,7 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
     correspondence := by
       have hparams : E.production.compilationSignature.params =
           E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
-        E.production.loweredConstruction.consumedGeneration.params
+        E.production.loweredConstruction.generator.params
       obtain ⟨direct, hmapM, hshapes⟩ :=
         hdirect sourceDecl.uvars E.production.compilationSignature.params
       refine ⟨envTypes, direct, htypes, hmapM, hparams ▸ hwellFormed, ?_⟩
@@ -291,7 +291,7 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
         rw [E.production.compilationSignature.declaration_type_uvars a
           (List.mem_of_mem_drop ha), Hmodels.uvars, hloweredUvars, hshape.uvars]
     admissible := ⟨_, hloweredTypes,
-      E.production.loweredConstruction.consumedGeneration.admissible⟩
+      E.production.loweredConstruction.generator.admissible⟩
     recursiveTypesWF := by
       refine ⟨_, _, E.production.constructors.toConstructorCheck.eliminators, hloweredTypes,
         hloweredCtors, ?_, ?_, ?_⟩
@@ -300,9 +300,9 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
         rw [hinit] at hown
         exact hown
       · rw [← E.production.constructors.toConstructorCheck.contextVEnv]
-        exact E.production.loweredConstruction.consumedGeneration.recursiveTypesWF
+        exact E.production.loweredConstruction.generator.recursiveTypesWF
       · rw [← E.production.constructors.toConstructorCheck.contextVEnv]
-        exact E.production.loweredConstruction.consumedGeneration.familyTypesWF
+        exact E.production.loweredConstruction.generator.familyTypesWF
     familyTypesWF := by
       refine ⟨_, _, E.production.constructors.toConstructorCheck.eliminators, hloweredTypes,
         hloweredCtors, ?_, ?_⟩
@@ -311,8 +311,8 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
         rw [hinit] at hown
         exact hown
       · rw [← E.production.constructors.toConstructorCheck.contextVEnv]
-        exact E.production.loweredConstruction.consumedGeneration.familyTypesWF
-    recursorNames := E.production.loweredConstruction.consumedGeneration.names
+        exact E.production.loweredConstruction.generator.familyTypesWF
+    recursorNames := E.production.loweredConstruction.generator.names
     generatedNames := by
       rw [List.map_append]
       refine List.nodup_append.mpr ⟨VEnv.addConstVals_names_nodup hlowered,

@@ -169,7 +169,7 @@ theorem RecursorConstruction.generatedMotiveBinder
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (g : InductiveSignature.Instance s)
     (hp : s.params = R.parameterScope.toCtx.reverse)
-    (_hf : s.families = H.consumedFamilies)
+    (_hf : s.families = H.families)
     (hl : g.levels = recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)
     (hu : VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       H.elimLevel = some g.targetLevel)
@@ -179,7 +179,7 @@ theorem RecursorConstruction.generatedMotiveBinder
     TrExprS H.recursorWF.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (abstractForallContext prior (abstractForallContext g.params []))
       ((source.abstractList H.params.fvars).liftLooseBVars' 0 owner.val)
-      (g.motive (H.consumedFamilies[owner.val]'(by simp [owner.isLt])) owner.val) := by
+      (g.motive (H.families[owner.val]'(by simp [owner.isLt])) owner.val) := by
   have Hscalar := (H.sourceIndices_motive owner hu).1
   have hp' : g.params = H.parameterSuffix.parameterDecls.toCtx.reverse := by
     rw [InductiveSignature.Instance.params, hp, hl, H.parameterDomains]
@@ -195,7 +195,7 @@ theorem RecursorConstruction.generatedMotivesTranslation
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (g : InductiveSignature.Instance s)
     (hp : s.params = R.parameterScope.toCtx.reverse)
-    (hf : s.families = H.consumedFamilies)
+    (hf : s.families = H.families)
     (hl : g.levels = recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)
     (hu : VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       H.elimLevel = some g.targetLevel) :
@@ -224,7 +224,7 @@ theorem RecursorConstruction.generatedMotivesTranslation
     rw [hsource]
     have htake : (g.motives.take i).length = i := by simp; omega
     have Htr := H.generatedMotiveBinder g hp hf hl hu ⟨i, hi'⟩ (g.motives.take i) htake
-    have htarget : g.motives[i] = g.motive (H.consumedFamilies[i]'(by simp [hi'])) i := by
+    have htarget : g.motives[i] = g.motive (H.families[i]'(by simp [hi'])) i := by
       simp [InductiveSignature.Instance.motives, hf]
     rw [htarget]
     refine ⟨Htr, ?_⟩
@@ -244,7 +244,7 @@ theorem RecursorConstruction.generatedParametersMotivesTranslation
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (g : InductiveSignature.Instance s)
     (hp : s.params = R.parameterScope.toCtx.reverse)
-    (hf : s.families = H.consumedFamilies)
+    (hf : s.families = H.families)
     (hl : g.levels = recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)
     (hu : VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       H.elimLevel = some g.targetLevel) :

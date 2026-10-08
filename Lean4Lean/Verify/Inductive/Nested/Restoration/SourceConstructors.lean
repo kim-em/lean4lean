@@ -386,7 +386,7 @@ theorem NestedValidatedRunResult.sourceConstructors_of_evidence
     exact hloweredTypes
   have Hmodels : E.production.compilationSignature.Models
       (ves.venv (if isUnsafe then .unsafe else .safe)) E.production.loweredDecl := by
-    have h := E.production.loweredConstruction.consumedGeneration.models
+    have h := E.production.loweredConstruction.generator.models
     change E.production.compilationSignature.Models E.production.initialEnv
       E.production.loweredDecl at h
     rwa [hinit] at h
@@ -397,7 +397,7 @@ theorem NestedValidatedRunResult.sourceConstructors_of_evidence
   -- the common parameter telescope
   have hparams : E.production.compilationSignature.params =
       E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
-    E.production.loweredConstruction.consumedGeneration.params
+    E.production.loweredConstruction.generator.params
   have hP : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
       E.production.compilationSignature.params.reverse
       E.production.headers.commonParameterContext := by

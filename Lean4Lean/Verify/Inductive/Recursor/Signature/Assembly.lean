@@ -839,7 +839,7 @@ noncomputable def RecursorConstruction.familySignature
     (H : RecursorConstruction R) : InductiveSignature where
   uvars := decl.uvars
   params := R.parameterScope.toCtx.reverse
-  families := H.consumedFamilies
+  families := H.families
   constructors := #[]
 
 theorem RecursorConstruction.recursorTelescope_motives_eq
@@ -857,9 +857,9 @@ theorem RecursorConstruction.recursorTelescope_motives_eq
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner₂]!.indices.size owner₂) :
     T₁.params = T₂.params ∧ T₁.motives = T₂.motives := by
   refine ⟨(H.recursorTelescope_params T₁).trans (H.recursorTelescope_params T₂).symm, ?_⟩
-  have h₁ := H.recursorTelescope_motives T₁ (H.consumedInstance H.familySignature) rfl rfl rfl
+  have h₁ := H.recursorTelescope_motives T₁ (H.generatedInstance H.familySignature) rfl rfl rfl
     (H.consumedInstance_target _)
-  have h₂ := H.recursorTelescope_motives T₂ (H.consumedInstance H.familySignature) rfl rfl rfl
+  have h₂ := H.recursorTelescope_motives T₂ (H.generatedInstance H.familySignature) rfl rfl rfl
     (H.consumedInstance_target _)
   exact h₁.trans h₂.symm
 
@@ -964,7 +964,7 @@ def RecursorConstruction.RecursiveShapesSpec
     (H : RecursorConstruction R)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
-    (shapes : List (Nat × InductiveSignature.Recursive H.consumedFamilies.size)) : Prop :=
+    (shapes : List (Nat × InductiveSignature.Recursive H.families.size)) : Prop :=
   let S := H.origins.minorShapes mowner hmowner localIndex hlocal
   let L := recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible
   let nmot := (H.recInfos.map (·.motive)).size
@@ -1023,7 +1023,7 @@ theorem RecursorConstruction.minorShapes_exist
   have hsizeRec : origins.recInfos.size = H.recInfos.size := by
     have h := congrArg Array.size hmotives
     simpa using h
-  let P : Nat → (Nat × InductiveSignature.Recursive H.consumedFamilies.size) → Prop :=
+  let P : Nat → (Nat × InductiveSignature.Recursive H.families.size) → Prop :=
     fun j x => ∀ (hj : j < hyps.length),
       ∃ hpos : x.1 < S.fields_bound.fvars.length,
         S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[x.1]'hpos) ∧
@@ -1052,7 +1052,7 @@ theorem RecursorConstruction.minorShapes_exist
     obtain ⟨hlen, hidx⟩ := hypothesisForm_compare (hEq.symm.trans hform)
     have hnmot : nmot = H.recInfos.size := by simp [nmot]
     have htO : t = O.ownerIdx := by omega
-    have ht' : t < H.consumedFamilies.size := by rw [H.consumedFamilies_size]; exact ht
+    have ht' : t < H.families.size := by rw [H.consumedFamilies_size]; exact ht
     refine ⟨(pos, ⟨binders, ⟨t, ht'⟩, indices⟩), fun _ => ⟨hpos, hfield, hform, hsources, root,
       sourceType, O, D, hLE, hDtype, htO, hlen.symm.trans hA⟩⟩
   obtain ⟨shapes, hlen, hshapes⟩ := exists_list_of_forall_lt hP
@@ -1111,11 +1111,11 @@ theorem RecursorConstruction.minorShapes_exist
 /-! ### The consumed signature -/
 
 /-- The chosen recursive shapes of one consumed constructor. -/
-noncomputable def RecursorConstruction.consumedShapes
+noncomputable def RecursorConstruction.recursiveShapes
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    List (Nat × InductiveSignature.Recursive H.consumedFamilies.size) :=
+    List (Nat × InductiveSignature.Recursive H.families.size) :=
   Classical.choose (H.minorShapes_exist HU owner howner localIndex hlocal)
 
 theorem RecursorConstruction.consumedShapes_spec
@@ -1123,30 +1123,30 @@ theorem RecursorConstruction.consumedShapes_spec
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     H.RecursiveShapesSpec owner howner localIndex hlocal
-      (H.consumedShapes HU owner howner localIndex hlocal) :=
+      (H.recursiveShapes HU owner howner localIndex hlocal) :=
   Classical.choose_spec (H.minorShapes_exist HU owner howner localIndex hlocal)
 
 /-- The consumed constructor of one minor row entry. -/
-noncomputable def RecursorConstruction.consumedConstructorAt
+noncomputable def RecursorConstruction.constructorAt
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    InductiveSignature.Constructor H.consumedFamilies.size where
+    InductiveSignature.Constructor H.families.size where
   name := (H.origins.minorShapes owner howner localIndex hlocal).constructor.name
   owner := ⟨owner, by rw [H.consumedFamilies_size]; exact howner⟩
   fields := InductiveSignature.markFields (H.declFieldDomains owner howner localIndex hlocal)
-    (H.consumedShapes HU owner howner localIndex hlocal)
+    (H.recursiveShapes HU owner howner localIndex hlocal)
   indices := H.declConstructorIndices owner howner localIndex hlocal
 
 /-- The consumed constructor at a flattened constructor position. -/
-noncomputable def RecursorConstruction.consumedConstructor
+noncomputable def RecursorConstruction.constructor
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (k : Fin decl.ownedConstructors.length) :
-    InductiveSignature.Constructor H.consumedFamilies.size :=
+    InductiveSignature.Constructor H.families.size :=
   let h := H.flatMinorIndex k.val k.isLt
   let howner := Classical.choose_spec h
   let hlocal := Classical.choose_spec (Classical.choose_spec howner)
-  H.consumedConstructorAt HU (Classical.choose h) (Classical.choose howner)
+  H.constructorAt HU (Classical.choose h) (Classical.choose howner)
     (Classical.choose (Classical.choose_spec howner)) (Classical.choose hlocal)
 
 theorem RecursorConstruction.consumedConstructorAt_congr
@@ -1155,8 +1155,8 @@ theorem RecursorConstruction.consumedConstructorAt_congr
     {localIndex localIndex' : Nat} (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (hlocal' : localIndex' < H.origins.minorTypes[owner']!.size)
     (h1 : owner = owner') (h2 : localIndex = localIndex') :
-    H.consumedConstructorAt HU owner howner localIndex hlocal =
-      H.consumedConstructorAt HU owner' howner' localIndex' hlocal' := by
+    H.constructorAt HU owner howner localIndex hlocal =
+      H.constructorAt HU owner' howner' localIndex' hlocal' := by
   subst h1 h2
   rfl
 
@@ -1165,9 +1165,9 @@ theorem RecursorConstruction.consumedConstructor_eq
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (hk : recursorMinorOffset indTypes owner + localIndex < decl.ownedConstructors.length) :
-    H.consumedConstructor HU ⟨recursorMinorOffset indTypes owner + localIndex, hk⟩ =
-      H.consumedConstructorAt HU owner howner localIndex hlocal := by
-  unfold consumedConstructor
+    H.constructor HU ⟨recursorMinorOffset indTypes owner + localIndex, hk⟩ =
+      H.constructorAt HU owner howner localIndex hlocal := by
+  unfold constructor
   dsimp only
   have h := H.flatMinorIndex (recursorMinorOffset indTypes owner + localIndex) hk
   have hspec := Classical.choose_spec (Classical.choose_spec (Classical.choose_spec
@@ -1180,29 +1180,29 @@ theorem RecursorConstruction.consumedConstructor_eq
 /-- The consumed signature: cached parameters, consumed families, and one
 constructor per minor with the consumed field domains, marked recursive at
 the traversal's recursive positions. -/
-@[reducible] noncomputable def RecursorConstruction.consumedSignature
+@[reducible] noncomputable def RecursorConstruction.signature
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses) : InductiveSignature where
   uvars := decl.uvars
   params := R.parameterScope.toCtx.reverse
-  families := H.consumedFamilies
-  constructors := Array.ofFn (H.consumedConstructor HU)
+  families := H.families
+  constructors := Array.ofFn (H.constructor HU)
   isUnsafe := decl.isUnsafe
 
 theorem RecursorConstruction.consumedSignature_constructor
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
-    (hk : recursorMinorOffset indTypes owner + localIndex < (H.consumedSignature HU).constructors.size) :
-    (H.consumedSignature HU).constructors[recursorMinorOffset indTypes owner + localIndex] =
-      H.consumedConstructorAt HU owner howner localIndex hlocal := by
-  simp only [consumedSignature, Array.getElem_ofFn]
+    (hk : recursorMinorOffset indTypes owner + localIndex < (H.signature HU).constructors.size) :
+    (H.signature HU).constructors[recursorMinorOffset indTypes owner + localIndex] =
+      H.constructorAt HU owner howner localIndex hlocal := by
+  simp only [signature, Array.getElem_ofFn]
   exact H.consumedConstructor_eq HU owner howner localIndex hlocal _
 
 theorem RecursorConstruction.consumedConstructorAt_fieldTypes
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    (H.consumedSignature HU).fieldTypes (H.consumedConstructorAt HU owner howner localIndex hlocal) =
+    (H.signature HU).fieldTypes (H.constructorAt HU owner howner localIndex hlocal) =
       H.declFieldDomains owner howner localIndex hlocal :=
   InductiveSignature.fieldTypes_markFields _ _ _ _ rfl
 
@@ -1210,9 +1210,9 @@ theorem RecursorConstruction.consumedConstructorAt_recursiveFields
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    InductiveSignature.Instance.recursiveFields (s := H.consumedSignature HU)
-        (H.consumedConstructorAt HU owner howner localIndex hlocal) =
-      H.consumedShapes HU owner howner localIndex hlocal := by
+    InductiveSignature.Instance.recursiveFields (s := H.signature HU)
+        (H.constructorAt HU owner howner localIndex hlocal) =
+      H.recursiveShapes HU owner howner localIndex hlocal := by
   have hsourceOwner : owner < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨_, _, _, _, traversal, htrav, _, hfieldsT, _, _, _, _, _, _, _⟩ :=
     H.minorSources.rows owner howner hsourceOwner localIndex hlocal
@@ -1232,7 +1232,7 @@ theorem RecursorConstruction.consumedConstructorAt_recursiveFields
 
 theorem RecursorConstruction.consumedSignatureData
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
-    H.SignatureSpec (H.consumedSignature HU) where
+    H.SignatureSpec (H.signature HU) where
   uvars := rfl
   params := rfl
   families := rfl
@@ -1240,8 +1240,8 @@ theorem RecursorConstruction.consumedSignatureData
   size := Array.size_ofFn
   constructor owner howner localIndex hlocal := by
     have hk : recursorMinorOffset indTypes owner + localIndex <
-        (H.consumedSignature HU).constructors.size := by
-      simp only [consumedSignature, Array.size_ofFn]
+        (H.signature HU).constructors.size := by
+      simp only [signature, Array.size_ofFn]
       exact H.sourceMinorOffsetBound owner howner localIndex hlocal
     refine ⟨hk, ?_⟩
     rw [H.consumedSignature_constructor HU owner howner localIndex hlocal hk]
@@ -1261,8 +1261,8 @@ theorem RecursorConstruction.recursorTelescope_minor_eq
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (hm : recursorMinorOffset indTypes mowner + localIndex < T.minors.length) :
     T.minors[recursorMinorOffset indTypes mowner + localIndex]'hm =
-      (H.consumedInstance (H.consumedSignature HU)).minor
-        (H.consumedConstructorAt HU mowner hmowner localIndex hlocal)
+      (H.generatedInstance (H.signature HU)).minor
+        (H.constructorAt HU mowner hmowner localIndex hlocal)
         (recursorMinorOffset indTypes mowner + localIndex) := by
   let minorIdx := recursorMinorOffset indTypes mowner + localIndex
   obtain ⟨D₀, hD⟩ := H.flatMinorDeclaration mowner hmowner localIndex hlocal
@@ -1271,21 +1271,21 @@ theorem RecursorConstruction.recursorTelescope_minor_eq
   have hidx := H.recursorTelescope_minorIndices T minorIdx D₀.inBounds mowner hmowner localIndex
     hlocal hyps idx hhyps Hidx
   have hspec := H.consumedShapes_spec HU mowner hmowner localIndex hlocal
-  have hlenShapes : (H.consumedShapes HU mowner hmowner localIndex hlocal).length =
+  have hlenShapes : (H.recursiveShapes HU mowner hmowner localIndex hlocal).length =
       (H.origins.minorShapes mowner hmowner localIndex hlocal).hypotheses.size := hspec.2.1
   have hforms := hspec.2.2.1 owner howner target T hm hyps _
     (hhyps.trans hlenShapes.symm) hminorEq
   have hrec := H.consumedConstructorAt_recursiveFields HU mowner hmowner localIndex hlocal
   have hft := H.consumedConstructorAt_fieldTypes HU mowner hmowner localIndex hlocal
-  have hnf : (H.consumedConstructorAt HU mowner hmowner localIndex hlocal).fields.length =
+  have hnf : (H.constructorAt HU mowner hmowner localIndex hlocal).fields.length =
       (H.origins.minorShapes mowner hmowner localIndex hlocal).fields.size := by
-    simp [consumedConstructorAt, H.sourceFields_length]
-  have hfam : (H.consumedSignature HU).families.size = (H.recInfos.map (·.motive)).size := by
+    simp [constructorAt, H.sourceFields_length]
+  have hfam : (H.signature HU).families.size = (H.recInfos.map (·.motive)).size := by
     simp [H.consumedFamilies_size]
-  have hihs : ((InductiveSignature.Instance.recursiveFields (s := H.consumedSignature HU)
-      (H.consumedConstructorAt HU mowner hmowner localIndex hlocal)).zipIdx.map fun x =>
-        (H.consumedInstance (H.consumedSignature HU)).hypothesis
-          (H.consumedConstructorAt HU mowner hmowner localIndex hlocal) minorIdx x.2 x.1.1 x.1.2) =
+  have hihs : ((InductiveSignature.Instance.recursiveFields (s := H.signature HU)
+      (H.constructorAt HU mowner hmowner localIndex hlocal)).zipIdx.map fun x =>
+        (H.generatedInstance (H.signature HU)).hypothesis
+          (H.constructorAt HU mowner hmowner localIndex hlocal) minorIdx x.2 x.1.1 x.1.2) =
       hyps := by
     rw [hrec]
     apply List.ext_getElem (by simp [hlenShapes, hhyps])
@@ -1295,25 +1295,25 @@ theorem RecursorConstruction.recursorTelescope_minor_eq
     rw [hforms j (by simpa using h1)]
     simp only [hnf, hfam]
     rfl
-  have hihsLen : ((InductiveSignature.Instance.recursiveFields (s := H.consumedSignature HU)
-      (H.consumedConstructorAt HU mowner hmowner localIndex hlocal)).zipIdx.map fun x =>
-        (H.consumedInstance (H.consumedSignature HU)).hypothesis
-          (H.consumedConstructorAt HU mowner hmowner localIndex hlocal) minorIdx x.2 x.1.1 x.1.2).length =
+  have hihsLen : ((InductiveSignature.Instance.recursiveFields (s := H.signature HU)
+      (H.constructorAt HU mowner hmowner localIndex hlocal)).zipIdx.map fun x =>
+        (H.generatedInstance (H.signature HU)).hypothesis
+          (H.constructorAt HU mowner hmowner localIndex hlocal) minorIdx x.2 x.1.1 x.1.2).length =
       (H.origins.minorShapes mowner hmowner localIndex hlocal).hypotheses.size := by
     rw [hihs, hhyps]
   rw [hminorEq]
   unfold InductiveSignature.Instance.minor
   simp only []
   rw [hihs, hft, hidx]
-  have hlev : (H.consumedInstance (H.consumedSignature HU)).levels =
+  have hlev : (H.generatedInstance (H.signature HU)).levels =
       recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible := rfl
-  have hind : (H.consumedConstructorAt HU mowner hmowner localIndex hlocal).indices =
+  have hind : (H.constructorAt HU mowner hmowner localIndex hlocal).indices =
       H.declConstructorIndices mowner hmowner localIndex hlocal := rfl
-  have hown : ((H.consumedConstructorAt HU mowner hmowner localIndex hlocal).owner : Nat) =
+  have hown : ((H.constructorAt HU mowner hmowner localIndex hlocal).owner : Nat) =
       mowner := rfl
-  have hname : (H.consumedConstructorAt HU mowner hmowner localIndex hlocal).name =
+  have hname : (H.constructorAt HU mowner hmowner localIndex hlocal).name =
       (H.origins.minorShapes mowner hmowner localIndex hlocal).constructor.name := rfl
-  have hpl : (H.consumedSignature HU).params.length = stats.params.size := by
+  have hpl : (H.signature HU).params.length = stats.params.size := by
     simp [H.sourceParameterCount]
   simp only [hlev, hnf, hhyps, hind, hown, hname, hpl, VExpr.wrapForalls_append, VExpr.mkApps_append,
     InductiveSignature.Instance.constructorApp, H.consumedFamilies_size, Array.size_map]
@@ -1351,10 +1351,10 @@ theorem RecursorConstruction.recursorTelescope_minors_consumed
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner) :
-    T.minors = (H.consumedInstance (H.consumedSignature HU)).minors := by
-  have hlen : T.minors.length = (H.consumedInstance (H.consumedSignature HU)).minors.length := by
+    T.minors = (H.generatedInstance (H.signature HU)).minors := by
+  have hlen : T.minors.length = (H.generatedInstance (H.signature HU)).minors.length := by
     rw [T.minors_length, InductiveSignature.Instance.length_minors, H.flatMinors_size_eq]
-    simp [consumedSignature]
+    simp [signature]
   apply List.ext_getElem hlen
   intro i h1 h2
   have hi : i < decl.ownedConstructors.length := by
@@ -1363,8 +1363,8 @@ theorem RecursorConstruction.recursorTelescope_minors_consumed
   rw [H.recursorTelescope_minor_eq HU howner T mowner hmowner localIndex hlocal h1,
     InductiveSignature.Instance.getElem_minors]
   have hk : recursorMinorOffset indTypes mowner + localIndex <
-      (H.consumedSignature HU).constructors.size := by
-    simpa [consumedSignature] using hi
+      (H.signature HU).constructors.size := by
+    simpa [signature] using hi
   rw [H.consumedSignature_constructor HU mowner hmowner localIndex hlocal hk]
 
 /-! ### The parameter, motive and minor prefix of the recursor type -/
@@ -1463,16 +1463,16 @@ theorem RecursorConstruction.recursorType_prefixTelescope
 
 theorem RecursorConstruction.consumedSignature_types
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
-    (owner : Nat) (howner : owner < (H.consumedSignature HU).families.size) :
+    (owner : Nat) (howner : owner < (H.signature HU).families.size) :
     TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
-      ((H.consumedInstance (H.consumedSignature HU)).recursorType ⟨owner, howner⟩) := by
+      ((H.generatedInstance (H.signature HU)).recursorType ⟨owner, howner⟩) := by
   have howner' : owner < H.recInfos.size := by
-    simpa [consumedSignature, H.consumedFamilies_size] using howner
+    simpa [signature, H.consumedFamilies_size] using howner
   obtain ⟨target, Htr, ⟨T⟩⟩ := H.recursorTelescope owner howner'
-  have heq := H.recursorTarget_eq_of_minors howner' T (H.consumedInstance (H.consumedSignature HU))
+  have heq := H.recursorTarget_eq_of_minors howner' T (H.generatedInstance (H.signature HU))
     rfl rfl rfl (H.consumedInstance_target _)
-    (by simp [consumedSignature, H.flatMinors_size_eq])
+    (by simp [signature, H.flatMinors_size_eq])
     (H.recursorTelescope_minors_consumed HU howner' T)
   rw [heq] at Htr
   exact Htr
@@ -1483,18 +1483,18 @@ theorem RecursorConstruction.consumedSignature_minorTranslation
       (H.localContext.lctx.mkForall stats.params <|
         H.localContext.lctx.mkForall (H.recInfos.map (·.motive)) <|
         H.localContext.lctx.mkForall (H.recInfos.flatMap (·.minors)) (.sort .zero))
-      (VExpr.wrapForalls ((H.consumedInstance (H.consumedSignature HU)).params ++
-        (H.consumedInstance (H.consumedSignature HU)).motives ++
-        (H.consumedInstance (H.consumedSignature HU)).minors) (.sort .zero)) := by
+      (VExpr.wrapForalls ((H.generatedInstance (H.signature HU)).params ++
+        (H.generatedInstance (H.signature HU)).motives ++
+        (H.generatedInstance (H.signature HU)).minors) (.sort .zero)) := by
   by_cases hempty : H.recInfos.size = 0
   · have hrec : H.recInfos = #[] := Array.eq_empty_of_size_eq_zero hempty
-    have hminors : (H.consumedInstance (H.consumedSignature HU)).minors = [] := by
+    have hminors : (H.generatedInstance (H.signature HU)).minors = [] := by
       apply List.eq_nil_of_length_eq_zero
       rw [InductiveSignature.Instance.length_minors]
-      simp only [consumedSignature, Array.size_ofFn]
+      simp only [signature, Array.size_ofFn]
       rw [← H.flatMinors_size_eq, hrec]
       rfl
-    have Hpm := H.generatedParametersMotivesTranslation (H.consumedInstance (H.consumedSignature HU))
+    have Hpm := H.generatedParametersMotivesTranslation (H.generatedInstance (H.signature HU))
       rfl rfl rfl (H.consumedInstance_target _)
     rw [hminors, List.append_nil]
     have hflat : H.recInfos.flatMap (·.minors) = #[] := by rw [hrec]; rfl
@@ -1503,10 +1503,10 @@ theorem RecursorConstruction.consumedSignature_minorTranslation
   · obtain ⟨target, Htr, ⟨T⟩⟩ := H.recursorTelescope 0 (by omega)
     obtain ⟨residual, Htel⟩ := H.recursorType_prefixTelescope 0
     have hp := H.recursorTelescope_params T
-    have hm := H.recursorTelescope_motives T (H.consumedInstance (H.consumedSignature HU))
+    have hm := H.recursorTelescope_motives T (H.generatedInstance (H.signature HU))
       rfl rfl rfl (H.consumedInstance_target _)
     have hmi := H.recursorTelescope_minors_consumed HU (by omega) T
-    have hp' : (H.consumedInstance (H.consumedSignature HU)).params =
+    have hp' : (H.generatedInstance (H.signature HU)).params =
         H.parameterSuffix.parameterDecls.toCtx.reverse := by
       rw [InductiveSignature.Instance.params, H.parameterDomains]
       rfl
@@ -1523,17 +1523,17 @@ theorem RecursorConstruction.consumedSignature_minorTranslation
 
 theorem RecursorConstruction.consumedSignature_recursiveTypesWF
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
-    (H.consumedInstance (H.consumedSignature HU)).RecursiveTypesWF R.context.venv := by
+    (H.generatedInstance (H.signature HU)).RecursiveTypesWF R.context.venv := by
   by_cases hempty : H.recInfos.size = 0
   · intro index
-    have hsize : (H.consumedSignature HU).constructors.size = 0 := by
-      simp only [consumedSignature, Array.size_ofFn]
+    have hsize : (H.signature HU).constructors.size = 0 := by
+      simp only [signature, Array.size_ofFn]
       rw [← H.flatMinors_size_eq, Array.eq_empty_of_size_eq_zero hempty]
       rfl
     exact absurd index.isLt (by omega)
   · have h0 : 0 < H.recInfos.size := by omega
     have hsrc : 0 < indTypes.size := by rw [← H.sourceFamilyCount]; exact h0
-    have hf : 0 < (H.consumedSignature HU).families.size := by
+    have hf : 0 < (H.signature HU).families.size := by
       simp [H.consumedFamilies_size]; omega
     obtain ⟨type, Htr, Htype⟩ := H.recursorTypeTranslation 0 hsrc
     have heq := Htr.uniqueS (H.consumedSignature_types HU 0 hf)
