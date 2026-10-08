@@ -290,7 +290,7 @@ theorem RecursorCheck.ruleTranslation_of
       ⟨R.ctorVEnv, R.eliminators, R.core.ctorsAdded, R.eliminatorsOwn, ?_, ?_⟩,
       H.generator.names, ?_, rfl,
       H.trEntries Hrhs⟩⟩
-    · rw [← R.contextVEnv]; exact H.generator.recursiveTypesWF
+    · rw [← R.contextVEnv]; exact H.generator.generatedIHsWellTyped
     · rw [← R.contextVEnv]; exact H.generator.familyTypesWF
     · exact H.recursors
 

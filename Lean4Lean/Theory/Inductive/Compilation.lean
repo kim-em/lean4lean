@@ -204,11 +204,11 @@ structure CompilationData (env : VEnv) (source expanded : VInductDecl)
   admissible : ∃ envExpandedTypes,
     env.addConstVals expanded.typeConstants = some envExpandedTypes ∧
     g.Admissible envExpandedTypes
-  recursiveTypesWF : ∃ envExpandedTypes envExpandedCtors es,
+  generatedIHsWellTyped : ∃ envExpandedTypes envExpandedCtors es,
     env.addConstVals expanded.typeConstants = some envExpandedTypes ∧
     envExpandedTypes.addConstVals expanded.constructorConstants = some envExpandedCtors ∧
     expanded.OwnCaseEliminators env es ∧
-    g.RecursiveTypesWF ((envExpandedCtors.addEliminators es).addProjections
+    g.GeneratedIHsWellTyped ((envExpandedCtors.addEliminators es).addProjections
       expanded.projectionEntries) ∧
     s.FamilyTypesWF ((envExpandedCtors.addEliminators es).addProjections
       expanded.projectionEntries) expanded.uvars
@@ -364,7 +364,7 @@ theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}
     restorationScoped := ?_
     correspondence := ?_
     admissible := ⟨envTypes, hadded, Hadmissible⟩
-    recursiveTypesWF := let ⟨envCtors, es, hc, hes, hwf, hfam⟩ := Hrec
+    generatedIHsWellTyped := let ⟨envCtors, es, hc, hes, hwf, hfam⟩ := Hrec
       ⟨envTypes, envCtors, es, hadded, hc, hes, hwf, hfam⟩
     familyTypesWF := let ⟨envCtors, es, hc, hes, _, hfam⟩ := Hrec
       ⟨envTypes, envCtors, es, hadded, hc, hes, hfam⟩

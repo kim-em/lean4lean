@@ -81,7 +81,7 @@ structure RecursorConstruction.GeneratedBy
       (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       (generation.recursorType ⟨owner, howner⟩)
-  recursiveTypesWF : generation.RecursiveTypesWF R.context.venv
+  generatedIHsWellTyped : generation.GeneratedIHsWellTyped R.context.venv
   familyTypesWF : signature.FamilyTypesWF R.context.venv decl.uvars
   sourceOrigins : ∀ owner (howner : owner < H.recInfos.size)
     localIndex (hlocal : localIndex < H.origins.minorTypes[owner]!.size),
@@ -165,7 +165,7 @@ noncomputable def RecursorConstruction.generatorOf
     constructorOrder := ?_
     minorTranslation := H.signature_minorTranslation HU
     types := H.signature_types HU
-    recursiveTypesWF := H.signature_recursiveTypesWF HU
+    generatedIHsWellTyped := H.signature_generatedIHsWellTyped HU
     familyTypesWF := H.unannotatedFamilyTypesWF rfl rfl
     sourceOrigins := ?_ }
   · intro owner howner

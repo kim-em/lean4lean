@@ -1521,9 +1521,9 @@ theorem RecursorConstruction.signature_minorTranslation
     rw [H.recursorType_forallDomainsOnly, hp, hm, hmi, ← hp'] at Hd
     exact Hd
 
-theorem RecursorConstruction.signature_recursiveTypesWF
+theorem RecursorConstruction.signature_generatedIHsWellTyped
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
-    (H.generatedInstance (H.signature HU)).RecursiveTypesWF R.context.venv := by
+    (H.generatedInstance (H.signature HU)).GeneratedIHsWellTyped R.context.venv := by
   by_cases hempty : H.recInfos.size = 0
   · intro index
     have hsize : (H.signature HU).constructors.size = 0 := by
@@ -1538,7 +1538,7 @@ theorem RecursorConstruction.signature_recursiveTypesWF
     obtain ⟨type, Htr, Htype⟩ := H.recursorTypeTranslation 0 hsrc
     have heq := Htr.uniqueS (H.signature_types HU 0 hf)
     rw [heq] at Htype
-    exact InductiveSignature.Instance.recursiveTypesWF_of_recursorType _
+    exact InductiveSignature.Instance.generatedIHsWellTyped_of_recursorType _
       R.context.checking.tr.wf ⟨0, hf⟩ Htype
 
 end Lean4Lean.VerifyInductive
