@@ -31,7 +31,7 @@ def generate (levels : List VLevel) (arguments : List VExpr) : Option PrefixUnfo
   if levels.length != 2 || arguments.length > 5 then none else
   let residual ← supplyType arguments (quotLiftConst.type.instL levels)
   let remaining := 6 - arguments.length
-  let (domains, result) ← RecursorData.takeForalls remaining residual
+  let (domains, result) ← VExpr.takeForalls remaining residual
   let allArguments := arguments.map (·.liftN remaining) ++ vars remaining 0
   let alpha := allArguments[0]?.getD default
   let relation := allArguments[1]?.getD default
@@ -64,7 +64,7 @@ theorem generate_spec {levels : List VLevel} (H : generate levels args = some pr
   simp at hguard
   have hlevels : levels.length = 2 := by simpa using hguard.1
   have hargs : args.length ≤ 5 := by simpa using hguard.2
-  have hlen := takeForalls_length htake
+  have hlen := VExpr.takeForalls_domains_length htake
   have hbodylen : body.domains.length = 6 := by
     have hh : (CaseSchema.EquationBody.extract quotDefEq.lhs quotDefEq.rhs quotDefEq.type).map
         (fun b => b.domains.length) = some 6 := by decide

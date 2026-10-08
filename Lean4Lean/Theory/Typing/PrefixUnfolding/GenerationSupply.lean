@@ -127,10 +127,10 @@ theorem generate_supply_one {levels : List VLevel} {args : List VExpr}
   rw [hearlyLen] at htake
   cases residual <;> try contradiction
   rename_i domain residualBody
-  simp only [RecursorData.takeForalls, bind, Option.bind_eq_some_iff] at htake
+  simp only [VExpr.takeForalls, bind, Option.bind_eq_some_iff] at htake
   obtain ⟨⟨ds, body⟩, htake, he⟩ := htake
   cases he
-  have hds := takeForalls_length htake
+  have hds := VExpr.takeForalls_domains_length htake
   have htake' := takeForalls_instDomains (arg := arg) (k := 0) htake
   simp only [Nat.zero_add] at htake'
   simp only [bind, supplyType_append, hsupply, supplyType, hlateLen, htake',

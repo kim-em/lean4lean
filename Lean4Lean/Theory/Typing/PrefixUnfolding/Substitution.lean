@@ -67,7 +67,7 @@ theorem singletonUnfolding_inst {data : RecursorData} {recType : VExpr} {env : V
   split at H <;> try contradiction
   rename_i hcaptureCount
   cases H
-  have hlen := takeForalls_length htake
+  have hlen := VExpr.takeForalls_domains_length htake
   have hsupply' := supplyType_inst (arg := arg) (k := k) hsupply
   rw [(hclosed.instL (ls := levels)).instN_eq (Nat.zero_le _)] at hsupply'
   have htake' := takeForalls_instDomains (arg := arg) (k := k) htake
@@ -218,7 +218,7 @@ theorem generate_inst {levels : List VLevel}
   have hsupply' := supplyType_inst (arg := arg) (k := k) hsupply
   rw [(hclosed.instL (ls := levels)).instN_eq (Nat.zero_le _)] at hsupply'
   have htake' := takeForalls_instDomains (arg := arg) (k := k) htake
-  have hlen := takeForalls_length htake
+  have hlen := VExpr.takeForalls_domains_length htake
   simp only [bind, hsupply', Option.bind_some, htake', hbody, Option.pure_def,
     Option.some.injEq, PrefixUnfolding.instN, PrefixUnfolding.mk.injEq, hlen]
   have hall : (args.map (fun e => (e.inst arg k).liftN (6 - args.length)) ++ vars (6 - args.length) 0) =

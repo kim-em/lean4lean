@@ -26,7 +26,7 @@ theorem generate_rename {levels : List VLevel}
   have hsupply' := supplyType_lift' (ρ := ρ) hsupply
   rw [(hclosed.instL (ls := levels)).lift'_eq Lift.Fixes.zero] at hsupply'
   have htake' := takeForalls_lift' (ρ := ρ) htake
-  have hlen := takeForalls_length htake
+  have hlen := VExpr.takeForalls_domains_length htake
   simp only [bind, hsupply', Option.bind_some, htake', hbody, Option.pure_def,
     Option.some.injEq, PrefixUnfolding.rename, PrefixUnfolding.mk.injEq, hlen]
   have hall : (args.map (fun e => (e.lift' ρ).liftN (6 - args.length)) ++ vars (6 - args.length) 0) =

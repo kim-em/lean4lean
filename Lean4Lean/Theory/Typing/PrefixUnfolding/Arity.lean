@@ -49,11 +49,11 @@ theorem supplyType_wrapForalls_exists (hbound : args.length ≤ domains.length) 
       · simpa only [VExpr.instDomains_length, List.length_cons, Nat.add_sub_add_right] using hlen
 
 theorem takeForalls_wrapForalls (domains : List VExpr) (body : VExpr) :
-    takeForalls domains.length (VExpr.wrapForalls domains body) = some (domains, body) := by
+    VExpr.takeForalls domains.length (VExpr.wrapForalls domains body) = some (domains, body) := by
   induction domains with
   | nil => rfl
   | cons d ds ih =>
-    change (do let p ← takeForalls ds.length (VExpr.wrapForalls ds body); pure (d :: p.1, p.2)) = _
+    change (do let p ← VExpr.takeForalls ds.length (VExpr.wrapForalls ds body); pure (d :: p.1, p.2)) = _
     rw [ih]
     rfl
 

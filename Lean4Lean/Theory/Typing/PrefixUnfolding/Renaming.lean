@@ -35,17 +35,17 @@ theorem supplyType_lift' (H : supplyType args type = some output) :
     rw [← lift'_inst_hi]
     exact ih H
 
-theorem takeForalls_lift' (H : takeForalls count type = some (domains, result)) :
-    takeForalls count (type.lift' ρ) =
+theorem takeForalls_lift' (H : VExpr.takeForalls count type = some (domains, result)) :
+    VExpr.takeForalls count (type.lift' ρ) =
       some (renameDomains ρ domains, result.lift' (ρ.consN count)) := by
   induction count generalizing type domains result ρ with
   | zero => cases H; rfl
   | succ count ih =>
     cases type <;> try contradiction
-    simp only [takeForalls, bind, Option.bind_eq_some_iff] at H
+    simp only [VExpr.takeForalls, bind, Option.bind_eq_some_iff] at H
     obtain ⟨⟨ds, body⟩, hb, he⟩ := H
     cases he
-    simp only [lift', takeForalls, bind, ih hb, Option.bind_some, Option.pure_def,
+    simp only [lift', VExpr.takeForalls, bind, ih hb, Option.bind_some, Option.pure_def,
       renameDomains, consN_cons]
 
 
@@ -94,7 +94,7 @@ theorem singletonUnfolding_lift' {data : RecursorData} {recType : VExpr} {env : 
   split at H <;> try contradiction
   rename_i hcaptureCount
   cases H
-  have hlen := takeForalls_length htake
+  have hlen := VExpr.takeForalls_domains_length htake
   have hsupply' := supplyType_lift' (ρ := ρ) hsupply
   rw [(hclosed.instL (ls := levels)).lift'_eq Lift.Fixes.zero] at hsupply'
   have htake' := takeForalls_lift' (ρ := ρ) htake

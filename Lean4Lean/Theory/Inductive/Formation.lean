@@ -50,22 +50,6 @@ theorem addConstVals_mono
 
 end VEnv
 
-theorem VExpr.takeForalls_domains_length
-    {e : VExpr} {n : Nat} {domains : List VExpr} {result : VExpr}
-    (H : e.takeForalls n = some (domains, result)) :
-    domains.length = n := by
-  induction n generalizing e domains result with
-  | zero =>
-    change some ([], e) = some (domains, result) at H
-    cases Option.some.inj H
-    rfl
-  | succ n ih =>
-    cases e <;> simp [VExpr.takeForalls] at H
-    case forallE dom body =>
-      rcases H with ⟨tailDomains, htail, hd⟩
-      rw [← hd]
-      simp [ih htail]
-
 @[simp] theorem VExpr.getAppFnArgs_const :
     getAppFnArgs (.const name levels) = (.const name levels, []) := rfl
 

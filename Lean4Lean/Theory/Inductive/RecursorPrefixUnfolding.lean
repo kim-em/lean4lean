@@ -41,7 +41,7 @@ def prefixUnfolding (data : RecursorData) (U : Nat) (levels : List VLevel)
   let type ← data.recursorType
   let type ← supplyType arguments (type.instL levels)
   let remaining := data.majorOffset + 1 - arguments.length
-  let (domains, result) ← takeForalls remaining type
+  let (domains, result) ← VExpr.takeForalls remaining type
   let allArguments := arguments.map (·.liftN remaining) ++ vars remaining 0
   let constructor ← data.reconstructWithPropFields U levels allArguments
   let source ← data.schema.structureTelescope data.owner (data.sourceLevels levels)
