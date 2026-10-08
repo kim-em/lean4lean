@@ -1,4 +1,6 @@
 import Lean4Lean.Theory.Typing.EnvLemmas
+import Lean4Lean.Theory.Inductive.SignatureLemmas
+import Lean4Lean.Theory.Inductive.CompilationLemmas
 
 /-! Registration of declaration-derived case schemas at the constructor
 boundary. Freshness follows from the actual installation history.
@@ -85,7 +87,7 @@ theorem VEnv.WF.eliminator_origin {env : VEnv} (H : env.WF)
     obtain ⟨base, source, block, hb, hle, hf, hk, hc⟩ := ih hlookup
     exact ⟨base, source, block, hb, hle.trans VEnv.addProjections_le, hf, hk,
       fun value hv => VEnv.addProjections_le.constants (hc value hv)⟩
-  | inductEliminators hb _ hle hf hk hc _ _ ih =>
+  | inductEliminators hb _ hle hf hk hc _ _ _ ih =>
     rcases hlookup with ⟨rfl, rfl⟩ | hlookup
     · exact ⟨_, _, _, ⟨_, hb⟩, hle.trans VEnv.addEliminator_le, hf, hk, hc.1⟩
     · obtain ⟨base, source, block, hb, hle, hf, hk, hc⟩ := ih hlookup
@@ -94,7 +96,7 @@ theorem VEnv.WF.eliminator_origin {env : VEnv} (H : env.WF)
 /-- Every registry entry retains the header agreement certified at its registration. -/
 theorem VEnv.WF.eliminator_headerAgreement {env : VEnv} (H : env.WF)
     (hlookup : env.eliminators key schema) :
-    ∃ (base : VEnv) (source : VInductDecl) (block : VInductBlock), base ≤ env ∧
+    ∃ (base : VEnv) (source : VInductDecl) (block : VInductBlock), base.WF ∧ base ≤ env ∧
       schema.Certified base source block ∧ schema.HeaderAgreement base source ∧
       (∀ value ∈ block.types ++ block.ctors,
         env.constants value.name = some value.toVConstant) := by
@@ -106,20 +108,20 @@ theorem VEnv.WF.eliminator_headerAgreement {env : VEnv} (H : env.WF)
     · have hle := R.le
       obtain ⟨block, hcert, hkey, hc⟩ := R.constants
       obtain ⟨block', -, -, -, -, -, hinstall', -, -, -, hcert', -, -, hhdr⟩ := R
-      exact ⟨_, source, block, hle, hcert, hhdr, hc⟩
-    obtain ⟨base, source, block, hle, hf, hh, hc⟩ := ih hlookup
-    exact ⟨base, source, block, hle.trans (declaration_le h), hf, hh,
+      exact ⟨_, source, block, ⟨_, hds⟩, hle, hcert, hhdr, hc⟩
+    obtain ⟨base, source, block, hb, hle, hf, hh, hc⟩ := ih hlookup
+    exact ⟨base, source, block, hb, hle.trans (declaration_le h), hf, hh,
       fun value hv => (declaration_le h).constants (hc value hv)⟩
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     simp only [VEnv.addProjections_eliminators] at hlookup
-    obtain ⟨base, source, block, hle, hf, hh, hc⟩ := ih hlookup
-    exact ⟨base, source, block, hle.trans VEnv.addProjections_le, hf, hh,
+    obtain ⟨base, source, block, hb, hle, hf, hh, hc⟩ := ih hlookup
+    exact ⟨base, source, block, hb, hle.trans VEnv.addProjections_le, hf, hh,
       fun value hv => VEnv.addProjections_le.constants (hc value hv)⟩
-  | inductEliminators hb _ hle hf hk hc _ _ ih =>
+  | inductEliminators hb _ hle hf hk hc _ _ _ ih =>
     rcases hlookup with ⟨rfl, rfl⟩ | hlookup
-    · exact ⟨_, _, _, hle.trans VEnv.addEliminator_le, hf, hc.2.2.2.2, hc.1⟩
-    · obtain ⟨base, source, block, hle, hf, hh, hc⟩ := ih hlookup
-      exact ⟨base, source, block, hle.trans VEnv.addEliminator_le, hf, hh, hc⟩
+    · exact ⟨_, _, _, ⟨_, hb⟩, hle.trans VEnv.addEliminator_le, hf, hc.2.2.2.2, hc.1⟩
+    · obtain ⟨base, source, block, hb, hle, hf, hh, hc⟩ := ih hlookup
+      exact ⟨base, source, block, hb, hle.trans VEnv.addEliminator_le, hf, hh, hc⟩
 
 /-- Schema ownership cannot precede the native family it describes. -/
 theorem VEnv.WF.eliminator_family_present {env : VEnv} (H : env.WF)
@@ -161,7 +163,7 @@ theorem VEnv.WF.eliminatorsProjNamesRegistered {env : VEnv} (H : env.WF) :
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     simp only [VEnv.addProjections_eliminators] at hlookup
     exact (ih hlookup).mono VEnv.addProjections_le
-  | inductEliminators _ _ _ _ _ hc _ _ ih =>
+  | inductEliminators _ _ _ _ _ hc _ _ _ ih =>
     rcases hlookup with ⟨rfl, rfl⟩ | hlookup
     · exact hc.2.2.1.mono VEnv.addEliminator_le
     · exact (ih hlookup).mono VEnv.addEliminator_le
@@ -198,6 +200,62 @@ theorem Certified.fresh {schema : CaseSchema} {base : VEnv}
   · intro previousKey previous hprevious name hleft hright
     obtain ⟨value, hvalue⟩ := hbase.eliminator_family_present hprevious hright
     rw [hnew name hleft] at hvalue
+    contradiction
+
+theorem view_constructor_names (schema : CaseSchema)
+    (owner : Fin schema.signature.families.size) :
+    (schema.view owner).constructors.toList.map (·.name) =
+      (schema.signature.declarationFamily owner).ctors.map (·.name) := by
+  simp only [view, List.toList_toArray, declarationFamily, List.map_filterMap]
+  apply congrArg (List.filterMap · schema.signature.constructors.toList)
+  funext ctor
+  by_cases ho : ctor.owner = owner
+  · simp [ho, caseConstructor]
+  · have hv : ctor.owner.val ≠ owner.val := fun hv => ho (Fin.ext hv)
+    simp [ho, hv]
+
+/-- A certified schema is compatible with the structures registered by its own
+declaration and by its base: a structure of the declaration has exactly the
+declaration's single constructor, and a structure of the base is not an original
+family of the schema, since those are fresh in the base. -/
+theorem Certified.structCompat {schema : CaseSchema} {base envTypes envCtors : VEnv}
+    (H : schema.Certified base source block) (hbase : base.WF)
+    (htypes : base.addConstVals block.types = some envTypes)
+    (hctors : envTypes.addConstVals block.ctors = some envCtors) :
+    schema.StructCompat (envCtors.addProjections block.projections) := by
+  obtain ⟨expanded, auxiliaries, hdata, _, _, hnames, _⟩ := H
+  intro s info hproj owner hname
+  rw [hnames, List.getElem?_map] at hname
+  obtain ⟨family, hfamily, rfl⟩ := Option.map_eq_some_iff.mp hname
+  have hmem : family ∈ source.types := List.mem_of_getElem? hfamily
+  obtain ⟨hlt, hget⟩ := List.getElem?_eq_some_iff.mp hfamily
+  rcases VEnv.addProjections_iff.mp hproj with ⟨entry, hentry, hentryName, rfl⟩ | hold
+  · rw [hdata.projections] at hentry
+    obtain ⟨type, htype, ctor, hctorsType, rfl⟩ := VInductDecl.projectionEntries_origin hentry
+    have heq : family = type :=
+      VInductDecl.type_eq_of_mem_name hdata.sourceWF.2.1 hmem htype hentryName
+    subst heq
+    obtain ⟨_, direct, _, _, _, hfamilies⟩ := hdata.correspondence
+    have hlen := Lean4Lean.List.Forall₂.length_eq hfamilies
+    have hdecl : owner.val < schema.signature.declaration.types.length := by
+      simp [declaration]
+    have hrel := Lean4Lean.List.Forall₂.getElem_of hfamilies owner.val hdecl
+      (by rw [← hlen]; exact hdecl)
+    have hfam : schema.signature.declaration.types[owner.val] =
+        schema.signature.declarationFamily owner := by
+      simp [declaration, declarationFamily]
+    rw [hfam, List.getElem_append_left hlt, hget] at hrel
+    rw [view_constructor_names, ctorNames_eq_of_forall₂ hrel.constructors (fun _ _ h => h.1),
+      hctorsType]
+    rfl
+  · exfalso
+    rw [VEnv.addConstVals_projections hctors, VEnv.addConstVals_projections htypes] at hold
+    obtain ⟨c, hc⟩ := hbase.ordered.projectionConstant hold
+    have hfresh := VEnv.addConstVals_names_fresh htypes family.toVConstVal (by
+      rw [hdata.types]
+      exact List.mem_map.mpr ⟨family, hmem, rfl⟩)
+    have hfresh' : base.constants family.name = none := hfresh
+    rw [hfresh'] at hc
     contradiction
 
 /-- Constant checking preserves the registry, so freshness transports to
@@ -253,7 +311,7 @@ theorem VEnv.WF.eliminators_unique (H : VEnv.WF env)
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     simp only [VEnv.addProjections_eliminators] at hleft hright
     exact ih hleft hright
-  | inductEliminators _ _ _ _ _ _ hfresh _ ih =>
+  | inductEliminators _ _ _ _ _ _ hfresh _ _ ih =>
     rcases hleft with ⟨rfl, rfl⟩ | hleft
     · rcases hright with ⟨_, rfl⟩ | hright
       · rfl
@@ -275,7 +333,7 @@ theorem VEnv.WF.eliminators_originalFamilies_nodup (H : VEnv.WF env)
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     simp only [VEnv.addProjections_eliminators] at hlookup
     exact ih hlookup
-  | inductEliminators _ _ _ hformed _ _ _ _ ih =>
+  | inductEliminators _ _ _ hformed _ _ _ _ _ ih =>
     rcases hlookup with ⟨_, rfl⟩ | hlookup
     · exact hformed.originalFamilies_nodup
     · exact ih hlookup
@@ -300,7 +358,7 @@ theorem VEnv.WF.eliminators_owner_unique (H : VEnv.WF env)
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     simp only [VEnv.addProjections_eliminators] at hleft hright
     exact ih hleft hright
-  | inductEliminators _ _ _ _ _ _ hfresh _ ih =>
+  | inductEliminators _ _ _ _ _ _ hfresh _ _ ih =>
     rcases hleft with ⟨rfl, rfl⟩ | hleft
     · rcases hright with ⟨rfl, rfl⟩ | hright
       · exact ⟨rfl, rfl⟩
@@ -336,6 +394,9 @@ theorem Certified.register_after_constructors {schema : CaseSchema} {base envTyp
     (hprojs : schema.ProjNamesRegistered envCtors key)
     (hheader : schema.HeaderAgreement base source) :
     (envCtors.addEliminator key schema).WF := by
+  have hcompat : schema.StructCompat envCtors :=
+    StructCompat.of_projections (H.structCompat hbase htypes hctors)
+      VEnv.addProjections_le.projections
   have hctorsWF : envCtors.WF := by
     obtain ⟨expanded, auxiliaries, hdata, _, _⟩ := H
     obtain ⟨types, ctors, ht, hc, htypesWF, hctorsWF⟩ := hdata.sourceWF.2.2.2.2
@@ -365,7 +426,7 @@ theorem Certified.register_after_constructors {schema : CaseSchema} {base envTyp
   apply hbase.inductEliminators hctorsWF
     ((VEnv.addConstVals_le htypes).trans (VEnv.addConstVals_le hctors)) H hkey _
     ((VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)) hprojs
-    hcoherent hheader hfresh
+    hcoherent hheader hfresh hcompat
   intro value hvalue
   rcases List.mem_append.mp hvalue with hvalue | hvalue
   · exact (VEnv.addConstVals_le hctors).constants (VEnv.addConstVals_get htypes hvalue)
@@ -498,7 +559,7 @@ theorem VEnv.WF.projections_eliminated {env : VEnv} (H : env.WF)
           simp
         · obtain ⟨k, s, hs, hn⟩ := ih hold
           exact ⟨k, s, hle.eliminators hs, hn⟩
-  | inductEliminators _ _ _ _ _ _ _ _ ih =>
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨k, s, hs, hn⟩ := ih hp
     exact ⟨k, s, .inr hs, hn⟩
   | inductProjections _ _ hcert _ _ _ _ _ _ _ _ hprojections _ _ _ ih =>

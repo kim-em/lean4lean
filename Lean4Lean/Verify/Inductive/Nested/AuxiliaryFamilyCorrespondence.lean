@@ -21,35 +21,6 @@ namespace VerifyInductive
 
 /-! ### Syntactic specialization -/
 
-theorem VExpr.instantiateForallPrefix_wrapForalls :
-    ∀ (args pre : List VExpr) (body : VExpr), pre.length = args.length →
-      VExpr.instantiateForallPrefix (VExpr.wrapForalls pre body) args =
-        body.instOuter args
-  | [], [], _, _ => rfl
-  | [], _ :: _, _, h => by simp at h
-  | _ :: _, [], _, h => by simp at h
-  | a :: as, d :: ds, body, h => by
-    have hlen : ds.length = as.length := by simpa using h
-    change VExpr.instantiateForallPrefix
-      ((VExpr.wrapForalls ds body).inst a) as = _
-    rw [VExpr.wrapForalls_inst,
-      VExpr.instantiateForallPrefix_wrapForalls as _ _ (by simpa using hlen)]
-    simp [hlen]
-
-theorem specializeType_eq_instantiateForallPrefix {type specialized : VExpr}
-    {args : List VExpr} (H : specializeType type args = some specialized) :
-    specialized = VExpr.instantiateForallPrefix type args := by
-  unfold specializeType at H
-  cases htake : type.takeForalls args.length with
-  | none => simp [htake] at H
-  | some out =>
-    rcases out with ⟨pre, body⟩
-    simp only [htake, bind, Option.bind_some, pure, Option.some.injEq] at H
-    subst H
-    obtain ⟨rfl, hlen⟩ := VExpr.takeForalls_rebuild htake
-    rw [VExpr.instantiateForallPrefix_wrapForalls _ _ _ hlen,
-      VEnv.instantiateParams_eq_instOuter]
-
 theorem ContainerSpecialization.directFamily_fields
     {a : ContainerSpecialization} {U : Nat} {params : List VExpr}
     {direct : VInductiveType} (H : a.directFamily U params = some direct) :

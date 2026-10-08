@@ -4,59 +4,15 @@ import Lean4Lean.Verify.Environment.RecursorAlignment
 import Lean4Lean.Theory.Inductive.Restoration
 import Lean4Lean.Theory.Typing.CaseReduction
 import Lean4Lean.Theory.Typing.RestorationShapes
+import Lean4Lean.Theory.Inductive.NativeIotaRestoration
 
 namespace Lean4Lean
 namespace InductiveSignature
 
 /-! The restored major domain, in the source and auxiliary cases. -/
 
-/-- Instantiating a scoped template at the parameter variables beneath `below`
-further binders lifts it past those binders. -/
-theorem instantiateParams_vars {e : VExpr} {n : Nat} (he : e.ClosedN n) (below : Nat) :
-    instantiateParams e (vars n below) = e.liftN below := by
-  change e.subst (VExpr.Subst.ofList (vars n below)) = _
-  rw [VExpr.liftN_eq_subst]
-  apply VExpr.subst_congr_closedN he
-  intro i hi
-  simp only [VExpr.Subst.ofList, VExpr.Subst.shift, vars, List.length_map, List.length_reverse,
-    List.length_range, hi, dite_true, List.getElem_map, List.getElem_reverse, List.getElem_range]
-  congr 1
-  omega
 
-theorem Restoration.expr_recursorMajor_source (r : Restoration) {s : InductiveSignature}
-    (g : Instance s) (owner : Fin s.families.size)
-    (hfind : r.heads.find? (fun h => h.auxiliary == s.families[owner].name) = none)
-    (hname : r.recursorName s.families[owner].name = s.families[owner].name) :
-    r.expr (g.recursorMajor owner) = some (g.recursorMajor owner) := by
-  simp only [Instance.recursorMajor, Instance.familyApp, InductiveSignature.familyApp]
-  rw [r.expr_mkApps, List.mapM_append, r.mapM_expr_vars, r.mapM_expr_vars]
-  simp only [Fin.getElem_fin] at hfind hname
-  simp [Restoration.expr.go, hfind, hname]
 
-theorem Restoration.expr_recursorMajor_auxiliary (r : Restoration) {s : InductiveSignature}
-    (g : Instance s) (owner : Fin s.families.size) {h : HeadSpecialization}
-    (hfind : r.heads.find? (fun h => h.auxiliary == s.families[owner].name) = some h)
-    (hlevels : g.levels.length = h.uvars) (hnparams : h.nparams = s.params.length)
-    (hclosed : ∀ arg ∈ h.arguments, arg.ClosedN h.nparams) :
-    r.expr (g.recursorMajor owner) =
-      some (VExpr.mkApps (.const h.target (h.levels.map (·.inst g.levels)))
-        (h.arguments.map (fun arg => (arg.instL g.levels).liftN
-          (s.families.size + s.constructors.size + s.families[owner].indices.length)) ++
-          vars s.families[owner].indices.length 0)) := by
-  simp only [Instance.recursorMajor, Instance.familyApp, InductiveSignature.familyApp]
-  rw [r.expr_mkApps, List.mapM_append, r.mapM_expr_vars, r.mapM_expr_vars]
-  have hlen : (vars s.params.length
-      (s.families.size + s.constructors.size + s.families[owner].indices.length)).length =
-      h.nparams := by simp [vars, hnparams]
-  simp only [Fin.getElem_fin] at hfind hlen ⊢
-  simp only [Option.bind_eq_bind, Option.pure_def, Option.bind_some, Restoration.expr.go, hfind,
-    HeadSpecialization.apply, hlevels, bne_self_eq_false, List.length_append, Bool.false_or]
-  rw [if_neg (by simp; omega), List.take_left' hlen, List.drop_left' hlen]
-  congr 3
-  apply List.map_congr_left
-  intro arg harg
-  rw [← hnparams]
-  exact instantiateParams_vars (hclosed arg harg).instL _
 
 /-! The recursor shape contract for a restored recursor. -/
 
