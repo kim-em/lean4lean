@@ -5,7 +5,7 @@ changes in the specification and in the executable. Paths are relative to the re
 Line counts are approximate and refer to the final tree.
 
 The pull request adds about 330k lines of Lean. Two thirds of it is the refinement proof of
-the executable inductive checker (`Lean4Lean/Verify/Inductive/`, 218k lines). The rest is the
+the executable inductive checker (`Lean4Lean/Verify/Inductive/`, 165k lines). The rest is the
 metatheory (`Lean4Lean/Theory/Typing/`, 73k added), the generative specification of inductive
 types (`Lean4Lean/Theory/Inductive/` and `Lean4Lean/Theory/Inductive.lean`, 15k), the
 verification of quotients, the canonical hypotheses and the checker changes
@@ -316,10 +316,10 @@ ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
 
 ### 3.2 Phases of the ordinary path
 
-- **Headers** (`Lean4Lean/Verify/Inductive/Header/`, 9k). The header loops of
+- **Headers** (`Lean4Lean/Verify/Inductive/Header/`, 7k). The header loops of
   `Inductive/Add.lean` check each family type, the common parameters and the result
   universes. The proof materializes the abstract headers and their source translation.
-- **Constructors** (`Constructor/`, 7k). Each constructor type is checked in the environment
+- **Constructors** (`Constructor/`, 5.5k). Each constructor type is checked in the environment
   with the headers; positivity, the universe bound on fields and the result shape are
   verified, and each field is related to its strictly positive normal form (the
   `positiveFields` clause of `Models`).
@@ -336,7 +336,7 @@ ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
   `(ctors.addEliminators es).addProjections P` is shown well formed by `inductEliminators`
   and `inductProjections` (`VInductBlock.EliminatorsWF.windowWF`). The executable is
   unchanged by this: it has no case eliminators.
-- **Recursors** (`Recursor/`, 51k; `Rules/`, 33k). The executable's recursor
+- **Recursors** (`Recursor/`, 42k; `Rules/`, 27k). The executable's recursor
   construction (first and second pass over the fields, elimination level, motives, minors,
   induction hypotheses, rules) is shown to produce exactly the translation of the abstract
   generator's output for one canonical `Instance`
@@ -361,7 +361,7 @@ context.
 
 ### 3.3 Nested declarations
 
-Nested declarations are verified by lowering and restoration (`Nested/`, 91k).
+Nested declarations are verified by lowering and restoration (`Nested/`, 65k).
 `Nested/Lowering/Basic.lean` and `Nested/Restoration/ExprReplace.lean` (an exact, cache-independent
 specification of `Expr.replace`) verify the replacement of maximal nested occurrences by
 fresh auxiliary families and its correspondence with the abstract nested expansion. The
@@ -773,12 +773,13 @@ Suggested order, with sizes.
    `Lean4Lean/Theory/Typing/LevelledReduction.lean` (4.7k), `WFParams.lean`.
 9. The inductive checker: `Lean4Lean/Inductive/Add.lean` (2.2k), then the pipeline:
    `Lean4Lean/Verify/Inductive/Constructor/CheckedFormation.lean` (1k), `Context.lean` (3.5k),
-   `Header/` (9k), `Constructor/` (7k), `Recursor/` (51k), `Rules/` (33k), `Install/` (5k),
-   `Nested/` (91k, starting from `CaseEliminators/Certificate.lean`, `Restoration/SourceTranslations.lean`,
+   `Header/` (7k), `Constructor/` (5.5k), `Recursor/` (42k), `Rules/` (27k), `Install/` (5k),
+   `Primitive/` (4.5k), `Prelude/` (1k),
+   `Nested/` (65k, starting from `CaseEliminators/Certificate.lean`, `Restoration/SourceTranslations.lean`,
    `Restoration/Equations/WF.lean`, `Restoration/Validation/StrippedEnvironment.lean`).
 10. Quotients: `Lean4Lean/Verify/QuotInit.lean` (630).
 11. The audit: `scripts/check-inductive-audit.py`, `scripts/inductive-audit-inventory.json`.
 
-Most of the 218k lines under `Lean4Lean/Verify/Inductive/` are refinement bookkeeping between
+Most of the 165k lines under `Lean4Lean/Verify/Inductive/` are refinement bookkeeping between
 the executable's `Expr`/`LocalContext` state and the abstract judgments; the design decisions
 are in items 1 to 7 and in the module docstrings of the files named in section 3.
