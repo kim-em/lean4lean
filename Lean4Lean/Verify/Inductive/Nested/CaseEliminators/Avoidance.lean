@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Inductive.RestorationDefEq
+import Lean4Lean.Theory.Inductive.RestorationInterpretation
 import Lean4Lean.Theory.Typing.EnvLemmas
 import Lean4Lean.Verify.Typing.ConstSupport
 import Lean4Lean.Theory.Inductive.SignatureLemmas
@@ -11,7 +11,7 @@ import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 `VEnv.WF.eliminatorsAvoidConsts`: in a well-formed environment every
 registered case schema's generic type and generic equations mention (in the
-sense of `replaceConsts`, i.e. ignoring projection type names) no name that is
+sense of `mentionsAnyConst`, i.e. ignoring projection type names) no name that is
 absent from the environment. The proof follows the schema's certification
 (`VEnv.WF.eliminator_installed`): the normalized signature's pieces are typed in
 the expanded header/constructor environments, in which the absent names and
@@ -26,29 +26,19 @@ table may contain the schema's own never-installed auxiliary structure
 families. So avoidance in the `containsAnyConst` sense does not follow from
 the formation certificate `Certified`; registration certifies projection names
 separately (`CaseSchema.ProjNamesRegistered`,
-`VEnv.WF.eliminatorsProjNamesRegistered`). `replaceConsts` ignores projection
-names, so
-`EliminatorsAvoidConsts` is what constant replacement needs
-(`VExpr.replaceConsts_lambdaReplacement_of_mentions`).
+`VEnv.WF.eliminatorsProjNamesRegistered`). An interpretation that keeps projection owners
+ignores projection names, so `EliminatorsAvoidConsts` is what it needs to fix a schema
+(`VEnv.Interpretation.expr_eq_self_of_mentions`).
 -/
 
 namespace Lean4Lean
 
 open InductiveSignature
 
-namespace InductiveSignature
-
-theorem Restoration.lambdaReplacement_eq_none {r : Restoration}
-    {domains : HeadSpecialization → List VExpr} {c : Name}
-    (h : c ∉ r.heads.map (·.auxiliary)) : r.lambdaReplacement domains c = none := by
-  simp [Restoration.lambdaReplacement, Restoration.heads_find?_eq_none h]
-
-end InductiveSignature
-
 namespace VExpr
 
-/-- Constant support ignoring projection type names: exactly the support
-seen by `replaceConsts`. -/
+/-- Constant support ignoring projection type names: exactly the support seen by an
+interpretation that keeps projection owners. -/
 def mentionsAnyConst (names : List Name) : VExpr → Bool
   | .bvar _ | .sort _ | .elim .. => false
   | .const name _ => names.contains name
@@ -92,24 +82,30 @@ theorem mentionsAnyConst_subst_eq_false {e : VExpr} {σ : Subst}
   induction e generalizing σ <;>
     simp_all [VExpr.subst, mentionsAnyConst]
 
-/-- With `replaceConsts`-relevant avoidance, the lambda replacement of a
-restoration table fixes a term. -/
-theorem replaceConsts_lambdaReplacement_of_mentions {r : Restoration}
-    {domains : HeadSpecialization → List VExpr} :
-    ∀ {e : VExpr}, e.mentionsAnyConst (r.heads.map (·.auxiliary)) = false →
-      e.replaceConsts (r.lambdaReplacement domains) = e
-  | .bvar _, _ | .sort _, _ | .elim .., _ => rfl
-  | .const c ls, h => by
-    have hc : c ∉ r.heads.map (·.auxiliary) := by
-      simpa [mentionsAnyConst] using h
-    exact VExpr.replaceConsts_const_none (Restoration.lambdaReplacement_eq_none hc)
-  | .app f a, h | .lam f a, h | .forallE f a, h => by
-    simp only [mentionsAnyConst, Bool.or_eq_false_iff] at h
-    simp only [VExpr.replaceConsts, replaceConsts_lambdaReplacement_of_mentions h.1,
-      replaceConsts_lambdaReplacement_of_mentions h.2]
-  | .proj n i e, h => by
-    simp only [mentionsAnyConst] at h
-    simp only [VExpr.replaceConsts, replaceConsts_lambdaReplacement_of_mentions h]
+end VExpr
+
+/-- An interpretation fixes a term none of whose constants (in the `mentionsAnyConst` sense) it
+interprets or renames, and whose projection owners it fixes. -/
+theorem VEnv.Interpretation.expr_eq_self_of_mentions {I : VEnv.Interpretation}
+    {names : List Name} (hc : ∀ c, c ∉ names → I.consts c = none)
+    (hr : ∀ c, c ∉ names → I.rename c = c)
+    (he : ∀ block owner, I.elim block owner = (block, owner)) :
+    ∀ {e : VExpr}, e.mentionsAnyConst names = false → e.ProjNamesFixed I.projOwner →
+      I.expr e = e
+  | .bvar _, _, _ | .sort _, _, _ => rfl
+  | .elim .., _, _ => by simp [VEnv.Interpretation.expr, he]
+  | .const c ls, h, _ => by
+    have hn : c ∉ names := by simpa [VExpr.mentionsAnyConst] using h
+    rw [VEnv.Interpretation.expr_const_none (hc c hn), hr c hn]
+  | .app f a, h, h' | .lam f a, h, h' | .forallE f a, h, h' => by
+    simp only [VExpr.mentionsAnyConst, Bool.or_eq_false_iff] at h
+    simp only [VEnv.Interpretation.expr, expr_eq_self_of_mentions hc hr he h.1 h'.1,
+      expr_eq_self_of_mentions hc hr he h.2 h'.2]
+  | .proj n i e, h, h' => by
+    simp only [VExpr.mentionsAnyConst] at h
+    simp only [VEnv.Interpretation.expr, expr_eq_self_of_mentions hc hr he h h'.2, h'.1]
+
+namespace VExpr
 
 theorem containsAnyConst_wrapForalls_eq_false_iff {domains : List VExpr} {body : VExpr} :
     (VExpr.wrapForalls domains body).containsAnyConst names = false ↔
@@ -135,7 +131,7 @@ end VExpr
 
 namespace InductiveSignature
 
-/-- Restoration output avoids `N` (in the `replaceConsts` sense) when the
+/-- Restoration output avoids `N` (in the `mentionsAnyConst` sense) when the
 input avoids `L`, every non-head constant outside `L` is renamed outside `N`,
 and every head has its target and arguments outside `N`. -/
 theorem Restoration.go_mentions {r : Restoration} {N L : List Name}
@@ -538,7 +534,7 @@ theorem caseConstructor_fieldTypes {schema : CaseSchema}
   simpa [InductiveSignature.fieldType, InductiveSignature.fieldTypes] using ht
 
 /-- The registered eliminator schemas avoid `names`, with the constant
-support seen by `replaceConsts` (projection type names are not counted). -/
+support seen by `mentionsAnyConst` (projection type names are not counted). -/
 def EliminatorsAvoidConsts (envTypes : VEnv) (names : List Name) : Prop :=
   ∀ block schema, envTypes.eliminators block schema →
     (∀ owner type, schema.genericType owner = some type →
@@ -548,7 +544,7 @@ def EliminatorsAvoidConsts (envTypes : VEnv) (names : List Name) : Prop :=
       df.type.mentionsAnyConst names = false)
 
 /-- In a well-formed environment, every registered eliminator schema avoids
-(in the `replaceConsts` sense) every name that is not a constant of the
+(in the `mentionsAnyConst` sense) every name that is not a constant of the
 environment. -/
 theorem VEnv.WF.eliminatorsAvoidConsts {env : VEnv} {names : List Name}
     (henv : env.WF) (hfresh : ∀ n ∈ names, env.constants n = none) :

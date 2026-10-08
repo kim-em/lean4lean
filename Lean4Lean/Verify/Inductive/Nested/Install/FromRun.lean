@@ -529,10 +529,10 @@ re-check. Lowering keeps the common-parameter prefix of every source
 constructor verbatim (`ConstructorLowering.Resolved.sourceTargetSameForallPrefix`),
 so the translated prefix of a source constructor is the one of its lowered
 constructor, whose parameter shape the ordinary pipeline certified in the
-lowered header environment. The header-stage renaming replacement
-(`headerRenamingReplacement`) transports that certificate to the source header
+lowered header environment. The header-stage restoration interpretation
+(`headerInterpretationSound`) transports that certificate to the source header
 environment: the parameters and the prefix mention no auxiliary family, so the
-replacement fixes them. -/
+interpretation fixes them. -/
 theorem NestedRun.sourceCoreParameterWF
     {ves : VEnvs}
     (E : NestedRun result sourceProdEnv sourceTypes
@@ -559,7 +559,7 @@ theorem NestedRun.sourceCoreParameterWF
     rcases E.containerSpecializations wf Hsources with
       ⟨_, _, _, _, _, _, _, h, _⟩
     exact h
-  have S := E.headerRenamingReplacement wf hadded henvTypes Haux Hexpansion hnodup
+  have S := E.headerInterpretationSound wf hadded henvTypes Haux Hexpansion hnodup
     henvTypes.ordered VEnv.LE.rfl (E.eliminatorProjNames_of wf Hsources auxiliaries D)
   have hfresh := E.restorableNames_fresh hadded Haux Hexpansion hnodup
   have hbaseWF : (ves.venv (if isUnsafe then .unsafe else .safe)).WF := TrEnv'.wf wf.tr
@@ -668,7 +668,7 @@ theorem NestedRun.sourceCoreParameterWF
   have hdefeq' : P.constructors.toConstructorCheck.headerVEnv.IsDefEqCtx sourceDecl.uvars []
       paramsL.reverse own.reverse := by
     rw [← hheaderL, ← huvars]; exact hdefeq
-  have Htransported := S.isDefEqCtx hdefeq'
+  have Htransported := (S.isDefEqCtx .any hdefeq' trivial).1
   -- The parameters and the prefix mention no restorable name.
   have hparamsClean : ∀ A ∈ paramsL,
       A.containsAnyConst (InductiveSignature.compilationRestoration sourceDecl auxiliaries).restorableNames =
@@ -677,17 +677,15 @@ theorem NestedRun.sourceCoreParameterWF
     have hctx := VEnv.Ordered.ctxNoFreshConsts hbaseWF.ordered hbaseFresh hshape.isType
     intro A hA
     exact hctx A (List.mem_reverse.mpr hA)
-  have hmapParams : paramsL.reverse.map (fun A => A.replaceRen
-      ((InductiveSignature.compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-        fun _ => P.signature.params)
-      (InductiveSignature.compilationRestoration sourceDecl auxiliaries).renaming) = paramsL.reverse := by
-    rw [List.map_congr_left (fun A hA => InductiveSignature.Restoration.replaceRen_eq_self
+  have hmapParams : paramsL.reverse.map
+      ((InductiveSignature.compilationRestoration sourceDecl auxiliaries).interpretation
+        P.signature.params).expr = paramsL.reverse := by
+    rw [List.map_congr_left (fun A hA => InductiveSignature.Restoration.interpretation_expr_eq_self
       (hparamsClean A (List.mem_reverse.mp hA))), List.map_id']
-  have hmapOwn : own.reverse.map (fun A => A.replaceRen
-      ((InductiveSignature.compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-        fun _ => P.signature.params)
-      (InductiveSignature.compilationRestoration sourceDecl auxiliaries).renaming) = own.reverse := by
-    rw [List.map_congr_left (fun A hA => InductiveSignature.Restoration.replaceRen_eq_self
+  have hmapOwn : own.reverse.map
+      ((InductiveSignature.compilationRestoration sourceDecl auxiliaries).interpretation
+        P.signature.params).expr = own.reverse := by
+    rw [List.map_congr_left (fun A hA => InductiveSignature.Restoration.interpretation_expr_eq_self
       (hownClean A (List.mem_reverse.mp hA))), List.map_id']
   have Htransported' := Htransported
   rw [hmapParams, hmapOwn, List.map_nil] at Htransported'

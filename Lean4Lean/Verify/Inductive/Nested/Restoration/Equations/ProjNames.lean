@@ -827,10 +827,8 @@ theorem NestedRun.restoredEquationGaps_of
                   (VExpr.wrapLams E.lowered.signature.params
                     (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored) ∧
         ∀ entry ∈ E.lowered.loweredDecl.projectionEntries,
-          VEnv.ProjectionRulesRenamedOnCtx B.recursorVEnv
-            ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-              fun _ => E.lowered.signature.params)
-            (compilationRestoration sourceDecl auxiliaries).renaming
+          ((compilationRestoration sourceDecl auxiliaries).interpretation
+            E.lowered.signature.params).ProjectionClause B.recursorVEnv B.recursorVEnv.TypedCtx
             entry.typeName entry.info) :
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -889,10 +887,8 @@ theorem NestedRun.restoredEquationGaps_of'
                   (VExpr.wrapLams E.lowered.signature.params
                     (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored) ∧
         ∀ entry ∈ E.lowered.loweredDecl.projectionEntries,
-          VEnv.ProjectionRulesRenamedOnCtx B.recursorVEnv
-            ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-              fun _ => E.lowered.signature.params)
-            (compilationRestoration sourceDecl auxiliaries).renaming
+          ((compilationRestoration sourceDecl auxiliaries).interpretation
+            E.lowered.signature.params).ProjectionClause B.recursorVEnv B.recursorVEnv.TypedCtx
             entry.typeName entry.info) :
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
