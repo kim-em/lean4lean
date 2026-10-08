@@ -6,30 +6,65 @@ checked theorem types take precedence over this account.
 
 ## Final state (2026-10-08, mainline 862202a2 plus this entry)
 
-The goal of `docs/inductives/GOAL.md` is met as amended (item (3) gained
-canonical `Nonempty`/`Classical.choice`; decision of 2026-10-06 below). The
-branch is buildable with no hypotheses beyond those in the statement:
+The goal of `docs/inductives/GOAL.md` is met literally: item (3) holds with
+exactly the hypotheses it names (canonical choice was removed on
+`agent/verify-inductives-strengthening-plumb`, see "Removing canonical choice"
+below). The branch is buildable with no hypotheses beyond those in the
+statement:
 
 ```lean
 theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (_heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
-    (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
     (decl : Declaration) (hdecl : decl.IsModelled env ves) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety
 ```
-(`Lean4Lean/Verify/Environment.lean`). `HasCanonicalEq` and
-`HasCanonicalChoice` (Theory/CanonicalEq.lean, Theory/CanonicalChoice.lean)
-assert only that the prelude constants are present with their stored types;
-both are monotone and realized by the replay of `Init.Prelude`
-(`Verify/CanonicalEqRealization.lean`, `Verify/CanonicalChoiceRealization.lean`,
-Tests/CanonicalEq.lean, Tests/CanonicalChoice.lean). `IsModelled` excludes
-only `quotDecl` (unchanged scope). The canonical-`Eq` hypothesis is not used
-by the proof: `addDecl.WF (wf) (hch) (decl) (hdecl)` is the underlying
-theorem; `heq` is kept so the statement matches the goal, and
-`addDecl.WFHasCanonicalEq` is the iterable form returning both invariants.
+(`Lean4Lean/Verify/Environment.lean`). `VEnvs.WF` is the core invariant
+`VEnvs.WFCore` together with `VEnvs.CtorCert`: every constructor visible at a
+safety level has a telescope certificate (`CtorTelescopeAt`, a depth-bounded
+`TelTrN` translation of its stored type in the abstract environment). Any
+core-valid environment without constructors satisfies it
+(`VEnvs.WF.ofNoCtors`). `HasCanonicalEq` (Theory/CanonicalEq.lean) asserts
+only that the prelude constants are present with their stored types; it is
+monotone and realized by the replay of `Init.Prelude`
+(`Verify/CanonicalEqRealization.lean`, Tests/CanonicalEq.lean). `IsModelled`
+excludes only `quotDecl` (unchanged scope). The canonical-`Eq` hypothesis is
+not used by the proof: `addDecl.WF (wf : ves.WFCore env) (hcorner) (decl)
+(hdecl)` is the underlying theorem, whose conclusion also gives
+`VEnvs.CertPres env env' ves ves'` (certificates of the input imply
+certificates of the output); `heq` is kept so the statement matches the goal,
+and `addDecl.WFHasCanonicalEq` is the iterable form.
 
-Verification run by the lead on this worktree after the fast-forward to E1:
+The previous, choice-based statement survives as
+`addDecl.WF_of_canonicalChoice` over the weaker invariant `VEnvs.WFCore`, with
+the extra hypothesis `hch : ∀ safety, (ves.venv safety).HasCanonicalChoice`
+(Theory/CanonicalChoice.lean; realized by `Verify/CanonicalChoiceRealization.lean`
+and Tests/CanonicalChoice.lean); `addDecl.WFHasCanonicalChoice` is its
+iterable form. The trade: it does not need the certificates in its invariant,
+but assumes canonical `Nonempty`/`Classical.choice`.
+
+Removing canonical choice. The only use of choice was the projection-walk
+corner of `inferProj` (a field binder whose projection fails the universe
+guard). The checker's contexts now carry `ProjectionCorner safety env venv :=
+venv.HasCanonicalChoice ∨ CtorTelescopes safety env venv`
+(`Verify/Typing/TelescopeTranslationLemmas.lean`). In the certificate case
+the walk transports the constructor's telescope translation along the
+instantiated prefix (`instantiateProjectionFields.WF_corner`,
+`Verify/TypeChecker/Projection.lean`) and deletes the unused binder
+syntactically (`TelTrN.delete_closed`), with no inhabitant. Each installation
+path establishes the certificate for the constructors it adds from the check
+of the source type (`checkType.WF_telTr`,
+`Verify/TypeChecker/GhostTelescope.lean`): ordinary and primitive formation
+(`ConstructorPhasesResult.telescopes`,
+`CompletedConstructorPhases.ctorOrigin`), nested restoration through
+`Expr.eqv` (`NestedValidatedRunResult.restoredCtorOrigin`), and non-inductive
+declarations add no constructor (`VEnvs.CertPres.addNonCtor`). Details and the
+carrier decision: docs/inductives/STRENGTHENING_PLAN_2026-10-08.md, section
+"Plumbing decision".
+
+Verification run by the lead on this worktree after the fast-forward to E1
+(before the removal of canonical choice; the rerun on the plumbing branch is
+recorded in the plan's "Plumbing decision" section):
 
 | check | result |
 |---|---|
@@ -63,9 +98,11 @@ How the three obligations of GOAL.md closed:
 - (b) `strengthening_of_canonicalEq`: not proved; it no longer exists. The
   E1 route makes the checker's caches scope-local (`State.leaveScope`,
   `checkLCtx`), so no strengthening theorem is needed, except at the
-  projection-walk corner, which is proved by substitution from canonical
-  choice (`Theory/Typing/ProjectionCornerChoice.lean`,
-  `projectionWalkCorner_choice`), using the case eliminator that every
+  projection-walk corner, which is now resolved by the constructor telescope
+  certificates (`TelTrN.delete_closed`); the earlier proof by substitution
+  from canonical choice (`Theory/Typing/ProjectionCornerChoice.lean`,
+  `projectionWalkCorner_choice`) backs `addDecl.WF_of_canonicalChoice` and
+  uses the case eliminator that every
   inductive block now registers before its projections (certified at the
   constructor boundary, `Verify/Inductive/ConstructorBoundary.lean`; nested
   blocks `Verify/Inductive/Nested/CaseEliminators.lean`). Declarative
@@ -102,8 +139,9 @@ Everything below this section is the chronological record that led here.
 The goal evaluator reads GOAL.md literally and reports three gaps against the
 state above. Recorded here with the lead's position and the actions taken:
 
-1. Item (3) names only `ves.WF env`, canonical `Eq` and `IsModelled`; the
-   theorem also takes `HasCanonicalChoice`. The choice-free statement would
+1. (Resolved on 2026-10-08 by the removal of canonical choice; see the final
+   state above.) Item (3) names only `ves.WF env`, canonical `Eq` and
+   `IsModelled`; the theorem also took `HasCanonicalChoice`. The choice-free statement would
    need the projection-walk corner without `Classical.choice`, which the
    assessment in STRENGTHENING_NOTES.md (base branch) reduces to general
    strengthening, the open conversion-elimination problem of route (b). The

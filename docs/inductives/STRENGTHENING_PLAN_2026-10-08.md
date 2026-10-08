@@ -205,3 +205,85 @@ with the full check list green. The choice-based theorem stays intact until the 
 complete; if both exist at the end, the choice-free one keeps the main name and the choice version
 becomes `addDecl.WF_of_canonicalChoice`, with a docstring on the trade (weaker environment
 invariant versus an extra prelude hypothesis).
+
+## 8. Plumbing decision (2026-10-08, branch `agent/verify-inductives-strengthening-plumb`)
+
+Outcome: `addDecl.WF_of_canonicalEq (wf : ves.WF env) (_heq) (decl) (hdecl)` returns
+`∃ ves', ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety`, with no choice
+hypothesis. The choice route is kept as `addDecl.WF_of_canonicalChoice` over `VEnvs.WFCore`
+(the old invariant) with the extra `hch`, and both iterate (`addDecl.WFHasCanonicalEq`,
+`addDecl.WFHasCanonicalChoice`). Theory/CanonicalChoice.lean,
+Verify/CanonicalChoiceRealization.lean, Tests/CanonicalChoice.lean and the corner files build
+unchanged.
+
+**What the certificate is.** `CtorTelescopeAt venv ci := ∃ T, TelTrN venv ci.levelParams
+(constructorArity ci.type) [] ci.type T`: a depth-bounded telescope translation of the *stored*
+constructor type. `TelTrN` (Verify/Typing/TelescopeTranslation.lean) is bounded by the number of
+binders the projection walk can visit, so it supports instantiation (`TelTrN.instN`, `inst`),
+level instantiation up to level equivalence (`instL_lequiv`), `Expr.eqv` transport (`eqv`) and
+deletion of an unused binder (`delete_closed`) without the unrestricted instantiation of `TelTr`
+(which is false). `CtorTelescopes safety env venv` asks it for every constructor of `env` visible
+at `safety`.
+
+**Carrier.** The certificate is a property of the production environment's stored constructor
+types, read through `env.find?`, so it is carried next to the other environment-level facts:
+
+* the checker: `VContext.corner : ProjectionCorner safety env venv`, replacing
+  `VContext.canonicalChoice`, with `ProjectionCorner := venv.HasCanonicalChoice ∨ CtorTelescopes
+  safety env venv`; `CheckingEnv.Valid.corner` likewise. The disjunction is what lets both
+  top-level theorems share every internal lemma: the internal lemmas take
+  `hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)` where they took `hch`.
+* the metadata needed to read the arity: `numFields = constructorArity type - numParams` moved
+  into `ProjectionRegistryAlignmentAt.constructor_arity` (read through
+  `VContext.constructorArity`), so the walk's `remaining ≤ m` bound comes from the registry.
+* the top-level invariant: `VEnvs.WF := VEnvs.WFCore + ctorCert : VEnvs.CtorCert env`
+  (Verify/TypeChecker.lean). Preservation is a separate output, `VEnvs.CertPres env env' ves ves'
+  := ves.CtorCert env → ves'.CtorCert env'`, returned by every path next to the `WFCore` result
+  (`addDecl.WF`, `InductiveFinalResult.certPres`).
+
+Reason for this carrier rather than a field inside `VEnvs.WFCore`: the core invariant is
+consumed by hundreds of lemmas that never look at constructor telescopes, and the choice route
+must keep working over exactly that invariant. A separate conjunct with an implication-shaped
+preservation output touches only the producers (the installation paths) and the two consumers
+(`inferProj` and the top level), and it makes `VEnvs.WF.ofNoCtors` immediate.
+
+**The walk.** `instantiateProjectionFields.WF_corner` (Verify/TypeChecker/Projection.lean) takes
+`hcorner : (TelTrN c.venv c.lparams m c.vlctx type (wrapForalls ds b) ∧ remaining ≤ m) ∨ (old
+callback)`. In the first case it runs `instantiateProjectionFields.WF_tel`, which carries the
+telescope translation along the walk (`TelTrN.keep`, `TelTrN.inst` for dependent fields,
+`TelTrN.delete_closed` for non-dependent ones), so no corner obligation arises; in the second case
+it is the old `WF_all`. `inferProj.WF_all` keeps its statement and cases on `c.corner`: the
+choice branch uses `projectionWalkCorner_choice`; the certificate branch obtains the constructor's
+`CtorTelescopeAt`, level-instantiates it (`instantiateProjectionParameters.WF_cert`) and walks.
+The old `instantiateProjectionFields.WF_all` is kept with its statement.
+
+**Discharge at installation.**
+
+* Non-inductive declarations add no constructor: `VEnvs.CertPres.addNonCtor`,
+  `CtorTelescopes.foldlAdd` (mutual definitions).
+* Ordinary and primitive formation: `checkConstructors` checks each source constructor type with
+  `checkType`, and the ghost theorem `checkType.WF_telTr`
+  (Verify/TypeChecker/GhostTelescope.lean) turns that run into a `TelTr`, recorded as
+  `ConstructorPhasesResult.telescopes`; the installed constructor's stored type is that source
+  type. `CompletedConstructorPhases.ctorOrigin` / `CompletedRecursorPhasesResult.ctorOrigin` say
+  every output constructor is old, or new with the declaration's safety flag and a certificate in
+  the header environment; `VEnvs.CertPres.ofOrigin` turns this into preservation, using that a new
+  constructor is visible only to observers at most as strict as the declaration, whose models
+  contain the header environment (`BlockCertificate.typesLe`, `CompletedBlockCertificate.typesLe`).
+* Nested: restoration stores a type that is `Expr.eqv` to the source constructor type
+  (`NestedValidatedRunResult.installedConstructorSource`), and the source type is checked by
+  `validateRestoredConstructorParameters` in the header-only validation environment, which
+  certifies it (`validateRestoredConstructorParameters.telTr_of_run`); `TelTrN.eqv` transports it.
+  `ConstructorTypeOrigins` now also records each restored constructor's safety flag (from the
+  inner production, `RecursorPhasesResult.ctorIsUnsafe`), giving
+  `NestedValidatedRunResult.restoredCtorOrigin`, which the nested final assembly consumes.
+* Within a run, the context's corner after installing constructors comes from the same facts
+  (`CtorCornerStep`, `AddConstants.corner`, `ProjectionCorner.add`), so the checker can run
+  between the constructor phase and the end of the block.
+
+**Checks on the plumbing branch at be083025 plus the documentation commit:** `lake build` green
+(0 "declaration uses sorry"); `lake build Lean4Lean.Tests` green; `lake build
+Lean4Lean.Experimental` green with the 56 inherited prototype sorries only;
+`scripts/check-inductive-audit.py --require-complete` reports "No sorry dependencies; all
+remaining axioms are listed." for all roots, including the new
+`addDecl.WF_of_canonicalChoice` and `addDecl.WFHasCanonicalChoice` (each 32 listed axioms).
