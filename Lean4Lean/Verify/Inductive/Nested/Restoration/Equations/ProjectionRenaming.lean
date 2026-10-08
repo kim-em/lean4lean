@@ -1,9 +1,9 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.AuxiliaryConstructors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.ProjNames
 
-/-! Beta reduction and the context-carrying projection transport.
+/-! Beta reduction and the context-carrying renaming of projection rules.
 
-The lowered constructor type of an original structure restores syntactically to the source
+The lowered constructor type of a source structure restores syntactically to the source
 constructor type. The renaming replacement `replaceRen ρ σ` of the lowered constructor type beta
 reduces to its restoration (`Restoration.expr_betaRed`): each inserted restoration lambda
 `λ params, target levels args` meets a complete parameter spine. Field types commute with the
@@ -11,9 +11,10 @@ replacement (`VProjectionInfo.fieldType_replaceRen_renamed`), and field types co
 reduct of the constructor type are beta reducts of the field types
 (`VProjectionInfo.fieldType_betaRed`), as instantiating parameters and preceding fields is
 substitution. `ProjectionRulesRenamedOnCtx` receives the well-formedness of the image context in
-every projection rule, so beta subject reduction (`VExpr.BetaRed.simAt`) applies and the primary
-transport needs no hypothesis (`ProjectionRulesRenamedOnCtx.of_ctorType_betaRed`). The auxiliary
-transport is in `Nested/Restoration/AuxiliaryProjections.lean`.
+every projection rule, so beta subject reduction (`VExpr.BetaRed.simAt`) applies and the renaming
+of the projection rules of a source structure needs no hypothesis
+(`ProjectionRulesRenamedOnCtx.of_ctorType_betaRed`). Auxiliary structure-like families are
+handled in `Nested/Restoration/AuxiliaryProjections.lean`.
 -/
 
 namespace Lean4Lean
@@ -162,7 +163,7 @@ theorem instantiateProjectionFields_betaRed {typeName : Name} {major : VExpr} {w
     | _ => simp [instantiateProjectionFields] at hX
 
 /-- Field types computed from a beta-reduced constructor type are beta
-reducts of the original field types. -/
+reducts of the field types of the unreduced constructor type. -/
 theorem fieldType_betaRed {info : VProjectionInfo} {ctorType' : VExpr}
     {typeName : Name} {levels : List VLevel} {params : List VExpr} {index : Nat}
     {major X : VExpr} (h : VExpr.BetaRed info.ctorType ctorType')
@@ -346,14 +347,15 @@ theorem Restoration.expr_betaRed {r : Restoration} {ρ : Name → Option VExpr}
 
 end InductiveSignature
 
-/-! ### Context-carrying transport -/
+/-! ### Context-carrying renaming of projection rules -/
 
 namespace VEnv
 
 /-- A projection whose type and constructor names are fixed by the
 replacement, registered in `envS` with a constructor type that is a beta
-reduct of the transported constructor type (of the same syntactic arity),
-transports in well-formed contexts, by beta subject reduction of `envS`. -/
+reduct of the renamed constructor type (of the same syntactic arity),
+has its projection rules renamed in well-formed contexts, by beta subject
+reduction of `envS`. -/
 theorem ProjectionRulesRenamedOnCtx.of_ctorType_betaRed {envS : VEnv}
     {ρ : Name → Option VExpr} {σ : Name → Name} {typeName : Name}
     {info : VProjectionInfo} {ctorType' : VExpr}

@@ -2,18 +2,18 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.RestoredRules
 
 /-! The rule-shape hypothesis over the rule-free assembly base.
 
-`RestoredBlockBase.withRules` extends a rule-free final assembly base by
-two rule lists, building the three rule traces from scratch out of the base's
-source-family trace `sourceTyping` and its rule-free auxiliary recursor
-trace `auxiliaryRecursorTrace`. The underlying base is the given one
-definitionally.
+`RestoredBlockBase.withRules` extends a rule-free restored block base by
+two rule lists, building the source iota rules and the auxiliary rule facts out
+of the base's source-family translations `sourceTranslations` and its
+rule-free auxiliary recursor translations `auxiliaryRecursorTrace`. The
+underlying base is the given one definitionally.
 
 `NestedRun.hruleShape_of_base` then extends the base of
 `assemblyBaseValid` by the restored generated equations: their
-realization comes from the right-hand-side type check of the restored rules,
+translation comes from the right-hand-side type check of the restored rules,
 their nested-iota shape from the generator, and their well-formedness is the
 hypothesis `HrestoredWF`. Family counts, rule counts and block names are read
-off the base's traces and `stepRules_length`. -/
+off the base's translations and `stepRules_length`. -/
 
 namespace Lean4Lean
 
@@ -23,10 +23,11 @@ open InductiveSignature
 
 namespace VerifyInductive
 
-/-! ### Building the primary rule traces -/
+/-! ### Building the source iota rules -/
 
-/-- A primary rule trace from a rule restoration list and a pointwise list of
-nested iota rules of the same length. -/
+/-- The source iota rules of one family (`SourceIotaRules`) from a rule
+restoration list and a pointwise list of well-formed nested iota rules of the
+same length. -/
 theorem SourceIotaRules.ofForall₂
     {decl : VInductDecl} {block : VInductBlock} {owner : VInductiveType}
     {result : Lean4Lean.ElimNestedInductive.Result} {prodEnv : Environment}
@@ -54,9 +55,10 @@ theorem SourceIotaRules.ofForall₂
     | cons h t =>
       exact .cons Hrule Htail _ (Classical.choice h.1) h.2 (ih (by simpa using hlen) t)
 
-/-- The primary semantic trace over a source-family trace, from pointwise
-nested iota rules for the owned constructors, given that each owner has as
-many constructors as its lowered recursor has rules. -/
+/-- The source iota rules of every family (`SourceIotaRulesAll`) over the
+source-family translations, from pointwise well-formed nested iota rules for the
+owned constructors, given that each owner has as many constructors as its
+lowered recursor has rules. -/
 theorem SourceFamilyTranslations.sourceIotaOfRules
     {decl : VInductDecl} {block : VInductBlock} {targetVEnv : VEnv}
     {lparams : List Name} {safety : DefinitionSafety}
@@ -92,11 +94,12 @@ theorem SourceFamilyTranslations.sourceIotaOfRules
         (SourceIotaRules.ofForall₂ _ (hc _ _ Hstep) Hh)
         (ih hcount Ht)
 
-/-! ### Building the auxiliary rule traces -/
+/-! ### Building the auxiliary rule facts -/
 
-/-- The auxiliary shape and final well-formedness traces over a rule-free
-auxiliary recursor trace, for any block: the added rules need only the right
-per-step counts and be well formed. -/
+/-- The guarded-rule and well-formedness facts of the auxiliary recursors
+(`AuxiliaryRecursorsGuardedRules`, `RestoredAuxiliaryRecursorsWF`) over rule-free
+auxiliary recursor translations, for any block: the added rules need only the
+right per-step counts and be well formed. -/
 theorem AuxiliaryRecursorTranslations.shapeWF
     {safety : DefinitionSafety} {trEnv recursorEnv : VEnv}
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -150,9 +153,10 @@ theorem AuxiliaryRecursorTranslations.shapeWF
 
 /-! ### Extending a base by rule lists -/
 
-/-- A final assembly shape over a rule-free base `B`, with the given rule
-lists. The three rule traces are built from `B.sourceSemantics` and
-`B.auxiliaryRecursorTrace`; the underlying base is `B` itself
+/-- A restored block derivation over a rule-free base `B`, with the given rule
+lists. The source iota rules and the auxiliary rule facts are built from
+`B.sourceTranslations` and `B.auxiliaryRecursorTrace`; the underlying base is
+`B` itself
 (`RestoredBlockBase.withRules_toBase`). -/
 noncomputable def RestoredBlockBase.withRules
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -215,16 +219,17 @@ rule-free base.** The base of `assemblyBaseValid` (constructed without
 the rule validator) is extended by the restored generated equations
 (`RestoredBlockBase.withRules`):
 
-* each restored generated equation realizes the executable restored rule
-  (`trRestoredRecursorRule_of_equation`, from the right-hand-side type check);
+* each restored generated equation is a translation of the executable
+  restored rule (`trRestoredRecursorRule_of_equation`, from the
+  right-hand-side type check);
 * the restored generated equation of a source constructor is a nested iota
-  rule of the canonical restored shape block (`sourceNestedIotaRule`, from
-  the generator);
+  rule of the rule-free restored block `restoredShapeBlock`
+  (`sourceNestedIotaRule`, from the generator);
 * `HrestoredWF`: each restored generated equation is well formed in the
-  final abstract environment of every base in which the stripped output
-  environment is valid.
+  recursor environment `B.recursorVEnv` of every base `B` in which the
+  stripped output environment is valid.
 
-Family counts, rule counts and block names come from the base's traces,
+Family counts, rule counts and block names come from the base's translations,
 the run's restoration tables and `stepRules_length`. -/
 theorem NestedRun.hruleShape_of_base
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -309,7 +314,7 @@ theorem NestedRun.hruleShape_of_base
       E.lowered.recursors.generationSignature.constructors.size := by
     have := Lean4Lean.List.Forall₂.length_eq Hrules
     simpa using this.symm
-  -- realization, in the given table
+  -- translation, in the given table
   have Hreal' : List.Forall₂
       (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
         B.recursorVEnv)
@@ -392,7 +397,7 @@ theorem NestedRun.hruleShape_of_base
       simp only [B.typesSource]
     rw [howner, hcountPrim f hf'']
     exact (E.stepRules_length ⟨f, by omega⟩ Hstep.restored.recursor (hprimName f hf)).1.symm
-  -- the primary rules
+  -- the source rules
   have Hprim : List.Forall₂ (fun (oc : VInductiveType × VConstVal) rule =>
       Nonempty (sourceDecl.NestedIotaRule
         (restoredShapeBlock sourceDecl B.sourceRecursors B.auxiliaryRecursors)

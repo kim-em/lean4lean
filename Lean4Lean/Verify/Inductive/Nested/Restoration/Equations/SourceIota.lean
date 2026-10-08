@@ -19,10 +19,10 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The production lookup used by a primary restoration step is the exact
-generated recursor entry at the corresponding source-family position.  The
-ordinary equation proof and the restoration trace can therefore be indexed by
-one shared rule list. -/
+/-- The recursor that a source restoration step looks up in the lowered kernel
+environment is the generated recursor entry at the corresponding source-family
+position, so the ordinary equation proof and the restoration steps are indexed
+by one shared rule list. -/
 theorem RecursorCheck.restoredSourceInfo_eq_generated
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -52,8 +52,8 @@ theorem RecursorCheck.restoredSourceInfo_eq_generated
   exact ConstantInfo.recInfo.inj
     (Option.some.inj (hstepLookup.symm.trans hlookupE))
 
-/-- A complete restored-primary nested rule list supplies the append-facing
-certificate used by restoration assembly. -/
+/-- A complete list of restored source nested iota rules gives the
+append-form certificate `NestedIotaBuildCertificate`. -/
 theorem NestedIotaListCertificate.toBuild
     {decl : VInductDecl} {block : VInductBlock} {rules : List VDefEq}
     (H : NestedIotaListCertificate decl block rules) :
@@ -71,10 +71,9 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- Ordered flattened restored-primary equation trace.  The left list is the
-independent source declaration's owner/constructor traversal, so this
-relation fixes both order and cardinality rather than accepting a separate
-indexing callback. -/
+/-- The restored source equations, flattened and ordered: pointwise nested iota
+rules along a list of owner/constructor pairs, which fixes both order and
+cardinality. -/
 abbrev RestoredSourceIotaListTrace
     (decl : VInductDecl) (block : VInductBlock)
     (owned : List (VInductiveType × VConstVal))
@@ -83,8 +82,8 @@ abbrev RestoredSourceIotaListTrace
     Nonempty (decl.NestedIotaRule block ownerCtor.1 ownerCtor.2 rule))
     owned rules
 
-/-- An exact trace over `ownedConstructors` is precisely the ordered
-`NestedIotaListCertificate` consumed by nested compilation. -/
+/-- The restored source equations along `ownedConstructors` give the ordered
+`NestedIotaListCertificate` of nested compilation. -/
 theorem NestedIotaListCertificate.ofForall₂
     {decl : VInductDecl} {block : VInductBlock} {rules : List VDefEq}
     (H : RestoredSourceIotaListTrace decl block
@@ -105,8 +104,8 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- Owner-indexed constructor order used while restored primary equations are
-assembled one family at a time. -/
+/-- The owned constructors of a list of owners, in order: the order in which
+restored source equations are listed one family at a time. -/
 def ownedConstructorsFor (owners : List VInductiveType) :
     List (VInductiveType × VConstVal) :=
   owners.flatMap fun owner => owner.ctors.map (owner, ·)
@@ -116,9 +115,9 @@ theorem ownedConstructorsFor_eq
     ownedConstructorsFor decl.types = decl.ownedConstructors :=
   rfl
 
-/-- Exact family-by-family restored-primary equation batch.  Each head batch
-is indexed by the constructors of the corresponding source owner, and the
-result list is definitionally the concatenation in mutual-family order. -/
+/-- The restored source equations, family by family. Each family's batch is
+indexed by the constructors of the corresponding source owner, and the
+result list is the concatenation in mutual-family order. -/
 inductive SourceIotaRulesByFamily
     (decl : VInductDecl) (block : VInductBlock) :
     List VInductiveType → List VDefEq → Prop
@@ -131,8 +130,8 @@ inductive SourceIotaRulesByFamily
       SourceIotaRulesByFamily decl block (owner :: owners)
         (head ++ tail)
 
-/-- Family-local batches flatten to the single ordered trace consumed by the
-independent nested-iota specification. -/
+/-- Family-local batches flatten to the ordered list
+`RestoredSourceIotaListTrace` along `ownedConstructorsFor`. -/
 theorem SourceIotaRulesByFamily.forall₂
     (H : SourceIotaRulesByFamily decl block owners rules) :
     RestoredSourceIotaListTrace decl block
@@ -143,10 +142,9 @@ theorem SourceIotaRulesByFamily.forall₂
     simpa [ownedConstructorsFor] using
       _root_.List.Forall₂.append' Hhead ih
 
-/-- Once source restoration has fixed the declaration's owner list, the
-family-local batches give the complete ordered primary iota certificate.
-Mutual flattening, coverage, and cardinality are therefore not separate
-callbacks at compilation assembly. -/
+/-- When the owners are the declaration's families, the family-local batches
+give the complete ordered source iota certificate
+`NestedIotaListCertificate`. -/
 theorem SourceIotaRulesByFamily.certificate
     (Hrules : SourceIotaRulesByFamily decl block owners rules)
     (htypes : decl.types = owners)
@@ -167,9 +165,10 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-/-- Semantic interpretation of the exact executable rule-restoration list
-for one primary recursor.  The abstract output list is forced to consist of
-the restored RHS endpoints of these very production rules. -/
+/-- The abstract rules of one source recursor along the executable
+rule-restoration list `RulesRestoration`: one well-formed nested iota rule per
+restored rule and constructor, so the abstract rule list has one entry per
+executable rule. -/
 inductive SourceIotaRules
     (decl : VInductDecl) (block : VInductBlock)
     (owner : VInductiveType)
@@ -219,9 +218,8 @@ theorem SourceIotaRules.rulesWF
     · exact Hwf
     · exact ih hrule
 
-/-- The exact abstract rule batch interpreting one restored primary recursor.
-Keeping the batch existential here lets a trace fold determine the final
-abstract rule list rather than asking final assembly to guess it in advance. -/
+/-- The abstract rule batch of one restored source recursor, with its
+`SourceIotaRules` along the executable rule restoration. -/
 structure SourceIotaFamily
     (decl : VInductDecl) (block : VInductBlock) (targetVEnv : VEnv)
     (owner : VInductiveType)
@@ -234,10 +232,9 @@ structure SourceIotaFamily
       Hstep.restored.recursor.restored.newRecName
       Hstep.restored.recursor.restored.restoration.rules owner.ctors rules
 
-/-- Mutual-family primary equation semantics, indexed simultaneously by the
-canonical source-family interpretation and the exact operational restoration
-trace.  Consequently family order, constructor order, and rule cardinality
-are consequences rather than final-assembly assumptions. -/
+/-- The source iota rules of every family, indexed simultaneously by the
+source-family translations and the restoration steps, so family order,
+constructor order and rule counts follow from the run. -/
 inductive SourceIotaRulesAll
     (decl : VInductDecl) (block : VInductBlock) (targetVEnv : VEnv)
     {lparams : List Name} {safety : DefinitionSafety}
@@ -299,8 +296,8 @@ theorem SourceIotaRulesAll.familyTrace
   | .cons _ _ _ _ _ _ Hhead Hrules =>
     .cons (by simpa using Hhead.forall₂) Hrules.familyTrace
 
-/-- The exact restoration-indexed semantic trace is the complete primary
-iota certificate required by nested compilation. -/
+/-- The source iota rules of every family give the complete source iota
+certificate `NestedIotaListCertificate` of nested compilation. -/
 theorem SourceIotaRulesAll.certificate
     (H : SourceIotaRulesAll decl block targetVEnv P Hsource owners
       rules)

@@ -12,7 +12,7 @@ installation certificate records its source parameter formation: the
 parameter prefix of the constructor type of `J.c` is definitionally the
 parameter prefix of the family type of `J`
 (`InstalledBelow.ctorParameterContext`). The specialization
-evidence types the family application `J levels args` in the source parameter
+types the family application `J levels args` in the source parameter
 context, so the constructor application `J.c levels args` has the
 instantiated constructor type (`HasType.const_mkApps_of_family`). Closing over
 the signature parameters gives the type of the direct constructor, which is
@@ -57,7 +57,7 @@ theorem VEnv.IsDefEqU.wrapForalls_defeqCtx_inv {env : VEnv} {U : Nat} (henv : en
 
 /-- A constant whose type is a forall telescope whose parameter prefix is
 definitionally that of another constant can be applied to every argument
-spine consumed by that other constant's prefix. -/
+spine typed by that other constant's prefix. -/
 theorem VEnv.HasType.const_mkApps_of_family {env : VEnv} {U N : Nat} (henv : env.WF)
     {Γ : List VExpr} (hΓ : OnCtx Γ (env.IsType U))
     {fam ctor : Name} {cf cc : VConstant}
@@ -187,7 +187,7 @@ theorem _root_.Lean4Lean.VEnv.InstalledBelow.constructorConstant_mem {env : VEnv
 /-! ### Auxiliary constructors -/
 
 /-- **Typing of the restoration lambdas of the auxiliary constructors**, for
-a specialization list with its evidence and a restoring expansion of the
+a specialization list with its typing and a restoring expansion of the
 lowered auxiliary families: the restoration lambda `λ params, J.c levels args`
 of the head of a lowered auxiliary constructor has, in the source header
 environment, the restoration of the lowered constructor type (which is the
@@ -269,7 +269,7 @@ theorem auxiliaryConstructorLambdas_hasType
 
 /-- **The `auxiliaryConstructors` field of `RestorationSubstitutionPremises`**,
 for every restoration table of the run. The specialization list of
-`restorationTablesRestoringAll` carries the evidence of
+`restorationTablesRestoringAll` carries the hypotheses of
 `auxiliaryConstructorLambdas_hasType`; its heads and restoration agree with
 those of every other table (`RestorationTablesAgree.find_transfer`,
 `RestorationTablesAgree.expr_eq`). -/
