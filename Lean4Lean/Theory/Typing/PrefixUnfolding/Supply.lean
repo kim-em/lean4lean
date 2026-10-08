@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Renaming
 
-/-! Supplying the next native argument specializes the generated residual
-lambda program. This is the concrete overlap between two native prefixes. -/
+/-! Supplying the next recursor argument specializes the generated residual
+lambda term. This is the concrete overlap between two recursor prefixes. -/
 
 namespace Lean4Lean.InductiveSignature.RecursorData
 open VExpr CaseSchema VEnv

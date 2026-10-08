@@ -7,8 +7,8 @@ import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.SignatureArity
 import Lean4Lean.Theory.Typing.CaseSourceSort
 
-/-! The major family of a registered native recursor owning a constructor is
-a rigid constant. The proof traces an installed native equation of that
+/-! The major family of a registered recursor owning a constructor is
+a rigid constant. The proof uses an installed recursor equation of that
 owner, whose constructor returns the family. -/
 
 namespace Lean4Lean
@@ -86,7 +86,7 @@ end Lean4Lean.InductiveSignature
 namespace Lean4Lean.VEnv
 open InductiveSignature
 
-/-- The restored native recursor type is a telescope whose major domain is an
+/-- The restored recursor type is a telescope whose major domain is an
 application of the restored family head of its owner. -/
 theorem RecursorData.recursorType_major {data : RecursorData}
     (H : data.recursorType = some type) :
@@ -110,7 +110,7 @@ theorem RecursorData.recursorType_major {data : RecursorData}
   rw [List.getElem?_append_right (by omega)]
   simp [hoff, hmajor]; rfl
 
-/-- The major of a typed native recursor application at its major offset has
+/-- The major of a typed recursor application at its major offset has
 an application of the owner's restored family head as type. -/
 theorem RecursorRegistered.major_type {data : RecursorData} (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U)) (H : RecursorRegistered env data)
@@ -149,7 +149,7 @@ theorem RecursorRegistered.major_type {data : RecursorData} (henv : env.WF)
   rw [hd, VExpr.instL_mkApps, VExpr.instL, VExpr.instOuter_mkApps, VExpr.instOuter_const] at hM
   exact ⟨hw, hl, _, hM⟩
 
-/-- The major of a typed native recursor application at its major offset is
+/-- The major of a typed recursor application at its major offset is
 never a function: its type is an application of the owner's family head,
 which is rigid when the owner has a constructor. -/
 theorem RecursorRegistered.major_not_pi {data : RecursorData} (henv : env.WF)
@@ -193,9 +193,9 @@ theorem QuotRegistered.major_type (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)
                 ← VExpr.lift_instN_lo] at hmajor
               simpa [VExpr.mkApps] using hmajor
 
-/-- The restored native recursor type returns its owner's motive applied to
+/-- The restored recursor type returns its owner's motive applied to
 the indices and the major, and that motive's binder is a telescope ending in
-the native target sort. -/
+the recursor's target sort. -/
 theorem RecursorData.recursorType_shape {data : RecursorData}
     (H : data.recursorType = some type) :
     ∃ domains motiveDomains, type = VExpr.wrapForalls domains (VExpr.mkApps
@@ -254,8 +254,8 @@ theorem RecursorData.recursorType_shape {data : RecursorData}
     simp [insertBinders, RecursorData.numIndices] at this ⊢
     omega
 
-/-- A saturated native recursor application has a type living in the
-native target universe. -/
+/-- A saturated recursor application has a type living in the
+recursor's target universe. -/
 theorem RecursorRegistered.result_sort {data : RecursorData} (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U)) (H : RecursorRegistered env data)
     (ht : env.HasType U Γ (VExpr.mkApps (.const data.name ls) args) T)
@@ -331,7 +331,7 @@ theorem _root_.Lean4Lean.InductiveSignature.Restoration.headLevels_inst
   unfold InductiveSignature.Restoration.headLevels
   split <;> simp [List.map_map, Function.comp_def, VLevel.inst_inst]
 
-/-- A native recursor whose source universe is never zero at the occurrence
+/-- A recursor whose source universe is never zero at the occurrence
 cannot eliminate a proof. -/
 theorem RecursorRegistered.major_not_proof {data : RecursorData} (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U)) (H : RecursorRegistered env data)

@@ -5,7 +5,7 @@ import Init.Internal.Order.Basic
 
 Each inductive below is re-added through `Lean4Lean.addDecl` under a fresh name and the
 generated `RecursorVal`s (type, metadata, and every rule RHS) are compared with the recursors
-Lean's kernel produced for the original declaration.  Acceptance alone is not enough: the
+Lean's kernel produced for the copied declaration.  Acceptance alone is not enough: the
 regression this guards against (a recursor placeholder captured by the field binders of a
 higher-order recursive field) produced *accepted* declarations whose iota rules were wrong,
 and was only visible by comparing the generated rules with Lean's.

@@ -133,7 +133,7 @@ inductive IsDefEq.Avoids {env : VEnv} {uvars : Nat}
       Avoids changed (.unitLike Hinfo Hparams Hindices HnumFields He He')
 
 /-- If every installed constant is outside `changed`, every derivation in
-the environment carries a canonical restriction witness. -/
+the environment avoids `changed`. -/
 theorem IsDefEq.avoids_of_constants
     {env : VEnv} {changed : Name → Prop}
     (H : env.IsDefEq uvars ctx lhs rhs type)
@@ -229,7 +229,7 @@ theorem IsDefEq.Avoids.mono
     exact .unitLike (henv.projections Hinfo) Hparams Hindices HnumFields (He.mono henv)
       (He'.mono henv) IHe IHe'
 
-/-- A typehood witness avoids `changed` when its retained typing derivation
+/-- A typehood derivation avoids `changed` when some typing derivation of the type at a sort
 does. -/
 def IsType.Avoids {env : VEnv} {uvars : Nat} {ctx : List VExpr}
     {type : VExpr} (changed : Name → Prop)
@@ -246,8 +246,8 @@ theorem IsType.avoids_of_constants
   rcases H with ⟨level, Htype⟩
   exact ⟨level, Htype, Htype.avoids_of_constants Hconstants⟩
 
-/-- Typehood restriction evidence survives ordinary environment extension
-with the original derivation's dependency set. -/
+/-- `IsType.Avoids` is preserved by environment extension, with the same
+dependency set. -/
 theorem IsType.Avoids.mono
     {env env' : VEnv} (henv : env ≤ env')
     {H : env.IsType uvars ctx type}
@@ -283,7 +283,7 @@ replay does not need every constant of the ambient source environment: it only
 needs an earlier environment in which the same projection derivation was
 already valid and whose constants all avoid `changed`.
 
-The explicit anchor keeps the evidence stable when the translation is
+The explicit anchor keeps the restriction fact stable when the translation is
 subsequently weakened to a larger environment. -/
 structure TrProj.RestrictionSupport
     {env : VEnv} {U : Nat} {Gamma : List VExpr}

@@ -1,6 +1,10 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Translations
 import Lean4Lean.Verify.Inductive.Nested.Restoration.FreshExtensions
 
+/-! The abstract `VEnv.AddInduct` of a restored nested block, assembled in the
+stage order of `VInductBlock.install`, and the concrete `AddInduct` obtained
+from it and the restoration folds. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -10,8 +14,8 @@ open scoped _root_.List
 namespace VerifyInductive
 /-- Assemble the abstract nested extension from its actual dependency stages.
 Projection metadata is installed between constructors and recursors, exactly
-as in `VInductBlock.install`; no flattened pre-projection installation is used
-as a surrogate for this semantic trace. -/
+as in `VInductBlock.install`; no flattened installation without the
+projection stage stands in for it. -/
 theorem NestedRestorationFolds.addInductOfInstallation
     (H : NestedRestorationFolds result loweredEnv sourceProdEnv
       auxRec allIndNames types auxRecNames out)
@@ -97,11 +101,12 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- Turn an abstract inductive installation obtained from exact nested
-restoration into the concrete implementation-refinement boundary. Source
-lookup preservation, final production/abstract alignment, and delta
-conservativity are consequences of the restoration trace. The producer supplies
-declaration origins and recursor provenance for the same source and target. -/
+/-- Turn an abstract `VEnv.AddInduct` obtained from nested restoration into the
+concrete `AddInduct`. Source lookup preservation, alignment of the kernel and
+abstract environments, and delta conservativity are consequences of the
+restoration folds. The caller supplies the family lookups
+(`InductInfosFromDecl`) and the recursor alignment (`NewRecursorsAligned`) for
+the same source and target. -/
 theorem NestedRestorationFolds.addInductConcrete
     (H : NestedRestorationFolds result loweredEnv sourceProdEnv
       auxRec allIndNames types auxRecNames out)

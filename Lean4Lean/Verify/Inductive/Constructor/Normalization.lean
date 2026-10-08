@@ -1,6 +1,10 @@
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
 import Lean4Lean.Theory.Inductive.Normalization
 
+/-! Successful positivity determines the uniform strictly positive normal form of
+every field, including the universe spine checked at each recursive head (the
+`positiveFields` clause of `InductiveSignature.Models`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -32,7 +36,7 @@ theorem checkPositivityStep.isValidIndApp?.uniformNormalForm
   · simpa using checkPositivityStep.isValidIndApp?.validIndAppAt H htr hvalid hlit hctx
   · exact congrArg Prod.fst hspine
 
-/-- Replay successful positivity in the original narrow scope, retaining every
+/-- Replay successful positivity in the checking scope, retaining every
 source-free binder and the exact universe spine checked at a recursive head. -/
 theorem checkPositivity.loop.uniformNormalFormScoped
     {decl : VInductDecl} {depth : Nat} {scope : VLCtx}
@@ -185,7 +189,7 @@ theorem checkPositivity.loop.uniformNormalFormScoped
             checkPositivityStep.isValidIndApp?.uniformNormalForm Hstats hexposed
               hvalid hlevels hlit (Hruntime.noIndConsts (decl.types.map (·.name)))⟩
 
-/-- Source-boundary form of the production positivity check. The levels
+/-- Source-facing form of the executable positivity check. The levels
 premise is obtained from `HeaderStatsWF.levelParamsTranslation`;
 it is preserved while recursive binders are opened. -/
 theorem checkPositivity.uniformNormalFormScoped

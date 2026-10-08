@@ -1,5 +1,10 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Steps
 
+/-! The executable restoration folds of a nested run are fresh extensions
+(`FreshExtension`) of the kernel environment by non-definitional constants only
+(inductive headers, constructors, recursors): they preserve every earlier lookup and
+add no delta-reducible declaration. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -9,8 +14,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- A checked restoration fold preserves every lookup from its source
-production environment. -/
+/-- A fresh extension preserves every lookup in its source environment. -/
 theorem FreshExtension.preservesSourceFind
     (H : FreshExtension source entries target)
     (hsourceWF : source.constants.WF)
@@ -40,8 +44,8 @@ theorem FreshExtension.preservesSourceFind
         exact False.elim (hne (by simpa using heq))
       · exact hfind
 
-/-- Map-level form of source-lookup preservation, used directly by the
-concrete `AddInduct` relation. -/
+/-- Constant-map form of `FreshExtension.preservesSourceFind`, the form used by the
+kernel-side `AddInduct` relation. -/
 theorem FreshExtension.preservesSourceMapFind
     (H : FreshExtension source entries target)
     (hsourceWF : source.constants.WF)
@@ -55,8 +59,8 @@ theorem FreshExtension.preservesSourceMapFind
     (H.targetWF hsourceWF).find?'_eq_find?] at htarget
   exact htarget
 
-/-- A restoration fold consisting only of non-definitional constant kinds
-cannot introduce a delta-reducible production declaration. -/
+/-- A fresh extension consisting only of non-definitional constant kinds
+introduces no delta-reducible declaration. -/
 theorem FreshExtension.deltaConservative
     (H : FreshExtension source entries target)
     (hsourceWF : source.constants.WF)
@@ -87,8 +91,8 @@ theorem FreshExtension.deltaConservative
         simp [hnone] at hdelta
       · exact hnext
 
-/-- The exact constructor-restoration fold installs only constructor
-constants, hence every entry in its fresh trace is non-definitional. -/
+/-- The constructor-restoration fold installs only constructor constants, hence
+it is a fresh extension whose entries are all non-definitional. -/
 theorem FoldSteps.constructorFreshExtensionNondelta
     (H : FoldSteps (RestoredConstructorStep result loweredEnv)
       names sourceEnv targetEnv)
@@ -114,7 +118,7 @@ theorem FoldSteps.constructorFreshExtensionNondelta
       · rfl
       · exact hnondelta entry hentry
 
-/-- The exact recursor-restoration fold installs only recursor constants. -/
+/-- The recursor-restoration fold installs only recursor constants. -/
 theorem FoldSteps.recursorFreshExtensionNondelta
     (H : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
@@ -141,8 +145,8 @@ theorem FoldSteps.recursorFreshExtensionNondelta
       · rfl
       · exact hnondelta entry hentry
 
-/-- One restored source family installs a header, constructor batch, and
-primary recursor, all of which are non-definitional constant kinds. -/
+/-- One restored source family installs a header, a constructor batch, and its
+source recursor, all of which are non-definitional constant kinds. -/
 theorem SourceFamilyRestoration.freshExtensionNondelta
     (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
@@ -205,9 +209,9 @@ theorem FoldSteps.inductiveFreshExtensionNondelta
       · exact hheadNondelta entry hentry
       · exact htailNondelta entry hentry
 
-/-- Complete nested restoration supplies its own fresh non-delta production
-trace; the final concrete `AddInduct` delta clause therefore needs no external
-semantic assumption. -/
+/-- The nested restoration folds form a fresh extension of their source
+environment by non-definitional constants, so the delta clause of the
+kernel-side `AddInduct` relation needs no further assumption. -/
 theorem NestedRestorationFolds.freshExtensionNondelta
     (H : NestedRestorationFolds result loweredEnv sourceEnv auxRec
       allIndNames types auxRecNames out)

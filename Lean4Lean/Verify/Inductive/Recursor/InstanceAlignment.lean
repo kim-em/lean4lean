@@ -4,13 +4,15 @@ import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 import Lean4Lean.Verify.Inductive.Recursor.Signature.GeneratorShapes
 import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
-/-! Operational alignment from a joint ordinary compilation witness.
+/-! Alignment of the installed block with a signature that models the source declaration,
+for a recursor check: field counts, index arities, constructor types, family metadata, the
+major premise and K-like recursors (`RecursorCheck.alignmentOfTr`, `RecursorCheck.kOfTr`).
 
-Source formation supplies raw constructor shapes. The normalized signature
-supplies exact family and constructor correspondences, while generated equation
-typing fixes constructor field counts. All typing arguments take place in the
-already well-formed environment before equation installation; the resulting
-shapes and K equalities then extend to the final environment.
+Source formation supplies raw constructor shapes. The normalized signature supplies exact
+family and constructor correspondences, while typing of the generated equations fixes
+constructor field counts. All typing arguments take place in the recursor environment
+`H.outVEnv`, before the iota rules are added; the resulting shapes and K equalities then
+extend to the installed environment `H.outVEnv.addDefEqRules g.equations`.
 -/
 
 namespace Lean4Lean
@@ -112,8 +114,8 @@ theorem RecursorCheck.familyRigid
   rw [VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs] at hdf'
   exact hrigid df hdf' ls hhead
 
-/-- Typing the normalized constructor result against its family's sort
-telescope determines the number of indices. -/
+/-- In a signature that models the declaration, each constructor result has as many
+indices as its family (`Models.constructorArity`). -/
 theorem RecursorCheck.normalizedIndexArity
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -228,8 +230,8 @@ theorem RecursorCheck.alignmentOfTr
       simpa only [hi.ctor, hi.nfields, hr.numIndices, hr.major, howner] using
         Nonempty.intro hc'
 
-/-- The installed header has the concrete inductive kind and the exact
-constructor-name list retained by formation. -/
+/-- The installed header is an `inductInfo` whose constructor-name list is exactly that of
+the source family. -/
 theorem RecursorCheck.familyInfo
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -284,7 +286,8 @@ theorem RecursorCheck.majorOfTr
   rcases H.familyInfo family hfamily with ⟨info, hinfo, _⟩
   exact ⟨info, by simpa only [hr.major, hname] using hinfo⟩
 
-/-- K alignment is read off source formation: the family header's
+/-- A recursor whose translation carries the K flag is K-like in the installed environment.
+The alignment is read off source formation: the family header's
 `TypeShape` exposes its parameter and index telescope ending in the recorded
 sort (which is `Prop` by the K condition and the model's result level), the
 constructor's raw parameter prefix comes from `CtorParameterShape`, and both

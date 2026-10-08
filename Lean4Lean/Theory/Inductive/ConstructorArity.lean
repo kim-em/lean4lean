@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Inductive
 
-/-! Constructor index arity retained from the literal checked tail. This
+/-! Constructor index arity read off the literal checked constructor tail. This
 uses only telescope syntax and the executable result-application count; no
 typing uniqueness or sort/Pi separation is involved. -/
 namespace Lean4Lean.InductiveSignature

@@ -4,18 +4,18 @@ import Lean4Lean.Verify.Inductive.Rules.LhsTranslation
 import Lean4Lean.Verify.Inductive.Recursor.Metadata
 import Lean4Lean.Verify.Inductive.Rules.Translation
 
-/-! Assembly of the completed rule translation from the closed RHS translations.
+/-! Assembly of the rule translations of a recursor check, the last step of the typing of
+the iota rules (section 3.2 of `docs/inductives/DESIGN.md`).
 
-`RecursorCheck.generatedRuleTranslation` (in
-`CompletedRuleTranslation`) asks for the
-full `RuleTranslations` of a completed recursor run.  Everything
-except the translation of each installed rule's closed right-hand side to the
-generator's equation right-hand side is derived here:
+`RecursorCheck.generatedRuleTranslation` produces the full `RuleTranslations` of a recursor
+check. Given the translation of each installed rule's closed right-hand side to the
+generator's equation right-hand side (`RecursorCheck.RuleRhsTranslations`, supplied by
+`RecursorCheck.ruleRhsTranslations` of `Rules/Translation.lean`), the rest is derived here:
 
-* the rule list is the canonical generation's equation list;
+* the rule list is the generated instance's equation list;
 * well-formedness comes from `equationsWF`;
 * the owner-indexed equation batches are the contiguous slices of that list;
-* the compilation realization uses the canonical signature and instance, with
+* the `TrCompilation` uses the construction's signature and instance, with
   rule coverage from the contiguous ownership of the generated constructors.
 -/
 
@@ -84,7 +84,7 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
   {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
-/-- The single remaining input: every installed rule's closed right-hand side
+/-- The input of `ruleTranslation_of`: every installed rule's closed right-hand side
 translates to the generator's equation right-hand side at its flattened
 constructor position. -/
 def RecursorCheck.RuleRhsTranslations
@@ -275,9 +275,9 @@ theorem RecursorCheck.trEntries
   subst hrec
   exact ⟨_, hsource, hvalue, M.toTrRecursorVal (H.trRules Hrhs ⟨j, hjf⟩ hj')⟩
 
-/-- The second junction: given the closed RHS translations, the completed
-recursor phase determines the full rule translation result, with the
-canonical generation's equations as the rule list. -/
+/-- Given the closed RHS translations, the recursor check determines the full
+rule translation result, with the generated instance's equations
+(`H.canonicalGeneration.equations`) as the rule list. -/
 theorem RecursorCheck.ruleTranslation_of
     (H : RecursorCheck R outEnv) (Hrhs : H.RuleRhsTranslations) :
     Nonempty (RuleTranslations H) := by
@@ -305,8 +305,8 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The completed recursor phase determines the joint generation and concrete
-metadata witness. No rule, telescope, or equation witness is chosen by the
+/-- The recursor check determines its full rule translations, including the
+generated instance and concrete metadata. No rule, telescope, or equation is chosen by the
 caller. Source nonemptiness is needed only when forming the installation
 certificate. -/
 theorem RecursorCheck.generatedRuleTranslation

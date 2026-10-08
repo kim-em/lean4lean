@@ -42,8 +42,8 @@ theorem CDeclArray.fvar_mem
 
 /-- The binder domain selected by `LocalContext.mkForall` is the exact local
 declaration type, simultaneously closed over the strictly earlier selected
-free variables.  This is the source-syntax provenance needed to compare a
-generated recursor domain with its independently recorded origin type. -/
+free variables. This is what compares a domain of a generated recursor type with the
+binder type recorded for it (`RecInfoBinderTypes`). -/
 theorem LocalContext.mkBindingListN_forallBinderAt
     (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
       lctx.find? fv = some (.cdecl index fv name type bi kind))
@@ -170,7 +170,7 @@ theorem CDeclArray.forallBinderAtList
   exact H.forallBinderAt hnodup D
 
 /-- The hypothesis binder at position `j` in a generated minor is the exact
-local declaration type used by the first pass, closed first over preceding
+local declaration type used by the minor pass, closed first over preceding
 hypotheses and then over the outer constructor fields. -/
 theorem MinorPremiseType.hypothesisBinderAt
     (S : MinorPremiseType)
@@ -238,7 +238,7 @@ theorem CDeclArray.forallTelescopeList
   rw [← Expr.abstractN_eq_abstractList_of_closed hnodup hb]
   exact H.forallTelescope body
 
-/-- Prepending one retained binder group to an existing telescope preserves
+/-- Prepending one binder group to an existing telescope preserves
 the inner telescope and abstracts its residual below exactly the inner arity. -/
 theorem CDeclArray.prependTelescope
     (Hsel : CDeclArray lctx xs)
@@ -249,7 +249,7 @@ theorem CDeclArray.prependTelescope
   exact (Hsel.forallTelescope inner).trans <| by
     simpa using Hinner.abstractN Hsel.fvars
 
-/-- Prepend one retained binder group to an exact inner binder while
+/-- Prepend one binder group to an exact inner binder while
 simultaneously closing its declaration type over the outer group.  The
 explicit inner-prefix list makes this reusable for each successive group of
 the generated recursor telescope. -/
@@ -368,9 +368,8 @@ theorem TrExprS.concreteRecursorResult_eq
     rw [hindices, ← List.foldl_map]
     simp [Function.comp_def]
 
-/-- Distinct retained binders make the executable five-stage abstraction
-compute to the canonical de Bruijn result used by the abstract recursor
-specification. -/
+/-- With distinct binders (`NoAlias`), the five nested abstractions of the executable
+compute to the de Bruijn result used by the abstract recursor specification. -/
 theorem RecursorBinderGroups.residual_eq_concreteRecursorResult
     (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (howner : ownerIdx < recInfos.size) (hnoalias : H.NoAlias) :
@@ -511,8 +510,8 @@ theorem RecursorBinderGroups.residual_eq_concreteRecursorResult
     motiveFVars, minorFVars, indexFVars,
     Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hAfterParams
 
-/-- Exact concrete telescope produced by the five nested `mkForall` calls in
-`AddInductive.run`. -/
+/-- Exact executable telescope produced by the five nested `mkForall` calls of
+`AddInductive.recursorType`. -/
 theorem RecursorBinderGroups.forallTelescope
     (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (body : Expr) :
@@ -533,7 +532,7 @@ theorem RecursorBinderGroups.forallTelescope
   have hParams := H.params.prependTelescope hMotives
   simpa [RecursorBinderGroups.residual, Nat.add_assoc] using hParams
 
-/-- Every retained parameter slot has the same concrete domain in every
+/-- Every parameter slot has the same executable domain in every
 generated recursor.  The owner-specific suffix only supplies the body below
 the common parameter prefix. -/
 theorem RecursorBinderGroups.parameterBinderAt
@@ -575,7 +574,7 @@ theorem RecursorBinderGroups.parameterBinderAtList
     (List.Nodup.sublist (List.take_sublist _ _) hnoalias.parts.params)
     (D.closed hl)] at h
 
-/-- Every retained motive slot has a source domain independent of the
+/-- Every motive slot has a source domain independent of the
 recursor owner.  It is closed over the common parameters and the strictly
 earlier motives; the owner's indices and major occur only below this slot. -/
 theorem RecursorBinderGroups.motiveBinderAt
@@ -665,8 +664,8 @@ theorem RecursorBinderGroups.motiveBinderAtList
       ((List.take_sublist _ _).trans (List.sublist_append_left _ _))) hall
   rwa [Expr.abstractN_eq_abstractList_of_closed hnodup (D.closed hl)] at h
 
-/-- The owner motive slot of the concrete production recursor closes the
-exact retained motive declaration over precisely the common parameters and
+/-- The owner motive slot of the executable recursor type closes the
+exact motive declaration over precisely the common parameters and
 strictly earlier motives.  The subsequent `inferImplicit` pass preserves
 that domain and changes only binder annotations. -/
 theorem RecursorBinderGroups.ownerMotiveBinderAt
@@ -756,11 +755,10 @@ theorem RecursorBinderGroups.ownerMotiveBinderAtList
       ((List.take_sublist _ _).trans (List.sublist_append_left _ _))) hall
   rwa [Expr.abstractN_eq_abstractList_of_closed hnodup (D.closed hl)] at h
 
-/-- The flattened minor slot of the concrete production recursor closes the
+/-- The flattened minor slot of the executable recursor type closes the
 exact recorded minor declaration over all parameters, all motives, and the
-strictly earlier minors.  This is the source-side identity used to compare
-the translated generated domain with the independently retained minor
-semantics. -/
+strictly earlier minors. This is the executable-side identity used to compare
+the translated generated domain with the typed minor premise. -/
 theorem RecursorBinderGroups.minorBinderAt
     (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (hnoalias : H.NoAlias)
@@ -906,7 +904,7 @@ theorem RecursorBinderGroups.minorBinderAtList
         ((List.take_sublist _ _).trans (List.sublist_append_left _ _)))) hall
   rwa [Expr.abstractN_eq_abstractList_of_closed hnodup (D.closed hl)] at h
 
-/-- The final major-premise slot is the exact retained major declaration
+/-- The final major-premise slot is the exact major declaration
 closed over all four preceding generated recursor groups. -/
 theorem RecursorBinderGroups.majorBinderAt
     (H : RecursorBinderGroups c stats recInfos ownerIdx)
@@ -1008,8 +1006,8 @@ theorem RecursorBinderGroups.majorBinderAt
   simpa [motiveSource, minorSource, indexSource, majorSource, resultBody,
     Nat.add_assoc] using Hraw.inferImplicit 1000 false
 
-/-- The same installed `.recInfo` translation independently proves semantic
-well-formedness of the generated recursor constant. -/
+/-- The translation of the installed `.recInfo` also shows that the generated recursor
+constant is well formed. -/
 theorem RecursorBinderGroups.recursorWF_of_recInfo
     (H : RecursorBinderGroups c stats recInfos ownerIdx)
     (howner : ownerIdx < recInfos.size)
@@ -1045,11 +1043,10 @@ theorem RecursorBinderGroups.recursorWF_of_recInfo
   rw [huvars] at hwf
   exact hwf
 
-/-- Semantic payload still required from `mkRecInfos`: every concrete
-recursor telescope translates, before the annotation-only `inferImplicit`
-pass, to an abstract type in the pre-recursor environment. Keeping this
-separate from operational fvar binding makes the remaining proof obligation
-both explicit and independently reviewable. -/
+/-- Typing of the generated recursor types, read off the executable's check
+(`checkRecursorTypes`): every executable recursor telescope translates, before the
+annotation-only `inferImplicit` pass, to a well-formed abstract type in the environment
+before the recursors are installed (the recursor-checking environment). -/
 structure TrRecursorTypes
     (env : VEnv) (lparams : List Name) (elimLevel : Level)
     (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
@@ -1117,11 +1114,10 @@ theorem AddInductive.declareRecursors.checkRecursorTypes.translationsWF
       False.elim (hidx (by omega))
 termination_by indTypes.size - dIdx
 
-/-- The complete executable validation loop supplies precisely the semantic
-recursor-type certificate consumed by the installation loop.  The sole
-non-computational premise excludes `.partial`, which production inductive
-checking never uses and whose visibility order is incompatible with the
-generated `isUnsafe` bit. -/
+/-- The executable validation loop `checkRecursorTypes` supplies the recursor-type
+translations `TrRecursorTypes` used by the installation loop. The only premise beyond the
+checking environment excludes `.partial`, which inductive checking never uses and whose
+visibility order is incompatible with the generated `isUnsafe` bit. -/
 theorem AddInductive.declareRecursors.checkRecursorTypes.trRecursorTypesWF
     (Hvalid : CheckingEnv.Valid c.safety c.env venv)
     (hnotPartial : c.safety ≠ .partial)
@@ -1142,8 +1138,8 @@ theorem AddInductive.declareRecursors.checkRecursorTypes.trRecursorTypesWF
     typeAt := fun owner howner => Hall owner (Nat.zero_le _) howner }
 
 /-- The exact result of the executable, context-independent K eligibility
-check. Keeping the successful return value prevents generated recursor metadata
-from silently enabling K for a family the production check rejected. -/
+check. Recording the returned value prevents generated recursor metadata from
+enabling K for a family the executable check rejected. -/
 def KEligible (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) (k : Bool) : Prop :=
   ∀ c, AddInductive.isKTarget stats indTypes c = .ok k
@@ -1181,7 +1177,7 @@ private theorem isKTarget_context_eq
         | cons ctor ctors => cases ctors <;> rfl
       · rfl
 
-/-- Retain the actual successful result of the production check. -/
+/-- The result of the executable K check satisfies `KEligible`. -/
 theorem AddInductive.isKTarget.checkedWF
     (stats : AddInductive.InductiveStats) (indTypes : Array InductiveType)
     (c : AddInductive.Context) :
@@ -1237,9 +1233,9 @@ theorem KEligible.true_shape
           | cons next rest => simp only [hctors] at h; cases h
       · cases h
 
-/-- Pointwise record emitted by one iteration of the production recursor
-loop. It retains only the metadata needed to connect that iteration to the
-independent shape and semantic-typing judgments. -/
+/-- The entry installed by one iteration of the executable recursor loop
+(`declareRecursors.loop`), with the metadata needed to connect it to the generated
+recursor and its typing. -/
 structure GeneratedRecursorEntry
     (safety : DefinitionSafety) (env : VEnv) (lparams : List Name)
     (elimLevel : Level) (c : AddInductive.Context)
@@ -1255,9 +1251,9 @@ structure GeneratedRecursorEntry
   name : info.name = Lean.mkRecName indTypes[ownerIdx]!.name
   all : info.all = (indTypes.map (·.name)).toList
   kChecked : KEligible stats indTypes info.k
-  /-- The production recursor pass chooses safety from the checking context.
-  Retaining this exact bit is needed when an unsafe block is hidden from the
-  partial and safe environment observers. -/
+  /-- The executable recursor pass chooses safety from the checking context.
+  This exact bit is needed when an unsafe block is hidden from the
+  partial and safe environment views. -/
   isUnsafe : info.isUnsafe = (c.safety != .safe)
   numParams : info.numParams = stats.params.size
   numIndices : info.numIndices = stats.nindices[ownerIdx]!
@@ -1277,8 +1273,8 @@ structure GeneratedRecursorEntry
     (AddInductive.getRecLevels elimLevel stats.levels)
     indTypes[ownerIdx]!.ctors (recursorMinorOffset indTypes ownerIdx)
     info.rules
-  /-- The installed rules are literally the builds of the blueprints retained
-  by `mkRecInfos`, in the recursor-construction local context. -/
+  /-- The installed rules are literally the instantiations of the rule templates recorded
+  by `mkRecInfos`, in the local context of the recursor construction. -/
   rules_eq : info.rules =
     recInfos[ownerIdx]!.ruleTemplates.toList.map fun blueprint =>
       blueprint.instantiate indTypes stats (recInfos.map (·.motive))
@@ -1339,7 +1335,8 @@ def GeneratedRecursorEntry.ofRecursorInfo
   rules := Hrules
   rules_eq := hrulesEq
 
-/-- Reviewable output invariant for the complete production recursor loop. -/
+/-- Output invariant of the executable recursor loop: one `GeneratedRecursorEntry` per
+recursor info. -/
 structure GeneratedRecursors
     (safety : DefinitionSafety) (env : VEnv) (lparams : List Name)
     (elimLevel : Level) (c : AddInductive.Context)
@@ -1381,11 +1378,10 @@ structure GeneratedRecursorsRange
     GeneratedRecursorEntry safety env lparams elimLevel c stats indTypes
       recInfos (start + i) entries[i]
 
-/-- Semantic companion to `GeneratedRecursorsRange`.  The ordinary range
-certificate records the source/target recursor entry and bounded rule batch;
-this certificate retains, for the same owner slice, the exact field
-classification and recursive-call evidence produced while constructing each
-rule.  It deliberately does not duplicate the translated recursor value. -/
+/-- Typed companion to `GeneratedRecursorsRange`. The range invariant records the
+executable and abstract recursor entries and their rules; this one records, for the same
+owners, the typed rules (`TypedRecursorRules`) with their field classification and typed
+recursive calls. It does not repeat the translated recursor value. -/
 structure TypedRecursorRulesRange
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     (Rroot : RecursorContextWF semanticRoot recLparams) (decl : VInductDecl)
@@ -1471,9 +1467,7 @@ def GeneratedRecursorsPrefix.empty
   covered := Nat.zero_le _
   entry _ hi := by simp at hi
 
-/-- A validated mutual-family owner index names an actually generated
-recursor. This is the global half of the pointwise `RecursorsPresent`
-obligation retained by generated recursive calls. -/
+/-- Every family index of the block names a generated recursor. -/
 theorem GeneratedRecursors.recursorName_mem
     (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
       recInfos entries)

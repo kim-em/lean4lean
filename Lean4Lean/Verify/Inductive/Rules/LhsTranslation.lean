@@ -3,6 +3,11 @@ import Lean4Lean.Verify.Inductive.Recursor.Metadata
 import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursiveShapeTranslations
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Constructors
 
+/-! Translation of a rule's type and left-hand side to the generator's equation
+(`RecursorCheck.RuleAlignment.typeTranslation`, `lhsTranslation`), and the reduction of the
+generator body translations to their right-hand side component
+(`equationBodyTranslationsOfClosedRhs`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception

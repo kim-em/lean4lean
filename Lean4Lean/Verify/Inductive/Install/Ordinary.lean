@@ -4,6 +4,12 @@ import Lean4Lean.Verify.Inductive.Rules.RuleTranslations
 import Lean4Lean.Verify.Inductive.Constructor.LiteralDisjoint
 import Lean4Lean.Verify.Inductive.Recursor.Context.Unannotated
 
+/-! The complete ordinary checker (`AddInductive.runWithStats`, `AddInductive.run`)
+refines a skeleton-free result (`OrdinaryInstallation`, `OrdinaryRunResult`):
+the declaration is the one synthesized by the successful header and
+constructor traversals, and the same declaration is carried through the
+recursor check and the rules. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception

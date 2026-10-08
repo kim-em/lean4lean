@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.GeneratedGuard
 `NestedRun.hruleShape_of_base` (`Nested/Restoration/Equations/RestoredRulesBase.lean`)
 to extend the rule-free assembly base by the restored generated equations:
 
-* realization of the executable restored rules
+* translation of the executable restored rules
   (`trRestoredRecursorRule_of_equation`): the right-hand side of each
   restored rule translates (the right-hand-side type check of the restored
   rules) and its translation is the restored generated right-hand side
@@ -15,10 +15,10 @@ to extend the rule-free assembly base by the restored generated equations:
   including the right-hand-side spine and guardedness, is computed from the
   generator through restoration (`restoredEquation_rhs`,
   `restoredGeneratedAvoidance` in `Nested/Restoration/Equations/GeneratedGuard.lean`);
-* rule counts along the restoration trace (`stepRules_length`).
+* rule counts along the restoration steps (`stepRules_length`).
 
-The well-formedness of the restored generated equations in the final
-abstract environment (`HrestoredWF`) is `hrestoredWF_of`
+The well-formedness of the restored generated equations in the recursor
+environment of the restored block base (`HrestoredWF`) is `hrestoredWF_of`
 (`Nested/Restoration/AuxiliaryProjections.lean`). -/
 
 namespace Lean4Lean
@@ -31,7 +31,7 @@ namespace VerifyInductive
 
 /-! ### The restoration is determined by the restoration table data
 
-(as in `RecursorProvenance`, kept local) -/
+(as in `Nested/Restoration/RecursorAlignment.lean`, kept local) -/
 
 section TableUniqueness
 
@@ -40,9 +40,9 @@ variable {decl : VInductDecl} {result : Lean4Lean.ElimNestedInductive.Result}
 
 end TableUniqueness
 
-/-! ### Replacing the rule lists of the final traces -/
+/-! ### Replacing the rule lists of the restored block -/
 
-/-! ### Realization of the restored generated equations -/
+/-! ### Translation of the restored generated equations -/
 
 theorem _root_.Lean4Lean.InductiveSignature.Restoration.equation_eq_some
     {r : Restoration} {eq rule : VDefEq} (h : r.equation eq = some rule) :
@@ -110,10 +110,11 @@ theorem NestedRun.restoredRuleRhs_translation
     rw [← Hstep.restored.produced] at h
     exact h
 
-/-- **Realization of a restored generated equation.** In the final abstract
-environment of an assembly shape in which the stripped output environment is
-valid and the restorable names are fresh, the abstract restoration of the
-`k`-th generated equation realizes the executable restored rule at `k`. -/
+/-- **Translation of a restored generated equation.** In the recursor
+environment of a restored block base in which the stripped output environment
+is valid and the restorable names are fresh, the abstract restoration of the
+`k`-th generated equation is a translation of the executable restored rule at
+`k` (`TrRestoredRecursorRule`). -/
 theorem NestedRun.trRestoredRecursorRule_of_equation
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -202,7 +203,7 @@ theorem NestedRun.trRestoredRecursorRule_of_equation
   subst htarget
   exact ⟨owner, j, s, t, Hstep, hjNew, hval, huvars, Ht, hlhs, htype⟩
 
-/-! ### Rule counts along the traces -/
+/-! ### Rule counts along the restoration steps -/
 
 /-! ### Owned-constructor enumeration by offsets -/
 
@@ -374,9 +375,9 @@ theorem Restoration.equation_source_structure {s : InductiveSignature}
   simp only [Option.some.injEq] at hargs hpre
   rw [← hargs, ← hpre]
 
-/-! ### Helpers for the restored primary equations -/
+/-! ### Helpers for the restored source equations -/
 
-/-- The data of a source semantic trace at one family position. -/
+/-- The data of the source-family translations at one family position. -/
 theorem SourceFamilyTranslations.at
     {decl : VInductDecl} {lparams : List Name} {safety : DefinitionSafety}
     {sourceVEnv envTypes envCtors : VEnv}
@@ -454,11 +455,11 @@ theorem Restoration.find_none_of_mem_prefix {r : Restoration} {types : List VInd
   rw [hsplit] at hnodup
   exact (List.nodup_append.mp hnodup).2.2 _ hn _ hmem heq'.symm
 
-/-! ### The restored primary equations are nested iota rules -/
+/-! ### The restored source equations are nested iota rules -/
 
 set_option maxHeartbeats 4000000 in
 /-- **The restored generated equation of a source constructor is a nested
-iota rule** of the restored block of a final assembly shape, for the
+iota rule** of the restored block of a restored block base, for the
 source owner and constructor at its position. Every clause is computed from
 the generator: the left-hand side and type by `equation_source_structure`,
 the right-hand side (its spine, field arguments, recursive results and
@@ -627,7 +628,7 @@ theorem NestedRun.sourceNestedIotaRule
         E.lowered.recursors.generationSignature.families[f].name) = none :=
     Restoration.find_none_of_mem_prefix hheadsAux hnodupFam
       (mem_familyNames.mpr ⟨_, hlowMem, .inl hfamName⟩)
-  -- the primary recursor is not renamed
+  -- the source recursor is not renamed
   have hrecNames := E.lowered.recursorConstruction.generator.names
   have hnotRec : E.lowered.recursors.canonicalGeneration.recursorName ⟨f, hfFam⟩ ∉
       (compilationRestoration sourceDecl auxiliaries).recursors.map Prod.fst := by

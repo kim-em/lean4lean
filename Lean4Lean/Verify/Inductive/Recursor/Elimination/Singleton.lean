@@ -2,6 +2,12 @@ import Lean4Lean.Verify.Inductive.TypeAnnotations
 import Lean4Lean.Verify.Inductive.Recursor.Elimination.Large
 import Lean4Lean.Verify.Typing.RawShape
 
+/-! The abstract reading of a successful singleton check (`LargeEliminationCheck`): the
+constructor's translated telescope is a `SingletonTelescope`, in which every non-parameter
+binder is a proof or occurs literally among the result arguments. This is the shape that
+singleton elimination (`Instance.Admissible`) needs.
+-/
+
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
@@ -114,7 +120,7 @@ theorem SingletonTelescope.defeqCtx
     · exact .inr (.inr hi)
 
 /-- Proof-field classification is invariant under typed equality. Literal
-result occurrences additionally use the retained source skeleton. -/
+result occurrences additionally use the raw shape relation (`VExpr.RawShapeRel`). -/
 theorem SingletonTelescope.of_defeq
     (H : SingletonTelescope env U nparams ctx count target)
     (henv : env.WF) (hctx : OnCtx ctx (env.IsType U))
@@ -142,8 +148,9 @@ theorem SingletonTelescope.of_defeq
     · exact .inr (.inl (hh.defeqU_l henv hctx ⟨_, hdomains⟩))
     · exact .inr (.inr (hi.of_rawShape hbodyShape.symm))
 
-/-- A later environment cannot turn an already well-formed source domain
-into a proof unless its original sort was already equivalent to `Prop`. -/
+/-- A singleton telescope in a larger environment is one in a smaller environment in which
+the target is a type: a domain typed in the smaller environment that is a proof in the
+larger one already has sort `Prop` in the smaller one. -/
 theorem SingletonTelescope.of_mono
     (H : SingletonTelescope env' U nparams ctx count target)
     (hle : env ≤ env') (henv : env.WF) (henv' : env'.WF)

@@ -1,5 +1,14 @@
 import Lean4Lean.Verify.Inductive.Header.CheckedHeaders
 
+/-!
+# The mutual-header loop
+
+Composes the per-family steps of `Header/Block.lean` and `Header/Telescope.lean` into the
+verification of the whole loop `checkInductiveTypes.loopInd` (`firstLoopInd`,
+`laterLoopInd`): a successful run yields `CheckedHeaders` for every source family, in source
+order (`checkInductiveTypes.accumulatesHeadersSourceAligned`).
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -220,8 +229,9 @@ theorem firstStep.initializesAccumulator
       · exact checkInductiveTypes.loopType.parameterMismatch.WF
           (Q := Q) hforall hzero
 
-/-- A completed noninitial narrow telescope appends one declaration-independent
-semantic header. -/
+/-- A noninitial header telescope, traversed in its own scope
+(`ScopedHeaderTelescope`), appends one declaration-independent semantic
+header. -/
 theorem laterResult.snocsScoped
     {source : InductiveType} {target : VConstVal}
     {priorSources : List InductiveType}

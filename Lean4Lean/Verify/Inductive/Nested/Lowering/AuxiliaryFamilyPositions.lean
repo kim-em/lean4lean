@@ -7,16 +7,18 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! # Positional provenance for generated queue families
+/-! # Positions of the auxiliary families in the lowering queue
 
-`SourceFamilyOrigin` intentionally forgets the queue position at which an
-origin was established.  Formation needs a stronger fact: every final slot
-strictly after the initial source block was produced by an actual auxiliary
-generation step.  We retain that fact as a queue invariant rather than infer
-it from equality of family values.
+Formation needs to know that every slot of the final lowering queue
+strictly after the initial source block holds an auxiliary family produced by an actual
+auxiliary generation step (`AuxiliaryFamilySpecialization`) and then lowered
+(`LoweredAuxiliaryFamily`, `NestedLowering.resolvedAuxiliaryFamilyAt`), and that every entry
+of the final auxiliary cache points to such a slot (`NestedLowering.cachedAuxiliaryFamily`).
+These facts are carried as queue invariants rather than inferred from equality of family
+values.
 -/
 
-/-- Reverse positional provenance for the append-only auxiliary cache.  Every
+/-- Positions of the entries of the append-only auxiliary cache.  Every
 cache entry is paired with the generated-family queue slot that introduced its
 fresh name.  The slot's family may later be lowered in place, but family-level
 lowering preserves its name, so the position remains stable throughout the
@@ -361,7 +363,8 @@ theorem FamilyLowering.pendingGeneratedFamilyOrigins
     PendingGeneratedFamilyOrigins env params initialSize cursor out.2 :=
   H.constructors.pendingGeneratedFamilyOrigins hclosures Hsource Horigins
 
-/-- Complete lowering provenance for a dynamically generated final slot. -/
+/-- An auxiliary family at a slot of the final queue: the generation step that appended its
+source family and the family lowering that produced it. -/
 structure LoweredAuxiliaryFamily
     (env : Environment) (params : Array Expr) (nparams : Nat)
     (finalState : Lean4Lean.ElimNestedInductive.State)
@@ -382,7 +385,8 @@ def LoweredAuxiliaryFamily.mono
     generated := { H.generated with cached := Haux.mem H.generated.cached }
     later := H.later.trans Haux }
 
-/-- Generated provenance split at the dynamic queue cursor. -/
+/-- The auxiliary families of the queue, split at the dynamic queue cursor: lowered behind
+it, pending at or after it. -/
 structure LoweringQueueAuxiliaryFamilies
     (env : Environment) (params : Array Expr) (nparams initialSize cursor : Nat)
     (state : Lean4Lean.ElimNestedInductive.State) : Prop where
@@ -487,8 +491,7 @@ theorem LowerNextStep.generatedFamilyOrigins
       rw [if_neg (fun h : i = j => hji h.symm)] at hget
       exact ⟨by simpa [Array.set!, hget] using Hsource⟩
 
-/-- Every generated final result slot has exact source-generation and
-lowering provenance. -/
+/-- Every auxiliary slot of the final result is a `LoweredAuxiliaryFamily`. -/
 theorem LoweringQueue.resolvedAuxiliaryFamilyAt
     (H : LoweringQueue env params nparams lctx i fuel state out)
     (Henv : EnvironmentTypesClosed env)
@@ -523,8 +526,8 @@ theorem LoweringQueue.resultTypes
   | done => rfl
   | step _ _ ih => exact ih
 
-/-- End-to-end generated-suffix provenance, indexed by the exact final result
-position. -/
+/-- Every auxiliary slot of the final result is a `LoweredAuxiliaryFamily`, indexed by its
+position in the final result. -/
 theorem NestedLowering.resolvedAuxiliaryFamilyAt
     (H : NestedLowering env fuel nparams types initialState out)
     (Henv : EnvironmentTypesClosed env)
@@ -567,7 +570,7 @@ theorem NestedLowering.resolvedAuxiliaryFamilyAt
 
 /-- Every final auxiliary-cache entry points back to a concrete generated
 suffix slot.  This is derived from the paired cache/queue pushes of the
-executable lowering trace, rather than assumed as a semantic provider. -/
+executable lowering run, rather than assumed. -/
 theorem NestedLowering.resolvedAuxFamilyPosition
     (H : NestedLowering env fuel nparams types initialState out)
     (hempty : initialState.nestedAux = #[]) :
@@ -585,9 +588,9 @@ theorem NestedLowering.resolvedAuxFamilyPosition
       simp [hempty] at this
   exact Hqueue.familyPositions Hinitial
 
-/-- Exact generated-family provenance recovered from a final cache entry.
-The cache's fresh-name invariant makes the positional generated witness agree
-with the queried nested expression, including for a hit that reused an entry
+/-- The auxiliary family recovered from an entry of the final cache.
+The cache's fresh-name invariant makes the auxiliary family at that position agree
+with the queried nested expression, including for a replacement that reused an entry
 created earlier in the lowering traversal. -/
 structure CachedAuxiliaryFamily
     (env : Environment) (params : Array Expr) (nparams initialSize : Nat)
@@ -603,8 +606,8 @@ structure CachedAuxiliaryFamily
 
 /-- The executable result map contains no entries other than those retained
 in the final lowering cache.  This reverse direction is what lets a local
-replacement hit rejoin the generated-family queue provenance carried by the
-whole lowering run. -/
+replacement rejoin the auxiliary family of the queue that the whole lowering run
+records. -/
 theorem NestedLowering.resolvedCacheEntryOfResultLookup
     (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
@@ -684,8 +687,8 @@ theorem NestedLowering.cachedAuxiliaryFamily
     auxName_eq := hauxName }⟩
 
 /-- Map-facing form of `cachedAuxiliaryFamily`.  Replacement
-traces expose an exact production-map lookup; both cache hits and newly
-generated hits can therefore recover their concrete generated suffix slot
+relations expose an exact lookup in the executable map; both cache reuse and newly
+generated families can therefore recover their auxiliary slot of the queue
 without any caller-supplied correspondence. -/
 theorem NestedLowering.cachedAuxiliaryFamilyOfLookup
     (H : NestedLowering env fuel nparams types initialState

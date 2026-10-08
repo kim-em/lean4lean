@@ -2,6 +2,16 @@ import Lean4Lean.Verify.Inductive.Primitive.Headers
 import Lean4Lean.Verify.Inductive.Primitive.ConstructorParams
 import Lean4Lean.Verify.Inductive.Recursor.Context.Unannotated
 
+/-!
+# The primitive run
+
+Composes the primitive header and constructor phases with the shared recursor phase: the
+formation prefix rejoins the ordinary pipeline once the atomic batch has restored a valid
+context (`AddInductive.runWithStats.primitiveWF`), and the whole executable run is verified
+without a caller-supplied skeleton or header environment
+(`AddInductive.run.primitiveSourceAlignedWF`).
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -9,8 +19,8 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The skeleton-free primitive header path retains production mutual-family
-closure without claiming validity for the header-only abstract environment. -/
+/-- The skeleton-free primitive header path retains closure of the mutual
+families of the kernel environment without claiming validity for the header-only abstract environment. -/
 theorem AddInductive.declareInductiveTypes.primitiveHeadersClosedWF
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
@@ -70,8 +80,8 @@ theorem AddInductive.declareInductiveTypes.primitiveHeadersClosedWF
       (inductiveTypeInfos_uniformNumParams stats nparams indTypes numNested
         isUnsafe c.lparams hindicesSize)⟩
 
-/-- The real primitive header/check/constructor prefix with its declaration
-synthesized from the successful semantic folds. -/
+/-- The executable primitive header, check and constructor prefix, with its
+declaration synthesized from the successful semantic folds. -/
 theorem AddInductive.formationCore.primitiveClosedWF
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
@@ -140,7 +150,7 @@ def PrimitiveInstallation
       Nonempty (RecursorCheck R outEnv)
 
 /-- Skeleton-free primitive formation rejoins the common recursor suffix only
-after the atomic constructor endpoint has restored a valid context. -/
+after the atomic constructor installation has restored a valid context. -/
 theorem AddInductive.runWithStats.primitiveWF
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}

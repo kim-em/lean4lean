@@ -8,6 +8,14 @@ import Lean4Lean.Verify.Inductive.Recursor.Binders.MotivesAndIndices
 import Lean4Lean.Verify.Inductive.Formation
 import Lean4Lean.Verify.Inductive.Install.Ordinary
 
+/-! Source translations of a nested declaration: the lowering run (`NestedLoweringOutput`,
+`NestedLoweringOutputClosed`) maps each source family to its lowered family, and the
+restoration folds are interpreted as the source family translations
+(`SourceFamilyTranslations`) of the submitted declaration, with headers, constructors and
+source recursors. The file ends with `Environment.addInductive.checkedLoweringClosedWF`,
+which runs the source checks and lowering of `Environment.addInductive` before
+dispatch (sections 3.1 and 3.3 of `docs/inductives/DESIGN.md`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -18,7 +26,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Projection of the complete lowering trace through the `StateT.run'` used
+/-- The result of the lowering run, as returned through the `StateT.run'` used
 by `Environment.addInductive`. -/
 def NestedLoweringOutput
     (env : Environment) (fuel nparams : Nat) (types : List InductiveType)
@@ -27,9 +35,9 @@ def NestedLoweringOutput
   ∃ finalState, NestedLowering env fuel nparams types initialState
     (result, finalState)
 
-/-- Lowering result with the dynamic-queue closure argument discharged.  The
-final cache predicate is stated against the exact local context returned in
-the executable restoration record. -/
+/-- Lowering result whose final cache mentions only free variables of the local
+context returned in the executable restoration record, and whose parameters are
+duplicate-free. -/
 def NestedLoweringOutputClosed
     (env : Environment) (fuel nparams : Nat) (types : List InductiveType)
     (initialState : Lean4Lean.ElimNestedInductive.State)
@@ -46,8 +54,8 @@ theorem NestedLoweringOutputClosed.toResult
   rcases H with ⟨finalState, Hrun, _Hcache, _Hparams⟩
   exact ⟨finalState, Hrun⟩
 
-/-- A generated-family provenance witness selects exactly the independently
-validated auxiliary translation associated with its surviving cache entry. -/
+/-- An `AuxiliaryFamilySpecialization` selects exactly the validated auxiliary
+translation associated with its cache entry. -/
 theorem AuxiliaryFamilySpecialization.closedAuxiliaryTranslation
     (H : AuxiliaryFamilySpecialization sourceEnv params finalState.nestedAux family)
     (Hmap : NestedAuxMapModels result finalState)
@@ -80,9 +88,9 @@ theorem NestedLoweringOutputClosed.selectionNodup
   rw [heq]
   exact hnodup
 
-/-- Rebase a validated auxiliary residual along a semantic conversion from
+/-- Rebase a validated auxiliary residual along a definitional conversion from
 the caller's parameter telescope to the domains recovered by validation.
-This is the syntax-independent core needed by nested restoration: once the
+This is the syntax-independent part needed by nested restoration: once the
 two dependent parameter contexts have been related, neither a dummy residual
 nor the concrete free variables used by either opening remain relevant. -/
 theorem ClosedNestedOccurrenceTyping.residualAtDefEqParameterDomains
@@ -114,9 +122,9 @@ theorem NestedLoweringOutputClosed.resultParamsSize
   exact Hrun.resultParamsSize.trans Hrun.resultNParams.symm
 
 /-- The final lowering parameter selection closes the same raw source-header
-prefix with any residual body.  This is the exact syntactic leg used before
-the independent abstract header normalization takes over; it deliberately
-does not compare lowering's raw domains with the checker's consumed domains. -/
+prefix with any residual body. This is the syntactic part, before the abstract
+header normalization; it does not compare lowering's raw domains with the
+checker's unannotated domains. -/
 theorem NestedLoweringOutputClosed.sourceParameterPrefix
     (H : NestedLoweringOutputClosed env fuel nparams types initialState result)
     (Hclosed : ∀ source ∈ types,
@@ -211,9 +219,9 @@ theorem NestedLoweringOutput.sourceTranslationAt
   exact ⟨params, stepState, target, loweredState, hparams,
     by simpa using Htranslated, htarget, finalState, Hrun, Haux⟩
 
-/-- End-to-end source-family mapping, with the one still-unproved production
-fresh-name obligation exposed at the final cache boundary rather than hidden
-inside the semantic certificate. -/
+/-- Source-family mapping of the lowering run, under the premise that the
+auxiliary names of the final cache are distinct (discharged for an empty initial
+cache by `sourceResolvedMappingAtOfEmpty`). -/
 theorem NestedLoweringOutput.sourceResolvedMappingAt
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutput env fuel nparams sourceTypes
@@ -241,8 +249,8 @@ theorem NestedLoweringOutput.sourceResolvedMappingAt
   exact ⟨params, stepState, target, loweredState, hparams,
     by simpa using Hmapped, htarget⟩
 
-/-- The source-family mapping with cache uniqueness discharged from the empty
-production cache. -/
+/-- The source-family mapping with cache uniqueness discharged from an empty
+initial cache. -/
 theorem NestedLoweringOutput.sourceResolvedMappingAtOfEmpty
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutput env fuel nparams sourceTypes
@@ -273,7 +281,7 @@ theorem NestedLoweringOutput.sourceResolvedMappingAtFresh
   H.sourceResolvedMappingAtOfEmpty hempty hj
 
 /-- Fresh-cache source mapping with the lowering parameters identified with
-the parameters retained by the production restoration record. -/
+the parameters recorded in the executable restoration record. -/
 theorem NestedLoweringOutput.sourceResolvedMappingAtFreshAligned
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutput env fuel nparams sourceTypes
@@ -295,8 +303,8 @@ theorem NestedLoweringOutput.sourceResolvedMappingAtFreshAligned
   apply Hrun.resultNamesNodupOfEmpty
   simpa using hempty
 
-/-- Every original family retains its positional slot in the expanded
-lowering result, so the original mutual block is no longer than that result. -/
+/-- Every source family retains its positional slot in the expanded
+lowering result, so the source mutual block is no longer than that result. -/
 theorem NestedLoweringOutput.sourceTypes_length_le
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutput env fuel nparams sourceTypes
@@ -310,7 +318,7 @@ theorem NestedLoweringOutput.sourceTypes_length_le
   exact (Nat.lt_irrefl result.types.length)
     (_root_.getElem?_eq_some_iff.mp htarget).1
 
-/-- Lowering preserves the constructor count of every original family and
+/-- Lowering preserves the constructor count of every source family and
 only appends auxiliary families.  Consequently the source constructor batch
 is a cardinality prefix of the expanded lowered batch. -/
 theorem NestedLoweringOutput.sourceOwnedConstructors_length_le
@@ -345,9 +353,9 @@ theorem NestedLoweringOutput.sourceOwnedConstructors_length_le
     List.length_flatMap, List.length_map]
   omega
 
-/-- Closed-lowering specialization of the aligned source mapping.  It
-exposes the exact duplicate-free free-variable presentation of the final
-parameter array needed by abstraction/instantiation cancellation. -/
+/-- Closed-lowering specialization of the aligned source mapping. It gives the
+final parameter array as distinct free variables, as needed by
+abstraction/instantiation cancellation. -/
 theorem NestedLoweringOutputClosed.sourceResolvedMappingAtFreshAligned
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed env fuel nparams sourceTypes
@@ -369,11 +377,10 @@ theorem NestedLoweringOutputClosed.sourceResolvedMappingAtFreshAligned
   exact ⟨fvars, stepState, target, loweredState, hresultParams, hnodup,
     by simpa [hparams] using hsize, Hmapping, htarget⟩
 
-/-- Original family headers need no semantic restoration: lowering preserves
-them verbatim, so the positional translation proved for the lowered block is
-already the independently checked translation of the corresponding source
-header.  This theorem deliberately uses the list position fixed by the
-lowering trace, rather than recovering the owner by name. -/
+/-- Source family headers need no restoration: lowering preserves them
+verbatim, so the positional translation proved for the lowered block is
+already the checked translation of the corresponding source header. The list
+position is the one fixed by lowering; the owner is not recovered by name. -/
 theorem NestedLoweringOutputClosed.sourceHeaderTranslationAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed env fuel nparams sourceTypes
@@ -401,11 +408,10 @@ theorem NestedLoweringOutputClosed.sourceHeaderTranslationAtFresh
   rw [← Hmapping.name, ← Hmapping.type]
   simpa [htargetEq] using Hheader
 
-/-- Constructor freshness required by source-expression restoration is not a
-family-wise semantic input.  When lowering and ordinary installation start
-from the same production environment, it follows from generated-family
-freshness, the complete staged installation trace, and the persistent kernel
-metadata invariant for pre-existing constructors. -/
+/-- The constructor freshness required by source-expression restoration is not a
+per-family premise. When lowering and the ordinary run start from the same
+kernel environment, it follows from the freshness of the auxiliary families, the
+block installation, and the kernel metadata invariant for base constructors. -/
 theorem NestedLoweringOutputClosed.restoreAuxConstructorsFreshAtBase
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -428,9 +434,9 @@ theorem NestedLoweringOutputClosed.restoreAuxConstructorsFreshAtBase
           (projections := decl.projectionEntries)).append Hprod.installation.recursorsAdded)
       Hc.checking.tr.map_wf Howners hempty
 
-/-- Lift generated-constructor freshness through the source-header prefix
-reconstructed directly from lowering, without source constructors or a
-completed source declaration. -/
+/-- Lift auxiliary-constructor freshness through the source-header prefix
+reconstructed from lowering, without source constructors or a source
+declaration. -/
 theorem NestedLoweringOutputClosed.restoreAuxConstructorsFreshAtHeaderPrefix
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -483,11 +489,10 @@ theorem NestedLoweringOutputClosed.restoreAuxConstructorsFreshAtHeaderPrefix
   rw [VEnv.addConstVals_constants_of_forall_ne HsourceAdded hnames]
   exact hbase
 
-/-- End-to-end alignment of one original source family's lowering with the
-exact constructor-restoration fold selected by production.  All concrete
-`oldInfo.type = lowered.type` facts are consequences of the verified lowered
-installation; the returned certificate retains only the genuinely semantic
-source-to-abstract constructor work for the next layer. -/
+/-- Alignment of one source family's lowering with the executable
+constructor-restoration fold. All executable `oldInfo.type = lowered.type`
+facts are consequences of the verified lowered installation; the result keeps
+only the translation of the source constructors, proved by the callers. -/
 theorem NestedLoweringOutputClosed.sourceConstructorRestorationTraceAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -542,8 +547,8 @@ theorem NestedLoweringOutputClosed.sourceConstructorRestorationTraceAtFresh
   exact ⟨fvars, stepState, target, loweredState, hparams, hnodup, hsize,
     htarget, hctorNames, Hmapping.constructors, Htrace, Haligned⟩
 
-/-- Production restoration never renames the primary recursor of an
-original mutual-family member.  Original families occupy positions strictly
+/-- Executable restoration never renames the source recursor of a source
+mutual-family member. Source families occupy positions strictly
 before the auxiliary suffix from which `mkAuxRecNameMap` is built, and the
 installed mutual-family metadata proves that these positions are distinct. -/
 theorem NestedLoweringOutputClosed.sourceRecursorUnmappedAtFresh
@@ -615,10 +620,10 @@ theorem NestedLoweringOutputClosed.sourceRecursorUnmappedAtFresh
       (hfamilyInfo.trans hsuffixInfo.symm)
   omega
 
-/-- Interpret one source family's exact constructor-restoration fold using
-the independently checked source constructor translations.  Fresh generated
-names turn the syntactic no-auxiliary condition into the semantic
-disjointness required by the lowering/restoration inverse. -/
+/-- Interpret one source family's constructor-restoration fold using the
+checked source constructor translations. Freshness of the auxiliary names turns
+the syntactic no-auxiliary condition into the disjointness required by the
+lowering/restoration inverse. -/
 theorem NestedLoweringOutputClosed.sourceConstructorTypingAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -662,9 +667,9 @@ theorem NestedLoweringOutputClosed.sourceConstructorTypingAtFresh
       (H.resultParamsSize.trans H.toResult.resultNParams)
   simpa [hctorNames] using Hsemantic
 
-/-- Native source-constructor semantics for one restored family.  The
-constructor list comes from the successful header-only executable validation;
-the lowering/restoration mapping supplies the exact installed translations. -/
+/-- Source-constructor translations for one restored family. The constructor
+list comes from the successful header-only executable validation; the
+lowering/restoration mapping supplies the installed translations. -/
 theorem NestedLoweringOutputClosed.sourceConstructorTypingAtFreshOfValidation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -714,11 +719,10 @@ theorem NestedLoweringOutputClosed.sourceConstructorTypingAtFreshOfValidation
   exact ⟨constructors, H.sourceConstructorTypingAtFresh Hc Hprod
     Hsources hfamily Htranslations Hfamilies Hconstructors hempty Hstep⟩
 
-/-- Realize one restored primary recursor from the one irreducibly semantic
-fact about it: translation of its restored concrete type in the canonical
-source environment. Source translation, shared metadata materialization,
-lowering, and the generated recursor certificate determine every remaining
-name, universe, and telescope-cardinality premise. -/
+/-- `TrSourceRecursor` for one restored source recursor, from the translation of
+its restored executable type in the source environment. The source translation,
+the shared metadata, lowering, and the generated recursor entry determine every
+remaining name, universe, and telescope-length premise. -/
 theorem NestedLoweringOutputClosed.trSourceRecursorAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -816,10 +820,8 @@ theorem NestedLoweringOutputClosed.trSourceRecursorAtFresh
     hindices ?_⟩⟩
   simpa [recursor] using Htype
 
-/-- Binder-explicit form of `trSourceRecursorAtFresh`.
-This is the preferred boundary for the pending nested-restoration transport:
-the caller must provide the exact typed restored telescope, rather than an
-opaque translation of the whole expression. -/
+/-- Binder-explicit form of `trSourceRecursorAtFresh`: the caller provides the
+typed restored telescope, rather than a translation of the whole expression. -/
 theorem NestedLoweringOutputClosed.trSourceRecursorAtFreshOfTelescope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -856,11 +858,11 @@ theorem NestedLoweringOutputClosed.trSourceRecursorAtFreshOfTelescope
   H.trSourceRecursorAtFresh Hprod Hsource Hmetadata hempty
     familyIdx hfamily hdecl hentry Hstep targetType Htype.translation
 
-/-- Package one original family into the payload consumed by whole-mutual
-semantic-trace assembly.  Header and constructor semantics come from the
-independent source translation. The source-recursion payload is explicitly
-indexed by the original declaration, while the installed expanded declaration
-is used only to recover production safety metadata and name preservation. -/
+/-- The `SourceFamilyTranslation` of one source family, as used by the fold over
+the mutual block. Header and constructor translations come from the source
+translation. The source recursor is indexed by the source declaration, while
+the installed expanded declaration is used only for the kernel safety metadata
+and name preservation. -/
 theorem NestedLoweringOutputClosed.sourceInductiveTypingAtFreshExactOwner
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -950,10 +952,10 @@ theorem NestedLoweringOutputClosed.sourceInductiveTypingAtFreshExactOwner
     constructors := HctorSemantics
     recursor := HrecSemantics }, rfl⟩⟩
 
-/-- Fold exact-owner family producers over the operational restoration trace
-while consuming the source declaration's `Forall₂` alignment in lockstep.
-The aggregate owner list is therefore the source declaration's literal type
-list, rather than an existential list later identified by a callback. -/
+/-- Fold the per-family translations over the restoration fold, in lockstep
+with the source declaration's `Forall₂` alignment. The resulting owner list is
+therefore the source declaration's literal type list, rather than an
+existential list identified later. -/
 theorem FoldSteps.sourceInductiveTraceExactOwners
     {decl : VInductDecl} {lparams : List Name}
     {safety : DefinitionSafety} {sourceVEnv envTypes envCtors : VEnv}
@@ -1008,11 +1010,11 @@ theorem FoldSteps.sourceInductiveTraceExactOwners
         .cons Hstep Htail Hhead.header Hhead.constructors Hhead.recursor
           Hrest⟩
 
-/-- Preferred whole-mutual boundary for canonical restored recursor typing.
-The remaining family-wise obligation is decomposed at every forall binder and
-already includes typehood of every domain and the final result.  The fold is
-indexed by the literal source declaration types, so downstream assembly never
-chooses an existential owner list or asks for a post-hoc owner equality. -/
+/-- `SourceFamilyTranslations` for the whole mutual block, from telescope
+translations of the restored source recursor types. The per-family premise is
+decomposed at every forall binder and includes typehood of every domain and of
+the result. The fold is indexed by the literal source declaration types, so the
+nested installation never chooses an existential owner list. -/
 theorem NestedLoweringOutputClosed.sourceTraceAtFreshOfTelescopeTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -1091,7 +1093,7 @@ theorem NestedLoweringOutput.sourceTypeName
   exact ⟨source, by simpa using hsource, rfl⟩
 
 /-- Lift automatically derived auxiliary-constructor freshness through the
-source mutual-header environment used to translate original constructors.
+source mutual-header environment used to translate source constructors.
 An auxiliary constructor cannot share a name with a source header: lowering
 preserves every source header in the installed block, where the two names
 would otherwise resolve to incompatible kernel metadata. -/
@@ -1140,7 +1142,7 @@ theorem NestedLoweringOutputClosed.restoreAuxConstructorsFreshAtTypes
   exact hbase
 
 /-- Specialize `restorationSources` from the installed lowered family list
-back to each original source family, using the lowering trace for name
+back to each source family, using the lowering run for name
 preservation and target constructor telescopes. -/
 theorem RecursorCheck.restorationSourcesOfLowering
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -1175,8 +1177,8 @@ theorem RecursorCheck.restorationSourcesOfLowering
     ⟨lowered, hlowered, hname⟩
   simpa [hname] using Hlowered lowered (by simpa using hlowered)
 
-/-- Every auxiliary recursor selected by the production restoration map is
-the installed recursor of one of the dynamically generated lowered families.
+/-- Every auxiliary recursor selected by the executable restoration map is
+the installed recursor of one of the auxiliary lowered families.
 Consequently its type and every rule RHS satisfy the telescope discipline
 required by restoration. -/
 theorem RecursorCheck.auxRestorationSourcesOfLowering
@@ -1232,10 +1234,10 @@ theorem RecursorCheck.auxRestorationSourcesOfLowering
       hrecRules⟩
   exact ⟨recInfo, hrecFind, hrecType, hrecRules⟩
 
-/-- End-to-end verifier for production nested restoration after a verified
-lowered installation. Both declaration-source arguments are now consequences
-of lowering and installation; only the subsequent auxiliary type-checking
-pass remains parameterized by its own semantic postcondition. -/
+/-- Executable nested restoration after a verified lowered installation. The
+restoration premises on the source and auxiliary declarations are consequences
+of lowering and installation; the auxiliary validation pass is a premise
+(`Hvalidate`) with its own postcondition `Validated`. -/
 theorem Environment.restoreNestedAfterInstall.ofLoweringWF
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -1302,9 +1304,9 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringWF
   · exact hsourceWF
   · exact Hvalidate
 
-/-- Closed-lowering specialization of `ofLoweringWF`.  The final auxiliary
-validation pass is no longer a semantic callback: every witness in the
-production `aux2nested` map is known to be scoped by the exact local context
+/-- Closed-lowering specialization of `ofLoweringWF`, with the auxiliary
+validation pass discharged: every entry of the executable `aux2nested` map is
+scoped by the local context
 returned by lowering, so the ordinary type-checker soundness theorem applies
 directly in the restored environment. -/
 theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
@@ -1377,9 +1379,9 @@ theorem ElimNestedInductive.run'.translationClosed
       ⟨out.2, Hout.1, Hout.2.1, Hout.2.2⟩
   simpa [StateT.run'] using Hprojected
 
-/-- Outer composition that discharges dynamic auxiliary-family closedness and
-the final cache scoping invariant from the source checks and the verified
-production environment. -/
+/-- Outer composition that discharges closedness of the auxiliary families and
+the scoping invariant of the final cache from the source checks and the
+kernel environment invariants. -/
 theorem Environment.addInductive.checkedLoweringClosedWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe allowPrimitive : Bool)
@@ -1416,15 +1418,14 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! # Semantic run inputs for the non-primitive nested path
+/-! # Run premises for the non-primitive nested path
 
-The canonical nested branch runs `AddInductive` with primitive declarations
-disabled.  Consequently all three production-name freshness fields in
-`PrimitiveNamesFresh` are unreachable.
+The nested branch runs `AddInductive` with primitive declarations disabled.
+Consequently all three freshness fields of `PrimitiveNamesFresh` are vacuous.
 -/
 
-/-- Construct the complete semantic-run input package when the executable
-context has primitive declarations disabled. -/
+/-- `PrimitiveNamesFresh` when the executable context has primitive declarations
+disabled. -/
 theorem PrimitiveNamesFresh.ofNoPrimitive
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {nparams depth numNested : Nat} {indTypes : Array InductiveType}
@@ -1436,7 +1437,7 @@ theorem PrimitiveNamesFresh.ofNoPrimitive
   freshConstructors htrue := by simp [hallow] at htrue
   freshRecursors htrue := by simp [hallow] at htrue
 
-/-- A successful lowering trace necessarily began with a nonempty mutual
+/-- A successful lowering run necessarily began with a nonempty mutual
 source block; this is fixed by the executable's first pattern match. -/
 theorem NestedLoweringOutput.sourceNonempty
     {initialState : Lean4Lean.ElimNestedInductive.State}

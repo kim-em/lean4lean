@@ -361,7 +361,7 @@ end TableUniqueness
 /-- The projection names of the registered eliminator schemas of the base
 environment avoid the restorable names. Eliminator schemas are certified in
 expanded environments whose projection tables may contain never-installed
-auxiliary structure families (see `Nested.EliminatorAvoidance`), so this is
+auxiliary structure families (see `Nested/CaseEliminators/Avoidance.lean`), so this is
 not a consequence of the formation certificate; it follows from the projection
 names certified at registration (`NestedRun.eliminatorProjNames_of`). -/
 def EliminatorProjNamesAvoid (env : VEnv) (names : List Name) : Prop :=
@@ -707,7 +707,7 @@ theorem not_restorable_of_take {types : List VInductiveType} {k : Nat}
       rw [hsplit]; exact List.mem_append_left _ hn
     exact hdisj n hn' n hr' rfl
 
-/-- A structure registered in the base environment is an old constant, so its
+/-- A structure registered in the base environment is a base constant, so its
 name is not restorable. -/
 theorem NestedRun.baseProjection_not_restorable
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -753,7 +753,7 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
 /-- **Field `eliminatorProjNames`**: every eliminator schema registered in the
 base environment projects only out of structures registered there
 (`VEnv.WF.eliminatorsProjNamesRegistered`, certified at registration). Those
-are old constants (`baseProjection_not_restorable`), hence not restorable. -/
+are base constants (`baseProjection_not_restorable`), hence not restorable. -/
 theorem NestedRun.eliminatorProjNames_of
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams

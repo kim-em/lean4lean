@@ -289,7 +289,7 @@ theorem VEnv.WF.ordered : WF env → Ordered env
 
 /-- A dependency-ordered list of well-formed constants may be viewed as a
 sequence of abstract axioms extending a well-formed environment.  Stating
-the input typing in the original environment is sufficient because each
+the input typing in the starting environment is sufficient because each
 constant can be weakened through the preceding fresh additions. -/
 theorem VEnv.WF.addConstVals
     {env env' : VEnv} {cis : List VConstVal}
@@ -319,7 +319,7 @@ instance : CoeOut (VEnv.WF env) env.Ordered := ⟨(·.ordered)⟩
 
 end Lean4Lean
 
-/-! Original formation stages for all constant headers.
+/-! Formation of every constant header in an earlier environment.
 
 A constant's closed type was checked before its own fresh installation. This
 also covers the family and constructor prefixes within one inductive declaration,

@@ -1,7 +1,9 @@
 import Lean4Lean.Theory.Inductive.CompilationLemmas
 import Lean4Lean.Theory.Inductive.SignatureLemmas
 
-/-! Name separation inherited from the original and expanded declarations. -/
+/-! Name separation inherited from the source and expanded declarations: the source family
+names, the auxiliary families of the restoration and the generated recursor names of a
+compilation are pairwise disjoint. -/
 
 namespace Lean4Lean.InductiveSignature
 
@@ -52,7 +54,7 @@ theorem compilationRestoration_heads_names
     rw [hparams] at hh
     rw [hh, ih]
 
-/-- Original source names and lowering-only names are disjoint. This is a
+/-- Source family names and auxiliary family names are disjoint. This is a
 consequence of expanded declaration freshness and the ordered correspondence. -/
 theorem CaseCompilationData.source_head_disjoint
     {s : InductiveSignature}
@@ -89,7 +91,7 @@ theorem declaration_familyNames (s : InductiveSignature) :
   change List.map ((fun f : Family => f.name) ∘ Prod.fst) _ = _
   rw [← List.map_map (f := Prod.fst) (g := fun f : Family => f.name), List.zipIdx_map_fst]
 
-/-- The recursor-renaming table contains only the actual generated recursor
+/-- The recursor-renaming table contains only the generated recursor
 names of auxiliary families, never names of constructors or other constants. -/
 theorem CompilationData.recursor_source_mem
     {s : InductiveSignature} {g : Instance s}

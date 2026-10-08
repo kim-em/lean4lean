@@ -9,29 +9,30 @@ The restored auxiliary recursors are installed under the names
 excludes that such a name coincides with an auxiliary constructor name
 `_nested.i.suffix` (the first source family may be named `_nested.i.x` and
 have no constructors, and a container may have a constructor `J.x.rec_k`).
-In that case the restorable name is installed in every final environment
-(as the restored recursor), so freshness of *all* restorable names in the
-final environment fails.
+In that case the restorable name is installed in every recursor environment
+of the nested installation (as the restored recursor), so freshness of *all*
+restorable names there fails.
 
 This file proves what holds without any naming hypothesis:
 
 * `NestedRun.recursorVEnv_restorableNames_fresh_of_not_renamed`:
   every restorable name which is not a renamed recursor name is absent from
-  the final abstract environment of any final assembly shape.
-* `Restoration.recursors_snd_str`: every renamed recursor name is a string
-  extension of the first source family name.
+  the abstract recursor environment of any `RestoredBlockBase`.
+* `InductiveSignature.compilationRestoration_recursors_snd_str`: every renamed
+  recursor name is a string extension of the first source family name.
 -/
 
 namespace Lean.Expr
 
 open Lean4Lean
 
-/-! ### Input-side avoidance at hits -/
+/-! ### Input-side avoidance at head occurrences -/
 
 /-- `TrailingArgsAvoid heads names np e`: in `e`, every literal and every argument
 after the first `np` of an application spine headed by a constant of `heads`
-(a *hit*; `restoreNestedNode` copies these arguments verbatim) avoids `names`.
-Parameter arguments and everything outside hits are unconstrained. -/
+(a *head occurrence*; `restoreNestedNode` copies these arguments verbatim) avoids
+`names`. Parameter arguments and everything outside head occurrences are
+unconstrained. -/
 inductive TrailingArgsAvoid (heads names : List Name) (np : Nat) : Expr → Prop
   | bvar (i : Nat) : TrailingArgsAvoid heads names np (.bvar i)
   | fvar (fv : FVarId) : TrailingArgsAvoid heads names np (.fvar fv)
@@ -189,7 +190,7 @@ theorem TrailingArgsAvoid.lambdaTelescope {heads names : List Name} {np : Nat}
   | nil => exact H
   | cons _ ih => cases H with | lam _ hb => exact ih hb
 
-/-- At a hit, the trailing arguments avoid the names. -/
+/-- At a head occurrence, the trailing arguments avoid the names. -/
 theorem TrailingArgsAvoid.trail {heads names : List Name} {np : Nat} {e : Expr}
     (H : e.TrailingArgsAvoid heads names np) {c : Name} {us : List Level}
     (hfn : e.getAppFn = .const c us) (hc : c ∈ heads) :
@@ -286,13 +287,13 @@ theorem _root_.Lean4Lean.InductiveSignature.Restoration.recursorName_mem_snd
   rw [hrn]
   exact List.mem_map_of_mem (List.mem_of_find?_eq_some hq)
 
-/-- **Freshness of the non-renamed restorable names in a final assembly
-shape.** For any final assembly shape of a validated nested run and any
+/-- **Freshness of the non-renamed restorable names in a restored block.**
+For any `RestoredBlockBase` of a validated nested run and any
 restoration table of the run, every restorable name (auxiliary family and
 constructor names and lowered auxiliary recursor names) that is not one of
-the table's renamed recursor names `Main.rec_k` is absent from the shape's
-final abstract environment: it is fresh in the source constructor
-environment (`restorableNames_fresh_ctors`), the primary restored recursors
+the table's renamed recursor names `Main.rec_k` is absent from its abstract
+recursor environment: it is fresh in the source constructor
+environment (`restorableNames_fresh_ctors`), the restored source recursors
 keep their lowered names `T.rec` (distinct from the auxiliary names by the
 lowered declaration's name uniqueness), and the remaining installed names are
 renamed recursor names. No hypothesis on names is needed. -/
@@ -424,7 +425,7 @@ theorem avoidsRestorable_of_partial {r : Restoration} {X : List Name}
   · exact .inr hnX
   · exact .inl (by simp [hn, hnX])
 
-/-- The hit case of `restorationCommutesTrail`. -/
+/-- The head-occurrence case of `restorationCommutesTrail`. -/
 theorem restorationCommutesTrail_paramUniform
     {r : Restoration} {result : Lean4Lean.ElimNestedInductive.Result}
     {env : Environment} {auxRec : NameMap Name} {sourceEnv targetEnv : VEnv}
@@ -486,11 +487,11 @@ theorem restorationCommutesTrail_paramUniform
     Lean4Lean.VExpr.mkApps_append]
 
 /-- **Commutation of executable restoration with `Restoration.expr`, with
-input-side avoidance.** As `restorationCommutes'`, but the restorable names
+input-side avoidance.** As `restorationCommutes`, but the restorable names
 need only be fresh in `targetEnv` outside a list `X`; the names of `X` are
-instead required to be avoided by the trailing arguments of the hits and by
-the literals of the input (`Expr.TrailingArgsAvoid`). With `X = []` this is
-`restorationCommutes'`; with `X = r.restorableNames` no environment freshness
+instead required to be avoided by the trailing arguments of the head
+occurrences and by the literals of the input (`Expr.TrailingArgsAvoid`). With
+`X = []` this is `restorationCommutes`; with `X = r.restorableNames` no environment freshness
 is needed at all. -/
 theorem restorationCommutesTrail
     {r : Restoration} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -665,8 +666,9 @@ theorem Expr.SameLambdaPrefix.translatedDomains_restoreTrail {r : Restoration}
       (ih Hrest Hctx.vlam hb₁ hb₂ (by simpa using h₁) (by simpa using h₂))
 
 /-- **Closed-term commutation for lambda telescopes with input-side
-avoidance** (`NestedRestorationOpening.restorationCommutesLam'` with the
-freshness of the names of `X` replaced by their avoidance in the input). -/
+avoidance**: the lambda-telescope analogue of
+`NestedRestorationOpening.restorationCommutes`, with the freshness of the names
+of `X` replaced by their avoidance in the input. -/
 theorem NestedRestorationOpening.restorationCommutesLamTrail
     {r : Restoration} {result : Lean4Lean.ElimNestedInductive.Result}
     {env : Environment} {auxRec : NameMap Name} {sourceEnv targetEnv : VEnv}
@@ -742,11 +744,12 @@ theorem NestedRestorationOpening.restorationCommutesLamTrail
     Hbody
 
 /-- **The restored right-hand side of one rule, with input-side avoidance.**
-As `restoredRuleRhs_of_hitShape`, but the restorable names need only be fresh
-in `trEnv` outside a list `X`, provided the lowered rule right-hand sides of
-the step avoid `X` in the trailing arguments of their hits, in their literals
-and in their parameter domains (`Htrail`). For `X` the renamed recursor names,
-the freshness holds in every final assembly environment without hypotheses
+The restored right-hand side translates the restoration of the generated
+equation, provided the restorable names are fresh in `trEnv` outside a list
+`X` and the lowered rule right-hand sides of the step avoid `X` in the trailing
+arguments of their head occurrences, in their literals and in their parameter
+domains (`Htrail`). For `X` the renamed recursor names, the freshness holds in
+the recursor environment of every restored block without hypotheses
 (`recursorVEnv_restorableNames_fresh_of_not_renamed`); for
 `X = restorableNames` no freshness is needed. -/
 theorem NestedRun.restoredRuleRhs_of_trail
@@ -884,7 +887,7 @@ end Commutation
 
 /-- **Input-side avoidance of the lowered recursor rules** (a property of the
 lowered environment): every rule right-hand side of the lowered recursor of
-every generated owner avoids `X` in the trailing arguments of its hits
+every generated owner avoids `X` in the trailing arguments of its head occurrences
 (`Expr.TrailingArgsAvoid heads X`), in its literals, and in its first
 `result.nparams` lambda domains. -/
 def NestedRun.LoweredRulesAvoid
@@ -905,9 +908,9 @@ def NestedRun.LoweredRulesAvoid
       rule.rhs.TrailingArgsAvoid heads X result.nparams ∧
         rule.rhs.LamPrefixAvoids X result.nparams
 
-/-- **Realization of a restored equation list modulo `X`**: as
-`RestoredRulesRealization`, but the translation environment need only lack
-the restorable names outside `X`. -/
+/-- **Translation of a restored equation list modulo `X`**: the executable
+restored rules translate, rule by rule (`TrRestoredRecursorRule`), to `rules` in
+an environment that lacks the restorable names outside `X`. -/
 def NestedRun.TrRestoredRulesModulo
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -930,7 +933,7 @@ theorem fresh_filter_restorable {R X : List Name} {P : Name → Prop}
   refine H n hn fun hX => hnX ?_
   simp [List.mem_filter, hX, hn]
 
-/-- Realization modulo `X` is realization modulo the restorable names of `X`. -/
+/-- Translation modulo `X` is translation modulo the restorable names of `X`. -/
 theorem NestedRun.TrRestoredRulesModulo.filter_restorable
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -984,8 +987,8 @@ theorem NestedRun.restoredEquation_of_trModulo
   rw [huvars]
 
 /-- **The restored equation list, modulo `X`.** If an abstract equation list
-realizes the executable restored rules in an environment lacking the
-restorable names outside `X`, and the lowered rules avoid `X` at their hits,
+translates the executable restored rules in an environment lacking the
+restorable names outside `X`, and the lowered rules avoid `X` at their head occurrences,
 it is the restored generated equation list. -/
 theorem NestedRun.restoredEquations_of_trModulo
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -1099,14 +1102,15 @@ theorem NestedRun.auxRecName_not_renamed
       familyNames, List.flatMap_append] at hfam
     exact (List.nodup_append.mp hfam).2.2 _ htake _ hdrop hMA
 
-/-! ### The rule junction modulo the renamed recursor names -/
+/-! ### The rule premise modulo the renamed recursor names -/
 
-/-- **The rule junction without any naming hypothesis**, with freshness of the
-restorable names in the final environment weakened to the restorable names
-that are not renamed recursor names (`recursorVEnv_restorableNames_fresh_of_not_renamed`).
-This is the strongest freshness conclusion available: a renamed recursor name
-that coincides with a restorable name is installed in every final
-environment. -/
+/-- **The rule premise of the nested installation without any naming hypothesis**:
+a `RestoredBlockDerivation` whose rules translate the executable restored rules,
+with freshness of the restorable names in its recursor environment weakened to
+the restorable names that are not renamed recursor names
+(`recursorVEnv_restorableNames_fresh_of_not_renamed`). This is the strongest
+freshness conclusion available: a renamed recursor name that coincides with a
+restorable name is installed in every such recursor environment. -/
 theorem NestedRun.hrules_of_modulo
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}

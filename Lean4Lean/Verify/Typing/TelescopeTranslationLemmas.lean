@@ -495,7 +495,7 @@ theorem CtorTelescopeAt.mono (henv : venv ≤ venv') :
 
 /-- Every constructor of the kernel environment `env` visible at `safety` is certified. This is
 the environment invariant that the projection walk of `inferProj` reads at its non-dependent
-fields (`docs/inductives/STRENGTHENING_PLAN_2026-10-08.md`). -/
+fields (section 5.3 of `docs/inductives/DESIGN.md`). -/
 def CtorTelescopes (safety : DefinitionSafety) (env : Lean.Kernel.Environment) (venv : VEnv) :
     Prop :=
   ∀ ⦃name : Name⦄ ⦃ci : ConstructorVal⦄, env.find? name = some (.ctorInfo ci) →

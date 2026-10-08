@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Tele
 
-/-! # Semantically typed derivations (decision D9 of the notes, section 10.2)
+/-! # Semantically typed derivations
 
 `HTS Γ e T` mirrors `HasTypeStrong`: every `IsDefEqStrong` premise is replaced by the premise
 together with its soundness (`SD`), and every typing premise by `HTS`. The soundness proof
@@ -51,7 +51,7 @@ inductive HTS : List VExpr → VExpr → VExpr → Prop
   | forallE : HTS Γ A (.sort u) → SD env U Δ Γ A A (.sort u) → HTS (A :: Γ) B (.sort v) →
     SD env U Δ (A :: Γ) B B (.sort v) → HTS Γ (.forallE A B) (.sort (.imax u v))
   | conv : HTS Γ e A → SD env U Δ Γ A B (.sort u) → HTS Γ e B
-  /-- A projection, with the premises of `IsDefEqStrong.projDF` (stage C). -/
+  /-- A projection, with the premises of `IsDefEqStrong.projDF`. -/
   | proj : env.projections S info → (∀ l ∈ ls, l.WF U) → ls.length = info.uvars →
     ps.length = info.nparams → idx.length = info.nindices →
     info.fieldType S ls ps j e' = some F → SD env U Δ Γ F F (.sort fl) →

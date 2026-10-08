@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.CaseRuleSound
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.RestoredRecursorRule
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjMajorWF
 
-/-! # Validity of generic case equations (stage E)
+/-! # Validity of generic case equations
 
 `ElimValid.of_certified`: a generic case equation of a registered certified schema is valid in
 the model of a well-formed environment, given `FamSort` for the restored family of its owner.

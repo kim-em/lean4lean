@@ -1,33 +1,37 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Extract
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjMajorRules
 
-/-! # Staged soundness (decision D11) and stages B and D
+/-! # Environment validity along the declaration history
 
-`VEnv.WF'.envValid`: in a well-formed environment `envF` without projections or eliminators,
-every rule of every environment in the declaration history of `envF` is
-valid in the model of `envF`. The proof is by induction on the history; the semantic fact
-needed by a native rule of a data family (`FamSort`: the family's type observations end in its
-recorded result sort) comes from the soundness, in the model of `envF`, of the definitional
-equality between the family's declared type and a telescope ending in that sort, a derivation
-of the environment before the rules of the family were installed, whose rules are valid by
-the induction hypothesis.
-
-`VEnv.WF.headInjectivityCore_of_projElimFree`: chain-level head injectivity under that scope.
+`VEnv.WF'.envValid` (history induction, section 4.1 of `docs/inductives/DESIGN.md`): every
+environment in the declaration history of a well-formed environment `envF` is valid in the
+model of `envF` (`Model.EnvValid`): its rules, its projection entries and its eliminator
+rules. The proof is by induction on the history. The semantic fact needed by a recursor rule
+of a data family (`FamSort`: the family's type observations end in its recorded result sort)
+comes from the soundness, in the model of `envF`, of the definitional equality between the
+family's declared type and a telescope ending in that sort, a derivation of the environment
+before the rules of the family were installed, whose rules are valid by the induction
+hypothesis. Projection entries are validated the same way from the environment in which
+their family and constructor were checked (`projValid_of_decl`), and generic case equations
+from the environment at their registration (`elimValid_of_registration`).
 
 The proof-field fact needed by singleton eliminators (mode C) comes the same way from the
 soundness of the field typings recorded by `SingletonElimination`, placed in the equation's
-telescope (`Model/Singleton.lean`). Uniqueness of a native rule per head comes from
+telescope (`Model/Singleton.lean`). Uniqueness of a recursor rule per head comes from
 `HeadsClosed`: along the history, no later declaration adds a rule headed by an existing
-constant, so the rules headed by a recursor are exactly its block's equations. Restored
-equations of nested compilations take `FamSort` of an original family from the block's own
-correspondence and of a container family from the container's compilation
-(`Model/RestoredRecursorRule.lean`). -/
+constant, so the rules headed by a recursor are exactly its block's equations. `ProjsClosed`
+plays the same role for projection entries. Restored equations of nested compilations take
+`FamSort` of a source family from the block's own correspondence and of a container family
+from the container's compilation (`Model/RestoredRecursorRule.lean`).
+
+`VEnv.WF.soundEnv` and `VEnv.WF.chainHeadInjectivity`: soundness of the model and chain-level
+head injectivity for every well-formed environment. -/
 
 namespace Lean4Lean
 namespace VEnv
 open InductiveSignature
 
-/-- **The semantic sort of an original family** (D11): its type observations end in its
+/-- **The semantic sort of a source family**: its type observations end in its
 recorded result sort, in the model of any later environment `envF` in which the rules of the
 environment `env0` before the family are valid. -/
 theorem Model.famSort_source {envF env0 installed base envTypes : VEnv} {source : VInductDecl}
@@ -229,7 +233,8 @@ theorem projections_of_decl {env0 env' : VEnv} (hdecl : VDecl.WF env0 d env') :
           compiled.projections ht hc hentry).2
       · exact .inl hp
 
-/-- `VEnv.ProjDecl.ofEntry` at the given types environment. -/
+/-- The declaration of a projection entry (`VEnv.ProjDeclAt`) at the given header
+environment. -/
 theorem ProjDeclAt.ofEntry {base envTypes env : VEnv} {dsb : List VDecl}
     {decl : VInductDecl} (hbase : base.WF' dsb)
     (htypes : base.addConstVals decl.typeConstants = some envTypes) (hle : envTypes ≤ env)
@@ -255,7 +260,8 @@ theorem ProjDeclAt.ofEntry {base envTypes env : VEnv} {dsb : List VDecl}
   exact ⟨base, dsb, decl, type, ctor, hbase, htypes, hle, hord, htype, hctors, rfl, rfl, rfl, rfl,
     rfl, rfl, rfl, hu, hwf, hshape type htype ctor hmem, hnodup, hspw⟩
 
-/-- Validity of a projection entry from an origin whose types environment is valid. -/
+/-- Validity of a projection entry from its declaration (`ProjDeclAt`) at a header environment
+that is valid. -/
 theorem Model.ProjValid.of_origin {envF envTypes : VEnv} {S : Name} {info : VProjectionInfo}
     (hF : envF.WF) (hp : envF.projections S info) (hO : envF.ProjDeclAt envTypes S info)
     (V : Model.EnvValid envF envTypes) : Model.ProjValid envF S info := by
@@ -314,7 +320,7 @@ theorem headName_nil {source : VInductDecl} (n : Name) :
     (compilationRestoration source []).headName n = n := by
   simp [Restoration.headName, compilationRestoration, Restoration.recursorName]
 
-/-- The family of the major of a restored native equation is rigid. -/
+/-- The family of the major of a restored recursor equation is rigid. -/
 theorem restored_family_rigid {envF base installed env0 : VEnv} {source expanded : VInductDecl}
     {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
     {block : VInductBlock} {df : VDefEq} (hF : envF.WF)
@@ -373,7 +379,7 @@ theorem ordered_addProjections {env0 types ctors : VEnv} {decl : VInductDecl}
     hdw.1.sourceTypes hdw.1.2.2.2.1 (hdw.1.constructorsWF_at ht') hparams hparams.rawCtorShape
     hcomp.types hcomp.ctors hcomp.projections ht hc
 
-/-- **Validity of the generic equations of a registered case eliminator** (D15), from validity of
+/-- **Validity of the generic equations of a registered case eliminator**, from validity of
 the environment `env` at the registration. `hsrc`: a projection entry of `envF` for a family of
 the certified declaration whose constructor is a case constructor of the registration is one of
 the declaration's own entries, and valid. -/
@@ -489,7 +495,7 @@ theorem elimsValid_of_decl {envF env0 env' : VEnv} {ds : List VDecl} (hF : envF.
       rw [this] at hci; cases hci
   · exact V0.elim.valid b schema owner rules df hb hr hm
 
-/-- **Staged validity** (D11, D15): every environment in the declaration history of a
+/-- **Environment validity**: every environment in the declaration history of a
 well-formed `envF` is valid in the model of `envF`: its rules, its projection entries and its
 eliminator rules. -/
 theorem WF'.envValid {envF : VEnv} (hF : envF.WF) :
@@ -732,9 +738,10 @@ theorem WF'.envValid {envF : VEnv} (hF : envF.WF) :
   | @inductProjections _ ds base envTypes envCtors decl block hbase _ helimE hsource htypesWF
       hconstructorUvars hctorsWF' hspw hshape htypesSource hctorsSource hprojections htypes hctors
       ihBase _ =>
-    -- The window `envCtors.addEliminators block.eliminators` registers the block's certified case
-    -- eliminator before its projection entries, so a constructor of a block structure is a case
-    -- constructor there without its entry: its validity is not that of an earlier environment.
+    -- The intermediate environment `envCtors.addEliminators block.eliminators` registers the
+    -- block's certified case eliminator before its projection entries, so a constructor of a
+    -- block structure is a case constructor there without its entry: its validity is not that
+    -- of an earlier environment.
     -- The block's rules and entries come from `base`, and its eliminator is validated directly.
     intro hle hcl hpc
     obtain ⟨key, schema, hE, ⟨hcert, -, -⟩⟩ := helimE

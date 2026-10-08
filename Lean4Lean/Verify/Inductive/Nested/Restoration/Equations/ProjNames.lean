@@ -11,12 +11,12 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Whnf
   the target (`TrExprS.projNamesOK_of_source`).
 * Lowered constructor types (`constructorProjNames`) are translated in the
   lowered header environment, whose projections are those of the base
-  environment: old structures, absent from the restorable names.
+  environment: base structures, absent from the restorable names.
 * Generated recursor types (`recursorProjNames`): the executable recursor type
-  satisfies the projection condition `ProjsOK (projAvoidsHeads env E.uniformHeads)` of
-  the hit-shape chain (`RecursorConstruction.recursorTypeProjsOK`,
-  the projection component of `recursorTypeParamUniform`, which the hit-shape
-  chain drops). Its translation is the canonical recursor type, which hence
+  satisfies the projection condition `ProjsOK (projAvoidsHeads env E.uniformHeads)`
+  (`RecursorConstruction.recursorTypeProjsOK`, the projection component of
+  `recursorTypeParamUniform`, which the parameter-uniformity chain itself
+  drops). Its translation is the generated recursor type, which hence
   neither projects out of a head (in particular an auxiliary family) nor out
   of anything but a registered structure of the recursor-pass environment (a
   base structure or a lowered family). This leaves no restorable name.
@@ -34,7 +34,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Whnf
   schema projects only out of structures registered at registration time
   (`CaseSchema.ProjNamesRegistered`, a field of `VEnv.WF'.inductEliminators`),
   whence out of base structures (`VEnv.WF.eliminatorsProjNamesRegistered`),
-  which are old constants (`eliminatorProjNames_of`). -/
+  which are base constants (`eliminatorProjNames_of`). -/
 
 namespace Lean4Lean
 
@@ -132,8 +132,8 @@ private theorem go_projsOK {isLambda : Bool} {lctx : LocalContext} :
       · exact ⟨hty.abstractN _ 0, hval.abstractN _ 0, H⟩
       · exact H.lowerLooseBVars' 1 1
 
-/-- Closing a telescope of declared free variables keeps the projection
-condition. -/
+/-- Closing a telescope of free variables whose declarations satisfy the
+projection condition keeps the projection condition. -/
 theorem mkBinding' {isLambda : Bool} {lctx : LocalContext} {ys : List FVarId} {b : Expr}
     (H : ProjsOK ok b)
     (hdecl : ∀ y ∈ ys, ∃ d, lctx.find? y = some d ∧ d.DeclProjsOK ok) :
@@ -183,7 +183,7 @@ open Kernel
 namespace VerifyInductive
 
 /-- The bound free-variable arrays of the recursor construction declare their
-variables with the projection condition when their origin types satisfy it. -/
+variables with the projection condition when their recorded binder types satisfy it. -/
 theorem FVarArrayBinderTypes.declProjsOK {ok : Name → Prop} {c : AddInductive.Context}
     {xs origins : Array Expr}
     (Ho : FVarArrayBinderTypes c xs origins)
@@ -201,7 +201,7 @@ theorem FVarArrayBinderTypes.declProjsOK {ok : Name → Prop} {c : AddInductive.
   rw [hD]; exact hQ i hi
 
 /-- **The projection condition of one induction-hypothesis type** (regions R2
-and R3): the projection component of `InductionHypothesisType.paramUniform`. -/
+and R3 of `Nested/Restoration/Uniform/Recursors.lean`): the projection component of `InductionHypothesisType.paramUniform`. -/
 theorem InductionHypothesisType.projsOK
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
     (W : WhnfPreservesParamUniform heads params ls env)
@@ -618,7 +618,7 @@ theorem NestedRun.constructorProjNames_of
 projection condition at the heads `E.uniformHeads` (no projection out of an
 auxiliary family) and is translated in the recursor-pass environment, which
 registers only base structures and lowered families (no auxiliary constructor
-or recursor). The canonical recursor type is its translation. -/
+or recursor). The generated recursor type is its translation. -/
 theorem NestedRun.recursorProjNames_of
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
@@ -726,7 +726,7 @@ theorem NestedRun.equationProjNames_of
 
 /-- **Fields `constructorProjNames`, `recursorProjNames` and
 `equationProjNames` of `RestorationSubstitutionPremises`**, for every restoration
-table of the run and every final assembly base (the base and its validity
+table of the run and every restored block base (the base and its validity
 are not used): proved for the table of `restorationTablesRestoringAll`, whose
 restorable names contain those of every table
 (`RestorationTablesAgree.restorable_transfer`). -/

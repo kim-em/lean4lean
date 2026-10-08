@@ -1,11 +1,11 @@
 import Lean4Lean.Theory.Inductive.CaseProjections
 
 /-! Deterministic constructor reconstruction for singleton elimination.
-Index-determined data fields are read from the actual index spine. Remaining
+Index-determined data fields are read from the index spine. Remaining
 fields are projected into Prop by generated abstract case functions. In
 particular an earlier data field is never projected out of a proof into Type.
 This module contains only syntax generation; typing and installation are
-separate obligations against the finite source formation derivation. -/
+separate obligations. -/
 
 namespace Lean4Lean.InductiveSignature.CaseSchema
 
@@ -18,7 +18,7 @@ def StructureTelescope.fieldIndex (data : StructureTelescope) (field : Nat) : Op
     | .bvar i => i == data.fields.length - 1 - field
     | _ => false).map Prod.snd
 
-/-- A closed selector for an actual index, retaining the generated dependent
+/-- A closed selector for an index, retaining the generated dependent
 field type after earlier reconstruction steps. -/
 def StructureTelescope.indexSelector (data : StructureTelescope) (domain : VExpr)
     (target : VLevel) (previous : List ProjectionFunction) (index : Nat) : ProjectionFunction :=
@@ -82,7 +82,7 @@ def singletonReconstruction (schema : CaseSchema) (block : Name)
 
 /-- Apply the reconstruction program directly at an occurrence. Only field
 projection functions retain beta redexes; the reconstructed constructor head
-is exposed immediately for the native iota rule. -/
+is exposed immediately for the recursor's iota rule. -/
 def singletonReconstructAt (schema : CaseSchema) (block : Name)
     (owner : Fin schema.signature.families.size) (U : Nat)
     (levels fieldSorts : List VLevel) (parameters indices : List VExpr)

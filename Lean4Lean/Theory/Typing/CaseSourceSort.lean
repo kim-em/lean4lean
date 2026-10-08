@@ -2,12 +2,12 @@ import Lean4Lean.Theory.Typing.CaseMotive
 import Lean4Lean.Theory.Typing.CaseMajorDomain
 import Lean4Lean.Theory.Inductive.RestorationHead
 
-/-! The source sort of a restored case family is justified by its native
+/-! The source sort of a restored case family is justified by its installed
 family header and the finite compilation correspondence. -/
 
 namespace Lean4Lean.InductiveSignature
 
-/-- The original native header is definitionally a telescope whose body is
+/-- The installed header of a source family is definitionally a telescope whose body is
 definitionally the family sort recorded by the normalized source signature.
 This open form needs no well-formedness of the environment; it is closed by
 `VEnv.IsDefEq.close_sort_header`. -/
@@ -73,7 +73,7 @@ private theorem addConst_le_target {base added current : VEnv}
     · exact hle.constants hv
 
 /-- A successful header extension embeds into any later environment that
-contains the same exact headers and extends its original base. -/
+contains the same exact headers and extends its base. -/
 theorem addConstVals_le_target {base added current : VEnv}
     (hle : base ≤ current) (hadd : base.addConstVals values = some added)
     (hvalues : ∀ value ∈ values, current.constants value.name = some value.toVConstant) :
@@ -132,7 +132,7 @@ theorem CompiledInductive.source_family_header (H : CompiledInductive base sourc
       ih current hcurrentWF (hle.trans hcurrent) hconstants family hfamily)
     trivial (fun _ _ _ _ _ _ _ => trivial) H
 
-/-- Every certified container retains both its exact native family lookup
+/-- Every certified container retains both its exact installed family lookup
 and its normalized result-sort telescope in every well-formed extension of
 the specialization environment. -/
 theorem ContainersInstalled.family_header (H : ContainersInstalled env auxiliaries) :
@@ -201,9 +201,9 @@ private theorem ContainerSpecialization.directFamily_resultLevel
   cases Option.some.inj he
   rfl
 
-/-- A restored case family's native head has a telescope ending in the
-specialized source sort. Both original families and certified containers are
-justified by their actual native header constants. -/
+/-- A restored case family's installed head has a telescope ending in the
+specialized source sort. Both source families and certified containers are
+justified by their installed header constants. -/
 theorem _root_.Lean4Lean.InductiveSignature.CaseCompilationData.family_head_type
     {s : InductiveSignature}
     (hdata : CaseCompilationData base source expanded s auxiliaries sourceBlock)
@@ -279,9 +279,9 @@ theorem _root_.Lean4Lean.InductiveSignature.CaseCompilationData.family_head_type
 
 namespace CaseSchema
 
-/-- A restored case family's native head has a telescope ending in the
-specialized source sort. Both original families and certified containers are
-justified by their actual native header constants. -/
+/-- A restored case family's installed head has a telescope ending in the
+specialized source sort. Both source families and certified containers are
+justified by their installed header constants. -/
 theorem Certified.family_head_type {schema : CaseSchema}
     (H : schema.Certified base source sourceBlock)
     (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)) (hle : base ≤ env)

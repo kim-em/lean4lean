@@ -1,14 +1,14 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.RecursorEquations
 import Lean4Lean.Theory.Inductive.RestorationHead
 
-/-! # Syntax of restored native recursor equations (nested compilations)
+/-! # Syntax of restored recursor equations (nested compilations)
 
 For a finite compilation with container specializations the installed equations and
 recursors are restorations of the generated ones. Restoration acts on bound variables and
 sorts as the identity, renames recursor heads, and replaces auxiliary family and constructor
 heads (applied to at least the common parameters) by the specialized container heads. This
 file computes the shape of a restored equation (`Instance.restored_equation`) and of a
-restored recursor type (`Instance.restored_recursorType`). -/
+restored recursor type (`CompilationData.restored_recursor`). -/
 
 namespace Lean4Lean
 namespace InductiveSignature
@@ -191,7 +191,7 @@ theorem restored_equation_abstract {r : Restoration} {df : VDefEq} (blk : Name) 
 end Instance
 
 /-- The restored constructor of a generated equation returns the restored family of its
-owner: either it is an original constructor, installed with the block, or a constructor of a
+owner: either it is a source constructor, installed with the block, or a constructor of a
 certified container, installed in the base environment. -/
 theorem CaseCompilationData.ctor_cases {s : InductiveSignature}
     (H : CaseCompilationData base source expanded s aux block)
@@ -358,7 +358,7 @@ theorem ContainerSpecialization.directFamily_resultLevel_nested {a : ContainerSp
   obtain ⟨_, _, _, _, rfl⟩ := H
   rfl
 
-/-- The restored head of a family: an original family (with its correspondence), or the
+/-- The restored head of a family: a source family (with its correspondence), or the
 container family of a specialization. -/
 theorem CaseCompilationData.family_cases {s : InductiveSignature}
     (H : CaseCompilationData base source expanded s aux block)

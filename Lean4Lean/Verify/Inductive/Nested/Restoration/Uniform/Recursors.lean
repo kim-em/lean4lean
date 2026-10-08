@@ -5,50 +5,51 @@ import Lean4Lean.Verify.Inductive.Recursor.Signature.HypothesisArgumentUniverses
 import Lean4Lean.Verify.Inductive.Nested.Install.Certificate
 import Lean4Lean.Verify.ParamUniformEnv
 
-/-! # Hit-shape provenance of generated recursor types and rule right-hand sides
+/-! # Parameter uniformity of generated recursor types and rule right-hand sides
 
 The lowered recursor types and rule right-hand sides of a nested run are restored by
 `restoreNested`, which agrees with the abstract restoration exactly when every node headed
-by an auxiliary family or constructor (a *hit*) has the parameter variables as its first
-`nparams` arguments and the declaration's level parameters as its levels
-(`Expr.ParamUniform`, `Lean4Lean/Verify/Inductive/Nested/ParamUniform.lean`). This file proves that
-the executable's generated recursors have this shape:
+by an auxiliary family or constructor (a *head occurrence*) has the parameter variables as its
+first `nparams` arguments and the declaration's level parameters as its levels
+(`Expr.ParamUniform`, `Lean4Lean/Verify/ExprParamUniform.lean`). This file proves that
+the executable's generated recursors are parameter-uniform:
 
 * `RecursorConstruction.recursorTypeParamUniform` and `ruleRhsParamUniform`: for every owner,
   the recursor type `(lctx.mkForall params motives minors indices major ...).inferImplicit`
-  and every rule right-hand side `blueprint.build ...` are `Expr.ParamUniformTele heads nparams ls`.
+  and every rule right-hand side `template.instantiate ...` are
+  `Expr.ParamUniformTele heads nparams ls`.
 * `RecursorCheck.generatedParamUniform`: the same for each installed
   `GeneratedRecursorEntry`.
 * `NestedRun.recursorParamUniform` (with projections `recursorTypeParamUniform`,
-  `ruleRhsParamUniform`): the same for the recursor read back by any restoration step of an exact
+  `ruleRhsParamUniform`): the same for the recursor read back by any restoration step of a
   validated nested run, at `result.nparams` and `lparams.map Level.param`.
 
-The hits come from three sources.
+The head occurrences come from three sources.
 
-* (a) Recursor-built hits: the major premise domains `I params indices`, the motives'
-  major binders, and the minor premises' constructor applications `c params fields`. These
-  are read off `MajorPremiseTypes`, `MotiveTypes` and
-  `MinorsAndIndicesMatchSource`; the head is a hit exactly when it is auxiliary, and
-  `Expr.ParamUniform.mkAppN_const_params` treats both cases uniformly.
+* (a) Head occurrences built by the recursor construction: the major premise domains
+  `I params indices`, the motives' major binders, and the minor premises' constructor
+  applications `c params fields`. These are read off `MajorPremiseTypes`, `MotiveTypes` and
+  `MinorsAndIndicesMatchSource`; the application is a head occurrence exactly when its head
+  is auxiliary, and `Expr.ParamUniform.mkAppN_const_params` treats both cases uniformly.
 * (b) Constructor field domains (minor premises and rule field lambdas): the field loop does
-  no `whnf`, so each declared field type is the consumed domain of the lowered constructor
+  no `whnf`, so each declared field type is the unannotated domain of the lowered constructor
   type after instantiating its parameters (`ParameterPrefix.paramUniformIn`,
-  `RecursorFieldDecisions.fieldDeclsSatisfy` in `Recursor/FieldDeclarationTypes.lean`).
-  The lowered constructor types themselves are parameter telescopes in hit shape by
+  `RecursorFieldDecisions.fieldDeclsSatisfy` in `Recursor/Binders/FieldTypes.lean`).
+  The lowered constructor types themselves are parameter-uniform parameter telescopes by
   `ConstructorLowering.Resolved.paramUniformTele` (from `ExprLowering.Resolved.paramUniform`).
 * (c) The `whnf`-produced regions: index domains (R1, `loopArgs1`), induction-hypothesis
   binder domains (R2) and their exposed indices (R3, `loopUArgs`). R1 follows along the
-  retained `loopArgs1` traces (`IndexTelescopeRun.paramUniform`, from the family header), R2
-  and R3 along the retained `loopUArgs` traces (`LoopUArgsRun.paramUniform`,
+  `loopArgs1` runs (`IndexTelescopeRun.paramUniform`, from the family header), R2
+  and R3 along the `loopUArgs` runs (`LoopUArgsRun.paramUniform`,
   `InductionHypothesisType.paramUniform`, rooted by
   `CallTemplatesMatch.rooted`), all from the single hypothesis
   `WhnfPreservesParamUniform` on the lifted `whnf` calls.
 
-The `whnf` regions are tracked under `Expr.ParamUniformIn` (hit shape together with the
-projection condition `ProjsOK (projAvoidsHeads env heads)`) rather than plain hit
-shape, since that is the invariant the type checker preserves; the head set is
+The `whnf` regions are tracked under `Expr.ParamUniformIn` (parameter uniformity together
+with the projection condition `ProjsOK (projAvoidsHeads env heads)`) rather than plain
+parameter uniformity, since that is the invariant the type checker preserves; the head set is
 arbitrary here. For a nested run the chain is instantiated at the checker's
-head set `E.uniformHeads` (auxiliary heads and main constructors) and shrunk back
+head set `E.uniformHeads` (auxiliary heads and source constructors) and shrunk back
 to the auxiliary heads (`NestedRun.recursorParamUniform_of_wfCore` in
 `Nested/Restoration/Uniform/Whnf.lean`).
 
@@ -59,13 +60,14 @@ namespace Lean.Expr
 
 open Lean4Lean
 
-/-! ### Generic hit-shape lemmas -/
+/-! ### Generic parameter-uniformity lemmas -/
 
 namespace ParamUniform
 
 variable {heads : List Name} {params : List Expr} {ls : List Level}
 
-/-- The trailing arguments `e.getAppArgs[n:]` of a shaped expression are shaped. -/
+/-- The trailing arguments `e.getAppArgs[n:]` of a parameter-uniform expression are
+parameter-uniform. -/
 theorem getAppArgs_slice {e : Expr} (H : ParamUniform heads params ls e)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) (n : Nat) :
     ∀ a ∈ (e.getAppArgs[n:] : Array Expr).toList, ParamUniform heads params ls a := by
@@ -74,7 +76,7 @@ theorem getAppArgs_slice {e : Expr} (H : ParamUniform heads params ls e)
   exact H.of_mem_getAppArgsList hp (List.mem_of_mem_drop ha)
 
 /-- `consumeTypeAnnotationsVerified` returns a subterm reached through
-application arguments, so it preserves shape. -/
+application arguments, so it preserves parameter uniformity. -/
 theorem consumeTypeAnnotationsVerified {e : Expr} (H : ParamUniform heads params ls e)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) :
     ParamUniform heads params ls (e.consumeTypeAnnotationsVerified annOk) := by
@@ -87,15 +89,15 @@ theorem consumeTypeAnnotationsVerified {e : Expr} (H : ParamUniform heads params
   case case4 => exact H
   case case5 => exact H
 
-/-- `mkAppN` with shaped head and arguments. -/
+/-- `mkAppN` with parameter-uniform head and arguments. -/
 theorem mkAppN {f : Expr} {args : Array Expr} (hf : ParamUniform heads params ls f)
     (hargs : ∀ a ∈ args.toList, ParamUniform heads params ls a) :
     ParamUniform heads params ls (Lean.mkAppN f args) := by
   rw [Lean.Expr.mkAppN_eq_mkAppList]
   exact hf.mkAppList hargs
 
-/-- A spine `c params rest` headed by any constant at the levels `ls`: a hit if
-`c ∈ heads`, a traversed constant otherwise. -/
+/-- A spine `c params rest` headed by any constant at the levels `ls`: a head
+occurrence if `c ∈ heads`, a traversed constant otherwise. -/
 theorem mkAppN_const_params {c : Name} {rest : Array Expr}
     (hrest : ∀ a ∈ rest.toList, ParamUniform heads params ls a)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) :
@@ -225,7 +227,7 @@ namespace Lean.LocalDecl
 open Lean4Lean
 
 /-- The declaration's type and (visible) value satisfy `Expr.ParamUniformIn`: the form in
-which the type checker's hit-shape invariant constrains a scope declaration
+which the type checker's parameter-uniformity invariant constrains a scope declaration
 (`TypeChecker.ParamUniformScopeAt`). -/
 def ParamUniformIn (env : Lean.Kernel.Environment) (heads : List Name) (params : List Expr)
     (ls : List Level) (d : LocalDecl) : Prop :=
@@ -256,11 +258,11 @@ namespace VerifyInductive
 
 /-! ### The whnf hypothesis -/
 
-/-- A hit scope of a recursor-local context in the form consumed by the type
+/-- A parameter-uniform scope of a recursor-local context in the form used by the type
 checker's invariant (`TypeChecker.ParamUniformScopeAt`): `P` is closed under the
 dependencies of its declarations (`IsFVarUpSet`, as for
 `TypeChecker.VContext.UniverseScope`) and every declaration of a member of `P`
-satisfies `LocalDecl.ParamUniformIn` (hit shape together with the projection condition
+satisfies `LocalDecl.ParamUniformIn` (parameter uniformity together with the projection condition
 `ProjsOK (projAvoidsHeads env heads)`). -/
 def RecursorContextWF.ParamUniformScope {c : AddInductive.Context} {recLparams : List Name}
     (Hc : RecursorContextWF c recLparams) (env : Environment) (heads : List Name)
@@ -268,30 +270,30 @@ def RecursorContextWF.ParamUniformScope {c : AddInductive.Context} {recLparams :
   IsFVarUpSet P Hc.mlctx.vlctx ∧ ∀ fv decl, P fv → Hc.mlctx.lctx.find? fv = some decl →
     decl.ParamUniformIn env heads params ls
 
-/-- **`whnf` preserves hit shape in the recursor contexts of an environment**,
+/-- **`whnf` preserves parameter uniformity in the recursor contexts of an environment**,
 in the form provided by the type checker's invariant: an input (well-typed in
 the recursor-local context `c`) that satisfies `Expr.ParamUniformIn` and whose free
-variables lie in a hit scope `P` of `c` is normalized to an expression
-satisfying `Expr.ParamUniformIn`. It is the hit-shape counterpart of
+variables lie in a parameter-uniform scope `P` of `c` is normalized to an expression
+satisfying `Expr.ParamUniformIn`. It is the parameter-uniformity counterpart of
 `whnfInRecursorContext.levelsWF` (`TypeChecker.VContext.LevelsBelow`),
 quantified over the same data; the scope of the output is already provided by
 `whnfInRecursorContext.scopeWF`.
 
 `heads` are the head names (for a nested run `E.uniformHeads`: the auxiliary
-families and constructors and the main constructors), `params` the common
+families and constructors and the source constructors), `params` the common
 parameter free variables `stats.params`, and `ls` the declaration's universe
-parameters. Compared with plain hit shape, the input and the scope carry the
+parameters. Compared with plain parameter uniformity, the input and the scope carry the
 projection condition `ProjsOK (projAvoidsHeads env heads)`: in the recursor pass the
 projection registry already contains the block's structures, so `.proj S i x`
-with `S` a main structure whose constructor mentions an auxiliary family
+with `S` a source structure whose constructor mentions an auxiliary family
 translates, and its inferred type exposes the auxiliary family at the
 parameters of `x`'s type rather than at the parameter variables. The
 instance for a nested run is `NestedRun.whnfPreservesParamUniform`
 (`Nested/Restoration/Uniform/Whnf.lean`).
 
-`inferType` is not needed as a separate hypothesis: the only lifted
-`inferType` call of the recursor pass (`loopUArgs`) is on a constructor field
-free variable, which returns the field's declared type (`inferTypeFVarRun.WF`). -/
+`inferType` is not needed as a separate hypothesis: `loopUArgs` reads the type
+of a constructor field free variable by local-context lookup (`AddInductive.getType`),
+which returns the field's declared type (`getTypeFVarRun.WF`). -/
 structure WhnfPreservesParamUniform (heads : List Name) (params : List Expr) (ls : List Level)
     (env : Environment) : Prop where
   whnf : ∀ {c : AddInductive.Context} {recLparams : List Name}
@@ -307,10 +309,10 @@ structure WhnfPreservesParamUniform (heads : List Name) (params : List Expr) (ls
 
 /-! ### The `loopUArgs` traversal (regions R2 and R3) -/
 
-/-- `ParamUniformIn` along an exact `loopUArgs.loop` trace: mirrors
+/-- `ParamUniformIn` along a `loopUArgs.loop` run: mirrors
 `LoopUArgsRun.universeSupport`. If the normalized input type
-satisfies `ParamUniformIn` and lies in a hit scope `P` of a recursor context, then at
-the terminal context there is a hit scope containing every opened argument,
+satisfies `ParamUniformIn` and lies in a parameter-uniform scope `P` of a recursor context,
+then at the terminal context there is a parameter-uniform scope containing every opened argument,
 and the exposed type satisfies `ParamUniformIn` and lies in that scope. -/
 theorem LoopUArgsRun.paramUniform
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
@@ -445,11 +447,11 @@ theorem RecursorContextWF.trFVar {c : AddInductive.Context} {recLparams : List N
   obtain ⟨⟨e, A⟩, hfind⟩ := VLCtx.find?_eq_some.2 hmem
   exact ⟨e, .fvar hfind⟩
 
-/-- **Hit shape of one induction-hypothesis origin** (regions R2 and R3). Given
-a recursor-context certificate for the origin's root, a hit-shape scope `P`
-containing the recursive field, and the parameters among the root's variables,
-every argument declaration opened by `loopUArgs`, the exposed family
-application and the hypothesis type are in hit shape. -/
+/-- **Parameter uniformity of one induction-hypothesis type** (regions R2 and R3). Given
+a recursor-context certificate for the root context of `InductionHypothesisType`, a
+parameter-uniform scope `P` containing the recursive field, and the parameters among the
+root's variables, every argument declaration opened by `loopUArgs`, the exposed family
+application and the hypothesis type are parameter-uniform. -/
 theorem InductionHypothesisType.paramUniform
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
     (W : WhnfPreservesParamUniform heads params ls env)
@@ -540,7 +542,7 @@ theorem InductionHypothesisType.paramUniform
 
 /-! ### The `loopArgs1` traversal (region R1) -/
 
-/-- `ParamUniformIn` of the output of one retained recursor `whnf` call, given that
+/-- `ParamUniformIn` of the output of one recursor `whnf` call, given that
 the declarations of every variable admitted by `Q` (read in `final`) and the
 input satisfy it. -/
 theorem WhnfRunAt.paramUniform
@@ -560,9 +562,9 @@ theorem WhnfRunAt.paramUniform
   obtain ⟨hQfv, hmem⟩ := hP fv hPfv
   exact hQ fv hQfv decl (by rw [hle.declarations fv hmem]; exact hfind)
 
-/-- **`ParamUniformIn` along a retained `loopArgs1` trace** (region R1). If the
+/-- **`ParamUniformIn` along a `loopArgs1` run** (region R1). If the
 family header and the parameter declarations of `final` satisfy `ParamUniformIn`, then
-so does every normalized type of the trace and every opened index
+so does every normalized type of the run and every opened index
 declaration. -/
 theorem IndexTelescopeRun.paramUniform
     {heads : List Name} {ls : List Level} {env : Environment}
@@ -658,8 +660,8 @@ theorem ParameterPrefix.tail_eq_instantiateRevList
       rw [Nat.zero_add, this]
       rfl
 
-/-- The parameter-instantiated tail of a lowered constructor type in parameter
-telescope hit shape is in free-variable hit shape over the parameters. -/
+/-- The parameter-instantiated tail of a parameter-uniform parameter telescope
+(a lowered constructor type) is parameter-uniform over the parameter free variables. -/
 theorem ParameterPrefix.paramUniform {heads : List Name} {ls : List Level}
     {stats : AddInductive.InductiveStats} {pfvs : List FVarId} {src tail : Expr}
     (H : ParameterPrefix stats 0 src tail)
@@ -691,8 +693,8 @@ theorem ParameterPrefix.paramUniformIn {env : Environment} {heads : List Name}
   obtain ⟨_, _, rfl⟩ := ha
   exact Expr.ProjsOK.fvar
 
-/-- Every field declaration opened along a retained field-decision trace, and the
-terminal expression, are in hit shape when the traversed tail is. -/
+/-- Every field declaration opened along a field-decision run, and the
+terminal expression, are parameter-uniform when the traversed tail is. -/
 theorem RecursorFieldDecisions.paramUniform {heads : List Name} {params : List Expr}
     {ls : List Level}
     (H : RecursorFieldDecisions stats root source current terminal fields
@@ -737,7 +739,8 @@ theorem mem_exprArrayFVarIds_of_fvar_mem {xs : Array Expr} {fv : FVarId}
   simp only [ExprArrayFVarIds, List.mem_map]
   exact ⟨_, Array.mem_toList_iff.2 h, rfl⟩
 
-/-- Declaration shapes from exact `withLocalDecl` origin types. -/
+/-- Parameter uniformity of the declarations of a bound free-variable array, from
+that of the binder types passed to `withLocalDecl`. -/
 theorem FVarArrayBinderTypes.declParamUniform {heads : List Name} {params : List Expr}
     {ls : List Level} {c : AddInductive.Context} {xs origins : Array Expr}
     (Ho : FVarArrayBinderTypes c xs origins)
@@ -754,7 +757,7 @@ theorem FVarArrayBinderTypes.declParamUniform {heads : List Name} {params : List
   show D.type.ParamUniform heads params ls
   rw [hD]; exact hQ i hi
 
-/-! ### Hypotheses on the completed recursor construction -/
+/-! ### Hypotheses on the recursor construction -/
 
 /-- The cached parameters are variables of the context carrying the suffix. -/
 theorem RecursorParameterContextSuffix.param_mem {r : AddInductive.Context}
@@ -792,10 +795,10 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {R : ConstructorCheck c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv}
 
-/-- **Non-`whnf` provenance hypotheses** for the hit shape of a completed
+/-- **Non-`whnf` hypotheses** for the parameter uniformity of a
 recursor construction, relative to the head set `heads`, the parameter free
 variables `stats.params` and the levels `stats.levels`. The inputs of the
-retained `whnf` calls are built from the parameter declarations, the family
+recursor pass's `whnf` calls are built from the parameter declarations, the family
 headers and the constructor types, so these carry the projection condition
 `ProjsOK (projAvoidsHeads env heads)` of `WhnfPreservesParamUniform`, at the environment `env`
 of the recursor context.
@@ -807,17 +810,17 @@ of the recursor context.
 * `familyHeaders`: the family headers `indTypes[i].type` mention no head and
   satisfy the projection condition. The header is the input of the first
   `whnf` call of `mkRecInfos.loopInd1`, so this is what `WhnfPreservesParamUniform.whnf`
-  needs at the start of the retained `loopArgs1` trace (`IndexTelescopeRuns`,
-  retained in `RecursorConstruction.minorSources`).
-* `constructorTypes`: the lowered constructor types are parameter telescopes in
-  hit shape (from the lowering trace: every hit is
+  needs at the start of the `loopArgs1` run (`IndexTelescopeRuns`,
+  recorded in `RecursorConstruction.minorSources`).
+* `constructorTypes`: the lowered constructor types are parameter-uniform parameter
+  telescopes (from lowering: every head occurrence is
   `mkAppN (.const auxI lvls) As` with untouched source trailing arguments) and
   satisfy the projection condition.
 * `recursorNames`: generated recursor names are not heads.
 
 The index domains (region R1) and the induction-hypothesis regions (R2, R3)
 need no hypothesis beyond these and `WhnfPreservesParamUniform`: they follow along the
-retained `IndexTelescopeRun`s and the rooted call origins
+`IndexTelescopeRun`s and the rooted call templates
 (`CallTemplatesMatch.rooted`). -/
 structure RecursorConstruction.ParamUniformDeclarations
     (H : RecursorConstruction R) (heads : List Name) : Prop where
@@ -869,7 +872,7 @@ theorem param_not_outer {pv : FVarId} (hpv : pv ∈ H.params.fvars) {e : Expr}
   · exact .inr (.inr (.inl (H.bindings.flatIndices.mem_fvars_iff.2 he)))
   · exact .inr (.inr (.inr (H.bindings.majors.mem_fvars_iff.2 he)))
 
-/-- Disjointness in the form consumed by `ParamUniform.mkForall_of_disjoint`. -/
+/-- Disjointness in the form used by `ParamUniform.mkForall_of_disjoint`. -/
 theorem params_disjoint {ys : List FVarId}
     (hys : ∀ y ∈ ys, Expr.fvar y ∈ H.recInfos.map (·.motive) ∨
       Expr.fvar y ∈ H.recInfos.flatMap (·.minors) ∨
@@ -908,9 +911,9 @@ theorem motive_fvar {k : Nat} (hk : k < stats.indConsts.size) :
   obtain ⟨fv, h, -⟩ := FVarArrayIn.fvar_of_mem H.bindings.motives hmem
   exact ⟨fv, h⟩
 
-/-- **Hit shape of one generated minor**: its field declarations (in the
+/-- **Parameter uniformity of one generated minor**: its field declarations (in the
 minor's source context), its declared type, and the call templates of its rule
-blueprint. -/
+template. -/
 theorem minorParamUniform {heads : List Name} (I : H.ParamUniformDeclarations heads)
     (W : WhnfPreservesParamUniform heads stats.params.toList stats.levels H.localContext.env)
     (owner : Nat) (howner : owner < H.recInfos.size) (localIndex : Nat)
@@ -1109,8 +1112,8 @@ theorem paramCDecls : ∀ x ∈ H.params.fvars, ∃ i fv n ty bi kind,
 theorem mem_recInfos {k : Nat} (hk : k < H.recInfos.size) : H.recInfos[k]! ∈ H.recInfos := by
   rw [getElem!_pos H.recInfos k hk]; exact Array.getElem_mem hk
 
-/-- Index declarations of every family (region R1): along the retained
-`loopArgs1` trace of the family, from the header. -/
+/-- Index declarations of every family (region R1): along the
+`loopArgs1` run of the family, from the header. -/
 theorem indexDeclParamUniform (I : H.ParamUniformDeclarations heads)
     (W : WhnfPreservesParamUniform heads stats.params.toList stats.levels H.localContext.env)
     {k : Nat} (hk : k < H.recInfos.size) {y : FVarId}
@@ -1135,7 +1138,7 @@ theorem indexDeclParamUniform (I : H.ParamUniformDeclarations heads)
   rw [(H.bindings.indices k hk).exprArrayFVarIds]
   exact hyMem
 
-/-- Major premise declarations: `I params indices`, a hit exactly for
+/-- Major premise declarations: `I params indices`, a head occurrence exactly for
 auxiliary families. -/
 theorem majorDeclParamUniform {y : FVarId} (hy : Expr.fvar y ∈ H.recInfos.map (·.major)) :
     ∃ d, H.localContext.lctx.find? y = some d ∧
@@ -1218,7 +1221,7 @@ theorem minorDeclParamUniform (I : H.ParamUniformDeclarations heads)
 
 end Outer
 
-/-- **Generated recursor types are parameter telescopes in hit shape.** For
+/-- **Generated recursor types are parameter-uniform parameter telescopes.** For
 every owner, the executable recursor type
 `(declareRecursors.recursorType stats recInfos lctx owner).inferImplicit 1000 false`
 (as recorded in `GeneratedRecursorEntry.type`) is `ParamUniformTele heads nparams ls`. -/
@@ -1266,12 +1269,12 @@ theorem recursorTypeParamUniform {heads : List Name} (I : H.ParamUniformDeclarat
   rw [h]
   exact Array.mem_map.2 ⟨_, H.mem_recInfos howner, rfl⟩
 
-/-- **Generated rule right-hand sides are parameter telescopes in hit shape.**
-For every owner and every retained rule blueprint, the executable rule
-right-hand side `(blueprint.build indTypes stats motives minors lvls lctx).rhs`
+/-- **Generated rule right-hand sides are parameter-uniform parameter telescopes.**
+For every owner and every rule template `blueprint` of the owner, the executable rule
+right-hand side `(blueprint.instantiate indTypes stats motives minors lvls lctx).rhs`
 (as recorded in `GeneratedRecursorEntry.rules_eq`) is
 `ParamUniformTele heads nparams ls`: a `lam` telescope over the parameters around
-`fun motives minors fields => minor fields (calls)` in bound-variable hit shape.
+`fun motives minors fields => minor fields (calls)`, parameter-uniform in bound-variable form.
 The generated recursor heads `.const (mkRecName I) lvls` of the recursive calls
 are not heads (`ParamUniformDeclarations.recursorNames`), so `lvls` is arbitrary. -/
 theorem ruleRhsParamUniform {heads : List Name} (I : H.ParamUniformDeclarations heads)
@@ -1349,8 +1352,8 @@ end RecursorConstruction
 
 /-! ### Installed generated recursors -/
 
-/-- Hit shape of the type and of every rule right-hand side of each generated
-recursor entry of a completed recursor phase. -/
+/-- Parameter uniformity of the type and of every rule right-hand side of each generated
+recursor entry of a recursor check. -/
 theorem RecursorCheck.generatedParamUniform
     {outEnv : Environment} (C : RecursorCheck R outEnv)
     {heads : List Name} (I : C.toRecursorConstruction.ParamUniformDeclarations heads)
@@ -1371,7 +1374,7 @@ theorem RecursorCheck.generatedParamUniform
 
 end Assembly
 
-/-! ### Exact validated nested runs -/
+/-! ### Validated nested runs -/
 
 /-- The auxiliary heads of a nested run: the names of the lowered families after
 the source families, each followed by the names of its constructors. This is
@@ -1399,13 +1402,13 @@ variable {result : Lean4Lean.ElimNestedInductive.Result}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
 
-/-- The production statistics carry the declaration's universe parameters. -/
+/-- The lowered run's statistics carry the declaration's universe parameters. -/
 theorem NestedRun.statsLevels :
     E.lowered.stats.levels = lparams.map Level.param := by
   have h := E.lowered.headers.statsWF.levelParams
   rwa [E.lowered_c, E.context_lparams] at h
 
-/-- The production statistics carry exactly the lowered run's parameters. -/
+/-- The lowered run's statistics carry exactly `result.nparams` parameters. -/
 theorem NestedRun.statsParamsSize :
     E.lowered.stats.params.size = result.nparams := by
   obtain ⟨_, Hrun, _, _⟩ := E.lowering
@@ -1448,15 +1451,15 @@ theorem NestedRun.generatedEntryOfStep
   injection hG with hG
   rw [← heq, hG]
 
-/-- **Hit shape of the lowered recursor type and rule right-hand sides of an
-exact validated nested run.** For every generated owner and every executable
+/-- **Parameter uniformity of the lowered recursor type and rule right-hand sides of a
+validated nested run.** For every generated owner and every executable
 restoration step at the owner's lowered recursor name, the stored recursor type
 and every stored rule right-hand side are closed parameter telescopes of
-`result.nparams` binders whose body is in bound-variable hit shape for the
+`result.nparams` binders whose body is parameter-uniform in bound-variable form for the
 heads `heads` at the levels `lparams.map Level.param`.
 
-Hypotheses: `W` (the `whnf` hit-shape preservation fact, see
-`WhnfPreservesParamUniform`) and `I` (the non-`whnf` provenance, see
+Hypotheses: `W` (`whnf` preserves parameter uniformity, see
+`WhnfPreservesParamUniform`) and `I` (the non-`whnf` hypotheses, see
 `RecursorConstruction.ParamUniformDeclarations`). Both are discharged at
 `heads := E.uniformHeads` in `Nested/Restoration/Uniform/Whnf.lean`
 (`NestedRun.recursorParamUniform_of_wfCore`). -/
@@ -1497,8 +1500,8 @@ theorem _root_.Lean.Expr.AvoidsConsts.of_mem_getAppArgsList {names : List Name}
     · rw [List.mem_singleton.1 ha]; exact hx
   | _ => intro a ha; simp [Expr.getAppArgsList] at ha
 
-/-- **Lowering hits are in hit shape.** The semantic lowering map of an input
-that mentions no head produces an output in free-variable hit shape over the
+/-- **Lowering produces parameter-uniform head occurrences.** The semantic lowering map
+of an input that mentions no head produces an output that is parameter-uniform over the
 opened parameters `As`: every replacement is
 `mkAppN (.const auxName state.lvls) As` applied to untouched source arguments,
 with `auxName` an auxiliary family (a key of `aux2nested`). -/
@@ -1597,7 +1600,7 @@ theorem LoweringParamOpening.tailAvoidsConsts {names : List Name}
       rw [Expr.instantiate1_eq]
       exact hb.instantiate1'_fvar _ 0
 
-/-- **Lowered constructor types are parameter telescopes in hit shape**, given
+/-- **Lowered constructor types are parameter-uniform parameter telescopes**, given
 that the constructor's source type mentions no head, every key of the final
 `aux2nested` map is a head, and the lowering state carries the levels `ls`. -/
 theorem ConstructorLowering.Resolved.paramUniformTele {heads : List Name} {ls : List Level}

@@ -4,8 +4,8 @@ import Lean4Lean.Theory.Typing.Strong
 
 /-! Rigidity of registered structure heads from declaration history.
 
-This proof uses canonical equation ownership and freshness. It requires no
-injectivity, uniqueness, or confluence theorem.
+This proof uses the ownership of stored equations by their declarations and freshness. It
+requires no injectivity, uniqueness, or confluence theorem.
 -/
 
 namespace Lean4Lean

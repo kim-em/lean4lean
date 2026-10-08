@@ -1,5 +1,10 @@
 import Lean4Lean.Verify.Inductive.Rules.RecursiveBody
 
+/-! The recursive results of a rule (`RecursorCheck.RuleAlignment.RecursiveResult`), each closed
+and typed in the fixed equation context, with its translation reconstructed from its
+eta-expanded field template, and compared with the corresponding induction hypothesis of the
+selected minor premise. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -11,7 +16,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
 /-- Fixed-frame package for one complete recursive result.  The generated
-recursor telescope and rule-wide field narrowing are parameters, so every
+recursor telescope and rule-wide field frame are parameters, so every
 array position is closed and typed in the same literal `equationDomains`;
 only its higher-order local telescope varies with the recursive field. -/
 theorem
@@ -320,7 +325,7 @@ theorem
 /-- Replace the neutral codomain in the retained local-forall template by
 the independently checked selected-motive application.  The source is the
 exact complete higher-order domain produced by the recursive-call replay,
-closed over production's full rule binder list. -/
+closed over the executable's full rule binder list. -/
 theorem
     RecursorCheck.RuleAlignment.RecursiveResult.fullForallTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -446,7 +451,7 @@ theorem
     H.outVEnvWF E.equation_context E.local_length
     E.local_forall_translation HresultTranslation HresultType
 
-/-- Insert an already consumed prefix of recursive hypotheses beneath the
+/-- Insert an already applied prefix of recursive hypotheses beneath the
 fixed equation context while retaining the complete canonical higher-order
 domain.  Both its dependent local domains and its real residual are lifted
 at their exact respective cutoffs. -/
@@ -671,7 +676,7 @@ theorem
 /-- Pointwise handoff between the selected first-pass minor hypothesis and
 the canonical recursive result produced by the second pass.  Both sides are
 kept in one existential package: the source declaration is the exact
-unconsumed production type and is translated to the selected minor domain,
+executable type before annotation stripping and is translated to the selected minor domain,
 while the corresponding recursive result is already closed and typed in the
 fixed equation context.  The remaining RHS argument proof can therefore
 focus solely on relating these two displayed types. -/
@@ -1784,7 +1789,7 @@ theorem
 /-- Whole-domain form of the synchronized first-pass/second-pass comparison.
 The selected installed hypothesis is transported past the remaining minors;
 the canonical recursive-result domain is transported past the already
-consumed hypotheses.  Both targets expose their exact dependent local
+applied hypotheses.  Both targets expose their exact dependent local
 domain lists, ready for `SameForallPrefix.translatedContextsExact`. -/
 theorem
     RecursorCheck.RuleAlignment.installedSelectedMinorHypothesisWholeDomains

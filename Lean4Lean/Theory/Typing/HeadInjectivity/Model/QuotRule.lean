@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.RuleSound
 
-/-! # The quotient rule as a pattern rule (stage A2)
+/-! # The quotient rule as a pattern rule
 
 The syntactic facts of `quotDefEq` needed by `sound_pat`: its pattern
 (`Quot.lift α r β f c (Quot.mk α r a) ≡ f a`, lead `α r β f c`, major `Quot.mk α r a` with

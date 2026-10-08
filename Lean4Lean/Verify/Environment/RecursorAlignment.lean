@@ -16,9 +16,9 @@ inductive type constant is rigid, and (for K-like recursors) that the inductive 
 proposition whose parameters type the unique constructor. The quotient reduction rules are covered
 by the same shapes for `Quot.lift`, and by proof irrelevance for `Quot.ind`.
 
-The predicates are carried along the environment trace (`TrEnv'`) and through the staged checking
+The predicates are carried along the environment translation (`TrEnv'`) and through the checking
 invariant (`CheckingEnv.Valid`); the transport lemmas at the end of this file are what every step
-of those traces uses. The inductive installation boundary (`AddInduct`) records the facts about
+of the translation uses. The inductive installation boundary (`AddInduct`) records the facts about
 the recursors it installs as `NewRecursorsAligned`.
 -/
 
@@ -117,15 +117,15 @@ structure RecursorEnvCoherent (safety : DefinitionSafety) (C : ConstMap) (venv :
   heads : EquationHeadsCoherent C venv
 
 /-- The quotient facts carried through a checking environment: the abstract quotient constants and
-equation, together with the production entry of `Quot` (which is what keeps `Quot` rigid along
-the trace). -/
+equation, together with the kernel entry of `Quot` (which is what keeps `Quot` rigid along
+the translation). -/
 structure QuotEnvCoherent (C : ConstMap) (venv : VEnv) : Prop where
   coherent : QuotCoherent venv
   find : ∃ q : QuotVal, C.find? ``Quot = some (.quotInfo q) ∧ q.kind = .type
 
 /-- What an inductive installation certifies about the recursors it installs: every recursor of
-the target map is either an old one or aligned in the target environment (with a K clause and an
-inductive major), and every new stored equation is headed by a recursor of the target map. -/
+the target map is either already in the source map or aligned in the target environment (with a
+K clause and an inductive major), and every new stored equation is headed by a recursor of the target map. -/
 structure NewRecursorsAligned (safety : DefinitionSafety)
     (m₁ : ConstMap) (env₁ : VEnv) (m₂ : ConstMap) (env₂ : VEnv) : Prop where
   recursor : ∀ {name rec}, m₂.find? name = some (.recInfo rec) →
@@ -196,7 +196,8 @@ theorem VEnv.addDefEqs_defeqs_iff : ∀ {cis : List VDefVal} {env : VEnv} {df : 
 
 The shape invariants only look up constants and stored equations, so they are preserved by
 environment extension. Rigidity is not: it is preserved exactly when the new stored equations are
-headed elsewhere, which is what `RigidPreserving` records. -/
+headed elsewhere, so the rigidity clauses are re-established from the heads of the stored
+equations (`EquationHeadsCoherent`). -/
 
 def VRecursorShape.mono (h : venv ≤ venv')
     (H : VRecursorShape venv recName recUvars nparams cnparams nmotives nminors nindices indName
@@ -315,10 +316,10 @@ theorem EquationHeadsCoherent.rigid_of_fresh {C : ConstMap} (H : EquationHeadsCo
 
 /-! ## Transport of the carried facts
 
-Every step of the environment trace preserves the map's lookups, may add constants, and adds
+Every step of the environment translation preserves the map's lookups, may add constants, and adds
 equations that are headed by non-inductive constants of the target map. The master lemma
-`RecursorEnvCoherent.extend` covers all of them; the specialized forms below are what the trace
-steps call. -/
+`RecursorEnvCoherent.extend` covers all of them; the specialized forms below are what the
+translation steps call. -/
 
 /-- The kind of equation head that keeps the invariant: a non-inductive constant of `C`, and not a
 quotient constant other than `Quot.lift`. -/

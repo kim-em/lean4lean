@@ -2,11 +2,11 @@ import Lean4Lean.Verify.TypeChecker.Recursor
 import Lean4Lean.Verify.TypeChecker.UniverseSupport
 
 /-!
-# Hit shape through the reduction steps of `whnfCore` and `whnf`
+# Parameter uniformity through the reduction steps of `whnfCore` and `whnf`
 
-The hit-shape clauses (`VContext.ParamUniformBelow`) of recursor reduction (quotient and inductive,
+The parameter-uniformity clauses (`VContext.ParamUniformBelow`) of recursor reduction (quotient and inductive,
 including the K-like and structure-eta conversions of the major premise) and of definition
-unfolding. These steps do not write to the caches, so their hit-shape clauses are proved
+unfolding. These steps do not write to the caches, so their parameter-uniformity clauses are proved
 separately from the typing clauses (via `RecM.Post` where the tail of a run only decides between
 results that are already known).
 -/
@@ -62,7 +62,7 @@ theorem quotReduceRec.WF_paramUniform (he : c.TrExprS e e') (hp : s.ngen.namePre
 
 /-! ### Inductive recursor reduction -/
 
-/-- The final phase of inductive recursor reduction keeps hit shape: the rule's right-hand side
+/-- The final step of inductive recursor reduction keeps parameter uniformity: the rule's right-hand side
 mentions no head, and the remaining pieces are arguments of the recursor application and of the
 converted major premise. -/
 theorem inductiveReduceRecTail.paramUniformIn {info : RecursorVal} {recFn : Name} {ls : List Level}
@@ -109,8 +109,8 @@ theorem mkNullaryCtor_eq_some {env : Environment} {A : Expr}
   | none => simp [hc] at h
   | some name => simp [hc] at h; exact ⟨I, ls, name, hfn, hc, h.symm⟩
 
-/-- The constructor application built by `toCtorWhenK` (from the major premise's type) is in hit
-shape: recursors in the environment never eliminate families with head constructors. -/
+/-- The constructor application built by `toCtorWhenK` (from the major premise's type) is
+parameter-uniform: recursors in the environment never eliminate families with head constructors. -/
 theorem toCtorWhenK.Post_paramUniform {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : info.k = true)
     (hrec : c.env.find? recFn = some (.recInfo info))
     (hK : ∃ ind ctorName, c.env.constants.find? info.getMajorInduct = some (.inductInfo ind) ∧
@@ -166,7 +166,7 @@ theorem expandEtaStruct_eq {env : Environment} {eType e r : Expr}
   split <;> [rename_i mkInfo hm; exact .inl rfl]
   exact .inr ⟨I, ls, sInfo, ctor, mkInfo, hfn, hs, hc, hm, rfl⟩
 
-/-- The structure-eta expansion built by `toCtorWhenStruct` is in hit shape. -/
+/-- The structure-eta expansion built by `toCtorWhenStruct` is parameter-uniform. -/
 theorem toCtorWhenStruct.Post_paramUniform {w : Expr} {w' : VExpr}
     (hrec : c.env.find? recFn = some (.recInfo info))
     (he : c.TrExprS w w') (hp : s.ngen.namePrefix = pfx) :
@@ -216,7 +216,7 @@ theorem toCtorWhenStruct.Post_paramUniform {w : Expr} {w' : VExpr}
   split <;> [skip; exact .pure (hid rfl)]
   split <;> [exact .pure hnew; exact .pure (hid rfl)]
 
-/-- Inductive recursor reduction keeps hit shape. -/
+/-- Inductive recursor reduction keeps parameter uniformity. -/
 theorem inductiveReduceRec.Post_paramUniform (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx) :
     RecM.Post c s (inductiveReduceRec c.env e whnf inferType isDefEq) fun oe =>
       ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
@@ -285,7 +285,7 @@ theorem inductiveReduceRec.Post_paramUniform (he : c.TrExprS e e') (hp : s.ngen.
     exact hjp m₁ (VState.LE.namePrefix_eq hp le) h1 hh h2
   · exact hjp _ hp .rfl .rfl hm'
 
-/-- Recursor reduction keeps hit shape. -/
+/-- Recursor reduction keeps parameter uniformity. -/
 theorem reduceRecursor.WF_paramUniform (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (reduceRecursor e) fun oe _ => ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
   unfold reduceRecursor
@@ -372,7 +372,7 @@ end Lean4Lean.TypeChecker.Inner
 namespace Lean4Lean.TypeChecker.Inner
 open Lean hiding Environment Exception
 
-/-- The hit-shape clause of `whnfCore` together with the fact that a constant is returned
+/-- The parameter-uniformity clause of `whnfCore` together with the fact that a constant is returned
 unchanged. -/
 theorem whnfCore.WF_paramUniform_const {c : VContext} {s : VState} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :

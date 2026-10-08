@@ -1,33 +1,24 @@
 import Lean4Lean.Theory.Typing.TypeChain
 
-/-! # Declarative classes of the glued observation model (milestone M0)
+/-! # Declarative classes of the glued observation model
 
-Classes of terms in a fixed *target context* `Δ` (`docs/inductives/PHASE1B_NOTES.md`,
-sections 2.1 and 9.1):
+Classes of terms in a fixed *target context* `Δ` (section 4.1 of `docs/inductives/DESIGN.md`):
 
 * `TyCls Δ A`: the type class of `A`, the terms related to `A` by a chain of sort-typed
   definitional equalities (`TypeChain`), together with `A` itself;
 * `ElCls Δ D a`: the element class of `a` at a set `D` of types, the closure of `a` under
   definitional equalities typed at some member of `D`;
-* `TypedTyCls`, `TypedElCls`: the classes of typed terms.
+* `TypedElCls`: the element classes of typed terms.
 
 The **collapse lemma** (`ElCls.collapse`) turns membership of an element class at a type
 class `TyCls Δ X₀` into one definitional equality at `X₀`: every link is transported to
 `X₀` along a chain (`TypeChain.defeqDF`) and links at one type compose by `trans`. This is
 why classes are typed.
 
-The **anchored class lemma** (`SubstEq.of_mem_cls`, `ElCls.subst_eq_of_mem_cls`,
-`TyCls.subst_eq_of_mem_cls`): replacing each value of a typed substitution `σ` by a member
-of its class gives a substitution definitionally equal to `σ`, so the classes of every
-typed term agree under the two.
-
-Deviation from section 9.1 (recorded in section 10 of the notes): the model built on this
-file (`Obs.lean`, `Interp.lean`) uses valuations consisting of an *anchor* substitution
-together with observation sets, and computes classes from the anchor, rather than
-valuations `List (Set VExpr × Set Ob)` with classes taken as unions over representatives.
-The union-over-representatives classes `clsOf`/`tyClsOf` are still defined below, and
-`clsOf_anchored`/`tyClsOf_anchored` show that at anchored typed valuations they are the
-anchored classes, so the two presentations agree wherever the model is used.
+The model built on this file (`Obs.lean`, `Interp.lean`) uses valuations consisting of an
+*anchor* substitution together with observation sets, and computes classes from the anchor.
+Related anchors are pairs of definitionally equal substitutions (`Ctx.SubstEq`, with
+`SubstEq.symm` and `SubstEq.right` below).
 
 Sets are predicates (`VExpr → Prop`); this development does not use Mathlib. -/
 
@@ -36,8 +27,7 @@ namespace VEnv
 namespace Model
 
 /-- Terms that differ only by `≈`-equivalent well-formed levels. Reflexive on every term
-(the `refl` constructor), so it is closed under substitution. Classes are saturated by it
-(decision D8 of the notes, section 10.2): for typed terms this adds nothing
+(the `refl` constructor), so it is closed under substitution. Classes are saturated by it: for typed terms this adds nothing
 (`LvEq.defeq`), and it makes the observation interpretation invariant under level
 equivalence structurally. -/
 inductive LvEq (U : Nat) : VExpr → VExpr → Prop
@@ -370,7 +360,7 @@ theorem SubstEq.right (W : Ctx.SubstEq env U Δ σ σ' Γ) : Ctx.SubstEq env U �
 
 end
 
-/-! ## The anchored class lemma -/
+/-! ## Anchored classes -/
 
 section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
@@ -378,13 +368,10 @@ include henv hΔ
 
 end
 
-/-! ## Union-over-representatives classes
+/-! ## Valuations
 
-The presentation of section 9.1 of the notes: a valuation assigns a class and a set of
-observations to each variable; the class of a term is the union of the classes of its
-instances at all representatives. At anchored typed valuations these are the anchored
-classes (`clsOf_anchored`, `tyClsOf_anchored`). The observation sets are a parameter `β`
-here (instantiated with sets of observations by the model). -/
+The model computes every class from the anchor substitution of a valuation, not as a union
+over representatives. -/
 
 section
 variable (env U Δ)

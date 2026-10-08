@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Inductive.RecursorPrefixUnfolding
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Generation
 import Lean4Lean.Theory.Typing.PrefixUnfolding.SpineDefEq
 
-/-! Term renaming of the actual native prefix generator and its remaining
+/-! Term renaming of the actual singleton prefix generator and its remaining
 binder telescope. -/
 
 namespace Lean4Lean.InductiveSignature.RecursorData
@@ -50,7 +50,7 @@ theorem takeForalls_lift' (H : takeForalls count type = some (domains, result)) 
 
 
 /-- Every term field records its exact position relative to the remaining
-native telescope. The stored equation and universe occurrence stay fixed. -/
+telescope. The stored equation and universe occurrence stay fixed. -/
 def PrefixUnfolding.rename (program : PrefixUnfolding) (ρ : Lift) : PrefixUnfolding :=
   { program with
     domains := renameDomains ρ program.domains

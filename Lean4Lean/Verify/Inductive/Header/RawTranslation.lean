@@ -1,5 +1,16 @@
 import Lean4Lean.Verify.Inductive.Header.Telescope
 
+/-!
+# Raw header translations
+
+The first step of the header phase (section 3.2 of `docs/inductives/DESIGN.md`): each
+successful `checkClosedType` of a family type yields a raw source translation of the header
+(`ClosedHeaderCheck`, `TrSourceConstRaw`), without `VConstVal.WF`. The mutual-header loop
+accumulates these in source order (`RawHeaderTranslations`,
+`checkInductiveTypes.loopInd.stepPrefix.accumulatesRawHeaders`), before any declaration
+skeleton or constructor translation exists.
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -84,8 +95,8 @@ end CheckedSourceHeaderTraversal
 
 namespace ClosedHeaderCheck
 
-/-- Forget the context-sensitive checked-type evidence after the executable
-telescope traversal has consumed it. -/
+/-- Forget the context-sensitive typing of the checked type, keeping the
+raw source translation. -/
 def payload
     {c : AddInductive.Context} {source : InductiveType} {checkedType : Expr}
     (Hc : ContextWF c)
@@ -97,9 +108,9 @@ def payload
 end ClosedHeaderCheck
 
 /-- A successful `checkClosedType` constructs its abstract header payload;
-no caller-selected declaration skeleton is needed at this boundary.  This is
-the existential seed used to split header materialization from later
-constructor translation. -/
+no caller-selected declaration skeleton is needed at this boundary.  This
+existential form separates checking the headers from the later translation
+of the constructors. -/
 theorem checkClosedType.rawSourceTranslationWF (Hc : ContextWF c) :
     (AddInductive.checkClosedType name type c).WF fun checkedType =>
       Nonempty (ClosedHeaderCheck Hc name type checkedType) := by
@@ -142,8 +153,8 @@ namespace checkInductiveTypes.loopInd
 
 /-- One executable mutual-header iteration extends an independently built,
 ordered abstract-header accumulator.  The continuation also receives the
-full context-sensitive typing evidence needed by `loopType`; only the stored
-accumulator forgets that evidence.  No constructor translation or
+full context-sensitive typing needed by `loopType`; only the stored
+accumulator forgets it.  No constructor translation or
 caller-selected declaration skeleton is assumed at this boundary. -/
 theorem stepPrefix.accumulatesRawHeaders
     {sources : List InductiveType}

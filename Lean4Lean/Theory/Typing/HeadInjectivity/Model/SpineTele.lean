@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.SpineRev
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.TeleCompact
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.RuleLemmas
 
-/-! # The valuation of a constant spine over a syntactic telescope (stage C)
+/-! # The valuation of a constant spine over a syntactic telescope
 
 `Model.spine_tele`: for a semantically typed constant spine `mkApps (.const c ls) args` at a
 typed valuation `(σ, S)`, and a closed sound Pi telescope `wrapForalls Dw Rw` whose

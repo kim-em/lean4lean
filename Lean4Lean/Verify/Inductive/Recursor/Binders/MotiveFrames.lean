@@ -1,5 +1,9 @@
 import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope
 
+/-! Typing of one motive frame of the motive pass of `mkRecInfos`: the major premise
+and the motive declared after a family's indices (`RecursorMotiveFrameWF`), and the
+generated family/motive telescope attached to it (`RecursorMotiveClosedFrameWF`). -/
+
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
@@ -7,8 +11,8 @@ open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
-/-- Semantic certificate for the two locals installed after one family's
-indices have been replayed.  The starting context is already interpreted
+/-- Typing of the two locals (major and motive) declared after one family's
+indices have been opened.  The starting context is already interpreted
 under the recursor universe list, so the same certificate applies to every
 member of a mutual block, including those reached after earlier frames. -/
 structure RecursorMotiveFrameWF
@@ -55,10 +59,10 @@ structure RecursorMotiveFrameWF
       ((VExpr.wrapForalls indexDomains
         (.forallE majorTarget (.sort resultLevel))).liftN
           indices.size 0).liftN 1 0
-  /-- Exact generated motive telescope before it is weakened back through
-  the freshly opened indices and major.  Retaining this checked form makes
-  the production motive comparable with the independently replayed
-  canonical telescope in their common outer context. -/
+  /-- The generated motive telescope before it is weakened through
+  the freshly opened indices and major.  This closed form makes
+  the executable's motive comparable with the generated
+  telescope in their common outer context. -/
   motiveClosed :
     let majorTy :=
       ((mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
@@ -113,10 +117,10 @@ structure RecursorMotiveFrameWF
       cMajor.lctx.mkForall #[major] <| .sort elimLevel
     (motiveTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) = motiveTy
 
-/-- The independent canonical family/motive telescope attached to one
-completed executable frame.  Its motive type is still compared with the
-annotation-consumed production target in a separate step; this package
-records the exact declarative telescope and types its family endpoint. -/
+/-- The generated family/motive telescope attached to one
+executable motive frame.  Its motive type is compared with the
+unannotated executable target in a separate step; this structure
+records the declarative telescope and types its family endpoint. -/
 structure RecursorMotiveClosedFrameWF
     {c : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF c recLparams)

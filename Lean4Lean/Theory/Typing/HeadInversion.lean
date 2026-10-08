@@ -12,9 +12,7 @@ observation model (`Theory/Typing/HeadInjectivity/Model/`): separation by
 This file and the model do not import `UniqueTyping`, `Injectivity`, `ChurchRosser`,
 `FullReduction` or `HeadReduction`: `VEnv.WF.headInversion`, assembled here, is the single
 semantic fact from which uniqueness of types (`IsDefEq.uniq`) and every inversion lemma in
-`Injectivity.lean` are derived.
-
-See `docs/inductives/history/BASE_OBLIGATIONS_DESIGN.md`, section 4, Phase 0. -/
+`Injectivity.lean` are derived (section 4.1 of `docs/inductives/DESIGN.md`). -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -34,10 +32,7 @@ theorem _root_.Lean4Lean.VEnv.WF.headInjectivity {env : VEnv} (henv : env.WF) :
 
 /-- The base obligation of the inversion layer, assembled from separation and injectivity.
 
-It replaces the five former Injectivity conjectures (`IsDefEqU.sort_inv`,
-`forallE_inv_stratified`, `sort_forallE_inv`, `fieldType_inv_stratified`, `rigidApp_inv`)
-and the missing head separations (rigid head against Pi, sort against rigid head, distinct
-rigid heads). Uniqueness of types (`IsDefEq.uniq`), all inversion lemmas in
+Uniqueness of types (`IsDefEq.uniq`), all inversion lemmas in
 `Injectivity.lean`, and `VConstructorShape.saturated_of_hasType` are derived from it. -/
 theorem _root_.Lean4Lean.VEnv.WF.headInversion {env : VEnv} (henv : env.WF) :
     env.HeadInversion :=

@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.EmptyRule
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.RecursorEquations
 
-/-! # Validity of ordinary native recursor rules (stages B and D)
+/-! # Validity of ordinary recursor rules
 
 `RuleValid.recursor`: a generated equation of a finite compilation without container
 specializations is valid in the model of a well-formed environment, given
@@ -9,7 +9,7 @@ specializations is valid in the model of a well-formed environment, given
 * that the rules headed by its recursor are exactly its block's equations (`HeadExcl`);
 * that the major's family has only its recorded result sort at the ends of the chain
   observations of its type (`FamSort`, a semantic fact proved from the soundness of an earlier
-  environment, D11);
+  environment along the declaration history);
 * for singleton elimination, that the fields not determined by an index are proof binders
   (`ProofBinder`, also from earlier soundness).
 
@@ -93,7 +93,7 @@ theorem eqLead_length_owner {s : InductiveSignature} {g : Instance s}
   have h := H.model.constructorArity s.constructors[index] (by simp)
   rw [g.eqLead_length, h]
 
-/-- Uniqueness of an ordinary native rule per head and constructor. -/
+/-- Uniqueness of an ordinary recursor rule per head and constructor. -/
 theorem recursor_uniq {s : InductiveSignature} {g : Instance s}
     (C : CompilationData base source expanded s g [] block) (index : Fin s.constructors.size)
     (hex : HeadExcl env (g.recursorName s.constructors[index].owner) block.rules) :
@@ -140,7 +140,7 @@ theorem const_rigid_inv {σ : VExpr.Subst} {S : ObSets} {keys : List Key}
   · cases (wrap_inj e trivial trivial).2
   · cases (wrap_inj e trivial trivial).2
 
-/-- Mode C is impossible at a native recursor whose major family has a result sort that is
+/-- Mode C is impossible at a recursor whose major family has a result sort that is
 never zero. -/
 theorem recursor_C_absurd {s : InductiveSignature} {g : Instance s} {ls : List VLevel}
     {o : Fin s.families.size} {RH : VExpr} {keys : List Key} {m : Nat}
@@ -296,7 +296,7 @@ theorem motive_binderTy {s : InductiveSignature} (g : Instance s)
   rfl
 
 set_option maxHeartbeats 1000000 in
-/-- **Validity of an ordinary native recursor rule** (stages B and D). -/
+/-- **Validity of an ordinary recursor rule**. -/
 theorem RuleValid.recursor {s : InductiveSignature} {g : Instance s} {base' installed : VEnv}
     (henv : env.Ordered) (hdr : env.DeltaRules)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsInstalledCtor env c → env.CtorResultRigid c)

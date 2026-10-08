@@ -2,9 +2,9 @@ import Lean4Lean.Theory.Typing.SingletonExtraction.Recursor
 import Lean4Lean.Theory.Typing.SingletonExtraction.RecursorLevels
 import Lean4Lean.Theory.Typing.SingletonExtraction.Scope
 
-/-! # Scoping of the native singleton extraction
+/-! # Scoping of the singleton extraction
 
-The cast specification and the elimination into `Prop` of a registered native recursor are
+The cast specification and the elimination into `Prop` of a registered recursor are
 scoped (`PropElim.Closed`), read off the closed generated recursor type. No typing beyond the
 registration and no canonical `Eq` are used. -/
 

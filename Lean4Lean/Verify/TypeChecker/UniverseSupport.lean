@@ -1,10 +1,10 @@
 import Lean4Lean.Verify.TypeChecker.Basic
 import Lean4Lean.Verify.Typing.UniverseSupport
 
-/-! Actual definition unfolding preserves any smaller source universe scope.
-This includes the existing unfold cache: its invariant identifies the exact
-installed declaration and specialized body, so no extra cache assumption is
-needed for this part of weak-head normalization. -/
+/-! Definition unfolding preserves every universe scope of its input, including when the
+unfolded body comes from the `unfold` cache: the cache invariant identifies the installed
+declaration and the specialized body, so no extra cache assumption is needed for this part of
+weak-head normalization. -/
 
 namespace Lean4Lean.TypeChecker.Inner
 open Lean hiding Environment Exception

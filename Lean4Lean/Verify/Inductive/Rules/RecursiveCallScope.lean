@@ -1,5 +1,11 @@
 import Lean4Lean.Verify.Inductive.Rules.Motive
 
+/-! The frame of one recursive call in a rule's right-hand side
+(`RecursorCheck.RuleAlignment.RecursiveCallFrame`): the recursor selected by the call together
+with the earlier-hypothesis suffix recorded by the minor pass. Also the dependency-selected
+scope core `FVarCheckingScopeCore` used to close call-local arguments, and the rule-wide scope
+of constructor fields above the cached parameters. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -10,9 +16,9 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Final-environment recursor package selected by one generated recursive
+/-- Recursor-environment package selected by one generated recursive
 call.  Besides the checked call semantics, it retains the literal earlier-
-hypothesis suffix from the producer.  Thus the call origin is related to the
+hypothesis suffix recorded by the minor pass.  Thus the call's context is related to the
 rule root by executable allocation history, not by an assumed context
 equality. -/
 structure
@@ -85,8 +91,8 @@ structure
     H.outVEnv.HasType recursor.uvars []
       (.const recursor.name (VLevel.params recursor.uvars)) recursor.type
 
-/-- The generic extension view is derived from the retained producer trace.
-It is not a field or premise of the call frame. -/
+/-- The extension from the rule's recursor context to the call's context, derived
+from the retained earlier-hypothesis suffix.  It is not a field or premise of the call frame. -/
 def RecursorCheck.RuleAlignment.RecursiveCallFrame.originExtension
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -177,7 +183,7 @@ namespace checkInductiveTypes.loopType
 `ScopeEmbedding`, this certificate does not retain source declaration names
 and domains; equation assembly needs the checked embedding, declaration
 shape, and target context, but closes its already-abstracted source terms
-directly.  Omitting source provenance lets the certificate reuse the exact
+directly.  Omitting the source declarations lets the certificate reuse the exact
 cached parameter/field targets rather than choosing a second translation. -/
 structure FVarCheckingScopeCore (env : VEnv) (Us : List Name)
     (scope runtime : VLCtx) : Type where
@@ -365,8 +371,9 @@ theorem MLCtxLamPrefix.skipFVarCheckingScopeCore
       hskip fv (by simp [TypeChecker.MLCtx.fvarRevList])
     exact ⟨Htail.skipIndex henv HruntimeWF hhead⟩
 
-/-- `extendFVarNarrowCore` when the recent prefix was also opened in a checker
-context embedded in the base scope.  Each retained domain is the checker
+/-- Extend a dependency-selected scope core by the recent prefix of the runtime
+context, when that prefix was also opened in a checker context embedded in the
+base scope.  Each retained domain is the checker
 translation weakened along the embedding, so no runtime translation is
 restricted. -/
 theorem MLCtxLamPrefix.extendFVarCheckingScopeCoreEmbedded
@@ -508,7 +515,7 @@ theorem MLCtxLamPrefix.extendFVarCheckingScopeCoreEmbedded
 
 /-- Recover the selected mutual family's canonical motive telescope in the
 exact recursive-call context.  Both the motive binding and telescope lookup
-come from the first-pass producer certificate retained by the rule; the only
+come from the certificate recorded by the minor pass and retained by the rule; the only
 context transport follows the literal prior-hypothesis and call-local suffixes
 recorded by the executable traversal. -/
 theorem
@@ -550,7 +557,7 @@ theorem
 
 /-- Replay the constructor fields once above the cached parameter scope.
 This rule-wide frame is independent of any particular recursive call; later
-call-local narrowing reuses its exact field/parameter identifier order. -/
+call-local dependency selection reuses its exact field/parameter identifier order. -/
 theorem
     RecursorCheck.RuleAlignment.scopedFieldRuntimeScope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}

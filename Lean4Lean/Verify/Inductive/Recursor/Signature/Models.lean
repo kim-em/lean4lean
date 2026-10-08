@@ -5,8 +5,9 @@ import Lean4Lean.Verify.Inductive.Recursor.Signature.Families
 import Lean4Lean.Verify.Inductive.Recursor.Signature.MotiveGroup
 import Lean4Lean.Verify.Inductive.Constructor.SourceSignature
 
-/-! Typed source models for signatures built from the consumed data of the
-completed recursor construction. -/
+/-! Source models for signatures built from the data of the recursor construction: a signature
+with the construction's parameters, families, field domains and result indices
+(`RecursorConstruction.SignatureSpec`) models the source declaration (`Models`). -/
 
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
@@ -64,8 +65,8 @@ theorem VExpr.wrapForalls_domains_defeqCtx {env : VEnv} {U : Nat} (henv : env.WF
     simp only [VExpr.wrapForalls_append]
     exact hfirst.trans henv trivial ⟨_, by simpa [VExpr.wrapForalls] using hsecond⟩
 
-/-- Close two definitionally equal bodies over definitionally equal
-parameter telescopes. -/
+/-- Closing definitionally equal bodies over definitionally equal telescopes gives
+definitionally equal types. -/
 theorem VExpr.wrapForalls_defeqCtx {env : VEnv} {U : Nat} (henv : env.WF)
     {P Q : List VExpr} {X Y : VExpr}
     (hPQ : VEnv.IsDefEqCtx env U [] P.reverse Q.reverse)
@@ -82,8 +83,8 @@ theorem VExpr.wrapForalls_defeqCtx {env : VEnv} {U : Nat} (henv : env.WF)
   exact VEnv.IsDefEqU.trans henv trivial ⟨_, hbody⟩
     (VExpr.wrapForalls_domains_defeqCtx henv hPQ hY)
 
-/-- Field-by-field conversions, each stated in the right-hand prefix scope,
-extend a base context conversion to every prefix. -/
+/-- Field-by-field definitional equalities, each stated in the right-hand prefix scope, extend
+a context conversion of the base to every prefix. -/
 theorem VEnv.IsDefEqCtx.prefixes {env : VEnv} {U : Nat} (henv : env.WF)
     {A C Γ₁ Γ₂ : List VExpr} (hlen : C.length = A.length)
     (hbase : VEnv.IsDefEqCtx env U [] Γ₁ Γ₂)
@@ -165,8 +166,7 @@ theorem recursorMinorOffset_unique (indTypes : Array InductiveType)
   · have := key owner' owner h howner localIndex' hlocal'
     omega
 
-/-- The consumed minor row of each owner has the owner's source constructor
-count. -/
+/-- Each family has as many minors as constructors. -/
 theorem RecursorConstruction.minorTypes_size
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
@@ -175,8 +175,8 @@ theorem RecursorConstruction.minorTypes_size
   have hcounts := H.minorCounts owner howner
   omega
 
-/-- The total number of owned constructors is the production offset after
-the last family. -/
+/-- The total number of owned constructors is the executable's minor offset after the last
+family. -/
 theorem RecursorConstruction.ownedConstructors_length_offset
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (_H : RecursorConstruction R) :
@@ -187,8 +187,8 @@ theorem RecursorConstruction.ownedConstructors_length_offset
   rw [List.length_flatMap]
   omega
 
-/-- Every flattened constructor position is the minor offset of a unique
-owner plus a local index within that owner's consumed minor row. -/
+/-- Every flattened constructor position is the minor offset of some family plus a local index
+among that family's minors (unique by `flatMinorIndex_unique`). -/
 theorem RecursorConstruction.flatMinorIndex
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (k : Nat) (hk : k < decl.ownedConstructors.length) :
@@ -300,10 +300,10 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
   {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
-/-- A signature over the consumed data of the completed construction: cached
-parameters, the consumed families, and one constructor per minor whose field
-types are the consumed field domains and whose indices are the consumed
-terminal indices. The classification of its fields is unconstrained here. -/
+/-- A signature over the data of the recursor construction: the source universes, parameter
+scope and safety, the construction's families, and one constructor per minor whose field types
+are the minor's field domains (`declFieldDomains`) and whose indices are its result indices
+(`declConstructorIndices`). The classification of its fields is unconstrained here. -/
 structure RecursorConstruction.SignatureSpec
     (H : RecursorConstruction R) (s : InductiveSignature) : Prop where
   uvars : s.uvars = decl.uvars
@@ -344,9 +344,8 @@ theorem RecursorConstruction.SignatureSpec.family_indices
   rw [Fin.getElem_fin, D.family_getElem]
   exact H.families_indices ⟨i.val, howner⟩
 
-/-- The closed type of each consumed constructor is definitionally the
-source constructor at the same flattened position, in the header
-environment. -/
+/-- The closed type of each constructor of such a signature is definitionally equal, in the
+header environment, to the type of the source constructor at the same flattened position. -/
 theorem RecursorConstruction.SignatureSpec.constructorType_defeq
     {H : RecursorConstruction R} {s : InductiveSignature}
     (D : H.SignatureSpec s)
@@ -417,8 +416,9 @@ theorem RecursorConstruction.SignatureSpec.constructorType_defeq
   rw [← R.core.uvars] at hmain
   exact hmain.symm.trans henv trivial hhdrType
 
-/-- Every consumed field is, in its own consumed prefix scope, definitionally a
-strictly positive normal form: the header's normal form for the same field. -/
+/-- For a safe declaration, every field of such a signature is, in its own prefix scope,
+definitionally equal to a strictly positive normal form: the checked formation's normal form
+for the same field. -/
 theorem RecursorConstruction.SignatureSpec.fieldPositive
     {H : RecursorConstruction R} {s : InductiveSignature}
     (D : H.SignatureSpec s)
@@ -485,8 +485,8 @@ theorem RecursorConstruction.SignatureSpec.fieldPositive
   rw [hget, hfields, D.params, List.reverse_reverse, R.core.uvars]
   exact hres
 
-/-- The consumed constructor at a flattened position names the source
-constructor's family and constructor at that position. -/
+/-- The constructor of such a signature at a flattened position has the family name and
+constructor name of the source constructor at that position. -/
 theorem RecursorConstruction.SignatureSpec.constructorNames
     {H : RecursorConstruction R} {s : InductiveSignature}
     (D : H.SignatureSpec s)
@@ -527,7 +527,7 @@ theorem RecursorConstruction.SignatureSpec.constructorNames
     exact hf1.symm.trans (by simpa only [Fin.getElem_fin] using hm')
   · exact hname.trans (hhdrName.symm.trans (R.sourceSignatureConstructor_name _))
 
-/-- Consumed signatures model the source declaration. -/
+/-- A signature over the data of the recursor construction models the source declaration. -/
 theorem RecursorConstruction.SignatureSpec.models
     {H : RecursorConstruction R} {s : InductiveSignature}
     (D : H.SignatureSpec s) :

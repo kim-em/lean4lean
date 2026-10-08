@@ -8,6 +8,13 @@ open Kernel
 
 namespace VerifyInductive
 
+/-! # Nested formation from lowering
+
+The installed container of an auxiliary family (`AuxiliaryFamilyContainer`), the conversion of
+ordered family expansions into the abstract nested formation judgment
+(`VInductDecl.NestedFormationWF.ofForall₂`), and the data of a nested expansion of a source
+declaration (`NestedExpansionData`), section 3.3 of `docs/inductives/DESIGN.md`. -/
+
 /-- A finite installed-declaration derivation exposes the exact abstract
 family constant at every source position. -/
 theorem installedBelow_familyLookup
@@ -39,8 +46,8 @@ theorem installedBelow_familyLookup
             ((VEnv.addConstVals_le hctors).constants hlookupTypes)))
     exact hle.constants hlookupInstalled
 
-/-- The declaration-level portion of a legal nested auxiliary source, obtained
-from the production family lookup retained by lowering and the persistent
+/-- The installed container declaration of an auxiliary family, obtained
+from the kernel family lookup retained by lowering and the persistent
 environment invariant.  In particular, `container` is not an arbitrary
 declaration with a matching family name: it has a finite prior
 well-formedness/compilation/installation derivation in the current abstract
@@ -197,9 +204,9 @@ theorem nestedTypeWFExpansions_ofForall₂
       Hhead.resultLevel
       (nestedConstructorWFExpansions_ofForall₂ Hhead.constructors) ih
 
-/-- Final assembly point for a nested formation derivation once the lowering
-projection has supplied ordered family expansion for the original prefix and
-every generated queue family.  The expanded declaration alone supplies the
+/-- Build a nested formation derivation once the lowering
+projection has supplied ordered family expansion for the source families and
+every auxiliary family of the queue.  The expanded declaration alone supplies the
 ordinary formation judgment; no executable callback enters the abstract
 specification. -/
 theorem VInductDecl.NestedFormationWF.ofForall₂
@@ -219,9 +226,9 @@ theorem VInductDecl.NestedFormationWF.ofForall₂
   .intro Hsource Hformation HsourceParameters huvars hnparams hunsafe
     (nestedTypeWFExpansions_ofForall₂ Htypes)
 
-/-- Reviewable inputs to the nested-formation judgment.  The expanded
-declaration is explicit, as is the exact ordered expansion of the original
-families followed by the generated queue. -/
+/-- Inputs to the nested-formation judgment.  The expanded
+declaration is explicit, as is the exact ordered expansion of the source
+families followed by the auxiliary families of the queue. -/
 structure NestedExpansionData (env : VEnv) (source : VInductDecl) where
   expanded : VInductDecl
   generated : List VInductiveType
@@ -243,7 +250,7 @@ theorem NestedExpansionData.formation
     H.expandedSource H.expandedFormation H.sourceParameters H.uvars H.nparams
       H.isUnsafe H.types
 
-/-- Constructor telescope lengths of the original families agree with those
+/-- Constructor telescope lengths of the source families agree with those
 of the expanded declaration. -/
 theorem NestedExpansionData.constructorArityPrefix
     (H : NestedExpansionData env source) :
@@ -257,7 +264,7 @@ theorem NestedExpansionData.constructorArityPrefix
 
 /-- A successful ordinary header/constructor run supplies both independent
 well-formedness judgments for the expanded block.  Thus the only genuinely
-nested input left at this boundary is the ordered lowering expansion itself
+nested input left is the ordered lowering expansion itself
 (plus the declaration metadata equalities fixed by lowering). -/
 def NestedExpansionData.ofConstructorPhases
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}

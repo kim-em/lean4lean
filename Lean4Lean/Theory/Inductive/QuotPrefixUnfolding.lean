@@ -1,9 +1,10 @@
 import Lean4Lean.Theory.Inductive.RecursorPrefixUnfolding
 import Lean4Lean.Theory.Quot
 
-/-! Primitive quotient reconstruction at a Prop-valued source. Quot.ind
-recovers a proof of the source proposition from the quotient major. The
-program retains the actual primitive quotient equation for typed replay. -/
+/-! Prefix unfolding of `Quot.lift` (section 4.2 of `docs/inductives/DESIGN.md`): quotient
+reconstruction at a Prop-valued source, where `Quot.ind` recovers a proof of the source
+proposition from the quotient major. The unfolding retains the primitive quotient equation
+`quotDefEq` for its typing. -/
 
 namespace Lean4Lean.QuotPrefixUnfolding
 open VExpr InductiveSignature InductiveSignature.RecursorData
@@ -46,8 +47,8 @@ theorem generate_unique {levels : List VLevel} (h : generate levels args = some 
     (h' : generate levels args = some p') : p = p' :=
   Option.some.inj (h.symm.trans h')
 
-/-- Generation retains the real quotient equation and its exact telescope
-arity; no structural replay checks need be supplied by the producer. -/
+/-- Generation retains the quotient equation and its exact telescope
+arity; no structural checks need be supplied by the caller. -/
 theorem generate_spec {levels : List VLevel} (H : generate levels args = some program) :
     levels.length = 2 ∧ args.length ≤ 5 ∧ program.domains ≠ [] ∧
     program.levels = levels ∧ program.equation = quotDefEq ∧

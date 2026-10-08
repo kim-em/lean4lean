@@ -11,9 +11,14 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-! # Native source-header reconstruction for nested declarations -/
+/-! # Source headers of nested declarations
 
-/-- The original mutual headers form the literal prefix of the lowered
+The source family headers of a nested declaration are the literal prefix of the lowered block,
+so the source header environment and its translation are read off the ordinary header phase of
+the lowered run, and the header-only environment of the restoration validation models that
+prefix (section 3.3 of `docs/inductives/DESIGN.md`). -/
+
+/-- The source mutual headers form the literal prefix of the lowered
 abstract block.  Splitting ordinary header installation at that queue
 boundary constructs the source-shaped abstract header environment and the
 complete positional source translation without choosing a source declaration
@@ -343,9 +348,9 @@ theorem ValidationHeaderEnvironment.listedOfLowering
 
 /-- The executable header-only side environment used by nested auxiliary
 validation models exactly the abstract source-header prefix selected by the
-lowering queue.  It is reconstructed directly from lowering, ordinary
-production, and the actual header-installation trace; no restoration or
-final-assembly certificate is involved. -/
+lowering queue. It is obtained from lowering, the ordinary run on the lowered
+declaration, and its header installation; no restoration fact or nested
+installation certificate is involved. -/
 theorem ValidationHeaderEnvironment.validOfLowering
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}

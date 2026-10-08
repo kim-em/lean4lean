@@ -105,9 +105,9 @@ private theorem etaOpen_match {domains : List VExpr} (hpos : 0 < domains.length)
   · exact .cons (hctor.defeq hctx) .nil
 
 
-/-- Replay a fixed installed native equation after normal changes to its
+/-- Re-check the unfolding of a fixed installed recursor equation after normal changes to its
 supplied arguments. The concrete constant head is preserved, and every
-capture and reconstructed constructor remains tied to the generated program. -/
+capture and reconstructed constructor remains tied to the generated unfolding. -/
 theorem UnfoldingCheck.congr_normal {name : Name} {levels : List VLevel}
     {p p' : PrefixUnfolding} (hΓ : OnCtx Γ (env.IsType univs))
     (H : UnfoldingCheck env univs Γ (mkApps (.const name levels) args) p)
@@ -184,7 +184,7 @@ theorem UnfoldingCheck.congr_normal {name : Name} {levels : List VLevel}
     rw [← hbody, ← hlevels]
     exact NormalEqF.wrapLams_congr hΓ hlen htypes hn
 
-/-- The actual installed native program transports along normal equality of
+/-- The unfolding of an installed recursor equation transports along normal equality of
 its supplied arguments; no new capture or index-alignment certificate is needed. -/
 theorem PrefixUnfold.congr_normal {name : Name} {levels : List VLevel}
     (hΓ : OnCtx Γ (env.IsType univs))
@@ -261,7 +261,7 @@ theorem generate_layout (H : generate levels args = some program) :
   exact ⟨takeForalls_length htake, rfl, rfl⟩
 
 /-- The six displayed binders of Quot.lift fix prefix generation independently
-of the supplied terms. This is only generation; replay retains its typing checks. -/
+of the supplied terms. This is only generation; the unfolding check retains its typing checks. -/
 theorem generate_sameArity (H : generate levels args = some program)
     (hlen : args'.length = args.length) :
     ∃ program', generate levels args' = some program' := by

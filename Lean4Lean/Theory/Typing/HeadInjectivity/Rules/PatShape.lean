@@ -61,8 +61,8 @@ theorem VExpr.stripLams_wrapLams_mkApps_head {ds args : List VExpr} :
 
 namespace InductiveSignature
 
-/-- The head that restoration produces from a generated recursor head: native
-recursor names are renamed, abstract eliminator heads are kept. -/
+/-- The head that restoration produces from a generated recursor head: recursor constants
+are renamed, abstract eliminator heads are kept. -/
 def Restoration.headOf (r : Restoration) : VExpr → VExpr
   | .const n ls => .const (r.recursorName n) ls
   | e => e

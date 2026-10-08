@@ -1,9 +1,9 @@
 import Lean4Lean.Environment
 
-/-! The native recursor is chosen before universe specialization. A typed
+/-! The kernel-generated recursor is fixed before universe specialization. A typed
 projection can become a large elimination after specialization even when that
-recursor only eliminates into Prop. Desugaring therefore needs admissible
-abstract eliminator instances, not just the exact native `.rec`. -/
+recursor only eliminates into Prop. Desugaring projections therefore needs admissible
+abstract case eliminator instances, not just the kernel-generated `.rec`. -/
 
 namespace Lean4Lean.Tests.ProjectionSpecialization
 open Lean

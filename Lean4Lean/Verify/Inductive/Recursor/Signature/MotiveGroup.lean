@@ -238,8 +238,10 @@ theorem RecursorConstruction.generatedMotivesTranslation
   · exact .sort rfl
   · exact ⟨_, .sort trivial⟩
 
-/-- The complete parameter-and-motive group follows from the actual shared
-source choices. No generated motive translation is supplied by the caller. -/
+/-- For an instance `g` whose parameters, families, universe levels and target level are those
+of the recursor construction, the executable's closed parameter-and-motive telescope (ending in
+`Prop`) translates to `g.params ++ g.motives` in the recursor-checking environment at the
+recursor's universe parameters. -/
 theorem RecursorConstruction.generatedParametersMotivesTranslation
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (g : InductiveSignature.Instance s)

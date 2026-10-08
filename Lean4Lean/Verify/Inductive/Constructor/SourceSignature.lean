@@ -2,6 +2,12 @@ import Lean4Lean.Verify.Inductive.Context
 import Lean4Lean.Verify.Inductive.Header.Block
 import Lean4Lean.Theory.Inductive.Normalization
 import Lean4Lean.Theory.Inductive.SourceModelNames
+
+/-! The normalized source signature read off the checked headers and constructor
+tails: the classification of each field as external or recursive and the
+shared family and parameter choices, with the proof that the signature models
+the source declaration. -/
+
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
@@ -162,7 +168,7 @@ theorem signatureFieldOfUniform
     rw [hr] at hnormal
     exact ⟨.recursive domain r, rfl, ⟨hnormal, .inr ⟨hdomains, hindices⟩⟩, hpos⟩
 
-/-- Fold the original telescope in binder order. Classification does not
+/-- Fold the source telescope in binder order. Classification does not
 replace a domain, so every later field keeps exactly its source context. -/
 theorem signatureFieldsOfUniform
     {decl : VInductDecl} {s : InductiveSignature}
@@ -360,7 +366,7 @@ end checkInductiveTypes.loopInd
 end VerifyInductive
 end Lean4Lean
 
-/-! Assemble one source model from the shared source-boundary selections. -/
+/-! Assemble one source model from the shared source selections. -/
 
 namespace Lean4Lean.VerifyInductive
 open InductiveSignature

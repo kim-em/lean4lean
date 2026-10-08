@@ -1,20 +1,29 @@
 import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldOpening
 import Lean4Lean.Verify.Inductive.TypeAnnotations
 
+/-! Unannotated forall telescopes.
+
+`Expr.consumeForallTypes` strips the type-annotation wrappers accepted by `ok` (among
+`optParam`, `autoParam`, `outParam`, `semiOutParam`) from every domain of a forall telescope, as the recursor
+construction does when it reopens a constructor or family type. The unannotated telescope
+translates to a type definitionally equal to the translation of the annotated one, and
+stripping commutes with closing free variables. -/
+
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
 
-/-- Consume the domains of a displayed source telescope. This is the closed
-syntax produced by reopening its binders with consumed local declaration types. -/
+/-- Strip the type annotations from every domain of a forall telescope. This is the closed
+syntax obtained by reopening its binders with unannotated local declaration types. -/
 def Expr.consumeForallTypes (ok : Name → Bool) : Expr → Expr
   | .forallE name domain body bi =>
     .forallE name (domain.consumeTypeAnnotationsVerified ok) (Expr.consumeForallTypes ok body) bi
   | source => source
 
-/-- Replay domain consumption in the original checking environment. Changes
-to an earlier binder transport later strict translations by context equality;
-the resulting telescope does not require any subsequently installed constant. -/
+/-- In a checking environment in which every wrapper accepted by `annOk` has its
+identity-like definition (`TypeAnnotationWrappers`), the unannotated telescope of a translated type translates to a type that is definitionally
+equal to the original translation. Each unannotated domain changes the context of the
+later binders only up to context equality. -/
 theorem TrExprS.consumeForallTypes_of_wrappers
     {env : Environment} {venv : VEnv} {safety : DefinitionSafety}
     {Us : List Name} {Δ : VLCtx}
@@ -62,8 +71,7 @@ open Lean hiding Environment Exception
 
 namespace TypeChecker
 
-/-- Closing one free variable commutes with the structural annotation
-consumer. -/
+/-- Closing one free variable commutes with stripping type annotations. -/
 theorem Expr.abstract1_consumeTypeAnnotationsVerified
     (e : Expr) (fv : FVarId) (k : Nat := 0) :
     (e.consumeTypeAnnotationsVerified annOk).abstract1 fv k =
@@ -87,8 +95,8 @@ theorem Expr.abstract1_consumeTypeAnnotationsVerified
         cases head <;> simp_all [Expr.consumeTypeAnnotationsVerified, Expr.abstract1]
         case fvar => split <;> simp_all [Expr.consumeTypeAnnotationsVerified]
 
-/-- Exact-model closing of a free-variable list commutes with the structural
-annotation consumer. -/
+/-- Closing a list of free variables (the exact model `abstractN`) commutes with
+stripping type annotations. -/
 theorem Expr.abstractN_consumeTypeAnnotationsVerified
     (e : Expr) (xs : List FVarId) (k : Nat := 0) :
     (e.consumeTypeAnnotationsVerified annOk).abstractN xs k =

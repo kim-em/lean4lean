@@ -7,8 +7,8 @@ open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
-/-- Per-family minor counts imply the corresponding flattened block count
-used by production recursor types. -/
+/-- Per-family minor counts give the flattened minor count of the block, as used by the
+executable's recursor types. -/
 theorem mkRecInfos.flatMinors_size
     {recInfos : Array AddInductive.RecInfo}
     {indTypes : Array InductiveType}
@@ -43,9 +43,9 @@ iteration of `declareRecursors.loop`. -/
 def recursorMinorOffset (indTypes : Array InductiveType) (dIdx : Nat) : Nat :=
   ((indTypes.toList.take dIdx).flatMap (fun type => type.ctors)).length
 
-/-- The element at a flattened prefix offset is the selected element of the
-current row.  Keeping this generic isolates the list arithmetic shared by
-concrete and abstract owned-constructor enumerations. -/
+/-- The element of a flattening at offset (length of the first `owner` rows) `+ i` is element
+`i` of row `owner`. This is the list arithmetic shared by the executable and abstract
+owned-constructor enumerations. -/
 theorem List.flatMap_getElem_prefix
     (rows : List α) (entries : α → List β)
     (owner i : Nat) (howner : owner < rows.length)
@@ -139,9 +139,8 @@ theorem VInductDecl.ownedConstructors_getElem_prefix
       (fun type => type.ctors.map (type, ·)) owner i howner hiMapped
       hindexMapped
 
-/-- Translation preserves the number of constructors in every mutual-family
-prefix, so production's running minor offset is the abstract flattening
-offset for the same owner. -/
+/-- Translation preserves the number of constructors in every mutual-family prefix, so the
+executable's running minor offset is the abstract flattening offset for the same owner. -/
 theorem TrInductDeclCore.recursorMinorOffset_eq_abstract
     (H : TrInductDeclCore env lparams nparams indTypes.toList isUnsafe decl
       envTypes envCtors)
@@ -168,9 +167,9 @@ theorem TrInductDeclCore.recursorMinorOffset_eq_abstract
     simpa [Array.getElem!_eq_getD, Array.getD, hsourceOwner] using
       Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Howner
 
-/-- Select the canonical abstract owner/constructor at production's concrete
-minor offset.  This is the pointwise bridge needed to package raw generated
-equation translations as specification iota rules. -/
+/-- The abstract owned constructor at the executable's minor offset of family `owner` plus `i`
+is constructor `i` of family `owner`. This identifies the translations of the generated
+equations with the specification's iota rules pointwise. -/
 theorem TrInductDeclCore.ownedConstructorAtMinorOffset
     (H : TrInductDeclCore env lparams nparams indTypes.toList isUnsafe decl
       envTypes envCtors)
@@ -282,8 +281,9 @@ theorem mkRecInfos.flatMinors_size_of_translation
     ← ownedConstructors_length_eq_flattened_size]
   exact Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructors_length Hdecl
 
-/-- Structural portion of the independent recursor shape, assembled before
-the generated telescope itself is translated. -/
+/-- The counts of the recursor construction: numbers of families, parameters, motives, minors
+and indices agree with the abstract declaration. They are established before the generated
+telescope is translated. -/
 structure RecursorCounts
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)

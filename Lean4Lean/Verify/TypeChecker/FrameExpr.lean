@@ -194,7 +194,7 @@ theorem NonGhostFVars.eq_map {arr : Array Expr} (h : NonGhostFVars G arr) :
 def DeclsGhostFree (G : FVarId → Prop) (lctx : LocalContext) (xs : List FVarId) : Prop :=
   ∀ x ∈ xs, ∀ ⦃d⦄, lctx.find? x = some d → GhostFree G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GhostFree G v
 
--- Kept for `Lean4Lean/Verify/TypeChecker/FrameWHNF.lean`.
+-- Used by `Lean4Lean/Verify/TypeChecker/FrameWHNF.lean`.
 alias value?_ldecl := LocalDecl.value?_ldecl_true
 
 theorem GhostFree.mkBindingList1N (hb : GhostFree G b)

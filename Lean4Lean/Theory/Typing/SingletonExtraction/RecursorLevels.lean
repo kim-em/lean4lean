@@ -1,10 +1,10 @@
 import Lean4Lean.Theory.Typing.SingletonExtraction.Recursor
 import Lean4Lean.Theory.Typing.SingletonExtraction.Congruence
 
-/-! # Syntax of the native singleton extraction
+/-! # Syntax of the singleton extraction
 
 Universe instantiation and level congruence of the cast specification, the elimination
-into `Prop` and the reconstruction of a registered native recursor
+into `Prop` and the reconstruction of a registered recursor
 (`RecursorData.singletonLayout`, `propElim`, `PropElim.occ`). -/
 
 set_option linter.unusedSimpArgs false

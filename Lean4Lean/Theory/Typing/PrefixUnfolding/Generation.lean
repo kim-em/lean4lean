@@ -5,16 +5,16 @@ import Lean4Lean.Theory.Inductive.RecursorPrefixUnfolding
 import Lean4Lean.Theory.Typing.RecursorRegistration
 import Lean4Lean.Theory.Typing.Strong
 
-/-! # The singleton prefix program with `Eq`-cast extraction
+/-! # The singleton prefix unfolding with `Eq`-cast extraction
 
-The native singleton unfolding opens the unsupplied binders of a recursor
-prefix, reconstructs the major from its indices, and replays the installed
+The singleton unfolding opens the unsupplied binders of a recursor
+prefix, reconstructs the major from its indices, and applies the installed
 equation. Data fields are read from the literal index slots. Proof fields are
-extracted from the major by the native recursor itself at the motive universe
+extracted from the major by the recursor itself at the motive universe
 `Prop`, with the earlier data fields cast along type equations
-(`PropElim.occ`, `SingletonExtraction.lean`). These extraction terms are well
+(`PropElim.occ`, `SingletonExtraction/`). These extraction terms are well
 typed whenever the indices are aligned with a constructor instance, without an
-eliminator registration; the earlier selectors of `prefixUnfolding` were not. -/
+eliminator registration. -/
 
 namespace Lean4Lean.InductiveSignature.RecursorData
 open VExpr VEnv
@@ -129,7 +129,7 @@ theorem singletonReconstruction_levels
   simp only [hS', hE', bind, Option.bind_some, hlenF]
   exact ⟨_, _, rfl, hrel.ctor.mkApps_args (List.Forall₂.append' hps h), h⟩
 
-/-- The singleton prefix program: `prefixUnfolding` with the reconstruction of
+/-- The singleton prefix unfolding: `prefixUnfolding` with the reconstruction of
 `singletonReconstruction`. -/
 noncomputable def singletonUnfolding (env : VEnv) (data : RecursorData) (_U : Nat)
     (levels : List VLevel) (arguments : List VExpr) : Option PrefixUnfolding := do

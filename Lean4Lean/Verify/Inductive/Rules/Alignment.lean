@@ -1,5 +1,14 @@
 import Lean4Lean.Verify.Inductive.Install.Lookups
 
+/-! Rule alignment, the entry point of the typing of the iota rules (`Rules/`,
+section 3.2 of `docs/inductives/DESIGN.md`). For each rule emitted by the recursor construction,
+`RecursorCheck.RuleAlignment` fixes in one record the executable family in `indTypes`, the
+abstract family and constructor of `decl`, and the rule's syntax and typing facts
+(`RecursorRuleSyntax`, `RecursorRuleSyntax.Semantics`); `RecursorCheck.ruleAlignment` produces
+it from the recursor check. The file then reads the translated telescope of each installed
+recursor off the recursor check and relates its parameter domains to the cached parameter
+declarations of the constructor check. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -11,7 +20,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
 /-- Pointwise projection used by abstract iota reconstruction.  It exposes
-the exact generated source rule together with the semantic trace from the
+the exact generated source rule together with its `Semantics` record from the
 same executable constructor iteration. -/
 theorem RecursorCheck.generatedRule
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -172,7 +181,7 @@ noncomputable def RecursorCheck.RuleAlignment.minorReplayAt
   Classical.choice (A.minorOrigin.producer.replay j hj)
 
 /-- Select the fully aligned pointwise rule package directly from the
-completed recursor phase.  All bounds not supplied by the caller follow from
+recursor check.  All bounds not supplied by the caller follow from
 the generated-recursors cardinality and the source-declaration translation. -/
 theorem RecursorCheck.ruleAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -229,7 +238,7 @@ theorem RecursorCheck.ruleAlignment
     typing_owner := hsemanticOwner }⟩
 
 /-- The recursor selected by a generated rule carries the exact five-part,
-binder-typed telescope recovered from the production `.recInfo`.  This is
+binder-typed telescope recovered from the executable's `.recInfo`.  This is
 the canonical source of the parameter, motive, and minor domains used when
 typing the corresponding equation; it does not reconstruct those domains
 from the rule RHS. -/
@@ -338,7 +347,7 @@ theorem RecursorCheck.RuleAlignment.installedRecursorTelescopeTranslation
 
 /-- The parameter domains recovered from the installed generated recursor
 are definitionally equal to the independently checked cached parameter
-scope.  This is the canonical equation-context bridge: it compares contexts,
+scope.  This is the connecting lemma for the equation context: it compares contexts,
 not syntax, and is derived from translation of the same concrete `mkForall`
 prefix on both sides. -/
 theorem
@@ -907,7 +916,7 @@ theorem
 
 /-- Invert a cached constructor target belonging to a fixed recursor
 telescope.  Keeping `T` explicit is essential when the resulting index spine
-is consumed by the matching recursor suffix. -/
+is used by the matching recursor suffix. -/
 theorem
     RecursorCheck.RuleAlignment.cachedConstructorIndexSpineOfTarget
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}

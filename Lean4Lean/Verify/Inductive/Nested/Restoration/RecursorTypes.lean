@@ -1,8 +1,9 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 
-/-! Restored recursor types of an exact validated nested run, with the
-parameter telescope of the lowered recursor type discharged from the
-restoration step and the canonical recursor type. -/
+/-! Restored recursor types of a validated nested run, with the parameter
+telescope of the lowered recursor type discharged from the restoration step and
+the generated recursor type it translates to (section 3.3 of
+`docs/inductives/DESIGN.md`). -/
 
 namespace Lean4Lean
 namespace VerifyInductive
@@ -54,7 +55,7 @@ theorem VExpr.mkApps_append_singleton (f a : VExpr) (l : List VExpr) :
 
 open _root_.Lean4Lean.InductiveSignature in
 /-- The parameter telescope of a lowered recursor type whose translation is
-a canonical generated recursor type. -/
+a generated recursor type. -/
 theorem RestoreTelescope.forallTelescope_of_recursorType
     {s : InductiveSignature} {g : Instance s} {owner : Fin s.families.size}
     {env : VEnv} {Us : List Name} {e : Expr} {n : Nat}
@@ -68,7 +69,7 @@ theorem RestoreTelescope.forallTelescope_of_recursorType
 
 
 /-- The lowered recursor type of a restoration step at a generated owner's
-recursor name translates to the owner's canonical generated recursor type. -/
+recursor name translates to the owner's generated recursor type. -/
 theorem NestedRun.loweredRecursorTypeTranslation
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -130,7 +131,7 @@ theorem NestedRun.loweredRecursorParameterTelescope
     (E.loweredRecursorTypeTranslation owner Hstep)
 
 /-- The executable recursor name of a generated entry, as recorded by
-`AuxiliaryRecursorGeneratedAlignment.oldRecName_eq`, is the canonical
+`AuxiliaryRecursorGeneratedAlignment.oldRecName_eq`, is the generated
 recursor name of the generated owner at the same position. -/
 theorem NestedRun.recursorOwnerOfEntry
     {result : Lean4Lean.ElimNestedInductive.Result}

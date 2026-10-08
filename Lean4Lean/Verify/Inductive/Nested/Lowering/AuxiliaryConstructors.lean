@@ -11,7 +11,13 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! # Exact construction provenance for generated constructors -/
+/-! # The constructors of an auxiliary family
+
+The constructor types emitted by the auxiliary builder are, after translation, definitionally
+the specializations of the container's constructors
+(`AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.directAuxiliary`), and the family
+header translated by the ordinary header check is the specialization of the container family
+(`AuxiliaryFamilyContainer.directAuxiliaryFamilyType`). -/
 
 /-- Simultaneous free-variable closure commutes with substitution for one
 bound variable at an arbitrary binder depth.  This is the list-facing form
@@ -127,7 +133,7 @@ theorem Expr.ForallTelescope.resultClosed
     simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hresult
 
 /-- The level-substitution core preserves and reflects the outer forall
-telescope.  The result witness is useful when producer evidence records a
+telescope.  The reflected telescope is useful when the builder records a
 telescope only after specializing its universe parameters. -/
 theorem Expr.ForallTelescope.reflect_instantiateLevelParamsCore'
     (H : Expr.ForallTelescope
@@ -233,9 +239,9 @@ theorem SameTelescopeArity.cross
       | succ _ _ _ _ Hright => exact .succ _ _ _ _ (ih Hleft Hright)
 
 /-- The constructor residual emitted by the auxiliary builder is literally
-the source constructor telescope consumed by the translated cached argument
+the source constructor telescope instantiated by the translated cached argument
 spine.  Closedness of the raw arguments is recovered from the translation of
-their closure, so it is retained producer evidence rather than a premise. -/
+their closure, so it is derived from the builder rather than assumed. -/
 theorem AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.sourceResidual
     {ves : VEnvs}
     (C : AuxiliaryFamilyContainer prodEnv (ves.venv safety)
@@ -370,8 +376,8 @@ theorem AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.sourceResidualC
   exact HtailClosed
 
 
-/-- The generated family residual is the installed source-family telescope
-consumed by the exact cached parameter spine. -/
+/-- The auxiliary family residual is the installed container-family telescope
+instantiated by the exact cached parameter spine. -/
 theorem AuxiliaryFamilyContainer.familySourceResidual
     (C : AuxiliaryFamilyContainer prodEnv venv
       params nestedAux concrete H)
@@ -559,8 +565,8 @@ theorem AuxiliaryFamilySpecialization.residualClosed
   rw [Nat.zero_add, hrawLength]
   exact HtailClosed
 
-/-- The header translated by the ordinary checker for an exact generated
-family is definitionally the canonical specialization of its installed
+/-- The header translated by the ordinary checker for an auxiliary
+family is definitionally the specialization of its installed
 container family.  Every premise is retained by the builder, installed
 container certificate, header checker, or cached source application. -/
 theorem AuxiliaryFamilyContainer.directAuxiliaryFamilyType
@@ -813,7 +819,7 @@ theorem AuxiliaryFamilyContainer.directAuxiliaryFamilyType
         HcanonicalApplication
 
 /-- One constructor emitted by the auxiliary builder has a source-facing
-translation whose target is definitionally the canonical specialization of
+translation whose target is definitionally the specialization of
 the corresponding constructor in the installed container.  The translated
 target itself is allowed to be the normal form selected by `TrExprS`; the
 formation relation asks only for the resulting definitional equality.

@@ -12,8 +12,8 @@ level for the decreasing-diagram criterion of `Lean4Lean.Levelled`:
 
 0. normal equality without eta (`NormalEq₀`): structural, universe levels and
    proof irrelevance;
-1. parallel reduction (`ParRed`): beta, native and registered schema patterns;
-2. `DeltaPar`: parallel native prefix unfolding, quotient prefix unfolding and
+1. parallel reduction (`ParRed`): beta, stored-rule and registered case-schema patterns;
+2. `DeltaPar`: parallel singleton prefix unfolding, quotient prefix unfolding and
    projection of constructor applications;
 3. `EtaPar`: parallel function and structure eta expansion.
 
@@ -57,10 +57,10 @@ or projection step at a lower level.
 The prefix computation lemmas use the `Params` fields `pat_const_not_unfolding`,
 `recursorData_quot`, `pat_ctor_rigid`, `projection_ctor_rigid`,
 `pat_struct_major`, `pat_iota_params` and `schema_struct_major`. They state that
-registered definition patterns do not overlap native and quotient prefix
-unfolding, that constructors are rigid, and that native iota and case rules at
+registered definition patterns do not overlap singleton and quotient prefix
+unfolding, that constructors are rigid, and that recursor iota and case rules at
 a structure constructor read its fields and not its parameters. Without them, a
-pattern could overlap a native unfolding at the same head, and a structure eta
+pattern could overlap a singleton unfolding at the same head, and a structure eta
 expansion of a major could not be undone by projection.
 -/
 
@@ -78,7 +78,7 @@ def structExpand (family : Name) (info : VProjectionInfo) (levels : List VLevel)
   VExpr.mkApps (.const info.ctorName levels)
     (params ++ (List.range info.numFields).map fun index => .proj family index e)
 
-/-- Parallel contraction of native prefix unfoldings, quotient prefix
+/-- Parallel contraction of singleton prefix unfoldings, quotient prefix
 unfoldings and projections of constructor applications. Arguments are
 developed before the redex is contracted. -/
 inductive DeltaPar : List VExpr → VExpr → VExpr → Prop where
@@ -1066,7 +1066,7 @@ theorem Params.no_match_quot_prefix (hqr : QuotRegistered env) (hp : Pat p r)
     · simp only [List.length_append, List.length_singleton] at hlen
       omega
 
-/-- The large-elimination guard of native iota excludes prefix unfolding. -/
+/-- The large-elimination guard of recursor iota excludes prefix unfolding. -/
 theorem Params.iota_no_delta
     (hp : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r)
     (hck : r.2.OK df m1 m2)
@@ -2632,7 +2632,7 @@ theorem exists_spine : ∀ e : VExpr, ∃ h args, e = VExpr.mkApps h args ∧ �
   | .lam A b => ⟨_, [], rfl, nofun⟩
   | .forallE A b => ⟨_, [], rfl, nofun⟩
 
-/-- A native or quotient prefix rule at a constant spine. -/
+/-- A singleton or quotient prefix rule at a constant spine. -/
 def SpineRule (Γ : List VExpr) (name : Name) (ls : List VLevel) (xs : List VExpr) (rhs : VExpr) :
     Prop :=
   PrefixUnfold env univs recursorData Γ name ls xs rhs ∨
@@ -3380,7 +3380,7 @@ theorem DeltaPar.project_fields (hΓ : OnCtx Γ (env.IsType univs))
   exact .projIota rfl (fun _ _ _ => .rfl) hl hpj hget
     (HasType.projIota_field hΓ hl hpj hlen hget)
 
-/-- Collapse eta expansions of a constructor major of a native iota pattern. -/
+/-- Collapse eta expansions of a constructor major of a recursor iota pattern. -/
 theorem EtaPar.collapse_major
     (hΓ : OnCtx Γ (env.IsType univs))
     (hstruct : ∀ {family info ls ps}, env.projections family info →

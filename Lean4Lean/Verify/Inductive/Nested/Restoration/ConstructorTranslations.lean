@@ -1,5 +1,10 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Steps
 
+/-! Source translations of the restored constructors of one source family: each step of the
+executable constructor-restoration fold paired with the translation of the source constructor
+it installs, stated in the abstract header environment (section 3.3 of
+`docs/inductives/DESIGN.md`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -10,9 +15,10 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- One source constructor paired with the exact operational restoration
-step that installs it.  Source translation is stated in the canonical
-post-header environment, not the production interleaved environment. -/
+/-- One source constructor paired with the executable restoration step that
+installs it. The source translation is stated in the abstract header environment
+`canonicalEnv`, not in the kernel environment, where restored headers, constructors
+and recursors are interleaved. -/
 structure RestoredConstructorTranslation
     (lparams : List Name) (safety : DefinitionSafety) (canonicalEnv : VEnv)
     (Hstep : RestoredConstructorStep result loweredEnv ctorName

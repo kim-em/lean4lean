@@ -1,19 +1,17 @@
 import Lean4Lean.Theory.Typing.Strong
 
 /-!
-Dependent constructor captures under related substitutions into the SAME
-target context. A data capture comes from an actual source variable; a proof
-capture can be retained literally. Domain alignment is explicit conversion
-evidence, not inferred from two typings using uniqueness.
+Explicit type conversions (`TypeConversion`: chains of definitional equalities, each at its
+own sort, along which a term can be cast without uniqueness of sorts), and dependent
+constructor captures under related substitutions into the same target context
+(`ConstructorCaptureReplay`). A data capture comes from an actual source variable, with an
+explicit conversion from its domain to the constructor-field domain; a proof capture can be
+retained literally.
 
-The induction follows the DECLARED constructor telescope. In particular it
-does not assume that its domain instantiated with reconstructed index terms
-is well typed before substitution. That assumption fails for dependent
-singleton indices; see docs/inductives/history/DependentSingletonObstruction.lean.
-
-This is a conditional transport theorem for the proposed witnessed replay.
-It does not construct the initial alignment paths, establish equation
-coverage, change the native reduction rule, or prove inverse weakening.
+`ConstructorCaptureReplay.transport` follows the constructor telescope itself. In particular it
+does not assume that a domain instantiated with reconstructed index terms is well typed before
+substitution, which fails for dependent singleton indices. It does not construct the initial
+conversions.
 -/
 
 namespace Lean4Lean.VEnv
@@ -49,7 +47,7 @@ end TypeConversion
 /-- A finite constructor-field replay. `source` is the actual argument
 context; `declared` is the constructor telescope accumulated so far.
 The index case records the conversion from the source variable's natural
-domain to its constructor-field domain AFTER the given substitution.
+domain to its constructor-field domain after the given substitution.
 The proof case can use any already typed proof in the common target context.
 No endpoint equality or computation callback is supplied. -/
 inductive ConstructorCaptureReplay (env : VEnv) (U : Nat) (Γ source : List VExpr)

@@ -68,7 +68,7 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
   an installed constant, and the projections already registered for its
   families are those of the certified declaration
   (`VInductDecl.ProjectionsCoherent`). Every structure already registered
-  over one of its original families has, in the schema, exactly its
+  over one of its source families has, in the schema, exactly its
   registered constructor (`CaseSchema.StructCompat`): otherwise a schema
   could add constructors to a registered structure, which structure eta
   makes inconsistent.
@@ -77,12 +77,12 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
   the case part of a compilation (`CaseCompilationData`: formation, model,
   restoration correspondence and scoping, installed source constants, family
   typing) together with freshness of the restoration's auxiliary recursor
-  names; the key of the first original family; and the agreement of the
+  names; the key of the first source family; and the agreement of the
   declared family headers with the restored normalized ones
   (`CaseSchema.HeaderAgreement`). The eliminator rules `elimDF`/`elimIota`
-  read only the schema data fixed by the case part, never the generated native
-  recursors, so a declaration registers its case schema at the constructor
-  boundary, before its native recursors are generated and checked. -/
+  read only the schema data fixed by the case part, never the generated
+  recursors, so a declaration registers its case schema once its constructors
+  are installed, before its recursors are generated and checked. -/
   | inductEliminators {base env : VEnv} {source : VInductDecl}
       {block : VInductBlock} {schema : InductiveSignature.CaseSchema} :
     VEnv.WF' baseDecls base →

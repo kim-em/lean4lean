@@ -74,7 +74,7 @@ theorem RecursorFieldDecisions.consumeForallTypes
     (Lean4Lean.Expr.consumeForallTypes root.env.isTypeAnnotationWrapper)
     (fun _ _ _ _ => rfl) (fun e fv => Lean4Lean.Expr.abstractN_consumeForallTypes e [fv])
 
-/-- Every minor traversal runs in the constructor environment. -/
+/-- Every minor's constructor traversal starts in the kernel constructor environment. -/
 theorem RecursorConstruction.minorRootEnv
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
@@ -135,8 +135,9 @@ theorem RecursorConstruction.constructorUnannotatedSource
   dsimp only
   rw [hcontext, hclosed, Lean4Lean.Expr.abstractList_consumeForallTypes]
 
-/-- The source header's cached parameter order also closes strict translations
-in the original universe context. -/
+/-- Abstracting the header's cached parameters (`CachedParameterDecl`) turns a translation
+over the parameter scope into a translation of the closed expression over the anonymous
+parameter context `abstractForallContext`. -/
 theorem TrExprS.abstractCachedParameters {scope : VLCtx}
     (Hcached : List.Forall₂ checkInductiveTypes.loopType.CachedParameterDecl
       params.toList.reverse scope)
@@ -188,9 +189,9 @@ theorem RecursorConstruction.constructorRawSourceReplay
   exact TrExprS.abstractCachedParameters Hcached H.params hparams
     Hraw
 
-/-- Header installation preserves the local checking relation; the
-annotation wrappers accepted in the constructor environment are definitions
-of the header environment, since the constructor stage adds only constructors. -/
+/-- The header environment is a checking environment, and the type-annotation wrappers
+recognized by the constructor environment are definitions of the header environment, since
+the constructor stage adds only constructors. -/
 theorem ConstructorCheck.headerCheckingAnnotations
     (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     CheckingEnv c.safety R.headerEnv R.headerVEnv ∧
@@ -228,7 +229,8 @@ theorem ConstructorCheck.headerAnonymousParameterWF
     (right := R.parameterScope.toCtx.reverse) (by simpa using Hparams)
   exact (Hctx.symm R.headerCheckingAnnotations.1.wf.ordered).wf
 
-/-- The raw source replay is typed before constructors are added. -/
+/-- Each constructor type of the source signature is a type in the header environment, over
+the parameter scope. -/
 theorem ConstructorCheck.sourceConstructorTailType
     (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
     (index : Fin decl.ownedConstructors.length) :
@@ -247,9 +249,9 @@ theorem ConstructorCheck.sourceConstructorTailType
         (InductiveSignature.vars R.sourceSignature.params.length (R.sourceSignatureConstructor index).fields.length)
         (R.sourceSignatureConstructor index).indices))) R.statsWF.uvars.symm) Htype
 
-/-- Consume the original source constructor directly in the header
-checking environment, using the actual production trace to identify its
-closed native syntax. -/
+/-- The executable field telescope of a minor's constructor traversal, ending in its terminal
+family application and abstracted over the parameters, translates in the header environment
+to a type definitionally equal to the matching source signature constructor type. -/
 theorem RecursorConstruction.constructorUnannotatedHeaderReplay
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
@@ -322,8 +324,9 @@ theorem MLCtxOnlyLams.mkForall_fvarsIn_upset
       · apply FVarsIn.abstract1_of
         simpa [TypeChecker.MLCtx.fvarRevList, Q, List.mem_cons, or_assoc] using Hbody
 
-/-- Lift a previously selected original-universe translation into the actual
-recursor context without making another target choice. -/
+/-- A translation in the recursor-checking environment at the source universe parameters, over
+the source parameter scope, lifts to the recursor's universe parameters and parameter context,
+with the target instantiated at the recursor's universe levels. -/
 theorem RecursorConstruction.liftDeclUnivType
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
@@ -350,8 +353,11 @@ theorem RecursorConstruction.liftDeclUnivType
     rw [H.parameterAnonymousContext, H.recursorEnv, recursorDeclarationAbstractLevels_param H.elimLevelAdmissible helim]
     simpa [helim, AddInductive.getRecLevelParams] using Hrec
 
-/-- Select the field telescope in the header environment, before any current
-constructor can enter a projection witness. Retain its exact lifted replay. -/
+/-- The executable field telescope of a minor (closed with `Prop`, abstracted over the
+parameters) translates in the header environment to some `sourceDomains`, which form a type,
+and translates at the recursor's universe parameters to `sourceDomains` instantiated at the
+recursor's universe levels. The domains are read in the header environment, before the
+block's constructors exist. -/
 theorem RecursorConstruction.sourceFieldDomains
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
@@ -392,8 +398,8 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- The field domains of each source-owned constructor are selected once
-before installation, in the original universe and parameter scope. -/
+/-- The field domains of the constructor of a minor, chosen by `sourceFieldDomains` in the
+header environment, in the source universes and parameter scope. -/
 noncomputable def RecursorConstruction.declFieldDomains
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)

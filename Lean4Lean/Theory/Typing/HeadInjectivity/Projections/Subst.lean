@@ -2,12 +2,10 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Projections.Typing
 
 /-! # Projection field types under substitution
 
-Two companions of `VEnv.proj_typed` for a projection-registered structure:
-* the field type `fieldType` commutes with an arbitrary substitution
-  (`VEnv.ProjTele.fieldType_subst`);
-* at a typed major `w`, the substitutions instantiating the constructor telescope at the
-  parameters and the projections of `w`, resp. of a definitionally equal `w'`, are
-  definitionally equal along the telescope (`VEnv.ProjTele.substEq_projs`). -/
+A companion of `VEnv.proj_typed` for a projection-registered structure: the field type
+`fieldType` commutes with an arbitrary substitution (`VEnv.ProjTele.fieldType_subst`), from
+the closedness of the telescope's domains (`ProjTele.closedN_dom`) and the substitution of
+each instantiated field domain (`ProjTele.dom_subst`). -/
 
 namespace Lean4Lean
 open VExpr

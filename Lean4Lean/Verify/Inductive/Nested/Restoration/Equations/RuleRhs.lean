@@ -1,18 +1,17 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Recursors
 
-/-! Restored equations of the canonical restored block of a validated nested
-run.
+/-! Translation of the restored rules of a validated nested run.
 
 `Instance.restoredEquations` restores the left-hand side, right-hand side and
 type of every generated equation. The right-hand side of a restored rule is
 produced by the executable (`restoreRule`, whose right-hand side is
 `restoreNested` of the lowered rule's right-hand side); this file proves that
 its translation is the abstract restoration of the generated equation's
-right-hand side, using the hit shape of the lowered right-hand sides
+right-hand side, using the parameter uniformity of the lowered right-hand sides
 (`NestedRun.recursorParamUniform_of_wfCore`, which needs nothing beyond the
 run). The lowered right-hand side is a
 lambda telescope, so we first prove the lambda analogue of
-`NestedRestoration.restorationCommutes`. -/
+`restorationCommutes`. -/
 
 namespace Lean4Lean
 
@@ -112,8 +111,8 @@ theorem Expr.LambdaTelescope.closed_result {outer result : Expr} {arity depth : 
     have Hresult := ih Houter.2
     simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hresult
 
-/-- **Hit shape of every opening** of a stored lambda telescope whose
-parameter prefix is in bound-variable hit shape. -/
+/-- **Parameter uniformity of every opening** of a stored lambda telescope
+whose parameter prefix is parameter-uniform over bound variables. -/
 theorem NestedRestorationOpening.paramUniform_of_lowered_lam
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {heads : List Name} {auxLevels : List Level}
@@ -140,8 +139,8 @@ theorem TrExprS.isForall_false_of_wrapLams {env : VEnv} {Us : List Name} {Δ : V
 
 /-! ### The restored equation list -/
 
-/-- **Realization of one restored equation.** The abstract equation `rule`
-at generated constructor index `k` realizes the executable restored rule: for
+/-- **Translation of one restored equation.** The abstract equation `rule`
+at generated constructor index `k` translates the executable restored rule: for
 some generated owner, restoration step at the owner's lowered recursor name,
 and position `j` of that step's restored rule list with `k` the flattened
 index of the rule (`recursorMinorOffset` of the owner plus `j`),
@@ -181,7 +180,7 @@ def NestedRun.TrRestoredRecursorRule
     r.expr (E.lowered.recursors.canonicalGeneration.equation k).type =
       some rule.type
 
-/-! ### The canonical restored block -/
+/-! ### The restored block -/
 
 end VerifyInductive
 end Lean4Lean

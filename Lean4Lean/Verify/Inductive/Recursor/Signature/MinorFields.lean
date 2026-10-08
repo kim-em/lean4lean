@@ -1,13 +1,12 @@
 import Lean4Lean.Verify.Inductive.Recursor.Signature.FieldDomains
 import Lean4Lean.Verify.Typing.TelescopeTranslationLemmas
 
-/-! Field domains of a generated minor premise, in the abstract contexts used
-by the independent generator.
+/-! Field domains of a generated minor premise, in the abstract contexts used by the generator.
 
-The consumed field telescope of a minor, closed over the parameters, mentions
-no free variable at all, so abstracting any further binders merely lifts it.
-Weakening it beneath the motives and earlier minors therefore yields the
-generator's `insertBinders` form of the selected source field domains. -/
+The unannotated field telescope of a minor, closed over the parameters, mentions no free
+variable at all, so abstracting any further binders only lifts it. Weakening it beneath the
+motives and earlier minors therefore yields the generator's `insertBinders` form of the
+minor's field domains. -/
 
 namespace Lean4Lean
 
@@ -42,10 +41,10 @@ namespace VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- The selected source field domains of one minor, lifted beneath `inserted`
-abstract binders placed between the parameters and the fields.  The source
-side abstracts any `extra` free variables of the same count, because the
-parameter-closed field telescope contains no free variable. -/
+/-- The unannotated field domains of one minor (`declFieldDomains`, at the recursor's universe
+levels), lifted beneath `inserted` binders placed between the parameters and the fields,
+translate the executable field telescope abstracted over the parameters and any `extra` free
+variables of the same count: the parameter-closed field telescope contains no free variable. -/
 theorem RecursorConstruction.minorFieldsTemplate
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)

@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Rules.Translation
 import Lean4Lean.Theory.Inductive.CanonicalEqSignature
 
-/-! # Production syntax of the toConstantsInstallation equality
+/-! # Syntax of the prelude's equality
 
 The declaration of `Eq` submitted by `Init.Prelude`, and the type and iota rule
 of the recursor `Eq.rec` that the kernel generates for it, stated literally
@@ -17,8 +17,8 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The concrete family type submitted by Lean's toConstantsInstallation declaration of
-`Eq`. Binder names are operationally retained by `Expr`, although abstract
+/-- The concrete family type submitted by the prelude's declaration of
+`Eq`. Binder names are kept by `Expr`, although abstract
 translation erases them. -/
 def preludeEqType (u alphaName lhsName rhsName : Name) : Expr :=
   .forallE alphaName (.sort (.param u))
@@ -38,9 +38,9 @@ end VerifyInductive
 
 open VerifyInductive
 
-/-! ### Production expressions -/
+/-! ### Kernel expressions -/
 
-/-- Binder names of the production `Eq.rec` type and iota rule. They are
+/-- Binder names of the kernel's `Eq.rec` type and iota rule. They are
 erased by translation. -/
 structure EqRecBinderNames where
   alpha : Name
@@ -52,7 +52,7 @@ structure EqRecBinderNames where
   rhs : Name
   proof : Name
 
-/-- The motive domain of the production `Eq.rec.{u, v}` (`u` is the motive
+/-- The motive domain of the kernel's `Eq.rec.{u, v}` (`u` is the motive
 universe, `v` the sort of `α`), under `α` and `a`. -/
 def eqRecMotiveExprU (u v : Name) (n : EqRecBinderNames) : Expr :=
   .forallE n.motiveRhs (.bvar 1)
@@ -60,7 +60,7 @@ def eqRecMotiveExprU (u v : Name) (n : EqRecBinderNames) : Expr :=
       (.app (.app (.app (.const ``Eq [.param v]) (.bvar 2)) (.bvar 1)) (.bvar 0))
       (.sort (.param u)) .default) .default
 
-/-- The minor premise domain of the production `Eq.rec`, under `α`, `a` and
+/-- The minor premise domain of the kernel's `Eq.rec`, under `α`, `a` and
 the motive. -/
 def eqRecMinorExpr (v : Name) : Expr :=
   .app (.app (.bvar 0) (.bvar 1))
@@ -194,17 +194,17 @@ theorem TrExprS.eq_canonicalEqRecType {u v : Name} (huv : u ≠ v) {n : EqRecBin
 
 end
 
-/-! ### Production constants -/
+/-! ### Kernel constants with the prelude's types -/
 
-/-- A production constant with the type `Init.Prelude` gives `Eq`. -/
+/-- A safe kernel constant with the type `Init.Prelude` gives `Eq`. -/
 def IsPreludeEq (ci : ConstantInfo) : Prop :=
   ci.safety = .safe ∧ ∃ u a b c, ci.levelParams = [u] ∧ ci.type = preludeEqType u a b c
 
-/-- A production constant with the type `Init.Prelude` gives `Eq.refl`. -/
+/-- A safe kernel constant with the type `Init.Prelude` gives `Eq.refl`. -/
 def IsPreludeEqRefl (ci : ConstantInfo) : Prop :=
   ci.safety = .safe ∧ ∃ u a b, ci.levelParams = [u] ∧ ci.type = preludeEqReflType u a b
 
-/-- A production constant with the type the kernel generates for `Eq.rec`. -/
+/-- A safe kernel constant with the type the kernel generates for `Eq.rec`. -/
 def IsPreludeEqRec (ci : ConstantInfo) : Prop :=
   ci.safety = .safe ∧
     ∃ u v n, u ≠ v ∧ ci.levelParams = [u, v] ∧ ci.type = eqRecTypeExpr u v n

@@ -1,8 +1,9 @@
 import Lean4Lean.Theory.Inductive.RestorationRenamingOnCtx
 import Lean4Lean.Theory.Inductive.CaseTypeClosed
 
-/-! Generic facts used to match the case eliminator of a nested declaration's lowered window
-with the restored schema registered by the source block (`VEnv.RestoredEliminator`):
+/-! Generic facts used to match the case eliminator of a nested declaration's lowered
+recursor-checking environment with the restored schema registered by the source block
+(`VEnv.RestoredEliminator`):
 
 * restoration succeeds on the generic case equations of a restoration-free schema whenever it
   succeeds on its generic case type (`CaseSchema.genericEquations_restorable`): the equations

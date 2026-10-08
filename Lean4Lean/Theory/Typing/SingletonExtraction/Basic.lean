@@ -10,8 +10,8 @@ field occurs literally as an index ("singleton elimination"), so the data of a
 proof `m : I ps idx` can be read from `idx`. A proof field is extracted from `m`
 itself by eliminating into `Prop`. The motive must be well typed at *generic*
 indices `is'`, where the index slot of a data field has type `IdxTy(is')`, which in
-general is not the field's declared type `A(…)` (the strengthening countermodel,
-`docs/inductives/STRENGTHENING.md`). The motive therefore abstracts, for each earlier
+general is not the field's declared type `A(…)` (the strengthening countermodel, section 5.1
+of `docs/inductives/DESIGN.md`). The motive therefore abstracts, for each earlier
 field, either an equation between the two *types* (data field) or a proof (proof field),
 and reads each data field through a cast along its equation:
 
@@ -172,7 +172,7 @@ end SingletonLayout
 the family and constructor heads (closed terms applied to parameters and indices), the
 constructor's result indices (scoped over the parameters and fields), the eliminator head
 specialized to motive universe zero, and how a minor premise is built from a motive and a
-branch over the fields (for native recursors this adds the unused induction hypotheses). -/
+branch over the fields (for recursors this adds the unused induction hypotheses). -/
 structure PropElim where
   family : VExpr
   ctor : VExpr

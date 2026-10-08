@@ -15,7 +15,7 @@ theorem rejectsCorruptedParameterCount {env venv : VEnv} {source : VInductDecl}
   omega
 
 /-- Auxiliary major families may come from prior containers, but the stored
-`all` list must still be exactly the original source family list. -/
+`all` list must still be exactly the source family list. -/
 theorem rejectsExtraFamilyMetadata {env venv : VEnv} {source : VInductDecl}
     {block : VInductBlock} (rec : Lean.RecursorVal) (value : VConstVal) (extra : Name) :
     ¬ InductiveSignature.TrRestoredCompilation env source block venv

@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.RecursorLemmas
 
-/-! Small, proof-checked witnesses for the specialization contract. These use
+/-! Small, proof-checked examples of specialized recursor shapes. These use
 no admitted typing or inversion theorem: they test the representation itself.
 Executable tests against the actual `Lean.Syntax` recursors are in
 `NestedRecursorReduction`. -/

@@ -2,6 +2,12 @@ import Lean4Lean.Verify.Inductive.Recursor.Context.UniverseScope
 import Lean4Lean.Verify.Typing.EnvironmentRestriction
 import Lean4Lean.Verify.Inductive.Recursor.Binders.MotiveFrames
 
+/-! Typing of the motive pass of `mkRecInfos` (`loopInd1`, `loopArgs1`): each family
+header is normalized and its parameters and indices are opened under the recursor
+universe list, against the checked header (`MotivePassHeaderAt`), and the
+executable motive type is definitionally equal to the generated motive telescope.
+Part of the recursor phase (section 3.2 of `docs/inductives/DESIGN.md`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -14,7 +20,7 @@ namespace VerifyInductive
 
 namespace mkRecInfos.loopArgs1
 
-/-- Canonical abstract variables for indices retained in source binder order
+/-- Abstract variables for indices kept in source binder order
 inside a context that stores the most recently opened index first. -/
 def indexBVarSpine (n : Nat) : List VExpr :=
   (List.range n).reverse.map .bvar
@@ -36,7 +42,7 @@ def indexBVarSpine (n : Nat) : List VExpr :=
     simp [indexBVarSpine, List.range_succ]
 
 /-- Common parameters beneath `n` index binders followed by those index
-variables are exactly the canonical variables for the whole header. -/
+variables are exactly the bvar spine of the whole header. -/
 theorem VInductDecl.paramVars_append_indexBVarSpine
     (decl : VInductDecl) (n : Nat) :
     decl.paramVars n ++ indexBVarSpine n =
@@ -46,8 +52,8 @@ theorem VInductDecl.paramVars_append_indexBVarSpine
     List.reverse_append, List.map_append]
   simp [Function.comp_def, Nat.add_comm]
 
-/-- Semantic header selected by the recursor universe policy, factored out
-so the checked producer can retain a dependency certificate for the exact
+/-- Abstract header selected by the recursor universe policy, factored out
+so that the header phase can record a dependency fact for the
 small- or large-elimination translation. -/
 def recursorTargetSkeletonOf
     (target : VInductiveType) (lparams : List Name) (elimLevel : Level)
@@ -73,9 +79,9 @@ def recursorTargetSkeletonOf
       { target.toSkeleton with
         type := target.type.instL (VLevel.prependShift lparams.length) } := rfl
 
-/-- All independently checked inputs needed to replay one source family
-header during recursor construction.  The family index is retained in the
-package, so parameter/index arities cannot be borrowed from another member
+/-- All checked inputs needed to open one source family
+header during recursor construction.  The family index is part of the
+structure, so parameter/index arities cannot be borrowed from another member
 of a mutual block. -/
 structure MotivePassHeaderAt
     (Hc : ContextWF c) (stats : AddInductive.InductiveStats)
@@ -88,13 +94,13 @@ structure MotivePassHeaderAt
   sourceTranslation : TrSourceConst Hc.venv c.lparams source.name
     source.type target.toVConstVal
   /-- The header translation was produced before this declaration's own
-  constants were installed.  Retaining that derivation-local fact permits
-  nested restoration to transport only the index prefix without asserting
+  constants were installed.  Recording this fact lets
+  nested restoration transport only the index prefix without asserting
   a false global preservation theorem. -/
   sourceTranslationUses : sourceTranslation.type.Avoids
     (fun name => name ∈ decl.sourceNames)
-  /-- The same producer-local restriction certificate after applying the
-  recursor universe policy.  This is retained at formation time, before the
+  /-- The same restriction after applying the
+  recursor universe policy.  This is recorded at formation time, before the
   installed block can become an apparent dependency. -/
   recursorSourceTranslationRestricted : ∀ elimLevel
       (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel),
@@ -108,7 +114,7 @@ structure MotivePassHeaderAt
   targetLookup : Hc.venv.constants target.name = some target.toVConstant
   lparamsNodup : c.lparams.Nodup
 
-/-- The semantic family header seen by generated recursor code.  Small
+/-- The abstract family header seen by generated recursor code.  Small
 elimination keeps the checked header unchanged.  Large elimination shifts
 the header's abstract universe indices under the fresh leading recursor
 parameter; its stored declaration arity is intentionally not changed. -/
@@ -133,8 +139,8 @@ def MotivePassHeaderAt.recursorParams
       (VExpr.instL (VLevel.prependShift c.lparams.length))
   | .succ _ | .max _ _ | .imax _ _ | .mvar _ => False.elim Helim
 
-/-- The independently specified common parameters remain definitionally
-equal to the exact cached executable suffix after universe rebasing. -/
+/-- The abstract common parameters remain definitionally
+equal to the cached executable suffix after universe rebasing. -/
 theorem MotivePassHeaderAt.recursorParamsContext
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
@@ -164,12 +170,11 @@ theorem MotivePassHeaderAt.recursorParamsContext
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-/-- Recover the exact abstract domains of a concrete source header directly
+/-- Recover the abstract domains of an executable source header directly
 in the universe context used by generated recursors, and relate those domains
-to the independently cached parameter suffix.  Unlike
-`MotivePassHeaderAt.recursorParameterPresentation`, this theorem needs
-neither an installed target lookup nor the lowered constructor environment;
-it can therefore be used at the source-environment side of nested lowering. -/
+to the cached parameter suffix.  This theorem needs
+neither an installed target lookup nor the lowered constructor environment,
+so it can be used on the source-environment side of nested lowering. -/
 theorem _root_.Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.HeaderStatsWF.sourceParameterDomainsAt
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : checkInductiveTypes.loopInd.HeaderStatsWF
@@ -269,7 +274,7 @@ theorem _root_.Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.HeaderStats
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-/-- Expose the next family-local parameter from the independent `TypeShape`
+/-- Expose the next family-local parameter from the abstract `TypeShape`
 after shifting it beneath the optional fresh recursor universe parameter. -/
 theorem MotivePassHeaderAt.recursorNextParameter
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -353,8 +358,8 @@ theorem MotivePassHeaderAt.recursorNextParameter
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-/-- The next domain exposed by independent rebased header synthesis is the
-exact cached parameter declaration selected in the current recursor context.
+/-- The next domain exposed by the rebased abstract header telescope is the
+cached parameter declaration selected in the current recursor context.
 No successful executable `isDefEq` result is used to establish the match. -/
 theorem MotivePassHeaderAt.recursorCurrentDomainDefEq
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -462,8 +467,8 @@ theorem MotivePassHeaderAt.recursorCurrentDomainDefEq
     (Helim : AddInductive.AdmissibleElimLevel c.lparams (.zero)) :
     H.recursorTargetSkeleton Helim = H.target.toSkeleton := rfl
 
-/-- The closed concrete source header translates to the rebased semantic
-header under the exact universe list assigned to generated recursors. -/
+/-- The closed executable source header translates to the rebased abstract
+header under the universe list assigned to generated recursors. -/
 theorem MotivePassHeaderAt.recursorSourceTranslation
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
@@ -481,7 +486,7 @@ theorem MotivePassHeaderAt.recursorSourceTranslation
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-/-- The rebased semantic header remains a type in the recursor universe
+/-- The rebased abstract header remains a type in the recursor universe
 context. -/
 theorem MotivePassHeaderAt.recursorTargetType
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -506,9 +511,9 @@ theorem MotivePassHeaderAt.recursorTargetType
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-/-- Normalize a later mutual-family header in the actual generated recursor
-context and restart independent narrow synthesis in the empty closed scope.
-This is the first operational step that remains valid after earlier major and
+/-- Normalize a later mutual-family header in the generated recursor
+context and restart the abstract header telescope in the empty closed scope.
+This is the first step that remains valid after earlier major and
 motive frames have introduced the fresh large-elimination universe. -/
 theorem MotivePassHeaderAt.startRecursorHeaderTyping
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -574,8 +579,8 @@ theorem MotivePassHeaderAt.startRecursorHeaderTyping
     ⟨checkInductiveTypes.loopType.ScopedHeaderTelescope.empty
       ⟨targetLevel, htargetHasType⟩ hnormalizedType hheaderTyped⟩⟩
 
-/-- The header normalization of `loopInd1` as a retained recursor `whnf`
-call: the closed header translates in the recursor context and has no free
+/-- The header normalization of `loopInd1` as a recursor `whnf`
+call (`WhnfRunAt`): the closed header translates in the recursor context and has no free
 variables. -/
 theorem MotivePassHeaderAt.headerWhnfCall
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -671,7 +676,7 @@ theorem MotivePassHeaderAt.targetType_inst_abstractLevels
 
 /-- Universe arguments of the installed family constant as seen from the
 generated recursor.  Large elimination inserts one fresh leading universe,
-so every original declaration argument is shifted by one slot. -/
+so every declaration universe argument is shifted by one slot. -/
 def MotivePassHeaderAt.recursorAbstractLevels
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
@@ -725,8 +730,8 @@ theorem MotivePassHeaderAt.recursorAbstractLevels_wf
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-/-- The installed family constant at its concrete translated universe
-arguments has the original abstract header type. -/
+/-- The installed family constant at its translated universe
+arguments has the abstract header type. -/
 theorem MotivePassHeaderAt.constHasType
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : MotivePassHeaderAt Hc stats decl depth source familyIdx) :
@@ -777,9 +782,9 @@ theorem MotivePassHeaderAt.recursorConstHasType
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-/-- Recursor-universe analogue of `indConstTranslation`.  It selects the
-same executable family constant but translates its universe arguments after
-the optional fresh leading recursor parameter. -/
+/-- Translation of the executable family constant at the recursor universes:
+its universe arguments are translated after the optional fresh leading
+recursor parameter. -/
 theorem MotivePassHeaderAt.recursorIndConstTranslation
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
@@ -834,7 +839,7 @@ theorem MotivePassHeaderAt.recursorIndConstTranslation
   have htargetUvars := H.sourceTranslation.uvars
   omega
 
-/-- Completed executable arguments in the independently synthesized scope,
+/-- The executable arguments in the abstract header scope,
 interpreted under the recursor universe list. -/
 theorem MotivePassHeaderAt.recursorScopedArguments
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -870,8 +875,8 @@ theorem MotivePassHeaderAt.recursorScopedArguments
   rw [hcanonical, VInductDecl.paramVars_append_indexBVarSpine] at Hall
   simpa [hnindices, H.parameterCount] using Hall
 
-/-- Applying the installed family constant to the canonical variables of a
-rebased completed header yields its residual synthesized type. -/
+/-- Applying the installed family constant to the parameter variables of a
+rebased header yields its residual index telescope. -/
 theorem MotivePassHeaderAt.recursorCanonicalFamilyPrefix
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
@@ -906,8 +911,8 @@ theorem MotivePassHeaderAt.recursorCanonicalFamilyPrefix
     VEnv.HasType.mkApps_wrapForalls_prefix_bvarSpine
       R.checking.tr.wf.ordered hheadTelescope
 
-/-- The canonical family prefix remains typed after reopening the exact
-index scope; both the prefix and its residual index telescope are shifted
+/-- The family prefix (applied to its parameter variables) remains typed
+after reopening the index scope; both the prefix and its residual index telescope are shifted
 beneath those ambient index variables. -/
 theorem MotivePassHeaderAt.recursorCanonicalFamilyPrefixAtScope
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -937,8 +942,8 @@ theorem MotivePassHeaderAt.recursorCanonicalFamilyPrefixAtScope
     (Ctx.LiftN.zero Hsynthesis.indices.reverse)
   simpa [Hsynthesis.scopeCtx, List.reverse_append] using hweakened
 
-/-- The concrete family prefix, before its indices are applied, translates
-to the canonical parameter application in the completed narrow replay scope.
+/-- The executable family prefix, before its indices are applied, translates
+to the parameter-variable application in the checking scope.
 This is the translation counterpart of
 `recursorCanonicalFamilyPrefixAtScope`. -/
 theorem MotivePassHeaderAt.recursorScopedFamilyPrefixTranslation
@@ -998,9 +1003,9 @@ theorem MotivePassHeaderAt.recursorScopedFamilyPrefixTranslation
   exact ⟨by
     simpa [Expr.mkAppN_eq_mkAppList] using htranslated, hfamilyType⟩
 
-/-- Transport the canonical narrow family-prefix typing into the executable
-index context and identify its term with the prefix retained in the motive
-frame.  Strict equality is available because the concrete constant/free-
+/-- Transport the family-prefix typing from the checking scope into the executable
+index context and identify its term with the prefix stored in the motive
+frame.  Strict equality is available because the executable constant/free-
 variable application has unique translation. -/
 theorem MotivePassHeaderAt.recursorFamilyPrefixTyping
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -1059,9 +1064,9 @@ theorem MotivePassHeaderAt.recursorFamilyPrefixTyping
   exact HtypeRuntime.defeqU_l R.checking.tr.wf
     R.mlctx_wf.tr.wf.toCtx HfamilyEqU
 
-/-- The canonical narrow family prefix and the prefix retained by the
+/-- The family prefix in the checking scope and the prefix stored in the
 executable motive frame are not merely definitionally equal.  Their source
-is syntax-directed and the narrow/runtime contexts have the same declaration
+is syntax-directed and the checking and executable contexts have the same declaration
 spine, so translation uniqueness identifies the terms strictly. -/
 theorem MotivePassHeaderAt.recursorFamilyPrefixEq
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -1108,8 +1113,8 @@ theorem MotivePassHeaderAt.recursorFamilyPrefixEq
     HfamilyWeak Hframe.familyTr
 
 /-- The index arguments recovered from the executable major application are
-exactly the weakened canonical variables of the independent narrow replay.
-The source array contains only retained free variables, so the same
+exactly the weakened index variables of the checking scope.
+The source array contains only free variables, so the same
 cross-context uniqueness argument applies pointwise. -/
 theorem MotivePassHeaderAt.recursorIndexTargetsEq
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -1158,8 +1163,8 @@ theorem MotivePassHeaderAt.recursorIndexTargetsEq
     Hunique Hweak Hframe.familyIndicesTr
   simpa [hcanonical] using Heq
 
-/-- Instantiate the abstract parallel motive telescope from the independently
-checked header, weaken it through the exact runtime embedding, and identify
+/-- Instantiate the abstract parallel motive telescope from the
+checked header, weaken it through the executable-context embedding, and identify
 its family head with the executable frame by strict translation uniqueness. -/
 theorem MotivePassHeaderAt.recursorCanonicalMotiveFrame
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -1254,10 +1259,10 @@ theorem MotivePassHeaderAt.recursorCanonicalMotiveFrame
     telescope := Htelescope }, rfl, ?_⟩
   rfl
 
-/-- The motive telescope generated by production is definitionally equal to
-the independently reconstructed canonical telescope.  The proof closes the
-leading index declarations on both sides of the narrow/runtime context
-conversion, compares the canonical family application with the consumed
+/-- The motive telescope built by the executable is definitionally equal to
+the generated telescope.  The proof closes the
+leading index declarations on both sides of the conversion between the checking
+and executable contexts, compares the family application with the unannotated
 major domain, and then reopens the closed telescope in the executable
 context. -/
 theorem MotivePassHeaderAt.recursorMotiveTypeDefEq
@@ -1480,7 +1485,7 @@ theorem MotivePassHeaderAt.recursorCanonicalFamilyApplication
   simpa [List.reverse_append, Hsynthesis.scopeCtx, hparamCount,
     hindexCount, indexBVarSpine, VExpr.liftN, ← List.map_reverse] using happ
 
-/-- Recursor-universe form of the completed family application theorem. -/
+/-- Recursor-universe form of the family application theorem. -/
 theorem MotivePassHeaderAt.recursorScopedFamilyApplication
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
@@ -1585,7 +1590,7 @@ theorem MotivePassHeaderAt.recursorScopedFamilyApplication
   refine ⟨?_, happ, happType⟩
   simpa [Expr.mkAppN_eq_mkAppList, Expr.mkAppList_append] using htr
 
-/-- The completed executable family application has a checked consumed
+/-- The executable family application has a checked unannotated
 domain directly in the current recursor context. -/
 theorem MotivePassHeaderAt.recursorMajorDomain
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -1628,11 +1633,10 @@ theorem MotivePassHeaderAt.recursorMajorDomain
     ⟨consumedTarget, Hconsumed⟩
   exact ⟨sourceTarget, consumedTarget, Hconsumed⟩
 
-/-- Construct the major/motive frame from a completed header replay in any
-existing recursor context.  This is the mutual-recursion form of
-`completedInitialRecursorFrame`: earlier family frames remain in the ambient
-prefix, while only this family's recent index suffix is closed into the
-motive telescope. -/
+/-- Construct the major/motive frame from an opened header in any
+existing recursor context.  Earlier family frames of a mutual block remain in
+the ambient prefix, while only this family's recent index suffix is closed into
+the motive telescope. -/
 theorem MotivePassHeaderAt.recursorFrame
     {base root current : AddInductive.Context} {Hbase : ContextWF base}
     (H : MotivePassHeaderAt Hbase stats decl depth source familyIdx)
@@ -1863,8 +1867,8 @@ theorem recursorParameterStep
     R.instantiateDefEq hbody hparam hparamType heq, ?_⟩
   exact hbodyType.instN R.checking.tr.wf.ordered .zero hparamType'
 
-/-- Discharge a recursor-universe cached-parameter step from the independent
-rebased family header and the exact retained suffix. -/
+/-- Discharge a recursor-universe cached-parameter step from the
+rebased abstract family header and the parameter suffix. -/
 theorem parameterStepOfCheckedRecursorHeader
     {base current : AddInductive.Context} {Hbase : ContextWF base}
     (H : MotivePassHeaderAt Hbase stats decl depth source familyIdx)
@@ -1920,7 +1924,7 @@ theorem parameterStepOfCheckedRecursorHeader
     simpa [Nat.succ_eq_add_one, VExpr.liftN_liftN, Nat.add_comm]
       using hresult
 
-/-- `whnf` runs are retained by pairing a run with its own equation. -/
+/-- `whnf` runs are recorded by pairing a run with its own equation. -/
 theorem _root_.Except.WF.self {ε α : Type} (x : Except ε α) :
     x.WF fun a => x = .ok a := fun _ h => h
 
@@ -1959,10 +1963,10 @@ theorem _root_.Lean4Lean.VerifyInductive.mem_fvars_mkLocalDecl_self
   exact Or.inl trivial
 
 set_option maxRecDepth 4000 in
-/-- Replay the genuine-index suffix wholly under the recursor universe list.
-The exact cached-parameter telescope remains a suffix of every generated
-context, while the narrow synthesized header and the executable context grow
-in lockstep by one semantically checked index declaration. -/
+/-- Open the index suffix wholly under the recursor universe list.
+The cached-parameter telescope remains a suffix of every generated
+context, while the abstract header telescope in the checking scope and the
+executable context grow in lockstep by one checked index declaration. -/
 theorem continueRecursorIndexTelescopeTyping {alpha : Type}
     (stats : AddInductive.InductiveStats)
     (k : Array Expr → AddInductive.M alpha)
@@ -2464,9 +2468,9 @@ termination_by
   current runtimeDepth R henv Hsuffix hparameterDecls type fullTarget narrowTarget scope
     nindices indices originTypes indexTargets fuel => fuel
 
-/-- Replay the cached common-parameter prefix directly in a universe-rebased
-recursor context.  The terminal continuation begins at the genuine-index
-boundary with the exact completed narrow suffix; no generated index, major,
+/-- Walk the cached common-parameter prefix directly in a universe-rebased
+recursor context.  The terminal continuation begins at the index
+boundary with the parameter suffix of the checking scope; no generated index, major,
 or motive declaration is admitted into the parameter telescope. -/
 theorem continueRecursorParameterTyping {alpha : Type}
     (stats : AddInductive.InductiveStats)
@@ -2687,9 +2691,9 @@ theorem continueRecursorParameterTyping {alpha : Type}
 termination_by
   type fullTarget narrowTarget scope i indices fuel => fuel
 
-/-- Start universe-rebased cached-parameter replay from the exact production
-`whnf` boundary.  This wrapper is valid after arbitrary earlier mutual
-recursor frames have accumulated in the executable reader context. -/
+/-- Start the universe-rebased cached-parameter walk from the executable
+`whnf` call.  This wrapper is valid after arbitrary earlier mutual
+recursor frames have accumulated in the executable context. -/
 theorem MotivePassHeaderAt.startRecursorParameterTyping
     {alpha : Type} {Q : alpha → Prop}
     {base current : AddInductive.Context} {Hbase : ContextWF base}
@@ -2813,7 +2817,7 @@ theorem MotivePassHeaderAt.startRecursorParameterTyping
       hnormalizedFull hnormalizedFullType rfl (.start (hcallHeader.mono (BindingContextLE.checkLCtx_rev current _) fun _ h => h))
 
 /-- The index telescope opened by `loopArgs1` mentions only `Us` when its
-declarations lie in a universe scope of the narrow index scope. -/
+declarations lie in a universe scope of the index checking scope. -/
 theorem _root_.Lean4Lean.VerifyInductive.RecursorFVarSuffix.indexUniverses
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -2847,9 +2851,9 @@ theorem _root_.Lean4Lean.VerifyInductive.RecursorFVarSuffix.indexUniverses
     exact hdecl
   exact (hscope.2 x decl hxScope hdecl').1
 
-/-- Complete parameter and genuine-index replay under one recursor-universe
-context.  The continuation is reached with the exact retained parameter
-suffix, canonical index variables, and a recent-index certificate rooted at
+/-- Complete parameter and index opening under one recursor-universe
+context.  The continuation is reached with the parameter
+suffix, the index bvar spine, and a recent-index certificate rooted at
 the context in which this family began. -/
 theorem MotivePassHeaderAt.startRecursorTyping
     {alpha : Type} {Q : alpha → Prop}

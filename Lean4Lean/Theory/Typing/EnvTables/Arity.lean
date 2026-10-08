@@ -1,11 +1,11 @@
 import Lean4Lean.Theory.Typing.EnvTables.EquationShape
 
 /-!
-# Field counts of native equations versus constructor arities
+# Field counts of recursor equations versus constructor arities
 
 A compiled declaration describes its constructors by a *normalized* signature whose constructor
 types are only definitionally equal to the source constructor types (`Models.constructors`,
-`RestoresFamily.constructors`). The number of fields of a native equation is the normalized
+`RestoresFamily.constructors`). The number of fields of a recursor equation is the normalized
 count, while the constructor tables count the syntactic binders of the source constructor
 type. Equating the two needs that definitionally equal telescopes ending in constant
 applications have the same length (`ForallArityRigid`), a consequence of Pi injectivity and

@@ -8,8 +8,8 @@ The cast telescope, the extraction functions and the reconstruction `PropElim.oc
 built from their inputs by syntax constructors, lifting and instantiation only. Hence they
 respect every relation on expressions that is a congruence for these operations
 (`SynRel`). Universe instantiation (`R x y := y = x.instL ls`) and equality up to
-equivalent universe levels (`EqUpToLevels`) are the two instances used by the native
-prefix programs. -/
+equivalent universe levels (`EqUpToLevels`) are the two instances used by the singleton
+and quotient prefix unfoldings. -/
 
 set_option linter.unusedSimpArgs false
 

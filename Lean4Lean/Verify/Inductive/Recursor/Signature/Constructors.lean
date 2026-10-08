@@ -4,9 +4,10 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- Retarget a complete source telescope to a separately selected strict
-translation of the same domain prefix, transporting the residual by typed
-context equality. The new residual is chosen only after the domains are fixed. -/
+/-- Given a translation of a telescope to a type `target` and a translation of its first `n`
+domains to `domains`, the telescope also translates to `wrapForalls domains result` for some
+`result` that translates the residual in the context extended by `domains`; both are types,
+and `target` is definitionally equal to `wrapForalls domains result`. -/
 theorem TrExprS.retargetForallPrefix
     (henv : env.WF) (hΔ : Δ.WF env Us.length)
     (Htel : Expr.ForallTelescope source n residual)
@@ -36,9 +37,11 @@ theorem TrExprS.retargetForallPrefix
   exact ⟨result, Hnew, HnewFullType, HnewRes, HnewType,
     Hfull.uniq henv (.refl henv hΔ) Hnew⟩
 
-/-- The actual terminal family application is translated only after the
-consumed source-field domains have been fixed. This preserves one constructor
-context while allowing projection representations to change by typed conversion. -/
+/-- The field telescope of a minor's constructor traversal, ending in its terminal family
+application and abstracted over the parameters, translates in the header environment to
+`wrapForalls domains result` with `domains` the unannotated field domains
+(`declFieldDomains`), and the terminal application translates to `result` over those domains;
+both are types. -/
 theorem RecursorConstruction.sourceConstructorTail
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
@@ -343,8 +346,8 @@ theorem RecursorConstruction.constructorIndices_length
   rw [H.sourceIndices_length, H.arities owner howner]
   omega
 
-/-- Choose the actual semantic replay once, before choosing a constructor's
-result indices. The executable traversal identity is retained in this replay. -/
+/-- A typing of the constructor traversal of a minor (`TypedMinorTraversalAt`), chosen once so
+that the result indices below are read off a single typing. -/
 noncomputable def RecursorConstruction.sourceMinorTyping
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
@@ -353,8 +356,8 @@ noncomputable def RecursorConstruction.sourceMinorTyping
       (H.origins.minorShapes owner howner localIndex hlocal) H.parameterSuffix.parameterDecls :=
   Classical.choice (H.minorTyping owner howner localIndex hlocal)
 
-/-- Result indices are selected in the original universe context, after the
-shared field domains have already been fixed. -/
+/-- The result indices of a minor's constructor, translated in the source universes over the
+unannotated field domains (`declFieldDomains`). -/
 noncomputable def RecursorConstruction.declConstructorIndices
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
@@ -403,9 +406,9 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- The one selected consumed constructor is definitionally equal to its
-retained raw source model in the original header environment, before the
-constructors are installed. -/
+/-- The constructor type assembled from a minor's unannotated field domains and result indices
+is definitionally equal, in the header environment over the parameter scope, to the matching
+constructor of the source signature. -/
 theorem RecursorConstruction.sourceConstructorDefEq
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)

@@ -40,7 +40,7 @@ private theorem find?_add_cases
     rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
     exact hfind
 
-/-- What a constant installation must supply for the projection-walk corner: nothing for a
+/-- What a constant installation must supply for the constructor telescopes: nothing for a
 non-constructor; for a visible constructor, its telescope certificate (stated in the environment
 before the installation, which is where the constructor was checked). -/
 def _root_.Lean4Lean.CtorTelescopeStep (safety : DefinitionSafety) (venv : VEnv)
@@ -367,7 +367,7 @@ theorem MutualInductiveClosure.addConstant
   subst info
   exact H.parameters member oldInfo hmember hold
 
-/-- A fresh non-inductive production constant preserves complete mutual-block
+/-- A fresh non-inductive kernel constant preserves complete mutual-block
 metadata. -/
 theorem MutualInductivesClosed.addNonInductive
     {ci : ConstantInfo}
@@ -447,8 +447,8 @@ def CtorParamsAgreeAt.addConstant
     toCtorInfoCoherentAt :=
       H.toCtorInfoCoherentAt.addConstant hwf hfresh }
 
-/-- Transport one semantic constructor witness across an arbitrary
-production-environment extension once the exact constructor lookup has been
+/-- Transport `CtorParamsAgreeAt` across an arbitrary
+kernel-environment extension once the exact constructor lookup has been
 shown to survive.  All semantic fields only require monotonicity of the
 abstract environment. -/
 def CtorParamsAgreeAt.rebaseKernel
@@ -470,7 +470,7 @@ theorem CtorParamsAgree.mono
   rcases H familyName familyInfo hfamily hvisible i hi with ⟨C⟩
   exact ⟨C.mono hle⟩
 
-/-- A fresh non-inductive production constant and any monotone abstract
+/-- A fresh non-inductive kernel constant and any monotone abstract
 extension preserve visible constructor semantics. -/
 theorem CtorParamsAgree.addNonInductive
     {ci : ConstantInfo}
@@ -486,9 +486,9 @@ theorem CtorParamsAgree.addNonInductive
   · rcases H familyName familyInfo hold hvisible i hi with ⟨C⟩
     exact ⟨C.addConstant hwf hfresh hle⟩
 
-/-- A fresh mutual-definition fold changes no inductive metadata.  All old
-semantic witnesses may be transported directly to the final abstract model,
-then retained while the remaining production definitions are inserted. -/
+/-- A fresh mutual-definition fold changes no inductive metadata.  All existing
+`CtorParamsAgreeAt` facts may be transported directly to the last abstract environment,
+then retained while the remaining kernel definitions are inserted. -/
 theorem CtorParamsAgree.addDefinitions
     (H : CtorParamsAgree safety env venv)
     (hwf : env.constants.WF) :
@@ -520,7 +520,7 @@ theorem CtorParamsAgree.addDefinitions
       · exact hnodup.2
       · exact VEnv.LE.rfl
 
-/-- Rebase an observer across a production extension whose genuinely new
+/-- Rebase an observer across a kernel extension whose genuinely new
 inductive headers are all hidden at that observer's safety. -/
 theorem InductFamiliesInstalled.rebaseHidden
     (H : InductFamiliesInstalled safety source env)
@@ -543,7 +543,7 @@ theorem InductFamiliesInstalled.rebaseHidden
       exact ⟨P.mono (by simpa [P.name] using hfind) hpreserves VEnv.LE.rfl⟩
 
 /-- A fresh mutual-definition fold contains no inductive headers and hence
-preserves installed declaration provenance. -/
+preserves `InductFamiliesInstalled`. -/
 theorem InductFamiliesInstalled.insertDefs
     (H : InductFamiliesInstalled safety C env)
     (hwf : C.WF) : ∀ (cis : List DefinitionVal),
@@ -895,9 +895,9 @@ nonrec theorem TrEnv.of_value (H : TrEnv safety env venv) (h : env.find? name = 
   H.of_value (by rwa [← H.map_wf.find?'_eq_find?]) hs hv
 
 /-- The fragment of `TrEnv` needed by the executable type checker. Unlike
-`TrEnv`, this invariant does not assert that the current production environment
-was assembled from complete declarations, so it can also describe the staged
-header/constructor environments used while checking an inductive block. -/
+`TrEnv`, this invariant does not assert that the current kernel environment
+was assembled from complete declarations, so it can also describe the
+header and constructor environments used while checking an inductive block. -/
 structure CheckingEnv (safety : DefinitionSafety) (env : Environment) (venv : VEnv) : Prop where
   aligned : Aligned safety env.constants venv
   wf : venv.WF
@@ -993,7 +993,7 @@ theorem CheckingEnv.safePrimitives_add (H : CheckingEnv safety env venv)
     rw [Lean.Kernel.Environment.find?, H.map_wf.find?'_eq_find?]
     exact hfind
 
-/-! ## Recursor rules and quotient facts along the environment trace -/
+/-! ## Recursor rules and quotient facts along the declaration history -/
 
 theorem insertDefs_find?_of_find? : ∀ {cis : List DefinitionVal} {C : ConstMap} {name ci}, C.WF →
     (∀ d ∈ cis, C.find? d.name = none) → (cis.map (·.name)).Nodup →
@@ -1226,11 +1226,11 @@ theorem TrEnv.quotEnvCoherent (H : TrEnv safety env venv) (hQ : env.quotInit = t
     QuotEnvCoherent env.constants venv :=
   TrEnv'.quotEnvCoherent H hQ
 
-/-- Local invariants of a staged checking environment that every fresh
-constant installation preserves: the translation relation itself, primitive
-metadata, and the type-annotation wrappers.  Constant installation
-certificates carry this part between the points at which the type checker
-actually runs. -/
+/-- The local part of `CheckingEnv.Valid`, which every installation of a fresh
+constant preserves on its own: the translation relation, the primitives of the
+abstract environment, and the safety and universe parameters of primitive
+constants.  Installation certificates carry this part between the points at
+which the type checker runs. -/
 structure CheckingEnv.ValidCore (safety : DefinitionSafety)
     (env : Environment) (venv : VEnv) : Prop where
   tr : CheckingEnv safety env venv
@@ -1239,12 +1239,13 @@ structure CheckingEnv.ValidCore (safety : DefinitionSafety)
     Kernel.Environment.primitives.contains n →
     ci.safety = .safe ∧ ci.levelParams = []
 
-/-- All global invariants needed to run the verified executable type checker
-against an environment assembled in stages.  Beyond the local invariants,
-production constructor metadata is closed under owners, and every visible
-singleton family whose constructor is present aligns with the abstract
-projection registry.  Both are required by projection inference, so they
-hold at every point where the type checker runs. -/
+/-- Everything the verified type checker needs of its environment, which may be
+one an inductive declaration builds while it is checked.  Beyond
+`ValidCore`: every present constructor is listed by its present owner, every
+listed constructor that is present is a constructor of its header, every
+visible singleton family whose constructor is present aligns with the
+abstract projection registry, and the recursor, quotient and
+constructor-telescope facts that reduction and projection inference read. -/
 structure CheckingEnv.Valid (safety : DefinitionSafety)
     (env : Environment) (venv : VEnv) : Prop extends
     CheckingEnv.ValidCore safety env venv where
@@ -1260,9 +1261,9 @@ structure CheckingEnv.Valid (safety : DefinitionSafety)
   /-- Once quotients are initialized, the quotient constants and the `Quot.lift` equation are
   present. This is what quotient reduction reads. -/
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
-  /-- What resolves the projection-walk corner of `inferProj`: a telescope certificate of every
-  visible constructor (`TelTrN.delete_closed`). Constructor installations supply it through
-  `CtorTelescopeStep`. -/
+  /-- A telescope certificate of every visible constructor (`TelTrN.delete_closed`), which
+  `inferProj` needs where its walk passes a field the rest of the type does not depend on.
+  Constructor installations supply it through `CtorTelescopeStep`. -/
   ctorTelescopes : CtorTelescopes safety env venv
 
 theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
@@ -1304,9 +1305,10 @@ theorem CheckingEnv.Valid.constructorOwnersMap
   rwa [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at howner
 
 /-- Extend a valid environment by a fresh, typed, non-delta, nonprimitive
-constant.  Headers and non-inductive constants need no further evidence;
-constructors supply their owner and, for singleton families, the projection
-alignment through `ProjectionRegistryStep`. -/
+constant.  A constructor supplies its owner, which lists it, and, for a
+singleton family, the projection alignment through `ProjectionRegistryStep`;
+every constant supplies the listed-constructor coherence of the extended
+environment. -/
 theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
     (hn : env.find? ci.name = none)
     (hnprim : ¬ Kernel.Environment.primitives.contains ci.name)
@@ -1409,8 +1411,8 @@ theorem CheckingEnv.ValidCore.addProjections
   hasPrimitives := H.hasPrimitives.addProjections
   safePrimitives := H.safePrimitives
 
-/-- Add an exact, independently well-formed projection table without changing
-the represented production environment. -/
+/-- Adding well-formed case eliminators to the abstract environment keeps the
+checking invariant; the kernel environment is unchanged. -/
 theorem CheckingEnv.Valid.addEliminators
     (H : CheckingEnv.Valid safety env venv)
     (hwf : (venv.addEliminators es).WF) :
@@ -1426,6 +1428,8 @@ theorem CheckingEnv.Valid.addEliminators
       VEnv.addEliminators_le (fun _ h => by simpa using h)).heads
   ctorTelescopes := H.ctorTelescopes.mono VEnv.addEliminators_le
 
+/-- Adding a well-formed projection table to the abstract environment keeps the
+checking invariant; the kernel environment is unchanged. -/
 theorem CheckingEnv.Valid.addProjections
     (H : CheckingEnv.Valid safety env venv)
     (hwf : (venv.addProjections entries).WF) :
@@ -1439,8 +1443,9 @@ theorem CheckingEnv.Valid.addProjections
     (H.recursors.addProjections entries).heads
   ctorTelescopes := H.ctorTelescopes.mono VEnv.addProjections_le
 
-/-- Promote the local invariants to the full checking invariant once
-constructor-owner presence and registry coherence are known. -/
+/-- Promote the local invariants to the full checking invariant once the
+constructor listing, registry coherence, the recursor and quotient facts and
+the constructor telescopes are known. -/
 theorem CheckingEnv.ValidCore.toValid
     (H : CheckingEnv.ValidCore safety env venv)
     (howners : VerifyInductive.ConstructorOwnersPresent env)

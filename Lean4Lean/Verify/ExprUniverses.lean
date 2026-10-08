@@ -1,6 +1,16 @@
 import Lean4Lean.ExprUniverses
 import Lean4Lean.Verify.Expr
 
+/-!
+# Closure lemmas for the universe-scope check
+
+`Expr.levelParamsIn params e` (`Lean4Lean/ExprUniverses.lean`) checks that every universe
+parameter of `e` is in `params`. This file proves that the check is preserved by abstraction,
+instantiation, level instantiation, application spines, literal expansion and `==`, and that a
+level substitution fixing `params` is the identity on an expression that passes it. The
+universe-support invariant of the verified type checker (`VContext.LevelsBelow`) is built on it.
+-/
+
 namespace Lean
 
 @[simp] theorem Expr.levelParamsIn_abstract1 (e : Expr) (fv : FVarId) (k : Nat) :

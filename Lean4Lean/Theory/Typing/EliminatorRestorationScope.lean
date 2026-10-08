@@ -15,14 +15,15 @@ import Lean4Lean.Theory.Inductive.RestorationNaturality
 import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Inductive.CaseRegistration
 
-/-! Scope for the concrete data machine from actual declaration history and
-the original generic case headers. Generated equation scope is derived, rather
-than supplied as an additional registry-correctness assumption. -/
+/-! The restoration table of every registered case schema is scoped
+(`WF.eliminator_restoration_scoped`): it is the table checked by the certified compilation
+of the declaration that registered it. The scope of the generated equations is derived from
+the declaration history, not assumed. -/
 
 namespace Lean4Lean.VEnv
 open InductiveSignature
 
-/-- The restoration table is the one checked by the original compilation. -/
+/-- The restoration table is the one checked by the certified source compilation. -/
 theorem WF.eliminator_restoration_scoped {env : VEnv} {schema : CaseSchema}
     (formed : env.WF)
     (lookup : env.eliminators block schema) : schema.restoration.Scoped := by

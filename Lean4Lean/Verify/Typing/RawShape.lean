@@ -2,13 +2,14 @@ import Lean4Lean.Verify.Typing.Lemmas
 import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Inductive.RawShape
 
-/-! Structural translation retains constructor skeletons even when different
-projection witnesses select syntactically different case programs. -/
+/-! Two translations of the same source agree on their constructor skeleton
+(`VExpr.RawShapeRel`): translation is structural, and a projection translates to the primitive
+`.proj` node. -/
 
 namespace Lean4Lean
 open Lean
 
-/-- Projection expansions have opaque heads for constructor skeletons. -/
+/-- Two projection translations have the same skeleton: both are `.proj` nodes. -/
 theorem TrProj.rawShape (H1 : TrProj (env := env) (U := U) Γ name index major target)
     (H2 : TrProj (env := env') (U := U') Γ' name' index' major' target') :
     VExpr.RawShapeRel target target' := by

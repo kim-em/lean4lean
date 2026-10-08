@@ -16,7 +16,7 @@ container's constructor type instantiated at the specialization arguments,
 under a parameter telescope definitionally equal to the common one; the
 constructor of the direct family is the same instantiation under the
 signature's parameters. The restoration substitution of
-`Nested.ConstructorRestoration` transports the defeq of `Models.constructors`
+`Restoration/SourceConstructors.lean` transports the defeq of `Models.constructors`
 between normalized and lowered constructor types to the source header
 environment (`sourceConstructors_of_substitution`).
 -/

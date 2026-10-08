@@ -7,14 +7,14 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! # Operational family alignment retained for primary iota restoration -/
+/-! # Source-family alignment of lowering and restoration, for the source iota rules -/
 
-/-- The lowest end-to-end join at which the restored generated recursor
-telescope and the lockstep source/restored constructor mapping are both
-available for one original family.  Later primary-iota proofs must retain
-this object rather than projecting only the source recursor and constructor
-translations, because those projections forget the telescope identities
-needed to type the restored LHS application. -/
+/-- For one source family: its lowered target, the lowering mapping of its
+constructors, the restoration steps of the lowered constructors, and the
+alignment of the restored recursor telescope with the generated recursor entry.
+Typing the left-hand side of a restored source iota rule needs these together,
+not only the source recursor and constructor translations, because the
+translations do not record the telescope identities. -/
 structure SourceFamilyRestorationAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -57,8 +57,8 @@ structure SourceFamilyRestorationAlignment
     auxRec Hstep.restored.recursor.restored.newInfo
       (Hprod.generated.entry familyIdx hentry)
 
-/-- Construct the joint operational certificate directly from a closed
-lowering run and the exact family restoration step. -/
+/-- The source-family alignment, from a closed lowering run and the family's
+restoration step. -/
 theorem NestedLoweringOutputClosed.sourceOperationalFamilyAlignmentAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -123,12 +123,12 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! # Constructor semantics retained with operational restoration identity -/
+/-! # Constructor translations along lowering and restoration -/
 
-/-- Lockstep constructor evidence which retains both the lowering mapping and
-the source-facing abstract constructor semantics at that exact restoration
-step.  This is the earliest safe place to establish the constructor half of
-restored primary-iota LHS typing. -/
+/-- For each source constructor, in lockstep: its lowering mapping, the
+restoration step of the lowered constructor, and the translation of the source
+constructor at that restoration step. This is the constructor half of the
+typing of the left-hand side of a restored source iota rule. -/
 inductive RestoredConstructorMappingTranslations
     (result : Lean4Lean.ElimNestedInductive.Result)
     (mappingEnv loweredEnv : Environment) (params : Array Expr)
@@ -162,8 +162,8 @@ inductive RestoredConstructorMappingTranslations
           (target :: targets) finalState sourceProdEnv targetProdEnv
             (Hsemantic.constructor :: constructors)
 
-/-- Re-run the source-constructor interpretation while retaining the exact
-operational mapping step instead of immediately projecting it away. -/
+/-- The constructor translations of `LoweredRestoredConstructors`, together with
+the lowering mapping step of each constructor. -/
 theorem LoweredRestoredConstructors.sourceMapping
     (H : LoweredRestoredConstructors result mappingEnv loweredEnv params
       nparams safety lparams sources state targets finalState sourceProdEnv
@@ -221,8 +221,8 @@ theorem LoweredRestoredConstructors.sourceMapping
         intro tail htail
         exact Hdisjoint tail (by simp [htail])
 
-/-- Pointwise selection preserves the shared operational step and abstract
-constructor identity. -/
+/-- The lowering mapping, restoration step and translation of the `i`-th
+constructor, with the restoration step's name and the translated constructor. -/
 theorem RestoredConstructorMappingTranslations.at
     (H : RestoredConstructorMappingTranslations result mappingEnv loweredEnv
       params nparams safety lparams canonicalEnv sources state targets
@@ -257,18 +257,17 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! # Source semantics indexed by the primary-iota operational trace
+/-! # Source translations indexed by the restoration steps
 
-The ordinary source semantic trace and the lowering/restoration trace used to
-be consumed independently.  That loses the proof that a translated abstract
-constructor came from the very restoration step used by the corresponding
-primary equation.  This module joins them once, at family scope, and exposes a
-pointwise selector which preserves that identity.
+The source-family translations and the lowering and restoration steps are
+joined at family scope, so that a translated abstract constructor is known to
+come from the restoration step used by the corresponding source equation, with
+a pointwise selector that keeps this link.
 -/
 
-/-- Family semantics retaining the complete operational recursor alignment
-and a lockstep constructor trace whose source translation is indexed by the
-same lowering/restoration step. -/
+/-- For one source family with its alignment `A` and recursor translation:
+the lockstep constructor translations, indexed by the same lowering and
+restoration steps. -/
 structure SourceFamilyConstructorTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -295,9 +294,9 @@ structure SourceFamilyConstructorTranslations
         A.loweredState Hstep.restored.headerEnv
           Hstep.restored.constructorEnv owner.ctors
 
-/-- Select one constructor while retaining all three identities at once:
-the original source constructor, its lowered/restored operational step, and
-the independently translated abstract source constructor. -/
+/-- The `i`-th constructor with all three of: the source constructor, its
+lowering mapping and restoration step, and its translated abstract source
+constructor. -/
 theorem SourceFamilyConstructorTranslations.constructorAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}

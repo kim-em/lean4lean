@@ -2,12 +2,12 @@ import Lean4Lean.Theory.Typing.RecursorRegistration
 import Lean4Lean.Theory.Inductive
 import Lean4Lean.Theory.Typing.RecursorRuleRegistration
 
-/-! Native metadata is installed from the same finite instance and abstract
+/-! Recursor metadata is installed from the same finite instance and abstract
 schema as the actual recursor block. Registry lookup adds no semantic data. -/
 
 namespace Lean4Lean.InductiveSignature.RecursorData
 
-/-- One occurrence descriptor for each family of the shared native instance. -/
+/-- One recursor metadata entry for each family of the shared compilation instance. -/
 def compilationEntries (key : Name) (source : VInductDecl) (s : InductiveSignature)
     (auxiliaries : List ContainerSpecialization) (g : Instance s) : List RecursorData :=
   (List.finRange s.families.size).map fun owner =>
@@ -75,7 +75,7 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursorEntries_fres
     contradiction
 
 
-/-- Restoration succeeds for every selected native family because the
+/-- Restoration succeeds for every selected family because the
 entire restored recursor list was actually installed. -/
 theorem RecursorRegistered.recursorType_exists
     (H : RecursorRegistered env data) : ∃ type, data.recursorType = some type := by
@@ -138,9 +138,9 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursorEntries_look
 
 end Lean4Lean.VEnv
 
-/-! A native table is extracted from the finite compilation retained by an
+/-! A recursor metadata table is extracted from the finite compilation retained by an
 actual inductive installation. Abstract eliminator metadata is not needed.
-The original compilation base is preserved across `CompiledInductive.replay`.
+The compilation base is preserved by `CompiledInductive.mono`.
 -/
 namespace Lean4Lean
 open InductiveSignature InductiveSignature.RecursorData VEnv

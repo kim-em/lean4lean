@@ -2,15 +2,15 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.RecursorAlignment
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.RestoredRulesBase
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AuxiliaryProjections
 
-/-! # The rule junction and the final assembly certificate of a validated nested run
+/-! # The rule hypothesis and the restored block certificate of a validated nested run
 
-* `NestedRun.hrules_of`: the rule junction `Hrules` of
+* `NestedRun.hrules_of`: the rule hypothesis `Hrules` of
   `assemblyOfRun_of_run` from the rule-shape hypothesis `HruleShape` alone;
   freshness is derived for the restorable names that are not renamed
   auxiliary recursor names `Main.rec_k` (a renamed name may coincide with an
   auxiliary constructor name, see `Nested/Restoration/RecursorRenaming.lean`).
-* `NestedRun.assemblyOfRun_of_run`: the final assembly
-  certificate from `Hrules` and the recursor provenance `Hprovenance`
+* `NestedRun.assemblyOfRun_of_run`: the restored block
+  certificate from `Hrules` and the recursor alignment hypothesis `Hprovenance`
   (`recursorsAligned_of`), using the input-side avoidance of the renamed names by
   the lowered rules (`loweredRulesAvoid_renamed`). -/
 
@@ -22,10 +22,10 @@ open InductiveSignature
 
 namespace VerifyInductive
 
-/-- **The rule junction `Hrules` of `assemblyOfRun_of_run`**, from the
-rule-realization hypothesis `HruleShape`: some final assembly shape of the
-run has rule lists realizing the executable restored rules in its final
-abstract environment. The freshness conjunct (restorable names other than
+/-- **The rule hypothesis `Hrules` of `assemblyOfRun_of_run`**, from the
+rule-translation hypothesis `HruleShape`: some restored block derivation of the
+run has rule lists translating the executable restored rules in its recursor
+environment. The freshness conjunct (restorable names other than
 the renamed recursor names) is derived for that shape. -/
 theorem NestedRun.hrules_of
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -65,10 +65,11 @@ theorem NestedRun.hrules_of
           (C.sourceRules ++ C.auxiliaryRules) :=
   E.hrules_of_modulo wf Hsources HruleShape
 
-/-- **Final assembly certificate of a validated nested run**, modulo the rule
-junction `Hrules` (discharged by `hrules_of` from the rule-shape hypothesis)
-and the recursor provenance `Hprovenance` (discharged by `recursorsAligned_of`).
-Freshness of the restorable names in the shape's final environment is only
+/-- **Restored block certificate of a validated nested run**, modulo the rule
+hypothesis `Hrules` (discharged by `hrules_of` from the rule-shape hypothesis)
+and the recursor alignment hypothesis `Hprovenance` (discharged by
+`recursorsAligned_of`).  Freshness of the restorable names in the derivation's
+recursor environment is only
 asked outside the renamed auxiliary recursor names `Main.rec_k`, which is
 what holds without any naming hypothesis
 (`recursorVEnv_restorableNames_fresh_of_not_renamed`); the input-side
@@ -146,7 +147,7 @@ theorem NestedRun.assemblyOfRun_of_run
   obtain ⟨Hcertified, ⟨Hdata⟩⟩ := E.compilationData_of_tables wf Hsources C hC hadded
     henvTypes Haux Hexpansion hparamsSize D Hrestoring HauxRestoring hequations
   have hwf : sourceProdEnv.constants.WF := (wf.tr (safety := .safe)).map_wf
-  -- the constructor environment of the shape
+  -- the constructor environment of the derivation
   have htypesEq : C.install.venvTypes = envTypes := by
     have h := C.install.abstract_types
     rw [C.typeValues, hadded] at h
@@ -200,12 +201,12 @@ theorem NestedRun.assemblyOfRun_of_run
 end VerifyInductive
 end Lean4Lean
 
-/-! # The final assembly certificate of a validated nested run
+/-! # The restored block certificate of a validated nested run
 
-* `NestedRun.assemblyOfRun_of_restoredWF`: the final assembly
+* `NestedRun.assemblyOfRun_of_restoredWF`: the restored block
   certificate of a nested run, modulo only the well-formedness `HrestoredWF`
-  of the restored generated equations in the final abstract environment of a
-  final assembly base. It composes `hruleShape_of_base`, `hrules_of`,
+  of the restored generated equations in the recursor environment of a
+  restored block base. It composes `hruleShape_of_base`, `hrules_of`,
   `recursorsAligned_of` and `assemblyOfRun_of_run`.
 * `NestedRun.assemblyOfRun`: the same certificate with no
   hypothesis beyond the run being nested, from `hrestoredWF_of`; this is used
@@ -219,7 +220,7 @@ open InductiveSignature
 
 namespace VerifyInductive
 
-/-- The final assembly certificate of a nested validated run, from the
+/-- The restored block certificate of a nested validated run, from the
 well-formedness `HrestoredWF` of the restored generated equations (the
 hypothesis of `hruleShape_of_base`, verbatim). -/
 theorem NestedRun.assemblyOfRun_of_restoredWF
@@ -258,9 +259,9 @@ theorem NestedRun.assemblyOfRun_of_restoredWF
     (E.hrules_of wf Hsources (E.hruleShape_of_base wf Hsources hnested HrestoredWF))
     (E.recursorsAligned_of wf Hsources hnested htels)
 
-/-- The canonical equations and concrete recursor evidence are selected from
-this complete successful run. This theorem does not upgrade arbitrary legacy
-rule batches or accept a caller-supplied compilation callback. The
+/-- The restored equations and the concrete recursor alignment are selected
+from this complete successful run. This theorem does not accept arbitrary
+rule batches or a caller-supplied compilation callback. The
 restored-equation well-formedness `HrestoredWF` of
 `assemblyOfRun_of_restoredWF` is `NestedRun.hrestoredWF_of`
 (`Nested/Restoration/AuxiliaryProjections.lean`). -/

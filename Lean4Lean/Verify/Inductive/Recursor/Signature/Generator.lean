@@ -12,9 +12,10 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- Source identities and recursive choices for one consumed constructor.
-The original first-pass traversal and hypothesis inputs remain available;
-canonical binder syntax is selected from those actual consumed sources. -/
+/-- A signature constructor matches a minor premise of the executable: the minor's recorded
+constructor traversal has the constructor's name, number of fields and recursive positions,
+and each induction hypothesis of the minor has as type the unannotated type of the matching
+recursive field, with the same target family and number of binders. -/
 structure ConstructorMatchesMinor
     (s : InductiveSignature) (S : MinorPremiseType)
     (ctor : InductiveSignature.Constructor s.families.size) where
@@ -38,9 +39,14 @@ structure ConstructorMatchesMinor
         (InductiveSignature.Instance.recursiveFields (s := s) ctor)[j].2.target.val = O.ownerIdx ∧
         (InductiveSignature.Instance.recursiveFields (s := s) ctor)[j].2.binders.length = O.args.size
 
-/-- One source-normalized generation witness, selected from the complete
-actual construction before installation. The raw formation signature is not
-forced to retain the consumed binder syntax of the generated declarations. -/
+/-- A signature and instance that generate the executable's recursors: the signature models
+the source declaration and has its parameters, families and constructor order, the instance
+is admissible with the recursor's universe levels, names and target level, the executable's
+parameter-motive-minor telescope and recursor types translate to the generated ones in the
+recursor-checking environment, the generated recursor types and family types are well formed
+there, and each minor matches its signature constructor (`ConstructorMatchesMinor`). The
+signature's binder syntax is that of the generated declarations, so it need not coincide with
+the checked-formation signature. -/
 structure RecursorConstruction.GeneratedBy
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -87,8 +93,7 @@ structure RecursorConstruction.GeneratedBy
       Nonempty (ConstructorMatchesMinor signature (H.origins.minorShapes owner howner localIndex hlocal)
         signature.constructors[index])
 
-/-- The consumed signature's constructors carry the retained source origins
-of their minors. -/
+/-- Each constructor of the construction's signature matches its minor premise. -/
 theorem RecursorConstruction.signature_origins
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -129,8 +134,9 @@ theorem RecursorConstruction.signature_origins
     · rw [← hbinders]
       exact congrArg (fun x => x.2.binders.length) (List.getElem_of_eq hrec hj)
 
-/-- The junction, under the universe support of the hypothesis arguments: the
-explicit generation witness whose signature is `H.consumedSignature HU`. -/
+/-- Given the universe support of the induction-hypothesis arguments, the construction's
+signature `H.signature HU` with its generated instance generates the executable's
+recursors. -/
 noncomputable def RecursorConstruction.generatorOf
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -191,11 +197,10 @@ noncomputable def RecursorConstruction.generatorOf
     rw [H.signature_constructor HU owner howner localIndex hlocal hk]
     exact H.signature_origins HU owner howner localIndex hlocal
 
-/-- The generation witness: the explicit construction `consumedGenerationOf`
-(not a choice from `canonicalConsumedGeneration`), so that its signature is
-definitionally `H.consumedSignature H.argumentUniverses` and the facts
-retained by the construction (for instance
-`generatedBy_shapeTranslations`) are available about it. -/
+/-- The generator of the recursor construction: `generatorOf` at `argumentUniverses`, an
+explicit construction rather than a choice, so that its signature is definitionally
+`H.signature H.argumentUniverses` and the facts proved about the construction (for instance
+`generatedBy_shapeTranslations`) apply to it. -/
 noncomputable def RecursorConstruction.generator
     (H : RecursorConstruction R) : H.GeneratedBy :=
   H.generatorOf H.argumentUniverses

@@ -8,8 +8,8 @@ import Lean4Lean.Theory.Typing.EnvTables.Registration
 such `T` satisfies the history invariant `Tables.Inv env` (`Tables.OfHistory.inv`), and every
 well-formed environment has such tables (`VEnv.WF'.tablesOfHistory`).
 
-The environment tables (`envTables`, `EnvTables.lean`) are chosen among these:
-the validity of the computation rules (milestone M4c) is proved by induction along the history
+The environment tables (`envTables`, `EnvTables/OfWF.lean`) are chosen among these:
+the validity of the computation rules is proved by induction along the history
 that built the tables, so that every table entry is justified by derivations in an earlier
 environment of the same history, where soundness is already established.
 -/
@@ -45,8 +45,9 @@ inductive Tables.OfHistory : VEnv → Tables → Prop
     cbase ≤ env → CompilationData cbase decl expanded s g aux block →
     ContainersInstalled cbase aux →
     Tables.OfHistory env' (T.addRecursor decl (RecursorData.compilationEntries default decl s aux g))
-  /-- A native installation that also installs the certified case eliminator of its
-  declaration: the native views, then the views of the remaining families of the schema. -/
+  /-- A block installation that also installs the certified case eliminator of its
+  declaration: the views of the installation, then the views of the remaining families of the
+  schema. -/
   | inductCases {env env' cbase : VEnv} {T : Tables} {decl expanded : VInductDecl}
       {block : VInductBlock} {s : InductiveSignature} {g : Instance s}
       {aux : List ContainerSpecialization} {key : Name} {schema : CaseSchema} :
@@ -90,7 +91,7 @@ inductive Tables.OfHistory : VEnv → Tables → Prop
 
 variable {env env' : VEnv} {T : Tables}
 
-/-- The tables of a native installation that also installs the certified case eliminator of
+/-- The tables of a block installation that also installs the certified case eliminator of
 its declaration. -/
 theorem Tables.Inv.inductCases {decl : VInductDecl} {block : VInductBlock} {key : Name}
     {schema : CaseSchema} (H : T.Inv env) (henv : env.WF) (henv' : env'.WF)

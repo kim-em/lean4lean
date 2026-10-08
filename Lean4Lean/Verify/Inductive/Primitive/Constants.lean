@@ -1,5 +1,15 @@
 import Lean4Lean.Verify.Inductive.Primitive.Shape
 
+/-!
+# The abstract `Bool` and `Nat` constants
+
+The abstract family and constructor constants of the primitive declarations, and
+`PrimitiveConstantsInstallation`, a complete batch of them installed in one step. The
+invariant `HasPrimitives` holds again once the whole batch is installed
+(`VEnv.HasPrimitives.addBoolConstants`, `addNatConstants`) and is false after the family
+header alone, which is why the primitive path installs headers and constructors atomically.
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -42,8 +52,8 @@ def primitiveNatSucc : VConstVal :=
 def primitiveNatConstants : List VConstVal :=
   [primitiveNatType, primitiveNatZero, primitiveNatSucc]
 
-/-- Evidence that a complete finite batch was installed in one abstract
-environment transition.  In particular, this certificate makes no claim that
+/-- A complete finite batch installed in one abstract environment
+transition.  In particular, this certificate makes no claim that
 any proper prefix of `constants` produces a valid checking environment. -/
 structure PrimitiveConstantsInstallation
     (env out : VEnv) (constants : List VConstVal) : Prop where
@@ -201,14 +211,14 @@ theorem VEnv.HasPrimitives.addNatConstants
   exact PrimSpec.Holds.extend (s := spec) (H (name, spec) hp) hle
     (same name hNatName hZeroName hSuccName)
 
-/-- The completed atomic Bool batch restores `HasPrimitives`; no validity
+/-- The complete atomic Bool batch restores `HasPrimitives`; no validity
 claim is made about its family-only prefix. -/
 theorem PrimitiveConstantsInstallation.boolHasPrimitives
     (B : PrimitiveConstantsInstallation env out primitiveBoolConstants)
     (H : env.HasPrimitives) : out.HasPrimitives :=
   VEnv.HasPrimitives.addBoolConstants H B.installed
 
-/-- The completed atomic Nat batch restores `HasPrimitives`; no validity claim
+/-- The complete atomic Nat batch restores `HasPrimitives`; no validity claim
 is made about its family-only prefix. -/
 theorem PrimitiveConstantsInstallation.natHasPrimitives
     (B : PrimitiveConstantsInstallation env out primitiveNatConstants)

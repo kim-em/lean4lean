@@ -76,8 +76,8 @@ theorem VInductDecl.CompilesTo.sourceNames
 /-! ## Ordinary-or-nested formation derivations
 
 Nested formation refers only to prior, finitely derived installed inductive
-blocks. Keeping installation provenance in the same mutual derivation as
-formation avoids both an uncheckable environment lookup and a definitional
+blocks. Defining the installation of prior containers (`VEnv.InstalledBelow`) in the same
+mutual induction as formation avoids both an uncheckable environment lookup and a definitional
 cycle through `AddInduct`. -/
 
 /-- Exact construction of one direct auxiliary constructor before its own
@@ -102,7 +102,7 @@ def VInductDecl.nestedTrailingMarker : VExpr :=
 
 mutual
 
-/-- Formation evidence is either the ordinary judgment or a finite nested
+/-- Formation is either the ordinary judgment or a finite nested
 expansion into an independently ordinary well-formed declaration. -/
 inductive VInductDecl.FormationWF : VEnv → VInductDecl → Prop
   | ordinary {env decl} : VInductDecl.OrdinaryFormationWF env decl →
@@ -111,9 +111,8 @@ inductive VInductDecl.FormationWF : VEnv → VInductDecl → Prop
       base ≤ env →
       VInductDecl.FormationWF env decl
 
-/-- Cycle-free provenance for a prior container block. The prior declaration
-has its own finite source/formation derivation, compiles to the exact block,
-and that well-formed block occurs below the ambient environment. -/
+/-- A prior container declaration. It has its own finite source/formation derivation, compiles
+to the exact block, and that well-formed block is installed below the ambient environment. -/
 inductive VEnv.InstalledBelow : VEnv → VInductDecl → Prop
   | intro {env container base block installed} :
       VInductDecl.SourceWF base container →
@@ -124,11 +123,11 @@ inductive VEnv.InstalledBelow : VEnv → VInductDecl → Prop
       installed ≤ env →
       VEnv.InstalledBelow env container
 
-/-- One legal maximal nested-application replacement. The generated family
+/-- One legal replacement of a maximal nested occurrence. The auxiliary family
 is an exact parameter specialization of a family in a previously installed
 container block, and its direct constructors are the corresponding exact
-specializations with deterministic production names.  The executable
-lowering certificate separately retains that some concrete parameter syntax
+specializations with deterministic names.  The verification of the executable
+lowering separately records that some concrete parameter syntax
 mentions the finite lowering queue.  That occurrence is intentionally not a
 premise here: `TrExprS` erases metadata and let types/values and interprets
 projections opaquely, so a concrete occurrence need not survive in `VExpr`.
@@ -286,7 +285,7 @@ inductive VInductDecl.NestedTypeWFExpansions :
       VInductDecl.NestedTypeWFExpansions env source generated
         (sourceType :: sourceTypes) (targetType :: targetTypes)
 
-/-- A nested declaration is formed by expanding the original families and a
+/-- A nested declaration is formed by expanding the source families and a
 finite queue of direct auxiliary sources into a declaration satisfying the
 ordinary source and formation judgments. -/
 inductive VInductDecl.NestedFormationWF : VEnv → VInductDecl → Prop
@@ -334,8 +333,8 @@ theorem VExpr.getAppFnArgs_mkApps_const (name : Name) (levels : List VLevel)
     have := ih (.app fn arg) (pre ++ [arg]) (by simp [VExpr.getAppFnArgs_app, h])
     simpa [VExpr.mkApps, List.append_assoc] using this
 
-/-- Every generated-family leaf replaces a source expression by an
-application headed by one of the generated auxiliary families. -/
+/-- Every auxiliary-family leaf replaces a source expression by an
+application headed by one of the auxiliary families. -/
 theorem VInductDecl.NestedOccurrenceReplacementAbs.headConst
     {env : VEnv} {source : VInductDecl} {generated : List VInductiveType}
     {depth : Nat} {input output : VExpr}
@@ -356,7 +355,7 @@ theorem List.Forall₂.map_eq_of {α β γ : Type _} {R : α → β → Prop}
   | nil => rfl
   | cons h _ ih => simp [hf _ _ h, ih]
 
-/-- Raw constructor shapes of the original families follow from the raw
+/-- Raw constructor shapes of the source families follow from the raw
 shapes of the expanded declaration through the ordered nested expansion. -/
 theorem VInductDecl.rawShapesOfNestedExpansions
     {env : VEnv} {source expanded : VInductDecl}
@@ -386,7 +385,7 @@ theorem VInductDecl.rawShapesOfNestedExpansions
     Hctor.type (Hraw target htarget targetCtor htargetCtor)
 
 /-- Constructor telescope lengths agree positionally across the ordered
-nested expansion of the original families. -/
+nested expansion of the source families. -/
 theorem VInductDecl.constructorArityPrefixOfNestedExpansions
     {env : VEnv} {source expanded : VInductDecl}
     {generated : List VInductiveType}
@@ -420,7 +419,7 @@ theorem VInductDecl.constructorArityPrefixOfNestedExpansions
     (List.getElem_mem hexpanded) Hexp.name Hexp.numIndices Hctor.type
     (Hraw _ (List.getElem_mem hexpanded) _ (List.getElem_mem hexpandedCtor))).2
 
-/-- Abstract well-formedness always retains the original source judgment;
+/-- Abstract well-formedness always retains the source judgment;
 formation is a finite ordinary-or-nested derivation. -/
 def VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop :=
   decl.SourceWF env ∧ decl.FormationWF env
@@ -436,7 +435,7 @@ theorem VInductDecl.SourceWF.constructorsWF_at
   cases Option.some.inj (htypes'.symm.trans htypes)
   exact hwf
 
-/-- Both ordinary and nested formation evidence retain the source
+/-- Both ordinary and nested formation retain the source
 parameter judgment at any environment in which the headers install. -/
 theorem VInductDecl.FormationWF.sourceParameterWF
     {env envTypes : VEnv} {decl : VInductDecl}
@@ -468,8 +467,8 @@ theorem VEnv.InstalledBelow.mono
 
 /-- Every projection entry derived from an installed declaration is present
 in the ambient projection registry.  This is the registry fact carried by an
-installation certificate; clients do not need to reconstruct the internal
-type/constructor/recursor staging of `VInductBlock.install`. -/
+installation certificate; clients do not need to reconstruct the installation order
+of `VInductBlock.install`. -/
 theorem VEnv.InstalledBelow.projection
     {env : VEnv} {decl : VInductDecl} {entry : VProjectionEntry}
     (H : VEnv.InstalledBelow env decl)
@@ -572,7 +571,7 @@ theorem VEnv.InstalledBelow.constructorConstant
 /-- The declaration has no families and the block registers no case eliminator, or the block
 registers exactly one case eliminator with a registration certificate (`CaseSchema.Registered`:
 the case-only compilation certificate, the key of the first family and header agreement),
-projecting only out of structures registered at the constructor stage. It is installed after the
+projecting only out of structures registered in the constructor environment. It is installed after the
 constructors and before the projections (`VInductBlock.install`). -/
 def VInductBlock.EliminatorsWF (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Prop :=
   ∃ envTypes envCtors, env.addConstVals block.types = some envTypes ∧
@@ -581,7 +580,7 @@ def VInductBlock.EliminatorsWF (env : VEnv) (decl : VInductDecl) (block : VInduc
     ∃ key schema, block.eliminators = [(key, schema)] ∧
       schema.Registered env decl block key ∧ schema.ProjNamesRegistered envCtors key)
 
-/-- The block skeleton of a declaration at its constructor boundary: families, constructors,
+/-- The block skeleton of a declaration after its constructors: families, constructors,
 projections and case eliminators, without generated recursors. -/
 def VInductDecl.caseBlock (decl : VInductDecl)
     (eliminators : List (Name × InductiveSignature.CaseSchema)) : VInductBlock where
@@ -628,7 +627,7 @@ theorem VInductBlock.EliminatorsWF.congr_block {env : VEnv} {decl : VInductDecl}
       hreg.congr_block htypes hctors hprojections, hprojs⟩
 
 /-- Relational abstract environment extension for inductive declarations,
-including the compiled block witness used by implementation refinement. -/
+including the compiled block, which the refinement proof uses. -/
 inductive VEnv.AddInduct (env : VEnv) (decl : VInductDecl) : VEnv → Prop where
   | intro :
     decl.WF env →

@@ -3,7 +3,13 @@ import Lean4Lean.Theory.Inductive.RestorationProjNames
 namespace Lean4Lean
 namespace InductiveSignature
 
-/-! ### Monotonicity of case certificates -/
+/-! ### Monotonicity of case certificates
+
+`CaseCompilationData.mono`: the case part of a compilation (the certificate of
+`CaseSchema.Certified`) survives every extension of the base environment in which the source
+and expanded declarations still install. The nested path uses it to keep the certificate of
+a source block's case eliminator valid over larger environments (`VInductDecl.CaseEliminators`,
+section 3.2 of `docs/inductives/DESIGN.md`). -/
 
 private theorem sourceWF_mono {decl : VInductDecl} {env env' envTypes envCtors : VEnv}
     (H : decl.SourceWF env) (hle : env ≤ env')

@@ -4,14 +4,13 @@ import Lean4Lean.Verify.Inductive.Recursor.Signature.Admissible
 import Lean4Lean.Verify.Inductive.Recursor.Context.TelescopeUniqueness
 import Lean4Lean.Theory.Inductive.HypothesisTyping
 
-/-! Assembly of the consumed generation witness from the inverted recursor
-telescope.
+/-! The signature of the recursor construction (`RecursorConstruction.signature`), assembled
+from the inverted recursor telescope.
 
-The recursive shapes of the consumed signature are read off the checked
-recursor type (`recursorTelescope_hypothesisUnlift`) and returned to the
-declaration's universes by the universe un-shift.  The constructor fields are
-the consumed field domains, marked recursive exactly at the positions selected
-by the first-pass traversal. -/
+The recursive shapes of the signature are read off the checked recursor type
+(`recursorTelescope_hypothesisUnlift`) and returned to the declaration's universes by the
+universe un-shift. The constructor fields are the unannotated field domains, marked recursive
+exactly at the recursive positions of the minor pass's constructor traversal. -/
 
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
@@ -437,11 +436,9 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
   {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
-/-- The argument telescope and the exposed indices of every recursive call
-retained by the rule blueprints mention only the declaration's universe
-parameters (never the fresh elimination universe).  The blueprint producer
-retains this fact in each semantic call row
-(`TypedCallTemplate.universes`); see
+/-- The argument telescope and the target indices of every recursive call recorded in the rule
+templates mention only the declaration's universe parameters (never the fresh elimination
+universe). Each typed call template records this fact (`TypedCallTemplate.universes`); see
 `RecursorConstruction.argumentUniverses`. -/
 def RecursorConstruction.ArgumentUniverses (H : RecursorConstruction R) : Prop :=
   ∀ owner (_howner : owner < H.recInfos.size) localIndex
@@ -467,7 +464,7 @@ theorem Expr.forallDomainList_levelParamsIn {Us : List Name} :
       · exact Expr.forallDomainList_levelParamsIn n h.2 d hd
     | _ => simp [Expr.forallDomainList]
 
-/-- The argument domains of a first-pass induction-hypothesis origin mention
+/-- The argument domains of an induction hypothesis type (`InductionHypothesisType`) mention
 only `Us` when its argument telescope and exposed indices do. -/
 theorem InductionHypothesisType.argDomains_levelParamsIn
     {stats : AddInductive.InductiveStats} {recInfos : Array AddInductive.RecInfo}
@@ -520,9 +517,9 @@ theorem InductiveSignature.Instance.hypothesis_eq_form {s : InductiveSignature}
         r.binders r.indices := rfl
 
 /-- The declaration-universe sources of the `j`-th recursive shape
-`(pos, target, binders, indices)` of a minor, stated against the retained
-blueprint call `C` of that induction hypothesis (the call from which
-`RecRuleTemplate.build` produces the installed rule's recursive value).
+`(pos, target, binders, indices)` of a minor, stated against the recursive call `C` of that
+induction hypothesis in the rule template (the call from which `RecRuleTemplate.build`
+produces the installed rule's recursive value).
 
 * the shape's target and arity are those of `C`, and `C`'s template is the
   closure of its own fields;
@@ -647,7 +644,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisHeader
     rcases List.mem_append.mp hx with hx | hx
     · exact hbase x hx
     · exact hbinders x hx
-  -- The declaration-universe sources, against the retained call.
+  -- The declaration-universe sources, against the template's recursive call.
   have henvR : R.context.venv.WF := R.context.checking.tr.wf
   have hP : OnCtx R.parameterScope.toCtx (R.context.venv.IsType c.lparams.length) := by
     simpa [VLCtx.toCtx] using R.sourceAnonymousParameterWF.toCtx
@@ -741,8 +738,8 @@ theorem RecursorConstruction.minorPrefixLength_eq
       simpa [getElem!_pos H.recInfos owner hrec,
         getElem!_pos indTypes owner hind] using H.minorCounts owner hrec
 
-/-- The flattened minor declaration at the canonical offset of a minor row
-has that row's retained minor type. -/
+/-- The flattened minor declaration at offset `recursorMinorOffset indTypes owner + localIndex`
+has the recorded binder type of minor `localIndex` of family `owner`. -/
 theorem RecursorConstruction.flatMinorDeclaration
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
@@ -834,7 +831,8 @@ theorem abstractForallContext_append_nil (A B : List VExpr) :
     abstractForallContext (A ++ B) [] = abstractForallContext B (abstractForallContext A []) := by
   simp [abstractForallContext, List.reverse_append, List.map_append]
 
-/-- A signature carrying only the consumed parameters and family table. -/
+/-- The signature with the source parameters and the construction's families, and no
+constructors. -/
 noncomputable def RecursorConstruction.familySignature
     (H : RecursorConstruction R) : InductiveSignature where
   uvars := decl.uvars
@@ -954,12 +952,12 @@ theorem InductionHypothesisType.ownerIdx_lt
   rw [getElem!_neg recInfos O.ownerIdx (by omega)] at hfv
   cases hfv
 
-/-! ### Recursive shapes of one consumed constructor -/
+/-! ### Recursive shapes of the constructor of one minor -/
 
-/-- The recursive shapes of the consumed constructor of one minor: positions
-are the traversal's recursive positions, each induction hypothesis of the
-checked recursor type is the generator's hypothesis for its shape, and each
-shape's target and arity are those of the retained hypothesis origin. -/
+/-- The recursive shapes of the constructor of one minor: positions are the traversal's
+recursive positions, each induction hypothesis of the checked recursor type is the generator's
+hypothesis for its shape, and each shape's target and arity are those of the recorded
+induction hypothesis type. -/
 def RecursorConstruction.RecursiveShapesSpec
     (H : RecursorConstruction R)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
@@ -1108,9 +1106,10 @@ theorem RecursorConstruction.minorShapes_exist
     obtain ⟨hpos, hfield, _, hsources, _⟩ := hshapes j hj (by omega)
     exact ⟨hpos, hfield, hsources⟩
 
-/-! ### The consumed signature -/
+/-! ### The signature of the construction -/
 
-/-- The chosen recursive shapes of one consumed constructor. -/
+/-- The recursive shapes of the constructor of one minor, chosen to satisfy
+`RecursiveShapesSpec`. -/
 noncomputable def RecursorConstruction.recursiveShapes
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
@@ -1126,7 +1125,8 @@ theorem RecursorConstruction.recursiveShapes_spec
       (H.recursiveShapes HU owner howner localIndex hlocal) :=
   Classical.choose_spec (H.minorShapes_exist HU owner howner localIndex hlocal)
 
-/-- The consumed constructor of one minor row entry. -/
+/-- The signature constructor of minor `localIndex` of family `owner`: the minor's constructor
+name, its field domains marked recursive by `recursiveShapes`, and its result indices. -/
 noncomputable def RecursorConstruction.constructorAt
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
@@ -1138,7 +1138,7 @@ noncomputable def RecursorConstruction.constructorAt
     (H.recursiveShapes HU owner howner localIndex hlocal)
   indices := H.declConstructorIndices owner howner localIndex hlocal
 
-/-- The consumed constructor at a flattened constructor position. -/
+/-- The signature constructor at a flattened constructor position. -/
 noncomputable def RecursorConstruction.constructor
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (k : Fin decl.ownedConstructors.length) :
@@ -1177,9 +1177,9 @@ theorem RecursorConstruction.constructor_eq
     hlocal hspec.symm
   exact H.constructorAt_congr HU _ _ _ _ h1 h2
 
-/-- The consumed signature: cached parameters, consumed families, and one
-constructor per minor with the consumed field domains, marked recursive at
-the traversal's recursive positions. -/
+/-- The signature of the recursor construction: source universes and parameter scope, the
+construction's families, and one constructor per minor with its unannotated field domains,
+marked recursive at the traversal's recursive positions. -/
 @[reducible] noncomputable def RecursorConstruction.signature
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses) : InductiveSignature where
   uvars := decl.uvars
@@ -1341,8 +1341,8 @@ theorem RecursorConstruction.flatMinors_size_eq
     simp [ownedConstructors, List.length_flatMap]
   omega
 
-/-- The minor group of every checked recursor type is the generator's minor
-list for the consumed signature. -/
+/-- The minor group of every checked recursor type is the generator's minor list for the
+construction's signature. -/
 theorem RecursorConstruction.recursorTelescope_minors_unannotated
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     {owner : Nat} (howner : owner < H.recInfos.size) {target : VExpr}
@@ -1459,7 +1459,7 @@ theorem RecursorConstruction.recursorType_prefixTelescope
       (0 + (H.recInfos.map (·.motive)).size)
   exact ⟨_, (H1.trans H2).trans H3⟩
 
-/-! ### The generated recursor types of the consumed signature -/
+/-! ### The generated recursor types of the construction's signature -/
 
 theorem RecursorConstruction.signature_types
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)

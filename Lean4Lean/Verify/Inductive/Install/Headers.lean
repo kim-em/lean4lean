@@ -4,6 +4,11 @@ import Lean4Lean.Verify.Inductive.Header.CheckedHeaders
 import Lean4Lean.Verify.Inductive.Constructor.Translation
 import Lean4Lean.Verify.Inductive.Install.LiteralNames
 
+/-! Skeleton-free header installation: the installed header fold and the
+constructor-type fold yield a `HeaderEnvironment` for the declaration they
+synthesize, with the primitive-name and literal-name side conditions needed by
+the positivity check. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -12,7 +17,7 @@ open Kernel
 namespace VerifyInductive
 
 /-- A successfully installed skeleton-free family cannot use a
-production-reserved primitive name. -/
+kernel-reserved primitive name. -/
 theorem InstalledHeaders.familyNamesExcludePrimitive
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {nparams : Nat}
@@ -61,7 +66,7 @@ theorem InstalledHeaders.sourceContainsOfTargetContainsPrimitive
     hprimitive htarget
 
 /-- Source freshness from the skeleton-free header installer excludes the
-three literal expansion names not reserved by the production primitive
+three literal expansion names not reserved by the kernel's primitive
 table whenever those names are already present. -/
 theorem InstalledHeaders.unreservedLiteralNamesDisjointOfSourceContains
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -108,7 +113,7 @@ theorem InstalledHeaders.unreservedLiteralNamesDisjointOfSourceContains
     contradiction
   simpa using hnotMem
 
-/-- The installed semantic header result itself supplies positivity's
+/-- The installed header result itself supplies positivity's
 environment-indexed literal side condition; no caller disjointness premise
 is needed. -/
 theorem InstalledHeaders.checkedAvailableLiteralDisjoint
@@ -176,8 +181,8 @@ theorem InstalledHeaders.checkedAvailableLiteralDisjoint
             simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])
       exact Hmaterialized'.literalDisjoint hliteral (.strVal s)
 
-/-- Package the installed semantic header fold and the completed constructor
-target assembly in the standard production header boundary.  The declaration,
+/-- Package the installed header fold and the constructor target assembly as a
+`HeaderEnvironment`.  The declaration,
 translation and header certificate are all synthesized; the remaining inputs
 are exactly the executable statistics and scope invariants retained by the
 outer header fold. -/
@@ -307,10 +312,10 @@ def HeaderDeclarationOf.toHeaderEnvironment
             checkInductiveTypes.loopInd.HeaderStatsWF.mono_parameterScope
               sourceMaterialized hle }
 
-/-- Execute the production header installation and constructor-type fold,
-then expose the ordinary declared-header boundary for the declaration those
-checks themselves synthesize.  This is the skeleton-free replacement for
-calling `declareInductiveTypes.headersWF` with a preselected declaration. -/
+/-- Execute the header installation and constructor-type fold of the
+executable, then return the `HeaderEnvironment` of the declaration those
+checks themselves synthesize.  Unlike `declareInductiveTypes.headersWF`, the
+declaration is not chosen in advance. -/
 theorem AddInductive.declareInductiveTypes.constructorsWF
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}

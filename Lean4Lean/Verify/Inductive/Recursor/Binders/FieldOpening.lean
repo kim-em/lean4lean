@@ -1,6 +1,11 @@
 import Lean4Lean.Verify.TypeChecker.WHNF
 import Lean4Lean.Verify.Inductive.Rules.RuleSyntax
 
+/-! Opening of a constructor telescope by the field traversal of the recursor
+construction: a field-decision run (`RecursorFieldDecisions`) determines the
+fresh field variables, the alpha-closing equation of the opened telescope, and the
+scoping of every expression it reaches. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -9,7 +14,7 @@ open Kernel
 namespace VerifyInductive
 
 /-- The name-generator cursor of a binding context is absent from its local
-context map.  This is the exact freshness fact consumed when two replay
+context map.  This is the freshness fact used when two field
 traversals extend an ordered alpha spine. -/
 theorem BindingContextWF.currentFind?_eq_none
     (H : BindingContextWF c) :
@@ -24,9 +29,9 @@ theorem BindingContextWF.currentFind?_eq_none
   have hcursor := List.find?_some hfind.symm
   exact (LawfulBEq.eq_of_beq hcursor).symm
 
-/-- A complete field-decision trace determines the well-formed extension
-context and the exact fresh free-variable array introduced by the traversal.
-This is deliberately independent of the recursive/nonrecursive decisions:
+/-- A field-decision run determines the well-formed extension
+context and the fresh free-variable array introduced by the traversal.
+This is independent of the recursive/nonrecursive decisions:
 both branches introduce the same local declaration before classifying it. -/
 theorem RecursorFieldDecisions.freshBindings
     (H : RecursorFieldDecisions stats root source current terminal
@@ -60,10 +65,9 @@ theorem RecursorFieldDecisions.freshBindings
         ⟨Hbindings.pushCurrentChecked Hc HrootCurrent name
           (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi⟩⟩
 
-/-- A complete retained field-decision trace canonically opens the original
-constructor telescope.  This packages the exact alpha-closing equation for
-the checker-chosen field identifiers, rather than replaying or naming them.
-The trace relation itself may represent a prefix; the resulting opening has
+/-- A field-decision run opens the source constructor telescope: it packages
+the alpha-closing equation for the field identifiers chosen by the checker.
+The run may cover only a prefix of the fields; the resulting opening has
 exactly that prefix's arity. -/
 theorem RecursorFieldDecisions.fieldOpening
     (H : RecursorFieldDecisions stats root source current terminal
@@ -147,8 +151,8 @@ theorem RecursorFieldDecisions.fieldOpening
   rcases go H with ⟨_, _, _, Hopening⟩
   exact Hopening
 
-/-- Every expression reached by a retained field traversal is scoped by its
-actual current local context.  This is the freshness input needed to open
+/-- Every expression reached by a field-decision run is scoped by its
+current local context.  This is the freshness input needed to open
 paired forall bodies at the two independently generated cursors. -/
 theorem RecursorFieldDecisions.currentFVarsIn
     (H : RecursorFieldDecisions stats root source current terminal

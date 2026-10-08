@@ -19,9 +19,9 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-! ### Induction-hypothesis origins -/
+/-! ### Induction-hypothesis argument universes -/
 
-/-! ### The completed construction -/
+/-! ### The recursor construction -/
 
 section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -29,10 +29,10 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
   {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
-/-- The universe support of every retained recursive call, read off the
-producer's semantic call rows (`TypedCallTemplate.universes`).
-Every row's root context extends the recursor context and so has the
-declaration's universe parameters. -/
+/-- The recursive calls recorded in the rule templates mention only the declaration's universe
+parameters (`ArgumentUniverses`). This is read off the typed call templates
+(`TypedCallTemplate.universes`): each template's root context extends the recursor context and
+so has the declaration's universe parameters. -/
 theorem RecursorConstruction.argumentUniverses (H : RecursorConstruction R) :
     H.ArgumentUniverses := by
   intro owner howner localIndex hlocal

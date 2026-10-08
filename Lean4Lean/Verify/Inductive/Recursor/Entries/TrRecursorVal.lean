@@ -2,13 +2,13 @@ import Lean4Lean.Theory.Inductive.Signature
 import Lean4Lean.Verify.Typing.Expr
 import Lean4Lean.Verify.Typing.Lemmas
 
-/-! Concrete metadata needed to realize a generated ordinary recursor.
+/-! Translation relations between the executable's recursor values and the generated
+recursors of a signature instance: `TrRecursorRule`, `TrRecursorVal`, `TrRecursorEntry` and
+`TrCompilation`.
 
-`TrConstVal` relates only a name, universe arity, and type. It cannot establish
-any fact about rules, parameter counts, or the K flag. This relation retains
-those facts explicitly, against the independent signature generator. It is a
-producer target for the specification migration, not an inference from
-`BlockCertificate`.
+`TrConstVal` relates only a name, universe arity and type; it says nothing about rules,
+parameter counts or the K flag. `TrRecursorVal` records those facts explicitly against the
+signature generator (section 3.2 of `docs/inductives/DESIGN.md`).
 -/
 
 namespace Lean4Lean
@@ -28,9 +28,9 @@ structure TrRecursorRule {s : InductiveSignature} (g : Instance s)
   nfields : rule.nfields = s.constructors[index].fields.length
   rhs : TrExprS venv lparams [] rule.rhs (g.equation index).rhs
 
-/-- All metadata consulted by ordinary recursor reduction is justified by the
-same signature as its type and rules. The environment here is the completed
-abstract block; concrete installation may still be in progress. -/
+/-- All metadata consulted by recursor reduction is justified by the same signature as its
+type and rules. `venv` is the abstract environment of the block in which the type and the
+rule right-hand sides are translated; the executable installation may still be in progress. -/
 structure TrRecursorVal {s : InductiveSignature} (g : Instance s)
     (venv : VEnv) (owner : Fin s.families.size) (rec : Lean.RecursorVal) : Prop where
   name : rec.name = g.recursorName owner
@@ -50,18 +50,19 @@ structure TrRecursorVal {s : InductiveSignature} (g : Instance s)
     s.families[owner].resultLevel ≈ .zero ∧
     ∀ ctor ∈ s.constructors.toList, ctor.fields = []
 
-/-- An installed concrete entry and its abstract constant realize the same
-owner. A type translation alone would erase the operational metadata. -/
+/-- An installed executable entry and its abstract constant are the executable and the
+generated recursor of the same owner. A type translation alone would lose the executable
+metadata. -/
 def TrRecursorEntry {s : InductiveSignature} (g : Instance s)
     (venv : VEnv) (owner : Fin s.families.size)
     (entry : Lean.ConstantInfo × VConstVal) : Prop :=
   ∃ rec : Lean.RecursorVal, entry.1 = .recInfo rec ∧
     entry.2 = g.recursor owner ∧ TrRecursorVal g venv owner rec
 
-/-- The producer must choose one signature for both abstract compilation and
-concrete execution. In particular it cannot certify the recursor types with
-one signature and the rule list or metadata with another. `venv` is the
-completed abstract constant environment in which the RHSs are translated. -/
+/-- One signature and instance serve both the abstract compilation and the executable
+entries, so the recursor types cannot be certified with one signature and the rule list or
+metadata with another. `venv` is the abstract environment in which the right-hand sides
+are translated. -/
 structure TrCompilation (env : VEnv) (decl : VInductDecl)
     (block : VInductBlock) (venv : VEnv)
     (entries : List (Lean.ConstantInfo × VConstVal)) : Prop where

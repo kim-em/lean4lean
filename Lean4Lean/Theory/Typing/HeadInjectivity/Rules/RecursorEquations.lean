@@ -1,13 +1,14 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.Definitions
 
-/-! # Syntax of ordinary native recursor equations (stage B)
+/-! # Syntax of ordinary recursor equations
 
 For a finite compilation without container specializations (`auxiliaries = []`) the
 restoration is the identity, the installed rules are the generated equations and the
 installed recursors are the generated recursors. This file computes the pattern
 decomposition of a generated equation (`Instance.equation_lhs_eq`), its coverage, the shape of
-the recursor's type (`Instance.recursorType_eq_hi`), and uniqueness of the equations per head and
-constructor (`CompilationData.ordinary_uniq`). -/
+the recursor's type (`Instance.recursorType_eq_hi`), and the injectivity facts behind
+uniqueness of the equations per head and constructor (`CompilationData.recursorName_inj`,
+`CompilationData.ctor_inj`). -/
 
 namespace Lean4Lean
 namespace InductiveSignature

@@ -1,6 +1,11 @@
 import Lean4Lean.Verify.Inductive.Install.Environments
 import Lean4Lean.Verify.Inductive.Constructor.LiteralDisjoint
 
+/-! Literal-name side conditions of the positivity check.  A successful ordinary
+header installation excludes every kernel-reserved primitive name; the three
+literal expansion names that the kernel does not reserve are excluded once
+string-literal support is present. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -48,9 +53,9 @@ theorem unreservedLiteralConstructorsOfStringOfList
     let .const hlookup _ _ := HconsConst
     exact ⟨_, hlookup⟩
 
-/-- An ordinary installed family cannot use a production-reserved primitive
+/-- An ordinary installed family cannot use a kernel-reserved primitive
 name.  This is the exact reusable consequence of successful `checkName` for
-the materialized family-name list. -/
+the header family-name list. -/
 theorem HeaderEnvironment.familyNamesExcludePrimitive
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
@@ -130,7 +135,7 @@ theorem HeaderEnvironment.unreservedLiteralNamesDisjointOfSourceContains
   simpa using hnotMem
 
 /-- In an environment where the unreserved literal constants are already
-present, ordinary header installation supplies the original global condition
+present, ordinary header installation supplies the global condition
 without any caller premise. -/
 theorem HeaderEnvironment.literalNamesDisjointOfSourceContains
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
@@ -144,7 +149,7 @@ theorem HeaderEnvironment.literalNamesDisjointOfSourceContains
     (H.unreservedLiteralNamesDisjointOfSourceContains hpresent)
 
 /-- After string-literal support has been installed, the existing checking
-context supplies the residual source-presence evidence automatically. -/
+context supplies the residual source-presence condition automatically. -/
 theorem HeaderEnvironment.literalNamesDisjointOfStringOfList
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
@@ -176,7 +181,7 @@ theorem HeaderEnvironment.sourceContainsOfTargetContainsPrimitive
     simpa [hname] using hprimitive
 
 /-- The actual literal premise needed by positivity is automatic for every
-ordinary declaration, including the `Char` toConstantsInstallation declaration.  Natural
+ordinary declaration, including the prelude's declaration of `Char`.  Natural
 literals only expose reserved natural constructors.  A supported string
 literal implies that the reserved `String.ofList` lookup predates this
 ordinary header batch; `HasPrimitives`, orderedness, and source freshness then

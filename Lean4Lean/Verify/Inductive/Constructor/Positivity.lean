@@ -1,6 +1,11 @@
 import Lean4Lean.Verify.Inductive.Header.Block
 import Lean4Lean.Verify.ExprParamUniform
 
+/-! Refinement of the executable constructor check (`checkConstructors.loopCtor`)
+and positivity check (`checkPositivity`): the parameter and field branches,
+the recursive-application test (`isValidIndAppIdx`) and the declarative
+positivity rules, run in the checking scope of the constructor check. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -57,7 +62,7 @@ theorem stepPrefix.WF
     subst c'
     exact (Hloop _ type' checkedType' hchecked).bind fun _ hnext => hnext
 
-/-- One constructor-loop iteration, including the production duplicate-name
+/-- One constructor-loop iteration, including the executable's duplicate-name
 guard.  A duplicate takes the executable error branch; only the successful
 branch reaches the semantic constructor checker. -/
 theorem stepPrefix.checkedWF
@@ -114,8 +119,8 @@ theorem zero.WF :
   simp [AddInductive.checkConstructors.loopCtor] at h
 
 /-- A constructor telescope ending in the checked target application returns
-success; the separate application-refinement theorem will connect
-`isValidIndAppIdx` to `VInductDecl.ValidIndAppAt`. -/
+success.  This theorem does not relate `isValidIndAppIdx` to
+`VInductDecl.ValidIndAppAt`. -/
 theorem result.WF
     (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
     (hvalid : AddInductive.isValidIndAppIdx stats type targetIdx = true)
@@ -673,7 +678,7 @@ def LiteralDisjoint (indConsts : Array Expr) : Prop :=
 
 /-- The literal-expansion condition needed by translation is only required
 for literals supported by the current environment.  This is strictly weaker
-than `LiteralDisjoint` during toConstantsInstallation, when (for example) the freshly
+than `LiteralDisjoint` while the prelude is declared, when (for example) the freshly
 declared `Char` family exists but string literals are not available yet. -/
 def AvailableLiteralDisjoint (env : VEnv) (indConsts : Array Expr) : Prop :=
   ∀ literal : Literal, env.ContainsLits literal →
@@ -708,7 +713,6 @@ theorem AvailableLiteralDisjoint.addEliminators
 
 /-- Split the right-hand list at the boundary forced by an appended
 left-hand list in a `Forall₂` derivation. -/
--- Name kept for the nested-inductive verification, which still refers to it.
 alias forall₂_append := _root_.List.Forall₂.append'
 
 theorem List.Forall₂.split_left
@@ -785,7 +789,7 @@ theorem TrExprS.mkAppList_append_inv
   exact ⟨fn', left', right', hfn, hleft, hright, hout⟩
 
 /-- Translation preserves a constant-headed application spine and the
-left-to-right correspondence of all its arguments.  This is the syntax bridge
+left-to-right correspondence of all its arguments.  This is the syntactic fact
 needed by both executable recursive-target checks. -/
 theorem TrExprS.constAppSpine
     (H : TrExprS env Us Δ e e')
@@ -1027,7 +1031,7 @@ theorem isValidIndApp?_some
 
 /-- Once the preceding validation has identified a family member,
 `getIIndices` returns that same member. This isolates the partial `get!` in
-the production helper. -/
+the executable helper. -/
 theorem getIIndices.fst_eq_of_valid
     (h : AddInductive.isValidIndApp? stats type = some i) :
     (AddInductive.getIIndices stats type).1 = i := by
@@ -1126,8 +1130,8 @@ theorem ValidAppStatsWF.translatedParam
 
 /- Absence of a newly declared constant is preserved by syntax translation.
 Literal expansion and projection translation are explicit side conditions:
-literals introduce old primitive constants, while `TrProj` is still an
-independent typing boundary in the existing model. -/
+literals introduce base primitive constants, and `TrProj` is a separate
+typing judgment. -/
 
 /- `Expr.AvoidsConsts` (source-syntax absence of a set of constants) is defined in
 `Lean4Lean/Verify/ExprParamUniform.lean`. -/
@@ -1622,8 +1626,8 @@ end checkPositivityStep
 
 namespace checkConstructors.loopCtor
 
-/-- The terminal constructor target check now discharges the declarative
-`CtorTailWF.result` rule, rather than returning an unconstrained success. -/
+/-- The terminal constructor target check discharges the declarative
+`CtorTailWF.result` rule. -/
 theorem result.refines
     {decl : VInductDecl} {depth : Nat} {result type' exprType : VExpr}
     {ctorCtx : List VExpr}
@@ -1778,7 +1782,7 @@ theorem refinesScoped
                 Hc'.mlctx.vlctx :=
             Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
               hdomNarrow hdomain hdomNarrowType
-          -- the narrow domain against the checker's consumed domain
+          -- the checking-scope domain against the checker's unannotated domain
           have hscopeΓ := halign.wf.toCtx
           have hctxSym := halign.defeqCtx.symm henv.ordered
           rcases Hdom₀.source_defeq with ⟨u₀, hsc₀⟩
@@ -1847,7 +1851,7 @@ theorem checkPositivity.WF
   exact Hloop
 
 
-/-- Public narrow-scope positivity refinement, including the production fuel
+/-- Public checking-scope positivity refinement, including the executable's fuel
 lookup used by constructor checking. -/
 theorem checkPositivity.refinesScoped
     {decl : VInductDecl} {depth : Nat} {scope : VLCtx}

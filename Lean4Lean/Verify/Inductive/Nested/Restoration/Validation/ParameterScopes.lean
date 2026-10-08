@@ -13,7 +13,7 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-/-- The exact restored-family half of constructor parameter coherence.  This
+/-- The restored-family half of constructor parameter coherence.  This
 is family-indexed (rather than constructor-indexed): every constructor of one
 family is compared with the same executable cached parameter scope. -/
 structure RestoredFamilyParameterScope
@@ -26,14 +26,13 @@ structure RestoredFamilyParameterScope
   length : domains.length = numParams
   context : env.IsDefEqCtx levelParams.length [] domains.reverse scope.toCtx
 
-/-- Build restored constructor-parameter coherence from the independent raw
-constructor-formation judgment, rather than transporting the particular
-definitional-equality proofs chosen by the executable parameter replay.
+/-- Restored constructor-parameter coherence from the raw
+constructor-formation judgment.
 
 Both the restored family and the restored constructor are compared with the
-same canonical parameter list.  The executable cached scope is used only as
-the already-verified bridge for the family's normalized header; no
-derivation-locality or environment-restriction premise enters this theorem.
+same parameter list `params`.  The executable cached scope is used only to
+relate that list to the family's normalized header; the theorem has no
+derivation-locality or environment-restriction premise.
 -/
 theorem RestoredFamilyParameterScope.constructorDomains
     {decl : VInductDecl} {params : List VExpr} {constructor : VConstVal}
@@ -72,9 +71,9 @@ theorem RestoredFamilyParameterScope.constructorDomains
     parameterDomains := VEnv.IsDefEqCtx.trans_empty henv Hfamily.context
       (hconstructorScope.symm henv.ordered) }⟩
 
-/-- Family-indexed parameter scopes connecting the production checker trace
-to restored constructors.  This chooses no constructor and contains no
-constructor semantics. -/
+/-- Family-indexed parameter scopes relating the lowered run's header check
+to the restored constructors.  This chooses no constructor and contains no
+constructor translation. -/
 def NestedRestoredFamilyParameterScopes
     (E : NestedInstalledRun result sourceProdEnv sourceTypes sourceEnv
       decl lparams nparams isUnsafe safety outEnv) : Prop :=
@@ -83,8 +82,8 @@ def NestedRestoredFamilyParameterScopes
       lparams nparams E.lowered.headers.statsWF.parameterScope
       decl.types[familyIdx].toVConstVal.toVConstant)
 
-/-- The independently restored source family has the same semantic parameter
-telescope as the lowered header that the executable checker materialized.
+/-- The restored source family has the same abstract parameter telescope as
+the lowered header checked by the executable.
 The telescope need not be syntactically visible in the restored constant:
 header checking normalizes before exposing `TypeShape`. -/
 theorem NestedInstalledRun.restoredFamilyParameterScopes
@@ -202,11 +201,11 @@ theorem NestedInstalledRun.restoredFamilyParameterScopes
       rw [E.lowered.headers.parameterScopeEq]
       exact HownCached }⟩
 
-/-- Build restored constructor-parameter coherence directly from the source
-parameter-formation certificate retained by nested assembly.  The source
-certificate fixes one canonical parameter list for every family and
+/-- Restored constructor-parameter coherence from the source
+parameter-formation certificate of the nested run.  The source
+certificate fixes one parameter list for every family and
 constructor.  For each restored family, equal-length forall inversion aligns
-that list with the executable cached parameter scope.  Consequently no
+that list with the executable cached parameter scope, so no
 derivation-locality or environment-restriction premise is required. -/
 theorem NestedInstalledRun.constructorParameterDomainsDefEqOfSource
     (E : NestedInstalledRun result sourceProdEnv sourceTypes sourceEnv

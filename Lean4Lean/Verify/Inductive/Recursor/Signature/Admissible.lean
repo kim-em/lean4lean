@@ -6,22 +6,21 @@ import Lean4Lean.Verify.Inductive.Recursor.Elimination.Singleton
 import Lean4Lean.Verify.Inductive.Constructor.ParameterSyntacticTranslation
 import Lean4Lean.Verify.Inductive.Recursor.Signature.MinorFields
 
-/-! Elimination admissibility of the consumed signature's universe instance.
+/-! Admissibility (`Instance.Admissible`) of the universe instance of the recursor
+construction's signature.
 
-The universe policy is fixed by the retained construction alone. The
-singleton alternative is interpreted against the header signature's literal
-constructor telescope and transported to the consumed field domains, which
-are definitionally equal field by field and have syntactically the same
-result indices. -/
+The universe levels, elimination level and recursor names are fixed by the construction alone.
+The singleton case is read off the executable's large-elimination check against the
+checked-formation constructor telescope, and moved to the construction's field domains, which
+are definitionally equal field by field and have syntactically the same result indices. -/
 
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- Translations of a telescope and of its domain-consumed form, in contexts
-that differ only in binder types, have syntactically equal bodies once the
-same number of binders is opened, provided the residual has no further
-binders to consume. -/
+/-- Translations of a telescope and of its unannotated form, in contexts that differ only in
+binder types, have syntactically equal bodies once the same number of binders is opened,
+provided removing annotations leaves the residual unchanged. -/
 theorem TrExprS.unannotatedTelescope_body_eq {venv : VEnv} {Us : List Name}
     (Htel : Expr.ForallTelescope raw n residual) :
     Lean4Lean.Expr.consumeForallTypes annOk residual = residual →
@@ -56,8 +55,9 @@ theorem TrExprS.unannotatedTelescope_body_eq {venv : VEnv} {Us : List Name}
     | forallE _ _ _ Hcbody =>
     exact ih hres (hΔ.cons .vlam) Hbody Hcbody (by simpa using hA) (by simpa using hC)
 
-/-- Consumption changes only binder domains: the consumed constructor's
-result indices are syntactically the header constructor's indices. -/
+/-- Removing type annotations changes only binder domains: the result indices of a minor's
+constructor (`declConstructorIndices`) are syntactically those of the matching checked-formation
+signature constructor. -/
 theorem RecursorConstruction.sourceConstructorIndices_eq_header
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
@@ -100,9 +100,9 @@ theorem RecursorConstruction.sourceConstructorIndices_eq_header
   exact hvars.symm
 
 open InductiveSignature in
-/-- The executable singleton decision interpreted against the literal tail
-retained with the source constructor selection, in the retained parameter
-scope itself. -/
+/-- If the executable's large-elimination check accepts a source constructor, then each field of
+the matching signature constructor is a proof (its type has sort `Prop`) or occurs as a result
+index, over the parameter scope. -/
 private theorem SourceConstructorTelescope.singletonFieldsInScope
     (H : SourceConstructorTelescope env Us scope stats decl family source sourceCtor s ctor)
     (Hc : ContextWF c) (hchk : Hc.chk.vlctx = []) (hus : Us = c.lparams)
@@ -173,9 +173,9 @@ theorem IsDefEqCtx.ofFieldPrefixes {env : VEnv} {U : Nat} {P xs ys : List VExpr}
       List.cons_append]
     exact .succ W (hdefeq.of_l henv hΓ htype)
 
-/-- The consumed signature's universe instance. The universe policy and
-naming are fixed by the retained construction, independently of the
-supplied signature. -/
+/-- The universe instance of the recursor construction for a signature `s`: the recursor's
+universe parameters and levels, the elimination level as target, and recursor names `T.rec`.
+Only the recursor names depend on `s`. -/
 noncomputable def RecursorConstruction.generatedInstance
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (s : InductiveSignature) :
@@ -192,9 +192,9 @@ theorem RecursorConstruction.generatedInstance_target
       H.elimLevel = some (H.generatedInstance s).targetLevel :=
   Classical.choose_spec H.elimLevelAdmissible.ofLevel
 
-/-- The retained construction keeps the reason for its elimination
-universe: a nonzero source block, a `Prop` target, or a singleton block
-whose only constructor passed the concrete large-elimination check. -/
+/-- The elimination level of the construction is justified: every source family is never
+zero, or the target is `Prop`, or the block has one family with at most one constructor,
+accepted by the executable's large-elimination check. -/
 theorem RecursorConstruction.elimLevelDecision
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) :
@@ -217,9 +217,10 @@ theorem RecursorConstruction.elimLevelDecision
     · exact .inr ⟨ctor, hctor,
         AddInductive.isLargeEliminator.loop.trace hchecked⟩
 
-/-- A singleton source block accepted by the concrete large-elimination
-check satisfies the generator's field condition for any signature carrying
-the consumed field domains and result indices, at every universe instance. -/
+/-- A singleton source block accepted by the executable's large-elimination check satisfies
+the generator's singleton condition (`SingletonElimination`) for any signature with the
+construction's parameters, families, field domains and result indices, at every universe
+instance. -/
 theorem RecursorConstruction.unannotatedSingletonElimination
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {s : InductiveSignature}
@@ -291,7 +292,7 @@ theorem RecursorConstruction.unannotatedSingletonElimination
     (R.context.withCheckLCtx {} R.context.baseNil) rfl rfl
     (R.installation.constructorLE.trans R.ctorLE) hheader hscope
     R.core.uvars htrace hspine
-  -- Field-by-field comparison of the consumed and header telescopes.
+  -- Field-by-field comparison of the unannotated and header telescopes.
   obtain ⟨hlen, hdef⟩ := H.sourceFields_defeq_header 0 h0 0 hl0
   have hidx' := hidx.trans (H.sourceConstructorIndices_eq_header 0 h0 0 hl0)
   have henv := R.headerCheckingAnnotations.1.wf
@@ -334,10 +335,9 @@ theorem RecursorConstruction.unannotatedSingletonElimination
     rw [hcount]
     exact hx
 
-/-- The construction's universe policy satisfies the independent
-generator's admissibility judgment for any signature carrying the consumed
-universe count, parameters, family table, constructor count and per-minor
-field domains and result indices. -/
+/-- The construction's universe instance is admissible, in the header environment, for any
+signature with the source universe count, parameters, the construction's families, constructor
+count and per-minor field domains and result indices. -/
 theorem RecursorConstruction.generatedInstance_admissible
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)

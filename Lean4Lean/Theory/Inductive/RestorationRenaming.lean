@@ -9,7 +9,7 @@ environment. A lowered recursor environment additionally contains
 
 * constants kept under their name whose source type is only definitionally
   equal to the replaced lowered type (the source constructors, whose lowered
-  types mention auxiliary families, and the primary recursors);
+  types mention auxiliary families, and the source recursors);
 * constants that are renamed (the auxiliary recursors `aux.rec ↦ Main.rec_k`);
 * projections of lowered families (including auxiliary families, whose
   projections must be renamed to projections of the container).
@@ -22,8 +22,10 @@ constants only need definitionally equal types, and the projection rules are
 transported through the abstract `ProjectionRulesRenamed` clause
 (`ProjectionRulesRenamed.of_fixed` discharges it for projections untouched by the
 replacement). `RenamingRestorationSubstitution` relates `replaceRen` to
-`Restoration.expr` up to beta (`go_simAt`), for terms whose projection names are
-fixed by `σ`; restoration then preserves typing (`Restoration.expr_hasType'`).
+`Restoration.expr` up to beta (`RenamingRestorationAgreement.go_simAt`,
+`RenamingRestorationSubstitution.expr_simAt`), for terms whose projection names are
+fixed by `σ`; the resulting typing of restored terms is in `RestorationRenamingOnCtx.lean`
+(`Restoration.expr_hasType_onCtx`).
 -/
 
 namespace Lean4Lean

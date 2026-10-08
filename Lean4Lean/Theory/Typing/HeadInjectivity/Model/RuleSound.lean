@@ -8,9 +8,9 @@ constant head applied to leading arguments and a constructor major, given the ru
 syntactic facts (pattern, binder coverage, the family of the major domain in the head's type,
 the constructor's family, rule uniqueness per head and constructor, and in mode C the
 propositional typing of the major-only fields), the soundness of the instantiated rule
-follows from the soundness and semantic typing (`HTS`) of its typing premises
-(`docs/inductives/PHASE1B_NOTES.md`, section 10.2, "Soundness of the rule cases"). For a major
-of a projection-registered family (`MajorFam`, decision D16) the rule clause is identified from
+follows from the soundness and semantic typing (`HTS`) of its typing premises (section 4.1 of
+`docs/inductives/DESIGN.md`, computation rules). For a major
+of a projection-registered family (`MajorFam`) the rule clause is identified from
 the head type and the fields are bound by the eta binding (never-zero entries; right to left via
 `eta_field_cls` and the field observations of the major, `ctor_field_obs`) or the proof binding. -/
 

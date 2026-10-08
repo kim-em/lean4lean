@@ -1,5 +1,10 @@
 import Lean4Lean.Verify.Inductive.Rules.RecursiveApplication
 
+/-! `RecursorCheck.IotaEquationTranslations`, the owner-indexed batches of equations that
+translate the generated rules, and the de Bruijn bookkeeping of a rule's binder abstraction:
+the closed binder groups of the equation context, the constructor major, the recursor prefix,
+and the recursive-call arguments after closing call-local binders. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -10,10 +15,10 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Equation-only payload for the generated rule batches of a completed
-recursor phase.  Unlike `GeneratedIotaTranslations`, this boundary does not
-ask its caller to reconstruct field selection or recursive-result semantics:
-each equation is paired with the exact retained semantic rule alignment. -/
+/-- Equation-only payload for the generated rule batches of a recursor check.
+It does not ask its caller to reconstruct field selection or recursive-result
+semantics: each equation is paired with the exact rule alignment
+(`RuleAlignment`) of its rule. -/
 inductive RecursorCheck.IotaEquationTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -46,7 +51,7 @@ inductive RecursorCheck.IotaEquationTranslations
         (prior ++ batch)
 
 /-- The independently translated recursor prefix and the genuine constructor
-field suffix have exactly the binder count retained by the production rule.
+field suffix have exactly the binder count retained by the executable rule.
 This is the shared context-length invariant for all canonical equation-body
 translations. -/
 theorem RecursorCheck.RuleAlignment.canonicalEquationDomains_length
@@ -91,8 +96,8 @@ theorem RecursorCheck.RuleAlignment.canonicalEquationDomains_length
     hfields, hparams, hmotives, hminors, hallArgs]
 
 /-- Replacing the executable parameter domains by the independently checked
-cached parameter declarations preserves the exact production binder count.
-This is the length invariant used by the final specification equation. -/
+cached parameter declarations preserves the exact executable binder count.
+This is the length invariant used by the generator's equation. -/
 theorem
     RecursorCheck.RuleAlignment.cachedEquationDomains_length
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -324,7 +329,7 @@ theorem
   exact Htr
 
 /-- Transport the canonical constructor-field translations through the exact
-checked-to-narrow equation-context conversion.  The targets remain the
+checked-to-frame equation-context conversion.  The targets remain the
 literal innermost de Bruijn variables: syntax-directed uniqueness rules out
 the otherwise existential targets produced by context transport. -/
 theorem
@@ -1156,7 +1161,7 @@ theorem
     Function.comp_def] using hshift
 
 /-- Closing semantic recursive indices first over constructor fields and then
-over the outer parameter/motive/minor groups is exactly production's single
+over the outer parameter/motive/minor groups is exactly the executable's single
 rule-binder abstraction at the call-local cutoff.  This removes all remaining
 order arithmetic from the later context-transport proof. -/
 theorem
@@ -1209,7 +1214,7 @@ theorem
     List.append_assoc] using Habstract
 
 /-- The source produced by closing cached parameters and then inserting the
-motive/minor block is not merely equivalent to production's source: it is
+motive/minor block is not merely equivalent to the executable's source: it is
 literally the same complete rule-binder abstraction. -/
 theorem
     RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedIndexSources_eq
@@ -1359,8 +1364,8 @@ theorem
 
 /-- The exposed recursive-field result type obeys the same parameter closure
 and motive/minor insertion equation as each of its index arguments.  Stating
-the whole application separately lets later spine inversion use production's
-clean two-stage abstraction directly. -/
+the whole application separately lets later spine inversion use the executable's
+two-stage abstraction directly. -/
 theorem
     RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedExposedSource_eq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -1492,7 +1497,7 @@ theorem
 
 /-- Parameter closure and motive/minor insertion leave the recursive major's
 canonical field/local de Bruijn spine unchanged.  The result is exactly the
-complete rule-binder abstraction emitted by production. -/
+complete rule-binder abstraction emitted by the executable. -/
 theorem
     RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedMajorSource_eq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -1637,7 +1642,7 @@ theorem
     hbaseFull]
 
 /-- The neutral local-forall template carried through field closure,
-parameter closure, and motive/minor insertion has exactly production's
+parameter closure, and motive/minor insertion has exactly the executable's
 single rule-binder abstraction as its source.  This is the source-side
 counterpart of the lifted-domain identity retained by the inserted call
 frame. -/
@@ -1769,7 +1774,7 @@ theorem
 
 
 /-- Canonical-source form of the shared inserted call-argument frame.  This
-is the application-ready handoff: production's exact recursive index spine
+is the application-ready handoff: the executable's exact recursive index spine
 and major translate together in one typed equation context. -/
 theorem
     RecursorCheck.RuleAlignment.RecursiveCallFrame.canonicalInsertedCallArgumentFrame

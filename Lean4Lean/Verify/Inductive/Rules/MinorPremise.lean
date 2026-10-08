@@ -1,5 +1,10 @@
 import Lean4Lean.Verify.Inductive.Rules.MinorContext
 
+/-! The selected minor premise of a rule: its source construction in the minor pass, the
+constructor tail it shares with the constructor check, its typed telescope split into
+constructor fields and induction hypotheses, and the alignment of its residual with the
+constructor-motive application of the rule's left-hand side. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -194,7 +199,7 @@ theorem
     Hdomain, HdomainType⟩
 
 /-- Recover the exact translation-side context in which the selected minor
-source was completed, together with its executable extension into the final
+source was built, together with its executable extension into the rule's
 recursor context.  This is the semantic strengthening of the structural
 `BindingContextLE` returned by `installedSelectedMinorShape`. -/
 theorem
@@ -255,7 +260,7 @@ theorem
   exact ⟨S, HS, hlocal, hsemanticTraversal.symm ▸ hparameterTail⟩
 
 /-- Transport the shared constructor tail retained by the first minor pass
-into the exact parameter context and environment used by final rule
+into the exact parameter context and environment used by rule
 generation.  This is the first semantic join between the two executable
 passes; the source expression is identified structurally, while its target
 is preserved from the first pass. -/
@@ -308,7 +313,7 @@ theorem
   exact ⟨S, HS, target, hlocal, htail, HtargetFinal⟩
 
 /-- The target retained from first-pass minor construction and the field
-telescope reconstructed during final rule generation are definitionally
+telescope reconstructed during rule generation are definitionally
 equal, because they translate the same constructor tail in the same exact
 parameter context. -/
 theorem
@@ -367,7 +372,7 @@ theorem
 
 /-- Binder-by-binder form of the shared-tail equality.  It is deliberately a
 context conversion rather than list equality: the first minor pass and the
-later constructor check may translate annotation-consumed domains to
+later constructor check may translate unannotated domains to
 different, convertible representatives. -/
 theorem
     RecursorCheck.RuleAlignment.installedSelectedMinorSharedFieldContext
@@ -445,7 +450,7 @@ theorem
     Hchecked, Hfields⟩
 
 /-- Binder-by-binder strengthening of the selected minor arity result.  The
-complete consumed source telescope is retained together with the translation
+complete source telescope is retained together with the translation
 and typehood of every abstract domain, so later applications can compare a
 particular field or recursive-hypothesis domain rather than only their
 cardinalities. -/
@@ -542,8 +547,8 @@ theorem
     Expr.ForallTelescopeTypeTranslation.ofTrExprS
       Habstract Hdomain' HdomainType⟩
 /-- Independently replay the complete selected-minor telescope in the exact
-non-contiguous source scope, and close that scope around the original source
-declaration.  The two certificates expose the same narrowed target both as a
+non-contiguous source scope, and close that scope around the source
+declaration.  The two certificates expose the same dependency-selected target both as a
 body below the selected outer prefix and as a completely closed telescope.
 This is the comparison frame used to relate the installed minor domains to
 the semantic field and recursive-result domains. -/
@@ -703,7 +708,7 @@ theorem
 
 /-- Expose the typed selected-minor telescope in the two semantic blocks used
 by its eventual application: genuine constructor fields followed by recursive
-hypotheses.  Unlike `finalSelectedMinorTranslatedSplit`, this retains the
+hypotheses.  It retains the
 binder-by-binder source/target translation certificate. -/
 theorem
     RecursorCheck.RuleAlignment.installedSelectedMinorTypedSplit
@@ -804,9 +809,9 @@ theorem
     hproducerShape, hfields, hhypotheses, htarget, Hsource, Hresidual,
     HresidualType, Htyped⟩
 
-/-- Positive-arity selected-minor residual with all source-shape evidence
-retained on one witness.  The ordinary residual endpoint intentionally hides
-the first-pass constructor shape; the final equation type comparison needs
+/-- Positive-arity selected-minor residual with all source-shape facts
+retained on one witness.  The ordinary residual endpoint hides
+the first-pass constructor shape; the equation type comparison needs
 that shape to identify the residual motive application with the independently
 reconstructed constructor motive on the LHS. -/
 theorem
@@ -1058,7 +1063,7 @@ def
   A.installedSelectedMinorAlignedResidual
 
 /-- After each constructor pass closes its own fresh field identifiers, the
-minor result retained by `mkRecType` is literally the constructor-motive
+minor result retained by the minor pass of `mkRecInfos` is literally the constructor-motive
 application reconstructed for the generated iota rule.  The proof compares
 parameter and index spines through the alpha-closed inductive targets and
 normalizes both field arrays to the same de Bruijn sequence. -/
@@ -1359,7 +1364,7 @@ theorem
 /-- Insert the selected and later minor binders into the positive-arity
 residual source.  After the recursive-hypothesis holes are left open, the
 result is exactly the independently reconstructed constructor-motive type
-under the complete production rule binder list. -/
+under the complete executable rule binder list. -/
 theorem
     RecursorCheck.RuleAlignment.alignedPositiveResidualSource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}

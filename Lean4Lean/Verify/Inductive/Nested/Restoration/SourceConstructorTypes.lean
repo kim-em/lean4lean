@@ -20,7 +20,7 @@ The second fact is a premise here; it is discharged by
 `NestedRun.loweredConstructorLevels_heads` (in
 `Nested/Lowering/Levels.lean`): the executable lowering emits each auxiliary
 occurrence at `state.lvls`, which is initialised to the declaration's level
-parameters and never modified, as recorded by the relational traces of the run
+parameters and never modified, as recorded by the relations describing the lowering run
 (`NestedAuxLE`, `ConstructorLowering.Resolved.lvls`, `NestedLowering.lvls`).
 -/
 

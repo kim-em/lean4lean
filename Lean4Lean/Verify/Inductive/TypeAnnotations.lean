@@ -1,5 +1,14 @@
 import Lean4Lean.Verify.Inductive.Context
 
+/-! # Removing type-annotation wrappers from binder domains
+
+The inductive checker removes `optParam`, `autoParam`, `outParam` and `semiOutParam` from a
+binder domain (`Expr.consumeTypeAnnotationsVerified`) only where the environment declares the
+wrapper as the prelude's definition (`TypeAnnotationWrappers`, section 1.3 of
+`docs/inductives/DESIGN.md`). This file proves that the unannotated domain translates to a
+type definitionally equal to the source domain, and discharges the two hypotheses
+`ConsumeTypeAnnotationsCompat` and `RecursorConsumeTypeAnnotationsCompat` of `Context.lean`. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -235,9 +244,11 @@ theorem BinaryTypeAnnotationWrapper.applicationDefEq
           rcases hfind with ⟨rfl, _⟩
           exact ⟨first', hfirst, hctxEq ▸ heq⟩
 
-/-- Semantic annotation consumption in any well-formed, binder-only checker
-scope, including anonymous bound-variable contexts. The result is independent of inductive-specific context packaging, so
-the ordinary and generated-recursor callbacks are instances of one proof. -/
+/-- Removing type annotations, in any well-formed checking context, including anonymous
+bound-variable contexts: given wrappers that are the prelude's definitions, the unannotated
+domain translates to a type definitionally equal to the source domain. The statement does
+not depend on the inductive checker's contexts, so the ordinary and generated-recursor
+hypotheses are both instances of it. -/
 theorem consumeTypeAnnotationsSemantic_of_wrappers
     {env : Environment} {venv : VEnv} {safety : DefinitionSafety}
     {Us : List Name} {Delta : VLCtx}
@@ -345,8 +356,8 @@ theorem consumeTypeAnnotationsSemantic
         source' consumed' (.sort u) :=
   consumeTypeAnnotationsSemantic_of_wrappers Hchecking.tr (.of_env env) hDelta htr htype
 
-/-- The ordinary inductive-checker annotation boundary is discharged by the
-persisted production wrapper invariant. -/
+/-- The annotation hypothesis of the inductive checker's contexts holds, using the
+environment's own wrapper lookup (`TypeAnnotationWrappers.of_env`). -/
 theorem consumeTypeAnnotationsCompat : VerifyInductive.ConsumeTypeAnnotationsCompat := by
   intro c Hc dom source' htr htype
   rcases consumeTypeAnnotationsSemantic Hc.checking Hc.mlctx_wf.tr.wf
@@ -358,7 +369,7 @@ theorem consumeTypeAnnotationsCompat : VerifyInductive.ConsumeTypeAnnotationsCom
     isType := hconsumedType
     source_defeq := ⟨u, hsourceEq⟩ }⟩
 
-/-- The generated-recursor annotation boundary is the same semantic theorem
+/-- The annotation hypothesis of the recursor contexts holds: it is the same theorem
 at the generated universe list. -/
 theorem recursorConsumeTypeAnnotationsCompat :
     VerifyInductive.RecursorConsumeTypeAnnotationsCompat := by
@@ -374,7 +385,7 @@ theorem recursorConsumeTypeAnnotationsCompat :
 
 end Lean4Lean
 
-/-! Exact abstract targets for executable annotation consumption. -/
+/-! Exact abstract targets for the executable's removal of type annotations. -/
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -382,7 +393,7 @@ open Kernel
 
 /-- Follow the actual source annotation spine in an already chosen
 translation. Source shape matters: metadata is erased by translation but
-does not expose an annotation to the executable consumption function. -/
+does not expose an annotation to `Expr.consumeTypeAnnotationsVerified`. -/
 def consumeTranslatedTypeAnnotations (ok : Name → Bool) : Expr → VExpr → VExpr
   | .app (.app (.const name _) first) _, target =>
     if (name == ``optParam || name == ``autoParam) && ok name then
@@ -398,7 +409,7 @@ def consumeTranslatedTypeAnnotations (ok : Name → Bool) : Expr → VExpr → V
     else target
   | _, target => target
 
-/-- Consumption reuses subtranslations of the selected source target;
+/-- Removing annotations reuses subtranslations of the selected source target;
 it does not choose a fresh projection representation. -/
 theorem TrExprS.consumeTranslatedTypeAnnotations
     (H : TrExprS env Us Δ source target) :
@@ -419,9 +430,9 @@ theorem TrExprS.consumeTranslatedTypeAnnotations
       simpa only [Lean4Lean.consumeTranslatedTypeAnnotations, hannotation, ↓reduceIte] using ih harg
   all_goals simpa [Lean4Lean.consumeTranslatedTypeAnnotations, *] using H
 
-/-- The fixed consumed target has the same type as the original domain.
-The wrapper semantics supplies equality; translation uniqueness only aligns
-its proof witness with the target already fixed by the source traversal. -/
+/-- The fixed unannotated target is a type, definitionally equal to the source domain.
+The wrapper definitions supply the equality; translation uniqueness identifies the
+translation they produce with the target already fixed by the source traversal. -/
 theorem consumeTranslatedTypeAnnotations_semantic_of_wrappers
     {env : Environment} {venv : VEnv} {safety : DefinitionSafety}
     {Us : List Name} {Δ : VLCtx}

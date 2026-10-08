@@ -4,8 +4,9 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- The actual consumed motive telescope in its original narrow parameter
-scope, as replayed in the checker context of the index loop. -/
+/-- The executable motive telescope of a family (indices, major, elimination sort) translates
+over the motive's source parameter scope to a type definitionally equal to the motive type
+`S.canonical.motiveType` recorded with the motive declaration. -/
 theorem MotiveDecl.unannotatedTranslation
     {Rroot : RecursorContextWF root recLparams}
     (S : MotiveDecl Rroot stats decl owner info elimLevel) :
@@ -19,8 +20,9 @@ theorem MotiveDecl.unannotatedTranslation
   exact ⟨S.motiveSourceTarget, S.motiveSourceTr, S.motiveSourceType,
     S.motiveSourceCanonical⟩
 
-/-- Translate a completed motive over the block's one cached parameter
-choice, before any recursor declaration is installed. -/
+/-- The executable motive telescope of family `owner`, abstracted over the parameters,
+translates over the recursor parameter context in the recursor-checking environment to a type
+definitionally equal to the motive type recorded with its motive declaration. -/
 theorem RecursorConstruction.unannotatedMotiveAtParameters
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
@@ -113,9 +115,9 @@ private theorem abstractList_sort (u : Level) (fvars : List FVarId) (k : Nat := 
   Expr.abstractList_eq_self_of_abstract1 (.sort u)
     (by intro fv k; simp [Expr.abstract1]) fvars k
 
-/-- The actual consumed index domains and the major binder are exposed from
-one pre-install translation. In particular, the terminal sort is the exact
-universe selected by the executable elimination check. -/
+/-- The translation of `unannotatedMotiveAtParameters` has the form
+`∀ indices, major → Sort level`, with one index domain per executable index and `level` the
+translation of the elimination level chosen by the executable. -/
 theorem RecursorConstruction.unannotatedMotiveDomains
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
@@ -256,8 +258,9 @@ theorem Expr.consumeTypeAnnotationsVerified_eq_of_head {ok : Name → Bool} {e :
     simp [hok] at hannotation
   all_goals rfl
 
-/-- The major premise really is the source family applied to its parameters
-and indices; reserved wrapper names cannot occur among the fresh families. -/
+/-- The type of the major premise is the source family applied to the parameters and indices:
+removing type annotations leaves it unchanged, since no family of the block is a
+type-annotation wrapper. -/
 theorem RecursorConstruction.majorSourceType
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
@@ -283,8 +286,8 @@ theorem RecursorConstruction.majorSourceType
   · simp [Expr.getAppFn_mkAppN, Expr.getAppFn]
   · exact R.family_not_wrapper _ (List.getElem_mem hfamily)
 
-/-- Recover one concrete binder's strict domain translation at its exact
-anonymous prefix. This inversion does not assert uniqueness for projections. -/
+/-- The domain of binder `i` of a telescope translating to `wrapForalls domains result`
+translates to `domains[i]` over the context extended by the first `i` domains. -/
 theorem Expr.ForallBinderAt.translation
     (Hb : Expr.ForallBinderAt source i domain)
     (Htr : TrExprS env Us Δ source (VExpr.wrapForalls domains result))
@@ -413,8 +416,9 @@ theorem TrExprS.const_bvarSpine_eq
     simp [bvarSpine_eq_ofFn, args, List.map_ofFn, Function.comp_def]
   simpa [VExpr.mkApps, htargets, List.foldl_map] using heq
 
-/-- Any strict motive translation has the same major family application,
-although its index domains may legitimately vary by typed equality. -/
+/-- In every translation of the executable motive telescope, the major's domain is the family
+applied to the bvar spine of parameters and indices; the index domains are determined only up
+to definitional equality. -/
 theorem RecursorConstruction.unannotatedMotiveMajor
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)

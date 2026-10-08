@@ -2,7 +2,9 @@ import Lean4Lean.Theory.Inductive.SignatureData
 import Lean4Lean.Theory.Inductive.SourceShape
 import Lean4Lean.Theory.Typing.Lemmas
 
-/-! Typed models and elimination admissibility for the pure signature generator. -/
+/-! Typed models and elimination admissibility for the pure signature generator (section 2.2
+of `docs/inductives/DESIGN.md`): `Models` relates a signature to a source declaration,
+`Instance.Admissible` fixes the elimination universe, and `Compiles` is ordinary compilation. -/
 
 namespace Lean4Lean
 namespace InductiveSignature
@@ -13,7 +15,7 @@ environment containing the source family headers, before any recursor or
 equation is installed.  The family types are not compared: a family's
 signature telescope is required only to be well formed and to type the family
 applications at the recorded sort (`FamilyTypesWF`, a clause of `Compiles`),
-because the recursor pass computes the index telescope in a context in which
+because the recursor phase computes the index telescope in a context in which
 definitional agreement with the declared one is not derivable. -/
 structure Models (s : InductiveSignature) (env : VEnv) (decl : VInductDecl) : Prop where
   uvars : s.uvars = decl.uvars
@@ -36,7 +38,7 @@ structure Models (s : InductiveSignature) (env : VEnv) (decl : VInductDecl) : Pr
   universes: either free of the families being defined, or a telescope over
   family-free domains ending in a family applied to the parameters and
   family-free indices (`VInductDecl.UniformFieldNormalForm`).  This is what
-  the header phase's positivity check establishes.  It is stated for every
+  the constructor phase's positivity check establishes.  It is stated for every
   field regardless of the generator's `external`/`recursive` classification:
   the generator's classification and recursive shapes are constrained only
   by the well-formedness of the generated recursor (`Instance.RecursiveTypesWF`);
@@ -78,16 +80,15 @@ def Instance.FreeTarget {s : InductiveSignature} (g : Instance s) : Prop :=
 
 /-- Admissibility is checked at the instance's source universes. In particular,
 a Sort-polymorphic family can acquire large elimination after specialization
-without changing its native recursor's type.
+without changing its recursor's type.
 
 Singleton (large) elimination additionally requires a free elimination universe
-(`Instance.FreeTarget`). Without it, `VEnv.WF` admitted a large-eliminating inductive
-proposition whose only recursor has motive universe `succ u`; its proof fields can then
-not be extracted (there is no elimination into `Prop`), so its iota rule has no
-reconstruction step (`FullEquationCoverage` fails) and context strengthening with
-canonical `Eq` is in doubt (`docs/inductives/STRENGTHENING_NOTES.md`, 1.9a). Lean never
-produces such recursors, and the checker's realization satisfies the free shape; this
-corrects the specification (decision recorded in HANDOFF.md, 2026-10-06). -/
+(`Instance.FreeTarget`). Without it, `VEnv.WF` would admit a large-eliminating inductive
+proposition whose only recursor has motive universe `succ u`; its proof fields could then
+not be extracted (there is no elimination into `Prop`), so its iota rule would have no
+reconstruction step and `FullEquationCoverage` would fail. Lean never produces such
+recursors, and the executable's recursor construction satisfies the free shape (section 2.4
+of `docs/inductives/DESIGN.md`). -/
 structure Instance.Admissible {s : InductiveSignature} (g : Instance s)
     (envTypes : VEnv) : Prop where
   levels_length : g.levels.length = s.uvars
@@ -102,12 +103,12 @@ structure Instance.Admissible {s : InductiveSignature} (g : Instance s)
 which the generated minor premise binds it: parameters, motives, earlier
 minors, the constructor's fields and the earlier hypotheses.  This is the
 typing fact the generated recursor needs from the recursive shapes.  It is
-stated in the environment in which the recursors are declared, that is after
-the family headers, the constructors and the declaration's projection entries,
+stated in the recursor-checking environment, that is after the family headers, the
+constructors, the declaration's own case eliminators and its projection entries,
 since that is where the executable checks the generated types.  A
 definitional-equality form in a smaller context is not derivable from the
-checker's evidence without context strengthening of definitional equality,
-which `docs/inductives/STRENGTHENING.md` refutes in general. -/
+checker's runs without context strengthening of definitional equality, which is false
+in general (section 5.1 of `docs/inductives/DESIGN.md`). -/
 def Instance.RecursiveTypesWF {s : InductiveSignature} (g : Instance s) (env : VEnv) : Prop :=
   ∀ (index : Fin s.constructors.size) (j : Nat)
     (hj : j < (recursiveFields s.constructors[index]).length),
@@ -118,10 +119,10 @@ def Instance.RecursiveTypesWF {s : InductiveSignature} (g : Instance s) (env : V
 
 /-- Well-formed family applications: the signature's parameter and index
 telescope is a well-formed context, and each family applied to its parameters
-and indices has the recorded result sort, in the environment in which the
-recursors are declared.  Definitional agreement of each index domain with the
+and indices has the recorded result sort, in the recursor-checking
+environment.  Definitional agreement of each index domain with the
 declared family type in its own prefix is not derivable from the checker's
-evidence (context strengthening of definitional equality), so this clause
+runs (context strengthening of definitional equality), so this clause
 records what the generated motive types need. -/
 def FamilyTypesWF (s : InductiveSignature) (env : VEnv) (uvars : Nat) : Prop :=
   ∀ owner : Fin s.families.size,
@@ -131,8 +132,8 @@ def FamilyTypesWF (s : InductiveSignature) (env : VEnv) (uvars : Nat) : Prop :=
         (vars s.families[owner].indices.length 0))
       (.sort s.families[owner].resultLevel)
 
-/-- Case eliminators registered with a declaration at its constructor boundary, before its
-native recursors are generated: restoration-free case schemas of the declaration itself, whose
+/-- Case eliminators registered with a declaration right after its constructors, before its
+recursors are generated: restoration-free case schemas of the declaration itself, whose
 signatures model it. The generated recursors and the typing facts of their generation are
 checked in the constructor environment extended by these eliminators and the declaration's
 projection entries (`VInductBlock.install`). -/
@@ -141,7 +142,7 @@ def _root_.Lean4Lean.VInductDecl.OwnCaseEliminators (env : VEnv) (decl : VInduct
   ∀ p ∈ es, p.2.restoration = {} ∧ p.2.sourceFamilies = decl.types.map (·.name) ∧
     p.2.signature.Models env decl
 
-/-- Ordinary canonical generation fixes every motive, minor, recursive call,
+/-- Ordinary compilation: generation fixes every motive, minor, recursive call,
 and both sides of every equation. This certificate does not accept an
 arbitrary list of equations on the strength of their typing. -/
 structure Compiles (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Prop where

@@ -3,16 +3,18 @@ import Lean4Lean.Theory.Inductive.CaseCertificateMono
 
 /-! # Pieces of the case certificate of a nested declaration
 
-The source declaration of a nested run registers the case schema of the boundary signature of
-its lowered declaration, restored by the nested compilation restoration. This file proves the
-facts about a constructor boundary that this needs beyond the restoration-free certificate of
+The source declaration of a nested run registers the case schema of the signature of the
+lowered declaration's checked formation (`CheckedFormation.sourceSignature`), restored by the
+nested compilation restoration (section 3.3 of `docs/inductives/DESIGN.md`). This file proves
+the facts about a checked formation that this needs beyond the restoration-free certificate of
 `CheckedFormation.caseEliminatorsCertified`:
 
-* the constructor types of the boundary signature are head-applied whenever the production
-  constructor types have hit shape, so restoration is total on them
+* the constructor types of the signature are head-applied whenever the executable
+  constructor types are parameter-uniform in the heads, so restoration is total on them
   (`CheckedFormation.sourceSignature_headsApplied`);
-* the pieces of the boundary signature project only out of structures registered in the source
-  environment (`CheckedFormation.sourceSignature_pieces_projNamesOK`). -/
+* the pieces of the signature project only out of structures registered in the source
+  environment (`CheckedFormation.sourceSignature_pieces_projNamesOK`);
+* restoration fixes the signature's header (`CheckedFormation.restored_headerAgreement`). -/
 
 open Lean4Lean.InductiveSignature
 
@@ -38,8 +40,9 @@ theorem stats_params_fvars
   obtain ⟨fv, rfl⟩ := h e (Array.mem_toList_iff.1 he)
   rfl
 
-/-- **The constructor types of the boundary signature are head-applied**, given the hit shape
-of the production constructor types and parameters avoiding the heads. -/
+/-- **The constructor types of the checked-formation signature are head-applied**, given that
+the executable constructor types are parameter-uniform in the heads and the parameters avoid
+the heads. -/
 theorem sourceSignature_headsApplied
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
     {heads : List Name}
@@ -65,7 +68,7 @@ theorem sourceSignature_headsApplied
   obtain ⟨production, hproduction, tail, tailTarget, -, -, hprefix, -, htr, -, -, htype⟩ :=
     R.sourceSignatureConstructor_replay k
   rw [← htype]
-  -- the production constructor has hit shape
+  -- the executable constructor is parameter-uniform
   obtain ⟨owner, howner, hctorMem⟩ := List.mem_flatMap.1 hproduction
   obtain ⟨j, hj, rfl⟩ := List.mem_iff_getElem.1 howner
   have hj' : j < indTypes.size := by simpa using hj
@@ -94,7 +97,7 @@ theorem sourceSignature_headsApplied
     rw [← R.sourceSignatureHeader_params]; exact hd
   exact .of_containsAnyConst (hparamsFree d hd')
 
-/-- **The pieces of the boundary signature project only out of structures registered in the
+/-- **The pieces of the checked-formation signature project only out of structures registered in the
 source environment.** -/
 theorem sourceSignature_pieces_projNamesOK
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
@@ -151,9 +154,9 @@ theorem sourceSignature_pieces_projNamesOK
     have h := (VExpr.ProjNamesOK.wrapForalls_inv (hctor' i)).2
     exact (VExpr.ProjNamesOK.mkApps_inv h).2 e (List.mem_append_right _ he)
 
-/-- **Header agreement of a restored boundary schema.** The boundary signature's header lives in
+/-- **Header agreement of a restored checked-formation schema.** The signature's header lives in
 the source environment, where the restorable names are fresh, so restoration fixes it; the
-families of a declaration whose headers form a prefix of the boundary's declaration agree with
+families of a declaration whose headers form a prefix of the checked declaration agree with
 it. -/
 theorem restored_headerAgreement
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
@@ -205,7 +208,7 @@ theorem restored_headerAgreement
   · apply Restoration.mapM_expr_of_avoid
     intro e he
     exact (VExpr.containsAnyConst_wrapForalls_inv hfree).1 e (List.mem_append_right _ he)
-  -- identify the source family with the boundary declaration's family
+  -- identify the source family with the checked declaration's family
   have hmemC : type.toVConstVal ∈ decl.typeConstants := by
     have : type.toVConstVal ∈ source.typeConstants := List.mem_map_of_mem htype
     rw [hprefix] at this
@@ -227,7 +230,7 @@ theorem restored_headerAgreement
   rw [← huvars]
   exact this
 
-/-- The boundary parameters mention no name that is fresh in the source environment. -/
+/-- The checked-formation parameters mention no name that is fresh in the source environment. -/
 theorem params_avoid
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
     (hdeclNe : decl.types ≠ []) {names : List Name}
@@ -250,7 +253,7 @@ theorem params_avoid
   rw [← R.sourceSignatureHeader_params] at hA
   exact (VExpr.containsAnyConst_wrapForalls_inv hfree).1 A (List.mem_append_left _ hA)
 
-/-- The boundary parameters, in the source environment, are the boundary's parameter scope. -/
+/-- The checked-formation parameters, in the source environment, are its parameter scope. -/
 theorem params_scope
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     sourceEnv.IsDefEqCtx decl.uvars [] R.params.reverse R.parameterScope.toCtx := by

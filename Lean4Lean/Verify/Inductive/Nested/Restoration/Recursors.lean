@@ -2,13 +2,13 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.CompilationDataConstructors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RecursorTypes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Whnf
 
-/-! Restored recursor list of the canonical restored block of a validated
-nested run.
+/-! Restored recursor list of the restored block of a validated nested run.
 
 The recursor entries of `restoredBlock` are the translations of the
-restored recursors of the executable restoration folds: the primary recursors
-selected by the source semantic trace, then the auxiliary recursors selected by
-the auxiliary shape trace. Each of these is the abstract restoration
+restored recursors of the executable restoration folds: the source recursors
+selected by the source family translations (`SourceFamilyTranslations`), then the
+auxiliary recursors selected by the auxiliary fold (`AuxiliaryRecursorsGuardedRules`).
+Each of these is the abstract restoration
 (`Restoration.recursor`) of the generated recursor of the same owner, so the
 `recursors` field of `NestedCompilationRestorationFacts` holds. -/
 
@@ -392,7 +392,7 @@ namespace VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-! ### The recursor steps selected by the restoration traces -/
+/-! ### The recursor steps selected by the restoration folds -/
 
 /-- The data of a restored recursor step fixing its translated constant. -/
 def RecursorRestorationStepValue (env : VEnv)
@@ -403,7 +403,7 @@ def RecursorRestorationStepValue (env : VEnv)
     TrExprS env Hstep.restored.newInfo.levelParams []
       Hstep.restored.newInfo.type w.type
 
-/-- The primary recursors of a source semantic trace, one per source family,
+/-- The source recursors of `SourceFamilyTranslations`, one per source family,
 each the translation of the restored recursor at the family's recursor name. -/
 theorem SourceFamilyTranslations.recursorSteps
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -428,7 +428,7 @@ theorem SourceFamilyTranslations.recursorSteps
     · rw [Hstep.restored.recursor.restored.restoration.levelParams]
       exact Hrecursor.type
 
-/-- The auxiliary recursors of an auxiliary shape trace, one per restored
+/-- The auxiliary recursors of `AuxiliaryRecursorsGuardedRules`, one per restored
 recursor name, each the translation of the restored recursor at that name. -/
 theorem AuxiliaryRecursorsGuardedRules.recursorSteps
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -455,7 +455,7 @@ theorem AuxiliaryRecursorsGuardedRules.recursorSteps
     rw [← Hstep.restored.restoration.name]
     exact hname.symm
 
-/-- The auxiliary recursors of an auxiliary recursor trace, one per restored
+/-- The auxiliary recursors of `AuxiliaryRecursorTranslations`, one per restored
 recursor name, each the translation of the restored recursor at that name. -/
 theorem AuxiliaryRecursorTranslations.recursorSteps
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -485,7 +485,7 @@ theorem AuxiliaryRecursorTranslations.recursorSteps
 /-! ### One restored recursor -/
 
 /-- The lowered recursor read back by a restoration step at a generated
-owner's recursor name realizes the owner's generated recursor metadata. -/
+owner's recursor name has the owner's generated recursor metadata. -/
 theorem NestedRun.recursorMetadataOfStep
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -528,7 +528,7 @@ theorem NestedRun.recursorMetadataOfStep
 /-- **One restored recursor.** The translation of the restored recursor of a
 restoration step at a generated owner's lowered recursor name is the abstract
 restoration (`Restoration.recursor`) of the owner's generated recursor, given
-the hit shape of the lowered recursor type and the freshness of the
+the parameter uniformity of the lowered recursor type and the freshness of the
 restorable names in the translation environment. -/
 theorem NestedRun.restoredRecursor_of_step
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -801,7 +801,7 @@ theorem NestedRun.recursorNames_order
 
 /-! ### The restored recursor list -/
 
-/-- The recursor entries of the canonical restored block, in owner order:
+/-- The recursor entries of the restored block, in owner order:
 each is the abstract restoration of the owner's generated recursor and the
 translation of the restored recursor of a restoration step at the owner's
 lowered recursor name. -/
@@ -871,7 +871,7 @@ theorem NestedRun.restoredRecursorEntries_of_paramUniform
   have hheads : r.heads.map (·.auxiliary) = E.auxHeads := by
     rw [compilationRestoration_heads_auxiliary]
     exact auxiliarySpecializations_headNames Haux Hexpansion
-  -- the recursor steps selected by the two traces
+  -- the recursor steps selected by the two folds
   have Hprimary := B.sourceTranslations.recursorSteps
   obtain ⟨added, hadded', Hadded⟩ := B.auxiliaryRecursorTrace.recursorSteps
   simp only [List.nil_append] at hadded'
@@ -901,7 +901,7 @@ theorem NestedRun.restoredRecursorEntries_of_paramUniform
 
 
 /-- The restored generated recursor list of the lowered declaration is the
-recursor list of a final assembly base, for the specializations of
+recursor list of a `RestoredBlockBase`, for the specializations of
 `restorationTablesRestoringAll` (via `NestedRun.recursorParamUniform_of_wfCore`). -/
 theorem NestedRun.restoredRecursorList_of_paramUniform
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -948,7 +948,7 @@ theorem NestedRun.restoredRecursorList_of_paramUniform
 /-- **The `recursors` field of `NestedCompilationRestorationFacts`.** For the
 specializations of `restorationTablesRestoringAll`, the restored generated
 recursor list of the lowered declaration is exactly the recursor list of the
-canonical restored block (via `NestedRun.recursorParamUniform_of_wfCore`). -/
+restored block (via `NestedRun.recursorParamUniform_of_wfCore`). -/
 theorem NestedRun.restoredRecursors_of_paramUniform
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -1003,8 +1003,8 @@ theorem RestoredRecursorStep.info_eq
   rw [H₁.restored.produced, H₂.restored.produced, hold]
 
 /-- **Shape fields of the restored recursors.** For every generated owner and
-every restoration step at the owner's lowered recursor name, the final
-abstract environment of the assembly base stores the restored recursor at
+every restoration step at the owner's lowered recursor name, the abstract
+recursor environment of the `RestoredBlockBase` stores the restored recursor at
 the abstract restoration of the owner's generated recursor type, and the
 restored recursor's parameter, index, motive and minor counts are the
 signature's. These are the `type`, `numParams`, `numIndices`, `numMotives`
@@ -1089,7 +1089,7 @@ theorem NestedRun.restoredRecursorShapeFields
 /-! ### `CompilationData` with an arbitrary equation list
 
 `NestedRun.compilationData_of_specializations`
-(`Nested/Restoration/CompilationData.lean`), with the rule lists of the canonical
+(`Nested/Restoration/CompilationData.lean`), with the rule lists of the
 restored block arbitrary: no field of `CompilationData` but `equations`
 mentions the block's rules. -/
 

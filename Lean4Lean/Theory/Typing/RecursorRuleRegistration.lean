@@ -2,13 +2,13 @@ import Lean4Lean.Theory.Typing.RecursorRegistration
 import Lean4Lean.Theory.Inductive.RecursorEquationHeads
 import Batteries.Tactic.OpenPrivate
 
-/-! Every native rule is selected from the same finite compilation instance
+/-! Every recursor rule is selected from the same finite compilation instance
 as its recursor. Restoration, equation presence and head ownership are
 retained before constructing the corresponding first-order pattern. -/
 
 namespace Lean4Lean.InductiveSignature.RecursorData
 
-/-- The exact restored native equation at a signature constructor index. -/
+/-- The exact restored recursor equation at a signature constructor index. -/
 def equation (data : RecursorData)
     (index : Fin data.schema.signature.constructors.size) : Option VDefEq :=
   data.schema.restoration.equation (data.recursorInstance.equation index)
@@ -35,7 +35,7 @@ private theorem registeredInstance (H : RecursorRegistered env data) :
     exact ⟨hu, hl, ht, funext fun owner => (hdata.recursorNames owner).symm⟩
   exact ⟨base, installBase, source, expanded, auxiliaries, block, installed, hg ▸ hdata, hprior, hr, hi, he⟩
 
-/-- The restored equation is headed by precisely this native recursor. -/
+/-- The restored equation is headed by precisely this recursor. -/
 theorem RecursorRegistered.equation_head (H : RecursorRegistered env data)
     (howner : data.schema.signature.constructors[index].owner = data.owner)
     (hgen : data.equation index = some equation) :
@@ -60,7 +60,7 @@ private theorem extracted_body_stripLams {lhs rhs type : VExpr}
     exact ih (body := inner) hi
   | _ => simp only [CaseSchema.EquationBody.extract, Option.some.injEq] at H; cases H; rfl
 
-/-- Every extracted native equation body has an actual constant head. -/
+/-- Every extracted recursor equation body has an actual constant head. -/
 theorem RecursorRegistered.equation_body_head
     (H : RecursorRegistered env data) (hgen : data.equation index = some equation)
     (hbody : CaseSchema.EquationBody.extract equation.lhs equation.rhs equation.type = some body) :

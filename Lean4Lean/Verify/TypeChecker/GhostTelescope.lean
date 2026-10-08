@@ -6,7 +6,8 @@ import Lean4Lean.Verify.Typing.TelescopeTranslationFVar
 # Ghost verification of the telescope check
 
 `checkType.WF_telTr`: a successful checking run of an expression yields a telescope-closed
-translation (`TelTr`), component (G) of `docs/inductives/STRENGTHENING_PLAN_2026-10-08.md`.
+translation (`TelTr`), from which the constructor telescope certificates are built (section 5.3
+of `docs/inductives/DESIGN.md`).
 
 `inferForall.loop` opens one free variable per binder of the `forallE` spine. The proof reads the
 one actual run in every *view*: an `MLCtx` holding the binders that are kept, and a set `G` of

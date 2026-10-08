@@ -10,14 +10,14 @@ namespace VerifyInductive
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
-/-! # Primitive-safe restoration traces
+/-! # Primitive-safe restoration folds
 
 `FreshExtension` records the successful freshness checks performed by
-nested restoration.  Canonical semantic replay additionally needs the other
+nested restoration. The nested installation proof also needs the other
 fact returned by the same `checkName`: when primitive declarations are not
-allowed, every installed name is outside the kernel primitive table.  This
-companion trace retains that exact executable fact without changing the
-semantic restoration structures.
+allowed, every installed name is outside the kernel primitive table.
+`FreshNonprimitiveExtension` records that fact alongside, without changing the
+restoration fold structures.
 -/
 
 inductive FreshNonprimitiveExtension (allowPrimitive : Bool) :
@@ -138,7 +138,7 @@ theorem restoreRecursorDecl_primitiveSafe
         · have := hname.2 (by simp [hprim])
           simp [hallow] at this) .nil⟩
 
-/-- Fold primitive-safe step traces over the exact executable `forM`. -/
+/-- Fold primitive-safe steps over the executable `forM`. -/
 theorem stateForM_primitiveSafe
     {items : List α} {source : Environment} {allowPrimitive : Bool}
     (step : α → StateT Environment (Except Exception) Unit)
@@ -213,7 +213,7 @@ theorem restoreRecursorDecls_primitiveSafe
     allIndNames allowPrimitive recName oldInfo hlookup hstepWF
 
 /-- One complete source-family restoration retains primitive safety for its
-header, constructor batch, and primary recursor. -/
+header, constructor batch, and source recursor. -/
 theorem restoreInductiveDecl_primitiveSafe
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)
@@ -296,8 +296,8 @@ theorem restoreInductiveDecls_primitiveSafe
     allIndNames allowPrimitive indType oldInfo hlookup Hctors recInfo
       hrecLookup hstepWF
 
-/-- The complete executable nested-restoration run yields a fresh trace whose
-entries are all primitive-safe when `allowPrimitive = false`. -/
+/-- The executable nested-restoration run yields a `FreshNonprimitiveExtension`:
+its entries are fresh, and primitive-safe when `allowPrimitive = false`. -/
 theorem restoreNestedDeclarations_primitiveSafe
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)
@@ -344,10 +344,10 @@ theorem restoreNestedDeclarations_primitiveSafe
         HprimaryTrace.append HauxiliaryTrace⟩
   simpa [Lean4Lean.restoreNestedDeclarations, bind, StateT.bind] using Hcombined
 
-/-- Joint refinement of the very same executable restoration run.  This is
-the integration boundary used by final assembly: its semantic restoration
-trace and primitive-safe fresh trace share the literal `Except.ok` output,
-so no caller-supplied endpoint correspondence is needed. -/
+/-- Both facts about one executable restoration run: its restoration folds
+(`NestedRestorationFolds`) and its `FreshNonprimitiveExtension` share the same
+`Except.ok` output, so the nested installation proof needs no caller-supplied
+correspondence between their endpoints. -/
 theorem restoreNestedDeclarations_refines_primitiveSafe
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)

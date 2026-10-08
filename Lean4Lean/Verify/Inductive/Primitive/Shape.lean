@@ -2,6 +2,17 @@ import Lean4Lean.Primitive
 import Lean4Lean.Verify.Expr
 import Lean4Lean.Verify.Inductive.Constructor.LiteralDisjoint
 
+/-!
+# The primitive declaration shapes
+
+Primitive declarations are `Bool` and `Nat`, recognized by `Primitive.checkInductive`
+(section 3.1 of `docs/inductives/DESIGN.md`). `PrimitiveInductiveShape` is the dispatch
+predicate: a successful recognition has exactly the canonical `Bool` or `Nat` syntax
+(`checkPrimitiveInductive_eq_true_iff`), so the primitive path is verified for two finite
+declarations. The file also proves the literal-disjointness and recursor-name facts that the
+primitive path needs.
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -155,7 +166,7 @@ theorem _root_.Lean4Lean.TrInductDeclHeaders.typeNames
     | cons h _ ih => simp [h.header.name, ih]
   exact go H.types
 
-/-- Once the primitive dispatch shape has been materialized, its concrete
+/-- Once the primitive dispatch shape has been established, its concrete
 inductive-constant array satisfies literal disjointness automatically. -/
 theorem PrimitiveInductiveShape.checkedLiteralDisjoint
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
@@ -186,7 +197,7 @@ theorem PrimitiveInductiveShape.checkedLiteralDisjoint
     exact primitiveNatLiteralDisjoint
 
 /-- The generated recursor names are not themselves primitive-reserved, even
-on the finite `Bool`/`Nat` toConstantsInstallation branch. -/
+on the finite `Bool`/`Nat` branch. -/
 theorem PrimitiveInductiveShape.recursorsNonprimitive
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     ∀ owner (_howner : owner < types.toArray.size),

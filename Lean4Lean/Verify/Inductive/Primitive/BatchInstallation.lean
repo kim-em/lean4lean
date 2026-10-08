@@ -1,6 +1,20 @@
 import Lean4Lean.Verify.Inductive.Primitive.Constants
 import Lean4Lean.Verify.Inductive.Install.Environments
 
+/-!
+# Atomic installation of a primitive batch
+
+Between installing the `Bool` or `Nat` family and its constructors the invariant
+`HasPrimitives` is false, so the primitive path cannot use the ordinary `AddConstants` with
+`ContextWF` after each step. This file provides the weaker objects used instead:
+`LocalContextWF` (the local-context part of `ContextWF`), `AtomicAddConstants` (constants
+added in lockstep to the kernel and abstract environments, with validity checked only once
+the batch is complete), its preservation lemmas, the executable header and constructor folds
+as atomic batches, and the primitive header environment and constructor check
+(`PrimitiveHeaderEnvironment`, `PrimitiveConstructorEnvironment`,
+`PrimitiveConstructorCheck`).
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -28,7 +42,7 @@ structure LocalContextWF (c : AddInductive.Context) where
     ({} : TypeChecker.State).ngen.Reserves fv
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv c.lparams mlctx c.lctx c.checkLCtx
-  /-- The open projection-walk corner, carried to the restored checker context. -/
+  /-- The constructor telescope certificates, carried to the restored checker context. -/
   ctorTelescopes : CtorTelescopes c.safety c.env venv
 
 def ContextWF.toLocal (H : ContextWF c) : LocalContextWF c where
@@ -45,8 +59,8 @@ def ContextWF.toLocal (H : ContextWF c) : LocalContextWF c where
   kernelFresh := H.kernelFresh
   check := H.check
 
-/-- Move a staged local context across a production/abstract environment
-extension.  Unlike `ContextWF.withEnv`, this operation intentionally needs no
+/-- Move a local-context invariant across an extension of the kernel and
+abstract environments.  Unlike `ContextWF.withEnv`, this operation intentionally needs no
 primitive invariant. -/
 def LocalContextWF.withEnv (H : LocalContextWF c)
     (hchecking : CheckingEnv c.safety env' venv')
@@ -103,8 +117,9 @@ def LocalContextWF.toContextWF (H : LocalContextWF c)
   kernelFresh := H.kernelFresh
   check := H.check
 
-/-- Production and abstract constants installed in lockstep without requiring
-their names to be nonprimitive.  This is a staging relation only: unlike
+/-- Kernel-environment and abstract constants installed in lockstep without
+requiring their names to be nonprimitive.  This relation describes the batch
+only: unlike
 `AddConstants`, it has no theorem claiming preservation of `HasPrimitives`
 or `CheckingEnv.Valid` after each step. -/
 inductive AtomicAddConstants (safety : DefinitionSafety) :
@@ -205,7 +220,7 @@ theorem AtomicAddConstants.rebase
     exact ⟨largerOut,
       .cons hn htrLarger hwfLarger hlargerAdd hdelta Htail, hout⟩
 
-/-- Every member of an atomic batch satisfies the same production visibility
+/-- Every member of an atomic batch satisfies the same visibility
 bound as an ordinary lockstep installation. -/
 theorem AtomicAddConstants.entrySafety
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
@@ -219,7 +234,7 @@ theorem AtomicAddConstants.entrySafety
       exact htr.1.1
     · exact ih htail
 
-/-- Production and abstract entries in an atomic batch retain the same
+/-- Kernel-environment and abstract entries in an atomic batch retain the same
 constant name. -/
 theorem AtomicAddConstants.entryNames
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
@@ -312,7 +327,7 @@ theorem AtomicAddConstants.aligned
     exact ih (Haligned.const hnMap htr.1 hadd rfl)
 
 /-- Constants introduced by an atomic inductive batch have no delta value,
-so any delta-bearing final production entry is inherited from the source. -/
+so any delta-bearing kernel-environment entry after the batch is inherited from the source. -/
 theorem AtomicAddConstants.deltaConservative
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
     (Haligned : Aligned safety env.constants venv) :
@@ -338,7 +353,7 @@ theorem AtomicAddConstants.deltaConservative
     · exact hnext
 
 /-- An atomic batch containing no inductive headers preserves closure of all
-existing mutual families.  This requires only production-map freshness; it
+existing mutual families.  This requires only freshness in the kernel environment's constant map; it
 does not require a valid abstract environment at an intermediate prefix. -/
 theorem AtomicAddConstants.closesMutuals
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
@@ -398,7 +413,8 @@ theorem AtomicAddConstants.entryOrigin
         rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
     · exact Or.inr ⟨entry, by simp [hentry], hname, hfound⟩
 
-/-- An atomic installation preserves the projection-walk corner, given the constructor steps of
+/-- An atomic installation preserves the constructor telescope certificates
+(`CtorTelescopes`), given the certificate step (`CtorTelescopeStep`) of each of
 its entries (stated in the environment before the installation). -/
 theorem AtomicAddConstants.ctorTelescopes
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
@@ -475,7 +491,7 @@ theorem AtomicAddConstants.entryFresh
         rw [hpreserved] at hnext
         contradiction
 
-/-- Atomic installation preserves every production lookup already present at
+/-- Atomic installation preserves every kernel-environment lookup already present at
 the start of the batch. -/
 theorem AtomicAddConstants.preservesSourceFind
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
@@ -525,8 +541,9 @@ theorem AtomicAddConstants.quotEnvCoherent
 
 /-- Constructor-owner presence is preserved by an exact atomic batch once
 each constructor entry in that batch is accompanied by its installed owner.
-This is the generic production-map argument; inductive installation supplies
-the pointwise owner evidence from its header/constructor traces. -/
+This is the generic argument about the kernel environment's constant map;
+inductive installation supplies the owner of each constructor from its header
+and constructor folds. -/
 theorem AtomicAddConstants.constructorOwnersPresent
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
     (hwf : env.constants.WF)
@@ -547,7 +564,7 @@ theorem AtomicAddConstants.constructorOwnersPresent
     exact hmem
 
 /-- Every source-aligned entry of an atomic batch is present with its exact
-production metadata at the completed endpoint. -/
+kernel metadata at the endpoint of the batch. -/
 theorem AtomicAddConstants.findEntry
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
     (hwf : env.constants.WF)
@@ -617,7 +634,7 @@ theorem AtomicAddConstants.safePrimitives
     subst ci
     exact hentries entry hentry hprimitive
 
-/-- The executable mutual-header fold has an atomic staging trace even when
+/-- The executable mutual-header fold is an atomic batch (`AtomicAddConstants`) even when
 `allowPrimitive` permits the canonical reserved family name.  The theorem
 uses only `CheckingEnv`; no validity assertion is made for the resulting
 header-only environment. -/
@@ -666,10 +683,10 @@ theorem AtomicAddConstants.ofDeclareInductiveTypeInfos
             simpa using AtomicAddConstants.cons (ci := .inductInfo info)
               (ci' := ci') hn htr hwf haddHead rfl Hrest
 
-/-- Atomic counterpart of the inner production constructor fold.  Reserved
+/-- Atomic counterpart of the inner executable constructor fold.  Reserved
 constructor names are admitted by the executable `allowPrimitive` flag, while
-the abstract environment is kept merely staged until the complete batch is
-available. -/
+no validity is claimed for the abstract environment until the complete batch
+is available. -/
 theorem AtomicAddConstants.ofConstructorList
     {env : Environment} {venv sourceEnv : VEnv}
     {ctors : List Constructor} {values : List VConstVal}
@@ -831,7 +848,7 @@ theorem AtomicAddConstants.ofConstructorTypes
             · exact hheadNind (entryInfo, entryValue) hhead value
             · exact htailNind (entryInfo, entryValue) htail value⟩
 
-/-- Forget the staging details only after the complete abstract batch has
+/-- Forget the per-step details only after the complete abstract batch has
 been identified.  This certificate still makes no validity claim. -/
 def AtomicAddConstants.toConstantsInstallation
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
@@ -881,7 +898,7 @@ theorem AtomicAddConstants.listedConstructorsOfDeclaration
     rw [hctorEq] at hentryEq
     cases hentryEq
 
-/-- The completed staged trace regains `ContextWF` in one step.  The three
+/-- A complete atomic batch regains `ContextWF` in one step.  The three
 global premises are intentionally stated only for the final environment. -/
 def AtomicAddConstants.completeContext
     (source : LocalContextWF c)
@@ -901,8 +918,8 @@ def AtomicAddConstants.completeContext
     hprimitives hsafe howners hlisted hregistry hrecursors hquot
 
 /-- Header result for the primitive branch.  It mirrors the ordinary
-`HeaderEnvironment`, except that its checking context and installation
-trace are explicitly staged and therefore do not claim `HasPrimitives`. -/
+`HeaderEnvironment`, except that its checking context (`LocalContextWF`) and installation
+(`AtomicAddConstants`) do not claim `HasPrimitives`. -/
 structure PrimitiveHeaderEnvironment (c : AddInductive.Context)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (nparams : Nat) (isUnsafe : Bool)
@@ -970,10 +987,10 @@ structure PrimitiveConstructorEnvironment
   contextVEnv : context.venv = venvCtors
   contextMLCtx : context.mlctx = H.context.mlctx
 
-/-- The completed primitive formation prefix exposes the same semantic data
-needed by recursor generation as the ordinary constructor phases, but keeps
-its atomic installation history separate.  A later shared-interface adapter
-can consume either result without manufacturing a valid header-only context. -/
+/-- The primitive constructor check: the same semantic data needed by recursor
+generation as the ordinary constructor check, with the atomic installation
+kept separate.  `PrimitiveConstructorCheck.toCheckedFormation` turns it into
+the shared checked formation without a valid header-only context. -/
 structure PrimitiveConstructorCheck
     (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)

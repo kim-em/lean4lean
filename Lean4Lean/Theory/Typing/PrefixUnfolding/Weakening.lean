@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Typing.PrefixUnfolding.Renaming
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Rule
 
 /-! Renaming preserves the concrete generated prefix and all of its checked
-replay premises. The fresh remaining telescope is renamed under its binders. -/
+unfolding-check premises. The fresh remaining telescope is renamed under its binders. -/
 
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature InductiveSignature.RecursorData

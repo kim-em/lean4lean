@@ -1,5 +1,13 @@
 import Lean4Lean.Verify.Inductive.Header.Block
 
+/-!
+# Checked header translations
+
+Upgrades the raw header translations of `Header/RawTranslation.lean` to `TrSourceConst`
+once the header telescope and result sort have been checked (`HeaderTranslations`, and the
+`ClosedHeaderCheck.checked*` lemmas for the terminal, first and later forall-headed cases).
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -8,7 +16,7 @@ open Kernel
 namespace VerifyInductive
 
 /-- Ordered abstract header targets after the executable telescope/result
-checks have supplied the formation evidence deliberately absent from
+checks have established the `VConstVal.WF` facts deliberately absent from
 `RawHeaderTranslations`. -/
 structure HeaderTranslations (env : VEnv) (Us : List Name)
     (sources : List InductiveType) where
@@ -104,10 +112,10 @@ end checkInductiveTypes.loopType
 namespace checkInductiveTypes.loopInd
 
 /-- At the terminal `loopType` continuation the checker context is empty, so
-the narrow `ensureSort` result and the closed normal-form translation live in
+the `ensureSort` result and the closed normal-form translation live in
 the same empty context.  Uniqueness of translation then shows the raw target
-is a type, which is the non-forall/zero-remaining-arity half of raw header
-materialization. -/
+is a type, which upgrades the raw translation to `TrSourceConst` in the
+non-forall (zero remaining arity) case. -/
 theorem ClosedHeaderCheck.checkedTerminal
     {c : AddInductive.Context} {Hc : ContextWF c}
     {source : InductiveType} {checkedType : Expr}

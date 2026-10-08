@@ -13,12 +13,20 @@ open scoped _root_.List
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
+/-! # Basic lemmas for the inductive verification
+
+Facts about the abstract calculus used throughout `Lean4Lean/Verify/Inductive/`: source
+declarations as prefixes of lowered ones (`SourcePrefixOfLowered`), forall and lambda
+telescopes (`wrapForalls`, `wrapLams`) and their conversion, typed application spines and
+bound-variable spines (`bvarSpine`), the parallel telescope of a family and its motive
+(`RecursorMotiveTelescope`), and the guardedness of iota right-hand sides. -/
+
 namespace VerifyInductive
 
-/-- Materializing a source declaration from a prefix of an expanded
+/-- Building a source declaration from a prefix of an expanded
 declaration's recovered header metadata preserves the index count at every
 source position.  This is the metadata-level fact needed after nested
-lowering: original families retain their positions, while auxiliary families
+lowering: source families keep their positions, while auxiliary families
 are appended to the expanded declaration. -/
 theorem VInductDeclSkeleton.withMetadataPrefix_numIndices
     (skeleton : VInductDeclSkeleton) (expanded source : VInductDecl)
@@ -52,8 +60,8 @@ theorem VInductDeclSkeleton.withMetadataPrefix_numIndices
   have hindices := congrArg VInductiveType.numIndices hsourceEq
   simpa [VInductiveTypeSkeleton.toVInductiveType] using hindices
 
-/-- The original declaration is materialized from exactly the metadata prefix
-of an expanded declaration.  Nested lowering appends auxiliary families, so
+/-- The source declaration is obtained by `VInductDeclSkeleton.withMetadata` from exactly the
+metadata prefix of an expanded declaration.  Nested lowering appends auxiliary families, so
 this is the declaration-level certificate connecting independently recovered
 source metadata to the lowered checker result. -/
 inductive SourcePrefixOfLowered
@@ -81,8 +89,8 @@ theorem SourcePrefixOfLowered.numIndices
   · exact Hmaterialize
   · simpa [hskeleton] using hsource
 
-/-- Every sufficiently long expanded declaration determines a unique-sized
-source materialization from a metadata-free skeleton by taking the expanded
+/-- Every sufficiently long expanded declaration determines a source declaration from a
+metadata-free skeleton, of the skeleton's size, by taking the expanded
 metadata prefix.  This is the constructor used by the outer nested verifier;
 the source declaration is produced rather than supplied with unconstrained
 semantic arities. -/
@@ -534,7 +542,7 @@ telescope.  Strong lambda inversion initially recovers an arbitrary type for
 the open body; uniqueness of typing and forall injectivity transport that
 body back to the stated dependent residual before the induction continues.
 
-This is the application-facing inverse of `VEnv.HasType.wrapLams`: canonical
+This is the application-facing inverse of `VEnv.HasType.wrapLams`: generated
 recursive results are stored closed, while a dependent minor application
 needs their exact open typing under the retained local domains. -/
 theorem VEnv.HasType.wrapLams_inv
@@ -591,7 +599,7 @@ theorem VDefEq.wf_of_wrappedBodies
 
 /-- Inject the next domain after two equally long definitionally equal forall
 prefixes.  The result is stated in the left prefix context, matching the
-narrow replay context built from already consumed family parameters. -/
+checking context built from the family parameters already opened. -/
 theorem VEnv.IsDefEqU.wrapForalls_next
     (henv : VEnv.WF env)
     (hctx : OnCtx ctx (env.IsType uvars))
@@ -623,7 +631,7 @@ theorem VEnv.IsDefEqU.wrapForalls_next
       simpa [List.reverse_cons, List.append_assoc] using hnext
 
 /-- Invert two equally long definitionally equal forall telescopes into a
-conversion between their completed binder contexts.  The outer contexts may
+conversion between their full binder contexts.  The outer contexts may
 already differ definitionally; each newly exposed domain extends that
 conversion before the residual telescope is inspected. -/
 theorem VEnv.IsDefEqU.wrapForalls_context
@@ -693,7 +701,7 @@ theorem VEnv.IsDefEqU.wrapForalls_residual
 
 /-- A dependency-ordered list of well-formed constants may be viewed as a
 sequence of abstract axioms extending a well-formed environment.  Stating
-the input typing in the original environment is sufficient because each
+the input typing in the base environment is sufficient because each
 constant can be weakened through the preceding fresh additions. -/
 theorem VEnv.WF.addConstVals
     {env env' : VEnv} {cis : List VConstVal}
@@ -804,7 +812,7 @@ theorem bvarSpine_succ_cons (n : Nat) :
       .bvar n :: bvarSpine n := by
   simp [bvarSpine, List.range_succ]
 
-/-- Split canonical telescope variables into an older applied initial block,
+/-- Split the bound-variable spine of a telescope into an older applied initial block,
 weakened below the still-open suffix, followed by the suffix variables. -/
 theorem bvarSpine_add (initialCount suffixCount : Nat) :
     bvarSpine (initialCount + suffixCount) =
@@ -829,7 +837,7 @@ theorem VExpr.liftN_mkApps
   | cons arg args ih =>
     simpa [VExpr.mkApps, VExpr.liftN] using ih (.app fn arg)
 
-/-- Applying all canonical variables factors through the canonical
+/-- Applying the full bound-variable spine factors through the bound-variable
 application of any older initial block, weakened below the remaining suffix. -/
 theorem VExpr.mkApps_bvarSpine_add
     (fn : VExpr) (initialCount suffixCount : Nat) :
@@ -851,9 +859,9 @@ theorem VExpr.mkApps_bvarSpine_add
   rw [VExpr.mkApps_append, hinitialApp]
 
 /-- A term whose type is a dependent forall telescope can be weakened beneath
-that telescope and applied to the canonical variables for all of its binders.
-The result has the unabstracted residual type in the completed telescope
-context. -/
+that telescope and applied to the bound variables of all of its binders
+(`#(n-1) .. #0`). The result has the residual body type in the context extended by the
+telescope. -/
 theorem VEnv.HasType.mkApps_wrapForalls_bvarSpine
     {env : VEnv} {uvars : Nat} {ctx : List VExpr} {fn : VExpr}
     {domains : List VExpr} {body : VExpr}
@@ -877,7 +885,7 @@ theorem VEnv.HasType.mkApps_wrapForalls_bvarSpine
       VExpr.inst_liftN_bvar, VExpr.liftN_liftN, Nat.add_comm] using hrest
 
 /-- Applying only an initial segment of a dependent telescope leaves the
-remaining suffix as the type of the canonical partial application. -/
+remaining suffix as the type of the bound-variable partial application. -/
 theorem VEnv.HasType.mkApps_wrapForalls_prefix_bvarSpine
     {env : VEnv} {uvars : Nat} {ctx : List VExpr} {fn : VExpr}
     {initial suffix : List VExpr} {body : VExpr}
@@ -891,11 +899,8 @@ theorem VEnv.HasType.mkApps_wrapForalls_prefix_bvarSpine
   rw [VExpr.wrapForalls_append] at H
   exact VEnv.HasType.mkApps_wrapForalls_bvarSpine henv H
 
-/-- Transport a canonical application from an independently reconstructed
-argument context before inverting its declared forall telescope.  Keeping
-the transport separate is useful when the application and the equation
-frame come from different executable passes: only their ambient dependent
-contexts must be related; the canonical application term is unchanged. -/
+/-- A well-formed application of a function whose type is a forall telescope of exactly
+`args.length` binders ending in a sort (`VExpr.ForallAritySort`) is a type. -/
 theorem VEnv.HasType.mkApps_isType
     (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
     (hfn : env.HasType uvars ctx fn fnType)
@@ -923,7 +928,7 @@ theorem VEnv.HasType.mkApps_isType
         (hfn.app harg) (hbody.inst arg) happs
 
 /-- The concrete owner-result spine numbers the index variables followed by
-the major exactly as the canonical variables of one combined telescope. -/
+the major exactly as the bound-variable spine of one combined telescope. -/
 theorem concreteRecursorResultArgs_eq_bvarSpine (numIndices : Nat) :
     ((List.range numIndices).reverse.map fun index =>
         VExpr.bvar (index + 1)) ++ [.bvar 0] =
@@ -963,7 +968,7 @@ theorem bvarSpine_liftN_comp
     congr 1
     omega
 
-/-- Weakening the canonical variables for an outer telescope below an inner
+/-- Weakening the bound-variable spine of an outer telescope below an inner
 block gives the direct de Bruijn numbering in the combined context. -/
 theorem bvarSpine_liftN_zero_eq_ofFn
     (outer inner : Nat) :
@@ -1274,7 +1279,7 @@ theorem VExpr.inst_canonicalResult
     VExpr.inst_liftN_lo]
   simp [VExpr.mkApps, VExpr.inst, VExpr.instVar, VExpr.liftN]
 
-/-- Opening a canonical result spine and substituting one argument for each
+/-- Opening a bound-variable result spine and substituting one argument for each
 telescope binder produces the same application with those concrete
 arguments. -/
 theorem VExpr.applyForallType_wrapForalls_bvarSpine
@@ -1328,10 +1333,11 @@ theorem VExpr.applyForallType_wrapForalls_bvarSpine
             (VExpr.app fn arg) (by simpa using hdomainsTail) hargsTail
   exact go domains.length domains args fn rfl hlength
 
-/-- Exact-result strengthening of `mkApps_sameTelescopeDomains`.  Besides
-recovering each argument from the independently typed right application, it
-records the residual type obtained by instantiating the left forall
-telescope. -/
+/-- If `left` and `right` have types with the same telescope domains for `args`
+(`SameTelescopeDomains`) and `right` applied to `args` is well formed, then `left` applied to
+`args` has the residual type obtained by instantiating the left forall telescope
+(`VExpr.applyForallType`).  Each argument's typing is recovered from the right
+application. -/
 theorem VEnv.HasType.mkApps_sameTelescopeDomains_exact
     (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
     (Hdomains : SameTelescopeDomains args.length leftType rightType)

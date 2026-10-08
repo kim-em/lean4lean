@@ -20,7 +20,7 @@ import Lean4Lean.Theory.Typing.ProjNamesTyping
 A case schema without restoration generates its case type and case equations from the pieces of
 its signature: parameters, family indices, constructor field domains and constructor result
 indices. If every piece projects only out of structures satisfying `ok`, so do the generated
-type and equations (`CaseSchema.projNamesRegistered_of_pieces`). -/
+type and equations (`CaseSchema.projNamesOK_of_pieces`). -/
 
 namespace Lean4Lean
 open InductiveSignature

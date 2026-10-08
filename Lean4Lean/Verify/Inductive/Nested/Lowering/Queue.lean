@@ -13,7 +13,19 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Semantic constructor-lowering certificate.  In addition to the rebuilt
+/-! # The lowering queue
+
+Relational specification of the lowering of constructors (`ConstructorLowering`), families
+(`FamilyLowering`) and of the dynamically growing queue of families (`LoweringQueue`,
+`NestedLowering`) performed by `ElimNestedInductive.run`. The resolved forms connect every
+replacement to the final `aux2nested` map; with them the file proves that restoring a lowered
+constructor gives back its source constructor type
+(`ConstructorRestorationInverse.restoredType_eqv_source`), that the executable checks keep
+every cached nested application closed over the lowering parameters
+(`ElimNestedInductive.run.translationClosed`), and that the validated nested applications are
+typed in the de Bruijn parameter context (`NestedLowering.validatedAuxiliaryResidualTranslations`). -/
+
+/-- Constructor-lowering certificate.  In addition to the rebuilt
 telescope shape, it records the complete stateful nested-expression
 translation from the opened source tail to the installed constructor type. -/
 structure ConstructorLowering
@@ -153,8 +165,8 @@ theorem ConstructorLowering.pendingNewTypesClosed
 
 /-- Constructor lowering interpreted against the final restoration map. The
 opened source telescope and rebuilt target telescope are retained verbatim,
-while the body traversal is promoted from operational replacement to the
-semantic `ExprLowering.Resolved` relation. -/
+while the body traversal is promoted from `ExprLowering` to
+`ExprLowering.Resolved`. -/
 structure ConstructorLowering.Resolved
     (env : Environment) (params : Array Expr) (nparams : Nat)
     (finalResult : Lean4Lean.ElimNestedInductive.Result)
@@ -265,7 +277,7 @@ theorem ConstructorLowering.Resolved.reopens
     htype⟩
 
 /-- Opening the lowered constructor with restoration's fresh parameters
-produces the lowering body renamed from its original parameter selection to
+produces the lowering body renamed from lowering's parameter selection to
 the concrete restoration array. -/
 theorem ConstructorLowering.Reopened.restoreTail
     (H : ConstructorLowering.Reopened env params nparams finalResult targetAs
@@ -297,7 +309,7 @@ theorem ConstructorLowering.Reopened.restoreTail
     ?_⟩
   simpa only [Hselection.expressions, Expr.abstractN_eq] using htail
 
-/-- The body exposed by restoration is the original constructor body with
+/-- The body exposed by restoration is the source constructor body with
 the restoration parameters substituted for lowering's fresh parameters.
 This is the constructor-scoped inverse theorem: it combines the exact two
 telescope traversals with the structural inverse for nested replacement. -/
@@ -451,8 +463,9 @@ structure ConstructorRestorationInverse
   bodyInverse :
     (restoredBody == Expr.reopenParams sourceTail sourceAs restoreAs) = true
 
-/-- Whole-constructor restoration inverse stated at its semantic boundary.
-This form does not assume any naming convention for generated auxiliary
+/-- Whole-constructor restoration inverse with source disjointness
+(`RestoreSourceDisjoint`) as a premise.
+This form does not assume any naming convention for auxiliary
 constructors; callers may establish source disjointness from typing and
 freshness instead. -/
 theorem ConstructorLowering.Resolved.nestedRestoration_inverse
@@ -509,7 +522,7 @@ theorem ConstructorLowering.Resolved.nestedRestoration_inverse
     bodyInverse := hinverse }⟩
 
 /-- Eliminate the source-opening free variables from the body inverse.  The
-restored body is the ordinary residual of the original constructor telescope,
+restored body is the ordinary residual of the source constructor telescope,
 instantiated only with restoration's fresh parameter array. -/
 theorem ConstructorRestorationInverse.restoredBody_residual
     (H : ConstructorRestorationInverse result env nparams source lowered
@@ -593,7 +606,7 @@ theorem ConstructorRestorationInverse.restoredType_eqv_source
 /-- Metadata-facing form of the constructor inverse.  Installation exposes a
 `ConstructorVal`, while lowering is indexed by the corresponding
 `Constructor`; the explicit type equality is the only alignment fact needed
-to connect the two verified traces. -/
+to connect the two verified relations. -/
 theorem ConstructorLowering.Resolved.constructorRestoration_inverse
     (H : ConstructorLowering.Resolved env params nparams result source state out)
     (hresultParams : result.params = params)
@@ -614,9 +627,9 @@ theorem ConstructorLowering.Resolved.constructorRestoration_inverse
     HsourceClosed hsourceBVar hparamsSize restoreEnv HsourceDisjoint hresultNParams
   simpa [htype] using Hrestored.type
 
-/-- Transport source translation across constructor restoration using exact
-semantic disjointness, without imposing a namespace convention on generated
-constructor names. -/
+/-- Transport source translation across constructor restoration using
+source disjointness (`RestoreSourceDisjoint`), without imposing a namespace convention on
+auxiliary constructor names. -/
 theorem ConstructorLowering.Resolved.restoredType_translation
     (H : ConstructorLowering.Resolved env params nparams result source state out)
     (hresultParams : result.params = params)
@@ -807,7 +820,7 @@ theorem ConstructorLowerings.Resolved.mappingAt
         Hmapping⟩
 
 /-- Lockstep alignment of the state-threaded constructor lowering relation
-with the exact operational restoration fold.  The production lookup theorem
+with the executable restoration fold.  The kernel lookup theorem
 has already identified the `oldInfo.type` read at every step with that step's
 positionally corresponding lowered constructor type. -/
 inductive LoweredRestoredConstructors
@@ -838,9 +851,9 @@ inductive LoweredRestoredConstructors
           sourceProdEnv targetProdEnv
 
 
-/-- Interpret the proof-independent lowering/restoration trace against the
-independently translated source constructors.  This is the constructor-list
-implementation/specification bridge: every executable restoration step is
+/-- Interpret the lockstep lowering/restoration relation against the
+independently translated source constructors.  This connects the executable and the
+specification for the constructor list: every executable restoration step is
 shown to translate the same abstract constructor that appears in the source
 inductive specification. -/
 theorem LoweredRestoredConstructors.sourceTyping
@@ -948,7 +961,7 @@ theorem ElimNestedInductive.lowerConstructors.translationsPending
     intro loweredTail finalState Htail
     exact Except.WF.pure ⟨.cons Hlowered.1 Htail.1, Htail.2⟩
 
-/-- Family-level semantic lowering: headers are preserved and the constructor
+/-- Family-level lowering: headers are preserved and the constructor
 list carries the full state-threaded nested-expression translation. -/
 structure FamilyLowering
     (env : Environment) (params : Array Expr) (nparams : Nat)
@@ -1054,7 +1067,7 @@ theorem ElimNestedInductive.lowerInductive.translationPending
   intro ctors nextState Hctors
   exact Except.WF.pure ⟨⟨rfl, rfl, Hctors.1⟩, Hctors.2⟩
 
-/-- Semantic state transition for a dynamic lowering-queue iteration. -/
+/-- State transition for one iteration of the dynamic lowering queue. -/
 inductive LowerNextStep
     (env : Environment) (params : Array Expr) (nparams i : Nat)
     (state : Lean4Lean.ElimNestedInductive.State) :
@@ -1288,9 +1301,9 @@ theorem ElimNestedInductive.lowerNext.translationPending
     exact Except.WF.pure ⟨.done (Nat.le_of_not_gt hidx),
       fun j hcursor hj => Hstate j (by omega) hj⟩
 
-/-- Complete semantic trace of the dynamically growing lowering queue.  The
+/-- Big-step relation of the dynamically growing lowering queue.  The
 queue stops only once the index reaches the then-current array size; each
-preceding step contains the semantic family translation, including any new
+preceding step contains its family lowering, including any new
 auxiliary families appended while processing it. -/
 inductive LoweringQueue
     (env : Environment) (params : Array Expr) (nparams : Nat)
@@ -1373,7 +1386,7 @@ theorem LoweringQueue.getElem_before
     simpa [hsame] using ih (by omega) hnextBound
 
 /-- Every not-yet-processed family within the current queue has a unique
-future lowering step. The theorem retains that exact semantic translation
+future lowering step. The theorem returns that family lowering
 and identifies its target at the same index in the final result list. -/
 theorem LoweringQueue.translationAt
     (H : LoweringQueue env params nparams lctx i fuel state out)
@@ -1478,7 +1491,7 @@ private theorem loweringQueueLoop_refinesClosed
           ⟨LoweringQueue.step (.step hidx Hlowered) Htail.1,
             Htail.2⟩
 
-/-- End-to-end semantic certificate for nested lowering from the source
+/-- End-to-end relational specification of nested lowering from the source
 parameter telescope through the complete dynamic family queue. -/
 structure NestedLowering
     (env : Environment) (fuel nparams : Nat) (types : List InductiveType)
@@ -1572,9 +1585,9 @@ theorem NestedLowering.resultParams_reverse_fvars
   exact Hopening.toParamOpening.root_params_reverse_fvars
 
 /-- The executable auxiliary checks can be closed over lowering's retained
-parameter telescope: each witness with lambdas, its inferred type with
-foralls.  This removes the concrete free-variable names from the semantic
-certificate before restoration reopens the same telescope with its own fresh
+parameter telescope: each nested application with lambdas, its inferred type with
+foralls.  This removes the concrete free-variable names from the typing
+facts before restoration reopens the same telescope with its own fresh
 names.  Every variable of the telescope is a local assumption of lowering's
 context, so both closures wrap the same translated parameter domains. -/
 theorem NestedLowering.closeNestedOccurrencesTyped
@@ -1640,8 +1653,8 @@ theorem NestedLowering.closeNestedOccurrencesTyped
   · rw [← hlam, ← hforall]
     exact Hlambda.2
 
-/-- Fully name-independent auxiliary semantics retained after validation:
-the lowering-selected production variables are abstracted into the canonical
+/-- Name-independent typing of the validated nested applications:
+the free variables selected by lowering are abstracted into the
 de-Bruijn parameter context before restoration is inspected. -/
 theorem NestedLowering.validatedAuxiliaryResidualTranslations
     (H : NestedLowering sourceEnv fuel nparams types initialState
@@ -1750,7 +1763,7 @@ theorem NestedLowering.validateNestedAuxiliariesWF
   exact H.resultAuxFVarsIn Hcache name nested hfind
 
 /-- Under the separately stated fresh-name invariant, every final cache entry
-is retrieved exactly by the production `aux2nested` map. -/
+is retrieved exactly by the executable `aux2nested` map. -/
 theorem NestedLowering.resultAuxLookup
     (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
@@ -1842,7 +1855,7 @@ theorem NestedLowering.resultAuxMapModelsFresh
     NestedAuxMapModels result finalState :=
   H.resultAuxMapModelsOfEmpty hempty
 
-/-- Positional lowering witness for any family present in the initial queue.
+/-- Positional lowering step for any family present in the initial queue.
 Unlike name preservation, this exposes the complete constructor-expression
 translation performed at that family's actual dynamic queue step. -/
 theorem NestedLowering.translationAtInitial
@@ -1972,7 +1985,7 @@ def NestedResultParamsNodup
 /-- End-to-end queue safety from the executable source checks.  This closes
 the dynamic-generation loop: source constructors are closed, every generated
 auxiliary constructor is re-closed over the verified parameter context, and
-therefore every final cache witness is open only over the retained result
+therefore every cached nested application is open only over the retained result
 context. -/
 theorem ElimNestedInductive.run.translationClosed
     (fuel nparams : Nat) (types : List InductiveType)
@@ -2041,10 +2054,10 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-/-- Build the lockstep constructor trace from verified lowered installation.
-The only list premise is that all mapped targets belong to the installed
-owner; in the family specialization this is immediate because `targets` is
-that owner's constructor list. -/
+/-- Build the lockstep constructor relation `LoweredRestoredConstructors` from the
+verified lowered installation.  The only list premise is that all mapped targets belong
+to the installed owner; in the family specialization this is immediate because `targets`
+is that owner's constructor list. -/
 theorem LoweredRestoredConstructors.ofInstalled
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -2083,8 +2096,8 @@ theorem LoweredRestoredConstructors.ofInstalled
         intro target htarget
         exact Htargets target (by simp [htarget])
 
-/-- End-to-end freshness bridge for restoration: lowering proves auxiliary
-families fresh in the production source, and lockstep installation turns that
+/-- Freshness of auxiliary constructors for restoration: lowering proves auxiliary
+families fresh in the source kernel environment, and lockstep installation turns that
 into abstract freshness for every constructor recognized through those
 families. -/
 theorem NestedLowering.restoreAuxConstructorsFreshOfInstallation

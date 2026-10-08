@@ -3,18 +3,14 @@ import Lean4Lean.Theory.Inductive.CaseProjNames
 import Lean4Lean.Theory.Typing.RestorationShapes
 import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
-/-! # Transport of case-schema certificates
+/-! # Restoration and projection names
 
-Generic facts used to certify the case schema of a nested declaration:
-
-* restoration fixes every term avoiding its restorable names
-  (`Restoration.expr_of_avoid`), and preserves projection names whenever the
-  arguments of its heads do (`Restoration.expr_projNamesOK`), so a restored
-  schema projects only out of the structures its pieces and head arguments
-  project out of (`CaseSchema.projNamesOK_of_pieces_restored`);
-* the ingredients of a case certificate are monotone along larger environments in which
-  the source and expanded declarations still install and the reserved recursor
-  names are still fresh (`CaseSchema.Certified.mono`). -/
+Generic facts used to certify the case schema of a nested declaration: restoration fixes
+every term avoiding its restorable names (`Restoration.expr_of_avoid`), and preserves
+projection names whenever the arguments of its heads do (`Restoration.expr_projNamesOK`), so a
+restored schema projects only out of the structures its pieces and head arguments project out
+of (`CaseSchema.projNamesOK_of_pieces_restored`). Monotonicity of the case certificate itself
+is in `CaseCertificateMono.lean`. -/
 
 namespace Lean4Lean
 

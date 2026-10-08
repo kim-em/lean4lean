@@ -2,25 +2,25 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.QuotRule
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjSound
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.Definitions
 
-/-! # Soundness of the observation model for rule-free environments (milestone M2)
+/-! # Soundness of the glued observation model
 
-`theorem sound`: for a strong derivation `Γ ⊢ t ≡ t' : T` in an environment whose rules
-are all delta rules of definitions and which has no projections or eliminators
-(`DefsOnly`, stage A1 of section 10.2 of the notes; `NoRules` is the rule-free special
-case), and every pair of related
+`theorem sound`: for a strong derivation `Γ ⊢ t ≡ t' : T` of an environment `E ≤ env` whose
+rules, projection entries and eliminator rules are valid in the model of `env` (`RuleValid`,
+`ProjValid`, `ElimsValid`; bundled as `EnvValid`), and every pair of related
 anchors `σ ≡ σ'` from `Γ` into a well-formed target context `Δ` with observation sets `S`
 typed for both anchors:
 
 * every observation of `t` under `(σ, S)` is subsumed by one of `t'` under `(σ', S)`, and
   conversely (`Ob.Sub`, i.e. `Obs t ⊆ ↑Obs t'`);
 * every observation of `t` (under `σ`) and of `t'` (under `σ'`) is typed at observations of
-  `T` (the typing invariant, proved simultaneously).
+  `T` (the typing invariant, proved simultaneously, with the semantic typing derivations
+  `HTS` of both sides).
 
 Relating two anchors (rather than one) is what lets the `beta` case change the
 representative of a key class: the key's representative and the actual argument are only
-definitionally equal (`docs/inductives/PHASE1B_NOTES.md`, section 10).
+definitionally equal.
 
-The cases follow section 9.2 of the notes: `appDF` uses the typing invariant of the
+The cases: `appDF` uses the typing invariant of the
 function to identify the domain class of its observations (`app_typed`, `Obs.piDom_mem`);
 `lamDF`/`forallEDF` extend the anchors by a representative of the key class; `beta` uses
 compactness, monotonicity and the substitution lemma; `eta` uses the typing invariant of
@@ -28,10 +28,13 @@ compactness, monotonicity and the substitution lemma; `eta` uses the typing inva
 (`≼`); `proofIrrel` uses `TypedOb.not_prop`; `defeqDF` transfers typing along the
 inclusions given by the type equality; `sortDF`/`constDF` see levels only through
 `VLevel.eval`, and at a defined constant on level invariance of the value (`Obs.lvEq`);
-`extra` is the delta clause in both directions, using `DeltaRules` (the rule of a defined
-constant is unique and its type is the constant's). The projection rules (`projDF`,
+`extra` is the validity of the rule (`RuleValid`: `RuleValid.delta` for delta rules of
+definitions, using `DeltaRules`, `RuleValid.quot` for the quotient rule, and the recursor rules
+of `Model/RecursorRule.lean` and `Model/RestoredRecursorRule.lean`); `elimIota` is the
+validity of the generic case equation (`ElimValid`). The projection rules (`projDF`,
 `projIota`, `structEta`, `unitLike`) are sound for entries valid in the model (`ProjValid`,
-`Model/ProjSound.lean`). -/
+`Model/ProjSound.lean`). Validity of every environment of the declaration history is proved
+in `Model/EnvValid.lean`. -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -143,7 +146,7 @@ theorem app_typed (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
 
 /-! ## Soundness -/
 
-/-- **Validity of a rule** (decision D11 of the notes, section 10.3): the `extra` case of
+/-- **Validity of a rule**: the `extra` case of
 soundness for `df` in the model of `env`, given the soundness and semantic typing of its typing
 premises. -/
 def RuleValid (env : VEnv) (df : VDefEq) : Prop :=

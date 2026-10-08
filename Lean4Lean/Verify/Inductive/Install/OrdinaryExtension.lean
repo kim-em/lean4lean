@@ -3,6 +3,12 @@ import Lean4Lean.Verify.Inductive.Prelude.EqReady
 import Lean4Lean.Verify.Inductive.Install.Result
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceTranslations
 
+/-! The ordinary path of section 3.1 of `docs/inductives/DESIGN.md`: a successful
+ordinary run extends the safety-indexed environment model, and a lowering
+result without auxiliary families leaves the source declaration literally
+unchanged, so the ordinary branch of `addInductiveAfterLowering` yields an
+`InductiveExtension` for the submitted declaration. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -86,9 +92,9 @@ private theorem GeneratedRecursors.entrySafety_eq_unsafe
   rw [← heq, hsource]
   simp [ConstantInfo.safety, ConstantInfo.isUnsafe, hinfoUnsafe]
 
-/-- A completed safe ordinary run extends the complete safety-indexed model.
+/-- A successful safe ordinary run extends the complete safety-indexed model.
 The result depends only on the successful run and the source environment
-model; equality toConstantsInstallation state is irrelevant to inductive soundness. -/
+model; whether the prelude `Eq` is present is irrelevant to inductive soundness. -/
 theorem OrdinaryInstallation.extendSafeExact
     {ves : VEnvs}
     (Hrun : OrdinaryInstallation c stats nparams depth indTypes
@@ -151,9 +157,9 @@ theorem OrdinaryInstallation.extendSafeExact
   · exact hH
   · exact hH.trans (wf'.mono DefinitionSafety.unsafe_le)
 
-/-- A completed unsafe ordinary run extends the unsafe model and is hidden
+/-- A successful unsafe ordinary run extends the unsafe model and is hidden
 from the partial and safe observers. Uniform entry safety is obtained from
-the actual staged installation rather than assumed separately. -/
+the block installation rather than assumed separately. -/
 theorem OrdinaryInstallation.extendUnsafeExact
     {ves : VEnvs}
     (Hrun : OrdinaryInstallation c stats nparams depth indTypes
@@ -245,7 +251,7 @@ namespace VerifyInductive
 
 /-- A source-aligned ordinary checker result extends the complete
 safety-indexed abstract environment. The result is independent of whether
-the source environment has already bootstrapped canonical equality. -/
+the source environment has canonical `Eq`. -/
 theorem OrdinaryRunResult.extendWithSpecification
     {ves : VEnvs}
     (Hrun : OrdinaryRunResult source sourceEnv
@@ -314,7 +320,7 @@ theorem OrdinaryRunResult.extendWithSpecification
       exact (hnotPartial hs).elim
 
 /-- Complete ordinary refinement retaining the independent source judgment,
-without any equality-toConstantsInstallation premise. -/
+without any premise about the prelude `Eq`. -/
 theorem AddInductive.run.extensionModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
@@ -376,9 +382,8 @@ private theorem InductiveType.eq_of_fields {left right : InductiveType}
   cases right
   simp_all
 
-/-- A zero-sized restoration map has no successful lookup.  Keeping this
-small bridge local makes the operational meaning of the ordinary branch
-explicit at every lowering hit. -/
+/-- A zero-sized restoration map has no successful lookup, so on the ordinary
+branch no lowering step replaces a nested occurrence. -/
 theorem ElimNestedInductive.Result.auxFind?_eq_none_of_size_eq_zero
     {result : ElimNestedInductive.Result}
     (hsize : result.aux2nested.size = 0) (name : Name) :
@@ -391,9 +396,10 @@ theorem ElimNestedInductive.Result.auxFind?_eq_none_of_size_eq_zero
   apply Std.TreeMap.getElem?_eq_none_of_contains_eq_false
   exact Std.TreeMap.contains_of_isEmpty hempty
 
-/-- If the final restoration map is empty, the semantic expression-lowering
-trace contains no recognized nested hit.  Every remaining constructor is a
-structural identity and does not change the lowering state. -/
+/-- If the restoration map of the lowering result is empty, the
+expression-lowering derivation contains no nested occurrence.  Every
+remaining constructor is a structural identity and does not change the
+lowering state. -/
 theorem ExprLowering.Resolved.eq_of_aux2nested_size_eq_zero
     (H : ExprLowering.Resolved env lctx params As result input state out)
     (hsize : result.aux2nested.size = 0) :
@@ -609,7 +615,7 @@ theorem NestedLoweringOutput.types_eq_source_of_aux2nested_size_eq_zero
     Hpending HpendingB Hmap hsize
   rw [hresult, hinitialTypes]
 
-/-- Production starts lowering from this exact fresh state.  This
+/-- The executable starts lowering from this exact fresh state.  This
 specialization removes the generic cache premise from the declaration-facing
 ordinary branch. -/
 theorem NestedLoweringOutput.ordinary_types_eq_source
@@ -635,9 +641,10 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The ordinary production branch cannot request a reserved primitive name.
-Consequently all three primitive-name side conditions are vacuous; the only
-remaining run inputs are facts retained by the shared producer pipeline. -/
+/-- The ordinary branch of the executable cannot request a reserved primitive
+name.  Consequently all three primitive-name side conditions are vacuous; the
+only remaining run inputs are facts retained by the shared header and
+constructor pipeline. -/
 theorem PrimitiveNamesFresh.ofAllowPrimitiveFalse
     (hallow : c.allowPrimitive = false) :
     PrimitiveNamesFresh c stats nparams depth numNested indTypes
@@ -646,9 +653,8 @@ theorem PrimitiveNamesFresh.ofAllowPrimitiveFalse
   freshConstructors htrue := by simp_all
   freshRecursors htrue := by simp_all
 
-/-- A completed lowering trace can only have arisen from a nonempty source
-mutual block.  This packages the operational nonemptiness check at the
-declaration-facing trace boundary. -/
+/-- A successful lowering run can only have started from a nonempty source
+mutual block: the executable checks nonemptiness before lowering. -/
 theorem NestedLoweringOutput.sourceTypes_nonempty
     (H : NestedLoweringOutput env fuel nparams sourceTypes initialState result) :
     sourceTypes ≠ [] := by
@@ -657,7 +663,7 @@ theorem NestedLoweringOutput.sourceTypes_nonempty
     ⟨first, rest, tail, paramsState, lctx, params, htypes, _⟩
   simp [htypes]
 
-/-- Lowering retains every original family, so a successful lowering result
+/-- Lowering retains every source family, so a successful lowering result
 is itself nonempty. -/
 theorem NestedLoweringOutput.resultTypes_nonempty
     (initialState : ElimNestedInductive.State)
@@ -725,10 +731,10 @@ theorem Environment.addInductiveAfterLowering.ordinaryInstalledModelWF
   rcases Hrun outEnv hout' with ⟨ves', wf', hle, hcert, _⟩
   exact ⟨ves', wf', hle, hcert⟩
 
-/-- Source-facing ordinary refinement at the exact production boundary.  The
-successful source precheck and zero-auxiliary lowering trace prove that the
-block checked by `AddInductive.run` is literally the original declaration;
-the final model and independent source judgment therefore come from the same
+/-- Source-facing ordinary refinement of `addInductiveAfterLowering`.  The
+successful source precheck and zero-auxiliary lowering run prove that the
+block checked by `AddInductive.run` is literally the source declaration;
+the installed model and independent source judgment therefore come from the same
 execution. -/
 theorem Environment.addInductiveAfterLowering.ordinaryExtensionModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)

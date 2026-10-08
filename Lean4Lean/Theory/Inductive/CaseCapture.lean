@@ -2,9 +2,10 @@ import Lean4Lean.Theory.Typing.SignatureArity
 import Lean4Lean.Theory.Inductive.CaseFormation
 import Lean4Lean.Theory.Inductive.CaseReductionLemmas
 
-/-! The finite compilation certificate fixes the restoration parameter boundary.
-Consequently every registered canonical case rule recovers its actual binder
-arguments, including for specialized auxiliary constructors. -/
+/-! The case certificate of a schema (`CaseSchema.Certified`) fixes the restoration parameter
+boundary. Consequently every generated case rule of a registered schema recovers its binder
+arguments, including for specialized auxiliary constructors, and all rules of one case family
+have the same arity. -/
 
 namespace Lean4Lean.InductiveSignature.CaseSchema
 
@@ -24,7 +25,7 @@ theorem Certified.restoration_nparams {schema : CaseSchema}
   · obtain ⟨ctor, _, rfl⟩ := List.mem_map.mp hhead
     exact hn.symm
 
-/-- Capturing a certified canonical application after simultaneous
+/-- Capturing a certified generated application after simultaneous
 specialization recovers precisely the supplied equation arguments. -/
 theorem Certified.capture_specialize {schema : CaseSchema}
     {owner : Fin schema.signature.families.size} {rule : AppliedRule}
@@ -51,7 +52,7 @@ theorem Certified.view_constructor_indices {schema : CaseSchema}
   rw [hc]
   simpa only [hci', howner, caseConstructor] using harity
 
-/-- All canonical rules for a registered family take the same number of
+/-- All generated rules for a registered family take the same number of
 arguments before the constructor major, including after nested restoration. -/
 theorem Certified.arguments_length {schema : CaseSchema}
     {owner : Fin schema.signature.families.size} {rule : AppliedRule}

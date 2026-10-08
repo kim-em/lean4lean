@@ -9,7 +9,7 @@ Two telescopes `own` and `pdoms` that are both context-convertible to a common t
 typed along a prefix of `own` is typed along the same prefix of `pdoms`, and the
 instantiated domains have the same type class (`VEnv.Model.paramBridge`). Each domain is
 related by two sort-typed links at possibly different sorts, `own_i ~ params_i ~ pdoms_i`,
-which type classes absorb, so no uniqueness of types is needed (D7). -/
+which type classes absorb, so no uniqueness of types is needed. -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -103,7 +103,7 @@ theorem paramBridge_core (henv : env.Ordered) {Δ : List VExpr}
       simp only [hO', hD', hn', Nat.sub_self, List.getElem_cons_zero, List.getElem_singleton]
       exact (TyCls.eq_of_defeq l1).symm.trans (TyCls.eq_of_defeq l2)
 
-/-- **Parameter bridge.** Along telescopes `own` and `pdoms` context-convertible to a common
+/-- **Parameter transport.** Along telescopes `own` and `pdoms` context-convertible to a common
 `params`, a substitution typed along a prefix of `own` (at levels `ls`) is typed along the same
 prefix of `pdoms`, and the instantiated domains have the same type class. -/
 theorem paramBridge {E env : VEnv} (henv : env.Ordered) (hE : E ≤ env) {Δ : List VExpr}

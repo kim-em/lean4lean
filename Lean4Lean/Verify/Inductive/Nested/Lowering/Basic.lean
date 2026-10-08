@@ -11,9 +11,18 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Semantic postcondition of the production nested-auxiliary validation pass:
-every witness stored in `aux2nested` has a translated typing derivation in the
-restored parameter context.  A witness is a nested occurrence `I Ds` applied
+/-! # Nested lowering: occurrence typing, fresh names and restoration premises
+
+Basic definitions for the verification of `ElimNestedInductive` (section 3.3 of
+`docs/inductives/DESIGN.md`): the typing of the nested applications validated by
+`validateNestedAuxiliaries` (`ClosedNestedOccurrencesTyped`), the fresh local context and
+fresh auxiliary names used by lowering, the auxiliary family construction
+(`AuxiliaryFamilySpec`), the source syntax checks, and the disjointness and freshness premises
+of restoration. -/
+
+/-- Postcondition of the executable nested-auxiliary validation pass:
+every nested application stored in `aux2nested` has a translated typing derivation in the
+restored parameter context.  Such an application is a nested occurrence `I Ds` applied
 to its parameters only, so for an indexed family `I` it is a type family, not
 a type; like the C++ kernel, validation only type-checks it. -/
 def NestedOccurrencesTyped (venv : VEnv) (lparams : List Name)
@@ -22,12 +31,12 @@ def NestedOccurrencesTyped (venv : VEnv) (lparams : List Name)
     ∃ ty e' ty', TrTyping venv lparams vlctx e ty e' ty'
 
 /-- Context-independent form of nested-auxiliary validation.  Each open
-witness `e : T` is closed with lambdas over the exact parameter telescope
+nested application `e : T` is closed with lambdas over the exact parameter telescope
 retained by lowering, and its inferred type `T` with foralls over the same
-telescope, so that the closed witness `fun params => e` has type
+telescope, so that the closed application `fun params => e` has type
 `∀ params, T`; both closures share one list of translated parameter domains.
 Later restoration may choose fresh binder names without changing the
-statement that must be translated.  Closing the witness with lambdas, rather
+statement that must be translated.  Closing the application with lambdas, rather
 than with foralls, is what admits nested occurrences of indexed families:
 there `T` is `∀ indices, Sort u`, not a sort, and `∀ params, e` would be
 ill-typed. -/
@@ -43,10 +52,10 @@ def ClosedNestedOccurrencesTyped (venv : VEnv) (lparams : List Name)
       venv.HasType lparams.length [] (VExpr.wrapLams domains body)
         (VExpr.wrapForalls domains bodyType)
 
-/-- De-Bruijn form of one closed auxiliary witness.  It records the closed
-translation of the witness's parameter-closed type, whose forall telescope
+/-- De-Bruijn form of one closed nested application.  It records the closed
+translation of the application's parameter-closed type, whose forall telescope
 fixes the translated parameter domains, and the residual translation and
-typing of the witness itself in those domains, so no production free-variable
+typing of the application itself in those domains, so no kernel free-variable
 identifier occurs in the semantic context.  The residual is typed, not
 required to be a type: for a nested indexed family it is a type family. -/
 structure ClosedNestedOccurrenceTyping
@@ -54,7 +63,7 @@ structure ClosedNestedOccurrenceTyping
     (res : Lean4Lean.ElimNestedInductive.Result)
     (selection : CDeclArray res.lctx res.params)
     (e : Expr) where
-  /-- The type inferred for the open witness by validation. -/
+  /-- The type inferred for the open application by validation. -/
   type : Expr
   typeClosed : Closed type
   domains : List VExpr
@@ -110,7 +119,7 @@ theorem nestedMLCtxSharedBinderDomains {c : TypeChecker.MLCtx}
       rw [wf.find?_eq] at hfind
       simp [TypeChecker.MLCtx.decls, LocalDecl.fvarId] at hfind
 
-/-- The open auxiliary witness contains no pre-existing loose bound
+/-- The open nested application contains no pre-existing loose bound
 variables.  This is derived from the residual translation's scoping theorem,
 not imposed as an additional executable validation condition. -/
 theorem ClosedNestedOccurrenceTyping.sourceClosed
@@ -142,8 +151,8 @@ def ClosedNestedOccurrenceTypings
   ∀ name e, res.aux2nested.find? name = some e →
     Nonempty (ClosedNestedOccurrenceTyping venv lparams res selection e)
 
-/-- Telescope inversion turns every context-independent validated witness
-into the canonical bound-variable representation used beneath restored
+/-- Telescope inversion turns every context-independent validated nested application
+into the bound-variable representation used beneath restored
 recursor parameter binders. -/
 theorem ClosedNestedOccurrencesTyped.residualTranslations
     (H : ClosedNestedOccurrencesTyped venv lparams res)
@@ -395,7 +404,7 @@ def NestedBoundParams.toSelection
 
 /-- Parameter contexts opened by nested lowering can close any expression
 whose free variables are among the opened parameters. This strengthens the
-plain local-context/selection witnesses with the exact fact needed when a
+plain local-context/selection invariants with the exact fact needed when a
 generated auxiliary family is itself processed by the dynamic queue. -/
 structure NestedClosingContext (lctx : LocalContext) (params : Array Expr)
     (ngen : NameGenerator) where
@@ -581,7 +590,7 @@ theorem LoweringParamOpening.initial_size
     outParams.size = n := by simpa using H.params_size
 
 /-- Strengthened parameter opening for a closed source telescope.  Besides
-the operational opening trace, the continuation receives a certificate that
+the parameter opening relation, the continuation receives a certificate that
 re-closing an expression open over exactly those parameters is closed. -/
 private theorem nestedWithParamsLoop_refinesClosing {α : Type}
     (k : LocalContext → Expr → Array Expr →
@@ -666,7 +675,7 @@ theorem ElimNestedInductive.withParams.refinesClosing {α : Type}
   · exact Htype.mono fun fv hfalse => False.elim hfalse
   · exact Hk
 
-/-- Successful parameter instantiation has consumed exactly the requested
+/-- Successful parameter instantiation has removed exactly the requested
 number of leading forall binders; the returned term is precisely the exposed
 residual instantiated with the supplied parameter array. -/
 private theorem stripForallList_refines
@@ -849,9 +858,8 @@ private theorem environmentGet_refines (env : Environment) (name : Name) :
   next h => exact Except.WF.pure h
   next => exact Except.WF.throw
 
-/-- One generated constructor is obtained from the named source declaration by
-level instantiation, exact removal of the source parameters, and re-closing over
-the new mutual block parameters. -/
+/-- Every declared type of `env` has no free variables; this holds in every
+environment modelled by `VEnvs.WFCore` (`VEnvs.WFCore.environmentTypesClosed`). -/
 def EnvironmentTypesClosed (env : Environment) : Prop :=
   ∀ name info, env.find? name = some info →
     info.type.FVarsIn fun _ => False
@@ -863,9 +871,8 @@ theorem VEnvs.WFCore.environmentTypesClosed
       DefinitionSafety.unsafe_le with ⟨vinfo, _hvfind, Htr⟩
   exact Htr.2.2.fvarsIn.mono fun fv hfv => by simp at hfv
 
-/-- Declared types in a well-formed environment also have no loose bound
-variables.  Unlike `EnvironmentTypesClosed`, this is a type-checking fact
-rather than a syntax precheck. -/
+/-- Every declared type of `env` has no loose bound variables; this holds in every
+environment modelled by `VEnvs.WFCore` (`VEnvs.WFCore.environmentTypesBVarClosed`). -/
 def EnvironmentTypesBVarClosed (env : Environment) : Prop :=
   ∀ name info, env.find? name = some info → Closed info.type
 
@@ -938,7 +945,7 @@ theorem AuxiliaryConstructorSpecs.length_eq
   | nil => rfl
   | cons _ _ ih => simp [ih]
 
-/-- Select matching source/target constructor provenance by position.  The
+/-- Select the matching source and target constructor specifications by position.  The
 generated auxiliary builder traverses the mutual constructor-name list and
 target list in lockstep; later restoration proofs need the corresponding
 single-constructor specialization without falling back to name search. -/
@@ -1056,12 +1063,10 @@ theorem AuxiliaryFamilySpec.constructorAt
         sourceInfo.ctors[i] data.type.ctors[i] :=
   H.constructors.entryAt i hi
 
-/-- Auxiliary construction alone does not make the generated family
-indexless: it removes exactly the common-parameter prefix of the source
-family and retains its complete residual telescope.  This theorem exposes
-that residual as the exact post-parameter tail of the generated declaration.
-The later validation of the cached parameter-only witness `data.nested` is
-what forces this residual to be definitionally a sort. -/
+/-- Auxiliary construction removes exactly the common-parameter prefix of the
+container family and keeps its residual telescope (its indices and result sort).
+This theorem exposes that residual, instantiated at the specialization arguments,
+as the post-parameter tail of the auxiliary family's type. -/
 theorem AuxiliaryFamilySpec.generatedFamilyTelescope
     (H : AuxiliaryFamilySpec env lctx params As levels nparams args sourceName
       auxName sourceInfo data)
@@ -1079,10 +1084,8 @@ theorem AuxiliaryFamilySpec.generatedFamilyTelescope
   exact Hselection.forallTelescope
     (sourceTail.instantiateRevRange 0 nparams args)
 
-/-- A telescope whose head is definitionally a sort has no binders.  This is
-the abstract final step used to turn the nested-auxiliary validation result
-(`J params` itself has a sort as type) into the materialized header equation
-`numIndices = 0`. -/
+/-- A type definitionally equal to a sort has no outer forall binders: if
+`type.takeForalls n` succeeds then `n = 0`. -/
 theorem VExpr.takeForalls_eq_zero_of_defEqSort
     {env : VEnv} {U : Nat} {ctx : List VExpr}
     {type : VExpr} {n : Nat} {domains : List VExpr}
@@ -1131,7 +1134,7 @@ theorem AuxiliaryFamilySpec.constructorsClosed
     InductiveConstructorsClosed data.type := by
   exact H.constructors.closed Henv Hclosing Hlevels Hargs
 
-/-- Every cached nested witness is open only over the retained outer
+/-- Every cached nested application is open only over the retained outer
 parameter context selected by the lowering run. -/
 def NestedAuxFVarsIn (P : FVarId → Prop)
     (state : Lean4Lean.ElimNestedInductive.State) : Prop :=
@@ -1384,7 +1387,7 @@ def RestoreAuxConstructorsFresh
     result.getNestedIfAuxCtor prodEnv name = some (nested, auxFamily) →
     sourceVEnv.constants name = none
 
-/-- Every auxiliary family recorded by lowering was fresh in the production
+/-- Every auxiliary family recorded by lowering was fresh in the kernel
 environment from which the inductive block was built. -/
 def RestoreAuxFamiliesFresh
     (result : Lean4Lean.ElimNestedInductive.Result)
@@ -1399,7 +1402,7 @@ theorem NoNestedAux.findAny_false (H : NoNestedAux e) :
       | _ => false) = false := by
   exact H
 
-/-- Derive semantic restoration disjointness without assuming generated
+/-- Derive restoration disjointness without assuming auxiliary
 constructor names live below `_nested`. Family collisions are rejected by
 the source syntax namespace check; constructor collisions contradict source
 translation and freshness of the lowered block. -/
@@ -1748,7 +1751,7 @@ theorem restoreNestedNode_family
       | proj => cases happ
 
 /-- Family restoration including the zero-argument case, where the lowered
-family is represented by a bare constant. In that case the production code
+family is represented by a bare constant. In that case the executable
 consults the auxiliary-recursor map first, so disjointness is an explicit
 premise. -/
 theorem restoreNestedNode_family_general

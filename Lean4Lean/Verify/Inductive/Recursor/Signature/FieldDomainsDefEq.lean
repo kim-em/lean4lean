@@ -4,16 +4,16 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- The first `n` binders of `consumed` are those of `raw`, with each domain
-annotation-consumed; the bodies after the `n`-th binder are unrelated. -/
+/-- The first `n` binders of `consumed` are those of `raw` with each domain unannotated
+(`consumeTypeAnnotationsVerified`); the bodies after the `n`-th binder are unrelated. -/
 inductive Expr.UnannotatedForallPrefix (ok : Name → Bool) : Nat → Lean.Expr → Lean.Expr → Prop
   | zero (raw consumed : Lean.Expr) : UnannotatedForallPrefix ok 0 raw consumed
   | succ : UnannotatedForallPrefix ok n body body' →
       UnannotatedForallPrefix ok (n + 1) (.forallE name dom body bi)
         (.forallE name' (dom.consumeTypeAnnotationsVerified ok) body' bi')
 
-/-- Consuming a telescope and keeping only its first `n` domains consumes
-each of those domains in place. -/
+/-- Removing the type annotations of a telescope's domains (`consumeForallTypes`) and keeping
+only its first `n` domains gives an unannotated prefix of the telescope. -/
 theorem Expr.ForallTelescope.unannotatedForallPrefix
     (H : Expr.ForallTelescope raw n residual) :
     Expr.UnannotatedForallPrefix ok n raw
@@ -22,9 +22,9 @@ theorem Expr.ForallTelescope.unannotatedForallPrefix
   | nil => exact .zero _ _
   | cons _ ih => exact .succ ih
 
-/-- Binder by binder, a translation of a telescope and a translation of its
-domain-consumed prefix (in definitionally equal contexts) have definitionally
-equal domains, in either prefix context. -/
+/-- Binder by binder, a translation of a telescope and a translation of its unannotated prefix
+(in definitionally equal contexts) have definitionally equal domains, in either prefix
+context, and the unannotated domains are types. -/
 theorem TrExprS.unannotatedForallPrefix_defeq
     {env : Environment} {venv : VEnv} {safety : DefinitionSafety} {Us : List Name}
     (Hchecking : CheckingEnv safety env venv)
@@ -74,9 +74,10 @@ theorem TrExprS.unannotatedForallPrefix_defeq
       have Hi := ih Hctx Hbody Hcbody (by simpa using hA) (by simpa using hC) i (by omega)
       simpa [VLCtx.toCtx] using Hi
 
-/-- Field by field, the consumed field types are definitionally the header
-signature's field types in the field's own scope, in the header environment
-and universes. -/
+/-- Field by field, the unannotated field domains of a minor (`declFieldDomains`) are
+definitionally equal to the field types of the matching source signature constructor, in
+either field scope over the parameter scope, in the header environment and universes, and
+they are types there. -/
 theorem RecursorConstruction.sourceFields_defeq_header
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)

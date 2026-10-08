@@ -8,6 +8,15 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
+/-! # Recognition of nested occurrences
+
+The specification `NestedOccurrence` of the executable test `isNestedInductiveApp?`: an
+application of a previously declared inductive family whose parameters mention a family of the
+lowering queue and have no loose bound variables. The file proves that the executable test
+returns exactly the recognized occurrences (`isNestedInductiveApp_candidate`,
+`NestedOccurrence.recognized`), and specifies the generation of auxiliary families for a whole
+container block (`AuxiliaryGenerationBatch`, `generateAuxiliaries_refines`). -/
+
 /-- Syntactic facts that must hold before an expression can be treated as a
 nested occurrence. The environment lookup and parameter scan are certified
 separately, at the point where their reader/state effects are exposed. -/
@@ -75,8 +84,9 @@ structure NestedOccurrenceArgs
   closed : ∀ i, i < n → args[i]!.hasLooseBVars = false
 
 /-- Full abstract acceptance contract for nested-application recognition.
-This is deliberately stated without reference to the executable loop, so its
-eventual refinement theorem cannot silently inherit an implementation bug. -/
+It is stated without reference to the executable loop, so the refinement theorems
+(`isNestedInductiveApp_candidate`, `NestedOccurrence.recognized`) compare the loop
+against an independent specification. -/
 structure NestedOccurrence (env : Environment)
     (state : Lean4Lean.ElimNestedInductive.State)
     (e : Expr) (info : InductiveVal) : Prop where
@@ -86,7 +96,7 @@ structure NestedOccurrence (env : Environment)
   parameters : NestedOccurrenceArgs state.newTypes e.getAppArgs info.numParams
 
 /-- Recognition is maximal over an application spine: adding trailing
-arguments preserves a nested-family candidate because only its leading
+arguments preserves a nested occurrence because only its leading
 parameter prefix is inspected. -/
 theorem NestedOccurrence.app
     (H : NestedOccurrence env state fn info) (arg : Expr) :
@@ -301,7 +311,7 @@ theorem nestedBind.WF
     ((x >>= f) env state).WF Q := by
   exact Hx.bind fun result hresult => Hf result.1 result.2 hresult
 
-/-- A reviewable trace of the mutual-family generation loop.  Each list member
+/-- Relational specification of the mutual-family generation loop.  Each list member
 has one certified fresh-generation step, and the accumulator passed to the
 tail is exactly the executable `Option.or` update. -/
 inductive AuxiliaryGenerationBatch

@@ -1,13 +1,13 @@
 import Lean4Lean.Theory.Typing.EnvTables.Container
 
 /-!
-# Majors of installed equations (M4a, T1 (c), T5 (d))
+# Majors of installed equations
 -/
 
 namespace Lean4Lean.EnvTables
 open VEnv InductiveSignature
 
-/-- The major of a restored native equation is a source constructor applied to the parameter
+/-- The major of a restored recursor equation is a source constructor applied to the parameter
 variables, or a container constructor applied to the specialized container parameters; in both
 cases followed by the field variables. -/
 theorem CompilationData.major_cases {base : VEnv} {src exp : VInductDecl}
@@ -173,13 +173,14 @@ theorem ctor_entry_of_fam {T : Tables} {env : VEnv} (HT : T.Inv env) {decl : VIn
   simp only [famView] at hkuv hknp
   exact ⟨k, hk, hkfam, hkuv, hknp, by omega, by omega⟩
 
-/-- T1 (c) for stored equations: every constructor major of an installed equation (native iota
+/-- Majors of stored equations: every constructor major of an installed equation (recursor iota
 equations after restoration, and the quotient equation with `Quot.mk`) is a constructor of the
 table; it is applied to `k.nparams` parameter arguments followed by the field variables
-`vars nf 0` (the innermost binders of the equation, see `equation_shape`); and the number `nf` of
-field variables is `k.nfields` provided definitionally equal constant-ended telescopes have equal
-length (`ForallArityRigid`, see `EnvArity.lean`: the native field count comes from the normalized
-signature, which is only definitionally equal to the constructor type). -/
+`vars nf 0` (the innermost binders of the equation, see `CompilationData.rule_shape`); and the
+number `nf` of field variables is `k.nfields` provided definitionally equal constant-ended
+telescopes have equal length (`ForallArityRigid`, see `EnvTables/Arity.lean`: the field count
+comes from the normalized signature, which is only definitionally equal to the constructor
+type). -/
 theorem defeq_major {env : VEnv} (H : env.WF) (hdf : env.defeqs df)
     (hm : df.lhs.stripLams = .app fn (VExpr.mkApps (.const c ls) args)) :
     ∃ k ps nf, ctorOf env c = some k ∧ args = ps ++ vars nf 0 ∧ ps.length = k.nparams ∧

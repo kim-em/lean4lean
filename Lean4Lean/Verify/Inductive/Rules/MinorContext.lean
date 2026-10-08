@@ -1,5 +1,12 @@
 import Lean4Lean.Verify.Inductive.Rules.Alignment
 
+/-! The context of a rule's selected minor premise: the generated recursor and the motive
+reconstructed by the motive pass share one parameter context, the generated recursor domain at
+the rule's flattened minor slot is the type recorded by the minor pass, and the parameters,
+motives and earlier minors form a dependency-selected free-variable scope built from the
+closed translation of the generated recursor type. Also general lemmas on lambda contexts
+(`VLCtx`) and forall telescope translations. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -250,7 +257,7 @@ theorem MLCtxOnlyLams.closedTelescopeScope
     simpa [LocalContext.mkForall_empty] using HE
 
 /-- The generated recursor and the independently replayed canonical motive
-share the same parameter context.  This is the first direct bridge from the
+share the same parameter context.  This is the first direct link from the
 five-group executable telescope to the permutation-free semantic telescope;
 subsequent index alignment can therefore work under either parameter list
 without reusing an executable `isDefEq` success as an assumption. -/
@@ -286,12 +293,12 @@ theorem RecursorCheck.installedPairedParameterAlignmentAt
   exact VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
     hgenerated ((hcanonical.mono hbase).symm H.outVEnvWF.ordered)
 
-/-- Final executable/canonical owner-motive comparison frame.  This packages
+/-- Executable/canonical owner-motive comparison frame.  This packages
 the independently replayed canonical motive with the exact source domain and
 abstract target selected from the installed generated recursor.  The target
 domain is checked under parameters and strictly earlier motives only; hence
 the remaining comparison with `C.motiveType` is a context-transport problem,
-not another inversion of the production telescope. -/
+not another inversion of the executable telescope. -/
 theorem
     RecursorCheck.installedOwnerMotiveFrameAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -387,10 +394,10 @@ theorem
     by simpa [getElem!_pos T.motives owner hmotive] using Hdomain,
     by simpa [getElem!_pos T.motives owner hmotive] using HdomainType⟩
 
-/-- Reduced owner-motive bridge with all positional witnesses rewritten
-away.  The left side is now the exact production declaration shape closed
+/-- Reduced owner-motive comparison with all positional witnesses rewritten
+away.  The left side is the exact executable declaration shape closed
 over the source binders corresponding to the target context on the right.
-This is the form needed for the final comparison with `C.motiveType`. -/
+This is the form needed for the comparison with `C.motiveType`. -/
 theorem
     RecursorCheck.installedOwnerMotiveDomainTranslationAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -431,7 +438,7 @@ theorem
   rw [hsourceDomain, hdeclarationShape] at Hdomain
   exact ⟨T, S, hparameters, Hdomain, HdomainType⟩
 
-/-- Final-environment identification of the generated recursor domain at
+/-- Recursor-environment identification of the generated recursor domain at
 this rule's flattened minor slot.  The source selected structurally from the
 translated recursor is exactly the declaration type recorded by the second
 `mkRecInfos` pass, closed over parameters, motives, and earlier minors. -/
@@ -1180,10 +1187,10 @@ theorem
     exact HE
 
 /-- Close the exact selected-minor declaration through the independently
-narrowed free-variable scope.  This exposes two translations of the same
+dependency-selected free-variable scope.  This exposes two translations of the same
 closed source domain: one over the scope's semantic domains and one over the
 generated recursor telescope.  Their context comparison is the remaining
-bridge needed by the canonical RHS application. -/
+step needed by the canonical RHS application. -/
 theorem
     RecursorCheck.RuleAlignment.installedSelectedMinorExactClosedDomain
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -1306,7 +1313,7 @@ theorem
     Hscope.abstractAllWF H.outVEnvWF, Hdomain, HdomainType⟩
 
 /-- Reconstruct the complete source telescope of the exact selected prefix.
-Its abstract domains are precisely the non-contiguous narrowed context and
+Its abstract domains are precisely the non-contiguous dependency-selected context and
 its arity is precisely the generated parameter/motive/earlier-minor prefix.
 This is the binder-by-binder comparison input missing from the earlier
 whole-domain closing theorem. -/
@@ -1393,7 +1400,7 @@ theorem
     hscopeSource (.sort (.zero : Level)),
     Hprefix, HprefixType, HprefixTelescope, hprefixLength⟩
 
-/-- A concrete parameter/motive/minor prefix and the production recursor have
+/-- A concrete parameter/motive/minor prefix and the executable recursor have
 the same source domain at every retained slot.  The proof selects the exact
 local declaration on both sides, rather than appealing to whole-expression
 equality. -/
@@ -1633,8 +1640,8 @@ theorem
       exact hprefixDomain.trans
         (Hrecursor.unique HrecursorCanonical).symm
 
-/-- The independently narrowed selected-minor source prefix and the
-production recursor have the same domain at every retained parameter,
+/-- The independently dependency-selected selected-minor source prefix and the
+executable recursor have the same domain at every retained parameter,
 motive, and earlier-minor slot. -/
 theorem
     RecursorCheck.RuleAlignment.installedSelectedMinorPrefixBinderEq
@@ -1666,7 +1673,7 @@ theorem
   rw [H.bindings.flatMinors.length_fvars]
   exact Nat.le_of_lt A.rule.minor_valid
 
-/-- The exact semantic context retained by non-contiguous narrowing is
+/-- The exact semantic context retained by non-contiguous dependency selection is
 definitionally equal to the generated recursor's parameter/motive/earlier-
 minor prefix.  This closes the dependent outer-context conversion needed to
 type the canonical rule right-hand side. -/

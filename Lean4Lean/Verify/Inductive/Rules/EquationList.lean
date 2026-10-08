@@ -3,6 +3,11 @@ import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 import Lean4Lean.Verify.Inductive.Recursor.InstanceAlignment
 import Lean4Lean.Verify.Inductive.Recursor.Check
 
+/-! The installed rule list of an ordinary recursor check (`RuleTranslations`) and its
+consequences: the compilation certificate (`RuleTranslations.compilation`), the heads of the
+new stored equations (`RuleTranslations.equationHeads`), and the alignment of the new
+recursors with their abstract counterparts (`RuleTranslations.newRecursorsAligned`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -14,7 +19,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
 /-- Owner-prefix accumulation of reconstructed equations and their typing
-proofs.  Keeping the equation traversal independent of the final block lets
+proofs.  Keeping the equation traversal independent of the installed block lets
 this invariant grow in exactly the order used by `declareRecursors`. -/
 structure RecursorCheck.EquationPrefix
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -41,8 +46,8 @@ def RecursorCheck.EquationPrefix.empty
   rulesWF _ h := by simp at h
 
 /-- The installed rule list of an ordinary recursor run and its typing in the
-environment with the recursors. The compilation realization of
-`RuleTranslations` fixes the list as the canonical equations. -/
+environment with the recursors. The `trCompilation` field of
+`RuleTranslations` fixes the list as the generated equations. -/
 structure RuleTranslationShape
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -66,7 +71,7 @@ structure RuleTranslations
     (H.blockCertificate rules rulesWF).block H.outVEnv H.entries
 
 /-- Source nonemptiness comes from the existing declaration entry guard.
-The completed run supplies formation and block typing, so the finite
+The recursor check supplies formation and block typing, so the finite
 derivation is constructed here without an additional caller proof. -/
 theorem RuleTranslations.compilation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -98,8 +103,8 @@ theorem RuleTranslations.compilation
       (Lean4Lean.TrInductDecl.sourceWF Htranslated) R.formation.formationWF
       T.trCompilation.compiles B.wf htypes hctors hprojections B.names }
 
-/-- Every newly stored equation is headed by a recursor from the same joint
-generation witness, with that exact concrete entry present after installation. -/
+/-- Every newly stored equation is headed by a recursor of the generated instance
+fixed by `trCompilation`, whose concrete entry is present after installation. -/
 theorem RuleTranslations.equationHeads
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -171,10 +176,11 @@ theorem RuleTranslations.recursorEntryOrigin
         cases hinfo
     · exact .inr ⟨entry, hrec, hname, hinfo⟩
 
-/-- Recursor provenance is produced from the completed constructor/recursor
-run and its joint generation/metadata witness. It cannot be recovered from a
-generic block of translated constant types. The unsafe observer clause covers
-all new entries, so the evidence can be replayed at every observer safety. -/
+/-- The new recursors of an ordinary recursor check are aligned with the generated
+instance (`NewRecursorsAligned`), from the constructor and recursor checks and the generated
+instance and metadata fixed by `trCompilation`. This cannot be recovered from a generic block
+of translated constant types. It is stated at observer safety `.unsafe`, which covers all
+new entries, so it applies at every observer safety. -/
 theorem RuleTranslations.newRecursorsAligned
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}

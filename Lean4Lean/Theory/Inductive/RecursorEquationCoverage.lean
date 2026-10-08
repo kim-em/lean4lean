@@ -1,8 +1,8 @@
 import Lean4Lean.Theory.Inductive.RecursorEquationHeads
 
-/-! Every original constructor has its own generated native equation.
-This supplies an actual prior equation witness when constructor rigidity is
-transported through a later environment. -/
+/-! Every source constructor has its own generated iota equation, and every constructor of an
+installed container has a stored iota equation in the environment. These supply the stored
+equation needed when constructor rigidity is transported to a later environment. -/
 
 namespace Lean4Lean.InductiveSignature
 
@@ -42,7 +42,7 @@ theorem CompilationData.source_constructor_index
     List.mem_cons_of_mem _ (List.mem_map.mpr ⟨ctor, hctor, rfl⟩)⟩
 
 
-/-- Ordered restoration includes the equation of every original constructor;
+/-- Ordered restoration includes the equation of every source constructor;
 auxiliary equations cannot replace or omit that source constructor's rule. -/
 theorem CompilationData.constructor_equation
     {s : InductiveSignature} {g : Instance s}
@@ -63,7 +63,7 @@ end Lean4Lean.InductiveSignature
 
 namespace Lean4Lean
 
-/-- Equation installation retains each actual generated rule. -/
+/-- Equation installation retains each rule. -/
 theorem VEnv.addDefEqRules_mem {env : VEnv} (hmem : equation ∈ rules) :
     (env.addDefEqRules rules).defeqs equation := by
   induction rules generalizing env with
@@ -82,8 +82,8 @@ theorem VInductBlock.install_rule
   obtain ⟨types, _, ctors, _, recursors, _, rfl⟩ := H
   exact VEnv.addDefEqRules_mem hmem
 
-/-- A prior specialization carries an actual already-installed constructor
-equation. Environment extension transports this witness, without asserting
+/-- Every constructor of a container of an earlier compilation has an installed iota equation
+in `env`. Environment extension transports this fact, without asserting
 that rigidity itself is monotone. -/
 theorem ContainersInstalled.constructor_equation
     (H : ContainersInstalled env auxiliaries) :
@@ -113,15 +113,15 @@ theorem ContainersInstalled.constructor_equation
 
 end Lean4Lean
 
-/-! Constructor provenance for registered abstract case rules.
-Original constructors belong to the checked source declaration; restored
+/-! The constructors selected by registered abstract case rules.
+Source constructors belong to the checked source declaration; restored
 container constructors carry concrete equations already present in the base
 environment. -/
 
 namespace Lean4Lean.InductiveSignature.CaseSchema
 
-/-- A generated case rule selects either an original constructor or a
-constructor whose native equation was installed by a certified prior
+/-- A generated case rule selects either a source constructor or a
+constructor whose stored iota equation was installed with a certified earlier
 container. The parser does not introduce new constructor names. -/
 theorem Certified.case_constructor_cases {schema : CaseSchema}
     {owner : Fin schema.signature.families.size} {rule : AppliedRule} {key : Name}

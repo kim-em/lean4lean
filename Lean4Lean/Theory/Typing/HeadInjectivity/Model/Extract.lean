@@ -1,22 +1,23 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Sound
 import Lean4Lean.Theory.Typing.HeadInjectivity.ChainInjectivity
 
-/-! # Chain-level head injectivity for rule-free environments (milestone M2)
+/-! # Extraction of chain-level head injectivity from soundness
 
-`VEnv.WF.headInjectivityCore_of_noRules`: in a well-formed environment without
-definitional rules, projections or eliminators, the hypothesis `ChainHeadInjectivity` of the
-syntactic layer holds (`docs/inductives/PHASE1B_NOTES.md`, sections 3 and 9.3).
+`VEnv.WF.chainHeadInjectivity_of_sound`: in a well-formed environment for which the
+observation model is sound (`Model.SoundEnv`, proved for every well-formed environment by
+`VEnv.WF.soundEnv` in `Model/EnvValid.lean`), the hypothesis `ChainHeadInjectivity` of the
+syntactic layer holds (section 4.1 of `docs/inductives/DESIGN.md`).
 
 All observations are taken at the identity valuation `(id, ∅)` of the chain's own context
 (`Δ = Γ`); a chain is turned into `Ob.Sub` inclusions link by link (`chain_sub`, from
 `sound`).
 
 * `sort_sort`: the `sort` observation.
-* `forallE_chain`, with two observations (review point R5): the domain class at the identity
+* `forallE_chain`, with two observations: the domain class at the identity
   valuation gives `TypeChain Γ A A'`; then, in `A :: Γ` and for the weakened chain, the
   codomain class at the fresh-variable key `bvar 0` gives `TypeChain (A :: Γ) B B'`.
 * `rigid_rigid`/`former_args`: a sort-typed spine `mkApps (const c ls) args` has the
-  observations `rigid c (ls.map eval) n` and `rigidArg i cᵢ` (`spine_typed`: the spine
+  observations `rigid c (ls.map eval) n s` and `rigidArg i cᵢ` (`spine_data`: the spine
   observations of the head are typed, by the strong typing derivation of the spine and the
   typing invariant of soundness); on the other side of the chain they force the same head,
   levels and arity, and each argument into the class of the corresponding left argument,
@@ -49,8 +50,8 @@ abbrev OI (env : VEnv) (U : Nat) (Γ : List VExpr) : VExpr → Ob → Prop :=
   Obs env U Γ VExpr.Subst.id ObSets.empty
 
 /-- Soundness of the observation model for every derivation of `env` (at every target
-context): the hypothesis of the extraction, supplied by `Model.sound` under the hypotheses
-of each stage. -/
+context): the hypothesis of the extraction, supplied for every well-formed environment by
+`VEnv.WF.soundEnv`. -/
 def SoundEnv (env : VEnv) : Prop :=
   ∀ {U Δ Γ t t' T}, OnCtx Δ (env.IsType U) → env.IsDefEqStrong U Γ t t' T →
     SoundAt env U Δ Γ t t' T ∧ HTS env U Δ Γ t T ∧ HTS env U Δ Γ t' T

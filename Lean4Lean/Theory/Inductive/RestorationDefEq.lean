@@ -17,9 +17,9 @@ Restoration proper (`Restoration.expr`) instead substitutes the parameters
 directly into fully applied heads. It agrees with the lambda replacement up to
 the beta steps of the inserted telescopes (`RestorationSubstitution.restore`).
 Contracting a beta redex whose typing passes through a conversion of its Pi type
-is subject reduction for beta, which requires injectivity of Pi types; this is
-taken as the explicit hypothesis `VEnv.BetaSubjectReduction` rather than from
-the (unproved) injectivity theorems.
+is subject reduction for beta, which requires injectivity of Pi types; it is
+the explicit hypothesis `VEnv.BetaSubjectReduction` here, proved for every well-formed
+environment in `BetaSubjectReduction.lean` (`VEnv.WF.betaSubjectReduction`).
 -/
 
 namespace Lean4Lean
@@ -303,8 +303,9 @@ variable {env : VEnv}
 def SimAt (env : VEnv) (U : Nat) (Γ : List VExpr) (x x' : VExpr) : Prop :=
   ∀ T, env.HasType U Γ x T → env.IsDefEq U Γ x x' T
 
-/-- Subject reduction for a single beta step. This is a consequence of
-injectivity of Pi types, which is not established (without `sorry`) here. -/
+/-- Subject reduction for a single beta step. It is a consequence of
+injectivity of Pi types; `VEnv.WF.betaSubjectReduction` proves it for well-formed
+environments. -/
 def BetaSubjectReduction (env : VEnv) (U : Nat) : Prop :=
   ∀ Γ A b a, OnCtx Γ (env.IsType U) → env.SimAt U Γ (.app (.lam A b) a) (b.inst a)
 
@@ -434,7 +435,7 @@ structure RestorationSubstitution (envS envL : VEnv) (r : Restoration)
   /-- Renamed recursors are not source constants. -/
   recursorsFresh : ∀ p ∈ r.recursors, envS.constants p.1 = none
 
-/-- The canonical lambda replacement of a restoration table, given a parameter
+/-- The lambda replacement of a restoration table, given a parameter
 telescope (outermost first) for each head. -/
 def Restoration.lambdaReplacement (r : Restoration)
     (domains : HeadSpecialization → List VExpr) : Name → Option VExpr := fun c =>

@@ -5,7 +5,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.CtorArity
 * `WF.isCtor_const`: a constructor of a rule is a declared constant.
 * `WF.container_entry`: the projection entry of a projection-registered container family of a
   nested compilation is the container declaration's own entry (its family has the single
-  constructor of the major): every constructor of the container family is a native constructor
+  constructor of the major): every constructor of the container family is an installed constructor
   of the well-formed environment, and a projection-registered family has only its registered
   constructor among them (`WF.ctor_of_projFamily`). -/
 
@@ -54,7 +54,7 @@ theorem list_eq_single_of_names {l : List VConstVal} {c : VConstVal} {k : Name}
     simp only [List.map_cons, List.nodup_cons, List.mem_cons, not_or] at hnd
     exact hnd.1.1 ((hall x (by simp)).trans (hall y (by simp)).symm)
 
-/-- Every constructor of a certified container family is a native constructor of a later
+/-- Every constructor of a certified container family is an installed constructor of a later
 environment. -/
 theorem container_ctor_installed {base : VEnv} {aux : List ContainerSpecialization}
     (hprior : ContainersInstalled base aux) (hle : base ≤ env)
@@ -112,7 +112,7 @@ theorem WF.container_entry {base : VEnv} {aux : List ContainerSpecialization} (h
       rfl, rfl⟩)
   exact henv.ordered.projections_unique hp ((hle'.trans hle).projections hin)
 
-/-- The major of a generic case equation, at the view constructor `index` of its origin: the
+/-- The major of a generic case equation, at the view constructor `index` of its registered schema: the
 restoration of the case form of a signature constructor. (`EnvTables.Certified.generic_major` at
 a given equation index.) -/
 theorem generic_major_at {schema : CaseSchema} {owner : Fin schema.signature.families.size}

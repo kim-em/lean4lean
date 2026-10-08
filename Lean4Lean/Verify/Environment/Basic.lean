@@ -12,8 +12,8 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- Environment evidence for the members named by `InductiveVal.all`, kept
-in the same order as the production metadata.  This lives at the generic
+/-- Inductive-header lookups for the members named by `InductiveVal.all`, kept
+in the same order as the kernel metadata.  This lives at the generic
 environment layer because nested-inductive recognition needs it before the
 inductive checker itself starts. -/
 inductive InductiveMemberInfos (env : Environment) : List Name → Prop
@@ -34,32 +34,32 @@ theorem InductiveMemberInfos.find
     · exact ⟨info, hhead⟩
     · exact ih htail
 
-/-- One production inductive header has a complete, duplicate-free mutual
+/-- One kernel inductive header has a complete, duplicate-free mutual
 family, including the header through which it was discovered. -/
 structure MutualInductiveClosure
     (env : Environment) (targetName : Name) (value : InductiveVal) : Prop where
   members : InductiveMemberInfos env value.all
   target : targetName ∈ value.all
   names : value.all.Nodup
-  /-- Every header in the producer-owned mutual block was emitted with the
+  /-- Every header in the mutual block was emitted with the
   same common-parameter count. -/
   parameters : ∀ member info, member ∈ value.all →
     env.find? member = some (.inductInfo info) →
     info.numParams = value.numParams
 
-/-- Every production inductive header has complete mutual-family metadata.
+/-- Every kernel inductive header has complete mutual-family metadata.
 Nested lowering follows `InductiveVal.all`, so this is part of the persistent
-production-environment contract rather than a per-declaration callback. -/
+kernel-environment invariant rather than a per-declaration callback. -/
 def MutualInductivesClosed (env : Environment) : Prop :=
   ∀ targetName value, env.find? targetName = some (.inductInfo value) →
     MutualInductiveClosure env targetName value
 
-/-- Production environments do not contain dangling or unlisted constructor
+/-- Kernel environments do not contain dangling or unlisted constructor
 metadata: every constructor's recorded inductive owner is itself present,
 lists the constructor, and has the constructor's `isUnsafe`.  This is a
-persistent production-environment invariant, not a nested-lowering premise.
-It holds in every staged environment too, because a constructor is only ever
-added after the header that lists it. -/
+persistent kernel-environment invariant, not a nested-lowering premise.  It
+also holds in the environments an inductive declaration builds while it is
+checked, because a constructor is only added after the header that lists it. -/
 def ConstructorOwnersPresent (env : Environment) : Prop :=
   ∀ name info, env.find? name = some (.ctorInfo info) →
     ∃ owner, env.find? info.induct = some (.inductInfo owner) ∧
@@ -67,8 +67,8 @@ def ConstructorOwnersPresent (env : Environment) : Prop :=
 
 /-- Every constructor name that a present inductive header lists is, if present, a
 constructor whose recorded inductive is that header, with the header's `isUnsafe`.  Presence
-is a premise because in the staged environments of an inductive declaration a header is
-installed before the constructors it lists; on a complete environment this follows from
+is a premise because while an inductive declaration is checked its headers are installed
+before the constructors they list; on a complete environment this follows from
 `InductiveConstructorsCoherent`. -/
 def ListedConstructorsCoherent (env : Environment) : Prop :=
   ∀ familyName familyInfo, env.find? familyName = some (.inductInfo familyInfo) →
@@ -83,7 +83,7 @@ def ListedConstructorsPresent (env : Environment) : Prop :=
   ∀ familyName familyInfo, env.find? familyName = some (.inductInfo familyInfo) →
     ∀ name ∈ familyInfo.ctors, ∃ ci, env.find? name = some ci
 
-/-- Mutual-member evidence depends only on production constant lookup. -/
+/-- `InductiveMemberInfos` depends only on kernel constant lookup. -/
 theorem InductiveMemberInfos.mapEnvironmentEq
     {source targetEnv : Environment}
     (H : InductiveMemberInfos source names)
@@ -94,7 +94,7 @@ theorem InductiveMemberInfos.mapEnvironmentEq
   | @cons name info names hfind _ ih =>
     exact .cons (by rw [← heq name]; exact hfind) ih
 
-/-- One closed mutual family transports across extensionally equal production
+/-- One closed mutual family transports across extensionally equal kernel
 constant maps. -/
 theorem MutualInductiveClosure.mapEnvironmentEq
     {source targetEnv : Environment}
@@ -111,7 +111,7 @@ theorem MutualInductiveClosure.mapEnvironmentEq
       exact hfind)
 
 /-- Closure of every mutual family is invariant under extensional equality of
-production constant lookup. -/
+kernel constant lookup. -/
 theorem MutualInductivesClosed.mapEnvironmentEq
     {source targetEnv : Environment}
     (H : MutualInductivesClosed source)
@@ -123,7 +123,7 @@ theorem MutualInductivesClosed.mapEnvironmentEq
     exact htarget
   exact (H targetName value hsource).mapEnvironmentEq heq
 
-/-- The production metadata for one constructor listed by an inductive
+/-- The kernel metadata for one constructor listed by an inductive
 header agrees with that header at every field needed to specialize the
 constructor at the family's common parameters. -/
 structure CtorInfoCoherentAt
@@ -137,7 +137,7 @@ structure CtorInfoCoherentAt
   levelParams : info.levelParams = familyInfo.levelParams
   isUnsafe : info.isUnsafe = familyInfo.isUnsafe
 
-/-- Every constructor name listed by a production inductive header resolves
+/-- Every constructor name listed by a kernel inductive header resolves
 to coherent constructor metadata. -/
 def InductiveConstructorsCoherent (env : Environment) : Prop :=
   ∀ familyName familyInfo,
@@ -162,7 +162,7 @@ theorem InductiveConstructorsCoherent.present {env : Environment}
   rcases H familyName familyInfo hfamily i hi with ⟨C⟩
   exact ⟨_, C.lookup⟩
 
-/-- Semantic common-parameter coherence for one visible production
+/-- Semantic common-parameter coherence for one visible kernel
 constructor.  Concrete parameter domains need only be definitionally equal;
 the independently translated family and constructor types are normalized in
 the shared abstract environment before their parameter contexts are compared. -/
@@ -197,7 +197,7 @@ structure CtorParamsAgreeAt
     familyDomains.reverse constructorDomains.reverse
 
 /-- Every constructor visible in one safety-indexed abstract environment has
-production metadata and definitionally equal translated common parameters. -/
+kernel metadata and definitionally equal translated common parameters. -/
 def CtorParamsAgree
     (safety : DefinitionSafety) (env : Environment) (venv : VEnv) : Prop :=
   ∀ familyName familyInfo,
@@ -215,9 +215,9 @@ theorem ConstantInfo.hasValue_eq (ci : ConstantInfo) : ci.hasValue = ci.value?.i
 theorem ConstantInfo.value!_eq (ci : ConstantInfo) : ci.value! = ci.value?.get! := by
   cases ci <;> simp [ConstantInfo.value?, ConstantInfo.value!]
 
-/-- Operational production-side contract for a unary type-annotation wrapper.
+/-- Kernel-environment contract for a unary type-annotation wrapper.
 
-The executable `Expr.consumeTypeAnnotations` recognizes these wrappers by
+Lean's `Expr.consumeTypeAnnotations` recognizes these wrappers by
 name alone.  Recording the actual environment lookup and delta body prevents a
 hostile declaration at the reserved name from being silently treated as an
 identity wrapper. -/
@@ -230,7 +230,7 @@ structure UnaryTypeAnnotationWrapper (env : Environment) (name : Name) : Prop wh
       BetaReduce
         (.app (value.instantiateLevelParams info.levelParams levels) arg) arg
 
-/-- Operational production-side contract for a binary type-annotation
+/-- Kernel-environment contract for a binary type-annotation
 wrapper whose result is its first argument. -/
 structure BinaryTypeAnnotationWrapper (env : Environment) (name : Name) : Prop where
   operational : ∃ info value,
@@ -375,7 +375,7 @@ structure TrSourceConst (env : VEnv) (lparams : List Name)
   wf : ci'.toVConstant.WF env
 
 /-- Syntactic source-constant translation before its type has been checked in
-the appropriate staged environment. -/
+the header or constructor environment. -/
 structure TrSourceConstRaw (env : VEnv) (lparams : List Name)
     (name : Name) (type : Expr) (ci' : VConstVal) : Prop where
   uvars : ci'.uvars = lparams.length
@@ -620,7 +620,7 @@ structure TrInductiveTypeHeaders (env envTypes : VEnv) (lparams : List Name)
       TrSourceConstRaw envTypes lparams ctor.name ctor.type ctor')
     type.ctors type'.ctors
 
-/-- Translation of the original, pre-lowering inductive declaration. The
+/-- Translation of the source (pre-lowering) inductive declaration. The
 constructor relation deliberately uses `envTypes`, obtained by installing all
 translated mutual headers, so an ill-typed nested parameter cannot disappear
 behind auxiliary declarations. -/
@@ -636,8 +636,8 @@ def TrInductDecl (env : VEnv) (lparams : List Name) (nparams : Nat)
     List.Forall₂ (TrInductiveType env envTypes lparams) types decl.types
 
 /-- Source translation without assuming the aggregate `SourceWF` judgment.
-The pointwise `TrSourceConst` witnesses still retain the independently checked
-typing of every original header and constructor; only block nonemptiness and
+The pointwise `TrSourceConst` translations still retain the independently checked
+typing of every source header and constructor; only block nonemptiness and
 global name uniqueness are intentionally absent. -/
 structure TrInductDeclCore (env : VEnv) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool)
@@ -752,9 +752,9 @@ nonrec theorem AddQuot.le (H : AddQuot m₁ m₂ env₁ env₂) : env₁ ≤ env
   open AddQuot1 in (le <| le <| le <| le fun _ _ h => h.2 ▸ VEnv.addDefEq_le) _ _ H
 
 
-/-- Exact production metadata for one constructor in an abstract inductive
+/-- Exact kernel metadata for one constructor in an abstract inductive
 family installed by the current declaration.  This prevents a flat constant
-lookup from being mistaken for inductive-declaration provenance. -/
+lookup from being mistaken for membership in an inductive declaration. -/
 structure CtorInfoAlignment
     (C : ConstMap) (decl : VInductDecl) (familyIdx ctorIdx : Nat)
     (familyInfo : InductiveVal) where
@@ -820,10 +820,10 @@ inductive Aligned : ConstMap → VEnv → Prop where
     venv.addConst n ci' = some venv' → ci.name = n → Aligned (C.insert n ci) venv'
   | defeq : Aligned C venv → Aligned C (venv.addDefEq df)
   | projections : Aligned C venv → Aligned C (venv.addProjections entries)
-  /-- Abstract case symbols are absent from the native constant map. Their
-  independent certification is carried by the checking environment's WF trace. -/
+  /-- Abstract case eliminators are absent from the kernel constant map. Their
+  well-formedness is certified separately (`VInductBlock.EliminatorsWF`). -/
   | eliminators : Aligned C venv → Aligned C (venv.addEliminator block schema)
-  /-- Production constant maps are implementation maps rather than ordered
+  /-- Kernel constant maps are implementation maps rather than ordered
   declaration lists.  A bulk declaration such as nested restoration may
   insert fresh entries in a different order from the dependency order used
   to type their abstract counterparts.  Exact lookup equivalence, together
@@ -834,7 +834,7 @@ inductive Aligned : ConstMap → VEnv → Prop where
 
 /-- Constructive implementation boundary for an inductive extension at one
 observer safety. Besides the independent compilation and installation
-witnesses, it records exact production-map alignment at that safety, and the
+certificates, it records exact kernel-map alignment at that safety, and the
 alignment of the recursors it installs with the stored iota equations
 (`NewRecursorsAligned`). -/
 inductive AddInduct (safety : DefinitionSafety)
@@ -916,8 +916,8 @@ theorem InductInfoAlignment.rebase
     rcases H.constructor ctorIdx hctor with ⟨C⟩
     exact ⟨C.rebase hpreserves⟩
 
-/-- Persistent, declaration-level provenance for one visible production
-inductive family in one abstract environment. -/
+/-- One visible kernel inductive family is an exact family of an abstract
+inductive declaration installed in `env`. -/
 structure InductFamilyInstalledAt
     (C : ConstMap) (env : VEnv) (familyName : Name)
     (familyInfo : InductiveVal) where
@@ -927,7 +927,7 @@ structure InductFamilyInstalledAt
   alignment : InductInfoAlignment C decl familyIdx familyInfo
   installed : VEnv.InstalledBelow env decl
 
-/-- A singleton production family with installed provenance has the exact
+/-- A singleton kernel family installed by a declaration has the exact
 abstract projection entry derived from its source declaration.  The
 singleton premise is the executable metadata check performed by
 `inferProj`; the conclusion is obtained from the installation certificate,
@@ -1049,7 +1049,7 @@ def ProjectionRegistryAlignmentAt.monoEnv
   family_lookup := henv.constants H.family_lookup
   constructor_abstract := henv.constants H.constructor_abstract
 
-/-- Transport an alignment across a production constant map that preserves
+/-- Transport an alignment across a kernel constant map that preserves
 every existing lookup and a monotone abstract extension. -/
 def ProjectionRegistryAlignmentAt.rebase
     (H : ProjectionRegistryAlignmentAt source env familyName familyInfo
@@ -1087,7 +1087,7 @@ theorem ProjectionRegistryCoherent.monoEnv
     hsingle hconstructor hinduct with ⟨P⟩
   exact ⟨P.monoEnv henv⟩
 
-/-- Constructor-owner presence stated on a production constant map. -/
+/-- Constructor-owner presence stated on a kernel constant map. -/
 def ConstructorOwnersPresentMap (C : ConstMap) : Prop :=
   ∀ name info, C.find? name = some (.ctorInfo info) →
     ∃ owner, C.find? info.induct = some (.inductInfo owner)
@@ -1201,7 +1201,7 @@ theorem ProjectionRegistryCoherent.insertInductiveHeader
 /-- Installing a constructor preserves registry coherence under its step
 condition: the owner is present and, if the constructor completes a singleton
 family, exact projection alignment has been established for that family.
-Existing completed families are transported unchanged. -/
+Existing families are transported unchanged. -/
 theorem ProjectionRegistryCoherent.insertConstructor
     (H : ProjectionRegistryCoherent safety C env)
     (hwf : C.WF)
@@ -1270,12 +1270,12 @@ theorem ProjectionRegistryCoherent.extendNonSingleton
       contradiction
   · exact absurd (by simp [hsingle]) hlength
 
-/-- Complete a constructor-stage registry from the positional production
-alignment of a whole declaration.  Old families are rebased through the
+/-- Registry coherence after a whole declaration, from its positional kernel
+alignment.  Base families are rebased through the
 concrete and abstract extension; every new constructor names a new family as
-its owner, so an old singleton family can only be completed by its own old
+its owner, so a base singleton family can only be completed by its own base
 constructor.  New singleton families are reconstructed from their positional
-production alignment, the exact abstract constant spines, and the registered
+kernel alignment, the exact abstract constant spines, and the registered
 projection entries. -/
 theorem ProjectionRegistryCoherent.extendInductive
     (H : ProjectionRegistryCoherent safety sourceC sourceEnv)
@@ -1399,7 +1399,7 @@ theorem ProjectionRegistryCoherent.extendInductive
             rw [hconstructorName, ← h]
             exact henv.constants hconstructorLookupRaw }⟩
 
-/-- Every production inductive visible to this observer comes from a prior,
+/-- Every kernel inductive visible to this observer comes from a prior,
 finitely well-formed abstract inductive installation. -/
 def InductFamiliesInstalled
     (safety : DefinitionSafety) (C : ConstMap) (env : VEnv) : Prop :=
@@ -1408,8 +1408,8 @@ def InductFamiliesInstalled
     safety ≤ (ConstantInfo.inductInfo familyInfo).safety →
     Nonempty (InductFamilyInstalledAt C env familyName familyInfo)
 
-/-- Completed declaration provenance entails the projection-specific
-invariant, but users of projection inference need only the latter. -/
+/-- `InductFamiliesInstalled` entails the projection-specific invariant
+`ProjectionRegistryCoherent`, which is all that projection inference needs. -/
 theorem InductFamiliesInstalled.projectionRegistryCoherent
     (H : InductFamiliesInstalled safety C env) :
     ProjectionRegistryCoherent safety C env := by
@@ -1516,8 +1516,8 @@ theorem InductFamiliesInstalled.monoEnv
   rcases H familyName familyInfo hfind hvisible with ⟨P⟩
   exact ⟨P.mono (by simpa [P.name] using hfind) (fun h => h) henv⟩
 
-/-- A fresh non-inductive production entry preserves declaration-level
-inductive provenance across any monotone abstract extension. -/
+/-- A fresh non-inductive kernel entry preserves `InductFamiliesInstalled`
+across any monotone abstract extension. -/
 theorem InductFamiliesInstalled.insertNonInductive
     (H : InductFamiliesInstalled safety C env)
     (hwf : C.WF) (hfresh : C.find? ci.name = none)

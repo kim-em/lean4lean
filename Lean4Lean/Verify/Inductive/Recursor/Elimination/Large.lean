@@ -1,9 +1,12 @@
 import Lean4Lean.Verify.Inductive.Recursor.Binders.RecursiveFields
 import Lean4Lean.Verify.Inductive.Header.CheckedHeaders
 
-/-! Evidence retained from the executable elimination-universe decision.
-The cached result-universe flag is linked to header formation, and singleton
-checks expose every parameter, proof field, and required result argument.
+/-! The executable's elimination-universe decision (`getElimLevel`, `isLargeEliminator`).
+A large elimination level is returned only after a successful large-eliminator check. The
+cached result-universe flag is linked to the checked headers, and the singleton check is
+mirrored by the loop relation `LargeEliminationCheck`, which exposes every parameter, proof
+field and required result argument. This supplies the elimination level of the recursor
+construction (section 3.2 of `docs/inductives/DESIGN.md`).
 -/
 
 namespace Lean4Lean
@@ -13,8 +16,8 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- A returned large-elimination universe can only follow a successful large
-eliminator check in the same constructor-stage context. -/
+/-- A nonzero elimination level returned by `getElimLevel` comes from a successful
+`isLargeEliminator` check in the same context. -/
 theorem AddInductive.getElimLevel.large_of_checked
     {stats : AddInductive.InductiveStats} {indTypes : Array InductiveType}
     {c : AddInductive.Context} {level : Level}
@@ -73,8 +76,8 @@ theorem AddInductive.isLargeEliminator.shape_of_checked
               using H⟩
         | cons ctor' ctors => simp [hctors, pure, ReaderT.pure, Except.pure] at H
 
-/-- The nonzero shortcut is justified by the same result universe checked
-for every family in the source block. -/
+/-- The nonzero shortcut is justified: the common result universe checked by the header
+phase is never zero for every family of the source block. -/
 theorem checkInductiveTypes.loopInd.HeaderStatsWF.familyNeverZero
     (H : checkInductiveTypes.loopInd.HeaderStatsWF env Us Δ
       stats decl depth)
@@ -87,8 +90,9 @@ theorem checkInductiveTypes.loopInd.HeaderStatsWF.familyNeverZero
 
 
 
-/-- Interpret a successful proof-field check using typed equality, so the
-argument remains valid for nonunique projection desugarings. -/
+/-- A successful `ensureType` whose sort level is always zero shows that the translated
+type is a proposition. The argument goes through uniqueness of typing, so it holds for any
+translation of the type, not only the one produced by the check. -/
 theorem ensureTypeInContext.proof_of_isAlwaysZero
     (Hc : ContextWF c)
     (Htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type')
@@ -119,8 +123,8 @@ def eliminationFieldContext (c : AddInductive.Context) (name : Name)
     checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
       (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
 
-/-- Finite trace of the singleton decision. Each field is either certified
-as a proof or added to the result-argument requirement checked at the leaf. -/
+/-- Loop relation of the singleton decision (`isLargeEliminator.loop`). Each field is either
+checked to be a proof or added to the result arguments required at the leaf. -/
 inductive LargeEliminationCheck (stats : AddInductive.InductiveStats) :
     AddInductive.Context → Expr → Nat → Array Expr → Prop where
   | done {c type i required} : type.isForall = false →
@@ -146,7 +150,7 @@ inductive LargeEliminationCheck (stats : AddInductive.InductiveStats) :
         (required.push (.fvar ⟨c.ngen.curr⟩)) →
       LargeEliminationCheck stats c (.forallE name dom body bi) i required
 
-/-- Reconstruct the trace from the actual successful executable check. -/
+/-- A successful executable singleton check satisfies `LargeEliminationCheck`. -/
 theorem AddInductive.isLargeEliminator.loop.trace
     {stats : AddInductive.InductiveStats} {c : AddInductive.Context}
     {type : Expr} {i : Nat} {required : Array Expr} {fuel : Nat}
@@ -192,8 +196,8 @@ theorem AddInductive.isLargeEliminator.loop.trace
 
 
 
-/-- A proof-field result remains a proof after annotation consumption, in
-the original field-prefix context rather than beneath the newly opened field. -/
+/-- A field classified as a proof by the singleton check has an unannotated domain that is a
+proposition in the field-prefix context, not only beneath the newly opened field. -/
 theorem ContextWF.UnannotatedDomain.proof_of_largeEliminationCheck
     {c : AddInductive.Context} {name : Name} {bi : BinderInfo}
     (Hc : ContextWF c) (Hdom : Hc.UnannotatedDomain dom source' consumed')

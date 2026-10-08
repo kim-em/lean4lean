@@ -1,5 +1,11 @@
 import Lean4Lean.Verify.Inductive.Recursor.Context.FVarArrays
 
+/-! The types the executable passes to `withLocalDecl` for the recursor binders and
+their translations (`FVarDeclAt`, `FVarArrayBinderTypes`, `TrBinderTypes`), the
+constructor application typing `ConstructorApplicationAt`, and the input and run
+relations of `loopUArgs` (`LoopUArgsInput`, `LoopUArgsRun`). Part of the recursor
+phase (section 3.2 of `docs/inductives/DESIGN.md`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -10,11 +16,10 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Declarative constructor-introduction certificate used by the recursor
-second pass.  It deliberately records the exact terminal source expression
-and exact generated constructor application: constructor checking must
-eventually supply this package, rather than asking recursor generation to
-trust a second executable classification. -/
+/-- Declarative typing of the constructor application at the end of a
+constructor traversal, used by the minor pass.  It records the terminal
+source expression and the generated constructor application, so that recursor
+generation does not depend on a second executable classification. -/
 structure ConstructorApplicationAt
     {c : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF c recLparams)
@@ -32,7 +37,7 @@ structure ConstructorApplicationAt
   typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
     introTarget terminalTarget
 
-/-- Semantic translations of an executable origin-type array under the
+/-- Translations of an executable binder-type array under the
 recursor universe list.  This is the universe-parametric counterpart of
 `TranslatedOriginTypes`, used for major and motive rows after large
 elimination has made `ContextWF` unavailable. -/
@@ -52,7 +57,7 @@ def TrBinderTypes.empty
   translated := .nil
   isType _ h := by simp at h
 
-/-- Weaken an entire translated-origin row along an arbitrary certified
+/-- Weaken an entire translated binder-type row along an arbitrary
 recursor-context extension.  Constructor fields, generated hypotheses, and
 minor premises are introduced in separate traversals, so their composite
 extension is more useful here than a consecutive-suffix specialization. -/
@@ -71,7 +76,7 @@ def TrBinderTypes.mono
     rcases List.mem_map.mp htarget with ⟨oldTarget, hold, rfl⟩
     exact Hext.weakIsType (H.isType oldTarget hold)
 
-/-- Weaken an existing origin-type row through one newly checked recursor
+/-- Weaken an existing binder-type row through one newly checked recursor
 local without appending a new row entry. -/
 def TrBinderTypes.withLocalDecl
     {c : AddInductive.Context} {recLparams : List Name}
@@ -99,7 +104,7 @@ def TrBinderTypes.withLocalDecl
       rcases List.mem_map.mp htarget with ⟨oldTarget, hold, rfl⟩
       exact (H.isType oldTarget hold).weakN R.checking.tr.wf.ordered W.toCtx }
 
-/-- Append a newly checked origin type while weakening all older entries
+/-- Append a newly checked binder type while weakening all older entries
 through its declaration. -/
 def TrBinderTypes.push
     {c : AddInductive.Context} {recLparams : List Name}
@@ -175,7 +180,7 @@ def TrBinderTypes.pushChecked
           R.checking.tr.wf.ordered W.toCtx
       · exact hty.weakN R.checking.tr.wf.ordered W.toCtx }
 
-/-- Weaken an origin-type row across the exact consecutive index suffix
+/-- Weaken a binder-type row across the consecutive index suffix
 opened since `Rroot`. -/
 def TrBinderTypes.weakenRecent
     {root c : AddInductive.Context} {recLparams : List Name}
@@ -203,7 +208,7 @@ def TrBinderTypes.weakenRecent
       simpa only [Hrecent.venv_eq, Hrecent.drop_eq] using H.isType _ hold
     exact htype.weakN R.checking.tr.wf.ordered W.toCtx
 
-/-- Row-wise semantic translations for the per-family origin arrays retained
+/-- Row-wise translations of the per-family binder-type arrays recorded
 by `RecInfoBinderTypes`. -/
 structure TrBinderTypesPerFamily
     {c : AddInductive.Context} {recLparams : List Name}
@@ -224,7 +229,7 @@ def TrBinderTypesPerFamily.mono
     TrBinderTypesPerFamily Rcurrent origins where
   rows i hi := (H.rows i hi).mono Hext
 
-/-- Weaken every retained origin row through one semantically checked local. -/
+/-- Weaken every binder-type row through one checked local. -/
 def TrBinderTypesPerFamily.withLocalDecl
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
@@ -240,7 +245,7 @@ def TrBinderTypesPerFamily.withLocalDecl
   exact {
     rows := fun i hi => (H.rows i hi).withLocalDecl htr hty }
 
-/-- Weaken every retained row across the consecutive index suffix introduced
+/-- Weaken every row across the consecutive index suffix introduced
 since the root recursor context. -/
 def TrBinderTypesPerFamily.weakenRecent
     {root c : AddInductive.Context} {recLparams : List Name}
@@ -283,7 +288,7 @@ def FVarArrayIn.get
     exact members fv (List.getElem_mem (by simpa using hi))
 
 /-- Every indexed entry of a bound-fvar array is literally a free variable
-present in the retained executable local context. -/
+present in the executable local context. -/
 theorem FVarArrayIn.get_eq_fvar
     (H : FVarArrayIn c xs) (i : Nat) (hi : i < xs.size) :
     ∃ fv, xs[i] = .fvar fv ∧ fv ∈ c.lctx.fvars := by
@@ -292,7 +297,7 @@ theorem FVarArrayIn.get_eq_fvar
   refine ⟨fvars[i], ?_, members fvars[i] (List.getElem_mem hifvars)⟩
   simp
 
-/-- The retained free variable at one array position together with the exact
+/-- The free variable at one array position together with the
 ordinary local declaration which introduced it. -/
 structure FVarDeclAt
     (c : AddInductive.Context) (xs : Array Expr) (i : Nat) where
@@ -308,7 +313,7 @@ structure FVarDeclAt
   declaration : c.lctx.find? fvar = some
     (.cdecl index fvar userName type binderInfo kind)
 
-/-- Declared types of a semantically well-formed context have no loose bound
+/-- Declared types of a closed local context have no loose bound
 variables. -/
 theorem FVarDeclAt.closed (D : FVarDeclAt c xs i)
     (hl : LocalContext.LctxClosed c.lctx) : Closed D.type :=
@@ -333,9 +338,9 @@ theorem FVarArrayIn.declarationAt
     kind := kind
     declaration := hdeclaration }⟩
 
-/-- Exact declaration provenance survives a verified binding-context
-extension.  In particular the declaration type cannot silently change while
-the retained free variable is threaded through later `mkRecInfos` passes. -/
+/-- The declaration of an array entry survives a binding-context
+extension.  In particular the declaration type cannot change while
+the free variable is threaded through later `mkRecInfos` passes. -/
 def FVarDeclAt.mono
     (D : FVarDeclAt c xs i) (H : BindingContextLE c c') :
     FVarDeclAt c' xs i where
@@ -371,8 +376,8 @@ def FVarDeclAt.pushArray
   kind := D.kind
   declaration := D.declaration
 
-/-- Parallel origin types for a retained free-variable array.  Unlike plain
-`FVarArrayIn`, this certificate remembers the exact type used at each
+/-- Parallel binder types for a free-variable array.  Unlike plain
+`FVarArrayIn`, this structure records the exact type used at each
 `withLocalDecl`, and the strengthened context-extension relation makes that
 fact stable in all later contexts. -/
 structure FVarArrayBinderTypes (c : AddInductive.Context)
@@ -382,8 +387,8 @@ structure FVarArrayBinderTypes (c : AddInductive.Context)
   declaration : ∀ i (hi : i < xs.size),
     ∃ D : FVarDeclAt c xs i, D.type = origins[i]!
 
-/-- Semantic translations of the exact declaration-origin expressions in
-the current executable context.  Targets are retained explicitly because
+/-- Translations of the declared binder types in
+the current executable context.  Targets are stored explicitly because
 later recursor restoration must weaken them beneath subsequently introduced
 mutual binders. -/
 structure TranslatedOriginTypes (Hc : ContextWF c)
@@ -401,8 +406,8 @@ def TranslatedOriginTypes.empty (Hc : ContextWF c) :
   translated := .nil
   isType _ h := by simp at h
 
-/-- Two retained declarations for the same expression in one local context
-have the same declaration type.  This deliberately permits different source
+/-- Two declarations for the same expression in one local context
+have the same declaration type.  This permits different source
 arrays and indices: the free-variable identity, rather than an incidental
 array presentation, determines the local declaration. -/
 theorem FVarDeclAt.type_eq_of_expression
@@ -417,8 +422,8 @@ theorem FVarDeclAt.type_eq_of_expression
   rw [← hfvar, D.declaration] at hdeclaration
   exact congrArg LocalDecl.type (Option.some.inj hdeclaration)
 
-/-- Recover the exact production origin type from any declaration witness for
-the same retained array position. -/
+/-- Recover the executable binder type from any `FVarDeclAt` for
+the same array position. -/
 theorem FVarArrayBinderTypes.type_eq
     (H : FVarArrayBinderTypes c xs origins)
     (D : FVarDeclAt c xs i) :
@@ -575,7 +580,7 @@ theorem FVarArrayIn.getElem_eq_fvar
 
 /-- A selected free-variable array occupying a known slice of a larger
 binder list translates, after simultaneous abstraction, to the corresponding
-canonical de Bruijn slice. -/
+de Bruijn slice. -/
 theorem FVarArrayIn.abstractedTranslationAt
     (H : FVarArrayIn c xs)
     (binders before after : List FVarId)
@@ -638,7 +643,7 @@ theorem FVarArrayIn.fvars_eq
   exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlist
 
 /-- Binder identity is determined by the represented expression array, even
-when the two retained certificates are indexed by different contexts. -/
+when the two `FVarArrayIn` facts are indexed by different contexts. -/
 theorem FVarArrayIn.fvars_eq_of_array_eq
     (H₁ : FVarArrayIn c₁ xs) (H₂ : FVarArrayIn c₂ ys)
     (hxy : xs = ys) : H₁.fvars = H₂.fvars := by
@@ -650,7 +655,7 @@ theorem FVarArrayIn.fvars_eq_of_array_eq
   exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlist
 
 /-- Ordered selection of one bound-fvar array from another implies the
-corresponding inclusion of retained free-variable identifiers. -/
+corresponding inclusion of free-variable identifiers. -/
 theorem FVarArrayIn.fvars_subset_of_sublist
     (H₁ : FVarArrayIn c xs) (H₂ : FVarArrayIn c ys)
     (hxy : xs.toList.Sublist ys.toList) : H₁.fvars ⊆ H₂.fvars := by
@@ -662,8 +667,8 @@ theorem FVarArrayIn.fvars_subset_of_sublist
   rw [H₂.expressions] at hy
   simpa using hy
 
-/-- Any ordered subarray of an array of retained free variables is itself a
-retained free-variable array.  The selected identifier list is recovered
+/-- Any ordered subarray of a free-variable array is itself a
+free-variable array.  The selected identifier list is recovered
 from the `List.Sublist` derivation, so this does not assume an auxiliary
 index map or re-run the executable classifier. -/
 theorem FVarArrayIn.ofSublist
@@ -711,8 +716,8 @@ theorem FVarArrayIn.exprArrayFVarIds
     _ = H.fvars := by
       simp [ExprArrayFVarIds, recursorFVarId, Function.comp_def]
 
-/-- All local free-variable arrays retained by the executable recursor-info
-records, aligned with the production array operations. -/
+/-- All local free-variable arrays stored in the executable recursor-info
+records, aligned with the executable array operations. -/
 structure RecInfoBindings (c : AddInductive.Context)
     (recInfos : Array AddInductive.RecInfo) where
   motives : FVarArrayIn c (recInfos.map (·.motive))
@@ -722,9 +727,9 @@ structure RecInfoBindings (c : AddInductive.Context)
   minors : ∀ i (hi : i < recInfos.size),
     FVarArrayIn c recInfos[i]!.minors
 
-/-- Structural trace of the constructor traversal which produced one minor.
-The raw binding-only proof may omit this payload; the semantic second pass
-retains it and the final source-alignment invariant rules that omission out. -/
+/-- The constructor traversal which produced one minor.  It is optional in
+`MinorPremiseType.traversal`; the source alignment `MinorsMatchConstructors`
+requires it to be present. -/
 structure ConstructorFieldTraversal where
   constructor : Constructor
   rootContext : AddInductive.Context
@@ -751,9 +756,9 @@ structure ConstructorFieldTraversal where
   fieldClosed : terminal.abstractList fieldFVars = fieldResidual
   fieldResidual_not_forall : fieldResidual.isForall = false
 
-/-- Stable source construction for one installed recursive-hypothesis
+/-- Alpha-invariant source construction of one induction-hypothesis
 declaration.  This compact form is stored with the generated minor after the
-operational `loopU` accumulator itself has gone out of scope. -/
+executable `loopU` accumulator has gone out of scope. -/
 structure InductionHypothesisShape where
   ownerIdx : Nat
   localArity : Nat
@@ -807,10 +812,9 @@ theorem fieldsBefore_priorFVars (stats : AddInductive.InductiveStats)
       List.getElem?_append_right (Nat.le_add_right _ _), Nat.add_sub_cancel_left]
     exact h2
 
-/-- Exact executable input of one `loopUArgs` traversal.  Retaining both
-reader runs prevents later replay arguments from silently choosing an
-unrelated normalized field domain.  `closedNormalized` is the canonical
-alpha-insensitive view once the caller supplies the outer field binders. -/
+/-- The executable input of one `loopUArgs` traversal: the field's inferred
+type and its `whnf` in the checker context of the earlier fields.  Recording
+both runs fixes the normalized field domain the traversal starts from. -/
 structure LoopUArgsInput
     (root : AddInductive.Context) (field : Expr) where
   /-- The parameters and the fields before `field`: the checker entries
@@ -891,10 +895,10 @@ theorem LoopUArgsInput.checkBase
         R.chk.fvarList[k]? = some fv :=
   R.priorBase H.priorFVars
 
-/-- Exact successful prefix of the executable `loopUArgs.loop` traversal.
-This ties the retained terminal expression,
-fresh argument array, and terminal context to the concrete normalized input
-and every intervening WHNF call. -/
+/-- Successful prefix of the executable `loopUArgs.loop` traversal.
+This ties the terminal expression,
+fresh argument array, and terminal context to the normalized input
+and every intervening `whnf` call. -/
 inductive LoopUArgsRun
     (root : AddInductive.Context) (l : LocalContext) (source : Expr) :
     AddInductive.Context → Expr → Array Expr → Prop
@@ -917,7 +921,7 @@ inductive LoopUArgsRun
       LoopUArgsRun root l source next normalized
         (args.push (.fvar ⟨current.ngen.curr⟩))
 
-/-- A trace rooted at a checker-context variant of `root` is rooted at
+/-- A run rooted at a checker-context variant of `root` is rooted at
 `root`: the root's checker context plays no role. -/
 theorem LoopUArgsRun.ofCheckRoot {root : AddInductive.Context}
     {l l' : LocalContext} {source : Expr} {current : AddInductive.Context}

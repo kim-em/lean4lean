@@ -1,8 +1,8 @@
 import Lean4Lean.Theory.Inductive
 import Lean4Lean.Theory.Inductive.CompilationLemmas
 
-/-! The ill-typed sort equation `Prop ≡ Prop → Prop` must have no finite
-canonical derivation, regardless of its proposed source or provenance.
+/-! The ill-typed sort equation `Prop ≡ Prop → Prop` occurs in no block derived by the finite
+compilation judgment `CompiledInductive`, whatever the source declaration and environment.
 -/
 
 namespace Lean4Lean.Tests.SortEquationRejection
@@ -30,7 +30,7 @@ theorem sortEquation_not_compiled_among_rules {env : VEnv} {source : VInductDecl
   apply sortEquation_not_compiled
   simp [h]
 
-/-- The active installation interface also rejects the sort equation:
+/-- `VInductDecl.CompilesTo`, which installation reads, also rejects the sort equation:
 it carries the finite derivation. -/
 theorem compilesTo_rejects_sortEquation {env : VEnv} {source : VInductDecl}
     {block : VInductBlock} (h : sortEquation ∈ block.rules) :
@@ -38,7 +38,7 @@ theorem compilesTo_rejects_sortEquation {env : VEnv} {source : VInductDecl}
   intro H
   exact sortEquation_not_compiled h H.compiled
 
-/-- Rejection is independent of the bad rule's position in the active block. -/
+/-- Rejection is independent of the bad rule's position in the block. -/
 theorem compilesTo_rejects_sortEquation_among_rules
     {env : VEnv} {source : VInductDecl} {block : VInductBlock}
     {before after : List VDefEq} (h : block.rules = before ++ sortEquation :: after) :

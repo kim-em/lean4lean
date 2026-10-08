@@ -7,7 +7,7 @@ import Lean4Lean.Verify.EquivManager
 
 Nested installation stores `restoreNested loweredEnv loweredCtor.type`
 (`Lean4Lean.restoreConstructorDecl`), while
-`validateRestoredConstructorParameters.run` checks the original source type
+`validateRestoredConstructorParameters.run` checks the source type
 `ctor.type`. This file relates the two for every successful nested run.
 
 **Literal equality is false.** `ElimNestedInductive.findCachedAux?` reuses an
@@ -62,7 +62,7 @@ alignment with the source declaration (`numParams`, `numFields`, `induct`,
 
 The core per-constructor inverse is
 `ConstructorRestorationInverse.restoredType_eqv_source`; the lemmas here
-thread it through the exact production restoration fold
+thread it through the executable restoration fold
 (`LoweredRestoredConstructors`, `NestedRestorationFolds`).
 -/
 
@@ -182,8 +182,8 @@ theorem ConstructorTypesInstalled.fresh
   rcases H source hsource with ⟨info, hfind, horigin⟩
   exact ⟨info, Hfresh.preservesSourceFind hwf hfind, horigin⟩
 
-/-- **Constructor-list round trip.**  Along the exact lockstep alignment of
-constructor lowering with the production restoration fold, every installed
+/-- **Constructor-list round trip.** Along the lockstep alignment of
+constructor lowering with the executable restoration fold, every installed
 constructor is the restoration of its positionally corresponding source
 constructor, with an `Expr.eqv`-equal type. -/
 theorem LoweredRestoredConstructors.constructorsFromSources
@@ -325,8 +325,9 @@ theorem LoweredRestoredConstructors.constructorTypesInstalled
         (fun tail htail => Hdisjoint tail (by simp [htail])) hmiddleWF
       exact (Hhead.fresh HtailFresh hmiddleWF).append Htail
 
-/-- Every constructor of a production output is old, or a new constructor of the declaration
-with its safety flag. -/
+/-- Every constructor of the kernel environment after a recursor check is already
+present in the base environment, or a new constructor of the declaration with its
+safety flag. -/
 theorem RecursorCheck.ctorIsUnsafe
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -348,8 +349,8 @@ theorem RecursorCheck.ctorIsUnsafe
   · exact .inr ⟨_, h⟩
   · exact .inl h
 
-/-- One restored original family: its header and primary recursor add no
-constructor, and its constructor fold is the aligned mapping trace. -/
+/-- One restored source family: its header and source recursor add no
+constructor, and its constructor fold follows the lockstep alignment with lowering. -/
 theorem NestedLoweringOutputClosed.familyConstructorsFromSources
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -443,7 +444,7 @@ theorem FoldSteps.recursorConstructorsFromSources
         simp [ci] at h)
     exact (Hhead.trans (ih hmiddleWF)).mono (by simp)
 
-/-- The fold over the original families. -/
+/-- The fold over the source families. -/
 theorem NestedLoweringOutputClosed.familiesConstructorsFromSources
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -494,7 +495,7 @@ theorem NestedLoweringOutputClosed.familiesConstructorsFromSources
     · exact List.mem_flatMap.mpr ⟨_, hmem, hsource⟩
     · exact hsource
 
-/-- The complete production restoration fold of a nested block. -/
+/-- The complete executable restoration fold of a nested block. -/
 theorem NestedLoweringOutputClosed.restorationConstructorsFromSources
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -677,9 +678,9 @@ theorem NestedLoweringOutputClosed.restorationConstructorTypesInstalled
 
 /-- Both directions of the constructor round trip for the complete
 restoration fold.  The side conditions of the lowering/restoration inverse
-(bound-variable closedness and disjointness from the generated auxiliary
-names) are discharged from the independent source translation and the
-freshness of the generated declarations. -/
+(bound-variable closedness and disjointness from the auxiliary names) are
+discharged from the source translation and the freshness of the auxiliary
+declarations. -/
 theorem NestedLoweringOutputClosed.constructorTypeRoundTripOfSource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}

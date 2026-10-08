@@ -4,8 +4,9 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- Keep exactly the first `n` concrete forall domains and end in Prop.
-This removes the fresh elimination sort before selecting source universes. -/
+/-- The first `n` forall binders of an expression, closed with `Prop` in place of the residual.
+Applied to a motive type it drops the major and the elimination sort, so that the index
+domains can be read in the source universes. -/
 def Expr.forallDomainsOnly : Nat → Expr → Expr
   | 0, _ => .sort .zero
   | n + 1, .forallE name domain body bi =>
@@ -19,8 +20,8 @@ theorem Expr.ForallTelescope.domainsOnly
   | nil => exact .nil _
   | cons H ih => exact .cons ih
 
-/-- Extract the concrete domain prefix with the exact chosen abstract
-translations; the dummy result carries no additional universe dependency. -/
+/-- A translation of a telescope to `wrapForalls domains result` restricts to a translation of
+its first `n` domains (`Expr.forallDomainsOnly`) to `wrapForalls domains Prop`, which is a type. -/
 theorem TrExprS.forallDomainsOnly
     (Htel : Expr.ForallTelescope source n residual)
     (hlen : domains.length = n)
@@ -42,8 +43,11 @@ theorem TrExprS.forallDomainsOnly
         obtain ⟨Hbody', HbodyType⟩ := ih (by simpa using hlen) Hbody
         exact ⟨.forallE HdomType HbodyType Hdom Hbody', .forallE HdomType HbodyType⟩
 
-/-- Original-universe domains chosen by replacing only the extra parameter.
-The old recursor-universe domains need not be syntactic shifts of these. -/
+/-- If a telescope translates at the universe parameters `fresh :: Us` and its first `n`
+domains do not mention `fresh`, then those domains also translate at `Us` to some
+`sourceDomains`, which form a type, and shifting `sourceDomains` past `fresh` gives a
+translation at `fresh :: Us`. The domains of the given translation need not be syntactically
+these shifts. -/
 theorem TrExprS.chooseDeclUnivForallDomains
     (henv : env.WF) (hΔ : VLCtx.WF env Us.length Δ)
     (hfresh : fresh ∉ Us)
@@ -99,8 +103,8 @@ theorem RecursorConstruction.parameterAnonymousContext
   rw [VLCtx.instL_abstractForallContext, H.parameterDomains]
   rfl
 
-/-- The native index-only telescope whose source-universe support is retained
-by the first-pass replay. The major binder and elimination sort are removed. -/
+/-- The executable index telescope of family `owner`: its motive type, abstracted over the
+parameters, with the major binder and elimination sort removed (`Expr.forallDomainsOnly`). -/
 def RecursorConstruction.indexDomainSource
     (H : RecursorConstruction R) (owner : Nat) : Expr :=
   Expr.forallDomainsOnly H.recInfos[owner]!.indices.size
@@ -191,8 +195,9 @@ theorem RecursorConstruction.indexDomainSource_eq
   rw [indexDomainSource, Expr.forallDomainsOnly_abstractList,
     I.forallDomainsOnly H.localWF hindices]
 
-/-- Successful construction retains the concrete index-scope check at the
-final context; ordinary context extension and parameter abstraction preserve it. -/
+/-- The executable index telescope mentions only the declaration's universe parameters: the
+construction records the index-universe check of the motive pass, and context extension and
+parameter abstraction preserve it. -/
 theorem RecursorConstruction.indexDomainSource_levelParams
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
@@ -258,8 +263,9 @@ theorem RecursorConstruction.chooseDeclUnivIndexDomains_large
   simpa only [indexDomainSource, abstractForallContext_toCtx, List.reverse_reverse,
     VLCtx.toCtx, List.append_nil] using Hchosen
 
-/-- Small elimination already runs at the source universes, so its concrete
-index choice requires no universe-support transport. -/
+/-- For elimination into `Prop` the recursor's universe parameters are the source ones, so the
+index domains of the executable motive translate directly in the recursor-checking environment
+over the source parameter scope. -/
 theorem RecursorConstruction.chooseDeclUnivIndexDomains_small
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)

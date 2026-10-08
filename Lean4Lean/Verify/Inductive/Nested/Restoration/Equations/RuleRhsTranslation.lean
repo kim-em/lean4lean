@@ -5,8 +5,8 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.RestorableNameAvoidance
 
 /-! # The restored rule right-hand sides of a nested run translate
 
-`NestedRun.restoredRuleRhs_translates`: in the final abstract
-environment of an assembly base of a nested run, the right-hand side of every
+`NestedRun.restoredRuleRhs_translates`: in the recursor
+environment of a restored block base of a nested run, the right-hand side of every
 restored recursor rule translates, to the restoration of the generated
 right-hand side. It instantiates `NestedRestorationOpening.translatesLambdaTrail`
 with the renaming restoration substitution of the run
@@ -16,11 +16,11 @@ auxiliaries for the replacement heads (`RestorationTablesAgree.restoreHeadsTrans
 
 This is a route to the right-hand-side translation that does not read it off
 the executable check of the restored rules, so that the check could run in the
-complete restored environment as in the C++ kernel. It is not used by the final
-assembly yet: it assumes `HF`, that the trailing arguments of auxiliary nodes and
-the parameter domains of the lowered rules avoid the auxiliary family names
-(`LoweredRulesAvoidAll.lean` proves the avoidance of every other restorable
-name). `HF` is not proved; it needs the lowering invariant that the arguments
+complete restored environment as in the C++ kernel. The installation of the
+restored block does not use it: it assumes `HF`, that the trailing arguments of
+auxiliary nodes and the parameter domains of the lowered rules avoid the
+auxiliary family names (`Nested/Restoration/RestorableNameAvoidance.lean` proves
+the avoidance of every other restorable name). `HF` is not proved; it needs the lowering invariant that the arguments
 after the parameters at every auxiliary-family occurrence are copied source
 syntax, and the positivity facts on induction-hypothesis domains.
 -/
@@ -177,8 +177,9 @@ theorem VExpr.wrapLams_prefix :
 
 /-! ### The replacement heads of a nested run -/
 
-/-- The universe and parameter data of the canonical generation of a nested
-run, at the declaration's universe parameters `lparams`. -/
+/-- The universe and parameter data of the generator instance
+(`canonicalGeneration`) of a nested run, at the declaration's universe
+parameters `lparams`. -/
 theorem NestedRun.canonicalGenerationLevels
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -217,10 +218,10 @@ theorem NestedRun.canonicalGenerationLevels
   exact key lparams hlp
 
 /-- **The replacement heads of a nested run translate** at the universe
-parameters of its recursors, over the opened canonical parameters: the
-recorded container applications translate in the source header environment
-(`restorationTablesRestoringAllSpec`), at parameter domains definitionally
-equal to the canonical ones. -/
+parameters of its recursors, over the opened generated parameters
+(`canonicalGeneration.params`): the recorded container applications translate
+in the source header environment (`restorationTablesRestoringAllSpec`), at
+parameter domains definitionally equal to the generated ones. -/
 theorem NestedRun.restoredHeadsTranslate
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -443,7 +444,7 @@ theorem NestedRun.restoredRuleRhs_translates
     cases l with
     | natVal => exact hkept _ (by decide) hl
     | strVal => exact ⟨hkept _ (by decide) hl.1, hkept _ (by decide) hl.2⟩
-  -- the canonical parameters are fixed by restoration
+  -- the generated parameters are fixed by restoration
   have hle : envTypes ≤ B.recursorVEnv := by
     have hvenvTypes : B.install.venvTypes = envTypes := by
       have h1 := B.install.abstract_types
@@ -498,8 +499,8 @@ theorem NestedRun.restoredRuleRhs_translates
   rw [← D.expr_eq D₁, hrhsEq]
   exact hr
 
-/-- **Realization of a restored generated equation over an assembly base**,
-without the rule validator: the right-hand side of the executable restored
+/-- **Translation of a restored generated equation over a restored block
+base**, without the rule validator: the right-hand side of the executable restored
 rule translates (`restoredRuleRhs_translates`) to the restored generated
 right-hand side. -/
 theorem NestedRun.trRestoredRecursorRule_base

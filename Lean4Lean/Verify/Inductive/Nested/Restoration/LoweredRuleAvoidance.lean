@@ -3,10 +3,10 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.TranslationPreservation
 
 /-! # Input-side avoidance of the auxiliary constructor names by the lowered rules
 
-The restored-equation junction modulo the renamed auxiliary recursor names
+The restored-equation lemma modulo the renamed auxiliary recursor names
 (`restoredEquations_of_trModulo`, `Nested/Restoration/RecursorRenaming.lean`) needs the
-residue `NestedRun.LoweredRulesAvoid heads X`: in the lowered
-rule right-hand sides, the trailing arguments of the hits, the literals and the
+premise `NestedRun.LoweredRulesAvoid heads X`: in the lowered
+rule right-hand sides, the trailing arguments of the head occurrences, the literals and the
 parameter domains avoid `X`. Only the restorable names of `X` matter
 (`TrRestoredRulesModulo.filter_restorable`), and those are auxiliary
 constructor names (`restorableRenamed_auxCtorNames`: lowered auxiliary recursor
@@ -19,20 +19,20 @@ occur in the lowered rules, as the constructor applications `c params fields`
 of the minor premises, so complete avoidance is false; the argument is:
 
 * `envParamUniform_auxCtorNames`, `whnfPreservesParamUniform_auxCtorNames`: the type checker's
-  hit-shape invariant (`TypeChecker.whnf.paramUniform`) instantiated at the head
+  parameter-uniformity invariant (`TypeChecker.whnf.paramUniform`) instantiated at the head
   set `E.auxCtorNames`, without parameters, at the level list `foreignLevels
   lparams` of length `lparams.length + 1`. `Expr.ParamUniform names [] ls e` says
   that every occurrence of `names` in `e` carries the levels `ls`. Every
   constant of the recursor-pass environment has a type avoiding the auxiliary
   constructor names, so the environment condition holds at any level list.
-* `RecursorConstruction.ruleRhsTrail`: the trailing provenance chain
+* `RecursorConstruction.ruleRhsTrail`: the trailing-argument chain
   (the counterpart of `ruleRhsParamUniform`) for the predicate
   `Expr.TrailingArgs heads np (Expr.ParamUniform names [] ls)`: the `whnf` regions
   R1 to R3, the constructor field domains, the motives, the major premises and
   the recursive calls mention `names` only at `ls`; the minors' constructor
-  applications are hits whose trailing arguments are field variables. The
+  applications are head occurrences whose trailing arguments are field variables. The
   parameter domains avoid `names`.
-* `TrailingArgs.toTrailingArgsAvoid`: the hit-shape chain at the declaration's
+* `TrailingArgs.toTrailingArgsAvoid`: the parameter-uniformity chain at the declaration's
   levels (`recursorParamUniform_uniformHeads`) says that every occurrence of an
   auxiliary constructor is at `lparams.map Level.param`; at the trailing
   positions occurrences are also at `foreignLevels lparams`, which differs, so
@@ -43,7 +43,7 @@ namespace Lean.Expr
 
 open Lean4Lean
 
-/-! ### Trailing-argument conditions at hits -/
+/-! ### Trailing-argument conditions at head occurrences -/
 
 namespace TrailingArgs
 
@@ -246,7 +246,7 @@ namespace Lean.Expr
 
 open Lean4Lean
 
-/-! ### Hit shape without parameters
+/-! ### Parameter uniformity without parameters
 
 `ParamUniform names [] ls e` says that every occurrence of a constant of `names` in
 `e` carries the levels `ls`. Two such facts at different level lists exclude
@@ -264,7 +264,7 @@ theorem app_inv_nil {f a : Expr} (H : ParamUniform heads [] ls (.app f a)) :
   | head => simp at he
   | _ => cases he
 
-/-- Forgetting the parameters of the hits. -/
+/-- Forgetting the parameters of the head occurrences. -/
 theorem params_nil {params : List Expr} {e : Expr} (H : ParamUniform heads params ls e)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) : ParamUniform heads [] ls e := by
   induction H with
@@ -286,7 +286,7 @@ theorem params_nil {params : List Expr} {e : Expr} (H : ParamUniform heads param
   | mdata _ ih => exact .mdata ih
   | proj _ ih => exact .proj ih
 
-/-- Shrinking the head set of a parameterless hit shape. -/
+/-- Shrinking the head set of a parameterless uniform form. -/
 theorem nil_mono {names : List Name} {e : Expr} (H : ParamUniform heads [] ls e)
     (hsub : ∀ n ∈ names, n ∈ heads) : ParamUniform names [] ls e := by
   induction H with
@@ -307,12 +307,12 @@ theorem nil_mono {names : List Name} {e : Expr} (H : ParamUniform heads [] ls e)
   | mdata _ ih => exact .mdata ih
   | proj _ ih => exact .proj ih
 
-/-- Abstraction preserves a parameterless hit shape. -/
+/-- Abstraction preserves a parameterless uniform form. -/
 theorem nil_abstractN {e : Expr} (H : ParamUniform heads [] ls e) (ys : List FVarId) (d : Nat) :
     ParamUniform heads [] ls (e.abstractN ys d) :=
   H.abstractN_of_disjoint (by simp) d
 
-/-- Two parameterless hit shapes at different levels exclude the heads. -/
+/-- Two parameterless uniform forms at different levels exclude the heads. -/
 theorem avoids_of_two {ls' : List Level} {e : Expr} (H : ParamUniform heads [] ls e)
     (H' : ParamUniform heads [] ls' e) (hne : ls ≠ ls')
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts heads) : e.AvoidsConsts heads := by
@@ -345,7 +345,7 @@ theorem avoids_of_two {ls' : List Level} {e : Expr} (H : ParamUniform heads [] l
 
 end ParamUniform
 
-/-- The bound-variable form forgets to a parameterless hit shape. -/
+/-- The bound-variable form forgets to a parameterless uniform form. -/
 theorem ParamUniformBV.toNil {heads : List Name} {n : Nat} {ls : List Level} {d : Nat} {e : Expr}
     (H : ParamUniformBV heads n ls d e) : ParamUniform heads [] ls e := by
   induction H with
@@ -372,7 +372,7 @@ namespace TrailingArgs
 
 variable {heads names : List Name} {np : Nat} {ls : List Level}
 
-/-- A parameterless hit shape holds hereditarily, so in particular at trailing
+/-- A parameterless uniform form holds hereditarily, so in particular at trailing
 arguments. -/
 theorem of_paramUniform_nil {e : Expr} (H : ParamUniform names [] ls e) :
     TrailingArgs heads np (ParamUniform names [] ls) e := by
@@ -394,8 +394,8 @@ theorem of_paramUniform_nil {e : Expr} (H : ParamUniform names [] ls e) :
   | mdata _ _ ih => exact .mdata (ih H.mdata_inv)
   | proj _ _ _ ih => exact .proj (ih H.proj_inv)
 
-/-- **From trailing hit shape at impossible levels to trailing avoidance.** If
-the trailing arguments of the hits of `e` mention `names` only at the levels
+/-- **From trailing parameter uniformity at impossible levels to trailing avoidance.** If
+the trailing arguments of the head occurrences of `e` mention `names` only at the levels
 `ls`, while `e` mentions `names` only at the levels `ls' ≠ ls`, then the
 trailing arguments avoid `names`, hence every `X ⊆ names`. -/
 theorem toTrailingArgsAvoid {ls' : List Level} {X : List Name} {e : Expr}
@@ -602,11 +602,11 @@ namespace TrailingArgs
 variable {heads names : List Name} {np : Nat} {ls : List Level}
 
 /-- **Instantiating the placeholder of an `ArgClosed` template.** If `e` is in
-parameterless hit shape and `ArgClosed k`, and `v` is a closed expression
-satisfying `TrailingArgs` whose spine arguments are in parameterless hit shape,
+parameterless uniform form and `ArgClosed k`, and `v` is a closed expression
+satisfying `TrailingArgs` whose spine arguments are in parameterless uniform form,
 then `e[k := v]` satisfies `TrailingArgs` for the condition "mentions `names`
 only at `ls`", and so do its spine arguments. The substituent itself need not
-be in hit shape: it lands only at spine heads. -/
+be parameter-uniform: it lands only at spine heads. -/
 theorem instantiate1'_argClosed {v : Expr} (hv : v.looseBVarRange' = 0)
     (hvT : TrailingArgs heads np (ParamUniform names [] ls) v)
     (hvargs : ∀ x ∈ v.getAppArgsList, ParamUniform names [] ls x) :
@@ -861,7 +861,7 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {R : ConstructorCheck c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv}
 
-/-- **Inputs of the trailing-argument provenance** of a completed recursor
+/-- **Inputs of the trailing-argument chain** of a recursor
 construction, for a name list `names` and the levels `ls` (in the application,
 the auxiliary constructor names at levels that no translated constant
 carries): parameter declarations, family headers and constructor types avoid
@@ -891,11 +891,11 @@ private theorem hQ {names : List Name} {ls : List Level} :
       Expr.ParamUniform names [] ls (x.abstractN ys d) :=
   fun ys _ d h => h.nil_abstractN ys d
 
-/-- **Trailing provenance of one generated minor**: its field declarations are
+/-- **Trailing arguments of one generated minor**: its field declarations are
 `cdecl`s whose types mention `names` only at `ls`; its declared type satisfies
 `TrailingArgs` for the condition "mentions `names` only at `ls`" (the only
 other occurrences are the minor's constructor application, whose trailing
-arguments are fields); the call templates of its rule blueprint mention
+arguments are fields); the call templates of its rule template mention
 `names` only at `ls` and are `ArgClosed`. -/
 theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailingArgDeclarations names ls)
     (W : WhnfPreservesParamUniform names [] ls H.localContext.env)
@@ -1242,8 +1242,8 @@ private theorem nil_type {y : FVarId}
   cases hd
   exact ⟨_, hc, hs⟩
 
-/-- **Trailing provenance of the generated rule right-hand sides.** Every rule
-right-hand side `blueprint.build ...` satisfies `TrailingArgs` for the
+/-- **Trailing arguments of the generated rule right-hand sides.** Every rule
+right-hand side `blueprint.instantiate ...` of a rule template satisfies `TrailingArgs` for the
 condition "mentions `names` only at `ls`", and its parameter domains avoid
 `names`. -/
 theorem ruleRhsTrail (I : H.TrailingArgDeclarations names ls)
@@ -1401,7 +1401,7 @@ theorem RecursorConstruction.familyNames_not_mem
   cases hn
   exact familyName_not_mem_ctorNames hnodup _ (List.getElem_mem hi') (hnames _ hmem)
 
-/-- The parameter declarations of a completed recursor construction avoid every
+/-- The parameter declarations of a recursor construction avoid every
 name fresh in the source environment and satisfy the projection condition. -/
 theorem RecursorConstruction.paramDecls_trail
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -1514,7 +1514,7 @@ theorem NestedRun.ctorType_avoids_auxCtorNames
   obtain ⟨t, ht, c, hc, rfl⟩ := E.auxCtorNames_ctor n hn
   exact E.ctorNames_fresh_headerVEnv wf hnodup ht hc
 
-/-- **The environment condition of the type checker's hit-shape invariant at
+/-- **The environment condition of the type checker's parameter-uniformity invariant at
 the auxiliary constructor names, without parameters, at `foreignLevels`.** Every
 constant of the recursor-pass environment other than an auxiliary constructor
 has a type avoiding the auxiliary constructor names (old constants: they are
@@ -1673,7 +1673,7 @@ theorem NestedRun.envParamUniform_auxCtorNames
     · cases heq
 
 /-- **`whnf` preserves "mentions the auxiliary constructors only at
-`foreignLevels`"** in the recursor pass of an exact validated nested run. -/
+`foreignLevels`"** in the recursor pass of a validated nested run. -/
 theorem NestedRun.whnfPreservesParamUniform_auxCtorNames
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
@@ -1685,7 +1685,7 @@ theorem NestedRun.whnfPreservesParamUniform_auxCtorNames
   rw [E.recursorPassEnv]
   exact E.envParamUniform_auxCtorNames wf Hsources
 
-/-- **The trailing-provenance inputs of an exact validated nested run** at the
+/-- **The inputs of the trailing-argument chain for a validated nested run** at the
 auxiliary constructor names and `foreignLevels`. -/
 theorem NestedRun.trailingArgDeclarations_of
     (E : NestedRun result sourceProdEnv sourceTypes
@@ -1786,8 +1786,8 @@ theorem TrailingArgsAvoid.mono {heads names names' : List Name} {np : Nat} {e : 
   | mdata _ ih => exact .mdata ih
   | proj _ ih => exact .proj ih
 
-/-- A lambda prefix avoiding `names` around a body in parameterless hit shape
-is in parameterless hit shape. -/
+/-- A lambda prefix avoiding `names` around a body in parameterless uniform form
+is in parameterless uniform form. -/
 theorem LamPrefixAvoids.paramUniform_nil {names : List Name} {ls : List Level} {k : Nat}
     {e body : Expr} (H : LamPrefixAvoids names k e) (hl : LeadingBinders k e body)
     (hb : ParamUniform names [] ls body) : ParamUniform names [] ls e := by
@@ -1864,17 +1864,17 @@ theorem NestedRun.generatedEntryOfFind
 
 /-- **Input-side avoidance of the auxiliary constructor names by the lowered
 recursor rules.** In every rule right-hand side of every lowered recursor of an
-exact validated nested run, the trailing arguments of the hits (of any head
+validated nested run, the trailing arguments of the head occurrences (of any head
 list), the literals and the parameter domains avoid the auxiliary constructor
 names.
 
-The proof runs the trailing provenance chain (`ruleRhsTrail`) at the auxiliary
+The proof runs the trailing-argument chain (`ruleRhsTrail`) at the auxiliary
 constructor names without parameters, at the impossible levels `foreignLevels`
 (`whnfPreservesParamUniform_auxCtorNames`): the regions computed by `whnf`, the
 constructor field domains, the index domains and the parameter domains mention
 the auxiliary constructors only at `foreignLevels`, and the only other occurrences
 are the minors' constructor applications, whose trailing arguments are fields.
-The hit-shape chain at the declaration's levels (`recursorParamUniform_uniformHeads`)
+The parameter-uniformity chain at the declaration's levels (`recursorParamUniform_uniformHeads`)
 says that every occurrence is at `lparams.map Level.param ≠ foreignLevels`, so the
 trailing occurrences do not exist. -/
 theorem NestedRun.loweredRulesAvoid_auxCtorNames
@@ -1889,11 +1889,11 @@ theorem NestedRun.loweredRulesAvoid_auxCtorNames
   let C := E.lowered.recursors
   have howner : owner.val < C.recInfos.size := by rw [← C.generated.length]; exact hi
   have hrule' : rule ∈ (C.generated.entry owner.val hi).info.rules := by rw [hinfo]; exact hrule
-  -- the declaration-level hit shape
+  -- the declaration-level parameter uniformity
   have W := E.whnfPreservesParamUniform wf Hsources
   rw [← E.statsLevels] at W
   have HS := (C.generatedParamUniform (E.paramUniformDeclarations_of wf Hsources) W owner.val hi).2 rule hrule'
-  -- the trailing provenance at `foreignLevels`
+  -- the trailing-argument chain at `foreignLevels`
   rw [(C.generated.entry owner.val hi).rules_eq] at hrule'
   simp only [List.mem_map] at hrule'
   obtain ⟨blueprint, hmem, rfl⟩ := hrule'
@@ -2051,7 +2051,7 @@ theorem NestedRun.restorableRenamed_auxCtorNames
 
 /-- **Input-side avoidance of the restorable renamed names by the lowered
 rules**, for a restoration table of `restorationTablesRestoringAll`: the
-residue `LoweredRulesAvoid` of the restored-equation junction at the
+premise `LoweredRulesAvoid` of the restored-equation lemma at the
 restorable names among the renamed auxiliary recursor names, discharged from
 the run alone (`loweredRulesAvoid_auxCtorNames`,
 `restorableRenamed_auxCtorNames`). -/

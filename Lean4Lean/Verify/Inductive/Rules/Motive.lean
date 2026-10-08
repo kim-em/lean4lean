@@ -1,5 +1,11 @@
 import Lean4Lean.Verify.Inductive.Rules.MinorPremise
 
+/-! The owner motive of a rule. The generated index/major suffix of a recursor is the owner
+motive's domain telescope (`RecursorCheck.ownerSuffix_eq_expected`); this alignment is carried
+under the constructor fields and transported to the cached parameter context. Every recursor
+is well typed in the recursor environment at its identity universe instantiation
+(`RecursorCheck.recursorTypingAt`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -11,7 +17,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
 /-- The generated owner-motive domain is itself an exactly sized typed
-index/major telescope.  This follows from the retained production local
+index/major telescope.  This follows from the retained executable local
 declarations, not by inspecting the translated target: the source closes the
 owner indices and major, and abstraction over the preceding recursor binders
 preserves that telescope. -/
@@ -99,7 +105,7 @@ theorem
     exact ⟨T, S, hparameters, motiveDomains, _, hlength, hsuffixLength,
       htarget, VLevel.WF.of_ofLevel hlevel⟩
 
-/-- Arbitrary-witness form of `finalOwnerMotiveTelescopeShape`.  Structural
+/-- Arbitrary-witness form of `installedOwnerMotiveTelescopeShapeAt`.  Structural
 uniqueness transports the semantic shape to the exact `T` already selected
 by an equation frame. -/
 theorem
@@ -778,7 +784,7 @@ theorem
 are typed by forall telescopes with literally the same dependent domains.
 Their residuals deliberately differ: the prefix returns the generated
 recursor result, while the motive application returns an elimination sort.
-This is the exact interface consumed by `mkApps_sameTelescopeDomains`. -/
+This is the form in which `SameTelescopeDomains` compares the two applications. -/
 theorem
     RecursorCheck.RuleAlignment.installedCachedPrefixOwnerTelescope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -995,7 +1001,7 @@ theorem
     S.motiveClosedCanonicalDefEq.mono hbase, S.motiveTypeCanonicalEq,
     Hgenerated⟩
 
-/-- The production motive translated in the canonical parameter scope, as
+/-- The executable motive translated in the canonical parameter scope, as
 replayed in the checker context of the first pass. -/
 theorem
     RecursorCheck.installedOwnerScopedMotiveTranslationAt
@@ -1044,7 +1050,7 @@ theorem
   exact ⟨T, S, S.motiveSourceTarget, hsource, S.motiveSourceTr.mono hbase,
     S.motiveSourceCanonical.mono hbase, Hgenerated⟩
 
-/-- Abstract the exact cached parameter suffix of the narrowed production
+/-- Abstract the exact cached parameter suffix of the dependency-selected executable
 motive, then transport it to the generated parameter telescope.  Earlier
 mutual motives are absent from the concrete source, so adding their abstract
 binders is precisely ordinary bound-variable weakening. -/
@@ -1328,7 +1334,7 @@ theorem
     HcanonicalWeak'
   exact ⟨T, S, hparams, by simpa [source] using Hresult⟩
 
-/-- The aligned recursor is present and well typed in the final environment
+/-- The aligned recursor is present and well typed in the recursor environment
 at its identity universe instantiation.  Rule typing can therefore consume
 the independently recovered telescope without appealing to the equation
 being constructed. -/

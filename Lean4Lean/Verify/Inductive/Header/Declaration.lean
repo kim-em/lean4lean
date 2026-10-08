@@ -3,6 +3,16 @@ import Lean4Lean.Verify.Inductive.Header.CheckedHeaders
 import Lean4Lean.Verify.Inductive.Constructor.RawTranslation
 import Lean4Lean.Verify.Inductive.Formation
 
+/-!
+# The header declaration
+
+Once the constructor phase has translated the constructor types in the header environment,
+the checked headers and the constructor targets are joined into one abstract declaration
+(`HeaderDeclaration`, `HeaderDeclaration.ofTargetsExact`): its skeleton, the `VInductDecl`
+obtained with `withMetadata`, the header translation `TrInductDeclHeaders` and the
+`HeaderCertificate`.
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -33,7 +43,7 @@ structure HeaderDeclaration
 
 /-- Final semantic assembly together with the exact header target list from
 which it was built.  Keeping this equality at the assembly boundary lets the
-production installer be reused without reconstructing target uniqueness. -/
+header installation proofs be reused without reconstructing target uniqueness. -/
 structure HeaderDeclarationOf
     (env envTypes : VEnv) (Us : List Name) (nparams : Nat)
     (sources : List InductiveType) (isUnsafe : Bool)
@@ -127,10 +137,10 @@ theorem HeaderDeclaration.ofTargetsExact
           VInductDeclSkeleton.withMetadata_toSkeleton A.checked]
       _ = Hsemantic.headers.targets := htypeConstants
 
-/-- The metadata used to withMetadata a declaration is exactly the resulting
-per-family index-count vector.  This is the declaration-wide counterpart of
-`withMetadata_typeAt`, factored out of the old traversal terminal case so the
-skeleton-free assembly path can reuse it. -/
+/-- The metadata passed to `withMetadata` is exactly the per-family
+index-count vector of the resulting declaration.  This is the
+declaration-wide counterpart of `withMetadata_typeAt`, used by the
+skeleton-free assembly path. -/
 theorem VInductDeclSkeleton.withMetadata_numIndices
     {skeleton : VInductDeclSkeleton} {metadata : List (Nat × VLevel)}
     {decl : VInductDecl}
@@ -181,7 +191,7 @@ theorem TrInductDeclSkeletonHeaders.typeNames
       simp [Htype.header.name, ih]
   exact go H.types
 
-/-- Repackage a completed skeleton-free semantic traversal in the established
+/-- Repackage a skeleton-free header declaration (`HeaderDeclaration`) in the
 `HeaderStatsWF` interface.  All executable statistics and context
 facts are supplied by the outer fold; the declaration, header certificate and
 normalized source telescopes come solely from semantic assembly. -/

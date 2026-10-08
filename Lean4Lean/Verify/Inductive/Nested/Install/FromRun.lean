@@ -19,27 +19,22 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-/-! # Exact evidence boundary for nested final assembly
+/-! # The restored block base of a validated nested run
 
-`NestedFinalAssemblyShapeEvidence` is the certificate-facing aggregate.
-This module decomposes that aggregate into evidence indexed by the exact
-lowering/restoration run. Source non-emptiness, source-map well-formedness,
-and the fresh-constant trace are derived operationally. None of the remaining
-semantic records is intended to be supplied at the public declaration
-boundary; the final construction must derive them from the same run.
-
-The fields are split by role:
-
-* `NestedFinalAssemblyExactLayout` only aligns the exact fresh entries with
-  canonical dependency order and identifies the recursor value suffix;
-* `NestedFinalAssemblyShapeSemanticEvidence` retains canonical installation,
-  formation, and pointwise source/primary semantics, but no executable
-  freshness or lowering non-emptiness assumptions.
+This module derives the rule-independent part of the restored block
+certificate from the lowering and restoration run itself.  Source
+non-emptiness, source-map well-formedness and the fresh extension are read off
+the executable; nothing is supplied at the public declaration boundary.  The
+main steps are the dependency-order installation of the restored constants
+(`NestedLoweringOutputClosed.existsValidatedExactRestoration`), the source
+parameter formation (`NestedRun.sourceCoreParameterWF`), and the restored
+block base (`RestoredBlockBase.ofReplay`, `NestedRun.assemblyBaseValid`).
 -/
 
-/-- The operational/source constructor join is lockstep in all three lists.
-This exposes the rule-cardinality fact needed to fold one restored primary
-recursor without asking final assembly to restate constructor layout. -/
+/-- The executable and source constructor translations are lockstep in all
+three lists.  This exposes the rule-cardinality fact needed to fold one
+restored source recursor without asking the restored block certificate to
+restate constructor layout. -/
 theorem RestoredConstructorMappingTranslations.lengths
     (H : RestoredConstructorMappingTranslations result mappingEnv loweredEnv
       params nparams safety lparams canonicalEnv sources state targets
@@ -50,9 +45,9 @@ theorem RestoredConstructorMappingTranslations.lengths
   | cons _ _ _ _ _ _ _ Hrest ih =>
     exact ⟨by simp [ih.1], by simp [ih.2]⟩
 
-/-- Telescope-translation specialization of the pointwise source producer.
+/-- Telescope-translation form of the pointwise source recursor translation.
 The source recursor, its shape, metadata refinement, and installation typing
-are reconstructed from the exact production/restoration join. -/
+are reconstructed from the lowered run and the restoration step. -/
 theorem NestedLoweringOutputClosed.restoredSourceTelescopeAtFreshOfValidation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -130,8 +125,8 @@ theorem AuxiliaryRecursorGeneratedAlignment.recursorStepOfValidation
   exact ⟨AuxiliaryRecursorTranslation.ofTypeTranslation targetType Hsafety
     Htranslation Htype⟩
 
-/-- Fold the executable validation certificates over the exact auxiliary
-restoration trace.  Membership in the validation suffix is inherited from
+/-- Fold the executable validation certificates over the auxiliary
+restoration fold.  Membership in the validation suffix is inherited from
 the literal `FoldSteps` name list. -/
 theorem AuxiliaryRecursorGeneratedAlignments.recursorTraceOfValidation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -166,9 +161,9 @@ theorem AuxiliaryRecursorGeneratedAlignments.recursorTraceOfValidation
       exact ⟨finalRecursors,
         AuxiliaryRecursorTranslations.cons Hstep Htail Hhead Hfinal⟩
 
-/-- The source semantic trace fixes the ordered primary-recursor names to the
-literal executable restoration renaming.  This is producer evidence: no
-block-level name equality is supplied by a final-assembly caller. -/
+/-- The source-family translations fix the ordered source-recursor names to
+the literal executable restoration renaming.  This is a fact of the run: no
+block-level name equality is supplied by the caller. -/
 theorem SourceFamilyTranslations.recursorNames
     {sourceTypes : List InductiveType}
     {sourceProdEnv targetProdEnv : Environment}
@@ -188,10 +183,10 @@ theorem SourceFamilyTranslations.recursorNames
       exact Hrecursor.name.trans
         (Hstep.restored.recursor.restored.mappedName)
 
-/-- The block-independent auxiliary trace likewise fixes the ordered suffix
-of restored recursor names.  The more general prefix statement matches the
-append-oriented trace index and specializes to the empty initial suffix used
-by canonical staging. -/
+/-- The block-independent auxiliary translations likewise fix the ordered
+suffix of restored recursor names.  The more general prefix statement matches
+the append-oriented index and specializes to the empty initial suffix used
+by the dependency-order installation. -/
 theorem AuxiliaryRecursorTranslations.recursorNames
     {Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
@@ -214,9 +209,10 @@ theorem AuxiliaryRecursorTranslations.recursorNames
           (Hstep.restored.restoration.name.trans Hstep.restored.mappedName)
       simp only [hname]
 
-/-- Construct the canonical constant installation for an exact nonempty
-nested restoration using only the source semantic trace, executable recursor
-validation, and the primitive/non-delta companion traces of that same run. -/
+/-- Construct the dependency-order installation of the constants of a
+nonempty nested restoration using only the source-family translations,
+executable recursor validation, and the primitive/non-delta companion
+extensions of that same run. -/
 theorem NestedLoweringOutputClosed.existsValidatedExactRestoration
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -281,9 +277,8 @@ theorem NestedLoweringOutputClosed.existsValidatedExactRestoration
   exact ⟨auxiliaryRecursors, Hauxiliary, replay, canonicalProdEnv, installedVEnv,
     Hstaged, hlookup⟩
 
-/-- Construct the rule-independent part of the final nested certificate
-directly from the exact traces retained by the executable run. No rule list
-is selected. -/
+/-- Construct the restored block base directly from the facts retained by
+the executable run.  No rule list is selected. -/
 theorem RestoredBlockBase.ofReplay
     {c : AddInductive.Context} {sourceDecl : VInductDecl} {isUnsafe : Bool}
     {nparams : Nat} {sourceVEnv envTypes envCtors finalBaseVEnv : VEnv}
@@ -397,7 +392,7 @@ theorem RestoredBlockBase.ofReplay
         eliminatorsRestored := by rw [hcanonicalElims]; exact HelimRestored },
         rfl, HruleValid⟩⟩
 
-/-- Transporting the environment index of a formation assembly does not alter
+/-- Transporting the environment index of nested expansion data does not alter
 its data-valued expanded declaration. -/
 private theorem NestedExpansionData.expanded_eq_of_envTransport
     {env₁ env₂ : VEnv} {decl : VInductDecl} (h : env₁ = env₂)
@@ -407,8 +402,8 @@ private theorem NestedExpansionData.expanded_eq_of_envTransport
   subst env₂
   rfl
 
-/-- Dependent eta for an installed production whose complete phase package is
-transported together with its inductive-type array. -/
+/-- Dependent eta for a lowered run whose complete check is transported
+together with its inductive-type array. -/
 private theorem LoweredRun.rebuildIndTypes_eq
     {outEnv : Environment} (P : LoweredRun outEnv)
     (newIndTypes : Array InductiveType) (h : P.indTypes = newIndTypes) :
@@ -436,10 +431,10 @@ private theorem LoweredRun.rebuildIndTypes_eq
   subst newIndTypes
   rfl
 
-/-- The source families reconstructed by native restoration inherit the
-ordinary header shapes of the exact lowered prefix.  The source-core builder
-retains literal header values, while materialization retains the separately
-checked index count and result universe. -/
+/-- The source families reconstructed by restoration inherit the ordinary
+header shapes of the exact lowered prefix.  The source-core builder retains
+literal header values, while the header checks retain the separately checked
+index count and result universe. -/
 theorem NestedRun.sourceCoreTypeShapes
     (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
@@ -699,7 +694,7 @@ theorem NestedRun.sourceCoreParameterWF
   exact Htransported'
 
 /-- Assemble the rule-independent base of a validated execution in the
-production record's native dependent indices, without the recursor-rule
+dependent indices of the lowered run, without the recursor-rule
 validator, then transport it once to the public indices.  Transporting only the finished aggregate avoids splitting
 the dependent header/constructor/recursor phase chain apart. -/
 private theorem NestedRun.assemblyBaseOfFormation
@@ -845,7 +840,7 @@ private theorem NestedRun.assemblyBaseOfFormation
     exact ⟨key, sL, auxC, hcompEl, hesEq, DC⟩
   have HcasesP : VInductBlock.EliminatorsWF P.initialEnv sourceDecl (sourceDecl.caseBlock es) := by
     rw [hinitial]; exact Hcases
-  -- the corner in the environments containing the restored constructors
+  -- the constructor telescopes in the environments containing the restored constructors
   have hcornerAt : ∀ {venv'}, E.sourceCore.envTypes ≤ venv' →
       CtorTelescopes P.c.safety outEnv venv' ∧
       CtorTelescopes P.c.safety E.validationEnv venv' := by
@@ -985,13 +980,13 @@ private theorem NestedRun.assemblyBaseOfFormation
   rw [hinitial, hlparams, hnparams, hisUnsafe, hsafety] at HcertificateOriginal
   simpa only [P] using HcertificateOriginal
 
-/-- Unconditional rule-independent final assembly base for the exact
-validated execution, constructed without the recursor-rule validator.  Ordinary
-formation comes from the installed constructor phases; source parameter
-formation comes from the literal restored-parameter validator; and the full
-ordered nested expansion comes from the producer-owned generated registry.
-No declaration-specific evidence is accepted from the caller. The stripped
-output environment is valid in the base's final abstract environment. -/
+/-- Unconditional restored block base for the exact validated execution,
+constructed without the recursor-rule validator.  Ordinary formation comes
+from the constructor check of the lowered run; source parameter formation
+comes from the literal restored-parameter validator; and the full ordered
+nested expansion comes from the lowering run.  No declaration-specific fact
+is accepted from the caller.  The stripped output environment is valid in
+the base's abstract environment. -/
 theorem NestedRun.assemblyBaseValid
     {ves : VEnvs}
     (E : NestedRun result sourceProdEnv sourceTypes

@@ -5,12 +5,12 @@ types of a validated nested run.
 
 The executable lowering emits every auxiliary occurrence at `state.lvls`,
 which is initialised to the declaration's level parameters and never modified.
-The relational traces record this through `NestedAuxLE` (which fixes `lvls`),
+The lowering relations record this through `NestedAuxLE` (which fixes `lvls`),
 the `lvls` fields of `ConstructorLowering`,
 `ConstructorLowering.Resolved` and `NestedLowering`, and the universe-argument
 premise of the replacement leaves in
 `NestedLoweringOutputClosed.sourceExpansionsAboveLvls`. Projected through
-the translation, every replacement hit is a level leaf
+the translation, every replaced occurrence is a level leaf
 (`NodeReplacementResolved.levelLeaf`), so the lowered constructor types of
 the source families use the auxiliary family and constructor names only at
 `VLevel.params sourceDecl.uvars` (`NestedRun.loweredConstructorLevels`).
@@ -25,8 +25,8 @@ namespace VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- **Every replacement hit at the declaration's universe parameters is a
-level leaf.** A hit emitted while the lowering state carries the universe
+/-- **Every replaced occurrence at the declaration's universe parameters is a
+level leaf.** A replacement emitted while the lowering state carries the universe
 arguments `lparams.map .param` translates to an auxiliary head at
 `VLevel.params`; its common-parameter arguments are bound variables, and its
 trailing arguments copy the source's up to an expansion whose leaves are level
@@ -88,7 +88,7 @@ theorem NodeReplacementResolved.levelLeaf
       (hs.2 source (List.mem_append_right _ hsource))
 
 /-- `LoweredAuxiliaryFamily.abstractExpansion` for an arbitrary
-liftable leaf relation, with every replacement hit known to be emitted at the
+liftable leaf relation, with every replacement known to be emitted at the
 universe arguments of the final lowering state. -/
 theorem LoweredAuxiliaryFamily.abstractExpansionAboveLvls
     {prodEnv : Environment} {params : Array Expr} {nparams : Nat}
@@ -369,8 +369,8 @@ theorem NestedRun.loweredAuxiliaryConstructorLevels
 
 /-- `loweredConstructorLevels` at the restoration heads of any specialisation
 list whose head names are the auxiliary family and constructor names (as for
-the specialisations of `NestedRun.loweredConstructors_of`): the
-universe-level premise of `loweredConstructors_of`. -/
+the specialisations of `NestedRun.loweredConstructors_of_lowering`): the
+universe-level premise of `loweredConstructors_of_lowering`. -/
 theorem NestedRun.loweredConstructorLevels_heads
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}

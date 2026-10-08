@@ -1,6 +1,7 @@
 import Lean4Lean.Theory.DeclarationData
 
-/-! Legacy projection type computation and its syntactic substitution lemmas.
+/-! The field type of a primitive projection (`VProjectionInfo.fieldType`, read by the `projDF`
+rule) and its syntactic substitution lemmas.
 This module depends on no environment or typing judgment. -/
 
 namespace Lean4Lean

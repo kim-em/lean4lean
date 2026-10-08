@@ -10,7 +10,7 @@ each key class, and the key observations). The same data describe
 
 * the observations of a lambda telescope (`Obs.wrapLams_iff`: an observation of
   `wrapLams ds b` is `wrap keys o` with `o` an observation of `b` at the extension), and
-* the codomain observations of a Pi telescope (`tele_obs`, `tele_typed`), and typed chains of
+* the codomain observations of a Pi telescope (`tele_obs`), and typed chains of
   `app` observations at the observations of a Pi telescope unwind to them (`tele_unwind`,
   which needs the soundness of the telescope's codomains, `PiSD`, to change representatives).
 

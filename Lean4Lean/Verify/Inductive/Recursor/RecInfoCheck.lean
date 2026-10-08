@@ -20,8 +20,8 @@ def ConstructorCheck.checkedRecursorConstructorTailAt
       indTypes[familyIdx].ctors[ctorIdx] :=
   R.constructorTails.replay familyIdx hfamily ctorIdx hctor
 
-/-- Select a mutual-family header after transporting its translation and
-materialized certificate through either ordinary or atomic installation. -/
+/-- The motive-pass header of one family of the block, read off the constructor check: its
+translation and checked header, transported through either ordinary or atomic installation. -/
 def ConstructorCheck.motivePassHeaderAt
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
@@ -88,9 +88,8 @@ def ConstructorCheck.motivePassHeaderAt
       ⟨decl.types[familyIdx], List.getElem_mem htarget, rfl⟩
   exact (R.installation.constructorLE.trans R.ctorLE).constants hheaderLookup
 
-/-- The common constructor boundary supplies a typed constructor application
-seed independently of whether its constants were installed ordinarily or as
-an atomic primitive batch. -/
+/-- The constructor check supplies a typed constructor application prefix, whether its
+constants were installed ordinarily or as an atomic primitive batch. -/
 theorem ConstructorCheck.checkedConstructorPrefixAt
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
@@ -239,8 +238,8 @@ theorem ConstructorCheck.checkedConstructorPrefixAt
       Hmaterialized, Hsuffix] using Hintro
   · simp [levels, hctorName, Hsynthesis.parameterCount]
 
-/-- Reinterpret the common checked seed in any later recursor context with
-the retained parameter suffix. -/
+/-- The checked constructor prefix of `checkedConstructorPrefixAt`, reinterpreted in any
+later recursor context with the same parameter suffix. -/
 theorem ConstructorCheck.checkedConstructorPrefixInRecursorContextAt
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
@@ -334,8 +333,7 @@ theorem ConstructorCheck.checkedConstructorPrefixInRecursorContextAt
     HtailRuntime, HtailTypeRuntime, HintroRuntime, HintroTypeRuntime,
     tailNarrow, HtailCurrent, HtailTypeCurrent⟩
 
-/-- Enter the first mutual recursor pass from the completed constructor
-boundary. -/
+/-- Enter the motive pass (`mkRecInfos.loopInd1`) from a constructor check. -/
 theorem ConstructorCheck.loopInd1WF
     {alpha : Type} {Q : alpha -> Prop}
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
@@ -603,7 +601,8 @@ theorem ConstructorCheck.mkRecInfosWF
         houtSize houtCounts HaritiesOut)
       HrootOut
 
-/-- Exact recursor-info prefix from the completed constructor boundary. -/
+/-- The `getElimLevel` and `mkRecInfos` part of the recursor phase, run after a constructor
+check. -/
 theorem ConstructorCheck.getElimLevelMkRecInfosWF
     {alpha : Type} {Q : alpha -> Prop}
     (R : ConstructorCheck c stats decl nparams isUnsafe depth

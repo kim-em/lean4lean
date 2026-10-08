@@ -1,11 +1,13 @@
 import Lean4Lean.Theory.Inductive.RecursorEquationCoverage
 import Lean4Lean.Theory.Typing.ProjectionRigidity
 
-/-! Declaration-history invariants for native constructor computation. -/
+/-! Declaration-history invariants for constructors of stored rules and of case rules: they
+and their result families stay rigid (no stored rule is headed by them) in every later
+environment. -/
 
 namespace Lean4Lean
 
-/-- The final major argument of an installed equation has this native head. -/
+/-- The final major argument of an installed equation is headed by the constant `name`. -/
 def VDefEq.HasConstructorMajor (equation : VDefEq) (name : Name) : Prop :=
   ∃ fn levels args, equation.lhs.stripLams = .app fn (VExpr.mkApps (.const name levels) args)
 
@@ -145,9 +147,9 @@ theorem ContainersInstalled.container_ctor (H : ContainersInstalled env auxiliar
       · exact ih a ha ctor hctor)
     H
 
-/-- The family head of a constructor's owner is either an original family,
+/-- The family head of a constructor's owner is either a source family,
 which then contains the restored constructor, or the family of a certified
-container constructor whose native equation is already installed in the
+container constructor whose recursor equation is already installed in the
 base environment. -/
 theorem InductiveSignature.CaseCompilationData.family_head_cases
     {s : InductiveSignature}
@@ -206,8 +208,8 @@ theorem InductiveSignature.CaseCompilationData.family_head_cases
     obtain ⟨hconst, hres⟩ := hprior.container_ctor a ha cctor hcctor
     exact ⟨cctor, equation, hdefeq, ⟨fn, levels, args, hmaj⟩, hconst, hres⟩
 
-/-- The family head selected by a generated case rule is either an original
-family or the family of a certified container constructor whose native
+/-- The family head selected by a generated case rule is either a source
+family or the family of a certified container constructor whose recursor
 equation is already installed in the base environment. -/
 theorem InductiveSignature.CaseSchema.Certified.family_head_cases
     {schema : InductiveSignature.CaseSchema}
@@ -238,8 +240,8 @@ theorem InductiveSignature.CaseSchema.Certified.family_head_cases
 
 namespace VEnv
 
-/-- Native equation majors, registered case constructors, and original
-families retain declared constants at which no native equation computes. -/
+/-- `name` is a constant whose type returns an application of a declared constant `F` at which
+no stored equation computes. This holds for the majors of stored equations. -/
 def CtorResultRigid (env : VEnv) (name : Name) : Prop :=
   ∃ ci, env.constants name = some ci ∧ ∃ F ls, ci.type.forallResult.getAppFnArgs.1 = .const F ls ∧
     (∃ ciF, env.constants F = some ciF) ∧ env.Rigid F
@@ -575,8 +577,8 @@ private theorem WF.constructorHeadsRigid {env : VEnv} (H : env.WF) : Constructor
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
     exact ihCtors.addProjections
 
-/-- Every generated case constructor is rigid under native computation.
-The proof uses finite source provenance and declaration history, independently
+/-- Every generated case constructor is rigid: no stored equation computes at it.
+The proof uses the finite source compilation and declaration history, independently
 of confluence, typing uniqueness, or constructor injectivity. -/
 theorem WF.case_constructor_rigid {env : VEnv} (H : env.WF)
     (hregistered : env.eliminators block schema)
@@ -585,8 +587,8 @@ theorem WF.case_constructor_rigid {env : VEnv} (H : env.WF)
     env.ConstHeadRigid rule.application.ctorName :=
   constHeadRigid_iff.mpr ((H.constructorHeadsRigid.2.1 _ _ hregistered _ _ hgenerated).2)
 
-/-- The original family behind a registered projection or case program is
-rigid throughout declaration extension. This uses registration provenance,
+/-- The source family behind a registered projection or case program is
+rigid throughout declaration extension. This uses the registration certificate,
 not a primitive projection entry or a general monotonicity assumption. -/
 theorem WF.case_source_family_rigid {env : VEnv} (H : env.WF)
     (hregistered : env.eliminators key schema)
@@ -602,7 +604,7 @@ theorem WF.case_family_head_rigid {env : VEnv} (H : env.WF)
     env.Rigid (schema.restoration.headName schema.signature.families[owner].name) :=
   (H.constructorHeadsRigid.2.2.2 _ _ hregistered _ _ hgenerated).2
 
-/-- The major constructor of every installed native iota equation remains
+/-- The major constructor of every installed iota equation remains
 rigid throughout all subsequent declarations. -/
 theorem WF.installed_constructor_rigid {env : VEnv} (H : env.WF)
     (hinstalled : env.defeqs equation) (hmajor : equation.HasConstructorMajor name) :

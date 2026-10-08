@@ -10,12 +10,17 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! # Producer-owned nested formation evidence
+/-! # Sources of the auxiliary families for nested formation
 
 This module joins the concrete auxiliary builder to the independently
-validated, closed source-family translation retained by restoration.  The
-results are indexed by the exact generated-family witness; they do not expose
-a caller-supplied replacement or generated-family compatibility boundary.
+validated, closed translation of each cached nested application.  For every auxiliary slot
+of the lowering queue it constructs the pre-lowering auxiliary family as a specialization of
+its installed container (`AuxiliaryFamilySourceData`, `AuxiliaryFamilySources`), interprets
+every replaced occurrence by that source (`AuxiliaryFamilySources.replacementCompat`), and
+assembles the ordered nested expansion of the whole lowered queue
+(`NestedLowering.allExpansionsOfSources`) required by `NestedFormationWF`.  The results are
+indexed by the auxiliary family of each slot (`LoweredAuxiliaryFamily`); no replacement or
+compatibility fact is supplied by the caller.
 -/
 
 private theorem Expr.eqvPrime_getAppFn {left right : Expr}
@@ -65,10 +70,10 @@ theorem Expr.abstractList_mkAppList (head : Expr) (args : List Expr)
     simpa only [Expr.mkAppList, List.map_cons, Expr.abstractList_app] using
       ih (.app head arg)
 
-/-- A reused lowering hit and the generated queue witness selected by its
+/-- A reused replacement and the auxiliary family of the queue selected by its
 cache key close the same source container application, up to Lean expression
 equivalence.  The proof cancels the two concrete parameter openings using the
-producer-retained selections and scope evidence. -/
+parameter selections and scope invariants retained by lowering. -/
 theorem LoweredOccurrenceSpine.cachedSourceApplicationEqv
     {Htrace : NodeReplacementResolved prodEnv lctx result.params As input
       state output nextState result traceFinalState}
@@ -216,10 +221,10 @@ theorem LoweredOccurrenceSpine.cachedSourceSpines
   refine ⟨hhead.1, hhead.2, ?_⟩
   simpa only [Expr.getAppArgsList_mkAppList_const] using Hargs
 
-/-- Context invariant for comparing a producer-retained parameter-abstracted
-translation with the live translation at a lowering hit.  `abstractDepth`
+/-- Context invariant for comparing a parameter-abstracted translation retained by
+lowering with the live translation at a replaced occurrence.  `abstractDepth`
 counts concrete binders (including erased lets), while `targetDepth` counts
-the binders that survive in `VExpr`.  The producer target is weakened by the
+the binders that survive in `VExpr`.  The retained target is weakened by the
 already-open constructor fields before it is compared with the live target. -/
 structure ParameterExpansionCtx
     (leaf : Nat → VExpr → VExpr → Prop)
@@ -244,7 +249,7 @@ structure ParameterExpansionCtx
       (fvars.length + fieldDepth + targetDepth)
       (canonicalValue.liftN fieldDepth targetDepth) currentValue
 
-/-- The canonical anonymous parameter context and the live selected-parameter
+/-- The anonymous de Bruijn parameter context and the live selected-parameter
 context satisfy the comparison invariant before entering expression-local
 binders. -/
 theorem ParameterExpansionCtx.base
@@ -501,7 +506,7 @@ theorem TrExprS.ContextFree.targetClosed
 
 /-- Closing exactly the selected parameters before translation agrees, after
 weakening by the live constructor-field depth, with translating the opened
-expression at the lowering hit.  Projection outputs are related through the
+expression at the replaced occurrence.  Projection outputs are related through the
 environment-indexed support certificates carried by their two translations. -/
 theorem TrExprS.abstractSelectedExpansion
     (Hnodup : fvars.Nodup)
@@ -655,9 +660,9 @@ theorem TrExprS.abstractSelectedExpansion
           cases HcurrentProj
           exact .proj Hmajor
 
-/-- Internally constructed pre-lowering source for one exact generated
-queue family.  This package is an output of the producer proof below, not a
-declaration-boundary input: it records the same constructor list both as a
+/-- Pre-lowering source of one auxiliary family of the queue.  It is
+constructed by `AuxiliaryFamilyContainer.auxiliaryFamilySource` below, not supplied by a
+caller: it records the same constructor list both as a
 raw source translation and as the exact installed-container specialization. -/
 structure AuxiliaryFamilySourceData
     (H : LoweredAuxiliaryFamily prodEnv params nparams finalState
@@ -723,8 +728,8 @@ structure AuxiliaryFamilySourceData
         (VExpr.instantiateForallPrefix instCtorType baseArgs))
     containerFamily.ctors payload.source.ctors
 
-/-- The canonical base arguments retained by a native generated source and
-the live base arguments at a cache hit are structurally identical after the
+/-- The base arguments retained by an auxiliary family source and
+the live base arguments at a reused replacement are structurally identical after the
 selected parameters are closed and the live constructor fields are opened.
 The proof uses a leaf-free expansion; projection nodes are justified only by
 their environment-indexed support certificates. -/
@@ -821,8 +826,8 @@ theorem AuxiliaryFamilySourceData.baseExpansionsAtReplacement
     HclosedAt HscopeAt HcanonicalCurrent HcurrentAt
   simpa [currentArgs, currentAbstract] using Hexpansion
 
-/-- Native, producer-owned source registry for the complete generated suffix.
-Each list slot retains the exact lowering origin used to construct its source;
+/-- Sources of all auxiliary families of the queue.
+Each slot retains the `LoweredAuxiliaryFamily` used to construct its source;
 consumers never have to compare an arbitrary second translation with the
 chosen source by syntactic equality. -/
 structure AuxiliaryFamilySources
@@ -845,7 +850,7 @@ structure AuxiliaryFamilySources
         N.payload.source = generated[i]
   /-- The common parameter context of the header phase. -/
   parameterContext : List VExpr
-  /-- Every slot has a native source whose parameter telescope is
+  /-- Every slot has a source whose parameter telescope is
   definitionally the common header parameter context. -/
   parametersAt : ∀ (i : Nat) (hi : i < generated.length)
       (hresult : sourceTypes.length + i < result.types.length)
@@ -869,9 +874,9 @@ theorem LoweredAuxiliaryFamily.auxName_eq_targetName
     _ = H.source.name := congrArg InductiveType.name H.generated.family_eq.symm
     _ = target.name := H.lowered.name.symm
 
-/-- Consume producer-owned native source evidence at one actual lowering hit.
-The canonical specialization arguments may have a different certified
-projection normal form from the hit's source translation, so their exact
+/-- Use the source of an auxiliary family at one replaced occurrence.
+The specialization arguments may have a different certified
+projection normal form from the occurrence's source translation, so their exact
 structural expansion is retained separately from the trailing lowering
 expansion. -/
 theorem AuxiliaryFamilySourceData.nestedOccurrenceReplacement
@@ -911,7 +916,7 @@ theorem AuxiliaryFamilySourceData.nestedOccurrenceReplacement
   · simpa only [huvars] using N.familyType
   · simpa only [huvars] using N.constructors
 
-/-- Construct the native source family once the exact installed container,
+/-- Construct the source of an auxiliary family once the exact installed container,
 checker header, and cached application spine have been recovered.  The
 constructor list is synthesized positionally by the executable auxiliary
 builder theorem; no family or constructor translation is supplied. -/
@@ -1198,11 +1203,11 @@ theorem AuxiliaryFamilyContainer.auxiliaryFamilySource
       simpa only [payload, source, containerFamily, Ctypes,
         AuxiliaryFamilyContainer.mono] using HconstructorShapes }, rfl⟩
 
-/-- Every family header installed by the current ordinary production was
-absent from its source production environment.  This is the producer-facing
-freshness companion to `findSourceHeader`: it retains the exact header entry
-selected by the materialized family list and projects freshness from the
-actual lockstep installation. -/
+/-- Every family header installed by the ordinary run was
+absent from its source kernel environment.  This is the
+freshness companion to `RecursorCheck.findSourceHeader`: it retains the exact header entry
+selected by the declaration's family list and reads freshness off the
+lockstep installation. -/
 theorem RecursorCheck.sourceHeaderFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -1234,8 +1239,8 @@ theorem RecursorCheck.sourceHeaderFresh
 
 /-- Recover a generated family's previously installed container in the
 pre-header observer.  The restored application initially exposes its lookup
-after the current source headers have been installed.  Successful production
-proves that every one of those header names was fresh in the producer
+after the current source headers have been installed.  The successful run
+proves that every one of those header names was fresh in the source kernel
 environment, whereas the container lookup was already present there; hence
 the finite header fold cannot have introduced or shadowed that lookup. -/
 theorem LoweredAuxiliaryFamily.installedContainerBeforeHeaders
@@ -1301,11 +1306,11 @@ theorem LoweredAuxiliaryFamily.installedContainerBeforeHeaders
   exact Horigin.generated.installedContainerOfAbstractLookup wf safety
     abstractFamily habstractBefore
 
-/-- The ordinary header checker already translated the generated family
+/-- The ordinary header checker already translated the auxiliary family
 header that occurs at this exact final queue position.  Lowering preserves
 that header literally, while the builder records its pre-lowering parameter
-telescope.  Consequently the checker's canonical parameter suffix supplies
-the parameter context for the pre-lowering generated family itself. -/
+telescope.  Consequently the checker's parameter suffix supplies
+the parameter context for the pre-lowering auxiliary family itself. -/
 theorem LoweredAuxiliaryFamily.formationHeaderParameterDomains
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -1367,12 +1372,10 @@ theorem LoweredAuxiliaryFamily.formationHeaderParameterDomains
       simpa only [AddInductive.getRecLevelParams, List.reverse_reverse]
         using Hcontext⟩
 
-/-- Formation uses the declaration's original universe parameters.  At that
-universe observer, the first source header and the native auxiliary
-validation derive exactly the same common-parameter context.  This is the
-small-elimination specialization of the recursor-facing context theorem, but
-it is proved directly so formation does not depend on a completed recursor
-phase. -/
+/-- Formation uses the declaration's own universe parameters.  At that
+universe observer, the first source header and the nested-auxiliary
+validation derive exactly the same common-parameter context.  The statement is
+proved directly, so formation does not depend on a recursor check. -/
 theorem NestedLoweringOutputClosed.auxiliaryFormationParameterContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -1471,10 +1474,11 @@ theorem NestedLoweringOutputClosed.auxiliaryFormationParameterContext
     HparameterSource HsourceAux
   simpa only [List.reverse_reverse] using HparameterAux
 
-/-- An actual generated queue origin obtains its abstract container spine
-from the native auxiliary-validation result and the exact lowering run.  The
+/-- An auxiliary family of the queue obtains its abstract container spine
+from the nested-auxiliary validation result and the exact lowering run.  The
 parameter-context conversion is the one derived by
-`auxiliaryCanonicalParameterContext`; it is not selected by a caller. -/
+`NestedLoweringOutputClosed.auxiliaryFormationParameterContext`; it is not selected by a
+caller. -/
 theorem LoweredAuxiliaryFamily.abstractContainerApplication
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -1574,10 +1578,10 @@ theorem LoweredAuxiliaryFamily.abstractContainerApplication
   exact ⟨realization, abstractLevels, baseArgs, Hlevels, hbaseLength, Hbase,
     HbaseClosed, hfamily⟩
 
-/-- The complete pre-lowering source payload for an exact generated queue
-position is reconstructed from the actual lowering run and ordinary header
-production.  Parameter-context conversion, application transport, installed
-container provenance, header translation, and every constructor target are
+/-- The complete pre-lowering source of the auxiliary family at a queue
+position is reconstructed from the lowering run and the ordinary header
+check.  Parameter-context conversion, application transport, the installed
+container, header translation, and every constructor target are
 all derived here. -/
 theorem LoweredAuxiliaryFamily.auxiliaryFamilySource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -1751,10 +1755,10 @@ theorem LoweredAuxiliaryFamily.auxiliaryFamilySource
   rw [hN]
   simpa only [parameterDomains, List.reverse_reverse] using Hcontext
 
-/-- Construct the complete generated-source registry by finite choice over
-the literal final suffix.  Every choice is immediately certified by the
-exact position's lowering origin and native builder proof, so no translation
-or formation witness crosses a declaration boundary. -/
+/-- Construct the sources of all auxiliary families by finite choice over
+the auxiliary slots of the final queue.  Every choice is immediately certified by the
+`LoweredAuxiliaryFamily` at that position and the builder proof, so no translation
+or formation fact is supplied by a caller. -/
 theorem NestedLowering.auxiliaryFamilySources
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -1868,9 +1872,9 @@ theorem NestedLowering.auxiliaryFamilySources
     congr 1
 
 /-- Reindex the registry source at the exact cache slot selected by a reused
-replacement.  Cache-name uniqueness identifies the retained canonical
-origin with the queried nested expression, yielding a `FinalCached` witness
-for that same native source rather than constructing a second source. -/
+replacement.  Cache-name uniqueness identifies the retained
+auxiliary family with the queried nested expression, yielding a `CachedAuxiliaryFamily`
+for that same source rather than constructing a second source. -/
 theorem AuxiliaryFamilySources.sourceForReplacement
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {Hrun : NestedLowering prodEnv fuel nparams sourceTypes
@@ -1981,8 +1985,8 @@ theorem AuxiliaryFamilySources.sourceForReplacement
     canonicalFinal.2.2⟩
 
 /-- Every replacement leaf needed by formation is reconstructed from the
-exact lowering hit and the producer-owned native generated-family registry.
-No declaration-boundary callback or arbitrary second source translation is
+replaced occurrence and the sources of the auxiliary families (`AuxiliaryFamilySources`).
+No caller-supplied callback or arbitrary second source translation is
 used. -/
 theorem AuxiliaryFamilySources.replacementCompat
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -2128,8 +2132,8 @@ theorem AuxiliaryFamilySources.replacementCompat
       HtrailingWF hinput houtput
   exact ⟨fieldDepth, by omega, Hrelative⟩
 
-/-- Project the producer-owned generated registry to the ordered generated
-suffix expansion using the exact origin stored at each slot. -/
+/-- Project the sources of the auxiliary families to the ordered expansion of the
+auxiliary slots, using the `LoweredAuxiliaryFamily` stored at each slot. -/
 theorem NestedLowering.auxiliaryExpansionsOfSources
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hrun : NestedLowering prodEnv fuel nparams sourceTypes
@@ -2193,7 +2197,7 @@ theorem NestedLowering.auxiliaryExpansionsOfSources
   exact Hexpansion
 
 /-- Ordered formation expansion for the entire lowered queue, assembled only
-from the exact original translation and producer-owned generated registry. -/
+from the source translation and the sources of the auxiliary families. -/
 theorem NestedLowering.allExpansionsOfSources
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hrun : NestedLowering prodEnv fuel nparams sourceTypes

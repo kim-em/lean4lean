@@ -1,5 +1,10 @@
 import Lean4Lean.Verify.Inductive.Recursor.Binders.ParameterPrefixes
 
+/-! The constructor loops of `checkConstructors` refine the abstract constructor
+shapes and types and retain the checked common-parameter prefix and tail of
+every constructor (`CheckedConstructors`), which the checked formation and the
+recursor construction reuse. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -12,9 +17,9 @@ namespace VerifyInductive
 
 namespace checkConstructors.loopCtors
 
-/-- Replay-retaining form of `refinesType`.  It follows the same executable
-constructor loop while accumulating the exact checked common-parameter tail
-beside the existing abstract shape/type prefix. -/
+/-- The executable constructor loop refines the abstract constructor shapes
+and types while accumulating the exact checked common-parameter prefix and
+tail of each constructor beside the abstract shape/type prefix. -/
 theorem refinesTypeWithReplay
     {decl : VInductDecl} {target : VInductiveType}
     {sourceEnv envTypes : VEnv} {params : List VExpr}
@@ -214,9 +219,9 @@ termination_by indTypes.size - targetIdx
 end checkConstructors.loopTypes
 
 /-- Constructor-checking output needed by both declaration installation and
-recursor replay.  The first component is the abstract formation certificate;
-the second retains the exact concrete parameter tails for production
-constructors. -/
+the recursor construction.  The first component is the abstract formation
+certificate; the others retain the exact concrete parameter prefixes and
+tails of the kernel constructors. -/
 structure CheckedConstructors
     (sourceEnv : VEnv) (decl : VInductDecl) (envTypes : VEnv)
     (params : List VExpr) (stats : AddInductive.InductiveStats)
@@ -227,10 +232,10 @@ structure CheckedConstructors
   constructorTails : ConstructorTails envTypes Us scope stats
     decl indTypes
 
-/-- Fold the end-to-end constructor theorem over the production's nested
-family/constructor loops.  This is the constructor-formation result consumed
+/-- Fold the end-to-end constructor theorem over the executable's nested
+family/constructor loops.  This is the constructor-formation result used
 by `FormationCertificate`; environment installation is intentionally a
-separate staging obligation. -/
+separate obligation. -/
 theorem checkConstructors.loopTypes.refinesChecked
     {decl : VInductDecl} {sourceEnv : VEnv}
     {params : List VExpr}

@@ -3,6 +3,13 @@ import Lean4Lean.Verify.Inductive.Primitive.Extension
 import Lean4Lean.Verify.Inductive.Install.Result
 import Lean4Lean.Verify.Inductive.Nested.Install.Result
 
+/-! # Dispatch of inductive declarations
+
+The primitive, ordinary and nested paths each produce an `InductiveExtension`; this file
+combines them along the executable's own branch selection (section 3.1 of
+`docs/inductives/DESIGN.md`): the primitive recognizer first, then the number of auxiliary
+families returned by lowering. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -10,7 +17,7 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- Uniform final result for the ordinary, non-nested post-lowering branch. -/
+/-- `InductiveExtension` for the ordinary branch after lowering (no auxiliary families). -/
 theorem Environment.addInductiveAfterLowering.ordinaryInductiveExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
@@ -31,7 +38,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryInductiveExtensionWF
       fun _ ⟨ves', wf', hle, ⟨Hspec⟩, hcert⟩ =>
         ⟨InductiveExtension.ofModel ves' wf' hle Hspec hcert⟩
 
-/-- Uniform `Environment.addInductive` result for canonical primitive
+/-- `InductiveExtension` for `Environment.addInductive` on the canonical primitive
 Bool/Nat declarations. -/
 theorem Environment.addInductive.primitiveInductiveExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
@@ -55,8 +62,8 @@ theorem Environment.addInductive.primitiveInductiveExtensionWF
           specification := Hspec
           ctorTelescopesPreserved := hcert }⟩
 
-/-- Checked declaration-facing form of
-`primitiveInductiveFinalResultWF`. -/
+/-- The checked `addDecl` form of
+`Environment.addInductive.primitiveInductiveExtensionWF`. -/
 theorem addInductiveDeclaration.primitiveInductiveExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
@@ -83,9 +90,9 @@ theorem addInductiveDeclaration.primitiveInductiveExtensionWF
 specification requires the source declaration to have no loose bound
 variables (`SourceBVarClosed`): lowering re-closes constructor types over the
 opened parameters, which would silently repair such variables, so the checked
-block is literally the source only under that hypothesis.  The zero-auxiliary case is
-closed directly; the continuation is exactly the nonzero nested branch and
-receives the closed lowering trace selected by execution. -/
+block is literally the source only under that hypothesis.  The case without auxiliary
+families is the ordinary branch; otherwise the nested branch receives the checked lowering
+output selected by execution. -/
 theorem Environment.addInductive.inductiveExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
@@ -109,9 +116,9 @@ theorem Environment.addInductive.inductiveExtensionWF
       Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
         env lparams nparams types isUnsafe fuel res ves wf htels Hsources Hlower haux
 
-/-- Checked `addDecl` composition for the non-primitive branch. Primitive
-recognition is synchronized by the exact executable precheck equality;
-ordinary-versus-nested dispatch remains internal. -/
+/-- Checked `addDecl` for the non-primitive branch, given that the executable's primitive
+recognizer returns `false`; the choice between the ordinary and nested branches is made
+inside, by `Environment.addInductive.inductiveExtensionWF`. -/
 theorem addInductiveDeclaration.inductiveExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)

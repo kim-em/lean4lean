@@ -7,14 +7,14 @@ import Lean4Lean.Theory.Typing.ProjNamesTyping
 import Lean4Lean.Theory.Typing.CaseSourceSort
 import Lean4Lean.Theory.Typing.ProjectionLemmas
 
-/-! # The constructor boundary and its source signature
+/-! # The checked formation and its source signature
 
 `CheckedFormation` is the data available once every constructor of a declaration is checked
-and declared, before any checker run in the projected environment: the header materialization,
+and declared, before any checker run in the recursor-checking environment: the checked headers,
 the checked constructor tails and the abstract translation. The source signature of the
 declaration (`sourceSignature`, whose model is `sourceSignature_models`) is computed from it, so
-the declaration's case eliminator can be certified at this boundary, before the projections and
-the native recursors. -/
+the declaration's case eliminator can be certified at this point, before the projections and
+the recursors (section 3.2 of `docs/inductives/DESIGN.md`). -/
 
 namespace Lean4Lean
 
@@ -94,7 +94,7 @@ theorem VInductDecl.OrdinaryFormationWF.mono_of_addConstVals {decl : VInductDecl
       ⟨Hctor.1.mono hformationTypesLE, Hctor.2.mono hformationTypesLE⟩, hraw⟩
 
 /-- The block's eliminators are certified over every environment in which its families and
-constructors install. Larger safety models of the same production environment are such
+constructors install. Larger safety models of the same kernel environment are such
 environments. -/
 def VInductBlock.EliminatorsReplay (env : VEnv) (decl : VInductDecl) (block : VInductBlock) :
     Prop :=
@@ -126,7 +126,7 @@ theorem VInductBlock.EliminatorsReplay.congr_fields {env : VEnv} {decl : VInduct
 fresh and the declaration's families and constructors install. `EliminatorsWF` itself is not
 monotone: its certificate fixes freshness of the declaration's names in the base. An ordinary
 declaration reserves no names (its certificate only needs its own names fresh, which
-installation provides); a nested one reserves the names fresh in its production environment,
+installation provides); a nested one reserves the names fresh in its kernel environment,
 which include its auxiliary families and recursors. Views: `EliminatorsReplay` at one
 environment (`CaseEliminators.replay`) and `EliminatorsWF` at the base
 (`CaseEliminators.eliminatorsWF`). -/
@@ -283,7 +283,7 @@ end Lean4Lean.VerifyInductive
 
 namespace Lean4Lean.VerifyInductive
 
-/-- The window environment of a declaration with certified case eliminators: its constructor
+/-- The recursor-checking environment of a declaration with certified case eliminators: its constructor
 stage with the eliminators, and then with its projection entries, is well formed. -/
 theorem _root_.Lean4Lean.VInductBlock.EliminatorsWF.recursorCheckingEnvWF {base envTypes envCtors : VEnv}
     {decl : VInductDecl} {es : List (Name × InductiveSignature.CaseSchema)}
@@ -310,13 +310,13 @@ theorem _root_.Lean4Lean.VInductBlock.EliminatorsWF.recursorCheckingEnvWF {base 
 
 end Lean4Lean.VerifyInductive
 
-/-! Source signature selections at the completed constructor boundary. -/
+/-! Source signature selections at the checked formation. -/
 
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel InductiveSignature
 
-/-- The exact production telescope retained with a selected constructor.
+/-- The exact kernel telescope retained with a selected constructor.
 Typed source correspondence alone cannot recover literal index occurrences
 or the translations needed when generating a recursor. -/
 def SourceConstructorTelescope (env : VEnv) (Us : List Name) (scope : VLCtx)
@@ -352,7 +352,7 @@ theorem sourceConstructor_tail_eq {s : InductiveSignature}
   simpa only [constructorType, VExpr.wrapForalls_append] using H
 
 /-- The selected constructor keeps the literal result arity already checked
-by its original tail certificate. No semantic inversion is required. -/
+by its checked tail certificate. No semantic inversion is required. -/
 theorem SourceConstructorTelescope.constructorArity
     (H : SourceConstructorTelescope env Us scope stats decl target source sourceCtor s ctor)
     (names : (decl.types.map (·.name)).Nodup) (targetMember : target ∈ decl.types)
@@ -435,8 +435,8 @@ theorem CheckedConstructorTailAt.signatureConstructor
 namespace CheckedFormation
 variable {isUnsafe : Bool}
 
-/-- Constructor identities are unique in the actual production array as
-well as in its translated table. This identifies retained replay witnesses
+/-- Constructor identities are unique in the actual kernel constructor array as
+well as in its translated table. This identifies retained replays
 with the constructors visited by subsequent passes. -/
 theorem kernelConstructorNames
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
@@ -657,7 +657,7 @@ theorem sourceSignature_fieldModel
       SignatureFieldModel env decl' R.sourceSignatureHeader ctx k field := by
   cases field <;> rfl
 
-/-- Every selected source constructor keeps its exact production replay,
+/-- Every selected source constructor keeps its exact checked replay,
 including the literal tail used to determine fields and result indices. -/
 theorem sourceSignatureConstructor_replay
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length) :
@@ -674,7 +674,7 @@ theorem sourceSignatureConstructor_replay
   rw [sourceSignature_constructorType]
   exact htype
 
-/-- The selected replay belongs to the actual production constructor with
+/-- The selected replay belongs to the actual kernel constructor with
 this name. Global constructor freshness rules out a different source
 telescope hidden by the existential replay witness. -/
 theorem sourceSignature_replay_of_source
@@ -731,8 +731,8 @@ theorem sourceSignature_constructorArity
   apply replay.constructorArity names targetMember R.sourceSignatureHeader_params_length
   simpa only [sourceSignature, Array.getElem_toList, Fin.getElem_fin, same, position] using family.2.1
 
-/-- The complete checked source signature models the original declaration.
-Its normalization choices are fixed before recursor generation begins. -/
+/-- The complete checked source signature models the source declaration.
+Its normalization choices are fixed before the recursor construction begins. -/
 private theorem sourceSignature_models_of_nonempty
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (hnonempty : decl.types ≠ []) :
     R.sourceSignature.Models sourceEnv decl := by
@@ -797,7 +797,7 @@ theorem sourceSignature_models
     all_goals simp [declaration, hfamilies, hctors, VInductDecl.constructorConstants, hempty]
   · exact R.sourceSignature_models_of_nonempty hempty
 
-/-! ### The case eliminator certified at the constructor boundary -/
+/-! ### The case eliminator certified at the checked formation -/
 
 theorem headerWF
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
@@ -878,8 +878,8 @@ private theorem mapM_expr_empty (l : List VExpr) :
   | nil => rfl
   | cons a l ih => simp [List.mapM_cons, ih]
 
-/-- Every piece of the source signature projects only out of structures registered at the
-constructor boundary. -/
+/-- Every piece of the source signature projects only out of structures registered in the
+constructor environment. -/
 theorem caseSchema_projNamesRegistered
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
     (hdeclNe : decl.types ≠ []) :
@@ -950,7 +950,7 @@ theorem caseSchema_projNamesRegistered
     hparams hindices hfields hcindices R.caseKey
   exact ⟨H.1, H.2⟩
 
-/-- The original families' declared headers are their normalized headers. -/
+/-- The source families' declared headers are their normalized headers. -/
 theorem caseSchema_headerAgreement
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     R.caseSchema.HeaderAgreement sourceEnv decl := by
@@ -978,7 +978,7 @@ theorem caseSchema_headerAgreement
   subst hsame
   exact (hdefeq.mono (VEnv.addConstVals_le R.core.typesAdded)).symm
 
-/-- **The declaration's case eliminator is certified at the constructor boundary.** -/
+/-- **The declaration's case eliminator is certified at the checked formation.** -/
 theorem caseEliminatorsWF
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock R.caseEliminators) := by
@@ -1029,7 +1029,7 @@ theorem caseEliminatorsOwn
     decl.OwnCaseEliminators sourceEnv R.caseEliminators :=
   R.caseIngredients.own
 
-/-- The window of the declaration: its constructor stage with its case eliminators, and then
+/-- The recursor-checking environment of the declaration: its constructor stage with its case eliminators, and then
 with its projection entries, is well formed. -/
 theorem recursorCheckingEnvWF
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :

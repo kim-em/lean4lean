@@ -1,8 +1,8 @@
 import Lean4Lean.Theory.Typing.PrefixUnfolding.NormalCongruence
 
-/-! # Prefix programs along related supplied arguments
+/-! # Prefix unfoldings along related supplied arguments
 
-The native and quotient prefix rules are replayed after the supplied arguments
+The singleton and quotient prefix unfoldings are re-checked after the supplied arguments
 are changed by any relation with the properties collected in `ArgRel`: typed
 reflexivity, weakening, soundness for definitional equality, and congruence
 for application spines and simultaneous substitution. Normal equality and each
@@ -28,7 +28,7 @@ structure CongrRel (R : List VExpr → VExpr → VExpr → Prop) : Prop where
   forallE : ∀ {Γ A A' b b'}, R Γ A A' → R (A :: Γ) b b' → R Γ (.forallE A b) (.forallE A' b')
   weakN : ∀ {n k Γ Γ' a b}, Ctx.LiftN n k Γ Γ' → R Γ a b → R Γ' (a.liftN n k) (b.liftN n k)
 
-/-- The properties of a relation on arguments used to replay a prefix program. -/
+/-- The properties of a relation on arguments used to re-check a prefix unfolding. -/
 structure ArgRel (R : List VExpr → VExpr → VExpr → Prop) : Prop where
   refl : ∀ {Γ e A}, OnCtx Γ (env.IsType univs) → Γ ⊢ e : A → R Γ e e
   weakN : ∀ {n k Γ Γ' a b}, Ctx.LiftN n k Γ Γ' → R Γ a b → R Γ' (a.liftN n k) (b.liftN n k)
@@ -206,7 +206,7 @@ private theorem rel_eta_match {domains : List VExpr} (hpos : 0 < domains.length)
         liftVar, Nat.zero_add, Nat.not_lt_zero, ↓reduceIte]; omega)).2⟩
   · exact .cons hctor .nil
 
-/-- Replay a fixed installed native equation after related changes to its
+/-- Re-check the unfolding of a fixed installed recursor equation after related changes to its
 supplied arguments. -/
 theorem UnfoldingCheck.congr_rel (I : ArgRel R) {name : Name} {levels : List VLevel}
     {p p' : PrefixUnfolding} (hΓ : OnCtx Γ (env.IsType univs))
@@ -303,7 +303,7 @@ theorem UnfoldingCheck.congr_rel (I : ArgRel R) {name : Name} {levels : List VLe
     rw [← hbody, ← hlevels]
     exact hn
 
-/-- The actual installed native program transports along related supplied
+/-- The unfolding of an installed recursor equation transports along related supplied
 arguments; its right-hand side is a lambda telescope with related body. -/
 theorem PrefixUnfold.congr_rel (I : ArgRel R) {name : Name} {levels : List VLevel}
     (hΓ : OnCtx Γ (env.IsType univs))

@@ -5,7 +5,9 @@ import Lean4Lean.Theory.Typing.InductiveLemmas
 import Lean4Lean.Theory.Inductive.SignatureLemmas
 
 /-! Every registered eliminator schema has, for every owner slot, a generic
-case type, and that type is closed (target T3 of milestone M4a). -/
+case type, and that type is closed (`VEnv.WF.eliminator_genericType_closed`). The proof shows
+that restoration succeeds on the generated case type (`Restorable`) and that the restored type
+is closed, from the scoping facts of the case certificate and the header agreement. -/
 
 namespace Lean4Lean.EnvTables
 open InductiveSignature VExpr
@@ -320,9 +322,9 @@ theorem mem_insertBinders {l : List VExpr} {x : VExpr} (h : x ∈ l) (k : Nat) :
   exact ⟨j, List.mem_map.mpr ⟨(l[j], j), mem_zipIdx_getElem l j hj, rfl⟩⟩
 
 
-/-! ## Restoration success of the native recursor types -/
+/-! ## Restoration success -/
 
-/-! ## Restoration success of the case type -/
+/-! ### The case type -/
 
 theorem case_restorable (schema : CaseSchema) (owner : Fin schema.signature.families.size)
     {r : Restoration}
@@ -676,7 +678,7 @@ theorem CaseSchema.Certified.genericType_closed {schema : CaseSchema}
   simp only [CaseSchema.genericType, CaseSchema.type, hr]
   exact htype
 
-/-- **T3.** Every registered eliminator schema has, at every owner slot, a
+/-- Every registered eliminator schema has, at every owner slot, a
 closed generic case type. -/
 theorem VEnv.WF.eliminator_genericType_closed {env : VEnv} (H : env.WF)
     {key : Name} {schema : CaseSchema} (hlookup : env.eliminators key schema)

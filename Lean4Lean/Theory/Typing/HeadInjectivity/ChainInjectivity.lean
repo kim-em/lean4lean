@@ -3,8 +3,9 @@ import Lean4Lean.Theory.Typing.HeadInversionDefs
 /-! # Chain-level head injectivity and the injectivity fields of head inversion
 
 `ChainHeadInjectivity` is the hypothesis of the syntactic layer: injectivity of type heads
-along `TypeChain`s, to be supplied by a semantic model (see
-`docs/inductives/PHASE1B_NOTES.md`, sections 3 and 5). `HeadInjectivity` is what the
+along `TypeChain`s, supplied for every well-formed environment by the glued observation model
+(`VEnv.WF.chainHeadInjectivity`, `Model/EnvValid.lean`; section 4.1 of
+`docs/inductives/DESIGN.md`). `HeadInjectivity` is what the
 syntactic layer derives from it: the structure `VEnv.HeadInjectivity` of
 `HeadInversionDefs.lean` (uniqueness-free, so importable here). This directory must not import
 `HeadInversion.lean`, `UniqueTyping.lean`, `Injectivity.lean`, `ChurchRosser.lean`,

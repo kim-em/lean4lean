@@ -104,7 +104,7 @@ theorem mkBindingList_eq_fold
 /-! ### Exact (simultaneous-abstraction) model of `mkBinding`
 
 `mkBindingListN` models `LocalContext.mkBinding` with Lean's actual abstraction
-(`Expr.abstractN`, bridged by `Expr.abstractN_eq`). It agrees with the sequential
+(`Expr.abstractN`, linked to `Expr.abstract` by the axiom `Expr.abstractN_eq`). It agrees with the sequential
 `mkBindingList` when the body and binder types are locally closed and the variables are
 duplicate-free, and it is the model to use wherever a body may contain loose bound variables
 (for example the recursor-placeholder templates of recursive calls). -/
@@ -267,8 +267,9 @@ theorem mkBindingListN_eq_mkBindingList (hex : ∀ x ∈ xs, ∃ d, lctx.find? x
     rw [heq]
     exact mkBindingList1N_eq_mkBindingList1 hd (hdecl a (List.mem_cons_self ..) d hd) hcl
 
-/-- Exact bridge for the sequential model: `mkBinding` agrees with `mkBindingList` under the hypotheses that make the
-sequential model true. Prefer this (or `mkBinding_eqN`) to the legacy `mkBinding_eq`. -/
+/-- `mkBinding` agrees with the sequential `mkBindingList` under the hypotheses that make the
+sequential model correct: every variable is declared, the variables are duplicate-free, and the
+body and the selected declarations are locally closed. Without them use `mkBinding_eqN`. -/
 theorem mkBinding_eq' (hex : ∀ x ∈ xs, ∃ d, lctx.find? x = some d)
     (nd : xs.Nodup) (hb : Closed b) (hdecl : DeclsClosed lctx xs) :
     mkBinding isLambda lctx ⟨xs.map .fvar⟩ b = mkBindingList isLambda lctx xs b := by

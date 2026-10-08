@@ -4,27 +4,25 @@ import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldTypeScope
 import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursorTypeInversion
 import Lean4Lean.Verify.Inductive.Recursor.Signature.FieldDomainsDefEq
 
-/-! Induction-hypothesis binder groups of the checked recursor type, read off
-the per-field semantic row.
+/-! Induction-hypothesis binder groups of the checked recursor type, read off the typed
+recursive calls of each field.
 
-`RecursorConstruction.recursorTelescope_hypothesisDomains` identifies
-the `j`-th hypothesis of a minor premise of the checked recursor type as a
-telescope `A` whose domains translate the first-pass origin's argument domains
-in the full generator context (parameters, motives, earlier minors, all fields
-and the earlier hypotheses).  The per-field semantic row
-(`TypedCallTemplatesAt`) records that the generated recursive
-call is scoped by the field's own prefix: its argument telescope mentions only
-the parameters and the fields before the recursive field.  Since the
-first-pass origin and the semantic call have the same replay trace, the
-origin's argument domains and closed exposed indices inherit that scope.
+`RecursorConstruction.recursorTelescope_hypothesisDomains` identifies the `j`-th hypothesis of a
+minor premise of the checked recursor type as a telescope `A` whose domains translate the
+argument domains of the recorded induction hypothesis type in the full generator context
+(parameters, motives, earlier minors, all fields and the earlier hypotheses). The typed call
+templates of the field (`TypedCallTemplatesAt`) record that the generated recursive call is
+scoped by the field's own prefix: its argument telescope mentions only the parameters and the
+fields before the recursive field. Since the induction hypothesis type and the typed call have
+the same `replayTrace`, the hypothesis's argument domains and closed exposed indices inherit
+that scope.
 
-Abstracting variables that do not occur is a de Bruijn lift, so the generator
-sources are lifts of sources closed only over the field prefix and the
-parameters.  The small translations come from the checker contexts of the
-producer: the call-local arguments were opened in a checker context whose
-base is the field checker cut just before the recursive field, so the binder
-domains and indices translate there, and closing that checker context gives
-translations in `parameters ++ fields.take pos`.  Forward weakening
+Abstracting variables that do not occur is a de Bruijn lift, so the generator sources are lifts
+of sources closed only over the field prefix and the parameters. The small translations come
+from the checking contexts of the minor pass: the call-local arguments were opened in a
+checking context whose base is the field's checking context cut just before the recursive
+field, so the binder domains and indices translate there, and closing that checking context
+gives translations in `parameters ++ fields.take pos`. Forward weakening
 (`TrExprS.liftStep`) and syntactic uniqueness then identify every domain of
 `A`, and every index of the motive application, as
 `InductiveSignature.Instance.underFields` of these small translations.  This is
@@ -35,8 +33,8 @@ open Lean hiding Environment Exception
 open Kernel
 
 /-- `abstract1` is injective: loose bound variables below the cutoff are
-fixed, those at or above it are shifted by one, and the cutoff itself is hit
-only by the abstracted variable. -/
+fixed, those at or above it are shifted by one, and only the abstracted variable becomes the
+cutoff itself. -/
 theorem Expr.abstract1_injective {v : FVarId} :
     ∀ {e e' : Expr} {k : Nat}, e.abstract1 v k = e'.abstract1 v k → e = e' := by
   intro e
@@ -295,7 +293,7 @@ theorem InductiveSignature.insertBinders_take (l : List VExpr) (n k : Nat) :
   · intro i _ _
     simp [InductiveSignature.insertBinders]
 
-/-- A selected recursive field is one of the opened field variables. -/
+/-- Each recursive field of a minor is one of its opened field variables. -/
 theorem MinorPremiseType.recursiveField_pos (S : MinorPremiseType)
     {env : VEnv} {decl : VInductDecl} {uvars : Nat}
     {sel : List (RecursiveFieldDomainAt env decl uvars)}
@@ -318,9 +316,8 @@ theorem MinorPremiseType.recursiveField_pos (S : MinorPremiseType)
     intro xs h hxs; subst hxs; simp
   exact h2 _ hp S.fields_bound.expressions
 
-/-- The call-local argument telescope of a semantic recursive call mentions
-only variables satisfying any predicate `P` equivalent to the call's root
-scope. -/
+/-- The call-local argument telescope of a typed recursive call mentions only variables
+satisfying any predicate `P` equivalent to the call's root scope. -/
 theorem TypedRecursiveCall.localTelescope_fvarsIn
     {R : RecursorContextWF root recLparams}
     (Sc : TypedRecursiveCall indTypes stats motives minors lvls R decl
@@ -362,8 +359,8 @@ theorem TypedRecursiveCall.localTelescope_fvarsIn
     exact Sc.current_scope_up
   · simp [FVarsIn, Level.hasMVar']
 
-/-- The argument domains of a first-pass hypothesis origin are the domains of
-its argument telescope over `Sort 0`. -/
+/-- The argument domains of an induction hypothesis type are the domains of its argument
+telescope over `Sort 0`. -/
 theorem InductionHypothesisType.argDomains_eq_mkForall
     (O : InductionHypothesisType stats recInfos root field type) :
     O.argDomains =
@@ -376,12 +373,11 @@ theorem InductionHypothesisType.argDomains_eq_mkForall
       O.arguments_bound.toFVarArrayIn.forallDomainsOnly O.current_wf O.arguments_bound.nodup]
   exact key _ _ O.type_eq
 
-/-- A first-pass hypothesis origin with the same replay trace as a semantic
-recursive call inherits the call's scope: for any predicate `P` equivalent to
-the call's root scope, every argument domain of the origin mentions only
-variables satisfying `P`, and every exposed index, closed over the origin's
-own arguments, mentions only such variables; on these indices `abstractN`
-agrees with `abstractList`. -/
+/-- An induction hypothesis type with the same `replayTrace` as a typed recursive call inherits
+the call's scope: for any predicate `P` equivalent to the call's root scope, every argument
+domain of the hypothesis mentions only variables satisfying `P`, and every exposed index,
+closed over the hypothesis's own arguments, mentions only such variables; on these indices
+`abstractN` agrees with `abstractList`. -/
 theorem InductionHypothesisType.scope_of_replayTrace
     (O : InductionHypothesisType stats' recInfos root' field' type)
     {R : RecursorContextWF root recLparams}
@@ -453,13 +449,12 @@ theorem InductionHypothesisType.scope_of_replayTrace
   · exact (hP fv).1 h1
 
 /-- The small translations behind the `j`-th induction hypothesis of a minor
-premise.  Let `Sc` be the semantic recursive call recorded for the recursive
-field at position `pos`, opened above the producer context `Rorigin` of the
-field semantic source `F`, and let `O` be a first-pass origin with the same
-replay trace.  Then there are a binder telescope `B0` and an index list
-`indices`, translated in `parameters ++ sourceFields.take pos` (extended by
-`B0`), whose sources are the argument domains of `O` and its exposed indices
-closed over the fields before `pos` and the parameters. -/
+premise. Let `Sc` be the typed recursive call recorded for the recursive field at position
+`pos`, opened above the context `Rorigin` of the typed field traversal `F`, and let `O` be an
+induction hypothesis type with the same `replayTrace`. Then there are a binder telescope `B0`
+and an index list `indices`, translated in `parameters ++ sourceFields.take pos` (extended by
+`B0`), whose sources are the argument domains of `O` and its exposed indices closed over the
+fields before `pos` and the parameters. -/
 theorem RecursorConstruction.recursorTelescope_hypothesisSmall
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
@@ -525,8 +520,8 @@ theorem RecursorConstruction.recursorTelescope_hypothesisSmall
     simp only [sourceFields, List.length_map]
     exact H.sourceFields_length mowner hmowner localIndex hlocal
   let Fs := sourceFields.take pos
-  -- The checker contexts of the producer.  `M` is the field checker of the
-  -- constructor, `C` the checker in which the call-local arguments of this
+  -- The checking contexts of the minor pass. `M` is the field checking context of the
+  -- constructor, `C` the checking context in which the call-local arguments of this
   -- hypothesis were opened, and `C.dropN localArgs.size = Rorigin.chk.dropN jC`
   -- is the prefix of `M` ending just before the recursive field.
   obtain ⟨M, hMwf, hchkM, hnM, hagM, hdropM, -⟩ := F.fieldCheck
@@ -566,7 +561,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisSmall
     rw [← TypeChecker.MLCtx.fvarList_eq, hBfv]
   have hPFnodup : (H.params.fvars ++ S.fields_bound.fvars.take pos).Nodup := by
     rw [← hBrev]; exact List.nodup_reverse.2 hBnodup
-  -- The checker's field domains are the selected source fields.
+  -- The checking context's field domains are the minor's field domains.
   have hMdoms : MLCtxForallDomains M S.fields.size hnM = sourceFields := by
     have HMsort := (hMwf.mkForall_trS F.terminalWF.checking.tr.wf (e := .sort .zero)
       (e' := .sort .zero) (.sort (by simp [VLevel.ofLevel])) ⟨_, VEnv.HasType.sort (by trivial)⟩
@@ -594,7 +589,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisSmall
     have hlen : (MLCtxForallDomains M S.fields.size hnM).length = sourceFields.length := by
       rw [hMonly.forallDomains_length, hsfLen]
     exact (VExpr.wrapForalls_inj_of_length hlen heq.symm).1
-  -- The small checker context is the parameters followed by the fields before `pos`.
+  -- The small checking context is the parameters followed by the fields before `pos`.
   have hBctx : (Rorigin.chk.dropN jC hjC).vlctx.toCtx.reverse = H.parameterSuffix.parameterDecls.toCtx.reverse ++ Fs := by
     have h1 := Rorigin.check.onlyLams.toCtx_dropN jC hjC
     have h2 : Rorigin.chk.vlctx.toCtx = M.vlctx.toCtx := by rw [hRM]
@@ -739,7 +734,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisSmall
 
 /-- Lifting the small translations of `recursorTelescope_hypothesisSmall` to
 the generator context.  If the argument domains and exposed indices of the
-origin `O` of the `j`-th hypothesis mention only the parameters and the fields
+induction hypothesis type `O` of the `j`-th hypothesis mention only the parameters and the fields
 before the recursive field at position `pos`, and `B0` and `indices` translate
 them in `parameters ++ sourceFields.take pos` (extended by `B0`), then the
 `j`-th hypothesis of the minor premise is the `underFields` embedding of `B0`
@@ -883,7 +878,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisLift
     rw [List.take_append_drop, ← List.append_assoc, hhypsLen, hMLen, List.length_take,
       List.length_drop, hnf, Nat.min_eq_left (by omega)] at h
     rw [show S.fields.size + j + d = pos + (S.fields.size - pos) + j + d by omega, h]
-  -- Environments of the producer contexts.
+  -- Environments of the minor-pass contexts.
   have henv : R.context.venv.WF := by rw [← H.recursorEnv]; exact H.recursorWF.checking.tr.wf
   have hparamsT := H.recursorTelescope_params T
   rw [← hparamsT] at Hsmall HIsmall
@@ -961,7 +956,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisLift
 /-- The `j`-th induction hypothesis of a minor premise of the checked recursor
 type, unlifted to the small context of its recursive field.
 
-For the origin `O` retained by the rule rows and the recursive field at
+For the induction hypothesis type `O` recorded in the rule templates and the recursive field at
 position `pos`, the hypothesis is the generator's `underFields` embedding of a
 binder telescope `binders` and of an index list `indices`, applied to the
 owner's motive variable and the recursive field variable.  Each `binders[i]`
@@ -1049,7 +1044,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisUnlift
           Expr.forallDomainList O.args.size (O.current.lctx.mkForall O.args (.sort .zero)) ∧
         ExprArrayFVarIds O.args = O.arguments_bound.fvars := by
   intro S sourceFields nmot fields hyps res hhyps hminorEq j hj
-  -- The retained rows for this minor.
+  -- The recorded templates for this minor.
   obtain ⟨-, -, -, -, -, origins₁, -, horig₁, -, -, Hcalls⟩ :=
     H.templates.entry mowner hmowner localIndex hlocal
   obtain ⟨⟨origins, horig, hstats, hmotives, F, hparams, depth', -, _, Hsel, -, -, -, -, -, -, -,
@@ -1069,11 +1064,11 @@ theorem RecursorConstruction.recursorTelescope_hypothesisUnlift
     have h := congrArg Array.size hmotives
     simp only [Array.size_map] at h
     omega
-  -- The first-pass origin and the semantic call have the same replay trace.
+  -- The induction hypothesis type and the typed call have the same `replayTrace`.
   have hreplay : O.replayTrace S.fields_bound.fvars =
       Sc.generated.replayTrace S.fields_bound.fvars := by
     rw [O.replayTrace_eq_template _ hcall hoLt, hmotives, hSreplay]
-  -- The semantic call is scoped by the parameters and the fields before `pos`.
+  -- The typed call is scoped by the parameters and the fields before `pos`.
   have hfR : F.fieldsRecent.fvars = S.fields_bound.fvars :=
     F.fieldsRecent.toFVarArrayIn.exprArrayFVarIds.symm.trans S.fields_bound.exprArrayFVarIds
   have hPids : ExprArrayFVarIds stats.params = H.params.fvars := H.params.exprArrayFVarIds

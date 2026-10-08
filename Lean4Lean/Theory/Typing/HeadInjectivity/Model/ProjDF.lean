@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.SpineTele
 import Lean4Lean.Theory.Typing.HeadInjectivity.Projections.Subst
 
-/-! # The typing invariant of projections (stage C, `projDF`)
+/-! # The typing invariant of projections (`projDF`)
 
 `Model.proj_obs_typed`: a field observation `fieldOb S j L o` of a major `e`, typed at the
 observations of its type `S ls (ps ++ idx)`, has its inner observation `o` typed at the

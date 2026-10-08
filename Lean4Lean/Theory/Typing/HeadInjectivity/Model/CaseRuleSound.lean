@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.EmptyRule
 
-/-! # Soundness of eliminator rules (stage E)
+/-! # Soundness of eliminator rules
 
 The analogue of `Model/RuleSound.lean` for generic case equations, whose left-hand sides are
 headed by an abstract eliminator `.elim b o ls`: `sound_pat_elim` (mode AB; mode C is excluded

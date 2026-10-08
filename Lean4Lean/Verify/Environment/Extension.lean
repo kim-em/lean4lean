@@ -361,7 +361,7 @@ theorem addMutualBlock.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env
         · rw [hsame sf hv]; exact wf.mono hle }
 
 /-- Extend only the unsafe abstract model.  This is the safety-indexed shape
-of an unsafe inductive declaration: the production map changes for every
+of an unsafe inductive declaration: the kernel map changes for every
 checker view, but partial and safe views justify that change through
 `TrEnv'.ignore`, while the unsafe view receives the abstract block. -/
 theorem VEnvs.WFCore.extendUnsafeExact
@@ -454,8 +454,8 @@ theorem VEnvs.WFCore.extendUnsafeExact
 
 /-- Assemble the three safety-indexed results of one concrete inductive
 extension.  All implementation-specific work is isolated in the pointwise
-`AddInduct` witnesses; this theorem supplies the `TrEnv'` constructors,
-cross-safety monotonicity, and old-to-new inclusions required by `VEnvs.WFCore`. -/
+`AddInduct` facts; this theorem supplies the `TrEnv'` constructors,
+cross-safety monotonicity, and base-to-extended inclusions required by `VEnvs.WFCore`. -/
 theorem VEnvs.WFCore.extendInductExact
     {ves : VEnvs} {env env' : Environment} (wf : ves.WFCore env)
     (decl : VInductDecl) (next : DefinitionSafety → VEnv)

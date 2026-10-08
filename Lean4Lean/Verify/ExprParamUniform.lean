@@ -1,17 +1,20 @@
 import Lean4Lean.Verify.LocalContext
 
 /-!
-# Hit shapes (core definitions)
+# Parameter-uniform expressions (core definitions)
 
-This file holds the syntactic hit-shape predicates `Expr.ParamUniform`, `Expr.ParamUniformBV` and
-`Expr.ParamUniformTele` together with their structural lemmas. The generic constant-absence
+This file holds the syntactic predicates `Expr.ParamUniform`, `Expr.ParamUniformBV` and
+`Expr.ParamUniformTele` together with their structural lemmas. An expression is
+parameter-uniform for a set of head constants when every application of a head is applied to
+exactly the block parameters at the block universe levels; restoration of a nested
+declaration (section 3.3 of `docs/inductives/DESIGN.md`) copies the trailing arguments of such
+an application verbatim. The generic constant-absence
 judgment `Expr.AvoidsConsts` is in `Lean4Lean/Verify/Expr.lean`, and the binder-prefix
 predicate `Expr.LeadingBinders` in `Lean4Lean/Verify/LocalContext.lean`. It depends only on the expression-level
-verification library, so that the hit-shape invariant of the verified type checker
-(`Lean4Lean/Verify/TypeChecker/Basic.lean`) can mention it. The nested-restoration specific
-facts (the executable parameter opening `openRestoreParams`) are in
-`Lean4Lean/Verify/Inductive/Nested/ParamUniform.lean`, whose module documentation explains the
-predicates.
+verification library, so that the parameter-uniformity invariant of the verified type checker
+(`Lean4Lean/Verify/TypeChecker/Basic.lean`) can mention it. The facts specific to nested
+restoration are in `Lean4Lean/Verify/Inductive/Nested/Restoration/ParameterOpening.lean` (the
+executable parameter opening `openRestoreParams`) and `Lean4Lean/Verify/Inductive/Nested/Restoration/Uniform/`.
 -/
 
 namespace Lean.Expr
@@ -45,15 +48,15 @@ def paramBVars (nparams d : Nat) : List Expr :=
 /-! ### The free-variable form -/
 
 /-- `ParamUniform heads params ls e`: every application spine of `e` whose head is `.const c us`
-with `c ∈ heads` (a *hit*) has `us = ls` and its first `params.length` arguments literally equal
+with `c ∈ heads` (a *head occurrence*) has `us = ls` and its first `params.length` arguments literally equal
 to `params`; every other node is traversed structurally. Intended use: `params = As.toList`
 where `As` are the fvars opened by `openRestoreParams`, `heads` are the auxiliary family and
-auxiliary constructor names, and `ls = lparams.map .param`.
+auxiliary constructor names (for the checker invariant also the source constructor names), and `ls = lparams.map .param`.
 
 Under binders `params` is unchanged (fvars are not shifted), so there is no depth index. The
-parameter arguments of a hit are not themselves required to have shape. -/
+parameter arguments of a head occurrence are not themselves required to have shape. -/
 inductive ParamUniform (heads : List Name) (params : List Expr) (ls : List Level) : Expr → Prop
-  /-- A hit head applied to exactly the parameters. Trailing arguments are added by `app`. -/
+  /-- A head applied to exactly the parameters. Trailing arguments are added by `app`. -/
   | head {c : Name} : c ∈ heads →
       ParamUniform heads params ls (mkAppList (.const c ls) params)
   | app {f a : Expr} : ParamUniform heads params ls f → ParamUniform heads params ls a →
@@ -82,7 +85,7 @@ inductive ParamUniform (heads : List Name) (params : List Expr) (ls : List Level
 
 /-- `ParamUniformBV heads nparams ls d e`: the bound-variable twin of `ParamUniform`, for stored terms
 whose parameter telescope of length `nparams` is closed. `d` is the number of binders passed
-since the parameter telescope, so at a hit the first `nparams` arguments must be
+since the parameter telescope, so at a head occurrence the first `nparams` arguments must be
 `paramBVars nparams d`, i.e. parameter `i` is `.bvar (d + (nparams - 1 - i))`. The index
 increases by one under the bodies of `lam`, `forallE` and `letE`. -/
 inductive ParamUniformBV (heads : List Name) (nparams : Nat) (ls : List Level) : Nat → Expr → Prop
@@ -127,7 +130,7 @@ theorem mkAppList {f : Expr} {args : List Expr} (hf : ParamUniform heads params 
   | cons a args ih =>
     exact ih (.app hf (hargs a (.head _))) fun b hb => hargs b (.tail _ hb)
 
-/-- A hit: a head in `heads`, at the levels `ls`, applied to the parameters and then to shaped
+/-- A head occurrence: a head in `heads`, at the levels `ls`, applied to the parameters and then to shaped
 trailing arguments. -/
 theorem mkAppList_const_head {c : Name} {rest : List Expr} (hc : c ∈ heads)
     (hrest : ∀ a ∈ rest, ParamUniform heads params ls a) :
@@ -153,7 +156,7 @@ theorem of_avoidsConsts {e : Expr} (h : e.AvoidsConsts heads) : ParamUniform hea
 
 /-! ### Inversion -/
 
-/-- Spine inversion at a hit: a shaped expression whose application head is `.const c us`
+/-- Spine inversion at a head occurrence: a shaped expression whose application head is `.const c us`
 with `c ∈ heads` has `us = ls`, and its argument list is `params ++ rest` with every trailing
 argument shaped. -/
 theorem getAppFn_const_head_inv {e : Expr} {c : Name} {us : List Level}
@@ -177,7 +180,7 @@ theorem getAppFn_const_head_inv {e : Expr} {c : Name} {us : List Level}
   | const hnot => cases hfn; exact absurd hc hnot
   | _ => cases hfn
 
-/-- Inversion at an application whose head is not a hit. -/
+/-- Inversion at an application whose head is not in `heads`. -/
 theorem app_inv {f a : Expr} (H : ParamUniform heads params ls (.app f a))
     (hnot : ∀ c us, f.getAppFn = .const c us → c ∉ heads) :
     ParamUniform heads params ls f ∧ ParamUniform heads params ls a := by
@@ -190,7 +193,7 @@ theorem app_inv {f a : Expr} (H : ParamUniform heads params ls (.app f a))
     exact absurd hc (hnot _ _ this)
   | _ => cases he
 
-/-- Inversion of an application spine whose head is not a hit. -/
+/-- Inversion of an application spine whose head is not in `heads`. -/
 theorem mkAppList_inv {f : Expr} {args : List Expr}
     (H : ParamUniform heads params ls (f.mkAppList args))
     (hnot : ∀ c us, f.getAppFn = .const c us → c ∉ heads) :
@@ -574,7 +577,7 @@ end Lean.Expr
 
 namespace Lean.LocalDecl
 
-/-- The declaration's type (and, for a `let`, its value) are in free-variable hit shape. -/
+/-- The declaration's type (and, for a `let`, its value) are parameter-uniform in the free-variable form. -/
 def ParamUniform (heads : List Name) (params : List Expr) (ls : List Level) : LocalDecl → Prop
   | .cdecl _ _ _ ty _ _ => ty.ParamUniform heads params ls
   | .ldecl _ _ _ ty val _ _ => ty.ParamUniform heads params ls ∧ val.ParamUniform heads params ls
@@ -638,9 +641,9 @@ theorem ParamUniform.mkBinding_of_disjoint {heads : List Name} {params : List Ex
 
 /-! ### Unfolding `Expr.replace`
 
-`Expr.replace` is modelled by `Expr.replaceNoCache` (`Expr.replace_eq`). A callback hit stops the
+`Expr.replace` is modelled by `Expr.replaceNoCache` (`Expr.replace_eq`). A callback returning `some` stops the
 traversal; otherwise the node is rebuilt from its replaced children. The relational form is
-`VerifyInductive.ExprReplacement` (`Nested/Restoration/ExprReplace.lean`). -/
+`VerifyInductive.ExprReplacement` (`Lean4Lean/Verify/Inductive/Nested/Restoration/ExprReplace.lean`). -/
 
 theorem replace_of_some {f : Expr → Option Expr} {e r : Expr} (h : f e = some r) :
     e.replace f = r := by

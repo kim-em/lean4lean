@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.Pattern
 
-/-! Ordered finite argument captures for native patterns. -/
+/-! Ordered finite argument captures for stored-rule patterns. -/
 
 namespace Lean4Lean
 

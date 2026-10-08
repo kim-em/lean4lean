@@ -5,7 +5,7 @@ import Lean4Lean.Theory.Typing.EtaOpening
 namespace Lean4Lean.VEnv
 open VExpr
 
-/-- Matching reconstructed dependent indices keeps the literal native head
+/-- Matching reconstructed dependent indices keeps the literal recursor head
 and compares its scoped universe packets by level equivalence. Only the finite generated argument positions are
 compared; an arbitrary source major is never matched through equality. -/
 def ConstSpineDefEq (env : VEnv) (U : Nat) (Γ : List VExpr)

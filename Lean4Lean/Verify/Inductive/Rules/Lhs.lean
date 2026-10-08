@@ -1,5 +1,9 @@
 import Lean4Lean.Verify.Inductive.Rules.Rhs
 
+/-! The left-hand side of a rule: the recursor applied to the parameter/motive/minor prefix, the
+constructor indices and the constructor major, translated and typed in the cached equation
+context and transported to the equation context of the right-hand side. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -964,9 +968,9 @@ theorem
     hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hfull,
     HcachedCtx, HlhsResidual, Hlhs', HtypeBody, HtypeTranslation⟩
 
-/-- MetadataMentions-stable framed form of `installedCachedLhsBodyWithFrame`.
+/-- Telescope-fixed framed form of `installedCachedLhsBodyWithFrame`.
 Besides fixing the recursor telescope, this retains the checked constructor
-tail needed to compare the LHS context with the independently narrowed RHS
+tail needed to compare the LHS context with the independently dependency-selected RHS
 context. -/
 theorem
     RecursorCheck.RuleAlignment.installedCachedLhsBodyWithFrameFor
@@ -1033,7 +1037,7 @@ theorem
     Hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hfull, Hctx,
     Htranslation, Htyping, Htype, HtypeTranslation⟩
 
-/-- Transport the independently reconstructed LHS into the exact narrowed
+/-- Transport the independently reconstructed LHS into the exact fixed
 equation context used by the canonical RHS.  Projection translation need not
 be syntactically unique, so the transported strict targets are retained and
 their typing is recovered through semantic translation uniqueness. -/

@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Inductive.RestorationRenamingOnCtx
 
 /-! # Restoration preserves translation
 
-`restorationCommutes'` (`Nested/Restoration/CommutationUniform.lean`) shows that a
+`restorationCommutes` (`Nested/Restoration/CommutationUniform.lean`) shows that a
 translation of the executable restoration of a lowered term, if one exists, is
 the abstract restoration of the lowered translation. This file proves that one
 exists: restoration preserves translation, typing side conditions included.
@@ -20,14 +20,15 @@ translation contexts (`RestoreTypedCtx`).
 
 * `translate_avoids_exists`: syntax avoiding the restorable names translates in
   `envT` to the restoration of its lowered translation (the trailing arguments
-  of a hit, which the executable copies verbatim, and literals).
+  of a head occurrence, which the executable copies verbatim, and literals).
 * `restorationTranslates`: the opened body of a lowered term, traversed by
   `Expr.replace` with `restoreNestedNode`, translates in `envT` to the
-  restoration of its lowered translation. At a hit, the executable replacement
+  restoration of its lowered translation. At a head occurrence (an application of
+  an auxiliary family or constructor), the executable replacement
   head is the container (or container constructor) applied to the parameter
   arguments recorded by lowering; their translations are supplied by the
   hypothesis `RestoreHeadsTranslate`, and the typing of the head spine is read
-  off the transported typing of the whole hit by inversion.
+  off the transported typing of the whole occurrence by inversion.
 -/
 
 namespace Lean.Expr
@@ -390,7 +391,7 @@ def RestoreHeadsTranslate (r : Restoration) (result : Lean4Lean.ElimNestedInduct
       List.Forall₂ (TrExprS envT Us Δt) args
         (h.arguments.map fun arg => instantiateParams (arg.instL levels) PT)
 
-/-- The hit case of `restorationTranslates`. -/
+/-- The head-occurrence case of `restorationTranslates`. -/
 theorem restorationTranslates'_paramUniform
     (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}

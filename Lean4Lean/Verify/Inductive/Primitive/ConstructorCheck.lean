@@ -1,5 +1,14 @@
 import Lean4Lean.Verify.Inductive.Primitive.Constructors
 
+/-!
+# The constructor check of a primitive declaration
+
+The executable constructor check still runs on the primitive path. For the canonical `Bool`
+and `Nat` syntax the facts that the ordinary constructor phase derives from it (checked
+constructors, parameter prefixes, constructor tails, owner normal forms) are proved
+directly, in the empty parameter scope (`checkConstructors.primitiveCoreWF`).
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -383,9 +392,10 @@ theorem PrimitiveHeaderEnvironment.parameterPrefixes
       · change n + 1 + 1 < 2 at hctor
         omega
 
-/-- Finite, source-derived semantic evidence for the two constructor batches
-which may be admitted through the primitive-name gate.  This proof uses the
-canonical Bool/Nat source syntax and the staged header translation; it does
+/-- The checked constructors of the two constructor batches admitted by the
+primitive-name exception, derived from the source.  This proof uses the
+canonical Bool/Nat source syntax and the header translation of
+`PrimitiveHeaderEnvironment`; it does
 not claim that the header-only environment is a complete checking context. -/
 theorem PrimitiveHeaderEnvironment.checkedConstructors
     (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
@@ -581,8 +591,8 @@ theorem PrimitiveHeaderEnvironment.checkedConstructors
 
 /-- Canonical primitive constructor tails replay in the empty cached-
 parameter scope.  The abstract tail certificates are built directly above;
-the executable source/target correspondence comes from the staged header
-translation. -/
+the executable source/target correspondence comes from the header
+translation of `PrimitiveHeaderEnvironment`. -/
 theorem PrimitiveHeaderEnvironment.constructorTails
     (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
@@ -770,7 +780,7 @@ theorem PrimitiveHeaderEnvironment.constructorTails
           (by simp [htargetCtors]) Hsucc HsuccTail'
 
 /-- The checker-independent canonical constructor syntax also fixes the owner
-normal forms later consumed by recursor construction. -/
+normal forms later used by recursor construction. -/
 theorem PrimitiveHeaderEnvironment.ownerNormalForms
     (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)

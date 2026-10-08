@@ -11,7 +11,11 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-! This module deliberately sits below recursor installation. -/
+/-! The side environments in which the executable validates a restored nested
+declaration. `restoreNestedHeaders` restores the source headers
+(`ValidationHeaderEnvironment`), and `restoreNestedConstructors` then their
+constructors (`ValidationEnvironment`); each loop is described by the steps of
+its `List.forM` (`ConstructorValidationSteps`). -/
 
 inductive ConstructorValidationSteps (P : α → σ → σ → Type) :
     List α → σ → σ → Type
@@ -208,9 +212,10 @@ structure ValidationEnvironment
       allowPrimitive)
     types headerEnv targetEnv
 
-/-- Exact side environment obtained by restoring just the mutually recursive
-source headers.  This is the executable dependency boundary for validating
-cached nested-family applications. -/
+/-- The side environment obtained by restoring only the mutually recursive
+source headers, in which the executable validates the restored constructor
+parameters and the nested applications recorded by lowering
+(`validateRestoredConstructorParameters`, `validateNestedAuxiliaries`). -/
 structure ValidationHeaderEnvironment
     (loweredEnv sourceEnv : Environment) (allIndNames : List Name)
     (types : List InductiveType) (targetEnv : Environment) where

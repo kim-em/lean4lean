@@ -6,9 +6,9 @@ import Lean4Lean.Theory.Typing.Strong
 For a projection-registered structure `S` whose result sort is never zero at universe levels
 `ls`:
 * every projection of a typed major is typable at the field type that `fieldType` computes
-  (`VEnv.proj_typed`, L2), with congruence in the major;
+  (`VEnv.proj_typed`), with congruence in the major;
 * a projection of a constructor spine is definitionally equal to the field
-  (`VEnv.proj_spine`, L3).
+  (`VEnv.proj_spine`).
 
 The proofs walk the closed constructor telescope with simultaneous substitutions
 (`argSubst`), so no `instOuter` (and none of the uniqueness-dependent modules) is used. -/
@@ -239,7 +239,7 @@ theorem ProjTele.fieldType {S : Name} {info : VProjectionInfo} {ls : List VLevel
   rw [this, List.getElem_drop]
   simp only [hpl, Nat.zero_add, VExpr.argSubst, List.foldl_append, List.foldl_nil, projsOf]
 
-/-- **L2: projections of a typed major.** For a structure whose result sort is never zero at
+/-- **Projections of a typed major.** For a structure whose result sort is never zero at
 `ls`, every projection of a major typed at `S ls (ps ++ idx')` is typed at its field type, and
 is congruent in the major. -/
 theorem proj_typed (henv : env.Ordered) {Δ : List VExpr} (hΔ : OnCtx Δ (env.IsType U))
@@ -362,7 +362,7 @@ theorem spine_result {S : Name} {u np : Nat} {doms idx : List VExpr} {ls : List 
   congr 1
   simp at hall ⊢; omega
 
-/-- **L3: projections of a constructor spine.** For a structure whose result sort is never zero
+/-- **Projections of a constructor spine.** For a structure whose result sort is never zero
 at `ls`, the constructor applied to parameters `ps` and fields `fs` typed along its telescope is
 typed at the structure applied to `ps` and the instantiated indices, and each projection of it
 is typed at its field type and definitionally equal to the field. -/
@@ -414,7 +414,7 @@ theorem proj_spine (henv : env.Ordered) {Δ : List VExpr} (hΔ : OnCtx Δ (env.I
     ArgsTyped.mkApps hargs (.const hctor hls hlen)
   rw [hRe] at hw
   refine ⟨hw, ?_⟩
-  -- the parameters, and L2 at the spine
+  -- the parameters, and `proj_typed` at the spine
   obtain ⟨M, hps, -⟩ := ArgsTyped.append hargs
   have L2 := proj_typed henv hΔ hp hcl hls hlen hnz T hps hpl
     (by simp [hidx]) hw

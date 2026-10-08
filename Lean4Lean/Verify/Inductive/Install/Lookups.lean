@@ -11,10 +11,10 @@ open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
-/-! Facts about the completed recursor phases entered from the ordinary
-header/constructor pipeline (`OrdinaryConstructorCheck`).  The recursor result
-itself is `RecursorCheck R.completed`; the lemmas here only
-add what is visible through the declared header and constructor traces
+/-! Facts about the recursor check of a declaration whose headers and
+constructors went through the ordinary pipeline (`OrdinaryConstructorCheck`).
+The recursor check itself is `RecursorCheck R.toConstructorCheck`; the lemmas
+here only add what is visible through the header and constructor environments
 (source lookups for nested restoration). -/
 
 /-- Header metadata installed at the start of the verified pipeline remains
@@ -116,7 +116,7 @@ private theorem mkAuxRecNameMap_fold_find_none
       exact False.elim (hnot.1 this.symm)
     · exact hacc
 
-/-- The first component of the production auxiliary-recursor map is exactly
+/-- The first component of the executable's auxiliary-recursor map is exactly
 the recursor-name image of the extra family names recorded in the installed
 main-family metadata. -/
 theorem mkAuxRecNameMap_recNames
@@ -148,7 +148,7 @@ theorem mkAuxRecNameMap_recNames_mem
     change recName ∈ ([] : List Name) at hmem
     simp at hmem
 
-/-- The second component of the production auxiliary-recursor map has no
+/-- The second component of the executable's auxiliary-recursor map has no
 entry outside the exact recursor-name suffix used to build it. -/
 theorem mkAuxRecNameMap_recMap_find_none
     (main : InductiveType) (rest : List InductiveType)
@@ -177,7 +177,7 @@ theorem mkRecName_injective : Function.Injective Lean.mkRecName := by
 
 /-- A recursor shape's existential owner position is the concrete generated
 position whenever the declaration's source names are duplicate-free.  This
-is the positional bridge needed before transporting a lowered shape back to
+is the positional link needed before transporting a lowered shape back to
 the corresponding source-family index. -/
 theorem VInductDecl.NestedRecursorShape.ownerIdx_eq_of_name
     {decl : VInductDecl} {owner : VInductiveType} {recursor : VConstVal}
@@ -223,7 +223,7 @@ theorem RecursorCheck.findConstructorOfMem
   rwa [H.localExtends.env_eq]
 
 /-- Source alignment identifies the exact concrete constructor metadata that
-nested restoration will read from the final lowered environment. -/
+nested restoration will read from the installed lowered environment. -/
 theorem RecursorCheck.findSourceConstructor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -243,8 +243,8 @@ theorem RecursorCheck.findSourceConstructor
   rw [← hname]
   exact H.findConstructorOfMem hentry
 
-/-- The concrete constructor read by an operational restoration step is the
-positionally aligned lowered constructor installed by the verified producer.
+/-- The concrete constructor read by a restoration step is the positionally
+aligned lowered constructor installed by the verified lowered run.
 Only equality of the fold item name is required; lookup functionality then
 forces equality of the complete `ConstructorVal`, and hence of its type. -/
 theorem RestoredConstructorStep.oldType_eq_ofInstalled
@@ -309,9 +309,9 @@ theorem RestoredConstructorStep.metadataOfInstalled
   exact ⟨R.declared.installed.entrySafety hentry, hlevels, hinfoName,
     hunsafe⟩
 
-/-- The constructor fold nested inside an operational family restoration is
+/-- The constructor fold nested inside a family restoration step is
 indexed by exactly the constructor-name list of the aligned installed lowered
-family.  This is the family-level lookup bridge used before applying
+family.  This is the family-level lookup fact used before applying
 `oldType_eq_ofInstalled` pointwise. -/
 theorem RestoredInductiveStep.oldConstructors_eq_ofInstalled
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -339,7 +339,7 @@ theorem RestoredInductiveStep.oldConstructors_eq_ofInstalled
   rw [hinfo]
   exact hctors
 
-/-- Every generated primary recursor is retrievable with the exact production
+/-- Every generated source recursor is retrievable with the exact kernel
 metadata retained by the verified recursor phase. -/
 theorem RecursorCheck.findRecursorOfMem
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -357,8 +357,8 @@ theorem RecursorCheck.findRecursorOfMem
     exact R.declared.context.checking.tr.map_wf
   exact H.installed.findOfMem hlocalWF hentry
 
-/-- The generated primary recursor for every lowered family is present in the
-final environment and satisfies both telescope preconditions consumed by
+/-- The generated recursor for every lowered family is present in the
+installed environment and satisfies both telescope preconditions used by
 nested restoration. -/
 theorem RecursorCheck.findSourceRecursor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -397,8 +397,8 @@ theorem RecursorCheck.findSourceRecursor
   change outEnv.find? E.info.name = some (.recInfo E.info) at hlookup
   rwa [E.name] at hlookup
 
-/-- Assemble the complete per-family lookup/telescope premise consumed by
-the operational nested-restoration fold. Constructor telescope syntax is the
+/-- Assemble the complete per-family lookup/telescope premise used by
+the executable nested-restoration fold. Constructor telescope syntax is the
 only remaining source-side premise; header, constructor, and recursor lookups
 and both generated recursor telescopes are derived from installation. -/
 theorem RecursorCheck.restorationSources
@@ -446,7 +446,7 @@ theorem RecursorCheck.restorationSources
     exact hrecursor
 
 /-- The installed generated entry fixes the universe arity of the old
-recursor metadata read by primary restoration. -/
+recursor metadata read by source-recursor restoration. -/
 theorem RecursorCheck.restoredSourceRecursorMetadata
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -486,7 +486,7 @@ theorem RecursorCheck.restoredSourceRecursorMetadata
     simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
       E.translated.1.2.1
 
-/-- Identify an operational primary-restoration step with its exact generated
+/-- Identify a source-recursor restoration step with its exact generated
 recursor entry and expose the complete old/restored telescope alignment.  In
 particular, callers do not choose an unrelated generated entry or reconstruct
 the local binder selection: installation, the restoration lookup, and the
@@ -540,7 +540,7 @@ theorem RecursorCheck.restoredSourceTelescopeAlignment
   exact hrestoration.generatedTelescopeAlignment E selections hrecInfo
     hselectionNoAlias hparams hresultParams
 
-/-- A primary restoration step inherits one of the two source-declaration
+/-- A source-recursor restoration step inherits one of the two source-declaration
 universe arities admitted for generated recursors.  This packages the lookup
 argument identifying the step's old metadata with the exact generated entry,
 so later source-restoration proofs do not need to repeat it. -/
@@ -581,11 +581,11 @@ theorem RecursorCheck.restoredSourceRecursorUvars
   rw [hsourceUvars]
   exact AddInductive.getRecLevelParams_length
 
-/-- Direct executable-to-source realization for a restored primary recursor.
-Unlike `restoredPrimaryRecursorSemantics`, this theorem does not transport a
-shape from the expanded abstract declaration.  It derives the source shape
-from the generated concrete binder selections, operational restoration, and
-translation of the restored type in the canonical source environment. -/
+/-- Source translation of a restored source recursor, read directly off the
+executable.  It does not transport a shape from the expanded abstract
+declaration: it derives the source shape from the generated concrete binder
+selections, the restoration step, and the translation of the restored type in
+the source environment `canonicalEnv`. -/
 def RecursorCheck.restoredTrSourceRecursor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -672,7 +672,7 @@ def RecursorCheck.restoredTrSourceRecursor
 
 /-- Rebase a conversion between two dependent prefixes along a conversion
 of their common suffix.  Both prefix contexts are known well formed from the
-original conversion, so changing the suffix on each side is admissible even
+given conversion, so changing the suffix on each side is admissible even
 when the two dependent prefixes use different representatives. -/
 theorem VEnv.IsDefEqCtx.rebaseCommonSuffix
     (henv : env.WF)

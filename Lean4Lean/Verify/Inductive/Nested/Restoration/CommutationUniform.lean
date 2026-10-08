@@ -5,19 +5,20 @@ import Lean4Lean.Verify.Inductive.Rules.Translation
 import Lean4Lean.Std.Basic
 
 /-! Commutation of executable nested restoration with `Restoration.expr`,
-under the hit-shape side condition.
+under the parameter-uniformity side condition.
 
 `ElimNestedInductive.Result.restoreNested` opens the common parameters as
 free variables `As` and runs `Expr.replace` with `restoreNestedNode`. A node
-whose application head is an auxiliary family or constructor (a *hit*) is
+whose application head is an auxiliary family or constructor (a *head
+occurrence*) is
 replaced by the container specialization applied to the arguments after the
 parameters; the parameter arguments, the universe levels and the trailing
 arguments are not inspected. `Restoration.expr` instead restores every
 argument and substitutes the actual parameter arguments.
 
-The two agree (`restorationCommutes'`) when
+The two agree (`restorationCommutes`) when
 
-* every hit is applied literally to `As` at the agreed levels
+* every head occurrence is applied literally to `As` at the agreed levels
   (`Expr.ParamUniform`, a purely syntactic condition on the input), and
 * the translation of the executable output exists in an environment in which
   the restorable names are fresh. This translation forces every untraversed
@@ -131,7 +132,7 @@ theorem restoration_expr_proj {r : Restoration} {s : Name} {i : Nat} {e e' : VEx
 
 /-- **Untraversed syntax.** Two translations, in related contexts, of an
 expression avoiding the restorable names agree up to restoration. This
-covers the trailing arguments of a hit, which the executable copies
+covers the trailing arguments of a head occurrence, which the executable copies
 verbatim. -/
 theorem RestoreCtxRel.translate_avoids {r : Restoration}
     (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
@@ -259,7 +260,7 @@ theorem RestorationMapAgreement.restoreHead_eq_none
   by_contra hne
   exact h ((A.restoreHead_ne_none_iff As c).mp hne)
 
-/-- The hit case of `restorationCommutes'`: a node whose application head is
+/-- The head-occurrence case of `restorationCommutes`: a node whose application head is
 a restoration head. -/
 theorem restorationCommutes'_paramUniform
     {r : Restoration} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -315,7 +316,7 @@ theorem restorationCommutes'_paramUniform
     Lean4Lean.VExpr.mkApps_append]
 
 /-- **Commutation of executable restoration with `Restoration.expr`** on an
-opened body `e`, under the hit-shape condition. `e` is traversed by
+opened body `e`, under the parameter-uniformity condition. `e` is traversed by
 `Expr.replace` with `restoreNestedNode` over the opened parameters `As`; its
 translation `s` (in any environment) and any translation `t` of the
 executable output in an environment `targetEnv` lacking the restorable names
@@ -504,8 +505,8 @@ theorem Expr.ForallTelescope.leadingBinders_eq {e suffix body : Expr} {n : Nat}
   | nil => cases Hlead; rfl
   | cons _ ih => cases Hlead with | forallE Hb => exact ih Hb
 
-/-- **Hit shape of every opening** of a stored term whose parameter telescope
-is in bound-variable hit shape (replaces `restoreReady_of_lowered`). -/
+/-- **Parameter uniformity of every opening** of a stored term whose parameter
+telescope is parameter-uniform in bound-variable form. -/
 theorem NestedRestorationOpening.paramUniform_of_lowered
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {heads : List Name} {auxLevels : List Level}
@@ -529,7 +530,7 @@ theorem NestedRestorationOpening.paramUniform_of_lowered
     rcases List.mem_map.mp ha with ⟨fv, _, rfl⟩
     exact ⟨fv, rfl⟩
 
-/-- **Closed-term commutation for forall telescopes** under the hit-shape
+/-- **Closed-term commutation for forall telescopes** under the parameter-uniformity
 condition (generated recursor and constructor types). -/
 theorem NestedRestorationOpening.restorationCommutes
     {r : Restoration} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -586,7 +587,7 @@ theorem NestedRestorationOpening.restorationCommutes
     (Hsame.translatedDomains_restore hc Hfresh .nil Hs Ht hDs hDt) Hbody
 
 /-- `restoreNested` form of `NestedRestorationOpening.restorationCommutes`,
-from the bound-variable hit shape of the stored input. -/
+from the bound-variable parameter uniformity of the stored input. -/
 theorem NestedRestoration.restorationCommutes
     {r : Restoration} {result : Lean4Lean.ElimNestedInductive.Result}
     {env : Environment} {auxRec : NameMap Name} {sourceEnv targetEnv : VEnv}
@@ -609,7 +610,7 @@ theorem NestedRestoration.restorationCommutes
     Htel Hinput hclosed (Hclosed Hopen) Hs Ht
 
 /-- The restored recursor type is the abstract restoration of the lowered
-recursor type, under the hit-shape condition. -/
+recursor type, under the parameter-uniformity condition. -/
 theorem RecursorRestoration.typeRestorationCommutes
     {r : Restoration} {auxLevels : List Level} {sourceEnv targetEnv : VEnv}
     {suffix : Expr} {s t : VExpr}

@@ -1,21 +1,21 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjCtorType
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.HTS
 
-/-! # Validity of a projection entry (stage C, decision D11)
+/-! # Validity of a projection entry
 
 The soundness cases of the projection rules (`projDF`, `projIota`, `structEta`, `unitLike`) need
 semantic facts about the registered constructor and family that come from derivations in the
-environment in which the entry's family and constructor were checked (`VEnv.ProjDeclAt`): the
-constructor type is a sound telescope, and the family's declared type is soundly a telescope
-ending in the recorded result sort. As for rules (`RuleValid`) and eliminator rules
+header environment in which the entry's family and constructor were checked
+(`VEnv.ProjDeclAt`): the constructor type is a sound telescope, and the family's declared type
+is soundly a telescope ending in the recorded result sort. As for rules (`RuleValid`) and eliminator rules
 (`ElimValid`), these facts are provided by the induction along the declaration history: the
-types environment of an entry is earlier in the history, so soundness of its derivations in the
+header environment of an entry is earlier in the history, so soundness of its derivations in the
 model of the final environment is available when the entry is registered. `ProjValid` records
 exactly that soundness; it is not a hypothesis about the entry itself. -/
 
 namespace Lean4Lean
 
-/-- The origin of a projection entry (`VEnv.ProjDecl`), at a given types environment. -/
+/-- The declaration of a projection entry (`VEnv.ProjDecl`), at a given header environment. -/
 def VEnv.ProjDeclAt (env envTypes : VEnv) (S : Name) (info : VProjectionInfo) : Prop :=
   ∃ (base : VEnv) (dsb : List VDecl) (decl : VInductDecl) (type : VInductiveType)
     (ctor : VConstVal),
@@ -57,8 +57,9 @@ structure ProjStatic (env : VEnv) (S : Name) (info : VProjectionInfo) : Prop whe
   famNotProjCtor : ¬ IsProjCtor env S
   ctorClosed : info.ctorType.Closed
 
-/-- **Validity of a projection entry** in the model of `env`: its static facts, and an origin
-whose types environment is sound in the model of `env`, at every target context. -/
+/-- **Validity of a projection entry** in the model of `env`: its static facts, and a
+declaration whose header environment is sound in the model of `env`, at every target
+context. -/
 def ProjValid (env : VEnv) (S : Name) (info : VProjectionInfo) : Prop :=
   ProjStatic env S info ∧ ∃ envTypes, env.ProjDeclAt envTypes S info ∧
     ∀ U Δ, OnCtx Δ (env.IsType U) → SoundTypedIn env envTypes U Δ

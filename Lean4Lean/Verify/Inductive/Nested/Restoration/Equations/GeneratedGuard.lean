@@ -400,7 +400,7 @@ theorem restoredEquation_rhs {s : InductiveSignature} (g : Instance s)
 /-! ### Avoidance of the restored block recursors in a validated nested run -/
 
 /-- **The restored generated pieces mention no restored block recursor.** For
-a final assembly shape of a validated nested run, there is a name list `L`
+a restored block base of a validated nested run, there is a name list `L`
 such that the generated recursor type of every owner avoids `L`, and the
 restoration of every expression avoiding `L` mentions none of the block's
 recursors.
@@ -807,8 +807,8 @@ theorem RestoredBlockBase.recursors_names
   simp only [List.nil_append] at hadded'
   rw [List.map_append, C.sourceTranslations.recursorNames, hadded', stepValues_names Hadded]
 
-/-- The restored name of every generated recursor is a recursor of the final
-assembly shape. -/
+/-- The restored name of every generated recursor is a recursor of the
+restored block base. -/
 theorem NestedRun.restoredRecursorName_mem
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}

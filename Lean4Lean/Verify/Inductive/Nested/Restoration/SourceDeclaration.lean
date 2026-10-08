@@ -11,10 +11,16 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-! # Native source-core reconstruction for nested declarations -/
+/-! # The source declaration of a nested run
 
-/-- Two retained executions of the deterministic source-header restoration
-fold have the same endpoint. -/
+The abstract source declaration of a nested declaration (`NestedSourceDeclaration`),
+with its header and constructor environments and their translation `TrInductDeclCore`,
+is reconstructed from the lowering, restoration and validation runs; neither the
+declaration nor its constructor translations are supplied by the caller (section 3.3 of
+`docs/inductives/DESIGN.md`). -/
+
+/-- Two runs of the deterministic header-validation fold (`ValidationHeaderStep`)
+have the same endpoint. -/
 theorem ConstructorValidationSteps.headerTarget_eq
     (Hleft : ConstructorValidationSteps
       (fun indType : InductiveType => fun source target =>
@@ -209,8 +215,8 @@ private theorem installRestoredSourceFamilies
           · simpa [owner', VEnv.addConstVals_append] using
               VEnv.addConstVals_append HconstructorsAdded HrestAdded
 
-/-- Source declaration and canonical header/constructor stages synthesized
-from the exact lowering, restoration, and validation executions. -/
+/-- The source declaration with its header and constructor environments,
+obtained from the lowering, restoration, and validation runs. -/
 structure NestedSourceDeclaration
     (sourceVEnv : VEnv) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
@@ -235,9 +241,9 @@ structure NestedSourceDeclaration
   headerValidationValid : CheckingEnv.Valid safety auxiliaryHeaderEnv envTypes
   validationValid : CheckingEnv.ValidCore safety validationEnv envCtors
 
-/-- Reconstruct the complete ordinary source core used by nested verification
-from the actual producer and side-validation traces.  In particular, neither
-the declaration nor its constructor translations are supplied by a caller. -/
+/-- The source declaration used by nested verification, reconstructed from the
+ordinary run on the lowered declaration and the validation runs. In particular,
+neither the declaration nor its constructor translations are supplied by a caller. -/
 theorem NestedLoweringOutputClosed.sourceCore
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}

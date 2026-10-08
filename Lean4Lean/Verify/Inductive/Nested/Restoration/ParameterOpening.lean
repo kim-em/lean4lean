@@ -1,5 +1,10 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ExprReplace
 
+/-! Opening of the common parameter telescope by nested restoration (`openRestoreParams`):
+the opening relation `ParamOpening`, the cancellation of opening and closing, and the
+transfer of translations across identical forall prefixes (`Expr.SameForallPrefix`), up to
+the abstract relation `NestedRestoration` for one restored expression. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -169,7 +174,7 @@ theorem ParamOpening.context_extension
     · simp [hlctx, decl, LocalContext.mkLocalDecl_toList]
     · simp [hparams, decl, List.append_assoc, LocalDecl.fvarId]
 
-/-- A positional bound-variable witness and a declaration occurring at the
+/-- A positional free-variable declaration (`FVarDeclAt`) and a declaration occurring at the
 same free-variable identifier in a well-formed context are the same local
 declaration. -/
 theorem FVarDeclAt.declaration_eq_of_mem
@@ -376,7 +381,7 @@ theorem ParamOpening.lambda_rebuilding_data
         Expr.instantiate1_eq, hbodyNoId.abstractN_instantiate1 hclosedBody, Expr.abstractN_nil]
 
 /-- Closing a root lambda opening with its unchanged exposed body reproduces
-the original equation RHS exactly. -/
+the input equation right-hand side exactly. -/
 theorem ParamOpening.root_mkLambda_tail
     (Hopen : ParamOpening {} #[] e n outLctx outAs tail)
     (Hwf : outLctx.WF)
@@ -504,8 +509,7 @@ theorem ParamOpening.forall_closing_data
         And.intro Hsource.1 Habstract
   | lam Hnext ih => cases Htel
 /-- Full-scoping twin of `forall_closing_data`: the same closing fold also preserves
-level metavariable freedom recorded by `FVarsIn`.  Folding the declarations copied by a forall opening removes exactly the
-new parameter IDs.  `P` describes the free variables allowed before the
+level metavariable freedom recorded by `FVarsIn`.  `P` describes the free variables allowed before the
 opening; the root specialization uses `P := False`. -/
 theorem ParamOpening.forall_closing_data_fvarsIn
     (Hopen : ParamOpening lctx As e n outLctx outAs tail)
@@ -610,7 +614,7 @@ theorem ParamOpening.forall_closing_data_fvarsIn
 
 
 /-- Closing a root forall opening with its unchanged exposed body reproduces
-the original telescope exactly. -/
+the input telescope exactly. -/
 theorem ParamOpening.root_mkForall_tail
     (Hopen : ParamOpening {} #[] e n outLctx outAs tail)
     (Hwf : outLctx.WF)
@@ -1017,8 +1021,9 @@ theorem Expr.SameForallPrefix.translatedContextsExact
   subst actualRightDomains
   exact Hcontexts
 
-/-- Sort-indexed form of `translatedWholeTargetsOfResidualRight`, suitable
-for extending a dependent context conversion by the resulting domain. -/
+/-- Two translated forall telescopes with the same concrete prefix and the same
+residual source are definitionally equal, at a sort level, so that a dependent
+context conversion can be extended by the resulting domain. -/
 theorem Expr.SameForallPrefix.translatedWholeTargetsOfResidualRightSort
     (H : Expr.SameForallPrefix n leftSource rightSource)
     (henv : VEnv.WF env)
@@ -1249,8 +1254,8 @@ theorem ParamOpening.lambdaResidualData
         rw [hlength] at hcomm
         simpa using hcomm
 
-/-- Root specialization of `forallResidualData`, stated using Lean's
-production array primitive. -/
+/-- Root specialization of `forallResidualData`, stated with Lean's
+`Array` operations. -/
 theorem ParamOpening.forallResidual
     (Hopen : ParamOpening {} #[] outer n outLctx outAs tail)
     (Htel : Expr.ForallTelescope outer n residual) :
@@ -1358,7 +1363,7 @@ def NestedRestoration
 
 /-- The concrete parameter-opening data hidden by `NestedRestoration`, with
 the exact binder-order selection and its length exposed for alpha-invariant
-semantic transport. -/
+transport of translations. -/
 structure NestedRestorationOpening
     (result : Lean4Lean.ElimNestedInductive.Result)
     (env : Environment) (auxRec : NameMap Name)
@@ -1424,9 +1429,9 @@ theorem NestedRestorationOpening.sameForallPrefix
         Hopen.restoredBody
   simpa only [hinput, ← houtput] using Hsame
 
-/-- The operationally rebuilt output exposes the exact residual obtained by
+/-- The rebuilt output exposes the exact residual obtained by
 abstracting restoration's fresh parameter variables.  This is stronger than
-mere arity preservation: subsequent semantic transport can type that very
+mere arity preservation: the transport of translations can type that very
 residual and then close it under the unchanged concrete parameter prefix. -/
 theorem NestedRestorationOpening.outputPrefixTelescope
     (Hopen : NestedRestorationOpening result env auxRec input output)
@@ -1460,8 +1465,8 @@ theorem NestedRestorationOpening.outputPrefixTelescope
     (restoredBody.abstractN Hselection.fvars)
   simpa only [houtputForall] using Hrebuilt
 
-/-- Closing the fresh parameter variables exposed by an operational root
-opening recovers the original de Bruijn suffix of a closed forall telescope. -/
+/-- Closing the fresh parameter variables exposed by a root
+opening recovers the de Bruijn suffix of the input closed forall telescope. -/
 theorem NestedRestorationOpening.abstractBody_eq_suffix
     (Hopen : NestedRestorationOpening result env auxRec input output)
     (Htelescope : Expr.ForallTelescope input result.nparams suffix)
@@ -1505,8 +1510,9 @@ theorem NestedRestorationOpening.abstractBody_eq_suffix
     Expr.getAppFn]
 
 /-- After restoration opens the common-parameter prefix, the remaining
-generated recursor telescope is retained as a binder-aligned replacement
-trace.  The residual remains literal when it only refers to that suffix. -/
+generated recursor telescope is a binder-aligned replacement
+(`ForallTelescopeReplacement`). The residual remains literal when it only refers
+to that suffix. -/
 theorem NestedRestorationOpening.suffixTelescopeReplacement
     (Hopen : NestedRestorationOpening result env auxRec input output)
     (Htelescope : Expr.ForallTelescope input
@@ -1702,7 +1708,7 @@ theorem concreteRecursorResult_looseBVarRange
   (concreteRecursorResult_closed howner).looseBVarRange_le
 
 /-- Strong recursor specialization: restoration preserves not only the total
-telescope arity but its canonical de Bruijn result expression. -/
+telescope arity but its de Bruijn result expression. -/
 theorem NestedRestoration.concreteRecursorResult_forallTelescope
     (H : NestedRestoration result env auxRec input output)
     (howner : ownerIdx < numMotives)

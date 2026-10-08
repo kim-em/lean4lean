@@ -10,14 +10,15 @@ import Lean4Lean.Verify.Inductive.Nested.CaseEliminators.Restored
 /-! The restored-equation well-formedness hypothesis `HrestoredWF` of
 `NestedRun.hruleShape_of_base` (`Nested/Restoration/Equations/RestoredRulesBase.lean`).
 
-Route. Every generated equation of the lowered production is well formed in
+Route. Every generated equation of the lowered run is well formed in
 the lowered recursor environment (`loweredEquationWF`, from
 `RecursorCheck.equationsWF` and `ruleRhsTranslations`). A
 context-carrying renaming restoration substitution
 (`Theory/Inductive/RestorationRenamingOnCtx.lean`) from that environment into
-the final abstract environment `C.finalBaseVEnv` transports the typing of both
-sides to the restored equation (`Restoration.equation_wf_onCtx`), using beta
-subject reduction of the well-formed final environment. The substitution
+the recursor environment `B.recursorVEnv` of a restored block base transports
+the typing of both sides to the restored equation
+(`Restoration.equation_wf_onCtx`), using beta subject reduction of that
+well-formed environment. The substitution
 transports the projection rules only in well-formed image contexts
 (`VEnv.ProjectionRulesRenamedOnCtx`); the equations are stated in the empty
 context, so every transported derivation starts in a well-formed context. The substitution
@@ -65,7 +66,7 @@ open InductiveSignature
 
 namespace VerifyInductive
 
-/-- Every generated equation of the lowered production is well formed in the
+/-- Every generated equation of the lowered run is well formed in the
 lowered recursor environment. -/
 theorem NestedRun.loweredEquationWF
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -87,10 +88,10 @@ theorem NestedRun.loweredEquationWF
     exact ⟨k, rfl⟩)
 
 /-- **The constructor stage**: the context-carrying renaming replacement from
-the lowered constructor environment with its projections into the final
-abstract environment, modulo the typing of the restoration lambdas of the auxiliary
+the lowered constructor environment with its projections into the recursor
+environment of the restored block base, modulo the typing of the restoration lambdas of the auxiliary
 constructors (`HauxCtor`), the transport of the lowered projections
-(`Hproj`), and projection-name avoidance (`HprojNames`, `Helim`). -/
+(`Hproj`), and projection-name avoidance (`HprojNamesCtor`, `Helim`). -/
 theorem NestedRun.constructorRenamingReplacement
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -301,7 +302,7 @@ theorem RenamingReplacement.ofAddConstants_recursors
     · exact fun v hv => hrecs v (by simp only [List.map_cons, List.mem_cons]; exact .inr hv)
 
 /-- The facts used by `hrestoredWF_of_gaps`, for a restoration table
-`auxiliaries` and a final assembly base `B` (see the module documentation;
+`auxiliaries` and a restored block base `B` (see the module documentation;
 proved for the run by `NestedRun.restoredEquationGaps`). -/
 structure RestorationSubstitutionPremises
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -355,7 +356,7 @@ structure RestorationSubstitutionPremises
             (VExpr.wrapLams E.lowered.signature.params
               (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored
   /-- The projection rules of the lowered declaration's projections
-  transport to the final abstract environment. -/
+  are renamed into `B.recursorVEnv`. -/
   projections : ∀ entry ∈ E.lowered.loweredDecl.projectionEntries,
     VEnv.ProjectionRulesRenamedOnCtx B.recursorVEnv
       ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
@@ -363,9 +364,9 @@ structure RestorationSubstitutionPremises
       (compilationRestoration sourceDecl auxiliaries).renaming
       entry.typeName entry.info
 
-/-- **The case eliminator of the lowered window is matched by the restored schema of a final
-assembly base** (`VEnv.RestoredEliminator`): the base registers the schema with the same key
-and signature, restored by a specialisation list whose restoration tables are those of the run,
+/-- **The case eliminator of the lowered recursor-checking environment is matched by the
+restored schema of a restored block base** (`VEnv.RestoredEliminator`): the base registers
+the schema with the same key and signature, restored by a specialisation list whose restoration tables are those of the run,
 so its restoration agrees with the lambda replacement and renaming of every restoration table of
 the run (`RestorationTablesAgree.find_eq`). The lowered schema projects only out of base
 structures (its certificate `EliminatorsWF`), which are not restorable, and the
@@ -475,8 +476,8 @@ theorem NestedRun.restoredEliminators
   rfl
 
 /-- **The renaming restoration substitution of a nested run**, from the
-lowered recursor environment into the final abstract environment of a final
-assembly base, for the restoration table of
+lowered recursor environment into the recursor environment of a restored
+block base, for the restoration table of
 `restorationTablesRestoringAll`, modulo `RestorationSubstitutionPremises`. -/
 theorem NestedRun.restoredEquationSubstitution
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -603,8 +604,8 @@ theorem NestedRun.restoredEquationSubstitution
   exact RenamingRestorationSubstitutionOnCtx.of_lambda S₂ hnp
 
 /-- **`HrestoredWF` of `NestedRun.hruleShape_of_base`**: every
-restored generated equation is well formed in the final abstract environment
-of a final assembly base in which the stripped output environment is valid,
+restored generated equation is well formed in the recursor environment
+of a restored block base in which the stripped output environment is valid,
 modulo `RestorationSubstitutionPremises` (the hypothesis-free form is
 `NestedRun.hrestoredWF_of`,
 `Nested/Restoration/AuxiliaryProjections.lean`).
@@ -614,8 +615,8 @@ The generated equation is well formed in the lowered recursor environment
 of the run
 (`restoredEquationSubstitution`, for the table of
 `restorationTablesRestoringAll`, whose restoration agrees with that of every
-table by `RestorationTablesAgree.expr_eq`) transports it to the final abstract
-environment, where beta subject reduction holds by well-formedness. -/
+table by `RestorationTablesAgree.expr_eq`) transports it to the recursor
+environment of the base, where beta subject reduction holds by well-formedness. -/
 theorem NestedRun.hrestoredWF_of_gaps
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}

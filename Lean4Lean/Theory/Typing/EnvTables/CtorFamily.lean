@@ -6,25 +6,20 @@ import Lean4Lean.Theory.Typing.EnvTables.CaseMajors
 import Lean4Lean.Theory.Typing.Env
 
 /-!
-# Constructors of the semantic signature of a well-formed environment
+# Constructor families in the tables of a well-formed environment
+
+The family of a constructor is the head constant of the body of its type (`familyOfType`,
+`ctorFamily`). The major constructor of a generic case equation of a registered schema is in
+the constructor table, or it is a source constructor of the schema whose source family is its
+family (`generic_major_cases`). Every table constructor has the recorded shape
+(`ctorOf_ctorShape`).
 -/
 
 /-!
-# Syntactic decomposition of computation rules
+# The family of a constructor type
 
-The functions that turn a stored equation into a pre-decomposed `Rule` of the semantic signature
-(`EnvSig.lean`), and the syntactic family of a constructor type.
-
-A rule with a major is read off the equation `df` and its field count `nf` alone:
-`df.lhs = fun Ds => head pre major`, `major = c lv margs`; the rule's binders are `Ds`, its
-arguments before the major are `pre`, its fields are the trailing `nf` variables of the major
-(`(List.range nf).reverse`, the de Bruijn indices of `vars nf 0`), and its right side is `df.rhs`
-with the `Ds.length` binders removed. The field index table (`fieldIndexOf`) records, for every
-rule field `i`, the first argument position `j` before the major that is literally the field
-variable; failing that, if the field is a *leftover parameter* (the major's constructor is
-registered as a structure constructor with `np` parameters while the rule's major supplies only
-`p < np` parameter arguments, and `i < np - p`), the position of the rule's `i`-th index argument,
-`npre + i` (where `npre = Ds.length - nf` is the number of prefix variables); else `none`.
+`familyOfType` reads the head constant of the body of a forall telescope; on a telescope ending
+in an application of a constant it is that constant (`familyOfType_shape`).
 -/
 
 namespace Lean4Lean.EnvTables
@@ -49,13 +44,11 @@ end Lean4Lean.EnvTables
 
 
 /-!
-# The shape of generic eliminator equations
+# Majors of generic eliminator equations
 
-The analogue of `CompilationData.rule_shape` (T2) for the generic equations of a registered
-eliminator schema: a lambda telescope `Ds` shared by both sides; the left body applies the
-abstract head `.elim key owner (.param 0 :: genericLevels)` to the prefix variables (parameters,
-the motive, the minors), the index expressions, and the restored constructor application whose
-trailing arguments are the field variables; the right body is a minor applied to the fields.
+The left body of a generic case equation of a registered schema applies the abstract head to
+the prefix variables, the index expressions and a constructor application. That constructor is
+recorded in the tables, or it is a source constructor of the schema in the schema's own view.
 -/
 
 namespace Lean4Lean.EnvTables
@@ -80,7 +73,7 @@ theorem view_ctor_name_mem {schema : CaseSchema} {owner : Fin schema.signature.f
   simp [hj', CaseSchema.caseConstructor]
 
 /-- The major constructor of a generic equation of a registered schema is in the constructor
-table, or it is a source constructor of the schema at a source slot whose original family is
+table, or it is a source constructor of the schema at a source slot whose source family is
 the constructor's family. -/
 theorem generic_major_cases {env : VEnv} (H : env.WF) {schema : CaseSchema}
     (hreg : env.eliminators key schema) {owner : Fin schema.signature.families.size}

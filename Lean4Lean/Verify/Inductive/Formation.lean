@@ -9,9 +9,18 @@ open scoped _root_.List
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
+/-! # Formation certificates and source translations
+
+The certificates that the header and constructor phases of section 3.2 of
+`docs/inductives/DESIGN.md` assemble (`HeaderCertificate`, `ConstructorCertificate` and their
+prefix invariants, `FormationCertificate`, which yields `VInductDecl.OrdinaryFormationWF`), and
+the source translation of a declaration (`TrInductDeclCore`): its passage from the skeleton
+with recovered metadata, and the well-formedness facts it carries (`TrInductDeclCore.sourceWF`). -/
+
 namespace VerifyInductive
 
-/-- Completed output of the mutual-header traversal. -/
+/-- Output of the mutual-header traversal: a common parameter telescope and result level,
+and the type shape of every family. -/
 structure HeaderCertificate (env : VEnv) (decl : VInductDecl) where
   params : List VExpr
   resultLevel : VLevel
@@ -28,10 +37,10 @@ theorem typeShape_mono {env env' : VEnv} (henv : env ≤ env')
     hnormalized.mono henv, hparamsTake, hindicesTake,
     hparams.mono henv, hresult.mono henv⟩
 
-/-- Assemble the persistent semantic constructor witness from the independent
+/-- Common-parameter agreement `CtorParamsAgreeAt` of one constructor, from the
 family and constructor shape judgments.  The two concrete parameter
 telescopes may differ syntactically; both are compared to the declaration's
-canonical parameter context in the common final environment. -/
+parameter context `params` in a common environment `finalEnv` extending both. -/
 theorem CtorParamsAgreeAt.ofShapes
     {decl : VInductDecl}
     (C : CtorInfoCoherentAt
@@ -169,7 +178,7 @@ theorem HeaderPrefixCertificate.empty (env : VEnv) (decl : VInductDecl)
   commonLevels _ h := by omega
   typeShapes _ h := by omega
 
-/-- Completed output of the flattened constructor traversal. -/
+/-- Output of the flattened constructor traversal: the shape of every owned constructor. -/
 structure ConstructorCertificate (env : VEnv) (decl : VInductDecl)
     (envTypes : VEnv) (params : List VExpr) : Prop where
   shapes : ∀ owned ∈ decl.ownedConstructors,
@@ -353,8 +362,8 @@ theorem FormationCertificate.declWF
     decl.WF env :=
   ⟨hsource, .ordinary H.formationWF⟩
 
-/-- Build ordered relational coverage from equal lengths and pointwise array-
-style evidence. This is the common bridge used by recursor and rule loops. -/
+/-- `List.Forall₂` from equal lengths and the relation at every index. Recursor and rule
+loops use it to turn indexed facts into a pointwise relation. -/
 theorem List.forall₂_of_getElem
     {α β : Type} {R : α → β → Prop} {as : List α} {bs : List β}
     (hlen : as.length = bs.length)
@@ -524,10 +533,10 @@ theorem VEnv.IsDefEqCtx.closeHeads
       simpa [VExpr.wrapForalls, List.take_succ_cons,
         List.reverse_cons, VExpr.wrapForalls_append] using Hclosed
 
-/-- Exact-result form of `mkApps_of_defeqLiftClosedDomains`.  Context
-conversion changes the telescope domains but retains the installed residual;
-the resulting application therefore has the explicit type obtained by
-consuming that converted telescope with the supplied closed arguments. -/
+/-- A function whose type is a forall telescope over `installedDomains`, convertible as a
+context to the closed domains `types` lifted into one telescope (`VExpr.liftClosedDomains`),
+applied to arguments typed at `types`, has the type obtained by instantiating the converted
+telescope (with the installed residual `resultType`) at those arguments. -/
 theorem VEnv.HasType.mkApps_of_defeqLiftClosedDomains_exact
     (henv : env.WF) (Hctx : OnCtx ctx (env.IsType uvars))
     (Hfn : env.HasType uvars ctx fn
@@ -682,8 +691,8 @@ theorem TrInductiveTypeSkeleton.checked
   ctors := H.ctors
 
 /-- Recovering arity metadata changes neither translated source constants nor
-their staging environments, so skeleton-core translation materializes to the
-complete declaration-core relation without importing `SourceWF`. -/
+the header and constructor environments, so the skeleton-core translation becomes the
+declaration-core translation `TrInductDeclCore` without using `SourceWF`. -/
 theorem TrInductDeclSkeletonCore.checked
     (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe skeleton
       envTypes envCtors)
@@ -726,8 +735,8 @@ theorem TrInductDeclSkeletonCore.checked
   exact Lean4Lean.VerifyInductive.TrInductiveTypeSkeleton.checked
     htranslated
 
-/-- Materialization preserves the header-only translation while filling the
-semantic arity metadata recovered by the executable header checker. -/
+/-- Filling in the arity metadata recovered by the executable header checker
+(`VInductDeclSkeleton.withMetadata`) preserves the header-only translation. -/
 theorem TrInductDeclSkeletonHeaders.checked
     (H : TrInductDeclSkeletonHeaders env lparams nparams types isUnsafe
       skeleton envTypes)
@@ -907,7 +916,7 @@ theorem TrInductDeclCore.ofPhases
     ctorsAdded := Hctors.ctorsAdded
     types := combine Hheaders.types Hctors.types }
 
-/-- The original family headers were checked before their installation. -/
+/-- The source family headers are well formed in the source environment. -/
 theorem TrInductDeclCore.typeHeadersWF
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl envTypes envCtors) :
     ∀ type ∈ decl.types, type.toVConstant.WF env := by
@@ -915,10 +924,9 @@ theorem TrInductDeclCore.typeHeadersWF
   obtain ⟨source, _, translated⟩ := Lean4Lean.List.Forall₂.forall_exists_r H.types type member
   exact translated.header.wf
 
-/-- The two abstract staging environments retained by core translation are
-well formed whenever the source environment is: translated headers may be
-added as axioms first, followed by the independently checked original
-constructors. -/
+/-- The constructor environment of the core translation is well formed whenever the
+source environment is: translated headers may be added as axioms first, followed by the
+independently checked source constructors. -/
 theorem TrInductDeclCore.envCtorsWF
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
       envTypes envCtors)
@@ -974,11 +982,11 @@ theorem TrInductDeclCore.envTypesWF
     ⟨_source, _hsource, Htarget⟩
   exact Htarget.header.wf
 
-/-- Pointwise original-source translations already contain all typing and
+/-- Pointwise source translations already contain all typing and
 universe facts required by `SourceWF`. Thus the aggregate source judgment
 adds only nonemptiness and global name uniqueness. Nonemptiness comes from
-the lowering entry point; uniqueness follows from the staged `addConstVals`
-equalities retained by the core translation. -/
+the lowering entry point; uniqueness follows from the `addConstVals`
+equalities of the header and constructor environments kept by the core translation. -/
 theorem TrInductDeclCore.sourceWF
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
       envTypes envCtors)
@@ -1121,7 +1129,7 @@ theorem TrSourceConstRaw.checked
     TrSourceConst env lparams name type ci' :=
   ⟨H.uvars, H.name, H.type, hwf⟩
 
-/-- Constructor checking supplies exactly the typing evidence omitted from
+/-- Constructor checking supplies exactly the typing facts missing from
 the header phase's raw constructor translations. -/
 theorem CheckedConstructorCertificate.translated
     {types : List InductiveType}
@@ -1168,8 +1176,8 @@ theorem TrInductDeclCore.headers
     (fun _ _ h => TrInductiveType.headers h) H.types
 
 /-- Inductive metadata does not affect translation of the source header:
-only visibility, universe parameters, name, and type cross the production /
-abstract boundary. -/
+only visibility, universe parameters, name, and type enter the translation from the kernel
+environment. -/
 theorem TrSourceConst.inductInfo
     (H : TrSourceConst env lparams name type ci')
     (hlevelParams : info.levelParams = lparams)

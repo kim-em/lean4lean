@@ -2,14 +2,14 @@ import Lean4Lean.Theory.Typing.EnvLemmas
 import Lean4Lean.Theory.Inductive.SignatureLemmas
 import Lean4Lean.Theory.Inductive.CompilationLemmas
 
-/-! Registration of declaration-derived case schemas at the constructor
-boundary. Freshness follows from the actual installation history.
+/-! Registration of declaration-derived case schemas right after the constructors, and the
+registry invariant `VEnv.RegistryInv` of every well-formed environment (section 2.3 of
+`docs/inductives/DESIGN.md`). Freshness of a schema follows from the installation history.
 
 Registration also carries the certified fact
 `CaseSchema.ProjNamesRegistered` (the schema projects only out of structures
-registered at registration time). This is a new obligation for producers of a
-registration (`Registered.register_after_constructors`, `CheckingEnv.Valid.registerCases`
-take it as a hypothesis); it is exposed for every registry entry by
+registered at registration time). It is a hypothesis of
+`Registered.register_after_constructors`, and it is exposed for every registry entry by
 `VEnv.WF.eliminatorsProjNamesRegistered`. -/
 
 namespace Lean4Lean
@@ -89,7 +89,7 @@ private theorem covered_of_certified {decl : VInductDecl} {block : VInductBlock}
 /-- **The registry invariant** of a well-formed environment. Every registered case schema
 retains its registration certificate over an earlier well-formed environment and the source
 constants it was registered with; it projects only out of registered structures; a key fixes
-its schema; and every registered structure is an original family of a registered schema.
+its schema; and every registered structure is a source family of a registered schema.
 All four facts are established by one induction over the history (`VEnv.WF'.registryInv`). -/
 structure VEnv.RegistryInv (env : VEnv) : Prop where
   origin : ∀ {key schema}, env.eliminators key schema →
@@ -104,7 +104,7 @@ structure VEnv.RegistryInv (env : VEnv) : Prop where
 
 namespace VEnv.RegistryInv
 
-/-- Schema ownership cannot precede the native family it describes. -/
+/-- Every source family of a registered schema is a constant of the environment. -/
 theorem family_present {env : VEnv} (H : env.RegistryInv)
     (hlookup : env.eliminators key schema) (hname : name ∈ schema.sourceFamilies) :
     ∃ value, env.constants name = some value := by
@@ -134,7 +134,7 @@ end VEnv.RegistryInv
 namespace InductiveSignature.CaseSchema
 
 /-- The checked source header installation already guarantees freshness of
-the schema's key and native owners. Registration asks for no new freshness
+the schema's key and source families. Registration asks for no new freshness
 certificate from the verifier. -/
 theorem Certified.freshOfInv {schema : CaseSchema} {base : VEnv}
     (H : schema.Certified base source block) (hbase : base.RegistryInv)
@@ -310,7 +310,7 @@ theorem VEnv.WF.eliminator_headerAgreement {env : VEnv} (H : env.WF)
   let ⟨base, source, block, hb, hle, hreg, hc⟩ := H.registryInv.origin hlookup
   ⟨base, source, block, hb, hle, hreg.certified, hreg.headerAgreement, hc⟩
 
-/-- Schema ownership cannot precede the native family it describes. -/
+/-- Every source family of a registered schema is a constant of the environment. -/
 theorem VEnv.WF.eliminator_family_present {env : VEnv} (H : env.WF)
     (hlookup : env.eliminators key schema) (hname : name ∈ schema.sourceFamilies) :
     ∃ value, env.constants name = some value :=
@@ -371,7 +371,7 @@ theorem view_constructor_names (schema : CaseSchema)
 
 /-- A certified schema is compatible with the structures registered by its own
 declaration and by its base: a structure of the declaration has exactly the
-declaration's single constructor, and a structure of the base is not an original
+declaration's single constructor, and a structure of the base is not a source
 family of the schema, since those are fresh in the base. -/
 theorem Certified.structCompat {schema : CaseSchema} {base envTypes envCtors : VEnv}
     (H : schema.Certified base source block) (hbase : base.WF)
@@ -414,7 +414,7 @@ theorem Certified.structCompat {schema : CaseSchema} {base envTypes envCtors : V
     contradiction
 
 /-- Constant checking preserves the registry, so freshness transports to
-the constructor-complete stage where the case schemas become available. -/
+the constructor environment, where the case schemas become available. -/
 theorem Fresh.of_registry_eq {schema : CaseSchema} {base env : VEnv}
     (H : schema.Fresh base key) (heq : env.eliminators = base.eliminators) :
     schema.Fresh env key := by
@@ -423,8 +423,8 @@ theorem Fresh.of_registry_eq {schema : CaseSchema} {base env : VEnv}
   exact H
 
 /-- Register all case schemas immediately after source headers and
-constructors. The finite formation witness suffices; generated concrete
-recursors and their equations have not been installed or assumed correct. -/
+constructors. The case certificate suffices; the generated
+recursors and their equations are neither installed nor assumed correct. -/
 theorem Registered.register_after_constructors {schema : CaseSchema}
     {base envTypes envCtors : VEnv}
     (R : schema.Registered base source block key) (hbase : base.WF)
@@ -477,7 +477,8 @@ end InductiveSignature.CaseSchema
 namespace VInductBlock
 open InductiveSignature
 
-/-- The constructor stage of a declaration installed from its checked source is well formed. -/
+/-- The constructor environment of a declaration installed from its checked source is well
+formed. -/
 theorem _root_.Lean4Lean.VInductDecl.SourceWF.ctorsWF {base envTypes envCtors : VEnv}
     {decl : VInductDecl} (hsource : decl.SourceWF base) (hbase : base.WF)
     (htypes : base.addConstVals decl.typeConstants = some envTypes)
@@ -492,7 +493,8 @@ theorem _root_.Lean4Lean.VInductDecl.SourceWF.ctorsWF {base envTypes envCtors : 
   obtain ⟨family, hfamily, rfl⟩ := List.mem_map.mp hvalue
   exact htypesWF family hfamily
 
-/-- The constructor stage of a block with its certified eliminators is well formed. -/
+/-- The constructor environment of a block, extended by its certified eliminators, is well
+formed. -/
 theorem EliminatorsWF.elimWF {base envTypes envCtors : VEnv} {decl : VInductDecl}
     {block : VInductBlock} (H : VInductBlock.EliminatorsWF base decl block) (hbase : base.WF)
     (hsource : decl.SourceWF base) (htypesSource : block.types = decl.typeConstants)

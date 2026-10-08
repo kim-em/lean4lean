@@ -3,15 +3,15 @@ import Lean4Lean.Theory.Inductive.CaseFormation
 import Lean4Lean.Theory.Inductive.CompilationLemmas
 import Lean4Lean.Theory.Inductive.RecursorEquationCoverage
 
-/-! Native reconstruction metadata comes from an actual finite compilation
-whose whole generated block is installed below the current environment.
-Compilation may precede installation through a finite replay. Abstract case
-metadata is independent of this native equation provenance. -/
+/-! Recursor metadata (`RecursorData`, used by singleton reconstruction) comes from an actual
+finite compilation whose whole generated block is installed below the current environment
+(`RecursorRegistered`). Compilation may precede installation (`CompiledInductive.mono`).
+Abstract case metadata is independent of this. -/
 
 namespace Lean4Lean
 open InductiveSignature
 
-/-- Finite replay retains the actual compilation at its original base. It
+/-- A compiled inductive retains the actual compilation at its own base. It
 never asserts that lowering-only names remain fresh at the installation base. -/
 theorem CompiledInductive.exists_compilation
     (compiled : CompiledInductive installBase source block) :
@@ -40,7 +40,8 @@ end Lean4Lean
 namespace Lean4Lean.VEnv
 open InductiveSignature
 
-/-- Concrete whole-block provenance for generated native occurrence data. -/
+/-- The recursor metadata `data` is that of an actual finite compilation whose whole generated
+block is installed below `env`. -/
 def RecursorRegistered (env : VEnv) (data : RecursorData) : Prop :=
   ∃ base installBase source expanded, ∃ (g : Instance data.schema.signature), ∃ auxiliaries block installed,
     CompilationData base source expanded data.schema.signature g auxiliaries block ∧
@@ -52,7 +53,7 @@ def RecursorRegistered (env : VEnv) (data : RecursorData) : Prop :=
     block.install installBase = some installed ∧ installed ≤ env
 
 /-- The singleton replay equation is taken from the actual installed finite
-block, with the original instance's universe packing and canonical names. -/
+block, with the compilation instance's universe packing and generated names. -/
 theorem RecursorRegistered.singletonEquation
     (H : RecursorRegistered env data)
     (hgen : data.singletonEquation = some equation) : env.defeqs equation := by
@@ -79,7 +80,7 @@ theorem RecursorRegistered.singletonEquation
   rw [hinstance, hr] at hgen
   exact every _ hgen
 
-/-- The type returned by native reconstruction is exactly the type of its
+/-- The recursor type computed from the metadata is exactly the type of its
 installed recursor, selected from the same finite compilation instance. -/
 theorem RecursorRegistered.recursorType
     (H : RecursorRegistered env data)

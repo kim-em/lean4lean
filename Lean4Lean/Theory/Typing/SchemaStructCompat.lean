@@ -5,7 +5,7 @@ import Lean4Lean.Theory.Inductive.CaseRegistration
 # Compatibility of eliminator schemas with registered structures
 
 `VEnv.WF'.inductEliminators` requires each new schema to be compatible with the
-structures already registered over its original families
+structures already registered over its source families
 (`CaseSchema.StructCompat`). Without this premise a schema can add constructors to a
 registered structure, and the environment is inconsistent: register
 `structure Unit : Type` with constructor `Unit.mk`, add an axiom `other : Unit`, and register a
@@ -15,16 +15,16 @@ schema (compiled in the empty base) for `inductive Unit : Type | mk | other`. Th
 `Prop ≡ (Prop → Prop)`.
 
 `SchemaStructCompat env`: for every registered schema and every registered structure `s` that is
-an original family of the schema (at source slot `owner`), the schema's constructors of that slot
+a source family of the schema (at source slot `owner`), the schema's constructors of that slot
 are exactly the structure's constructor. It holds in every well-formed environment: the premise
 gives it for the projections present when a schema is registered, and every later projection
-names a constant that is fresh at its registration, whereas the original families of a registered
+names a constant that is fresh at its registration, whereas the source families of a registered
 schema are installed constants (`VEnv.WF.eliminator_family_present`).
 -/
 
 namespace Lean4Lean
 
-/-- Every registered structure that is an original family of a registered schema has, in the
+/-- Every registered structure that is a source family of a registered schema has, in the
 schema, exactly its registered constructor. -/
 def SchemaStructCompat (env : VEnv) : Prop :=
   ∀ {key : Name} {schema : InductiveSignature.CaseSchema} {s : Name} {info : VProjectionInfo},
@@ -84,7 +84,7 @@ private theorem install_projections {env env' envTypes envCtors : VEnv} {block :
   exact VEnv.addProjections_iff.mpr hproj
 
 /-- A projection that is new at some step names a constant that was fresh before the step, so it
-is not an original family of a schema registered before the step. -/
+is not a source family of a schema registered before the step. -/
 private theorem fresh_not_family {env : VEnv} (H : env.WF)
     (hlookup : env.eliminators key schema) (hfresh : env.constants s = none)
     {owner : Nat} (hname : schema.sourceFamilies[owner]? = some s) : False := by
