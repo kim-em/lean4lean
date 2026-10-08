@@ -4,12 +4,16 @@ Paste the block below into `/goal`. It is the standing instruction for every
 session on this branch (Kim, 2026-10-06: "Don't stop to ask me questions, get
 the entire thing done. We're following Mario's plan.").
 
-Item (3) was amended on 2026-10-08 under the decision recorded in HANDOFF.md
-(2026-10-06): the E1 route replaces declarative strengthening by the
-projection-walk corner, which is proved from canonical `Nonempty` and
-`Classical.choice`; both are installed by `Init.Prelude`, and their
-realizability is `VEnvs.WF.hasCanonicalChoice`. Obligations (a) to (c) below
-are the ones that were open when the statement was written.
+Amendments confirmed by Kim on 2026-10-08: item (1) covers the branch's own
+development, so the `sorry` declarations inherited from Mario's prototypes
+under `Lean4Lean/Experimental/` (present on `master`) are excluded; item (3)
+includes canonical `Nonempty`/`Classical.choice` (`VEnv.HasCanonicalChoice`),
+because the E1 route replaces declarative strengthening by the
+projection-walk corner, proved from choice (both constants are installed by
+`Init.Prelude`; realizability `VEnvs.WF.hasCanonicalChoice`). A choice-free
+proof is pursued as a bonus on `agent/verify-inductives-strengthening`.
+Obligations (a) to (c) below are the ones that were open when the statement
+was written; all three are closed on the branch (HANDOFF.md "Final state").
 
 ```text
 Finish branch agent/verify-inductives of lean4lean (worktree
@@ -17,7 +21,8 @@ Finish branch agent/verify-inductives of lean4lean (worktree
 
 DONE means all of: (1) `lake build` of the whole project reports zero
 "declaration uses sorry" and `grep -rn sorry Lean4Lean` finds none outside
-comments; (2) no axioms beyond those already in Verify/Axioms.lean; (3) the
+comments, excluding the prototypes under Lean4Lean/Experimental/ inherited
+from master (Kim, 2026-10-08); (2) no axioms beyond those already in Verify/Axioms.lean; (3) the
 top-level theorem `addDecl.WF_of_canonicalEq` (Lean4Lean/Verify/Environment.lean)
 holds with exactly the hypotheses `ves.WF env`, canonical `Eq` present
 (`VEnv.HasCanonicalEq` at each safety level), canonical `Nonempty`/

@@ -99,6 +99,15 @@ Everything below this section is the chronological record that led here.
 
 ### Literal reading of GOAL.md (2026-10-08, after the final state above)
 
+**Kim's decisions (2026-10-08):** (i) item (1) is read as covering the
+branch's own development; the inherited `sorry` declarations of Mario's
+prototypes under `Lean4Lean/Experimental/` stay as on `master`. (ii) The
+canonical-choice hypothesis `hch` is ACCEPTED as part of the final theorem
+now; the choice-free strengthening effort (`agent/verify-inductives-strengthening`)
+continues as a bonus and, if it succeeds, replaces the hypothesis later.
+With these, the branch meets the goal as amended; the entries below record
+the evaluator's literal objections and the work done on them.
+
 The goal evaluator reads GOAL.md literally and reports three gaps against the
 state above. Recorded here with the lead's position and the actions taken:
 
