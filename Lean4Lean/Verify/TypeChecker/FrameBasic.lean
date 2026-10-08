@@ -136,12 +136,13 @@ theorem M.Framed.getLCtx_throw {f : LocalContext → Exception} {R} :
 
 /-- A read of the context whose continuation does not depend on the local context. -/
 theorem M.Framed.read {f : Context → M α} {R}
-    (hf : ∀ ⦃c₁ c₂⦄, GhostRel G c₁ c₂ → f c₁ = f c₂) (H : ∀ c, M.Framed G (f c) R) :
+    (hf : ∀ ⦃c₁ c₂⦄, GhostRel G c₁ c₂ → f c₁ = f c₂)
+    (H : ∀ ⦃c₁ c₂⦄, GhostRel G c₁ c₂ → M.Framed G (f c₂) R) :
     M.Framed G (MonadReader.read >>= f) R := by
   intro c₁ c₂ s b s' hr hs e
   change f c₁ c₁ s = _ at e
   have : (MonadReader.read >>= f) c₂ s = f c₂ c₂ s := rfl
-  rw [this]; rw [hf hr] at e; exact H _ hr hs e
+  rw [this]; rw [hf hr] at e; exact H hr hr hs e
 
 theorem M.Framed.get : M.Framed G (MonadState.get : M State) (GFState G) := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨rfl, hs, hs, .rfl⟩
@@ -229,6 +230,10 @@ theorem M.Framed.withLetDecl {f : Expr → M α} {R} (hty : GF G ty) (hval : GF 
   refine .withFreshId fun n s c₁ c₂ hr hs hn a s' e => ?_
   exact H _ hn (hr.mkLetDecl hty hval) hs e
 
+theorem M.Framed.withEager {x : M α} {R} (h : M.Framed G x R) :
+    M.Framed G (withTheReader Context (fun s => { s with eagerReduce := true }) x) R :=
+  fun _ _ _ _ _ hr hs e => h hr.eager hs e
+
 /-! ### `RecM.Framed` -/
 
 theorem RecM.Framed.bind {x : RecM α} {f : α → RecM β} {P Q}
@@ -240,6 +245,21 @@ theorem RecM.Framed.pure {a : α} {R} (h : R a) : RecM.Framed G (pure a) R :=
   fun _ _ => .pure h
 
 theorem RecM.Framed.throw {R} : RecM.Framed G (throw e : RecM α) R := fun _ _ => .throw
+
+theorem RecM.Framed.throw_bind {f : α → RecM β} {R} :
+    RecM.Framed G (MonadExcept.throw e >>= f) R :=
+  RecM.Framed.bind (P := fun _ => False) .throw nofun
+
+theorem RecM.Framed.panic [Inhabited α] {R : α → Prop} (h : R default) :
+    RecM.Framed G (panicWithPosWithDecl m d l c msg : RecM α) R := by
+  simp only [panicWithPosWithDecl]; exact RecM.Framed.pure h
+
+theorem RecM.Framed.ite {c : Prop} [Decidable c] {x y : RecM α} {R}
+    (h1 : RecM.Framed G x R) (h2 : RecM.Framed G y R) :
+    RecM.Framed G (if c then x else y) R := by
+  split
+  · exact h1
+  · exact h2
 
 theorem RecM.Framed.mono {x : RecM α} {R R'} (h : RecM.Framed G x R) (H : ∀ a, R a → R' a) :
     RecM.Framed G x R' := fun _ hm => (h hm).mono H
@@ -259,10 +279,17 @@ theorem RecM.Framed.getLCtx_throw {f : LocalContext → Exception} {R} :
     RecM.Framed G (getLCtx >>= fun l => (MonadExcept.throw (f l) : RecM α)) R := by
   rintro _ _ c₁ c₂ s b s' hr hs ⟨⟩
 
+theorem RecM.Framed.getLCtx_throw_bind {f : LocalContext → Exception}
+    {g : LocalContext → α → RecM β} {R} :
+    RecM.Framed G (getLCtx >>= fun l => (MonadExcept.throw (f l) : RecM α) >>= g l) R := by
+  rintro _ _ c₁ c₂ s b s' hr hs ⟨⟩
+
 theorem RecM.Framed.read {f : Context → RecM α} {R}
-    (hf : ∀ ⦃c₁ c₂⦄, GhostRel G c₁ c₂ → f c₁ = f c₂) (H : ∀ c, RecM.Framed G (f c) R) :
+    (hf : ∀ ⦃c₁ c₂⦄, GhostRel G c₁ c₂ → f c₁ = f c₂)
+    (H : ∀ ⦃c₁ c₂⦄, GhostRel G c₁ c₂ → RecM.Framed G (f c₂) R) :
     RecM.Framed G (readThe Context >>= f) R :=
-  fun m hm => M.Framed.read (f := fun c => f c m) (fun _ _ h => by rw [hf h]) fun c => H c hm
+  fun m hm => M.Framed.read (f := fun c => f c m) (fun _ _ h => by rw [hf h])
+    fun _ _ hc => H hc hm
 
 theorem RecM.Framed.get : RecM.Framed G (MonadState.get : RecM State) (GFState G) :=
   fun _ _ => .get
@@ -296,6 +323,10 @@ theorem RecM.Framed.withLetDecl {f : Expr → RecM α} {R} (hty : GF G ty) (hval
     (H : ∀ id, ¬ G id → RecM.Framed G (f (.fvar id)) R) :
     RecM.Framed G (withLetDecl name ty val f) R :=
   fun m hm => M.Framed.withLetDecl (f := fun e => f e m) hty hval fun id hid => H id hid hm
+
+theorem RecM.Framed.withEager {x : RecM α} {R} (h : RecM.Framed G x R) :
+    RecM.Framed G (withTheReader Context (fun s => { s with eagerReduce := true }) x) R :=
+  fun _ hm => (h hm).withEager
 
 /-! ### Methods -/
 
