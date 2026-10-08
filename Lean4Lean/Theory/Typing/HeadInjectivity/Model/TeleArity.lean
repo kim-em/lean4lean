@@ -5,13 +5,12 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjValid
 
 Definitionally equal Pi telescopes ending in applications of rigid constants have the same number
 of binders, provided the derivation is in an environment `E` whose derivations are sound in the
-model of a later environment `envF` (`tele_arity`). This discharges the hypothesis
-`EnvTables.ForallArityRigid` (which fails for telescopes ending in defined constants) where the
-ends are rigid. The proof: at the target context of the domains of the left telescope, its
-innermost domain variables anchor a codomain chain observation of depth the number of its binders
-(`deep_obs`); soundness carries it to an observation of the right telescope, which has such chains
-only up to its own number of binders (`chain_lt`), because a rigid spine has no codomain
-observation (`rigid_spine_not_pi`). -/
+model of a later environment `envF` (`tele_arity`). Rigidity of the ends is needed: telescopes
+ending in defined constants can be definitionally equal at different lengths. The proof: at the
+target context of the domains of the left telescope, its innermost domain variables anchor a
+codomain chain observation of depth the number of its binders (`deep_obs`); soundness carries it
+to an observation of the right telescope, which has such chains only up to its own number of
+binders (`chain_lt`), because a rigid spine has no codomain observation (`rigid_spine_not_pi`). -/
 
 namespace Lean4Lean
 namespace VEnv

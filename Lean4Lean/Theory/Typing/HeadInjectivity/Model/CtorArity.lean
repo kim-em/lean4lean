@@ -6,8 +6,7 @@ import Lean4Lean.Theory.Typing.EnvTables.Arity
 
 `CaseCompilationData.ctor_arity_sem`: the field count of a constructor of a compilation's normalized
 signature, plus its parameter count, is the syntactic arity of the source (or container)
-constructor type. It is `EnvTables.CaseCompilationData.ctor_arity` with the hypothesis
-`ForallArityRigid` replaced by the soundness, in the model of a later environment `envF`, of an
+constructor type. It uses the soundness, in the model of a later environment `envF`, of an
 environment containing the compilation's headers (`Model.tele_arity`): the restored normalized
 constructor type and the source constructor type are definitionally equal telescopes ending in
 applications of the family, which is rigid in `envF`. -/
@@ -135,8 +134,7 @@ theorem directFamily_name {a : ContainerSpecialization} {uvars : Nat} {params : 
     rfl
 
 /-- **Field counts of a compilation's equations against the source constructor arities**, from
-soundness of an environment `E` containing the compilation's headers (`ctor_arity` without
-`ForallArityRigid`). -/
+soundness of an environment `E` containing the compilation's headers. -/
 theorem CaseCompilationData.ctor_arity_sem {envF base E : VEnv} {src exp : VInductDecl}
     {s : InductiveSignature} {aux : List ContainerSpecialization}
     {block : VInductBlock}
@@ -224,8 +222,7 @@ theorem CaseCompilationData.ctor_arity_sem {envF base E : VEnv} {src exp : VIndu
       have := Model.tele_arity_end hE hEF hsnd hrestE hscE hrigR hrigA hdefeq'
       omega
 
-/-- The field count of a source-constructor equation (`source_arity` without
-`ForallArityRigid`). -/
+/-- The field count of a source-constructor equation. -/
 theorem CaseCompilationData.source_arity_sem {envF base E : VEnv} {src exp : VInductDecl}
     {s : InductiveSignature} {aux : List ContainerSpecialization}
     {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)
@@ -253,8 +250,7 @@ theorem CaseCompilationData.source_arity_sem {envF base E : VEnv} {src exp : VIn
       (List.mem_map.mpr ⟨_, EnvTables.auxCtor_head_mem (src := src) ha hc',
         (hn'.symm.trans hcn.symm)⟩)
 
-/-- The field count of a container-constructor equation (`container_arity` without
-`ForallArityRigid`). -/
+/-- The field count of a container-constructor equation. -/
 theorem CaseCompilationData.container_arity_sem {envF base E : VEnv} {src exp : VInductDecl}
     {s : InductiveSignature} {aux : List ContainerSpecialization}
     {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)

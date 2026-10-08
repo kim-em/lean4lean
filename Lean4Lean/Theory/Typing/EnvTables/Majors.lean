@@ -92,59 +92,6 @@ theorem auxCtor_head_mem {src : VInductDecl} {aux : List ContainerSpecialization
       (compilationRestoration src aux).heads :=
   List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_of_mem _ (List.mem_map.mpr ⟨c, hc, rfl⟩)⟩
 
-/-- The field count of a source-constructor equation, under `ForallArityRigid`. -/
-theorem CaseCompilationData.source_arity {base E : VEnv} {src exp : VInductDecl}
-    {s : InductiveSignature} {aux : List ContainerSpecialization}
-    {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)
-    (hrfresh : RecursorNamesFresh base src exp aux)
-    (hprior : ContainersInstalled base aux) (hP : ForallArityRigid E) (hle : base ≤ E)
-    (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
-    (j : Fin s.constructors.size) {F : VInductiveType} (hF : F ∈ src.types)
-    {c : VConstVal} (hc : c ∈ F.ctors) (hcn : c.name = s.constructors[j].name) :
-    s.params.length + s.constructors[j].fields.length = c.type.forallArity := by
-  have hnd := hdata.sourceWF.2.1
-  have hcn' : c.name ∈ familyNames src.types :=
-    List.mem_flatMap.mpr ⟨F, hF, List.mem_cons_of_mem _ (List.mem_map.mpr ⟨c, hc, rfl⟩)⟩
-  rcases CaseCompilationData.ctor_arity hdata hrfresh hprior hP hle htypes j with
-    ⟨F', hF', c', hc', hn', _, harity⟩ | ⟨a, ha, c', hc', hn', _, _⟩
-  · have hcc : c' = c := by
-      have hnd' := (List.nodup_append.mp hnd).2.1
-      exact List.eq_of_mem_of_nodup_map hnd' (List.mem_flatMap.mpr ⟨F', hF', hc'⟩)
-        (List.mem_flatMap.mpr ⟨F, hF, hc⟩) (hn'.symm.trans hcn.symm)
-    rw [← hcc]; exact harity
-  · exfalso
-    exact hdata.source_head_disjoint hcn'
-      (List.mem_map.mpr ⟨_, auxCtor_head_mem (src := src) ha hc', (hn'.symm.trans hcn.symm)⟩)
-
-/-- The field count of a container-constructor equation, under `ForallArityRigid`. -/
-theorem CaseCompilationData.container_arity {base E : VEnv} {src exp : VInductDecl}
-    {s : InductiveSignature} {aux : List ContainerSpecialization}
-    {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)
-    (hrfresh : RecursorNamesFresh base src exp aux)
-    (hprior : ContainersInstalled base aux) (hP : ForallArityRigid E) (hle : base ≤ E)
-    (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
-    (j : Fin s.constructors.size) {a : ContainerSpecialization} (ha : a ∈ aux)
-    {c : VConstVal} (hc : c ∈ a.source.ctors) (hcn : s.constructors[j].name = a.constructorName c) :
-    s.constructors[j].fields.length + a.arguments.length = c.type.forallArity := by
-  rcases CaseCompilationData.ctor_arity hdata hrfresh hprior hP hle htypes j with
-    ⟨F', hF', c', hc', hn', _, _⟩ | ⟨a', ha', c', hc', hn', _, harity⟩
-  · exfalso
-    have hcn' : c'.name ∈ familyNames src.types :=
-      List.mem_flatMap.mpr ⟨F', hF', List.mem_cons_of_mem _ (List.mem_map.mpr ⟨c', hc', rfl⟩)⟩
-    exact hdata.source_head_disjoint hcn'
-      (List.mem_map.mpr ⟨_, auxCtor_head_mem (src := src) ha hc, (hcn.symm.trans hn')⟩)
-  · have heq := List.eq_of_mem_of_nodup_map hdata.restorationScoped.1
-      (auxCtor_head_mem (src := src) ha' hc') (auxCtor_head_mem (src := src) ha hc)
-      (hn'.symm.trans hcn)
-    simp only [HeadSpecialization.mk.injEq] at heq
-    obtain ⟨_, _, _, htarget, _, hargs⟩ := heq
-    rw [← hargs]
-    have h1 := (hprior.container_ctor a' ha' c' hc').1
-    have h2 := (hprior.container_ctor a ha c hc).1
-    rw [htarget, h2] at h1
-    have : c'.type = c.type := congrArg VConstant.type (Option.some.inj h1).symm
-    rw [← this]; exact harity
-
 theorem install_type_lookup {base installed : VEnv} {block : VInductBlock}
     (H : VInductBlock.install base block = some installed) (hv : v ∈ block.types) :
     installed.constants v.name = some v.toVConstant := by
@@ -176,15 +123,13 @@ theorem ctor_entry_of_fam {T : Tables} {env : VEnv} (HT : T.Inv env) {decl : VIn
 /-- Majors of stored equations: every constructor major of an installed equation (recursor iota
 equations after restoration, and the quotient equation with `Quot.mk`) is a constructor of the
 table; it is applied to `k.nparams` parameter arguments followed by the field variables
-`vars nf 0` (the innermost binders of the equation, see `CompilationData.rule_shape`); and the
-number `nf` of field variables is `k.nfields` provided definitionally equal constant-ended
-telescopes have equal length (`ForallArityRigid`, see `EnvTables/Arity.lean`: the field count
-comes from the normalized signature, which is only definitionally equal to the constructor
-type). -/
+`vars nf 0` (the innermost binders of the equation, see `CompilationData.rule_shape`). That
+`nf` is `k.nfields` needs the semantic arity comparison of `Model/CtorArity.lean`, since the
+field count comes from the normalized signature, which is only definitionally equal to the
+constructor type. -/
 theorem defeq_major {env : VEnv} (H : env.WF) (hdf : env.defeqs df)
     (hm : df.lhs.stripLams = .app fn (VExpr.mkApps (.const c ls) args)) :
-    ∃ k ps nf, ctorOf env c = some k ∧ args = ps ++ vars nf 0 ∧ ps.length = k.nparams ∧
-      (ForallArityRigid env → nf = k.nfields) := by
+    ∃ k ps nf, ctorOf env c = some k ∧ args = ps ++ vars nf 0 ∧ ps.length = k.nparams := by
   have HT := envTables_inv H
   rcases HT.equations hdf with ⟨v, _, rfl⟩ | ⟨hq, rfl⟩ | ⟨dX, hdX, iX, hiX, hgX⟩
   · cases hm
@@ -193,7 +138,7 @@ theorem defeq_major {env : VEnv} (H : env.WF) (hdf : env.defeqs df)
     rw [h1] at hm
     obtain ⟨_, hm⟩ := VExpr.app.inj hm
     obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj hm.symm
-    refine ⟨quotCtor, [.bvar 5, .bvar 4], 1, (HT.quot hq).2.2.1, rfl, rfl, fun _ => rfl⟩
+    refine ⟨quotCtor, [.bvar 5, .bvar 4], 1, (HT.quot hq).2.2.1, rfl, rfl⟩
   · obtain ⟨_, hevX⟩ := HT.recursors hdX
     obtain ⟨bX, ibX, srcX, expX, auxX, blockX, instX, hdataX, hpriorX, hbX, hrX, _, hinstX,
       hleX, _, _, hfamX⟩ := hevX
@@ -217,16 +162,11 @@ theorem defeq_major {env : VEnv} (H : env.WF) (hdf : env.defeqs df)
           rw [hdataX.ctors]; exact List.mem_flatMap.mpr ⟨F, hF, hc'⟩))
       obtain ⟨k, hk, _, _, hknp, hkar, _⟩ :=
         ctor_entry_of_fam HT (hfamX F hF (List.ne_nil_of_mem hc')) hc' hconst
-      refine ⟨k, _, _, hk, rfl, by rw [InductiveSignature.length_vars, hknp, hnp], fun hP => ?_⟩
-      have := CaseCompilationData.source_arity hdataX.toCaseCompilationData hdataX.recursorNamesFresh hpriorX hP hbE htypesE iX hF hc' hcn
-      omega
+      exact ⟨k, _, _, hk, rfl, by rw [InductiveSignature.length_vars, hknp, hnp]⟩
     · obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj hmaj
       have hk := container_ctor HT hpriorX hbE ha hc'
       obtain ⟨_, _, _, _, hwf, _⟩ := hdataX.correspondence
       have hargs : a.arguments.length = a.container.nparams := (hwf a ha).1
-      refine ⟨_, _, _, hk, rfl, by simp [ctorView, hargs], fun hP => ?_⟩
-      have := CaseCompilationData.container_arity hdataX.toCaseCompilationData hdataX.recursorNamesFresh hpriorX hP hbE htypesE iX ha hc' hcn
-      simp only [ctorView]
-      omega
+      exact ⟨_, _, _, hk, rfl, by simp [ctorView, hargs]⟩
 
 end Lean4Lean.EnvTables
