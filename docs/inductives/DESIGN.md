@@ -480,7 +480,7 @@ irrelevance is circular, and the calculus does not normalize
 (`docs/inductives/STRENGTHENING_NOTES.md`). The verification is organised so that it never
 moves a typing fact to a smaller context.
 
-### 5.2 Scoped caches: the executable divergence
+### 5.2 Scoped caches
 
 Every binder of the checker saves and restores the context-relative state
 (`TypeChecker.State.leaveScope`, `Lean4Lean/TypeChecker.lean`): the inference caches, the
@@ -496,8 +496,11 @@ value `let seed := fun (q : P v) => ... ; (zz : SI)`, where the body of `seed` f
 comparisons `SI ≡ ... ≡ SJ` under `q`. The C++ kernel accepts this definition and rejects it
 without `seed`; the unscoped lean4lean checker accepted it too; the scoped checker rejects
 it. So the scoped checker can reject a declaration the C++ kernel accepts. Such a declaration
-relies on a conversion fact outside the scope where it holds; both fresh replays of
-`Init.Prelude` and `Init.Core` are unaffected.
+relies on a conversion fact outside the scope where it holds: `SI ≡ SJ` is derivable under `q`
+but not in the outer context, so it is the C++ acceptance that is non-local. Both fresh replays
+of `Init.Prelude` and `Init.Core` are unaffected. This is one of several divergences of the
+executable; `divergences.md` lists all of them, with an audit table of every executable change
+(section 7.2).
 
 Two primitive checks were adjusted for the same reason (`Lean4Lean/Primitive.lean`): the
 pieces of a `reflectNatNat` condition and the functional of a well-founded definition are
@@ -573,7 +576,14 @@ the two agree. No axiom is added.
 
 ### 7.2 Executable changes
 
-Besides scoped caches (section 5.2), the executable changes in these ways.
+Every behavioural change to the executable is classified in the audit table at the end of
+`divergences.md`: a refactor with the C++ kernel's decisions, a divergence documented there, or
+(with an entry) a divergence found by the audit. Scoped caches (section 5.2) are not the only
+divergence. Two can change a decision against the C++ kernel: scoped caches reject a term
+whose acceptance needs a conversion fact outside its scope, and `validateNestedAuxiliaries`
+rejects a nested occurrence of a family with indices (`Lean4Lean/Tests/NestedIndexedFamily.lean`;
+the stored nested application is a type family there, and the verification needs a type).
+The other changes cannot change a decision except through checker fuel, as follows.
 
 - **Redundant guards**, each listed in `divergences.md`: `reduceProjCore` requires the
   constructor to be the structure's unique constructor and fully applied; `tryEtaStructCore`
@@ -588,17 +598,28 @@ Besides scoped caches (section 5.2), the executable changes in these ways.
   universe is neither always nor never zero (`Sort u`), so a conversion that needs it there
   is rejected.
 - **Inductive checker** (`Lean4Lean/Inductive/Add.lean`): restructured into explicit loops
-  with total fresh-name searches, narrow checker contexts (section 3.2), a type check of each
-  generated recursor type, and the nested restoration validation of section 3.3. Restored
-  rules are validated in the stripped environment, a strictly more conservative check than
-  the C++ kernel's revalidation (leanprover/lean4#14621).
+  with total fresh-name searches, narrow checker contexts (section 3.2), unreachable arity
+  guards in recursor construction, and recursor rules built from the first constructor
+  traversal. Each generated recursor type is type-checked (`checkRecursorTypes`); the kernel
+  of the pinned toolchain does not do this, upstream does since leanprover/lean4#14808, which
+  also checks rule type preservation, which lean4lean proves instead. Nested auxiliary types
+  are named `_nested.i` rather than `_nested.J_i` (internal names only). The nested
+  restoration validation of section 3.3 re-checks restored declarations in side environments,
+  additionally re-checks constructor parameter prefixes, and validates restored rules in the
+  stripped environment with guardedness, shape and equation-type checks, all stricter than the
+  C++ kernel's revalidation (leanprover/lean4#14621); and it requires each nested application
+  `I Ds` to be a type, the divergence above.
 - **Caching**: `whnf` results are cached only for applications, constants, lambdas and
   projections (`Lean4Lean/WHNFCacheKey.lean`), which keeps the cache invariant within reach
   of the translation; this affects performance only.
 - **Transparent re-implementations** used by the executable so that proofs can see through
   them: `Expr.findAny` (in place of `Expr.find?`) and `consumeTypeAnnotationsVerified` (same
   behaviour as `consumeTypeAnnotations`).
-- `Quot.ind`'s major binder is explicit (section 6).
+- `Quot.ind`'s major binder is explicit (section 6), and projections are compared by
+  structure name in `isDefEqCore'` and the equivalence manager; both now match the C++ kernel.
+- **Primitive recognizer** (`Lean4Lean/Primitive.lean`): extra `checkType` calls read the closed
+  pieces of a condition and a well-founded functional in the outer context (section 5.2);
+  they concern only reserved primitive names.
 
 ## 8. Tests
 
@@ -618,6 +639,8 @@ Besides scoped caches (section 5.2), the executable changes in these ways.
   specialization while the native recursor eliminates only into `Prop`);
 - negative tests: `InductiveEquationRejection.lean`, `RecursorMetadata.lean`,
   `RestoredRecursorMetadata.lean` (corrupted metadata admits no certificate).
+- recorded divergence: `NestedIndexedFamily.lean` (a nested occurrence of an indexed family
+  accepted by the C++ kernel and rejected by lean4lean, section 7.2).
 
 `docs/inductives/CacheScopeExperiment.lean` is run with `lake env lean` (section 5.2).
 
