@@ -60,15 +60,6 @@ def reconstructWithPropFields (data : RecursorData) (U : Nat) (packed : List VLe
   let source ← data.schema.structureTelescope data.owner (data.sourceLevels packed)
   data.reconstruct U packed (List.replicate source.fields.length .zero) arguments
 
-/-- Recover a fixed-length forall telescope without inspecting the
-possibly functional result of the recursor. -/
-def takeForalls : Nat → VExpr → Option (List VExpr × VExpr)
-  | 0, type => some ([], type)
-  | n + 1, .forallE domain body => do
-    let (domains, result) ← takeForalls n body
-    return (domain :: domains, result)
-  | _ + 1, _ => none
-
 /-- The instance of the compilation, rebuilt from the data. -/
 def recursorInstance (data : RecursorData) : Instance data.schema.signature := {
   uvars := data.uvars
@@ -97,17 +88,6 @@ theorem singletonEquation_uvars {data : RecursorData} {equation : VDefEq}
   obtain ⟨lhs, _, rhs, _, type, _, h⟩ := h
   cases h
   rfl
-
-theorem takeForalls_length (h : takeForalls count type = some (domains, result)) :
-    domains.length = count := by
-  induction count generalizing type domains result with
-  | zero => simp only [takeForalls, Option.some.injEq, Prod.mk.injEq] at h; cases h.1; rfl
-  | succ count ih =>
-    cases type <;> simp only [takeForalls] at h <;> try contradiction
-    simp only [bind, Option.bind_eq_some_iff] at h
-    obtain ⟨⟨ds, body⟩, ht, he⟩ := h
-    cases he
-    simpa using congrArg Nat.succ (ih ht)
 
 /-- Whether the generic elimination universe of the recursor admits Type-valued
 instances. The source universe is tested at each occurrence, not globally. -/

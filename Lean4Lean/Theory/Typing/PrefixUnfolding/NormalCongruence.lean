@@ -258,7 +258,7 @@ theorem generate_layout (H : generate levels args = some program) :
   simp only [bind, Option.bind_eq_some_iff] at H
   obtain ⟨residual, _, ⟨domains, result⟩, htake, body, _, H⟩ := H
   cases H
-  exact ⟨takeForalls_length htake, rfl, rfl⟩
+  exact ⟨VExpr.takeForalls_domains_length htake, rfl, rfl⟩
 
 /-- The six displayed binders of Quot.lift fix prefix generation independently
 of the supplied terms. This is only generation; the unfolding check retains its typing checks. -/

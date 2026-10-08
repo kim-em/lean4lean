@@ -137,7 +137,7 @@ noncomputable def singletonUnfolding (env : VEnv) (data : RecursorData) (_U : Na
   let type ← data.recursorType
   let type ← supplyType arguments (type.instL levels)
   let remaining := data.majorOffset + 1 - arguments.length
-  let (domains, result) ← takeForalls remaining type
+  let (domains, result) ← VExpr.takeForalls remaining type
   let allArguments := arguments.map (·.liftN remaining) ++ vars remaining 0
   let (constructor, fields) ← data.singletonReconstruction env levels allArguments
   let captures := allArguments.take data.indexOffset ++ fields
@@ -172,7 +172,7 @@ theorem singletonUnfolding_spec {data : RecursorData} {levels : List VLevel}
   simp at hguard
   have hargs : arguments.length ≤ data.majorOffset := by simpa using hguard.2
   have hlevels : levels.length = data.uvars := by simpa using hguard.1
-  have hlen := takeForalls_length hdomains
+  have hlen := VExpr.takeForalls_domains_length hdomains
   refine ⟨hargs, ?_, rfl, hlevels.trans (singletonEquation_uvars hequation).symm,
     hequation, hbody, ?_⟩
   · intro hnil

@@ -34,7 +34,7 @@ theorem singletonUnfolding_layout {data : RecursorData} {env : VEnv}
   unfold singletonReconstruction at hrecon
   simp only [bind, Option.bind_eq_some_iff, pure, Option.some.injEq, Prod.mk.injEq] at hrecon
   obtain ⟨S, hS, E, hE, hctor, hfields⟩ := hrecon
-  refine ⟨S, E, hS, hE, takeForalls_length htake, ?_, ?_⟩
+  refine ⟨S, E, hS, hE, VExpr.takeForalls_domains_length htake, ?_, ?_⟩
   · rw [← hctor, ← hfields]; rfl
   · rw [← hfields]; rfl
 

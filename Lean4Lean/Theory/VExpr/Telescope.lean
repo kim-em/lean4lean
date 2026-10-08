@@ -13,6 +13,22 @@ def VExpr.takeForalls : Nat → VExpr → Option (List VExpr × VExpr)
     return (dom :: doms, result)
   | _ + 1, _ => none
 
+theorem VExpr.takeForalls_domains_length
+    {e : VExpr} {n : Nat} {domains : List VExpr} {result : VExpr}
+    (H : e.takeForalls n = some (domains, result)) :
+    domains.length = n := by
+  induction n generalizing e domains result with
+  | zero =>
+    change some ([], e) = some (domains, result) at H
+    cases Option.some.inj H
+    rfl
+  | succ n ih =>
+    cases e <;> simp [VExpr.takeForalls] at H
+    case forallE dom body =>
+      rcases H with ⟨tailDomains, htail, hd⟩
+      rw [← hd]
+      simp [ih htail]
+
 /-- Head and left-to-right arguments of an application spine. -/
 def VExpr.getAppFnArgs (e : VExpr) : VExpr × List VExpr :=
   go e []

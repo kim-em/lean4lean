@@ -26,13 +26,13 @@ theorem HasType.supply (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     exact ih (hf.app harg) H hg
 
 theorem takeForalls_sound
-    (H : RecursorData.takeForalls count type = some (domains, result)) :
+    (H : VExpr.takeForalls count type = some (domains, result)) :
     type = wrapForalls domains result := by
   induction count generalizing type domains result with
   | zero => cases H; rfl
   | succ count ih =>
     cases type <;> try contradiction
-    simp only [RecursorData.takeForalls, bind, Option.bind_eq_some_iff] at H
+    simp only [VExpr.takeForalls, bind, Option.bind_eq_some_iff] at H
     obtain ⟨⟨ds, body⟩, ht, he⟩ := H
     cases he
     exact congrArg (VExpr.forallE _) (ih ht)

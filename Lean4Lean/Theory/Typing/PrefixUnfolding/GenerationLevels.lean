@@ -19,19 +19,19 @@ theorem supplyType_levels (ha : List.Forall₂ (EqUpToLevels U) args args')
     exact ih (EqUpToLevels.instN ha hb) H
 
 theorem takeForalls_levels (ht : EqUpToLevels U type type')
-    (H : takeForalls count type = some (domains, result)) :
-    ∃ domains' result', takeForalls count type' = some (domains', result') ∧
+    (H : VExpr.takeForalls count type = some (domains, result)) :
+    ∃ domains' result', VExpr.takeForalls count type' = some (domains', result') ∧
       List.Forall₂ (EqUpToLevels U) domains domains' ∧ EqUpToLevels U result result' := by
   induction count generalizing type type' domains result with
   | zero => cases H; exact ⟨[], _, rfl, .nil, ht⟩
   | succ n ih =>
     cases ht <;> try contradiction
     rename_i hd hb
-    simp only [takeForalls, bind, Option.bind_eq_some_iff] at H
+    simp only [VExpr.takeForalls, bind, Option.bind_eq_some_iff] at H
     obtain ⟨⟨ds, body⟩, htake, H⟩ := H
     cases H
     obtain ⟨ds', body', htake', hds, hbody⟩ := ih hb htake
-    exact ⟨_, _, by simp only [takeForalls, bind, htake', Option.bind_some]; rfl, .cons hd hds, hbody⟩
+    exact ⟨_, _, by simp only [VExpr.takeForalls, bind, htake', Option.bind_some]; rfl, .cons hd hds, hbody⟩
 
 end Lean4Lean.InductiveSignature.RecursorData
 

@@ -14,17 +14,17 @@ theorem supplyType_append (args tail : List VExpr) (type : VExpr) :
   | cons arg args ih => cases type <;> simp [supplyType, ih]
 
 theorem takeForalls_instDomains
-    (H : takeForalls count type = some (domains, result)) :
-    takeForalls count (type.inst arg k) =
+    (H : VExpr.takeForalls count type = some (domains, result)) :
+    VExpr.takeForalls count (type.inst arg k) =
       some (instDomains domains arg k, result.inst arg (k + count)) := by
   induction count generalizing type domains result k with
   | zero => cases H; rfl
   | succ n ih =>
     cases type <;> try contradiction
-    simp only [takeForalls, bind, Option.bind_eq_some_iff] at H
+    simp only [VExpr.takeForalls, bind, Option.bind_eq_some_iff] at H
     obtain ⟨⟨ds, body⟩, ht, he⟩ := H
     cases he
-    simp only [VExpr.inst, takeForalls, bind, ih ht, Option.bind_some,
+    simp only [VExpr.inst, VExpr.takeForalls, bind, ih ht, Option.bind_some,
       Option.pure_def, instDomains, Nat.add_assoc, Nat.add_comm 1]
 
 theorem _root_.Lean4Lean.InductiveSignature.instantiateParams_inst {body : VExpr} {captures : List VExpr}
@@ -65,10 +65,10 @@ theorem singletonUnfolding_supply_one {data : RecursorData} {env : VEnv}
   rw [hearlyLen] at htake
   cases residual <;> try contradiction
   rename_i domain residualBody
-  simp only [takeForalls, bind, Option.bind_eq_some_iff] at htake
+  simp only [VExpr.takeForalls, bind, Option.bind_eq_some_iff] at htake
   obtain ⟨⟨ds, body⟩, htake, he⟩ := htake
   cases he
-  have hds := takeForalls_length htake
+  have hds := VExpr.takeForalls_domains_length htake
   have htake' := takeForalls_instDomains (arg := arg) (k := 0) htake
   simp only [Nat.zero_add] at htake'
   have hallLen : (args.map (·.liftN (n + 1)) ++ vars (n + 1) 0).length = data.majorOffset + 1 := by
