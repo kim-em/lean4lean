@@ -48,7 +48,8 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hc
       fun _ _ htr' hci' hadd' old =>
         .axiom htr' (by rwa [← old.map_wf.find?'_eq_find?]) hci' hadd' old
     have hadd := (hstepA .unsafe).2.2
-    refine checkBodyCore.WF (wfA.toVEnvAt .unsafe) hch (.defnDecl v)
+    refine checkBodyCore.WF (wfA.toVEnvAt .unsafe) ((hch .unsafe).mono (VEnv.addConst_le hadd))
+      (.defnDecl v)
       v.levelParams v.type v.value ci0.type (htr.1.2.2.mono (VEnv.addConst_le hadd)) h
       |>.run1 _ |>.bind fun _ h3 => ?_
     obtain ⟨value', hvalue, hvalueType⟩ := h3
@@ -420,16 +421,17 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hch : 
   obtain ⟨base, hbase0⟩ := (wf.tr (safety := v₀.safety)).exists_addConsts
     (hpullr hhdr fun _ _ h => h.1.2 ▸ h.2.2.1) (hnameeq ▸ hnd)
   have wfA := VEnvAt.addAxioms hsf (wf.toVEnvAt v₀.safety) hhdr hnd hbase0
+  have hchA : base.HasCanonicalChoice := (hch v₀.safety).mono (VEnv.addConsts_le hbase0)
   refine (TypeChecker.M.WF.run1 (Q := fun _ => ∃ cis',
     cis0.Forall₂ (fun (ci ci' : VDefVal) => ci.toVConstVal = ci'.toVConstVal) cis' ∧
     (v₀ :: rest).Forall₂ (fun v ci' => TrExprS base v.levelParams [] v.value ci'.value ∧
-      ci'.WF base) cis') wfA (hch := hch) ?_).bind fun _ h2 => ?_
+      ci'.WF base) cis') wfA (hch := hchA) ?_).bind fun _ h2 => ?_
   · refine (TypeChecker.M.WF.forInForall₂ (fun v ci s hd => ?_) hQ0).bind fun _ _ _ h => .pure h
     have hdecl := hd.1.1.1.2.2.mono (VEnv.addConsts_le hbase0)
     refine (TypeChecker.M.WF.liftExcept
       (checkNoMVarNoFVar.WF _ v.name v.value)).bind fun _ _ _ hclosed => ?_
     have hclosed' : v.value.FVarsIn
-        (· ∈ (TypeChecker.VContext.mk1 wfA hch v.levelParams).vlctx.fvars) := by
+        (· ∈ (TypeChecker.VContext.mk1 wfA hchA v.levelParams).vlctx.fvars) := by
       simpa [TypeChecker.VContext.mk1] using hclosed
     refine hd.2.2 ▸ (TypeChecker.checkType.WF hclosed').bind
       fun valType _ _ ⟨value', valType', _, hval, hvalTy, hhasType⟩ => ?_

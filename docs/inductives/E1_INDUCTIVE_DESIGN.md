@@ -564,3 +564,13 @@ Recorded under Kim's standing instruction (decide, record, continue).
    registering the source schema in the lowered window (not certifiable there: the lowered
    constructors differ); omitting lowered eliminators (the lowered window registers projections,
    so the corner would be unresolved there).
+5. **Wiring the nested transport.** The final assembly shape records how its eliminators
+   restore the lowered window's (`NestedEliminatorsRestored`: same key and signature, restored
+   by a specialisation list with the run's restoration tables; `RestorationTableData` moved to
+   `Nested/RestorationTables.lean` so the shape can state it), produced from
+   `NestedValidatedRunResult.caseEliminators`. The consumers keep choosing their own tables and
+   relate them to the recorded one through `RestorationTableData.find_eq`
+   (`RenamingRestorationAgreement.congr`). The projection names of the lowered schema are fixed
+   because its certificate (`OrdinaryCaseEliminators`) registers only base structures; restoration
+   succeeds on its generic equations because it succeeds on its generic case type
+   (`CaseSchema.genericEquations_restorable`), which the registered source schema provides.

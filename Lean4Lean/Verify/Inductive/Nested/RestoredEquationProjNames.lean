@@ -757,7 +757,8 @@ theorem NestedValidatedRunResult.recursorProjNames_of
           rw [← hname, hev.auxiliary, ← hexp.name]
         exact (List.nodup_append.1 hnodup).2.2 _ h1 _ h2 rfl
     · cases hsome
-  · rw [VEnv.addConstVals_projections_eq E.production.constructors.completed.core.ctorsAdded,
+  · rw [VEnv.addEliminators_projections,
+      VEnv.addConstVals_projections_eq E.production.constructors.completed.core.ctorsAdded,
       VEnv.addConstVals_projections_eq E.production.constructors.completed.core.typesAdded,
       E.production_initialEnv] at hbase
     exact E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup hbase hmem
