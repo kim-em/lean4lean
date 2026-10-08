@@ -133,11 +133,10 @@ def Condition.check (cond : Condition) (fail : ∀ {α}, M α)
   match cond.impl with
   | .reflectNatNat asBool reflect proof =>
     reflect.check fail
-    -- These closed pieces are read on their own, in the context the check runs in, so that the
-    -- gadget's readings of them under its binders are known to be these. `prop` and `asBool` need
-    -- no such reading: the gadget reads them under its two `Nat` binders only, which `Nat.zero`
-    -- inhabits, so the verification instantiates them away.
-    _ ← checkType proof
+    -- `toDec` is read on its own, in the context the check runs in, so that the gadget's reading
+    -- of it under its binders is known to be this one. `prop`, `asBool` and `proof` need no such
+    -- reading: the gadget reads them under its two `Nat` binders only, which `Nat.zero` inhabits,
+    -- so the verification instantiates them away.
     _ ← checkType reflect.toDec
     let y := .bvar 0; let x := .bvar 1
     -- `toDec` under binders that name its argument types, applied to the three pieces. Written
