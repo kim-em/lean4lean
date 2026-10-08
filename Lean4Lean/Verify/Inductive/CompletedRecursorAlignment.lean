@@ -377,7 +377,7 @@ theorem CompletedRecursorPhasesResult.kOfRealization
     have hPDCo : VEnv.IsDefEqCtx H.outVEnv decl.uvars [] params.reverse ownParamsC.reverse :=
       VEnv.IsDefEqCtx.mono H.headerLE hPDC
     have hOC : decl.ParamsDefEq H.outVEnv ownParams ownParamsC :=
-      VEnv.IsDefEqCtx.transEmpty henv (hPDo.symm henv.ordered) hPDCo
+      VEnv.IsDefEqCtx.trans_empty henv (hPDo.symm henv.ordered) hPDCo
     refine ⟨decl.uvars, family.type, ctor.type, ownParams ++ indices,
       ownParamsC, tail, ?_, hprop, ?_, ?_, hctorEq, ?_, ?_⟩
     · have hu : family.uvars = decl.uvars := hfuvars.symm.trans hm.uvars

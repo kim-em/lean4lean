@@ -49,36 +49,6 @@ structure PrimitiveBootstrapInstallation
     (env out : VEnv) (constants : List VConstVal) : Prop where
   installed : env.addConstVals constants = some out
 
-/-- A primitive specification survives a batch extension when the constant it
-inspects is unchanged.  The other constants and definitional equations used
-by the specification are covariant in the environment. -/
-theorem PrimSpec.Holds.monoOfConstantsEq
-    {env out : VEnv} {s : PrimSpec} {name : Name}
-    (H : s.Holds env name) (hle : env ≤ out)
-    (hsame : out.constants name = env.constants name) :
-    s.Holds out name := by
-  have old : out.contains name → env.contains name := by
-    rintro ⟨ci, hci⟩
-    exact ⟨ci, by rwa [hsame] at hci⟩
-  have new {n} : env.contains n → out.contains n := by
-    rintro ⟨ci, hci⟩
-    exact ⟨ci, hle.constants hci⟩
-  cases s with
-  | containsImplies ns => exact fun h n hn => new (H (old h) n hn)
-  | typeEq => exact fun _ h => H _ (hsame ▸ h)
-  | reflectsNatNat => exact fun h => ⟨(H (old h)).1.mono hle, fun a => ((H (old h)).2 a).mono hle⟩
-  | reflectsNatNatNat =>
-    exact fun h => ⟨(H (old h)).1.mono hle, fun a b => ((H (old h)).2 a b).mono hle⟩
-  | reflectsNatNatBool =>
-    exact fun h => ⟨(H (old h)).1.mono hle, fun a b => ((H (old h)).2 a b).mono hle⟩
-  | reflectsBitwise =>
-    exact fun h => ⟨fun _ hc => (H (old h)).1 _ (hsame ▸ hc),
-      fun env' hle' => (H (old h)).2 env' (hle.trans hle')⟩
-  | stringOfList =>
-    intro _ h
-    obtain ⟨h1, h2, h3⟩ := H _ (hsame ▸ h)
-    exact ⟨h1, h2.mono hle, h3.mono hle⟩
-
 /-- A complete canonical Bool batch restores the primitive invariant.  No
 intermediate environment is asserted to satisfy `HasPrimitives`. -/
 theorem VEnv.HasPrimitives.addBoolBootstrap
@@ -153,7 +123,7 @@ theorem VEnv.HasPrimitives.addBoolBootstrap
     intro _ h
     rw [hTrue] at h
     exact Option.some.inj h |>.symm
-  exact PrimSpec.Holds.monoOfConstantsEq (s := spec) (H (name, spec) hp) hle
+  exact PrimSpec.Holds.extend (s := spec) (H (name, spec) hp) hle
     (same name hBool hFalseName hTrueName)
 
 /-- A complete canonical Nat batch restores the primitive invariant. -/
@@ -228,7 +198,7 @@ theorem VEnv.HasPrimitives.addNatBootstrap
     intro _ h
     rw [hSucc] at h
     exact Option.some.inj h |>.symm
-  exact PrimSpec.Holds.monoOfConstantsEq (s := spec) (H (name, spec) hp) hle
+  exact PrimSpec.Holds.extend (s := spec) (H (name, spec) hp) hle
     (same name hNatName hZeroName hSuccName)
 
 /-- The completed atomic Bool batch restores `HasPrimitives`; no validity

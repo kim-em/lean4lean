@@ -65,7 +65,7 @@ theorem CaseCompilationData.ctorApp_cases {base : VEnv} {src exp : VInductDecl}
     have hrel' := List.mapM_eq_some.mp hdirect
     have hlen := Lean4Lean.List.Forall₂.length_eq hrel'
     have hjb : s.constructors[j].owner.val - src.types.length < aux.length := by omega
-    obtain ⟨_, hdf⟩ := forall₂_getElem_exists hrel' (s.constructors[j].owner.val - src.types.length) hjb
+    obtain ⟨_, hdf⟩ := List.forall₂_getElem_exists hrel' (s.constructors[j].owner.val - src.types.length) hjb
     have ha := List.getElem_mem hjb
     obtain ⟨dc, hdc, hdcn, _⟩ := Lean4Lean.List.Forall₂.forall_exists_l hrel.constructors _
       (s.declarationCtor_family j)
@@ -110,12 +110,12 @@ theorem Certified.generic_major {base : VEnv} {source : VInductDecl} {block : VI
     [g.constructorApp ctor extra 0])) = some lhs' at hl'
   change Restoration.expr.go schema.restoration (VExpr.mkApps _ _) [] = _ at hl'
   rw [restoration_mkApps] at hl'
-  simp only [List.mapM_append, restoration_vars', List.mapM_cons, List.mapM_nil, bind,
+  simp only [List.mapM_append, InductiveSignature.Restoration.mapM_expr_vars, List.mapM_cons, List.mapM_nil, bind,
     Option.bind_eq_some_iff, pure, Option.some.injEq] at hl'
   obtain ⟨_, ⟨_, ⟨_, rfl, idx', _, rfl⟩, _, ⟨major', hmajor, _, rfl, rfl⟩, rfl⟩, hout⟩ := hl'
   simp only [List.append_nil, Instance.recursorHead, Restoration.expr.go,
     Option.some.injEq] at hout
-  rw [hel, stripLams_wrapLams', ← hout, mkApps_snoc] at hm
+  rw [hel, VExpr.stripLams_wrapLams, ← hout, VExpr.mkApps_snoc] at hm
   have hmaj : major' = VExpr.mkApps (.const c ls) args := (VExpr.app.inj hm).2
   obtain ⟨sc, hsc, hown, hview⟩ := CaseSchema.view_constructor_origin index
   obtain ⟨jn, hjn, hjget⟩ := List.mem_iff_getElem.mp hsc

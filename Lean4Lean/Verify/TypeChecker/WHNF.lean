@@ -146,14 +146,14 @@ theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
         ∀ f, c.LevelsBelow e.getAppFn f →
         (f.mkAppRevList e.getAppArgsRevList).levelParamsIn Us = true :=
       fun Us P hs hl hP _ hl1 => Expr.levelParamsIn_mkAppRevList
-        (hl1 Us P hs (Expr.levelParamsIn_getAppFn hl) hP.appFn)
+        (hl1 Us P hs (Expr.levelParamsIn_getAppFn hl) hP.getAppFn)
         (Expr.levelParamsIn_getAppArgsRevList hl)
     have hhead_hit : (∀ n us, e.getAppFn ≠ .const n us) → ∀ heads As ls P,
         c.HitScope pfx heads As ls P → e.HitOK c.env heads As ls → FVarsIn P e →
         (f.mkAppRevList e.getAppArgsRevList).HitOK c.env heads As ls := by
       intro hnc heads As ls P hs hl hP
       have hf := hh1 heads As ls P hs (hl.getAppFn_of_not_hit fun c us h => absurd h (hnc c us))
-        hP.appFn
+        hP.getAppFn
       exact .mkAppRevList hf fun a ha => hl.of_mem_getAppArgsRevList hs.params.fvars ha
     split <;> [rename_i name dom body bi hflam; split]
     · have hnc : ∀ n us, e.getAppFn ≠ .const n us := by

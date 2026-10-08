@@ -94,4 +94,15 @@ structure Methods.Framed (G : FVarId → Prop) (m : Methods) : Prop where
 def RecM.Framed (G : FVarId → Prop) (x : RecM α) (R : α → Prop) : Prop :=
   ∀ ⦃m : Methods⦄, m.Framed G → M.Framed G (x m) R
 
+/-- The executable's `withFreshId`, unfolded: run the body on the current name and a state
+whose generator has advanced, then leave the scope. -/
+theorem withFreshId_eq {α} (x : Name → M α) (c : Context) (s : State) :
+    (withFreshId x : M α) c s =
+      (x s.ngen.curr c { s with ngen := s.ngen.next }).map fun p => (p.1, s.leaveScope p.2) := by
+  unfold withFreshId instMonadLocalNameGeneratorM
+  simp only [bind, ReaderT.bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get, liftM,
+    monadLift, MonadLift.monadLift, Except.bind, pure, Except.pure, ReaderT.pure, StateT.pure,
+    modify, modifyGet, MonadStateOf.modifyGet, StateT.modifyGet, mkFreshId, getNGen, setNGen]
+  cases x s.ngen.curr c { s with ngen := s.ngen.next } <;> rfl
+
 end Lean4Lean.TypeChecker

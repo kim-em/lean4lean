@@ -301,16 +301,6 @@ private theorem ConstructorHistory.addConstVals {env env' : VEnv}
   H.transport (VEnv.addConstVals_le hadd) (VEnv.addConstVals_defeqs hadd)
     (VEnv.addConstVals_eliminators hadd)
 
-private theorem defeqs_addRules {env : VEnv} {rules : List VDefEq} :
-    (env.addDefEqRules rules).defeqs df ↔ df ∈ rules ∨ env.defeqs df := by
-  induction rules generalizing env with
-  | nil => simp [VEnv.addDefEqRules]
-  | cons rule rules ih =>
-    rw [VEnv.addDefEqRules, ih]
-    change (df ∈ rules ∨ df = rule ∨ env.defeqs df) ↔ _
-    simp only [List.mem_cons]
-    rw [← or_assoc, or_comm (a := df ∈ rules)]
-
 /-- Fresh recursor heads preserve constructors known before the recursor
 constants and equations were added. -/
 private theorem ConstructorHistory.addRules {pre env : VEnv} {rules : List VDefEq}
@@ -331,7 +321,7 @@ private theorem ConstructorHistory.addRules {pre env : VEnv} {rules : List VDefE
     rintro ⟨⟨ci, hci⟩, hr⟩
     refine ⟨⟨ci, by rw [hconstants]; exact hle.1 hci⟩, ?_⟩
     intro df hd levels hh
-    rcases defeqs_addRules.mp hd with hm | ho
+    rcases VEnv.addDefEqRules_defeqs_iff_mem_or.mp hd with hm | ho
     · have hn := hhead df hm name levels hh
       rw [hci] at hn
       contradiction
@@ -346,7 +336,7 @@ private theorem ConstructorHistory.addRules {pre env : VEnv} {rules : List VDefE
       h.2.2.mono hle' fun hc hr => (move ⟨hc, hr⟩).2⟩
   refine ⟨?_, ?_, ?_, ?_⟩
   · intro df hd name hn
-    rcases defeqs_addRules.mp hd with hm | ho
+    rcases VEnv.addDefEqRules_defeqs_iff_mem_or.mp hd with hm | ho
     · exact moveT (hmajor df hm name hn)
     · rw [hdf] at ho
       exact moveT (H.1 df ho name hn)
@@ -381,28 +371,12 @@ private theorem ConstructorHistory.addProjections
   H.transport VEnv.addProjections_le (VEnv.addProjections_defeqs _ _)
     (VEnv.addProjections_eliminators _ _)
 
-private theorem addConsts_as_values {env : VEnv} {cis : List VDefVal} :
-    env.addConsts cis = env.addConstVals (cis.map (·.toVConstVal)) := by
-  induction cis generalizing env with
-  | nil => rfl
-  | cons ci cis ih =>
-    simp only [VEnv.addConsts, List.foldlM_cons, List.map_cons, VEnv.addConstVals]
-    cases env.addConst ci.name ci.toVConstant with
-    | none => rfl
-    | some middle => exact ih (env := middle)
-
-private theorem addDefEqs_as_rules {env : VEnv} {cis : List VDefVal} :
-    env.addDefEqs cis = env.addDefEqRules (cis.map (·.toDefEq)) := by
-  induction cis generalizing env with
-  | nil => rfl
-  | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
-
 private theorem ConstructorHistory.addDefinitions {env env' : VEnv}
     (H : ConstructorHistory env) (hadd : env.addConsts cis = some env') :
     ConstructorHistory (env'.addDefEqs cis) := by
-  rw [addDefEqs_as_rules]
+  rw [VEnv.addDefEqs_eq_addDefEqRules]
   apply H.compileRules (recursors := cis.map (·.toVConstVal))
-    (by rwa [← addConsts_as_values])
+    (by rwa [← VEnv.addConsts_eq_addConstVals])
   · intro df hdf
     obtain ⟨ci, hci, rfl⟩ := List.mem_map.mp hdf
     exact ⟨ci.toVConstVal, List.mem_map.mpr ⟨ci, hci, rfl⟩,
@@ -411,23 +385,6 @@ private theorem ConstructorHistory.addDefinitions {env env' : VEnv}
     obtain ⟨ci, _, rfl⟩ := List.mem_map.mp hdf
     obtain ⟨fn, levels, args, hm⟩ := hn
     cases hm
-
-private theorem addConst_fresh {env env' : VEnv}
-    (h : env.addConst name ci = some env') : env.constants name = none := by
-  unfold VEnv.addConst at h
-  split at h
-  · cases h
-  · rename_i he
-    exact he
-
-private theorem absent_of_le {base env : VEnv} (hle : base ≤ env)
-    (h : env.constants name = none) : base.constants name = none := by
-  cases hb : base.constants name with
-  | none => rfl
-  | some ci =>
-    have he := hle.constants hb
-    rw [h] at he
-    contradiction
 
 private theorem rigid_of_defeqs_eq {base env : VEnv} (h : env.defeqs = base.defeqs)
     (hr : base.Rigid name) : env.Rigid name := by
@@ -454,8 +411,8 @@ private theorem ConstructorHistory.addQuot {env env' : VEnv}
     have hn := hm.unique hmk
     subst name
     have hrigid := hordered.rigid_of_absent
-      (absent_of_le (VEnv.addConst_le h1) (addConst_fresh h2))
-    have hquot := hordered.rigid_of_absent (addConst_fresh h1)
+      (VEnv.LE.constants_eq_none_left (VEnv.addConst_le h1) (VEnv.addConst_fresh h2))
+    have hquot := hordered.rigid_of_absent (VEnv.addConst_fresh h1)
     have hdf2 := (VEnv.addConst_defeqs h2).trans (VEnv.addConst_defeqs h1)
     exact ⟨⟨quotMkConst, VEnv.addConst_self h2⟩, rigid_of_defeqs_eq hdf2 hrigid,
       quotMkConst, VEnv.addConst_self h2, ``Quot, _, rfl,
@@ -478,7 +435,7 @@ private theorem ConstructorHistory.register {base env : VEnv}
     · rcases hcert.case_constructor_origin hr with ⟨ctor, hc, hn⟩ | ⟨prior, hp, hpm⟩
       · obtain ⟨expanded, auxiliaries, hdata, _⟩ := hcert
         obtain ⟨types, ctors, ht, hct, _⟩ := hdata.sourceWF.2.2.2.2
-        have hfresh := absent_of_le (VEnv.addConstVals_le ht)
+        have hfresh := VEnv.LE.constants_eq_none_left (VEnv.addConstVals_le ht)
           (VEnv.addConstVals_names_fresh hct ctor hc)
         rw [hn]
         refine ⟨⟨ctor.toVConstant, ?_⟩, ?_⟩
@@ -568,7 +525,7 @@ private theorem ConstructorHistory.addInduct
       have hc : ctor ∈ block.ctors := by rw [hcompile.ctors]; exact hctor
       have hfresh := VEnv.addConstVals_names_fresh hctors ctor hc
       have hr := hordered.rigid_of_absent
-        (absent_of_le (VEnv.addConstVals_le htypes) hfresh)
+        (VEnv.LE.constants_eq_none_left (VEnv.addConstVals_le htypes) hfresh)
       have hci : ((envCtors.addEliminators block.eliminators).addProjections
           block.projections).constants ctor.name =
           some ctor.toVConstant := by

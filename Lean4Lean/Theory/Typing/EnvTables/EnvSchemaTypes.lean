@@ -533,11 +533,6 @@ theorem ScopedDoms.append_inv {A B : List VExpr} (h : ScopedDoms n (A ++ B)) :
     rw [List.getElem_append_right (by omega)] at this
     simpa [Nat.add_assoc] using this
 
-private theorem onCtx_append_right' {P : List VExpr → VExpr → Prop} :
-    ∀ {xs ys : List VExpr}, OnCtx (xs ++ ys) P → OnCtx ys P
-  | [], _, H => H
-  | _ :: _, _, H => onCtx_append_right' H.1
-
 private theorem ctxClosed_of_onCtx' {env : VEnv} {U : Nat} (henv : env.Ordered) :
     ∀ {Γ : List VExpr}, OnCtx Γ (env.IsType U) → CtxClosed Γ
   | [], _ => trivial
@@ -551,7 +546,7 @@ private theorem wrapForalls_sort_closedN' {level : VLevel} :
   | d :: ds, Γ, H => by
     have H' : CtxClosed (ds.reverse ++ d :: Γ) := by
       simpa [List.reverse_cons, List.append_assoc] using H
-    have hd : CtxClosed (d :: Γ) := onCtx_append_right' H'
+    have hd : CtxClosed (d :: Γ) := OnCtx.of_append H'
     exact ⟨hd.2, wrapForalls_sort_closedN' (Γ := d :: Γ) H'⟩
 
 theorem CaseCompilationData.case_scoping

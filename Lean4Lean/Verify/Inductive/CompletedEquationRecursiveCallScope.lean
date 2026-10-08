@@ -48,22 +48,10 @@ theorem FVarNarrowCore.scopeWF
     (H : FVarNarrowCore env Us scope runtime) (_henv : env.WF) :
     scope.WF env Us.length := H.wf
 
-private theorem coreDeclarations_toCtx_length
-    {fvars : List FVarId} {scope : VLCtx}
-    (H : List.Forall₂
-      (fun fv entry => ∃ deps type,
-        entry = (some (fv, deps), .vlam type)) fvars scope) :
-    scope.toCtx.length = scope.length := by
-  induction H with
-  | nil => rfl
-  | cons h _ ih =>
-    rcases h with ⟨deps, type, rfl⟩
-    simp [VLCtx.toCtx, ih]
-
 theorem FVarNarrowCore.toCtx_length
     (H : FVarNarrowCore env Us scope runtime) :
     scope.toCtx.length = scope.length :=
-  coreDeclarations_toCtx_length H.declarations
+  VLCtx.toCtx_length_of_forall₂_vlam H.declarations
 
 theorem FVarNarrowCore.fullTargetEq
     (H : FVarNarrowCore env Us scope runtime) (henv : env.WF)
@@ -90,20 +78,10 @@ private theorem coreNamedDeclarations_fvars
     rcases h with ⟨deps, type, rfl⟩
     simpa [VLCtx.fvars] using ih
 
-private theorem coreForall₂_take
-    {R : α → β → Prop} (H : List.Forall₂ R xs ys) (n : Nat) :
-    List.Forall₂ R (xs.take n) (ys.take n) := by
-  induction n generalizing xs ys with
-  | zero => exact .nil
-  | succ n ih =>
-    cases H with
-    | nil => exact .nil
-    | cons h Htail => exact .cons h (ih Htail)
-
 theorem FVarNarrowCore.fvars_take
     (H : FVarNarrowCore env Us scope runtime) (n : Nat) :
     VLCtx.fvars (scope.take n) = scope.fvars.take n :=
-  coreNamedDeclarations_fvars (coreForall₂_take H.declarations n)
+  coreNamedDeclarations_fvars (List.forall₂_take H.declarations n)
 
 theorem FVarNarrowCore.abstractPrefix
     (H : FVarNarrowCore env Us scope runtime) (henv : env.WF) (n : Nat)
@@ -116,7 +94,7 @@ theorem FVarNarrowCore.abstractPrefix
   let tail := scope.drop n
   have hscope : scopePrefix ++ tail = scope := by
     simpa [scopePrefix, tail] using (List.take_append_drop n scope).symm
-  have Hprefix := coreForall₂_take H.declarations n
+  have Hprefix := List.forall₂_take H.declarations n
   have hprefixFVars : VLCtx.fvars scopePrefix = scope.fvars.take n :=
     coreNamedDeclarations_fvars Hprefix
   have Htr' : TrExprS env Us

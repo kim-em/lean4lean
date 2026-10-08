@@ -209,6 +209,18 @@ theorem VEnv.addConst_defeqs {env env' : VEnv}
   split at h <;> cases h
   rfl
 
+theorem VEnv.addConst_fresh {env env' : VEnv} (h : env.addConst n ci = some env') :
+    env.constants n = none := by
+  unfold VEnv.addConst at h
+  split at h <;> cases h
+  assumption
+
+theorem VEnv.LE.constants_eq_none_left {source target : VEnv} (H : source ≤ target)
+    (hnone : target.constants name = none) : source.constants name = none := by
+  cases hb : source.constants name with
+  | none => rfl
+  | some ci => rw [H.constants hb] at hnone; cases hnone
+
 theorem VEnv.addDefEq_le {env : VEnv} : env ≤ env.addDefEq df :=
   ⟨id, .inr, id, id⟩
 

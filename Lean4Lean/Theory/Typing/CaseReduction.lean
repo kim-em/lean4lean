@@ -199,26 +199,13 @@ def CaseApplicationMap (actual : Application) (f : VExpr → VExpr) : Applicatio
     (CaseApplicationMap actual fun e => e.liftN n k).expr = actual.expr.liftN n k := by
   simp [CaseApplicationMap, Application.expr, VExpr.liftN]
 
-private theorem case_lift'_mkApps (fn : VExpr) (args : List VExpr) :
-    (VExpr.mkApps fn args).lift' ρ = VExpr.mkApps (fn.lift' ρ) (args.map fun e => e.lift' ρ) := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons arg args ih => exact ih (.app fn arg)
-
 @[simp] theorem case_application_lift' (actual : Application) :
     (CaseApplicationMap actual fun e => e.lift' ρ).expr = actual.expr.lift' ρ := by
-  simp [CaseApplicationMap, Application.expr, VExpr.lift', case_lift'_mkApps]
+  simp [CaseApplicationMap, Application.expr, VExpr.lift', VExpr.lift'_mkApps]
 
 @[simp] theorem case_application_instN (actual : Application) :
     (CaseApplicationMap actual fun e => e.inst value k).expr = actual.expr.inst value k := by
   simp [CaseApplicationMap, Application.expr, VExpr.inst]
-
-private theorem spine_go_mkApps (fn : VExpr) (args rest : List VExpr) :
-    VExpr.getAppFnArgs.go (VExpr.mkApps fn args) rest =
-      VExpr.getAppFnArgs.go fn (args ++ rest) := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons arg args ih => exact ih (.app fn arg)
 
 private theorem spine_lift' (e : VExpr) :
     (e.lift' ρ).getAppFnArgs =
@@ -234,15 +221,7 @@ private theorem case_application_extract (actual : Application) :
     Application.extract actual.expr = some actual := by
   cases actual
   simp [Application.extract, Application.expr, VExpr.getAppFnArgs,
-    spine_go_mkApps, VExpr.getAppFnArgs.go]
-
-private theorem case_rebuild_spine (e : VExpr) :
-    VExpr.mkApps e.getAppFnArgs.1 e.getAppFnArgs.2 = e := by
-  suffices ∀ args, VExpr.mkApps (VExpr.getAppFnArgs.go e args).1
-      (VExpr.getAppFnArgs.go e args).2 = VExpr.mkApps e args from this []
-  induction e with
-  | app fn arg ih _ => intro args; exact ih (arg :: args)
-  | _ => intro args; rfl
+    VExpr.getAppFnArgs_go_mkApps, VExpr.getAppFnArgs.go]
 
 theorem case_elim_spine_lift'_inv
     (h : VExpr.mkApps (.elim block owner packed) args = e.lift' ρ) :
@@ -254,7 +233,7 @@ theorem case_elim_spine_lift'_inv
   cases hf : e.getAppFnArgs.1 <;> simp only [hf, VExpr.lift'] at hh <;> try contradiction
   cases hh
   refine ⟨e.getAppFnArgs.2, ?_, congrArg Prod.snd hs⟩
-  simpa only [hf] using (case_rebuild_spine e).symm
+  simpa only [hf] using (VExpr.mkApps_getAppFnArgs e).symm
 
 theorem case_application_injective {a b : Application} (h : a.expr = b.expr) : a = b := by
   have he := congrArg Application.extract h
@@ -375,12 +354,6 @@ private theorem case_forall₂_drop (h : List.Forall₂ R xs ys) :
     | zero => exact .cons h ht
     | succ n => exact ih (n := n)
 
-theorem case_forall₂_append (h : List.Forall₂ R xs ys) (h' : List.Forall₂ R xs' ys') :
-    List.Forall₂ R (xs ++ xs') (ys ++ ys') := by
-  induction h with
-  | nil => exact h'
-  | cons h _ ih => exact .cons h ih
-
 theorem case_forall₂_get (h : List.Forall₂ R xs ys) (hi : i < xs.length) (hi' : i < ys.length) :
     R xs[i] ys[i] := by
   induction h generalizing i with
@@ -393,7 +366,7 @@ theorem CaseApplicationRelated.capture {rule : AppliedRule} (H : CaseApplication
     List.Forall₂ R (rule.capture a) (rule.capture b) := by
   unfold AppliedRule.capture
   rw [H.ctorArguments.length_eq]
-  exact case_forall₂_append (case_forall₂_take H.arguments) (case_forall₂_drop H.ctorArguments)
+  exact List.Forall₂.append' (case_forall₂_take H.arguments) (case_forall₂_drop H.ctorArguments)
 
 theorem CaseStep.arguments_typed (H : CaseStep env U Γ rule levels arguments)
     (h : e ∈ arguments) : ∃ type, env.HasType U Γ e type := by
@@ -864,7 +837,7 @@ theorem IsCaseMajorPremise.lift' : IsCaseMajorPremise env (e.lift' ρ) ↔ IsCas
     exact ⟨schema, block, owner, levels, args', hl, he', by simpa [hargs] using hlen⟩
   · rintro ⟨schema, block, owner, levels, args, hl, rfl, hlen⟩
     exact ⟨schema, block, owner, levels, args.map (fun e => e.lift' ρ), hl,
-      case_lift'_mkApps _ _, by simpa using hlen⟩
+      VExpr.lift'_mkApps _ _ _, by simpa using hlen⟩
 
 theorem IsCaseMajorPremise.instN (H : IsCaseMajorPremise env e) :
     IsCaseMajorPremise env (e.inst value k) := by
@@ -905,7 +878,7 @@ theorem IsCasePrefix.app_left (H : IsCasePrefix env (.app fn arg)) : IsCasePrefi
   change fn.getAppFnArgs.1 = VExpr.elim block owner.val levels at hh
   have ha := congrArg (fun p : VExpr × List VExpr => p.2.length) hs
   refine ⟨schema, block, owner, levels, fn.getAppFnArgs.2, hl, ?_, ?_⟩
-  · simpa only [hh] using (case_rebuild_spine fn).symm
+  · simpa only [hh] using (VExpr.mkApps_getAppFnArgs fn).symm
   · simp only [List.length_append, List.length_singleton] at ha
     omega
 

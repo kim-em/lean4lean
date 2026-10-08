@@ -65,7 +65,7 @@ theorem HTS.spineRev (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd ar
     · exact absurd he.symm mkApps_elim_ne_lam
   | forallE =>
     rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩
-    · exact absurd he.symm mkApps_const_ne_forallE
+    · exact absurd he.symm VExpr.mkApps_const_ne_forallE
     · exact absurd he.symm mkApps_elim_ne_forallE
   | proj =>
     rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;>

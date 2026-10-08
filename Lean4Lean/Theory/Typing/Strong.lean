@@ -712,7 +712,7 @@ theorem IsDefEqStrong.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : env.
 theorem IsDefEqStrong.defeqDF_l (henv : Ordered env) (hΓ : CtxStrong env U Γ)
     (h1 : env.IsDefEqStrong U Γ A A' (.sort u))
     (h2 : env.IsDefEqStrong U (A::Γ) e1 e2 B) : env.IsDefEqStrong U (A'::Γ) e1 e2 B := by
-  simpa [instN_bvar0] using
+  simpa [VExpr.inst_liftN_bvar] using
     have hu := h1.defeq.sort_r henv hΓ.defeq
     have hΓ' := ⟨hΓ, _, h1.hasType.2⟩
     h1.weakN henv (.one (A := A'))
@@ -935,7 +935,7 @@ theorem EqUpToLevels.defeq (H : env.IsDefEqStrong U Γ e1 e2 A)
     have c1 := ih1 W a1 (EqUpToLevels.refl W.levelWF h3).2 |>.trans h3.symm
     have c2 := have W' := ⟨W, _, h3⟩; ih5 W' a2 (EqUpToLevels.refl W'.levelWF h7).2
     have c3 := IsDefEqStrong.appDF h1 h2 h8 h5 c2 (.bvar .zero h1 h8)
-    rw [instN_bvar0] at c3; specialize c3 h4
+    rw [VExpr.inst_liftN_bvar] at c3; specialize c3 h4
     refine .trans
       (.symm <| .lamDF h1 h2 c1.symm h4 (.defeqDF_l henv W c1.symm h4) c3.symm
         (.defeqDF_l henv W c1.symm c3.symm)) ?_
@@ -1118,7 +1118,7 @@ theorem IsDefEqStrong.hasType' {env : VEnv}
   | @eta Γ A u B v e h1 h2 _ _ _ _ _ _ ih1 ih2 ih3 ih4 ih5 ih6 =>
     refine have a1 := .base <| .forallE h1 h2 ih6.1 ih3.1
       have := ih6.1.app h1 h2 ih3.1 a1 ih5.1 (.base <| .bvar .zero h1 ih6.1); ?_
-    rw [instN_bvar0] at this; specialize this ih2.1
+    rw [VExpr.inst_liftN_bvar] at this; specialize this ih2.1
     refine ⟨.base <| .lam h1 h2 ih1.1 ih2.1 (.base this) ?_, ih4.1⟩
     exact .base <| .forallE h1 h2 ih1.1 ih2.1
   | extra h1 h2 h3 h4 h5 h6 h7 _ _ _ _ _ ih4 ih5 => exact ⟨ih4.1, ih5.1⟩

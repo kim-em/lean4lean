@@ -124,7 +124,7 @@ theorem
       S.motiveSourceAlignment.mono henvLe
   have HselectedCanonical : VEnv.IsDefEqCtx H.outVEnv Us.length []
       F.telescope.params.reverse C.params.reverse :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       HselectedSource (HcanonicalSource.symm H.outVEnvWF.ordered)
   rcases H.finalRecursorParameterContextAt selectedOwner F.entry_lt with
     ⟨Tselected, HselectedCached⟩
@@ -137,7 +137,7 @@ theorem
     simpa [parameterDecls, H.parameterDecls, Us] using HselectedCached
   have HcanonicalCached : VEnv.IsDefEqCtx H.outVEnv Us.length []
       C.params.reverse parameterDecls.toCtx :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       (HselectedCanonical.symm H.outVEnvWF.ordered) HselectedCached'
   have hparameterLength : parameterDecls.toCtx.length = stats.params.size := by
     calc
@@ -272,7 +272,7 @@ theorem
       Hcommon HTFull
   have HselectedToCached : VEnv.IsDefEqCtx H.outVEnv Us.length []
       (frontDomains.reverse ++ selectedOuter.reverse) cachedFull :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       (by simpa [Touter, selectedOuter] using
         HTToSelected.symm H.outVEnvWF.ordered)
       (HcachedToT.symm H.outVEnvWF.ordered)
@@ -943,7 +943,7 @@ theorem
   have HselectedToCached : VEnv.IsDefEqCtx H.outVEnv Us.length []
       (frontDomains.reverse ++ selectedOuter.reverse)
       (frontDomains.reverse ++ cachedBase) :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       (by simpa [outer, selectedOuter] using
         HTToSelected.symm H.outVEnvWF.ordered)
       (HcachedToT.symm H.outVEnvWF.ordered)
@@ -1019,7 +1019,7 @@ theorem
   have HcanonicalMotives := A.rule.abstractedMotivesTranslation
     (env := H.outVEnv) (Us := Us) equationDomains [] hequationLength
   have HmotiveBase :=
-    Lean4Lean.VerifyInductive.List.Forall₂.getElem HcanonicalMotives
+    List.forall₂_getElem HcanonicalMotives
       selectedOwner (by simpa using hselectedMotiveBound)
         (by simpa using hselectedMotiveBound)
   have HmotiveBase' : TrExprS H.outVEnv Us
@@ -1123,7 +1123,7 @@ theorem
     rw [hsourceMotiveHead', ← htargetMotiveHead]
     simpa [hlocal, abstractForallContext, List.reverse_append,
       List.append_assoc] using HmotiveWeak
-  have HmotiveArgs := Lean4Lean.VerifyInductive.List.Forall₂.append'
+  have HmotiveArgs := List.Forall₂.append'
     Hindices (List.Forall₂.cons Hmajor List.Forall₂.nil)
   have HmotiveApplication₀ := checkPositivityStep.TrExprS.mkAppList
     H.outVEnvWF.ordered Hctx HmotiveHead HmotiveArgs HrightWF
@@ -1225,7 +1225,7 @@ theorem
         VLCtx.toCtx_map_anonymousLams equationDomains.reverse
     rw [hequationCtx]
     exact Hclosed
-  have Hargs := Lean4Lean.VerifyInductive.List.Forall₂.append'
+  have Hargs := List.Forall₂.append'
     Hindices (List.Forall₂.cons Hmajor List.Forall₂.nil)
   have Hcall := checkPositivityStep.TrExprS.mkAppList
     H.outVEnvWF.ordered Hctx Hprefix Hargs HleftWF

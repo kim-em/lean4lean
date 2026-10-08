@@ -94,14 +94,6 @@ theorem minors_getElem (g : Instance s) (k : Nat) (hk : k < s.constructors.size)
     g.minors[k]'(by rw [length_minors]; exact hk) = g.minor s.constructors[k] k := by
   simp [minors]
 
-/-- Inserting binders twice at the same cut inserts their sum. -/
-theorem insertBinders_insertBinders (domains : List VExpr) (a b : Nat) :
-    insertBinders (insertBinders domains a) b = insertBinders domains (a + b) := by
-  simp only [insertBinders]
-  apply List.ext_getElem (by simp)
-  intro n h1 h2
-  simp [VExpr.liftN'_liftN_hi]
-
 end Instance
 end InductiveSignature
 
@@ -432,7 +424,7 @@ theorem
       List.append_assoc] using Hrebased
   have HequationParams := VEnv.IsDefEqCtx.extendSamePrefix
     Hparams' HfieldT.isType
-  have HbaseMixed := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+  have HbaseMixed := VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
     (HfieldT.symm H.outVEnvWF.ordered) HequationParams
   have Hbase : VEnv.IsDefEqCtx H.outVEnv Us.length []
       (T.params ++ T.motives ++ T.minors ++ installedFields).reverse
@@ -1041,7 +1033,7 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.CanonicalEquationFr
     omega
   rw [hlater, hfields] at Hfields
   simp only [liftContextPrefix_reverse_reverse,
-    InductiveSignature.Instance.insertBinders_insertBinders] at Hfields
+    InductiveSignature.insertBinders_insertBinders] at Hfields
   have hsum : H.generationSignature.families.size + (recursorMinorOffset indTypes owner + i) +
       (H.generationSignature.constructors.size - (recursorMinorOffset indTypes owner + i)) =
       H.generationSignature.families.size + H.generationSignature.constructors.size := by

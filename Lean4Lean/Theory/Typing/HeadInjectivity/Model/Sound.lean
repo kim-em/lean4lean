@@ -421,14 +421,6 @@ theorem ElimsValid.of_elims {env E E' : VEnv} (H : ElimsValid env E)
     (h : ∀ b s, E'.eliminators b s → E.eliminators b s) : ElimsValid env E' :=
   ⟨H.uniq, fun b schema owner rules df hb => H.valid b schema owner rules df (h _ _ hb)⟩
 
-theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.Permission.wf_cons
-    {schema : InductiveSignature.CaseSchema} {owner : Fin schema.signature.families.size}
-    (H : schema.Permission U owner levels target) : ∀ l ∈ target :: levels, l.WF U := by
-  intro l hl
-  rcases List.mem_cons.1 hl with rfl | hl
-  · exact H.target_wf
-  · exact H.levels_wf l hl
-
 /-- Every observation of an eliminator passes its typing filter. -/
 theorem Obs.elim_typed {schema : InductiveSignature.CaseSchema}
     {owner : Fin schema.signature.families.size}
@@ -499,7 +491,7 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
   | elimDF hb htype hcl hperm hlw' hls _ h8 ih8 =>
     replace hb := hle.eliminators hb
     replace h8 := h8.mono hle
-    have hlw := hperm.wf_cons
+    have hlw := hperm.packedWF
     refine ⟨?_, .elim hb htype hcl hlw ih8.2.1 ⟨h8.hasType.1, ih8.1.refl_l henv hΔ⟩,
       .conv (.elim hb htype hcl hlw' ih8.2.2 ⟨h8.hasType.2, ih8.1.refl_r henv hΔ⟩)
         ⟨h8.symm, ih8.1.symm henv hΔ⟩⟩
@@ -694,7 +686,7 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
     replace he := he.mono hle
     replace he' := he'.mono hle
     replace hA' := hA'.mono hle
-    have e0 : (B.liftN 1 1).inst (.bvar 0) = B := VExpr.instN_bvar0 B 0
+    have e0 : (B.liftN 1 1).inst (.bvar 0) = B := VExpr.inst_liftN_bvar B 0
     have hb0 : env.IsDefEqStrong U (A :: Γ) (.bvar 0) (.bvar 0) A.lift := .bvar .zero h1 hA'
     have hbody : HTS env U Δ (A :: Γ) (.app e.lift (.bvar 0)) B := by
       have := HTS.app ⟨hA', ihA'.1⟩ ⟨hB', ihB'.1⟩ ihe'.2.1 he'.defeq.hasType.1

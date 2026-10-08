@@ -15,14 +15,6 @@ namespace Lean4Lean
 namespace VEnv
 open InductiveSignature
 
-private theorem install_base_le' (H : VInductBlock.install base block = some installed) :
-    base ≤ installed := by
-  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at H
-  obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
-  exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
-    VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
-
 theorem NativeRecursorRegistered.family_head_rigid {data : NativeRecursorData} (henv : env.WF)
     (H : NativeRecursorRegistered env data)
     (index : Fin data.schema.signature.constructors.size)
@@ -35,7 +27,7 @@ theorem NativeRecursorRegistered.family_head_rigid {data : NativeRecursorData} (
   subst hown
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, hprior, hbase, hr, _, _, _, _, hi, he⟩ := H
-  have hle : base ≤ env := hbase.trans ((install_base_le' hi).trans he)
+  have hle : base ≤ env := hbase.trans ((VInductBlock.install_base_le hi).trans he)
   rw [hr]
   rcases hdata.family_head_origin hdata.recursorNamesFresh hprior index with
     ⟨family, hsrc, hfn, hhn, fc, hfc, hcn⟩ |
@@ -94,14 +86,6 @@ end Lean4Lean.InductiveSignature
 namespace Lean4Lean.VEnv
 open InductiveSignature
 
-private theorem forall₂_snoc_inv' {R : α → β → Prop} :
-    ∀ {l₀ : List α} {x : α} {l : List β}, List.Forall₂ R (l₀ ++ [x]) l →
-    ∃ l₀' x', l = l₀' ++ [x'] ∧ List.Forall₂ R l₀ l₀' ∧ R x x'
-  | [], _, _, .cons h .nil => ⟨[], _, rfl, .nil, h⟩
-  | _ :: _, _, _, .cons h t =>
-    let ⟨l₀', x', e, t', h'⟩ := forall₂_snoc_inv' t
-    ⟨_ :: l₀', x', by rw [e]; rfl, .cons h t', h'⟩
-
 /-- The restored native recursor type is a telescope whose major domain is an
 application of the restored family head of its owner. -/
 theorem NativeRecursorData.recursorType_major {data : NativeRecursorData}
@@ -114,7 +98,7 @@ theorem NativeRecursorData.recursorType_major {data : NativeRecursorData}
           data.levels)) args) := by
   unfold NativeRecursorData.recursorType Instance.recursorType at H
   obtain ⟨domains, body, rfl, hrel, _⟩ := Restoration.wrapForalls_forall₂ H
-  obtain ⟨pre', x', rfl, hpre, hx⟩ := forall₂_snoc_inv' hrel
+  obtain ⟨pre', x', rfl, hpre, hx⟩ := List.forall₂_snoc_left hrel
   have hpl := Lean4Lean.List.Forall₂.length_eq hpre
   have hoff : pre'.length = data.majorOffset := by
     rw [← hpl]
@@ -209,15 +193,6 @@ theorem QuotRegistered.major_type (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)
                 ← VExpr.lift_instN_lo] at hmajor
               simpa [VExpr.mkApps] using hmajor
 
-private theorem restoration_vars' (r : Restoration) (count below : Nat) :
-    (vars count below).mapM r.expr = some (vars count below) := by
-  unfold vars
-  generalize (List.range count).reverse = is
-  induction is with
-  | nil => rfl
-  | cons i is ih =>
-    simpa [List.mapM_cons, Restoration.expr, Restoration.expr.go, VExpr.mkApps] using ih
-
 /-- The restored native recursor type returns its owner's motive applied to
 the indices and the major, and that motive's binder is a telescope ending in
 the native target sort. -/
@@ -239,7 +214,7 @@ theorem NativeRecursorData.recursorType_shape {data : NativeRecursorData}
       (vars data.numIndices 1 ++ [.bvar 0]) := by
     change Restoration.expr.go _ (VExpr.mkApps _ _) [] = _ at hbody
     rw [restoration_mkApps] at hbody
-    simp only [List.mapM_append, restoration_vars', bind, Option.bind_some,
+    simp only [List.mapM_append, InductiveSignature.Restoration.mapM_expr_vars, bind, Option.bind_some,
       List.mapM_cons, List.mapM_nil] at hbody
     simpa [Restoration.expr, Restoration.expr.go, VExpr.mkApps, insertBinders,
       NativeRecursorData.numIndices] using hbody.symm
@@ -278,15 +253,6 @@ theorem NativeRecursorData.recursorType_shape {data : NativeRecursorData}
   · have := Lean4Lean.List.Forall₂.length_eq hmrel
     simp [insertBinders, NativeRecursorData.numIndices] at this ⊢
     omega
-
-private theorem liftN_forall_sort' (domains : List VExpr) (level : VLevel) (n k : Nat) :
-    ∃ domains', (VExpr.wrapForalls domains (.sort level)).liftN n k =
-      VExpr.wrapForalls domains' (.sort level) := by
-  induction domains generalizing k with
-  | nil => exact ⟨[], rfl⟩
-  | cons domain domains ih =>
-    obtain ⟨domains', hd⟩ := ih (k + 1)
-    exact ⟨domain.liftN n k :: domains', congrArg (VExpr.forallE (domain.liftN n k)) hd⟩
 
 /-- A saturated native recursor application has a type living in the
 native target universe. -/
@@ -340,7 +306,7 @@ theorem NativeRecursorRegistered.result_sort {data : NativeRecursorData} (henv :
       VExpr.wrapForalls (mds.map (·.instL ls)) (.sort (data.target.inst ls)) := by
     rw [List.getElem_map, (List.getElem?_eq_some_iff.mp hmot).2, VExpr.instL_wrapForalls]; rfl
   rw [hd] at hvar
-  obtain ⟨mds', hm'⟩ := liftN_forall_sort' (mds.map (·.instL ls)) (data.target.inst ls)
+  obtain ⟨mds', hm'⟩ := VExpr.liftN_wrapForalls_sort (mds.map (·.instL ls)) (data.target.inst ls)
     ((domains.map (·.instL ls)).length - (data.numParams + data.owner.val)) 0
   rw [hm'] at hvar
   have hidx : (domains.map (·.instL ls)).length - 1 - (data.numParams + data.owner.val) =
@@ -365,14 +331,6 @@ theorem _root_.Lean4Lean.InductiveSignature.Restoration.headLevels_inst
   unfold InductiveSignature.Restoration.headLevels
   split <;> simp [List.map_map, Function.comp_def, VLevel.inst_inst]
 
-theorem VInductBlock.install_type_lookup' (H : VInductBlock.install base block = some installed)
-    (hvalue : value ∈ block.types) : installed.constants value.name = some value.toVConstant := by
-  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at H
-  obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
-  exact ((VEnv.addConstVals_le hc).trans <| VEnv.addEliminators_addProjections_le.trans <|
-    (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le).constants (VEnv.addConstVals_get ht hvalue)
-
 /-- A native recursor whose source universe is never zero at the occurrence
 cannot eliminate a proof. -/
 theorem NativeRecursorRegistered.major_not_proof {data : NativeRecursorData} (henv : env.WF)
@@ -384,10 +342,10 @@ theorem NativeRecursorRegistered.major_not_proof {data : NativeRecursorData} (he
   obtain ⟨hw, hlw, args, hMt⟩ := H.major_type henv hΓ ht hlen
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, hprior, hbase, hr, _, hu, hl, _, hi, he⟩ := H
-  have hle : base ≤ env := hbase.trans ((install_base_le' hi).trans he)
+  have hle : base ≤ env := hbase.trans ((VInductBlock.install_base_le hi).trans he)
   have hconstants : ∀ family ∈ source.types,
       env.constants family.name = some family.toVConstant := fun family hf =>
-    he.constants (VInductBlock.install_type_lookup' hi (by
+    he.constants (VInductBlock.install_type_lookup hi (by
       rw [hdata.types]; exact List.mem_map.mpr ⟨family, hf, rfl⟩))
   obtain ⟨_, _, hadm⟩ := hdata.admissible
   have hlevels' : ∀ l ∈ data.levels.map (·.inst ls), l.WF U := by

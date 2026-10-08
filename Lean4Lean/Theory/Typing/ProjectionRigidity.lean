@@ -49,36 +49,19 @@ theorem Ordered.rigid_of_absent (henv : env.Ordered)
 private def ProjectionRigid (env : VEnv) : Prop :=
   ∀ name info, env.projections name info → env.Rigid name ∧ env.Rigid info.ctorName
 
-private theorem addConst_defeqs_eq {env env' : VEnv}
-    (H : env.addConst name ci = some env') : env'.defeqs = env.defeqs := by
-  unfold VEnv.addConst at H
-  split at H <;> cases H
-  rfl
-
-private theorem addConstVals_defeqs_eq {env env' : VEnv} {cis : List VConstVal}
-    (H : env.addConstVals cis = some env') : env'.defeqs = env.defeqs := by
-  induction cis generalizing env with
-  | nil => cases H; rfl
-  | cons ci cis ih =>
-    cases hc : env.addConst ci.name ci.toVConstant with
-    | none => simp [VEnv.addConstVals, hc] at H
-    | some middle =>
-      simp [VEnv.addConstVals, hc] at H
-      exact (ih H).trans (addConst_defeqs_eq hc)
-
 private theorem ProjectionRigid.addConstVals {env env' : VEnv} {cis : List VConstVal}
     (H : ProjectionRigid env) (hadd : env.addConstVals cis = some env') :
     ProjectionRigid env' := by
   intro name info hinfo
   rw [VEnv.addConstVals_projections hadd] at hinfo
-  simpa only [VEnv.Rigid, addConstVals_defeqs_eq hadd] using H name info hinfo
+  simpa only [VEnv.Rigid, VEnv.addConstVals_defeqs hadd] using H name info hinfo
 
 private theorem ProjectionRigid.addConst {env env' : VEnv}
     (H : ProjectionRigid env) (hadd : env.addConst name ci = some env') :
     ProjectionRigid env' := by
   intro name info hinfo
   rw [VEnv.addConst_projections hadd] at hinfo
-  simpa only [VEnv.Rigid, addConst_defeqs_eq hadd] using H name info hinfo
+  simpa only [VEnv.Rigid, VEnv.addConst_defeqs hadd] using H name info hinfo
 
 private theorem ProjectionRigid.register
     {base envTypes envCtors : VEnv} {decl : VInductDecl} {block : VInductBlock}
@@ -110,7 +93,7 @@ private theorem ProjectionRigid.register
       | some c => rw [(VEnv.addConstVals_le htypes).constants h] at hfreshC; cases hfreshC
     have hrigidC := hbase.rigid_of_absent habsent
     simp only [VEnv.Rigid, VEnv.addEliminators_defeqs, VEnv.addProjections_defeqs,
-      addConstVals_defeqs_eq hctorsAdded, addConstVals_defeqs_eq htypes]
+      VEnv.addConstVals_defeqs hctorsAdded, VEnv.addConstVals_defeqs htypes]
     exact ⟨hrigid, hrigidC⟩
   · simpa only [VEnv.Rigid, VEnv.addEliminators_defeqs, VEnv.addProjections_defeqs] using hctors name info hold
 
@@ -179,30 +162,14 @@ private theorem ProjectionRigid.addInduct {base env' : VEnv} {decl : VInductDecl
     cases hinstall
     exact hresult
 
-private theorem addConsts_eq_addConstVals {env : VEnv} {cis : List VDefVal} :
-    env.addConsts cis = env.addConstVals (cis.map (·.toVConstVal)) := by
-  induction cis generalizing env with
-  | nil => rfl
-  | cons ci cis ih =>
-    simp only [VEnv.addConsts, List.foldlM_cons, List.map_cons, VEnv.addConstVals]
-    cases env.addConst ci.name ci.toVConstant with
-    | none => rfl
-    | some middle => exact ih (env := middle)
-
-private theorem addDefEqs_eq_addDefEqRules {env : VEnv} {cis : List VDefVal} :
-    env.addDefEqs cis = env.addDefEqRules (cis.map (·.toDefEq)) := by
-  induction cis generalizing env with
-  | nil => rfl
-  | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
-
 private theorem ProjectionRigid.addDefinitions {env env' : VEnv} {cis : List VDefVal}
     (H : ProjectionRigid env) (hordered : env.Ordered)
     (hadd : env.addConsts cis = some env') : ProjectionRigid (env'.addDefEqs cis) := by
-  rw [addDefEqs_eq_addDefEqRules]
+  rw [VEnv.addDefEqs_eq_addDefEqRules]
   apply H.compileRules (block := {
     types := [], ctors := [], projections := []
     recursors := cis.map (·.toVConstVal), rules := cis.map (·.toDefEq) }) hordered
-  · rwa [← addConsts_eq_addConstVals]
+  · rwa [← VEnv.addConsts_eq_addConstVals]
   · intro df hdf
     rcases List.mem_map.mp hdf with ⟨ci, hci, rfl⟩
     exact ⟨ci.toVConstVal, List.mem_map.mpr ⟨ci, hci, rfl⟩,

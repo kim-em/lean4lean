@@ -252,7 +252,7 @@ def CompletedRecursorPhasesResult.GeneratedRuleAlignment.NarrowFieldRuntimeFrame
       (fun fv entry => ∃ deps type,
         entry = (some (fv, deps), .vlam type))
       B.fieldScope.fvars B.fieldScope := by
-    have Happ := Lean4Lean.VerifyInductive.List.Forall₂.append'
+    have Happ := List.Forall₂.append'
       Hfront Hparams
     have hscope : B.fieldScope.take Hruntime.frontSourceDomains.length ++
         H.parameterSuffix.parameterDecls = B.fieldScope := by
@@ -528,7 +528,7 @@ theorem
   have hrecInfo : selectedOwner < H.recInfos.size := by
     simpa [selectedOwner, H.generated.length] using F.entry_lt
   have htranslated :=
-    Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    List.Forall₂.length_eq
       evidence.indices_translation
   have hsourceArity := checkPositivityStep.getIIndices.index_arity
     F.semantic.generated.owner_valid
@@ -657,7 +657,7 @@ theorem TrExprS.mkAppList_fvarPrefix {env : VEnv} {Us : List Name}
     refine ⟨?_, ?_⟩
     · simpa [Expr.mkAppList, List.reverse_cons, List.map_append,
         Expr.mkAppList_append, hvars] using happ
-    · simpa [hvars, VExpr.instN_bvar0] using happTy
+    · simpa [hvars, VExpr.inst_liftN_bvar] using happTy
 
 /-- Shared cached-target frame for every semantic argument of one recursive
 call.  Locals and fields are closed from a single dependency-selected core;
@@ -1392,7 +1392,7 @@ theorem
       simp [m]
     rw [hl, hr] at Hdrop
     exact Hdrop
-  have HQPctx := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF HQT Hparams
+  have HQPctx := VEnv.IsDefEqCtx.trans_empty H.outVEnvWF HQT Hparams
   have hnodup := H.recursorWF.mlctx_wf.fvars_nodup
   have hkeyRuntime : ∀ x ∈ Q.map Prod.fst,
       x ∈ H.recursorWF.mlctx.vlctx.map Prod.fst := by
@@ -1685,16 +1685,16 @@ theorem
   rw [hXlen] at HCMS
   simp only [List.append_assoc] at HCMS
   rw [← hscopeSplit] at HCMS
-  have HNC := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
-    (VEnv.IsDefEqCtx.transEmpty H.outVEnvWF HNY HYM)
+  have HNC := VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
+    (VEnv.IsDefEqCtx.trans_empty H.outVEnvWF HNY HYM)
     (HCMS.symm H.outVEnvWF.ordered)
   have Hlc := VEnv.IsDefEqCtx.rebaseCommonSuffix H.outVEnvWF
     (Hprefix.symm H.outVEnvWF.ordered) (HNC.symm H.outVEnvWF.ordered)
   have Hext := VEnv.IsDefEqCtx.extendSamePrefix
     (Hprefix.symm H.outVEnvWF.ordered)
     (Hlc.symm H.outVEnvWF.ordered).isType
-  exact VEnv.IsDefEqCtx.transEmpty H.outVEnvWF Hlc
-    (VEnv.IsDefEqCtx.transEmpty H.outVEnvWF Hext HnarrowInstalled)
+  exact VEnv.IsDefEqCtx.trans_empty H.outVEnvWF Hlc
+    (VEnv.IsDefEqCtx.trans_empty H.outVEnvWF Hext HnarrowInstalled)
 
 /-- Cancel the rule-wide free-variable embedding and compare the selected
 minor's constructor fields with the literal narrow field telescope in the
@@ -1785,7 +1785,7 @@ theorem
   have HfieldCtx := Halign.defeqCtx
   rw [B.fieldScope_eq, abstractForallContext_toCtx, A.parameterDecls_eq]
     at HfieldCtx
-  exact VEnv.IsDefEqCtx.transEmpty H.outVEnvWF Hctx1
+  exact VEnv.IsDefEqCtx.trans_empty H.outVEnvWF Hctx1
     (HfieldCtx.symm H.outVEnvWF.ordered)
 
 /-- The independently checked constructor-field telescope and the narrow
@@ -1856,9 +1856,9 @@ theorem
   have HminorNarrow := VEnv.IsDefEqU.wrapForalls_context H.outVEnvWF
     HparameterBase (hminor.trans hnarrow.symm) HminorNarrowTarget
   have HcheckedMinor := HminorChecked'.symm H.outVEnvWF.ordered
-  have HcheckedNarrow := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+  have HcheckedNarrow := VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
     HcheckedMinor HminorNarrow
-  have HcheckedFields := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+  have HcheckedFields := VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
     HcheckedNarrow HnarrowFields
   exact ⟨checkedDomains, checkedResidual, hchecked, Hchecked',
     HcheckedFields⟩
@@ -1929,7 +1929,7 @@ theorem
     VEnv.IsDefEqCtx.refl HparameterCtx
   have HcheckedOther := VEnv.IsDefEqU.wrapForalls_context H.outVEnvWF
     HparameterBase (hchecked.trans hotherChecked.symm) HcheckedTarget
-  have HcheckedNarrow := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+  have HcheckedNarrow := VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
     HcheckedOther HotherNarrow
   let inserted := T.motives ++ T.minors
   let checkedRecent := checkedDomains.reverse
@@ -1971,7 +1971,7 @@ theorem
       (liftContextPrefix insertedCtx.length narrowRecent ++
         (insertedCtx ++ H.parameterSuffix.parameterDecls.toCtx)) := by
     simpa [List.append_assoc] using HfieldsInserted
-  have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+  have Haligned := VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
     HcanonicalToCached HfieldsInserted'
   let equationFieldDomains :=
     (liftContextPrefix inserted.length checkedDomains.reverse).reverse
@@ -2096,7 +2096,7 @@ theorem
     VEnv.IsDefEqCtx.refl HparameterCtx
   have HcheckedOther := VEnv.IsDefEqU.wrapForalls_context H.outVEnvWF
     HparameterBase (hchecked.trans hotherChecked.symm) HcheckedTarget
-  have HcheckedNarrow := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+  have HcheckedNarrow := VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
     HcheckedOther HotherNarrow
   let inserted := T.motives ++ T.minors
   let checkedRecent := checkedDomains.reverse
@@ -2138,7 +2138,7 @@ theorem
       (liftContextPrefix insertedCtx.length narrowRecent ++
         (insertedCtx ++ H.parameterSuffix.parameterDecls.toCtx)) := by
     simpa [List.append_assoc] using HfieldsInserted
-  have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+  have Haligned := VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
     HcanonicalToCached HfieldsInserted'
   let equationFieldDomains :=
     (liftContextPrefix inserted.length checkedDomains.reverse).reverse

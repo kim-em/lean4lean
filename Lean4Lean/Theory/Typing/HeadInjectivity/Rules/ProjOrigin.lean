@@ -37,10 +37,6 @@ theorem VExpr.mkApps_getAppFnArgs_go : ∀ (e : VExpr) (args : List VExpr),
   | .bvar .., _ | .sort .., _ | .const .., _ | .elim .., _ | .proj .., _ | .lam .., _
   | .forallE .., _ => rfl
 
-theorem VExpr.mkApps_getAppFnArgs' (e : VExpr) :
-    VExpr.mkApps e.getAppFnArgs.1 e.getAppFnArgs.2 = e :=
-  VExpr.mkApps_getAppFnArgs_go e []
-
 /-- **The syntactic shape of a projection-registered constructor type**: a telescope ending
 in the family at its own universe parameters, applied to the parameter variables and to index
 arguments. -/
@@ -63,7 +59,7 @@ theorem VEnv.ProjOrigin.ctorType_shape {env : VEnv} (h : env.ProjOrigin S info) 
   have htake' : result.getAppFnArgs.2.take decl.nparams =
       decl.paramVars (doms.length - decl.nparams) := htake
   have hargs' : result.getAppFnArgs.2.length = decl.nparams + type'.numIndices := hargs
-  have hres := VExpr.mkApps_getAppFnArgs' result
+  have hres := VExpr.mkApps_getAppFnArgs result
   rw [hhead, ← List.take_append_drop decl.nparams result.getAppFnArgs.2, htake'] at hres
   refine ⟨doms, result.getAppFnArgs.2.drop decl.nparams, ?_, by omega, ?_⟩
   · rw [hct, heq, hu, hnp]

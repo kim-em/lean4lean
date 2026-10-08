@@ -100,29 +100,6 @@ theorem generate_anyArity {levels : List VLevel} (H : generate levels args = som
   simp only [bind, hsupply, Option.bind_some, hresidual, htake]
   exact ⟨_, rfl⟩
 
-private theorem vars_inst_last' (n : Nat) (arg : VExpr) :
-    (vars (n + 1) 0).map (·.inst arg n) = arg.liftN n :: vars n 0 := by
-  simp only [vars, List.range_succ, List.reverse_append, List.reverse_singleton,
-    List.singleton_append, List.map_cons, List.map_map, Function.comp_def,
-    Nat.zero_add, inst]
-  rw [show instVar n arg n = arg.liftN n by simp [instVar]]
-  congr 1
-  apply List.map_congr_left
-  intro i hi
-  have hi : i < n := List.mem_range.mp (List.mem_reverse.mp hi)
-  simp [instVar, show i < n by omega]
-
-private theorem instantiateParams_inst' {body : VExpr} {captures : List VExpr}
-    (hclosed : body.ClosedN captures.length) :
-    (instantiateParams body captures).inst arg k =
-      instantiateParams body (captures.map (·.inst arg k)) := by
-  rw [instantiateParams_eq_instOuter, instantiateParams_eq_instOuter,
-    instOuter_eq_subst, instOuter_eq_subst, instN_eq, subst_subst]
-  apply subst_congr_closedN hclosed
-  intro i hi
-  simp only [Subst.comp, Subst.ofList, List.length_map, dif_pos hi,
-    List.getElem_map, ← instN_eq]
-
 private theorem getD_inst (l : List VExpr) (i : Nat) :
     (l[i]?.getD default).inst arg k = (l.map (·.inst arg k))[i]?.getD default := by
   rw [List.getElem?_map]; cases l[i]? <;> rfl
@@ -161,14 +138,14 @@ theorem generate_supply_one {levels : List VLevel} {args : List VExpr}
   cases hLate
   refine ⟨domain, _, rfl, ?_⟩
   change (wrapLams ds _).inst arg = wrapLams (instDomains ds arg 0) _
-  rw [wrapLams_inst, Nat.zero_add, hds, instantiateParams_inst' hclosed.instL]
+  rw [wrapLams_inst, Nat.zero_add, hds, InductiveSignature.instantiateParams_inst hclosed.instL]
   congr 2
   have hall : ((args.map (·.liftN (6 - args.length)) ++ vars (6 - args.length) 0).map
       (·.inst arg n)) = (args ++ [arg]).map (·.liftN (6 - (args ++ [arg]).length)) ++
         vars (6 - (args ++ [arg]).length) 0 := by
     rw [hearlyLen, hlateLen]
     simp only [List.map_append, List.map_map, Function.comp_def, inst_liftN_lo,
-      vars_inst_last', List.map_cons, List.map_nil, List.append_assoc, List.cons_append,
+      InductiveSignature.vars_inst_last, List.map_cons, List.map_nil, List.append_assoc, List.cons_append,
       List.nil_append]
   simp only [List.map_append, List.map_take, List.map_cons, List.map_nil, hall]
   rw [hlateLen] at hall ⊢

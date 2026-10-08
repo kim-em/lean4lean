@@ -77,14 +77,6 @@ private theorem vars_lift'_consN (n : Nat) (ρ : Lift) :
   · simpa only [VExpr.ClosedN, Nat.zero_add] using hi
   · exact hfix
 
-private theorem vars_length (n k : Nat) : (vars n k).length = n := by simp [vars]
-
-private theorem mkApps_lift' (fn : VExpr) (args : List VExpr) :
-    (mkApps fn args).lift' ρ = mkApps (fn.lift' ρ) (args.map (·.lift' ρ)) := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons arg args ih => exact ih (.app fn arg)
-
 theorem singletonProgram_lift' {data : NativeRecursorData} {nativeType : VExpr} {env : VEnv}
     {packed : List VLevel} (henv : env.WF) (hr : VEnv.NativeRecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
@@ -117,12 +109,12 @@ theorem singletonProgram_lift' {data : NativeRecursorData} {nativeType : VExpr} 
     simp only [List.map_append, List.map_map, Function.comp_def,
       liftN_lift'_consN, vars_lift'_consN]
   have hallLen : (args.map (·.liftN remaining) ++ vars remaining 0).length = data.majorOffset + 1 := by
-    simp only [List.length_append, List.length_map, vars_length]; omega
+    simp only [List.length_append, List.length_map, InductiveSignature.length_vars]; omega
   have hrecon' := singletonRecon_lift' (ρ := ρ) (n := remaining) henv hr hlarge hzero hallLen (by omega) hrecon
   rw [← hall] at hrecon'
   dsimp only [remaining] at hrecon'
   simp only [bind, htype, Option.bind_some, hsupply', htake', hrecon', hequation, hbody,
-    List.length_map, List.length_append, List.length_take, vars_length] at hcaptureCount ⊢
+    List.length_map, List.length_append, List.length_take, InductiveSignature.length_vars] at hcaptureCount ⊢
   rw [if_neg hcaptureCount]
   simp only [Option.pure_def, Option.some.injEq, PrefixProgram.rename, PrefixProgram.mk.injEq,
     hlen, and_true, true_and]

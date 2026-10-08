@@ -27,7 +27,7 @@ theorem takeForalls_instDomains
     simp only [VExpr.inst, takeForalls, bind, ih ht, Option.bind_some,
       Option.pure_def, instDomains, Nat.add_assoc, Nat.add_comm 1]
 
-private theorem instantiateParams_inst {body : VExpr} {captures : List VExpr}
+theorem _root_.Lean4Lean.InductiveSignature.instantiateParams_inst {body : VExpr} {captures : List VExpr}
     (hclosed : body.ClosedN captures.length) :
     (instantiateParams body captures).inst arg k =
       instantiateParams body (captures.map (·.inst arg k)) := by
@@ -37,18 +37,6 @@ private theorem instantiateParams_inst {body : VExpr} {captures : List VExpr}
   intro i hi
   simp only [Subst.comp, Subst.ofList, List.length_map, dif_pos hi,
     List.getElem_map, ← instN_eq]
-
-private theorem vars_inst_last (n : Nat) (arg : VExpr) :
-    (vars (n + 1) 0).map (·.inst arg n) = arg.liftN n :: vars n 0 := by
-  simp only [vars, List.range_succ, List.reverse_append, List.reverse_singleton,
-    List.singleton_append, List.map_cons, List.map_map, Function.comp_def,
-    Nat.zero_add, inst]
-  rw [show instVar n arg n = arg.liftN n by simp [instVar]]
-  congr 1
-  apply List.map_congr_left
-  intro i hi
-  have hi : i < n := List.mem_range.mp (List.mem_reverse.mp hi)
-  simp [instVar, show i < n by omega]
 
 theorem singletonProgram_supply_one {data : NativeRecursorData} {env : VEnv}
     {args : List VExpr} {early late : PrefixProgram}
@@ -89,7 +77,7 @@ theorem singletonProgram_supply_one {data : NativeRecursorData} {env : VEnv}
   have hrecon' := singletonRecon_inst (a := arg) (K := n) henv hr hlarge hzero hallLen hn hrecon
   have hall : (args.map (·.liftN (n + 1)) ++ vars (n + 1) 0).map (·.inst arg n) =
       (args ++ [arg]).map (·.liftN n) ++ vars n 0 := by
-    simp only [List.map_append, List.map_map, Function.comp_def, inst_liftN_lo, vars_inst_last,
+    simp only [List.map_append, List.map_map, Function.comp_def, inst_liftN_lo, InductiveSignature.vars_inst_last,
       List.map_cons, List.map_nil, List.append_assoc, List.cons_append, List.nil_append]
   rw [hall] at hrecon'
   simp only [bind, htype, Option.bind_some, supplyType_append, hsupply,
@@ -102,7 +90,7 @@ theorem singletonProgram_supply_one {data : NativeRecursorData} {env : VEnv}
   rw [wrapLams_inst, Nat.zero_add, hds, instantiateParams_inst hclosed.instL]
   congr 2
   simp only [hearlyLen, List.map_append, List.map_take,
-    List.map_map, Function.comp_def, inst_liftN_lo, vars_inst_last,
+    List.map_map, Function.comp_def, inst_liftN_lo, InductiveSignature.vars_inst_last,
     List.map_cons, List.map_nil, List.append_assoc, List.cons_append, List.nil_append]
 
 end Lean4Lean.InductiveSignature.NativeRecursorData

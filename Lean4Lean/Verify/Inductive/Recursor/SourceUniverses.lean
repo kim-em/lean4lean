@@ -105,20 +105,13 @@ theorem TrExprS.dropFreshLevelParam
   H.substLevelParamsCore hΔ recursorDropLevels_wf
     (fun _ _ hu => ofLevel_dropFresh hu)
 
-private theorem OnCtx.typeLevelWF {env : VEnv}
-    (H : OnCtx Γ (env.IsType U)) : OnCtx Γ (fun _ A => A.LevelWF U) := by
-  induction Γ with
-  | nil => trivial
-  | cons A Γ ih =>
-    exact ⟨ih H.1, (Classical.choose_spec H.2).levelWF (ih H.1) |>.1⟩
-
 theorem VLCtx.WF.instL_id (H : VLCtx.WF env U Δ) :
     Δ.instL (VLevel.params U) = Δ := by
   induction Δ with
   | nil => rfl
   | cons entry Δ ih =>
     obtain ⟨ofv, d⟩ := entry
-    have hctx := OnCtx.typeLevelWF H.1.toCtx
+    have hctx := OnCtx.levelWF_of_isType H.1.toCtx
     have htail := ih H.1
     cases d with
     | vlam ty =>

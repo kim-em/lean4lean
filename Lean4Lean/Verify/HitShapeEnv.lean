@@ -208,11 +208,8 @@ open Lean4Lean
 
 /-! ### Application spines -/
 
-theorem getAppFn_mkAppList_hit (f : Expr) (l : List Expr) :
-    (f.mkAppList l).getAppFn = f.getAppFn := by
-  induction l generalizing f with
-  | nil => rfl
-  | cons a l ih => simp only [mkAppList]; rw [ih]; rfl
+-- Kept for `Lean4Lean/Verify/TypeChecker/InferType.lean`.
+alias getAppFn_mkAppList_hit := getAppFn_mkAppList
 
 @[simp] theorem getAppFn_getAppFn_hit (e : Expr) : e.getAppFn.getAppFn = e.getAppFn := by
   induction e <;> simp_all [getAppFn]
@@ -338,10 +335,6 @@ namespace HitShapeB
 
 variable {heads : List Name} {ls : List Level}
 
-private theorem getAppFn_hitHeadB (c : Name) (ls : List Level) (params : List Expr) :
-    ((Expr.const c ls).mkAppList params).getAppFn = .const c ls := by
-  rw [getAppFn_mkAppList_hit]; rfl
-
 theorem forallE_inv {n d : Nat} {nm : Name} {t b : Expr} {bi : BinderInfo}
     (H : HitShapeB heads n ls d (.forallE nm t b bi)) :
     HitShapeB heads n ls d t ∧ HitShapeB heads n ls (d + 1) b := by
@@ -350,7 +343,7 @@ theorem forallE_inv {n d : Nat} {nm : Name} {t b : Expr} {bi : BinderInfo}
   | forallE ht hb => cases he; exact ⟨ht, hb⟩
   | hitHead =>
     have := congrArg Expr.getAppFn he
-    rw [getAppFn_hitHeadB] at this; simp [getAppFn] at this
+    rw [getAppFn_mkAppList_const] at this; simp [getAppFn] at this
   | _ => cases he
 
 /-- A depth-`d` bound-variable form with zero parameters is a free-variable form with no
@@ -858,18 +851,15 @@ end Lean.Expr
 namespace Lean.Expr
 open Lean4Lean
 
-theorem getAppArgsList_mkAppList_hit (f : Expr) (l : List Expr) :
-    (f.mkAppList l).getAppArgsList = f.getAppArgsList ++ l := by
-  induction l generalizing f with
-  | nil => simp
-  | cons a l ih => simp only [mkAppList]; rw [ih, getAppArgsList_app]; simp
+-- Kept for `Lean4Lean/Verify/TypeChecker/InferType.lean`.
+alias getAppArgsList_mkAppList_hit := getAppArgsList_mkAppList
 
 theorem getAppArgsList_mkAppRevList_hit (f : Expr) (l : List Expr) :
     (f.mkAppRevList l).getAppArgsList = f.getAppArgsList ++ l.reverse := by
-  rw [← mkAppList_reverse, getAppArgsList_mkAppList_hit]
+  rw [← mkAppList_reverse, getAppArgsList_mkAppList]
 
 theorem getAppFn_mkAppRevList_hit (f : Expr) (l : List Expr) :
     (f.mkAppRevList l).getAppFn = f.getAppFn := by
-  rw [← mkAppList_reverse, getAppFn_mkAppList_hit]
+  rw [← mkAppList_reverse, getAppFn_mkAppList]
 
 end Lean.Expr

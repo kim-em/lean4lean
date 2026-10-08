@@ -110,28 +110,6 @@ theorem singletonRecon_lift' {ρ : Lift} {n : Nat} (henv : env.WF)
     (by cases n with | zero => omega | succ n => rfl) H
   simpa only [← lift'_eq_subst] using h
 
-private theorem forall₂_take_levels {R : VExpr → VExpr → Prop} (H : List.Forall₂ R a b) (n : Nat) :
-    List.Forall₂ R (a.take n) (b.take n) := by
-  induction H generalizing n with
-  | nil => simp
-  | cons h hs ih => cases n with
-    | zero => exact .nil
-    | succ n => exact .cons h (ih n)
-
-private theorem forall₂_drop_levels {R : VExpr → VExpr → Prop} (H : List.Forall₂ R a b) (n : Nat) :
-    List.Forall₂ R (a.drop n) (b.drop n) := by
-  induction H generalizing n with
-  | nil => simp
-  | cons h hs ih => cases n with
-    | zero => exact .cons h hs
-    | succ n => exact ih n
-
-private theorem forall₂_append_levels {R : VExpr → VExpr → Prop} (H : List.Forall₂ R a b)
-    (H' : List.Forall₂ R a' b') : List.Forall₂ R (a ++ a') (b ++ b') := by
-  induction H with
-  | nil => exact H'
-  | cons h _ ih => exact .cons h ih
-
 theorem singletonRecon_levels
     (hl : ∀ level ∈ levels, level.WF U) (hl' : ∀ level ∈ levels', level.WF U)
     (he : List.Forall₂ (· ≈ ·) levels levels')
@@ -145,11 +123,11 @@ theorem singletonRecon_levels
   obtain ⟨S', E', hS', hE', hlenF, hocc⟩ := occ_levels hS hE hl hl' he
   obtain ⟨E'', hE'', hrel⟩ := propElim_levels hE hl hl' he
   cases hE'.symm.trans hE''
-  have hps := forall₂_take_levels ha data.numParams
-  have hidx := forall₂_take_levels (forall₂_drop_levels ha data.indexOffset) data.numIndices
+  have hps := List.forall₂_take ha data.numParams
+  have hidx := List.forall₂_take (List.forall₂_drop ha data.indexOffset) data.numIndices
   have h := (hocc hps hidx (.bvar (i := 0)) S.fields.length).2
   simp only [hS', hE', bind, Option.bind_some, hlenF]
-  exact ⟨_, _, rfl, hrel.ctor.mkApps_args (forall₂_append_levels hps h), h⟩
+  exact ⟨_, _, rfl, hrel.ctor.mkApps_args (List.Forall₂.append' hps h), h⟩
 
 /-- The singleton prefix program: `prefixProgram` with the reconstruction of
 `singletonRecon`. -/

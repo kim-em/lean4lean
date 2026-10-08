@@ -151,23 +151,6 @@ theorem vars_eq_bvarRange (count below : Nat) :
     congr 1
     omega
 
-theorem vars_map_liftN_hi (count below n k : Nat) (h : k ≤ below) :
-    (vars count below).map (fun e => e.liftN n k) = vars count (below + n) := by
-  simp only [vars, List.map_map, Function.comp_def]
-  apply List.map_congr_left
-  intro i _
-  simp only [VExpr.liftN, liftVar]
-  rw [if_neg (by omega)]
-  congr 1; omega
-
-theorem vars_map_liftN_lo (count below n k : Nat) (h : below + count ≤ k) :
-    (vars count below).map (fun e => e.liftN n k) = vars count below := by
-  simp only [vars, List.map_map, Function.comp_def]
-  apply List.map_congr_left
-  intro i hi
-  simp only [List.mem_reverse, List.mem_range] at hi
-  simp only [VExpr.liftN, liftVar]
-  rw [if_pos (by omega)]
 
 end VEnv
 
@@ -230,7 +213,7 @@ theorem major_lift (owner : Fin s.families.size) :
       (g.sMajor owner).liftN 2 (g.sIndices owner).length := by
   simp only [familyApp, InductiveSignature.familyApp, sMajor, sIndices, List.length_map,
     VExpr.liftN_mkApps, List.map_append]
-  rw [vars_map_liftN_hi _ _ _ _ (Nat.le_refl _), vars_map_liftN_lo _ _ _ _ (by omega)]
+  rw [InductiveSignature.vars_map_liftN_hi _ _ _ _ (Nat.le_refl _), InductiveSignature.vars_map_liftN_lo _ _ _ _ (by omega)]
   simp [VExpr.liftN, Nat.add_comm]
 
 /-- The cast specification of a singleton family at the instance's universes. -/

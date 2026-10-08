@@ -145,13 +145,6 @@ theorem _root_.Lean4Lean.VExpr.Subst.ofList_snoc_head (args : List VExpr) (a : V
     (VExpr.Subst.ofList (args ++ [a])).head = a := by
   simp [VExpr.Subst.head, VExpr.Subst.ofList]
 
-theorem snoc_induction {α} {P : List α → Prop} (nil : P [])
-    (snoc : ∀ l a, P l → P (l ++ [a])) : ∀ l, P l := by
-  intro l
-  rw [← List.reverse_reverse l]
-  induction l.reverse with
-  | nil => simpa using nil
-  | cons a t ih => simpa using snoc _ a ih
 
 end VEnv
 

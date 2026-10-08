@@ -2066,7 +2066,7 @@ theorem
   have hexactIndexLength : exactIndexTargets.length =
       F.telescope.indices.length := by
     simp only [exactIndexTargets, List.length_map]
-    exact (Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    exact (List.Forall₂.length_eq
       _HindexEq).trans hlength
   have Hexposed' : TrExprS H.outVEnv Us
       (abstractForallContext (equationDomains ++ liftedLocals) [])
@@ -2229,7 +2229,7 @@ theorem
           (fun target => target.liftN liftedLocals.length 0) := by
     apply List.ext_getElem
     · simpa using
-        (Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hparameters).symm
+        (List.Forall₂.length_eq Hparameters).symm
     · intro k htarget hcanonical
       have hsource : k <
           ((List.ofFn fun i : Fin stats.params.size =>
@@ -2238,7 +2238,7 @@ theorem
                 F.semantic.generated.localArgs.size)).length := by
         simpa using hcanonical
       have Hparameter :=
-        Lean4Lean.VerifyInductive.List.Forall₂.getElem Hparameters k
+        List.forall₂_getElem Hparameters k
           hsource htarget
       have Hparameter' : TrExprS H.outVEnv Us
           (abstractForallContext

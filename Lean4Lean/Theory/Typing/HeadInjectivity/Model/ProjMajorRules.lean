@@ -63,7 +63,7 @@ theorem CaseCompilationData.aux_slot {base : VEnv} {source expanded : VInductDec
   obtain ⟨_, direct, _, hdirect, hlt, hrel⟩ := EnvTables.CaseCompilationData.family_slot C o
   have hrel' := List.mapM_eq_some.mp hdirect
   obtain ⟨hi, hai⟩ := List.getElem?_eq_some_iff.1 ha
-  obtain ⟨hdi, hdf⟩ := EnvTables.forall₂_getElem_exists hrel' (o.val - source.types.length) hi
+  obtain ⟨hdi, hdf⟩ := List.forall₂_getElem_exists hrel' (o.val - source.types.length) hi
   rw [List.getElem_append_right ho] at hrel
   rw [hai] at hdf
   have hname : s.families[o].name = a.auxiliary :=
@@ -273,7 +273,7 @@ theorem projMajor_restored {envF env0 installed base E : VEnv} {source expanded 
     have ho : s.constructors[index].owner.val < source.types.length :=
       (List.getElem?_eq_some_iff.1 hFget).1
     refine ⟨s.families[s.constructors[index].owner].resultLevel, ?_, fun hnz => hnz _ hmemF⟩
-    rw [← hms, vars_length_hi]
+    rw [← hms, InductiveSignature.length_vars]
     exact projMajor_source hF C hprior h0 hinst hle hpc hPV hE hEF hsnd hbE htypesE index ho hrigF
   · obtain ⟨hcn', rfl, hargs⟩ := EnvTables.mkApps_const_inj hmaj
     have hms := (List.append_inj' hargs (by simp)).1
@@ -332,7 +332,7 @@ theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
     obtain ⟨rule', hgen', hreq'⟩ := CaseSchema.generates_of_genericEquation hr hm
     obtain ⟨fn', ls', args', hm'⟩ := generates_major hgen'
     rw [hreq', hmaj] at hm'
-    obtain ⟨hc, -, -⟩ := mkApps_const_inj (VExpr.app.inj hm').2
+    obtain ⟨hc, -, -⟩ := VExpr.mkApps_const_inj (VExpr.app.inj hm').2
     exact ⟨key, schema, owner, rule', .inl ⟨rfl, rfl⟩, hgen', hc.symm⟩
   have htypesE : ∀ t ∈ source.types, env.constants t.name = some t.toVConstant := fun t ht =>
     hconsts t.toVConstVal (List.mem_append_left _ (by rw [C.types]; exact List.mem_map_of_mem ht))
@@ -382,8 +382,8 @@ theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
     have hlev := hrel.resultLevel
     refine ⟨source.types[schema.signature.constructors[i].owner.val].resultLevel, ?_,
       fun levels target hlen hnz => ?_⟩
-    · rw [hhd, hms, vars_length_hi]; exact hpm
-    · rw [VLevel.inst_inst, CaseSchema.genericLevels_inst' hlen]
+    · rw [hhd, hms, InductiveSignature.length_vars]; exact hpm
+    · rw [VLevel.inst_inst, InductiveSignature.CaseSchema.genericLevels_inst hlen]
       have : (schema.sourceLevel owner levels) ≈
           (source.types[schema.signature.constructors[i].owner.val].resultLevel.inst levels) := by
         unfold CaseSchema.sourceLevel
@@ -406,7 +406,7 @@ theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
       have e : (VLevel.inst (target :: levels) ∘ VLevel.inst schema.genericLevels) =
           VLevel.inst levels := by
         funext x
-        simp only [Function.comp_apply, VLevel.inst_inst, CaseSchema.genericLevels_inst' hlen]
+        simp only [Function.comp_apply, VLevel.inst_inst, InductiveSignature.CaseSchema.genericLevels_inst hlen]
       rw [e, ← VLevel.inst_inst]
       have : (schema.sourceLevel owner levels) ≈ ((a.source.resultLevel.inst a.levels).inst levels) := by
         unfold CaseSchema.sourceLevel

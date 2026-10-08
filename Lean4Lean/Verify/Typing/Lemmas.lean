@@ -12,6 +12,12 @@ namespace Lean4Lean
 open Lean4Lean VEnv Lean
 open scoped _root_.List
 
+theorem OnCtx.levelWF_of_isType {env : VEnv} {U : Nat} {Γ : List VExpr}
+    (H : OnCtx Γ (env.IsType U)) : OnCtx Γ (fun _ A => A.LevelWF U) := by
+  induction Γ with
+  | nil => trivial
+  | cons A Γ ih => exact ⟨ih H.1, (Classical.choose_spec H.2).levelWF (ih H.1) |>.1⟩
+
 theorem fvarsIn_iff : FVarsIn P e ↔ (∀ fv ∈ e.fvarsList, P fv) ∧ FVarsIn (fun _ => True) e := by
   induction e <;> simp [FVarsIn, Expr.fvarsList, *] <;> grind
 
@@ -67,10 +73,6 @@ theorem FVarsIn.litType {l : Literal} : FVarsIn P l.type := by
   cases l <;> simp [FVarsIn, Literal.type]
 
 theorem Closed.toConstructor : ∀ {l : Literal}, Closed l.toConstructor k
-  | .natVal _ => .natLitToConstructor
-  | .strVal _ => .strLitToConstructor
-
-theorem toConstructor : ∀ {l : Literal}, Closed l.toConstructor k
   | .natVal _ => .natLitToConstructor
   | .strVal _ => .strLitToConstructor
 
@@ -224,9 +226,18 @@ theorem FVarsIn.abstract1 (h1 : FVarsIn P e) :
   induction e generalizing k <;> simp_all [FVarsIn, Expr.abstract1]
   split <;> simp [FVarsIn, *]
 
-theorem FVarsIn.appRevList :
+theorem FVarsIn.mkAppRevList :
     FVarsIn P (f.mkAppRevList es) ↔ FVarsIn P f ∧ ∀ e ∈ es, FVarsIn P e := by
   induction es <;> simp [FVarsIn, and_comm, and_left_comm, *]
+
+-- Kept for `Lean4Lean/Verify/TypeChecker/InferType.lean`.
+alias FVarsIn.appRevList := FVarsIn.mkAppRevList
+
+theorem FVarsIn.getAppFn (h : FVarsIn P e) : FVarsIn P e.getAppFn := by
+  rw [← e.mkAppRevList_getAppArgsRevList, FVarsIn.mkAppRevList] at h; exact h.1
+
+-- Kept for `Lean4Lean/Verify/TypeChecker/InferType.lean`.
+alias FVarsIn.appFn := FVarsIn.getAppFn
 
 /-- Abstracting a variable removes it from what the term mentions, so the predicate may drop it.
 The companion to `FVarsIn.abstract1`, which keeps the predicate fixed; this is the form a caller
@@ -893,6 +904,22 @@ theorem VLCtx.IsDefEq.defeqCtx : VLCtx.IsDefEq env U Δ₁ Δ₂ → env.IsDefEq
   | .nil => .zero
   | .cons h1 _ (.vlam h2) => .succ h1.defeqCtx h2
   | .cons h1 _ (.vlet ..) => h1.defeqCtx
+
+/-- A conversion between ordinary typing contexts induces a conversion
+between their completely anonymous verifier contexts. -/
+theorem VLCtx.IsDefEq.ofDefEqCtxAnonymous
+    (H : VEnv.IsDefEqCtx env U [] left right) :
+    VLCtx.IsDefEq env U
+      (left.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl))
+      (right.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) := by
+  induction H with
+  | zero => exact .nil
+  | succ H Htype ih =>
+    exact .cons ih (by simp) (.vlam (by simpa using Htype))
 
 theorem VLCtx.IsDefEq.fvars : VLCtx.IsDefEq env U Δ₁ Δ₂ → Δ₁.fvars = Δ₂.fvars
   | .nil => by simp
@@ -1832,6 +1859,29 @@ theorem TrExprS.unique' (hΔ : IsUniqueCtx Δ₁ Δ₂) (H : IsUnique e)
 theorem TrExprS.unique (H : IsUnique e)
     (H1 : TrExprS env Us Δ e e₁) (H2 : TrExprS env Us Δ e e₂) : e₁ = e₂ := H1.unique' .base H H2
 
+/-- Translation is syntactically unique: every constructor of `TrExprS` is
+determined by the source syntax and the context, including projections
+(`TrProj.target_eq`).  This strengthens `TrExprS.unique'`, whose `IsUnique`
+hypothesis excludes projections. -/
+theorem TrExprS.uniqueCtx {env : VEnv} {Us : List Name} {Δ₁ Δ₂ : VLCtx} {e : Expr}
+    {e₁ e₂ : VExpr} (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂)
+    (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ₂ e e₂) : e₁ = e₂ := by
+  induction H1 generalizing Δ₂ e₂ with cases H2
+  | bvar => exact hΔ.find?_uniq ‹_› ‹_›
+  | fvar => exact hΔ.find?_uniq ‹_› ‹_›
+  | sort h1
+  | const _ h1 => cases h1.symm.trans ‹_›; rfl
+  | app _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 hΔ ‹_›; rfl
+  | lam _ _ _ ih1 ih2
+  | forallE _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 (hΔ.cons .vlam) ‹_›; rfl
+  | letE _ _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 (hΔ.cons .vlet) ‹_›; rfl
+  | lit _ _ ih => exact ih hΔ ‹_›
+  | mdata _ ih => exact ih hΔ ‹_›
+  | proj _ hp ih =>
+    rename_i h2 hp2
+    cases ih hΔ h2
+    rw [hp.target_eq, hp2.target_eq]
+
 theorem TrExprS.boolFalse (henv : env.HasPrimitives) (H : env.contains ``Bool) :
     TrExprS env Us Δ (toExpr false) .boolFalse ∧
     env.HasType Us.length Δ.toCtx .boolFalse .bool := by
@@ -2095,10 +2145,6 @@ theorem FVarsBelow.trans (H1 : FVarsBelow Δ e₁ e₂) (H2 : FVarsBelow Δ e₂
 def TrTyping (env : VEnv) (Us : List Name) (Δ : VLCtx) (e A : Expr) (e' A' : VExpr) : Prop :=
   FVarsBelow Δ e A ∧ TrExprS env Us Δ e e' ∧ TrExprS env Us Δ A A' ∧
   env.HasType Us.length Δ.toCtx e' A'
-
-theorem FVarsIn.mkAppRevList :
-    FVarsIn P (e.mkAppRevList es) ↔ FVarsIn P e ∧ ∀ a ∈ es, FVarsIn P a := by
-  induction es <;> simp [FVarsIn, and_comm, and_left_comm, *]
 
 theorem FVarsIn.mkAppList :
     FVarsIn P (e.mkAppList es) ↔ FVarsIn P e ∧ ∀ a ∈ es, FVarsIn P a := by
@@ -2368,7 +2414,7 @@ theorem TrExprS.inst_fvar {Δ : VLCtx} (henv : Ordered env)
   match d with
   | .vlam A₀ =>
     have := this.inst henv (.bvar .zero) (Δ := (some (a, deps), .vlam _) :: Δ) hf
-    rwa [VLocalDecl.depth, VExpr.instN_bvar0] at this
+    rwa [VLocalDecl.depth, VExpr.inst_liftN_bvar] at this
   | .vlet A₀ e₀ =>
     simp [VLocalDecl.depth, VLocalDecl.liftN] at this
     exact this.inst_let henv hf

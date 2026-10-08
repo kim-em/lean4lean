@@ -9,14 +9,6 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-theorem List.Forall₂.leftSingleton
-    (H : List.Forall₂ R [a] bs) :
-    ∃ b, bs = [b] ∧ R a b := by
-  cases H with
-  | cons hab Htail =>
-    cases Htail
-    exact ⟨_, rfl, hab⟩
-
 theorem List.Forall₂.leftPair
     (H : List.Forall₂ R [a₁, a₂] bs) :
     ∃ b₁ b₂, bs = [b₁, b₂] ∧ R a₁ b₁ ∧ R a₂ b₂ := by
@@ -77,24 +69,6 @@ private theorem ConstructorTypeEntries.primitiveMetadata
     · exact Hhead.primitiveMetadata hhead
     · exact ih htail
 
-private theorem property_of_mem_zipWith
-    (f : α → β → γ) (P : γ → Prop)
-    (hproperty : ∀ a b, P (f a b)) :
-    ∀ {as : List α} {bs : List β} {value : γ},
-      value ∈ List.zipWith f as bs → P value := by
-  intro as
-  induction as with
-  | nil => simp
-  | cons a as ih =>
-    intro bs value hmem
-    cases bs with
-    | nil => simp at hmem
-    | cons b bs =>
-      simp only [List.zipWith_cons_cons, List.mem_cons] at hmem
-      rcases hmem with rfl | htail
-      · exact hproperty a b
-      · exact ih htail
-
 private theorem AddInductive.inductiveTypeInfos.primitiveMetadata
     (hinfo : info ∈ (AddInductive.inductiveTypeInfos stats nparams
       indTypes numNested isUnsafe lparams).toList) :
@@ -103,7 +77,7 @@ private theorem AddInductive.inductiveTypeInfos.primitiveMetadata
       (ConstantInfo.inductInfo info).levelParams = lparams := by
   simp only [AddInductive.inductiveTypeInfos, Array.toList_zipWith,
     Array.toList_map] at hinfo
-  apply property_of_mem_zipWith
+  apply List.property_of_mem_zipWith
     (f := fun (indType : InductiveType) (numIndices : Nat) =>
       show InductiveVal from {
         name := indType.name
@@ -136,7 +110,7 @@ theorem PrimitiveDeclaredHeadersResult.params_size_eq_zero
       isUnsafe) :
     stats.params.size = 0 := by
   have hparams : stats.params.size = decl.nparams := by
-    have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    have hlength := List.Forall₂.length_eq
       H.materialized.params
     simpa [VInductDecl.paramVars] using hlength
   rw [hparams, H.translation.nparams]
@@ -150,7 +124,7 @@ theorem PrimitiveDeclaredHeadersResult.parameterScope_eq_nil
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
     H.materialized.parameterScope = [] := by
-  have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+  have hlength := List.Forall₂.length_eq
     H.materialized.cachedScope
   have hzero := H.params_size_eq_zero Hshape
   apply List.eq_nil_of_length_eq_zero

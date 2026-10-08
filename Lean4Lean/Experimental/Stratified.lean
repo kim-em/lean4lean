@@ -197,7 +197,7 @@ theorem IsDefEq.induction1
     exact ⟨.app (.lam ihA.1 ihe.1) ihe'.1, ihee.1, .beta (hty ihe.1) (hty ihe'.1)⟩
   | eta _ _ _ _ _ _ _ _ ihA _ _ ihe ihe' =>
     have := HasType1.app ihe'.1 (.bvar .zero)
-    rw [instN_bvar0] at this
+    rw [VExpr.inst_liftN_bvar] at this
     exact ⟨.lam ihA.1 this, ihe.1, .eta (hty ihe.1)⟩
   | proofIrrel _ _ _ ih1 ih2 ih3 =>
     exact ⟨ih2.1, ih3.1, .proofIrrel (hty ih1.1) (hty ih2.1) (hty ih3.1)⟩

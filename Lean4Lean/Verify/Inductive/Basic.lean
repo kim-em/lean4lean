@@ -109,12 +109,6 @@ theorem VInductDeclSkeleton.materializeExpandedPrefix
     simp [VInductDeclSkeleton.materialize, hmetadata, source]
   exact ⟨source, Hmaterialize, ⟨skeleton, Hmaterialize⟩⟩
 
-theorem OnCtx.append_right
-    (H : OnCtx (xs ++ ys) P) : OnCtx ys P := by
-  induction xs with
-  | nil => exact H
-  | cons x xs ih => exact ih H.1
-
 /-- A declaration selected below a newer context prefix is looked up at the
 prefix length, with one lift for its own binder and one for every newer
 declaration. -/
@@ -513,7 +507,7 @@ theorem VEnv.IsType.wrapForalls
     have hrest := ih hctx' (by
       simpa [List.reverse_cons, List.append_assoc] using H)
     have hdomain : env.IsType uvars ctx domain :=
-      (OnCtx.append_right hctx').2
+      (OnCtx.of_append hctx').2
     exact VEnv.IsType.forallE hdomain hrest
 
 /-- Closing a term over a semantically well-formed telescope preserves its
@@ -533,7 +527,7 @@ theorem VEnv.HasType.wrapLams
       simpa [List.reverse_cons, List.append_assoc] using hctx
     have hrest := ih hctx' (by
       simpa [List.reverse_cons, List.append_assoc] using H)
-    rcases (OnCtx.append_right hctx').2 with ⟨level, hdomain⟩
+    rcases (OnCtx.of_append hctx').2 with ⟨level, hdomain⟩
     simpa [VExpr.wrapLams, VExpr.wrapForalls] using hdomain.lam hrest
 
 /-- Invert a lambda telescope whose type is the corresponding literal forall
@@ -698,25 +692,8 @@ theorem VEnv.IsDefEqU.wrapForalls_residual
         hctx' hlength ⟨_, hbody⟩
       simpa [List.reverse_cons, List.append_assoc] using hrest
 
-/-- Compose two context conversions over the empty base.  The domain proof
-of the second conversion is transported back across the already composed
-prefix before transitivity is applied, so dependent domains remain in the
-correct context.  This belongs with the generic dependent-context API rather
-than any particular inductive phase. -/
-theorem VEnv.IsDefEqCtx.transEmpty
-    (henv : env.WF)
-    (H₁ : VEnv.IsDefEqCtx env U [] Γ₁ Γ₂)
-    (H₂ : VEnv.IsDefEqCtx env U [] Γ₂ Γ₃) :
-    VEnv.IsDefEqCtx env U [] Γ₁ Γ₃ := by
-  induction H₁ generalizing Γ₃ with
-  | zero => exact H₂
-  | @succ Γ₁ Γ₂ A₁ A₂ u H₁ hdom ih =>
-    cases H₂ with
-    | succ H₂ hdom₂ =>
-      have Hprefix := ih H₂
-      have hdom₂' := hdom₂.defeqDFC henv.ordered (H₁.symm henv.ordered)
-      exact .succ Hprefix
-        (hdom.trans_r henv H₁.isType hdom₂')
+-- Name kept for the nested-inductive verification, which still refers to it.
+alias VEnv.IsDefEqCtx.transEmpty := Lean4Lean.VEnv.IsDefEqCtx.trans_empty
 
 /-- A dependency-ordered list of well-formed constants may be viewed as a
 sequence of abstract axioms extending a well-formed environment.  Stating
@@ -856,11 +833,6 @@ theorem VExpr.liftN_mkApps
   | cons arg args ih =>
     simpa [VExpr.mkApps, VExpr.liftN] using ih (.app fn arg)
 
-theorem VExpr.mkApps_append (fn : VExpr) (initial suffix : List VExpr) :
-    VExpr.mkApps fn (initial ++ suffix) =
-      VExpr.mkApps (VExpr.mkApps fn initial) suffix := by
-  simp [VExpr.mkApps, List.foldl_append]
-
 /-- Applying all canonical variables factors through the canonical
 application of any older initial block, weakened below the remaining suffix. -/
 theorem VExpr.mkApps_canonical_add
@@ -902,11 +874,11 @@ theorem VEnv.HasType.mkApps_wrapForalls_canonical
     have hfirst' : VEnv.HasType env uvars (domain :: ctx)
         (.app (fn.liftN 1 0) (.bvar 0))
         (VExpr.wrapForalls domains body) := by
-      simpa [VExpr.wrapForalls, VExpr.liftN, VExpr.instN_bvar0] using hfirst
+      simpa [VExpr.wrapForalls, VExpr.liftN, VExpr.inst_liftN_bvar] using hfirst
     have hrest := ih hfirst'
     simpa [VExpr.wrapForalls, VExpr.mkApps, List.range_succ,
       List.reverse_cons, List.append_assoc, VExpr.liftN,
-      VExpr.instN_bvar0, VExpr.liftN_liftN, Nat.add_comm] using hrest
+      VExpr.inst_liftN_bvar, VExpr.liftN_liftN, Nat.add_comm] using hrest
 
 /-- Applying only an initial segment of a dependent telescope leaves the
 remaining suffix as the type of the canonical partial application. -/
@@ -1282,15 +1254,6 @@ theorem VExpr.inst_mkApps
   | cons head tail ih =>
     simpa [VExpr.mkApps, VExpr.inst] using ih (.app fn head)
 
-theorem VExpr.liftN_succ_inst_at_length
-    (fn arg : VExpr) (n : Nat) :
-    (fn.liftN (n + 1) 0).inst arg n = fn.liftN n 0 := by
-  rw [show fn.liftN (n + 1) 0 =
-      (fn.liftN n 0).liftN 1 n by
-    simpa [Nat.add_comm] using
-      (VExpr.liftN'_liftN_lo fn 1 n).symm]
-  exact VExpr.inst_liftN (fn.liftN n 0) arg
-
 @[simp] theorem recursorCanonicalVars_inst_at_length
     (n : Nat) (arg : VExpr) :
     (recursorCanonicalVars n).map (fun e => e.inst arg n) =
@@ -1312,7 +1275,7 @@ theorem VExpr.inst_canonicalResult
         (recursorCanonicalVars n) := by
   rw [VExpr.inst_mkApps, recursorCanonicalVars_succ_cons,
     List.map_cons, recursorCanonicalVars_inst_at_length,
-    VExpr.liftN_succ_inst_at_length]
+    VExpr.inst_liftN_lo]
   simp [VExpr.mkApps, VExpr.inst, VExpr.instVar, VExpr.liftN]
 
 /-- Opening a canonical result spine and substituting one argument for each
@@ -1530,7 +1493,7 @@ theorem RecursorMotiveTelescope.applyMajorTyped
         have Htail'' : RecursorMotiveTelescope resultLevel args.length
             (.app family arg) (familyBody.inst arg)
             (motiveBody.inst arg) := by
-          simpa [VExpr.inst, VExpr.instN_bvar0, VExpr.inst_liftN] using Htail'
+          simpa [VExpr.inst, VExpr.inst_liftN_bvar, VExpr.inst_liftN] using Htail'
         exact ih Htail'' Hfamily' Hmotive' Hmajor
 
 @[simp] theorem VExpr.getAppFnArgs_mkApps_bvar
@@ -1539,15 +1502,6 @@ theorem RecursorMotiveTelescope.applyMajorTyped
   simpa [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go] using
     VExpr.getAppFnArgs_mkApps (.bvar index) args
 
-theorem VExpr.lift'_mkApps
-    (fn : VExpr) (args : List VExpr) (shift : Lift) :
-    (VExpr.mkApps fn args).lift' shift =
-      VExpr.mkApps (fn.lift' shift)
-        (args.map fun arg => arg.lift' shift) := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons arg args ih =>
-    simpa [VExpr.mkApps] using ih (.app fn arg)
 
 /-- The guarded-iota judgment follows source-visible constant support.
 Primitive projection nodes contribute the support of their source major. -/

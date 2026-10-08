@@ -173,17 +173,6 @@ theorem VEnv.IsDefEq.noConsts
       specialize ihE' Hctx
       exact ⟨ihE.1, ihE'.1, ihE.2.2⟩
 
-theorem VEnv.LE.constants_eq_none_left
-    {source target : VEnv} (H : source ≤ target)
-    (hnone : target.constants name = none) :
-    source.constants name = none := by
-  cases hlookup : source.constants name with
-  | none => rfl
-  | some ci =>
-      have := H.constants hlookup
-      rw [hnone] at this
-      contradiction
-
 /-- All declarations stored in an ordered environment avoid names which are
 absent from that environment.  The proof follows the same well-founded
 environment induction as `VEnv.Ordered.closed`. -/

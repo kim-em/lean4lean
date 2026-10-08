@@ -87,7 +87,7 @@ theorem AddInductive.inductiveTypeInfos.translatedMaterializedHeaders
   let infos := AddInductive.inductiveTypeInfos stats numParams indTypes
     numNested isUnsafe lparams
   have hsourceLength : indTypes.toList.length = Hheaders.targets.length :=
-    Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    List.Forall₂.length_eq
       Hheaders.translations
   have hinfosLength : infos.toList.length = Hheaders.targets.length := by
     calc
@@ -99,7 +99,7 @@ theorem AddInductive.inductiveTypeInfos.translatedMaterializedHeaders
   intro i hiInfo hiTarget
   have hiSource : i < indTypes.toList.length := by
     simpa [hsourceLength] using hiTarget
-  have Htarget := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have Htarget := List.forall₂_getElem
     Hheaders.translations i hiSource hiTarget
   constructor
   · apply TrSourceConst.inductInfo Htarget
@@ -155,7 +155,7 @@ theorem AddInductive.declareInductiveTypes.installsMaterializedHeadersWF
             Hheaders.targets).map Prod.snd = Hheaders.targets := by
         apply List.map_snd_zip
         have hlength :=
-          Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hentries
+          List.Forall₂.length_eq Hentries
         rw [List.length_map]
         exact Nat.le_of_eq hlength.symm
       rw [hvalues] at habstract
@@ -224,7 +224,7 @@ theorem AddInductive.declareInductiveTypes.semanticHeadersWF
       installed := Hinstalled
       values := by
         apply List.map_snd_zip
-        have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+        have hlength := List.Forall₂.length_eq
           Hsemantic.headers.translations
         have hinfos :
             (AddInductive.inductiveTypeInfos stats numParams indTypes

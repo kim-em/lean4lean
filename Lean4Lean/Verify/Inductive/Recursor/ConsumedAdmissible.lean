@@ -93,7 +93,7 @@ theorem CompletedRecursorConstruction.sourceConstructorIndices_eq_header
   have hargs := congrArg (fun e => e.getAppFnArgs.2) hbody
   simp only [InductiveSignature.familyApp, VExpr.getAppFnArgs_mkApps_const] at hargs
   have hstats : stats.params.size = decl.nparams := by
-    have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' R.materialized.params
+    have hlength := List.Forall₂.length_eq R.materialized.params
     simpa [VInductDecl.paramVars] using hlength
   have hsig : R.sourceSignature.params.length = decl.nparams := R.sourceSignature_models.nparams
   have hvars := (List.append_inj hargs (by simp [InductiveSignature.vars, hstats, hsig])).2

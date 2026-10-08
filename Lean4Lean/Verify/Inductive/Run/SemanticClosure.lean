@@ -26,7 +26,7 @@ theorem DeclaredHeadersResult.closesMutuals
     numNested isUnsafe c.lparams).toList
   have htypesLength : indTypes.size = decl.types.length := by
     simpa using
-      Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.translation.types
+      List.Forall₂.length_eq H.translation.types
   have hsize : stats.nindices.size = indTypes.size := by
     rw [Array.size_eq_length_toList, H.materialized.indices,
       List.length_map]

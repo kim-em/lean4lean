@@ -37,14 +37,6 @@ theorem GhostRel.withLCtx {c₁ c₂ : Context} (h : GhostRel G c₁ c₂) {l₁
   wf₂ := hw₂
   env := h.env
 
-theorem find?_mkLocalDecl' {l : LocalContext} {fv fv' : FVarId} {name : Name} {ty : Expr}
-    {bi : BinderInfo} {kind : LocalDeclKind} (hwf : l.fvarIdToDecl.WF) :
-    (l.mkLocalDecl fv name ty bi kind).find? fv' =
-      if fv == fv' then some (.cdecl l.decls.size fv name ty bi kind)
-      else l.find? fv' := by
-  simp only [LocalContext.mkLocalDecl, LocalContext.find?]
-  exact hwf.find?_insert
-
 theorem find?_mkLetDecl' {l : LocalContext} {fv fv' : FVarId} {name : Name} {ty val : Expr}
     {nonDep : Bool} {kind : LocalDeclKind} (hwf : l.fvarIdToDecl.WF) :
     (l.mkLetDecl fv name ty val nonDep kind).find? fv' =
@@ -60,11 +52,11 @@ theorem GhostRel.mkLocalDecl {c₁ c₂ : Context} {id : FVarId} (h : GhostRel G
   refine h.withLCtx (fun fv hfv => ?_) (fun fv d hd => ?_)
     (by simp only [LocalContext.mkLocalDecl]; exact h.wf₁.insert)
     (by simp only [LocalContext.mkLocalDecl]; exact h.wf₂.insert)
-  · rw [find?_mkLocalDecl' h.wf₁, find?_mkLocalDecl' h.wf₂]
+  · rw [LocalContext.find?_mkLocalDecl h.wf₁, LocalContext.find?_mkLocalDecl h.wf₂]
     split
     · simp [LocalDecl.setIndex]
     · exact h.find? hfv
-  · rw [find?_mkLocalDecl' h.wf₂] at hd
+  · rw [LocalContext.find?_mkLocalDecl h.wf₂] at hd
     split at hd
     · cases hd; exact ⟨hty, by simp [LocalDecl.value?]⟩
     · exact h.decls hd
@@ -171,16 +163,6 @@ theorem M.Framed.getLCtx_find {id : FVarId} (hid : ¬ G id) {f : LocalContext �
 
 /-! ### Binders -/
 
-theorem withFreshId_eq' {α} (x : Name → M α) (c : Context) (s : State) :
-    (withFreshId x : M α) c s =
-      (x s.ngen.curr c { s with ngen := s.ngen.next }).map fun p => (p.1, s.leaveScope p.2) := by
-  unfold withFreshId instMonadLocalNameGeneratorM
-  simp only [bind, ReaderT.bind, StateT.bind, MonadState.get, getThe, MonadStateOf.get,
-    StateT.get, liftM, monadLift, MonadLift.monadLift, Except.bind, pure, Except.pure,
-    ReaderT.pure, StateT.pure, modify, modifyGet, MonadStateOf.modifyGet, StateT.modifyGet,
-    mkFreshId, getNGen, setNGen]
-  cases x s.ngen.curr c { s with ngen := s.ngen.next } <;> rfl
-
 theorem GFState.next {s : State} (h : GFState G s) : GFState G { s with ngen := s.ngen.next } :=
   { h with reserved := fun _ hg => (h.reserved hg).mono NameGenerator.LE.next }
 
@@ -194,7 +176,7 @@ theorem M.Framed.withFreshId {x : Name → M α} {R}
         x n c₂ s = .ok (a, s') ∧ R a ∧ GFState G s' ∧ s.ngen ≤ s'.ngen) :
     M.Framed G (withFreshId x) R := by
   intro c₁ c₂ s b s' hr hs e
-  rw [withFreshId_eq'] at e ⊢
+  rw [withFreshId_eq] at e ⊢
   have hfresh : ¬ G ⟨s.ngen.curr⟩ := fun hg =>
     NameGenerator.not_reserves_self (hs.reserved hg)
   cases ex : x s.ngen.curr c₁ { s with ngen := s.ngen.next } with

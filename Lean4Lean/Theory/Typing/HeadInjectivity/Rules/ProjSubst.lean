@@ -12,21 +12,6 @@ Two companions of `VEnv.proj_typed` for a projection-registered structure:
 namespace Lean4Lean
 open VExpr
 
-/-- Two substitutions agreeing below the closure bound act identically (a local copy of
-`VExpr.subst_congr_closedN`, which lives outside this file's import scope). -/
-private theorem subst_congr_closedN' {e : VExpr} (he : e.ClosedN k) {σ σ' : VExpr.Subst}
-    (h : ∀ i < k, σ i = σ' i) : e.subst σ = e.subst σ' := by
-  induction e generalizing k σ σ' with (simp [VExpr.ClosedN] at he; simp only [VExpr.subst])
-  | bvar i => exact h _ he
-  | app _ _ ih1 ih2 => rw [ih1 he.1 h, ih2 he.2 h]
-  | proj _ _ _ ihe => rw [ihe he h]
-  | lam _ _ ih1 ih2 | forallE _ _ ih1 ih2 =>
-    rw [ih1 he.1 h, ih2 he.2 (σ' := σ'.lift)]
-    intro i hi
-    cases i with
-    | zero => rfl
-    | succ i => simp only [VExpr.Subst.lift]; rw [h i (by omega)]
-
 theorem VExpr.argSubst_comp_lt (as : List VExpr) (σ : VExpr.Subst) {m : Nat}
     (h : m < as.length) :
     (argSubst as m).subst σ = argSubst (as.map (·.subst σ)) m := by
@@ -58,7 +43,7 @@ theorem ProjTele.dom_subst (henv : env.Ordered) {S : Name} {info : VProjectionIn
       (D[info.nparams + j]).subst
         (VExpr.argSubst (ps.map (·.subst σ) ++ projsOf S (w.subst σ) j)) := by
   rw [VExpr.subst_subst, ← projsOf_subst, ← List.map_append]
-  apply subst_congr_closedN' (T.closedN_dom henv _ hj)
+  apply VExpr.subst_congr_closedN (T.closedN_dom henv _ hj)
   intro i hi
   exact VExpr.argSubst_comp_lt _ σ (by simp [projsOf, hpl]; omega)
 

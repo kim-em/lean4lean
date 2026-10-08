@@ -94,19 +94,6 @@ def recursorUnshiftLevels (n : Nat) : Level → List VLevel
   | .param _ => recursorDropLevels n
   | _ => VLevel.params n
 
-theorem recursorDeclarationAbstractLevels_eq_param
-    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .param fresh) :
-    recursorDeclarationAbstractLevels Us ha = VLevel.prependShift Us.length := by
-  subst elim
-  simp only [recursorDeclarationAbstractLevels]
-  exact VLevel.inst_map_id VLevel.prependShift_length
-
-theorem recursorDeclarationAbstractLevels_eq_zero
-    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .zero) :
-    recursorDeclarationAbstractLevels Us ha = VLevel.params Us.length := by
-  subst elim
-  rfl
-
 theorem recursorUnshiftLevels_roundtrip
     (ha : AddInductive.AdmissibleElimLevel Us elim) :
     ((recursorDeclarationAbstractLevels Us ha).map
@@ -115,11 +102,11 @@ theorem recursorUnshiftLevels_roundtrip
       recursorDeclarationAbstractLevels Us ha := by
   cases elim with
   | zero =>
-    rw [recursorDeclarationAbstractLevels_eq_zero ha rfl]
+    rw [recursorDeclarationAbstractLevels_zero ha rfl]
     simp only [recursorUnshiftLevels]
     rw [VLevel.inst_map_id VLevel.params_length, VLevel.inst_map_id VLevel.params_length]
   | param fresh =>
-    rw [recursorDeclarationAbstractLevels_eq_param ha rfl]
+    rw [recursorDeclarationAbstractLevels_param ha rfl]
     simp only [recursorUnshiftLevels]
     rw [recursorDropLevels_prependShift, VLevel.inst_map_id VLevel.prependShift_length]
   | succ | max | imax | mvar => simp [AddInductive.AdmissibleElimLevel] at ha
@@ -166,7 +153,7 @@ theorem TrExprS.unshiftFixed
   unfold UnshiftFixed
   cases elim with
   | zero =>
-    rw [recursorDeclarationAbstractLevels_eq_zero ha rfl] at hΔ ⊢
+    rw [recursorDeclarationAbstractLevels_zero ha rfl] at hΔ ⊢
     simp only [recursorUnshiftLevels, AddInductive.getRecLevelParams] at hΔ Htr ⊢
     have hid : (Δ.instL (VLevel.params Us.length)) = Δ := by
       have h := hΔ
@@ -182,7 +169,7 @@ theorem TrExprS.unshiftFixed
   | param fresh =>
     have hfresh : fresh ∉ Us := by
       simpa [AddInductive.AdmissibleElimLevel] using ha
-    rw [recursorDeclarationAbstractLevels_eq_param ha rfl] at hΔ ⊢
+    rw [recursorDeclarationAbstractLevels_param ha rfl] at hΔ ⊢
     simp only [recursorUnshiftLevels, AddInductive.getRecLevelParams] at hΔ Htr ⊢
     have H1 := TrExprS.substLevelParamsCore_of_levels (Us := Us) (F := recursorDropLevel fresh)
       (ls := recursorDropLevels Us.length) recursorDropLevels_wf
@@ -300,11 +287,11 @@ theorem recursorUnshiftLevels_abstract
         (VLevel.inst (recursorUnshiftLevels Us.length elim)) = VLevel.params Us.length := by
   cases elim with
   | zero =>
-    rw [recursorDeclarationAbstractLevels_eq_zero ha rfl]
+    rw [recursorDeclarationAbstractLevels_zero ha rfl]
     simp only [recursorUnshiftLevels]
     rw [VLevel.inst_map_id VLevel.params_length]
   | param fresh =>
-    rw [recursorDeclarationAbstractLevels_eq_param ha rfl]
+    rw [recursorDeclarationAbstractLevels_param ha rfl]
     simp only [recursorUnshiftLevels]
     rw [recursorDropLevels_prependShift]
   | succ | max | imax | mvar => simp [AddInductive.AdmissibleElimLevel] at ha
@@ -320,12 +307,6 @@ theorem List.map_unshift_abstract
   intro x hx
   simp only [Function.comp_apply, id]
   rw [VExpr.instL_instL, recursorUnshiftLevels_abstract ha, (h x hx).instL_id]
-
-theorem OnCtx.levelWF_of_isType {env : VEnv} {U : Nat} :
-    ∀ {Γ : List VExpr}, OnCtx Γ (env.IsType U) → OnCtx Γ (fun _ A => A.LevelWF U)
-  | [], _ => trivial
-  | _ :: _, H => ⟨OnCtx.levelWF_of_isType H.1,
-      (Classical.choose_spec H.2).levelWF (OnCtx.levelWF_of_isType H.1) |>.1⟩
 
 theorem OnCtx.levelWF_mem {env : VEnv} {U : Nat} :
     ∀ {Γ : List VExpr}, OnCtx Γ (env.IsType U) → ∀ x ∈ Γ, x.LevelWF U
@@ -928,15 +909,6 @@ theorem CompletedRecursorConstruction.recursorTelescope_minors_eq
 
 
 /-! ### Comparing induction hypothesis shapes -/
-
-theorem VExpr.liftN_liftN_comm (e : VExpr) (n m k j : Nat) (h : j ≤ k) :
-    (e.liftN n k).liftN m j = (e.liftN m j).liftN n (k + m) := by
-  induction e generalizing k j with simp [VExpr.liftN, *]
-  | bvar i =>
-    simp only [liftVar]
-    by_cases h1 : i < k <;> by_cases h2 : i < j <;> simp [h1, h2] <;> (try split) <;> (try split) <;> omega
-  | lam _ _ _ ih2 | forallE _ _ _ ih2 =>
-    rw [Nat.add_right_comm]
 
 
 theorem VExpr.forallArity_app (f a : VExpr) : (VExpr.app f a).forallArity = 0 := rfl

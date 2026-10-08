@@ -619,7 +619,7 @@ theorem
     simpa only [hinstalledTake, hcanonicalTake] using Hmixed
   have Hleft := Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
     Hbase HmixedFull.isType
-  have Hresult := Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty
+  have Hresult := VEnv.IsDefEqCtx.trans_empty
     H.outVEnvWF (Hleft.symm H.outVEnvWF.ordered) HmixedFull
   simpa [remaining, installedHypotheses, canonicalDomains, equationDomains,
     installedBase, hinstalledLength, hcanonicalLength,
@@ -1264,7 +1264,7 @@ theorem
     have h := HfixedContext
     rw [hequationContext] at h
     simp only [List.append_assoc] at h
-    exact OnCtx.append_right h
+    exact OnCtx.of_append h
   rcases A.finalCheckedNarrowFieldAlignment B with
     ⟨checkedDomains, checkedResidual, hchecked, Hchecked, HcheckedB⟩
   have Hlink := A.finalInstalledCheckedFieldLink T hpositive checkedDomains
@@ -1331,7 +1331,7 @@ theorem
       (liftContextPrefix inserted.length B.fieldDomains.reverse ++
         (inserted.reverse ++ H.parameterSuffix.parameterDecls.toCtx)) := by
     simpa [List.append_assoc] using Ha
-  have HfieldContext := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+  have HfieldContext := VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
     (Ha'.symm H.outVEnvWF.ordered) Hb'
   have HinstalledFields :=
     A.finalCanonicalMinorFieldContextOfApplication B T fieldDomains
@@ -1493,7 +1493,7 @@ theorem
   have HequationParams :=
     Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
       Hparams' HfieldT.isType
-  have HbaseMixed := Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty
+  have HbaseMixed := VEnv.IsDefEqCtx.trans_empty
     H.outVEnvWF (HfieldT.symm H.outVEnvWF.ordered) HequationParams
   have Hbase : VEnv.IsDefEqCtx H.outVEnv Us.length []
       (T.params ++ T.motives ++ T.minors ++ installedFields).reverse

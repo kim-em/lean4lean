@@ -118,15 +118,6 @@ end Lean4Lean.InductiveSignature
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature InductiveSignature.CaseSchema
 
-private theorem liftN_forall_sort (domains : List VExpr) (level : VLevel) (n k : Nat) :
-    ∃ domains', (VExpr.wrapForalls domains (.sort level)).liftN n k =
-      VExpr.wrapForalls domains' (.sort level) := by
-  induction domains generalizing k with
-  | nil => exact ⟨[], rfl⟩
-  | cons domain domains ih =>
-    obtain ⟨domains', hd⟩ := ih (k + 1)
-    exact ⟨domain.liftN n k :: domains', congrArg (VExpr.forallE (domain.liftN n k)) hd⟩
-
 /-- The specialized type of a case equation has exactly its permitted target
 universe. This is recovered from the generated motive binder, not assumed as
 an additional schema certificate. -/
@@ -151,7 +142,7 @@ theorem CaseStep.result_sort (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
       simp only [domains, List.getElem_map, hmotive, instL_wrapForalls]
       rfl
     rw [hd] at hvar
-    obtain ⟨motiveDomains', hmotive'⟩ := liftN_forall_sort
+    obtain ⟨motiveDomains', hmotive'⟩ := VExpr.liftN_wrapForalls_sort
       (motiveDomains.map (instL (target :: levels))) target (domains.length - position) 0
     rw [hmotive'] at hvar
     have hresultWF' : env.HasType U (domains.reverse ++ Γ)
