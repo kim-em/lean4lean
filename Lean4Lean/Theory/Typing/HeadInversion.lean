@@ -10,9 +10,10 @@ observation model (`Theory/Typing/HeadInjectivity/Model/`): separation by
 `VEnv.WF.headSeparationModel`, injectivity by `VEnv.WF.chainHeadInjectivity`.
 
 This file and the model do not import `UniqueTyping`, `Injectivity`, `ChurchRosser`,
-`FullReduction` or `HeadReduction`: `VEnv.WF.headInversion`, assembled here, is the single
-semantic fact from which uniqueness of types (`IsDefEq.uniq`) and every inversion lemma in
-`Injectivity.lean` are derived (section 4.1 of `docs/inductives/DESIGN.md`). -/
+`FullReduction` or `HeadReduction`. Uniqueness of types (`IsDefEq.uniq`) is derived from the
+chain-level core `VEnv.WF.chainHeadInjectivity`, and every inversion lemma in
+`Injectivity.lean` from `VEnv.WF.headInversion`, assembled here (section 4.1 of
+`docs/inductives/DESIGN.md`). -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -32,8 +33,8 @@ theorem _root_.Lean4Lean.VEnv.WF.headInjectivity {env : VEnv} (henv : env.WF) :
 
 /-- The base obligation of the inversion layer, assembled from separation and injectivity.
 
-Uniqueness of types (`IsDefEq.uniq`), all inversion lemmas in
-`Injectivity.lean`, and `VConstructorShape.saturated_of_hasType` are derived from it. -/
+All inversion lemmas in `Injectivity.lean` and `VConstructorShape.saturated_of_hasType` are
+derived from it; uniqueness of types (`IsDefEq.uniq`) uses the chain-level core directly. -/
 theorem _root_.Lean4Lean.VEnv.WF.headInversion {env : VEnv} (henv : env.WF) :
     env.HeadInversion :=
   have hs := henv.headSeparation

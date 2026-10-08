@@ -450,10 +450,12 @@ the earlier fields by projections, some of which may be untypable under the `pro
 so the case cannot be derived by substitution.
 
 `VEnv.WF.headInversion` (`Lean4Lean/Theory/Typing/HeadInversion.lean`) holds for every
-well-formed environment, without canonical `Eq`. Uniqueness of types (`IsDefEq.uniq`,
-`Lean4Lean/Theory/Typing/UniqueTyping.lean`) and every inversion lemma of
-`Lean4Lean/Theory/Typing/Injectivity.lean` derive from it. The checker verification uses
-uniqueness throughout.
+well-formed environment, without canonical `Eq`. Every inversion lemma of
+`Lean4Lean/Theory/Typing/Injectivity.lean` derives from it. Uniqueness of types
+(`IsDefEq.uniq`, `Lean4Lean/Theory/Typing/UniqueTyping.lean`) is the uniqueness and collapse
+of the syntactic layer (`HeadInjectivity/Uniqueness.lean`, described below) applied to the
+chain-level core `VEnv.WF.chainHeadInjectivity`. The checker verification uses uniqueness
+throughout.
 
 A logical relation with Coquand-Huber adequacy, as in the shape logical relation prototype in
 `Lean4Lean/Experimental/`, cannot deliver the injectivity half here: any sound compositional
