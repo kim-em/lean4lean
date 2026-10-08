@@ -6,21 +6,6 @@ typing uniqueness or sort/Pi separation is involved. -/
 namespace Lean4Lean.InductiveSignature
 open VExpr
 
-private theorem wrapForalls_result_eq
-    {left right : List VExpr} {body body' : VExpr}
-    (lengths : left.length = right.length)
-    (same : wrapForalls left body = wrapForalls right body') : body = body' := by
-  induction left generalizing right with
-  | nil =>
-    cases right with
-    | nil => exact same
-    | cons => simp at lengths
-  | cons domain left ih =>
-    cases right with
-    | nil => simp at lengths
-    | cons domain' right =>
-      exact ih (by simpa using lengths) (VExpr.forallE.inj same).2
-
 /-- An exact constructor tail already records its result argument count.
 Semantic equivalence of independently selected types is not used to recover
 that structural fact. -/
@@ -47,7 +32,7 @@ theorem constructor_indices_length_of_rawTail
     forallArity_eq_zero_of_getAppFnArgs (getAppFnArgs_mkApps_const _ _ _)
   have lengths := congrArg VExpr.forallArity (original.symm.trans literal)
   simp only [forallArity_wrapForalls, resultZero, targetZero, Nat.add_zero] at lengths
-  have result_eq := wrapForalls_result_eq lengths (original.symm.trans literal)
+  have result_eq := (wrapForalls_inj_of_length lengths (original.symm.trans literal)).2
   obtain ⟨actual, member, selected, levels, _, _, count, _⟩ := app
   have sameName : actual.name = target.name := by
     rcases selected with impossible | selected
