@@ -113,9 +113,24 @@ state above. Recorded here with the lead's position and the actions taken:
    their stored types). Action: a targeted second opinion from Astra on a
    choice-free proof of the restricted corner was requested
    (`~/worktrees/lean4lean/astra/corner-question.md`, answer to be filed
-   under docs/inductives/). Until a choice-free route exists, the branch is
-   buildable with hypotheses `WF`, `HasCanonicalEq` (unused), 
-   `HasCanonicalChoice`, `IsModelled`, and not with fewer.
+   under docs/inductives/). **Astra's answer
+   (docs/inductives/CORNER_ASTRA_REVIEW.md):** no known proof avoiding both
+   choice and a substantial strengthening/conversion-locality argument; the
+   restricted position gives only propositional inhabitation, unique typing
+   identifies types but does not remove dependencies from derivations, a
+   fresh constant relocates the obligation, a Nonempty-indexed semantic
+   argument needs a reflection or locality theorem the sound model does not
+   give, and no published strengthening theorem (van Benthem Jutting, Luo's
+   ECC, Siles–Herbelin) covers proof irrelevance, restricted elimination,
+   projections, eta and quotients together; removing choice is "a separate
+   metatheory project", weeks to find the invariant and potentially months to
+   formalize, with no impossibility claim either way. It judges keeping
+   `HasCanonicalChoice` reasonable, with the scope stated explicitly:
+   soundness in environments containing the canonical prelude declarations.
+   Decision (2026-10-08): keep the hypothesis; the branch is buildable with
+   hypotheses `WF`, `HasCanonicalEq` (unused), `HasCanonicalChoice`,
+   `IsModelled`, and not with fewer; removing choice is recorded as future
+   work, not an obligation of this branch.
 2. Item (1) asks for no `sorry` anywhere under `Lean4Lean/`; the Experimental
    library has 58 in Mario's prototypes (see the decision above). The goal's
    own premise ("the only sorries, all in Lean4Lean/Theory/Typing") did not
