@@ -1,6 +1,6 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Arity
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.TeleArity
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjStaticWF
-import Lean4Lean.Theory.Typing.EnvTables.EnvArity
+import Lean4Lean.Theory.Typing.EnvTables.Arity
 
 /-! # Field counts of compiled constructors, from soundness of the header environment
 

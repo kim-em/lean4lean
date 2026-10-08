@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Staged
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.EnvValid
 
 /-! # Head separation from the glued model
 

@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.NativeOrdinary
+import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.RecursorEquations
 import Lean4Lean.Theory.Inductive.RestorationHead
 
 /-! # Syntax of restored native recursor equations (nested compilations)

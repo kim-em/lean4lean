@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjFacts
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjCtorType
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.HTS
 
 /-! # Validity of a projection entry (stage C, decision D11)

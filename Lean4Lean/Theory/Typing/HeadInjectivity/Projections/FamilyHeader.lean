@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.ProjTyping
+import Lean4Lean.Theory.Typing.HeadInjectivity.Projections.Typing
 
 /-! # The family header of a projection-registered structure
 

@@ -470,12 +470,12 @@ head type and fields are bound from the major's field observations (`Model/EtaBi
 earlier environments that are not subderivations of the node being interpreted: a native
 family's recorded result sort, the propositional typing of a singleton's proof fields, the
 soundness of a projection entry's constructor telescope and family header. Soundness is
-therefore proved along the declaration history (`WF'.ruleValid`, `Model/Staged.lean`): each
+therefore proved along the declaration history (`WF'.ruleValid`, `Model/EnvValid.lean`): each
 rule, eliminator rule and projection entry is valid in the model of the final environment
 because the derivations of the environment preceding its declaration are sound there, by the
 induction hypothesis. `HeadsClosed` and `ProjsClosed` carry the facts that no later
 declaration adds a rule headed by an existing constant or a projection entry for an existing
-rule constructor. Constructor arities are read from the model (`Model/Arity.lean`):
+rule constructor. Constructor arities are read from the model (`Model/TeleArity.lean`):
 definitionally equal Pi telescopes ending in rigid spines have equal length, which a purely
 syntactic argument cannot give without head inversion.
 
@@ -754,7 +754,7 @@ Suggested order, with sizes.
    `Lean4Lean/Verify/TypeChecker/Projection.lean`, then `Verify/TypeChecker/GhostTelescope.lean`.
 7. Head inversion: `HeadInversionDefs.lean`, `HeadInversion.lean`, then
    `HeadInjectivity/Model/{Classes,Obs,Interp,Sound}.lean` (3.2k), `RuleSound.lean`,
-   `EtaBind.lean`, `ProjSound.lean`, `Staged.lean`, `Separation.lean`, and the syntactic layer
+   `EtaBind.lean`, `ProjSound.lean`, `EnvValid.lean`, `Separation.lean`, and the syntactic layer
    `HeadInjectivity/{Uniqueness,FieldType}.lean` (18k in total for the directory).
 8. Confluence (outside the cone): `Lean4Lean/Theory/LevelledConfluence.lean`,
    `Lean4Lean/Theory/Typing/LevelledReduction.lean` (4.7k), `WFParams.lean`.

@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Tele
-import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.ProjTyping
+import Lean4Lean.Theory.Typing.HeadInjectivity.Projections.Typing
 
 /-! # Typed finite sub-valuations of a telescope
 

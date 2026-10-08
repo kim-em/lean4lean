@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.EnvTables.EnvTablesHistory
+import Lean4Lean.Theory.Typing.EnvTables.Views
 
 /-!
 # Preservation of the table invariant by the declaration steps

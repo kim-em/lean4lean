@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.EnvTables.EnvTablesSteps
+import Lean4Lean.Theory.Typing.EnvTables.DeclarationSteps
 
 /-!
 # Preservation of the table invariant by eliminator and projection registration

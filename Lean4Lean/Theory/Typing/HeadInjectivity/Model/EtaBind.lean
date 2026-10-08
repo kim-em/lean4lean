@@ -1,7 +1,7 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjCtor
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.TeleWind
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjValid
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjCtorField
-import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.ProjFamily
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.CtorFieldObs
+import Lean4Lean.Theory.Typing.HeadInjectivity.Projections.FamilyHeader
 
 /-! # The eta binding of rule clauses on majors of projection-registered families (D16)
 

@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.NativeRule
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.RecursorRule
 
 /-! # Proof binders of singleton eliminators (stage D)
 

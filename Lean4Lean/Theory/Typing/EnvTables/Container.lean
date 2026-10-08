@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.EnvTables.EnvArity
+import Lean4Lean.Theory.Typing.EnvTables.Arity
 
 /-!
 # Container constructors are recorded with their container's parameter count

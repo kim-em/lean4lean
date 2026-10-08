@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.EnvTables.EnvContainer
+import Lean4Lean.Theory.Typing.EnvTables.Container
 
 /-!
 # Majors of installed equations (M4a, T1 (c), T5 (d))

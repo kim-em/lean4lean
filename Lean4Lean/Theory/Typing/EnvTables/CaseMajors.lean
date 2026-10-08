@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.EnvTables.EnvMajors
+import Lean4Lean.Theory.Typing.EnvTables.Majors
 
 /-!
 # Majors of generic eliminator-schema equations (M4a, T1 (c) for schemas)

@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.EnvTables.EnvTablesCore
+import Lean4Lean.Theory.Typing.EnvTables.Defs
 
 /-!
 # The history invariant of the environment tables

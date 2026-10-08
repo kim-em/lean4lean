@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Core
+import Lean4Lean.Theory.Typing.HeadInjectivity.ChainInjectivity
 
 /-! # Congruence up to definitionally equal leaves
 

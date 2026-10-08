@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.ProjOrigin
+import Lean4Lean.Theory.Typing.HeadInjectivity.Projections.Declaration
 import Lean4Lean.Theory.Typing.Strong
 
 /-! # Declarative typing of projections of a never-zero structure

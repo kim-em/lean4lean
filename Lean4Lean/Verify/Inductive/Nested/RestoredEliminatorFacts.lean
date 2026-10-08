@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Inductive.RestorationRenamingOnCtx
-import Lean4Lean.Theory.Typing.EnvTables.EnvSchemaTypes
+import Lean4Lean.Theory.Inductive.CaseTypeClosed
 
 /-! Generic facts used to match the case eliminator of a nested declaration's lowered window
 with the restored schema registered by the source block (`VEnv.RestoredEliminator`):

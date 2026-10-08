@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ArityWF
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.CtorArity
 
 /-! # Static facts about the majors of rules on projection-registered families
 

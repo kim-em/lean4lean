@@ -1,5 +1,5 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.NativeSem
-import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.NativeOrdinary
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.EmptyRule
+import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.RecursorEquations
 
 /-! # Validity of ordinary native recursor rules (stages B and D)
 
@@ -52,7 +52,7 @@ def ProofBinder (env : VEnv) (U : Nat) (Δ : List VExpr) (doms : List VExpr) (ls
 /-- The static facts about the family `I` of a rule's major that select its binding mode: `I`
 is not projection-registered and `ctor` is not a projection constructor, or `I` has a valid
 projection entry with the constructor `ctor`, `np` parameters, `nf` fields and a result level
-equivalent to `L`. Discharged for well-formed environments in `Model/Staged.lean`. -/
+equivalent to `L`. Discharged for well-formed environments in `Model/EnvValid.lean`. -/
 def ProjMajor (env : VEnv) (I ctor : Name) (np nf : Nat) (L : VLevel) : Prop :=
   ((∀ info, ¬ env.projections I info) ∧ ¬ IsProjCtor env ctor) ∨
   ∃ info, env.projections I info ∧ ProjValid env I info ∧ info.ctorName = ctor ∧

@@ -21,7 +21,7 @@ telescope (`Model/Singleton.lean`). Uniqueness of a native rule per head comes f
 constant, so the rules headed by a recursor are exactly its block's equations. Restored
 equations of nested compilations take `FamSort` of an original family from the block's own
 correspondence and of a container family from the container's compilation
-(`Model/NestedRule.lean`). -/
+(`Model/RestoredRecursorRule.lean`). -/
 
 namespace Lean4Lean
 namespace VEnv

@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjCtorField
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.CtorFieldObs
 
 /-! # Soundness of the projection rules (stage C)
 

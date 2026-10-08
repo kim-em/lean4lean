@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.EnvTables.EnvRuleShape
+import Lean4Lean.Theory.Typing.EnvTables.EquationShape
 
 /-!
 # Field counts of native equations versus constructor arities

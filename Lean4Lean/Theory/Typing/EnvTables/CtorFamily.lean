@@ -1,5 +1,52 @@
-import Lean4Lean.Theory.Typing.EnvTables.EnvSigSyntax
+import Lean4Lean.Theory.VEnv
+import Lean4Lean.Theory.VLevel
+import Lean4Lean.Theory.Typing.SchemaStructCompat
 import Lean4Lean.Theory.Inductive.CaseRuleConstructors
+import Lean4Lean.Theory.Typing.EnvTables.CaseMajors
+import Lean4Lean.Theory.Typing.Env
+
+/-!
+# Constructors of the semantic signature of a well-formed environment
+-/
+
+/-!
+# Syntactic decomposition of computation rules
+
+The functions that turn a stored equation into a pre-decomposed `Rule` of the semantic signature
+(`EnvSig.lean`), and the syntactic family of a constructor type.
+
+A rule with a major is read off the equation `df` and its field count `nf` alone:
+`df.lhs = fun Ds => head pre major`, `major = c lv margs`; the rule's binders are `Ds`, its
+arguments before the major are `pre`, its fields are the trailing `nf` variables of the major
+(`(List.range nf).reverse`, the de Bruijn indices of `vars nf 0`), and its right side is `df.rhs`
+with the `Ds.length` binders removed. The field index table (`fieldIndexOf`) records, for every
+rule field `i`, the first argument position `j` before the major that is literally the field
+variable; failing that, if the field is a *leftover parameter* (the major's constructor is
+registered as a structure constructor with `np` parameters while the rule's major supplies only
+`p < np` parameter arguments, and `i < np - p`), the position of the rule's `i`-th index argument,
+`npre + i` (where `npre = Ds.length - nf` is the number of prefix variables); else `none`.
+-/
+
+namespace Lean4Lean.EnvTables
+open InductiveSignature
+
+/-- The family of a constructor type: the head constant of the body of its forall telescope. -/
+def familyOfType (ty : VExpr) : Option Name :=
+  match ty.forallResult.getAppFnArgs.1 with
+  | .const F _ => some F
+  | _ => none
+
+/-! ## Lemmas -/
+
+theorem familyOfType_shape (doms : List VExpr) (F : Name) (ls : List VLevel) (args : List VExpr) :
+    familyOfType (VExpr.wrapForalls doms (VExpr.mkApps (.const F ls) args)) = some F := by
+  unfold familyOfType
+  rw [VExpr.forallResult_wrapForalls,
+    VExpr.forallResult_of_head (VExpr.getAppFnArgs_mkApps_head _ _),
+    VExpr.getAppFnArgs_mkApps_const]
+
+end Lean4Lean.EnvTables
+
 
 /-!
 # The shape of generic eliminator equations
@@ -62,5 +109,18 @@ theorem generic_major_origin {env : VEnv} (H : env.WF) {schema : CaseSchema}
   · obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj hmaj.symm
     have hk := container_ctor (envTables_inv H) hprior hle ha hc'
     exact .inl (by simp [ctorOf, hk])
+
+end Lean4Lean.EnvTables
+
+
+namespace Lean4Lean.EnvTables
+open InductiveSignature
+
+variable {env : VEnv}
+
+theorem ctorOf_shape' (H : env.WF) (h : ctorOf env c = some k) : CtorShape env c k :=
+  ctorOf_shape H h
+
+/-! ## The constructor lists of families -/
 
 end Lean4Lean.EnvTables

@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Inductive.RestorationRenaming
 import Lean4Lean.Theory.Inductive.RestorationNaturality
 import Lean4Lean.Theory.Inductive.BetaSubjectReduction
 import Lean4Lean.Theory.Typing.EliminatorRestorationScope
-import Lean4Lean.Theory.Typing.EnvTables.EnvSchemaTypes
+import Lean4Lean.Theory.Inductive.CaseTypeClosed
 
 /-! Context-carrying renaming replacement.
 

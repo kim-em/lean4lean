@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Tele
-import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.ProjOrigin
+import Lean4Lean.Theory.Typing.HeadInjectivity.Projections.Declaration
 
 /-! # Semantic facts about projection-registered constructor types (stage C)
 

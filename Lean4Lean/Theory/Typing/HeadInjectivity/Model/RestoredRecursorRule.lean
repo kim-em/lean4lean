@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.FamSort
-import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.NativeNested
+import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.RestoredRecursorEquations
 
 /-! # Validity of restored native recursor rules (nested compilations)
 

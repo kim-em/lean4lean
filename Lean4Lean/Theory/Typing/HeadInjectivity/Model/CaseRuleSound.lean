@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.NativeSem
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.EmptyRule
 
 /-! # Soundness of eliminator rules (stage E)
 

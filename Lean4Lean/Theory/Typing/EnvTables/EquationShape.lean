@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.EnvTables.EnvTables
+import Lean4Lean.Theory.Typing.EnvTables.OfWF
 
 /-!
 # Shapes of installed native equations (M4a, T2)

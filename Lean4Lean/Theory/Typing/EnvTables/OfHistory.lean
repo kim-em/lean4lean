@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.EnvTables.EnvTablesRegistration
+import Lean4Lean.Theory.Typing.EnvTables.Registration
 
 /-!
 # Environment tables built along a declaration history

@@ -1,8 +1,8 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ElimRule
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.CaseRule
 
 /-! # The projection facts of rule majors (`ProjMajor`) in a well-formed environment
 
-`ProjMajor` (`Model/NativeRule.lean`) of the family of a rule's major: the family is not
+`ProjMajor` (`Model/RecursorRule.lean`) of the family of a rule's major: the family is not
 projection-registered and the constructor is not a projection constructor, or the family's entry
 is valid, has the major's constructor, parameter count and field count, and the family's result
 level. The parameter count is fixed by the declaration that registered the entry, which is the

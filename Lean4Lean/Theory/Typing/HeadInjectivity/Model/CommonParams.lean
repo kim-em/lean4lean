@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Classes
-import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.ProjFamily
+import Lean4Lean.Theory.Typing.HeadInjectivity.Projections.FamilyHeader
 
 /-! # Transport of telescope instantiations across parameter conversions
 

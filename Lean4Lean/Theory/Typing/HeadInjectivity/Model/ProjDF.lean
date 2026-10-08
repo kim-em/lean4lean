@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.SpineTele
-import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.ProjSubst
+import Lean4Lean.Theory.Typing.HeadInjectivity.Projections.Subst
 
 /-! # The typing invariant of projections (stage C, `projDF`)
 

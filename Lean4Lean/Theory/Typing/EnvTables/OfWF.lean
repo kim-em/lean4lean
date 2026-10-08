@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.EnvTables.EnvTablesHist
+import Lean4Lean.Theory.Typing.EnvTables.OfHistory
 
 /-!
 # Environment tables
