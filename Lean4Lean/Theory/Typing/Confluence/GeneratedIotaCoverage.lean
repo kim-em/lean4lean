@@ -187,7 +187,7 @@ theorem RecursorRegistered.constructor_indices_length {data : RecursorData}
       data.schema.signature.families[data.schema.signature.constructors[index].owner].indices.length := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, _⟩ := H
-  exact hdata.model.constructorArity _ (by simpa using Array.getElem_mem index.isLt)
+  exact hdata.model.constructorArity _ (by simp)
 
 theorem vars_eq_bvarRange' (n : Nat) : vars n 0 = VExpr.bvarRange n n := by
   apply List.ext_getElem

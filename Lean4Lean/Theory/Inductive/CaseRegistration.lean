@@ -28,7 +28,7 @@ private theorem declaration_le (H : VDecl.WF env decl env') : env ≤ env' := by
   | mutualDef _ h _ => exact (VEnv.addConsts_le h).trans (definitions_le ..)
   | quot _ h =>
     simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.pure_def, Option.some.injEq] at h
+      Option.some.injEq] at h
     obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := h
     exact (VEnv.addConst_le ha).trans <| (VEnv.addConst_le hb).trans <|
       (VEnv.addConst_le hc).trans <| (VEnv.addConst_le hd).trans VEnv.addDefEq_le
