@@ -44,10 +44,6 @@ theorem VExpr.constLevelsAt_mkApps {names : List Lean.Name} {levels : List VLeve
 
 namespace InductiveSignature
 
-private theorem mkApps_append' (fn : VExpr) (xs ys : List VExpr) :
-    VExpr.mkApps fn (xs ++ ys) = VExpr.mkApps (VExpr.mkApps fn xs) ys := by
-  simp [VExpr.mkApps, List.foldl_append]
-
 theorem HeadSpecialization.apply_append {h : HeadSpecialization} {levels : List VLevel}
     {args : List VExpr} {x : VExpr} (H : h.apply levels args = some x) (extra : List VExpr) :
     h.apply levels (args ++ extra) = some (VExpr.mkApps x extra) := by
@@ -68,7 +64,7 @@ theorem HeadSpecialization.apply_append {h : HeadSpecialization} {levels : List 
     simp only [Option.pure_def, Option.some.injEq] at H ⊢
     subst H
     rw [List.take_append_of_le_length hlen, List.drop_append_of_le_length hlen,
-      ← List.append_assoc, mkApps_append']
+      ← List.append_assoc, VExpr.mkApps_append]
     rfl
 
 /-- Restoration of an application spine whose head restores extends to any
@@ -90,11 +86,11 @@ theorem Restoration.expr.go_append (r : Restoration) :
     split at H
     · exact HeadSpecialization.apply_append H extra
     · cases H
-      exact congrArg some (mkApps_append' _ _ _)
+      exact congrArg some (VExpr.mkApps_append _ _ _)
   | .bvar _, _, x, H, extra | .sort _, _, x, H, extra | .elim .., _, x, H, extra => by
     simp only [Restoration.expr.go, Option.some.injEq] at H ⊢
     subst H
-    exact mkApps_append' _ _ _
+    exact VExpr.mkApps_append _ _ _
   | .lam domain body, args₀, x, H, extra
   | .forallE domain body, args₀, x, H, extra => by
     simp only [Restoration.expr.go, Option.bind_eq_bind] at H ⊢
@@ -103,14 +99,14 @@ theorem Restoration.expr.go_append (r : Restoration) :
       simp only [hd, hb, Option.bind_none, Option.bind_some, Option.pure_def,
         Option.some.injEq, reduceCtorEq] at H ⊢
     subst H
-    exact mkApps_append' _ _ _
+    exact VExpr.mkApps_append _ _ _
   | .proj name i major, args₀, x, H, extra => by
     simp only [Restoration.expr.go, Option.bind_eq_bind] at H ⊢
     cases hm : Restoration.expr.go r major [] <;>
       simp only [hm, Option.bind_none, Option.bind_some, Option.pure_def,
         Option.some.injEq, reduceCtorEq] at H ⊢
     subst H
-    exact mkApps_append' _ _ _
+    exact VExpr.mkApps_append _ _ _
 
 /-- Leaves inverted by a restoration table: the restoration of the target is
 the source, whenever the source avoids the restorable names and every head of

@@ -100,7 +100,7 @@ theorem auxiliaryLoweredConstructors_restore
       (fun t ht => hlevels t (List.mem_cons_of_mem _ ht)) hds)
     obtain ⟨sp, -, hspCtx, -, -, -, hctors⟩ := hev.application
     have hPS : VEnv.IsDefEqCtx envTypes decl.uvars [] params.reverse sp.reverse :=
-      VEnv.IsDefEqCtx.transEmpty henv hparams (hspCtx.symm hordered)
+      VEnv.IsDefEqCtx.trans_empty henv hparams (hspCtx.symm hordered)
     -- generated and direct constructors are definitionally equal
     have HGD : List.Forall₂ (fun gc dc : VConstVal =>
         envTypes.IsDefEqU decl.uvars [] gc.type dc.type) g.ctors d.ctors :=
@@ -288,7 +288,7 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
     refine ⟨(htypeD.noFreshConsts hordered hfresh (by intro _ h; simp at h)).2.1, ?_⟩
     have hPS : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
         E.production.compilationSignature.params.reverse sourceParams.reverse :=
-      VEnv.IsDefEqCtx.transEmpty henvTypes hP (hctx.symm hordered)
+      VEnv.IsDefEqCtx.trans_empty henvTypes hP (hctx.symm hordered)
     have htypingP := htyping.defeqDFC hordered (hPS.symm hordered)
     have hlam : envTypes.HasType sourceDecl.uvars []
         (VExpr.wrapLams E.production.compilationSignature.params

@@ -123,37 +123,6 @@ theorem NestedValidatedRunResult.boundarySignatureFacts
     rw [hnp, hlv] at hA
     exact hA.restorationExpr _ hheads
 
-private theorem forall₂_append_left_split' {R : α → β → Prop}
-    {l₁ l₂ : List α} {r : List β} (H : List.Forall₂ R (l₁ ++ l₂) r) :
-    List.Forall₂ R l₁ (r.take l₁.length) ∧
-      List.Forall₂ R l₂ (r.drop l₁.length) := by
-  have h₁ := forall₂_take' H l₁.length
-  have h₂ := Lean4Lean.List.forall₂_drop H l₁.length
-  simp only [List.take_left', List.drop_left'] at h₁ h₂
-  exact ⟨h₁, h₂⟩
-
-private theorem forall₂_of_map_eq' {f : α → γ} {g : β → γ} :
-    ∀ {l : List α} {r : List β}, l.map f = r.map g →
-      List.Forall₂ (fun a b => f a = g b) l r
-  | [], [], _ => .nil
-  | [], _ :: _, h => by simp at h
-  | _ :: _, [], h => by simp at h
-  | _ :: _, _ :: _, h => by
-    simp only [List.map_cons, List.cons.injEq] at h
-    exact .cons h.1 (forall₂_of_map_eq' h.2)
-
-private theorem forall₂_swap' {R : α → β → Prop} :
-    ∀ {l : List α} {r : List β}, List.Forall₂ R l r →
-      List.Forall₂ (fun b a => R a b) r l
-  | _, _, .nil => .nil
-  | _, _, .cons h t => .cons h (forall₂_swap' t)
-
-private theorem forall₂_join' {R : α → β → Prop} {S : γ → β → Prop} :
-    ∀ {l : List α} {m : List β} {n : List γ}, List.Forall₂ R l m →
-      List.Forall₂ S n m → List.Forall₂ (fun a c => ∃ b, R a b ∧ S c b) l n
-  | _, _, _, .nil, .nil => .nil
-  | _, _, _, .cons h t, .cons h' t' => .cons ⟨_, h, h'⟩ (forall₂_join' t t')
-
 /-- Basic facts about the source and lowered declarations of a validated nested run. -/
 theorem NestedValidatedRunResult.sourceLoweredBasics
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -377,7 +346,7 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
     refine ⟨envTypes, direct, hadded, hmapM, hwellFormedAll _ hPL, ?_⟩
     have HT := Hformation.types
     rw [hformationExpanded] at HT
-    obtain ⟨HTsource, -⟩ := forall₂_append_left_split' HT
+    obtain ⟨HTsource, -⟩ := forall₂_append_left_split HT
     have HM := HmodelsL.families
     have hle := VEnv.addConstVals_le hadded
     have hsplit := List.take_append_drop sourceDecl.types.length
@@ -391,7 +360,7 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
     refine (Lean4Lean.List.Forall₂.append_of_left hprefixLength).mpr ⟨?_, ?_⟩
     · have HMp := forall₂_take' HM sourceDecl.types.length
       obtain ⟨_, _, _, hheaders, _, _⟩ := Hformation.sourceParameters
-      have H1 := forall₂_join' HMp HTsource
+      have H1 := forall₂_join HMp HTsource
       refine Lean4Lean.List.Forall₂.imp ?_ (Lean4Lean.List.Forall₂.and_mem
         (Lean4Lean.List.Forall₂.and H1 HsrcRestore))
       rintro a src ⟨⟨⟨x, hM, hT⟩, hP⟩, ha, hsrc⟩
@@ -404,8 +373,8 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
           hbody.mono hle⟩, ?_⟩
       have Hnames := Lean4Lean.List.Forall₂.trans
         (fun _ _ _ h1 h2 => h1.trans h2.name)
-        (forall₂_of_map_eq' (f := VConstVal.name) (g := VConstVal.name) hM.2.2.2.2)
-        (forall₂_swap' hT.constructors)
+        (forall₂_of_map_eq (f := VConstVal.name) (g := VConstVal.name) hM.2.2.2.2)
+        (forall₂_swap hT.constructors)
       refine Lean4Lean.List.Forall₂.imp ?_ (Lean4Lean.List.Forall₂.and_mem
         (Lean4Lean.List.Forall₂.and Hnames hP))
       rintro n c ⟨⟨hname, hRT⟩, hn, hc⟩
@@ -415,10 +384,10 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
         HsourceWF.2.2.2.1 c (List.mem_flatMap.mpr ⟨src, hsrc, hc⟩)]
     · have HMd := Lean4Lean.List.forall₂_drop HM sourceDecl.types.length
       have HP := HauxFamilies direct hmapM
-      have Hnames := forall₂_of_map_eq' (f := ContainerSpecialization.auxiliary)
+      have Hnames := forall₂_of_map_eq (f := ContainerSpecialization.auxiliary)
         (g := fun t : VInductiveType => t.name) hnames
-      have Hdirect := forall₂_join' (forall₂_swap' Hnames) (forall₂_swap' hshapes)
-      have H1 := forall₂_join' HMd (forall₂_swap' Hdirect)
+      have Hdirect := forall₂_join (forall₂_swap Hnames) (forall₂_swap hshapes)
+      have H1 := forall₂_join HMd (forall₂_swap Hdirect)
       refine Lean4Lean.List.Forall₂.imp ?_
         (Lean4Lean.List.Forall₂.and_mem (Lean4Lean.List.Forall₂.and H1 HP))
       rintro a d ⟨⟨⟨x, hM, aux, hname, hshape⟩, hP⟩, ha, _⟩
@@ -516,7 +485,9 @@ theorem NestedValidatedRunResult.restorationRecursorNames
       obtain ⟨t, ht, h⟩ := hc
       exact ⟨t, List.mem_of_mem_take ht, h⟩
 
-private theorem AddConstants.entry_name_eq'
+/-- Every installed entry of a staged constant list has the name of its
+abstract value. -/
+theorem AddConstants.name_eq
     {safety : DefinitionSafety} {env : Environment} {venv : VEnv}
     {entries : List (ConstantInfo × VConstVal)} {outEnv : Environment} {outVEnv : VEnv}
     (H : AddConstants safety env venv entries outEnv outVEnv) :
@@ -586,7 +557,7 @@ theorem NestedValidatedRunResult.loweredRecursorNames_fresh
     rw [hlocal]
     exact E.production.constructors.completed.context.checking.tr.map_wf
   have hfreshLocal := Hinst.entryFresh hwfLocal hentry
-  have hname := AddConstants.entry_name_eq' Hinst _ hentry
+  have hname := AddConstants.name_eq Hinst _ hentry
   simp only at hname
   rw [hname, hrname, hlocal] at hfreshLocal
   cases hfind : sourceProdEnv.find? (t.name.str "rec") with

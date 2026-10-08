@@ -587,8 +587,8 @@ theorem ArgClosed.callTemplate {lctx : LocalContext} {xs : Array Expr} {ys : Lis
     ArgClosed 0 (lctx.mkLambda xs ((Lean.mkAppN (.bvar xs.size) idx).app
       (Lean.mkAppN f xs))) := by
   subst hxs
-  rw [Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList,
-    Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList]
+  rw [Lean.Expr.mkAppN_eq_mkAppList,
+    Lean.Expr.mkAppN_eq_mkAppList]
   have hsz : (List.map Expr.fvar ys).toArray.size = ys.length := by simp
   rw [hsz]
   refine ArgClosed.mkLambda hdecl (ArgClosed.callBody hidx hf ?_)
@@ -1068,8 +1068,8 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs name
     · refine Expr.HitTrailWith.of_hitShape_nil
         (Expr.HitShape.mkAppN ?_ (hterm.1.getAppArgs_slice hp _))
       rw [hmfv]; exact .fvar mfv
-    · rw [Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList,
-        Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append]
+    · rw [Lean.Expr.mkAppN_eq_mkAppList,
+        Lean.Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append]
       refine Expr.HitTrailWith.const_mkAppList fun a ha => ?_
       have hfv : ∃ fv, a = .fvar fv := by
         rcases List.mem_append.1 ha with ha | ha
@@ -1080,7 +1080,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs name
       obtain ⟨fv, rfl⟩ := hfv
       exact ⟨.fvar _, .fvar _⟩
     · intro c us h
-      rw [Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList,
+      rw [Lean.Expr.mkAppN_eq_mkAppList,
         Expr.getAppFn_mkAppList, hmfv] at h
       cases h
   · intro y hy
@@ -1288,8 +1288,8 @@ theorem ruleRhsTrail (I : H.TrailInputs names ls)
         call.build indTypes stats (H.recInfos.map (·.motive))
           (H.recInfos.flatMap (·.minors)) lvls)).HitTrailWith heads np
           (Expr.HitShape names [] ls) := by
-    rw [hBfields, Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList,
-      Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append]
+    rw [hBfields, Lean.Expr.mkAppN_eq_mkAppList,
+      Lean.Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append]
     refine Expr.HitTrailWith.mkAppList_of_not_const (by rw [hminorFv]; exact .fvar _)
       (by rw [hminorFv]; intro c us h; cases h) fun a ha => ?_
     rcases List.mem_append.1 ha with ha | ha
@@ -1305,9 +1305,9 @@ theorem ruleRhsTrail (I : H.TrailInputs names ls)
       obtain ⟨htemplate, -, hargCl⟩ := hcalls j (by rw [← hcallsSize]; exact hj')
       rw [hcallEq] at htemplate hargCl
       simp only [AddInductive.RecCallBlueprint.build, Expr.instantiate1_eq]
-      rw [Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList,
-        Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList,
-        Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append,
+      rw [Lean.Expr.mkAppN_eq_mkAppList,
+        Lean.Expr.mkAppN_eq_mkAppList,
+        Lean.Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append,
         ← Expr.mkAppList_append]
       have hfv : ∀ a ∈ stats.params.toList ++ (H.recInfos.map (·.motive)).toList ++
           (H.recInfos.flatMap (·.minors)).toList, ∃ fv, a = .fvar fv := by

@@ -42,14 +42,6 @@ end TableUniqueness
 
 /-! ### Replacing the rule lists of the final traces -/
 
-private theorem forall₂_append_left_split_RS {R : α → β → Prop} :
-    ∀ {l₁ l₂ : List α} {r : List β}, List.Forall₂ R (l₁ ++ l₂) r →
-      ∃ r₁ r₂, r = r₁ ++ r₂ ∧ List.Forall₂ R l₁ r₁ ∧ List.Forall₂ R l₂ r₂
-  | [], _, _, H => ⟨[], _, rfl, .nil, H⟩
-  | _ :: _, _, _, .cons h t => by
-    obtain ⟨r₁, r₂, rfl, H₁, H₂⟩ := forall₂_append_left_split_RS t
-    exact ⟨_ :: r₁, r₂, rfl, .cons h H₁, H₂⟩
-
 /-! ### Realization of the restored generated equations -/
 
 theorem _root_.Lean4Lean.InductiveSignature.Restoration.equation_eq_some
@@ -335,20 +327,6 @@ theorem VExpr.wrapLams_inj_of_length :
     obtain ⟨hD, hbody⟩ := VExpr.wrapLams_inj_of_length (by simpa using hlen) hb
     exact ⟨by rw [hd, hD], hbody⟩
 
-private theorem Restoration.expr_wrapLams_eq_RS (r : Restoration) (doms : List VExpr)
-    (body : VExpr) :
-    r.expr (VExpr.wrapLams doms body) =
-      (doms.mapM r.expr).bind fun doms' =>
-        (r.expr body).map (VExpr.wrapLams doms') := by
-  induction doms with
-  | nil => cases hb : r.expr body <;> simp [VExpr.wrapLams, hb]
-  | cons d ds ih =>
-    change Restoration.expr.go r (.lam d (VExpr.wrapLams ds body)) [] = _
-    simp only [Restoration.expr.go, List.mapM_cons]
-    rw [← Restoration.expr_eq_go, ← Restoration.expr_eq_go, ih]
-    cases hd : r.expr d <;> cases hds : ds.mapM r.expr <;>
-      cases hb : r.expr body <;> simp [VExpr.mkApps, VExpr.wrapLams]
-
 /-- The restored generated equation of a constructor whose owner's recursor
 name and whose own name are not restoration heads. -/
 theorem Restoration.equation_primary_structure {s : InductiveSignature}
@@ -377,7 +355,7 @@ theorem Restoration.equation_primary_structure {s : InductiveSignature}
       (∃ T, rule.type = VExpr.wrapForalls D T) := by
   obtain ⟨-, hlhs, hrhs, htype⟩ := Restoration.equation_eq_some hrule
   simp only [Instance.equation, Instance.recursorHead, Instance.constructorApp] at hlhs hrhs htype
-  rw [Restoration.expr_wrapLams_eq_RS] at hlhs hrhs
+  rw [Restoration.expr_wrapLams_eq] at hlhs hrhs
   rw [Restoration.expr_wrapForalls] at htype
   obtain ⟨D, hD, hlhs⟩ := Option.bind_eq_some_iff.mp hlhs
   rw [hD, Option.bind_some] at hrhs htype

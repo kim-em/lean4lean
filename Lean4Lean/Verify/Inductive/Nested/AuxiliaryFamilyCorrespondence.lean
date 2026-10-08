@@ -37,14 +37,6 @@ theorem ContainerSpecialization.directFamily_fields
 
 /-! ### Installed containers -/
 
-private theorem install_base_le' {base installed : VEnv} {block : VInductBlock}
-    (H : VInductBlock.install base block = some installed) : base ≤ installed := by
-  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at H
-  obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
-  exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
-    VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
-
 private theorem install_type_lookup' {base installed : VEnv} {block : VInductBlock}
     {value : VConstVal}
     (H : VInductBlock.install base block = some installed)
@@ -69,7 +61,7 @@ theorem _root_.Lean4Lean.VEnv.InstalledInductCertificate.familyFacts {env : VEnv
       decl.TypeShape env params type := by
   cases H with
   | @intro _ _ base block installed hsource hformation hcompile _ hinstall hle =>
-    have hbase : base ≤ env := (install_base_le' hinstall).trans hle
+    have hbase : base ≤ env := (VInductBlock.install_base_le hinstall).trans hle
     have hparams : ∃ base', base' ≤ env ∧ VInductDecl.SourceParameterWF base' decl := by
       cases hformation with
       | ordinary hwf => exact ⟨base, hbase, hwf.sourceParameterWF⟩
@@ -82,7 +74,7 @@ theorem _root_.Lean4Lean.VEnv.InstalledInductCertificate.familyFacts {env : VEnv
       (hheaders type htype).mono hbase, typeShape_mono hbase' (hshapes type htype)⟩⟩
     apply hle.constants
     apply install_type_lookup' hinstall
-    rw [hcompile.compiled.source_type_constants]
+    rw [hcompile.compiled.types_eq]
     exact List.mem_map.mpr ⟨type, htype, rfl⟩
 
 /-! ### Telescopes ending in sorts -/
@@ -234,7 +226,7 @@ theorem auxiliaryFamily_header
   refine ⟨by rw [hni, hidxEq, hdIndices], ?_, ?_⟩
   · rw [hdLevel]; exact hrl.trans hlevel.symm
   · have hctx : VEnv.IsDefEqCtx envTypes decl.uvars [] params.reverse sp.reverse :=
-      VEnv.IsDefEqCtx.transEmpty henv hparams (hspCtx.symm henv.ordered)
+      VEnv.IsDefEqCtx.trans_empty henv hparams (hspCtx.symm henv.ordered)
     obtain ⟨w, hw⟩ := hRtype
     have hclose := VEnv.IsDefEqCtx.closeWrapForalls [] params.reverse sp.reverse
       (by simpa using hctx)
@@ -248,26 +240,6 @@ theorem auxiliaryFamily_header
     exact ⟨own ++ idx, res, t.resultLevel, A, hrl.symm, hA, hres'⟩
 
 /-! ### The auxiliary suffix -/
-
-private theorem forall₂_of_map_eq' {f : α → γ} {g : β → γ} :
-    ∀ {l : List α} {r : List β}, l.map f = r.map g →
-      List.Forall₂ (fun a b => f a = g b) l r
-  | [], [], _ => .nil
-  | [], _ :: _, h => by simp at h
-  | _ :: _, [], h => by simp at h
-  | _ :: _, _ :: _, h => by
-    simp only [List.map_cons, List.cons.injEq] at h
-    exact .cons h.1 (forall₂_of_map_eq' h.2)
-
-private theorem nestedConstructorExpansions_names'
-    {leaf : Nat → VExpr → VExpr → Prop} {nparams : Nat}
-    {sourceCtors targetCtors : List VConstVal}
-    (H : List.Forall₂ (VInductDecl.NestedConstructorExpansion leaf nparams)
-      sourceCtors targetCtors) :
-    targetCtors.map (·.name) = sourceCtors.map (·.name) := by
-  induction H with
-  | nil => rfl
-  | cons hhead _ ih => simp only [List.map_cons, ih, hhead.name]
 
 /-- The `auxiliaryFamilies` relation of `NestedCompilationPending`, for any
 specialization list with exact lowering evidence, given the restoration of the
@@ -336,24 +308,13 @@ theorem auxiliaryFamilies_of_evidence
     rw [hd] at hd'
     cases hd'
     have hnames : n.ctors.map VConstVal.name = d.ctors.map VConstVal.name := by
-      rw [hM.2.2, nestedConstructorExpansions_names' hexp.constructors,
+      rw [hM.2.2, nestedConstructorExpansions_names hexp.constructors,
         hev.generatedCtorNames, hshape.ctorNames]
     refine Lean4Lean.List.Forall₂.imp ?_ (Lean4Lean.List.Forall₂.and_mem
-      (Lean4Lean.List.Forall₂.and (forall₂_of_map_eq' hnames) hR))
+      (Lean4Lean.List.Forall₂.and (forall₂_of_map_eq hnames) hR))
     rintro nc c ⟨⟨hname, hRT⟩, hnc, hc⟩
     exact ⟨hname, (hctorUvars n List.mem_cons_self nc hnc).trans
       (hshape.ctorUvars c hc).symm, hRT⟩
-
-private theorem familyNames_drop_sublist' (types : List VInductiveType) (n : Nat) :
-    (familyNames (types.drop n)).Sublist (familyNames types) := by
-  induction n generalizing types with
-  | zero => simp
-  | succ n ih =>
-    cases types with
-    | nil => simp
-    | cons t ts =>
-      simp only [List.drop_succ_cons, familyNames, List.flatMap_cons]
-      exact (ih ts).trans (List.sublist_append_right _ _)
 
 end VerifyInductive
 end Lean4Lean

@@ -378,12 +378,6 @@ theorem List.forall₂_of_getElem
       change R as[i] bs[i] at h
       exact h
 
--- Names kept for the nested-inductive verification, which still refers to them.
-alias List.Forall₂.getElem := Lean4Lean.List.forall₂_getElem
-alias List.Forall₂.length_eq' := Lean4Lean.List.Forall₂.length_eq
-alias List.Forall₂.append' := _root_.List.Forall₂.append'
-alias List.Forall₂.unsnoc := Lean4Lean.List.forall₂_snoc_left
-
 /-- Two pointwise translations of a syntactically unique source spine have
 the same target spine. -/
 theorem List.Forall₂.targets_eq_of_unique
@@ -446,9 +440,6 @@ theorem Expr.getAppArgsList_mkAppN (fn : Expr) (args : Array Expr) :
   | cons arg args ih =>
     simp only [List.foldl_cons, Lean.mkApp]
     exact ih (.app fn arg)
-
--- Kept for the `Lean4Lean/Verify/Inductive/Nested/*` files that use this qualified name.
-alias Expr.mkAppN_eq_mkAppList := Lean.Expr.mkAppN_eq_mkAppList
 
 theorem TrExprS.IsUnique.mkAppList
     (hfn : TrExprS.IsUnique fn)

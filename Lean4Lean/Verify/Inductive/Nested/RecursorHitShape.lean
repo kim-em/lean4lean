@@ -91,7 +91,7 @@ theorem consumeTypeAnnotationsVerified {e : Expr} (H : HitShape heads params ls 
 theorem mkAppN {f : Expr} {args : Array Expr} (hf : HitShape heads params ls f)
     (hargs : ∀ a ∈ args.toList, HitShape heads params ls a) :
     HitShape heads params ls (Lean.mkAppN f args) := by
-  rw [Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList]
+  rw [Lean.Expr.mkAppN_eq_mkAppList]
   exact hf.mkAppList hargs
 
 /-- A spine `c params rest` headed by any constant at the levels `ls`: a hit if
@@ -100,8 +100,8 @@ theorem mkAppN_const_params {c : Name} {rest : Array Expr}
     (hrest : ∀ a ∈ rest.toList, HitShape heads params ls a)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) :
     HitShape heads params ls (Lean.mkAppN (Lean.mkAppN (.const c ls) params.toArray) rest) := by
-  rw [Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList,
-    Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append]
+  rw [Lean.Expr.mkAppN_eq_mkAppList,
+    Lean.Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append]
   by_cases hc : c ∈ heads
   · exact mkAppList_const_hit hc hrest
   · refine (HitShape.const hc).mkAppList fun a ha => ?_
@@ -1518,7 +1518,7 @@ theorem NestedExprMapping.hitShape {heads : List Name} {ls : List Level}
       ⟨value, targetName, levels, auxName, auxLevels, nested,
         Hcandidate, hauxLevels, hhead, hlowered, hnested, hlookup⟩
     rw [hlowered, Expr.mkAppRange_to_end _ _ _ Hcandidate.parameters.arity,
-      Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append,
+      Lean.Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append,
       hauxLevels, hlvls]
     refine Expr.HitShape.mkAppList_const_hit (hkeys _ _ hlookup) fun a ha => ?_
     refine Expr.HitShape.of_avoidsConsts (hin.of_mem_getAppArgsList a ?_)

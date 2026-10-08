@@ -358,17 +358,6 @@ theorem RestorationTableData.restorable_transfer {aux₀ aux₁ : List Container
 
 end TableUniqueness
 
-private theorem nodup_map_inj_RE {f : α → β} :
-    ∀ {l : List α}, (l.map f).Nodup → ∀ {x y}, x ∈ l → y ∈ l → f x = f y → x = y
-  | [], _, _, _, hx, _, _ => by simp at hx
-  | a :: l, hnd, x, y, hx, hy, hxy => by
-    simp only [List.map_cons, List.nodup_cons, List.mem_map] at hnd
-    rcases List.mem_cons.mp hx with hx' | hx' <;> rcases List.mem_cons.mp hy with hy' | hy'
-    · exact hx'.trans hy'.symm
-    · subst hx'; exact absurd ⟨y, hy', hxy.symm⟩ hnd.1
-    · subst hy'; exact absurd ⟨x, hx', hxy⟩ hnd.1
-    · exact nodup_map_inj_RE hnd.2 hx' hy' hxy
-
 /-- The projection names of the registered eliminator schemas of the base
 environment avoid the restorable names. Eliminator schemas are certified in
 expanded environments whose projection tables may contain never-installed
@@ -531,7 +520,7 @@ theorem NestedValidatedRunResult.headerSetup
       sourceDecl.nparams a.source.name a.levels a.arguments ∈
       (compilationRestoration sourceDecl auxiliaries).heads :=
     List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_self⟩
-  have heqh := nodup_map_inj_RE hscopedNodup hh hfh
+  have heqh := List.nodup_map_inj hscopedNodup hh hfh
     (hn.symm.trans (hexp.name.trans hev.auxiliary.symm))
   subst heqh
   subst hval
@@ -546,7 +535,7 @@ theorem NestedValidatedRunResult.headerSetup
   refine ⟨(htypeD.noFreshConsts hordered hfreshAll (by intro _ h; simp at h)).2.1, ?_⟩
   have hPS : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
       E.production.compilationSignature.params.reverse sourceParams.reverse :=
-    VEnv.IsDefEqCtx.transEmpty henvTypes hP (hctx.symm hordered)
+    VEnv.IsDefEqCtx.trans_empty henvTypes hP (hctx.symm hordered)
   have htypingP := htyping.defeqDFC hordered (hPS.symm hordered)
   have hlam : envTypes.HasType sourceDecl.uvars []
       (VExpr.wrapLams E.production.compilationSignature.params

@@ -67,9 +67,6 @@ theorem AddConstants.availableLiteralDisjoint
     checkPositivityStep.AvailableLiteralDisjoint target indConsts :=
   fun literal havailable => hlit literal (H.sourceContainsLits havailable)
 
--- Kept for the `Lean4Lean/Verify/Inductive/Nested/*` files that use this name.
-alias AddConstants.preservesSourceMapFind := AddConstants.preservesMapFind
-
 theorem ProductionInductiveOrigins.addConstants
     {source middle target : Environment}
     (O : ProductionInductiveOrigins source.constants middle.constants decl)

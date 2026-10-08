@@ -214,20 +214,6 @@ theorem RestoreCtxRel.translate_avoids_forall₂ {r : Restoration}
       (RestoreCtxRel.translate_avoids_forall₂ hc Hctx
         (fun e he => ha e (List.mem_cons_of_mem _ he)) ts tt)
 
-private theorem forall₂_append_left {R : α → β → Prop} :
-    ∀ {l₁ l₂ : List α} {m : List β}, List.Forall₂ R (l₁ ++ l₂) m →
-      ∃ m₁ m₂, m = m₁ ++ m₂ ∧ List.Forall₂ R l₁ m₁ ∧ List.Forall₂ R l₂ m₂
-  | [], _, _, h => ⟨[], _, rfl, .nil, h⟩
-  | _ :: _, _, _, .cons h t => by
-    obtain ⟨m₁, m₂, rfl, h₁, h₂⟩ := forall₂_append_left t
-    exact ⟨_ :: m₁, m₂, rfl, .cons h h₁, h₂⟩
-
-private theorem forall₂_append {R : α → β → Prop} :
-    ∀ {l₁ l₂ : List α} {m₁ m₂ : List β}, List.Forall₂ R l₁ m₁ → List.Forall₂ R l₂ m₂ →
-      List.Forall₂ R (l₁ ++ l₂) (m₁ ++ m₂)
-  | _, _, _, _, .nil, h => h
-  | _, _, _, _, .cons h t, h₂ => .cons h (forall₂_append t h₂)
-
 /-- The opened parameters (free variables) translate in the restored context
 to the restorations of their source translations. -/
 theorem RestoreCtxRel.translate_fvars {r : Restoration}
@@ -308,7 +294,7 @@ theorem restorationCommutes'_hit
   rcases checkPositivityStep.TrExprS.mkAppList_inv Hs with ⟨fn', L', hfn', hL', rfl⟩
   cases hfn' with
   | const _ hlsV _ =>
-  obtain ⟨P', R'', rfl, hP', hR''⟩ := forall₂_append_left hL'
+  obtain ⟨P', R'', rfl, hP', hR''⟩ := List.Forall₂.append_inv hL'
   rcases checkPositivityStep.TrExprS.mkAppList_inv Ht with ⟨Hv, R', hHv, hR', rfl⟩
   rcases A.head As c H hH with ⟨h, hfind, hnparams, hlevels⟩
   rcases hlevels _ hlsV with ⟨huvars, hsem⟩
@@ -323,7 +309,7 @@ theorem restorationCommutes'_hit
   have hPTlen : PT.length = result.nparams := by
     rw [← Lean4Lean.List.Forall₂.length_eq hPT, hAsLen]
   simp only [Restoration.expr]
-  rw [Restoration.expr.go_mkApps r (forall₂_append hPr hRr), List.append_nil]
+  rw [Restoration.expr.go_mkApps r (List.Forall₂.append' hPr hRr), List.append_nil]
   have hle : h.nparams ≤ (PT ++ R').length := by simp [hnparams, hPTlen]
   simp [Restoration.expr.go, hfind, HeadSpecialization.apply, huvars, hnparams, hPTlen,
     Lean4Lean.VExpr.mkApps_append]
@@ -500,7 +486,7 @@ theorem Expr.SameForallPrefix.translatedDomains_restore {r : Restoration}
         hd₁ hd₂)
       (ih Hctx.vlam hb₁ hb₂ (by simpa using h₁) (by simpa using h₂))
 
-private theorem fvarIdsIn_of_trExprS_abstractForallContext'
+theorem fvarIdsIn_of_trExprS_abstractForallContext'
     {env : VEnv} {Us : List Name} {domains : List VExpr} {e : Expr} {e' : VExpr}
     (H : TrExprS env Us (abstractForallContext domains []) e e') (P : FVarId → Prop) :
     e.FVarIdsIn P := by

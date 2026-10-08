@@ -37,15 +37,6 @@ The fields are split by role:
   freshness or lowering non-emptiness assumptions.
 -/
 
-private theorem List.nodup_of_map_nodup
-    {values : List α} (f : α → β) (H : (values.map f).Nodup) :
-    values.Nodup := by
-  induction values with
-  | nil => simp
-  | cons value values ih =>
-      simp only [List.map_cons, List.nodup_cons] at H ⊢
-      exact ⟨fun hmem => H.1 (List.mem_map_of_mem hmem), ih H.2⟩
-
 /-- The operational/source constructor join is lockstep in all three lists.
 This exposes the rule-cardinality fact needed to fold one restored primary
 recursor without asking final assembly to restate constructor layout. -/

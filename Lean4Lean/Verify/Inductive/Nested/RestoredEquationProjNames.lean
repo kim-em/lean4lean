@@ -151,7 +151,7 @@ theorem mkForall' {lctx : LocalContext} {xs : Array Expr} {ys : List FVarId} {b 
 
 theorem mkAppN' {f : Expr} {args : Array Expr} (hf : ProjsOK ok f)
     (hargs : ∀ a ∈ args.toList, ProjsOK ok a) : ProjsOK ok (Lean.mkAppN f args) := by
-  rw [Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList]
+  rw [Lean.Expr.mkAppN_eq_mkAppList]
   exact mkAppList_iff.2 ⟨hf, hargs⟩
 
 theorem getAppArgs_slice' {e : Expr} (H : ProjsOK ok e) (n : Nat) :
