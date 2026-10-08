@@ -1049,8 +1049,9 @@ theorem inductionHypothesisTypeOriginOfInferredScope
         Hargs.toFreshBoundFVarArray.toBoundFVarArray.exprArrayFVarIds]
       rfl
 
-/-- The original form: the field's own membership in the up-set scopes its
-inferred type through the `FVarsBelow` contract. -/
+/-- Form of `inductionHypothesisTypeOriginOfInferredScope` in which the
+field's own membership in the up-set scopes its inferred type through the
+`FVarsBelow` contract. -/
 theorem inductionHypothesisTypeOrigin
     (fv : FVarId) (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
@@ -1398,9 +1399,10 @@ theorem resultSemanticsOfMotiveTelescopes
 
 end mkRecInfos.loopUBlueprints
 
-/-- Equality of the four pre-existing semantic projections of a `RecInfo`
-array.  Retaining executable rule blueprints changes no binding, type-origin,
-or telescope input. -/
+/-- Equality of the four semantic projections (motive, minors, indices and
+major) of two `RecInfo` arrays of the same size.  Arrays related this way may
+differ in their rule blueprints but have the same bindings, type origins and
+telescopes. -/
 structure RecInfoCoreEq (left right : Array AddInductive.RecInfo) : Prop where
   size_eq : left.size = right.size
   motive_eq_all : ∀ (i : Nat), left[i]!.motive = right[i]!.motive
