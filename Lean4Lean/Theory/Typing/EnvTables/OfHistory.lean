@@ -171,10 +171,10 @@ theorem Tables.OfHistory.inv (H : Tables.OfHistory env T) : T.Inv env ∧ env.WF
   | induct _ henv hdecl hcomp hblock helim _ hinstall hcle hdata hprior ih =>
     obtain ⟨ds, hds⟩ := henv
     exact ⟨(ih.1.install ⟨ds, hds⟩ hcomp hblock hinstall hcle hdata hprior).2,
-      ⟨_, .decl (.induct hdecl (.intro hdecl hcomp hblock helim hinstall)) hds⟩⟩
+      ⟨_, .decl (.induct (.intro hdecl hcomp hblock helim hinstall)) hds⟩⟩
   | inductCases _ henv hdecl hcomp hblock helim hE hinstall hcle hdata hprior ih =>
     have henv' : VEnv.WF _ :=
-      ⟨_, .decl (.induct hdecl (.intro hdecl hcomp hblock helim hinstall)) henv.choose_spec⟩
+      ⟨_, .decl (.induct (.intro hdecl hcomp hblock helim hinstall)) henv.choose_spec⟩
     exact ⟨(Tables.Inv.inductCases ih.1 henv henv' hcomp hblock helim hE hinstall hcle hdata
       hprior).2, henv'⟩
   | elim _ hbase henv hle hreg hconsts hdefeqs hprojs hcoherent hfresh hcompat ih =>
@@ -203,9 +203,9 @@ theorem VEnv.WF'.tablesOfHistory {ds : List VDecl} {env : VEnv} (H : env.WF' ds)
     | «def» hci hadd => exact ⟨_, .def hT henv hci hadd⟩
     | mutualDef h1 hadd h2 => exact ⟨_, .mutualDef hT henv h1 hadd h2⟩
     | quot hready hadd => exact ⟨_, .quot hT henv hready hadd⟩
-    | induct hdecl hadd =>
+    | induct hadd =>
       cases hadd with
-      | intro _ hcompile hblock helim hinstall =>
+      | intro hdecl hcompile hblock helim hinstall =>
         obtain ⟨cbase, expanded, s, g, aux, hcle, hdata, hprior⟩ :=
           hcompile.exists_compilation
         have helim' := helim

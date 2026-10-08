@@ -301,7 +301,7 @@ theorem WF'.quot_projections : ∀ {ds env}, VEnv.WF' ds env → env.defeqs quot
       refine ⟨fun h => ?_, fun h => ?_⟩
       · subst h; rw [hfQ] at hS; cases hS
       · rw [h, hfM] at hC; cases hC
-    | induct _ installed =>
+    | induct installed =>
       cases installed with
       | @intro block _ _ compiled _ _ hinst =>
         have hinst' := hinst

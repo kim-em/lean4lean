@@ -138,7 +138,7 @@ theorem VDecl.WF.eliminators_iff (H : VDecl.WF env decl env') :
     rw [VEnv.addDefEqs_eliminators, VEnv.addConsts_eliminators h]
     simp
   | quot _ h => simp [VEnv.addQuot_eliminators h]
-  | induct _ h =>
+  | induct h =>
     rw [h.eliminators_iff]
     simp
 
@@ -272,7 +272,7 @@ theorem VEnv.WF.ordered : WF env → Ordered env
       | «opaque» h1 h2 => exact .const ih (h1.isType ih ⟨⟩) h2
       | «example» _ => exact ih
       | quot h1 h2 => exact addQuot_WF ih h1 h2
-      | induct h1 h2 => exact addInduct_WF ih h1 h2
+      | induct h2 => exact addInduct_WF ih h2.sourceWF h2
     | inductProjections _ _ _ hsource htypesWF hconstructorUvars hctorsWF hparams hshape htypesSource
         hctorsSource hprojections htypes hctors ihBase _ =>
       have hT := ihBase.addConstVals (by

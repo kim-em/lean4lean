@@ -554,7 +554,7 @@ private theorem WF.constructorHeadsRigid {env : VEnv} (H : env.WF) : Constructor
       exact ih.addDefinitions (cis := [ci]) (by simpa [VEnv.addConsts] using hadd)
     | mutualDef _ hadd _ => exact ih.addDefinitions hadd
     | quot _ hadd => exact ih.addQuot hordered hadd
-    | induct _ hadd => exact ih.addInduct hordered hadd
+    | induct hadd => exact ih.addInduct hordered hadd
   | inductEliminators hbase henv hle hreg hconstants hdefeqs _ _ _ _ ihBase ihEnv =>
     exact ihBase.register ihEnv (show VEnv.WF _ from ⟨_, hbase⟩).ordered
       hle hreg.certified hconstants hdefeqs

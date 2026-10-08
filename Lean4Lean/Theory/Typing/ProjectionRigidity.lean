@@ -215,7 +215,7 @@ private theorem WF.projectionRigid_both {env : VEnv} (H : env.WF) : ProjectionRi
         simpa [VEnv.addConsts] using hadd)
     | mutualDef _ hadd _ => exact ih.addDefinitions hordered hadd
     | quot _ hadd => exact ih.addQuot hordered hadd
-    | induct hdecl hadd => exact ih.addInduct hordered hdecl hadd
+    | induct hadd => exact ih.addInduct hordered hadd.sourceWF hadd
   | @inductProjections baseDecls ds base envTypes envCtors decl block
       hbase hctorsWF _ hsource htypesWF hconstructorUvars hctorsTyped hparams hshape htypesSource
       hctorsSource hprojections htypes hctors ihBase ihCtors =>

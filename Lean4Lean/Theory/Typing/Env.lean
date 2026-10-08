@@ -42,7 +42,6 @@ inductive VDecl.WF : VEnv → VDecl → VEnv → Prop where
     env.addQuot = some env' →
     VDecl.WF env .quot env'
   | induct :
-    decl.WF env →
     VEnv.AddInduct env decl env' →
     VDecl.WF env (.induct decl) env'
 

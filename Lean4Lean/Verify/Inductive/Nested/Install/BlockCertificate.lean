@@ -20,11 +20,6 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-private theorem abstractAddInduct_declWF
-    (H : VEnv.AddInduct env decl target) : decl.WF env := by
-  cases H with
-  | intro hdecl => exact hdecl
-
 private theorem FreshExtension.trEnvIgnore
     (H : FreshExtension source entries target)
     (hsourceWF : source.constants.WF)
@@ -363,8 +358,6 @@ private theorem RestoredBlockCertificate.extendSafe
       CheckingEnv.mapExt HcheckingCanonical
         (actual.property.targetWF Hvalid.tr.map_wf)
         (fun name => (hlookup name).symm)
-    have hdeclObserver : decl.WF (ves.venv observer) :=
-      abstractAddInduct_declWF Habstract
     have HcheckingRules : CheckingEnv observer outEnv Breplay.installedVEnv := {
       aligned := by
         rw [BlockCertificate.installedVEnv]
@@ -373,7 +366,7 @@ private theorem RestoredBlockCertificate.extendSafe
       wf := by
         rcases (wf.tr (safety := observer)).wf with ⟨ds, Hds⟩
         exact ⟨.induct decl :: ds,
-          Hds.decl (.induct hdeclObserver Habstract)⟩
+          Hds.decl (.induct Habstract)⟩
       of_value := by
         intro name ci value hfind hs hvalue
         exact (Hchecking.of_value hfind hs hvalue).mono
@@ -602,8 +595,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
     wf := by
       rcases (wf.tr (safety := .unsafe)).wf with ⟨ds, Hds⟩
       exact ⟨.induct decl :: ds,
-        Hds.decl (.induct (abstractAddInduct_declWF F.addInduct)
-          F.addInduct)⟩
+        Hds.decl (.induct F.addInduct)⟩
     of_value := by
       intro name ci value hfind hs hvalue
       exact (F.checking.of_value hfind hs hvalue).mono
@@ -619,7 +611,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
       (C.recursorVEnv.addDefEqRules
         (C.sourceRules ++ C.auxiliaryRules)) := by
     rw [actual.property.quotInit_eq]
-    exact .induct (abstractAddInduct_declWF F.addInduct) Hadd
+    exact .induct (F.addInduct.sourceWF) Hadd
       (wf.tr (safety := .unsafe))
   have hactualUnsafe : ∀ entry ∈ actual.val,
       entry.safety = .unsafe := hentriesUnsafe actual.val actual.property

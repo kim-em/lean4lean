@@ -57,7 +57,7 @@ private theorem VDecl.WF.projections_fresh (H : VDecl.WF env decl env')
   | mutualDef _ h _ =>
     exact .inl (by rwa [VEnv.addDefEqs_projections, VEnv.addConsts_projections h] at hproj)
   | quot _ h => exact .inl (by rwa [VEnv.addQuot_projections h] at hproj)
-  | induct _ h =>
+  | induct h =>
     cases h with
     | intro _ hcompile _ _ h =>
       obtain ⟨types, ctors, recs, ht, hc, hr, rfl⟩ := VInductBlock.install_stages h

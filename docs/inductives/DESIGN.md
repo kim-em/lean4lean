@@ -238,7 +238,8 @@ constructors, eliminators and projections, rules in the environment with recurso
 the eliminators are certified (`VInductBlock.EliminatorsWF`: either the declaration has no
 families and the block registers no eliminator, or it registers exactly one, with a
 `CaseSchema.Registered` certificate and projecting only out of structures registered at the
-constructor stage), and `install` succeeds.
+constructor stage), and `install` succeeds. `VDecl.WF.induct` takes only the `AddInduct`;
+`VEnv.AddInduct.sourceWF` recovers `decl.WF env` from it.
 
 `VEnv.WF'` (`Lean4Lean/Theory/Typing/Env.lean`) has, besides `empty` and `decl`, two
 constructors that describe the intermediate environments of an installation:

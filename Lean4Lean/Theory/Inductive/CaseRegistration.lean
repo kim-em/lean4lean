@@ -32,7 +32,7 @@ private theorem declaration_le (H : VDecl.WF env decl env') : env ≤ env' := by
     obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := h
     exact (VEnv.addConst_le ha).trans <| (VEnv.addConst_le hb).trans <|
       (VEnv.addConst_le hc).trans <| (VEnv.addConst_le hd).trans VEnv.addDefEq_le
-  | induct _ h =>
+  | induct h =>
     cases h with
     | intro _ _ _ _ h => exact VInductBlock.install_base_le h
 
@@ -233,7 +233,7 @@ theorem VEnv.WF'.registryInv {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
         rw [VEnv.addQuot_projections hadd] at hp
         obtain ⟨k, s, hs, hn⟩ := ih.projectionsEliminated hp
         exact ⟨k, s, hle.eliminators hs, hn⟩
-      | induct _ hadd =>
+      | induct hadd =>
         cases hadd with
         | intro _ hcompile _ helim hinstall =>
           rcases (VInductBlock.install_projections_iff hinstall).mp hp with
