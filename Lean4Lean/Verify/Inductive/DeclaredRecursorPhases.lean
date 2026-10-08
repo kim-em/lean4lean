@@ -17,10 +17,6 @@ itself is `CompletedRecursorPhasesResult R.completed`; the lemmas here only
 add what is visible through the declared header and constructor traces
 (source lookups for nested restoration and the declared installation). -/
 
-@[simp] theorem ConstructorPhasesResult.completed_materializedFinal
-    (R : ConstructorPhasesResult H ctorEnv) :
-    R.completed.materializedFinal = R.materialized := rfl
-
 /-- Header metadata installed at the start of the verified pipeline remains
 retrievable, unchanged, after constructors and recursors are installed. -/
 theorem CompletedRecursorPhasesResult.findHeaderOfMem
@@ -680,84 +676,6 @@ theorem CompletedRecursorPhasesResult.sourcePrimaryRecursorSemantics
     R.declared.context.venv) at Hsemantics
   rwa [R.declared.contextVEnv] at Hsemantics
 
-/-- Turn the actual generated recursor entry selected by a primary
-restoration step into specification-facing semantics.  Installation fixes
-the old metadata and the independent recursor certificate fixes the abstract
-shape; callers supply only translation of the restored concrete telescope
-and the (separately audited) primary-name preservation fact. -/
-def CompletedRecursorPhasesResult.restoredPrimaryRecursorSemantics
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
-    (ownerIdx : Nat) (howner : ownerIdx < indTypes.size)
-    (hentry : ownerIdx < H.entries.length)
-    (hdecl : ownerIdx < decl.types.length)
-    (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
-      oldRecName sourceProdEnv targetProdEnv)
-    (holdRecName : oldRecName =
-      Lean.mkRecName indTypes[ownerIdx]!.name)
-    (canonicalEnv : VEnv)
-    (Htype : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
-      Hstep.restored.newInfo.type (H.entries[ownerIdx]'hentry).2.type)
-    (hname : (H.entries[ownerIdx]'hentry).2.name =
-      Hstep.restored.newRecName)
-    (Hwf : (H.entries[ownerIdx]'hentry).2.toVConstant.WF canonicalEnv) :
-    RestoredPrimaryRecursorSemantics decl (decl.types[ownerIdx]'hdecl) c.safety
-      Hstep
-      canonicalEnv := by
-  have hrecInfo : ownerIdx < H.recInfos.size := by
-    rw [H.cardinality.records]
-    have htypes : indTypes.size = decl.types.length := by
-      simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
-    rwa [← htypes]
-  let E := H.generated.entry ownerIdx hentry
-  have hlookup := H.findRecursorOfMem (List.getElem_mem hentry)
-  have hlookupE : outEnv.find? (Lean.mkRecName indTypes[ownerIdx]!.name) =
-      some (.recInfo E.info) := by
-    change outEnv.find? H.entries[ownerIdx].1.name =
-      some H.entries[ownerIdx].1 at hlookup
-    rw [E.source_eq] at hlookup
-    change outEnv.find? E.info.name = some (.recInfo E.info) at hlookup
-    rwa [E.name] at hlookup
-  have holdInfo : Hstep.oldInfo = E.info := by
-    have hstepLookup : outEnv.find?
-        (Lean.mkRecName indTypes[ownerIdx]!.name) =
-          some (.recInfo Hstep.oldInfo) := by
-      simpa [holdRecName] using Hstep.lookup
-    exact ConstantInfo.recInfo.inj (Option.some.inj
-      (hstepLookup.symm.trans hlookupE))
-  have Hcore : TrInductDeclCore sourceEnv H.localContext.lparams nparams
-      indTypes.toList isUnsafe decl Hheaders.context.venv
-        R.declared.venvCtors := by
-    rw [H.localExtends.lparams_eq]
-    exact R.core
-  have Hcertificate := H.generated.recursorCertificate H.localWF H.bindings
-    H.params H.noAlias H.cardinality Hcore
-  have hrecursor : ownerIdx < (H.entries.map Prod.snd).length := by
-    simpa using hentry
-  have Hshape := Hcertificate.shapes ownerIdx hdecl hrecursor
-  refine {
-    recursor := (H.entries[ownerIdx]'hentry).2
-    safety_le := ?_
-    uvars := ?_
-    type := Htype
-    name := hname
-    wf := Hwf
-    shape := ?_ }
-  · rw [← H.localExtends.safety_eq]
-    rw [holdInfo]
-    exact E.translated.1.1
-  · rw [holdInfo]
-    simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
-      E.translated.1.2.1
-  · rcases Hshape with ⟨Hshape⟩
-    exact ⟨by simpa only [List.getElem_map] using Hshape.toNested⟩
-
 /-- Direct executable-to-source realization for a restored primary recursor.
 Unlike `restoredPrimaryRecursorSemantics`, this theorem does not transport a
 shape from the expanded abstract declaration.  It derives the source shape
@@ -937,22 +855,6 @@ def CompletedRecursorPhasesResult.declaredBlockCertificate
       c.lparams H.elimLevel H.localContext stats indTypes H.recInfos H.entries := Hgenerated
   exact Hgenerated'.toBlockCertificate decl.projectionEntries H.declaredStaged
     H.localWF H.bindings H.params Hheaders.typesWF R.declared.ctorsWF hrules
-
-/-- The declared block certificate certifies the same abstract block as the
-completed one; only the retained installation traces differ. -/
-theorem CompletedRecursorPhasesResult.declaredBlockCertificate_block
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
-    (rules : List VDefEq)
-    (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
-    (H.declaredBlockCertificate rules hrules).block =
-      (H.blockCertificate rules hrules).block := rfl
 
 /-- The declared block registers the declaration's certified case eliminators. -/
 theorem CompletedRecursorPhasesResult.declaredBlockEliminatorsWF
