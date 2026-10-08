@@ -169,6 +169,28 @@ def fieldSlot (CI : List VExpr) (nF i : Nat) : Option Nat :=
     | .bvar j => j == nF - 1 - i
     | _ => false).map Prod.snd
 
+theorem fieldSlot_none {CI : List VExpr} {nF i : Nat} (h : fieldSlot CI nF i = none) :
+    VExpr.bvar (nF - 1 - i) ∉ CI := by
+  intro hmem
+  obtain ⟨k, hk, he⟩ := List.getElem_of_mem hmem
+  have zipped := List.mk_mem_zipIdx_iff_getElem?.mpr (List.getElem?_eq_getElem hk)
+  simp only [fieldSlot, Option.map_eq_none_iff, List.find?_eq_none] at h
+  have := h _ zipped
+  simp [he] at this
+
+theorem fieldSlot_instL (CI : List VExpr) (ls : List VLevel) (nF i : Nat) :
+    fieldSlot (CI.map (·.instL ls)) nF i = fieldSlot CI nF i := by
+  simp only [fieldSlot, List.zipIdx_map, List.find?_map, Option.map_map]
+  have hp : ((fun x : VExpr × Nat => match x.fst with
+        | .bvar j => j == nF - 1 - i
+        | _ => false) ∘ Prod.map (fun x => VExpr.instL ls x) id) =
+      (fun x : VExpr × Nat => match x.fst with
+        | .bvar j => j == nF - 1 - i
+        | _ => false) := by
+    funext ⟨e, k⟩; cases e <;> simp [VExpr.instL]
+  rw [hp]
+  rfl
+
 theorem fieldSlot_spec {CI : List VExpr} {nF i k : Nat} (h : fieldSlot CI nF i = some k) :
     ∃ hk : k < CI.length, CI[k] = .bvar (nF - 1 - i) := by
   simp only [fieldSlot, Option.map_eq_some_iff] at h
