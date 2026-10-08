@@ -327,14 +327,14 @@ theorem RestoredConstructorMappingTrace.constructorTypesInstalled
 
 /-- Every constructor of a production output is old, or a new constructor of the declaration
 with its safety flag. -/
-theorem RecursorPhasesResult.ctorIsUnsafe
+theorem CompletedRecursorPhasesResult.ctorIsUnsafe
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType} {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : RecursorPhasesResult R outEnv) :
+    (H : CompletedRecursorPhasesResult R.completed outEnv) :
     ∀ name old, outEnv.find? name = some (.ctorInfo old) →
       old.isUnsafe = isUnsafe ∨ ∃ ci, c.env.find? name = some ci := by
   intro name old hfind
@@ -360,7 +360,7 @@ theorem NestedLoweringResultClosed.familyConstructorTypeOrigins
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Hsources : SourceSyntaxChecks sourceTypes)
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
@@ -454,7 +454,7 @@ theorem NestedLoweringResultClosed.familiesConstructorTypeOrigins
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourceBVar : ∀ type ∈ sourceTypes, ∀ source ∈ type.ctors,
@@ -505,7 +505,7 @@ theorem NestedLoweringResultClosed.restorationConstructorTypeOrigins
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourceBVar : ∀ type ∈ sourceTypes, ∀ source ∈ type.ctors,
@@ -546,7 +546,7 @@ theorem NestedLoweringResultClosed.familyConstructorTypesInstalled
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Hsources : SourceSyntaxChecks sourceTypes)
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
@@ -606,7 +606,7 @@ theorem NestedLoweringResultClosed.familiesConstructorTypesInstalled
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourceBVar : ∀ type ∈ sourceTypes, ∀ source ∈ type.ctors,
@@ -655,7 +655,7 @@ theorem NestedLoweringResultClosed.restorationConstructorTypesInstalled
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourceBVar : ∀ type ∈ sourceTypes, ∀ source ∈ type.ctors,
@@ -690,7 +690,7 @@ theorem NestedLoweringResultClosed.constructorTypeRoundTripOfSource
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes

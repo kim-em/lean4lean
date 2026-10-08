@@ -4,7 +4,6 @@ import Lean4Lean.Verify.Inductive.Run.SemanticSpecification
 import Lean4Lean.Verify.Inductive.Run.FinalResult
 import Lean4Lean.Verify.Inductive.OrdinaryFinalDispatch
 import Lean4Lean.Verify.Inductive.PrimitiveDispatch
-import Lean4Lean.Verify.Inductive.PrimitiveFinalDispatch
 import Lean4Lean.Verify.Inductive.PrimitiveSpecification
 import Lean4Lean.Verify.Inductive.PrimitiveFinalSpecification
 import Lean4Lean.Verify.Inductive.EqBootstrap

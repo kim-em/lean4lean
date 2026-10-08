@@ -345,16 +345,16 @@ theorem NestedValidatedRunResult.restoredRecursorEntryInfos
         ∃ (s t : Environment) (Hstep : RestoredRecursorStep result E.loweredEnv
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
           (sourceTypes.map (·.name))
-          (E.production.production.completed.canonicalGeneration.recursorName owner) s t),
+          (E.production.production.canonicalGeneration.recursorName owner) s t),
           entry.1 = .recInfo Hstep.restored.newInfo ∧
           (compilationRestoration sourceDecl auxiliaries).recursor
-            (E.production.production.completed.canonicalGeneration.recursor owner) =
+            (E.production.production.canonicalGeneration.recursor owner) =
               some entry.2 ∧
           RestoredRecursorStepValue
             ((C.canonical.venvCtors.addEliminators C.canonical.eliminators).addProjections sourceDecl.projectionEntries) Hstep
             entry.2)
       (List.finRange
-        E.production.production.completed.generationSignature.families.size)
+        E.production.production.generationSignature.families.size)
       C.recursorEntries := by
   have Hentries := E.restoredRecursorEntries_of_hitShape C hC wf Hsources hadded Haux Hexpansion
     hnodup hparamsSize D hscoped
@@ -365,7 +365,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntryInfos
   refine forall₂_imp_mem_right Hentries ?_
   rintro owner entry hentry ⟨hrec, s, t, Hstep, Hw⟩
   refine ⟨s, t, Hstep, ?_, hrec, Hw⟩
-  have hn : E.production.production.completed.canonicalGeneration.recursorName owner ∈
+  have hn : E.production.production.canonicalGeneration.recursorName owner ∈
       sourceTypes.map (fun t => Lean.mkRecName t.name) ++
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1 := by
     rw [← hnames]
@@ -480,7 +480,7 @@ theorem NestedValidatedRunResult.restoredMajorInduct
   have hfamName : (E.production.loweredDecl.types[owner.val]'hi').name =
       E.production.compilationSignature.families[owner].name := by
     obtain ⟨hi, hinfo⟩ := E.generatedEntryOfStep owner Hstep
-    have h1 := E.production.production.completed.generated_getMajorInduct owner.val hi
+    have h1 := E.production.production.generated_getMajorInduct owner.val hi
     rw [hinfo] at h1
     exact h1.symm.trans (E.recursorMetadataOfStep owner Hstep).major
   rw [hmi, ← hfamName]
@@ -662,7 +662,7 @@ theorem NestedValidatedRunResult.restoredRuleRealizations
         Hstep.restored.newInfo.levelParams head)
       (E.production.compilationSignature.ownedConstructors owner)
       Hstep.restored.newInfo.rules := by
-  let P := E.production.production.completed
+  let P := E.production.production
   obtain ⟨hi, hinfo⟩ := E.generatedEntryOfStep owner Hstep
   have RR := P.ruleRealizations P.ruleRhsTranslations owner hi
   rw [hinfo] at RR

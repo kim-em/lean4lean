@@ -25,7 +25,7 @@ structure RestoredPrimaryOperationalFamilyAlignment
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlowering : NestedLoweringResultClosed loweredSourceEnv fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (hentry : familyIdx < Hprod.entries.length)
     (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
@@ -100,7 +100,7 @@ theorem NestedLoweringResultClosed.primaryOperationalFamilyAlignmentAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (hentry : familyIdx < Hprod.entries.length)

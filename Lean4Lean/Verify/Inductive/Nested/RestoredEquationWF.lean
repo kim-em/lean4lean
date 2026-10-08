@@ -229,12 +229,12 @@ theorem NestedValidatedRunResult.loweredEquationWF
     {outEnv : Environment}
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (k : Fin E.production.production.completed.generationSignature.constructors.size) :
-    (E.production.production.completed.canonicalGeneration.equation k).WF
-      E.production.production.completed.outVEnv := by
-  have H := E.production.production.completed.equationsWF
-    (E.production.production.completed.generatorBodyTranslations_of
-      E.production.production.completed.ruleRhsTranslations)
+    (k : Fin E.production.production.generationSignature.constructors.size) :
+    (E.production.production.canonicalGeneration.equation k).WF
+      E.production.production.outVEnv := by
+  have H := E.production.production.equationsWF
+    (E.production.production.generatorBodyTranslations_of
+      E.production.production.ruleRhsTranslations)
   exact H _ (by
     simp only [InductiveSignature.Instance.equations, List.mem_map, List.mem_finRange,
       true_and]
@@ -878,17 +878,17 @@ structure NestedRestoredEquationGaps
   /-- Projection names of the generated recursor types avoid the restorable
   names. -/
   recursorProjNames :
-    ∀ owner : Fin E.production.production.completed.generationSignature.families.size,
-      (E.production.production.completed.canonicalGeneration.recursorType owner).projNamesAvoid
+    ∀ owner : Fin E.production.production.generationSignature.families.size,
+      (E.production.production.canonicalGeneration.recursorType owner).projNamesAvoid
         (compilationRestoration sourceDecl auxiliaries).restorableNames = true
   /-- Projection names of the generated equations avoid the restorable names. -/
   equationProjNames :
-    ∀ k : Fin E.production.production.completed.generationSignature.constructors.size,
-      (E.production.production.completed.canonicalGeneration.equation k).lhs.projNamesAvoid
+    ∀ k : Fin E.production.production.generationSignature.constructors.size,
+      (E.production.production.canonicalGeneration.equation k).lhs.projNamesAvoid
           (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
-      (E.production.production.completed.canonicalGeneration.equation k).rhs.projNamesAvoid
+      (E.production.production.canonicalGeneration.equation k).rhs.projNamesAvoid
           (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
-      (E.production.production.completed.canonicalGeneration.equation k).type.projNamesAvoid
+      (E.production.production.canonicalGeneration.equation k).type.projNamesAvoid
           (compilationRestoration sourceDecl auxiliaries).restorableNames = true
   /-- The restoration lambda `λ params, J.c levels args` of every auxiliary
   constructor head has the restored type of the lowered auxiliary
@@ -1071,7 +1071,7 @@ theorem NestedValidatedRunResult.restoredEquationSubstitution
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv)
     (G : NestedRestoredEquationGaps E C auxiliaries) :
     RenamingRestorationSubstitutionOnCtx C.finalBaseVEnv
-      E.production.production.completed.outVEnv
+      E.production.production.outVEnv
       (compilationRestoration sourceDecl auxiliaries)
       ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
         fun _ => E.production.compilationSignature.params)
@@ -1137,7 +1137,7 @@ theorem NestedValidatedRunResult.restoredEquationSubstitution
       ∃ w, (compilationRestoration sourceDecl auxiliaries).recursor v = some w ∧
         C.finalBaseVEnv.constants w.name = some w.toVConstant := by
     intro v hv
-    have hcanon := E.production.production.completed.canonicalRecursors
+    have hcanon := E.production.production.canonicalRecursors
     change E.production.production.entries.map Prod.snd = _ at hcanon
     rw [hcanon] at hv
     simp only [InductiveSignature.Instance.recursors, List.mem_map, List.mem_finRange,
@@ -1147,6 +1147,7 @@ theorem NestedValidatedRunResult.restoredEquationSubstitution
       (List.mem_finRange owner)
     refine ⟨E.recursorName_not_head Haux Hexpansion hnodup owner,
       G.recursorProjNames owner, w, hrw.1, VEnv.addConstVals_get hrecAdded hw⟩
+  rw [← E.production.constructors.declared.contextVEnv] at S₁
   have S₂ := RenamingReplacement.ofAddConstants_recursors hSwf hnp
     E.production.production.installed S₁ hrecs
   exact RenamingRestorationSubstitutionOnCtx.of_lambda S₂ hnp
@@ -1175,12 +1176,12 @@ theorem NestedValidatedRunResult.hrestoredWF_of_substitution
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
         ∃ ρ σ, RenamingRestorationSubstitution C.finalBaseVEnv
-            E.production.production.completed.outVEnv
+            E.production.production.outVEnv
             (compilationRestoration sourceDecl auxiliaries) ρ σ ∧
-          ∀ k : Fin E.production.production.completed.generationSignature.constructors.size,
-            (E.production.production.completed.canonicalGeneration.equation k).lhs.ProjNamesFixed σ ∧
-            (E.production.production.completed.canonicalGeneration.equation k).rhs.ProjNamesFixed σ ∧
-            (E.production.production.completed.canonicalGeneration.equation k).type.ProjNamesFixed
+          ∀ k : Fin E.production.production.generationSignature.constructors.size,
+            (E.production.production.canonicalGeneration.equation k).lhs.ProjNamesFixed σ ∧
+            (E.production.production.canonicalGeneration.equation k).rhs.ProjNamesFixed σ ∧
+            (E.production.production.canonicalGeneration.equation k).type.ProjNamesFixed
               σ) :
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
@@ -1194,10 +1195,10 @@ theorem NestedValidatedRunResult.hrestoredWF_of_substitution
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
-        ∀ (k : Fin E.production.production.completed.generationSignature.constructors.size)
+        ∀ (k : Fin E.production.production.generationSignature.constructors.size)
           (rule : VDefEq),
           (compilationRestoration sourceDecl auxiliaries).equation
-              (E.production.production.completed.canonicalGeneration.equation k) =
+              (E.production.production.canonicalGeneration.equation k) =
             some rule →
           rule.WF C.finalBaseVEnv := by
   intro auxiliaries D C hC hV k rule hrule
@@ -1254,10 +1255,10 @@ theorem NestedValidatedRunResult.hrestoredWF_of_gaps
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
-        ∀ (k : Fin E.production.production.completed.generationSignature.constructors.size)
+        ∀ (k : Fin E.production.production.generationSignature.constructors.size)
           (rule : VDefEq),
           (compilationRestoration sourceDecl auxiliaries).equation
-              (E.production.production.completed.canonicalGeneration.equation k) =
+              (E.production.production.canonicalGeneration.equation k) =
             some rule →
           rule.WF C.finalBaseVEnv := by
   intro auxiliaries D C hC hV k rule hrule
@@ -1268,7 +1269,7 @@ theorem NestedValidatedRunResult.hrestoredWF_of_gaps
   have S := E.restoredEquationSubstitution wf Hsources hadded henvTypes Haux Hexpansion
     hparamsSize D' Hrestoring C hC hV G'
   have hrule' : (compilationRestoration sourceDecl aux').equation
-      (E.production.production.completed.canonicalGeneration.equation k) = some rule := by
+      (E.production.production.canonicalGeneration.equation k) = some rule := by
     simp only [Restoration.equation, D.expr_eq D'] at hrule ⊢
     exact hrule
   obtain ⟨hl, hr, ht⟩ := G'.equationProjNames k

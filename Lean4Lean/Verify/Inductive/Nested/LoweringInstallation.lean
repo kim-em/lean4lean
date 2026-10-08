@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.LoweringTrace
 import Lean4Lean.Verify.Inductive.Nested.Compilation
-import Lean4Lean.Verify.Inductive.Equation.Setup
+import Lean4Lean.Verify.Inductive.CompletedEquationSetup
 
 namespace Lean4Lean
 
@@ -22,7 +22,7 @@ theorem RestoredConstructorMappingTrace.ofInstalled
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (howner : owner ∈ indTypes.toList)
     (Hmapping : LoweredConstructorMappings mappingEnv params nparams result
       sources state (targets, finalState))

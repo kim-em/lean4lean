@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Environment.Extension
 import Lean4Lean.Verify.Inductive
+import Lean4Lean.Verify.QuotInit
 
 namespace Lean4Lean
 open Lean4Lean
@@ -131,99 +132,6 @@ theorem addOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hc
     exact .opaque (ci' := ci') ⟨⟨htr, hname⟩, hvalue.mono hto⟩
       (by rwa [← old.map_wf.find?'_eq_find?]) (hci.mono hto) hadd old
 
-private theorem vconstant_eq_of_fields {a b : VConstant}
-    (huvars : a.uvars = b.uvars) (htype : a.type = b.type) : a = b := by
-  cases a
-  cases b
-  simp_all
-
-/-- The exact family arity accepted by `checkEqType` translates to the
-canonical abstract equality constant.  This statement is independent of the
-surrounding environment because the arity contains only a universe parameter,
-sorts, and bound variables. -/
-theorem expectedEqType_translation (env : VEnv) (u : Name) :
-    TrExprS env [u] [] (expectedEqType u) eqConst.type := by
-  unfold expectedEqType eqConst
-  change TrExprS env [u] []
-    (.forallE `α (.sort (.param u))
-      (.forallE .anonymous (.bvar 0)
-        (.forallE .anonymous (.bvar 1) (.sort .zero) .default) .default)
-      .implicit)
-    (.forallE (.sort (.param 0))
-      (.forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero))))
-  apply TrExprS.forallE
-  · refine ⟨_, VEnv.HasType.sort ?_⟩
-    change VLevel.WF 1 (.param 0)
-    trivial
-  · apply VEnv.IsType.forallE
-    · refine ⟨.param 0, ?_⟩
-      type_tac
-    · apply VEnv.IsType.forallE
-      · refine ⟨.param 0, ?_⟩
-        type_tac
-      · exact ⟨_, VEnv.HasType.sort (by trivial)⟩
-  · exact .sort (by simp [VLevel.ofLevel])
-  · apply TrExprS.forallE
-    · refine ⟨.param 0, ?_⟩
-      type_tac
-    · apply VEnv.IsType.forallE
-      · refine ⟨.param 0, ?_⟩
-        type_tac
-      · exact ⟨_, VEnv.HasType.sort (by trivial)⟩
-    · exact .bvar rfl
-    · apply TrExprS.forallE
-      · refine ⟨.param 0, ?_⟩
-        type_tac
-      · exact ⟨_, VEnv.HasType.sort (by trivial)⟩
-      · exact .bvar rfl
-      · exact .sort rfl
-
-theorem checkEqType.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
-    (checkEqType env).WF fun _ => (ves.venv .unsafe).QuotReady := by
-  intro _ h
-  unfold checkEqType at h
-  simp only [Environment.get] at h
-  split at h <;> try contradiction
-  rename_i ci hfind
-  cases ci with
-  | inductInfo info =>
-    cases hlevels : info.levelParams with
-    | nil => simp_all [bind, Except.bind, pure, Pure.pure, Except.pure]
-    | cons u us =>
-      cases us with
-      | cons _ _ => simp_all [bind, Except.bind, pure, Pure.pure, Except.pure]
-      | nil =>
-        cases hctors : info.ctors with
-        | nil => simp_all [bind, Except.bind, pure, Pure.pure, Except.pure]
-        | cons eqRefl ctors =>
-          cases ctors with
-          | cons _ _ => simp_all [bind, Except.bind, pure, Pure.pure, Except.pure]
-          | nil =>
-            simp [ExprBuildT.run, bind, Except.bind, pure, Pure.pure,
-              Except.pure, hlevels, hctors] at h
-            split at h
-            · contradiction
-            · rename_i htype
-              have heqv : (info.type == expectedEqType u) = true := by
-                simpa [bne] using htype
-              obtain ⟨ci', hci', htr⟩ :=
-                (wf.tr (safety := .unsafe)).find? hfind DefinitionSafety.unsafe_le
-              have huvars : ci'.uvars = eqConst.uvars := by
-                rw [← htr.2.1]
-                simp [ConstantInfo.levelParams, ConstantInfo.toConstantVal,
-                  hlevels, eqConst]
-              have htrExpected : TrExprS (ves.venv .unsafe) [u] []
-                  (expectedEqType u) ci'.type := by
-                simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal,
-                  hlevels] using htr.2.2.eqv heqv
-              have htypeV : ci'.type = eqConst.type := by
-                apply TrExprS.unique (by trivial) htrExpected
-                exact expectedEqType_translation (ves.venv .unsafe) u
-              have hciEq : ci' = eqConst :=
-                vconstant_eq_of_fields huvars htypeV
-              simpa [VEnv.QuotReady, hciEq] using hci'
-  | _ => simp_all [( · >>= · ), Except.bind, pure, Pure.pure, Except.pure]
-
 /-- Exact declaration-dispatch bridge for inductives.  The primitive-family
 precheck is retained in the premise so the verified continuation receives the
 same `allowPrimitive` bit as the executable branch. -/
@@ -247,61 +155,6 @@ theorem addInductiveDeclaration.WF
     exact Hadd allowPrimitive hallow
   have Hcombined := Hcheck.bind fun _ Hrun => Hrun
   simpa [addDecl] using Hcombined
-
-/-- Declaration-level composition through source checking and nested
-lowering.  The continuation starts exactly at `addInductiveAfterLowering`
-and receives both the source-syntax certificate and the closed lowering
-trace; primitive recognition has already been synchronized with `addDecl`. -/
-theorem addInductiveDeclaration.checkedLoweringClosedWF
-    (env : Environment) (lparams : List Name) (nparams : Nat)
-    (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (hclosures : VerifyInductive.MutualInductivesClosed env)
-    (Henv : VerifyInductive.EnvironmentTypesClosed env)
-    (Q : Environment → Prop)
-    (Hfinish : ∀ allowPrimitive res,
-      Primitive.checkInductive env lparams nparams types
-        isUnsafe = .ok allowPrimitive →
-      VerifyInductive.SourceSyntaxChecks types →
-      VerifyInductive.NestedLoweringResultClosed env fuel.inductiveFuel
-        nparams types
-        { lvls := lparams.map .param, newTypes := types.toArray } res →
-      (Environment.addInductiveAfterLowering env lparams nparams types
-        isUnsafe allowPrimitive fuel res).WF Q) :
-    (addDecl env (.inductDecl lparams nparams types isUnsafe)
-      (check := true) (fuel := fuel)).WF Q := by
-  apply addInductiveDeclaration.WF env lparams nparams types isUnsafe fuel Q
-  intro allowPrimitive hallow
-  apply VerifyInductive.Environment.addInductive.checkedLoweringClosedWF
-    env lparams nparams types isUnsafe allowPrimitive fuel hclosures Henv Q
-  intro res Hsource Hlower
-  exact Hfinish allowPrimitive res hallow Hsource Hlower
-
-/-- Well-formed-environment specialization of the declaration bridge.  This
-is the inductive analogue of `addAxiom.WF`/`addTheorem.WF`: all front-end and
-lowering obligations are discharged here, while `Hfinish` is precisely the
-remaining installation/restoration-to-`AddInduct` proof. -/
-theorem addInductiveDeclaration.preservesWF
-    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (lparams : List Name) (nparams : Nat) (types : List InductiveType)
-    (isUnsafe : Bool) (fuel : FuelConfig)
-    (Hfinish : ∀ allowPrimitive res,
-      Primitive.checkInductive env lparams nparams types
-        isUnsafe = .ok allowPrimitive →
-      VerifyInductive.SourceSyntaxChecks types →
-      VerifyInductive.NestedLoweringResultClosed env fuel.inductiveFuel
-        nparams types
-        { lvls := lparams.map .param, newTypes := types.toArray } res →
-      (Environment.addInductiveAfterLowering env lparams nparams types
-        isUnsafe allowPrimitive fuel res).WF fun env' =>
-          ∃ ves' : VEnvs, ves'.WFCore env' ∧
-            ∀ safety, ves.venv safety ≤ ves'.venv safety) :
-    (addDecl env (.inductDecl lparams nparams types isUnsafe)
-      (check := true) (fuel := fuel)).WF fun env' =>
-        ∃ ves' : VEnvs, ves'.WFCore env' ∧
-          ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  exact addInductiveDeclaration.checkedLoweringClosedWF env lparams nparams
-    types isUnsafe fuel wf.inductivesClosed
-      (VerifyInductive.VEnvs.WFCore.environmentTypesClosed wf) _ Hfinish
 
 /-- Complete checked declaration dispatch across the primitive, ordinary,
 and nested execution paths.  The executable primitive precheck selects the
@@ -475,20 +328,23 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hc
     (fun _ _ h => by cases h) (hle' safety) (v₀ :: rest) (H safety)
     (wf.tr (safety := safety)).map_wf hfresh hnd
 
-/-- Declaration forms admitted to the generic environment theorem.  Checked
-inductive declarations carry no declaration-specific semantic premise;
-ordinary, primitive, and nested evidence is reconstructed from execution. -/
+/-- Declaration forms admitted to the generic environment theorem.  Every
+declaration form is now modelled: checked inductive declarations carry no
+declaration-specific semantic premise (ordinary, primitive, and nested evidence
+is reconstructed from execution), and quotient initialization is verified by
+`addQuot.WF`.  The predicate is kept so that the statement of
+`addDecl.WF_of_canonicalEq` is unchanged; it is trivially satisfiable. -/
 def _root_.Lean.Declaration.IsModelled
-    (env : Environment) (ves : VEnvs) : Declaration → Prop
-  | .quotDecl => False
-  | _ => True
+    (_env : Environment) (_ves : VEnvs) (_decl : Declaration) : Prop := True
 
-/-- Successful checked addition of a currently modeled declaration preserves the core
-invariant, extends every safety-indexed abstract environment, and preserves the constructor
-certificates. The projection-walk corner is supplied by `hcorner`. -/
+/-- Successful checked addition of a declaration preserves the core invariant, extends every
+safety-indexed abstract environment, and preserves the constructor certificates. The
+projection-walk corner is supplied by `hcorner`; quotient initialization needs the abstract `Eq`
+at every safety level (`hq`). -/
 theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
-    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (hq : ∀ safety, (ves.venv safety).QuotReady)
+    (decl : Declaration) (_hdecl : decl.IsModelled env ves) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         VEnvs.CertPres env env' ves ves' := by
@@ -504,26 +360,12 @@ theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
   | opaqueDecl v =>
     exact (addOpaque.WF wf hcorner v).mono fun _ ⟨ves', hwf, hc, _, h⟩ =>
       ⟨ves', hwf, (h · |>.le), hc⟩
-  | quotDecl => simp [Declaration.IsModelled] at hdecl
+  | quotDecl => exact addQuot.WF wf hq
   | mutualDefnDecl vs =>
     exact (addMutual.WF wf hcorner vs).mono fun _ ⟨ves', hwf, hc, h⟩ => ⟨ves', hwf, h, hc⟩
   | inductDecl lparams nparams types isUnsafe =>
     exact addInductiveDeclaration.finalPreservesWF wf hcorner
       lparams nparams types isUnsafe {}
-
-/-- Every already-modeled declaration form preserves the canonical `Eq`
-invariant needed by the subsequent quotient and inductive boundaries. -/
-theorem addDecl.WFCanonicalEq
-    {env : Environment} {ves : VEnvs}
-    (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
-    (hEq : VerifyInductive.CanonicalEqEnvs ves)
-    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
-    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WFCore env' ∧
-        VerifyInductive.CanonicalEqEnvs ves' ∧
-        ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF wf hcorner decl hdecl).mono fun _ ⟨ves', wf', hle, _⟩ =>
-    ⟨ves', wf', hEq.mono hle, hle⟩
 
 /-! ### Canonical equality -/
 
@@ -535,26 +377,21 @@ theorem VEnvs.HasCanonicalEq.mono {ves ves' : VEnvs} (h : ves.HasCanonicalEq)
     (hle : ∀ safety, ves.venv safety ≤ ves'.venv safety) : ves'.HasCanonicalEq :=
   fun safety => (h safety).mono (hle safety)
 
-/-- `HasCanonicalEq` contains the `Eq` clause of `CanonicalEqEnvs`. -/
-theorem VEnvs.HasCanonicalEq.canonicalEqEnvs {ves : VEnvs} (h : ves.HasCanonicalEq) :
-    VerifyInductive.CanonicalEqEnvs ves :=
-  fun safety => (h safety).quotReady
-
 /-- The top-level preservation theorem in the canonical-`Eq` formulation. Its hypotheses are the
 well-formedness of the current environment (`VEnvs.WF`: the core invariant together with the
 constructor telescope certificates), canonical equality at every safety level, and that the
 declaration is of a modelled form; the output environment again satisfies `VEnvs.WF`. On this
 branch the checker runs in scoped contexts, so no strengthening hypothesis is needed, and the
 certificates resolve the projection-walk corner, so no choice hypothesis is needed either.
-Canonical equality is not used by the proof and is retained so that the statement matches the
-mainline's. -/
+Canonical equality is used only for quotient initialization, whose abstract rule types
+`Quot.lift` against `Eq` at every safety level (`VEnv.HasCanonicalEq.quotReady`). -/
 theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (_heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
+    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
     (decl : Declaration) (hdecl : decl.IsModelled env ves) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF wf.toWFCore wf.ctorCert.corner decl hdecl).mono fun _ ⟨ves', wf', hle, hcert⟩ =>
-    ⟨ves', ⟨wf', hcert wf.ctorCert⟩, hle⟩
+  (addDecl.WF wf.toWFCore wf.ctorCert.corner (fun safety => (heq safety).quotReady) decl
+    hdecl).mono fun _ ⟨ves', wf', hle, hcert⟩ => ⟨ves', ⟨wf', hcert wf.ctorCert⟩, hle⟩
 
 /-- The top-level preservation theorem over the core invariant `VEnvs.WFCore`, which does not
 record constructor telescope certificates. In exchange it assumes canonical
@@ -562,15 +399,16 @@ record constructor telescope certificates. In exchange it assumes canonical
 projection-walk corner instead (`projectionWalkCorner_choice`). This hypothesis is a property of
 the abstract environment that the prelude installs and every extension preserves, but it is a
 semantic assumption about `Classical.choice`; `addDecl.WF_of_canonicalEq` replaces it by the
-certificates, which every checked declaration establishes itself. -/
+certificates, which every checked declaration establishes itself. Canonical equality is used only
+for quotient initialization. -/
 theorem addDecl.WF_of_canonicalChoice {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (_heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
+    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
     (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
     (decl : Declaration) (hdecl : decl.IsModelled env ves) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF wf (fun safety => .inl (hch safety)) decl hdecl).mono
-    fun _ ⟨ves', wf', hle, _⟩ => ⟨ves', wf', hle⟩
+  (addDecl.WF wf (fun safety => .inl (hch safety)) (fun safety => (heq safety).quotReady) decl
+    hdecl).mono fun _ ⟨ves', wf', hle, _⟩ => ⟨ves', wf', hle⟩
 
 /-- Iterable form of `addDecl.WF_of_canonicalEq`: `VEnvs.WF` and canonical equality are
 preserved by the output environments, so the theorem applies again to the next declaration of a
@@ -594,14 +432,3 @@ theorem addDecl.WFHasCanonicalChoice {env : Environment} {ves : VEnvs} (wf : ves
         ∀ safety, ves.venv safety ≤ ves'.venv safety :=
   (addDecl.WF_of_canonicalChoice wf heq hch decl hdecl).mono fun _ ⟨ves', wf', hle⟩ =>
     ⟨ves', wf', heq.mono hle, fun safety => (hch safety).mono (hle safety), hle⟩
-
-/-- `addDecl.WFCanonicalEq` in the canonical-`Eq` formulation; the
-`CanonicalEqEnvs` invariant follows from `HasCanonicalEq`. -/
-theorem addDecl.WFCanonicalEq_of_canonicalEq {env : Environment} {ves : VEnvs}
-    (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) (heq : ves.HasCanonicalEq)
-    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
-    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WFCore env' ∧
-        VerifyInductive.CanonicalEqEnvs ves' ∧
-        ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  addDecl.WFCanonicalEq wf hcorner heq.canonicalEqEnvs decl hdecl

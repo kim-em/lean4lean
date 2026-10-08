@@ -79,7 +79,7 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.addDecl.WF_of_canonicalChoice
 #inductive_audit Lean4Lean.addDecl.WFHasCanonicalEq
 #inductive_audit Lean4Lean.addDecl.WFHasCanonicalChoice
-#inductive_audit Lean4Lean.addDecl.WFCanonicalEq_of_canonicalEq
+#inductive_audit Lean4Lean.addQuot.WF
 #inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveFinalResultWF
 #inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.primitiveInductiveFinalResultWF
 #inductive_audit Lean4Lean.VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF

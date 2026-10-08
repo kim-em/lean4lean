@@ -77,21 +77,21 @@ theorem NestedValidatedRunResult.loweredRecursorTypeTranslation
     {outEnv : Environment}
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (owner : Fin E.production.production.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.completed.canonicalGeneration.recursorName owner)
+      (E.production.production.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
-    TrExprS E.production.production.completed.outVEnv Hstep.oldInfo.levelParams []
+    TrExprS E.production.production.outVEnv Hstep.oldInfo.levelParams []
       Hstep.oldInfo.type
-      (E.production.production.completed.canonicalGeneration.recursorType owner) := by
-  rcases E.production.production.completed.metadataRealization owner with
+      (E.production.production.canonicalGeneration.recursorType owner) := by
+  rcases E.production.production.metadataRealization owner with
     ⟨rec, hrec, _, M⟩
   have hlen : owner.val < E.production.production.entries.length := by
     rw [show E.production.production.entries =
-      E.production.production.completed.entries from rfl,
-      E.production.production.completed.entries_length_eq]
+      E.production.production.entries from rfl,
+      E.production.production.entries_length_eq]
     exact owner.isLt
   have hmem := List.getElem_mem (l := E.production.production.entries)
     (n := owner.val) hlen
@@ -119,11 +119,11 @@ theorem NestedValidatedRunResult.loweredRecursorParameterTelescope
     {outEnv : Environment}
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (owner : Fin E.production.production.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.completed.canonicalGeneration.recursorName owner)
+      (E.production.production.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
     ∃ suffix, Expr.ForallTelescope Hstep.oldInfo.type result.nparams suffix :=
   Hstep.typeTelescope.forallTelescope_of_recursorType
@@ -141,16 +141,16 @@ theorem NestedValidatedRunResult.recursorOwnerOfGenerated
       sourceDecl lparams nparams isUnsafe safety outEnv)
     {name : Name}
     (hname : name ∈ (E.production.production.entries.map Prod.snd).map (·.name)) :
-    ∃ owner : Fin E.production.production.completed.generationSignature.families.size,
-      name = E.production.production.completed.canonicalGeneration.recursorName owner := by
+    ∃ owner : Fin E.production.production.generationSignature.families.size,
+      name = E.production.production.canonicalGeneration.recursorName owner := by
   rcases List.mem_map.mp hname with ⟨value, hvalue, rfl⟩
   rcases List.mem_iff_getElem.mp hvalue with ⟨i, hi, hget⟩
-  have hi' : i < E.production.production.completed.generationSignature.families.size := by
+  have hi' : i < E.production.production.generationSignature.families.size := by
     have : i < E.production.production.entries.length := by simpa using hi
-    rw [← E.production.production.completed.entries_length_eq]
+    rw [← E.production.production.entries_length_eq]
     exact this
   refine ⟨⟨i, hi'⟩, ?_⟩
-  rcases E.production.production.completed.metadataRealization ⟨i, hi'⟩ with
+  rcases E.production.production.metadataRealization ⟨i, hi'⟩ with
     ⟨_, _, hvalueEq, _⟩
   rw [← hget, List.getElem_map]
   exact congrArg VConstVal.name hvalueEq
@@ -182,12 +182,12 @@ theorem NestedValidatedRunResult.restoredRecursorTypes'
       CertifiedSpecializations (ves.venv (if isUnsafe then .unsafe else .safe))
         auxiliaries ∧
       (compilationRestoration sourceDecl auxiliaries).Scoped ∧
-      ∀ (owner : Fin E.production.production.completed.generationSignature.families.size)
+      ∀ (owner : Fin E.production.production.generationSignature.families.size)
         {stepSource stepTarget : Environment}
         (Hstep : RestoredRecursorStep result E.loweredEnv
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
           (sourceTypes.map (·.name))
-          (E.production.production.completed.canonicalGeneration.recursorName owner)
+          (E.production.production.canonicalGeneration.recursorName owner)
           stepSource stepTarget),
         Expr.HitShapeTele
           ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary))
@@ -198,7 +198,7 @@ theorem NestedValidatedRunResult.restoredRecursorTypes'
           TrExprS targetEnv Hstep.restored.newInfo.levelParams []
             Hstep.restored.newInfo.type t →
           (compilationRestoration sourceDecl auxiliaries).expr
-            (E.production.production.completed.canonicalGeneration.recursorType owner) =
+            (E.production.production.canonicalGeneration.recursorType owner) =
               some t := by
   rcases E.restorationMapAgreement wf Hsources with
     ⟨envTypes, auxiliaries, hadded, _, hnames, _, hcertified, _, hscoped, _,
@@ -227,15 +227,15 @@ theorem NestedValidatedRunResult.recursorOwnerOfEntry
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     {ownerIdx : Nat} (hentry : ownerIdx < E.production.production.entries.length) :
-    ∃ owner : Fin E.production.production.completed.generationSignature.families.size,
+    ∃ owner : Fin E.production.production.generationSignature.families.size,
       owner.val = ownerIdx ∧
       Lean.mkRecName E.production.indTypes[ownerIdx]!.name =
-        E.production.production.completed.canonicalGeneration.recursorName owner := by
-  have hi : ownerIdx < E.production.production.completed.generationSignature.families.size := by
-    rw [← E.production.production.completed.entries_length_eq]
+        E.production.production.canonicalGeneration.recursorName owner := by
+  have hi : ownerIdx < E.production.production.generationSignature.families.size := by
+    rw [← E.production.production.entries_length_eq]
     exact hentry
   refine ⟨⟨ownerIdx, hi⟩, rfl, ?_⟩
-  rcases E.production.production.completed.metadataRealization ⟨ownerIdx, hi⟩ with
+  rcases E.production.production.metadataRealization ⟨ownerIdx, hi⟩ with
     ⟨rec, hrec, _, M⟩
   let G := E.production.production.generated.entry ownerIdx hentry
   have h : ConstantInfo.recInfo rec = .recInfo G.info := hrec.symm.trans G.source_eq
@@ -286,12 +286,12 @@ theorem NestedValidatedRunResult.restoredRecursorTypeConstants
       CertifiedSpecializations (ves.venv (if isUnsafe then .unsafe else .safe))
         auxiliaries ∧
       (compilationRestoration sourceDecl auxiliaries).Scoped ∧
-      ∀ (owner : Fin E.production.production.completed.generationSignature.families.size)
+      ∀ (owner : Fin E.production.production.generationSignature.families.size)
         {stepSource stepTarget : Environment}
         (Hstep : RestoredRecursorStep result E.loweredEnv
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
           (sourceTypes.map (·.name))
-          (E.production.production.completed.canonicalGeneration.recursorName owner)
+          (E.production.production.canonicalGeneration.recursorName owner)
           stepSource stepTarget),
         Expr.HitShapeTele
           ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary))
@@ -305,7 +305,7 @@ theorem NestedValidatedRunResult.restoredRecursorTypeConstants
           rec.type = Hstep.restored.newInfo.type →
           checkSafety ≤ (ConstantInfo.recInfo rec).safety →
           ∃ type, (compilationRestoration sourceDecl auxiliaries).expr
-              (E.production.production.completed.canonicalGeneration.recursorType owner) =
+              (E.production.production.canonicalGeneration.recursorType owner) =
                 some type ∧
             venv.constants rec.name = some ⟨rec.levelParams.length, type⟩ := by
   rcases E.restoredRecursorTypes' wf Hsources with

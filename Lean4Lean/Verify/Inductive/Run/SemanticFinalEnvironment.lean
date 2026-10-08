@@ -123,8 +123,8 @@ theorem SemanticRunWithStatsResult.extendSafeExact
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
-  rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
-  let B0 := Hrecursors.blockCertificate T.rules T.rulesWF
+  rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
+  let B0 := Hrecursors.declaredBlockCertificate T.rules T.rulesWF
   let B := B0.sf_mono (safety := .safe) (by
     rw [hsafety]
     exact DefinitionSafety.le_rfl)
@@ -136,7 +136,8 @@ theorem SemanticRunWithStatsResult.extendSafeExact
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) B.block :=
     by simpa [B, B0, BlockCertificate.sf_mono, StagedBlock.sf_mono, BlockCertificate.block] using
-      (T.compilation hnonempty).compilesTo
+      (show OrdinaryCompilationCertificate _ decl B0.block from
+        T.compilation hnonempty).compilesTo
   have hconstructors :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
@@ -149,7 +150,7 @@ theorem SemanticRunWithStatsResult.extendSafeExact
     Hrecursors.constructorOwnersPresent wf.constructorOwners
   rcases B.extendSafeExact wf hcorner hdecl hcompile horigins T.recursorProvenance
       Hrecursors.closed howners hconstructors
-      (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
+      (fun safety => Hrecursors.declaredBlockEliminatorsReplay T.rules T.rulesWF
         (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
     ⟨ves', wf', hle, hadd, hsafe⟩
   have htypes : (ves.venv .safe).addConstVals (Hheaders.entries.map Prod.snd) =
@@ -160,7 +161,7 @@ theorem SemanticRunWithStatsResult.extendSafeExact
   refine ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,
     wf', hle, R.core, hadd, VEnvs.CertPres.ofOrigin (isUnsafe := isUnsafe)
       (venvH := Hheaders.context.venv) hle wf'.mono ?_
-      fun hfind => Hrecursors.completed.ctorOrigin hfind⟩
+      fun hfind => Hrecursors.ctorOrigin hfind⟩
   cases isUnsafe
   · exact hH
   · exact hH.trans (wf'.mono DefinitionSafety.unsafe_le)
@@ -218,8 +219,8 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
-  rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
-  let B0 := Hrecursors.blockCertificate T.rules T.rulesWF
+  rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
+  let B0 := Hrecursors.declaredBlockCertificate T.rules T.rulesWF
   let B := B0.sf_mono (safety := .unsafe) (by
     rw [hsafety]
     exact DefinitionSafety.le_rfl)
@@ -231,7 +232,8 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .unsafe) B.block :=
     by simpa [B, B0, BlockCertificate.sf_mono, StagedBlock.sf_mono, BlockCertificate.block] using
-      (T.compilation hnonempty).compilesTo
+      (show OrdinaryCompilationCertificate _ decl B0.block from
+        T.compilation hnonempty).compilesTo
   have hisUnsafe : isUnsafe = true := by
     exact hproduction.trans (by rw [hsafety]; decide)
   have hconstructors :
@@ -260,7 +262,7 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
         hlocalSafety hrecursors
   rcases B.extendUnsafeOfHiddenExact wf hcorner hdecl hcompile
       horigins T.recursorProvenance hentries Hrecursors.closed howners hconstructors
-      (Hrecursors.blockEliminatorsWF T.rules T.rulesWF) with
+      (Hrecursors.declaredBlockEliminatorsWF T.rules T.rulesWF) with
     ⟨ves', wf', hle, hadd, hfinal⟩
   have htypes : (ves.venv .unsafe).addConstVals (Hheaders.entries.map Prod.snd) =
       some Hheaders.context.venv := by
@@ -270,7 +272,7 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
   refine ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,
     wf', hle, R.core, hadd, VEnvs.CertPres.ofOrigin (isUnsafe := isUnsafe)
       (venvH := Hheaders.context.venv) hle wf'.mono ?_
-      fun hfind => Hrecursors.completed.ctorOrigin hfind⟩
+      fun hfind => Hrecursors.ctorOrigin hfind⟩
   have : (if isUnsafe then DefinitionSafety.unsafe else .safe) = .unsafe := by
     simp [hisUnsafe]
   rw [this]

@@ -73,7 +73,7 @@ private theorem restoredHeaderValidationValidAux
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
@@ -215,7 +215,7 @@ theorem RestoredHeaderValidationEnvironment.validOfLowering
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Hvalidation : RestoredHeaderValidationEnvironment loweredEnv c.env
       (sourceTypes.map (fun type => type.name)) sourceTypes validationEnv)

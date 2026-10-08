@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.Basic
 
 /-!
-Run with `lake env lean docs/inductives/SingletonStrengthening.lean`.
+Run with `lake env lean docs/inductives/history/SingletonStrengthening.lean`.
 
 Source admissibility and the exact declarative equality chain for the
 strengthening countermodel in STRENGTHENING.md. The opaque axioms below are

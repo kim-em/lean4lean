@@ -699,35 +699,35 @@ theorem NestedValidatedRunResult.recursorProjNames_of
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.production.loweredDecl.types ++
       E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup) :
-    ∀ owner : Fin E.production.production.completed.generationSignature.families.size,
-      (E.production.production.completed.canonicalGeneration.recursorType owner).projNamesAvoid
+    ∀ owner : Fin E.production.production.generationSignature.families.size,
+      (E.production.production.canonicalGeneration.recursorType owner).projNamesAvoid
         (compilationRestoration sourceDecl auxiliaries).restorableNames = true := by
   intro owner
-  have hfam := E.production.production.completed.toCompletedRecursorConstruction.consumedGeneration.familyCount
+  have hfam := E.production.production.toCompletedRecursorConstruction.consumedGeneration.familyCount
   have howner : owner.val < E.production.indTypes.size := by
     have := owner.isLt
     simp only [CompletedRecursorConstruction.generationSignature] at this
     omega
-  have hrecSize : E.production.production.completed.toCompletedRecursorConstruction.recInfos.size =
+  have hrecSize : E.production.production.toCompletedRecursorConstruction.recInfos.size =
       E.production.indTypes.size := by
-    rw [E.production.production.completed.toCompletedRecursorConstruction.cardinality.records]
+    rw [E.production.production.toCompletedRecursorConstruction.cardinality.records]
     simpa using (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
       E.production.constructors.completed.core).symm
   have hrec : owner.val <
-      E.production.production.completed.toCompletedRecursorConstruction.recInfos.size := by
+      E.production.production.toCompletedRecursorConstruction.recInfos.size := by
     omega
-  have htr := E.production.production.completed.toCompletedRecursorConstruction.canonicalTypeTranslations
+  have htr := E.production.production.toCompletedRecursorConstruction.canonicalTypeTranslations
     owner.val howner
-  have hnative : (E.production.production.completed.toCompletedRecursorConstruction.nativeTarget
+  have hnative : (E.production.production.toCompletedRecursorConstruction.nativeTarget
       owner.val).type =
-      E.production.production.completed.canonicalGeneration.recursorType owner := by
+      E.production.production.canonicalGeneration.recursorType owner := by
     simp only [CompletedRecursorConstruction.nativeTarget, dif_pos owner.isLt,
       Instance.recursor]
     rfl
   rw [hnative] at htr
   have W := E.whnfHitOKFacts wf Hsources
   rw [← E.statsLevels] at W
-  have hsrc := E.production.production.completed.toCompletedRecursorConstruction.recursorTypeProjsOK
+  have hsrc := E.production.production.toCompletedRecursorConstruction.recursorTypeProjsOK
     (E.hitShapeInputs_of wf Hsources) W owner.val hrec
   have h1 := htr.projNamesOK_of_source hsrc VLCtx.ProjNamesOK.nil
   have h2 := htr.targetProjsRegistered
@@ -770,19 +770,19 @@ theorem NestedValidatedRunResult.equationProjNames_of
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     {auxiliaries : List ContainerSpecialization}
-    (Hrec : ∀ owner : Fin E.production.production.completed.generationSignature.families.size,
-      (E.production.production.completed.canonicalGeneration.recursorType owner).projNamesAvoid
+    (Hrec : ∀ owner : Fin E.production.production.generationSignature.families.size,
+      (E.production.production.canonicalGeneration.recursorType owner).projNamesAvoid
         (compilationRestoration sourceDecl auxiliaries).restorableNames = true) :
-    ∀ k : Fin E.production.production.completed.generationSignature.constructors.size,
-      (E.production.production.completed.canonicalGeneration.equation k).lhs.projNamesAvoid
+    ∀ k : Fin E.production.production.generationSignature.constructors.size,
+      (E.production.production.canonicalGeneration.equation k).lhs.projNamesAvoid
           (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
-        (E.production.production.completed.canonicalGeneration.equation k).rhs.projNamesAvoid
+        (E.production.production.canonicalGeneration.equation k).rhs.projNamesAvoid
           (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
-        (E.production.production.completed.canonicalGeneration.equation k).type.projNamesAvoid
+        (E.production.production.canonicalGeneration.equation k).type.projNamesAvoid
           (compilationRestoration sourceDecl auxiliaries).restorableNames = true := by
   intro k
   exact Instance.equation_projNamesAvoid_of_recursorType _ _
-    (Hrec E.production.production.completed.generationSignature.constructors[k].owner) k .native
+    (Hrec E.production.production.generationSignature.constructors[k].owner) k .native
 
 /-- **Fields `constructorProjNames`, `recursorProjNames` and
 `equationProjNames` of `NestedRestoredEquationGaps`**, for every restoration
@@ -810,15 +810,15 @@ theorem NestedValidatedRunResult.restoredEquationProjNames_of
         (∀ lc ∈ E.production.loweredDecl.constructorConstants,
           lc.type.projNamesAvoid (compilationRestoration sourceDecl auxiliaries).restorableNames =
             true) ∧
-        (∀ owner : Fin E.production.production.completed.generationSignature.families.size,
-          (E.production.production.completed.canonicalGeneration.recursorType owner).projNamesAvoid
+        (∀ owner : Fin E.production.production.generationSignature.families.size,
+          (E.production.production.canonicalGeneration.recursorType owner).projNamesAvoid
             (compilationRestoration sourceDecl auxiliaries).restorableNames = true) ∧
-        (∀ k : Fin E.production.production.completed.generationSignature.constructors.size,
-          (E.production.production.completed.canonicalGeneration.equation k).lhs.projNamesAvoid
+        (∀ k : Fin E.production.production.generationSignature.constructors.size,
+          (E.production.production.canonicalGeneration.equation k).lhs.projNamesAvoid
               (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
-            (E.production.production.completed.canonicalGeneration.equation k).rhs.projNamesAvoid
+            (E.production.production.canonicalGeneration.equation k).rhs.projNamesAvoid
               (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
-            (E.production.production.completed.canonicalGeneration.equation k).type.projNamesAvoid
+            (E.production.production.canonicalGeneration.equation k).type.projNamesAvoid
               (compilationRestoration sourceDecl auxiliaries).restorableNames = true) := by
   intro auxiliaries D _ _ _
   rcases E.restorationTablesRestoringAll wf Hsources with

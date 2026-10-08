@@ -14,7 +14,7 @@ namespace VerifyInductive
 constructs the complete source-typing package. Context well-formedness is
 derived by `sourceTypingOfTargetLhs`; the certificate supplies only the LHS
 judgment that cannot follow from environment monotonicity. -/
-theorem RecursorPhasesResult.GeneratedNestedIotaSource.LhsApplicationCertificate.sourceTyping
+theorem CompletedRecursorPhasesResult.GeneratedNestedIotaSource.LhsApplicationCertificate.sourceTyping
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {initialEnv : VEnv} {indTypes : Array InductiveType}
@@ -22,7 +22,7 @@ theorem RecursorPhasesResult.GeneratedNestedIotaSource.LhsApplicationCertificate
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {generatedOwner : Nat}
     {howner : generatedOwner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[generatedOwner]!.ctors.length}

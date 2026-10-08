@@ -1,7 +1,7 @@
 # Phase 1a notes: a sound shape model for the full calculus
 
 Branch `agent/verify-inductives-headinv`. Standing goal: `docs/inductives/GOAL.md`.
-Background and the obstruction for the injectivity half: `docs/inductives/PHASE1_SPIKE.md`.
+Background and the obstruction for the injectivity half: `docs/inductives/history/PHASE1_SPIKE.md`.
 This file records the design of Phase 1a and every decision taken under it, with its
 rationale. It is updated as the work proceeds.
 
@@ -47,7 +47,7 @@ Every unproved obligation is a named hypothesis instead:
   `Params.PatternRegistry` (same content). It cannot be a field of `Params` itself because it
   mentions `IsDefEq`, which is defined from `Params`.
 * The `const` case of `LR.adequacy` is the explicit hypothesis `LR.ConstAdequate Γ₀` (the case
-  itself, as a `Prop`). It is false for checked patterns (`PHASE1_SPIKE.md`, section 3), and we
+  itself, as a `Prop`). It is false for checked patterns (`history/PHASE1_SPIKE.md`, section 3), and we
   expect it to fail also for unchecked patterns that match a constructor argument, because the
   relation at an `indTy` shape is `True`.
 * `IsDefEq.strong` and the two-sided `IsDefEq.subst` were false as stated: they had no
@@ -279,7 +279,7 @@ require the produced table to be typed at an approximation of the head's type
     D7): the major is ignored (proof
     irrelevance makes it invisible); each field is read from the index argument given by
     `Rule.fieldIndex`, and is bottom if there is none. This is read-through
-    (PHASE1_SPIKE.md section 3.1); the recursor's typing filter keeps it typed.
+    (history/PHASE1_SPIKE.md section 3.1); the recursor's typing filter keeps it typed.
 * `proj S i e`: the `i`-th field of a `ctor` shape of `S`'s constructor; bottom otherwise.
 
 ## 4. Soundness (ShapeModel/Sound*.lean)

@@ -1299,7 +1299,7 @@ absent from its source production environment.  This is the producer-facing
 freshness companion to `findSourceHeader`: it retains the exact header entry
 selected by the materialized family list and projects freshness from the
 actual lockstep installation. -/
-theorem RecursorPhasesResult.sourceHeaderFresh
+theorem CompletedRecursorPhasesResult.sourceHeaderFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1307,7 +1307,7 @@ theorem RecursorPhasesResult.sourceHeaderFresh
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hc : ContextWF c) (H : RecursorPhasesResult R outEnv)
+    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed outEnv)
     (howner : owner ∈ indTypes.toList) :
     c.env.find? owner.name = none := by
   rcases Hheaders.sourceAligned with ⟨numNested, Haligned⟩
@@ -1349,7 +1349,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.installedContainerBeforeHeaders
     (Hrun : NestedLoweringRun c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
       (result, finalState))
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst sourceVEnv c.lparams source.name
         source.type target.toVConstVal)
@@ -1691,7 +1691,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplicationAtRecursor
       (result, finalState))
     (Hcache : NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState)
     (Hparams : NestedResultParamsNodup result)
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (hempty : initialState.nestedAux = #[])
@@ -1801,7 +1801,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
       (result, finalState))
     (Hcache : NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState)
     (Hparams : NestedResultParamsNodup result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst sourceVEnv c.lparams source.name
@@ -2009,7 +2009,7 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
     (Hparams : NestedResultParamsNodup result)
     (wf : ves.WFCore c.env)
     (hsourceVEnv : sourceVEnv = ves.venv safety)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst sourceVEnv c.lparams source.name

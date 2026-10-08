@@ -90,7 +90,7 @@ target environment. The two argument fields consume their exact dependent
 telescopes and meet at the major domain. The final equality identifies the
 dependent result after applying the major with the generated equation's
 retained type body. -/
-structure RecursorPhasesResult.GeneratedNestedIotaSource.LhsApplicationCertificate
+structure CompletedRecursorPhasesResult.GeneratedNestedIotaSource.LhsApplicationCertificate
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {initialEnv : VEnv} {indTypes : Array InductiveType}
@@ -98,7 +98,7 @@ structure RecursorPhasesResult.GeneratedNestedIotaSource.LhsApplicationCertifica
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {generatedOwner : Nat}
     {howner : generatedOwner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[generatedOwner]!.ctors.length}
@@ -138,7 +138,7 @@ structure RecursorPhasesResult.GeneratedNestedIotaSource.LhsApplicationCertifica
 /-- Reconstruct target LHS typing by consuming the exact restored recursor
 and constructor application spines. No judgment is transported from the
 lowered environment. -/
-theorem RecursorPhasesResult.GeneratedNestedIotaSource.LhsApplicationCertificate.targetTyping
+theorem CompletedRecursorPhasesResult.GeneratedNestedIotaSource.LhsApplicationCertificate.targetTyping
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {initialEnv : VEnv} {indTypes : Array InductiveType}
@@ -146,7 +146,7 @@ theorem RecursorPhasesResult.GeneratedNestedIotaSource.LhsApplicationCertificate
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {generatedOwner : Nat}
     {howner : generatedOwner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[generatedOwner]!.ctors.length}

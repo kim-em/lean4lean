@@ -226,8 +226,9 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
   have hrecursorsAdded := E.production.production.installed.abstract
   have hrecursorValues : E.production.production.entries.map Prod.snd =
       E.production.compilationInstance.recursors :=
-    E.production.production.completed.canonicalRecursors
-  rw [hrecursorValues] at hrecursorsAdded
+    E.production.production.canonicalRecursors
+  rw [hrecursorValues, E.production.constructors.completed.contextVEnv]
+    at hrecursorsAdded
   have hrecursorsFresh := VEnv.addConstVals_names_fresh hrecursorsAdded
   simp only [VEnv.addEliminators_constants, VEnv.addProjections_constants] at hrecursorsFresh
   have hctorFresh : ∀ recursor ∈ E.production.compilationInstance.recursors,

@@ -248,7 +248,7 @@ theorem NestedFinalAssemblyCertificate.productionInductiveOrigins
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c)
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hmetadata : MaterializedInductivePrefix decl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : decl.ConstructorArityPrefix loweredDecl)
@@ -296,7 +296,7 @@ theorem NestedFinalAssemblyCertificate.constructorOwnersPresent
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
     (henv : c.env = sourceProdEnv)
@@ -543,7 +543,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProduction
     (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hmetadata : MaterializedInductivePrefix decl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : decl.ConstructorArityPrefix loweredDecl)
@@ -794,7 +794,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProduction
     (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hmetadata : MaterializedInductivePrefix decl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : decl.ConstructorArityPrefix loweredDecl)

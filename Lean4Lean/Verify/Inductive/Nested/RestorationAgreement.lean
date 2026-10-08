@@ -1188,7 +1188,7 @@ theorem ConstructorTypeEntries.findInduct
 /-- Every constructor visible in the lowered production environment either
 predates the inductive installation or is a constructor of one of the
 installed families, recording that family as its owner. -/
-theorem RecursorPhasesResult.ctorInfoOrigin
+theorem CompletedRecursorPhasesResult.ctorInfoOrigin
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1196,13 +1196,13 @@ theorem RecursorPhasesResult.ctorInfoOrigin
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : RecursorPhasesResult R outEnv) (hwf : c.env.constants.WF)
+    (H : CompletedRecursorPhasesResult R.completed outEnv) (hwf : c.env.constants.WF)
     {n : Name} {info : ConstructorVal}
     (hfind : outEnv.find? n = some (.ctorInfo info)) :
     c.env.find? n = some (.ctorInfo info) ∨
       ∃ owner ∈ indTypes.toList, ∃ ctor ∈ owner.ctors,
         n = ctor.name ∧ info.induct = owner.name := by
-  rcases H.staged.productionTrace.origin hwf hfind with hold | ⟨entry, hentry, hname, hfound⟩
+  rcases H.declaredStaged.productionTrace.origin hwf hfind with hold | ⟨entry, hentry, hname, hfound⟩
   · exact .inl hold
   · right
     rcases List.mem_append.mp hentry with h12 | hrec
@@ -1323,7 +1323,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAll
     Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
         P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
       Sigma fun R : ConstructorPhasesResult Hheaders P.ctorEnv =>
-        RecursorPhasesResult R E.loweredEnv
+        CompletedRecursorPhasesResult R.completed E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
       (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)
@@ -2223,12 +2223,12 @@ theorem NestedValidatedRunResult.restoredRecursorTypes
       CertifiedSpecializations (ves.venv (if isUnsafe then .unsafe else .safe))
         auxiliaries ∧
       (compilationRestoration sourceDecl auxiliaries).Scoped ∧
-      ∀ (owner : Fin E.production.production.completed.generationSignature.families.size)
+      ∀ (owner : Fin E.production.production.generationSignature.families.size)
         {stepSource stepTarget : Environment}
         (Hstep : RestoredRecursorStep result E.loweredEnv
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
           (sourceTypes.map (·.name))
-          (E.production.production.completed.canonicalGeneration.recursorName owner)
+          (E.production.production.canonicalGeneration.recursorName owner)
           stepSource stepTarget)
         (targetEnv : VEnv) {suffix : Expr} {t : VExpr},
         Expr.ForallTelescope Hstep.oldInfo.type result.nparams suffix →
@@ -2240,7 +2240,7 @@ theorem NestedValidatedRunResult.restoredRecursorTypes
         TrExprS targetEnv Hstep.restored.newInfo.levelParams []
           Hstep.restored.newInfo.type t →
         ∃ type, (compilationRestoration sourceDecl auxiliaries).expr
-            (E.production.production.completed.canonicalGeneration.recursorType owner) =
+            (E.production.production.canonicalGeneration.recursorType owner) =
               some type ∧
           TrExprS targetEnv Hstep.restored.newInfo.levelParams []
             Hstep.restored.newInfo.type type := by
@@ -2249,12 +2249,12 @@ theorem NestedValidatedRunResult.restoredRecursorTypes
       hparamsSize, D, A⟩
   refine ⟨envTypes, auxiliaries, hadded, hnames, hcertified, hscoped, ?_⟩
   intro owner stepSource stepTarget Hstep targetEnv suffix t Htel Hshape Hfresh Ht
-  rcases E.production.production.completed.metadataRealization owner with
+  rcases E.production.production.metadataRealization owner with
     ⟨rec, hrec, _, M⟩
   have hlen : owner.val < E.production.production.entries.length := by
     rw [show E.production.production.entries =
-      E.production.production.completed.entries from rfl,
-      E.production.production.completed.entries_length_eq]
+      E.production.production.entries from rfl,
+      E.production.production.entries_length_eq]
     exact owner.isLt
   have hmem := List.getElem_mem (l := E.production.production.entries)
     (n := owner.val) hlen

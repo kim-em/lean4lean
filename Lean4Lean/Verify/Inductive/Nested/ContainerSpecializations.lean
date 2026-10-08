@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Inductive.CompilationNames
 import Lean4Lean.Verify.Inductive.Recursor.RestoredRealization
-import Lean4Lean.Verify.Inductive.Equation.Setup
+import Lean4Lean.Verify.Inductive.CompletedEquationSetup
 import Lean4Lean.Verify.Inductive.Nested.FinalAssembly
 import Lean4Lean.Verify.Inductive.Nested.FormationNativeEvidence
 
@@ -1084,7 +1084,7 @@ private theorem loweredConstructor_facts
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : RecursorPhasesResult R outEnv)
+    (H : CompletedRecursorPhasesResult R.completed outEnv)
     {t : VInductiveType} (ht : t ∈ decl.types)
     {ctor : VConstVal} (hctor : ctor ∈ t.ctors) :
     (∃ info : ConstructorVal, outEnv.find? ctor.name = some (.ctorInfo info) ∧
@@ -1123,7 +1123,7 @@ private theorem loweredNames_nodup
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hc : ContextWF c) (H : RecursorPhasesResult R outEnv) :
+    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed outEnv) :
     (familyNames decl.types ++
       decl.types.map (fun t => t.name.str "rec")).Nodup := by
   have hsource := Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core
@@ -1231,7 +1231,7 @@ theorem NestedValidatedRunResult.containerSpecializations
     Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
         P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
       Sigma fun R : ConstructorPhasesResult Hheaders P.ctorEnv =>
-        RecursorPhasesResult R E.loweredEnv
+        CompletedRecursorPhasesResult R.completed E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
       (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)

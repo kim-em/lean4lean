@@ -37,7 +37,7 @@ theorem SemanticRunWithStatsResult.independentSpecification
       c.lparams nparams indTypes.toList isUnsafe finalVEnv) := by
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
-  rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
+  rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
   exact ⟨(Hrecursors.blockCertificate T.rules T.rulesWF).finalVEnv, ⟨{
     decl := decl
     envTypes := Hheaders.context.venv

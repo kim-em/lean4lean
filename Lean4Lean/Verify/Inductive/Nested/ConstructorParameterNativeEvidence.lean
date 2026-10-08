@@ -21,7 +21,7 @@ private theorem NestedInstalledProduction.reindexForNativeParameters
     ∃ Hheaders : DeclaredHeadersResult c' P.stats P.loweredDecl nparams'
         isUnsafe' P.depth initialEnv' indTypes' P.headerEnv,
       ∃ Hconstructors : ConstructorPhasesResult Hheaders P.ctorEnv,
-        Nonempty (RecursorPhasesResult Hconstructors loweredEnv) := by
+        Nonempty (CompletedRecursorPhasesResult Hconstructors.completed loweredEnv) := by
   subst c'
   subst nparams'
   subst isUnsafe'

@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Equation.Canonical
+import Lean4Lean.Verify.Inductive.CompletedEquationCanonical
 import Lean4Lean.Verify.Inductive.Recursor.Rules
 
 namespace Lean4Lean
@@ -12,7 +12,7 @@ namespace VerifyInductive
 the open RHS typing needed before restoration.  Inverting its literal lambda
 and forall wrappers also recovers the exact generated equation context; no
 body-typing premise is supplied by a later nested-restoration caller. -/
-theorem RecursorPhasesResult.GeneratedEquationWitness.openRhsTyping
+theorem CompletedRecursorPhasesResult.GeneratedEquationWitness.openRhsTyping
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -20,7 +20,7 @@ theorem RecursorPhasesResult.GeneratedEquationWitness.openRhsTyping
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {rule : VDefEq}
@@ -39,7 +39,7 @@ theorem RecursorPhasesResult.GeneratedEquationWitness.openRhsTyping
     (show OnCtx [] (H.outVEnv.IsType rule.uvars) from trivial) Hclosed
 
 /-- Symmetric LHS extraction from the same generated equation witness. -/
-theorem RecursorPhasesResult.GeneratedEquationWitness.openLhsTyping
+theorem CompletedRecursorPhasesResult.GeneratedEquationWitness.openLhsTyping
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -47,7 +47,7 @@ theorem RecursorPhasesResult.GeneratedEquationWitness.openLhsTyping
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {rule : VDefEq}
@@ -65,7 +65,7 @@ theorem RecursorPhasesResult.GeneratedEquationWitness.openLhsTyping
 
 /-- Generated equation bodies remain typed after installing the restored
 recursors and any later suffix. -/
-theorem RecursorPhasesResult.GeneratedEquationWitness.openTypingAfter
+theorem CompletedRecursorPhasesResult.GeneratedEquationWitness.openTypingAfter
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -73,7 +73,7 @@ theorem RecursorPhasesResult.GeneratedEquationWitness.openTypingAfter
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {rule : VDefEq} {laterEnv : VEnv}

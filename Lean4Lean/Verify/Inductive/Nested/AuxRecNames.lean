@@ -398,21 +398,21 @@ theorem NestedValidatedRunResult.finalBaseVEnv_restorableNames_fresh_of_not_rena
     Lean4Lean.List.Forall₂.forall_exists_r hinfos e he
   -- the restored recursor name
   have hename : e.2.name = r'.recursorName
-      (E.production.production.completed.canonicalGeneration.recursorName owner) := by
+      (E.production.production.canonicalGeneration.recursorName owner) := by
     simp only [Restoration.recursor, Option.pure_def, Option.bind_eq_bind] at hrec
     cases hty : r'.expr
-        (E.production.production.completed.canonicalGeneration.recursor owner).type with
+        (E.production.production.canonicalGeneration.recursor owner).type with
     | none => simp [r', hty] at hrec
     | some ty =>
       simp only [r', hty, Option.bind_some, Option.some.injEq] at hrec
       rw [← hrec]
       rfl
-  have hgenName : E.production.production.completed.canonicalGeneration.recursorName owner =
-      E.production.production.completed.generationSignature.families[owner].name.str "rec" :=
+  have hgenName : E.production.production.canonicalGeneration.recursorName owner =
+      E.production.production.generationSignature.families[owner].name.str "rec" :=
     E.production.loweredConstruction.consumedGeneration.names owner
   rw [hgenName] at hename
   obtain ⟨c, hcdef⟩ : ∃ c, c =
-      E.production.production.completed.generationSignature.families[owner].name.str "rec" :=
+      E.production.production.generationSignature.families[owner].name.str "rec" :=
     ⟨_, rfl⟩
   rw [← hcdef] at hename
   rcases r'.recursorName_cases c with hsame | ⟨p, hp, hpc, hpname⟩
@@ -828,26 +828,26 @@ theorem NestedValidatedRunResult.restoredRuleRhs_of_trail
     {trEnv : VEnv} {X : List Name}
     (Hfresh : ∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
       n ∉ X → trEnv.constants n = none)
-    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (owner : Fin E.production.production.generationSignature.families.size)
     {s t : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
       (sourceTypes.map (·.name))
-      (E.production.production.completed.canonicalGeneration.recursorName owner) s t)
+      (E.production.production.canonicalGeneration.recursorName owner) s t)
     (Htrail : ∀ rule ∈ Hstep.oldInfo.rules,
       rule.rhs.HitTrailAvoids
           ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary)) X
           result.nparams ∧
         rule.rhs.LamPrefixAvoids X result.nparams)
     (j : Nat) (hj : j < Hstep.restored.newInfo.rules.length)
-    (k : Fin E.production.production.completed.generationSignature.constructors.size)
+    (k : Fin E.production.production.generationSignature.constructors.size)
     (hk : k.val = recursorMinorOffset E.production.indTypes owner.val + j)
     {rhs : VExpr}
     (Ht : TrExprS trEnv Hstep.restored.newInfo.levelParams []
       (Hstep.restored.newInfo.rules[j]'hj).rhs rhs) :
     (compilationRestoration sourceDecl auxiliaries).expr
-      (E.production.production.completed.canonicalGeneration.equation k).rhs = some rhs := by
-  let P := E.production.production.completed
+      (E.production.production.canonicalGeneration.equation k).rhs = some rhs := by
+  let P := E.production.production
   obtain ⟨hi, hinfo⟩ := E.generatedEntryOfStep owner Hstep
   have hlenRules := Hstep.restored.restoration.rules.length
   have hjOld : j < Hstep.oldInfo.rules.length := hlenRules ▸ hj
@@ -956,10 +956,10 @@ def NestedValidatedRunResult.LoweredRulesAvoid
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (heads X : List Name) : Prop :=
-  ∀ (owner : Fin E.production.production.completed.generationSignature.families.size)
+  ∀ (owner : Fin E.production.production.generationSignature.families.size)
     (rec : RecursorVal),
     E.loweredEnv.find?
-        (E.production.production.completed.canonicalGeneration.recursorName owner) =
+        (E.production.production.canonicalGeneration.recursorName owner) =
       some (.recInfo rec) →
     ∀ rule ∈ rec.rules,
       rule.rhs.HitTrailAvoids heads X result.nparams ∧
@@ -975,10 +975,10 @@ theorem NestedValidatedRunResult.loweredRulesAvoid_nil
     {outEnv : Environment}
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv) (heads : List Name)
-    (hlam : ∀ (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (hlam : ∀ (owner : Fin E.production.production.generationSignature.families.size)
       (rec : RecursorVal),
       E.loweredEnv.find?
-          (E.production.production.completed.canonicalGeneration.recursorName owner) =
+          (E.production.production.canonicalGeneration.recursorName owner) =
         some (.recInfo rec) →
       ∀ rule ∈ rec.rules, rule.rhs.LamPrefixAvoids [] result.nparams) :
     E.LoweredRulesAvoid heads [] :=
@@ -1000,7 +1000,7 @@ def NestedValidatedRunResult.RestoredRulesRealizationModulo
   ∃ trEnv : VEnv, (∀ n ∈ r.restorableNames, n ∉ X → trEnv.constants n = none) ∧
     List.Forall₂ (E.RestoredRuleRealization r trEnv)
       (List.finRange
-        E.production.production.completed.generationSignature.constructors.size)
+        E.production.production.generationSignature.constructors.size)
       rules
 
 theorem NestedValidatedRunResult.RestoredRulesRealization.modulo
@@ -1061,12 +1061,12 @@ theorem NestedValidatedRunResult.restoredEquation_of_realizationModulo
     {trEnv : VEnv}
     (Hfresh : ∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
       n ∉ X → trEnv.constants n = none)
-    (k : Fin E.production.production.completed.generationSignature.constructors.size)
+    (k : Fin E.production.production.generationSignature.constructors.size)
     {rule : VDefEq}
     (H : E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries) trEnv k
       rule) :
     (compilationRestoration sourceDecl auxiliaries).equation
-      (E.production.production.completed.canonicalGeneration.equation k) = some rule := by
+      (E.production.production.canonicalGeneration.equation k) = some rule := by
   obtain ⟨owner, j, s, t, Hstep, hj, hk, huvars, Ht, hlhs, htype⟩ := H
   have hrhs := E.restoredRuleRhs_of_trail wf Hsources hheads hparamsSize D hscoped Hfresh owner
     Hstep (HL owner Hstep.oldInfo Hstep.lookup) j hj k hk Ht

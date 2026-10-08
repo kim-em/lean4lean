@@ -1,5 +1,7 @@
 import Lean4Lean.Verify.Inductive.Run.SemanticClosure
-import Lean4Lean.Verify.Inductive.Equation.Build
+import Lean4Lean.Verify.Inductive.DeclaredRecursorPhases
+import Lean4Lean.Verify.Inductive.CompletedRuleTranslation
+import Lean4Lean.Verify.Inductive.Constructor.LiteralDisjoint
 import Lean4Lean.Verify.Inductive.Recursor.ConsumeAlpha
 
 namespace Lean4Lean
@@ -20,7 +22,7 @@ def SemanticRunWithStatsResult
     ∃ Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv,
     ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
-      Nonempty (RecursorPhasesResult R outEnv)
+      Nonempty (CompletedRecursorPhasesResult R.completed outEnv)
 
 /-- Complete ordinary `runWithStats` refinement from skeleton-free formation.
 The existential declaration selected by constructor checking remains the
@@ -60,7 +62,7 @@ theorem AddInductive.runWithStats.semanticWF
         R.declared.context.venv stats.indConsts := by
       rw [R.declared.contextVEnv]
       exact (hlitCtors.addEliminators _).addProjections _
-    exact (R.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams hlit hnotPartial hnprim).mono
+    exact (R.completed.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams hlit hnotPartial hnprim).mono
         fun outEnv Hrecursors =>
           show SemanticRunWithStatsResult c stats nparams depth indTypes
             isUnsafe sourceEnv outEnv

@@ -29,7 +29,7 @@ structure RestoredPrimaryOperationalFamilySemantics
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {Hlowering : NestedLoweringResultClosed loweredSourceEnv fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result}
-    {Hprod : RecursorPhasesResult R loweredEnv}
+    {Hprod : CompletedRecursorPhasesResult R.completed loweredEnv}
     {familyIdx : Nat} {hfamily : familyIdx < sourceTypes.length}
     {hentry : familyIdx < Hprod.entries.length}
     {Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
@@ -59,7 +59,7 @@ theorem RestoredPrimaryOperationalFamilyAlignment.withSourceSemantics
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {Hlowering : NestedLoweringResultClosed loweredSourceEnv fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result}
-    {Hprod : RecursorPhasesResult R loweredEnv}
+    {Hprod : CompletedRecursorPhasesResult R.completed loweredEnv}
     {familyIdx : Nat} {hfamily : familyIdx < sourceTypes.length}
     {hentry : familyIdx < Hprod.entries.length}
     {Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
@@ -94,7 +94,7 @@ theorem RestoredPrimaryOperationalFamilySemantics.constructorAt
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {Hlowering : NestedLoweringResultClosed loweredSourceEnv fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result}
-    {Hprod : RecursorPhasesResult R loweredEnv}
+    {Hprod : CompletedRecursorPhasesResult R.completed loweredEnv}
     {familyIdx : Nat} {hfamily : familyIdx < sourceTypes.length}
     {hentry : familyIdx < Hprod.entries.length}
     {Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames

@@ -14,7 +14,7 @@ equivalence manager on scope exit (`TypeChecker.State.leaveScope`), the output
 is "L4L whole term rejected" (the C++ lines are unchanged) and the cache
 experiment `(false, (true, true, true, true), false, false, false)`.
 
-Using the two singleton families of `SingletonStrengthening.lean`, the closed
+Using the two singleton families of `history/SingletonStrengthening.lean`, the closed
 definition `result : SJ := let seed : (q : P v) → Type 1 := fun q => …; let
 ret : SJ := zz; ret` (with `zz : SI` an axiom) is accepted by both the C++
 kernel and the Lean4Lean checker, while the same definition without the `seed`
@@ -28,7 +28,7 @@ the Astra reviewer and reproduced locally.
 -/
 
 /-!
-Run with `lake env lean docs/inductives/SingletonStrengthening.lean`.
+Run with `lake env lean docs/inductives/history/SingletonStrengthening.lean`.
 
 Source admissibility and the exact declarative equality chain for the
 strengthening countermodel in STRENGTHENING.md. The opaque axioms below are

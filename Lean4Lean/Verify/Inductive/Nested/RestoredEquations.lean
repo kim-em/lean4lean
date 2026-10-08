@@ -275,21 +275,21 @@ theorem NestedValidatedRunResult.restoredRuleRhs_of_hitShape
     {trEnv : VEnv}
     (Hfresh : ∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
       trEnv.constants n = none)
-    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (owner : Fin E.production.production.generationSignature.families.size)
     {s t : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
       (sourceTypes.map (·.name))
-      (E.production.production.completed.canonicalGeneration.recursorName owner) s t)
+      (E.production.production.canonicalGeneration.recursorName owner) s t)
     (j : Nat) (hj : j < Hstep.restored.newInfo.rules.length)
-    (k : Fin E.production.production.completed.generationSignature.constructors.size)
+    (k : Fin E.production.production.generationSignature.constructors.size)
     (hk : k.val = recursorMinorOffset E.production.indTypes owner.val + j)
     {rhs : VExpr}
     (Ht : TrExprS trEnv Hstep.restored.newInfo.levelParams []
       (Hstep.restored.newInfo.rules[j]'hj).rhs rhs) :
     (compilationRestoration sourceDecl auxiliaries).expr
-      (E.production.production.completed.canonicalGeneration.equation k).rhs = some rhs := by
-  let P := E.production.production.completed
+      (E.production.production.canonicalGeneration.equation k).rhs = some rhs := by
+  let P := E.production.production
   obtain ⟨hi, hinfo⟩ := E.generatedEntryOfStep owner Hstep
   have hlenRules := Hstep.restored.restoration.rules.length
   have hjOld : j < Hstep.oldInfo.rules.length := hlenRules ▸ hj
@@ -403,22 +403,22 @@ def NestedValidatedRunResult.RestoredRuleRealization
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (r : Restoration) (trEnv : VEnv)
-    (k : Fin E.production.production.completed.generationSignature.constructors.size)
+    (k : Fin E.production.production.generationSignature.constructors.size)
     (rule : VDefEq) : Prop :=
-  ∃ (owner : Fin E.production.production.completed.generationSignature.families.size)
+  ∃ (owner : Fin E.production.production.generationSignature.families.size)
     (j : Nat) (s t : Environment)
     (Hstep : RestoredRecursorStep result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
       (sourceTypes.map (·.name))
-      (E.production.production.completed.canonicalGeneration.recursorName owner) s t)
+      (E.production.production.canonicalGeneration.recursorName owner) s t)
     (hj : j < Hstep.restored.newInfo.rules.length),
     k.val = recursorMinorOffset E.production.indTypes owner.val + j ∧
-    rule.uvars = (E.production.production.completed.canonicalGeneration.equation k).uvars ∧
+    rule.uvars = (E.production.production.canonicalGeneration.equation k).uvars ∧
     TrExprS trEnv Hstep.restored.newInfo.levelParams []
       (Hstep.restored.newInfo.rules[j]'hj).rhs rule.rhs ∧
-    r.expr (E.production.production.completed.canonicalGeneration.equation k).lhs =
+    r.expr (E.production.production.canonicalGeneration.equation k).lhs =
       some rule.lhs ∧
-    r.expr (E.production.production.completed.canonicalGeneration.equation k).type =
+    r.expr (E.production.production.canonicalGeneration.equation k).type =
       some rule.type
 
 /-- **Realization of a restored equation list.** In some translation
@@ -437,7 +437,7 @@ def NestedValidatedRunResult.RestoredRulesRealization
   ∃ trEnv : VEnv, (∀ n ∈ r.restorableNames, trEnv.constants n = none) ∧
     List.Forall₂ (E.RestoredRuleRealization r trEnv)
       (List.finRange
-        E.production.production.completed.generationSignature.constructors.size)
+        E.production.production.generationSignature.constructors.size)
       rules
 
 /-- **One restored equation.** A realizing abstract equation is the abstract
@@ -461,12 +461,12 @@ theorem NestedValidatedRunResult.restoredEquation_of_realization
     {trEnv : VEnv}
     (Hfresh : ∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
       trEnv.constants n = none)
-    (k : Fin E.production.production.completed.generationSignature.constructors.size)
+    (k : Fin E.production.production.generationSignature.constructors.size)
     {rule : VDefEq}
     (H : E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries) trEnv k
       rule) :
     (compilationRestoration sourceDecl auxiliaries).equation
-      (E.production.production.completed.canonicalGeneration.equation k) = some rule := by
+      (E.production.production.canonicalGeneration.equation k) = some rule := by
   obtain ⟨owner, j, s, t, Hstep, hj, hk, huvars, Ht, hlhs, htype⟩ := H
   have hrhs := E.restoredRuleRhs_of_hitShape wf Hsources hheads hparamsSize D hscoped Hfresh owner
     Hstep j hj k hk Ht
