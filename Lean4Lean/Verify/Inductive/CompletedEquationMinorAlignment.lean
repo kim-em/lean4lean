@@ -1962,7 +1962,7 @@ theorem
       ⟨HS⟩, _hproducerShape, hfields, hhypotheses, htarget, Hsource, Hresidual,
       HresidualType, _Htyped⟩
   have hconsume := S.sourceTelescope.consumeTypeAnnotationsVerified_eq_self_of_pos
-    (by simpa [hsourceFields, hsourceHypotheses] using hpositive)
+    (annOk := S.sourceFullContext.env.isTypeAnnotationWrapper) (by simpa [hsourceFields, hsourceHypotheses] using hpositive)
   have horigin : S.origin = S.sourceType :=
     S.consumed_eq.symm.trans hconsume
   have hmotiveClosed : Closed S.motiveApp := by
@@ -2104,6 +2104,7 @@ theorem
     (List.take_append_drop A.rule.allArgs.size domains).symm
   rw [hdomains] at htarget Hresidual HresidualType
   have hconsume := HS.semantic.sourceType_consumeTypeAnnotations_eq_self
+    (ok := S.sourceFullContext.env.isTypeAnnotationWrapper)
   have hsourceType : S.origin = S.sourceType :=
     S.consumed_eq.symm.trans hconsume
   have hmotiveClosed : Closed S.motiveApp := by
@@ -3554,7 +3555,8 @@ theorem
               ∃ O : RecInfoMinorHypothesisTypeOrigin
                 hypothesisOrigins.stats hypothesisOrigins.recInfos
                 originRoot S.recursiveFields[j]! sourceType,
-              D.type = sourceType.consumeTypeAnnotationsVerified ∧
+              D.type = (sourceType.consumeTypeAnnotationsVerified
+                S.sourceFullContext.env.isTypeAnnotationWrapper) ∧
               D.type = sourceType ∧
               O.replayTrace S.fields_bound.fvars =
                 (A.producerReplayAt j hj).semantic.generated.replayTrace
@@ -3579,7 +3581,8 @@ theorem
   let sourceType := P.sourceType
   let O := P.sourceOrigin
   have hdeclarationType : D.type =
-      sourceType.consumeTypeAnnotationsVerified :=
+      (sourceType.consumeTypeAnnotationsVerified
+        A.producerMinorShape.sourceFullContext.env.isTypeAnnotationWrapper) :=
     P.sourceDeclaration_type
   have hdeclarationTypeExact : D.type = sourceType :=
     hdeclarationType.trans O.consumeTypeAnnotationsVerified_eq_self

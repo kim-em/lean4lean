@@ -130,8 +130,8 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
       by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
       · rw [if_pos harity]
         let majorTy :=
-          (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
-            indices).consumeTypeAnnotationsVerified
+          ((mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
+            indices).consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper)
         apply withLocalDecl.continueRaw
         let cMajor : AddInductive.Context := { cIndices with
           ngen := cIndices.ngen.next
@@ -154,7 +154,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
         let cMotive : AddInductive.Context := { cMajor with
           ngen := cMajor.ngen.next
           lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩ motiveName
-            motiveTy.consumeTypeAnnotationsVerified .default }
+            (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default }
         refine mkRecInfos.loopInd1.resultBindings (root := root) (Q := Q)
           stats indTypes elimLevel
           (dIdx + 1) (recInfos.push {
@@ -163,29 +163,29 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
             indices
             major }) k cMotive ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_
         · exact (HcIndices.withLocalDecl `t majorTy .default).withLocalDecl
-            motiveName motiveTy.consumeTypeAnnotationsVerified .default
+            motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         · exact Hbindings.pushFrame hIndices HcIndices
             Hindices.toBoundFVarArray
             `t majorTy .default
-            motiveName motiveTy.consumeTypeAnnotationsVerified .default
+            motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         · exact Horigins.pushFrame hIndices HcIndices HindexOrigins
             `t majorTy .default motiveName
-              motiveTy.consumeTypeAnnotationsVerified .default
+              (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         · exact Hparams.mono <| hIndices.trans <|
             (BindingContextLE.withLocalDecl cIndices HcIndices
               `t majorTy .default).trans <|
               BindingContextLE.withLocalDecl cMajor
                 (HcIndices.withLocalDecl `t majorTy .default) motiveName
-                motiveTy.consumeTypeAnnotationsVerified .default
+                (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         · exact Hbindings.pushFrame_noAlias Hparams HnoAlias hIndices
             HcIndices Hindices `t majorTy .default motiveName
-              motiveTy.consumeTypeAnnotationsVerified .default
+              (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         · exact Hroot.trans <| hIndices.trans <|
             (BindingContextLE.withLocalDecl cIndices HcIndices
               `t majorTy .default).trans <|
               BindingContextLE.withLocalDecl cMajor
                 (HcIndices.withLocalDecl `t majorTy .default) motiveName
-                motiveTy.consumeTypeAnnotationsVerified .default
+                (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         · simp [hprogress]
         · apply Harities.push
           have hnew : indices.size = stats.nindices[dIdx]! := by
@@ -244,7 +244,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (Hbindings : RecInfoBindings current recInfos)
     (Horigins : RecInfoTypeOrigins current recInfos)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
-    (HmajorShapes : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes)
+    (HmajorShapes : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
+      current.env.isTypeAnnotationWrapper)
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
     (HmotiveShapes : RecInfoMotiveTypeShapes current recInfos
       Horigins.motiveTypes elimLevel)
@@ -276,7 +277,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (HbindingsOut : RecInfoBindings outCtx out)
       (HoriginsOut : RecInfoTypeOrigins outCtx out),
       RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
-      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
+      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes
+        outCtx.env.isTypeAnnotationWrapper →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
       RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
       RecInfoMotiveTelescopes Rout stats decl
@@ -312,13 +314,13 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         throw <| .other
           "recursor index arity does not match checked inductive header"
       let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
-      withLocalDecl `t .default tTy.consumeTypeAnnotationsVerified fun major => do
+      AddInductive.withConsumedLocalDecl `t .default tTy fun major => do
       let lctx ← getLCtx
       let motiveTy := lctx.mkForall indices <|
         lctx.mkForall #[major] <| .sort elimLevel
       let name := if indTypes.size > 1 then
         (`motive).appendIndexAfter (dIdx + 1) else `motive
-      withLocalDecl name .default motiveTy.consumeTypeAnnotationsVerified fun motive =>
+      AddInductive.withConsumedLocalDecl name .default motiveTy fun motive =>
       AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel (dIdx + 1)
         (recInfos.push { motive, minors := #[], indices, major }) k
     change ((monadLift (TypeChecker.whnf indTypes[dIdx].type) :
@@ -353,8 +355,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           ⟨Hcanonical, HmotiveCanonical, HmotiveCanonicalClosed,
             hcanonicalMotiveReopen, hcanonicalMotiveBody⟩
         let majorTy :=
-          (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
-            indices).consumeTypeAnnotationsVerified
+          ((mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
+            indices).consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper)
         refine withLocalDecl.recursorWF (name := `t) (bi := .default)
           Rindices Hframe.majorTr Hframe.majorType ?_
         let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
@@ -416,30 +418,30 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         let cMotive : AddInductive.Context := { cMajor with
           ngen := cMajor.ngen.next
           lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩ motiveName
-            motiveTy.consumeTypeAnnotationsVerified .default }
+            (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default }
         let hIndices := Hrecent.contextLE
         let Hbindings' := Hbindings.pushFrame hIndices
           Rindices.toBindingContextWF
           Hrecent.toFreshBoundFVarArray.toBoundFVarArray
           `t majorTy .default motiveName
-          motiveTy.consumeTypeAnnotationsVerified .default
+          (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         let Horigins' := Horigins.pushFrame hIndices
           Rindices.toBindingContextWF HindexOrigins
           `t majorTy .default motiveName
-          motiveTy.consumeTypeAnnotationsVerified .default
+          (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         let Hparams' := Hparams.mono <| hIndices.trans <|
           (BindingContextLE.withLocalDecl cIndices
             Rindices.toBindingContextWF `t majorTy .default).trans <|
             BindingContextLE.withLocalDecl cMajor
               (Rindices.toBindingContextWF.withLocalDecl
                 `t majorTy .default)
-              motiveName motiveTy.consumeTypeAnnotationsVerified .default
+              motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         have HnoAlias' : Hbindings'.NoAlias Hparams' := by
           exact Hbindings.pushFrame_noAlias Hparams HnoAlias hIndices
             Rindices.toBindingContextWF
             Hrecent.toFreshBoundFVarArray
             `t majorTy .default motiveName
-            motiveTy.consumeTypeAnnotationsVerified .default
+            (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         have holdMinors : Hbindings.flatMinors.fvars = [] :=
           Hempty.flatMinors_fvars Hbindings
         have hnewMinors : Hbindings'.flatMinors.fvars = [] :=
@@ -484,7 +486,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         let hMotiveFrame := BindingContextLE.withLocalDecl cMajor
           (Rindices.toBindingContextWF.withLocalDecl
             `t majorTy .default)
-          motiveName motiveTy.consumeTypeAnnotationsVerified .default
+          motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         let hAllFrames : BindingContextLE current cMotive :=
           hIndices.trans (hMajorFrame.trans hMotiveFrame)
         let HindicesAtMajor : BoundFVarArray cMajor indices :=
@@ -493,16 +495,16 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           simpa [cMajor, major] using
             (BoundFVarArray.empty cIndices).pushCurrent
               `t majorTy .default
-        have hsourceShape : motiveTy.consumeTypeAnnotationsVerified =
+        have hsourceShape : (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) =
             cMajor.lctx.mkForall indices
               (cMajor.lctx.mkForall #[major] (.sort elimLevel)) := by
-          change motiveTy.consumeTypeAnnotationsVerified = motiveTy
+          change (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) = motiveTy
           exact Hframe.motiveSourceEq
-        have hnewMotiveShape : motiveTy.consumeTypeAnnotationsVerified =
+        have hnewMotiveShape : (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) =
             cMotive.lctx.mkForall indices
               (cMotive.lctx.mkForall #[major] (.sort elimLevel)) := by
           calc
-            motiveTy.consumeTypeAnnotationsVerified =
+            (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) =
                 cMajor.lctx.mkForall indices
                   (cMajor.lctx.mkForall #[major] (.sort elimLevel)) :=
               hsourceShape
@@ -518,22 +520,25 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           minors := #[]
           indices
           major }
-        have hnewMotiveShape' : motiveTy.consumeTypeAnnotationsVerified =
+        have hnewMotiveShape' : (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) =
             cMotive.lctx.mkForall nextInfo.indices
               (cMotive.lctx.mkForall #[nextInfo.major]
                 (.sort elimLevel)) := by
-          change motiveTy.consumeTypeAnnotationsVerified =
+          change (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) =
             cMotive.lctx.mkForall indices
               (cMotive.lctx.mkForall #[major] (.sort elimLevel))
           exact hnewMotiveShape
         let HmotiveShapes' := HmotiveShapes.push Hbindings hAllFrames
-          nextInfo motiveTy.consumeTypeAnnotationsVerified hnewMotiveShape'
+          nextInfo (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) hnewMotiveShape'
         have hnewMajorShape : majorTy =
-            (mkAppN (mkAppN stats.indConsts[recInfos.size]! stats.params)
-              nextInfo.indices).consumeTypeAnnotationsVerified := by
+            ((mkAppN (mkAppN stats.indConsts[recInfos.size]! stats.params)
+              nextInfo.indices).consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) := by
           simp only [majorTy, nextInfo]
           rw [hprogress]
-        let HmajorShapes' := HmajorShapes.push nextInfo majorTy hnewMajorShape
+        have HmajorShapesI : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
+            cIndices.env.isTypeAnnotationWrapper := by
+          rw [hIndices.env_eq]; exact HmajorShapes
+        let HmajorShapes' := HmajorShapesI.push nextInfo majorTy hnewMajorShape
         let HmajorExtension :=
           RecursorContextExtension.withLocalDecl (name := `t)
             (bi := .default) Rindices
@@ -737,7 +742,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           change TrExprS Rindices.venv
             (AddInductive.getRecLevelParams elimLevel base.lparams)
             (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
-            motiveTy.consumeTypeAnnotationsVerified motiveClosedTarget
+            (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) motiveClosedTarget
           simpa only [motiveTy, cMajor] using HmotiveClosedTr
         have HmotiveClosedTypeSeed : Rmotive.venv.IsType
             (AddInductive.getRecLevelParams elimLevel base.lparams).length
@@ -1243,7 +1248,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               BindingContextLE.withLocalDecl cMajor
                 (Rindices.toBindingContextWF.withLocalDecl
                   `t majorTy .default)
-                motiveName motiveTy.consumeTypeAnnotationsVerified .default)
+                motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default)
           (by simp [hprogress])
           (by
             apply Harities.push
@@ -1257,7 +1262,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               BindingContextLE.withLocalDecl cMajor
                 (Rindices.toBindingContextWF.withLocalDecl
                   `t majorTy .default)
-                motiveName motiveTy.consumeTypeAnnotationsVerified .default)
+                motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default)
           HindexTraces' ?_
         · change RecursorTranslatedOriginTypes Rmotive
             (Horigins.majorTypes.push majorTy)
@@ -1268,10 +1273,10 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               minors := #[]
               indices
               major })
-            (Horigins.majorTypes.push majorTy)
+            (Horigins.majorTypes.push majorTy) cMotive.env.isTypeAnnotationWrapper
           exact HmajorShapes'
         · change RecursorTranslatedOriginTypes Rmotive
-            (Horigins.motiveTypes.push motiveTy.consumeTypeAnnotationsVerified)
+            (Horigins.motiveTypes.push (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper))
           exact HmotiveAtMotive
         · change RecInfoMotiveTypeShapes cMotive
             (recInfos.push {
@@ -1279,7 +1284,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               minors := #[]
               indices
               major })
-            (Horigins.motiveTypes.push motiveTy.consumeTypeAnnotationsVerified)
+            (Horigins.motiveTypes.push (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper))
             elimLevel
           exact HmotiveShapes'
         · change RecursorTranslatedOriginTypeRows Rmotive
@@ -1337,10 +1342,10 @@ theorem resultBindings {alpha : Type}
       let c' : AddInductive.Context := { c with
         ngen := c.ngen.next
         lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-          dom.consumeTypeAnnotationsVerified bi
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
         checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-          dom.consumeTypeAnnotationsVerified bi }
-      unfold AddInductive.withCheckedLocalDecl MonadLocalNameGenerator.withFreshId
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
+      unfold AddInductive.withConsumedCheckedLocalDecl AddInductive.withCheckedLocalDecl MonadLocalNameGenerator.withFreshId
         AddInductive.instMonadLocalNameGeneratorM
       change ((monadLift (TypeChecker.whnf
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
@@ -1354,10 +1359,10 @@ theorem resultBindings {alpha : Type}
         intro _ _
         trivial
       exact hwhnf.bind fun normalized _ =>
-        ih (Hc.withCheckedLocalDecl name dom.consumeTypeAnnotationsVerified bi)
-          (Hxs.pushCurrentChecked Hc Hroot name dom.consumeTypeAnnotationsVerified bi)
+        ih (Hc.withCheckedLocalDecl name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
+          (Hxs.pushCurrentChecked Hc Hroot name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
           (Hroot.trans <| BindingContextLE.withCheckedLocalDecl c Hc name
-            dom.consumeTypeAnnotationsVerified bi)
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
       change (k _ xs c).WF Q
@@ -1505,9 +1510,9 @@ theorem resultRecursiveDomain {alpha : Type}
       let c' : AddInductive.Context := { c with
         ngen := c.ngen.next
         lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-          dom.consumeTypeAnnotationsVerified bi
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
         checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-          dom.consumeTypeAnnotationsVerified bi }
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
       let R' : RecursorContextWF c' recLparams :=
         R.withCheckedLocalDecl (name := name) (bi := bi)
         Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
@@ -1526,7 +1531,7 @@ theorem resultRecursiveDomain {alpha : Type}
         apply TrExprS.fvar
         change VLCtx.find?
           ((some (⟨c.ngen.curr⟩,
-              dom.consumeTypeAnnotationsVerified.fvarsList), .vlam consumedDom) ::
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList), .vlam consumedDom) ::
             R.mlctx.vlctx)
           (.inr ⟨c.ngen.curr⟩) =
             some ((.bvar 0), consumedDom.liftN 1 0)
@@ -1538,7 +1543,7 @@ theorem resultRecursiveDomain {alpha : Type}
             some ((.bvar 0), consumedDom.liftN 1 0) := by
           change VLCtx.find?
             ((some (⟨c.ngen.curr⟩,
-                dom.consumeTypeAnnotationsVerified.fvarsList), .vlam consumedDom) ::
+                (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList), .vlam consumedDom) ::
               R.mlctx.vlctx)
             (.inr ⟨c.ngen.curr⟩) =
               some ((.bvar 0), consumedDom.liftN 1 0)
@@ -1566,7 +1571,7 @@ theorem resultRecursiveDomain {alpha : Type}
             hbodyEq'
       have hopened := R.instantiateFresh (name := name) (bi := bi)
         Hdom.consumed Hdom.isType hbodyConsumed
-      let Hxs' := Hxs.pushCurrentChecked name dom.consumeTypeAnnotationsVerified
+      let Hxs' := Hxs.pushCurrentChecked name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
         consumedDom bi Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
       have hopened₀ := R.narrow.instantiateFresh (name := name) (bi := bi)
         Hdom₀.consumed Hdom₀.isType hbodyConsumed₀
@@ -1617,7 +1622,7 @@ theorem resultRecursiveDomain {alpha : Type}
           (fun fv => fv ∈ Hxs'.fvars ∨ P fv) R'.mlctx.vlctx := by
         change IsFVarUpSet _
           ((some (⟨c.ngen.curr⟩,
-              dom.consumeTypeAnnotationsVerified.fvarsList), .vlam consumedDom) ::
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList), .vlam consumedDom) ::
             R.mlctx.vlctx)
         refine ⟨hcurrentUp', fun _ dep hdep => ?_⟩
         have hselected := (fvarsIn_iff.mp
@@ -1679,7 +1684,7 @@ theorem resultRecursiveDomain {alpha : Type}
                 consumedBody₀) := by
         obtain ⟨hn, hag, hdrop, hclosed⟩ := hagreeR
         have h := MLCtxTopAgree.stepDropEq (M := M₀) ⟨c.ngen.curr⟩ name
-          dom.consumeTypeAnnotationsVerified consumedDom consumedDom₀ bi
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom consumedDom₀ bi
           ⟨hn, hag, hdrop⟩
         obtain ⟨hn', hag', hdrop'⟩ := h
         rcases R.check.wf.mkForall'_congr HtypeConsumedAtSort₀ xs.size hn with
@@ -2025,7 +2030,7 @@ structure RecInfoHypothesisTypeOrigins
       Nonempty (RecInfoHypothesisTypeOrigin
         stats recInfos root fields[j]! sourceType) ∧
       ∃ D : BoundFVarDeclarationAt c hypotheses j,
-        D.type = sourceType.consumeTypeAnnotationsVerified
+        D.type = (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
 
 def RecInfoHypothesisTypeOrigins.empty
     (stats : AddInductive.InductiveStats)
@@ -2048,9 +2053,9 @@ def RecInfoHypothesisTypeOrigins.pushCurrent
       { c with
         ngen := c.ngen.next
         lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-          sourceType.consumeTypeAnnotationsVerified bi }
+          (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
       fields (hypotheses.push (.fvar ⟨c.ngen.curr⟩)) := by
-  let ty := sourceType.consumeTypeAnnotationsVerified
+  let ty := (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
   let c' : AddInductive.Context := { c with
     ngen := c.ngen.next
     lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
@@ -2103,7 +2108,7 @@ structure RecInfoHypothesisCallBlueprintOrigins
         fields[j]! sourceType),
         ∃ (D : BoundFVarDeclarationAt c hypotheses j),
           BindingContextLE fieldRoot root ∧
-          D.type = sourceType.consumeTypeAnnotationsVerified ∧
+          D.type = (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) ∧
           calls[j]! = {
             major := fields[j]!
             args := O.args
@@ -2122,7 +2127,7 @@ structure RecInfoHypothesisCallBlueprintOrigins
         (D : BoundFVarDeclarationAt c hypotheses j),
         BindingContextLE fieldRoot root ∧
         IsFVarUpSet rootScope Rroot.mlctx.vlctx ∧
-        D.type = sourceType.consumeTypeAnnotationsVerified ∧
+        D.type = (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) ∧
         calls[j]! = {
           major := fields[j]!
           args := O.args
@@ -2170,7 +2175,7 @@ theorem RecInfoHypothesisCallBlueprintOrigins.pushCurrent
     RecInfoHypothesisCallBlueprintOrigins
       (H.pushCurrent Hc name sourceType bi hnext Hroot ⟨O⟩) rootScope
       (calls.push call) := by
-  let ty := sourceType.consumeTypeAnnotationsVerified
+  let ty := (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
   let c' : AddInductive.Context := { c with
     ngen := c.ngen.next
     lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }

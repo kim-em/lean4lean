@@ -6,9 +6,9 @@ open Kernel
 
 /-- Consume the domains of a displayed source telescope. This is the closed
 syntax produced by reopening its binders with consumed local declaration types. -/
-def Expr.consumeForallTypes : Expr → Expr
+def Expr.consumeForallTypes (ok : Name → Bool) : Expr → Expr
   | .forallE name domain body bi =>
-    .forallE name domain.consumeTypeAnnotationsVerified (Expr.consumeForallTypes body) bi
+    .forallE name (domain.consumeTypeAnnotationsVerified ok) (Expr.consumeForallTypes ok body) bi
   | source => source
 
 /-- Replay domain consumption in the original checking environment. Changes
@@ -18,19 +18,19 @@ theorem TrExprS.consumeForallTypes_of_wrappers
     {env : Environment} {venv : VEnv} {safety : DefinitionSafety}
     {Us : List Name} {Δ : VLCtx}
     (Hchecking : CheckingEnv safety env venv)
-    (Hwrappers : TypeAnnotationWrappers env)
+    (Hwrappers : TypeAnnotationWrappers env annOk)
     (hΔ : Δ.WF venv Us.length)
     (H : TrExprS venv Us Δ source target)
     (Htype : venv.IsType Us.length Δ.toCtx target) :
     ∃ consumed,
-      TrExprS venv Us Δ (Expr.consumeForallTypes source) consumed ∧
+      TrExprS venv Us Δ (Expr.consumeForallTypes annOk source) consumed ∧
       venv.IsType Us.length Δ.toCtx consumed ∧
       venv.IsDefEqU Us.length Δ.toCtx target consumed := by
   induction source generalizing Δ target with
   | forallE name domain body bi _ ih =>
     cases H with
     | @forallE domainTarget bodyTarget _ _ _ _ _ HdomType HbodyType Hdom Hbody =>
-      let consumedDomain := Lean4Lean.consumeTranslatedTypeAnnotations domain domainTarget
+      let consumedDomain := Lean4Lean.consumeTranslatedTypeAnnotations annOk domain domainTarget
       obtain ⟨HconsumedType, HdomEq⟩ :=
         consumeTranslatedTypeAnnotations_semantic_of_wrappers Hchecking Hwrappers hΔ Hdom HdomType
       have HdomEqTyped := HdomEq.of_l Hchecking.wf hΔ.toCtx HdomType.choose_spec
@@ -62,9 +62,9 @@ theorem TrExprS.consumeForallTypes
     (H : TrExprS venv Us Δ source target)
     (Htype : venv.IsType Us.length Δ.toCtx target) :
     ∃ consumed,
-      TrExprS venv Us Δ (Expr.consumeForallTypes source) consumed ∧
+      TrExprS venv Us Δ (Expr.consumeForallTypes env.isTypeAnnotationWrapper source) consumed ∧
       venv.IsType Us.length Δ.toCtx consumed ∧
       venv.IsDefEqU Us.length Δ.toCtx target consumed :=
-  H.consumeForallTypes_of_wrappers Hchecking.tr Hchecking.typeAnnotationWrappers hΔ Htype
+  H.consumeForallTypes_of_wrappers Hchecking.tr (.of_env env) hΔ Htype
 
 end Lean4Lean

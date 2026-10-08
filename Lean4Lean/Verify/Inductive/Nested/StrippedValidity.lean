@@ -634,18 +634,6 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
     have hn : n ∉ names := fun hn => by rw [hfresh n hn] at h; cases h
     rw [stripLookup_not_mem hspec hn]
     exact Hactual.preservesSourceMapFind hsourceWF h
-  have hU : ∀ {name}, UnaryTypeAnnotationWrapper outEnv name →
-      UnaryTypeAnnotationWrapper S name := by
-    intro name H
-    rcases H.operational with ⟨info, value, hlookup, hsafe, hdelta, hred⟩
-    exact ⟨⟨info, value, hnonrecE hlookup (by rintro r rfl; cases hdelta),
-      hsafe, hdelta, hred⟩⟩
-  have hB : ∀ {name}, BinaryTypeAnnotationWrapper outEnv name →
-      BinaryTypeAnnotationWrapper S name := by
-    intro name H
-    rcases H.operational with ⟨info, value, hlookup, hsafe, hdelta, hred⟩
-    exact ⟨⟨info, value, hnonrecE hlookup (by rintro r rfl; cases hdelta),
-      hsafe, hdelta, hred⟩⟩
   have hvalidCore : CheckingEnv.ValidCore c.safety S finalVEnv := {
     tr := {
       aligned := hSal
@@ -661,12 +649,7 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
       rcases hcasesE hfind with h | ⟨r, h, rfl⟩
       · exact hcore.safePrimitives h hprim
       · have := hcore.safePrimitives h hprim
-        exact this
-    typeAnnotationWrappers :=
-      ⟨hB hcore.typeAnnotationWrappers.optParam,
-        hB hcore.typeAnnotationWrappers.autoParam,
-        hU hcore.typeAnnotationWrappers.outParam,
-        hU hcore.typeAnnotationWrappers.semiOutParam⟩ }
+        exact this }
   have howners' : ConstructorOwnersPresent S := by
     intro name info h
     rcases hcasesE h with h | ⟨r, _, hr⟩

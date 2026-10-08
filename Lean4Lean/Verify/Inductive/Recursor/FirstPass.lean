@@ -2045,8 +2045,8 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
       (Hc'.toAdmissibleRecursorContextWF Helim)
       stats familyIdx indices elimLevel) := by
   let majorTy :=
-    (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
-      indices).consumeTypeAnnotationsVerified
+    ((mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
+      indices).consumeTypeAnnotationsVerified c'.env.isTypeAnnotationWrapper)
   let Rindices := Hc'.toAdmissibleRecursorContextWF Helim
   rcases H.completedMajorDomain Hsynthesis Hstats Hruntime Hindices hreplay
       hcanonical harity henv hlparams hconsume with
@@ -2122,10 +2122,10 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
     dsimp only [majorBody]
     rw [← Rmajor.lctx_eq]
     exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent trivial
-  have hsortConsume : (Expr.sort elimLevel).consumeTypeAnnotationsVerified =
+  have hsortConsume : ((Expr.sort elimLevel).consumeTypeAnnotationsVerified c'.env.isTypeAnnotationWrapper) =
       Expr.sort elimLevel := by
     apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
-  have hconsumeMajor : majorBody.consumeTypeAnnotationsVerified = majorBody := by
+  have hconsumeMajor : (majorBody.consumeTypeAnnotationsVerified c'.env.isTypeAnnotationWrapper) = majorBody := by
     rw [hmajorConcrete]
     exact Rmajor.onlyLams.mkForall_consumeTypeAnnotations_eq_self
       1 hone hsortConsume
@@ -2136,7 +2136,7 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
       Rindices.lctx_eq).symm.trans
         (Rindices.mlctx_wf.mkForall_eq indices.size hindicesSize
           hindicesRecent (hmajorConcrete ▸ Rmajor.mlctx_wf.mkForall_closed 1 hone trivial))
-  have hconsumeMotive : motiveTy.consumeTypeAnnotationsVerified = motiveTy := by
+  have hconsumeMotive : (motiveTy.consumeTypeAnnotationsVerified c'.env.isTypeAnnotationWrapper) = motiveTy := by
     rw [hmotiveMkForall]
     exact Rindices.onlyLams.mkForall_consumeTypeAnnotations_eq_self
       indices.size hindicesSize hconsumeMajor
@@ -2208,7 +2208,7 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
       rfl
   · change TrExprS Rmajor.venv
       (AddInductive.getRecLevelParams elimLevel c'.lparams)
-      Rmajor.mlctx.vlctx motiveTy.consumeTypeAnnotationsVerified _
+      Rmajor.mlctx.vlctx (motiveTy.consumeTypeAnnotationsVerified c'.env.isTypeAnnotationWrapper) _
     rw [hconsumeMotive]
     exact hmotiveAtMajor
   · change Rmajor.venv.IsType
@@ -2258,8 +2258,8 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
     Nonempty (RecursorMotiveFrameWF Rindices stats familyIdx indices
       elimLevel) := by
   let majorTy :=
-    (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
-      indices).consumeTypeAnnotationsVerified
+    ((mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
+      indices).consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper)
   rcases H.completedRecursorMajorDomain Helim Rindices Hsynthesis Hstats
       Hruntime Hindices hreplay hcanonical harity henv hconsume with
     ⟨sourceTarget, majorTarget, Hdom⟩
@@ -2333,10 +2333,10 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
     dsimp only [majorBody]
     rw [← Rmajor.lctx_eq]
     exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent trivial
-  have hsortConsume : (Expr.sort elimLevel).consumeTypeAnnotationsVerified =
+  have hsortConsume : ((Expr.sort elimLevel).consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) =
       Expr.sort elimLevel := by
     apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
-  have hconsumeMajor : majorBody.consumeTypeAnnotationsVerified = majorBody := by
+  have hconsumeMajor : (majorBody.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) = majorBody := by
     rw [hmajorConcrete]
     exact Rmajor.onlyLams.mkForall_consumeTypeAnnotations_eq_self
       1 hone hsortConsume
@@ -2347,7 +2347,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
       Rindices.lctx_eq).symm.trans
         (Rindices.mlctx_wf.mkForall_eq indices.size hindicesSize
           hindicesRecent (hmajorConcrete ▸ Rmajor.mlctx_wf.mkForall_closed 1 hone trivial))
-  have hconsumeMotive : motiveTy.consumeTypeAnnotationsVerified = motiveTy := by
+  have hconsumeMotive : (motiveTy.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) = motiveTy := by
     rw [hmotiveMkForall]
     exact Rindices.onlyLams.mkForall_consumeTypeAnnotations_eq_self
       indices.size hindicesSize hconsumeMajor
@@ -2411,7 +2411,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
       rfl
   · change TrExprS Rmajor.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams)
-      Rmajor.mlctx.vlctx motiveTy.consumeTypeAnnotationsVerified _
+      Rmajor.mlctx.vlctx (motiveTy.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) _
     rw [hconsumeMotive]
     exact hmotiveAtMajor
   · change Rmajor.venv.IsType
@@ -2630,15 +2630,15 @@ theorem continueWithBindings {alpha : Type}
             continueWithBindings stats k Hk next (i + 1) indices originTypes
               fuel c Hc Hindices Horigins Hroot
         · rw [if_neg hparam]
-          unfold AddInductive.withCheckedLocalDecl
+          unfold AddInductive.withConsumedCheckedLocalDecl AddInductive.withCheckedLocalDecl
             MonadLocalNameGenerator.withFreshId
             AddInductive.instMonadLocalNameGeneratorM
           let c' : AddInductive.Context := { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
             checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
           change ((monadLift (TypeChecker.whnf
             (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
               AddInductive.M Expr) c' >>= fun next =>
@@ -2653,13 +2653,13 @@ theorem continueWithBindings {alpha : Type}
           exact hwhnf.bind fun next _ =>
             continueWithBindings stats k Hk next i
               (indices.push (.fvar ⟨c.ngen.curr⟩))
-              (originTypes.push dom.consumeTypeAnnotationsVerified) fuel c'
-              (Hc.withCheckedLocalDecl name dom.consumeTypeAnnotationsVerified bi)
+              (originTypes.push (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)) fuel c'
+              (Hc.withCheckedLocalDecl name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
               (Hindices.pushCurrentChecked Hc Hroot name
-                dom.consumeTypeAnnotationsVerified bi)
-              (Horigins.pushCurrentChecked Hc name dom.consumeTypeAnnotationsVerified bi)
+                (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
+              (Horigins.pushCurrentChecked Hc name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
               (Hroot.trans <| BindingContextLE.withCheckedLocalDecl c Hc name
-                dom.consumeTypeAnnotationsVerified bi)
+                (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
           by_cases hi : i < stats.params.size
@@ -2894,7 +2894,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
               R'.mlctx.vlctx (.fvar ⟨current.ngen.curr⟩) (.bvar 0) := by
             exact TrExprS.fvar (A := consumedDom.lift) (by
               change VLCtx.find? ((some (⟨current.ngen.curr⟩,
-                dom.consumeTypeAnnotationsVerified.fvarsList), .vlam consumedDom) ::
+                (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList), .vlam consumedDom) ::
                   R.mlctx.vlctx) (Sum.inr ⟨current.ngen.curr⟩) = _
               simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
                 VLocalDecl.value, VLocalDecl.type])
@@ -2931,7 +2931,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
             simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
               RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
               hbodyEq'
-          have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
+          have hdeps : (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn htypeFVars.1)).1
           rcases Hruntime.recursorConsumedDomain R Hdom hdomNarrow with
@@ -2941,7 +2941,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                 R'.venv
                 (AddInductive.getRecLevelParams elimLevel base.lparams)
                 ((some (⟨current.ngen.curr⟩,
-                  dom.consumeTypeAnnotationsVerified.fvarsList),
+                  (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList),
                   .vlam indexType) :: scope)
                 R'.mlctx.vlctx :=
             Hruntime.withIndex R'.mlctx_wf.tr.wf hdeps name bi dom
@@ -2955,14 +2955,14 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
             exact R.current_not_mem (R.check.embed.fvars_subset hmem)
           let Wnarrow : VLCtx.FVLift scope
               ((some (⟨current.ngen.curr⟩,
-                dom.consumeTypeAnnotationsVerified.fvarsList),
+                (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList),
                 .vlam indexType) :: scope) 0 1 0 :=
             .skip_fvar _ _ .refl
           have HnarrowIndicesWeak : List.Forall₂
               (TrExprS R'.venv
                 (AddInductive.getRecLevelParams elimLevel base.lparams)
                 ((some (⟨current.ngen.curr⟩,
-                  dom.consumeTypeAnnotationsVerified.fvarsList),
+                  (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList),
                   .vlam indexType) :: scope))
               indices.toList
               (indexTargets.map fun result => result.liftN 1 0) := by
@@ -2972,7 +2972,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
           have HnarrowIndex : TrExprS R'.venv
               (AddInductive.getRecLevelParams elimLevel base.lparams)
               ((some (⟨current.ngen.curr⟩,
-                dom.consumeTypeAnnotationsVerified.fvarsList),
+                (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList),
                 .vlam indexType) :: scope)
               (.fvar ⟨current.ngen.curr⟩) (.bvar 0) := by
             exact TrExprS.fvar (A := indexType.lift) (by
@@ -2982,7 +2982,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
               (TrExprS R'.venv
                 (AddInductive.getRecLevelParams elimLevel base.lparams)
                 ((some (⟨current.ngen.curr⟩,
-                  dom.consumeTypeAnnotationsVerified.fvarsList),
+                  (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList),
                   .vlam indexType) :: scope))
               (indices.push (.fvar ⟨current.ngen.curr⟩)).toList
               ((indexTargets.map fun result => result.liftN 1 0) ++
@@ -2993,14 +2993,14 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
           have hopenedNarrow : TrExprS R'.venv
               (AddInductive.getRecLevelParams elimLevel base.lparams)
               ((some (⟨current.ngen.curr⟩,
-                dom.consumeTypeAnnotationsVerified.fvarsList),
+                (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList),
                 .vlam indexType) :: scope)
               (body.instantiate1 (.fvar ⟨current.ngen.curr⟩)) narrowBody := by
             rw [Expr.instantiate1_eq]
             exact hbodyNarrow.inst_fvar R.checking.tr.wf.ordered hscopeWF
           have hopenedFVars : FVarsIn
               (· ∈ VLCtx.fvars ((some (⟨current.ngen.curr⟩,
-                dom.consumeTypeAnnotationsVerified.fvarsList),
+                (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList),
                 .vlam indexType) :: scope))
               (body.instantiate1 (.fvar ⟨current.ngen.curr⟩)) := by
             rw [Expr.instantiate1_eq]
@@ -3015,20 +3015,20 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
             simpa [Expr.levelParamsIn] using htypeU
           have hscopeU' : R'.typeChecker.UniverseScope base.lparams
               (· ∈ VLCtx.fvars ((some (⟨current.ngen.curr⟩,
-                dom.consumeTypeAnnotationsVerified.fvarsList),
+                (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList),
                 .vlam indexType) :: scope)) := by
             have hcons : R'.typeChecker.UniverseScope base.lparams
                 (fun fv => fv = x ∨ fv ∈ scope.fvars) := by
               refine TypeChecker.VContext.UniverseScope.cons (x := x)
-                (deps := dom.consumeTypeAnnotationsVerified.fvarsList)
+                (deps := (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList)
                 (d := .vlam consumedDom) rfl ?_ R.current_not_mem hscopeU
                 hdeps ?_
               · intro fv hne
                 change (TypeChecker.MLCtx.vlam x name
-                  dom.consumeTypeAnnotationsVerified consumedDom bi
+                  (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) consumedDom bi
                   R.mlctx).lctx.find? fv = R.mlctx.lctx.find? fv
                 have hwf : (TypeChecker.MLCtx.vlam x name
-                    dom.consumeTypeAnnotationsVerified consumedDom bi
+                    (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) consumedDom bi
                     R.mlctx).WF R.venv
                     (AddInductive.getRecLevelParams elimLevel base.lparams) :=
                   R'.mlctx_wf
@@ -3038,7 +3038,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
               · intro decl hdecl
                 have hself := R'.mlctx_wf.find?_vlam_self
                 change (TypeChecker.MLCtx.vlam x name
-                  dom.consumeTypeAnnotationsVerified consumedDom bi
+                  (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) consumedDom bi
                   R.mlctx).lctx.find? x = some decl at hdecl
                 rw [hself] at hdecl
                 cases hdecl
@@ -3046,7 +3046,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                   hdomBodyU.1, fun v hv => by simp [LocalDecl.value?] at hv⟩
             have hP : (fun fv => fv = x ∨ fv ∈ scope.fvars) =
                 (· ∈ VLCtx.fvars ((some (⟨current.ngen.curr⟩,
-                  dom.consumeTypeAnnotationsVerified.fvarsList),
+                  (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList),
                   .vlam indexType) :: scope)) := by
               funext fv
               simp [VLCtx.fvars_cons_some, x]
@@ -3094,7 +3094,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                 TrExprS R'.venv
                   (AddInductive.getRecLevelParams elimLevel base.lparams)
                   ((some (⟨current.ngen.curr⟩,
-                    dom.consumeTypeAnnotationsVerified.fvarsList),
+                    (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList),
                     .vlam indexType) :: scope) next normalized' ∧
                 R'.venv.IsDefEqU
                   (AddInductive.getRecLevelParams elimLevel base.lparams).length
@@ -3110,17 +3110,17 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
             let c' : AddInductive.Context := { current with
               ngen := current.ngen.next
               lctx := current.lctx.mkLocalDecl ⟨current.ngen.curr⟩ name
-                dom.consumeTypeAnnotationsVerified bi
+                (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) bi
               checkLCtx := current.checkLCtx.mkLocalDecl ⟨current.ngen.curr⟩ name
-                dom.consumeTypeAnnotationsVerified bi }
+                (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) bi }
             have hstep : BindingContextLE current c' :=
               BindingContextLE.withCheckedLocalDecl current R.toBindingContextWF
-                name dom.consumeTypeAnnotationsVerified bi
+                name (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) bi
             have hidsPush : ExprArrayFVarIds (indices.push (.fvar x)) =
                 ExprArrayFVarIds indices ++ [x] :=
               ExprArrayFVarIds_push_fvar indices x
             have hscopeFVars' : ∀ fv ∈ VLCtx.fvars ((some (⟨current.ngen.curr⟩,
-                  dom.consumeTypeAnnotationsVerified.fvarsList),
+                  (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList),
                   .vlam indexType) :: scope),
                 fv ∈ ExprArrayFVarIds stats.params ∨
                   fv ∈ ExprArrayFVarIds (indices.push (.fvar x)) := by
@@ -3144,7 +3144,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                   exact hstep.fvars (Horigins.bound.members fv h)
                 · rw [List.mem_singleton.mp h]
                   exact mem_fvars_mkLocalDecl_self current name
-                    dom.consumeTypeAnnotationsVerified bi
+                    (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) bi
             have hcallIndex : RecursorWhnfCallAt c'
                 (fun fv => fv ∈ ExprArrayFVarIds stats.params ∨
                   fv ∈ ExprArrayFVarIds (indices.push (.fvar x)))
@@ -3157,9 +3157,9 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                 stats.params.size next (indices.push (.fvar x)) :=
               .index (Htrace.mono hstep)
                 (mem_fvars_mkLocalDecl_self current name
-                  dom.consumeTypeAnnotationsVerified bi)
+                  (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) bi)
                 ⟨_, _, _, _, R.toBindingContextWF.find?_mkLocalDecl_self name
-                  dom.consumeTypeAnnotationsVerified bi⟩
+                  (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) bi⟩
                 hcallIndex
             exact continueRecursorIndexSynthesisSemantics stats k H Helim
               Rroot hconsume Hk R' (by simpa [R'] using henv)
@@ -3168,11 +3168,11 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                 exact hparameterDecls)
               next consumedBody nextNarrow
               ((some (⟨current.ngen.curr⟩,
-                dom.consumeTypeAnnotationsVerified.fvarsList),
+                (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList),
                 .vlam indexType) :: scope)
               (nindices + 1)
               (indices.push (.fvar ⟨current.ngen.curr⟩))
-              (originTypes.push dom.consumeTypeAnnotationsVerified)
+              (originTypes.push (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper))
               ((indexTargets.map fun result => result.liftN 1 0) ++
                 [.bvar 0]) fuel Hsynthesis' (by
                   rw [hparams]
@@ -3194,10 +3194,10 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
               (by simpa [hcanonical] using
                 canonicalIndexVars_succ nindices)
               (Horigins.pushCurrentChecked R.toBindingContextWF name
-                dom.consumeTypeAnnotationsVerified bi)
+                (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) bi)
               (HoriginTypes.pushChecked (name := name) (bi := bi)
                 Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType)
-              (Hrecent.pushCurrentChecked name dom.consumeTypeAnnotationsVerified consumedDom
+              (Hrecent.pushCurrentChecked name (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) consumedDom
                 bi Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType)
               Htrace' hscopeFVars'
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata

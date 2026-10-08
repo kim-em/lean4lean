@@ -42,7 +42,8 @@ structure
   sourceDeclaration : BoundFVarDeclarationAt sourceShape.sourceFullContext
     sourceShape.hypotheses j
   sourceDeclaration_type : sourceDeclaration.type =
-    sourceType.consumeTypeAnnotationsVerified
+    (sourceType.consumeTypeAnnotationsVerified
+      sourceShape.sourceFullContext.env.isTypeAnnotationWrapper)
   originRoot : AddInductive.Context
   originContext : RecursorContextWF originRoot
     (AddInductive.getRecLevelParams H.elimLevel c.lparams)

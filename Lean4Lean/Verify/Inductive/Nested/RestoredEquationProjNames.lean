@@ -221,8 +221,8 @@ theorem getAppArgs_slice' {e : Expr} (H : ProjsOK ok e) (n : Nat) :
   exact H.of_mem_getAppArgsList (List.mem_of_mem_drop ha)
 
 theorem consumeTypeAnnotationsVerified' {e : Expr} (H : ProjsOK ok e) :
-    ProjsOK ok e.consumeTypeAnnotationsVerified := by
-  fun_induction Expr.consumeTypeAnnotationsVerified e
+    ProjsOK ok (e.consumeTypeAnnotationsVerified annOk) := by
+  fun_induction Expr.consumeTypeAnnotationsVerified _ e
   case case1 name us type v _ ih =>
     exact ih (H.of_mem_getAppArgsList (a := type) (by simp [getAppArgsList]))
   case case2 => exact H

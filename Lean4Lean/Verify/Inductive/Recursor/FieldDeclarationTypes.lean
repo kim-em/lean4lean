@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Recursor.ReplayCompat
 
 The executable field loop (`AddInductive.mkRecInfos.loopCtorArgs`) performs no
 `whnf`: at each field binder `.forallE name dom body bi` it declares a fresh
-local with type `dom.consumeTypeAnnotationsVerified` and continues with
+local with type `(dom.consumeTypeAnnotationsVerified annOk)` and continues with
 `body.instantiate1 (.fvar _)`. Consequently every syntactic predicate on
 expressions that is inherited by the consumed domain and by the instantiated
 body of a forall holds of every field declaration type and of the terminal
@@ -64,9 +64,9 @@ theorem RecursorFieldDecisions.fieldDeclsSatisfy
     (H : RecursorFieldDecisions stats root source current terminal fields
       selected positions)
     (Hroot : BindingContextWF root) (P : Expr → Prop)
-    (hstep : ∀ {name : Name} {dom body : Expr} {bi : BinderInfo},
+    (hstep : ∀ {ok : Name → Bool} {name : Name} {dom body : Expr} {bi : BinderInfo},
       P (.forallE name dom body bi) →
-        P dom.consumeTypeAnnotationsVerified ∧
+        P (dom.consumeTypeAnnotationsVerified ok) ∧
           ∀ fv : FVarId, P (body.instantiate1 (.fvar fv)))
     (hsource : P source) :
     P terminal ∧ FieldDeclsSatisfy P current fields := by

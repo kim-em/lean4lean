@@ -163,48 +163,6 @@ theorem _root_.Lean4Lean.ProjectionCorner.foldlAdd {α} {f : α → ConstantInfo
       · exact absurd (List.mem_map.2 ⟨w, hw, hname⟩) hnd.1
       · rw [hfresh w (List.mem_cons_of_mem _ hw)] at hold; cases hold
 
-theorem TypeAnnotationWrappers.addConstant
-    (H : TypeAnnotationWrappers env)
-    (hwf : env.constants.WF) (ci : ConstantInfo)
-    (hfresh : env.find? ci.name = none) :
-    TypeAnnotationWrappers (env.add ci) := by
-  apply H.rebase
-  intro name old hlookup
-  have hne : ci.name ≠ name := by
-    intro heq
-    subst name
-    rw [hlookup] at hfresh
-    contradiction
-  rw [find?_add_of_ne hwf ci hfresh hne]
-  exact hlookup
-
-theorem TypeAnnotationWrappers.addDefinitions
-    (H : TypeAnnotationWrappers env) (hwf : env.constants.WF) :
-    ∀ (vs : List DefinitionVal),
-      (∀ v ∈ vs, env.find? v.name = none) →
-      (vs.map (·.name)).Nodup →
-      TypeAnnotationWrappers
-        (vs.foldl (fun env v => env.add (.defnInfo v)) env)
-  | [], _, _ => H
-  | v :: vs, hfresh, hnodup => by
-      simp only [List.map_cons, List.nodup_cons] at hnodup
-      have hvfresh := hfresh v (by simp)
-      have hvfreshMap : env.constants.find? v.name = none := by
-        rwa [← hwf.find?'_eq_find?]
-      have hwf' : (env.add (.defnInfo v)).constants.WF := by
-        change (env.constants.insert v.name (.defnInfo v)).WF
-        exact hwf.insert v.name (.defnInfo v) hvfreshMap
-      apply TypeAnnotationWrappers.addDefinitions
-        (TypeAnnotationWrappers.addConstant H hwf (.defnInfo v) hvfresh)
-        hwf' vs
-      · intro w hw
-        have hne : v.name ≠ w.name := by
-          intro heq
-          exact hnodup.1 (List.mem_map.mpr ⟨w, hw, heq.symm⟩)
-        rw [find?_add_of_ne hwf (.defnInfo v) hvfresh hne]
-        exact hfresh w (by simp [hw])
-      · exact hnodup.2
-
 /-- Adding a fresh non-constructor constant preserves constructor-owner
 presence. -/
 theorem ConstructorOwnersPresent.addNonConstructor
@@ -1256,7 +1214,6 @@ structure CheckingEnv.ValidCore (safety : DefinitionSafety)
   safePrimitives : ∀ {n ci}, env.find? n = some ci →
     Kernel.Environment.primitives.contains n →
     ci.safety = .safe ∧ ci.levelParams = []
-  typeAnnotationWrappers : TypeAnnotationWrappers env
 
 /-- All global invariants needed to run the verified executable type checker
 against an environment assembled in stages.  Beyond the local invariants,
@@ -1284,22 +1241,20 @@ theorem TrEnv.toCheckingValidCore (H : TrEnv safety env venv)
     (hprims : venv.HasPrimitives)
     (hsafe : ∀ {n ci}, env.find? n = some ci →
       Kernel.Environment.primitives.contains n →
-      ci.safety = .safe ∧ ci.levelParams = [])
-    (hannotations : TypeAnnotationWrappers env) :
+      ci.safety = .safe ∧ ci.levelParams = []) :
     CheckingEnv.ValidCore safety env venv :=
-  ⟨H.toChecking, hprims, hsafe, hannotations⟩
+  ⟨H.toChecking, hprims, hsafe⟩
 
 theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
     (hprims : venv.HasPrimitives)
     (hsafe : ∀ {n ci}, env.find? n = some ci →
       Kernel.Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
-    (hannotations : TypeAnnotationWrappers env)
     (howners : VerifyInductive.ConstructorOwnersPresent env)
     (hregistry : ProjectionRegistryCoherent safety env.constants venv)
     (hcorner : ProjectionCorner safety env venv) :
     CheckingEnv.Valid safety env venv :=
-  ⟨⟨H.toChecking, hprims, hsafe, hannotations⟩, howners, hregistry,
+  ⟨⟨H.toChecking, hprims, hsafe⟩, howners, hregistry,
     H.recursorEnvCoherent, H.quotEnvCoherent, hcorner⟩
 
 theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
@@ -1313,8 +1268,6 @@ theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
   tr := H.tr.add hn htr hci hadd hdelta
   hasPrimitives := H.hasPrimitives.addConst_of_not_primitive hadd hnprim
   safePrimitives := H.tr.safePrimitives_add hn hnprim H.safePrimitives
-  typeAnnotationWrappers := VerifyInductive.TypeAnnotationWrappers.addConstant
-    H.typeAnnotationWrappers H.tr.map_wf ci hn
 
 /-- Constructor-owner presence of a valid environment, stated on its
 constant map. -/
@@ -1410,7 +1363,6 @@ theorem CheckingEnv.ValidCore.addEliminator
   tr := H.tr.addEliminator hwf
   hasPrimitives := H.hasPrimitives.addEliminator
   safePrimitives := H.safePrimitives
-  typeAnnotationWrappers := H.typeAnnotationWrappers
 
 /-- Certified abstract schemas are available to checking before native
 recursor installation, while every concrete metadata invariant is preserved. -/
@@ -1458,7 +1410,6 @@ theorem CheckingEnv.ValidCore.addEliminators
   tr := H.tr.addEliminators hwf
   hasPrimitives := H.hasPrimitives.addEliminators
   safePrimitives := H.safePrimitives
-  typeAnnotationWrappers := H.typeAnnotationWrappers
 
 theorem CheckingEnv.ValidCore.addProjections
     (H : CheckingEnv.ValidCore safety env venv)
@@ -1467,7 +1418,6 @@ theorem CheckingEnv.ValidCore.addProjections
   tr := H.tr.addProjections hwf
   hasPrimitives := H.hasPrimitives.addProjections
   safePrimitives := H.safePrimitives
-  typeAnnotationWrappers := H.typeAnnotationWrappers
 
 /-- Add an exact, independently well-formed projection table without changing
 the represented production environment. -/

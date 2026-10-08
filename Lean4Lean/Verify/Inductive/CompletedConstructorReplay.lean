@@ -369,7 +369,8 @@ theorem CompletedConstructorPhases.loopInd1SemanticWF
       (Hbindings : RecInfoBindings cOut recInfos)
       (Horigins : RecInfoTypeOrigins cOut recInfos),
       RecursorTranslatedOriginTypes Rout Horigins.majorTypes ->
-      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes ->
+      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
+        cOut.env.isTypeAnnotationWrapper ->
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes ->
       RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel ->
       RecInfoMotiveTelescopes Rout stats decl
@@ -434,7 +435,7 @@ theorem CompletedConstructorPhases.loopInd1SemanticWF
     Hsuffix HparamsCtx
     Hstats (RecInfoBindings.empty _) (RecInfoTypeOrigins.empty _)
     (RecursorTranslatedOriginTypes.empty Rbase)
-    (RecInfoMajorTypeShapes.empty stats)
+    (RecInfoMajorTypeShapes.empty stats _)
     (RecursorTranslatedOriginTypes.empty Rbase)
     (RecInfoMotiveTypeShapes.empty _ elimLevel)
     (RecInfoMotiveTelescopes.empty Rbase stats decl
@@ -502,7 +503,8 @@ theorem CompletedConstructorPhases.mkRecInfosWF
       RecInfoMinorSemanticAlignment Rout Horigins
         HsuffixOut.parameterDecls ->
       RecursorTranslatedOriginTypes Rout Horigins.majorTypes ->
-      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes ->
+      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
+        cOut.env.isTypeAnnotationWrapper ->
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes ->
       RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel ->
       RecInfoMotiveTelescopes Rout stats decl
@@ -646,7 +648,8 @@ theorem CompletedConstructorPhases.getElimLevelMkRecInfosWF
       RecInfoMinorSemanticAlignment Rout Horigins
         HsuffixOut.parameterDecls ->
       RecursorTranslatedOriginTypes Rout Horigins.majorTypes ->
-      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes ->
+      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
+        cOut.env.isTypeAnnotationWrapper ->
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes ->
       RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel ->
       RecInfoMotiveTelescopes Rout stats decl

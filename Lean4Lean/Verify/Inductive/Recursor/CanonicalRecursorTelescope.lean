@@ -1327,7 +1327,7 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisShape
         (O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos root
           (S.recursiveFields[j]!) sourceType)
         (D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j)
-        (hDtype : D.type = sourceType.consumeTypeAnnotationsVerified)
+        (hDtype : D.type = (sourceType.consumeTypeAnnotationsVerified S.sourceFullContext.env.isTypeAnnotationWrapper))
         (howner' : O.ownerIdx < H.recInfos.size)
         (pos : Nat) (hpos : pos < S.fields_bound.fvars.length)
         (hfield : S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos)),
@@ -1792,7 +1792,7 @@ theorem TrExprS.forallTelescope_domains
 /-- The binder domains of a minor hypothesis's higher-order argument
 telescope, in order, exactly as they sit in the hypothesis type
 `current.lctx.mkForall args motiveApp` (which is also the installed declaration
-type, since `type.consumeTypeAnnotationsVerified = type`).  The `i`-th domain
+type, since `(type.consumeTypeAnnotationsVerified annOk) = type`).  The `i`-th domain
 is therefore already closed over the arguments before it: its loose bound
 variables `0, …, i - 1` refer to those arguments. -/
 def RecInfoMinorHypothesisTypeOrigin.argDomains
@@ -1842,7 +1842,7 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisDomains
         (O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos root
           (S.recursiveFields[j]!) sourceType)
         (D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j)
-        (hDtype : D.type = sourceType.consumeTypeAnnotationsVerified)
+        (hDtype : D.type = (sourceType.consumeTypeAnnotationsVerified S.sourceFullContext.env.isTypeAnnotationWrapper))
         (howner' : O.ownerIdx < H.recInfos.size)
         (pos : Nat) (hpos : pos < S.fields_bound.fvars.length)
         (hfield : S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos)),

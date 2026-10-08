@@ -176,46 +176,84 @@ theorem CompletedRecursorConstruction.consumedMotiveDomains
     rw [htarget'] at Htr Htype Heq
     exact ⟨S, indices, major, _, hindices, hlevel, Htr, Htype, Heq⟩
 
-theorem CompletedConstructorPhases.family_not_annotation
+/-- Every constant of an atomic batch is non-delta. -/
+theorem AtomicAddConstants.entries_delta
+    (H : AtomicAddConstants safety env venv entries outEnv outVEnv) :
+    ∀ e ∈ entries, e.1.deltaValue? = none := by
+  induction H with
+  | nil => simp
+  | cons _ _ _ _ hdelta _ ih =>
+    intro e he
+    rcases List.mem_cons.mp he with rfl | he
+    · exact hdelta
+    · exact ih e he
+
+/-- An atomic batch of non-delta constants adds no definition. -/
+theorem AtomicAddConstants.defnReflect
+    (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
+    (hwf : env.constants.WF) {n : Name} {v : DefinitionVal}
+    (hfind : outEnv.find? n = some (.defnInfo v)) : env.find? n = some (.defnInfo v) := by
+  rcases H.entryOrigin hwf hfind with h | ⟨entry, hentry, -, heq⟩
+  · exact h
+  · have := H.entries_delta entry hentry
+    rw [← heq] at this
+    cases this
+
+/-- A batch of non-delta constants adds no definition. -/
+theorem AddConstants.defnReflect
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hwf : env.constants.WF) {n : Name} {v : DefinitionVal}
+    (hfind : outEnv.find? n = some (.defnInfo v)) : env.find? n = some (.defnInfo v) :=
+  (AtomicAddConstants.ofAddConstants H).defnReflect hwf hfind
+
+/-- A family of the block is not accepted as a type-annotation wrapper by the
+constructor environment: a wrapper is a definition, the constructor environment
+adds no definition to the source environment, and the families are fresh there. -/
+theorem CompletedConstructorPhases.family_not_wrapper
     (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
     (family : VInductiveType) (hf : family ∈ decl.types) :
-    family.name ≠ ``optParam ∧ family.name ≠ ``autoParam ∧
-    family.name ≠ ``outParam ∧ family.name ≠ ``semiOutParam := by
+    ctorEnv.isTypeAnnotationWrapper family.name = false := by
   have hfresh := (VEnv.addConstVals_names_fresh R.core.typesAdded).2
     family.toVConstVal (List.mem_map.mpr ⟨family, hf, rfl⟩)
-  have habsent (name : Name) (hexists : ∃ info, c.env.find? name = some info ∧ info.safety = .safe) :
-      family.name ≠ name := by
-    intro heq
-    obtain ⟨info, hlookup, hsafety⟩ := hexists
-    obtain ⟨value, hvalue, _⟩ := R.sourceContext.checking.tr.find? hlookup
-      (hsafety ▸ DefinitionSafety.le_safe)
-    rw [R.sourceContextVEnv, ← heq] at hvalue
-    rw [hfresh] at hvalue
-    cases hvalue
-  have hw := R.sourceContext.checking.typeAnnotationWrappers
-  refine ⟨habsent _ ?_, habsent _ ?_, habsent _ ?_, habsent _ ?_⟩
-  · obtain ⟨info, _, hlookup, hsafety, _⟩ := hw.optParam.operational
-    exact ⟨info, hlookup, hsafety⟩
-  · obtain ⟨info, _, hlookup, hsafety, _⟩ := hw.autoParam.operational
-    exact ⟨info, hlookup, hsafety⟩
-  · obtain ⟨info, _, hlookup, hsafety, _⟩ := hw.outParam.operational
-    exact ⟨info, hlookup, hsafety⟩
-  · obtain ⟨info, _, hlookup, hsafety, _⟩ := hw.semiOutParam.operational
-    exact ⟨info, hlookup, hsafety⟩
+  cases hw : ctorEnv.isTypeAnnotationWrapper family.name with
+  | false => rfl
+  | true =>
+    exfalso
+    unfold Kernel.Environment.isTypeAnnotationWrapper at hw
+    split at hw
+    · rename_i v hfindCtor
+      simp only [Bool.and_eq_true, beq_iff_eq] at hw
+      have hsafe : v.safety = .safe := hw.1.1
+      have Hsource := R.sourceContext.checking
+      have hsourceWF := Hsource.tr.map_wf
+      rw [R.sourceContextVEnv] at Hsource
+      have hfindSource : c.env.find? family.name = some (.defnInfo v) := by
+        cases R.installation with
+        | ordinary Htypes Hctors =>
+          have Hheader := (Htypes.validCore Hsource.toValidCore).tr
+          exact Htypes.defnReflect hsourceWF (Hctors.defnReflect Hheader.map_wf hfindCtor)
+        | primitive Htypes Hctors _ =>
+          have Hheader := Htypes.checking Hsource.tr
+          exact Htypes.defnReflect hsourceWF (Hctors.defnReflect Hheader.map_wf hfindCtor)
+      obtain ⟨value, hvalue, _⟩ := R.sourceContext.checking.tr.find? hfindSource
+        (by simp [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, hsafe,
+          DefinitionSafety.le_safe])
+      rw [R.sourceContextVEnv, hfresh] at hvalue
+      cases hvalue
+    · simp at hw
 
-theorem Expr.consumeTypeAnnotationsVerified_eq_of_head {e : Expr}
-    (hhead : e.getAppFn = .const name levels)
-    (hnames : name ≠ ``optParam ∧ name ≠ ``autoParam ∧
-      name ≠ ``outParam ∧ name ≠ ``semiOutParam) : e.consumeTypeAnnotationsVerified = e := by
-  fun_induction Expr.consumeTypeAnnotationsVerified e
+theorem Expr.consumeTypeAnnotationsVerified_eq_of_head {ok : Name → Bool} {e : Expr}
+    (hhead : e.getAppFn = .const name levels) (hok : ok name = false) :
+    (e.consumeTypeAnnotationsVerified ok) = e := by
+  fun_induction Expr.consumeTypeAnnotationsVerified ok e
   case case1 n ls first second hannotation ih =>
     have hname : n = name := by simpa [Expr.getAppFn, Expr.constName!] using congrArg Expr.constName! hhead
     subst n
-    simp [hnames.1, hnames.2.1] at hannotation
+    simp [hok] at hannotation
   case case3 n ls arg hannotation ih =>
     have hname : n = name := by simpa [Expr.getAppFn, Expr.constName!] using congrArg Expr.constName! hhead
     subst n
-    simp [hnames.2.2.1, hnames.2.2.2] at hannotation
+    simp [hok] at hannotation
   all_goals rfl
 
 
@@ -240,11 +278,11 @@ theorem CompletedRecursorConstruction.majorSourceType
     simp [hfamily]
   rw [hconst] at htype
   change D.type = _ at htype
-  rw [htype]
+  rw [htype, H.localExtends.env_eq]
   apply Expr.consumeTypeAnnotationsVerified_eq_of_head
     (name := decl.types[owner].name) (levels := stats.levels)
   · simp [Expr.getAppFn_mkAppN, Expr.getAppFn]
-  · exact R.family_not_annotation _ (List.getElem_mem hfamily)
+  · exact R.family_not_wrapper _ (List.getElem_mem hfamily)
 
 /-- Recover one concrete binder's strict domain translation at its exact
 anonymous prefix. This inversion does not assert uniqueness for projections. -/

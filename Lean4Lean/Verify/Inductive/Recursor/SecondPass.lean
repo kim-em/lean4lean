@@ -616,9 +616,9 @@ theorem resultBindings {alpha : Type}
         let c' : AddInductive.Context := { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
           checkLCtx := (ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi }
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
         change (AddInductive.isRecArg stats dom { c' with checkLCtx := ctorFieldCheck c stats bu } >>= fun selected =>
           AddInductive.mkRecInfos.loopCtorArgs.loop stats
             k (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1)
@@ -630,12 +630,12 @@ theorem resultBindings {alpha : Type}
           intro _ _
           trivial
         refine hclass.bind fun selected _ => ?_
-        let Hc' := (Hc.withLocalDecl name dom.consumeTypeAnnotationsVerified bi).withCheckLCtx
+        let Hc' := (Hc.withLocalDecl name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi).withCheckLCtx
           ((ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi)
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
         let hstep := BindingContextLE.withCheckedLocalDecl
           (base := ctorFieldCheck c stats bu) c Hc name
-          dom.consumeTypeAnnotationsVerified bi
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
         cases selected with
         | none =>
           have hselected' : u.toList.Sublist
@@ -644,8 +644,8 @@ theorem resultBindings {alpha : Type}
               (List.sublist_append_left bu.toList
                 [.fvar ⟨c.ngen.curr⟩])
           exact ih Hc'
-            (Hbu.pushCurrentChecked Hc Hroot name dom.consumeTypeAnnotationsVerified bi)
-            (Hu.weakenChecked name dom.consumeTypeAnnotationsVerified bi)
+            (Hbu.pushCurrentChecked Hc Hroot name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
+            (Hu.weakenChecked name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
             hselected'
             (Hroot.trans hstep)
         | some target =>
@@ -654,8 +654,8 @@ theorem resultBindings {alpha : Type}
             simpa using
               Hselected.append_right [.fvar ⟨c.ngen.curr⟩]
           exact ih Hc'
-            (Hbu.pushCurrentChecked Hc Hroot name dom.consumeTypeAnnotationsVerified bi)
-            (Hu.pushCurrentChecked Hc Hroot name dom.consumeTypeAnnotationsVerified bi)
+            (Hbu.pushCurrentChecked Hc Hroot name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
+            (Hu.pushCurrentChecked Hc Hroot name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
             hselected'
             (Hroot.trans hstep)
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
@@ -779,7 +779,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
             AddInductive.RecCallBlueprint))) next).WF fun result =>
           ∃ viTarget,
             TrExprS Rnext.venv recLparams Rnext.mlctx.vlctx
-              result.1.consumeTypeAnnotationsVerified viTarget ∧
+              (result.1.consumeTypeAnnotationsVerified next.env.isTypeAnnotationWrapper) viTarget ∧
             Rnext.venv.IsType recLparams.length
               Rnext.mlctx.vlctx.toCtx viTarget ∧
             ∃ O : RecInfoHypothesisTypeOrigin
@@ -843,7 +843,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
     refine resultSemanticBindings stats bu u recInfos k Rroot R' rootScope
       rootScopeInContext hrootUp (v.size + 1)
       (v.push (.fvar ⟨current.ngen.curr⟩)) (calls.push call)
-      (Hrecent.pushCurrent vName viTy.consumeTypeAnnotationsVerified viTarget
+      (Hrecent.pushCurrent vName (viTy.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) viTarget
         .default HviTr HviType)
       (Horigins.pushCurrent R.toBindingContextWF vName viTy .default
         hnext Hrecent.contextLE ⟨O⟩)
@@ -943,7 +943,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
             AddInductive.RecCallBlueprint))) c).WF fun result =>
         ∃ viTarget,
           TrExprS R.venv recLparams R.mlctx.vlctx
-            result.1.consumeTypeAnnotationsVerified viTarget ∧
+            (result.1.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) viTarget ∧
           R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget ∧
           ∃ O : RecInfoHypothesisTypeOrigin
               stats recInfos c (.fvar fv) result.1,
@@ -988,7 +988,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
     c R Hstats hconsume hlit hctx hfield prior hpriorFVars hinferredScope hrootUp
     (Q := fun target result => ∃ viTarget,
       TrExprS R.venv recLparams R.mlctx.vlctx
-        result.1.consumeTypeAnnotationsVerified viTarget ∧
+        (result.1.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) viTarget ∧
       R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget ∧
       ∃ O : RecInfoHypothesisTypeOrigin
           stats recInfos c (.fvar fv) result.1,
@@ -1257,7 +1257,7 @@ theorem inductionHypothesisTypeOrigin
             AddInductive.RecCallBlueprint))) c).WF fun result =>
         ∃ viTarget,
           TrExprS R.venv recLparams R.mlctx.vlctx
-            result.1.consumeTypeAnnotationsVerified viTarget ∧
+            (result.1.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) viTarget ∧
           R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget ∧
           ∃ O : RecInfoHypothesisTypeOrigin
               stats recInfos c (.fvar fv) result.1,
@@ -1845,9 +1845,9 @@ def RecInfoTypeOrigins.rebaseCore
     exact O.minorShapes i hi' j hj
 
 theorem RecInfoMajorTypeShapes.rebaseCore
-    (S : RecInfoMajorTypeShapes stats left majorTypes)
+    (S : RecInfoMajorTypeShapes stats left majorTypes ok)
     (H : RecInfoCoreEq left right) :
-    RecInfoMajorTypeShapes stats right majorTypes := by
+    RecInfoMajorTypeShapes stats right majorTypes ok := by
   refine ⟨S.size_eq.trans H.size_eq, ?_⟩
   intro i hi
   have hi' : i < left.size := by simpa [H.size_eq] using hi
@@ -2067,7 +2067,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       Hsuffix.parameterDecls)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
-      Horigins.majorTypes)
+      Horigins.majorTypes c.env.isTypeAnnotationWrapper)
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
     (HmotiveShapes : RecInfoMotiveTypeShapes c recInfos
       Horigins.motiveTypes elimLevel)
@@ -2085,13 +2085,13 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       recInfos[i]!.minors.size = 0)
     {minorTarget : VExpr}
     (Hminor : TrExprS R.venv recLparams R.mlctx.vlctx
-      minorTy.consumeTypeAnnotationsVerified minorTarget)
+      (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) minorTarget)
     (HminorType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx minorTarget)
     (HminorShape : RecInfoMinorTypeShape)
     (HminorShapePosition :
       HminorShape.localIndex = Horigins.minorTypes[dIdx]!.size ∧
-      HminorShape.origin = minorTy.consumeTypeAnnotationsVerified)
+      HminorShape.origin = (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper))
     (HminorSource : HminorShape.sourceConstructors =
       indTypes[dIdx]!.ctors)
     (HminorHypothesisOrigins :
@@ -2153,7 +2153,8 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       (∀ i, i < recInfos.size → dIdx ≠ i →
         out[i]!.minors.size = recInfos[i]!.minors.size) →
       RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
-      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
+      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes
+        outCtx.env.isTypeAnnotationWrapper →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
       RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
       RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →
@@ -2164,7 +2165,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       RecInfoArities stats out →
       BindingContextLE root outCtx →
       (k out outCtx).WF Q) :
-    (withLocalDecl minorName .default minorTy.consumeTypeAnnotationsVerified
+    (withLocalDecl minorName .default (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
       (fun minor =>
         let next := recInfos.modify dIdx fun info =>
           { info with
@@ -2178,7 +2179,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
   let cMinor : AddInductive.Context := { c with
     ngen := c.ngen.next
     lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ minorName
-      minorTy.consumeTypeAnnotationsVerified .default }
+      (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default }
   let next := recInfos.modify dIdx fun info =>
     { info with
       minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
@@ -2188,18 +2189,18 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (name := minorName) (bi := .default) R Hminor HminorType
   let HbindingsMinor := Hbindings.addMinor dIdx hidx
     (BindingContextLE.refl c) R.toBindingContextWF minorName
-      minorTy.consumeTypeAnnotationsVerified .default
+      (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default
   let HoriginsMinor := Horigins.addMinor dIdx hidx
     (BindingContextLE.refl c) R.toBindingContextWF minorName
-      minorTy.consumeTypeAnnotationsVerified .default HminorShape
+      (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default HminorShape
       HminorShapePosition
   let HminorSourcesMinor := HminorSources.addMinor dIdx hidx hsourceIdx
     (BindingContextLE.refl c) R.toBindingContextWF minorName
-    minorTy.consumeTypeAnnotationsVerified .default HminorShape
+    (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default HminorShape
     HminorShapePosition HminorSource HminorHypothesisOrigins HminorTraversal
   let HminorSemanticsMinor := HminorSemantics.addMinor
     (RecursorContextExtension.refl R) dIdx hidx minorName
-    minorTy.consumeTypeAnnotationsVerified .default Hminor HminorType HminorShape
+    (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default Hminor HminorType HminorShape
     HminorShapePosition HminorSemantic
   let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
     (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
@@ -2223,14 +2224,14 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     rw [HbindingsMinor.rebaseCore_motives_fvars Hcore]
     exact Hbindings.addMinor_motives_fvars dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName
-      minorTy.consumeTypeAnnotationsVerified .default
+      (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default
   have hflatMinorsFVarsNext : HbindingsNext.flatMinors.fvars =
       Hbindings.flatMinors.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)] := by
     change (HbindingsMinor.rebaseCore Hcore).flatMinors.fvars = _
     rw [HbindingsMinor.rebaseCore_flatMinors_fvars Hcore]
     exact Hbindings.addMinor_flatMinors_fvars dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName
-      minorTy.consumeTypeAnnotationsVerified .default Hlater
+      (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default Hlater
   have HblueprintsNext :
       RecInfoRuleBlueprintOrigins stats next HoriginsNext := by
     refine {
@@ -2733,10 +2734,10 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     · rfl
     · exact Hbindings.addMinor_motives_fvars dIdx hidx
         (BindingContextLE.refl c) R.toBindingContextWF minorName
-          minorTy.consumeTypeAnnotationsVerified .default
+          (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default
     · exact Hbindings.addMinor_flatMinors_fvars dIdx hidx
         (BindingContextLE.refl c) R.toBindingContextWF minorName
-          minorTy.consumeTypeAnnotationsVerified .default Hlater
+          (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default Hlater
     · rfl
   have HorderNext : RecInfoOuterOrder Rminor HparamsMinor HbindingsNext :=
     RecInfoOuterOrder.rebaseCore HbindingsMinor HorderMinor Hcore
@@ -2771,7 +2772,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       HbindingsMinor HparamsMinor
       (Hbindings.addMinor_noAlias Hparams HnoAlias dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName
-        minorTy.consumeTypeAnnotationsVerified .default) Hcore
+        (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default) Hcore
   · exact HorderNext
   · exact (Harities.modifyMinors dIdx
       (fun minors => minors.push (.fvar ⟨c.ngen.curr⟩))).rebaseCore Hcore
@@ -2828,7 +2829,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       Hsuffix.parameterDecls)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
-      Horigins.majorTypes)
+      Horigins.majorTypes c.env.isTypeAnnotationWrapper)
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
     (HmotiveShapes : RecInfoMotiveTypeShapes c recInfos
       Horigins.motiveTypes elimLevel)
@@ -2872,7 +2873,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       (∀ i, i < recInfos.size → dIdx ≠ i →
         out[i]!.minors.size = recInfos[i]!.minors.size) →
       RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
-      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
+      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes
+        outCtx.env.isTypeAnnotationWrapper →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
       RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
       RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →
@@ -2897,8 +2899,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
               lctx.mkForall hypotheses motiveApp
             let minorName :=
               ctor.name.replacePrefix indTypeName .anonymous
-            withLocalDecl minorName .default
-                minorTy.consumeTypeAnnotationsVerified fun minor =>
+            AddInductive.withConsumedLocalDecl minorName .default minorTy fun minor =>
               let next := recInfos.modify dIdx fun info =>
                 { info with
                   minors := info.minors.push minor
@@ -2923,7 +2924,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         let minorTy := lctx.mkForall allFields <|
           lctx.mkForall hypotheses motiveApp
         let minorName := ctor.name.replacePrefix indTypeName .anonymous
-        withLocalDecl minorName .default minorTy.consumeTypeAnnotationsVerified
+        AddInductive.withConsumedLocalDecl minorName .default minorTy
             fun minor =>
           let next := recInfos.modify dIdx fun info =>
             { info with
@@ -3013,7 +3014,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     let minorTy := lctx.mkForall allFields <|
       lctx.mkForall hypotheses motiveApp
     let minorName := ctor.name.replacePrefix indTypeName .anonymous
-    withLocalDecl minorName .default minorTy.consumeTypeAnnotationsVerified
+    AddInductive.withConsumedLocalDecl minorName .default minorTy
         fun minor =>
       let next := recInfos.modify dIdx fun info =>
         { info with
@@ -3375,7 +3376,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       (HblueprintSemantics.mono HextAll)
       (HminorSources.mono HextAll.contextLE)
       HminorSemanticsOut
-      (HmajorTypes.mono HextAll) HmajorShapes
+      (HmajorTypes.mono HextAll)
+      (by rw [HextAll.contextLE.env_eq]; exact HmajorShapes)
       (HmotiveTypes.mono HextAll)
       (HmotiveShapes.mono Hbindings HextAll.contextLE)
       (Htelescopes.mono HextAll) (HindexRows.mono HextAll)
@@ -3385,13 +3387,13 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       Hlater Hconsumed.consumed
       Hconsumed.isType {
         localIndex := HoriginsOut.minorTypes[dIdx]!.size
-        origin := (outCtx.lctx.mkForall allFields
+        origin := ((outCtx.lctx.mkForall allFields
           (outCtx.lctx.mkForall hypotheses
             (Expr.app
               (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
               (mkAppN
                 (mkAppN (.const ctor.name stats.levels) stats.params)
-                allFields)))).consumeTypeAnnotationsVerified
+                allFields)))).consumeTypeAnnotationsVerified outCtx.env.isTypeAnnotationWrapper)
         constructor := ctor
         sourceConstructors := sourceConstructors
         sourceConstructor := by
@@ -3621,7 +3623,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       Hsuffix.parameterDecls)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
-      Horigins.majorTypes)
+      Horigins.majorTypes c.env.isTypeAnnotationWrapper)
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
     (HmotiveShapes : RecInfoMotiveTypeShapes c recInfos
       Horigins.motiveTypes elimLevel)
@@ -3690,7 +3692,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (∀ i, i < recInfos.size → dIdx ≠ i →
         out[i]!.minors.size = recInfos[i]!.minors.size) →
       RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
-      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
+      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes
+        outCtx.env.isTypeAnnotationWrapper →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
       RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
       RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →
@@ -3835,7 +3838,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       HsuffixCtx.parameterDecls)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
-      Horigins.majorTypes)
+      Horigins.majorTypes c.env.isTypeAnnotationWrapper)
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
     (HmotiveShapes : RecInfoMotiveTypeShapes c recInfos
       Horigins.motiveTypes elimLevel)
@@ -3905,7 +3908,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (∀ i, i < out.size →
         out[i]!.minors.size = indTypes[i]!.ctors.length) →
       RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
-      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
+      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes
+        outCtx.env.isTypeAnnotationWrapper →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
       RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
       RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →

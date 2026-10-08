@@ -401,9 +401,6 @@ theorem AddInductive.declareConstructors.primitiveWF
       Hcombined.safePrimitives
         H.sourceContext.checking.tr.map_wf
         H.sourceContext.checking.safePrimitives hsafeEntries
-    have hannotations := Hcombined.typeAnnotationWrappers
-      H.sourceContext.checking.tr.map_wf
-      H.sourceContext.checking.typeAnnotationWrappers
     have hsourceMapWF := H.sourceContext.checking.tr.map_wf
     have houtWF : outEnv.constants.WF := Hcombined.targetMapWF hsourceMapWF
     have hindicesSize : stats.nindices.size = indTypes.size := by
@@ -529,7 +526,7 @@ theorem AddInductive.declareConstructors.primitiveWF
       have h := H.sourceContext.checking.quot
       rwa [H.sourceContextVEnv] at h
     let Hcontext := Hinstalled.completeContext H.context
-      hprimitives hsafe hannotations howners hregistry hrecursors hquot
+      hprimitives hsafe howners hregistry hrecursors hquot
       (Hinstalled.corner H.context.checking H.context.corner (Haligned.cornerSteps hctors))
     have hctorsAdded : H.context.venv.addConstVals
         decl.constructorConstants = some venvCtors := by

@@ -22,17 +22,63 @@ def findAny (p : Expr → Bool) : Expr → Bool
   | e => p e
 
 /-- Transparent reference implementation of the outer annotation erasure used
-by the verified checker. -/
-def consumeTypeAnnotationsVerified : Expr → Expr
+by the verified checker. Like `Expr.consumeTypeAnnotations` (and the C++
+`consume_type_annotations`), it strips `optParam α d`, `autoParam α s`,
+`outParam α` and `semiOutParam α` to `α`, repeatedly; unlike them, it strips an
+application only if `ok` accepts its head. The inductive checker passes
+`Kernel.Environment.isTypeAnnotationWrapper env`, so a wrapper is stripped only
+when the environment declares it as the prelude's identity-like definition. -/
+def consumeTypeAnnotationsVerified (ok : Name → Bool) : Expr → Expr
   | e@(.app (.app (.const name _) type) _) =>
-    if name == ``optParam || name == ``autoParam then
-      consumeTypeAnnotationsVerified type
+    if (name == ``optParam || name == ``autoParam) && ok name then
+      consumeTypeAnnotationsVerified ok type
     else e
   | e@(.app (.const name _) type) =>
-    if name == ``outParam || name == ``semiOutParam then
-      consumeTypeAnnotationsVerified type
+    if (name == ``outParam || name == ``semiOutParam) && ok name then
+      consumeTypeAnnotationsVerified ok type
     else e
   | e => e
+
+end Expr
+
+namespace Kernel.Environment
+
+/-- The prelude's type-annotation wrappers, as stored by the kernel:
+
+* `@[reducible] def optParam.{u} (α : Sort u) (default : α) : Sort u := α`,
+* `def autoParam.{u} (α : Sort u) (tactic : Lean.Syntax) : Sort u := α`,
+* `@[reducible] def outParam.{u} (α : Sort u) : Sort u := α`, and `semiOutParam` likewise.
+
+`isTypeAnnotationWrapper env name` holds if `env` declares `name` as one of these: a safe
+definition whose universe parameters, type and value are exactly the prelude's (binder names
+and binder infos included). The value is also matched structurally, since its shape
+`fun α _ => α` is what makes stripping an application sound. -/
+def isTypeAnnotationWrapper (env : Environment) (name : Name) : Bool :=
+  match env.find? name with
+  | some (.defnInfo v) =>
+    let u := Level.param `u
+    let s := Expr.sort u
+    v.safety == .safe && v.levelParams == [`u] &&
+    if name == ``optParam || name == ``autoParam then
+      let (argName, argType) := if name == ``optParam then (`default, Expr.bvar 0)
+        else (`tactic, Expr.const ``Lean.Syntax [])
+      match v.value with
+      | .lam _ _ (.lam _ _ (.bvar 1) _) _ =>
+        v.type.equal (.forallE `α s (.forallE argName argType s .default) .default) &&
+        v.value.equal (.lam `α s (.lam argName argType (.bvar 1) .default) .default)
+      | _ => false
+    else if name == ``outParam || name == ``semiOutParam then
+      match v.value with
+      | .lam _ _ (.bvar 0) _ =>
+        v.type.equal (.forallE `α s s .default) &&
+        v.value.equal (.lam `α s (.bvar 0) .default)
+      | _ => false
+    else false
+  | _ => false
+
+end Kernel.Environment
+
+namespace Expr
 
 namespace ReplaceImpl
 

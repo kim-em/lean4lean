@@ -217,14 +217,16 @@ structure BinaryTypeAnnotationWrapper (env : Environment) (name : Name) : Prop w
         (.app (.app (value.instantiateLevelParams info.levelParams levels)
           first) second) first
 
-/-- The four Prelude declarations whose names receive special operational
-treatment from `Expr.consumeTypeAnnotations` have their real, identity-like
-delta bodies in the production environment. -/
-structure TypeAnnotationWrappers (env : Environment) : Prop where
-  optParam : BinaryTypeAnnotationWrapper env ``optParam
-  autoParam : BinaryTypeAnnotationWrapper env ``autoParam
-  outParam : UnaryTypeAnnotationWrapper env ``outParam
-  semiOutParam : UnaryTypeAnnotationWrapper env ``semiOutParam
+/-- The wrapper names accepted by `ok` have their real, identity-like delta
+bodies in `env`.  The inductive checker strips an annotation only if
+`Kernel.Environment.isTypeAnnotationWrapper env` accepts its head, which
+establishes this for `env` itself (`TypeAnnotationWrappers.of_env`), so no
+invariant on the environment is involved. -/
+structure TypeAnnotationWrappers (env : Environment) (ok : Name → Bool) : Prop where
+  optParam : ok ``optParam = true → BinaryTypeAnnotationWrapper env ``optParam
+  autoParam : ok ``autoParam = true → BinaryTypeAnnotationWrapper env ``autoParam
+  outParam : ok ``outParam = true → UnaryTypeAnnotationWrapper env ``outParam
+  semiOutParam : ok ``semiOutParam = true → UnaryTypeAnnotationWrapper env ``semiOutParam
 
 theorem UnaryTypeAnnotationWrapper.rebase
     (H : UnaryTypeAnnotationWrapper source name)
@@ -243,14 +245,110 @@ theorem BinaryTypeAnnotationWrapper.rebase
   exact ⟨⟨info, value, hpreserves hlookup, hsafe, hdelta, hreduces⟩⟩
 
 theorem TypeAnnotationWrappers.rebase
-    (H : TypeAnnotationWrappers source)
+    (H : TypeAnnotationWrappers source ok)
     (hpreserves : ∀ {n ci}, source.find? n = some ci →
       target.find? n = some ci) :
-    TypeAnnotationWrappers target where
-  optParam := H.optParam.rebase hpreserves
-  autoParam := H.autoParam.rebase hpreserves
-  outParam := H.outParam.rebase hpreserves
-  semiOutParam := H.semiOutParam.rebase hpreserves
+    TypeAnnotationWrappers target ok where
+  optParam h := (H.optParam h).rebase hpreserves
+  autoParam h := (H.autoParam h).rebase hpreserves
+  outParam h := (H.outParam h).rebase hpreserves
+  semiOutParam h := (H.semiOutParam h).rebase hpreserves
+
+private theorem binaryWrapperBody {value : Expr} {n₁ n₂ : Name} {t₁ t₂ : Expr}
+    {bi₁ bi₂ : BinderInfo} (hvalue : value = .lam n₁ t₁ (.lam n₂ t₂ (.bvar 1) bi₂) bi₁)
+    (ps : List Name) (levels : List Level) {first second : Expr}
+    (hfirst : first.Closed) (hsecond : second.Closed) :
+    BetaReduce
+      (.app (.app (value.instantiateLevelParams ps levels) first) second) first := by
+  subst hvalue
+  have h1 := hfirst.looseBVarRange_zero
+  have h2 := hsecond.looseBVarRange_zero
+  rw [Expr.instantiateLevelParams_eq]
+  simp only [Expr.instantiateLevelParamsCore']
+  generalize Expr.instantiateLevelParamsCore' _ _ t₁ = t₁'
+  generalize Expr.instantiateLevelParamsCore' _ _ t₂ = t₂'
+  refine .trans (.app (.beta h1)) ?_
+  have hbody : (Expr.lam n₂ t₂' (.bvar 1) bi₂).instantiate1' first =
+      .lam n₂ (t₂'.instantiate1' first) first bi₂ := by
+    simp [Expr.instantiate1', Expr.liftLooseBVars_eq_self, h1]
+  rw [hbody]
+  have := BetaReduce.beta (i := n₂) (ty := t₂'.instantiate1' first) (body := first)
+    (bi := bi₂) h2
+  rwa [Expr.instantiate1_eq_self h1] at this
+
+private theorem unaryWrapperBody {value : Expr} {n₁ : Name} {t₁ : Expr} {bi₁ : BinderInfo}
+    (hvalue : value = .lam n₁ t₁ (.bvar 0) bi₁)
+    (ps : List Name) (levels : List Level) {arg : Expr} (harg : arg.Closed) :
+    BetaReduce (.app (value.instantiateLevelParams ps levels) arg) arg := by
+  subst hvalue
+  have h := harg.looseBVarRange_zero
+  rw [Expr.instantiateLevelParams_eq]
+  simp only [Expr.instantiateLevelParamsCore']
+  generalize Expr.instantiateLevelParamsCore' _ _ t₁ = t₁'
+  have := BetaReduce.beta (i := n₁) (ty := t₁') (body := .bvar 0) (bi := bi₁) h
+  simpa [Expr.instantiate1', Expr.liftLooseBVars_eq_self, h] using this
+
+/-- The names that `Kernel.Environment.isTypeAnnotationWrapper env` accepts are
+declared as identity-like safe definitions in every environment `target` that
+has the definitions of `env`. -/
+theorem TypeAnnotationWrappers.of_reflect (env target : Environment)
+    (hreflect : ∀ {n v}, env.find? n = some (.defnInfo v) →
+      target.find? n = some (.defnInfo v)) :
+    TypeAnnotationWrappers target env.isTypeAnnotationWrapper := by
+  have key : ∀ name, env.isTypeAnnotationWrapper name = true →
+      ∃ v, env.find? name = some (.defnInfo v) ∧ v.safety = .safe ∧
+        ((name = `optParam ∨ name = `autoParam) →
+          ∃ n₁ t₁ n₂ t₂ bi₁ bi₂, v.value = .lam n₁ t₁ (.lam n₂ t₂ (.bvar 1) bi₂) bi₁) ∧
+        ((name = `outParam ∨ name = `semiOutParam) →
+          ∃ n₁ t₁ bi₁, v.value = .lam n₁ t₁ (.bvar 0) bi₁) := by
+    intro name h
+    unfold Kernel.Environment.isTypeAnnotationWrapper at h
+    split at h
+    · rename_i v hfind
+      simp only [Bool.and_eq_true, beq_iff_eq] at h
+      obtain ⟨⟨hsafe, _⟩, h⟩ := h
+      refine ⟨v, hfind, hsafe, fun hn => ?_, fun hn => ?_⟩
+      · have hn' : (name == `optParam || name == `autoParam) = true := by
+          rcases hn with rfl | rfl <;> rfl
+        rw [if_pos hn'] at h
+        split at h
+        · rename_i n₁ t₁ n₂ t₂ bi₂ bi₁ hv; exact ⟨_, _, _, _, _, _, hv⟩
+        · simp at h
+      · have hn' : (name == `optParam || name == `autoParam) = false := by
+          rcases hn with rfl | rfl <;> rfl
+        have hn'' : (name == `outParam || name == `semiOutParam) = true := by
+          rcases hn with rfl | rfl <;> rfl
+        rw [if_neg (by simp [hn']), if_pos hn''] at h
+        split at h
+        · rename_i n₁ t₁ bi₁ hv; exact ⟨_, _, _, hv⟩
+        · simp at h
+    · simp at h
+  have hsafety (v : DefinitionVal) (h : v.safety = .safe) :
+      (ConstantInfo.defnInfo v).safety = .safe := by
+    simp [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, h]
+  refine ⟨fun h => ?_, fun h => ?_, fun h => ?_, fun h => ?_⟩
+  · obtain ⟨v, hfind, hsafe, hb, -⟩ := key _ h
+    obtain ⟨_, _, _, _, _, _, hv⟩ := hb (.inl rfl)
+    exact ⟨⟨_, v.value, hreflect hfind, hsafety v hsafe, rfl,
+      fun levels _ _ h1 h2 => binaryWrapperBody hv _ levels h1 h2⟩⟩
+  · obtain ⟨v, hfind, hsafe, hb, -⟩ := key _ h
+    obtain ⟨_, _, _, _, _, _, hv⟩ := hb (.inr rfl)
+    exact ⟨⟨_, v.value, hreflect hfind, hsafety v hsafe, rfl,
+      fun levels _ _ h1 h2 => binaryWrapperBody hv _ levels h1 h2⟩⟩
+  · obtain ⟨v, hfind, hsafe, -, hu⟩ := key _ h
+    obtain ⟨_, _, _, hv⟩ := hu (.inl rfl)
+    exact ⟨⟨_, v.value, hreflect hfind, hsafety v hsafe, rfl,
+      fun levels _ h1 => unaryWrapperBody hv _ levels h1⟩⟩
+  · obtain ⟨v, hfind, hsafe, -, hu⟩ := key _ h
+    obtain ⟨_, _, _, hv⟩ := hu (.inr rfl)
+    exact ⟨⟨_, v.value, hreflect hfind, hsafety v hsafe, rfl,
+      fun levels _ h1 => unaryWrapperBody hv _ levels h1⟩⟩
+
+/-- The names that `Kernel.Environment.isTypeAnnotationWrapper env` accepts are
+declared in `env` as identity-like safe definitions. -/
+theorem TypeAnnotationWrappers.of_env (env : Environment) :
+    TypeAnnotationWrappers env env.isTypeAnnotationWrapper :=
+  .of_reflect env env id
 
 variable (safety : DefinitionSafety) (env : VEnv) in
 def TrConstant (ci : ConstantInfo) (ci' : VConstant) : Prop :=

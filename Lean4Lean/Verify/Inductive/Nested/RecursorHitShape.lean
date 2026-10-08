@@ -85,8 +85,8 @@ theorem getAppArgs_slice {e : Expr} (H : HitShape heads params ls e)
 application arguments, so it preserves shape. -/
 theorem consumeTypeAnnotationsVerified {e : Expr} (H : HitShape heads params ls e)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) :
-    HitShape heads params ls e.consumeTypeAnnotationsVerified := by
-  fun_induction Expr.consumeTypeAnnotationsVerified e
+    HitShape heads params ls (e.consumeTypeAnnotationsVerified annOk) := by
+  fun_induction Expr.consumeTypeAnnotationsVerified _ e
   case case1 name us type v _ ih =>
     exact ih (H.of_mem_getAppArgsList hp (a := type) (by simp [getAppArgsList]))
   case case2 => exact H
@@ -157,8 +157,8 @@ variable {env : Lean.Kernel.Environment} {heads : List Name} {params : List Expr
 application arguments, so it preserves `HitOK`. -/
 theorem consumeTypeAnnotationsVerified {e : Expr} (H : HitOK env heads params ls e)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) :
-    HitOK env heads params ls e.consumeTypeAnnotationsVerified := by
-  fun_induction Expr.consumeTypeAnnotationsVerified e
+    HitOK env heads params ls (e.consumeTypeAnnotationsVerified annOk) := by
+  fun_induction Expr.consumeTypeAnnotationsVerified _ e
   case case1 name us type v _ ih =>
     exact ih (H.of_mem_getAppArgsList hp (a := type) (by simp [getAppArgsList]))
   case case2 => exact H
@@ -379,7 +379,7 @@ theorem RecursorLoopUArgsPrefix.hitShape
     have hsc' : R'.HitOKScope env heads params ls P'' := by
       refine ⟨?_, ?_⟩
       · have hΔ : R'.mlctx.vlctx =
-            (some (x, domain.consumeTypeAnnotationsVerified.fvarsList),
+            (some (x, (domain.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList),
               .vlam consumedDom) :: R.mlctx.vlctx := rfl
         rw [hΔ]
         refine ⟨(IsFVarUpSet.congr (P := P') (Q := P'') R.mlctx_wf.tr.wf.fvwf
@@ -392,15 +392,15 @@ theorem RecursorLoopUArgsPrefix.hitShape
         by_cases hx : fv = x
         · subst hx
           have hself := R'.mlctx_wf.find?_vlam_self
-          change (TypeChecker.MLCtx.vlam x name domain.consumeTypeAnnotationsVerified
+          change (TypeChecker.MLCtx.vlam x name (domain.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper)
             consumedDom bi R.mlctx).lctx.find? x = some decl at hdecl
           rw [hself] at hdecl
           cases hdecl
-          exact LocalDecl.HitOK.of_cdecl (hdomH.consumeTypeAnnotationsVerified hp)
+          exact LocalDecl.HitOK.of_cdecl ((hdomH.consumeTypeAnnotationsVerified) hp)
         · have hfind : R'.mlctx.lctx.find? fv = R.mlctx.lctx.find? fv := by
-            change (TypeChecker.MLCtx.vlam x name domain.consumeTypeAnnotationsVerified
+            change (TypeChecker.MLCtx.vlam x name (domain.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper)
               consumedDom bi R.mlctx).lctx.find? fv = R.mlctx.lctx.find? fv
-            have hwf : (TypeChecker.MLCtx.vlam x name domain.consumeTypeAnnotationsVerified
+            have hwf : (TypeChecker.MLCtx.vlam x name (domain.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper)
                 consumedDom bi R.mlctx).WF R.venv recLparams := R'.mlctx_wf
             rw [hwf.find?_eq, R.mlctx_wf.find?_eq]
             have hbeq : (fv == x) = false := by simpa using hx
@@ -615,7 +615,7 @@ theorem RecursorIndexTrace.hitShape
         obtain ⟨index, userName, binderInfo, kind, hx⟩ := declaration
         rw [hx] at hfind
         cases hfind
-        exact LocalDecl.HitOK.of_cdecl (hdom.consumeTypeAnnotationsVerified hp)
+        exact LocalDecl.HitOK.of_cdecl ((hdom.consumeTypeAnnotationsVerified) hp)
     refine ⟨call.hitShape W henv (fun fv hfv d hfind => ?_)
       (hbody.instantiate1 hp Expr.HitOK.fvar), hall⟩
     rcases hfv with h | h
@@ -710,7 +710,7 @@ theorem RecursorFieldDecisions.hitShape {heads : List Name} {params : List Expr}
     terminal.HitShape heads params ls ∧
       FieldDeclsSatisfy (fun e => e.HitShape heads params ls) current fields :=
   H.fieldDeclsSatisfy Hroot _ (fun h =>
-    ⟨h.forallE_inv.1.consumeTypeAnnotationsVerified hp,
+    ⟨(h.forallE_inv.1.consumeTypeAnnotationsVerified) hp,
       fun fv => h.forallE_inv.2.instantiate1 (.fvar fv) hp⟩) Hsource
 
 /-- `RecursorFieldDecisions.hitShape` together with the projection condition. -/
@@ -723,7 +723,7 @@ theorem RecursorFieldDecisions.hitOK {env : Environment} {heads : List Name}
     terminal.HitOK env heads params ls ∧
       FieldDeclsSatisfy (fun e => e.HitOK env heads params ls) current fields :=
   H.fieldDeclsSatisfy Hroot _ (fun h =>
-    ⟨h.forallE_inv.1.consumeTypeAnnotationsVerified hp,
+    ⟨(h.forallE_inv.1.consumeTypeAnnotationsVerified) hp,
       fun _ => h.forallE_inv.2.instantiate1 hp Expr.HitOK.fvar⟩) Hsource
 
 /-! ### Bound free-variable arrays -/
@@ -1038,7 +1038,7 @@ theorem minorHitShape {heads : List Name} (I : H.HitShapeInputs heads)
       exact ⟨pv, rfl, hle.fvars (hparamTerm pv (Array.mem_toList_iff.1 hpm))⟩
     obtain ⟨hargs, hexp, htype⟩ :=
       O.hitShape W hp henv Rorigin hscope hfieldP hparamsRoot
-    refine ⟨⟨D, by rw [hD]; exact htype.consumeTypeAnnotationsVerified hp⟩, ?_⟩
+    refine ⟨⟨D, by rw [hD]; exact (htype.consumeTypeAnnotationsVerified) hp⟩, ?_⟩
     rw [hcall]
     refine ⟨?_, by
       have := (checkPositivityStep.isValidIndApp?_some O.owner_valid).1
@@ -1062,7 +1062,7 @@ theorem minorHitShape {heads : List Name} (I : H.HitShapeInputs heads)
   refine ⟨hfieldDecls, ?_, fun j hj => (hper j hj).2⟩
   -- The minor premise type.
   rw [← S.consumed_eq]
-  refine Expr.HitShape.consumeTypeAnnotationsVerified ?_ hp
+  refine (Expr.HitShape.consumeTypeAnnotationsVerified) ?_ hp
   rw [S.sourceType_eq, ← S.sourceContext_eq]
   refine Expr.HitShape.mkForall_of_disjoint S.fields_bound.expressions ?_ ?_ hfieldDecls
   · refine Expr.HitShape.mkForall_of_disjoint S.hypotheses_bound.expressions ?_ ?_ ?_
@@ -1151,7 +1151,7 @@ theorem majorDeclHitShape {y : FVarId} (hy : Expr.fvar y ∈ H.recInfos.map (·.
   refine H.origins.majors.declHitShape (fun i hi => ?_) hy
   have hi' : i < H.recInfos.size := by simpa using hi
   rw [H.majorShapes.shape i hi']
-  refine Expr.HitShape.consumeTypeAnnotationsVerified ?_ H.params_fvar
+  refine (Expr.HitShape.consumeTypeAnnotationsVerified) ?_ H.params_fvar
   obtain ⟨n, hn⟩ := H.indConst_eq hi'
   rw [hn]
   refine Expr.HitShape.mkAppN_const_paramsArray (fun a ha => ?_) H.params_fvar

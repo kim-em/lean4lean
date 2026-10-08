@@ -23,12 +23,12 @@ def toTypeCheckerContext
 separate from WHNF/classifier locality because `consumeTypeAnnotations` is
 exported as an opaque runtime constant with no equation theorem. -/
 def ConsumeTypeAnnotationsAlphaCompat : Prop :=
-  ∀ {leftBinders rightBinders : List FVarId}
+  ∀ {ok : Name → Bool} {leftBinders rightBinders : List FVarId}
     {leftDomain rightDomain : Expr},
     TypeChecker.ExprAlphaUnder leftBinders rightBinders
       leftDomain rightDomain →
     TypeChecker.ExprAlphaUnder leftBinders rightBinders
-      leftDomain.consumeTypeAnnotationsVerified rightDomain.consumeTypeAnnotationsVerified
+      (leftDomain.consumeTypeAnnotationsVerified ok) (rightDomain.consumeTypeAnnotationsVerified ok)
 
 /-- A well-formed operational context extension supplies the empty-binder
 base of the typechecker's ordered alpha relation.  Old declarations are
@@ -88,23 +88,23 @@ theorem RecursorFieldDecisions.freshBindings
   | @nonrecursive c name dom body bi bu u positions H _ ih =>
       rcases ih with ⟨Hc, HrootCurrent, ⟨Hbindings⟩⟩
       let Hnext := Hc.withCheckedLocalDecl (base := ctorFieldCheck c stats bu) name
-          dom.consumeTypeAnnotationsVerified bi
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
       let Hstep := BindingContextLE.withCheckedLocalDecl
           (base := ctorFieldCheck c stats bu) c Hc name
-        dom.consumeTypeAnnotationsVerified bi
+        (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
       exact ⟨Hnext, HrootCurrent.trans Hstep,
         ⟨Hbindings.pushCurrentChecked Hc HrootCurrent name
-          dom.consumeTypeAnnotationsVerified bi⟩⟩
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi⟩⟩
   | @recursive c name dom body bi bu u positions target H _ ih =>
       rcases ih with ⟨Hc, HrootCurrent, ⟨Hbindings⟩⟩
       let Hnext := Hc.withCheckedLocalDecl (base := ctorFieldCheck c stats bu) name
-          dom.consumeTypeAnnotationsVerified bi
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
       let Hstep := BindingContextLE.withCheckedLocalDecl
           (base := ctorFieldCheck c stats bu) c Hc name
-        dom.consumeTypeAnnotationsVerified bi
+        (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
       exact ⟨Hnext, HrootCurrent.trans Hstep,
         ⟨Hbindings.pushCurrentChecked Hc HrootCurrent name
-          dom.consumeTypeAnnotationsVerified bi⟩⟩
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi⟩⟩
 
 /-- A complete retained field-decision trace canonically opens the original
 constructor telescope.  This packages the exact alpha-closing equation for
@@ -133,10 +133,10 @@ theorem RecursorFieldDecisions.fieldOpening
     | @nonrecursive c name dom body bi bu u positions Hprev _ ih =>
         rcases ih with ⟨Hc, HrootCurrent, Hbindings, ⟨Hopening⟩⟩
         let Hnext := Hc.withCheckedLocalDecl (base := ctorFieldCheck c stats bu) name
-          dom.consumeTypeAnnotationsVerified bi
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
         let Hstep := BindingContextLE.withCheckedLocalDecl
           (base := ctorFieldCheck c stats bu) c Hc name
-          dom.consumeTypeAnnotationsVerified bi
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
         have hopenFvars : Hopening.fvars = Hbindings.fvars :=
           Hopening.fvars_eq_bound Hbindings.toBoundFVarArray
         have hcurrentFresh :
@@ -158,15 +158,15 @@ theorem RecursorFieldDecisions.fieldOpening
           · exact Hc.current_not_mem (HrootCurrent hroot)
         exact ⟨Hnext, HrootCurrent.trans Hstep,
           Hbindings.pushCurrentChecked Hc HrootCurrent name
-            dom.consumeTypeAnnotationsVerified bi,
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi,
           ⟨Hopening.push hcurrentFresh hbodyFresh⟩⟩
     | @recursive c name dom body bi bu u positions target Hprev _ ih =>
         rcases ih with ⟨Hc, HrootCurrent, Hbindings, ⟨Hopening⟩⟩
         let Hnext := Hc.withCheckedLocalDecl (base := ctorFieldCheck c stats bu) name
-          dom.consumeTypeAnnotationsVerified bi
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
         let Hstep := BindingContextLE.withCheckedLocalDecl
           (base := ctorFieldCheck c stats bu) c Hc name
-          dom.consumeTypeAnnotationsVerified bi
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
         have hopenFvars : Hopening.fvars = Hbindings.fvars :=
           Hopening.fvars_eq_bound Hbindings.toBoundFVarArray
         have hcurrentFresh :
@@ -188,7 +188,7 @@ theorem RecursorFieldDecisions.fieldOpening
           · exact Hc.current_not_mem (HrootCurrent hroot)
         exact ⟨Hnext, HrootCurrent.trans Hstep,
           Hbindings.pushCurrentChecked Hc HrootCurrent name
-            dom.consumeTypeAnnotationsVerified bi,
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi,
           ⟨Hopening.push hcurrentFresh hbodyFresh⟩⟩
   rcases go H with ⟨_, _, _, Hopening⟩
   exact Hopening
@@ -300,24 +300,24 @@ theorem RecursorFieldReplayAlignment.openForall
       (fun fv => fv ∈ right.lctx.fvars))
     (hsharedLeft : ∀ fv, shared fv → fv ∈ left.lctx.fvars)
     (hsharedRight : ∀ fv, shared fv → fv ∈ right.lctx.fvars)
-    (hconsume : ∀ {leftBinders rightBinders : List FVarId}
+    (hconsume : ∀ {ok : Name → Bool} {leftBinders rightBinders : List FVarId}
       {leftDomain rightDomain : Expr},
       TypeChecker.ExprAlphaUnder leftBinders rightBinders
         leftDomain rightDomain →
       TypeChecker.ExprAlphaUnder leftBinders rightBinders
-        leftDomain.consumeTypeAnnotationsVerified
-        rightDomain.consumeTypeAnnotationsVerified)
+        (leftDomain.consumeTypeAnnotationsVerified ok)
+        (rightDomain.consumeTypeAnnotationsVerified ok))
     {leftPositions' rightPositions' : List Nat}
     (hpositions : leftPositions' = rightPositions') :
     RecursorFieldReplayAlignment
         { left with
           ngen := left.ngen.next
           lctx := left.lctx.mkLocalDecl ⟨left.ngen.curr⟩ leftName
-            leftDomain.consumeTypeAnnotationsVerified leftBi }
+            (leftDomain.consumeTypeAnnotationsVerified left.env.isTypeAnnotationWrapper) leftBi }
         { right with
           ngen := right.ngen.next
           lctx := right.lctx.mkLocalDecl ⟨right.ngen.curr⟩ rightName
-            rightDomain.consumeTypeAnnotationsVerified rightBi }
+            (rightDomain.consumeTypeAnnotationsVerified right.env.isTypeAnnotationWrapper) rightBi }
         (leftBody.instantiate1 (.fvar ⟨left.ngen.curr⟩))
         (rightBody.instantiate1 (.fvar ⟨right.ngen.curr⟩))
         (leftAll.push (.fvar ⟨left.ngen.curr⟩))
@@ -359,8 +359,11 @@ theorem RecursorFieldReplayAlignment.openForall
   let Hcontext' := Hcontext.push
     (⟨left.ngen.curr⟩ : FVarId) (⟨right.ngen.curr⟩ : FVarId)
     Hleft.currentFind?_eq_none Hright.currentFind?_eq_none hsharedFresh
-    leftName rightName leftDomain.consumeTypeAnnotationsVerified
-    rightDomain.consumeTypeAnnotationsVerified leftBi rightBi (hconsume Hparts.1)
+    leftName rightName (leftDomain.consumeTypeAnnotationsVerified left.env.isTypeAnnotationWrapper)
+    (rightDomain.consumeTypeAnnotationsVerified right.env.isTypeAnnotationWrapper) leftBi rightBi
+    (by
+      have henv : left.env = right.env := Hcontext.env_eq
+      rw [← henv]; exact hconsume Hparts.1)
   refine ⟨leftBinders ++ [⟨left.ngen.curr⟩],
     rightBinders ++ [⟨right.ngen.curr⟩], ?_, ?_, Hcontext',
     Hparts.2, hpositions⟩
@@ -386,13 +389,13 @@ theorem RecursorFieldDecisions.alphaAlignmentOfSizeEq
       (toTypeCheckerContext leftRoot) (toTypeCheckerContext rightRoot))
     (hsharedLeft : ∀ fv, shared fv → fv ∈ leftRoot.lctx.fvars)
     (hsharedRight : ∀ fv, shared fv → fv ∈ rightRoot.lctx.fvars)
-    (hconsume : ∀ {leftBinders rightBinders : List FVarId}
+    (hconsume : ∀ {ok : Name → Bool} {leftBinders rightBinders : List FVarId}
       {leftDomain rightDomain : Expr},
       TypeChecker.ExprAlphaUnder leftBinders rightBinders
         leftDomain rightDomain →
       TypeChecker.ExprAlphaUnder leftBinders rightBinders
-        leftDomain.consumeTypeAnnotationsVerified
-        rightDomain.consumeTypeAnnotationsVerified)
+        (leftDomain.consumeTypeAnnotationsVerified ok)
+        (rightDomain.consumeTypeAnnotationsVerified ok))
     (hclassify : ∀ {left right : AddInductive.Context}
       {leftContextBinders rightContextBinders : List FVarId}
       {leftInputBinders rightInputBinders : List FVarId}
@@ -450,10 +453,10 @@ theorem RecursorFieldDecisions.alphaAlignmentOfSizeEq
           rcases HnextCopy with
             ⟨_, _, _, _, HnextContext, _, _⟩
           let HleftNext := (HleftWF.withLocalDecl leftName
-            leftDomain.consumeTypeAnnotationsVerified leftBi).withCheckLCtx
+            (leftDomain.consumeTypeAnnotationsVerified left.env.isTypeAnnotationWrapper) leftBi).withCheckLCtx
             (ctorFieldCheck left stats leftAll)
           let HrightNext := (HrightWF.withLocalDecl rightName
-            rightDomain.consumeTypeAnnotationsVerified rightBi).withCheckLCtx
+            (rightDomain.consumeTypeAnnotationsVerified right.env.isTypeAnnotationWrapper) rightBi).withCheckLCtx
             (ctorFieldCheck right stats rightAll)
           have hclass := hclassify HleftNext HrightNext HnextContext
             Hterminal.forall_domain
@@ -487,10 +490,10 @@ theorem RecursorFieldDecisions.alphaAlignmentOfSizeEq
           rcases HnextCopy with
             ⟨_, _, _, _, HnextContext, _, _⟩
           let HleftNext := (HleftWF.withLocalDecl leftName
-            leftDomain.consumeTypeAnnotationsVerified leftBi).withCheckLCtx
+            (leftDomain.consumeTypeAnnotationsVerified left.env.isTypeAnnotationWrapper) leftBi).withCheckLCtx
             (ctorFieldCheck left stats leftAll)
           let HrightNext := (HrightWF.withLocalDecl rightName
-            rightDomain.consumeTypeAnnotationsVerified rightBi).withCheckLCtx
+            (rightDomain.consumeTypeAnnotationsVerified right.env.isTypeAnnotationWrapper) rightBi).withCheckLCtx
             (ctorFieldCheck right stats rightAll)
           have hclass := hclassify HleftNext HrightNext HnextContext
             Hterminal.forall_domain
@@ -528,10 +531,10 @@ theorem RecursorFieldDecisions.alphaAlignmentOfSizeEq
           rcases HnextCopy with
             ⟨_, _, _, _, HnextContext, _, _⟩
           let HleftNext := (HleftWF.withLocalDecl leftName
-            leftDomain.consumeTypeAnnotationsVerified leftBi).withCheckLCtx
+            (leftDomain.consumeTypeAnnotationsVerified left.env.isTypeAnnotationWrapper) leftBi).withCheckLCtx
             (ctorFieldCheck left stats leftAll)
           let HrightNext := (HrightWF.withLocalDecl rightName
-            rightDomain.consumeTypeAnnotationsVerified rightBi).withCheckLCtx
+            (rightDomain.consumeTypeAnnotationsVerified right.env.isTypeAnnotationWrapper) rightBi).withCheckLCtx
             (ctorFieldCheck right stats rightAll)
           have hclass := hclassify HleftNext HrightNext HnextContext
             Hterminal.forall_domain
@@ -569,10 +572,10 @@ theorem RecursorFieldDecisions.alphaAlignmentOfSizeEq
           rcases HnextCopy with
             ⟨_, _, _, _, HnextContext, _, _⟩
           let HleftNext := (HleftWF.withLocalDecl leftName
-            leftDomain.consumeTypeAnnotationsVerified leftBi).withCheckLCtx
+            (leftDomain.consumeTypeAnnotationsVerified left.env.isTypeAnnotationWrapper) leftBi).withCheckLCtx
             (ctorFieldCheck left stats leftAll)
           let HrightNext := (HrightWF.withLocalDecl rightName
-            rightDomain.consumeTypeAnnotationsVerified rightBi).withCheckLCtx
+            (rightDomain.consumeTypeAnnotationsVerified right.env.isTypeAnnotationWrapper) rightBi).withCheckLCtx
             (ctorFieldCheck right stats rightAll)
           have hclass := hclassify HleftNext HrightNext HnextContext
             Hterminal.forall_domain
@@ -593,13 +596,13 @@ theorem RecursorFieldDecisions.alphaAlignment
     (hsource : source.FVarsIn (fun fv => fv ∈ leftRoot.lctx.fvars))
     (hleftTerminal : leftTerminal.isForall = false)
     (hrightTerminal : rightTerminal.isForall = false)
-    (hconsume : ∀ {leftBinders rightBinders : List FVarId}
+    (hconsume : ∀ {ok : Name → Bool} {leftBinders rightBinders : List FVarId}
       {leftDomain rightDomain : Expr},
       TypeChecker.ExprAlphaUnder leftBinders rightBinders
         leftDomain rightDomain →
       TypeChecker.ExprAlphaUnder leftBinders rightBinders
-        leftDomain.consumeTypeAnnotationsVerified
-        rightDomain.consumeTypeAnnotationsVerified)
+        (leftDomain.consumeTypeAnnotationsVerified ok)
+        (rightDomain.consumeTypeAnnotationsVerified ok))
     (hclassify : ∀ {left right : AddInductive.Context}
       {leftContextBinders rightContextBinders : List FVarId}
       {leftInputBinders rightInputBinders : List FVarId}
@@ -645,13 +648,13 @@ theorem RecursorFieldDecisions.positions_eq_of_alpha
     (hsource : source.FVarsIn (fun fv => fv ∈ leftRoot.lctx.fvars))
     (hleftTerminal : leftTerminal.isForall = false)
     (hrightTerminal : rightTerminal.isForall = false)
-    (hconsume : ∀ {leftBinders rightBinders : List FVarId}
+    (hconsume : ∀ {ok : Name → Bool} {leftBinders rightBinders : List FVarId}
       {leftDomain rightDomain : Expr},
       TypeChecker.ExprAlphaUnder leftBinders rightBinders
         leftDomain rightDomain →
       TypeChecker.ExprAlphaUnder leftBinders rightBinders
-        leftDomain.consumeTypeAnnotationsVerified
-        rightDomain.consumeTypeAnnotationsVerified)
+        (leftDomain.consumeTypeAnnotationsVerified ok)
+        (rightDomain.consumeTypeAnnotationsVerified ok))
     (hclassify : ∀ {left right : AddInductive.Context}
       {leftContextBinders rightContextBinders : List FVarId}
       {leftInputBinders rightInputBinders : List FVarId}

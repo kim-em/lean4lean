@@ -195,7 +195,7 @@ theorem RecInfoMinorTypeShape.hypothesisBinderAt
         S.fields_bound.fvars j) := by
     rw [S.sourceType_eq]
     simpa only [Nat.zero_add] using Hfields.prependBinderAt HinnerClosed
-  have hconsumed : S.sourceType.consumeTypeAnnotationsVerified = S.sourceType :=
+  have hconsumed : (S.sourceType.consumeTypeAnnotationsVerified S.sourceFullContext.env.isTypeAnnotationWrapper) = S.sourceType :=
     Hsource.consumeTypeAnnotationsVerified_eq_self
   have horigin : S.origin = S.sourceType :=
     S.consumed_eq.symm.trans hconsumed

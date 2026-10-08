@@ -94,8 +94,8 @@ theorem of_mem_getAppArgsList {e : Expr} (H : HitTrailWith heads np Q e) :
 /-- `consumeTypeAnnotationsVerified` returns a subterm reached through application
 arguments, so it preserves `HitTrailWith`. -/
 theorem consumeTypeAnnotationsVerified {e : Expr} (H : HitTrailWith heads np Q e) :
-    HitTrailWith heads np Q e.consumeTypeAnnotationsVerified := by
-  fun_induction Expr.consumeTypeAnnotationsVerified e
+    HitTrailWith heads np Q (e.consumeTypeAnnotationsVerified annOk) := by
+  fun_induction Expr.consumeTypeAnnotationsVerified _ e
   case case1 name us type v _ ih =>
     exact ih (H.of_mem_getAppArgsList type (by simp [getAppArgsList]))
   case case2 => exact H
@@ -548,7 +548,7 @@ theorem RecursorIndexTrace.hitShapeAt
         obtain ⟨index, userName, binderInfo, kind, hx⟩ := declaration
         rw [hx] at hfind
         cases hfind
-        exact LocalDecl.HitOK.of_cdecl (hdom.consumeTypeAnnotationsVerified hp)
+        exact LocalDecl.HitOK.of_cdecl ((hdom.consumeTypeAnnotationsVerified) hp)
     refine ⟨call.hitShape W henv (fun fv hfv d hfind => ?_)
       (hbody.instantiate1 hp Expr.HitOK.fvar), hall⟩
     rcases hfv with h | h
@@ -714,7 +714,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs name
       exact mem_exprArrayFVarIds_of_fvar_mem hfieldMem
     obtain ⟨hargs, hexp, htype⟩ :=
       O.hitShape W hp henv Rorigin hscope hfieldP (by simp)
-    refine ⟨⟨D, by rw [hD]; exact htype.consumeTypeAnnotationsVerified hp⟩, ?_⟩
+    refine ⟨⟨D, by rw [hD]; exact (htype.consumeTypeAnnotationsVerified) hp⟩, ?_⟩
     rw [hcall]
     refine ⟨?_, by
       have := (checkPositivityStep.isValidIndApp?_some O.owner_valid).1
@@ -735,7 +735,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs name
   refine ⟨hfieldDecls, ?_, fun j hj => (hper j hj).2⟩
   -- The minor premise type.
   rw [← S.consumed_eq]
-  refine Expr.HitTrailWith.consumeTypeAnnotationsVerified ?_
+  refine (Expr.HitTrailWith.consumeTypeAnnotationsVerified) ?_
   rw [S.sourceType_eq, ← S.sourceContext_eq]
   refine Expr.HitTrailWith.mkForall' S.fields_bound.expressions ?_ hQ
     (fun y hy => by
@@ -854,7 +854,7 @@ theorem majorDeclNil (I : H.TrailInputs names ls) {y : FVarId}
   refine H.origins.majors.declHitShape (fun i hi => ?_) hy
   have hi' : i < H.recInfos.size := by simpa using hi
   rw [H.majorShapes.shape i hi']
-  refine Expr.HitShape.consumeTypeAnnotationsVerified ?_ (by simp)
+  refine (Expr.HitShape.consumeTypeAnnotationsVerified) ?_ (by simp)
   obtain ⟨n, hn⟩ := H.indConst_eq hi'
   rw [hn]
   refine Expr.HitShape.mkAppN (Expr.HitShape.mkAppN (.const (I.familyNames i hi' n _ hn))

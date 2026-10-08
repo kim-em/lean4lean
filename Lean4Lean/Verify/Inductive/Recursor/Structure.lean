@@ -40,9 +40,9 @@ theorem selectedSublist {α : Type}
         let c' : AddInductive.Context := { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
           checkLCtx := (ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi }
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
         change (AddInductive.isRecArg stats dom { c' with checkLCtx := ctorFieldCheck c stats bu } >>= fun selected =>
           AddInductive.mkRecInfos.loopCtorArgs.loop stats
             k (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1)
@@ -855,15 +855,15 @@ theorem continueWith {α : Type}
             (fun _ _ => trivial) fun next _ => ?_
           exact continueWith stats k Hk next (i + 1) indices fuel c
         · rw [if_neg hparam]
-          unfold AddInductive.withCheckedLocalDecl
+          unfold AddInductive.withConsumedCheckedLocalDecl AddInductive.withCheckedLocalDecl
             MonadLocalNameGenerator.withFreshId
             AddInductive.instMonadLocalNameGeneratorM
           let c' : AddInductive.Context := { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
             checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
           change ((monadLift (TypeChecker.whnf
             (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
               AddInductive.M Expr) c' >>= fun next =>
@@ -967,7 +967,7 @@ theorem resultCount
       let cMajor : AddInductive.Context := { cIndices with
         ngen := cIndices.ngen.next
         lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩ `t
-          (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices).consumeTypeAnnotationsVerified
+          ((mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices).consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper)
           .default }
       have hget : ((getLCtx : AddInductive.M LocalContext) cMajor).WF
           (fun lctx => lctx = cMajor.lctx) := by
@@ -2473,7 +2473,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
           have hparamNext : stats.params[i + 1]? = none := by
             rw [Array.getElem?_eq_none_iff] at hparamAt ⊢
             omega
-          have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
+          have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
           rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
@@ -2508,7 +2508,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
                 checkInductiveTypes.loopType.NarrowRuntimeScope
                   Hc'.venv c.lparams
                   ((some (⟨c.ngen.curr⟩,
-                    dom.consumeTypeAnnotationsVerified.fvarsList),
+                    (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                     .vlam narrowDom) :: scope)
                   Hc'.mlctx.vlctx :=
               Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
@@ -2518,7 +2518,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
             have hscopeWF := halign'.wf
             have hopenedNarrow : TrExprS Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
-                  dom.consumeTypeAnnotationsVerified.fvarsList),
+                  (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                   .vlam narrowDom) :: scope)
                 (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
               rw [Expr.instantiate1_eq]
@@ -2603,7 +2603,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
                 checkInductiveTypes.loopType.NarrowRuntimeScope
                   Hc'.venv c.lparams
                   ((some (⟨c.ngen.curr⟩,
-                    dom.consumeTypeAnnotationsVerified.fvarsList),
+                    (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                     .vlam narrowDom) :: scope)
                   Hc'.mlctx.vlctx :=
               Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
@@ -2613,7 +2613,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
             have hscopeWF := halign'.wf
             have hopenedNarrow : TrExprS Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
-                  dom.consumeTypeAnnotationsVerified.fvarsList),
+                  (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                   .vlam narrowDom) :: scope)
                 (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
               rw [Expr.instantiate1_eq]

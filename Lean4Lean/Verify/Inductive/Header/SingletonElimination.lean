@@ -226,7 +226,7 @@ theorem LargeEliminationTrace.singletonTelescope
           consumeTypeAnnotationsCompat _ Hc.narrow hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
-        have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
+        have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
@@ -258,7 +258,7 @@ theorem LargeEliminationTrace.singletonTelescope
             intro heq
             exact hfresh.1 (heq ▸ hfvMem)
           have hfind' := VLCtx.find?_vlam_ne
-            (deps := dom.consumeTypeAnnotationsVerified.fvarsList) (ty := narrowDom)
+            (deps := (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList) (ty := narrowDom)
             (by simpa using hne.symm) hfind
           apply hrequired fv hfv (index + 1) _
           simpa [VExpr.lift, VExpr.liftN] using hfind'
@@ -276,7 +276,7 @@ theorem LargeEliminationTrace.singletonTelescope
           consumeTypeAnnotationsCompat _ Hc.narrow hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
-        have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
+        have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
@@ -314,7 +314,7 @@ theorem LargeEliminationTrace.singletonTelescope
             intro heq
             exact hfresh.1 (heq ▸ hfvMem)
           have hfind' := VLCtx.find?_vlam_ne
-            (deps := dom.consumeTypeAnnotationsVerified.fvarsList) (ty := narrowDom)
+            (deps := (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList) (ty := narrowDom)
             (by simpa using hne.symm) hfind
           apply hrequired fv hfv (index + 1) _
           simpa [VExpr.lift, VExpr.liftN] using hfind'
@@ -332,7 +332,7 @@ theorem LargeEliminationTrace.singletonTelescope
           consumeTypeAnnotationsCompat _ Hc.narrow hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
-        have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
+        have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
@@ -365,7 +365,7 @@ theorem LargeEliminationTrace.singletonTelescope
             intro heq
             exact hfresh.1 (heq ▸ hfvMem)
           have hfind' := VLCtx.find?_vlam_ne
-            (deps := dom.consumeTypeAnnotationsVerified.fvarsList) (ty := narrowDom)
+            (deps := (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList) (ty := narrowDom)
             (by simpa using hne.symm) hfind
           apply hrequired fv (by simp [hfv]) (index + 1) _
           simpa [VExpr.lift, VExpr.liftN] using hfind'

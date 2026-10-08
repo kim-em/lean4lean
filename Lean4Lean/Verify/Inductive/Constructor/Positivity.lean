@@ -418,9 +418,9 @@ theorem safeField.sourceWF
           { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
             checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }).WF Q) :
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF Q) :
     (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
       (.forallE name dom body bi) i (fuel + 1) c).WF Q := by
   rw [AddInductive.checkConstructors.loopCtor]
@@ -436,7 +436,7 @@ theorem safeField.sourceWF
         is too big for the corresponding inductive datatype"
     if !false then
       AddInductive.checkPositivity stats dom ctor i
-    AddInductive.withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg =>
+    AddInductive.withConsumedCheckedLocalDecl name bi dom fun arg =>
       AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
         (body.instantiate1 arg) (i + 1) fuel) : AddInductive.M Unit) c |>.WF Q
   by_cases hbound :
@@ -501,9 +501,9 @@ theorem unsafeField.sourceWF
           { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
             checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }).WF Q) :
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF Q) :
     (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
       (.forallE name dom body bi) i (fuel + 1) c).WF Q := by
   rw [AddInductive.checkConstructors.loopCtor]
@@ -519,7 +519,7 @@ theorem unsafeField.sourceWF
         is too big for the corresponding inductive datatype"
     if !true then
       AddInductive.checkPositivity stats dom ctor i
-    AddInductive.withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg =>
+    AddInductive.withConsumedCheckedLocalDecl name bi dom fun arg =>
       AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
         (body.instantiate1 arg) (i + 1) fuel) : AddInductive.M Unit) c |>.WF Q
   by_cases hbound :
@@ -1674,10 +1674,10 @@ private theorem loop_continueWith
       let c' : AddInductive.Context := { c with
         ngen := c.ngen.next
         lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-          dom.consumeTypeAnnotationsVerified bi
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
         checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-          dom.consumeTypeAnnotationsVerified bi }
-      unfold AddInductive.withCheckedLocalDecl MonadLocalNameGenerator.withFreshId
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
+      unfold AddInductive.withConsumedCheckedLocalDecl AddInductive.withCheckedLocalDecl MonadLocalNameGenerator.withFreshId
         AddInductive.instMonadLocalNameGeneratorM
       change ((monadLift (TypeChecker.whnf
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
@@ -2684,9 +2684,9 @@ theorem forallE.sourceWF
         { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
           checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi }).WF Q) :
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF Q) :
     (AddInductive.checkPositivityStep stats (.forallE name dom body bi)
       ctor idx recur c).WF Q := by
   rw [AddInductive.checkPositivityStep]
@@ -2849,7 +2849,7 @@ theorem refinesNarrow
           intro bodyFull' _hbodyFullEq body₀' _hbody₀Eq hopenedFull _hopened₀
           let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
-          have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
+          have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hnormalizedFVars.1)).1
           rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
@@ -2858,7 +2858,7 @@ theorem refinesNarrow
               checkInductiveTypes.loopType.NarrowRuntimeScope
                 Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
-                  dom.consumeTypeAnnotationsVerified.fvarsList),
+                  (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                   .vlam narrowDom) :: scope)
                 Hc'.mlctx.vlctx :=
             Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
@@ -2878,14 +2878,14 @@ theorem refinesNarrow
             exact Hc.current_not_mem (Hc.check.embed.fvars_subset hmem)
           have halign' : VLCtx.IsDefEq Hc'.venv c.lparams.length
               ((some (⟨c.ngen.curr⟩,
-                dom.consumeTypeAnnotationsVerified.fvarsList),
+                (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                 .vlam narrowDom) :: scope) Hc'.chk.vlctx :=
             halign.consAligned hfresh hdeps
               (hdomC.of_l henv hscopeΓ hdomTyped)
           have hscopeWF := halign'.wf
           have hopenedNarrow : TrExprS Hc'.venv c.lparams
               ((some (⟨c.ngen.curr⟩,
-                dom.consumeTypeAnnotationsVerified.fvarsList),
+                (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                 .vlam narrowDom) :: scope)
               (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
             rw [Expr.instantiate1_eq]
