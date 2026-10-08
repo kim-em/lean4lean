@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Typing.LevelEquiv
 
 /-!
-# Strengthening across an inhabited binder
+# Substitution of an inhabitant for a binder
 
 If the type `D` of a binder is inhabited, by `d₀`, in the context below it, then removing the
 binder is substitution of `d₀`. A judgement about lifted terms holds in the smaller context: the
@@ -18,10 +18,6 @@ open VEnv Lean
 inductive Ctx.Inserted (Γ₀ : List VExpr) (A : VExpr) : Nat → List VExpr → List VExpr → Prop
   | zero : Ctx.Inserted Γ₀ A 0 Γ₀ (A :: Γ₀)
   | succ : Ctx.Inserted Γ₀ A k Γ Γ' → Ctx.Inserted Γ₀ A (k + 1) (B :: Γ) (B.liftN 1 k :: Γ')
-
-theorem Ctx.Inserted.liftN : Ctx.Inserted Γ₀ A k Γ Γ' → Ctx.LiftN 1 k Γ Γ'
-  | .zero => .zero [A]
-  | .succ h => .succ h.liftN
 
 theorem Ctx.Inserted.instN (e₀ : VExpr) : Ctx.Inserted Γ₀ A k Γ Γ' → Ctx.InstN Γ₀ e₀ A k Γ' Γ
   | .zero => .zero

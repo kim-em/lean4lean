@@ -125,34 +125,6 @@ theorem WHRed.weakN (W : Ctx.LiftN n k Γ Γ') (H : Γ ⊢ e1 ⤳ e2) :
     Γ' ⊢ e1.liftN n k ⤳ e2.liftN n k := by
   simp only [← lift'_consN_skipN]; exact H.weak' (Ctx.liftN_iff_lift'.1 W)
 
-variable! (hs : env.Strengthening) (hΓ : OnCtx Γ' (IsType env univs)) in
-theorem WHRed.weakU_inv (W : Ctx.Lift' ρ Γ Γ') (H : Γ' ⊢ e1.lift' ρ ⤳ e2') :
-    ∃ e2, e2' = e2.lift' ρ ∧ Γ ⊢ e1 ⤳ e2 := by
-  generalize he : e1.lift' ρ = e1' at H
-  induction H generalizing e1 with
-  | schema h =>
-    subst he
-    obtain ⟨rhs, hr, heq⟩ := h.weak'_inv henv hs hΓ W
-    exact ⟨rhs, heq, .schema hr⟩
-  | caseMajor hm hr ih =>
-    let .app .. := e1
-    cases he
-    obtain ⟨_, rfl, hred⟩ := ih rfl
-    exact ⟨_, rfl, .caseMajor (IsCaseMajorPremise.lift'.1 hm) hred⟩
-  | app h1 ih => let .app .. := e1; cases he; obtain ⟨_, rfl, a1⟩ := ih rfl; exact ⟨_, rfl, .app a1⟩
-  | major h1 h2 ih =>
-    let .app .. := e1; cases he; obtain ⟨_, rfl, a1⟩ := ih rfl
-    exact ⟨_, rfl, .major (IsMajorPremise.lift'.1 h1) a1⟩
-  | beta =>
-    let .app e1 _ := e1; let .lam .. := e1; cases he
-    simp [← VExpr.lift'_inst_hi, VExpr.lift'_inj]; exact .beta
-  | extra h1 h2 h3 =>
-    subst he
-    obtain ⟨_, h4, h5⟩ := Pattern.matches_lift'.1 h2; cases funext h5
-    refine ⟨_, (Pattern.RHS.apply_lift' _).symm, .extra h1 h4 <| h3.map fun _ _ h => ?_⟩
-    simp only [← Pattern.RHS.apply_lift'] at h
-    exact (IsDefEqU.weak'_iff henv hs hΓ W).1 h
-
 theorem WHRed.parRed (H : Γ ⊢ e1 ⤳ e2) : Γ ⊢ e1 ≫ e2 := by
   induction H with
   | schema h => exact .of_schema h
@@ -443,16 +415,6 @@ theorem WHRedS.determ
     cases H2 using ReflTransGen.headIndOn with
     | rfl => cases W2 _ l1
     | head r1 r2 => cases l1.determ r1; exact ih r2 W2
-
-variable! (hs : env.Strengthening) (hΔ : OnCtx Δ (IsType env univs)) in
-theorem WHRedS.weakU_inv (W : Ctx.Lift' ρ Γ Δ) (H : Δ ⊢ e1.lift' ρ ⤳* e2') :
-    ∃ e2, e2' = e2.lift' ρ ∧ Γ ⊢ e1 ⤳* e2 := by
-  induction H with
-  | rfl => exact ⟨_, rfl, .rfl⟩
-  | tail _ h2 ih =>
-    obtain ⟨_, rfl, a1⟩ := ih
-    obtain ⟨_, rfl, a2⟩ := h2.weakU_inv hs hΔ W
-    exact ⟨_, rfl, .tail a1 a2⟩
 
 local notation:65 Γ " ⊢ " e1 " ⤳< " e2:36 => StRed Γ e1 e2
 inductive StRed : List VExpr → VExpr → VExpr → Prop where

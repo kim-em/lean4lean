@@ -1,26 +1,25 @@
 import Lean4Lean.Theory.Typing.ProjectionCornerIndexedSig
 
-/-! # The projection-walk corner at an indexed structure, from a registered case eliminator
+/-! # The projection-walk corner at a structure, from a registered case eliminator
 
-The index-general form of `corner_inhabit_elim`. A structure family named among the original
-families of a registered case schema has the abstract eliminator `.elim key owner` at motive
-universe zero (`elimDF`), whose restored case type is the recursor type of the indexed
-one-constructor view `caseViewI` (`restored_structure_recursorType_idx`).
-`corner_inhabit_view_idx` then inhabits the projection-walk binder.
+A structure family named among the original families of a registered case schema has the
+abstract eliminator `.elim key owner` at motive universe zero (`elimDF`), whose restored case
+type is the recursor type of the one-constructor view `caseView` (`restored_structure_recursorType`).
+`corner_inhabit_view` then inhabits the projection-walk binder. This covers structures with and
+without indices.
 
-The case certificate does not record that the declared family type agrees with the
-normalized family header `wrapForalls (params ++ indices) (sort resultLevel)` before the
-binders of the later indices; that agreement is needed to type the major's indices along the
-view's index telescope, and it does not follow from `FamilyTypesWF` without strengthening.
-`corner_inhabit_elim_indexed` therefore takes it, in restored form, as the hypothesis `hhdr`,
-to be discharged by a header-agreement clause of the case certificate. -/
+Typing the major's indices along the view's index telescope needs the declared family type to
+agree with the normalized family header `wrapForalls (params ++ indices) (sort resultLevel)`.
+`corner_inhabit_elim` takes this, in restored form, as the hypothesis `hhdr`; the header-agreement
+clause of the case certificate discharges it (`VEnv.WF.corner_header`,
+`Theory/Typing/ProjectionCornerChoice.lean`). -/
 
 namespace Lean4Lean
 namespace InductiveSignature
 
 /-- The restored constructor type of a structure's normalized constructor is the constructor
 type of its indexed case view at the restored parameter, field and index terms. -/
-theorem restore_constructorType_idx {s : InductiveSignature} {r : Restoration}
+theorem restore_constructorType {s : InductiveSignature} {r : Restoration}
     {c : Constructor s.families.size}
     (hf : r.heads.find? (fun h => h.auxiliary == s.families[c.owner].name) = none)
     (hn : r.recursorName s.families[c.owner].name = s.families[c.owner].name)
@@ -28,8 +27,8 @@ theorem restore_constructorType_idx {s : InductiveSignature} {r : Restoration}
     (isUnsafe : Bool) (name : Name) (fam : Family) (hfam : fam.name = s.families[c.owner].name) :
     ∃ RP RF RCI, s.params.mapM r.expr = some RP ∧ (s.fieldTypes c).mapM r.expr = some RF ∧
       c.indices.mapM r.expr = some RCI ∧
-      restored = (caseViewI s.uvars isUnsafe fam name RP RF RCI).constructorType
-        ⟨name, ⟨0, by simp [caseViewI]⟩, RF.map Field.external, RCI⟩ := by
+      restored = (caseView s.uvars isUnsafe fam name RP RF RCI).constructorType
+        ⟨name, ⟨0, by simp [caseView]⟩, RF.map Field.external, RCI⟩ := by
   simp only [constructorType, InductiveSignature.familyApp] at h
   rw [r.expr_wrapForalls, List.mapM_append, r.expr_mkApps, List.mapM_append,
     r.mapM_expr_vars] at h
@@ -55,7 +54,7 @@ theorem restore_constructorType_idx {s : InductiveSignature} {r : Restoration}
   rw [← h]
   simp only [constructorType]
   rw [fieldTypes_external _ rfl]
-  simp [InductiveSignature.familyApp, caseViewI, hRPlen, hRFlen, hfam]
+  simp [InductiveSignature.familyApp, caseView, hRPlen, hRFlen, hfam]
 
 end InductiveSignature
 
@@ -63,7 +62,7 @@ namespace VEnv
 open InductiveSignature VExpr
 variable {env : VEnv} {U : Nat}
 
-theorem corner_inhabit_elim_indexed (henv : env.WF) (hch : env.HasCanonicalChoice)
+theorem corner_inhabit_elim (henv : env.WF) (hch : env.HasCanonicalChoice)
     {Δ : List VExpr} (hΔ : OnCtx Δ (env.IsType U))
     {S : Name} {info : VProjectionInfo} (hinfo : env.projections S info)
     {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U) (hlslen : ls.length = info.uvars)
@@ -140,7 +139,7 @@ theorem corner_inhabit_elim_indexed (henv : env.WF) (hch : env.HasCanonicalChoic
   obtain ⟨RP', RI, hRP', hRI, hhdr'⟩ := hhdr c.owner hSname
   let fam : Family := ⟨schema.signature.families[c.owner].name, RI,
     schema.signature.families[c.owner].resultLevel⟩
-  obtain ⟨RP, RF, RCI, hRP, hRF, hRCI, rfl⟩ := restore_constructorType_idx hfS hnS hrestore
+  obtain ⟨RP, RF, RCI, hRP, hRF, hRCI, rfl⟩ := restore_constructorType hfS hnS hrestore
     schema.signature.isUnsafe ctor.name fam rfl
   -- the case view's constructor type is the registered one
   have huv : schema.signature.uvars = source.uvars := hdata.model.uvars.trans hdata.uvars
@@ -159,34 +158,34 @@ theorem corner_inhabit_elim_indexed (henv : env.WF) (hch : env.HasCanonicalChoic
   have hhdr'' : ∃ tc, env.constants type.name = some tc ∧ env.IsDefEqU source.uvars [] tc.type
       (VExpr.wrapForalls (RP' ++ fam.indices) (.sort fam.resultLevel)) := by
     rw [← huv]; exact hhdr'
-  obtain ⟨hTy, harity⟩ := caseViewI_recursorType_isType (U := U) henv hinfo hls hlslen
+  obtain ⟨hTy, harity⟩ := caseView_recursorType_isType (U := U) henv hinfo hls hlslen
     (fam := fam) hSname huv hnp hRCIlen hdef hhdr''
   -- the generic case type
   have hheads : ∀ h ∈ schema.restoration.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams := by
     rw [hr]; exact fun h hh => (hdata.restorationScoped.2.2.1 h hh).2
-  have hgen := CaseSchema.restored_structure_recursorType_idx hview hRP hRF hRI hRCI hheads
+  have hgen := CaseSchema.restored_structure_recursorType hview hRP hRF hRI hRCI hheads
     hfS hnS hfc hnc schema.genericUvars schema.genericLevels (.param 0)
   rw [hctorName] at hgen
   have hlen : ls.length = schema.signature.uvars := hlslen.trans huv.symm
-  let sv := caseViewI schema.signature.uvars schema.signature.isUnsafe fam ctor.name RP' RF RCI
+  let sv := caseView schema.signature.uvars schema.signature.isUnsafe fam ctor.name RP' RF RCI
   have hinst := Instance.recursorType_specialize
     (⟨schema.genericUvars, schema.genericLevels, .param 0, fun _ => default⟩ : Instance sv)
-    U (.zero :: ls) ⟨0, by simp [sv, caseViewI]⟩
+    U (.zero :: ls) ⟨0, by simp [sv, caseView]⟩
   simp only [Instance.specialize, CaseSchema.genericLevels_inst hlen] at hinst
   let gp : Instance sv := ⟨U, ls, .zero, fun _ => default⟩
   have hinst' : VExpr.instL (.zero :: ls)
       ((⟨schema.genericUvars, schema.genericLevels, .param 0, fun _ => default⟩ :
-        Instance sv).recursorType ⟨0, by simp [sv, caseViewI]⟩) =
-      gp.recursorType ⟨0, by simp [sv, caseViewI]⟩ := by
+        Instance sv).recursorType ⟨0, by simp [sv, caseView]⟩) =
+      gp.recursorType ⟨0, by simp [sv, caseView]⟩ := by
     rw [hinst]; rfl
-  have hT : env.IsType U [] (gp.recursorType ⟨0, by simp [sv, caseViewI]⟩) := hTy
+  have hT : env.IsType U [] (gp.recursorType ⟨0, by simp [sv, caseView]⟩) := hTy
   rw [← hinst'] at hT
   obtain ⟨u, hTyU⟩ := hT
   have hclosed := VExpr.ClosedN.instL_rev (hTyU.closedN henv.ordered trivial)
   have hperm : schema.Permission U c.owner ls .zero :=
     ⟨hlen, hls, trivial, Or.inr (VLevel.equiv_def'.mpr rfl)⟩
   have helim : env.HasType U [] (.elim key c.owner.val (.zero :: ls))
-      (gp.recursorType ⟨0, by simp [sv, caseViewI]⟩) := by
+      (gp.recursorType ⟨0, by simp [sv, caseView]⟩) := by
     rw [← hinst']
     have hwf : ∀ l ∈ VLevel.zero :: ls, l.WF U := by
       intro l hl
@@ -194,7 +193,7 @@ theorem corner_inhabit_elim_indexed (henv : env.WF) (hch : env.HasCanonicalChoic
       · trivial
       · exact hls l hl
     exact .elimDF hel hgen hclosed hperm hwf (forall₂_equiv_refl_idx _) hTyU
-  exact corner_inhabit_view_idx henv hch hΔ hinfo hls hlslen hT₀ hpl he' hwalk hD hguard
+  exact corner_inhabit_view henv hch hΔ hinfo hls hlslen hT₀ hpl he' hwalk hD hguard
     (fam := fam) hSname huv hnp hRCIlen (hRIlen.trans hIlen) hdef hhdr'' helim
 
 end VEnv

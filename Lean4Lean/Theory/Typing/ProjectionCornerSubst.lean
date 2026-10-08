@@ -75,29 +75,6 @@ theorem instOuter_params_bvarRange {X : VExpr} {ps : List VExpr} {i n : Nat}
     have e2 : ps.length + i - 1 - v = ps.length - 1 - (v - i) := by omega
     simp only [e1, e2]
 
-/-- A generated minor premise without constructor indices, instantiated at the parameters and
-the motive. -/
-theorem minor_instOuter (F Hs ps : List VExpr) (C M : VExpr) :
-    (wrapForalls (InductiveSignature.insertBinders F 1 ++ Hs)
-      (mkApps (.bvar (F.length + Hs.length))
-        [(C.liftN Hs.length).liftN 1 (F.length + Hs.length)])).instOuter (ps ++ [M]) =
-    wrapForalls (F.mapIdx (fun i d => d.subst ((Subst.ofList ps).liftN i)) ++
-        Hs.mapIdx (fun k d => d.subst ((Subst.ofList (ps ++ [M])).liftN (F.length + k))))
-      ((VExpr.app (M.liftN F.length) (C.subst ((Subst.ofList ps).liftN F.length))).liftN
-        Hs.length) := by
-  rw [instOuter_eq_subst, subst_wrapForalls, VEnv.insertBinders_eq_mapIdx, List.mapIdx_append,
-    List.mapIdx_mapIdx]
-  simp only [Function.comp_def, liftN_one_subst_liftN, Subst.ofList_snoc_tail, List.length_append,
-    List.length_mapIdx]
-  congr 1
-  · congr 2; funext k d; rw [Nat.add_comm]
-  · show (VExpr.app (.bvar (F.length + Hs.length)) _).subst _ = _
-    rw [subst_app, subst_bvar, Subst.liftN_apply, if_neg (Nat.lt_irrefl _), Nat.sub_self,
-      Subst.ofList_snoc_zero, liftN_one_subst_liftN, Subst.ofList_snoc_tail,
-      liftN_subst_liftN_add]
-    show _ = VExpr.app _ _
-    rw [liftN_liftN]
-
 end VExpr
 end Lean4Lean
 

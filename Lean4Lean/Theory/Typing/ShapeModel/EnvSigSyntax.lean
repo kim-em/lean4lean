@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.ShapeModel.EnvHeaderArity
+import Lean4Lean.Theory.Typing.ShapeModel.EnvSchemaMajors
 import Lean4Lean.Theory.Typing.ShapeModel.EnvSigFinite
 import Lean4Lean.Theory.Typing.ShapeModel.Signature
 

@@ -55,12 +55,6 @@ noncomputable def environmentStructures (env : VEnv) (name : Name) : Option VPro
       env.projections entry.typeName entry.info ∧ entry.info.ctorName = name then
     some (Classical.choose present) else none
 
-noncomputable def environmentCases (env : VEnv) (block : Name) (owner : Nat) : Option CaseEntry := by
-  classical
-  exact if present : ∃ entry : CaseEntry, env.eliminators block entry.schema ∧ entry.owner.val = owner ∧
-      ∃ header, entry.schema.genericType entry.owner = some header ∧ header.Closed then
-    some (Classical.choose present) else none
-
 theorem environmentProjections_sound
     (lookup : environmentProjections env name = some info) : env.projections name info := by
   classical
@@ -103,42 +97,6 @@ theorem environmentStructures_complete (ordered : env.Ordered)
   | mk chosenName chosenInfo =>
     cases nameEq
     cases infoEq
-    rfl
-
-theorem environmentCases_sound
-    (lookup : environmentCases env block owner = some entry) :
-    env.eliminators block entry.schema ∧ entry.owner.val = owner ∧
-      ∃ header, entry.schema.genericType entry.owner = some header ∧ header.Closed := by
-  classical
-  unfold environmentCases at lookup
-  split at lookup
-  · rename_i present
-    cases lookup; exact Classical.choose_spec present
-  · cases lookup
-
-theorem environmentCases_complete (formed : env.WF)
-    {schema : CaseSchema} {owner : Fin schema.signature.families.size}
-    (present : env.eliminators block schema)
-    (header : schema.genericType owner = some type) (closed : type.Closed) :
-    environmentCases env block owner.val = some ⟨schema, owner⟩ := by
-  classical
-  unfold environmentCases
-  have entryExists : ∃ entry : CaseEntry, env.eliminators block entry.schema ∧
-      entry.owner.val = owner.val ∧ ∃ header,
-      entry.schema.genericType entry.owner = some header ∧ header.Closed :=
-    ⟨⟨schema, owner⟩, present, rfl, type, header, closed⟩
-  rw [dif_pos entryExists]
-  apply congrArg some
-  generalize selectedEq : Classical.choose entryExists = selected
-  have selectedData : env.eliminators block selected.schema ∧ selected.owner.val = owner.val ∧
-      ∃ header, selected.schema.genericType selected.owner = some header ∧ header.Closed := by
-    rw [← selectedEq]
-    exact Classical.choose_spec entryExists
-  cases selected with
-  | mk selectedSchema selectedOwner =>
-    obtain ⟨registered, indexEq, _⟩ := selectedData
-    cases formed.eliminators_unique registered present
-    cases Fin.ext indexEq
     rfl
 
 end Lean4Lean.CanonicalDataHead

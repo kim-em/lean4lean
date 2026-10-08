@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.GeneratedFamilyConstruction
-import Lean4Lean.Verify.Inductive.Nested.GeneratedConstructorProvenance
+import Lean4Lean.Verify.Inductive.Nested.LoweringTrace
 import Lean4Lean.Verify.Inductive.Nested.GeneratedQueueOrigins
 import Lean4Lean.Verify.Inductive.Recursor.TelescopeApplication
 import Lean4Lean.Verify.TypeChecker.AlphaLocality
@@ -1245,39 +1245,6 @@ structure FinalLoweredGeneratedFamilyOrigin.BuiltConstructorTranslation
   lowering : LoweredConstructorMapping prodEnv params nparams result
     generatedCtor before (finalCtor, after)
   translation : C.BuiltConstructorTranslation i sourceIdx_lt
-
-/-- The actual final queue mapping and persistent environment alignment
-construct the complete positional package above.  In particular, no source
-constructor translation or residual is supplied by a caller. -/
-theorem FinalLoweredGeneratedFamilyOrigin.builtConstructorTranslation
-    {ves : VEnvs}
-    (H : FinalLoweredGeneratedFamilyOrigin prodEnv params nparams finalState
-      target)
-    (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
-      params finalState.nestedAux H.source H.generated)
-    (wf : ves.WF prodEnv)
-    (result : Lean4Lean.ElimNestedInductive.Result)
-    (Hmap : NestedAuxMapModels result finalState)
-    (i : Nat) (hi : i < target.ctors.length) :
-    Nonempty (H.BuiltConstructorTranslation C result Hmap i hi) := by
-  have Hmapping := H.finalMapping Hmap
-  rcases H.generated.loweredConstructorAt Hmapping i hi with
-    ⟨sourceCtor, generatedCtor, finalCtor, before, after, hsource,
-      hsourceLookup, hgeneratedLookup, hfinalLookup, Hbuilt, Hlowering⟩
-  rcases C.builtConstructorTranslation wf i hsource with ⟨Htranslation⟩
-  exact ⟨{
-    sourceCtor := sourceCtor
-    generatedCtor := generatedCtor
-    finalCtor := finalCtor
-    before := before
-    after := after
-    sourceIdx_lt := hsource
-    sourceLookup := hsourceLookup
-    generatedLookup := hgeneratedLookup
-    finalLookup := hfinalLookup
-    built := Hbuilt
-    lowering := Hlowering
-    translation := Htranslation }⟩
 
 end VerifyInductive
 end Lean4Lean

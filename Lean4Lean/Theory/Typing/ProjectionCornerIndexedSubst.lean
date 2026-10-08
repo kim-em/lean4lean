@@ -7,7 +7,7 @@ namespace VExpr
 
 /-- A minor premise without induction hypotheses, whose motive is applied to constructor
 indices and the constructor application, instantiated at the parameters and the motive. -/
-theorem minor_instOuter_idx (F CI ps : List VExpr) (C M : VExpr) :
+theorem minor_instOuter (F CI ps : List VExpr) (C M : VExpr) :
     (wrapForalls (InductiveSignature.insertBinders F 1)
       (mkApps (.bvar F.length)
         (CI.map (fun e => e.liftN 1 F.length) ++ [C.liftN 1 F.length]))).instOuter (ps ++ [M]) =
@@ -40,7 +40,7 @@ theorem subst_liftN_instOuter {d : VExpr} {ps bs : List VExpr}
     congr 1; simp; omega
 
 /-- The motive into `Prop` at the parameters. -/
-theorem motive_instOuter_idx (D ps : List VExpr) :
+theorem motive_instOuter (D ps : List VExpr) :
     (wrapForalls D (.sort .zero)).instOuter ps =
       wrapForalls (D.mapIdx fun k d => d.subst ((Subst.ofList ps).liftN k)) (.sort .zero) := by
   rw [instOuter_eq_subst, subst_wrapForalls]

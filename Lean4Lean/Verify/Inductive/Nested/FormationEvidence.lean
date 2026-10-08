@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Nested.ExpansionProjection
+import Lean4Lean.Verify.Inductive.Nested.Mapping
 import Lean4Lean.Verify.TypeChecker
 
 namespace Lean4Lean

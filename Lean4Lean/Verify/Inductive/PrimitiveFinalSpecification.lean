@@ -1,6 +1,8 @@
 import Lean4Lean.Verify.Inductive.PrimitiveFinalEnvironment
 import Lean4Lean.Verify.Inductive.PrimitiveDispatch
-import Lean4Lean.Verify.Inductive.PrimitiveSpecification
+import Lean4Lean.Verify.Inductive.PrimitiveSemanticRun
+import Lean4Lean.Verify.Inductive.CompletedRuleTranslation
+import Lean4Lean.Verify.Inductive.Run.SemanticSpecification
 
 namespace Lean4Lean
 

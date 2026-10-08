@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.LevelEquiv
 import Lean4Lean.Verify.Typing.Lemmas
-import Lean4Lean.Verify.Typing.InhabitedStrengthening
+import Lean4Lean.Verify.Typing.InhabitedSubstitution
 import Lean4Lean.Theory.Typing.ProjectionCornerCaseElim
 import Lean4Lean.Theory.Typing.ProjectionCornerChoice
 

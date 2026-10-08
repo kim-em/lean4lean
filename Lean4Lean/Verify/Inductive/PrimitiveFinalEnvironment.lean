@@ -1,4 +1,5 @@
-import Lean4Lean.Verify.Inductive.PrimitiveSemanticAddInduct
+import Lean4Lean.Verify.Inductive.PrimitiveSemanticRun
+import Lean4Lean.Verify.Inductive.CompletedRuleTranslation
 import Lean4Lean.Verify.Inductive.Run.EqCanonical
 
 namespace Lean4Lean

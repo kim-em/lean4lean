@@ -1,7 +1,8 @@
 import Lean4Lean.Theory.Typing.CaseSourceSort
 import Lean4Lean.Theory.Typing.ProjectionLemmas
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalMotiveGroup
-import Lean4Lean.Verify.Inductive.CompletedSourceSignature
+import Lean4Lean.Verify.Inductive.CompletedConstructorPhases
+import Lean4Lean.Verify.Inductive.ConstructorBoundary
 
 /-! Well-formed family applications (`InductiveSignature.FamilyTypesWF`) for
 the two signatures the checker produces: the header-phase source signature and

@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.CompletedRecursorConstruction
-import Lean4Lean.Verify.Inductive.CompletedSourceSignature
+import Lean4Lean.Verify.Inductive.CompletedConstructorPhases
+import Lean4Lean.Verify.Inductive.ConstructorBoundary
 
 /-! Exact source telescopes for the retained first recursor pass. -/
 

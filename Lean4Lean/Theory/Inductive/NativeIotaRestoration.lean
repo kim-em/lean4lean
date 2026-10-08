@@ -28,7 +28,7 @@ import Lean4Lean.Theory.Typing.Lemmas
 import Lean4Lean.Theory.Typing.LevelEquiv
 import Lean4Lean.Theory.Typing.NativeCaptureTransport
 import Lean4Lean.Theory.Typing.ProjectionLemmas
-import Lean4Lean.Theory.Typing.ProjectionProgramTyping
+import Lean4Lean.Theory.Typing.CaseMajorDomain
 import Lean4Lean.Theory.Typing.ProjectionShape
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.SignatureArity

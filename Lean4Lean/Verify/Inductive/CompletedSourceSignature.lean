@@ -1,2 +1,0 @@
-import Lean4Lean.Verify.Inductive.CompletedConstructorPhases
-import Lean4Lean.Verify.Inductive.ConstructorBoundary

@@ -3,7 +3,8 @@ import Lean4Lean.Theory.Typing.NativeConstructorUniqueness
 import Lean4Lean.Theory.Typing.NativeCompiledRegistration
 import Lean4Lean.Theory.Typing.QuotLemmas
 import Lean4Lean.Theory.Typing.InductiveLemmas
-import Lean4Lean.Theory.Typing.SourceConstantProvenance
+import Lean4Lean.Theory.Typing.Strong
+import Lean4Lean.Theory.Inductive.NativeRecursorData
 import Lean4Lean.Theory.Inductive.CaseRegistration
 
 /-!
@@ -95,17 +96,6 @@ def Mentions (X : Name) : VExpr → Prop
   | .proj _ _ e => Mentions X e
   | _ => False
 
-theorem Mentions.present {e : VExpr} (hin : e.ConstantsIn env) (hm : Mentions X e) :
-    ∃ ci, env.constants X = some ci := by
-  induction e with
-  | const n _ => cases hm; exact hin
-  | app _ _ ih₁ ih₂ | lam _ _ ih₁ ih₂ | forallE _ _ ih₁ ih₂ =>
-    rcases hm with h | h
-    · exact ih₁ hin.1 h
-    · exact ih₂ hin.2 h
-  | proj _ _ _ ih => exact ih hin hm
-  | _ => cases hm
-
 theorem Mentions.mkApps_fn (h : Mentions X f) : Mentions X (VExpr.mkApps f args) := by
   induction args generalizing f with
   | nil => exact h
@@ -132,17 +122,6 @@ theorem Mentions.wrapLams (h : Mentions X body) : Mentions X (VExpr.wrapLams dom
   induction doms with
   | nil => exact h
   | cons _ _ ih => exact Or.inr ih
-
-/-- The left side of a stored equation mentions only declared constants. -/
-theorem defeq_lhs_present (henv : env.Ordered) (hdf : env.defeqs df) (hm : Mentions X df.lhs) :
-    ∃ ci, env.constants X = some ci :=
-  hm.present ((((henv.defEqWF hdf).1.strong henv (Γ := []) ⟨⟩)).constantsIn.1)
-
-/-- The type of a declared constant mentions only declared constants. -/
-theorem const_type_present (henv : env.Ordered) (hci : env.constants Y = some ci)
-    (hm : Mentions X ci.type) : ∃ ci', env.constants X = some ci' := by
-  obtain ⟨u, ht⟩ := henv.constWF hci
-  exact hm.present ((ht.strong henv (Γ := []) ⟨⟩).constantsIn.1)
 
 /-! ## The tables -/
 

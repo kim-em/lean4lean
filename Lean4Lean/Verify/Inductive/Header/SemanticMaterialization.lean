@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Header.MaterializedFold
+import Lean4Lean.Verify.Inductive.Header.RawMaterialization
 
 namespace Lean4Lean
 

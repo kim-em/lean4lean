@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Run.SemanticAddInduct
+import Lean4Lean.Verify.Inductive.Run.SemanticRun
 
 namespace Lean4Lean
 

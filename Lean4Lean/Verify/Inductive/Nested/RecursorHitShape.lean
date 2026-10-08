@@ -1,4 +1,5 @@
-import Lean4Lean.Verify.Inductive.Nested.HitShape
+import Lean4Lean.Verify.Inductive.Constructor.Positivity
+import Lean4Lean.Verify.ExprHitShape
 import Lean4Lean.Verify.Inductive.Recursor.FieldDeclarationTypes
 import Lean4Lean.Verify.Inductive.Recursor.ArgumentUniverses
 import Lean4Lean.Verify.Inductive.Nested.FinalAssembly

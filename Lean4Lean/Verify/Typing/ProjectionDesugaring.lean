@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Inductive
 import Lean4Lean.Theory.Inductive.ProjectionProgram
-import Lean4Lean.Theory.Typing.ProjectionProgramTyping
+import Lean4Lean.Theory.Typing.CaseMajorDomain
 
 /-! Typed projection abbreviations use fixed, declaration-derived case
 programs. Only the occurrence's universe and term arguments vary. -/
@@ -45,27 +45,6 @@ theorem targetWF (H : ProjectionDesugaring env U Γ name index major target) :
     VExpr.WF env U Γ target := by
   cases H
   assumption
-
-/-- The actual abbreviation is typed by instantiating its generated function
-type. The field dependencies are those computed by the shared program
-generator, even when its original well-formedness witness used conversion. -/
-theorem targetTyping (H : ProjectionDesugaring env U Γ name index major target)
-    (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)) :
-    ∃ (program : ProjectionFunction) (packed : List VLevel) (args : List VExpr) (resultType : VExpr),
-      target = VExpr.mkApps (program.value.instL packed) args ∧
-      env.HasType U Γ (program.value.instL packed) (program.type.instL packed) ∧
-      VEnv.InstForallsC env U Γ (program.type.instL packed) args resultType ∧
-      env.HasType U Γ target resultType := by
-  cases H with
-  | @intro block programs fieldSorts levels params indices schema owner program
-      hr ho hf hg hs hlu hfu hw hp hn hi hm ht =>
-    obtain ⟨hfn, resultType, hargs, hresult⟩ :=
-      VEnv.HasType.projectionPrefix_instL_application_type henv hΓ hr hg
-        (List.mem_of_getElem? hs)
-        (args := params ++ indices ++ [major])
-        (by simp only [List.length_append, List.length_singleton, hn, hi]) ht
-    exact ⟨program, fieldSorts ++ levels, params ++ indices ++ [major], resultType,
-      rfl, hfn, hargs, hresult⟩
 
 theorem program_closed {index : Nat} {program : ProjectionFunction} {schema : InductiveSignature.CaseSchema}
     {owner : Fin schema.signature.families.size}

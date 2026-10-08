@@ -3,7 +3,8 @@ import Lean4Lean.Verify.Inductive.Nested.Compilation
 import Lean4Lean.Verify.Inductive.Recursor.ReplayCompat
 import Lean4Lean.Verify.Inductive.TypeAnnotations
 
-import Lean4Lean.Verify.Inductive.CompletedSourceSignature
+import Lean4Lean.Verify.Inductive.CompletedConstructorPhases
+import Lean4Lean.Verify.Inductive.ConstructorBoundary
 
 namespace Lean4Lean
 open Lean hiding Environment Exception

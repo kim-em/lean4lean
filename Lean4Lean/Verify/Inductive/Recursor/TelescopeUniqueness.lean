@@ -1,4 +1,5 @@
-import Lean4Lean.Verify.Inductive.Recursor.ContextRestriction
+import Lean4Lean.Verify.Inductive.Context
+import Lean4Lean.Verify.Inductive.Recursor.CanonicalMinorFields
 import Lean4Lean.Verify.Inductive.Recursor.SourceUniverses
 
 /-! Uniqueness of translated binder telescopes.
@@ -37,50 +38,6 @@ theorem TypeChecker.MLCtx.vlctx_allLams :
     rcases hentry with rfl | h
     · exact ⟨_, _, _, rfl⟩
     · exact vlctx_allLams c honly.tail_vlam entry h
-
-theorem TypeChecker.MLCtx.closeEntry {env : VEnv} {Us : List Name} :
-    ∀ (c : TypeChecker.MLCtx) (_hwf : c.WF env Us) (honly : VerifyInductive.MLCtxOnlyLams c)
-      (k : Nat) (hk : k < c.length),
-    TrExprS env Us (VerifyInductive.abstractForallContext (c.vlctx.toCtx.reverse.take k) [])
-      ((c.lamTypes[k]'(by rw [lamTypes_length]; exact hk)).abstractList
-        (c.vlctx.fvars.reverse.take k))
-      (c.vlctx.toCtx.reverse[k]'(by simpa [honly.toCtx_length] using hk))
-  | .nil, _, _, k, hk => by simp at hk
-  | .vlet .., _, honly, _, _ => honly.vlet_false.elim
-  | .vlam id name ty ty' bi c, hwf, honly, k, hk => by
-    obtain ⟨hwfc, _, htr, _⟩ := hwf
-    have honlyc := honly.tail_vlam
-    have hlenT : c.vlctx.toCtx.reverse.length = c.length := by
-      simp [honlyc.toCtx_length]
-    have hlenF : c.vlctx.fvars.reverse.length = c.length := by
-      simp [honlyc.fvars_length]
-    have hT : (MLCtx.vlam id name ty ty' bi c).vlctx.toCtx.reverse =
-        c.vlctx.toCtx.reverse ++ [ty'] := by simp [VLCtx.toCtx]
-    have hF : (MLCtx.vlam id name ty ty' bi c).vlctx.fvars.reverse =
-        c.vlctx.fvars.reverse ++ [id] := by simp
-    have hL : (MLCtx.vlam id name ty ty' bi c).lamTypes = c.lamTypes ++ [ty] := rfl
-    simp only [hT, hF, hL]
-    have hk' : k ≤ c.length := by simp at hk; omega
-    rw [List.take_append_of_le_length (by omega), List.take_append_of_le_length (by omega)]
-    rcases Nat.lt_or_eq_of_le hk' with hlt | rfl
-    · rw [List.getElem_append_left (by simpa using hlt),
-        List.getElem_append_left (by omega)]
-      exact closeEntry c hwfc honlyc k hlt
-    · rw [List.getElem_append_right (by simp), List.getElem_append_right (by omega)]
-      have h1 : c.vlctx.toCtx.reverse.take c.length = c.vlctx.toCtx.reverse := by
-        rw [List.take_of_length_le (by omega)]
-      have h2 : c.vlctx.fvars.reverse.take c.length = c.vlctx.fvars.reverse := by
-        rw [List.take_of_length_le (by omega)]
-      simp only [h1, h2, lamTypes_length, Nat.sub_self, hlenT, List.getElem_cons_zero]
-      exact TrExprS.closeAllLams (vlctx_allLams c honlyc) hwfc.fvars_nodup htr
-
-theorem TypeChecker.MLCtx.lamTypes_telescope {env : VEnv} {Us : List Name}
-    (c : TypeChecker.MLCtx) (hwf : c.WF env Us) (honly : VerifyInductive.MLCtxOnlyLams c) :
-    ∀ i (h : i < c.lamTypes.length),
-      TrExprS env Us (VerifyInductive.abstractForallContext (c.vlctx.toCtx.reverse.take i) [])
-        ((c.lamTypes[i]).abstractList (c.vlctx.fvars.reverse.take i))
-        (c.vlctx.toCtx.reverse[i]'(by simpa [honly.toCtx_length, lamTypes_length] using h)) :=
-  fun i h => c.closeEntry hwf honly i (by simpa using h)
 
 /-- The local declaration found at an identifier of a lambda-only
 metacontext carries the stored binder type at the same position. -/

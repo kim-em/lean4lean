@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.CompletedRecursorPhases
-import Lean4Lean.Verify.Inductive.CompletedSourceSignature
+import Lean4Lean.Verify.Inductive.CompletedConstructorPhases
+import Lean4Lean.Verify.Inductive.ConstructorBoundary
 import Lean4Lean.Verify.Inductive.Header.SingletonElimination
 import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterRawShape
 import Lean4Lean.Theory.Inductive.SignatureLemmas

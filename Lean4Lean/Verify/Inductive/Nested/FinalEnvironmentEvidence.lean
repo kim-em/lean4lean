@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.FinalEnvironmentModels
 import Lean4Lean.Verify.Inductive.Nested.OriginalHeaderSeedRebase
-import Lean4Lean.Verify.Inductive.Nested.SourceMetadata
+import Lean4Lean.Verify.Inductive.Nested.Opening
 
 namespace Lean4Lean
 
@@ -926,57 +926,6 @@ def NestedRestoredConstructorParameterDomains
     Nonempty (RestoredConstructorParameterDomains C.canonical.venvCtors
       lparams nparams decl.types[familyIdx].toVConstVal.toVConstant
         decl.types[familyIdx].ctors[ctorIdx].toVConstant)
-
-/-- Exact common concrete forall domains are sufficient to construct the
-narrow semantic residue from the two independently translated restored
-targets.  This deliberately does not compare their residual bodies. -/
-theorem RestoredConstructorParameterDomains.ofSameForallDomains
-    (Hsame : Expr.SameForallDomains numParams familySource constructorSource)
-    (henv : venv.WF)
-    (Hfamily : TrExprS venv levelParams [] familySource familyTarget.type)
-    (Hconstructor : TrExprS venv levelParams [] constructorSource
-      constructorTarget.type) :
-    Nonempty (RestoredConstructorParameterDomains venv levelParams numParams
-      familyTarget constructorTarget) := by
-  rcases Hsame.translatedContexts henv (.refl henv (by trivial))
-      Hfamily Hconstructor with
-    ⟨familyDomains, familyTail, constructorDomains, constructorTail,
-      hfamilyLength, hconstructorLength, hfamilyTarget,
-      hconstructorTarget, Hdomains⟩
-  exact ⟨{
-    familyDomains := familyDomains
-    constructorDomains := constructorDomains
-    familyTail := familyTail
-    constructorTail := constructorTail
-    familyTarget_defeq := by
-      rw [← hfamilyTarget]
-      exact Hfamily.wf henv.ordered (by trivial)
-    constructorTarget_eq := hconstructorTarget
-    familyLength := hfamilyLength
-    constructorLength := hconstructorLength
-    parameterDomains := by
-      simpa [VLCtx.toCtx] using Hdomains }⟩
-
-/-- Select the narrow parameter-domain witness directly from one exact
-restored source-constructor semantic step.  All target identities and
-translations come from the restoration trace; the only extra fact is the
-source syntax's common-domain relation with its owner family. -/
-theorem RestoredSourceConstructorSemantics.parameterDomainsOfSourceDomains
-    (Hsemantic : RestoredSourceConstructorSemantics lparams safety
-      constructorEnv Hstep sourceCtor)
-    (sourceFamily : InductiveType) (familyTarget : VConstVal)
-    (Hsame : Expr.SameForallDomains numParams sourceFamily.type
-      sourceCtor.type)
-    (Hfamily : TrSourceConst familyEnv lparams sourceFamily.name
-      sourceFamily.type familyTarget)
-    (hfamilyLE : familyEnv ≤ finalEnv)
-    (hconstructorLE : constructorEnv ≤ finalEnv)
-    (hfinalWF : finalEnv.WF) :
-    Nonempty (RestoredConstructorParameterDomains finalEnv lparams numParams
-      familyTarget.toVConstant Hsemantic.constructor.toVConstant) := by
-  exact RestoredConstructorParameterDomains.ofSameForallDomains Hsame
-    hfinalWF (Hfamily.type.mono hfamilyLE)
-      (Hsemantic.sourceTranslation.type.mono hconstructorLE)
 
 /-- Exact production alignment already contains the complete non-semantic
 constructor metadata once the enclosing restored family alignment is fixed. -/

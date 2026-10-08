@@ -1,4 +1,7 @@
-import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterAlignment
+import Lean4Lean.Verify.Inductive.Recursor.Structure
+import Lean4Lean.Verify.Inductive.Nested.Opening
+import Lean4Lean.Verify.Inductive.Nested.OriginalHeaderSeedRebase
+import Lean4Lean.Verify.Typing.EnvironmentRestriction
 import Lean4Lean.Verify.Inductive.Nested.FinalEnvironmentEvidence
 
 namespace Lean4Lean
@@ -19,54 +22,6 @@ theorem Expr.SameForallPrefix.leftTelescope
   | cons _ ih =>
     rcases ih with ⟨residual, Htail⟩
     exact ⟨residual, .cons Htail⟩
-
-/-- Assemble the restored parameter-domain payload from one actual checked
-constructor prefix.
-
-The family half is deliberately stated as an exact decomposition plus its
-alignment with the executable cached scope.  The constructor half is fully
-derived: its domains are selected from the restored source translation, and
-`SameForallPrefix` transfers the checked lowered trace without translating
-the changed lowered residual. -/
-theorem RestoredConstructorParameterDomains.ofCheckedSameForallPrefix
-    (henv : env.WF)
-    (hscope : VLCtx.WF env levelParams.length scope)
-    (Hchecked : CheckedConstructorParameterPrefix env levelParams stats
-      loweredSource numParams loweredTail scope checkedDomains)
-    (Hsame : Expr.SameForallPrefix numParams sourceConstructor loweredSource)
-    (Hconstructor : TrExprS env levelParams [] sourceConstructor
-      constructorTarget.type)
-    (familyDomains : List VExpr) (familyTail : VExpr)
-    (HfamilyTarget : env.IsDefEqU levelParams.length [] familyTarget.type
-      (VExpr.wrapForalls familyDomains familyTail))
-    (hfamilyLength : familyDomains.length = numParams)
-    (hfamilyScope : env.IsDefEqCtx levelParams.length []
-      familyDomains.reverse scope.toCtx) :
-    Nonempty (RestoredConstructorParameterDomains env levelParams numParams
-      familyTarget constructorTarget) := by
-  rcases Hsame.leftTelescope with ⟨sourceResidual, HsourceTelescope⟩
-  rcases TrExprS.forallTelescope_shape HsourceTelescope Hconstructor with
-    ⟨constructorDomains, constructorTail, hconstructorLength,
-      hconstructorTarget⟩
-  have HconstructorFull : TrExpr env levelParams [] sourceConstructor
-      (VExpr.wrapForalls constructorDomains constructorTail) := by
-    rw [← hconstructorTarget]
-    exact Hconstructor.trExpr henv.ordered (by trivial)
-  have hconstructorScope : env.IsDefEqCtx levelParams.length []
-      constructorDomains.reverse scope.toCtx :=
-    Hchecked.contextDefEqOfSameForallPrefixTranslation henv hscope Hsame
-      HconstructorFull hconstructorLength
-  exact ⟨{
-    familyDomains := familyDomains
-    constructorDomains := constructorDomains
-    familyTail := familyTail
-    constructorTail := constructorTail
-    familyTarget_defeq := HfamilyTarget
-    constructorTarget_eq := hconstructorTarget
-    familyLength := hfamilyLength
-    constructorLength := hconstructorLength
-    parameterDomains := VEnv.IsDefEqCtx.transEmpty henv hfamilyScope
-      (hconstructorScope.symm henv.ordered) }⟩
 
 /-- The exact restored-family half of constructor parameter coherence.  This
 is family-indexed (rather than constructor-indexed): every constructor of one
@@ -383,132 +338,6 @@ theorem NestedExactFinalRunResult.restoredConstructorParameterDomainsNative
   simpa [family, constructor] using
     Hfamily.constructorDomains hcanonicalWF Hconstructor
       E.assembly.uvars E.assembly.numParams HparamsScope
-
-/-- Convert the exact producer-side restriction contract into the complete
-pointwise restored constructor-domain payload.  Constructor domains,
-lowering alignment, environment rebasing, and source translations are all
-derived here; the only separate input is the single family parameter scope
-shared by all constructors of that family. -/
-theorem NestedExactFinalRunResult.restoredConstructorParameterDomains
-    (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes sourceEnv
-      decl lparams nparams isUnsafe safety outEnv)
-    {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed E.productionContext.env fuel nparams
-      sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
-    (hempty : initialState.nestedAux = #[])
-    (Hlocality : ConstructorParameterReplayLocality)
-    (Hfamilies : NestedRestoredFamilyParameterScopes E) :
-    NestedRestoredConstructorParameterDomains E.assembly := by
-  let Hsource : TrInductDeclCore sourceEnv lparams nparams sourceTypes
-      isUnsafe decl E.assembly.canonical.venvTypes
-        E.assembly.canonical.venvCtors :=
-    E.assembly.sourceSemantics.core E.assembly.typesSource E.assembly.uvars
-      E.assembly.numParams E.assembly.unsafeEq E.assembly.typesAdded
-      E.assembly.constructorsAdded
-  have hsourceWF : sourceEnv.WF := by
-    have hwf := E.production.headers.sourceContext.checking.tr.wf
-    rw [E.production.headers.sourceContextVEnv] at hwf
-    simpa only [E.production_initialEnv] using hwf
-  have hcanonicalWF : E.assembly.canonical.venvCtors.WF :=
-    Lean4Lean.VerifyInductive.TrInductDeclCore.envCtorsWF Hsource hsourceWF
-  have HsourceFromProduction : TrInductDeclCore E.production.initialEnv
-      lparams nparams sourceTypes isUnsafe decl
-      E.assembly.canonical.venvTypes E.assembly.canonical.venvCtors := by
-    simpa only [E.production_initialEnv] using Hsource
-  have Henvironments : VEnv.LEExcept
-      (fun name => name ∈ E.production.loweredDecl.sourceNames)
-      E.production.headers.context.venv
-      E.assembly.canonical.venvCtors :=
-    TrInductDeclCore.typeEnvToCtorEnvLEExcept
-      E.production.constructors.core HsourceFromProduction
-  intro familyIdx hfamily ctorIdx hctor
-  have hsourceFamily : familyIdx < sourceTypes.length := by
-    rw [Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource]
-    exact hfamily
-  have Htype := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hsource
-    familyIdx hsourceFamily hfamily
-  have hsourceCtor : ctorIdx < sourceTypes[familyIdx].ctors.length := by
-    rw [Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Htype]
-    exact hctor
-  have HsourceCtor := Lean4Lean.VerifyInductive.TrInductiveType.ctorAt Htype
-    ctorIdx hsourceCtor hctor
-  have hresultFamily : familyIdx < result.types.length :=
-    Nat.lt_of_lt_of_le hsourceFamily Hlower.toResult.sourceTypes_length_le
-  have hproductionFamily : familyIdx < E.production.indTypes.size := by
-    rw [E.production_indTypes]
-    simpa using hresultFamily
-  rcases Hlower.sourceFinalMappingAtFreshAligned hempty hsourceFamily with
-    ⟨_fvars, _stepState, loweredFamily, _loweredState, _hparams, _hnodup,
-      _hsize, Hmapping, hloweredFamily⟩
-  obtain ⟨_hresultFamily', hloweredFamilyEq⟩ :=
-    _root_.getElem?_eq_some_iff.mp hloweredFamily
-  have hproductionFamilyEq :
-      E.production.indTypes[familyIdx] = loweredFamily := by
-    calc
-      E.production.indTypes[familyIdx] =
-          E.production.indTypes.toList[familyIdx] :=
-        Array.getElem_toList hproductionFamily
-      _ = result.types[familyIdx] := by
-        simp [E.production_indTypes]
-      _ = loweredFamily := hloweredFamilyEq
-  rcases Hmapping.constructors.mappingAt ctorIdx hsourceCtor with
-    ⟨sourceCtor, loweredCtor, _before, _after, hsourceCtorEq,
-      hloweredCtorEq, HctorMapping⟩
-  obtain ⟨_hsourceCtor', hsourceCtorValue⟩ :=
-    _root_.getElem?_eq_some_iff.mp hsourceCtorEq
-  obtain ⟨hloweredCtor, hloweredCtorValue⟩ :=
-    _root_.getElem?_eq_some_iff.mp hloweredCtorEq
-  have hsourceCtorValue' : sourceCtor = sourceTypes[familyIdx].ctors[ctorIdx] :=
-    hsourceCtorValue.symm
-  subst sourceCtor
-  have hproductionCtor :
-      ctorIdx < E.production.indTypes[familyIdx].ctors.length := by
-    rw [hproductionFamilyEq]
-    exact hloweredCtor
-  rcases E.production.constructors.checkedConstructorParameterPrefixAt
-      familyIdx hproductionFamily ctorIdx hproductionCtor with
-    ⟨tail, checkedDomains, HcheckedHeader⟩
-  have HcheckedUses := Hlocality E.production.constructors familyIdx
-    hproductionFamily ctorIdx hproductionCtor HcheckedHeader
-  have HcheckedRestored := HcheckedHeader.rebaseExcept Henvironments
-    HcheckedUses
-  have Hsame : Expr.SameForallPrefix nparams
-      sourceTypes[familyIdx].ctors[ctorIdx].type
-      E.production.indTypes[familyIdx].ctors[ctorIdx].type := by
-    have Hsame' := HctorMapping.sourceTargetSameForallPrefix
-      ((HsourceCtor.type.fvarsIn).mono fun fv hfv => by
-        simpa [VLCtx.fvars] using hfv)
-      (by
-        have h := HsourceCtor.type.closed
-        simpa [VLCtx.bvars] using h)
-    simpa only [hproductionFamilyEq, hloweredCtorValue] using Hsame'
-  have Hconstructor : TrExprS E.assembly.canonical.venvCtors lparams []
-      sourceTypes[familyIdx].ctors[ctorIdx].type
-      decl.types[familyIdx].ctors[ctorIdx].toVConstant.type :=
-    HsourceCtor.type.mono (VEnv.addConstVals_le E.assembly.constructorsAdded)
-  rcases Hfamilies familyIdx hfamily with ⟨Hfamily⟩
-  have hscopeFVWF :
-      E.production.headers.materialized.parameterScope.FVWF :=
-    (E.production.headers.materialized.runtimeScope.scopeWF
-      E.production.headers.context.checking.tr.wf).fvwf
-  have hscopeWF := HcheckedRestored.scopeWFOfFVWF hcanonicalWF hscopeFVWF
-  have hstatsParams : E.production.stats.params.size = nparams := by
-    have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
-      E.production.headers.materialized.params
-    calc
-      E.production.stats.params.size = E.production.loweredDecl.nparams := by
-        simpa [VInductDecl.paramVars] using hlength
-      _ = E.production.nparams := E.production.constructors.core.nparams
-      _ = nparams := E.production_nparams
-  exact RestoredConstructorParameterDomains.ofCheckedSameForallPrefix
-    hcanonicalWF (by
-      simpa only [E.production_c, E.productionContext_lparams] using hscopeWF)
-    (by
-      simpa only [E.production_c, E.productionContext_lparams,
-        hstatsParams]
-        using HcheckedRestored)
-    Hsame Hconstructor Hfamily.domains Hfamily.tail Hfamily.target_defeq
-    Hfamily.length Hfamily.context
 
 end VerifyInductive
 end Lean4Lean

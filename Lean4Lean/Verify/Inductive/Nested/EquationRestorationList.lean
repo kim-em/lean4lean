@@ -1,4 +1,8 @@
-import Lean4Lean.Verify.Inductive.Nested.EquationRestorationIotaStructural
+import Lean4Lean.Theory.Inductive
+import Lean4Lean.Verify.Typing.ProjectionRelation
+import Lean4Lean.Verify.Inductive.Nested.Replacement
+import Lean4Lean.Verify.Inductive.Nested.Restoration
+import Lean4Lean.Verify.Typing.Lemmas
 
 namespace Lean4Lean
 

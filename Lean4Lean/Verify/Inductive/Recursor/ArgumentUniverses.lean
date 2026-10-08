@@ -1,5 +1,7 @@
 import Lean4Lean.Verify.Inductive.Recursor.ConsumedGenerationAssembly
-import Lean4Lean.Verify.Inductive.Recursor.CanonicalFieldUniverses
+import Lean4Lean.Verify.Typing.UniverseSupport
+import Lean4Lean.Verify.Inductive.Recursor.SourceReplay
+import Lean4Lean.Verify.Inductive.Recursor.SourceUniverses
 import Lean4Lean.Verify.Inductive.Recursor.LoopUniverses
 
 /-! Universe support of the higher-order argument telescope of an induction

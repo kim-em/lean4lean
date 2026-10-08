@@ -1,4 +1,6 @@
-import Lean4Lean.Verify.Inductive.Recursor.RecursiveShapeRow
+import Lean4Lean.Verify.Inductive.Recursor.TelescopeUniqueness
+import Lean4Lean.Verify.Inductive.Recursor.SecondPass
+import Lean4Lean.Verify.Inductive.Recursor.FieldTypeScope
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalRecursorTelescope
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalFieldDefEq
 

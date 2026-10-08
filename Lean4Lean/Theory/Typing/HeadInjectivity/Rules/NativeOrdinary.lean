@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.Batches
+import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.Definitions
 
 /-! # Syntax of ordinary native recursor equations (stage B)
 
