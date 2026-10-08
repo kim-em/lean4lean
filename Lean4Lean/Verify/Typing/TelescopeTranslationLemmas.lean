@@ -1,6 +1,5 @@
 import Lean4Lean.Verify.Typing.TelescopeTranslation
 import Lean4Lean.Verify.Typing.LevelEquiv
-import Lean4Lean.Theory.CanonicalChoice
 import Lean4Lean.Verify.Environment.RecursorAlignment
 
 /-!
@@ -522,22 +521,11 @@ the environment invariant that the projection walk of `inferProj` reads at its n
 fields (`docs/inductives/STRENGTHENING_PLAN_2026-10-08.md`). -/
 def CtorTelescopes (safety : DefinitionSafety) (env : Lean.Kernel.Environment) (venv : VEnv) :
     Prop :=
-  ∀ {name : Name} {ci : ConstructorVal}, env.find? name = some (.ctorInfo ci) →
+  ∀ ⦃name : Name⦄ ⦃ci : ConstructorVal⦄, env.find? name = some (.ctorInfo ci) →
     safety ≤ (ConstantInfo.ctorInfo ci).safety → CtorTelescopeAt venv ci
 
 theorem CtorTelescopes.mono (H : CtorTelescopes safety env venv) (henv : venv ≤ venv') :
-    CtorTelescopes safety env venv' := fun h hs => (H h hs).mono henv
-
-/-- The evidence that resolves the projection-walk corner in a checking context: either the
-abstract environment has canonical choice (`projectionWalkCorner_choice`), or every visible
-constructor carries a telescope certificate (`TelTrN.delete_closed`). -/
-def ProjectionCorner (safety : DefinitionSafety) (env : Lean.Kernel.Environment) (venv : VEnv) :
-    Prop :=
-  venv.HasCanonicalChoice ∨ CtorTelescopes safety env venv
-
-theorem ProjectionCorner.mono (H : ProjectionCorner safety env venv) (henv : venv ≤ venv') :
-    ProjectionCorner safety env venv' :=
-  H.imp (·.mono henv) (·.mono henv)
+    CtorTelescopes safety env venv' := fun _ _ h hs => (H h hs).mono henv
 
 end Lean4Lean
 

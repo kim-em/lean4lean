@@ -666,7 +666,7 @@ theorem CompletedBlockCertificate.extendSafeExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : CompletedBlockCertificate .safe prodEnv (ves.venv .safe) types ctors
       recursors rules outEnv outBase)
-    (wf : ves.WFCore prodEnv) (hcorner : ∀ safety, ProjectionCorner safety prodEnv (ves.venv safety))
+    (wf : ves.WFCore prodEnv) (hcorner : ∀ safety, CtorTelescopes safety prodEnv (ves.venv safety))
     (hdecl : decl.WF (ves.venv .safe))
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
@@ -800,7 +800,7 @@ theorem CompletedBlockCertificate.extendUnsafeOfHiddenExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : CompletedBlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
       recursors rules outEnv outVEnv)
-    (wf : ves.WFCore prodEnv) (hcorner : ∀ safety, ProjectionCorner safety prodEnv (ves.venv safety))
+    (wf : ves.WFCore prodEnv) (hcorner : ∀ safety, CtorTelescopes safety prodEnv (ves.venv safety))
     (hdecl : decl.WF (ves.venv .unsafe))
     (hcompile : decl.CompilesTo (ves.venv .unsafe) H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants

@@ -1055,7 +1055,7 @@ theorem AddInductive.declareConstructors.WF
         (hregistry.monoEnv hle) hrecursors'
         (fun hq => (hquot hq).extend (fun h => h) hle hrecursors'.heads)
         ((Hinstalled.corner H.context.checking.tr H.context.checking.corner
-          (Haligned.cornerSteps (.inr htele))).mono
+          (Haligned.cornerSteps htele)).mono
           (VEnv.addEliminators_le.trans VEnv.addProjections_le))
     exact ⟨{
       toDeclaredConstructorsCore := D

@@ -691,7 +691,7 @@ theorem RestoredConstructorValidationEnvironment.validProjected
       QuotEnvCoherent c.env.constants sourceVEnv)
     (hcasesWF : (envCtors.addEliminators es).WF)
     (hprojectedWF : ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries).WF)
-    (hcorner : ProjectionCorner c.safety validationEnv envCtors) :
+    (hcorner : CtorTelescopes c.safety validationEnv envCtors) :
     CheckingEnv.Valid c.safety validationEnv
       ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) := by
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
