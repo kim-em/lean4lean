@@ -484,8 +484,7 @@ theorem VEnvs.WFCore.extendInductExact
         intro safety
         change TrEnv' safety env'.constants env'.quotInit (next safety)
         rw [hquot]
-        exact TrEnv'.induct (hadd safety).declWF
-          (hadd safety) (wf.tr (safety := safety))
+        exact TrEnv'.induct (hadd safety) (wf.tr (safety := safety))
       hasPrimitives := by
         intro safety
         exact hprimitives safety

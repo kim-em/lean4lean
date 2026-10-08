@@ -800,7 +800,7 @@ theorem BlockCertificate.trEnv
     (helim : VInductBlock.EliminatorsWF venv decl H.block) :
     TrEnv' checkSafety outEnv.constants quotInit
       H.installedVEnv :=
-  .induct hdecl
+  .induct
     (H.addInduct hdecl hcompile horigins hprovenance hsource.aligned helim) hsource
 
 /-- Unsafe inductives extend only the unsafe abstract model; partial and safe

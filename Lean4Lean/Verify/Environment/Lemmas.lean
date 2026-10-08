@@ -709,7 +709,7 @@ theorem TrEnv'.aligned (H : TrEnv' safety C Q venv) : Aligned safety C venv := b
     exact Aligned.addDefEqs <| ih.insertDefs hnd hfr
       (Lean4Lean.List.Forall₂.imp (fun _ _ h => h.1) hblk) hadd
   | quot _ h _ ih => exact ih.addQuot h
-  | induct _ h _ ih => exact ih.addInduct h
+  | induct h _ ih => exact ih.addInduct h
 
 theorem TrEnv'.map_wf (H : TrEnv' safety C Q venv) : C.WF := H.aligned.map_wf
 
@@ -883,7 +883,7 @@ theorem TrEnv'.of_value (H : TrEnv' safety C Q venv) (h : C.find? name = some ci
     obtain h | ⟨rfl, rfl⟩ := this wf.map_wf (ih _ _ wf' h5)
     · exact h
     · contradiction
-  | induct _ h1 H ih =>
+  | induct h1 H ih =>
     cases h1 with
     | intro block _ _ _ hinstall _ _ _ hdelta =>
       exact (ih (hdelta h (by simp [hv]))).mono
@@ -1161,7 +1161,7 @@ theorem TrEnv'.recursorEnvCoherent (H : TrEnv' safety C Q venv) :
       · exact .inl h
       · exact .inr ⟨``Quot.lift, _, _, rfl, hlift, nofun, fun q' hq' => by
           cases hq'; exact hkind⟩
-  | induct _ hadd _ ih =>
+  | induct hadd _ ih =>
     exact ih.addInduct hadd.newRecursorsAligned hadd.preservesSourceFind hadd.le
 
 theorem TrEnv'.quotEnvCoherent (H : TrEnv' safety C Q venv) (hQ : Q = true) :
@@ -1214,9 +1214,9 @@ theorem TrEnv'.quotEnvCoherent (H : TrEnv' safety C Q venv) (hQ : Q = true) :
   | quot _ hq htr _ =>
     obtain ⟨hf1, -, hquot, -, -⟩ := hq.find? htr.map_wf
     exact ⟨AddQuot.quotCoherent hq (htr.recursorEnvCoherent.heads.rigid_of_fresh hf1), hquot⟩
-  | induct hdecl hadd htr ih =>
+  | induct hadd htr ih =>
     exact (ih hQ).extend hadd.preservesSourceFind hadd.le
-      (TrEnv'.induct hdecl hadd htr).recursorEnvCoherent.heads
+      (TrEnv'.induct hadd htr).recursorEnvCoherent.heads
 
 theorem TrEnv.recursorEnvCoherent (H : TrEnv safety env venv) :
     RecursorEnvCoherent safety env.constants venv :=
