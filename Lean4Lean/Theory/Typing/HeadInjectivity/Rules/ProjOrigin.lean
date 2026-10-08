@@ -12,30 +12,6 @@ projections and eliminators of `base`, so soundness of `base`'s derivations appl
 
 namespace Lean4Lean
 
-theorem VEnv.addConsts_projections {env env' : VEnv} :
-    ∀ {cis}, env.addConsts cis = some env' → env'.projections = env.projections
-  | [], h => by cases h; rfl
-  | _ :: _, h => by
-    simp only [VEnv.addConsts, List.foldlM_cons, Option.bind_eq_bind,
-      Option.bind_eq_some_iff] at h
-    obtain ⟨middle, hfirst, hrest⟩ := h
-    exact (VEnv.addConsts_projections hrest).trans (VEnv.addConst_projections hfirst)
-
-@[simp] theorem VEnv.addDefEqs_projections (env : VEnv) (cis : List VDefVal) :
-    (env.addDefEqs cis).projections = env.projections := by
-  induction cis generalizing env with
-  | nil => rfl
-  | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
-
-theorem VEnv.addQuot_projections {env env' : VEnv}
-    (H : env.addQuot = some env') : env'.projections = env.projections := by
-  simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at H
-  obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := H
-  exact (VEnv.addConst_projections hd).trans <|
-    (VEnv.addConst_projections hc).trans <|
-      (VEnv.addConst_projections hb).trans (VEnv.addConst_projections ha)
-
 private theorem defs_le (env : VEnv) (cis : List VDefVal) :
     env ≤ env.addDefEqs cis := by
   induction cis generalizing env with
@@ -56,12 +32,13 @@ private theorem decl_le (H : VDecl.WF env decl env') : env ≤ env' := by
       (VEnv.addConst_le hc).trans <| (VEnv.addConst_le hd).trans VEnv.addDefEq_le
   | induct _ h =>
     cases h with
-    | intro _ _ _ h =>
+    | intro _ _ _ _ h =>
       simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
         Option.pure_def, Option.some.injEq] at h
       obtain ⟨types, ht, ctors, hc, recs, hr, rfl⟩ := h
       exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
-        VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
+        VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans
+          VEnv.addDefEqRules_le
 
 private theorem typeConstants_wf {decl : VInductDecl} {base : VEnv}
     (h : ∀ type ∈ decl.types, type.toVConstant.WF base) :
@@ -137,7 +114,7 @@ theorem VEnv.WF'.projOrigin {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
       exact (ih hp).mono hle
     | induct hdeclWF hadd =>
       cases hadd with
-      | intro _ hcompile hblock hinstall =>
+      | intro _ hcompile hblock _ hinstall =>
         obtain ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs, -, -, -, -⟩ := hblock
         have hinst := hinstall
         simp only [VInductBlock.install, htypes, hctors, hrecs, Option.bind_eq_bind,
@@ -151,17 +128,18 @@ theorem VEnv.WF'.projOrigin {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
           rw [hcompile.types] at htypes'
           have hparams := hdeclWF.sourceParameterWF htypes'
           exact VEnv.ProjOrigin.ofEntry hbase htypes'
-            ((VEnv.addConstVals_le hctors).trans <| VEnv.addProjections_le.trans <|
+            ((VEnv.addConstVals_le hctors).trans <| VEnv.addEliminators_addProjections_le.trans <|
               (VEnv.addConstVals_le hrecs).trans VEnv.addDefEqRules_le)
             (typeConstants_wf hdeclWF.1.originalTypes) (hdeclWF.1.constructorsWF_at htypes') hdeclWF.1.2.2.2.1 hparams.rawCtorShape
             hcompile.sourceNames hparams hentry
-        · rw [VEnv.addConstVals_projections hctors, VEnv.addConstVals_projections htypes] at hold
+        · rw [VEnv.addEliminators_projections, VEnv.addConstVals_projections hctors,
+            VEnv.addConstVals_projections htypes] at hold
           exact (ih hold).mono hle
   | inductEliminators _ _ _ _ _ _ _ _ _ ih =>
     intro S info hp
     rw [VEnv.addEliminator_projections] at hp
     exact (ih hp).mono VEnv.addEliminator_le
-  | inductProjections hbase _ hsource htypesWF hconstructorUvars hctorsWF hspw hshape htypesSource
+  | inductProjections hbase _ _ hsource htypesWF hconstructorUvars hctorsWF hspw hshape htypesSource
       _ hprojections htypes hctors _ ihCtors =>
     intro S info hp
     rw [VEnv.addProjections_iff] at hp
@@ -170,7 +148,7 @@ theorem VEnv.WF'.projOrigin {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
       have htypes' := htypes
       rw [htypesSource] at htypes'
       exact VEnv.ProjOrigin.ofEntry hbase htypes'
-        ((VEnv.addConstVals_le hctors).trans VEnv.addProjections_le)
+        ((VEnv.addConstVals_le hctors).trans VEnv.addEliminators_addProjections_le)
         (typeConstants_wf htypesWF) hctorsWF hconstructorUvars hshape hsource hspw hentry
     · exact (ihCtors hold).mono VEnv.addProjections_le
 

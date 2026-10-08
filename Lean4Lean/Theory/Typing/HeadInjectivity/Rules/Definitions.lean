@@ -170,7 +170,7 @@ theorem WF'.defRules {env : VEnv} (H : env.WF' ds) : env.DefRules := by
         exact absurd h quotDefEq_lhs_ne_const
     | induct _ installed =>
       cases installed with
-      | @intro block _ _ compiled _ installed =>
+      | @intro block _ _ compiled _ _ installed =>
         obtain ⟨base, expanded, signature, generated, auxiliaries, _, compilation, _⟩ :=
           compiled.compiled.compilationOrigin
         have hrules := compilation.equations
@@ -188,10 +188,10 @@ theorem WF'.defRules {env : VEnv} (H : env.WF' ds) : env.DefRules := by
           (fun _ _ h => by
             rw [VEnv.addDefEqRules_constants]
             exact (addConstVals_le hr).constants (by
-              rw [VEnv.addProjections_constants]
+              rw [VEnv.addProjections_constants, VEnv.addEliminators_constants]
               exact (addConstVals_le hc).constants ((addConstVals_le ht).constants h)))
           (fun df => by
-            rw [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
+            rw [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
               VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht]) ?_
           (fun df hm n ls h => absurd h (notConst df hm n ls))
           (fun df hm _ _ n ls _ h => absurd h (notConst df hm n ls))
@@ -204,12 +204,12 @@ theorem WF'.defRules {env : VEnv} (H : env.WF' ds) : env.DefRules := by
         | none => rfl
         | some ci =>
           have := (addConstVals_le hc).constants ((addConstVals_le ht).constants h')
-          simp only [VEnv.addProjections_constants] at hfresh
+          simp only [VEnv.addProjections_constants, VEnv.addEliminators_constants] at hfresh
           rw [this] at hfresh; cases hfresh
   | inductEliminators _ _ _ _ _ _ _ _ _ ih =>
     exact ⟨fun df hdf n ls h => ih.const df hdf n ls h,
       fun df df' hdf hdf' => ih.excl df df' hdf hdf'⟩
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     exact ⟨fun df hdf n ls h => by simpa using ih.const df (by simpa using hdf) n ls h,
       fun df df' hdf hdf' => ih.excl df df' (by simpa using hdf) (by simpa using hdf')⟩
 

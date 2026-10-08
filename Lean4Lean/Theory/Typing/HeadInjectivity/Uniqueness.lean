@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Inductive.CaseRegistration
 import Lean4Lean.Theory.Typing.HeadInjectivity.FieldType
 import Lean4Lean.Theory.Typing.ProjectionRigidity
 
