@@ -263,7 +263,6 @@ theorem inferProj.framed (hs : GF G struct) (hst : GF G structType) :
   split <;> [skip; exact hfail]
   rename_i c_val
   split <;> try exact hfailb
-  split <;> try exact hfailb
   refine (instantiateProjectionParameters.framed hargs _ _ _
     (hc.type.instantiateLevelParams hIl)).bind fun _ h => ?_
   split <;> [skip; exact hfail]

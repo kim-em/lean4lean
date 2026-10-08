@@ -2,6 +2,7 @@ import Lean4Lean.Tests.Toolchain
 import Lean4Lean.Tests.ProjectionInference
 import Lean4Lean.Tests.ProjectionWithoutCasesOn
 import Lean4Lean.Tests.ProjectionSpecialization
+import Lean4Lean.Tests.ProjectionReduction
 import Lean4Lean.Tests.InductiveTheory
 import Lean4Lean.Tests.InductiveSignature
 import Lean4Lean.Tests.InductiveRestoration
@@ -16,6 +17,7 @@ import Lean4Lean.Tests.NestedIndexedFamily
 import Lean4Lean.Tests.NestedRecursorReduction
 import Lean4Lean.Tests.SpecializedRecursorShape
 import Lean4Lean.Tests.KNormalization
+import Lean4Lean.Tests.UnitLikeK
 import Lean4Lean.Tests.RecursorMetadata
 import Lean4Lean.Tests.RestoredRecursorMetadata
 import Lean4Lean.Tests.KernelHardening
@@ -26,4 +28,5 @@ import Lean4Lean.Tests.CanonicalChoice
 import Lean4Lean.Tests.DeclFVar
 import Lean4Lean.Tests.Level
 import Lean4Lean.Tests.TypeAnnotationWrappers
+import Lean4Lean.Tests.StructEtaIota
 import Lean4Lean.Tests.CacheScope
