@@ -10,7 +10,8 @@ A *ghost* is a free variable whose declaration is present in the local context o
 executable checker but which occurs in none of the run's inputs, in no cached value of its state,
 and in no other declaration the run can reach. The frame lemma (`Verify/TypeChecker/Frame.lean`)
 says that such a run succeeds, with the same result and final state, in the local context without
-the ghosts. See `docs/inductives/STRENGTHENING_PLAN_2026-10-08.md`, component (F).
+the ghosts. It is how the constructor telescope certificates are obtained without
+strengthening (section 5.3 of `docs/inductives/DESIGN.md`).
 
 Three details of `GhostRel` are forced by the executable:
 
