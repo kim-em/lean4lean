@@ -15,7 +15,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendWithSpecification
     {ves : VEnvs}
     (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
       nparams types numNested outEnv)
-    (wf : ves.WFCore source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
+    (wf : ves.WFCore source.env) (hcorner : ∀ safety, CtorTelescopes safety source.env (ves.venv safety))
     (hsource : sourceEnv = ves.venv source.safety)
     (hnotPartial : source.safety ≠ .partial)
     (hnonempty : types ≠ []) :
@@ -31,7 +31,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendWithSpecification
   have wf' : ves.WFCore c'.env := by
     rw [henv]
     exact wf
-  have hcorner' : ∀ safety, ProjectionCorner safety c'.env (ves.venv safety) := by
+  have hcorner' : ∀ safety, CtorTelescopes safety c'.env (ves.venv safety) := by
     rw [henv]; exact hcorner
   have hnonempty' : types.toArray.toList ≠ [] := by
     simpa using hnonempty
@@ -84,7 +84,7 @@ theorem AddInductive.run.semanticFinalSpecificationModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (hsource : Hc.venv = ves.venv c.safety)
     (Hclosed : MutualInductivesClosed c.env)
     (hctx : Hc.mlctx.vlctx = [])

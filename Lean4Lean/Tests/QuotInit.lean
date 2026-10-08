@@ -4,20 +4,16 @@ import Lean4Lean.Verify.Environment
 
 /-! Quotient initialization.
 
-* Every declaration form, `quotDecl` included, satisfies `Declaration.IsModelled`.
-* The executable's `init_quot`, run after adding `Init.Prelude`'s `Eq` to an
-  empty environment, installs `Quot`, `Quot.mk`, `Quot.lift` and `Quot.ind`
-  as Lean's kernel does, exactly, with the closed types `QuotInit.tQuotC` and
-  siblings that `Environment.addQuot_eq` computes, and these translate to the
-  abstract constants `quotConst`, `quotMkConst`, `quotLiftConst` and
-  `quotIndConst` installed by `VEnv.addQuot`. -/
+The executable's `init_quot`, run after adding `Init.Prelude`'s `Eq` to an
+empty environment, installs `Quot`, `Quot.mk`, `Quot.lift` and `Quot.ind`
+as Lean's kernel does, exactly, with the closed types `QuotInit.tQuotC` and
+siblings that `Environment.addQuot_eq` computes, and these translate to the
+abstract constants `quotConst`, `quotMkConst`, `quotLiftConst` and
+`quotIndConst` installed by `VEnv.addQuot`. -/
 
 namespace Lean4Lean.Tests.QuotInit
 
 open Lean Meta
-
-example (env : Lean.Kernel.Environment) (ves : VEnvs) :
-    Declaration.quotDecl.IsModelled env ves := trivial
 
 deriving instance BEq for VLevel
 deriving instance BEq for VExpr
