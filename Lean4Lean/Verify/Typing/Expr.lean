@@ -395,3 +395,78 @@ theorem VEnv.HasPrimitives.natShiftRight (H : env.HasPrimitives) :
   H (``Nat.shiftRight, .reflectsNatNatNat _) (by simp [primSpecs])
 
 end
+
+end Lean4Lean
+
+namespace Lean4Lean.TypeChecker
+
+open Lean hiding Environment Exception
+
+/-- Closing a duplicate-free free-variable spine and reopening it with the
+same identifiers is a left inverse on well-scoped expressions.  This makes
+the canonical closed form injective on every concrete WHNF cache key used in
+the paired runs. -/
+theorem Expr.abstractList_instantiateRevList_eq_self
+    (hnd : fvars.Nodup) (hclosed : Closed e k) :
+    (e.abstractList fvars k).instantiateRevList
+        (fvars.map Expr.fvar) k = e := by
+  induction e generalizing k with
+  | bvar i =>
+      rw [Lean.Expr.abstractList_bvar_lt (i := i) (k := k) fvars hclosed]
+      exact Expr.instantiateRevList_bvar_fvars_lt fvars i k hclosed
+  | fvar fv =>
+      by_cases hmem : fv ∈ fvars
+      · obtain ⟨i, hi, hget⟩ := List.getElem_of_mem hmem
+        have hselected := Expr.abstractList_fvar_getElem
+          (fvs := fvars) hnd i hi (k := k)
+        rw [hget] at hselected
+        rw [hselected]
+        have hrestore := Expr.instantiateRevList_bvar_fvars_getElem
+          fvars i k hi
+        rwa [hget] at hrestore
+      · rw [Expr.abstractList_fvar_of_not_mem hmem]
+        exact Expr.instantiateRevList'_eq_self (by simp [Expr.looseBVarRange'])
+  | mvar id => simp [Closed] at hclosed
+  | sort level =>
+      have habstract : (Expr.sort level).abstractList fvars k =
+          .sort level := by
+        induction fvars <;> simp_all [Expr.abstractList, Expr.abstract1]
+      rw [habstract]
+      exact Expr.instantiateRevList'_eq_self (by simp [Expr.looseBVarRange'])
+  | const name levels =>
+      rw [Lean.Expr.abstractList_const]
+      exact Expr.instantiateRevList'_eq_self (by simp [Expr.looseBVarRange'])
+  | lit value =>
+      have habstract : (Expr.lit value).abstractList fvars k =
+          .lit value := by
+        induction fvars <;> simp_all [Expr.abstractList, Expr.abstract1]
+      rw [habstract]
+      exact Expr.instantiateRevList'_eq_self (by simp [Expr.looseBVarRange'])
+  | app fn arg ihFn ihArg =>
+      rcases hclosed with ⟨hfn, harg⟩
+      simp only [Lean.Expr.abstractList_app, Expr.instantiateRevList_app]
+      rw [ihFn hfn, ihArg harg]
+  | lam name domain body bi ihDomain ihBody =>
+      rcases hclosed with ⟨hdomain, hbody⟩
+      simp only [Lean.Expr.abstractList_lam, Expr.instantiateRevList_lam]
+      rw [ihDomain hdomain, ihBody hbody]
+  | forallE name domain body bi ihDomain ihBody =>
+      rcases hclosed with ⟨hdomain, hbody⟩
+      simp only [Lean.Expr.abstractList_forallE,
+        Expr.instantiateRevList_forallE]
+      rw [ihDomain hdomain, ihBody hbody]
+  | letE name type value body nondep ihType ihValue ihBody =>
+      rcases hclosed with ⟨htype, hvalue, hbody⟩
+      simp only [Lean.Expr.abstractList_letE,
+        Expr.instantiateRevList_letE]
+      rw [ihType htype, ihValue hvalue, ihBody hbody]
+  | mdata data body ihBody =>
+      simp only [Lean.Expr.abstractList_mdata,
+        Expr.instantiateRevList_mdata]
+      rw [ihBody hclosed]
+  | proj name index body ihBody =>
+      simp only [Lean.Expr.abstractList_proj,
+        Expr.instantiateRevList_proj]
+      rw [ihBody hclosed]
+
+end Lean4Lean.TypeChecker

@@ -86,7 +86,7 @@ Realizability: `addDecl.eqBootstrapHasCanonicalEq`
 (`Lean4Lean/Verify/CanonicalEqRealization.lean`) derives this predicate for the
 abstract environments produced by checking the `Init.Prelude` declaration of
 `Eq`, given that the executable installs `Eq.rec` with the production type,
-which `Lean4Lean/Tests/CanonicalEq.lean` checks. -/
+which `Lean4Lean/Tests/PreludeEq.lean` checks. -/
 def VEnv.HasCanonicalEq (env : VEnv) : Prop :=
   env.constants ``Eq = some ⟨1, canonicalEqType⟩ ∧
   env.constants ``Eq.refl = some ⟨1, canonicalEqReflType⟩ ∧

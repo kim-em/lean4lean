@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Typing.Lemmas
-import Lean4Lean.Verify.Typing.ProjectionDesugaring
+import Lean4Lean.Theory.Inductive.ProjectionProgram
 import Lean4Lean.Theory.Inductive.RawShape
 
 /-! Structural translation retains constructor skeletons even when different

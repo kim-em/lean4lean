@@ -21,7 +21,7 @@ declaration `Init.Prelude` submits.
   `HasCanonicalEq`, provided the executable installs `Eq.rec` with the
   production type (`IsProductionEqRec`).  The executable recursor construction
   is not modelled syntactically, so this is a hypothesis on the output;
-  `Lean4Lean/Tests/CanonicalEq.lean` checks it for the declaration of
+  `Lean4Lean/Tests/PreludeEq.lean` checks it for the declaration of
   `Init.Prelude`.
 * `VEnvs.WFCore.canonicalEq_constants` (below): in any well-formed model of an
   environment whose production `Eq`, `Eq.refl` and `Eq.rec` have the production

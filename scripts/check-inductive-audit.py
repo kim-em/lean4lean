@@ -59,7 +59,6 @@ DEFINITION_ROOTS = {
     "Lean4Lean.InductiveSignature.CaseSchema.genericProjectionPrefix",
     "Lean4Lean.InductiveSignature.CaseSchema.Generates",
     "Lean4Lean.VEnv.MatchedCaseStep",
-    "Lean4Lean.ProjectionDesugaring",
     "Lean4Lean.VEnv.HeadParallelReduction",
     "Lean4Lean.InductiveSignature.CaseSchema.singletonReconstruction",
     "Lean4Lean.InductiveSignature.CaseSchema.singletonReconstructAt",
@@ -161,7 +160,6 @@ def main():
                         "Lean4Lean.Theory.Typing.NativeRegistryInstallation",
 
                         "Lean4Lean.Theory.Typing.ChurchRosser",
-                        "Lean4Lean.Verify.Typing.ProjectionDesugaring",
                         "Lean4Lean.Verify.Replay"], cwd=ROOT, check=True)
     reports = run_audit(ROOT / "scripts/InductiveAudit.lean")
     if len(reports) != len(ROOTS) or {r["root"] for r in reports} != ROOTS:

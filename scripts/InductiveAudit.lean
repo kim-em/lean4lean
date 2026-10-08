@@ -14,7 +14,6 @@ import Lean4Lean.Theory.Typing.NativeDeltaReduction
 import Lean4Lean.Theory.Typing.NativeCaptureTransport
 import Lean4Lean.Theory.Typing.CaseReduction
 import Lean4Lean.Theory.Typing.ChurchRosser
-import Lean4Lean.Verify.Typing.ProjectionDesugaring
 import Lean4Lean.Verify.Replay
 
 /-! Audit the transitive dependency closure, including opaque theorem bodies.
@@ -100,7 +99,6 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.genericProjectionPrefix
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.Generates
 #inductive_audit Lean4Lean.VEnv.MatchedCaseStep
-#inductive_audit Lean4Lean.ProjectionDesugaring
 
 #inductive_audit Lean4Lean.VEnv.NormalEq.parRed
 #inductive_audit Lean4Lean.VEnv.HeadParallelReduction

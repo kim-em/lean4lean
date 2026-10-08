@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.TypeChecker.AlphaLocality
+import Lean4Lean.Verify.TypeChecker.WHNF
 import Lean4Lean.Verify.Inductive.Recursor.Rules
 
 namespace Lean4Lean

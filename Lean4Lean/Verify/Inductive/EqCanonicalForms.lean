@@ -8,7 +8,7 @@ of the recursor `Eq.rec` that the kernel generates for it, stated literally
 (generic only in binder and universe-parameter names).  The three types
 translate (`TrExprSyn`, hence every `TrExprS` derivation) to the corresponding
 stored terms of `VEnv.HasCanonicalEq`; the iota-rule expressions are checked
-against the stored rule by `Lean4Lean/Tests/CanonicalEq.lean`. -/
+against the stored rule by `Lean4Lean/Tests/PreludeEq.lean`. -/
 
 namespace Lean4Lean
 

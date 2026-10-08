@@ -114,7 +114,7 @@ Canonical `Eq` holds in every environment obtained by replaying `Init.Prelude` p
 Realizability is proved up to a fact about the concrete production declaration that is checked
 by a test: `addDecl.eqBootstrapHasCanonicalEq` (`Lean4Lean/Verify/CanonicalEqRealization.lean`)
 takes as hypothesis that the executable installs `Eq.rec` with the production type, which
-`Lean4Lean/Tests/CanonicalEq.lean` checks. The honest reading of the theorem is therefore:
+`Lean4Lean/Tests/PreludeEq.lean` checks. The honest reading of the theorem is therefore:
 `addDecl` is sound for environments that contain the prelude's `Eq`, and every declaration of
 a replay from the empty environment is sound (`Replay.WF_empty`).
 
@@ -699,8 +699,8 @@ wrapper name. The other changes cannot change a decision except through checker 
   inhabited without unproved theorems), `SpecializedRecursorShape.lean`,
   `ProjectionSpecialization.lean` (a projection that becomes large after universe
   specialization while the native recursor eliminates only into `Prop`);
-- negative tests: `InductiveEquationRejection.lean`, `RecursorMetadata.lean`,
-  `RestoredRecursorMetadata.lean` (corrupted metadata admits no certificate).
+- negative tests: `SortEquationRejection.lean`, `CorruptRecursorMetadata.lean`,
+  `CorruptRestoredRecursorMetadata.lean` (corrupted metadata admits no certificate).
 - nested indexed families: `NestedIndexedFamily.lean` (nested occurrences of indexed families,
   and indexed families with parameters inside nested blocks; the generated types,
   constructors and recursors are compared with the kernel's).

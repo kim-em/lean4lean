@@ -1466,3 +1466,78 @@ theorem abstractN_eqv {e₁ e₂ : Expr} :
     simp only [abstractN, eqv']
     intros; simp_all [eqv']
   all_goals split <;> simp_all [eqv']
+
+end Expr
+
+end Lean
+
+namespace Lean4Lean.TypeChecker
+
+open Lean hiding Environment Exception
+
+/-- Closing a free variable after lifting below `d` binders is the same as
+closing it outside those binders and lifting the resulting loose variable.
+This is the value-side algebra needed by substitution under binders. -/
+theorem Expr.abstract1_liftLooseBVars_alpha
+    (value : Expr) (fv : FVarId) (k d : Nat) :
+    (value.liftLooseBVars' k d).abstract1 fv (k + d) =
+      (value.abstract1 fv k).liftLooseBVars' k d := by
+  induction value generalizing k d <;>
+    grind [Expr.abstract1, Expr.liftLooseBVars']
+
+/-- Abstracting a free variable commutes with substituting a bound variable.
+This is the single-binder algebra behind alpha-equivariance of `let` beta
+reduction. -/
+theorem Expr.abstract1_instantiate1'_alpha
+    (body value : Expr) (fv : FVarId) (d : Nat) :
+    (body.instantiate1' value d).abstract1 fv d =
+      (body.abstract1 fv (d + 1)).instantiate1'
+        (value.abstract1 fv 0) d := by
+  induction body generalizing d with
+  | bvar index =>
+      by_cases hbelow : index < d
+      · have hbelowSucc : index < d + 1 := by omega
+        simp [Expr.instantiate1', Expr.abstract1, hbelow, hbelowSucc]
+      by_cases heq : index = d
+      · subst index
+        simpa [Expr.instantiate1', Expr.abstract1] using
+          Expr.abstract1_liftLooseBVars_alpha value fv 0 d
+      · have habove : d < index := by omega
+        have hnotBelowSucc : ¬index < d + 1 := by omega
+        have hsubNotBelow : ¬index - 1 < d := by omega
+        have hplusNotBelow : ¬index + 1 < d := by omega
+        have hplusNe : index + 1 ≠ d := by omega
+        simp [Expr.instantiate1', Expr.abstract1, hbelow, heq,
+          hnotBelowSucc, hsubNotBelow, hplusNotBelow, hplusNe,
+          Nat.sub_add_cancel (by omega : 1 ≤ index)]
+  | fvar id =>
+      by_cases h : (fv == id) = true
+      · simp [Expr.instantiate1', Expr.abstract1, h]
+      · simp [Expr.instantiate1', Expr.abstract1, h]
+  | mvar | sort | const | lit => rfl
+  | app fn arg ihFn ihArg =>
+      simp only [Expr.instantiate1', Expr.abstract1]
+      rw [ihFn, ihArg]
+  | lam name domain body bi ihDomain ihBody =>
+      simp only [Expr.instantiate1', Expr.abstract1]
+      rw [ihDomain]
+      simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+        ihBody (d + 1)
+  | forallE name domain body bi ihDomain ihBody =>
+      simp only [Expr.instantiate1', Expr.abstract1]
+      rw [ihDomain]
+      simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+        ihBody (d + 1)
+  | letE name type value body nondep ihType ihValue ihBody =>
+      simp only [Expr.instantiate1', Expr.abstract1]
+      rw [ihType, ihValue]
+      simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+        ihBody (d + 1)
+  | mdata data body ihBody =>
+      simp only [Expr.instantiate1', Expr.abstract1]
+      rw [ihBody]
+  | proj name index body ihBody =>
+      simp only [Expr.instantiate1', Expr.abstract1]
+      rw [ihBody]
+
+end Lean4Lean.TypeChecker

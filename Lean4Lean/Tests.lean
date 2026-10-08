@@ -8,7 +8,7 @@ import Lean4Lean.Tests.InductiveSignature
 import Lean4Lean.Tests.InductiveRestoration
 import Lean4Lean.Tests.InductiveCompilation
 import Lean4Lean.Tests.TypedInductiveCompilation
-import Lean4Lean.Tests.InductiveEquationRejection
+import Lean4Lean.Tests.SortEquationRejection
 import Lean4Lean.Tests.Environment
 import Lean4Lean.Tests.RecursiveInductive
 import Lean4Lean.Tests.NestedInductive
@@ -18,12 +18,12 @@ import Lean4Lean.Tests.NestedRecursorReduction
 import Lean4Lean.Tests.SpecializedRecursorShape
 import Lean4Lean.Tests.KNormalization
 import Lean4Lean.Tests.UnitLikeK
-import Lean4Lean.Tests.RecursorMetadata
-import Lean4Lean.Tests.RestoredRecursorMetadata
+import Lean4Lean.Tests.CorruptRecursorMetadata
+import Lean4Lean.Tests.CorruptRestoredRecursorMetadata
 import Lean4Lean.Tests.KernelHardening
 import Lean4Lean.Tests.LevelStd
 import Lean4Lean.Tests.RecursorOracle
-import Lean4Lean.Tests.CanonicalEq
+import Lean4Lean.Tests.PreludeEq
 import Lean4Lean.Tests.DeclFVar
 import Lean4Lean.Tests.Level
 import Lean4Lean.Tests.TypeAnnotationWrappers
