@@ -341,3 +341,15 @@ D16 (rules on projection-registered majors). See `PHASE1B_NOTES.md` 10.7 item 4.
 structure eta forces constructor spines of projection-registered families to carry only field
 observations, so the rule clause's constructor-observation binding (mode AB) never fires for
 them; binding fields through projections of the major is what structure eta makes sound.
+
+D17 (static projection facts; arity from the model). `Model.ProjStatic` asks that the family is
+not a *native* constructor (`famNotNativeCtor`) rather than not a constructor at all: a
+registered structure can syntactically be listed as a constructor of a case schema certified at
+a base that does not contain it (`WF.projFamily_caseCtor`), and excluding that needs head
+inversion. The projection soundness proofs exclude constructor-clause observations of family
+spines semantically instead (their typing needs a rigid observation of a non-projection family).
+Likewise the arity and levels of a typed constructor spine of a never-zero entry
+(`ctor_spine_fam`) are read from the model (a longer spine would give the family application a
+`piDom` observation, a shorter one a missing codomain), since reading them from typing would need
+head inversion. `WF.quot_not_projection` takes the installed `Quot.lift` constant, available at
+the quotient step.
