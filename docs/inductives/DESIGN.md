@@ -30,7 +30,7 @@ a thin wrapper around
 
 ```lean
 theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hq : ∀ safety, (ves.venv safety).QuotReady)
     (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
@@ -39,7 +39,7 @@ theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
 ```
 
 `VEnvs.WF` is the core invariant `VEnvs.WFCore` together with the constructor-telescope
-certificates `VEnvs.AllCtorTelescopes` (section 5.3); the wrapper discharges `hcorner` from the
+certificates `VEnvs.AllCtorTelescopes` (section 5.3); the wrapper discharges `htels` from the
 certificates, derives `hq` from `heq` (`VEnv.HasCanonicalEq.quotReady`), and carries the
 certificates to the output through `CtorTelescopesPreserved`. The iterable form `addDecl.WFHasCanonicalEq`
 also returns `HasCanonicalEq` for `ves'` (monotone along `≤`), so the theorem applies again
