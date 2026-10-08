@@ -4795,7 +4795,7 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
   have HbaseValid : CheckingEnv.Valid P.c.safety P.c.env P.initialEnv := by
     have Hchecking := E.productionContextWF.checking
     simpa only [hc, hinitial, E.productionContext_venv] using Hchecking
-  obtain ⟨es, Hcases, Hreplay⟩ := E.caseEliminators wf Hsources Howners Hformation
+  obtain ⟨es, Hcases, Hreplay, -⟩ := E.caseEliminators wf Hsources Howners Hformation
     hformationExpanded
   have HcasesP : VInductBlock.EliminatorsWF P.initialEnv sourceDecl (sourceDecl.caseBlock es) := by
     rw [hinitial]; exact Hcases
