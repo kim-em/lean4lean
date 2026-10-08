@@ -67,17 +67,20 @@ theorem PrimitiveInstallation.extendSafeExact
       BlockCertificate.installedVEnv] using
     Hrecursors.constructorTyping
       (wf.constructorParameterAlignment (safety := .safe)) T.rules
+  have hHcert : R.headerVEnv ≤ Hcert.installedVEnv := by
+    refine Hcert.typesLe ?_
+    rw [R.headerValues]
+    exact R.core.typesAdded
   rcases Hcert.extendSafeExact wf htels hdecl hcompile
       Hrecursors.inductInfosFromDecl T.newRecursorsAligned
       Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics
       (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
-        (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
+        (wf.mono (DefinitionSafety.le_safe (a := safety))))
+      Hrecursors.cover (fun hfind => Hrecursors.ctorOrigin hfind) hHcert with
     ⟨ves', wf', hle, hadd, hfinal⟩
-  have hH : R.headerVEnv ≤ ves'.venv (if false then .unsafe else .safe) := by
-    refine (Hcert.typesLe ?_).trans hfinal
-    rw [R.headerValues]
-    exact R.core.typesAdded
+  have hH : R.headerVEnv ≤ ves'.venv (if false then .unsafe else .safe) :=
+    hHcert.trans hfinal
   refine ⟨ves', decl, R.headerVEnv, R.ctorVEnv, wf', hle, R.core, hadd,
     VEnvs.CtorTelescopesPreserved.ofOrigin (isUnsafe := false) hle wf'.mono hH fun hfind => ?_⟩
   rcases Hrecursors.ctorOrigin hfind with h | ⟨hu, hc⟩

@@ -139,14 +139,15 @@ theorem OrdinaryInstallation.extendSafeExact
     Hrecursors.inductInfosFromDecl
   have howners : ConstructorOwnersPresent outEnv :=
     Hrecursors.constructorOwnersPresent wf.constructorOwners
-  rcases B.extendSafeExact wf htels hdecl hcompile horigins T.newRecursorsAligned
-      Hrecursors.closed howners hconstructors
-      (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
-        (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
-    ⟨ves', wf', hle, hadd, hsafe⟩
   have htypes : (ves.venv .safe).addConstVals (Hheaders.entries.map Prod.snd) =
       some Hheaders.context.venv := by
     rw [Hheaders.values]; exact Hheaders.translation.typesAdded
+  rcases B.extendSafeExact wf htels hdecl hcompile horigins T.newRecursorsAligned
+      Hrecursors.closed howners hconstructors
+      (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
+        (wf.mono (DefinitionSafety.le_safe (a := safety))))
+      Hrecursors.cover (fun hfind => Hrecursors.ctorOrigin hfind) (B.typesLe htypes) with
+    ⟨ves', wf', hle, hadd, hsafe⟩
   have hH : Hheaders.context.venv ≤ ves'.venv .safe :=
     (B.typesLe htypes).trans hsafe
   refine ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,
@@ -221,13 +222,14 @@ theorem OrdinaryInstallation.extendUnsafeExact
           hisUnsafe hconstructors
     · exact Hrecursors.generated.entrySafety_eq_unsafe
         hlocalSafety hrecursors
-  rcases B.extendUnsafeOfHiddenExact wf htels hdecl hcompile
-      horigins T.newRecursorsAligned hentries Hrecursors.closed howners hconstructors
-      (Hrecursors.blockEliminatorsWF T.rules T.rulesWF) with
-    ⟨ves', wf', hle, hadd, hfinal⟩
   have htypes : (ves.venv .unsafe).addConstVals (Hheaders.entries.map Prod.snd) =
       some Hheaders.context.venv := by
     rw [Hheaders.values]; exact Hheaders.translation.typesAdded
+  rcases B.extendUnsafeOfHiddenExact wf htels hdecl hcompile
+      horigins T.newRecursorsAligned hentries Hrecursors.closed howners hconstructors
+      (Hrecursors.blockEliminatorsWF T.rules T.rulesWF)
+      Hrecursors.cover (fun hfind => Hrecursors.ctorOrigin hfind) (B.typesLe htypes) with
+    ⟨ves', wf', hle, hadd, hfinal⟩
   have hH : Hheaders.context.venv ≤ ves'.venv .unsafe :=
     (B.typesLe htypes).trans hfinal
   refine ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,

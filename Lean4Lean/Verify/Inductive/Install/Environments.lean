@@ -1226,14 +1226,5 @@ theorem VInductDecl.WF.rebaseOfBlock
   | nested Hnested hformationBase =>
     exact ⟨Hsource, .nested Hnested (hformationBase.trans hbase)⟩
 
-/-- Fact about the kernel environment alone needed to keep a newly installed unsafe block
-hidden from the unchanged partial and safe abstract models. -/
-def NewFamiliesUnsafe
-    (sourceEnv outEnv : Environment) : Prop :=
-  ∀ familyName familyInfo,
-    outEnv.find? familyName = some (.inductInfo familyInfo) →
-    sourceEnv.find? familyName = none →
-    familyInfo.isUnsafe = true
-
 end VerifyInductive
 end Lean4Lean

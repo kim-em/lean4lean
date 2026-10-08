@@ -233,6 +233,144 @@ theorem RestoredBlockCertificate.inductInfosFromDecl
     Hsource Hmetadata Hsources Harity Howners hempty
   simpa only [henv] using Horigins
 
+/-- Every family of the source declaration is a restored kernel header, fresh in the
+environment the restoration starts from: the positional cover of the source-family fold. -/
+private theorem FoldSteps.sourceFamiliesCover
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
+    {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv loweredEnv : Environment}
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
+      depth sourceVEnv result.types.toArray headerEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
+    (Howners : ConstructorOwnersPresent c.env)
+    (hempty : initialState.nestedAux = #[])
+    (Htrace : FoldSteps
+      (RestoredInductiveStep result loweredEnv auxRec
+        (sourceTypes.map (fun type => type.name)))
+      remaining sourceEnv targetEnv)
+    (processed : List InductiveType)
+    (hsplit : sourceTypes = processed ++ remaining)
+    (hsourceWF : sourceEnv.constants.WF)
+    (hbase : ∀ {n ci}, c.env.find? n = some ci → sourceEnv.find? n = some ci)
+    (Hdone : ∀ i (hi : i < sourceDecl.types.length), i < processed.length →
+      ∃ v, sourceEnv.find? sourceDecl.types[i].name = some (.inductInfo v) ∧
+        c.env.find? sourceDecl.types[i].name = none) :
+    ∀ i (hi : i < sourceDecl.types.length),
+      ∃ v, targetEnv.find? sourceDecl.types[i].name = some (.inductInfo v) ∧
+        c.env.find? sourceDecl.types[i].name = none := by
+  induction Htrace generalizing processed with
+  | nil =>
+    intro i hi
+    apply Hdone i hi
+    have := Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource
+    rw [hsplit, List.append_nil] at this
+    omega
+  | @cons head stepSource middle tail target Hstep Htail ih =>
+    let familyIdx := processed.length
+    have hfamily : familyIdx < sourceTypes.length := by
+      simp [familyIdx, hsplit]
+    have hfamilyEq : sourceTypes[familyIdx] = head := by
+      simp [familyIdx, hsplit]
+    have Hstep' : RestoredInductiveStep result loweredEnv auxRec
+        (sourceTypes.map (fun type => type.name)) sourceTypes[familyIdx]
+        stepSource middle := by
+      simpa [hfamilyEq] using Hstep
+    have Halign := Hstep'.inductInfoAlignmentAt Hlower Hc Hprod
+      Hsource Hmetadata Hsources Harity Howners hempty familyIdx hfamily
+      hsourceWF
+    obtain ⟨entries, Hfresh⟩ := Hstep'.restored.freshExtension hsourceWF
+    have hmiddleWF : middle.constants.WF := Hfresh.targetWF hsourceWF
+    have hheaderFresh : stepSource.find? Hstep'.restored.header.newInfo.name = none :=
+      find?_none_of_contains_false hsourceWF Hstep'.restored.header.fresh
+    have hheaderFind := Hstep'.restored.headerFind hsourceWF
+    apply ih (processed := processed ++ [head])
+      (hsplit := by simpa [List.append_assoc] using hsplit) hmiddleWF
+      (fun h => Hfresh.preservesSourceFind hsourceWF (hbase h))
+    intro i hi hlt
+    rw [List.length_append, List.length_singleton] at hlt
+    rcases Nat.lt_succ_iff_lt_or_eq.mp hlt with hlt | heq
+    · obtain ⟨v, hv, hnone⟩ := Hdone i hi hlt
+      exact ⟨v, Hfresh.preservesSourceFind hsourceWF hv, hnone⟩
+    · subst heq
+      have hname : Hstep'.restored.header.newInfo.name =
+          sourceDecl.types[processed.length].name := Halign.name
+      refine ⟨Hstep'.restored.header.newInfo, by rw [← hname]; exact hheaderFind, ?_⟩
+      cases h : c.env.find? sourceDecl.types[processed.length].name with
+      | none => rfl
+      | some ci =>
+        have := hbase h
+        rw [← hname, hheaderFresh] at this
+        cases this
+
+/-- Every family of a restored source declaration is a new kernel header of the restored
+environment. -/
+theorem RestoredBlockCertificate.cover
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
+    {allIndNames : List Name} {sourceTypes : List InductiveType}
+    {auxRecNames : List Name} {outEnv : Environment}
+    {H : NestedRestorationFolds result loweredEnv sourceProdEnv
+      auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
+    {sourceEnv : VEnv} {decl : VInductDecl} {lparams : List Name}
+    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
+    (C : RestoredBlockCertificate H sourceEnv decl lparams nparams
+      isUnsafe safety)
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl : VInductDecl} {depth : Nat}
+    {headerEnv ctorEnv : Environment}
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
+      depth sourceEnv result.types.toArray headerEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hmetadata : SourcePrefixOfLowered decl loweredDecl)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : decl.ConstructorArityPrefix loweredDecl)
+    (Howners : ConstructorOwnersPresent c.env)
+    (hempty : initialState.nestedAux = #[])
+    (henv : c.env = sourceProdEnv)
+    (hlparams : c.lparams = lparams)
+    (hnames : allIndNames = sourceTypes.map (fun type => type.name)) :
+    ∀ T ∈ decl.types, ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧
+      sourceProdEnv.find? T.name = none := by
+  have Hsource : TrInductDeclCore sourceEnv c.lparams nparams sourceTypes
+      isUnsafe decl C.install.venvTypes
+        C.install.venvCtors := by
+    simpa only [hlparams] using
+      C.sourceTranslations.core C.typesSource C.uvars C.numParams C.unsafeEq
+        C.typesAdded C.constructorsAdded
+  have Hrestored : NestedRestorationFolds result loweredEnv
+      c.env auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
+      ((), outEnv) := by
+    simpa only [henv, hnames] using H
+  have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
+  have Hprimary := FoldSteps.sourceFamiliesCover Hlower Hc Hprod Hsource Hmetadata
+    Hsources Harity Howners hempty Hrestored.inductives [] (by simp) hsourceWF id
+    (fun _ _ h => by simp at h)
+  obtain ⟨primaryEntries, HprimaryFresh⟩ :=
+    Hrestored.inductives.inductiveFreshExtension hsourceWF
+  have hprimaryWF := HprimaryFresh.targetWF hsourceWF
+  obtain ⟨auxiliaryEntries, HauxiliaryFresh⟩ :=
+    Hrestored.auxiliaries.recursorFreshExtension hprimaryWF
+  intro T hT
+  obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hT
+  obtain ⟨v, hv, hnone⟩ := Hprimary i hi
+  refine ⟨v, HauxiliaryFresh.preservesSourceFind hprimaryWF hv, ?_⟩
+  rw [← henv]; exact hnone
+
 /-- The restoration folds, reindexed to the context of the lowered run
 retained by the restored block certificate, preserve the constructor owner
 invariant. -/
@@ -292,7 +430,14 @@ private theorem RestoredBlockCertificate.extendSafe
     (hconstructorSemantics :
       ConstructorParameterAlignment .safe outEnv
         (C.recursorVEnv.addDefEqRules
-          (C.sourceRules ++ C.auxiliaryRules))) :
+          (C.sourceRules ++ C.auxiliaryRules)))
+    (hcover : ∀ T ∈ decl.types, ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧
+      sourceProdEnv.find? T.name = none)
+    {venvH : VEnv}
+    (htypesH : (ves.venv .safe).addConstVals decl.typeConstants = some venvH)
+    (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      sourceProdEnv.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt venvH ci)) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (NestedInstallResult (ves.venv .safe) decl lparams
@@ -414,14 +559,50 @@ private theorem RestoredBlockCertificate.extendSafe
       exact (cert observer).hasPrimitives
         (wf.hasPrimitives (safety := observer))
     · exact hsafePrimitives
-    · exact hclosed
-    · exact hconstructorOwners
     · intro observer
-      have Hcanonical := B.replaySafeConstructorTyping
-        (cert observer) Hvalid.tr.map_wf
-        (wf.constructorParameterAlignment (safety := observer)) hcompletedCanonical
-        (outputLE observer)
-      exact Hcanonical.mapKernel (fun name => (hlookupEnv name).symm)
+      have hwf : sourceProdEnv.constants.WF := (wf.tr (safety := observer)).map_wf
+      have houtWF : outEnv.constants.WF := actual.property.targetWF hwf
+      have hdeclSafe : decl.isUnsafe = false :=
+        Horigins.declUnsafe hwf houtWF hcover C.declWF.1.1 fun hv hnone => by
+          rw [hlookupEnv] at hv
+          simpa [ConstantInfo.isUnsafe] using B.newUnsafe hwf B.entriesSafe hv hnone
+      have htrOut : TrEnv observer outEnv (next observer) := by
+        unfold TrEnv
+        rw [actual.property.quotInit_eq]
+        exact .induct (adds observer) (wf.tr (safety := observer))
+      have hvis : observer ≤ (if decl.isUnsafe then .unsafe else .safe) := by
+        rw [hdeclSafe]; exact DefinitionSafety.le_safe
+      have hHle : venvH ≤ next observer := by
+        rw [← C.typeValues] at htypesH
+        exact (B.typesLe htypesH).trans (outputLE observer)
+      refine (wf.blocks (safety := observer)).addInduct hwf htrOut.toChecking
+        (fun {n ci} h => by
+          have := (adds observer).preservesSourceFind
+            (by rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at h)
+          rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?])
+        (adds observer).le Horigins hcover hclosed hconstructorOwners ?_ ?_
+        (fun _ => adds observer) (fun h => absurd hvis h) ?_ ?_
+      · intro n r hf hnone
+        rw [hlookupEnv] at hf
+        rw [hdeclSafe]
+        simpa [ConstantInfo.isUnsafe] using B.newUnsafe hwf B.entriesSafe hf hnone
+      · intro n r hf hnone
+        have hfMap : outEnv.constants.find? n = some (.recInfo r) := by
+          rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at hf
+        rcases C.recursorsAligned.recursor hfMap with hold | hnew
+        · rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, hold] at hnone; cases hnone
+        · obtain ⟨-, -, info, hmajor⟩ := hnew DefinitionSafety.unsafe_le
+          exact ⟨info, by rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]⟩
+      · intro _
+        have Hcanonical := B.replaySafeConstructorTyping
+          (cert observer) Hvalid.tr.map_wf
+          (wf.constructorParameterAlignment (safety := observer)) hcompletedCanonical
+          (outputLE observer)
+        exact Hcanonical.mapKernel (fun name => (hlookupEnv name).symm)
+      · intro _ n c hf hnone
+        rcases hctorOrigin hf with hold | ⟨-, htel⟩
+        · rw [hold] at hnone; cases hnone
+        · exact htel.mono hHle
     · intro observer observer' hle
       have hblock : (cert observer').block = (cert observer).block :=
         (cert observer').block_eq_of_projections_eq (cert observer)
@@ -460,6 +641,8 @@ private theorem RestoredBlockCertificate.safeInductiveExtension
       ConstructorParameterAlignment .safe outEnv
         (C.recursorVEnv.addDefEqRules
           (C.sourceRules ++ C.auxiliaryRules)))
+    (hcover : ∀ T ∈ decl.types, ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧
+      sourceProdEnv.find? T.name = none)
     {venvH : VEnv}
     (htypesH : (ves.venv .safe).addConstVals decl.typeConstants = some venvH)
     (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
@@ -468,7 +651,7 @@ private theorem RestoredBlockCertificate.safeInductiveExtension
     Nonempty (InductiveExtension sourceProdEnv outEnv ves lparams nparams sourceTypes
       false) := by
   rcases C.extendSafe wf htels Horigins hclosed
-      hconstructorOwners hconstructorSemantics with
+      hconstructorOwners hconstructorSemantics hcover htypesH hctorOrigin with
     ⟨ves', wf', hle, ⟨Hfinal⟩, hadd, htypesLe⟩
   exact ⟨InductiveExtension.ofModel ves' wf' hle
     { decl := decl
@@ -528,7 +711,9 @@ theorem RestoredBlockCertificate.safeInductiveExtensionOfKernel
       Howners hempty henv hlparams hnames)
     hclosed
     (C.constructorOwnersPresent Hlower Hc Hprod Howners hempty henv hnames)
-    hconstructorSemantics htypesH hctorOrigin
+    hconstructorSemantics
+    (C.cover Hlower Hc Hprod Hmetadata Hsources Harity Howners hempty henv hlparams hnames)
+    htypesH hctorOrigin
 
 /-- An unsafe restoration changes only the unsafe abstract observer.
 The premise is indexed by every fresh extension of the restoration, ruling out
@@ -556,6 +741,8 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
       ConstructorParameterAlignment .unsafe outEnv
         (C.recursorVEnv.addDefEqRules
           (C.sourceRules ++ C.auxiliaryRules)))
+    (hcover : ∀ T ∈ decl.types, ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧
+      sourceProdEnv.find? T.name = none)
     {venvH : VEnv}
     (htypesH : (ves.venv .unsafe).addConstVals decl.typeConstants = some venvH)
     (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
@@ -637,56 +824,76 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
           C.recursorEntries).map Prod.fst :=
       List.mem_map.mpr ⟨entry, hentry, rfl⟩
     exact hactualUnsafe entry.1 (hperm.mem_iff.mpr hcanonical)
-  have hheadersCanonical := B.newFamiliesUnsafe
-    Hvalid.tr.map_wf hcanonicalUnsafe
-  have hheadersActual : NewFamiliesUnsafe sourceProdEnv
-      outEnv := by
-    intro familyName familyInfo hfamily hfresh
-    apply hheadersCanonical familyName familyInfo
-    · rw [← hlookupEnv]
-      exact hfamily
-    · exact hfresh
-  have hiddenSemantics (observer : DefinitionSafety)
-      (hne : observer ≠ .unsafe) :
-      ConstructorParameterAlignment observer outEnv
-        (ves.venv observer) := by
-    have Hcanonical := B.hiddenUnsafeConstructorTyping Hvalid.tr.map_wf
-      (wf.constructorParameterAlignment (safety := observer)) hne hheadersCanonical
-    exact Hcanonical.mapKernel (fun name => (hlookupEnv name).symm)
-  have hiddenProvenance (observer : DefinitionSafety)
-      (hne : observer ≠ .unsafe) :
-      InductFamiliesInstalled observer outEnv.constants
-        (ves.venv observer) := by
-    apply InductFamiliesInstalled.rebaseHidden
-      (wf.inductFamiliesInstalled (safety := observer))
-      Hadd.preservesSourceFind
-    intro familyName familyInfo hfamily hfresh
-    have hfamilyEnv : outEnv.find? familyName =
-        some (.inductInfo familyInfo) := by
-      rw [Lean.Kernel.Environment.find?,
-        (actual.property.targetWF Hvalid.tr.map_wf).find?'_eq_find?]
-      exact hfamily
-    have hfreshEnv : sourceProdEnv.find? familyName = none := by
-      rw [Lean.Kernel.Environment.find?, Hvalid.tr.map_wf.find?'_eq_find?]
-      exact hfresh
-    have hunsafe := hheadersActual familyName familyInfo hfamilyEnv hfreshEnv
-    have hnotle : ¬ observer ≤ DefinitionSafety.unsafe := by
-      intro hle
-      exact hne (DefinitionSafety.le_antisymm hle
-        DefinitionSafety.unsafe_le)
-    simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
-      ConstantInfo.isPartial, hunsafe] using hnotle
-  have hprovenance : ∀ observer,
-      InductFamiliesInstalled observer outEnv.constants
-        (match observer with
-        | .unsafe => C.recursorVEnv.addDefEqRules
-            (C.sourceRules ++ C.auxiliaryRules)
-        | .partial => ves.venv .partial
-        | .safe => ves.venv .safe)
-    | .unsafe => InductFamiliesInstalled.addInduct
-        (wf.inductFamiliesInstalled (safety := .unsafe)) Hadd
-    | .partial => hiddenProvenance .partial (by decide)
-    | .safe => hiddenProvenance .safe (by decide)
+  have hwf : sourceProdEnv.constants.WF := Hvalid.tr.map_wf
+  have houtWF : outEnv.constants.WF := actual.property.targetWF hwf
+  have hb : ∀ e ∈ C.typeEntries ++ C.constructorEntries ++ C.recursorEntries,
+      e.1.isUnsafe = true := by
+    intro e he
+    have := hcanonicalUnsafe e he
+    cases h : e.1.isUnsafe
+    · revert this
+      simp only [ConstantInfo.safety, h, Bool.false_eq_true, ↓reduceIte]
+      split <;> exact nofun
+    · rfl
+  have hdeclUnsafe : decl.isUnsafe = true :=
+    Horigins.declUnsafe hwf houtWF hcover C.declWF.1.1 fun hv hnone => by
+      rw [hlookupEnv] at hv
+      simpa [ConstantInfo.isUnsafe] using B.newUnsafe hwf hb hv hnone
+  have hrecUnsafe : ∀ {n r}, outEnv.find? n = some (.recInfo r) →
+      sourceProdEnv.find? n = none → r.isUnsafe = decl.isUnsafe := by
+    intro n r hf hnone
+    rw [hlookupEnv] at hf
+    rw [hdeclUnsafe]
+    simpa [ConstantInfo.isUnsafe] using B.newUnsafe hwf hb hf hnone
+  have hrecMajor : ∀ {n r}, outEnv.find? n = some (.recInfo r) →
+      sourceProdEnv.find? n = none →
+      ∃ info, outEnv.find? r.getMajorInduct = some (.inductInfo info) := by
+    intro n r hf hnone
+    have hfMap : outEnv.constants.find? n = some (.recInfo r) := by
+      rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at hf
+    rcases C.recursorsAligned.recursor hfMap with hold | hnew
+    · rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, hold] at hnone; cases hnone
+    · obtain ⟨-, -, info, hmajor⟩ := hnew DefinitionSafety.unsafe_le
+      exact ⟨info, by rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]⟩
+  have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci → outEnv.find? n = some ci :=
+    fun h => actual.property.preservesSourceFind hwf h
+  have hhidden (observer : DefinitionSafety) (hobserver : observer ≠ .unsafe) :
+      ¬ observer ≤ (if decl.isUnsafe then .unsafe else .safe) := by
+    rw [hdeclUnsafe]
+    intro hle
+    exact hobserver (DefinitionSafety.le_antisymm hle DefinitionSafety.unsafe_le)
+  have hHle : venvH ≤ C.recursorVEnv.addDefEqRules (C.sourceRules ++ C.auxiliaryRules) := by
+    rw [← C.typeValues] at htypesH
+    exact B.typesLe htypesH
+  have htelsNew : ∀ {venv'}, venvH ≤ venv' → ∀ {n c},
+      outEnv.find? n = some (.ctorInfo c) → sourceProdEnv.find? n = none →
+      CtorTelescopeAt venv' c := by
+    intro venv' hle n c hf hnone
+    rcases hctorOrigin hf with hold | ⟨-, htel⟩
+    · rw [hold] at hnone; cases hnone
+    · exact htel.mono hle
+  have hblocks : ∀ observer, InstalledBlocks observer outEnv
+      (match observer with
+      | .unsafe => C.recursorVEnv.addDefEqRules (C.sourceRules ++ C.auxiliaryRules)
+      | .partial => ves.venv .partial
+      | .safe => ves.venv .safe) .complete
+    | .unsafe => (wf.blocks (safety := .unsafe)).addInduct hwf
+        (show TrEnv .unsafe outEnv _ from htrUnsafe).toChecking hpres Hadd.le Horigins
+        hcover hclosed hconstructorOwners hrecUnsafe hrecMajor (fun _ => Hadd)
+        (fun h => absurd DefinitionSafety.unsafe_le h) (fun _ => hconstructorSemantics)
+        (fun _ => htelsNew hHle)
+    | .partial => (wf.blocks (safety := .partial)).addInduct hwf
+        (show TrEnv .partial outEnv _ from htrPartial).toChecking hpres VEnv.LE.rfl
+        Horigins hcover hclosed hconstructorOwners hrecUnsafe hrecMajor
+        (fun h => absurd h (hhidden .partial (by decide))) (fun _ => rfl)
+        (fun h => absurd h (hhidden .partial (by decide)))
+        (fun h => absurd h (hhidden .partial (by decide)))
+    | .safe => (wf.blocks (safety := .safe)).addInduct hwf
+        (show TrEnv .safe outEnv _ from htrSafe).toChecking hpres VEnv.LE.rfl
+        Horigins hcover hclosed hconstructorOwners hrecUnsafe hrecMajor
+        (fun h => absurd h (hhidden .safe (by decide))) (fun _ => rfl)
+        (fun h => absurd h (hhidden .safe (by decide)))
+        (fun h => absurd h (hhidden .safe (by decide)))
   have hsafePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
       Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [] := by
@@ -700,14 +907,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
         (C.sourceRules ++ C.auxiliaryRules))
       htrUnsafe htrPartial htrSafe
       (B.hasPrimitives (wf.hasPrimitives (safety := .unsafe)))
-      hsafePrimitives
-      hclosed
-      hconstructorOwners
-      (fun observer => match observer with
-        | .unsafe => hconstructorSemantics
-        | .partial => hiddenSemantics .partial (by decide)
-        | .safe => hiddenSemantics .safe (by decide))
-      hprovenance (VInductBlock.install_le B.install) with
+      hsafePrimitives hblocks (VInductBlock.install_le B.install) with
     ⟨ves', wf', hle, hexact⟩
   have haddExact : VEnv.AddInduct (ves.venv .unsafe) decl
       (ves'.venv .unsafe) := by
@@ -778,7 +978,9 @@ theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernel
       Howners hempty henv hlparams hnames)
     hentriesUnsafe hclosed
     (C.constructorOwnersPresent Hlower Hc Hprod Howners hempty henv hnames)
-    hconstructorSemantics htypesH hctorOrigin
+    hconstructorSemantics
+    (C.cover Hlower Hc Hprod Hmetadata Hsources Harity Howners hempty henv hlparams hnames)
+    htypesH hctorOrigin
 
 end VerifyInductive
 end Lean4Lean

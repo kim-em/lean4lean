@@ -331,19 +331,14 @@ theorem addMutualBlock.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env
         exact heq ▸ ((wf.hasPrimitives (safety := sf)).addConsts hnonprimCis hb).addDefEqs
       · rw [hsame sf hv]; exact wf.hasPrimitives
     safePrimitives := wf.safePrimitives_addDefs hfresh hnd hnonprim
-    inductivesClosed := wf.inductivesClosed.addDefinitions
-      (wf.tr (safety := .safe)).map_wf vs hfresh hnd
-    constructorOwners := wf.constructorOwners.addDefinitions
-      (wf.tr (safety := .safe)).map_wf vs hfresh hnd
-    constructorParameterAlignment {safety} :=
-      (wf.constructorParameterAlignment (safety := safety)).addDefinitions
-        (wf.tr (safety := .safe)).map_wf vs hfresh hnd (hleFinal safety)
-    inductFamiliesInstalled {safety} := by
-      rw [Environment.constants_addDefs]
-      exact VerifyInductive.InductFamiliesInstalled.insertDefs
-        (wf.inductFamiliesInstalled (safety := safety))
-        (wf.tr (safety := .safe)).map_wf vs hfreshMap hnd
-        (hleFinal safety)
+    blocks {sf} := by
+      refine (wf.blocks (safety := sf)).addDefinitions vs (wf.tr (safety := sf)).map_wf
+        (hleFinal sf) ?_ hfresh hnd
+      intro S info hp
+      by_cases hv : sf ≤ bs
+      · obtain ⟨b, hb, heq⟩ := hbaseSf sf hv
+        rwa [heq, VEnv.addDefEqs_projections, VEnv.addConsts_projections hb] at hp
+      · rwa [hsame sf hv] at hp
     mono {sf sf'} hle := by
       by_cases hv' : sf' ≤ bs
       · have hv : sf ≤ bs := DefinitionSafety.le_trans hle hv'
@@ -374,20 +369,11 @@ theorem VEnvs.WFCore.extendUnsafeExact
     (hsafePrimitives : ∀ {n ci}, env'.find? n = some ci →
       Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
-    (hinductivesClosed : VerifyInductive.MutualInductivesClosed env')
-    (hconstructorOwners : VerifyInductive.ConstructorOwnersPresent env')
-    (hconstructorSemantics : ∀ safety,
-      VerifyInductive.ConstructorParameterAlignment safety env'
+    (hblocks : ∀ safety, InstalledBlocks safety env'
         (match safety with
         | .unsafe => unsafeEnv
         | .partial => ves.venv .partial
-        | .safe => ves.venv .safe))
-    (hinductiveProvenance : ∀ safety,
-      InductFamiliesInstalled safety env'.constants
-        (match safety with
-        | .unsafe => unsafeEnv
-        | .partial => ves.venv .partial
-        | .safe => ves.venv .safe))
+        | .safe => ves.venv .safe) .complete)
     (hleUnsafe : ves.venv .unsafe ≤ unsafeEnv) :
     ∃ ves' : VEnvs, ves'.WFCore env' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
@@ -402,22 +388,7 @@ theorem VEnvs.WFCore.extendUnsafeExact
       tr := ?_
       hasPrimitives := ?_
       safePrimitives := hsafePrimitives
-      inductivesClosed := hinductivesClosed
-      constructorOwners := hconstructorOwners
-      constructorParameterAlignment {safety} := by
-        change VerifyInductive.ConstructorParameterAlignment
-          safety env' (match safety with
-          | .unsafe => unsafeEnv
-          | .partial => ves.venv .partial
-          | .safe => ves.venv .safe)
-        exact hconstructorSemantics safety
-      inductFamiliesInstalled {safety} := by
-        change InductFamiliesInstalled safety
-          env'.constants (match safety with
-          | .unsafe => unsafeEnv
-          | .partial => ves.venv .partial
-          | .safe => ves.venv .safe)
-        exact hinductiveProvenance safety
+      blocks {safety} := hblocks safety
       mono := ?_ }
     · intro safety
       cases safety with
@@ -465,11 +436,7 @@ theorem VEnvs.WFCore.extendInductExact
     (hsafePrimitives : ∀ {n ci}, env'.find? n = some ci →
       Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
-    (hinductivesClosed : VerifyInductive.MutualInductivesClosed env')
-    (hconstructorOwners : VerifyInductive.ConstructorOwnersPresent env')
-    (hconstructorSemantics : ∀ safety,
-      VerifyInductive.ConstructorParameterAlignment safety env'
-        (next safety))
+    (hblocks : ∀ safety, InstalledBlocks safety env' (next safety) .complete)
     (hmono : ∀ {safety safety'}, safety ≤ safety' →
       next safety' ≤ next safety) :
     ∃ ves' : VEnvs, ves'.WFCore env' ∧
@@ -487,15 +454,7 @@ theorem VEnvs.WFCore.extendInductExact
         intro safety
         exact hprimitives safety
       safePrimitives := hsafePrimitives
-      inductivesClosed := hinductivesClosed
-      constructorOwners := hconstructorOwners
-      constructorParameterAlignment {safety} := by
-        change VerifyInductive.ConstructorParameterAlignment
-          safety env' (next safety)
-        exact hconstructorSemantics safety
-      inductFamiliesInstalled {safety} :=
-        InductFamiliesInstalled.addInduct
-          (wf.inductFamiliesInstalled (safety := safety)) (hadd safety)
+      blocks {safety} := hblocks safety
       mono := by
         intro _ _ hle
         exact hmono hle }
@@ -512,6 +471,7 @@ theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (hn : env.find? ci.name = none)
     (hnind : ∀ value, ci ≠ .inductInfo value)
     (hnctor : ∀ value, ci ≠ .ctorInfo value)
+    (hnrec : ∀ value, ci ≠ .recInfo value)
     (hprim : Environment.primitives.contains ci.name →
       ci.safety = .safe ∧ ci.levelParams = [])
     (preserves : ∀ safety venv', safety ≤ ci.safety →
@@ -557,19 +517,13 @@ theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
       · exact preserves safety _ hvisible (hadd safety hvisible) (wf.hasPrimitives (safety := safety))
       · rw [hsame safety hvisible]; exact wf.hasPrimitives (safety := safety)
     safePrimitives := wf.safePrimitives_add ci hn hprim
-    inductivesClosed := wf.inductivesClosed.addNonInductive
-      (wf.tr (safety := .safe)).map_wf hn hnind
-    constructorOwners := wf.constructorOwners.addNonConstructor
-      (wf.tr (safety := .safe)).map_wf hn hnctor
-    constructorParameterAlignment {safety} :=
-      (wf.constructorParameterAlignment (safety := safety)).addNonInductive
-        (wf.tr (safety := .safe)).map_wf hn hnind (hves' safety).le
-    inductFamiliesInstalled {safety} := by
-      change InductFamiliesInstalled safety
-        (env.constants.insert ci.name ci) (ves'.venv safety)
-      exact InductFamiliesInstalled.insertNonInductive
-        (wf.inductFamiliesInstalled (safety := safety))
-        (wf.tr (safety := .safe)).map_wf hnMap hnind (hves' safety).le
+    blocks {safety} := by
+      refine (wf.blocks (safety := safety)).addFresh (wf.tr (safety := safety)).map_wf hn
+        hnind hnctor hnrec (hves' safety).le ?_
+      intro S info hp
+      by_cases hvisible : safety ≤ ci.safety
+      · rwa [VEnv.addConst_projections (hadd safety hvisible)] at hp
+      · rwa [hsame safety hvisible] at hp
     mono {safety safety'} hle := by
       by_cases hvisible' : safety' ≤ ci.safety
       · have hvisible := DefinitionSafety.le_trans hle hvisible'
@@ -587,6 +541,7 @@ theorem addConst.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (hn : env.find? ci.name = none)
     (hnind : ∀ value, ci ≠ .inductInfo value)
     (hnctor : ∀ value, ci ≠ .ctorInfo value)
+    (hnrec : ∀ value, ci ≠ .recInfo value)
     (hnonprim : Environment.primitives.contains ci.name = false)
     (step : ∀ safety venv',
       TrConstant safety (ves.venv safety) ci ci'.toVConstant →
@@ -596,7 +551,7 @@ theorem addConst.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
       TrEnv' safety (env.constants.insert ci.name ci) env.quotInit venv') :
     ∃ ves' : VEnvs, ves'.WFCore (env.add ci) ∧
       ∀ safety, (ves.venv safety).AddConst safety ci ci'.toVConstant (ves'.venv safety) :=
-  addConstCore.WF wf ci ci' checkSafety visible_le htr hci hn hnind hnctor (by simp_all)
+  addConstCore.WF wf ci ci' checkSafety visible_le htr hci hn hnind hnctor hnrec (by simp_all)
     (fun _ _ _ hadd hp => hp.addConst hnonprim hadd) step
 
 theorem addDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
@@ -652,21 +607,16 @@ theorem addDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
         rw [heq]; exact preserves safety base hvisible hadd
       · rw [hsame safety hvisible]; exact wf.hasPrimitives (safety := safety)
     safePrimitives := wf.safePrimitives_add (.defnInfo v) hn hprim
-    inductivesClosed := wf.inductivesClosed.addNonInductive
-      (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
-    constructorOwners := wf.constructorOwners.addNonConstructor
-      (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
-    constructorParameterAlignment {safety} :=
-      (wf.constructorParameterAlignment (safety := safety)).addNonInductive
-        (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
-        (hves' safety).le
-    inductFamiliesInstalled {safety} := by
-      change InductFamiliesInstalled safety
-        (env.constants.insert v.name (.defnInfo v)) (ves'.venv safety)
-      exact InductFamiliesInstalled.insertNonInductive
-        (ci := .defnInfo v) (wf.inductFamiliesInstalled (safety := safety))
-        (wf.tr (safety := .safe)).map_wf hnMap (by intro _ h; cases h)
-        (hves' safety).le
+    blocks {safety} := by
+      refine (wf.blocks (safety := safety)).addFresh (wf.tr (safety := safety)).map_wf
+        (ci := .defnInfo v) hn nofun nofun nofun (hves' safety).le ?_
+      intro S info hp
+      by_cases hvisible : safety ≤ (ConstantInfo.defnInfo v).safety
+      · obtain ⟨base, hadd, heq⟩ := hbase safety hvisible
+        rw [heq] at hp
+        have hp' : base.projections S info := hp
+        rwa [VEnv.addConst_projections hadd] at hp'
+      · rwa [hsame safety hvisible] at hp
     mono {safety safety'} hle := by
       by_cases hvisible' : safety' ≤ (ConstantInfo.defnInfo v).safety
       · have hvisible := DefinitionSafety.le_trans hle hvisible'
@@ -727,25 +677,17 @@ theorem addUnsafeDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
       | .safe | .partial => wf.hasPrimitives
     safePrimitives := wf.safePrimitives_add (.defnInfo v) hn
       (by simp [ConstantInfo.name, ConstantInfo.toConstantVal, hnonprim])
-    inductivesClosed := wf.inductivesClosed.addNonInductive
-      (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
-    constructorOwners := wf.constructorOwners.addNonConstructor
-      (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
-    constructorParameterAlignment {safety} :=
-      (wf.constructorParameterAlignment (safety := safety)).addNonInductive
-        (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
-        (match safety with
-        | .unsafe => hle
-        | .safe | .partial => VEnv.LE.rfl)
-    inductFamiliesInstalled {safety} := by
-      change InductFamiliesInstalled safety
-        (env.constants.insert v.name (.defnInfo v)) _
-      exact InductFamiliesInstalled.insertNonInductive
-        (ci := .defnInfo v) (wf.inductFamiliesInstalled (safety := safety))
-        (wf.tr (safety := .safe)).map_wf hnMap (by intro _ h; cases h)
-        (match safety with
-        | .unsafe => hle
-        | .safe | .partial => VEnv.LE.rfl)
+    blocks {safety} :=
+      match safety with
+      | .unsafe => (wf.blocks (safety := .unsafe)).addFresh (wf.tr (safety := .unsafe)).map_wf
+          (ci := .defnInfo v) hn nofun nofun nofun hle fun {S info} hp => by
+            have hp' : base.projections S info := hp
+            rwa [VEnv.addConst_projections hadd] at hp'
+      | .safe => (wf.blocks (safety := .safe)).addFresh (wf.tr (safety := .safe)).map_wf
+          (ci := .defnInfo v) hn nofun nofun nofun VEnv.LE.rfl id
+      | .partial => (wf.blocks (safety := .partial)).addFresh
+          (wf.tr (safety := .partial)).map_wf
+          (ci := .defnInfo v) hn nofun nofun nofun VEnv.LE.rfl id
     mono {safety safety'} hsf :=
       match safety, safety' with
       | .unsafe, .unsafe => .rfl

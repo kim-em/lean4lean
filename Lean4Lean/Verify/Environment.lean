@@ -27,7 +27,7 @@ theorem addAxiom.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hte
     · have := hnonprim (by simp [hprim])
       contradiction
   have ⟨ves', hwf, hstep⟩ := addConst.WF wf (.axiomInfo v) ci' checkSafety ?_ htr hci hn
-    (by intro _ h; cases h) (by intro _ h; cases h) hnonprim'
+    (by intro _ h; cases h) (by intro _ h; cases h) (by intro _ h; cases h) hnonprim'
     fun _ _ htr hci hadd old => ?_
   · exact .pure ⟨ves', hwf, .addNonCtor wf hn (fun s => (hstep s).le) nofun, ci', hstep⟩
   · intro safety _
@@ -47,7 +47,7 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     refine (checkNoMVarNoFVar.WF _ _ _).bind fun _ h => ?_
     have ⟨vesA, wfA, hstepA⟩ := addConst.WF wf (.axiomInfo { v with isUnsafe := true }) ci0
       .unsafe (fun _ => id) ⟨⟨DefinitionSafety.unsafe_le, htr.1.2.1, htr.1.2.2⟩, htr.2⟩
-      hwfc hn (by intro _ h; cases h) (by intro _ h; cases h) hnonprim
+      hwfc hn (by intro _ h; cases h) (by intro _ h; cases h) (by intro _ h; cases h) hnonprim
       fun _ _ htr' hci' hadd' old =>
         .axiom htr' (by rwa [← old.map_wf.find?'_eq_find?]) hci' hadd' old
     have hadd := (hstepA .unsafe).2.2
@@ -96,7 +96,7 @@ theorem addTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (h
   obtain ⟨ci', htr, hbody, hprop, hn, hnonprim⟩ := h
   have ⟨ves', hwf, hstep⟩ := addConst.WF wf (.thmInfo v) ci'.toVConstVal .safe
     (fun _ _ => DefinitionSafety.le_safe) htr.1 ⟨_, hprop⟩ hn
-    (by intro _ h; cases h) (by intro _ h; cases h) hnonprim
+    (by intro _ h; cases h) (by intro _ h; cases h) (by intro _ h; cases h) hnonprim
     fun safety _ hheader _ hadd old => ?_
   · exact .pure ⟨ves', hwf, .addNonCtor wf hn (fun s => (hstep s).le) nofun,
       ci'.toVConstVal, hstep⟩
@@ -121,7 +121,7 @@ theorem addOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (ht
   have htr : TrConstVal checkSafety (ves.venv checkSafety) (.opaqueInfo v) ci'.toVConstVal :=
     ⟨⟨hsafety.symm ▸ DefinitionSafety.le_rfl, hu, ht.mono hmono⟩, hname⟩
   have ⟨ves', hwf, hstep⟩ := addConst.WF wf (.opaqueInfo v) ci'.toVConstVal checkSafety ?_ htr
-    (hciC.mono hmono) hfresh (by intro _ h; cases h) (by intro _ h; cases h) hnonprim
+    (hciC.mono hmono) hfresh (by intro _ h; cases h) (by intro _ h; cases h) (by intro _ h; cases h) hnonprim
     fun safety _ htr hciW hadd old => ?_
   · exact .pure ⟨ves', hwf, .addNonCtor wf hfresh (fun s => (hstep s).le) nofun,
       ci'.toVConstVal, hstep⟩
@@ -396,11 +396,7 @@ theorem VEnvs.WFCore.empty (m : Name) (s : Bool) :
   tr := .empty
   hasPrimitives := VEnv.HasPrimitives.empty
   safePrimitives h := by simp [Kernel.Environment.empty_find?] at h
-  inductivesClosed _ _ h := by simp [Kernel.Environment.empty_find?] at h
-  constructorOwners _ _ h := by simp [Kernel.Environment.empty_find?] at h
-  constructorParameterAlignment _ _ h := by simp [Kernel.Environment.empty_find?] at h
-  inductFamiliesInstalled _ _ h := by
-    change ({ stage₁ := s } : ConstMap).find? _ = _ at h; simp at h
+  blocks := .empty (by simp [Kernel.Environment.empty_find?])
   mono _ := VEnv.LE.rfl
 
 /-- **Base case.** The empty environment satisfies the invariant: it has no constructors, so

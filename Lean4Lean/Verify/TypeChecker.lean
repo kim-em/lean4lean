@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.TypeChecker.InferType
 import Lean4Lean.Verify.TypeChecker.WHNF
 import Lean4Lean.Verify.TypeChecker.IsDefEq
-import Lean4Lean.Verify.Environment.Basic
+import Lean4Lean.Verify.Environment.Blocks
 
 namespace Lean4Lean
 
@@ -16,29 +16,42 @@ structure VEnvs.WFCore (env : Environment) (ves : VEnvs) where
   hasPrimitives : VEnv.HasPrimitives (ves.venv safety)
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
-  inductivesClosed : VerifyInductive.MutualInductivesClosed env
-  constructorOwners : VerifyInductive.ConstructorOwnersPresent env
-  constructorParameterAlignment : VerifyInductive.ConstructorParameterAlignment
-    safety env (ves.venv safety)
-  inductFamiliesInstalled : InductFamiliesInstalled
-    safety env.constants (ves.venv safety)
+  /-- Every inductive header, constructor and recursor belongs to a complete installed
+  block (`InstalledBlocks`). -/
+  blocks : InstalledBlocks safety env (ves.venv safety) .complete
   mono : safety ≤ safety' → ves.venv safety' ≤ ves.venv safety
 
-/-- The unsafe observer sees every kernel inductive, so the persistent
-semantic invariant also supplies safety-independent exact constructor
-metadata coherence. -/
-theorem VEnvs.WFCore.inductiveConstructorsCoherent
-    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
-    VerifyInductive.InductiveConstructorsCoherent env := by
-  intro familyName familyInfo hfamily i hi
-  rcases wf.constructorParameterAlignment (safety := .unsafe)
-      familyName familyInfo hfamily DefinitionSafety.unsafe_le i hi with ⟨C⟩
-  exact ⟨C.toCtorInfoCoherentAt⟩
+namespace VEnvs.WFCore
+variable {env : Environment} {ves : VEnvs}
 
-theorem VEnvs.WFCore.projectionRegistryCoherent
-    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
+theorem inductivesClosed (wf : ves.WFCore env) : VerifyInductive.MutualInductivesClosed env :=
+  (wf.blocks (safety := .unsafe)).mutualInductivesClosed
+
+theorem constructorOwners (wf : ves.WFCore env) :
+    VerifyInductive.ConstructorOwnersPresent env :=
+  (wf.blocks (safety := .unsafe)).constructorOwnersPresent
+
+theorem constructorParameterAlignment (wf : ves.WFCore env) {safety : DefinitionSafety} :
+    VerifyInductive.ConstructorParameterAlignment safety env (ves.venv safety) :=
+  wf.blocks.constructorParameterAlignment
+
+theorem inductiveConstructorsCoherent (wf : ves.WFCore env) :
+    VerifyInductive.InductiveConstructorsCoherent env :=
+  (wf.blocks (safety := .unsafe)).inductiveConstructorsCoherent (by decide)
+
+theorem projectionRegistryCoherent (wf : ves.WFCore env) {safety : DefinitionSafety} :
     ProjectionRegistryCoherent safety env.constants (ves.venv safety) :=
-  wf.inductFamiliesInstalled.projectionRegistryCoherent
+  wf.blocks.projectionRegistryCoherent (wf.tr (safety := safety)).map_wf
+
+/-- Every visible kernel family is a family of an installed declaration. -/
+theorem inductFamiliesInstalled (wf : ves.WFCore env) {safety : DefinitionSafety}
+    (hfind : env.find? familyName = some (.inductInfo familyInfo))
+    (hvisible : safety ≤ (ConstantInfo.inductInfo familyInfo).safety) :
+    familyName = familyInfo.name ∧
+      Nonempty (InductFamilyInstalledAt (ves.venv safety) familyInfo) :=
+  wf.blocks.familyInstalled hfind hvisible
+
+end VEnvs.WFCore
 
 /-- Every visible constructor of `env` carries a telescope certificate at every safety level
 (`CtorTelescopes`). This is the environment invariant that makes the non-dependent field walk

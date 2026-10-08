@@ -264,11 +264,15 @@ theorem OrdinaryInstallation.extendSafePreludeEq
     apply VEnv.addEliminators_addProjections_le.constants
     apply (VEnv.addConstVals_le B.installation.abstract_ctors).constants
     exact htypesEq
+  have htypesH : (ves.venv .safe).addConstVals (Hheaders.entries.map Prod.snd) =
+      some Hheaders.context.venv := by
+    rw [Hheaders.values]; exact Hheaders.translation.typesAdded
   rcases B.extendSafeExact wf htels hdecl hcompile horigins T.newRecursorsAligned Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners)
       hconstructors
       (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
-        (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
+        (wf.mono (DefinitionSafety.le_safe (a := safety))))
+      Hrecursors.cover (fun hfind => Hrecursors.ctorOrigin hfind) (B.typesLe htypesH) with
       ⟨ves', wf', hle, hadd, hsafeReplay⟩
   have hsafeEq : (ves'.venv .safe).constants ``Eq = some eqConst :=
     hsafeReplay.constants houtEq

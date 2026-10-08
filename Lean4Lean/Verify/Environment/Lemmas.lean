@@ -302,35 +302,6 @@ theorem ListedConstructorsPresent.add
       cases hfound
     · exact ⟨found, (find?_add_of_ne hwf ci hfresh hne).trans hfound⟩
 
-/-- A fresh mutual-definition fold contains no constructor metadata and
-hence preserves constructor-owner presence. -/
-theorem ConstructorOwnersPresent.addDefinitions
-    (H : ConstructorOwnersPresent env) (hwf : env.constants.WF) :
-    ∀ (vs : List DefinitionVal),
-      (∀ v ∈ vs, env.find? v.name = none) →
-      (vs.map (·.name)).Nodup →
-      ConstructorOwnersPresent
-        (vs.foldl (fun env v => env.add (.defnInfo v)) env)
-  | [], _, _ => H
-  | v :: vs, hfresh, hnodup => by
-      simp only [List.map_cons, List.nodup_cons] at hnodup
-      have hvfresh := hfresh v (by simp)
-      have hvfreshMap : env.constants.find? v.name = none := by
-        rwa [← hwf.find?'_eq_find?]
-      have hwf' : (env.add (.defnInfo v)).constants.WF := by
-        change (env.constants.insert v.name (.defnInfo v)).WF
-        exact hwf.insert v.name (.defnInfo v) hvfreshMap
-      have H' : ConstructorOwnersPresent (env.add (.defnInfo v)) :=
-        H.addNonConstructor hwf hvfresh (by intro _ h; cases h)
-      apply H'.addDefinitions hwf' vs
-      · intro w hw
-        have hne : v.name ≠ w.name := by
-          intro heq
-          exact hnodup.1 (List.mem_map.mpr ⟨w, hw, heq.symm⟩)
-        rw [find?_add_of_ne hwf (.defnInfo v) hvfresh hne]
-        exact hfresh w (by simp [hw])
-      · exact hnodup.2
-
 theorem InductiveMemberInfos.addConstant
     {ci : ConstantInfo}
     (H : InductiveMemberInfos env names)
@@ -380,35 +351,6 @@ theorem MutualInductivesClosed.addNonInductive
     ⟨_, hvalue⟩ | hold
   · exact False.elim (hnind value hvalue.symm)
   · exact (H targetName value hold).addConstant hwf hfresh
-
-/-- A fresh mutual-definition fold contains no inductive metadata and hence
-preserves mutual-family closure. -/
-theorem MutualInductivesClosed.addDefinitions
-    (H : MutualInductivesClosed env) (hwf : env.constants.WF) :
-    ∀ (vs : List DefinitionVal),
-      (∀ v ∈ vs, env.find? v.name = none) →
-      (vs.map (·.name)).Nodup →
-      MutualInductivesClosed
-        (vs.foldl (fun env v => env.add (.defnInfo v)) env)
-  | [], _, _ => H
-  | v :: vs, hfresh, hnodup => by
-      simp only [List.map_cons, List.nodup_cons] at hnodup
-      have hvfresh := hfresh v (by simp)
-      have hvfreshMap : env.constants.find? v.name = none := by
-        rwa [← hwf.find?'_eq_find?]
-      have hwf' : (env.add (.defnInfo v)).constants.WF := by
-        change (env.constants.insert v.name (.defnInfo v)).WF
-        exact hwf.insert v.name (.defnInfo v) hvfreshMap
-      have H' : MutualInductivesClosed (env.add (.defnInfo v)) :=
-        H.addNonInductive hwf hvfresh (by intro _ h; cases h)
-      apply H'.addDefinitions hwf' vs
-      · intro w hw
-        have hne : v.name ≠ w.name := by
-          intro heq
-          exact hnodup.1 (List.mem_map.mpr ⟨w, hw, heq.symm⟩)
-        rw [find?_add_of_ne hwf (.defnInfo v) hvfresh hne]
-        exact hfresh w (by simp [hw])
-      · exact hnodup.2
 
 def CtorInfoCoherentAt.addConstant
     {ci : ConstantInfo}
@@ -469,107 +411,6 @@ theorem ConstructorParameterAlignment.mono
   intro familyName familyInfo hfamily hvisible i hi
   rcases H familyName familyInfo hfamily hvisible i hi with ⟨C⟩
   exact ⟨C.mono hle⟩
-
-/-- A fresh non-inductive kernel constant and any monotone abstract
-extension preserve visible constructor semantics. -/
-theorem ConstructorParameterAlignment.addNonInductive
-    {ci : ConstantInfo}
-    (H : ConstructorParameterAlignment safety env venv)
-    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
-    (hnind : ∀ value, ci ≠ .inductInfo value)
-    (hle : venv ≤ venv') :
-    ConstructorParameterAlignment safety (env.add ci) venv' := by
-  intro familyName familyInfo hfamily hvisible i hi
-  rcases find?_add_cases hwf ci hfresh hfamily with
-    ⟨_, hvalue⟩ | hold
-  · exact False.elim (hnind familyInfo hvalue.symm)
-  · rcases H familyName familyInfo hold hvisible i hi with ⟨C⟩
-    exact ⟨C.addConstant hwf hfresh hle⟩
-
-/-- A fresh mutual-definition fold changes no inductive metadata.  All existing
-`ConstructorParameterAlignmentAt` facts may be transported directly to the last abstract environment,
-then retained while the remaining kernel definitions are inserted. -/
-theorem ConstructorParameterAlignment.addDefinitions
-    (H : ConstructorParameterAlignment safety env venv)
-    (hwf : env.constants.WF) :
-    ∀ (vs : List DefinitionVal),
-      (∀ v ∈ vs, env.find? v.name = none) →
-      (vs.map (·.name)).Nodup →
-      venv ≤ venv' →
-      ConstructorParameterAlignment safety
-        (vs.foldl (fun env v => env.add (.defnInfo v)) env) venv'
-  | [], _, _, hle => H.mono hle
-  | v :: vs, hfresh, hnodup, hle => by
-      simp only [List.map_cons, List.nodup_cons] at hnodup
-      have hvfresh := hfresh v (by simp)
-      have hvfreshMap : env.constants.find? v.name = none := by
-        rwa [← hwf.find?'_eq_find?]
-      have hwf' : (env.add (.defnInfo v)).constants.WF := by
-        change (env.constants.insert v.name (.defnInfo v)).WF
-        exact hwf.insert v.name (.defnInfo v) hvfreshMap
-      have H' : ConstructorParameterAlignment safety
-          (env.add (.defnInfo v)) venv' :=
-        H.addNonInductive hwf hvfresh (by intro _ h; cases h) hle
-      apply H'.addDefinitions hwf' vs
-      · intro w hw
-        have hne : v.name ≠ w.name := by
-          intro heq
-          exact hnodup.1 (List.mem_map.mpr ⟨w, hw, heq.symm⟩)
-        rw [find?_add_of_ne hwf (.defnInfo v) hvfresh hne]
-        exact hfresh w (by simp [hw])
-      · exact hnodup.2
-      · exact VEnv.LE.rfl
-
-/-- Rebase an observer across a kernel extension whose genuinely new
-inductive headers are all hidden at that observer's safety. -/
-theorem InductFamiliesInstalled.rebaseHidden
-    (H : InductFamiliesInstalled safety source env)
-    (hpreserves : ∀ {name found}, source.find? name = some found →
-      target.find? name = some found)
-    (hhidden : ∀ familyName familyInfo,
-      target.find? familyName = some (.inductInfo familyInfo) →
-      source.find? familyName = none →
-      ¬ safety ≤ (ConstantInfo.inductInfo familyInfo).safety) :
-    InductFamiliesInstalled safety target env := by
-  intro familyName familyInfo hfind hvisible
-  cases hold : source.find? familyName with
-  | none => exact False.elim (hhidden familyName familyInfo hfind hold hvisible)
-  | some oldInfo =>
-      have hsame := hpreserves hold
-      rw [hfind] at hsame
-      have heq : oldInfo = .inductInfo familyInfo := Option.some.inj hsame.symm
-      subst oldInfo
-      rcases H familyName familyInfo hold hvisible with ⟨P⟩
-      exact ⟨P.mono (by simpa [P.name] using hfind) hpreserves VEnv.LE.rfl⟩
-
-/-- A fresh mutual-definition fold contains no inductive headers and hence
-preserves `InductFamiliesInstalled`. -/
-theorem InductFamiliesInstalled.insertDefs
-    (H : InductFamiliesInstalled safety C env)
-    (hwf : C.WF) : ∀ (cis : List DefinitionVal),
-      (∀ ci ∈ cis, C.find? ci.name = none) →
-      (cis.map (·.name)).Nodup → env ≤ env' →
-      InductFamiliesInstalled safety (insertDefs C cis) env'
-  | [], _, _, henv => InductFamiliesInstalled.monoEnv H henv
-  | ci :: cis, hfresh, hnodup, henv => by
-      simp only [List.map_cons, List.nodup_cons] at hnodup
-      have hciFresh := hfresh ci (by simp)
-      have hwf' := hwf.insert ci.name (.defnInfo ci) hciFresh
-      have H' : InductFamiliesInstalled safety
-          (C.insert ci.name (.defnInfo ci)) env' :=
-        InductFamiliesInstalled.insertNonInductive
-          (ci := .defnInfo ci) H hwf hciFresh
-          (by intro _ h; cases h) henv
-      apply InductFamiliesInstalled.insertDefs H' hwf' cis
-      · intro cj hcj
-        rw [hwf.find?_insert]
-        have hne : ci.name ≠ cj.name := by
-          intro heq
-          exact hnodup.1 (List.mem_map.mpr ⟨cj, hcj, heq.symm⟩)
-        rw [if_neg (by simpa using hne)]
-        exact hfresh cj (by simp [hcj])
-      · exact hnodup.2
-      · exact VEnv.LE.rfl
 
 end VerifyInductive
 

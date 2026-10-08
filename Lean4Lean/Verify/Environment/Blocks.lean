@@ -1145,6 +1145,176 @@ theorem addInduct {decl : VInductDecl}
     · exact .inr ⟨B, InstallStage.le_refl _,
         (show InstallStage.complete ≠ InstallStage.headers by decide), hvis, hB, hentry⟩
 
+/-- Adding constants that are neither inductive headers, constructors nor recursors, and
+growing the abstract environment without registering projections, keeps every descriptor. -/
+theorem addNonInductive (H : InstalledBlocks safety env venv .complete)
+    (hpres : ∀ {n ci}, env.find? n = some ci → env'.find? n = some ci)
+    (hmap : ∀ {n ci}, env.constants.find? n = some ci → env'.constants.find? n = some ci)
+    (hle : venv ≤ venv')
+    (hnew : ∀ {n ci}, env'.find? n = some ci → env.find? n = none →
+      (∀ v, ci ≠ .inductInfo v) ∧ (∀ v, ci ≠ .ctorInfo v) ∧ (∀ v, ci ≠ .recInfo v))
+    (hproj : ∀ {S info}, venv'.projections S info → venv.projections S info) :
+    InstalledBlocks safety env' venv' .complete := by
+  have hpresent := H.listedConstructorsPresent (by decide)
+  refine H.extend hpres hmap ?_ hle (InstallStage.le_refl _) ?_ ?_ ?_ ?_
+  · intro fn fi n hfi hn hnone
+    obtain ⟨ci, hci⟩ := hpresent fn fi hfi n hn
+    rw [hci] at hnone; cases hnone
+  · intro n v hf hnone; exact absurd rfl ((hnew hf hnone).1 v)
+  · intro n v hf hnone; exact absurd rfl ((hnew hf hnone).2.1 v)
+  · intro n v hf hnone; exact absurd rfl ((hnew hf hnone).2.2 v)
+  · intro S info hp; exact .inl (hproj hp)
+
+/-- The invariant depends on the kernel environment only through its lookups. -/
+theorem mapEnvironmentEq (H : InstalledBlocks safety env venv st)
+    (heq : ∀ n, env.find? n = env'.find? n)
+    (hmapEq : ∀ n, env.constants.find? n = env'.constants.find? n) :
+    InstalledBlocks safety env' venv st := by
+  refine H.extend (fun h => (heq _).symm.trans h) (fun h => (hmapEq _).symm.trans h) ?_
+    VEnv.LE.rfl (InstallStage.le_refl _) ?_ ?_ ?_ ?_
+  · intro fn fi n _ _ hnone; rw [← heq]; exact hnone
+  · intro n v hf hnone; rw [heq, hf] at hnone; cases hnone
+  · intro n v hf hnone; rw [heq, hf] at hnone; cases hnone
+  · intro n v hf hnone; rw [heq, hf] at hnone; cases hnone
+  · intro S info hp; exact .inl hp
+
+open private Lean.Kernel.Environment.add from Lean.Environment in
+/-- Adding one fresh constant that is neither an inductive header, a constructor nor a
+recursor. -/
+theorem addFresh (H : InstalledBlocks safety env venv .complete) (hwf : env.constants.WF)
+    {ci : ConstantInfo} (hn : env.find? ci.name = none)
+    (hnind : ∀ v, ci ≠ .inductInfo v) (hnctor : ∀ v, ci ≠ .ctorInfo v)
+    (hnrec : ∀ v, ci ≠ .recInfo v)
+    (hle : venv ≤ venv') (hproj : ∀ {S info}, venv'.projections S info → venv.projections S info) :
+    InstalledBlocks safety (env.add ci) venv' .complete := by
+  have hnMap : env.constants.find? ci.name = none := by
+    rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
+  refine H.addNonInductive (fun h => VerifyInductive.findAddFresh_of_find hwf ci hn h) ?_ hle
+    ?_ hproj
+  · intro n c h
+    change (env.constants.insert ci.name ci).find? n = some c
+    rw [hwf.find?_insert]
+    split
+    · rename_i heq
+      rw [← LawfulBEq.eq_of_beq heq, hnMap] at h
+      cases h
+    · exact h
+  · intro n c h hnone
+    rcases VerifyInductive.findAddFresh_cases hwf ci hn h with ⟨-, rfl⟩ | hold
+    · exact ⟨hnind, hnctor, hnrec⟩
+    · rw [hold] at hnone; cases hnone
+
+open private Lean.Kernel.Environment.add from Lean.Environment in
+/-- Adding a block of fresh definitions. -/
+theorem addDefinitions (vs : List DefinitionVal) (H : InstalledBlocks safety env venv .complete)
+    (hwf : env.constants.WF) (hle : venv ≤ venv')
+    (hproj : ∀ {S info}, venv'.projections S info → venv.projections S info)
+    (hfresh : ∀ v ∈ vs, env.find? v.name = none) (hnodup : (vs.map (·.name)).Nodup) :
+    InstalledBlocks safety (vs.foldl (fun e v => e.add (.defnInfo v)) env) venv' .complete := by
+  induction vs generalizing env venv with
+  | nil =>
+    refine H.addNonInductive id id hle ?_ hproj
+    intro n c h hnone
+    simp only [List.foldl_nil] at h
+    rw [h] at hnone; cases hnone
+  | cons v vs ih =>
+    simp only [List.map_cons, List.nodup_cons] at hnodup
+    have hvfresh := hfresh v (by simp)
+    have hvfreshMap : env.constants.find? v.name = none := by
+      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hvfresh
+    have hwf' : (env.add (.defnInfo v)).constants.WF := by
+      change (env.constants.insert v.name (.defnInfo v)).WF
+      exact hwf.insert v.name (.defnInfo v) hvfreshMap
+    have H' := H.addFresh hwf (ci := .defnInfo v) hvfresh nofun nofun nofun hle hproj
+    refine ih H' hwf' VEnv.LE.rfl id ?_ hnodup.2
+    intro w hw
+    have hne : v.name ≠ w.name := fun heq =>
+      hnodup.1 (List.mem_map.mpr ⟨w, hw, heq.symm⟩)
+    cases h : (env.add (.defnInfo v)).find? w.name with
+    | none => rfl
+    | some c =>
+      rcases VerifyInductive.findAddFresh_cases hwf (.defnInfo v) hvfresh h with
+        ⟨heq, -⟩ | hold
+      · exact absurd heq.symm hne
+      · rw [hfresh w (by simp [hw])] at hold; cases hold
+
 end InstalledBlocks
+
+/-- The declaration of an inductive installation has the `isUnsafe` of its new headers. -/
+theorem InductInfosFromDecl.declUnsafe {env env' : Environment} {decl : VInductDecl}
+    (hwf : env.constants.WF) (hwf' : env'.constants.WF)
+    (horigins : InductInfosFromDecl env.constants env'.constants decl)
+    (hcover : ∀ T ∈ decl.types,
+      ∃ v, env'.find? T.name = some (.inductInfo v) ∧ env.find? T.name = none)
+    (hnonempty : decl.types ≠ [])
+    (hnew : ∀ {n v}, env'.find? n = some (.inductInfo v) → env.find? n = none →
+      v.isUnsafe = b) : decl.isUnsafe = b := by
+  obtain ⟨T, hT⟩ := List.exists_mem_of_ne_nil _ hnonempty
+  obtain ⟨v, hv, hnone⟩ := hcover T hT
+  have hvMap : env'.constants.find? T.name = some (.inductInfo v) := by
+    rwa [Lean.Kernel.Environment.find?, hwf'.find?'_eq_find?] at hv
+  rcases horigins _ v hvMap with hold | ⟨i, -, ⟨A⟩⟩
+  · rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, hold] at hnone; cases hnone
+  · rw [← A.isUnsafe]; exact hnew hv hnone
+
+/-! ## Installed families -/
+
+/-- A visible kernel family is a family of a complete installed declaration: the
+declaration, the family's position in it, the abstract installation, and the agreement of
+the kernel header with the abstract family. -/
+structure InductFamilyInstalledAt (venv : VEnv) (familyInfo : InductiveVal) where
+  decl : VInductDecl
+  familyIdx : Nat
+  familyIdx_lt : familyIdx < decl.types.length
+  installed : VEnv.InstalledBelow venv decl
+  name : familyInfo.name = decl.types[familyIdx].name
+  numParams : familyInfo.numParams = decl.nparams
+  levelParams : familyInfo.levelParams.length = decl.uvars
+  numIndices : familyInfo.numIndices = decl.types[familyIdx].numIndices
+  constructors : familyInfo.ctors.length = decl.types[familyIdx].ctors.length
+  constructorName : ∀ i (hi : i < familyInfo.ctors.length),
+    familyInfo.ctors[i] = (decl.types[familyIdx].ctors[i]'(constructors ▸ hi)).name
+  isUnsafe : familyInfo.isUnsafe = decl.isUnsafe
+
+/-- Every visible kernel family of an environment whose blocks are complete is a family of
+an installed declaration. -/
+theorem InstalledBlocks.familyInstalled (H : InstalledBlocks safety env venv .complete)
+    (hfind : env.find? familyName = some (.inductInfo familyInfo))
+    (hvisible : safety ≤ (ConstantInfo.inductInfo familyInfo).safety) :
+    familyName = familyInfo.name ∧ Nonempty (InductFamilyInstalledAt venv familyInfo) := by
+  obtain ⟨hn, B, hst, hB, F, hF, rfl⟩ := H.header hfind
+  refine ⟨hn, ?_⟩
+  have hcomplete : B.stage = .complete := InstallStage.eq_complete hst
+  have hne : B.stage ≠ .headers := by rw [hcomplete]; decide
+  have C := hB.concrete
+  have hvis : B.Visible safety := by
+    rw [InstalledBlock.safety_inductInfo (C.isUnsafe F hF)] at hvisible
+    exact hvisible
+  have A := hB.abstract hvis
+  have FA := A.family F hF
+  obtain ⟨j, hj, hFj⟩ := List.mem_iff_getElem.mp hF
+  have hj' : j < B.decl.types.length := by rw [A.types]; simpa using hj
+  have hT : B.decl.types[j] = F.type := by
+    simp only [A.types, List.getElem_map, hFj]
+  have hlen : F.header.ctors.length = F.type.ctors.length := by
+    rw [← C.ctorNames hne F hF, List.length_map]; exact FA.ctorsLength hne
+  exact ⟨{
+    decl := B.decl
+    familyIdx := j
+    familyIdx_lt := hj'
+    installed := A.installed hcomplete
+    name := by rw [hT]; exact FA.name
+    numParams := (C.numParams F hF).trans A.nparams.symm
+    levelParams := A.uvars F hF
+    numIndices := by rw [hT]; exact FA.numIndices
+    constructors := by rw [hT]; exact hlen
+    constructorName := by
+      intro i hi
+      obtain ⟨hi', hname⟩ := C.ctor_getElem hne hF hi
+      rw [hname]
+      have DA := FA.ctor hne i hi' (FA.ctorsLength hne ▸ hi')
+      rw [DA.name]
+      simp only [hT]
+    isUnsafe := (C.isUnsafe F hF).trans A.isUnsafe.symm }⟩
 
 end Lean4Lean

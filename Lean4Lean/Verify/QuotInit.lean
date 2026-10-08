@@ -464,29 +464,21 @@ structure QuotEnvInv (env : Environment) (V : DefinitionSafety → VEnv) : Prop 
   mapWF : env.constants.WF
   safePrimitives : ∀ {n ci}, env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
-  inductivesClosed : VerifyInductive.MutualInductivesClosed env
-  constructorOwners : VerifyInductive.ConstructorOwnersPresent env
-  constructorParameterAlignment : ∀ safety,
-    VerifyInductive.ConstructorParameterAlignment safety env (V safety)
-  inductFamiliesInstalled : ∀ safety, InductFamiliesInstalled safety env.constants (V safety)
+  blocks : ∀ safety, InstalledBlocks safety env (V safety) .complete
 
 theorem QuotEnvInv.add {env : Environment} {V V'} (H : QuotEnvInv env V) (ci : QuotVal)
     (hn : env.find? ci.name = none)
     (hprim : Environment.primitives.contains ci.name = false)
-    (hle : ∀ safety, V safety ≤ V' safety) :
+    (hle : ∀ safety, V safety ≤ V' safety)
+    (hproj : ∀ safety {S info}, (V' safety).projections S info → (V safety).projections S info) :
     QuotEnvInv (env.add (.quotInfo ci)) V' where
   mapWF := H.mapWF.insert _ _ (by rwa [← H.mapWF.find?'_eq_find?])
   safePrimitives := safePrimitives_add' H.mapWF H.safePrimitives (.quotInfo ci) hn
     (fun h => by
       rw [show (ConstantInfo.quotInfo ci).name = ci.name from rfl, hprim] at h
       cases h)
-  inductivesClosed := H.inductivesClosed.addNonInductive H.mapWF hn nofun
-  constructorOwners := H.constructorOwners.addNonConstructor H.mapWF hn nofun
-  constructorParameterAlignment s :=
-    (H.constructorParameterAlignment s).addNonInductive H.mapWF hn nofun (hle s)
-  inductFamiliesInstalled s :=
-    (H.inductFamiliesInstalled s).insertNonInductive H.mapWF
-      (by rwa [← H.mapWF.find?'_eq_find?]) nofun (hle s)
+  blocks s := (H.blocks s).addFresh H.mapWF (ci := .quotInfo ci) hn nofun nofun nofun (hle s)
+    (hproj s)
 
 /-- `markQuotInit` only sets the quotient flag; constant lookup is unchanged.
 Transport the lookup-based invariants across it. -/
@@ -494,14 +486,7 @@ theorem QuotEnvInv.markQuotInit {env : Environment} {V} (H : QuotEnvInv env V) :
     QuotEnvInv (markQuotInit env) V where
   mapWF := H.mapWF
   safePrimitives := H.safePrimitives
-  inductivesClosed := H.inductivesClosed.mapEnvironmentEq fun _ => rfl
-  constructorOwners := H.constructorOwners
-  constructorParameterAlignment s familyName familyInfo hfamily hvisible i hi :=
-    have ⟨C⟩ := H.constructorParameterAlignment s familyName familyInfo hfamily hvisible i hi
-    ⟨{ C with
-      toCtorInfoCoherentAt :=
-        { C.toCtorInfoCoherentAt with lookup := C.lookup } }⟩
-  inductFamiliesInstalled := H.inductFamiliesInstalled
+  blocks s := (H.blocks s).mapEnvironmentEq (fun _ => rfl) (fun _ => rfl)
 
 theorem QuotEnvInv.find?_add {env : Environment} {V} (H : QuotEnvInv env V) {ci : ConstantInfo}
     (hn : env.find? ci.name = none) {n : Name} (hne : ci.name ≠ n) :
@@ -542,30 +527,28 @@ theorem VEnvs.WFCore.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WFCore 
   have I0 : QuotEnvInv env ves.venv :=
     { mapWF := hC
       safePrimitives := wf.safePrimitives
-      inductivesClosed := wf.inductivesClosed
-      constructorOwners := wf.constructorOwners
-      constructorParameterAlignment := fun _ => wf.constructorParameterAlignment
-      inductFamiliesInstalled := fun _ => wf.inductFamiliesInstalled }
+      blocks := fun _ => wf.blocks }
   have I1 : QuotEnvInv (env.add ciQuot) ves'.venv :=
     I0.add { name := ``Quot, kind := .type, levelParams := [`u], type := tQuotC } n1 p1 hle
+      fun s _ _ hp => by rwa [VEnv.addQuot_projections (hsome s)] at hp
   have m2 : (env.add ciQuot).find? ``Quot.mk = none := by
     rw [I0.find?_add (ci := ciQuot) n1 (by decide)]; exact n2
   have I2 : QuotEnvInv ((env.add ciQuot).add ciMk) ves'.venv :=
     I1.add { name := ``Quot.mk, kind := .ctor, levelParams := [`u], type := tMkC }
-      m2 p2 fun _ => VEnv.LE.rfl
+      m2 p2 (fun _ => VEnv.LE.rfl) fun _ _ _ => id
   have m3 : ((env.add ciQuot).add ciMk).find? ``Quot.lift = none := by
     rw [I1.find?_add (ci := ciMk) m2 (by decide), I0.find?_add (ci := ciQuot) n1 (by decide)]
     exact n3
   have I3 : QuotEnvInv (((env.add ciQuot).add ciMk).add ciLift) ves'.venv :=
     I2.add { name := ``Quot.lift, kind := .lift, levelParams := [`u, `v], type := tLiftC }
-      m3 p3 fun _ => VEnv.LE.rfl
+      m3 p3 (fun _ => VEnv.LE.rfl) fun _ _ _ => id
   have m4 : (((env.add ciQuot).add ciMk).add ciLift).find? ``Quot.ind = none := by
     rw [I2.find?_add (ci := ciLift) m3 (by decide), I1.find?_add (ci := ciMk) m2 (by decide),
       I0.find?_add (ci := ciQuot) n1 (by decide)]
     exact n4
   have I4 : QuotEnvInv ((((env.add ciQuot).add ciMk).add ciLift).add ciInd) ves'.venv :=
     I3.add { name := ``Quot.ind, kind := .ind, levelParams := [`u], type := tIndC }
-      m4 p4 fun _ => VEnv.LE.rfl
+      m4 p4 (fun _ => VEnv.LE.rfl) fun _ _ _ => id
   have I5 := I4.markQuotInit
   -- no constructor is installed (`Quot.mk` is a `quotInfo`), so the certificates carry over
   have hcert : VEnvs.CtorTelescopesPreserved env
@@ -592,10 +575,7 @@ theorem VEnvs.WFCore.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WFCore 
       exact .quot (hq safety) (hves' safety) this
     hasPrimitives {safety} := wf.hasPrimitives.addQuot (hsome safety) p1 p2 p3 p4
     safePrimitives := I5.safePrimitives
-    inductivesClosed := I5.inductivesClosed
-    constructorOwners := I5.constructorOwners
-    constructorParameterAlignment {safety} := I5.constructorParameterAlignment safety
-    inductFamiliesInstalled {safety} := I5.inductFamiliesInstalled safety
+    blocks {safety} := I5.blocks safety
     mono {safety safety'} h := VEnv.addQuot_mono (wf.mono h) (hsome safety') (hsome safety) }
 
 /-- Quotient initialization preserves well-formedness and extends every

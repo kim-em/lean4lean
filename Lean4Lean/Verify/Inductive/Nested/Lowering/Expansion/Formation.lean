@@ -89,51 +89,38 @@ theorem AuxiliaryFamilySpecialization.installedContainerOfAbstractLookup
       some abstractFamily) :
     Nonempty (AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params nestedAux family H) := by
-  have hfind : prodEnv.constants.find? H.sourceName =
-      some (.inductInfo H.sourceInfo) := by
-    have hlookup := H.built.lookup
-    rw [Lean.Kernel.Environment.find?,
-      (wf.tr (safety := safety)).map_wf.find?'_eq_find?] at hlookup
-    exact hlookup
   have Haligned := (wf.tr (safety := safety)).find?_uniq
     H.built.lookup habstract
-  rcases wf.inductFamiliesInstalled H.sourceName H.sourceInfo hfind Haligned.2.1
-      with ⟨P⟩
-  have hfamily := P.alignment.familyIdx_lt
+  obtain ⟨hsourceName, ⟨P⟩⟩ := wf.inductFamiliesInstalled H.built.lookup Haligned.2.1
+  have hfamily := P.familyIdx_lt
   have habstractLookup : (ves.venv safety).constants H.sourceName =
       some (P.decl.types[P.familyIdx]'hfamily).toVConstant := by
     calc
       (ves.venv safety).constants H.sourceName =
           (ves.venv safety).constants H.sourceInfo.name :=
-        congrArg (ves.venv safety).constants P.name
+        congrArg (ves.venv safety).constants hsourceName
       _ = (ves.venv safety).constants
           (P.decl.types[P.familyIdx]'hfamily).name :=
-        congrArg (ves.venv safety).constants P.alignment.name
+        congrArg (ves.venv safety).constants P.name
       _ = some (P.decl.types[P.familyIdx]'hfamily).toVConstant :=
         installedBelow_familyLookup P.installed P.familyIdx
           hfamily
   refine ⟨{
     container := P.decl
     familyIdx := P.familyIdx
-    familyIdx_lt := P.alignment.familyIdx_lt
+    familyIdx_lt := P.familyIdx_lt
     installed := P.installed
-    lookupName := P.name
-    familyName := P.alignment.name
-    numParams := P.alignment.numParams
-    levelParams := P.alignment.levelParams
-    constructors := P.alignment.constructors
-    constructorName := ?_
+    lookupName := hsourceName
+    familyName := P.name
+    numParams := P.numParams
+    levelParams := P.levelParams
+    constructors := P.constructors
+    constructorName := P.constructorName
     familyLookup := habstractLookup
     familyTranslation := ?_
-    containerUnsafe := P.alignment.isUnsafe }⟩
-  · intro i hi
-    have htarget : i <
-        (P.decl.types[P.familyIdx]'P.alignment.familyIdx_lt).ctors.length := by
-      simpa [P.alignment.constructors] using hi
-    rcases P.alignment.constructor i htarget with ⟨C⟩
-    exact C.name
-  · exact ((wf.tr (safety := safety)).find?_uniq H.built.lookup
-      habstractLookup).2.sf_mono DefinitionSafety.unsafe_le
+    containerUnsafe := P.isUnsafe }⟩
+  exact ((wf.tr (safety := safety)).find?_uniq H.built.lookup
+    habstractLookup).2.sf_mono DefinitionSafety.unsafe_le
 
 /-- Repackage the reusable structural expression carrier into the specialized
 strictly-positive carrier used by the finite formation derivation. -/
