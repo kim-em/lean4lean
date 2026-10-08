@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.AuxRecNames
+import Lean4Lean.Verify.Inductive.Nested.RestorationTranslation
 
 /-! # Input-side avoidance of the auxiliary constructor names by the lowered rules
 
@@ -43,35 +44,6 @@ namespace Lean.Expr
 open Lean4Lean
 
 /-! ### Trailing-argument conditions at hits -/
-
-/-- `HitTrailWith heads np Q e`: in `e`, every argument after the first `np` of an
-application spine headed by a constant of `heads` satisfies `Q`. The generalization of
-`HitTrailAvoids` (without its literal clause) to an arbitrary condition. -/
-inductive HitTrailWith (heads : List Name) (np : Nat) (Q : Expr → Prop) : Expr → Prop
-  | bvar (i : Nat) : HitTrailWith heads np Q (.bvar i)
-  | fvar (fv : FVarId) : HitTrailWith heads np Q (.fvar fv)
-  | mvar (mv : MVarId) : HitTrailWith heads np Q (.mvar mv)
-  | sort (u : Level) : HitTrailWith heads np Q (.sort u)
-  | const (c : Name) (us : List Level) : HitTrailWith heads np Q (.const c us)
-  | lit (l : Literal) : HitTrailWith heads np Q (.lit l)
-  | app {f a : Expr} : HitTrailWith heads np Q f → HitTrailWith heads np Q a →
-      (∀ c us, (Expr.app f a).getAppFn = .const c us → c ∈ heads →
-        ∀ x ∈ ((Expr.app f a).getAppArgsList).drop np, Q x) →
-      HitTrailWith heads np Q (.app f a)
-  | lam {n : Name} {t b : Expr} {bi : BinderInfo} :
-      HitTrailWith heads np Q t → HitTrailWith heads np Q b →
-      HitTrailWith heads np Q (.lam n t b bi)
-  | forallE {n : Name} {t b : Expr} {bi : BinderInfo} :
-      HitTrailWith heads np Q t → HitTrailWith heads np Q b →
-      HitTrailWith heads np Q (.forallE n t b bi)
-  | letE {n : Name} {t v b : Expr} {nd : Bool} :
-      HitTrailWith heads np Q t → HitTrailWith heads np Q v →
-      HitTrailWith heads np Q b →
-      HitTrailWith heads np Q (.letE n t v b nd)
-  | mdata {m : MData} {e : Expr} : HitTrailWith heads np Q e →
-      HitTrailWith heads np Q (.mdata m e)
-  | proj {s : Name} {i : Nat} {e : Expr} : HitTrailWith heads np Q e →
-      HitTrailWith heads np Q (.proj s i e)
 
 namespace HitTrailWith
 
