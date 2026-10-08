@@ -387,9 +387,9 @@ theorem CaseRedex.result_prop_of_major_proof (henv : env.WF)
   | @iota block levels target arguments schema owner rule hl hg hc hp hleft hright ha =>
     have htarget : target ≈ .zero := by
       rcases hp.admissible with hnever | hzero
-      · obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ :=
+      · obtain ⟨base, source, sourceBlock, _, _, hcert, _, _⟩ :=
           henv.eliminator_installed hl
-        have harity := hcert.arguments_length hbase hg
+        have harity := hcert.arguments_length hg
         obtain ⟨hb, ho⟩ := hg.owned
         have hab : actual.block = block := H.block_eq.trans hb
         have hao : actual.owner = owner.val := H.owner_eq.trans ho

@@ -1,4 +1,3 @@
-import Lean4Lean.Theory.Typing.SignatureArity
 import Lean4Lean.Theory.Inductive.CaseFormation
 import Lean4Lean.Theory.Inductive.CaseReductionLemmas
 
@@ -38,37 +37,34 @@ theorem Certified.capture_specialize {schema : CaseSchema}
 /-- Typed formation fixes the index count of every constructor selected for
 this case family. The base environment must be well formed. -/
 theorem Certified.view_constructor_indices {schema : CaseSchema}
-    (H : schema.Certified base source block) (hbase : base.WF)
+    (H : schema.Certified base source block)
     (owner : Fin schema.signature.families.size)
     (index : Fin (schema.view owner).constructors.size) :
     (schema.view owner).constructors[index].indices.length =
       schema.signature.families[owner].indices.length := by
   rcases H with ⟨expanded, auxiliaries, hdata, _, _, _⟩
   obtain ⟨ctor, hctor, howner, hc⟩ := view_constructor_eq_caseConstructor index
-  obtain ⟨i, hi, hci⟩ := List.mem_iff_getElem.mp hctor
-  have hi' : i < schema.signature.constructors.size := by simpa using hi
-  have hci' : schema.signature.constructors[(⟨i, hi'⟩ : Fin schema.signature.constructors.size)] = ctor := hci
-  have harity := hdata.model.constructor_indices_length hbase hdata.expandedWF ⟨i, hi'⟩
+  have harity := hdata.model.constructorArity ctor hctor
   rw [hc]
-  simpa only [hci', howner, caseConstructor] using harity
+  simpa only [howner, caseConstructor] using harity
 
 /-- All generated rules for a registered family take the same number of
 arguments before the constructor major, including after nested restoration. -/
 theorem Certified.arguments_length {schema : CaseSchema}
     {owner : Fin schema.signature.families.size} {rule : AppliedRule}
-    (H : schema.Certified base source block) (hbase : base.WF)
+    (H : schema.Certified base source block)
     (hgen : schema.Generates key owner rule) :
     rule.application.arguments.length = schema.signature.params.length + 1 +
       (schema.view owner).constructors.size + schema.signature.families[owner].indices.length :=
   hgen.arguments_length (fun head hhead => Nat.le_of_eq (H.restoration_nparams head hhead))
-    (H.view_constructor_indices hbase owner)
+    (H.view_constructor_indices owner)
 
 /-- Two rules of the same certified case family have identical applied arity. -/
 theorem Certified.arguments_length_eq {schema : CaseSchema}
     {owner : Fin schema.signature.families.size} {rule rule' : AppliedRule}
-    (H : schema.Certified base source block) (hbase : base.WF)
+    (H : schema.Certified base source block)
     (hgen : schema.Generates key owner rule) (hgen' : schema.Generates key owner rule') :
     rule.application.arguments.length = rule'.application.arguments.length :=
-  (H.arguments_length hbase hgen).trans (H.arguments_length hbase hgen').symm
+  (H.arguments_length hgen).trans (H.arguments_length hgen').symm
 
 end Lean4Lean.InductiveSignature.CaseSchema
