@@ -318,4 +318,39 @@ validity and soundness are proved together by induction along the `VEnv.WF'` cha
   from it, with no `sorry` (axioms: `propext`, `Classical.choice`, `Quot.sound`). The statements
   of head inversion moved to `Theory/Typing/HeadInversionDefs.lean`, imported by
   `HeadSeparationModel.lean`, so that `HeadInversion.lean` can import the shape model.
-  `VEnv.WF.headInjectivity` is the remaining conjecture.
+  `VEnv.WF.headInjectivity` was the remaining conjecture; it is proved by the glued observation
+  model (`docs/inductives/PHASE1B_NOTES.md`, section 10.8).
+
+## 6. Phase 1b stage C decisions (branch `agent/verify-inductives-headinj`)
+
+The injectivity half is built on the glued observation model of `docs/inductives/PHASE1B_NOTES.md`
+(its own decisions D1-D12 are numbered there). Decisions of the stage C completion:
+
+D15 (projection validity as history validity). The soundness cases of the projection rules need
+semantic facts about each projection entry (its constructor telescope is sound, its family's
+declared type is soundly a telescope ending in the recorded sort). They come from derivations in
+the types environment of the entry's origin, so, as for rules (D11), they are provided by the
+induction along the declaration history: `Model.ProjValid env S info` (`Model/ProjValid.lean`) is
+the static facts of the entry (proved for WF environments) and the soundness in the model of
+`env` of the origin's types environment. `Model.sound` assumes `ProjValid` for the projections
+of the derivation's environment, exactly as it assumes `RuleValid`/`ElimsValid`; the final
+theorem discharges all three. Rationale: the facts are not derivable inside the soundness
+induction (the field and header derivations are not sub-derivations of the current node), and
+this is the pattern already used for rules.
+
+D16 (rules on projection-registered majors). See `PHASE1B_NOTES.md` 10.7 item 4. Rationale:
+structure eta forces constructor spines of projection-registered families to carry only field
+observations, so the rule clause's constructor-observation binding (mode AB) never fires for
+them; binding fields through projections of the major is what structure eta makes sound.
+
+D17 (static projection facts; arity from the model). `Model.ProjStatic` asks that the family is
+not a *native* constructor (`famNotNativeCtor`) rather than not a constructor at all: a
+registered structure can syntactically be listed as a constructor of a case schema certified at
+a base that does not contain it (`WF.projFamily_caseCtor`), and excluding that needs head
+inversion. The projection soundness proofs exclude constructor-clause observations of family
+spines semantically instead (their typing needs a rigid observation of a non-projection family).
+Likewise the arity and levels of a typed constructor spine of a never-zero entry
+(`ctor_spine_fam`) are read from the model (a longer spine would give the family application a
+`piDom` observation, a shorter one a missing codomain), since reading them from typing would need
+head inversion. `WF.quot_not_projection` takes the installed `Quot.lift` constant, available at
+the quotient step.

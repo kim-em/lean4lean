@@ -44,7 +44,5 @@
     "Lean.Expr.Data.looseBVarRange_le._native.bv_decide.ax_1_7",
     "_private.Lean4Lean.Verify.Expr.0.Lean.Expr.mkData_flags._native.bv_decide.ax_1_12"
   ],
-  "openProofs": [
-    "Lean4Lean.VEnv.WF.headInjectivity"
-  ]
+  "openProofs": []
 }
