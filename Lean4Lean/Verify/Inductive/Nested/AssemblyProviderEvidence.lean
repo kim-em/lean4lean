@@ -8,6 +8,7 @@ import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterValidationRun
 import Lean4Lean.Verify.Inductive.Nested.ValidationEnvironmentRegistry
 import Lean4Lean.Verify.Inductive.Nested.FinalShapes
 import Lean4Lean.Verify.Inductive.Nested.CaseEliminators
+import Lean4Lean.Verify.Inductive.Nested.ConstructorTelescopes
 
 namespace Lean4Lean
 
@@ -4818,6 +4819,19 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
     exact ⟨key, sL, auxC, hcompEl, hesEq, DC⟩
   have HcasesP : VInductBlock.EliminatorsWF P.initialEnv sourceDecl (sourceDecl.caseBlock es) := by
     rw [hinitial]; exact Hcases
+  -- the corner in the environments containing the restored constructors
+  have hcornerAt : ∀ {venv'}, E.nativeSource.envTypes ≤ venv' →
+      ProjectionCorner P.c.safety outEnv venv' ∧
+      ProjectionCorner P.c.safety E.validationEnv venv' := by
+    intro venv' hle
+    have hsourceLE : P.initialEnv ≤ E.nativeSource.envTypes :=
+      VEnv.addConstVals_le Hcore.typesAdded
+    rcases HbaseValid.corner with hch | hcert
+    · exact ⟨.inl (hch.mono (hsourceLE.trans hle)), .inl (hch.mono (hsourceLE.trans hle))⟩
+    · rw [henv, hinitial, hsafety] at hcert
+      have H := E.restoredCtorTelescopes Hsources Howners wf.envGF hcert
+      rw [hsafety]
+      exact ⟨.inr (CtorTelescopes.mono H.1 hle), .inr (CtorTelescopes.mono H.2 hle)⟩
   have HtypeValid : CheckingEnv.Valid P.c.safety E.validationEnv
       ((E.nativeSource.envCtors.addEliminators es).addProjections
         sourceDecl.projectionEntries) := by
@@ -4833,6 +4847,7 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
     exact HV.validProjected Hlower HcP Hprod Hcore Hmetadata Hsources Harity
       hempty Hrestored hvalidCore HbaseValid.projectionRegistry
       HbaseValid.recursors HbaseValid.quot hcasesWF hprojectedWF
+      (hcornerAt (VEnv.addConstVals_le Hcore.ctorsAdded)).2
   have HtypeRun : Lean4Lean.validateRestoredRecursorTypes.run
       E.validationEnv E.loweredEnv P.c.lparams P.c.safety
       E.validationFuel result
@@ -4872,7 +4887,16 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
       (by simpa [VInductDecl.typeConstants] using replay.typeValues)
       (by simpa [VInductDecl.constructorConstants] using replay.constructorValues)
       HbaseValid henv hinitial hctorNames Hsource HauxiliaryRecursors
-      replay.recursorValues
+      replay.recursorValues (hcornerAt (by
+        have h1 := canonical.typesAdded.abstract
+        rw [show _ = _ from replay.typeValues] at h1
+        have h2 : P.initialEnv.addConstVals
+            (List.map VInductiveType.toVConstVal sourceDecl.types) =
+              some E.nativeSource.envTypes := Hcore.typesAdded
+        rw [h2] at h1
+        rw [Option.some.inj h1]
+        exact canonical.ctorsAdded.le.trans
+          (VEnv.addEliminators_addProjections_le.trans canonical.recursorsAdded.le))).1
   have HruleRun : Lean4Lean.validateRestoredRecursorRules.run
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames

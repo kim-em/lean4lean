@@ -46,7 +46,7 @@ theorem VEnvs.WF.toCheckingValid
     (safety : DefinitionSafety) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice) :
     CheckingEnv.Valid safety env (ves.venv safety) :=
   wf.tr.toCheckingValid wf.hasPrimitives wf.safePrimitives
-    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (hch _)
+    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (.inl (hch _))
 
 /-- Assemble a `VEnvs` from a pointwise existential by case analysis on the
 three safety levels. -/

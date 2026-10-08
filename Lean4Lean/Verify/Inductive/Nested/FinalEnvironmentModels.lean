@@ -342,7 +342,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
   have Hvalid : CheckingEnv.Valid .safe sourceProdEnv (ves.venv .safe) :=
     (wf.tr (safety := .safe)).toCheckingValid
       (wf.hasPrimitives (safety := .safe)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (hch _)
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (.inl (hch _))
   let HactualExists : Nonempty { entries : List ConstantInfo //
       FreshConstantTrace sourceProdEnv entries outEnv } := by
     rcases H.freshTrace Hvalid.tr.map_wf with ⟨entries, Hentries⟩
@@ -364,7 +364,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
       CheckingEnv.Valid observer sourceProdEnv (ves.venv observer) :=
     (wf.tr (safety := observer)).toCheckingValid
       (wf.hasPrimitives (safety := observer)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (hch _)
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (.inl (hch _))
   have replay (observer : DefinitionSafety) :
       ∃ replayBase,
         ∃ Breplay : BlockCertificate observer sourceProdEnv
@@ -587,7 +587,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
   have Hvalid : CheckingEnv.Valid .unsafe sourceProdEnv (ves.venv .unsafe) :=
     (wf.tr (safety := .unsafe)).toCheckingValid
       (wf.hasPrimitives (safety := .unsafe)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (hch _)
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (.inl (hch _))
   let HactualExists : Nonempty { entries : List ConstantInfo //
       FreshConstantTrace sourceProdEnv entries outEnv } := by
     rcases H.freshTrace Hvalid.tr.map_wf with ⟨entries, Hentries⟩

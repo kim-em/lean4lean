@@ -485,6 +485,38 @@ theorem _root_.Lean4Lean.TelTr.toTelTrN :
         rw [e, AddInductive.constructorArity_liftLooseBVars'] at hn; omega
     | _ => simp [AddInductive.constructorArity] at hn
 
+/-! ### Certificates of the primitive constructor types -/
+
+theorem lift_const' (c : Name) (ls : List VLevel) : (VExpr.const c ls).lift = .const c ls := rfl
+
+theorem TrExprS.const_ctx {Δ Δ' : VLCtx}
+    (H : TrExprS env Us Δ (.const c us) e) : TrExprS env Us Δ' (.const c us) e := by
+  cases H with | const h1 h2 h3 => exact .const h1 h2 h3
+
+/-- A constant needs no certificate beyond its translation. -/
+theorem TelTrN.const (H : TrExprS env Us Δ (.const c us) e) :
+    TelTrN env Us (AddInductive.constructorArity (.const c us)) Δ (.const c us) e :=
+  .zero H
+
+/-- A non-dependent arrow between constants (`Nat → Nat`) is certified along its spine. -/
+theorem TelTrN.constArrow
+    (H : TrExprS env Us Δ (.forallE n (.const a as) (.const c cs) bi) e) :
+    TelTrN env Us (AddInductive.constructorArity (.forallE n (.const a as) (.const c cs) bi))
+      Δ (.forallE n (.const a as) (.const c cs) bi) e := by
+  cases H with
+  | forallE h1 h2 hd hb =>
+    have hbc := hb
+    cases hbc
+    refine .succ (.forallE h1 h2 hd hb) (.zero hb) (fun _ _ => ⟨_, (lift_const' ..).symm⟩) ?_
+    intro b₀ b₀' e₀ e₀'
+    have hb₀ : b₀ = .const c cs := by
+      cases b₀ <;> simp [Expr.liftLooseBVars'] at e₀
+      obtain ⟨rfl, rfl⟩ := e₀; rfl
+    subst hb₀
+    cases b₀' <;> simp [VExpr.lift, VExpr.liftN] at e₀'
+    obtain ⟨rfl, rfl⟩ := e₀'
+    exact .zero hb.const_ctx
+
 /-! ### The environment invariant -/
 
 /-- The certificate of one constructor: its field count is the syntactic arity of its stored type

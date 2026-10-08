@@ -138,7 +138,7 @@ theorem AddInductive.run.semanticFinalModelWF
     | nil => simp [htypes] at hnonempty
     | cons _ _ => simp [htypes]
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
-    Hclosed hctx hsize HnotPartial Hinputs).mono fun _ Hrun =>
+    Hclosed wf.envGF hctx hsize HnotPartial Hinputs).mono fun _ Hrun =>
       Hrun.extend wf hch hsource HnotPartial hnonempty
 
 /-- Complete ordinary refinement retaining the independent source judgment,
@@ -176,7 +176,7 @@ theorem AddInductive.run.semanticFinalSpecificationModelWF
     | nil => simp [htypes] at hnonempty
     | cons _ _ => simp [htypes]
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
-    Hclosed hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
+    Hclosed wf.envGF hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
       exact Hrun.extendWithSpecification wf hch hsource HnotPartial hnonempty
 
 /-- Complete ordinary `AddInductive.run` refinement at the final environment
@@ -213,7 +213,7 @@ theorem AddInductive.run.semanticFinalWF
     | nil => simp [htypes] at hnonempty
     | cons _ _ => simp [htypes]
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
-    Hclosed hctx hsize HnotPartial Hinputs).mono fun _ Hrun =>
+    Hclosed wf.envGF hctx hsize HnotPartial Hinputs).mono fun _ Hrun =>
       Hrun.extendOfQuotReady wf hch hEq hsource HnotPartial hnonempty
 
 /-- Complete ordinary refinement without projecting away the independent
@@ -253,7 +253,7 @@ theorem AddInductive.run.semanticFinalSpecificationWF
     | nil => simp [htypes] at hnonempty
     | cons _ _ => simp [htypes]
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
-    Hclosed hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
+    Hclosed wf.envGF hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
       rcases Hrun.extendWithSpecification wf hch hsource HnotPartial hnonempty with
         ⟨ves', wf', hle, Hspec⟩
       exact ⟨ves', wf', hEq.mono hle, hle, Hspec⟩

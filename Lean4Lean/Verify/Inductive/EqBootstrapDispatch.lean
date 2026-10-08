@@ -289,7 +289,7 @@ theorem AddInductive.run.eqBootstrapFinalWF
     change 0 < 1
     decide
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
-    Hclosed hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
+    Hclosed wf.envGF hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
       Hrun.extendEqBootstrap wf hch hAbsent hsafety hsource Hshape
 
 /-- Final-model boundary for the zero-auxiliary production branch reached by

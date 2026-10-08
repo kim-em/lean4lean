@@ -307,6 +307,24 @@ theorem AddInductive.declareConstructors.primitiveWF
         ∃ _ : PrimitiveDeclaredConstructorsResult H outEnv, True := by
   let mkInfo := AddInductive.constructorInfo stats c.lparams isUnsafe
   have Htranslated := Hchecked.translated H.translation
+  -- the primitive constructor types are `Bool`, `Nat` and `Nat → Nat`: certified directly
+  have hctors : H.context.venv.HasCanonicalChoice ∨
+      SourceCtorsCertified H.context.venv c.lparams indTypes.toList := by
+    refine .inr (SourceCtorsCertified.ofTranslated Htranslated ?_)
+    intro owner howner ctor hctor T hT
+    rcases Hshape with ⟨-, -, -, hbool | ⟨_, _, hnat⟩⟩
+    · rw [hbool] at howner
+      simp only [List.mem_singleton] at howner
+      subst howner
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hctor
+      rcases hctor with rfl | rfl <;> exact ⟨_, TelTrN.const hT⟩
+    · rw [hnat] at howner
+      simp only [List.mem_singleton] at howner
+      subst howner
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hctor
+      rcases hctor with rfl | rfl
+      · exact ⟨_, TelTrN.const hT⟩
+      · exact ⟨_, TelTrN.constArrow hT⟩
   have Hfold := AtomicAddConstants.ofConstructorTypes
     (allowPrimitive := c.allowPrimitive) mkInfo H.context.checking
     Htranslated VEnv.LE.rfl
@@ -504,6 +522,7 @@ theorem AddInductive.declareConstructors.primitiveWF
       rwa [H.sourceContextVEnv] at h
     let Hcontext := Hinstalled.completeContext H.context
       hprimitives hsafe hannotations howners hregistry hrecursors hquot
+      (Hinstalled.corner H.context.checking H.context.corner (Haligned.cornerSteps hctors))
     have hctorsAdded : H.context.venv.addConstVals
         decl.constructorConstants = some venvCtors := by
       rw [← hctorValues]

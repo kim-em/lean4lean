@@ -345,7 +345,7 @@ translations and typing are weakened monotonically, and the resulting target
 extends the original abstract target. -/
 theorem AddConstants.rebase
     (H : AddConstants checkSafety prodEnv base entries outProd outBase)
-    (Hvalid : CheckingEnv.ValidCore safety prodEnv largerBase)
+    (Hvalid : CheckingEnv safety prodEnv largerBase)
     (hsafety : safety ≤ checkSafety)
     (hbase : base ≤ largerBase) :
     ∃ largerOut,
@@ -362,7 +362,7 @@ theorem AddConstants.rebase
       | none => simp
       | some existing =>
         exfalso
-        rcases Hvalid.tr.find?_iff.mpr ⟨existing, hfind⟩ with
+        rcases Hvalid.find?_iff.mpr ⟨existing, hfind⟩ with
           ⟨source, hsource, _⟩
         rw [hn] at hsource
         contradiction
@@ -371,9 +371,9 @@ theorem AddConstants.rebase
         TrConstVal safety largerBase ci ci' :=
       ⟨(htr.1.sf_mono hsafety).mono hbase, htr.2⟩
     have hwfLarger : ci'.toVConstant.WF largerBase := hwf.mono hbase
-    have HvalidNext : CheckingEnv.ValidCore safety (prodHead.add ci)
+    have HvalidNext : CheckingEnv safety (prodHead.add ci)
         largerNext :=
-      Hvalid.add hn hnprim htrLarger.1 hwfLarger hlargerAdd hdelta
+      Hvalid.add hn htrLarger.1 hwfLarger hlargerAdd hdelta
     have hnext : baseNext ≤ largerNext :=
       VEnv.addConst_mono hbase hadd hlargerAdd
     rcases ih HvalidNext hnext with ⟨largerOut, Htail, hout⟩
@@ -624,7 +624,7 @@ theorem AddConstants.ofDeclareInductiveTypeInfos
           have HnextValid : CheckingEnv.Valid safety
               (env.add (.inductInfo info)) nextVEnv :=
             Hvalid.add (ci := .inductInfo info) hn hnprimHead htr.1 hwf haddHead
-              rfl trivial (RecursorInstallStep.of_not_rec nofun)
+              rfl trivial (RecursorInstallStep.of_not_rec nofun) (.of_not_ctor nofun)
           have hnextLe : sourceEnv ≤ nextVEnv :=
             hle.trans (VEnv.addConst_le haddHead)
           exact (ih HnextValid hnextLe hrest hnprimTail).mono fun outEnv Hrest => by
@@ -651,6 +651,68 @@ inductive ConstructorTypeEntries
   | cons : ConstructorListEntries (mkInfo owner) 0 owner.ctors head →
       ConstructorTypeEntries mkInfo owners tail →
       ConstructorTypeEntries mkInfo (owner :: owners) (head ++ tail)
+
+/-- Every source constructor of the families carries a telescope certificate of its type in
+`venv`. This is what a successful constructor check establishes (`checkClosedType` runs
+`checkType` on each constructor type in the empty context). -/
+def SourceCtorsCertified (venv : VEnv) (lparams : List Name) (owners : List InductiveType) :
+    Prop :=
+  ∀ owner ∈ owners, ∀ ctor ∈ owner.ctors,
+    ∃ T, TelTrN venv lparams (AddInductive.constructorArity ctor.type) [] ctor.type T
+
+theorem SourceCtorsCertified.mono (H : SourceCtorsCertified venv lparams owners)
+    (hle : venv ≤ venv') : SourceCtorsCertified venv' lparams owners :=
+  fun o ho c hc => let ⟨T, h⟩ := H o ho c hc; ⟨T, h.mono hle⟩
+
+theorem SourceCtorsCertified.ofTranslated {owners : List InductiveType}
+    {targets : List VInductiveType}
+    (Htr : List.Forall₂ (fun source target => List.Forall₂
+        (fun ctor ctor' => TrSourceConst venv lparams ctor.name ctor.type ctor')
+        source.ctors target.ctors) owners targets)
+    (h : ∀ owner ∈ owners, ∀ ctor ∈ owner.ctors, ∀ T,
+      TrExprS venv lparams [] ctor.type T →
+      ∃ T', TelTrN venv lparams (AddInductive.constructorArity ctor.type) [] ctor.type T') :
+    SourceCtorsCertified venv lparams owners := by
+  intro o ho c hc
+  obtain ⟨t, -, ht⟩ := Lean4Lean.List.Forall₂.forall_exists_l Htr o ho
+  obtain ⟨c', -, hc'⟩ := Lean4Lean.List.Forall₂.forall_exists_l ht c hc
+  exact h o ho c hc _ hc'.type
+
+theorem ConstructorListEntries.cornerSteps
+    {stats : AddInductive.InductiveStats} {lparams : List Name} {isUnsafe : Bool}
+    {owner : InductiveType} {ctors : List Constructor} {initial : Nat}
+    {entries : List (ConstantInfo × VConstVal)}
+    (H : ConstructorListEntries
+      (AddInductive.constructorInfo stats lparams isUnsafe owner) initial ctors entries)
+    (hcert : venv.HasCanonicalChoice ∨ ∀ ctor ∈ ctors,
+      ∃ T, TelTrN venv lparams (AddInductive.constructorArity ctor.type) [] ctor.type T) :
+    ∀ entry ∈ entries, CtorCornerStep safety venv entry.1 := by
+  induction H with
+  | nil => simp
+  | @cons start ctors tailEntries ctor value Htail ih =>
+    intro entry hentry
+    simp only [List.mem_cons] at hentry
+    rcases hentry with rfl | htail
+    · intro info e _
+      cases e
+      refine hcert.imp id fun h => ⟨?_, h ctor List.mem_cons_self⟩
+      rw [AddInductive.constructorInfo_numFields]; rfl
+    · exact ih (hcert.imp id fun h c hc => h c (List.mem_cons_of_mem _ hc)) entry htail
+
+theorem ConstructorTypeEntries.cornerSteps
+    {stats : AddInductive.InductiveStats} {lparams : List Name} {isUnsafe : Bool}
+    {owners : List InductiveType} {entries : List (ConstantInfo × VConstVal)}
+    (H : ConstructorTypeEntries
+      (AddInductive.constructorInfo stats lparams isUnsafe) owners entries)
+    (hcert : venv.HasCanonicalChoice ∨ SourceCtorsCertified venv lparams owners) :
+    ∀ entry ∈ entries, CtorCornerStep safety venv entry.1 := by
+  induction H with
+  | nil => simp
+  | cons Hhead Htail ih =>
+    intro entry hentry
+    rcases List.mem_append.mp hentry with hhead | htail
+    · exact Hhead.cornerSteps (hcert.imp id fun h => h _ List.mem_cons_self) entry hhead
+    · exact ih (hcert.imp id fun h o ho => h o (List.mem_cons_of_mem _ ho)) entry htail
 
 theorem ConstructorListEntries.findSource
     {initial : Nat}
@@ -770,7 +832,7 @@ theorem AddConstants.ofConstructorList
     {env : Environment} {venv sourceEnv : VEnv}
     {ctors : List Constructor} {values : List VConstVal}
     (mkInfo : Nat → Constructor → ConstructorVal)
-    (Hvalid : CheckingEnv.ValidCore safety env venv)
+    (Hvalid : CheckingEnv safety env venv)
     (Hentries : List.Forall₂
       (fun ctor ci' => TrSourceConst sourceEnv lparams ctor.name ctor.type ci')
       ctors values)
@@ -803,7 +865,7 @@ theorem AddConstants.ofConstructorList
     exact Except.WF.pure ⟨venv, [], rfl, .nil, .nil, by simp, by simp⟩
   | @cons ctor ci' ctors values Hentry _ ih =>
     rw [List.foldlM_cons]
-    simpa using (checkName.WF Hvalid.tr.map_wf ctor.name allowPrimitive).bind
+    simpa using (checkName.WF Hvalid.map_wf ctor.name allowPrimitive).bind
       fun _ hchecked => by
           have hnprimHead :
               ¬ Kernel.Environment.primitives.contains ctor.name := by
@@ -818,7 +880,7 @@ theorem AddConstants.ofConstructorList
             intro hallow ctor hctor
             exact hnprim hallow ctor (by simp [hctor])
           rcases Lean4Lean.VerifyInductive.CheckingEnv.exists_addConst
-              Hvalid.tr hchecked.1 ci'.toVConstant with
+              Hvalid hchecked.1 ci'.toVConstant with
             ⟨nextVEnv, hnext⟩
           let info := mkInfo start ctor
           have htrSource : TrSourceConst venv lparams ctor.name ctor.type ci' :=
@@ -839,9 +901,9 @@ theorem AddConstants.ofConstructorList
               ¬ Kernel.Environment.primitives.contains info.name := by
             rw [hname start ctor]
             exact hnprimHead
-          have HnextValid : CheckingEnv.ValidCore safety
+          have HnextValid : CheckingEnv safety
               (env.add (.ctorInfo info)) nextVEnv :=
-            Hvalid.add hfindInfo hnprimInfo htr.1 hwf haddHead rfl
+            Hvalid.add hfindInfo htr.1 hwf haddHead rfl
           have hnextLe : sourceEnv ≤ nextVEnv :=
             hle.trans (VEnv.addConst_le haddHead)
           exact (ih (start := start + 1) HnextValid hnextLe
@@ -876,7 +938,7 @@ theorem AddConstants.ofConstructorTypes
     {env : Environment} {venv sourceEnv : VEnv}
     {types : List InductiveType} {targets : List VInductiveType}
     (mkInfo : InductiveType → Nat → Constructor → ConstructorVal)
-    (Hvalid : CheckingEnv.ValidCore safety env venv)
+    (Hvalid : CheckingEnv safety env venv)
     (Hentries : List.Forall₂
       (fun source target => List.Forall₂
         (fun ctor ci' =>
@@ -940,14 +1002,14 @@ theorem AddConstants.ofConstructorTypes
       have validInstalled : ∀ {priorEnv nextEnv : Environment}
           {priorVEnv nextVEnv : VEnv} {entries},
           AddConstants safety priorEnv priorVEnv entries nextEnv nextVEnv →
-          CheckingEnv.ValidCore safety priorEnv priorVEnv →
-          CheckingEnv.ValidCore safety nextEnv nextVEnv := by
+          CheckingEnv safety priorEnv priorVEnv →
+          CheckingEnv safety nextEnv nextVEnv := by
         intro priorEnv nextEnv priorVEnv nextVEnv entries Hinstalled Hprior
         induction Hinstalled with
         | nil => exact Hprior
         | cons hn hnprim htr hwf hadd hdelta _ ih =>
-          exact ih (Hprior.add hn hnprim htr.1 hwf hadd hdelta)
-      have HnextValid : CheckingEnv.ValidCore safety result.2 middleVEnv := by
+          exact ih (Hprior.add hn htr.1 hwf hadd hdelta)
+      have HnextValid : CheckingEnv safety result.2 middleVEnv := by
         exact validInstalled HheadInstalled Hvalid
       have installedLe : ∀ {priorEnv nextEnv : Environment}
           {priorVEnv nextVEnv : VEnv} {entries},
@@ -981,6 +1043,40 @@ theorem AddConstants.ofConstructorTypes
               · exact hheadNind (entryInfo, entryValue) hhead value
               · exact htailNind (entryInfo, entryValue) htail value⟩
 
+/-- A lockstep installation preserves the checking relation. -/
+theorem AddConstants.checking
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hchecking : CheckingEnv safety env venv) :
+    CheckingEnv safety outEnv outVEnv := by
+  induction H with
+  | nil => exact hchecking
+  | cons hn _ htr hwf hadd hdelta _ ih =>
+    exact ih (hchecking.add hn htr.1 hwf hadd hdelta)
+
+/-- A lockstep installation preserves the projection-walk corner, given the constructor steps
+of its entries (stated in the environment before the installation). -/
+theorem AddConstants.corner
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hchecking : CheckingEnv safety env venv)
+    (hcorner : ProjectionCorner safety env venv)
+    (hsteps : ∀ entry ∈ entries, CtorCornerStep safety venv entry.1) :
+    ProjectionCorner safety outEnv outVEnv := by
+  induction H with
+  | nil => exact hcorner
+  | cons hn _ htr hwf hadd hdelta _ ih =>
+    exact ih (hchecking.add hn htr.1 hwf hadd hdelta)
+      (hcorner.add hchecking.map_wf hn (VEnv.addConst_le hadd) (hsteps _ List.mem_cons_self))
+      fun e he => (hsteps e (List.mem_cons_of_mem _ he)).mono (VEnv.addConst_le hadd)
+
+/-- An installation of no constructor needs no constructor step. -/
+theorem AddConstants.corner_of_noCtor
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hchecking : CheckingEnv safety env venv)
+    (hcorner : ProjectionCorner safety env venv)
+    (hkinds : ∀ entry ∈ entries, ∀ info : ConstructorVal, entry.1 ≠ .ctorInfo info) :
+    ProjectionCorner safety outEnv outVEnv :=
+  H.corner hchecking hcorner fun e he => .of_not_ctor (hkinds e he)
+
 /-- A lockstep installation preserves the local checking invariants. -/
 theorem AddConstants.validCore
     (H : AddConstants safety env venv entries outEnv outVEnv)
@@ -1012,7 +1108,8 @@ theorem AddConstants.valid
     have hrec : RecursorInstallStep safety env.constants venv' ci :=
       RecursorInstallStep.of_not_rec fun rec =>
         hrecs (ci, ci') (by simp) rec
-    exact ih (hvalid.add hn hnprim htr.1 hwf hadd hdelta hstep hrec)
+    exact ih (hvalid.add hn hnprim htr.1 hwf hadd hdelta hstep hrec
+      (.of_not_ctor fun info => hkinds (ci, ci') (by simp) info))
       (fun entry hentry => hkinds entry (by simp [hentry]))
       fun entry hentry => hrecs entry (by simp [hentry])
 
@@ -1037,9 +1134,10 @@ theorem AddConstants.validOfCoherent
     (howners : ConstructorOwnersPresent outEnv)
     (hregistry : ProjectionRegistryCoherent safety outEnv.constants outVEnv)
     (hrecursors : RecursorEnvCoherent safety outEnv.constants outVEnv)
-    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv) :
+    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv)
+    (hcorner : ProjectionCorner safety outEnv outVEnv) :
     CheckingEnv.Valid safety outEnv outVEnv :=
-  (H.validCore hvalid).toValid howners hregistry hrecursors hquot
+  (H.validCore hvalid).toValid howners hregistry hrecursors hquot hcorner
 
 theorem AddConstants.production
     (H : AddConstants safety env venv entries outEnv outVEnv) :

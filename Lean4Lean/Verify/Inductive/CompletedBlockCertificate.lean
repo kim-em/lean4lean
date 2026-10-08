@@ -67,9 +67,10 @@ theorem CompletedStagedBlock.valid
     (howners : ConstructorOwnersPresent outEnv)
     (hregistry : ProjectionRegistryCoherent safety outEnv.constants outVEnv)
     (hrecursors : RecursorEnvCoherent safety outEnv.constants outVEnv)
-    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv) :
+    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv)
+    (hcorner : ProjectionCorner safety outEnv outVEnv) :
     CheckingEnv.Valid safety outEnv outVEnv :=
-  (H.recursorsAdded.validCore hvalidCtors).toValid howners hregistry hrecursors hquot
+  (H.recursorsAdded.validCore hvalidCtors).toValid howners hregistry hrecursors hquot hcorner
 
 theorem CompletedStagedBlock.validCore
     (H : CompletedStagedBlock safety env venv types ctors recursors
@@ -214,7 +215,7 @@ theorem CompletedBlockCertificate.rebaseCertificate
         ctors recursors rules outEnv largerOutBase,
       outBase ≤ largerOutBase ∧ Hlarger.projections = H.projections ∧
         Hlarger.staged.eliminators = H.staged.eliminators := by
-  rcases H.staged.formationAdded.rebase Hvalid.toValidCore hsafety hbase with
+  rcases H.staged.formationAdded.rebase Hvalid.tr hsafety hbase with
     ⟨largerTypes, largerCtors, ⟨Hformation⟩, htypes, hctors⟩
   have HcheckingCtors : CheckingEnv safety H.staged.envCtors largerCtors :=
     Hformation.checking Hvalid.tr

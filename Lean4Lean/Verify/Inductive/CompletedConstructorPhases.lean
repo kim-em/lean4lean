@@ -110,7 +110,7 @@ state. -/
 theorem CompletedFormationInstallation.rebase
     (H : CompletedFormationInstallation checkSafety sourceEnv sourceVEnv
       headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv)
-    (Hvalid : CheckingEnv.ValidCore safety sourceEnv largerSource)
+    (Hvalid : CheckingEnv safety sourceEnv largerSource)
     (hsafety : safety <= checkSafety)
     (hsource : sourceVEnv <= largerSource) :
     exists largerHeader largerCtors,
@@ -121,14 +121,14 @@ theorem CompletedFormationInstallation.rebase
   | ordinary Htypes Hctors =>
       rcases Htypes.rebase Hvalid hsafety hsource with
         ⟨largerHeader, Htypes', hheader⟩
-      rcases Hctors.rebase (Htypes'.validCore Hvalid) hsafety hheader with
+      rcases Hctors.rebase (Htypes'.checking Hvalid) hsafety hheader with
         ⟨largerCtors, Hctors', hctors⟩
       exact ⟨largerHeader, largerCtors,
         ⟨.ordinary Htypes' Hctors'⟩, hheader, hctors⟩
   | primitive Htypes Hctors _Hbootstrap =>
-      rcases Htypes.rebase Hvalid.tr hsafety hsource with
+      rcases Htypes.rebase Hvalid hsafety hsource with
         ⟨largerHeader, Htypes', hheader⟩
-      rcases Hctors.rebase (Htypes'.checking Hvalid.tr) hsafety hheader with
+      rcases Hctors.rebase (Htypes'.checking Hvalid) hsafety hheader with
         ⟨largerCtors, Hctors', hctors⟩
       have Hbootstrap' : PrimitiveBootstrapInstallation largerSource
           largerCtors

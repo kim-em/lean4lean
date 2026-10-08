@@ -116,7 +116,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
   have Hrun :=
     Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSemanticWF
       env lparams nparams sourceTypes isUnsafe false fuel res
-      Hc' wf.inductivesClosed wf.constructorOwners hctx
+      Hc' wf.inductivesClosed wf.envGF wf.constructorOwners hctx
       hnonempty (inductiveSafety_notPartial isUnsafe)
       Hinputs Hsources rfl Hlower hnested
   exact Hrun.mono fun outEnv Hout => by
@@ -136,7 +136,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
       (wf.tr (safety := if isUnsafe then .unsafe else .safe)).toCheckingValid
         (wf.hasPrimitives (safety := if isUnsafe then .unsafe else .safe))
         wf.safePrimitives wf.typeAnnotationWrappers wf.constructorOwners
-        wf.projectionRegistryCoherent (hch _)
+        wf.projectionRegistryCoherent (.inl (hch _))
     let E' : NestedExactFinalRunResult res env sourceTypes
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv := {
