@@ -83,6 +83,10 @@ is exactly what the abstract model of `quotDecl` consumes (`QuotReady`); nothing
 pure replay `replayPure` on top of imports whose well-formedness and canonical `Eq` are assumed:
 imports are trusted in that mode. It does not cover the module loading of the executable's
 `replayFromImports` (`importModulesCore`, `finalizeImport`), only the replay that follows it.
+A targeted replay (`decl := some d`, replaying only the constants `d` depends on) fails unless `d`
+is a safe, non-partial source constant, and its result records that `d` was checked
+(`ReplayResult.target`); `replayFresh.WF_target` states that `d` is then present and agrees with
+the source constant. Which constants make up the dependency cone of `d` is not characterized.
 
 ### 1.3 The hypotheses
 

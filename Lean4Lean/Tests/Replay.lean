@@ -5,7 +5,9 @@ import Lean4Lean.Verify.Replay
 * `replayFresh` replays a hand-built constant table (an axiom, an inductive type, a definition,
   an inductive predicate and a theorem using them) from the empty environment: it adds the five
   declarations, and every source constant, including the constructors and recursors the kernel
-  generated, is present in the result and agrees with the source.
+  generated, is present in the result and agrees with the source. With a target `decl := some d`
+  only the dependency cone of `d` is replayed, `d` is checked, and an absent or unsafe target is
+  an error (also with an empty constant table).
 * A source constructor that differs from the generated one is rejected by the postponed
   constructor check, and a source recursor that differs is rejected by the postponed recursor
   check.
@@ -63,6 +65,23 @@ run_meta do
     check (r.numAdded == 3) s!"expected 3 declarations for the cone of d, got {r.numAdded}"
     check ((r.env.find? ``thm).isNone) "thm is outside the cone of d"
     check (!r.checked.contains ``thm) "thm is outside the cone of d"
+    check (r.checked.contains ``d) "the target d was not checked"
+  -- A target that is not a source constant is an error, also with an empty table.
+  for table in [src, {}] do
+    match replayFresh table (decl := some `missing) with
+    | .ok _ => throwError "a replay of the absent target `missing` succeeded"
+    | .error e =>
+      check (errorText e == s!"target {`missing} is not a source constant")
+        s!"unexpected error: {errorText e}"
+  -- So is an unsafe target, which the replay skips.
+  let unsafeSrc := src.insert ``d (match src[``d]! with
+    | .defnInfo v => .defnInfo { v with safety := .unsafe }
+    | ci => ci)
+  match replayFresh unsafeSrc (decl := some ``d) with
+  | .ok _ => throwError "a replay of the unsafe target d succeeded"
+  | .error e =>
+    check (errorText e == s!"target {``d} is unsafe or partial and is not replayed")
+      s!"unexpected error: {errorText e}"
 
 /-- Replay `src` with the constant `n` replaced by `f` of it, and return the error text. -/
 def replayError (src : Std.HashMap Name ConstantInfo) (n : Name)

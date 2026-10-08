@@ -382,7 +382,8 @@ theorem agreementError?_eq_none {src : Std.HashMap Name ConstantInfo} {env : Env
     · cases h
 
 /-- The outcome of a successful replay of the source constants `cfg.newConstants` into `start`
-(replaying only the dependency cone of `decl` if it is `some`). -/
+(replaying only the dependency cone of `decl` if it is `some`). The replay of a target `d` fails
+unless `d` is a safe, non-partial source constant, and then `d` itself is checked. -/
 structure ReplayResult (cfg : Config) (start : Environment) (decl : Option Name) where
   /-- The final environment. -/
   env : Environment
@@ -398,16 +399,24 @@ structure ReplayResult (cfg : Config) (start : Environment) (decl : Option Name)
   /-- Without `decl`, every safe, non-partial source constant is checked. -/
   complete : decl = none → ∀ n ci, cfg.newConstants[n]? = some ci →
     ci.isUnsafe = false → ci.isPartial = false → n ∈ checked
+  /-- With `decl := some d`, the target `d` is a source constant and is checked. -/
+  target : ∀ d, decl = some d → d ∈ checked ∧ ∃ ci, cfg.newConstants[d]? = some ci
 
 /-- The replay core: replay the source constants `cfg.newConstants` into `env`, sending them to
 the verified kernel, then compare the generated constructors and recursors with the source's,
 check quotient initialization (if `cfg.checkQuot`), and finally check that every replayed
 constant is present and agrees with the source. With `decl := some d` only the dependency cone of
-`d` is replayed. -/
+`d` is replayed; it is an error if `d` is not a safe, non-partial source constant. -/
 def replayCore {m : Type → Type} [Monad m] [MonadExceptOf ReplayError m]
     (hooks : Hooks m) (cfg : Config) (env : Environment) (decl : Option Name := none) :
     m (ReplayResult cfg env decl) := do
   let allSafe := safeNames cfg.newConstants
+  if let some d := decl then
+    match cfg.newConstants[d]? with
+    | none => throw (ReplayError.msg s!"target {d} is not a source constant")
+    | some ci =>
+      if ci.isUnsafe || ci.isPartial then
+        throw (ReplayError.msg s!"target {d} is unsafe or partial and is not replayed")
   let remaining : NameSet := allSafe.foldl (fun s n => s.insert n) ∅
   let (_, s) ← StateT.run (s := ({ env, replayed := .start rfl, remaining } :
       State cfg.fuel (· = env))) do
@@ -422,18 +431,29 @@ def replayCore {m : Type → Type} [Monad m] [MonadExceptOf ReplayError m]
   let checked := match decl with
     | none => allSafe
     | some _ => allSafe.filter fun n => !s.remaining.contains n
-  match h : agreementError? cfg.newConstants s.env checked with
-  | some e => throw e
-  | none =>
-    return {
-      env := s.env
-      numAdded := s.numAdded
-      checked
-      replayed := s.replayed
-      agree := agreementError?_eq_none h
-      complete := by
-        rintro rfl n ci hci hu hp
-        exact mem_safeNames hci hu hp }
+  let targetOk : Bool := match decl with
+    | none => true
+    | some d => checked.contains d && cfg.newConstants.contains d
+  if ht : targetOk = false then
+    throw (ReplayError.msg s!"target {decl.getD .anonymous} was not replayed")
+  else
+    match h : agreementError? cfg.newConstants s.env checked with
+    | some e => throw e
+    | none =>
+      return {
+        env := s.env
+        numAdded := s.numAdded
+        checked
+        replayed := s.replayed
+        agree := agreementError?_eq_none h
+        complete := by
+          rintro rfl n ci hci hu hp
+          exact mem_safeNames hci hu hp
+        target := by
+          rintro d rfl
+          simp only [targetOk, Bool.not_eq_false, Bool.and_eq_true, List.contains_iff_mem] at ht
+          exact ⟨ht.1, _,
+            Std.HashMap.getElem?_eq_some_getElem (Std.HashMap.mem_iff_contains.2 ht.2)⟩ }
 
 /-- The pure replay core. -/
 def replayPure (cfg : Config) (env : Environment) (decl : Option Name := none) :

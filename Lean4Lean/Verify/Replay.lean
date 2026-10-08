@@ -213,6 +213,26 @@ theorem replayFresh.WF {src : Std.HashMap Name ConstantInfo} {mainModule : Name}
   intro r _
   exact ⟨r.wf_empty rfl, fun n ci hci hu hp => r.agree n (r.complete rfl n ci hci hu hp) ci hci⟩
 
+/-- A targeted replay checked its target: `d` is a source constant, and it is present in the
+result and agrees with the source constant. -/
+theorem ReplayResult.target_agree {cfg : Config} {start : Environment} {d : Name}
+    (r : ReplayResult cfg start (some d)) :
+    ∃ ci, cfg.newConstants[d]? = some ci ∧
+      ∃ ci', r.env.find? d = some ci' ∧ (ci' == ci) = true :=
+  let ⟨hmem, ci, hci⟩ := r.target d rfl
+  ⟨ci, hci, r.agree d hmem ci hci⟩
+
+/-- **Soundness of targeted fresh replay.** If the pure replay of the dependency cone of `d` in
+`src` from the empty environment (default fuel) succeeds, the environment it built is modelled by
+well-formed abstract environments, and `d` is a source constant that is present in it and agrees
+with the source constant. -/
+theorem replayFresh.WF_target {src : Std.HashMap Name ConstantInfo} {mainModule d : Name} :
+    (replayFresh src mainModule {} (some d)).WF fun r =>
+      (∃ ves' : VEnvs, ves'.WF r.env) ∧
+      ∃ ci, src[d]? = some ci ∧ ∃ ci', r.env.find? d = some ci' ∧ (ci' == ci) = true := by
+  intro r _
+  exact ⟨r.wf_empty rfl, r.target_agree⟩
+
 /-- **Soundness of replay on top of imports.** If the pure replay of a module's constant table
 `src` into the environment `env` of its imports (default fuel, all constants) succeeds, and `env`
 is modelled by well-formed abstract environments with canonical `Eq`, then so is the environment
