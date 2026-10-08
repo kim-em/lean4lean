@@ -266,7 +266,7 @@ theorem NestedValidatedRunResult.restoredHeadsTranslate
           (right := E.production.headers.commonParameterContext.reverse)
           (by simpa using hctx)).wf
       obtain ⟨v, hv⟩ := TrExprS.toRecLevels Helim hwf hy
-      rw [abstractForallContext_instL] at hv
+      rw [VLCtx.instL_abstractForallContext] at hv
       exact ⟨v, by simpa [VLCtx.instL] using hv.mono hle⟩
     · rw [hcp]
       refine fvarScope_isDefEq hnodup (by simp [hlen, hdlen]) (by simp [hlen, hdlen, hclen]) ?_
