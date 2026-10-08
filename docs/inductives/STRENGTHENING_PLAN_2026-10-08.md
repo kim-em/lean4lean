@@ -191,3 +191,17 @@ checker-built environment satisfies by the preservation proof.
 * (I) Nested inductives install `restoreNested loweredCtor.type` while validation checks the
   original source type: a bridge between the two is required. Primitive `Bool`/`Nat`
   constructors get direct certificates.
+
+## 7. Lead decision on packaging (2026-10-08)
+
+Strengthening the Verify-side invariant `VEnvs.WF` (or conjoining a separate certificate
+predicate) is acceptable provided: (1) the certificate holds for the empty environment and is
+proved preserved by every `addDecl` path, so the conclusion returns the strengthened invariant
+and the replay iterates; (2) its content is derived from the executable's actual successful run
+(bounded constructor-prefix certificate plus exact-state replay, never re-running suffixes with
+empty caches); (3) nothing in it is a conjecture and Theory/Inductive/* is untouched; (4) the
+final statement is exactly `addDecl.WF_of_canonicalEq (wf : ves.WF env) (heq) (decl) (hdecl)`
+with the full check list green. The choice-based theorem stays intact until the new route is
+complete; if both exist at the end, the choice-free one keeps the main name and the choice version
+becomes `addDecl.WF_of_canonicalChoice`, with a docstring on the trade (weaker environment
+invariant versus an extra prelude hypothesis).
