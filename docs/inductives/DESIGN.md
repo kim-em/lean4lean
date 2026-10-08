@@ -210,6 +210,9 @@ recursor renaming. The installed block's recursors and rules are exactly the res
 generated ones. `CompiledInductive` makes the certificate a finite tree: each container used
 by a nested declaration is itself certified by an earlier `CompiledInductive`
 (`CertifiedSpecializations`), so no environment lookup can serve as provenance.
+`VInductDecl.CompilesTo env decl block` is the record that installation reads: the block's
+families, constructors and projection entries are those of the declaration, its installed
+names are distinct, and `CompiledInductive` derives the block.
 
 ### 2.3 Installation order and the abstract `AddInduct`
 
@@ -725,9 +728,6 @@ constructor, recursor or inductive type is rejected by the corresponding check.
   The ported files (`SExpr`, `NormalEq`, `ParallelReduction`, `Stratified`,
   `StratifiedUntyped`, the shape logical relation) build against the extended `VExpr`; the
   global axiom `Params.extra_pat` of `SExpr.lean` is now a hypothesis class.
-- **Legacy shape records.** `VInductDecl.CompilesTo` still carries `OrdinaryShape` and
-  `NestedShape` beside the finite compilation certificate; they are redundant and could be
-  removed.
 - **Executable cost.** `guardedIotaCheck` expands natural-number literals in nested
   constructor types, so a large literal makes it slow. Replay performance relative to `master`
   has not been profiled.

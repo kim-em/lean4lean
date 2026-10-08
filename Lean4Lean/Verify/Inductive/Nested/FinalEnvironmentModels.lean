@@ -146,7 +146,7 @@ theorem NestedFinalAssemblyCertificate.block_eq_canonicalRestoredBlock
 
 /-- The replayable block is the same source nested compilation used by the
 final independent `AddInduct` result. -/
-noncomputable def NestedFinalAssemblyCertificate.compilation
+theorem NestedFinalAssemblyCertificate.compilation
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -157,12 +157,8 @@ noncomputable def NestedFinalAssemblyCertificate.compilation
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     (C : NestedFinalAssemblyCertificate H sourceEnv decl lparams nparams
       isUnsafe safety) :
-    NestedCompilationCertificate sourceEnv decl C.blockCertificate.block := by
+    decl.CompilesTo sourceEnv C.blockCertificate.block := by
   rw [C.block_eq_canonicalRestoredBlock]
-  let Hsource : TrInductDeclCore sourceEnv lparams nparams sourceTypes
-      isUnsafe decl C.canonical.venvTypes C.canonical.venvCtors :=
-    C.sourceSemantics.core C.typesSource C.uvars C.numParams C.unsafeEq
-      C.typesAdded C.constructorsAdded
   let block : VInductBlock := { canonicalRestoredBlock decl C.primaryRecursors
     C.auxiliaryRecursors C.primaryRules C.auxiliaryRules with
       eliminators := C.canonical.eliminators }
@@ -176,17 +172,12 @@ noncomputable def NestedFinalAssemblyCertificate.compilation
     rw [← hvalues]
     exact VEnv.addConstVals_names_nodup C.canonical.combinedAtomic.abstract
   have Hcanonical := (C.realization.congr_eliminators C.canonical.eliminators).compiles
-  refine { toNestedShapeCertificate := ?_, canonical := Hcanonical }
-  exact NestedShapeCertificate.ofRestoration sourceEnv
-    C.canonical.venvTypes C.canonical.venvCtors decl block C.main C.rest
-    C.typesSource C.primaryRecursors C.auxiliaryRecursors C.primaryRules
-    C.auxiliaryRules
-    (C.sourceSemantics.primaryRecursors.recursorCertificate C.typesSource)
-    (C.primaryIotaBuild.rebaseRecursors rfl)
-    (C.primaryIota.length C.typesSource)
-    ⟨(C.auxiliarySemantics.prefix
-      (AuxiliaryRestorationPrefix.empty decl _ C.main)).guarded⟩
-    rfl rfl rfl Hsource.typesAdded Hsource.ctorsAdded rfl rfl hnames
+  exact {
+    types := rfl
+    ctors := rfl
+    projections := rfl
+    names := hnames
+    compiled := Hcanonical }
 
 theorem NestedFinalAssemblyCertificate.declWF
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -376,7 +367,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
         (by rw [hB]; rfl) (by rw [hB]; rfl) (by rw [hB]; rfl) (by rw [hB]; rfl)
     rcases B.rebaseAddInduct (valid observer) DefinitionSafety.le_safe
         (wf.mono DefinitionSafety.le_safe) C.declWF
-        C.compilation.compilesTo Hreplay with
+        C.compilation Hreplay with
       ⟨replayBase, Breplay, hprojections, Habstract, hout, heliminators⟩
     have HcheckingCanonical : CheckingEnv observer C.canonicalProdEnv
         replayBase := (Breplay.staged.validCore (valid observer).toValidCore).tr

@@ -945,13 +945,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.finalEvidenceOfRecursorTrace
     recursor := Hrecursor.recursor
     rules := rules
     translated := Hrecursor.translated
-    rulesLength := Hlength
-    guarded := by
-      intro i _hsource _hrestored habstract _Hrestoration
-      have hmember : rules[i] ∈ rules := List.getElem_mem habstract
-      exact (HrulesGuarded rules[i] hmember).congrRecursors (by
-        intro name
-        rw [Hnames]) }
+    rulesLength := Hlength }
   exact ⟨⟨{
     semantics := Hsemantics
     recursorWF := Hrecursor.wf
@@ -973,10 +967,6 @@ def RestoredAuxiliaryStepShape.rebaseBlock
   rules := H.rules
   translated := H.translated
   rulesLength := H.rulesLength
-  guarded := by
-    intro i hsource hrestored habstract Hrestoration
-    exact (H.guarded i hsource hrestored habstract Hrestoration).congrRecursors
-      Hnames
 
 /-- Reindex a completed auxiliary semantic/WF fold across blocks with the
 same recursor-name support.  This is useful because the final rule list is an

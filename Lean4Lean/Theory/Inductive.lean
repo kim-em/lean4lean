@@ -3,113 +3,18 @@ import Lean4Lean.Theory.Inductive.CaseFormation
 
 namespace Lean4Lean
 
-/-- Legacy shape facts retained during proof migration. These constrain names,
-arities, and ordered coverage, but leave motive/minor domains and equation
-syntax underspecified. They cannot justify installation by themselves. -/
-structure VInductDecl.OrdinaryShape
+/-- Abstract compilation, separate from the executable compiler. The block
+lays out the declaration's families, constructors and projections, its
+installed names are distinct, and the shared finite derivation
+`CompiledInductive` (ordinary compilation being its zero-specialization case)
+generates the block. -/
+structure VInductDecl.CompilesTo
     (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Prop where
   types : block.types = decl.typeConstants
   ctors : block.ctors = decl.constructorConstants
   projections : block.projections = decl.projectionEntries
-  recursors : List.Forall₂ (fun type recursor =>
-    Nonempty (decl.RecursorShape type recursor))
-    decl.types block.recursors
-  rules : ∃ envTypes envCtors,
-    env.addConstVals block.types = some envTypes ∧
-    envTypes.addConstVals block.ctors = some envCtors ∧
-    List.Forall₂ (fun owned rule =>
-      Nonempty (decl.IotaRule
-        ((envCtors.addEliminators block.eliminators).addProjections block.projections)
-        block owned.1 owned.2 rule))
-      decl.ownedConstructors block.rules
-  names : List.Nodup ((block.types ++ block.ctors ++ block.recursors).map (·.name))
-
-/-- Ordinary installation requires both its direct generator and the shared
-finite compilation derivation. Legacy shape facts remain available during
-proof migration, but do not justify installation by themselves. -/
-structure VInductDecl.OrdinaryCompilation
-    (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Prop
-    extends VInductDecl.OrdinaryShape env decl block where
-  canonical : InductiveSignature.Compiles env decl block
-  finite : CompiledInductive env decl block
-
-/-- Legacy nested shape facts used by the proof migration. Auxiliary RHS
-guardedness does not fix equation syntax; this record cannot justify an
-installation without the independent finite compilation derivation. -/
-structure VInductDecl.NestedShape
-    (env : VEnv) (decl : VInductDecl) (block : VInductBlock) where
-  main : VInductiveType
-  rest : List VInductiveType
-  types_source : decl.types = main :: rest
-  types : block.types = decl.typeConstants
-  ctors : block.ctors = decl.constructorConstants
-  projections : block.projections = decl.projectionEntries
-  primaryRecursors : List VConstVal
-  auxiliaryRecursors : List VConstVal
-  recursors_eq : block.recursors = primaryRecursors ++ auxiliaryRecursors
-  primary_recursors : List.Forall₂ (fun type recursor =>
-    Nonempty (decl.NestedRecursorShape type recursor))
-    decl.types primaryRecursors
-  primaryRules : List VDefEq
-  auxiliaryRules : List VDefEq
-  rules_eq : block.rules = primaryRules ++ auxiliaryRules
-  primary_rules : ∃ envTypes envCtors,
-    env.addConstVals block.types = some envTypes ∧
-    envTypes.addConstVals block.ctors = some envCtors ∧
-    List.Forall₂ (fun owned rule =>
-      Nonempty (decl.NestedIotaRule block owned.1 owned.2 rule))
-      decl.ownedConstructors primaryRules
-  auxiliary_guarded : ∀ rule ∈ auxiliaryRules,
-    rule.rhs.GuardedRuleRhs (block.recursors.map (·.name))
-  names : List.Nodup ((block.types ++ block.ctors ++ block.recursors).map (·.name))
-
-/-- Only a finite, canonically generated nested derivation can justify
-installation. Legacy shape evidence is retained for downstream proof migration. -/
-structure VInductDecl.NestedCompilation
-    (env : VEnv) (decl : VInductDecl) (block : VInductBlock)
-    extends VInductDecl.NestedShape env decl block where
-  canonical : CompiledInductive env decl block
-
-/-- Abstract compilation, separate from the executable compiler. Both paths
-require the shared finite derivation; ordinary compilation also retains its
-direct generation witness for downstream proofs. -/
-inductive VInductDecl.CompilesTo (env : VEnv) : VInductDecl → VInductBlock → Prop
-  | ordinary : VInductDecl.OrdinaryCompilation env decl block →
-      VInductDecl.CompilesTo env decl block
-  | nested : VInductDecl.NestedCompilation env decl block →
-      VInductDecl.CompilesTo env decl block
-
-/-- Both installation paths expose the same finite generation judgment. -/
-theorem VInductDecl.CompilesTo.compiled
-    (H : VInductDecl.CompilesTo env decl block) : CompiledInductive env decl block := by
-  cases H with
-  | ordinary H => exact H.finite
-  | nested H => exact H.canonical
-
-theorem VInductDecl.OrdinaryShape.mono
-    {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
-    (henv : env ≤ env')
-    (Hblock : block.WF env')
-    (H : decl.OrdinaryShape env block) :
-    decl.OrdinaryShape env' block := by
-  rcases H.rules with
-    ⟨oldTypes, oldCtors, holdTypes, holdCtors, holdRules⟩
-  rcases Hblock with
-    ⟨envTypes, envCtors, _envRecursors, htypes, hctors, _hrecs, _⟩
-  have htypesLE := VEnv.addConstVals_mono henv holdTypes htypes
-  have hctorsLE := VEnv.addConstVals_mono htypesLE holdCtors hctors
-  exact { H with
-    rules := ⟨envTypes, envCtors, htypes, hctors,
-      Lean4Lean.List.Forall₂.imp
-      (fun _ _ h => let ⟨rule⟩ := h;
-        ⟨rule.mono (VEnv.addProjections_mono (VEnv.addEliminators_mono hctorsLE))⟩)
-      holdRules⟩ }
-
-theorem InductiveSignature.Instance.RecursiveTypesWF.mono {s : InductiveSignature}
-    {g : InductiveSignature.Instance s} {env env' : VEnv}
-    (H : g.RecursiveTypesWF env) (hle : env ≤ env') :
-    g.RecursiveTypesWF env' :=
-  fun index j hj => (H index j hj).mono hle
+  names : ((block.types ++ block.ctors ++ block.recursors).map (·.name)).Nodup
+  compiled : CompiledInductive env decl block
 
 theorem InductiveSignature.FamilyTypesWF.mono {s : InductiveSignature}
     {env env' : VEnv} {uvars : Nat}
@@ -140,17 +45,6 @@ theorem InductiveSignature.Models.mono
       exact ⟨normalized,
         hnormal.mono (VEnv.addConstVals_mono henv htypesPos htypes), hshape⟩
 
-theorem InductiveSignature.Instance.Admissible.mono
-    {s : InductiveSignature} {g : s.Instance} {env env' : VEnv}
-    (H : g.Admissible env) (henv : env ≤ env') : g.Admissible env' := by
-  refine { H with elimination := ?_ }
-  rcases H.elimination with h | h | ⟨⟨hn, hc, hfields⟩, hfree⟩
-  · exact .inl h
-  · exact .inr (.inl h)
-  · refine .inr (.inr ⟨⟨hn, hc, ?_⟩, hfree⟩)
-    intro ctor hctor i hi
-    exact (hfields ctor hctor i hi).imp (fun h => h.mono henv) id
-
 theorem VInductDecl.OwnCaseEliminators.mono {env env' envTypes' : VEnv} {decl : VInductDecl}
     {es : List (Name × InductiveSignature.CaseSchema)} (H : decl.OwnCaseEliminators env es)
     (henv : env ≤ env') (htypes : env'.addConstVals decl.typeConstants = some envTypes') :
@@ -158,85 +52,12 @@ theorem VInductDecl.OwnCaseEliminators.mono {env env' envTypes' : VEnv} {decl : 
   let ⟨hr, ho, hm⟩ := H p hp
   ⟨hr, ho, hm.mono henv htypes⟩
 
-theorem InductiveSignature.Compiles.mono
-    {env env' envTypes' envCtors' : VEnv} {decl : VInductDecl} {block : VInductBlock}
-    (H : Compiles env decl block) (henv : env ≤ env')
-    (htypes : env'.addConstVals decl.typeConstants = some envTypes')
-    (hctors : envTypes'.addConstVals decl.constructorConstants = some envCtors') :
-    Compiles env' decl block := by
-  rcases H.generated with
-    ⟨s, g, envTypes, hmodel, htypesOld, hadmissible, ⟨envCtors, es, hctorsOld, hes, hrec, hfam⟩,
-      hrest⟩
-  have htypesLE := VEnv.addConstVals_mono henv htypesOld htypes
-  have hprojLE := VEnv.addProjections_mono (entries := decl.projectionEntries)
-    (VEnv.addEliminators_mono (es := es) (VEnv.addConstVals_mono htypesLE hctorsOld hctors))
-  exact ⟨s, g, envTypes', hmodel.mono henv htypes, htypes,
-    hadmissible.mono htypesLE,
-    ⟨envCtors', es, hctors, hes.mono henv htypes, hrec.mono hprojLE, hfam.mono hprojLE⟩, hrest⟩
-
-theorem VInductDecl.OrdinaryCompilation.mono
-    {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
-    (henv : env ≤ env') (Hblock : block.WF env')
-    (H : decl.OrdinaryCompilation env block) :
-    decl.OrdinaryCompilation env' block := by
-  have hfinite := H.finite.mono henv Hblock
-  rcases Hblock with ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrest⟩
-  refine { H.toOrdinaryShape.mono henv
-      ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrest⟩ with
-    canonical := H.canonical.mono (envTypes' := envTypes) (envCtors' := envCtors) henv ?_ ?_
-    finite := hfinite }
-  · simpa [H.types] using htypes
-  · simpa [H.ctors] using hctors
-
 theorem VInductDecl.CompilesTo.mono
     {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
     (henv : env ≤ env')
     (Hblock : block.WF env')
-    (H : decl.CompilesTo env block) : decl.CompilesTo env' block := by
-  cases H with
-  | ordinary H => exact .ordinary (H.mono henv Hblock)
-  | nested H =>
-    have hcanonical := H.canonical.mono henv Hblock
-    rcases H.primary_rules with
-      ⟨_oldTypes, _oldCtors, _holdTypes, _holdCtors, holdRules⟩
-    rcases Hblock with
-      ⟨envTypes, envCtors, _envRecursors, htypes, hctors, _hrecs, _⟩
-    exact .nested { H with
-      canonical := hcanonical
-      primary_rules := ⟨envTypes, envCtors, htypes, hctors,
-        holdRules⟩ }
-
-theorem VInductDecl.CompilesTo.types
-    {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
-    (H : decl.CompilesTo env block) :
-    block.types = decl.typeConstants := by
-  cases H with
-  | ordinary H => exact H.types
-  | nested H => exact H.types
-
-theorem VInductDecl.CompilesTo.ctors
-    {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
-    (H : decl.CompilesTo env block) :
-    block.ctors = decl.constructorConstants := by
-  cases H with
-  | ordinary H => exact H.ctors
-  | nested H => exact H.ctors
-
-theorem VInductDecl.CompilesTo.projections
-    {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
-    (H : decl.CompilesTo env block) :
-    block.projections = decl.projectionEntries := by
-  cases H with
-  | ordinary H => exact H.projections
-  | nested H => exact H.projections
-
-theorem VInductDecl.CompilesTo.names
-    {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
-    (H : decl.CompilesTo env block) :
-    ((block.types ++ block.ctors ++ block.recursors).map (·.name)).Nodup := by
-  cases H with
-  | ordinary H => exact H.names
-  | nested H => exact H.names
+    (H : decl.CompilesTo env block) : decl.CompilesTo env' block :=
+  { H with compiled := H.compiled.mono henv Hblock }
 
 theorem VInductDecl.CompilesTo.sourceNames
     {env : VEnv} {decl : VInductDecl} {block : VInductBlock}

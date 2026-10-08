@@ -13,52 +13,10 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Installing an operationally restored auxiliary recursor advances the
-independent auxiliary-name certificate. Translation identifies the production
-`RecursorVal` name with the abstract constant name; no semantic claim about
-its restored rules is hidden in this naming step. -/
-theorem AuxiliaryRestorationPrefix.pushRestoredRecursor
-    (H : AuxiliaryRestorationPrefix decl block main recursors rules)
-    (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
-      oldRecName newRecName oldInfo newInfo)
-    (Htr : TrConstVal safety trEnv (.recInfo newInfo) recursor) :
-    AuxiliaryRestorationPrefix decl block main
-      (recursors ++ [recursor]) rules := by
-  exact H.pushRecursor
-
-/-- Restored-rule guardedness is deliberately supplied independently of
-`RuleRestoration`: the latter is a syntactic executable refinement, whereas
-this premise is the legacy shape fact; canonical compilation separately fixes the whole equation. -/
-theorem AuxiliaryRestorationPrefix.appendRestoredRules
-    (H : AuxiliaryRestorationPrefix decl block main recursors rules)
-    (Hrestore : RulesRestoration result prodEnv auxRec oldRecName newRecName
-      sourceRules restoredRules)
-    (htranslated : abstractRules.length = restoredRules.length)
-    (hguarded : ∀ i (hsource : i < sourceRules.length)
-      (hrestored : i < restoredRules.length)
-      (habstract : i < abstractRules.length),
-      RuleRestoration result prodEnv auxRec oldRecName newRecName
-        sourceRules[i] restoredRules[i] →
-      abstractRules[i].rhs.GuardedRuleRhs
-        (block.recursors.map (·.name))) :
-    AuxiliaryRestorationPrefix decl block main recursors
-      (rules ++ abstractRules) := by
-  apply H.appendRules
-  intro rule hrule
-  rcases List.mem_iff_getElem.mp hrule with ⟨i, hi, rfl⟩
-  have hrestored : i < restoredRules.length := by
-    rw [← htranslated]
-    simpa using hi
-  have hsource : i < sourceRules.length := by
-    rw [← Hrestore.length]
-    exact hrestored
-  have Hentry := Hrestore.entry i hsource hrestored
-  exact hguarded i hsource hrestored hi Hentry
-
-/-- Legacy shape of one operational auxiliary recursor step. Translation fixes
-the recursor constant, while the abstract rule batch has only its length and
-RHS guardedness constrained. This record cannot justify installing equations;
-the stronger final producer result supplies finite canonical compilation. -/
+/-- One operational auxiliary recursor restoration step: the translated
+recursor constant and the abstract rule batch of the step, of the restored
+length. The record fixes no equation syntax; the final producer result
+supplies the finite canonical compilation of the rules. -/
 structure RestoredAuxiliaryStepShape
     (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
     (safety : DefinitionSafety) (trEnv : VEnv)
@@ -70,27 +28,8 @@ structure RestoredAuxiliaryStepShape
   translated : TrConstVal safety trEnv
     (.recInfo Hstep.restored.newInfo) recursor
   rulesLength : rules.length = Hstep.restored.newInfo.rules.length
-  guarded : ∀ i (hsource : i < Hstep.oldInfo.rules.length)
-    (hrestored : i < Hstep.restored.newInfo.rules.length)
-    (habstract : i < rules.length),
-    RuleRestoration result loweredEnv auxRec oldRecName
-      Hstep.restored.newRecName Hstep.oldInfo.rules[i]
-      Hstep.restored.newInfo.rules[i] →
-    rules[i].rhs.GuardedRuleRhs (block.recursors.map (·.name))
 
-theorem RestoredAuxiliaryStepShape.advance
-    (H : RestoredAuxiliaryStepShape decl block main safety trEnv Hstep
-      priorRecursors)
-    (Hprefix : AuxiliaryRestorationPrefix decl block main priorRecursors
-      priorRules) :
-    AuxiliaryRestorationPrefix decl block main
-      (priorRecursors ++ [H.recursor]) (priorRules ++ H.rules) := by
-  have Hrecursor := Hprefix.pushRestoredRecursor
-    Hstep.restored.restoration H.translated
-  exact Hrecursor.appendRestoredRules Hstep.restored.restoration.rules
-    H.rulesLength H.guarded
-
-/-- Trace-aligned legacy shape of an auxiliary restoration fold. The chosen
+/-- Trace-aligned steps of an auxiliary restoration fold. The chosen
 rule batches are retained explicitly, but this judgment alone does not
 constrain their left-hand sides or establish their concrete realization. -/
 inductive RestoredAuxiliaryShapeTrace
@@ -121,17 +60,6 @@ inductive RestoredAuxiliaryShapeTrace
       RestoredAuxiliaryShapeTrace decl block main safety trEnv
         (.cons Hstep Htail) priorRecursors priorRules
           finalRecursors finalRules
-
-theorem RestoredAuxiliaryShapeTrace.prefix
-    (H : RestoredAuxiliaryShapeTrace decl block main safety trEnv Htrace
-      priorRecursors priorRules finalRecursors finalRules)
-    (Hprefix : AuxiliaryRestorationPrefix decl block main priorRecursors
-      priorRules) :
-    AuxiliaryRestorationPrefix decl block main finalRecursors finalRules := by
-  induction H with
-  | nil => exact Hprefix
-  | cons Hstep Htail Hsemantic Hrest ih =>
-    exact ih (Hsemantic.advance Hprefix)
 
 /-- Semantic payload for one restored primary recursor. -/
 structure RestoredPrimaryRecursorSemantics
@@ -184,56 +112,6 @@ structure SourcePrimaryRecursorRealization
   source : SourcePrimaryRecursorSemantics sourceDecl sourceOwner canonicalEnv
   recursor_eq : source.recursor = recursor
   refinement : RestoredPrimaryRecursorRefinement Hstep canonicalEnv recursor
-
-inductive RestoredPrimaryRecursorSemanticTrace
-    (decl : VInductDecl) (safety : DefinitionSafety)
-    (canonicalEnv : VEnv) :
-    ∀ {types sourceProdEnv targetProdEnv},
-      StateForMTrace
-        (RestoredInductiveStep result loweredEnv auxRec allIndNames)
-        types sourceProdEnv targetProdEnv →
-      List VInductiveType → List VConstVal → Prop
-  | nil (sourceProdEnv : Environment) :
-      RestoredPrimaryRecursorSemanticTrace decl safety canonicalEnv
-        (StateForMTrace.nil (P :=
-          RestoredInductiveStep result loweredEnv auxRec allIndNames)
-          (source := sourceProdEnv)) [] []
-  | cons
-      (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
-        indType sourceProdEnv middleProdEnv)
-      (Htail : StateForMTrace
-        (RestoredInductiveStep result loweredEnv auxRec allIndNames)
-        types middleProdEnv targetProdEnv)
-      (Hsemantic : RestoredPrimaryRecursorSemantics decl owner safety
-        Hstep.restored.recursor canonicalEnv)
-      (Hrest : RestoredPrimaryRecursorSemanticTrace decl safety canonicalEnv
-        Htail owners recursors) :
-      RestoredPrimaryRecursorSemanticTrace decl safety canonicalEnv
-        (.cons Hstep Htail) (owner :: owners)
-        (Hsemantic.recursor :: recursors)
-
-theorem RestoredPrimaryRecursorSemanticTrace.forall₂
-    (H : RestoredPrimaryRecursorSemanticTrace decl safety canonicalEnv
-      Htrace owners recursors) :
-    List.Forall₂ (fun owner recursor =>
-      Nonempty (decl.NestedRecursorShape owner recursor)) owners recursors := by
-  induction H with
-  | nil => exact .nil
-  | cons Hstep Htail Hsemantic Hrest ih =>
-    exact .cons Hsemantic.shape ih
-
-theorem RestoredPrimaryRecursorSemanticTrace.recursorCertificate
-    (H : RestoredPrimaryRecursorSemanticTrace decl safety canonicalEnv
-      Htrace owners recursors)
-    (htypes : decl.types = owners) :
-    NestedRecursorCertificate decl recursors := by
-  have Hshapes := H.forall₂
-  rw [← htypes] at Hshapes
-  refine {
-    length := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hshapes |>.symm
-    shapes := ?_ }
-  intro i htype hrec
-  exact Lean4Lean.VerifyInductive.List.Forall₂.getElem Hshapes i htype hrec
 
 /-- Source semantics for the inductive families in one restoration trace. -/
 inductive RestoredSourceInductiveSemanticTrace
@@ -337,16 +215,6 @@ theorem RestoredSourceInductiveSemanticTrace.constructorConstantsWF
   rcases Lean4Lean.List.Forall₂.forall_exists_r Howner.ctors ci hctor with
     ⟨_sourceCtor, _hsourceCtor, Hctor⟩
   exact Hctor.wf
-
-theorem RestoredSourceInductiveSemanticTrace.primaryRecursors
-    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
-      envTypes envCtors Htrace owners recursors) :
-    RestoredPrimaryRecursorSemanticTrace decl safety envCtors Htrace owners
-      recursors := by
-  induction H with
-  | nil => exact .nil _
-  | cons Hstep Htail Hheader Hconstructors Hrecursor Hrest ih =>
-    exact .cons Hstep Htail Hrecursor ih
 
 /-- Primary restored recursors are typed in the canonical environment that
 already contains every mutual constructor. -/

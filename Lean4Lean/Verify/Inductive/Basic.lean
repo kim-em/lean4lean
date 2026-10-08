@@ -1539,11 +1539,6 @@ theorem RecursorMotiveTelescope.applyMajorTyped
   simpa [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go] using
     VExpr.getAppFnArgs_mkApps (.bvar index) args
 
-theorem VExpr.IsFieldApp.mkApps
-    (hfield : field ∈ fieldVars) (args : List VExpr) :
-    (VExpr.mkApps (.bvar (field + depth)) args).IsFieldApp fieldVars depth := by
-  exact ⟨field, hfield, args, VExpr.getAppFnArgs_mkApps_bvar _ _⟩
-
 theorem VExpr.lift'_mkApps
     (fn : VExpr) (args : List VExpr) (shift : Lift) :
     (VExpr.mkApps fn args).lift' shift =
@@ -1553,29 +1548,6 @@ theorem VExpr.lift'_mkApps
   | nil => rfl
   | cons arg args ih =>
     simpa [VExpr.mkApps] using ih (.app fn arg)
-
-theorem VExpr.IsFieldApp.lift
-    {e : VExpr}
-    (H : e.IsFieldApp fieldVars depth) (n : Nat) :
-    (e.liftN n 0).IsFieldApp fieldVars (depth + n) := by
-  rcases H with ⟨field, hfield, args, hspine⟩
-  have hrebuild := VExpr.mkApps_getAppFnArgs e
-  rw [hspine] at hrebuild
-  rw [← hrebuild, VExpr.liftN_mkApps]
-  have hhead : (VExpr.bvar (field + depth)).liftN n 0 =
-      .bvar (field + (depth + n)) := by
-    simp [VExpr.liftN, liftVar]
-    omega
-  rw [hhead]
-  exact VExpr.IsFieldApp.mkApps hfield _
-
-theorem VExpr.IsFieldApp.appendApps
-    {e : VExpr}
-    (H : e.IsFieldApp fieldVars depth) (more : List VExpr) :
-    (VExpr.mkApps e more).IsFieldApp fieldVars depth := by
-  rcases H with ⟨field, hfield, args, hspine⟩
-  refine ⟨field, hfield, args ++ more, ?_⟩
-  simpa [hspine] using VExpr.getAppFnArgs_mkApps e more
 
 /-- The guarded-iota judgment follows source-visible constant support.
 Primitive projection nodes contribute the support of their source major. -/

@@ -306,10 +306,7 @@ theorem RestoredAuxiliaryFinalWFTrace.replaceRules
       translated := Hsemantic.translated
       rulesLength := by
         rw [List.length_take, ← Hsemantic.rulesLength]
-        omega
-      guarded := by
-        intro i _ _ habstract _
-        exact Hguard _ (List.mem_of_mem_take (List.getElem_mem habstract)) }
+        omega }
     obtain ⟨Hrest', Hfinal'⟩ := Hfinal.replaceRules block' (priorRules' ++ added.take m)
       (added.drop m) final'
       (by rw [hfinal', List.append_assoc, List.take_append_drop])

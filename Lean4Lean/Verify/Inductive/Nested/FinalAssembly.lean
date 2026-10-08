@@ -518,10 +518,9 @@ noncomputable def NestedFinalAssemblyCertificate.finalEnvironment
     addInduct := ?_ }
   exact H.addInductOfStagedInstallation
     C.canonical.venvTypes C.canonical.venvCtors
-    C.main C.rest C.typesSource C.primaryRecursors C.auxiliaryRecursors
-    C.primaryRules C.auxiliaryRules C.canonical.eliminators C.sourceSemantics.primaryRecursors
-    (C.primaryIotaBuild.rebaseRecursors rfl) (C.primaryIota.length C.typesSource)
-    C.auxiliarySemantics (C.realization.congr_eliminators C.canonical.eliminators).compiles
+    C.primaryRecursors C.auxiliaryRecursors
+    C.primaryRules C.auxiliaryRules C.canonical.eliminators
+    (C.realization.congr_eliminators C.canonical.eliminators).compiles
     C.formationAssembly.formation Hsource C.sourceNonempty
     (by
       rw [← C.recursorValues]

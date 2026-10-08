@@ -8,8 +8,8 @@ derivation. The chosen family fixes both the restoration heads and the entire
 ordered constructor list. The normalized expanded signature determines every
 recursor and equation; restoration accepts no independent equation templates.
 
-This is the replacement specification. The legacy `CompilesTo` interface is
-retained separately while its producers are migrated.
+`VInductDecl.CompilesTo` exposes this derivation together with the block
+layout and name uniqueness read by installation.
 -/
 
 namespace Lean4Lean
