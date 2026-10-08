@@ -129,8 +129,18 @@ state above. Recorded here with the lead's position and the actions taken:
    soundness in environments containing the canonical prelude declarations.
    Decision (2026-10-08): keep the hypothesis; the branch is buildable with
    hypotheses `WF`, `HasCanonicalEq` (unused), `HasCanonicalChoice`,
-   `IsModelled`, and not with fewer; removing choice is recorded as future
-   work, not an obligation of this branch.
+   `IsModelled`, and not with fewer. Because the goal's rules say an
+   obstacle means redesign and continue, route (b) is RELAUNCHED
+   (2026-10-08) as a research effort in `lean4lean-strength`, branch
+   `agent/verify-inductives-strengthening` off the mainline: target the
+   strengthening theorem (or the one-binder corner form) with the tools the
+   earlier attempts lacked (head inversion / unique typing for every WF
+   environment, `WF.church_rosser` under canonical `Eq`), following
+   BASE_OBLIGATIONS_DESIGN.md §3 and STRENGTHENING_NOTES.md, documenting
+   every failed measure for Mario. If it succeeds, `hch` is deleted from
+   `addDecl.WF_of_canonicalEq`. Astra's estimate is weeks to months with
+   considerable uncertainty; Kim may stop this effort, since the theorem
+   under the choice hypothesis is complete.
 2. Item (1) asks for no `sorry` anywhere under `Lean4Lean/`; the Experimental
    library has 58 in Mario's prototypes (see the decision above). The goal's
    own premise ("the only sorries, all in Lean4Lean/Theory/Typing") did not
@@ -156,6 +166,10 @@ state above. Recorded here with the lead's position and the actions taken:
    `IsDefEqLift.subst`: strengthening for the prototype calculus, the latter
    equivalent to it). Statements were not changed. The remaining 56 are
    therefore not closable without rewriting Mario's prototypes.
+   (c) `FullStep.strip` is proved ON THIS BRANCH:
+   Theory/Typing/LevelledReduction.lean:4687 (`Lean4Lean.VEnv.FullStep.strip`),
+   axioms `propext`, `Classical.choice`, `Quot.sound` only; the cr branch is
+   an ancestor of the mainline HEAD. Verified by the lead on 2026-10-08.
 3. Item (b) asked for `strengthening_of_canonicalEq` to be proved; it was
    removed by the E1 redesign. The rules say a precisely stated missing
    metatheorem is an obstacle that means redesign; the missing metatheorem is
