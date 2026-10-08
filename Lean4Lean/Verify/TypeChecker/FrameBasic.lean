@@ -27,7 +27,7 @@ theorem GhostRel.env_eq {c₁ c₂ : Context} (h : GhostRel G c₁ c₂) : c₁.
 theorem GhostRel.withLCtx {c₁ c₂ : Context} (h : GhostRel G c₁ c₂) {l₁ l₂ : LocalContext}
     (hf : ∀ ⦃fv⦄, ¬ G fv → (l₁.find? fv).map (·.setIndex 0) = (l₂.find? fv).map (·.setIndex 0))
     (hd : ∀ ⦃fv d⦄, l₂.find? fv = some d →
-      GF G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GF G v)
+      GhostFree G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GhostFree G v)
     (hw₁ : l₁.fvarIdToDecl.WF) (hw₂ : l₂.fvarIdToDecl.WF) :
     GhostRel G { c₁ with lctx := l₁ } { c₂ with lctx := l₂ } where
   eq := by have := h.eq; revert this; cases c₁; cases c₂; simp +contextual
@@ -46,7 +46,7 @@ theorem find?_mkLetDecl' {l : LocalContext} {fv fv' : FVarId} {name : Name} {ty 
   exact hwf.find?_insert
 
 theorem GhostRel.mkLocalDecl {c₁ c₂ : Context} {id : FVarId} (h : GhostRel G c₁ c₂)
-    (hty : GF G ty) :
+    (hty : GhostFree G ty) :
     GhostRel G { c₁ with lctx := c₁.lctx.mkLocalDecl id name ty bi }
       { c₂ with lctx := c₂.lctx.mkLocalDecl id name ty bi } := by
   refine h.withLCtx (fun fv hfv => ?_) (fun fv d hd => ?_)
@@ -62,7 +62,7 @@ theorem GhostRel.mkLocalDecl {c₁ c₂ : Context} {id : FVarId} (h : GhostRel G
     · exact h.decls hd
 
 theorem GhostRel.mkLetDecl {c₁ c₂ : Context} {id : FVarId} (h : GhostRel G c₁ c₂)
-    (hty : GF G ty) (hval : GF G val) :
+    (hty : GhostFree G ty) (hval : GhostFree G val) :
     GhostRel G { c₁ with lctx := c₁.lctx.mkLetDecl id name ty val }
       { c₂ with lctx := c₂.lctx.mkLetDecl id name ty val } := by
   refine h.withLCtx (fun fv hfv => ?_) (fun fv d hd => ?_)
@@ -111,7 +111,7 @@ theorem M.Framed.throw {R} : M.Framed G (throw e : M α) R := by
 theorem M.Framed.getEnv : M.Framed G TypeChecker.getEnv fun _ => True := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨by rw [hr.env_eq]; rfl, trivial, hs, .rfl⟩
 
-theorem M.Framed.getEnv' : M.Framed G TypeChecker.getEnv (EnvGF G) := by
+theorem M.Framed.getEnv' : M.Framed G TypeChecker.getEnv (EnvGhostFree G) := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨by rw [hr.env_eq]; rfl, hr.env_eq ▸ hr.env, hs, .rfl⟩
 
 /-- A read of the context whose continuation does not depend on the local context. -/
@@ -124,16 +124,16 @@ theorem M.Framed.read {f : Context → M α} {R}
   have : (MonadReader.read >>= f) c₂ s = f c₂ c₂ s := rfl
   rw [this]; rw [hf hr] at e; exact H hr hr hs e
 
-theorem M.Framed.get : M.Framed G (MonadState.get : M State) (GFState G) := by
+theorem M.Framed.get : M.Framed G (MonadState.get : M State) (GhostFreeState G) := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨rfl, hs, hs, .rfl⟩
 
 theorem M.Framed.modify {f : State → State}
-    (hf : ∀ s, GFState G s → GFState G (f s) ∧ s.ngen ≤ (f s).ngen) :
+    (hf : ∀ s, GhostFreeState G s → GhostFreeState G (f s) ∧ s.ngen ≤ (f s).ngen) :
     M.Framed G (modify f : M Unit) fun _ => True := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨rfl, trivial, (hf s hs).1, (hf s hs).2⟩
 
 theorem M.Framed.modifyGet {f : State → β × State}
-    (hf : ∀ s, GFState G s → GFState G (f s).2 ∧ s.ngen ≤ (f s).2.ngen) :
+    (hf : ∀ s, GhostFreeState G s → GhostFreeState G (f s).2 ∧ s.ngen ≤ (f s).2.ngen) :
     M.Framed G (modifyGet f : M β) fun _ => True := by
   intro c₁ c₂ s b s' hr hs e
   have h1 : f s = (b, s') := Except.ok.inj e
@@ -152,7 +152,7 @@ theorem M.Framed.getLCtx_find {id : FVarId} (hid : ¬ G id) {f : LocalContext �
     (hf : ∀ ⦃l₁ l₂ : LocalContext⦄,
       (l₁.find? id).map (·.setIndex 0) = (l₂.find? id).map (·.setIndex 0) → f l₁ = f l₂)
     (H : ∀ l : LocalContext, (∀ ⦃d⦄, l.find? id = some d →
-      GF G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GF G v) → M.Framed G (f l) R) :
+      GhostFree G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GhostFree G v) → M.Framed G (f l) R) :
     M.Framed G (getLCtx >>= f) R := by
   intro c₁ c₂ s b s' hr hs e
   change f c₁.lctx c₁ s = _ at e
@@ -163,17 +163,17 @@ theorem M.Framed.getLCtx_find {id : FVarId} (hid : ¬ G id) {f : LocalContext �
 
 /-! ### Binders -/
 
-theorem GFState.next {s : State} (h : GFState G s) : GFState G { s with ngen := s.ngen.next } :=
+theorem GhostFreeState.next {s : State} (h : GhostFreeState G s) : GhostFreeState G { s with ngen := s.ngen.next } :=
   { h with reserved := fun _ hg => (h.reserved hg).mono NameGenerator.LE.next }
 
-theorem GFState.leaveScope {saved s : State} (h₁ : GFState G saved) (h₂ : GFState G s) :
-    GFState G (saved.leaveScope s) :=
+theorem GhostFreeState.leaveScope {saved s : State} (h₁ : GhostFreeState G saved) (h₂ : GhostFreeState G s) :
+    GhostFreeState G (saved.leaveScope s) :=
   { h₁ with unfold := h₂.unfold, reserved := h₂.reserved }
 
 theorem M.Framed.withFreshId {x : Name → M α} {R}
-    (H : ∀ (n : Name) (s : State) (c₁ c₂ : Context), GhostRel G c₁ c₂ → GFState G s →
+    (H : ∀ (n : Name) (s : State) (c₁ c₂ : Context), GhostRel G c₁ c₂ → GhostFreeState G s →
       ¬ G ⟨n⟩ → ∀ a s', x n c₁ s = .ok (a, s') →
-        x n c₂ s = .ok (a, s') ∧ R a ∧ GFState G s' ∧ s.ngen ≤ s'.ngen) :
+        x n c₂ s = .ok (a, s') ∧ R a ∧ GhostFreeState G s' ∧ s.ngen ≤ s'.ngen) :
     M.Framed G (withFreshId x) R := by
   intro c₁ c₂ s b s' hr hs e
   rw [withFreshId_eq] at e ⊢
@@ -188,13 +188,13 @@ theorem M.Framed.withFreshId {x : Name → M α} {R}
     rw [h1]
     exact ⟨rfl, h2, hs.leaveScope h3, NameGenerator.LE.next.trans h4⟩
 
-theorem M.Framed.withLocalDecl {f : Expr → M α} {R} (hty : GF G ty)
+theorem M.Framed.withLocalDecl {f : Expr → M α} {R} (hty : GhostFree G ty)
     (H : ∀ id, ¬ G id → M.Framed G (f (.fvar id)) R) :
     M.Framed G (withLocalDecl name bi ty f) R := by
   refine .withFreshId fun n s c₁ c₂ hr hs hn a s' e => ?_
   exact H _ hn (hr.mkLocalDecl hty) hs e
 
-theorem M.Framed.withLetDecl {f : Expr → M α} {R} (hty : GF G ty) (hval : GF G val)
+theorem M.Framed.withLetDecl {f : Expr → M α} {R} (hty : GhostFree G ty) (hval : GhostFree G val)
     (H : ∀ id, ¬ G id → M.Framed G (f (.fvar id)) R) :
     M.Framed G (withLetDecl name ty val f) R := by
   refine .withFreshId fun n s c₁ c₂ hr hs hn a s' e => ?_
@@ -236,7 +236,7 @@ theorem RecM.Framed.lift {x : M α} {R} (h : M.Framed G x R) : RecM.Framed G (li
 
 theorem RecM.Framed.getEnv : RecM.Framed G (liftM TypeChecker.getEnv) fun _ => True := .lift .getEnv
 
-theorem RecM.Framed.getEnv' : RecM.Framed G (liftM TypeChecker.getEnv) (EnvGF G) := .lift .getEnv'
+theorem RecM.Framed.getEnv' : RecM.Framed G (liftM TypeChecker.getEnv) (EnvGhostFree G) := .lift .getEnv'
 
 theorem RecM.Framed.getLCtx_throw {f : LocalContext → Exception} {R} :
     RecM.Framed G (getLCtx >>= fun l => (MonadExcept.throw (f l) : RecM α)) R := by
@@ -254,15 +254,15 @@ theorem RecM.Framed.read {f : Context → RecM α} {R}
   fun m hm => M.Framed.read (f := fun c => f c m) (fun _ _ h => by rw [hf h])
     fun _ _ hc => H hc hm
 
-theorem RecM.Framed.get : RecM.Framed G (MonadState.get : RecM State) (GFState G) :=
+theorem RecM.Framed.get : RecM.Framed G (MonadState.get : RecM State) (GhostFreeState G) :=
   fun _ _ => .get
 
 theorem RecM.Framed.modify {f : State → State}
-    (hf : ∀ s, GFState G s → GFState G (f s) ∧ s.ngen ≤ (f s).ngen) :
+    (hf : ∀ s, GhostFreeState G s → GhostFreeState G (f s) ∧ s.ngen ≤ (f s).ngen) :
     RecM.Framed G (modify f : RecM Unit) fun _ => True := fun _ _ => .modify hf
 
 theorem RecM.Framed.modifyGet {f : State → β × State}
-    (hf : ∀ s, GFState G s → GFState G (f s).2 ∧ s.ngen ≤ (f s).2.ngen) :
+    (hf : ∀ s, GhostFreeState G s → GhostFreeState G (f s).2 ∧ s.ngen ≤ (f s).2.ngen) :
     RecM.Framed G (modifyGet f : RecM β) fun _ => True := fun _ _ => .modifyGet hf
 
 theorem RecM.Framed.liftExcept {x : Except Exception α} {R} (h : ∀ a, x = .ok a → R a) :
@@ -272,17 +272,17 @@ theorem RecM.Framed.getLCtx_find {id : FVarId} (hid : ¬ G id) {f : LocalContext
     (hf : ∀ ⦃l₁ l₂ : LocalContext⦄,
       (l₁.find? id).map (·.setIndex 0) = (l₂.find? id).map (·.setIndex 0) → f l₁ = f l₂)
     (H : ∀ l : LocalContext, (∀ ⦃d⦄, l.find? id = some d →
-      GF G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GF G v) → RecM.Framed G (f l) R) :
+      GhostFree G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GhostFree G v) → RecM.Framed G (f l) R) :
     RecM.Framed G (getLCtx >>= f) R :=
   fun m hm => M.Framed.getLCtx_find (f := fun l => f l m) hid
     (fun _ _ h => by rw [hf h]) fun l hl => H l hl hm
 
-theorem RecM.Framed.withLocalDecl {f : Expr → RecM α} {R} (hty : GF G ty)
+theorem RecM.Framed.withLocalDecl {f : Expr → RecM α} {R} (hty : GhostFree G ty)
     (H : ∀ id, ¬ G id → RecM.Framed G (f (.fvar id)) R) :
     RecM.Framed G (withLocalDecl name bi ty f) R :=
   fun m hm => M.Framed.withLocalDecl (f := fun e => f e m) hty fun id hid => H id hid hm
 
-theorem RecM.Framed.withLetDecl {f : Expr → RecM α} {R} (hty : GF G ty) (hval : GF G val)
+theorem RecM.Framed.withLetDecl {f : Expr → RecM α} {R} (hty : GhostFree G ty) (hval : GhostFree G val)
     (H : ∀ id, ¬ G id → RecM.Framed G (f (.fvar id)) R) :
     RecM.Framed G (withLetDecl name ty val f) R :=
   fun m hm => M.Framed.withLetDecl (f := fun e => f e m) hty hval fun id hid => H id hid hm
@@ -293,21 +293,21 @@ theorem RecM.Framed.withEager {x : RecM α} {R} (h : RecM.Framed G x R) :
 
 /-! ### Methods -/
 
-theorem RecM.Framed.whnf (h : GF G e) : RecM.Framed G (Inner.whnf e) (GF G) :=
+theorem RecM.Framed.whnf (h : GhostFree G e) : RecM.Framed G (Inner.whnf e) (GhostFree G) :=
   fun _ hm => hm.whnf h
 
-theorem RecM.Framed.whnfCore (h : GF G e) : RecM.Framed G (Inner.whnfCore e cheapProj) (GF G) :=
+theorem RecM.Framed.whnfCore (h : GhostFree G e) : RecM.Framed G (Inner.whnfCore e cheapProj) (GhostFree G) :=
   fun _ hm => hm.whnfCore cheapProj h
 
-theorem RecM.Framed.inferType (h : GF G e) :
-    RecM.Framed G (Inner.inferType e inferOnly) (GF G) :=
+theorem RecM.Framed.inferType (h : GhostFree G e) :
+    RecM.Framed G (Inner.inferType e inferOnly) (GhostFree G) :=
   fun _ hm => hm.inferType inferOnly h
 
-theorem RecM.Framed.isDefEqCore (h₁ : GF G t) (h₂ : GF G s) :
+theorem RecM.Framed.isDefEqCore (h₁ : GhostFree G t) (h₂ : GhostFree G s) :
     RecM.Framed G (Inner.isDefEqCore t s) fun _ => True :=
   fun _ hm => hm.isDefEqCore h₁ h₂
 
-theorem RecM.Framed.isDefEq (h₁ : GF G t) (h₂ : GF G s) :
+theorem RecM.Framed.isDefEq (h₁ : GhostFree G t) (h₂ : GhostFree G s) :
     RecM.Framed G (Inner.isDefEq t s) fun _ => True := by
   unfold Inner.isDefEq
   refine (RecM.Framed.isDefEqCore h₁ h₂).bind fun r _ => ?_

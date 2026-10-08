@@ -99,7 +99,7 @@ theorem AddInductive.runWithStats.semanticClosedWF
       some commonLevel)
     (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero)
     (Hclosed : MutualInductivesClosed c.env)
-    (HenvGF : TypeChecker.EnvGF (fun _ => True) c.env)
+    (HenvGF : TypeChecker.EnvGhostFree (fun _ => True) c.env)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hnprimTypes : c.allowPrimitive = true → ∀ info ∈
@@ -179,7 +179,7 @@ theorem AddInductive.run.semanticSourceAlignedWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)
     (Hclosed : MutualInductivesClosed c.env)
-    (HenvGF : TypeChecker.EnvGF (fun _ => True) c.env)
+    (HenvGF : TypeChecker.EnvGhostFree (fun _ => True) c.env)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
     (HnotPartial : c.safety ≠ .partial)
@@ -218,7 +218,7 @@ theorem AddInductive.run.semanticSourceAlignedWF
     have Hclosed' : MutualInductivesClosed c'.env := by
       rw [henv]
       exact Hclosed
-    have HenvGF' : TypeChecker.EnvGF (fun _ => True) c'.env := by
+    have HenvGF' : TypeChecker.EnvGhostFree (fun _ => True) c'.env := by
       rw [henv]
       exact HenvGF
     have hvisible : c'.safety ≤

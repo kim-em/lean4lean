@@ -4447,7 +4447,7 @@ theorem EtaPar.deltaPar_peak (hΓ : OnCtx Γ (env.IsType univs))
 
 theorem levelled_mac (hΓ : OnCtx Γ (env.IsType univs)) (hb : Γ ⊢ b : A)
     (H1 : LevelStep Γ n b b₁) (H2 : ReflTransGen (Below Γ n) b₁ d) :
-    Levelled.Mac (LevelRel Γ) n b d :=
+    Levelled.LoOptLo (LevelRel Γ) n b d :=
   ⟨b, b₁, .rfl, .inr ⟨⟨_, hb⟩, H1⟩, Below.loStar hΓ H2 (H1.hasType hΓ hb)⟩
 
 theorem levelled_optLo (hΓ : OnCtx Γ (env.IsType univs)) (hb : Γ ⊢ b : A)
@@ -4457,7 +4457,7 @@ theorem levelled_optLo (hΓ : OnCtx Γ (env.IsType univs)) (hb : Γ ⊢ b : A)
 
 theorem levelled_peak₁ (hΓ : OnCtx Γ (env.IsType univs)) :
     ∀ n, 0 < n → ∀ a b c, LevelRel Γ n a b → LevelRel Γ n a c →
-      ∃ d, Levelled.Mac (LevelRel Γ) n b d ∧ Levelled.Mac (LevelRel Γ) n c d := by
+      ∃ d, Levelled.LoOptLo (LevelRel Γ) n b d ∧ Levelled.LoOptLo (LevelRel Γ) n c d := by
   intro n hn a b c ⟨⟨A, ha⟩, H1⟩ ⟨_, H2⟩
   have hb := H1.hasType hΓ ha
   have hc := H2.hasType hΓ ha

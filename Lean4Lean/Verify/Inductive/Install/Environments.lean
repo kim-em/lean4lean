@@ -180,9 +180,9 @@ theorem AddConstants.entryTr
 /-- An installation of translated, non-recursor constants keeps the environment ghost-free. -/
 theorem AddConstants.envGF
     (H : AddConstants safety env venv entries outEnv outVEnv)
-    (hwf : env.constants.WF) (henv : TypeChecker.EnvGF (fun _ => True) env)
+    (hwf : env.constants.WF) (henv : TypeChecker.EnvGhostFree (fun _ => True) env)
     (hnorec : ∀ entry ∈ entries, ∀ r, entry.1 ≠ .recInfo r) :
-    TypeChecker.EnvGF (fun _ => True) outEnv := by
+    TypeChecker.EnvGhostFree (fun _ => True) outEnv := by
   intro n found hfind
   rcases H.entryOrigin hwf hfind with h | ⟨entry, hentry, -, rfl⟩
   · exact henv h
@@ -194,7 +194,7 @@ theorem AddConstants.envGF
 theorem AddInductive.checkConstructors.telescopesWF
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
-    (henv : TypeChecker.EnvGF (fun _ => True) outEnv) :
+    (henv : TypeChecker.EnvGhostFree (fun _ => True) outEnv) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := outEnv }).WF fun _ =>
         SourceCtorsCertified H.context.venv c.lparams indTypes.toList := by

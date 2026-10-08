@@ -766,7 +766,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
     (Hc : ContextWF
       (nestedAddInductiveContext env lparams isUnsafe allowPrimitive fuel))
     (Hclosed : MutualInductivesClosed env)
-    (HenvGF : TypeChecker.EnvGF (fun _ => True) env)
+    (HenvGF : TypeChecker.EnvGhostFree (fun _ => True) env)
     (Howners : ConstructorOwnersPresent env)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < res.types.toArray.size)

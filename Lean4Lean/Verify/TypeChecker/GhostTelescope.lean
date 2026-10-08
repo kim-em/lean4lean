@@ -51,7 +51,7 @@ theorem throw_env_lctx_ne {f : Environment → LocalContext → Exception} {m : 
   intro h; cases h
 
 theorem ensureSortCore_framed {G : FVarId → Prop} {m : Methods} (hm : m.Framed G)
-    {e : Expr} (he : GF G e) : M.Framed G (ensureSortCore e e₀ m) (GF G) := by
+    {e : Expr} (he : GhostFree G e) : M.Framed G (ensureSortCore e e₀ m) (GhostFree G) := by
   intro c₁ c₂ s a s' hR hS h
   unfold ensureSortCore at h ⊢
   split
@@ -239,7 +239,7 @@ theorem find?_mkLocalDecl {l : LocalContext} {fv fv' : FVarId} {name : Name} {ty
 /-- The ghost relation between the actual context and the context of a view. -/
 theorem ghostRel_mk {G : FVarId → Prop} {c : VContext} {m} [c.MLCWF m] {s : VState}
     {ctx₁ : Context} (wf : s.WF (c.withMLC m)) (hG : ∀ fv ∈ m.vlctx.fvars, ¬ G fv)
-    (hlwf : ctx₁.lctx.WF) (henv : EnvGF (fun _ => True) c.env)
+    (hlwf : ctx₁.lctx.WF) (henv : EnvGhostFree (fun _ => True) c.env)
     (hctx : ctx₁ = { c.toContext with lctx := ctx₁.lctx })
     (hfind : ∀ ⦃fv⦄, ¬ G fv →
       (ctx₁.lctx.find? fv).map (·.setIndex 0) = (m.lctx.find? fv).map (·.setIndex 0)) :
@@ -270,11 +270,11 @@ theorem ghostRel_mk {G : FVarId → Prop} {c : VContext} {m} [c.MLCWF m] {s : VS
 
 /-- The cached values of a well-formed state do not mention the next fresh variable, so the state
 is ghost-free for the ghosts extended by it. -/
-theorem GFState.ghost {G : FVarId → Prop} {c : VContext} {s : State} (h : GFState G s)
-    (wf : VState.WF c ⟨s⟩) (henv : EnvGF (fun _ => True) c.env) :
-    GFState (fun fv => G fv ∨ fv = ⟨s.ngen.curr⟩) { s with ngen := s.ngen.next } := by
-  have hres {r : Expr} (h1 : GF G r) (h2 : FVarsIn s.ngen.Reserves r) :
-      GF (fun fv => G fv ∨ fv = ⟨s.ngen.curr⟩) r :=
+theorem GhostFreeState.ghost {G : FVarId → Prop} {c : VContext} {s : State} (h : GhostFreeState G s)
+    (wf : VState.WF c ⟨s⟩) (henv : EnvGhostFree (fun _ => True) c.env) :
+    GhostFreeState (fun fv => G fv ∨ fv = ⟨s.ngen.curr⟩) { s with ngen := s.ngen.next } := by
+  have hres {r : Expr} (h1 : GhostFree G r) (h2 : FVarsIn s.ngen.Reserves r) :
+      GhostFree (fun fv => G fv ∨ fv = ⟨s.ngen.curr⟩) r :=
     FVarsIn.mp (fun _ a b => by
       rintro (h | rfl)
       · exact a h
@@ -302,14 +302,14 @@ theorem GFState.ghost {G : FVarId → Prop} {c : VContext} {s : State} (h : GFSt
 context of the view, where the existing verification gives its translation. -/
 theorem check_sort {c : VContext} {m} [c.MLCWF m] {G : FVarId → Prop} {ctx₁ : Context}
     {s s₁ s₂ : State} {E T t X : Expr} {k : Nat}
-    (hR : GhostRel G ctx₁ (c.withMLC m).toContext) (hS : GFState G s)
+    (hR : GhostRel G ctx₁ (c.withMLC m).toContext) (hS : GhostFreeState G s)
     (wf : VState.WF (c.withMLC m) ⟨s⟩)
     (hE : FVarsIn (· ∈ m.vlctx.fvars) E) (hG : ∀ fv ∈ m.vlctx.fvars, ¬ G fv)
     (h1 : (Methods.withFuel k).inferType E false ctx₁ s = .ok (T, s₁))
     (h2 : ensureSortCore T X (Methods.withFuel k) ctx₁ s₁ = .ok (t, s₂)) :
     ∃ e', (c.withMLC m).TrExprS E e' ∧ (c.withMLC m).IsType e' ∧
-      GFState G s₂ ∧ VState.WF (c.withMLC m) ⟨s₂⟩ := by
-  have hGF : GF G E := hE.mono hG
+      GhostFreeState G s₂ ∧ VState.WF (c.withMLC m) ⟨s₂⟩ := by
+  have hGF : GhostFree G E := hE.mono hG
   have F := Methods.withFuel_framed G k
   obtain ⟨h1', gT, gs1, -⟩ := F.inferType false hGF hR hS h1
   obtain ⟨⟨s₁'⟩, eq, -, wf1, e', T', -, he', hT', hty⟩ :=
@@ -355,7 +355,7 @@ theorem uninst_view {c : VContext} {m : MLCtx} [cwf : c.MLCWF m] {n hn}
     TrExprS c.venv c.lparams (vlctxBV m n hn) e e' :=
   uninstantiate_vlctxBV m n hn [] nofun (cwf.1.fvarRevList_nodup n hn) (fvarsIn_low hdrop he) H
 
-theorem loop_base {c : VContext} {k : Nat} (henv : EnvGF (fun _ => True) c.env)
+theorem loop_base {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True) c.env)
     {e : Expr} (hne : ∀ n d b bi, e ≠ .forallE n d b bi)
     {m : MLCtx} [cwf : c.MLCWF m] {n : Nat} {hn : n ≤ m.length}
     {arr : Array Expr} {us : Array Level} {G : FVarId → Prop} {L : LocalContext}
@@ -368,7 +368,7 @@ theorem loop_base {c : VContext} {k : Nat} (henv : EnvGF (fun _ => True) c.env)
     (hG : ∀ fv ∈ m.vlctx.fvars, ¬ G fv) (hlwf : L.WF)
     (hfind : ∀ ⦃fv⦄, ¬ G fv →
       (L.find? fv).map (·.setIndex 0) = (m.lctx.find? fv).map (·.setIndex 0))
-    (hS : GFState G s) (wf : VState.WF (c.withMLC m) ⟨s⟩)
+    (hS : GhostFreeState G s) (wf : VState.WF (c.withMLC m) ⟨s⟩)
     (hrun : inferForall.loop false arr us e (Methods.withFuel k) { c.toContext with lctx := L } s =
       .ok (r, s')) :
     ∃ e', TelTr c.venv c.lparams (vlctxBV m n hn) e_low e' ∧
@@ -391,7 +391,7 @@ theorem loop_base {c : VContext} {k : Nat} (henv : EnvGF (fun _ => True) c.env)
 top `n` entries) and a set `G` of ghosts (binders of the actual run that are absent from `m`).
 The remaining telescope `e` of the run and its ghost-free form `e_low` agree after instantiation.
 The conclusion is the telescope-closed translation of `e_low` in the bound-variable form of `m`. -/
-theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGF (fun _ => True) c.env) :
+theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True) c.env) :
     ∀ (e : Expr) {m : MLCtx} [c.MLCWF m] {n : Nat} (hn : n ≤ m.length)
       {arr : Array Expr} {us : Array Level} {G : FVarId → Prop} {L : LocalContext}
       {s s' : State} {r e_low : Expr},
@@ -403,7 +403,7 @@ theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGF (fun _ => True) c.env)
     (∀ fv ∈ m.vlctx.fvars, ¬ G fv) →
     L.WF →
     (∀ ⦃fv⦄, ¬ G fv → (L.find? fv).map (·.setIndex 0) = (m.lctx.find? fv).map (·.setIndex 0)) →
-    GFState G s →
+    GhostFreeState G s →
     VState.WF (c.withMLC m) ⟨s⟩ →
     inferForall.loop false arr us e (Methods.withFuel k) { c.toContext with lctx := L } s =
       .ok (r, s') →
@@ -469,7 +469,7 @@ theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGF (fun _ => True) c.env)
         split
         · simp [LocalDecl.setIndex]
         · exact hfind hfv)
-      (GFState.next gs2) wf' hrun'
+      (GhostFreeState.next gs2) wf' hrun'
     have hIb' : c.venv.IsType c.lparams.length (d' :: (vlctxBV m n hn).toCtx) b' := hIb
     refine ⟨.forallE d' b', ⟨.forallE domty' hIb' hdlow hTb.toTrExprS, ?_, ?_⟩, domty'.forallE hIb'⟩
     · intro _ _ _ _ _ _ h h'
@@ -480,7 +480,7 @@ theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGF (fun _ => True) c.env)
       -- the ghosted binder: same actual run, the fresh variable joins the ghosts
       have wfg : VState.WF (c.withMLC m) ⟨{ s₂ with ngen := s₂.ngen.next }⟩ :=
         VState.WF.next (s := ⟨s₂⟩) wf2
-      have gsg := GFState.ghost (c := c.withMLC m) gs2 wf2 henv
+      have gsg := GhostFreeState.ghost (c := c.withMLC m) gs2 wf2 henv
       rw [ha] at gsg
       obtain ⟨b₀'', hT0, -⟩ := ih (m := m) hn (G := fun fv => G fv ∨ fv = a)
         (L := L.mkLocalDecl a name E bi) (e_low := b₀) hdrop
@@ -529,7 +529,7 @@ checker satisfies this; the frame lemma needs it for the ghosts). `hunf`, `hcach
 state has no metavariable in its `unfold` cache and no checking-mode cache entry for `e`; a fresh
 state, as used for every constructor type, has both. -/
 theorem checkType.WF_telTr {c : VContext} {s : VState} {e : Expr}
-    (henv : EnvGF (fun _ => True) c.env)
+    (henv : EnvGhostFree (fun _ => True) c.env)
     (hunf : ∀ ⦃k r : Expr⦄, s.unfold[k]? = some r → FVarsIn (fun _ => True) r)
     (h1 : e.FVarsIn (· ∈ c.vlctx.fvars)) (hcache : s.inferTypeC[e]? = none) :
     M.WF c s (checkType e) fun _ _ => ∃ e', TelTr c.venv c.lparams c.vlctx e e' := by
@@ -547,7 +547,7 @@ theorem checkType.WF_telTr {c : VContext} {s : VState} {e : Expr}
   | zero => cases hrun
   | succ k =>
   obtain ⟨r₁, s₁, hrun⟩ := inferType'_forallE_run hcache hrun
-  have hgf : GFState (fun _ => False) s.toState :=
+  have hgf : GhostFreeState (fun _ => False) s.toState :=
     { inferTypeI := fun _ _ h => (wf.inferTypeI_wf h).2.2.2.1.mono fun _ _ => not_false
       inferTypeC := fun _ _ h => (wf.inferTypeC_wf h).2.2.2.1.mono fun _ _ => not_false
       whnfCore := fun _ _ h => (wf.whnfCore_wf h).2.2.2.1.mono fun _ _ => not_false

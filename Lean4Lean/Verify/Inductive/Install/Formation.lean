@@ -50,7 +50,7 @@ theorem AddInductive.semanticFormationCoreWF
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
     (hlparams : c.lparams.Nodup)
-    (henv : TypeChecker.EnvGF (fun _ => True) c.env) :
+    (henv : TypeChecker.EnvGhostFree (fun _ => True) c.env) :
     ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -336,7 +336,7 @@ theorem AddInductive.semanticFormationCoreClosedWF
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
     (hlparams : c.lparams.Nodup)
-    (henv : TypeChecker.EnvGF (fun _ => True) c.env) :
+    (henv : TypeChecker.EnvGhostFree (fun _ => True) c.env) :
     ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do

@@ -33,7 +33,7 @@ abbrev LoStar (n : Nat) := ReflTransGen (Lo R n)
 def Opt (n : Nat) (a b : α) : Prop := a = b ∨ R n a b
 
 /-- Lower steps, at most one level-`n` step, lower steps. -/
-def Mac (n : Nat) (a d : α) : Prop :=
+def LoOptLo (n : Nat) (a d : α) : Prop :=
   ∃ b c, LoStar R n a b ∧ Opt R n b c ∧ LoStar R n c d
 
 /-- At most one level-`n` step, then lower steps. -/
@@ -86,7 +86,7 @@ theorem NLe.ofOptLo (H : OptLo R n a b) : NLe R n a b 1 := by
   · exact (NLe.ofLoStar h2).mono (Nat.zero_le _)
   · exact ⟨1, Nat.le_refl _, .hi h1 (.ofLoStar h2)⟩
 
-theorem NLe.ofMac (H : Mac R n a b) : NLe R n a b 1 := by
+theorem NLe.ofMac (H : LoOptLo R n a b) : NLe R n a b 1 := by
   obtain ⟨b₁, c, h1, h2, h3⟩ := H
   simpa using (NLe.ofLoStar h1).append (NLe.ofOptLo ⟨c, h2, h3⟩)
 
@@ -109,7 +109,7 @@ theorem NPath.split (H : NPath R n a b (k + 1)) :
 section Level
 variable (n : Nat)
   (conf : Joinable (Lo R n))
-  (peak₁ : ∀ a b c, R n a b → R n a c → ∃ d, Mac R n b d ∧ Mac R n c d)
+  (peak₁ : ∀ a b c, R n a b → R n a c → ∃ d, LoOptLo R n b d ∧ LoOptLo R n c d)
   (peak₂ : ∀ a b c, R n a b → Lo R n a c → ∃ d, LoStar R n b d ∧ OptLo R n c d)
 include conf peak₂
 
@@ -242,7 +242,7 @@ end Level
 local diagrams at every positive level. -/
 theorem joinable
     (conf₀ : Joinable (R 0))
-    (peak₁ : ∀ n, 0 < n → ∀ a b c, R n a b → R n a c → ∃ d, Mac R n b d ∧ Mac R n c d)
+    (peak₁ : ∀ n, 0 < n → ∀ a b c, R n a b → R n a c → ∃ d, LoOptLo R n b d ∧ LoOptLo R n c d)
     (peak₂ : ∀ n, 0 < n → ∀ a b c, R n a b → Lo R n a c → ∃ d, LoStar R n b d ∧ OptLo R n c d) :
     ∀ N, Joinable (Lo R (N + 1)) := by
   intro N

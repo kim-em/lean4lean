@@ -12,49 +12,49 @@ variable {G : FVarId → Prop}
 
 namespace Inner
 
-theorem quotReduceRec.framed (he : GF G e) :
-    RecM.Framed G (quotReduceRec e Inner.whnf) (OGF G) := by
+theorem quotReduceRec.framed (he : GhostFree G e) :
+    RecM.Framed G (quotReduceRec e Inner.whnf) (OptionGhostFree G) := by
   have hargs := he.getAppArgs
   have hcont : ∀ mkPos argPos, RecM.Framed G (quotReduceRecCont e Inner.whnf mkPos argPos)
-      (OGF G) := by
+      (OptionGhostFree G) := by
     intro mkPos argPos
     unfold quotReduceRecCont; dsimp only
     split
     · refine (RecM.Framed.whnf (hargs.getElem _)).bind fun mk hmk => ?_
       split
-      · exact .pure OGF.none
-      · have h1 : GF G (Expr.app e.getAppArgs[argPos]! mk.appArg!) :=
+      · exact .pure OptionGhostFree.none
+      · have h1 : GhostFree G (Expr.app e.getAppArgs[argPos]! mk.appArg!) :=
           ⟨hargs.getElem! _, hmk.appArg!⟩
         split
-        · exact .pure (OGF.some (h1.mkAppRange hargs))
-        · exact .pure (OGF.some h1)
-    · exact .pure OGF.none
+        · exact .pure (OptionGhostFree.some (h1.mkAppRange hargs))
+        · exact .pure (OptionGhostFree.some h1)
+    · exact .pure OptionGhostFree.none
   unfold quotReduceRec
   split
   · split
     · exact hcont _ _
     · split
       · exact hcont _ _
-      · exact .pure OGF.none
-  · exact .pure OGF.none
+      · exact .pure OptionGhostFree.none
+  · exact .pure OptionGhostFree.none
 
-theorem mkNullaryCtor_gf (ht : GF G type) :
-    OGF G (mkNullaryCtor env type n) := by
+theorem mkNullaryCtor_gf (ht : GhostFree G type) :
+    OptionGhostFree G (mkNullaryCtor env type n) := by
   unfold mkNullaryCtor
   rw [Expr.withApp_eq]
   split
   · rename_i dName ls h
-    have hls : GF G (.const dName ls) := h ▸ ht.getAppFn
+    have hls : GhostFree G (.const dName ls) := h ▸ ht.getAppFn
     intro r hr
     simp only [Option.bind_eq_bind] at hr
     cases h' : getFirstCtor env dName <;> simp [h'] at hr
     subst hr
-    exact GF.mkAppRange (f := .const _ ls) hls ht.getAppArgs
+    exact GhostFree.mkAppRange (f := .const _ ls) hls ht.getAppArgs
   · nofun
 
-theorem toCtorWhenK.framed (he : GF G e) :
+theorem toCtorWhenK.framed (he : GhostFree G e) :
     RecM.Framed G (toCtorWhenK env Inner.whnf (fun e => Inner.inferType e) Inner.isDefEq info e)
-      (GF G) := by
+      (GhostFree G) := by
   unfold toCtorWhenK
   split
   · refine (RecM.Framed.inferType he).bind fun _ h => (RecM.Framed.whnf h).bind fun appType ht => ?_
@@ -66,29 +66,29 @@ theorem toCtorWhenK.framed (he : GF G e) :
     have hc := mkNullaryCtor_gf ht hc
     refine (RecM.Framed.inferType hc).bind fun _ h => (RecM.Framed.isDefEq ht h).bind fun _ _ => ?_
     split <;> [exact .pure hc; exact .pure he]
-  · exact .panic GF.default
+  · exact .panic GhostFree.default
 
-theorem expandEtaStruct_gf (ht : GF G eType) (he : GF G e) :
-    GF G (expandEtaStruct env eType e) := by
+theorem expandEtaStruct_gf (ht : GhostFree G eType) (he : GhostFree G e) :
+    GhostFree G (expandEtaStruct env eType e) := by
   unfold expandEtaStruct
   rw [Expr.withApp_eq]
   simp only [Id.run]
   split <;> [skip; exact he]
   rename_i I ls h
-  have hls : GF G (.const I ls) := h ▸ ht.getAppFn
+  have hls : GhostFree G (.const I ls) := h ▸ ht.getAppFn
   split <;> [skip; exact he]
   split <;> [skip; exact he]
   split <;> [skip; exact he]
   split <;> [exact he; skip]
-  have hfold : ∀ (l : List Nat) (r : Expr), GF G r →
-      GF G (l.foldl (fun result i => result.app (.proj I i e)) r) := by
+  have hfold : ∀ (l : List Nat) (r : Expr), GhostFree G r →
+      GhostFree G (l.foldl (fun result i => result.app (.proj I i e)) r) := by
     intro l; induction l with
     | nil => exact fun _ h => h
     | cons i l ih => exact fun r h => ih _ ⟨h, he⟩
-  exact hfold _ _ (GF.mkAppRange (f := .const _ ls) hls ht.getAppArgs)
+  exact hfold _ _ (GhostFree.mkAppRange (f := .const _ ls) hls ht.getAppArgs)
 
-theorem toCtorWhenStruct.framed (he : GF G e) :
-    RecM.Framed G (toCtorWhenStruct env Inner.whnf (fun e => Inner.inferType e) n e) (GF G) := by
+theorem toCtorWhenStruct.framed (he : GhostFree G e) :
+    RecM.Framed G (toCtorWhenStruct env Inner.whnf (fun e => Inner.inferType e) n e) (GhostFree G) := by
   unfold toCtorWhenStruct
   split
   · exact .pure he
@@ -98,9 +98,9 @@ theorem toCtorWhenStruct.framed (he : GF G e) :
   split <;> [skip; exact .pure he]
   split <;> [exact .pure (expandEtaStruct_gf ht he); exact .pure he]
 
-theorem inductiveReduceRecTail_gf {info : RecursorVal} (hrules : ∀ r ∈ info.rules, GF G r.rhs)
-    (hls : ∀ l ∈ ls, l.hasMVar' = false) (hargs : GFArr G recArgs) (hmajor : GF G major) :
-    OGF G (inductiveReduceRecTail info ls recArgs major) := by
+theorem inductiveReduceRecTail_gf {info : RecursorVal} (hrules : ∀ r ∈ info.rules, GhostFree G r.rhs)
+    (hls : ∀ l ∈ ls, l.hasMVar' = false) (hargs : GhostFreeArr G recArgs) (hmajor : GhostFree G major) :
+    OptionGhostFree G (inductiveReduceRecTail info ls recArgs major) := by
   intro r hr
   unfold inductiveReduceRecTail at hr
   simp only [getRecRuleFor, Option.bind_eq_bind] at hr
@@ -115,29 +115,29 @@ theorem inductiveReduceRecTail_gf {info : RecursorVal} (hrules : ∀ r ∈ info.
     all_goals first
       | (simp at hr; done)
       | (cases hr
-         repeat (first | refine GF.mkAppRange ?_ hargs | refine GF.mkAppRange ?_ hmajor.getAppArgs)
+         repeat (first | refine GhostFree.mkAppRange ?_ hargs | refine GhostFree.mkAppRange ?_ hmajor.getAppArgs)
          exact h0)
   · cases hr
 
-theorem inductiveReduceRec.framed (henv : EnvGF G env) (he : GF G e) :
+theorem inductiveReduceRec.framed (henv : EnvGhostFree G env) (he : GhostFree G e) :
     RecM.Framed G (inductiveReduceRec env e Inner.whnf (fun e => Inner.inferType e) Inner.isDefEq)
-      (OGF G) := by
+      (OptionGhostFree G) := by
   unfold inductiveReduceRec
-  split <;> [skip; exact .pure OGF.none]
+  split <;> [skip; exact .pure OptionGhostFree.none]
   rename_i recFn ls hfn
   have hls : ∀ l ∈ ls, l.hasMVar' = false := by
     have := he.getAppFn; rw [hfn] at this; exact this
-  split <;> [skip; exact .pure OGF.none]
+  split <;> [skip; exact .pure OptionGhostFree.none]
   rename_i info hinfo
   have hrules := (henv hinfo).rules rfl
   have hargs := he.getAppArgs
   dsimp only
-  split <;> [skip; exact .pure OGF.none]
+  split <;> [skip; exact .pure OptionGhostFree.none]
   rename_i major hmajor
   have hmajor := hargs.getElem? hmajor
-  have tail : ∀ m, GF G m → OGF G (inductiveReduceRecTail info ls e.getAppArgs m) :=
+  have tail : ∀ m, GhostFree G m → OptionGhostFree G (inductiveReduceRecTail info ls e.getAppArgs m) :=
     fun _ hm => inductiveReduceRecTail_gf hrules hls hargs hm
-  have k : ∀ major, GF G major → RecM.Framed G (do
+  have k : ∀ major, GhostFree G major → RecM.Framed G (do
       let __do_lift ← Inner.whnf major
       match __do_lift with
         | Expr.lit (Literal.natVal n) =>
@@ -148,7 +148,7 @@ theorem inductiveReduceRec.framed (henv : EnvGF G env) (he : GF G e) :
         | e_1 => do
           let major ← toCtorWhenStruct env Inner.whnf (fun e => Inner.inferType e)
             info.getMajorInduct e_1
-          pure (inductiveReduceRecTail info ls e.getAppArgs major)) (OGF G) := by
+          pure (inductiveReduceRecTail info ls e.getAppArgs major)) (OptionGhostFree G) := by
     intro major hmajor
     refine (RecM.Framed.whnf hmajor).bind fun m hm => ?_
     split
@@ -159,18 +159,18 @@ theorem inductiveReduceRec.framed (henv : EnvGF G env) (he : GF G e) :
   · exact (toCtorWhenK.framed hmajor).bind fun _ h => k _ h
   · exact k _ hmajor
 
-theorem reduceRecursor.framed (he : GF G e) : RecM.Framed G (reduceRecursor e) (OGF G) := by
+theorem reduceRecursor.framed (he : GhostFree G e) : RecM.Framed G (reduceRecursor e) (OptionGhostFree G) := by
   unfold reduceRecursor
   refine RecM.Framed.getEnv'.bind fun env henv => ?_
-  have k := (inductiveReduceRec.framed henv he).bind fun o (ho : OGF G o) =>
-    (show RecM.Framed G (match o with | some r => pure (some r) | _ => pure none) (OGF G) by
+  have k := (inductiveReduceRec.framed henv he).bind fun o (ho : OptionGhostFree G o) =>
+    (show RecM.Framed G (match o with | some r => pure (some r) | _ => pure none) (OptionGhostFree G) by
       split
-      · exact .pure (OGF.some (ho rfl))
-      · exact .pure OGF.none)
+      · exact .pure (OptionGhostFree.some (ho rfl))
+      · exact .pure OptionGhostFree.none)
   split
   · refine (quotReduceRec.framed he).bind fun o ho => ?_
     split
-    · exact .pure (OGF.some (ho rfl))
+    · exact .pure (OptionGhostFree.some (ho rfl))
     · exact k
   · exact k
 
@@ -187,7 +187,7 @@ theorem isLetFVar_congr {l₁ l₂ : LocalContext} {id : FVarId}
     | some d₂ => cases d₁ <;> cases d₂ <;> simp [LocalDecl.setIndex]
 
 theorem whnfFVar.framed {id : FVarId} (hid : ¬ G id) :
-    RecM.Framed G (whnfFVar (.fvar id) cheapProj) (GF G) := by
+    RecM.Framed G (whnfFVar (.fvar id) cheapProj) (GhostFree G) := by
   unfold whnfFVar
   refine RecM.Framed.getLCtx_find hid (fun l₁ l₂ h => ?_) fun l hl => ?_
   · revert h
@@ -207,35 +207,35 @@ theorem whnfFVar.framed {id : FVarId} (hid : ¬ G id) :
     · rename_i h; exact RecM.Framed.whnfCore ((hl h).2 value?_ldecl)
     · exact .pure hid
 
-theorem reduceProjCoreCont.framed (hc : GF G c) :
-    RecM.Framed G (reduceProjCoreCont structName idx c) (OGF G) := by
+theorem reduceProjCoreCont.framed (hc : GhostFree G c) :
+    RecM.Framed G (reduceProjCoreCont structName idx c) (OptionGhostFree G) := by
   unfold reduceProjCoreCont
   rw [Expr.withApp_eq]
   have hargs := hc.getAppArgs
-  split <;> [skip; exact .pure OGF.none]
+  split <;> [skip; exact .pure OptionGhostFree.none]
   refine RecM.Framed.getEnv.bind fun env _ => ?_
   refine (RecM.Framed.liftExcept (R := fun _ => True) fun _ _ => trivial).bind fun _ _ => ?_
-  repeat (split <;> [skip; exact .pure OGF.none])
+  repeat (split <;> [skip; exact .pure OptionGhostFree.none])
   exact .pure fun _ h => hargs.getElem? h
 
-theorem reduceProjCore.framed (hs : GF G struct) :
-    RecM.Framed G (reduceProjCore structName idx struct) (OGF G) := by
+theorem reduceProjCore.framed (hs : GhostFree G struct) :
+    RecM.Framed G (reduceProjCore structName idx struct) (OptionGhostFree G) := by
   unfold reduceProjCore; dsimp only
   split
   · exact (RecM.Framed.whnf FVarsIn.strLitToConstructor).bind fun _ hc =>
       reduceProjCoreCont.framed hc
   · exact (RecM.Framed.pure hs).bind fun _ hc => reduceProjCoreCont.framed hc
 
-theorem reduceProj.framed (hs : GF G struct) :
-    RecM.Framed G (reduceProj structName idx struct cheapProj) (OGF G) := by
+theorem reduceProj.framed (hs : GhostFree G struct) :
+    RecM.Framed G (reduceProj structName idx struct cheapProj) (OptionGhostFree G) := by
   unfold reduceProj
-  refine RecM.Framed.bind (P := GF G) ?_ fun c hc => reduceProjCore.framed hc
+  refine RecM.Framed.bind (P := GhostFree G) ?_ fun c hc => reduceProjCore.framed hc
   split
   · exact RecM.Framed.whnfCore hs
   · exact RecM.Framed.whnf hs
 
-theorem whnfCore'.save.framed (hr : GF G r) :
-    RecM.Framed G (whnfCore'.save e cheapProj r) (GF G) := by
+theorem whnfCore'.save.framed (hr : GhostFree G r) :
+    RecM.Framed G (whnfCore'.save e cheapProj r) (GhostFree G) := by
   unfold whnfCore'.save; dsimp only
   split
   · refine RecM.Framed.bind (RecM.Framed.modify ?_) fun _ _ => .pure hr
@@ -247,9 +247,9 @@ theorem whnfCore'.save.framed (hr : GF G r) :
     · exact hs.3 h
   · exact .pure hr
 
-theorem whnfCore'.loop.framed (hrargs : GFArr G rargs) :
-    ∀ m f, GF G f → RecM.Framed G (whnfCore'.loop e cheapProj rargs m f) (GF G) := by
-  have hcont : ∀ m f, GF G f → RecM.Framed G (whnfCore'.loop.cont e cheapProj rargs m f) (GF G) := by
+theorem whnfCore'.loop.framed (hrargs : GhostFreeArr G rargs) :
+    ∀ m f, GhostFree G f → RecM.Framed G (whnfCore'.loop e cheapProj rargs m f) (GhostFree G) := by
+  have hcont : ∀ m f, GhostFree G f → RecM.Framed G (whnfCore'.loop.cont e cheapProj rargs m f) (GhostFree G) := by
     intro m f hf
     unfold whnfCore'.loop.cont; dsimp only
     exact (RecM.Framed.whnfCore ((hf.instantiateRange hrargs).mkAppRevRange hrargs)).bind
@@ -263,18 +263,18 @@ theorem whnfCore'.loop.framed (hrargs : GFArr G rargs) :
     · exact hcont _ _ hf
   | _ => unfold whnfCore'.loop; exact hcont _ _ hf
 
-theorem whnfCore'.framed : ∀ {e : Expr} (cheapProj : Bool), GF G e →
-    RecM.Framed G (whnfCore' e cheapProj) (GF G)
+theorem whnfCore'.framed : ∀ {e : Expr} (cheapProj : Bool), GhostFree G e →
+    RecM.Framed G (whnfCore' e cheapProj) (GhostFree G)
   | e, cheapProj, he => by
     unfold whnfCore'
     extract_lets jp
-    have hjp : RecM.Framed G (jp ()) (GF G) := by
+    have hjp : RecM.Framed G (jp ()) (GhostFree G) := by
       dsimp only [jp]
       refine RecM.Framed.get.bind fun st hst => ?_
       split
       · rename_i r hr; exact .pure (hst.whnfCore hr)
       split
-      any_goals exact .panic GF.default
+      any_goals exact .panic GhostFree.default
       · rename_i id _; exact whnfFVar.framed he
       · rw [Expr.withRevApp_eq]
         have hrargs := he.getAppRevArgs
@@ -288,7 +288,7 @@ theorem whnfCore'.framed : ∀ {e : Expr} (cheapProj : Bool), GF G e →
             · exact .pure he
           · exact (RecM.Framed.whnfCore (hf.mkAppRevRange hrargs)).bind fun _ h =>
               save.framed h
-      · exact (RecM.Framed.whnfCore (GF.instantiate1 he.2.2 he.2.1)).bind fun _ h =>
+      · exact (RecM.Framed.whnfCore (GhostFree.instantiate1 he.2.2 he.2.1)).bind fun _ h =>
           save.framed h
       · rename_i _ _ s _
         refine (reduceProj.framed (struct := s) he).bind fun o ho => ?_
@@ -305,8 +305,8 @@ theorem whnfCore'.framed : ∀ {e : Expr} (cheapProj : Bool), GF G e →
       · exact hjp
     all_goals exact hjp
 
-theorem isDelta_gf (henv : EnvGF G env) (h : isDelta env e = some d) :
-    ∀ ⦃v⦄, d.deltaValue? = some v → GF G v := by
+theorem isDelta_gf (henv : EnvGhostFree G env) (h : isDelta env e = some d) :
+    ∀ ⦃v⦄, d.deltaValue? = some v → GhostFree G v := by
   unfold isDelta at h
   split at h <;> [skip; cases h]
   split at h <;> [skip; cases h]
@@ -314,83 +314,83 @@ theorem isDelta_gf (henv : EnvGF G env) (h : isDelta env e = some d) :
   split at h <;> [cases h; cases h]
   exact (henv hci).deltaValue
 
-theorem instantiateDeltaValue_gf (hd : ∀ ⦃v⦄, d.deltaValue? = some v → GF G v)
-    (hls : ∀ l ∈ ls, l.hasMVar' = false) : GF G (instantiateDeltaValue d ls) := by
+theorem instantiateDeltaValue_gf (hd : ∀ ⦃v⦄, d.deltaValue? = some v → GhostFree G v)
+    (hls : ∀ l ∈ ls, l.hasMVar' = false) : GhostFree G (instantiateDeltaValue d ls) := by
   unfold instantiateDeltaValue
   cases h : d.deltaValue? with
-  | none => exact GF.default.instantiateLevelParams hls
+  | none => exact GhostFree.default.instantiateLevelParams hls
   | some v => exact (hd h).instantiateLevelParams hls
 
-theorem unfoldDefinitionCore.framed (he : GF G e) :
-    RecM.Framed G (unfoldDefinitionCore e) (OGF G) := by
+theorem unfoldDefinitionCore.framed (he : GhostFree G e) :
+    RecM.Framed G (unfoldDefinitionCore e) (OptionGhostFree G) := by
   unfold unfoldDefinitionCore
-  split <;> [skip; exact .pure OGF.none]
+  split <;> [skip; exact .pure OptionGhostFree.none]
   rename_i ls
   refine RecM.Framed.getEnv'.bind fun env henv => ?_
-  split <;> [skip; exact .pure OGF.none]
+  split <;> [skip; exact .pure OptionGhostFree.none]
   rename_i d hd
   have hv := instantiateDeltaValue_gf (isDelta_gf henv hd) he
   split
   · refine RecM.Framed.get.bind fun st hst => ?_
     split
-    · rename_i r hr; exact .pure (OGF.some (hst.unfold hr))
-    · refine RecM.Framed.bind (RecM.Framed.modify ?_) fun _ _ => .pure (OGF.some hv)
+    · rename_i r hr; exact .pure (OptionGhostFree.some (hst.unfold hr))
+    · refine RecM.Framed.bind (RecM.Framed.modify ?_) fun _ _ => .pure (OptionGhostFree.some hv)
       intro s hs
       refine ⟨⟨hs.1, hs.2, hs.3, hs.4, ?_, hs.6⟩, .rfl⟩
       intro a b h
       simp only [Std.HashMap.getElem?_insert] at h; split at h
       · cases h; exact hv
       · exact hs.5 h
-  · exact .pure (OGF.some hv)
+  · exact .pure (OptionGhostFree.some hv)
 
-theorem unfoldDefinition.framed (he : GF G e) :
-    RecM.Framed G (unfoldDefinition e) (OGF G) := by
+theorem unfoldDefinition.framed (he : GhostFree G e) :
+    RecM.Framed G (unfoldDefinition e) (OptionGhostFree G) := by
   unfold unfoldDefinition
   split
   · refine (unfoldDefinitionCore.framed he.getAppFn).bind fun o ho => ?_
     split
-    · exact .pure (OGF.some ((ho rfl).mkAppRevRange he.getAppRevArgs))
-    · exact .pure OGF.none
+    · exact .pure (OptionGhostFree.some ((ho rfl).mkAppRevRange he.getAppRevArgs))
+    · exact .pure OptionGhostFree.none
   · exact unfoldDefinitionCore.framed he
 
-theorem reduceNative_gf : (reduceNative env e).WF (OGF G) := by
+theorem reduceNative_gf : (reduceNative env e).WF (OptionGhostFree G) := by
   unfold reduceNative
   split
   · split
     · exact .throw
     · split
       · exact .throw
-      · exact .pure OGF.none
-  · exact .pure OGF.none
+      · exact .pure OptionGhostFree.none
+  · exact .pure OptionGhostFree.none
 
-theorem GF.natLit : GF G (.lit (.natVal n)) := trivial
+theorem GhostFree.natLit : GhostFree G (.lit (.natVal n)) := trivial
 
-theorem reduceBinNatOp.framed (ha : GF G a) (hb : GF G b) :
-    RecM.Framed G (reduceBinNatOp f a b) (OGF G) := by
+theorem reduceBinNatOp.framed (ha : GhostFree G a) (hb : GhostFree G b) :
+    RecM.Framed G (reduceBinNatOp f a b) (OptionGhostFree G) := by
   unfold reduceBinNatOp
   refine (RecM.Framed.whnf ha).bind fun _ _ => ?_
-  split <;> [skip; exact .pure OGF.none]
+  split <;> [skip; exact .pure OptionGhostFree.none]
   refine (RecM.Framed.whnf hb).bind fun _ _ => ?_
-  split <;> [exact .pure (OGF.some GF.natLit); exact .pure OGF.none]
+  split <;> [exact .pure (OptionGhostFree.some GhostFree.natLit); exact .pure OptionGhostFree.none]
 
-theorem reducePow.framed (ha : GF G a) (hb : GF G b) :
-    RecM.Framed G (reducePow a b) (OGF G) := by
+theorem reducePow.framed (ha : GhostFree G a) (hb : GhostFree G b) :
+    RecM.Framed G (reducePow a b) (OptionGhostFree G) := by
   unfold reducePow
   refine (RecM.Framed.whnf ha).bind fun _ _ => ?_
-  split <;> [skip; exact .pure OGF.none]
+  split <;> [skip; exact .pure OptionGhostFree.none]
   refine (RecM.Framed.whnf hb).bind fun _ _ => ?_
-  split <;> [skip; exact .pure OGF.none]
-  split <;> [exact .pure OGF.none; exact .pure (OGF.some GF.natLit)]
+  split <;> [skip; exact .pure OptionGhostFree.none]
+  split <;> [exact .pure OptionGhostFree.none; exact .pure (OptionGhostFree.some GhostFree.natLit)]
 
-theorem reduceBinNatPred.framed (ha : GF G a) (hb : GF G b) :
-    RecM.Framed G (reduceBinNatPred f a b) (OGF G) := by
+theorem reduceBinNatPred.framed (ha : GhostFree G a) (hb : GhostFree G b) :
+    RecM.Framed G (reduceBinNatPred f a b) (OptionGhostFree G) := by
   unfold reduceBinNatPred
   refine (RecM.Framed.whnf ha).bind fun _ _ => ?_
-  split <;> [skip; exact .pure OGF.none]
+  split <;> [skip; exact .pure OptionGhostFree.none]
   refine (RecM.Framed.whnf hb).bind fun _ _ => ?_
-  split <;> [exact .pure (OGF.some FVarsIn.boolLit); exact .pure OGF.none]
+  split <;> [exact .pure (OptionGhostFree.some FVarsIn.boolLit); exact .pure OptionGhostFree.none]
 
-theorem reduceNat.framed (he : GF G e) : RecM.Framed G (Inner.reduceNat e) (OGF G) := by
+theorem reduceNat.framed (he : GhostFree G e) : RecM.Framed G (Inner.reduceNat e) (OptionGhostFree G) := by
   unfold Inner.reduceNat
   extract_lets nargs jp f
   by_cases h1 : (nargs == 1) = true
@@ -399,9 +399,9 @@ theorem reduceNat.framed (he : GF G e) : RecM.Framed G (Inner.reduceNat e) (OGF 
     · rw [if_pos h2]
       refine (RecM.Framed.whnf he.appArg!).bind fun _ _ => ?_
       split
-      · exact .pure (OGF.some GF.natLit)
-      · exact .pure OGF.none
-    · rw [if_neg h2]; exact .pure OGF.none
+      · exact .pure (OptionGhostFree.some GhostFree.natLit)
+      · exact .pure OptionGhostFree.none
+    · rw [if_neg h2]; exact .pure OptionGhostFree.none
   · rw [if_neg h1]
     by_cases h2 : (nargs == 2) = true
     · rw [if_pos h2]
@@ -414,12 +414,12 @@ theorem reduceNat.framed (he : GF G e) : RecM.Framed G (Inner.reduceNat e) (OGF 
           .ite (reduceBinNatPred.framed ha hb) <| .ite (reduceBinNatOp.framed ha hb) <|
           .ite (reduceBinNatOp.framed ha hb) <| .ite (reduceBinNatOp.framed ha hb) <|
           .ite (reduceBinNatOp.framed ha hb) <| .ite (reduceBinNatOp.framed ha hb) <|
-          .pure OGF.none
-      · exact .pure OGF.none
-    · rw [if_neg h2]; exact .pure OGF.none
+          .pure OptionGhostFree.none
+      · exact .pure OptionGhostFree.none
+    · rw [if_neg h2]; exact .pure OptionGhostFree.none
 
-theorem whnf'.loop.framed : ∀ (fuel : Nat) (t : Expr), GF G t →
-    RecM.Framed G (whnf'.loop t fuel) (GF G) := by
+theorem whnf'.loop.framed : ∀ (fuel : Nat) (t : Expr), GhostFree G t →
+    RecM.Framed G (whnf'.loop t fuel) (GhostFree G) := by
   intro fuel
   induction fuel with
   | zero => intro t _; unfold whnf'.loop; exact .throw
@@ -439,11 +439,11 @@ theorem whnf'.loop.framed : ∀ (fuel : Nat) (t : Expr), GF G t →
     · exact ih _ (ho rfl)
     · exact .pure ht
 
-theorem whnf'.framed : ∀ {e : Expr}, GF G e → RecM.Framed G (whnf' e) (GF G)
+theorem whnf'.framed : ∀ {e : Expr}, GhostFree G e → RecM.Framed G (whnf' e) (GhostFree G)
   | e, he => by
     unfold whnf'
     extract_lets jp
-    have hjp : RecM.Framed G (jp ()) (GF G) := by
+    have hjp : RecM.Framed G (jp ()) (GhostFree G) := by
       dsimp only [jp]
       refine RecM.Framed.get.bind fun st hst => ?_
       split

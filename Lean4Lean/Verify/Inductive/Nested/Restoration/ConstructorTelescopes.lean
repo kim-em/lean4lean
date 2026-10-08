@@ -26,7 +26,7 @@ namespace VerifyInductive
 telescope of every source constructor type in the validation environment. -/
 theorem validateRestoredConstructorParameters.telTr_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
-    (henv : TypeChecker.EnvGF (fun _ => True) env)
+    (henv : TypeChecker.EnvGhostFree (fun _ => True) env)
     (Hsources : SourceSyntaxChecks types)
     (hrun : Lean4Lean.validateRestoredConstructorParameters.run env lparams
       safety fuel types result = .ok ())
@@ -58,7 +58,7 @@ theorem NestedRun.restoredCtorOrigin
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv)
-    (henv : TypeChecker.EnvGF (fun _ => True) sourceProdEnv)
+    (henv : TypeChecker.EnvGhostFree (fun _ => True) sourceProdEnv)
     {name : Name} {ci : ConstructorVal} (hfind : outEnv.find? name = some (.ctorInfo ci)) :
     sourceProdEnv.find? name = some (.ctorInfo ci) ∨
       (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt E.sourceCore.envTypes ci) := by
@@ -110,14 +110,14 @@ theorem NestedRun.restoredCtorOrigin
       E.production_nparams E.production_indTypes
       (E.production_c ▸ E.contextWF)
   -- the header-only validation environment is ghost-free
-  have hgf : TypeChecker.EnvGF (fun _ => True) E.auxiliaryHeaderEnv := by
+  have hgf : TypeChecker.EnvGhostFree (fun _ => True) E.auxiliaryHeaderEnv := by
     intro n ci hfind
     rcases E.headerValidationEnvironment.headers.headerFindCases hwf hfind with
       hold | ⟨indType, hmem, oldInfo, hlookup, -, rfl⟩
     · exact henv hold
     · refine ⟨?_, fun v hv => by simp [ConstantInfo.deltaValue?] at hv, fun r hr => by
         cases hr⟩
-      show TypeChecker.GF _ oldInfo.type
+      show TypeChecker.GhostFree _ oldInfo.type
       rw [hheaderType indType hmem oldInfo hlookup]
       exact (Hsources.typeClosed hmem).mono fun _ h => h.elim
   -- every source constructor type is certified by the validation run
@@ -140,7 +140,7 @@ theorem NestedRun.restoredCtorTelescopes
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv)
-    (henv : TypeChecker.EnvGF (fun _ => True) sourceProdEnv)
+    (henv : TypeChecker.EnvGhostFree (fun _ => True) sourceProdEnv)
     (hbase : CtorTelescopes safety sourceProdEnv sourceVEnv) :
     CtorTelescopes safety outEnv E.sourceCore.envTypes ∧
       CtorTelescopes safety E.validationEnv E.sourceCore.envTypes := by

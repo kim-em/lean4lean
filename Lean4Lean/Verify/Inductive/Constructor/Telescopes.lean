@@ -19,7 +19,7 @@ namespace VerifyInductive
 /-- A successful closed check of a type certifies its telescope in the empty context. The
 environment must be ghost-free: no constant mentions a free variable. -/
 theorem checkClosedType.telTrWF (Hc : ContextWF c)
-    (henv : TypeChecker.EnvGF (fun _ => True) c.env) :
+    (henv : TypeChecker.EnvGhostFree (fun _ => True) c.env) :
     (AddInductive.checkClosedType name type c).WF fun _ =>
       ∃ T, TelTr Hc.venv c.lparams [] type T := by
   change (c.env.checkNoMVarNoFVar name type >>= fun _ =>
@@ -38,7 +38,7 @@ theorem checkClosedType.telTrWF (Hc : ContextWF c)
 theorem checkConstructors.loopCtors.telTrWF
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {isUnsafe : Bool} {targetIdx : Nat} {ctors : List Constructor}
-    (Hc : ContextWF c) (henv : TypeChecker.EnvGF (fun _ => True) c.env) :
+    (Hc : ContextWF c) (henv : TypeChecker.EnvGhostFree (fun _ => True) c.env) :
     ∀ (ctorIdx : Nat) (foundCtors : NameSet),
     (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
       ctors ctorIdx foundCtors c).WF fun _ =>
@@ -97,7 +97,7 @@ type. -/
 theorem checkConstructors.loopTypes.telTrWF
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {isUnsafe : Bool} {indTypes : Array InductiveType}
-    (Hc : ContextWF c) (henv : TypeChecker.EnvGF (fun _ => True) c.env) :
+    (Hc : ContextWF c) (henv : TypeChecker.EnvGhostFree (fun _ => True) c.env) :
     ∀ (targetIdx : Nat),
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe targetIdx c).WF
       fun _ => ∀ i, targetIdx ≤ i → ∀ (h : i < indTypes.size), ∀ ctor ∈ indTypes[i].ctors,
@@ -120,13 +120,13 @@ termination_by targetIdx => indTypes.size - targetIdx
 
 /-- A translation in the empty context mentions no free variable at all. -/
 theorem _root_.Lean4Lean.TrExprS.envGF {e : Expr} (H : TrExprS venv Us [] e e') :
-    TypeChecker.GF (fun _ => True) e :=
+    TypeChecker.GhostFree (fun _ => True) e :=
   H.fvarsIn.mono fun _ h => absurd h (by simp)
 
 /-- No constant of a well-formed environment mentions a free variable: the unsafe observer
 translates every constant type, delta value and recursor rule in the empty context. -/
 theorem _root_.Lean4Lean.VEnvs.WFCore.envGF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
-    TypeChecker.EnvGF (fun _ => True) env := by
+    TypeChecker.EnvGhostFree (fun _ => True) env := by
   intro n ci hfind
   have htr := wf.tr (safety := .unsafe)
   have hvis : DefinitionSafety.unsafe ≤ ci.safety := by cases h : ci.safety <;> decide
