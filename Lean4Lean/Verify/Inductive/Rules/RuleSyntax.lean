@@ -720,7 +720,7 @@ theorem RecursorRuleSyntax.abstractedSourceLhs
     Expr.abstractList_const]
 
 /-- Inverting the translated canonical LHS exposes the exact recursor and
-constructor constant spines used by `IotaEquationCertificate`. -/
+constructor constant spines matched by the `lhs_pattern` field of `VInductDecl.IotaRule`. -/
 theorem RecursorRuleSyntax.translatedLhsResidual
     (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule)
