@@ -4,18 +4,18 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Declarations
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.StrippedRecursorShapes
 import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
-/-! Final assembly certificate of a validated nested run: the pieces.
+/-! Restored block certificate of a validated nested run: the pieces.
 
 `NestedRun.assemblyOfRun` asks for a
-`RestoredBlockCertificate` whose production is the run's.
+`RestoredBlockCertificate` whose lowered run is the run's.
 `NestedRun.assemblyOfRun_of_run` (`Nested/Install/CertificateOfRun.lean`)
-assembles one from the run, given the rule junction `Hrules` and the recursor
-provenance `Hprovenance`. This file derives everything else from the run:
+assembles one from the run, given the rule hypothesis `Hrules` and the recursor
+alignment hypothesis `Hprovenance`. This file derives everything else from the run:
 the `CompilationData` and the certified specializations
 (`compilationData_of_tables`, given the restored equation list) and the
-realization of every concrete restored recursor entry, including its
+translation of every concrete restored recursor entry, including its
 specialization, rules (`trRestoredRules`) and major inductive
-(`restoredMajorInduct`). Freshness of the restorable names in the final
+(`restoredMajorInduct`). Freshness of the restorable names in the recursor
 environment is only used outside a list `X` of names (in the application, the
 renamed auxiliary recursor names, see `Nested/Restoration/RecursorRenaming.lean`). -/
 
@@ -49,7 +49,7 @@ theorem forall₂_imp_mem_right {R S : α → β → Prop} :
 /-! ### The installed restored recursors -/
 
 /-- The restored recursor of one inductive restoration step is an entry of a
-fresh trace of that step. -/
+fresh extension of that step. -/
 theorem SourceFamilyRestoration.freshExtensionWithRecInfo
     (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
@@ -160,7 +160,7 @@ theorem NestedRestorationFolds.find_restoredRecursor
   rw [← hsame]
   exact Htrace.findEntry hwf hs
 
-/-- The recursor entries of a final assembly shape are installed in the
+/-- The recursor entries of a restored block base are installed in the
 output environment under the names of their abstract values. -/
 theorem RestoredBlockBase.find_recursorEntry
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -198,12 +198,12 @@ theorem RestoredBlockDerivation.find_recursorEntry
       outEnv.find? entry.2.name = some entry.1 :=
   C.toRestoredBlockBase.find_recursorEntry hwf
 
-/-- `compilationData_of_hitShape'` at a given specialization list of
+/-- `compilationData_of_specializations` at a given specialization list of
 `restorationTablesRestoringAll` (rather than at an existentially chosen one):
-the restored recursors and equations of the canonical restored block of a
-shape whose rule lists are the restored generated equations (`hequations`;
-see `restoredEquations_of_hitShape` and `restoredEquations_of_trModulo`)
-form a `CompilationData`, and the specializations are certified. -/
+the restored recursors and equations of the restored block of a derivation
+whose rule lists are the restored generated equations (`hequations`; see
+`restoredEquations_of_trModulo`) form a `CompilationData`, and the
+specializations are certified. -/
 theorem NestedRun.compilationData_of_tables
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -287,7 +287,7 @@ theorem NestedRun.compilationData_of_tables
       recursors := hrecursors
       equations := hequations }⟩⟩
 
-/-- The recursor entries of a final assembly shape of a validated nested run,
+/-- The recursor entries of a restored block base of a validated nested run,
 in owner order: each entry's concrete constant is the restored recursor of a
 restoration step at the owner's lowered recursor name, and its abstract value
 is the abstract restoration of the owner's generated recursor and the
@@ -510,9 +510,9 @@ def RestoredRecursorSpecialization {s : InductiveSignature} (g : Instance s)
     List.Forall₂ (TrRestoredRecursorRule g r venv rec.levelParams head)
       (s.ownedConstructors owner) rec.rules
 
-/-- **One restored recursor realization**, modulo its specialization clause:
+/-- **One restored recursor translation**, modulo its specialization clause:
 the restored recursor of a restoration step at a generated owner's lowered
-recursor name realizes the owner's restored generated recursor. -/
+recursor name translates to the owner's restored generated recursor. -/
 theorem NestedRun.trRestoredRecursorVal_of_step
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -571,8 +571,8 @@ theorem NestedRun.trRestoredRecursorVal_of_step
 /-- **The restored rules of one restored recursor.** Given the restored
 family head of its owner (with the constructor restorations of
 `CompilationData.restoredFamilyHead_spec`), every rule of the restored
-recursor of a restoration step realizes its generated constructor, against
-the canonical restored rule list, in an abstract environment in which the
+recursor of a restoration step translates the rule of its generated
+constructor, against the restored rule list, in an abstract environment in which the
 restored recursor is installed and the restorable names outside `X` are
 fresh, provided no lowered auxiliary recursor name `A.rec` lies in `X` (for
 `X` the renamed recursor names: `auxRecName_not_renamed`). -/

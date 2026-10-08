@@ -4,6 +4,12 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledFamilyLookups
 import Lean4Lean.Verify.Inductive.Prelude.EqReady
 import Lean4Lean.Verify.Inductive.Install.Result
 
+/-! The block certificate of a restored nested block
+(`RestoredBlockCertificate.blockCertificate`) and the safety-indexed
+extension of the environment model that it yields for safe and unsafe nested
+declarations, with the source-family lookups and the constructor-owner
+invariant read off the restoration folds. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -86,11 +92,11 @@ private theorem CtorParamsAgree.mapKernel
   rcases H familyName familyInfo hfamily' hvisible i hi with ⟨C⟩
   exact ⟨C.mapKernel heq⟩
 
-/-- Recover the replayable staged block before `NestedInstallResult`
-projects it to the independent `VEnv.AddInduct` judgment.  This is the exact
-canonical production batch retained by the nested final assembly certificate;
-in particular, its production endpoint is the environment actually returned
-by restoration. -/
+/-- Recover the replayable block certificate before `NestedInstallResult`
+projects it to the independent `VEnv.AddInduct` judgment.  This is the
+dependency-order block installation retained by the restored block
+certificate; in particular, its kernel endpoint is the environment actually
+returned by restoration. -/
 def RestoredBlockCertificate.blockCertificate
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -145,7 +151,7 @@ theorem RestoredBlockCertificate.block_eq_restoredBlock
     C.constructorValues, C.recursorValues]
 
 /-- The replayable block is the same source nested compilation used by the
-final independent `AddInduct` result. -/
+independent `AddInduct` result. -/
 theorem RestoredBlockCertificate.compilation
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -200,10 +206,10 @@ theorem RestoredBlockCertificate.declWF
   exact ⟨Lean4Lean.TrInductDecl.sourceWF Htranslated,
     .nested C.formationAssembly.formation VEnv.LE.rfl⟩
 
-/-- The exact installed-production package retained by final assembly and the
-exact restoration fold determine the source-family production origins.  The
-equalities are only the indices erased when the executable semantic run is
-unpacked; no independent origin witness remains. -/
+/-- The lowered run retained by the restored block certificate and the
+restoration folds determine the source-family lookups (`InductInfosFromDecl`).
+The equalities are only the indices erased when the executable run is
+unpacked; no independent lookup fact remains. -/
 theorem RestoredBlockCertificate.inductInfosFromDecl
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -250,9 +256,9 @@ theorem RestoredBlockCertificate.inductInfosFromDecl
     Hsource Hmetadata Hsources Harity Howners hempty
   simpa only [henv] using Horigins
 
-/-- The exact restoration trace, reindexed to the ordinary production
-context retained by final assembly, preserves the persistent constructor
-owner invariant. -/
+/-- The restoration folds, reindexed to the context of the lowered run
+retained by the restored block certificate, preserve the constructor owner
+invariant. -/
 theorem RestoredBlockCertificate.constructorOwnersPresent
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -286,9 +292,9 @@ theorem RestoredBlockCertificate.constructorOwnersPresent
   exact Hrestored.constructorOwnersPresent Hlower Hc Hprod hempty Howners
 
 /-- A safe nested restoration extends every safety-indexed observer by
-replaying the exact canonical restored block.  The result retains both the
-complete final model and the source-facing nested final judgment produced by
-the same assembly certificate. -/
+replaying the restored block in dependency order.  The result retains both the
+complete installed model and the source-facing nested judgment produced by
+the same restored block certificate. -/
 private theorem RestoredBlockCertificate.extendSafe
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -459,7 +465,7 @@ private theorem RestoredBlockCertificate.extendSafe
     rw [← C.typeValues] at htypesH
     exact (B.typesLe htypesH).trans (outputLE .safe)
 
-/-- Declaration-dispatch form of the safe exact-restoration replay theorem. -/
+/-- Declaration-dispatch form of the safe restoration replay theorem. -/
 private theorem RestoredBlockCertificate.safeInductiveExtension
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -498,8 +504,8 @@ private theorem RestoredBlockCertificate.safeInductiveExtension
     (VEnvs.CtorTelescopesPreserved.ofOrigin (isUnsafe := false) hle wf'.mono
       (htypesLe venvH htypesH) hctorOrigin)⟩
 
-/-- Safe final-model assembly with production origins discharged from the
-exact closed lowering, ordinary production, and restoration traces. -/
+/-- Safe installed-model assembly with the kernel family lookups discharged
+from the closed lowering, the lowered run, and the restoration folds. -/
 theorem RestoredBlockCertificate.safeInductiveExtensionOfKernel
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -549,9 +555,9 @@ theorem RestoredBlockCertificate.safeInductiveExtensionOfKernel
     (C.constructorOwnersPresent Hlower Hc Hprod Howners hempty henv hnames)
     hconstructorSemantics htypesH hctorOrigin
 
-/-- An unsafe exact restoration changes only the unsafe abstract observer.
-The premise is indexed by every exact fresh restoration trace, ruling out an
-unrelated list of production constants; it is precisely the production
+/-- An unsafe restoration changes only the unsafe abstract observer.
+The premise is indexed by every fresh extension of the restoration, ruling out
+an unrelated list of kernel constants; it is precisely the kernel
 metadata fact needed to justify `TrEnv'.ignore` at partial and safe. -/
 private theorem RestoredBlockCertificate.unsafeInductiveExtension
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -747,8 +753,8 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
       extension := haddExact }
     (VEnvs.CtorTelescopesPreserved.ofOrigin (isUnsafe := true) hle wf'.mono hH hctorOrigin)⟩
 
-/-- Unsafe final-model assembly with production origins discharged from the
-exact closed lowering, ordinary production, and restoration traces. -/
+/-- Unsafe installed-model assembly with the kernel family lookups discharged
+from the closed lowering, the lowered run, and the restoration folds. -/
 theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernel
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}

@@ -10,17 +10,20 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! # Final model dispatch for exact nested runs
+/-! # The inductive extension of a nested run
 
-This module is the narrow bridge between the exact executable nested run and
-the public `InductiveExtension`.  Formation, recursors, equations, closure,
-and unsafe restoration tags are already consequences of the exact run.  The
-only remaining model premise is semantic coherence of the restored source
-constructors in the exact final abstract environment.
+This module turns the executable nested run into the public
+`InductiveExtension` (section 3.3 of `docs/inductives/DESIGN.md`).  Formation,
+recursors, equations, closure, and unsafe restoration tags are consequences
+of the run.  The only further premise of `NestedInstalledRun.inductiveExtension`
+is coherence of the restored source constructors in the installed abstract
+environment (`NestedInstalledConstructorsCoherent`), which
+`Environment.addInductiveAfterLowering.nestedInductiveExtensionWF` derives
+from the constructor parameter domains.
 -/
 
-/-- Constructor coherence at the exact final environment produced by a nested
-run.  Naming this boundary keeps declaration dispatch independent of the
+/-- Constructor coherence at the installed environment produced by a nested
+run.  Naming this premise keeps declaration dispatch independent of the
 internal safe/unsafe assembly split. -/
 def NestedInstalledConstructorsCoherent
     (E : NestedInstalledRun result sourceProdEnv sourceTypes sourceEnv
@@ -29,10 +32,10 @@ def NestedInstalledConstructorsCoherent
     (E.assembly.recursorVEnv.addDefEqRules
       (E.assembly.sourceRules ++ E.assembly.auxiliaryRules))
 
-/-- Uniformly turn an exact safe or unsafe nested execution into the public
-final result.  The lowering trace is reindexed only by the exact production
-context equality retained in `E`; no separately chosen production witness is
-used. -/
+/-- Uniformly turn a safe or unsafe nested execution into the public
+`InductiveExtension`.  The lowering run is reindexed only by the context
+equality of the lowered run retained in `E`; no separately chosen lowered run
+is used. -/
 theorem NestedInstalledRun.inductiveExtension
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) decl lparams nparams
@@ -67,9 +70,10 @@ theorem NestedInstalledRun.inductiveExtension
       exact E.unsafeInductiveExtension wf htels Hlower' Hmetadata
         Hsources hempty hconstructors htypesH hctorOrigin
 
-/-- Final-result refinement for the nested post-lowering branch.  Exact
-assembly and constructor parameter domains are reconstructed internally from
-the checked production, lowering, validation, and restoration traces. -/
+/-- Inductive-extension refinement for the nested post-lowering branch.  The
+restored block certificate and the constructor parameter domains are
+reconstructed internally from the checked lowered run, lowering, validation,
+and restoration folds. -/
 theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)

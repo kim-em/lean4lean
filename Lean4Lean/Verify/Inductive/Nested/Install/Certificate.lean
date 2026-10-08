@@ -13,6 +13,15 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceDeclaration
 import Lean4Lean.Verify.Inductive.Install.Ordinary
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Tables
 
+/-! The certificate of a restored nested block (section 3.3 of
+`docs/inductives/DESIGN.md`): the rule-independent `RestoredBlockBase`, the
+`RestoredBlockDerivation` with the restored rules, and the
+`RestoredBlockCertificate`, together with the data of a validated nested run
+(`NestedRun`, `NestedInstalledRun`).  Typing and abstract installation follow
+dependency order (all headers, then all constructors, then all recursors),
+while the executable restores family by family; the certificate relates the
+two orders by a permutation. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -29,10 +38,10 @@ theorem List.nodup_of_map_nodup
     simp only [List.map_cons, List.nodup_cons] at H ⊢
     exact ⟨fun ha => H.1 (List.mem_map_of_mem ha), ih H.2⟩
 
-/-- A fresh insertion trace between fixed endpoints has a unique finite
-payload up to order.  Consequently final assembly needs to align just one
-exact restoration trace with canonical dependency order; every other trace
-witness for the same successful run follows automatically. -/
+/-- A fresh extension between fixed endpoints has a unique finite payload up
+to order.  Consequently the restored block certificate needs to align just one
+restoration fold with dependency order; every other fresh extension for the
+same successful run follows automatically. -/
 theorem FreshExtension.permOfSameTarget
     (Hleft : FreshExtension source leftEntries target)
     (Hright : FreshExtension source rightEntries target)
@@ -59,7 +68,7 @@ theorem FreshExtension.permOfSameTarget
       contradiction
     · simpa [hfound] using hentry
 
-/-- Primary restored-iota shape is independent of the block's equation
+/-- The source restored-iota shape is independent of the block's equation
 payload; only the installed recursor list occurs in `NestedIotaRule`. -/
 def VInductDecl.NestedIotaRule.rebaseRecursors
     {decl : VInductDecl} {source target : VInductBlock}
@@ -119,13 +128,13 @@ theorem NestedIotaBuildCertificate.rebaseRecursors
     rcases H.shapes i hrule hctor with ⟨Hrule⟩
     exact ⟨VInductDecl.NestedIotaRule.rebaseRecursors Hrule hrecursors⟩
 
-/-- Rule-free block used while the primary restoration fold discovers the
-actual primary rule list. -/
+/-- Rule-free block used while the source-family restoration fold determines
+the actual source rule list. -/
 def restoredShapeBlock (decl : VInductDecl)
     (primaryRecursors auxiliaryRecursors : List VConstVal) : VInductBlock :=
   restoredBlock decl primaryRecursors auxiliaryRecursors [] []
 
-/-- The final result of nested restoration, relating the returned production
+/-- The installed result of nested restoration, relating the returned kernel
 environment to the constant stage of the abstract extension and retaining the
 complete independent `AddInduct` judgment (including its restored rules). -/
 structure NestedInstallResult (sourceEnv : VEnv)
@@ -144,7 +153,7 @@ structure NestedInstallResult (sourceEnv : VEnv)
     (baseVEnv.addDefEqRules rules)
 
 /-- The case eliminators `es` registered by the source block restore the case eliminator of the
-lowered window of the production `P`: the lowered window registers the restoration-free schema
+lowered recursor-checking environment of the lowered run `P`, which registers the restoration-free schema
 `(key, ofCompilation P.loweredDecl sL [])`, and the source block registers the schema with the
 same key and signature `sL`, restored by the nested compilation restoration of a specialisation
 list `auxiliaries` whose restoration tables are those of the run (`RestorationTablesAgree`). -/
@@ -159,19 +168,19 @@ def CaseEliminatorsRestored {loweredEnv : Environment}
     es = [(key, InductiveSignature.CaseSchema.ofCompilation decl sL auxiliaries)] ∧
     RestorationTablesAgree decl auxiliaries result loweredEnv auxRec lparams
 
-/-- Rule-independent part of the final nested assembly: every field of
+/-- Rule-independent part of the restored block derivation: every field of
 `RestoredBlockDerivation` except the two restored rule lists and their three
-rule traces.  The auxiliary recursors are instead certified by the rule-free
-`AuxiliaryRecursorTranslations`.  This lets the restored generated equations
-be shown well formed in `finalBaseVEnv` before any rule list is chosen.
+rule derivations.  The auxiliary recursors are instead certified by the
+rule-free `AuxiliaryRecursorTranslations`.  This lets the restored generated
+equations be shown well formed in `recursorVEnv` before any rule list is chosen.
 
-The actual production trace supplies only freshness and its
-family-interleaved order.  Semantic typing and abstract installation occur in
-the canonical dependency order, where every mutual header precedes every
-constructor.  `productionOrder` is the exact finite join between them.
+The executable's fresh extension supplies only freshness and its
+family-interleaved order.  Typing and abstract installation occur in
+dependency order, where every mutual header precedes every constructor.
+`executableOrder_perm` relates the two orders.
 
 This separation is essential for mutual nested declarations: asking the
-abstract environment to follow production's per-family order would require a
+abstract environment to follow the executable's per-family order would require a
 constructor to typecheck before later sibling headers existed. -/
 structure RestoredBlockBase
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -221,20 +230,20 @@ structure RestoredBlockBase
   numParams : decl.nparams = nparams
   unsafeEq : decl.isUnsafe = isUnsafe
   sourceNonempty : sourceTypes ≠ []
-  /-- The declaration's case eliminators, registered by the canonical staging before the
+  /-- The declaration's case eliminators, registered by the block installation before the
   projections, are certified. -/
   eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock install.eliminators)
   /-- The certificate of the case eliminators replays over larger safety models of the same
-  production environment. -/
+  kernel environment. -/
   eliminatorsCertified : decl.CaseEliminators sourceEnv
     (fun n => sourceProdEnv.constants.find? n = none) install.eliminators
-  /-- The case eliminators restore the case eliminator of the lowered window. -/
+  /-- The case eliminators restore the case eliminator of the lowered recursor-checking environment. -/
   eliminatorsRestored : CaseEliminatorsRestored lowered result auxRec decl lparams
     install.eliminators
 
-/-- Exact semantic payload still needed after the executable restoration fold
-has completed: the rule-independent `RestoredBlockBase` together with
-the restored rule lists and their primary and auxiliary rule traces. -/
+/-- The derivation of a restored block: the rule-independent
+`RestoredBlockBase` together with the restored rule lists and their source and
+auxiliary rule derivations. -/
 structure RestoredBlockDerivation
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -261,7 +270,7 @@ structure RestoredBlockDerivation
       ((install.venvCtors.addEliminators install.eliminators).addProjections decl.projectionEntries)
       recursorVEnv auxiliaryGuarded [] [] auxiliaryRecursors auxiliaryRules
 
-/-- A final assembly shape coerces to its rule-independent base. -/
+/-- A restored block derivation coerces to its rule-independent base. -/
 instance
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -291,10 +300,10 @@ theorem RestoredBlockDerivation.constructorArityPrefix
   rw [C.formationExpanded] at h
   exact h
 
-/-- Residual final-layout evidence after the source-family and primary-iota
-semantic traces have been constructed from their exact producers.  Keeping
-this separate prevents the executable boundary from replacing either
-semantic aggregate with an unrelated witness. -/
+/-- The remaining layout facts once the source-family translations and the
+source iota rules have been constructed from the run.  Keeping this separate
+prevents the executable side from replacing either aggregate with an
+unrelated one. -/
 structure NestedFinalAssemblyRemainder
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -331,8 +340,8 @@ structure NestedFinalAssemblyRemainder
       ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
       finalBaseVEnv auxiliaryTyping [] [] auxiliaryRecursors auxiliaryRules
 
-/-- Assemble the full certificate after its two producer-indexed semantic
-traces have been built. -/
+/-- Assemble the full certificate once its two run-indexed aggregates (source
+family translations and source iota rules) have been built. -/
 noncomputable def NestedFinalAssemblyRemainder.certificate
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -424,10 +433,10 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
   eliminatorsCertified := Hreplay
   eliminatorsRestored := Hrestored
 
-/-- Fold primary equations while retaining membership of both the concrete
+/-- Fold source equations while retaining membership of both the concrete
 source family and its exact restored source recursor in the two aggregate
 lists.  These are the two positional facts needed to connect a pointwise
-restoration step back to its generated production entry and final block. -/
+restoration step back to its generated kernel entry and installed block. -/
 theorem SourceFamilyTranslations.sourceIotaTraceOfMemberships
     {decl : VInductDecl} {lparams : List Name}
     {safety : DefinitionSafety} {sourceVEnv envTypes envCtors : VEnv}
@@ -503,9 +512,10 @@ theorem RestoredBlockDerivation.sourceIotaBuild
   (C.sourceIota.build C.typesSource).rebaseRecursors (by
     simp [restoredShapeBlock, restoredBlock])
 
-/-- Actual producer result. The finite derivation and concrete recursor
-provenance describe the exact same selected rules and restored constants.
-Only the full validated execution constructs this stronger result. -/
+/-- The restored block certificate: a restored block derivation with the
+translation of its compilation (`trCompilation`) and the recursor alignment
+(`recursorsAligned`), both about the same selected rules and restored
+constants.  Only the full validated execution constructs it. -/
 structure RestoredBlockCertificate
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -522,8 +532,8 @@ structure RestoredBlockCertificate
   recursorsAligned : NewRecursorsAligned .unsafe sourceProdEnv.constants sourceEnv
     outEnv.constants (recursorVEnv.addDefEqRules (sourceRules ++ auxiliaryRules))
 
-/-- Assemble the final independent nested judgment and the concrete restored
-environment alignment from the same trace-indexed certificate. -/
+/-- Assemble the independent nested judgment and the alignment of the concrete
+restored environment from the same certificate. -/
 noncomputable def RestoredBlockCertificate.extension
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -583,7 +593,7 @@ noncomputable def RestoredBlockCertificate.extension
     C.eliminatorsWF
 
 /-- All proof-relevant data produced by a successful nested execution before
-final certificate assembly. -/
+the restored block certificate is assembled. -/
 structure NestedRun
     (res : Lean4Lean.ElimNestedInductive.Result)
     (sourceProdEnv : Environment) (sourceTypes : List InductiveType)
@@ -667,10 +677,10 @@ structure NestedRun
   sourceCoreDecl_eq : sourceCore.sourceDecl = decl
   auxiliaryVEnv_eq_sourceCore : auxiliaryVEnv = sourceCore.envTypes
 
-/-- Rich final nested result retaining the exact ordinary installation,
-restoration trace, and assembly certificate that produced the public final
-environment model.  Downstream declaration dispatch needs these witnesses to
-derive closure, safety tags, and constructor coherence for this exact run. -/
+/-- Nested result retaining the lowered run, the restoration folds and the
+restored block certificate that produced the public installed environment
+model.  Declaration dispatch needs these to derive closure, safety tags, and
+constructor coherence for this exact run. -/
 structure NestedInstalledRun
     (res : Lean4Lean.ElimNestedInductive.Result)
     (sourceProdEnv : Environment) (sourceTypes : List InductiveType)
@@ -747,7 +757,7 @@ structure NestedInstalledRun
   installedResult : NestedInstallResult sourceEnv decl lparams nparams
     sourceTypes isUnsafe safety outEnv
 
-/-- The checker context used by the production post-lowering pipeline. -/
+/-- The checker context used by the executable's post-lowering pipeline. -/
 def nestedAddInductiveContext (env : Environment) (lparams : List Name)
     (isUnsafe allowPrimitive : Bool) (fuel : FuelConfig) :
     AddInductive.Context :=
@@ -756,9 +766,9 @@ def nestedAddInductiveContext (env : Environment) (lparams : List Name)
     allowPrimitive := allowPrimitive, fuel := fuel }
 
 /-- Fully executable validated nested run.  The lowered ordinary run is
-discharged by `AddInductive.run.semanticWF`; its existential semantic context
-and complete recursor phases are retained because restoration needs the
-latter, whereas `semanticAddInductWF` intentionally projects them away. -/
+discharged by `AddInductive.run.sourceAlignedWF`; its existential checking
+context and complete recursor check are retained because restoration needs
+the latter. -/
 theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe allowPrimitive : Bool)

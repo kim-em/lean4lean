@@ -1,6 +1,9 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.FreshExtensions
 import Lean4Lean.Verify.Inductive.Recursor.Entries.AddConstants
 
+/-! Fresh extensions of a kernel environment: their lookups, and independence of
+the kernel lookups and the local checking invariants from the insertion order. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -11,7 +14,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Every lookup introduced by a fresh production trace is one of its exact
+/-- Every lookup introduced by a fresh extension is one of its exact
 entries; all other lookups come from the source environment. -/
 theorem FreshExtension.entryOrigin
     (H : FreshExtension source entries target)
@@ -42,7 +45,7 @@ theorem FreshExtension.entryOrigin
         rwa [Lean.Kernel.Environment.find?, hsourceWF.find?'_eq_find?]
     · exact Or.inr ⟨entry, by simp [hentry], hname, hfound⟩
 
-/-- Every exact entry of a fresh production trace is present in the target
+/-- Every exact entry of a fresh extension is present in the target
 environment with unchanged metadata. -/
 theorem FreshExtension.findEntry
     (H : FreshExtension source entries target)
@@ -69,7 +72,7 @@ theorem FreshExtension.findEntry
       simp
     · exact ih hnextWF htail
 
-/-- Fresh insertion order is irrelevant to production lookup semantics.
+/-- Fresh insertion order is irrelevant to kernel lookups.
 This is deliberately an extensional statement: the two `SMap`
 representations need not be propositionally equal. -/
 theorem FreshExtension.lookupEqOfPerm
@@ -130,7 +133,7 @@ theorem FreshExtension.lookupEqOfPerm
     exact (forward hleft).symm
 
 /-- Rebase a checking environment across an exact extensional change of its
-production constant-map representation. -/
+kernel constant-map representation. -/
 theorem CheckingEnv.mapExt
     (H : CheckingEnv safety source venv)
     (htargetWF : target.constants.WF)
@@ -175,8 +178,8 @@ theorem CheckingEnv.ValidCore.mapExt
     rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?]
     exact hfindSource
 
-/-- Forget the semantic part of a canonical lockstep installation while
-retaining its exact production freshness trace. -/
+/-- Forget the typing part of a lockstep installation (`AddConstants`) while
+retaining its fresh extension. -/
 theorem AddConstants.freshExtension
     (H : AddConstants safety source sourceVEnv entries target targetVEnv) :
     FreshExtension source (entries.map Prod.fst) target := by

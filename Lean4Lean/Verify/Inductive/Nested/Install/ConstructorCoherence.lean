@@ -4,6 +4,10 @@ import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope
 import Lean4Lean.Verify.Typing.EnvironmentRestriction
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ParameterOpening
 
+/-! Closure of the installed mutual blocks, safety tags of the restored entries,
+and coherence of the restored constructors' common parameters for a nested
+run, all derived from the lowered run and the restoration folds. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -14,8 +18,9 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Production origins close the final mutual blocks once the exact restored
-source-family members are known to be present.  This isolates the only
+/-- The kernel family lookups (`InductInfosFromDecl`) close the installed mutual
+blocks once the restored source-family members are known to be present.  This
+isolates the only
 restoration-specific part of the closure argument from the generic lookup
 reasoning. -/
 theorem InductInfosFromDecl.mutualInductivesClosed
@@ -68,8 +73,8 @@ theorem InductInfosFromDecl.mutualInductivesClosed
       rw [A.all] at hmember
       exact (hmemberParams member info hmember hlookup).trans A.numParams.symm
 
-/-- Every original source family restored by the exact outer fold is visible
-in its final production environment, in source order. -/
+/-- Every source family restored by the outer fold is visible in the installed
+kernel environment, in source order. -/
 private theorem FoldSteps.restoredSourceMemberInfos
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
@@ -168,8 +173,8 @@ private theorem sourceTypeNames
   | nil => rfl
   | cons Hhead Htail ih => simp [Hhead.header.name, ih]
 
-/-- The exact closed lowering, installed ordinary producer, and restoration
-trace discharge the final mutual-block closure premise. -/
+/-- The closed lowering, the lowered run, and the restoration folds discharge
+the mutual-block closure premise of the installed environment. -/
 theorem RestoredBlockCertificate.mutualInductivesClosed
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -260,8 +265,8 @@ theorem RestoredBlockCertificate.mutualInductivesClosed
   · exact HmemberParams
   · exact htypeNames
 
-/-- The positionally aligned constructor restoration trace retains enough
-installed-production metadata to show that every restored constructor is
+/-- The positionally aligned constructor restorations retain enough
+lowered-run metadata to show that every restored constructor is
 exactly unsafe, not merely visible to the unsafe checker. -/
 private theorem LoweredRestoredConstructors.unsafeFreshExtension
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -368,7 +373,7 @@ private theorem RestoredRecursorStep.unsafeFreshExtension
   rw [htarget]
   exact ⟨[ci], .cons hfresh .nil, by simpa using hciUnsafe⟩
 
-/-- One exact primary-family restoration emits only unsafe entries when the
+/-- One source-family restoration step emits only unsafe entries when the
 source declaration and generated recursor batch are unsafe. -/
 private theorem RestoredInductiveStep.unsafeFreshExtensionAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -471,7 +476,7 @@ private theorem RestoredInductiveStep.unsafeFreshExtensionAt
     · exact hctorUnsafe entry hctor
     · exact hrecUnsafe entry hrec
 
-/-- The exact outer primary-family fold emits only unsafe entries. -/
+/-- The outer source-family fold emits only unsafe entries. -/
 private theorem FoldSteps.unsafeInductiveFreshExtension
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
@@ -568,9 +573,9 @@ private theorem FoldSteps.unsafeRecursorFreshExtension
       · exact hheadUnsafe entry hhead
       · exact htailUnsafe entry htail
 
-/-- The complete exact production restoration trace is uniformly unsafe.
-This is the canonical trace later transported to any extension-equivalent
-fresh trace by `RestoredBlockCertificate.productionOrder`. -/
+/-- The complete restoration of the kernel environment is uniformly unsafe.
+This is later transported to any fresh extension with the same endpoints by
+the certificate's order permutation (`RestoredBlockBase.executableOrder_perm`). -/
 theorem NestedRestorationFolds.unsafeFreshExtensionOfKernel
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
@@ -617,8 +622,8 @@ theorem NestedRestorationFolds.unsafeFreshExtensionOfKernel
   · exact hprimaryUnsafe entry hprimary
   · exact hauxUnsafe entry haux
 
-/-- Exact restoration plus the certificate's production-order permutation
-discharges unsafe safety for every fresh trace of the same final extension. -/
+/-- Restoration plus the certificate's order permutation shows every entry
+unsafe, for every fresh extension with the same endpoints. -/
 theorem RestoredBlockCertificate.entriesUnsafe
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -680,8 +685,8 @@ theorem RestoredBlockCertificate.entriesUnsafe
         hactualCanonical.trans hexactCanonical.symm
       exact hexactUnsafe entry (hactualExact.mem_iff.mp hentry)
 
-/-- Safe final assembly with both production origins and final mutual closure
-derived from the exact producer/restoration evidence. -/
+/-- Safe installed-model assembly with both the kernel family lookups and the
+mutual closure derived from the lowered run and the restoration folds. -/
 theorem RestoredBlockCertificate.safeInductiveExtensionOfKernelClosed
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -729,10 +734,10 @@ theorem RestoredBlockCertificate.safeInductiveExtensionOfKernelClosed
     Hmetadata Hsources Harity hempty henv hlparams hnames hclosed
       hconstructorSemantics htypesH hctorOrigin
 
-/-- Unsafe final assembly with origins, final mutual closure, and uniform
-restoration-entry safety all derived from the exact producer/restoration
-evidence.  Constructor semantic coherence is the only remaining final-model
-premise. -/
+/-- Unsafe installed-model assembly with the family lookups, mutual closure,
+and uniform restoration-entry safety all derived from the lowered run and the
+restoration folds.  Constructor coherence is the only remaining premise on the
+installed model. -/
 theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernelClosed
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -787,8 +792,8 @@ theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernelClosed
     Hmetadata Hsources Harity hempty henv hlparams hnames hentries hclosed
       hconstructorSemantics htypesH hctorOrigin
 
-/-- Consume a rich exact safe nested run directly.  All dependent ordinary
-production indices are recovered from the alignments retained by the run. -/
+/-- Use a safe nested run directly.  All dependent indices of the lowered run
+are recovered from the alignments retained by the run. -/
 private theorem LoweredRun.reindex
     (P : LoweredRun loweredEnv)
     {c' : AddInductive.Context} {nparams' : Nat} {isUnsafe' : Bool}
@@ -844,9 +849,9 @@ theorem NestedInstalledRun.safeInductiveExtension
     E.context_env E.context_lparams rfl
       hconstructorSemantics htypesH hctorOrigin
 
-/-- Consume a rich exact unsafe nested run directly.  Closure and every
-unsafe restoration-entry tag are reconstructed from its exact production
-and restoration traces. -/
+/-- Use an unsafe nested run directly.  Closure and every unsafe
+restoration-entry tag are reconstructed from its lowered run and restoration
+folds. -/
 theorem NestedInstalledRun.unsafeInductiveExtension
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv .unsafe) decl lparams nparams true .unsafe outEnv)
@@ -883,10 +888,10 @@ theorem NestedInstalledRun.unsafeInductiveExtension
     E.context_env E.context_lparams rfl rfl rfl
       E.context_safety hconstructorSemantics htypesH hctorOrigin
 
-/-! ## Narrow semantic residue for restored constructors -/
+/-! ## Parameter-domain coherence of restored constructors -/
 
-/-- The exact semantic datum not contained in production/restoration
-metadata: the independently translated source family and constructor expose
+/-- The semantic fact not contained in kernel or restoration metadata: the
+independently translated source family and constructor expose
 the requested number of leading binders, and those two binder contexts are
 definitionally equal.  Residual bodies are intentionally unconstrained. -/
 structure ConstructorParameterDomainsDefEq
@@ -928,10 +933,10 @@ def ConstructorParameterDomainsDefEq.monoReindex
   parameterDomains := by
     simpa only [hlevels] using H.parameterDomains.mono hle
 
-/-- The pointwise semantic payload that remains after the exact restored
-source trace has fixed every family and constructor target.  It is stated in
-the canonical post-header environment, the earliest common environment in
-which both translated parameter telescopes are available. -/
+/-- The pointwise semantic fact that remains after the restored source
+translations have fixed every family and constructor target.  It is stated in
+the source header environment, the earliest common environment in which both
+translated parameter telescopes are available. -/
 def NestedConstructorParameterDomainsDefEq
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -949,7 +954,7 @@ def NestedConstructorParameterDomainsDefEq
       lparams nparams decl.types[familyIdx].toVConstVal.toVConstant
         decl.types[familyIdx].ctors[ctorIdx].toVConstant)
 
-/-- Exact production alignment already contains the complete non-semantic
+/-- Kernel alignment already contains the complete non-semantic
 constructor metadata once the enclosing restored family alignment is fixed. -/
 def ctorInfoAlignmentToCoherence
     (Hfamily : InductInfoAlignment prodEnv.constants decl familyIdx
@@ -972,8 +977,8 @@ def ctorInfoAlignmentToCoherence
   levelParams := Hctor.levelParamsExact
   isUnsafe := Hctor.isUnsafe.trans Hfamily.isUnsafe.symm
 
-/-- Complete one restored constructor semantic witness from exact production
-metadata, exact restored abstract targets, and only their common-parameter
+/-- Complete the coherence of one restored constructor from kernel metadata,
+the restored abstract targets, and only their common-parameter
 context conversion.  Choosing each target itself as its normal form makes
 clear that no residual-body correspondence is being assumed here. -/
 theorem CtorInfoAlignment.coherenceOfParameterDomains
@@ -1054,11 +1059,11 @@ theorem CtorInfoAlignment.coherenceOfParameterDomains
           VExpr.takeForalls_wrapForalls _ _
     parameterDomains := Hparams.parameterDomains }⟩
 
-/-- Fold the pointwise restored parameter-context evidence across all final
+/-- Fold the pointwise restored parameter-context facts across all installed
 inductive families.  Families already present in the source environment reuse
-the source model.  Every newly restored family is identified by exact
-production alignment; its remaining semantic fields come from the canonical
-source translation retained by the assembly certificate. -/
+the source model.  Every newly restored family is identified by kernel
+alignment; its remaining semantic fields come from the source translation
+retained by the restored block certificate. -/
 theorem RestoredBlockCertificate.constructorTypingOfParameterDomains
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -1189,9 +1194,9 @@ theorem RestoredBlockCertificate.constructorTypingOfParameterDomains
       (HsourceCtor.wf.mono (VEnv.addConstVals_le C.constructorsAdded))
       hcanonicalWF houtMapWF HparameterDomains')).mono hctorsLE⟩
 
-/-- Exact safe-run adapter for the pointwise parameter-domain fold.  The
-closed lowering trace is used only to recover production origins for this
-exact restoration; all constructor semantics then come from the fold above. -/
+/-- Safe-run form of the pointwise parameter-domain fold.  The closed
+lowering is used only to recover the kernel family lookups for this
+restoration; all constructor semantics then come from the fold above. -/
 theorem NestedInstalledRun.safeConstructorTypingOfParameterDomains
     {ves : VEnvs}
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
@@ -1225,7 +1230,7 @@ theorem NestedInstalledRun.safeConstructorTypingOfParameterDomains
 
 /-- Unsafe counterpart of `safeConstructorTypingOfParameterDomains`.
 Unsafe restoration tags are irrelevant here: constructor coherence depends
-only on exact production origins and the canonical abstract source trace. -/
+only on the kernel family lookups and the abstract source translations. -/
 theorem NestedInstalledRun.unsafeConstructorTypingOfParameterDomains
     {ves : VEnvs}
     (E : NestedInstalledRun result sourceProdEnv sourceTypes

@@ -18,9 +18,9 @@ theorem AtomicAddConstants.freshExtension
   | nil => exact .nil
   | cons hfresh _ _ _ _ _ ih => exact .cons hfresh ih
 
-/-- Transfer the validity proved by a dependency-ordered staged installation
+/-- Transfer the validity proved by a dependency-ordered block installation
 to a concrete installation of the same constants in any fresh order.  The
-permutation argument is used only to identify production maps; abstract
+permutation argument is used only to identify kernel constant maps; abstract
 typing remains tied to the header/constructor/projection/recursor stages. -/
 theorem BlockInstallation.validCoreOfFreshPermutation
     (H : BlockInstallation safety source sourceVEnv types ctors recursors
@@ -37,13 +37,13 @@ theorem BlockInstallation.validCoreOfFreshPermutation
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
-/-! # Canonical replay of a fresh restoration batch
+/-! # Dependency-order replay of a fresh restoration batch
 
 Restoration installs declarations family by family, whereas the abstract
 inductive judgment checks all headers, then all constructors, then all
-recursors.  This file contains the order-generic part of the bridge.  It does
-not assume an endpoint correspondence: a fresh trace is replayed in any
-permutation, and the endpoint correspondence is then proved extensionally.
+recursors.  This file relates the two orders.  It does not assume an endpoint
+correspondence: a fresh extension is replayed in any permutation, and the
+endpoint correspondence is then proved extensionally.
 -/
 
 /-- A finite list of pairwise-distinct constants that is fresh in the source
@@ -71,7 +71,7 @@ theorem FreshExtension.exists_of_sourceFresh_nodup
     rcases ih hnextWF htailFresh hnodup.2 with ⟨target, Htail⟩
     exact ⟨target, .cons hciFresh Htail⟩
 
-/-- Replay an exact production freshness trace in any permuted order. -/
+/-- Replay a fresh extension of the kernel environment in any permuted order. -/
 theorem FreshExtension.exists_permuted
     (H : FreshExtension source actualEntries actualTarget)
     (hsourceWF : source.constants.WF)
@@ -220,9 +220,9 @@ theorem AddConstants.exists_ofFresh
       exact ⟨outVEnv, .cons hfresh (Hnonprimitive entry (by simp)) htr hwf
         hadd (Hnondelta entry (by simp)) Hrest⟩
 
-/-- The exact restored header selected by one operational family step
+/-- The exact restored header selected by one family restoration step
 translates to the independently specified source-family constant.  All
-concrete metadata comes from the ordinary producer at the same lowering
+concrete metadata comes from the lowered run at the same lowering
 index; lowering's family mapping supplies the unchanged source name and
 type. -/
 theorem RestoredInductiveStep.restoredHeaderTranslationAtFresh
@@ -291,7 +291,7 @@ theorem RestoredInductiveStep.restoredHeaderTranslationAtFresh
         _ = isUnsafe := hinstalledUnsafe
     simpa [holdUnsafe] using hvisible
 
-/-- Constructor semantics and the operational constructor fold select the
+/-- Constructor translations and the executable constructor fold select the
 same exact concrete entries, not merely entries with matching names. -/
 theorem RestoredConstructorTranslations.existsEntriesFresh
     (H : RestoredConstructorTranslations result loweredEnv lparams safety canonicalEnv names
@@ -377,8 +377,8 @@ private theorem perm_group_familyEntries
         congrArg (familyCtors ++ ·) List.singleton_append
   exact hleft.symm ▸ hright.symm ▸ h
 
-/-- Exact primary restoration replay, retaining both executable
-family-interleaved order and canonical dependency order. -/
+/-- Source-family restoration replay, retaining both the executable's
+family-interleaved order and dependency order. -/
 structure SourceFamilyTranslations.InDependencyOrder
     {Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
@@ -408,7 +408,7 @@ structure SourceFamilyTranslations.InDependencyOrder
       entry.2.toVConstant.WF envCtors
 
 /-- Fold the exact source semantics together with the exact executable
-restoration steps.  The result proves the canonical grouping permutation;
+restoration steps.  The result proves the grouping permutation;
 it does not ask a caller to identify two independently selected endpoints. -/
 theorem SourceFamilyTranslations.existsInDependencyOrder
     {Htrace : FoldSteps
@@ -543,9 +543,9 @@ theorem SourceFamilyTranslations.existsInDependencyOrder
           Hrecursor.safety_le Hrecursor.uvars Hrecursor.type Hrecursor.name
       · exact HtailReplay.recursors entry htail
 
-/-- Exact lowering/production specialization of `existsCanonicalReplay`.
-The returned production permutation and all three primary semantic batches
-are consequences of the executable traces. -/
+/-- Specialization of `SourceFamilyTranslations.existsInDependencyOrder` to
+the lowering and the lowered run.  The returned order permutation and all
+three source batches are consequences of the executable runs. -/
 theorem SourceFamilyTranslations.existsExactCanonicalSourceReplay
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -581,9 +581,9 @@ theorem SourceFamilyTranslations.existsExactCanonicalSourceReplay
   · exact hsourceWF
 
 /-- The pre-rule semantic content of one restored auxiliary recursor.  This
-record deliberately does not mention the final block, generated name scheme,
+record deliberately does not mention the installed block, generated name scheme,
 or any restored rule: only the concrete recursor translation and its
-well-formedness are needed to construct the final constant environment. -/
+well-formedness are needed to construct the recursor environment. -/
 structure AuxiliaryRecursorTranslation
     (safety : DefinitionSafety) (trEnv recursorEnv : VEnv)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
@@ -659,7 +659,7 @@ theorem RecursorCheck.restoredTelescopeAlignmentOfGeneratedName
     Hprod.restoredSourceTelescopeAlignment ownerIdx hentry' Hstep
       holdRecName hresultNparams hresultParams⟩
 
-/-- Exact generated-entry provenance for one concrete auxiliary restoration
+/-- Generated-entry alignment for one concrete auxiliary restoration
 step.  The owner is an output, not a caller-selected index. -/
 structure AuxiliaryRecursorGeneratedAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -681,7 +681,7 @@ structure AuxiliaryRecursorGeneratedAlignment
 
 /-- The concrete auxiliary fold, together with generated-name membership,
 determines a generated-entry telescope alignment at every state transition.
-This trace retains no translated target and no caller-supplied step
+This relation retains no translated target and no caller-supplied step
 semantics. -/
 inductive AuxiliaryRecursorGeneratedAlignments
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -798,7 +798,7 @@ theorem NestedLoweringOutputClosed.auxRecNameGeneratedAtFresh
     rw [hrecEq, ← hfamilyEq, ← hfamilyGet, ← hget]
   rwa [hname]
 
-/-- The exact production restoration result carries generated-entry
+/-- The restoration folds of the kernel environment carry generated-entry
 alignment at every auxiliary state transition.  This is the structural
 predecessor of restored recursor translation/WF construction. -/
 theorem NestedRestorationFolds.generatedAlignmentTraceOfKernel
@@ -825,11 +825,11 @@ theorem NestedRestorationFolds.generatedAlignmentTraceOfKernel
   · exact Hlower.toResult.resultNParams
   · exact Hlower.resultParamsSize
 
-/-- Pre-rule auxiliary recursor interpretation, synchronized directly with
-the executable restoration trace.  Unlike
-`RestoredAuxiliaryRecursorWFTrace`, this trace has no dependency on an
+/-- Pre-rule auxiliary recursor translations, synchronized directly with
+the executable restoration fold.  Unlike
+`RestoredAuxiliaryRecursorsWF`, this relation has no dependency on an
 already selected block or rule semantics, so it can be used to construct the
-final recursor environment without a circular premise. -/
+recursor environment without a circular premise. -/
 inductive AuxiliaryRecursorTranslations
     (safety : DefinitionSafety) (trEnv recursorEnv : VEnv)
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -856,8 +856,8 @@ inductive AuxiliaryRecursorTranslations
       AuxiliaryRecursorTranslations safety trEnv recursorEnv
         (.cons Hstep Htail) priorRecursors finalRecursors
 
-/-- Canonical concrete replay of the block-independent auxiliary recursor
-trace. -/
+/-- Dependency-order concrete replay of the block-independent auxiliary
+recursor translations. -/
 structure AuxiliaryRecursorTranslations.InDependencyOrder
     {Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
@@ -872,7 +872,7 @@ structure AuxiliaryRecursorTranslations.InDependencyOrder
       entry.2.toVConstant.WF recursorEnv
 
 /-- Recover the exact concrete auxiliary-recursion suffix from its
-block-independent semantic trace. -/
+block-independent translations. -/
 theorem AuxiliaryRecursorTranslations.existsInDependencyOrder
     {Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
@@ -912,9 +912,9 @@ theorem AuxiliaryRecursorTranslations.existsInDependencyOrder
         · exact ⟨Hhead.translated, Hhead.wf⟩
         · exact HtailReplay.recursors entry htail
 
-/-- Canonical dependency-order view of the complete executable restoration
-batch.  Primary restoration supplies headers, constructors, and primary
-recursors; auxiliary restoration contributes exactly the final recursor
+/-- Dependency-order view of the complete executable restoration batch.
+Source-family restoration supplies headers, constructors, and source
+recursors; auxiliary restoration contributes exactly the trailing recursor
 suffix. -/
 structure RestorationInDependencyOrder
     (safety : DefinitionSafety)
@@ -945,7 +945,7 @@ structure RestorationInDependencyOrder
     TrConstVal safety envCtors entry.1 entry.2 ∧
       entry.2.toVConstant.WF envCtors
 
-/-- Replay the exact restoration payload in canonical dependency order.  The
+/-- Replay the exact restoration payload in dependency order.  The
 new endpoint is selected by freshness and is proved extensionally equal to
 the executable restoration endpoint. -/
 theorem RestorationInDependencyOrder.existsCanonicalFresh
@@ -961,8 +961,8 @@ theorem RestorationInDependencyOrder.existsCanonicalFresh
         canonicalTarget.constants.find? name :=
   H.fresh.exists_permuted_lookupEq hsourceWF H.kernelOrder
 
-/-- Transfer any concrete entry property retained by a companion exact-run
-trace to the canonical dependency-ordered payload. -/
+/-- Transfer any concrete entry property retained by a companion fresh
+extension of the same run to the dependency-ordered payload. -/
 theorem RestorationInDependencyOrder.canonicalProperty
     {P : ConstantInfo → Prop}
     (H : RestorationInDependencyOrder safety sourceProdEnv outProdEnv
@@ -983,8 +983,8 @@ theorem RestorationInDependencyOrder.canonicalProperty
   exact H.fresh.transferForallSameTarget Hcompanion hsourceWF hproperty
     entry.1 hactual
 
-/-- The exact primitive-safe companion run supplies the nonprimitive side
-condition for every canonically reordered restoration entry. -/
+/-- The primitive-safe companion extension supplies the nonprimitive side
+condition for every reordered restoration entry. -/
 theorem RestorationInDependencyOrder.canonicalNonprimitive
     (H : RestorationInDependencyOrder safety sourceProdEnv outProdEnv
       sourceVEnv envTypes envCtors owners primaryRecursors
@@ -997,8 +997,8 @@ theorem RestorationInDependencyOrder.canonicalNonprimitive
       ¬ Kernel.Environment.primitives.contains entry.1.name :=
   H.canonicalProperty Hprimitive.fresh hsourceWF Hprimitive.nonprimitive
 
-/-- A same-run non-delta trace supplies the delta side condition for every
-canonically reordered restoration entry. -/
+/-- A non-delta fresh extension of the same run supplies the delta side
+condition for every reordered restoration entry. -/
 theorem RestorationInDependencyOrder.canonicalNondelta
     (H : RestorationInDependencyOrder safety sourceProdEnv outProdEnv
       sourceVEnv envTypes envCtors owners primaryRecursors
@@ -1011,10 +1011,10 @@ theorem RestorationInDependencyOrder.canonicalNondelta
         H.recursorEntries, entry.1.deltaValue? = none :=
   H.canonicalProperty Hnondelta hsourceWF hnondelta
 
-/-- Construct the canonical three-stage abstract installation directly from
-the exact restoration replay and its two executable side-condition traces.
+/-- Construct the three-stage abstract installation directly from the
+restoration replay and its two executable side-condition extensions.
 The source specification fixes the mutual-header and constructor abstract
-endpoints; the checking invariant constructs the final recursor endpoint.
+endpoints; the checking invariant constructs the recursor endpoint.
 No endpoint or installation certificate is selected by a caller. -/
 theorem RestorationInDependencyOrder.existsBlockInstallation
     (projections : List VProjectionEntry)
@@ -1099,8 +1099,9 @@ theorem RestorationInDependencyOrder.existsBlockInstallation
     projectedWF := HprojectedWF
     recursorsAdded := HrecursorsAdded }, rfl⟩⟩, hlookup⟩
 
-/-- Block-independent form of `appendAuxiliary`, used to construct the final
-constant environment before any restored rule is interpreted or typed. -/
+/-- Append the block-independent auxiliary recursors to the source-family
+replay, constructing the recursor environment before any restored rule is
+interpreted or typed. -/
 def SourceFamilyTranslations.InDependencyOrder.appendAuxiliaryRecursors
     {sourceTypes : List InductiveType} {auxRecNames : List Name}
     {sourceProdEnv primaryProdEnv outProdEnv : Environment}
@@ -1156,11 +1157,11 @@ def SourceFamilyTranslations.InDependencyOrder.appendAuxiliaryRecursors
     · rcases Hauxiliary.recursors entry hauxiliary with ⟨htr, hwf⟩
       exact ⟨htr, hwf⟩
 
-/-- Assemble the complete canonical staged installation from exact primary
-source semantics and the block-independent auxiliary recursor trace.  Every
-layout, concrete endpoint, value split, and installation field is derived
-before restored rule semantics; the remaining inputs are the primitive-safe
-and non-delta companion traces from the same executable run. -/
+/-- Assemble the complete dependency-order block installation from the
+source-family translations and the block-independent auxiliary recursor
+translations.  Every layout, concrete endpoint, value split, and installation
+field is derived before restored rule semantics; the remaining inputs are the
+primitive-safe and non-delta companion extensions from the same executable run. -/
 theorem SourceFamilyTranslations.existsExactRestoration
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
