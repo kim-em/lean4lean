@@ -143,6 +143,13 @@ theorem ProjNamesFixed.of_containsAnyConst {names : List Name}
     simp only [containsAnyConst, Bool.or_eq_false_iff] at h
     exact ⟨hσ n (by simpa using h.1), of_containsAnyConst hσ h.2⟩
 
+/-- Universe instantiation does not touch projection names. -/
+theorem ProjNamesFixed.instL {ls : List VLevel} :
+    ∀ {e : VExpr}, e.ProjNamesFixed σ → (e.instL ls).ProjNamesFixed σ
+  | .bvar _, _ | .sort _, _ | .elim .., _ | .const .., _ => trivial
+  | .app _ _, h | .lam _ _, h | .forallE _ _, h => ⟨instL h.1, instL h.2⟩
+  | .proj _ _ _, h => ⟨h.1, instL h.2⟩
+
 end VExpr
 
 namespace VProjectionInfo
@@ -534,6 +541,22 @@ namespace InductiveSignature
 
 open VEnv
 
+/-- The agreement of the restoration `r` (heads and recursor renaming) with the
+renaming replacement `(ρ, σ)`: every replacement is the parameter abstraction of
+a restoration head, every head is replaced, and away from the heads the renaming
+is the recursor renaming. These clauses alone relate `replaceRen ρ σ` to
+`r.expr` up to beta (`RenamingRestorationAgreement.go_simAt`). -/
+structure RenamingRestorationAgreement (r : Restoration) (ρ : Name → Option VExpr)
+    (σ : Name → Name) : Prop where
+  /-- Every replacement is the parameter abstraction of a restoration head. -/
+  shape : ∀ c t, ρ c = some t → ∃ h doms,
+    r.heads.find? (fun h => h.auxiliary == c) = some h ∧ doms.length = h.nparams ∧
+    t = VExpr.wrapLams doms (VExpr.mkApps (.const h.target h.levels) h.arguments)
+  /-- Every restoration head is replaced. -/
+  headsReplaced : ∀ c h, r.heads.find? (fun h => h.auxiliary == c) = some h → ρ c ≠ none
+  /-- Away from the heads, the renaming is the recursor renaming. -/
+  renamed : ∀ c, r.heads.find? (fun h => h.auxiliary == c) = none → σ c = r.recursorName c
+
 /-- The hypotheses under which restoration `r` (heads and recursor renaming)
 transports derivations of the lowered environment `envL` to `envS`: a
 renaming replacement whose replacements are the parameter abstractions of the
@@ -557,17 +580,17 @@ private theorem instantiateParams_eq_instOuter'' (body : VExpr) (args : List VEx
   rfl
 
 /-- Restoration agrees with the renaming replacement up to beta, at every
-type of the replaced term, for terms whose projection names are fixed. -/
-theorem RenamingRestorationSubstitution.go_simAt {envS envL : VEnv} {r : Restoration}
+type of the replaced term, for terms whose projection names are fixed. Only the
+agreement clauses, the ordering of `envS` and beta subject reduction are used. -/
+theorem RenamingRestorationAgreement.go_simAt {envS : VEnv} {r : Restoration}
     {ρ : Name → Option VExpr} {σ : Name → Name}
-    (S : RenamingRestorationSubstitution envS envL r ρ σ)
+    (S : RenamingRestorationAgreement r ρ σ) (henv : envS.Ordered)
     (hβ : envS.BetaSubjectReduction U) :
     ∀ (e : VExpr) {Γ : List VExpr} {as as' : List VExpr} {out : VExpr},
       e.ProjNamesFixed σ →
       OnCtx Γ (envS.IsType U) → List.Forall₂ (envS.SimAt U Γ) as as' →
       Restoration.expr.go r e as' = some out →
       envS.SimAt U Γ (VExpr.mkApps (e.replaceRen ρ σ) as) out := by
-  have henv := S.ordered
   intro e
   induction e with
   | bvar i =>
@@ -658,13 +681,42 @@ theorem RenamingRestorationSubstitution.go_simAt {envS envL : VEnv} {r : Restora
       rw [VExpr.replaceRen_const_none hρ, S.renamed c hfind]
       exact SimAt.mkApps henv hΓ SimAt.refl has
 
+theorem RenamingRestorationAgreement.expr_simAt {envS : VEnv} {r : Restoration}
+    {ρ : Name → Option VExpr} {σ : Name → Name}
+    (S : RenamingRestorationAgreement r ρ σ) (henv : envS.Ordered)
+    (hβ : envS.BetaSubjectReduction U) (hΓ : OnCtx Γ (envS.IsType U))
+    (hfix : e.ProjNamesFixed σ) (h : r.expr e = some e') :
+    envS.SimAt U Γ (e.replaceRen ρ σ) e' :=
+  S.go_simAt henv hβ e (as := []) hfix hΓ .nil h
+
+
+/-- The agreement clauses of a renaming restoration substitution. -/
+theorem RenamingRestorationSubstitution.agreement {envS envL : VEnv} {r : Restoration}
+    {ρ : Name → Option VExpr} {σ : Name → Name}
+    (S : RenamingRestorationSubstitution envS envL r ρ σ) :
+    RenamingRestorationAgreement r ρ σ :=
+  ⟨S.shape, S.headsReplaced, S.renamed⟩
+
+/-- Restoration agrees with the renaming replacement up to beta, at every
+type of the replaced term, for terms whose projection names are fixed. -/
+theorem RenamingRestorationSubstitution.go_simAt {envS envL : VEnv} {r : Restoration}
+    {ρ : Name → Option VExpr} {σ : Name → Name}
+    (S : RenamingRestorationSubstitution envS envL r ρ σ)
+    (hβ : envS.BetaSubjectReduction U) :
+    ∀ (e : VExpr) {Γ : List VExpr} {as as' : List VExpr} {out : VExpr},
+      e.ProjNamesFixed σ →
+      OnCtx Γ (envS.IsType U) → List.Forall₂ (envS.SimAt U Γ) as as' →
+      Restoration.expr.go r e as' = some out →
+      envS.SimAt U Γ (VExpr.mkApps (e.replaceRen ρ σ) as) out :=
+  S.agreement.go_simAt S.ordered hβ
+
 theorem RenamingRestorationSubstitution.expr_simAt {envS envL : VEnv} {r : Restoration}
     {ρ : Name → Option VExpr} {σ : Name → Name}
     (S : RenamingRestorationSubstitution envS envL r ρ σ)
     (hβ : envS.BetaSubjectReduction U) (hΓ : OnCtx Γ (envS.IsType U))
     (hfix : e.ProjNamesFixed σ) (h : r.expr e = some e') :
     envS.SimAt U Γ (e.replaceRen ρ σ) e' :=
-  S.go_simAt hβ e (as := []) hfix hΓ .nil h
+  S.agreement.expr_simAt S.ordered hβ hΓ hfix h
 
 /-- Restoration of a derivation of the lowered environment, in an arbitrary
 well-formed context whose entries are restored pointwise. -/

@@ -172,6 +172,17 @@ theorem Restoration.lambdaReplacement_closed {r : Restoration} {P : List VExpr}
     rw [hnparams h hmem] at this
     simpa using this
 
+/-- The lambda replacement and the restoration renaming agree with the
+restoration (the agreement clauses of a `RestoredEliminator`). -/
+theorem RenamingRestorationAgreement.of_lambda {r : Restoration} {P : List VExpr}
+    (hnparams : ∀ h ∈ r.heads, h.nparams = P.length) :
+    RenamingRestorationAgreement r (r.lambdaReplacement fun _ => P) r.renaming where
+  shape := fun c t hρ =>
+    Restoration.lambdaReplacement_shape r (fun h hmem => (hnparams h hmem).symm) hρ
+  headsReplaced := fun c h hf => by
+    simp [Restoration.lambdaReplacement, hf]
+  renamed := fun c hf => Restoration.renaming_of_find_none hf
+
 /-- A renaming replacement along the lambda replacement and the restoration
 renaming is a renaming restoration substitution. -/
 theorem RenamingRestorationSubstitution.of_lambda {envS envL : VEnv} {r : Restoration}
