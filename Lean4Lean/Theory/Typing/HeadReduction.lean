@@ -66,7 +66,7 @@ theorem IsMajorPremise.not_rigid (H : IsMajorPremise e) (hrigid : env.ConstHeadR
   obtain ⟨p, ⟨r, hp⟩, p₁, p₂, hs, levels', values, hm⟩ := H
   cases Params.simple_app hp hs
   have hn := matches_constHead hm hhead
-  obtain ⟨equation, originalName, originalLevels, hd, hh, he⟩ := pat_origin hp
+  obtain ⟨equation, originalName, originalLevels, hd, hh, he⟩ := pat_storedRule hp
   change p₁.constHead = some originalName at hh
   have heq : originalName = name := Option.some.inj (hh.symm.trans hn)
   subst originalName

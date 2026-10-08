@@ -1232,7 +1232,7 @@ theorem SourceFamilyTranslations.existsExactRestoration
   have HsourceChecking : CheckingEnv c.safety c.env sourceVEnv := by
     simpa only [Hheaders.sourceContextVEnv] using
       Hheaders.sourceContext.checking.tr
-  obtain ⟨HcasesWF, HprojectedWF⟩ := Hcases.windowWF HsourceChecking.wf Hcore Hparams
+  obtain ⟨HcasesWF, HprojectedWF⟩ := Hcases.recursorCheckingEnvWF HsourceChecking.wf Hcore Hparams
   rcases replay.existsBlockInstallation decl.projectionEntries es HsourceChecking
       HcasesWF HprojectedWF Hprimitive Hnondelta
       hnondelta htypesAbstract hconstructorsAbstract with

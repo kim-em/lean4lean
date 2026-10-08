@@ -866,7 +866,7 @@ private theorem NestedRun.assemblyBaseOfFormation
         (main :: rest) E.validationEnv := by
       rw [henv]
       exact E.validationEnvironment
-    obtain ⟨hcasesWF, hprojectedWF⟩ := HcasesP.windowWF HbaseValid.tr.wf Hcore Hparams
+    obtain ⟨hcasesWF, hprojectedWF⟩ := HcasesP.recursorCheckingEnvWF HbaseValid.tr.wf Hcore Hparams
     exact HV.validProjected Hlower HcP Hprod Hcore Hmetadata Hsources Harity
       hempty Hrestored hvalidCore HbaseValid.projectionRegistry
       HbaseValid.recursors HbaseValid.quot hcasesWF hprojectedWF

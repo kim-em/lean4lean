@@ -334,7 +334,7 @@ ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
   `EliminatorsReplay` at one environment, used to rebase the block certificate onto larger
   safety models, and `EliminatorsWF` at the source environment. The window environment
   `(ctors.addEliminators es).addProjections P` is shown well formed by `inductEliminators`
-  and `inductProjections` (`VInductBlock.EliminatorsWF.windowWF`). The executable is
+  and `inductProjections` (`VInductBlock.EliminatorsWF.recursorCheckingEnvWF`). The executable is
   unchanged by this: it has no case eliminators.
 - **Recursors** (`Recursor/`, 42k; `Rules/`, 27k). The executable's recursor
   construction (first and second pass over the fields, elimination level, motives, minors,
@@ -485,7 +485,7 @@ head type and fields are bound from the major's field observations (`Model/EtaBi
 earlier environments that are not subderivations of the node being interpreted: a native
 family's recorded result sort, the propositional typing of a singleton's proof fields, the
 soundness of a projection entry's constructor telescope and family header. Soundness is
-therefore proved along the declaration history (`WF'.ruleValid`, `Model/EnvValid.lean`): each
+therefore proved along the declaration history (`WF'.envValid`, `Model/EnvValid.lean`): each
 rule, eliminator rule and projection entry is valid in the model of the final environment
 because the derivations of the environment preceding its declaration are sound there, by the
 induction hypothesis. `HeadsClosed` and `ProjsClosed` carry the facts that no later

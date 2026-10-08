@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjMajorRules
 
 /-! # Staged soundness (decision D11) and stages B and D
 
-`VEnv.WF'.ruleValid`: in a well-formed environment `envF` without projections or eliminators,
+`VEnv.WF'.envValid`: in a well-formed environment `envF` without projections or eliminators,
 every rule of every environment in the declaration history of `envF` is
 valid in the model of `envF`. The proof is by induction on the history; the semantic fact
 needed by a native rule of a data family (`FamSort`: the family's type observations end in its
@@ -492,7 +492,7 @@ theorem elimsValid_of_decl {envF env0 env' : VEnv} {ds : List VDecl} (hF : envF.
 /-- **Staged validity** (D11, D15): every environment in the declaration history of a
 well-formed `envF` is valid in the model of `envF`: its rules, its projection entries and its
 eliminator rules. -/
-theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
+theorem WF'.envValid {envF : VEnv} (hF : envF.WF) :
     ∀ {ds env}, env.WF' ds → env ≤ envF → HeadsClosed envF env → ProjsClosed envF env →
       Model.EnvValid envF env := by
   have henvF := hF.ordered
@@ -830,7 +830,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
 /-- **Soundness of the glued observation model** for every well-formed environment. -/
 theorem WF.soundEnv {env : VEnv} (henv : env.WF) : Model.SoundEnv env := by
   obtain ⟨ds, H⟩ := henv
-  have V := WF'.ruleValid ⟨ds, H⟩ H .rfl (fun _ h _ _ _ _ => h) (fun _ _ h _ => h)
+  have V := WF'.envValid ⟨ds, H⟩ H .rfl (fun _ h _ _ _ _ => h) (fun _ _ h _ => h)
   intro U Δ Γ t t' T hΔ H'
   exact V.soundAtH (VEnv.WF.ordered ⟨ds, H⟩) .rfl U Δ hΔ H'
 

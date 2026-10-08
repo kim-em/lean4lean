@@ -43,7 +43,7 @@ class Params where
   recursorData_registered : recursorData name = some data →
     RecursorRegistered env data ∧ data.name = name
   Pat : (p : Pattern) → p.RHS × p.Check → Prop
-  pat_origin : Pat p r → PatternHeadsStoredRule env p
+  pat_storedRule : Pat p r → PatternHeadsStoredRule env p
   /-- Inductive iota heads retain finite compilation and their case registry.
   Primitive quotient iota retains its exact installed declarations instead.
   Both large-elimination paths exclude zero-source computation here. -/
@@ -178,7 +178,7 @@ theorem matches_constHead {p : Pattern} {e : VExpr} {levels : List VLevel} {valu
 
 theorem Params.not_rigid_match (h : env.ConstHeadRigid name) (hp : Pat p r)
     (hm : p.Matches e levels values) (hh : e.getAppFnArgs.1 = .const name us) : False := by
-  obtain ⟨equation, originalName, originalLevels, hd, hn, he⟩ := pat_origin hp
+  obtain ⟨equation, originalName, originalLevels, hd, hn, he⟩ := pat_storedRule hp
   have hname := matches_constHead hm hh
   have heq : originalName = name := Option.some.inj (hn.symm.trans hname)
   subst originalName

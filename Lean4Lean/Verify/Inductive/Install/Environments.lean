@@ -1029,7 +1029,7 @@ theorem AddInductive.declareConstructors.WF
         (fun h => h) VEnv.addProjections_le hrecursors.heads
     let B := H.toCheckedFormation Hchecked venvCtors core
     have helimsWF := B.caseEliminatorsWF
-    obtain ⟨helimWF, hprojectedWF⟩ := helimsWF.windowWF hsourceWF core hparams
+    obtain ⟨helimWF, hprojectedWF⟩ := helimsWF.recursorCheckingEnvWF hsourceWF core hparams
     have hle : venvCtors.addProjections decl.projectionEntries ≤
         (venvCtors.addEliminators B.caseEliminators).addProjections decl.projectionEntries :=
       VEnv.addProjections_mono VEnv.addEliminators_le

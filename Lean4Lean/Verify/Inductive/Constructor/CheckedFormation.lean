@@ -285,7 +285,7 @@ namespace Lean4Lean.VerifyInductive
 
 /-- The window environment of a declaration with certified case eliminators: its constructor
 stage with the eliminators, and then with its projection entries, is well formed. -/
-theorem _root_.Lean4Lean.VInductBlock.EliminatorsWF.windowWF {base envTypes envCtors : VEnv}
+theorem _root_.Lean4Lean.VInductBlock.EliminatorsWF.recursorCheckingEnvWF {base envTypes envCtors : VEnv}
     {decl : VInductDecl} {es : List (Name × InductiveSignature.CaseSchema)}
     {lparams : List Name} {nparams : Nat} {types : List Lean.InductiveType} {isUnsafe : Bool}
     (Hcases : VInductBlock.EliminatorsWF base decl (decl.caseBlock es)) (hbase : base.WF)
@@ -1031,26 +1031,26 @@ theorem caseEliminatorsOwn
 
 /-- The window of the declaration: its constructor stage with its case eliminators, and then
 with its projection entries, is well formed. -/
-theorem windowWF
+theorem recursorCheckingEnvWF
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     (R.ctorVEnv.addEliminators R.caseEliminators).WF ∧
       ((R.ctorVEnv.addEliminators R.caseEliminators).addProjections
         decl.projectionEntries).WF :=
-  R.caseEliminatorsWF.windowWF (by rw [← R.sourceContextVEnv]; exact R.sourceContext.checking.tr.wf)
+  R.caseEliminatorsWF.recursorCheckingEnvWF (by rw [← R.sourceContextVEnv]; exact R.sourceContext.checking.tr.wf)
     R.core R.formation.formationWF.sourceParameterWF
 
 /-- The constructor stage with the declaration's case eliminators is well formed. -/
 theorem casesWF
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     (R.ctorVEnv.addEliminators R.caseEliminators).WF :=
-  R.windowWF.1
+  R.recursorCheckingEnvWF.1
 
 /-- The constructor stage with the declaration's case eliminators and projections is well
 formed. -/
 theorem projectedWF
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     ((R.ctorVEnv.addEliminators R.caseEliminators).addProjections decl.projectionEntries).WF :=
-  R.windowWF.2
+  R.recursorCheckingEnvWF.2
 
 end CheckedFormation
 end Lean4Lean.VerifyInductive
