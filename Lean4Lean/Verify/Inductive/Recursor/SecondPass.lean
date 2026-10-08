@@ -2687,6 +2687,693 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       (fun minors => minors.push (.fvar ⟨c.ngen.curr⟩))).rebaseCore Hcore
   · exact Hroot.trans Hstep.contextLE
 
+/-- The sharpened scope of a recursive field (the fields opened before it,
+together with the common parameters) is upward closed in the field context,
+given that the full field-and-parameter scope is. -/
+theorem constructorFieldPrefixScopeUp
+    {c current : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Rargs : RecursorContextWF current recLparams}
+    {stats : AddInductive.InductiveStats} {allFields : Array Expr}
+    (HfieldsRecent : RecursorRecentBoundFVarArray R Rargs allFields)
+    (Hparams : BoundFVarArray c stats.params)
+    (hfieldsUp : IsFVarUpSet
+      (fun fv => fv ∈ HfieldsRecent.fvars ∨
+        fv ∈ ExprArrayFVarIds stats.params) Rargs.mlctx.vlctx)
+    (field : Expr) :
+    IsFVarUpSet (RecursorFieldPrefixScope stats.params HfieldsRecent.fvars
+      field) Rargs.mlctx.vlctx := by
+  have hsplit := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
+    Rargs.mlctx allFields.size HfieldsRecent.size_le
+  rw [HfieldsRecent.drop_eq] at hsplit
+  have hprefix : VLCtx.fvars (Rargs.mlctx.vlctx.take allFields.size) =
+      HfieldsRecent.fvars.reverse := by
+    rw [TypeChecker.MLCtx.vlctx_take_fvars]
+    exact HfieldsRecent.fvarRevList_eq
+  have hwf : VLCtx.FVWF
+      (Rargs.mlctx.vlctx.take allFields.size ++ R.mlctx.vlctx) := by
+    rw [← hsplit]
+    exact Rargs.mlctx_wf.tr.wf.fvwf
+  have hfresh : ∀ fv ∈ HfieldsRecent.fvars,
+      ¬ fv ∈ ExprArrayFVarIds stats.params := by
+    intro fv hfv hparam
+    apply HfieldsRecent.toFreshBoundFVarArray.fresh fv hfv
+    apply Hparams.members
+    rw [← Hparams.exprArrayFVarIds]
+    exact hparam
+  have hup : IsFVarUpSet
+      (fun fv => fv ∈ HfieldsRecent.fvars ∨
+        fv ∈ ExprArrayFVarIds stats.params)
+      (Rargs.mlctx.vlctx.take allFields.size ++ R.mlctx.vlctx) := by
+    rw [← hsplit]
+    exact hfieldsUp
+  have hsharp := IsFVarUpSet.sharpenPrefix _ _ _ hwf hprefix hfresh hup
+    (HfieldsRecent.fvars.idxOf (recursorFVarId field))
+  rw [← hsplit] at hsharp
+  exact hsharp
+
+/-- Closing a translated body first over the generated induction hypotheses
+and then over the constructor fields yields a well-typed translated minor
+premise type in the outer recursor context. -/
+theorem constructorMinorTypeTranslation
+    {c current outCtx : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Rargs : RecursorContextWF current recLparams}
+    {Rout : RecursorContextWF outCtx recLparams}
+    {allFields hypotheses : Array Expr} {body : Expr} {bodyTarget : VExpr}
+    (HfieldsRecent : RecursorRecentBoundFVarArray R Rargs allFields)
+    (HhypothesesRecent : RecursorRecentBoundFVarArray Rargs Rout hypotheses)
+    (Hbody : TrExprS Rout.venv recLparams Rout.mlctx.vlctx body bodyTarget)
+    (HbodyType : Rout.venv.IsType recLparams.length Rout.mlctx.vlctx.toCtx
+      bodyTarget) :
+    ∃ minorTarget,
+      TrExprS R.venv recLparams R.mlctx.vlctx
+        (outCtx.lctx.mkForall allFields
+          (outCtx.lctx.mkForall hypotheses body)) minorTarget ∧
+      R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx minorTarget := by
+  rcases HhypothesesRecent.mkForall Hbody HbodyType with
+    ⟨hypothesesTarget, Hhypotheses, HhypothesesType⟩
+  rcases HfieldsRecent.mkForall Hhypotheses HhypothesesType with
+    ⟨minorTarget, HminorRaw, HminorRawType⟩
+  refine ⟨minorTarget, ?_, HminorRawType⟩
+  rw [HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.mkForall_mono
+    HhypothesesRecent.contextLE _]
+  exact HminorRaw
+
+/-- A motive application `motive indices arg` for a recorded family has an
+outer motive binder of the recursor prefix as its head. -/
+theorem motiveApplicationHeadRoot
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats}
+    {recInfos : Array AddInductive.RecInfo}
+    (Hbindings : RecInfoBindings c recInfos)
+    (Hparams : BoundFVarArray c stats.params)
+    (Horder : RecInfoOuterOrder R Hparams Hbindings)
+    {owner : Nat} (howner : owner < recInfos.size)
+    (indices : Array Expr) (arg : Expr) :
+    ∃ fv,
+      (Expr.app (mkAppN recInfos[owner]!.motive indices) arg).getAppFn =
+        .fvar fv ∧
+      fv ∈ R.mlctx.vlctx.fvars := by
+  have hownerMotive : owner < (recInfos.map (·.motive)).size := by
+    simpa using howner
+  rcases Hbindings.motives.getElem_eq_fvar owner hownerMotive with
+    ⟨hmotiveFVars, hmotiveSource⟩
+  let motiveFVar := Hbindings.motives.fvars[owner]
+  have hmotiveBang : recInfos[owner]!.motive = .fvar motiveFVar := by
+    rw [getElem!_pos recInfos owner howner]
+    simpa [motiveFVar] using hmotiveSource
+  refine ⟨motiveFVar, ?_, ?_⟩
+  · simp [Expr.getAppFn, Expr.getAppFn_mkAppN, hmotiveBang]
+  · apply Horder.subset
+    apply List.mem_reverse.mpr
+    simp [motiveFVar, List.getElem_mem hmotiveFVars]
+
+/-- The generated induction-hypothesis binders are distinct from the common
+parameters and the motive binders of the recursor prefix. -/
+theorem inductionHypothesesOuterFresh
+    {c current outCtx : AddInductive.Context} {recLparams : List Name}
+    {Rargs : RecursorContextWF current recLparams}
+    {Rout : RecursorContextWF outCtx recLparams}
+    {stats : AddInductive.InductiveStats}
+    {recInfos : Array AddInductive.RecInfo} {hypotheses : Array Expr}
+    (Hparams : BoundFVarArray c stats.params)
+    (Hbindings : RecInfoBindings c recInfos)
+    (hle : BindingContextLE c current)
+    (HhypothesesRecent : RecursorRecentBoundFVarArray Rargs Rout hypotheses) :
+    ∀ fv,
+      fv ∈ ExprArrayFVarIds stats.params ++
+          ExprArrayFVarIds (recInfos.map (·.motive)) →
+        fv ∉ ExprArrayFVarIds hypotheses := by
+  intro fv houter hhypothesis
+  rw [Hparams.exprArrayFVarIds,
+    Hbindings.motives.exprArrayFVarIds] at houter
+  rw [(HhypothesesRecent.toFreshBoundFVarArray.toBoundFVarArray
+    ).exprArrayFVarIds] at hhypothesis
+  apply HhypothesesRecent.toFreshBoundFVarArray.fresh fv hhypothesis
+  apply hle.fvars
+  rcases List.mem_append.mp houter with hparam | hmotive
+  · exact Hparams.members fv hparam
+  · exact Hbindings.motives.members fv hmotive
+
+/-- Freshly opened constructor fields are distinct from every binder of the
+recursor prefix: parameters, motives and the minors added so far. -/
+theorem constructorFieldsOuterFresh
+    {c current : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Rargs : RecursorContextWF current recLparams}
+    {stats : AddInductive.InductiveStats}
+    {recInfos : Array AddInductive.RecInfo} {allFields : Array Expr}
+    (HfieldsRecent : RecursorRecentBoundFVarArray R Rargs allFields)
+    (Hparams : BoundFVarArray c stats.params)
+    (Hbindings : RecInfoBindings c recInfos) :
+    ∀ fv ∈ HfieldsRecent.fvars,
+      fv ∉ (Hparams.fvars ++ Hbindings.motives.fvars) ++
+        Hbindings.flatMinors.fvars := by
+  intro fv hfield houter
+  apply HfieldsRecent.toFreshBoundFVarArray.fresh fv hfield
+  rcases List.mem_append.mp houter with hpm | hminor
+  · rcases List.mem_append.mp hpm with hparam | hmotive
+    · exact Hparams.members fv hparam
+    · exact Hbindings.motives.members fv hmotive
+  · exact Hbindings.flatMinors.members fv hminor
+
+/-- The call blueprints recorded while generating the induction hypotheses
+are call-blueprint origins for any completed origin table with the same
+statistics, records and field root. -/
+theorem RecInfoCallBlueprintOrigins.ofHypothesisCalls
+    {stats : AddInductive.InductiveStats}
+    {recInfos : Array AddInductive.RecInfo}
+    {current outCtx : AddInductive.Context}
+    {recursiveFields hypotheses allFields : Array Expr}
+    {calls : Array AddInductive.RecCallBlueprint}
+    {HhypothesisOrigins : RecInfoHypothesisTypeOrigins stats recInfos current
+      outCtx recursiveFields hypotheses}
+    {fieldFVars : List FVarId}
+    (hids : ExprArrayFVarIds allFields = fieldFVars)
+    (HhypothesisCallOrigins : RecInfoHypothesisCallBlueprintOrigins
+      HhypothesisOrigins
+      (fun fv => fv ∈ fieldFVars ∨ fv ∈ ExprArrayFVarIds stats.params) calls)
+    (origins : RecInfoMinorHypothesisTypeOrigins outCtx recursiveFields
+      hypotheses)
+    (hstats : origins.stats = stats) (hrecInfos : origins.recInfos = recInfos)
+    (hroot : origins.fieldRoot = current) :
+    RecInfoCallBlueprintOrigins origins allFields calls := by
+  cases origins
+  cases hstats
+  cases hrecInfos
+  cases hroot
+  refine {
+    size_eq := HhypothesisCallOrigins.size_eq
+    entry := ?_
+    rooted := ?_ }
+  · intro j hj
+    rcases HhypothesisCallOrigins.entry j hj with
+      ⟨originRoot, sourceType, O, D, HoriginRoot, htype, hcall⟩
+    exact ⟨originRoot, sourceType, O, D, HoriginRoot, htype, hcall⟩
+  · intro j hj
+    rcases HhypothesisCallOrigins.rooted j hj with
+      ⟨originRoot, sourceType, recL, Rorigin, O, D, HoriginRoot, hup,
+        htype, hcall⟩
+    refine ⟨originRoot, sourceType, recL, Rorigin, O, D, HoriginRoot, ?_,
+      htype, hcall⟩
+    rw [hids]
+    exact hup
+
+/-- Final phase of one constructor iteration in the second `mkRecInfos` pass.
+Given the opened constructor fields, the checked owner application of the
+terminal type, its motive application, and the generated induction
+hypotheses with their call blueprints, the minor premise closed over fields
+and hypotheses is translated, typed and inserted into row `dIdx`, and every
+second-pass invariant is handed to the continuation `k`. -/
+theorem constructorMinorClosureSemantics {alpha : Type} {Q : alpha → Prop}
+    (stats : AddInductive.InductiveStats) (indTypes : Array InductiveType)
+    (indTypeName : Name)
+    (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
+    (ctor : Constructor) (tail : Expr)
+    (sourceConstructors : List Constructor) (sourceIndex : Nat)
+    (hsourceConstructor : sourceConstructors[sourceIndex]? = some ctor)
+    (hsourceFamily : sourceConstructors = indTypes[dIdx]!.ctors)
+    (k : Array AddInductive.RecInfo → AddInductive.M alpha)
+    {recLparams : List Name} {depth : Nat}
+    {root c : AddInductive.Context}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {tailTarget : VExpr}
+    (Hsuffix : RecursorParameterContextSuffix R stats depth)
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hprefix : RecursorParamPrefix stats 0 ctor.type tail)
+    (htailScope : tail.FVarsIn
+      (fun fv => fv ∈ ExprArrayFVarIds stats.params))
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
+    (htailType : R.venv.IsType recLparams.length
+      R.mlctx.vlctx.toCtx tailTarget)
+    {tailTarget₀ : VExpr}
+    (htail₀ : TrExprS R.venv recLparams Hsuffix.parameterDecls tail tailTarget₀)
+    (htail₀Ty : R.venv.IsType recLparams.length Hsuffix.parameterDecls.toCtx
+      tailTarget₀)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
+    (HblueprintSemantics : RecInfoRuleBlueprintSemanticOrigins R decl stats
+      recInfos elimLevel Hsuffix.parameterDecls Horigins)
+    (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
+    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
+      Hsuffix.parameterDecls)
+    (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
+    (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
+      Horigins.majorTypes c.env.isTypeAnnotationWrapper)
+    (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
+    (HmotiveShapes : RecInfoMotiveTypeShapes c recInfos
+      Horigins.motiveTypes elimLevel)
+    (Htelescopes : RecInfoMotiveTelescopes R stats decl parameterCtx recInfos
+      elimLevel)
+    (HindexRows : RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
+    (Hparams : BoundFVarArray c stats.params)
+    (HnoAlias : Hbindings.NoAlias Hparams)
+    (Horder : RecInfoOuterOrder R Hparams Hbindings)
+    (Hroot : BindingContextLE root c)
+    (hidx : dIdx < recInfos.size)
+    (hsourceIdx : dIdx < indTypes.size)
+    (horiginIndex : Horigins.minorTypes[dIdx]!.size = sourceIndex)
+    (Harities : RecInfoArities stats recInfos)
+    (Hlater : ∀ i, dIdx < i → i < recInfos.size →
+      recInfos[i]!.minors.size = 0)
+    (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
+      (out : Array AddInductive.RecInfo)
+      (Rout : RecursorContextWF outCtx recLparams)
+      (_henvOut : Rout.venv = R.venv)
+      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
+      (_hparameterDeclsOut :
+        HsuffixOut.parameterDecls = Hsuffix.parameterDecls)
+      (_HstatsOut : RecursorValidAppStatsWF Rout.venv recLparams
+        Rout.mlctx.vlctx stats decl outDepth)
+      (_hctxOut : VLCtx.NoIndConsts
+        (decl.types.map (·.name)) Rout.mlctx.vlctx)
+      (HbindingsOut : RecInfoBindings outCtx out)
+      (HoriginsOut : RecInfoTypeOrigins outCtx out),
+      RecInfoRuleBlueprintOrigins stats out HoriginsOut →
+      RecInfoRuleBlueprintSemanticOrigins Rout decl stats out elimLevel
+        HsuffixOut.parameterDecls HoriginsOut →
+      RecInfoMinorSourceAlignment stats indTypes HoriginsOut →
+      RecInfoMinorSemanticAlignment Rout HoriginsOut
+        HsuffixOut.parameterDecls →
+      out.size = recInfos.size →
+      out[dIdx]!.minors.size = recInfos[dIdx]!.minors.size + 1 →
+      (∀ i, i < recInfos.size → dIdx ≠ i →
+        out[i]!.minors.size = recInfos[i]!.minors.size) →
+      RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
+      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes
+        outCtx.env.isTypeAnnotationWrapper →
+      RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
+      RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →
+      RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
+      (HparamsOut : BoundFVarArray outCtx stats.params) →
+      HbindingsOut.NoAlias HparamsOut →
+      RecInfoOuterOrder Rout HparamsOut HbindingsOut →
+      RecInfoArities stats out →
+      BindingContextLE root outCtx →
+      (k out outCtx).WF Q)
+    {current : AddInductive.Context}
+    (Rargs : RecursorContextWF current recLparams)
+    {terminal : Expr} {terminalTarget : VExpr}
+    {allFields recursiveFields : Array Expr}
+    {fields : List (RecursorRecursiveDomainAt Rargs.venv decl
+      recLparams.length)}
+    {positions : List Nat}
+    (HterminalNonforall : terminal.isForall = false)
+    (Hterminal : TrExprS Rargs.venv recLparams Rargs.mlctx.vlctx
+      terminal terminalTarget)
+    (HterminalType : Rargs.venv.IsType recLparams.length
+      Rargs.mlctx.vlctx.toCtx terminalTarget)
+    (Hselections : RecursorFieldSelectionsAt Rargs.venv decl
+      recLparams.length allFields recursiveFields fields)
+    (Hdecisions : RecursorFieldDecisions stats c tail current terminal
+      allFields recursiveFields positions)
+    (HfieldsRecent : RecursorRecentBoundFVarArray R Rargs allFields)
+    (Hopening : ConstructorFieldOpening tail terminal allFields)
+    (HfieldTargetDefEq : R.venv.IsDefEqU recLparams.length
+      R.mlctx.vlctx.toCtx tailTarget
+      (Rargs.mlctx.mkForall' allFields.size HfieldsRecent.size_le
+        terminalTarget))
+    (HfieldParameterUp : IsFVarUpSet
+      (fun fv => fv ∈ HfieldsRecent.fvars ∨ fv ∈ ExprArrayFVarIds stats.params)
+      Rargs.mlctx.vlctx)
+    (hfieldCheck : ∃ M : TypeChecker.MLCtx,
+      M.WF Rargs.venv recLparams ∧
+      (0 < allFields.size → Rargs.chk = M) ∧
+      ∃ hn : allFields.size ≤ M.length,
+        MLCtxTopAgree Rargs.mlctx M allFields.size ∧
+          (M.dropN allFields.size hn).vlctx = Hsuffix.parameterDecls ∧
+          ∃ t₀', TrExprS Rargs.venv recLparams M.vlctx terminal t₀' ∧
+            Rargs.venv.IsDefEqU recLparams.length
+              Hsuffix.parameterDecls.toCtx tailTarget₀
+              (M.mkForall' allFields.size hn t₀'))
+    (hdidxValid : AddInductive.isValidIndAppIdx stats terminal dIdx = true)
+    (hdidxDecl : dIdx < decl.types.length)
+    (Happlication : RecursorConstructorApplicationAt Rargs stats ctor
+      terminal allFields terminalTarget)
+    (htarget : Happlication.ownerIdx < recInfos.size)
+    (Hvalidated : RecursorValidatedIndAppAt Rargs.venv recLparams
+      Rargs.mlctx.vlctx stats decl (depth + allFields.size)
+      terminal terminalTarget Happlication.ownerIdx)
+    (Hbinding : RecursorMotiveBinding Rargs recInfos[Happlication.ownerIdx]!
+      elimLevel)
+    (HmotiveEvidence : Nonempty (RecursorMotiveTelescopeEvidence Rargs stats
+      recInfos[Happlication.ownerIdx]! Hbinding terminal terminalTarget))
+    {indices : Array Expr} {motiveTarget : VExpr}
+    (Hmotive : TrExprS Rargs.venv recLparams Rargs.mlctx.vlctx
+      (Expr.app
+        (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
+        (mkAppN
+          (mkAppN (.const ctor.name stats.levels) stats.params) allFields))
+      motiveTarget)
+    (HmotiveType : Rargs.venv.IsType recLparams.length
+      Rargs.mlctx.vlctx.toCtx motiveTarget)
+    (howner : AddInductive.getIIndices stats terminal =
+      (Happlication.ownerIdx, indices))
+    {outCtx : AddInductive.Context}
+    (Rout : RecursorContextWF outCtx recLparams)
+    (hypotheses : Array Expr) (calls : Array AddInductive.RecCallBlueprint)
+    (HhypothesesRecent : RecursorRecentBoundFVarArray Rargs Rout hypotheses)
+    (HhypothesisOrigins : RecInfoHypothesisTypeOrigins stats recInfos current
+      outCtx recursiveFields hypotheses)
+    (HhypothesisCallOrigins : RecInfoHypothesisCallBlueprintOrigins
+      HhypothesisOrigins
+      (fun fv => fv ∈ HfieldsRecent.fvars ∨
+        fv ∈ ExprArrayFVarIds stats.params) calls)
+    (HhypothesisCallSemantics : RecInfoHypothesisCallSemanticOrigins Rargs
+      decl (depth + allFields.size) stats (recInfos.map (·.motive))
+      (fun fv => fv ∈ HfieldsRecent.fvars ∨
+        fv ∈ ExprArrayFVarIds stats.params)
+      recursiveFields hypotheses calls)
+    (HhypothesisCallSharpSemantics : RecInfoHypothesisCallSemanticOriginsAt
+      Rargs decl (depth + allFields.size) stats (recInfos.map (·.motive))
+      (fun j => RecursorFieldPrefixScope stats.params HfieldsRecent.fvars
+        recursiveFields[j]!)
+      recursiveFields hypotheses calls)
+    (hhypothesesSize : hypotheses.size = recursiveFields.size) :
+    ((do
+      let lctx ← getLCtx
+      let motiveApp := Expr.app
+        (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
+        (mkAppN
+          (mkAppN (.const ctor.name stats.levels) stats.params) allFields)
+      let minorTy := lctx.mkForall allFields <|
+        lctx.mkForall hypotheses motiveApp
+      let minorName := ctor.name.replacePrefix indTypeName .anonymous
+      AddInductive.withConsumedLocalDecl minorName .default minorTy
+          fun minor =>
+        let next := recInfos.modify dIdx fun info =>
+          { info with
+            minors := info.minors.push minor
+            ruleBlueprints := info.ruleBlueprints.push {
+              ctor := ctor.name
+              fields := allFields
+              lctx := lctx
+              recursiveCalls := calls
+              targetTypeIdx := Happlication.ownerIdx
+              targetIndices := indices
+              minor := minor } }
+        k next : AddInductive.M alpha) outCtx).WF Q := by
+  let HextArgs := HfieldsRecent.contextExtension
+  let HstatsArgs := Hstats.weakenRecent HfieldsRecent
+  have hctxArgs : VLCtx.NoIndConsts (decl.types.map (·.name))
+      Rargs.mlctx.vlctx :=
+    HfieldsRecent.noIndConsts (names := decl.types.map (·.name)) hctx
+  let HbindingsArgs := Hbindings.mono HextArgs.contextLE
+  let HoriginsArgs := Horigins.mono HextArgs.contextLE
+  let HmotiveShapesArgs := HmotiveShapes.mono Hbindings HextArgs.contextLE
+  let HtelescopesArgs := Htelescopes.mono HextArgs
+  let HextAll := HextArgs.trans HhypothesesRecent.contextExtension
+  have HmotiveAt : TrExprS Rout.venv recLparams Rout.mlctx.vlctx
+      (Expr.app
+        (mkAppN recInfos[Happlication.ownerIdx]!.motive
+          indices)
+        (mkAppN
+          (mkAppN (.const ctor.name stats.levels) stats.params) allFields))
+      (motiveTarget.lift' (HhypothesesRecent.contextExtension.shift.consN 0)) :=
+    HhypothesesRecent.contextExtension.weakTrExprS Hmotive
+  have HmotiveTypeAt : Rout.venv.IsType recLparams.length
+      Rout.mlctx.vlctx.toCtx
+      (motiveTarget.lift' (HhypothesesRecent.contextExtension.shift.consN 0)) :=
+    HhypothesesRecent.contextExtension.weakIsType HmotiveType
+  obtain ⟨minorTarget, HminorRaw', HminorRawType⟩ :=
+    constructorMinorTypeTranslation HfieldsRecent HhypothesesRecent
+      HmotiveAt HmotiveTypeAt
+  have hget : ((getLCtx : AddInductive.M LocalContext) outCtx).WF
+      (fun lctx => lctx = outCtx.lctx) := by
+    intro lctx h
+    cases h
+    rfl
+  refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
+    hget fun lctx hlctx => ?_
+  subst lctx
+  have HminorRawAt := HextAll.weakTrExprS HminorRaw'
+  have HminorRawTypeAt := HextAll.weakIsType HminorRawType
+  rcases hconsume outCtx recLparams Rout HminorRawAt HminorRawTypeAt with
+    ⟨consumedTarget, Hconsumed⟩
+  let HsuffixOut :=
+    (Hsuffix.weakenRecent HfieldsRecent).weakenRecent HhypothesesRecent
+  let HstatsOut := HstatsArgs.weakenRecent HhypothesesRecent
+  have hctxOut : VLCtx.NoIndConsts (decl.types.map (·.name))
+      Rout.mlctx.vlctx :=
+    HhypothesesRecent.noIndConsts
+      (names := decl.types.map (·.name)) hctxArgs
+  let traversal : RecInfoMinorTraversalShape := {
+    constructor := ctor
+    rootContext := c
+    terminalContext := current
+    terminal := terminal
+    fields := allFields
+    recursiveFields := recursiveFields
+    stats := stats
+    recursivePositions := positions
+    decisions := Hdecisions
+    recursivePositions_ordered := Hdecisions.positions_ordered
+    recursivePositions_lt := Hdecisions.positions_lt
+    recursivePositions_length := Hdecisions.positions_length
+    parameterTail := tail
+    parameterTail_fvars := by
+      apply htailScope.mono
+      intro fv hfv
+      rw [Hparams.exprArrayFVarIds] at hfv
+      exact Hparams.members fv hfv
+    parameterPrefix := hprefix
+    fieldFVars := Hopening.fvars
+    fields_eq := Hopening.expressions
+    fieldFVars_nodup := Hopening.nodup
+    fieldResidual := Hopening.residual
+    fieldTelescope := Hopening.telescope
+    fieldClosed := Hopening.closed
+    fieldResidual_not_forall := by
+      rw [← Hopening.closed, Expr.abstractList_isForall]
+      exact HterminalNonforall }
+  let HbindingsOut := Hbindings.mono HextAll.contextLE
+  let HoriginsOut := Horigins.mono HextAll.contextLE
+  let HparamsOut := Hparams.mono HextAll.contextLE
+  have HorderArgs := Horder.monoRecent HfieldsRecent
+  have HorderOut0 := HorderArgs.monoRecent HhypothesesRecent
+  have HorderOut : RecInfoOuterOrder Rout HparamsOut HbindingsOut := by
+    unfold RecInfoOuterOrder at HorderOut0 ⊢
+    change (Hparams.fvars ++ Hbindings.motives.fvars ++
+      Hbindings.flatMinors.fvars).reverse <+ Rout.mlctx.vlctx.fvars
+    exact HorderOut0
+  let HminorSemanticsOut := HminorSemantics.mono HextAll
+  let HcompletedOrigins : RecInfoMinorHypothesisTypeOrigins
+      outCtx recursiveFields hypotheses := {
+    stats := stats
+    recInfos := recInfos
+    fieldRoot := current
+    fieldRoot_wf := Rargs.toBindingContextWF
+    hypotheses_outer_fresh := inductionHypothesesOuterFresh Hparams Hbindings
+      HextArgs.contextLE HhypothesesRecent
+    entry := by
+      intro j hj
+      rcases HhypothesisOrigins.entry j hj with
+        ⟨originRoot, sourceType, HoriginRoot, ⟨O⟩, D, htype⟩
+      exact ⟨originRoot, sourceType, HoriginRoot, ⟨O.toMinor⟩, D, htype⟩ }
+  have HcompletedCalls :
+      RecInfoCallBlueprintOrigins HcompletedOrigins allFields calls :=
+    RecInfoCallBlueprintOrigins.ofHypothesisCalls
+      HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.exprArrayFVarIds
+      HhypothesisCallOrigins HcompletedOrigins rfl rfl rfl
+  let motiveApp := Expr.app
+    (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
+    (mkAppN (mkAppN (.const ctor.name stats.levels) stats.params) allFields)
+  let minorSourceType :=
+    outCtx.lctx.mkForall allFields (outCtx.lctx.mkForall hypotheses motiveApp)
+  refine continueMinorSemantics (Q := Q) stats indTypes dIdx recInfos
+    (ctor.name.replacePrefix indTypeName .anonymous) minorSourceType
+    (fun minor => {
+      ctor := ctor.name
+      fields := allFields
+      lctx := outCtx.lctx
+      recursiveCalls := calls
+      targetTypeIdx := Happlication.ownerIdx
+      targetIndices := indices
+      minor := minor })
+    k Rout HsuffixOut HstatsOut hctxOut HbindingsOut HoriginsOut
+      (Hblueprints.mono HextAll.contextLE)
+      (HblueprintSemantics.mono HextAll)
+      (HminorSources.mono HextAll.contextLE)
+      HminorSemanticsOut
+      (HmajorTypes.mono HextAll)
+      (by rw [HextAll.contextLE.env_eq]; exact HmajorShapes)
+      (HmotiveTypes.mono HextAll)
+      (HmotiveShapes.mono Hbindings HextAll.contextLE)
+      (Htelescopes.mono HextAll) (HindexRows.mono HextAll)
+      HparamsOut
+      (Hbindings.mono_noAlias Hparams HextAll.contextLE HnoAlias)
+      HorderOut (Hroot.trans HextAll.contextLE) hidx hsourceIdx Harities
+      Hlater Hconsumed.consumed
+      Hconsumed.isType {
+        localIndex := HoriginsOut.minorTypes[dIdx]!.size
+        origin := minorSourceType.consumeTypeAnnotationsVerified
+          outCtx.env.isTypeAnnotationWrapper
+        constructor := ctor
+        sourceConstructors := sourceConstructors
+        sourceConstructor := by
+          simpa [HoriginsOut, RecInfoTypeOrigins.mono, horiginIndex] using
+            hsourceConstructor
+        sourceFullContext := outCtx
+        sourceFullWF := Rout.toBindingContextWF
+        sourceContext := outCtx.lctx
+        sourceContext_eq := rfl
+        fields := allFields
+        fields_bound :=
+          HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.mono
+            HhypothesesRecent.contextExtension.contextLE
+        fields_nodup := HfieldsRecent.toFreshBoundFVarArray.nodup
+        recursiveFields := recursiveFields
+        hypotheses := hypotheses
+        hypotheses_bound :=
+          HhypothesesRecent.toFreshBoundFVarArray.toBoundFVarArray
+        hypotheses_nodup :=
+          HhypothesesRecent.toFreshBoundFVarArray.nodup
+        hypotheses_fields_fresh := by
+          intro fv hhypothesis hfield
+          apply HhypothesesRecent.toFreshBoundFVarArray.fresh fv
+            hhypothesis
+          exact HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.members
+            fv hfield
+        hypothesis_type_origins := some HcompletedOrigins
+        hypotheses_size := hhypothesesSize
+        traversal := some traversal
+        hypothesis_origins_fieldRoot := by
+          intro origins' T horigins htraversal
+          simp only [Option.some.injEq] at horigins htraversal
+          subst origins'
+          subst T
+          rfl
+        motiveApp := motiveApp
+        sourceType := minorSourceType
+        sourceType_eq := rfl
+        consumed_eq := rfl } ⟨rfl, rfl⟩ (by
+          simpa [HoriginsOut, RecInfoTypeOrigins.mono, horiginIndex] using
+            hsourceFamily)
+      (by exact ⟨rfl, rfl⟩)
+      ⟨{
+        semantic := {
+          sourceWF := Rout
+          extension := RecursorContextExtension.refl Rout
+          traversal := traversal
+          traversal_eq := rfl
+          traversal_fields := rfl
+          rootWF := R
+          terminalWF := Rargs
+          parameterDepth := depth
+          parameterSuffix := Hsuffix
+          parameterScope := by
+            apply htailScope.mono
+            intro fv hfv
+            rw [Hsuffix.parameterDecls_fvars]
+            simpa using hfv
+          parameterTarget := tailTarget
+          parameterTranslation := htail
+          parameterType := htailType
+          parameterTranslation₀ := ⟨_, htail₀⟩
+          fieldsRecent := HfieldsRecent
+          fieldCheck := by
+            obtain ⟨M, hMwf, hchkM, hnM, hagM, hdropM, t₀', ht₀', hroot₀⟩ :=
+              hfieldCheck
+            exact ⟨M, hMwf, hchkM, hnM, hagM, hdropM, _, htail₀, t₀', ht₀',
+              hroot₀⟩
+          fieldOpening := Hopening
+          fieldParameterUp := HfieldParameterUp
+          hypothesesRecent := HhypothesesRecent
+          terminalTarget := terminalTarget
+          terminalTranslation := Hterminal
+          terminalType := HterminalType
+          constructorApplication := Happlication
+          fieldTargetDefEq := HfieldTargetDefEq
+          motivePreTarget := motiveTarget
+          motivePreTranslation := Hmotive
+          motivePreType := HmotiveType
+          motiveHeadRoot :=
+            motiveApplicationHeadRoot Hbindings Hparams Horder htarget _ _
+          motiveTarget := motiveTarget.lift'
+            (HhypothesesRecent.contextExtension.shift.consN 0)
+          motiveTranslation := HmotiveAt
+          motiveType := HmotiveTypeAt
+          sourceTarget := minorTarget.lift' (HextAll.shift.consN 0)
+          consumedTarget := consumedTarget
+          consumption := Hconsumed }
+        parameterDecls_eq := rfl }⟩
+      (constructorFieldsOuterFresh HfieldsRecent Hparams Hbindings)
+      ⟨traversal, rfl, rfl, rfl, rfl, rfl, by
+        rw [howner]
+        exact Happlication.owner_valid, by rw [howner],
+        HextAll.contextLE,
+        HhypothesesRecent.contextExtension.contextLE,
+        BindingContextLE.refl outCtx⟩
+      (by
+        refine ⟨rfl, rfl, rfl, rfl, traversal, HcompletedOrigins,
+          rfl, rfl, ?_, ?_, HcompletedCalls⟩
+        · rw [howner]
+        · rw [howner])
+      (by
+        refine ⟨HcompletedOrigins, rfl, rfl, rfl, {
+          traversal := traversal
+          traversal_eq := rfl
+          traversal_constructor := rfl
+          traversal_fields := rfl
+          traversal_recursiveFields := rfl
+          traversal_stats := rfl
+          rootWF := R
+          terminalWF := Rargs
+          parameterDepth := depth
+          parameterSuffix := Hsuffix
+          terminalExtension := HhypothesesRecent.contextExtension
+          fieldsRecent := HfieldsRecent
+          parameterTarget := tailTarget
+          parameterTail_params := htailScope
+          parameterTranslation := htail
+          parameterType := htailType
+          parameterTranslation₀ := ⟨_, htail₀, htail₀Ty⟩
+          fieldOpening := Hopening
+          fieldParameterUp := HfieldParameterUp
+          fieldCheck := by
+            obtain ⟨M, hMwf, hchkM, hnM, hagM, hdropM, t₀', ht₀', hroot₀⟩ :=
+              hfieldCheck
+            exact ⟨M, hMwf, hchkM, hnM, hagM, hdropM, _, htail₀, t₀', ht₀',
+              hroot₀⟩
+          terminalTarget := terminalTarget
+          terminalTranslation := Hterminal
+          terminalType := HterminalType
+          constructorApplication := Happlication
+          fieldTargetDefEq := HfieldTargetDefEq }, rfl,
+          depth + allFields.size, HstatsArgs, fields, Hselections,
+          hdidxValid, hdidxDecl,
+          Happlication.ownerIdx,
+          Happlication.owner_valid, ⟨Hvalidated⟩,
+          Hbinding, HmotiveEvidence,
+          ⟨RecInfoMotiveTelescopeLookup.of HtelescopesArgs HbindingsArgs
+            HoriginsArgs HmotiveShapesArgs⟩, ⟨?_⟩, ⟨?_⟩⟩
+        · simpa using HhypothesisCallSemantics
+        · simpa using HhypothesisCallSharpSemantics) ?_
+  intro nextCtx nextDepth next Rnext henvNext HsuffixNext
+    hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
+    HblueprintsNext HblueprintSemanticsNext HminorSourcesNext
+    HminorSemanticsNext
+    hsizeNext hcountNext hotherNext
+    HmajorTypesNext HmajorShapesNext
+    HmotiveTypesNext HmotiveShapesNext HtelescopesNext HindexRowsNext
+    HparamsNext HnoAliasNext HorderNext HaritiesNext HrootNext
+  exact Hk next Rnext (henvNext.trans HextAll.venv_eq) HsuffixNext
+    (hparameterDeclsNext.trans (by rfl)) HstatsNext hctxNext
+    HbindingsNext HoriginsNext HblueprintsNext HblueprintSemanticsNext
+    HminorSourcesNext
+    HminorSemanticsNext
+    hsizeNext hcountNext hotherNext
+    HmajorTypesNext HmajorShapesNext HmotiveTypesNext HmotiveShapesNext
+    HtelescopesNext HindexRowsNext HparamsNext HnoAliasNext HorderNext
+    HaritiesNext HrootNext
+
 /-- Complete semantic refinement of one constructor iteration in the second
 `mkRecInfos` pass.  The only constructor-specific premise is the independent
 introduction certificate for the exact terminal application exposed by the
@@ -2952,38 +3639,9 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     exact _HfieldParameterUp
   have hsharpUp : ∀ j : Nat, IsFVarUpSet
       (RecursorFieldPrefixScope stats.params HfieldsRecent.fvars
-        recursiveFields[j]!) Rargs.mlctx.vlctx := by
-    intro j
-    rw [Hopening.fvars_eq_bound
-      HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
-    have hsplit := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
-      Rargs.mlctx allFields.size HfieldsRecent.size_le
-    rw [HfieldsRecent.drop_eq] at hsplit
-    have hprefix : VLCtx.fvars (Rargs.mlctx.vlctx.take allFields.size) =
-        HfieldsRecent.fvars.reverse := by
-      rw [TypeChecker.MLCtx.vlctx_take_fvars]
-      exact HfieldsRecent.fvarRevList_eq
-    have hwf : VLCtx.FVWF
-        (Rargs.mlctx.vlctx.take allFields.size ++ R.mlctx.vlctx) := by
-      rw [← hsplit]
-      exact Rargs.mlctx_wf.tr.wf.fvwf
-    have hfresh : ∀ fv ∈ HfieldsRecent.fvars,
-        ¬ fv ∈ ExprArrayFVarIds stats.params := by
-      intro fv hfv hparam
-      apply HfieldsRecent.toFreshBoundFVarArray.fresh fv hfv
-      apply Hparams.members
-      rw [← Hparams.exprArrayFVarIds]
-      exact hparam
-    have hup : IsFVarUpSet
-        (fun fv => fv ∈ HfieldsRecent.fvars ∨
-          fv ∈ ExprArrayFVarIds stats.params)
-        (Rargs.mlctx.vlctx.take allFields.size ++ R.mlctx.vlctx) := by
-      rw [← hsplit]
-      exact _HfieldParameterUp
-    have hsharp := IsFVarUpSet.sharpenPrefix _ _ _ hwf hprefix hfresh hup
-      (HfieldsRecent.fvars.idxOf (recursorFVarId recursiveFields[j]!))
-    rw [← hsplit] at hsharp
-    exact hsharp
+        recursiveFields[j]!) Rargs.mlctx.vlctx := fun j =>
+    constructorFieldPrefixScopeUp HfieldsRecent Hparams hproducerUp
+      recursiveFields[j]!
   have hfieldSupport :=
     (Hdecisions.levelParamsIn R.toBindingContextWF htailUniverses).2
   have hparamSupport := hparamUniverses.mono Hparams HextArgs.contextLE
@@ -3112,394 +3770,19 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
   intro outCtx Rout hypotheses calls HhypothesesRecent HhypothesisOrigins
     HhypothesisCallOrigins HhypothesisCallSemantics HhypothesisCallSharpSemantics
     hhypothesesSize hcallsSize
-  let HextAll := HextArgs.trans HhypothesesRecent.contextExtension
-  have HmotiveAt : TrExprS Rout.venv recLparams Rout.mlctx.vlctx
-      (Expr.app
-        (mkAppN recInfos[Happlication.ownerIdx]!.motive
-          terminal.getAppArgs[stats.params.size:])
-        (mkAppN
-          (mkAppN (.const ctor.name stats.levels) stats.params) allFields))
-      (motiveTarget.lift' (HhypothesesRecent.contextExtension.shift.consN 0)) :=
-    HhypothesesRecent.contextExtension.weakTrExprS Hmotive
-  have HmotiveTypeAt : Rout.venv.IsType recLparams.length
-      Rout.mlctx.vlctx.toCtx
-      (motiveTarget.lift' (HhypothesesRecent.contextExtension.shift.consN 0)) :=
-    HhypothesesRecent.contextExtension.weakIsType HmotiveType
-  rcases HhypothesesRecent.mkForall HmotiveAt HmotiveTypeAt with
-    ⟨hypothesesTarget, Hhypotheses, HhypothesesType⟩
-  have houter : outCtx.lctx.mkForall allFields
-        (outCtx.lctx.mkForall hypotheses
-          (Expr.app
-            (mkAppN recInfos[Happlication.ownerIdx]!.motive
-              terminal.getAppArgs[stats.params.size:])
-            (mkAppN
-              (mkAppN (.const ctor.name stats.levels) stats.params)
-              allFields))) =
-      current.lctx.mkForall allFields
-        (outCtx.lctx.mkForall hypotheses
-          (Expr.app
-            (mkAppN recInfos[Happlication.ownerIdx]!.motive
-              terminal.getAppArgs[stats.params.size:])
-            (mkAppN
-              (mkAppN (.const ctor.name stats.levels) stats.params)
-              allFields))) :=
-    HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.mkForall_mono
-      HhypothesesRecent.contextLE _
-  rcases HfieldsRecent.mkForall Hhypotheses HhypothesesType with
-    ⟨minorTarget, HminorRaw, HminorRawType⟩
-  have HminorRaw' : TrExprS R.venv recLparams R.mlctx.vlctx
-      (outCtx.lctx.mkForall allFields
-        (outCtx.lctx.mkForall hypotheses
-          (Expr.app
-            (mkAppN recInfos[Happlication.ownerIdx]!.motive
-              terminal.getAppArgs[stats.params.size:])
-            (mkAppN
-              (mkAppN (.const ctor.name stats.levels) stats.params)
-              allFields)))) minorTarget := by
-    rw [houter]
-    exact HminorRaw
-  have hget : ((getLCtx : AddInductive.M LocalContext) outCtx).WF
-      (fun lctx => lctx = outCtx.lctx) := by
-    intro lctx h
-    cases h
-    rfl
-  dsimp only [finish]
-  refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
-    hget fun lctx hlctx => ?_
-  subst lctx
-  have HminorRawAt := HextAll.weakTrExprS HminorRaw'
-  have HminorRawTypeAt := HextAll.weakIsType HminorRawType
-  rcases hconsume outCtx recLparams Rout HminorRawAt HminorRawTypeAt with
-    ⟨consumedTarget, Hconsumed⟩
-  let HsuffixOut :=
-    (Hsuffix.weakenRecent HfieldsRecent).weakenRecent HhypothesesRecent
-  let HstatsOut := HstatsArgs.weakenRecent HhypothesesRecent
-  have hctxOut : VLCtx.NoIndConsts (decl.types.map (·.name))
-      Rout.mlctx.vlctx :=
-    HhypothesesRecent.noIndConsts
-      (names := decl.types.map (·.name)) hctxArgs
-  let traversal : RecInfoMinorTraversalShape := {
-    constructor := ctor
-    rootContext := c
-    terminalContext := current
-    terminal := terminal
-    fields := allFields
-    recursiveFields := recursiveFields
-    stats := stats
-    recursivePositions := positions
-    decisions := Hdecisions
-    recursivePositions_ordered := Hdecisions.positions_ordered
-    recursivePositions_lt := Hdecisions.positions_lt
-    recursivePositions_length := Hdecisions.positions_length
-    parameterTail := tail
-    parameterTail_fvars := by
-      apply htailScope.mono
-      intro fv hfv
-      rw [Hparams.exprArrayFVarIds] at hfv
-      exact Hparams.members fv hfv
-    parameterPrefix := hprefix
-    fieldFVars := Hopening.fvars
-    fields_eq := Hopening.expressions
-    fieldFVars_nodup := Hopening.nodup
-    fieldResidual := Hopening.residual
-    fieldTelescope := Hopening.telescope
-    fieldClosed := Hopening.closed
-    fieldResidual_not_forall := by
-      rw [← Hopening.closed, Expr.abstractList_isForall]
-      exact HterminalNonforall }
-  let HbindingsOut := Hbindings.mono HextAll.contextLE
-  let HoriginsOut := Horigins.mono HextAll.contextLE
-  let HparamsOut := Hparams.mono HextAll.contextLE
-  have HorderArgs := Horder.monoRecent HfieldsRecent
-  have HorderOut0 := HorderArgs.monoRecent HhypothesesRecent
-  have HorderOut : RecInfoOuterOrder Rout HparamsOut HbindingsOut := by
-    unfold RecInfoOuterOrder at HorderOut0 ⊢
-    change (Hparams.fvars ++ Hbindings.motives.fvars ++
-      Hbindings.flatMinors.fvars).reverse <+ Rout.mlctx.vlctx.fvars
-    exact HorderOut0
-  let HminorSemanticsOut := HminorSemantics.mono HextAll
-  let HcompletedOrigins : RecInfoMinorHypothesisTypeOrigins
-      outCtx recursiveFields hypotheses := {
-    stats := stats
-    recInfos := recInfos
-    fieldRoot := current
-    fieldRoot_wf := Rargs.toBindingContextWF
-    hypotheses_outer_fresh := by
-      intro fv houter hhypothesis
-      rw [Hparams.exprArrayFVarIds,
-        Hbindings.motives.exprArrayFVarIds] at houter
-      rw [(HhypothesesRecent.toFreshBoundFVarArray.toBoundFVarArray
-        ).exprArrayFVarIds] at hhypothesis
-      apply HhypothesesRecent.toFreshBoundFVarArray.fresh fv hhypothesis
-      apply HextArgs.contextLE.fvars
-      rcases List.mem_append.mp houter with hparam | hmotive
-      · exact Hparams.members fv hparam
-      · exact Hbindings.motives.members fv hmotive
-    entry := by
-      intro j hj
-      rcases HhypothesisOrigins.entry j hj with
-        ⟨originRoot, sourceType, HoriginRoot, ⟨O⟩, D, htype⟩
-      exact ⟨originRoot, sourceType, HoriginRoot, ⟨O.toMinor⟩, D, htype⟩ }
-  have HcompletedCalls :
-      RecInfoCallBlueprintOrigins HcompletedOrigins allFields calls := by
-    refine {
-      size_eq := HhypothesisCallOrigins.size_eq
-      entry := ?_
-      rooted := ?_ }
-    · intro j hj
-      rcases HhypothesisCallOrigins.entry j hj with
-        ⟨originRoot, sourceType, O, D, HoriginRoot, htype, hcall⟩
-      exact ⟨originRoot, sourceType, O, D, HoriginRoot, htype, hcall⟩
-    · intro j hj
-      rcases HhypothesisCallOrigins.rooted j hj with
-        ⟨originRoot, sourceType, recL, Rorigin, O, D, HoriginRoot, hup,
-          htype, hcall⟩
-      refine ⟨originRoot, sourceType, recL, Rorigin, O, D, HoriginRoot, ?_,
-        htype, hcall⟩
-      have hids : ExprArrayFVarIds allFields = HfieldsRecent.fvars :=
-        HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.exprArrayFVarIds
-      show IsFVarUpSet (fun fv => fv ∈ ExprArrayFVarIds allFields ∨
-        fv ∈ ExprArrayFVarIds stats.params) Rorigin.mlctx.vlctx
-      rw [hids]
-      exact hup
-  refine continueMinorSemantics (Q := Q) stats indTypes dIdx recInfos
-    (ctor.name.replacePrefix indTypeName .anonymous)
-    (outCtx.lctx.mkForall allFields
-      (outCtx.lctx.mkForall hypotheses
-        (Expr.app
-          (mkAppN recInfos[Happlication.ownerIdx]!.motive
-            indices)
-          (mkAppN
-            (mkAppN (.const ctor.name stats.levels) stats.params)
-            allFields))))
-    (fun minor => {
-      ctor := ctor.name
-      fields := allFields
-      lctx := outCtx.lctx
-      recursiveCalls := calls
-      targetTypeIdx := Happlication.ownerIdx
-      targetIndices := indices
-      minor := minor })
-    k Rout HsuffixOut HstatsOut hctxOut HbindingsOut HoriginsOut
-      (Hblueprints.mono HextAll.contextLE)
-      (HblueprintSemantics.mono HextAll)
-      (HminorSources.mono HextAll.contextLE)
-      HminorSemanticsOut
-      (HmajorTypes.mono HextAll)
-      (by rw [HextAll.contextLE.env_eq]; exact HmajorShapes)
-      (HmotiveTypes.mono HextAll)
-      (HmotiveShapes.mono Hbindings HextAll.contextLE)
-      (Htelescopes.mono HextAll) (HindexRows.mono HextAll)
-      HparamsOut
-      (Hbindings.mono_noAlias Hparams HextAll.contextLE HnoAlias)
-      HorderOut (Hroot.trans HextAll.contextLE) hidx hsourceIdx Harities
-      Hlater Hconsumed.consumed
-      Hconsumed.isType {
-        localIndex := HoriginsOut.minorTypes[dIdx]!.size
-        origin := ((outCtx.lctx.mkForall allFields
-          (outCtx.lctx.mkForall hypotheses
-            (Expr.app
-              (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
-              (mkAppN
-                (mkAppN (.const ctor.name stats.levels) stats.params)
-                allFields)))).consumeTypeAnnotationsVerified outCtx.env.isTypeAnnotationWrapper)
-        constructor := ctor
-        sourceConstructors := sourceConstructors
-        sourceConstructor := by
-          simpa [HoriginsOut, RecInfoTypeOrigins.mono, horiginIndex] using
-            hsourceConstructor
-        sourceFullContext := outCtx
-        sourceFullWF := Rout.toBindingContextWF
-        sourceContext := outCtx.lctx
-        sourceContext_eq := rfl
-        fields := allFields
-        fields_bound :=
-          HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.mono
-            HhypothesesRecent.contextExtension.contextLE
-        fields_nodup := HfieldsRecent.toFreshBoundFVarArray.nodup
-        recursiveFields := recursiveFields
-        hypotheses := hypotheses
-        hypotheses_bound :=
-          HhypothesesRecent.toFreshBoundFVarArray.toBoundFVarArray
-        hypotheses_nodup :=
-          HhypothesesRecent.toFreshBoundFVarArray.nodup
-        hypotheses_fields_fresh := by
-          intro fv hhypothesis hfield
-          apply HhypothesesRecent.toFreshBoundFVarArray.fresh fv
-            hhypothesis
-          exact HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.members
-            fv hfield
-        hypothesis_type_origins := some HcompletedOrigins
-        hypotheses_size := hhypothesesSize
-        traversal := some traversal
-        hypothesis_origins_fieldRoot := by
-          intro origins' T horigins htraversal
-          simp only [Option.some.injEq] at horigins htraversal
-          subst origins'
-          subst T
-          rfl
-        motiveApp := Expr.app
-          (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
-          (mkAppN
-            (mkAppN (.const ctor.name stats.levels) stats.params)
-            allFields)
-        sourceType := outCtx.lctx.mkForall allFields
-          (outCtx.lctx.mkForall hypotheses
-            (Expr.app
-              (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
-              (mkAppN
-                (mkAppN (.const ctor.name stats.levels) stats.params)
-                allFields)))
-        sourceType_eq := rfl
-        consumed_eq := rfl } ⟨rfl, rfl⟩ (by
-          simpa [HoriginsOut, RecInfoTypeOrigins.mono, horiginIndex] using
-            hsourceFamily)
-      (by exact ⟨rfl, rfl⟩)
-      ⟨{
-        semantic := {
-          sourceWF := Rout
-          extension := RecursorContextExtension.refl Rout
-          traversal := traversal
-          traversal_eq := rfl
-          traversal_fields := rfl
-          rootWF := R
-          terminalWF := Rargs
-          parameterDepth := depth
-          parameterSuffix := Hsuffix
-          parameterScope := by
-            apply htailScope.mono
-            intro fv hfv
-            rw [Hsuffix.parameterDecls_fvars]
-            simpa using hfv
-          parameterTarget := tailTarget
-          parameterTranslation := htail
-          parameterType := htailType
-          parameterTranslation₀ := ⟨_, htail₀⟩
-          fieldsRecent := HfieldsRecent
-          fieldCheck := by
-            obtain ⟨M, hMwf, hchkM, hnM, hagM, hdropM, t₀', ht₀', hroot₀⟩ :=
-              hfieldCheck
-            exact ⟨M, hMwf, hchkM, hnM, hagM, hdropM, _, htail₀, t₀', ht₀',
-              hroot₀⟩
-          fieldOpening := Hopening
-          fieldParameterUp := by
-            rw [Hopening.fvars_eq_bound
-              HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
-            exact _HfieldParameterUp
-          hypothesesRecent := HhypothesesRecent
-          terminalTarget := terminalTarget
-          terminalTranslation := Hterminal
-          terminalType := HterminalType
-          constructorApplication := Happlication
-          fieldTargetDefEq := HfieldTargetDefEq
-          motivePreTarget := motiveTarget
-          motivePreTranslation := Hmotive
-          motivePreType := HmotiveType
-          motiveHeadRoot := by
-            have hownerMotive : Happlication.ownerIdx <
-                (recInfos.map (·.motive)).size := by
-              simpa using htarget
-            rcases Hbindings.motives.getElem_eq_fvar
-                Happlication.ownerIdx hownerMotive with
-              ⟨hmotiveFVars, hmotiveSource⟩
-            let motiveFVar :=
-              Hbindings.motives.fvars[Happlication.ownerIdx]
-            have hmotiveBang : recInfos[Happlication.ownerIdx]!.motive =
-                .fvar motiveFVar := by
-              rw [getElem!_pos recInfos Happlication.ownerIdx htarget]
-              simpa [motiveFVar] using hmotiveSource
-            refine ⟨motiveFVar, ?_, ?_⟩
-            · simp [Expr.getAppFn, Expr.getAppFn_mkAppN, hmotiveBang]
-            · apply Horder.subset
-              apply List.mem_reverse.mpr
-              simp [motiveFVar, List.getElem_mem hmotiveFVars]
-          motiveTarget := motiveTarget.lift'
-            (HhypothesesRecent.contextExtension.shift.consN 0)
-          motiveTranslation := HmotiveAt
-          motiveType := HmotiveTypeAt
-          sourceTarget := minorTarget.lift' (HextAll.shift.consN 0)
-          consumedTarget := consumedTarget
-          consumption := Hconsumed }
-        parameterDecls_eq := rfl }⟩
-      (by
-        intro fv hfield houter
-        apply HfieldsRecent.toFreshBoundFVarArray.fresh fv hfield
-        rcases List.mem_append.mp houter with hpm | hminor
-        · rcases List.mem_append.mp hpm with hparam | hmotive
-          · exact Hparams.members fv hparam
-          · exact Hbindings.motives.members fv hmotive
-        · exact Hbindings.flatMinors.members fv hminor)
-      ⟨traversal, rfl, rfl, rfl, rfl, rfl, by
-        rw [howner]
-        exact Happlication.owner_valid, by rw [howner],
-        HextAll.contextLE,
-        HhypothesesRecent.contextExtension.contextLE,
-        BindingContextLE.refl outCtx⟩
-      (by
-        refine ⟨rfl, rfl, rfl, rfl, traversal, HcompletedOrigins,
-          rfl, rfl, ?_, ?_, HcompletedCalls⟩
-        · rw [howner]
-        · rw [howner])
-      (by
-        refine ⟨HcompletedOrigins, rfl, rfl, rfl, {
-          traversal := traversal
-          traversal_eq := rfl
-          traversal_constructor := rfl
-          traversal_fields := rfl
-          traversal_recursiveFields := rfl
-          traversal_stats := rfl
-          rootWF := R
-          terminalWF := Rargs
-          parameterDepth := depth
-          parameterSuffix := Hsuffix
-          terminalExtension := HhypothesesRecent.contextExtension
-          fieldsRecent := HfieldsRecent
-          parameterTarget := tailTarget
-          parameterTail_params := htailScope
-          parameterTranslation := htail
-          parameterType := htailType
-          parameterTranslation₀ := ⟨_, htail₀, htail₀Ty⟩
-          fieldOpening := Hopening
-          fieldParameterUp := by
-            rw [Hopening.fvars_eq_bound
-              HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
-            exact _HfieldParameterUp
-          fieldCheck := by
-            obtain ⟨M, hMwf, hchkM, hnM, hagM, hdropM, t₀', ht₀', hroot₀⟩ :=
-              hfieldCheck
-            exact ⟨M, hMwf, hchkM, hnM, hagM, hdropM, _, htail₀, t₀', ht₀',
-              hroot₀⟩
-          terminalTarget := terminalTarget
-          terminalTranslation := Hterminal
-          terminalType := HterminalType
-          constructorApplication := Happlication
-          fieldTargetDefEq := HfieldTargetDefEq }, rfl,
-          depth + allFields.size, HstatsArgs, fields, Hselections,
-          hdidxValid, hdidxDecl,
-          Happlication.ownerIdx,
-          Happlication.owner_valid, ⟨Hvalidated⟩,
-          Hbinding, HmotiveEvidence,
-          ⟨RecInfoMotiveTelescopeLookup.of HtelescopesArgs HbindingsArgs
-            HoriginsArgs HmotiveShapesArgs⟩, ⟨?_⟩, ⟨?_⟩⟩
-        · simpa using HhypothesisCallSemantics
-        · simpa using HhypothesisCallSharpSemantics) ?_
-  intro nextCtx nextDepth next Rnext henvNext HsuffixNext
-    hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
-    HblueprintsNext HblueprintSemanticsNext HminorSourcesNext
-    HminorSemanticsNext
-    hsizeNext hcountNext hotherNext
-    HmajorTypesNext HmajorShapesNext
-    HmotiveTypesNext HmotiveShapesNext HtelescopesNext HindexRowsNext
-    HparamsNext HnoAliasNext HorderNext HaritiesNext HrootNext
-  exact Hk next Rnext (henvNext.trans HextAll.venv_eq) HsuffixNext
-    (hparameterDeclsNext.trans (by rfl)) HstatsNext hctxNext
-    HbindingsNext HoriginsNext HblueprintsNext HblueprintSemanticsNext
-    HminorSourcesNext
-    HminorSemanticsNext
-    hsizeNext hcountNext hotherNext
-    HmajorTypesNext HmajorShapesNext HmotiveTypesNext HmotiveShapesNext
-    HtelescopesNext HindexRowsNext HparamsNext HnoAliasNext HorderNext
-    HaritiesNext HrootNext
+  exact constructorMinorClosureSemantics stats indTypes indTypeName dIdx
+    recInfos ctor tail sourceConstructors sourceIndex hsourceConstructor
+    hsourceFamily k R Hsuffix Hstats hprefix htailScope hconsume hctx htail
+    htailType htail₀ htail₀Ty Hbindings Horigins Hblueprints
+    HblueprintSemantics HminorSources HminorSemantics HmajorTypes HmajorShapes
+    HmotiveTypes HmotiveShapes Htelescopes HindexRows Hparams HnoAlias Horder
+    Hroot hidx hsourceIdx horiginIndex Harities Hlater Hk Rargs
+    HterminalNonforall Hterminal HterminalType Hselections Hdecisions
+    HfieldsRecent Hopening HfieldTargetDefEq hproducerUp hfieldCheck
+    hdidxValid hdidxDecl Happlication htarget Hvalidated Hbinding
+    HmotiveEvidence Hmotive HmotiveType howner Rout hypotheses calls
+    HhypothesesRecent HhypothesisOrigins HhypothesisCallOrigins
+    HhypothesisCallSemantics HhypothesisCallSharpSemantics hhypothesesSize
 
 /-- Semantic refinement of the complete constructor list for one mutual
 family.  Each iteration consumes the checker-produced runtime seed for its
