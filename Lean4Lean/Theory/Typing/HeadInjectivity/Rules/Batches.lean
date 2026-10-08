@@ -100,7 +100,7 @@ theorem WF'.sameHead {env : VEnv} (H : env.WF' ds) : env.SameHead := by
         rw [this] at hnone; cases hnone
     | induct _ installed =>
       cases installed with
-      | @intro block _ _ compiled _ installed =>
+      | @intro block _ _ compiled _ _ installed =>
         obtain ⟨base, expanded, signature, generated, auxiliaries, _, compilation, _⟩ :=
           compiled.compiled.compilationOrigin
         have howned := compiled.compiled.equation_head_owned
@@ -109,7 +109,7 @@ theorem WF'.sameHead {env : VEnv} (H : env.WF' ds) : env.SameHead := by
         obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := installed
         refine ih.extend hord (new := block.rules)
           (fun df => by
-            rw [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
+            rw [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
               VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht]) (.native compilation) ?_
         intro df hm n ls h
         obtain ⟨recursor, hrec, ls', hhead⟩ := howned df hm
@@ -120,10 +120,10 @@ theorem WF'.sameHead {env : VEnv} (H : env.WF' ds) : env.SameHead := by
         | none => rfl
         | some ci =>
           have := (addConstVals_le hc).constants ((addConstVals_le ht).constants h')
-          simp only [VEnv.addProjections_constants] at hfresh
+          simp only [VEnv.addProjections_constants, VEnv.addEliminators_constants] at hfresh
           rw [this] at hfresh; cases hfresh
   | inductEliminators _ _ _ _ _ _ _ _ _ ih => exact ih
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     intro df df' hdf hdf'
     exact ih df df' (by simpa using hdf) (by simpa using hdf')
 

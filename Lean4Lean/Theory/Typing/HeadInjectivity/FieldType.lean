@@ -32,7 +32,7 @@ theorem Ordered.projection_rawShape {env : VEnv} (H : env.Ordered)
     rw [VEnv.addConst_projections hadd] at hprojection
     exact ih hprojection
   | defeq _ _ ih => exact ih hprojection
-  | @inductProjections base envTypes envCtors decl block
+  | @inductProjections base envTypes envCtors decl block _es
       hbase hctorsOrdered hsource htypesWF hconstructorUvars _hctorsWF _hparams hshape
       htypesSource hctorsSource hprojections htypes hctors ihBase ihCtors =>
     rw [VEnv.addProjections_iff] at hprojection
@@ -43,7 +43,8 @@ theorem Ordered.projection_rawShape {env : VEnv} (H : env.Ordered)
         ⟨type, htype, ctor, htypeCtors, rfl⟩
       obtain ⟨doms, result, h1, h2, _, h4⟩ := hshape type htype ctor (by simp [htypeCtors])
       exact ⟨doms, result, h1, h2, _, _, h4⟩
-    · exact ihCtors hold
+    · rw [VEnv.addEliminators_projections] at hold
+      exact ihCtors hold
 
 /-- Application of a constant to arguments. -/
 def HeadConst : VExpr → Prop

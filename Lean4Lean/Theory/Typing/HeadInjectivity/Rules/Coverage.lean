@@ -96,7 +96,7 @@ theorem VEnv.WF'.defeq_origin {env : VEnv} (H : env.WF' ds) {df : VDefEq}
             VEnv.addConst_defeqs hb, VEnv.addConst_defeqs ha] at hdf)
     | induct _ installed =>
       cases installed with
-      | intro _ compiled _ installed =>
+      | intro _ compiled _ _ installed =>
         obtain ⟨base, expanded, signature, generated, auxiliaries, _, compilation, _⟩ :=
           compiled.compiled.compilationOrigin
         have hrules := compilation.equations
@@ -111,9 +111,10 @@ theorem VEnv.WF'.defeq_origin {env : VEnv} (H : env.WF' ds) {df : VDefEq}
           exact .inr (.inr ⟨_, _, _, _, _, _, _, index, compilation, hrestore⟩)
         · exact ih (by
             rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
-              VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at hdf)
+              VEnv.addEliminators_defeqs, VEnv.addConstVals_defeqs hc,
+              VEnv.addConstVals_defeqs ht] at hdf)
   | inductEliminators _ _ _ _ _ _ _ _ _ ih => exact ih hdf
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     exact ih (by simpa only [VEnv.addProjections_defeqs] using hdf)
 
 private def lamDoms : VExpr → List VExpr
@@ -170,11 +171,15 @@ theorem VEnv.WF.genericEquation_patShape {env : VEnv} (henv : env.WF)
     (hrules : schema.genericEquations block owner = some rules) {df : VDefEq}
     (hdf : df ∈ rules) :
     df.PatShape (.elim block owner.val (.param 0 :: schema.genericLevels)) := by
-  obtain ⟨_, _, _, _, _, ⟨_, _, auxiliaries, hdata, _, hr, _⟩, _, _⟩ :=
+  obtain ⟨_, _, _, _, _, ⟨expanded, auxiliaries, hdata, _, hr, _⟩, _, _⟩ :=
     henv.eliminator_origin hlookup
   have hparams : ∀ h ∈ schema.restoration.heads, h.nparams ≤ schema.signature.params.length := by
-    rw [hr]
-    exact fun h hh => Nat.le_of_eq (hdata.restoration_nparams h hh)
+    intro head hhead
+    rw [hr] at hhead
+    obtain ⟨a, _, hhead⟩ := List.mem_flatMap.mp hhead
+    have hn := hdata.model.nparams.trans hdata.nparams
+    simp only [ContainerSpecialization.heads, List.mem_cons, List.mem_map] at hhead
+    rcases hhead with rfl | ⟨ctor, _, rfl⟩ <;> exact Nat.le_of_eq hn.symm
   obtain ⟨source, hsource, hrestore⟩ :=
     Lean4Lean.List.Forall₂.forall_exists_r (List.mapM_eq_some.mp hrules) _ hdf
   obtain ⟨index, _, rfl⟩ := List.mem_map.mp hsource

@@ -120,12 +120,12 @@ private theorem declaration_le' (H : VDecl.WF env decl env') : env ≤ env' := b
       (VEnv.addConst_le hc).trans <| (VEnv.addConst_le hd).trans VEnv.addDefEq_le
   | induct _ h =>
     cases h with
-    | intro _ _ _ h =>
+    | intro _ _ _ _ h =>
       simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
         Option.pure_def, Option.some.injEq] at h
       obtain ⟨types, ht, ctors, hc, recs, hr, rfl⟩ := h
       exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
-        VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
+        VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
 
 theorem HeadsClosed.of_decl {envF env0 env' : VEnv} (hdecl : VDecl.WF env0 d env')
     (hcl : HeadsClosed envF env') : HeadsClosed envF env0 := by
@@ -171,13 +171,13 @@ theorem HeadsClosed.of_decl {envF env0 env' : VEnv} (hdecl : VDecl.WF env0 d env
       subst hn; exact hnone)
   | induct _ installed =>
     cases installed with
-    | @intro block _ _ compiled _ hinst =>
+    | @intro block _ _ compiled _ _ hinst =>
       have howned := compiled.compiled.equation_head_owned
       simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
         Option.pure_def, Option.some.injEq] at hinst
       obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hinst
       refine hcl.down h0le (new := block.rules) (fun df h => by
-        rwa [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
+        rwa [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
           VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at h) fun df hm n ls h => ?_
       obtain ⟨recursor, hrec, ls', hhead⟩ := howned df hm
       have hn : recursor.name = n := (VExpr.const.inj (hhead.symm.trans h)).1
@@ -187,7 +187,7 @@ theorem HeadsClosed.of_decl {envF env0 env' : VEnv} (hdecl : VDecl.WF env0 d env
       | none => rfl
       | some ci =>
         have := (addConstVals_le hc).constants ((addConstVals_le ht).constants h')
-        simp only [VEnv.addProjections_constants] at hfresh
+        simp only [VEnv.addProjections_constants, VEnv.addEliminators_constants] at hfresh
         rw [this] at hfresh; cases hfresh
 
 /-- A family's derivations in the environment of its headers, placed in a later environment that
@@ -230,7 +230,7 @@ theorem projections_of_decl {env0 env' : VEnv} (hdecl : VDecl.WF env0 d env') :
   | quot _ hadd => rw [VEnv.addQuot_projections hadd] at hp; exact .inl hp
   | induct _ installed =>
     cases installed with
-    | @intro block _ _ compiled _ hinst =>
+    | @intro block _ _ compiled _ _ hinst =>
       rcases (ShapeModel.install_projections hinst).1 hp with ⟨entry, hentry, rfl, rfl⟩ | hp
       · obtain ⟨t, c, r, ht, hc, -, -⟩ := ShapeModel.install_parts hinst
         exact .inr (entry_fresh compiled.compiled.types_eq compiled.compiled.ctors_eq
@@ -295,7 +295,7 @@ theorem projValid_of_decl {envF env0 env' : VEnv} {ds : List VDecl} (hF : envF.W
   | quot _ hadd => rw [VEnv.addQuot_projections hadd] at hp; exact V0.proj _ _ hp
   | induct hdeclWF hadd =>
     cases hadd with
-    | intro _ hcompile hblock hinstall =>
+    | intro _ hcompile hblock _ hinstall =>
       obtain ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs, -, -, -, -⟩ := hblock
       have hinst := hinstall
       simp only [VInductBlock.install, htypes, hctors, hrecs, Option.bind_eq_bind,
@@ -309,7 +309,7 @@ theorem projValid_of_decl {envF env0 env' : VEnv} {ds : List VDecl} (hF : envF.W
         rw [hcompile.types] at htypes'
         have hparams := hdeclWF.sourceParameterWF htypes'
         have hTF : envTypes ≤ envF := (VEnv.addConstVals_le hctors).trans <|
-          VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hrecs).trans <|
+          VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hrecs).trans <|
             VEnv.addDefEqRules_le.trans hle
         exact Model.ProjValid.of_origin hF hpF (ProjOriginAt.ofEntry hbase htypes' hTF
           hdeclWF.1.originalTypes (hdeclWF.1.constructorsWF_at htypes') hdeclWF.1.2.2.2.1
@@ -487,7 +487,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
       · exact @ih' hcl0 df hdf
     | induct _ installed =>
       cases installed with
-      | @intro block _ hdw compiled hbwf hinst =>
+      | @intro block _ hdw compiled hbwf _ hinst =>
         obtain ⟨base, expanded, s, g, aux, hbase', C, hprior⟩ :=
           compiled.compiled.compilationOrigin
         have howned := compiled.compiled.equation_head_owned
@@ -497,7 +497,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
         obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hinst'
         have hdefeqs : ∀ df, (recursors.addDefEqRules block.rules).defeqs df →
             df ∈ block.rules ∨ env0.defeqs df := fun df h => by
-          rwa [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
+          rwa [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
             VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at h
         have hrecFresh : ∀ recursor ∈ block.recursors, env0.constants recursor.name = none :=
           fun recursor hrec => by
@@ -506,7 +506,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
             | none => rfl
             | some ci =>
               have := (addConstVals_le hc).constants ((addConstVals_le ht).constants h')
-              simp only [VEnv.addProjections_constants] at hfresh
+              simp only [VEnv.addProjections_constants, VEnv.addEliminators_constants] at hfresh
               rw [this] at hfresh; cases hfresh
         have hcl0 := hcl.down h0le hdefeqs (fun df hm n ls h => by
           obtain ⟨recursor, hrec, ls', hhead⟩ := howned df hm
@@ -518,7 +518,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
         cases hc.symm.trans hcE
         cases hr.symm.trans hrE
         have hTO : types.Ordered := h0.addConstVals htwf ht
-        have hTF : types ≤ envF := (VEnv.addConstVals_le hc).trans <| VEnv.addProjections_le.trans <|
+        have hTF : types ≤ envF := (VEnv.addConstVals_le hc).trans <| VEnv.addEliminators_addProjections_le.trans <|
           (VEnv.addConstVals_le hr).trans <| VEnv.addDefEqRules_le.trans hle
         have VT : Model.EnvValid envF types := V0.addConstVals ht
         have hsndT := VT.soundAtH henvF hTF
@@ -571,7 +571,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
           have hERF : recursors ≤ envF := VEnv.addDefEqRules_le.trans hle
           have VR : Model.EnvValid envF recursors :=
             ⟨fun df h => V0.rule df (by
-              rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
+              rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
                 VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at h),
             fun n p h => hprojV n p (VEnv.addDefEqRules_le.projections h),
             V0.elim.of_elims fun b s h => by
@@ -599,7 +599,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
                 rw [C.ordinary_expanded_types, ← C.types] at hE
                 exact (addConstVals_mono hbase' hE ht).trans
                   ((VEnv.addConstVals_le hc).trans
-                    (VEnv.addProjections_le.trans (VEnv.addConstVals_le hr)))
+                    (VEnv.addEliminators_addProjections_le.trans (VEnv.addConstVals_le hr)))
               exact Model.proofBinder_of henvF hER hERF VR hdoms
                 (singleton_field_typing hER hEE hsing index hi hidx) hΔ hlw)
         · exact @ih' hcl0 df hdf
@@ -653,7 +653,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
         simp only [Function.comp_apply, VLevel.inst_inst, CaseSchema.genericLevels_inst' hlen]
       rw [e, ← VLevel.inst_inst]
       exact hnz.of_equiv (VLevel.inst_congr_l hlev)
-  | @inductProjections _ ds base envTypes envCtors decl block hbase hctorsWF hsource htypesWF
+  | @inductProjections _ ds base envTypes envCtors decl block hbase hctorsWF _ hsource htypesWF
       hconstructorUvars hctorsWF' hspw hshape htypesSource hctorsSource hprojections htypes hctors
       ihBase ihCtors =>
     intro hle hcl hpc

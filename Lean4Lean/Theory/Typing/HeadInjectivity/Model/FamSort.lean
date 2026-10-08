@@ -45,7 +45,7 @@ theorem install_parts {env installed : VEnv} {block : VInductBlock}
   simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
     Option.pure_def, Option.some.injEq] at H
   obtain ⟨types, ht, ctors, hc, recs, hr, rfl⟩ := H
-  exact ⟨types, ht, (VEnv.addConstVals_le hc).trans <| VEnv.addProjections_le.trans <|
+  exact ⟨types, ht, (VEnv.addConstVals_le hc).trans <| VEnv.addEliminators_addProjections_le.trans <|
     (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le⟩
 
 /-- **`FamSort` from a family's declared shape** in an earlier environment with valid

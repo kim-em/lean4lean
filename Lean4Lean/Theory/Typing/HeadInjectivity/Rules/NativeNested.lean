@@ -245,7 +245,7 @@ theorem CompilationData.ctor_origin {s : InductiveSignature} {g : Instance s}
       rw [ContainerSpecialization.directFamily_name hdf, ← hsa, ← hst]
       exact Restoration.headName_of_mem H.restorationScoped hspec
     rw [hhead]
-    have hnames := CaseSchema.directFamily_restored_constructor_names H ha hdf
+    have hnames := CaseSchema.directFamily_restored_constructor_names H.toCaseCompilationData ha hdf
     have hm : (compilationRestoration source aux).headName fc.name ∈ a.source.ctors.map (·.name) := by
       rw [← hnames]
       exact List.mem_map.mpr ⟨fc, hfc, rfl⟩
@@ -327,7 +327,7 @@ theorem CompilationData.restored_ctor_inj {s : InductiveSignature} {g : Instance
       exact (List.nodup_cons.mp hfam).2
     · obtain ⟨a, ha, hdf⟩ := Lean4Lean.List.Forall₂.forall_exists_r
         (List.mapM_eq_some.mp hdirect) _ hdir
-      have := CaseSchema.directFamily_restored_constructor_names H ha hdf
+      have := CaseSchema.directFamily_restored_constructor_names H.toCaseCompilationData ha hdf
       change List.map ((compilationRestoration source aux).headName ∘ VConstVal.name) _ = _ at this
       rw [this]
       have hfam := (List.pairwise_flatMap.mp (familyNames_nodup

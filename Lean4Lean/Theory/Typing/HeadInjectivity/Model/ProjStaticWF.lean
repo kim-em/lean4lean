@@ -298,15 +298,15 @@ theorem WF'.quot_projections : ∀ {ds env}, VEnv.WF' ds env → env.defeqs quot
       · rw [h, hfM] at hC; cases hC
     | induct _ installed =>
       cases installed with
-      | @intro block _ _ compiled _ hinst =>
+      | @intro block _ _ compiled _ _ hinst =>
         have hinst' := hinst
         simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
           Option.pure_def, Option.some.injEq] at hinst'
         obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hinst'
         have hle : env0 ≤ recursors.addDefEqRules block.rules :=
           (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
-            VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
-        rw [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
+            VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
+        rw [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
           VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at hq
         rcases hq with hm | hq
         · exfalso
@@ -322,7 +322,7 @@ theorem WF'.quot_projections : ∀ {ds env}, VEnv.WF' ds env → env.defeqs quot
         obtain ⟨h1, h2, h3⟩ := ih0 hle hq
         refine ⟨h1, h2, fun S info hp => ?_⟩
         rw [VEnv.addDefEqRules_projections, VEnv.addConstVals_projections hr,
-          VEnv.addProjections_iff, VEnv.addConstVals_projections hc,
+          VEnv.addProjections_iff, VEnv.addEliminators_projections, VEnv.addConstVals_projections hc,
           VEnv.addConstVals_projections ht] at hp
         rcases hp with ⟨entry, hentry, rfl, rfl⟩ | hp
         · obtain ⟨hfS, hfC⟩ := entry_fresh compiled.compiled.types_eq compiled.compiled.ctors_eq
@@ -342,11 +342,12 @@ theorem WF'.quot_projections : ∀ {ds env}, VEnv.WF' ds env → env.defeqs quot
     intro hq hlift
     obtain ⟨h1, h2, h3⟩ := ih hq hlift
     exact ⟨h1, h2, fun S info hp => h3 S info hp⟩
-  | @inductProjections _ _ base envTypes envCtors decl block hbase _ _ _ _ _ _ _ htypesSource
+  | @inductProjections _ _ base envTypes envCtors decl block hbase _ _ _ _ _ _ _ _ htypesSource
       hctorsSource hprojections htypes hctors ihBase ihCtors =>
     intro hq hlift
     simp only [VEnv.addProjections_defeqs, VEnv.addProjections_constants] at hq hlift
     obtain ⟨h1, h2, h3⟩ := ihCtors hq hlift
+    simp only [VEnv.addEliminators_defeqs, VEnv.addEliminators_constants] at hq hlift
     refine ⟨by simpa using h1, by simpa using h2, fun S info hp => ?_⟩
     rw [VEnv.addProjections_iff] at hp
     rcases hp with ⟨entry, hentry, rfl, rfl⟩ | hp
