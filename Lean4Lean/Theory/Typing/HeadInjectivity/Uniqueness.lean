@@ -11,8 +11,7 @@ typing, prove simultaneously
 * (ii) `CongrUB`-congruence: a typed term is definitionally equal, at its type, to every
   term `CongrUB`-related to it (`HasTypeStrong.congrUB_defeq`).
 
-The proof mirrors `HasTypeStrong.uniq_chain` (`UniqueTyping.lean`, not imported). The
-`app` case uses `forallE_chain` and `TypeChain.instN` on the codomain chain; the `proj`
+The `app` case uses `forallE_chain` and `TypeChain.instN` on the codomain chain; the `proj`
 case uses `rigid_rigid` on the major types, `fieldType_congr`, and (ii) for the strong
 sub-derivation typing the first field type. (ii) at a `CongrUB` leaf uses (i) at the
 current node to align the leaf's type. -/
@@ -240,7 +239,9 @@ theorem HasTypeStrong.congrUB_defeq (henv : env.WF) (core : env.ChainHeadInjecti
     env.IsDefEq U Γ e e' A :=
   (h1.uniq_congr henv core hΓ).2 W hc
 
-/-- Copy of `TypeChain.collapse` (`UniqueTyping.lean`) using `uniq_chain_of_chainHeadInjectivity`. -/
+/-- A chain starting at a type of sort `u` collapses to one definitional equality at
+`sort u`: each link is retyped at `sort u` using `uniq_chain_of_chainHeadInjectivity` on its
+left endpoint and `sort_sort`. -/
 theorem TypeChain.collapse_of_chainHeadInjectivity (henv : env.WF) (core : env.ChainHeadInjectivity)
     (hΓ : OnCtx Γ (env.IsType U)) (H : env.TypeChain U Γ A B)
     (hA : env.HasType U Γ A (.sort u)) : env.IsDefEq U Γ A B (.sort u) := by

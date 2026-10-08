@@ -17,7 +17,8 @@ namespace VEnv
 This is the closure of type-level definitional equality under heterogeneous
 transitivity: consecutive links may be typed at different sorts. Without uniqueness of
 types two links cannot be composed into one, so uniqueness is first proved up to such a
-chain (`HasTypeStrong.uniq_chain`) and then collapsed (`TypeChain.collapse`). -/
+chain (`HasTypeStrong.uniq_chain_of_chainHeadInjectivity`) and then collapsed
+(`TypeChain.collapse_of_chainHeadInjectivity`). -/
 def TypeChain (env : VEnv) (U : Nat) (Γ : List VExpr) : VExpr → VExpr → Prop :=
   Relation.TransGen fun A B => ∃ u, env.IsDefEq U Γ A B (.sort u)
 
