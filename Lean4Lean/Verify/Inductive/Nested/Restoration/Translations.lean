@@ -391,7 +391,7 @@ theorem AddConstants.restoreAuxConstructorsFresh
   rcases getNestedIfAuxCtor_refines result loweredEnv name nested auxFamily
       hrecognized with ⟨⟨info, hlookup, hfamily, hmap⟩⟩
   rcases H.origin hwf hlookup with hold | hnew
-  · rcases Howners name info hold with ⟨owner, howner⟩
+  · rcases Howners name info hold with ⟨owner, howner, -⟩
     have hfresh := Hfamilies info.induct nested hmap
     rw [howner] at hfresh
     contradiction

@@ -171,9 +171,13 @@ theorem tryEtaStructCore.WF {c : VContext} {s : VState}
   split <;> [rename_i fInfo; exact .pure nofun]
   split <;> [rename_i harity; exact .pure nofun]
   split <;> [rename_i hnonrec; exact .pure nofun]
-  split <;> [rename_i sInfo hfind; exact .pure nofun]
-  split <;> [rename_i hsingle; exact .pure nofun]
-  split <;> [rename_i hunsafe; exact .pure nofun]
+  -- the constructor is listed by its owner, which is a non-recursive structure
+  obtain ⟨sInfo, hfind, hmem, hunsafe⟩ := c.constructorOwners f fInfo hci
+  have hsingle : sInfo.ctors = [f] := by
+    revert hnonrec; unfold Lean.Kernel.Environment.isNonRecStructure; rw [hfind]
+    intro h; split at h
+    · rename_i heq; cases heq; simp only [List.mem_singleton] at hmem; subst hmem; rfl
+    · cases h
   refine (inferType.WF he₁).bind fun tType _ _ ⟨tT', _, _, htT, htT'⟩ => ?_
   refine (inferType.WF he₂).bind fun sType _ _ ⟨sT', _, _, hsT, hsT'⟩ => ?_
   refine (isDefEq.WF htT hsT).bind fun b _ _ hb => ?_
@@ -184,8 +188,6 @@ theorem tryEtaStructCore.WF {c : VContext} {s : VState}
   split <;> [rename_i u; exact .pure nofun]
   split <;> [rename_i hnz; exact .pure nofun]
   have harity := beq_iff_eq.1 harity
-  have hsingle := beq_iff_eq.1 hsingle
-  have hunsafe := beq_iff_eq.1 hunsafe
   -- the constructor application
   have he₂'' : c.TrExprS ((Expr.const f ls).mkAppList e₂.getAppArgsList) e₂' := by
     rw [← hf, e₂.mkAppList_getAppArgsList]; exact he₂

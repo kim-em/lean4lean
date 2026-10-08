@@ -288,6 +288,10 @@ structure VContext extends Context where
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   trenv : CheckingEnv safety env venv
+  /-- Every present constructor is listed by its present owner, with the owner's `isUnsafe`.
+  This is what identifies a constructor at the head of a term with the constructor of its
+  structure in structure eta. -/
+  constructorOwners : VerifyInductive.ConstructorOwnersPresent env
   /-- Every visible singleton family whose constructor is present aligns with
   the abstract projection registry.  This is what projection inference reads. -/
   projectionRegistry : ProjectionRegistryCoherent safety env.constants venv

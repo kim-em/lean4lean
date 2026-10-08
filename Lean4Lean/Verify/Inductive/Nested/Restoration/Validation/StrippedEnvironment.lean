@@ -615,8 +615,8 @@ theorem NestedRestorationFolds.validOfInstallation_of_shapes
   have howners' : ConstructorOwnersPresent S := by
     intro name info h
     rcases hcasesE h with h | ⟨r, _, hr⟩
-    · rcases howners name info h with ⟨owner, ho⟩
-      exact ⟨owner, hnonrecE ho (fun _ h => by cases h)⟩
+    · rcases howners name info h with ⟨owner, ho, hrest⟩
+      exact ⟨owner, hnonrecE ho (fun _ h => by cases h), hrest⟩
     · cases hr
   have hregistry' : ProjectionRegistryCoherent c.safety S.constants installedVEnv := by
     intro familyName familyInfo constructorName constructorInfo hfam hvis hsingle

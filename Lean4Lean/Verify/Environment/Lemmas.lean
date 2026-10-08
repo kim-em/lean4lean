@@ -116,24 +116,25 @@ theorem ConstructorOwnersPresent.addNonConstructor
   rcases find?_add_cases hwf ci hfresh hfind with
     ⟨_, hnew⟩ | hold
   · exact False.elim (hnctor info hnew.symm)
-  · rcases H name info hold with ⟨owner, howner⟩
+  · rcases H name info hold with ⟨owner, howner, hmem⟩
     have hne : ci.name ≠ info.induct := by
       intro heq
       rw [← heq, hfresh] at howner
       contradiction
-    exact ⟨owner, (find?_add_of_ne hwf ci hfresh hne).trans howner⟩
+    exact ⟨owner, (find?_add_of_ne hwf ci hfresh hne).trans howner, hmem⟩
 
-/-- Adding a fresh constructor whose owner is already present preserves
-constructor-owner presence. -/
+/-- Adding a fresh constructor whose owner is already present, lists it and
+has its `isUnsafe` preserves constructor-owner presence. -/
 theorem ConstructorOwnersPresent.addConstructor
     (H : ConstructorOwnersPresent env)
     (hwf : env.constants.WF) (info : ConstructorVal)
     (hfresh : env.find? info.name = none)
-    (howner : env.find? info.induct = some (.inductInfo owner)) :
+    (howner : env.find? info.induct = some (.inductInfo owner))
+    (hmem : info.name ∈ owner.ctors) (hunsafe : info.isUnsafe = owner.isUnsafe) :
     ConstructorOwnersPresent (env.add (.ctorInfo info)) := by
   intro name found hfind
   rcases find?_add_cases hwf (.ctorInfo info) hfresh hfind with
-    ⟨_, hnew⟩ | hold
+    ⟨hname, hnew⟩ | hold
   · have hfound : found = info :=
       ConstantInfo.ctorInfo.inj hnew
     subst found
@@ -142,14 +143,15 @@ theorem ConstructorOwnersPresent.addConstructor
       rw [← heq, hfresh] at howner
       contradiction
     exact ⟨owner,
-      (find?_add_of_ne hwf (.ctorInfo info) hfresh hne).trans howner⟩
-  · rcases H name found hold with ⟨oldOwner, holdOwner⟩
+      (find?_add_of_ne hwf (.ctorInfo info) hfresh hne).trans howner,
+      by rw [hname]; exact hmem, hunsafe⟩
+  · rcases H name found hold with ⟨oldOwner, holdOwner, hmem'⟩
     have hne : info.name ≠ found.induct := by
       intro heq
       rw [← heq, hfresh] at holdOwner
       contradiction
     exact ⟨oldOwner,
-      (find?_add_of_ne hwf (.ctorInfo info) hfresh hne).trans holdOwner⟩
+      (find?_add_of_ne hwf (.ctorInfo info) hfresh hne).trans holdOwner, hmem'⟩
 
 /-- A fresh mutual-definition fold contains no constructor metadata and
 hence preserves constructor-owner presence. -/
@@ -1110,7 +1112,7 @@ theorem CheckingEnv.Valid.constructorOwnersMap
   have hfind' : env.find? name = some (.ctorInfo info) := by
     rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?]
     exact hfind
-  rcases H.constructorOwners name info hfind' with ⟨owner, howner⟩
+  rcases H.constructorOwners name info hfind' with ⟨owner, howner, -⟩
   refine ⟨owner, ?_⟩
   rwa [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at howner
 
@@ -1154,11 +1156,11 @@ theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
     ctorTelescopes := H.ctorTelescopes.add H.tr.map_wf hn hle hcstep }
   · cases ci with
     | ctorInfo info =>
-      rcases hstep.1 with ⟨owner, howner⟩
+      rcases hstep.1 with ⟨owner, howner, hmem, hunsafe⟩
       have howner' : env.find? info.induct = some (.inductInfo owner) := by
         rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?]
         exact howner
-      exact H.constructorOwners.addConstructor H.tr.map_wf info hn howner'
+      exact H.constructorOwners.addConstructor H.tr.map_wf info hn howner' hmem hunsafe
     | _ => exact H.constructorOwners.addNonConstructor H.tr.map_wf hn nofun
   · cases ci with
     | ctorInfo info =>

@@ -135,9 +135,6 @@ theorem tryEtaStructCore.framed (ht : GhostFree G t) (hs : GhostFree G s) :
   rename_i fInfo
   split <;> try exact .pure trivial
   split <;> try exact .pure trivial
-  split <;> try exact .pure trivial
-  split <;> try exact .pure trivial
-  split <;> try exact .pure trivial
   refine (RecM.Framed.inferType ht).bind fun tType htT => ?_
   refine (RecM.Framed.inferType hs).bind fun _ hsT => ?_
   refine (RecM.Framed.isDefEq htT hsT).bind fun _ _ => ?_

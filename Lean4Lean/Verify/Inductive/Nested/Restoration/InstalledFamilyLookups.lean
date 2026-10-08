@@ -588,7 +588,7 @@ theorem RecursorCheck.findSourceHeaderNumIndicesAt
 family header.  This follows from the lowered producer's exact installed
 constructor metadata and the restoration equation, rather than from the
 weaker translated-constant relation. -/
-theorem RestoredInductiveStep.restoredConstructorOwnerAt
+theorem RestoredInductiveStep.restoredConstructorOwnerUnsafeAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
@@ -609,7 +609,9 @@ theorem RestoredInductiveStep.restoredConstructorOwnerAt
     {ctorSource ctorTarget : Environment}
     (Hctor : RestoredConstructorStep result loweredEnv
       Hstep.oldInfo.ctors[ctorIdx] ctorSource ctorTarget) :
-    Hctor.restored.newInfo.induct = Hstep.restored.header.newInfo.name := by
+    Hctor.restored.newInfo.induct = Hstep.restored.header.newInfo.name ∧
+      Hctor.restored.newInfo.isUnsafe = Hstep.restored.header.newInfo.isUnsafe ∧
+      Hctor.restored.newInfo.name = Hstep.oldInfo.ctors[ctorIdx] := by
   rcases Hlower.sourceResolvedMappingAtFreshAligned hempty hfamily with
     ⟨_fvars, _mappingState, target, _loweredState, _hparams, _hnodup,
       _hparamsSize, Hmapping, htarget⟩
@@ -680,14 +682,62 @@ theorem RestoredInductiveStep.restoredConstructorOwnerAt
         hfoldName.symm).trans Hctor.lookup
     exact ConstantInfo.ctorInfo.inj
       (Option.some.inj (hoperational.symm.trans hClookup))
-  calc
-    Hctor.restored.newInfo.induct = Hctor.oldInfo.induct :=
-      Hctor.restored.restoration.induct
-    _ = C.info.induct := by rw [holdCtorInfo]
-    _ = installedInfo.name := C.induct
-    _ = Hstep.oldInfo.name := by rw [holdInfo]
-    _ = Hstep.restored.header.newInfo.name := by
-      simp [Hstep.restored.header.restored]
+  have hCname : C.info.name = installedInfo.ctors[ctorIdx] := by
+    have habstract : R.declared.context.venv.constants installedInfo.ctors[ctorIdx] =
+        some C.constructorTarget := by
+      rw [R.declared.contextVEnv, VEnv.addProjections_constants,
+        VEnv.addEliminators_constants]
+      exact C.constructorLookup
+    exact (R.declared.context.checking.tr.find?_uniq C.lookup habstract).1
+  refine ⟨?_, ?_, ?_⟩
+  · calc
+      Hctor.restored.newInfo.induct = Hctor.oldInfo.induct :=
+        Hctor.restored.restoration.induct
+      _ = C.info.induct := by rw [holdCtorInfo]
+      _ = installedInfo.name := C.induct
+      _ = Hstep.oldInfo.name := by rw [holdInfo]
+      _ = Hstep.restored.header.newInfo.name := by
+        simp [Hstep.restored.header.restored]
+  · calc
+      Hctor.restored.newInfo.isUnsafe = Hctor.oldInfo.isUnsafe :=
+        Hctor.restored.restoration.isUnsafe
+      _ = C.info.isUnsafe := by rw [holdCtorInfo]
+      _ = installedInfo.isUnsafe := C.isUnsafe
+      _ = Hstep.oldInfo.isUnsafe := by rw [holdInfo]
+      _ = Hstep.restored.header.newInfo.isUnsafe := by
+        simp [Hstep.restored.header.restored]
+  · calc
+      Hctor.restored.newInfo.name = Hctor.oldInfo.name :=
+        Hctor.restored.restoration.name
+      _ = C.info.name := by rw [holdCtorInfo]
+      _ = installedInfo.ctors[ctorIdx] := hCname
+      _ = Hstep.oldInfo.ctors[ctorIdx] := hfoldName.symm
+
+/-- The owner half of `restoredConstructorOwnerUnsafeAt`. -/
+theorem RestoredInductiveStep.restoredConstructorOwnerAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
+      depth sourceVEnv result.types.toArray headerEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (hempty : initialState.nestedAux = #[])
+    (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
+    {stepSource stepTarget : Environment}
+    (Hstep : RestoredInductiveStep result loweredEnv auxRec
+      (sourceTypes.map (fun type => type.name)) sourceTypes[familyIdx]
+      stepSource stepTarget)
+    (ctorIdx : Nat) (hctor : ctorIdx < Hstep.oldInfo.ctors.length)
+    {ctorSource ctorTarget : Environment}
+    (Hctor : RestoredConstructorStep result loweredEnv
+      Hstep.oldInfo.ctors[ctorIdx] ctorSource ctorTarget) :
+    Hctor.restored.newInfo.induct = Hstep.restored.header.newInfo.name :=
+  (Hstep.restoredConstructorOwnerUnsafeAt Hlower Hc Hprod hempty familyIdx hfamily
+    ctorIdx hctor Hctor).1
 
 /-- Restoring one source family preserves constructor-owner presence.  Old
 constructors retain their source owners, while every newly restored
@@ -744,17 +794,19 @@ theorem RestoredInductiveStep.constructorOwnersPresent
           hbefore with hnewHeader | hsource
       · rcases hnewHeader with ⟨_name, hinfo⟩
         simp [header] at hinfo
-      · rcases Howners name info hsource with ⟨owner, howner⟩
+      · rcases Howners name info hsource with ⟨owner, howner, hrest⟩
         obtain ⟨entries, Hfresh⟩ := Hstep.restored.freshExtension hsourceWF
-        exact ⟨owner, Hfresh.preservesSourceFind hsourceWF howner⟩
+        exact ⟨owner, Hfresh.preservesSourceFind hsourceWF howner, hrest⟩
     · rcases hrestored with
         ⟨ctorIdx, hidx, ctorSource, ctorTarget, Hctor, hname, hinfo⟩
       subst info
-      have howner := Hstep.restoredConstructorOwnerAt Hlower Hc Hprod
-        hempty familyIdx hfamily ctorIdx hidx Hctor
-      refine ⟨Hstep.restored.header.newInfo, ?_⟩
-      rw [howner]
-      exact Hstep.restored.headerFind hsourceWF
+      have ⟨howner, hunsafe, hctorName⟩ := Hstep.restoredConstructorOwnerUnsafeAt Hlower Hc
+        Hprod hempty familyIdx hfamily ctorIdx hidx Hctor
+      refine ⟨Hstep.restored.header.newInfo, ?_, ?_, hunsafe⟩
+      · rw [howner]
+        exact Hstep.restored.headerFind hsourceWF
+      · rw [hname, hctorName, Hstep.restored.header.restored]
+        exact List.getElem_mem hidx
 
 /-- Exact source-declaration provenance for one restored original family. -/
 theorem RestoredInductiveStep.inductInfoAlignmentAt

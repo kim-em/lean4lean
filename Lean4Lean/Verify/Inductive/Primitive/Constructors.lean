@@ -398,15 +398,16 @@ theorem AddInductive.declareConstructors.primitiveWF
       rcases List.mem_append.mp hentry with hheader | hctor
       · exact absurd hinfo (hheaderNotCtor entry hheader info)
       rcases Haligned.ownerOfEntry hctor with
-        ⟨owner, howner, installedInfo, hentryInfo, hownerName⟩
+        ⟨owner, howner, installedInfo, hentryInfo, hownerName, hmem, hunsafe⟩
       have hinfoEq : info = installedInfo := by
         rw [hentryInfo] at hinfo
         exact (ConstantInfo.ctorInfo.inj hinfo).symm
       subst info
       rcases inductiveTypeInfos_owner stats nparams indTypes numNested isUnsafe
-          c.lparams hindicesSize howner with ⟨ownerInfo, hownerInfo, hname⟩
+          c.lparams hindicesSize howner with
+        ⟨ownerInfo, hownerInfo, hname, hctors, hownerUnsafe⟩
       rcases Hheaders.findInfo hownerInfo with ⟨value, hheaderEntry⟩
-      refine ⟨ownerInfo, ?_⟩
+      refine ⟨ownerInfo, ?_, by rw [hctors]; exact hmem, hunsafe.trans hownerUnsafe.symm⟩
       rw [hownerName, ← hname]
       exact Hcombined.findEntry hsourceMapWF
         (List.mem_append_left _ hheaderEntry)
@@ -465,14 +466,14 @@ theorem AddInductive.declareConstructors.primitiveWF
         rcases List.mem_append.mp hentry with hheader | hctor
         · exact absurd hentryEq.symm (hheaderNotCtor entry hheader info)
         rcases Haligned.ownerOfEntry hctor with
-          ⟨owner, howner, installedInfo, hentryInfo, hownerName⟩
+          ⟨owner, howner, installedInfo, hentryInfo, hownerName, -⟩
         have hinfoEq : info = installedInfo := by
           rw [hentryInfo] at hentryEq
           exact ConstantInfo.ctorInfo.inj hentryEq
         subst hinfoEq
         rcases inductiveTypeInfos_owner stats nparams indTypes numNested
             isUnsafe c.lparams hindicesSize howner with
-          ⟨ownerInfo, hownerInfo, hname⟩
+          ⟨ownerInfo, hownerInfo, hname, -⟩
         rcases Hheaders.findInfo hownerInfo with ⟨value, hheaderEntry⟩
         have hfresh := H.installed.entryFresh hsourceMapWF hheaderEntry
         have hfresh' : c.env.constants.find? ownerInfo.name = none := by

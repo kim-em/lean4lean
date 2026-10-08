@@ -531,14 +531,18 @@ theorem AtomicAddConstants.constructorOwnersPresent
     (hsource : ConstructorOwnersPresent env)
     (hentries : ∀ entry ∈ entries, ∀ info,
       entry.1 = .ctorInfo info →
-      ∃ owner, outEnv.find? info.induct = some (.inductInfo owner)) :
+      ∃ owner, outEnv.find? info.induct = some (.inductInfo owner) ∧
+        info.name ∈ owner.ctors ∧ info.isUnsafe = owner.isUnsafe) :
     ConstructorOwnersPresent outEnv := by
   intro name info hfind
   rcases H.entryOrigin hwf hfind with hold |
-      ⟨entry, hentry, _hname, hfound⟩
-  · rcases hsource name info hold with ⟨owner, howner⟩
-    exact ⟨owner, H.preservesSourceFind hwf howner⟩
-  · exact hentries entry hentry info hfound.symm
+      ⟨entry, hentry, hname, hfound⟩
+  · rcases hsource name info hold with ⟨owner, howner, hmem⟩
+    exact ⟨owner, H.preservesSourceFind hwf howner, hmem⟩
+  · rcases hentries entry hentry info hfound.symm with ⟨owner, howner, hmem, hunsafe⟩
+    refine ⟨owner, howner, ?_, hunsafe⟩
+    rw [hname, ← hfound]
+    exact hmem
 
 /-- Every source-aligned entry of an atomic batch is present with its exact
 production metadata at the completed endpoint. -/

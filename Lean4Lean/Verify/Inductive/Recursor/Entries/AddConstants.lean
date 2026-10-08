@@ -495,14 +495,17 @@ theorem ConstructorListEntries.ownerOfEntry
       initial ctors entries)
     (hentry : entry ∈ entries) :
     ∃ info : ConstructorVal,
-      entry.1 = .ctorInfo info ∧ info.induct = owner.name := by
+      entry.1 = .ctorInfo info ∧ info.induct = owner.name ∧
+      info.name ∈ ctors.map (·.name) ∧ info.isUnsafe = isUnsafe := by
   induction H with
   | nil => simp at hentry
   | @cons start ctor ctors tailEntries value Hrest ih =>
     simp only [List.mem_cons] at hentry
     rcases hentry with rfl | htailEntry
-    · exact ⟨_, rfl, by simp [AddInductive.constructorInfo]⟩
-    · exact ih htailEntry
+    · exact ⟨_, rfl, by simp [AddInductive.constructorInfo],
+        by simp [AddInductive.constructorInfo], by simp [AddInductive.constructorInfo]⟩
+    · rcases ih htailEntry with ⟨info, h1, h2, h3, h4⟩
+      exact ⟨info, h1, h2, List.mem_cons_of_mem _ h3, h4⟩
 
 theorem ConstructorTypeEntries.findSource
     (H : ConstructorTypeEntries
@@ -549,15 +552,16 @@ theorem ConstructorTypeEntries.ownerOfEntry
       (AddInductive.constructorInfo stats lparams isUnsafe) owners entries)
     (hentry : entry ∈ entries) :
     ∃ owner ∈ owners, ∃ info : ConstructorVal,
-      entry.1 = .ctorInfo info ∧ info.induct = owner.name := by
+      entry.1 = .ctorInfo info ∧ info.induct = owner.name ∧
+      info.name ∈ owner.ctors.map (·.name) ∧ info.isUnsafe = isUnsafe := by
   induction H with
   | nil => simp at hentry
   | cons Hhead Htail ih =>
     rcases List.mem_append.mp hentry with hhead | htail
-    · rcases Hhead.ownerOfEntry hhead with ⟨info, heq, hinduct⟩
-      exact ⟨_, by simp, info, heq, hinduct⟩
-    · rcases ih htail with ⟨owner, howner, info, heq, hinduct⟩
-      exact ⟨owner, by simp [howner], info, heq, hinduct⟩
+    · rcases Hhead.ownerOfEntry hhead with ⟨info, heq, hinduct, hmem, hunsafe⟩
+      exact ⟨_, by simp, info, heq, hinduct, hmem, hunsafe⟩
+    · rcases ih htail with ⟨owner, howner, info, heq, hinduct, hmem, hunsafe⟩
+      exact ⟨owner, by simp [howner], info, heq, hinduct, hmem, hunsafe⟩
 
 theorem AddConstants.ofConstructorList
     {env : Environment} {venv sourceEnv : VEnv}
@@ -940,7 +944,8 @@ theorem inductiveTypeInfos_owner
     (howner : owner ∈ indTypes.toList) :
     ∃ info ∈ (AddInductive.inductiveTypeInfos stats numParams indTypes
         numNested isUnsafe lparams).toList,
-      info.name = owner.name := by
+      info.name = owner.name ∧ info.ctors = owner.ctors.map (·.name) ∧
+      info.isUnsafe = isUnsafe := by
   rcases List.mem_iff_getElem.mp howner with ⟨i, hi, rfl⟩
   have hinfosSize :
       (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
@@ -1136,14 +1141,18 @@ theorem AddConstants.constructorOwnersPresent
     (hsource : ConstructorOwnersPresent env)
     (hentries : ∀ entry ∈ entries, ∀ info,
       entry.1 = .ctorInfo info →
-      ∃ owner, outEnv.find? info.induct = some (.inductInfo owner)) :
+      ∃ owner, outEnv.find? info.induct = some (.inductInfo owner) ∧
+        info.name ∈ owner.ctors ∧ info.isUnsafe = owner.isUnsafe) :
     ConstructorOwnersPresent outEnv := by
   intro name info hfind
   rcases H.entryOrigin hwf hfind with hold |
-      ⟨entry, hentry, _hname, hfound⟩
-  · rcases hsource name info hold with ⟨owner, howner⟩
-    exact ⟨owner, H.preservesSourceFind hwf howner⟩
-  · exact hentries entry hentry info hfound.symm
+      ⟨entry, hentry, hname, hfound⟩
+  · rcases hsource name info hold with ⟨owner, howner, hmem⟩
+    exact ⟨owner, H.preservesSourceFind hwf howner, hmem⟩
+  · rcases hentries entry hentry info hfound.symm with ⟨owner, howner, hmem, hunsafe⟩
+    refine ⟨owner, howner, ?_, hunsafe⟩
+    rw [hname, ← hfound]
+    exact hmem
 
 /-- Every production entry named by an `AddConstants` certificate is present
 with its exact metadata in the final environment. -/

@@ -54,12 +54,16 @@ def MutualInductivesClosed (env : Environment) : Prop :=
   ∀ targetName value, env.find? targetName = some (.inductInfo value) →
     MutualInductiveClosure env targetName value
 
-/-- Production environments do not contain dangling constructor metadata:
-every constructor's recorded inductive owner is itself present.  This is a
-persistent production-environment invariant, not a nested-lowering premise. -/
+/-- Production environments do not contain dangling or unlisted constructor
+metadata: every constructor's recorded inductive owner is itself present,
+lists the constructor, and has the constructor's `isUnsafe`.  This is a
+persistent production-environment invariant, not a nested-lowering premise.
+It holds in every staged environment too, because a constructor is only ever
+added after the header that lists it. -/
 def ConstructorOwnersPresent (env : Environment) : Prop :=
   ∀ name info, env.find? name = some (.ctorInfo info) →
-    ∃ owner, env.find? info.induct = some (.inductInfo owner)
+    ∃ owner, env.find? info.induct = some (.inductInfo owner) ∧
+      name ∈ owner.ctors ∧ info.isUnsafe = owner.isUnsafe
 
 /-- Mutual-member evidence depends only on production constant lookup. -/
 theorem InductiveMemberInfos.mapEnvironmentEq
@@ -1059,7 +1063,8 @@ owner must already be present, and if they complete a singleton family the
 registry must align with that family in the extended abstract environment. -/
 def ProjectionRegistryStep (C : ConstMap) (env' : VEnv) : ConstantInfo → Prop
   | .ctorInfo info =>
-    (∃ owner, C.find? info.induct = some (.inductInfo owner)) ∧
+    (∃ owner, C.find? info.induct = some (.inductInfo owner) ∧
+      info.name ∈ owner.ctors ∧ info.isUnsafe = owner.isUnsafe) ∧
     ∀ owner, C.find? info.induct = some (.inductInfo owner) →
       owner.ctors = [info.name] →
       Nonempty (ProjectionRegistryAlignmentAt

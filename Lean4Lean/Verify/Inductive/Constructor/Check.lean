@@ -405,15 +405,16 @@ theorem ConstructorCheck.constructorOwnersPresent
     rw [heq] at hinfo
     cases hinfo
   · rcases R.constructorSourceAligned.ownerOfEntry hctor with
-      ⟨owner, howner, installedInfo, hentryInfo, hownerName⟩
+      ⟨owner, howner, installedInfo, hentryInfo, hownerName, hmem, hunsafe⟩
     have hinfoEq : info = installedInfo := by
       rw [hentryInfo] at hinfo
       exact ConstantInfo.ctorInfo.inj hinfo.symm
     subst info
     rcases inductiveTypeInfos_owner stats nparams indTypes numNested isUnsafe
-        c.lparams hindicesSize howner with ⟨ownerInfo, hownerInfo, hname⟩
+        c.lparams hindicesSize howner with
+      ⟨ownerInfo, hownerInfo, hname, hctors, hownerUnsafe⟩
     rcases Hheaders.findInfo hownerInfo with ⟨value, hentry⟩
-    refine ⟨ownerInfo, ?_⟩
+    refine ⟨ownerInfo, ?_, by rw [hctors]; exact hmem, hunsafe.trans hownerUnsafe.symm⟩
     rw [hownerName, ← hname]
     exact R.installation.findHeaderEntry
       R.sourceContext.checking.tr.map_wf hentry

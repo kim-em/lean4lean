@@ -692,10 +692,6 @@ def tryEtaStructCore (t s : Expr) : RecM Bool := do
   let .ctorInfo fInfo ← env.get f | return false
   unless s.getAppNumArgs == fInfo.numParams + fInfo.numFields do return false
   unless env.isNonRecStructure fInfo.induct do return false
-  -- redundant on a well-formed environment (see `divergences.md`)
-  let some (.inductInfo sInfo) := env.find? fInfo.induct | return false
-  unless sInfo.ctors == [f] do return false
-  unless fInfo.isUnsafe == sInfo.isUnsafe do return false
   let tType ← inferType t
   unless ← isDefEq tType (← inferType s) do return false
   -- The projections below are only well typed when the structure is never a proposition

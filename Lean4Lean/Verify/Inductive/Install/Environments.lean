@@ -922,16 +922,17 @@ theorem AddInductive.declareConstructors.WF
         H.context.checking.constructorOwners
       intro entry hentry info hinfo
       rcases Haligned.ownerOfEntry hentry with
-        ⟨owner, howner, installedInfo, hentryInfo, hownerName⟩
+        ⟨owner, howner, installedInfo, hentryInfo, hownerName, hmem, hunsafe⟩
       have hinfoEq : info = installedInfo := by
         rw [hentryInfo] at hinfo
         exact (ConstantInfo.ctorInfo.inj hinfo).symm
       subst info
       rcases H.sourceAligned with ⟨numNested, Hheaders⟩
       rcases inductiveTypeInfos_owner stats nparams indTypes numNested isUnsafe
-          c.lparams hindicesSize howner with ⟨ownerInfo, hownerInfo, hname⟩
+          c.lparams hindicesSize howner with
+        ⟨ownerInfo, hownerInfo, hname, hctors, hownerUnsafe⟩
       rcases Hheaders.findInfo hownerInfo with ⟨value, hheaderEntry⟩
-      refine ⟨ownerInfo, ?_⟩
+      refine ⟨ownerInfo, ?_, by rw [hctors]; exact hmem, hunsafe.trans hownerUnsafe.symm⟩
       rw [hownerName, ← hname]
       exact Hinstalled.preservesSourceFind hheaderWF
         (H.installed.findEntry hsourceMapWF hheaderEntry)
@@ -965,7 +966,7 @@ theorem AddInductive.declareConstructors.WF
           cases hvalue
       · rcases hnew with ⟨entry, hentry, _, hvalue⟩
         rcases Haligned.ownerOfEntry hentry with
-          ⟨owner, howner, installedInfo, hentryInfo, hownerName⟩
+          ⟨owner, howner, installedInfo, hentryInfo, hownerName, -⟩
         have hinfoEq : info = installedInfo := by
           rw [hentryInfo] at hvalue
           exact ConstantInfo.ctorInfo.inj hvalue
@@ -974,7 +975,7 @@ theorem AddInductive.declareConstructors.WF
         rcases H.sourceAligned with ⟨numNested, Hheaders⟩
         rcases inductiveTypeInfos_owner stats nparams indTypes numNested
             isUnsafe c.lparams hindicesSize howner with
-          ⟨ownerInfo, hownerInfo, hname⟩
+          ⟨ownerInfo, hownerInfo, hname, -⟩
         rcases Hheaders.findInfo hownerInfo with ⟨value, hheaderEntry⟩
         have hfresh := H.installed.entryFresh hsourceMapWF hheaderEntry
         rw [hownerName, ← hname]

@@ -749,17 +749,18 @@ theorem ValidationEnvironment.validProjected
     intro name info hfind
     rcases H.findCases hsourceWF hfind with hold |
         ⟨_, _, _, _, _, hci⟩ | ⟨_, _, _, _, _, _, _, _, _, _⟩
-    · rcases Howners name info hold with ⟨owner, howner⟩
-      exact ⟨owner, hsourceSub howner⟩
+    · rcases Howners name info hold with ⟨owner, howner, hrest⟩
+      exact ⟨owner, hsourceSub howner, hrest⟩
     · cases hci
-    · rcases HprimaryOwners name info (hsubset hfind) with ⟨owner, howner⟩
+    · rcases HprimaryOwners name info (hsubset hfind) with ⟨owner, howner, hrest⟩
       rcases Hrestored.inductives.inductiveFindCases hsourceWF howner with hold |
-          ⟨indType', hmem', oldInfo', hlookup', hF, _⟩
-      · exact ⟨owner, hsourceSub hold⟩
+          ⟨indType', hmem', oldInfo', hlookup', hF, hownerEq⟩
+      · exact ⟨owner, hsourceSub hold, hrest⟩
       · rcases H.headerFind hsourceWF hmem' with ⟨oldInfo'', hlookup'', hheader⟩
         cases ConstantInfo.inductInfo.inj
           (Option.some.inj (hlookup'.symm.trans hlookup''))
-        exact ⟨_, by rw [hF]; exact hheader⟩
+        subst hownerEq
+        exact ⟨_, by rw [hF]; exact hheader, hrest⟩
   have hregistry : ProjectionRegistryCoherent c.safety validationEnv.constants
       ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) := by
     apply hsourceRegistry.extendInductive (envTypes := envTypes)

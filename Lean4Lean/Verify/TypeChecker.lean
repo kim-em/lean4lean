@@ -117,12 +117,14 @@ structure VEnvAt (env : Environment) (safety : DefinitionSafety) (venv : VEnv) :
   projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
   recursors : RecursorEnvCoherent safety env.constants venv
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
+  constructorOwners : VerifyInductive.ConstructorOwnersPresent env
 
 theorem VEnvs.WFCore.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (safety : DefinitionSafety) : VEnvAt env safety (ves.venv safety) where
   tr := wf.tr
   hasPrimitives := wf.hasPrimitives
   safePrimitives := wf.safePrimitives
+  constructorOwners := wf.constructorOwners
   projectionRegistry := wf.projectionRegistryCoherent
   recursors := wf.tr.recursorEnvCoherent
   quot := wf.tr.quotEnvCoherent
@@ -174,12 +176,14 @@ def VContext.mkChecking {env : Environment} {venv : VEnv}
     (recursors : RecursorEnvCoherent safety env.constants venv)
     (quot : env.quotInit = true → QuotEnvCoherent env.constants venv)
     (ctorTelescopes : CtorTelescopes safety env venv)
+    (constructorOwners : VerifyInductive.ConstructorOwnersPresent env)
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext where
   env; safety; lparams; fuel
   venv
   hasPrimitives
   safePrimitives
   trenv
+  constructorOwners
   projectionRegistry
   recursors
   quot
@@ -192,7 +196,7 @@ def VContext.mkCheckingValid {env : Environment} {venv : VEnv}
     (wf : CheckingEnv.Valid safety env venv)
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext :=
   .mkChecking wf.tr wf.hasPrimitives wf.safePrimitives wf.projectionRegistry
-    wf.recursors wf.quot wf.ctorTelescopes lparams fuel
+    wf.recursors wf.quot wf.ctorTelescopes wf.constructorOwners lparams fuel
 
 def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
     (wf : CheckingEnv.Valid safety env venv)
@@ -203,6 +207,7 @@ def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
   hasPrimitives := wf.hasPrimitives
   safePrimitives := wf.safePrimitives
   trenv := wf.tr
+  constructorOwners := wf.constructorOwners
   projectionRegistry := wf.projectionRegistry
   recursors := wf.recursors
   quot := wf.quot
@@ -219,6 +224,7 @@ def VContext.mk1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
   hasPrimitives := wf.hasPrimitives
   safePrimitives := wf.safePrimitives
   trenv := wf.tr.toChecking
+  constructorOwners := wf.constructorOwners
   projectionRegistry := wf.projectionRegistry
   recursors := wf.recursors
   quot := wf.quot
@@ -260,9 +266,10 @@ theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
     {recursors : RecursorEnvCoherent safety env.constants venv}
     {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
     {ctorTelescopes : CtorTelescopes safety env venv}
+    {constructorOwners : VerifyInductive.ConstructorOwnersPresent env}
     {lparams : List Name} {fuel : FuelConfig} :
     VState.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
-      recursors quot ctorTelescopes lparams fuel) {} where
+      recursors quot ctorTelescopes constructorOwners lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
   ectx := .empty
@@ -326,9 +333,10 @@ theorem M.WF.runChecking {env : Environment} {venv : VEnv}
     {recursors : RecursorEnvCoherent safety env.constants venv}
     {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
     {ctorTelescopes : CtorTelescopes safety env venv}
+    {constructorOwners : VerifyInductive.ConstructorOwnersPresent env}
     {x : M α} {Q}
     (H : x.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
-      recursors quot ctorTelescopes lparams fuel) {} fun a _ => Q a) :
+      recursors quot ctorTelescopes constructorOwners lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
   intro a eq
   simp [M.run, Functor.map, Except.map] at eq
@@ -344,7 +352,8 @@ theorem M.WF.runCheckingValid {env : Environment} {venv : VEnv}
     (M.run env safety {} lparams fuel x).WF Q :=
   M.WF.runChecking (trenv := wf.tr) (hasPrimitives := wf.hasPrimitives)
     (safePrimitives := wf.safePrimitives) (projectionRegistry := wf.projectionRegistry)
-    (recursors := wf.recursors) (quot := wf.quot) (ctorTelescopes := wf.ctorTelescopes) H
+    (recursors := wf.recursors) (quot := wf.quot) (ctorTelescopes := wf.ctorTelescopes)
+    (constructorOwners := wf.constructorOwners) H
 
 theorem M.WF.runCheckingValidMLC {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}

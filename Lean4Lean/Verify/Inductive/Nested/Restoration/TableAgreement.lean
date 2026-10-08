@@ -1546,7 +1546,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
     · intro c cinfo hfind a ha hinduct
       rcases Hprod.ctorInfoOrigin hwfMap hfind with hold | ⟨owner, howner, ctor, hctor, rfl, hown⟩
       · exfalso
-        rcases wfP.constructorOwners c cinfo hold with ⟨ownerInfo, hownerFind⟩
+        rcases wfP.constructorOwners c cinfo hold with ⟨ownerInfo, hownerFind, -⟩
         rcases Hper a ha with ⟨_, _, _, _, _, _, _, nested, hfindAux, _⟩
         have := Hfresh _ nested hfindAux
         rw [← hinduct, hownerFind] at this
