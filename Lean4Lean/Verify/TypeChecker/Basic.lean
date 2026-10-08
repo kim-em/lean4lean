@@ -4,6 +4,7 @@ import Lean4Lean.Theory.Typing.ProjectionLemmas
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.ProjectionShape
 import Lean4Lean.TypeChecker
+import Lean4Lean.Verify.TypeChecker.FrameDefs
 import Lean4Lean.Verify.Typing.UniverseSupport
 import Lean4Lean.Verify.Typing.ProjectionCorner
 import Lean4Lean.Verify.HitShapeEnv
@@ -1004,9 +1005,6 @@ theorem VContext.UniverseScope.cons_same {c c' : VContext}
   · subst h; exact hdecl _ hd
   · exact H.2 fv decl hP (hfind fv h ▸ hd)
 
-theorem _root_.Lean4Lean.FVarsIn.appFn (h : FVarsIn P e) : FVarsIn P e.getAppFn := by
-  rw [← e.mkAppRevList_getAppArgsRevList, FVarsIn.appRevList] at h; exact h.1
-
 theorem VContext.LevelsBelow.rfl {c : VContext} : c.LevelsBelow e e := fun _ _ _ h _ => h
 
 theorem VContext.LevelsBelow.trans {c : VContext} (H1 : c.LevelsBelow e₁ e₂)
@@ -1171,15 +1169,6 @@ def VState.next (s : VState) : VState := { s with ngen := s.ngen.next }
 /-- The state on leaving a binder scope that was entered at `saved`: the executable's
 `State.leaveScope`, which puts back every context-relative cache and the equivalence manager. -/
 def VState.leaveScope (saved s : VState) : VState := ⟨saved.toState.leaveScope s.toState⟩
-
-theorem withFreshId_eq {α} (x : Name → M α) (c : Context) (s : State) :
-    (withFreshId x : M α) c s =
-      (x s.ngen.curr c { s with ngen := s.ngen.next }).map fun p => (p.1, s.leaveScope p.2) := by
-  unfold withFreshId instMonadLocalNameGeneratorM
-  simp only [bind, ReaderT.bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get, liftM,
-    monadLift, MonadLift.monadLift, Except.bind, pure, Except.pure, ReaderT.pure, StateT.pure,
-    modify, modifyGet, MonadStateOf.modifyGet, StateT.modifyGet, mkFreshId, getNGen, setNGen]
-  cases x s.ngen.curr c { s with ngen := s.ngen.next } <;> rfl
 
 /-- Leaving a binder scope gives back a well-formed state. The restored caches and equivalence
 manager are those of `saved`, which were well formed in this context before the scope was entered;
@@ -1672,18 +1661,6 @@ theorem MLCtx.PartialForall.sublist (H : MLCtx.PartialForall c n l e) : l <+ c.v
   | vlam _ ih | vlet _ ih => simp [ih]
   | skip _ _ _ _ ih => exact ih.trans (List.sublist_cons_self ..)
 
-private theorem closed_instantiate1_of_closed :
-    ∀ {e : Expr} {k}, Closed e (k+1) → Closed a → Closed (Expr.instantiate1' e a k) k := by
-  intro e
-  induction e <;> intro k he ha <;> simp_all [Closed, Expr.instantiate1']
-  rename_i i
-  split
-  · simpa [Closed]
-  · split
-    · rw [Expr.liftLooseBVars_eq_self (by simpa using ha.looseBVarRange_zero)]
-      exact ha.mono (Nat.zero_le _)
-    · simp [Closed]; omega
-
 /-- Closedness of the let-binding step of the telescope model. -/
 private theorem letStep_closed (hty : Closed ty) (hv : Closed v) (he : Closed e) :
     Closed (let e' := Expr.abstract1 fv e
@@ -1694,7 +1671,7 @@ private theorem letStep_closed (hty : Closed ty) (hv : Closed v) (he : Closed e)
   · rename_i h
     have h' : (Expr.abstract1 fv e).hasLooseBVar' 0 = false := by simpa using h
     rw [Expr.lowerLooseBVars_eq_instantiate h' (v := .sort .zero)]
-    exact closed_instantiate1_of_closed he.abstract1 trivial
+    exact Closed.instantiate1 he.abstract1 trivial
 
 theorem MLCtx.WF.mkForall_partial {c : MLCtx} (wf : c.WF env Us) (n hn)
     (harr : arr.toList.reverse = l.map .fvar) (hp : MLCtx.PartialForall c n l e)

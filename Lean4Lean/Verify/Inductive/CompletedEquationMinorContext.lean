@@ -936,23 +936,6 @@ theorem checkInductiveTypes.loopType.FVarNarrowScope.instantiateAll
     H.declarations hnodup (by simpa using Htr)
   simpa [abstractForallContext] using H'
 
-/-- Anonymous contexts with pointwise convertible domains are aligned. -/
-theorem VLCtx.IsDefEq.ofNoneCtx {env : VEnv} {U : Nat} :
-    ∀ {ds₁ ds₂ : List VExpr}, VEnv.IsDefEqCtx env U [] ds₁ ds₂ →
-      VLCtx.IsDefEq env U
-        (ds₁.map fun d => ((none, .vlam d) : Option (FVarId × List FVarId) × VLocalDecl))
-        (ds₂.map fun d => ((none, .vlam d) : Option (FVarId × List FVarId) × VLocalDecl))
-  | _, _, .zero => .nil
-  | _, _, .succ (Γ₁ := ds₁) H hdom => by
-    have htoCtx : ∀ ds : List VExpr, VLCtx.toCtx (ds.map fun d =>
-        ((none, .vlam d) : Option (FVarId × List FVarId) × VLocalDecl)) = ds := by
-      intro ds
-      induction ds with
-      | nil => rfl
-      | cons d ds ih => simp [VLCtx.toCtx, ih]
-    exact .cons (VLCtx.IsDefEq.ofNoneCtx H) (by intro _ _ h; cases h)
-      (.vlam (by rw [htoCtx ds₁]; exact hdom))
-
 
 
 

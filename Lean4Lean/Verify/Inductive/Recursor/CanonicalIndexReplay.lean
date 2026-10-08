@@ -81,13 +81,6 @@ theorem TrExprS.chooseOriginalForallDomains
     Hsource'.prependLevelParam henv hΔ hfresh
 
 
-theorem abstractForallContext_instL
-    (domains : List VExpr) (Δ : VLCtx) (levels : List VLevel) :
-    (abstractForallContext domains Δ).instL levels =
-      abstractForallContext (domains.map (VExpr.instL levels)) (Δ.instL levels) := by
-  simp [abstractForallContext, VLCtx.instL_eq_map, List.map_append, List.map_reverse,
-    List.map_map, Function.comp_def, VLocalDecl.instL]
-
 theorem CompletedConstructorPhases.sourceAnonymousParameterWF
     (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     VLCtx.WF R.context.venv c.lparams.length
@@ -104,7 +97,7 @@ theorem CompletedRecursorConstruction.parameterAnonymousContext
     abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse [] =
       (abstractForallContext R.parameterScope.toCtx.reverse []).instL
         (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) := by
-  rw [abstractForallContext_instL, H.parameterDomains]
+  rw [VLCtx.instL_abstractForallContext, H.parameterDomains]
   rfl
 
 /-- The native index-only telescope whose source-universe support is retained

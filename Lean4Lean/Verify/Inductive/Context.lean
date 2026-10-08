@@ -326,26 +326,11 @@ def _root_.Lean.LocalContext.SubContextOf (l l' : LocalContext) : Prop :=
   ∀ fv d, l.find? fv = some d →
     ∃ d', l'.find? fv = some d' ∧ d'.setIndex 0 = d.setIndex 0
 
-theorem _root_.Lean.LocalContext.find?_empty' (fv : FVarId) :
-    ({} : LocalContext).find? fv = none := by
-  show PersistentHashMap.find? PersistentHashMap.empty fv = none
-  rw [PersistentHashMap.WF.empty.find?_eq, PersistentHashMap.toList'_empty]
-  rfl
-
 theorem _root_.Lean.LocalContext.SubContextOf.empty {l' : LocalContext} :
     ({} : LocalContext).SubContextOf l' := by
   intro fv d h
-  rw [LocalContext.find?_empty'] at h
+  rw [LocalContext.find?_empty] at h
   cases h
-
-theorem _root_.Lean.LocalContext.find?_mkLocalDecl
-    {l : LocalContext} {fv fv' : FVarId} {name : Name} {ty : Expr}
-    {bi : BinderInfo} {kind : LocalDeclKind} (hwf : l.fvarIdToDecl.WF) :
-    (l.mkLocalDecl fv name ty bi kind).find? fv' =
-      if fv == fv' then some (.cdecl l.decls.size fv name ty bi kind)
-      else l.find? fv' := by
-  simp only [LocalContext.mkLocalDecl, LocalContext.find?]
-  exact hwf.find?_insert
 
 /-- Extending only the larger context by a fresh declaration keeps a
 sub-context. -/

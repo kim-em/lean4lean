@@ -743,6 +743,78 @@ theorem mkAppList_getAppArgsList (e) :
     mkAppList e.getAppFn (getAppArgsList e) = e := by
   rw [← mkAppRevList_reverse, getAppArgsList_reverse, mkAppRevList_getAppArgsRevList]
 
+theorem getAppFn_mkAppList (fn : Expr) (args : List Expr) :
+    (mkAppList fn args).getAppFn = fn.getAppFn := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons arg args ih => simp only [mkAppList]; rw [ih]; rfl
+
+theorem getAppFn_mkAppList_const (name : Name) (levels : List Level) (args : List Expr) :
+    (mkAppList (.const name levels) args).getAppFn = .const name levels := by
+  rw [getAppFn_mkAppList]; rfl
+
+theorem getAppArgsList_mkAppList (fn : Expr) (args : List Expr) :
+    (mkAppList fn args).getAppArgsList = fn.getAppArgsList ++ args := by
+  induction args generalizing fn with
+  | nil => simp
+  | cons arg args ih => simp only [mkAppList]; rw [ih, getAppArgsList_app]; simp
+
+theorem getAppArgsList_const (name : Name) (levels : List Level) :
+    (Expr.const name levels).getAppArgsList = [] := rfl
+
+theorem mkAppN_eq_mkAppList (fn : Expr) (args : Array Expr) :
+    mkAppN fn args = mkAppList fn args.toList := by
+  unfold mkAppN
+  rw [← Array.foldl_toList, mkAppList_eq_foldl]
+  generalize args.toList = l
+  induction l generalizing fn with
+  | nil => rfl
+  | cons a l ih => exact ih _
+
+theorem abstractList_bvar_ge (fvs : List FVarId) (k n : Nat) :
+    (Expr.bvar (k + n)).abstractList fvs k = .bvar (k + n + fvs.length) := by
+  induction fvs generalizing n with
+  | nil => simp
+  | cons head tail ih =>
+    simp only [abstractList]
+    rw [show (Expr.bvar (k + n)).abstract1 head k = .bvar (k + n + 1) by
+      simp [abstract1]]
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (n + 1)
+
+theorem abstractList_fvar_of_not_mem (hmem : fv ∉ fvs) :
+    (Expr.fvar fv).abstractList fvs k = .fvar fv := by
+  induction fvs generalizing k with
+  | nil => simp
+  | cons head tail ih =>
+    simp only [List.mem_cons, not_or] at hmem
+    have hne : head ≠ fv := Ne.symm hmem.1
+    simp [abstractList, abstract1, hne, ih hmem.2]
+
+theorem abstractList_fvar_getElem (hnd : fvs.Nodup) (i : Nat) (hi : i < fvs.length) :
+    (Expr.fvar fvs[i]).abstractList fvs k = .bvar (k + (fvs.length - 1 - i)) := by
+  induction fvs generalizing i k with
+  | nil => simp at hi
+  | cons head tail ih =>
+    simp only [List.nodup_cons] at hnd
+    cases i with
+    | zero =>
+      simp only [List.getElem_cons_zero, abstractList]
+      rw [show (Expr.fvar head).abstract1 head k = .bvar k by simp [abstract1]]
+      simpa using abstractList_bvar_ge tail k 0
+    | succ i =>
+      have hiTail : i < tail.length := by simpa using hi
+      have hne : tail[i] ≠ head := by
+        intro heq
+        apply hnd.1
+        simpa [heq] using List.getElem_mem hiTail
+      simp only [List.getElem_cons_succ, abstractList]
+      rw [show (Expr.fvar tail[i]).abstract1 head k = .fvar tail[i] by
+        simp [abstract1, Ne.symm hne]]
+      rw [ih hnd.2 i hiTail (k := k)]
+      congr 1
+      simp only [List.length_cons]
+      omega
+
 theorem mkAppRange_eq (h1 : args.toList = l₁ ++ l₂ ++ l₃)
     (h2 : l₁.length = i) (h3 : (l₁ ++ l₂).length = j) :
     mkAppRange e i j args = mkAppList e l₂ := loop h1 h2 h3 where

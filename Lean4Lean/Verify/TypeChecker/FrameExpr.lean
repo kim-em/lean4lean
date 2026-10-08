@@ -194,8 +194,8 @@ theorem FVArr.eq_map {arr : Array Expr} (h : FVArr G arr) :
 def DeclsGF (G : FVarId → Prop) (lctx : LocalContext) (xs : List FVarId) : Prop :=
   ∀ x ∈ xs, ∀ ⦃d⦄, lctx.find? x = some d → GF G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GF G v
 
-theorem value?_ldecl : (LocalDecl.ldecl i f n t v nd k).value? true = some v := by
-  cases nd <;> rfl
+-- Kept for `Lean4Lean/Verify/TypeChecker/FrameWHNF.lean`.
+alias value?_ldecl := LocalDecl.value?_ldecl_true
 
 theorem GF.mkBindingList1N (hb : GF G b)
     (hd : ∀ ⦃d⦄, lctx.find? x = some d → GF G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GF G v) :
@@ -208,7 +208,7 @@ theorem GF.mkBindingList1N (hb : GF G b)
     · exact ⟨GF.abstractN this, hb⟩
   · rename_i h; have := hd h
     split
-    · exact ⟨GF.abstractN this.1, GF.abstractN (this.2 value?_ldecl), hb⟩
+    · exact ⟨GF.abstractN this.1, GF.abstractN (this.2 LocalDecl.value?_ldecl_true), hb⟩
     · exact hb.lowerLooseBVars'
   · exact GF.panic
 

@@ -120,6 +120,27 @@ def toCtx : VLCtx → List VExpr
     rcases entry with ⟨ofv, decl⟩
     cases decl <;> simp [toCtx, ih]
 
+@[simp] theorem toCtx_map_anonymousLams (types : List VExpr) :
+    VLCtx.toCtx (types.map fun type =>
+      ((none, .vlam type) :
+        Option (FVarId × List FVarId) × VLocalDecl)) = types := by
+  induction types with
+  | nil => rfl
+  | cons type types ih => simp [VLCtx.toCtx, ih]
+
+/-- A context made only of `vlam` entries named by a list of free variables has one typing-context
+entry per declaration. -/
+theorem toCtx_length_of_forall₂_vlam {fvars : List FVarId} {scope : VLCtx}
+    (H : List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type)) fvars scope) :
+    scope.toCtx.length = scope.length := by
+  induction H with
+  | nil => rfl
+  | cons h _ ih =>
+    rcases h with ⟨deps, type, rfl⟩
+    simp [VLCtx.toCtx, ih]
+
 def instL (Δ : VLCtx) (ls : List VLevel) : VLCtx :=
   match Δ with
   | [] => []

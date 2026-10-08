@@ -268,10 +268,6 @@ theorem ghostRel_mk {G : FVarId → Prop} {c : VContext} {m} [c.MLCWF m] {s : VS
 
 /-! ### Ghost-free states -/
 
-theorem GFState.next {G : FVarId → Prop} {s : State} (h : GFState G s) :
-    GFState G { s with ngen := s.ngen.next } :=
-  { h with reserved := fun _ hg => (h.reserved hg).mono .next }
-
 /-- The cached values of a well-formed state do not mention the next fresh variable, so the state
 is ghost-free for the ghosts extended by it. -/
 theorem GFState.ghost {G : FVarId → Prop} {c : VContext} {s : State} (h : GFState G s)
@@ -508,7 +504,7 @@ theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGF (fun _ => True) c.env)
           exact hfind hfv.1)
         gsg wfg hrun'
       have W := hT0.toTrExprS.weakBV c.Ewf (.skip (.vlam d') .refl)
-      have := TrExprS.uniqueSyntactic .base hTb.toTrExprS W
+      have := TrExprS.uniqueCtx .base hTb.toTrExprS W
       rw [hb0'] at this
       cases VExpr.liftN_inj.1 this
       exact hT0

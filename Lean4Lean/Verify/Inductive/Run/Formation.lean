@@ -67,18 +67,8 @@ theorem AddConstants.availableLiteralDisjoint
     checkPositivityStep.AvailableLiteralDisjoint target indConsts :=
   fun literal havailable => hlit literal (H.sourceContainsLits havailable)
 
-theorem AddConstants.preservesSourceMapFind
-    (H : AddConstants safety env venv entries outEnv outVEnv)
-    (hwf : env.constants.WF)
-    (hfind : env.constants.find? name = some found) :
-    outEnv.constants.find? name = some found := by
-  have hsource : env.find? name = some found := by
-    rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
-    exact hfind
-  have htarget := H.preservesSourceFind hwf hsource
-  rw [Lean.Kernel.Environment.find?,
-    (H.targetMapWF hwf).find?'_eq_find?] at htarget
-  exact htarget
+-- Kept for the `Lean4Lean/Verify/Inductive/Nested/*` files that use this name.
+alias AddConstants.preservesSourceMapFind := AddConstants.preservesMapFind
 
 theorem ProductionInductiveOrigins.addConstants
     {source middle target : Environment}
@@ -104,7 +94,7 @@ theorem ProductionInductiveOrigins.addConstants
     · rcases hcurrent with ⟨familyIdx, hname, ⟨A⟩⟩
       exact Or.inr ⟨familyIdx, hname, ⟨A.rebase
         (by simpa [← hname] using hfamily)
-        (H.preservesSourceMapFind hwf)⟩⟩
+        (H.preservesMapFind hwf)⟩⟩
   · rcases hnew with ⟨entry, hentry, _hname, hinfo⟩
     exact False.elim (hnind entry.1 entry.2 hentry familyInfo hinfo.symm)
 

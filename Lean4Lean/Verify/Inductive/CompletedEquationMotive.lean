@@ -141,7 +141,9 @@ theorem
   exact ⟨S, hparameters, motiveDomains, resultLevel,
     hdomainLength, hsuffixLength, hmotive, hresultLevel⟩
 
-theorem InductiveSignature.insertBinders_insertBinders (l : List VExpr) (a b : Nat) :
+/-- Inserting binders twice at the same cut inserts their sum. -/
+theorem _root_.Lean4Lean.InductiveSignature.insertBinders_insertBinders
+    (l : List VExpr) (a b : Nat) :
     InductiveSignature.insertBinders (InductiveSignature.insertBinders l a) b =
       InductiveSignature.insertBinders l (a + b) := by
   apply List.ext_getElem

@@ -216,19 +216,6 @@ theorem TrExprSyn.lambdaTelescope {Us : List Name} {n : Nat} {Fa L res : Lean.Ex
             List.map_append, List.append_assoc] using h
         · simpa [abstractForallContext, List.map_append, List.append_assoc] using Hres
 
-theorem abstractForallContext_append (xs ys : List VExpr) (Δ : VLCtx) :
-    abstractForallContext ys (abstractForallContext xs Δ) = abstractForallContext (xs ++ ys) Δ := by
-  simp [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc]
-
-theorem Expr.mkAppN_eq_mkAppList' (fn : Lean.Expr) (args : Array Lean.Expr) :
-    mkAppN fn args = Lean.Expr.mkAppList fn args.toList := by
-  unfold mkAppN
-  rw [← Array.foldl_toList, Lean.Expr.mkAppList_eq_foldl]
-  generalize args.toList = l
-  induction l generalizing fn with
-  | nil => rfl
-  | cons a l ih => exact ih _
-
 theorem Expr.abstractN_mkAppList' (fn : Lean.Expr) (args : List Lean.Expr) (xs : List FVarId)
     (k : Nat) :
     (Lean.Expr.mkAppList fn args).abstractN xs k =
@@ -408,7 +395,7 @@ theorem TrExprSyn.recursiveCall {Us : List Name}
               ((e.abstractN A).abstractN F A.length).abstractN PMN (F.length + A.length)))
           (Lean.Expr.mkAppList (.bvar (A.length + (F.length - 1 - pos)))
             ((List.range A.length).reverse.map fun i => .bvar (0 + i))) := by
-      simp only [T, Expr.mkAppN_eq_mkAppList', Expr.abstractN_app, Expr.abstractN_mkAppList',
+      simp only [T, Lean.Expr.mkAppN_eq_mkAppList, Expr.abstractN_app, Expr.abstractN_mkAppList',
         hargsA]
       have hb : ∀ (i : Nat) (xs : List FVarId) (k : Nat),
           (Lean.Expr.bvar i).abstractN xs k = .bvar i := fun _ _ _ => rfl
@@ -489,7 +476,7 @@ theorem TrExprSyn.ruleBody {Us : List Name} {F PMN : List FVarId} {m : Nat}
       (fun a => a.abstractN PMN F.length) ∘ ((fun a => a.abstractN F) ∘ Lean.Expr.fvar) from rfl,
       ← List.map_map, h, List.map_map]
     rfl
-  simp only [Expr.mkAppN_eq_mkAppList', Expr.abstractN_mkAppList', hx, hx', List.map_map]
+  simp only [Lean.Expr.mkAppN_eq_mkAppList, Expr.abstractN_mkAppList', hx, hx', List.map_map]
   rw [hfields]
   have H1 := TrExprSyn.mkAppList (TrExprSyn.bvar_abstract (Us := Us) Γdoms []
       (F.length + (PMN.length - 1 - m)) (by omega))
@@ -725,7 +712,7 @@ theorem CompletedRecursorConstruction.recAppEq (H : CompletedRecursorConstructio
   have h2 := congrArg Array.toList H.bindings.motives.expressions
   have h3 := congrArg Array.toList H.bindings.flatMinors.expressions
   simp only at h1 h2 h3
-  rw [Expr.mkAppN_eq_mkAppList', Expr.mkAppN_eq_mkAppList', Expr.mkAppN_eq_mkAppList', h1, h2, h3]
+  rw [Lean.Expr.mkAppN_eq_mkAppList, Lean.Expr.mkAppN_eq_mkAppList, Lean.Expr.mkAppN_eq_mkAppList, h1, h2, h3]
   simp
 
 theorem CompletedRecursorConstruction.ruleCounts (H : CompletedRecursorConstruction R)
