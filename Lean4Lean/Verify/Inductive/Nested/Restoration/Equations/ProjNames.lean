@@ -785,7 +785,7 @@ auxiliary constructor restoration lambdas (`auxiliaryConstructors`) and the
 transport of the lowered projection rules (`projections`). The projection
 names of the lowered constructor types, generated recursor types and
 generated equations are `restoredEquationProjNames_of`. The result has the
-shape of the hypothesis `G` of `hrestoredWF_of_gaps`. -/
+shape of the hypothesis `G` of `restoredEquationsWF_of_substitutionPremises`. -/
 theorem NestedRun.restoredEquationGaps_of
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams

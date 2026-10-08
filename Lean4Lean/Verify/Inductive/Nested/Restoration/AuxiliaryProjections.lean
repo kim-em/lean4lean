@@ -855,7 +855,7 @@ theorem NestedRun.restoredEquationGaps
 /-- **`HrestoredWF` of `NestedRun.hruleShape_of_base`**: every
 restored generated equation is well formed in the abstract recursor environment
 of a `RestoredBlockBase` in which the stripped output environment is valid.
-This is `hrestoredWF_of_gaps` with the premises supplied by `restoredEquationGaps`. -/
+This is `restoredEquationsWF_of_substitutionPremises` with the premises supplied by `restoredEquationGaps`. -/
 theorem NestedRun.hrestoredWF_of
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -883,7 +883,7 @@ theorem NestedRun.hrestoredWF_of
               (E.lowered.recursors.canonicalGeneration.equation k) =
             some rule →
           rule.WF B.recursorVEnv :=
-  E.hrestoredWF_of_gaps wf Hsources (E.restoredEquationGaps wf Hsources)
+  E.restoredEquationsWF_of_substitutionPremises wf Hsources (E.restoredEquationGaps wf Hsources)
 
 end VerifyInductive
 
