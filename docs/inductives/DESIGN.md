@@ -470,14 +470,13 @@ false in general. Take opaque `C : Type`, `F : C → Type`, `c : C`, `P : F c �
 `K, v, p : I c v (leftMap v), r : J c v (rightMap v)`, let `SI := I.rec K p` and
 `SJ := J.rec K r` at motive `Type`. After adding `q : P v`, proof irrelevance and iota give
 `SI ≡ K v q ≡ SJ`. A groupoid interpretation of the smaller context (one object with
-automorphism group `Z/3` acting on the fiber `{0, 1, 2}`) separates `SI` and `SJ`
-(`docs/inductives/STRENGTHENING.md`). The environment is well formed in Lean
-(`envCM_wf`, `Lean4Lean/Theory/Typing/Countermodel/`), as is the larger-context derivation;
-the separation is argued on paper. With canonical `Eq` this countermodel disappears, since
+automorphism group `Z/3` acting on the fiber `{0, 1, 2}`) separates `SI` and `SJ`.
+The environment and the larger-context derivation were checked in Lean while this was
+studied; the separation itself is argued on paper, not formalised. With canonical `Eq` this countermodel disappears, since
 `P v` can be extracted from `p`, but no proof of strengthening is known: every organisation
 of the needed conversion-elimination theorem for typed eta and definitional proof
-irrelevance is circular, and the calculus does not normalize
-(`docs/inductives/STRENGTHENING_NOTES.md`). The verification is organised so that it never
+irrelevance is circular, and the calculus does not normalize. The verification is
+organised so that it never
 moves a typing fact to a smaller context.
 
 ### 5.2 Scoped caches: the executable divergence
