@@ -637,8 +637,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
       (C.recursorVEnv.addDefEqRules
         (C.sourceRules ++ C.auxiliaryRules)) := by
     rw [actual.property.quotInit_eq]
-    exact .induct (abstractAddInduct_declWF F.addInduct) Hadd
-      (wf.tr (safety := .unsafe))
+    exact .induct Hadd (wf.tr (safety := .unsafe))
   have hactualUnsafe : ∀ entry ∈ actual.val,
       entry.safety = .unsafe := hentriesUnsafe actual.val actual.property
   have htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
