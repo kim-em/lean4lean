@@ -84,7 +84,8 @@ imports whose well-formedness and canonical `Eq` are assumed: imports are truste
 - `wf : ves.WF env` is the invariant being preserved. `VEnvs.WF`
   (`Lean4Lean/Verify/TypeChecker.lean`) is the core invariant `VEnvs.WFCore` together with
   the constructor telescope certificates (`VEnvs.AllCtorTelescopes`). The core gains fields in this pull
-  request: closure of mutual inductives, presence of constructor owners, agreement of the
+  request: closure of mutual inductives, presence of constructor owners that list their
+  constructors, agreement of the
   installed constructors with the abstract model, and the record of installed inductive
   families (which carries projection-registry coherence). It holds for the empty environment the executable replays
   from (`VEnvs.WF.empty`, `Lean4Lean/Verify/Environment.lean`): every field is vacuous there
@@ -661,16 +662,22 @@ acceptance needs a conversion fact outside its scope. The wrapper stripping belo
 wrapper name. The other changes cannot change a decision except through checker fuel, as follows.
 
 - **Redundant guards**, each listed in `divergences.md`: `reduceProjCore` requires the
-  constructor to be the structure's unique constructor; `tryEtaStructCore`
-  requires the listed constructor and applies structure eta only at never-zero sorts;
-  constructor owner
-  agreement is checked wherever a structure's constructor is looked up, and `isUnsafe` agreement
-  wherever the family's visibility is not already known (not in `reduceProjCore`,
-  `isDefEqUnitLike` or `expandEtaStruct`); `toCtorWhenStruct` and
-  `expandEtaStruct` return the term unchanged where the C++ kernel throws, and when the type
-  of the major premise's type does not reduce to a sort. Each
-  guard lets the verification justify a step from the registry entry alone, without
-  injectivity or head separation. All are redundant on well-formed environments and
+  constructor to be the structure's unique constructor; `tryEtaStructCore` applies
+  structure eta only at never-zero sorts; `toCtorWhenStruct` and `expandEtaStruct` return
+  the term unchanged where the C++ kernel throws on an absent constructor, and when the type
+  of the major premise's type does not reduce to a sort. The checking context carries the
+  constructor listing in both directions: every present constructor is listed by its present
+  owner with the owner's `isUnsafe` (`ConstructorOwnersPresent`), and every name a present
+  header lists is, if present, a constructor of that header with its `isUnsafe`
+  (`ListedConstructorsCoherent`). With it, `inferProj`, `tryEtaStructCore`,
+  `isDefEqUnitLike` and `expandEtaStruct` read structures and constructors as the C++ kernel
+  does. The listing holds in the staged environments of an inductive declaration because
+  the declaration's constructor names are absent from the environment in which their types
+  are checked; the executable checks that only when it declares the constructors, and the
+  proof takes it from the success of that later step (`declareConstructors.namesAbsent`).
+  What remains for `reduceProjCore` is the converse of projection-registry coherence: that a
+  structure with an abstract registry entry is a concrete header listing exactly the
+  registered constructor. All the guards are redundant on well-formed environments and
   well-typed terms with one exception: structure eta is not applied to a structure whose
   universe is neither always nor never zero (`Sort u`), so a conversion that needs it there
   is rejected.
@@ -749,6 +756,13 @@ constructor, recursor or inductive type is rejected by the corresponding check.
   The ported files (`SExpr`, `NormalEq`, `ParallelReduction`, `Stratified`,
   `StratifiedUntyped`, the shape logical relation) build against the extended `VExpr`; the
   global axiom `Params.extra_pat` of `SExpr.lean` is now a hypothesis class.
+- **Projection registry reflection.** `reduceProjCore` keeps its check that the constructor
+  is the structure's unique constructor (section 7.2). Removing it needs an invariant of the
+  checking context that a structure with an abstract projection registry entry is a concrete
+  header listing exactly the registered constructor, maintained wherever projection entries
+  are added. Likewise `expandEtaStruct` keeps its fallback for an absent constructor, which
+  would need every recursor of a checking environment to have the constructors of its major
+  inductive present.
 - **Executable cost.** Replay performance relative to `master` has not been profiled.
 
 ## 10. Reading guide
