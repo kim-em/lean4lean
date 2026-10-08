@@ -832,40 +832,6 @@ theorem NestedValidatedRunResult.restoredEquationProjNames_of
   exact ⟨VExpr.projNamesAvoid_mono hsub hl, VExpr.projNamesAvoid_mono hsub hr,
     VExpr.projNamesAvoid_mono hsub ht⟩
 
-/-- **Field `eliminatorProjNames`**: every eliminator schema registered in the
-base environment projects only out of structures registered there
-(`VEnv.WF.eliminatorsProjNamesRegistered`, certified at registration). Those
-are old constants (`baseProjection_not_restorable`), hence not restorable. -/
-theorem NestedValidatedRunResult.eliminatorProjNames_of
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      EliminatorProjNamesAvoid (ves.venv (if isUnsafe then .unsafe else .safe))
-        (compilationRestoration sourceDecl auxiliaries).restorableNames := by
-  intro auxiliaries D
-  rcases E.restorationTablesRestoringAll wf Hsources with
-    ⟨envTypes, generated, aux', hadded, -, Haux, Hexpansion, -, D', -, -⟩
-  have hnodup : (familyNames E.production.loweredDecl.types ++
-      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
-    rcases E.containerSpecializations wf Hsources with
-      ⟨_, _, _, _, _, _, _, h, _⟩
-    exact h
-  have hnot : ∀ S, (∃ info, (ves.venv (if isUnsafe then .unsafe else .safe)).projections S info) →
-      S ∉ (compilationRestoration sourceDecl auxiliaries).restorableNames :=
-    fun _ ⟨_, hinfo⟩ hmem => E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup
-      hinfo (D'.restorable_transfer D hmem)
-  intro block schema hlookup
-  have H := (wf.tr (safety := if isUnsafe then .unsafe else .safe)).wf.eliminatorsProjNamesRegistered
-    block schema hlookup
-  refine ⟨fun owner type h => (H.1 owner type h).projNamesAvoid hnot,
-    fun owner rules h df hdf => ?_⟩
-  obtain ⟨hl, hr, ht⟩ := H.2 owner rules h df hdf
-  exact ⟨hl.projNamesAvoid hnot, hr.projNamesAvoid hnot, ht.projNamesAvoid hnot⟩
-
 /-- **`NestedRestoredEquationGaps` from its three remaining fields**: the
 eliminator-schema projection names (`eliminatorProjNames`), the typing of the
 auxiliary constructor restoration lambdas (`auxiliaryConstructors`) and the

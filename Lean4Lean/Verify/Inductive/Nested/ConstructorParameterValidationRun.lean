@@ -77,30 +77,21 @@ private theorem validateRestoredConstructorParameters.constructorStep_eq_ok_of_r
       _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
         (lparams := lparams) (fuel := fuel) do
           let type ← TypeChecker.checkType ctor.type
-          TypeChecker.ensureSort type ctor.type
-      Lean4Lean.validateRestoredConstructorParameters.loop env lparams safety
-        fuel result.lctx {} ctor.name result.params ctor.type 0
-          fuel.inductiveFuel) = .ok () := by
+          TypeChecker.ensureSort type ctor.type) = .ok () := by
   unfold Lean4Lean.validateRestoredConstructorParameters.run at hrun
   have hfamily := listForM_eq_ok_of_mem
     (fun type : InductiveType => type.ctors.forM fun ctor => do
       _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
         (lparams := lparams) (fuel := fuel) do
           let type ← TypeChecker.checkType ctor.type
-          TypeChecker.ensureSort type ctor.type
-      Lean4Lean.validateRestoredConstructorParameters.loop env lparams safety
-        fuel result.lctx {} ctor.name result.params ctor.type 0
-          fuel.inductiveFuel)
+          TypeChecker.ensureSort type ctor.type)
     hrun htype
   have hconstructor := listForM_eq_ok_of_mem
     (fun ctor : Constructor => do
       _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
         (lparams := lparams) (fuel := fuel) do
           let type ← TypeChecker.checkType ctor.type
-          TypeChecker.ensureSort type ctor.type
-      Lean4Lean.validateRestoredConstructorParameters.loop env lparams safety
-        fuel result.lctx {} ctor.name result.params ctor.type 0
-          fuel.inductiveFuel)
+          TypeChecker.ensureSort type ctor.type)
     hfamily hctor
   exact hconstructor
 
@@ -127,30 +118,6 @@ theorem validateRestoredConstructorParameters.typeCheck_eq_ok_of_run
     cases hconstructor
   | ok checked =>
     exact ⟨checked, rfl⟩
-
-/-- Select the exact common-parameter-prefix run for one source constructor
-from the successful native validation of the complete mutual block. -/
-theorem validateRestoredConstructorParameters.loop_eq_ok_of_run
-    (hrun : Lean4Lean.validateRestoredConstructorParameters.run env lparams
-      safety fuel types result = .ok ())
-    (htype : indType ∈ types) (hctor : ctor ∈ indType.ctors) :
-    Lean4Lean.validateRestoredConstructorParameters.loop env lparams safety
-      fuel result.lctx {} ctor.name result.params ctor.type 0
-        fuel.inductiveFuel = .ok () := by
-  have hconstructor :=
-    validateRestoredConstructorParameters.constructorStep_eq_ok_of_run
-      hrun htype hctor
-  cases hcheck : TypeChecker.M.run env (safety := safety) (lctx := {})
-      (lparams := lparams) (fuel := fuel)
-      (do
-        let type ← TypeChecker.checkType ctor.type
-        TypeChecker.ensureSort type ctor.type) with
-  | error err =>
-    rw [hcheck] at hconstructor
-    cases hconstructor
-  | ok checked =>
-    rw [hcheck] at hconstructor
-    simpa only [bind, Except.bind] using hconstructor
 
 /-- The executable source-type check constructs the abstract source constant
 needed by constructor restoration.  This is derived from the successful
