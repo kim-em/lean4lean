@@ -751,7 +751,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_steps
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped)
     (hctorNames : ∀ c ∈ sourceDecl.constructorConstants,
       c.name ∈ familyNames (E.production.loweredDecl.types.take sourceDecl.types.length))
-    {envCtors : VEnv}
+    {envCtors : VEnv} {es : List (Name × InductiveSignature.CaseSchema)}
     (hctors : envTypes.addConstVals sourceDecl.constructorConstants = some envCtors)
     (hnonempty : sourceTypes ≠ [])
     {recursors : List VConstVal}
@@ -760,7 +760,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_steps
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
           (sourceTypes.map (·.name)) name s t),
           RestoredRecursorStepValue
-            (envCtors.addProjections sourceDecl.projectionEntries) Hstep w)
+            ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) Hstep w)
       (sourceTypes.map (fun t => Lean.mkRecName t.name) ++
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)
       recursors) :
@@ -772,12 +772,12 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_steps
           (sourceTypes.map (·.name))
           (E.production.production.completed.canonicalGeneration.recursorName owner) s t),
           RestoredRecursorStepValue
-            (envCtors.addProjections sourceDecl.projectionEntries) Hstep w)
+            ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) Hstep w)
       (List.finRange
         E.production.production.completed.generationSignature.families.size)
       recursors := by
   let r := compilationRestoration sourceDecl auxiliaries
-  let trEnv := envCtors.addProjections sourceDecl.projectionEntries
+  let trEnv := (envCtors.addEliminators es).addProjections sourceDecl.projectionEntries
   have Hfresh : ∀ n ∈ r.restorableNames, trEnv.constants n = none := by
     intro n hn
     simp only [trEnv, VEnv.addEliminators_constants, VEnv.addProjections_constants]
@@ -826,7 +826,7 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped)
     (hctorNames : ∀ c ∈ sourceDecl.constructorConstants,
       c.name ∈ familyNames (E.production.loweredDecl.types.take sourceDecl.types.length))
-    {envCtors : VEnv}
+    {envCtors : VEnv} {es : List (Name × InductiveSignature.CaseSchema)}
     (hctors : envTypes.addConstVals sourceDecl.constructorConstants = some envCtors)
     (hnonempty : sourceTypes ≠ [])
     {recursors : List VConstVal}
@@ -835,7 +835,7 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
           (sourceTypes.map (·.name)) name s t),
           RestoredRecursorStepValue
-            (envCtors.addProjections sourceDecl.projectionEntries) Hstep w)
+            ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) Hstep w)
       (sourceTypes.map (fun t => Lean.mkRecName t.name) ++
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)
       recursors)
@@ -950,7 +950,7 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
   obtain ⟨hi', domain, c, ls, Hbinder, hc, hdisj⟩ := E.restoredMajorHead wf Hsources
     (D.agreement finalVEnv lparams) hheads hparamsSize D.paramsFVars hnestedHead owner Hstep
     hfamRec hfamKey
-  have Htr' : TrExprS (envCtors.addProjections sourceDecl.projectionEntries)
+  have Htr' : TrExprS ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries)
       Hstep.restored.newInfo.levelParams [] Hstep.restored.newInfo.type
       (VExpr.wrapForalls (pre ++ [major]) (g.recursorBody owner)) := by
     rw [← htypeEq, ← hwtype, ← hnew]
@@ -1078,11 +1078,12 @@ theorem NestedValidatedRunResult.finalValidOfStaged_of_hitShape
       ct.name ∈ familyNames (E.production.loweredDecl.types.take sourceDecl.types.length))
     {lp : List Name} {sf sf' : DefinitionSafety} {sv envTypes' recEnv : VEnv}
     {owners : List VInductiveType} {primaryRecursors auxiliaryRecursors : List VConstVal}
+    {es : List (Name × InductiveSignature.CaseSchema)}
     (HsourceTrace : RestoredSourceInductiveSemanticTrace sourceDecl lp sf sv envTypes'
-      (envCtors.addProjections sourceDecl.projectionEntries) Hrestored.inductives
+      ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) Hrestored.inductives
       owners primaryRecursors)
     (HauxTrace : RestoredAuxiliaryRecursorTrace sf'
-      (envCtors.addProjections sourceDecl.projectionEntries) recEnv
+      ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) recEnv
       Hrestored.auxiliaries [] auxiliaryRecursors)
     (hrecValues : recursors.map Prod.snd = primaryRecursors ++ auxiliaryRecursors) :
     CheckingEnv.Valid c.safety

@@ -514,3 +514,50 @@ Two obstacles to deleting `hcorner`:
    moves to the extended environment. Per-environment canonical choice must also reach `VContext`
    (`ValidCore` field, transported by `mono` at each installation) for the residual to lose the
    no-choice walks.
+
+### 5.4 Installation restructuring: decisions taken while threading the eliminators (2026-10-08)
+
+Recorded under Kim's standing instruction (decide, record, continue).
+
+1. **Certification at the constructor boundary.** `Verify/Inductive/ConstructorBoundary.lean`
+   computes, from the data available once the constructors are checked and declared, the source
+   signature `sourceSignature` (with `sourceSignature_models`) and the declaration's case
+   eliminators `caseEliminators` (empty for a declaration without families, otherwise
+   `[(first family name, CaseSchema.ofCompilation decl sourceSignature [])]`). Their certificate is
+   kept in the monotone form `VInductDecl.OrdinaryCaseEliminators` (source and formation
+   well-formedness, model, family typing in the header environment, projection names, header
+   agreement), from which `VInductBlock.EliminatorsWF` follows (`.eliminatorsWF`) and which replays
+   over every larger environment in which the declaration installs (`.mono`, `.replay`,
+   `VInductBlock.EliminatorsReplay`); the safety-indexed replays of `BlockCertificate` and
+   `CompletedBlockCertificate` use the replay form.
+2. **Blocks without eliminators.** `VInductBlock.EliminatorsWF` also accepts a block with neither
+   case eliminators nor projections (the constructor boundary of a declaration without families).
+   Every registered structure still has a registered case eliminator
+   (`VEnv.WF.projections_eliminated`); relative to the previous specification (no eliminators at
+   all) this is a strengthening.
+3. **The window environment carries the eliminators.** `StagedBlock`, `CompletedStagedBlock` and
+   the block certificates carry the eliminator list; generated recursors are typed in
+   `(ctors.addEliminators es).addProjections P`, as installed by `VInductBlock.install`. The typing
+   facts produced in that window are stated there: `InductiveSignature.Compiles` (recursive and
+   family typing), `CaseCompilationData.familyTypesWF`, `CompilationData.recursiveTypesWF` (each
+   with `∃ es, expanded.OwnCaseEliminators env es`: restoration-free case schemas of the expanded
+   declaration whose signatures model it), and the legacy `VInductDecl.OrdinaryShape.rules`
+   (`IotaRule` is monotone, so this only states the rules in the environment where they are
+   checked). The only Theory consumer, `CaseCompilationData.case_scoping`, needs `Ordered`, which
+   holds with any eliminators. Consequence of the restructuring decision; no theorem weakened.
+4. **Nested declarations.** The lowered declaration runs the ordinary pipeline, so its window
+   registers the lowered case eliminator `(k, ofCompilation lowered sL [])` (k = first family
+   name, shared with the source declaration). The nested transport of window derivations to the
+   source environment (`VEnv.RenamingReplacement`, `RestoredEquationWF`) requires every
+   eliminator of the lowered environment to be present in the source environment. Decision: the
+   source block registers the restored schema `(k, ofCompilation source sL auxiliaries)` (same
+   signature sL, restoration of the nested compilation), certified from the validated run
+   (`Nested/CaseEliminators.lean`), and `RenamingReplacement.eliminators` gains a second
+   alternative: a lowered schema without restoration may be matched by a registered source
+   schema with the same signature whose restoration agrees with the replacement (shape,
+   heads replaced, renaming), the elimination rules being transported through the agreement of
+   restoration with renaming replacement up to beta (`RenamingRestorationSubstitution.expr_simAt`).
+   Alternatives rejected: eliminator conservativity (no normalization argument available);
+   registering the source schema in the lowered window (not certifiable there: the lowered
+   constructors differ); omitting lowered eliminators (the lowered window registers projections,
+   so the corner would be unresolved there).

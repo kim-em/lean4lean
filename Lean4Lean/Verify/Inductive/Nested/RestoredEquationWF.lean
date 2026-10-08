@@ -930,7 +930,7 @@ theorem NestedValidatedRunResult.restoredEquationSubstitution
   have hctorsAdded := C.canonical.ctorsAdded.abstract
   rw [C.constructorValues, hvenvTypes] at hctorsAdded
   have hleCtors : C.canonical.venvCtors ≤ C.finalBaseVEnv :=
-    VEnv.addProjections_le.trans C.canonical.recursorsAdded.le
+    VEnv.addEliminators_addProjections_le.trans C.canonical.recursorsAdded.le
   have hle : envTypes ≤ C.finalBaseVEnv :=
     (VEnv.addConstVals_le hctorsAdded).trans hleCtors
   have hctorsS : ∀ sc ∈ sourceDecl.constructorConstants,
