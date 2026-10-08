@@ -22,9 +22,8 @@ jobs:
 
       # Installs the toolchain pinned in `lean-toolchain` and runs `lake build`,
       # i.e. the `defaultTargets`: the `Lean4Lean` library, the `lean4lean` exe,
-      # `Lean4Lean.Theory`, `Lean4Lean.Verify` and `Lean4Lean.Tests`. The proofs
-      # in `Verify` deliberately contain `sorry`s, so warnings must not fail the
-      # build. `Lean4Lean.Experimental` is WIP and is not a default target.
+      # `Lean4Lean.Theory` and `Lean4Lean.Verify`. `Lean4Lean.Tests` and
+      # `Lean4Lean.Experimental` are not default targets; they are built below.
       - name: Build
         uses: leanprover/lean-action@v1
         with:
@@ -38,6 +37,16 @@ jobs:
       # Compile the internal test suite
       - name: Build Lean4Lean.Tests
         run: lake build Lean4Lean.Tests
+
+      # Audit the dependency closures of the verification theorems listed in
+      # `scripts/InductiveAudit.lean`: no unlisted axioms and no `sorry`, including inside
+      # opaque bodies. The self-test first checks that the auditor itself sees through types
+      # and opaque bodies. The modules it needs are default targets, already built above.
+      - name: Self-test the inductive dependency audit
+        run: python3 scripts/check-inductive-audit.py --self-test
+
+      - name: Inductive dependency audit
+        run: python3 scripts/check-inductive-audit.py --no-build --require-complete
 
       # `lake build` only establishes that lean4lean compiles; these check that it still
       # *works*. The two modes exercise different code paths, so both are worth running.
