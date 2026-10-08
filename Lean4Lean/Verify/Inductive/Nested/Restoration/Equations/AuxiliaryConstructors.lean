@@ -20,7 +20,7 @@ definitionally the generated constructor type, the syntactic restoration of
 the lowered constructor type.
 
 **Projections.** The projection rules of the lowered declaration are transported in
-well-formed image contexts (`ProjectionRulesRenamedOnCtx`,
+well-formed image contexts (`ProjectionClause` for `VEnv.TypedCtx`,
 `Nested/Restoration/Equations/ProjectionRenaming.lean` and `Nested/Restoration/AuxiliaryProjections.lean`), where beta
 subject reduction applies.
 -/
@@ -446,6 +446,16 @@ theorem RestorationTablesAgree.renaming_eq {decl : VInductDecl}
       (compilationRestoration decl aux₁).renaming := by
   funext n
   simp only [Restoration.renaming, D₀.find_eq D₁ n, D₀.recursorName n, D₁.recursorName n]
+
+theorem RestorationTablesAgree.interpretation_eq {decl : VInductDecl}
+    {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
+    {auxRec : NameMap Name} {Us₀ : List Name} {aux₀ aux₁ : List ContainerSpecialization}
+    (D₀ : RestorationTablesAgree decl aux₀ result env auxRec Us₀)
+    (D₁ : RestorationTablesAgree decl aux₁ result env auxRec Us₀) (P : List VExpr) :
+    (compilationRestoration decl aux₀).interpretation P =
+      (compilationRestoration decl aux₁).interpretation P := by
+  unfold Restoration.interpretation
+  rw [D₀.lambdaReplacement_eq D₁, D₀.renaming_eq D₁]
 
 theorem RestorationTablesAgree.restorable_iff {decl : VInductDecl}
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
