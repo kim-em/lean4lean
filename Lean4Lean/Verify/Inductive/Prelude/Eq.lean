@@ -13,9 +13,9 @@ open Kernel
 that one declaration (`PreludeEqShape`) through the executable: the primitive Bool/Nat
 recognizer rejects it, lowering leaves it unchanged, and the ordinary path of section 3.1 of
 `docs/inductives/DESIGN.md` installs it. From the header translation and the block
-installation it derives that every safety-indexed model of the output contains `Eq`, `Eq.refl`
-and `Eq.rec` with the prelude's types (`CanonicalEqEnvs`), assuming only that `Eq` was absent
-before. `addInductiveDeclaration.preludeEqExtensionWF` is the resulting `addDecl` statement. -/
+installation it derives that every safety-indexed model of the output contains abstract `Eq`
+with the prelude's type (`QuotReadyEnvs`), assuming only that `Eq` was absent before.
+`addInductiveDeclaration.preludeEqExtensionWF` is the resulting `addDecl` statement. -/
 
 namespace VerifyInductive
 
@@ -198,7 +198,7 @@ theorem VInductBlock.install_rule {base env' : VEnv} {block : VInductBlock}
         exact VEnv.addDefEqRules_defeqs_iff.mpr (.inr hrule)
 
 /-- The safe ordinary installation of the prelude's `Eq` declaration yields models
-that contain canonical `Eq` at every safety level (`CanonicalEqEnvs`).
+that contain canonical `Eq` at every safety level (`QuotReadyEnvs`).
 The theorem assumes only that `Eq` is absent from the kernel environment before the
 declaration; canonical equality is obtained from the header translation and the block
 installation of this block. -/
@@ -211,7 +211,7 @@ theorem OrdinaryInstallation.extendSafePreludeEq
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
     (Hshape : PreludeEqShape c.lparams nparams indTypes.toList isUnsafe) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
+    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ QuotReadyEnvs ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (SourceAddInduct (ves.venv .safe) c.lparams
         nparams indTypes.toList isUnsafe (ves'.venv .safe)) ∧
@@ -272,7 +272,7 @@ theorem OrdinaryInstallation.extendSafePreludeEq
       ⟨ves', wf', hle, hadd, hsafeReplay⟩
   have hsafeEq : (ves'.venv .safe).constants ``Eq = some eqConst :=
     hsafeReplay.constants houtEq
-  have hcanonical : CanonicalEqEnvs ves' := by
+  have hcanonical : QuotReadyEnvs ves' := by
     intro safety
     exact (wf'.mono DefinitionSafety.le_safe).constants hsafeEq
   have hHasCanonical : ∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
@@ -556,7 +556,7 @@ theorem OrdinaryRunResult.extendPreludeEq
     (hsource : sourceEnv = ves.venv .safe)
     (Hshape : PreludeEqShape source.lparams nparams types
       (source.safety != .safe)) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
+    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ QuotReadyEnvs ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (SourceAddInduct sourceEnv source.lparams
         nparams types (source.safety != .safe) (ves'.venv .safe)) ∧
@@ -615,7 +615,7 @@ theorem AddInductive.run.preludeEqInstalledWF
       PrimitiveNamesFresh c' stats nparams depth numNested
         types.toArray (c.safety != .safe) Hc') :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
-      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
+      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ QuotReadyEnvs ves' ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         Nonempty (SourceAddInduct Hc.venv c.lparams
           nparams types (c.safety != .safe) (ves'.venv .safe)) ∧
@@ -634,7 +634,7 @@ theorem AddInductive.run.preludeEqInstalledWF
 
 /-- `addInductiveAfterLowering` on the exact prelude `Eq` declaration, after a lowering
 that produced no auxiliary families, yields well-formed models of the output that extend
-the source models and satisfy `EqReadyOrAbsent`, with the source `AddInduct`, and in which
+the source models and satisfy `QuotReadyOrEqAbsent`, with the source `AddInduct`, and in which
 `Eq` is canonical (`HasCanonicalEq`) whenever the installed `Eq.rec` is the prelude's. -/
 theorem Environment.addInductiveAfterLowering.preludeEqExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
@@ -647,7 +647,7 @@ theorem Environment.addInductiveAfterLowering.preludeEqExtensionWF
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
       false fuel res).WF fun outEnv =>
-      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
+      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ QuotReadyOrEqAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
@@ -693,7 +693,7 @@ theorem Environment.addInductiveAfterLowering.preludeEqExtensionWF
         (ves.venv .safe) lparams nparams types false (ves'.venv .safe)) := by
       rw [hsource] at Hspec
       simpa [c, initialContext, htypes] using Hspec
-    exact ⟨ves', wf', EqReadyOrAbsent.ofCanonical hEq', hle, Hspec', hcanonical⟩
+    exact ⟨ves', wf', QuotReadyOrEqAbsent.ofCanonical hEq', hle, Hspec', hcanonical⟩
 
 /-- `addInductive` on the prelude `Eq` declaration yields the conclusion of
 `Environment.addInductiveAfterLowering.preludeEqExtensionWF`.  The source checks and the lowering no-op are composed
@@ -706,7 +706,7 @@ theorem Environment.addInductive.preludeEqExtensionWF
     (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe false fuel).WF
       fun outEnv =>
-        ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
+        ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ QuotReadyOrEqAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
@@ -739,7 +739,7 @@ theorem addInductiveDeclaration.preludeEqExtensionWF
     (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
-        ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
+        ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ QuotReadyOrEqAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
