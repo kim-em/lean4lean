@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.TypeChecker.FrameBasic
 import Lean4Lean.Verify.Inductive.Recursor.Structure
+import Lean4Lean.Verify.TypeChecker.Basic
 
 /-!
 # Frame lemma: ghost-freeness of expression operations
