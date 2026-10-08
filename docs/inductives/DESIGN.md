@@ -392,12 +392,7 @@ the translation of each restored right-hand side off this pass. The abstract rul
 restorations of the generated equations: their nested-iota shape and guardedness come from
 the generator through restoration (`Nested/Restoration/Equations/GeneratedGuard.lean`, `sourceNestedIotaRule`),
 their well-formedness from the restoration substitution, and the final assembly extends the
-rule-free assembly base by them (`Nested/Restoration/Equations/RestoredRulesBase.lean`). The translation of the
-restored right-hand sides can also be obtained by preservation, without the executable check
-(`restoredRuleRhs_translates`, `Nested/Restoration/Equations/RuleRhsTranslation.lean`), which would let the
-check run in the complete restored environment as in the C++ kernel; that route still assumes
-that the lowered rules keep the auxiliary family names out of the arguments copied by
-restoration (`Restoration/RestorableNameAvoidance.lean` proves this for every other restorable name).
+rule-free assembly base by them (`Nested/Restoration/Equations/RestoredRulesBase.lean`).
 
 The common-parameter prefix of a source constructor is not re-checked. Lowering keeps it
 verbatim, the ordinary pipeline checks it for the lowered constructor in the lowered header
