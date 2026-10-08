@@ -154,7 +154,7 @@ theorem expandEtaStruct_eq {env : Environment} {eType e r : Expr}
     (h : expandEtaStruct env eType e = r) :
     r = e ∨ ∃ I ls sInfo ctor mkInfo, eType.getAppFn = .const I ls ∧
       env.find? I = some (.inductInfo sInfo) ∧ sInfo.ctors.head? = some ctor ∧
-      env.find? ctor = some (.ctorInfo mkInfo) ∧ mkInfo.induct = I ∧
+      env.find? ctor = some (.ctorInfo mkInfo) ∧
       r = (List.range mkInfo.numFields).foldl (fun result i => .app result (.proj I i e))
         (mkAppRange (.const ctor ls) 0 mkInfo.numParams eType.getAppArgs) := by
   subst h
@@ -164,8 +164,7 @@ theorem expandEtaStruct_eq {env : Environment} {eType e r : Expr}
   split <;> [rename_i sInfo hs; exact .inl rfl]
   split <;> [rename_i ctor hc; exact .inl rfl]
   split <;> [rename_i mkInfo hm; exact .inl rfl]
-  split <;> [exact .inl rfl; rename_i hinduct]
-  exact .inr ⟨I, ls, sInfo, ctor, mkInfo, hfn, hs, hc, hm, by simpa using hinduct, rfl⟩
+  exact .inr ⟨I, ls, sInfo, ctor, mkInfo, hfn, hs, hc, hm, rfl⟩
 
 /-- The structure-eta expansion built by `toCtorWhenStruct` is in hit shape. -/
 theorem toCtorWhenStruct.Post_paramUniform {w : Expr} {w' : VExpr}
@@ -191,8 +190,13 @@ theorem toCtorWhenStruct.Post_paramUniform {w : Expr} {w' : VExpr}
     have ⟨hInot, hctors⟩ := hs.env.rec_major hrec
     rcases expandEtaStruct_eq (env := c.env) (eType := A) (e := w) rfl with h | h
     · rw [h]; exact hl
-    obtain ⟨I, ls', sInfo, ctor, mkInfo, hfn, hsI, hctor, hm, hinduct, hr⟩ := h
+    obtain ⟨I, ls', sInfo, ctor, mkInfo, hfn, hsI, hctor, hm, hr⟩ := h
     rw [hAfn] at hfn; cases hfn
+    have hinduct : mkInfo.induct = info.getMajorInduct := by
+      obtain ⟨_, hEq, h, -⟩ :=
+        c.listedConstructors _ sInfo hsI ctor (List.mem_of_head? hctor) _ hm
+      rw [ConstantInfo.ctorInfo.inj hEq]
+      exact h
     have hsize : A.getAppArgs.size = mkInfo.numParams := by
       obtain ⟨sInfo', ctor', hfind', hsingle', hnind'⟩ :=
         Kernel.Environment.isNonRecStructure_inv hnonrec

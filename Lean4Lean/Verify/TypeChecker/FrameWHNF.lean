@@ -79,7 +79,6 @@ theorem expandEtaStruct_gf (ht : GhostFree G eType) (he : GhostFree G e) :
   split <;> [skip; exact he]
   split <;> [skip; exact he]
   split <;> [skip; exact he]
-  split <;> [exact he; skip]
   have hfold : ∀ (l : List Nat) (r : Expr), GhostFree G r →
       GhostFree G (l.foldl (fun result i => result.app (.proj I i e)) r) := by
     intro l; induction l with

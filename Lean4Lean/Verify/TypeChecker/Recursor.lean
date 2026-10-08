@@ -768,8 +768,11 @@ theorem toCtorWhenStruct.WF_all {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
   rw [Expr.withApp_eq, hAfn]
   simp only [hfind, hsingle, List.head?_cons]
   split <;> [rename_i mkInfo hci; exact hid]
-  split <;> [exact hid; rename_i hguard']
-  have hinduct : mkInfo.induct = n := by simpa using hguard'
+  -- the constant the structure lists is a constructor of the structure
+  have hinduct : mkInfo.induct = n := by
+    obtain ⟨_, hEq, h, -⟩ := c.listedConstructors n sInfo hfind ctor (by simp [hsingle]) _ hci
+    rw [ConstantInfo.ctorInfo.inj hEq]
+    exact h
   -- the structure type supplies exactly the parameters
   have hsize : A.getAppArgs.size = mkInfo.numParams := by
     obtain ⟨_, hTsort⟩ := hT'.isType c.Ewf.ordered c.Δwf.toCtx
