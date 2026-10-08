@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.QuotRule
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjCtor
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjSound
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.Definitions
 
 /-! # Soundness of the observation model for rule-free environments (milestone M2)
@@ -29,8 +29,9 @@ compactness, monotonicity and the substitution lemma; `eta` uses the typing inva
 inclusions given by the type equality; `sortDF`/`constDF` see levels only through
 `VLevel.eval`, and at a defined constant on level invariance of the value (`Obs.lvEq`);
 `extra` is the delta clause in both directions, using `DefRules` (the rule of a defined
-constant is unique and its type is the constant's). The other rule cases are vacuous
-under `DefsOnly`. -/
+constant is unique and its type is the constant's). The projection rules (`projDF`,
+`projIota`, `structEta`, `unitLike`) are sound for entries valid in the model (`ProjValid`,
+`Model/ProjSound.lean`). -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -492,7 +493,7 @@ include henv hΔ
 /-- **Soundness** of the observation model for the derivations of an environment `E ≤ env`
 whose rules are valid in the model of `env`, carrying semantic typing derivations. -/
 theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → RuleValid env df)
-    (hnp : ∀ n p, ¬ E.projections n p) (hEV : ElimsValid env E)
+    (hPV : ∀ n p, E.projections n p → ProjValid env n p) (hEV : ElimsValid env E)
     (H : E.IsDefEqStrong U Γ t t' T) :
     SoundAt env U Δ Γ t t' T ∧ HTS env U Δ Γ t T ∧ HTS env U Δ Γ t' T := by
   induction H with
@@ -572,7 +573,10 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
       .conv (.app ⟨hA, ihA.1⟩ ⟨hB, ihB.1⟩ ihf.2.2 hf.defeq.hasType.2 iha.2.2
         ⟨ha.hasType.2, iha.1.refl_r henv hΔ⟩)
         ⟨hBB.symm, ihBB.1.symm henv hΔ⟩⟩
-  | projDF h1 => exact absurd h1 (hnp _ _)
+  | projDF hp hls hlen hps hidx hF _ hFty h1 h2 hcl hg ihF ih1 ih2 =>
+    exact sound_projDF henv hΔ (hle.projections hp) (hPV _ _ hp) hls hlen hps hidx hF
+      (hFty.mono hle) (h1.mono hle) (h2.mono hle) hcl hg ⟨ihF.1, ihF.2.1⟩ ⟨ih1.1, ih1.2.2⟩
+      ⟨ih2.1, ih2.2.2⟩
   | @lamDF Γ A A' u B v body body' h1 h2 hAA hB hB' hb hb' ihA ihB ihB' ihb ihb' =>
     replace hAA := hAA.mono hle
     replace hB := hB.mono hle
@@ -820,9 +824,15 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
     exact ⟨hEV.valid _ _ _ _ _ hb hrules hmem _ _ _ _ _ _ hΔ hrc hperm (ht0.mono hle)
       ⟨iht0.1, iht0.2.1⟩ (hl.mono hle) ⟨ihl.1, ihl.2.1⟩ (hr.mono hle) ⟨ihr.1, ihr.2.1⟩,
       ihl.2.1, ihr.2.1⟩
-  | projIota h1 => exact absurd h1 (hnp _ _)
-  | structEta h1 => exact absurd h1 (hnp _ _)
-  | unitLike h1 => exact absurd h1 (hnp _ _)
+  | projIota hp _ hfield _ ihp ihf =>
+    exact sound_projIota henv hΔ (hle.projections hp) (hPV _ _ hp) hfield ⟨ihp.1, ihp.2.1⟩
+      ⟨ihf.1, ihf.2.1⟩
+  | structEta hp hpl _ _ _ ihe ihm =>
+    exact sound_structEta henv hΔ (hle.projections hp) (hPV _ _ hp) hpl ⟨ihe.1, ihe.2.1⟩
+      ⟨ihm.1, ihm.2.1⟩
+  | unitLike hp _ _ hnf _ _ ihe ihe' =>
+    exact sound_unitLike henv (hle.projections hp) (hPV _ _ hp) hnf ⟨ihe.1, ihe.2.1⟩
+      ⟨ihe'.1, ihe'.2.1⟩
 
 end
 

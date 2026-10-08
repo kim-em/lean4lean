@@ -66,7 +66,7 @@ theorem proofBinder_of {envF E : VEnv} {doms : List VExpr} {u0 x : Nat}
     rw [← List.map_reverse]; exact hdoms.instL hlw
   have hd' := hder.instL hlw
   rw [List.map_reverse] at hd'
-  have S := (Model.sound henvF hΔ hEF hvalid hnp hEV (hd'.strong hE hL)).1
+  have S := (Model.sound henvF hΔ hEF hvalid (fun n p h => absurd h (hnp n p)) hEV (hd'.strong hE hL)).1
   have W := Wv.prefix (hL.mono (IsType.mono hEF))
   have tv := TV.prefix tvv
   refine ⟨⟨_, Or.inl rfl, (hd'.mono hEF).subst henvF W hΔ⟩, fun τ hτ => ?_⟩

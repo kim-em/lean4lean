@@ -485,7 +485,7 @@ theorem WF.headInjectivityCore_of_projFree {env : VEnv} (henv : env.WF)
   obtain ⟨ds, H⟩ := henv
   have hvalid := WF'.ruleValid ⟨ds, H⟩ hB.projections H .rfl (fun _ h _ _ _ _ => h)
   exact WF.headInjectivityCore_of_sound ⟨ds, H⟩ fun hΔ H' =>
-    Model.sound (VEnv.WF.ordered ⟨ds, H⟩) hΔ .rfl hvalid.1 hB.projections
+    Model.sound (VEnv.WF.ordered ⟨ds, H⟩) hΔ .rfl hvalid.1 (fun n p h => absurd h (hB.projections n p))
       ⟨fun _ _ _ h1 h2 => VEnv.WF.eliminators_unique ⟨ds, H⟩ h1 h2, hvalid.2⟩ H'
 
 end VEnv
