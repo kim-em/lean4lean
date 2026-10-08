@@ -86,7 +86,7 @@ theorem EtaHead.fam {T : VExpr} (h : EtaHead env I' ctor' T k)
   obtain ⟨info, dsH', RH', lsI', iargs', hp, hcn, eH', hlen', hk'⟩ := h
   obtain ⟨rfl, -⟩ := VExpr.wrapForalls_inj_of_length (by rw [hlenH, hlen']) (eH.symm.trans eH')
   rw [hkH] at hk'
-  obtain ⟨rfl, -, -⟩ := mkApps_const_inj (Option.some.inj hk')
+  obtain ⟨rfl, -, -⟩ := VExpr.mkApps_const_inj (Option.some.inj hk')
   exact ⟨rfl, info, hp, hcn⟩
 
 /-- Field observations of a spine of a rigid constructor come from the `projCtor` clause: the
@@ -157,7 +157,7 @@ theorem HTS.app_const_inv {c : Name} {ls : List VLevel} {pre : List VExpr} {a : 
     (H : HTS env U Δ Γ e T) (he : e = .mkApps (.const c ls) (pre ++ [a])) :
     ∃ A B, HTS env U Δ Γ (.mkApps (.const c ls) pre) (.forallE A B) ∧ HTS env U Δ Γ a A ∧
       SD env U Δ Γ a a A ∧ (B.inst a = T ∨ env.TypeChain U Γ (B.inst a) T) := by
-  rw [mkApps_concat] at he
+  rw [VExpr.mkApps_snoc] at he
   induction H with
   | app _ _ hf _ ha hsa => cases he; exact ⟨_, _, hf, ha, hsa, .inl rfl⟩
   | conv _ hAB ih =>
@@ -167,7 +167,7 @@ theorem HTS.app_const_inv {c : Name} {ls : List VLevel} {pre : List VExpr} {a : 
     · exact .single hAB.1.defeq
     · exact h.tail hAB.1.defeq
   | other h =>
-    exact absurd (he.trans (mkApps_concat _ _ _).symm) (h _ _ _)
+    exact absurd (he.trans (VExpr.mkApps_snoc _ _ _).symm) (h _ _ _)
   | bvar | const | elim | lam | forallE | proj => cases he
 
 /-- Every argument of a semantically typed constant spine is typed at the domain of the Pi type

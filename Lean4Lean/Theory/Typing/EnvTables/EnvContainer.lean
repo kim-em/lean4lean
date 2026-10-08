@@ -146,16 +146,12 @@ theorem stripLams_wrapLams' (Ds : List VExpr) (e : VExpr) :
   | nil => rfl
   | cons _ _ ih => exact ih
 
-theorem mkApps_snoc (f : VExpr) (xs : List VExpr) (x : VExpr) :
-    VExpr.mkApps f (xs ++ [x]) = .app (VExpr.mkApps f xs) x := by
-  simp [VExpr.mkApps, List.foldl_append]
-
 /-- The left body of a rule shape, with its outer lambdas removed. -/
 theorem ruleBody_stripLams {Ds : List VExpr} {h : Name} {ls : List VLevel} {xs : List VExpr}
     {m : VExpr} :
     (VExpr.wrapLams Ds (VExpr.mkApps (.const h ls) (xs ++ [m]))).stripLams =
       .app (VExpr.mkApps (.const h ls) xs) m := by
-  rw [stripLams_wrapLams', mkApps_snoc]; rfl
+  rw [stripLams_wrapLams', VExpr.mkApps_snoc]; rfl
 
 theorem ruleBody_inj {Ds Ds' : List VExpr} {h h' : Name} {ls ls' : List VLevel}
     {xs xs' : List VExpr} {m m' : VExpr}
@@ -273,7 +269,7 @@ theorem head_of_ruleBody {Ds : List VExpr} {h : Name} {ls : List VLevel} {xs : L
     (hl : df.lhs = VExpr.wrapLams Ds (VExpr.mkApps (.const h ls) (xs ++ [m]))) :
     VDefEq.head df = .const h ls := by
   unfold VDefEq.head
-  rw [hl, ruleBody_stripLams, ← mkApps_snoc]
+  rw [hl, ruleBody_stripLams, ← VExpr.mkApps_snoc]
   exact VExpr.getAppFnArgs_mkApps_head _ _
 
 theorem CaseCompilationData.families_size_ge {base : VEnv} {src exp : VInductDecl}

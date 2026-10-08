@@ -110,7 +110,7 @@ theorem native_uniq {s : InductiveSignature} {g : Instance s}
   rw [C.ordinary_rules] at hm
   obtain ⟨j, -, rfl⟩ := List.mem_map.1 hm
   obtain ⟨-, n2, -, l2, a2⟩ := wrapLams_pat_inj (hl'.symm.trans (g.equation_lhs_eq j))
-  obtain ⟨c2, -, -⟩ := mkApps_const_inj a2
+  obtain ⟨c2, -, -⟩ := VExpr.mkApps_const_inj a2
   have ho := C.recursorName_inj n2
   refine ⟨?_, fun hc => ?_⟩
   · rw [l2, eqLead_length_owner C, eqLead_length_owner C]; simp only [ho]
@@ -333,7 +333,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
   rw [← eqLead_length_owner C] at hkH
   -- the constructor and its family
   have hcisN : IsNativeCtor env s.constructors[index].name :=
-    ⟨_, hdf, _, _, _, by rw [hl, VExpr.stripLams_wrapLams, mkApps_concat]; rfl⟩
+    ⟨_, hdf, _, _, _, by rw [hl, VExpr.stripLams_wrapLams, VExpr.mkApps_snoc]; rfl⟩
   have hcis : IsCtor env s.constructors[index].name := .inl hcisN
   obtain ⟨ci, hci', F, lsF, hF, -, hrigF⟩ := hcres _ hcisN
   obtain ⟨fc, hfc, hfcn, lsc, hfch⟩ := C.ordinary_ctor index

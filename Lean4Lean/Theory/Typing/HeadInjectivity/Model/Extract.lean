@@ -111,14 +111,14 @@ theorem forallE_chain (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ 
   rw [l.piCod_inv] at ho
   obtain ⟨_, y, hy, eC⟩ := Obs.piCod_mem ho
   have e0 : (B.liftN 1 1).subst (VExpr.Subst.id.cons (.bvar 0)) = B :=
-    (VExpr.inst_eq _ _).symm.trans (VExpr.instN_bvar0 B 0)
+    (VExpr.inst_eq _ _).symm.trans (VExpr.inst_liftN_bvar B 0)
   rw [e0] at eC
   have hy0 : env.IsDefEq U (A :: Γ) (.bvar 0) y A.lift := ElCls.collapse henv hΔ h0 .self hy
   have hy0' : env.IsDefEq U (A :: Γ) y (.bvar 0) A'.lift := hdomw.defeqDF hy0.symm
   have hBw : env.HasType U (A'.lift :: A :: Γ) (B'.liftN 1 1) (.sort _) :=
     hB'.weakN henv (.succ (.zero [A]))
   have hBB := IsDefEq.instDF henv hΔ hBw hy0'
-  rw [VExpr.instN_bvar0] at hBB
+  rw [VExpr.inst_liftN_bvar] at hBB
   have e2 : (B'.liftN 1 1).subst (VExpr.Subst.id.cons y) = (B'.liftN 1 1).inst y :=
     (VExpr.inst_eq _ _).symm
   rw [e2] at eC

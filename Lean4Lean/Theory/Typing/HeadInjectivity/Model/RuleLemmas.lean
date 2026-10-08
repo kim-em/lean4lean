@@ -29,27 +29,20 @@ theorem VExpr.getAppFnArgs_mkApps_const :
     (VExpr.mkApps (.const n ls) as).getAppFnArgs = (.const n ls, as) := by
   rw [VExpr.getAppFnArgs, VExpr.getAppFnArgs_go_mkApps]; simp [VExpr.getAppFnArgs.go]
 
-theorem mkApps_const_inj (h : VExpr.mkApps (.const n ls) as = VExpr.mkApps (.const n' ls') as') :
-    n = n' ∧ ls = ls' ∧ as = as' := by
-  have := congrArg VExpr.getAppFnArgs h
-  rw [VExpr.getAppFnArgs_mkApps_const, VExpr.getAppFnArgs_mkApps_const] at this
-  simp only [Prod.mk.injEq, VExpr.const.injEq] at this
-  exact ⟨this.1.1, this.1.2, this.2⟩
-
 theorem wrapLams_pat_inj :
     ∀ {ds ds' : List VExpr} {as as' : List VExpr} {a a' : VExpr},
     VExpr.wrapLams ds (.mkApps (.const n ls) (as ++ [a])) =
       VExpr.wrapLams ds' (.mkApps (.const n' ls') (as' ++ [a'])) →
     ds = ds' ∧ n = n' ∧ ls = ls' ∧ as = as' ∧ a = a'
   | [], [], as, as', a, a', h => by
-    simp only [VExpr.wrapLams, List.foldr_nil, mkApps_concat] at h
+    simp only [VExpr.wrapLams, List.foldr_nil, VExpr.mkApps_snoc] at h
     injection h with h1 h2
-    obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj h1
+    obtain ⟨rfl, rfl, rfl⟩ := VExpr.mkApps_const_inj h1
     exact ⟨rfl, rfl, rfl, rfl, h2⟩
   | [], _ :: _, as, as', a, a', h => by
-    simp only [VExpr.wrapLams, List.foldr_nil, List.foldr_cons, mkApps_concat] at h; cases h
+    simp only [VExpr.wrapLams, List.foldr_nil, List.foldr_cons, VExpr.mkApps_snoc] at h; cases h
   | _ :: _, [], as, as', a, a', h => by
-    simp only [VExpr.wrapLams, List.foldr_nil, List.foldr_cons, mkApps_concat] at h; cases h
+    simp only [VExpr.wrapLams, List.foldr_nil, List.foldr_cons, VExpr.mkApps_snoc] at h; cases h
   | d :: ds, d' :: ds', as, as', a, a', h => by
     simp only [VExpr.wrapLams, List.foldr_cons] at h
     injection h with h1 h2

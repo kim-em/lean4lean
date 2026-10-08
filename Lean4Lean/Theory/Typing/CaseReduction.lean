@@ -199,26 +199,13 @@ def CaseApplicationMap (actual : Application) (f : VExpr → VExpr) : Applicatio
     (CaseApplicationMap actual fun e => e.liftN n k).expr = actual.expr.liftN n k := by
   simp [CaseApplicationMap, Application.expr, VExpr.liftN]
 
-private theorem case_lift'_mkApps (fn : VExpr) (args : List VExpr) :
-    (VExpr.mkApps fn args).lift' ρ = VExpr.mkApps (fn.lift' ρ) (args.map fun e => e.lift' ρ) := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons arg args ih => exact ih (.app fn arg)
-
 @[simp] theorem case_application_lift' (actual : Application) :
     (CaseApplicationMap actual fun e => e.lift' ρ).expr = actual.expr.lift' ρ := by
-  simp [CaseApplicationMap, Application.expr, VExpr.lift', case_lift'_mkApps]
+  simp [CaseApplicationMap, Application.expr, VExpr.lift', VExpr.lift'_mkApps]
 
 @[simp] theorem case_application_instN (actual : Application) :
     (CaseApplicationMap actual fun e => e.inst value k).expr = actual.expr.inst value k := by
   simp [CaseApplicationMap, Application.expr, VExpr.inst]
-
-private theorem spine_go_mkApps (fn : VExpr) (args rest : List VExpr) :
-    VExpr.getAppFnArgs.go (VExpr.mkApps fn args) rest =
-      VExpr.getAppFnArgs.go fn (args ++ rest) := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons arg args ih => exact ih (.app fn arg)
 
 private theorem spine_lift' (e : VExpr) :
     (e.lift' ρ).getAppFnArgs =
@@ -234,7 +221,7 @@ private theorem case_application_extract (actual : Application) :
     Application.extract actual.expr = some actual := by
   cases actual
   simp [Application.extract, Application.expr, VExpr.getAppFnArgs,
-    spine_go_mkApps, VExpr.getAppFnArgs.go]
+    VExpr.getAppFnArgs_go_mkApps, VExpr.getAppFnArgs.go]
 
 private theorem case_rebuild_spine (e : VExpr) :
     VExpr.mkApps e.getAppFnArgs.1 e.getAppFnArgs.2 = e := by
@@ -858,7 +845,7 @@ theorem IsCaseMajorPremise.lift' : IsCaseMajorPremise env (e.lift' ρ) ↔ IsCas
     exact ⟨schema, block, owner, levels, args', hl, he', by simpa [hargs] using hlen⟩
   · rintro ⟨schema, block, owner, levels, args, hl, rfl, hlen⟩
     exact ⟨schema, block, owner, levels, args.map (fun e => e.lift' ρ), hl,
-      case_lift'_mkApps _ _, by simpa using hlen⟩
+      VExpr.lift'_mkApps _ _ _, by simpa using hlen⟩
 
 theorem IsCaseMajorPremise.instN (H : IsCaseMajorPremise env e) :
     IsCaseMajorPremise env (e.inst value k) := by

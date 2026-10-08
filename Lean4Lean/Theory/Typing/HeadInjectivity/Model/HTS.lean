@@ -106,9 +106,6 @@ theorem mkApps_const_ne_bvar : VExpr.mkApps (.const c ls) args ≠ .bvar i := by
 theorem mkApps_const_ne_lam : VExpr.mkApps (.const c ls) args ≠ .lam A b := by
   intro h; rcases mkApps_const_inv h.symm with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
 
-theorem mkApps_const_ne_forallE : VExpr.mkApps (.const c ls) args ≠ .forallE A B := by
-  intro h; rcases mkApps_const_inv h.symm with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
-
 theorem HTS.sort' : HTS env U Δ Γ (.sort l) T :=
   .other (fun _ _ _ h => by rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
     (fun _ _ _ _ h => by rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
@@ -365,7 +362,7 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
     · exact absurd he.symm mkApps_elim_ne_lam
   | forallE =>
     rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩
-    · exact absurd he.symm mkApps_const_ne_forallE
+    · exact absurd he.symm VExpr.mkApps_const_ne_forallE
     · exact absurd he.symm mkApps_elim_ne_forallE
   | proj =>
     rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;>

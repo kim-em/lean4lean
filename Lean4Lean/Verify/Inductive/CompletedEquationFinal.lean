@@ -37,7 +37,7 @@ theorem VExpr.applyForallType_wrapForalls_liftN
               (result.liftN (domains.length + 1) 0)).inst arg) args = result
           rw [VExpr.inst_wrapForalls]
           simp only [Nat.zero_add]
-          rw [VExpr.liftN_succ_inst_at_length]
+          rw [VExpr.inst_liftN_lo]
           simpa only [VExpr.instForallDomains_length] using
             ih (VExpr.instForallDomains domains arg 0) result (by
               simpa using htail)

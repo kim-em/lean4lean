@@ -65,4 +65,48 @@ theorem VExpr.wrapForalls_inj_of_length :
     have := VExpr.wrapForalls_inj_of_length (by simpa using hl) h2
     exact ⟨by rw [h1, this.1], this.2⟩
 
+theorem VExpr.mkApps_append (f : VExpr) (l₁ l₂ : List VExpr) :
+    VExpr.mkApps f (l₁ ++ l₂) = VExpr.mkApps (VExpr.mkApps f l₁) l₂ := by
+  simp [VExpr.mkApps, List.foldl_append]
+
+theorem VExpr.mkApps_snoc (f : VExpr) (l : List VExpr) (b : VExpr) :
+    VExpr.mkApps f (l ++ [b]) = .app (VExpr.mkApps f l) b := by
+  induction l generalizing f with
+  | nil => rfl
+  | cons a l ih => exact ih (.app f a)
+
+theorem VExpr.lift'_mkApps (fn : VExpr) (args : List VExpr) (ρ : Lift) :
+    (VExpr.mkApps fn args).lift' ρ = VExpr.mkApps (fn.lift' ρ) (args.map (·.lift' ρ)) := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons a args ih => exact ih (.app fn a)
+
+theorem VExpr.getAppFnArgs_go_mkApps (f : VExpr) :
+    ∀ (args acc : List VExpr), VExpr.getAppFnArgs.go (VExpr.mkApps f args) acc =
+      VExpr.getAppFnArgs.go f (args ++ acc)
+  | [], _ => rfl
+  | a :: as, acc => by
+    rw [show VExpr.mkApps f (a :: as) = VExpr.mkApps (.app f a) as from rfl,
+      VExpr.getAppFnArgs_go_mkApps _ as acc]
+    rfl
+
+theorem VExpr.mkApps_const_inj
+    (H : VExpr.mkApps (.const n ls) as = VExpr.mkApps (.const n' ls') as') :
+    n = n' ∧ ls = ls' ∧ as = as' := by
+  have h := congrArg (VExpr.getAppFnArgs.go · []) H
+  simp only [VExpr.getAppFnArgs_go_mkApps, List.append_nil, VExpr.getAppFnArgs.go] at h
+  cases h; exact ⟨rfl, rfl, rfl⟩
+
+theorem VExpr.mkApps_const_ne_forallE : VExpr.mkApps (.const n ls) args ≠ .forallE A t :=
+  VExpr.mkApps_ne_forallE (fun _ _ h => by cases h) args
+
+theorem VExpr.liftN_wrapForalls_sort (domains : List VExpr) (level : VLevel) (n k : Nat) :
+    ∃ domains', (VExpr.wrapForalls domains (.sort level)).liftN n k =
+      VExpr.wrapForalls domains' (.sort level) := by
+  induction domains generalizing k with
+  | nil => exact ⟨[], rfl⟩
+  | cons domain domains ih =>
+    obtain ⟨domains', hd⟩ := ih (k + 1)
+    exact ⟨domain.liftN n k :: domains', congrArg (VExpr.forallE (domain.liftN n k)) hd⟩
+
 end Lean4Lean

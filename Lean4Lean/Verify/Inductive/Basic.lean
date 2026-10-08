@@ -856,11 +856,6 @@ theorem VExpr.liftN_mkApps
   | cons arg args ih =>
     simpa [VExpr.mkApps, VExpr.liftN] using ih (.app fn arg)
 
-theorem VExpr.mkApps_append (fn : VExpr) (initial suffix : List VExpr) :
-    VExpr.mkApps fn (initial ++ suffix) =
-      VExpr.mkApps (VExpr.mkApps fn initial) suffix := by
-  simp [VExpr.mkApps, List.foldl_append]
-
 /-- Applying all canonical variables factors through the canonical
 application of any older initial block, weakened below the remaining suffix. -/
 theorem VExpr.mkApps_canonical_add
@@ -902,11 +897,11 @@ theorem VEnv.HasType.mkApps_wrapForalls_canonical
     have hfirst' : VEnv.HasType env uvars (domain :: ctx)
         (.app (fn.liftN 1 0) (.bvar 0))
         (VExpr.wrapForalls domains body) := by
-      simpa [VExpr.wrapForalls, VExpr.liftN, VExpr.instN_bvar0] using hfirst
+      simpa [VExpr.wrapForalls, VExpr.liftN, VExpr.inst_liftN_bvar] using hfirst
     have hrest := ih hfirst'
     simpa [VExpr.wrapForalls, VExpr.mkApps, List.range_succ,
       List.reverse_cons, List.append_assoc, VExpr.liftN,
-      VExpr.instN_bvar0, VExpr.liftN_liftN, Nat.add_comm] using hrest
+      VExpr.inst_liftN_bvar, VExpr.liftN_liftN, Nat.add_comm] using hrest
 
 /-- Applying only an initial segment of a dependent telescope leaves the
 remaining suffix as the type of the canonical partial application. -/
@@ -1282,15 +1277,6 @@ theorem VExpr.inst_mkApps
   | cons head tail ih =>
     simpa [VExpr.mkApps, VExpr.inst] using ih (.app fn head)
 
-theorem VExpr.liftN_succ_inst_at_length
-    (fn arg : VExpr) (n : Nat) :
-    (fn.liftN (n + 1) 0).inst arg n = fn.liftN n 0 := by
-  rw [show fn.liftN (n + 1) 0 =
-      (fn.liftN n 0).liftN 1 n by
-    simpa [Nat.add_comm] using
-      (VExpr.liftN'_liftN_lo fn 1 n).symm]
-  exact VExpr.inst_liftN (fn.liftN n 0) arg
-
 @[simp] theorem recursorCanonicalVars_inst_at_length
     (n : Nat) (arg : VExpr) :
     (recursorCanonicalVars n).map (fun e => e.inst arg n) =
@@ -1312,7 +1298,7 @@ theorem VExpr.inst_canonicalResult
         (recursorCanonicalVars n) := by
   rw [VExpr.inst_mkApps, recursorCanonicalVars_succ_cons,
     List.map_cons, recursorCanonicalVars_inst_at_length,
-    VExpr.liftN_succ_inst_at_length]
+    VExpr.inst_liftN_lo]
   simp [VExpr.mkApps, VExpr.inst, VExpr.instVar, VExpr.liftN]
 
 /-- Opening a canonical result spine and substituting one argument for each
@@ -1530,7 +1516,7 @@ theorem RecursorMotiveTelescope.applyMajorTyped
         have Htail'' : RecursorMotiveTelescope resultLevel args.length
             (.app family arg) (familyBody.inst arg)
             (motiveBody.inst arg) := by
-          simpa [VExpr.inst, VExpr.instN_bvar0, VExpr.inst_liftN] using Htail'
+          simpa [VExpr.inst, VExpr.inst_liftN_bvar, VExpr.inst_liftN] using Htail'
         exact ih Htail'' Hfamily' Hmotive' Hmajor
 
 @[simp] theorem VExpr.getAppFnArgs_mkApps_bvar
@@ -1543,16 +1529,6 @@ theorem VExpr.IsFieldApp.mkApps
     (hfield : field ∈ fieldVars) (args : List VExpr) :
     (VExpr.mkApps (.bvar (field + depth)) args).IsFieldApp fieldVars depth := by
   exact ⟨field, hfield, args, VExpr.getAppFnArgs_mkApps_bvar _ _⟩
-
-theorem VExpr.lift'_mkApps
-    (fn : VExpr) (args : List VExpr) (shift : Lift) :
-    (VExpr.mkApps fn args).lift' shift =
-      VExpr.mkApps (fn.lift' shift)
-        (args.map fun arg => arg.lift' shift) := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons arg args ih =>
-    simpa [VExpr.mkApps] using ih (.app fn arg)
 
 theorem VExpr.IsFieldApp.lift
     {e : VExpr}

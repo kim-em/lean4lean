@@ -103,11 +103,6 @@ theorem TeleKeys.snoc {σ σ₁ : VExpr.Subst} {S S₁ : ObSets} {ds : List VExp
   | nil => exact .cons hc hy hK hb .nil
   | cons hc' hy' hK' hb' _ ih => exact .cons hc' hy' hK' hb' (ih hc hK)
 
-private theorem snoc_of_length' {α : Type} {l : List α} {n : Nat} (h : l.length = n + 1) :
-    ∃ l' x, l = l' ++ [x] ∧ l'.length = n :=
-  ⟨l.dropLast, l.getLast (by intro h'; simp [h'] at h),
-    (List.dropLast_concat_getLast _).symm, by simp [h]⟩
-
 /-- The induction of `tele_compact`, on the length of the telescope. -/
 theorem tele_compact_aux :
     ∀ (n : Nat) {D as : List VExpr} {Sx : ObSets}, D.length = n →
@@ -133,8 +128,8 @@ theorem tele_compact_aux :
     refine ⟨[], .empty, .nil, rfl, fun m k hk => by simp at hk, fun i k hk => by simp at hk⟩
   | succ n ih =>
     intro D as Sx hn hcl has W tv F hF hFS
-    obtain ⟨D', A, rfl, hD'⟩ := snoc_of_length' hn
-    obtain ⟨as', a, rfl, has'⟩ := snoc_of_length' (has.trans hn)
+    obtain ⟨D', A, rfl, hD'⟩ := List.exists_snoc_of_length_succ hn
+    obtain ⟨as', a, rfl, has'⟩ := List.exists_snoc_of_length_succ (has.trans hn)
     simp only [List.length_append, List.length_singleton, hD', Nat.add_sub_cancel] at hF hFS ⊢
     rw [VExpr.argSubst_append_one] at W tv ⊢
     simp only [List.reverse_append, List.reverse_cons, List.reverse_nil, List.nil_append,

@@ -332,7 +332,7 @@ theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
     obtain ⟨rule', hgen', hreq'⟩ := CaseSchema.generates_of_genericEquation hr hm
     obtain ⟨fn', ls', args', hm'⟩ := generates_major hgen'
     rw [hreq', hmaj] at hm'
-    obtain ⟨hc, -, -⟩ := mkApps_const_inj (VExpr.app.inj hm').2
+    obtain ⟨hc, -, -⟩ := VExpr.mkApps_const_inj (VExpr.app.inj hm').2
     exact ⟨key, schema, owner, rule', .inl ⟨rfl, rfl⟩, hgen', hc.symm⟩
   have htypesE : ∀ t ∈ source.types, env.constants t.name = some t.toVConstant := fun t ht =>
     hconsts t.toVConstVal (List.mem_append_left _ (by rw [C.types]; exact List.mem_map_of_mem ht))

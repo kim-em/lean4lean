@@ -820,7 +820,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
           exact hcn'.symm.trans hcn
   subst hdf_eq
   obtain ⟨rfl, -, -, rfl, emaj⟩ := wrapLams_pat_inj (hl''.symm.trans hl)
-  obtain ⟨rfl, rfl, emargs⟩ := mkApps_const_inj emaj
+  obtain ⟨rfl, rfl, emargs⟩ := VExpr.mkApps_const_inj emaj
   obtain ⟨-, rfl⟩ := wrapLams_inj_len rfl (hr''.symm.trans hr)
   -- closedness
   have hbcl : (body''.instL ls).ClosedN doms''.length := by

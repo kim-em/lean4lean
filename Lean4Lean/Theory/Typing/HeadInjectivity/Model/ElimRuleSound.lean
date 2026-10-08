@@ -48,16 +48,16 @@ theorem wrapLams_pat_inj_elim :
       VExpr.wrapLams ds' (.mkApps (.elim b o ls') (as' ++ [a'])) →
     ds = ds' ∧ ls = ls' ∧ as = as' ∧ a = a'
   | [], [], as, as', a, a', h => by
-    simp only [VExpr.wrapLams, List.foldr_nil, mkApps_concat] at h
+    simp only [VExpr.wrapLams, List.foldr_nil, VExpr.mkApps_snoc] at h
     injection h with h1 h2
     have := congrArg VExpr.getAppFnArgs h1
     rw [VExpr.getAppFnArgs_mkApps_elim, VExpr.getAppFnArgs_mkApps_elim] at this
     simp only [Prod.mk.injEq, VExpr.elim.injEq] at this
     exact ⟨rfl, this.1.2.2, this.2, h2⟩
   | [], _ :: _, as, as', a, a', h => by
-    simp only [VExpr.wrapLams, List.foldr_nil, List.foldr_cons, mkApps_concat] at h; cases h
+    simp only [VExpr.wrapLams, List.foldr_nil, List.foldr_cons, VExpr.mkApps_snoc] at h; cases h
   | _ :: _, [], as, as', a, a', h => by
-    simp only [VExpr.wrapLams, List.foldr_nil, List.foldr_cons, mkApps_concat] at h; cases h
+    simp only [VExpr.wrapLams, List.foldr_nil, List.foldr_cons, VExpr.mkApps_snoc] at h; cases h
   | d :: ds, d' :: ds', as, as', a, a', h => by
     simp only [VExpr.wrapLams, List.foldr_cons] at h
     injection h with h1 h2
@@ -191,7 +191,7 @@ theorem pat_lhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
         exact hcn'.symm.trans hcn
   subst hdf_eq
   obtain ⟨rfl, -, rfl, emaj⟩ := wrapLams_pat_inj_elim (hl''.symm.trans hl)
-  obtain ⟨rfl, rfl, emargs⟩ := mkApps_const_inj emaj
+  obtain ⟨rfl, rfl, emargs⟩ := VExpr.mkApps_const_inj emaj
   obtain ⟨-, rfl⟩ := wrapLams_inj_len rfl (hr''.symm.trans hr)
   -- closedness
   have hbcl : (body''.instL ls).ClosedN doms''.length := by

@@ -40,15 +40,6 @@ theorem VExpr.wrapLams_mkApps_snoc_ne_const {ds as : List VExpr} {f a : VExpr} :
       List.foldl_cons, List.foldl_nil]
     nofun
 
-theorem VExpr.getAppFnArgs_go_mkApps (f : VExpr) :
-    ∀ (args acc : List VExpr), VExpr.getAppFnArgs.go (VExpr.mkApps f args) acc =
-      VExpr.getAppFnArgs.go f (args ++ acc)
-  | [], _ => rfl
-  | a :: as, acc => by
-    rw [show VExpr.mkApps f (a :: as) = VExpr.mkApps (.app f a) as from rfl,
-      VExpr.getAppFnArgs_go_mkApps _ as acc]
-    rfl
-
 theorem VExpr.stripLams_wrapLams (ds : List VExpr) (e : VExpr) :
     (VExpr.wrapLams ds e).stripLams = e.stripLams := by
   induction ds with

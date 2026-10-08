@@ -107,4 +107,9 @@ theorem List.property_of_mem_zipWith (f : α → β → γ) (P : γ → Prop)
       · exact hproperty a b
       · exact ih htail
 
+theorem List.exists_snoc_of_length_succ {α : Type _} {l : List α} {n : Nat}
+    (h : l.length = n + 1) : ∃ l' x, l = l' ++ [x] ∧ l'.length = n :=
+  ⟨l.dropLast, l.getLast (by intro h'; simp [h'] at h),
+    (List.dropLast_concat_getLast _).symm, by simp [h]⟩
+
 end Lean4Lean

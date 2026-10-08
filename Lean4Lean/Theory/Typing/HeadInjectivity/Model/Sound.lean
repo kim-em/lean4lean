@@ -694,7 +694,7 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
     replace he := he.mono hle
     replace he' := he'.mono hle
     replace hA' := hA'.mono hle
-    have e0 : (B.liftN 1 1).inst (.bvar 0) = B := VExpr.instN_bvar0 B 0
+    have e0 : (B.liftN 1 1).inst (.bvar 0) = B := VExpr.inst_liftN_bvar B 0
     have hb0 : env.IsDefEqStrong U (A :: Γ) (.bvar 0) (.bvar 0) A.lift := .bvar .zero h1 hA'
     have hbody : HTS env U Δ (A :: Γ) (.app e.lift (.bvar 0)) B := by
       have := HTS.app ⟨hA', ihA'.1⟩ ⟨hB', ihB'.1⟩ ihe'.2.1 he'.defeq.hasType.1

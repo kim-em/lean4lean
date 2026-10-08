@@ -658,7 +658,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
           obtain ⟨_, _, _, _, _, _, -, -, hl, -⟩ := g.restored_equation index
             (fun h hh => Nat.le_of_eq (C.restoration_nparams h hh)) (C.heads_not_recursors _) hres
           have hrigF := restored_family_rigid hF C hprior hbF hinst hle index hdfF
-            ⟨_, _, _, by rw [hl, VExpr.stripLams_wrapLams, Model.mkApps_concat]; rfl⟩
+            ⟨_, _, _, by rw [hl, VExpr.stripLams_wrapLams, VExpr.mkApps_snoc]; rfl⟩
           have hpm := Model.projMajor_restored hF C hprior h0 hinst hle hpc hprojV hbase'
             (h0le.trans hle) hpc0 V0.proj hTO hTF hsndT hbT htypesT index hres hrigF
           rcases C.family_origin s.constructors[index].owner with
@@ -703,7 +703,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
           -- the projection facts of the major
           have hrigF := restored_family_rigid hF C hprior hbF hinst hle index hdfF
             ⟨_, _, _, by rw [headName_nil, g.equation_lhs_eq, VExpr.stripLams_wrapLams,
-              Model.mkApps_concat]; rfl⟩
+              VExpr.mkApps_snoc]; rfl⟩
           have hpm := Model.projMajor_source hF C hprior h0 hinst hle hpc hprojV hTO hTF hsndT
             hbT htypesT index (ordinary_owner_lt C _) hrigF
           rw [headName_nil, headName_nil] at hpm

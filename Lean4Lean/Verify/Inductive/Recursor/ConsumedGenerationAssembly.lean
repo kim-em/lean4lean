@@ -929,15 +929,6 @@ theorem CompletedRecursorConstruction.recursorTelescope_minors_eq
 
 /-! ### Comparing induction hypothesis shapes -/
 
-theorem VExpr.liftN_liftN_comm (e : VExpr) (n m k j : Nat) (h : j ≤ k) :
-    (e.liftN n k).liftN m j = (e.liftN m j).liftN n (k + m) := by
-  induction e generalizing k j with simp [VExpr.liftN, *]
-  | bvar i =>
-    simp only [liftVar]
-    by_cases h1 : i < k <;> by_cases h2 : i < j <;> simp [h1, h2] <;> (try split) <;> (try split) <;> omega
-  | lam _ _ _ ih2 | forallE _ _ _ ih2 =>
-    rw [Nat.add_right_comm]
-
 
 theorem VExpr.forallArity_app (f a : VExpr) : (VExpr.app f a).forallArity = 0 := rfl
 

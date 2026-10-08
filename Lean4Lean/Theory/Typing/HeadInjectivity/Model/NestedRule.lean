@@ -151,7 +151,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
   -- the constructor and its family
   have hcisN : IsNativeCtor env
       ((compilationRestoration source aux).headName s.constructors[index].name) :=
-    ⟨_, hdf, _, _, _, by rw [hl, VExpr.stripLams_wrapLams, mkApps_concat]; rfl⟩
+    ⟨_, hdf, _, _, _, by rw [hl, VExpr.stripLams_wrapLams, VExpr.mkApps_snoc]; rfl⟩
   have hcis : IsCtor env ((compilationRestoration source aux).headName s.constructors[index].name) :=
     .inl hcisN
   obtain ⟨ci, hci', F, lsF, hF, -, hrigF⟩ := hcres _ hcisN
@@ -193,7 +193,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     obtain ⟨dsj, idxj, lsCj, msj, -, -, -, hidxj, hlj, -, -, -, -⟩ :=
       g.restored_equation j hparams (C.heads_not_recursors _) hrj
     obtain ⟨-, n2, -, l2, a2⟩ := wrapLams_pat_inj (hl'.symm.trans hlj)
-    obtain ⟨c2, -, -⟩ := mkApps_const_inj a2
+    obtain ⟨c2, -, -⟩ := VExpr.mkApps_const_inj a2
     have ho := C.restored_recursorName_inj n2
     have harj := C.model.constructorArity s.constructors[j] (by simp)
     have he := congrArg (fun o : Fin s.families.size => s.families[o].indices.length) ho
@@ -206,7 +206,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     · have := C.restored_ctor_inj hprior ho.symm (c2.symm.trans hc)
       subst this
       exact Option.some.inj (hrj.symm.trans hres)
-  obtain ⟨L', hpmL, hnzL'⟩ := hpm _ _ _ (by rw [hl, VExpr.stripLams_wrapLams, mkApps_concat]; rfl)
+  obtain ⟨L', hpmL, hnzL'⟩ := hpm _ _ _ (by rw [hl, VExpr.stripLams_wrapLams, VExpr.mkApps_snoc]; rfl)
   obtain ⟨envE, hE, hadm⟩ := C.admissible
   rcases hadm.elimination with hnz | hsmall | hsing
   · -- data families: mode C is impossible

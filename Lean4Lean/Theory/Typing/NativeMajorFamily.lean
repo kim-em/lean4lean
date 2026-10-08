@@ -271,15 +271,6 @@ theorem NativeRecursorData.recursorType_shape {data : NativeRecursorData}
     simp [insertBinders, NativeRecursorData.numIndices] at this ⊢
     omega
 
-private theorem liftN_forall_sort' (domains : List VExpr) (level : VLevel) (n k : Nat) :
-    ∃ domains', (VExpr.wrapForalls domains (.sort level)).liftN n k =
-      VExpr.wrapForalls domains' (.sort level) := by
-  induction domains generalizing k with
-  | nil => exact ⟨[], rfl⟩
-  | cons domain domains ih =>
-    obtain ⟨domains', hd⟩ := ih (k + 1)
-    exact ⟨domain.liftN n k :: domains', congrArg (VExpr.forallE (domain.liftN n k)) hd⟩
-
 /-- A saturated native recursor application has a type living in the
 native target universe. -/
 theorem NativeRecursorRegistered.result_sort {data : NativeRecursorData} (henv : env.WF)
@@ -332,7 +323,7 @@ theorem NativeRecursorRegistered.result_sort {data : NativeRecursorData} (henv :
       VExpr.wrapForalls (mds.map (·.instL ls)) (.sort (data.target.inst ls)) := by
     rw [List.getElem_map, (List.getElem?_eq_some_iff.mp hmot).2, VExpr.instL_wrapForalls]; rfl
   rw [hd] at hvar
-  obtain ⟨mds', hm'⟩ := liftN_forall_sort' (mds.map (·.instL ls)) (data.target.inst ls)
+  obtain ⟨mds', hm'⟩ := VExpr.liftN_wrapForalls_sort (mds.map (·.instL ls)) (data.target.inst ls)
     ((domains.map (·.instL ls)).length - (data.numParams + data.owner.val)) 0
   rw [hm'] at hvar
   have hidx : (domains.map (·.instL ls)).length - 1 - (data.numParams + data.owner.val) =

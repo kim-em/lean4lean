@@ -3,7 +3,7 @@ import Batteries.Tactic.OpenPrivate
 
 namespace Lean4Lean.QuotPrefixProgram
 open VExpr InductiveSignature InductiveSignature.NativeRecursorData
-open private liftN_lift'_consN vars_lift'_consN mkApps_lift'
+open private liftN_lift'_consN vars_lift'_consN
   from Lean4Lean.Theory.Typing.NativePrefixRenaming
 
 private theorem getD_map_lift' (args : List VExpr) (i : Nat) (ρ : Lift) :
@@ -37,14 +37,13 @@ theorem generate_rename {levels : List VLevel}
   simp only [List.map_map, Function.comp_def]
   rw [hall]
   simp only [getD_map_lift']
-  simp only [mkApps_lift', List.map_cons, List.map_nil, List.map_append,
+  simp only [VExpr.lift'_mkApps, List.map_cons, List.map_nil, List.map_append,
     List.map_take, VExpr.lift', (witness_closed _).lift'_eq Lift.Fixes.zero, and_self]
 
 end Lean4Lean.QuotPrefixProgram
 
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature.NativeRecursorData
-open private native_mkApps_lift' from Lean4Lean.Theory.Typing.NativePrefixWeakening
 
 theorem QuotDeltaRule.weak' {levels : List VLevel} (henv : env.WF)
     (W : Ctx.Lift' ρ Γ Γ') (H : QuotDeltaRule env U Γ levels args rhs) :
@@ -53,7 +52,7 @@ theorem QuotDeltaRule.weak' {levels : List VLevel} (henv : env.WF)
   | intro hr hw hz hg replay =>
     have hg' := QuotPrefixProgram.generate_rename (ρ := ρ) hg
     have replay' := replay.weak' henv W
-    rw [native_mkApps_lift'] at replay'
+    rw [VExpr.lift'_mkApps] at replay'
     rw [← PrefixProgram.rename_rhs (replay.templateScope henv).2.1]
     exact .intro hr hw hz hg' replay'
 

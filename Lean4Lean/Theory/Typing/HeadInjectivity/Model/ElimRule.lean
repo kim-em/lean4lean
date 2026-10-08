@@ -258,7 +258,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       omega
     rw [h0', Nat.add_zero] at hlj
     obtain ⟨-, -, l2, a2⟩ := wrapLams_pat_inj_elim (hl'.symm.trans hlj)
-    obtain ⟨c2, -, -⟩ := mkApps_const_inj a2
+    obtain ⟨c2, -, -⟩ := VExpr.mkApps_const_inj a2
     obtain ⟨i', hio', hvc'⟩ := schema.view_ctor owner j'
     have hvi' : ((schema.view owner).constructors[j']).indices =
         schema.signature.constructors[i'].indices := by rw [hvc']; rfl
@@ -292,7 +292,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
         ((schema.specialize owner schema.genericUvars schema.genericLevels (.param 0)).targetLevel ::
           (schema.specialize owner schema.genericUvars schema.genericLevels (.param 0)).levels))
         leadE) (VExpr.mkApps (.const cE lsC') (ms' ++ (eqFs j).map .bvar)) := by
-      rw [hl, VExpr.stripLams_wrapLams, mkApps_concat]; rfl
+      rw [hl, VExpr.stripLams_wrapLams, VExpr.mkApps_snoc]; rfl
     obtain ⟨i', hown', hview', e, he, hR⟩ := generic_major_at hres hm
     have hF : (eqFs j).length = schema.signature.constructors[i'].fields.length := by
       simp only [eqFs, List.length_reverse, List.length_range, hview']

@@ -1035,8 +1035,8 @@ theorem IsDefEq.defeqDF_l' (henv : Ordered env) (h1 : env.IsDefEq U Γ A A' (.so
     | nil => exact ⟨_, .succ (.one (A := A')), .zero⟩
     | cons B Δ ih =>
       have ⟨Γ', h1, h2⟩ := ih
-      exact ⟨_, .succ h1, by simpa [instN_bvar0] using h2.succ (A := liftN 1 B (Δ.length + 1))⟩
-  simpa [instN_bvar0] using
+      exact ⟨_, .succ h1, by simpa [VExpr.inst_liftN_bvar] using h2.succ (A := liftN 1 B (Δ.length + 1))⟩
+  simpa [VExpr.inst_liftN_bvar] using
     instN henv (h1.weakN henv (.one (A := A')) |>.symm.defeq (.bvar .zero)) H2 (.weakN henv H1 h2)
 
 theorem IsDefEq.defeqDF_l (henv : Ordered env) (h1 : env.IsDefEq U Γ A A' (.sort u))

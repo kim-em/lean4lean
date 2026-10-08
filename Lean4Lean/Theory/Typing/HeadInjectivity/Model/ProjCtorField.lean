@@ -30,11 +30,6 @@ local notation "Obs'" => Obs env U Δ
 
 /-! ## Generic lemmas -/
 
-theorem snoc_of_len {α : Type} {l : List α} {n : Nat} (h : l.length = n + 1) :
-    ∃ l' x, l = l' ++ [x] ∧ l'.length = n :=
-  ⟨l.dropLast, l.getLast (by intro h'; simp [h'] at h),
-    (List.dropLast_concat_getLast _).symm, by simp [h]⟩
-
 /-- Winding up typed keys with a class-free innermost observation. -/
 theorem tele_wind0 (h : TeleKeys env U Δ σ S ds keys σ' S') {R : VExpr} :
     ∀ {o : Ob} {τc : List Ob}, (∀ τ ∈ τc, Obs' σ' S' R τ) → (∀ cv, TypedOb env U Δ cv o τc) →
@@ -145,7 +140,7 @@ theorem substEq_take {Ds : List VExpr} :
   | snoc as a ih =>
     intro bs hl hD W m hm
     obtain ⟨bs', b, rfl, hb⟩ : ∃ bs' b, bs = bs' ++ [b] ∧ bs'.length = as.length := by
-      obtain ⟨bs', b, e, h⟩ := snoc_of_len (l := bs) (n := as.length) (by simp at hl; omega)
+      obtain ⟨bs', b, e, h⟩ := List.exists_snoc_of_length_succ (l := bs) (n := as.length) (by simp at hl; omega)
       exact ⟨bs', b, e, h⟩
     simp only [List.length_append, List.length_singleton] at hD hm W
     by_cases hm' : m = as.length + 1
@@ -582,7 +577,7 @@ theorem HTS.spineCod (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.c
   | bvar => exact absurd he.symm mkApps_const_ne_bvar
   | other h => exact absurd he (h _ _ _)
   | lam => exact absurd he.symm mkApps_const_ne_lam
-  | forallE => exact absurd he.symm mkApps_const_ne_forallE
+  | forallE => exact absurd he.symm VExpr.mkApps_const_ne_forallE
   | proj => rcases mkApps_inv he with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
   | elim => rcases mkApps_inv he with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
   | @const _ ci' _ _ _ hci hls hlen hT hsd =>

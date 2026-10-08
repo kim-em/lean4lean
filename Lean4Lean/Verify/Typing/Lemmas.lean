@@ -2368,7 +2368,7 @@ theorem TrExprS.inst_fvar {Δ : VLCtx} (henv : Ordered env)
   match d with
   | .vlam A₀ =>
     have := this.inst henv (.bvar .zero) (Δ := (some (a, deps), .vlam _) :: Δ) hf
-    rwa [VLocalDecl.depth, VExpr.instN_bvar0] at this
+    rwa [VLocalDecl.depth, VExpr.inst_liftN_bvar] at this
   | .vlet A₀ e₀ =>
     simp [VLocalDecl.depth, VLocalDecl.liftN] at this
     exact this.inst_let henv hf

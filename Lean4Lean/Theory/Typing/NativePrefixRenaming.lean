@@ -79,12 +79,6 @@ private theorem vars_lift'_consN (n : Nat) (ρ : Lift) :
 
 private theorem vars_length (n k : Nat) : (vars n k).length = n := by simp [vars]
 
-private theorem mkApps_lift' (fn : VExpr) (args : List VExpr) :
-    (mkApps fn args).lift' ρ = mkApps (fn.lift' ρ) (args.map (·.lift' ρ)) := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons arg args ih => exact ih (.app fn arg)
-
 theorem singletonProgram_lift' {data : NativeRecursorData} {nativeType : VExpr} {env : VEnv}
     {packed : List VLevel} (henv : env.WF) (hr : VEnv.NativeRecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)

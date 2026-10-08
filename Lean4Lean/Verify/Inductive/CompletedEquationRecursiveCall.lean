@@ -657,7 +657,7 @@ theorem TrExprS.mkAppList_fvarPrefix {env : VEnv} {Us : List Name}
     refine ⟨?_, ?_⟩
     · simpa [Expr.mkAppList, List.reverse_cons, List.map_append,
         Expr.mkAppList_append, hvars] using happ
-    · simpa [hvars, VExpr.instN_bvar0] using happTy
+    · simpa [hvars, VExpr.inst_liftN_bvar] using happTy
 
 /-- Shared cached-target frame for every semantic argument of one recursive
 call.  Locals and fields are closed from a single dependency-selected core;

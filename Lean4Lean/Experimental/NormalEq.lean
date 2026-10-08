@@ -428,7 +428,7 @@ theorem NormalEq.weakN_inv_DFC (W : Ctx.LiftN n k Γ Γ₂) (W₂ : IsDefEqCtx T
     have hA' := TY.isDefEq_DFC W₂ hA
     have hB' := TY.isDefEq_DFC (W₂.succ (TY.refl hA)) hB
     have := TY.app (h1'.weakN .one) (TY.bvar .zero)
-    rw [instN_bvar0, ← lift, lift_liftN',
+    rw [VExpr.inst_liftN_bvar, ← lift, lift_liftN',
       ← show liftN n (.bvar 0) (k+1) = bvar 0 by simp [liftN],
       ← liftN] at this
     have ⟨C, hC⟩ := TY.isDefEq_weakN_inv W.succ this
@@ -443,7 +443,7 @@ theorem NormalEq.weakN_inv_DFC (W : Ctx.LiftN n k Γ Γ₂) (W₂ : IsDefEqCtx T
     have hA' := TY.isDefEq_DFC W₂ hA
     have hB' := TY.isDefEq_DFC (W₂.succ (TY.refl hA)) hB
     have := TY.app (h1'.weakN .one) (TY.bvar .zero)
-    rw [instN_bvar0, ← lift, lift_liftN',
+    rw [VExpr.inst_liftN_bvar, ← lift, lift_liftN',
       ← show liftN n (.bvar 0) (k+1) = bvar 0 by simp [liftN],
       ← liftN] at this
     have ⟨C, hC⟩ := TY.isDefEq_weakN_inv W.succ this

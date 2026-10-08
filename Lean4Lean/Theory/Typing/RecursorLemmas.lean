@@ -78,20 +78,6 @@ theorem instOuter_eq_subst (body : VExpr) (args : List VExpr) :
         congr 1
         omega
 
-/-- Two substitutions agreeing below the closure bound act identically. -/
-theorem subst_congr_closedN {e : VExpr} (he : e.ClosedN k) {σ σ' : Subst}
-    (h : ∀ i < k, σ i = σ' i) : e.subst σ = e.subst σ' := by
-  induction e generalizing k σ σ' with (simp [ClosedN] at he; simp only [subst])
-  | bvar i => exact h _ he
-  | app _ _ ih1 ih2 => rw [ih1 he.1 h, ih2 he.2 h]
-  | proj _ _ _ ihe => rw [ihe he h]
-  | lam _ _ ih1 ih2 | forallE _ _ ih1 ih2 =>
-    rw [ih1 he.1 h, ih2 he.2 (σ' := σ'.lift)]
-    intro i hi
-    cases i with
-    | zero => rfl
-    | succ i => simp only [Subst.lift]; rw [h i (by omega)]
-
 def Subst.shift (n : Nat) : Subst := fun i => .bvar (i + n)
 
 theorem liftN_eq_subst (e : VExpr) (n : Nat) :
@@ -938,10 +924,6 @@ theorem _root_.Lean4Lean.List.forall₂_symm {R : α → α → Prop} (hR : ∀ 
   induction h with
   | nil => exact .nil
   | cons h _ ih => exact .cons (hR _ _ h) ih
-
-theorem _root_.Lean4Lean.VExpr.mkApps_append (f : VExpr) (l₁ l₂ : List VExpr) :
-    VExpr.mkApps f (l₁ ++ l₂) = VExpr.mkApps (VExpr.mkApps f l₁) l₂ := by
-  simp [VExpr.mkApps, List.foldl_append]
 
 /-- Iota reduction from a supplied typing of the rule arguments along the rule telescope.
 This form does not use context strengthening. -/

@@ -7,12 +7,6 @@ replay premises. The fresh remaining telescope is renamed under its binders. -/
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature InductiveSignature.NativeRecursorData
 
-private theorem native_mkApps_lift' (fn : VExpr) (args : List VExpr) :
-    (VExpr.mkApps fn args).lift' ρ = VExpr.mkApps (fn.lift' ρ) (args.map (·.lift' ρ)) := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons a args ih => exact ih (.app fn a)
-
 private theorem native_lift_lift' (e : VExpr) (ρ : Lift) :
     (e.lift' ρ).lift = e.lift.lift' ρ.cons := by
   simp only [← lift'_consN_skipN (k := 0), Lift.consN]
@@ -25,7 +19,7 @@ theorem NativeSpineMatch.weak' (henv : env.WF)
     NativeSpineMatch env U Γ' (actual.lift' ρ) (expected.lift' ρ) := by
   obtain ⟨name, levels, levels', args, args', rfl, rfl, hw, hw', heq, hargs⟩ := H
   refine ⟨name, levels, levels', args.map (·.lift' ρ), args'.map (·.lift' ρ),
-    native_mkApps_lift' _ _, native_mkApps_lift' _ _, hw, hw', heq, ?_⟩
+    VExpr.lift'_mkApps _ _ _, VExpr.lift'_mkApps _ _ _, hw, hw', heq, ?_⟩
   apply List.forall₂_map_left_iff.mpr
   apply List.forall₂_map_right_iff.mpr
   induction hargs with
@@ -108,7 +102,7 @@ theorem NativeDeltaRule.weak' {name : Name} {levels : List VLevel} (henv : env.W
     obtain ⟨type, htype⟩ := hex
     have hg' := singletonProgram_lift' henv hr ht hz htype (hr.recursorType_closed henv htype) hg (ρ := ρ)
     have replay' := replay.weak' henv W
-    rw [native_mkApps_lift'] at replay'
+    rw [VExpr.lift'_mkApps] at replay'
     rw [← PrefixProgram.rename_rhs (replay.templateScope henv).2.1]
     exact .intro hl hr hn ht hw hz hg' replay'
 

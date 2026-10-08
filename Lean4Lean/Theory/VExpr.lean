@@ -126,6 +126,15 @@ theorem liftN'_comm (e : VExpr) (n1 n2 k1 k2 : Nat) (h : k2 ≤ k1) :
       rw [if_neg (mt (Nat.lt_of_le_of_lt (Nat.le_add_left _ n1)) this),
         if_neg this, if_neg (mt (Nat.add_lt_add_iff_left ..).1 h'), Nat.add_left_comm]
 
+theorem liftN_liftN_comm (e : VExpr) (n m k j : Nat) (h : j ≤ k) :
+    (e.liftN n k).liftN m j = (e.liftN m j).liftN n (k + m) := by
+  induction e generalizing k j with simp [VExpr.liftN, *]
+  | bvar i =>
+    simp only [liftVar]
+    by_cases h1 : i < k <;> by_cases h2 : i < j <;> simp [h1, h2] <;> (try split) <;> (try split) <;> omega
+  | lam _ _ _ ih2 | forallE _ _ _ ih2 =>
+    rw [Nat.add_right_comm]
+
 theorem lift_liftN' (e : VExpr) (k : Nat) : lift (liftN n e k) = liftN n (lift e) (k+1) :=
   Nat.add_comm .. ▸ liftN'_comm (h := Nat.zero_le _) ..
 
@@ -666,11 +675,6 @@ theorem inst_inst_lo (e1 e2 e3 : VExpr) (k j : Nat) :
   | bvar i => apply inst_instVar_lo
   | _ => rename_i IH; exact IH (j+1)
 
-theorem instN_bvar0 (e : VExpr) (k : Nat) :
-    inst (e.liftN 1 (k+1)) (.bvar 0) k = e := by
-  induction e generalizing k with simp [liftN, inst, *]
-  | bvar i => induction i generalizing k <;> cases k <;> simp [*, lift, liftN]
-
 end VExpr
 
 inductive Lift : Type where
@@ -1026,6 +1030,20 @@ theorem Subst.Fixes.zero : Fixes σ 0 := nofun
 theorem Subst.Fixes.lift {σ : Subst} (H : σ.Fixes n) : σ.lift.Fixes (n + 1) := fun
   | 0, _ => rfl
   | n+1, h => by simp [Subst.lift, H _ (Nat.lt_of_succ_lt_succ h), VExpr.lift, VExpr.liftN]
+
+/-- Two substitutions agreeing below the closure bound act identically. -/
+theorem subst_congr_closedN {e : VExpr} (he : e.ClosedN k) {σ σ' : Subst}
+    (h : ∀ i < k, σ i = σ' i) : e.subst σ = e.subst σ' := by
+  induction e generalizing k σ σ' with (simp [ClosedN] at he; simp only [subst])
+  | bvar i => exact h _ he
+  | app _ _ ih1 ih2 => rw [ih1 he.1 h, ih2 he.2 h]
+  | proj _ _ _ ihe => rw [ihe he h]
+  | lam _ _ ih1 ih2 | forallE _ _ ih1 ih2 =>
+    rw [ih1 he.1 h, ih2 he.2 (σ' := σ'.lift)]
+    intro i hi
+    cases i with
+    | zero => rfl
+    | succ i => simp only [Subst.lift]; rw [h i (by omega)]
 
 theorem ClosedN.subst_eq {e : VExpr} (self : ClosedN e k) (h : σ.Fixes k) : e.subst σ = e := by
   induction e generalizing k σ with (simp [ClosedN] at self; simp [*, VExpr.subst])

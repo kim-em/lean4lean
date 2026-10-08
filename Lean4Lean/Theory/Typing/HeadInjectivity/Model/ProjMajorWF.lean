@@ -144,7 +144,7 @@ theorem generic_major_at {schema : CaseSchema} {owner : Fin schema.signature.fam
   obtain ⟨_, ⟨_, ⟨_, rfl, idx', _, rfl⟩, _, ⟨major', hmajor, _, rfl, rfl⟩, rfl⟩, hout⟩ := hl'
   simp only [List.append_nil, Instance.recursorHead, Restoration.expr.go,
     Option.some.injEq] at hout
-  rw [hel, EnvTables.stripLams_wrapLams', ← hout, EnvTables.mkApps_snoc] at hm
+  rw [hel, EnvTables.stripLams_wrapLams', ← hout, VExpr.mkApps_snoc] at hm
   have hmaj : major' = major := (VExpr.app.inj hm).2
   obtain ⟨sc, hsc, hown, hview⟩ := CaseSchema.view_constructor_origin index
   obtain ⟨jn, hjn, hjget⟩ := List.mem_iff_getElem.mp hsc
