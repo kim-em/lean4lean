@@ -45,7 +45,7 @@ declarations, under `Lean4Lean/Verify/Inductive`. `Theory/Typing/NativeIotaSound
 needs them, so they live here, in the Theory layer. No `Lean4Lean.Theory` module imports a
 `Lean4Lean.Verify` module. The proofs are unchanged. -/
 
--- from Lean4Lean/Verify/Inductive/Recursor/GeneratedShapes.lean
+-- from Lean4Lean/Verify/Inductive/Recursor/Signature/GeneratorShapes.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -61,7 +61,7 @@ theorem vars_eq_bvarRange (n below : Nat) :
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Recursor/GeneratedShapes.lean
+-- from Lean4Lean/Verify/Inductive/Recursor/Signature/GeneratorShapes.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -264,7 +264,7 @@ theorem Restoration.heads_find?_eq_none {r : Restoration} {name : Name}
   exact h (List.mem_map.mpr ⟨head, hmem, by simpa using heq⟩)
 end Lean4Lean.InductiveSignature
 
--- from Lean4Lean/Verify/Inductive/Recursor/RestoredRealization.lean
+-- from Lean4Lean/Verify/Inductive/Recursor/Entries/TrRestoredRecursorVal.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -279,7 +279,7 @@ structure RestoredFamilyHead where
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Recursor/RestoredRealization.lean
+-- from Lean4Lean/Verify/Inductive/Recursor/Entries/TrRestoredRecursorVal.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -293,7 +293,7 @@ def Restoration.restoredHeadName (r : Restoration) (name : Name) : Name :=
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Recursor/RestoredRealization.lean
+-- from Lean4Lean/Verify/Inductive/Recursor/Entries/TrRestoredRecursorVal.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature

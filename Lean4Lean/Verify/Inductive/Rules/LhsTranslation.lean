@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Rules.EquationWF
-import Lean4Lean.Verify.Inductive.RecursorMetadataRealization
-import Lean4Lean.Verify.Inductive.Recursor.ConsumedShapeTranslations
-import Lean4Lean.Verify.Inductive.Recursor.CanonicalConstructorIndices
+import Lean4Lean.Verify.Inductive.Recursor.Metadata
+import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursiveShapeTranslations
+import Lean4Lean.Verify.Inductive.Recursor.Signature.Constructors
 
 namespace Lean4Lean
 

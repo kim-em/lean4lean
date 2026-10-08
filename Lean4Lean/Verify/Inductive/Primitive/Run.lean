@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Primitive.Headers
 import Lean4Lean.Verify.Inductive.Primitive.ConstructorParams
-import Lean4Lean.Verify.Inductive.Recursor.ConsumeAlpha
+import Lean4Lean.Verify.Inductive.Recursor.Context.Unannotated
 
 namespace Lean4Lean
 

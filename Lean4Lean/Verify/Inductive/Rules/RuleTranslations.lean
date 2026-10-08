@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Rules.EquationList
 import Lean4Lean.Verify.Inductive.Rules.EquationWF
 import Lean4Lean.Verify.Inductive.Rules.LhsTranslation
-import Lean4Lean.Verify.Inductive.RecursorMetadataRealization
+import Lean4Lean.Verify.Inductive.Recursor.Metadata
 import Lean4Lean.Verify.Inductive.Rules.Translation
 
 /-! Assembly of the completed rule translation from the closed RHS translations.

@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Rules.Lhs
 import Lean4Lean.Verify.Inductive.Recursor.Check
-import Lean4Lean.Verify.Inductive.Recursor.ConsumedShapeTranslations
-import Lean4Lean.Verify.Inductive.RecursorMetadataRealization
+import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursiveShapeTranslations
+import Lean4Lean.Verify.Inductive.Recursor.Metadata
 
 /-! Well-formedness of the generator's equations for the consumed generation.
 
@@ -834,7 +834,6 @@ theorem
   by_cases hzero : A.rule.allArgs.size + A.rule.recursiveArgs.size = 0
   · exact A.canonicalZeroEquationFrame hzero
   · exact A.canonicalPositiveEquationFrame (Nat.pos_of_ne_zero hzero)
-
 
 /-! ### The generator's telescope against the production frame -/
 

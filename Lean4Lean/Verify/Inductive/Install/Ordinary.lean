@@ -2,7 +2,7 @@ import Lean4Lean.Verify.Inductive.Install.Formation
 import Lean4Lean.Verify.Inductive.Install.Lookups
 import Lean4Lean.Verify.Inductive.Rules.RuleTranslations
 import Lean4Lean.Verify.Inductive.Constructor.LiteralDisjoint
-import Lean4Lean.Verify.Inductive.Recursor.ConsumeAlpha
+import Lean4Lean.Verify.Inductive.Recursor.Context.Unannotated
 
 namespace Lean4Lean
 

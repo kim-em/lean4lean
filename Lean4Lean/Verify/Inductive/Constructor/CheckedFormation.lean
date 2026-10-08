@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Constructor.SourceSignature
 import Lean4Lean.Theory.Inductive.ConstructorArity
-import Lean4Lean.Verify.Inductive.Recursor.Structure
+import Lean4Lean.Verify.Inductive.Recursor.Binders.ParameterPrefixes
 import Lean4Lean.Verify.Inductive.Formation
 import Lean4Lean.Theory.Inductive.CaseProjNames
 import Lean4Lean.Theory.Typing.ProjNamesTyping
@@ -280,7 +280,6 @@ structure ConstructorBoundary (c : AddInductive.Context)
     isUnsafe decl headerVEnv ctorVEnv
 
 end Lean4Lean.VerifyInductive
-
 
 namespace Lean4Lean.VerifyInductive
 

@@ -1,5 +1,5 @@
-import Lean4Lean.Verify.Inductive.Recursor.GeneratedShapes
-import Lean4Lean.Verify.Inductive.Recursor.RestoredRealization
+import Lean4Lean.Verify.Inductive.Recursor.Signature.GeneratorShapes
+import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRestoredRecursorVal
 import Lean4Lean.Verify.Environment.RecursorAlignment
 import Lean4Lean.Theory.Inductive.Restoration
 import Lean4Lean.Theory.Typing.CaseReduction

@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Recursor.Check
-import Lean4Lean.Verify.Inductive.Recursor.ConsumedShapeTranslations
-import Lean4Lean.Verify.Inductive.Recursor.Realization
-import Lean4Lean.Verify.Inductive.Recursor.CanonicalMinorFields
+import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursiveShapeTranslations
+import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
+import Lean4Lean.Verify.Inductive.Recursor.Signature.MinorFields
 import Lean4Lean.Verify.Inductive.Rules.EquationWF
 import Lean4Lean.Verify.Inductive.Rules.LhsTranslation
 

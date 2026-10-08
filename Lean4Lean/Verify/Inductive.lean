@@ -6,10 +6,10 @@ import Lean4Lean.Verify.Inductive.Nested.ConcreteBoundary
 import Lean4Lean.Verify.Inductive.Nested.Mapping
 import Lean4Lean.Verify.Inductive.Nested.FormationEvidence
 import Lean4Lean.Verify.Inductive.Nested.Opening
-import Lean4Lean.Verify.Inductive.Recursor.Telescope
+import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope
 import Lean4Lean.Verify.Typing.EnvironmentRestriction
 import Lean4Lean.Verify.Inductive.Install.BlockCertificate
-import Lean4Lean.Verify.Inductive.Recursor.ReplayCompat
+import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldOpening
 import Lean4Lean.Verify.Inductive.Nested.OriginalHeaderSeedRebase
 import Lean4Lean.Verify.Inductive.Nested.GeneratedFamilySemantics
 import Lean4Lean.Verify.Inductive.Nested.PrimaryEquations
@@ -21,7 +21,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration
 import Lean4Lean.Verify.Typing.Lemmas
 import Lean4Lean.Verify.Inductive.Nested.EquationRestorationList
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
-import Lean4Lean.Verify.Inductive.Recursor.Rules
+import Lean4Lean.Verify.Inductive.Rules.RuleSyntax
 import Lean4Lean.Verify.Inductive.Nested.EquationRestorationBatch
 import Lean4Lean.Verify.Inductive.Primitive.Shape
 import Lean4Lean.Verify.Inductive.Primitive.Constants
@@ -37,4 +37,4 @@ import Lean4Lean.Verify.Inductive.Primitive.Extension
 import Lean4Lean.Verify.Inductive.Prelude.Eq
 import Lean4Lean.Verify.Inductive.Nested.FinalEnvironmentModels
 import Lean4Lean.Verify.Inductive.Dispatch
-import Lean4Lean.Verify.Inductive.Recursor.Realization
+import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal

@@ -1,5 +1,5 @@
-import Lean4Lean.Verify.Inductive.Recursor.Origins
-import Lean4Lean.Verify.Inductive.Recursor.Telescope
+import Lean4Lean.Verify.Inductive.Recursor.Binders.MinorAlignment
+import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope
 import Lean4Lean.Verify.Typing.EnvironmentRestriction
 
 namespace Lean4Lean

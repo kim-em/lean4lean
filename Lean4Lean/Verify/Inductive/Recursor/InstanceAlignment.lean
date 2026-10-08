@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Inductive.SignatureLemmas
 import Lean4Lean.Verify.Inductive.Install.BlockCertificate
-import Lean4Lean.Verify.Inductive.Recursor.Realization
-import Lean4Lean.Verify.Inductive.Recursor.GeneratedShapes
+import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
+import Lean4Lean.Verify.Inductive.Recursor.Signature.GeneratorShapes
 import Lean4Lean.Theory.Inductive.NativeIotaRestoration
 
 /-! Operational alignment from a joint ordinary compilation witness.

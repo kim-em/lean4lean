@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
-import Lean4Lean.Verify.Inductive.Recursor.Telescope
+import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope
 import Lean4Lean.Verify.Typing.ProjectionRelation
 import Lean4Lean.Inductive.Add
 

@@ -4,9 +4,9 @@ import Lean4Lean.Verify.Inductive.Nested.Replacement
 import Lean4Lean.Verify.Inductive.Nested.Restoration
 import Lean4Lean.Verify.Typing.Lemmas
 import Lean4Lean.Verify.Inductive.Install.BlockCertificate
-import Lean4Lean.Verify.Inductive.Recursor.ReplayCompat
+import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldOpening
 import Lean4Lean.Verify.Inductive.Header.Telescope
-import Lean4Lean.Verify.Inductive.Recursor.Rules
+import Lean4Lean.Verify.Inductive.Rules.RuleSyntax
 
 namespace Lean4Lean
 

@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.GeneratedFamilyConstruction
 import Lean4Lean.Verify.Inductive.Nested.LoweringTrace
 import Lean4Lean.Verify.Inductive.Nested.GeneratedQueueOrigins
-import Lean4Lean.Verify.Inductive.Recursor.TelescopeApplication
+import Lean4Lean.Verify.Inductive.Recursor.Context.TelescopeApplication
 import Lean4Lean.Verify.TypeChecker.WHNF
 
 namespace Lean4Lean

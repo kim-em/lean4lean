@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Inductive.CompilationNames
-import Lean4Lean.Verify.Inductive.Recursor.RestoredRealization
+import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRestoredRecursorVal
 import Lean4Lean.Verify.Inductive.Rules.Alignment
 import Lean4Lean.Verify.Inductive.Nested.FinalAssembly
 import Lean4Lean.Verify.Inductive.Nested.FormationNativeEvidence

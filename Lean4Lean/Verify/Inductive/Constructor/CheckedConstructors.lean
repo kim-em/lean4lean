@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Recursor.Structure
+import Lean4Lean.Verify.Inductive.Recursor.Binders.ParameterPrefixes
 
 namespace Lean4Lean
 

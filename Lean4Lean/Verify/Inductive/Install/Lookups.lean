@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Install.BlockCertificate
-import Lean4Lean.Verify.Inductive.Recursor.ReplayCompat
+import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldOpening
 import Lean4Lean.Verify.Inductive.Header.Telescope
 
 namespace Lean4Lean

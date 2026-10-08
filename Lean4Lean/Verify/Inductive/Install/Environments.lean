@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Recursor.Installation
+import Lean4Lean.Verify.Inductive.Recursor.Entries.AddConstants
 import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
 import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterRawShape
 import Lean4Lean.Verify.Inductive.Constructor.Telescopes
@@ -814,7 +814,6 @@ theorem DeclaredConstructorsCore.constructorSemantics
   · rcases hctorOrigin with ⟨entry, hentry, _hname, hvalue⟩
     exact False.elim (D.nonInductive entry hentry familyInfo
       hvalue.symm)
-
 
 /-- The constructor boundary of a declaration whose headers and constructors are checked and
 whose constructors are declared. -/

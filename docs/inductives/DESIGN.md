@@ -340,7 +340,7 @@ ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
   construction (first and second pass over the fields, elimination level, motives, minors,
   induction hypotheses, rules) is shown to produce exactly the translation of the abstract
   generator's output for one canonical `Instance`
-  (`Recursor/Realization.lean`, `RecursorMetadataRealization.lean`). Typing of the generated
+  (`Recursor/Entries/TrRecursorVal.lean`, `Recursor/Metadata.lean`). Typing of the generated
   recursor types is not derived from the generator: it is read off the executable's check of
   each generated recursor type (`checkRecursorTypes`), which supplies `RecursiveTypesWF` in
   the window environment; `FamilyTypesWF` likewise comes from checker runs in the window.

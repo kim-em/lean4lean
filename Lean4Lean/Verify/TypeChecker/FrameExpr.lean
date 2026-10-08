@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.TypeChecker.FrameBasic
-import Lean4Lean.Verify.Inductive.Recursor.Structure
+import Lean4Lean.Verify.Inductive.Recursor.Binders.ParameterPrefixes
 import Lean4Lean.Verify.TypeChecker.Basic
 
 /-!

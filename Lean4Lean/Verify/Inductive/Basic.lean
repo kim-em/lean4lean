@@ -123,7 +123,6 @@ theorem Lookup.append_zero (newer : List VExpr) (domain : VExpr)
     simpa [VExpr.liftN_succ, Nat.add_assoc] using
       (Lookup.succ (A := head) ih)
 
-
 /-- Rebuilding an expression from its application head and left-to-right
 argument list is exact. -/
 theorem VExpr.mkApps_getAppFnArgs (e : VExpr) :
@@ -1502,7 +1501,6 @@ theorem RecursorMotiveTelescope.applyMajorTyped
   simpa [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go] using
     VExpr.getAppFnArgs_mkApps (.bvar index) args
 
-
 /-- The guarded-iota judgment follows source-visible constant support.
 Primitive projection nodes contribute the support of their source major. -/
 theorem VExpr.SourceConstFree.guardedIota
@@ -1592,136 +1590,6 @@ theorem VExpr.GuardedIota.recCallWrapped
       recursors fieldVars depth := by
   apply VExpr.GuardedIota.wrapLams hdomains
   exact .recCall hrecursor hargs hmajor
-
-/-- Semantic image of one higher-order recursive result emitted by
-`mkRecRules.loopU`.  This is deliberately independent of the executable
-syntax: the generator-facing proof only has to show that translating one
-`GeneratedRecursiveCall` produces this shape. -/
-structure IotaRecursiveResultCertificate
-    (recursors : List Name) (fieldVars : List Nat)
-    (_recursiveArg result : VExpr) where
-  domains : List VExpr
-  recursor : Name
-  levels : List VLevel
-  init : List VExpr
-  major : VExpr
-  result_eq : result = (VExpr.wrapLams domains <|
-    VExpr.mkApps (.const recursor levels) (init ++ [major]))
-  domains_recursor_free : ∀ dom ∈ domains,
-    dom.SourceConstFree recursors
-  recursor_mem : recursor ∈ recursors
-  arguments_guarded : ∀ arg ∈ init ++ [major],
-    arg.GuardedIota recursors fieldVars domains.length
-  major_is_field : major.IsFieldApp fieldVars domains.length
-
-theorem IotaRecursiveResultCertificate.guarded
-    (H : IotaRecursiveResultCertificate recursors fieldVars
-      recursiveArg result) :
-    result.GuardedIota recursors fieldVars 0 := by
-  rw [H.result_eq]
-  exact VExpr.GuardedIota.recCallWrapped H.domains_recursor_free
-    H.recursor_mem (by simpa using H.arguments_guarded)
-      (by simpa using H.major_is_field)
-
-/-- Pointwise alignment of selected recursive constructor arguments with the
-translated recursive results supplied to the minor premise. -/
-structure IotaRecursiveResultsCertificate
-    (recursors : List Name) (fieldVars : List Nat)
-    (recursiveArgs recursiveResults : List VExpr) : Prop where
-  aligned : List.Forall₂ (fun major result =>
-    Nonempty (IotaRecursiveResultCertificate
-      recursors fieldVars major result)) recursiveArgs recursiveResults
-
-theorem IotaRecursiveResultsCertificate.length
-    (H : IotaRecursiveResultsCertificate recursors fieldVars
-      recursiveArgs recursiveResults) :
-    recursiveResults.length = recursiveArgs.length := by
-  rcases H with ⟨aligned⟩
-  induction aligned with
-  | nil => rfl
-  | cons _ _ ih => simp [ih]
-
-theorem IotaRecursiveResultsCertificate.results_guarded
-    (H : IotaRecursiveResultsCertificate recursors fieldVars
-      recursiveArgs recursiveResults) :
-    ∀ result ∈ recursiveResults,
-      result.GuardedIota recursors fieldVars 0 := by
-  rcases H with ⟨aligned⟩
-  induction aligned with
-  | nil => simp
-  | cons hhead _ ih =>
-    intro result hresult
-    simp only [List.mem_cons] at hresult
-    rcases hresult with rfl | htail
-    · rcases hhead with ⟨cert⟩
-      exact cert.guarded
-    · exact ih result htail
-
-/-- Once ordinary constructor arguments are recursor-free, the aligned
-recursive-result certificate discharges guardedness of the complete minor
-application used on an iota right-hand side. -/
-theorem IotaRecursiveResultsCertificate.minorRhs
-    (H : IotaRecursiveResultsCertificate recursors fieldVars
-      recursiveArgs recursiveResults)
-    (hfields : ∀ arg ∈ fieldArgs,
-      arg.SourceConstFree recursors) :
-    (VExpr.mkApps (.bvar minorVar)
-      (fieldArgs ++ recursiveResults)).GuardedIota
-        recursors fieldVars 0 := by
-  apply VExpr.GuardedIota.minorRhs
-  · intro arg harg
-    exact VExpr.SourceConstFree.guardedIota (hfields arg harg)
-  · exact H.results_guarded
-
-/-- Complete right-hand-side fragment of an iota rule. The executable minor
-application is represented once; its spine, field/result split, cardinality,
-and guardedness are derived below. -/
-structure IotaRhsCertificate
-    (recursors : List Name) (domains fieldArgs recursiveArgs : List VExpr)
-    (rhsBody : VExpr) where
-  minorVar : Nat
-  minor_in_scope : minorVar < domains.length
-  recursiveResults : List VExpr
-  rhs_eq : rhsBody = VExpr.mkApps (.bvar minorVar)
-    (fieldArgs ++ recursiveResults)
-  fieldVars : List Nat
-  fieldVars_eq : fieldVars =
-    recursiveArgs.filterMap VExpr.bvarHead?
-  fields_in_scope : ∀ field ∈ fieldVars, field < domains.length
-  fields_recursor_free : ∀ arg ∈ fieldArgs,
-    arg.SourceConstFree recursors
-  recursive_results : IotaRecursiveResultsCertificate
-    recursors fieldVars recursiveArgs recursiveResults
-
-theorem IotaRhsCertificate.rhs_spine
-    (H : IotaRhsCertificate recursors domains fieldArgs recursiveArgs
-      rhsBody) :
-    rhsBody.getAppFnArgs =
-      (.bvar H.minorVar, fieldArgs ++ H.recursiveResults) := by
-  rcases H with ⟨minorVar, hminor, results, hrhs, fieldVars,
-    hfieldVars, hfieldsScope, hfieldsFree, hresults⟩
-  change rhsBody.getAppFnArgs =
-    (.bvar minorVar, fieldArgs ++ results)
-  rw [hrhs]
-  exact VExpr.getAppFnArgs_mkApps_bvar _ _
-
-theorem IotaRhsCertificate.results_length
-    (H : IotaRhsCertificate recursors domains fieldArgs recursiveArgs
-      rhsBody) :
-    ((fieldArgs ++ H.recursiveResults).drop fieldArgs.length).length =
-      recursiveArgs.length := by
-  simpa using H.recursive_results.length
-
-theorem IotaRhsCertificate.guarded
-    (H : IotaRhsCertificate recursors domains fieldArgs recursiveArgs
-      rhsBody) :
-    rhsBody.GuardedIota recursors H.fieldVars 0 := by
-  rcases H with ⟨minorVar, hminor, results, hrhs, fieldVars,
-    hfieldVars, hfieldsScope, hfieldsFree, hresults⟩
-  change rhsBody.GuardedIota recursors fieldVars 0
-  rw [hrhs]
-  exact hresults.minorRhs hfieldsFree
-
 
 end VerifyInductive
 end Lean4Lean

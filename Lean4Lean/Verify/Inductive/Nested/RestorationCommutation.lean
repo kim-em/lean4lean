@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Inductive
 import Lean4Lean.Verify.Typing.ProjectionRelation
 import Lean4Lean.Verify.Inductive.Nested.Replacement
 import Lean4Lean.Verify.Inductive.Nested.Restoration
-import Lean4Lean.Verify.Inductive.Recursor.RestoredRealization
+import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRestoredRecursorVal
 import Lean4Lean.Verify.TypeChecker.WHNF
 import Lean4Lean.Theory.Inductive.NativeIotaRestoration
 

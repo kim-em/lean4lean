@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Header.Declaration
 import Lean4Lean.Verify.Inductive.Header.Check
 import Lean4Lean.Verify.Inductive.Header.CheckedHeaders
-import Lean4Lean.Verify.Inductive.Recursor.Structure
+import Lean4Lean.Verify.Inductive.Recursor.Binders.ParameterPrefixes
 
 namespace Lean4Lean
 

@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Inductive.Compilation
-import Lean4Lean.Verify.Inductive.Recursor.Telescope
+import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope
 
 /-! The restoration table data of a nested run: the executable facts that fix the
 executable restoration tables relative to an abstract specialisation list

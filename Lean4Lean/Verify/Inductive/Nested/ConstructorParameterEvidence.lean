@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Recursor.Structure
+import Lean4Lean.Verify.Inductive.Recursor.Binders.ParameterPrefixes
 import Lean4Lean.Verify.Inductive.Nested.Opening
 import Lean4Lean.Verify.Inductive.Nested.OriginalHeaderSeedRebase
 import Lean4Lean.Verify.Typing.EnvironmentRestriction

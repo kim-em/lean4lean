@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
 import Lean4Lean.Verify.ExprParamUniform
-import Lean4Lean.Verify.Inductive.Recursor.FieldDeclarationTypes
-import Lean4Lean.Verify.Inductive.Recursor.ArgumentUniverses
+import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldTypes
+import Lean4Lean.Verify.Inductive.Recursor.Signature.HypothesisArgumentUniverses
 import Lean4Lean.Verify.Inductive.Nested.FinalAssembly
 import Lean4Lean.Verify.ParamUniformEnv
 

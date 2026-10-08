@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Recursor.RestoredRealization
+import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRestoredRecursorVal
 import Lean4Lean.Verify.Inductive.Nested.CompilationAssembly
 import Lean4Lean.Verify.Inductive.Nested.OrderInsensitiveAlignment
 import Lean4Lean.Verify.Inductive.Nested.EndToEnd

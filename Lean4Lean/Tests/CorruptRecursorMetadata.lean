@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Environment.Basic
-import Lean4Lean.Verify.Inductive.Recursor.Realization
+import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 
 /-! Regression for the metadata-erasure witness from the branch review.
 The old constant translation still accepts a corrupted parameter count, but

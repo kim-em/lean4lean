@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Recursor.Construction
-import Lean4Lean.Verify.Inductive.Recursor.CanonicalConstruction
+import Lean4Lean.Verify.Inductive.Recursor.Signature.Generator
 import Lean4Lean.Verify.Inductive.Nested.Compilation
-import Lean4Lean.Verify.Inductive.Recursor.ReplayCompat
+import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldOpening
 import Lean4Lean.Verify.Inductive.TypeAnnotations
 import Lean4Lean.Verify.Inductive.Constructor.Check
 import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation

@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Header.Check
-import Lean4Lean.Verify.Inductive.Recursor.Installation
+import Lean4Lean.Verify.Inductive.Recursor.Entries.AddConstants
 
 namespace Lean4Lean
 

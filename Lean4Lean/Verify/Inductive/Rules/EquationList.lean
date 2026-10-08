@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Rules.Lhs
-import Lean4Lean.Verify.Inductive.Recursor.Realization
+import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 import Lean4Lean.Verify.Inductive.Recursor.InstanceAlignment
 import Lean4Lean.Verify.Inductive.Recursor.Check
 
@@ -97,7 +97,6 @@ theorem CompletedRuleTranslationResult.compilation
     finite := CompiledInductive.ordinary
       (Lean4Lean.TrInductDecl.sourceWF Htranslated) R.formation.formationWF
       T.realization.compiles B.wf htypes hctors hprojections B.names }
-
 
 /-- Every newly stored equation is headed by a recursor from the same joint
 generation witness, with that exact concrete entry present after installation. -/
@@ -216,7 +215,6 @@ theorem CompletedRuleTranslationResult.recursorProvenance
     rw [he]
     exact ⟨H.alignmentOfRealization hm g ha.levels_length ha.levels_wf hrecursors hrules hrec,
       H.kOfRealization hm g hrec, H.majorOfRealization hm hrec⟩
-
 
 end VerifyInductive
 end Lean4Lean
