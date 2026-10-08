@@ -334,7 +334,7 @@ structure VContext extends Context where
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
   /-- The open corner of the projection walk (`ProjectionWalkCorner`), an explicit hypothesis of
   the checker's correctness. -/
-  projectionCorner : ProjectionWalkCorner
+  canonicalChoice : venv.HasCanonicalChoice
   mlctx : MLCtx
   mlctx_wf : mlctx.WF venv lparams
   lctx_eq : mlctx.lctx = lctx

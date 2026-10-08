@@ -1033,12 +1033,12 @@ def initialContext (env : Environment) (lparams : List Name)
 def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety) (lparams : List Name)
     (allowPrimitive : Bool) (fuel : FuelConfig)
-    (hcorner : ProjectionWalkCorner) :
+    (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice) :
     ContextWF (initialContext env lparams safety allowPrimitive fuel) where
   venv := ves.venv safety
   checking := (wf.tr (safety := safety)).toCheckingValid
     (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent hcorner
+    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (hch _)
   mlctx := .nil
   mlctx_wf := trivial
   typeCheckerLParams_eq := rfl

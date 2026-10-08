@@ -1135,10 +1135,10 @@ structure CheckingEnv.ValidCore (safety : DefinitionSafety)
     ci.safety = .safe ∧ ci.levelParams = []
   typeAnnotationWrappers : TypeAnnotationWrappers env
   /-- Working carrier of the unproved conjecture `ProjectionWalkCorner`, which enters
-  explicitly as `(hcorner : ProjectionWalkCorner)` at the top-level theorems and
+  explicitly as `(hch : venv.HasCanonicalChoice)` at the top-level theorems and
   `TrEnv.toCheckingValid`. It does not depend on the environment, so every installation
   carries it along unchanged. -/
-  projectionCorner : ProjectionWalkCorner
+  canonicalChoice : venv.HasCanonicalChoice
 
 /-- All global invariants needed to run the verified executable type checker
 against an environment assembled in stages.  Beyond the local invariants,
@@ -1163,9 +1163,9 @@ theorem TrEnv.toCheckingValidCore (H : TrEnv safety env venv)
     (hsafe : ∀ {n ci}, env.find? n = some ci →
       Kernel.Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
-    (hannotations : TypeAnnotationWrappers env) (hcorner : ProjectionWalkCorner) :
+    (hannotations : TypeAnnotationWrappers env) (hch : venv.HasCanonicalChoice) :
     CheckingEnv.ValidCore safety env venv :=
-  ⟨H.toChecking, hprims, hsafe, hannotations, hcorner⟩
+  ⟨H.toChecking, hprims, hsafe, hannotations, hch⟩
 
 theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
     (hprims : venv.HasPrimitives)
@@ -1175,9 +1175,9 @@ theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
     (hannotations : TypeAnnotationWrappers env)
     (howners : VerifyInductive.ConstructorOwnersPresent env)
     (hregistry : ProjectionRegistryCoherent safety env.constants venv)
-    (hcorner : ProjectionWalkCorner) :
+    (hch : venv.HasCanonicalChoice) :
     CheckingEnv.Valid safety env venv :=
-  ⟨⟨H.toChecking, hprims, hsafe, hannotations, hcorner⟩, howners, hregistry,
+  ⟨⟨H.toChecking, hprims, hsafe, hannotations, hch⟩, howners, hregistry,
     H.recursorEnvCoherent, H.quotEnvCoherent⟩
 
 theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
@@ -1193,7 +1193,7 @@ theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
   safePrimitives := H.tr.safePrimitives_add hn hnprim H.safePrimitives
   typeAnnotationWrappers := VerifyInductive.TypeAnnotationWrappers.addConstant
     H.typeAnnotationWrappers H.tr.map_wf ci hn
-  projectionCorner := H.projectionCorner
+  canonicalChoice := H.canonicalChoice.mono (VEnv.addConst_le hadd)
 
 /-- Constructor-owner presence of a valid environment, stated on its
 constant map. -/
@@ -1288,7 +1288,7 @@ theorem CheckingEnv.ValidCore.addEliminator
   hasPrimitives := H.hasPrimitives.addEliminator
   safePrimitives := H.safePrimitives
   typeAnnotationWrappers := H.typeAnnotationWrappers
-  projectionCorner := H.projectionCorner
+  canonicalChoice := H.canonicalChoice.mono VEnv.addEliminator_le
 
 /-- Certified abstract schemas are available to checking before native
 recursor installation, while every concrete metadata invariant is preserved. -/
@@ -1336,7 +1336,7 @@ theorem CheckingEnv.ValidCore.addEliminators
   hasPrimitives := H.hasPrimitives.addEliminators
   safePrimitives := H.safePrimitives
   typeAnnotationWrappers := H.typeAnnotationWrappers
-  projectionCorner := H.projectionCorner
+  canonicalChoice := H.canonicalChoice.mono VEnv.addEliminators_le
 
 theorem CheckingEnv.ValidCore.addProjections
     (H : CheckingEnv.ValidCore safety env venv)
@@ -1346,7 +1346,7 @@ theorem CheckingEnv.ValidCore.addProjections
   hasPrimitives := H.hasPrimitives.addProjections
   safePrimitives := H.safePrimitives
   typeAnnotationWrappers := H.typeAnnotationWrappers
-  projectionCorner := H.projectionCorner
+  canonicalChoice := H.canonicalChoice.mono VEnv.addProjections_le
 
 /-- Add an exact, independently well-formed projection table without changing
 the represented production environment. -/
