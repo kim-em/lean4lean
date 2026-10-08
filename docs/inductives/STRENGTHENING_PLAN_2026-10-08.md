@@ -205,3 +205,11 @@ with the full check list green. The choice-based theorem stays intact until the 
 complete; if both exist at the end, the choice-free one keeps the main name and the choice version
 becomes `addDecl.WF_of_canonicalChoice`, with a docstring on the trade (weaker environment
 invariant versus an extra prelude hypothesis).
+
+## 8. Dependencies on the mainline cleanup (2026-10-08)
+
+The frame-lemma route uses none of the `env.Strengthening`-conditional lemmas scheduled for
+deletion (`weakN_iff` family, `weakN_inv`, `InstForalls.defeq`, `FullHeadStrengthening`,
+Countermodel) and no `VEnv.Strengthening` definition. The choice-based corner chain is kept only as
+`addDecl.WF_of_canonicalChoice`; the renames of the corner files and of
+`InhabitedStrengthening.lean` will be absorbed when the mainline is merged.
