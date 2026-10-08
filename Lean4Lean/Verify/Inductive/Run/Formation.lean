@@ -303,6 +303,11 @@ structure DeclaredConstructorsResult
   eliminators : List (Name × InductiveSignature.CaseSchema)
   eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock eliminators)
   eliminatorsOrdinary : decl.OrdinaryCaseEliminators sourceEnv eliminators
+  /-- The eliminators are those of a constructor boundary of the declaration, so their
+  signature is the boundary's source signature. -/
+  eliminatorsBoundary : ∃ B : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv
+    indTypes, eliminators = B.caseEliminators ∧ B.params = H.headers.params ∧
+      B.parameterScope = H.materialized.parameterScope
   context : ContextWF { c with env := outEnv }
   contextVEnv : context.venv =
     (venvCtors.addEliminators eliminators).addProjections decl.projectionEntries
@@ -1064,6 +1069,7 @@ theorem AddInductive.declareConstructors.WF
       eliminators := B.caseEliminators
       eliminatorsWF := helimsWF
       eliminatorsOrdinary := B.caseEliminatorsOrdinary
+      eliminatorsBoundary := ⟨B, rfl, rfl, rfl⟩
       context := H.context.withEnv hvalid
         (Hinstalled.le.trans VEnv.addEliminators_addProjections_le)
       contextVEnv := rfl

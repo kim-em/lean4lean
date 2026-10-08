@@ -248,6 +248,10 @@ structure CompletedConstructorPhases (c : AddInductive.Context)
   eliminators : List (Name × InductiveSignature.CaseSchema)
   eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock eliminators)
   eliminatorsOrdinary : decl.OrdinaryCaseEliminators sourceEnv eliminators
+  /-- The eliminators are those of a constructor boundary of the declaration. -/
+  eliminatorsBoundary : ∃ B : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv
+    indTypes, eliminators = B.caseEliminators ∧ B.params = params ∧
+      B.parameterScope = parameterScope
   /-- The retained checking context carries the declaration's case eliminator and projection
   entries: every checker run after the constructor stage happens in this environment. -/
   contextVEnv : context.venv =
@@ -427,6 +431,7 @@ def ConstructorPhasesResult.completed
   eliminators := R.declared.eliminators
   eliminatorsWF := R.declared.eliminatorsWF
   eliminatorsOrdinary := R.declared.eliminatorsOrdinary
+  eliminatorsBoundary := R.declared.eliminatorsBoundary
   contextVEnv := R.declared.contextVEnv
   installation := .ordinary H.installed R.declared.installed
   formation := R.formation
@@ -547,6 +552,7 @@ noncomputable def PrimitiveConstructorPhasesResult.completed
   eliminators := R.boundary.caseEliminators
   eliminatorsWF := R.boundary.caseEliminatorsWF
   eliminatorsOrdinary := R.boundary.caseEliminatorsOrdinary
+  eliminatorsBoundary := ⟨R.boundary, rfl, rfl, rfl⟩
   contextVEnv := rfl
   installation := .primitive H.installed R.declared.installed (by
     simpa [H.values, R.declared.values] using R.declared.bootstrap)
