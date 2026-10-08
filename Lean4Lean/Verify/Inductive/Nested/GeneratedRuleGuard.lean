@@ -440,7 +440,7 @@ theorem NestedValidatedRunResult.restoredGeneratedAvoidance
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hauxNames : auxiliaries.map (·.auxiliary) =
       (E.production.loweredDecl.types.drop sourceDecl.types.length).map (·.name))
-    (C : NestedFinalAssemblyShape E.restoration
+    (C : NestedFinalAssemblyBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production) :
@@ -789,7 +789,7 @@ theorem stepValues_names {result : Lean4Lean.ElimNestedInductive.Result}
     obtain ⟨_, _, Hstep, hname, -, -⟩ := h
     simp only [List.map_cons, stepValues_names t, hname, Hstep.restored.mappedName]
 
-theorem NestedFinalAssemblyShape.recursors_names
+theorem NestedFinalAssemblyBase.recursors_names
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -798,13 +798,13 @@ theorem NestedFinalAssemblyShape.recursors_names
       auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
     {sourceEnv : VEnv} {decl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    (C : NestedFinalAssemblyShape H sourceEnv decl lparams nparams isUnsafe safety) :
+    (C : NestedFinalAssemblyBase H sourceEnv decl lparams nparams isUnsafe safety) :
     (C.primaryRecursors ++ C.auxiliaryRecursors).map (·.name) =
       sourceTypes.map (fun indType =>
         let oldName := Lean.mkRecName indType.name
         auxRec.getD oldName oldName) ++
       auxRecNames.map (fun oldName => auxRec.getD oldName oldName) := by
-  obtain ⟨added, hadded', Hadded⟩ := C.auxiliarySemantics.recursorSteps
+  obtain ⟨added, hadded', Hadded⟩ := C.auxiliaryRecursorTrace.recursorSteps
   simp only [List.nil_append] at hadded'
   rw [List.map_append, C.sourceSemantics.recursorNames, hadded', stepValues_names Hadded]
 
@@ -821,7 +821,7 @@ theorem NestedValidatedRunResult.restoredRecursorName_mem
     {auxiliaries : List ContainerSpecialization}
     (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
-    (C : NestedFinalAssemblyShape E.restoration sourceEnv sourceDecl lparams
+    (C : NestedFinalAssemblyBase E.restoration sourceEnv sourceDecl lparams
       nparams isUnsafe safety)
     (o : Fin E.production.production.generationSignature.families.size) :
     (compilationRestoration sourceDecl auxiliaries).recursorName

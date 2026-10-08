@@ -715,7 +715,7 @@ theorem NestedValidatedRunResult.restoredRuleRhs_guarded
       (E.production.loweredDecl.types.drop sourceDecl.types.length).map (·.name))
     (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
-    (C : NestedFinalAssemblyShape E.restoration
+    (C : NestedFinalAssemblyBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)
@@ -955,7 +955,7 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
     (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped)
-    (C : NestedFinalAssemblyShape E.restoration
+    (C : NestedFinalAssemblyBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)
@@ -982,7 +982,7 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
   have hnamesLen := congrArg List.length hnames
   simp only [List.length_map, List.length_finRange, List.length_append] at hnamesLen
   have hp : (C.main :: C.rest).length = sourceTypes.length :=
-    (Lean4Lean.List.Forall₂.length_eq C.primaryIota.familyCounts).symm
+    (Lean4Lean.List.Forall₂.length_eq C.sourceSemantics.types).symm
   rw [← C.typesSource] at hp
   have hf' : f < sourceTypes.length := by omega
   have hfFam : f < E.production.production.generationSignature.families.size := by
