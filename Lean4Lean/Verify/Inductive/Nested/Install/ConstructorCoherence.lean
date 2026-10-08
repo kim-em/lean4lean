@@ -976,7 +976,7 @@ def ctorInfoAlignmentToCoherence
 metadata, exact restored abstract targets, and only their common-parameter
 context conversion.  Choosing each target itself as its normal form makes
 clear that no residual-body correspondence is being assumed here. -/
-theorem CtorInfoAlignment.semanticCoherenceOfParameterDomains
+theorem CtorInfoAlignment.coherenceOfParameterDomains
     (Hfamily : InductInfoAlignment prodEnv.constants decl familyIdx
       familyInfo)
     (Hctor : CtorInfoAlignment prodEnv.constants decl familyIdx
@@ -1059,7 +1059,7 @@ inductive families.  Families already present in the source environment reuse
 the source model.  Every newly restored family is identified by exact
 production alignment; its remaining semantic fields come from the canonical
 source translation retained by the assembly certificate. -/
-theorem RestoredBlockCertificate.constructorSemanticsOfParameterDomains
+theorem RestoredBlockCertificate.constructorTypingOfParameterDomains
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -1166,7 +1166,7 @@ theorem RestoredBlockCertificate.constructorSemanticsOfParameterDomains
       Lean4Lean.VerifyInductive.TrInductDeclCore.envCtorsWF Hsource
         (wf.tr (safety := safety)).wf
     exact ⟨(Classical.choice
-      (Lean4Lean.VerifyInductive.CtorInfoAlignment.semanticCoherenceOfParameterDomains
+      (Lean4Lean.VerifyInductive.CtorInfoAlignment.coherenceOfParameterDomains
       Hfamily Hctor hctorIdx
       (decl.types[familyIdx]'hfamilyIdx).toVConstVal.toVConstant
       ((decl.types[familyIdx]'hfamilyIdx).ctors[ctorIdx]'hdeclCtor).toVConstant
@@ -1192,7 +1192,7 @@ theorem RestoredBlockCertificate.constructorSemanticsOfParameterDomains
 /-- Exact safe-run adapter for the pointwise parameter-domain fold.  The
 closed lowering trace is used only to recover production origins for this
 exact restoration; all constructor semantics then come from the fold above. -/
-theorem NestedInstalledRun.safeConstructorSemanticsOfParameterDomains
+theorem NestedInstalledRun.safeConstructorTypingOfParameterDomains
     {ves : VEnvs}
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv .safe) decl lparams nparams false .safe outEnv)
@@ -1221,12 +1221,12 @@ theorem NestedInstalledRun.safeConstructorSemanticsOfParameterDomains
   have Horigins := E.assembly.inductInfosFromDecl Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity Howners hempty
       E.context_env E.context_lparams rfl
-  exact E.assembly.constructorSemanticsOfParameterDomains wf Horigins Hparams
+  exact E.assembly.constructorTypingOfParameterDomains wf Horigins Hparams
 
-/-- Unsafe counterpart of `safeConstructorSemanticsOfParameterDomains`.
+/-- Unsafe counterpart of `safeConstructorTypingOfParameterDomains`.
 Unsafe restoration tags are irrelevant here: constructor coherence depends
 only on exact production origins and the canonical abstract source trace. -/
-theorem NestedInstalledRun.unsafeConstructorSemanticsOfParameterDomains
+theorem NestedInstalledRun.unsafeConstructorTypingOfParameterDomains
     {ves : VEnvs}
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv .unsafe) decl lparams nparams true .unsafe outEnv)
@@ -1255,7 +1255,7 @@ theorem NestedInstalledRun.unsafeConstructorSemanticsOfParameterDomains
   have Horigins := E.assembly.inductInfosFromDecl Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity Howners hempty
       E.context_env E.context_lparams rfl
-  exact E.assembly.constructorSemanticsOfParameterDomains wf Horigins Hparams
+  exact E.assembly.constructorTypingOfParameterDomains wf Horigins Hparams
 
 end VerifyInductive
 end Lean4Lean

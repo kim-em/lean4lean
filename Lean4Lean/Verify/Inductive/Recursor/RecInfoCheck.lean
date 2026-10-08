@@ -336,7 +336,7 @@ theorem ConstructorCheck.checkedConstructorPrefixInRecursorContextAt
 
 /-- Enter the first mutual recursor pass from the completed constructor
 boundary. -/
-theorem ConstructorCheck.loopInd1SemanticWF
+theorem ConstructorCheck.loopInd1WF
     {alpha : Type} {Q : alpha -> Prop}
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
@@ -421,7 +421,7 @@ theorem ConstructorCheck.loopInd1SemanticWF
   have hparamsNodup : Hparams.fvars.Nodup := by
     change HparamsBase.fvars.Nodup
     exact Hmaterialized.parameterSuffix.paramsBound_nodup
-  refine mkRecInfos.loopInd1.resultSemantics Hbase stats indTypes elimLevel
+  refine mkRecInfos.loopInd1.resultTyping Hbase stats indTypes elimLevel
     Helim Hheaders hconsume 0 #[] k Rbase (by simp [Rbase, Hbase])
     Hsuffix HparamsCtx
     Hstats (RecInfoBindings.empty _) (RecInfoBinderTypes.empty _)
@@ -520,7 +520,7 @@ theorem ConstructorCheck.mkRecInfosWF
         typeCheckerLParams := some <|
           AddInductive.getRecLevelParams elimLevel c.lparams }).WF Q := by
   unfold AddInductive.mkRecInfos
-  refine R.loopInd1SemanticWF elimLevel Helim hlparams hconsume
+  refine R.loopInd1WF elimLevel Helim hlparams hconsume
     (fun recInfos =>
       AddInductive.mkRecInfos.loopInd2 stats indTypes 0 recInfos k) ?_
   intro cFrames frameDepth recInfos Rframes henvFrames HsuffixFrames
@@ -536,7 +536,7 @@ theorem ConstructorCheck.mkRecInfosWF
       _ = decl.types.length :=
         Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
       _ = stats.indConsts.size := HstatsFrames.types_size.symm
-  refine mkRecInfos.loopInd2.resultSemantics
+  refine mkRecInfos.loopInd2.resultTyping
     (root := { c with
       env := ctorEnv
       typeCheckerLParams := some <|

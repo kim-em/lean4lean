@@ -345,13 +345,13 @@ theorem RecursorConstruction.constructorIndices_length
 
 /-- Choose the actual semantic replay once, before choosing a constructor's
 result indices. The executable traversal identity is retained in this replay. -/
-noncomputable def RecursorConstruction.sourceMinorSemantics
+noncomputable def RecursorConstruction.sourceMinorTyping
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     TypedMinorTraversalAt H.recursorWF
       (H.origins.minorShapes owner howner localIndex hlocal) H.parameterSuffix.parameterDecls :=
-  Classical.choice (H.minorSemantics owner howner localIndex hlocal)
+  Classical.choice (H.minorTyping owner howner localIndex hlocal)
 
 /-- Result indices are selected in the original universe context, after the
 shared field domains have already been fixed. -/
@@ -360,7 +360,7 @@ noncomputable def RecursorConstruction.declConstructorIndices
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) : List VExpr :=
   Classical.choose (H.constructorResultIndices owner howner localIndex hlocal
-    (H.sourceMinorSemantics owner howner localIndex hlocal))
+    (H.sourceMinorTyping owner howner localIndex hlocal))
 
 theorem RecursorConstruction.sourceConstructorIndices_replay
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
@@ -368,7 +368,7 @@ theorem RecursorConstruction.sourceConstructorIndices_replay
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     let S := H.origins.minorShapes owner howner localIndex hlocal
-    let HS := H.sourceMinorSemantics owner howner localIndex hlocal
+    let HS := H.sourceMinorTyping owner howner localIndex hlocal
     let domains := H.declFieldDomains owner howner localIndex hlocal
     let indices := H.declConstructorIndices owner howner localIndex hlocal
     let result := VExpr.mkApps
@@ -385,7 +385,7 @@ theorem RecursorConstruction.sourceConstructorIndices_replay
         (arg.abstractList HS.semantic.fieldsRecent.fvars).abstractList H.params.fvars S.fields.size)
       indices :=
   Classical.choose_spec (H.constructorResultIndices owner howner localIndex hlocal
-    (H.sourceMinorSemantics owner howner localIndex hlocal))
+    (H.sourceMinorTyping owner howner localIndex hlocal))
 
 theorem RecursorConstruction.sourceConstructorIndices_length
     (H : RecursorConstruction R)
@@ -394,7 +394,7 @@ theorem RecursorConstruction.sourceConstructorIndices_length
     (H.declConstructorIndices owner howner localIndex hlocal).length =
       (H.declIndexDomains ⟨owner, howner⟩).length :=
   H.constructorIndices_length owner howner localIndex hlocal
-    (H.sourceMinorSemantics owner howner localIndex hlocal)
+    (H.sourceMinorTyping owner howner localIndex hlocal)
     (H.sourceConstructorIndices_replay owner howner localIndex hlocal).2.2
 
 end Lean4Lean.VerifyInductive
@@ -424,7 +424,7 @@ theorem RecursorConstruction.sourceConstructorDefEq
             (VLevel.params decl.uvars))
           (InductiveSignature.vars stats.params.size S.fields.size ++
             H.declConstructorIndices owner howner localIndex hlocal))) := by
-  let HS := H.sourceMinorSemantics owner howner localIndex hlocal
+  let HS := H.sourceMinorTyping owner howner localIndex hlocal
   obtain ⟨consumed, Hconsumed, _, Heq⟩ := H.constructorConsumedHeaderReplay owner howner localIndex hlocal HS
   have HfixedConsumed := (H.sourceConstructorIndices_replay owner howner localIndex hlocal).1
   have henv := R.headerCheckingAnnotations.1.wf

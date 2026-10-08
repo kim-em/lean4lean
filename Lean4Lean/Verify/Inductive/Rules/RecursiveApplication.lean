@@ -15,7 +15,7 @@ and the eta-expanded constructor field are narrowed and then closed through
 the same replayed front, so their targets cannot come from unrelated
 existential telescope choices. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.cachedSemanticCallArgumentFrame
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.cachedCallArgumentFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -94,7 +94,7 @@ theorem
                 F.semantic.current_context.mlctx.vlctx.toCtx
                 F.semantic.appliedFieldTarget
                 (narrowMajor.lift' Hscope.shift) := by
-  exact F.cachedCoreSemanticCallArgumentFrame B
+  exact F.cachedCoreCallArgumentFrame B
 /-
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
@@ -278,16 +278,16 @@ theorem
     {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj) :
-    let fieldPosition := A.semantics.recursivePositions[j]!
+    let fieldPosition := A.typing.recursivePositions[j]!
     F.semantic.generated.outerAbstractedMajor A.rule.binders =
       mkAppN
         (.bvar (F.semantic.generated.localArgs.size +
           (A.rule.allArgs.size - 1 - fieldPosition)))
         (F.semantic.generated.localIndices.map Expr.bvar).toArray := by
   dsimp only
-  let fieldPosition := A.semantics.recursivePositions[j]!
+  let fieldPosition := A.typing.recursivePositions[j]!
   have hfieldPosition : fieldPosition < A.rule.allArgs.size :=
-    (A.semantics.decisions.selected_at j hj).1
+    (A.typing.decisions.selected_at j hj).1
   have hfieldPositionFVars : fieldPosition <
       A.rule.all_args_bound.fvars.length := by
     rw [A.rule.all_args_bound.length_fvars]
@@ -297,7 +297,7 @@ theorem
   have hfieldBang : A.rule.allArgs[fieldPosition]! =
       .fvar A.rule.all_args_bound.fvars[fieldPosition] :=
     (getElem!_pos A.rule.allArgs fieldPosition hfieldPosition).trans hfieldAt
-  have hselected := (A.semantics.decisions.selected_at j hj).2
+  have hselected := (A.typing.decisions.selected_at j hj).2
   let fv := A.rule.all_args_bound.fvars[fieldPosition]
   have hsource : A.rule.recursiveArgs[j] = .fvar fv := by
     rw [← getElem!_pos A.rule.recursiveArgs j hj]
@@ -354,7 +354,7 @@ theorem
         F.semantic.generated.localArgs (.sort .zero)).abstractList
       A.rule.all_args_bound.fvars).FVarsIn
         (fun fv => fv ∈ ExprArrayFVarIds stats.params) := by
-  rcases F.cachedSemanticCallArgumentFrame (B := B) with
+  rcases F.cachedCallArgumentFrame (B := B) with
     ⟨_binding, _evidence, _scope, _Hscope, _fieldDomains, _localDomains,
       _narrowIndices, _narrowMajor, _narrowExposed, _hscopeContext,
       _hfields, _hfieldEq, _hlocal, HlocalTemplate,
@@ -371,10 +371,10 @@ theorem
       H.parameterSuffix.parameterDecls_fvars] at hfv
     rcases List.mem_append.mp hfv with hfield | hparam
     · left
-      have hfield' : fv ∈ A.semantics.fieldsRecent.fvars :=
+      have hfield' : fv ∈ A.typing.fieldsRecent.fvars :=
         List.mem_reverse.mp hfield
       rw [FVarArrayIn.fvars_eq
-        A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
+        A.typing.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
         A.rule.all_args_bound rfl] at hfield'
       exact hfield'
     · exact Or.inr (List.mem_reverse.mp hparam)
@@ -387,7 +387,7 @@ theorem
 groups remain paired with the same narrowed targets, and the resulting
 sources are ready for insertion of the generated motive/minor block. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.parameterClosedSemanticCallArgumentFrame
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.parameterClosedCallArgumentFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -487,7 +487,7 @@ theorem
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
   let parameterDecls := H.parameterSuffix.parameterDecls
   let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
-  rcases F.cachedSemanticCallArgumentFrame (B := B) with
+  rcases F.cachedCallArgumentFrame (B := B) with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
       narrowIndices, narrowMajor, narrowExposed, hscopeContext, hfields, hfieldEq,
       hlocal, HlocalTemplate, HlocalTemplateType,
@@ -544,8 +544,8 @@ theorem
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
     exact H.constructorVEnv_le
-  have hfieldBase : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
-    rw [← A.semantics.fieldRootExtension.venv_eq]
+  have hfieldBase : A.typing.fieldRootContext.venv ≤ H.outVEnv := by
+    rw [← A.typing.fieldRootExtension.venv_eq]
     exact hbase
   let HfieldRuntime := B.runtime.mono hfieldBase
   have HfieldTemplate := HfieldRuntime.abstractFront
@@ -761,7 +761,7 @@ theorem
 The narrowed indices and major are lifted at one common field/local cutoff,
 ready to be consumed as a single generated-recursor suffix. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedSemanticCallArgumentFrame
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedCallArgumentFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -879,7 +879,7 @@ theorem
   let parameterDecls := H.parameterSuffix.parameterDecls
   let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
   let inserted := T.motives ++ T.minors
-  rcases F.parameterClosedSemanticCallArgumentFrame (B := B) with
+  rcases F.parameterClosedCallArgumentFrame (B := B) with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
       narrowIndices, narrowMajor, narrowExposed, hscopeContext, hfields, hfieldEq,
       hlocal, HparameterTemplate, _HparameterTemplateType,
@@ -1924,7 +1924,7 @@ theorem
           (liftContextPrefix (T.motives ++ T.minors).length
             originalDomains.reverse).reverse ∧
         TrExprS H.outVEnv Us parameterDecls
-          A.semantics.parameterTail
+          A.typing.parameterTail
           (VExpr.wrapForalls originalDomains fieldResult) ∧
         OnCtx (originalDomains.reverse ++ T.params.reverse)
           (H.outVEnv.IsType Us.length) ∧

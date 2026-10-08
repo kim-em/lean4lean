@@ -15,7 +15,7 @@ mutual family at the exact recursive-index targets.  The exposed production
 spine is first identified at canonical parameters, then its merely
 convertible index suffix is transported pointwise. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.canonicalInsertedSemanticMajorTyping
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.canonicalInsertedMajorTyping
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -103,7 +103,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
   let parameterDecls := H.parameterSuffix.parameterDecls
-  rcases F.canonicalInsertedSemanticExposedSpine T (B := B) with
+  rcases F.canonicalInsertedExposedSpine T (B := B) with
     ⟨equationDomains, fieldDomains, localDomains, added, frontDomains,
       exactIndexTargets, majorTarget, exposedTarget, hdecomposition,
       hequation, hadded, hfront, hfields, hfixedFields, hlocal,
@@ -823,7 +823,7 @@ theorem
           stats.params)
         (H.recInfos.map (·.motive)))
       (H.recInfos.flatMap (·.minors))
-  rcases F.canonicalInsertedSemanticMajorTyping T (B := B) with
+  rcases F.canonicalInsertedMajorTyping T (B := B) with
     ⟨C, equationDomains, fieldDomains, localDomains, added, frontDomains,
       indexTargets, majorTarget, ownerTarget, hdecomposition, hequation,
       hadded, hfront, hfields, hfixedFields, hlocal, hownerTarget, Hctx,
@@ -1066,9 +1066,9 @@ theorem
     have hscope := Hbinding.motive.fvarsIn
     rw [getElem!_pos H.recInfos selectedOwner hselectedRecInfo,
       hselectedMotiveValue] at hscope
-    change motiveFVar ∈ A.semantics.context.mlctx.vlctx.fvars at hscope
-    rw [← A.semantics.context.lctx_eq,
-      A.semantics.context.mlctx_wf.tr.fvars_eq]
+    change motiveFVar ∈ A.typing.context.mlctx.vlctx.fvars at hscope
+    rw [← A.typing.context.lctx_eq,
+      A.typing.context.mlctx_wf.tr.fvars_eq]
     exact hscope
   have hselectedMotiveRoot : motiveFVar ∈ F.originRoot.lctx.fvars :=
     F.originExtension.contextLE.fvars hselectedMotiveRuleRoot

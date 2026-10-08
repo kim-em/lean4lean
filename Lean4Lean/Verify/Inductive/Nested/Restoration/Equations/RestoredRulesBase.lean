@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.RestoredRules
 
 `RestoredBlockBase.withRules` extends a rule-free final assembly base by
 two rule lists, building the three rule traces from scratch out of the base's
-source-family trace `sourceSemantics` and its rule-free auxiliary recursor
+source-family trace `sourceTyping` and its rule-free auxiliary recursor
 trace `auxiliaryRecursorTrace`. The underlying base is the given one
 definitionally.
 

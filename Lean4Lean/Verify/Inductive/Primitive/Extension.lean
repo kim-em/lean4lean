@@ -55,7 +55,7 @@ theorem PrimitiveInstallation.extendSafeExact
       Hcert.installedVEnv := by
     simpa [Hcert, Hcert0, BlockCertificate.sf_mono, BlockInstallation.sf_mono,
       BlockCertificate.installedVEnv] using
-    Hrecursors.constructorSemantics
+    Hrecursors.constructorTyping
       (wf.ctorParamsAgree (safety := .safe)) T.rules
   rcases Hcert.extendSafeExact wf htels hdecl hcompile
       Hrecursors.inductInfosFromDecl T.newRecursorsAligned
@@ -141,7 +141,7 @@ theorem AddInductive.run.primitiveFinalSpecificationModelWF
         VEnvs.CtorTelescopesPreserved c.env outEnv ves ves' ∧
         Nonempty (SourceAddInduct (ves.venv .safe) c.lparams
           nparams types (c.safety != .safe) (ves'.venv .safe)) := by
-  have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
+  have Hrun := AddInductive.run.primitiveSourceAlignedWF
     nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty
     HnotPartial
   exact Hrun.mono fun outEnv Hresult => by

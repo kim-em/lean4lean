@@ -911,11 +911,11 @@ theorem
     simpa using hparam
   have go : ∀ {sources : List Expr} {targets : List VExpr},
       List.Forall₂
-        (TrExprS A.semantics.context.venv
+        (TrExprS A.typing.context.venv
           (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-          A.semantics.context.mlctx.vlctx) sources targets →
+          A.typing.context.mlctx.vlctx) sources targets →
       Expr.fvar fv ∈ sources →
-      fv ∈ A.semantics.context.mlctx.vlctx.fvars := by
+      fv ∈ A.typing.context.mlctx.vlctx.fvars := by
     intro sources targets Htr
     induction Htr with
     | nil => simp
@@ -925,7 +925,7 @@ theorem
       rcases hmem with rfl | hmem
       · simpa only [FVarsIn] using Hhead.fvarsIn
       · exact ih hmem
-  have hscope := go A.semantics.validStats.params hsource
+  have hscope := go A.typing.validStats.params hsource
   have hrootScope : F.semantic.rootScope fv := by
     rw [F.root_scope]
     exact Or.inr (by
@@ -1160,7 +1160,7 @@ over the outer parameter/motive/minor groups is exactly production's single
 rule-binder abstraction at the call-local cutoff.  This removes all remaining
 order arithmetic from the later context-transport proof. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.outerAbstractedSemanticIndexSources
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.outerAbstractedIndexSources
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1212,7 +1212,7 @@ theorem
 motive/minor block is not merely equivalent to production's source: it is
 literally the same complete rule-binder abstraction. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedSemanticIndexSources_eq
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedIndexSources_eq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1257,7 +1257,7 @@ theorem
       F.semantic.generated.arguments_bound.fvars).abstractList
         A.rule.all_args_bound.fvars
         F.semantic.generated.localArgs.size
-  rcases F.cachedSemanticCallArgumentFrame with
+  rcases F.cachedCallArgumentFrame with
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, localDomains,
       _narrowIndices, _narrowMajor, _narrowExposed, _hscopeContext,
       hfields, _hfieldEq, hlocal, _HlocalTemplate,
@@ -1270,7 +1270,7 @@ theorem
           H.parameterSuffix.parameterDecls))
       closedSources _narrowIndices := by
     simpa [closedSources, hlocal] using Htranslated
-  have Hscoped := F.fieldAbstractedSemanticIndexSourcesScoped
+  have Hscoped := F.fieldAbstractedIndexSourcesScoped
   have houterNodup :
       (A.rule.params_bound.fvars ++ insertedFVars).Nodup := by
     simpa [insertedFVars, List.append_assoc] using
@@ -1341,7 +1341,7 @@ theorem
         (A.rule.params_bound.fvars ++ insertedFVars) cutoff := by
     apply List.map_congr_left
     exact hsourceShape
-  have houter := F.outerAbstractedSemanticIndexSources
+  have houter := F.outerAbstractedIndexSources
   dsimp only at houter
   calc
     _ = closedSources.map fun source =>
@@ -1362,7 +1362,7 @@ and motive/minor insertion equation as each of its index arguments.  Stating
 the whole application separately lets later spine inversion use production's
 clean two-stage abstraction directly. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedSemanticExposedSource_eq
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedExposedSource_eq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1402,7 +1402,7 @@ theorem
         A.rule.all_args_bound.fvars
         F.semantic.generated.localArgs.size
   dsimp only
-  rcases F.cachedSemanticCallArgumentFrame with
+  rcases F.cachedCallArgumentFrame with
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, localDomains,
       _narrowIndices, _narrowMajor, _narrowExposed, _hfront, hfields,
       _hfieldEq, hlocal, _HlocalTemplate, _HlocalTemplateType,
@@ -1444,11 +1444,11 @@ theorem
       F.semantic.exposed_scope
     rw [F.root_scope] at Hlocal
     have Hfield := FVarsIn.abstractList_of
-      (selected := A.semantics.fieldOpening.fvars)
+      (selected := A.typing.fieldOpening.fvars)
       (k := F.semantic.generated.localArgs.size) Hlocal
-    have hopenFvars : A.semantics.fieldOpening.fvars =
+    have hopenFvars : A.typing.fieldOpening.fvars =
         A.rule.all_args_bound.fvars :=
-      A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound
+      A.typing.fieldOpening.fvars_eq_bound A.rule.all_args_bound
     simpa [source, hlocalFvars, hopenFvars,
       A.rule.params_bound.exprArrayFVarIds] using Hfield
   have havoids : source.FVarsIn (· ∉ insertedFVars) := by
@@ -1494,7 +1494,7 @@ theorem
 canonical field/local de Bruijn spine unchanged.  The result is exactly the
 complete rule-binder abstraction emitted by production. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedSemanticMajorSource_eq
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedMajorSource_eq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1522,9 +1522,9 @@ theorem
       F.semantic.generated.outerAbstractedMajor A.rule.binders := by
   let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
   let inserted := T.motives ++ T.minors
-  let fieldPosition := A.semantics.recursivePositions[j]!
+  let fieldPosition := A.typing.recursivePositions[j]!
   have hfieldPosition : fieldPosition < A.rule.allArgs.size :=
-    (A.semantics.decisions.selected_at j hj).1
+    (A.typing.decisions.selected_at j hj).1
   have hfieldPositionFVars : fieldPosition <
       A.rule.all_args_bound.fvars.length := by
     rw [A.rule.all_args_bound.length_fvars]
@@ -1537,7 +1537,7 @@ theorem
   have hfieldEq : A.rule.recursiveArgs[j] =
       .fvar A.rule.all_args_bound.fvars[fieldPosition] := by
     rw [← getElem!_pos A.rule.recursiveArgs j hj]
-    exact (A.semantics.decisions.selected_at j hj).2.trans hfieldBang
+    exact (A.typing.decisions.selected_at j hj).2.trans hfieldBang
   have hfieldRoot : A.rule.all_args_bound.fvars[fieldPosition] ∈
       F.originRoot.lctx.fvars :=
     F.field_mem_originRoot (List.getElem_mem hfieldPositionFVars)
@@ -1583,7 +1583,7 @@ theorem
         F.semantic.generated.outerAbstractedMajor A.rule.binders := by
     rw [hallShape, hfullShape']
     simp [hfullFieldVar, A.rule.all_args_bound.length_fvars]
-  rcases F.cachedSemanticCallArgumentFrame with
+  rcases F.cachedCallArgumentFrame with
     ⟨_binding, _evidence, _scope, _Hscope,
       cachedFields, cachedLocals, _narrowIndices, _narrowMajor,
       _narrowExposed,
@@ -1642,7 +1642,7 @@ single rule-binder abstraction as its source.  This is the source-side
 counterpart of the lifted-domain identity retained by the inserted call
 frame. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedSemanticLocalForallSource_eq
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedLocalForallSource_eq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1678,7 +1678,7 @@ theorem
   let raw := F.semantic.generated.current.lctx.mkForall
     F.semantic.generated.localArgs (.sort .zero)
   let source := raw.abstractList A.rule.all_args_bound.fvars
-  rcases F.parameterClosedSemanticCallArgumentFrame (B := B) with
+  rcases F.parameterClosedCallArgumentFrame (B := B) with
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, _localDomains,
       _narrowIndices, _narrowMajor, _narrowExposed, _hfront, hfields,
       _hfieldEq, _hlocal, HparameterTemplate, _HparameterTemplateType,
@@ -1772,7 +1772,7 @@ theorem
 is the application-ready handoff: production's exact recursive index spine
 and major translate together in one typed equation context. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.canonicalInsertedSemanticCallArgumentFrame
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.canonicalInsertedCallArgumentFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1873,23 +1873,23 @@ theorem
                 F.semantic.appliedFieldTarget
                 (narrowMajor.lift' Hscope.shift) := by
   let inserted := T.motives ++ T.minors
-  rcases F.insertedSemanticCallArgumentFrame T (B := B) with
+  rcases F.insertedCallArgumentFrame T (B := B) with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
       liftedFront, narrowIndices, narrowMajor, narrowExposed, hfront,
       hliftedFront, hfields, hfieldEq, hlocal, HlocalTemplate,
       Hctx, hlength, Hindices, Hmajor,
       Hexposed, Htyping,
       HindexEq, HmajorEq⟩
-  have hindices := F.insertedSemanticIndexSources_eq T
+  have hindices := F.insertedIndexSources_eq T
   dsimp only at hindices
   rw [hindices] at Hindices
-  have hmajor := F.insertedSemanticMajorSource_eq T
+  have hmajor := F.insertedMajorSource_eq T
   dsimp only at hmajor
   rw [hmajor] at Hmajor
-  have hexposed := F.insertedSemanticExposedSource_eq T
+  have hexposed := F.insertedExposedSource_eq T
   dsimp only at hexposed
   rw [hexposed] at Hexposed
-  have hlocalSource := F.insertedSemanticLocalForallSource_eq T (B := B)
+  have hlocalSource := F.insertedLocalForallSource_eq T (B := B)
   dsimp only at hlocalSource
   have hlocalSource' :
       (((((F.semantic.generated.current.lctx.mkForall
@@ -1916,7 +1916,7 @@ pointwise to the exact recursive-index targets retained by the call frame;
 the relation is definitional equality, which is the strongest conclusion
 available for arbitrary translated index expressions. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.canonicalInsertedSemanticExposedSpine
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.canonicalInsertedExposedSpine
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -2013,7 +2013,7 @@ theorem
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
   let parameterDecls := H.parameterSuffix.parameterDecls
   let inserted := T.motives ++ T.minors
-  rcases F.canonicalInsertedSemanticCallArgumentFrame T (B := B) with
+  rcases F.canonicalInsertedCallArgumentFrame T (B := B) with
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, rawLocalDomains,
       liftedFront, narrowIndices, narrowMajor, narrowExposed, _hfront,
       hliftedFront, hfields, hfieldEq, hlocal, HlocalTemplate,

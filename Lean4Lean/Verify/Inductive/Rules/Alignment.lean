@@ -13,7 +13,7 @@ namespace VerifyInductive
 /-- Pointwise projection used by abstract iota reconstruction.  It exposes
 the exact generated source rule together with the semantic trace from the
 same executable constructor iteration. -/
-theorem RecursorCheck.generatedRuleSemantic
+theorem RecursorCheck.generatedRule
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -34,7 +34,7 @@ theorem RecursorCheck.generatedRuleSemantic
         Nonempty (Hrule.MinorAt S H.recInfos H.elimLevel
           H.origins owner i) ∧
         S.parameterDecls = H.parameterSuffix.parameterDecls := by
-  rcases H.ruleSemantics.entry owner howner with
+  rcases H.ruleTyping.entry owner howner with
     ⟨info, hsource, _Hsemantic, _Hmotive, Horigins⟩
   let E := H.generated.entry owner howner
   have hinfo : info = E.info := by
@@ -49,7 +49,7 @@ theorem RecursorCheck.generatedRuleSemantic
 
 /-- The family selected from the generated residual is exactly the outer
 owner whose constructor batch is being traversed. -/
-theorem RecursorCheck.generatedRuleSemanticOwner
+theorem RecursorCheck.generatedRuleOwner
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -72,7 +72,7 @@ theorem RecursorCheck.generatedRuleSemanticOwner
           H.elimLevel H.origins owner i) ∧
         Hsemantic.parameterDecls = H.parameterSuffix.parameterDecls ∧
         Hsemantic.ownerIdx = owner := by
-  rcases H.generatedRuleSemantic owner howner i hctor hrule with
+  rcases H.generatedRule owner howner i hctor hrule with
     ⟨Hrule, Hsemantic, Horigin, hparameterDecls⟩
   have htypeNames : (decl.types.map (·.name)).Nodup := by
     have hprefix := (List.nodup_append.mp
@@ -116,15 +116,15 @@ structure RecursorCheck.RuleAlignment
     indTypes[owner]!.ctors[i]
     (recursorMinorOffset indTypes owner + i)
     (H.generated.entry owner howner).info.rules[i]
-  semantics : rule.Semantics
+  typing : rule.Semantics
     H.recursorWF decl owner
-  parameterDecls_eq : semantics.parameterSuffix.parameterDecls =
+  parameterDecls_eq : typing.parameterSuffix.parameterDecls =
     H.parameterSuffix.parameterDecls
-  motiveOrigins : Nonempty (rule.MotiveAt semantics
+  motiveOrigins : Nonempty (rule.MotiveAt typing
     H.recInfos H.elimLevel)
-  minorOrigins : Nonempty (rule.MinorAt semantics
+  minorOrigins : Nonempty (rule.MinorAt typing
     H.recInfos H.elimLevel H.origins owner i)
-  semantic_owner : semantics.ownerIdx = owner
+  typing_owner : typing.ownerIdx = owner
 
 noncomputable def RecursorCheck.RuleAlignment.minorOrigin
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -137,7 +137,7 @@ noncomputable def RecursorCheck.RuleAlignment.minorOrigin
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
-    A.rule.MinorAt A.semantics H.recInfos H.elimLevel
+    A.rule.MinorAt A.typing H.recInfos H.elimLevel
       H.origins owner i :=
   Classical.choice A.minorOrigins
 
@@ -167,7 +167,7 @@ noncomputable def RecursorCheck.RuleAlignment.minorReplayAt
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
-    A.rule.CallAt (recInfos := H.recInfos) A.semantics
+    A.rule.CallAt (recInfos := H.recInfos) A.typing
       A.minorShape j hj :=
   Classical.choice (A.minorOrigin.producer.replay j hj)
 
@@ -209,7 +209,7 @@ theorem RecursorCheck.ruleAlignment
   have hsourceRule : i < E.info.rules.length := by
     rw [E.rules.length]
     exact hctor
-  rcases H.generatedRuleSemanticOwner owner howner i hctor hsourceRule with
+  rcases H.generatedRuleOwner owner howner i hctor hsourceRule with
     ⟨Hrule, Hsemantic, ⟨Horigin⟩, hparameterDecls, hsemanticOwner⟩
   let Hmotive : Nonempty (Hrule.MotiveAt Hsemantic H.recInfos
       H.elimLevel) := ⟨Horigin.producer⟩
@@ -222,11 +222,11 @@ theorem RecursorCheck.ruleAlignment
     ctorTranslation := Hctor
     sourceRule_lt := hsourceRule
     rule := Hrule
-    semantics := Hsemantic
+    typing := Hsemantic
     parameterDecls_eq := Hsemantic.parameterDecls_eq.trans hparameterDecls
     motiveOrigins := Hmotive
     minorOrigins := ⟨Horigin⟩
-    semantic_owner := hsemanticOwner }⟩
+    typing_owner := hsemanticOwner }⟩
 
 /-- The recursor selected by a generated rule carries the exact five-part,
 binder-typed telescope recovered from the production `.recInfo`.  This is
@@ -530,11 +530,11 @@ theorem
           T.params.reverse parameterDecls.toCtx ∧
         fieldDomains.length = A.rule.allArgs.size ∧
         TrExprS H.outVEnv Us parameterDecls
-          A.semantics.parameterTail
+          A.typing.parameterTail
           (VExpr.wrapForalls fieldDomains fieldResult) ∧
         TrExprS H.outVEnv Us
           (abstractForallContext fieldDomains parameterDecls)
-          (A.rule.target.abstractList A.semantics.fieldOpening.fvars)
+          (A.rule.target.abstractList A.typing.fieldOpening.fvars)
           fieldResult ∧
         H.outVEnv.IsType Us.length parameterDecls.toCtx
           (VExpr.wrapForalls fieldDomains fieldResult) ∧
@@ -568,10 +568,10 @@ theorem
       HintroType, _Hsynthesis⟩
   have HsemanticPrefix : ParameterPrefix stats 0
       ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).type
-      A.semantics.parameterTail := by
+      A.typing.parameterTail := by
     simpa [Array.getElem!_eq_getD, Array.getD, A.sourceOwner_lt] using
-      A.semantics.parameterPrefix
-  have htail : tail = A.semantics.parameterTail :=
+      A.typing.parameterPrefix
+  have htail : tail = A.typing.parameterTail :=
     Hprefix.tail_eq HsemanticPrefix
   subst tail
   have hbaseLE :
@@ -580,7 +580,7 @@ theorem
     simpa only [ContextWF.toAdmissibleRecursorContextWF_venv] using
       H.installed.le
   have Htail' : TrExprS H.outVEnv Us parameterDecls
-      A.semantics.parameterTail tailTarget := by
+      A.typing.parameterTail tailTarget := by
     simpa [Us, parameterDecls] using Htail.mono hbaseLE
   have HtailType' : H.outVEnv.IsType Us.length parameterDecls.toCtx
       tailTarget := by
@@ -600,18 +600,18 @@ theorem
     exact Htyped.defeqDFC H.outVEnvWF.ordered
       (hparams.symm H.outVEnvWF.ordered)
   have Hfields := Expr.ForallTelescopeTypeTranslation.ofTrExprS
-    A.semantics.fieldOpening.telescope Htail' HtailType'
+    A.typing.fieldOpening.telescope Htail' HtailType'
   rcases Hfields.toWrapForalls with
     ⟨fieldDomains, sourceResidual, fieldResult, hfields,
       HsourceTelescope, htarget, Hresult, _HresultType⟩
   have hsourceResidual :
-      sourceResidual = A.semantics.fieldOpening.residual :=
-    HsourceTelescope.residual_eq A.semantics.fieldOpening.telescope
+      sourceResidual = A.typing.fieldOpening.residual :=
+    HsourceTelescope.residual_eq A.typing.fieldOpening.telescope
   have HfieldResidual : TrExprS H.outVEnv Us
       (abstractForallContext fieldDomains parameterDecls)
-      (A.rule.target.abstractList A.semantics.fieldOpening.fvars)
+      (A.rule.target.abstractList A.typing.fieldOpening.fvars)
       fieldResult := by
-    rw [A.semantics.fieldOpening.closed, ← hsourceResidual]
+    rw [A.typing.fieldOpening.closed, ← hsourceResidual]
     exact Hresult
   subst tailTarget
   have HtailTypeT : H.outVEnv.IsType Us.length T.params.reverse
@@ -650,7 +650,7 @@ theorem
       (abstractForallContext fieldDomains
         (R.recursorHeaders.parameterSuffix.toRecursorContext
           H.elimLevelAdmissible).parameterDecls)
-      (A.rule.target.abstractList A.semantics.fieldOpening.fvars)
+      (A.rule.target.abstractList A.typing.fieldOpening.fvars)
       fieldResult) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let parameterDecls :=
@@ -661,7 +661,7 @@ theorem
         (parameterDecls.toCtx.reverse ++ fieldDomains) [])
       (A.rule.target.abstractList
         (A.rule.params_bound.fvars ++
-          A.semantics.fieldOpening.fvars))
+          A.typing.fieldOpening.fvars))
       fieldResult := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let parameterDecls :=
@@ -696,31 +696,31 @@ theorem
       Hdecls hparamsNodup HfieldResidual
   have hparamsFields :
       (A.rule.params_bound.fvars ++
-        A.semantics.fieldOpening.fvars).Nodup := by
+        A.typing.fieldOpening.fvars).Nodup := by
     apply List.nodup_append.mpr
     refine ⟨List.nodup_reverse.mp hparamsNodup,
-      A.semantics.fieldOpening.nodup, ?_⟩
+      A.typing.fieldOpening.nodup, ?_⟩
     intro param hparam field hfield heq
     subst field
-    rw [A.semantics.fieldOpening.fvars_eq_bound
+    rw [A.typing.fieldOpening.fvars_eq_bound
       A.rule.all_args_bound] at hfield
     exact A.rule.all_args_outer_fresh param hfield
       (List.mem_append_left _ (List.mem_append_left _ hparam))
-  have hfieldLength : A.semantics.fieldOpening.fvars.length =
+  have hfieldLength : A.typing.fieldOpening.fvars.length =
       fieldDomains.length := by
-    rw [A.semantics.fieldOpening.fvars_eq_bound
+    rw [A.typing.fieldOpening.fvars_eq_bound
       A.rule.all_args_bound, hfields]
     have h := congrArg Array.size A.rule.all_args_bound.expressions
     simpa using h.symm
   have hsource := Expr.abstractList_after_inner
     (e := A.rule.target) (outer := A.rule.params_bound.fvars)
-    (inner := A.semantics.fieldOpening.fvars) (k := 0) hparamsFields
+    (inner := A.typing.fieldOpening.fvars) (k := 0) hparamsFields
   have hsource' :
-      ((A.rule.target.abstractList A.semantics.fieldOpening.fvars).abstractList
+      ((A.rule.target.abstractList A.typing.fieldOpening.fvars).abstractList
           A.rule.params_bound.fvars fieldDomains.length) =
         A.rule.target.abstractList
           (A.rule.params_bound.fvars ++
-            A.semantics.fieldOpening.fvars) := by
+            A.typing.fieldOpening.fvars) := by
     simpa [hfieldLength] using hsource
   simp only [List.reverse_reverse] at Hclosed
   rw [hsource'] at Hclosed
@@ -759,17 +759,17 @@ theorem
           fieldDomains) [])
       (A.rule.target.abstractList
         (A.rule.params_bound.fvars ++
-          A.semantics.fieldOpening.fvars))
+          A.typing.fieldOpening.fvars))
       fieldResult) :
     ((A.rule.target.abstractList
         (A.rule.params_bound.fvars ++
-          A.semantics.fieldOpening.fvars)).liftLooseBVars'
+          A.typing.fieldOpening.fvars)).liftLooseBVars'
       A.rule.allArgs.size (T.motives ++ T.minors).length) =
       A.rule.target.abstractList A.rule.binders := by
   let params := A.rule.params_bound.fvars
   let motives := A.rule.motives_bound.fvars
   let minors := A.rule.minors_bound.fvars
-  let fields := A.semantics.fieldOpening.fvars
+  let fields := A.typing.fieldOpening.fvars
   let middle := motives ++ minors
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
@@ -778,8 +778,8 @@ theorem
     have h := congrArg Array.size A.rule.params_bound.expressions
     simpa [params] using h.symm
   have hfieldsLength : fields.length = A.rule.allArgs.size := by
-    change A.semantics.fieldOpening.fvars.length = A.rule.allArgs.size
-    rw [A.semantics.fieldOpening.fvars_eq_bound
+    change A.typing.fieldOpening.fvars.length = A.rule.allArgs.size
+    rw [A.typing.fieldOpening.fvars_eq_bound
       A.rule.all_args_bound]
     have h := congrArg Array.size A.rule.all_args_bound.expressions
     simpa using h.symm
@@ -799,11 +799,11 @@ theorem
     apply List.nodup_append.mpr
     refine ⟨(List.nodup_append.mp
         (List.nodup_append.mp A.rule.outer_binders_nodup).1).1,
-      A.semantics.fieldOpening.nodup, ?_⟩
+      A.typing.fieldOpening.nodup, ?_⟩
     intro param hparam field hfield heq
     subst field
     have hfield' : param ∈ A.rule.all_args_bound.fvars := by
-      simpa [fields, A.semantics.fieldOpening.fvars_eq_bound
+      simpa [fields, A.typing.fieldOpening.fvars_eq_bound
         A.rule.all_args_bound] using hfield
     exact A.rule.all_args_outer_fresh param hfield'
       (List.mem_append_left _ (List.mem_append_left _ hparam))
@@ -841,7 +841,7 @@ theorem
       · exact houterSplit.2.2 fv
           (List.mem_append_left _ hparam) fv hminor rfl
     · have hfield' : fv ∈ A.rule.all_args_bound.fvars := by
-        simpa [fields, A.semantics.fieldOpening.fvars_eq_bound
+        simpa [fields, A.typing.fieldOpening.fvars_eq_bound
           A.rule.all_args_bound] using hfield
       apply A.rule.all_args_outer_fresh fv hfield'
       rcases List.mem_append.mp hmiddle with hmotive | hminor
@@ -870,7 +870,7 @@ theorem
     (e := A.rule.target) (outer := params)
     (inner := middle ++ fields) (k := 0) (by
       simpa [params, motives, minors, fields, middle,
-        A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound,
+        A.typing.fieldOpening.fvars_eq_bound A.rule.all_args_bound,
         RecursorRuleSyntax.binders, List.append_assoc] using
         A.rule.binders_nodup)
   rw [Expr.abstractList_append, hmiddleAbstract] at hfullShape
@@ -902,7 +902,7 @@ theorem
     _ = A.rule.target.abstractList A.rule.binders := by
       simp [RecursorRuleSyntax.binders, params, motives, minors,
         fields, middle,
-        A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound,
+        A.typing.fieldOpening.fvars_eq_bound A.rule.all_args_bound,
         List.append_assoc]
 
 /-- Invert a cached constructor target belonging to a fixed recursor
@@ -975,9 +975,9 @@ theorem
   have hvalid : AddInductive.isValidIndAppIdx stats A.rule.target owner =
       true := by
     have h := (checkPositivityStep.isValidIndApp?_some
-      A.semantics.target_valid).2
-    simpa [A.semantic_owner] using h
-  have hconst := A.semantics.validStats.indConstAt A.abstractOwner_lt
+      A.typing.target_valid).2
+    simpa [A.typing_owner] using h
+  have hconst := A.typing.validStats.indConstAt A.abstractOwner_lt
   have hhead : A.rule.target.getAppFn =
       .const (decl.types[owner]'A.abstractOwner_lt).name stats.levels :=
     checkPositivityStep.isValidIndAppIdx.constHead hvalid hconst
@@ -989,7 +989,7 @@ theorem
   rcases checkPositivityStep.TrExprS.constAppSpine Htarget hheadAbstract with
     ⟨levels, translatedArgs, hspine, hlevels, Hargs⟩
   let indices := (AddInductive.getIIndices stats A.rule.target).2
-  have hsourcePrefix := A.semantics.validStats.sourceParameterPrefix hvalid
+  have hsourcePrefix := A.typing.validStats.sourceParameterPrefix hvalid
   have hsourceArgs :
       (A.rule.target.abstractList A.rule.binders).getAppArgsList =
         (stats.params.map fun arg =>
@@ -1027,7 +1027,7 @@ theorem
       HparameterTargets, HindexTargets⟩
   have hindicesLength : indices.size = stats.nindices[owner]! := by
     exact checkPositivityStep.getIIndices.index_arity
-      A.semantics.target_valid |>.trans (by simp [A.semantic_owner])
+      A.typing.target_valid |>.trans (by simp [A.typing_owner])
   have hindexTargetsLength : indexTargets.length = T.indices.length := by
     have htranslated :=
       List.Forall₂.length_eq HindexTargets
@@ -1073,7 +1073,7 @@ theorem
           (liftContextPrefix (T.motives ++ T.minors).length
             originalDomains.reverse).reverse ∧
         TrExprS H.outVEnv Us parameterDecls
-          A.semantics.parameterTail
+          A.typing.parameterTail
           (VExpr.wrapForalls originalDomains fieldResult) ∧
         OnCtx (originalDomains.reverse ++ T.params.reverse)
           (H.outVEnv.IsType Us.length) ∧
@@ -1121,7 +1121,7 @@ theorem
   have hsource' :
       ((A.rule.target.abstractList
           (A.rule.params_bound.fvars ++
-            A.semantics.fieldOpening.fvars)).liftLooseBVars'
+            A.typing.fieldOpening.fvars)).liftLooseBVars'
         originalDomains.length inserted.length) =
         A.rule.target.abstractList A.rule.binders := by
     simpa [inserted, hfields] using hsource

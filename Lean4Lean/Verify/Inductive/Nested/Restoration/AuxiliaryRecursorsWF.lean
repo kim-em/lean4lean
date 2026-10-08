@@ -114,10 +114,10 @@ structure RestoredAuxiliaryRecursorWF
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceEnv targetEnv)
     (priorRecursors : List VConstVal) where
-  semantics : AuxiliaryRecursorGuardedRules decl block main safety trEnv
+  typing : AuxiliaryRecursorGuardedRules decl block main safety trEnv
     Hstep priorRecursors
-  recursorWF : semantics.recursor.toVConstant.WF recursorEnv
-  rulesWF : ∀ rule ∈ semantics.rules, rule.WF ruleEnv
+  recursorWF : typing.recursor.toVConstant.WF recursorEnv
+  rulesWF : ∀ rule ∈ typing.rules, rule.WF ruleEnv
 
 end VerifyInductive
 end Lean4Lean

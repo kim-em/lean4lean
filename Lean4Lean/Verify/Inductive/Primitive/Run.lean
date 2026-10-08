@@ -11,7 +11,7 @@ namespace VerifyInductive
 
 /-- The skeleton-free primitive header path retains production mutual-family
 closure without claiming validity for the header-only abstract environment. -/
-theorem AddInductive.declareInductiveTypes.primitiveSemanticHeadersClosedWF
+theorem AddInductive.declareInductiveTypes.primitiveHeadersClosedWF
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
@@ -51,7 +51,7 @@ theorem AddInductive.declareInductiveTypes.primitiveSemanticHeadersClosedWF
   let infos := AddInductive.inductiveTypeInfos stats nparams indTypes
     numNested isUnsafe c.lparams
   have Hheaders :=
-    AddInductive.declareInductiveTypes.primitiveSemanticHeadersWF
+    AddInductive.declareInductiveTypes.primitiveHeadersWF
       (numNested := numNested) Hsemantic hlevels hlevelParams hindicesSize
       hindices hconsts hparams hcommonParams Hcache Hsuffix Hambient hcommon hnotzero
       Hshape hvisible
@@ -71,7 +71,7 @@ theorem AddInductive.declareInductiveTypes.primitiveSemanticHeadersClosedWF
 
 /-- The real primitive header/check/constructor prefix with its declaration
 synthesized from the successful semantic folds. -/
-theorem AddInductive.formationCore.primitiveSemanticClosedWF
+theorem AddInductive.formationCore.primitiveClosedWF
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
@@ -113,7 +113,7 @@ theorem AddInductive.formationCore.primitiveSemanticClosedWF
         ∃ R : PrimitiveConstructorCheck Hheaders outEnv,
           MutualInductivesClosed outEnv := by
   have Hheaders :=
-    AddInductive.declareInductiveTypes.primitiveSemanticHeadersClosedWF
+    AddInductive.declareInductiveTypes.primitiveHeadersClosedWF
       (numNested := numNested) Hsemantic Hclosed hlevels hlevelParams
       hindicesSize hindices hconsts hparams hcommonParams Hcache Hsuffix
       Hambient hcommon hnotzero Hshape hvisible
@@ -139,7 +139,7 @@ def PrimitiveInstallation
 
 /-- Skeleton-free primitive formation rejoins the common recursor suffix only
 after the atomic constructor endpoint has restored a valid context. -/
-theorem AddInductive.runWithStats.primitiveSemanticWF
+theorem AddInductive.runWithStats.primitiveWF
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
@@ -178,7 +178,7 @@ theorem AddInductive.runWithStats.primitiveSemanticWF
         indTypes isUnsafe) := by
   unfold AddInductive.runWithStats
   have Hformation :=
-    AddInductive.formationCore.primitiveSemanticClosedWF
+    AddInductive.formationCore.primitiveClosedWF
       (numNested := numNested) Hsemantic Hclosed hlevels hlevelParams
       hindicesSize hindices
       hconsts hparams hcommonParams Hcache Hsuffix Hambient hcommon hnotzero Hshape
@@ -224,7 +224,7 @@ def PrimitiveRunResult
 
 /-- The complete executable primitive checker, with no caller-supplied
 declaration skeleton, constructor targets, or abstract header environment. -/
-theorem AddInductive.run.primitiveSemanticSourceAlignedWF
+theorem AddInductive.run.primitiveSourceAlignedWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)
     (Hclosed : MutualInductivesClosed c.env)
@@ -242,7 +242,7 @@ theorem AddInductive.run.primitiveSemanticSourceAlignedWF
     Kernel.Environment.checkDuplicatedUnivParams.WF c.lparams
   have Hcombined := Hduplicates.bind fun _ hnodup => by
     apply
-      checkInductiveTypes.loopInd.checkInductiveTypes.accumulatesSemanticHeadersSourceAligned
+      checkInductiveTypes.loopInd.checkInductiveTypes.accumulatesHeadersSourceAligned
         (fun stats => AddInductive.runWithStats stats nparams
           types.toArray numNested (c.safety != .safe))
         (PrimitiveRunResult c Hc.venv
@@ -270,7 +270,7 @@ theorem AddInductive.run.primitiveSemanticSourceAlignedWF
       exact hnodup
     have hnotPartial : c'.safety ≠ .partial := by
       simpa [hsafety] using HnotPartial
-    exact (AddInductive.runWithStats.primitiveSemanticWF
+    exact (AddInductive.runWithStats.primitiveWF
       (hsourceSafety := by rw [hsafety]) (numNested := numNested) Hsemantic Hclosed' hlevels hlevelParams
       hindicesSize hindices hconsts hparams hcommonParams Hcache Hsuffix
       Hambient hcommon hnotzero Hshape' hvisible hlparamsNodup

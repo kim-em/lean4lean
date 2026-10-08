@@ -331,7 +331,7 @@ structure RecursorCheckingEnvironment
 and owner-local index, and assemble its persistent semantic common-parameter
 coherence witness.  This is the positional bridge between the executable
 header/constructor folds and the independent formation specification. -/
-theorem ConstructorEnvironment.installedConstructorSemanticCoherenceAt
+theorem ConstructorEnvironment.installedConstructorCoherenceAt
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
@@ -600,7 +600,7 @@ theorem ConstructorEnvironment.inductInfosFromDecl
           simpa using hbound
         have Hctor := Lean4Lean.VerifyInductive.TrInductiveType.ctorAt Htype
           ctorIdx hsourceCtor htargetCtor
-        rcases D.installedConstructorSemanticCoherenceAt core Hchecked familyIdx hfamilyIdx
+        rcases D.installedConstructorCoherenceAt core Hchecked familyIdx hfamilyIdx
             ctorIdx hsourceCtor with
           ⟨installedInfo, hi, hinstalledName, hinstalledCtors,
             hinstalledLookup, ⟨C⟩⟩
@@ -781,7 +781,7 @@ theorem ConstructorEnvironment.ctorParamsAgree
       have hsourceCtor : ctorIdx < indTypes[familyIdx].ctors.length := by
         simpa [hfamilyInfoExact, infos, AddInductive.inductiveTypeInfos]
           using hctor
-      rcases D.installedConstructorSemanticCoherenceAt core Hchecked familyIdx hfamilyIdx
+      rcases D.installedConstructorCoherenceAt core Hchecked familyIdx hfamilyIdx
           ctorIdx hsourceCtor with
         ⟨installedInfo, hi, hinstalledName, hinstalledCtors,
           hinstalledLookup, ⟨C⟩⟩
@@ -1072,7 +1072,7 @@ structure OrdinaryConstructorCheck
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
     isUnsafe decl H.context.venv declared.venvCtors
 
-theorem OrdinaryConstructorCheck.installedConstructorSemanticCoherenceAt
+theorem OrdinaryConstructorCheck.installedConstructorCoherenceAt
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
@@ -1089,7 +1089,7 @@ theorem OrdinaryConstructorCheck.installedConstructorSemanticCoherenceAt
         outEnv.find? familyInfo.name = some (.inductInfo familyInfo) ∧
         Nonempty (CtorParamsAgreeAt
           outEnv R.declared.venvCtors familyInfo.name familyInfo ctorIdx hi) :=
-  R.declared.toConstructorEnvironment.installedConstructorSemanticCoherenceAt
+  R.declared.toConstructorEnvironment.installedConstructorCoherenceAt
     R.core ⟨R.checked, R.parameterPrefixes, R.constructorTails⟩ familyIdx hfamily
     ctorIdx hctor
 

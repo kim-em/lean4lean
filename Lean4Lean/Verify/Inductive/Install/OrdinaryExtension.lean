@@ -126,7 +126,7 @@ theorem OrdinaryInstallation.extendSafeExact
   have hconstructors :
       CtorParamsAgree .safe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
-    exact Hrecursors.constructorSemantics
+    exact Hrecursors.constructorTyping
       (wf.ctorParamsAgree (safety := .safe)) T.rules
   have horigins :
       InductInfosFromDecl c.env.constants outEnv.constants decl :=
@@ -194,7 +194,7 @@ theorem OrdinaryInstallation.extendUnsafeExact
   have hconstructors :
       CtorParamsAgree .unsafe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
-    exact Hrecursors.constructorSemantics
+    exact Hrecursors.constructorTyping
       (wf.ctorParamsAgree (safety := .unsafe)) T.rules
   have horigins :
       InductInfosFromDecl c.env.constants outEnv.constants decl :=
@@ -315,7 +315,7 @@ theorem OrdinaryRunResult.extendWithSpecification
 
 /-- Complete ordinary refinement retaining the independent source judgment,
 without any equality-toConstantsInstallation premise. -/
-theorem AddInductive.run.semanticFinalSpecificationModelWF
+theorem AddInductive.run.finalSpecificationModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
@@ -348,7 +348,7 @@ theorem AddInductive.run.semanticFinalSpecificationModelWF
     cases htypes : types with
     | nil => simp [htypes] at hnonempty
     | cons _ _ => simp [htypes]
-  exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
+  exact (AddInductive.run.sourceAlignedWF nparams numNested Hc
     Hclosed wf.envGhostFree hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
       exact Hrun.extendWithSpecification wf htels hsource HnotPartial hnonempty
 
@@ -714,7 +714,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalModelWF
     intro c' stats depth commonParams commonLevel Hc' hallow _hfuel _Hsemantic
     exact PrimitiveNamesFresh.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
-  have Hrun := AddInductive.run.semanticFinalSpecificationModelWF
+  have Hrun := AddInductive.run.finalSpecificationModelWF
     (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf htels hsource
     wf.inductivesClosed hctx hnonempty hnotPartial Hinputs
   unfold Environment.addInductiveAfterLowering
@@ -778,7 +778,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
     intro c' stats depth commonParams commonLevel Hc' hallow _hfuel _Hsemantic
     exact PrimitiveNamesFresh.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
-  have Hrun := AddInductive.run.semanticFinalSpecificationModelWF
+  have Hrun := AddInductive.run.finalSpecificationModelWF
     (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf htels hsource
     wf.inductivesClosed hctx hnonempty hnotPartial Hinputs
   unfold Environment.addInductiveAfterLowering

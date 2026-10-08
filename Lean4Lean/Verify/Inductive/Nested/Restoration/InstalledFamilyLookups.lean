@@ -643,7 +643,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerAt
   have htargetCtor : ctorIdx < target.ctors.length := by
     rw [hinstalledCtors', List.length_map] at hfamilyCtor
     exact hfamilyCtor
-  rcases R.installedConstructorSemanticCoherenceAt familyIdx hresultArray
+  rcases R.installedConstructorCoherenceAt familyIdx hresultArray
       ctorIdx (by simpa [htargetArrayEq] using htargetCtor) with
     ⟨producerFamily, _hproducerCtor, hproducerName, _hproducerCtors,
       hproducerLookup, ⟨C⟩⟩
@@ -975,7 +975,7 @@ theorem RestoredInductiveStep.inductInfoAlignmentAt
     have hfamilyCtor : ctorIdx < installedInfo.ctors.length := by
       rw [hinstalledCtors', List.length_map]
       exact htargetCtor
-    rcases R.installedConstructorSemanticCoherenceAt familyIdx hresultArray
+    rcases R.installedConstructorCoherenceAt familyIdx hresultArray
         ctorIdx (by simpa [htargetArrayEq] using htargetCtor) with
       ⟨producerFamily, hproducerCtor, hproducerName, hproducerCtors,
         hproducerLookup, ⟨C⟩⟩

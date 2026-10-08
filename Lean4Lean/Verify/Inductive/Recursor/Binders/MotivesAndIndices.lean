@@ -510,7 +510,7 @@ theorem MotivePassHeaderAt.recursorTargetType
 context and restart independent narrow synthesis in the empty closed scope.
 This is the first operational step that remains valid after earlier major and
 motive frames have introduced the fresh large-elimination universe. -/
-theorem MotivePassHeaderAt.startRecursorHeaderSemantics
+theorem MotivePassHeaderAt.startRecursorHeaderTyping
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
@@ -1963,7 +1963,7 @@ set_option maxRecDepth 4000 in
 The exact cached-parameter telescope remains a suffix of every generated
 context, while the narrow synthesized header and the executable context grow
 in lockstep by one semantically checked index declaration. -/
-theorem continueRecursorIndexTelescopeSemantics {alpha : Type}
+theorem continueRecursorIndexTelescopeTyping {alpha : Type}
     (stats : AddInductive.InductiveStats)
     (k : Array Expr → AddInductive.M alpha)
     {Q : alpha → Prop}
@@ -2412,7 +2412,7 @@ theorem continueRecursorIndexTelescopeSemantics {alpha : Type}
                 ⟨_, _, _, _, R.toBindingContextWF.find?_mkLocalDecl_self name
                   (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) bi⟩
                 hcallIndex
-            exact continueRecursorIndexTelescopeSemantics stats k H Helim
+            exact continueRecursorIndexTelescopeTyping stats k H Helim
               Rroot hconsume Hk R' (by simpa [R'] using henv)
               Hsuffix' (by
                 change Hsuffix.parameterDecls = rootParameterDecls
@@ -2468,7 +2468,7 @@ termination_by
 recursor context.  The terminal continuation begins at the genuine-index
 boundary with the exact completed narrow suffix; no generated index, major,
 or motive declaration is admitted into the parameter telescope. -/
-theorem continueRecursorParameterSemantics {alpha : Type}
+theorem continueRecursorParameterTyping {alpha : Type}
     (stats : AddInductive.InductiveStats)
     (k : Array Expr → AddInductive.M alpha)
     {Q : alpha → Prop}
@@ -2665,7 +2665,7 @@ theorem continueRecursorParameterSemantics {alpha : Type}
                   ⟨bodyC, normalizedTarget, hbodyC,
                     hnormalizedNarrow, hnormEq.symm⟩ with
                 ⟨nextNarrow, hnextNarrow, ⟨Hsynthesis'⟩⟩
-              exact continueRecursorParameterSemantics stats k H Helim R
+              exact continueRecursorParameterTyping stats k H Helim R
                 henv Hsuffix hctx Hstats hparamScope Hk next bodyTarget
                 nextNarrow
                 ((some (Hcurrent.fv, Hcurrent.deps),
@@ -2690,7 +2690,7 @@ termination_by
 /-- Start universe-rebased cached-parameter replay from the exact production
 `whnf` boundary.  This wrapper is valid after arbitrary earlier mutual
 recursor frames have accumulated in the executable reader context. -/
-theorem MotivePassHeaderAt.startRecursorParameterSemantics
+theorem MotivePassHeaderAt.startRecursorParameterTyping
     {alpha : Type} {Q : alpha → Prop}
     {base current : AddInductive.Context} {Hbase : ContextWF base}
     (H : MotivePassHeaderAt Hbase stats decl depth source familyIdx)
@@ -2747,7 +2747,7 @@ theorem MotivePassHeaderAt.startRecursorParameterSemantics
             (AddInductive.mkRecInfos.loopArgs1 stats normalized 0 #[] fuel k))
           current).WF Q := by
   -- The closed header is normalized in the empty checker context.
-  have hstart := H.startRecursorHeaderSemantics Helim
+  have hstart := H.startRecursorHeaderTyping Helim
     (R.withCheckLCtx {} R.baseNil) henv rfl
   have hcall := H.headerWhnfCall Helim
     (R.withCheckLCtx {} R.baseNil) henv
@@ -2801,7 +2801,7 @@ theorem MotivePassHeaderAt.startRecursorParameterSemantics
       intro hzero
       exact (List.eq_nil_of_length_eq_zero (by
         rw [Hsuffix.parameterDecls_length, ← hzero])).symm
-    exact continueRecursorParameterSemantics stats k H Helim R henv
+    exact continueRecursorParameterTyping stats k H Helim R henv
       Hsuffix hctx Hstats hparamScope
       (fun Hs h1 Hr h2 h3 h4 h5 h6 h7 Ht =>
         Hk Hs h1 Hr h2 h3 h4 h5 h6 h7 (Ht.mono (BindingContextLE.checkLCtx current _)))
@@ -2851,7 +2851,7 @@ theorem _root_.Lean4Lean.VerifyInductive.RecursorFVarSuffix.indexUniverses
 context.  The continuation is reached with the exact retained parameter
 suffix, canonical index variables, and a recent-index certificate rooted at
 the context in which this family began. -/
-theorem MotivePassHeaderAt.startRecursorSemantics
+theorem MotivePassHeaderAt.startRecursorTyping
     {alpha : Type} {Q : alpha → Prop}
     {base current : AddInductive.Context} {Hbase : ContextWF base}
     (H : MotivePassHeaderAt Hbase stats decl depth source familyIdx)
@@ -2942,7 +2942,7 @@ theorem MotivePassHeaderAt.startRecursorSemantics
     refine hparamU fv ?_ decl hfind
     rw [Hsuffix.parameterDecls_fvars] at hfv
     exact List.mem_reverse.mp hfv
-  refine H.startRecursorParameterSemantics Helim R henv Hsuffix hctx
+  refine H.startRecursorParameterTyping Helim R henv Hsuffix hctx
     Hstats hparamScope k ?_ fuel
   intro type fullTarget narrowTarget Hsynthesis HnarrowStats Hruntime hfront
     htypeNarrow htypeFVars htypeU htypeFull htypeFullType Htrace indices
@@ -2957,7 +2957,7 @@ theorem MotivePassHeaderAt.startRecursorSemantics
   let RL := Hsuffix.headerCheck
   let HsuffixL : RecursorParameterContextSuffix RL stats runtimeDepth :=
     Hsuffix.toHeaderCheck
-  refine continueRecursorIndexTelescopeSemantics
+  refine continueRecursorIndexTelescopeTyping
     (rootParameterDecls := Hsuffix.parameterDecls) stats k H Helim RL
     hconsume ?_ RL henv HsuffixL rfl type fullTarget narrowTarget
     Hsuffix.parameterDecls 0 #[] #[] [] remaining Hsynthesis

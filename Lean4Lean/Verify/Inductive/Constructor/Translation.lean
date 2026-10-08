@@ -15,7 +15,7 @@ namespace checkConstructors.loopTypes
 declaration while accumulating the raw abstract constructor targets produced
 by those same executable checks.  No constructor-bearing declaration is an
 input: it is deliberately assembled only after this traversal finishes. -/
-theorem accumulatesSemanticTargets
+theorem accumulatesTargets
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth : Nat}
     {indTypes : Array InductiveType} {isUnsafe : Bool}
@@ -120,7 +120,7 @@ theorem accumulatesSemanticTargets
 /-- The completed constructor traversal determines the final constructor-
 bearing declaration, its full source header translation, and its exact
 installed header target list. -/
-theorem assemblesSemanticHeadersExact
+theorem assemblesHeadersExact
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth : Nat}
     {indTypes : Array InductiveType} {isUnsafe : Bool}
@@ -149,7 +149,7 @@ theorem assemblesSemanticHeadersExact
         Nonempty (HeaderDeclarationOf Hc.venv
           Hheader.venv c.lparams nparams indTypes.toList
             isUnsafe commonParams commonLevel Hsemantic) := by
-  apply accumulatesSemanticTargets
+  apply accumulatesTargets
     (Q := fun _ => Nonempty (HeaderDeclarationOf Hc.venv
       Hheader.venv c.lparams nparams indTypes.toList isUnsafe
         commonParams commonLevel Hsemantic))

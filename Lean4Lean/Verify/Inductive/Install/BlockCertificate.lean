@@ -518,7 +518,7 @@ theorem BlockCertificate.newFamiliesUnsafe
 Every visible old family is transported through the production installation;
 a genuinely new family is unsafe and hence cannot be visible to a partial or
 safe observer. -/
-theorem BlockCertificate.hiddenUnsafeConstructorSemantics
+theorem BlockCertificate.hiddenUnsafeConstructorTyping
     (H : BlockCertificate .unsafe prodEnv unsafeBase types ctors recursors
       rules outEnv outBase)
     (hwf : prodEnv.constants.WF)
@@ -595,12 +595,12 @@ theorem BlockCertificate.extendUnsafeExact
     cases safety with
     | «unsafe» => exact hconstructorSemantics
     | «partial» =>
-      exact H.hiddenUnsafeConstructorSemantics
+      exact H.hiddenUnsafeConstructorTyping
         (wf.tr (safety := .unsafe)).map_wf
         (wf.ctorParamsAgree (safety := .partial)) (by decide)
         hheadersUnsafe
     | safe =>
-      exact H.hiddenUnsafeConstructorSemantics
+      exact H.hiddenUnsafeConstructorTyping
         (wf.tr (safety := .unsafe)).map_wf
         (wf.ctorParamsAgree (safety := .safe)) (by decide)
         hheadersUnsafe
@@ -612,7 +612,7 @@ families are transported from the corresponding source safety model.  A new
 family is necessarily safe because the original batch was checked at
 `.safe`, so its already-completed output witness transports along the replay
 monotonicity proof. -/
-theorem BlockCertificate.replaySafeConstructorSemantics
+theorem BlockCertificate.replaySafeConstructorTyping
     (H : BlockCertificate .safe prodEnv base types ctors recursors
       rules outEnv outBase)
     (Hreplay : BlockCertificate observer prodEnv observerBase types ctors
@@ -746,7 +746,7 @@ theorem BlockCertificate.extendSafeExact
       simpa [next, BlockCertificate.installedVEnv, certProjections safety] using
         outputLE safety
     simpa [next, BlockCertificate.installedVEnv, certProjections safety] using
-      H.replaySafeConstructorSemantics (cert safety)
+      H.replaySafeConstructorTyping (cert safety)
         (wf.tr (safety := safety)).map_wf
         (wf.ctorParamsAgree (safety := safety)) hconstructorSemantics
         hreplay
@@ -1085,7 +1085,7 @@ theorem RecursorCheck.ctorParamsAgree
     (Hsource : CtorParamsAgree
       safety c.env sourceEnv) :
     CtorParamsAgree safety outEnv H.outVEnv := by
-  apply H.installed.preservesConstructorSemantics
+  apply H.installed.preservesConstructorTyping
   · rw [H.localExtends.env_eq]
     exact R.context.checking.tr.map_wf
   · rw [H.localExtends.env_eq]
@@ -1105,7 +1105,7 @@ theorem RecursorCheck.inductInfosFromDecl
     exact R.context.checking.tr.map_wf
   · exact H.generated.nonInductive
 
-theorem RecursorCheck.constructorSemantics
+theorem RecursorCheck.constructorTyping
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv)

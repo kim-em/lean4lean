@@ -96,7 +96,7 @@ theorem RecursorConstruction.sourceFields_defeq_header
         ((consumed.take i).reverse ++ R.parameterScope.toCtx) consumed[i] := by
   intro ctor consumed header
   let S := H.origins.minorShapes owner howner localIndex hlocal
-  let HS := H.sourceMinorSemantics owner howner localIndex hlocal
+  let HS := H.sourceMinorTyping owner howner localIndex hlocal
   have Hraw := H.constructorRawSourceReplay owner howner localIndex hlocal HS
   obtain ⟨rawTraversal, hrawTraversal, _, _, hcount, _⟩ :=
     H.minorSourceReplay owner howner (by rwa [← H.sourceFamilyCount]) localIndex hlocal

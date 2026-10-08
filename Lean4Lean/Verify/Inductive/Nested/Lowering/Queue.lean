@@ -843,7 +843,7 @@ independently translated source constructors.  This is the constructor-list
 implementation/specification bridge: every executable restoration step is
 shown to translate the same abstract constructor that appears in the source
 inductive specification. -/
-theorem LoweredRestoredConstructors.sourceSemantics
+theorem LoweredRestoredConstructors.sourceTyping
     (H : LoweredRestoredConstructors result mappingEnv loweredEnv params
       nparams safety lparams sources state targets finalState sourceProdEnv
         targetProdEnv)

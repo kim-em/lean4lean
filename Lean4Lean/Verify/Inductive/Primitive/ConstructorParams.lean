@@ -33,7 +33,7 @@ structure PrimitiveConstructorCoreCheck
 and recover its exact abstract semantic witness.  This is the primitive
 counterpart of the ordinary two-fold positional bridge; it uses only the
 staged header map WF and never asserts a valid header-only context. -/
-theorem PrimitiveConstructorCoreCheck.installedConstructorSemanticCoherenceAt
+theorem PrimitiveConstructorCoreCheck.installedConstructorCoherenceAt
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
@@ -295,7 +295,7 @@ theorem PrimitiveConstructorCoreCheck.inductInfosFromDecl
           simpa using hbound
         have Hctor := Lean4Lean.VerifyInductive.TrInductiveType.ctorAt Htype
           ctorIdx hsourceCtor htargetCtor
-        rcases R.installedConstructorSemanticCoherenceAt familyIdx hfamilyIdx
+        rcases R.installedConstructorCoherenceAt familyIdx hfamilyIdx
             ctorIdx hsourceCtor with
           ⟨installedInfo, hi, hinstalledName, hinstalledCtors,
             hinstalledLookup, ⟨C⟩⟩
@@ -471,7 +471,7 @@ theorem PrimitiveConstructorCoreCheck.ctorParamsAgree
       have hsourceCtor : ctorIdx < indTypes[familyIdx].ctors.length := by
         simpa [hfamilyInfoExact, infos, AddInductive.inductiveTypeInfos]
           using hctor
-      rcases R.installedConstructorSemanticCoherenceAt familyIdx hfamilyIdx
+      rcases R.installedConstructorCoherenceAt familyIdx hfamilyIdx
           ctorIdx hsourceCtor with
         ⟨installedInfo, hi, hinstalledName, hinstalledCtors,
           hinstalledLookup, ⟨C⟩⟩

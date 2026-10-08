@@ -179,7 +179,7 @@ private theorem installRestoredSourceFamilies
           rcases List.mem_iff_getElem.mp hsourceGlobal with
             ⟨familyIdx, hfamily, hsourceEq⟩
           cases hsourceEq
-          rcases Hlower.sourceConstructorSemanticsAtFreshOfValidation Hc
+          rcases Hlower.sourceConstructorTypingAtFreshOfValidation Hc
               Hprod Hsources Howners HsourceHeaders HsourceAdded
               HvalidationValid HparameterRun hempty familyIdx hfamily
               Hstep with ⟨constructors, Hconstructors⟩

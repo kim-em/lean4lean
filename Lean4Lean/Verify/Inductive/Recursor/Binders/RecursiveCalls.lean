@@ -1140,7 +1140,7 @@ to the operational binder certificates retained by `resultBindings`, every
 family is replayed against its independently checked header under the common
 recursor universe list, and the exact index/major/motive origin-type rows
 remain translated and typed after all later mutual frames. -/
-theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
+theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     {base current : AddInductive.Context} (Hbase : ContextWF base)
     {decl : VInductDecl} {baseDepth runtimeDepth : Nat}
     (stats : AddInductive.InductiveStats)
@@ -1252,7 +1252,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         AddInductive.withCheckLCtx L
           (AddInductive.mkRecInfos.loopArgs1 stats normalized 0 #[]
             current.fuel.inductiveFuel loopK)) current).WF Q
-    refine Hheader.startRecursorSemantics Helim R hconsume henv
+    refine Hheader.startRecursorTyping Helim R hconsume henv
       Hsuffix (HparamsCtx dIdx hidx) Hstats hparamU Hroot.lparams_eq
       loopK ?_ current.fuel.inductiveFuel
     · intro cIndices nextDepth Rindices henvIndices HsuffixIndices
@@ -1457,7 +1457,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             rw [hprogress, getElem!_pos indTypes dIdx hidx]
           rw [hsrc]
           exact HindexTrace.mono (hMajorFrame.trans hMotiveFrame)
-        refine resultSemantics Hbase stats indTypes elimLevel Helim Hheaders
+        refine resultTyping Hbase stats indTypes elimLevel Helim Hheaders
           hconsume (dIdx + 1)
           (recInfos.push {
             motive := .fvar ⟨cMajor.ngen.curr⟩

@@ -39,7 +39,7 @@ theorem VEnv.exists_addConstVals
 abstract atomic batch, even when primitive reserved names are allowed.  The
 result deliberately stops at `AtomicAddConstants`: no validity claim is made
 for the header-only abstract environment. -/
-theorem AddInductive.declareInductiveTypes.installsSemanticHeadersAtomicWF
+theorem AddInductive.declareInductiveTypes.installsHeadersAtomicWF
     (Hc : ContextWF c)
     (Hsemantic :
       checkInductiveTypes.loopType.CheckedHeaders
@@ -271,7 +271,7 @@ def HeaderDeclarationOf.toPrimitiveHeaderEnvironment
     H.toHeaderDeclaration.checkedResult hlevels hlevelParams
       hindices hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
   have hsourceHeaders : sourceMaterialized.headers = H.headers := by
-    change H.semanticPrefix.complete H.checked = H.headers
+    change H.formations.complete H.checked = H.headers
     exact H.headers_eq.symm
   let context : LocalContextWF { c with env := outEnv } :=
     Hc.toLocal.withEnv (venv' := envTypes)
@@ -319,7 +319,7 @@ def HeaderDeclarationOf.toPrimitiveHeaderEnvironment
 /-- Primitive header installation with the declaration synthesized from the
 successful semantic header fold and the finite canonical constructor rows.
 No caller-provided skeleton or header translation remains. -/
-theorem AddInductive.declareInductiveTypes.primitiveSemanticHeadersWF
+theorem AddInductive.declareInductiveTypes.primitiveHeadersWF
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
@@ -355,7 +355,7 @@ theorem AddInductive.declareInductiveTypes.primitiveSemanticHeadersWF
           ∃ Hheaders : PrimitiveHeaderEnvironment c stats decl nparams
             isUnsafe depth Hc.venv indTypes outEnv, True := by
   have Hinstall :=
-    AddInductive.declareInductiveTypes.installsSemanticHeadersAtomicWF
+    AddInductive.declareInductiveTypes.installsHeadersAtomicWF
       (numNested := numNested) Hc Hsemantic hindicesSize hvisible
   exact Hinstall.mono fun outEnv Hresult => by
     rcases Hresult with ⟨envTypes, htypesAdded, Hatomic⟩

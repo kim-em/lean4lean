@@ -120,7 +120,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
   have hnonempty : 0 < res.types.toArray.size :=
     HlowerInitial.resultTypesSizePos
   have Hrun :=
-    Environment.addInductiveAfterLowering.nestedValidatedRawSourceSemanticWF
+    Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
       env lparams nparams sourceTypes isUnsafe false fuel res
       Hc' wf.inductivesClosed wf.envGhostFree wf.constructorOwners hctx
       hnonempty (inductiveSafety_notPartial isUnsafe)
@@ -200,10 +200,10 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
         simpa only [E'.lowered_eq] using E'.assembly.checked
       cases isUnsafe with
       | false =>
-          exact E'.safeConstructorSemanticsOfParameterDomains wf HlowerExact
+          exact E'.safeConstructorTypingOfParameterDomains wf HlowerExact
             Hmetadata Hsources Howners rfl Hparams
       | true =>
-          exact E'.unsafeConstructorSemanticsOfParameterDomains wf HlowerExact
+          exact E'.unsafeConstructorTypingOfParameterDomains wf HlowerExact
             Hmetadata Hsources Howners rfl Hparams
     have htypesH : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some V'.sourceCore.envTypes := by

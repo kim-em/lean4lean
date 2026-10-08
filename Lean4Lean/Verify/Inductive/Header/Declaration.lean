@@ -24,12 +24,12 @@ structure HeaderDeclaration
     isUnsafe skeleton envTypes
   metadata : List (Nat × VLevel)
   checked : skeleton.withMetadata metadata = some decl
-  semanticPrefix : checkInductiveTypes.loopType.HeaderFormations
+  formations : checkInductiveTypes.loopType.HeaderFormations
     env Us skeleton params commonLevel metadata skeleton.types.length
   translation : TrInductDeclHeaders env Us nparams sources isUnsafe decl
     envTypes
   headers : HeaderCertificate env decl
-  headers_eq : headers = semanticPrefix.complete checked
+  headers_eq : headers = formations.complete checked
 
 /-- Final semantic assembly together with the exact header target list from
 which it was built.  Keeping this equality at the assembly boundary lets the
@@ -48,7 +48,7 @@ structure HeaderDeclarationOf
 
 /-- Join the skeleton-free semantic header traversal with the skeleton-free
 constructor target traversal.  The only installation premise is precisely
-the equation produced by `semanticHeadersWF`. -/
+the equation produced by `headersWF`. -/
 theorem HeaderDeclaration.ofTargetsExact
     (Hsemantic :
       checkInductiveTypes.loopType.CheckedHeaders
@@ -111,7 +111,7 @@ theorem HeaderDeclaration.ofTargetsExact
     skeletonTranslation := Hskeleton
     metadata := Hsemantic.metadata
     checked := Hmaterialized
-    semanticPrefix := Hprefix
+    formations := Hprefix
     translation :=
       Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.checked
         Hskeleton Hmaterialized
@@ -212,11 +212,11 @@ def HeaderDeclaration.checkedResult
   have hfields := VInductDeclSkeleton.withMetadata_fields H.checked
   have herase := VInductDeclSkeleton.withMetadata_toSkeleton H.checked
   refine {
-    headers := H.semanticPrefix.complete H.checked
+    headers := H.formations.complete H.checked
     normalizedSources :=
-      H.semanticPrefix.normalizedSourceAtChecked H.checked
+      H.formations.normalizedSourceAtChecked H.checked
     normalizedShapes :=
-      H.semanticPrefix.normalizedShapeAtChecked H.checked
+      H.formations.normalizedShapeAtChecked H.checked
     isNotZero := hnotzero
     commonLevel := hcommon
     levels := ?_
@@ -269,7 +269,7 @@ def HeaderDeclaration.checkedResult
       exact Hcache
     exact Hcache'.complete
   · apply Hsuffix.paramsDefEq Hambient
-    exact H.semanticPrefix.parameterCount.trans
+    exact H.formations.parameterCount.trans
       (H.skeletonTranslation.nparams.trans hparams.symm)
   · rw [← checkInductiveTypes.loopType.cachedParamVars_eq_paramVars H.decl]
     have hsize : stats.params.size = H.decl.nparams :=

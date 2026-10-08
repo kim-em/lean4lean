@@ -54,7 +54,7 @@ alignment with the source declaration (`numParams`, `numFields`, `induct`,
 
 **Obtaining the hypotheses.** `E : NestedRun ...` is the
 `validated` field produced by
-`Environment.addInductiveAfterLowering.nestedValidatedRawSourceSemanticWF`;
+`Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF`;
 `SourceSyntaxChecks sourceTypes` is supplied to the continuation of
 `addInductiveDeclaration.checkedLoweringClosedWF` (from
 `checkInductiveSources`); `ConstructorOwnersPresent sourceProdEnv` is

@@ -63,10 +63,10 @@ structure RecursorConstruction
   bindings : RecInfoBindings localContext recInfos
   origins : RecInfoBinderTypes localContext recInfos
   templates : RuleTemplatesMatch stats recInfos origins
-  templateSemantics : TypedRuleTemplates recursorWF decl
+  templateTyping : TypedRuleTemplates recursorWF decl
     stats recInfos elimLevel parameterSuffix.parameterDecls origins
   minorSources : MinorsAndIndicesMatchSource stats indTypes origins
-  minorSemantics : TypedMinors recursorWF origins
+  minorTyping : TypedMinors recursorWF origins
     parameterSuffix.parameterDecls
   majorTypes : TrBinderTypes recursorWF origins.majorTypes
   majorShapes : MajorPremiseTypes stats recInfos origins.majorTypes

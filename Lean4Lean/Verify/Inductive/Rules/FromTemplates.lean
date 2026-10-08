@@ -377,7 +377,7 @@ theorem recInfoFlatMinorAtOffset
     getElem!_pos recInfos[owner]!.minors localIndex hlocal]
   exact Hget'
 
-theorem RuleTemplateMatchesMinor.boundGeneratedRuleOfSemanticSource
+theorem RuleTemplateMatchesMinor.boundGeneratedRuleOfSource
     {stats : AddInductive.InductiveStats}
     {recInfos : Array AddInductive.RecInfo}
     {S : MinorPremiseType} {minor : Expr}
@@ -552,7 +552,7 @@ structure RuleFromTemplateTyping
         fv ∈ ExprArrayFVarIds stats.params)
       recursiveArgs recursiveResults recursiveArgs.size
 
-theorem RuleFromTemplateTyping.toSemantics
+theorem RuleFromTemplateTyping.toTyping
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
     (C : RuleFromTemplateTyping indTypes stats motives minors lvls
@@ -781,7 +781,7 @@ theorem RecInfoBinderTypes.minorShapes_congr
 /-- Assemble the semantic certificate for the exact retained blueprint rule.
 Every field comes from first-pass producer evidence; no constructor traversal,
 call generation, inference, or alpha-renaming is replayed. -/
-theorem RuleFromTemplate.semanticsOfProducer
+theorem RuleFromTemplate.typingOfProducer
     {stats : AddInductive.InductiveStats}
     {recInfos : Array AddInductive.RecInfo}
     {S : MinorPremiseType} {B : AddInductive.RecRuleTemplate}
@@ -893,7 +893,7 @@ theorem RuleFromTemplate.semanticsOfProducer
       rw [F.fieldOpening.fvars_eq_bound
         F.fieldsRecent.toFVarArrayAfter.toFVarArrayIn]
       exact Hstaged }
-  rcases C.toSemantics H.certificate hroot htarget H.allArgs_eq
+  rcases C.toTyping H.certificate hroot htarget H.allArgs_eq
       H.recursiveArgs_eq H.recursiveResults_eq binding HmotiveTelescope
       Hlookup with
     ⟨Ssemantic, binding', HmotiveTelescope', Hlookup', hdecisionPositions,
@@ -1072,7 +1072,7 @@ theorem TypedRecursorRules.ofEntriesWithProducer
 
 /-- Semantic owner row assembled from the exact retained blueprint and the
 semantic-origin row produced by the same second-pass iteration. -/
-theorem RuleTemplatesMatch.semanticBoundGeneratedRules
+theorem RuleTemplatesMatch.boundGeneratedRules
     {indTypes : Array InductiveType}
     {stats : AddInductive.InductiveStats}
     {recInfos : Array AddInductive.RecInfo}
@@ -1187,7 +1187,7 @@ theorem RuleTemplatesMatch.semanticBoundGeneratedRules
     have hrecursive : HS.traversal.recursiveFields = S.recursiveFields := by
       rw [htraversal]
       exact Hsource.2.2.2.2.choose_spec.2.2.2.1
-    rcases Horigin.boundGeneratedRuleOfSemanticSource HS
+    rcases Horigin.boundGeneratedRuleOfSource HS
       Hsource.2.2.2.1 hrecursive indTypes
       (AddInductive.getRecLevels elimLevel stats.levels)
       (recursorMinorOffset indTypes owner + localIndex) Hparams Hbindings
@@ -1195,7 +1195,7 @@ theorem RuleTemplatesMatch.semanticBoundGeneratedRules
       hfieldsFresh with ⟨Hrule⟩
     rcases HsemanticOrigins.entry owner hownerRec localIndex hshapeLocal with
       ⟨Hsemantic⟩
-    rcases Hrule.semanticsOfProducer HS Hsemantic with
+    rcases Hrule.typingOfProducer HS Hsemantic with
       ⟨HruleSemantic, HmotiveEvidence, hshapeEq,
         hsemanticParameterDecls⟩
     have hctor : indTypes[owner]!.ctors[localIndex] = S.constructor := by

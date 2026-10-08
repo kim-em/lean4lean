@@ -45,7 +45,7 @@ theorem
           (liftContextPrefix (T.motives ++ T.minors).length
             originalDomains.reverse).reverse ∧
         TrExprS H.outVEnv Us parameterDecls
-          A.semantics.parameterTail
+          A.typing.parameterTail
           (VExpr.wrapForalls originalDomains fieldResult) ∧
         OnCtx (originalDomains.reverse ++ T.params.reverse)
           (H.outVEnv.IsType Us.length) ∧
@@ -221,7 +221,7 @@ theorem
             (liftContextPrefix (T.motives ++ T.minors).length
               originalDomains.reverse).reverse ∧
           TrExprS H.outVEnv Us parameterDecls
-            A.semantics.parameterTail
+            A.typing.parameterTail
             (VExpr.wrapForalls originalDomains fieldResult) ∧
           OnCtx (originalDomains.reverse ++ T.params.reverse)
             (H.outVEnv.IsType Us.length) ∧
@@ -713,7 +713,7 @@ theorem
           (liftContextPrefix (T.motives ++ T.minors).length
             originalDomains.reverse).reverse ∧
         TrExprS H.outVEnv Us parameterDecls
-          A.semantics.parameterTail
+          A.typing.parameterTail
           (VExpr.wrapForalls originalDomains fieldResult) ∧
         OnCtx (originalDomains.reverse ++ T.params.reverse)
           (H.outVEnv.IsType Us.length) ∧
@@ -933,9 +933,9 @@ theorem
       ⟨selectedOwner, sourceIndices⟩
     have hselectedOwner : selectedOwner = owner := by
       have hfirst := checkPositivityStep.getIIndices.fst_eq_of_valid
-        A.semantics.target_valid
+        A.typing.target_valid
       rw [htarget] at hfirst
-      exact hfirst.trans A.semantic_owner
+      exact hfirst.trans A.typing_owner
     subst selectedOwner
     rw [htarget] at hsourceShape HlhsTr
     rw [hsourceShape]
@@ -1001,7 +1001,7 @@ theorem
           (liftContextPrefix (T.motives ++ T.minors).length
             originalDomains.reverse).reverse ∧
         TrExprS H.outVEnv Us parameterDecls
-          A.semantics.parameterTail
+          A.typing.parameterTail
           (VExpr.wrapForalls originalDomains fieldResult) ∧
         OnCtx (originalDomains.reverse ++ T.params.reverse)
           (H.outVEnv.IsType Us.length) ∧
@@ -1096,7 +1096,7 @@ theorem
       T.params.reverse H.parameterSuffix.parameterDecls.toCtx := by
     simpa only [← H.parameterDecls] using Hparams
   have Htail' : TrExprS H.outVEnv Us
-      H.parameterSuffix.parameterDecls A.semantics.parameterTail
+      H.parameterSuffix.parameterDecls A.typing.parameterTail
       (VExpr.wrapForalls originalDomains fieldResult) := by
     simpa only [← H.parameterDecls] using Htail
   rcases A.finalCheckedScopedEquationContextAlignmentFromFrameFor B T

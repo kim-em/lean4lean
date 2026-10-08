@@ -237,7 +237,7 @@ theorem OrdinaryInstallation.extendSafePreludeEq
   have hconstructors :
       CtorParamsAgree .safe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
-    exact Hrecursors.constructorSemantics
+    exact Hrecursors.constructorTyping
       (wf.ctorParamsAgree (safety := .safe)) T.rules
   have horigins :
       InductInfosFromDecl c.env.constants outEnv.constants decl :=
@@ -617,7 +617,7 @@ theorem AddInductive.run.preludeEqFinalWF
     rw [htypes]
     change 0 < 1
     decide
-  exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
+  exact (AddInductive.run.sourceAlignedWF nparams numNested Hc
     Hclosed wf.envGhostFree hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
       Hrun.extendPreludeEq wf htels hAbsent hsafety hsource Hshape
 

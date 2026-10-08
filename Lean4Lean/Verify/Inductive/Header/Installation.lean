@@ -195,7 +195,7 @@ structure InstalledHeaders
 /-- Package exact abstract installation, the valid installed checking
 context, and the header certificate while retaining every semantic payload
 and normalized source telescope. -/
-theorem AddInductive.declareInductiveTypes.semanticHeadersWF
+theorem AddInductive.declareInductiveTypes.headersWF
     (Hc : ContextWF c)
     (Hsemantic :
       checkInductiveTypes.loopType.CheckedHeaders

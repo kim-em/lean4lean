@@ -376,7 +376,7 @@ theorem RecursorConstruction.recursorTelescope_minorFields
   have hsourceOwner : mowner < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨horigin, _, _, _, _, _, _, _, _, _, _, _, _, _, hsourceLE⟩ :=
     H.minorSources.rows mowner hmowner hsourceOwner localIndex hlocal
-  let HS := H.sourceMinorSemantics mowner hmowner localIndex hlocal
+  let HS := H.sourceMinorTyping mowner hmowner localIndex hlocal
   have hsource : D.type = S.sourceType := by
     rw [hD, ← horigin, ← S.consumed_eq, HS.semantic.sourceType_consumeTypeAnnotations_eq_self]
   rw [hsource] at Hminor
@@ -452,7 +452,7 @@ theorem RecursorConstruction.minorMotiveAppForm
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
-    let HS := H.sourceMinorSemantics mowner hmowner localIndex hlocal
+    let HS := H.sourceMinorTyping mowner hmowner localIndex hlocal
     S.motiveApp = Expr.app
       (mkAppN H.recInfos[mowner]!.motive
         (AddInductive.getIIndices stats HS.semantic.traversal.terminal).2)
@@ -526,7 +526,7 @@ theorem RecursorConstruction.minorResidualSource
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
-    let HS := H.sourceMinorSemantics mowner hmowner localIndex hlocal
+    let HS := H.sourceMinorTyping mowner hmowner localIndex hlocal
     let ys := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
     ((S.motiveApp.abstractN S.hypotheses_bound.fvars).abstractN S.fields_bound.fvars
@@ -686,7 +686,7 @@ theorem RecursorConstruction.minorResidualSource
     rw [hinner, Expr.abstractList_fvar_spine _ S.fields_nodup, hlen,
       Expr.abstractList_bvar_spine _ _ _ _ (by omega)]
   have hS : H.origins.minorShapes mowner hmowner localIndex hlocal = S := rfl
-  have hHS : H.sourceMinorSemantics mowner hmowner localIndex hlocal = HS := rfl
+  have hHS : H.sourceMinorTyping mowner hmowner localIndex hlocal = HS := rfl
   simp only [Expr.abstractList_app, Expr.abstractList_mkAppN]
   simp only [hS, hHS, Expr.mkAppN_eq_mkAppList, Array.toList_map, List.map_map,
     Function.comp_def, hconst, hmotiveAbs, hparamsAbs, hfieldsAbs]
@@ -712,7 +712,7 @@ theorem RecursorConstruction.recursorTelescope_minorResidual
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (hD : D.type = H.origins.minorTypes[mowner]![localIndex]!) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
-    let HS := H.sourceMinorSemantics mowner hmowner localIndex hlocal
+    let HS := H.sourceMinorTyping mowner hmowner localIndex hlocal
     let fields := InductiveSignature.insertBinders
       ((H.declFieldDomains mowner hmowner localIndex hlocal).map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
@@ -912,7 +912,7 @@ theorem RecursorConstruction.recursorTelescope_minorIndices
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
-    let HS := H.sourceMinorSemantics mowner hmowner localIndex hlocal
+    let HS := H.sourceMinorTyping mowner hmowner localIndex hlocal
     let fields := InductiveSignature.insertBinders
       ((H.declFieldDomains mowner hmowner localIndex hlocal).map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))

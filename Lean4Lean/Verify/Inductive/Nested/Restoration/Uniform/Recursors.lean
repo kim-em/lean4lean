@@ -934,7 +934,7 @@ theorem minorParamUniform {heads : List Name} (I : H.ParamUniformDeclarations he
       H.recInfos[owner]!.ruleTemplates[localIndex]! :=
     H.templates.entry owner howner localIndex hlocal
   have hfresh := H.templates.fields_outer_fresh owner howner localIndex hlocal
-  obtain ⟨Hsem⟩ := H.templateSemantics.entry owner howner localIndex hlocal
+  obtain ⟨Hsem⟩ := H.templateTyping.entry owner howner localIndex hlocal
   generalize H.origins.minorShapes owner howner localIndex hlocal = S at hsrc hcallRoots hfresh Hsem ⊢
   generalize H.recInfos[owner]!.ruleTemplates[localIndex]! = B at hcallRoots Hsem ⊢
   obtain ⟨-, -, hsourceCtors, -, traversal, htrav, -, -, -, -, hvalid, hmotiveApp, -, -,

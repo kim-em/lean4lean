@@ -319,7 +319,7 @@ structure NestedFinalAssemblyRemainder
       actualEntries ~
         (typeEntries ++ constructorEntries ++ recursorEntries).map Prod.fst
   sourceMapWF : sourceProdEnv.constants.WF
-  auxiliarySemantics : AuxiliaryRecursorsGuardedRules decl
+  auxiliaryTyping : AuxiliaryRecursorsGuardedRules decl
     (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
       primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.auxiliaries
       [] [] auxiliaryRecursors auxiliaryRules
@@ -329,7 +329,7 @@ structure NestedFinalAssemblyRemainder
     (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
       primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
       ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
-      finalBaseVEnv auxiliarySemantics [] [] auxiliaryRecursors auxiliaryRules
+      finalBaseVEnv auxiliaryTyping [] [] auxiliaryRecursors auxiliaryRules
 
 /-- Assemble the full certificate after its two producer-indexed semantic
 traces have been built. -/
@@ -408,7 +408,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
   sourceTranslations := Hsource
   auxiliaryRecursorTrace := HauxiliaryRecursors
   sourceIota := Hprimary
-  auxiliaryGuarded := R.auxiliarySemantics
+  auxiliaryGuarded := R.auxiliaryTyping
   typeValues := htypeValues
   constructorValues := hconstructorValues
   recursorValues := R.recursorValues
@@ -428,7 +428,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
 source family and its exact restored source recursor in the two aggregate
 lists.  These are the two positional facts needed to connect a pointwise
 restoration step back to its generated production entry and final block. -/
-theorem SourceFamilyTranslations.sourceIotaSemanticTraceOfMemberships
+theorem SourceFamilyTranslations.sourceIotaTraceOfMemberships
     {decl : VInductDecl} {lparams : List Name}
     {safety : DefinitionSafety} {sourceVEnv envTypes envCtors : VEnv}
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -610,7 +610,7 @@ structure NestedRun
   depth : Nat
   commonParams : List VExpr
   commonLevel : VLevel
-  sourceHeaderSemantics :
+  sourceHeaderTyping :
     checkInductiveTypes.loopType.CheckedHeaders
       contextWF.venv context.lparams nparams commonParams
         commonLevel res.types.toArray.toList
@@ -759,7 +759,7 @@ def nestedAddInductiveContext (env : Environment) (lparams : List Name)
 discharged by `AddInductive.run.semanticWF`; its existential semantic context
 and complete recursor phases are retained because restoration needs the
 latter, whereas `semanticAddInductWF` intentionally projects them away. -/
-theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceSemanticWF
+theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe allowPrimitive : Bool)
     (fuel : FuelConfig) (res : Lean4Lean.ElimNestedInductive.Result)
@@ -807,7 +807,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceSemanticWF
             Hc'.venv sourceDecl lparams nparams isUnsafe
               (if isUnsafe then .unsafe else .safe) outEnv) := by
   let c := nestedAddInductiveContext env lparams isUnsafe allowPrimitive fuel
-  have Hrun := AddInductive.run.semanticSourceAlignedWF
+  have Hrun := AddInductive.run.sourceAlignedWF
     (types := res.types) nparams res.aux2nested.size Hc (by
       simpa [c, nestedAddInductiveContext] using Hclosed) (by
       simpa [c, nestedAddInductiveContext] using HenvGF) hctx hnonempty
@@ -1016,7 +1016,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceSemanticWF
             depth := depth
             commonParams := commonParams
             commonLevel := commonLevel
-            sourceHeaderSemantics := Hsemantic
+            sourceHeaderTyping := Hsemantic
             lowering := Hlower
             context_fuel := hfuel'
             restoration := Htrace

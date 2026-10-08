@@ -257,7 +257,7 @@ def HeaderDeclarationOf.toHeaderEnvironment
     H.toHeaderDeclaration.checkedResult hlevels hlevelParams
       hindices hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
   have hsourceHeaders : sourceMaterialized.headers = H.headers := by
-    change H.semanticPrefix.complete H.checked = H.headers
+    change H.formations.complete H.checked = H.headers
     exact H.headers_eq.symm
   have hle : Hc.venv ≤ Hinstalled.context.venv := by
     rw [Hinstalled.contextVEnv]
@@ -310,7 +310,7 @@ def HeaderDeclarationOf.toHeaderEnvironment
 then expose the ordinary declared-header boundary for the declaration those
 checks themselves synthesize.  This is the skeleton-free replacement for
 calling `declareInductiveTypes.headersWF` with a preselected declaration. -/
-theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
+theorem AddInductive.declareInductiveTypes.constructorsWF
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
@@ -359,7 +359,7 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
       checkInductiveTypes.loopType.CheckedHeaders.checkedResult,
       checkInductiveTypes.loopType.CheckedHeaders.headerCertificate]
   have Hdeclare :=
-    AddInductive.declareInductiveTypes.semanticHeadersWF Hc Hsemantic
+    AddInductive.declareInductiveTypes.headersWF Hc Hsemantic
       hindicesSize hvisible hnprim
   exact Hdeclare.mono fun headerEnv Hinstalled => by
     rcases Hinstalled with ⟨Hinstalled⟩
@@ -395,7 +395,7 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
       rw [hchk]
       exact .refl HcL.checking.tr.wf hwf
     have Hconstructors :=
-      checkConstructors.loopTypes.assemblesSemanticHeadersExact
+      checkConstructors.loopTypes.assemblesHeadersExact
         (c := headerCheckContext c stats) (Hc := Hsuffix.headerCheck)
         HcL Hinstalled.contextMLCtx htypesAddedL
         HheaderMaterialized hheaderParams halignL hcommonParams hconsume hlitL

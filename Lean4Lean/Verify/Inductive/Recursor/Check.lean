@@ -33,7 +33,7 @@ structure RecursorCheck
   generated : GeneratedRecursors localContext.safety
     R.context.venv
     localContext.lparams elimLevel localContext stats indTypes recInfos entries
-  ruleSemantics : TypedRecursorRulesRange
+  ruleTyping : TypedRecursorRulesRange
     recursorWF decl stats indTypes recInfos origins elimLevel
       parameterSuffix.parameterDecls 0 entries
   installed : AddConstants localContext.safety localContext.env
@@ -283,9 +283,9 @@ theorem ConstructorCheck.recursorPhasesWF
     bindings := Hbindings
     origins := Horigins
     templates := Hblueprints
-    templateSemantics := HblueprintSemantics
+    templateTyping := HblueprintSemantics
     minorSources := HminorSources
-    minorSemantics := HminorSemantics
+    minorTyping := HminorSemantics
     majorTypes := HmajorTypes
     majorShapes := HmajorShapes
     motiveTypes := HmotiveTypes
@@ -299,7 +299,7 @@ theorem ConstructorCheck.recursorPhasesWF
     minorCounts := HminorCounts
     cardinality := Hcard
   }
-  have Hrecursors := AddInductive.declareRecursors.bindingSemanticWFOfTargets
+  have Hrecursors := AddInductive.declareRecursors.bindingWFOfTargets
     (elimLevel := elimLevel) kTarget hkTarget Hvalid Rlocal.toBindingContextWF Rlocal
     HstatsLocal Lean4Lean.recursorConsumeTypeAnnotationsCompat
     (by simpa only [henvLocal] using hlit) hctxLocal Hcard Hcore Hbindings
@@ -345,7 +345,7 @@ theorem ConstructorCheck.recursorPhasesWF
       outVEnv := outVEnv
       entries := entries
       generated := Hgenerated
-      ruleSemantics := HruleSemantics
+      ruleTyping := HruleSemantics
       installed := Hinstalled
       closed := Hgenerated.closesMutuals Hinstalled Hvalid.tr.map_wf
         hclosedLocal

@@ -68,26 +68,26 @@ theorem RecursorConstruction.sourceConstructorIndices_eq_header
         ⟨recursorMinorOffset indTypes owner + localIndex,
           H.sourceMinorOffsetBound owner howner localIndex hlocal⟩).indices := by
   have Hraw := H.constructorRawSourceReplay owner howner localIndex hlocal
-    (H.sourceMinorSemantics owner howner localIndex hlocal)
+    (H.sourceMinorTyping owner howner localIndex hlocal)
   have Hcons := (H.sourceConstructorIndices_replay owner howner localIndex hlocal).1
   rw [H.constructorConsumedSource owner howner localIndex hlocal
-    (H.sourceMinorSemantics owner howner localIndex hlocal)] at Hcons
-  have Htel := (H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.fieldTelescope.abstractList
+    (H.sourceMinorTyping owner howner localIndex hlocal)] at Hcons
+  have Htel := (H.sourceMinorTyping owner howner localIndex hlocal).semantic.traversal.fieldTelescope.abstractList
     H.params.fvars
-  have hres := (H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.fieldResidual_not_forall
+  have hres := (H.sourceMinorTyping owner howner localIndex hlocal).semantic.traversal.fieldResidual_not_forall
   have hcons : Lean4Lean.Expr.consumeForallTypes ctorEnv.isTypeAnnotationWrapper
-      (((H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.fieldResidual).abstractList
-        H.params.fvars (0 + (H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.fields.size)) =
-      ((H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.fieldResidual).abstractList
-        H.params.fvars (0 + (H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.fields.size) := by
+      (((H.sourceMinorTyping owner howner localIndex hlocal).semantic.traversal.fieldResidual).abstractList
+        H.params.fvars (0 + (H.sourceMinorTyping owner howner localIndex hlocal).semantic.traversal.fields.size)) =
+      ((H.sourceMinorTyping owner howner localIndex hlocal).semantic.traversal.fieldResidual).abstractList
+        H.params.fvars (0 + (H.sourceMinorTyping owner howner localIndex hlocal).semantic.traversal.fields.size) := by
     rw [← Lean4Lean.Expr.abstractList_consumeForallTypes _ _ (0 + _)]
     congr 1
     revert hres
-    cases (H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.fieldResidual <;>
+    cases (H.sourceMinorTyping owner howner localIndex hlocal).semantic.traversal.fieldResidual <;>
       simp [Lean4Lean.Expr.consumeForallTypes, Lean.Expr.isForall]
   obtain ⟨hlen, -⟩ := H.sourceFields_defeq_header owner howner localIndex hlocal
   have hconsLen := H.sourceFields_length owner howner localIndex hlocal
-  have hfields := (H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal_fields
+  have hfields := (H.sourceMinorTyping owner howner localIndex hlocal).semantic.traversal_fields
   have hbody := TrExprS.consumedTelescope_body_eq Htel hcons .base Hraw Hcons
     (by rw [hfields]; omega) (by rw [hfields]; exact hconsLen)
   have hargs := congrArg (fun e => e.getAppFnArgs.2) hbody

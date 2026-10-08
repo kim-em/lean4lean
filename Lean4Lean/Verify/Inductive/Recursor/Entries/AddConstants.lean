@@ -1178,7 +1178,7 @@ theorem AddConstants.findEntry
 persistent constructor-parameter semantics.  Exact production lookups are
 transported through the lockstep fold; all abstract semantic judgments use
 the monotone target environment supplied by the same certificate. -/
-theorem AddConstants.preservesConstructorSemantics
+theorem AddConstants.preservesConstructorTyping
     (H : AddConstants installSafety env venv entries outEnv outVEnv)
     (hwf : env.constants.WF)
     (Hsource : CtorParamsAgree
@@ -1197,7 +1197,7 @@ theorem AddConstants.preservesConstructorSemantics
 /-- Semantic refinement of the production recursor loop.  In addition to
 the ordinary generated-entry and installation certificates, every recursor
 entry retains the classifier/call trace of each generated iota rule. -/
-theorem AddInductive.declareRecursors.loop.semanticWF
+theorem AddInductive.declareRecursors.loop.typingWF
     {sourceVEnv currentVEnv envTypes envCtors : VEnv}
     {decl : VInductDecl} {indTypes : Array InductiveType}
     {parameterDecls : VLCtx}
@@ -1307,7 +1307,7 @@ theorem AddInductive.declareRecursors.loop.semanticWF
         rw [Hcard.records]
         simpa using
           (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl).symm
-      have HgeneratedPair := Hblueprints.semanticBoundGeneratedRules
+      have HgeneratedPair := Hblueprints.boundGeneratedRules
         HminorSources elimLevel HblueprintSemantics HminorSemantics Hbindings
         Hparams hnoalias hsize hcounts dIdx hidx
       rw [← hrules.1] at HgeneratedPair
@@ -1374,7 +1374,7 @@ theorem AddInductive.declareRecursors.loop.semanticWF
               haddInfo rfl
           have hnextLe : sourceVEnv ≤ nextVEnv :=
             hle.trans (VEnv.addConst_le haddInfo)
-          have Htail := AddInductive.declareRecursors.loop.semanticWF Hcard
+          have Htail := AddInductive.declareRecursors.loop.typingWF Hcard
             Hdecl c R Hstats hconsume hlit hctx Hbindings Horigins
             Hblueprints HblueprintSemantics HminorSources HminorSemantics
             Hparams hnoalias hcounts hparameterUp Hseed numMinors numMotives
@@ -1473,7 +1473,7 @@ termination_by indTypes.size - dIdx
 /-- Install the selected source-generator targets through the actual
 recursor declaration pass. The checker supplies their typing; the result
 retains exact target equality alongside constructor-rule semantics. -/
-theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
+theorem AddInductive.declareRecursors.bindingWFOfTargets
     {envTypes envCtors : VEnv} {decl : VInductDecl}
     {indTypes : Array InductiveType} {parameterDecls : VLCtx}
     {currentVEnv : VEnv} {recLparams : List Name} {depth : Nat}
@@ -1565,7 +1565,7 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
           (indTypes.map (·.name)).toList c.lctx k (c.safety != .safe)
           c.lparams)
   refine Hcheck.bind fun _ Htypes => ?_
-  have Hloop := AddInductive.declareRecursors.loop.semanticWF
+  have Hloop := AddInductive.declareRecursors.loop.typingWF
       (elimLevel := elimLevel) Hcard Hdecl c R Hstats hconsume hlit
       hctx Hbindings Horigins Hblueprints HblueprintSemantics
       HminorSources HminorSemantics Hparams hnoalias hcounts hparameterUp Hseed

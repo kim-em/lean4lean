@@ -587,7 +587,7 @@ namespace mkRecInfos.loopUTemplates
 /-- Semantic orchestration for the blueprint-retaining hypothesis loop.  The
 proof follows the exact producer run; the continuation receives both the
 fresh hypotheses and the equally-sized retained call-blueprint row. -/
-theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
+theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (bu u : Array Expr)
     (recInfos : Array AddInductive.RecInfo)
     (k : Array Expr → Array AddInductive.RecCallTemplate →
@@ -702,7 +702,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
       R HviTr HviType ?_
     let R' := R.withLocalDecl (name := vName) (bi := .default)
       HviTr HviType
-    refine resultSemanticBindings stats bu u recInfos k Rroot R' rootScope
+    refine resultBindings stats bu u recInfos k Rroot R' rootScope
       rootScopeInContext hrootUp (v.size + 1)
       (v.push (.fvar ⟨current.ngen.curr⟩)) (calls.push call)
       (Hrecent.pushCurrent vName (viTy.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) viTarget
@@ -1151,7 +1151,7 @@ theorem inductionHypothesisTypeOrigin
 /-- Close the retained-blueprint hypothesis loop from the independently
 verified motive applications.  The additional output is produced by the same
 successful traversal, so no replay or alpha-compatibility premise is needed. -/
-theorem resultSemanticsOfMotiveApplications
+theorem resultTypingOfMotiveApplications
     {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (bu u : Array Expr)
     (recInfos : Array AddInductive.RecInfo)
@@ -1210,7 +1210,7 @@ theorem resultSemanticsOfMotiveApplications
       (k values calls out).WF Q) :
     (AddInductive.mkRecInfos.loopUTemplates stats bu u recInfos 0 #[] #[]
       k c).WF Q := by
-  refine resultSemanticBindings stats bu u recInfos k R R rootScope
+  refine resultBindings stats bu u recInfos k R R rootScope
     rootScopeInContext hrootUp 0 #[] #[]
     (RecursorFVarSuffix.empty R)
     (InductionHypothesisTypesPrefix.empty stats recInfos c u)
@@ -1325,7 +1325,7 @@ theorem resultSemanticsOfMotiveApplications
     · exact hcallSize
 
 /-- Shared-telescope form of the blueprint-retaining first pass. -/
-theorem resultSemanticsOfMotiveTelescopes
+theorem resultTypingOfMotiveTelescopes
     {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (bu u : Array Expr)
     (recInfos : Array AddInductive.RecInfo)
@@ -1384,7 +1384,7 @@ theorem resultSemanticsOfMotiveTelescopes
       (k values calls out).WF Q) :
     (AddInductive.mkRecInfos.loopUTemplates stats bu u recInfos 0 #[] #[]
       k c).WF Q :=
-  resultSemanticsOfMotiveApplications stats bu u recInfos k R rootScope Hstats
+  resultTypingOfMotiveApplications stats bu u recInfos k R rootScope Hstats
     hconsume hlit hctx Hfields hfieldsList hufields rootScopeInContext hrootUp
     fieldScope HfieldsSharp sharpInContext hsharpUp
     hrootUniverses hsharpUniverses hfieldUniverses
@@ -2445,7 +2445,7 @@ theorem continueMinor_templateSemanticOrigins
 Once the complete minor domain has been independently translated and typed,
 this mirrors production's `withLocalDecl`, updates the owning minor row, and
 transports every first-pass semantic invariant into the new context. -/
-theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
+theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
@@ -2883,7 +2883,7 @@ terminal type, its motive application, and the generated induction
 hypotheses with their call blueprints, the minor premise closed over fields
 and hypotheses is translated, typed and inserted into row `dIdx`, and every
 second-pass invariant is handed to the continuation `k`. -/
-theorem constructorMinorClosureSemantics {alpha : Type} {Q : alpha → Prop}
+theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (indTypes : Array InductiveType)
     (indTypeName : Name)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
@@ -3183,7 +3183,7 @@ theorem constructorMinorClosureSemantics {alpha : Type} {Q : alpha → Prop}
     (mkAppN (mkAppN (.const ctor.name stats.levels) stats.params) allFields)
   let minorSourceType :=
     outCtx.lctx.mkForall allFields (outCtx.lctx.mkForall hypotheses motiveApp)
-  refine continueMinorSemantics (Q := Q) stats indTypes dIdx recInfos
+  refine continueMinorTyping (Q := Q) stats indTypes dIdx recInfos
     (ctor.name.replacePrefix indTypeName .anonymous) minorSourceType
     (fun minor => {
       ctor := ctor.name
@@ -3375,7 +3375,7 @@ theorem constructorMinorClosureSemantics {alpha : Type} {Q : alpha → Prop}
 introduction certificate for the exact terminal application exposed by the
 field traversal; all recursive-field motives, generated IH binders, telescope
 closure, and minor insertion are derived here. -/
-theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
+theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (indTypes : Array InductiveType)
     (indTypeName : Name)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
@@ -3681,7 +3681,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       exact Array.getElem_mem_toList hj
     rw [HfieldsRecent.expressions] at hallExpr
     exact hfieldTypes fv (by simpa using hallExpr) decl hfind
-  apply mkRecInfos.loopUTemplates.resultSemanticsOfMotiveTelescopes (Q := Q)
+  apply mkRecInfos.loopUTemplates.resultTypingOfMotiveTelescopes (Q := Q)
     stats allFields recursiveFields recInfos finish Rargs producerScope HstatsArgs
       hconsume
       (by simpa only [HfieldsRecent.venv_eq] using hlit)
@@ -3766,7 +3766,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
   intro outCtx Rout hypotheses calls HhypothesesRecent HhypothesisOrigins
     HhypothesisCallOrigins HhypothesisCallSemantics HhypothesisCallSharpSemantics
     hhypothesesSize hcallsSize
-  exact constructorMinorClosureSemantics stats indTypes indTypeName dIdx
+  exact constructorMinorClosureTyping stats indTypes indTypeName dIdx
     recInfos ctor tail sourceConstructors sourceIndex hsourceConstructor
     hsourceFamily k R Hsuffix Hstats hprefix htailScope hconsume hctx htail
     htailType htail₀ htail₀Ty Hbindings Horigins Hblueprints
@@ -3783,7 +3783,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
 /-- Semantic refinement of the complete constructor list for one mutual
 family.  Each iteration consumes the checker-produced runtime seed for its
 constructor and adds exactly one verified minor to the owning recursor row. -/
-theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
+theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (indTypes : Array InductiveType)
     (indTypeName : Name)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
@@ -3918,7 +3918,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailScope, Htail,
           HtailType, Hintro, HintroType, tailTarget₀, Htail₀, Htail₀Ty⟩
       rw [AddInductive.mkRecInfos.loopCtors]
-      refine oneConstructorSemantics (Q := Q) stats indTypes indTypeName dIdx recInfos
+      refine oneConstructorTyping (Q := Q) stats indTypes indTypeName dIdx recInfos
         ctor tail sourceConstructors sourceIndex hsourceConstructor hsourceFamily
         (fun next => AddInductive.mkRecInfos.loopCtors stats indTypeName
           dIdx next ctors k)
@@ -3999,7 +3999,7 @@ namespace mkRecInfos.loopInd2
 prefix has its exact constructor/minor cardinalities, the unprocessed suffix
 is empty, and every checker-produced constructor seed is consumed at its
 original mutual-family owner. -/
-theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
+theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) (dIdx : Nat)
     (recInfos : Array AddInductive.RecInfo)
@@ -4110,7 +4110,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
   rw [AddInductive.mkRecInfos.loopInd2]
   by_cases hfamily : dIdx < indTypes.size
   · rw [dif_pos hfamily]
-    refine mkRecInfos.loopCtors.resultSemantics (Q := Q) stats indTypes
+    refine mkRecInfos.loopCtors.resultTyping (Q := Q) stats indTypes
       indTypes[dIdx].name dIdx recInfos indTypes[dIdx].ctors
       indTypes[dIdx].ctors 0 rfl
       (by simp [getElem!_pos indTypes dIdx hfamily])
@@ -4139,7 +4139,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         HmajorTypesOut HmajorShapesOut
         HmotiveTypesOut HmotiveShapesOut HtelescopesOut HindexRowsOut
         HparamsOut HnoAliasOut HorderOut HaritiesOut HrootOut
-      refine resultSemantics (root := root) (Q := Q) stats indTypes
+      refine resultTyping (root := root) (Q := Q) stats indTypes
         (dIdx + 1) out k Rout HsuffixOut HstatsOut hconsume
         (by simpa only [henvOut] using hlit)
         hctxOut HbindingsOut HoriginsOut HblueprintsOut

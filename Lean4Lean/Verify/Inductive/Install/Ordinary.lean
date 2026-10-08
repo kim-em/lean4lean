@@ -27,7 +27,7 @@ def OrdinaryInstallation
 /-- Complete ordinary `runWithStats` refinement from skeleton-free formation.
 The existential declaration selected by constructor checking remains the
 same declaration through recursor generation and equation reconstruction. -/
-theorem AddInductive.runWithStats.semanticWF
+theorem AddInductive.runWithStats.typingWF
     (stats : AddInductive.InductiveStats) (nparams : Nat)
     (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
     (c : AddInductive.Context) (depth : Nat) (sourceEnv : VEnv)
@@ -72,7 +72,7 @@ theorem AddInductive.runWithStats.semanticWF
 /-- One successful semantic header accumulation closes the complete ordinary
 post-analysis checker without any declaration, skeleton, or constructor
 target supplied by the caller. -/
-theorem AddInductive.runWithStats.semanticClosedWF
+theorem AddInductive.runWithStats.closedWF
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
@@ -119,9 +119,9 @@ theorem AddInductive.runWithStats.semanticClosedWF
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
       (OrdinaryInstallation c stats nparams depth indTypes isUnsafe
         Hc.venv) := by
-  apply AddInductive.runWithStats.semanticWF (hsourceSafety := hsourceSafety) stats nparams indTypes numNested
+  apply AddInductive.runWithStats.typingWF (hsourceSafety := hsourceSafety) stats nparams indTypes numNested
     isUnsafe c depth Hc.venv
-  · exact AddInductive.semanticFormationCoreClosedWF Hsemantic hlevels
+  · exact AddInductive.formationCoreClosedWF Hsemantic hlevels
       hlevelParams hindicesSize hindices hconsts hparams hcommonParams
       Hcache Hsuffix Hambient hcommon hnotzero Hclosed hvisible hnprimTypes
       Lean4Lean.consumeTypeAnnotationsCompat hnprimCtors hlparams HenvGF
@@ -175,7 +175,7 @@ def OrdinaryRunResult
 semantic result.  This replaces `run.withMetadata`'s caller-supplied abstract
 skeleton with the declaration constructed from successful header and
 constructor executions. -/
-theorem AddInductive.run.semanticSourceAlignedWF
+theorem AddInductive.run.sourceAlignedWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)
     (Hclosed : MutualInductivesClosed c.env)
@@ -203,7 +203,7 @@ theorem AddInductive.run.semanticSourceAlignedWF
         fun _ => c.lparams.Nodup :=
     Kernel.Environment.checkDuplicatedUnivParams.WF c.lparams
   have Hcombined := Hduplicates.bind fun _ hnodup => by
-    apply checkInductiveTypes.loopInd.checkInductiveTypes.accumulatesSemanticHeadersSourceAligned
+    apply checkInductiveTypes.loopInd.checkInductiveTypes.accumulatesHeadersSourceAligned
       (fun stats => AddInductive.runWithStats stats nparams
         types.toArray numNested (c.safety != .safe))
       (OrdinaryRunResult c Hc.venv nparams
@@ -233,7 +233,7 @@ theorem AddInductive.run.semanticSourceAlignedWF
       exact hnodup
     have hnotPartial : c'.safety ≠ .partial := by
       simpa [hsafety] using HnotPartial
-    exact (AddInductive.runWithStats.semanticClosedWF
+    exact (AddInductive.runWithStats.closedWF
       (hsourceSafety := by rw [hsafety]) Hsemantic hlevels
       hlevelParams hindicesSize hindices hconsts hparams hcommonParams
       Hcache Hsuffix Hambient hcommon hnotzero Hclosed' HenvGF' hvisible I.freshTypes

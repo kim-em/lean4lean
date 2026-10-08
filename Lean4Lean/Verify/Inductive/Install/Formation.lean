@@ -13,7 +13,7 @@ namespace VerifyInductive
 installation composed from the declaration synthesized by those same
 executable traversals.  Unlike `formationCore.headersWF`, neither the final
 declaration nor its header translation is a caller input. -/
-theorem AddInductive.semanticFormationCoreWF
+theorem AddInductive.formationCoreWF
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
@@ -61,7 +61,7 @@ theorem AddInductive.semanticFormationCoreWF
           isUnsafe depth Hc.venv indTypes headerEnv,
         ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True := by
   have HheadersAndLoop :=
-    AddInductive.declareInductiveTypes.semanticConstructorsWF
+    AddInductive.declareInductiveTypes.constructorsWF
       Hsemantic hlevels hlevelParams hindicesSize hindices hconsts hparams
       hcommonParams Hcache Hsuffix Hambient hcommon hnotzero hvisible hnprimTypes
       hconsume hlparams
@@ -298,7 +298,7 @@ theorem HeaderEnvironment.closesMutuals
 /-- Skeleton-free header and constructor formation with the persistent
 production mutual-family lookup invariant attached to the same successful
 execution. -/
-theorem AddInductive.semanticFormationCoreClosedWF
+theorem AddInductive.formationCoreClosedWF
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
@@ -347,7 +347,7 @@ theorem AddInductive.semanticFormationCoreClosedWF
           isUnsafe depth Hc.venv indTypes headerEnv,
         ∃ _ : OrdinaryConstructorCheck Hheaders outEnv,
           MutualInductivesClosed outEnv := by
-  have Hformation := AddInductive.semanticFormationCoreWF Hsemantic
+  have Hformation := AddInductive.formationCoreWF Hsemantic
     hlevels hlevelParams hindicesSize hindices hconsts hparams
     hcommonParams Hcache Hsuffix Hambient hcommon hnotzero hvisible hnprimTypes
     hconsume hnprimCtors hlparams henv

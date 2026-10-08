@@ -371,7 +371,7 @@ theorem RecursorConstruction.sourceFieldDomains
         (VExpr.wrapForalls
           (sourceDomains.map (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
           (.sort .zero)) := by
-  obtain ⟨HS⟩ := H.minorSemantics owner howner localIndex hlocal
+  obtain ⟨HS⟩ := H.minorTyping owner howner localIndex hlocal
   obtain ⟨target, Htr, _⟩ := H.constructorConsumedHeaderReplay owner howner localIndex hlocal HS
   have Hext := HS.semantic.hypothesesRecent.contextLE.trans HS.semantic.extension.contextLE
   let Hbound := HS.semantic.fieldsRecent.toFVarArrayIn.mono Hext

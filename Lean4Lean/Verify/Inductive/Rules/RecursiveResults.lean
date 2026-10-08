@@ -729,12 +729,12 @@ theorem
         traversal.fields = S.fields ∧
         traversal.recursiveFields = S.recursiveFields ∧
         traversal.stats = stats ∧
-        traversal.parameterTail = A.semantics.parameterTail ∧
-        traversal.recursivePositions = A.semantics.recursivePositions ∧
+        traversal.parameterTail = A.typing.parameterTail ∧
+        traversal.recursivePositions = A.typing.recursivePositions ∧
         S.recursiveFields[j]! =
-          S.fields[A.semantics.recursivePositions[j]!]! ∧
+          S.fields[A.typing.recursivePositions[j]!]! ∧
         A.rule.recursiveArgs[j]! =
-          A.rule.allArgs[A.semantics.recursivePositions[j]!]! ∧
+          A.rule.allArgs[A.typing.recursivePositions[j]!]! ∧
         S.localIndex = i ∧
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
@@ -750,13 +750,13 @@ theorem
           mkAppN
             (.bvar (O.args.size +
               (S.fields_bound.fvars.length - 1 -
-                A.semantics.recursivePositions[j]!)))
+                A.typing.recursivePositions[j]!)))
             (O.localIndices.map Expr.bvar).toArray ∧
         E.frame.semantic.generated.outerAbstractedMajor A.rule.binders =
           mkAppN
             (.bvar (E.frame.semantic.generated.localArgs.size +
               (A.rule.allArgs.size - 1 -
-                A.semantics.recursivePositions[j]!)))
+                A.typing.recursivePositions[j]!)))
             (E.frame.semantic.generated.localIndices.map Expr.bvar).toArray ∧
         O.replayTrace S.fields_bound.fvars =
           E.frame.semantic.generated.replayTrace
@@ -986,11 +986,11 @@ theorem
     simpa [htraversalStats, htraversalFields,
       htraversalRecursiveFields] using traversal.decisions
   have HruleDecisions : RecursorFieldDecisions hypothesisOrigins.stats
-      A.semantics.fieldRoot traversal.parameterTail A.rule.root
+      A.typing.fieldRoot traversal.parameterTail A.rule.root
       A.rule.target A.rule.allArgs A.rule.recursiveArgs
-      A.semantics.recursivePositions := by
+      A.typing.recursivePositions := by
     rw [hparameterTail]
-    exact A.semantics.decisions
+    exact A.typing.decisions
   have Hreplay :
       O.replayTrace S.fields_bound.fvars =
         E.frame.semantic.generated.replayTrace
@@ -1139,9 +1139,9 @@ theorem
       sourceBinders position =
       .bvar (position + (sourceBinders.length - 1 - motivePosition)) := by
     exact hmotiveAbstract
-  let fieldPosition := A.semantics.recursivePositions[j]!
+  let fieldPosition := A.typing.recursivePositions[j]!
   have hfieldPositionRule : fieldPosition < A.rule.allArgs.size :=
-    (A.semantics.decisions.selected_at j hj).1
+    (A.typing.decisions.selected_at j hj).1
   have hfieldPositionSource : fieldPosition < S.fields.size := by
     rw [hsourceFields]
     exact hfieldPositionRule
@@ -1273,7 +1273,7 @@ theorem
     dsimp only at hnormalize
     rw [hnormalize] at hclosed
     simpa [A.rule.all_args_bound.length_fvars] using hclosed
-  rcases E.frame.cachedSemanticCallArgumentFrame (B := B) with
+  rcases E.frame.cachedCallArgumentFrame (B := B) with
     ⟨_binding, _evidence, _scope, _Hscope, _fieldDomains, _localDomains,
       _narrowIndices, _narrowMajor, _narrowExposed, _hscopeContext,
       _hfields, _hfieldEq, _hlocal, HneutralTranslation,

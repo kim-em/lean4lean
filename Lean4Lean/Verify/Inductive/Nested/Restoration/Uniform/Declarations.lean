@@ -804,12 +804,12 @@ theorem RecursorConstruction.minorSourceHeadsApplied
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     ((H.localContext.lctx.mkForall (H.origins.minorShapes owner howner localIndex hlocal).fields
-      (H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.terminal).abstractList
+      (H.sourceMinorTyping owner howner localIndex hlocal).semantic.traversal.terminal).abstractList
         H.params.fvars).HeadsApplied heads stats.params.size stats.levels.length := by
   have hsourceOwner := H.sourceOwner howner
   have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
   have hfresh := H.templates.fields_outer_fresh owner howner localIndex hlocal
-  generalize H.sourceMinorSemantics owner howner localIndex hlocal = HS
+  generalize H.sourceMinorTyping owner howner localIndex hlocal = HS
   generalize H.origins.minorShapes owner howner localIndex hlocal = S at hsrc hfresh HS ⊢
   obtain ⟨-, -, hsourceCtors, -, traversal, htrav, hctorEq, hfieldsEq, -, hstatsEq, -, -, -,
     hTL, -⟩ := hsrc

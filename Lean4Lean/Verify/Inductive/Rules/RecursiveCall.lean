@@ -43,13 +43,13 @@ theorem
     (F : A.RecursiveCallFrame j hj)
     {fv : FVarId} (hfv : fv ∈ A.rule.all_args_bound.fvars) :
     fv ∈ F.originRoot.lctx.fvars := by
-  have hfieldRecent : fv ∈ A.semantics.fieldsRecent.fvars := by
+  have hfieldRecent : fv ∈ A.typing.fieldsRecent.fvars := by
     rw [FVarArrayIn.fvars_eq
-      A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
+      A.typing.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
       A.rule.all_args_bound rfl]
     exact hfv
   exact F.originExtension.contextLE.fvars
-    (A.semantics.fieldsRecent.members fv hfieldRecent)
+    (A.typing.fieldsRecent.members fv hfieldRecent)
 
 /-- Every identifier selected by the producer's root-scope predicate is an
 actual declaration of its staged origin context. -/
@@ -70,35 +70,35 @@ theorem
     {fv : FVarId} (hfv : F.semantic.rootScope fv) :
     fv ∈ F.originContext.mlctx.vlctx.fvars := by
   rw [F.root_scope] at hfv
-  have hcommon : fv ∈ A.semantics.context.mlctx.vlctx.fvars := by
+  have hcommon : fv ∈ A.typing.context.mlctx.vlctx.fvars := by
     rcases hfv with hfield | hparam
-    · have hfieldRecent : fv ∈ A.semantics.fieldsRecent.fvars := by
-        rw [← A.semantics.fieldOpening.fvars_eq_bound
-          A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn]
+    · have hfieldRecent : fv ∈ A.typing.fieldsRecent.fvars := by
+        rw [← A.typing.fieldOpening.fvars_eq_bound
+          A.typing.fieldsRecent.toFVarArrayAfter.toFVarArrayIn]
         exact hfield
-      have hraw := A.semantics.fieldsRecent.members fv hfieldRecent
-      rw [← A.semantics.context.lctx_eq,
-        A.semantics.context.mlctx_wf.tr.fvars_eq] at hraw
+      have hraw := A.typing.fieldsRecent.members fv hfieldRecent
+      rw [← A.typing.context.lctx_eq,
+        A.typing.context.mlctx_wf.tr.fvars_eq] at hraw
       exact hraw
     · have hparamDecl : fv ∈
-          A.semantics.parameterSuffix.parameterDecls.fvars := by
-        rw [A.semantics.parameterSuffix.parameterDecls_fvars]
+          A.typing.parameterSuffix.parameterDecls.fvars := by
+        rw [A.typing.parameterSuffix.parameterDecls_fvars]
         exact List.mem_reverse.mpr hparam
       have hroot : fv ∈
-          A.semantics.fieldRootContext.mlctx.vlctx.fvars := by
-        rw [A.semantics.parameterSuffix.context, VLCtx.fvars_append]
+          A.typing.fieldRootContext.mlctx.vlctx.fvars := by
+        rw [A.typing.parameterSuffix.context, VLCtx.fvars_append]
         exact List.mem_append_right _ hparamDecl
-      have hraw : fv ∈ A.semantics.fieldRoot.lctx.fvars := by
-        rw [← A.semantics.fieldRootContext.lctx_eq,
-          A.semantics.fieldRootContext.mlctx_wf.tr.fvars_eq]
+      have hraw : fv ∈ A.typing.fieldRoot.lctx.fvars := by
+        rw [← A.typing.fieldRootContext.lctx_eq,
+          A.typing.fieldRootContext.mlctx_wf.tr.fvars_eq]
         exact hroot
-      have hraw' := A.semantics.fieldsRecent.contextLE.fvars hraw
-      rw [← A.semantics.context.lctx_eq,
-        A.semantics.context.mlctx_wf.tr.fvars_eq] at hraw'
+      have hraw' := A.typing.fieldsRecent.contextLE.fvars hraw
+      rw [← A.typing.context.lctx_eq,
+        A.typing.context.mlctx_wf.tr.fvars_eq] at hraw'
       exact hraw'
   have horigin := F.originExtension.contextLE.fvars <| by
-    rw [← A.semantics.context.lctx_eq,
-      A.semantics.context.mlctx_wf.tr.fvars_eq]
+    rw [← A.typing.context.lctx_eq,
+      A.typing.context.mlctx_wf.tr.fvars_eq]
     exact hcommon
   rw [← F.originContext.lctx_eq,
     F.originContext.mlctx_wf.tr.fvars_eq] at horigin
@@ -121,14 +121,14 @@ structure
     (A : H.RuleAlignment owner howner i hctor) where
   fieldScope : VLCtx
   runtime : checkInductiveTypes.loopType.FrontScopeEmbedding
-    A.semantics.fieldRootContext.venv
+    A.typing.fieldRootContext.venv
     (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-    fieldScope A.semantics.context.mlctx.vlctx
+    fieldScope A.typing.context.mlctx.vlctx
   scope_fvars : fieldScope.fvars =
-    A.semantics.fieldsRecent.fvars.reverse ++
-      A.semantics.parameterSuffix.parameterDecls.fvars
+    A.typing.fieldsRecent.fvars.reverse ++
+      A.typing.parameterSuffix.parameterDecls.fvars
   scope_base : fieldScope.drop runtime.frontSourceDomains.length =
-    A.semantics.parameterSuffix.parameterDecls
+    A.typing.parameterSuffix.parameterDecls
   fieldDomains : List VExpr
   fieldDomains_length : fieldDomains.length = A.rule.allArgs.size
   front : runtime.frontSourceDomains = fieldDomains
@@ -136,16 +136,16 @@ structure
   forwardResidual : VExpr
   forwardDomains_length : forwardDomains.length = A.rule.allArgs.size
   forwardTarget :
-    (VExpr.wrapForalls A.semantics.fieldTelescope.domains
-      A.semantics.targetTarget).lift'
-        (A.semantics.fieldRootExtension.shift.consN 0) =
+    (VExpr.wrapForalls A.typing.fieldTelescope.domains
+      A.typing.targetTarget).lift'
+        (A.typing.fieldRootExtension.shift.consN 0) =
       VExpr.wrapForalls forwardDomains forwardResidual
   /-- The narrow field scope is aligned with the checker context in which the
   fields were opened. -/
   checkAlign : 0 < A.rule.allArgs.size →
-    VLCtx.IsDefEq A.semantics.fieldRootContext.venv
+    VLCtx.IsDefEq A.typing.fieldRootContext.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
-      fieldScope A.semantics.context.chk.vlctx
+      fieldScope A.typing.context.chk.vlctx
 
 /-- The rule-wide narrowing frame is literally the constructor-field
 telescope abstracted over the cached parameter declarations.  This exposes
@@ -166,7 +166,7 @@ theorem
     (B : A.FieldFrame) :
     B.fieldScope.toCtx =
       (abstractForallContext B.fieldDomains
-        A.semantics.parameterSuffix.parameterDecls).toCtx := by
+        A.typing.parameterSuffix.parameterDecls).toCtx := by
   rw [abstractForallContext_toCtx, B.runtime.front.sourceContext,
     B.scope_base, B.front]
 
@@ -193,17 +193,17 @@ theorem
   have happend :
       VLCtx.fvars
           (B.fieldScope.take B.runtime.frontSourceDomains.length) ++
-          A.semantics.parameterSuffix.parameterDecls.fvars =
-        A.semantics.fieldsRecent.fvars.reverse ++
-          A.semantics.parameterSuffix.parameterDecls.fvars := by
+          A.typing.parameterSuffix.parameterDecls.fvars =
+        A.typing.fieldsRecent.fvars.reverse ++
+          A.typing.parameterSuffix.parameterDecls.fvars := by
     rw [← hsplit, B.scope_fvars]
   have hfields : VLCtx.fvars
       (B.fieldScope.take B.runtime.frontSourceDomains.length) =
-        A.semantics.fieldsRecent.fvars.reverse :=
+        A.typing.fieldsRecent.fvars.reverse :=
     List.append_cancel_right happend
   rw [hfields, List.reverse_reverse]
   exact FVarArrayIn.fvars_eq
-    A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
+    A.typing.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
     A.rule.all_args_bound rfl
 
 private theorem cachedParameterCoreDeclarations
@@ -237,12 +237,12 @@ def RecursorCheck.RuleAlignment.FieldFrame.core
     (B : A.FieldFrame) :
     checkInductiveTypes.loopType.FVarCheckingScopeCore H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      B.fieldScope A.semantics.context.mlctx.vlctx := by
+      B.fieldScope A.typing.context.mlctx.vlctx := by
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
     exact H.constructorVEnv_le
-  have hfieldBase : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
-    rw [← A.semantics.fieldRootExtension.venv_eq]
+  have hfieldBase : A.typing.fieldRootContext.venv ≤ H.outVEnv := by
+    rw [← A.typing.fieldRootExtension.venv_eq]
     exact hbase
   let Hruntime := B.runtime.mono hfieldBase
   have Hfront := Hruntime.front.sourceDeclarations
@@ -321,14 +321,14 @@ theorem
     ⟨_priorDomains, HpriorPrefix⟩
   have hpriorBase :
       (F.originContext.mlctx.dropN F.priorHypotheses.size
-        HpriorPrefix.le).vlctx = A.semantics.context.mlctx.vlctx := by
+        HpriorPrefix.le).vlctx = A.typing.context.mlctx.vlctx := by
     have hle : HpriorPrefix.le = F.originRecent.size_le :=
       Subsingleton.elim _ _
     rw [hle, F.originRecent.drop_eq]
   let HpriorBase := Hfield.retargetRuntime hpriorBase.symm
   have HoriginWF : F.originContext.mlctx.WF H.outVEnv Us := by
     have henv : F.originContext.venv ≤ H.outVEnv := by
-      rw [F.originRecent.venv_eq, A.semantics.context_venv,
+      rw [F.originRecent.venv_eq, A.typing.context_venv,
         H.recursorEnv]
       exact H.constructorVEnv_le
     exact F.originContext.mlctx_wf.mono henv
@@ -340,8 +340,8 @@ theorem
       Subsingleton.elim _ _
     rw [hle, F.originRecent.fvarRevList_eq] at hfv
     apply F.originRecent.fresh fv (List.mem_reverse.mp hfv)
-    rw [← A.semantics.context.lctx_eq,
-      A.semantics.context.mlctx_wf.tr.fvars_eq]
+    rw [← A.typing.context.lctx_eq,
+      A.typing.context.mlctx_wf.tr.fvars_eq]
     have hexpanded : fv ∈ Hfield.expanded.fvars :=
       Hfield.lift.fvars_sublist.subset hselected
     rw [Hfield.context.fvars] at hexpanded
@@ -362,7 +362,7 @@ theorem
   have HlocalWF : F.semantic.current_context.mlctx.WF H.outVEnv Us := by
     have henv : F.semantic.current_context.venv ≤ H.outVEnv := by
       rw [F.semantic.recent.venv_eq, F.originRecent.venv_eq,
-        A.semantics.context_venv, H.recursorEnv]
+        A.typing.context_venv, H.recursorEnv]
       exact H.constructorVEnv_le
     exact F.semantic.current_context.mlctx_wf.mono henv
   have hlocalRev : F.semantic.current_context.mlctx.fvarRevList
@@ -382,24 +382,24 @@ theorem
     intro fv _
     rw [F.root_scope, hlocalRev, B.scope_fvars,
       A.parameterDecls_eq, H.parameterSuffix.parameterDecls_fvars]
-    rw [A.semantics.fieldOpening.fvars_eq_bound
-      A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn]
+    rw [A.typing.fieldOpening.fvars_eq_bound
+      A.typing.fieldsRecent.toFVarArrayAfter.toFVarArrayIn]
     simp [List.append_assoc]
   have hposFields : 0 < A.rule.allArgs.size := by
-    have hlen := A.semantics.selection.fields_length
-    have hne : A.semantics.fields ≠ [] := by
+    have hlen := A.typing.selection.fields_length
+    have hne : A.typing.fields ≠ [] := by
       intro h
       rw [h] at hlen
       simp at hlen
       omega
     obtain ⟨cert, hcert⟩ := List.exists_mem_of_ne_nil _ hne
-    have := A.semantics.selection.positions_lt cert hcert
+    have := A.typing.selection.positions_lt cert hcert
     omega
   obtain ⟨hnC, hagreeC, jC, hjC, _ty₀, hdropC, _⟩ := F.semantic.chkAgree
   have hchkLocalWF : F.semantic.current_context.chk.WF H.outVEnv Us := by
     have henv : F.semantic.current_context.venv ≤ H.outVEnv := by
       rw [F.semantic.recent.venv_eq, F.originRecent.venv_eq,
-        A.semantics.context_venv, H.recursorEnv]
+        A.typing.context_venv, H.recursorEnv]
       exact H.constructorVEnv_le
     exact F.semantic.current_context.check.wf.mono henv
   have hhn : HlocalPrefix.le = F.semantic.recent.size_le :=
@@ -408,9 +408,9 @@ theorem
       (F.semantic.current_context.chk.dropN
         F.semantic.generated.localArgs.size hnC).vlctx B.fieldScope := by
     rw [hdropC]
-    have hchkEq : F.originContext.chk = A.semantics.context.chk :=
+    have hchkEq : F.originContext.chk = A.typing.context.chk :=
       F.originCheck
-    have hjC' : jC ≤ A.semantics.context.chk.length := hchkEq ▸ hjC
+    have hjC' : jC ≤ A.typing.context.chk.length := hchkEq ▸ hjC
     have key : ∀ (m m' : TypeChecker.MLCtx), m = m' → ∀ hj hj',
         (m.dropN jC hj).vlctx = (m'.dropN jC hj').vlctx := by
       intro m m' h hj hj'
@@ -418,11 +418,11 @@ theorem
       rfl
     have hdropEq := key _ _ hchkEq hjC hjC'
     rw [hdropEq]
-    have hfieldEnv : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
-      rw [← A.semantics.fieldsRecent.venv_eq, A.semantics.context_venv,
+    have hfieldEnv : A.typing.fieldRootContext.venv ≤ H.outVEnv := by
+      rw [← A.typing.fieldsRecent.venv_eq, A.typing.context_venv,
         H.recursorEnv]
       exact H.constructorVEnv_le
-    exact ⟨_, _, (A.semantics.context.check.onlyLams.dropN_fvlift jC hjC').toFVLift',
+    exact ⟨_, _, (A.typing.context.check.onlyLams.dropN_fvlift jC hjC').toFVLift',
       ((B.checkAlign hposFields).mono hfieldEnv).symm H.outVEnvWF.ordered⟩
   rcases HlocalPrefix.extendFVarCheckingScopeCoreEmbedded H.outVEnvWF HlocalWF
       HlocalBase HlocalUp hchkLocalWF hnC hagreeC hbaseEmb with
@@ -468,7 +468,7 @@ theorem checkInductiveTypes.loopType.FVarCheckingScopeCore.fullTargetEqs
 target core.  This is the list-level equation certificate: all indices share
 one non-contiguous weakening and one cached parameter/field/local context. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.cachedCoreSemanticIndices
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.cachedCoreIndices
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -496,7 +496,7 @@ theorem
           scope F.semantic.current_context.mlctx.vlctx,
       ∃ localDomains narrowIndices,
         scope.fvars = F.semantic.recent.fvars.reverse ++
-          A.semantics.fieldsRecent.fvars.reverse ++
+          A.typing.fieldsRecent.fvars.reverse ++
             H.parameterSuffix.parameterDecls.fvars ∧
         scope.drop F.semantic.generated.localArgs.size = B.fieldScope ∧
         localDomains.length = F.semantic.generated.localArgs.size ∧
@@ -541,7 +541,7 @@ theorem
       R.context.venv :=
     F.semantic.recent.venv_eq.trans
       (F.originExtension.venv_eq.trans <|
-        A.semantics.context_venv.trans
+        A.typing.context_venv.trans
         (H.recursorEnv))
   have Hindices := evidence.indices_translation
   rw [hsemantic] at Hindices
@@ -551,7 +551,7 @@ theorem
     ⟨scope, Hscope, hscope, hdrop, localDomains, hlocal,
       hcontext, Hreplay, hemb⟩
   have hscopeExact : scope.fvars = F.semantic.recent.fvars.reverse ++
-      A.semantics.fieldsRecent.fvars.reverse ++
+      A.typing.fieldsRecent.fvars.reverse ++
         H.parameterSuffix.parameterDecls.fvars := by
     rw [hscope, B.scope_fvars, A.parameterDecls_eq, List.append_assoc]
   have HsourceScope : ∀ source ∈ sourceIndices,
@@ -663,7 +663,7 @@ theorem TrExprS.mkAppList_fvarPrefix {env : VEnv} {Us : List Name}
 call.  Locals and fields are closed from a single dependency-selected core;
 the cached parameter suffix remains literal. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.cachedCoreSemanticCallArgumentFrame
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.cachedCoreCallArgumentFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -745,7 +745,7 @@ theorem
   let sourceIndices :=
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
   let parameterDecls := H.parameterSuffix.parameterDecls
-  rcases F.cachedCoreSemanticIndices B with
+  rcases F.cachedCoreIndices B with
     ⟨binding, evidence, scope, Hscope, localDomains, narrowIndices,
       hscopeFVars, hdropLocal, hlocal, hscopeContext, Hreplay,
       hlength, Hindices, HindexEq, hemb⟩
@@ -765,9 +765,9 @@ theorem
           A.rule.all_args_bound A.rule.recursive_args_sublist
           (List.getElem_mem hjFVars)
       have hfieldRecent : A.rule.recursive_args_bound.fvars[j] ∈
-          A.semantics.fieldsRecent.fvars := by
+          A.typing.fieldsRecent.fvars := by
         rw [FVarArrayIn.fvars_eq
-          A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
+          A.typing.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
           A.rule.all_args_bound rfl]
         exact hfieldAll
       rw [hscopeFVars]
@@ -791,8 +791,8 @@ theorem
     apply F.semantic.exposed_scope.mono
     intro fv hfv
     rw [F.root_scope,
-      A.semantics.fieldOpening.fvars_eq_bound
-        A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn]
+      A.typing.fieldOpening.fvars_eq_bound
+        A.typing.fieldsRecent.toFVarArrayAfter.toFVarArrayIn]
       at hfv
     rw [hscopeFVars, H.parameterSuffix.parameterDecls_fvars]
     rcases hfv with hlocalFv | hfield | hparam
@@ -805,7 +805,7 @@ theorem
       R.context.venv :=
     F.semantic.recent.venv_eq.trans
       (F.originExtension.venv_eq.trans <|
-        A.semantics.context_venv.trans
+        A.typing.context_venv.trans
         (H.recursorEnv))
   have HmajorFull := F.semantic.applied_field_translation
   have HexposedFull := F.semantic.exposed_translation
@@ -825,34 +825,34 @@ theorem
   obtain ⟨hnC, hagreeC, jC, hjC, ty₀, hdropC, _hkC, hty₀, hty₀Ty, t₀,
     ⟨t₁, Ht₁, ht₁₀⟩, Ht₀Ty, hcl⟩ := F.semantic.chkAgree
   have hposFields : 0 < A.rule.allArgs.size := by
-    have hlen := A.semantics.selection.fields_length
-    have hne : A.semantics.fields ≠ [] := by
+    have hlen := A.typing.selection.fields_length
+    have hne : A.typing.fields ≠ [] := by
       intro h
       rw [h] at hlen
       simp at hlen
       omega
     obtain ⟨cert, hcert⟩ := List.exists_mem_of_ne_nil _ hne
-    have := A.semantics.selection.positions_lt cert hcert
+    have := A.typing.selection.positions_lt cert hcert
     omega
   have henvO := H.outVEnvWF
   have hcurEnv : F.semantic.current_context.venv ≤ H.outVEnv := by
     rw [hsemantic]
     exact H.constructorVEnv_le
   have horigEnv : F.originContext.venv ≤ H.outVEnv := by
-    rw [F.originRecent.venv_eq, A.semantics.context_venv, H.recursorEnv]
+    rw [F.originRecent.venv_eq, A.typing.context_venv, H.recursorEnv]
     exact H.constructorVEnv_le
-  have hctxEnv : A.semantics.context.venv ≤ H.outVEnv := by
-    rw [A.semantics.context_venv, H.recursorEnv]
+  have hctxEnv : A.typing.context.venv ≤ H.outVEnv := by
+    rw [A.typing.context_venv, H.recursorEnv]
     exact H.constructorVEnv_le
-  have hfieldEnv : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
-    rw [← A.semantics.fieldsRecent.venv_eq]
+  have hfieldEnv : A.typing.fieldRootContext.venv ≤ H.outVEnv := by
+    rw [← A.typing.fieldsRecent.venv_eq]
     exact hctxEnv
   have hchkCWF : F.semantic.current_context.chk.WF H.outVEnv Us :=
     F.semantic.current_context.check.wf.mono hcurEnv
-  have hMcWF : A.semantics.context.chk.WF H.outVEnv Us :=
-    A.semantics.context.check.wf.mono hctxEnv
-  have hchkEq : F.originContext.chk = A.semantics.context.chk := F.originCheck
-  have hjC' : jC ≤ A.semantics.context.chk.length := hchkEq ▸ hjC
+  have hMcWF : A.typing.context.chk.WF H.outVEnv Us :=
+    A.typing.context.check.wf.mono hctxEnv
+  have hchkEq : F.originContext.chk = A.typing.context.chk := F.originCheck
+  have hjC' : jC ≤ A.typing.context.chk.length := hchkEq ▸ hjC
   have keyDrop : ∀ (m m' : TypeChecker.MLCtx), m = m' → ∀ hj hj',
       m.dropN jC hj = m'.dropN jC hj' := by
     intro m m' h hj hj'
@@ -861,16 +861,16 @@ theorem
   have hbaseOrig := keyDrop _ _ hchkEq hjC hjC'
   rw [hbaseOrig] at hdropC hty₀ hty₀Ty hcl
   have halignFS : VLCtx.IsDefEq H.outVEnv Us.length B.fieldScope
-      A.semantics.context.chk.vlctx :=
+      A.typing.context.chk.vlctx :=
     (B.checkAlign hposFields).mono hfieldEnv
   have hembMc : ChkEmbeds H.outVEnv Us.length
-      A.semantics.context.chk.vlctx B.fieldScope :=
-    ⟨A.semantics.context.chk.vlctx, .refl, .refl,
+      A.typing.context.chk.vlctx B.fieldScope :=
+    ⟨A.typing.context.chk.vlctx, .refl, .refl,
       halignFS.symm henvO.ordered⟩
   have hembBase : ChkEmbeds H.outVEnv Us.length
-      (A.semantics.context.chk.dropN jC hjC').vlctx B.fieldScope :=
+      (A.typing.context.chk.dropN jC hjC').vlctx B.fieldScope :=
     ChkEmbeds.of_fvLift
-      (A.semantics.context.check.onlyLams.dropN_fvlift jC hjC').toFVLift'
+      (A.typing.context.check.onlyLams.dropN_fvlift jC hjC').toFVLift'
       hembMc
   -- the exposed type in the checker context, and in the call scope
   have Ht₁' := Ht₁.mono hcurEnv
@@ -921,7 +921,7 @@ theorem
     F.semantic.generated.localArgs.size hnC
   rw [hdropC] at hcongr
   have hclW : H.outVEnv.IsDefEqU Us.length
-      (A.semantics.context.chk.dropN jC hjC').vlctx.toCtx ty₀
+      (A.typing.context.chk.dropN jC hjC').vlctx.toCtx ty₀
       (F.semantic.current_context.chk.mkForall'
         F.semantic.generated.localArgs.size hnC t₁) :=
     (hcl.mono hcurEnv).trans henvO
@@ -934,28 +934,28 @@ theorem
     A.rule.recursive_args_bound.fvars_subset_of_sublist
       A.rule.all_args_bound A.rule.recursive_args_sublist
       (List.getElem_mem hjFVars)
-  have hfieldRecent : fvF ∈ A.semantics.fieldsRecent.fvars := by
+  have hfieldRecent : fvF ∈ A.typing.fieldsRecent.fvars := by
     rw [FVarArrayIn.fvars_eq
-      A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
+      A.typing.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
       A.rule.all_args_bound rfl]
     exact hfieldAll
-  have hmemMc : fvF ∈ A.semantics.context.chk.vlctx.fvars := by
+  have hmemMc : fvF ∈ A.typing.context.chk.vlctx.fvars := by
     rw [← halignFS.fvars, B.scope_fvars]
     exact List.mem_append_left _ (List.mem_reverse.mpr hfieldRecent)
   obtain ⟨d, hd⟩ := hMcWF.tr.find?_eq_some.2 hmemMc
   have hdToList := hd
   rw [hMcWF.tr.1.find?_eq_find?_toList] at hdToList
-  have hdmem : d ∈ A.semantics.context.chk.lctx.toList :=
+  have hdmem : d ∈ A.typing.context.chk.lctx.toList :=
     List.mem_of_find?_eq_some hdToList
   have hdfv : d.fvarId = fvF := by
     have h := List.find?_some hdToList
     exact (beq_iff_eq.mp h).symm
   obtain ⟨e, Aty, hfind, _, _, _, HAty⟩ := hMcWF.tr.find?_of_mem henvO hdmem
   rw [hdfv] at hfind
-  have Hfv : TrExprS H.outVEnv Us A.semantics.context.chk.vlctx
+  have Hfv : TrExprS H.outVEnv Us A.typing.context.chk.vlctx
       (.fvar fvF) e := TrExprS.fvar hfind
   have HfvTy : H.outVEnv.HasType Us.length
-      A.semantics.context.chk.vlctx.toCtx e Aty :=
+      A.typing.context.chk.vlctx.toCtx e Aty :=
     hMcWF.tr.wf.find?_wf henvO.ordered hfind
   obtain ⟨bF, HbF⟩ := hembMc.trExprS henvO Hfv
   obtain ⟨Tf, HTf⟩ := hembMc.trExprS henvO HAty
@@ -964,14 +964,14 @@ theorem
   have hdtype : d.type =
       (F.originRoot.lctx.get! (A.rule.recursiveArgs[j]).fvarId!).type := by
     have hd' : A.rule.root.checkLCtx.find? fvF = some d := by
-      rw [← A.semantics.context.check.lctx_eq]
+      rw [← A.typing.context.check.lctx_eq]
       exact hd
-    obtain ⟨d', hd'main, hdeq⟩ := A.semantics.context.checkSub fvF d hd'
+    obtain ⟨d', hd'main, hdeq⟩ := A.typing.context.checkSub fvF d hd'
     have hfvRoot : fvF ∈ A.rule.root.lctx.fvars := by
-      rw [← A.semantics.context.lctx_eq, A.semantics.context.mlctx_wf.tr.fvars_eq]
-      have := A.semantics.fieldsRecent.toFVarArrayIn.members fvF hfieldRecent
-      rw [← A.semantics.context.lctx_eq] at this
-      rw [A.semantics.context.mlctx_wf.tr.fvars_eq] at this
+      rw [← A.typing.context.lctx_eq, A.typing.context.mlctx_wf.tr.fvars_eq]
+      have := A.typing.fieldsRecent.toFVarArrayIn.members fvF hfieldRecent
+      rw [← A.typing.context.lctx_eq] at this
+      rw [A.typing.context.mlctx_wf.tr.fvars_eq] at this
       exact this
     have horigin : F.originRoot.lctx.find? fvF = some d' :=
       (F.originRecent.contextLE.declarations fvF hfvRoot).trans hd'main
@@ -1095,16 +1095,16 @@ theorem
       FVarArrayIn.fvars_eq
         F.semantic.recent.toFVarArrayAfter.toFVarArrayIn
         F.semantic.generated.arguments_bound.toFVarArrayIn rfl
-    have hfieldFVars : A.semantics.fieldsRecent.fvars =
+    have hfieldFVars : A.typing.fieldsRecent.fvars =
         A.rule.all_args_bound.fvars :=
       FVarArrayIn.fvars_eq
-        A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
+        A.typing.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
         A.rule.all_args_bound rfl
     have hparts := congrArg VLCtx.fvars hscopeParts
     rw [VLCtx.fvars_append, hscopeFVars] at hparts
     have hprefix : VLCtx.fvars (scope.take frontCount) =
         F.semantic.recent.fvars.reverse ++
-          A.semantics.fieldsRecent.fvars.reverse :=
+          A.typing.fieldsRecent.fvars.reverse :=
       List.append_cancel_right hparts
     rw [← Hscope.fvars_take, hprefix, List.reverse_append, List.reverse_reverse,
       List.reverse_reverse, hlocalFVars, hfieldFVars]
@@ -1277,14 +1277,14 @@ theorem
     (B : A.FieldFrame) :
     OnCtx
       (abstractForallContext B.fieldDomains
-        A.semantics.parameterSuffix.parameterDecls).toCtx
+        A.typing.parameterSuffix.parameterDecls).toCtx
       (H.outVEnv.IsType
         (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) := by
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
     exact H.constructorVEnv_le
-  have hfieldBase : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
-    rw [← A.semantics.fieldRootExtension.venv_eq]
+  have hfieldBase : A.typing.fieldRootContext.venv ≤ H.outVEnv := by
+    rw [← A.typing.fieldRootExtension.venv_eq]
     exact hbase
   have Hruntime := B.runtime.mono hfieldBase
   have Hscope := Hruntime.scopeWF H.outVEnvWF
@@ -1458,7 +1458,7 @@ theorem
     (hchecked : checkedDomains.length = A.rule.allArgs.size)
     (Hchecked : TrExprS H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      H.parameterSuffix.parameterDecls A.semantics.parameterTail
+      H.parameterSuffix.parameterDecls A.typing.parameterTail
       (VExpr.wrapForalls checkedDomains checkedResidual))
     (fieldDomains hypothesisDomains : List VExpr) (targetResidual : VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size)
@@ -1720,7 +1720,7 @@ theorem
         ∃ narrowDomains narrowResidual,
           narrowDomains.length = A.rule.allArgs.size ∧
           TrExprS H.outVEnv Us H.parameterSuffix.parameterDecls
-            A.semantics.parameterTail
+            A.typing.parameterTail
             (VExpr.wrapForalls narrowDomains narrowResidual) ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             (narrowDomains.reverse ++
@@ -1728,7 +1728,7 @@ theorem
             (B.fieldDomains.reverse ++
               H.parameterSuffix.parameterDecls.toCtx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalSelectedMinorSemanticSource with
+  rcases A.finalSelectedMinorSource with
     ⟨S, HS, _hlocal, htail⟩
   rcases HS.semantic.parameterTranslationAtSuffix with
     ⟨narrowTarget, Hnarrow₀⟩
@@ -1739,11 +1739,11 @@ theorem
     exact H.constructorVEnv_le
   have Hnarrow₁ := Hnarrow₀.mono hbaseEnv
   have Hnarrow : TrExprS H.outVEnv Us
-      H.parameterSuffix.parameterDecls A.semantics.parameterTail
+      H.parameterSuffix.parameterDecls A.typing.parameterTail
       narrowTarget := by
     simpa only [HS.parameterDecls_eq, htail] using Hnarrow₁
   rcases TrExprS.forallTelescope_shape
-      A.semantics.fieldOpening.telescope Hnarrow with
+      A.typing.fieldOpening.telescope Hnarrow with
     ⟨narrowDomains, narrowResidual, hnarrowLength, hnarrowTarget⟩
   rw [hnarrowTarget] at Hnarrow
   refine ⟨S, HS, narrowDomains, narrowResidual, hnarrowLength, Hnarrow, ?_⟩
@@ -1759,14 +1759,14 @@ theorem
       List.eq_nil_of_length_eq_zero (B.fieldDomains_length.trans h0)
     rw [hnD, hfD]
     exact VEnv.IsDefEqCtx.refl HPwf.toCtx
-  have hfieldBaseEnv : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
-    rw [← A.semantics.fieldRootExtension.venv_eq, H.recursorEnv]
+  have hfieldBaseEnv : A.typing.fieldRootContext.venv ≤ H.outVEnv := by
+    rw [← A.typing.fieldRootExtension.venv_eq, H.recursorEnv]
     exact H.constructorVEnv_le
-  have hctxEnv : A.semantics.context.venv ≤ H.outVEnv := by
-    rw [A.semantics.context_venv, H.recursorEnv]
+  have hctxEnv : A.typing.context.venv ≤ H.outVEnv := by
+    rw [A.typing.context_venv, H.recursorEnv]
     exact H.constructorVEnv_le
   obtain ⟨M, _hMwf, hchkM, hnM, hagM, hdropM, T₀, hT₀, t₀', _ht₀', hroot⟩ :=
-    A.semantics.fieldCheck
+    A.typing.fieldCheck
   rw [A.parameterDecls_eq] at hT₀ hroot hdropM
   have hT₀' := hT₀.mono hfieldBaseEnv
   have hroot' := hroot.mono hctxEnv
@@ -1810,7 +1810,7 @@ theorem
     ∃ checkedDomains checkedResidual,
       checkedDomains.length = A.rule.allArgs.size ∧
       TrExprS H.outVEnv Us H.parameterSuffix.parameterDecls
-        A.semantics.parameterTail
+        A.typing.parameterTail
         (VExpr.wrapForalls checkedDomains checkedResidual) ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length []
         (checkedDomains.reverse ++
@@ -1835,11 +1835,11 @@ theorem
     simpa [Us, A.parameterDecls_eq] using
       HfieldCtx.drop B.fieldDomains.length
   have Hminor' : TrExprS H.outVEnv Us
-      H.parameterSuffix.parameterDecls A.semantics.parameterTail
+      H.parameterSuffix.parameterDecls A.typing.parameterTail
       (VExpr.wrapForalls minorDomains minorResidual) := by
     simpa only [← H.parameterDecls] using Hminor
   have Hchecked' : TrExprS H.outVEnv Us
-      H.parameterSuffix.parameterDecls A.semantics.parameterTail
+      H.parameterSuffix.parameterDecls A.typing.parameterTail
       (VExpr.wrapForalls checkedDomains checkedResidual) := by
     simpa only [← H.parameterDecls] using Hchecked
   have HminorChecked' : VEnv.IsDefEqCtx H.outVEnv Us.length []
@@ -1911,7 +1911,7 @@ theorem
     rw [H.recursorEnv]
     exact H.constructorVEnv_le
   have Hchecked' : TrExprS H.outVEnv Us
-      H.parameterSuffix.parameterDecls A.semantics.parameterTail
+      H.parameterSuffix.parameterDecls A.typing.parameterTail
       (VExpr.wrapForalls checkedDomains checkedResidual) := by
     simpa only [← H.parameterDecls] using Hchecked
   have HparameterCtx : OnCtx H.parameterSuffix.parameterDecls.toCtx
@@ -2058,7 +2058,7 @@ theorem
     (hchecked : checkedDomains.length = A.rule.allArgs.size)
     (Hchecked : TrExprS H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      H.parameterSuffix.parameterDecls A.semantics.parameterTail
+      H.parameterSuffix.parameterDecls A.typing.parameterTail
       (VExpr.wrapForalls checkedDomains checkedResidual))
     (HcheckedContext : OnCtx (checkedDomains.reverse ++ T.params.reverse)
       (H.outVEnv.IsType
@@ -2336,7 +2336,7 @@ theorem
   rcases A.scopedFieldRuntimeScope with
     ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
       ⟨fieldDomains, hfieldDomains, hfieldFront⟩, hcheckAlign⟩
-  rcases A.semantics.fieldContextDefEqMono with
+  rcases A.typing.fieldContextDefEqMono with
     ⟨_sourceDomains, _sourceResidual, forwardDomains, forwardResidual,
       _hsourceDomains, hforwardDomains, _Hsource, hforwardTarget,
       _Hcontexts⟩
@@ -2363,7 +2363,7 @@ call locals and constructor fields are abstracted, recursive indices mention
 only the common inductive parameters; in particular they avoid every motive
 and minor variable that will later be inserted into the equation context. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.fieldAbstractedSemanticIndexSourcesScoped
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.fieldAbstractedIndexSourcesScoped
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -2401,16 +2401,16 @@ theorem
     (selected := F.semantic.recent.fvars) (k := 0) Hsource
   rw [F.root_scope] at Hlocal
   have Hfield := FVarsIn.abstractList_of
-    (selected := A.semantics.fieldOpening.fvars)
+    (selected := A.typing.fieldOpening.fvars)
     (k := F.semantic.generated.localArgs.size) Hlocal
   have hlocalFvars : F.semantic.recent.fvars =
       F.semantic.generated.arguments_bound.fvars :=
     FVarArrayIn.fvars_eq
       F.semantic.recent.toFVarArrayAfter.toFVarArrayIn
       F.semantic.generated.arguments_bound.toFVarArrayIn rfl
-  have hopenFvars : A.semantics.fieldOpening.fvars =
+  have hopenFvars : A.typing.fieldOpening.fvars =
       A.rule.all_args_bound.fvars :=
-    A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound
+    A.typing.fieldOpening.fvars_eq_bound A.rule.all_args_bound
   simpa [hlocalFvars, hopenFvars] using Hfield
 
 /-- After closing call locals and constructor fields, the complete semantic
@@ -2469,7 +2469,7 @@ theorem
           F.semantic.generated.localArgs.size).FVarsIn P := by
     apply FVarsIn.abstractList_of
     exact hmotiveLocal.mono fun fv hfv => Or.inr hfv
-  have Hindices := F.fieldAbstractedSemanticIndexSourcesScoped
+  have Hindices := F.fieldAbstractedIndexSourcesScoped
   have hindicesScope : ∀ index ∈
       (F.semantic.generated.replayTrace
         A.rule.all_args_bound.fvars).indices,

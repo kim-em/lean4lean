@@ -164,7 +164,7 @@ inductive RestoredConstructorMappingTranslations
 
 /-- Re-run the source-constructor interpretation while retaining the exact
 operational mapping step instead of immediately projecting it away. -/
-theorem LoweredRestoredConstructors.sourceSemanticMapping
+theorem LoweredRestoredConstructors.sourceMapping
     (H : LoweredRestoredConstructors result mappingEnv loweredEnv params
       nparams safety lparams sources state targets finalState sourceProdEnv
         targetProdEnv)

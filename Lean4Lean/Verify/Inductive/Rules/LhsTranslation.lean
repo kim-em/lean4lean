@@ -248,7 +248,7 @@ theorem RecursorCheck.RuleAlignment.lhsTranslation
     rw [← hL]; exact HL
   have HY := A.typeTranslation hk
   have hownerIdx : (AddInductive.getIIndices stats A.rule.target).1 = owner :=
-    (checkPositivityStep.getIIndices.fst_eq_of_valid A.semantics.target_valid).trans A.semantic_owner
+    (checkPositivityStep.getIIndices.fst_eq_of_valid A.typing.target_valid).trans A.typing_owner
   rcases htarget : AddInductive.getIIndices stats A.rule.target with ⟨ownerIdx, indices⟩
   rw [htarget] at hownerIdx HY
   dsimp only at hownerIdx HY

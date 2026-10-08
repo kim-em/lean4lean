@@ -922,7 +922,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailingArgDecla
       H.recInfos[owner]!.minors[localIndex]!
       H.recInfos[owner]!.ruleTemplates[localIndex]! :=
     H.templates.entry owner howner localIndex hlocal
-  obtain ⟨Hsem⟩ := H.templateSemantics.entry owner howner localIndex hlocal
+  obtain ⟨Hsem⟩ := H.templateTyping.entry owner howner localIndex hlocal
   generalize H.origins.minorShapes owner howner localIndex hlocal = S at hsrc hcallRoots Hsem ⊢
   generalize H.recInfos[owner]!.ruleTemplates[localIndex]! = B at hcallRoots Hsem ⊢
   obtain ⟨-, -, hsourceCtors, -, traversal, htrav, -, -, -, -, hvalid, hmotiveApp, -, -,

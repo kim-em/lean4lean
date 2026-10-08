@@ -1053,7 +1053,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisUnlift
   obtain ⟨-, -, -, -, -, origins₁, -, horig₁, -, -, Hcalls⟩ :=
     H.templates.entry mowner hmowner localIndex hlocal
   obtain ⟨⟨origins, horig, hstats, hmotives, F, hparams, depth', -, _, Hsel, -, -, -, -, -, -, -,
-    -, -, ⟨HcallAt⟩⟩⟩ := H.templateSemantics.entry mowner hmowner localIndex hlocal
+    -, -, ⟨HcallAt⟩⟩⟩ := H.templateTyping.entry mowner hmowner localIndex hlocal
   have : origins₁ = origins := Option.some.inj (horig₁.symm.trans horig)
   subst this
   obtain ⟨originRoot, sourceType, O, D, -, hDtype, hcall⟩ := Hcalls.entry j hj

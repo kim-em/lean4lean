@@ -619,7 +619,7 @@ theorem NestedLoweringOutputClosed.sourceRecursorUnmappedAtFresh
 the independently checked source constructor translations.  Fresh generated
 names turn the syntactic no-auxiliary condition into the semantic
 disjointness required by the lowering/restoration inverse. -/
-theorem NestedLoweringOutputClosed.sourceConstructorSemanticsAtFresh
+theorem NestedLoweringOutputClosed.sourceConstructorTypingAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv canonicalEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -651,7 +651,7 @@ theorem NestedLoweringOutputClosed.sourceConstructorSemanticsAtFresh
     ⟨fvars, stepState, target, loweredState, hparams, hnodup, _hsize,
       htarget, hctorNames, Hmappings, Htrace, Haligned⟩
   have Hsyntax := (Hsources.getElem familyIdx hfamily).constructors
-  have Hsemantic := Haligned.sourceSemantics Htranslations Hsyntax (by
+  have Hsemantic := Haligned.sourceTyping Htranslations Hsyntax (by
     intro source hsource
     have HsourceTranslation :=
       Lean4Lean.List.Forall₂.forall_exists_l Htranslations source hsource
@@ -665,7 +665,7 @@ theorem NestedLoweringOutputClosed.sourceConstructorSemanticsAtFresh
 /-- Native source-constructor semantics for one restored family.  The
 constructor list comes from the successful header-only executable validation;
 the lowering/restoration mapping supplies the exact installed translations. -/
-theorem NestedLoweringOutputClosed.sourceConstructorSemanticsAtFreshOfValidation
+theorem NestedLoweringOutputClosed.sourceConstructorTypingAtFreshOfValidation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -711,7 +711,7 @@ theorem NestedLoweringOutputClosed.sourceConstructorSemanticsAtFreshOfValidation
       sourceTypesVEnv :=
     H.restoreAuxConstructorsFreshAtHeaderPrefix Hc Hprod Howners hempty
       HsourceHeaders HsourceAdded
-  exact ⟨constructors, H.sourceConstructorSemanticsAtFresh Hc Hprod
+  exact ⟨constructors, H.sourceConstructorTypingAtFresh Hc Hprod
     Hsources hfamily Htranslations Hfamilies Hconstructors hempty Hstep⟩
 
 /-- Realize one restored primary recursor from the one irreducibly semantic
@@ -861,7 +861,7 @@ semantic-trace assembly.  Header and constructor semantics come from the
 independent source translation. The source-recursion payload is explicitly
 indexed by the original declaration, while the installed expanded declaration
 is used only to recover production safety metadata and name preservation. -/
-theorem NestedLoweringOutputClosed.sourceInductiveSemanticsAtFreshExactOwner
+theorem NestedLoweringOutputClosed.sourceInductiveTypingAtFreshExactOwner
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
@@ -905,7 +905,7 @@ theorem NestedLoweringOutputClosed.sourceInductiveSemanticsAtFreshExactOwner
       simp [Array.getElem!_eq_getD, Array.getD, howner, hresultIdx,
         htargetEq]
     rw [harray, Hmapping.name]
-  have HctorSemantics := H.sourceConstructorSemanticsAtFresh Hc Hprod
+  have HctorSemantics := H.sourceConstructorTypingAtFresh Hc Hprod
     Hsources hfamily Hsource.ctors Hfamilies Hconstructors hempty Hstep
   have hrestoredName : Hstep.restored.recursor.restored.newRecName =
       Lean.mkRecName sourceTypes[familyIdx].name := by
@@ -954,7 +954,7 @@ theorem NestedLoweringOutputClosed.sourceInductiveSemanticsAtFreshExactOwner
 while consuming the source declaration's `Forall₂` alignment in lockstep.
 The aggregate owner list is therefore the source declaration's literal type
 list, rather than an existential list later identified by a callback. -/
-theorem FoldSteps.sourceInductiveSemanticTraceExactOwners
+theorem FoldSteps.sourceInductiveTraceExactOwners
     {decl : VInductDecl} {lparams : List Name}
     {safety : DefinitionSafety} {sourceVEnv envTypes envCtors : VEnv}
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -1013,7 +1013,7 @@ The remaining family-wise obligation is decomposed at every forall binder and
 already includes typehood of every domain and the final result.  The fold is
 indexed by the literal source declaration types, so downstream assembly never
 chooses an existential owner list or asks for a post-hoc owner equality. -/
-theorem NestedLoweringOutputClosed.sourceSemanticTraceAtFreshOfTelescopeTranslations
+theorem NestedLoweringOutputClosed.sourceTraceAtFreshOfTelescopeTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors recEnv : VEnv}
@@ -1056,7 +1056,7 @@ theorem NestedLoweringOutputClosed.sourceSemanticTraceAtFreshOfTelescopeTranslat
       SourceFamilyTranslations sourceDecl c.lparams c.safety
         sourceVEnv envTypes recEnv Hrestored.inductives sourceDecl.types
           recursors := by
-  apply Hrestored.inductives.sourceInductiveSemanticTraceExactOwners
+  apply Hrestored.inductives.sourceInductiveTraceExactOwners
     Hsource.types
   intro familyIdx hfamily hdecl stepSource stepTarget Hstep Htype
   rcases H.toResult.sourceFinalMappingAtFresh hempty hfamily with
@@ -1076,7 +1076,7 @@ theorem NestedLoweringOutputClosed.sourceSemanticTraceAtFreshOfTelescopeTranslat
     ⟨recursor, ⟨Hrealization⟩⟩
   have Hrefinement := Hrealization.refinement
   rw [← Hrealization.recursor_eq] at Hrefinement
-  exact H.sourceInductiveSemanticsAtFreshExactOwner Hc Hprod Hsources hempty
+  exact H.sourceInductiveTypingAtFreshExactOwner Hc Hprod Hsources hempty
     familyIdx hfamily hdecl hentry Htype Hfamilies Hconstructors Hstep
       Hrealization.source Hrefinement
 

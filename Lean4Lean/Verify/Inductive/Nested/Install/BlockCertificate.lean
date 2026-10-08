@@ -436,7 +436,7 @@ private theorem RestoredBlockCertificate.extendSafe
     · exact hclosed
     · exact hconstructorOwners
     · intro observer
-      have Hcanonical := B.replaySafeConstructorSemantics
+      have Hcanonical := B.replaySafeConstructorTyping
         (cert observer) Hvalid.tr.map_wf
         (wf.ctorParamsAgree (safety := observer)) hcompletedCanonical
         (outputLE observer)
@@ -671,7 +671,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
       (hne : observer ≠ .unsafe) :
       CtorParamsAgree observer outEnv
         (ves.venv observer) := by
-    have Hcanonical := B.hiddenUnsafeConstructorSemantics Hvalid.tr.map_wf
+    have Hcanonical := B.hiddenUnsafeConstructorTyping Hvalid.tr.map_wf
       (wf.ctorParamsAgree (safety := observer)) hne hheadersCanonical
     exact Hcanonical.mapKernel (fun name => (hlookupEnv name).symm)
   have hiddenProvenance (observer : DefinitionSafety)

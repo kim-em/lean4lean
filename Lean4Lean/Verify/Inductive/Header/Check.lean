@@ -12,7 +12,7 @@ namespace checkInductiveTypes.loopInd
 header accumulation.  Both the telescope and zero-binder paths recover the
 same payload: exact header translation, arity, result universe, common
 parameters, and `HeaderFormation`. -/
-theorem firstStep.initializesSemanticAccumulator
+theorem firstStep.initializesAccumulator
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {indTypes : Array InductiveType} {nparams : Nat}
     {alpha : Type} (k : AddInductive.InductiveStats → AddInductive.M alpha)
@@ -222,7 +222,7 @@ theorem firstStep.initializesSemanticAccumulator
 
 /-- A completed noninitial narrow telescope appends one declaration-independent
 semantic header. -/
-theorem laterResult.snocsSemanticScoped
+theorem laterResult.snocsScoped
     {source : InductiveType} {target : VConstVal}
     {priorSources : List InductiveType}
     {narrowCurrent fullCurrent : VExpr} {scope : VLCtx}
@@ -302,7 +302,7 @@ theorem laterResult.snocsSemanticScoped
 
 /-- Fold one noninitial mutual header while preserving the exact ordered
 semantic prefix. -/
-theorem laterStep.extendsSemanticAccumulator
+theorem laterStep.extendsAccumulator
     {commonParams : List VExpr} {commonLevel : VLevel}
     {alpha : Type} (k : AddInductive.InductiveStats → AddInductive.M alpha)
     (Q : alpha → Prop)
@@ -479,7 +479,7 @@ theorem laterStep.extendsSemanticAccumulator
             apply checkInductiveTypes.loopType.result.WF
               (fuel := fuel'') (Q := Q) hforall'' rfl
             let HsemanticPrior := Hsemantic''.reindexUs hlparams'.symm
-            apply laterResult.snocsSemanticScoped
+            apply laterResult.snocsScoped
               (source := indTypes[dIdx]) (target := Hchecked.target)
               (priorSources := indTypes.toList.take dIdx)
               k Q Hc' hnonempty
@@ -632,7 +632,7 @@ theorem laterStep.extendsSemanticAccumulator
 
 /-- Complete the remaining mutual-header loop from a nonempty semantic
 prefix. -/
-theorem laterLoopIndSemantic
+theorem laterLoopInd
     {root c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {indTypes : Array InductiveType} {nparams dIdx depth : Nat}
     {commonParams : List VExpr} {commonLevel : VLevel}
@@ -711,13 +711,13 @@ theorem laterLoopIndSemantic
     (AddInductive.checkInductiveTypes.loopInd nparams indTypes dIdx
       stats k c).WF Q := by
   by_cases hidx : dIdx < indTypes.size
-  · apply laterStep.extendsSemanticAccumulator k Q Hc hidx hnoninitial
+  · apply laterStep.extendsAccumulator k Q Hc hidx hnoninitial
       hnonempty hparams hcommonParams Hcache Hsuffix Hsemantic Hambient
       hcommon hconsume
     intro c' nindices resultSort resultLevel Hc' henv' hsafety'
       hlparams' hallowPrimitive' hfuel' hvenv' Hcache' Hsuffix' Hsemantic'
       hmetadata' Hambient'
-    apply laterLoopIndSemantic k Q hconsume Hfinish Hc'
+    apply laterLoopInd k Q hconsume Hfinish Hc'
       (henv'.trans henvRoot) (hsafety'.trans hsafetyRoot)
       (hlparams'.trans hlparamsRoot)
       (hallowPrimitive'.trans hallowPrimitiveRoot)
@@ -775,7 +775,7 @@ termination_by indTypes.size - dIdx
 
 /-- Initialize and complete semantic header accumulation from the first
 family. -/
-theorem firstLoopIndSemantic
+theorem firstLoopInd
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {indTypes : Array InductiveType} {nparams : Nat}
     {alpha : Type} (k : AddInductive.InductiveStats → AddInductive.M alpha)
@@ -827,7 +827,7 @@ theorem firstLoopIndSemantic
     (hparams : stats.params = #[]) :
     (AddInductive.checkInductiveTypes.loopInd nparams indTypes 0
       stats k c).WF Q := by
-  apply firstStep.initializesSemanticAccumulator k Q Hc hctx hnonempty
+  apply firstStep.initializesAccumulator k Q Hc hctx hnonempty
     hempty hparams hconsume
   intro c' stats' nindices resultSort resultLevel params Hc' henv'
     hsafety' hlparams' hallowPrimitive' hfuel' hvenv' hlevels' hnindices'
@@ -849,7 +849,7 @@ theorem firstLoopIndSemantic
           (indTypes.toList.take 1) := by
     apply Hsemantic.reindexSources
     simpa using (List.take_succ_eq_append_getElem hidxList).symm
-  apply laterLoopIndSemantic k Q hconsume Hfinish Hc' henv' hsafety'
+  apply laterLoopInd k Q hconsume Hfinish Hc' henv' hsafety'
     hlparams' hallowPrimitive' hfuel' hvenv' HsemanticTake
     (rootVEnv := Hc.venv)
     (dIdx := 1) (depth := nindices)
@@ -878,7 +878,7 @@ theorem firstLoopIndSemantic
 /-- Public skeleton-free verifier retaining exact source translations, the
 full synthesized semantic certificate for every mutual family, and exact
 alignment with the source verification environment. -/
-theorem checkInductiveTypes.accumulatesSemanticHeadersSourceAligned
+theorem checkInductiveTypes.accumulatesHeadersSourceAligned
     {c : AddInductive.Context} {indTypes : Array InductiveType}
     {nparams : Nat} {alpha : Type}
     (k : AddInductive.InductiveStats → AddInductive.M alpha)
@@ -926,7 +926,7 @@ theorem checkInductiveTypes.accumulatesSemanticHeadersSourceAligned
   change (AddInductive.checkInductiveTypes.loopInd nparams indTypes 0
     { (default : AddInductive.InductiveStats) with
       levels := c.lparams.map .param } k c).WF Q
-  apply firstLoopIndSemantic k Q hconsume Hc Hfinish hctx hnonempty
+  apply firstLoopInd k Q hconsume Hc Hfinish hctx hnonempty
   · rfl
   · simp
   · rfl

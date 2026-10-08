@@ -72,7 +72,7 @@ theorem
                 BindingContextLE traversal.terminalContext H.localContext ∧
                 BindingContextLE S.sourceFullContext H.localContext ∧
                 traversal.recursivePositions =
-                  A.semantics.recursivePositions ∧
+                  A.typing.recursivePositions ∧
                 A.minorShape = S ∧
                 let sourceBinders := H.params.fvars ++
                   H.bindings.motives.fvars ++
@@ -149,23 +149,23 @@ theorem
   have hprefixTraversal := traversal.parameterPrefix
   rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
   have hparameterTail :
-      traversal.parameterTail = A.semantics.parameterTail :=
-    hprefixTraversal.tail_eq A.semantics.parameterPrefix
+      traversal.parameterTail = A.typing.parameterTail :=
+    hprefixTraversal.tail_eq A.typing.parameterPrefix
   have hsemanticResidual :
-      A.semantics.fieldOpening.residual.isForall = false := by
-    rw [← A.semantics.fieldOpening.closed, Expr.abstractList_isForall]
-    exact A.semantics.target_not_forall
+      A.typing.fieldOpening.residual.isForall = false := by
+    rw [← A.typing.fieldOpening.closed, Expr.abstractList_isForall]
+    exact A.typing.target_not_forall
   have hfieldCount : S.fields.size = A.rule.allArgs.size := by
     have HtraversalTelescope := traversal.fieldTelescope
     rw [htraversalFields, hparameterTail] at HtraversalTelescope
     exact (HtraversalTelescope.eq_of_residual_not_forall
-      A.semantics.fieldOpening.telescope
+      A.typing.fieldOpening.telescope
       traversal.fieldResidual_not_forall hsemanticResidual).1
   have Hsemantic :
       Nonempty (TypedMinorTraversalAt H.recursorWF S
         H.parameterSuffix.parameterDecls) := by
     simpa [S] using
-      H.minorSemantics O.owner O.owner_lt O.localIndex hshapeBound
+      H.minorTyping O.owner O.owner_lt O.localIndex hshapeBound
   let P := A.minorOrigin
   have hshapeCanonical :
       H.origins.minorShapes O.owner O.owner_lt O.localIndex hshapeBound =
@@ -179,7 +179,7 @@ theorem
   have hminorTraversal : P.producer.minorTraversal = traversal :=
     Option.some.inj (hproducerTraversal.symm.trans htraversal)
   have hpositions : traversal.recursivePositions =
-      A.semantics.recursivePositions := by
+      A.typing.recursivePositions := by
     rw [← hminorTraversal]
     exact P.producer.decisionPositions_eq
   exact ⟨T, D, O, S, horigin, hlocal, hconstructors, hconstructor,
@@ -198,7 +198,7 @@ source was completed, together with its executable extension into the final
 recursor context.  This is the semantic strengthening of the structural
 `BindingContextLE` returned by `finalSelectedMinorShape`. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorSemanticSource
+    RecursorCheck.RuleAlignment.finalSelectedMinorSource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -214,7 +214,7 @@ theorem
           H.parameterSuffix.parameterDecls,
         S.localIndex = i ∧
         HS.semantic.traversal.parameterTail =
-          A.semantics.parameterTail := by
+          A.typing.parameterTail := by
   rcases A.finalSelectedMinorDomain with
     ⟨_T, _D, O, _discardedShape, _Hdomain, _HdomainType⟩
   have hposition := A.selectedMinorOriginPosition O
@@ -243,15 +243,15 @@ theorem
     ⟨traversal, htraversal, htraversalConstructor, _htraversalFields,
       _htraversalRecursiveFields, hstats, _hrootContext,
       _hterminalContext, _hsourceContext⟩
-  rcases H.minorSemantics O.owner O.owner_lt O.localIndex hshapeBound with
+  rcases H.minorTyping O.owner O.owner_lt O.localIndex hshapeBound with
     ⟨HS⟩
   have hsemanticTraversal : HS.semantic.traversal = traversal :=
     Option.some.inj (HS.semantic.traversal_eq.symm.trans htraversal)
   have hprefixTraversal := traversal.parameterPrefix
   rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
   have hparameterTail :
-      traversal.parameterTail = A.semantics.parameterTail :=
-    hprefixTraversal.tail_eq A.semantics.parameterPrefix
+      traversal.parameterTail = A.typing.parameterTail :=
+    hprefixTraversal.tail_eq A.typing.parameterPrefix
   exact ⟨S, HS, hlocal, hsemanticTraversal.symm ▸ hparameterTail⟩
 
 /-- Transport the shared constructor tail retained by the first minor pass
@@ -281,11 +281,11 @@ theorem
         ∃ target,
           S.localIndex = i ∧
           HS.semantic.traversal.parameterTail =
-            A.semantics.parameterTail ∧
+            A.typing.parameterTail ∧
           TrExprS H.outVEnv Us parameterDecls
-            A.semantics.parameterTail target := by
+            A.typing.parameterTail target := by
   dsimp only
-  rcases A.finalSelectedMinorSemanticSource with
+  rcases A.finalSelectedMinorSource with
     ⟨S, HS, hlocal, htail⟩
   rcases HS.semantic.parameterTranslationAtSuffix with
     ⟨target, Htarget⟩
@@ -297,13 +297,13 @@ theorem
   have Htarget' := Htarget.mono hrootLE
   have HtargetAtParameters : TrExprS H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      H.parameterSuffix.parameterDecls A.semantics.parameterTail target := by
+      H.parameterSuffix.parameterDecls A.typing.parameterTail target := by
     simpa only [HS.parameterDecls_eq, htail] using Htarget'
   have HtargetFinal : TrExprS H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
-      A.semantics.parameterTail target := by
+      A.typing.parameterTail target := by
     simpa only [← H.parameterDecls] using HtargetAtParameters
   exact ⟨S, HS, target, hlocal, htail, HtargetFinal⟩
 
@@ -333,12 +333,12 @@ theorem
         ∃ target fieldDomains fieldResult,
           S.localIndex = i ∧
           HS.semantic.traversal.parameterTail =
-            A.semantics.parameterTail ∧
+            A.typing.parameterTail ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           TrExprS H.outVEnv Us parameterDecls
-            A.semantics.parameterTail target ∧
+            A.typing.parameterTail target ∧
           TrExprS H.outVEnv Us parameterDecls
-            A.semantics.parameterTail
+            A.typing.parameterTail
             (VExpr.wrapForalls fieldDomains fieldResult) ∧
           H.outVEnv.IsDefEqU Us.length parameterDecls.toCtx target
             (VExpr.wrapForalls fieldDomains fieldResult) := by
@@ -392,14 +392,14 @@ theorem
             checkedFieldResult,
           S.localIndex = i ∧
           HS.semantic.traversal.parameterTail =
-            A.semantics.parameterTail ∧
+            A.typing.parameterTail ∧
           minorFieldDomains.length = A.rule.allArgs.size ∧
           checkedFieldDomains.length = A.rule.allArgs.size ∧
           TrExprS H.outVEnv Us parameterDecls
-            A.semantics.parameterTail
+            A.typing.parameterTail
             (VExpr.wrapForalls minorFieldDomains minorFieldResult) ∧
           TrExprS H.outVEnv Us parameterDecls
-            A.semantics.parameterTail
+            A.typing.parameterTail
             (VExpr.wrapForalls checkedFieldDomains checkedFieldResult) ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             (minorFieldDomains.reverse ++ parameterDecls.toCtx)
@@ -408,7 +408,7 @@ theorem
   rcases A.finalSelectedMinorSharedTailDefEq with
     ⟨S, HS, target, checkedFieldDomains, checkedFieldResult, hlocal,
       htail, hcheckedLength, Hminor, Hchecked, Hsame⟩
-  rcases TrExprS.forallTelescope_shape A.semantics.fieldOpening.telescope
+  rcases TrExprS.forallTelescope_shape A.typing.fieldOpening.telescope
       Hminor with
     ⟨minorFieldDomains, minorFieldResult, hminorLength, htarget⟩
   have Hsame' : H.outVEnv.IsDefEqU
@@ -480,8 +480,8 @@ theorem
         traversal.fields = S.fields ∧
         traversal.recursiveFields = S.recursiveFields ∧
         traversal.stats = stats ∧
-        traversal.parameterTail = A.semantics.parameterTail ∧
-        traversal.recursivePositions = A.semantics.recursivePositions ∧
+        traversal.parameterTail = A.typing.parameterTail ∧
+        traversal.recursivePositions = A.typing.recursivePositions ∧
         S.localIndex = i ∧
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
@@ -514,10 +514,10 @@ theorem
   have hprefixTraversal := traversal.parameterPrefix
   rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
   have hparameterTail :
-      traversal.parameterTail = A.semantics.parameterTail :=
-    hprefixTraversal.tail_eq A.semantics.parameterPrefix
+      traversal.parameterTail = A.typing.parameterTail :=
+    hprefixTraversal.tail_eq A.typing.parameterPrefix
   have hhypotheses : S.hypotheses.size = A.rule.recursiveArgs.size :=
-    S.hypotheses_size_eq_rule traversal A.semantics
+    S.hypotheses_size_eq_rule traversal A.typing
       htraversalRecursiveFields hpositions
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take
@@ -583,7 +583,7 @@ theorem
           (HS.semantic.extension.shift.consN 0) ∧
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
-        HS.semantic.traversal.parameterTail = A.semantics.parameterTail ∧
+        HS.semantic.traversal.parameterTail = A.typing.parameterTail ∧
         scope.fvars = sourceBinders.reverse ∧
         Hscope.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
           (· ∈ sourceBinders) ∧
@@ -628,7 +628,7 @@ theorem
   have hsemanticTraversal : HS.semantic.traversal = traversal :=
     Option.some.inj (HS.semantic.traversal_eq.symm.trans htraversal)
   have hsemanticParameterTail :
-      HS.semantic.traversal.parameterTail = A.semantics.parameterTail :=
+      HS.semantic.traversal.parameterTail = A.typing.parameterTail :=
     (congrArg ConstructorFieldTraversal.parameterTail
       hsemanticTraversal).trans hparameterTail
   rcases A.finalSelectedMinorPrefixDefEqCtx with
@@ -737,8 +737,8 @@ theorem
           traversal.fields = S.fields ∧
           traversal.recursiveFields = S.recursiveFields ∧
           traversal.stats = stats ∧
-          traversal.parameterTail = A.semantics.parameterTail ∧
-          traversal.recursivePositions = A.semantics.recursivePositions ∧
+          traversal.parameterTail = A.typing.parameterTail ∧
+          traversal.recursivePositions = A.typing.recursivePositions ∧
           S.localIndex = i ∧
           S.fields.size = A.rule.allArgs.size ∧
           S.hypotheses.size = A.rule.recursiveArgs.size ∧
@@ -844,7 +844,7 @@ theorem
         traversal.fields = S.fields ∧
         traversal.fieldFVars = S.fields_bound.fvars ∧
         traversal.terminal.abstractList S.fields_bound.fvars =
-          A.rule.target.abstractList A.semantics.fieldOpening.fvars ∧
+          A.rule.target.abstractList A.typing.fieldOpening.fvars ∧
         (AddInductive.getIIndices stats traversal.terminal).1 = owner ∧
         AddInductive.isValidIndApp? stats traversal.terminal = some owner ∧
         S.motiveApp =
@@ -889,11 +889,11 @@ theorem
   have hprefixTraversal := traversal.parameterPrefix
   rw [htraversalStats, htraversalConstructor, hconstructor] at hprefixTraversal
   have hparameterTail :
-      traversal.parameterTail = A.semantics.parameterTail :=
-    hprefixTraversal.tail_eq A.semantics.parameterPrefix
+      traversal.parameterTail = A.typing.parameterTail :=
+    hprefixTraversal.tail_eq A.typing.parameterPrefix
   have hsourceHypotheses : S.hypotheses.size =
       A.rule.recursiveArgs.size :=
-    S.hypotheses_size_eq_rule traversal A.semantics
+    S.hypotheses_size_eq_rule traversal A.typing
       htraversalRecursiveFields hpositions
   rcases S.originTelescope with ⟨sourceResidual, Hsource⟩
   have Habstract := Hsource.abstractList sourceBinders
@@ -957,18 +957,18 @@ theorem
   have HtraversalTelescope := traversal.fieldTelescope
   rw [htraversalFields, hparameterTail] at HtraversalTelescope
   have hsemanticResidual :
-      A.semantics.fieldOpening.residual.isForall = false := by
-    rw [← A.semantics.fieldOpening.closed, Expr.abstractList_isForall]
-    exact A.semantics.target_not_forall
+      A.typing.fieldOpening.residual.isForall = false := by
+    rw [← A.typing.fieldOpening.closed, Expr.abstractList_isForall]
+    exact A.typing.target_not_forall
   have hfieldResidual : traversal.fieldResidual =
-      A.semantics.fieldOpening.residual :=
+      A.typing.fieldOpening.residual :=
     (HtraversalTelescope.eq_of_residual_not_forall
-      A.semantics.fieldOpening.telescope
+      A.typing.fieldOpening.telescope
       traversal.fieldResidual_not_forall hsemanticResidual).2
   have hclosedTargets :
       traversal.terminal.abstractList S.fields_bound.fvars =
-        A.rule.target.abstractList A.semantics.fieldOpening.fvars := by
-    rw [hterminalClosed, A.semantics.fieldOpening.closed, hfieldResidual]
+        A.rule.target.abstractList A.typing.fieldOpening.fvars := by
+    rw [hterminalClosed, A.typing.fieldOpening.closed, hfieldResidual]
   let selectedOwner :=
     (AddInductive.getIIndices stats traversal.terminal).1
   have hselectedValid : AddInductive.isValidIndApp? stats
@@ -977,22 +977,22 @@ theorem
   have hselectedDecl : selectedOwner < decl.types.length := by
     have hselectedStats :=
       (checkPositivityStep.isValidIndApp?_some hselectedValid).1
-    rw [A.semantics.validStats.types_size] at hselectedStats
+    rw [A.typing.validStats.types_size] at hselectedStats
     exact hselectedStats
   have hselectedHead : traversal.terminal.getAppFn =
       .const (decl.types[selectedOwner]'hselectedDecl).name stats.levels :=
     checkPositivityStep.isValidIndAppIdx.constHead
       (checkPositivityStep.isValidIndApp?_some hselectedValid).2
-      (A.semantics.validStats.indConstAt hselectedDecl)
+      (A.typing.validStats.indConstAt hselectedDecl)
   have htargetValid : AddInductive.isValidIndAppIdx stats A.rule.target
       owner = true := by
     have h := (checkPositivityStep.isValidIndApp?_some
-      A.semantics.target_valid).2
-    simpa [A.semantic_owner] using h
+      A.typing.target_valid).2
+    simpa [A.typing_owner] using h
   have htargetHead : A.rule.target.getAppFn =
       .const (decl.types[owner]'A.abstractOwner_lt).name stats.levels :=
     checkPositivityStep.isValidIndAppIdx.constHead htargetValid
-      (A.semantics.validStats.indConstAt A.abstractOwner_lt)
+      (A.typing.validStats.indConstAt A.abstractOwner_lt)
   have hname : (decl.types[selectedOwner]'hselectedDecl).name =
       (decl.types[owner]'A.abstractOwner_lt).name := by
     have heq := congrArg Expr.getAppFn hclosedTargets
@@ -1080,7 +1080,7 @@ theorem
     (hfieldFVars : traversal.fieldFVars = S.fields_bound.fvars)
     (hclosedTargets :
       traversal.terminal.abstractList S.fields_bound.fvars =
-        A.rule.target.abstractList A.semantics.fieldOpening.fvars)
+        A.rule.target.abstractList A.typing.fieldOpening.fvars)
     (hvalid : AddInductive.isValidIndApp? stats traversal.terminal =
       some owner)
     (hmotiveApp : S.motiveApp =
@@ -1099,9 +1099,9 @@ theorem
             index.abstractList A.rule.all_args_bound.fvars))
         (A.rule.sourceConstructorMajor.abstractList
           A.rule.all_args_bound.fvars) := by
-  have hruleFieldFVars : A.semantics.fieldOpening.fvars =
+  have hruleFieldFVars : A.typing.fieldOpening.fvars =
       A.rule.all_args_bound.fvars :=
-    A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound
+    A.typing.fieldOpening.fvars_eq_bound A.rule.all_args_bound
   have hindices := congrArg
     (fun target => (AddInductive.getIIndices stats target).2)
     hclosedTargets
@@ -1114,11 +1114,11 @@ theorem
   have hruleValid : AddInductive.isValidIndAppIdx stats A.rule.target
       owner = true := by
     have h := (checkPositivityStep.isValidIndApp?_some
-      A.semantics.target_valid).2
-    simpa [A.semantic_owner] using h
+      A.typing.target_valid).2
+    simpa [A.typing_owner] using h
   have htraversalPrefix :=
-    A.semantics.validStats.sourceParameterPrefix htraversalValid
-  have hrulePrefix := A.semantics.validStats.sourceParameterPrefix hruleValid
+    A.typing.validStats.sourceParameterPrefix htraversalValid
+  have hrulePrefix := A.typing.validStats.sourceParameterPrefix hruleValid
   have hargs := congrArg Expr.getAppArgs hclosedTargets
   rw [Expr.getAppArgs_abstractList, Expr.getAppArgs_abstractList] at hargs
   have hparams :
@@ -1135,7 +1135,7 @@ theorem
             (List.take stats.params.size
               traversal.terminal.getAppArgsList) =
           List.map (fun arg =>
-            arg.abstractList A.semantics.fieldOpening.fvars)
+            arg.abstractList A.typing.fieldOpening.fvars)
             (List.take stats.params.size A.rule.target.getAppArgsList) := by
       simpa only [List.map_take, Expr.getAppArgs_toList] using htake
     rw [htraversalPrefix, hrulePrefix, hruleFieldFVars] at htake'
@@ -1218,16 +1218,16 @@ theorem
     change motiveFVar ∈ S.fields_bound.fvars ∨ P motiveFVar
     exact Or.inr <| List.mem_append_right _
       (List.getElem_mem hownerMotiveFVars)
-  have hsemanticFields : A.semantics.fieldsRecent.fvars = fieldFVars :=
+  have hsemanticFields : A.typing.fieldsRecent.fvars = fieldFVars :=
     FVarArrayIn.fvars_eq
-      A.semantics.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
+      A.typing.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
       A.rule.all_args_bound rfl
   have hparameterFVars : ExprArrayFVarIds stats.params =
       A.rule.params_bound.fvars := by
     exact A.rule.params_bound.exprArrayFVarIds
   have Htarget : A.rule.target.FVarsIn fun fv =>
       fv ∈ fieldFVars ∨ P fv := by
-    apply A.semantics.targetFVarsIn.mono
+    apply A.typing.targetFVarsIn.mono
     intro fv hfv
     rcases hfv with hfield | hparam
     · rw [hsemanticFields] at hfield
@@ -1260,7 +1260,7 @@ theorem
       hfv
   have Hmajor :
       (A.rule.sourceConstructorMajor.abstractList fieldFVars).FVarsIn P := by
-    have HconstructorScope := A.semantics.constructor_translation.fvarsIn
+    have HconstructorScope := A.typing.constructor_translation.fvarsIn
     unfold RecursorRuleSyntax.sourceConstructorMajor at HconstructorScope
     rw [Expr.mkAppN_eq_mkAppList, Expr.mkAppN_eq_mkAppList] at HconstructorScope
     have HconstContext :=
@@ -1685,8 +1685,8 @@ theorem
           traversal.fields = S.fields ∧
           traversal.recursiveFields = S.recursiveFields ∧
           traversal.stats = stats ∧
-          traversal.parameterTail = A.semantics.parameterTail ∧
-          traversal.recursivePositions = A.semantics.recursivePositions ∧
+          traversal.parameterTail = A.typing.parameterTail ∧
+          traversal.recursivePositions = A.typing.recursivePositions ∧
           S.localIndex = i ∧
           S.fields.size = A.rule.allArgs.size ∧
           S.hypotheses.size = A.rule.recursiveArgs.size ∧
@@ -1803,12 +1803,12 @@ theorem
             traversal.fields = S.fields ∧
             traversal.recursiveFields = S.recursiveFields ∧
             traversal.stats = stats ∧
-            traversal.parameterTail = A.semantics.parameterTail ∧
-            traversal.recursivePositions = A.semantics.recursivePositions ∧
+            traversal.parameterTail = A.typing.parameterTail ∧
+            traversal.recursivePositions = A.typing.recursivePositions ∧
             S.recursiveFields[j]! =
-              S.fields[A.semantics.recursivePositions[j]!]! ∧
+              S.fields[A.typing.recursivePositions[j]!]! ∧
             A.rule.recursiveArgs[j]! =
-              A.rule.allArgs[A.semantics.recursivePositions[j]!]! ∧
+              A.rule.allArgs[A.typing.recursivePositions[j]!]! ∧
             S.localIndex = i ∧
             S.fields.size = A.rule.allArgs.size ∧
             S.hypotheses.size = A.rule.recursiveArgs.size ∧
@@ -1887,13 +1887,13 @@ theorem
     exact hjRecursiveFields
   have hsourceSelected : A.minorShape.recursiveFields[j]! =
       A.minorShape.fields[
-        A.semantics.recursivePositions[j]!]! := by
+        A.typing.recursivePositions[j]!]! := by
     have Hselected := traversal.decisions.selected_at j hjTraversal
     rw [htraversalRecursiveFields, htraversalFields, hpositions] at Hselected
     exact Hselected.2
   have hruleSelected : A.rule.recursiveArgs[j]! =
-      A.rule.allArgs[A.semantics.recursivePositions[j]!]! :=
-    (A.semantics.decisions.selected_at j hj).2
+      A.rule.allArgs[A.typing.recursivePositions[j]!]! :=
+    (A.typing.decisions.selected_at j hj).2
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take
       (recursorMinorOffset indTypes owner + i)

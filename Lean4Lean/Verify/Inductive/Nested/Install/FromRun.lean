@@ -879,7 +879,7 @@ private theorem NestedRun.assemblyBaseOfFormationNative
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1 = .ok () := by
     simpa only [hlparams, hsafety] using E.recursorTypeValidation
   have HexactSource :=
-    Hlower.sourceSemanticTraceAtFreshOfTelescopeTranslations HcP Hprod
+    Hlower.sourceTraceAtFreshOfTelescopeTranslations HcP Hprod
       Hsources Hcore Hmetadata Hfamilies Hconstructors hempty Hrestored (by
         intro familyIdx hfamily _hdecl hentry stepSource stepTarget Hstep
         exact Hlower.restoredSourceTelescopeAtFreshOfValidation HcP

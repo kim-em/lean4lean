@@ -48,9 +48,9 @@ structure
   originContext : RecursorContextWF originRoot
     (AddInductive.getRecLevelParams H.elimLevel c.lparams)
   priorHypotheses : Array Expr
-  originRecent : RecursorFVarSuffix A.semantics.context
+  originRecent : RecursorFVarSuffix A.typing.context
     originContext priorHypotheses
-  originCheck : originContext.chk = A.semantics.context.chk
+  originCheck : originContext.chk = A.typing.context.chk
   priorHypotheses_size : priorHypotheses.size = j
   callDepth : Nat
   semantic : TypedRecursiveCall indTypes stats
@@ -59,14 +59,14 @@ structure
     originContext decl callDepth
     A.rule.recursiveArgs[j] A.rule.recursiveResults[j]!
   motiveApplication : Nonempty semantic.MotiveApplication
-  motiveLookup : MotiveTelescopesAt A.semantics.context stats decl
+  motiveLookup : MotiveTelescopesAt A.typing.context stats decl
     H.recInfos H.elimLevel
   root_scope : semantic.rootScope = fun fv =>
-    fv ∈ A.semantics.fieldOpening.fvars ∨
+    fv ∈ A.typing.fieldOpening.fvars ∨
       fv ∈ ExprArrayFVarIds stats.params
   replay : sourceOrigin.replayTrace sourceShape.fields_bound.fvars =
     semantic.generated.replayTrace A.rule.all_args_bound.fvars
-  semantic_eq : HEq semantic (A.minorReplayAt j hj).semantic
+  typing_eq : HEq semantic (A.minorReplayAt j hj).semantic
   producerReplay_eq :
     (A.minorReplayAt j hj).semantic.generated.replayTrace
         A.rule.all_args_bound.fvars =
@@ -100,7 +100,7 @@ def RecursorCheck.RuleAlignment.RecursiveCallFrame.originExtension
     {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj) :
-    RecursorContextExtension A.semantics.context F.originContext :=
+    RecursorContextExtension A.typing.context F.originContext :=
   F.originRecent.contextExtension
 
 theorem
@@ -151,7 +151,7 @@ theorem
     motiveLookup := Hproducer.motiveLookup
     root_scope := P.root_scope
     replay := P.replay
-    semantic_eq := HEq.rfl
+    typing_eq := HEq.rfl
     producerReplay_eq := rfl
     entry_lt := hentry
     telescope := T
@@ -534,7 +534,7 @@ theorem
   let selectedOwner := F.semantic.generated.ownerIdx
   have hrecInfo : selectedOwner < H.recInfos.size := by
     simpa [H.generated.length] using F.entry_lt
-  let Hext : RecursorContextExtension A.semantics.context
+  let Hext : RecursorContextExtension A.typing.context
       F.semantic.current_context :=
     F.originExtension.trans F.semantic.recent.contextExtension
   have HexposedType : F.semantic.current_context.venv.IsType
@@ -564,64 +564,64 @@ theorem
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    let parameterDecls := A.semantics.parameterSuffix.parameterDecls
+    let parameterDecls := A.typing.parameterSuffix.parameterDecls
     ∃ fieldScope,
       ∃ HfieldScope : checkInductiveTypes.loopType.FrontScopeEmbedding
-          A.semantics.fieldRootContext.venv Us fieldScope
-            A.semantics.context.mlctx.vlctx,
+          A.typing.fieldRootContext.venv Us fieldScope
+            A.typing.context.mlctx.vlctx,
         fieldScope.fvars =
-            A.semantics.fieldsRecent.fvars.reverse ++ parameterDecls.fvars ∧
+            A.typing.fieldsRecent.fvars.reverse ++ parameterDecls.fvars ∧
         fieldScope.drop HfieldScope.frontSourceDomains.length =
             parameterDecls ∧
         (∃ fieldDomains,
           fieldDomains.length = A.rule.allArgs.size ∧
           HfieldScope.frontSourceDomains = fieldDomains) ∧
         (0 < A.rule.allArgs.size →
-          VLCtx.IsDefEq A.semantics.fieldRootContext.venv Us.length
-            fieldScope A.semantics.context.chk.vlctx) := by
+          VLCtx.IsDefEq A.typing.fieldRootContext.venv Us.length
+            fieldScope A.typing.context.chk.vlctx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  let parameterDecls := A.semantics.parameterSuffix.parameterDecls
-  let Hparameter := A.semantics.parameterSuffix.parameterEmbedding
-  rcases A.semantics.context.onlyLams.lamPrefix
-      A.rule.allArgs.size A.semantics.fieldsRecent.size_le with
+  let parameterDecls := A.typing.parameterSuffix.parameterDecls
+  let Hparameter := A.typing.parameterSuffix.parameterEmbedding
+  rcases A.typing.context.onlyLams.lamPrefix
+      A.rule.allArgs.size A.typing.fieldsRecent.size_le with
     ⟨_runtimeFieldDomains, HfieldPrefix⟩
   have hfieldRuntime :
-      (A.semantics.context.mlctx.dropN A.rule.allArgs.size
+      (A.typing.context.mlctx.dropN A.rule.allArgs.size
         HfieldPrefix.le).vlctx =
-        A.semantics.fieldRootContext.mlctx.vlctx := by
-    have hle : HfieldPrefix.le = A.semantics.fieldsRecent.size_le :=
+        A.typing.fieldRootContext.mlctx.vlctx := by
+    have hle : HfieldPrefix.le = A.typing.fieldsRecent.size_le :=
       Subsingleton.elim _ _
-    rw [hle, A.semantics.fieldsRecent.drop_eq]
+    rw [hle, A.typing.fieldsRecent.drop_eq]
   let HfieldBase := Hparameter.retargetRuntime hfieldRuntime.symm
-  have HfieldWF : A.semantics.context.mlctx.WF
-      A.semantics.fieldRootContext.venv Us := by
-    simpa only [Us, A.semantics.fieldsRecent.venv_eq] using
-      A.semantics.context.mlctx_wf
-  have hfieldRev : A.semantics.context.mlctx.fvarRevList
+  have HfieldWF : A.typing.context.mlctx.WF
+      A.typing.fieldRootContext.venv Us := by
+    simpa only [Us, A.typing.fieldsRecent.venv_eq] using
+      A.typing.context.mlctx_wf
+  have hfieldRev : A.typing.context.mlctx.fvarRevList
       A.rule.allArgs.size HfieldPrefix.le =
-        A.semantics.fieldsRecent.fvars.reverse := by
-    have hle : HfieldPrefix.le = A.semantics.fieldsRecent.size_le :=
+        A.typing.fieldsRecent.fvars.reverse := by
+    have hle : HfieldPrefix.le = A.typing.fieldsRecent.size_le :=
       Subsingleton.elim _ _
     rw [hle]
-    exact A.semantics.fieldsRecent.fvarRevList_eq
+    exact A.typing.fieldsRecent.fvarRevList_eq
   have HfieldUp : IsFVarUpSet
-      (fun fv => fv ∈ A.semantics.context.mlctx.fvarRevList
+      (fun fv => fv ∈ A.typing.context.mlctx.fvarRevList
           A.rule.allArgs.size HfieldPrefix.le ++ parameterDecls.fvars)
-      A.semantics.context.mlctx.vlctx := by
+      A.typing.context.mlctx.vlctx := by
     apply (IsFVarUpSet.congr HfieldWF.tr.wf.fvwf ?_).mp
-      A.semantics.fieldParameterUp
+      A.typing.fieldParameterUp
     intro fv _
-    rw [hfieldRev, A.semantics.parameterSuffix.parameterDecls_fvars]
+    rw [hfieldRev, A.typing.parameterSuffix.parameterDecls_fvars]
     simp [parameterDecls]
-  obtain ⟨M, hMwf, hchkM, hnM, hagree, hdrop, -⟩ := A.semantics.fieldCheck
-  have hMwf' : M.WF A.semantics.fieldRootContext.venv Us := by
-    simpa only [Us, A.semantics.fieldsRecent.venv_eq] using hMwf
-  have hbaseAlign : VLCtx.IsDefEq A.semantics.fieldRootContext.venv Us.length
+  obtain ⟨M, hMwf, hchkM, hnM, hagree, hdrop, -⟩ := A.typing.fieldCheck
+  have hMwf' : M.WF A.typing.fieldRootContext.venv Us := by
+    simpa only [Us, A.typing.fieldsRecent.venv_eq] using hMwf
+  have hbaseAlign : VLCtx.IsDefEq A.typing.fieldRootContext.venv Us.length
       parameterDecls (M.dropN A.rule.allArgs.size hnM).vlctx := by
     rw [hdrop]
-    exact .refl A.semantics.fieldRootContext.checking.tr.wf HfieldBase.wf
+    exact .refl A.typing.fieldRootContext.checking.tr.wf HfieldBase.wf
   rcases HfieldPrefix.extendFrontScopeEmbeddingAligned
-      A.semantics.fieldRootContext.checking.tr.wf HfieldWF HfieldBase
+      A.typing.fieldRootContext.checking.tr.wf HfieldWF HfieldBase
         HfieldUp hMwf' hnM hagree hbaseAlign with
     ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
       ⟨fieldDomains, hfieldDomains, hfieldFront⟩, halign⟩
