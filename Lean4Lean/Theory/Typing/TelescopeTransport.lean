@@ -25,7 +25,7 @@ theorem TelInst.of_ctxDefEq (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)) :
     ∀ {A B args : List VExpr}, TelInst env U Γ A args →
       IsDefEqCtx env U [] A.reverse B.reverse → TelInst env U Γ B args := by
   intro A
-  induction A using VEnv.snoc_induction with
+  induction A using List.snoc_induction with
   | nil =>
     intro B args H hAB
     have := hAB.length_eq

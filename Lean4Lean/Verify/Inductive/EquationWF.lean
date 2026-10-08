@@ -432,7 +432,7 @@ theorem
       List.append_assoc] using Hrebased
   have HequationParams := VEnv.IsDefEqCtx.extendSamePrefix
     Hparams' HfieldT.isType
-  have HbaseMixed := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+  have HbaseMixed := VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
     (HfieldT.symm H.outVEnvWF.ordered) HequationParams
   have Hbase : VEnv.IsDefEqCtx H.outVEnv Us.length []
       (T.params ++ T.motives ++ T.minors ++ installedFields).reverse

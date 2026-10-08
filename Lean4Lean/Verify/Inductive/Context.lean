@@ -1983,7 +1983,7 @@ theorem VExpr.wrapForalls_defeq
         (env.IsType U) := by
       simpa [List.reverse_cons, List.append_assoc] using hctx
     have hdomCtx : OnCtx (dom :: Γ) (env.IsType U) :=
-      OnCtx.append_right hctx'
+      OnCtx.of_append hctx'
     rcases hdomCtx.2 with ⟨domLevel, hdom⟩
     rcases ih hctx' (by
       simpa [List.reverse_cons, List.append_assoc] using hbody) with

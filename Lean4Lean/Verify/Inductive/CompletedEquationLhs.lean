@@ -325,12 +325,12 @@ theorem
       S.motiveSourceAlignment.mono hbase
   have hcanonicalGenerated : VEnv.IsDefEqCtx H.outVEnv Us.length []
       C.params.reverse T.params.reverse :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       hcanonicalSource
       (hgeneratedSource.symm H.outVEnvWF.ordered)
   have hcanonicalParams : VEnv.IsDefEqCtx H.outVEnv Us.length []
       C.params.reverse parameterDecls.toCtx :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       hcanonicalGenerated hparams
   have HmotiveDomain : H.outVEnv.IsDefEqU Us.length
       (abstractForallContext
@@ -1114,7 +1114,7 @@ theorem
   have HcachedFixed : VEnv.IsDefEqCtx H.outVEnv Us.length []
       ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors ++
         fieldDomains).reverse) equationDomains.reverse :=
-    VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       (Hfull.symm H.outVEnvWF.ordered) HcanonicalFixed
   have HfixedCtx : OnCtx equationDomains.reverse
       (H.outVEnv.IsType Us.length) :=

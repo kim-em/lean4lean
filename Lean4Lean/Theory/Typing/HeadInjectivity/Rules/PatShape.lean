@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Inductive.CaseReductionLemmas
+import Lean4Lean.Theory.Typing.SignatureVars
 
 /-! The pattern shape of computation rules.
 
@@ -40,12 +40,6 @@ theorem VExpr.wrapLams_mkApps_snoc_ne_const {ds as : List VExpr} {f a : VExpr} :
       List.foldl_cons, List.foldl_nil]
     nofun
 
-theorem VExpr.stripLams_wrapLams (ds : List VExpr) (e : VExpr) :
-    (VExpr.wrapLams ds e).stripLams = e.stripLams := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih => exact ih
-
 /-- The head of a lambda-wrapped constant spine. -/
 theorem VExpr.stripLams_wrapLams_mkApps_head {ds args : List VExpr} :
     (VExpr.wrapLams ds (VExpr.mkApps (.const n ls) args)).stripLams.getAppFnArgs.1 =
@@ -73,15 +67,6 @@ def Restoration.headOf (r : Restoration) : VExpr → VExpr
   | .const n ls => .const (r.recursorName n) ls
   | e => e
 
-private theorem restoration_vars' (r : Restoration) (count below : Nat) :
-    (vars count below).mapM r.expr = some (vars count below) := by
-  unfold vars
-  generalize (List.range count).reverse = is
-  induction is with
-  | nil => rfl
-  | cons i is ih =>
-    simpa [List.mapM_cons, Restoration.expr, Restoration.expr.go, VExpr.mkApps] using ih
-
 /-- Restoring a generated constructor application keeps its trailing field
 variables, provided no specialization consumes more than `np` arguments. -/
 theorem Restoration.ctorApp_fields {r : Restoration}
@@ -90,7 +75,7 @@ theorem Restoration.ctorApp_fields {r : Restoration}
     ∃ name' levels' ms, output = VExpr.mkApps (.const name' levels') (ms ++ vars nf 0) := by
   change Restoration.expr.go r (VExpr.mkApps (.const name levels) _) [] = _ at h
   rw [restoration_mkApps] at h
-  simp [List.mapM_append, restoration_vars'] at h
+  simp [List.mapM_append, InductiveSignature.Restoration.mapM_expr_vars] at h
   simp only [Restoration.expr.go] at h
   split at h
   · rename_i spec hspec
@@ -103,15 +88,6 @@ theorem Restoration.ctorApp_fields {r : Restoration}
       exact ⟨_, _, _, rfl⟩
   · cases h
     exact ⟨_, _, _, rfl⟩
-
-private theorem vars_zero (nf : Nat) :
-    vars nf 0 = ((List.range nf).reverse).map VExpr.bvar := by
-  simp [vars]
-
-private theorem mem_vars {count below x : Nat} (h1 : below ≤ x) (h2 : x < below + count) :
-    VExpr.bvar x ∈ vars count below := by
-  simp only [vars, List.mem_map, List.mem_reverse, List.mem_range]
-  exact ⟨x - below, by omega, by congr 1; omega⟩
 
 /-- Restoration of a generated recursor equation, for either head mode, yields the
 pattern shape. The leading parameters, motives and minors stay bare variables,
@@ -147,7 +123,7 @@ theorem Instance.equation_patShape_strong {s : InductiveSignature} (g : Instance
       (vars (s.params.length + extra) nf ++ indices ++ [major])) = some l := hl'
   change Restoration.expr.go r (VExpr.mkApps _ _) [] = _ at hl0
   rw [restoration_mkApps] at hl0
-  simp only [List.mapM_append, restoration_vars', bind, Option.bind_eq_some_iff,
+  simp only [List.mapM_append, InductiveSignature.Restoration.mapM_expr_vars, bind, Option.bind_eq_some_iff,
     List.append_nil] at hl0
   obtain ⟨a, ⟨a1, ⟨_, h1, indices', hi, h2⟩, a3, hm, h3⟩, hout⟩ := hl0
   cases Option.some.inj h1
@@ -177,7 +153,7 @@ theorem Instance.equation_patShape_strong {s : InductiveSignature} (g : Instance
   rotate_left 4
   · rw [hel] at h
     exact VExpr.wrapLams_mkApps_snoc_ne_const h
-  · rw [vars_zero]
+  · rw [InductiveSignature.vars_zero]
   · exact List.nodup_reverse.mpr (List.nodup_range)
   · intro i hi
     simp only [List.mem_reverse, List.mem_range] at hi
@@ -186,7 +162,7 @@ theorem Instance.equation_patShape_strong {s : InductiveSignature} (g : Instance
     rw [hlen, hdomlen] at hx
     by_cases hxf : x < nf
     · exact .inr (by simpa using hxf)
-    · exact .inl (List.mem_append_left _ (mem_vars (by omega) (by omega)))
+    · exact .inl (List.mem_append_left _ (InductiveSignature.mem_vars (by omega) (by omega)))
 
 end InductiveSignature
 end Lean4Lean

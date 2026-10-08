@@ -39,14 +39,4 @@ theorem restoration_wrapForalls_forall₂ {r : Restoration} :
     obtain ⟨ds', body', rfl, hrel, hb⟩ := restoration_wrapForalls_forall₂ (domains := ds) hout
     exact ⟨d' :: ds', body', rfl, .cons hd hrel, hb⟩
 
-theorem restoration_bvar_mkApps {r : Restoration} {i : Nat} {args : List VExpr} {out : VExpr}
-    (h : r.expr (VExpr.mkApps (.bvar i) args) = some out) :
-    ∃ args', args.mapM r.expr = some args' ∧ out = VExpr.mkApps (.bvar i) args' := by
-  change Restoration.expr.go r (VExpr.mkApps _ _) [] = _ at h
-  rw [restoration_mkApps] at h
-  simp only [bind, Option.bind_eq_some_iff] at h
-  obtain ⟨args', ha, h⟩ := h
-  simp only [List.append_nil, Restoration.expr.go, Option.some.injEq] at h
-  exact ⟨args', ha, h.symm⟩
-
 end Lean4Lean.EnvTables

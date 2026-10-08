@@ -348,7 +348,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
   have hpm' : ProjMajor env s.families[s.constructors[index].owner].name
       s.constructors[index].name (eqMs index).length (eqFs index).length
       s.families[s.constructors[index].owner].resultLevel := by
-    simpa [eqMs, eqFs, vars_length_hi] using hpm
+    simpa [eqMs, eqFs, InductiveSignature.length_vars] using hpm
   obtain ⟨envE, hE, hadm⟩ := C.admissible
   rcases hadm.elimination with hnz | hsmall | hsing
   · -- data families: mode C is impossible
@@ -397,7 +397,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
         exact hnl i (List.getElem?_eq_some_iff.2 ⟨hi, e⟩)
       have hdl := g.eqDoms_length index
       have hxf : x < s.constructors[index].fields.length := by
-        refine Nat.lt_of_not_le fun h => notLead (List.mem_append_left _ (mem_vars' h ?_))
+        refine Nat.lt_of_not_le fun h => notLead (List.mem_append_left _ (InductiveSignature.mem_vars h ?_))
         omega
       have hidx : VExpr.bvar (s.constructors[index].fields.length - 1 -
           (s.constructors[index].fields.length - 1 - x)) ∉ s.constructors[index].indices := by

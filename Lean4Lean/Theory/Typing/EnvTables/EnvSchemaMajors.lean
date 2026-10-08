@@ -110,12 +110,12 @@ theorem Certified.generic_major {base : VEnv} {source : VInductDecl} {block : VI
     [g.constructorApp ctor extra 0])) = some lhs' at hl'
   change Restoration.expr.go schema.restoration (VExpr.mkApps _ _) [] = _ at hl'
   rw [restoration_mkApps] at hl'
-  simp only [List.mapM_append, restoration_vars', List.mapM_cons, List.mapM_nil, bind,
+  simp only [List.mapM_append, InductiveSignature.Restoration.mapM_expr_vars, List.mapM_cons, List.mapM_nil, bind,
     Option.bind_eq_some_iff, pure, Option.some.injEq] at hl'
   obtain ⟨_, ⟨_, ⟨_, rfl, idx', _, rfl⟩, _, ⟨major', hmajor, _, rfl, rfl⟩, rfl⟩, hout⟩ := hl'
   simp only [List.append_nil, Instance.recursorHead, Restoration.expr.go,
     Option.some.injEq] at hout
-  rw [hel, stripLams_wrapLams', ← hout, VExpr.mkApps_snoc] at hm
+  rw [hel, VExpr.stripLams_wrapLams, ← hout, VExpr.mkApps_snoc] at hm
   have hmaj : major' = VExpr.mkApps (.const c ls) args := (VExpr.app.inj hm).2
   obtain ⟨sc, hsc, hown, hview⟩ := CaseSchema.view_constructor_origin index
   obtain ⟨jn, hjn, hjget⟩ := List.mem_iff_getElem.mp hsc

@@ -29,11 +29,6 @@ end Lean4Lean.InductiveSignature
 
 namespace Lean4Lean.VEnv
 
-private theorem onCtx_append_right {P : List VExpr → VExpr → Prop} :
-    ∀ {xs ys : List VExpr}, OnCtx (xs ++ ys) P → OnCtx ys P
-  | [], _, H => H
-  | _ :: _, _, H => onCtx_append_right H.1
-
 private theorem isType_wrapForalls_inv {env : VEnv} {U : Nat} (henv : env.Ordered) :
     ∀ {domains Γ : List VExpr} {body : VExpr}, OnCtx Γ (env.IsType U) →
       env.IsType U Γ (VExpr.wrapForalls domains body) →
@@ -57,7 +52,7 @@ private theorem wrapForalls_congr_body {env : VEnv} {U : Nat} :
       simpa [List.reverse_cons, List.append_assoc] using hctx
     obtain ⟨l', hrest⟩ := wrapForalls_congr_body hctx'
       (by simpa [List.reverse_cons, List.append_assoc] using h)
-    obtain ⟨dl, hd⟩ := (onCtx_append_right hctx').2
+    obtain ⟨dl, hd⟩ := (OnCtx.of_append hctx').2
     exact ⟨.imax dl l', .forallEDF hd hrest⟩
 
 /-- Close the open header form: a well-formed type definitionally equal to a
@@ -116,6 +111,9 @@ end Lean4Lean.VEnv
 
 namespace Lean4Lean
 
+-- Name kept for the nested-inductive verification, which still refers to it.
+alias CompiledInductive.source_type_constants := CompiledInductive.types_eq
+
 /-- Every finite source header retains a normalized telescope ending in its
 recorded family sort in an environment where its exact constants are present. -/
 theorem CompiledInductive.original_family_header (H : CompiledInductive base source block) :
@@ -152,31 +150,6 @@ theorem CompiledInductive.original_family_header (H : CompiledInductive base sou
       ih current hcurrentWF (hle.trans hcurrent) hconstants family hfamily)
     trivial (fun _ _ _ _ _ _ _ => trivial) H
 
-/-- Finite replay preserves the exact original family constant list. -/
-theorem CompiledInductive.source_type_constants (H : CompiledInductive base source block) :
-    block.types = source.typeConstants := by
-  exact CompiledInductive.rec
-    (motive_1 := fun _ source block _ => block.types = source.typeConstants)
-    (motive_2 := fun _ _ _ => True)
-    (fun hdata _ _ => hdata.types) (fun _ _ _ ih => ih)
-    trivial (fun _ _ _ _ _ _ _ => trivial) H
-
-private theorem install_base_le (H : VInductBlock.install base block = some installed) :
-    base ≤ installed := by
-  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at H
-  obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
-  exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
-    VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
-
-private theorem install_type_lookup (H : VInductBlock.install base block = some installed)
-    (hvalue : value ∈ block.types) : installed.constants value.name = some value.toVConstant := by
-  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at H
-  obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
-  exact ((VEnv.addConstVals_le hc).trans <| VEnv.addEliminators_addProjections_le.trans <|
-    (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le).constants (VEnv.addConstVals_get ht hvalue)
-
 /-- Every certified container retains both its exact native family lookup
 and its normalized result-sort telescope in every well-formed extension of
 the specialization environment. -/
@@ -204,12 +177,12 @@ theorem CertifiedSpecializations.family_header (H : CertifiedSpecializations env
             env.constants family.name = some family.toVConstant := by
           intro family hfamily
           apply hle.constants
-          apply install_type_lookup hinstall
-          rw [hcompile.source_type_constants]
+          apply VInductBlock.install_type_lookup hinstall
+          rw [hcompile.types_eq]
           exact List.mem_map.mpr ⟨family, hfamily, rfl⟩
         exact ⟨hconstants family hfamily,
           hcompile.original_family_header current hcurrent
-            (((install_base_le hinstall).trans hle).trans hcurrentLE)
+            (((VInductBlock.install_base_le hinstall).trans hle).trans hcurrentLE)
             (fun family hfamily => hcurrentLE.constants (hconstants family hfamily))
             family hfamily⟩
       · exact ih current hcurrent hcurrentLE a ha family hfamily)
@@ -348,17 +321,6 @@ end CaseSchema
 end Lean4Lean.InductiveSignature
 
 namespace Lean4Lean.InductiveSignature.CaseSchema
-
-theorem genericLevels_inst {schema : CaseSchema}
-    (hlen : levels.length = schema.signature.uvars) :
-    schema.genericLevels.map (VLevel.inst (target :: levels)) = levels := by
-  have h := VLevel.inst_map_id (ls := target :: levels)
-    (n := schema.genericUvars) (by simp [genericUvars, hlen])
-  have h' : target :: schema.genericLevels.map (VLevel.inst (target :: levels)) =
-      target :: levels := by
-    simpa [VLevel.params, genericUvars, genericLevels, List.range_succ_eq_map,
-      List.map_map, Function.comp_def, VLevel.inst] using h
-  exact List.cons.inj h' |>.2
 
 end Lean4Lean.InductiveSignature.CaseSchema
 

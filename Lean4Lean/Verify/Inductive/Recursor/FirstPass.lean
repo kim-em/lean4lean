@@ -215,9 +215,9 @@ theorem _root_.Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.Materialize
     have HownCommon : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
         ownParams.reverse H.headers.params.reverse := by
       simpa [H.uvars] using hparams.symm Hc.checking.tr.wf.ordered
-    have HdomainsCommon := VEnv.IsDefEqCtx.transEmpty Hc.checking.tr.wf
+    have HdomainsCommon := VEnv.IsDefEqCtx.trans_empty Hc.checking.tr.wf
       HdomainsOwn' HownCommon
-    have HdomainsCached := VEnv.IsDefEqCtx.transEmpty Hc.checking.tr.wf
+    have HdomainsCached := VEnv.IsDefEqCtx.trans_empty Hc.checking.tr.wf
       HdomainsCommon H.paramsContext
     refine ⟨domains, targetResidual, hdomainsLength, ?_, ?_⟩
     · rw [← htarget]
@@ -251,12 +251,12 @@ theorem _root_.Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.Materialize
     have Hparams' :=
       Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.instL hshift hparams
     have HownCommon := Hparams'.symm Hc.checking.tr.wf.ordered
-    have HdomainsCommon := VEnv.IsDefEqCtx.transEmpty Hc.checking.tr.wf
+    have HdomainsCommon := VEnv.IsDefEqCtx.trans_empty Hc.checking.tr.wf
       (by simpa using HdomainsOwn) (by
         simpa [List.map_reverse] using HownCommon)
     have Hcached' :=
       Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.instL hshift H.paramsContext
-    have HdomainsCached := VEnv.IsDefEqCtx.transEmpty Hc.checking.tr.wf
+    have HdomainsCached := VEnv.IsDefEqCtx.trans_empty Hc.checking.tr.wf
       HdomainsCommon (by
         simpa [List.map_reverse, VLCtx.instL_toCtx] using Hcached')
     refine ⟨domains, targetResidual, hdomainsLength, ?_, ?_⟩

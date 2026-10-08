@@ -26,8 +26,6 @@ correspondence and of a container family from the container's compilation
 namespace Lean4Lean
 namespace VEnv
 open InductiveSignature
-open private addDefEqs_as_rules addConsts_as_values defeqs_addRules
-  from Lean4Lean.Theory.Typing.NativeConstructorRigidity
 
 /-- **The semantic sort of an original family** (D11): its type observations end in its
 recorded result sort, in the model of any later environment `envF` in which the rules of the
@@ -100,18 +98,12 @@ theorem HeadsClosed.excl {envF env0 env' : VEnv} {new : List VDefEq} {n : Name}
   · obtain ⟨_, hc⟩ := (hord0.defEqWF ho).1.head_const_lookup hord0 (Γ := []) ⟨⟩ h'
     rw [hfresh] at hc; cases hc
 
-private theorem definitions_le' (env : VEnv) (cis : List VDefVal) :
-    env ≤ env.addDefEqs cis := by
-  induction cis generalizing env with
-  | nil => exact .rfl
-  | cons ci cis ih => exact VEnv.addDefEq_le.trans (ih _)
-
 private theorem declaration_le' (H : VDecl.WF env decl env') : env ≤ env' := by
   cases H with
   | «axiom» _ h | «opaque» _ h => exact VEnv.addConst_le h
   | «def» _ h => exact (VEnv.addConst_le h).trans VEnv.addDefEq_le
   | «example» => exact .rfl
-  | mutualDef _ h _ => exact (VEnv.addConsts_le h).trans (definitions_le' ..)
+  | mutualDef _ h _ => exact (VEnv.addConsts_le h).trans (VEnv.addDefEqs_le ..)
   | quot _ h =>
     simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
       Option.some.injEq] at h
@@ -143,10 +135,10 @@ theorem HeadsClosed.of_decl {envF env0 env' : VEnv} (hdecl : VDecl.WF env0 d env
       (fun df hm n ls h => by
         simp only [List.mem_singleton] at hm; subst hm; cases h; exact hnone)
   | mutualDef _ hadd _ =>
-    rw [addConsts_as_values] at hadd
+    rw [VEnv.addConsts_eq_addConstVals] at hadd
     exact hcl.down (new := _) h0le
       (fun df h => by
-        rw [addDefEqs_as_rules, defeqs_addRules, VEnv.addConstVals_defeqs hadd] at h; exact h)
+        rw [VEnv.addDefEqs_eq_addDefEqRules, VEnv.addDefEqRules_defeqs_iff_mem_or, VEnv.addConstVals_defeqs hadd] at h; exact h)
       (fun df hm n ls h => by
         obtain ⟨ci, hci, rfl⟩ := List.mem_map.mp hm
         cases h
@@ -177,7 +169,7 @@ theorem HeadsClosed.of_decl {envF env0 env' : VEnv} (hdecl : VDecl.WF env0 d env
         Option.pure_def, Option.some.injEq] at hinst
       obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hinst
       refine hcl.down h0le (new := block.rules) (fun df h => by
-        rwa [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
+        rwa [VEnv.addDefEqRules_defeqs_iff_mem_or, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
           VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at h) fun df hm n ls h => ?_
       obtain ⟨recursor, hrec, ls', hhead⟩ := howned df hm
       have hn : recursor.name = n := (VExpr.const.inj (hhead.symm.trans h)).1
@@ -426,7 +418,7 @@ theorem elimValid_of_registration {envF env base : VEnv} {key : Name} {schema : 
     rw [← hhn, ← hrr] at hfs
     refine Model.ElimValid.of_certified henvF hEu hctor hcert hbF hr hm hctorsIn hbase hIrig hfs
       hpm fun levels target hlen hnz => ?_
-    rw [hrr, hhl, VLevel.inst_inst, CaseSchema.genericLevels_inst' hlen]
+    rw [hrr, hhl, VLevel.inst_inst, InductiveSignature.CaseSchema.genericLevels_inst hlen]
     exact hnz
   · have hfs := Model.famSort_container henvF h0 hle0 IH hprior hble ha
     rw [← hhn, ← hrr] at hfs
@@ -436,7 +428,7 @@ theorem elimValid_of_registration {envF env base : VEnv} {key : Name} {schema : 
     have e : (VLevel.inst (target :: levels) ∘ VLevel.inst schema.genericLevels) =
         VLevel.inst levels := by
       funext x
-      simp only [Function.comp_apply, VLevel.inst_inst, CaseSchema.genericLevels_inst' hlen]
+      simp only [Function.comp_apply, VLevel.inst_inst, InductiveSignature.CaseSchema.genericLevels_inst hlen]
     rw [e, ← VLevel.inst_inst]
     exact hnz.of_equiv (VLevel.inst_congr_l hlev)
 
@@ -552,15 +544,15 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
       · exact Model.RuleValid.delta henvF hdr hctor hpctor hdfF rfl
       · exact @ih' hcl0 df (by rwa [VEnv.addConst_defeqs hadd] at hdf)
     | mutualDef _ hadd _ =>
-      rw [addConsts_as_values] at hadd
+      rw [VEnv.addConsts_eq_addConstVals] at hadd
       have hcl0 := hcl.down (new := _) h0le
         (fun df h => by
-          rw [addDefEqs_as_rules, defeqs_addRules, VEnv.addConstVals_defeqs hadd] at h; exact h)
+          rw [VEnv.addDefEqs_eq_addDefEqRules, VEnv.addDefEqRules_defeqs_iff_mem_or, VEnv.addConstVals_defeqs hadd] at h; exact h)
         (fun df hm n ls h => by
           obtain ⟨ci, hci, rfl⟩ := List.mem_map.mp hm
           cases h
           exact addConstVals_names_fresh hadd ci.toVConstVal (List.mem_map_of_mem hci))
-      rw [addDefEqs_as_rules, defeqs_addRules] at hdf
+      rw [VEnv.addDefEqs_eq_addDefEqRules, VEnv.addDefEqRules_defeqs_iff_mem_or] at hdf
       rcases hdf with member | hdf
       · obtain ⟨ci, _, rfl⟩ := List.mem_map.mp member
         exact Model.RuleValid.delta henvF hdr hctor hpctor hdfF rfl
@@ -614,7 +606,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
         obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hinst'
         have hdefeqs : ∀ df, (recursors.addDefEqRules block.rules).defeqs df →
             df ∈ block.rules ∨ env0.defeqs df := fun df h => by
-          rwa [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
+          rwa [VEnv.addDefEqRules_defeqs_iff_mem_or, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
             VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at h
         have hrecFresh : ∀ recursor ∈ block.recursors, env0.constants recursor.name = none :=
           fun recursor hrec => by

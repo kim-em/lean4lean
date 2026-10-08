@@ -1002,7 +1002,7 @@ theorem motiveTelescopeSeed
       (AddInductive.getRecLevelParams elimLevel base.lparams).length []
       Ccanonical.params.reverse Hsynthesis.params.reverse := by
     rw [hCparams]
-    exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
+    exact VEnv.IsDefEqCtx.refl (OnCtx.of_append (by
       rw [← Hsynthesis.scopeCtx]
       exact Hsynthesis.scopeWF.toCtx))
   let Hseed : RecursorMotiveTelescopeSeed Rmotive stats decl dIdx

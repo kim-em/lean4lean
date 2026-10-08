@@ -13,8 +13,6 @@ restored recursor equations are never bare constants
 
 namespace Lean4Lean
 open InductiveSignature
-open private addDefEqs_as_rules addConsts_as_values defeqs_addRules
-  from Lean4Lean.Theory.Typing.NativeConstructorRigidity
 
 namespace VEnv
 
@@ -53,21 +51,6 @@ theorem DefRules.extend {env env' : VEnv} {new : List VDefEq} (H : env.DefRules)
     · have hc := (H.const df ho n ls h).2
       rw [hfresh df' hm' n ls' h'] at hc; cases hc
     · exact H.excl df df' ho ho' n ls ls' h h'
-
-theorem addConstVals_names_nodup {env env' : VEnv} {cis : List VConstVal}
-    (H : env.addConstVals cis = some env') : (cis.map (·.name)).Nodup := by
-  induction cis generalizing env with
-  | nil => simp
-  | cons head tail ih =>
-    cases hadd : env.addConst head.name head.toVConstant with
-    | none => simp [VEnv.addConstVals, hadd] at H
-    | some middle =>
-      simp [VEnv.addConstVals, hadd] at H
-      have hfresh := addConstVals_names_fresh H
-      have hmid := VEnv.addConst_self hadd
-      refine List.nodup_cons.2 ⟨fun hm => ?_, ih H⟩
-      obtain ⟨c, hc, e⟩ := List.mem_map.1 hm
-      have := hfresh c hc; rw [e, hmid] at this; cases this
 
 theorem inj_on_of_nodup_map {α β : Type} {f : α → β} :
     ∀ {l : List α}, (l.map f).Nodup → ∀ {a b}, a ∈ l → b ∈ l → f a = f b → a = b
@@ -115,12 +98,12 @@ theorem WF'.defRules {env : VEnv} (H : env.WF' ds) : env.DefRules := by
       · intro df hm df' hm' _ _ _ _ _
         simp only [List.mem_singleton] at hm hm'; subst hm hm'; rfl
     | @mutualDef cis env₁ _ _ hadd _ =>
-      rw [addConsts_as_values] at hadd
-      rw [addDefEqs_as_rules]
+      rw [VEnv.addConsts_eq_addConstVals] at hadd
+      rw [VEnv.addDefEqs_eq_addDefEqRules]
       refine ih.extend hord (new := cis.map (·.toDefEq))
         (fun _ _ h => by
           rw [VEnv.addDefEqRules_constants]; exact (addConstVals_le hadd).constants h)
-        (fun df => by rw [defeqs_addRules, VEnv.addConstVals_defeqs hadd]) ?_ ?_ ?_
+        (fun df => by rw [VEnv.addDefEqRules_defeqs_iff_mem_or, VEnv.addConstVals_defeqs hadd]) ?_ ?_ ?_
       · intro df hm n ls h
         obtain ⟨ci, hci, rfl⟩ := List.mem_map.mp hm
         cases h
@@ -191,7 +174,7 @@ theorem WF'.defRules {env : VEnv} (H : env.WF' ds) : env.DefRules := by
               rw [VEnv.addProjections_constants, VEnv.addEliminators_constants]
               exact (addConstVals_le hc).constants ((addConstVals_le ht).constants h)))
           (fun df => by
-            rw [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
+            rw [VEnv.addDefEqRules_defeqs_iff_mem_or, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
               VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht]) ?_
           (fun df hm n ls h => absurd h (notConst df hm n ls))
           (fun df hm _ _ n ls _ h => absurd h (notConst df hm n ls))

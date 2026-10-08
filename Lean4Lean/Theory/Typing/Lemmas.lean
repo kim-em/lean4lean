@@ -156,6 +156,12 @@ def OnCtx (Γ : List VExpr) (P : List VExpr → VExpr → Prop) : Prop :=
   | [] => True
   | A::Γ => OnCtx Γ P ∧ P Γ A
 
+theorem OnCtx.of_append {Γ' Γ : List VExpr} {P}
+    (h : OnCtx (Γ' ++ Γ) P) : OnCtx Γ P := by
+  induction Γ' with
+  | nil => exact h
+  | cons A Γ' ih => exact ih h.1
+
 theorem OnCtx.lookup (h : OnCtx Γ P) (hL : Lookup Γ n A)
     (hP : ∀ {Γ A B}, P Γ A → P (B::Γ) A.lift) : P Γ A :=
   match hL, h with

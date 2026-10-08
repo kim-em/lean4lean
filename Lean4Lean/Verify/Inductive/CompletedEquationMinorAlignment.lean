@@ -1634,8 +1634,8 @@ theorem
     (List.take_append_drop minorIdx T.minors).symm
   rw [hminorDecomp, List.reverse_append, List.reverse_append,
     List.reverse_append, List.append_assoc] at Hprefix
-  have HbaseRaw := OnCtx.append_right
-    (xs := (T.minors.drop minorIdx).reverse) Hprefix
+  have HbaseRaw := OnCtx.of_append
+    (Γ' := (T.minors.drop minorIdx).reverse) Hprefix
   have Hbase : OnCtx (abstractForallContext base []).toCtx
       (H.outVEnv.IsType
         (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) := by

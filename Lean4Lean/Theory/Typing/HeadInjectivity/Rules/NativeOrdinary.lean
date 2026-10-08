@@ -27,17 +27,6 @@ theorem CompilationData.ordinary_recursors {s : InductiveSignature} {g : Instanc
   rw [compilationRestoration_nil, Instance.restoredRecursors_empty] at this
   exact (Option.some.inj this).symm
 
-theorem vars_zero' (nf : Nat) :
-    vars nf 0 = ((List.range nf).reverse).map VExpr.bvar := by
-  simp [vars]
-
-theorem mem_vars' {count below x : Nat} (h1 : below ≤ x) (h2 : x < below + count) :
-    VExpr.bvar x ∈ vars count below := by
-  simp only [vars, List.mem_map, List.mem_reverse, List.mem_range]
-  exact ⟨x - below, by omega, by congr 1; omega⟩
-
-@[simp] theorem vars_length_hi (n k : Nat) : (vars n k).length = n := by simp [vars]
-
 /-- The parameters of the major of a generated equation. -/
 def eqMs {s : InductiveSignature} (index : Fin s.constructors.size) : List VExpr :=
   vars s.params.length ((s.families.size + s.constructors.size) +
@@ -88,7 +77,7 @@ theorem equation_lhs_eq : (g.equation index).lhs = .wrapLams (g.eqDoms index)
       (g.eqLead index ++ [.mkApps (.const s.constructors[index].name g.levels)
         (eqMs index ++ (eqFs index).map .bvar)])) := by
   simp only [equation, constructorApp, recursorHead, eqDoms, eqLead, eqMs, eqFs, eqIndices,
-    vars_zero', List.append_assoc]
+    InductiveSignature.vars_zero, List.append_assoc]
 
 theorem equation_rhs_eq : ∃ body, (g.equation index).rhs = .wrapLams (g.eqDoms index) body :=
   ⟨_, rfl⟩
@@ -107,7 +96,7 @@ theorem equation_cov : ∀ x < (g.eqDoms index).length,
   rw [eqDoms_length] at hx
   by_cases hxf : x < s.constructors[index].fields.length
   · exact .inr (by simpa [eqFs] using hxf)
-  · exact .inl (List.mem_append_left _ (mem_vars' (by omega) (by omega)))
+  · exact .inl (List.mem_append_left _ (InductiveSignature.mem_vars (by omega) (by omega)))
 
 /-- The binder domains of the generated recursor's type. -/
 def recDoms (owner : Fin s.families.size) : List VExpr :=

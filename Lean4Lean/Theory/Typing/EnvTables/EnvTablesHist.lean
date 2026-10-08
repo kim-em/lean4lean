@@ -120,7 +120,7 @@ theorem Tables.Inv.inductCases {decl : VInductDecl} {block : VInductBlock} {key 
   have hreg : env'.eliminators key schema :=
     (install_eliminators hinstall).mpr (.inl (by rw [hE]; exact List.mem_singleton_self _))
   obtain ⟨envTypes, envCtors, envRecs, htypes, hctors, hrecs, hinstEq⟩ := install_parts hinstall
-  have hle := install_le hinstall
+  have hle := VInductBlock.install_base_le hinstall
   have hconsts : ∀ value ∈ block.types ++ block.ctors,
       env'.constants value.name = some value.toVConstant := by
     intro value hvalue

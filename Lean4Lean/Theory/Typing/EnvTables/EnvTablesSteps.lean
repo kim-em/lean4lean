@@ -128,11 +128,6 @@ theorem addDefEqs_defeqs {cis : List VDefVal} :
       · exact .inl ⟨c, hc, rfl⟩
       · exact .inr (.inr h)
 
-theorem addDefEqs_le {cis : List VDefVal} : env ≤ env.addDefEqs cis := by
-  induction cis generalizing env with
-  | nil => exact .rfl
-  | cons ci cis ih => exact VEnv.addDefEq_le.trans (ih (env := env.addDefEq ci.toDefEq))
-
 theorem addDefEqs_constants {cis : List VDefVal} : (env.addDefEqs cis).constants = env.constants := by
   induction cis generalizing env with
   | nil => rfl
@@ -173,7 +168,7 @@ theorem Tables.Inv.addDefinitions (H : T.Inv env) {cis : List VDefVal} {env1 : V
     (T.addDefs cis).Inv (env1.addDefEqs cis) := by
   obtain ⟨hfresh, hnd⟩ := addConsts_fresh hadd
   have hle1 := VEnv.addConsts_le hadd
-  have hle : env ≤ env1.addDefEqs cis := hle1.trans addDefEqs_le
+  have hle : env ≤ env1.addDefEqs cis := hle1.trans VEnv.addDefEqs_le
   have hold : ∀ n, (∃ ci, env.constants n = some ci) → ∀ ci ∈ cis, ci.name ≠ n := by
     rintro n ⟨x, hx⟩ ci hci rfl
     rw [hfresh ci hci] at hx
@@ -251,18 +246,6 @@ theorem Mentions.of_mentionsB {e : VExpr} (h : mentionsB X e = true) : Mentions 
   | proj _ _ _ ih => exact ih h
   | _ => simp [mentionsB] at h
 
-theorem addConst_fresh {env env' : VEnv} (h : env.addConst n ci = some env') :
-    env.constants n = none := by
-  unfold VEnv.addConst at h
-  split at h <;> cases h
-  assumption
-
-theorem fresh_of_le {base env : VEnv} (hle : base ≤ env) (h : env.constants n = none) :
-    base.constants n = none := by
-  cases hb : base.constants n with
-  | none => rfl
-  | some ci => rw [hle.constants hb] at h; cases h
-
 theorem addQuot_parts (h : env.addQuot = some env') :
     env ≤ env' ∧ (∀ df, env'.defeqs df ↔ df = quotDefEq ∨ env.defeqs df) ∧
     env'.projections = env.projections ∧
@@ -277,9 +260,9 @@ theorem addQuot_parts (h : env.addQuot = some env') :
   have l3 := VEnv.addConst_le hc
   have l4 := VEnv.addConst_le hd
   refine ⟨l1.trans <| l2.trans <| l3.trans <| l4.trans VEnv.addDefEq_le, fun df => ?_, ?_,
-    addConst_fresh ha, fresh_of_le l1 (addConst_fresh hb),
-    fresh_of_le (l1.trans l2) (addConst_fresh hc),
-    fresh_of_le (l1.trans (l2.trans l3)) (addConst_fresh hd)⟩
+    VEnv.addConst_fresh ha, VEnv.LE.constants_eq_none_left l1 (VEnv.addConst_fresh hb),
+    VEnv.LE.constants_eq_none_left (l1.trans l2) (VEnv.addConst_fresh hc),
+    VEnv.LE.constants_eq_none_left (l1.trans (l2.trans l3)) (VEnv.addConst_fresh hd)⟩
   · simp only [VEnv.addDefEq]
     rw [VEnv.addConst_defeqs hd, VEnv.addConst_defeqs hc, VEnv.addConst_defeqs hb,
       VEnv.addConst_defeqs ha]
@@ -453,7 +436,7 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
       (T.addNative decl (NativeRecursorData.compilationEntries default decl s aux g)).Inv env' := by
   let entries := NativeRecursorData.compilationEntries default decl s aux g
   let T' := T.addNative decl entries
-  have hle := install_le hinstall
+  have hle := VInductBlock.install_base_le hinstall
   obtain ⟨envTypes, envCtors, envRecs, htypes, hctors, hrecs, hinst⟩ := install_parts hinstall
   have hfreshAll : ∀ v ∈ block.types ++ block.ctors ++ block.recursors,
       env.constants v.name = none := by
@@ -461,9 +444,9 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
     simp only [List.mem_append] at hv
     rcases hv with (hv | hv) | hv
     · exact VEnv.addConstVals_names_fresh htypes v hv
-    · exact fresh_of_le (VEnv.addConstVals_le htypes)
+    · exact VEnv.LE.constants_eq_none_left (VEnv.addConstVals_le htypes)
         (VEnv.addConstVals_names_fresh hctors v hv)
-    · exact fresh_of_le ((VEnv.addConstVals_le htypes).trans
+    · exact VEnv.LE.constants_eq_none_left ((VEnv.addConstVals_le htypes).trans
         ((VEnv.addConstVals_le hctors).trans VEnv.addEliminators_addProjections_le))
         (VEnv.addConstVals_names_fresh hrecs v hv)
   have hnd := hdata.sourceWF.2.1

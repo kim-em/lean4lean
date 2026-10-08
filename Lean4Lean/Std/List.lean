@@ -112,4 +112,12 @@ theorem List.exists_snoc_of_length_succ {α : Type _} {l : List α} {n : Nat}
   ⟨l.dropLast, l.getLast (by intro h'; simp [h'] at h),
     (List.dropLast_concat_getLast _).symm, by simp [h]⟩
 
+theorem List.snoc_induction {α} {P : List α → Prop} (nil : P [])
+    (snoc : ∀ l a, P l → P (l ++ [a])) : ∀ l, P l := by
+  intro l
+  rw [← List.reverse_reverse l]
+  induction l.reverse with
+  | nil => simpa using nil
+  | cons a t ih => simpa using snoc _ a ih
+
 end Lean4Lean

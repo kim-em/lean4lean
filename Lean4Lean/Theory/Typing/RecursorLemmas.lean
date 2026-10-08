@@ -690,12 +690,6 @@ theorem VEnv.constant_doms_closed (henv : VEnv.WF env)
     have := h2.closedN henv.ordered (CtxWF.closed henv.ordered h1)
     simpa using this
 
-theorem _root_.Lean4Lean.OnCtx.of_append {Γ' Γ : List VExpr} {P}
-    (h : OnCtx (Γ' ++ Γ) P) : OnCtx Γ P := by
-  induction Γ' with
-  | nil => exact h
-  | cons A Γ' ih => exact ih h.1
-
 /-- The arguments a recursor application supplies to a stored iota rule are typed along the rule's
 telescope: the pattern variables of the left-hand side are typed at the recursor and constructor
 telescopes, so unique typing carries the actual arguments over. -/

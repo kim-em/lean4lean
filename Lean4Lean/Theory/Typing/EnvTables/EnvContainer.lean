@@ -39,7 +39,7 @@ theorem vars_split_inj {p e f p' e' f' : Nat} (he : 1 ≤ e) (he' : 1 ≤ e')
     · have := (hmem f').mp (.inr ⟨by omega, by omega⟩)
       rcases this with ⟨_, _⟩ | ⟨_, _⟩ <;> omega
   have hlen := congrArg List.length h
-  simp only [List.length_append, vars_length] at hlen
+  simp only [List.length_append, InductiveSignature.length_vars] at hlen
   exact ⟨by omega, hf⟩
 
 /-! ## Positional correspondence -/
@@ -140,18 +140,12 @@ theorem CaseCompilationData.auxiliary_recursorName {base : VEnv} {src exp : VInd
 
 /-! ## Syntax helpers -/
 
-theorem stripLams_wrapLams' (Ds : List VExpr) (e : VExpr) :
-    (VExpr.wrapLams Ds e).stripLams = e.stripLams := by
-  induction Ds with
-  | nil => rfl
-  | cons _ _ ih => exact ih
-
 /-- The left body of a rule shape, with its outer lambdas removed. -/
 theorem ruleBody_stripLams {Ds : List VExpr} {h : Name} {ls : List VLevel} {xs : List VExpr}
     {m : VExpr} :
     (VExpr.wrapLams Ds (VExpr.mkApps (.const h ls) (xs ++ [m]))).stripLams =
       .app (VExpr.mkApps (.const h ls) xs) m := by
-  rw [stripLams_wrapLams', VExpr.mkApps_snoc]; rfl
+  rw [VExpr.stripLams_wrapLams, VExpr.mkApps_snoc]; rfl
 
 theorem ruleBody_inj {Ds Ds' : List VExpr} {h h' : Name} {ls ls' : List VLevel}
     {xs xs' : List VExpr} {m m' : VExpr}

@@ -14,17 +14,6 @@ namespace Lean4Lean
 namespace InductiveSignature
 namespace CaseSchema
 
-theorem genericLevels_inst' {schema : CaseSchema}
-    (hlen : levels.length = schema.signature.uvars) :
-    schema.genericLevels.map (VLevel.inst (target :: levels)) = levels := by
-  have h := VLevel.inst_map_id (ls := target :: levels)
-    (n := schema.genericUvars) (by simp [genericUvars, hlen])
-  have h' : target :: schema.genericLevels.map (VLevel.inst (target :: levels)) =
-      target :: levels := by
-    simpa [VLevel.params, genericUvars, genericLevels, List.range_succ_eq_map,
-      List.map_map, Function.comp_def, VLevel.inst] using h
-  exact List.cons.inj h' |>.2
-
 /-- A constructor of the owner's view is the case form of a constructor of the owner. -/
 theorem view_ctor (schema : CaseSchema) (owner : Fin schema.signature.families.size)
     (j : Fin (schema.view owner).constructors.size) :
@@ -177,7 +166,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
 
   have hlsP : (VLevel.param 0 :: schema.genericLevels).map (·.inst (target :: levels)) =
       target :: levels := by
-    simp only [List.map_cons, CaseSchema.genericLevels_inst' hperm.length]; rfl
+    simp only [List.map_cons, InductiveSignature.CaseSchema.genericLevels_inst hperm.length]; rfl
   obtain ⟨eL, eR⟩ := pat_instL_elim hl hr hlsP
   -- the head type
   have hLH := ihL.2
@@ -211,7 +200,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       ((schema.view owner).families.size + (schema.view owner).constructors.size))
       ((schema.view owner).constructors[j]).fields.length ++ idx').length + 1 := by
     rw [hdsHl, Instance.recDoms_length, hN]
-    simp only [List.length_append, vars_length_hi, hidxl, hlen1]
+    simp only [List.length_append, InductiveSignature.length_vars, hidxl, hlen1]
   have hkH : dsH'[(vars ((schema.view owner).params.length +
       ((schema.view owner).families.size + (schema.view owner).constructors.size))
       ((schema.view owner).constructors[j]).fields.length ++ idx').length]? =
@@ -225,7 +214,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
             schema.signature.families[owner].name schema.genericLevels)) iargs) := hget
     rw [← hget2]
     congr 1
-    simp only [List.length_append, vars_length_hi, hidxl, hlen1]
+    simp only [List.length_append, InductiveSignature.length_vars, hidxl, hlen1]
   -- the constructor
   obtain ⟨rule, hgen, hreq⟩ := CaseSchema.generates_of_genericEquation hrules hmem
   have hgen' := hgen
@@ -267,7 +256,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       schema.signature.families[o].indices.length) hio'
     refine ⟨?_, fun hc => ?_⟩
     · rw [l2, ← hleadE]
-      simp only [List.length_append, vars_length_hi, hidxl, mapM_length hidxj, Instance.eqIndices,
+      simp only [List.length_append, InductiveSignature.length_vars, hidxl, mapM_length hidxj, Instance.eqIndices,
         List.length_map, hvi, hvi']
       simp only [Fin.getElem_fin] at harity harity' he he' ⊢
       omega
@@ -302,14 +291,14 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
     rw [hfs'] at hR hm
     obtain ⟨L', h1, h2⟩ := hpm i' e cE lsC' ms' _ hown' he hm hR
     exact ⟨L', hF ▸ h1, h2⟩
-  have hlw := hperm.wf_cons
+  have hlw := hperm.packedWF
   have hcov : ∀ x < ds'.length, VExpr.bvar x ∈ leadE ∨ x ∈ eqFs j := by
     intro x hx
     rw [mapM_length hds, Instance.eqDoms_length] at hx
     rw [← hleadE]
     by_cases hxf : x < ((schema.view owner).constructors[j]).fields.length
     · exact .inr (by simpa [eqFs] using hxf)
-    · exact .inl (List.mem_append_left _ (mem_vars' (by omega) (by omega)))
+    · exact .inl (List.mem_append_left _ (InductiveSignature.mem_vars (by omega) (by omega)))
   rcases hperm.admissible with hnz | hsmall
   · exact sound_pat_elim henv hΔ hEu hb hrules hmem hl hr hcov hlsP hrc.1 hrc.2.1 htype eT hlenH
       hkH hIrig hcf hcis (hpmL.majorFam (.inl (by
@@ -317,7 +306,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       (fun keys hkl hobs => C_absurd_gen hΔ hlw eT hlenH hkH hIrig hfs
         (hnzL levels target hperm.length hnz) hkl hobs) ihL ihR
       (.elimIota hb hrules hmem hrc hperm hLd.defeq hRd.defeq)
-  · obtain ⟨args', hargs, rfl⟩ := Restoration.expr_bvar_mkApps hT'
+  · obtain ⟨args', hargs, rfl⟩ := InductiveSignature.Restoration.expr_bvar_mkApps hT'
     obtain ⟨x, hx, hxget⟩ := mapM_reverse_getElem? hds (eqDoms_reverse_motive _ j)
     have hm := motive_eq (schema.specialize owner schema.genericUvars schema.genericLevels
       (.param 0))

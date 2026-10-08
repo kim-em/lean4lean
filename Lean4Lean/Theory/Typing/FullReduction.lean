@@ -1532,12 +1532,6 @@ theorem CaseStep.rhs_normalEq_full (hΓ : OnCtx Γ (env.IsType univs))
   simp only [InductiveSignature.CaseSchema.AppliedRule.rhs, hvars.instL_eq] at ht ⊢
   exact NormalEq.instantiate_variables_full hΓ hvars H.closed.2.1 hlen hargs ht.hasType.2
 
-private theorem levelEquiv_mkApps (hf : VExpr.LEquiv univs f f') (args : List VExpr) :
-    VExpr.LEquiv univs (VExpr.mkApps f args) (VExpr.mkApps f' args) := by
-  induction args generalizing f f' with
-  | nil => exact hf
-  | cons a args ih => exact ih (.app hf .refl)
-
 theorem SpineTransport.schema
     {rule : InductiveSignature.CaseSchema.AppliedRule}
     {actual : InductiveSignature.CaseSchema.Application}
@@ -1603,7 +1597,7 @@ theorem SpineTransport.schema
     have hls₂Symm : List.Forall₂ (· ≈ ·) actual.ctorLevels ls₂ :=
       Lean4Lean.List.Forall₂.imp (fun _ _ h => h.symm) (Lean4Lean.List.Forall₂.flip hls₂)
     have hL : VExpr.LEquiv univs actualℓ.expr actual''.expr :=
-      .app (levelEquiv_mkApps (.elim hlsSymm hw₁) _) (levelEquiv_mkApps (.const hls₂Symm hw₂) _)
+      .app (VExpr.LEquiv.mkApps_fn (.elim hlsSymm hw₁) _) (VExpr.LEquiv.mkApps_fn (.const hls₂Symm hw₂) _)
     have he' := (NormalEq.of_levelEquiv (η := true) hΓ hL hEℓ).defeq hΓ
     have hm' := hmℓ.congr_levels henv hΓ hw₁ hlsSymm hls₂Symm he'
     have hspine : CaseApplicationRelated (NormalEq Γ') actual₃ actual'' :=

@@ -35,10 +35,6 @@ theorem Restoration.mapM_expr_bvars (r : Restoration) (l : List VExpr)
     rcases hl a (by simp) with ⟨i, rfl⟩
     simp [List.mapM_cons, ih (fun e he => hl e (by simp [he]))]
 
-theorem Restoration.mapM_expr_vars (r : Restoration) (n below : Nat) :
-    (vars n below).mapM r.expr = some (vars n below) :=
-  r.mapM_expr_bvars _ (by simp [vars])
-
 theorem Restoration.expr_mkApps_bvar (r : Restoration) (i : Nat) (args : List VExpr) :
     r.expr (VExpr.mkApps (.bvar i) args) =
       (args.mapM r.expr).map (VExpr.mkApps (.bvar i)) := by

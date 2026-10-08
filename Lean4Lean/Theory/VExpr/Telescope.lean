@@ -109,4 +109,18 @@ theorem VExpr.liftN_wrapForalls_sort (domains : List VExpr) (level : VLevel) (n 
     obtain ⟨domains', hd⟩ := ih (k + 1)
     exact ⟨domain.liftN n k :: domains', congrArg (VExpr.forallE (domain.liftN n k)) hd⟩
 
+
+theorem VExpr.mkApps_getAppFnArgs (e : VExpr) :
+    VExpr.mkApps e.getAppFnArgs.1 e.getAppFnArgs.2 = e := by
+  suffices ∀ args, VExpr.mkApps (VExpr.getAppFnArgs.go e args).1
+      (VExpr.getAppFnArgs.go e args).2 = VExpr.mkApps e args from this []
+  induction e with
+  | app fn arg ih _ => intro args; exact ih (arg :: args)
+  | _ => intro args; rfl
+
+theorem VExpr.stripLams_wrapLams (ds : List VExpr) (e : VExpr) :
+    (VExpr.wrapLams ds e).stripLams = e.stripLams := by
+  induction ds with
+  | nil => rfl
+  | cons d ds ih => exact ih
 end Lean4Lean

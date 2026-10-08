@@ -202,7 +202,7 @@ theorem defeq_major {env : VEnv} (H : env.WF) (hdf : env.defeqs df)
     have htypesE : ∀ t ∈ srcX.types, env.constants t.name = some t.toVConstant := fun t ht =>
       hleX.constants (install_type_lookup hinstX (by
         rw [hdataX.types]; exact List.mem_map.mpr ⟨t, ht, rfl⟩))
-    have hbE : bX ≤ env := hbX.trans ((install_le hinstX).trans hleX)
+    have hbE : bX ≤ env := hbX.trans ((VInductBlock.install_base_le hinstX).trans hleX)
     have hnp : dX.schema.signature.params.length = srcX.nparams := by
       rw [hdataX.model.nparams, hdataX.nparams]
     obtain ⟨Ds, idx, major, hlhs, _, hcases⟩ := CompilationData.major_cases hdataX iX hgX'
@@ -216,7 +216,7 @@ theorem defeq_major {env : VEnv} (H : env.WF) (hdf : env.defeqs df)
           rw [hdataX.ctors]; exact List.mem_flatMap.mpr ⟨F, hF, hc'⟩))
       obtain ⟨k, hk, _, _, hknp, hkar, _⟩ :=
         ctor_entry_of_fam HT (hfamX F hF (List.ne_nil_of_mem hc')) hc' hconst
-      refine ⟨k, _, _, hk, rfl, by rw [vars_length, hknp, hnp], fun hP => ?_⟩
+      refine ⟨k, _, _, hk, rfl, by rw [InductiveSignature.length_vars, hknp, hnp], fun hP => ?_⟩
       have := CaseCompilationData.source_arity hdataX.toCaseCompilationData hdataX.recursorNamesFresh hpriorX hP hbE htypesE iX hF hc' hcn
       omega
     · obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj hmaj

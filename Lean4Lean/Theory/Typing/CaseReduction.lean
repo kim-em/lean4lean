@@ -223,14 +223,6 @@ private theorem case_application_extract (actual : Application) :
   simp [Application.extract, Application.expr, VExpr.getAppFnArgs,
     VExpr.getAppFnArgs_go_mkApps, VExpr.getAppFnArgs.go]
 
-private theorem case_rebuild_spine (e : VExpr) :
-    VExpr.mkApps e.getAppFnArgs.1 e.getAppFnArgs.2 = e := by
-  suffices ∀ args, VExpr.mkApps (VExpr.getAppFnArgs.go e args).1
-      (VExpr.getAppFnArgs.go e args).2 = VExpr.mkApps e args from this []
-  induction e with
-  | app fn arg ih _ => intro args; exact ih (arg :: args)
-  | _ => intro args; rfl
-
 theorem case_elim_spine_lift'_inv
     (h : VExpr.mkApps (.elim block owner packed) args = e.lift' ρ) :
     ∃ originalArgs, e = VExpr.mkApps (.elim block owner packed) originalArgs ∧
@@ -241,7 +233,7 @@ theorem case_elim_spine_lift'_inv
   cases hf : e.getAppFnArgs.1 <;> simp only [hf, VExpr.lift'] at hh <;> try contradiction
   cases hh
   refine ⟨e.getAppFnArgs.2, ?_, congrArg Prod.snd hs⟩
-  simpa only [hf] using (case_rebuild_spine e).symm
+  simpa only [hf] using (VExpr.mkApps_getAppFnArgs e).symm
 
 theorem case_application_injective {a b : Application} (h : a.expr = b.expr) : a = b := by
   have he := congrArg Application.extract h
@@ -886,7 +878,7 @@ theorem IsCasePrefix.app_left (H : IsCasePrefix env (.app fn arg)) : IsCasePrefi
   change fn.getAppFnArgs.1 = VExpr.elim block owner.val levels at hh
   have ha := congrArg (fun p : VExpr × List VExpr => p.2.length) hs
   refine ⟨schema, block, owner, levels, fn.getAppFnArgs.2, hl, ?_, ?_⟩
-  · simpa only [hh] using (case_rebuild_spine fn).symm
+  · simpa only [hh] using (VExpr.mkApps_getAppFnArgs fn).symm
   · simp only [List.length_append, List.length_singleton] at ha
     omega
 

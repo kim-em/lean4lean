@@ -981,11 +981,11 @@ theorem
     exact H.installed.le
   have hparameterScope := S.motiveParameterAlignment.mono hbase
   have hparameters' :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       hparameters hparameterScope
   have hsourceScope := S.motiveSourceAlignment.mono hbase
   have hsource :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       hparameters hsourceScope
   exact ⟨T, S, hparameters', hsource, S.motiveSourceLift,
     S.motiveSourceContext.mono hbase, S.motiveClosedContext,
@@ -1283,7 +1283,7 @@ theorem
         List.reverse_append]
       simp [List.reverse_append, List.append_assoc]
     rw [hsplit] at HprefixCtx
-    have Hsuffix := OnCtx.append_right HprefixCtx
+    have Hsuffix := OnCtx.of_append HprefixCtx
     have hearlierToCtx :
         (abstractForallContext
           (T.params ++ T.motives.take owner) []).toCtx =

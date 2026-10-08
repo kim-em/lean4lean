@@ -2253,7 +2253,7 @@ theorem HeaderSynthesisCertificate.synthesizedHeader
             H.context.length_eq.symm
           _ = nparams + nindices := by
             simp [H.parameterCount, H.indexCount, Nat.add_comm]
-      parameters := .refl (OnCtx.append_right H.context.isType)
+      parameters := .refl (OnCtx.of_append H.context.isType)
       semanticContext := H.context
       alignment := .full (hsourceFVars.trans hfilter) H.context }⟩
   normalizedShape := by
@@ -2293,7 +2293,7 @@ theorem HeaderSynthesisCertificate.synthesizedHeader
             H.context.length_eq.symm
           _ = nparams + nindices := by
             simp [H.parameterCount, H.indexCount, Nat.add_comm]
-      parameters := .refl (OnCtx.append_right H.context.isType)
+      parameters := .refl (OnCtx.of_append H.context.isType)
       semanticContext := H.context
       alignment := .full (hsourceFVars.trans hfilter) H.context }
     rcases TrExpr.sort_result Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx

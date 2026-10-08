@@ -24,32 +24,6 @@ theorem RuleLhs.wrapForalls_app_inj : ∀ {l₁ l₂ : List VExpr} {f₁ a₁ f�
     obtain ⟨hl, hr⟩ := RuleLhs.wrapForalls_app_inj (l₁ := xs) (l₂ := ys) h.2
     exact ⟨by rw [h.1, hl], hr⟩
 
-/-- Lifting canonical variables above the cut shifts them. -/
-theorem RuleLhs.vars_map_liftN_of_le {count below n k : Nat} (h : k ≤ below) :
-    (InductiveSignature.vars count below).map (fun e => e.liftN n k) =
-      InductiveSignature.vars count (below + n) := by
-  apply List.ext_getElem
-  · simp [InductiveSignature.vars]
-  · intro i hleft hright
-    simp only [InductiveSignature.vars, List.getElem_map, List.getElem_reverse,
-      List.length_range, List.getElem_range] at *
-    simp only [VExpr.liftN, liftVar]
-    split <;> simp_all <;> omega
-
-/-- Canonical variables strictly below the cut are unchanged by lifting. -/
-theorem RuleLhs.vars_map_liftN_of_lt {count below n k : Nat} (h : below + count ≤ k) :
-    (InductiveSignature.vars count below).map (fun e => e.liftN n k) =
-      InductiveSignature.vars count below := by
-  apply List.ext_getElem
-  · simp [InductiveSignature.vars]
-  · intro i hleft hright
-    have hi : i < count := by simpa [InductiveSignature.vars] using hright
-    simp only [InductiveSignature.vars, List.getElem_map, List.getElem_reverse,
-      List.length_range, List.getElem_range] at *
-    simp only [VExpr.liftN, liftVar]
-    split <;> simp_all
-    omega
-
 /-- A generated minor is a telescope over its fields and induction hypotheses
 of the motive at the constructor. -/
 theorem RuleLhs.minor_split {s : InductiveSignature}
@@ -97,18 +71,18 @@ theorem RuleLhs.minorResidual_liftN {s : InductiveSignature}
       rw [show s.families.size + index.val + (s.constructors.size - index.val) =
         s.families.size + s.constructors.size by omega]
     · simp only [List.cons.injEq, and_true]
-      have e1 := RuleLhs.vars_map_liftN_of_le (count := s.params.length)
+      have e1 := InductiveSignature.vars_map_liftN_hi (count := s.params.length)
         (below := s.families.size + index.val + s.constructors[index].fields.length + nh)
         (n := s.constructors.size - index.val) (k := s.constructors[index].fields.length + nh)
         (by omega)
-      have e2 := RuleLhs.vars_map_liftN_of_lt (count := s.constructors[index].fields.length)
+      have e2 := InductiveSignature.vars_map_liftN_lo (count := s.constructors[index].fields.length)
         (below := nh)
         (n := s.constructors.size - index.val) (k := s.constructors[index].fields.length + nh)
         (by omega)
-      have e3 := RuleLhs.vars_map_liftN_of_le (count := s.params.length)
+      have e3 := InductiveSignature.vars_map_liftN_hi (count := s.params.length)
         (below := s.families.size + s.constructors.size + s.constructors[index].fields.length + 0)
         (n := nh) (k := 0) (Nat.zero_le _)
-      have e4 := RuleLhs.vars_map_liftN_of_le (count := s.constructors[index].fields.length)
+      have e4 := InductiveSignature.vars_map_liftN_hi (count := s.constructors[index].fields.length)
         (below := 0) (n := nh) (k := 0) (Nat.zero_le _)
       rw [e1, e2, e3, e4]
       rw [show s.families.size + index.val + s.constructors[index].fields.length + nh +

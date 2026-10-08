@@ -283,7 +283,7 @@ theorem CompletedRecursorPhasesResult.finalPairedParameterAlignmentAt
     rw [H.recursorEnv]
     exact H.installed.le
   refine ⟨T, S, ?_⟩
-  exact Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+  exact VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
     hgenerated ((hcanonical.mono hbase).symm H.outVEnvWF.ordered)
 
 /-- Final executable/canonical owner-motive comparison frame.  This packages

@@ -64,15 +64,6 @@ theorem mapM_getElem? {f : VExpr → Option VExpr} : ∀ {l l' : List VExpr} {i 
       obtain ⟨a', h1, h2⟩ := mapM_getElem? hl h
       exact ⟨a', h1, by simpa using h2⟩
 
-theorem Restoration.vars_mapM (r : Restoration) (count below : Nat) :
-    (vars count below).mapM r.expr = some (vars count below) := by
-  unfold vars
-  generalize (List.range count).reverse = is
-  induction is with
-  | nil => rfl
-  | cons i is ih =>
-    simpa [List.mapM_cons, Restoration.expr, Restoration.expr.go, VExpr.mkApps] using ih
-
 theorem Restoration.go_const_none {r : Restoration} {name : Name} {levels : List VLevel}
     {args : List VExpr} (h : ∀ spec ∈ r.heads, spec.auxiliary ≠ name) :
     Restoration.expr.go r (.const name levels) args =
@@ -133,7 +124,7 @@ theorem restored_equation {r : Restoration} {df : VDefEq}
   -- the left-hand side body
   change Restoration.expr.go r (VExpr.mkApps _ _) [] = _ at hl'
   rw [restoration_mkApps] at hl'
-  simp only [List.mapM_append, Restoration.vars_mapM, bind, Option.bind_eq_some_iff,
+  simp only [List.mapM_append, InductiveSignature.Restoration.mapM_expr_vars, bind, Option.bind_eq_some_iff,
     List.append_nil] at hl'
   obtain ⟨a, ⟨a1, ⟨_, h1, idx', hi, h2⟩, a3, hm, h3⟩, hout⟩ := hl'
   cases Option.some.inj h1
@@ -146,7 +137,7 @@ theorem restored_equation {r : Restoration} {df : VDefEq}
   rw [Restoration.go_const_none hhead, Option.some.injEq] at hout
   obtain ⟨lsC', ms', rfl⟩ := Restoration.ctorApp hparams hmajor
   refine ⟨ds', idx', lsC', ms', body', T', hds, hi, ?_, er, et, ?_, huv⟩
-  · rw [el, ← hout, vars_zero']; rfl
+  · rw [el, ← hout, InductiveSignature.vars_zero]; rfl
   · exact hT'
 
 /-- **Shape of a restored generated equation in abstract mode** (generic case equations). -/
@@ -182,7 +173,7 @@ theorem restored_equation_abstract {r : Restoration} {df : VDefEq} (blk : Name) 
   -- the left-hand side body
   change Restoration.expr.go r (VExpr.mkApps _ _) [] = _ at hl'
   rw [restoration_mkApps] at hl'
-  simp only [List.mapM_append, Restoration.vars_mapM, bind, Option.bind_eq_some_iff,
+  simp only [List.mapM_append, InductiveSignature.Restoration.mapM_expr_vars, bind, Option.bind_eq_some_iff,
     List.append_nil] at hl'
   obtain ⟨a, ⟨a1, ⟨_, h1, idx', hi, h2⟩, a3, hm, h3⟩, hout⟩ := hl'
   cases Option.some.inj h1
@@ -194,7 +185,7 @@ theorem restored_equation_abstract {r : Restoration} {df : VDefEq} (blk : Name) 
   simp only [recursorHead, Restoration.expr.go, Option.some.injEq] at hout
   obtain ⟨lsC', ms', rfl⟩ := Restoration.ctorApp hparams hmajor
   refine ⟨ds', idx', lsC', ms', body', T', hds, hi, ?_, er, et, ?_, huv⟩
-  · rw [el, ← hout, vars_zero']; rfl
+  · rw [el, ← hout, InductiveSignature.vars_zero]; rfl
   · exact hT'
 
 end Instance

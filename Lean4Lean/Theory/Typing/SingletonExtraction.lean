@@ -223,14 +223,6 @@ theorem _root_.Lean4Lean.VExpr.Subst.ofList_snoc_head (args : List VExpr) (a : V
     (VExpr.Subst.ofList (args ++ [a])).head = a := by
   simp [VExpr.Subst.head, VExpr.Subst.ofList]
 
-theorem snoc_induction {α} {P : List α → Prop} (nil : P [])
-    (snoc : ∀ l a, P l → P (l ++ [a])) : ∀ l, P l := by
-  intro l
-  rw [← List.reverse_reverse l]
-  induction l.reverse with
-  | nil => simpa using nil
-  | cons a t ih => simpa using snoc _ a ih
-
 /-- Pointwise definitionally equal arguments along a closed telescope form a
 substitution between its context and the target context. -/
 theorem substEq_ofTel :
@@ -240,7 +232,7 @@ theorem substEq_ofTel :
         env.IsDefEq U Γ args[j] args'[j] (doms[j].instOuter (args.take j))) →
       Ctx.SubstEq env U Γ (VExpr.Subst.ofList args) (VExpr.Subst.ofList args') doms.reverse := by
   intro doms
-  induction doms using snoc_induction with
+  induction doms using List.snoc_induction with
   | nil => intro _ _ _ _ _ _; exact .nil
   | snoc ds d ih =>
     intro args args' hctx hl hl' hpt

@@ -33,15 +33,6 @@ def SchemaStructCompat (env : VEnv) : Prop :=
       schema.originalFamilies[owner.val]? = some s →
       (schema.view owner).constructors.toList.map (·.name) = [info.ctorName]
 
-private theorem addQuot_projections {env env' : VEnv}
-    (H : env.addQuot = some env') : env'.projections = env.projections := by
-  simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.some.injEq] at H
-  obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := H
-  exact (VEnv.addConst_projections hd).trans <|
-    (VEnv.addConst_projections hc).trans <|
-      (VEnv.addConst_projections hb).trans (VEnv.addConst_projections ha)
-
 /-- Projections registered by the entries of one inductive declaration name its
 families, which are fresh in the environment the families are added to. -/
 private theorem projectionEntries_fresh {base envTypes : VEnv} {decl : VInductDecl}
@@ -65,7 +56,7 @@ private theorem VDecl.WF.projections_fresh (H : VDecl.WF env decl env')
   | «example» => exact .inl hproj
   | mutualDef _ h _ =>
     exact .inl (by rwa [VEnv.addDefEqs_projections, VEnv.addConsts_projections h] at hproj)
-  | quot _ h => exact .inl (by rwa [addQuot_projections h] at hproj)
+  | quot _ h => exact .inl (by rwa [VEnv.addQuot_projections h] at hproj)
   | induct _ h =>
     cases h with
     | intro _ hcompile _ _ h =>

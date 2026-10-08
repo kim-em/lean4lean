@@ -69,7 +69,7 @@ theorem InductiveConstructorSemanticCoherenceAt.ofShapes
     HconstructorDomains.mono hctorLE
   have Hdomains : finalEnv.IsDefEqCtx decl.uvars []
       familyDomains.reverse constructorDomains.reverse :=
-    VEnv.IsDefEqCtx.transEmpty henv HfamilyToCanonical
+    VEnv.IsDefEqCtx.trans_empty henv HfamilyToCanonical
       HcanonicalToConstructor
   exact ⟨{
     toInductiveConstructorCoherenceAt := C
@@ -656,7 +656,7 @@ theorem VInductDecl.paramsDefEq_reflOfAppend
     (H : OnCtx (indices.reverse ++ params.reverse)
       (env.IsType decl.uvars)) :
     decl.ParamsDefEq env params params := by
-  exact VEnv.IsDefEqCtx.refl (OnCtx.append_right H)
+  exact VEnv.IsDefEqCtx.refl (OnCtx.of_append H)
 
 theorem TrInductDeclSkeletonCore.types_length
     (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe decl
@@ -875,29 +875,6 @@ theorem VEnv.addConstVals_constants_of_forall_ne
       rw [ih H (fun later hlater => hne later (by simp [hlater]))]
       exact VEnv.addConst_constants_of_ne hadd (hne ci (by simp))
 
-theorem VEnv.addConstVals_names_nodup
-    {env out : VEnv} {constants : List VConstVal}
-    (H : env.addConstVals constants = some out) :
-    (constants.map (·.name)).Nodup :=
-  (VEnv.addConstVals_names_fresh H).1
-
-
-theorem VEnv.addConstVals_get
-    {env out : VEnv} {constants : List VConstVal}
-    (H : env.addConstVals constants = some out)
-    (hci : ci ∈ constants) :
-    out.constants ci.name = some ci.toVConstant := by
-  induction constants generalizing env with
-  | nil => simp at hci
-  | cons head tail ih =>
-    simp only [VEnv.addConstVals] at H
-    cases hadd : env.addConst head.name head.toVConstant with
-    | none => simp [hadd] at H
-    | some next =>
-      rw [hadd] at H
-      rcases List.mem_cons.mp hci with rfl | htail
-      · exact (VEnv.addConstVals_le H).constants (VEnv.addConst_self hadd)
-      · exact ih H htail
 
 theorem TrInductDeclCore.sourceNames_nodup
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl

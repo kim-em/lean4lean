@@ -100,18 +100,6 @@ theorem generate_anyArity {levels : List VLevel} (H : generate levels args = som
   simp only [bind, hsupply, Option.bind_some, hresidual, htake]
   exact ⟨_, rfl⟩
 
-private theorem vars_inst_last' (n : Nat) (arg : VExpr) :
-    (vars (n + 1) 0).map (·.inst arg n) = arg.liftN n :: vars n 0 := by
-  simp only [vars, List.range_succ, List.reverse_append, List.reverse_singleton,
-    List.singleton_append, List.map_cons, List.map_map, Function.comp_def,
-    Nat.zero_add, inst]
-  rw [show instVar n arg n = arg.liftN n by simp [instVar]]
-  congr 1
-  apply List.map_congr_left
-  intro i hi
-  have hi : i < n := List.mem_range.mp (List.mem_reverse.mp hi)
-  simp [instVar, show i < n by omega]
-
 private theorem instantiateParams_inst' {body : VExpr} {captures : List VExpr}
     (hclosed : body.ClosedN captures.length) :
     (instantiateParams body captures).inst arg k =
@@ -168,7 +156,7 @@ theorem generate_supply_one {levels : List VLevel} {args : List VExpr}
         vars (6 - (args ++ [arg]).length) 0 := by
     rw [hearlyLen, hlateLen]
     simp only [List.map_append, List.map_map, Function.comp_def, inst_liftN_lo,
-      vars_inst_last', List.map_cons, List.map_nil, List.append_assoc, List.cons_append,
+      InductiveSignature.vars_inst_last, List.map_cons, List.map_nil, List.append_assoc, List.cons_append,
       List.nil_append]
   simp only [List.map_append, List.map_take, List.map_cons, List.map_nil, hall]
   rw [hlateLen] at hall ⊢

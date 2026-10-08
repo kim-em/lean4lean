@@ -109,12 +109,6 @@ theorem VInductDeclSkeleton.materializeExpandedPrefix
     simp [VInductDeclSkeleton.materialize, hmetadata, source]
   exact ⟨source, Hmaterialize, ⟨skeleton, Hmaterialize⟩⟩
 
-theorem OnCtx.append_right
-    (H : OnCtx (xs ++ ys) P) : OnCtx ys P := by
-  induction xs with
-  | nil => exact H
-  | cons x xs ih => exact ih H.1
-
 /-- A declaration selected below a newer context prefix is looked up at the
 prefix length, with one lift for its own binder and one for every newer
 declaration. -/
@@ -513,7 +507,7 @@ theorem VEnv.IsType.wrapForalls
     have hrest := ih hctx' (by
       simpa [List.reverse_cons, List.append_assoc] using H)
     have hdomain : env.IsType uvars ctx domain :=
-      (OnCtx.append_right hctx').2
+      (OnCtx.of_append hctx').2
     exact VEnv.IsType.forallE hdomain hrest
 
 /-- Closing a term over a semantically well-formed telescope preserves its
@@ -533,7 +527,7 @@ theorem VEnv.HasType.wrapLams
       simpa [List.reverse_cons, List.append_assoc] using hctx
     have hrest := ih hctx' (by
       simpa [List.reverse_cons, List.append_assoc] using H)
-    rcases (OnCtx.append_right hctx').2 with ⟨level, hdomain⟩
+    rcases (OnCtx.of_append hctx').2 with ⟨level, hdomain⟩
     simpa [VExpr.wrapLams, VExpr.wrapForalls] using hdomain.lam hrest
 
 /-- Invert a lambda telescope whose type is the corresponding literal forall
@@ -698,25 +692,8 @@ theorem VEnv.IsDefEqU.wrapForalls_residual
         hctx' hlength ⟨_, hbody⟩
       simpa [List.reverse_cons, List.append_assoc] using hrest
 
-/-- Compose two context conversions over the empty base.  The domain proof
-of the second conversion is transported back across the already composed
-prefix before transitivity is applied, so dependent domains remain in the
-correct context.  This belongs with the generic dependent-context API rather
-than any particular inductive phase. -/
-theorem VEnv.IsDefEqCtx.transEmpty
-    (henv : env.WF)
-    (H₁ : VEnv.IsDefEqCtx env U [] Γ₁ Γ₂)
-    (H₂ : VEnv.IsDefEqCtx env U [] Γ₂ Γ₃) :
-    VEnv.IsDefEqCtx env U [] Γ₁ Γ₃ := by
-  induction H₁ generalizing Γ₃ with
-  | zero => exact H₂
-  | @succ Γ₁ Γ₂ A₁ A₂ u H₁ hdom ih =>
-    cases H₂ with
-    | succ H₂ hdom₂ =>
-      have Hprefix := ih H₂
-      have hdom₂' := hdom₂.defeqDFC henv.ordered (H₁.symm henv.ordered)
-      exact .succ Hprefix
-        (hdom.trans_r henv H₁.isType hdom₂')
+-- Name kept for the nested-inductive verification, which still refers to it.
+alias VEnv.IsDefEqCtx.transEmpty := Lean4Lean.VEnv.IsDefEqCtx.trans_empty
 
 /-- A dependency-ordered list of well-formed constants may be viewed as a
 sequence of abstract axioms extending a well-formed environment.  Stating

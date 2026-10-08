@@ -124,7 +124,7 @@ theorem
       S.motiveSourceAlignment.mono henvLe
   have HselectedCanonical : VEnv.IsDefEqCtx H.outVEnv Us.length []
       F.telescope.params.reverse C.params.reverse :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       HselectedSource (HcanonicalSource.symm H.outVEnvWF.ordered)
   rcases H.finalRecursorParameterContextAt selectedOwner F.entry_lt with
     ⟨Tselected, HselectedCached⟩
@@ -137,7 +137,7 @@ theorem
     simpa [parameterDecls, H.parameterDecls, Us] using HselectedCached
   have HcanonicalCached : VEnv.IsDefEqCtx H.outVEnv Us.length []
       C.params.reverse parameterDecls.toCtx :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       (HselectedCanonical.symm H.outVEnvWF.ordered) HselectedCached'
   have hparameterLength : parameterDecls.toCtx.length = stats.params.size := by
     calc
@@ -272,7 +272,7 @@ theorem
       Hcommon HTFull
   have HselectedToCached : VEnv.IsDefEqCtx H.outVEnv Us.length []
       (frontDomains.reverse ++ selectedOuter.reverse) cachedFull :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       (by simpa [Touter, selectedOuter] using
         HTToSelected.symm H.outVEnvWF.ordered)
       (HcachedToT.symm H.outVEnvWF.ordered)
@@ -943,7 +943,7 @@ theorem
   have HselectedToCached : VEnv.IsDefEqCtx H.outVEnv Us.length []
       (frontDomains.reverse ++ selectedOuter.reverse)
       (frontDomains.reverse ++ cachedBase) :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       (by simpa [outer, selectedOuter] using
         HTToSelected.symm H.outVEnvWF.ordered)
       (HcachedToT.symm H.outVEnvWF.ordered)

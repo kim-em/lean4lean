@@ -71,6 +71,19 @@ theorem _root_.Lean4Lean.VExpr.WF.of_mkApps (henv : Ordered env) (hΓ : OnCtx Γ
     have ⟨_, _, hf, _⟩ := (ih (f := .app f a) H).app_inv henv hΓ
     exact ⟨_, hf⟩
 
+theorem _root_.Lean4Lean.VExpr.WF.args_of_mkApps (henv : Ordered env)
+    (hΓ : OnCtx Γ (env.IsType U)) (H : VExpr.WF env U Γ (VExpr.mkApps f args)) :
+    ∀ arg ∈ args, VExpr.WF env U Γ arg := by
+  induction args generalizing f with
+  | nil => simp
+  | cons a args ih =>
+    have hf := VExpr.WF.of_mkApps (f := f.app a) (args := args) henv hΓ H
+    obtain ⟨_, _, _, ha⟩ := hf.app_inv henv hΓ
+    intro arg hm
+    rcases List.mem_cons.mp hm with rfl | hm
+    · exact ⟨_, ha⟩
+    · exact ih H arg hm
+
 /-- An application spine typed against a syntactic forall telescope instantiates that telescope:
 every argument is typed at its binder, and the whole application has the residual type. -/
 theorem HasType.mkApps_telescope (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))

@@ -14,8 +14,6 @@ declaration history (`VEnv.WF'.defeq_origin`) rather than taken from
 
 namespace Lean4Lean
 open InductiveSignature
-open private addDefEqs_as_rules addConsts_as_values defeqs_addRules
-  from Lean4Lean.Theory.Typing.NativeConstructorRigidity
 
 /-- The restoration table of a finite compilation specializes exactly the
 common parameters. -/

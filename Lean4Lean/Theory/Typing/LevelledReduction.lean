@@ -1105,7 +1105,7 @@ theorem ParRed.const_spine_of (n : Nat)
       p.Matches (VExpr.mkApps (.const name levels) pre) lv vals → False)
     (hlen : args.length ≤ n) (H : ParRed Γ (VExpr.mkApps (.const name levels) args) out) :
     ∃ args', out = VExpr.mkApps (.const name levels) args' ∧ List.Forall₂ (ParRed Γ) args args' := by
-  induction args using snoc_induction generalizing out with
+  induction args using List.snoc_induction generalizing out with
   | nil =>
     generalize he : VExpr.mkApps (.const name levels) [] = src at H
     cases H with
@@ -1145,7 +1145,7 @@ theorem DeltaPar.const_spine_of (n : Nat)
     (hlen : args.length ≤ n) (H : DeltaPar Γ (VExpr.mkApps (.const name levels) args) out) :
     ∃ args', out = VExpr.mkApps (.const name levels) args' ∧
       List.Forall₂ (DeltaPar Γ) args args' := by
-  induction args using snoc_induction generalizing out with
+  induction args using List.snoc_induction generalizing out with
   | nil =>
     generalize he : VExpr.mkApps (.const name levels) [] = src at H
     cases H with
@@ -1178,7 +1178,7 @@ theorem DeltaPar.const_spine_of (n : Nat)
 theorem DeltaPar.elim_spine (H : DeltaPar Γ (VExpr.mkApps (.elim block owner levels) args) out) :
     ∃ args', out = VExpr.mkApps (.elim block owner levels) args' ∧
       List.Forall₂ (DeltaPar Γ) args args' := by
-  induction args using snoc_induction generalizing out with
+  induction args using List.snoc_induction generalizing out with
   | nil =>
     generalize he : VExpr.mkApps (.elim block owner levels) [] = src at H
     cases H with
@@ -1389,7 +1389,7 @@ theorem NormalEq₀.spine_expose (hΓ : OnCtx Γ (env.IsType univs)) (hh : Rigid
     (Γ ⊢ T : .sort .zero) ∨
     ∃ h' targs', HeadEquiv h' h ∧ x = VExpr.mkApps h' targs' ∧
       List.Forall₂ (NormalEq₀ Γ) targs' targs := by
-  induction targs using snoc_induction generalizing x T with
+  induction targs using List.snoc_induction generalizing x T with
   | nil =>
     obtain ⟨n, H⟩ := H
     cases hh with
@@ -1669,12 +1669,6 @@ end DeltaMirror
 
 section ParRedMirror
 
-theorem levelEquiv_mkApps' (hf : VExpr.LEquiv univs f f') (args : List VExpr) :
-    VExpr.LEquiv univs (VExpr.mkApps f args) (VExpr.mkApps f' args) := by
-  induction args generalizing f f' with
-  | nil => exact hf
-  | cons a args ih => exact ih (.app hf .refl)
-
 /-- The mirror property of one parallel step, used as an induction hypothesis. -/
 abbrev MirrorP (Γ : List VExpr) (x y : VExpr) : Prop :=
   ∀ {c A}, OnCtx Γ (env.IsType univs) → NormalEq₀ Γ c x → Γ ⊢ x : A →
@@ -1853,7 +1847,7 @@ theorem ParRed.mirror_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
     have hls₂Symm : List.Forall₂ (· ≈ ·) actual.ctorLevels ls₂ :=
       Lean4Lean.List.Forall₂.imp (fun _ _ h => h.symm) (Lean4Lean.List.Forall₂.flip hls₂)
     have hL : VExpr.LEquiv univs actual.expr actual''.expr :=
-      .app (levelEquiv_mkApps' (.elim hlsSymm hw₁) _) (levelEquiv_mkApps' (.const hls₂Symm hw₂) _)
+      .app (VExpr.LEquiv.mkApps_fn (.elim hlsSymm hw₁) _) (VExpr.LEquiv.mkApps_fn (.const hls₂Symm hw₂) _)
     have he'' := (NormalEqF.of_levelEquiv (η := false) hΓ hL ha).defeq hΓ
     have hm' := hm.congr_levels henv hΓ hw₁ hlsSymm hls₂Symm he''
     have hspine : CaseApplicationRelated (NormalEq₀ Γ) actual₃ actual'' :=
@@ -2475,7 +2469,7 @@ theorem DeltaPar.const_spine_cases
           (NativeDeltaRule env univs recursorData Γ name ls (args'.take k) rhs ∨
             (name = ``Quot.lift ∧ QuotDeltaRule env univs Γ ls (args'.take k) rhs)) ∧
           out = VExpr.mkApps rhs (args'.drop k)) := by
-  induction args using snoc_induction generalizing out with
+  induction args using List.snoc_induction generalizing out with
   | nil =>
     generalize he : VExpr.mkApps (.const name ls) [] = src at H
     cases H with

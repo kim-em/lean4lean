@@ -104,7 +104,7 @@ theorem Tables.Inv.eliminator {base : VEnv} {source : VInductDecl} {block : VInd
     have hfreshType : ∀ t ∈ source.types, base.constants t.name = none := fun t ht =>
       VEnv.addConstVals_names_fresh htypes t.toVConstVal (List.mem_map.mpr ⟨t, ht, rfl⟩)
     have hfreshCtor : ∀ t ∈ source.types, ∀ c ∈ t.ctors, base.constants c.name = none :=
-      fun t ht c hc => fresh_of_le (VEnv.addConstVals_le htypes)
+      fun t ht c hc => VEnv.LE.constants_eq_none_left (VEnv.addConstVals_le htypes)
         (VEnv.addConstVals_names_fresh hctors c (List.mem_flatMap.mpr ⟨t, ht, hc⟩))
     have hrigid : ∀ n, base.constants n = none → (env.addEliminator key schema).Rigid n := by
       intro n hn
@@ -240,7 +240,7 @@ theorem selFreeIn_constructorStage {base envTypes envCtors : VEnv} {decl : VIndu
   refine selFreeIn_of_fresh H hbase (fun h => by rwa [helimC] at h) ?_ fun c hc => ?_
   · exact VEnv.addConstVals_names_fresh htypes t.toVConstVal (by
       rw [hdata.types]; exact List.mem_map.mpr ⟨t, ht, rfl⟩)
-  · exact fresh_of_le (VEnv.addConstVals_le htypes)
+  · exact VEnv.LE.constants_eq_none_left (VEnv.addConstVals_le htypes)
       (VEnv.addConstVals_names_fresh hctors c (by
         rw [hdata.ctors]; exact List.mem_flatMap.mpr ⟨t, ht, hc⟩))
 
@@ -282,7 +282,7 @@ theorem Tables.Inv.registerCasesProjections {base envTypes envCtors : VEnv}
   have hc : c ∈ t.ctors := by simp [hctors1]
   have hfreshT := (H.freshT (VEnv.addConstVals_names_fresh htypes t.toVConstVal (by
     rw [hdata.types]; exact List.mem_map.mpr ⟨t, ht, rfl⟩)))
-  have hfreshC := (H.freshT (fresh_of_le (VEnv.addConstVals_le htypes)
+  have hfreshC := (H.freshT (VEnv.LE.constants_eq_none_left (VEnv.addConstVals_le htypes)
     (VEnv.addConstVals_names_fresh hctors c (by
       rw [hdata.ctors]; exact List.mem_flatMap.mpr ⟨t, ht, hc⟩))))
   refine ⟨addView_some.mpr (.inr ⟨hfreshT.1, ?_⟩), addView_some.mpr (.inr ⟨hfreshC.2.1, ?_⟩)⟩

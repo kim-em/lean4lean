@@ -84,7 +84,7 @@ theorem CompletedRecursorConstruction.consumedMotiveAtParameters
       (abstractForallContext S.motiveParameterScope.toCtx.reverse [])
       (source.abstractList H.params.fvars) narrowTarget := by
     simpa using Habstract
-  have hsourceToParams := VEnv.IsDefEqCtx.transEmpty henv
+  have hsourceToParams := VEnv.IsDefEqCtx.trans_empty henv
     (S.motiveParameterAlignment.symm henv.ordered) hparams
   have Hctx : VLCtx.IsDefEq H.recursorWF.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
