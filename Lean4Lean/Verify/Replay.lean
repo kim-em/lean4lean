@@ -203,7 +203,7 @@ theorem ReplayResult.wf_of_WF {cfg : Config} (hfuel : cfg.fuel = {}) {start : En
   · rintro _ rfl
     exact ⟨ves, wf, heq, fun _ => VEnv.LE.rfl⟩
   · rintro env d env' ⟨ves₁, wf₁, heq₁, hle₁⟩ hadd _
-    obtain ⟨ves₂, wf₂, heq₂, hle₂⟩ := addDecl.WFHasCanonicalEq wf₁ heq₁ d trivial env' hadd
+    obtain ⟨ves₂, wf₂, heq₂, hle₂⟩ := addDecl.WFHasCanonicalEq wf₁ heq₁ d env' hadd
     exact ⟨ves₂, wf₂, heq₂, fun safety => (hle₁ safety).trans (hle₂ safety)⟩
 
 /-- **Soundness of fresh replay.** If the pure replay of a source constant table `src` from the

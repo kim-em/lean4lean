@@ -41,8 +41,8 @@ theorem VEnvs.WFCore.projectionRegistryCoherent
   wf.inductiveProvenance.projectionRegistryCoherent
 
 /-- Every visible constructor of `env` carries a telescope certificate at every safety level
-(`CtorTelescopes`). This is the environment invariant that replaces canonical choice at the
-projection-walk corner of `inferProj`. -/
+(`CtorTelescopes`). This is the environment invariant that resolves the projection-walk corner
+of `inferProj`. -/
 def VEnvs.CtorCert (env : Environment) (ves : VEnvs) : Prop :=
   ∀ safety, CtorTelescopes safety env (ves.venv safety)
 
@@ -67,10 +67,6 @@ theorem VEnvs.CtorCert.ofNoCtors {env : Environment} {ves : VEnvs}
 theorem VEnvs.WF.ofNoCtors {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (h : ∀ name ci, env.find? name ≠ some (.ctorInfo ci)) : ves.WF env :=
   ⟨wf, .ofNoCtors h⟩
-
-theorem VEnvs.CtorCert.corner {env : Environment} {ves : VEnvs} (H : ves.CtorCert env) :
-    ∀ safety, ProjectionCorner safety env (ves.venv safety) :=
-  fun safety => .inr (H safety)
 
 open private Lean.Kernel.Environment.add from Lean.Environment in
 /-- A fresh non-constructor constant needs no certificate. -/
@@ -177,7 +173,7 @@ def VContext.mkChecking {env : Environment} {venv : VEnv}
     (projectionRegistry : ProjectionRegistryCoherent safety env.constants venv)
     (recursors : RecursorEnvCoherent safety env.constants venv)
     (quot : env.quotInit = true → QuotEnvCoherent env.constants venv)
-    (corner : ProjectionCorner safety env venv)
+    (corner : CtorTelescopes safety env venv)
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext where
   env; safety; lparams; fuel
   venv
@@ -217,7 +213,7 @@ def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
   lctx_eq := rfl
 
 def VContext.mk1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
-    (wf : VEnvAt env safety venv) (hcorner : ProjectionCorner safety env venv) (lparams : List Name := [])
+    (wf : VEnvAt env safety venv) (hcorner : CtorTelescopes safety env venv) (lparams : List Name := [])
     (fuel : FuelConfig := {}) : VContext where
   env; safety; lparams; fuel; venv
   hasPrimitives := wf.hasPrimitives
@@ -232,12 +228,12 @@ def VContext.mk1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
   lctx_eq := rfl
 
 def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (safety : DefinitionSafety := .safe) (lparams : List Name := [])
     (fuel : FuelConfig := {}) : VContext := .mk1 (wf.toVEnvAt safety) (hcorner _) lparams fuel
 
 theorem VState.WF.empty1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
-    {wf : VEnvAt env safety venv} {hcorner : ProjectionCorner safety env venv} {lparams : List Name}
+    {wf : VEnvAt env safety venv} {hcorner : CtorTelescopes safety env venv} {lparams : List Name}
     {fuel : FuelConfig} :
     VState.WF (.mk1 wf hcorner lparams fuel) {} where
   trctx := .nil
@@ -263,7 +259,7 @@ theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
     {projectionRegistry : ProjectionRegistryCoherent safety env.constants venv}
     {recursors : RecursorEnvCoherent safety env.constants venv}
     {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
-    {corner : ProjectionCorner safety env venv}
+    {corner : CtorTelescopes safety env venv}
     {lparams : List Name} {fuel : FuelConfig} :
     VState.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
       recursors quot corner lparams fuel) {} where
@@ -308,12 +304,12 @@ theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
 
 theorem VState.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WFCore env}
     {safety : DefinitionSafety} {lparams : List Name} {fuel : FuelConfig}
-    {hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)} :
+    {hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety)} :
     VState.WF (.mk' wf hcorner safety lparams fuel) {} := by
   unfold VContext.mk'; exact .empty1
 
 theorem M.WF.run1 {env : Environment} {venv : VEnv} (wf : VEnvAt env safety venv)
-    {hcorner : ProjectionCorner safety env venv}
+    {hcorner : CtorTelescopes safety env venv}
     {x : M α} {Q} (H : x.WF (.mk1 wf hcorner lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
   intro a eq
@@ -329,7 +325,7 @@ theorem M.WF.runChecking {env : Environment} {venv : VEnv}
     {projectionRegistry : ProjectionRegistryCoherent safety env.constants venv}
     {recursors : RecursorEnvCoherent safety env.constants venv}
     {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
-    {corner : ProjectionCorner safety env venv}
+    {corner : CtorTelescopes safety env venv}
     {x : M α} {Q}
     (H : x.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
       recursors quot corner lparams fuel) {} fun a _ => Q a) :
@@ -366,7 +362,7 @@ theorem M.WF.runCheckingValidMLC {env : Environment} {venv : VEnv}
   exact hQ
 
 theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    {hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)}
+    {hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety)}
     {x : M α} {Q} (H : x.WF (.mk' wf hcorner safety lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
   unfold VContext.mk' at H; exact M.WF.run1 _ H
