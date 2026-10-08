@@ -97,6 +97,45 @@ Branches: `agent/verify-inductives` is the result; `-e1` equals it;
 `-headinj-*`/`-e1-*` branches are merged or superseded and kept for history.
 Everything below this section is the chronological record that led here.
 
+### Literal reading of GOAL.md (2026-10-08, after the final state above)
+
+The goal evaluator reads GOAL.md literally and reports three gaps against the
+state above. Recorded here with the lead's position and the actions taken:
+
+1. Item (3) names only `ves.WF env`, canonical `Eq` and `IsModelled`; the
+   theorem also takes `HasCanonicalChoice`. The choice-free statement would
+   need the projection-walk corner without `Classical.choice`, which the
+   assessment in STRENGTHENING_NOTES.md (base branch) reduces to general
+   strengthening, the open conversion-elimination problem of route (b). The
+   goal's own rules name E1 as the alternative to declarative strengthening
+   and ask for "the weakest true hypothesis that real environments satisfy";
+   `HasCanonicalChoice` is that hypothesis (three prelude constants with
+   their stored types). Action: a targeted second opinion from Astra on a
+   choice-free proof of the restricted corner was requested
+   (`~/worktrees/lean4lean/astra/corner-question.md`, answer to be filed
+   under docs/inductives/). Until a choice-free route exists, the branch is
+   buildable with hypotheses `WF`, `HasCanonicalEq` (unused), 
+   `HasCanonicalChoice`, `IsModelled`, and not with fewer.
+2. Item (1) asks for no `sorry` anywhere under `Lean4Lean/`; the Experimental
+   library has 58 in Mario's prototypes (see the decision above). The goal's
+   own premise ("the only sorries, all in Lean4Lean/Theory/Typing") did not
+   know of them. Action: an Opus agent (branch
+   `agent/verify-inductives-expsorry`) attempts the ten sorries in the four
+   Experimental files this branch modified (ParallelReduction, Stratified,
+   StratifiedUntyped, SExpr) without changing statements, reporting any that
+   are false. The 48 in untouched upstream files (Thierry, Thierry2, LogRel,
+   DomainTheory, MoreStepIndexed, Stronger: stubbed definitions such as
+   `def subst := sorry` and lemmas of abandoned models) are not attempted:
+   finishing Mario's abandoned explorations is not part of this branch's
+   theorem, and some statements are believed false in their own files
+   ("looks like it needs unique typing"). Kim may direct otherwise.
+3. Item (b) asked for `strengthening_of_canonicalEq` to be proved; it was
+   removed by the E1 redesign. The rules say a precisely stated missing
+   metatheorem is an obstacle that means redesign; the missing metatheorem is
+   the admissible-transitivity theorem for the certified calculus
+   (STRENGTHENING_ASTRA_REVIEW2/3.md). The theorem's cone no longer
+   mentions strengthening, so nothing is hidden.
+
 ## Standing goal (2026-10-06)
 
 `docs/inductives/GOAL.md` holds the `/goal` statement. Kim's instruction: do
