@@ -3,6 +3,15 @@ import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
 import Lean4Lean.Verify.Inductive.Constructor.ParameterSyntacticTranslation
 import Lean4Lean.Verify.Inductive.Constructor.Telescopes
 
+/-! The environments of the ordinary pipeline: the header environment
+(`HeaderEnvironment`), the constructor environment (`ConstructorEnvironment`),
+the recursor-checking environment (`RecursorCheckingEnvironment`) and the
+ordinary constructor check (`OrdinaryConstructorCheck`), with the facts linking
+the executable header and constructor folds to the abstract declaration:
+installed-family lookups, agreement of constructor parameters, and the checked
+formation (`HeaderEnvironment.toCheckedFormation`).  See section 3.2 of
+`docs/inductives/DESIGN.md`. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -14,7 +23,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
 /-- Every abstract value in an ordinary lockstep installation has the same
-non-primitive name as its production constant. -/
+non-primitive name as its kernel constant. -/
 theorem AddConstants.valueNamesNonprimitive
     (H : AddConstants safety env venv entries outEnv outVEnv) :
     ∀ name ∈ (entries.map Prod.snd).map VConstVal.name,
@@ -243,7 +252,7 @@ theorem AddInductive.checkConstructors.checkedWF
   rw [AddInductive.withCheckLCtx_apply]
   exact Hloops
 
-/-- The same executable constructor check also retains the canonical owner
+/-- The same executable constructor check also retains the owner
 normal form for every constructor.  This proof is kept as an independent
 projection so the abstract formation certificate does not depend on the
 later recursor implementation. -/
@@ -279,9 +288,9 @@ theorem AddInductive.checkConstructors.ownerNormalFormsWF
   rw [AddInductive.withCheckLCtx_apply]
   exact Hloops
 
-/-- Verified boundary after the concrete constructor-info fold.  It retains
-the exact abstract constructor environment and the now-typed pointwise source
-translation needed to join the header and constructor phases. -/
+/-- The constructor environment, the result of the constructor-info fold.  It
+retains the exact abstract constructor environment and the typed pointwise
+source translation needed to join the header and constructor phases. -/
 structure ConstructorEnvironment
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv)
@@ -302,23 +311,23 @@ structure ConstructorEnvironment
   translation : TrInductDeclConstructors H.context.venv c.lparams
     indTypes.toList decl venvCtors
 
-/-- The constructor-complete checking context.  Its abstract environment is
-the constructor environment together with the declaration's projection
-table: the projection registry must already be present when recursor
-generation runs the type checker in this context, and `inductProjections`
-admits the table exactly at this point of the installation trace. -/
+/-- The recursor-checking environment.  Its abstract environment is the
+constructor environment together with the declaration's case eliminators and
+projection table: the projection registry must already be present when the
+recursor construction runs the type checker in this context, and
+`inductProjections` admits the table exactly at this point of the installation. -/
 structure RecursorCheckingEnvironment
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv)
     (outEnv : Environment) extends ConstructorEnvironment H outEnv where
-  /-- The declaration's case eliminator, certified at the constructor boundary
+  /-- The declaration's case eliminator, certified by the checked formation
   (`CheckedFormation.caseEliminatorsWF`). -/
   eliminators : List (Name × InductiveSignature.CaseSchema)
   eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock eliminators)
   eliminatorsCertified : decl.CaseEliminators sourceEnv (fun _ => False) eliminators
   eliminatorsOwn : decl.OwnCaseEliminators sourceEnv eliminators
-  /-- The eliminators are those of a constructor boundary of the declaration, so their
-  signature is the boundary's source signature. -/
+  /-- The eliminators are those of a checked formation of the declaration, so their
+  signature is its source signature. -/
   eliminatorsBoundary : ∃ B : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv
     indTypes, eliminators = B.caseEliminators ∧ B.params = H.headers.params ∧
       B.parameterScope = H.statsWF.parameterScope
@@ -327,10 +336,10 @@ structure RecursorCheckingEnvironment
     (venvCtors.addEliminators eliminators).addProjections decl.projectionEntries
   contextMLCtx : context.mlctx = H.context.mlctx
 
-/-- Select one newly installed production constructor by its source family
-and owner-local index, and assemble its persistent semantic common-parameter
-coherence witness.  This is the positional bridge between the executable
-header/constructor folds and the independent formation specification. -/
+/-- Select one newly installed kernel constructor by its source family and
+owner-local index, and prove the coherence of its common parameters with the
+abstract declaration.  This links the executable header and constructor folds
+positionally to the independent formation specification. -/
 theorem ConstructorEnvironment.installedConstructorCoherenceAt
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -467,7 +476,8 @@ theorem ConstructorEnvironment.installedConstructorCoherenceAt
   · exact D.installed.le
 
 /-- The executable header and constructor folds identify every newly visible
-production inductive family with one exact source declaration position. -/
+inductive family of the kernel environment with one exact source declaration
+position. -/
 theorem ConstructorEnvironment.inductInfosFromDecl
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -716,9 +726,9 @@ theorem ConstructorEnvironment.inductInfosFromDecl
       hvalue.symm)
 
 /-- Header and constructor installation preserves the persistent invariant
-for old families and supplies it positionally for every newly declared
-family.  No name-based matching is used to construct the new witness; names
-only identify the unique production lookup after installation. -/
+for base families and supplies it positionally for every newly declared
+family.  The fact for a new family is built positionally, not by matching
+names; names only identify the unique kernel lookup after installation. -/
 theorem ConstructorEnvironment.ctorParamsAgree
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -812,7 +822,7 @@ theorem ConstructorEnvironment.ctorParamsAgree
     exact False.elim (D.nonInductive entry hentry familyInfo
       hvalue.symm)
 
-/-- The constructor boundary of a declaration whose headers and constructors are checked and
+/-- The checked formation of a declaration whose headers and constructors are checked and
 whose constructors are declared. -/
 noncomputable def HeaderEnvironment.toCheckedFormation
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv)
@@ -1094,7 +1104,8 @@ theorem OrdinaryConstructorCheck.installedConstructorCoherenceAt
     ctorIdx hctor
 
 /-- The executable header and constructor folds identify every newly visible
-production inductive family with one exact source declaration position. -/
+inductive family of the kernel environment with one exact source declaration
+position. -/
 theorem OrdinaryConstructorCheck.inductInfosFromDecl
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -1151,7 +1162,7 @@ theorem TrInductDeclCore.headerBaseAvoidsSourceNames
 /-- Re-establish source and formation well-formedness in a larger safety
 model using the freshly replayed block installation.  Freshness-sensitive
 `addConstVals` facts come from `Hblock`; all semantic typing and positivity facts
-are transported monotonically from the original declaration judgment. -/
+are transported monotonically from the source declaration judgment. -/
 theorem VInductDecl.WF.rebaseOfBlock
     {decl : VInductDecl} {block : VInductBlock}
     {base largerBase : VEnv}
@@ -1202,7 +1213,7 @@ theorem VInductDecl.WF.rebaseOfBlock
   | nested Hnested hformationBase =>
     exact ⟨Hsource, .nested Hnested (hformationBase.trans hbase)⟩
 
-/-- Exact production-only fact needed to keep a newly installed unsafe block
+/-- Fact about the kernel environment alone needed to keep a newly installed unsafe block
 hidden from the unchanged partial and safe abstract models. -/
 def NewFamiliesUnsafe
     (sourceEnv outEnv : Environment) : Prop :=

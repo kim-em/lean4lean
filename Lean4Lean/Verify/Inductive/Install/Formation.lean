@@ -2,6 +2,11 @@ import Lean4Lean.Verify.Inductive.Install.Headers
 import Lean4Lean.Verify.Inductive.Install.LiteralNames
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Translations
 
+/-! Skeleton-free formation: the header installation, the constructor check and
+the constructor installation, composed for the declaration that these
+executable traversals themselves synthesize, together with closure of the
+installed mutual block. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -11,7 +16,7 @@ namespace VerifyInductive
 
 /-- Header installation, the constructor checker, and constructor
 installation composed from the declaration synthesized by those same
-executable traversals.  Unlike `formationCore.headersWF`, neither the final
+executable traversals.  Unlike `formationCore.headersWF`, neither the
 declaration nor its header translation is a caller input. -/
 theorem AddInductive.formationCoreWF
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -295,9 +300,9 @@ theorem HeaderEnvironment.closesMutuals
         simpa [infos] using hinfo)
     exact hcandidateParams.trans hinfoParams.symm
 
-/-- Skeleton-free header and constructor formation with the persistent
-production mutual-family lookup invariant attached to the same successful
-execution. -/
+/-- Skeleton-free header and constructor formation together with the
+mutual-family lookup invariant of the kernel environment, for the same
+successful execution. -/
 theorem AddInductive.formationCoreClosedWF
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}

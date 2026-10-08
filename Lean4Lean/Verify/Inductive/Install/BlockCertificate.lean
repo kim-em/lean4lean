@@ -1,5 +1,13 @@
 import Lean4Lean.Verify.Inductive.Recursor.Check
 
+/-! The block installation (`BlockInstallation`: headers, constructors, case
+eliminators, projections and recursors, in the order of `VInductBlock.install`)
+and the block certificate (`BlockCertificate`) shared by the ordinary,
+primitive and nested paths.  From a block certificate the file derives
+`AddInduct`, its replay in larger safety models, and the safety-indexed
+extension of the environment model for safe and unsafe blocks ("Assembly" in
+section 3.2 of `docs/inductives/DESIGN.md`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -13,9 +21,9 @@ ordinary (one validated constant at a time) or an atomic primitive batch; see
 `FormationInstallation`.  Between the constructors and the recursors
 the abstract environment registers the block's case eliminators and then its
 projections (`VInductBlock.install`); both are abstract-only, so the
-production environment is unchanged there.  Recursors always begin from the
-completed valid constructor environment and use the ordinary validated
-installation trace.  Reduction equations are not included here because their
+kernel environment is unchanged there.  Recursors are always added to the
+constructor environment one validated constant at a time (`AddConstants`).
+Reduction equations are not included here because their
 validity depends on the independent iota schema. -/
 structure BlockInstallation (safety : DefinitionSafety)
     (env : Environment) (venv : VEnv)
@@ -70,9 +78,9 @@ theorem BlockInstallation.abstract_recursors
       (recursors.map Prod.snd) = some outVEnv :=
   H.recursorsAdded.abstract
 
-/-- Collapse the completed formation prefix and ordinary recursor suffix into
-one atomic trace. This exposes whole-block provenance without manufacturing
-a validity judgment for a primitive header prefix. -/
+/-- Collapse the formation prefix and the recursor suffix into one atomic
+installation of the whole block. This needs no validity judgment for a
+primitive header prefix. -/
 theorem BlockInstallation.atomic
     (H : BlockInstallation safety env venv types ctors recursors
       projections outEnv outVEnv) :
@@ -92,7 +100,7 @@ theorem BlockInstallation.quotInit_eq
       projections outEnv outVEnv) : outEnv.quotInit = env.quotInit :=
   H.recursorsAdded.quotInit_eq.trans H.formation.quotInit_eq
 
-/-- The staged installation preserves the local checking invariants. -/
+/-- The block installation preserves the local checking invariants. -/
 theorem BlockInstallation.validCore
     (H : BlockInstallation safety env venv types ctors recursors
       projections outEnv outVEnv)
@@ -102,7 +110,7 @@ theorem BlockInstallation.validCore
     (((H.formation.validCore hvalid).addEliminators H.casesWF).addProjections
       H.projectedWF)
 
-/-- The staged installation adds no stored equation. -/
+/-- The block installation adds no stored equation. -/
 theorem BlockInstallation.defeqs
     (H : BlockInstallation safety env venv types ctors recursors
       projections outEnv outVEnv) :
@@ -152,7 +160,7 @@ theorem BlockInstallation.deltaConservative
 
 /-- The complete semantic certificate for the block assembled by the three
 executable installation stages, whose formation prefix may be ordinary or an
-atomic primitive batch.  The installation trace records the per-step checking
+atomic primitive batch.  The installation records the per-step checking
 environment; the `*WF` fields deliberately record the stronger stage-wide
 facts required by the independent `VInductBlock.WF` specification.  This
 distinction matters for mutual declarations: typing a later header only after
@@ -202,7 +210,7 @@ def BlockCertificate.installedVEnv
       rules outEnv outVEnv) : VEnv :=
   outVEnv.addDefEqRules rules
 
-/-- The header environment of a completed block is below its final model. -/
+/-- The header environment of a certified block is below its installed environment. -/
 theorem BlockCertificate.typesLe
     (H : BlockCertificate safety env venv types ctors recursors rules outEnv outVEnv)
     (htypes : venv.addConstVals (types.map Prod.snd) = some venvH) :
@@ -255,8 +263,8 @@ theorem BlockCertificate.names
   simpa [BlockCertificate.block, List.map_append] using
     VEnv.addConstVals_names_nodup hall
 
-/-- Replay a completed block in a larger abstract source model.  Formation is
-replayed with the sound completed-prefix theorem, so the atomic primitive case
+/-- Replay a certified block in a larger abstract source model.  Formation is
+replayed with `FormationInstallation.rebase`, so the atomic primitive case
 never requires a valid header-only environment. -/
 theorem BlockCertificate.rebaseCertificate
     {decl : VInductDecl}
@@ -348,9 +356,10 @@ theorem BlockCertificate.rebaseCertificate
     rulesWF := fun df hdf => (H.rulesWF df hdf).mono hout }
   exact ⟨largerOutBase, Hlarger, hout, rfl, rfl⟩
 
-/-- Concrete executable-to-specification boundary for a completed block.
-Whole-block alignment and delta conservation use the atomic trace, which is
-valid for ordinary and primitive formation alike. -/
+/-- The executable installation of a certified block satisfies `AddInduct`.
+Whole-block alignment and delta conservation use the atomic installation
+(`BlockInstallation.atomic`), which is valid for ordinary and primitive
+formation alike. -/
 theorem BlockCertificate.addInduct
     (H : BlockCertificate checkSafety prodEnv venv types ctors
       recursors rules outEnv outVEnv)
@@ -385,8 +394,8 @@ theorem BlockCertificate.addInduct
   · exact hprovenance.ofUnsafe
   · exact helim
 
-/-- Replay a safe completed block into one observer model and construct the
-corresponding concrete `AddInduct` witness. -/
+/-- Replay a safe certified block into one observer model and prove the
+corresponding concrete `AddInduct`. -/
 theorem BlockCertificate.rebaseAddInductSafe
     (H : BlockCertificate .safe prodEnv base types ctors recursors
       rules outEnv outBase)
@@ -441,10 +450,10 @@ theorem BlockCertificate.hasPrimitives
   exact H.installation.recursorsAdded.hasPrimitives
     (H.installation.formation.hasPrimitives Hprimitives).addEliminators.addProjections
 
-/-- Validate the completed staging trace from its source, for ordinary and
-primitive formation alike.  The projection-stage well-formedness proof is part
-of the trace, so callers do not have to reconstruct it from a separate
-compilation witness. -/
+/-- The block installation preserves `CheckingEnv.ValidCore`, for ordinary and
+primitive formation alike.  The well-formedness of the projection stage is a
+field of the installation, so callers do not have to reconstruct it from a
+separate compilation certificate. -/
 theorem BlockCertificate.validCore
     (H : BlockCertificate safety env venv types ctors recursors
       rules outEnv outVEnv)
@@ -455,7 +464,7 @@ theorem BlockCertificate.validCore
 /-- Replay a complete inductive refinement in a larger safety-indexed model.
 The fresh block supplies the source-installation facts that plain weakening
 cannot preserve, while source well-formedness and compilation semantics are
-transported from the original model. -/
+transported from the source model. -/
 theorem BlockCertificate.rebaseAddInduct
     (H : BlockCertificate checkSafety prodEnv base types ctors recursors
       rules outEnv outBase)
@@ -489,7 +498,7 @@ theorem BlockCertificate.rebaseAddInduct
       VEnv.AddInduct.intro hdeclLarger hcompileLarger Hlarger.wf helimLarger Hlarger.install
   · exact VEnv.addDefEqRules_mono houtBase
 
-/-- A batch whose production entries are all tagged unsafe supplies the
+/-- A batch whose kernel entries are all tagged unsafe supplies the
 exact hidden-header certificate required by the safety-indexed extension. -/
 theorem BlockCertificate.newFamiliesUnsafe
     (H : BlockCertificate .unsafe prodEnv unsafeBase types ctors recursors
@@ -515,7 +524,7 @@ theorem BlockCertificate.newFamiliesUnsafe
     · rfl
 
 /-- Constructor semantics for an unchanged observer of an unsafe block.
-Every visible old family is transported through the production installation;
+Every visible base family is transported through the installation;
 a genuinely new family is unsafe and hence cannot be visible to a partial or
 safe observer. -/
 theorem BlockCertificate.hiddenUnsafeConstructorTyping
@@ -552,8 +561,8 @@ theorem BlockCertificate.hiddenUnsafeConstructorTyping
       exact False.elim (hobserver heq)
 
 /-- Lift one unsafe block installation to the three safety-indexed abstract
-environments.  Partial and safe translation traces normally come from
-ignoring the newly installed unsafe production constants; every other field
+environments.  The partial and safe translations normally come from
+ignoring the newly installed unsafe kernel constants; every other field
 is derived from the block certificate and the source `VEnvs.WFCore`. -/
 theorem BlockCertificate.extendUnsafeExact
     {ves : VEnvs}
@@ -607,11 +616,11 @@ theorem BlockCertificate.extendUnsafeExact
   · exact hinductiveProvenance
   · exact VInductBlock.install_le H.install
 
-/-- Reconstruct constructor semantics for one replay of a safe block.  Old
+/-- Reconstruct constructor semantics for one replay of a safe block.  Base
 families are transported from the corresponding source safety model.  A new
-family is necessarily safe because the original batch was checked at
-`.safe`, so its already-completed output witness transports along the replay
-monotonicity proof. -/
+family is necessarily safe because the certified batch was checked at
+`.safe`, so its constructor typing in the installed environment transports
+along the replay monotonicity `hreplay`. -/
 theorem BlockCertificate.replaySafeConstructorTyping
     (H : BlockCertificate .safe prodEnv base types ctors recursors
       rules outEnv outBase)
@@ -1010,7 +1019,7 @@ def RecursorCheck.blockCertificate
     (H.blockCertificate rules hrules).projections = decl.projectionEntries := by
   rfl
 
-/-- The completed block registers the declaration's certified case eliminators. -/
+/-- The certified block registers the declaration's certified case eliminators. -/
 theorem RecursorCheck.blockEliminatorsWF
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -1020,7 +1029,7 @@ theorem RecursorCheck.blockEliminatorsWF
     VInductBlock.EliminatorsWF sourceEnv decl (H.blockCertificate rules hrules).block :=
   R.eliminatorsWF.congr_block R.headerValues R.constructorValues rfl rfl
 
-/-- The completed block's case eliminators are certified over every larger environment in
+/-- The certified block's case eliminators are certified over every larger environment in
 which its families and constructors install. -/
 theorem RecursorCheck.blockEliminatorsReplay
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
@@ -1077,7 +1086,7 @@ theorem RecursorCheck.outVEnvWF
   exact (H.installed.validCore hvalid).tr.wf
 
 /-- Recursor installation preserves the constructor semantics established at
-the completed formation boundary. -/
+the checked formation. -/
 theorem RecursorCheck.ctorParamsAgree
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}

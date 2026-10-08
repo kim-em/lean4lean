@@ -1,5 +1,8 @@
 import Lean4Lean.Verify.Inductive.Install.Ordinary
 
+/-! The result shared by every inductive execution path: the source-facing
+`SourceAddInduct` and the declaration-level `InductiveExtension`. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -9,7 +12,7 @@ namespace VerifyInductive
 
 /-- The independent ordinary-inductive judgment produced by a successful
 checker run, including the translation of the exact source syntax.  Keeping
-the source translation beside `AddInduct` prevents a final-environment model
+the source translation beside `AddInduct` prevents an installed-environment model
 from silently being attributed to a different (for example, lowered)
 declaration. -/
 structure SourceAddInduct
@@ -23,7 +26,7 @@ structure SourceAddInduct
     decl envTypes envCtors
   extension : VEnv.AddInduct sourceEnv decl installedVEnv
 
-/-- Ordinary runs and primitive-toConstantsInstallation runs share the same independent
+/-- Ordinary runs and primitive runs (`Bool`, `Nat`) share the same independent
 source judgment; this alias documents the ordinary use site. -/
 abbrev OrdinarySourceAddInduct := SourceAddInduct
 
@@ -42,8 +45,8 @@ It records a complete model of the exact returned environment, pointwise
 extension of all source observers, and the independent specification of the
 exact submitted source declaration, and preservation of the constructor
 telescope certificate from the source environment to the returned one.
-Equality toConstantsInstallation state is deliberately absent: it is not an
-inductive-soundness precondition. -/
+Whether the prelude `Eq` is present is deliberately not recorded: it is not
+an inductive-soundness precondition. -/
 structure InductiveExtension
     (sourceEnv outEnv : Environment) (sourceModels : VEnvs)
     (lparams : List Name) (nparams : Nat) (sourceTypes : List InductiveType)
@@ -75,7 +78,7 @@ def InductiveExtension.ofModel
   specification := specification
   ctorTelescopesPreserved := ctorTelescopesPreserved
 
-/-- Forget the inductive-specific evidence and recover the traditional
+/-- Forget the inductive-specific facts and recover the
 environment-preservation postcondition used by `addDecl.WF`. -/
 theorem InductiveExtension.modelExtension
     (H : InductiveExtension sourceEnv outEnv sourceModels lparams nparams sourceTypes
