@@ -183,7 +183,7 @@ theorem WF'.quot_no_projection (H : VEnv.WF' ds env) :
       rcases hproj _ info hp with hp | hfresh
       · exact hno info hp
       · rw [hq.quotient] at hfresh; cases hfresh
-  | inductEliminators _ _ _ _ _ _ _ _ ih =>
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih =>
     intro hmem
     obtain ⟨hq, hno⟩ := ih hmem
     exact ⟨hq.mono VEnv.addEliminator_le, fun info hp => hno info hp⟩

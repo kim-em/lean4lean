@@ -172,18 +172,6 @@ theorem Instance.parsed_constructor {s : InductiveSignature} (g : Instance s)
 
 namespace CaseSchema
 
-theorem view_constructor_names (schema : CaseSchema)
-    (owner : Fin schema.signature.families.size) :
-    (schema.view owner).constructors.toList.map (·.name) =
-      (schema.signature.declarationFamily owner).ctors.map (·.name) := by
-  simp only [view, List.toList_toArray, declarationFamily, List.map_filterMap]
-  apply congrArg (List.filterMap · schema.signature.constructors.toList)
-  funext ctor
-  by_cases ho : ctor.owner = owner
-  · simp [ho, caseConstructor]
-  · have hv : ctor.owner.val ≠ owner.val := fun hv => ho (Fin.ext hv)
-    simp [ho, hv]
-
 theorem directFamily_restored_constructor_names
     {s : InductiveSignature}
     {params : List VExpr}

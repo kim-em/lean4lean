@@ -5,6 +5,7 @@ import Lean4Lean.Theory.Inductive.SignatureLemmas
 import Lean4Lean.Theory.Inductive.CompilationNames
 import Lean4Lean.Theory.Inductive.CaseSchemaLemmas
 import Lean4Lean.Theory.Inductive.CaseRegistration
+import Lean4Lean.Theory.Inductive.NativeIotaRestoration
 
 /-! Registered eliminator schemas avoid names that are not constants.
 
@@ -433,28 +434,7 @@ end InductiveSignature
 
 /-! ### Provenance facts of a certified schema -/
 
-theorem CompiledInductive.types_ctors {env : VEnv} {source : VInductDecl}
-    {block : VInductBlock} (H : CompiledInductive env source block) :
-    block.types = source.typeConstants ∧ block.ctors = source.constructorConstants := by
-  induction H using CompiledInductive.rec
-    (motive_2 := fun _ _ _ => True) with
-  | intro h _ _ => exact ⟨h.types, h.ctors⟩
-  | replay _ _ _ ih => exact ih
-  | nil => trivial
-  | cons _ _ _ _ _ _ _ => trivial
 
-theorem VInductBlock.install_constants {env installed : VEnv} {block : VInductBlock}
-    (H : VInductBlock.install env block = some installed) :
-    ∀ v ∈ block.types ++ block.ctors, installed.constants v.name = some v.toVConstant := by
-  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at H
-  obtain ⟨types, ht, ctors, hc, recs, hr, rfl⟩ := H
-  have hle : ctors ≤ (recs.addDefEqRules block.rules) :=
-    VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
-  intro v hv
-  rcases List.mem_append.mp hv with hv | hv
-  · exact hle.constants ((VEnv.addConstVals_le hc).constants (VEnv.addConstVals_get ht hv))
-  · exact hle.constants (VEnv.addConstVals_get hc hv)
 
 /-- Every restoration target of a certified specialization is a constant of
 the environment certifying it. -/

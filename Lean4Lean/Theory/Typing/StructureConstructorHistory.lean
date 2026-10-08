@@ -295,7 +295,7 @@ theorem WF'.structureCtorCoherent (H : VEnv.WF' ds env) : StructureCtorCoherent 
         · rw [VEnv.addConstVals_defeqs hadd'] at hd; exact absurd hd hold
     | quot _ hadd => exact ih.addQuot henv hadd
     | induct _ hadd => exact ih.addInduct henv hadd
-  | inductEliminators _ _ _ _ _ _ _ _ ih =>
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih =>
     intro F info hp eq c hd hm hr
     exact ih F info hp eq c hd hm ⟨hr.choose, hr.choose_spec.choose, hr.choose_spec.choose_spec⟩
   | @inductProjections baseDecls ds base envTypes envCtors decl block

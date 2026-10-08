@@ -213,6 +213,89 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   The final theorem will then assume canonical `Eq` and canonical
   `Nonempty`/`Classical.choice`, with `headInversion` the sole conjecture;
   GOAL.md item (3) will be updated when E1 lands.
+  **E1 at 94283b09:** `strengthening_of_canonicalEq` deleted (inventory
+  lists only `headInversion`); `VEnv.Strengthening` kept as a definition
+  used by the countermodel. Corner discharge design (`E1_INDUCTIVE_DESIGN.md`
+  §5.1): the transient window is easy except `checkRecursorTypes`, whose
+  full `checkType` could let `tryEtaStructCore` build `.proj S i t` for a
+  block structure; **decision (2026-10-07): option (A), register the
+  abstract case eliminator at the constructor boundary via
+  `CheckingEnv.Valid.registerCases`** (executable unchanged; every
+  registered structure has a registered eliminator by construction, inside
+  and outside the window; the corner is inhabited through
+  `.elim key owner (.zero :: levels)` with `schema.genericType`, which also
+  covers mutual and nested blocks, so the native-bundle generalization is
+  dropped). The strengthening agent is redirected to the head-inversion
+  effort; route (b)'s prototype is parked after a write-up for Mario.
+  **E1 at 89475ed3 (pushed):** mainline (78 commits) and base (corner files)
+  merged; `corner_inhabit_sig` (corner for any closed term typed at an
+  ordinary signature's recursor type). Option (A) as stated is circular:
+  `registerCases` needs a full `CompilationData`, parts of which
+  (`recursiveTypesWF`, recursors, equations, elimination level) exist only
+  after the window run that needs the corner. **Decision (2026-10-07):
+  option (C): weaken `WF'.inductEliminators` to a case-only certificate**
+  (formation, model, correspondence, restoration scoping, names, projection
+  names, coherence), since the eliminator rules depend only on the schema
+  data; spec correction, weakens no theorem; consumers (`eliminator_origin`,
+  EliminatorAvoidance, coherence, the confluence `Params` fields reaching
+  constructor shapes) adapted on E1; then (A) proceeds with the case-only
+  certificate plus an `elimDF` typability lemma for the case type.
+  **E1 at 463c99d4 (pushed):** `corner_inhabit_elim`
+  (Theory/Typing/ProjectionCornerCaseElim.lean) proves the corner for
+  index-free structures with a registered case eliminator under canonical
+  choice; `ProjectionWalkCornerResolved`/`projectionWalkCorner_resolved`/
+  `ProjectionWalkCorner.full` narrow the hypothesis to the unresolved walks;
+  cone 40570 constants, only sorry `headInversion`, only hypothesis the
+  narrowed `ProjectionWalkCorner`. Two blockers: (1) the kernel's
+  `infer_proj` accepts one-constructor INDEXED families (`args.size =
+  nparams + nindices`), so an indexed corner is needed (restored case type
+  of an indexed view is a type; normalized index telescope agrees with the
+  declared one at the major's indices): assigned to the strengthening agent;
+  (2) the window typings live in the eliminator-extended environment and
+  cannot be moved down to the eliminator-free one `VInductBlock.WF`
+  requires. **Decision (2026-10-07): restructure the installation so
+  `VInductBlock.WF`/`install`/`VEnv.AddInduct` carry the certified case
+  eliminators, ordered before the projections** (spec restructuring with the
+  case-only certificate; weakens no theorem; several thousand lines over
+  the `WF'` inductions, eliminator invariants and `addProjections` sites).
+  **Indexed corner (2026-10-07):** needs a certificate clause the mainline
+  cannot supply: closed header agreement for original families (declared
+  family type ≡ `wrapForalls (params ++ normalized indices) (sort r)` in
+  the types environment). It was unprovable on the mainline (header-phase
+  whnf of later families inside earlier families' index binders; hence the
+  open `RestoresFamily.type` form), but E1's narrow-context header phase
+  normalizes each header from the parameters-only context, so E1 adds the
+  clause to the case-only certificate and discharges it; the strengthening
+  agent proves `corner_inhabit_elim_indexed` under it (branch
+  agent/verify-inductives-corner-indexed off E1 463c99d4). Integration
+  note: mainline `NativeIotaRestoration.lean` vs E1 `RestorationShapes`
+  relocate the same lemmas; keep one copy at merge. **Indexed corner
+  proved (branch agent/verify-inductives-corner-indexed d06d106a, off E1
+  463c99d4, pushed):** `VEnv.corner_inhabit_elim_indexed`
+  (Theory/Typing/ProjectionCornerIndexed*.lean), the indexed analogue of
+  `corner_inhabit_elim` under the restored header-agreement hypothesis on
+  the registered schema (restored params/indices `RP`, `RI`; declared type
+  of `S` ≡ `wrapForalls (RP ++ RI) (sort resultLevel)` in the empty
+  context); sorry dependency only `headInversion`. E1 supplies the clause.
+  **Mainline fast-forwarded to base 9cc2be01 (pushed):** realizability of
+  `HasCanonicalChoice` (Verify/Inductive/ChoiceCanonicalForms.lean,
+  Verify/CanonicalChoiceRealization.lean `VEnvs.WF.hasCanonicalChoice`,
+  Tests/CanonicalChoice.lean), and Theory no longer imports Verify (the 41
+  declarations `NativeIotaSoundness` used moved into
+  Theory/Inductive/NativeIotaRestoration.lean with proofs unchanged). Full
+  build (745 jobs) and tests (346) green.
+  **Restart (2026-10-07 late):** the lead's process exited and `/tmp` was
+  wiped; the E1 and Phase 1b agents stopped mid-step and the integration dry
+  run (`/tmp/l4l-integrate`) was lost (its findings survive in
+  `docs/inductives/E1_MERGE_RECIPE.md` and `E1_MERGE_PARTIAL.diff`). E1 was
+  relaunched in `lean4lean-e1` from its uncommitted state (installation
+  restructuring across 15 files plus the new
+  `Verify/Inductive/ConstructorBoundary.lean`, which computes the source
+  signature at the constructor boundary so the case eliminator is certified
+  before projections and native recursors); Phase 1b was relaunched in
+  `lean4lean-e3` from its uncommitted `HTS.proj` extension. Both agents
+  may spawn their own helper subagents on `-<topic>` branches; scratch
+  worktrees now live under `~/worktrees/lean4lean/`, not `/tmp`.
   **E1 corner status (2026-10-07):** decision (C) done (case-only
   certificate `CaseCompilationData` + `RecursorNamesFresh`; every consumer
   adapted). The corner is proved from a registered case eliminator:
@@ -240,13 +323,36 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   index telescope (`FamilyTypesWF`, typed only in the expanded environment)
   transported through restoration, plus agreement of that telescope with
   the declared one at the major's indices; neither exists yet.
-- `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
+- `lean4lean-hi`, branch `agent/verify-inductives-headinv`: **Phase 1a
+  COMPLETE (84bf90d3; being merged into the mainline):** `lake build
+  Lean4Lean.Experimental` passes (NormalEq, ParallelReduction, Stratified,
+  StratifiedUntyped ported; two false-once-iota-fires theorems take
+  `VEnv.NoInductiveRules`); a new sound model `Theory/Typing/ShapeModel/`
+  over the real `VExpr`, sound for every rule in every WF environment;
+  `VEnv.WF.headSeparation` PROVED (fields `sort_sort`, `sort_forallE`,
+  `sort_rigid`, `forallE_rigid`, `rigid_heads`); `headInversion` is now
+  assembled from it and the single remaining conjecture
+  `VEnv.WF.headInjectivity` (`forallE_forallE`, `rigid_args`, `former_args`,
+  `proj_fieldType`; statements in HeadInversionDefs.lean). Spec correction
+  D10: `inductEliminators` gains `schema.StructCompat env` (a registered
+  schema has exactly the registered constructor of every registered
+  structure among its families), since otherwise unit-like plus a foreign
+  schema derived `Prop ≡ (Prop → Prop)` and head inversion was false.
+  Prototype gaps isolated (`Params.PatternRegistry`, `LR.ConstAdequate`,
+  `Params.TypedEnv`); decisions D1 to D14 in PHASE1_NOTES.md. Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
   separation half of `HeadInversion`; split the conjecture so only
   `headInjectivity` remains.
 - `lean4lean-e3` (re-pointed), branch `agent/verify-inductives-headinj`:
-  Phase 1b: the injectivity half (`forallE_forallE`, argument part of
+  **Milestone (2026-10-07, branch agent/verify-inductives-headinj-proj
+  e8e8e90d, merging into headinj): all eight `HeadInversion` fields are
+  proved in the projection-free scope** (`ProjFree`): the Phase 1b
+  injectivity core plus `WF.headSeparation_of_sound`/`headSeparationModel`
+  (HeadInjectivity/Model/Separation.lean) from the glued model; remaining is
+  stage C (projections: `projOrigin`, `ctorTypeSound`, `ctorTypePiSD` done;
+  the four projection soundness cases in progress), after which `ProjFree`
+  drops and `headInversion` is proved. Phase 1b: the injectivity half (`forallE_forallE`, argument part of
   `rigid_rigid`, `former_args`, `proj_fieldType`); design candidates:
   cast-pushing inside the relation, neutral eliminators, type-level relation
   with singleton eta. Astra design review requested.

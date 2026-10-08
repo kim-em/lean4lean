@@ -253,7 +253,7 @@ theorem WF'.definitionOrigin {env : VEnv} {declarations : List VDecl}
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨origin⟩ := ih lookup
     exact ⟨origin.metadata VEnv.addProjections_le⟩
-  | inductEliminators _ _ _ _ _ _ _ _ ih =>
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨origin⟩ := ih lookup
     exact ⟨origin.metadata VEnv.addEliminator_le⟩
 
