@@ -106,9 +106,6 @@ theorem liftN_eq_subst (e : VExpr) (n : Nat) :
 theorem Subst.ofList_lt (args : List VExpr) (h : k < args.length) :
     Subst.ofList args k = args[args.length - 1 - k] := dif_pos h
 
-theorem Subst.ofList_ge (args : List VExpr) (h : args.length ≤ k) :
-    Subst.ofList args k = .bvar (k - args.length) := dif_neg (Nat.not_lt.2 h)
-
 /-- Instantiating an instantiation is instantiating at the instantiated arguments. -/
 theorem instOuter_instOuter (X : VExpr) (vs args : List VExpr) (hX : X.ClosedN vs.length) :
     (X.instOuter vs).instOuter args = X.instOuter (vs.map (·.instOuter args)) := by
@@ -118,16 +115,6 @@ theorem instOuter_instOuter (X : VExpr) (vs args : List VExpr) (hX : X.ClosedN v
   simp only [Subst.comp, Subst.ofList_lt _ hi, List.length_map,
     Subst.ofList_lt (vs.map _) (by simpa using hi), List.getElem_map]
 
-
-/-- Lifting an instantiation lifts the arguments. -/
-theorem liftN_instOuter (X : VExpr) (args : List VExpr) (hX : X.ClosedN args.length) (n : Nat) :
-    (X.instOuter args).liftN n = X.instOuter (args.map (·.liftN n)) := by
-  simp only [instOuter_eq_subst, liftN_eq_subst]
-  rw [subst_subst]
-  apply subst_congr_closedN hX
-  intro i hi
-  simp only [Subst.comp, Subst.ofList_lt _ hi, List.length_map,
-    Subst.ofList_lt (args.map _) (by simpa using hi), List.getElem_map]
 
 /-- Instantiating at the variables of an enclosing context is a lift. -/
 theorem instOuter_range_bvar (X : VExpr) (j n : Nat) (hX : X.ClosedN j) (hj : j ≤ n) :

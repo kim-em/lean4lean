@@ -109,7 +109,7 @@ theorem SemanticRunWithStatsResult.extendSafeExact
     {ves : VEnvs}
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
     (hnonempty : indTypes.toList ≠ []) :
@@ -173,7 +173,7 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
     {ves : VEnvs}
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (hsafety : c.safety = .unsafe)
     (hsource : sourceEnv = ves.venv .unsafe)
     (hproduction : isUnsafe = (c.safety != .safe))

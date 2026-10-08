@@ -37,7 +37,7 @@ theorem NestedExactFinalRunResult.inductiveFinalResult
     (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) decl lparams nparams
       isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
     (Hsources : SourceSyntaxChecks sourceTypes)
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed sourceProdEnv fuel nparams
@@ -74,7 +74,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : Lean4Lean.ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hlower : NestedLoweringResultClosed env fuel.inductiveFuel nparams
       sourceTypes

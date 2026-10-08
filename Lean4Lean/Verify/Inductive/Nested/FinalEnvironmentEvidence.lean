@@ -697,7 +697,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProductionClose
       (ves.venv .safe) result.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
@@ -748,7 +748,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProductionClo
       (ves.venv .unsafe) result.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
@@ -809,7 +809,7 @@ private theorem NestedInstalledProduction.reindex
 theorem NestedExactFinalRunResult.safeInductiveFinalResult
     (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes
       (ves.venv .safe) decl lparams nparams false .safe outEnv)
-    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed E.productionContext.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
@@ -848,7 +848,7 @@ and restoration traces. -/
 theorem NestedExactFinalRunResult.unsafeInductiveFinalResult
     (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes
       (ves.venv .unsafe) decl lparams nparams true .unsafe outEnv)
-    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed E.productionContext.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)

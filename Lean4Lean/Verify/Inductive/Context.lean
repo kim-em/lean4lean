@@ -891,7 +891,7 @@ def initialContext (env : Environment) (lparams : List Name)
 def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (safety : DefinitionSafety) (lparams : List Name)
     (allowPrimitive : Bool) (fuel : FuelConfig)
-    (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) :
+    (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety)) :
     ContextWF (initialContext env lparams safety allowPrimitive fuel) where
   venv := ves.venv safety
   checking := (wf.tr (safety := safety)).toCheckingValid
