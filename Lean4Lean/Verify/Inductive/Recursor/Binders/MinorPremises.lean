@@ -573,21 +573,9 @@ theorem TypedRuleTemplates.ofEmpty
     rw [Hempty owner howner] at hsize
     omega
 
-namespace mkRecRules.loopU
-
-end mkRecRules.loopU
-
 namespace mkRecInfos.loopCtorArgs.loop
 
 end mkRecInfos.loopCtorArgs.loop
-
-namespace mkRecRules.loopCtors
-
-end mkRecRules.loopCtors
-
-namespace mkRecInfos.loopU
-
-end mkRecInfos.loopU
 
 namespace mkRecInfos.loopUTemplates
 
