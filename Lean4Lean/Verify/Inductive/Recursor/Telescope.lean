@@ -390,27 +390,6 @@ theorem Expr.ForallTelescope.reflect_instantiate1'_fvar
       have hfor := H.isForall_of_pos (by omega)
       exact Bool.noConfusion hfor
 
-theorem Expr.abstractList_fvar_of_not_mem
-    (hmem : fv ∉ fvs) :
-    (Expr.fvar fv).abstractList fvs k = .fvar fv := by
-  induction fvs generalizing k with
-  | nil => simp
-  | cons head tail ih =>
-    simp only [List.mem_cons, not_or] at hmem
-    have hne : head ≠ fv := Ne.symm hmem.1
-    simp [Expr.abstractList, Expr.abstract1, hne, ih hmem.2]
-
-theorem Expr.abstractList_bvar_ge (fvs : List FVarId) (k n : Nat) :
-    (Expr.bvar (k + n)).abstractList fvs k =
-      .bvar (k + n + fvs.length) := by
-  induction fvs generalizing n with
-  | nil => simp
-  | cons head tail ih =>
-    simp only [Expr.abstractList]
-    rw [show (Expr.bvar (k + n)).abstract1 head k = .bvar (k + n + 1) by
-      simp [Expr.abstract1]]
-    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (n + 1)
-
 theorem Expr.abstractN_bvar_lt (fvs : List FVarId) (_h : n < k) :
     (Expr.bvar n).abstractN fvs k = .bvar n := rfl
 
@@ -500,64 +479,11 @@ theorem Expr.mkAppRange_from_zero
   · rfl
   · simp [List.length_take, Nat.min_eq_left hstop]
 
-theorem Expr.getAppFn_mkAppList (fn : Expr) (args : List Expr) :
-    (Expr.mkAppList fn args).getAppFn = fn.getAppFn := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons arg args ih =>
-    simp only [Expr.mkAppList]
-    simpa [Expr.getAppFn] using ih (.app fn arg)
-
-theorem Expr.getAppArgsList_mkAppList (fn : Expr) (args : List Expr) :
-    (Expr.mkAppList fn args).getAppArgsList =
-      fn.getAppArgsList ++ args := by
-  induction args generalizing fn with
-  | nil => simp
-  | cons arg args ih =>
-    simp only [Expr.mkAppList]
-    rw [ih]
-    simp [Expr.getAppArgsList_app, List.append_assoc]
-
-theorem Expr.getAppFn_mkAppList_const
-    (name : Name) (levels : List Level) (args : List Expr) :
-    (Expr.mkAppList (.const name levels) args).getAppFn =
-      .const name levels := by
-  simpa [Expr.getAppFn] using
-    Expr.getAppFn_mkAppList (.const name levels) args
-
 theorem Expr.getAppArgsList_mkAppList_const
     (name : Name) (levels : List Level) (args : List Expr) :
     (Expr.mkAppList (.const name levels) args).getAppArgsList = args := by
   rw [Expr.getAppArgsList_mkAppList, Expr.getAppArgsList_const]
   simp
-
-theorem Expr.abstractList_fvar_getElem
-    (hnd : fvs.Nodup) (i : Nat) (hi : i < fvs.length) :
-    (Expr.fvar fvs[i]).abstractList fvs k =
-      .bvar (k + (fvs.length - 1 - i)) := by
-  induction fvs generalizing i k with
-  | nil => simp at hi
-  | cons head tail ih =>
-    simp only [List.nodup_cons] at hnd
-    cases i with
-    | zero =>
-      simp only [List.getElem_cons_zero, Expr.abstractList]
-      rw [show (Expr.fvar head).abstract1 head k = .bvar k by
-        simp [Expr.abstract1]]
-      simpa using Expr.abstractList_bvar_ge tail k 0
-    | succ i =>
-      have hiTail : i < tail.length := by simpa using hi
-      have hne : tail[i] ≠ head := by
-        intro heq
-        apply hnd.1
-        simpa [heq] using List.getElem_mem hiTail
-      simp only [List.getElem_cons_succ, Expr.abstractList]
-      rw [show (Expr.fvar tail[i]).abstract1 head k = .fvar tail[i] by
-        simp [Expr.abstract1, Ne.symm hne]]
-      rw [ih hnd.2 i hiTail (k := k)]
-      congr 1
-      simp only [List.length_cons]
-      omega
 
 /-- Abstraction at an inner cutoff preserves every already-valid outer bound
 variable and adds one new valid slot. -/

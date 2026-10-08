@@ -70,10 +70,6 @@ theorem Closed.toConstructor : ∀ {l : Literal}, Closed l.toConstructor k
   | .natVal _ => .natLitToConstructor
   | .strVal _ => .strLitToConstructor
 
-theorem toConstructor : ∀ {l : Literal}, Closed l.toConstructor k
-  | .natVal _ => .natLitToConstructor
-  | .strVal _ => .strLitToConstructor
-
 theorem Closed.litType {l : Literal} : Closed l.type k := by cases l <;> trivial
 
 theorem FVarsIn.fvars_cons :
@@ -224,9 +220,18 @@ theorem FVarsIn.abstract1 (h1 : FVarsIn P e) :
   induction e generalizing k <;> simp_all [FVarsIn, Expr.abstract1]
   split <;> simp [FVarsIn, *]
 
-theorem FVarsIn.appRevList :
+theorem FVarsIn.mkAppRevList :
     FVarsIn P (f.mkAppRevList es) ↔ FVarsIn P f ∧ ∀ e ∈ es, FVarsIn P e := by
   induction es <;> simp [FVarsIn, and_comm, and_left_comm, *]
+
+-- Kept for `Lean4Lean/Verify/TypeChecker/InferType.lean`.
+alias FVarsIn.appRevList := FVarsIn.mkAppRevList
+
+theorem FVarsIn.getAppFn (h : FVarsIn P e) : FVarsIn P e.getAppFn := by
+  rw [← e.mkAppRevList_getAppArgsRevList, FVarsIn.mkAppRevList] at h; exact h.1
+
+-- Kept for `Lean4Lean/Verify/TypeChecker/InferType.lean`.
+alias FVarsIn.appFn := FVarsIn.getAppFn
 
 /-- Abstracting a variable removes it from what the term mentions, so the predicate may drop it.
 The companion to `FVarsIn.abstract1`, which keeps the predicate fixed; this is the form a caller
@@ -2095,10 +2100,6 @@ theorem FVarsBelow.trans (H1 : FVarsBelow Δ e₁ e₂) (H2 : FVarsBelow Δ e₂
 def TrTyping (env : VEnv) (Us : List Name) (Δ : VLCtx) (e A : Expr) (e' A' : VExpr) : Prop :=
   FVarsBelow Δ e A ∧ TrExprS env Us Δ e e' ∧ TrExprS env Us Δ A A' ∧
   env.HasType Us.length Δ.toCtx e' A'
-
-theorem FVarsIn.mkAppRevList :
-    FVarsIn P (e.mkAppRevList es) ↔ FVarsIn P e ∧ ∀ a ∈ es, FVarsIn P a := by
-  induction es <;> simp [FVarsIn, and_comm, and_left_comm, *]
 
 theorem FVarsIn.mkAppList :
     FVarsIn P (e.mkAppList es) ↔ FVarsIn P e ∧ ∀ a ∈ es, FVarsIn P a := by

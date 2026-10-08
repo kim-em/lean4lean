@@ -1303,14 +1303,7 @@ theorem _root_.Lean4Lean.FVarsIn.getAppArgsList
     exact H
   have ha' : a ∈ e.getAppArgsRevList := by
     simpa [← Expr.getAppArgsList_reverse] using ha
-  exact (FVarsIn.appRevList.mp H').2 a ha'
-
-theorem _root_.Lean4Lean.FVarsIn.getAppFn
-    (H : FVarsIn P e) : FVarsIn P e.getAppFn := by
-  have H' : FVarsIn P (e.getAppFn.mkAppList e.getAppArgsList) := by
-    rw [Expr.mkAppList_getAppArgsList]
-    exact H
-  exact (FVarsIn.mkAppList.mp H').1
+  exact (FVarsIn.mkAppRevList.mp H').2 a ha'
 
 /-- Abstracting a free variable removes precisely that variable from the
 free-variable obligation. This is the structural lemma needed for nested

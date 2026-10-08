@@ -439,9 +439,6 @@ theorem Expr.getAppArgsList_mkAppN (fn : Expr) (args : Array Expr) :
     rw [ih]
     simp [Expr.getAppArgsList_app, List.append_assoc]
 
-theorem Expr.getAppArgsList_const (name : Name) (levels : List Level) :
-    (Expr.const name levels).getAppArgsList = [] := rfl
-
 @[simp] theorem Expr.foldl_mkApp_eq (args : List Expr) (fn : Expr) :
     args.foldl Lean.mkApp fn = args.foldl Expr.app fn := by
   induction args generalizing fn with
@@ -450,11 +447,8 @@ theorem Expr.getAppArgsList_const (name : Name) (levels : List Level) :
     simp only [List.foldl_cons, Lean.mkApp]
     exact ih (.app fn arg)
 
-theorem Expr.mkAppN_eq_mkAppList (fn : Expr) (args : Array Expr) :
-    mkAppN fn args = Expr.mkAppList fn args.toList := by
-  unfold mkAppN
-  rw [← Array.foldl_toList, Expr.mkAppList_eq_foldl]
-  exact Expr.foldl_mkApp_eq args.toList fn
+-- Kept for the `Lean4Lean/Verify/Inductive/Nested/*` files that use this qualified name.
+alias Expr.mkAppN_eq_mkAppList := Lean.Expr.mkAppN_eq_mkAppList
 
 theorem TrExprS.IsUnique.mkAppList
     (hfn : TrExprS.IsUnique fn)

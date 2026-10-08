@@ -58,21 +58,6 @@ private theorem mkAppList_map {g : Expr → Expr} (hg : ∀ f a, g (.app f a) = 
   | nil => rfl
   | cons a l ih => simp only [mkAppList, List.map_cons]; rw [ih, hg]
 
-private theorem getAppFn_mkAppList' (f : Expr) (l : List Expr) :
-    (mkAppList f l).getAppFn = f.getAppFn := by
-  induction l generalizing f with
-  | nil => rfl
-  | cons a l ih => simp only [mkAppList]; rw [ih]; rfl
-
-private theorem getAppArgsList_mkAppList' (f : Expr) (l : List Expr) :
-    (mkAppList f l).getAppArgsList = f.getAppArgsList ++ l := by
-  induction l generalizing f with
-  | nil => simp
-  | cons a l ih => simp only [mkAppList]; rw [ih, getAppArgsList_app]; simp
-
-private theorem getAppArgsList_const' (c : Name) (us : List Level) :
-    (Expr.const c us).getAppArgsList = [] := rfl
-
 private theorem map_fvars_eq_self {g : Expr → Expr} (hg : ∀ fv, g (.fvar fv) = .fvar fv)
     {params : List Expr} (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) : params.map g = params := by
   conv => rhs; rw [← List.map_id params]
@@ -200,10 +185,6 @@ theorem of_avoidsConsts {e : Expr} (h : e.AvoidsConsts heads) : HitShape heads p
 
 /-! ### Inversion -/
 
-private theorem getAppFn_hitHead (c : Name) (ls : List Level) (params : List Expr) :
-    ((Expr.const c ls).mkAppList params).getAppFn = .const c ls := by
-  rw [getAppFn_mkAppList']; rfl
-
 /-- Spine inversion at a hit: a shaped expression whose application head is `.const c us`
 with `c ∈ heads` has `us = ls`, and its argument list is `params ++ rest` with every trailing
 argument shaped. -/
@@ -213,10 +194,10 @@ theorem getAppFn_const_hit_inv {e : Expr} {c : Name} {us : List Level}
       ∀ a ∈ rest, HitShape heads params ls a := by
   induction H with
   | hitHead _ =>
-    rw [getAppFn_hitHead] at hfn
+    rw [getAppFn_mkAppList_const] at hfn
     cases hfn
     refine ⟨rfl, [], ?_, by simp⟩
-    rw [getAppArgsList_mkAppList', getAppArgsList_const']; simp
+    rw [getAppArgsList_mkAppList, getAppArgsList_const]; simp
   | @app f a hf ha ihf _ =>
     obtain ⟨hus, rest, hargs, hrest⟩ := ihf hfn
     refine ⟨hus, rest ++ [a], ?_, ?_⟩
@@ -237,7 +218,7 @@ theorem app_inv {f a : Expr} (H : HitShape heads params ls (.app f a))
   | app hf ha => cases he; exact ⟨hf, ha⟩
   | @hitHead c hc =>
     have := congrArg Expr.getAppFn he
-    rw [getAppFn_hitHead] at this
+    rw [getAppFn_mkAppList_const] at this
     exact absurd hc (hnot _ _ this)
   | _ => cases he
 
@@ -253,7 +234,7 @@ theorem mkAppList_inv {f : Expr} {args : List Expr}
   | cons a rargs ih =>
     rw [List.reverse_cons, Expr.mkAppList_append] at H
     have hnot' : ∀ c us, (f.mkAppList rargs.reverse).getAppFn = .const c us → c ∉ heads := by
-      rw [getAppFn_mkAppList']; exact hnot
+      rw [getAppFn_mkAppList]; exact hnot
     obtain ⟨hf, ha⟩ := app_inv H hnot'
     obtain ⟨hf', hargs⟩ := ih hf
     refine ⟨hf', fun b hb => ?_⟩
@@ -266,7 +247,7 @@ theorem const_inv {c : Name} {us : List Level} (H : HitShape heads params ls (.c
     c ∉ heads ∨ (c ∈ heads ∧ us = ls ∧ params = []) := by
   by_cases hc : c ∈ heads
   · obtain ⟨hus, rest, hargs, -⟩ := H.getAppFn_const_hit_inv rfl hc
-    rw [getAppArgsList_const'] at hargs
+    rw [getAppArgsList_const] at hargs
     exact .inr ⟨hc, hus, (List.append_eq_nil_iff.1 hargs.symm).1⟩
   · exact .inl hc
 
@@ -274,7 +255,7 @@ private theorem not_hitHead_of_getAppFn {e : Expr} (hfn : ∀ c us, e.getAppFn �
     {c : Name} : e ≠ (Expr.const c ls).mkAppList params := by
   intro he
   have := congrArg Expr.getAppFn he
-  rw [getAppFn_hitHead] at this
+  rw [getAppFn_mkAppList_const] at this
   exact hfn _ _ this
 
 theorem lam_inv {n : Name} {t b : Expr} {bi : BinderInfo}
