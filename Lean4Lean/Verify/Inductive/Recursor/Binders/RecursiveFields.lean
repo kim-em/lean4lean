@@ -33,7 +33,7 @@ structure RecursorValidAppStatsWF
 
 /-- Reinterpret complete application statistics after introducing the
 optional fresh recursor universe parameter. -/
-def checkPositivityStep.ValidAppStatsWF.toRecursorContext
+theorem checkPositivityStep.ValidAppStatsWF.toRecursorContext
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       Hc.mlctx.vlctx stats decl depth)
@@ -95,7 +95,7 @@ def checkPositivityStep.ValidAppStatsWF.toRecursorContext
 
 /-- Restrict recursor application statistics to the exact cached-parameter
 suffix, independently of all generated ambient frames. -/
-def RecursorParameterContextSuffix.scopedStats
+theorem RecursorParameterContextSuffix.scopedStats
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     (H : RecursorParameterContextSuffix R stats depth)
@@ -516,7 +516,7 @@ structure RecursorValidatedIndAppAt
       (VExpr.mkApps
         (.const (decl.types[target]'target_lt).name levels) params)
 
-def RecursorValidAppStatsWF.validatedIndAppAt
+theorem RecursorValidAppStatsWF.validatedIndAppAt
     (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
     (htr : TrExprS env recLparams scope type type')
     (hvalid : AddInductive.isValidIndApp? stats type = some target)
@@ -819,9 +819,7 @@ theorem RecursorFieldDecisions.selected_at
           simp [Hdecision.positions_length]
         have hpositionValue : (positions ++ [bu.size])[u.size]! =
             bu.size := by
-          have hlast : (positions ++ [bu.size])[positions.length]! =
-              bu.size := by simp
-          simpa [Hdecision.positions_length] using hlast
+          simp [Hdecision.positions_length]
         rw [hpositionValue]
         simp
 
@@ -906,7 +904,7 @@ theorem RecursiveFieldSelectionsAt.arguments_at_positions
     apply List.Forall₂.append' lift
     apply List.Forall₂.cons
     · refine ⟨by simp [hindex], ?_⟩
-      simpa [hindex] using (@Array.getElem_push_eq Expr bu arg).symm
+      simp [hindex]
     · exact .nil
 
 /-- Specialize recursive-domain metadata at the recursor universe arity to the

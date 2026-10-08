@@ -301,7 +301,7 @@ theorem
     (B : A.FieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.FVarCheckingScopeCore H.outVEnv Us
+      ∃ _Hscope : checkInductiveTypes.loopType.FVarCheckingScopeCore H.outVEnv Us
           scope F.semantic.current_context.mlctx.vlctx,
         scope.fvars = F.semantic.recent.fvars.reverse ++
           B.fieldScope.fvars ∧
@@ -390,7 +390,7 @@ theorem
       A.parameterDecls_eq, H.parameterSuffix.parameterDecls_fvars]
     rw [A.typing.fieldOpening.fvars_eq_bound
       A.typing.fieldsRecent.toFVarArrayAfter.toFVarArrayIn]
-    simp [List.append_assoc]
+    simp
   have hposFields : 0 < A.rule.allArgs.size := by
     have hlen := A.typing.selection.fields_length
     have hne : A.typing.fields ≠ [] := by
@@ -1181,7 +1181,6 @@ theorem
       hnodup
     simpa [F.semantic.generated.arguments_bound.length_fvars] using h.symm
   have HindicesClosed' := HindicesClosed
-  simp only [List.map_map, Function.comp_def] at HindicesClosed'
   have hsourceFunction : (fun source : Expr => source.abstractList
       (A.rule.all_args_bound.fvars ++
         F.semantic.generated.arguments_bound.fvars)) =
@@ -1253,8 +1252,7 @@ theorem
           parameterDecls).toCtx = scope.toCtx := by
       rw [hscopeContext, B.fieldScope_eq]
       simp [parameterDecls, A.parameterDecls_eq,
-        List.reverse_append, List.append_assoc,
-        VLCtx.toCtx]
+        List.reverse_append, List.append_assoc]
     rw [hctx]
     exact Htyping
   exact ⟨binding, evidence, scope, Hscope, B.fieldDomains, localDomains,
@@ -1721,7 +1719,7 @@ theorem
     (B : A.FieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ S : MinorPremiseType,
-      ∃ HS : TypedMinorTraversalAt H.recursorWF S
+      ∃ _HS : TypedMinorTraversalAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
         ∃ narrowDomains narrowResidual,
           narrowDomains.length = A.rule.allArgs.size ∧
@@ -2226,11 +2224,10 @@ theorem
         rw [List.take_append_getElem hminor]
       _ = T.minors.take minorIdx ++ T.minors[minorIdx] ::
           T.minors.drop (minorIdx + 1) := by
-        simp [List.append_assoc]
+        simp
   have hminorsReverse : T.minors.reverse = later.reverse ++
       T.minors[minorIdx] :: (T.minors.take minorIdx).reverse := by
-    simpa [later, List.reverse_append, List.append_assoc] using
-      congrArg List.reverse hsplit
+    simp [later]
   have hfixedContext : fixedContext =
       (fixedFieldRecent ++ later.reverse) ++
         T.minors[minorIdx] :: older := by

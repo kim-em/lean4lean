@@ -248,7 +248,7 @@ theorem ConstructorCheck.recursorPhasesWF
             Rlocal.mlctx.vlctx.toCtx introTarget tailTarget := by
     intro owner howner ctor hctor
     have hownerBang : indTypes[owner]! = indTypes[owner] := by
-      simp [Array.getElem!_eq_getD, Array.getD, howner]
+      simp [howner]
     rw [hownerBang] at hctor
     rcases List.mem_iff_getElem.mp hctor with ⟨ctorIdx, hctorIdx, rfl⟩
     rcases R.checkedConstructorPrefixInRecursorContextAt elimLevel hElim hlparams Rlocal
@@ -373,7 +373,7 @@ theorem Kernel.Environment.checkDuplicatedUnivParams.WF
   | cons param lparams ih =>
     by_cases hmem : param ∈ lparams
     · rw [Kernel.Environment.checkDuplicatedUnivParams]
-      simp only [hmem, if_pos, Except.bind]
+      simp only [hmem, if_pos]
       exact Except.WF.throw
     · simpa [Kernel.Environment.checkDuplicatedUnivParams, hmem] using
         ih.mono fun _ htail => List.nodup_cons.mpr ⟨hmem, htail⟩

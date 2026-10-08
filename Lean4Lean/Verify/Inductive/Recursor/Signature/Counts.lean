@@ -63,7 +63,7 @@ theorem List.flatMap_getElem_prefix
           rows.drop (owner + 1) := by
         rw [List.take_append_getElem howner]
       _ = rows.take owner ++ rows[owner] :: rows.drop (owner + 1) := by
-        simp [List.append_assoc]
+        simp
   have hrow : entries rows[owner] =
       (entries rows[owner]).take i ++
         (entries rows[owner])[i] ::
@@ -80,7 +80,7 @@ theorem List.flatMap_getElem_prefix
       _ = (entries rows[owner]).take i ++
           (entries rows[owner])[i] ::
             (entries rows[owner]).drop (i + 1) := by
-        simp [List.append_assoc]
+        simp
   have houter : rows.flatMap entries =
       (rows.take owner).flatMap entries ++ entries rows[owner] ++
         (rows.drop (owner + 1)).flatMap entries := by

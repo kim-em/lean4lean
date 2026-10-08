@@ -37,7 +37,7 @@ theorem RecursorFieldDecisions.freshBindings
     (H : RecursorFieldDecisions stats root source current terminal
       all selected positions)
     (Hroot : BindingContextWF root) :
-    ∃ Hcurrent : BindingContextWF current,
+    ∃ _Hcurrent : BindingContextWF current,
       BindingContextLE root current ∧
       Nonempty (FVarArrayAfter root current all) := by
   induction H with
