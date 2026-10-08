@@ -286,25 +286,6 @@ inductive VInductDecl.RecursiveArg (env : VEnv) (decl : VInductDecl) :
     decl.RecursiveArg env (checkedDom :: ctx) (depth + 1) checkedBody →
     decl.RecursiveArg env ctx depth e
 
-/-- Universe-parametric form of `RecursiveArg`.  Constructor declarations are
-checked at `decl.uvars`, but generated large-elimination recursors interpret
-the same recursive-domain syntax after prepending a fresh universe parameter.
-Keeping the universe arity explicit lets the implementation refinement state
-that intermediate invariant without identifying those two contexts. -/
-inductive VInductDecl.RecursiveArgAt (env : VEnv) (decl : VInductDecl)
-    (uvars : Nat) : List VExpr → Nat → VExpr → Prop
-  | direct :
-    env.IsDefEq uvars ctx e exposed type →
-    decl.ValidIndAppAt none depth exposed →
-    decl.RecursiveArgAt env uvars ctx depth e
-  | forallE :
-    env.IsDefEq uvars ctx e (.forallE dom body) type →
-    env.IsDefEq uvars ctx dom checkedDom (.sort domLevel) →
-    env.IsDefEq uvars (dom :: ctx) body checkedBody bodyType →
-    decl.RecursiveArgAt env uvars (checkedDom :: ctx) (depth + 1)
-      checkedBody →
-    decl.RecursiveArgAt env uvars ctx depth e
-
 /-- Target-preserving recursive-argument classification.  The executable
 classifier returns a mutual-family index; this judgment carries the matching
 family name through every higher-order binder instead of forgetting it at the
@@ -323,15 +304,6 @@ inductive VInductDecl.RecursiveArgAtTarget
     decl.RecursiveArgAtTarget env uvars target
       (checkedDom :: ctx) (depth + 1) checkedBody →
     decl.RecursiveArgAtTarget env uvars target ctx depth e
-
-theorem VInductDecl.RecursiveArgAtTarget.forgetTarget
-    {decl : VInductDecl} {env : VEnv} {uvars : Nat} {target : Name}
-    {ctx : List VExpr} {depth : Nat} {e : VExpr}
-    (H : decl.RecursiveArgAtTarget env uvars target ctx depth e) :
-    decl.RecursiveArgAt env uvars ctx depth e := by
-  induction H with
-  | direct hdef happ => exact .direct hdef happ.forgetTarget
-  | forallE he hdom hbody _ ih => exact .forallE he hdom hbody ih
 
 /-- Recursive-argument classification is stable under arbitrary universe
 specialization.  The context and classified domain are instantiated in
@@ -352,15 +324,6 @@ theorem VInductDecl.RecursiveArgAtTarget.instL
       VInductDecl.RecursiveArgAtTarget.forallE
         (he.instL hlevels) (hdom.instL hlevels)
         (hbody.instL hlevels) ih
-
-theorem VInductDecl.RecursiveArgAt.toRecursiveArg
-    {decl : VInductDecl} {env : VEnv} {ctx : List VExpr}
-    {depth : Nat} {e : VExpr}
-    (H : decl.RecursiveArgAt env decl.uvars ctx depth e) :
-    decl.RecursiveArg env ctx depth e := by
-  induction H with
-  | direct hdef happ => exact .direct hdef happ
-  | forallE he hdom hbody _ ih => exact .forallE he hdom hbody ih
 
 /-- Constructor fields followed by the constructor's target application. -/
 inductive VInductDecl.CtorTailWF (env : VEnv) (decl : VInductDecl)
@@ -1621,26 +1584,5 @@ structure VInductDecl.NestedIotaRule
       recursiveArgs.length
   rhs_guarded : rhsBody.GuardedIota
     (block.recursors.map (·.name)) fieldVars 0
-
-def VInductDecl.IotaRule.mono
-    {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
-    (henv : env ≤ env')
-    (H : decl.IotaRule env block owner ctor rule) :
-    decl.IotaRule env' block owner ctor rule := by
-  let fields := H.recursiveFields.map fun field => field.mono henv
-  refine { H with
-    recursiveFields := fields
-    fieldPositions_eq := ?_
-    fields_at_positions := ?_
-    recursiveArgs_eq := ?_ }
-  · rw [H.fieldPositions_eq]
-    simp [fields, VInductDecl.RecursiveField.mono]
-  · intro field hfield
-    rcases List.mem_map.mp hfield with ⟨source, hsource, rfl⟩
-    rcases H.fields_at_positions source hsource with ⟨hindex, harg⟩
-    exact ⟨hindex, harg⟩
-  · rw [H.recursiveArgs_eq]
-    simp [fields, VInductDecl.RecursiveField.mono]
-
 
 end Lean4Lean

@@ -6,7 +6,7 @@ import Lean4Lean.Theory.Inductive.CaseCertificateTransport
 The source declaration of a nested run registers the case schema of the boundary signature of
 its lowered declaration, restored by the nested compilation restoration. This file proves the
 facts about a constructor boundary that this needs beyond the restoration-free certificate of
-`ConstructorBoundary.caseEliminatorsOrdinary`:
+`ConstructorBoundary.caseEliminatorsCertified`:
 
 * the constructor types of the boundary signature are head-applied whenever the production
   constructor types have hit shape, so restoration is total on them

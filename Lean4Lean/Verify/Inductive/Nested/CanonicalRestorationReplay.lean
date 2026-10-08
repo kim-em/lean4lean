@@ -11,19 +11,26 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
+theorem AtomicAddConstants.freshTrace
+    (H : AtomicAddConstants safety source sourceVEnv entries target targetVEnv) :
+    FreshConstantTrace source (entries.map Prod.fst) target := by
+  induction H with
+  | nil => exact .nil
+  | cons hfresh _ _ _ _ _ ih => exact .cons hfresh ih
+
 /-- Transfer the validity proved by a dependency-ordered staged installation
 to a concrete installation of the same constants in any fresh order.  The
 permutation argument is used only to identify production maps; abstract
 typing remains tied to the header/constructor/projection/recursor stages. -/
-theorem StagedBlock.validCoreOfFreshPermutation
-    (H : StagedBlock safety source sourceVEnv types ctors recursors
+theorem CompletedStagedBlock.validCoreOfFreshPermutation
+    (H : CompletedStagedBlock safety source sourceVEnv types ctors recursors
       projections canonicalTarget targetVEnv)
     (Hactual : FreshConstantTrace source actualEntries actualTarget)
     (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
     (Hsource : CheckingEnv.ValidCore safety source sourceVEnv) :
     CheckingEnv.ValidCore safety actualTarget targetVEnv := by
   have HcanonicalValid := H.validCore Hsource
-  have heq := Hactual.lookupEqOfPerm H.productionTrace.freshTrace
+  have heq := Hactual.lookupEqOfPerm H.combinedAtomic.freshTrace
     Hsource.tr.map_wf hperm
   exact CheckingEnv.ValidCore.mapExt HcanonicalValid
     (Hactual.targetWF Hsource.tr.map_wf) fun name => (heq name).symm
@@ -1028,7 +1035,7 @@ theorem CanonicalRestorationReplay.existsStagedBlock
     (hconstructorsAbstract : envTypes.addConstVals
       (H.constructorEntries.map Prod.snd) = some envCtors) :
     ∃ canonicalProdEnv finalVEnv,
-      Nonempty { S : StagedBlock safety sourceProdEnv sourceVEnv H.typeEntries
+      Nonempty { S : CompletedStagedBlock safety sourceProdEnv sourceVEnv H.typeEntries
         H.constructorEntries H.recursorEntries projections canonicalProdEnv
           finalVEnv // S.eliminators = es } ∧
       ∀ name, outProdEnv.constants.find? name =
@@ -1086,8 +1093,7 @@ theorem CanonicalRestorationReplay.existsStagedBlock
     venvTypes := envTypes
     envCtors := prodCtors
     venvCtors := envCtors
-    typesAdded := HtypesAdded
-    ctorsAdded := HconstructorsAdded
+    formationAdded := .ordinary HtypesAdded HconstructorsAdded
     eliminators := es
     casesWF := HcasesWF
     projectedWF := HprojectedWF
@@ -1201,7 +1207,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
         sourceVEnv envTypes ((envCtors.addEliminators es).addProjections decl.projectionEntries)
         decl.types primaryRecursors auxiliaryRecursors,
       ∃ canonicalProdEnv finalVEnv,
-        Nonempty { S : StagedBlock c.safety c.env sourceVEnv replay.typeEntries
+        Nonempty { S : CompletedStagedBlock c.safety c.env sourceVEnv replay.typeEntries
           replay.constructorEntries replay.recursorEntries
             decl.projectionEntries canonicalProdEnv finalVEnv // S.eliminators = es } ∧
         ∀ name, outProdEnv.constants.find? name =
@@ -1226,23 +1232,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
   have HsourceChecking : CheckingEnv c.safety c.env sourceVEnv := by
     simpa only [Hheaders.sourceContextVEnv] using
       Hheaders.sourceContext.checking.tr
-  have HcasesWF : (envCtors.addEliminators es).WF :=
-    Hcases.casesWF HsourceChecking.wf (TrInductDeclCore.envCtorsWF Hcore HsourceChecking.wf)
-      Hcore.typesAdded Hcore.ctorsAdded
-  have HprojectedWF :
-      ((envCtors.addEliminators es).addProjections decl.projectionEntries).WF := by
-    obtain ⟨_, _, ht, hc, helim⟩ := Hcases
-    rcases helim with ⟨-, hP⟩ | ⟨key, schema, hE, hcert, hkey, -, hhdr⟩
-    · have hP' : decl.projectionEntries = [] := hP
-      rw [hP']
-      exact HcasesWF
-    exact VEnv.WF.inductProjections (base := sourceVEnv) (envTypes := envTypes)
-      (decl := decl) (block := decl.caseBlock es)
-      HsourceChecking.wf HcasesWF ⟨key, schema, hE, hcert, hkey, hhdr⟩
-      (TrInductDeclCore.sourceNames_nodup Hcore) (TrInductDeclCore.typeHeadersWF Hcore)
-      (Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hcore)
-      (Lean4Lean.VerifyInductive.TrInductDeclCore.constructorsWF Hcore)
-      Hparams Hparams.rawCtorShape rfl rfl rfl Hcore.typesAdded Hcore.ctorsAdded
+  obtain ⟨HcasesWF, HprojectedWF⟩ := Hcases.windowWF HsourceChecking.wf Hcore Hparams
   rcases replay.existsStagedBlock decl.projectionEntries es HsourceChecking
       HcasesWF HprojectedWF Hprimitive Hnondelta
       hnondelta htypesAbstract hconstructorsAbstract with

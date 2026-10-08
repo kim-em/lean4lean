@@ -61,12 +61,10 @@ inductive HistTables : VEnv → Tables → Prop
   | elim {base env : VEnv} {T : Tables} {source : VInductDecl} {block : VInductBlock}
       {schema : CaseSchema} {key : Name} :
     HistTables env T → base.WF → env.WF → base ≤ env →
-    schema.Certified base source block →
-    source.types.head?.map (·.name) = some key →
-    ((∀ value ∈ block.types ++ block.ctors,
-      env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
-      schema.ProjNamesRegistered env key ∧ source.ProjectionsCoherent env ∧
-      schema.HeaderAgreement base source) →
+    schema.Registered base source block key →
+    (∀ value ∈ block.types ++ block.ctors,
+      env.constants value.name = some value.toVConstant) → env.defeqs = base.defeqs →
+    schema.ProjNamesRegistered env key → source.ProjectionsCoherent env →
     schema.Fresh env key → schema.StructCompat env →
     HistTables (env.addEliminator key schema) (T.addSchema env source)
   /-- Projection registration after the certified case eliminator of the same declaration
@@ -75,8 +73,7 @@ inductive HistTables : VEnv → Tables → Prop
   | proj {base envTypes envCtors : VEnv} {T : Tables} {decl : VInductDecl}
       {block : VInductBlock} {key : Name} {schema : CaseSchema} :
     HistTables base T → base.WF → (envCtors.addEliminators block.eliminators).WF →
-    block.eliminators = [(key, schema)] → schema.Certified base decl block →
-    decl.types.head?.map (·.name) = some key → schema.HeaderAgreement base decl →
+    block.eliminators = [(key, schema)] → schema.Registered base decl block key →
     decl.sourceNames.Nodup →
     (∀ type ∈ decl.types, type.toVConstant.WF base) →
     (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) →
@@ -112,10 +109,11 @@ theorem Tables.Inv.inductCases {decl : VInductDecl} {block : VInductBlock} {key 
   classical
   obtain ⟨hext, hinv⟩ := H.install' henv hcomp hblock hinstall hcle hdata hprior
   obtain ⟨_, _, _, _, hcase⟩ := helim
-  rcases hcase with ⟨hE', -⟩ | ⟨key', schema', hE', hcert, -, -, -⟩
+  rcases hcase with ⟨-, hE'⟩ | ⟨key', schema', hE', hreg', -⟩
   · rw [hE] at hE'; cases hE'
   rw [hE] at hE'
   obtain ⟨-, hs'⟩ := Prod.mk.inj (List.cons.inj hE').1.symm
+  have hcert := hreg'.certified
   rw [hs'] at hcert
   have hreg : env'.eliminators key schema :=
     (install_eliminators hinstall).mpr (.inl (by rw [hE]; exact List.mem_singleton_self _))
@@ -178,16 +176,16 @@ theorem HistTables.inv (H : HistTables env T) : T.Inv env ∧ env.WF := by
       ⟨_, .decl (.induct hdecl (.intro hdecl hcomp hblock helim hinstall)) henv.choose_spec⟩
     exact ⟨(Tables.Inv.inductCases ih.1 henv henv' hcomp hblock helim hE hinstall hcle hdata
       hprior).2, henv'⟩
-  | elim _ hbase henv hle hcert hkey hconsts hfresh hcompat ih =>
-    exact ⟨(ih.1.eliminator hbase hle hcert hconsts.1 hconsts.2.1).2,
-      VEnv.WF.inductEliminators hbase henv hle hcert hkey hconsts.1 hconsts.2.1 hconsts.2.2.1
-        hconsts.2.2.2.1 hconsts.2.2.2.2 hfresh hcompat⟩
-  | proj _ hbase hctorsWF hE hcert hkey hhdr hsource htypesWF hconstructorUvars hctorsWF'
+  | elim _ hbase henv hle hreg hconsts hdefeqs hprojs hcoherent hfresh hcompat ih =>
+    exact ⟨(ih.1.eliminator hbase hle hreg.certified hconsts hdefeqs).2,
+      VEnv.WF.inductEliminators hbase henv hle hreg hconsts hdefeqs hprojs hcoherent hfresh
+        hcompat⟩
+  | proj _ hbase hctorsWF hE hreg hsource htypesWF hconstructorUvars hctorsWF'
       hparams hshape htypesSource hctorsSource hprojections htypes hctors ih =>
-    have henv' := VEnv.WF.inductProjections hbase hctorsWF ⟨_, _, hE, hcert, hkey, hhdr⟩
+    have henv' := VEnv.WF.inductProjections hbase hctorsWF ⟨_, _, hE, hreg⟩
       hsource htypesWF hconstructorUvars hctorsWF' hparams hshape htypesSource hctorsSource
       hprojections htypes hctors
-    exact ⟨(ih.1.registerCasesProjections hbase hE hcert htypes hctors).2, henv'⟩
+    exact ⟨(ih.1.registerCasesProjections hbase hE hreg.certified htypes hctors).2, henv'⟩
 
 /-- Every well-formed history builds tables. -/
 theorem VEnv.WF'.histTables {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
@@ -211,18 +209,19 @@ theorem VEnv.WF'.histTables {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
           hcompile.compiled.compilationOrigin
         have helim' := helim
         obtain ⟨_, _, _, _, hcase⟩ := helim'
-        rcases hcase with ⟨hE, -⟩ | ⟨key, schema, hE, -⟩
+        rcases hcase with ⟨-, hE⟩ | ⟨key, schema, hE, -⟩
         · exact ⟨_, .induct hT henv hdecl hcompile hblock helim hE hinstall hcle hdata hprior⟩
         · exact ⟨_, .inductCases hT henv hdecl hcompile hblock helim hE hinstall hcle hdata
             hprior⟩
-  | inductEliminators hbase hprev hle hcert hkey hconsts hfresh hcompat _ ih =>
+  | inductEliminators hbase hprev hle hreg hconsts hdefeqs hprojs hcoherent hfresh hcompat _ ih =>
     obtain ⟨T, hT⟩ := ih
-    exact ⟨_, .elim hT ⟨_, hbase⟩ ⟨_, hprev⟩ hle hcert hkey hconsts hfresh hcompat⟩
+    exact ⟨_, .elim hT ⟨_, hbase⟩ ⟨_, hprev⟩ hle hreg hconsts hdefeqs hprojs hcoherent hfresh
+      hcompat⟩
   | inductProjections hbase hctorsWF hcovered hsource htypesWF hconstructorUvars hctorsWF'
       hparams hshape htypesSource hctorsSource hprojections htypes hctors ihBase _ =>
     obtain ⟨T, hT⟩ := ihBase
-    obtain ⟨key, schema, hE, hcert, hkey, hhdr⟩ := hcovered
-    exact ⟨_, .proj hT ⟨_, hbase⟩ ⟨_, hctorsWF⟩ hE hcert hkey hhdr hsource htypesWF
+    obtain ⟨key, schema, hE, hreg⟩ := hcovered
+    exact ⟨_, .proj hT ⟨_, hbase⟩ ⟨_, hctorsWF⟩ hE hreg hsource htypesWF
       hconstructorUvars hctorsWF' hparams hshape htypesSource hctorsSource hprojections htypes
       hctors⟩
 

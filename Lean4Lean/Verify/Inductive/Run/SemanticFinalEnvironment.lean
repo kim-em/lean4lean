@@ -106,7 +106,7 @@ theorem SemanticRunWithStatsResult.extendSafeExact
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
   rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
-  let B0 := Hrecursors.declaredBlockCertificate T.rules T.rulesWF
+  let B0 := Hrecursors.blockCertificate T.rules T.rulesWF
   let B := B0.sf_mono (safety := .safe) (by
     rw [hsafety]
     exact DefinitionSafety.le_rfl)
@@ -117,7 +117,8 @@ theorem SemanticRunWithStatsResult.extendSafeExact
   have hdecl : decl.WF (ves.venv .safe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) B.block :=
-    by simpa [B, B0, BlockCertificate.sf_mono, StagedBlock.sf_mono, BlockCertificate.block] using
+    by simpa [B, B0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
+      CompletedBlockCertificate.block] using
       (show OrdinaryCompilationCertificate _ decl B0.block from
         T.compilation hnonempty).compilesTo
   have hconstructors :
@@ -132,7 +133,7 @@ theorem SemanticRunWithStatsResult.extendSafeExact
     Hrecursors.constructorOwnersPresent wf.constructorOwners
   rcases B.extendSafeExact wf hcorner hdecl hcompile horigins T.recursorProvenance
       Hrecursors.closed howners hconstructors
-      (fun safety => Hrecursors.declaredBlockEliminatorsReplay T.rules T.rulesWF
+      (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
         (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
     ⟨ves', wf', hle, hadd, hsafe⟩
   have htypes : (ves.venv .safe).addConstVals (Hheaders.entries.map Prod.snd) =
@@ -171,7 +172,7 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
   rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
-  let B0 := Hrecursors.declaredBlockCertificate T.rules T.rulesWF
+  let B0 := Hrecursors.blockCertificate T.rules T.rulesWF
   let B := B0.sf_mono (safety := .unsafe) (by
     rw [hsafety]
     exact DefinitionSafety.le_rfl)
@@ -182,7 +183,8 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
   have hdecl : decl.WF (ves.venv .unsafe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .unsafe) B.block :=
-    by simpa [B, B0, BlockCertificate.sf_mono, StagedBlock.sf_mono, BlockCertificate.block] using
+    by simpa [B, B0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
+      CompletedBlockCertificate.block] using
       (show OrdinaryCompilationCertificate _ decl B0.block from
         T.compilation hnonempty).compilesTo
   have hisUnsafe : isUnsafe = true := by
@@ -213,7 +215,7 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
         hlocalSafety hrecursors
   rcases B.extendUnsafeOfHiddenExact wf hcorner hdecl hcompile
       horigins T.recursorProvenance hentries Hrecursors.closed howners hconstructors
-      (Hrecursors.declaredBlockEliminatorsWF T.rules T.rulesWF) with
+      (Hrecursors.blockEliminatorsWF T.rules T.rulesWF) with
     ⟨ves', wf', hle, hadd, hfinal⟩
   have htypes : (ves.venv .unsafe).addConstVals (Hheaders.entries.map Prod.snd) =
       some Hheaders.context.venv := by

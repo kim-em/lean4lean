@@ -1202,58 +1202,6 @@ theorem _root_.Lean.Expr.AvoidsConsts.abstractN
   | mdata data body _ ih => exact Lean.Expr.AvoidsConsts.mdata data _ (ih k)
   | proj structName idx body _ ih => exact Lean.Expr.AvoidsConsts.proj structName idx _ (ih k)
 
-/-- Simultaneous abstraction likewise preserves source-level absence. -/
-theorem _root_.Lean.Expr.AvoidsConsts.abstractList
-    (H : Lean.Expr.AvoidsConsts names e) (fvs : List FVarId)
-    (k : Nat := 0) :
-    Lean.Expr.AvoidsConsts names (Lean.Expr.abstractList e fvs k) := by
-  induction fvs generalizing e with
-  | nil => simpa using H
-  | cons fv fvs ih =>
-      simp only [Expr.abstractList]
-      exact ih (H.abstract1 fv k)
-
-/-- Every argument in an application spine is a constant-avoiding
-subexpression whenever the complete source expression is. -/
-theorem _root_.Lean.Expr.AvoidsConsts.getAppArgsList
-    (H : Lean.Expr.AvoidsConsts names e)
-    (harg : arg ∈ e.getAppArgsList) :
-    Lean.Expr.AvoidsConsts names arg := by
-  induction H with
-  | app fn value hfn hvalue ihFn ihValue =>
-    rw [Expr.getAppArgsList_app] at harg
-    rcases List.mem_append.mp harg with harg | harg
-    · exact ihFn harg
-    · simp only [List.mem_singleton] at harg
-      subst arg
-      exact hvalue
-  | bvar | fvar | mvar | sort | const | lam | forallE | letE | lit |
-      mdata | proj => simp [Expr.getAppArgsList] at harg
-
-theorem _root_.Lean.Expr.AvoidsConsts.mkAppN
-    (Hfn : Lean.Expr.AvoidsConsts names fn)
-    (Hargs : ∀ arg ∈ args, Lean.Expr.AvoidsConsts names arg) :
-    Lean.Expr.AvoidsConsts names (Lean.mkAppN fn args) := by
-  rw [Expr.mkAppN_eq_mkAppList]
-  have go : ∀ (list : List Expr) (fn : Expr),
-      Lean.Expr.AvoidsConsts names fn →
-      (∀ arg ∈ list, Lean.Expr.AvoidsConsts names arg) →
-      Lean.Expr.AvoidsConsts names (Expr.mkAppList fn list) := by
-    intro list
-    induction list with
-    | nil => intro fn hfn _; exact hfn
-    | cons arg rest ih =>
-      intro fn hfn hlist
-      simp only [Expr.mkAppList]
-      apply ih (.app fn arg)
-      · exact Lean.Expr.AvoidsConsts.app _ _ hfn
-          (hlist arg (by simp))
-      · intro inner hinner
-        exact hlist inner (by simp [hinner])
-  apply go args.toList fn Hfn
-  intro arg harg
-  exact Hargs arg (Array.mem_toList_iff.mp harg)
-
 /-- A translation performed before a fresh constant is installed certifies
 that the source syntax itself does not mention that constant.  Unlike
 `TrExprS.noFreshConsts`, this fact remains usable when the same source
@@ -1280,27 +1228,6 @@ theorem TrExprS.sourceAvoidsFresh
   | mdata _ ih => exact .mdata _ _ ih
   | proj _ _ ih => exact .proj _ _ _ ih
 
-/-- Every ordinary local declaration type in a recursor context predating a
-fresh constant set avoids those names in its concrete syntax. -/
-theorem RecursorContextWF.cdeclTypeAvoids
-    (R : RecursorContextWF c recLparams)
-    (hfresh : ∀ name ∈ names, R.venv.constants name = none)
-    (hfind : c.lctx.find? fv =
-      some (.cdecl index fv userName type bi kind)) :
-    type.AvoidsConsts names := by
-  have hfind' : R.mlctx.lctx.find? fv =
-      some (.cdecl index fv userName type bi kind) := by
-    rw [R.lctx_eq]
-    exact hfind
-  rw [R.mlctx_wf.tr.1.find?_eq_find?_toList] at hfind'
-  have hmem : (.cdecl index fv userName type bi kind) ∈
-      R.mlctx.lctx.toList :=
-    List.mem_of_find?_eq_some hfind'
-  rcases R.mlctx_wf.tr.find?_of_mem R.checking.tr.wf hmem with
-    ⟨valueTarget, typeTarget, hlookup, hvalueBelow, htypeBelow,
-      hvalueTr, htypeTr⟩
-  exact checkPositivityStep.TrExprS.sourceAvoidsFresh hfresh htypeTr
-
 /-- Source-support form of the local-context freshness invariant. -/
 def VLCtx.SourceConstFree (names : List Name) (Δ : VLCtx) : Prop :=
   ∀ {v mapped type}, Δ.find? v = some (mapped, type) →
@@ -1325,53 +1252,6 @@ theorem VLCtx.SourceConstFree.cons
     rw [← hmap]
     exact (H hfind).liftN d.depth 0
 
-/-- Source-level absence is preserved as source support.  Certified
-projection nodes retain the source major and deliberately ignore the
-administrative eliminator expansion. -/
-theorem TrExprS.noConstsOfSourceAvoids
-    (hsource : e.AvoidsConsts names)
-    (hctxSupport : VLCtx.SourceConstFree names Δ)
-    (H : TrExprS env Us Δ e e') :
-    e'.SourceConstFree names := by
-  induction H with
-  | bvar hfind | fvar hfind => exact hctxSupport hfind
-  | sort _ => exact .sort _
-  | @const name levels _ _ _ _ _ _ =>
-    cases hsource with
-    | const _ _ hnot =>
-      exact .const name _ hnot
-  | app _ _ _ _ ihFn ihArg =>
-    cases hsource with
-    | app _ _ hfn harg =>
-      exact .app (ihFn hfn hctxSupport) (ihArg harg hctxSupport)
-  | lam _ _ _ ihDom ihBody =>
-    cases hsource with
-    | lam _ _ _ _ hdom hbody =>
-      exact .lam (ihDom hdom hctxSupport)
-        (ihBody hbody (VLCtx.SourceConstFree.cons hctxSupport (.bvar 0)))
-  | forallE _ _ _ _ ihDom ihBody =>
-    cases hsource with
-    | forallE _ _ _ _ hdom hbody =>
-      exact .forallE (ihDom hdom hctxSupport)
-        (ihBody hbody (VLCtx.SourceConstFree.cons hctxSupport (.bvar 0)))
-  | letE _ _ _ _ ihType ihValue ihBody =>
-    cases hsource with
-    | letE _ _ _ _ _ htype hvalue hbody =>
-      exact ihBody hbody <| VLCtx.SourceConstFree.cons
-        (d := .vlet _ _) (ofv := none) hctxSupport
-        (ihValue hvalue hctxSupport)
-  | lit _ _ ih =>
-    cases hsource with
-    | lit _ hexpanded => exact ih hexpanded hctxSupport
-  | mdata _ ih =>
-    cases hsource with
-    | mdata _ _ hbody => exact ih hbody hctxSupport
-  | proj _ Hproj ih =>
-    cases hsource with
-    | proj _ _ _ hbody =>
-      cases Hproj
-      exact .proj _ _ (ih hbody hctxSupport)
-
 /-- When the translation is retained at the checking boundary, ordinary target
 well-formedness proves freshness for the whole translated expression,
 including projection targets. -/
@@ -1382,26 +1262,6 @@ theorem TrExprS.noFreshConstsAtCheckingEnv
     (H : TrExprS env Us Delta expression target) :
     target.containsAnyConst names = false :=
   VExpr.WF.noFreshConsts henv hfresh hctx.toCtx (H.wf henv hctx)
-
-/-- Pointwise post-installation counterpart driven by source-syntax
-absence rather than environment freshness. -/
-theorem List.Forall₂.targets_noConstsOfSourceAvoids
-    (H : List.Forall₂ (TrExprS env Us Delta) source target)
-    (hsource : ∀ arg ∈ source, arg.AvoidsConsts names)
-    (hctx : VLCtx.NoIndConsts names Delta) :
-    ∀ arg ∈ target, arg.SourceConstFree names := by
-  have hctxSupport : VLCtx.SourceConstFree names Delta :=
-    VLCtx.SourceConstFree.ofNoIndConsts (names := names) (Δ := Delta) hctx
-  induction H with
-  | nil => simp
-  | cons Hhead Htail ih =>
-    intro arg harg
-    simp only [List.mem_cons] at harg
-    rcases harg with rfl | harg
-    · exact checkPositivityStep.TrExprS.noConstsOfSourceAvoids
-        (hsource _ (by simp)) hctxSupport Hhead
-    · exact ih (fun sourceArg hmem => hsource sourceArg (by simp [hmem]))
-        arg harg
 
 theorem TrExprS.noIndOccAvailable
     (halign : IndConstNames indConsts names)

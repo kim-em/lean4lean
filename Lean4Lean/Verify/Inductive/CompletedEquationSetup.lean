@@ -10,40 +10,6 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Recursor installation makes every generated recursor name fresh in the
-completed constructor environment, independently of the formation route. -/
-theorem CompletedRecursorPhasesResult.recursorNamesFresh
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
-    (rules : List VDefEq) (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
-    ∀ name ∈ (H.blockCertificate rules hrules).block.recursors.map (·.name),
-      R.context.venv.constants name = none := by
-  have hfresh := VEnv.addConstVals_names_fresh H.installed.abstract |>.2
-  intro name hname
-  change name ∈ (H.entries.map Prod.snd).map (·.name) at hname
-  rcases List.mem_map.mp hname with ⟨recursor, hrecursor, rfl⟩
-  simpa using hfresh recursor hrecursor
-
-/-- Common equation-alignment layer for recursor runs entered from either
-ordinary or atomic primitive formation. -/
-def CompletedRecursorPhasesResult.generatedCertificate
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) :
-    GeneratedRecursors c.safety
-      R.context.venv c.lparams
-      H.elimLevel H.localContext stats indTypes H.recInfos H.entries := by
-  simpa [H.localExtends.safety_eq, H.localExtends.lparams_eq] using H.generated
-
 /-- Pointwise projection used by abstract iota reconstruction.  It exposes
 the exact generated source rule together with the semantic trace from the
 same executable constructor iteration. -/

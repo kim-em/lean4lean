@@ -444,7 +444,7 @@ theorem elimsValid_of_decl {envF env0 env' : VEnv} {ds : List VDecl} (hF : envF.
     Model.ElimsValid envF env' := by
   refine ⟨hEu, fun b schema owner rules df hb hr hm => ?_⟩
   rcases (VDecl.WF.eliminators_iff hdecl).1 hb with ⟨source, -, hreg⟩ | hb
-  · obtain ⟨block, envTypes, envCtors, -, hcomp, hbwf, hinst, ht, hc, hE, hcert, -, -, -⟩ := hreg
+  · obtain ⟨block, envTypes, envCtors, -, hcomp, hbwf, hinst, ht, hc, hE, ⟨hcert, -, -⟩, -⟩ := hreg
     have h0 : env0.Ordered := (show env0.WF from ⟨ds, hbase⟩).ordered
     obtain ⟨tE, cE, rE, htE, hcE, -, htwf, hcwf, -, -⟩ := hbwf
     cases ht.symm.trans htE
@@ -710,7 +710,8 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
               exact Model.proofBinder_of henvF hER hERF VR hdoms
                 (singleton_field_typing hER hEE hsing index hi hidx) hΔ hlw)
         · exact @ih' hcl0 df hdf
-  | @inductEliminators _ _ key base env source block schema _ hW hble hcert _ hcond _ hsc _ ih =>
+  | @inductEliminators _ _ key base env source block schema _ hW hble hreg hconsts _ _ hcoherent _
+      hsc _ ih =>
     intro hle hcl hpc
     have hle0 : env ≤ envF :=
       (show env ≤ env.addEliminator key schema from ⟨id, id, id, fun h => .inr h⟩).trans hle
@@ -724,10 +725,10 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
     rcases hb with ⟨rfl, rfl⟩ | hb
     rotate_left
     · exact IH.elim.valid _ _ _ _ _ hb hr hm
-    exact elimValid_of_registration hF hEu hctor h0 hle hble hcert hcond.1 hpc0 IH
+    exact elimValid_of_registration hF hEu hctor h0 hle hble hreg.certified hconsts hpc0 IH
       (fun F hF' info hp hc => by
         have hp0 := hpc _ _ hp (.inr hc)
-        exact ⟨hcond.2.2.2.1 _ hF' info hp0, IH.proj _ _ hp0⟩) hr hm
+        exact ⟨hcoherent _ hF' info hp0, IH.proj _ _ hp0⟩) hr hm
   | @inductProjections _ ds base envTypes envCtors decl block hbase _ helimE hsource htypesWF
       hconstructorUvars hctorsWF' hspw hshape htypesSource hctorsSource hprojections htypes hctors
       ihBase _ =>
@@ -736,7 +737,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
     -- constructor there without its entry: its validity is not that of an earlier environment.
     -- The block's rules and entries come from `base`, and its eliminator is validated directly.
     intro hle hcl hpc
-    obtain ⟨key, schema, hE, hcert, -, -⟩ := helimE
+    obtain ⟨key, schema, hE, ⟨hcert, -, -⟩⟩ := helimE
     have hES : envCtors.addEliminators block.eliminators = envCtors.addEliminator key schema := by
       rw [hE]; rfl
     have hEF : envCtors.addEliminator key schema ≤ envF := by

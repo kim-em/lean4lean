@@ -15,7 +15,7 @@ namespace VerifyInductive
 header/constructor pipeline (`ConstructorPhasesResult`).  The recursor result
 itself is `CompletedRecursorPhasesResult R.completed`; the lemmas here only
 add what is visible through the declared header and constructor traces
-(source lookups for nested restoration and the declared installation). -/
+(source lookups for nested restoration). -/
 
 /-- Header metadata installed at the start of the verified pipeline remains
 retrievable, unchanged, after constructors and recursors are installed. -/
@@ -58,7 +58,7 @@ theorem CompletedRecursorPhasesResult.findSourceHeader
       info.all = indTypes.toList.map (fun type => type.name) := by
   rcases Hheaders.sourceAligned with ⟨numNested, Haligned⟩
   have htypesLength : indTypes.size = decl.types.length := by
-    simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    simpa using List.Forall₂.length_eq
       Hheaders.translation.types
   have hsize : stats.nindices.size = indTypes.size := by
     rw [Array.size_eq_length_toList, Hheaders.materialized.indices,
@@ -670,128 +670,6 @@ def CompletedRecursorPhasesResult.restoredSourcePrimaryRecursorRealization
     recursor_eq := rfl
     refinement := ⟨huvarArity, Htype⟩ }
 
-theorem DeclaredHeadersResult.typesWF
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
-      indTypes outEnv) :
-    ∀ ci ∈ H.entries.map Prod.snd, ci.toVConstant.WF sourceEnv := by
-  rw [H.values]
-  intro ci hci
-  simp only [VInductDecl.typeConstants] at hci
-  rcases List.mem_map.mp hci with ⟨target, htarget, rfl⟩
-  rcases Lean4Lean.List.Forall₂.forall_exists_r H.translation.types target
-      htarget with ⟨source, _, Htarget⟩
-  exact Htarget.header.wf
-
-theorem DeclaredConstructorsResult.ctorsWF
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv outEnv : Environment}
-    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
-      indTypes headerEnv}
-    (R : DeclaredConstructorsResult H outEnv) :
-    ∀ ci ∈ R.entries.map Prod.snd,
-      ci.toVConstant.WF H.context.venv := by
-  rw [R.values]
-  intro ci hci
-  simp only [VInductDecl.constructorConstants, List.mem_flatMap] at hci
-  rcases hci with ⟨target, htarget, hci⟩
-  rcases Lean4Lean.List.Forall₂.forall_exists_r R.translation.types target
-      htarget with ⟨source, _, Htarget⟩
-  rcases Lean4Lean.List.Forall₂.forall_exists_r Htarget ci hci with
-    ⟨ctor, _, Hctor⟩
-  exact Hctor.wf
-
-/-- The ordinary staged installation trace (headers, then constructors,
-then recursors) of a recursor phase entered from the declared header and
-constructor pipeline.  Unlike `CompletedRecursorPhasesResult.staged`, it
-retains the separate header and constructor installations. -/
-def CompletedRecursorPhasesResult.declaredStaged
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv) :
-    StagedBlock c.safety c.env sourceEnv Hheaders.entries R.declared.entries
-      H.entries decl.projectionEntries outEnv H.outVEnv where
-  envTypes := headerEnv
-  venvTypes := Hheaders.context.venv
-  envCtors := ctorEnv
-  venvCtors := R.declared.venvCtors
-  typesAdded := Hheaders.installed
-  ctorsAdded := R.declared.installed
-  eliminators := R.declared.eliminators
-  casesWF := R.completed.casesWF
-  projectedWF := by
-    simpa [ConstructorPhasesResult.completed, R.declared.contextVEnv] using
-      R.completed.projectedWF
-  recursorsAdded := by
-    rw [← R.declared.contextVEnv]
-    simpa [ConstructorPhasesResult.completed, H.localExtends.safety_eq,
-      H.localExtends.env_eq] using H.installed
-
-def CompletedRecursorPhasesResult.declaredBlockCertificate
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
-    (rules : List VDefEq)
-    (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
-    BlockCertificate c.safety c.env sourceEnv Hheaders.entries
-      R.declared.entries H.entries rules outEnv H.outVEnv := by
-  let Hgenerated : GeneratedRecursors c.safety
-      ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries)
-      c.lparams H.elimLevel H.localContext stats indTypes H.recInfos
-      H.entries := by
-    rw [← R.declared.contextVEnv]
-    simpa [ConstructorPhasesResult.completed, H.localExtends.safety_eq,
-      H.localExtends.lparams_eq] using
-      H.generated
-  let Hgenerated' : GeneratedRecursors c.safety
-      ((H.declaredStaged.venvCtors.addEliminators H.declaredStaged.eliminators).addProjections
-        decl.projectionEntries)
-      c.lparams H.elimLevel H.localContext stats indTypes H.recInfos H.entries := Hgenerated
-  exact Hgenerated'.toBlockCertificate decl.projectionEntries H.declaredStaged
-    H.localWF H.bindings H.params Hheaders.typesWF R.declared.ctorsWF hrules
-
-/-- The declared block registers the declaration's certified case eliminators. -/
-theorem CompletedRecursorPhasesResult.declaredBlockEliminatorsWF
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
-    (rules : List VDefEq)
-    (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
-    VInductBlock.EliminatorsWF sourceEnv decl (H.declaredBlockCertificate rules hrules).block :=
-  R.declared.eliminatorsWF.congr_block Hheaders.values R.declared.values rfl rfl
-
-/-- The block's case eliminators are certified over every larger environment in which its
-families and constructors install. -/
-theorem CompletedRecursorPhasesResult.declaredBlockEliminatorsReplay
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
-    (rules : List VDefEq)
-    (hrules : ∀ df ∈ rules, df.WF H.outVEnv) {env' : VEnv} (hle : sourceEnv ≤ env') :
-    VInductBlock.EliminatorsReplay env' decl (H.declaredBlockCertificate rules hrules).block :=
-  R.declared.eliminatorsOrdinary.replay hle Hheaders.values R.declared.values rfl rfl
-
 /-- Rebase a conversion between two dependent prefixes along a conversion
 of their common suffix.  Both prefix contexts are known well formed from the
 original conversion, so changing the suffix on each side is admissible even
@@ -810,9 +688,9 @@ theorem VEnv.IsDefEqCtx.rebaseCommonSuffix
   have HrightToOuter :=
     VEnv.IsDefEqCtx.extendSamePrefix
       (Hsuffix.symm henv.ordered) HrightInner
-  exact VEnv.IsDefEqCtx.transEmpty henv
+  exact Lean4Lean.VEnv.IsDefEqCtx.trans_empty henv
     (HleftToOuter.symm henv.ordered) <|
-      VEnv.IsDefEqCtx.transEmpty henv Hprefix HrightToOuter
+      Lean4Lean.VEnv.IsDefEqCtx.trans_empty henv Hprefix HrightToOuter
 
 end VerifyInductive
 end Lean4Lean

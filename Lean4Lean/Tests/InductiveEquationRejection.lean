@@ -31,7 +31,7 @@ theorem legacyEquationRejectedAmongRules {env : VEnv} {source : VInductDecl}
   simp [h]
 
 /-- The active installation interface also rejects the legacy equation:
-ordinary and nested branches both supply the same finite derivation. -/
+it carries the finite derivation. -/
 theorem activeCompilationRejectsLegacyEquation {env : VEnv} {source : VInductDecl}
     {block : VInductBlock} (h : badRule ∈ block.rules) :
     ¬ source.CompilesTo env block := by

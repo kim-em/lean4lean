@@ -56,7 +56,7 @@ now requires `VInductDecl.ProjectionsCoherent` (Theory/Typing/Env.lean), which
 excludes the example above, and `VEnv.WF.eliminatorsCoherent`
 (EliminatorCoherenceOfWF.lean) derives `VEnv.EliminatorsCoherent` from
 `VEnv.WF`. No producer in the verified pipeline registers schemas for foreign
-projection metadata: `Certified.register_after_constructors` proves the premise
+projection metadata: `Registered.register_after_constructors` proves the premise
 from freshness, and `CheckingEnv.Valid.registerCases` takes it. -/
 
 namespace Lean4Lean.InductiveSignature.CaseSchema

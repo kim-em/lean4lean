@@ -440,21 +440,6 @@ theorem Expr.abstractList_mkAppN :
     rw [ih]
     simp
 
-theorem Expr.liftLooseBVars'_mkAppN :
-    (mkAppN fn args).liftLooseBVars' start amount =
-      mkAppN (fn.liftLooseBVars' start amount)
-        (args.map fun arg => arg.liftLooseBVars' start amount) := by
-  unfold mkAppN
-  rw [← Array.foldl_toList, ← Array.foldl_toList]
-  simp only [Array.toList_map]
-  generalize args.toList = list
-  induction list generalizing fn with
-  | nil => simp
-  | cons arg args ih =>
-    simp only [List.foldl_cons, List.map_cons]
-    rw [ih]
-    simp [Expr.liftLooseBVars']
-
 theorem Expr.mkAppRange_to_end
     (fn : Expr) (args : Array Expr) (start : Nat)
     (hstart : start ≤ args.size) :
@@ -2104,43 +2089,6 @@ theorem FVarsIn.of_abstractList
   simp [abstractForallContext, List.reverse_append, List.map_append,
     List.append_assoc]
 
-/-- Abstracting a lambda telescope only prepends bound variables, so it
-preserves absence of a selected set of constants in context values. -/
-theorem VLCtx.NoIndConsts.abstractForallContext
-    (H : VLCtx.NoIndConsts names Δ) :
-    VLCtx.NoIndConsts names (abstractForallContext domains Δ) := by
-  unfold Lean4Lean.VerifyInductive.abstractForallContext
-  have go : ∀ (entries : List VExpr) {v : Nat ⊕ FVarId}
-      {mapped type : VExpr},
-      (VLCtx.find? ((entries.map fun type =>
-        ((none, VLocalDecl.vlam type) :
-          Option (FVarId × List FVarId) × VLocalDecl)) ++ Δ) v =
-        some (mapped, type)) →
-      mapped.containsAnyConst names = false := by
-    intro entries
-    induction entries with
-    | nil =>
-      intro v mapped type hfind
-      exact H hfind
-    | cons type entries ih =>
-      intro v mapped result hfind
-      have hprefix : VLCtx.NoIndConsts names
-          ((entries.map fun type =>
-            ((none, VLocalDecl.vlam type) :
-              Option (FVarId × List FVarId) × VLocalDecl)) ++ Δ) := by
-        intro v mapped result hfind
-        exact ih hfind
-      have hcons : VLCtx.NoIndConsts names
-          ((none, VLocalDecl.vlam type) ::
-            (entries.map fun type =>
-              ((none, VLocalDecl.vlam type) :
-                Option (FVarId × List FVarId) × VLocalDecl)) ++ Δ) :=
-        VLCtx.NoIndConsts.cons
-          (ofv := none) (d := VLocalDecl.vlam type) hprefix (by rfl)
-      exact hcons (by simpa only [List.map_cons, List.cons_append] using hfind)
-  intro v mapped type hfind
-  exact go domains.reverse hfind
-
 /-- Prepending the abstract lambda domains is the canonical bound-variable
 lift of the retained outer context. -/
 theorem abstractForallContext.bvLift
@@ -3588,29 +3536,6 @@ inductive Expr.AvoidingLambdaTelescope (names : List Name) :
       AvoidingLambdaTelescope names (.lam name dom body bi) (arity + 1)
         result
 
-/-- Avoidance is a property of the shared binder domains, not of the
-unrestricted residual.  It therefore transports across an exact common
-lambda prefix once the replacement telescope identifies its residual. -/
-theorem Expr.SameLambdaPrefix.avoidingLambdaTelescope
-    (Hsame : Expr.SameLambdaPrefix arity template replacement)
-    (Htemplate : Expr.AvoidingLambdaTelescope names template arity
-      templateResidual)
-    (Hreplacement : Expr.LambdaTelescope replacement arity
-      replacementResidual) :
-    Expr.AvoidingLambdaTelescope names replacement arity
-      replacementResidual := by
-  induction Hsame generalizing templateResidual replacementResidual with
-  | nil =>
-      cases Htemplate
-      cases Hreplacement
-      exact .nil _
-  | cons Hsame ih =>
-      cases Htemplate with
-      | cons hdomain HtemplateTail =>
-        cases Hreplacement with
-        | cons HreplacementTail =>
-          exact .cons hdomain (ih HtemplateTail HreplacementTail)
-
 theorem Expr.AvoidingLambdaTelescope.trans
     (Houter : Expr.AvoidingLambdaTelescope names outer outerArity middle)
     (Hinner : Expr.AvoidingLambdaTelescope names middle innerArity result) :
@@ -3633,17 +3558,6 @@ theorem Expr.AvoidingLambdaTelescope.abstract1
     simp only [Expr.abstract1]
     apply Expr.AvoidingLambdaTelescope.cons (hdom.abstract1 fv k)
     simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
-
-theorem Expr.AvoidingLambdaTelescope.abstractList
-    (H : Expr.AvoidingLambdaTelescope names outer arity result)
-    (fvs : List FVarId) (k : Nat := 0) :
-    Expr.AvoidingLambdaTelescope names (outer.abstractList fvs k) arity
-      (result.abstractList fvs (k + arity)) := by
-  induction fvs generalizing outer result k with
-  | nil => simpa using H
-  | cons fv fvs ih =>
-    simp only [Expr.abstractList]
-    exact ih (H.abstract1 fv k) k
 
 /-- Translation of a lambda telescope retains its arity and exposes the
 residual translation beneath precisely the corresponding abstract binders. -/
@@ -3720,49 +3634,6 @@ theorem TrExprS.lambdaTelescope_contextWF
           simpa [abstractForallContext, List.reverse_cons,
             List.map_append, List.append_assoc] using
               ih htail HbodyTr hnext
-
-/-- Post-installation telescope inversion driven by source-syntax absence.
-Only binder domains are shown recursor-free; the residual is allowed to
-contain the newly installed recursor constants. -/
-theorem TrExprS.avoidingLambdaTelescope_shape_with_context
-    (Htel : Expr.AvoidingLambdaTelescope names e arity residual)
-    (hctx : VLCtx.NoIndConsts names Delta)
-    (Htr : TrExprS env Us Delta e e') :
-    ∃ domains residual', domains.length = arity ∧
-      e' = VExpr.wrapLams domains residual' ∧
-      TrExprS env Us (abstractForallContext domains Delta)
-        residual residual' ∧
-      ∀ dom ∈ domains, dom.SourceConstFree names := by
-  have hctxSupport : checkPositivityStep.VLCtx.SourceConstFree names Delta :=
-    checkPositivityStep.VLCtx.SourceConstFree.ofNoIndConsts
-      (names := names) (Δ := Delta) hctx
-  clear hctx
-  induction Htel generalizing Delta e' with
-  | nil =>
-    exact ⟨[], e', rfl, rfl,
-      by simpa [abstractForallContext] using Htr, by simp⟩
-  | @cons dom body arity residual name bi hdom Htel ih =>
-    cases Htr with
-    | @lam dom' body' =>
-      rename_i _ hdomTr hbody
-      have hdomFree :=
-        checkPositivityStep.TrExprS.noConstsOfSourceAvoids
-          hdom hctxSupport hdomTr
-      have hctx' : checkPositivityStep.VLCtx.SourceConstFree names
-          ((none, VLocalDecl.vlam dom') :: Delta) :=
-        checkPositivityStep.VLCtx.SourceConstFree.cons
-          (d := .vlam dom') (ofv := none) hctxSupport (.bvar 0)
-      rcases ih hbody hctx' with
-        ⟨domains, residual', hlength, heq, hresidual, hfree⟩
-      refine ⟨dom' :: domains, residual', by simp [hlength], ?_, ?_, ?_⟩
-      · simp [VExpr.wrapLams, heq]
-      · simpa [abstractForallContext, List.map_append, List.append_assoc]
-          using hresidual
-      · intro current hmem
-        simp only [List.mem_cons] at hmem
-        rcases hmem with rfl | hmem
-        · exact hdomFree
-        · exact hfree current hmem
 
 /-- The production `LocalContext.mkLambda` interface specialized to an
 explicit array of ordinary local free variables, with the exact (simultaneous)
@@ -3871,21 +3742,6 @@ theorem LocalContext.mkLambda_fvars_lambdaTelescopeList
       fvs.length (body.abstractList fvs) := by
   rw [← Expr.abstractN_eq_abstractList_of_closed hnodup hb]
   exact LocalContext.mkLambda_fvars_lambdaTelescopeN hdecl
-
-theorem LocalContext.mkLambda_fvars_avoidingLambdaTelescopeN
-    {lctx : LocalContext} {fvs : List FVarId} {body : Expr}
-    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
-      lctx.find? fv = some (.cdecl index fv name type bi kind))
-    (havoid : ∀ fv index name type bi kind,
-      fv ∈ fvs →
-      lctx.find? fv = some (.cdecl index fv name type bi kind) →
-      type.AvoidsConsts namesToAvoid) :
-    Expr.AvoidingLambdaTelescope namesToAvoid
-      (lctx.mkLambda (fvs.map Expr.fvar).toArray body)
-      fvs.length (body.abstractN fvs) := by
-  rw [LocalContext.mkLambda, LocalContext.mkBinding_eqN]
-  exact LocalContext.mkBindingListN_avoidingLambdaTelescope hdecl havoid
-
 
 theorem LocalContext.mkBindingListN_append_four
     (hdecl : ∀ fv ∈ ((as ++ bs) ++ cs) ++ ds,

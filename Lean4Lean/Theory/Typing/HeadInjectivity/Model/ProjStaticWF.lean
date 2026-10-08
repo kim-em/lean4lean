@@ -313,7 +313,7 @@ theorem WF'.quot_projections : ∀ {ds env}, VEnv.WF' ds env → env.defeqs quot
           · rw [h, hQ] at hfS; cases hfS
           · rw [h, hM] at hfC; cases hfC
         · exact h3 S info hp
-  | inductEliminators _ _ _ _ _ _ _ _ _ ih =>
+  | inductEliminators _ _ _ _ _ _ _ _ _ _ _ ih =>
     intro hq hlift
     obtain ⟨h1, h2, h3⟩ := ih hq hlift
     exact ⟨h1, h2, fun S info hp => h3 S info hp⟩

@@ -196,7 +196,7 @@ theorem CompletedConstructorPhases.headerCheckingAnnotations
   have Hheader : CheckingEnv c.safety R.headerEnv R.headerVEnv := by
     cases R.installation with
     | ordinary Htypes _ => exact (Htypes.validCore Hsource.toValidCore).tr
-    | primitive Htypes _ _ => exact Htypes.checking Hsource.tr
+    | primitive Htypes _ _ _ => exact Htypes.checking Hsource.tr
   refine ⟨Hheader, .of_reflect _ _ fun {n v} hfind => ?_⟩
   have hreflect : ∀ {entries : List (ConstantInfo × VConstVal)},
       (∀ entry ∈ entries, ∃ info : ConstructorVal, entry.1 = .ctorInfo info) →
@@ -211,7 +211,7 @@ theorem CompletedConstructorPhases.headerCheckingAnnotations
   cases R.installation with
   | ordinary _ Hctors =>
     exact hreflect R.constructorProduction (Hctors.entryOrigin Hheader.map_wf hfind)
-  | primitive _ Hctors _ =>
+  | primitive _ Hctors _ _ =>
     exact hreflect R.constructorProduction (Hctors.entryOrigin Hheader.map_wf hfind)
 
 theorem CompletedConstructorPhases.headerAnonymousParameterWF

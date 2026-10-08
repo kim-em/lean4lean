@@ -100,8 +100,8 @@ theorem VEnv.WF'.schemaStructCompat {ds : List VDecl} {env : VEnv} (H : env.WF' 
   | @decl env' d env ds h henv ih =>
     intro key schema s info hlookup hproj owner hname
     rcases h.eliminators_iff.mp hlookup with
-      ⟨source, -, block, envTypes, envCtors, -, -, -, hinstall, ht, hc, -, hcert, -⟩ | hlookup
-    · exact hcert.structCompat ⟨_, henv⟩ ht hc (install_projections hinstall ht hc hproj) owner hname
+      ⟨source, -, block, envTypes, envCtors, -, -, -, hinstall, ht, hc, -, hreg, -⟩ | hlookup
+    · exact hreg.certified.structCompat ⟨_, henv⟩ ht hc (install_projections hinstall ht hc hproj) owner hname
     rcases h.projections_fresh hproj with hold | hfresh
     · exact ih hlookup hold owner hname
     · exact (fresh_not_family ⟨_, henv⟩ hlookup hfresh hname).elim
@@ -111,16 +111,16 @@ theorem VEnv.WF'.schemaStructCompat {ds : List VDecl} {env : VEnv} (H : env.WF' 
     simp only [VEnv.addProjections_eliminators] at hlookup
     rcases VEnv.addProjections_iff.mp hproj with ⟨entry, hentry, rfl, hinfo⟩ | hold
     · rcases VEnv.addEliminators_iff.mp hlookup with hmem | hlookup
-      · obtain ⟨key', schema', hE, hcert, -⟩ := hcovered
+      · obtain ⟨key', schema', hE, hreg⟩ := hcovered
         rw [hE, List.mem_singleton, Prod.mk.injEq] at hmem
         obtain ⟨rfl, rfl⟩ := hmem
-        exact hcert.structCompat ⟨_, hbase⟩ htypes hctors
+        exact hreg.certified.structCompat ⟨_, hbase⟩ htypes hctors
           (VEnv.addProjections_iff.mpr (.inl ⟨entry, hentry, rfl, hinfo⟩)) owner hname
       rw [VEnv.addConstVals_eliminators hctors, VEnv.addConstVals_eliminators htypes] at hlookup
       exact (fresh_not_family ⟨_, hbase⟩ hlookup
         (projectionEntries_fresh htypesSource hprojections htypes hentry) hname).elim
     · exact ih hlookup hold owner hname
-  | inductEliminators _ _ _ _ _ _ _ hcompat _ ih =>
+  | inductEliminators _ _ _ _ _ _ _ _ _ hcompat _ ih =>
     intro key schema s info hlookup hproj owner hname
     rcases hlookup with ⟨rfl, rfl⟩ | hlookup
     · exact hcompat hproj owner hname

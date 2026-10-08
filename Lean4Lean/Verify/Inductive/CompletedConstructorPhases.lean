@@ -11,7 +11,9 @@ namespace VerifyInductive
 /-- The two sound installation histories that can reach the completed
 constructor boundary.  Ordinary declarations preserve validity after every
 constant; primitive Bool/Nat declarations instead regain it only after the
-whole header/constructor batch. -/
+whole header/constructor batch, which is why the primitive case records that
+the batch is exactly the canonical Bool or Nat batch and that its primitive
+production names are safe and universe-monomorphic. -/
 inductive CompletedFormationInstallation (safety : DefinitionSafety)
     (sourceEnv : Environment) (sourceVEnv : VEnv)
     (headerEntries : List (ConstantInfo × VConstVal))
@@ -28,8 +30,11 @@ inductive CompletedFormationInstallation (safety : DefinitionSafety)
     AtomicAddConstants safety sourceEnv sourceVEnv headerEntries
       headerEnv headerVEnv ->
     AtomicAddConstants safety headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv ->
-    PrimitiveBootstrapInstallation sourceVEnv ctorVEnv
-      (headerEntries.map Prod.snd ++ ctorEntries.map Prod.snd) ->
+    (headerEntries.map Prod.snd ++ ctorEntries.map Prod.snd = primitiveBoolConstants ∨
+      headerEntries.map Prod.snd ++ ctorEntries.map Prod.snd = primitiveNatConstants) ->
+    (∀ entry ∈ headerEntries ++ ctorEntries,
+      Kernel.Environment.primitives.contains entry.1.name →
+      entry.1.safety = .safe ∧ entry.1.levelParams = []) ->
     CompletedFormationInstallation safety sourceEnv sourceVEnv
       headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv
 
@@ -42,9 +47,9 @@ def CompletedFormationInstallation.sf_mono
   cases H with
   | ordinary Hheaders Hctors =>
       exact .ordinary (Hheaders.sf_mono hsafety) (Hctors.sf_mono hsafety)
-  | primitive Hheaders Hctors Hbootstrap =>
+  | primitive Hheaders Hctors hconstants hsafe =>
       exact .primitive (Hheaders.sf_mono hsafety) (Hctors.sf_mono hsafety)
-        Hbootstrap
+        hconstants hsafe
 
 theorem CompletedFormationInstallation.headerLE
     (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
@@ -52,7 +57,7 @@ theorem CompletedFormationInstallation.headerLE
     sourceVEnv <= headerVEnv := by
   cases H with
   | ordinary Htypes _ => exact Htypes.le
-  | primitive Htypes _ _ => exact Htypes.le
+  | primitive Htypes _ _ _ => exact Htypes.le
 
 theorem CompletedFormationInstallation.constructorLE
     (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
@@ -60,7 +65,7 @@ theorem CompletedFormationInstallation.constructorLE
     headerVEnv <= ctorVEnv := by
   cases H with
   | ordinary _ Hctors => exact Hctors.le
-  | primitive _ Hctors _ => exact Hctors.le
+  | primitive _ Hctors _ _ => exact Hctors.le
 
 theorem CompletedFormationInstallation.headerAbstract
     (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
@@ -68,7 +73,7 @@ theorem CompletedFormationInstallation.headerAbstract
     sourceVEnv.addConstVals (headerEntries.map Prod.snd) = some headerVEnv := by
   cases H with
   | ordinary Htypes _ => exact Htypes.abstract
-  | primitive Htypes _ _ => exact Htypes.abstract
+  | primitive Htypes _ _ _ => exact Htypes.abstract
 
 theorem CompletedFormationInstallation.constructorAbstract
     (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
@@ -76,7 +81,7 @@ theorem CompletedFormationInstallation.constructorAbstract
     headerVEnv.addConstVals (ctorEntries.map Prod.snd) = some ctorVEnv := by
   cases H with
   | ordinary _ Hctors => exact Hctors.abstract
-  | primitive _ Hctors _ => exact Hctors.abstract
+  | primitive _ Hctors _ _ => exact Hctors.abstract
 
 /-- The complete formation endpoint always carries the local checker
 invariant. In the primitive case the header-only prefix is used only as a
@@ -90,7 +95,7 @@ theorem CompletedFormationInstallation.checking
   | ordinary Htypes Hctors =>
       exact (AtomicAddConstants.ofAddConstants Hctors).checking
         ((AtomicAddConstants.ofAddConstants Htypes).checking Hsource)
-  | primitive Htypes Hctors _ =>
+  | primitive Htypes Hctors _ _ =>
       exact Hctors.checking (Htypes.checking Hsource)
 
 theorem CompletedFormationInstallation.quotInit_eq
@@ -100,7 +105,7 @@ theorem CompletedFormationInstallation.quotInit_eq
   cases H with
   | ordinary Htypes Hctors =>
       exact Hctors.quotInit_eq.trans Htypes.quotInit_eq
-  | primitive Htypes Hctors _ =>
+  | primitive Htypes Hctors _ _ =>
       exact Hctors.quotInit_eq.trans Htypes.quotInit_eq
 
 /-- Replay a complete formation prefix in a larger abstract environment.
@@ -125,17 +130,13 @@ theorem CompletedFormationInstallation.rebase
         ⟨largerCtors, Hctors', hctors⟩
       exact ⟨largerHeader, largerCtors,
         ⟨.ordinary Htypes' Hctors'⟩, hheader, hctors⟩
-  | primitive Htypes Hctors _Hbootstrap =>
+  | primitive Htypes Hctors hconstants hsafe =>
       rcases Htypes.rebase Hvalid hsafety hsource with
         ⟨largerHeader, Htypes', hheader⟩
       rcases Hctors.rebase (Htypes'.checking Hvalid) hsafety hheader with
         ⟨largerCtors, Hctors', hctors⟩
-      have Hbootstrap' : PrimitiveBootstrapInstallation largerSource
-          largerCtors
-          (headerEntries.map Prod.snd ++ ctorEntries.map Prod.snd) :=
-        ⟨VEnv.addConstVals_append Htypes'.abstract Hctors'.abstract⟩
       exact ⟨largerHeader, largerCtors,
-        ⟨.primitive Htypes' Hctors' Hbootstrap'⟩, hheader, hctors⟩
+        ⟨.primitive Htypes' Hctors' hconstants hsafe⟩, hheader, hctors⟩
 
 theorem CompletedFormationInstallation.headerMapWF
     (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
@@ -143,7 +144,7 @@ theorem CompletedFormationInstallation.headerMapWF
     (hwf : sourceEnv.constants.WF) : headerEnv.constants.WF := by
   cases H with
   | ordinary Htypes _ => exact Htypes.targetMapWF hwf
-  | primitive Htypes _ _ => exact Htypes.targetMapWF hwf
+  | primitive Htypes _ _ _ => exact Htypes.targetMapWF hwf
 
 /-- A retained header entry is visible at the completed constructor endpoint
 for both ordinary and atomic primitive histories. -/
@@ -158,7 +159,7 @@ theorem CompletedFormationInstallation.findHeaderEntry
   | ordinary Htypes Hctors =>
       exact Hctors.preservesSourceFind hheaderWF
         (Htypes.findEntry hwf hentry)
-  | primitive Htypes Hctors _ =>
+  | primitive Htypes Hctors _ _ =>
       exact Hctors.preservesSourceFind hheaderWF
         (Htypes.findEntry hwf hentry)
 
@@ -180,12 +181,58 @@ theorem CompletedFormationInstallation.entryOrigin
       · exact .inl h
       · exact .inr (.inl ⟨e, he, rfl⟩)
     · exact .inr (.inr ⟨e, he, rfl⟩)
-  | primitive Htypes Hctors _ =>
+  | primitive Htypes Hctors _ _ =>
     rcases Hctors.entryOrigin hheaderWF hfind with h | ⟨e, he, -, rfl⟩
     · rcases Htypes.entryOrigin hwf h with h | ⟨e, he, -, rfl⟩
       · exact .inl h
       · exact .inr (.inl ⟨e, he, rfl⟩)
     · exact .inr (.inr ⟨e, he, rfl⟩)
+
+/-- The header and constructor prefix as one atomic lockstep batch, for either
+installation history. -/
+theorem CompletedFormationInstallation.atomic
+    (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
+      headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv) :
+    AtomicAddConstants safety sourceEnv sourceVEnv (headerEntries ++ ctorEntries)
+      ctorEnv ctorVEnv := by
+  cases H with
+  | ordinary Htypes Hctors =>
+      exact (AtomicAddConstants.ofAddConstants Htypes).append
+        (AtomicAddConstants.ofAddConstants Hctors)
+  | primitive Htypes Hctors _ _ => exact Htypes.append Hctors
+
+/-- The completed formation prefix restores `HasPrimitives`: ordinary
+installation never touches a primitive name, and a primitive batch is the
+complete canonical Bool or Nat bootstrap. -/
+theorem CompletedFormationInstallation.hasPrimitives
+    (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
+      headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv)
+    (Hsource : sourceVEnv.HasPrimitives) : ctorVEnv.HasPrimitives := by
+  cases H with
+  | ordinary Htypes Hctors => exact Hctors.hasPrimitives (Htypes.hasPrimitives Hsource)
+  | primitive Htypes Hctors hconstants _ =>
+      have hadd := VEnv.addConstVals_append Htypes.abstract Hctors.abstract
+      rcases hconstants with hbool | hnat
+      · rw [hbool] at hadd
+        exact VEnv.HasPrimitives.addBoolBootstrap Hsource hadd
+      · rw [hnat] at hadd
+        exact VEnv.HasPrimitives.addNatBootstrap Hsource hadd
+
+/-- The completed formation endpoint carries the local checking invariants,
+for both installation histories. -/
+theorem CompletedFormationInstallation.validCore
+    (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
+      headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv)
+    (Hsource : CheckingEnv.ValidCore safety sourceEnv sourceVEnv) :
+    CheckingEnv.ValidCore safety ctorEnv ctorVEnv := by
+  have hprimitives := H.hasPrimitives Hsource.hasPrimitives
+  have hchecking := H.checking Hsource.tr
+  cases H with
+  | ordinary Htypes Hctors => exact Hctors.validCore (Htypes.validCore Hsource)
+  | primitive Htypes Hctors _ hsafe =>
+      exact ⟨hchecking, hprimitives,
+        (Htypes.append Hctors).safePrimitives Hsource.tr.map_wf
+          Hsource.safePrimitives hsafe⟩
 
 theorem InductiveHeaderEntries.not_ctor (H : InductiveHeaderEntries infos entries) :
     ∀ e ∈ entries, ∀ info : ConstructorVal, e.1 ≠ .ctorInfo info := by
@@ -265,7 +312,8 @@ structure CompletedConstructorPhases (c : AddInductive.Context)
   /-- The declaration's certified case eliminator, registered over the constructors. -/
   eliminators : List (Name × InductiveSignature.CaseSchema)
   eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock eliminators)
-  eliminatorsOrdinary : decl.OrdinaryCaseEliminators sourceEnv eliminators
+  eliminatorsCertified : decl.CaseEliminators sourceEnv (fun _ => False) eliminators
+  eliminatorsOwn : decl.OwnCaseEliminators sourceEnv eliminators
   /-- The eliminators are those of a constructor boundary of the declaration. -/
   eliminatorsBoundary : ∃ B : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv
     indTypes, eliminators = B.caseEliminators ∧ B.params = params ∧
@@ -349,14 +397,7 @@ theorem CompletedConstructorPhases.constructorOwnersPresent
       _ = indTypes.toList.length :=
         (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core).symm
       _ = indTypes.size := by simp
-  have Hformation : AtomicAddConstants c.safety c.env sourceEnv
-      (R.headerEntries ++ R.constructorEntries) ctorEnv R.ctorVEnv := by
-    cases R.installation with
-    | ordinary Htypes Hctors =>
-        exact (AtomicAddConstants.ofAddConstants Htypes).append
-          (AtomicAddConstants.ofAddConstants Hctors)
-    | primitive Htypes Hctors _ => exact Htypes.append Hctors
-  apply Hformation.constructorOwnersPresent
+  apply R.installation.atomic.constructorOwnersPresent
     R.sourceContext.checking.tr.map_wf hsource
   intro entry hentry info hinfo
   rcases List.mem_append.mp hentry with hheader | hctor
@@ -461,7 +502,8 @@ def ConstructorPhasesResult.completed
   ctorVEnv := R.declared.venvCtors
   eliminators := R.declared.eliminators
   eliminatorsWF := R.declared.eliminatorsWF
-  eliminatorsOrdinary := R.declared.eliminatorsOrdinary
+  eliminatorsCertified := R.declared.eliminatorsCertified
+  eliminatorsOwn := R.declared.eliminatorsOwn
   eliminatorsBoundary := R.declared.eliminatorsBoundary
   contextVEnv := R.declared.contextVEnv
   installation := .ordinary H.installed R.declared.installed
@@ -564,11 +606,13 @@ noncomputable def PrimitiveConstructorPhasesResult.completed
   ctorVEnv := R.declared.venvCtors
   eliminators := R.boundary.caseEliminators
   eliminatorsWF := R.boundary.caseEliminatorsWF
-  eliminatorsOrdinary := R.boundary.caseEliminatorsOrdinary
+  eliminatorsCertified := R.boundary.caseEliminatorsCertified
+  eliminatorsOwn := R.boundary.caseEliminatorsOwn
   eliminatorsBoundary := ⟨R.boundary, rfl, rfl, rfl⟩
   contextVEnv := rfl
-  installation := .primitive H.installed R.declared.installed (by
-    simpa [H.values, R.declared.values] using R.declared.bootstrap)
+  installation := .primitive H.installed R.declared.installed
+    (by simpa [H.values, R.declared.values] using R.declared.primitiveConstants)
+    R.declared.safeEntries
   formation := R.formation
   core := R.core
   productionInductiveOrigins := R.productionInductiveOrigins

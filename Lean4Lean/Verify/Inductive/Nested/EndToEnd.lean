@@ -420,7 +420,10 @@ theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtBase
   rcases H with ⟨finalState, Hrun, _Hcache, _Hparams⟩
   simpa [RestoreAuxConstructorsFresh] using
     Hrun.restoreAuxConstructorsFreshOfInstallation
-      Hprod.declaredStaged.productionTrace Hc.checking.tr.map_wf Howners hempty
+      ((((Hheaders.installed.append R.declared.installed).addEliminators
+        (es := R.declared.eliminators)).addProjections
+          (projections := decl.projectionEntries)).append Hprod.staged.recursorsAdded)
+      Hc.checking.tr.map_wf Howners hempty
 
 /-- Lift generated-constructor freshness through the source-header prefix
 reconstructed directly from lowering, without source constructors or a

@@ -54,16 +54,15 @@ def VEnv.InductRegistration (env : VEnv) (decl : VInductDecl) (key : Name)
     VInductBlock.install env block = some env' ∧
     env.addConstVals block.types = some envTypes ∧
     envTypes.addConstVals block.ctors = some envCtors ∧
-    block.eliminators = [(key, schema)] ∧ schema.Certified env decl block ∧
-    decl.types.head?.map (·.name) = some key ∧ schema.ProjNamesRegistered envCtors key ∧
-    schema.HeaderAgreement env decl
+    block.eliminators = [(key, schema)] ∧ schema.Registered env decl block key ∧
+    schema.ProjNamesRegistered envCtors key
 
 theorem VEnv.AddInduct.eliminators_iff (H : VEnv.AddInduct env decl env') :
     env'.eliminators n s ↔ VEnv.InductRegistration env decl n s env' ∨ env.eliminators n s := by
   cases H with
   | intro hdecl hcompile hblock helim hinstall =>
     obtain ⟨envTypes, envCtors, ht, hc, helim⟩ := helim
-    rcases helim with ⟨hE, -⟩ | ⟨key, schema, hE, hcert, hkey, hprojs, hhdr⟩
+    rcases helim with ⟨-, hE⟩ | ⟨key, schema, hE, hreg, hprojs⟩
     · rw [VInductBlock.install_eliminators_iff hinstall, hE]
       constructor
       · rintro (h | h)
@@ -80,8 +79,8 @@ theorem VEnv.AddInduct.eliminators_iff (H : VEnv.AddInduct env decl env') :
     simp only [List.mem_singleton, Prod.mk.injEq]
     constructor
     · rintro (⟨rfl, rfl⟩ | h)
-      · exact .inl ⟨_, envTypes, envCtors, hdecl, hcompile, hblock, hinstall, ht, hc, hE, hcert,
-          hkey, hprojs, hhdr⟩
+      · exact .inl ⟨_, envTypes, envCtors, hdecl, hcompile, hblock, hinstall, ht, hc, hE, hreg,
+          hprojs⟩
       · exact .inr h
     · rintro (⟨block', envTypes', envCtors', -, -, -, hinstall', ht', hc', hE', -⟩ | h)
       · have := VInductBlock.install_eliminators_iff (n := n) (s := s) hinstall'
@@ -256,7 +255,7 @@ theorem VEnv.WF.ordered : WF env → Ordered env
   | ⟨ds, H⟩ => by
     induction H with
     | empty => exact .empty
-    | inductEliminators _ _ _ _ _ _ _ _ _ ih => exact .eliminator ih
+    | inductEliminators _ _ _ _ _ _ _ _ _ _ _ ih => exact .eliminator ih
     | decl h _ ih =>
       cases h with
       | «axiom» h1 h2 => exact .const ih h1 h2

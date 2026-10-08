@@ -2628,62 +2628,6 @@ theorem SemanticBoundGeneratedRecursiveCall.sameAppliedFieldLambdaPrefix
         (mkAppN field H.generated.localArgs)))
     H.generated.value_eq_body).symm Hsame''
 
-/-- The higher-order lambda domains of a semantically retained generated
-call predate the generated recursors.  Closing the surrounding rule binders
-therefore yields a source telescope whose domains avoid every fresh recursor
-name, while imposing no such condition on the call body. -/
-theorem SemanticBoundGeneratedRecursiveCall.outerAvoidingLambdaTelescope
-    (H : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
-      lvls R decl depth field value)
-    (hfresh : ∀ name ∈ names, R.venv.constants name = none)
-    (binders : List FVarId) :
-    Expr.AvoidingLambdaTelescope names
-      (value.abstractList binders) H.generated.localArgs.size
-      (H.generated.body.abstractList binders H.generated.localArgs.size) := by
-  have hcurrentFresh : ∀ name ∈ names,
-      H.current_context.venv.constants name = none := by
-    intro name hname
-    rw [H.recent.venv_eq]
-    exact hfresh name hname
-  let Hselection :=
-    H.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
-      H.generated.current_wf
-  have hdecl : ∀ fv ∈ H.generated.arguments_bound.fvars,
-      ∃ index name type bi kind,
-        H.generated.current.lctx.find? fv =
-          some (.cdecl index fv name type bi kind) := by
-    intro fv hfv
-    exact Hselection.declarations fv hfv
-  have Htel : Expr.AvoidingLambdaTelescope names
-      (H.generated.current.lctx.mkLambda
-        (H.generated.arguments_bound.fvars.map Expr.fvar).toArray
-        (mkAppN field
-          (H.generated.arguments_bound.fvars.map Expr.fvar).toArray))
-      H.generated.arguments_bound.fvars.length
-      ((mkAppN field
-        (H.generated.arguments_bound.fvars.map Expr.fvar).toArray).abstractN
-          H.generated.arguments_bound.fvars) :=
-    LocalContext.mkLambda_fvars_avoidingLambdaTelescopeN hdecl
-      (fun fv index userName type bi kind hfv hfind =>
-        checkPositivityStep.RecursorContextWF.cdeclTypeAvoids
-          H.current_context hcurrentFresh hfind)
-  have hlocalSize : H.generated.localArgs.size =
-      H.generated.arguments_bound.fvars.length := by
-    have := congrArg Array.size H.generated.arguments_bound.expressions
-    simpa using this
-  have Htel' : Expr.AvoidingLambdaTelescope names value
-      H.generated.localArgs.size H.generated.body := by
-    have HtelEta : Expr.AvoidingLambdaTelescope names
-        (H.generated.current.lctx.mkLambda H.generated.localArgs
-          (mkAppN field H.generated.localArgs))
-        H.generated.localArgs.size
-        ((mkAppN field H.generated.localArgs).abstractN
-          H.generated.arguments_bound.fvars) := by
-      simpa [H.generated.arguments_bound.expressions, hlocalSize] using Htel
-    exact H.sameAppliedFieldLambdaPrefix.symm.avoidingLambdaTelescope
-      HtelEta H.generated.lambdaTelescope
-  simpa using Htel'.abstractList binders
-
 /-- Closing a generated call over an additional rule-level binder list
 preserves its higher-order lambda arity. The residual records the necessary
 binder-depth shift explicitly, avoiding any assumption that translation and

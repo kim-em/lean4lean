@@ -73,27 +73,27 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
   could add constructors to a registered structure, which structure eta
   makes inconsistent.
 
-  The certificate `CaseSchema.Certified` is the case part of a compilation
-  (`CaseCompilationData`: formation, model, restoration correspondence and
-  scoping, installed source constants, family typing) together with freshness
-  of the restoration's auxiliary recursor names. It used to be a full
-  `CompilationData`, by convenience; the eliminator rules `elimDF`/`elimIota`
+  The certificate `CaseSchema.Registered` consists of `CaseSchema.Certified`,
+  the case part of a compilation (`CaseCompilationData`: formation, model,
+  restoration correspondence and scoping, installed source constants, family
+  typing) together with freshness of the restoration's auxiliary recursor
+  names; the key of the first original family; and the agreement of the
+  declared family headers with the restored normalized ones
+  (`CaseSchema.HeaderAgreement`). The eliminator rules `elimDF`/`elimIota`
   read only the schema data fixed by the case part, never the generated native
-  recursors, their equations, their elimination universe or the typing of
-  their induction hypotheses. The weaker premise lets a declaration register
-  its case schema at the constructor boundary, before its native recursors are
-  generated and checked; no theorem is weakened. -/
+  recursors, so a declaration registers its case schema at the constructor
+  boundary, before its native recursors are generated and checked. -/
   | inductEliminators {base env : VEnv} {source : VInductDecl}
       {block : VInductBlock} {schema : InductiveSignature.CaseSchema} :
     VEnv.WF' baseDecls base →
     VEnv.WF' ds env →
     base ≤ env →
-    schema.Certified base source block →
-    source.types.head?.map (·.name) = some key →
-    ((∀ value ∈ block.types ++ block.ctors,
-      env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
-      schema.ProjNamesRegistered env key ∧ source.ProjectionsCoherent env ∧
-      schema.HeaderAgreement base source) →
+    schema.Registered base source block key →
+    (∀ value ∈ block.types ++ block.ctors,
+      env.constants value.name = some value.toVConstant) →
+    env.defeqs = base.defeqs →
+    schema.ProjNamesRegistered env key →
+    source.ProjectionsCoherent env →
     schema.Fresh env key →
     schema.StructCompat env →
     VEnv.WF' ds (env.addEliminator key schema)
@@ -101,9 +101,7 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
       {decl : VInductDecl} {block : VInductBlock} :
     VEnv.WF' baseDecls base →
     VEnv.WF' ds (envCtors.addEliminators block.eliminators) →
-    (∃ key schema, block.eliminators = [(key, schema)] ∧
-      schema.Certified base decl block ∧ decl.types.head?.map (·.name) = some key ∧
-      schema.HeaderAgreement base decl) →
+    (∃ key schema, block.eliminators = [(key, schema)] ∧ schema.Registered base decl block key) →
     decl.sourceNames.Nodup →
     (∀ type ∈ decl.types, type.toVConstant.WF base) →
     (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) →
@@ -123,21 +121,19 @@ theorem VEnv.WF.inductEliminators {base env : VEnv}
     {source : VInductDecl} {block : VInductBlock}
     {schema : InductiveSignature.CaseSchema}
     (hbase : base.WF) (henv : env.WF) (hle : base ≤ env)
-    (hformed : schema.Certified base source block)
-    (hkey : source.types.head?.map (·.name) = some key)
+    (hreg : schema.Registered base source block key)
     (hconstants : ∀ value ∈ block.types ++ block.ctors,
       env.constants value.name = some value.toVConstant)
     (hequations : env.defeqs = base.defeqs)
     (hprojs : schema.ProjNamesRegistered env key)
     (hcoherent : source.ProjectionsCoherent env)
-    (hheader : schema.HeaderAgreement base source)
     (hfresh : schema.Fresh env key)
     (hcompat : schema.StructCompat env) :
     (env.addEliminator key schema).WF := by
   rcases hbase with ⟨baseDecls, hbase⟩
   rcases henv with ⟨ds, henv⟩
-  exact ⟨ds, .inductEliminators hbase henv hle hformed hkey
-    ⟨hconstants, hequations, hprojs, hcoherent, hheader⟩ hfresh hcompat⟩
+  exact ⟨ds, .inductEliminators hbase henv hle hreg hconstants hequations hprojs hcoherent
+    hfresh hcompat⟩
 
 /-- Register the projection table of one exact inductive prefix before its
 recursors are installed.  Both the source base and the constructor-complete
@@ -148,8 +144,7 @@ theorem VEnv.WF.inductProjections
     {block : VInductBlock}
     (hbase : base.WF) (hctorsWF : (envCtors.addEliminators block.eliminators).WF)
     (hcovered : ∃ key schema, block.eliminators = [(key, schema)] ∧
-      schema.Certified base decl block ∧ decl.types.head?.map (·.name) = some key ∧
-      schema.HeaderAgreement base decl)
+      schema.Registered base decl block key)
     (hsource : decl.sourceNames.Nodup)
     (htypesWF : ∀ type ∈ decl.types, type.toVConstant.WF base)
     (hconstructorUvars :

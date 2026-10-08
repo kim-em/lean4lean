@@ -413,9 +413,8 @@ theorem enumBlockWellFormed : enumBlock.WF .empty := by
     subst df
     exact enumEquationTyping
 
-theorem enumOrdinaryCompilation : enumDecl.OrdinaryCompilation .empty enumBlock where
-  canonical := enumCanonicalCompilation
-  finite := CompiledInductive.ordinary enumDecl_wf.1 enumFormation
+theorem enumOrdinaryCompilation : enumDecl.CompilesTo .empty enumBlock where
+  compiled := CompiledInductive.ordinary enumDecl_wf.1 enumFormation
     enumCanonicalCompilation enumBlockWellFormed rfl rfl rfl (by
       simp [enumBlock, enumDecl, enumType, enumCtor, enumRecursor,
         VInductDecl.typeConstants, VInductDecl.constructorConstants,
@@ -423,22 +422,13 @@ theorem enumOrdinaryCompilation : enumDecl.OrdinaryCompilation .empty enumBlock 
   types := rfl
   ctors := rfl
   projections := rfl
-  recursors := by
-    exact .cons ⟨enumRecursorShape⟩ .nil
-  rules := by
-    refine ⟨enumTypesEnv, enumCtorsEnv, ?_, ?_, .cons ⟨enumIota.mono VEnv.addProjections_le⟩ .nil⟩
-    · simp [enumBlock, enumDecl, enumType, enumTypesEnv,
-        VInductDecl.typeConstants, VEnv.addConstVals, VEnv.addConst, VEnv.empty]
-    · simp [enumBlock, enumDecl, enumType, enumCtor, enumTypesEnv,
-        enumCtorsEnv, VInductDecl.constructorConstants, VEnv.addConstVals,
-        VEnv.addConst]
   names := by
     simp [enumBlock, enumDecl, enumType, enumCtor, enumRecursor,
       VInductDecl.typeConstants, VInductDecl.constructorConstants,
       InductiveSignature.Instance.recursor, enumInstance]
 
 theorem enumCompiles : VInductDecl.CompilesTo .empty enumDecl enumBlock :=
-  .ordinary enumOrdinaryCompilation
+  enumOrdinaryCompilation
 
 open InductiveSignature
 
@@ -488,8 +478,11 @@ theorem malformed_enum_not_canonical :
   rw [ht'] at ht
   cases ht
 
+/-- The ordinary entry into the finite judgment, `CompiledInductive.ordinary`,
+needs a canonical generation witness, which the malformed block lacks. -/
 theorem malformed_enum_not_ordinary :
-    ¬ enumDecl.OrdinaryCompilation .empty malformedEnumBlock :=
-  fun h => malformed_enum_not_canonical h.canonical
+    ¬ ∃ _ : InductiveSignature.Compiles .empty enumDecl malformedEnumBlock,
+      enumDecl.CompilesTo .empty malformedEnumBlock :=
+  fun ⟨h, _⟩ => malformed_enum_not_canonical h
 
 end Lean4Lean.Tests.InductiveTheory
