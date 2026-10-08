@@ -827,12 +827,13 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
           (sourceTypes.map (·.name))
           (E.production.production.completed.canonicalGeneration.recursorName owner) s t),
           RestoredRecursorStepValue
-            (C.canonical.venvCtors.addProjections sourceDecl.projectionEntries) Hstep w)
+            ((C.canonical.venvCtors.addEliminators C.canonical.eliminators).addProjections
+              sourceDecl.projectionEntries) Hstep w)
       (List.finRange
         E.production.production.completed.generationSignature.families.size)
       (C.primaryRecursors ++ C.auxiliaryRecursors) := by
   let r := compilationRestoration sourceDecl auxiliaries
-  let trEnv := C.canonical.venvCtors.addProjections sourceDecl.projectionEntries
+  let trEnv := (C.canonical.venvCtors.addEliminators C.canonical.eliminators).addProjections sourceDecl.projectionEntries
   -- freshness of the restorable names in the translation environment
   have htypesEq : C.canonical.venvTypes = envTypes := by
     have h := C.canonical.typesAdded.abstract
@@ -1303,15 +1304,25 @@ theorem NestedValidatedRunResult.compilationData_of_specializations_rules
     admissible := ⟨_, hloweredTypes,
       E.production.loweredConstruction.consumedGeneration.admissible⟩
     recursiveTypesWF := by
-      refine ⟨_, _, hloweredTypes, hloweredCtors, ?_, ?_⟩
+      refine ⟨_, _, E.production.constructors.completed.eliminators, hloweredTypes,
+        hloweredCtors, ?_, ?_, ?_⟩
+      · have hown := E.production.constructors.completed.eliminatorsOrdinary.own
+        generalize E.production.constructors.completed.eliminators = es at hown ⊢
+        rw [hinit] at hown
+        exact hown
       · rw [← E.production.constructors.completed.contextVEnv]
         exact E.production.loweredConstruction.consumedGeneration.recursiveTypesWF
       · rw [← E.production.constructors.completed.contextVEnv]
         exact E.production.loweredConstruction.consumedGeneration.familyTypesWF
     familyTypesWF := by
-      refine ⟨_, _, hloweredTypes, hloweredCtors, ?_⟩
-      rw [← E.production.constructors.completed.contextVEnv]
-      exact E.production.loweredConstruction.consumedGeneration.familyTypesWF
+      refine ⟨_, _, E.production.constructors.completed.eliminators, hloweredTypes,
+        hloweredCtors, ?_, ?_⟩
+      · have hown := E.production.constructors.completed.eliminatorsOrdinary.own
+        generalize E.production.constructors.completed.eliminators = es at hown ⊢
+        rw [hinit] at hown
+        exact hown
+      · rw [← E.production.constructors.completed.contextVEnv]
+        exact E.production.loweredConstruction.consumedGeneration.familyTypesWF
     recursorNames := E.production.loweredConstruction.consumedGeneration.names
     generatedNames := by
       rw [List.map_append]

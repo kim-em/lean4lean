@@ -398,7 +398,8 @@ theorem CompletedRecursorPhasesResult.completedRuleTranslation_of
     simp [VLCtx.find?] at hfind
   · refine ⟨⟨H.generationSignature, H.canonicalGeneration, R.headerVEnv,
       H.consumedGeneration.models, R.core.typesAdded, H.canonicalGeneration_admissible,
-      ⟨R.ctorVEnv, R.core.ctorsAdded, ?_, ?_⟩, H.consumedGeneration.names, ?_, rfl,
+      ⟨R.ctorVEnv, R.eliminators, R.core.ctorsAdded, R.eliminatorsOrdinary.own, ?_, ?_⟩,
+      H.consumedGeneration.names, ?_, rfl,
       H.entryRealizations Hrhs⟩⟩
     · rw [← R.contextVEnv]; exact H.consumedGeneration.recursiveTypesWF
     · rw [← R.contextVEnv]; exact H.consumedGeneration.familyTypesWF

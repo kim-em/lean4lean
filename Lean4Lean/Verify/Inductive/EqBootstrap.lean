@@ -168,8 +168,8 @@ theorem VInductBlock.install_recursorConstant {base env' : VEnv} {block : VInduc
     cases hctors : envTypes.addConstVals block.ctors with
     | none => simp [htypes, hctors] at H
     | some envCtors =>
-      cases hrecursors : (envCtors.addProjections block.projections).addConstVals
-          block.recursors with
+      cases hrecursors : ((envCtors.addEliminators block.eliminators).addProjections
+          block.projections).addConstVals block.recursors with
       | none => simp [htypes, hctors, hrecursors] at H
       | some envRecursors =>
         simp [htypes, hctors, hrecursors] at H
@@ -187,8 +187,8 @@ theorem VInductBlock.install_rule {base env' : VEnv} {block : VInductBlock}
     cases hctors : envTypes.addConstVals block.ctors with
     | none => simp [htypes, hctors] at H
     | some envCtors =>
-      cases hrecursors : (envCtors.addProjections block.projections).addConstVals
-          block.recursors with
+      cases hrecursors : ((envCtors.addEliminators block.eliminators).addProjections
+          block.projections).addConstVals block.recursors with
       | none => simp [htypes, hctors, hrecursors] at H
       | some envRecursors =>
         simp [htypes, hctors, hrecursors] at H
@@ -238,7 +238,7 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
   have hdecl : decl.WF (ves.venv .safe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) B.block :=
-    by simpa [B, B0, BlockCertificate.sf_mono, BlockCertificate.block] using
+    by simpa [B, B0, BlockCertificate.sf_mono, StagedBlock.sf_mono, BlockCertificate.block] using
       (T.compilation hnonempty).compilesTo
   have hconstructors :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
@@ -257,12 +257,15 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
       (Hrecursors.outVEnv.addDefEqRules T.rules).constants ``Eq = some eqConst := by
     apply VEnv.addDefEqRules_le.constants
     apply (VEnv.addConstVals_le B.staged.abstract_recursors).constants
-    apply VEnv.addProjections_le.constants
+    apply VEnv.addEliminators_addProjections_le.constants
     apply (VEnv.addConstVals_le B.staged.abstract_ctors).constants
     exact htypesEq
   rcases B.extendSafeExact wf hcorner hdecl hcompile horigins T.recursorProvenance Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners)
-      hconstructors with ⟨ves', wf', hle, hadd, hsafeReplay⟩
+      hconstructors
+      (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
+        (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
+      ⟨ves', wf', hle, hadd, hsafeReplay⟩
   have hsafeEq : (ves'.venv .safe).constants ``Eq = some eqConst :=
     hsafeReplay.constants houtEq
   have hcanonical : CanonicalEqEnvs ves' := by
@@ -291,7 +294,7 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     have hinstall : B.block.install (ves.venv .safe) = some B.finalVEnv := B.install
     have hrules : B.block.rules = [canonicalEqRecRule] := by
       have Hcompiles : InductiveSignature.Compiles (ves.venv .safe) decl B.block := by
-        simpa [B, B0, BlockCertificate.sf_mono, BlockCertificate.block] using
+        simpa [B, B0, BlockCertificate.sf_mono, StagedBlock.sf_mono, BlockCertificate.block] using
           (T.compilation hnonempty).canonical
       refine Hcompiles.eqRecRules hdeclTypes hfamilyName (by simp [hfamilyCtors])
         hdeclParams ?_
@@ -306,7 +309,7 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     -- `Eq.refl` is installed with the translated constructor type.
     have hcert : VEnv.InstalledInductCertificate (ves'.venv .safe) decl := by
       cases hadd with
-      | intro hdecl' hcompile' hblock' hinstall' =>
+      | intro hdecl' hcompile' hblock' _helim' hinstall' =>
         exact .intro hdecl'.1 hdecl'.2 hcompile' hblock' hinstall' VEnv.LE.rfl
     have hreflEq : (ves'.venv .safe).constants ``Eq.refl =
         some ⟨1, canonicalEqReflType⟩ := by

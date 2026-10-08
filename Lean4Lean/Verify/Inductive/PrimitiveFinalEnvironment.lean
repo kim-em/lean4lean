@@ -42,7 +42,7 @@ theorem CompletedBlockCertificate.replaySafeConstructorSemantics
   · rcases Hsource familyName familyInfo hold hvisible i hi with ⟨C⟩
     have hlookup := Hinstall.preservesSourceFind hwf C.lookup
     have hle : observerBase <= Hreplay.finalVEnv :=
-      VEnv.addProjections_le.trans (Hinstall.le.trans VEnv.addDefEqRules_le)
+      VEnv.addEliminators_addProjections_le.trans (Hinstall.le.trans VEnv.addDefEqRules_le)
     exact ⟨C.rebaseProduction hlookup hle⟩
   · rcases hnew with ⟨entry, hentry, _hname, hinfo⟩
     have hsafe : .safe <= (ConstantInfo.inductInfo familyInfo).safety := by
@@ -184,7 +184,8 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
-        H.finalVEnv) :
+        H.finalVEnv)
+    (Hreplay : ∀ safety, VInductBlock.EliminatorsReplay (ves.venv safety) decl H.block) :
     exists ves' : VEnvs, ves'.WF outEnv /\
       (forall safety, ves.venv safety <= ves'.venv safety) /\
       VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) := by
@@ -194,15 +195,17 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
       (wf.hasPrimitives (safety := safety)) wf.safePrimitives
       wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent hcorner
   rcases H.rebaseAddInductSafe (valid .unsafe)
-      (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins hprovenance with
-    ⟨unsafeBase, Hunsafe, HunsafeAdd, hunsafeLE, hunsafeProjections⟩
+      (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins hprovenance
+      (Hreplay .unsafe) with
+    ⟨unsafeBase, Hunsafe, HunsafeAdd, hunsafeLE, hunsafeProjections, hunsafeElim⟩
   rcases H.rebaseAddInductSafe (valid .partial)
-      (wf.mono DefinitionSafety.le_safe) hdecl hcompile horigins hprovenance with
+      (wf.mono DefinitionSafety.le_safe) hdecl hcompile horigins hprovenance
+      (Hreplay .partial) with
     ⟨partialBase, Hpartial, HpartialAdd, hpartialLE,
-      hpartialProjections⟩
+      hpartialProjections, hpartialElim⟩
   rcases H.rebaseAddInductSafe (valid .safe) VEnv.LE.rfl hdecl hcompile
-      horigins hprovenance with
-    ⟨safeBase, Hsafe, HsafeAdd, hsafeLE, hsafeProjections⟩
+      horigins hprovenance (Hreplay .safe) with
+    ⟨safeBase, Hsafe, HsafeAdd, hsafeLE, hsafeProjections, hsafeElim⟩
   let pre : DefinitionSafety -> VEnv
     | .unsafe => unsafeBase
     | .partial => partialBase
@@ -256,7 +259,7 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
       (fun safety =>
         hasPrimitives_addDefEqs
           ((cert safety).staged.recursorsAdded.hasPrimitives
-            (formationPrimitives safety).addProjections)
+            (formationPrimitives safety).addEliminators.addProjections)
           rules)
       hsafePrimitives hclosed hconstructorOwners
       (fun safety => H.replaySafeConstructorSemantics (cert safety)
@@ -269,8 +272,12 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
           cases safety <;> cases safety' <;>
             simp only [cert, hunsafeProjections, hpartialProjections,
               hsafeProjections]
+        have heliminators : (cert safety').staged.eliminators =
+            (cert safety).staged.eliminators := by
+          cases safety <;> cases safety' <;>
+            simp only [cert, hunsafeElim, hpartialElim, hsafeElim]
         have hblock : (cert safety').block = (cert safety).block :=
-          (cert safety').block_eq_of_projections_eq (cert safety) hprojections
+          (cert safety').block_eq_of_projections_eq (cert safety) hprojections heliminators
         have hinstall := (cert safety').install
         rw [hblock] at hinstall
         exact VInductBlock.install_mono (wf.mono hle)
@@ -307,17 +314,18 @@ theorem CompletedBlockCertificate.extendSafePrimitiveEqReadyOrAbsent
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
-        H.finalVEnv) :
+        H.finalVEnv)
+    (Hreplay : ∀ safety, VInductBlock.EliminatorsReplay (ves.venv safety) decl H.block) :
     exists ves' : VEnvs, ves'.WF outEnv /\ EqReadyOrAbsent outEnv ves' /\
       forall safety, ves.venv safety <= ves'.venv safety := by
   rcases hEq with habsent | hcanonical
   · have houtAbsent := hpreserveAbsent habsent
     rcases H.extendSafePrimitiveExact wf hcorner hconstants hdecl hcompile horigins hprovenance
-        hsafePrimitives hclosed hconstructorOwners hconstructorSemantics with
+        hsafePrimitives hclosed hconstructorOwners hconstructorSemantics Hreplay with
       ⟨ves', wf', hle, _hadd⟩
     exact ⟨ves', wf', Or.inl houtAbsent, hle⟩
   · rcases H.extendSafePrimitiveExact wf hcorner hconstants hdecl hcompile horigins hprovenance
-        hsafePrimitives hclosed hconstructorOwners hconstructorSemantics with
+        hsafePrimitives hclosed hconstructorOwners hconstructorSemantics Hreplay with
       ⟨ves', wf', hle, _hadd⟩
     exact ⟨ves', wf', Or.inr (hcanonical.mono hle), hle⟩
 
@@ -400,7 +408,7 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
   have hdecl : decl.WF (ves.venv .safe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) Hcert.block := by
-    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono,
+    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
       CompletedBlockCertificate.block] using
       (T.compilation hnonempty).compilesTo
   have hconstants := R.primitiveAbstractConstants Hshape
@@ -410,14 +418,16 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
   rw [hlocalSafety] at HvalidOut
   have Hsemantics : InductiveConstructorsSemanticallyCoherent .safe outEnv
       Hcert.finalVEnv := by
-    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono,
+    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
       CompletedBlockCertificate.finalVEnv] using
     Hrecursors.completedConstructorSemantics
       (wf.constructorSemantics (safety := .safe)) T.rules
   rcases Hcert.extendSafePrimitiveExact wf hcorner hconstants hdecl hcompile
       Hrecursors.productionInductiveOrigins T.recursorProvenance HvalidOut.safePrimitives
       Hrecursors.closed
-      (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics with
+      (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics
+      (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
+        (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
     ⟨ves', wf', hle, hadd⟩
   exact ⟨ves', decl, R.headerVEnv, R.ctorVEnv, wf', hle, R.core, hadd⟩
 
@@ -454,7 +464,7 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeEqReadyOrAbsent
   have hdecl : decl.WF (ves.venv .safe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) Hcert.block := by
-    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono,
+    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
       CompletedBlockCertificate.block] using
       (T.compilation hnonempty).compilesTo
   have hconstants := R.primitiveAbstractConstants Hshape
@@ -464,7 +474,7 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeEqReadyOrAbsent
   rw [hlocalSafety] at HvalidOut
   have Hsemantics : InductiveConstructorsSemanticallyCoherent .safe outEnv
       Hcert.finalVEnv := by
-    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono,
+    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
       CompletedBlockCertificate.finalVEnv] using
     Hrecursors.completedConstructorSemantics
       (wf.constructorSemantics (safety := .safe)) T.rules
@@ -485,7 +495,9 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeEqReadyOrAbsent
   rcases Hcert.extendSafePrimitiveEqReadyOrAbsent wf hcorner hEq hpreserveAbsent
       hconstants hdecl hcompile Hrecursors.productionInductiveOrigins
       T.recursorProvenance HvalidOut.safePrimitives Hrecursors.closed
-      (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics with
+      (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics
+      (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
+        (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
     ⟨ves', wf', hEq', hle⟩
   exact ⟨decl, ves', wf', hEq', hle⟩
 

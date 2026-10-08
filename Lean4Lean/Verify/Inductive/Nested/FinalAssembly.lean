@@ -213,6 +213,14 @@ structure NestedFinalAssemblyShape
       primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
       ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
       finalBaseVEnv auxiliarySemantics [] [] auxiliaryRecursors auxiliaryRules
+  /-- The declaration's case eliminators, registered by the canonical staging before the
+  projections, are certified. -/
+  eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock canonical.eliminators)
+  /-- The certificate of the case eliminators replays over larger safety models of the same
+  production environment. -/
+  eliminatorsReplay : ∀ env', sourceEnv ≤ env' →
+    (∀ n, sourceProdEnv.constants.find? n = none → env'.constants n = none) →
+    VInductBlock.EliminatorsReplay env' decl (decl.caseBlock canonical.eliminators)
 
 theorem NestedFinalAssemblyShape.constructorArityPrefix
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -278,7 +286,11 @@ noncomputable def NestedFinalAssemblyShape.ofCanonicalReplay
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
           ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
-          finalBaseVEnv Hauxiliary [] [] auxiliaryRecursors auxiliaryRules) :
+          finalBaseVEnv Hauxiliary [] [] auxiliaryRecursors auxiliaryRules)
+    (Helim : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock canonical.eliminators))
+    (Hreplay : ∀ env', sourceEnv ≤ env' →
+      (∀ n, sourceProdEnv.constants.find? n = none → env'.constants n = none) →
+      VInductBlock.EliminatorsReplay env' decl (decl.caseBlock canonical.eliminators)) :
     NestedFinalAssemblyShape H sourceEnv decl lparams nparams isUnsafe
       safety where
   production := P
@@ -313,6 +325,8 @@ noncomputable def NestedFinalAssemblyShape.ofCanonicalReplay
   unsafeEq := hunsafeEq
   sourceNonempty := hsourceNonempty
   auxiliaryWF := HauxiliaryWF
+  eliminatorsWF := Helim
+  eliminatorsReplay := Hreplay
 
 /-- Residual final-layout evidence after the source-family and primary-iota
 semantic traces have been constructed from their exact producers.  Keeping
@@ -441,7 +455,11 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
     (hnumParams : decl.nparams = nparams)
     (hunsafeEq : decl.isUnsafe = isUnsafe)
     (htypesSource : decl.types = main :: rest)
-    (hsourceNonempty : sourceTypes ≠ []) :
+    (hsourceNonempty : sourceTypes ≠ [])
+    (Helim : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock canonical.eliminators))
+    (Hreplay : ∀ env', sourceEnv ≤ env' →
+      (∀ n, sourceProdEnv.constants.find? n = none → env'.constants n = none) →
+      VInductBlock.EliminatorsReplay env' decl (decl.caseBlock canonical.eliminators)) :
     NestedFinalAssemblyShape (sourceTypes := sourceTypes) H sourceEnv
       decl lparams nparams isUnsafe safety where
   production := P
@@ -478,6 +496,8 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
   unsafeEq := hunsafeEq
   sourceNonempty := hsourceNonempty
   auxiliaryWF := R.auxiliaryWF
+  eliminatorsWF := Helim
+  eliminatorsReplay := Hreplay
 
 /-- Fold primary equations while retaining membership of both the concrete
 source family and its exact restored source recursor in the two aggregate
@@ -561,6 +581,10 @@ structure NestedFinalAssemblyShapeEvidence
   numParams : decl.nparams = nparams
   unsafeEq : decl.isUnsafe = isUnsafe
   sourceNonempty : sourceTypes ≠ []
+  eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock canonical.eliminators)
+  eliminatorsReplay : ∀ env', sourceEnv ≤ env' →
+    (∀ n, sourceProdEnv.constants.find? n = none → env'.constants n = none) →
+    VInductBlock.EliminatorsReplay env' decl (decl.caseBlock canonical.eliminators)
   auxiliaryRecursors : List VConstVal
   auxiliaryRules : List VDefEq
   exactSource : ∃ primaryRecursors,
@@ -632,6 +656,10 @@ theorem RestoredNestedDeclarationsResult.finalAssemblyOfExactSource
     (hnumParams : decl.nparams = nparams)
     (hunsafeEq : decl.isUnsafe = isUnsafe)
     (hsourceNonempty : sourceTypes ≠ [])
+    (Helim : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock canonical.eliminators))
+    (Hreplay : ∀ env', sourceEnv ≤ env' →
+      (∀ n, sourceProdEnv.constants.find? n = none → env'.constants n = none) →
+      VInductBlock.EliminatorsReplay env' decl (decl.caseBlock canonical.eliminators))
     (primaryRecursors : List VConstVal)
     (Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
       sourceEnv canonical.venvTypes ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.inductives
@@ -681,7 +709,7 @@ theorem RestoredNestedDeclarationsResult.finalAssemblyOfExactSource
       rcases Hfinish main rest Hsource' restoredRules Hprimary with ⟨R⟩
       exact ⟨⟨R.certificate Hsource' Hprimary htypeValues
         hconstructorValues Hformation hformationExpanded Hmaterialized huvars
-        hnumParams hunsafeEq htypes hsourceNonempty, rfl⟩⟩
+        hnumParams hunsafeEq htypes hsourceNonempty Helim Hreplay, rfl⟩⟩
 
 /-- Fold pointwise source-family semantics and pointwise primary-equation
 semantics over the exact restoration trace, then attach only the residual
@@ -714,6 +742,10 @@ theorem RestoredNestedDeclarationsResult.finalAssemblyOfFamilies
     (hnumParams : decl.nparams = nparams)
     (hunsafeEq : decl.isUnsafe = isUnsafe)
     (hsourceNonempty : sourceTypes ≠ [])
+    (Helim : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock canonical.eliminators))
+    (Hreplay : ∀ env', sourceEnv ≤ env' →
+      (∀ n, sourceProdEnv.constants.find? n = none → env'.constants n = none) →
+      VInductBlock.EliminatorsReplay env' decl (decl.caseBlock canonical.eliminators))
     (HexactSource : ∃ primaryRecursors,
       RestoredSourceInductiveSemanticTrace decl lparams safety sourceEnv
         canonical.venvTypes ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.inductives decl.types
@@ -758,7 +790,7 @@ theorem RestoredNestedDeclarationsResult.finalAssemblyOfFamilies
     isUnsafe safety typeEntries constructorEntries recursorEntries
     canonicalProdEnv finalBaseVEnv canonical auxiliaryRecursors auxiliaryRules
     htypeValues hconstructorValues Hformation hformationExpanded Hmaterialized
-    huvars hnumParams hunsafeEq hsourceNonempty primaryRecursors Hsource'
+    huvars hnumParams hunsafeEq hsourceNonempty Helim Hreplay primaryRecursors Hsource'
     (HprimaryFamilies primaryRecursors Hsource')
     (fun main rest Hsource restoredRules Hprimary =>
       Hfinish main rest primaryRecursors Hsource restoredRules Hprimary)
@@ -772,8 +804,8 @@ theorem NestedFinalAssemblyShapeEvidence.certificate
     E.typeEntries E.constructorEntries E.recursorEntries E.canonicalProdEnv
     E.finalBaseVEnv E.canonical E.auxiliaryRecursors E.auxiliaryRules
     E.typeValues E.constructorValues E.formationAssembly E.formationExpanded
-    E.materialized E.uvars E.numParams E.unsafeEq E.sourceNonempty
-    E.exactSource E.primaryFamilies E.finish
+    E.materialized E.uvars E.numParams E.unsafeEq E.sourceNonempty E.eliminatorsWF
+    E.eliminatorsReplay E.exactSource E.primaryFamilies E.finish
 
 theorem NestedFinalAssemblyShape.typesAdded
     {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
@@ -876,9 +908,9 @@ noncomputable def NestedFinalAssemblyCertificate.finalEnvironment
   exact H.addInductOfStagedInstallation
     C.canonical.venvTypes C.canonical.venvCtors
     C.main C.rest C.typesSource C.primaryRecursors C.auxiliaryRecursors
-    C.primaryRules C.auxiliaryRules C.sourceSemantics.primaryRecursors
-    C.primaryIotaBuild (C.primaryIota.length C.typesSource)
-    C.auxiliarySemantics C.compiled
+    C.primaryRules C.auxiliaryRules C.canonical.eliminators C.sourceSemantics.primaryRecursors
+    (C.primaryIotaBuild.rebaseRecursors rfl) (C.primaryIota.length C.typesSource)
+    C.auxiliarySemantics (C.realization.congr_eliminators C.canonical.eliminators).compiles
     C.formationAssembly.formation Hsource C.sourceNonempty
     (by
       rw [← C.recursorValues]
@@ -895,6 +927,7 @@ noncomputable def NestedFinalAssemblyCertificate.finalEnvironment
       rcases List.mem_append.mp hdf with hprimary | hauxiliary
       · exact C.primaryIota.rulesWF df hprimary
       · exact C.auxiliaryWF.rulesWF (by simp) df hauxiliary)
+    C.eliminatorsWF
 
 /-- All proof-relevant data produced by a successful nested execution before
 final certificate assembly. -/

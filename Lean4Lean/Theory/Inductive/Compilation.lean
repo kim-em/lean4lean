@@ -222,6 +222,22 @@ structure CompilationData (env : VEnv) (source expanded : VInductDecl)
   names : ((block.types ++ block.ctors ++ block.recursors).map (·.name)).Nodup
 
 
+/-- Compilation data reads a block's families, constructors, projections, recursors and
+rules, not its case eliminators. -/
+theorem CompilationData.congr_eliminators {env : VEnv} {source expanded : VInductDecl}
+    {s : InductiveSignature} {g : Instance s} {auxiliaries : List ContainerSpecialization}
+    {block : VInductBlock} (H : CompilationData env source expanded s g auxiliaries block)
+    (es : List (Name × CaseSchema)) :
+    CompilationData env source expanded s g auxiliaries { block with eliminators := es } :=
+  { H with
+    types := H.types
+    ctors := H.ctors
+    projections := H.projections
+    recursors := H.recursors
+    equations := H.equations
+    names := H.names }
+
+
 end InductiveSignature
 
 mutual

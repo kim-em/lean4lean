@@ -71,7 +71,7 @@ theorem RecursorPhasesResult.addInductOfOrdinaryCompilation
       (H.blockCertificate rules hrules).block) :
     VEnv.AddInduct sourceEnv decl (H.blockCertificate rules hrules).finalVEnv :=
   (H.blockCertificate rules hrules).addInductOfOrdinaryCompilation
-    R.formation R.core hnonempty Hcompile
+    R.formation R.core hnonempty Hcompile (H.blockEliminatorsWF rules hrules)
 
 theorem RecursorPhasesResult.addInductOfNestedCompilation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -89,7 +89,7 @@ theorem RecursorPhasesResult.addInductOfNestedCompilation
       (H.blockCertificate rules hrules).block) :
     VEnv.AddInduct sourceEnv decl (H.blockCertificate rules hrules).finalVEnv :=
   (H.blockCertificate rules hrules).addInductOfNestedCompilation
-    R.formation R.core hnonempty Hcompile
+    R.formation R.core hnonempty Hcompile (H.blockEliminatorsWF rules hrules)
 
 /-- Compositional verifier for the complete production computation after
 `checkInductiveTypes` has materialized `stats`. This is the first boundary
@@ -131,7 +131,7 @@ theorem AddInductive.runWithStats.WF
       have hlit : checkPositivityStep.AvailableLiteralDisjoint
           R.declared.context.venv stats.indConsts := by
         rw [R.declared.contextVEnv]
-        exact hlitCtors.addProjections _
+        exact (hlitCtors.addEliminators _).addProjections _
       exact (R.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams hlit
         hnotPartial hnprim).mono
           fun outEnv Hrecursors =>

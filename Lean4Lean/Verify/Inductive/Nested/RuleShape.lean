@@ -338,13 +338,13 @@ noncomputable def NestedFinalAssemblyShape.withRules
     (Hauxiliary : RestoredAuxiliaryShapeTrace decl
       (canonicalRestoredBlock decl C.primaryRecursors C.auxiliaryRecursors
         primaryRules auxiliaryRules) C.main safety
-      (C.(canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.auxiliaries
+      ((C.canonical.venvCtors.addEliminators C.canonical.eliminators).addProjections decl.projectionEntries) H.auxiliaries
       [] [] C.auxiliaryRecursors auxiliaryRules)
     (HauxiliaryWF : RestoredAuxiliaryFinalWFTrace decl
       (canonicalRestoredBlock decl C.primaryRecursors C.auxiliaryRecursors
         primaryRules auxiliaryRules) C.main safety
-      (C.(canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
-      (C.(canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
+      ((C.canonical.venvCtors.addEliminators C.canonical.eliminators).addProjections decl.projectionEntries)
+      ((C.canonical.venvCtors.addEliminators C.canonical.eliminators).addProjections decl.projectionEntries)
       C.finalBaseVEnv Hauxiliary [] [] C.auxiliaryRecursors auxiliaryRules) :
     NestedFinalAssemblyShape H sourceEnv decl lparams nparams isUnsafe safety :=
   { C with

@@ -1210,6 +1210,16 @@ theorem AvailableLiteralDisjoint.addProjections
   | natVal _ => simpa [VEnv.ContainsLits, VEnv.contains] using hlit
   | strVal _ => simpa [VEnv.ContainsLits, VEnv.contains] using hlit
 
+theorem AvailableLiteralDisjoint.addEliminators
+    (H : AvailableLiteralDisjoint env indConsts)
+    (es : List (Name × InductiveSignature.CaseSchema)) :
+    AvailableLiteralDisjoint (env.addEliminators es) indConsts := by
+  intro literal hlit
+  apply H literal
+  cases literal with
+  | natVal _ => simpa [VEnv.ContainsLits, VEnv.contains] using hlit
+  | strVal _ => simpa [VEnv.ContainsLits, VEnv.contains] using hlit
+
 theorem forall₂_append {R : α → β → Prop}
     (H₁ : List.Forall₂ R as₁ bs₁) (H₂ : List.Forall₂ R as₂ bs₂) :
     List.Forall₂ R (as₁ ++ as₂) (bs₁ ++ bs₂) := by

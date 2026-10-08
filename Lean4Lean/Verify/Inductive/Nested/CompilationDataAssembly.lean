@@ -309,15 +309,25 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
     admissible := ⟨_, hloweredTypes,
       E.production.loweredConstruction.consumedGeneration.admissible⟩
     recursiveTypesWF := by
-      refine ⟨_, _, hloweredTypes, hloweredCtors, ?_, ?_⟩
+      refine ⟨_, _, E.production.constructors.completed.eliminators, hloweredTypes,
+        hloweredCtors, ?_, ?_, ?_⟩
+      · have hown := E.production.constructors.completed.eliminatorsOrdinary.own
+        generalize E.production.constructors.completed.eliminators = es at hown ⊢
+        rw [hinit] at hown
+        exact hown
       · rw [← E.production.constructors.completed.contextVEnv]
         exact E.production.loweredConstruction.consumedGeneration.recursiveTypesWF
       · rw [← E.production.constructors.completed.contextVEnv]
         exact E.production.loweredConstruction.consumedGeneration.familyTypesWF
     familyTypesWF := by
-      refine ⟨_, _, hloweredTypes, hloweredCtors, ?_⟩
-      rw [← E.production.constructors.completed.contextVEnv]
-      exact E.production.loweredConstruction.consumedGeneration.familyTypesWF
+      refine ⟨_, _, E.production.constructors.completed.eliminators, hloweredTypes,
+        hloweredCtors, ?_, ?_⟩
+      · have hown := E.production.constructors.completed.eliminatorsOrdinary.own
+        generalize E.production.constructors.completed.eliminators = es at hown ⊢
+        rw [hinit] at hown
+        exact hown
+      · rw [← E.production.constructors.completed.contextVEnv]
+        exact E.production.loweredConstruction.consumedGeneration.familyTypesWF
     recursorNames := E.production.loweredConstruction.consumedGeneration.names
     generatedNames := by
       rw [List.map_append]

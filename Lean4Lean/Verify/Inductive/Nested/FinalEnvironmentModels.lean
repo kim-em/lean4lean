@@ -152,8 +152,8 @@ theorem NestedFinalAssemblyCertificate.block_eq_canonicalRestoredBlock
     (C : NestedFinalAssemblyCertificate H sourceEnv decl lparams nparams
       isUnsafe safety) :
     C.blockCertificate.block =
-      canonicalRestoredBlock decl C.primaryRecursors C.auxiliaryRecursors
-        C.primaryRules C.auxiliaryRules := by
+      { canonicalRestoredBlock decl C.primaryRecursors C.auxiliaryRecursors
+        C.primaryRules C.auxiliaryRules with eliminators := C.canonical.eliminators } := by
   simp [BlockCertificate.block, canonicalRestoredBlock,
     NestedFinalAssemblyCertificate.blockCertificate, C.typeValues,
     C.constructorValues, C.recursorValues]
@@ -177,8 +177,9 @@ noncomputable def NestedFinalAssemblyCertificate.compilation
       isUnsafe decl C.canonical.venvTypes C.canonical.venvCtors :=
     C.sourceSemantics.core C.typesSource C.uvars C.numParams C.unsafeEq
       C.typesAdded C.constructorsAdded
-  let block := canonicalRestoredBlock decl C.primaryRecursors
-    C.auxiliaryRecursors C.primaryRules C.auxiliaryRules
+  let block : VInductBlock := { canonicalRestoredBlock decl C.primaryRecursors
+    C.auxiliaryRecursors C.primaryRules C.auxiliaryRules with
+      eliminators := C.canonical.eliminators }
   have hvalues :
       (C.typeEntries ++ C.constructorEntries ++ C.recursorEntries).map
           Prod.snd = block.types ++ block.ctors ++ block.recursors := by
@@ -188,16 +189,17 @@ noncomputable def NestedFinalAssemblyCertificate.compilation
       ((block.types ++ block.ctors ++ block.recursors).map (·.name)) := by
     rw [← hvalues]
     exact VEnv.addConstVals_names_nodup C.canonical.productionTrace.abstract
-  refine { toNestedShapeCertificate := ?_, canonical := C.compiled }
+  have Hcanonical := (C.realization.congr_eliminators C.canonical.eliminators).compiles
+  refine { toNestedShapeCertificate := ?_, canonical := Hcanonical }
   exact NestedShapeCertificate.ofRestoration sourceEnv
     C.canonical.venvTypes C.canonical.venvCtors decl block C.main C.rest
     C.typesSource C.primaryRecursors C.auxiliaryRecursors C.primaryRules
     C.auxiliaryRules
     (C.sourceSemantics.primaryRecursors.recursorCertificate C.typesSource)
-    C.primaryIotaBuild
+    (C.primaryIotaBuild.rebaseRecursors rfl)
     (C.primaryIota.length C.typesSource)
-    (C.auxiliarySemantics.prefix
-      (AuxiliaryRestorationPrefix.empty decl block C.main))
+    ⟨(C.auxiliarySemantics.prefix
+      (AuxiliaryRestorationPrefix.empty decl _ C.main)).guarded⟩
     rfl rfl rfl Hsource.typesAdded Hsource.ctorsAdded rfl rfl hnames
 
 theorem NestedFinalAssemblyCertificate.declWF
@@ -372,11 +374,22 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
         Breplay.projections = decl.projectionEntries ∧
         AddInduct observer sourceProdEnv.constants (ves.venv observer) decl
           outEnv.constants Breplay.finalVEnv ∧
-        B.finalVEnv ≤ Breplay.finalVEnv := by
+        B.finalVEnv ≤ Breplay.finalVEnv ∧
+        Breplay.staged.eliminators = B.staged.eliminators := by
+    have hB : B.block = _ := C.block_eq_canonicalRestoredBlock
+    have Hreplay : VInductBlock.EliminatorsReplay (ves.venv observer) decl B.block :=
+      (C.eliminatorsReplay (ves.venv observer) (wf.mono DefinitionSafety.le_safe)
+        (fun n hn => by
+          cases h : (ves.venv observer).constants n with
+          | none => rfl
+          | some ci =>
+            obtain ⟨ci', hfind, -⟩ := (wf.tr (safety := observer)).aligned.find?_iff.mpr ⟨ci, h⟩
+            rw [hn] at hfind; cases hfind)).congr_fields
+        (by rw [hB]; rfl) (by rw [hB]; rfl) (by rw [hB]; rfl) (by rw [hB]; rfl)
     rcases B.rebaseAddInduct (valid observer) DefinitionSafety.le_safe
         (wf.mono DefinitionSafety.le_safe) C.declWF
-        C.compilation.compilesTo with
-      ⟨replayBase, Breplay, hprojections, Habstract, hout⟩
+        C.compilation.compilesTo Hreplay with
+      ⟨replayBase, Breplay, hprojections, Habstract, hout, heliminators⟩
     have HcheckingCanonical : CheckingEnv observer C.canonicalProdEnv
         replayBase := (Breplay.staged.validCore (valid observer).toValidCore).tr
     have Hchecking : CheckingEnv observer outEnv replayBase :=
@@ -407,7 +420,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
     have Hadd := H.addInductConcrete Habstract HcheckingRules Hprovenance
       Hvalid.tr.map_wf Horigins
     exact ⟨replayBase, Breplay,
-      hprojections.trans (by rfl), Hadd, hout⟩
+      hprojections.trans (by rfl), Hadd, hout, heliminators⟩
   let pre (observer : DefinitionSafety) :=
     Classical.choose (replay observer)
   have replaySpec (observer : DefinitionSafety) :=
@@ -417,7 +430,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
   have certSpec (observer : DefinitionSafety) :=
     Classical.choose_spec (replaySpec observer)
   let adds (observer : DefinitionSafety) := (certSpec observer).2.1
-  let outputLE (observer : DefinitionSafety) := (certSpec observer).2.2
+  let outputLE (observer : DefinitionSafety) := (certSpec observer).2.2.1
   let next (observer : DefinitionSafety) :=
     (cert observer).finalVEnv
   have hcompletedCanonical :
@@ -453,6 +466,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
       have hblock : (cert observer').block = (cert observer).block :=
         (cert observer').block_eq_of_projections_eq (cert observer)
           ((certSpec observer').1.trans (certSpec observer).1.symm)
+          ((certSpec observer').2.2.2.trans (certSpec observer).2.2.2.symm)
       have hinstall := (cert observer').install
       rw [hblock] at hinstall
       exact VInductBlock.install_mono (wf.mono hle)
