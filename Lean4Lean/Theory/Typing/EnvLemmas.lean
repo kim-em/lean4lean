@@ -2,6 +2,7 @@ import Lean4Lean.Theory.Typing.Lemmas
 import Lean4Lean.Theory.Typing.Env
 import Lean4Lean.Theory.Typing.QuotLemmas
 import Lean4Lean.Theory.Typing.InductiveLemmas
+import Lean4Lean.Theory.Typing.SignatureVars
 
 namespace Lean4Lean
 

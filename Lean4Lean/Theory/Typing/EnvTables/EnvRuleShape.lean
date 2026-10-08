@@ -13,18 +13,6 @@ arguments are the field variables. Restoration may specialize the constructor's 
 namespace Lean4Lean.EnvTables
 open VEnv InductiveSignature
 
-theorem restoration_vars' (r : Restoration) (count below : Nat) :
-    (vars count below).mapM r.expr = some (vars count below) := by
-  unfold vars
-  generalize (List.range count).reverse = is
-  induction is with
-  | nil => rfl
-  | cons i is ih =>
-    simpa [List.mapM_cons, Restoration.expr, Restoration.expr.go, VExpr.mkApps] using ih
-
-theorem vars_length (count below : Nat) : (vars count below).length = count := by
-  simp [vars]
-
 /-- Restoration of a constructor application with parameter and field variables. -/
 theorem restored_ctorApp {r : Restoration} {np e nf : Nat}
     (hparams : ∀ h ∈ r.heads, h.nparams = np) {name : Name} {levels : List VLevel}
@@ -39,7 +27,7 @@ theorem restored_ctorApp {r : Restoration} {np e nf : Nat}
           ++ vars nf 0)) := by
   change Restoration.expr.go r (VExpr.mkApps (.const name levels) _) [] = _ at h
   rw [restoration_mkApps] at h
-  simp only [List.mapM_append, restoration_vars', bind, Option.bind_some, pure,
+  simp only [List.mapM_append, InductiveSignature.Restoration.mapM_expr_vars, bind, Option.bind_some, pure,
     List.append_nil] at h
   simp only [Restoration.expr.go] at h
   split at h
@@ -54,7 +42,7 @@ theorem restored_ctorApp {r : Restoration} {np e nf : Nat}
       refine .inr ⟨spec, hmem, hspec, ?_, ?_⟩
       · simp only [bne_iff_ne, ne_eq, decide_eq_true_eq, Bool.or_eq_true, not_or] at hcond
         exact Classical.not_not.mp hcond.1
-      · rw [hnp, List.take_left' (vars_length np (e + nf)), List.drop_left' (vars_length np (e + nf))]
+      · rw [hnp, List.take_left' (InductiveSignature.length_vars np (e + nf)), List.drop_left' (InductiveSignature.length_vars np (e + nf))]
   · rename_i hnone
     cases h
     exact .inl ⟨hnone, rfl⟩
@@ -117,7 +105,7 @@ theorem CompilationData.rule_shape
     (vars (np + extra) nf ++ indices ++ [g.constructorApp ctor extra 0])) = some lBody at hlBody
   change Restoration.expr.go r (VExpr.mkApps _ _) [] = _ at hlBody
   rw [restoration_mkApps] at hlBody
-  simp only [List.mapM_append, restoration_vars', List.mapM_cons, List.mapM_nil, bind,
+  simp only [List.mapM_append, InductiveSignature.Restoration.mapM_expr_vars, List.mapM_cons, List.mapM_nil, bind,
     Option.bind_eq_some_iff, pure, Option.some.injEq] at hlBody
   obtain ⟨_, ⟨_, ⟨_, rfl, idx', hi, rfl⟩, _, ⟨major', hmajor, _, rfl, rfl⟩, rfl⟩, hout⟩ := hlBody
   simp only [List.append_nil, Restoration.expr.go, hnone] at hout

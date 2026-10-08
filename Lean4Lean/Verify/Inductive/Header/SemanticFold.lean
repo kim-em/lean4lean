@@ -834,7 +834,7 @@ theorem firstLoopIndSemantic
     hconsts' Hsemantic hmetadata hofLevel Hcache Hsuffix Hambient
   have hparamSize : stats'.params.size = nparams := by
     have hlength :=
-      Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hcache.params
+      List.Forall₂.length_eq Hcache.params
     simpa using hlength
   have hcommonParams : params.length = nparams := by
     have hpayload : 0 < Hsemantic.payloads.length := by

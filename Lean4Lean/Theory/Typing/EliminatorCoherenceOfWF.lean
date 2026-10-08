@@ -12,8 +12,6 @@ for fresh family names, so the coherence persists. -/
 
 namespace Lean4Lean.VEnv
 open InductiveSignature CaseSchema VExpr
-open private addDefEqs_as_rules addConsts_as_values
-  from Lean4Lean.Theory.Typing.NativeConstructorRigidity
 set_option linter.unusedSectionVars false
 
 variable {env env' : VEnv}
@@ -158,13 +156,13 @@ theorem WF'.eliminatorsCoherent {ds : List VDecl} (H : VEnv.WF' ds env) :
         (by rw [VEnv.addDefEq_eliminators, VEnv.addConst_eliminators hadd])
         (fun F info hp => .inl ((VEnv.addConst_projections hadd) ▸ hp))
     | mutualDef _ hadd _ =>
-      have hadd' := addConsts_as_values ▸ hadd
+      have hadd' := VEnv.addConsts_eq_addConstVals ▸ hadd
       apply ih.extend
-      · rw [addDefEqs_as_rules]
+      · rw [VEnv.addDefEqs_eq_addDefEqRules]
         exact (VEnv.addConsts_le hadd).trans VEnv.addDefEqRules_le
-      · rw [addDefEqs_as_rules, addDefEqRules_eliminators, VEnv.addConstVals_eliminators hadd']
+      · rw [VEnv.addDefEqs_eq_addDefEqRules, addDefEqRules_eliminators, VEnv.addConstVals_eliminators hadd']
       · apply old_projections
-        rw [addDefEqs_as_rules, VEnv.addDefEqRules_projections, VEnv.addConstVals_projections hadd']
+        rw [VEnv.addDefEqs_eq_addDefEqRules, VEnv.addDefEqRules_projections, VEnv.addConstVals_projections hadd']
     | quot _ hadd => exact ih.addQuot hadd
     | induct _ hadd => exact ih.addInduct (show env.WF from ⟨ds, hbase⟩).ordered hadd
   | inductEliminators hbase henv hle hreg hconstants _ _ hcoherent hfresh _ ihBase ih =>

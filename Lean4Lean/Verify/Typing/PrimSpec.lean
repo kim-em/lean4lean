@@ -18,14 +18,6 @@ namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
 
-theorem VEnv.addConst_eq_of_ne
-    {env env' : VEnv}
-    (hadd : env.addConst name ci = some env') (hne : name ≠ n) :
-    env'.constants n = env.constants n := by
-  unfold VEnv.addConst at hadd
-  split at hadd <;> cases hadd
-  simp [hne]
-
 /-- Primitive specifications transport along an extension that preserves
 lookup of their own name. Their typing and equality conclusions are monotone. -/
 theorem PrimSpec.Holds.extend {env env' : VEnv} {s : PrimSpec} {n : Name}
@@ -53,7 +45,7 @@ theorem PrimSpec.Holds.extend {env env' : VEnv} {s : PrimSpec} {n : Name}
 theorem PrimSpec.Holds.addConst {env env' : VEnv} {s : PrimSpec} {n : Name}
     (H : s.Holds env n) (hne : name ≠ n)
     (hadd : env.addConst name ci = some env') : s.Holds env' n :=
-  H.extend (VEnv.addConst_le hadd) (VEnv.addConst_eq_of_ne hadd hne)
+  H.extend (VEnv.addConst_le hadd) (VEnv.addConst_constants_of_ne hadd hne)
 
 theorem PrimSpec.Holds.addDefEq {env : VEnv} {s : PrimSpec} {n : Name}
     (H : s.Holds env n) : s.Holds (env.addDefEq df) n :=

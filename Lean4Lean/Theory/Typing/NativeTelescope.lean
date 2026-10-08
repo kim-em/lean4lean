@@ -30,7 +30,7 @@ theorem HasType.native_open (henv : env.Ordered)
     obtain ⟨u, hd⟩ := (IsType.forallE_inv henv (H.isType henv hΓ)).1
     have hbody := IsDefEq.appDF (H.weak henv (B := domain))
       (IsDefEq.bvar (Lookup.zero (Γ := Γ) (ty := domain)))
-    simp only [lift, instN_bvar0] at hbody
+    simp only [lift, VExpr.inst_liftN_bvar] at hbody
     simpa only [List.reverse_cons, List.append_assoc, List.singleton_append,
       List.length_cons, nativeEtaBody] using ih (Γ := domain :: Γ) ⟨hΓ, u, hd⟩ hbody
 
@@ -49,7 +49,7 @@ theorem HasType.native_eta (henv : env.WF)
     have hΓ' : OnCtx (domain :: Γ) (env.IsType U) := ⟨hΓ, u, hd⟩
     have hbody := IsDefEq.appDF (H.weak henv.ordered (B := domain))
       (IsDefEq.bvar (Lookup.zero (Γ := Γ) (ty := domain)))
-    simp only [lift, instN_bvar0] at hbody
+    simp only [lift, VExpr.inst_liftN_bvar] at hbody
     have heq := ih hΓ' hbody
     exact heta.symm.trans (.lamDF hd heq)
 

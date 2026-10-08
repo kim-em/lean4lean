@@ -60,12 +60,6 @@ private theorem extracted_body_stripLams {lhs rhs type : VExpr}
     exact ih (body := inner) hi
   | _ => simp only [CaseSchema.EquationBody.extract, Option.some.injEq] at H; cases H; rfl
 
-private theorem stripLams_wrapLams (domains : List VExpr) (expr : VExpr) :
-    (VExpr.wrapLams domains expr).stripLams = expr.stripLams := by
-  induction domains with
-  | nil => rfl
-  | cons _ _ ih => exact ih
-
 /-- Every extracted native equation body has an actual constant head. -/
 theorem NativeRecursorRegistered.equation_body_head
     (H : NativeRecursorRegistered env data) (hgen : data.equation index = some equation)
@@ -78,7 +72,7 @@ theorem NativeRecursorRegistered.equation_body_head
   rw [← hr] at hn
   have he := Restoration.wrapLams_head_const hn
     (VExpr.getAppFnArgs_mkApps_head _ _) hleft
-  rw [← (CaseSchema.EquationBody.extract_sound hbody).1, stripLams_wrapLams, extracted_body_stripLams hbody] at he
+  rw [← (CaseSchema.EquationBody.extract_sound hbody).1, VExpr.stripLams_wrapLams, extracted_body_stripLams hbody] at he
   exact ⟨_, _, body.lhs.getAppFnArgs.2, by
     rw [← he]
     exact (rebuild_spine body.lhs).symm⟩

@@ -65,17 +65,13 @@ theorem TeleKeys.length (h : TeleKeys env U Δ σ S ds keys σ' S') : keys.lengt
   | nil => rfl
   | cons _ _ _ _ _ ih => simp [ih]
 
-theorem mkApps_concat (f : VExpr) (as : List VExpr) (a : VExpr) :
-    VExpr.mkApps f (as ++ [a]) = .app (VExpr.mkApps f as) a := by
-  simp [VExpr.mkApps, List.foldl_append]
-
 theorem mkApps_inv {hd : VExpr} (h : e = VExpr.mkApps hd args) :
     (args = [] ∧ e = hd) ∨
       ∃ as a, args = as ++ [a] ∧ e = .app (VExpr.mkApps hd as) a := by
   rcases List.eq_nil_or_concat args with rfl | ⟨as, a, rfl⟩
   · exact .inl ⟨rfl, h⟩
   · refine .inr ⟨as, a, by simp, ?_⟩
-    rw [h, List.concat_eq_append, mkApps_concat]
+    rw [h, List.concat_eq_append, VExpr.mkApps_snoc]
 
 theorem mkApps_const_inv (h : e = VExpr.mkApps (.const c ls) args) :
     (args = [] ∧ e = .const c ls) ∨
@@ -83,7 +79,7 @@ theorem mkApps_const_inv (h : e = VExpr.mkApps (.const c ls) args) :
   rcases List.eq_nil_or_concat args with rfl | ⟨as, a, rfl⟩
   · exact .inl ⟨rfl, h⟩
   · refine .inr ⟨as, a, by simp, ?_⟩
-    rw [h, List.concat_eq_append, mkApps_concat]
+    rw [h, List.concat_eq_append, VExpr.mkApps_snoc]
 
 /-- Unwinding a spine observation of the head along the arguments. -/
 theorem obs_mkApps_of_wrap {σ : VExpr.Subst} {S : ObSets} :

@@ -16,22 +16,6 @@ variable {env env' : VEnv}
 
 /-! ## Small syntactic lemmas -/
 
-theorem addDefEqRules_defeqs_iff {env : VEnv} {rules : List VDefEq} :
-    (env.addDefEqRules rules).defeqs df ↔ df ∈ rules ∨ env.defeqs df := by
-  induction rules generalizing env with
-  | nil => simp [VEnv.addDefEqRules]
-  | cons rule rules ih =>
-    simp only [VEnv.addDefEqRules, ih, VEnv.addDefEq, List.mem_cons]
-    constructor
-    · rintro (h | h | h)
-      · exact .inl (.inr h)
-      · exact .inl (.inl h)
-      · exact .inr h
-    · rintro ((h | h) | h)
-      · exact .inr (.inl h)
-      · exact .inl h
-      · exact .inr (.inr h)
-
 theorem install_parts {base installed : VEnv} {block : VInductBlock}
     (H : VInductBlock.install base block = some installed) :
     ∃ envTypes envCtors envRecursors,
@@ -42,18 +26,11 @@ theorem install_parts {base installed : VEnv} {block : VInductBlock}
       installed = envRecursors.addDefEqRules block.rules :=
   VInductBlock.install_stages H
 
-theorem install_le {base installed : VEnv} {block : VInductBlock}
-    (H : VInductBlock.install base block = some installed) : base ≤ installed := by
-  obtain ⟨t, c, r, ht, hc, hr, rfl⟩ := install_parts H
-  exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
-    VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans
-      VEnv.addDefEqRules_le
-
 theorem install_defeqs {base installed : VEnv} {block : VInductBlock}
     (H : VInductBlock.install base block = some installed) :
     installed.defeqs df ↔ df ∈ block.rules ∨ base.defeqs df := by
   obtain ⟨t, c, r, ht, hc, hr, rfl⟩ := install_parts H
-  rw [addDefEqRules_defeqs_iff, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
+  rw [VEnv.addDefEqRules_defeqs_iff_mem_or, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
     VEnv.addEliminators_defeqs, VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht]
 
 theorem install_projections {base installed : VEnv} {block : VInductBlock}
@@ -71,14 +48,6 @@ theorem install_eliminators {base installed : VEnv} {block : VInductBlock}
     installed.eliminators n s ↔ (n, s) ∈ block.eliminators ∨ base.eliminators n s :=
   VInductBlock.install_eliminators_iff H
 
-theorem mkApps_getAppFnArgs (e : VExpr) :
-    VExpr.mkApps e.getAppFnArgs.1 e.getAppFnArgs.2 = e := by
-  suffices ∀ args, VExpr.mkApps (VExpr.getAppFnArgs.go e args).1
-      (VExpr.getAppFnArgs.go e args).2 = VExpr.mkApps e args from this []
-  induction e with
-  | app fn arg ih _ => intro args; exact ih (arg :: args)
-  | _ => intro args; rfl
-
 theorem Mentions.of_stripLams {e : VExpr} (h : Mentions X e.stripLams) : Mentions X e := by
   induction e with
   | lam _ _ _ ih => exact Or.inr (ih h)
@@ -88,7 +57,7 @@ theorem Mentions.of_forallResult {e : VExpr}
     (h : e.forallResult.getAppFnArgs.1 = .const X ls) : Mentions X e := by
   have spine : ∀ {e : VExpr}, e.getAppFnArgs.1 = .const X ls → Mentions X e := by
     intro e he
-    rw [← mkApps_getAppFnArgs e, he]
+    rw [← VExpr.mkApps_getAppFnArgs e, he]
     exact Mentions.mkApps_head
   induction e with
   | forallE _ _ _ ih => exact Or.inr (ih h)
@@ -382,7 +351,7 @@ theorem ctorShape_of_raw (hraw : decl.RawCtorShape type ctor) (huv : ctor.uvars 
     CtorShape env ctor.name (ctorView decl type ctor) := by
   obtain ⟨doms, result, heq, hle, hraw, hhead, harity⟩ := hraw.forallArity
   obtain ⟨type', _, _, levels, hfn, _, hlen, htake⟩ := hraw
-  have hspine := mkApps_getAppFnArgs result
+  have hspine := VExpr.mkApps_getAppFnArgs result
   rw [hhead] at hspine
   have htake' : result.getAppFnArgs.2.take decl.nparams =
       decl.paramVars (doms.length - decl.nparams) := htake

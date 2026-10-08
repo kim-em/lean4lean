@@ -58,7 +58,7 @@ theorem CompletedRecursorPhasesResult.findSourceHeader
       info.all = indTypes.toList.map (fun type => type.name) := by
   rcases Hheaders.sourceAligned with ⟨numNested, Haligned⟩
   have htypesLength : indTypes.size = decl.types.length := by
-    simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    simpa using List.Forall₂.length_eq
       Hheaders.translation.types
   have hsize : stats.nindices.size = indTypes.size := by
     rw [Array.size_eq_length_toList, Hheaders.materialized.indices,
@@ -688,9 +688,9 @@ theorem VEnv.IsDefEqCtx.rebaseCommonSuffix
   have HrightToOuter :=
     VEnv.IsDefEqCtx.extendSamePrefix
       (Hsuffix.symm henv.ordered) HrightInner
-  exact VEnv.IsDefEqCtx.transEmpty henv
+  exact Lean4Lean.VEnv.IsDefEqCtx.trans_empty henv
     (HleftToOuter.symm henv.ordered) <|
-      VEnv.IsDefEqCtx.transEmpty henv Hprefix HrightToOuter
+      Lean4Lean.VEnv.IsDefEqCtx.trans_empty henv Hprefix HrightToOuter
 
 end VerifyInductive
 end Lean4Lean

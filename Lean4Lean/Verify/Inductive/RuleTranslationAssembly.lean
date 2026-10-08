@@ -153,7 +153,7 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.ruleCtor_eq
     rw [H.ownedConstructors_length_eq]; exact hk
   have hpair := Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructorAtMinorOffset R.core
     owner i A.sourceOwner_lt hctor A.abstractOwner_lt A.abstractCtor_lt hindex
-  have horder := Lean4Lean.List.forall₂_getElem H.consumedGeneration.constructorOrder
+  have horder := List.forall₂_getElem H.consumedGeneration.constructorOrder
     (recursorMinorOffset indTypes owner + i) (by rw [Array.length_toList]; exact hk) hindex
   rw [hpair] at horder
   have hname := horder.2
@@ -236,7 +236,7 @@ theorem CompletedRecursorPhasesResult.ruleRealizations
       (H.generated.entry o.val howner).info.rules.length := by
     have := congrArg List.length hmap
     simpa using this
-  apply Lean4Lean.List.forall₂_of_getElem hlen
+  apply List.forall₂_of_getElem hlen
   intro j hj hj'
   have hval := RuleAssembly.getElem_of_map_val_eq hmap j hj
   have hctor : j < indTypes[o.val]!.ctors.length := by
@@ -261,7 +261,7 @@ theorem CompletedRecursorPhasesResult.entryRealizations
     (H : CompletedRecursorPhasesResult R outEnv) (Hrhs : H.RuleRhsTranslations) :
     List.Forall₂ (InductiveSignature.RecursorEntryRealization H.canonicalGeneration H.outVEnv)
       (List.finRange H.generationSignature.families.size) H.entries := by
-  apply Lean4Lean.List.forall₂_of_getElem (by simp [H.entries_length_eq])
+  apply List.forall₂_of_getElem (by simp [H.entries_length_eq])
   intro j hj hj'
   have hjf : j < H.generationSignature.families.size := by simpa using hj
   have hfin : (List.finRange H.generationSignature.families.size)[j] = ⟨j, hjf⟩ := by

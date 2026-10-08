@@ -612,12 +612,6 @@ theorem TrEnv.find?_uniq (H : TrEnv safety env venv)
     ci.name = name ∧ TrConstant safety venv ci ci' :=
   H.aligned.find?_uniq (H.map_wf.find?'_eq_find? _ ▸ h) hs
 
-theorem VEnv.addDefEqs_le : ∀ {cis' : List VDefVal} {venv : VEnv}, venv ≤ venv.addDefEqs cis'
-  | [], _ => .rfl
-  | ci :: cis, venv => by
-    show venv ≤ VEnv.addDefEqs (venv.addDefEq ci.toDefEq) cis
-    exact VEnv.addDefEq_le.trans VEnv.addDefEqs_le
-
 theorem VEnv.addDefEqs_self : ∀ {cis' : List VDefVal} {venv : VEnv} {ci'}, ci' ∈ cis' →
     (venv.addDefEqs cis').defeqs ci'.toDefEq
   | ci :: cis, venv, _, hc => by

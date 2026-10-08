@@ -163,7 +163,7 @@ theorem teleArity_specializeType {type t : VExpr} {args : List VExpr}
 
 theorem teleArity_of_head {e : VExpr} (h : e.getAppFnArgs.1 = .const c ls) :
     teleArity e = some 0 := by
-  rw [← mkApps_getAppFnArgs e, h]; exact teleArity_mkApps
+  rw [← VExpr.mkApps_getAppFnArgs e, h]; exact teleArity_mkApps
 
 theorem teleArity_of_forallResult {e : VExpr} (h : e.forallResult.getAppFnArgs.1 = .const c ls) :
     teleArity e = some e.forallArity := by

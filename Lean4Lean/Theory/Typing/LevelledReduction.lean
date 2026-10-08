@@ -137,18 +137,6 @@ inductive EtaPar : List VExpr → VExpr → VExpr → Prop where
 section Basic
 
 omit [Params] in
-theorem forall₂_of_getElem {R : α → β → Prop} :
-    ∀ {l : List α} {l' : List β}, l.length = l'.length →
-      (∀ i (hi : i < l.length) (hi' : i < l'.length), R l[i] l'[i]) → List.Forall₂ R l l'
-  | [], [], _, _ => .nil
-  | a :: l, b :: l', hlen, H =>
-    .cons (H 0 (by simp) (by simp))
-      (forall₂_of_getElem (by simpa using hlen) fun i hi hi' => H (i + 1) (by simpa using hi)
-        (by simpa using hi'))
-  | [], _ :: _, hlen, _ => by simp at hlen
-  | _ :: _, [], hlen, _ => by simp at hlen
-
-omit [Params] in
 theorem getElem_of_forall₂ {R : α → β → Prop} {l : List α} {l' : List β}
     (H : List.Forall₂ R l l') : l.length = l'.length ∧
       ∀ i (hi : i < l.length) (hi' : i < l'.length), R l[i] l'[i] :=
@@ -186,17 +174,17 @@ theorem DeltaPar.full (H : DeltaPar Γ e e') : FullReduction Γ e e' := by
   | lam _ _ ih1 ih2 => exact ih1.lam ih2
   | forallE _ _ ih1 ih2 => exact ih1.forallE ih2
   | delta hlen _ hr ih =>
-    exact (FullReduction.mkApps_args (forall₂_of_getElem hlen ih)).tail (.delta hr)
+    exact (FullReduction.mkApps_args (List.forall₂_of_getElem hlen ih)).tail (.delta hr)
   | quotDelta hlen _ hr ih =>
-    exact (FullReduction.mkApps_args (forall₂_of_getElem hlen ih)).tail (.quotDelta hr)
+    exact (FullReduction.mkApps_args (List.forall₂_of_getElem hlen ih)).tail (.quotDelta hr)
   | projIota hlen _ hl hs hi ht ih =>
-    exact (FullReduction.mkApps_args (forall₂_of_getElem hlen ih)).proj.tail
+    exact (FullReduction.mkApps_args (List.forall₂_of_getElem hlen ih)).proj.tail
       (.projIota hl hs hi ht)
 
 theorem FullReduction.structExpand (H : FullReduction Γ e e') :
     FullReduction Γ (structExpand family info levels params e)
       (structExpand family info levels params e') := by
-  refine FullReduction.mkApps_args (case_forall₂_append ?_ ?_)
+  refine FullReduction.mkApps_args (List.Forall₂.append' ?_ ?_)
   · exact List.Forall₂.rfl fun _ _ => .rfl
   · induction (List.range info.numFields) with
     | nil => exact .nil
@@ -225,11 +213,11 @@ theorem EtaPar.full (hΓ : OnCtx Γ (env.IsType univs)) (H : EtaPar Γ e e')
   | structEta _ hlen _ hl hp hi hs hc ih ihp =>
     have h := ih hΓ hs
     obtain ⟨_, hT⟩ := hs.isType henv hΓ
-    have hps : List.Forall₂ (FullReduction _) _ _ := forall₂_of_getElem hlen fun i hi hi' =>
+    have hps : List.Forall₂ (FullReduction _) _ _ := List.forall₂_of_getElem hlen fun i hi hi' =>
       ihp i hi hi' hΓ (schema_mkApps_arg_type hΓ hT (List.getElem_mem hi)).choose_spec
     refine (h.tail (.structEta hl hp hi (h.hasType hΓ hs)
       ((FullReduction.structExpand h).hasType hΓ hc))).trans ?_
-    exact FullReduction.mkApps_args (case_forall₂_append hps (List.Forall₂.rfl fun _ _ => .rfl))
+    exact FullReduction.mkApps_args (List.Forall₂.append' hps (List.Forall₂.rfl fun _ _ => .rfl))
 
 /-! ### Substitution of definitionally equal arguments -/
 
@@ -972,7 +960,7 @@ theorem defeqU_argRel : ArgRel (fun Γ a b => IsDefEqU env univs Γ a b) where
     simp only [← hlen]
     split
     · rename_i hi
-      exact .inr (Lean4Lean.List.forall₂_getElem hs _ (by omega) (by omega))
+      exact .inr (List.forall₂_getElem hs _ (by omega) (by omega))
     · exact .inl (Eq.refl _)
 
 theorem NativeDeltaRule.congr_defeq (hΓ : OnCtx Γ (env.IsType univs))
@@ -996,13 +984,6 @@ theorem eq_nil_or_snoc' (l : List α) : l = [] ∨ ∃ L b, l = L ++ [b] := by
   rcases List.eq_nil_or_concat l with h | ⟨L, b, h⟩
   · exact .inl h
   · exact .inr ⟨L, b, by simpa using h⟩
-
-omit [Params] in
-theorem mkApps_snoc (f : VExpr) (l : List VExpr) (b : VExpr) :
-    VExpr.mkApps f (l ++ [b]) = .app (VExpr.mkApps f l) b := by
-  induction l generalizing f with
-  | nil => rfl
-  | cons a l ih => exact ih (.app f a)
 
 
 
@@ -1034,13 +1015,6 @@ theorem QuotDeltaRule.not_rigid (H : QuotDeltaRule env univs Γ ls args rhs) :
   | intro hr _ _ _ _ => exact hrig _ hr.equation _ rfl
 
 omit [Params] in
-theorem mkApps_const_inj (H : VExpr.mkApps (.const n ls) as = VExpr.mkApps (.const n' ls') as') :
-    n = n' ∧ ls = ls' ∧ as = as' := by
-  have h := congrArg VExpr.getAppFnArgs H
-  rw [InductiveSignature.spine_mkApps_exact _ _ rfl, InductiveSignature.spine_mkApps_exact _ _ rfl] at h
-  cases h; exact ⟨rfl, rfl, rfl⟩
-
-omit [Params] in
 theorem iota_matches_spine
     (hm : (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).Matches e m1 m2) :
     ∃ vs M, e = .app (VExpr.mkApps (.const rc m1) vs) M ∧ vs.length = mr := by
@@ -1056,13 +1030,13 @@ theorem Params.no_match_delta_prefix (hdata : recursorData name = some data) (hp
   | defn c =>
     generalize he : VExpr.mkApps (.const name ls) pre = E at hm
     cases hm
-    obtain ⟨rfl, -, -⟩ := mkApps_const_inj (as' := []) he
+    obtain ⟨rfl, -, -⟩ := VExpr.mkApps_const_inj (as' := []) he
     rw [(pat_const_native hp).1] at hdata
     cases hdata
   | iota rc mr cc kc =>
     obtain ⟨vs, M, he, hvs⟩ := iota_matches_spine hm
-    rw [← mkApps_snoc] at he
-    obtain ⟨rfl, -, rfl⟩ := mkApps_const_inj he
+    rw [← VExpr.mkApps_snoc] at he
+    obtain ⟨rfl, -, rfl⟩ := VExpr.mkApps_const_inj he
     rcases pat_recursor hp with ⟨data', _, _, hmo, hrd, _⟩ | ⟨hqr, hq, _⟩
     · rw [hrd] at hdata
       cases hdata
@@ -1080,12 +1054,12 @@ theorem Params.no_match_quot_prefix (hqr : QuotRegistered env) (hp : Pat p r)
   | defn c =>
     generalize he : VExpr.mkApps (.const ``Quot.lift ls) pre = E at hm
     cases hm
-    obtain ⟨rfl, -, -⟩ := mkApps_const_inj (as' := []) he
+    obtain ⟨rfl, -, -⟩ := VExpr.mkApps_const_inj (as' := []) he
     exact (pat_const_native hp).2 hqr rfl
   | iota rc mr cc kc =>
     obtain ⟨vs, M, he, hvs⟩ := iota_matches_spine hm
-    rw [← mkApps_snoc] at he
-    obtain ⟨rfl, -, rfl⟩ := mkApps_const_inj he
+    rw [← VExpr.mkApps_snoc] at he
+    obtain ⟨rfl, -, rfl⟩ := VExpr.mkApps_const_inj he
     rcases pat_recursor hp with ⟨data', _, _, _, hrd, _⟩ | ⟨_, _, hmr, _⟩
     · rw [recursorData_quot hqr] at hrd
       cases hrd
@@ -1131,7 +1105,7 @@ theorem ParRed.const_spine_of (n : Nat)
       p.Matches (VExpr.mkApps (.const name levels) pre) lv vals → False)
     (hlen : args.length ≤ n) (H : ParRed Γ (VExpr.mkApps (.const name levels) args) out) :
     ∃ args', out = VExpr.mkApps (.const name levels) args' ∧ List.Forall₂ (ParRed Γ) args args' := by
-  induction args using snoc_induction generalizing out with
+  induction args using List.snoc_induction generalizing out with
   | nil =>
     generalize he : VExpr.mkApps (.const name levels) [] = src at H
     cases H with
@@ -1146,7 +1120,7 @@ theorem ParRed.const_spine_of (n : Nat)
   | snoc args arg ih =>
     generalize he : VExpr.mkApps (.const name levels) (args ++ [arg]) = src at H
     have hshape : src = .app (VExpr.mkApps (.const name levels) args) arg := by
-      rw [← he, mkApps_snoc]
+      rw [← he, VExpr.mkApps_snoc]
     have hhead : src.getAppFnArgs.1 = .const name levels := by
       rw [← he, InductiveSignature.spine_mkApps_exact _ _ rfl]
     cases H with
@@ -1156,7 +1130,7 @@ theorem ParRed.const_spine_of (n : Nat)
     | @app _ _ _ _ arg' hf ha =>
       cases hshape
       obtain ⟨args', rfl, hargs⟩ := ih (by simp at hlen; omega) hf
-      exact ⟨args' ++ [arg'], (mkApps_snoc ..).symm, case_forall₂_append hargs (.cons ha .nil)⟩
+      exact ⟨args' ++ [arg'], (VExpr.mkApps_snoc ..).symm, List.Forall₂.append' hargs (.cons ha .nil)⟩
     | beta =>
       have hfn := VExpr.app.inj hshape |>.1
       exact False.elim (VExpr.mkApps_ne_lam (by intros; intro h; cases h) _ hfn.symm)
@@ -1171,32 +1145,32 @@ theorem DeltaPar.const_spine_of (n : Nat)
     (hlen : args.length ≤ n) (H : DeltaPar Γ (VExpr.mkApps (.const name levels) args) out) :
     ∃ args', out = VExpr.mkApps (.const name levels) args' ∧
       List.Forall₂ (DeltaPar Γ) args args' := by
-  induction args using snoc_induction generalizing out with
+  induction args using List.snoc_induction generalizing out with
   | nil =>
     generalize he : VExpr.mkApps (.const name levels) [] = src at H
     cases H with
     | const => cases he; exact ⟨[], rfl, .nil⟩
     | delta hl _ hr =>
-      obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj he
+      obtain ⟨rfl, rfl, rfl⟩ := VExpr.mkApps_const_inj he
       exact (hno (by simp at hl ⊢; omega) hr).elim
     | quotDelta hl _ hr =>
-      obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj he
+      obtain ⟨rfl, rfl, rfl⟩ := VExpr.mkApps_const_inj he
       exact (hnoq (by simp at hl ⊢; omega) rfl hr).elim
     | _ => cases he
   | snoc args arg ih =>
     generalize he : VExpr.mkApps (.const name levels) (args ++ [arg]) = src at H
     have hshape : src = .app (VExpr.mkApps (.const name levels) args) arg := by
-      rw [← he, mkApps_snoc]
+      rw [← he, VExpr.mkApps_snoc]
     cases H with
     | @app _ _ _ _ arg' hf ha =>
       cases hshape
       obtain ⟨args', rfl, hargs⟩ := ih (by simp at hlen; omega) hf
-      exact ⟨args' ++ [arg'], (mkApps_snoc ..).symm, case_forall₂_append hargs (.cons ha .nil)⟩
+      exact ⟨args' ++ [arg'], (VExpr.mkApps_snoc ..).symm, List.Forall₂.append' hargs (.cons ha .nil)⟩
     | delta hl _ hr =>
-      obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj he
+      obtain ⟨rfl, rfl, rfl⟩ := VExpr.mkApps_const_inj he
       exact (hno (by omega) hr).elim
     | quotDelta hl _ hr =>
-      obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj he
+      obtain ⟨rfl, rfl, rfl⟩ := VExpr.mkApps_const_inj he
       exact (hnoq (by omega) rfl hr).elim
     | projIota => cases hshape
     | _ => cases hshape
@@ -1204,7 +1178,7 @@ theorem DeltaPar.const_spine_of (n : Nat)
 theorem DeltaPar.elim_spine (H : DeltaPar Γ (VExpr.mkApps (.elim block owner levels) args) out) :
     ∃ args', out = VExpr.mkApps (.elim block owner levels) args' ∧
       List.Forall₂ (DeltaPar Γ) args args' := by
-  induction args using snoc_induction generalizing out with
+  induction args using List.snoc_induction generalizing out with
   | nil =>
     generalize he : VExpr.mkApps (.elim block owner levels) [] = src at H
     cases H with
@@ -1223,12 +1197,12 @@ theorem DeltaPar.elim_spine (H : DeltaPar Γ (VExpr.mkApps (.elim block owner le
   | snoc args arg ih =>
     generalize he : VExpr.mkApps (.elim block owner levels) (args ++ [arg]) = src at H
     have hshape : src = .app (VExpr.mkApps (.elim block owner levels) args) arg := by
-      rw [← he, mkApps_snoc]
+      rw [← he, VExpr.mkApps_snoc]
     cases H with
     | @app _ _ _ _ arg' hf ha =>
       cases hshape
       obtain ⟨args', rfl, hargs⟩ := ih hf
-      exact ⟨args' ++ [arg'], (mkApps_snoc ..).symm, case_forall₂_append hargs (.cons ha .nil)⟩
+      exact ⟨args' ++ [arg'], (VExpr.mkApps_snoc ..).symm, List.Forall₂.append' hargs (.cons ha .nil)⟩
     | delta =>
       have := congrArg VExpr.getAppFnArgs he
       rw [InductiveSignature.spine_mkApps_exact _ _ rfl,
@@ -1269,7 +1243,7 @@ theorem NormalEqF.structExpand_congr (hΓ : OnCtx Γ (env.IsType univs))
     obtain ⟨_, h⟩ := schema_mkApps_arg_type hΓ ht
       (List.mem_append_right _ (List.mem_map.mpr ⟨i, himem, rfl⟩))
     simpa only [List.getElem_map, List.getElem_range] using NormalEqF.projDF h H
-  exact NormalEqF.mkApps_spine hΓ (.refl hhead) (case_forall₂_append hps hfields) ht
+  exact NormalEqF.mkApps_spine hΓ (.refl hhead) (List.Forall₂.append' hps hfields) ht
 
 theorem structExpand_params_typed (hΓ : OnCtx Γ (env.IsType univs))
     (ht : Γ ⊢ structExpand family info levels ps e : T) : ∀ p ∈ ps, ∃ A, Γ ⊢ p : A :=
@@ -1415,7 +1389,7 @@ theorem NormalEq₀.spine_expose (hΓ : OnCtx Γ (env.IsType univs)) (hh : Rigid
     (Γ ⊢ T : .sort .zero) ∨
     ∃ h' targs', HeadEquiv h' h ∧ x = VExpr.mkApps h' targs' ∧
       List.Forall₂ (NormalEq₀ Γ) targs' targs := by
-  induction targs using snoc_induction generalizing x T with
+  induction targs using List.snoc_induction generalizing x T with
   | nil =>
     obtain ⟨n, H⟩ := H
     cases hh with
@@ -1435,21 +1409,21 @@ theorem NormalEq₀.spine_expose (hΓ : OnCtx Γ (env.IsType univs)) (hh : Rigid
       | _ => cases hR
   | snoc targs t ih =>
     obtain ⟨n, H⟩ := H
-    rw [mkApps_snoc] at H
+    rw [VExpr.mkApps_snoc] at H
     generalize hR : VExpr.app (VExpr.mkApps h targs) t = R at H
     cases H with
     | refl _ =>
       subst hR
-      have hx' : Γ ⊢ VExpr.mkApps h (targs ++ [t]) : T := by rwa [mkApps_snoc]
-      exact .inr ⟨h, targs ++ [t], hh.equiv_rfl, (mkApps_snoc ..).symm,
+      have hx' : Γ ⊢ VExpr.mkApps h (targs ++ [t]) : T := by rwa [VExpr.mkApps_snoc]
+      exact .inr ⟨h, targs ++ [t], hh.equiv_rfl, (VExpr.mkApps_snoc ..).symm,
         NormalEqF.forall₂_refl fun _ hm => schema_mkApps_arg_type hΓ hx' hm⟩
     | proofIrrel l1 l2 _ => exact .inl (l1.defeqU_l henv hΓ (l2.uniqU henv hΓ hx))
     | appDF l1 l2 l3 l4 l5 l6 =>
       cases hR
       rcases ih ⟨_, l5⟩ l1 with hp | ⟨h', targs', he, rfl, hargs⟩
       · exact .inl (HasType.mkApps_proof hΓ hp l1 (bs := [_]) hx)
-      · exact .inr ⟨h', targs' ++ [_], he, (mkApps_snoc ..).symm,
-          case_forall₂_append hargs (.cons ⟨_, l6⟩ .nil)⟩
+      · exact .inr ⟨h', targs' ++ [_], he, (VExpr.mkApps_snoc ..).symm,
+          List.Forall₂.append' hargs (.cons ⟨_, l6⟩ .nil)⟩
     | _ => cases hR
 
 theorem NativeDeltaRule.congr₀ (hΓ : OnCtx Γ (env.IsType univs))
@@ -1504,7 +1478,7 @@ theorem DeltaPar.mirror_args (hΓ : OnCtx Γ (env.IsType univs))
     ∃ Xs, List.Forall₂ (DeltaPar Γ) args₁ Xs ∧ List.Forall₂ (NormalEq₀ Γ) Xs args' := by
   have hS : List.Forall₂ (fun y z => ∀ {c A}, NormalEq₀ Γ c y → Γ ⊢ y : A →
       ∃ c', DeltaPar Γ c c' ∧ NormalEq₀ Γ c' z) args args' :=
-    forall₂_of_getElem hlen fun i hi hi' _ _ h1 h2 => ih i hi hi' hΓ h1 h2
+    List.forall₂_of_getElem hlen fun i hi hi' _ _ h1 h2 => ih i hi hi' hΓ h1 h2
   exact List.Forall₂.exists_mid hrel hS fun x y z hy h1 h2 =>
     h2 h1 (schema_mkApps_arg_type hΓ ha hy).choose_spec
 
@@ -1695,12 +1669,6 @@ end DeltaMirror
 
 section ParRedMirror
 
-theorem levelEquiv_mkApps' (hf : VExpr.LEquiv univs f f') (args : List VExpr) :
-    VExpr.LEquiv univs (VExpr.mkApps f args) (VExpr.mkApps f' args) := by
-  induction args generalizing f f' with
-  | nil => exact hf
-  | cons a args ih => exact ih (.app hf .refl)
-
 /-- The mirror property of one parallel step, used as an induction hypothesis. -/
 abbrev MirrorP (Γ : List VExpr) (x y : VExpr) : Prop :=
   ∀ {c A}, OnCtx Γ (env.IsType univs) → NormalEq₀ Γ c x → Γ ⊢ x : A →
@@ -1879,7 +1847,7 @@ theorem ParRed.mirror_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
     have hls₂Symm : List.Forall₂ (· ≈ ·) actual.ctorLevels ls₂ :=
       Lean4Lean.List.Forall₂.imp (fun _ _ h => h.symm) (Lean4Lean.List.Forall₂.flip hls₂)
     have hL : VExpr.LEquiv univs actual.expr actual''.expr :=
-      .app (levelEquiv_mkApps' (.elim hlsSymm hw₁) _) (levelEquiv_mkApps' (.const hls₂Symm hw₂) _)
+      .app (VExpr.LEquiv.mkApps_fn (.elim hlsSymm hw₁) _) (VExpr.LEquiv.mkApps_fn (.const hls₂Symm hw₂) _)
     have he'' := (NormalEqF.of_levelEquiv (η := false) hΓ hL ha).defeq hΓ
     have hm' := hm.congr_levels henv hΓ hw₁ hlsSymm hls₂Symm he''
     have hspine : CaseApplicationRelated (NormalEq₀ Γ) actual₃ actual'' :=
@@ -1888,7 +1856,7 @@ theorem ParRed.mirror_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
     have hcap : List.Forall₂ (NormalEq₀ Γ) (rule.capture actual₃) (rule.capture actual) :=
       hspine.capture
     have hS : List.Forall₂ (MirrorP Γ) (rule.capture actual) arguments :=
-      forall₂_of_getElem hl.symm fun i hi _ => ih i hi
+      List.forall₂_of_getElem hl.symm fun i hi _ => ih i hi
     obtain ⟨Xs, hXs, eXs⟩ := List.Forall₂.exists_mid hcap hS fun x y z hy h1 h2 =>
       h2 hΓ h1 (hm.capture_typed hy).choose_spec
     have ⟨hl', hx'⟩ := getElem_of_forall₂ hXs
@@ -2055,15 +2023,6 @@ theorem DeltaPar.lam_inv (H : DeltaPar Γ (.lam A t) X) :
   | _ => cases he
 
 
-omit [Params] in
-theorem forall₂_snoc_left {R : α → β → Prop} :
-    ∀ {l₀ : List α} {a : α} {l : List β}, List.Forall₂ R (l₀ ++ [a]) l →
-    ∃ l₀' b, l = l₀' ++ [b] ∧ List.Forall₂ R l₀ l₀' ∧ R a b
-  | [], _, _, .cons h .nil => ⟨[], _, rfl, .nil, h⟩
-  | _ :: _, _, _, .cons h t =>
-    let ⟨l₀', b, e, t', h'⟩ := forall₂_snoc_left t
-    ⟨_ :: l₀', b, by rw [e]; rfl, .cons h t', h'⟩
-
 
 omit [Params] in
 theorem forall₂_getElem?_left {R : α → β → Prop} :
@@ -2131,11 +2090,11 @@ theorem DeltaPar.parRed_iota
     cases hm with | app hF hM => exact ⟨_, _, _, _, _, hF, hM, rfl, rfl⟩
   obtain ⟨vsF, rfl⟩ : ∃ vs, F = VExpr.mkApps (.const rc m1) vs := ⟨_, hF.const_arguments⟩
   obtain ⟨fsM, rfl⟩ : ∃ fs, M = VExpr.mkApps (.const cc lsc) fs := ⟨_, hM.const_arguments⟩
-  rw [← mkApps_snoc] at H
+  rw [← VExpr.mkApps_snoc] at H
   obtain ⟨args', rfl, hargs'⟩ := DeltaPar.const_spine_of (vsF ++ [_]).length
     (fun _ hr => Params.iota_no_delta hp hck hr)
     (fun _ hq hr => by subst hq; exact Params.iota_no_quotDelta hp hck hr) (Nat.le_refl _) H
-  obtain ⟨vs', M', rfl, hvs', hM'⟩ := forall₂_snoc_left hargs'
+  obtain ⟨vs', M', rfl, hvs', hM'⟩ := List.forall₂_snoc_left hargs'
   obtain ⟨fs', rfl, hfs'⟩ := DeltaPar.rigid_spine (pat_ctor_rigid hp) hM'
   obtain ⟨m3₁, hm3₁, hr₁⟩ := Pattern.Matches.constVarN_transport (R := fun x y => DeltaPar Γ y x)
     mr hF (Lean4Lean.List.Forall₂.flip hvs') (ls' := m1)
@@ -2161,11 +2120,11 @@ theorem DeltaPar.parRed_iota
     (fun v => ⟨_, (DeltaPar.full (hrel v)).defeq hΓ (htv v).choose_spec⟩) hck
   have hfire := ParRed.extra (Γ := Γ) hp hm₃ hck₃ pD₁
   have hbT : Γ ⊢ VExpr.app (VExpr.mkApps (.const rc m1) vs') (VExpr.mkApps (.const cc lsc) fs') : A := by
-    have := (DeltaPar.full H).hasType hΓ (by rwa [mkApps_snoc])
-    rwa [mkApps_snoc] at this
+    have := (DeltaPar.full H).hasType hΓ (by rwa [VExpr.mkApps_snoc])
+    rwa [VExpr.mkApps_snoc] at this
   obtain ⟨_, hh⟩ := schema_mkApps_head_type hΓ (ha.app_inv henv hΓ).choose_spec.choose_spec.1
   obtain ⟨_, _, hw, _⟩ := hh.const_inv henv hΓ
-  refine ⟨_, _, by rw [mkApps_snoc]; exact hfire, DeltaPar.congrRel.apply_rhs r.1 pD₂, ?_⟩
+  refine ⟨_, _, by rw [VExpr.mkApps_snoc]; exact hfire, DeltaPar.congrRel.apply_rhs r.1 pD₂, ?_⟩
   exact NormalEqF.apply_congr hΓ r.1 (VLevel.forall₂_equiv_refl m1) hw hw eD (hfire.hasType hΓ hbT)
 
 
@@ -2174,7 +2133,7 @@ theorem case_expr_spine (actual : InductiveSignature.CaseSchema.Application) :
     actual.expr = VExpr.mkApps (.elim actual.block actual.owner actual.levels)
       (actual.arguments ++ [VExpr.mkApps (.const actual.ctorName actual.ctorLevels)
         actual.ctorArguments]) := by
-  rw [mkApps_snoc]; rfl
+  rw [VExpr.mkApps_snoc]; rfl
 
 theorem forall₂_defeq_of_rel {R : List VExpr → VExpr → VExpr → Prop}
     (hdef : ∀ {a b A}, R Γ a b → Γ ⊢ a : A → Γ ⊢ a ≡ b : A)
@@ -2199,7 +2158,7 @@ theorem DeltaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule
   have ha' := ha
   rw [case_expr_spine] at H ha'
   obtain ⟨args', rfl, hargs'⟩ := DeltaPar.elim_spine H
-  obtain ⟨vs', M', rfl, hvs', hM'⟩ := forall₂_snoc_left hargs'
+  obtain ⟨vs', M', rfl, hvs', hM'⟩ := List.forall₂_snoc_left hargs'
   obtain ⟨cs', rfl, hcs'⟩ := DeltaPar.rigid_spine hm.ctor_rigid hM'
   let actual' : InductiveSignature.CaseSchema.Application :=
     { actual with arguments := vs', ctorArguments := cs' }
@@ -2221,7 +2180,7 @@ theorem DeltaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule
   have hm' := hm.congr henv hΓ hdefs ⟨_, hdef⟩
   have hcap := hspine.capture (rule := rule)
   have hargsP : List.Forall₂ (ParRed Γ) (rule.capture actual) arguments :=
-    forall₂_of_getElem hl.symm fun i hi _ => hr i hi
+    List.forall₂_of_getElem hl.symm fun i hi _ => hr i hi
   obtain ⟨D₁, D₂, pD₁, pD₂, eD⟩ := List.Forall₂.exists_join hcap hargsP
     fun x _ _ hx d p => IH (sizeOf_capture hx) hΓ d p (hm.capture_typed hx).choose_spec
   have ⟨hl₁, hx₁⟩ := getElem_of_forall₂ pD₁
@@ -2253,7 +2212,7 @@ theorem DeltaPar.parRed_projIota (hΓ : OnCtx Γ (env.IsType univs))
     obtain ⟨argsP, rfl, hP⟩ := ParRed.rigid_const_spine (projection_ctor_rigid hl) hM
     obtain ⟨D₁, D₂, pD₁, pD₂, eD⟩ := DeltaPar.parRed_args hΓ IH ha
       (fun _ hx => by have := sizeOf_mkApps_arg (f := .const info.ctorName ls) hx; simp; omega)
-      (HasType.mkApps_args_typed hΓ lm.hasType.2) (forall₂_of_getElem hlen hargs) hP
+      (HasType.mkApps_args_typed hΓ lm.hasType.2) (List.forall₂_of_getElem hlen hargs) hP
     obtain ⟨d₁, hd₁, pd₁⟩ := forall₂_getElem?_left pD₁ hi
     obtain ⟨d₂, hd₂, ed⟩ := forall₂_getElem?_left eD hd₁
     have hcong : DeltaPar Γ (.proj family index (VExpr.mkApps (.const info.ctorName ls) argsP))
@@ -2322,7 +2281,7 @@ theorem DeltaPar.parRed_diamond_aux : ∀ n, DPDiaBelow n := by
       (fun hp hpre hm => Params.no_match_delta_prefix hdata hp (by omega) hm) (Nat.le_refl _) H2
     obtain ⟨D₁, D₂, pD₁, pD₂, eD⟩ := DeltaPar.parRed_args hΓ IH ha
       (fun _ hx => sizeOf_mkApps_arg hx) (HasType.mkApps_args_typed hΓ ha)
-      (forall₂_of_getElem hlen hargs) hP
+      (List.forall₂_of_getElem hlen hargs) hP
     obtain ⟨rhs₁, X, hr₁, pX, eX⟩ := hr.congr_red ParRed.congrRel ParRed.argRel hΓ pD₁
     obtain ⟨_, hh⟩ := schema_mkApps_head_type hΓ ha
     obtain ⟨_, _, hw, _⟩ := hh.const_inv henv hΓ
@@ -2335,7 +2294,7 @@ theorem DeltaPar.parRed_diamond_aux : ∀ n, DPDiaBelow n := by
       (fun hp hpre hm => Params.no_match_quot_prefix hr.registered hp (by omega) hm) (Nat.le_refl _) H2
     obtain ⟨D₁, D₂, pD₁, pD₂, eD⟩ := DeltaPar.parRed_args hΓ IH ha
       (fun _ hx => sizeOf_mkApps_arg hx) (HasType.mkApps_args_typed hΓ ha)
-      (forall₂_of_getElem hlen hargs) hP
+      (List.forall₂_of_getElem hlen hargs) hP
     obtain ⟨rhs₁, X, hr₁, pX, eX⟩ := hr.congr_red ParRed.congrRel ParRed.argRel hΓ pD₁
     obtain ⟨_, hh⟩ := schema_mkApps_head_type hΓ ha
     obtain ⟨_, _, hw, _⟩ := hh.const_inv henv hΓ
@@ -2510,44 +2469,44 @@ theorem DeltaPar.const_spine_cases
           (NativeDeltaRule env univs recursorData Γ name ls (args'.take k) rhs ∨
             (name = ``Quot.lift ∧ QuotDeltaRule env univs Γ ls (args'.take k) rhs)) ∧
           out = VExpr.mkApps rhs (args'.drop k)) := by
-  induction args using snoc_induction generalizing out with
+  induction args using List.snoc_induction generalizing out with
   | nil =>
     generalize he : VExpr.mkApps (.const name ls) [] = src at H
     cases H with
     | const => cases he; exact ⟨[], .nil, .inl rfl⟩
     | delta hl hargs hr =>
-      obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj he
+      obtain ⟨rfl, rfl, rfl⟩ := VExpr.mkApps_const_inj he
       cases List.length_eq_zero_iff.mp hl.symm
       exact ⟨[], .nil, .inr ⟨0, _, Nat.le_refl _, .inl hr, rfl⟩⟩
     | quotDelta hl hargs hr =>
-      obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj he
+      obtain ⟨rfl, rfl, rfl⟩ := VExpr.mkApps_const_inj he
       cases List.length_eq_zero_iff.mp hl.symm
       exact ⟨[], .nil, .inr ⟨0, _, Nat.le_refl _, .inr ⟨rfl, hr⟩, rfl⟩⟩
     | _ => cases he
   | snoc args x ih =>
     generalize he : VExpr.mkApps (.const name ls) (args ++ [x]) = src at H
     have hshape : src = .app (VExpr.mkApps (.const name ls) args) x := by
-      rw [← he, mkApps_snoc]
+      rw [← he, VExpr.mkApps_snoc]
     cases H with
     | @app _ _ _ _ x' hf hx =>
       cases hshape
       obtain ⟨args', hargs', hcase⟩ := ih hf
-      refine ⟨args' ++ [x'], case_forall₂_append hargs' (.cons hx .nil), ?_⟩
+      refine ⟨args' ++ [x'], List.Forall₂.append' hargs' (.cons hx .nil), ?_⟩
       have hl := Lean4Lean.List.Forall₂.length_eq hargs'
       rcases hcase with rfl | ⟨k, rhs, hk, hr, rfl⟩
-      · exact .inl (mkApps_snoc ..).symm
+      · exact .inl (VExpr.mkApps_snoc ..).symm
       · refine .inr ⟨k, rhs, by simp; omega, ?_, ?_⟩
         · rwa [List.take_append_of_le_length (by omega)]
-        · rw [List.drop_append_of_le_length (by omega), mkApps_snoc]
+        · rw [List.drop_append_of_le_length (by omega), VExpr.mkApps_snoc]
     | delta hl hargs hr =>
-      obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj he
-      have h2 := forall₂_of_getElem hl hargs
+      obtain ⟨rfl, rfl, rfl⟩ := VExpr.mkApps_const_inj he
+      have h2 := List.forall₂_of_getElem hl hargs
       refine ⟨_, h2, .inr ⟨(args ++ [x]).length, out, Nat.le_refl _, ?_, ?_⟩⟩
       · rw [hl, List.take_length]; exact .inl hr
       · rw [hl, List.drop_length]; rfl
     | quotDelta hl hargs hr =>
-      obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj he
-      have h2 := forall₂_of_getElem hl hargs
+      obtain ⟨rfl, rfl, rfl⟩ := VExpr.mkApps_const_inj he
+      have h2 := List.forall₂_of_getElem hl hargs
       refine ⟨_, h2, .inr ⟨(args ++ [x]).length, out, Nat.le_refl _, ?_, ?_⟩⟩
       · rw [hl, List.take_length]; exact .inr ⟨rfl, hr⟩
       · rw [hl, List.drop_length]; rfl
@@ -2664,7 +2623,7 @@ omit [Params] in
 theorem exists_spine : ∀ e : VExpr, ∃ h args, e = VExpr.mkApps h args ∧ ∀ f x, h ≠ .app f x
   | .app f x => by
     obtain ⟨h, args, rfl, hh⟩ := exists_spine f
-    exact ⟨h, args ++ [x], (mkApps_snoc ..).symm, hh⟩
+    exact ⟨h, args ++ [x], (VExpr.mkApps_snoc ..).symm, hh⟩
   | .bvar i => ⟨_, [], rfl, nofun⟩
   | .sort u => ⟨_, [], rfl, nofun⟩
   | .const c ls => ⟨_, [], rfl, nofun⟩
@@ -2757,34 +2716,18 @@ theorem Join2.proj (hΓ : OnCtx Γ (env.IsType univs)) (hm : Join2 Γ m₁ m₂)
 
 
 omit [Params] in
-theorem mkApps_app_append (f : VExpr) (l₁ l₂ : List VExpr) :
-    VExpr.mkApps f (l₁ ++ l₂) = VExpr.mkApps (VExpr.mkApps f l₁) l₂ := by
-  induction l₁ generalizing f with
-  | nil => rfl
-  | cons a l ih => exact ih (.app f a)
-
-omit [Params] in
-theorem forall₂_split {P Q : α → α → Prop} :
+theorem List.forall₂_snoc_right {P Q : α → α → Prop} :
     ∀ {l E}, List.Forall₂ (fun y e => ∃ y', P y y' ∧ Q y' e) l E →
       ∃ B, List.Forall₂ P l B ∧ List.Forall₂ Q B E
   | [], [], .nil => ⟨[], .nil, .nil⟩
   | _ :: _, _ :: _, .cons ⟨y', h1, h2⟩ t =>
-    let ⟨B, hB, hE⟩ := forall₂_split t
+    let ⟨B, hB, hE⟩ := List.forall₂_snoc_right t
     ⟨y' :: B, .cons h1 hB, .cons h2 hE⟩
 
 omit [Params] in
 theorem forall₂_eq_imp : ∀ {l l' : List α}, List.Forall₂ Eq l l' → l = l'
   | [], [], .nil => rfl
   | _ :: _, _ :: _, .cons rfl t => by rw [forall₂_eq_imp t]
-
-omit [Params] in
-theorem forall₂_take {R : α → β → Prop} (H : List.Forall₂ R l l') (k : Nat) :
-    List.Forall₂ R (l.take k) (l'.take k) := by
-  induction H generalizing k with
-  | nil => simp
-  | cons h _ ih => cases k with
-    | zero => exact .nil
-    | succ k => exact .cons h (ih k)
 
 /-- The side of a constant-spine peak that contracted at prefix `k`. -/
 theorem DeltaPar.side_contr {X Y E : List VExpr} (hΓ : OnCtx Γ (env.IsType univs))
@@ -2794,8 +2737,8 @@ theorem DeltaPar.side_contr {X Y E : List VExpr} (hΓ : OnCtx Γ (env.IsType uni
     ∃ rE, SpineRule Γ name ls (E.take k) rE ∧
       ∃ b₁, DeltaPar Γ (VExpr.mkApps r (X.drop k)) b₁ ∧
         ReflTransGen (Below Γ 2) b₁ (VExpr.mkApps rE (E.drop k)) := by
-  obtain ⟨rY, X₁, hrY, pX, eX⟩ := hrule.congr_delta hΓ (forall₂_take hX k)
-  obtain ⟨rE, hrE, cE⟩ := hrY.chain hΓ (forall₂_take hYE k)
+  obtain ⟨rY, X₁, hrY, pX, eX⟩ := hrule.congr_delta hΓ (List.forall₂_take hX k)
+  obtain ⟨rE, hrE, cE⟩ := hrY.chain hΓ (List.forall₂_take hYE k)
   refine ⟨rE, hrE, _, DeltaPar.mkApps pX (Lean4Lean.List.forall₂_drop hX k), ?_⟩
   have hstep : DeltaPar Γ (VExpr.mkApps r (X.drop k)) (VExpr.mkApps X₁ (Y.drop k)) :=
     DeltaPar.mkApps pX (Lean4Lean.List.forall₂_drop hX k)
@@ -2818,10 +2761,10 @@ theorem DeltaPar.side_cong {Z X Y E : List VExpr} (hΓ : OnCtx Γ (env.IsType un
       ∃ b₁, DeltaPar Γ (VExpr.mkApps (.const name ls) X) b₁ ∧
         ReflTransGen (Below Γ 2) b₁ (VExpr.mkApps rE (E.drop k)) := by
   obtain ⟨rY, hrY⟩ := hrule.congr_defeq hΓ hdef
-  obtain ⟨rE, hrE, cE⟩ := hrY.chain hΓ (forall₂_take hYE k)
+  obtain ⟨rE, hrE, cE⟩ := hrY.chain hΓ (List.forall₂_take hYE k)
   have hstep : DeltaPar Γ (VExpr.mkApps (.const name ls) X) (VExpr.mkApps rY (Y.drop k)) := by
-    rw [← List.take_append_drop k X, mkApps_app_append]
-    exact DeltaPar.mkApps (hrY.step (forall₂_take hX k)) (Lean4Lean.List.forall₂_drop hX k)
+    rw [← List.take_append_drop k X, VExpr.mkApps_append]
+    exact DeltaPar.mkApps (hrY.step (List.forall₂_take hX k)) (Lean4Lean.List.forall₂_drop hX k)
   refine ⟨rE, hrE, _, hstep, ?_⟩
   exact Below.mkApps hΓ cE (Lean4Lean.List.forall₂_drop hYE k) ((DeltaPar.full hstep).hasType hΓ hb)
 
@@ -2842,7 +2785,7 @@ theorem DeltaPar.side_extend {E : List VExpr} {k₁ k₂ : Nat}
     first
       | rw [show k₁ + (k₂ - k₁) = k₂ by omega] at this; exact this.symm
       | rw [show k₂ - k₁ + k₁ = k₂ by omega] at this; exact this.symm
-  rw [hd, mkApps_app_append]
+  rw [hd, VExpr.mkApps_append]
   exact Below.ofParRedS (ParRedS.mkApps_head hs _) (by decide)
 
 theorem Join2.lam (hΓ : OnCtx Γ (env.IsType univs)) (tD : Γ ⊢ D : .sort u)
@@ -2904,8 +2847,8 @@ theorem DeltaPar.join_args (hΓ : OnCtx Γ (env.IsType univs)) (IH : DDBelow s)
       obtain ⟨d, hb, hc⟩ := IH (hsub x hx) hΓ p q (htyped x hx).choose_spec
       exact ⟨d, d, hb, hc, rfl⟩
   cases forall₂_eq_imp heq
-  obtain ⟨B, hB, hBE⟩ := forall₂_split hus
-  obtain ⟨C, hC, hCE⟩ := forall₂_split hvs
+  obtain ⟨B, hB, hBE⟩ := List.forall₂_snoc_right hus
+  obtain ⟨C, hC, hCE⟩ := List.forall₂_snoc_right hvs
   exact ⟨B, C, us, hB, hBE, hC, hCE⟩
 
 theorem forall₂_defeq_trans (hΓ : OnCtx Γ (env.IsType univs))
@@ -2958,12 +2901,12 @@ theorem DeltaPar.peak_spine (hΓ : OnCtx Γ (env.IsType univs))
     have s₂ := DeltaPar.mkApps_args (f := .const name ls) hC
     exact ⟨_, ⟨_, s₁, Below.mkApps hΓ .rfl hBE ((DeltaPar.full s₁).hasType hΓ hb)⟩,
       ⟨_, s₂, Below.mkApps hΓ .rfl hCE ((DeltaPar.full s₂).hasType hΓ hc)⟩⟩
-  · obtain ⟨rE, hrE, b₁, pb, cb⟩ := DeltaPar.side_cong hΓ hr₂ (forall₂_take d₂B k₂) hB hBE hb
+  · obtain ⟨rE, hrE, b₁, pb, cb⟩ := DeltaPar.side_cong hΓ hr₂ (List.forall₂_take d₂B k₂) hB hBE hb
     obtain ⟨rE', hrE', c₁, pc, cc⟩ := DeltaPar.side_contr hΓ hr₂ hC hCE hc
     cases hrE.unique hrE'
     exact ⟨_, ⟨_, pb, cb⟩, ⟨_, pc, cc⟩⟩
   · obtain ⟨rE, hrE, b₁, pb, cb⟩ := DeltaPar.side_contr hΓ hr₁ hB hBE hb
-    obtain ⟨rE', hrE', c₁, pc, cc⟩ := DeltaPar.side_cong hΓ hr₁ (forall₂_take d₁C k₁) hC hCE hc
+    obtain ⟨rE', hrE', c₁, pc, cc⟩ := DeltaPar.side_cong hΓ hr₁ (List.forall₂_take d₁C k₁) hC hCE hc
     cases hrE.unique hrE'
     exact ⟨_, ⟨_, pb, cb⟩, ⟨_, pc, cc⟩⟩
   · obtain ⟨rE₁, hrE₁, b₁, pb, cb⟩ := DeltaPar.side_contr hΓ hr₁ hB hBE hb
@@ -2973,16 +2916,10 @@ theorem DeltaPar.peak_spine (hΓ : OnCtx Γ (env.IsType univs))
     · exact ⟨_, ⟨_, pb, cb⟩, ⟨_, pc, cc.trans (DeltaPar.side_extend hΓ hk hrE₂ hrE₁)⟩⟩
 
 omit [Params] in
-theorem mkApps_const_ne_forallE : VExpr.mkApps (.const n ls) args ≠ .forallE A t := by
-  rcases eq_nil_or_snoc' args with rfl | ⟨l, a, rfl⟩
-  · intro h; cases h
-  · rw [mkApps_snoc]; intro h; cases h
-
-omit [Params] in
 theorem mkApps_const_ne_proj : VExpr.mkApps (.const n ls) args ≠ .proj s i m := by
   rcases eq_nil_or_snoc' args with rfl | ⟨l, a, rfl⟩
   · intro h; cases h
-  · rw [mkApps_snoc]; intro h; cases h
+  · rw [VExpr.mkApps_snoc]; intro h; cases h
 
 theorem Join2.symm (H : Join2 Γ b c) : Join2 Γ c b :=
   let ⟨d, h1, h2⟩ := H; ⟨d, h2, h1⟩
@@ -2999,7 +2936,7 @@ theorem DeltaPar.peak_cong_iota (hΓ : OnCtx Γ (env.IsType univs))
     Join2 Γ (.proj family index m₁) field := by
   obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, lm, _, _⟩ := ha.proj_inv henv hΓ
   obtain ⟨args₁, rfl, h₁⟩ := DeltaPar.rigid_spine (projection_ctor_rigid hl) hm₁
-  have h₂ := forall₂_of_getElem hlen hargs
+  have h₂ := List.forall₂_of_getElem hlen hargs
   have hb := (DeltaPar.full (.proj hm₁)).hasType hΓ ha
   have hc := (DeltaPar.full (.projIota hlen hargs hl hs hi ht)).hasType hΓ ha
   have targs := HasType.mkApps_args_typed hΓ lm.hasType.2
@@ -3045,11 +2982,11 @@ theorem DeltaPar.peak_iota (hΓ : OnCtx Γ (env.IsType univs))
   | projIota hlen' hargs' hl' hs' hi' ht' =>
     injection hE with hf hidx hM
     subst hf hidx
-    obtain ⟨hc', rfl, rfl⟩ := mkApps_const_inj hM
+    obtain ⟨hc', rfl, rfl⟩ := VExpr.mkApps_const_inj hM
     cases henv.ordered.projections_unique hl hl'
     have targs := HasType.mkApps_args_typed hΓ lm.hasType.2
-    have h₁ := forall₂_of_getElem hlen hargs
-    have h₂ := forall₂_of_getElem hlen' hargs'
+    have h₁ := List.forall₂_of_getElem hlen hargs
+    have h₂ := List.forall₂_of_getElem hlen' hargs'
     obtain ⟨x, hx, hx₁⟩ := forall₂_getElem?_right h₁ hi
     obtain ⟨y, hy, hy₂⟩ := forall₂_getElem?_left h₂ hx
     rw [hi'] at hy
@@ -3068,7 +3005,7 @@ theorem DeltaPar.app_inv_head (hh : ∀ c ls, h ≠ .const c ls) (hh' : ∀ f x,
   have hhead : ∀ c ls args, VExpr.mkApps (.const c ls) args ≠ E := by
     intro c ls args he
     have := congrArg (fun e => (VExpr.getAppFnArgs e).1) (he.trans hE.symm)
-    rw [← mkApps_snoc] at this
+    rw [← VExpr.mkApps_snoc] at this
     simp only [InductiveSignature.spine_mkApps_exact (VExpr.const c ls) _ rfl] at this
     rw [InductiveSignature.spine_mkApps_exact h _ (by
       cases h <;> first | rfl | exact absurd rfl (hh' _ _))] at this
@@ -3084,8 +3021,8 @@ theorem DeltaPar.forallE_inv (H : DeltaPar Γ (.forallE A t) X) :
   generalize he : VExpr.forallE A t = src at H
   cases H with
   | forallE h1 h2 => cases he; exact ⟨_, _, h1, h2, rfl⟩
-  | delta => exact absurd he.symm mkApps_const_ne_forallE
-  | quotDelta => exact absurd he.symm mkApps_const_ne_forallE
+  | delta => exact absurd he.symm VExpr.mkApps_const_ne_forallE
+  | quotDelta => exact absurd he.symm VExpr.mkApps_const_ne_forallE
   | _ => cases he
 
 theorem DeltaPar.atom_inv (hh : ∀ c ls, h ≠ .const c ls) (hh₁ : ∀ f x, h ≠ .app f x)
@@ -3100,11 +3037,11 @@ theorem DeltaPar.atom_inv (hh : ∀ c ls, h ≠ .const c ls) (hh₁ : ∀ f x, h
   | @delta _ name ls rhs args args' _ _ _ =>
     rcases eq_nil_or_snoc' args with rfl | ⟨l, a, rfl⟩
     · exact absurd rfl (hh _ _)
-    · exact absurd (mkApps_snoc ..) (hh₁ _ _)
+    · exact absurd (VExpr.mkApps_snoc ..) (hh₁ _ _)
   | @quotDelta _ ls rhs args args' _ _ _ =>
     rcases eq_nil_or_snoc' args with rfl | ⟨l, a, rfl⟩
     · exact absurd rfl (hh _ _)
-    · exact absurd (mkApps_snoc ..) (hh₁ _ _)
+    · exact absurd (VExpr.mkApps_snoc ..) (hh₁ _ _)
   | projIota => exact absurd rfl (hh₂ _ _ _)
 
 theorem DeltaPar.peak_aux : ∀ n, DDBelow n := by
@@ -3179,7 +3116,7 @@ theorem DeltaPar.peak_aux : ∀ n, DDBelow n := by
     · obtain ⟨c, ls, rfl⟩ := hconst
       exact DeltaPar.peak_spine hΓ IH ha H1 H2
     · have hnc : ∀ c ls, h ≠ .const c ls := fun c ls he => hconst ⟨c, ls, he⟩
-      rw [mkApps_snoc] at ha H1 H2 IH
+      rw [VExpr.mkApps_snoc] at ha H1 H2 IH
       obtain ⟨_, _, tf, tx⟩ := ha.app_inv henv hΓ
       obtain ⟨f₁, x₁, rfl, hf₁, hx₁⟩ := DeltaPar.app_inv_head hnc hh H1
       obtain ⟨f₂, x₂, rfl, hf₂, hx₂⟩ := DeltaPar.app_inv_head hnc hh H2
@@ -3266,7 +3203,7 @@ theorem Below.expand (hΓ : OnCtx Γ (env.IsType univs))
     ReflTransGen (Below Γ n) (structExpand family info levels ps' b₀)
         (structExpand family info levels ps' d₀) := by
   unfold VEnv.structExpand at hb ⊢
-  refine Below.mkApps hΓ .rfl (case_forall₂_append (List.Forall₂.rfl fun _ _ => .rfl) ?_) hb
+  refine Below.mkApps hΓ .rfl (List.Forall₂.append' (List.Forall₂.rfl fun _ _ => .rfl) ?_) hb
   apply List.forall₂_of_getElem (by simp)
   intro j hj hj'
   have hjmem : j ∈ List.range info.numFields := by simpa using hj
@@ -3287,7 +3224,7 @@ theorem EtaPar.root_struct (hΓ : OnCtx Γ (env.IsType univs))
       EtaPar Γ c (structExpand family info levels ps' d₀) := by
   refine ⟨?_, .structEta hcd hlen hps hl hp hi hc hcexp⟩
   unfold structExpand at hb ⊢
-  refine Below.mkApps hΓ .rfl (case_forall₂_append (List.Forall₂.rfl fun _ _ => .rfl) ?_) hb
+  refine Below.mkApps hΓ .rfl (List.Forall₂.append' (List.Forall₂.rfl fun _ _ => .rfl) ?_) hb
   apply List.forall₂_of_getElem (by simp)
   intro j hj hj'
   have hjmem : j ∈ List.range info.numFields := by simpa using hj
@@ -3332,7 +3269,7 @@ theorem mkApps_const_eq_cases (he : VExpr.mkApps (.const n ls) vs = e) :
       ∃ vs₀ x, vs = vs₀ ++ [x] ∧ e = .app (VExpr.mkApps (.const n ls) vs₀) x := by
   rcases eq_nil_or_snoc' vs with rfl | ⟨vs₀, x, rfl⟩
   · exact .inl ⟨rfl, he.symm⟩
-  · exact .inr ⟨vs₀, x, rfl, by rw [← he, mkApps_snoc]⟩
+  · exact .inr ⟨vs₀, x, rfl, by rw [← he, VExpr.mkApps_snoc]⟩
 
 /-- Collapse eta expansions inside a constant spine in function position. -/
 theorem EtaPar.collapse_spine (hΓ : OnCtx Γ (env.IsType univs))
@@ -3348,8 +3285,8 @@ theorem EtaPar.collapse_spine (hΓ : OnCtx Γ (env.IsType univs))
     · cases he
       obtain ⟨_, _, tf, _⟩ := ht.app_inv henv hΓ
       obtain ⟨vs₀', h₀, hy⟩ := ih₁ hΓ rfl tf
-      refine ⟨vs₀' ++ [x'], case_forall₂_append h₀ (.cons hx .nil), fun y => ?_⟩
-      rw [mkApps_snoc]
+      refine ⟨vs₀' ++ [x'], List.Forall₂.append' h₀ (.cons hx .nil), fun y => ?_⟩
+      rw [VExpr.mkApps_snoc]
       exact ParRedS.app (hy x') .rfl
   | funEta H₀ HA hty ih =>
     subst hsrc
@@ -3393,8 +3330,8 @@ theorem EtaPar.collapse_proj (hΓ : OnCtx Γ (env.IsType univs))
       obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ := hs.proj_inv henv hΓ
       obtain ⟨_, _, tf, _⟩ := hmajor.hasType.2.app_inv henv hΓ
       obtain ⟨vs₀', h₀, hy⟩ := EtaPar.collapse_spine hΓ hf tf
-      refine ⟨vs₀' ++ [x'], case_forall₂_append h₀ (.cons hx .nil), ?_⟩
-      rw [mkApps_snoc]
+      refine ⟨vs₀' ++ [x'], List.Forall₂.append' h₀ (.cons hx .nil), ?_⟩
+      rw [VExpr.mkApps_snoc]
       exact Below.ofParRedS (ParRedS.proj (hy x')) (by decide)
   | funEta H₀ HA hty ih =>
     subst hsrc
@@ -3430,7 +3367,7 @@ theorem DeltaPar.project_fields (hΓ : OnCtx Γ (env.IsType univs))
     DeltaPar Γ (structExpand family info levels ps (VExpr.mkApps (.const info.ctorName lsc) ps₀))
       (VExpr.mkApps (.const info.ctorName levels) (ps ++ ps₀.drop info.nparams)) := by
   unfold structExpand at ht ⊢
-  refine DeltaPar.mkApps_args (case_forall₂_append (List.Forall₂.rfl fun _ _ => .rfl) ?_)
+  refine DeltaPar.mkApps_args (List.Forall₂.append' (List.Forall₂.rfl fun _ _ => .rfl) ?_)
   apply List.forall₂_of_getElem (by simp; omega)
   intro j hj hj'
   have hjmem : j ∈ List.range info.numFields := by simpa using hj
@@ -3468,9 +3405,9 @@ theorem EtaPar.collapse_major
     · cases he
       obtain ⟨_, _, tf, _⟩ := ht.app_inv henv hΓ
       obtain ⟨vs₀', h₀, hy⟩ := EtaPar.collapse_spine hΓ hf tf
-      refine ⟨vs₀' ++ [x'], lsc, vs₀' ++ [x'], case_forall₂_append h₀ (.cons hx .nil), ?_,
+      refine ⟨vs₀' ++ [x'], lsc, vs₀' ++ [x'], List.Forall₂.append' h₀ (.cons hx .nil), ?_,
         .inl ⟨rfl, rfl⟩⟩
-      rw [mkApps_snoc]
+      rw [VExpr.mkApps_snoc]
       exact Below.ofParRedS (hy x') (by decide)
   | funEta H₀ HA hty ih =>
     subst hsrc
@@ -3517,8 +3454,8 @@ theorem _root_.Lean4Lean.Pattern.Matches.constVarN_forall₂ {R : VExpr → VExp
     rcases eq_nil_or_snoc' vs with rfl | ⟨_, _, rfl⟩
     · rcases eq_nil_or_snoc' vs' with rfl | ⟨_, _, rfl⟩
       · exact .nil
-      · rw [mkApps_snoc] at hE'; cases hE'
-    · rw [mkApps_snoc] at hE; cases hE
+      · rw [VExpr.mkApps_snoc] at hE'; cases hE'
+    · rw [VExpr.mkApps_snoc] at hE; cases hE
   | k + 1, vs, vs', ls, ls', m, m', H, H', hR => by
     generalize hE : VExpr.mkApps (.const c ls) vs = E at H
     generalize hE' : VExpr.mkApps (.const c ls') vs' = E' at H'
@@ -3528,7 +3465,7 @@ theorem _root_.Lean4Lean.Pattern.Matches.constVarN_forall₂ {R : VExpr → VExp
       | var H₀' =>
         obtain ⟨vs₀, rfl, rfl⟩ := RigidHead.const.mkApps_eq_app hE
         obtain ⟨vs₀', rfl, rfl⟩ := RigidHead.const.mkApps_eq_app hE'
-        exact case_forall₂_append
+        exact List.Forall₂.append'
           (Pattern.Matches.constVarN_forall₂ k H₀ H₀' fun a => hR (some a)) (.cons (hR none) .nil)
 
 omit [Params] in
@@ -3542,7 +3479,7 @@ theorem _root_.Lean4Lean.Pattern.Matches.constVarN_exists :
     rcases eq_nil_or_snoc' vs with rfl | ⟨vs₀, x, rfl⟩
     · simp at h
     · obtain ⟨m, hm⟩ := Pattern.Matches.constVarN_exists k (vs := vs₀) (ls := ls) (by simpa using h)
-      rw [mkApps_snoc]
+      rw [VExpr.mkApps_snoc]
       exact ⟨_, .var hm⟩
 
 omit [Params] in
@@ -3564,7 +3501,7 @@ theorem _root_.Lean4Lean.Pattern.Matches.constVarN_of_values :
       apply List.map_congr_left
       intro x _
       exact Pattern.RHS.mapPaths_apply _ _
-    rw [hmap, mkApps_snoc]
+    rw [hmap, VExpr.mkApps_snoc]
     have := Pattern.Matches.var (a' := vals none) ih
     have hv : (fun x => Option.elim x (vals none) fun a => vals (some a)) = vals := by
       funext x; cases x <;> rfl
@@ -3604,7 +3541,7 @@ theorem mkApps_elim_eq_cases (he : VExpr.mkApps (.elim n o ls) vs = e) :
       ∃ vs₀ x, vs = vs₀ ++ [x] ∧ e = .app (VExpr.mkApps (.elim n o ls) vs₀) x := by
   rcases eq_nil_or_snoc' vs with rfl | ⟨vs₀, x, rfl⟩
   · exact .inl ⟨rfl, he.symm⟩
-  · exact .inr ⟨vs₀, x, rfl, by rw [← he, mkApps_snoc]⟩
+  · exact .inr ⟨vs₀, x, rfl, by rw [← he, VExpr.mkApps_snoc]⟩
 
 /-- Collapse eta expansions inside an eliminator spine in function position. -/
 theorem EtaPar.collapse_elim (hΓ : OnCtx Γ (env.IsType univs))
@@ -3620,8 +3557,8 @@ theorem EtaPar.collapse_elim (hΓ : OnCtx Γ (env.IsType univs))
     · cases he
       obtain ⟨_, _, tf, _⟩ := ht.app_inv henv hΓ
       obtain ⟨vs₀', h₀, hy⟩ := ih₁ hΓ rfl tf
-      refine ⟨vs₀' ++ [x'], case_forall₂_append h₀ (.cons hx .nil), fun y => ?_⟩
-      rw [mkApps_snoc]
+      refine ⟨vs₀' ++ [x'], List.Forall₂.append' h₀ (.cons hx .nil), fun y => ?_⟩
+      rw [VExpr.mkApps_snoc]
       exact ParRedS.app (hy x') .rfl
   | funEta H₀ HA hty ih =>
     subst hsrc
@@ -3668,14 +3605,14 @@ theorem EtaPar.delta_spine (hΓ : OnCtx Γ (env.IsType univs))
     ∃ d, ReflTransGen (Below Γ 3) (.app f' x') d ∧ EtaPar Γ rhs d := by
   subst hargs
   have ha' := ha
-  rw [mkApps_snoc] at ha'
+  rw [VExpr.mkApps_snoc] at ha'
   obtain ⟨_, _, tf, tx⟩ := ha'.app_inv henv hΓ
   obtain ⟨args₀', h₀, hy⟩ := EtaPar.collapse_spine hΓ hF tf
   have hB : List.Forall₂ (EtaPar Γ) (args₀ ++ [x]) (args₀' ++ [x']) :=
-    case_forall₂_append h₀ (.cons hX .nil)
+    List.Forall₂.append' h₀ (.cons hX .nil)
   have targs := HasType.mkApps_args_typed hΓ ha
   obtain ⟨D, hBD, hD⟩ := EtaPar.delta_join_args hΓ IH (fun _ hx => sizeOf_mkApps_arg hx) targs hB
-    (forall₂_of_getElem hlen hd)
+    (List.forall₂_of_getElem hlen hd)
   obtain ⟨rhsD, X, hrD, pX, eX⟩ : ∃ rhsD X, SpineRule Γ name ls D rhsD ∧ EtaPar Γ rhs X ∧
       NormalEq₀ Γ X rhsD := by
     rcases hr with hr | ⟨rfl, hr⟩
@@ -3685,7 +3622,7 @@ theorem EtaPar.delta_spine (hΓ : OnCtx Γ (env.IsType univs))
       exact ⟨_, _, .inr ⟨rfl, h⟩, h1, h2⟩
   have hb := (EtaPar.full hΓ (.app hF hX) ha').hasType hΓ ha'
   have c₁ : ReflTransGen (Below Γ 3) (.app f' x') (VExpr.mkApps (.const name ls) (args₀' ++ [x'])) := by
-    rw [mkApps_snoc]; exact Below.ofParRedS (hy x') (by decide)
+    rw [VExpr.mkApps_snoc]; exact Below.ofParRedS (hy x') (by decide)
   have tB := Below.hasType hΓ c₁ hb
   have c₂ := Below.mkApps hΓ .rfl hBD tB
   have hδ : DeltaPar Γ (VExpr.mkApps (.const name ls) D) rhsD :=
@@ -3710,7 +3647,7 @@ theorem EtaPar.delta_projIota (hΓ : OnCtx Γ (env.IsType univs))
   have targs := HasType.mkApps_args_typed hΓ lm.hasType.2
   obtain ⟨D, hBD, hD⟩ := EtaPar.delta_join_args hΓ IH
     (fun _ hx => by have := sizeOf_mkApps_arg (f := .const info.ctorName ls) hx; simp; omega)
-    targs hB (forall₂_of_getElem hlen hargs)
+    targs hB (List.forall₂_of_getElem hlen hargs)
   have hb := (EtaPar.full hΓ (.proj hM) ha).hasType hΓ ha
   have hc := (DeltaPar.full (.projIota hlen hargs hl hs hi ht)).hasType hΓ ha
   have tB := Below.hasType hΓ c₁ hb
@@ -3845,7 +3782,7 @@ theorem EtaPar.parRed_iota
   obtain ⟨vsF, rfl⟩ : ∃ vs, F = VExpr.mkApps (.const rc m1) vs := ⟨_, hF₀.const_arguments⟩
   obtain ⟨fsM, rfl⟩ : ∃ fs, M = VExpr.mkApps (.const cc lsc) fs := ⟨_, hM₀.const_arguments⟩
   have hfsLen : fsM.length = kc := by
-    obtain ⟨-, -, h⟩ := mkApps_const_inj hM₀.const_arguments
+    obtain ⟨-, -, h⟩ := VExpr.mkApps_const_inj hM₀.const_arguments
     rw [h]; simp [Pattern.argumentRHS_length]
   obtain ⟨_, _, tF, tM⟩ := ha.app_inv henv hΓ
   -- collapse the function spine and the major
@@ -3905,7 +3842,7 @@ theorem EtaPar.parRed_iota
     let fsD := ((Pattern.const info.ctorName).argumentRHS kc).map (·.apply lsc (fun v => D (.inr v)))
     have hfsDlen' : fsD.length = kc := hfsDlen
     have cps : List.Forall₂ (ReflTransGen (Below Γ 3)) ps₀ (ps₀.take info.nparams ++ fsD.drop info.nparams) := by
-      have := case_forall₂_append (forall₂_rtg_refl (ps₀.take info.nparams))
+      have := List.Forall₂.append' (forall₂_rtg_refl (ps₀.take info.nparams))
         (show List.Forall₂ (ReflTransGen (Below Γ 3)) (ps₀.drop info.nparams) (fsD.drop info.nparams) by
           rw [hdrop]; exact Lean4Lean.List.forall₂_drop cfs _)
       rwa [List.take_append_drop] at this
@@ -3979,10 +3916,10 @@ theorem capture_replace {R : α → α → Prop} (hrefl : ∀ x, R x x) {A C D :
         · exact .inr (List.eq_nil_of_length_eq_zero (by
             simp only [List.length_drop, List.length_take]; omega)))]
     exact hD
-  · have := case_forall₂_append H1
+  · have := List.Forall₂.append' H1
       (List.Forall₂.rfl fun x _ => hrefl x : List.Forall₂ R (A.drop p) (A.drop p))
     rwa [List.take_append_drop] at this
-  · have := case_forall₂_append
+  · have := List.Forall₂.append'
       (List.Forall₂.rfl fun x _ => hrefl x : List.Forall₂ R (C.take q) (C.take q)) H2
     rwa [List.take_append_drop] at this
   · simp only [List.length_append, List.length_take, List.length_drop]; omega
@@ -4026,7 +3963,7 @@ theorem EtaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
   let len := actual.ctorArguments.length
   have hcapη : List.Forall₂ (EtaPar Γ) (rule.capture actual) (args'.take nP ++ ps₀.drop (len - nF)) := by
     unfold InductiveSignature.CaseSchema.AppliedRule.capture
-    refine case_forall₂_append (forall₂_take hargs' _) ?_
+    refine List.Forall₂.append' (List.forall₂_take hargs' _) ?_
     rcases hdisj with ⟨_, rfl⟩ | ⟨fam, info, _, hl', hcc, hkc, hlen₀, hdrop, hs'⟩
     · exact Lean4Lean.List.forall₂_drop hfs₀ _
     · obtain ⟨_, _, hnf⟩ := schema_struct_major hm hΓ hl' hs'
@@ -4038,7 +3975,7 @@ theorem EtaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
       exact Lean4Lean.List.forall₂_drop hfs₀ _
   have htcap : ∀ x ∈ rule.capture actual, ∃ T, Γ ⊢ x : T := fun _ hx => hm.capture_typed hx
   obtain ⟨D, hD, eD⟩ := EtaPar.parRed_join_args hΓ IH (fun _ hx => sizeOf_capture hx) htcap
-    hcapη (forall₂_of_getElem hl.symm fun i hi _ => hr i hi)
+    hcapη (List.forall₂_of_getElem hl.symm fun i hi _ => hr i hi)
   obtain ⟨A', C', hcapD, hA', hC', hlA, hlC⟩ := capture_replace (fun _ => .rfl) hD
   let actual₃ : InductiveSignature.CaseSchema.Application :=
     { actual with arguments := A', ctorLevels := lsc', ctorArguments := C' }
@@ -4064,7 +4001,7 @@ theorem EtaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
     rw [hcap₃]
     have hl1 := Lean4Lean.List.Forall₂.length_eq hcapη
     have hl2 := Lean4Lean.List.Forall₂.length_eq hD
-    apply forall₂_of_getElem (hl1.trans hl2)
+    apply List.forall₂_of_getElem (hl1.trans hl2)
     intro i hi hi'
     have h1 := case_forall₂_get hcapη hi (by omega)
     have h2 := case_forall₂_get hD (by omega) hi'
@@ -4200,7 +4137,7 @@ theorem EtaPar.mkApps_args (H : List.Forall₂ (EtaPar Γ) args args') :
 theorem EtaPar.expand_congr (H : EtaPar Γ e e') :
     EtaPar Γ (structExpand family info levels ps e) (structExpand family info levels ps e') := by
   unfold structExpand
-  refine EtaPar.mkApps_args (case_forall₂_append (List.Forall₂.rfl fun _ _ => .rfl) ?_)
+  refine EtaPar.mkApps_args (List.Forall₂.append' (List.Forall₂.rfl fun _ _ => .rfl) ?_)
   apply List.forall₂_of_getElem (by simp)
   intro j _ _
   simpa only [List.getElem_map, List.getElem_range] using EtaPar.proj H

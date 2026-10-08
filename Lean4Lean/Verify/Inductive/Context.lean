@@ -326,26 +326,11 @@ def _root_.Lean.LocalContext.SubContextOf (l l' : LocalContext) : Prop :=
   ∀ fv d, l.find? fv = some d →
     ∃ d', l'.find? fv = some d' ∧ d'.setIndex 0 = d.setIndex 0
 
-theorem _root_.Lean.LocalContext.find?_empty' (fv : FVarId) :
-    ({} : LocalContext).find? fv = none := by
-  show PersistentHashMap.find? PersistentHashMap.empty fv = none
-  rw [PersistentHashMap.WF.empty.find?_eq, PersistentHashMap.toList'_empty]
-  rfl
-
 theorem _root_.Lean.LocalContext.SubContextOf.empty {l' : LocalContext} :
     ({} : LocalContext).SubContextOf l' := by
   intro fv d h
-  rw [LocalContext.find?_empty'] at h
+  rw [LocalContext.find?_empty] at h
   cases h
-
-theorem _root_.Lean.LocalContext.find?_mkLocalDecl
-    {l : LocalContext} {fv fv' : FVarId} {name : Name} {ty : Expr}
-    {bi : BinderInfo} {kind : LocalDeclKind} (hwf : l.fvarIdToDecl.WF) :
-    (l.mkLocalDecl fv name ty bi kind).find? fv' =
-      if fv == fv' then some (.cdecl l.decls.size fv name ty bi kind)
-      else l.find? fv' := by
-  simp only [LocalContext.mkLocalDecl, LocalContext.find?]
-  exact hwf.find?_insert
 
 /-- Extending only the larger context by a fresh declaration keeps a
 sub-context. -/
@@ -1962,33 +1947,6 @@ theorem TrExpr.typeShapeOfDefEqCtx
   exact ⟨normalized, ownParams, afterParams, indices, result, exprType,
     hheader, hparamsTake, hindicesTake, hparams,
     by simpa [huvars] using hresult'⟩
-
-/-- Close a sort-level definitional equality over a dependent forall
-telescope.  This is the abstraction step needed when the executable checker
-performs a fresh `whnf` after opening each binder. -/
-theorem VExpr.wrapForalls_defeq
-    {env : VEnv} {U : Nat} {domains Γ : List VExpr}
-    {body body' : VExpr} {bodyLevel : VLevel}
-    (hctx : OnCtx (domains.reverse ++ Γ) (env.IsType U))
-    (hbody : env.IsDefEq U (domains.reverse ++ Γ)
-      body body' (.sort bodyLevel)) :
-    ∃ resultLevel, env.IsDefEq U Γ
-      (VExpr.wrapForalls domains body)
-      (VExpr.wrapForalls domains body') (.sort resultLevel) := by
-  induction domains generalizing Γ with
-  | nil =>
-    exact ⟨bodyLevel, by simpa [VExpr.wrapForalls] using hbody⟩
-  | cons dom domains ih =>
-    have hctx' : OnCtx (domains.reverse ++ (dom :: Γ))
-        (env.IsType U) := by
-      simpa [List.reverse_cons, List.append_assoc] using hctx
-    have hdomCtx : OnCtx (dom :: Γ) (env.IsType U) :=
-      OnCtx.append_right hctx'
-    rcases hdomCtx.2 with ⟨domLevel, hdom⟩
-    rcases ih hctx' (by
-      simpa [List.reverse_cons, List.append_assoc] using hbody) with
-      ⟨resultLevel, hrest⟩
-    exact ⟨.imax domLevel resultLevel, .forallEDF hdom hrest⟩
 
 /-- A checked inductive header is definitionally equal to an exact telescope
 of its recorded parameter and index arity ending in its recorded sort. -/

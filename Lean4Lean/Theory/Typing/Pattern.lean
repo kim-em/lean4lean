@@ -213,14 +213,6 @@ theorem Pattern.matches_inter {p q : Pattern} {e : VExpr} :
       have ⟨⟨mf1, mf2, hf⟩, ⟨mf1', mf2', hf'⟩⟩ := ihf _ _ _ wf hf
       exact ⟨⟨_, _, .var hf⟩, ⟨_, _, .var hf'⟩⟩
 
-theorem Pattern.matches_determ
-    (h1 : Matches p e m1 m2) (h2 : Matches p e m1' m2') : m1 = m1' ∧ m2 = m2' := by
-  induction h1 generalizing m1' with
-  | const => let .const := h2; simp
-  | elim => let .elim := h2; simp
-  | app l1 l2 ih1 ih2 => let .app r1 r2 := h2; simp [ih1 r1, ih2 r2]; rfl
-  | var l1 ih1 => let .var r1 := h2; simp [ih1 r1]
-
 def Pattern.Check.OK (defeq : VExpr → VExpr → Prop) {p : Pattern}
     (m1 : List VLevel) (m2 : p.Path → VExpr) : p.Check → Prop
   | .true => True

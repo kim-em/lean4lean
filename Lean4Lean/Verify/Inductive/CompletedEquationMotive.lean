@@ -141,7 +141,9 @@ theorem
   exact ⟨S, hparameters, motiveDomains, resultLevel,
     hdomainLength, hsuffixLength, hmotive, hresultLevel⟩
 
-theorem InductiveSignature.insertBinders_insertBinders (l : List VExpr) (a b : Nat) :
+/-- Inserting binders twice at the same cut inserts their sum. -/
+theorem _root_.Lean4Lean.InductiveSignature.insertBinders_insertBinders
+    (l : List VExpr) (a b : Nat) :
     InductiveSignature.insertBinders (InductiveSignature.insertBinders l a) b =
       InductiveSignature.insertBinders l (a + b) := by
   apply List.ext_getElem
@@ -981,11 +983,11 @@ theorem
     exact H.installed.le
   have hparameterScope := S.motiveParameterAlignment.mono hbase
   have hparameters' :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       hparameters hparameterScope
   have hsourceScope := S.motiveSourceAlignment.mono hbase
   have hsource :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       hparameters hsourceScope
   exact ⟨T, S, hparameters', hsource, S.motiveSourceLift,
     S.motiveSourceContext.mono hbase, S.motiveClosedContext,
@@ -1283,7 +1285,7 @@ theorem
         List.reverse_append]
       simp [List.reverse_append, List.append_assoc]
     rw [hsplit] at HprefixCtx
-    have Hsuffix := OnCtx.append_right HprefixCtx
+    have Hsuffix := OnCtx.of_append HprefixCtx
     have hearlierToCtx :
         (abstractForallContext
           (T.params ++ T.motives.take owner) []).toCtx =

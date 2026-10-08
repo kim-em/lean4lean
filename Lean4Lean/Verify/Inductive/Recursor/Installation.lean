@@ -256,46 +256,6 @@ theorem AddConstants.rebase
     exact ⟨largerOut,
       .cons hn hnprim htrLarger hwfLarger hlargerAdd hdelta Htail, hout⟩
 
-/-- Replay a nonprimitive constant batch while retaining only the local
-checking invariant.  This variant is used after a replayed atomic primitive
-formation prefix: its complete header/constructor endpoint is a sound
-`CheckingEnv`, while restoration of `HasPrimitives` is intentionally deferred
-until the full canonical Bool/Nat batch has been identified. -/
-theorem AddConstants.rebaseChecking
-    (H : AddConstants checkSafety prodEnv base entries outProd outBase)
-    (Hchecking : CheckingEnv safety prodEnv largerBase)
-    (hsafety : safety <= checkSafety)
-    (hbase : base <= largerBase) :
-    exists largerOut,
-      AddConstants safety prodEnv largerBase entries outProd largerOut /\
-      outBase <= largerOut := by
-  induction H generalizing largerBase with
-  | nil => exact ⟨largerBase, .nil, hbase⟩
-  | cons hn hnprim htr hwf hadd hdelta _Htail ih =>
-    rename_i baseHead ci ci' baseNext rest outProd outBase prodHead
-    have hexists : exists largerNext,
-        largerBase.addConst ci.name ci'.toVConstant = some largerNext := by
-      unfold VEnv.addConst
-      cases hfind : largerBase.constants ci.name with
-      | none => simp
-      | some existing =>
-        exfalso
-        rcases Hchecking.find?_iff.mpr ⟨existing, hfind⟩ with
-          ⟨source, hsource, _⟩
-        rw [hn] at hsource
-        contradiction
-    rcases hexists with ⟨largerNext, hlargerAdd⟩
-    have htrLarger : TrConstVal safety largerBase ci ci' :=
-      ⟨(htr.1.sf_mono hsafety).mono hbase, htr.2⟩
-    have hwfLarger : ci'.toVConstant.WF largerBase := hwf.mono hbase
-    have HcheckingNext : CheckingEnv safety (prodHead.add ci) largerNext :=
-      Hchecking.add hn htrLarger.1 hwfLarger hlargerAdd hdelta
-    have hnext : baseNext <= largerNext :=
-      VEnv.addConst_mono hbase hadd hlargerAdd
-    rcases ih HcheckingNext hnext with ⟨largerOut, Htail, hout⟩
-    exact ⟨largerOut,
-      .cons hn hnprim htrLarger hwfLarger hlargerAdd hdelta Htail, hout⟩
-
 /-- A lockstep installation checked at a stronger visibility level is also a
 valid installation trace for every weaker observer.  The installed abstract
 constants and all freshness/typing facts are unchanged. -/

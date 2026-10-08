@@ -117,11 +117,6 @@ theorem typeCast (hu : RL u u') (hX : R X X') (hY : R Y Y') (he : R e e') (hx : 
 end SynRel
 
 
-theorem forall₂_getElem {R : α → β → Prop} :
-    ∀ {l l'}, List.Forall₂ R l l' → ∀ i (h : i < l.length) (h' : i < l'.length), R l[i] l'[i]
-  | _, _, .cons h _, 0, _, _ => h
-  | _, _, .cons _ t, i + 1, h, h' => forall₂_getElem t i (by simpa using h) (by simpa using h')
-
 theorem forall₂_levels {U : Nat} :
     ∀ {ls ls' : List VLevel}, List.Forall₂ (fun u v => u.WF U ∧ v.WF U ∧ u ≈ v) ls ls' →
       (∀ l ∈ ls, l.WF U) ∧ (∀ l ∈ ls', l.WF U) ∧ List.Forall₂ (· ≈ ·) ls ls'
@@ -147,7 +142,7 @@ theorem SynRel.levels (U : Nat) :
     have hlen := Lean4Lean.List.Forall₂.length_eq ha
     simp only [VExpr.Subst.ofList, ← hlen]
     split
-    · exact forall₂_getElem ha _ (by omega) (by omega)
+    · exact List.forall₂_getElem ha _ (by omega) (by omega)
     · exact .bvar
   zero := ⟨by simp [VLevel.WF], by simp [VLevel.WF], rfl⟩
   succ h := ⟨h.1, h.2.1, VLevel.succ_congr h.2.2⟩

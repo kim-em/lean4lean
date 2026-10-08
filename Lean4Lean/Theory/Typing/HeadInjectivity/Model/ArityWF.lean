@@ -37,7 +37,7 @@ theorem EndHead.form {e : VExpr} {h : Name} (H : EndHead e h) :
   refine ⟨doms, ls, e.forallResult.getAppFnArgs.2, ?_, hl⟩
   conv => lhs; rw [he]
   congr 1
-  rw [← hh, VExpr.mkApps_getAppFnArgs']
+  rw [← hh, VExpr.mkApps_getAppFnArgs]
 
 theorem EndHead.wrapForalls {ds : List VExpr} {b : VExpr} {h : Name} :
     EndHead (VExpr.wrapForalls ds b) h ↔ EndHead b h := by
@@ -54,7 +54,7 @@ theorem EndHead.of_notForall {e : VExpr} {h : Name} (hf : e.forallResult = e) (H
   obtain ⟨ls, hh⟩ := H
   rw [hf] at hh
   refine ⟨ls, e.getAppFnArgs.2, ?_⟩
-  conv => lhs; rw [← VExpr.mkApps_getAppFnArgs' e]
+  conv => lhs; rw [← VExpr.mkApps_getAppFnArgs e]
   rw [hh]
 
 theorem EndHead.subst {h : Name} {e : VExpr} : ∀ {σ : VExpr.Subst}, EndHead e h →

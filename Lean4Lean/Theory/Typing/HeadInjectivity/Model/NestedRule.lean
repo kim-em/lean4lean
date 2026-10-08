@@ -50,16 +50,6 @@ theorem famSort_container {envF env0 base : VEnv} {aux : List ContainerSpecializ
 
 end Model
 
-theorem Restoration.expr_bvar_mkApps {r : Restoration} {i : Nat} {args : List VExpr}
-    {out : VExpr} (h : r.expr (.mkApps (.bvar i) args) = some out) :
-    ∃ args', args.mapM r.expr = some args' ∧ out = .mkApps (.bvar i) args' := by
-  change Restoration.expr.go r (VExpr.mkApps _ _) [] = _ at h
-  rw [restoration_mkApps] at h
-  simp only [bind, Option.bind_eq_some_iff, List.append_nil] at h
-  obtain ⟨args', hargs, h⟩ := h
-  simp only [Restoration.expr.go, Option.some.injEq] at h
-  exact ⟨args', hargs, h.symm⟩
-
 theorem mapM_reverse_getElem? {f : VExpr → Option VExpr} {l l' : List VExpr} {i : Nat}
     {a : VExpr} (hm : l.mapM f = some l') (h : l.reverse[i]? = some a) :
     ∃ a', f a = some a' ∧ l'.reverse[i]? = some a' := by
@@ -124,7 +114,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     rw [hdsl, g.eqDoms_length] at hx
     by_cases hxf : x < s.constructors[index].fields.length
     · exact .inr (by simpa [eqFs] using hxf)
-    · exact .inl (List.mem_append_left _ (mem_vars' (by omega) (by omega)))
+    · exact .inl (List.mem_append_left _ (InductiveSignature.mem_vars (by omega) (by omega)))
   -- the recursor
   obtain ⟨rec', hrec', hn, -, dsH', RH', eH, hdsH⟩ := C.restored_recursor s.constructors[index].owner
   have hci := hle.constants (VInductBlock.install_recursor_lookup hinst hrec')
@@ -132,7 +122,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
   have hlenH : dsH'.length = (vars (s.params.length + (s.families.size + s.constructors.size))
       s.constructors[index].fields.length ++ idx').length + 1 := by
     rw [mapM_length hdsH, g.recDoms_length]
-    simp only [List.length_append, vars_length_hi, hidxl, Instance.eqIndices, List.length_map]
+    simp only [List.length_append, InductiveSignature.length_vars, hidxl, Instance.eqIndices, List.length_map]
     simp only [Fin.getElem_fin] at *
     omega
   obtain ⟨d', hd', hget⟩ := mapM_getElem? hdsH (g.recDoms_major s.constructors[index].owner)
@@ -145,13 +135,13 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
             s.families[s.constructors[index].owner].name g.levels)) iargs) := by
     rw [← hget]
     congr 1
-    simp only [List.length_append, vars_length_hi, hidxl, Instance.eqIndices, List.length_map]
+    simp only [List.length_append, InductiveSignature.length_vars, hidxl, Instance.eqIndices, List.length_map]
     simp only [Fin.getElem_fin] at *
     omega
   -- the constructor and its family
   have hcisN : IsNativeCtor env
       ((compilationRestoration source aux).headName s.constructors[index].name) :=
-    ⟨_, hdf, _, _, _, by rw [hl, VExpr.stripLams_wrapLams, mkApps_concat]; rfl⟩
+    ⟨_, hdf, _, _, _, by rw [hl, VExpr.stripLams_wrapLams, VExpr.mkApps_snoc]; rfl⟩
   have hcis : IsCtor env ((compilationRestoration source aux).headName s.constructors[index].name) :=
     .inl hcisN
   obtain ⟨ci, hci', F, lsF, hF, -, hrigF⟩ := hcres _ hcisN
@@ -193,20 +183,20 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     obtain ⟨dsj, idxj, lsCj, msj, -, -, -, hidxj, hlj, -, -, -, -⟩ :=
       g.restored_equation j hparams (C.heads_not_recursors _) hrj
     obtain ⟨-, n2, -, l2, a2⟩ := wrapLams_pat_inj (hl'.symm.trans hlj)
-    obtain ⟨c2, -, -⟩ := mkApps_const_inj a2
+    obtain ⟨c2, -, -⟩ := VExpr.mkApps_const_inj a2
     have ho := C.restored_recursorName_inj n2
     have harj := C.model.constructorArity s.constructors[j] (by simp)
     have he := congrArg (fun o : Fin s.families.size => s.families[o].indices.length) ho
     refine ⟨?_, fun hc => ?_⟩
     · rw [l2]
-      simp only [List.length_append, vars_length_hi, hidxl, mapM_length hidxj, Instance.eqIndices,
+      simp only [List.length_append, InductiveSignature.length_vars, hidxl, mapM_length hidxj, Instance.eqIndices,
         List.length_map]
       simp only [Fin.getElem_fin] at harj he harity ⊢
       omega
     · have := C.restored_ctor_inj hprior ho.symm (c2.symm.trans hc)
       subst this
       exact Option.some.inj (hrj.symm.trans hres)
-  obtain ⟨L', hpmL, hnzL'⟩ := hpm _ _ _ (by rw [hl, VExpr.stripLams_wrapLams, mkApps_concat]; rfl)
+  obtain ⟨L', hpmL, hnzL'⟩ := hpm _ _ _ (by rw [hl, VExpr.stripLams_wrapLams, VExpr.mkApps_snoc]; rfl)
   obtain ⟨envE, hE, hadm⟩ := C.admissible
   rcases hadm.elimination with hnz | hsmall | hsing
   · -- data families: mode C is impossible
@@ -218,7 +208,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
         C_absurd_gen hΔ hlw eH hlenH hkH hrigF hfs (hnzL hnz).inst hkl h)
       ihL ihR (.extra hdf hlw hlen)
   · -- small elimination: the right-hand side has no observations
-    obtain ⟨args', hargs, rfl⟩ := Restoration.expr_bvar_mkApps hT'
+    obtain ⟨args', hargs, rfl⟩ := InductiveSignature.Restoration.expr_bvar_mkApps hT'
     obtain ⟨x, hx, hxget⟩ := mapM_reverse_getElem? hds (eqDoms_reverse_motive g index)
     have hm := motive_eq g
     obtain ⟨ds0, e0, l0⟩ := hm _

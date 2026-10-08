@@ -33,21 +33,6 @@ theorem vars_append_canonical (a b : Nat) :
     InductiveSignature.vars a b ++ InductiveSignature.vars b 0 = recursorCanonicalVars (a + b) := by
   rw [recursorCanonicalVars_add, ← vars_eq_canonical, ← vars_eq_canonical, vars_lift, Nat.add_zero]
 
-private theorem familyTypes_ctx_levelWF {env : VEnv} {Γ : List VExpr}
-    (H : OnCtx Γ (env.IsType U)) : OnCtx Γ (fun _ A => A.LevelWF U) := by
-  induction Γ with
-  | nil => trivial
-  | cons A Γ ih => exact ⟨ih H.1, (Classical.choose_spec H.2).levelWF (ih H.1) |>.1⟩
-
-private theorem familyTypes_ctx_instL_id {env : VEnv} {Γ : List VExpr}
-    (H : OnCtx Γ (env.IsType U)) : Γ.map (VExpr.instL (VLevel.params U)) = Γ := by
-  have Hw := familyTypes_ctx_levelWF H
-  induction Γ with
-  | nil => rfl
-  | cons A Γ ih =>
-    simp only [List.map_cons, Hw.2.instL_id]
-    exact congrArg (List.cons A) (ih H.1 Hw.1)
-
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
@@ -84,12 +69,12 @@ theorem CompletedRecursorConstruction.consumedFamilyApp_isType
   have hIdx := H.consumedIndices_onCtx owner
   have hidxId : (H.sourceIndices owner).map (VExpr.instL (VLevel.params c.lparams.length)) =
       H.sourceIndices owner := by
-    have h := familyTypes_ctx_instL_id hIdx
-    rw [List.map_append, hP |> familyTypes_ctx_instL_id] at h
+    have h := onCtx_isType_instL_id hIdx
+    rw [List.map_append, hP |> onCtx_isType_instL_id] at h
     have h2 := List.append_cancel_right h
     rw [List.map_reverse] at h2
     exact List.reverse_inj.mp h2
-  have hPId := familyTypes_ctx_instL_id hP
+  have hPId := onCtx_isType_instL_id hP
   have hparamCtx : H.parameterSuffix.parameterDecls.toCtx =
       R.parameterScope.toCtx.map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)) := by

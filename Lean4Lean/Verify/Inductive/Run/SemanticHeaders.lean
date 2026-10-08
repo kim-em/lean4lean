@@ -236,7 +236,7 @@ def AssembledSemanticHeadersOf.declaredResult
       _ = indTypes.size := by simp
   have hsourceLength : indTypes.toList.length =
       Hsemantic.headers.targets.length :=
-    Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    List.Forall₂.length_eq
       Hsemantic.headers.translations
   have hinfosLength : infos.toList.length =
       Hsemantic.headers.targets.length := by

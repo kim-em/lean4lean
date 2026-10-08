@@ -69,7 +69,7 @@ theorem InductiveConstructorSemanticCoherenceAt.ofShapes
     HconstructorDomains.mono hctorLE
   have Hdomains : finalEnv.IsDefEqCtx decl.uvars []
       familyDomains.reverse constructorDomains.reverse :=
-    VEnv.IsDefEqCtx.transEmpty henv HfamilyToCanonical
+    VEnv.IsDefEqCtx.trans_empty henv HfamilyToCanonical
       HcanonicalToConstructor
   exact ⟨{
     toInductiveConstructorCoherenceAt := C
@@ -378,42 +378,11 @@ theorem List.forall₂_of_getElem
       change R as[i] bs[i] at h
       exact h
 
-theorem List.Forall₂.getElem
-    {R : α → β → Prop} {as : List α} {bs : List β}
-    (H : List.Forall₂ R as bs) (i : Nat)
-    (ha : i < as.length) (hb : i < bs.length) :
-    R as[i] bs[i] := by
-  induction H generalizing i with
-  | nil => simp at ha
-  | cons h _ ih =>
-    cases i with
-    | zero => exact h
-    | succ i => exact ih i (by simpa using ha) (by simpa using hb)
-
-theorem List.Forall₂.length_eq'
-    (H : List.Forall₂ R as bs) : as.length = bs.length := by
-  induction H with
-  | nil => rfl
-  | cons _ _ ih => simp [ih]
-
-theorem List.Forall₂.append'
-    (H₁ : List.Forall₂ R as bs) (H₂ : List.Forall₂ R as' bs') :
-    List.Forall₂ R (as ++ as') (bs ++ bs') := by
-  induction H₁ with
-  | nil => exact H₂
-  | cons h _ ih => exact .cons h ih
-
-theorem List.Forall₂.unsnoc
-    (H : List.Forall₂ R (as ++ [a]) bs) :
-    ∃ bs' b, bs = bs' ++ [b] ∧ List.Forall₂ R as bs' ∧ R a b := by
-  have Hrev : List.Forall₂ R (a :: as.reverse) bs.reverse := by
-    simpa using List.Forall₂.reverse.mpr H
-  rcases List.forall₂_cons_left_iff.mp Hrev with
-    ⟨b, tail, hab, Htail, hreverse⟩
-  refine ⟨tail.reverse, b, ?_, ?_, hab⟩
-  · have := congrArg List.reverse hreverse
-    simpa using this
-  · exact List.Forall₂.reverse.mp (by simpa using Htail)
+-- Names kept for the nested-inductive verification, which still refers to them.
+alias List.Forall₂.getElem := Lean4Lean.List.forall₂_getElem
+alias List.Forall₂.length_eq' := Lean4Lean.List.Forall₂.length_eq
+alias List.Forall₂.append' := _root_.List.Forall₂.append'
+alias List.Forall₂.unsnoc := Lean4Lean.List.forall₂_snoc_left
 
 /-- Two pointwise translations of a syntactically unique source spine have
 the same target spine. -/
@@ -470,9 +439,6 @@ theorem Expr.getAppArgsList_mkAppN (fn : Expr) (args : Array Expr) :
     rw [ih]
     simp [Expr.getAppArgsList_app, List.append_assoc]
 
-theorem Expr.getAppArgsList_const (name : Name) (levels : List Level) :
-    (Expr.const name levels).getAppArgsList = [] := rfl
-
 @[simp] theorem Expr.foldl_mkApp_eq (args : List Expr) (fn : Expr) :
     args.foldl Lean.mkApp fn = args.foldl Expr.app fn := by
   induction args generalizing fn with
@@ -481,11 +447,8 @@ theorem Expr.getAppArgsList_const (name : Name) (levels : List Level) :
     simp only [List.foldl_cons, Lean.mkApp]
     exact ih (.app fn arg)
 
-theorem Expr.mkAppN_eq_mkAppList (fn : Expr) (args : Array Expr) :
-    mkAppN fn args = Expr.mkAppList fn args.toList := by
-  unfold mkAppN
-  rw [← Array.foldl_toList, Expr.mkAppList_eq_foldl]
-  exact Expr.foldl_mkApp_eq args.toList fn
+-- Kept for the `Lean4Lean/Verify/Inductive/Nested/*` files that use this qualified name.
+alias Expr.mkAppN_eq_mkAppList := Lean.Expr.mkAppN_eq_mkAppList
 
 theorem TrExprS.IsUnique.mkAppList
     (hfn : TrExprS.IsUnique fn)
@@ -687,13 +650,13 @@ theorem VInductDecl.paramsDefEq_reflOfAppend
     (H : OnCtx (indices.reverse ++ params.reverse)
       (env.IsType decl.uvars)) :
     decl.ParamsDefEq env params params := by
-  exact VEnv.IsDefEqCtx.refl (OnCtx.append_right H)
+  exact VEnv.IsDefEqCtx.refl (OnCtx.of_append H)
 
 theorem TrInductDeclSkeletonCore.types_length
     (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe decl
       envTypes envCtors) :
     types.length = decl.types.length :=
-  Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.types
+  List.Forall₂.length_eq H.types
 
 theorem TrInductDeclSkeletonCore.typeAt
     (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe decl
@@ -702,14 +665,14 @@ theorem TrInductDeclSkeletonCore.typeAt
     (htarget : i < decl.types.length) :
     TrInductiveTypeSkeleton env envTypes lparams
       types[i] decl.types[i] :=
-  Lean4Lean.VerifyInductive.List.Forall₂.getElem H.types i
+  List.forall₂_getElem H.types i
     hsource htarget
 
 theorem TrInductDeclSkeletonHeaders.types_length
     (H : TrInductDeclSkeletonHeaders env lparams nparams types isUnsafe decl
       envTypes) :
     types.length = decl.types.length :=
-  Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.types
+  List.Forall₂.length_eq H.types
 
 theorem TrInductDeclSkeletonHeaders.typeAt
     (H : TrInductDeclSkeletonHeaders env lparams nparams types isUnsafe decl
@@ -718,7 +681,7 @@ theorem TrInductDeclSkeletonHeaders.typeAt
     (htarget : i < decl.types.length) :
     TrInductiveTypeSkeletonHeaders env envTypes lparams
       types[i] decl.types[i] :=
-  Lean4Lean.VerifyInductive.List.Forall₂.getElem H.types i hsource htarget
+  List.forall₂_getElem H.types i hsource htarget
 
 theorem TrInductiveTypeSkeleton.materialized
     (H : TrInductiveTypeSkeleton env envTypes lparams type target) :
@@ -906,29 +869,6 @@ theorem VEnv.addConstVals_constants_of_forall_ne
       rw [ih H (fun later hlater => hne later (by simp [hlater]))]
       exact VEnv.addConst_constants_of_ne hadd (hne ci (by simp))
 
-theorem VEnv.addConstVals_names_nodup
-    {env out : VEnv} {constants : List VConstVal}
-    (H : env.addConstVals constants = some out) :
-    (constants.map (·.name)).Nodup :=
-  (VEnv.addConstVals_names_fresh H).1
-
-
-theorem VEnv.addConstVals_get
-    {env out : VEnv} {constants : List VConstVal}
-    (H : env.addConstVals constants = some out)
-    (hci : ci ∈ constants) :
-    out.constants ci.name = some ci.toVConstant := by
-  induction constants generalizing env with
-  | nil => simp at hci
-  | cons head tail ih =>
-    simp only [VEnv.addConstVals] at H
-    cases hadd : env.addConst head.name head.toVConstant with
-    | none => simp [hadd] at H
-    | some next =>
-      rw [hadd] at H
-      rcases List.mem_cons.mp hci with rfl | htail
-      · exact (VEnv.addConstVals_le H).constants (VEnv.addConst_self hadd)
-      · exact ih H htail
 
 theorem TrInductDeclCore.sourceNames_nodup
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
@@ -1133,7 +1073,7 @@ theorem TrInductDeclCore.nonempty
     decl.types ≠ [] := by
   intro htarget
   have hlength :=
-    Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.types
+    List.Forall₂.length_eq H.types
   rw [htarget] at hlength
   exact hsource (List.eq_nil_of_length_eq_zero hlength)
 
@@ -1141,7 +1081,7 @@ theorem TrInductDeclCore.types_length
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
       envTypes envCtors) :
     types.length = decl.types.length :=
-  Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.types
+  List.Forall₂.length_eq H.types
 
 theorem TrInductDeclCore.typeAt
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
@@ -1149,12 +1089,12 @@ theorem TrInductDeclCore.typeAt
     (i : Nat) (hsource : i < types.length)
     (htarget : i < decl.types.length) :
     TrInductiveType env envTypes lparams types[i] decl.types[i] :=
-  Lean4Lean.VerifyInductive.List.Forall₂.getElem H.types i hsource htarget
+  List.forall₂_getElem H.types i hsource htarget
 
 theorem TrInductiveType.ctors_length
     (H : TrInductiveType env envTypes lparams type target) :
     type.ctors.length = target.ctors.length :=
-  Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.ctors
+  List.Forall₂.length_eq H.ctors
 
 theorem TrInductiveType.ctorAt
     (H : TrInductiveType env envTypes lparams type target)
@@ -1162,7 +1102,7 @@ theorem TrInductiveType.ctorAt
     (htarget : i < target.ctors.length) :
     TrSourceConst envTypes lparams type.ctors[i].name type.ctors[i].type
       target.ctors[i] :=
-  Lean4Lean.VerifyInductive.List.Forall₂.getElem H.ctors i hsource htarget
+  List.forall₂_getElem H.ctors i hsource htarget
 
 theorem TrInductiveType.headers
     (H : TrInductiveType env envTypes lparams type target) :
@@ -1174,7 +1114,7 @@ theorem TrInductiveType.headers
 theorem TrInductiveTypeHeaders.ctors_length
     (H : TrInductiveTypeHeaders env envTypes lparams type target) :
     type.ctors.length = target.ctors.length :=
-  Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.ctors
+  List.Forall₂.length_eq H.ctors
 
 theorem TrInductiveTypeHeaders.ctorAt
     (H : TrInductiveTypeHeaders env envTypes lparams type target)
@@ -1182,7 +1122,7 @@ theorem TrInductiveTypeHeaders.ctorAt
     (htarget : i < target.ctors.length) :
     TrSourceConstRaw envTypes lparams type.ctors[i].name type.ctors[i].type
       target.ctors[i] :=
-  Lean4Lean.VerifyInductive.List.Forall₂.getElem H.ctors i hsource htarget
+  List.forall₂_getElem H.ctors i hsource htarget
 
 theorem TrSourceConstRaw.checked
     (H : TrSourceConstRaw env lparams name type ci')
@@ -1204,16 +1144,16 @@ theorem CheckedConstructorCertificate.translated
         source.ctors target.ctors)
       types decl.types := by
   have hlength : types.length = decl.types.length :=
-    Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hdecl.types
+    List.Forall₂.length_eq Hdecl.types
   apply List.forall₂_of_getElem hlength
   intro i hsource htarget
-  have Htype := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have Htype := List.forall₂_getElem
     Hdecl.types i hsource htarget
   have hctorLength : types[i].ctors.length = decl.types[i].ctors.length :=
-    Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htype.ctors
+    List.Forall₂.length_eq Htype.ctors
   apply List.forall₂_of_getElem hctorLength
   intro j hsourceCtor htargetCtor
-  have Hctor := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have Hctor := List.forall₂_getElem
     Htype.ctors j hsourceCtor htargetCtor
   apply Lean4Lean.VerifyInductive.TrSourceConstRaw.checked Hctor
   have hwf := H.types decl.types[i].ctors[j] (by
@@ -1316,7 +1256,7 @@ theorem TrInductDeclCore.ownedConstructors
     | nil => exact .nil
     | cons h _ ih =>
       simpa [Lean4Lean.VerifyInductive.ownedConstructors] using
-        Lean4Lean.VerifyInductive.List.Forall₂.append'
+        List.Forall₂.append'
           (Lean4Lean.VerifyInductive.TrInductiveType.ownedConstructors h) ih
   simpa [VInductDecl.ownedConstructors] using aux H.types
 
@@ -1325,7 +1265,7 @@ theorem TrInductDeclCore.ownedConstructors_length
       envTypes envCtors) :
     (Lean4Lean.VerifyInductive.ownedConstructors types).length =
       decl.ownedConstructors.length :=
-  Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+  List.Forall₂.length_eq
     (Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructors H)
 
 end VerifyInductive

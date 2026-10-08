@@ -11,6 +11,52 @@ theorem addDefEqRules_le {env : VEnv} {dfs : List VDefEq} : env ≤ env.addDefEq
   | cons df dfs ih =>
       exact VEnv.addDefEq_le.trans ih
 
+theorem addDefEqRules_defeqs_iff_mem_or {env : VEnv} {rules : List VDefEq} :
+    (env.addDefEqRules rules).defeqs df ↔ df ∈ rules ∨ env.defeqs df := by
+  induction rules generalizing env with
+  | nil => simp [VEnv.addDefEqRules]
+  | cons rule rules ih =>
+    simp only [VEnv.addDefEqRules, ih, VEnv.addDefEq, List.mem_cons]
+    constructor
+    · rintro (h | h | h)
+      · exact .inl (.inr h)
+      · exact .inl (.inl h)
+      · exact .inr h
+    · rintro ((h | h) | h)
+      · exact .inr (.inl h)
+      · exact .inl h
+      · exact .inr (.inr h)
+
+theorem addConsts_eq_addConstVals {env : VEnv} {cis : List VDefVal} :
+    env.addConsts cis = env.addConstVals (cis.map (·.toVConstVal)) := by
+  induction cis generalizing env with
+  | nil => rfl
+  | cons ci cis ih =>
+    simp only [VEnv.addConsts, List.foldlM_cons, List.map_cons, VEnv.addConstVals]
+    cases env.addConst ci.name ci.toVConstant with
+    | none => rfl
+    | some middle => exact ih (env := middle)
+
+theorem addDefEqs_eq_addDefEqRules {env : VEnv} {cis : List VDefVal} :
+    env.addDefEqs cis = env.addDefEqRules (cis.map (·.toDefEq)) := by
+  induction cis generalizing env with
+  | nil => rfl
+  | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
+
+theorem addDefEqs_le : ∀ {cis' : List VDefVal} {venv : VEnv}, venv ≤ venv.addDefEqs cis'
+  | [], _ => .rfl
+  | ci :: cis, venv => by
+    show venv ≤ VEnv.addDefEqs (venv.addDefEq ci.toDefEq) cis
+    exact VEnv.addDefEq_le.trans addDefEqs_le
+
+theorem _root_.Lean4Lean.VInductBlock.install_type_lookup (H : VInductBlock.install base block = some installed)
+    (hvalue : value ∈ block.types) : installed.constants value.name = some value.toVConstant := by
+  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+    Option.pure_def, Option.some.injEq] at H
+  obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
+  exact ((VEnv.addConstVals_le hc).trans <| VEnv.addEliminators_addProjections_le.trans <|
+    (VEnv.addConstVals_le hr).trans addDefEqRules_le).constants (VEnv.addConstVals_get ht hvalue)
+
 theorem Ordered.addConstVals {env env' : VEnv} {cis : List VConstVal} (H : Ordered env)
     (hwf : ∀ ci ∈ cis, ci.toVConstant.WF env)
     (hadd : env.addConstVals cis = some env') : Ordered env' := by

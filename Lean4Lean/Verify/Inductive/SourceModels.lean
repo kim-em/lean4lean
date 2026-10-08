@@ -55,11 +55,11 @@ theorem sourceModelsOfTables {s : InductiveSignature} {decl : VInductDecl}
       normalized.numIndices = source.numIndices ∧
       normalized.resultLevel ≈ source.resultLevel ∧
       List.Forall₂ C normalized.ctors source.ctors) s.declaration.types decl.types := by
-    apply Lean4Lean.List.forall₂_of_getElem (by simpa [declaration] using Lean4Lean.List.Forall₂.length_eq Hfamilies)
+    apply List.forall₂_of_getElem (by simpa [declaration] using Lean4Lean.List.Forall₂.length_eq Hfamilies)
     intro i hi hi'
     have hsize : i < s.families.size := by simpa [declaration] using hi
     let owner : Fin s.families.size := ⟨i, hsize⟩
-    have hget := Lean4Lean.List.forall₂_getElem Hfamilies i (by simpa using hsize) hi'
+    have hget := List.forall₂_getElem Hfamilies i (by simpa using hsize) hi'
     have he : s.declaration.types[i] = s.declarationFamily owner := by
       simp [declaration, declarationFamily, owner]
     rw [he]

@@ -342,7 +342,7 @@ theorem WHRed.determ (H1 : Γ ⊢ e ⤳ e₁) (H2 : Γ ⊢ e ⤳ e₂) : e₁ = 
     | extra r1 r2 =>
       have ⟨_, _, _, a1, a2⟩ := Pattern.matches_inter.1 ⟨⟨_, _, r2⟩, ⟨_, _, l2⟩⟩
       obtain ⟨rfl, -, ⟨⟩⟩ := pat_uniq l1 r1 .refl a1
-      obtain ⟨rfl, rfl⟩ := Pattern.matches_determ l2 r2; rfl
+      obtain ⟨rfl, rfl⟩ := Pattern.Matches.uniq l2 r2; rfl
 
 def WHRedS (Γ : List VExpr) : VExpr → VExpr → Prop := ReflTransGen (WHRed Γ)
 local notation:65 Γ " ⊢ " e1 " ⤳* " e2:36 => WHRedS Γ e1 e2
@@ -581,7 +581,7 @@ theorem StRed.expose_spine
     refine ⟨sourceArgs ++ [sourceArg], ?_, ?_⟩
     · rw [VExpr.mkApps_append]
       exact hroot.trans hsource.app
-    · simpa only [List.reverse_cons] using case_forall₂_append hargs (.cons harg .nil)
+    · simpa only [List.reverse_cons] using List.Forall₂.append' hargs (.cons harg .nil)
 
 open InductiveSignature.CaseSchema in
 theorem StRed.expose_case (hm : MatchedCaseStep env univs Γ₂ rule actual)
@@ -744,16 +744,3 @@ theorem StRed.triangleS (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRedS.standard (h : Γ ⊢ e : A) (H : Γ ⊢ e ≫* e') : Γ ⊢ e ⤳< e' :=
   .triangleS hΓ .zero h .rfl H
-
-theorem WHRedS.inferType
-    (H1 : Γ ⊢ e ⤳* e₁) (W1 : WHNF Γ e₁)
-    (H2 : Γ ⊢ e ⤳* e₂) (W2 : WHNF Γ e₂) : e₁ = e₂ := by
-  induction H1 using ReflTransGen.headIndOn generalizing e₂ with
-  | rfl =>
-    cases H2 using ReflTransGen.headIndOn with
-    | rfl => rfl
-    | head r1 => cases W1 _ r1
-  | head l1 l2 ih =>
-    cases H2 using ReflTransGen.headIndOn with
-    | rfl => cases W2 _ l1
-    | head r1 r2 => cases l1.determ r1; exact ih r2 W2

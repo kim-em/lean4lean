@@ -655,7 +655,7 @@ theorem ParRedExt.parRed_beta :
     cases l with
     | base =>
       refine have h := .beta .rfl .rfl; ⟨_, .tail .rfl h, ?_⟩
-      simp [instN_bvar0] at h ⊢; exact .refl (h.hasType H)
+      simp [VExpr.inst_liftN_bvar] at h ⊢; exact .refl (h.hasType H)
     | lift l =>
       let A::Γ := Γ
       have ⟨_, a1⟩ := TY.isDefEq_weakN_inv .one H
@@ -689,7 +689,7 @@ theorem ParRedExt.parRed_beta :
       have ⟨u1, u2⟩ := TY.forallE_defInv (TY.uniq (TY.defeq_l a5.defeq a1) (TY.lam c1 c2))
       have ⟨_, b1, b2⟩ := f_ih.1.1.1 a5 (TY.app a1 a3)
       replace b2 := b2.trans (.instN_r (TY.defeq_r u1 a3) a6 .zero c2)
-      have := congrArg (liftN n) (instN_bvar0 e' 0)
+      have := congrArg (liftN n) (VExpr.inst_liftN_bvar e' 0)
       simp [liftN_inst_hi, liftN'_liftN', liftN] at this
       rw [Nat.add_comm, this, ← h] at b2
       exact ⟨_, b1, b2⟩
@@ -710,7 +710,7 @@ theorem ParRedExt.parRed_beta :
       have ⟨_, _, b3, b4⟩ := TY.lam_inv b1
       have ⟨u1, u2⟩ := TY.forallE_defInv (TY.uniq (TY.lam b3 b4) b1)
       have := TY.beta b4 (TY.defeq_r (TY.symm u1) b2)
-      simp [instN_bvar0] at this
+      simp [VExpr.inst_liftN_bvar] at this
       exact TY.defeq_l this a3
     | lift l ih =>
       let A::Γ := Γ
@@ -723,14 +723,14 @@ theorem ParRedExt.parRed_beta :
       let A::Γ := Γ
       let ⟨_, b1⟩ := hasType_app_bvar0 a3
       have H := TY.uniq a3 (TY.app ((TY.isDefEq_weakN_iff .one).2 b1) (TY.bvar .zero))
-      simp [instN_bvar0] at H
+      simp [VExpr.inst_liftN_bvar] at H
       have ⟨_, _, b2, b3⟩ := have ⟨_, b2⟩ := TY.is_type b1; TY.forallE_inv b2
       have wf := let ⟨_, h⟩ := TY.is_type b2; TY.sort_inv h
       have := TY.forallE b2 (TY.defeq_l H a1)
       have := TY.defeq_r (TY.sortDF (by exact ⟨wf, ⟨⟩⟩) (by trivial) VLevel.imax_zero) this
       have := ih (Nat.le_of_succ_le_succ W) this b1
       have := TY.app ((TY.isDefEq_weakN_iff .one).2 this) (TY.bvar .zero)
-      simp [instN_bvar0] at this
+      simp [VExpr.inst_liftN_bvar] at this
       exact TY.defeq_r (TY.symm H) this
   | _ => cases l.isApp eq
 
@@ -829,7 +829,7 @@ theorem NormalEq.parRed (H1 : NormalEq TY Γ e₁ e₂) (H2 : ParRed TY Γ e₂ 
         cases b2 with | bvar => ?_ | extra _ h => cases h
         cases e' <;> cases eq
         obtain ⟨_, b1', rfl⟩ := b1.weakN_inv (.succ .one)
-        rw [instN_bvar0]
+        rw [VExpr.inst_liftN_bvar]
         have l1' := h.hasType l1
         have ⟨_, _, d1, d2⟩ := TY.lam_inv l1'
         have ⟨u1, u2⟩ := TY.forallE_defInv (TY.uniq (TY.lam d1 d2) l1')

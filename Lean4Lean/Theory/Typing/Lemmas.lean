@@ -156,6 +156,37 @@ def OnCtx (Γ : List VExpr) (P : List VExpr → VExpr → Prop) : Prop :=
   | [] => True
   | A::Γ => OnCtx Γ P ∧ P Γ A
 
+theorem OnCtx.of_append {Γ' Γ : List VExpr} {P}
+    (h : OnCtx (Γ' ++ Γ) P) : OnCtx Γ P := by
+  induction Γ' with
+  | nil => exact h
+  | cons A Γ' ih => exact ih h.1
+
+/-- Close a sort-level definitional equality over a dependent forall telescope. -/
+theorem _root_.Lean4Lean.VExpr.wrapForalls_defeq
+    {env : VEnv} {U : Nat} {domains Γ : List VExpr}
+    {body body' : VExpr} {bodyLevel : VLevel}
+    (hctx : OnCtx (domains.reverse ++ Γ) (env.IsType U))
+    (hbody : env.IsDefEq U (domains.reverse ++ Γ)
+      body body' (.sort bodyLevel)) :
+    ∃ resultLevel, env.IsDefEq U Γ
+      (VExpr.wrapForalls domains body)
+      (VExpr.wrapForalls domains body') (.sort resultLevel) := by
+  induction domains generalizing Γ with
+  | nil =>
+    exact ⟨bodyLevel, by simpa [VExpr.wrapForalls] using hbody⟩
+  | cons dom domains ih =>
+    have hctx' : OnCtx (domains.reverse ++ (dom :: Γ))
+        (env.IsType U) := by
+      simpa [List.reverse_cons, List.append_assoc] using hctx
+    have hdomCtx : OnCtx (dom :: Γ) (env.IsType U) :=
+      OnCtx.of_append hctx'
+    rcases hdomCtx.2 with ⟨domLevel, hdom⟩
+    rcases ih hctx' (by
+      simpa [List.reverse_cons, List.append_assoc] using hbody) with
+      ⟨resultLevel, hrest⟩
+    exact ⟨.imax domLevel resultLevel, .forallEDF hdom hrest⟩
+
 theorem OnCtx.lookup (h : OnCtx Γ P) (hL : Lookup Γ n A)
     (hP : ∀ {Γ A B}, P Γ A → P (B::Γ) A.lift) : P Γ A :=
   match hL, h with
@@ -1035,8 +1066,8 @@ theorem IsDefEq.defeqDF_l' (henv : Ordered env) (h1 : env.IsDefEq U Γ A A' (.so
     | nil => exact ⟨_, .succ (.one (A := A')), .zero⟩
     | cons B Δ ih =>
       have ⟨Γ', h1, h2⟩ := ih
-      exact ⟨_, .succ h1, by simpa [instN_bvar0] using h2.succ (A := liftN 1 B (Δ.length + 1))⟩
-  simpa [instN_bvar0] using
+      exact ⟨_, .succ h1, by simpa [VExpr.inst_liftN_bvar] using h2.succ (A := liftN 1 B (Δ.length + 1))⟩
+  simpa [VExpr.inst_liftN_bvar] using
     instN henv (h1.weakN henv (.one (A := A')) |>.symm.defeq (.bvar .zero)) H2 (.weakN henv H1 h2)
 
 theorem IsDefEq.defeqDF_l (henv : Ordered env) (h1 : env.IsDefEq U Γ A A' (.sort u))

@@ -70,7 +70,7 @@ theorem CompletedRecursorConstruction.constructorTerminalSpine
     have hheader : owner < R.sourceSignatureHeader.families.size := by
       have := ctor.owner.isLt
       omega
-    have hfamily := Lean4Lean.List.forall₂_getElem R.sourceSignatureHeader_families owner
+    have hfamily := List.forall₂_getElem R.sourceSignatureHeader_families owner
       (by simpa using hheader) (by rw [← H.cardinality.records]; exact howner)
     have hfin : ctor.owner = ⟨owner, hheader⟩ := Fin.ext hownerEq
     exact (congrArg (fun i : Fin R.sourceSignatureHeader.families.size =>
@@ -129,7 +129,7 @@ theorem TrExprS.shiftedCanonicalBvars_eq
     simpa [InductiveSignature.vars] using h.symm
   · intro i hi hj
     have hin : i < n := by simpa [InductiveSignature.vars] using hj
-    have h := Lean4Lean.List.forall₂_getElem Hargs i (by simpa using hin) hi
+    have h := List.forall₂_getElem Hargs i (by simpa using hin) hi
     simp only [List.getElem_ofFn] at h
     have heq := TrExprS.bvar_eq_of_abstractForallContext h (by omega)
     simpa [InductiveSignature.vars, List.getElem_reverse] using heq

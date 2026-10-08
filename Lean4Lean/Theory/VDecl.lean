@@ -284,4 +284,19 @@ theorem addConstVals_eliminators {env env' : VEnv} {cis : List VConstVal}
       simp [VEnv.addConstVals, hadd] at H
       exact (ih H).trans (VEnv.addConst_eliminators hadd)
 
+theorem addConstVals_names_nodup {env env' : VEnv} {cis : List VConstVal}
+    (H : env.addConstVals cis = some env') : (cis.map (·.name)).Nodup := by
+  induction cis generalizing env with
+  | nil => simp
+  | cons head tail ih =>
+    cases hadd : env.addConst head.name head.toVConstant with
+    | none => simp [VEnv.addConstVals, hadd] at H
+    | some middle =>
+      simp [VEnv.addConstVals, hadd] at H
+      have hfresh := addConstVals_names_fresh H
+      have hmid := VEnv.addConst_self hadd
+      refine List.nodup_cons.2 ⟨fun hm => ?_, ih H⟩
+      obtain ⟨c, hc, e⟩ := List.mem_map.1 hm
+      have := hfresh c hc; rw [e, hmid] at this; cases this
+
 end VEnv

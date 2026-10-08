@@ -789,7 +789,7 @@ theorem RecursorFieldSelectionsAt.selectedFVars
   have hjFields : j < fields.length := by
     rw [H.fields_length]
     exact hj
-  have Hposition := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have Hposition := List.forall₂_getElem
     H.arguments_at_positions j hjFields (by simpa using hj)
   rcases Hposition with ⟨hposition, hselected⟩
   have hboundSize : bu.size = Hbu.fvars.length := by
@@ -806,11 +806,11 @@ theorem RecursorFieldSelectionsAt.selectedFVars
       hpositionFVars] using h
   have hu : u[j] = .fvar fv := hselected.trans hfield
   have hargsLength : u.toList.length = args.length :=
-    Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hargs
+    List.Forall₂.length_eq Hargs
   have hjArgs : j < args.length := by simpa using hargsLength ▸ (by
     simpa using hj : j < u.toList.length)
   let target := args[j]
-  have hargTr := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have hargTr := List.forall₂_getElem
     Hargs j (by simpa using hj) hjArgs
   refine ⟨fv, target, hu, ?_⟩
   simpa [target, hu] using hargTr
@@ -1376,11 +1376,11 @@ theorem ownerNormalFormsWF
   by_cases hidx : targetIdx < indTypes.size
   · have htarget : targetIdx < decl.types.length := by
       have hlength : indTypes.size = decl.types.length := by
-        simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+        simpa using List.Forall₂.length_eq Htypes
       omega
     have Htarget : TrInductiveTypeHeaders sourceEnv Hc.venv c.lparams
         indTypes[targetIdx] decl.types[targetIdx] := by
-      have Htarget' := Lean4Lean.VerifyInductive.List.Forall₂.getElem Htypes
+      have Htarget' := List.forall₂_getElem Htypes
         targetIdx (by simpa using hidx) htarget
       rw [Array.getElem_toList] at Htarget'
       exact Htarget'
@@ -1702,7 +1702,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         have hbodyEq' := Hdom.bodyDefEqConsumed R _hbodyEq
         apply happ.defeqU_r R'.checking.tr.wf R'.mlctx_wf.tr.wf.toCtx
         simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
-          RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VExpr.instN_bvar0] using
+          RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VExpr.inst_liftN_bvar] using
             hbodyEq'
       have hopened := R.instantiateFresh (name := name) (bi := bi)
         Hdom.consumed Hdom.isType hbodyConsumed
@@ -1944,7 +1944,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
             (TrExprS R'.venv recLparams R'.mlctx.vlctx)
             (u.push (.fvar ⟨c.ngen.curr⟩)).toList
             ((args.map fun arg => arg.liftN 1 0) ++ [.bvar 0]) := by
-          simpa using checkPositivityStep.forall₂_append
+          simpa using List.Forall₂.append'
             hargsWeak (.cons harg .nil)
         exact ih R' Hstats' (by omega) hlit hctx' hopened B' hB' hopened₀
           (fun _ => hB') hagreeB' (fun _ => rfl)

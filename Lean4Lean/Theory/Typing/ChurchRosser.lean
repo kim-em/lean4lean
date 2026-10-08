@@ -834,16 +834,6 @@ protected theorem ParRed.rfl : ∀ {e}, Γ ⊢ e ≫ e
   | .lam .. => .lam ParRed.rfl ParRed.rfl
   | .forallE .. => .forallE ParRed.rfl ParRed.rfl
 
-omit [Params] in
-private theorem reverse_induction {P : List α → Prop} (hnil : P [])
-    (happend : ∀ xs x, P xs → P (xs ++ [x])) (xs : List α) : P xs := by
-  have h : ∀ ys : List α, P ys.reverse := by
-    intro ys
-    induction ys with
-    | nil => exact hnil
-    | cons y ys ih => simpa only [List.reverse_cons] using happend ys.reverse y ih
-  simpa only [List.reverse_reverse] using h xs.reverse
-
 
 theorem schema_mkApps_head_type (hΓ : OnCtx Γ (env.IsType univs))
     (ht : Γ ⊢ mkApps fn args : type) : ∃ headType, Γ ⊢ fn : headType := by
@@ -872,12 +862,12 @@ theorem ParRed.elim_prefix
     (H : Γ ⊢ VExpr.mkApps (.elim rule.application.block rule.application.owner packed) args ≫ out) :
     ∃ args', out = VExpr.mkApps (.elim rule.application.block rule.application.owner packed) args' ∧
       List.Forall₂ (ParRed Γ) args args' := by
-  induction args using reverse_induction generalizing out with
-  | hnil =>
+  induction args using List.snoc_induction generalizing out with
+  | nil =>
     cases H with
     | elim => exact ⟨[], rfl, .nil⟩
     | extra hp hm => exact False.elim (Params.pat_not_elim hp hm)
-  | happend args arg ih =>
+  | snoc args arg ih =>
     generalize he : VExpr.mkApps (.elim rule.application.block rule.application.owner packed) (args ++ [arg]) = source at H
     have hshape : source = .app (VExpr.mkApps (.elim rule.application.block rule.application.owner packed) args) arg := by
       rw [← he]
@@ -889,7 +879,7 @@ theorem ParRed.elim_prefix
       obtain ⟨args', rfl, hargs⟩ := ih (by simp only [List.length_append, List.length_singleton] at hlen; omega) hf
       refine ⟨args' ++ [arg'], ?_, ?_⟩
       · simp [VExpr.mkApps, List.foldl_append]
-      · exact case_forall₂_append hargs (.cons ha .nil)
+      · exact List.Forall₂.append' hargs (.cons ha .nil)
     | beta =>
       have hfn := VExpr.app.inj hshape |>.1
       exact False.elim (VExpr.mkApps_ne_lam (by intros; intro h; cases h) _ hfn.symm)
@@ -904,12 +894,12 @@ theorem ParRed.rigid_const_spine (hrigid : env.NativeHeadRigid name)
     (H : Γ ⊢ VExpr.mkApps (.const name levels) args ≫ out) :
     ∃ args', out = VExpr.mkApps (.const name levels) args' ∧
       List.Forall₂ (ParRed Γ) args args' := by
-  induction args using reverse_induction generalizing out with
-  | hnil =>
+  induction args using List.snoc_induction generalizing out with
+  | nil =>
     cases H with
     | const => exact ⟨[], rfl, .nil⟩
     | extra hp hm => exact False.elim (Params.not_rigid_match hrigid hp hm rfl)
-  | happend args arg ih =>
+  | snoc args arg ih =>
     generalize he : VExpr.mkApps (.const name levels) (args ++ [arg]) = source at H
     have hshape : source = .app (VExpr.mkApps (.const name levels) args) arg := by
       rw [← he]
@@ -923,7 +913,7 @@ theorem ParRed.rigid_const_spine (hrigid : env.NativeHeadRigid name)
     | @app _ _ _ _ arg' hf ha =>
       cases hshape
       obtain ⟨args', rfl, hargs⟩ := ih hf
-      refine ⟨args' ++ [arg'], ?_, case_forall₂_append hargs (.cons ha .nil)⟩
+      refine ⟨args' ++ [arg'], ?_, List.Forall₂.append' hargs (.cons ha .nil)⟩
       simp [VExpr.mkApps, List.foldl_append]
     | beta =>
       have hfn := VExpr.app.inj hshape |>.1

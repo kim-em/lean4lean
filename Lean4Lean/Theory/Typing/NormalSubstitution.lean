@@ -64,7 +64,7 @@ theorem NormalEqF.instantiateParams_args (hΓ : OnCtx Γ (env.IsType univs))
   simp only [← hlen]
   split
   · rename_i hi
-    exact .inr (Lean4Lean.List.forall₂_getElem hs _ (by omega) (by omega))
+    exact .inr (List.forall₂_getElem hs _ (by omega) (by omega))
   · exact .inl rfl
 
 theorem NormalEqF.wrapLams_congr (hΓ : OnCtx Γ (env.IsType univs))

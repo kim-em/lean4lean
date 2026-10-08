@@ -106,9 +106,6 @@ theorem mkApps_const_ne_bvar : VExpr.mkApps (.const c ls) args ≠ .bvar i := by
 theorem mkApps_const_ne_lam : VExpr.mkApps (.const c ls) args ≠ .lam A b := by
   intro h; rcases mkApps_const_inv h.symm with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
 
-theorem mkApps_const_ne_forallE : VExpr.mkApps (.const c ls) args ≠ .forallE A B := by
-  intro h; rcases mkApps_const_inv h.symm with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
-
 theorem HTS.sort' : HTS env U Δ Γ (.sort l) T :=
   .other (fun _ _ _ h => by rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
     (fun _ _ _ _ h => by rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
@@ -306,14 +303,6 @@ section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
 include henv hΔ
 
-omit henv hΔ in
-theorem forall₂_split {R : α → β → Prop} :
-    ∀ {l₁ : List α} {as : List β} {a : β}, List.Forall₂ R l₁ (as ++ [a]) →
-      ∃ l x, l₁ = l ++ [x] ∧ List.Forall₂ R l as ∧ R x a
-  | _, [], _, .cons h .nil => ⟨[], _, rfl, .nil, h⟩
-  | _, _ :: _, _, .cons h H =>
-    let ⟨l, x, e, h1, h2⟩ := forall₂_split H; ⟨_ :: l, x, by rw [e]; rfl, .cons h h1, h2⟩
-
 /-- The data of the spine lemma for a key with its domain type. -/
 def KeyData (env : VEnv) (U : Nat) (Δ Γ : List VExpr) (σ : VExpr.Subst) (S : ObSets)
     (ka : Key × VExpr) (a : VExpr) : Prop :=
@@ -373,7 +362,7 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
     · exact absurd he.symm mkApps_elim_ne_lam
   | forallE =>
     rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩
-    · exact absurd he.symm mkApps_const_ne_forallE
+    · exact absurd he.symm VExpr.mkApps_const_ne_forallE
     · exact absurd he.symm mkApps_elim_ne_forallE
   | proj =>
     rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;>
@@ -406,7 +395,7 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
     rcases mkApps_inv he with ⟨rfl, he'⟩ | ⟨as, a', rfl, he'⟩
     · rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;> cases he'
     injection he' with hf ha; subst ha
-    obtain ⟨Ks₀, Ka, rfl, hKs₀, hKa⟩ := forall₂_split hKs
+    obtain ⟨Ks₀, Ka, rfl, hKs₀, hKa⟩ := List.forall₂_snoc_right hKs
     -- observation keys for the argument, large enough for the type observations
     have hτ' : ∀ τ ∈ τs, Obs' (σ.cons (a.subst σ)) (S.cons (Obs' σ S a)) B τ :=
       fun τ hτ => Obs.inst_iff.1 (hτs τ hτ)

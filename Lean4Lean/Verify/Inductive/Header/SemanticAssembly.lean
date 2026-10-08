@@ -87,10 +87,10 @@ theorem AssembledSemanticHeaders.ofTargetsExact
     have hpayloadLength : Hsemantic.payloads.length = sources.length := by
       simpa using congrArg List.length Hsemantic.sourceOrder
     have hheaderLength : Hsemantic.headers.targets.length = sources.length :=
-      (Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      (List.Forall₂.length_eq
         Hsemantic.headers.translations).symm
     have hconstructorLength : Hconstructors.targets.length = sources.length :=
-      (Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      (List.Forall₂.length_eq
         Hconstructors.translations).symm
     simp [checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.metadata,
       skeleton, assembleInductiveSkeletonTypes, hpayloadLength,

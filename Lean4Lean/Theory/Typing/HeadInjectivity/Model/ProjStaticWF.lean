@@ -29,7 +29,7 @@ theorem Model.generates_major {schema : CaseSchema} {owner : Fin schema.signatur
   refine ⟨VExpr.mkApps (.elim rule.application.block rule.application.owner
     rule.application.levels) rule.application.arguments, rule.application.ctorLevels,
     rule.application.ctorArguments, ?_⟩
-  rw [← hb, EnvTables.stripLams_wrapLams', ← ha]
+  rw [← hb, VExpr.stripLams_wrapLams, ← ha]
   rfl
 
 /-- A native constructor is a constructor of the table. -/
@@ -145,7 +145,7 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursor_forallResul
   change Restoration.expr _ (g.recursorType o) = _ at ht
   unfold Instance.recursorType at ht
   obtain ⟨D', B', heq, -, hb⟩ := EnvTables.restoration_wrapForalls_forall₂ ht
-  obtain ⟨args', hargs, rfl⟩ := EnvTables.restoration_bvar_mkApps hb
+  obtain ⟨args', hargs, rfl⟩ := InductiveSignature.Restoration.expr_bvar_mkApps hb
   rw [heq, VExpr.forallResult_wrapForalls]
   have hlen := Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.mp hargs)
   obtain ⟨f, x, e⟩ := VExpr.mkApps_ne_nil_app (args := args') (.bvar _) (by
@@ -192,14 +192,6 @@ theorem entry_fresh {base envTypes envCtors : VEnv} {decl : VInductDecl}
   | none => rfl
   | some ci => rw [(VEnv.addConstVals_le htypes).constants h] at hf; cases hf
 
-private theorem addDefEqs_le' (env : VEnv) (cis : List VDefVal) :
-    env ≤ env.addDefEqs cis := by
-  induction cis generalizing env with
-  | nil => exact .rfl
-  | cons ci cis ih => exact VEnv.addDefEq_le.trans (ih _)
-
-open private addDefEqs_as_rules addConsts_as_values defeqs_addRules
-  from Lean4Lean.Theory.Typing.NativeConstructorRigidity
 
 /-- The quotient facts along the declaration history: an environment containing the quotient
 rule, with `Quot.lift` at its primitive type, declares `Quot` and `Quot.mk`, and no projection
@@ -241,10 +233,10 @@ theorem WF'.quot_projections : ∀ {ds env}, VEnv.WF' ds env → env.defeqs quot
       rw [← this]; exact hp
     | mutualDef _ hadd _ =>
       rename_i cis E _ _
-      have hle : env0 ≤ E.addDefEqs cis := (VEnv.addConsts_le hadd).trans (addDefEqs_le' _ _)
+      have hle : env0 ≤ E.addDefEqs cis := (VEnv.addConsts_le hadd).trans (VEnv.addDefEqs_le)
       have hproj := VEnv.addConsts_projections hadd
-      rw [addConsts_as_values] at hadd
-      rw [addDefEqs_as_rules, defeqs_addRules, VEnv.addConstVals_defeqs hadd] at hq
+      rw [VEnv.addConsts_eq_addConstVals] at hadd
+      rw [VEnv.addDefEqs_eq_addDefEqRules, VEnv.addDefEqRules_defeqs_iff_mem_or, VEnv.addConstVals_defeqs hadd] at hq
       rcases hq with hm | hq
       · obtain ⟨ci, -, e⟩ := List.mem_map.1 hm
         exact absurd e.symm (quotDefEq_ne_toDefEq _)
@@ -289,7 +281,7 @@ theorem WF'.quot_projections : ∀ {ds env}, VEnv.WF' ds env → env.defeqs quot
         have hle : env0 ≤ recursors.addDefEqRules block.rules :=
           (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
             VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
-        rw [defeqs_addRules, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
+        rw [VEnv.addDefEqRules_defeqs_iff_mem_or, VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
           VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at hq
         rcases hq with hm | hq
         · exfalso

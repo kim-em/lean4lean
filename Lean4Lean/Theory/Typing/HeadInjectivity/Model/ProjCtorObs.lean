@@ -48,7 +48,7 @@ theorem keySets_congr {K K' : List Key}
   simp only [keySets, hl]
   split
   · rename_i hm
-    obtain ⟨_, h⟩ := forall₂_getElem H (K'.length - 1 - m) (by omega)
+    obtain ⟨_, h⟩ := List.forall₂_getElem_exists H (K'.length - 1 - m) (by omega)
     exact propext (h o)
   · rfl
 

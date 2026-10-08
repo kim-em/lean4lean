@@ -24,46 +24,6 @@ theorem RuleLhs.wrapForalls_app_inj : ∀ {l₁ l₂ : List VExpr} {f₁ a₁ f�
     obtain ⟨hl, hr⟩ := RuleLhs.wrapForalls_app_inj (l₁ := xs) (l₂ := ys) h.2
     exact ⟨by rw [h.1, hl], hr⟩
 
-/-- Lifting canonical variables above the cut shifts them. -/
-theorem RuleLhs.vars_map_liftN_of_le {count below n k : Nat} (h : k ≤ below) :
-    (InductiveSignature.vars count below).map (fun e => e.liftN n k) =
-      InductiveSignature.vars count (below + n) := by
-  apply List.ext_getElem
-  · simp [InductiveSignature.vars]
-  · intro i hleft hright
-    simp only [InductiveSignature.vars, List.getElem_map, List.getElem_reverse,
-      List.length_range, List.getElem_range] at *
-    simp only [VExpr.liftN, liftVar]
-    split <;> simp_all <;> omega
-
-/-- Canonical variables strictly below the cut are unchanged by lifting. -/
-theorem RuleLhs.vars_map_liftN_of_lt {count below n k : Nat} (h : below + count ≤ k) :
-    (InductiveSignature.vars count below).map (fun e => e.liftN n k) =
-      InductiveSignature.vars count below := by
-  apply List.ext_getElem
-  · simp [InductiveSignature.vars]
-  · intro i hleft hright
-    have hi : i < count := by simpa [InductiveSignature.vars] using hright
-    simp only [InductiveSignature.vars, List.getElem_map, List.getElem_reverse,
-      List.length_range, List.getElem_range] at *
-    simp only [VExpr.liftN, liftVar]
-    split <;> simp_all
-    omega
-
-theorem RuleLhs.liftN_liftN_comm (e : VExpr) (n m k j : Nat) (h : j ≤ k) :
-    (e.liftN n k).liftN m j = (e.liftN m j).liftN n (k + m) := by
-  induction e generalizing k j with simp [VExpr.liftN, *]
-  | bvar i =>
-    simp only [liftVar]
-    by_cases h1 : i < k <;> by_cases h2 : i < j <;> simp [h1, h2] <;> (try split) <;>
-      (try split) <;> omega
-  | lam _ _ _ ih2 | forallE _ _ _ ih2 =>
-    rw [Nat.add_right_comm]
-
-theorem RuleLhs.mkApps_append_singleton (f x : VExpr) (l : List VExpr) :
-    VExpr.mkApps f (l ++ [x]) = .app (VExpr.mkApps f l) x := by
-  simp [VExpr.mkApps, List.foldl_append]
-
 /-- A generated minor is a telescope over its fields and induction hypotheses
 of the motive at the constructor. -/
 theorem RuleLhs.minor_split {s : InductiveSignature}
@@ -107,22 +67,22 @@ theorem RuleLhs.minorResidual_liftN {s : InductiveSignature}
     · apply List.map_congr_left
       intro e _
       simp only [Function.comp_def]
-      rw [VExpr.liftN'_liftN_hi, RuleLhs.liftN_liftN_comm _ _ _ _ _ (Nat.zero_le _)]
+      rw [VExpr.liftN'_liftN_hi, VExpr.liftN_liftN_comm _ _ _ _ _ (Nat.zero_le _)]
       rw [show s.families.size + index.val + (s.constructors.size - index.val) =
         s.families.size + s.constructors.size by omega]
     · simp only [List.cons.injEq, and_true]
-      have e1 := RuleLhs.vars_map_liftN_of_le (count := s.params.length)
+      have e1 := InductiveSignature.vars_map_liftN_hi (count := s.params.length)
         (below := s.families.size + index.val + s.constructors[index].fields.length + nh)
         (n := s.constructors.size - index.val) (k := s.constructors[index].fields.length + nh)
         (by omega)
-      have e2 := RuleLhs.vars_map_liftN_of_lt (count := s.constructors[index].fields.length)
+      have e2 := InductiveSignature.vars_map_liftN_lo (count := s.constructors[index].fields.length)
         (below := nh)
         (n := s.constructors.size - index.val) (k := s.constructors[index].fields.length + nh)
         (by omega)
-      have e3 := RuleLhs.vars_map_liftN_of_le (count := s.params.length)
+      have e3 := InductiveSignature.vars_map_liftN_hi (count := s.params.length)
         (below := s.families.size + s.constructors.size + s.constructors[index].fields.length + 0)
         (n := nh) (k := 0) (Nat.zero_le _)
-      have e4 := RuleLhs.vars_map_liftN_of_le (count := s.constructors[index].fields.length)
+      have e4 := InductiveSignature.vars_map_liftN_hi (count := s.constructors[index].fields.length)
         (below := 0) (n := nh) (k := 0) (Nat.zero_le _)
       rw [e1, e2, e3, e4]
       rw [show s.families.size + index.val + s.constructors[index].fields.length + nh +
@@ -250,7 +210,7 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.typeTranslation
   obtain ⟨doms, nh, hdomsLen, hsplit⟩ :=
     RuleLhs.minor_split H.canonicalGeneration ⟨minorIdx, hk⟩
   simp only [Fin.getElem_fin] at hsplit hdomsLen
-  rw [hsplit, RuleLhs.mkApps_append_singleton, htargetApp] at hminorType
+  rw [hsplit, VExpr.mkApps_snoc, htargetApp] at hminorType
   obtain ⟨hdoms, hres⟩ := RuleLhs.wrapForalls_app_inj hminorType
   have hnf' : (H.generationSignature.constructors[minorIdx]).fields.length =
       A.rule.allArgs.size := hnf
@@ -261,7 +221,7 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.typeTranslation
   subst hnh
   have hrem : remaining.length = H.generationSignature.constructors.size - minorIdx := by
     simp [remaining, hminors, InductiveSignature.Instance.length_minors]
-  rw [htargetApp, ← hres, ← RuleLhs.mkApps_append_singleton, hrem, ← hnf'] at hlift
+  rw [htargetApp, ← hres, ← VExpr.mkApps_snoc, hrem, ← hnf'] at hlift
   have key := RuleLhs.minorResidual_liftN H.canonicalGeneration ⟨minorIdx, hk⟩
     A.rule.recursiveArgs.size
   simp only [Fin.getElem_fin] at key
@@ -298,14 +258,14 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.lhsTranslation
   have HL' := HL
   simp only [BoundGeneratedRecursorRule.sourceLhsBody, htarget, Expr.abstractList_app] at HL'
   simp only [Expr.abstractList_app] at HY
-  rw [InductiveSignature.Instance.equationTypeBody, RuleLhs.mkApps_append_singleton] at HY
+  rw [InductiveSignature.Instance.equationTypeBody, VExpr.mkApps_snoc] at HY
   cases HY with
   | app _ _ HY1 HY2 =>
   cases HL' with
   | app _ _ HL1 HL2 =>
   have hmajor := TrExprS.uniqueS HL2 HY2
   subst hmajor
-  rw [RuleLhs.mkApps_append_singleton] at hLeq
+  rw [VExpr.mkApps_snoc] at hLeq
   injection hLeq with hhead _
   subst hhead
   rw [Expr.abstractList_mkAppN, Expr.mkAppN_eq_mkAppList] at HY1
@@ -385,7 +345,7 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.lhsTranslation
   rw [hn, hrecLevels', ← hnf]
   simp only [InductiveSignature.Instance.equationLhsBody,
     InductiveSignature.Instance.recursorHead, Fin.getElem_fin, hname]
-  rw [RuleLhs.mkApps_append_singleton]
+  rw [VExpr.mkApps_snoc]
 
 /-- A rule body whose binder abstraction translates in a context of exactly
 the rule's binders has no loose bound variables. -/

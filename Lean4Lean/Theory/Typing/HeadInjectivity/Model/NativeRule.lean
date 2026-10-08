@@ -110,7 +110,7 @@ theorem native_uniq {s : InductiveSignature} {g : Instance s}
   rw [C.ordinary_rules] at hm
   obtain ⟨j, -, rfl⟩ := List.mem_map.1 hm
   obtain ⟨-, n2, -, l2, a2⟩ := wrapLams_pat_inj (hl'.symm.trans (g.equation_lhs_eq j))
-  obtain ⟨c2, -, -⟩ := mkApps_const_inj a2
+  obtain ⟨c2, -, -⟩ := VExpr.mkApps_const_inj a2
   have ho := C.recursorName_inj n2
   refine ⟨?_, fun hc => ?_⟩
   · rw [l2, eqLead_length_owner C, eqLead_length_owner C]; simp only [ho]
@@ -161,7 +161,7 @@ theorem native_C_absurd {s : InductiveSignature} {g : Instance s} {ls : List VLe
         (s.families.size + s.constructors.size)) ++
       [g.familyApp o (vars s.params.length ((s.families.size + s.constructors.size) +
         s.families[o].indices.length)) (vars s.families[o].indices.length 0)] from rfl,
-    VExpr.instL_wrapForalls, List.map_append, wrapForalls_append] at h
+    VExpr.instL_wrapForalls, List.map_append, VExpr.wrapForalls_append] at h
   rw [show g.recDoms o = (g.params ++ g.motives ++ g.minors ++
       insertBinders (s.families[o].indices.map (·.instL g.levels))
         (s.families.size + s.constructors.size)) ++
@@ -202,7 +202,7 @@ theorem C_absurd_gen {T : VExpr} {dsH : List VExpr} {RH : VExpr} {I : Name}
     rw [List.drop_eq_getElem_cons (by omega), List.drop_eq_nil_of_le (by omega)]
     rw [List.getElem?_eq_getElem (by omega)] at hkH
     injection hkH with hkH; rw [hkH]
-  rw [eH, hsplit, VExpr.instL_wrapForalls, List.map_append, wrapForalls_append] at h
+  rw [eH, hsplit, VExpr.instL_wrapForalls, List.map_append, VExpr.wrapForalls_append] at h
   obtain ⟨σ', S', h⟩ := tele_obs_inv (by simp; omega) h
   simp only [List.map_cons, List.map_nil, VExpr.wrapForalls, List.foldr_cons,
     List.foldr_nil] at h
@@ -333,7 +333,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
   rw [← eqLead_length_owner C] at hkH
   -- the constructor and its family
   have hcisN : IsNativeCtor env s.constructors[index].name :=
-    ⟨_, hdf, _, _, _, by rw [hl, VExpr.stripLams_wrapLams, mkApps_concat]; rfl⟩
+    ⟨_, hdf, _, _, _, by rw [hl, VExpr.stripLams_wrapLams, VExpr.mkApps_snoc]; rfl⟩
   have hcis : IsCtor env s.constructors[index].name := .inl hcisN
   obtain ⟨ci, hci', F, lsF, hF, -, hrigF⟩ := hcres _ hcisN
   obtain ⟨fc, hfc, hfcn, lsc, hfch⟩ := C.ordinary_ctor index
@@ -348,7 +348,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
   have hpm' : ProjMajor env s.families[s.constructors[index].owner].name
       s.constructors[index].name (eqMs index).length (eqFs index).length
       s.families[s.constructors[index].owner].resultLevel := by
-    simpa [eqMs, eqFs, vars_length_hi] using hpm
+    simpa [eqMs, eqFs, InductiveSignature.length_vars] using hpm
   obtain ⟨envE, hE, hadm⟩ := C.admissible
   rcases hadm.elimination with hnz | hsmall | hsing
   · -- data families: mode C is impossible
@@ -397,7 +397,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
         exact hnl i (List.getElem?_eq_some_iff.2 ⟨hi, e⟩)
       have hdl := g.eqDoms_length index
       have hxf : x < s.constructors[index].fields.length := by
-        refine Nat.lt_of_not_le fun h => notLead (List.mem_append_left _ (mem_vars' h ?_))
+        refine Nat.lt_of_not_le fun h => notLead (List.mem_append_left _ (InductiveSignature.mem_vars h ?_))
         omega
       have hidx : VExpr.bvar (s.constructors[index].fields.length - 1 -
           (s.constructors[index].fields.length - 1 - x)) ∉ s.constructors[index].indices := by

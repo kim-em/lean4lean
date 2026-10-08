@@ -89,20 +89,6 @@ theorem QuotRegistered.prefixType {env : VEnv} {levels : List VLevel}
   rw [native_takeForalls_sound htake] at hh
   exact hh
 
-private theorem normal_append {R : α → β → Prop} (H : List.Forall₂ R a b)
-    (H' : List.Forall₂ R a' b') : List.Forall₂ R (a ++ a') (b ++ b') := by
-  induction H with
-  | nil => exact H'
-  | cons h hs ih => exact .cons h ih
-
-private theorem normal_take {R : α → β → Prop} (H : List.Forall₂ R a b) (n : Nat) :
-    List.Forall₂ R (a.take n) (b.take n) := by
-  induction H generalizing n with
-  | nil => simp
-  | cons h hs ih => cases n with
-    | zero => exact .nil
-    | succ n => exact .cons h (ih n)
-
 variable [Params]
 
 /-- The concrete quotient selector and every installed-equation capture
@@ -126,7 +112,7 @@ theorem NativePrefixReplay.quot_normal_components {levels : List VLevel}
       (QuotPrefixProgram.prefixArguments args) (QuotPrefixProgram.prefixArguments args') := by
     unfold QuotPrefixProgram.prefixArguments
     rw [← halen]
-    apply normal_append
+    apply List.Forall₂.append'
     · apply List.forall₂_map_left_iff.mpr
       apply List.forall₂_map_right_iff.mpr
       exact Lean4Lean.List.Forall₂.imp (fun _ _ h => h.weakN W) ha
@@ -146,7 +132,7 @@ theorem NativePrefixReplay.quot_normal_components {levels : List VLevel}
       rw [← Lean4Lean.List.Forall₂.length_eq hall]
       exact hil
     simpa only [List.getElem?_eq_getElem hil, List.getElem?_eq_getElem hir, Option.getD_some] using
-      Lean4Lean.List.forall₂_getElem hall i hil hir
+      List.forall₂_getElem hall i hil hir
   have hp : NormalEqF η (program.domains.reverse ++ Γ)
       (QuotPrefixProgram.prefixProof levels args) (QuotPrefixProgram.prefixProof levels args') := by
     have hm : QuotPrefixProgram.prefixProof levels args ∈ program.captures := by
@@ -162,7 +148,7 @@ theorem NativePrefixReplay.quot_normal_components {levels : List VLevel}
       (.cons (hnorm 0 (by decide)) (.cons (hnorm 1 (by decide)) (.cons (hnorm 5 (by decide)) .nil))) ht
   constructor
   · rw [hcaptures, hcaptures']
-    exact normal_append (normal_take hall 5) (.cons hp .nil)
+    exact List.Forall₂.append' (List.forall₂_take hall 5) (.cons hp .nil)
   · obtain ⟨proposition, _, _, hc⟩ := H.major_prop
     rw [hctor] at hc
     obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hctx

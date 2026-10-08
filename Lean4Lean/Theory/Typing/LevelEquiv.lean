@@ -92,6 +92,12 @@ theorem LEquiv.wrapForalls_inv (H : LEquiv U T (VExpr.wrapForalls ds b)) :
     obtain ⟨ds₀, b₀, rfl, h3, h4⟩ := ih h2
     exact ⟨A₀ :: ds₀, b₀, rfl, .cons h1 h3, h4⟩
 
+theorem LEquiv.mkApps_fn (hf : LEquiv univs f f') (args : List VExpr) :
+    LEquiv univs (VExpr.mkApps f args) (VExpr.mkApps f' args) := by
+  induction args generalizing f f' with
+  | nil => exact hf
+  | cons a args ih => exact ih (.app hf .refl)
+
 end VExpr
 
 namespace VEnv

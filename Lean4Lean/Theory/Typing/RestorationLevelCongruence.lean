@@ -4,13 +4,6 @@ import Lean4Lean.Theory.Inductive.RestorationNaturality
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature
 
-private theorem forall₂_get {R : α → β → Prop} :
-    ∀ {a : List α} {b : List β}, List.Forall₂ R a b → ∀ (i : Nat)
-      (h : i < a.length) (h' : i < b.length), R a[i] b[i]
-  | _, _, .cons h _, 0, _, _ => h
-  | _, _, .cons _ H, i + 1, hi, hi' =>
-    forall₂_get H i (by simpa using hi) (by simpa using hi')
-
 theorem EqUpToLevels.mkApps_args (H : EqUpToLevels U fn fn')
     (ha : List.Forall₂ (EqUpToLevels U) args args') :
     EqUpToLevels U (VExpr.mkApps fn args) (VExpr.mkApps fn' args') := by
@@ -46,7 +39,7 @@ theorem EqUpToLevels.instantiateParams_args (H : EqUpToLevels U e e')
   simp only [← hlen]
   split
   · rename_i hi
-    exact forall₂_get ha _ (by omega) (by omega)
+    exact List.forall₂_getElem ha _ (by omega) (by omega)
   · exact .bvar
 
 end Lean4Lean.VEnv

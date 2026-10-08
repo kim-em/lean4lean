@@ -80,25 +80,4 @@ theorem fvarsList_instantiateLevelParams {e : Expr} :
 
 end TelTrFVar
 
-/-- Translation is syntactically unique: every rule of `TrExprS` determines its output from the
-source and the context (projections by `TrProj.target_eq`). -/
-theorem TrExprS.uniqueSyntactic {env : VEnv} {Us : List Name} {Δ₁ Δ₂ : VLCtx} {e : Expr}
-    {e₁ e₂ : VExpr} (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂)
-    (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ₂ e e₂) : e₁ = e₂ := by
-  induction H1 generalizing Δ₂ e₂ with cases H2
-  | bvar => exact hΔ.find?_uniq ‹_› ‹_›
-  | fvar => exact hΔ.find?_uniq ‹_› ‹_›
-  | sort h1
-  | const _ h1 => cases h1.symm.trans ‹_›; rfl
-  | app _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 hΔ ‹_›; rfl
-  | lam _ _ _ ih1 ih2
-  | forallE _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 (hΔ.cons .vlam) ‹_›; rfl
-  | letE _ _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 (hΔ.cons .vlet) ‹_›; rfl
-  | lit _ _ ih => exact ih hΔ ‹_›
-  | mdata _ ih => exact ih hΔ ‹_›
-  | proj _ hp ih =>
-    rename_i h2 hp2
-    cases ih hΔ h2
-    rw [hp.target_eq, hp2.target_eq]
-
 end Lean4Lean

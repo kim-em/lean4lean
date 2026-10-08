@@ -106,15 +106,6 @@ end Lean4Lean.InductiveSignature.NativeRecursorData
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature InductiveSignature.NativeRecursorData
 
-private theorem levels_take {R : α → β → Prop} (H : List.Forall₂ R a b) (n : Nat) :
-    List.Forall₂ R (a.take n) (b.take n) := by
-  induction H generalizing n with
-  | nil => simp
-  | cons h hs ih =>
-    cases n with
-    | zero => exact .nil
-    | succ n => exact .cons h (ih n)
-
 theorem NativePrefixReplay.congr_levels (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     (H : NativePrefixReplay env U Γ source p)
     (hp : PrefixProgram.LevelEquiv U p p') (hs : EqUpToLevels U source source') :
@@ -148,13 +139,13 @@ theorem NativePrefixReplay.congr_levels (henv : env.WF) (hΓ : OnCtx Γ (env.IsT
   · intro j hj hd
     have hj₀ : j < p.captures.length := by omega
     have hd₀ : j < p.equationBody.domains.length := by simpa only [← hp.equationBody] using hd
-    have he := Lean4Lean.List.forall₂_getElem hp.captures j hj₀ hj
+    have he := List.forall₂_getElem hp.captures j hj₀ hj
     have ht : EqUpToLevels U
         ((p.equationBody.domains[j].instL p.levels).instOuter (p.captures.take j))
         ((p'.equationBody.domains[j].instL p'.levels).instOuter (p'.captures.take j)) := by
       simp only [← hp.equationBody, ← instantiateParams_eq_instOuter]
       exact (EqUpToLevels.instL_expr _ H.levels_wf hp.levels_wf hp.levels).instantiateParams_args
-        (levels_take hp.captures _)
+        (List.forall₂_take hp.captures _)
     exact ((H.captures_typed j hj₀ hd₀).eqUpToLevels_both henv hctx he ht).defeqDFC henv W
   · obtain ⟨proposition, hprop, hmajor, hctor⟩ := H.major_prop
     exact ⟨proposition, hprop.defeqDFC henv W, hmajor.defeqDFC henv W,
