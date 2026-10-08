@@ -116,7 +116,7 @@ variable {env : VEnv} {data : RecursorData}
 theorem forall₂_set {R : α → α → Prop} (hd : R d d) :
     ∀ {l l' : List α}, List.Forall₂ R l l' → ∀ k, List.Forall₂ R (l.set k d) (l'.set k d)
   | _, _, .nil, _ => .nil
-  | _, _, .cons h t, 0 => .cons hd t
+  | _, _, .cons _ t, 0 => .cons hd t
   | _, _, .cons h t, k + 1 => .cons h (forall₂_set hd t k)
 
 theorem wf_set {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U) (k : Nat) :

@@ -935,7 +935,7 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
       obtain ⟨T, hgen⟩ := heager ‹_›
       have hinst := VEnv.IsDefEq.instDF c.Ewf.ordered (c.withMLC _ (wf := cwfa)).Δwf.toCtx
         hgen hlit.2
-      simp [VExpr.inst, VExpr.instVar, VLocalDecl.depth, VExpr.inst_lift] at hinst
+      simp [VExpr.inst, VExpr.instVar, VLocalDecl.depth] at hinst
       refine VEnv.IsDefEqU.trans c.Ewf (c.withMLC _ (wf := cwfa)).Δwf.toCtx ⟨_, hinst⟩ ?_
       have hrI := TrExprS.instN (henv := c.Ewf.ordered) (h₀ := hlit.1) (W := .zero)
         (H := hrS.abstract (v₀ := idx) .zero) hlit.2

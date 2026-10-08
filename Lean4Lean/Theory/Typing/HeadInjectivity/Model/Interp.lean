@@ -847,7 +847,7 @@ theorem _root_.Lean4Lean.VEnv.Model.map_eval_eq {ls ls' : List VLevel}
 theorem forall₂_inst_congr {ls ls' : List VLevel} (h : List.Forall₂ (· ≈ ·) ls ls') :
     ∀ (l : List VLevel), List.Forall₂ (· ≈ ·) (l.map (·.inst ls)) (l.map (·.inst ls'))
   | [] => .nil
-  | a :: l => .cons (VLevel.inst_congr rfl h) (forall₂_inst_congr h l)
+  | _ :: l => .cons (VLevel.inst_congr rfl h) (forall₂_inst_congr h l)
 
 theorem _root_.Lean4Lean.VEnv.Model.RuleBind.lvEq
     (h : RuleBind env U Δ doms ls lead msLen fs mC I cN lsC keys cm Km τ S')

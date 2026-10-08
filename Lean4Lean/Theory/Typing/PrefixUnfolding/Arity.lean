@@ -100,7 +100,7 @@ theorem singletonUnfolding_sameArity {data : RecursorData} {levels : List VLevel
   obtain ⟨S1, hS1, hl1⟩ := singletonReconstruction_fields_length hrecon
   obtain ⟨S2, hS2, hl2⟩ := singletonReconstruction_fields_length hrecon'
   cases hS1.symm.trans hS2
-  simp only [bind, htype, Option.bind_some, hsupply', hshape', htake', hrecon',
+  simp only [Option.bind_some, htake', hrecon',
     hequation, hbody]
   simp only [List.length_append, List.length_map, List.length_take, hargs, hl1, hl2] at hcaptures ⊢
   rw [if_neg hcaptures]

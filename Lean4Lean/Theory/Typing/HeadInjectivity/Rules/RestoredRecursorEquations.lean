@@ -344,7 +344,7 @@ theorem CompilationData.restored_ctor_inj {s : InductiveSignature} {g : Instance
   refine filterMap_idx_inj (h := id) (b := (compilationRestoration source aux).headName
     s.constructors[i].name) (b' := (compilationRestoration source aux).headName
     s.constructors[j].name) (by simpa using hnd)
-    (by simpa using i.isLt) (by simpa using j.isLt) ?_ ?_ hn
+    (by exact i.isLt) (by exact j.isLt) ?_ ?_ hn
   · simp
   · have := congrArg Fin.val ho
     simp only [Fin.getElem_fin] at this

@@ -122,7 +122,7 @@ private theorem recursorEntries_find (entries : List RecursorData)
         intro he
         apply hnodup.1
         exact List.mem_map.mpr ⟨data, hm, he.symm⟩
-      simp only [List.find?_cons, beq_eq_false_iff_ne.mpr hne, Bool.false_eq_true, ↓reduceIte]
+      simp only [List.find?_cons, beq_eq_false_iff_ne.mpr hne]
       exact ih hnodup.2 hm
 
 /-- Every newly installed family remains individually addressable by its

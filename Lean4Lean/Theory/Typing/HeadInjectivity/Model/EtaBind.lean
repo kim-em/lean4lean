@@ -200,7 +200,7 @@ theorem HTS.spine_at {c : Name} {ls : List VLevel} : ∀ (n : Nat) {args : List 
 /-- The codomain of a sound Pi telescope after its first `i+1` binders is sound in their
 context. -/
 theorem PiSD.body_at : ∀ {Γ D : List VExpr} {R : VExpr}, PiSD env U Δ Γ D R →
-    ∀ i (hi : i < D.length), ∃ v, SD env U Δ ((D.take (i+1)).reverse ++ Γ)
+    ∀ i (_hi : i < D.length), ∃ v, SD env U Δ ((D.take (i+1)).reverse ++ Γ)
       (.wrapForalls (D.drop (i+1)) R) (.wrapForalls (D.drop (i+1)) R) (.sort v)
   | _, [], _, _, i, hi => by simp at hi
   | _, A :: ds, R, .cons _ hB _, 0, _ => ⟨_, by simpa using hB⟩

@@ -767,7 +767,7 @@ theorem VEnv.IsDefEqU.natProj {env : VEnv} {U Γ} (henv : env.WF) (hΓ : OnCtx �
     have hβ2 := VEnv.IsDefEq.beta (env := env) (uvars := U) (Γ := Γ)
       (e := t.lift) (A := .nat) (B := .nat)
       (htT.weakN henv (.zero [VExpr.nat] rfl)) heT
-    simp [VExpr.inst, VExpr.instVar, VExpr.nat, VExpr.inst_lift] at hβ1 hβ2 ⊢
+    simp [VExpr.inst, VExpr.instVar, VExpr.nat] at hβ1 hβ2 ⊢
     exact ⟨_, ((hβ1.appDF heT).trans hβ2)⟩
 
 /-- The shape of `Reflection.ite`'s translation: four lambdas over `ite` at the reflection's own
@@ -2040,7 +2040,7 @@ theorem Condition.check.gadget_types {c : VContext}
   obtain ⟨⟨_, hdom2⟩, -⟩ := (hf₂.uniqU c.Ewf hΓ2 hstep1).forallE_inv c.Ewf hΓ2
   have hbT := VEnv.HasType.defeqU_r c.Ewf hΓ2 ⟨_, hdom2⟩ ha₂
   have hstep2 := VEnv.HasType.app hstep1 hbT
-  simp [VExpr.inst, VExpr.instVar, VExpr.inst_lift, htypeC.instN_eq (Nat.zero_le _)] at hstep2
+  simp [VExpr.inst, VExpr.instVar, htypeC.instN_eq (Nat.zero_le _)] at hstep2
   obtain ⟨⟨_, hdom3⟩, -⟩ := (hf₃.uniqU c.Ewf hΓ2 hstep2).forallE_inv c.Ewf hΓ2
   have hpfT := VEnv.HasType.defeqU_r c.Ewf hΓ2 ⟨_, hdom3⟩ ha₃
   -- and now at the consumer's own context and arguments

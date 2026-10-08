@@ -100,7 +100,7 @@ theorem paramBridge_core (henv : env.Ordered) {Δ : List VExpr}
     · obtain rfl : i = as.length := by omega
       rw [List.getElem_append_right (by omega), List.getElem_append_right (by omega),
         List.take_left' rfl]
-      simp only [hO', hD', hn', Nat.sub_self, List.getElem_cons_zero, List.getElem_singleton]
+      simp only [hO', hD', hn', Nat.sub_self, List.getElem_cons_zero]
       exact (TyCls.eq_of_defeq l1).symm.trans (TyCls.eq_of_defeq l2)
 
 /-- **Parameter transport.** Along telescopes `own` and `pdoms` context-convertible to a common

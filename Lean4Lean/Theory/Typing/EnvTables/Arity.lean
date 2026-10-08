@@ -13,7 +13,7 @@ length) is `Model.tele_arity`, and the comparison itself is
 -/
 
 namespace Lean4Lean.EnvTables
-open VEnv InductiveSignature
+open _root_.Lean4Lean.EnvTables.VEnv InductiveSignature
 
 /-- `e` is an application spine headed by a constant. -/
 def isConstApp : VExpr → Bool

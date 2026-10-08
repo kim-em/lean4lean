@@ -242,7 +242,7 @@ private theorem declaration_le (H : VDecl.WF env declaration extended) : env ≤
     exact (VEnv.addConsts_le ha).trans VEnv.addDefEqRules_le
   | quot _ ha =>
     simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.pure_def, Option.some.injEq] at ha
+      Option.some.injEq] at ha
     obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := ha
     exact ((((VEnv.addConst_le ha).trans (VEnv.addConst_le hb)).trans
       (VEnv.addConst_le hc)).trans (VEnv.addConst_le hd)).trans VEnv.addDefEq_le
