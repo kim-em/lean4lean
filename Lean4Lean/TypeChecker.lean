@@ -287,13 +287,11 @@ def inferProj (typeName : Name) (idx : Nat) (struct structType : Expr) : RecM Ex
   if args.size != I_val.numParams + I_val.numIndices then fail
   let c_info ← env.get c
   -- The listed constructor must be a constructor owned by the projected
-  -- structure, and the field index must be below its field count.  Both are
-  -- redundant for well-formed environments (see `divergences.md`) and let the
-  -- verification relate the constructor metadata to the abstract projection
-  -- registry of exactly this family.
+  -- structure. This is redundant for well-formed environments (see `divergences.md`)
+  -- and lets the verification relate the constructor metadata to the abstract
+  -- projection registry of exactly this family.
   let .ctorInfo c_val := c_info | fail
   if c_val.induct != I_name then fail
-  if c_val.numFields ≤ idx then fail
   let some afterParameters ← instantiateProjectionParameters
       (c_info.instantiateTypeLevelParams I_levels) args 0 I_val.numParams
     | fail
@@ -388,7 +386,8 @@ def whnfFVar (e : Expr) (cheapProj : Bool) : RecM Expr := do
 application.
 
 The constructor at the head of the reduced structure must be the unique constructor of
-`structName` and be fully applied; this is redundant on well-typed input (see `divergences.md`). -/
+`structName`; this is redundant on well-typed input (see `divergences.md`). As in
+`type_checker::reduce_proj_core`, the selected argument need only be present. -/
 def reduceProjCoreCont (structName : Name) (idx : Nat) (c : Expr) : RecM (Option Expr) :=
   c.withApp fun mk args => do
   let .const mkC _ := mk | return none
@@ -397,8 +396,6 @@ def reduceProjCoreCont (structName : Name) (idx : Nat) (c : Expr) : RecM (Option
   let some (.inductInfo structInfo) := env.find? structName | return none
   unless structInfo.ctors == [mkC] do return none
   unless mkInfo.induct == structName do return none
-  unless mkInfo.isUnsafe == structInfo.isUnsafe do return none
-  unless args.size == mkInfo.numParams + mkInfo.numFields do return none
   return args[mkInfo.numParams + idx]?
 
 @[inherit_doc reduceProjCoreCont]
@@ -895,13 +892,10 @@ def isDefEqUnitLike (t s : Expr) : RecM Bool := do
   let tType ← whnf (← inferType t)
   let .const I _ := tType.getAppFn | return false
   let env ← getEnv
-  let .inductInfo { isRec := false, ctors := [c], numIndices := 0, numParams, isUnsafe, .. } ←
-    env.get I | return false
-  let .ctorInfo { numFields := 0, induct, isUnsafe := ctorUnsafe, .. } ← env.get c | return false
+  let .inductInfo { isRec := false, ctors := [c], numIndices := 0, .. } ← env.get I | return false
+  let .ctorInfo { numFields := 0, induct, .. } ← env.get c | return false
   -- redundant on well-typed input (see `divergences.md`)
   unless induct == I do return false
-  unless ctorUnsafe == isUnsafe do return false
-  unless tType.getAppNumArgs == numParams do return false
   isDefEqCore tType (← inferType s)
 
 @[inherit_doc isDefEqCore]

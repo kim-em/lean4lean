@@ -21,5 +21,24 @@ run_meta do
   | .ok type =>
       unless type == mkConst ``Nat do
         throwError "projection inference returned the wrong type"
+  -- the last field
+  match TypeChecker.M.run env .safe {} [] {}
+      (inferProj ``Wrap 1 constructor wrapNat).run with
+  | .error exception =>
+      throwError "projection inference failed: {
+        ← (exception.toMessageData {}).toString}"
+  | .ok type =>
+      unless type == mkConst ``Bool do
+        throwError "projection inference returned the wrong type for the last field"
+  -- past the fields: as in `type_checker::infer_proj`, the telescope walk reaches the
+  -- structure type, which is not a binder, and the projection is rejected
+  for idx in [2, 3, 10] do
+    match TypeChecker.M.run env .safe {} [] {}
+        (inferProj ``Wrap idx constructor wrapNat).run with
+    | .error (.invalidProj ..) => pure ()
+    | .error exception =>
+        throwError "projection {idx} failed for the wrong reason: {
+          ← (exception.toMessageData {}).toString}"
+    | .ok _ => throwError "projection {idx} past the fields was accepted"
 
 end Lean4Lean.Tests.ProjectionInference

@@ -31,7 +31,6 @@ def toCtorWhenK (rval : RecursorVal) (e : Expr) : m Expr := do
   let appType ← whnf (← inferType e)
   let .const appTypeI _ := appType.getAppFn | return e
   if appTypeI != rval.getMajorInduct then return e
-  if appType.getAppNumArgs != rval.numParams + rval.numIndices then return e
   if appType.hasExprMVar && appType.getAppArgs.any (·.hasExprMVar) rval.numParams then return e
   let some newCtorApp := mkNullaryCtor env appType rval.numParams | return e
   -- check that the indices of types of `e` and `newCtorApp` match
@@ -44,8 +43,7 @@ def expandEtaStruct (eType e : Expr) : Expr :=
   let some (.inductInfo sInfo) := env.find? I | return e
   let some ctor := sInfo.ctors.head? | return e
   let some (.ctorInfo info) := env.find? ctor | return e
-  if info.induct != I || info.isUnsafe != sInfo.isUnsafe then return e
-  if args.size != info.numParams then return e
+  if info.induct != I then return e
   let result := mkAppRange (.const ctor ls) 0 info.numParams args
   pure <| (List.range info.numFields).foldl (fun result i => .app result (.proj I i e)) result
 

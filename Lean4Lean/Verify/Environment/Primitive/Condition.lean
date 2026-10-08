@@ -321,8 +321,8 @@ outside the context, which is what `checkType` demands, and no loose bound varia
 
 The second is not decoration. In the `reflectNatNat` case `checkType` is run on `e`, which has
 `cond.prop` under two `Nat` binders; a closed, projection-free piece is read the same way there
-as at `[]` (`TrExprS.of_nil_unique`), which is what identifies the gadget's readings with the
-pieces' own checks. Every `Condition` the checker uses is a closed constant, so both are
+as at `[]` (`TrExprS.of_nil_unique`), and substituting an inhabitant for a binder leaves it
+alone (`TrExprS.peel_outer`), which is how the gadget's readings become `[]` readings. Every `Condition` the checker uses is a closed constant, so both are
 discharged by computation at each call site. -/
 def CondOK (e : Expr) : Bool :=
   !e.hasFVar' && !e.hasLevelMVar' && !e.hasExprMVar' && e.looseBVarRange' == 0 && noProj e
@@ -1962,6 +1962,18 @@ theorem Condition.WF.reflect_dite {prop dec asBool proof : Expr}
     .cons hP <| .cons hdecApp <| .cons (.lam ⟨_, hPT⟩ hP ht) <|
     .cons (.lam ⟨_, hNotP⟩ (.app hNotT hPT hNotTr hP) he) .nil) ⟨_, hd5⟩
 
+/-- Substituting a closed inhabitant for the outermost of the bound-variable binders a closed term
+is translated under: the term is left alone, and its translation is instantiated. This is how a
+closed piece read under the gadget's binders is brought down to `[]` -- the binders are inhabited
+there (by `Nat.zero`, and by the gadget's own arguments at it), and no strengthening is needed. -/
+theorem TrExprS.peel_outer {env : VEnv} {Us : List Name} {x e₀ : Expr} {u e₀' A : VExpr}
+    (henv : env.Ordered) (hx : x.looseBVarRange' = 0)
+    (h₀ : TrExprS env Us [] e₀ e₀') (t₀ : env.HasType Us.length [] e₀' A)
+    {Δ₁ Δ : VLCtx} {dk k : Nat} (W : VLCtx.InstN [] e₀' A dk k Δ₁ Δ)
+    (H : TrExprS env Us Δ₁ x u) : TrExprS env Us Δ x (u.inst e₀' k) := by
+  have := h₀.instN henv t₀ W H
+  rwa [Expr.instantiate1'_eq_self (by omega)] at this
+
 /-- The gadget `Condition.check` builds, once everything in it is translated. -/
 def Condition.check.gadgetV (type' toDec' prop' asBool' proof' : VExpr) : VExpr :=
   VExpr.lams [.nat, .nat]
@@ -1980,7 +1992,7 @@ arguments by `genTeleT`; the inner beta step likewise travels by `genTele`, whil
 is done at the consumer's context directly, since that is where its argument typings live. -/
 theorem Condition.check.gadget_types {c : VContext}
     {type' toDec' prop' asBool' proof' eTy' : VExpr} (hnat : c.venv.contains ``Nat)
-    (htypeC : type'.ClosedN) (htoDecC : toDec'.ClosedN)
+    (htypeC : type'.ClosedN)
     (hpropC : prop'.ClosedN) (habC : asBool'.ClosedN) (hpfC : proof'.ClosedN)
     (hT : c.venv.HasType c.lparams.length []
       (Condition.check.gadgetV type' toDec' prop' asBool' proof') eTy') :
@@ -1991,13 +2003,12 @@ theorem Condition.check.gadget_types {c : VContext}
       E.venv.HasType c.lparams.length Γ ((asBool'.app x).app y) .bool ∧
       E.venv.HasType c.lparams.length Γ ((proof'.app x).app y)
         ((type'.app ((prop'.app x).app y)).app ((asBool'.app x).app y)) ∧
-      E.venv.IsDefEqU c.lparams.length Γ
+      (toDec'.ClosedN → E.venv.IsDefEqU c.lparams.length Γ
         (((Condition.check.gadgetV type' toDec' prop' asBool' proof').app x).app y)
         (((toDec'.app ((prop'.app x).app y)).app ((asBool'.app x).app y)).app
-          ((proof'.app x).app y)) := by
+          ((proof'.app x).app y))) := by
   -- closedness of everything in sight, at whatever depth it is met
   have htc k : type'.ClosedN k := htypeC.mono (Nat.zero_le _)
-  have htdc k : toDec'.ClosedN k := htoDecC.mono (Nat.zero_le _)
   have hpc k : prop'.ClosedN k := hpropC.mono (Nat.zero_le _)
   have hac k : asBool'.ClosedN k := habC.mono (Nat.zero_le _)
   have hfc k : proof'.ClosedN k := hpfC.mono (Nat.zero_le _)
@@ -2032,17 +2043,6 @@ theorem Condition.check.gadget_types {c : VContext}
   simp [VExpr.inst, VExpr.instVar, VExpr.inst_lift, htypeC.instN_eq (Nat.zero_le _)] at hstep2
   obtain ⟨⟨_, hdom3⟩, -⟩ := (hf₃.uniqU c.Ewf hΓ2 hstep2).forallE_inv c.Ewf hΓ2
   have hpfT := VEnv.HasType.defeqU_r c.Ewf hΓ2 ⟨_, hdom3⟩ ha₃
-  -- the inner beta step, where the redex lives
-  have hargs3 : VExpr.ArgsTyped c.venv c.lparams.length (VExpr.nat :: VExpr.nat :: [])
-      [.sort .zero, .bool, (type'.app (.bvar 1)).app (.bvar 0)] .id
-      [(prop'.app (.bvar 1)).app (.bvar 0), (asBool'.app (.bvar 1)).app (.bvar 0),
-        (proof'.app (.bvar 1)).app (.bvar 0)] := by
-    refine .cons (by simpa using hpT) (.cons (by simpa using hbT) (.cons ?_ .nil))
-    simpa [VExpr.Subst.cons, VExpr.Subst.id, htypeC.subst_eq'] using hpfT
-  have hbetaIn := (VExpr.lams_appN' c.Ewf hΓ2 (by simpa using hΓH) (.id c.Ewf hΓ2) hargs3 ⟨_, hLb3⟩).2
-  simp only [VExpr.subst_id] at hbetaIn
-  simp only [VExpr.subst, VExpr.Subst.consN, VExpr.Subst.cons, VExpr.Subst.id,
-    htoDecC.subst_eq'] at hbetaIn
   -- and now at the consumer's own context and arguments
   intro E Γ hΓ x y hxT hyT
   have hnatIT {Γ'} (h : OnCtx Γ' (c.venv.IsType c.lparams.length)) :
@@ -2059,7 +2059,7 @@ theorem Condition.check.gadget_types {c : VContext}
       E.venv.HasType c.lparams.length Γ (X.subst ((VExpr.Subst.id.cons x).cons y))
         (A.subst ((VExpr.Subst.id.cons x).cons y)) :=
     Reflection.WF.genTeleT E (As := [.nat, .nat]) (by simpa using hAs) hX hXc hAc hΓ hargs2
-  refine ⟨?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_, fun htoDecC => ?_⟩
   · simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, hpropC.subst_eq'] using
       gen hpT (hcl2 hpc) trivial
   · simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, habC.subst_eq'] using
@@ -2067,6 +2067,18 @@ theorem Condition.check.gadget_types {c : VContext}
   · simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, hpfC.subst_eq', hpropC.subst_eq',
       habC.subst_eq', htypeC.subst_eq'] using
       gen hpfT (hcl2 hfc) ⟨⟨htc 2, hcl2 hpc⟩, hcl2 hac⟩
+  have htdc k : toDec'.ClosedN k := htoDecC.mono (Nat.zero_le _)
+  -- the inner beta step, where the redex lives
+  have hargs3 : VExpr.ArgsTyped c.venv c.lparams.length (VExpr.nat :: VExpr.nat :: [])
+      [.sort .zero, .bool, (type'.app (.bvar 1)).app (.bvar 0)] .id
+      [(prop'.app (.bvar 1)).app (.bvar 0), (asBool'.app (.bvar 1)).app (.bvar 0),
+        (proof'.app (.bvar 1)).app (.bvar 0)] := by
+    refine .cons (by simpa using hpT) (.cons (by simpa using hbT) (.cons ?_ .nil))
+    simpa [VExpr.Subst.cons, VExpr.Subst.id, htypeC.subst_eq'] using hpfT
+  have hbetaIn := (VExpr.lams_appN' c.Ewf hΓ2 (by simpa using hΓH) (.id c.Ewf hΓ2) hargs3 ⟨_, hLb3⟩).2
+  simp only [VExpr.subst_id] at hbetaIn
+  simp only [VExpr.subst, VExpr.Subst.consN, VExpr.Subst.cons, VExpr.Subst.id,
+    htoDecC.subst_eq'] at hbetaIn
   -- the outer beta step, then the inner one moved here by `genTele`
   have heTΓ : E.venv.HasType c.lparams.length Γ _ eTy' := (E.monoT hT).weak0 (Γ := Γ) E.wf.ordered
   obtain ⟨hΓg1, hbg1⟩ := VExpr.WF.lam_inv' E.wf hΓ ⟨_, heTΓ⟩
@@ -2089,13 +2101,13 @@ theorem Condition.check.gadget_types {c : VContext}
     e = fun x y : Nat => (fun (p : Prop) (b : Bool) (H : type p b) => toDec p b H)
           (prop x y) (asBool x y) (proof x y)
 
-together with the separate checks of the four closed pieces at `[]`.
-
-*Their readings* are the ones those separate checks produce: a closed, projection-free term is
-read the same way in every context (`TrExprS.of_nil_unique`), so the gadget's readings of the
-pieces under its binders are the `[]` readings. The separate checks are what makes this possible
-without carrying anything out of the gadget's binders: a typing found under a binder need not hold
-in the smaller context, even of a term that does not mention the binder.
+*The readings of its four closed pieces* are `[]` readings: a typing found under a binder need not hold in the smaller
+context in general, even of a term that does not mention the binder, but an inhabited binder can
+be substituted away (`TrExprS.peel_outer`), which leaves a closed piece alone. The gadget's binders
+are all inhabited at `[]`: its two `Nat`s by `Nat.zero`, which brings `prop`, `asBool` and
+`proof` down, and the redex's three binders by those pieces at `Nat.zero`, which the gadget's
+typing types and which bring `toDec` down. A closed, projection-free term is read the same way in
+every context (`TrExprS.of_nil_unique`), so the readings under the binders are these.
 
 *Its typing* determines their types. That is what the beta-redex is for: the arguments are
 checked against binders that name `Prop`, `Bool` and `type p b`, so a gadget that type checks at
@@ -2116,16 +2128,7 @@ theorem Condition.check.gadget_pieces {c : VContext} {prop asBool proof : Expr} 
             (mkApp3 r.toDec (.bvar 2) (.bvar 1) (.bvar 0)))))
         (mkApp2 prop (.bvar 1) (.bvar 0)) (mkApp2 asBool (.bvar 1) (.bvar 0))
         (mkApp2 proof (.bvar 1) (.bvar 0))))) e')
-    (hT : c.venv.HasType c.lparams.length [] e' eTy')
-    {prop₀ asBool₀ proof₀ toDec₀ propT₀ asBoolT₀ proofT₀ toDecT₀ : VExpr}
-    (hprop₀ : TrExprS c.venv c.lparams [] prop prop₀)
-    (hprop₀T : c.venv.HasType c.lparams.length [] prop₀ propT₀)
-    (hasBool₀ : TrExprS c.venv c.lparams [] asBool asBool₀)
-    (hasBool₀T : c.venv.HasType c.lparams.length [] asBool₀ asBoolT₀)
-    (hproof₀ : TrExprS c.venv c.lparams [] proof proof₀)
-    (hproof₀T : c.venv.HasType c.lparams.length [] proof₀ proofT₀)
-    (htoDec₀ : TrExprS c.venv c.lparams [] r.toDec toDec₀)
-    (htoDec₀T : c.venv.HasType c.lparams.length [] toDec₀ toDecT₀) :
+    (hT : c.venv.HasType c.lparams.length [] e' eTy') :
     ∃ prop' asBool' proof' toDec',
       TrExprS c.venv c.lparams [] prop prop' ∧ TrExprS c.venv c.lparams [] asBool asBool' ∧
       TrExprS c.venv c.lparams [] proof proof' ∧ TrExprS c.venv c.lparams [] r.toDec toDec' ∧
@@ -2144,20 +2147,24 @@ theorem Condition.check.gadget_pieces {c : VContext} {prop asBool proof : Expr} 
       ∀ {Δ : VLCtx} {u}, TrExprS c.venv c.lparams Δ x u → u = v := by
     intro x v hx hv Δ u hu
     exact TrExprS.of_nil_unique c.Ewf (CondOK.noProj hx) (by rw [← hnil]; exact hv) hu
-  -- a closed piece is read the same way at `[]` as it is under the gadget's binders, and its
-  -- reading at `[]` is the one its own check produced there
-  have desc {Δ₀ x u x₀ X} (hx : CondOK x) (hu : TrExprS c.venv c.lparams Δ₀ x u)
-      (hx₀ : TrExprS c.venv c.lparams [] x x₀) (hx₀T : c.venv.HasType c.lparams.length [] x₀ X) :
-      u.ClosedN ∧ TrExprS c.venv c.lparams [] x u := by
-    cases TrExprS.of_nil_unique c.Ewf.ordered (CondOK.noProj hx) hx₀ hu
-    exact ⟨(hx₀T.closedN' c.Ewf.ordered.closed trivial).1, hx₀⟩
   have htypeT : c.venv.HasType c.lparams.length [] w.type'
       vexpr(Prop → Bool → Prop) := by
     have h : c.venv.HasType c.lparams.length c.vlctx.toCtx w.type' _ := w.typeT
     rw [show c.vlctx.toCtx = [] from by rw [hnil]; rfl] at h; exact h
   have htypeC : w.type'.ClosedN := (htypeT.closedN' c.Ewf.ordered.closed trivial).1
-  -- the gadget's translation, piece by piece, keeping each binder's and each application's own
-  -- side conditions: they are what `desc` runs on
+  -- A piece read under the gadget's two `Nat` binders: both are inhabited by `Nat.zero` at `[]`,
+  -- and instantiating them leaves the closed piece alone, so its reading there is a `[]` reading.
+  obtain ⟨hz, hzT⟩ := TrExprS.natZero (Us := c.lparams) (Δ := []) c.hasPrimitives hnat
+  have descNat {x u} (hx : CondOK x)
+      (hu : TrExprS c.venv c.lparams [(none, .vlam .nat), (none, .vlam .nat)] x u) :
+      u.ClosedN ∧ TrExprS c.venv c.lparams [] x u := by
+    have h1 := TrExprS.peel_outer c.Ewf.ordered (CondOK.looseBVarRange hx) hz hzT
+      (.succ (d := .vlam .nat) .zero) hu
+    simp only [VLocalDecl.inst, VLocalDecl.depth, VExpr.inst, VExpr.nat, Nat.zero_add] at h1
+    have h2 := TrExprS.peel_outer c.Ewf.ordered (CondOK.looseBVarRange hx) hz hzT .zero h1
+    rw [← TrExprS.of_nil_unique c.Ewf.ordered (CondOK.noProj hx) h2 hu] at h2
+    exact ⟨TrExprS.closedN_nil c.Ewf.ordered h2, h2⟩
+  -- the gadget's translation, piece by piece
   simp only [Expr.lam0, mkApp3, mkApp2, mkApp] at H
   cases H with | lam hI1 hd1 H
   obtain ⟨rfl, -⟩ := hd1.const0_inv (Us' := c.lparams) (Δ' := c.vlctx)
@@ -2212,12 +2219,50 @@ theorem Condition.check.gadget_pieces {c : VContext} {prop asBool proof : Expr} 
   obtain ⟨rfl, -⟩ := h1; obtain ⟨rfl, -⟩ := h2; obtain ⟨rfl, -⟩ := h3
   obtain ⟨rfl, -⟩ := h4; obtain ⟨rfl, -⟩ := h5; obtain ⟨rfl, -⟩ := h6
   -- every piece, brought down to `[]`
-  obtain ⟨hpropC, hpropTr⟩ := desc hpropOK hprc hprop₀ hprop₀T
-  obtain ⟨habC, habTr⟩ := desc hasBoolOK habc hasBool₀ hasBool₀T
-  obtain ⟨hpfC, hpfTr⟩ := desc hproofOK hpfc hproof₀ hproof₀T
-  obtain ⟨htoDecC, htoDecTr⟩ := desc htoDecOK htd htoDec₀ htoDec₀T
-  exact ⟨_, _, _, _, hpropTr, habTr, hpfTr, htoDecTr, hpropC, habC, hpfC, htoDecC,
-    Condition.check.gadget_types hnat htypeC htoDecC hpropC habC hpfC hT⟩
+  obtain ⟨hpropC, hpropTr⟩ := descNat hpropOK hprc
+  obtain ⟨habC, habTr⟩ := descNat hasBoolOK habc
+  obtain ⟨hpfC, hpfTr⟩ := descNat hproofOK hpfc
+  -- `toDec` is read under all five binders. The two `Nat`s are inhabited by `Nat.zero` again, and
+  -- the other three by the gadget's own arguments there, which the gadget's typing types; they
+  -- are substituted outermost first, so that each inhabitant is closed and typed at `[]`
+  obtain ⟨hPT, hBT, hHT, -⟩ := Condition.check.gadget_types hnat htypeC hpropC habC hpfC hT
+    c.self (Γ := []) trivial hzT hzT
+  have hz0 := TrExprS.peel_outer c.Ewf.ordered (CondOK.looseBVarRange htoDecOK) hz hzT
+    (.succ (d := .vlam _) (.succ (d := .vlam .bool) (.succ (d := .vlam (.sort .zero))
+      (.succ (d := .vlam .nat) .zero)))) htd
+  simp [VLocalDecl.inst, VLocalDecl.depth, VExpr.inst, VExpr.instVar, VExpr.liftN, liftVar,
+    htypeC.instN_eq (Nat.zero_le _), VExpr.nat, VExpr.bool] at hz0
+  have hz1 := TrExprS.peel_outer c.Ewf.ordered (CondOK.looseBVarRange htoDecOK) hz hzT
+    (.succ (d := .vlam _) (.succ (d := .vlam .bool) (.succ (d := .vlam (.sort .zero)) .zero))) hz0
+  simp [VLocalDecl.inst, VLocalDecl.depth, VExpr.inst, VExpr.instVar,
+    htypeC.instN_eq (Nat.zero_le _), VExpr.bool] at hz1
+  -- a piece at `Nat.zero, Nat.zero`, translated at `[]`
+  have tr2 {x : Expr} {x' T : VExpr} (hx : TrExprS c.venv c.lparams [] x x')
+      (hT : c.venv.HasType c.lparams.length [] ((x'.app .natZero).app .natZero) T) :
+      TrExprS c.venv c.lparams [] ((x.app .natZero).app .natZero)
+        ((x'.app (.const ``Nat.zero [])).app (.const ``Nat.zero [])) := by
+    obtain ⟨_, _, hf, ha⟩ := VExpr.WF.app_inv c.Ewf (Γ := []) trivial ⟨_, hT⟩
+    obtain ⟨_, _, hf2, ha2⟩ := VExpr.WF.app_inv c.Ewf (Γ := []) trivial ⟨_, hf⟩
+    exact .app hf ha (.app hf2 ha2 hx hz) hz
+  -- `p := prop 0 0`, `b := asBool 0 0`, `H := proof 0 0`
+  have hz2 := TrExprS.peel_outer c.Ewf.ordered (CondOK.looseBVarRange htoDecOK)
+    (tr2 hpropTr hPT) hPT (.succ (d := .vlam _) (.succ (d := .vlam (.const ``Bool [])) .zero)) hz1
+  simp [VLocalDecl.inst, VLocalDecl.depth, VExpr.inst, VExpr.instVar, VExpr.liftN,
+    htypeC.instN_eq (Nat.zero_le _), hpropC.liftN_eq (Nat.zero_le _), VExpr.natZero] at hz2
+  simp only [VExpr.natZero] at hBT hHT
+  have hz3 := TrExprS.peel_outer c.Ewf.ordered (CondOK.looseBVarRange htoDecOK)
+    (tr2 habTr hBT) hBT (.succ (d := .vlam _) .zero) hz2
+  simp [VLocalDecl.inst, VLocalDecl.depth, VExpr.inst, VExpr.instVar, VExpr.liftN,
+    htypeC.instN_eq (Nat.zero_le _), hpropC.instN_eq (Nat.zero_le _),
+    habC.liftN_eq (Nat.zero_le _)] at hz3
+  have hz4 := TrExprS.peel_outer c.Ewf.ordered (CondOK.looseBVarRange htoDecOK)
+    (tr2 hpfTr hHT) hHT .zero hz3
+  rw [← TrExprS.of_nil_unique c.Ewf.ordered (CondOK.noProj htoDecOK) hz4 htd] at hz4
+  have htoDecC := TrExprS.closedN_nil c.Ewf.ordered hz4
+  exact ⟨_, _, _, _, hpropTr, habTr, hpfTr, hz4, hpropC, habC, hpfC, htoDecC,
+    fun E Γ hΓ x y hx hy =>
+      have h := Condition.check.gadget_types hnat htypeC hpropC habC hpfC hT E hΓ hx hy
+      ⟨h.1, h.2.1, h.2.2.1, h.2.2.2 htoDecC⟩⟩
 
 /-- Taking a checked `Condition.ite` apart: unlike `dite` there are no binders, so this is a
 plain spine inversion, and the shape it lands on is `iteApp`.
@@ -2865,21 +2910,9 @@ theorem Condition.check.WF {c : VContext} {s : VState} {cond : Condition}
       ConditionImpl.OK.reflect hok.impl
     refine .bind (Reflection.check.WF hbool hnil htypeOK hfail) fun _ _ _ hw => ?_
     obtain ⟨w⟩ := hw
-    -- the four closed pieces, each read on its own at `[]`
-    refine .bind (checkType.WF (CondOK.fvarsIn hok.prop))
-      fun _ _ _ ⟨_, _, _, hprop₀, _, hprop₀T⟩ => ?_
-    refine .bind (checkType.WF (CondOK.fvarsIn hasBoolOK))
-      fun _ _ _ ⟨_, _, _, hasBool₀, _, hasBool₀T⟩ => ?_
-    refine .bind (checkType.WF (CondOK.fvarsIn hproofOK))
-      fun _ _ _ ⟨_, _, _, hproof₀, _, hproof₀T⟩ => ?_
-    refine .bind (checkType.WF (CondOK.fvarsIn htoDecOK))
-      fun _ _ _ ⟨_, _, _, htoDec₀, _, htoDec₀T⟩ => ?_
-    have at0 {x : Expr} {x' : VExpr} (h : c.TrExprS x x') : TrExprS c.venv c.lparams [] x x' := by
-      rw [← hnil]; exact h
-    have at0T {x' X : VExpr} (h : c.HasType x' X) : c.venv.HasType c.lparams.length [] x' X := by
-      rw [← hnil']; exact h
     -- the gadget `e`, and `e ≡ dec`: the gadget's typing types the three pieces the consumer
-    -- applies, and its translation reads them as the checks above did.
+    -- applies, and its translation reads all four closed pieces, which `gadget_pieces` brings
+    -- down to `[]`.
     refine .bind (checkType.WF ?_) fun _ _ _ ⟨e', eTy', _, heTr, _, heT⟩ => ?_
     · have hp := CondOK.fvarsIn (P := (· ∈ c.vlctx.fvars)) hok.prop
       have ha := CondOK.fvarsIn (P := (· ∈ c.vlctx.fvars)) hasBoolOK
@@ -2894,8 +2927,6 @@ theorem Condition.check.WF {c : VContext} {s : VState} {cond : Condition}
         hpropC, habC, hpfC, htoDecC, hgadget⟩ :=
       Condition.check.gadget_pieces w hnil hnat hok.prop hasBoolOK hproofOK htypeOK htoDecOK
         (by rw [← hnil]; exact heTr) (by rw [← hnil']; exact heT)
-        (at0 hprop₀) (at0T hprop₀T) (at0 hasBool₀) (at0T hasBool₀T)
-        (at0 hproof₀) (at0T hproof₀T) (at0 htoDec₀) (at0T htoDec₀T)
     have htoDecTr' : c.TrExprS reflect.toDec toDec' := by
       show TrExprS c.venv c.lparams c.vlctx reflect.toDec toDec'; rw [hnil]; exact htoDecTr
     let +generalize P _ := _

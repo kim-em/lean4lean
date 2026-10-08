@@ -553,10 +553,12 @@ of `Init.Prelude` and `Init.Core` are unaffected. This is one of several diverge
 executable; `divergences.md` lists all of them, with an audit table of every executable change
 (section 7.2).
 
-Two primitive checks were adjusted for the same reason (`Lean4Lean/Primitive.lean`): the
-pieces of a `reflectNatNat` condition and the functional of a well-founded definition are
-checked in the outer context, rather than relying on facts established under the gadget's
-binders.
+The primitive recognizer (`Lean4Lean/Primitive.lean`) reads the closed pieces of a
+`reflectNatNat` condition, and the functional of a well-founded definition, only under binders
+(the condition gadget's, the measure telescope's). The verification brings those readings to the
+outer context without strengthening: every such binder is inhabited there (by `Nat.zero`, or by
+the gadget's own arguments at it), and substituting the inhabitant leaves a term that does not
+mention the binder alone (`TrExprS.peel_outer`, `MLCtx.trExprS_dropN_nat`).
 
 ### 5.3 The projection-walk corner
 
@@ -656,12 +658,14 @@ acceptance needs a conversion fact outside its scope. The wrapper stripping belo
 wrapper name. The other changes cannot change a decision except through checker fuel, as follows.
 
 - **Redundant guards**, each listed in `divergences.md`: `reduceProjCore` requires the
-  constructor to be the structure's unique constructor and fully applied; `tryEtaStructCore`
+  constructor to be the structure's unique constructor; `tryEtaStructCore`
   requires the listed constructor and applies structure eta only at never-zero sorts;
-  `isDefEqUnitLike` and `toCtorWhenK` check the arity of the type's spine; `inferProj`
-  rejects field indices beyond `numFields`; constructor owner and `isUnsafe` agreement are
-  checked wherever a structure's constructor is looked up; `toCtorWhenStruct` and
-  `expandEtaStruct` return the term unchanged where the C++ kernel has `unreachable!`. Each
+  constructor owner
+  agreement is checked wherever a structure's constructor is looked up, and `isUnsafe` agreement
+  wherever the family's visibility is not already known (not in `reduceProjCore`,
+  `isDefEqUnitLike` or `expandEtaStruct`); `toCtorWhenStruct` and
+  `expandEtaStruct` return the term unchanged where the C++ kernel throws, and when the type
+  of the major premise's type does not reduce to a sort. Each
   guard lets the verification justify a step from the registry entry alone, without
   injectivity or head separation. All are redundant on well-formed environments and
   well-typed terms with one exception: structure eta is not applied to a structure whose
@@ -669,7 +673,8 @@ wrapper name. The other changes cannot change a decision except through checker 
   is rejected.
 - **Inductive checker** (`Lean4Lean/Inductive/Add.lean`): restructured into explicit loops
   with total fresh-name searches, narrow checker contexts (section 3.2), unreachable arity
-  guards in recursor construction, and recursor rules built from the first constructor
+  and result-type guards in recursor construction (kept: the verification cannot show that
+  two `whnf` runs agree), and recursor rules built from the first constructor
   traversal. Each generated recursor type is type-checked (`checkRecursorTypes`); the kernel
   of the pinned toolchain does not do this, upstream does since leanprover/lean4#14808, which
   also checks rule type preservation, which lean4lean proves instead. Nested auxiliary types
@@ -694,9 +699,6 @@ wrapper name. The other changes cannot change a decision except through checker 
   invariant, so that the empty environment satisfies `VEnvs.WF` (section 1.2).
 - `Quot.ind`'s major binder is explicit (section 6), and projections are compared by
   structure name in `isDefEqCore'` and the equivalence manager; both now match the C++ kernel.
-- **Primitive recognizer** (`Lean4Lean/Primitive.lean`): extra `checkType` calls read the closed
-  pieces of a condition and a well-founded functional in the outer context (section 5.2);
-  they concern only reserved primitive names.
 
 ## 8. Tests
 
@@ -704,7 +706,7 @@ wrapper name. The other changes cannot change a decision except through checker 
 
 - executable oracles: `RecursorOracle.lean` (generated recursor types, metadata and every rule
   compared with the kernel's for a set of declarations), `RecursiveInductive.lean`,
-  `NestedRecursorReduction.lean`, `KNormalization.lean`, `ProjectionInference.lean`,
+  `NestedRecursorReduction.lean`, `KNormalization.lean`, `ProjectionInference.lean`, `ProjectionReduction.lean`,
   `ProjectionWithoutCasesOn.lean`, `QuotInit.lean`, additions to `NestedInductive.lean` and
   `KernelHardening.lean`;
 - realizability: `CanonicalEq.lean`, `CanonicalChoice.lean`;

@@ -133,20 +133,15 @@ def Condition.check (cond : Condition) (fail : ∀ {α}, M α)
   match cond.impl with
   | .reflectNatNat asBool reflect proof =>
     reflect.check fail
-    -- The four closed pieces are read on their own, in the context the check runs in, so that the
-    -- gadget's readings of them under its binders are known to be these. This is scoped so that
-    -- no conversion fact outlives its binder: nothing established under the gadget's binders is
-    -- carried out of them.
-    _ ← checkType cond.prop
-    _ ← checkType asBool
-    _ ← checkType proof
-    _ ← checkType reflect.toDec
     let y := .bvar 0; let x := .bvar 1
     -- `toDec` under binders that name its argument types, applied to the three pieces. Written
     -- this way -- rather than `mkApp3 reflect.toDec …`, which it beta-reduces to -- the one
     -- `checkType` below does for all three: the arguments are checked against the binders, so
     -- `prop x y : Prop`, `asBool x y : Bool` and `proof x y : type (prop x y) (asBool x y)`,
-    -- which is everything a consumer needs and consistent by construction.
+    -- which is everything a consumer needs and consistent by construction. The four closed
+    -- pieces are read only here, under the gadget's binders; those binders are inhabited (by
+    -- `Nat.zero`, and then by the arguments at it), which is how the verification brings the
+    -- readings out of them.
     let e := .lam0 q(Nat) <| .lam0 q(Nat) <| mkApp3
       (.lam0 q(Prop) <| .lam0 q(Bool) <| .lam0 (mkApp2 reflect.type (.bvar 1) (.bvar 0)) <|
         mkApp3 reflect.toDec (.bvar 2) (.bvar 1) (.bvar 0))
@@ -289,10 +284,11 @@ def unfoldNatWellFounded (e meas : Expr) (fail : ∀ {α}, M α) : M Probe := do
     let .forallE _ A _ _ ← whnf (← inferType F) | fail
     unless ← isDefEq ty A do fail
     return (F, lctx.mkLambda fvs a₀)
-  -- `F` is read again here, in the context the probe is returned to, and the `ih` binder's type
-  -- `Dom` is computed from that reading. This is scoped so that no conversion fact outlives its
-  -- binder: what was found about `F` under the measure's binders is not carried out of them.
-  let .forallE _ A cod _ ← whnf (← checkType F) | fail
+  -- `F`'s type is read again here, in the context the probe is returned to, and the `ih` binder's
+  -- type `Dom` is computed from that reading: what was found about `F` under the measure's
+  -- binders is not carried out of them. (`F` itself is well typed here: it mentions none of those
+  -- binders, which are `Nat`s, so substituting `Nat.zero` for them leaves it alone.)
+  let .forallE _ A cod _ ← whnf (← inferType F) | fail
   let dom ← withLocalDecl `a .default A fun a => do
     let .forallE _ dom _ _ ← whnf (cod.instantiate1 a) | fail
     return .lam `a A (dom.abstract #[a]) .default
