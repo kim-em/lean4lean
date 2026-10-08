@@ -84,7 +84,7 @@ def Environment.addQuot (env : Environment) : Except Exception Environment := do
   let quotMk_a := mkApp3 (.const ``Quot.mk [u]) α r a
   withLocalDecl `β .implicit (.arrow quot_r .prop) fun β => do
   let all_quot := (← read).mkForall #[a] <| .app β quotMk_a
-  withLocalDecl `q .implicit quot_r fun q => do
+  withLocalDecl `q .default quot_r fun q => do
   -- constant Quot.ind.{u} {α : Sort u} {r : α → α → Prop} {β : @Quot.{u} α r → Prop} :
   --   (∀ a : α, β (@Quot.mk.{u} α r a)) → ∀ q : @Quot.{u} α r, β q
   let env := env.add <| .quotInfo {
