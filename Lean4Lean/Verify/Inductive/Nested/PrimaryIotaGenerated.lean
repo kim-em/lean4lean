@@ -12,7 +12,7 @@ namespace VerifyInductive
 nested equation.  The three body equalities are retained explicitly because
 they are the exact bridge used to transport the generated equation's context
 and LHS typing; no independent typing premise is needed downstream. -/
-structure RecursorPhasesResult.GeneratedNestedIotaSource
+structure CompletedRecursorPhasesResult.GeneratedNestedIotaSource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {initialEnv : VEnv} {indTypes : Array InductiveType}
@@ -20,7 +20,7 @@ structure RecursorPhasesResult.GeneratedNestedIotaSource
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {generatedRule : VDefEq}
@@ -37,7 +37,7 @@ structure RecursorPhasesResult.GeneratedNestedIotaSource
 /-- Ordinary generated-rule semantics plus the explicit lowering
 compatibilities construct the source nested equation without any equation
 shape or typing assumptions. -/
-def RecursorPhasesResult.GeneratedNestedIotaSource.ofOrdinaryCompatible
+def CompletedRecursorPhasesResult.GeneratedNestedIotaSource.ofOrdinaryCompatible
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {initialEnv : VEnv} {indTypes : Array InductiveType}
@@ -45,7 +45,7 @@ def RecursorPhasesResult.GeneratedNestedIotaSource.ofOrdinaryCompatible
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {generatedRule : VDefEq}
@@ -103,7 +103,7 @@ structure NestedInstalledProduction (outEnv : Environment) where
   headers : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
     initialEnv indTypes headerEnv
   constructors : ConstructorPhasesResult headers ctorEnv
-  production : RecursorPhasesResult constructors outEnv
+  production : CompletedRecursorPhasesResult constructors.completed outEnv
 
 /-- Exact production origin of one source nested equation.  The concrete old
 rule is fixed by a completed generated-recursor entry, while the abstract

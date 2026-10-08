@@ -138,7 +138,7 @@ end VInductDecl.NestedIotaRule
 namespace VerifyInductive
 
 /-- Source reinterpretation preserves the exact shape-derived major split. -/
-theorem RecursorPhasesResult.GeneratedNestedIotaSource.leadingResult_exists
+theorem CompletedRecursorPhasesResult.GeneratedNestedIotaSource.leadingResult_exists
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {initialEnv : VEnv} {indTypes : Array InductiveType}
@@ -146,7 +146,7 @@ theorem RecursorPhasesResult.GeneratedNestedIotaSource.leadingResult_exists
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {generatedOwner : Nat} {howner : generatedOwner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[generatedOwner]!.ctors.length}
     {generatedRule : VDefEq}

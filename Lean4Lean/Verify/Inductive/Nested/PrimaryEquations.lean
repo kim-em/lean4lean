@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Equation.Setup
+import Lean4Lean.Verify.Inductive.CompletedEquationSetup
 
 namespace Lean4Lean
 
@@ -11,7 +11,7 @@ namespace VerifyInductive
 generated recursor entry at the corresponding source-family position.  The
 ordinary equation proof and the restoration trace can therefore be indexed by
 one shared rule list. -/
-theorem RecursorPhasesResult.restoredPrimaryInfo_eq_generated
+theorem CompletedRecursorPhasesResult.restoredPrimaryInfo_eq_generated
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -19,7 +19,7 @@ theorem RecursorPhasesResult.restoredPrimaryInfo_eq_generated
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : RecursorPhasesResult R outEnv)
+    (H : CompletedRecursorPhasesResult R.completed outEnv)
     (owner : Nat) (hentry : owner < H.entries.length)
     (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)
@@ -45,7 +45,7 @@ rule selected by executable primary restoration.  No equation witness is
 chosen by the caller: the installed recursor lookup fixes the generated entry,
 and `RulesRestoration.entry` fixes the restored rule at the same constructor
 index. -/
-theorem RecursorPhasesResult.restoredPrimaryGeneratedRuleAlignment
+theorem CompletedRecursorPhasesResult.restoredPrimaryGeneratedRuleAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -53,7 +53,7 @@ theorem RecursorPhasesResult.restoredPrimaryGeneratedRuleAlignment
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : RecursorPhasesResult R outEnv)
+    (H : CompletedRecursorPhasesResult R.completed outEnv)
     (owner : Nat) (hentry : owner < H.entries.length)
     (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)

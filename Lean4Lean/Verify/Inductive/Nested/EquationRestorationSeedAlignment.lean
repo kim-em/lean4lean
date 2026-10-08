@@ -22,7 +22,7 @@ structure GeneratedEquationRestorationAlignment
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {generatedRule : VDefEq}
@@ -50,7 +50,7 @@ theorem GeneratedEquationRestorationAlignment.sourceTyping
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {generatedRule : VDefEq}

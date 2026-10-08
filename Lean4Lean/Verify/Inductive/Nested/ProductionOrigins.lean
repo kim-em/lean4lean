@@ -523,7 +523,7 @@ theorem RestoredInductiveDeclResult.extendProductionInductiveOrigins
 
 /-- Positional form of the lowered producer's family-header lookup retaining
 all production metadata later preserved by nested restoration. -/
-theorem RecursorPhasesResult.findSourceHeaderAt
+theorem CompletedRecursorPhasesResult.findSourceHeaderAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
@@ -531,7 +531,7 @@ theorem RecursorPhasesResult.findSourceHeaderAt
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hc : ContextWF c) (H : RecursorPhasesResult R outEnv)
+    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed outEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size) :
     ∃ info : InductiveVal,
       outEnv.find? indTypes[familyIdx].name = some (.inductInfo info) ∧
@@ -579,7 +579,7 @@ theorem RecursorPhasesResult.findSourceHeaderAt
 /-- The source-position header lookup also retains the exact executable index
 count.  This is stated separately from `findSourceHeaderAt` so existing
 consumers of its metadata tuple need not be reindexed. -/
-theorem RecursorPhasesResult.findSourceHeaderNumIndicesAt
+theorem CompletedRecursorPhasesResult.findSourceHeaderNumIndicesAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
@@ -587,7 +587,7 @@ theorem RecursorPhasesResult.findSourceHeaderNumIndicesAt
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : RecursorPhasesResult R outEnv)
+    (H : CompletedRecursorPhasesResult R.completed outEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (hstats : familyIdx < stats.nindices.size)
     (info : InductiveVal)
@@ -649,7 +649,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerAt
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -754,7 +754,7 @@ theorem RestoredInductiveStep.constructorOwnersPresent
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -819,7 +819,7 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
@@ -1303,7 +1303,7 @@ theorem StateForMTrace.sourceFamiliesConstructorOwnersPresent
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Htrace : StateForMTrace
       (RestoredInductiveStep result loweredEnv auxRec
@@ -1346,7 +1346,7 @@ theorem RestoredNestedDeclarationsResult.constructorOwnersPresent
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
       auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
@@ -1377,7 +1377,7 @@ theorem StateForMTrace.sourceFamiliesProductionInductiveOrigins
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
@@ -1433,7 +1433,7 @@ theorem RestoredNestedDeclarationsResult.productionInductiveOrigins
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)

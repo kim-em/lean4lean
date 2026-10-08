@@ -218,8 +218,8 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
-  rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
-  let B0 := Hrecursors.blockCertificate T.rules T.rulesWF
+  rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
+  let B0 := Hrecursors.declaredBlockCertificate T.rules T.rulesWF
   let B := B0.sf_mono (safety := .safe) (by
     rw [hsafety]
     exact DefinitionSafety.le_rfl)
@@ -239,7 +239,8 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) B.block :=
     by simpa [B, B0, BlockCertificate.sf_mono, StagedBlock.sf_mono, BlockCertificate.block] using
-      (T.compilation hnonempty).compilesTo
+      (show OrdinaryCompilationCertificate _ decl B0.block from
+        T.compilation hnonempty).compilesTo
   have hconstructors :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
@@ -263,7 +264,7 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
   rcases B.extendSafeExact wf hch hdecl hcompile horigins T.recursorProvenance Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners)
       hconstructors
-      (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
+      (fun safety => Hrecursors.declaredBlockEliminatorsReplay T.rules T.rulesWF
         (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
       ⟨ves', wf', hle, hadd, hsafeReplay⟩
   have hsafeEq : (ves'.venv .safe).constants ``Eq = some eqConst :=
@@ -295,7 +296,8 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     have hrules : B.block.rules = [canonicalEqRecRule] := by
       have Hcompiles : InductiveSignature.Compiles (ves.venv .safe) decl B.block := by
         simpa [B, B0, BlockCertificate.sf_mono, StagedBlock.sf_mono, BlockCertificate.block] using
-          (T.compilation hnonempty).canonical
+          (show OrdinaryCompilationCertificate _ decl B0.block from
+            T.compilation hnonempty).canonical
       refine Hcompiles.eqRecRules hdeclTypes hfamilyName (by simp [hfamilyCtors])
         hdeclParams ?_
       intro recursor hrecursor hname

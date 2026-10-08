@@ -1,6 +1,8 @@
 import Lean4Lean.Verify.Inductive.PrimitiveConstructorCompletion
 import Lean4Lean.Verify.Inductive.Nested.Compilation
-import Lean4Lean.Verify.Inductive.Equation.Build
+import Lean4Lean.Verify.Inductive.DeclaredRecursorPhases
+import Lean4Lean.Verify.Inductive.CompletedRuleTranslation
+import Lean4Lean.Verify.Inductive.Constructor.LiteralDisjoint
 
 namespace Lean4Lean
 

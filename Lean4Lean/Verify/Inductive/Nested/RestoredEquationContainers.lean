@@ -894,16 +894,16 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of_containers
       lc.type.projNamesAvoid (compilationRestoration sourceDecl auxiliaries).restorableNames =
         true)
     (recursorProjNames :
-      ∀ owner : Fin E.production.production.completed.generationSignature.families.size,
-        (E.production.production.completed.canonicalGeneration.recursorType owner).projNamesAvoid
+      ∀ owner : Fin E.production.production.generationSignature.families.size,
+        (E.production.production.canonicalGeneration.recursorType owner).projNamesAvoid
           (compilationRestoration sourceDecl auxiliaries).restorableNames = true)
     (equationProjNames :
-      ∀ k : Fin E.production.production.completed.generationSignature.constructors.size,
-        (E.production.production.completed.canonicalGeneration.equation k).lhs.projNamesAvoid
+      ∀ k : Fin E.production.production.generationSignature.constructors.size,
+        (E.production.production.canonicalGeneration.equation k).lhs.projNamesAvoid
             (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
-        (E.production.production.completed.canonicalGeneration.equation k).rhs.projNamesAvoid
+        (E.production.production.canonicalGeneration.equation k).rhs.projNamesAvoid
             (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
-        (E.production.production.completed.canonicalGeneration.equation k).type.projNamesAvoid
+        (E.production.production.canonicalGeneration.equation k).type.projNamesAvoid
             (compilationRestoration sourceDecl auxiliaries).restorableNames = true) :
     NestedRestoredEquationGaps E C auxiliaries :=
   let H := E.restoredEquationContainers_of wf Hsources auxiliaries D C hC hV G
