@@ -8,7 +8,7 @@ of its constructors were read off the checked recursor type and returned to
 the declaration's universes; the facts retained by that construction
 (`RecursiveShapesSpec`, `RecursiveShapeDomains`) are exported here against the
 retained blueprint calls `B.recursiveCalls[j]!` from which
-`RecRuleBlueprint.build` produces the installed rules.
+`RecRuleTemplate.build` produces the installed rules.
 
 The sources are stated in one closed form:
 * the `i`-th explicit binder source is the `i`-th literal domain of the call's
@@ -37,7 +37,7 @@ theorem RecursorConstruction.consumedSignature_shapeTranslations
       (H.signature HU).constructors.size) :
     let s := H.signature HU
     let S := H.origins.minorShapes owner howner localIndex hlocal
-    let B := H.recInfos[owner]!.ruleBlueprints[localIndex]!
+    let B := H.recInfos[owner]!.ruleTemplates[localIndex]!
     let ctor := s.constructors[recursorMinorOffset indTypes owner + localIndex]
     let rf := InductiveSignature.Instance.recursiveFields (s := s) ctor
     s.fieldTypes ctor = H.declFieldDomains owner howner localIndex hlocal ∧
@@ -107,7 +107,7 @@ theorem RecursorConstruction.consumedGeneration_shapeTranslations
     let G := H.generator
     let S := H.origins.minorShapes owner howner localIndex hlocal
     let k := recursorMinorOffset indTypes owner + localIndex
-    let B := H.recInfos[owner]!.ruleBlueprints[localIndex]!
+    let B := H.recInfos[owner]!.ruleTemplates[localIndex]!
     ∃ hk : k < G.signature.constructors.size,
       let ctor := G.signature.constructors[k]
       let rf := InductiveSignature.Instance.recursiveFields (s := G.signature) ctor

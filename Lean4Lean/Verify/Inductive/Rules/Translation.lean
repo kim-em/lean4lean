@@ -747,7 +747,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
       (s := H.generator.signature)
       H.generator.signature.constructors[recursorMinorOffset indTypes o + i]).length) :
     TrExprSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams) (abstractForallContext Γdoms [])
-      ((((H.recInfos[o]!.ruleBlueprints[i]!).recursiveCalls[j]!).build indTypes stats
+      ((((H.recInfos[o]!.ruleTemplates[i]!).recursiveCalls[j]!).instantiate indTypes stats
         (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
         (AddInductive.getRecLevels H.elimLevel stats.levels)).abstractN
           (H.origins.minorShapes o ho i hlocal).fields_bound.fvars |>.abstractN
@@ -765,11 +765,11 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
   have hjS : j < (H.origins.minorShapes o ho i hlocal).hypotheses.size := hrfLen ▸ hj
   obtain ⟨_, _, _, _, traversal, origins, _, horig, _, _, Hcalls⟩ := H.blueprints.entry o ho i hlocal
   obtain ⟨originRoot, sourceType, O, D, _, _, hcall⟩ := Hcalls.entry j hjS
-  simp only [AddInductive.RecCallBlueprint.build]
+  simp only [AddInductive.RecCallTemplate.instantiate]
   rw [htemplate, hmajor, hfield, H.recAppEq]
-  have hargs : (H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls[j]!).args = O.args := by
+  have hargs : (H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls[j]!).args = O.args := by
     rw [hcall]
-  have hlctx : (H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls[j]!).lctx = O.current.lctx := by
+  have hlctx : (H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls[j]!).lctx = O.current.lctx := by
     rw [hcall]
   rw [hargs] at Hdom Hidx hbinders ⊢
   rw [hlctx] at Hdom ⊢
@@ -802,7 +802,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
   have hname : H.generator.generation.recursorName
       (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
         H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.target =
-      mkRecName indTypes[(H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls[j]!).targetTypeIdx]!.name := by
+      mkRecName indTypes[(H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls[j]!).targetTypeIdx]!.name := by
     rw [H.generator.names]
     simp only [Fin.getElem_fin]
     rw [H.generator.familyName _ (Fin.isLt _), ← htarget]
@@ -906,7 +906,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
       rw [hlen'] at this
       simpa using this
     · trivial
-  have hIclosed : ∀ e ∈ (H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls[j]!).targetIndices.toList,
+  have hIclosed : ∀ e ∈ (H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls[j]!).targetIndices.toList,
       Closed (e.abstractN O.arguments_bound.fvars) O.args.size := by
     intro e he
     obtain ⟨y, _, hy⟩ := Lean4Lean.List.Forall₂.forall_exists_l Hidx _ (List.mem_map_of_mem he)
@@ -925,7 +925,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
       (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
         H.generator.signature.constructors[recursorMinorOffset indTypes o +
           i])[j].2.binders.zipIdx)) []))
-      ((H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls[j]!).targetIndices.toList.map fun e =>
+      ((H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls[j]!).targetIndices.toList.map fun e =>
         ((e.abstractN O.arguments_bound.fvars).abstractN
           (H.origins.minorShapes o ho i hlocal).fields_bound.fvars O.args.size).abstractN
           (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars))
@@ -958,9 +958,9 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
   have key := TrExprSyn.recursiveCall (Us := AddInductive.getRecLevelParams H.elimLevel c.lparams)
     (lctxC := O.current.lctx) (args := O.args) (A := O.arguments_bound.fvars)
     O.arguments_bound.expressions hdecl O.arguments_bound.nodup
-    (I := (H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls[j]!).targetIndices)
+    (I := (H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls[j]!).targetIndices)
     hpos (H.origins.minorShapes o ho i hlocal).fields_nodup hPMN hdisj hmajA
-    (name := mkRecName indTypes[(H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls[j]!).targetTypeIdx]!.name)
+    (name := mkRecName indTypes[(H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls[j]!).targetTypeIdx]!.name)
     (recLevelsTranslationOf H.elimLevelAdmissible H.statsLevelsTranslation) (Γdoms := Γdoms) hΓ hdomsLen
     (idxG := (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
         H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.indices.map
@@ -983,7 +983,7 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
     (hk : recursorMinorOffset indTypes o + i < H.generator.signature.constructors.size)
     {env : VEnv} (hle : R.context.venv ≤ env) {res : Lean.Expr} {e₂ : VExpr}
     (Htel : Expr.LambdaTelescope
-      ((H.recInfos[o]!.ruleBlueprints[i]!).build indTypes stats
+      ((H.recInfos[o]!.ruleTemplates[i]!).instantiate indTypes stats
           (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
           (AddInductive.getRecLevels H.elimLevel stats.levels) H.localContext.lctx).rhs
       (H.generator.generation.equationDomains
@@ -992,7 +992,7 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
       (abstractForallContext (H.generator.generation.equationDomains
         ⟨recursorMinorOffset indTypes o + i, hk⟩) []) res e₂) :
     ∃ X, TrExprS env (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
-      ((H.recInfos[o]!.ruleBlueprints[i]!).build indTypes stats
+      ((H.recInfos[o]!.ruleTemplates[i]!).instantiate indTypes stats
           (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
           (AddInductive.getRecLevels H.elimLevel stats.levels) H.localContext.lctx).rhs X := by
   obtain ⟨_, hft, hrfLen, Hshape⟩ := H.consumedGeneration_shapeTranslations o ho i hlocal
@@ -1040,7 +1040,7 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
     rw [← LocalContext.mkBindingListN_append (fun fv hfv => hdeclPMN' fv (by simp_all))
         (List.nodup_append.mp hPMN).2.1,
       ← LocalContext.mkBindingListN_append hdeclPMN' hPMN]
-  simp only [AddInductive.RecRuleBlueprint.build] at Htel ⊢
+  simp only [AddInductive.RecRuleTemplate.instantiate] at Htel ⊢
   rw [hfieldsB, hlctxB, hminorB, hminorN] at Htel ⊢
   have hFexpr := (H.origins.minorShapes o ho i hlocal).fields_bound.expressions
   simp only [hFexpr, LocalContext.mkLambda] at Htel ⊢
@@ -1068,9 +1068,9 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
             (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray)
           (Array.map
             (fun call =>
-              call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
+              call.instantiate indTypes stats (Array.map (fun x => x.motive) H.recInfos)
                 (Array.flatMap (fun x => x.minors) H.recInfos) (AddInductive.getRecLevels H.elimLevel stats.levels))
-            H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls)))
+            H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls)))
   have HL := LocalContext.mkLambda_fvars_lambdaTelescopeN (lctx := H.localContext.lctx)
     (body := LocalContext.mkBinding true (H.origins.minorShapes o ho i hlocal).sourceFullContext.lctx
         (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray
@@ -1079,9 +1079,9 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
             (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray)
           (Array.map
             (fun call =>
-              call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
+              call.instantiate indTypes stats (Array.map (fun x => x.motive) H.recInfos)
                 (Array.flatMap (fun x => x.minors) H.recInfos) (AddInductive.getRecLevels H.elimLevel stats.levels))
-            H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls))) hdeclPMN
+            H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls))) hdeclPMN
   simp only [LocalContext.mkForall, LocalContext.mkLambda, List.size_toArray, List.length_map]
     at Hsame HL
   have hsourceOwner : o < indTypes.size := by rwa [← H.sourceFamilyCount]
@@ -1104,9 +1104,9 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
             (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray)
           (Array.map
             (fun call =>
-              call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
+              call.instantiate indTypes stats (Array.map (fun x => x.motive) H.recInfos)
                 (Array.flatMap (fun x => x.minors) H.recInfos) (AddInductive.getRecLevels H.elimLevel stats.levels))
-            H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls))).abstractN
+            H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls))).abstractN
     (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)) 0
   have HLF := (LocalContext.mkLambda_fvars_lambdaTelescopeN hdeclF (body :=
     (mkAppN
@@ -1114,9 +1114,9 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
             (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray)
           (Array.map
             (fun call =>
-              call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
+              call.instantiate indTypes stats (Array.map (fun x => x.motive) H.recInfos)
                 (Array.flatMap (fun x => x.minors) H.recInfos) (AddInductive.getRecLevels H.elimLevel stats.levels))
-            H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls)))).abstractN
+            H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls)))).abstractN
     (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)) 0
   have HFtelF := (LocalContext.mkForall_fvars_forallTelescope hdeclF (body := .sort .zero)).abstractN
     (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)) 0
@@ -1186,7 +1186,7 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
     (o : Nat) (ho : o < H.recInfos.size) (i : Nat) (hlocal : i < H.origins.minorTypes[o]!.size) :
     ∃ hk : recursorMinorOffset indTypes o + i < H.generator.signature.constructors.size,
       TrExprSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
-        ((H.recInfos[o]!.ruleBlueprints[i]!).build indTypes stats
+        ((H.recInfos[o]!.ruleTemplates[i]!).instantiate indTypes stats
           (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
           (AddInductive.getRecLevels H.elimLevel stats.levels) H.localContext.lctx).rhs
         (H.generator.generation.equation
@@ -1237,7 +1237,7 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
     rw [← LocalContext.mkBindingListN_append (fun fv hfv => hdeclPMN' fv (by simp_all))
         (List.nodup_append.mp hPMN).2.1,
       ← LocalContext.mkBindingListN_append hdeclPMN' hPMN]
-  simp only [AddInductive.RecRuleBlueprint.build]
+  simp only [AddInductive.RecRuleTemplate.instantiate]
   rw [hfieldsB, hlctxB, hminorB, hminorN]
   have hFexpr := (H.origins.minorShapes o ho i hlocal).fields_bound.expressions
   conv => lhs; rw [hFexpr]
@@ -1270,9 +1270,9 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
             (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray)
           (Array.map
             (fun call =>
-              call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
+              call.instantiate indTypes stats (Array.map (fun x => x.motive) H.recInfos)
                 (Array.flatMap (fun x => x.minors) H.recInfos) (AddInductive.getRecLevels H.elimLevel stats.levels))
-            H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls)))
+            H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls)))
   have HL := LocalContext.mkLambda_fvars_lambdaTelescopeN (lctx := H.localContext.lctx)
     (body := LocalContext.mkBinding true (H.origins.minorShapes o ho i hlocal).sourceFullContext.lctx
         (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray
@@ -1281,9 +1281,9 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
             (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray)
           (Array.map
             (fun call =>
-              call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
+              call.instantiate indTypes stats (Array.map (fun x => x.motive) H.recInfos)
                 (Array.flatMap (fun x => x.minors) H.recInfos) (AddInductive.getRecLevels H.elimLevel stats.levels))
-            H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls))) hdeclPMN
+            H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls))) hdeclPMN
   simp only [LocalContext.mkForall, LocalContext.mkLambda, List.size_toArray, List.length_map]
     at Hsame HL
   refine TrExprSyn.lambdaTelescope Hsame HL hlenD Hdoms ?_
@@ -1308,9 +1308,9 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
             (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray)
           (Array.map
             (fun call =>
-              call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
+              call.instantiate indTypes stats (Array.map (fun x => x.motive) H.recInfos)
                 (Array.flatMap (fun x => x.minors) H.recInfos) (AddInductive.getRecLevels H.elimLevel stats.levels))
-            H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls))).abstractN
+            H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls))).abstractN
     (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)) 0
   have HLF := (LocalContext.mkLambda_fvars_lambdaTelescopeN hdeclF (body :=
     (mkAppN
@@ -1318,9 +1318,9 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
             (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray)
           (Array.map
             (fun call =>
-              call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
+              call.instantiate indTypes stats (Array.map (fun x => x.motive) H.recInfos)
                 (Array.flatMap (fun x => x.minors) H.recInfos) (AddInductive.getRecLevels H.elimLevel stats.levels))
-            H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls)))).abstractN
+            H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls)))).abstractN
     (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)) 0
   have HFtelF := (LocalContext.mkForall_fvars_forallTelescope hdeclF (body := .sort .zero)).abstractN
     (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)) 0
@@ -1392,14 +1392,14 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
         (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)).length +
           (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length := by
       rw [List.length_append, hlenD, hlenF]
-    have hcallsLen : H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls.size =
+    have hcallsLen : H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls.size =
         (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
           H.generator.signature.constructors[recursorMinorOffset indTypes o + i]).length := by
       rw [Hcalls.size_eq, hrfLen]
     have Hcalls' := TrExprSyn.ruleBody (Us := AddInductive.getRecLevelParams H.elimLevel c.lparams)
       hm (H.origins.minorShapes o ho i hlocal).fields_nodup hPMN hdisj hΓ
-      (calls := H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls.map fun call =>
-        call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
+      (calls := H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls.map fun call =>
+        call.instantiate indTypes stats (Array.map (fun x => x.motive) H.recInfos)
           (Array.flatMap (fun x => x.minors) H.recInfos)
           (AddInductive.getRecLevels H.elimLevel stats.levels))
       (callsG := (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
@@ -1412,9 +1412,9 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
         have hj : j < (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
             H.generator.signature.constructors[recursorMinorOffset indTypes o + i]).length := by
           simpa using h2
-        have hjB : j < H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls.size := by omega
+        have hjB : j < H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls.size := by omega
         simp only [List.getElem_map, Array.getElem_toList, Array.getElem_map]
-        rw [← getElem!_pos H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls j hjB]
+        rw [← getElem!_pos H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls j hjB]
         exact H.ruleCallSyn o ho i hlocal hk _ hΓ j hj)
     simp only [hnf]
     have hidx : (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length +

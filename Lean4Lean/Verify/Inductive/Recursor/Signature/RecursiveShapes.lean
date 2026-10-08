@@ -1032,16 +1032,16 @@ theorem RecursorConstruction.recursorTelescope_hypothesisUnlift
               (S.fields_bound.fvars.take pos) O.args.size).abstractList H.params.fvars
                 (pos + O.args.size))
           indices ∧
-        (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).args = O.args ∧
-        (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).lctx =
+        (H.recInfos[mowner]!.ruleTemplates[localIndex]!.recursiveCalls[j]!).args = O.args ∧
+        (H.recInfos[mowner]!.ruleTemplates[localIndex]!.recursiveCalls[j]!).lctx =
           O.current.lctx ∧
-        (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).targetIndices =
+        (H.recInfos[mowner]!.ruleTemplates[localIndex]!.recursiveCalls[j]!).targetIndices =
           O.exposedType.getAppArgs[origins.stats.params.size:] ∧
-        (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).targetTypeIdx =
+        (H.recInfos[mowner]!.ruleTemplates[localIndex]!.recursiveCalls[j]!).targetTypeIdx =
           O.ownerIdx ∧
-        (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).major =
+        (H.recInfos[mowner]!.ruleTemplates[localIndex]!.recursiveCalls[j]!).major =
           S.recursiveFields[j]! ∧
-        (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).template =
+        (H.recInfos[mowner]!.ruleTemplates[localIndex]!.recursiveCalls[j]!).template =
           O.current.lctx.mkLambda O.args
             ((mkAppN (.bvar O.args.size) O.exposedType.getAppArgs[origins.stats.params.size:]).app
               (mkAppN S.recursiveFields[j]! O.args)) ∧

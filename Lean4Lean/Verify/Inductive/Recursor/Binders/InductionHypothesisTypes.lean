@@ -524,13 +524,13 @@ structure RecInfoBinderTypes (c : AddInductive.Context)
 /-- The exact first-pass recursive-call blueprints paired with one retained
 minor hypothesis-origin table.  This is producer evidence, not a replay
 compatibility premise: every field comes from the single successful
-`loopUBlueprints` run which introduced the corresponding hypothesis. -/
+`loopUTemplates` run which introduced the corresponding hypothesis. -/
 structure CallTemplatesMatch
     {sourceFullContext : AddInductive.Context}
     (origins : MinorInductionHypothesisTypes
       sourceFullContext fields hypotheses)
     (allFields : Array Expr)
-    (calls : Array AddInductive.RecCallBlueprint) : Prop where
+    (calls : Array AddInductive.RecCallTemplate) : Prop where
   size_eq : calls.size = hypotheses.size
   entry : ∀ j (hj : j < hypotheses.size),
     ∃ originRoot sourceType,
@@ -585,7 +585,7 @@ source shape. -/
 def RuleTemplateMatchesMinor
     (stats : AddInductive.InductiveStats)
     (S : MinorPremiseType)
-    (minor : Expr) (B : AddInductive.RecRuleBlueprint) : Prop :=
+    (minor : Expr) (B : AddInductive.RecRuleTemplate) : Prop :=
   B.ctor = S.constructor.name ∧
     B.fields = S.fields ∧
     B.lctx = S.sourceFullContext.lctx ∧
@@ -608,11 +608,11 @@ structure RuleTemplatesMatch
     (recInfos : Array AddInductive.RecInfo)
     (H : RecInfoBinderTypes c recInfos) : Prop where
   rows_size : ∀ owner (howner : owner < recInfos.size),
-    recInfos[owner]!.ruleBlueprints.size = H.minorTypes[owner]!.size
+    recInfos[owner]!.ruleTemplates.size = H.minorTypes[owner]!.size
   entry : ∀ owner (howner : owner < recInfos.size)
     localIndex (hlocal : localIndex < H.minorTypes[owner]!.size),
     let S := H.minorShapes owner howner localIndex hlocal
-    let B := recInfos[owner]!.ruleBlueprints[localIndex]!
+    let B := recInfos[owner]!.ruleTemplates[localIndex]!
     RuleTemplateMatchesMinor stats S
       recInfos[owner]!.minors[localIndex]! B
   fields_outer_fresh : ∀ owner (howner : owner < recInfos.size)

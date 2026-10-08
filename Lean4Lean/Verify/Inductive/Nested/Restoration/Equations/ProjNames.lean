@@ -308,11 +308,11 @@ theorem minorProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads)
   have hcallRoots : RuleTemplateMatchesMinor stats
       (H.origins.minorShapes owner howner localIndex hlocal)
       H.recInfos[owner]!.minors[localIndex]!
-      H.recInfos[owner]!.ruleBlueprints[localIndex]! :=
+      H.recInfos[owner]!.ruleTemplates[localIndex]! :=
     H.blueprints.entry owner howner localIndex hlocal
   obtain ⟨Hsem⟩ := H.blueprintSemantics.entry owner howner localIndex hlocal
   generalize H.origins.minorShapes owner howner localIndex hlocal = S at hsrc hcallRoots Hsem ⊢
-  generalize H.recInfos[owner]!.ruleBlueprints[localIndex]! = B at hcallRoots Hsem ⊢
+  generalize H.recInfos[owner]!.ruleTemplates[localIndex]! = B at hcallRoots Hsem ⊢
   obtain ⟨-, -, hsourceCtors, -, traversal, htrav, -, -, -, -, hvalid, hmotiveApp, -, -,
     hsrcLE⟩ := hsrc
   obtain ⟨origins, hshape, hstats, -, F, -⟩ := Hsem

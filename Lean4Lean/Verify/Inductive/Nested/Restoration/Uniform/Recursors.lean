@@ -922,21 +922,21 @@ theorem minorHitShape {heads : List Name} (I : H.ParamUniformDeclarations heads)
     (H.origins.minorShapes owner howner localIndex hlocal).origin.ParamUniform heads
       stats.params.toList stats.levels ∧
     (∀ j, j < (H.origins.minorShapes owner howner localIndex hlocal).hypotheses.size →
-      (H.recInfos[owner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).template.ParamUniform
+      (H.recInfos[owner]!.ruleTemplates[localIndex]!.recursiveCalls[j]!).template.ParamUniform
         heads stats.params.toList stats.levels ∧
-      (H.recInfos[owner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).targetTypeIdx <
+      (H.recInfos[owner]!.ruleTemplates[localIndex]!.recursiveCalls[j]!).targetTypeIdx <
         stats.indConsts.size) := by
   have hsourceOwner := H.sourceOwner howner
   have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
   have hcallRoots : RuleTemplateMatchesMinor stats
       (H.origins.minorShapes owner howner localIndex hlocal)
       H.recInfos[owner]!.minors[localIndex]!
-      H.recInfos[owner]!.ruleBlueprints[localIndex]! :=
+      H.recInfos[owner]!.ruleTemplates[localIndex]! :=
     H.blueprints.entry owner howner localIndex hlocal
   have hfresh := H.blueprints.fields_outer_fresh owner howner localIndex hlocal
   obtain ⟨Hsem⟩ := H.blueprintSemantics.entry owner howner localIndex hlocal
   generalize H.origins.minorShapes owner howner localIndex hlocal = S at hsrc hcallRoots hfresh Hsem ⊢
-  generalize H.recInfos[owner]!.ruleBlueprints[localIndex]! = B at hcallRoots Hsem ⊢
+  generalize H.recInfos[owner]!.ruleTemplates[localIndex]! = B at hcallRoots Hsem ⊢
   obtain ⟨-, -, hsourceCtors, -, traversal, htrav, -, -, -, -, hvalid, hmotiveApp, -, -,
     hsrcLE⟩ := hsrc
   obtain ⟨origins, hshape, hstats, -, F, -⟩ := Hsem
@@ -1277,17 +1277,17 @@ are not heads (`ParamUniformDeclarations.recursorNames`), so `lvls` is arbitrary
 theorem ruleRhsHitShape {heads : List Name} (I : H.ParamUniformDeclarations heads)
     (W : WhnfPreservesParamUniform heads stats.params.toList stats.levels H.localContext.env)
     (owner : Nat) (howner : owner < H.recInfos.size) (lvls : List Level)
-    (blueprint : AddInductive.RecRuleBlueprint)
-    (hmem : blueprint ∈ H.recInfos[owner]!.ruleBlueprints.toList) :
+    (blueprint : AddInductive.RecRuleTemplate)
+    (hmem : blueprint ∈ H.recInfos[owner]!.ruleTemplates.toList) :
     Expr.ParamUniformTele heads stats.params.size stats.levels
-      (blueprint.build indTypes stats (H.recInfos.map (·.motive))
+      (blueprint.instantiate indTypes stats (H.recInfos.map (·.motive))
         (H.recInfos.flatMap (·.minors)) lvls H.localContext.lctx).rhs := by
   have hp := H.params_fvar
   obtain ⟨localIndex, hlocalB, hget⟩ := List.mem_iff_getElem.1 hmem
-  have hlocalB' : localIndex < H.recInfos[owner]!.ruleBlueprints.size := by simpa using hlocalB
+  have hlocalB' : localIndex < H.recInfos[owner]!.ruleTemplates.size := by simpa using hlocalB
   have hlocal : localIndex < H.origins.minorTypes[owner]!.size := by
     rw [← H.blueprints.rows_size owner howner]; exact hlocalB'
-  have hB : H.recInfos[owner]!.ruleBlueprints[localIndex]! = blueprint := by
+  have hB : H.recInfos[owner]!.ruleTemplates[localIndex]! = blueprint := by
     rw [getElem!_pos _ localIndex hlocalB']; simpa using hget
   obtain ⟨hfieldDecls, -, hcalls⟩ := H.minorHitShape I W owner howner localIndex hlocal
   have hentry := H.blueprints.entry owner howner localIndex hlocal
@@ -1304,7 +1304,7 @@ theorem ruleRhsHitShape {heads : List Name} (I : H.ParamUniformDeclarations head
     rw [hBminor, getElem!_pos _ localIndex hminorsSize]; exact Array.getElem_mem hminorsSize
   obtain ⟨minorFv, hminorFv, -⟩ :=
     FVarArrayIn.fvar_of_mem (H.bindings.minors owner howner) hminorMem
-  simp only [AddInductive.RecRuleBlueprint.build]
+  simp only [AddInductive.RecRuleTemplate.instantiate]
   refine Expr.ParamUniform.mkLambda_params ?_ H.params_toList H.params_nodup H.paramCDecls
   refine Expr.ParamUniform.mkLambda_of_disjoint H.bindings.motives.expressions ?_
     (H.params_disjoint fun y hy => .inl (H.bindings.motives.mem_fvars_iff.1 hy))
@@ -1327,7 +1327,7 @@ theorem ruleRhsHitShape {heads : List Name} (I : H.ParamUniformDeclarations head
         rw [getElem!_pos _ j hj']; simpa using hcallj
       obtain ⟨htemplate, htarget⟩ := hcalls j (by rw [← hcallsSize]; exact hj')
       rw [hcallEq] at htemplate htarget
-      simp only [AddInductive.RecCallBlueprint.build]
+      simp only [AddInductive.RecCallTemplate.instantiate]
       refine htemplate.instantiate1 ?_ hp
       refine Expr.ParamUniform.mkAppN (Expr.ParamUniform.mkAppN
         (Expr.ParamUniform.mkAppN (.const (I.recursorNames _ htarget)) fun a ha => ?_)

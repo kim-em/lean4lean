@@ -346,7 +346,7 @@ structure TypedRecursiveCall.MotiveApplication
 
 /-- Producer-staged recursive calls with the exact earlier-hypothesis suffix
 retained at every call origin.  Unlike the compatibility staging above, this
-is populated only by `loopUBlueprints`, whose accumulator supplies the
+is populated only by `loopUTemplates`, whose accumulator supplies the
 literal recent suffix and its position in the call row. -/
 structure TypedRecursiveCallsAfterHypotheses
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)

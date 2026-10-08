@@ -1278,22 +1278,22 @@ theorem AddInductive.declareRecursors.loop.semanticWF
   rw [AddInductive.declareRecursors.loop]
   by_cases hidx : dIdx < indTypes.size
   · rw [dif_pos hidx]
-    have Hrules := AddInductive.mkRecRulesFromBlueprints.WF indTypes
+    have Hrules := AddInductive.mkRecRulesFromTemplates.WF indTypes
       elimLevel stats recInfos dIdx (recInfos.map (·.motive))
       (recInfos.flatMap (·.minors)) c
     have HrulesState :
-        ((liftM (AddInductive.mkRecRulesFromBlueprints indTypes elimLevel
+        ((liftM (AddInductive.mkRecRulesFromTemplates indTypes elimLevel
           stats recInfos dIdx (recInfos.map (·.motive))
           (recInfos.flatMap (·.minors))) :
             StateT Nat AddInductive.M (List RecursorRule))
           (recursorMinorOffset indTypes dIdx) c).WF fun out =>
-            (out.1 = recInfos[dIdx]!.ruleBlueprints.toList.map fun blueprint =>
-              blueprint.build indTypes stats (recInfos.map (·.motive))
+            (out.1 = recInfos[dIdx]!.ruleTemplates.toList.map fun blueprint =>
+              blueprint.instantiate indTypes stats (recInfos.map (·.motive))
                 (recInfos.flatMap (·.minors))
                 (AddInductive.getRecLevels elimLevel stats.levels) c.lctx) ∧
             out.2 = recursorMinorOffset indTypes dIdx := by
       change (((fun rules => (rules, recursorMinorOffset indTypes dIdx)) <$>
-        AddInductive.mkRecRulesFromBlueprints indTypes elimLevel stats
+        AddInductive.mkRecRulesFromTemplates indTypes elimLevel stats
           recInfos dIdx (recInfos.map (·.motive))
           (recInfos.flatMap (·.minors)) c).WF _)
       exact Hrules.map fun _ hrules => ⟨hrules, rfl⟩

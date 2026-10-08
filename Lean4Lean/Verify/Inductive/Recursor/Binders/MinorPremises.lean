@@ -16,7 +16,7 @@ namespace VerifyInductive
 call blueprint.  This is the common normal form of the first-pass
 `loopUArgs` origin and the second-pass generated call. -/
 def recCallBlueprintReplayTrace
-    (call : AddInductive.RecCallBlueprint) (motives : Array Expr)
+    (call : AddInductive.RecCallTemplate) (motives : Array Expr)
     (fieldBinders : List FVarId) : InductionHypothesisShape where
   ownerIdx := call.targetTypeIdx
   localArity := call.args.size
@@ -33,20 +33,20 @@ def recCallBlueprintReplayTrace
 producer.  The first pass does not yet know the completed mutual minor array,
 so the certificate is deliberately polymorphic in that array and in the
 generated recursor levels.  Instantiation is nevertheless exact: its value is
-the executable `RecCallBlueprint.build`, not a replayed call. -/
+the executable `RecCallTemplate.build`, not a replayed call. -/
 structure TypedCallTemplate
     (stats : AddInductive.InductiveStats)
     (motives : Array Expr)
     {root : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF root recLparams) (rootScope : FVarId → Prop)
     (decl : VInductDecl) (depth : Nat) (field : Expr)
-    (call : AddInductive.RecCallBlueprint) : Prop where
+    (call : AddInductive.RecCallTemplate) : Prop where
   owner_lt : call.targetTypeIdx < motives.size
   semantic : ∀ (indTypes : Array InductiveType) (minors : Array Expr)
       (lvls : List Level),
     ∃ S : TypedRecursiveCall indTypes stats
         motives minors lvls R decl depth field
-        (call.build indTypes stats motives minors lvls),
+        (call.instantiate indTypes stats motives minors lvls),
       S.rootScope = rootScope ∧
         Nonempty S.MotiveApplication ∧
         ∀ fieldBinders,
@@ -58,7 +58,7 @@ structure TypedCallTemplate
     ∀ e ∈ call.targetIndices.toList, e.levelParamsIn root.lparams = true
 
 /-- Array alignment for the semantic call certificates emitted by
-`loopUBlueprints`.  Entry `j` is rooted after exactly the `j` earlier
+`loopUTemplates`.  Entry `j` is rooted after exactly the `j` earlier
 hypotheses installed by that same loop, hence its validation depth is
 `depth + j`. -/
 structure TypedCallTemplates
@@ -68,7 +68,7 @@ structure TypedCallTemplates
     (stats : AddInductive.InductiveStats) (motives : Array Expr)
     (rootScope : FVarId → Prop)
     (fields hypotheses : Array Expr)
-    (calls : Array AddInductive.RecCallBlueprint) : Prop where
+    (calls : Array AddInductive.RecCallTemplate) : Prop where
   size_eq : calls.size = hypotheses.size
   entry : ∀ j (hj : j < hypotheses.size),
     ∃ originRoot,
@@ -94,13 +94,13 @@ theorem TypedCallTemplates.pushCurrent
     {recLparams : List Name}
     {Rroot : RecursorContextWF fieldRoot recLparams}
     {R : RecursorContextWF c recLparams}
-    {calls : Array AddInductive.RecCallBlueprint}
+    {calls : Array AddInductive.RecCallTemplate}
     (Hsem : TypedCallTemplates Rroot decl depth stats
       motives rootScope fields hypotheses calls)
     (hnext : hypotheses.size < fields.size)
     (Hrecent : RecursorFVarSuffix Rroot R hypotheses)
     (hchk : R.chk = Rroot.chk)
-    (call : AddInductive.RecCallBlueprint)
+    (call : AddInductive.RecCallTemplate)
     (S : TypedCallTemplate stats motives R rootScope decl
       (depth + hypotheses.size) fields[hypotheses.size]! call) :
     TypedCallTemplates Rroot decl depth stats motives rootScope
@@ -223,7 +223,7 @@ structure TypedCallTemplatesAt
     (stats : AddInductive.InductiveStats) (motives : Array Expr)
     (fieldScope : Nat → FVarId → Prop)
     (fields hypotheses : Array Expr)
-    (calls : Array AddInductive.RecCallBlueprint) : Prop where
+    (calls : Array AddInductive.RecCallTemplate) : Prop where
   size_eq : calls.size = hypotheses.size
   entry : ∀ j (hj : j < hypotheses.size),
     ∃ originRoot,
@@ -249,13 +249,13 @@ theorem TypedCallTemplatesAt.pushCurrent
     {recLparams : List Name}
     {Rroot : RecursorContextWF fieldRoot recLparams}
     {R : RecursorContextWF c recLparams}
-    {calls : Array AddInductive.RecCallBlueprint}
+    {calls : Array AddInductive.RecCallTemplate}
     (Hsem : TypedCallTemplatesAt Rroot decl depth stats
       motives fieldScope fields hypotheses calls)
     (hnext : hypotheses.size < fields.size)
     (Hrecent : RecursorFVarSuffix Rroot R hypotheses)
     (hchk : R.chk = Rroot.chk)
-    (call : AddInductive.RecCallBlueprint)
+    (call : AddInductive.RecCallTemplate)
     (S : TypedCallTemplate stats motives R
       (fieldScope hypotheses.size) decl
       (depth + hypotheses.size) fields[hypotheses.size]! call) :
@@ -423,7 +423,7 @@ def TypedRuleTemplateAt
     (recInfos : Array AddInductive.RecInfo)
     (elimLevel : Level) (parameterDecls : VLCtx)
     (expectedOwnerIdx : Nat) (S : MinorPremiseType)
-    (B : AddInductive.RecRuleBlueprint) : Prop :=
+    (B : AddInductive.RecRuleTemplate) : Prop :=
   ∃ origins : MinorInductionHypothesisTypes S.sourceFullContext
       S.recursiveFields S.hypotheses,
     S.hypothesis_type_origins = some origins ∧
@@ -497,7 +497,7 @@ structure TypedRuleTemplates
     (elimLevel : Level) (parameterDecls : VLCtx)
     (Horigins : RecInfoBinderTypes c recInfos) : Prop where
   rows_size : ∀ owner (howner : owner < recInfos.size),
-    recInfos[owner]!.ruleBlueprints.size =
+    recInfos[owner]!.ruleTemplates.size =
       Horigins.minorTypes[owner]!.size
   entry : ∀ owner (howner : owner < recInfos.size)
       (localIndex : Nat)
@@ -506,7 +506,7 @@ structure TypedRuleTemplates
       parameterDecls
       owner
       (Horigins.minorShapes owner howner localIndex hlocal)
-      recInfos[owner]!.ruleBlueprints[localIndex]!)
+      recInfos[owner]!.ruleTemplates[localIndex]!)
   /-- Every retained field binder is distinct from every binder in the
   completed recursor prefix.  This is producer evidence: later minor
   allocations preserve earlier rows because their fresh id is not in the
@@ -551,7 +551,7 @@ theorem TypedRuleTemplates.ofEmpty
     (R : RecursorContextWF c recLparams) (decl : VInductDecl)
     (Horigins : RecInfoBinderTypes c recInfos)
     (Hempty : RecInfoMinorsEmpty recInfos)
-    (Hcounts : RecInfoBlueprintCounts recInfos) (elimLevel : Level) :
+    (Hcounts : RecInfoTemplateCounts recInfos) (elimLevel : Level) :
     TypedRuleTemplates R decl stats recInfos elimLevel
       parameterDecls Horigins where
   rows_size owner howner :=
@@ -582,7 +582,7 @@ namespace mkRecInfos.loopU
 
 end mkRecInfos.loopU
 
-namespace mkRecInfos.loopUBlueprints
+namespace mkRecInfos.loopUTemplates
 
 /-- Semantic orchestration for the blueprint-retaining hypothesis loop.  The
 proof follows the exact producer run; the continuation receives both the
@@ -590,7 +590,7 @@ fresh hypotheses and the equally-sized retained call-blueprint row. -/
 theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (bu u : Array Expr)
     (recInfos : Array AddInductive.RecInfo)
-    (k : Array Expr → Array AddInductive.RecCallBlueprint →
+    (k : Array Expr → Array AddInductive.RecCallTemplate →
       AddInductive.M alpha)
     {recLparams : List Name}
     {root current : AddInductive.Context}
@@ -600,7 +600,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
     (rootScopeInContext : ∀ fv, rootScope fv → fv ∈ Rroot.mlctx.vlctx.fvars)
     (hrootUp : IsFVarUpSet rootScope Rroot.mlctx.vlctx)
     (i : Nat) (v : Array Expr)
-    (calls : Array AddInductive.RecCallBlueprint)
+    (calls : Array AddInductive.RecCallTemplate)
     (Hrecent : RecursorFVarSuffix Rroot R v)
     (Horigins : InductionHypothesisTypesPrefix stats recInfos root current u v)
     (HcallOrigins : CallTemplatesMatchPrefix Horigins rootScope
@@ -638,7 +638,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
           targetIndices := itIndices
           template := lctx.mkLambda xs <|
             (mkAppN (.bvar xs.size) itIndices).app (mkAppN u[j] xs) } :
-            AddInductive.RecCallBlueprint))) next).WF fun result =>
+            AddInductive.RecCallTemplate))) next).WF fun result =>
           ∃ viTarget,
             TrExprS Rnext.venv recLparams Rnext.mlctx.vlctx
               (result.1.consumeTypeAnnotationsVerified next.env.isTypeAnnotationWrapper) viTarget ∧
@@ -666,7 +666,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
     (Hk : ∀ {out : AddInductive.Context}
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr)
-      (outCalls : Array AddInductive.RecCallBlueprint),
+      (outCalls : Array AddInductive.RecCallTemplate),
       RecursorFVarSuffix Rroot Rout values →
       (HoutOrigins : InductionHypothesisTypesPrefix
         stats recInfos root out u values) →
@@ -678,9 +678,9 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
       values.size = v.size + (u.size - i) →
       outCalls.size = values.size →
       (k values outCalls out).WF Q) :
-    (AddInductive.mkRecInfos.loopUBlueprints stats bu u recInfos i v calls
+    (AddInductive.mkRecInfos.loopUTemplates stats bu u recInfos i v calls
       k current).WF Q := by
-  rw [AddInductive.mkRecInfos.loopUBlueprints]
+  rw [AddInductive.mkRecInfos.loopUTemplates]
   by_cases hnext : i < u.size
   · rw [dif_pos hnext]
     refine (Hvi R Hrecent hcheck i hnext).bind fun result Hresult => ?_
@@ -802,7 +802,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
           template := lctx.mkLambda args <|
             (mkAppN (.bvar args.size) targetIndices).app
               (mkAppN (.fvar fv) args) } :
-            AddInductive.RecCallBlueprint))) c).WF fun result =>
+            AddInductive.RecCallTemplate))) c).WF fun result =>
         ∃ viTarget,
           TrExprS R.venv recLparams R.mlctx.vlctx
             (result.1.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) viTarget ∧
@@ -824,7 +824,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
               (recInfos.map (·.motive)) R rootScope decl depth
               (.fvar fv) result.2 := by
   let build : Expr → Array Expr → Nat →
-      AddInductive.M (Expr × AddInductive.RecCallBlueprint) :=
+      AddInductive.M (Expr × AddInductive.RecCallTemplate) :=
     fun exposedType args target => do
       let targetIndices := exposedType.getAppArgs[stats.params.size:]
       let lctx ← getLCtx
@@ -919,7 +919,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
         template := current.lctx.mkLambda args <|
           (mkAppN (.bvar args.size) targetIndices).app
             (mkAppN (.fvar fv) args) } :
-          AddInductive.RecCallBlueprint))).WF _
+          AddInductive.RecCallTemplate))).WF _
     let O : InductionHypothesisTypeAt stats recInfos c
         (.fvar fv) (current.lctx.mkForall args motiveApp) := {
         current := current
@@ -950,7 +950,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
       semantic := ?_
       universes := hcallUniverses }
     intro indTypes minors lvls
-    let call : AddInductive.RecCallBlueprint := {
+    let call : AddInductive.RecCallTemplate := {
       major := .fvar fv
       args := args
       lctx := current.lctx
@@ -959,7 +959,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
       template := current.lctx.mkLambda args <|
         (mkAppN (.bvar args.size) targetIndices).app
           (mkAppN (.fvar fv) args) }
-    let value := call.build indTypes stats (recInfos.map (·.motive))
+    let value := call.instantiate indTypes stats (recInfos.map (·.motive))
       minors lvls
     let Hgenerated : RecursiveCall indTypes stats
         (recInfos.map (·.motive)) minors lvls c (.fvar fv) value := {
@@ -972,7 +972,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
       current_extends := Hargs.contextLE
       arguments_bound := Hargs.toFVarArrayAfter
       value_eq := by
-        simp [value, call, AddInductive.RecCallBlueprint.build,
+        simp [value, call, AddInductive.RecCallTemplate.instantiate,
           AddInductive.getIIndices, hvalid, targetIndices] }
     let HstatsCurrent := Hstats.weakenRecent Hargs
     have hctxCurrent : VLCtx.NoIndConsts
@@ -1117,7 +1117,7 @@ theorem inductionHypothesisTypeOrigin
           template := lctx.mkLambda args <|
             (mkAppN (.bvar args.size) targetIndices).app
               (mkAppN (.fvar fv) args) } :
-            AddInductive.RecCallBlueprint))) c).WF fun result =>
+            AddInductive.RecCallTemplate))) c).WF fun result =>
         ∃ viTarget,
           TrExprS R.venv recLparams R.mlctx.vlctx
             (result.1.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) viTarget ∧
@@ -1155,7 +1155,7 @@ theorem resultSemanticsOfMotiveApplications
     {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (bu u : Array Expr)
     (recInfos : Array AddInductive.RecInfo)
-    (k : Array Expr → Array AddInductive.RecCallBlueprint →
+    (k : Array Expr → Array AddInductive.RecCallTemplate →
       AddInductive.M alpha)
     {recLparams : List Name} {c : AddInductive.Context}
     (R : RecursorContextWF c recLparams)
@@ -1196,7 +1196,7 @@ theorem resultSemanticsOfMotiveApplications
     (Hk : ∀ {out : AddInductive.Context}
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr)
-      (calls : Array AddInductive.RecCallBlueprint),
+      (calls : Array AddInductive.RecCallTemplate),
       RecursorFVarSuffix R Rout values →
       (HoutOrigins : InductionHypothesisTypesPrefix
         stats recInfos c out u values) →
@@ -1208,7 +1208,7 @@ theorem resultSemanticsOfMotiveApplications
       values.size = u.size →
       calls.size = values.size →
       (k values calls out).WF Q) :
-    (AddInductive.mkRecInfos.loopUBlueprints stats bu u recInfos 0 #[] #[]
+    (AddInductive.mkRecInfos.loopUTemplates stats bu u recInfos 0 #[] #[]
       k c).WF Q := by
   refine resultSemanticBindings stats bu u recInfos k R R rootScope
     rootScopeInContext hrootUp 0 #[] #[]
@@ -1329,7 +1329,7 @@ theorem resultSemanticsOfMotiveTelescopes
     {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (bu u : Array Expr)
     (recInfos : Array AddInductive.RecInfo)
-    (k : Array Expr → Array AddInductive.RecCallBlueprint →
+    (k : Array Expr → Array AddInductive.RecCallTemplate →
       AddInductive.M alpha)
     {recLparams : List Name} {c : AddInductive.Context}
     (R : RecursorContextWF c recLparams)
@@ -1370,7 +1370,7 @@ theorem resultSemanticsOfMotiveTelescopes
     (Hk : ∀ {out : AddInductive.Context}
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr)
-      (calls : Array AddInductive.RecCallBlueprint),
+      (calls : Array AddInductive.RecCallTemplate),
       RecursorFVarSuffix R Rout values →
       (HoutOrigins : InductionHypothesisTypesPrefix
         stats recInfos c out u values) →
@@ -1382,7 +1382,7 @@ theorem resultSemanticsOfMotiveTelescopes
       values.size = u.size →
       calls.size = values.size →
       (k values calls out).WF Q) :
-    (AddInductive.mkRecInfos.loopUBlueprints stats bu u recInfos 0 #[] #[]
+    (AddInductive.mkRecInfos.loopUTemplates stats bu u recInfos 0 #[] #[]
       k c).WF Q :=
   resultSemanticsOfMotiveApplications stats bu u recInfos k R rootScope Hstats
     hconsume hlit hctx Hfields hfieldsList hufields rootScopeInContext hrootUp
@@ -1391,7 +1391,7 @@ theorem resultSemanticsOfMotiveTelescopes
     Htelescopes.applications Hbindings
     Horigins Hshape hrecords Hk
 
-end mkRecInfos.loopUBlueprints
+end mkRecInfos.loopUTemplates
 
 /-- Equality of the four semantic projections (motive, minors, indices and
 major) of two `RecInfo` arrays of the same size.  Arrays related this way may
@@ -1761,14 +1761,14 @@ theorem MinorsAndIndicesMatchSource.rebaseCore
 theorem modifyMinorAndBlueprint_coreEq
     (recInfos : Array AddInductive.RecInfo) (dIdx : Nat)
     (hidx : dIdx < recInfos.size) (minor : Expr)
-    (blueprint : AddInductive.RecRuleBlueprint) :
+    (blueprint : AddInductive.RecRuleTemplate) :
     RecInfoEqExceptRules
       (recInfos.modify dIdx fun info =>
         { info with minors := info.minors.push minor })
       (recInfos.modify dIdx fun info =>
         { info with
           minors := info.minors.push minor
-          ruleBlueprints := info.ruleBlueprints.push blueprint }) := by
+          ruleTemplates := info.ruleTemplates.push blueprint }) := by
   constructor
   · simp
   · intro i
@@ -1793,16 +1793,16 @@ theorem modifyMinorAndBlueprint_coreEq
 theorem modifyMinorAndBlueprint_motiveCoreEq
     (recInfos : Array AddInductive.RecInfo) (dIdx : Nat)
     (hidx : dIdx < recInfos.size)
-    (minor : Expr) (blueprint : AddInductive.RecRuleBlueprint) :
+    (minor : Expr) (blueprint : AddInductive.RecRuleTemplate) :
     RecInfoEqOnFamilyBinders recInfos
       (recInfos.modify dIdx fun info =>
         { info with
           minors := info.minors.push minor
-          ruleBlueprints := info.ruleBlueprints.push blueprint }) := by
+          ruleTemplates := info.ruleTemplates.push blueprint }) := by
   let next := recInfos.modify dIdx fun info =>
     { info with
       minors := info.minors.push minor
-      ruleBlueprints := info.ruleBlueprints.push blueprint }
+      ruleTemplates := info.ruleTemplates.push blueprint }
   have hfield : ∀ (i : Nat),
       recInfos[i]!.motive = next[i]!.motive ∧
       recInfos[i]!.indices = next[i]!.indices ∧
@@ -1845,7 +1845,7 @@ theorem continueMinor_rowsSize
     (R : RecursorContextWF c recLparams)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
     (minorName : Name) (minorTy : Expr)
-    (mkBlueprint : Expr → AddInductive.RecRuleBlueprint)
+    (mkTemplate : Expr → AddInductive.RecRuleTemplate)
     (Horigins : RecInfoBinderTypes c recInfos)
     (hidx : dIdx < recInfos.size)
     (HminorShape : MinorPremiseType)
@@ -1853,7 +1853,7 @@ theorem continueMinor_rowsSize
       HminorShape.localIndex = Horigins.minorTypes[dIdx]!.size ∧
       HminorShape.origin = minorTy)
     (Hrows : ∀ owner, owner < recInfos.size →
-      recInfos[owner]!.ruleBlueprints.size =
+      recInfos[owner]!.ruleTemplates.size =
         Horigins.minorTypes[owner]!.size) :
     let cMinor : AddInductive.Context := { c with
       ngen := c.ngen.next
@@ -1861,17 +1861,17 @@ theorem continueMinor_rowsSize
     let next := recInfos.modify dIdx fun info =>
       { info with
         minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
-        ruleBlueprints := info.ruleBlueprints.push
-          (mkBlueprint (.fvar ⟨c.ngen.curr⟩)) }
+        ruleTemplates := info.ruleTemplates.push
+          (mkTemplate (.fvar ⟨c.ngen.curr⟩)) }
     let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
-      (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
+      (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
     let HoriginsMinor := Horigins.addMinor dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
       .default HminorShape HminorShapePosition
     let HoriginsNext : RecInfoBinderTypes cMinor next :=
       HoriginsMinor.rebaseCore Hcore
     ∀ owner, owner < next.size →
-      next[owner]!.ruleBlueprints.size =
+      next[owner]!.ruleTemplates.size =
         HoriginsNext.minorTypes[owner]!.size := by
   intro cMinor next Hcore HoriginsMinor HoriginsNext
   intro owner howner
@@ -1914,7 +1914,7 @@ theorem continueMinor_fieldsOuterFresh
     (R : RecursorContextWF c recLparams)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
     (minorName : Name) (minorTy : Expr)
-    (mkBlueprint : Expr → AddInductive.RecRuleBlueprint)
+    (mkTemplate : Expr → AddInductive.RecRuleTemplate)
     (Horigins : RecInfoBinderTypes c recInfos)
     (hidx : dIdx < recInfos.size)
     (HminorShape : MinorPremiseType)
@@ -1946,10 +1946,10 @@ theorem continueMinor_fieldsOuterFresh
     let next := recInfos.modify dIdx fun info =>
       { info with
         minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
-        ruleBlueprints := info.ruleBlueprints.push
-          (mkBlueprint (.fvar ⟨c.ngen.curr⟩)) }
+        ruleTemplates := info.ruleTemplates.push
+          (mkTemplate (.fvar ⟨c.ngen.curr⟩)) }
     let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
-      (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
+      (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
     let HoriginsMinor := Horigins.addMinor dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
       .default HminorShape HminorShapePosition
@@ -2119,7 +2119,7 @@ theorem continueMinor_blueprintOrigins
     (R : RecursorContextWF c recLparams)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
     (minorName : Name) (minorTy : Expr)
-    (mkBlueprint : Expr → AddInductive.RecRuleBlueprint)
+    (mkTemplate : Expr → AddInductive.RecRuleTemplate)
     (Horigins : RecInfoBinderTypes c recInfos)
     (hidx : dIdx < recInfos.size)
     (HminorShape : MinorPremiseType)
@@ -2139,19 +2139,19 @@ theorem continueMinor_blueprintOrigins
       fv ∉ (Hparams.fvars ++ Hbindings.motives.fvars) ++
         Hbindings.flatMinors.fvars)
     (Hblueprints : RuleTemplatesMatch stats recInfos Horigins)
-    (HminorBlueprint : RuleTemplateMatchesMinor stats
+    (HminorTemplate : RuleTemplateMatchesMinor stats
       HminorShape (.fvar ⟨c.ngen.curr⟩)
-      (mkBlueprint (.fvar ⟨c.ngen.curr⟩))) :
+      (mkTemplate (.fvar ⟨c.ngen.curr⟩))) :
     let cMinor : AddInductive.Context := { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ minorName minorTy .default }
     let next := recInfos.modify dIdx fun info =>
       { info with
         minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
-        ruleBlueprints := info.ruleBlueprints.push
-          (mkBlueprint (.fvar ⟨c.ngen.curr⟩)) }
+        ruleTemplates := info.ruleTemplates.push
+          (mkTemplate (.fvar ⟨c.ngen.curr⟩)) }
     let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
-      (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
+      (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
     let HoriginsMinor := Horigins.addMinor dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
       .default HminorShape HminorShapePosition
@@ -2161,11 +2161,11 @@ theorem continueMinor_blueprintOrigins
   intro cMinor next Hcore HoriginsMinor HoriginsNext
   refine {
     rows_size := continueMinor_rowsSize R dIdx recInfos minorName minorTy
-      mkBlueprint Horigins hidx HminorShape HminorShapePosition
+      mkTemplate Horigins hidx HminorShape HminorShapePosition
       Hblueprints.rows_size
     entry := ?_
     fields_outer_fresh := continueMinor_fieldsOuterFresh stats R dIdx recInfos minorName minorTy
-      mkBlueprint Horigins hidx HminorShape HminorShapePosition Hbindings Hparams
+      mkTemplate Horigins hidx HminorShape HminorShapePosition Hbindings Hparams
       Hlater HminorSemantics HminorSemantic HminorFieldsFresh
       Hblueprints.fields_outer_fresh }
   intro owner howner localIndex hlocal
@@ -2179,7 +2179,7 @@ theorem continueMinor_blueprintOrigins
           recInfos[dIdx]!.minors.size :=
         (Horigins.minors dIdx hidx).size_eq
       have hblueprintIndex : Horigins.minorTypes[dIdx]!.size =
-          recInfos[dIdx]!.ruleBlueprints.size :=
+          recInfos[dIdx]!.ruleTemplates.size :=
         (Hblueprints.rows_size dIdx hidx).symm
       have hminorLast :
           (recInfos[dIdx]!.minors.push (.fvar ⟨c.ngen.curr⟩))[
@@ -2188,10 +2188,10 @@ theorem continueMinor_blueprintOrigins
         rw [hminorIndex]
         simp
       have hblueprintLast :
-          (recInfos[dIdx]!.ruleBlueprints.push
-            (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[
+          (recInfos[dIdx]!.ruleTemplates.push
+            (mkTemplate (.fvar ⟨c.ngen.curr⟩)))[
               Horigins.minorTypes[dIdx]!.size]! =
-            mkBlueprint (.fvar ⟨c.ngen.curr⟩) := by
+            mkTemplate (.fvar ⟨c.ngen.curr⟩) := by
         rw [hblueprintIndex]
         simp
       have hshapeLast :
@@ -2205,7 +2205,7 @@ theorem continueMinor_blueprintOrigins
         RuleTemplateMatchesMinor,
         mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
         hminorLast, hblueprintLast]
-        using HminorBlueprint
+        using HminorTemplate
     · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
         dsimp [HoriginsNext, HoriginsMinor, RecInfoBinderTypes.rebaseCore,
           RecInfoBinderTypes.addMinor] at hlocal
@@ -2219,15 +2219,15 @@ theorem continueMinor_blueprintOrigins
       have holdMinor : localIndex < recInfos[dIdx]!.minors.size := by
         rw [← (Horigins.minors dIdx hidx).size_eq]
         exact hold
-      have holdBlueprint :
-          localIndex < recInfos[dIdx]!.ruleBlueprints.size := by
+      have holdTemplate :
+          localIndex < recInfos[dIdx]!.ruleTemplates.size := by
         rw [Hblueprints.rows_size dIdx hidx]
         exact hold
       have holdMinor' : localIndex < recInfos[dIdx].minors.size := by
         simpa [getElem!_pos recInfos dIdx hidx] using holdMinor
       have holdBlueprint' :
-          localIndex < recInfos[dIdx].ruleBlueprints.size := by
-        simpa [getElem!_pos recInfos dIdx hidx] using holdBlueprint
+          localIndex < recInfos[dIdx].ruleTemplates.size := by
+        simpa [getElem!_pos recInfos dIdx hidx] using holdTemplate
       have hminorGet :
           (recInfos[dIdx]!.minors.push
             (.fvar ⟨c.ngen.curr⟩))[localIndex]! =
@@ -2235,9 +2235,9 @@ theorem continueMinor_blueprintOrigins
         simp [Array.getElem!_eq_getD, Array.getD, hidx, holdMinor',
           Array.getElem_push_lt holdMinor'] <;> omega
       have hblueprintGet :
-          (recInfos[dIdx]!.ruleBlueprints.push
-            (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[localIndex]! =
-            recInfos[dIdx]!.ruleBlueprints[localIndex]! := by
+          (recInfos[dIdx]!.ruleTemplates.push
+            (mkTemplate (.fvar ⟨c.ngen.curr⟩)))[localIndex]! =
+            recInfos[dIdx]!.ruleTemplates[localIndex]! := by
         simp [Array.getElem!_eq_getD, Array.getD, hidx, holdBlueprint',
           Array.getElem_push_lt holdBlueprint'] <;> omega
       have Hentry := Hblueprints.entry dIdx hidx localIndex hold
@@ -2254,7 +2254,7 @@ theorem continueMinor_blueprintOrigins
         mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
         hlast, Array.getElem_push_lt hold,
         Array.getElem_push_lt holdMinor,
-        Array.getElem_push_lt holdBlueprint,
+        Array.getElem_push_lt holdTemplate,
         hminorGet, hblueprintGet] using Hentry
   · have hlocalOld : localIndex < Horigins.minorTypes[owner]!.size := by
       simpa [HoriginsNext, HoriginsMinor, RecInfoBinderTypes.rebaseCore,
@@ -2279,7 +2279,7 @@ theorem continueMinor_blueprintOrigins
 /-- Semantic rule-blueprint origins survive opening the current constructor's
 minor premise as a local and inserting it with its blueprint at the end of row
 `dIdx`: old entries are transported along the context extension, and the new
-entry is `HminorBlueprintSemantic`. -/
+entry is `HminorTemplateTyped`. -/
 theorem continueMinor_blueprintSemanticOrigins
     (stats : AddInductive.InductiveStats)
     {recLparams : List Name} {c : AddInductive.Context}
@@ -2287,7 +2287,7 @@ theorem continueMinor_blueprintSemanticOrigins
     {decl : VInductDecl} {elimLevel : Level}
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
     (minorName : Name) (minorTy : Expr)
-    (mkBlueprint : Expr → AddInductive.RecRuleBlueprint)
+    (mkTemplate : Expr → AddInductive.RecRuleTemplate)
     (Horigins : RecInfoBinderTypes c recInfos)
     (hidx : dIdx < recInfos.size)
     (HminorShape : MinorPremiseType)
@@ -2312,20 +2312,20 @@ theorem continueMinor_blueprintSemanticOrigins
       R.mlctx.vlctx.toCtx minorTarget)
     (HblueprintSemantics : TypedRuleTemplates R decl stats
       recInfos elimLevel parameterDecls Horigins)
-    (HminorBlueprintSemantic : Nonempty
+    (HminorTemplateTyped : Nonempty
       (TypedRuleTemplateAt R decl stats recInfos elimLevel
         parameterDecls dIdx HminorShape
-        (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))) :
+        (mkTemplate (.fvar ⟨c.ngen.curr⟩)))) :
     let cMinor : AddInductive.Context := { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ minorName minorTy .default }
     let next := recInfos.modify dIdx fun info =>
       { info with
         minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
-        ruleBlueprints := info.ruleBlueprints.push
-          (mkBlueprint (.fvar ⟨c.ngen.curr⟩)) }
+        ruleTemplates := info.ruleTemplates.push
+          (mkTemplate (.fvar ⟨c.ngen.curr⟩)) }
     let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
-      (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
+      (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
     let HoriginsMinor := Horigins.addMinor dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
       .default HminorShape HminorShapePosition
@@ -2339,7 +2339,7 @@ theorem continueMinor_blueprintSemanticOrigins
   let Hstep := RecursorContextExtension.withLocalDecl
     (name := minorName) (bi := .default) R Hminor HminorType
   let HmotiveCore := modifyMinorAndBlueprint_motiveCoreEq recInfos dIdx hidx
-    (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
+    (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
   have hmotivesNext : next.map (·.motive) = recInfos.map (·.motive) := by
     apply Array.ext
     · simp [next]
@@ -2349,11 +2349,11 @@ theorem continueMinor_blueprintSemanticOrigins
       split <;> rfl
   refine {
     rows_size := continueMinor_rowsSize R dIdx recInfos minorName minorTy
-      mkBlueprint Horigins hidx HminorShape HminorShapePosition
+      mkTemplate Horigins hidx HminorShape HminorShapePosition
       HblueprintSemantics.rows_size
     entry := ?_
     fields_outer_fresh := continueMinor_fieldsOuterFresh stats R dIdx recInfos minorName minorTy
-      mkBlueprint Horigins hidx HminorShape HminorShapePosition Hbindings Hparams
+      mkTemplate Horigins hidx HminorShape HminorShapePosition Hbindings Hparams
       Hlater HminorSemantics HminorSemantic HminorFieldsFresh
       HblueprintSemantics.fields_outer_fresh }
   intro owner howner localIndex hlocal
@@ -2364,13 +2364,13 @@ theorem continueMinor_blueprintSemanticOrigins
     by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
     · subst localIndex
       have hblueprintIndex : Horigins.minorTypes[dIdx]!.size =
-          recInfos[dIdx]!.ruleBlueprints.size :=
+          recInfos[dIdx]!.ruleTemplates.size :=
         (HblueprintSemantics.rows_size dIdx hidx).symm
       have hblueprintLast :
-          (recInfos[dIdx]!.ruleBlueprints.push
-            (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[
+          (recInfos[dIdx]!.ruleTemplates.push
+            (mkTemplate (.fvar ⟨c.ngen.curr⟩)))[
               Horigins.minorTypes[dIdx]!.size]! =
-            mkBlueprint (.fvar ⟨c.ngen.curr⟩) := by
+            mkTemplate (.fvar ⟨c.ngen.curr⟩) := by
         rw [hblueprintIndex]
         simp
       have hshapeLast :
@@ -2379,9 +2379,9 @@ theorem continueMinor_blueprintSemanticOrigins
         simp [HoriginsNext, HoriginsMinor,
           RecInfoBinderTypes.rebaseCore, RecInfoBinderTypes.addMinor]
       rw [hshapeLast]
-      rcases HminorBlueprintSemantic with ⟨HminorBlueprintSemantic⟩
+      rcases HminorTemplateTyped with ⟨HminorTemplateTyped⟩
       have HminorBlueprintSemantic' :=
-        (HminorBlueprintSemantic.mono Hstep).rebaseMotiveCore HmotiveCore
+        (HminorTemplateTyped.mono Hstep).rebaseMotiveCore HmotiveCore
       simpa [next, Rminor, TypedRuleTemplateAt,
         mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
         hblueprintLast, hmotivesNext] using HminorBlueprintSemantic'
@@ -2395,17 +2395,17 @@ theorem continueMinor_blueprintSemanticOrigins
           Horigins.minorTypes dIdx _ hidxTypes] at hlocal
         simp only [Array.size_push] at hlocal
         omega
-      have holdBlueprint :
-          localIndex < recInfos[dIdx]!.ruleBlueprints.size := by
+      have holdTemplate :
+          localIndex < recInfos[dIdx]!.ruleTemplates.size := by
         rw [HblueprintSemantics.rows_size dIdx hidx]
         exact hold
       have holdBlueprint' :
-          localIndex < recInfos[dIdx].ruleBlueprints.size := by
-        simpa [getElem!_pos recInfos dIdx hidx] using holdBlueprint
+          localIndex < recInfos[dIdx].ruleTemplates.size := by
+        simpa [getElem!_pos recInfos dIdx hidx] using holdTemplate
       have hblueprintGet :
-          (recInfos[dIdx]!.ruleBlueprints.push
-            (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[localIndex]! =
-            recInfos[dIdx]!.ruleBlueprints[localIndex]! := by
+          (recInfos[dIdx]!.ruleTemplates.push
+            (mkTemplate (.fvar ⟨c.ngen.curr⟩)))[localIndex]! =
+            recInfos[dIdx]!.ruleTemplates[localIndex]! := by
         simp [Array.getElem!_eq_getD, Array.getD, hidx, holdBlueprint',
           Array.getElem_push_lt holdBlueprint'] <;> omega
       rcases HblueprintSemantics.entry dIdx hidx localIndex hold with ⟨Hentry⟩
@@ -2419,7 +2419,7 @@ theorem continueMinor_blueprintSemanticOrigins
       rw [hshapeOld]
       simpa [next, Rminor, TypedRuleTemplateAt,
         mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
-        hlast, Array.getElem_push_lt holdBlueprint, hblueprintGet,
+        hlast, Array.getElem_push_lt holdTemplate, hblueprintGet,
         hmotivesNext] using
           Hentry
   · have hlocalOld : localIndex < Horigins.minorTypes[owner]!.size := by
@@ -2450,7 +2450,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (indTypes : Array InductiveType)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
     (minorName : Name) (minorTy : Expr)
-    (mkBlueprint : Expr → AddInductive.RecRuleBlueprint)
+    (mkTemplate : Expr → AddInductive.RecRuleTemplate)
     (k : Array AddInductive.RecInfo → AddInductive.M alpha)
     {recLparams : List Name} {depth : Nat}
     {root c : AddInductive.Context}
@@ -2525,13 +2525,13 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       BindingContextLE traversal.rootContext c ∧
       BindingContextLE traversal.terminalContext c ∧
       BindingContextLE HminorShape.sourceFullContext c)
-    (HminorBlueprint : RuleTemplateMatchesMinor stats
+    (HminorTemplate : RuleTemplateMatchesMinor stats
       HminorShape (.fvar ⟨c.ngen.curr⟩)
-      (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))
-    (HminorBlueprintSemantic : Nonempty
+      (mkTemplate (.fvar ⟨c.ngen.curr⟩)))
+    (HminorTemplateTyped : Nonempty
       (TypedRuleTemplateAt R decl stats recInfos elimLevel
         Hsuffix.parameterDecls dIdx HminorShape
-        (mkBlueprint (.fvar ⟨c.ngen.curr⟩))))
+        (mkTemplate (.fvar ⟨c.ngen.curr⟩))))
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
@@ -2573,7 +2573,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
         let next := recInfos.modify dIdx fun info =>
           { info with
             minors := info.minors.push minor
-            ruleBlueprints := info.ruleBlueprints.push (mkBlueprint minor) }
+            ruleTemplates := info.ruleTemplates.push (mkTemplate minor) }
         k next) c).WF Q := by
   refine withLocalDecl.recursorWF (name := minorName) (bi := .default)
     R Hminor HminorType ?_
@@ -2586,8 +2586,8 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
   let next := recInfos.modify dIdx fun info =>
     { info with
       minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
-      ruleBlueprints := info.ruleBlueprints.push
-        (mkBlueprint (.fvar ⟨c.ngen.curr⟩)) }
+      ruleTemplates := info.ruleTemplates.push
+        (mkTemplate (.fvar ⟨c.ngen.curr⟩)) }
   let Hstep := RecursorContextExtension.withLocalDecl
     (name := minorName) (bi := .default) R Hminor HminorType
   let HbindingsMinor := Hbindings.addMinor dIdx hidx
@@ -2606,7 +2606,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default Hminor HminorType HminorShape
     HminorShapePosition HminorSemantic
   let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
-    (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
+    (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
   let HbindingsNext : RecInfoBindings cMinor next :=
     HbindingsMinor.rebaseCore Hcore
   let HoriginsNext : RecInfoBinderTypes cMinor next :=
@@ -2615,16 +2615,16 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
   have HblueprintsNext :
       RuleTemplatesMatch stats next HoriginsNext :=
     continueMinor_blueprintOrigins stats R dIdx recInfos minorName
-      _ mkBlueprint Horigins hidx HminorShape HminorShapePosition Hbindings
+      _ mkTemplate Horigins hidx HminorShape HminorShapePosition Hbindings
       Hparams Hlater HminorSemantics HminorSemantic HminorFieldsFresh
-      Hblueprints HminorBlueprint
+      Hblueprints HminorTemplate
   have HblueprintSemanticsNext :
       TypedRuleTemplates Rminor decl stats next elimLevel
         Hsuffix.parameterDecls HoriginsNext :=
     continueMinor_blueprintSemanticOrigins stats R dIdx recInfos minorName
-      _ mkBlueprint Horigins hidx HminorShape HminorShapePosition Hbindings
+      _ mkTemplate Horigins hidx HminorShape HminorShapePosition Hbindings
       Hparams Hlater HminorSemantics HminorSemantic HminorFieldsFresh
-      Hminor HminorType HblueprintSemantics HminorBlueprintSemantic
+      Hminor HminorType HblueprintSemantics HminorTemplateTyped
   have HminorSourcesNext :
       MinorsAndIndicesMatchSource stats indTypes HoriginsNext := by
     exact MinorsAndIndicesMatchSource.rebaseCore _ HminorSourcesMinor Hcore
@@ -2843,7 +2843,7 @@ theorem CallTemplatesMatch.ofHypothesisCalls
     {recInfos : Array AddInductive.RecInfo}
     {current outCtx : AddInductive.Context}
     {recursiveFields hypotheses allFields : Array Expr}
-    {calls : Array AddInductive.RecCallBlueprint}
+    {calls : Array AddInductive.RecCallTemplate}
     {HhypothesisOrigins : InductionHypothesisTypesPrefix stats recInfos current
       outCtx recursiveFields hypotheses}
     {fieldFVars : List FVarId}
@@ -3034,7 +3034,7 @@ theorem constructorMinorClosureSemantics {alpha : Type} {Q : alpha → Prop}
       (Happlication.ownerIdx, indices))
     {outCtx : AddInductive.Context}
     (Rout : RecursorContextWF outCtx recLparams)
-    (hypotheses : Array Expr) (calls : Array AddInductive.RecCallBlueprint)
+    (hypotheses : Array Expr) (calls : Array AddInductive.RecCallTemplate)
     (HhypothesesRecent : RecursorFVarSuffix Rargs Rout hypotheses)
     (HhypothesisOrigins : InductionHypothesisTypesPrefix stats recInfos current
       outCtx recursiveFields hypotheses)
@@ -3062,12 +3062,12 @@ theorem constructorMinorClosureSemantics {alpha : Type} {Q : alpha → Prop}
       let minorTy := lctx.mkForall allFields <|
         lctx.mkForall hypotheses motiveApp
       let minorName := ctor.name.replacePrefix indTypeName .anonymous
-      AddInductive.withConsumedLocalDecl minorName .default minorTy
+      AddInductive.withUnannotatedLocalDecl minorName .default minorTy
           fun minor =>
         let next := recInfos.modify dIdx fun info =>
           { info with
             minors := info.minors.push minor
-            ruleBlueprints := info.ruleBlueprints.push {
+            ruleTemplates := info.ruleTemplates.push {
               ctor := ctor.name
               fields := allFields
               lctx := lctx
@@ -3484,18 +3484,18 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           (mkAppN (.const ctor.name stats.levels) stats.params) allFields
         let motiveApp := Expr.app
           (mkAppN recInfos[ownerIdx]!.motive indices) introApp
-        AddInductive.mkRecInfos.loopUBlueprints stats allFields recursiveFields recInfos
+        AddInductive.mkRecInfos.loopUTemplates stats allFields recursiveFields recInfos
           0 #[] #[] fun hypotheses calls => do
             let lctx ← getLCtx
             let minorTy := lctx.mkForall allFields <|
               lctx.mkForall hypotheses motiveApp
             let minorName :=
               ctor.name.replacePrefix indTypeName .anonymous
-            AddInductive.withConsumedLocalDecl minorName .default minorTy fun minor =>
+            AddInductive.withUnannotatedLocalDecl minorName .default minorTy fun minor =>
               let next := recInfos.modify dIdx fun info =>
                 { info with
                   minors := info.minors.push minor
-                  ruleBlueprints := info.ruleBlueprints.push {
+                  ruleTemplates := info.ruleTemplates.push {
                     ctor := ctor.name
                     fields := allFields
                     lctx := lctx
@@ -3510,18 +3510,18 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       (mkAppN (.const ctor.name stats.levels) stats.params) allFields
     let motiveApp := Expr.app
       (mkAppN recInfos[ownerIdx]!.motive indices) introApp
-    AddInductive.mkRecInfos.loopUBlueprints stats allFields recursiveFields recInfos
+    AddInductive.mkRecInfos.loopUTemplates stats allFields recursiveFields recInfos
       0 #[] #[] fun hypotheses calls => do
         let lctx ← getLCtx
         let minorTy := lctx.mkForall allFields <|
           lctx.mkForall hypotheses motiveApp
         let minorName := ctor.name.replacePrefix indTypeName .anonymous
-        AddInductive.withConsumedLocalDecl minorName .default minorTy
+        AddInductive.withUnannotatedLocalDecl minorName .default minorTy
             fun minor =>
           let next := recInfos.modify dIdx fun info =>
             { info with
               minors := info.minors.push minor
-              ruleBlueprints := info.ruleBlueprints.push {
+              ruleTemplates := info.ruleTemplates.push {
                 ctor := ctor.name
                 fields := allFields
                 lctx := lctx
@@ -3606,12 +3606,12 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     let minorTy := lctx.mkForall allFields <|
       lctx.mkForall hypotheses motiveApp
     let minorName := ctor.name.replacePrefix indTypeName .anonymous
-    AddInductive.withConsumedLocalDecl minorName .default minorTy
+    AddInductive.withUnannotatedLocalDecl minorName .default minorTy
         fun minor =>
       let next := recInfos.modify dIdx fun info =>
         { info with
           minors := info.minors.push minor
-          ruleBlueprints := info.ruleBlueprints.push {
+          ruleTemplates := info.ruleTemplates.push {
             ctor := ctor.name
             fields := allFields
             lctx := lctx
@@ -3620,7 +3620,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
             targetIndices := indices
             minor := minor } }
       k next
-  change (AddInductive.mkRecInfos.loopUBlueprints stats allFields recursiveFields
+  change (AddInductive.mkRecInfos.loopUTemplates stats allFields recursiveFields
     recInfos 0 #[] #[] finish current).WF Q
   let HbindingsArgs := Hbindings.mono HextArgs.contextLE
   let HoriginsArgs := Horigins.mono HextArgs.contextLE
@@ -3681,7 +3681,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       exact Array.getElem_mem_toList hj
     rw [HfieldsRecent.expressions] at hallExpr
     exact hfieldTypes fv (by simpa using hallExpr) decl hfind
-  apply mkRecInfos.loopUBlueprints.resultSemanticsOfMotiveTelescopes (Q := Q)
+  apply mkRecInfos.loopUTemplates.resultSemanticsOfMotiveTelescopes (Q := Q)
     stats allFields recursiveFields recInfos finish Rargs producerScope HstatsArgs
       hconsume
       (by simpa only [HfieldsRecent.venv_eq] using hlit)

@@ -909,22 +909,22 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailingArgDecla
     (H.origins.minorShapes owner howner localIndex hlocal).origin.TrailingArgs heads np
       (Expr.ParamUniform names [] ls) ∧
     (∀ j, j < (H.origins.minorShapes owner howner localIndex hlocal).hypotheses.size →
-      (H.recInfos[owner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).template.ParamUniform
+      (H.recInfos[owner]!.ruleTemplates[localIndex]!.recursiveCalls[j]!).template.ParamUniform
         names [] ls ∧
-      (H.recInfos[owner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).targetTypeIdx <
+      (H.recInfos[owner]!.ruleTemplates[localIndex]!.recursiveCalls[j]!).targetTypeIdx <
         stats.indConsts.size ∧
-      (H.recInfos[owner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).template.ArgClosed
+      (H.recInfos[owner]!.ruleTemplates[localIndex]!.recursiveCalls[j]!).template.ArgClosed
         0) := by
   have hsourceOwner := H.sourceOwner howner
   have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
   have hcallRoots : RuleTemplateMatchesMinor stats
       (H.origins.minorShapes owner howner localIndex hlocal)
       H.recInfos[owner]!.minors[localIndex]!
-      H.recInfos[owner]!.ruleBlueprints[localIndex]! :=
+      H.recInfos[owner]!.ruleTemplates[localIndex]! :=
     H.blueprints.entry owner howner localIndex hlocal
   obtain ⟨Hsem⟩ := H.blueprintSemantics.entry owner howner localIndex hlocal
   generalize H.origins.minorShapes owner howner localIndex hlocal = S at hsrc hcallRoots Hsem ⊢
-  generalize H.recInfos[owner]!.ruleBlueprints[localIndex]! = B at hcallRoots Hsem ⊢
+  generalize H.recInfos[owner]!.ruleTemplates[localIndex]! = B at hcallRoots Hsem ⊢
   obtain ⟨-, -, hsourceCtors, -, traversal, htrav, -, -, -, -, hvalid, hmotiveApp, -, -,
     hsrcLE⟩ := hsrc
   obtain ⟨origins, hshape, hstats, -, F, -⟩ := Hsem
@@ -1249,20 +1249,20 @@ condition "mentions `names` only at `ls`", and its parameter domains avoid
 theorem ruleRhsTrail (I : H.TrailingArgDeclarations names ls)
     (W : WhnfPreservesParamUniform names [] ls H.localContext.env) (heads : List Name) (np : Nat)
     (owner : Nat) (howner : owner < H.recInfos.size) (lvls : List Level)
-    (blueprint : AddInductive.RecRuleBlueprint)
-    (hmem : blueprint ∈ H.recInfos[owner]!.ruleBlueprints.toList) :
-    (blueprint.build indTypes stats (H.recInfos.map (·.motive))
+    (blueprint : AddInductive.RecRuleTemplate)
+    (hmem : blueprint ∈ H.recInfos[owner]!.ruleTemplates.toList) :
+    (blueprint.instantiate indTypes stats (H.recInfos.map (·.motive))
         (H.recInfos.flatMap (·.minors)) lvls H.localContext.lctx).rhs.TrailingArgs heads np
       (Expr.ParamUniform names [] ls) ∧
-    (blueprint.build indTypes stats (H.recInfos.map (·.motive))
+    (blueprint.instantiate indTypes stats (H.recInfos.map (·.motive))
         (H.recInfos.flatMap (·.minors)) lvls H.localContext.lctx).rhs.LamPrefixAvoids names
       stats.params.size := by
   have hp : ∀ p ∈ ([] : List Expr), ∃ fv, p = .fvar fv := by simp
   obtain ⟨localIndex, hlocalB, hget⟩ := List.mem_iff_getElem.1 hmem
-  have hlocalB' : localIndex < H.recInfos[owner]!.ruleBlueprints.size := by simpa using hlocalB
+  have hlocalB' : localIndex < H.recInfos[owner]!.ruleTemplates.size := by simpa using hlocalB
   have hlocal : localIndex < H.origins.minorTypes[owner]!.size := by
     rw [← H.blueprints.rows_size owner howner]; exact hlocalB'
-  have hB : H.recInfos[owner]!.ruleBlueprints[localIndex]! = blueprint := by
+  have hB : H.recInfos[owner]!.ruleTemplates[localIndex]! = blueprint := by
     rw [getElem!_pos _ localIndex hlocalB']; simpa using hget
   obtain ⟨hfieldDecls, -, hcalls⟩ := H.minorTrail I W heads np owner howner localIndex hlocal
   have hentry := H.blueprints.entry owner howner localIndex hlocal
@@ -1278,14 +1278,14 @@ theorem ruleRhsTrail (I : H.TrailingArgDeclarations names ls)
     rw [hBminor, getElem!_pos _ localIndex hminorsSize]; exact Array.getElem_mem hminorsSize
   obtain ⟨minorFv, hminorFv, -⟩ :=
     FVarArrayIn.fvar_of_mem (H.bindings.minors owner howner) hminorMem
-  simp only [AddInductive.RecRuleBlueprint.build]
+  simp only [AddInductive.RecRuleTemplate.instantiate]
   have hQ : ∀ (ys : List FVarId) x d, Expr.ParamUniform names [] ls x →
       Expr.ParamUniform names [] ls (x.abstractN ys d) :=
     fun ys _ d h => h.nil_abstractN ys d
   -- the body: the minor variable applied to fields and recursive calls
   have hbody : (mkAppN (mkAppN blueprint.minor blueprint.fields)
       (blueprint.recursiveCalls.map fun call =>
-        call.build indTypes stats (H.recInfos.map (·.motive))
+        call.instantiate indTypes stats (H.recInfos.map (·.motive))
           (H.recInfos.flatMap (·.minors)) lvls)).TrailingArgs heads np
           (Expr.ParamUniform names [] ls) := by
     rw [hBfields, Lean.Expr.mkAppN_eq_mkAppList,
@@ -1304,7 +1304,7 @@ theorem ruleRhsTrail (I : H.TrailingArgDeclarations names ls)
         rw [getElem!_pos _ j hj']; simpa using hcallj
       obtain ⟨htemplate, -, hargCl⟩ := hcalls j (by rw [← hcallsSize]; exact hj')
       rw [hcallEq] at htemplate hargCl
-      simp only [AddInductive.RecCallBlueprint.build, Expr.instantiate1_eq]
+      simp only [AddInductive.RecCallTemplate.instantiate, Expr.instantiate1_eq]
       rw [Lean.Expr.mkAppN_eq_mkAppList,
         Lean.Expr.mkAppN_eq_mkAppList,
         Lean.Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append,
@@ -1330,7 +1330,7 @@ theorem ruleRhsTrail (I : H.TrailingArgDeclarations names ls)
   have hfields : (blueprint.lctx.mkLambda blueprint.fields
       (mkAppN (mkAppN blueprint.minor blueprint.fields)
         (blueprint.recursiveCalls.map fun call =>
-          call.build indTypes stats (H.recInfos.map (·.motive))
+          call.instantiate indTypes stats (H.recInfos.map (·.motive))
             (H.recInfos.flatMap (·.minors)) lvls))).TrailingArgs heads np
           (Expr.ParamUniform names [] ls) := by
     revert hbody

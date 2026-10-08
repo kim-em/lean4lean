@@ -1280,8 +1280,8 @@ structure GeneratedRecursorEntry
   /-- The installed rules are literally the builds of the blueprints retained
   by `mkRecInfos`, in the recursor-construction local context. -/
   rules_eq : info.rules =
-    recInfos[ownerIdx]!.ruleBlueprints.toList.map fun blueprint =>
-      blueprint.build indTypes stats (recInfos.map (·.motive))
+    recInfos[ownerIdx]!.ruleTemplates.toList.map fun blueprint =>
+      blueprint.instantiate indTypes stats (recInfos.map (·.motive))
         (recInfos.flatMap (·.minors))
         (AddInductive.getRecLevels elimLevel stats.levels) c.lctx
 
@@ -1309,8 +1309,8 @@ def GeneratedRecursorEntry.ofRecursorInfo
       indTypes[ownerIdx]!.ctors (recursorMinorOffset indTypes ownerIdx)
       rules)
     (hrulesEq : rules =
-      recInfos[ownerIdx]!.ruleBlueprints.toList.map fun blueprint =>
-        blueprint.build indTypes stats (recInfos.map (·.motive))
+      recInfos[ownerIdx]!.ruleTemplates.toList.map fun blueprint =>
+        blueprint.instantiate indTypes stats (recInfos.map (·.motive))
           (recInfos.flatMap (·.minors))
           (AddInductive.getRecLevels elimLevel stats.levels) c.lctx) :
     GeneratedRecursorEntry safety env lparams elimLevel c stats indTypes

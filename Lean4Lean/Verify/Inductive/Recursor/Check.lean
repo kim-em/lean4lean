@@ -77,15 +77,15 @@ theorem RecursorCheck.generated_k
 
 /-- The installed recursor rules are literally the builds of the blueprints
 retained by `mkRecInfos`, as `declareRecursors.loop` constructs them through
-`mkRecRulesFromBlueprints` in the recursor-construction local context. -/
+`mkRecRulesFromTemplates` in the recursor-construction local context. -/
 theorem RecursorCheck.generated_rules_eq
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     (H.generated.entry owner howner).info.rules =
-      H.recInfos[owner]!.ruleBlueprints.toList.map fun blueprint =>
-        blueprint.build indTypes stats (H.recInfos.map (·.motive))
+      H.recInfos[owner]!.ruleTemplates.toList.map fun blueprint =>
+        blueprint.instantiate indTypes stats (H.recInfos.map (·.motive))
           (H.recInfos.flatMap (·.minors))
           (AddInductive.getRecLevels H.elimLevel stats.levels)
           H.localContext.lctx :=
@@ -98,7 +98,7 @@ theorem RecursorCheck.generated_rules_length
     (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     (H.generated.entry owner howner).info.rules.length =
-      H.recInfos[owner]!.ruleBlueprints.size := by
+      H.recInfos[owner]!.ruleTemplates.size := by
   rw [H.generated_rules_eq owner howner]
   simp
 
@@ -110,14 +110,14 @@ theorem RecursorCheck.rulesLiteral
     (owner : Nat) (howner : owner < H.entries.length)
     (i : Nat) (hi : i < (H.generated.entry owner howner).info.rules.length) :
     (H.generated.entry owner howner).info.rules[i] =
-      (H.recInfos[owner]!.ruleBlueprints[i]!).build indTypes stats
+      (H.recInfos[owner]!.ruleTemplates[i]!).instantiate indTypes stats
         (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
         (AddInductive.getRecLevels H.elimLevel stats.levels)
         H.localContext.lctx := by
   have hsize := H.generated_rules_length owner howner
-  have hi' : i < H.recInfos[owner]!.ruleBlueprints.size := hsize ▸ hi
+  have hi' : i < H.recInfos[owner]!.ruleTemplates.size := hsize ▸ hi
   simp only [H.generated_rules_eq owner howner, List.getElem_map,
-    Array.getElem_toList, getElem!_pos H.recInfos[owner]!.ruleBlueprints i hi']
+    Array.getElem_toList, getElem!_pos H.recInfos[owner]!.ruleTemplates i hi']
 
 /-- The recursor safety metadata agrees with the source declaration because
 both flags originate in the same declaration checking context. -/

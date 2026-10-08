@@ -12,7 +12,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 namespace AddInductive
 open TypeChecker
 
-structure RecCallBlueprint where
+structure RecCallTemplate where
   major : Expr
   args : Array Expr
   /-- The producer context containing the temporary higher-order binders in
@@ -29,12 +29,12 @@ structure RecCallBlueprint where
   template : Expr
   deriving Inhabited
 
-structure RecRuleBlueprint where
+structure RecRuleTemplate where
   ctor : Name
   fields : Array Expr
   /-- The producer context containing the temporary constructor fields. -/
   lctx : LocalContext
-  recursiveCalls : Array RecCallBlueprint
+  recursiveCalls : Array RecCallTemplate
   targetTypeIdx : Nat
   targetIndices : Array Expr
   minor : Expr
@@ -45,7 +45,7 @@ structure RecInfo where
   minors : Array Expr
   indices : Array Expr
   major : Expr
-  ruleBlueprints : Array RecRuleBlueprint := #[]
+  ruleTemplates : Array RecRuleTemplate := #[]
   deriving Inhabited
 
 structure InductiveStats where
@@ -131,19 +131,19 @@ def getType (fvar : Expr) : M Expr :=
 wrapper is stripped only if the current environment declares it as the prelude's
 definition (`Kernel.Environment.isTypeAnnotationWrapper`); otherwise the domain is kept
 literally. -/
-@[inline] def withConsumedCheckedLocalDecl (name : Name) (bi : BinderInfo) (dom : Expr)
+@[inline] def withUnannotatedCheckedLocalDecl (name : Name) (bi : BinderInfo) (dom : Expr)
     (k : Expr → M α) : M α := fun c =>
   withCheckedLocalDecl name bi (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
     k c
 
 /-- `withCheckedLocalDeclOn` on the annotation-consumed domain. -/
-@[inline] def withConsumedCheckedLocalDeclOn (base : LocalContext) (name : Name)
+@[inline] def withUnannotatedCheckedLocalDeclOn (base : LocalContext) (name : Name)
     (bi : BinderInfo) (dom : Expr) (k : Expr → M α) : M α := fun c =>
   withCheckedLocalDeclOn base name bi
     (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) k c
 
 /-- `withLocalDecl` on the annotation-consumed domain. -/
-@[inline] def withConsumedLocalDecl (name : Name) (bi : BinderInfo) (dom : Expr)
+@[inline] def withUnannotatedLocalDecl (name : Name) (bi : BinderInfo) (dom : Expr)
     (k : Expr → M α) : M α := fun c =>
   withLocalDecl name bi (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) k c
 
@@ -179,7 +179,7 @@ def loopType (nparams : Nat) (stats : InductiveStats) (type : Expr)
       if i < nparams then
         if stats.indConsts.isEmpty then
           -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-          withConsumedCheckedLocalDecl name bi dom fun param => do
+          withUnannotatedCheckedLocalDecl name bi dom fun param => do
             let stats := { stats with params := stats.params.push param }
             let type := body.instantiate1 param
             loopType nparams stats (← whnf type) (i + 1) nindices fuel k
@@ -194,7 +194,7 @@ def loopType (nparams : Nat) (stats : InductiveStats) (type : Expr)
           loopType nparams stats type (i + 1) nindices fuel k
       else
         -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-        withConsumedCheckedLocalDecl name bi dom fun arg => do
+        withUnannotatedCheckedLocalDecl name bi dom fun arg => do
           let type := body.instantiate1 arg
           loopType nparams stats (← whnf type) i (nindices + 1) fuel k
     else
@@ -334,7 +334,7 @@ where
     let t ← whnf t
     let .forallE name dom body bi := t | return isValidIndApp? stats t
     -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-    withConsumedCheckedLocalDecl name bi dom fun arg => do
+    withUnannotatedCheckedLocalDecl name bi dom fun arg => do
     loop (body.instantiate1 arg) fuel
 
 def checkPositivityStep (stats : InductiveStats) (t : Expr)
@@ -345,7 +345,7 @@ def checkPositivityStep (stats : InductiveStats) (t : Expr)
       throw <| .other s!"arg #{idx + 1} of '{ctor}' \
         has a non positive occurrence of the datatypes being declared"
     -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-    withConsumedCheckedLocalDecl name bi dom fun arg => do
+    withUnannotatedCheckedLocalDecl name bi dom fun arg => do
       recur (body.instantiate1 arg)
   else if let none := isValidIndApp? stats t then
     throw <| .other s!"arg #{idx + 1} of '{ctor}' \
@@ -383,7 +383,7 @@ def loopCtor (stats : InductiveStats) (isUnsafe : Bool) (ctor : Name)
         if !isUnsafe then
           checkPositivity stats dom ctor i
         -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-        withConsumedCheckedLocalDecl name bi dom fun arg => do
+        withUnannotatedCheckedLocalDecl name bi dom fun arg => do
           loopCtor stats isUnsafe ctor targetIdx
             (body.instantiate1 arg) (i + 1) fuel
     else if !isValidIndAppIdx stats t targetIdx then
@@ -484,7 +484,7 @@ def isLargeEliminator (stats : InductiveStats) (indTypes : Array InductiveType) 
     | fuel+1 => do
       if let .forallE name dom body bi := type then
         -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-        withConsumedCheckedLocalDecl name bi dom fun arg => do
+        withUnannotatedCheckedLocalDecl name bi dom fun arg => do
           let mut toCheck := toCheck
           if i ≥ stats.params.size then
             if !(← ensureType dom).sortLevel!.isAlwaysZero then
@@ -535,7 +535,7 @@ def loopArgs1 (stats : InductiveStats) (type : Expr) (i : Nat) (indices : Array 
         loopArgs1 stats type (i + 1) indices fuel k
       else
         -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-        withConsumedCheckedLocalDecl name bi dom fun arg => do
+        withUnannotatedCheckedLocalDecl name bi dom fun arg => do
         loopArgs1 stats (← whnf <| body.instantiate1 arg) i (indices.push arg) fuel k
     else
       if i < stats.params.size then
@@ -554,13 +554,13 @@ def loopInd1 (dIdx : Nat) (recInfos : Array RecInfo) (k : Array RecInfo → M α
     unless indices.size == stats.nindices[dIdx]! do
       throw <| .other "recursor index arity does not match checked inductive header"
     let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
-    withConsumedLocalDecl `t .default tTy fun major => do
+    withUnannotatedLocalDecl `t .default tTy fun major => do
     let lctx ← getLCtx
     let motiveTy := lctx.mkForall indices <| lctx.mkForall #[major] <| .sort elimLevel
     let name := if indTypes.size > 1 then (`motive).appendIndexAfter (dIdx+1) else `motive
-    withConsumedLocalDecl name .default motiveTy fun motive => do
+    withUnannotatedLocalDecl name .default motiveTy fun motive => do
     loopInd1 (dIdx + 1) (recInfos.push {
-      motive, minors := #[], indices, major, ruleBlueprints := #[] }) k
+      motive, minors := #[], indices, major, ruleTemplates := #[] }) k
   else
     k recInfos
 termination_by indTypes.size - dIdx
@@ -580,7 +580,7 @@ where
         -- The field is checked on top of the parameters and earlier fields.
         let fieldCheck := (← getLCtx).restrictTo
           ((stats.params ++ bu).toList.map (·.fvarId!))
-        withConsumedCheckedLocalDeclOn fieldCheck name bi dom
+        withUnannotatedCheckedLocalDeclOn fieldCheck name bi dom
           fun arg => do
         let bu := bu.push arg
         let u := if (← withCheckLCtx fieldCheck (isRecArg stats dom)).isSome then
@@ -607,7 +607,7 @@ where
   | fuel+1 => do
     if let .forallE name dom body bi := uiTy then
       -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-      withConsumedCheckedLocalDecl name bi dom fun arg => do
+      withUnannotatedCheckedLocalDecl name bi dom fun arg => do
       loop (← whnf <| body.instantiate1 arg) (xs.push arg) fuel
     else
       k uiTy xs
@@ -624,16 +624,16 @@ def loopU (i : Nat) (v : Array Expr) (k : Array Expr → M α) : M α := do
       return (← getLCtx).mkForall xs <|
         .app (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN ui xs)
     let vName := ((← getLCtx).get! ui.fvarId!).userName.appendAfter "_ih"
-    withConsumedLocalDecl vName .default viTy fun vi => do
+    withUnannotatedLocalDecl vName .default viTy fun vi => do
     loopU (i + 1) (v.push vi) k
   else
     k v
 termination_by u.size - i
 
 variable (stats : InductiveStats) (bu u : Array Expr) (recInfos : Array RecInfo) in
-def loopUBlueprints (i : Nat) (v : Array Expr)
-    (calls : Array RecCallBlueprint)
-    (k : Array Expr → Array RecCallBlueprint → M α) : M α := do
+def loopUTemplates (i : Nat) (v : Array Expr)
+    (calls : Array RecCallTemplate)
+    (k : Array Expr → Array RecCallTemplate → M α) : M α := do
   if _h : i < u.size then
     let ui := u[i]
     let (viTy, call) ← loopUArgs (fieldsBefore stats bu ui) ui fun uiTy xs => do
@@ -652,10 +652,10 @@ def loopUBlueprints (i : Nat) (v : Array Expr)
         targetIndices := itIndices
         template := lctx.mkLambda xs <|
           (mkAppN (.bvar xs.size) itIndices).app (mkAppN ui xs) } :
-            RecCallBlueprint))
+            RecCallTemplate))
     let vName := ((← getLCtx).get! ui.fvarId!).userName.appendAfter "_ih"
-    withConsumedLocalDecl vName .default viTy fun vi => do
-    loopUBlueprints (i + 1) (v.push vi)
+    withUnannotatedLocalDecl vName .default viTy fun vi => do
+    loopUTemplates (i + 1) (v.push vi)
       (calls.push call) k
   else
     k v calls
@@ -669,12 +669,12 @@ def loopCtors (recInfos : Array RecInfo)
     let (itIdx, itIndices) := getIIndices stats t
     let introApp := mkAppN (mkAppN (.const ctor.name stats.levels) stats.params) bu
     let motiveApp := Expr.app (mkAppN recInfos[itIdx]!.motive itIndices) introApp
-    loopUBlueprints stats bu u recInfos 0 #[] #[] fun v calls => do
+    loopUTemplates stats bu u recInfos 0 #[] #[] fun v calls => do
     let lctx ← getLCtx
     let minorTy := lctx.mkForall bu <| lctx.mkForall v motiveApp
     let minorName := ctor.name.replacePrefix indTypeName .anonymous
-    withConsumedLocalDecl minorName .default minorTy fun minor => do
-    let blueprint : RecRuleBlueprint := {
+    withUnannotatedLocalDecl minorName .default minorTy fun minor => do
+    let blueprint : RecRuleTemplate := {
       ctor := ctor.name
       fields := bu
       lctx := lctx
@@ -685,7 +685,7 @@ def loopCtors (recInfos : Array RecInfo)
     let recInfos := recInfos.modify dIdx fun s => {
       s with
       minors := s.minors.push minor
-      ruleBlueprints := s.ruleBlueprints.push blueprint }
+      ruleTemplates := s.ruleTemplates.push blueprint }
     loopCtors recInfos ctors k
   | [] => k recInfos
 
@@ -776,22 +776,22 @@ def mkRecRules (indTypes : Array InductiveType) (elimLevel : Level) (stats : Ind
   mkRecRules.loopCtors indTypes stats motives minors
     (getRecLevels elimLevel stats.levels) indTypes[dIdx]!.ctors #[]
 
-def RecCallBlueprint.build (blueprint : RecCallBlueprint)
+def RecCallTemplate.instantiate (blueprint : RecCallTemplate)
     (indTypes : Array InductiveType) (stats : InductiveStats)
     (motives minors : Array Expr) (lvls : List Level) : Expr :=
   let value := .const (mkRecName indTypes[blueprint.targetTypeIdx]!.name) lvls
   let value := mkAppN (mkAppN (mkAppN value stats.params) motives) minors
   -- The template binds the field arguments over a loose placeholder
-  -- (`.bvar args.size` inside the body, see `loopUBlueprints`); instantiating it
+  -- (`.bvar args.size` inside the body, see `loopUTemplates`); instantiating it
   -- afterwards lifts `value` under those binders.
   blueprint.template.instantiate1 value
 
-def RecRuleBlueprint.build (blueprint : RecRuleBlueprint)
+def RecRuleTemplate.instantiate (blueprint : RecRuleTemplate)
     (indTypes : Array InductiveType) (stats : InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     (outerLCtx : LocalContext) : RecursorRule :=
   let recursiveValues := blueprint.recursiveCalls.map fun call =>
-    call.build indTypes stats motives minors lvls
+    call.instantiate indTypes stats motives minors lvls
   {
     ctor := blueprint.ctor
     nfields := blueprint.fields.size
@@ -803,13 +803,13 @@ def RecRuleBlueprint.build (blueprint : RecRuleBlueprint)
 /-- Build recursor rules from the exact first-pass field and higher-order
 recursive-call choices retained by `mkRecInfos`.  This deliberately performs
 no second constructor traversal, classification, inference, or WHNF. -/
-def mkRecRulesFromBlueprints (indTypes : Array InductiveType)
+def mkRecRulesFromTemplates (indTypes : Array InductiveType)
     (elimLevel : Level) (stats : InductiveStats) (recInfos : Array RecInfo)
     (dIdx : Nat) (motives minors : Array Expr) : M (List RecursorRule) := do
   let lctx ← getLCtx
   let lvls := getRecLevels elimLevel stats.levels
-  return recInfos[dIdx]!.ruleBlueprints.toList.map fun blueprint =>
-    blueprint.build indTypes stats motives minors lvls lctx
+  return recInfos[dIdx]!.ruleTemplates.toList.map fun blueprint =>
+    blueprint.instantiate indTypes stats motives minors lvls lctx
 
 namespace declareRecursors
 
@@ -872,7 +872,7 @@ def loop (stats : InductiveStats) (indTypes : Array InductiveType)
     (lparams : List Name) (allowPrimitive : Bool)
     (dIdx : Nat) (env : Environment) : StateT Nat M Environment := do
   if h : dIdx < indTypes.size then
-    let rules ← mkRecRulesFromBlueprints indTypes elimLevel stats recInfos
+    let rules ← mkRecRulesFromTemplates indTypes elimLevel stats recInfos
       dIdx motives minors
     modify (· + indTypes[dIdx]!.ctors.length)
     let info := recursorInfo stats indTypes elimLevel recInfos numMinors

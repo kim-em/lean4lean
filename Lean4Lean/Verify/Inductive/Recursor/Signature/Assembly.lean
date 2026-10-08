@@ -446,7 +446,7 @@ retains this fact in each semantic call row
 def RecursorConstruction.ArgumentUniverses (H : RecursorConstruction R) : Prop :=
   ∀ owner (_howner : owner < H.recInfos.size) localIndex
     (_hlocal : localIndex < H.origins.minorTypes[owner]!.size),
-    let B := H.recInfos[owner]!.ruleBlueprints[localIndex]!
+    let B := H.recInfos[owner]!.ruleTemplates[localIndex]!
     ∀ j < B.recursiveCalls.size,
       (B.recursiveCalls[j]!.lctx.mkForall B.recursiveCalls[j]!.args
           (.sort .zero)).levelParamsIn c.lparams = true ∧
@@ -522,7 +522,7 @@ theorem InductiveSignature.Instance.hypothesis_eq_form {s : InductiveSignature}
 /-- The declaration-universe sources of the `j`-th recursive shape
 `(pos, target, binders, indices)` of a minor, stated against the retained
 blueprint call `C` of that induction hypothesis (the call from which
-`RecRuleBlueprint.build` produces the installed rule's recursive value).
+`RecRuleTemplate.build` produces the installed rule's recursive value).
 
 * the shape's target and arity are those of `C`, and `C`'s template is the
   closure of its own fields;
@@ -542,11 +542,11 @@ def RecursorConstruction.RecursiveShapeDomains
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (j pos target : Nat) (binders indices : List VExpr) : Prop :=
   let S := H.origins.minorShapes mowner hmowner localIndex hlocal
-  let C := H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!
+  let C := H.recInfos[mowner]!.ruleTemplates[localIndex]!.recursiveCalls[j]!
   let base := R.parameterScope.toCtx.reverse ++
     (H.declFieldDomains mowner hmowner localIndex hlocal).take pos
   let fvs := S.fields_bound.fvars.take pos
-  j < (H.recInfos[mowner]!.ruleBlueprints[localIndex]!).recursiveCalls.size ∧
+  j < (H.recInfos[mowner]!.ruleTemplates[localIndex]!).recursiveCalls.size ∧
   target = C.targetTypeIdx ∧
   binders.length = C.args.size ∧
   C.major = S.recursiveFields[j]! ∧
@@ -602,7 +602,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisHeader
     hcallMajor, hcallTemplate, hdomEq, hfvIds⟩ :=
     H.recursorTelescope_hypothesisUnlift howner T minorIdx D₀ mowner hmowner localIndex hlocal hD
       hyps res hhyps hminorEq j hj
-  have hjCalls : j < (H.recInfos[mowner]!.ruleBlueprints[localIndex]!).recursiveCalls.size := by
+  have hjCalls : j < (H.recInfos[mowner]!.ruleTemplates[localIndex]!).recursiveCalls.size := by
     obtain ⟨-, -, -, -, -, _, -, -, -, -, Hcalls⟩ :=
       H.blueprints.entry mowner hmowner localIndex hlocal
     rw [Hcalls.size_eq]

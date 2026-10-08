@@ -435,9 +435,9 @@ namespace mkRecInfos.loopU
 
 end mkRecInfos.loopU
 
-namespace mkRecInfos.loopUBlueprints
+namespace mkRecInfos.loopUTemplates
 
-end mkRecInfos.loopUBlueprints
+end mkRecInfos.loopUTemplates
 
 namespace mkRecInfos.loopCtors
 
@@ -470,8 +470,8 @@ end mkRecInfos.loopCtors
 namespace mkRecInfos.loopInd2
 
 def SameFrame (a b : AddInductive.RecInfo) : Prop :=
-  { a with minors := #[], ruleBlueprints := #[] } =
-    { b with minors := #[], ruleBlueprints := #[] }
+  { a with minors := #[], ruleTemplates := #[] } =
+    { b with minors := #[], ruleTemplates := #[] }
 
 theorem SameFrame.refl (a : AddInductive.RecInfo) : SameFrame a a := rfl
 

@@ -1183,7 +1183,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (hprogress : recInfos.size = dIdx)
     (Harities : RecInfoArities stats recInfos)
     (Hempty : RecInfoMinorsEmpty recInfos)
-    (Hblueprints : RecInfoBlueprintCounts recInfos)
+    (Hblueprints : RecInfoTemplateCounts recInfos)
     (hparamU : ParameterUniverseSupport current stats.params)
     (HindexTraces : IndexTelescopeRuns stats indTypes current recInfos)
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
@@ -1212,7 +1212,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       RecInfoOuterOrder Rout HparamsOut HbindingsOut →
       RecInfoArities stats out →
       RecInfoMinorsEmpty out →
-      RecInfoBlueprintCounts out →
+      RecInfoTemplateCounts out →
       BindingContextLE base outCtx →
       out.size = recInfos.size + (indTypes.size - dIdx) →
       IndexTelescopeRuns stats indTypes outCtx out →
@@ -1237,13 +1237,13 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         throw <| .other
           "recursor index arity does not match checked inductive header"
       let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
-      AddInductive.withConsumedLocalDecl `t .default tTy fun major => do
+      AddInductive.withUnannotatedLocalDecl `t .default tTy fun major => do
       let lctx ← getLCtx
       let motiveTy := lctx.mkForall indices <|
         lctx.mkForall #[major] <| .sort elimLevel
       let name := if indTypes.size > 1 then
         (`motive).appendIndexAfter (dIdx + 1) else `motive
-      AddInductive.withConsumedLocalDecl name .default motiveTy fun motive =>
+      AddInductive.withUnannotatedLocalDecl name .default motiveTy fun motive =>
       AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel (dIdx + 1)
         (recInfos.push { motive, minors := #[], indices, major }) k
     change ((monadLift (TypeChecker.whnf indTypes[dIdx].type) :
@@ -2203,7 +2203,7 @@ structure CallTemplatesMatchPrefix
     (H : InductionHypothesisTypesPrefix stats recInfos fieldRoot c
       fields hypotheses)
     (rootScope : FVarId → Prop)
-    (calls : Array AddInductive.RecCallBlueprint) : Prop where
+    (calls : Array AddInductive.RecCallTemplate) : Prop where
   size_eq : calls.size = hypotheses.size
   entry : ∀ j (hj : j < hypotheses.size),
     ∃ root sourceType,
@@ -2254,7 +2254,7 @@ theorem CallTemplatesMatchPrefix.pushCurrent
     {H : InductionHypothesisTypesPrefix stats recInfos fieldRoot c
       fields hypotheses}
     {rootScope : FVarId → Prop}
-    {calls : Array AddInductive.RecCallBlueprint}
+    {calls : Array AddInductive.RecCallTemplate}
     (Hcalls : CallTemplatesMatchPrefix H rootScope calls)
     (Hc : BindingContextWF c)
     (name : Name) (sourceType : Expr) (bi : BinderInfo)
@@ -2264,7 +2264,7 @@ theorem CallTemplatesMatchPrefix.pushCurrent
     (hup : IsFVarUpSet rootScope Rroot.mlctx.vlctx)
     (O : InductionHypothesisTypeAt stats recInfos root
       fields[hypotheses.size]! sourceType)
-    (call : AddInductive.RecCallBlueprint)
+    (call : AddInductive.RecCallTemplate)
     (hcall : call = {
       major := fields[hypotheses.size]!
       args := O.args

@@ -253,7 +253,7 @@ theorem safeField.sourceWF
         is too big for the corresponding inductive datatype"
     if !false then
       AddInductive.checkPositivity stats dom ctor i
-    AddInductive.withConsumedCheckedLocalDecl name bi dom fun arg =>
+    AddInductive.withUnannotatedCheckedLocalDecl name bi dom fun arg =>
       AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
         (body.instantiate1 arg) (i + 1) fuel) : AddInductive.M Unit) c |>.WF Q
   by_cases hbound :
@@ -336,7 +336,7 @@ theorem unsafeField.sourceWF
         is too big for the corresponding inductive datatype"
     if !true then
       AddInductive.checkPositivity stats dom ctor i
-    AddInductive.withConsumedCheckedLocalDecl name bi dom fun arg =>
+    AddInductive.withUnannotatedCheckedLocalDecl name bi dom fun arg =>
       AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
         (body.instantiate1 arg) (i + 1) fuel) : AddInductive.M Unit) c |>.WF Q
   by_cases hbound :

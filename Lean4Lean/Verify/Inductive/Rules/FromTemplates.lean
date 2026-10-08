@@ -20,7 +20,7 @@ def RecursorFVarSuffix.castRoot
 it have the same allocation-insensitive replay payload. -/
 theorem InductionHypothesisType.replayTrace_eq_blueprint
     (O : InductionHypothesisType stats recInfos root field type)
-    (call : AddInductive.RecCallBlueprint)
+    (call : AddInductive.RecCallTemplate)
     (hcall : call = {
       major := field
       args := O.args
@@ -47,17 +47,17 @@ theorem InductionHypothesisType.replayTrace_eq_blueprint
 local context followed by a pure map.  This is the executable boundary used
 by the installation proof; in particular it performs no inference, WHNF, or
 fresh-name allocation. -/
-theorem AddInductive.mkRecRulesFromBlueprints.WF
+theorem AddInductive.mkRecRulesFromTemplates.WF
     (indTypes : Array InductiveType) (elimLevel : Level)
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo) (dIdx : Nat)
     (motives minors : Array Expr) (c : AddInductive.Context) :
-    (AddInductive.mkRecRulesFromBlueprints indTypes elimLevel stats recInfos
+    (AddInductive.mkRecRulesFromTemplates indTypes elimLevel stats recInfos
       dIdx motives minors c).WF fun rules =>
-        rules = recInfos[dIdx]!.ruleBlueprints.toList.map fun blueprint =>
-          blueprint.build indTypes stats motives minors
+        rules = recInfos[dIdx]!.ruleTemplates.toList.map fun blueprint =>
+          blueprint.instantiate indTypes stats motives minors
             (AddInductive.getRecLevels elimLevel stats.levels) c.lctx := by
-  simp only [AddInductive.mkRecRulesFromBlueprints, getLCtx, readThe, read]
+  simp only [AddInductive.mkRecRulesFromTemplates, getLCtx, readThe, read]
   exact Except.WF.pure rfl
 
 /-- Instantiate the producer-retained semantic call row with the completed
@@ -73,7 +73,7 @@ theorem TypedCallTemplates.retainedGeneratedCalls
     (lvls : List Level) :
     TypedRecursiveCallsAfterHypotheses indTypes stats motives
       minors lvls Rfield decl rootScope fields
-        (calls.map fun call => call.build indTypes stats motives minors lvls)
+        (calls.map fun call => call.instantiate indTypes stats motives minors lvls)
         fields.size := by
   refine {
     covered := Nat.le_refl _
@@ -89,8 +89,8 @@ theorem TypedCallTemplates.retainedGeneratedCalls
   have hiCalls : i < calls.size := by rw [H.size_eq, hsize]; exact hi
   have hbuilt :
       (calls.map fun call =>
-        call.build indTypes stats motives minors lvls)[i]! =
-          calls[i]!.build indTypes stats motives minors lvls := by
+        call.instantiate indTypes stats motives minors lvls)[i]! =
+          calls[i]!.instantiate indTypes stats motives minors lvls := by
     simp [Array.getElem!_eq_getD, Array.getD, hi, hiCalls]
   rw [hbuilt]
   rw [show fields[i] = fields[i]! from
@@ -103,7 +103,7 @@ theorem CallTemplatesMatch.boundGeneratedCalls
     {recursiveFields hypotheses : Array Expr}
     {origins : MinorInductionHypothesisTypes sourceFullContext
       recursiveFields hypotheses}
-    {calls : Array AddInductive.RecCallBlueprint}
+    {calls : Array AddInductive.RecCallTemplate}
     {allFields : Array Expr}
     (H : CallTemplatesMatch origins allFields calls)
     (hfieldRoot : origins.fieldRoot = fieldRoot)
@@ -112,7 +112,7 @@ theorem CallTemplatesMatch.boundGeneratedCalls
     (lvls : List Level) :
     RecursiveCallsPrefix indTypes origins.stats
       (origins.recInfos.map (·.motive)) minors lvls fieldRoot recursiveFields
-      (calls.map fun call => call.build indTypes origins.stats
+      (calls.map fun call => call.instantiate indTypes origins.stats
         (origins.recInfos.map (·.motive)) minors lvls)
       recursiveFields.size := by
   subst fieldRoot
@@ -127,11 +127,11 @@ theorem CallTemplatesMatch.boundGeneratedCalls
     rw [getElem!_pos recursiveFields i hi] at Hentry
     rcases Hentry with
       ⟨originRoot, sourceType, O, D, HoriginRoot, htype, hcall⟩
-    let value := calls[i]!.build indTypes origins.stats
+    let value := calls[i]!.instantiate indTypes origins.stats
       (origins.recInfos.map (·.motive)) minors lvls
     have hiCalls : i < calls.size := by rw [H.size_eq]; exact hiHypotheses
     have hvalue :
-        (calls.map fun call => call.build indTypes origins.stats
+        (calls.map fun call => call.instantiate indTypes origins.stats
           (origins.recInfos.map (·.motive)) minors lvls)[i]! = value := by
       rw [getElem!_pos _ i (by simpa using hiCalls)]
       simp [value, getElem!_pos calls i hiCalls]
@@ -148,7 +148,7 @@ theorem CallTemplatesMatch.boundGeneratedCalls
       value_eq := ?_ }⟩
     dsimp [value]
     rw [hcall]
-    simp only [AddInductive.RecCallBlueprint.build]
+    simp only [AddInductive.RecCallTemplate.instantiate]
     simp [AddInductive.getIIndices, O.owner_valid]
 
 /-- A bound rule together with the exact producer components used to build
@@ -158,18 +158,18 @@ structure RuleFromTemplate
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     (S : MinorPremiseType) (T : ConstructorFieldTraversal)
-    (B : AddInductive.RecRuleBlueprint)
+    (B : AddInductive.RecRuleTemplate)
     (minorIdx : Nat) (fieldRoot outerRoot : AddInductive.Context) where
   certificate : RecursorRuleSyntax indTypes stats motives minors
     lvls S.constructor minorIdx
-      (B.build indTypes stats motives minors lvls outerRoot.lctx)
+      (B.instantiate indTypes stats motives minors lvls outerRoot.lctx)
   root_eq : certificate.root = fieldRoot
   target_eq : certificate.target = T.terminal
   allArgs_eq : certificate.allArgs = S.fields
   recursiveArgs_eq : certificate.recursiveArgs = S.recursiveFields
   recursiveResults_eq : certificate.recursiveResults =
     B.recursiveCalls.map fun call =>
-      call.build indTypes stats motives minors lvls
+      call.instantiate indTypes stats motives minors lvls
   callOrigins : ∃ origins : MinorInductionHypothesisTypes
       S.sourceFullContext S.recursiveFields S.hypotheses,
     S.hypothesis_type_origins = some origins ∧
@@ -178,7 +178,7 @@ structure RuleFromTemplate
 theorem RuleTemplateMatchesMinor.boundGeneratedRule
     {stats : AddInductive.InductiveStats}
     {S : MinorPremiseType} {minor : Expr}
-    {B : AddInductive.RecRuleBlueprint}
+    {B : AddInductive.RecRuleTemplate}
     (Horigin : RuleTemplateMatchesMinor stats S minor B)
     (indTypes : Array InductiveType) (motives minors : Array Expr)
     (lvls : List Level) (minorIdx : Nat)
@@ -204,17 +204,17 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRule
     (Hcalls : RecursiveCallsPrefix indTypes stats motives minors lvls
       fieldRoot S.recursiveFields
       (B.recursiveCalls.map fun call =>
-        call.build indTypes stats motives minors lvls)
+        call.instantiate indTypes stats motives minors lvls)
       S.recursiveFields.size) :
     ∃ T, S.traversal = some T ∧
       Nonempty (RuleFromTemplate indTypes stats motives minors lvls
         S T B minorIdx fieldRoot outerRoot) := by
   rcases Horigin with
-    ⟨hctor, hfields, hlctx, hminorBlueprint, traversal, origins,
+    ⟨hctor, hfields, hlctx, hminorTemplate, traversal, origins,
       htraversal, horigins, htargetOwner, htargetIndices, HcallOrigins⟩
   let Hrule : RecursorRuleSyntax indTypes stats motives minors lvls
       S.constructor minorIdx
-      (B.build indTypes stats motives minors lvls outerRoot.lctx) := {
+      (B.instantiate indTypes stats motives minors lvls outerRoot.lctx) := {
     root := fieldRoot
     outerRoot := outerRoot
     root_wf := HfieldWF
@@ -224,7 +224,7 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRule
     allArgs := S.fields
     recursiveArgs := S.recursiveFields
     recursiveResults := B.recursiveCalls.map fun call =>
-      call.build indTypes stats motives minors lvls
+      call.instantiate indTypes stats motives minors lvls
     minor_valid := hminor
     params_bound := Hparams
     motives_bound := Hmotives
@@ -238,16 +238,16 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRule
     all_args_outer_fresh := hfieldsFresh
     recursive_calls := Hcalls
     ctor_eq := by
-      simpa [AddInductive.RecRuleBlueprint.build] using hctor
+      simpa [AddInductive.RecRuleTemplate.instantiate] using hctor
     fields_eq := by
-      simp [AddInductive.RecRuleBlueprint.build, hfields]
+      simp [AddInductive.RecRuleTemplate.instantiate, hfields]
     rhs_eq := by
-      simp only [AddInductive.RecRuleBlueprint.build]
-      rw [hfields, hminorBlueprint, hlctx, hminorEq]
+      simp only [AddInductive.RecRuleTemplate.instantiate]
+      rw [hfields, hminorTemplate, hlctx, hminorEq]
       have hfieldLambda := Hfields.mkLambda_mono HfieldSource
         (mkAppN (mkAppN minor S.fields)
           (B.recursiveCalls.map fun call =>
-            call.build indTypes stats motives minors lvls))
+            call.instantiate indTypes stats motives minors lvls))
       exact congrArg (fun body =>
         outerRoot.lctx.mkLambda stats.params <|
         outerRoot.lctx.mkLambda motives <|
@@ -284,10 +284,10 @@ theorem RuleTemplatesMatch.ownerRowSize
     (hcounts : ∀ i, i < recInfos.size →
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
     (owner : Nat) (howner : owner < recInfos.size) :
-    recInfos[owner]!.ruleBlueprints.size =
+    recInfos[owner]!.ruleTemplates.size =
       indTypes[owner]!.ctors.length := by
   calc
-    recInfos[owner]!.ruleBlueprints.size =
+    recInfos[owner]!.ruleTemplates.size =
         Horigins.minorTypes[owner]!.size := H.rows_size owner howner
     _ = recInfos[owner]!.minors.size :=
       (Horigins.minors owner howner).size_eq
@@ -381,7 +381,7 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRuleOfSemanticSource
     {stats : AddInductive.InductiveStats}
     {recInfos : Array AddInductive.RecInfo}
     {S : MinorPremiseType} {minor : Expr}
-    {B : AddInductive.RecRuleBlueprint}
+    {B : AddInductive.RecRuleTemplate}
     (Horigin : RuleTemplateMatchesMinor stats S minor B)
     {outerRoot : AddInductive.Context} {recLparams : List Name}
     {Router : RecursorContextWF outerRoot recLparams}
@@ -404,7 +404,7 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRuleOfSemanticSource
       (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
       S HS.traversal B minorIdx HS.traversal.terminalContext outerRoot) := by
   rcases Horigin with
-    ⟨hctor, hfields, hlctx, hminorBlueprint, traversal, origins,
+    ⟨hctor, hfields, hlctx, hminorTemplate, traversal, origins,
       htraversal, horigins, htargetOwner, htargetIndices, HcallOrigins⟩
   have htraversalEq : HS.traversal = traversal := by
     rw [HS.traversal_eq] at htraversal
@@ -446,7 +446,7 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRuleOfSemanticSource
     exact hselectedExpr.imp fun hneq heq =>
       hneq (congrArg Expr.fvar heq)
   rcases RuleTemplateMatchesMinor.boundGeneratedRule
-    (Horigin := ⟨hctor, hfields, hlctx, hminorBlueprint,
+    (Horigin := ⟨hctor, hfields, hlctx, hminorTemplate,
       HS.traversal, origins, HS.traversal_eq, horigins,
       htargetOwner, htargetIndices, HcallOrigins⟩)
     indTypes (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
@@ -784,7 +784,7 @@ call generation, inference, or alpha-renaming is replayed. -/
 theorem RuleFromTemplate.semanticsOfProducer
     {stats : AddInductive.InductiveStats}
     {recInfos : Array AddInductive.RecInfo}
-    {S : MinorPremiseType} {B : AddInductive.RecRuleBlueprint}
+    {S : MinorPremiseType} {B : AddInductive.RecRuleTemplate}
     {outerRoot : AddInductive.Context} {recLparams : List Name}
     {Router : RecursorContextWF outerRoot recLparams}
     {indTypes : Array InductiveType} {lvls : List Level}
@@ -834,11 +834,11 @@ theorem RuleFromTemplate.semanticsOfProducer
   let C : RuleFromTemplateTyping indTypes stats
       (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
       S.constructor minorIdx
-      (B.build indTypes stats (recInfos.map (·.motive))
+      (B.instantiate indTypes stats (recInfos.map (·.motive))
         (recInfos.flatMap (·.minors)) lvls outerRoot.lctx)
       F.traversal.terminalContext F.traversal.terminal S.fields
       S.recursiveFields
-      (B.recursiveCalls.map fun call => call.build indTypes stats
+      (B.recursiveCalls.map fun call => call.instantiate indTypes stats
         (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls)
       Router decl expectedOwnerIdx := {
     depth := depth
@@ -950,9 +950,9 @@ theorem RuleFromTemplate.semanticsOfProducer
       rw [HcallOrigins.size_eq]
       exact hjHypotheses
     have hbuilt :
-        (B.recursiveCalls.map fun call => call.build indTypes stats
+        (B.recursiveCalls.map fun call => call.instantiate indTypes stats
           (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls)[j]! =
-        B.recursiveCalls[j]!.build indTypes stats
+        B.recursiveCalls[j]!.instantiate indTypes stats
           (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls := by
       rw [getElem!_pos _ j (by simpa using hjCalls)]
       simp [getElem!_pos B.recursiveCalls j hjCalls]
@@ -960,7 +960,7 @@ theorem RuleFromTemplate.semanticsOfProducer
         ∃ Scall' : TypedRecursiveCall indTypes stats
             (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
             Rorigin decl (depth + j) S.recursiveFields[j]!
-              (B.recursiveCalls[j]!.build indTypes stats
+              (B.recursiveCalls[j]!.instantiate indTypes stats
                 (recInfos.map (·.motive))
                 (recInfos.flatMap (·.minors)) lvls),
           Scall'.rootScope = (fun fv =>
@@ -976,7 +976,7 @@ theorem RuleFromTemplate.semanticsOfProducer
       simpa [H.recursiveArgs_eq] using
         getElem!_pos S.recursiveFields j hjSource
     have hresult :
-        B.recursiveCalls[j]!.build indTypes stats
+        B.recursiveCalls[j]!.instantiate indTypes stats
             (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls =
           H.certificate.recursiveResults[j]! := by
       rw [H.recursiveResults_eq, hbuilt]
@@ -1092,8 +1092,8 @@ theorem RuleTemplatesMatch.semanticBoundGeneratedRules
     (hcounts : ∀ i, i < recInfos.size →
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
     (owner : Nat) (howner : owner < indTypes.size) :
-    let rules := recInfos[owner]!.ruleBlueprints.toList.map fun blueprint =>
-      blueprint.build indTypes stats (recInfos.map (·.motive))
+    let rules := recInfos[owner]!.ruleTemplates.toList.map fun blueprint =>
+      blueprint.instantiate indTypes stats (recInfos.map (·.motive))
         (recInfos.flatMap (·.minors))
         (AddInductive.getRecLevels elimLevel stats.levels) c.lctx
     ∃ Hrules : TypedRecursorRules indTypes stats
@@ -1116,8 +1116,8 @@ theorem RuleTemplatesMatch.semanticBoundGeneratedRules
   dsimp only
   have hownerRec : owner < recInfos.size := by omega
   have hrowSize := H.ownerRowSize hcounts owner hownerRec
-  let rules := recInfos[owner]!.ruleBlueprints.toList.map fun blueprint =>
-    blueprint.build indTypes stats (recInfos.map (·.motive))
+  let rules := recInfos[owner]!.ruleTemplates.toList.map fun blueprint =>
+    blueprint.instantiate indTypes stats (recInfos.map (·.motive))
       (recInfos.flatMap (·.minors))
       (AddInductive.getRecLevels elimLevel stats.levels) c.lctx
   have Hentry : ∀ localIndex
@@ -1138,7 +1138,7 @@ theorem RuleTemplatesMatch.semanticBoundGeneratedRules
       rw [← H.rows_size owner hownerRec, hrowSize]
       exact hlocal
     let S := Horigins.minorShapes owner hownerRec localIndex hshapeLocal
-    let B := recInfos[owner]!.ruleBlueprints[localIndex]!
+    let B := recInfos[owner]!.ruleTemplates[localIndex]!
     have Horigin : RuleTemplateMatchesMinor stats S
         recInfos[owner]!.minors[localIndex]! B :=
       H.entry owner hownerRec localIndex hshapeLocal
@@ -1207,11 +1207,11 @@ theorem RuleTemplatesMatch.semanticBoundGeneratedRules
       rw [hlist] at hget
       exact Option.some.inj hget
     have hblueLocal : localIndex <
-        recInfos[owner]!.ruleBlueprints.size := by
+        recInfos[owner]!.ruleTemplates.size := by
       rw [hrowSize]
       exact hlocal
     have hruleGet : (rules[localIndex]'hrule) =
-        B.build indTypes stats (recInfos.map (·.motive))
+        B.instantiate indTypes stats (recInfos.map (·.motive))
           (recInfos.flatMap (·.minors))
           (AddInductive.getRecLevels elimLevel stats.levels) c.lctx := by
       simp [rules, B, hblueLocal]

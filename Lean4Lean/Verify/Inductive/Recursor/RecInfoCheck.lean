@@ -373,7 +373,7 @@ theorem ConstructorCheck.loopInd1SemanticWF
       RecInfoOuterOrder Rout Hparams Hbindings ->
       RecInfoArities stats recInfos ->
       RecInfoMinorsEmpty recInfos ->
-      RecInfoBlueprintCounts recInfos ->
+      RecInfoTemplateCounts recInfos ->
       BindingContextLE { c with
         env := ctorEnv
         typeCheckerLParams := some <|
@@ -439,7 +439,7 @@ theorem ConstructorCheck.loopInd1SemanticWF
       c.typeCheckerLParams
       (some <| AddInductive.getRecLevelParams elimLevel c.lparams))
     rfl (RecInfoArities.empty stats)
-    RecInfoMinorsEmpty.empty RecInfoBlueprintCounts.empty
+    RecInfoMinorsEmpty.empty RecInfoTemplateCounts.empty
     (ParameterUniverseSupport.of_contextWF (root := { c with
         env := ctorEnv
         typeCheckerLParams := some <|

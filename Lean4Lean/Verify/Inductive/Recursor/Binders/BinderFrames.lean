@@ -439,17 +439,17 @@ theorem RecInfoMinorsEmpty.push
 /-- The executable rule-blueprint row stays synchronized with the minor row.
 The first pass establishes two empty rows; the second pass appends one entry
 to each in the same successful `withLocalDecl` continuation. -/
-def RecInfoBlueprintCounts (recInfos : Array AddInductive.RecInfo) : Prop :=
+def RecInfoTemplateCounts (recInfos : Array AddInductive.RecInfo) : Prop :=
   ∀ i, i < recInfos.size →
-    recInfos[i]!.ruleBlueprints.size = recInfos[i]!.minors.size
+    recInfos[i]!.ruleTemplates.size = recInfos[i]!.minors.size
 
-theorem RecInfoBlueprintCounts.empty : RecInfoBlueprintCounts #[] := by
+theorem RecInfoTemplateCounts.empty : RecInfoTemplateCounts #[] := by
   intro i hi
   simp at hi
 
-theorem RecInfoBlueprintCounts.pushEmpty
-    (H : RecInfoBlueprintCounts recInfos) :
-    RecInfoBlueprintCounts (recInfos.push {
+theorem RecInfoTemplateCounts.pushEmpty
+    (H : RecInfoTemplateCounts recInfos) :
+    RecInfoTemplateCounts (recInfos.push {
       motive, minors := #[], indices, major }) := by
   intro i hi
   by_cases hilast : i = recInfos.size
@@ -472,7 +472,7 @@ blueprint/minor rows satisfy the exact origin-indexed alignment vacuously. -/
 theorem RuleTemplatesMatch.ofEmpty
     (Horigins : RecInfoBinderTypes c recInfos)
     (Hempty : RecInfoMinorsEmpty recInfos)
-    (Hcounts : RecInfoBlueprintCounts recInfos) :
+    (Hcounts : RecInfoTemplateCounts recInfos) :
     RuleTemplatesMatch stats recInfos Horigins where
   rows_size owner howner := by
     exact (Hcounts owner howner).trans (Horigins.minors owner howner).size_eq.symm
