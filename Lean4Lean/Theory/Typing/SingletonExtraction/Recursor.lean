@@ -6,12 +6,12 @@ import Lean4Lean.Theory.Inductive.SingletonCompilation
 import Lean4Lean.Theory.Inductive.Formation
 import Lean4Lean.Theory.Typing.CaseReduction
 
-/-! # Singleton extraction data of a native recursor
+/-! # Singleton extraction data of a recursor
 
-The cast specification and the elimination into `Prop` of a registered native recursor
+The cast specification and the elimination into `Prop` of a registered recursor
 of a large-eliminating inductive proposition, at an occurrence's universes. Pure
-definitions; their well-formedness is `RecursorData.propElim_wf`
-(`NativeSingletonPropElim.lean`). -/
+definitions; their scoping is in `RecursorScope.lean` (`propElim_closed`) and their
+universe congruence in `RecursorLevels.lean` (`propElim_levels`). -/
 
 namespace Lean4Lean
 open VExpr InductiveSignature VEnv

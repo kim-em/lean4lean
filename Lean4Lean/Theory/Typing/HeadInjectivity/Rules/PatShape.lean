@@ -2,13 +2,13 @@ import Lean4Lean.Theory.Typing.SignatureVars
 
 /-! The pattern shape of computation rules.
 
-Every computation rule of a well-formed environment has a left-hand side
+A computation rule has the pattern shape when its left-hand side is
 `wrapLams doms (mkApps head args)` whose arguments are either absent (a
 definition) or leading arguments followed by a constructor-application major
 whose trailing arguments are distinct bound variables, every binder occurring
 as a bare leading argument or among those trailing variables. This file defines
-the shape and proves it for every restored generated recursor equation; the
-coverage of all rules of a well-formed environment is in `Rules/Coverage.lean`.
+the shape and proves it for every restored generated recursor equation;
+`Rules/Coverage.lean` derives that such an equation is never a bare constant.
 Purely syntactic: no typing. -/
 
 namespace Lean4Lean

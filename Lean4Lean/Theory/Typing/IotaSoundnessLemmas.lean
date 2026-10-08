@@ -37,10 +37,10 @@ import Lean4Lean.Theory.Typing.SingletonExtraction.TelescopeTyping
 import Lean4Lean.Theory.VExpr
 import Lean4Lean.Theory.VLevel
 
-/-! # Restoration and recursor-shape facts used by native iota soundness
+/-! # Restoration and recursor-shape facts
 
 These lemmas were proved alongside the executable verification of nested inductive
-declarations, under `Lean4Lean/Verify/Inductive`. `Theory/Typing/NativeIotaSoundness.lean`
+declarations, under `Lean4Lean/Verify/Inductive`. `Theory/Inductive/RestorationProjNames.lean`
 needs them, so they live here, in the Theory layer. No `Lean4Lean.Theory` module imports a
 `Lean4Lean.Verify` module. The proofs are unchanged. -/
 

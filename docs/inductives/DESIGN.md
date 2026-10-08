@@ -4,12 +4,12 @@ This document describes what this pull request proves, how the proof is organise
 changes in the specification and in the executable. Paths are relative to the repository root.
 Line counts are approximate and refer to the final tree.
 
-The pull request adds about 330k lines of Lean. Two thirds of it is the refinement proof of
+The pull request adds about 250k lines of Lean. Two thirds of it is the refinement proof of
 the executable inductive checker (`Lean4Lean/Verify/Inductive/`, 165k lines). The rest is the
-metatheory (`Lean4Lean/Theory/Typing/`, 73k added), the generative specification of inductive
-types (`Lean4Lean/Theory/Inductive/` and `Lean4Lean/Theory/Inductive.lean`, 15k), the
+metatheory (`Lean4Lean/Theory/Typing/`, 45k added), the generative specification of inductive
+types (`Lean4Lean/Theory/Inductive/` and `Lean4Lean/Theory/Inductive.lean`, 11k), the
 verification of quotients, the canonical hypotheses and the checker changes
-(`Lean4Lean/Verify/` outside `Inductive/`, 19k), executable changes (2k) and tests (2k).
+(`Lean4Lean/Verify/` outside `Inductive/`, 19k), executable changes (2k) and tests (3k).
 
 ## 1. The result
 
@@ -84,9 +84,9 @@ imports whose well-formedness and canonical `Eq` are assumed: imports are truste
 - `wf : ves.WF env` is the invariant being preserved. `VEnvs.WF`
   (`Lean4Lean/Verify/TypeChecker.lean`) is the core invariant `VEnvs.WFCore` together with
   the constructor telescope certificates (`VEnvs.AllCtorTelescopes`). The core gains fields in this pull
-  request: closure of mutual inductives, presence of constructor owners, semantic coherence of
-  installed constructors with the abstract model, and inductive provenance (which carries
-  projection-registry coherence). It holds for the empty environment the executable replays
+  request: closure of mutual inductives, presence of constructor owners, agreement of the
+  installed constructors with the abstract model, and the record of installed inductive
+  families (which carries projection-registry coherence). It holds for the empty environment the executable replays
   from (`VEnvs.WF.empty`, `Lean4Lean/Verify/Environment.lean`): every field is vacuous there
   except the translation, and an environment without constructors carries the certificates
   vacuously (`VEnvs.WF.ofNoCtors`). There is no invariant about the type-annotation wrappers:
@@ -100,8 +100,8 @@ imports whose well-formedness and canonical `Eq` are assumed: imports are truste
   are present with the prelude's types, and the iota rule of `Eq.rec` is a stored equation.
   It is used only in the quotient case (section 6); `addDecl.WF_quotReadyAt` assumes quotient
   readiness only for `quotDecl`.
-- There is no hypothesis about the projection-walk corner: the constructor certificates of
-  `VEnvs.WF` resolve it (section 5.3).
+- There is no hypothesis about the constructor telescopes walked by projection inference:
+  the constructor certificates of `VEnvs.WF` cover them (section 5.3).
 
 A replay from the empty environment is covered by `AddDeclChain.WF_empty`
 (`Lean4Lean/Verify/Replay.lean`): every environment reached by adding a list
@@ -111,9 +111,9 @@ prelude's `Eq`, `Eq.refl` and `Eq.rec` (`HasPreludeEq`, a decidable property of 
 executable environment; before `Eq` exists `quotDecl` has no model).
 
 Canonical `Eq` holds in every environment obtained by replaying `Init.Prelude` past `Eq`.
-Realizability is proved up to a fact about the concrete production declaration that is checked
+Realizability is proved up to a fact about the prelude's concrete declaration that is checked
 by a test: `addDecl.preludeEq_hasCanonicalEq` (`Lean4Lean/Verify/CanonicalEq.lean`)
-takes as hypothesis that the executable installs `Eq.rec` with the production type, which
+takes as hypothesis that the executable installs `Eq.rec` with the prelude's type, which
 `Lean4Lean/Tests/PreludeEq.lean` checks. The honest reading of the theorem is therefore:
 `addDecl` is sound for environments that contain the prelude's `Eq`, and every declaration of
 a replay from the empty environment is sound (`AddDeclChain.WF_empty`).
@@ -139,7 +139,9 @@ The audit (`scripts/InductiveAudit.lean`, driven by `scripts/check-inductive-aud
 the transitive dependency closure of a fixed list of roots, including opaque theorem bodies and
 the types of dependencies. The roots are the top-level theorems, the replay theorems of section
 1.2, the three inductive dispatch theorems, `addQuot.WF`, the checker's `whnf` and recursor
-reduction theorems, and `IsDefEq.full_church_rosser`. It fails on any `sorry` and on any axiom
+reduction theorems, the prefix-unfolding and quotient theorems (`PrefixUnfold.defeq`,
+`QuotPrefixUnfold.defeq`, `QuotRegistered.propInhabitant_app`), `NormalEq.parRed`,
+`RecursorConstruction.typeTranslations` and `IsDefEq.full_church_rosser`. It fails on any `sorry` and on any axiom
 not listed in `scripts/inductive-audit-inventory.json`. A second set of strict roots (the
 generator definitions of section 2 and a few foundational lemmas) may depend only on the three
 standard axioms. The self-test checks that the walker finds a `sorry` behind an opaque body and
@@ -174,7 +176,7 @@ eliminator table `eliminators : Name → CaseSchema → Prop`. `VEnv.IsDefEq`
   specialized source sort to be never zero or the target to be `≈ 0`.
 
 Projections are primitive, as in the kernel; `.proj` is what the checker's `Expr.proj`
-translates to. Native recursors remain constants with stored iota equations (`defeqs`).
+translates to. Recursors remain constants with stored iota equations (`defeqs`).
 Abstract eliminators exist only in the abstract theory: the executable never sees `.elim`.
 They are per-family case analysis principles (no induction hypotheses).
 
@@ -195,7 +197,7 @@ Recursors and equations are never accepted as input. `InductiveSignature`
 families with index telescopes, constructors with fields classified as external or
 recursive. A pure generator produces from it, for an `Instance` (universe levels, elimination
 level, recursor names), every motive, minor premise, induction hypothesis, recursor type and
-iota equation. `Signature.Models` relates a signature to the source declaration: same names,
+iota equation. `InductiveSignature.Models` relates a signature to the source declaration: same names,
 arities and result levels, constructor types definitionally equal in the environment with the
 family headers, and every field definitionally a strictly positive normal form.
 `Instance.Admissible` fixes the elimination universe: every family is never zero, or the
@@ -240,7 +242,8 @@ constructors that describe the intermediate environments of an installation:
 `inductEliminators` registers a certified case schema once the declaration's constants are
 present, and `inductProjections` registers the projection entries of a declaration whose
 constructors and case eliminator are present. The checker runs that happen after the
-constructors are declared and before the recursors are installed (the window) therefore run
+constructors are declared and before the recursors are installed (in the recursor-checking
+environment) therefore run
 in a well-formed environment, which every checker theorem requires. The registry facts that
 every well-formed environment satisfies (each schema keeps its registration certificate, a key
 fixes its schema, schemas project only out of registered structures, every registered
@@ -249,13 +252,13 @@ induction over the history (`VEnv.WF'.registryInv`,
 `Lean4Lean/Theory/Inductive/CaseRegistration.lean`).
 
 A case schema (`Lean4Lean/Theory/Inductive/CaseSchema.lean`) is the normalized signature with
-its restoration and its original family names; its per-family view and generated case type
+its restoration and its source family names; its per-family view and generated case type
 and equations are computed. `CaseSchema.Certified` is `CaseCompilationData`: the part of a
 compilation that fixes the schema (formation, model, restoration correspondence and scoping,
-installed source constants, family typing), without anything about the generated native
+installed source constants, family typing), without anything about the generated
 recursors, which `elimDF`/`elimIota` never read. Every registration point carries
 `CaseSchema.Registered schema base source block key`: the `Certified` certificate, the key
-(the name of the first original family) and `HeaderAgreement`.
+(the name of the first source family) and `HeaderAgreement`.
 
 ### 2.4 Restrictions of the specification to what Lean produces
 
@@ -281,22 +284,23 @@ None weakens the top-level theorem.
   case rule for an unrelated axiom `S.b : S` make `elim S (m, x) S.b` and
   `elim S (m, x) S.a` definitionally equal without a common reduct
   (`Lean4Lean/Theory/Typing/EliminatorCoherence.lean`).
-- **Case eliminators at the constructor boundary.** Every block with families registers one
+- **Case eliminators after the constructors.** Every block with families registers one
   certified case eliminator, keyed by its first family, between constructors and projections;
   a block registers no eliminator only if its declaration has no families. Hence every
   registered structure has a registered case eliminator at every point of every history
-  (`VEnv.WF.projections_eliminated`), including during the window.
+  (`VEnv.WF.projections_eliminated`), including in the recursor-checking environment.
   The certificate is the case-only `CaseCompilationData` because the full `CompilationData`
-  includes the typing of the generated recursors, which the window computes.
+  includes the typing of the generated recursors, which is computed in the recursor-checking
+  environment.
 - **Header agreement** (`CaseSchema.HeaderAgreement`). The restored normalized header of each
-  original family is definitionally equal to its declared type.
-- **Window typings are stated in the window environment.** `Instance.RecursiveTypesWF` and
+  source family is definitionally equal to its declared type.
+- **Recursor typings are stated in the recursor-checking environment.** `Instance.RecursiveTypesWF` and
   `FamilyTypesWF` are required in the environment with constructors, the declaration's own
   case eliminators and its projection entries, because that is where the executable checks
   the generated types. Stating them in a smaller environment or context would need
   strengthening (section 5). For the same reason `Models` does not compare family types:
   only constructor types are compared, and family applications are required to be well typed.
-- **Restored eliminators in renaming replacement.** The transport of window derivations from
+- **Restored eliminators in renaming replacement.** The transport of recursor-checking derivations from
   a lowered nested declaration to its source
   (`Lean4Lean/Theory/Inductive/RestorationRenamingOnCtx.lean`) allows a lowered schema to be
   matched by a registered source schema with the same signature whose restoration agrees with
@@ -311,7 +315,7 @@ the executable's own branch selection. Primitive declarations (`Bool` and `Nat`,
 by `Primitive.checkInductive`) go through `Lean4Lean/Verify/Inductive/Primitive/`. For
 other declarations the verified lowering result decides: no auxiliary families means the
 ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
-(`Nested/Restoration/SourceTranslations.lean`, `NestedFinalSpecification.lean`). All three produce an
+(`Nested/Install/Result.lean`, `Nested/Restoration/SourceTranslations.lean`). All three produce an
 `InductiveExtension`.
 
 ### 3.2 Phases of the ordinary path
@@ -323,27 +327,27 @@ ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
   with the headers; positivity, the universe bound on fields and the result shape are
   verified, and each field is related to its strictly positive normal form (the
   `positiveFields` clause of `Models`).
-- **Constructor boundary** (`Constructor/CheckedFormation.lean`). From the data available once the
+- **Checked formation** (`Constructor/CheckedFormation.lean`). From the data available once the
   constructors are declared, the proof computes the source signature
   (`CheckedFormation.sourceSignature`, with `sourceSignature_models`) and the
   declaration's case eliminator `(first family, CaseSchema.ofCompilation decl signature [])`.
   Its certificate is kept in the monotone form `VInductDecl.CaseEliminators env decl reserved
   es`: `EliminatorsWF` over every extension of the source environment in which the
   `reserved` names are fresh and the declaration installs (an ordinary declaration reserves
-  no names, a nested one the names fresh in its production environment). Its views are
+  no names, a nested one the names fresh in its kernel environment). Its views are
   `EliminatorsReplay` at one environment, used to rebase the block certificate onto larger
-  safety models, and `EliminatorsWF` at the source environment. The window environment
+  safety models, and `EliminatorsWF` at the source environment. The recursor-checking environment
   `(ctors.addEliminators es).addProjections P` is shown well formed by `inductEliminators`
   and `inductProjections` (`VInductBlock.EliminatorsWF.recursorCheckingEnvWF`). The executable is
   unchanged by this: it has no case eliminators.
 - **Recursors** (`Recursor/`, 42k; `Rules/`, 27k). The executable's recursor
-  construction (first and second pass over the fields, elimination level, motives, minors,
+  construction (motive pass and minor pass over the fields, elimination level, motives, minors,
   induction hypotheses, rules) is shown to produce exactly the translation of the abstract
-  generator's output for one canonical `Instance`
+  generator's output for one `Instance`
   (`Recursor/Entries/TrRecursorVal.lean`, `Recursor/Metadata.lean`). Typing of the generated
   recursor types is not derived from the generator: it is read off the executable's check of
   each generated recursor type (`checkRecursorTypes`), which supplies `RecursiveTypesWF` in
-  the window environment; `FamilyTypesWF` likewise comes from checker runs in the window.
+  the recursor-checking environment; `FamilyTypesWF` likewise comes from checker runs there.
   Rules are proved well typed in the recursor
   environment (`Rules/EquationWF.lean`, `Rules/Translation.lean`, `Rules/RuleTranslations.lean`).
 - **Assembly** (`Install/BlockCertificate.lean`, `Install/`). The phases assemble into one
@@ -365,15 +369,15 @@ Nested declarations are verified by lowering and restoration (`Nested/`, 65k).
 `Nested/Lowering/Basic.lean` and `Nested/Restoration/ExprReplace.lean` (an exact, cache-independent
 specification of `Expr.replace`) verify the replacement of maximal nested occurrences by
 fresh auxiliary families and its correspondence with the abstract nested expansion. The
-lowered declaration runs the ordinary pipeline, including its own constructor boundary. The
+lowered declaration runs the ordinary pipeline, including its own checked formation. The
 restoration loop is then verified: restored constructors, restored recursor types and
-restored rules (`Nested/Restoration*.lean`, `Nested/EquationRestoration*.lean`). The
+restored rules (`Nested/Restoration/`, with the rules in `Nested/Restoration/Equations/`). The
 typing of restored equations is transported from the lowered recursor environment by a
 context-carrying renaming restoration substitution (`Nested/Restoration/Equations/WF.lean`), which
 replaces each auxiliary head by its restoration lambda and renames recursors and projection
 type names.
 
-The source block registers its own case eliminator: the boundary signature of the lowered
+The source block registers its own case eliminator: the checked-formation signature of the lowered
 run, under the same key, restored by the nested compilation's restoration
 (`Nested/CaseEliminators/Certificate.lean`), certified from the validated run.
 
@@ -471,7 +475,7 @@ separation (`VEnv.WF.headSeparationModel`, `Model/Separation.lean`): a sort has 
 observation, a Pi type a `piDom` observation, a rigid spine neither.
 
 Computation rules are handled by one pattern-rule clause (`Model/RuleSound.lean`): every
-stored rule (delta, quotient, native iota after restoration, generic case equation) is a
+stored rule (delta, quotient, recursor iota after restoration, generic case equation) is a
 lambda telescope over a head applied to bound variables, ignored terms and a constructor
 major. Fields are bound in one of three modes. When the major's family is not a proposition
 at the instance, they come from the major's constructor observations. When it is a
@@ -482,7 +486,7 @@ only field observations (structure eta forces this), so the rule is identified f
 head type and fields are bound from the major's field observations (`Model/EtaBind.lean`).
 
 **History induction.** Several semantic facts used by these cases come from derivations in
-earlier environments that are not subderivations of the node being interpreted: a native
+earlier environments that are not subderivations of the node being interpreted: an installed
 family's recorded result sort, the propositional typing of a singleton's proof fields, the
 soundness of a projection entry's constructor telescope and family header. Soundness is
 therefore proved along the declaration history (`WF'.envValid`, `Model/EnvValid.lean`): each
@@ -494,7 +498,7 @@ rule constructor. Constructor arities are read from the model (`Model/TeleArity.
 definitionally equal Pi telescopes ending in rigid spines have equal length, which a purely
 syntactic argument cannot give without head inversion.
 
-**The syntactic layer** (`HeadInjectivity/{Core,Uniqueness,FieldType,Fields}.lean`) turns the
+**The syntactic layer** (`HeadInjectivity/{ChainInjectivity,Uniqueness,FieldType,Fields}.lean`) turns the
 chain-level injectivity delivered by the model (`ChainHeadInjectivity`) into the injectivity
 fields of `HeadInversion`. Uniqueness up to chains and a congruence property are proved by
 one induction on the strong typing derivation, which makes `proj_fieldType` provable:
@@ -503,23 +507,24 @@ visits them. None of these files imports uniqueness or confluence.
 
 ### 4.2 Confluence
 
-`FullReduction.church_rosser` (`Lean4Lean/Theory/Typing/LevelledReduction.lean`, 4.7k) is
+`FullReduction.church_rosser` (`Lean4Lean/Theory/Typing/LevelledReduction.lean`, 4.6k) is
 proved by decreasing diagrams (`Lean4Lean/Theory/LevelledConfluence.lean`) over a split of the
 full step relation into four levels: normal equality without eta (levels, proof
-irrelevance), parallel reduction (beta, native and schema patterns), parallel delta
-(native and quotient prefix unfolding, projection of constructor applications), and parallel
+irrelevance), parallel reduction (beta, recursor and case-schema patterns), parallel delta
+(recursor and quotient prefix unfolding, projection of constructor applications), and parallel
 eta expansion. Function eta is not restricted to non-head positions, because the transports
 of computation through normal equality need expansions in function position.
 
-`VEnv.WF.params` (`Lean4Lean/Theory/Typing/WFParams.lean`) is the concrete instance for a
-well-formed environment, and
+The result for the declarative judgment is `IsDefEq.church_rosser` and
+`IsDefEq.full_church_rosser` (`Lean4Lean/Theory/Typing/FullChurchRosser.lean`): two
+definitionally equal terms reduce to normally equal terms. Both are stated under two
+hypothesis classes: `Params` (`ChurchRosser.lean`: the environment, its well-formedness, the
+registered recursor data and the stored patterns with their properties) and
+`FullEquationCoverage` (`FullReduction.lean`: both sides of every installed equation reduce
+to normally equal terms). This tree has no instance of either class for an arbitrary
+well-formed environment.
 
-```lean
-theorem WF.church_rosser {env : VEnv} (henv : env.WF) (heq : env.HasCanonicalEq)
-    (hΓ : OnCtx Γ (env.IsType U)) (H : env.IsDefEq U Γ e₁ e₂ A) : ...
-```
-
-Canonical `Eq` is needed for equation coverage: a native singleton equation at a universe
+Canonical `Eq` is needed for equation coverage: a recursor singleton equation at a universe
 specialization whose source is `Prop` is joined by reconstructing the constructor, and its
 proof fields are extracted by the recursor into `Prop` with the earlier data fields cast
 along `Eq`. In a well-formed `Eq`-free environment (the one of section 5.1) that equation is
@@ -527,7 +532,7 @@ not joinable (argued, not checked in Lean). Coherence of eliminators with projec
 (`VEnv.WF.eliminatorsCoherent`) is also needed. Confluence is not in the dependency cone of
 the top-level theorem.
 
-## 5. Strengthening, scoped caches and the corner
+## 5. Strengthening, scoped caches and constructor telescopes
 
 ### 5.1 Why declarative strengthening is not used
 
@@ -578,7 +583,7 @@ outer context without strengthening: every such binder is inhabited there (by `N
 the gadget's own arguments at it), and substituting the inhabitant leaves a term that does not
 mention the binder alone (`TrExprS.peel_outer`, `MLCtx.trExprS_dropN_nat`).
 
-### 5.3 The projection-walk corner
+### 5.3 Constructor telescopes for the projection walk
 
 `inferProj` walks the constructor telescope of a structure. Past a field binder whose body
 does not depend on it, the walk keeps the body without substituting anything, so the
@@ -707,13 +712,13 @@ wrapper name. The other changes cannot change a decision except through checker 
   `NestedRecursorReduction.lean`, `KNormalization.lean`, `ProjectionInference.lean`, `ProjectionReduction.lean`,
   `ProjectionWithoutCasesOn.lean`, `QuotInit.lean`, additions to `NestedInductive.lean` and
   `KernelHardening.lean`;
-- realizability: `CanonicalEq.lean`;
+- realizability: `PreludeEq.lean`;
 - the specification: `InductiveSignature.lean` (generated minors and hypotheses),
   `InductiveCompilation.lean`, `InductiveRestoration.lean` (simultaneous substitution),
   `InductiveTheory.lean`, `TypedInductiveCompilation.lean` (the compilation judgment is
   inhabited without unproved theorems), `SpecializedRecursorShape.lean`,
   `ProjectionSpecialization.lean` (a projection that becomes large after universe
-  specialization while the native recursor eliminates only into `Prop`);
+  specialization while the recursor eliminates only into `Prop`);
 - negative tests: `SortEquationRejection.lean`, `CorruptRecursorMetadata.lean`,
   `CorruptRestoredRecursorMetadata.lean` (corrupted metadata admits no certificate).
 - nested indexed families: `NestedIndexedFamily.lean` (nested occurrences of indexed families,
@@ -730,11 +735,12 @@ constructor, recursor or inductive type is rejected by the corresponding check.
 ## 9. Open
 
 - **Declarative strengthening with canonical `Eq`** is open: no counterexample and no proof.
-  Nothing in the verification uses it; the corner is resolved by the constructor certificates
+  Nothing in the verification uses it; the constructor telescopes walked by projection
+  inference are covered by the constructor certificates
   (section 5.3), which apply to environments built by the checker rather than to arbitrary
   well-formed abstract environments.
 - **Realizability** of the canonical hypotheses relies on test-checked facts about the
-  production declarations (section 1.3).
+  prelude's declarations (section 1.3).
 - **Confluence without `Eq`.** Non-joinability in the countermodel is argued, not checked.
 - **Inherited prototype sorries.** `Lean4Lean.Experimental` has 56 `sorry` declarations in the
   prototypes (`Thierry`, `Thierry2`, `LogRel`, `DomainTheory`, `MoreStepIndexed`, `Stronger`,
@@ -749,30 +755,31 @@ constructor, recursor or inductive type is rejected by the corresponding check.
 
 Suggested order, with sizes.
 
-1. The statements: `Lean4Lean/Verify/Environment.lean` (370 lines), `Lean4Lean/Theory/CanonicalEq.lean`,
+1. The statements: `Lean4Lean/Verify/Environment.lean` (440 lines), `Lean4Lean/Theory/CanonicalEq.lean`,
    `VEnvs.WF` in `Lean4Lean/Verify/TypeChecker.lean`.
 2. The calculus: `Lean4Lean/Theory/VExpr.lean`, `Lean4Lean/Theory/Typing/Basic.lean` (150),
    `Lean4Lean/Theory/VEnv.lean`, `Lean4Lean/Theory/Typing/Env.lean` (`VEnv.WF'`).
 3. The specification: `Lean4Lean/Theory/DeclarationData.lean`, `Lean4Lean/Theory/InductBlock.lean`,
-   `Lean4Lean/Theory/Inductive.lean` (1k; `VInductDecl.WF`, `AddInduct`, `EliminatorsWF`),
+   `Lean4Lean/Theory/Inductive.lean` (640; `VInductDecl.WF`, `AddInduct`, `EliminatorsWF`),
    `Lean4Lean/Theory/Inductive/{SignatureData,Signature,Compilation,Restoration,CaseSchema,CaseFormation}.lean`
-   (1.5k together), then `Formation.lean` (2k).
+   (1.3k together), then `Formation.lean` (1.6k).
 4. The corrections: `Lean4Lean/Theory/Typing/EliminatorCoherence.lean`,
    `SchemaStructCompat.lean`, `Instance.FreeTarget` in `Signature.lean`.
 5. The checker changes: the diff of `Lean4Lean/TypeChecker.lean` (1k), `VState.WF` and
    `leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean` (2k), `divergences.md`,
    `Lean4Lean/Tests/CacheScope.lean`.
-6. The corner: `Lean4Lean/Verify/Typing/TelescopeTranslation.lean` (`TelTrN`),
+6. Constructor telescopes: `Lean4Lean/Verify/Typing/TelescopeTranslation.lean` (`TelTrN`),
    `CtorTelescopes` in `TelescopeTranslationLemmas.lean`, `instantiateProjectionFields.WF_tel` in
    `Lean4Lean/Verify/TypeChecker/Projection.lean`, then `Verify/TypeChecker/GhostTelescope.lean`.
 7. Head inversion: `HeadInversionDefs.lean`, `HeadInversion.lean`, then
-   `HeadInjectivity/Model/{Classes,Obs,Interp,Sound}.lean` (3.2k), `RuleSound.lean`,
+   `HeadInjectivity/Model/{Classes,Obs,Interp,Sound}.lean` (3k), `RuleSound.lean`,
    `EtaBind.lean`, `ProjSound.lean`, `EnvValid.lean`, `Separation.lean`, and the syntactic layer
-   `HeadInjectivity/{Uniqueness,FieldType}.lean` (18k in total for the directory).
+   `HeadInjectivity/{ChainInjectivity,Uniqueness,FieldType}.lean` (16k in total for the directory).
 8. Confluence (outside the cone): `Lean4Lean/Theory/LevelledConfluence.lean`,
-   `Lean4Lean/Theory/Typing/LevelledReduction.lean` (4.7k), `WFParams.lean`.
-9. The inductive checker: `Lean4Lean/Inductive/Add.lean` (2.2k), then the pipeline:
-   `Lean4Lean/Verify/Inductive/Constructor/CheckedFormation.lean` (1k), `Context.lean` (3.5k),
+   `Lean4Lean/Theory/Typing/LevelledReduction.lean` (4.6k), `FullReduction.lean`,
+   `FullChurchRosser.lean`.
+9. The inductive checker: `Lean4Lean/Inductive/Add.lean` (1.6k), then the pipeline:
+   `Lean4Lean/Verify/Inductive/Constructor/CheckedFormation.lean` (1k), `Context.lean` (3k),
    `Header/` (7k), `Constructor/` (5.5k), `Recursor/` (42k), `Rules/` (27k), `Install/` (5k),
    `Primitive/` (4.5k), `Prelude/` (1k),
    `Nested/` (65k, starting from `CaseEliminators/Certificate.lean`, `Restoration/SourceTranslations.lean`,

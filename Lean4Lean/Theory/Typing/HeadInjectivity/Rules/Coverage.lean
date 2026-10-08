@@ -4,13 +4,10 @@ import Lean4Lean.Theory.Typing.ConstructorRigidity
 import Lean4Lean.Theory.Inductive.CaseRegistration
 import Batteries.Tactic.OpenPrivate
 
-/-! Coverage: every computation rule of a well-formed environment, and every
-generic case equation of a registered eliminator schema, has the pattern shape.
-
-The origin of an installed rule is recomputed here by induction on the
-declaration history (`VEnv.WF'.defeq_origin`) rather than taken from
-`WF'.nativeRegistry`, whose module transitively imports `ChurchRosser` and
-`HeadInversion`. -/
+/-! Pattern-shape facts about finite compilations: the restoration table
+specializes exactly the common parameters, and a restored recursor equation is
+never a bare constant. `VEnv.WF.deltaRules` (`Rules/Definitions.lean`) uses the
+latter to separate delta rules from recursor equations. -/
 
 namespace Lean4Lean
 open InductiveSignature
@@ -30,7 +27,7 @@ theorem InductiveSignature.CompilationData.restoration_nparams {s : InductiveSig
   · obtain ⟨ctor, _, rfl⟩ := List.mem_map.mp hhead
     exact hn.symm
 
-/-- A restored native recursor equation is never a bare constant. -/
+/-- A restored recursor equation is never a bare constant. -/
 theorem InductiveSignature.CompilationData.equation_not_const {s : InductiveSignature}
     {g : Instance s} (H : CompilationData env source expanded s g auxiliaries block)
     (index : Fin s.constructors.size) {df : VDefEq}
