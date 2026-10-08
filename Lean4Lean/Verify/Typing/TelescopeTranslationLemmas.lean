@@ -519,16 +519,14 @@ theorem TelTrN.constArrow
 
 /-! ### The environment invariant -/
 
-/-- The certificate of one constructor: its field count is the syntactic arity of its stored type
-beyond the parameters (as `AddInductive.constructorInfo` records it), and its stored type carries
-a telescope certificate along its whole syntactic `forallE` spine. -/
+/-- The certificate of one constructor: its stored type carries a telescope certificate along its
+whole syntactic `forallE` spine. -/
 def CtorTelescopeAt (venv : VEnv) (ci : ConstructorVal) : Prop :=
-  ci.numFields = AddInductive.constructorArity ci.type - ci.numParams ∧
   ∃ T, TelTrN venv ci.levelParams (AddInductive.constructorArity ci.type) [] ci.type T
 
 theorem CtorTelescopeAt.mono (henv : venv ≤ venv') :
     CtorTelescopeAt venv ci → CtorTelescopeAt venv' ci
-  | ⟨h1, T, h2⟩ => ⟨h1, T, h2.mono henv⟩
+  | ⟨T, h⟩ => ⟨T, h.mono henv⟩
 
 /-- Every constructor of the kernel environment `env` visible at `safety` is certified. This is
 the environment invariant that the projection walk of `inferProj` reads at its non-dependent
@@ -551,5 +549,63 @@ def ProjectionCorner (safety : DefinitionSafety) (env : Lean.Kernel.Environment)
 theorem ProjectionCorner.mono (H : ProjectionCorner safety env venv) (henv : venv ≤ venv') :
     ProjectionCorner safety env venv' :=
   H.imp (·.mono henv) (·.mono henv)
+
+end Lean4Lean
+
+/-! ### Transport along `Expr.eqv` (equality up to binder names and annotations) -/
+
+namespace Lean.Expr
+
+theorem hasLooseBVar'_eqv {e₁ e₂ : Expr} :
+    e₁ == e₂ → e₁.hasLooseBVar' k = e₂.hasLooseBVar' k := by
+  simp [(· == ·)]
+  induction e₁ generalizing e₂ k <;> (cases e₂ <;> try change false = _ → _; rintro ⟨⟩)
+  all_goals (try simp [Expr.eqv', hasLooseBVar']) <;> (try intros) <;> (try subst_vars) <;>
+    (try simp_all) <;> grind
+
+theorem liftLooseBVars'_eqv_inv {x y : Expr} {k d : Nat} :
+    liftLooseBVars' x k d == liftLooseBVars' y k d → x == y := by
+  simp [(· == ·)]
+  induction x generalizing y k <;> (cases y <;> simp [liftLooseBVars', Expr.eqv'])
+  all_goals grind
+
+end Lean.Expr
+
+theorem Lean4Lean.AddInductive.constructorArity_eqv {e₁ e₂ : Lean.Expr} :
+    e₁ == e₂ → AddInductive.constructorArity e₁ = AddInductive.constructorArity e₂ := by
+  simp [(· == ·)]
+  induction e₁ generalizing e₂ <;> (cases e₂ <;> try change false = _ → _; rintro ⟨⟩)
+  all_goals simp [Lean.Expr.eqv', AddInductive.constructorArity]
+  all_goals grind
+
+namespace Lean4Lean
+open Lean
+
+theorem TelTrN.eqv {e₁ e₂ : Expr} (H : TelTrN env Us n Δ e₁ e') (heq : e₁ == e₂) :
+    TelTrN env Us n Δ e₂ e' := by
+  induction H generalizing e₂ with
+  | zero h => exact .zero (h.eqv heq)
+  | @succ k Δ nm d b bi d' b' h1 _ h3 _ ih2 ih4 =>
+    cases e₂ with
+    | forallE nm₂ d₂ b₂ bi₂ =>
+      have hb : b == b₂ := by
+        simp only [(· == ·)] at heq ⊢
+        simp [Expr.eqv'] at heq ⊢; exact heq.2
+      refine .succ (h1.eqv heq) (ih2 hb) ?_ ?_
+      · intro c hc
+        have h0 : b.hasLooseBVar' 0 = false := by
+          rw [Expr.hasLooseBVar'_eqv hb, hc]; exact Expr.hasLooseBVar'_liftLooseBVars'_self
+        exact h3 _ (Expr.eq_liftLooseBVars'_lower h0)
+      · intro c c' hc hc'
+        have h0 : b.hasLooseBVar' 0 = false := by
+          rw [Expr.hasLooseBVar'_eqv hb, hc]; exact Expr.hasLooseBVar'_liftLooseBVars'_self
+        have hb0 := Expr.eq_liftLooseBVars'_lower h0
+        refine ih4 _ _ hb0 hc' (Expr.liftLooseBVars'_eqv_inv (k := 0) (d := 1) ?_)
+        rw [← hb0, ← hc]; exact hb
+    | _ => simp [(· == ·), Expr.eqv'] at heq
+
+theorem TelTr.eqv_toTelTrN {e₁ e₂ : Expr} (H : TelTr env Us Δ e₁ e') (heq : e₁ == e₂) :
+    TelTrN env Us (AddInductive.constructorArity e₂) Δ e₂ e' :=
+  (H.toTelTrN (Nat.le_of_eq (AddInductive.constructorArity_eqv heq).symm)).eqv heq
 
 end Lean4Lean

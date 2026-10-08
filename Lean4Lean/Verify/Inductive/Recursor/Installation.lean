@@ -695,8 +695,7 @@ theorem ConstructorListEntries.cornerSteps
     rcases hentry with rfl | htail
     · intro info e _
       cases e
-      refine hcert.imp id fun h => ⟨?_, h ctor List.mem_cons_self⟩
-      rw [AddInductive.constructorInfo_numFields]; rfl
+      exact hcert.imp id fun h => h ctor List.mem_cons_self
     · exact ih (hcert.imp id fun h c hc => h c (List.mem_cons_of_mem _ hc)) entry htail
 
 theorem ConstructorTypeEntries.cornerSteps

@@ -974,6 +974,11 @@ structure ProjectionRegistryAlignmentAt
   constructor_numParams : constructorInfo.numParams = familyInfo.numParams
   constructor_isUnsafe : constructorInfo.isUnsafe = familyInfo.isUnsafe
   constructor_numFields : constructorInfo.numFields = info.numFields
+  /-- The field count is the syntactic arity of the stored constructor type beyond the
+  parameters (`AddInductive.constructorInfo`); the projection walk reads it to know that the
+  stored type is a syntactic `forallE` spine up to the selected field. -/
+  constructor_arity : constructorInfo.numFields =
+    AddInductive.constructorArity constructorInfo.type - constructorInfo.numParams
   familyType : VExpr
   family_lookup : env.constants familyName = some ⟨info.uvars, familyType⟩
   constructor_abstract :
@@ -1014,6 +1019,7 @@ def ProjectionRegistryAlignmentAt.monoEnv
   constructor_numParams := H.constructor_numParams
   constructor_isUnsafe := H.constructor_isUnsafe
   constructor_numFields := H.constructor_numFields
+  constructor_arity := H.constructor_arity
   familyType := H.familyType
   family_lookup := henv.constants H.family_lookup
   constructor_abstract := henv.constants H.constructor_abstract
@@ -1041,6 +1047,7 @@ def ProjectionRegistryAlignmentAt.rebase
   constructor_numParams := H.constructor_numParams
   constructor_isUnsafe := H.constructor_isUnsafe
   constructor_numFields := H.constructor_numFields
+  constructor_arity := H.constructor_arity
   familyType := H.familyType
   family_lookup := henv.constants H.family_lookup
   constructor_abstract := henv.constants H.constructor_abstract
@@ -1411,6 +1418,8 @@ theorem ProjectionRegistryCoherent.extendInductive
           constructor_numFields := by
             rw [← hinfoEq, C.numFields_forallArity, hctorEq]
             rfl
+          constructor_arity := by
+            rw [← hinfoEq, C.numFields, C.numParams]
           familyType := owner.type
           family_lookup := by
             have h : owner.toVConstant = ⟨decl.uvars, owner.type⟩ := by
@@ -1498,6 +1507,8 @@ theorem InstalledInductiveProvenance.projectionRegistryCoherent
       rw [← hinfoEq, A.numParams, P.alignment.numParams]
     constructor_isUnsafe := by
       rw [← hinfoEq, A.isUnsafe, P.alignment.isUnsafe]
+    constructor_arity := by
+      rw [← hinfoEq, A.numFields, A.numParams]
     constructor_numFields := by
       rw [← hinfoEq, A.numFields_forallArity]
       have hctor0 : (P.decl.types[P.familyIdx]'P.alignment.familyIdx_lt).ctors[0]'

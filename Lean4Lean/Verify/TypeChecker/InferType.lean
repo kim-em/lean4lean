@@ -525,7 +525,8 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
       TelTrN c.venv c.lparams (AddInductive.constructorArity c_val.type) c.vlctx
         ((ConstantInfo.ctorInfo c_val).instantiateTypeLevelParams I_levels) T₀ := by
     intro hcert
-    obtain ⟨hnf, T, hT⟩ := hcert hcci (c.trenv.find?_uniq hcci hctor).2.1
+    have hnf := VContext.constructorArity hci hfc hsingle hcci hinduct'
+    obtain ⟨T, hT⟩ := hcert hcci (c.trenv.find?_uniq hcci hctor).2.1
     obtain ⟨T₁, hT₁, -⟩ := hT.instL_lequiv c.Ewf hls (h5.trans hlen.symm)
     cases hT₁.toTrExprS.uniqueS hT₀nil
     refine ⟨hnf, ?_⟩
