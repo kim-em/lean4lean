@@ -545,7 +545,8 @@ theorem AddInductive.declareConstructors.primitiveWF
       production := hproduction
       nonInductive := hnind
       translation := Htranslation
-      bootstrap := Hbootstrap
+      primitiveConstants := H.translation.primitiveAbstractConstants Hshape
+      safeEntries := hsafeEntries
       context := Hcontext
       contextVEnv := rfl
       contextMLCtx := rfl }, trivial⟩

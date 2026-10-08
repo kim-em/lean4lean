@@ -607,10 +607,10 @@ theorem NestedValidatedRunResult.projectionAuxiliaryOnCtx_of
   have hbase : (ves.venv (if isUnsafe then .unsafe else .safe)).WF := TrEnv'.wf wf.tr
   -- the final environment contains the source header environment
   have hvenvTypes : C.canonical.venvTypes = envTypes := by
-    have h1 := C.canonical.typesAdded.abstract
+    have h1 := C.canonical.abstract_types
     rw [C.typeValues, hadded] at h1
     exact (Option.some.inj h1).symm
-  have hctorsAdded := C.canonical.ctorsAdded.abstract
+  have hctorsAdded := C.canonical.abstract_ctors
   rw [C.constructorValues, hvenvTypes] at hctorsAdded
   have hleCtors : C.canonical.venvCtors ≤ C.finalBaseVEnv :=
     VEnv.addEliminators_addProjections_le.trans C.canonical.recursorsAdded.le

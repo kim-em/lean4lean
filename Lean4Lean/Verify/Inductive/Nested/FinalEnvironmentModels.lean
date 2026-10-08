@@ -102,7 +102,7 @@ def NestedFinalAssemblyCertificate.blockCertificate
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     (C : NestedFinalAssemblyCertificate H sourceEnv decl lparams nparams
       isUnsafe safety) :
-    BlockCertificate safety sourceProdEnv sourceEnv C.typeEntries
+    CompletedBlockCertificate safety sourceProdEnv sourceEnv C.typeEntries
       C.constructorEntries C.recursorEntries
       (C.primaryRules ++ C.auxiliaryRules) C.canonicalProdEnv
         C.finalBaseVEnv where
@@ -140,7 +140,7 @@ theorem NestedFinalAssemblyCertificate.block_eq_canonicalRestoredBlock
     C.blockCertificate.block =
       { canonicalRestoredBlock decl C.primaryRecursors C.auxiliaryRecursors
         C.primaryRules C.auxiliaryRules with eliminators := C.canonical.eliminators } := by
-  simp [BlockCertificate.block, canonicalRestoredBlock,
+  simp [CompletedBlockCertificate.block, canonicalRestoredBlock,
     NestedFinalAssemblyCertificate.blockCertificate, C.typeValues,
     C.constructorValues, C.recursorValues]
 
@@ -174,7 +174,7 @@ noncomputable def NestedFinalAssemblyCertificate.compilation
   have hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name)) := by
     rw [← hvalues]
-    exact VEnv.addConstVals_names_nodup C.canonical.productionTrace.abstract
+    exact VEnv.addConstVals_names_nodup C.canonical.combinedAtomic.abstract
   have Hcanonical := (C.realization.congr_eliminators C.canonical.eliminators).compiles
   refine { toNestedShapeCertificate := ?_, canonical := Hcanonical }
   exact NestedShapeCertificate.ofRestoration sourceEnv
@@ -338,7 +338,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
   let actual := Classical.choice HactualExists
   have hlookup : ∀ name, outEnv.constants.find? name =
       C.canonicalProdEnv.constants.find? name :=
-    actual.property.lookupEqOfPerm C.canonical.productionTrace.freshTrace
+    actual.property.lookupEqOfPerm C.canonical.combinedAtomic.freshTrace
       Hvalid.tr.map_wf (C.productionOrder actual.val actual.property)
   have hlookupEnv : ∀ name, outEnv.find? name =
       C.canonicalProdEnv.find? name := by
@@ -346,7 +346,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
     change outEnv.constants.find?' name =
       C.canonicalProdEnv.constants.find?' name
     rw [(actual.property.targetWF Hvalid.tr.map_wf).find?'_eq_find?,
-      (C.canonical.productionTrace.targetMapWF Hvalid.tr.map_wf).find?'_eq_find?]
+      (C.canonical.combinedAtomic.targetMapWF Hvalid.tr.map_wf).find?'_eq_find?]
     exact hlookup name
   have valid (observer : DefinitionSafety) :
       CheckingEnv.Valid observer sourceProdEnv (ves.venv observer) :=
@@ -355,7 +355,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
       wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   have replay (observer : DefinitionSafety) :
       ∃ replayBase,
-        ∃ Breplay : BlockCertificate observer sourceProdEnv
+        ∃ Breplay : CompletedBlockCertificate observer sourceProdEnv
           (ves.venv observer) C.typeEntries C.constructorEntries
           C.recursorEntries (C.primaryRules ++ C.auxiliaryRules)
           C.canonicalProdEnv replayBase,
@@ -388,7 +388,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
       abstractAddInduct_declWF Habstract
     have HcheckingRules : CheckingEnv observer outEnv Breplay.finalVEnv := {
       aligned := by
-        rw [BlockCertificate.finalVEnv]
+        rw [CompletedBlockCertificate.finalVEnv]
         exact aligned_addDefEqs Hchecking.aligned
           (C.primaryRules ++ C.auxiliaryRules)
       wf := by
@@ -604,7 +604,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
   have hperm := C.productionOrder actual.val actual.property
   have hlookup : ∀ name, outEnv.constants.find? name =
       C.canonicalProdEnv.constants.find? name :=
-    actual.property.lookupEqOfPerm C.canonical.productionTrace.freshTrace
+    actual.property.lookupEqOfPerm C.canonical.combinedAtomic.freshTrace
       Hvalid.tr.map_wf hperm
   have hlookupEnv : ∀ name, outEnv.find? name =
       C.canonicalProdEnv.find? name := by
@@ -612,7 +612,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
     change outEnv.constants.find?' name =
       C.canonicalProdEnv.constants.find?' name
     rw [(actual.property.targetWF Hvalid.tr.map_wf).find?'_eq_find?,
-      (C.canonical.productionTrace.targetMapWF Hvalid.tr.map_wf).find?'_eq_find?]
+      (C.canonical.combinedAtomic.targetMapWF Hvalid.tr.map_wf).find?'_eq_find?]
     exact hlookup name
   let F := C.finalEnvironment Hvalid
   have HcheckingRules : CheckingEnv .unsafe outEnv

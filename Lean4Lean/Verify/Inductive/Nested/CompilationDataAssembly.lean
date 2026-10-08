@@ -360,7 +360,7 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
         simp only [List.map_append, canonicalRestoredBlock]
         rw [C.typeValues, C.constructorValues, C.recursorValues]
       rw [← hvalues]
-      exact VEnv.addConstVals_names_nodup C.canonical.productionTrace.abstract }
+      exact VEnv.addConstVals_names_nodup C.canonical.combinedAtomic.abstract }
 
 end VerifyInductive
 end Lean4Lean

@@ -223,7 +223,7 @@ theorem NestedExactFinalRunResult.restoredConstructorParameterDomainsNative
     VEnv.addConstVals_le E.assembly.typesAdded
   have htypesCtors : E.assembly.canonical.venvTypes ≤
       E.assembly.canonical.venvCtors :=
-    VEnv.addConstVals_le E.assembly.canonical.ctorsAdded.abstract
+    VEnv.addConstVals_le E.assembly.canonical.abstract_ctors
   have hsourceCtors : sourceEnv ≤ E.assembly.canonical.venvCtors :=
     hsourceTypes.trans htypesCtors
   have hcanonicalWF : E.assembly.canonical.venvCtors.WF := by
