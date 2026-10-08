@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.TypeChecker.Reduce
+import Lean4Lean.Theory.Typing.ProjectionFamilyArity
 import Lean4Lean.Verify.EquivManager
 import Lean4Lean.Verify.Environment.Recursors
 import Lean4Lean.Std.List
@@ -523,6 +524,34 @@ theorem inductiveReduceRecTail.levelParamsIn {info : RecursorVal} {recFn : Name}
       (Expr.levelParamsIn_mkAppRange hrhsl hargs) hmargs) hargs
   · exact Expr.levelParamsIn_mkAppRange (Expr.levelParamsIn_mkAppRange hrhsl hargs) hmargs
 
+/-- The whnf of the type of a K-like major premise, an application of the major inductive at a
+sort, supplies exactly the parameters and indices of that inductive (unique typing and sort/Pi
+separation, `VEnv.HasType.mkApps_sort_arity`). -/
+theorem toCtorWhenK.majorType_size {info : RecursorVal} {A : Expr} {A' : VExpr} {u : VLevel}
+    (hK : ∃ ind ctorName, c.env.constants.find? info.getMajorInduct = some (.inductInfo ind) ∧
+      ind.ctors = [ctorName] ∧ KLikeAlignment c.venv info ctorName)
+    (hAS : c.TrExprS A A') (hAfn : A.getAppFn = .const info.getMajorInduct lsI)
+    (hsort : c.HasType A' (.sort u)) :
+    A.getAppArgs.size = info.numParams + info.numIndices := by
+  obtain ⟨ind, ctorName, -, -, indUvars, indType, -, indDoms, -, -, hIc, hInorm, hIlen, -⟩ := hK
+  have hAS' : c.TrExprS ((Expr.const info.getMajorInduct lsI).mkAppList A.getAppArgsList) A' := by
+    rwa [← hAfn, A.mkAppList_getAppArgsList]
+  have ⟨_, stk⟩ := AppStack.build hAS'
+  obtain ⟨lsI', AA', hlsI, rfl, hAargs, hAfull⟩ := stk.constantApplication
+  have hAA := hAS'.uniq c.Ewf (.refl c.Ewf c.Δwf) hAfull
+  have .const hlcI _ hlenI := stk.tr
+  rw [hIc] at hlcI; cases hlcI
+  have hlsI'len : lsI'.length = indUvars :=
+    (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 hlsI)).symm.trans hlenI
+  have hlsI'w := VLevel.WF.of_mapM_ofLevel hlsI
+  have hcI := VEnv.HasType.const (Γ := c.vlctx.toCtx) hIc hlsI'w (by simpa using hlsI'len)
+  have hcI := hcI.defeqU_r c.Ewf c.Δwf.toCtx ((hInorm.instL hlsI'w).weak0 c.Ewf.ordered)
+  rw [VExpr.instL_wrapForalls] at hcI
+  have hlen := VEnv.HasType.mkApps_sort_arity c.Ewf c.Δwf.toCtx hcI
+    (hsort.defeqU_l c.Ewf c.Δwf hAA)
+  rw [← Array.length_toList, Expr.getAppArgs_toList, Lean4Lean.List.Forall₂.length_eq hAargs,
+    hlen, List.length_map, hIlen]
+
 /-- Converting the major premise of a K-like recursor to the nullary constructor application
 yields a definitionally equal term, by proof irrelevance. -/
 theorem toCtorWhenK.WF_all {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : info.k = true)
@@ -540,34 +569,14 @@ theorem toCtorWhenK.WF_all {info : RecursorVal} {major : Expr} {m' : VExpr} (hk 
   refine (whnf.WF_below hTS).bind fun A _ _ ⟨hfvA, hlA, A', hAS, hAdefeq⟩ => ?_
   split <;> [rename_i I lsI hAfn; exact hid]
   split <;> [exact hid; rename_i hI]
-  split <;> [exact hid; rename_i hnargs]
   split <;> [exact hid; skip]
-  simp only [bne_iff_ne, ne_eq, Classical.not_not] at hI hnargs
+  simp only [bne_iff_ne, ne_eq, Classical.not_not] at hI
   subst hI
   obtain ⟨ind, ctorName, hind, hctors, indUvars, indType, ctorType,
     indDoms, ctorDoms, ctorBody, hIc, hInorm, hIlen, hCc, hCnorm, hClen, hparams⟩ := hK
   -- the nullary constructor application
   have hind' : c.env.find? info.getMajorInduct = some (.inductInfo ind) := by
     rw [Lean.Kernel.Environment.find?, c.trenv.map_wf.find?'_eq_find?]; exact hind
-  have hnullary : mkNullaryCtor c.env A info.numParams =
-      some ((Expr.const ctorName lsI).mkAppList (A.getAppArgsList.take info.numParams)) := by
-    unfold mkNullaryCtor
-    rw [Expr.withApp_eq, hAfn]
-    simp only [getFirstCtor, hind', hctors, List.head?_cons, Option.bind_eq_bind,
-      Option.bind_some, Option.some.injEq, Option.pure_def]
-    refine Expr.mkAppRange_eq (l₁ := []) (l₃ := A.getAppArgsList.drop info.numParams) ?_ rfl ?_
-    · rw [Expr.getAppArgs_toList, List.nil_append, List.take_append_drop]
-    · have hAsize : A.getAppArgs.size = info.numParams + info.numIndices := by
-        have h1 := congrArg List.length (Expr.getAppArgs_toList (e := A))
-        have h2 := congrArg List.length (Expr.getAppArgsList_reverse (e := A))
-        simp only [Array.length_toList, List.length_reverse] at h1 h2
-        rw [h1, h2, ← Expr.getAppNumArgs_eq, hnargs]
-      have h1 := congrArg List.length (Expr.getAppArgs_toList (e := A))
-      simp only [Array.length_toList] at h1
-      rw [List.nil_append, List.length_take, ← h1, hAsize,
-        Nat.min_eq_left (Nat.le_add_right _ _)]
-  rw [hnullary]
-  simp only
   -- the type of the major premise as an inductive application
   have hAS' : c.TrExprS ((Expr.const info.getMajorInduct lsI).mkAppList A.getAppArgsList) A' := by
     rwa [← hAfn, A.mkAppList_getAppArgsList]
@@ -579,15 +588,34 @@ theorem toCtorWhenK.WF_all {info : RecursorVal} {major : Expr} {m' : VExpr} (hk 
   have hlsI'len : lsI'.length = indUvars :=
     (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 hlsI)).symm.trans hlenI
   have hlsI'w := VLevel.WF.of_mapM_ofLevel hlsI
-  have hAAlen : AA'.length = info.numParams + info.numIndices := by
-    rw [← Lean4Lean.List.Forall₂.length_eq hAargs, ← List.length_reverse,
-      Expr.getAppArgsList_reverse, ← Expr.getAppNumArgs_eq, hnargs]
   have hAAwf := hAfull.wf c.Ewf c.Δwf
   -- the inductive application is a proposition, and its arguments are typed along its telescope
   have hcI := VEnv.HasType.const (Γ := c.vlctx.toCtx) hIc hlsI'w (by simpa using hlsI'len)
   have hcI := hcI.defeqU_r c.Ewf c.Δwf.toCtx
     ((hInorm.instL hlsI'w).weak0 c.Ewf.ordered)
   rw [VExpr.instL_wrapForalls] at hcI
+  -- the type of the major premise is a type, so it supplies the whole telescope
+  have hAAlen : AA'.length = info.numParams + info.numIndices := by
+    have ⟨_, hsortT⟩ := hT'.isType c.Ewf.ordered c.Δwf.toCtx
+    have hsortA := (hsortT.defeqU_l c.Ewf c.Δwf hAdefeq.symm).defeqU_l c.Ewf c.Δwf hAA
+    rw [VEnv.HasType.mkApps_sort_arity c.Ewf c.Δwf.toCtx hcI hsortA, List.length_map, hIlen]
+  have hnullary : mkNullaryCtor c.env A info.numParams =
+      some ((Expr.const ctorName lsI).mkAppList (A.getAppArgsList.take info.numParams)) := by
+    unfold mkNullaryCtor
+    rw [Expr.withApp_eq, hAfn]
+    simp only [getFirstCtor, hind', hctors, List.head?_cons, Option.bind_eq_bind,
+      Option.bind_some, Option.some.injEq, Option.pure_def]
+    refine Expr.mkAppRange_eq (l₁ := []) (l₃ := A.getAppArgsList.drop info.numParams) ?_ rfl ?_
+    · rw [Expr.getAppArgs_toList, List.nil_append, List.take_append_drop]
+    · have hAsize : A.getAppArgs.size = info.numParams + info.numIndices := by
+        rw [← Array.length_toList, Expr.getAppArgs_toList, Lean4Lean.List.Forall₂.length_eq hAargs,
+          hAAlen]
+      have h1 := congrArg List.length (Expr.getAppArgs_toList (e := A))
+      simp only [Array.length_toList] at h1
+      rw [List.nil_append, List.length_take, ← h1, hAsize,
+        Nat.min_eq_left (Nat.le_add_right _ _)]
+  rw [hnullary]
+  simp only
   have ⟨hIargs, hIsort⟩ := VEnv.HasType.mkApps_wrapForalls c.Ewf c.Δwf.toCtx hcI hAAwf
     (by simp [hAAlen, hIlen])
   simp only [VExpr.instL, VLevel.inst, VExpr.instOuter_sort] at hIsort
@@ -665,6 +693,49 @@ theorem foldl_app_proj (r : Expr) (n : Name) (e : Expr) (l : List Nat) :
   | nil => rfl
   | cons i l ih => simp [ih]
 
+theorem _root_.Lean4Lean.Kernel.Environment.isNonRecStructure_inv {env : Environment} {n : Name}
+    (h : env.isNonRecStructure n = true) :
+    ∃ sInfo : InductiveVal, ∃ ctor, env.find? n = some (.inductInfo sInfo) ∧
+      sInfo.ctors = [ctor] ∧ sInfo.numIndices = 0 := by
+  unfold Lean.Kernel.Environment.isNonRecStructure at h
+  split at h <;> [rename_i hfind; cases h]
+  exact ⟨_, _, hfind, rfl, rfl⟩
+
+/-- A type application of a family registered in the projection registry supplies exactly its
+parameters and indices: the family's type is a telescope ending in a sort, and an application
+of it at sort type has consumed the whole telescope (`HasType.mkApps_sort_arity`). -/
+theorem _root_.Lean4Lean.TypeChecker.VContext.projectionTypeArity (c : VContext) {n : Name}
+    {info : VProjectionInfo} (hinfo : c.venv.projections n info) {T : VExpr}
+    (hfam : c.venv.constants n = some ⟨info.uvars, T⟩) {ls : List VLevel} {args : List VExpr}
+    {u : VLevel} (h : c.HasType (VExpr.mkApps (.const n ls) args) (.sort u)) :
+    args.length = info.nparams + info.nindices :=
+  VEnv.HasType.projectionFamily_arity c.Ewf c.Δwf.toCtx hinfo hfam h
+
+/-- The type of a well-typed term whose head is a structure (a single-constructor family without
+indices) applies the structure to exactly the parameters of its constructor. This is what makes
+`args.shrink(nparams)` in the C++ `expand_eta_struct` a no-op. -/
+theorem _root_.Lean4Lean.TypeChecker.VContext.structTypeArgs {c : VContext} {A : Expr} {A' : VExpr}
+    {n ctor : Name} {lsI : List Level} {sInfo : InductiveVal} {mkInfo : ConstructorVal}
+    (hAS : c.TrExprS A A') (hAT : ∃ u, c.HasType A' (.sort u))
+    (hAfn : A.getAppFn = .const n lsI)
+    (hfind : c.env.find? n = some (.inductInfo sInfo)) (hsingle : sInfo.ctors = [ctor])
+    (hnind : sInfo.numIndices = 0)
+    (hci : c.env.find? ctor = some (.ctorInfo mkInfo)) (hinduct : mkInfo.induct = n) :
+    A.getAppArgs.size = mkInfo.numParams := by
+  have hAS' : c.TrExprS ((Expr.const n lsI).mkAppList A.getAppArgsList) A' := by
+    rwa [← hAfn, A.mkAppList_getAppArgsList]
+  have ⟨_, stk⟩ := AppStack.build hAS'
+  obtain ⟨lsI', P', hlsI, rfl, hPargs, hAfull⟩ := stk.constantApplication
+  have hAA := hAS'.uniq c.Ewf (.refl c.Ewf c.Δwf) hAfull
+  have .const hlcI _ _ := stk.tr
+  obtain ⟨info, hinfo, -, -, -, -, -, -, -, -, -, -, -, -, hnp, -, -, -, hsi, -, ⟨indType, hIc⟩,
+    -, -⟩ := VContext.registryShape hfind hlcI hsingle hci hinduct
+  obtain ⟨u, hAT⟩ := hAT
+  have hlen := c.projectionTypeArity hinfo hIc (hAT.defeqU_l c.Ewf c.Δwf hAA)
+  rw [← hsi, hnind, Nat.add_zero] at hlen
+  rw [← Array.length_toList, Expr.getAppArgs_toList, Lean4Lean.List.Forall₂.length_eq hPargs, hlen,
+    hnp]
+
 /-- Converting a term of structure type to its constructor applied to its projections yields a
 definitionally equal term, by structure eta. -/
 theorem toCtorWhenStruct.WF_all {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
@@ -698,13 +769,12 @@ theorem toCtorWhenStruct.WF_all {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
   simp only [hfind, hsingle, List.head?_cons]
   split <;> [rename_i mkInfo hci; exact hid]
   split <;> [exact hid; rename_i hguard']
-  split <;> [exact hid; rename_i hsize]
-  simp only [bne_iff_ne, ne_eq, Classical.not_not] at hsize
-  have hinduct : mkInfo.induct = n := by
-    revert hguard'; cases h : mkInfo.induct == n <;> simp [beq_iff_eq] at h ⊢ <;> simp [h]
-  have hunsafe : mkInfo.isUnsafe = sInfo.isUnsafe := by
-    revert hguard'; cases h : mkInfo.isUnsafe == sInfo.isUnsafe <;> simp [beq_iff_eq] at h ⊢ <;>
-      simp [h]
+  have hinduct : mkInfo.induct = n := by simpa using hguard'
+  -- the structure type supplies exactly the parameters
+  have hsize : A.getAppArgs.size = mkInfo.numParams := by
+    obtain ⟨_, hTsort⟩ := hT'.isType c.Ewf.ordered c.Δwf.toCtx
+    exact VContext.structTypeArgs hAS ⟨_, hTsort.defeqU_l c.Ewf c.Δwf hAdefeq.symm⟩ hAfn hfind
+      hsingle hnind hci hinduct
   rw [foldl_app_proj]
   have hnullary : mkAppRange (Expr.const ctor lsI) 0 mkInfo.numParams A.getAppArgs =
       (Expr.const ctor lsI).mkAppList A.getAppArgsList := by
