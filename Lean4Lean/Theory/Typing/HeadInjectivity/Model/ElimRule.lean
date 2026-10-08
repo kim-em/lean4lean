@@ -285,8 +285,9 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
     rw [Restoration.expr_sort, Option.some.injEq] at hb'
     subst hb'
     obtain ⟨mds, emds, lmds⟩ := binderTy_wrapForalls_sort hxget (target :: levels)
-    refine sound_pat_elim_empty henv hΔ hEu hb hrules hl hr hlsP hrc.1 hrc.2.1 hcrig huniq ihL.1
-      ihR fun σ S W tv o => ?_
+    refine sound_pat_elim_empty henv hΔ hEu hb hrules hl hr hlsP hrc.1 hrc.2.1 hcrig huniq
+      htype eT hlenH hkH (.inl ⟨hnp _, fun ⟨_, _, h, _⟩ => hnp _ _ h⟩) ihL.1 ihR
+      fun σ S W tv o => ?_
     refine rhs_empty_motive_ctx henv hΔ (doms := ds'.map (·.instL (target :: levels)))
       (by rw [ht, instL_wrapForalls'']) (by rw [hr, instL_wrapLams'])
       ihT.2 (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl)

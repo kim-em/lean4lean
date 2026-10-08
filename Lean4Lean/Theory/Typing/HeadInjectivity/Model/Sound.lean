@@ -478,7 +478,7 @@ theorem Obs.elim_typed {schema : InductiveSignature.CaseSchema}
     (ht : schema.genericType owner = some type) :
     TypedAt env U Δ (ElCls env U Δ (TyCls env U Δ (type.instL ls)) (.elim b owner.val ls))
       .id .empty (type.instL ls) o := by
-  obtain ⟨schema', owner', _, _, _, _, _, _, _, _, _, _, type', τs, _, _, _, _, _, _, _, ei, rfl,
+  obtain ⟨schema', owner', _, _, _, _, _, _, _, _, _, _, type', τs, _, _, _, _, _, _, _, _, ei, rfl,
     hb', -, -, -, -, ht', hτ, hty, -⟩ := Obs.elim_iff.1 h
   cases hEu _ _ _ hb hb'
   cases Fin.ext ei

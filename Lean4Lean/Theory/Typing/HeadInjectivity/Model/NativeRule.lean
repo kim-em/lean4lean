@@ -320,7 +320,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
     obtain ⟨mds, emds, lmds⟩ := motive_binderTy g index ls
     have hcl' : ((g.equation index).type.instL ls).ClosedN := hcl.1.2.instL
     refine sound_pat_empty henv hΔ hdf hl hr hlsP hcl.1.1 hcl.2.1 (hctor _ hcis) hctor hpctor hdr
-      huniq ihL.1 ihR fun σ S W tv o => ?_
+      huniq hci eH hlenH hkH (.inl ⟨hnpF, hnpC⟩) ihL.1 ihR fun σ S W tv o => ?_
     refine rhs_empty_motive henv hΔ (doms := (g.eqDoms index).map (·.instL ls))
       (by rw [g.equation_type_eq, instL_wrapForalls'']) (by rw [hr, instL_wrapLams'])
       hcl' ihT.2 (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl)
