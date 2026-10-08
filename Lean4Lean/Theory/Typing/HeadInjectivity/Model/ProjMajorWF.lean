@@ -28,10 +28,10 @@ theorem WF.caseCtor_const (H : env.WF) (h : Model.IsCaseCtor env c) :
   obtain ⟨rules, hrules, hmem, -⟩ := hgen
   obtain ⟨base, source, block, _, hle, hcert, _, hconsts⟩ := H.eliminator_origin hreg
   have hcert' := hcert
-  obtain ⟨expanded, g, aux, hdata, hprior, hr, -⟩ := hcert'
+  obtain ⟨expanded, aux, hdata, hprior, hr, -, hfresh⟩ := hcert'
   obtain ⟨j, -, e, _, hrestore⟩ := ShapeModel.Certified.generic_major hcert hrules hmem hm
   rw [hr] at hrestore
-  rcases ShapeModel.CompilationData.ctorApp_cases hdata j hrestore with
+  rcases ShapeModel.CaseCompilationData.ctorApp_cases hdata hfresh j hrestore with
     ⟨F, hF, _, c', hc', _, hmaj⟩ | ⟨a, ha, _, _, c', hc', _, hmaj⟩
   · obtain ⟨h1, -, -⟩ := ShapeModel.mkApps_const_inj hmaj.symm
     rw [← h1]
@@ -64,12 +64,12 @@ theorem container_ctor_native {base : VEnv} {aux : List ContainerSpecialization}
     ShapeModel.CertifiedSpecializations.member hprior ha
   obtain ⟨b'', exp', s', g', aux', hb'', hdata', hprior'⟩ := hcomp'.compilationOrigin
   have hfam_lt : a.family.val < s'.families.size :=
-    Nat.lt_of_lt_of_le a.family.isLt (ShapeModel.CompilationData.families_size_ge hdata')
+    Nat.lt_of_lt_of_le a.family.isLt (ShapeModel.CaseCompilationData.families_size_ge hdata'.toCaseCompilationData)
   let o' : Fin s'.families.size := ⟨a.family.val, hfam_lt⟩
   have hsrc : a.container.types[o'.val] = a.source := rfl
   have hc' : c ∈ a.container.types[o'.val].ctors := by rw [hsrc]; exact hc
   obtain ⟨j, hjown, hjname⟩ :=
-    (ShapeModel.CompilationData.source_slot hdata' o' a.family.isLt).2.1 c hc'
+    (ShapeModel.CaseCompilationData.source_slot hdata'.toCaseCompilationData o' a.family.isLt).2.1 c hc'
   have hjlt : s'.constructors[j].owner.val < a.container.types.length := by
     rw [hjown]; exact a.family.isLt
   obtain ⟨ρ, hρmem, hρ⟩ := Lean4Lean.List.Forall₂.forall_exists_l

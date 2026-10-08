@@ -4,9 +4,9 @@ import Lean4Lean.Theory.Typing.ShapeModel.EnvArity
 
 /-! # Field counts of compiled constructors, from soundness of the header environment
 
-`CompilationData.ctor_arity_sem`: the field count of a constructor of a compilation's normalized
+`CaseCompilationData.ctor_arity_sem`: the field count of a constructor of a compilation's normalized
 signature, plus its parameter count, is the syntactic arity of the source (or container)
-constructor type. It is `ShapeModel.CompilationData.ctor_arity` with the hypothesis
+constructor type. It is `ShapeModel.CaseCompilationData.ctor_arity` with the hypothesis
 `ForallArityRigid` replaced by the soundness, in the model of a later environment `envF`, of an
 environment containing the compilation's headers (`Model.tele_arity`): the restored normalized
 constructor type and the source constructor type are definitionally equal telescopes ending in
@@ -137,10 +137,11 @@ theorem directFamily_name {a : ContainerSpecialization} {uvars : Nat} {params : 
 /-- **Field counts of a compilation's equations against the source constructor arities**, from
 soundness of an environment `E` containing the compilation's headers (`ctor_arity` without
 `ForallArityRigid`). -/
-theorem CompilationData.ctor_arity_sem {envF base E : VEnv} {src exp : VInductDecl}
-    {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
+theorem CaseCompilationData.ctor_arity_sem {envF base E : VEnv} {src exp : VInductDecl}
+    {s : InductiveSignature} {aux : List ContainerSpecialization}
     {block : VInductBlock}
-    (hdata : CompilationData base src exp s g aux block)
+    (hdata : CaseCompilationData base src exp s aux block)
+    (hfresh : RecursorNamesFresh base src exp aux)
     (hprior : CertifiedSpecializations base aux)
     (hE : E.Ordered) (hEF : E ≤ envF)
     (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → Model.SoundEnvAtH envF E U Δ) (hle : base ≤ E)
@@ -184,7 +185,7 @@ theorem CompilationData.ctor_arity_sem {envF base E : VEnv} {src exp : VInductDe
   · left
     refine ⟨fam, hsrc, sc, hsc, hname', ?_, ?_⟩
     · rw [hname']
-      exact hdata.headName_source (List.mem_flatMap.mpr ⟨fam, hsrc,
+      exact hdata.headName_source hfresh (List.mem_flatMap.mpr ⟨fam, hsrc,
         List.mem_cons_of_mem _ (List.mem_map.mpr ⟨sc, hsc, rfl⟩)⟩)
     · obtain ⟨_, _, _, _, _, hraw⟩ := hdata.sourceParameters
       obtain ⟨doms, result, heq, _, _, hhead, harity⟩ := (hraw fam hsrc sc hsc).forallArity
@@ -192,7 +193,7 @@ theorem CompilationData.ctor_arity_sem {envF base E : VEnv} {src exp : VInductDe
         rw [heq, EndHead.wrapForalls]
         exact ⟨_, by rw [VExpr.forallResult_of_head hhead]; exact hhead⟩
       have hrigS : envF.Rigid fam.name := by
-        rw [hfn, hdata.headName_source (List.mem_flatMap.mpr ⟨fam, hsrc, List.mem_cons_self⟩)] at hrigF
+        rw [hfn, hdata.headName_source hfresh (List.mem_flatMap.mpr ⟨fam, hsrc, List.mem_cons_self⟩)] at hrigF
         exact hrigF
       rw [← hrestA]
       exact Model.tele_arity_end hE hEF hsnd hrestE hscE hrigR hrigS hdefeq'
@@ -225,9 +226,10 @@ theorem CompilationData.ctor_arity_sem {envF base E : VEnv} {src exp : VInductDe
 
 /-- The field count of a source-constructor equation (`source_arity` without
 `ForallArityRigid`). -/
-theorem CompilationData.source_arity_sem {envF base E : VEnv} {src exp : VInductDecl}
-    {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
-    {block : VInductBlock} (hdata : CompilationData base src exp s g aux block)
+theorem CaseCompilationData.source_arity_sem {envF base E : VEnv} {src exp : VInductDecl}
+    {s : InductiveSignature} {aux : List ContainerSpecialization}
+    {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)
+    (hfresh : RecursorNamesFresh base src exp aux)
     (hprior : CertifiedSpecializations base aux) (hE : E.Ordered) (hEF : E ≤ envF)
     (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → Model.SoundEnvAtH envF E U Δ) (hle : base ≤ E)
     (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
@@ -239,7 +241,7 @@ theorem CompilationData.source_arity_sem {envF base E : VEnv} {src exp : VInduct
   have hnd := hdata.sourceWF.2.1
   have hcn' : c.name ∈ familyNames src.types :=
     List.mem_flatMap.mpr ⟨F, hF, List.mem_cons_of_mem _ (List.mem_map.mpr ⟨c, hc, rfl⟩)⟩
-  rcases CompilationData.ctor_arity_sem hdata hprior hE hEF hsnd hle htypes j hrigF with
+  rcases CaseCompilationData.ctor_arity_sem hdata hfresh hprior hE hEF hsnd hle htypes j hrigF with
     ⟨F', hF', c', hc', hn', _, harity⟩ | ⟨a, ha, c', hc', hn', _, _⟩
   · have hcc : c' = c := by
       have hnd' := (List.nodup_append.mp hnd).2.1
@@ -253,9 +255,10 @@ theorem CompilationData.source_arity_sem {envF base E : VEnv} {src exp : VInduct
 
 /-- The field count of a container-constructor equation (`container_arity` without
 `ForallArityRigid`). -/
-theorem CompilationData.container_arity_sem {envF base E : VEnv} {src exp : VInductDecl}
-    {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
-    {block : VInductBlock} (hdata : CompilationData base src exp s g aux block)
+theorem CaseCompilationData.container_arity_sem {envF base E : VEnv} {src exp : VInductDecl}
+    {s : InductiveSignature} {aux : List ContainerSpecialization}
+    {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)
+    (hfresh : RecursorNamesFresh base src exp aux)
     (hprior : CertifiedSpecializations base aux) (hE : E.Ordered) (hEF : E ≤ envF)
     (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → Model.SoundEnvAtH envF E U Δ) (hle : base ≤ E)
     (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
@@ -264,7 +267,7 @@ theorem CompilationData.container_arity_sem {envF base E : VEnv} {src exp : VInd
       s.families[s.constructors[j].owner].name)) {a : ContainerSpecialization} (ha : a ∈ aux)
     {c : VConstVal} (hc : c ∈ a.source.ctors) (hcn : s.constructors[j].name = a.constructorName c) :
     s.constructors[j].fields.length + a.arguments.length = c.type.forallArity := by
-  rcases CompilationData.ctor_arity_sem hdata hprior hE hEF hsnd hle htypes j hrigF with
+  rcases CaseCompilationData.ctor_arity_sem hdata hfresh hprior hE hEF hsnd hle htypes j hrigF with
     ⟨F', hF', c', hc', hn', _, _⟩ | ⟨a', ha', c', hc', hn', _, harity⟩
   · exfalso
     have hcn' : c'.name ∈ familyNames src.types :=

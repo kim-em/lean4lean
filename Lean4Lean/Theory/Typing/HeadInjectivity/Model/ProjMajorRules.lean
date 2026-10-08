@@ -10,7 +10,7 @@ declaration of the rule (`projMajor_of_entry`): for a native rule the installing
 entry (`projMajor_source`), for a generic case equation the certified declaration's entry
 (`ProjectionsCoherent`), for a container constructor the container's entry
 (`projMajor_container`). The field count is the syntactic arity of the constructor, from
-soundness of the header environment (`CompilationData.source_arity_sem`).
+soundness of the header environment (`CaseCompilationData.source_arity_sem`).
 
 `ProjsClosed envF env`: the projection entries of `envF` whose constructor is a constructor of a
 rule of `env` are entries of `env`. It is carried down the declaration history (no later
@@ -53,14 +53,14 @@ theorem ProjsClosed.down {envF env0 env' : VEnv} (H : ProjsClosed envF env') (h0
 
 /-- The family slot of an auxiliary family: its restored head is the container family, and its
 result level is the container's at the specialization levels. -/
-theorem CompilationData.aux_slot {base : VEnv} {source expanded : VInductDecl}
-    {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
-    {block : VInductBlock} (C : CompilationData base source expanded s g aux block)
+theorem CaseCompilationData.aux_slot {base : VEnv} {source expanded : VInductDecl}
+    {s : InductiveSignature} {aux : List ContainerSpecialization}
+    {block : VInductBlock} (C : CaseCompilationData base source expanded s aux block)
     (o : Fin s.families.size) (ho : source.types.length ≤ o.val) {a : ContainerSpecialization}
     (ha : aux[o.val - source.types.length]? = some a) :
     (compilationRestoration source aux).headName s.families[o].name = a.source.name ∧
       s.families[o].resultLevel ≈ a.source.resultLevel.inst a.levels := by
-  obtain ⟨_, direct, _, hdirect, hlt, hrel⟩ := ShapeModel.CompilationData.family_slot C o
+  obtain ⟨_, direct, _, hdirect, hlt, hrel⟩ := ShapeModel.CaseCompilationData.family_slot C o
   have hrel' := List.mapM_eq_some.mp hdirect
   obtain ⟨hi, hai⟩ := List.getElem?_eq_some_iff.1 ha
   obtain ⟨hdi, hdf⟩ := ShapeModel.forall₂_getElem_exists hrel' (o.val - source.types.length) hi
@@ -88,9 +88,10 @@ theorem ProjMajor.congr_level {env : VEnv} {I c : Name} {np nf : Nat} {L L' : VL
 /-- **`ProjMajor` of a source family**, given that its entries in `envF` are entries of the
 source declaration and valid. -/
 theorem projMajor_of_entry {envF base E : VEnv} {source expanded : VInductDecl}
-    {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
+    {s : InductiveSignature} {aux : List ContainerSpecialization}
     {block : VInductBlock} (hF : envF.WF)
-    (C : CompilationData base source expanded s g aux block)
+    (C : CaseCompilationData base source expanded s aux block)
+    (hfresh : RecursorNamesFresh base source expanded aux)
     (hprior : CertifiedSpecializations base aux) (hE : E.Ordered) (hEF : E ≤ envF)
     (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → SoundEnvAtH envF E U Δ) (hbE : base ≤ E)
     (htypesE : ∀ t ∈ source.types, E.constants t.name = some t.toVConstant)
@@ -126,7 +127,7 @@ theorem projMajor_of_entry {envF base E : VEnv} {source expanded : VInductDecl}
     subst htt
     have hc0 : c = ctor0 := by rw [hctors] at hc; exact List.mem_singleton.1 hc
     subst hc0
-    have harity := CompilationData.source_arity_sem C hprior hE hEF hsnd hbE htypesE index hrigF
+    have harity := CaseCompilationData.source_arity_sem C hfresh hprior hE hEF hsnd hbE htypesE index hrigF
       hFm hc hcn
     have hnp : s.params.length = source.nparams := by rw [C.model.nparams, C.nparams]
     refine .inr ⟨_, hp, hPV, rfl, hnp.symm, ?_, VLevel.equiv_def'.2 rfl⟩
@@ -156,7 +157,7 @@ theorem projMajor_source {envF env0 installed base E : VEnv} {source expanded : 
       ((compilationRestoration source aux).headName s.constructors[index].name)
       s.params.length s.constructors[index].fields.length
       s.families[s.constructors[index].owner].resultLevel := by
-  obtain ⟨hfn, -, hctorOf⟩ := ShapeModel.CompilationData.source_slot C _ ho
+  obtain ⟨hfn, -, hctorOf⟩ := ShapeModel.CaseCompilationData.source_slot C.toCaseCompilationData _ ho
   obtain ⟨c, hc, hcn⟩ := hctorOf index rfl
   have hFm := List.getElem_mem ho
   have hfnF : s.families[s.constructors[index].owner].name ∈ familyNames source.types := by
@@ -165,7 +166,7 @@ theorem projMajor_source {envF env0 installed base E : VEnv} {source expanded : 
     List.mem_flatMap.mpr ⟨_, hFm, List.mem_cons_of_mem _ (List.mem_map.mpr ⟨c, hc, rfl⟩)⟩
   rw [C.headName_source hfnF, ← hcn, C.headName_source hcnF, hfn]
   -- the result level
-  obtain ⟨_, direct, _, _, hlt, hrel⟩ := ShapeModel.CompilationData.family_slot C
+  obtain ⟨_, direct, _, _, hlt, hrel⟩ := ShapeModel.CaseCompilationData.family_slot C.toCaseCompilationData
     s.constructors[index].owner
   have hget : (source.types ++ direct)[s.constructors[index].owner.val] =
       source.types[s.constructors[index].owner.val] := List.getElem_append_left ho
@@ -184,7 +185,7 @@ theorem projMajor_source {envF env0 installed base E : VEnv} {source expanded : 
   have hcconst : envF.constants c.name = some c.toVConstant :=
     hle.constants (VInductBlock.install_ctor_lookup hinst (by
       rw [C.ctors]; exact List.mem_flatMap.mpr ⟨_, hFm, hc⟩))
-  refine projMajor_of_entry hF C hprior hE hEF hsnd hbE htypesE index ho hrigF hc hcn hcconst
+  refine projMajor_of_entry hF C.toCaseCompilationData C.recursorNamesFresh hprior hE hEF hsnd hbE htypesE index ho hrigF hc hcn hcconst
     (.inl (hcis.mono fun _ => hle.defeqs)) fun info hp => ?_
   have hcn2 : c.name = info.ctorName := hF.ctor_of_projFamily hp
     (.inl (hcis.mono fun _ => hle.defeqs))
@@ -276,10 +277,10 @@ theorem projMajor_restored {envF env0 installed base E : VEnv} {source expanded 
     exact projMajor_source hF C hprior h0 hinst hle hpc hPV hE hEF hsnd hbE htypesE index ho hrigF
   · obtain ⟨hcn', rfl, hargs⟩ := ShapeModel.mkApps_const_inj hmaj
     have hms := (List.append_inj' hargs (by simp)).1
-    obtain ⟨hhd, hlev⟩ := CompilationData.aux_slot C _ hge haget
+    obtain ⟨hhd, hlev⟩ := CaseCompilationData.aux_slot C.toCaseCompilationData _ hge haget
     obtain ⟨_, _, _, _, hwf, _⟩ := C.correspondence
     have hargsl : a.arguments.length = a.container.nparams := (hwf a ha).1
-    have harity := CompilationData.container_arity_sem C hprior hE hEF hsnd hbE htypesE index
+    have harity := CaseCompilationData.container_arity_sem C.toCaseCompilationData C.recursorNamesFresh hprior hE hEF hsnd hbE htypesE index
       hrigF ha hc hcn
     have hpmC := projMajor_container (nf := s.constructors[index].fields.length) hF hprior hb0 hle0
       hpc0 hPV0 ha hc (by omega)
@@ -289,18 +290,22 @@ theorem projMajor_restored {envF env0 installed base E : VEnv} {source expanded 
       exact (hnz _ hmemF).of_equiv (VLevel.inst_congr_l hlev)
 
 /-- **`ProjMajor` at a generic case equation** of a registered certified schema, in the form taken
-by `ElimValid.of_certified`. `env` is the environment at the registration, whose projection
-entries of the certified declaration's families are that declaration's (`ProjectionsCoherent`). -/
+by `ElimValid.of_certified`. `env` is the environment at the registration; a projection entry
+of `envF` for a family of the certified declaration whose constructor is a case constructor of the
+registration is one of the declaration's own entries, and valid (`hsrc`). -/
 theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
-    {schema : CaseSchema} {g0 : Instance schema.signature} {aux : List ContainerSpecialization}
+    {schema : CaseSchema} {aux : List ContainerSpecialization}
     {block : VInductBlock} {key : Name} {owner : Fin schema.signature.families.size}
-    {rules : List VDefEq} {df : VDefEq} (hF : envF.WF) (hW : env.WF)
+    {rules : List VDefEq} {df : VDefEq} (hF : envF.WF) (hW : env.Ordered)
     (hle : env.addEliminator key schema ≤ envF)
-    (C : CompilationData base source expanded schema.signature g0 aux block)
+    (C : CaseCompilationData base source expanded schema.signature aux block)
+    (hfresh : RecursorNamesFresh base source expanded aux)
     (hprior : CertifiedSpecializations base aux)
     (hrr : schema.restoration = compilationRestoration source aux) (hble : base ≤ env)
-    (hpc : ProjsClosed envF (env.addEliminator key schema)) (V : EnvValid envF env)
-    (hcoh : source.ProjectionsCoherent env)
+    (hpc0 : ProjsClosed envF env) (V : EnvValid envF env)
+    (hsrc : ∀ F ∈ source.types, ∀ info, envF.projections F.name info →
+      IsCaseCtor (env.addEliminator key schema) info.ctorName →
+      (⟨F.name, info⟩ : VProjectionEntry) ∈ source.projectionEntries ∧ ProjValid envF F.name info)
     (hconsts : ∀ value ∈ block.types ++ block.ctors,
       env.constants value.name = some value.toVConstant)
     (hr : schema.genericEquations key owner = some rules) (hm : df ∈ rules)
@@ -329,9 +334,6 @@ theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
     rw [hreq', hmaj] at hm'
     obtain ⟨hc, -, -⟩ := mkApps_const_inj (VExpr.app.inj hm').2
     exact ⟨key, schema, owner, rule', .inl ⟨rfl, rfl⟩, hgen', hc.symm⟩
-  have hpc0 : ProjsClosed envF env := fun S info hp hc =>
-    hpc S info hp (Model.IsCtor.mono (env := env) (env' := env.addEliminator key schema)
-      (fun _ h => h) (fun _ _ h => .inr h) hc)
   have htypesE : ∀ t ∈ source.types, env.constants t.name = some t.toVConstant := fun t ht =>
     hconsts t.toVConstVal (List.mem_append_left _ (by rw [C.types]; exact List.mem_map_of_mem ht))
   have hsnd := V.soundAtH hF.ordered hle0
@@ -342,7 +344,7 @@ theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
       schema.signature.families[schema.signature.constructors[i].owner].name) := by
     rw [hfo, ← hrr]; exact hIrig
   rw [hrr] at hR ⊢
-  rcases ShapeModel.CompilationData.ctorApp_cases C i hR with
+  rcases ShapeModel.CaseCompilationData.ctorApp_cases C hfresh i hR with
     ⟨F, hF', hFget, c', hc', hcn, hmj⟩ | ⟨a, ha, hge, haget, c', hc', hcn, hmj⟩
   · obtain ⟨hcc, rfl, hargs⟩ := ShapeModel.mkApps_const_inj hmj
     subst hcc
@@ -364,18 +366,17 @@ theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
       ⟨_, _, hcconst, by
         show c'.type.forallResult.getAppFnArgs.1 = _
         rw [heq, VExpr.forallResult_wrapForalls, VExpr.forallResult_of_head hhead, hhead]⟩
-    have hpm := projMajor_of_entry hF C hprior hW.ordered hle0 hsnd hble htypesE i ho hrigF hc'
+    have hpm := projMajor_of_entry hF C hfresh hprior hW hle0 hsnd hble htypesE i ho hrigF hc'
       hcn hcconst hcis fun info hp => by
         have hcn2 : c'.name = info.ctorName := hF.ctor_of_projFamily hp hcis hcf
-        have hp0 : env.projections _ info := hpc _ _ hp (by rw [← hcn2]; exact .inr hcisE)
-        exact ⟨hcoh _ hFm info hp0, V.proj _ _ hp0⟩
-    obtain ⟨hfn, -, -⟩ := ShapeModel.CompilationData.source_slot C _ ho
+        exact hsrc _ hFm info hp (by rw [← hcn2]; exact hcisE)
+    obtain ⟨hfn, -, -⟩ := ShapeModel.CaseCompilationData.source_slot C _ ho
     have hhd : (compilationRestoration source aux).headName
         schema.signature.families[owner].name =
         source.types[schema.signature.constructors[i].owner.val].name := by
       rw [← hfo, hfn]
-      exact C.headName_source (List.mem_flatMap.mpr ⟨_, hFm, List.mem_cons_self⟩)
-    obtain ⟨_, direct, _, _, hlt, hrel⟩ := ShapeModel.CompilationData.family_slot C
+      exact C.headName_source hfresh (List.mem_flatMap.mpr ⟨_, hFm, List.mem_cons_self⟩)
+    obtain ⟨_, direct, _, _, hlt, hrel⟩ := ShapeModel.CaseCompilationData.family_slot C
       schema.signature.constructors[i].owner
     rw [List.getElem_append_left ho] at hrel
     have hlev := hrel.resultLevel
@@ -392,10 +393,10 @@ theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
   · obtain ⟨hcc, rfl, hargs⟩ := ShapeModel.mkApps_const_inj hmj
     subst hcc
     have hms := (List.append_inj' hargs (by simp)).1
-    obtain ⟨hhd, hlev⟩ := CompilationData.aux_slot C _ hge haget
+    obtain ⟨hhd, hlev⟩ := CaseCompilationData.aux_slot C _ hge haget
     obtain ⟨_, _, _, _, hwf, _⟩ := C.correspondence
     have hargsl : a.arguments.length = a.container.nparams := (hwf a ha).1
-    have harity := CompilationData.container_arity_sem C hprior hW.ordered hle0 hsnd hble htypesE
+    have harity := CaseCompilationData.container_arity_sem C hfresh hprior hW hle0 hsnd hble htypesE
       i hrigF ha hc' hcn
     have hpmC := projMajor_container (nf := schema.signature.constructors[i].fields.length) hF hprior
       hble hle0 hpc0 V.proj ha hc' (by omega)
