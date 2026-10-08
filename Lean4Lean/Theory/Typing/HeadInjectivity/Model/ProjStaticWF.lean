@@ -404,5 +404,63 @@ theorem WF.native_projFamily_ctor {s : InductiveSignature} {g : Instance s}
   rw [hfcn] at hfc'
   exact (henv.ctor_of_projFamily hp (.inl hcisN) ⟨_, _, hfc', hfch⟩).symm
 
+/-- **The major of a stored equation whose constructor is projection-registered** splits after
+exactly `info.nparams` arguments into the innermost bound variables: every major position
+`q ≥ info.nparams` holds a bare variable. -/
+theorem WF.defeq_major_projCtor (henv : env.WF) (hdf : env.defeqs df)
+    (hm : df.lhs.stripLams = .app fn (VExpr.mkApps (.const c ls) args))
+    (hp : env.projections S info) (hc : info.ctorName = c) :
+    ∃ ps nf, args = ps ++ vars nf 0 ∧ ps.length = info.nparams := by
+  obtain ⟨k, ps, nf, hk, hargs, hlen, -⟩ := ShapeModel.defeq_major henv hdf hm
+  rw [← hc, ShapeModel.ctorOf_projection henv hp] at hk
+  cases hk
+  exact ⟨ps, nf, hargs, hlen⟩
+
+theorem vars_getElem?' {count below i : Nat} (h : i < count) :
+    (vars count below)[i]? = some (.bvar (below + (count - 1 - i))) := by
+  simp [vars, h]
+
+/-- A list of the form `vars P (E + F) ++ vars F 0` with `E ≥ 1` splits as `ps ++ vars nf 0`
+only after at least `P` elements. -/
+theorem vars_split_le {P E F : Nat} {ps : List VExpr} {nf : Nat} (hE : 1 ≤ E)
+    (h : vars P (E + F) ++ vars F 0 = ps ++ vars nf 0) : P ≤ ps.length := by
+  refine Nat.le_of_not_lt fun hlt => ?_
+  have hl := congrArg List.length h
+  simp only [List.length_append, vars_length'] at hl
+  have h1 : (vars P (E + F) ++ vars F 0)[P - 1]? = some (.bvar (E + F)) := by
+    rw [List.getElem?_append_left (by simp; omega), vars_getElem?' (by omega)]
+    congr 2; omega
+  have h2 : (ps ++ vars nf 0)[P - 1]? = some (.bvar F) := by
+    rw [List.getElem?_append_right (by omega), vars_getElem?' (by omega)]
+    congr 2; omega
+  rw [h, h2] at h1
+  have := VExpr.bvar.inj (Option.some.inj h1)
+  omega
+
+/-- For an ordinary native equation whose owner family is projection-registered, the
+registered parameter count is at least the number of non-field arguments of the major
+(`(eqMs index).length = s.params.length`), and the major's arguments from position
+`info.nparams` on are the innermost bound variables. -/
+theorem WF.native_projFamily_nparams {s : InductiveSignature} {g : Instance s}
+    {base' installed : VEnv} (henv : env.WF)
+    (C : CompilationData base source expanded s g [] block)
+    (hinst : block.install base' = some installed) (hle : installed ≤ env)
+    (index : Fin s.constructors.size) (hdf : env.defeqs (g.equation index))
+    (hp : env.projections s.families[s.constructors[index].owner].name info) :
+    (eqMs index).length ≤ info.nparams ∧
+      ∃ ps nf, eqMs index ++ (eqFs index).map .bvar = ps ++ vars nf 0 ∧
+        ps.length = info.nparams := by
+  have hc := henv.native_projFamily_ctor C hinst hle index hp
+  obtain ⟨ps, nf, hargs, hlen⟩ := henv.defeq_major_projCtor hdf
+    (by rw [g.equation_lhs_eq, VExpr.stripLams_wrapLams, Model.mkApps_concat]; rfl) hp hc
+  refine ⟨?_, ps, nf, hargs, hlen⟩
+  rw [← hlen]
+  have hE : 1 ≤ s.families.size + s.constructors.size := by
+    have := s.constructors[index].owner.isLt; omega
+  have hfs : (eqFs index).map VExpr.bvar = vars s.constructors[index].fields.length 0 := by
+    simp [eqFs, vars]
+  simp only [eqMs, Nat.add_zero, hfs] at hargs ⊢
+  simpa using vars_split_le hE hargs
+
 end VEnv
 end Lean4Lean
