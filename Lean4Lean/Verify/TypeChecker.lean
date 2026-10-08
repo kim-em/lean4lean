@@ -24,7 +24,7 @@ structure VEnvs.WFCore (env : Environment) (ves : VEnvs) where
     safety env.constants (ves.venv safety)
   mono : safety ≤ safety' → ves.venv safety' ≤ ves.venv safety
 
-/-- The unsafe observer sees every production inductive, so the persistent
+/-- The unsafe observer sees every kernel inductive, so the persistent
 semantic invariant also supplies safety-independent exact constructor
 metadata coherence. -/
 theorem VEnvs.WFCore.inductiveConstructorsCoherent
@@ -41,8 +41,8 @@ theorem VEnvs.WFCore.projectionRegistryCoherent
   wf.inductFamiliesInstalled.projectionRegistryCoherent
 
 /-- Every visible constructor of `env` carries a telescope certificate at every safety level
-(`CtorTelescopes`). This is the environment invariant that resolves the projection-walk corner
-of `inferProj`. -/
+(`CtorTelescopes`). This is the environment invariant that makes the non-dependent field walk
+of `inferProj` sound (section 5.3 of `docs/inductives/DESIGN.md`). -/
 def VEnvs.AllCtorTelescopes (env : Environment) (ves : VEnvs) : Prop :=
   ∀ safety, CtorTelescopes safety env (ves.venv safety)
 
@@ -78,8 +78,8 @@ theorem VEnvs.CtorTelescopesPreserved.addNonCtor {env : Environment} {ves ves' :
     (hle safety) hnot
 
 /-- Certificate preservation for an inductive installation: every constructor of the output is
-old, or a new constructor of the declaration (with its safety flag) certified in an abstract
-environment below the output model at the declaration's safety. Old constructors keep their
+a base constructor, or a new constructor of the declaration (with its safety flag) certified in an abstract
+environment below the output model at the declaration's safety. Base constructors keep their
 certificates by monotonicity; a new one is visible only to observers at most as strict as the
 declaration's safety, whose models extend the declaration's. -/
 theorem VEnvs.CtorTelescopesPreserved.ofOrigin {env env' : Environment} {ves ves' : VEnvs} {isUnsafe : Bool}
@@ -106,9 +106,10 @@ theorem VEnvs.ofPointwiseExists {P : DefinitionSafety → VEnv → Prop}
   have ⟨x1, _⟩ := H .safe; have ⟨x2, _⟩ := H .partial; have ⟨x3, _⟩ := H .unsafe
   exact ⟨⟨fun | .safe => x1 | .partial => x2 | .unsafe => x3⟩, by rintro ⟨⟩ <;> assumption⟩
 
-/-- The type checker's model of `env` at one safety level.  Staged declaration
-checking only requires the active safety level, together with projection
-metadata coherence for every visible completed constructor. -/
+/-- The type checker's model of `env` at one safety level.  Checking a declaration
+only requires the active safety level, together with projection-registry
+coherence for every visible singleton family whose constructor is present, and
+recursor and quotient coherence. -/
 structure VEnvAt (env : Environment) (safety : DefinitionSafety) (venv : VEnv) : Prop where
   tr : TrEnv safety env venv
   hasPrimitives : VEnv.HasPrimitives venv
