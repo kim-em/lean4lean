@@ -21,13 +21,13 @@ declaration nor its constructor translations are supplied by the caller (section
 
 /-- Two runs of the deterministic header-validation fold (`ValidationHeaderStep`)
 have the same endpoint. -/
-theorem ConstructorValidationSteps.headerTarget_eq
-    (Hleft : ConstructorValidationSteps
+theorem FoldSteps.headerTarget_eq
+    (Hleft : FoldSteps
       (fun indType : InductiveType => fun source target =>
         ValidationHeaderStep loweredEnv
         allIndNames indType.name source target)
       types sourceEnv leftTarget)
-    (Hright : ConstructorValidationSteps
+    (Hright : FoldSteps
       (fun indType : InductiveType => fun source target =>
         ValidationHeaderStep loweredEnv
         allIndNames indType.name source target)
@@ -52,7 +52,7 @@ private theorem installRestoredSourceConstructors
     (Hle : canonicalEnv ≤ currentVEnv)
     (Hsource : RestoredConstructorTranslations result loweredEnv lparams safety
       canonicalEnv names traceProdEnv traceTargetEnv sources constructors)
-    (Hvalidation : ConstructorValidationSteps
+    (Hvalidation : FoldSteps
       (ValidationConstructorStep result loweredEnv false)
       names currentProdEnv targetProdEnv) :
     ∃ targetVEnv,
@@ -149,7 +149,7 @@ private theorem installRestoredSourceFamilies
     (Hrestoration : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       remainingSources restorationSource restorationTarget)
-    (Hvalidation : ConstructorValidationSteps
+    (Hvalidation : FoldSteps
       (ValidationFamilyStep result loweredEnv false)
       remainingSources currentProdEnv targetProdEnv)
     (HremainingHeaders : List.Forall₂
