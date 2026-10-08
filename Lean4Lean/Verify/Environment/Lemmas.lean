@@ -40,7 +40,7 @@ private theorem find?_add_cases
     rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
     exact hfind
 
-/-- What a constant installation must supply for the projection-walk corner: nothing for a
+/-- What a constant installation must supply for the constructor telescopes: nothing for a
 non-constructor; for a visible constructor, its telescope certificate (stated in the environment
 before the installation, which is where the constructor was checked). -/
 def _root_.Lean4Lean.CtorTelescopeStep (safety : DefinitionSafety) (venv : VEnv)
@@ -216,7 +216,7 @@ theorem MutualInductiveClosure.addConstant
   subst info
   exact H.parameters member oldInfo hmember hold
 
-/-- A fresh non-inductive production constant preserves complete mutual-block
+/-- A fresh non-inductive kernel constant preserves complete mutual-block
 metadata. -/
 theorem MutualInductivesClosed.addNonInductive
     {ci : ConstantInfo}
@@ -296,8 +296,8 @@ def CtorParamsAgreeAt.addConstant
     toCtorInfoCoherentAt :=
       H.toCtorInfoCoherentAt.addConstant hwf hfresh }
 
-/-- Transport one semantic constructor witness across an arbitrary
-production-environment extension once the exact constructor lookup has been
+/-- Transport `CtorParamsAgreeAt` across an arbitrary
+kernel-environment extension once the exact constructor lookup has been
 shown to survive.  All semantic fields only require monotonicity of the
 abstract environment. -/
 def CtorParamsAgreeAt.rebaseKernel
@@ -319,7 +319,7 @@ theorem CtorParamsAgree.mono
   rcases H familyName familyInfo hfamily hvisible i hi with ⟨C⟩
   exact ⟨C.mono hle⟩
 
-/-- A fresh non-inductive production constant and any monotone abstract
+/-- A fresh non-inductive kernel constant and any monotone abstract
 extension preserve visible constructor semantics. -/
 theorem CtorParamsAgree.addNonInductive
     {ci : ConstantInfo}
@@ -335,9 +335,9 @@ theorem CtorParamsAgree.addNonInductive
   · rcases H familyName familyInfo hold hvisible i hi with ⟨C⟩
     exact ⟨C.addConstant hwf hfresh hle⟩
 
-/-- A fresh mutual-definition fold changes no inductive metadata.  All old
-semantic witnesses may be transported directly to the final abstract model,
-then retained while the remaining production definitions are inserted. -/
+/-- A fresh mutual-definition fold changes no inductive metadata.  All existing
+`CtorParamsAgreeAt` facts may be transported directly to the last abstract environment,
+then retained while the remaining kernel definitions are inserted. -/
 theorem CtorParamsAgree.addDefinitions
     (H : CtorParamsAgree safety env venv)
     (hwf : env.constants.WF) :
@@ -369,7 +369,7 @@ theorem CtorParamsAgree.addDefinitions
       · exact hnodup.2
       · exact VEnv.LE.rfl
 
-/-- Rebase an observer across a production extension whose genuinely new
+/-- Rebase an observer across a kernel extension whose genuinely new
 inductive headers are all hidden at that observer's safety. -/
 theorem InductFamiliesInstalled.rebaseHidden
     (H : InductFamiliesInstalled safety source env)
@@ -392,7 +392,7 @@ theorem InductFamiliesInstalled.rebaseHidden
       exact ⟨P.mono (by simpa [P.name] using hfind) hpreserves VEnv.LE.rfl⟩
 
 /-- A fresh mutual-definition fold contains no inductive headers and hence
-preserves installed declaration provenance. -/
+preserves `InductFamiliesInstalled`. -/
 theorem InductFamiliesInstalled.insertDefs
     (H : InductFamiliesInstalled safety C env)
     (hwf : C.WF) : ∀ (cis : List DefinitionVal),
@@ -716,9 +716,9 @@ nonrec theorem TrEnv.of_value (H : TrEnv safety env venv) (h : env.find? name = 
   H.of_value (by rwa [← H.map_wf.find?'_eq_find?]) hs hv
 
 /-- The fragment of `TrEnv` needed by the executable type checker. Unlike
-`TrEnv`, this invariant does not assert that the current production environment
-was assembled from complete declarations, so it can also describe the staged
-header/constructor environments used while checking an inductive block. -/
+`TrEnv`, this invariant does not assert that the current kernel environment
+was assembled from complete declarations, so it can also describe the
+header and constructor environments used while checking an inductive block. -/
 structure CheckingEnv (safety : DefinitionSafety) (env : Environment) (venv : VEnv) : Prop where
   aligned : Aligned safety env.constants venv
   wf : venv.WF
@@ -809,7 +809,7 @@ theorem CheckingEnv.safePrimitives_add (H : CheckingEnv safety env venv)
     rw [Lean.Kernel.Environment.find?, H.map_wf.find?'_eq_find?]
     exact hfind
 
-/-! ## Recursor rules and quotient facts along the environment trace -/
+/-! ## Recursor rules and quotient facts along the declaration history -/
 
 theorem insertDefs_find?_of_find? : ∀ {cis : List DefinitionVal} {C : ConstMap} {name ci}, C.WF →
     (∀ d ∈ cis, C.find? d.name = none) → (cis.map (·.name)).Nodup →
