@@ -21,6 +21,7 @@ ROOTS = {
     "Lean4Lean.addDecl.WFHasCanonicalEq",
     "Lean4Lean.addQuot.WF",
     "Lean4Lean.Replay.replayFresh.WF",
+    "Lean4Lean.Replay.replayFresh.WF_target",
     "Lean4Lean.Replay.replayPure.WF_fromImports",
     "Lean4Lean.Replay.Replayed.foldlM",
     "Lean4Lean.VEnv.QuotRegistered.propInhabitant_app",
