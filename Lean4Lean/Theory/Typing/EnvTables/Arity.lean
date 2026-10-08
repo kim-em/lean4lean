@@ -1,17 +1,15 @@
 import Lean4Lean.Theory.Typing.EnvTables.EquationShape
 
 /-!
-# Field counts of recursor equations versus constructor arities
+# Syntactic arity of constant-ended telescopes
 
-A compiled declaration describes its constructors by a *normalized* signature whose constructor
-types are only definitionally equal to the source constructor types (`Models.constructors`,
-`RestoresFamily.constructors`). The number of fields of a recursor equation is the normalized
-count, while the constructor tables count the syntactic binders of the source constructor
-type. Equating the two needs that definitionally equal telescopes ending in constant
-applications have the same length (`ForallArityRigid`), a consequence of Pi injectivity and
-rigid/Pi separation. It is *not* derivable in the uniqueness-free base, so it is a hypothesis
-here; it is used only in the header environment of the compilation, which lies below the
-environment in which the equation is installed.
+`teleArity` counts the binders of a forall telescope ending in a constant application, and the
+lemmas here transport it along substitution, universe instantiation, restoration, parameter
+specialization and container specialization. They are the syntactic half of the arity
+comparison between a compilation's normalized constructor types and the source constructor
+types; the semantic half (definitionally equal telescopes ending in rigid spines have equal
+length) is `Model.tele_arity`, and the comparison itself is
+`CaseCompilationData.ctor_arity_sem` in `HeadInjectivity/Model/CtorArity.lean`.
 -/
 
 namespace Lean4Lean.EnvTables
@@ -27,14 +25,6 @@ def isConstApp : VExpr → Bool
 def teleArity : VExpr → Option Nat
   | .forallE _ b => (teleArity b).map (· + 1)
   | e => if isConstApp e then some 0 else none
-
-/-- Definitionally equal telescopes ending in constant applications have the same length. -/
-def ForallArityRigid (env : VEnv) : Prop :=
-  ∀ {U : Nat} {e e' : VExpr} {n m : Nat}, teleArity e = some n → teleArity e' = some m →
-    env.IsDefEqU U [] e e' → n = m
-
-theorem ForallArityRigid.mono {env env' : VEnv} (H : ForallArityRigid env') (hle : env ≤ env') :
-    ForallArityRigid env := fun h h' ⟨_, hd⟩ => H h h' ⟨_, hd.mono hle⟩
 
 theorem isConstApp_mkApps : isConstApp (VExpr.mkApps (.const c ls) args) = true := by
   suffices ∀ f, isConstApp f = true → isConstApp (VExpr.mkApps f args) = true from
@@ -215,65 +205,5 @@ theorem addConstVals_le_of {base E envTypes : VEnv} {cis : List VConstVal}
       · rw [VEnv.addConst_defeqs hadd] at hd; exact hle.defeqs hd
       · rw [VEnv.addConst_projections hadd] at hp; exact hle.projections hp
       · rw [VEnv.addConst_eliminators hadd] at he; exact hle.eliminators he
-
-/-- Field counts of a compilation's equations against the source constructor arities. -/
-theorem CaseCompilationData.ctor_arity {base E : VEnv} {src exp : VInductDecl}
-    {s : InductiveSignature} {aux : List ContainerSpecialization}
-    {block : VInductBlock}
-    (hdata : CaseCompilationData base src exp s aux block)
-    (hrfresh : RecursorNamesFresh base src exp aux)
-    (hprior : ContainersInstalled base aux)
-    (hP : ForallArityRigid E) (hle : base ≤ E)
-    (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
-    (index : Fin s.constructors.size) :
-    (∃ F ∈ src.types, ∃ c ∈ F.ctors, s.constructors[index].name = c.name ∧
-      (compilationRestoration src aux).headName s.constructors[index].name = c.name ∧
-      s.params.length + s.constructors[index].fields.length = c.type.forallArity) ∨
-    (∃ a ∈ aux, ∃ c ∈ a.source.ctors, s.constructors[index].name = a.constructorName c ∧
-      (compilationRestoration src aux).headName s.constructors[index].name = c.name ∧
-      s.constructors[index].fields.length + a.arguments.length = c.type.forallArity) := by
-  obtain ⟨envTypes, direct, hT, hdirect, _, hfamilies⟩ := hdata.correspondence
-  have hTE : envTypes ≤ E := addConstVals_le_of hT hle (fun ci hci => by
-    obtain ⟨t, ht, rfl⟩ := List.mem_map.mp hci; exact htypes t ht)
-  have hP' : ForallArityRigid envTypes := hP.mono hTE
-  obtain ⟨fam, hfam, hrel⟩ := Lean4Lean.List.Forall₂.forall_exists_l hfamilies _
-    (s.declarationFamily_mem s.constructors[index].owner)
-  obtain ⟨sc, hsc, hname, _, restored, hres, hdefeq⟩ :=
-    Lean4Lean.List.Forall₂.forall_exists_l hrel.constructors _ (s.declarationCtor_family index)
-  have hnorm : teleArity (s.declarationCtor index).type =
-      some (s.params.length + s.constructors[index].fields.length) := by
-    have := teleArity_ctorShape (doms := s.params ++ s.fieldTypes s.constructors[index])
-      (c := s.families[s.constructors[index].owner].name) (ls := VLevel.params s.uvars)
-      (args := vars s.params.length s.constructors[index].fields.length ++
-        s.constructors[index].indices)
-    simpa [declarationCtor, constructorType, familyApp, fieldTypes] using this
-  have hrestA := teleArity_restore hnorm hres
-  have hname' : s.constructors[index].name = sc.name := hname
-  rcases List.mem_append.mp hfam with hsrc | hdir
-  · left
-    refine ⟨fam, hsrc, sc, hsc, hname', ?_, ?_⟩
-    · rw [hname']
-      exact hdata.headName_source hrfresh (List.mem_flatMap.mpr ⟨fam, hsrc,
-        List.mem_cons_of_mem _ (List.mem_map.mpr ⟨sc, hsc, rfl⟩)⟩)
-    · obtain ⟨_, _, _, _, _, hraw⟩ := hdata.sourceParameters
-      obtain ⟨doms, result, heq, _, _, hhead, harity⟩ := (hraw fam hsrc sc hsc).forallArity
-      have hsrcA : teleArity sc.type = some sc.type.forallArity := by
-        rw [harity, heq]; simpa using teleArity_wrapForalls (doms := doms) (teleArity_of_head hhead)
-      exact hP' hrestA hsrcA hdefeq
-  · right
-    obtain ⟨a, ha, hdf⟩ := Lean4Lean.List.Forall₂.forall_exists_r
-      (List.mapM_eq_some.mp hdirect) fam hdir
-    obtain ⟨c, hc, t, hspec, hdcn, hdct⟩ := directFamily_ctor hdf hsc
-    refine ⟨a, ha, c, hc, hname'.trans hdcn, ?_, ?_⟩
-    · rw [hname', hdcn]
-      exact hdata.headName_auxiliary_constructor ha hc
-    · obtain ⟨_, ls, hres'⟩ := (hprior.container_ctor a ha c hc)
-      have hcA := teleArity_instL (teleArity_of_forallResult hres') a.levels
-      obtain ⟨hk, htA⟩ := teleArity_specializeType hcA hspec
-      have hscA : teleArity sc.type = some (s.params.length + (c.type.forallArity -
-          a.arguments.length)) := by
-        rw [hdct]; exact teleArity_wrapForalls htA
-      have := hP' hrestA hscA hdefeq
-      omega
 
 end Lean4Lean.EnvTables
