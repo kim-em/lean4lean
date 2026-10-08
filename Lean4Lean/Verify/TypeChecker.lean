@@ -116,11 +116,19 @@ structure VEnvAt (env : Environment) (safety : DefinitionSafety) (venv : VEnv) :
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
-  recursors : RecursorEnvCoherent safety env.constants venv
-  quot : env.quotInit = true → QuotEnvCoherent env.constants venv
   constructorOwners : VerifyInductive.ConstructorOwnersPresent env
   listedConstructors : VerifyInductive.ListedConstructorsCoherent env
   listedPresent : VerifyInductive.ListedConstructorsPresent env
+
+/-- Recursor coherence of a single-level model, derived from its translation. -/
+theorem VEnvAt.recursors (wf : VEnvAt env safety venv) :
+    RecursorEnvCoherent safety env.constants venv :=
+  wf.tr.recursorEnvCoherent
+
+/-- Quotient coherence of a single-level model, derived from its translation. -/
+theorem VEnvAt.quot (wf : VEnvAt env safety venv) (hq : env.quotInit = true) :
+    QuotEnvCoherent env.constants venv :=
+  wf.tr.quotEnvCoherent hq
 
 theorem VEnvs.WFCore.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (safety : DefinitionSafety) : VEnvAt env safety (ves.venv safety) where
@@ -131,8 +139,6 @@ theorem VEnvs.WFCore.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WFCore
   listedConstructors := wf.inductiveConstructorsCoherent.listed
   listedPresent := wf.inductiveConstructorsCoherent.present
   projectionRegistry := wf.projectionRegistryCoherent
-  recursors := wf.tr.recursorEnvCoherent
-  quot := wf.tr.quotEnvCoherent
 
 namespace TypeChecker
 open Inner
