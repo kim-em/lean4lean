@@ -13,17 +13,17 @@ container constructor names with the container prefix replaced by
   lies in the reserved `_nested` namespace; `restorableNames_lit`: hence no
   literal mentions a restorable name.
 * `NestedRun.loweredRulesAvoid_auxRecNames`: the lowered rules
-  avoid the lowered auxiliary recursor names (trailing arguments of hits of
+  avoid the lowered auxiliary recursor names (trailing arguments of head occurrences of
   any head list, literals, parameter domains). The recursor names are fresh
   in the recursor-pass environment (`auxRecNames_fresh_ctorEnv`: the
-  recursor installation adds them), so the hit-shape invariant holds at them
-  at every level list (`envParamUniform_auxRecNames`); the trailing provenance
+  recursor installation adds them), so the parameter-uniformity invariant holds at them
+  at every level list (`envParamUniform_auxRecNames`); the trailing-argument chain
   chain `ruleRhsTrail` admits the recursor names (their occurrences in the
   rules are the heads of the recursive calls), and running it at two
   different level lists excludes them from trailing positions
   (`TrailingArgs.toTrailingArgsAvoid_two`).
 * `NestedRun.loweredRules_projsOK`: the lowered rules project
-  out of no restorable name. The projection condition of the hit-shape chain
+  out of no restorable name. The projection condition of the parameter-uniformity chain
   (`RecursorConstruction.ruleRhsProjsOK`) excludes the auxiliary
   families and constructors; the translation of a rule in the recursor-pass
   environment registers only base structures and lowered families, which
@@ -40,7 +40,7 @@ namespace Lean.Expr
 
 open Lean4Lean
 
-/-- **Two trailing hit shapes at different levels give trailing avoidance.** -/
+/-- **Two trailing parameter-uniformity facts at different levels give trailing avoidance.** -/
 theorem TrailingArgs.toTrailingArgsAvoid_two {heads names X : List Name} {np : Nat}
     {ls ls' : List Level} {e : Expr}
     (H : TrailingArgs heads np (ParamUniform names [] ls) e)
@@ -254,9 +254,9 @@ namespace RecursorConstruction
 
 variable (H : RecursorConstruction R)
 
-/-- **The projection condition of one rule blueprint**: its field
+/-- **The projection condition of one rule template**: its field
 declarations and its recursive-call templates satisfy the projection
-condition of the hit-shape chain. -/
+condition of the parameter-uniformity chain. -/
 theorem templateProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads)
     (W : WhnfPreservesParamUniform heads stats.params.toList stats.levels H.localContext.env)
     (owner : Nat) (howner : owner < H.recInfos.size) (localIndex : Nat)
@@ -372,7 +372,7 @@ theorem templateProjsOK {heads : List Name} (I : H.ParamUniformDeclarations head
     exact ⟨_, hfind, (hargs y hy _ hfind).1.declProjsOK⟩
 
 /-- **Generated rule right-hand sides satisfy the projection condition** of
-the hit-shape chain: they are built from the parameters, motives and minor
+the parameter-uniformity chain: they are built from the parameters, motives and minor
 premises of the recursor type, the constructor fields, and the recursive-call
 templates, whose substituent (a recursor applied to free variables) has no
 projection. -/
@@ -573,7 +573,7 @@ theorem checkerPrimNames_not_reserved : ∀ n ∈ checkerPrimNames, (`_nested).i
 theorem strLitNames_not_reserved : ∀ n ∈ strLitNames, (`_nested).isPrefixOf n = false := by
   decide
 
-/-- **The environment condition of the hit-shape invariant at the lowered
+/-- **The environment condition of the parameter-uniformity invariant at the lowered
 recursor names**, without parameters, at any level list: the lowered
 recursor names are not constants of the recursor-pass environment, and no
 constant's type, value or rule mentions them. -/
@@ -707,7 +707,7 @@ theorem NestedRun.envParamUniform_auxRecNames
     · cases heq
     · cases heq
 
-/-- **The trailing-provenance inputs at the lowered recursor names**, at any
+/-- **The inputs of the trailing-argument chain at the lowered recursor names**, at any
 level list. -/
 theorem NestedRun.trailingArgDeclarations_auxRecNames
     (E : NestedRun result sourceProdEnv sourceTypes
@@ -791,7 +791,7 @@ theorem badLevels_ne_badLevels₂ (lparams : List Name) : foreignLevels lparams 
   simp [foreignLevels, badLevels₂] at this
 
 /-- **Input-side avoidance of the lowered recursor names by the lowered
-rules.** The trailing provenance chain runs at the lowered recursor names
+rules.** The trailing-argument chain runs at the lowered recursor names
 without parameters at two different level lists (`foreignLevels`, `badLevels₂`):
 the recursor-pass environment does not contain them and no constant mentions
 them (`envParamUniform_auxRecNames`), and the recursive calls put the recursors
@@ -843,7 +843,7 @@ theorem AddConstants.projections_eq {safety : DefinitionSafety} {env : Environme
   | cons _ _ _ _ hadd _ _ ih => rw [ih, VEnv.addConst_projections hadd]
 
 /-- **The lowered rule right-hand sides project out of no restorable name.**
-The projection condition of the hit-shape chain (`ruleRhsProjsOK`) excludes
+The projection condition of the parameter-uniformity chain (`ruleRhsProjsOK`) excludes
 projections out of the auxiliary families and constructors, and the
 translation of the right-hand side in the recursor-pass environment registers
 only base structures and lowered families, none of which is an auxiliary
@@ -871,7 +871,7 @@ theorem NestedRun.loweredRules_projsOK
   have howner : owner.val < P.recInfos.size := by rw [← P.generated.length]; exact hi
   have hrule' : rule ∈ (P.generated.entry owner.val hi).info.rules := by
     rw [hinfo]; exact hrule
-  -- the projection condition of the hit-shape chain
+  -- the projection condition of the parameter-uniformity chain
   have W := E.whnfPreservesParamUniform wf Hsources
   rw [← E.statsLevels] at W
   have h1 : rule.rhs.ProjsOK (projAvoidsHeads P.localContext.env E.uniformHeads) := by

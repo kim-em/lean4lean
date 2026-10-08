@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.ProjectionRenaming
 
-/-! The projection transport of the restored-equation route in well-formed
-contexts, with no hypothesis.
+/-! Transport of the projection rules along the restoration substitution of the
+restored equations, in well-formed contexts, with no hypothesis.
 
 The renaming restoration substitution of `Nested/Restoration/Equations/WF.lean`
 transports projection rules through `ProjectionRulesRenamedOnCtx`, which only
@@ -9,9 +9,9 @@ asks for the rules in well-formed image contexts. There beta conversion of a
 typed term is beta subject reduction (`VExpr.BetaRed.simAt`) and level
 equivalence is definitional equality (`VExpr.LEquiv.defeq`).
 
-* Primary projections (of original structures): the transported lowered
+* Source projections (of source structures): the transported lowered
   constructor type beta reduces to the source constructor type registered by
-  the final environment (`ProjectionRulesRenamedOnCtx.of_ctorType_betaRed`).
+  the recursor environment (`ProjectionRulesRenamedOnCtx.of_ctorType_betaRed`).
 * Auxiliary projections (of an auxiliary structure-like family `A`, renamed to
   its container `J`): the restoration lambdas of `A` and its constructor are
   `λ params, J levels args` and `λ params, J.c levels args`. The generated
@@ -381,8 +381,8 @@ end VExpr
 
 namespace VerifyInductive
 
-/-- **Primary projections in well-formed contexts.** A lowered projection of
-an original structure transports to the final environment, which registers
+/-- **Source projections in well-formed contexts.** A lowered projection of
+a source structure transports to the recursor environment, which registers
 the source structure's projection: the transported lowered constructor type
 beta reduces to the source constructor type. -/
 theorem NestedRun.projectionSourceOnCtx_of
@@ -544,7 +544,7 @@ theorem NestedRun.projectionSourceOnCtx_of
 /-- **Auxiliary projections in well-formed contexts.** A lowered projection
 of an auxiliary structure-like family `A` (lowered from the specialization of
 a structure-like container family `J` with constructor `J.c`) transports to
-the final environment, renamed to `J`, whose projection is registered by the
+the recursor environment, renamed to `J`, whose projection is registered by the
 installed container: the transported field types of `A` are, up to beta
 reduction and level equivalence, those of `J` at the instantiated
 specialization arguments. -/
@@ -600,7 +600,7 @@ theorem NestedRun.projectionAuxiliaryOnCtx_of
   have hordered := henvTypes.ordered
   have hPN := E.constructorProjNames_of wf hadded Haux Hexpansion hnodup
   have hbase : (ves.venv (if isUnsafe then .unsafe else .safe)).WF := TrEnv'.wf wf.tr
-  -- the final environment contains the source header environment
+  -- the recursor environment contains the source header environment
   have hvenvTypes : C.install.venvTypes = envTypes := by
     have h1 := C.install.abstract_types
     rw [C.typeValues, hadded] at h1
@@ -815,12 +815,12 @@ theorem NestedRun.projectionAuxiliaryOnCtx_of
       (hPsrcLen.trans hloweredNparams.symm) hTle hcsplit hQlen hBclosed
       hev.argumentsLength.symm hev.levelsLength.symm hΓ hlv hF
 
-/-- **`RestorationSubstitutionPremises` for every restoration table and final
-assembly base of the run**, with no hypothesis: the projection-name fields
+/-- **`RestorationSubstitutionPremises` for every restoration table and
+`RestoredBlockBase` of the run**, with no hypothesis: the projection-name fields
 are `restoredEquationProjNames_of` and `eliminatorProjNames_of`, the
 auxiliary constructor lambdas are typed by
 `restoredEquationAuxiliaryConstructors_of`, and the lowered projections
-transport in well-formed contexts (`projectionSourceOnCtx_of` for original
+transport in well-formed contexts (`projectionSourceOnCtx_of` for source
 structures, `projectionAuxiliaryOnCtx_of` for auxiliary structure-like
 families). -/
 theorem NestedRun.restoredEquationGaps
@@ -853,9 +853,9 @@ theorem NestedRun.restoredEquationGaps
   · exact E.projectionSourceOnCtx_of wf Hsources auxiliaries D B hB hV entry hentry hTN
 
 /-- **`HrestoredWF` of `NestedRun.hruleShape_of_base`**: every
-restored generated equation is well formed in the final abstract environment
-of a final assembly base in which the stripped output environment is valid.
-This is `hrestoredWF_of_gaps` with the gaps of `restoredEquationGaps`. -/
+restored generated equation is well formed in the abstract recursor environment
+of a `RestoredBlockBase` in which the stripped output environment is valid.
+This is `hrestoredWF_of_gaps` with the premises supplied by `restoredEquationGaps`. -/
 theorem NestedRun.hrestoredWF_of
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}

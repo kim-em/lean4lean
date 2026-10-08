@@ -1,5 +1,12 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ParameterOpening
 
+/-! The steps of the executable nested restoration (`restoreNestedDeclarations` in
+`Lean4Lean/Inductive/Add.lean`) as relations: rule, recursor and constructor
+restoration, the header, constructor and recursor restoration steps, the generic
+fold relation `FoldSteps`, fresh extensions (`FreshExtension`), and the two folds
+of a nested restoration run (`NestedRestorationFolds`: source families, then
+auxiliary recursors). Section 3.3 of `docs/inductives/DESIGN.md`. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -10,7 +17,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Exact rule-level restoration contract used by `processRec`. -/
+/-- Restoration of one recursor rule, as performed by `restoreRule`. -/
 structure RuleRestoration
     (result : Lean4Lean.ElimNestedInductive.Result)
     (env : Environment) (auxRec : NameMap Name)
@@ -102,9 +109,9 @@ structure RecursorRestoration
   k : newInfo.k = oldInfo.k
   isUnsafe : newInfo.isUnsafe = oldInfo.isUnsafe
 
-/-- Exact restored telescope, including the canonical motive application at
-its residual.  This is the syntactic certificate consumed by the independent
-source-side nested recursor specification. -/
+/-- The restored recursor type is a forall telescope whose residual is the
+motive application of the executable recursor result (`concreteRecursorResult`).
+This is the syntactic fact used by `RecursorRestoration.nestedRecursorShape`. -/
 theorem RecursorRestoration.typeConcreteRecursorResultForallTelescope
     (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
       indTypes recInfos ownerIdx entry)
@@ -134,10 +141,9 @@ theorem RecursorRestoration.typeConcreteRecursorResultForallTelescope
     (ownerIdx := ownerIdx) (by simpa using howner)
   simpa only [Nat.add_assoc] using Htype'
 
-/-- The exact operational trace relevant to semantic transport of a generated
-primary recursor: common parameters are opened once, every remaining domain
-is paired with its restored domain, and the canonical motive-application
-residual is unchanged. -/
+/-- The executable restoration of a generated source recursor type: the common
+parameters are opened once, every remaining domain is paired with its restored
+domain, and the motive-application residual is unchanged. -/
 structure RestoredRecursorTelescope
     (result : Lean4Lean.ElimNestedInductive.Result)
     (prodEnv : Environment) (auxRec : NameMap Name)
@@ -204,8 +210,8 @@ theorem RecursorRestoration.generatedTelescopeTrace
   exact ⟨⟨Hopen, by
     simpa [numMotives, numMinors, numIndices, recResult] using Hsuffix⟩⟩
 
-/-- The operational restoration suffix and the generated semantic suffix are
-aligned on the same parameter-closed concrete body. -/
+/-- The executable restoration suffix and the generated suffix are aligned on
+the same parameter-closed executable body. -/
 structure RestoredRecursorTelescopeAlignment
     (result : Lean4Lean.ElimNestedInductive.Result)
     (prodEnv : Environment) (auxRec : NameMap Name)
@@ -233,9 +239,8 @@ structure RestoredRecursorTelescopeAlignment
       recInfos[ownerIdx]!.indices.size + 1)
     oldSuffixTarget
 
-/-- The retained opening and suffix traces determine the complete telescope
-of the exact restored recursor, independently of any semantic translation of
-its domains. -/
+/-- The opening and the suffix replacement determine the complete telescope of
+the restored recursor, independently of any translation of its domains. -/
 theorem RestoredRecursorTelescopeAlignment.restoredForallTelescope
     {recInfos : Array AddInductive.RecInfo} {ownerIdx : Nat}
     {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
@@ -323,9 +328,9 @@ theorem RecursorRestoration.generatedTelescopeAlignment
   · rw [hbody]
     simpa [suffixArity] using Hsuffix
 
-/-- A canonical translation of the restored recursor telescope is already a
-well-formed abstract type.  The final major-premise binder makes the telescope
-nonempty, so no separate abstract-WF callback is necessary. -/
+/-- A translation of the restored recursor telescope is already a well-formed
+abstract type. The final major-premise binder makes the telescope nonempty, so
+no separate well-formedness premise is needed. -/
 theorem RecursorRestoration.translatedTypeIsType
     (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
       indTypes recInfos ownerIdx entry)
@@ -342,10 +347,10 @@ theorem RecursorRestoration.translatedTypeIsType
     Hentry Hselections howner hnoalias hparams
   exact TrExprS.isType_of_forallTelescope Htelescope (by omega) Htranslation
 
-/-- Construct the independent source nested-recursor specification directly
-from the restored production telescope translated in the canonical source
-environment.  No lowered abstract recursor is reused: its auxiliary-bearing
-type need not even be well-formed in `canonicalEnv`. -/
+/-- The source nested-recursor shape (`VInductDecl.NestedRecursorShape`), obtained
+from the restored kernel recursor type translated in the source environment
+`canonicalEnv`. No lowered abstract recursor is used: its type mentions auxiliary
+families and need not even be well-formed in `canonicalEnv`. -/
 theorem RecursorRestoration.nestedRecursorShape
     (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
       indTypes recInfos ownerIdx entry)
@@ -453,7 +458,7 @@ theorem restoreRecursor_refines
   k := rfl
   isUnsafe := rfl
 
-/-- Exact state transition of the production family-header restoration step. -/
+/-- State transition of the executable family-header restoration step. -/
 structure HeaderRestorationStep
     (loweredEnv sourceEnv : Environment) (allIndNames : List Name)
     (indName : Name) (oldInfo : InductiveVal)
@@ -516,8 +521,8 @@ theorem restoreInductiveHeaderDecl_refines
       fresh := hfresh
       output := rfl }⟩
 
-/-- Generic compositional trace for the stateful list folds used by nested
-declaration restoration. -/
+/-- The steps of one run of a stateful list fold, as used by nested declaration
+restoration. -/
 inductive FoldSteps (P : α → σ → σ → Type) :
     List α → σ → σ → Type
   | nil : FoldSteps P [] source source
@@ -526,9 +531,8 @@ inductive FoldSteps (P : α → σ → σ → Type) :
       FoldSteps P (head :: tail) source target
 
 /-- Environment additions whose names were checked immediately before each
-installation.  This forgetful trace is shared by all three nested-restoration
-folds and exposes the freshness invariant without importing any semantic
-typing assumptions. -/
+installation. This relation is shared by all three nested-restoration folds and
+states the freshness invariant without any typing assumption. -/
 inductive FreshExtension :
     Environment → List ConstantInfo → Environment → Prop
   | nil : FreshExtension env [] env
@@ -536,7 +540,7 @@ inductive FreshExtension :
       FreshExtension (env.add ci) cis outEnv →
       FreshExtension env (ci :: cis) outEnv
 
-/-- The production `quotInit` flag is unchanged by a fresh constant trace. -/
+/-- The kernel environment's `quotInit` flag is unchanged by a fresh extension. -/
 theorem FreshExtension.quotInit_eq
     (H : FreshExtension env entries outEnv) :
     outEnv.quotInit = env.quotInit := by
@@ -657,8 +661,8 @@ theorem stateForM_refines
         rcases Hfinal with ⟨hunit, ⟨Htail⟩⟩
         exact ⟨hunit, ⟨FoldSteps.cons Hhead Htail⟩⟩
 
-/-- Constructor-level restoration records that the production step changes
-only the type, using the verified nested-expression traversal. -/
+/-- Constructor restoration: the executable step changes only the type, by the
+verified nested-expression traversal. -/
 structure ConstructorRestoration
     (result : Lean4Lean.ElimNestedInductive.Result)
     (env : Environment) (oldInfo newInfo : ConstructorVal) : Prop where
@@ -673,8 +677,7 @@ structure ConstructorRestoration
 
 /-- Translate a restored constructor from the metadata that restoration
 actually preserves.  The old lowered constructor type need not translate in
-the restored source environment, where generated auxiliary families are
-intentionally absent. -/
+the restored source environment, where the auxiliary families are absent. -/
 theorem ConstructorRestoration.translatedOfMetadata
     (H : ConstructorRestoration result prodEnv oldInfo newInfo)
     (Hsafety : safety ≤ (ConstantInfo.ctorInfo oldInfo).safety)
@@ -710,7 +713,7 @@ theorem restoreConstructor_refines
   numFields := rfl
   isUnsafe := rfl
 
-/-- Exact state transition of one production constructor-restoration step. -/
+/-- State transition of one executable constructor-restoration step. -/
 structure ConstructorRestorationStep
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv sourceEnv : Environment) (ctorName : Name)
@@ -801,9 +804,8 @@ theorem restoreConstructorDecls_refines
         telescope := Htelescope
         restored := Hrestored }⟩⟩
 
-/-- Exact state transition of one production recursor-restoration step. The
-semantic use of the restored metadata remains factored through
-`RecursorRestoration`. -/
+/-- State transition of one executable recursor-restoration step. The restored
+metadata is described by `RecursorRestoration`. -/
 structure RecursorRestorationStep
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)
@@ -916,8 +918,8 @@ theorem restoreRecursorDecls_refines
           ruleTelescopes := Hrules
           restored := Hrestored }⟩⟩
 
-/-- Complete operational trace for restoring one source family member: its
-header, constructor list, and primary recursor. -/
+/-- The executable restoration of one source family member: its header,
+constructor list, and source recursor. -/
 structure SourceFamilyRestoration
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)
@@ -1049,8 +1051,8 @@ theorem restoreInductiveDecls_refines
         lookup := hlookup
         restored := Hrestored }⟩⟩
 
-/-- Exact operational certificate for the two folds comprising nested
-declaration restoration: source families first, then auxiliary recursors. -/
+/-- The two folds of nested declaration restoration: source families first,
+then auxiliary recursors. -/
 structure NestedRestorationFolds
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)

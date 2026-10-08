@@ -13,7 +13,7 @@ names and on every restoration head in the target occurring at the universe
 arguments `levels`. A structural expansion with these leaves is inverted by
 `Restoration.expr` (`VExpr.NestedExprExpansion.restore`), and the leaf relation
 is stable under lifting, so it can be produced by the generic absolute-depth
-projection of the lowering trace (`NestedExpansionLeafLiftAbove`).
+projection of the lowering relation (`NestedExpansionLeafLiftAbove`).
 -/
 
 namespace Lean4Lean

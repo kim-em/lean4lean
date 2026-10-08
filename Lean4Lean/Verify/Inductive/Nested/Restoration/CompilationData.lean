@@ -7,10 +7,10 @@ import Lean4Lean.Std.List
 
 /-! `CompilationData` for the lowered declaration of a validated nested run.
 
-The expanded declaration is the lowered declaration `E.production.loweredDecl`,
-the signature and instance are the consumed generation of its completed
-recursor construction, and the block is the canonical restored block of the
-final assembly shape.  Every field is proved here except the restoration
+The expanded declaration is the lowered declaration `E.lowered.loweredDecl`,
+the signature and instance are those of its recursor construction
+(`LoweredRun.signature`, `LoweredRun.generatedInstance`), and the block is the
+`restoredBlock` of a `RestoredBlockDerivation`. Every field is proved here except the restoration
 correspondence of the constructor types (and of the auxiliary family headers)
 and the restored recursor and equation lists, collected in
 `NestedCompilationRestorationFacts`.
@@ -81,7 +81,7 @@ theorem _root_.Lean4Lean.InductiveSignature.declaration_type_uvars
   obtain ⟨⟨f, i⟩, _, rfl⟩ := hfamily
   rfl
 
-/-- The completed recursor construction of the lowered declaration. -/
+/-- The recursor construction of the lowered declaration. -/
 noncomputable def LoweredRun.recursorConstruction
     {loweredEnv : Environment} (P : LoweredRun loweredEnv) :
     RecursorConstruction P.constructors.toConstructorCheck :=
@@ -142,7 +142,8 @@ structure NestedCompilationRestorationFacts (env : VEnv) (decl : VInductDecl)
     some block.rules
 
 /-- `CompilationData` for the lowered declaration of a validated nested run,
-for any specialization list with the facts of `containerSpecializationFacts`,
+for any specialization list named after the auxiliary families, well formed,
+scoped and with direct families (`hnames`, `hwellFormed`, `hscoped`, `hdirect`),
 modulo `NestedCompilationRestorationFacts`. -/
 theorem NestedRun.compilationData_of_specializations
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}

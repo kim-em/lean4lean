@@ -285,7 +285,7 @@ theorem directFamilies_isSome (auxiliaries : List ContainerSpecialization)
 
 end InductiveSignature
 
-/-- Finite provenance for every selected container from installed-container
+/-- `ContainersInstalled` for every selected container, from installed-container
 certificates in the same ambient environment. -/
 theorem ContainersInstalled.of_installed {env : VEnv} :
     ∀ {auxiliaries : List InductiveSignature.ContainerSpecialization},
@@ -464,9 +464,9 @@ theorem compilationRestoration_recursorName_eq_mkAuxRecNameMap
 
 open _root_.Lean4Lean.InductiveSignature
 
-/-- Evidence that one container specialisation describes one generated
-(pre-lowering) auxiliary family.  `sourceEnv` is the environment the
-declaration is checked in; `envTypes` adds the original family headers. -/
+/-- One container specialisation describes one generated (pre-lowering)
+auxiliary family. `sourceEnv` is the environment the declaration is checked
+in; `envTypes` adds the source family headers. -/
 structure SpecializationGenerates (sourceEnv envTypes : VEnv)
     (paramCtx : List VExpr)
     (decl : VInductDecl) (a : ContainerSpecialization)
@@ -657,7 +657,7 @@ theorem auxiliarySpecializations_scoped
 
 end Lists
 
-/-! ### The specialisations of an exact validated nested run -/
+/-! ### The specialisations of a validated nested run -/
 
 private theorem inductInfo_safety_of_visible {info : InductiveVal} {isUnsafe : Bool}
     (h : (if isUnsafe then DefinitionSafety.unsafe else .safe) ≤
@@ -933,8 +933,8 @@ theorem AuxiliaryFamilySpec.nested_getAppFn
   apply Expr.getAppFn_abstractN_const
   rw [Expr.mkAppRange_from_zero _ _ _ harity, Expr.getAppFn_mkAppList]
   rfl
-/-- The common parameter context recorded by the header phase of a declared
-block (in context order).  Every generated auxiliary's parameter telescope
+/-- The common parameter context recorded by the header phase of a block
+(in context order).  Every generated auxiliary's parameter telescope
 is definitionally this context. -/
 def HeaderEnvironment.commonParameterContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -955,7 +955,7 @@ theorem HeaderEnvironment.commonParameterContext_eq
   rw [H.parameterScopeEq]
   rfl
 
-/-- The completed constructor boundary's parameter scope is the header
+/-- The parameter scope of an ordinary constructor check is the header
 phase's common parameter context. -/
 theorem OrdinaryConstructorCheck.parameterScope_toCtx
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -1012,7 +1012,7 @@ theorem ConstructorTypeEntries.findInduct
     · rcases ih htailOwner hctor with ⟨info, value, hmem, hname, hinduct⟩
       exact ⟨info, value, List.mem_append_right _ hmem, hname, hinduct⟩
 
-/-- Every lowered constructor is installed in the lowered production
+/-- Every lowered constructor is installed in the lowered kernel
 environment as a constructor of its own lowered family, and its name was
 fresh in the abstract source environment. -/
 private theorem loweredConstructor_facts
@@ -1052,7 +1052,7 @@ private theorem loweredConstructor_facts
       cases this
 
 /-- Lowered type, constructor and recursor names are jointly distinct: each
-is looked up in the lowered production environment as an inductive,
+is looked up in the lowered kernel environment as an inductive,
 constructor and recursor respectively. -/
 private theorem loweredNames_nodup
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -1106,9 +1106,9 @@ private theorem loweredNames_nodup
       rw [hfind] at hrecFind
       cases hrecFind
 
-/-- The container specialisations of an exact validated nested run, one per
+/-- The container specialisations of a validated nested run, one per
 generated auxiliary family in lowered order, together with their installed
-container certificates at the source environment, the exact lowering
+container certificates at the source environment, the lowering
 expansion of each generated family into the lowered suffix, and agreement of
 the abstract recursor renaming with the executable `mkAuxRecNameMap`. -/
 theorem NestedRun.containerSpecializations
@@ -1355,7 +1355,7 @@ theorem NestedRun.containerSpecializations
     auxiliaries main rest loweredEnv info hfind hfirst hnames hnodup
 
 
-/-- The common header parameter context of the lowered production is a
+/-- The common header parameter context of the lowered run is a
 well-formed context of the source environment, at the declaration's
 universe arity. -/
 theorem NestedRun.commonParameterContext_refl

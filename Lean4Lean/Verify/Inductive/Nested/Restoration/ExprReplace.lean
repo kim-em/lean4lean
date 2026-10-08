@@ -1,5 +1,10 @@
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Basic
 
+/-! An exact, cache-independent specification of `Expr.replace` (`ExprReplacement`), the
+telescope accepted by nested restoration (`RestoreTelescope`), and the binder-by-binder
+decomposition of a generated recursor type (`RecursorTypeTelescope`) used to transport
+restored recursor types (section 3.3 of `docs/inductives/DESIGN.md`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -105,8 +110,8 @@ inductive ExprReplacement.ForallTelescopeReplacement
           newDom newBody)
         (arity + 1) oldResidual newResidual
 
-/-- Decompose a replacement of a known forall telescope into the exact
-binder-aligned replacement trace. -/
+/-- Decompose a replacement of a known forall telescope into the
+binder-aligned `ForallTelescopeReplacement`. -/
 theorem ExprReplacement.forallTelescopeReplacement
     (Hnone : ∀ name dom body bi,
       replaceNode (.forallE name dom body bi) = none)
@@ -244,8 +249,8 @@ theorem ExprReplacement.ofReplace
         (ExprReplacement.occurrence h)
 
 /-- The relational restoration traversal is functional and computes exactly
-`Expr.replace`.  This lets later semantic inverse theorems consume the
-abstract `ExprReplacement` witness retained by `NestedRestoration`. -/
+`Expr.replace`. This lets the inverse theorems for restoration use the
+`ExprReplacement` derivation recorded by `NestedRestoration`. -/
 theorem ExprReplacement.eq_replace
     (H : ExprReplacement replaceNode input output) :
     output = input.replace replaceNode := by
@@ -284,8 +289,8 @@ theorem ExprReplacement.eq_replace
     dsimp only
     rw [← ihBody]
 
-/-- The body traversal used by `restoreNested` is now related exactly to its
-three independently specified node-restoration cases. -/
+/-- The body traversal used by `restoreNested` is related exactly to its
+three separately specified node-restoration cases. -/
 theorem restoreNested_body
     (result : Lean4Lean.ElimNestedInductive.Result)
     (env : Environment) (As : Array Expr) (auxRec : NameMap Name)
@@ -295,8 +300,8 @@ theorem restoreNested_body
   ExprReplacement.ofReplace _ body
 
 /-- Mixed forall/lambda telescope accepted by nested restoration. The
-production function preserves the outer kind chosen by the original root,
-while both binder forms are accepted during opening. -/
+executable preserves the outer binder kind of the input root, while both
+binder forms are accepted during opening. -/
 inductive RestoreTelescope : Expr → Nat → Prop
   | done : RestoreTelescope e 0
   | forallE : RestoreTelescope body n →
@@ -370,8 +375,8 @@ theorem Expr.LambdaTelescope.restorePrefix
       apply RestoreTelescope.lam
       exact ih Hbody (by omega)
 
-/-- Production iota RHSs always expose at least the common-parameter lambda
-prefix consumed by `restoreNested`. -/
+/-- Executable iota right-hand sides always expose at least the common-parameter
+lambda prefix opened by `restoreNested`. -/
 theorem RecursorRuleSyntax.rhsRestoreTelescope
     (H : RecursorRuleSyntax indTypes stats motives minors lvls
       ctor minorIdx rule)
@@ -385,8 +390,8 @@ theorem RecursorRuleSyntax.rhsRestoreTelescope
   simp only [List.length_append]
   omega
 
-/-- The production recursor type exposes the same retained parameter prefix
-that was bound while generating its telescope. -/
+/-- The executable recursor type exposes the same parameter prefix that was
+bound while generating its telescope. -/
 theorem GeneratedRecursorEntry.typeRestoreTelescope
     (H : GeneratedRecursorEntry safety env lparams elimLevel c stats
       indTypes recInfos ownerIdx entry)
@@ -398,11 +403,11 @@ theorem GeneratedRecursorEntry.typeRestoreTelescope
     ⟨residual, Htelescope⟩
   exact Htelescope.restorePrefix (Nat.le_refl _)
 
-/-- Binder-by-binder semantic decomposition of a generated recursor type.
+/-- Binder-by-binder translation of a generated recursor type.
 The five lists are the abstract domains corresponding respectively to the
-production parameter, motive, minor, index, and major binder groups.  Keeping
-the translated residual in their exact abstract context makes the pieces that
-must later be transported across nested restoration explicit. -/
+executable parameter, motive, minor, index, and major binder groups. Keeping
+the translated residual in their abstract context makes explicit the pieces
+that are transported across nested restoration. -/
 structure RecursorTypeTelescope
     (env : VEnv) (Us : List Name) (source : Expr) (target : VExpr)
     (numParams numMotives numMinors numIndices ownerIdx : Nat) where
@@ -426,10 +431,9 @@ structure RecursorTypeTelescope
       (params ++ motives ++ minors ++ indices ++ major) [])
     (concreteRecursorResult numMotives numMinors numIndices ownerIdx) result
 
-/-- Any two retained decompositions of the same translated recursor type
-have the same complete domain list and residual.  This lets later equation
-frames freely choose their operational witness and import semantic facts
-proved using another existential witness. -/
+/-- Any two decompositions of the same translated recursor type have the same
+complete domain list and residual, so facts proved for one decomposition apply
+to any other. -/
 theorem RecursorTypeTelescope.domainsResult_eq
     (T₁ T₂ : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx) :
@@ -461,8 +465,8 @@ theorem RecursorTypeTelescope.domainsResult_eq
   rw [hdomains] at hwrapped
   exact hwrapped
 
-/-- Groupwise form of `domainsResult_eq`, using the five fixed production
-arities to recover each retained telescope component. -/
+/-- Groupwise form of `domainsResult_eq`, using the five fixed executable
+arities to recover each telescope component. -/
 theorem RecursorTypeTelescope.groupsResult_eq
     (T₁ T₂ : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx) :
@@ -493,10 +497,10 @@ theorem RecursorTypeTelescope.groupsResult_eq
   have hmajor := List.append_inj_right H₃ hindicesLength
   exact ⟨hparams, hmotives, hminors, hindices, hmajor, H.2⟩
 
-/-- Retained recursor-telescope translations are proof-irrelevant once their
-six computational components are fixed.  This upgrades `groupsResult_eq`
-from a rewriting interface to literal witness equality, which is needed when
-later evidence is dependently indexed by the chosen telescope value. -/
+/-- Recursor-telescope translations are equal once their six computational
+components are fixed. This strengthens `groupsResult_eq` from a rewriting
+interface to equality of the structures, which is needed when later facts are
+dependently indexed by the chosen telescope value. -/
 theorem RecursorTypeTelescope.eq
     (T₁ T₂ : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx) :
@@ -574,8 +578,8 @@ theorem RecursorTypeTelescope.commonPrefixDefEqCtx
 /-- Expose the source and abstract domains of the motive binder selected by
 the recursor owner.  In particular, the domain is checked before later
 motives, all minors, and the recursor's own index/major suffix have entered
-the context.  This is the structural side of the bridge to the independently
-replayed canonical motive telescope. -/
+the context. This is the structural half of the link to the motive telescope
+of the recursor construction. -/
 theorem RecursorTypeTelescope.ownerMotiveBinder
     (T : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
@@ -700,7 +704,7 @@ theorem RecursorTypeTelescope.minorBinder
     Hsource, hsource, Hdomain, HdomainType⟩
 
 /-- Applying the parameter, motive, and minor prefix of a translated
-recursor to its canonical variables leaves exactly the index/major suffix.
+recursor to its bound variables leaves exactly the index/major suffix.
 This is the typed spine shared by every generated equation for the owner. -/
 theorem RecursorTypeTelescope.prefixTyping
     (T : RecursorTypeTelescope env Us source target
@@ -747,7 +751,7 @@ theorem RecursorTypeTelescope.prefixContext
     (VEnv.IsType.wrapForalls_inv henv (by trivial) hgrouped).1
 
 /-- Opening the complete translated recursor telescope leaves a well-typed
-residual in the exact five-group context.  This is the inversion premise
+residual in the five-group context.  This is the inversion premise
 used to recover the dependency of the owner motive application on the
 generated index/major suffix. -/
 theorem RecursorTypeTelescope.fullContextResultType
@@ -769,11 +773,11 @@ theorem RecursorTypeTelescope.fullContextResultType
     env.IsType Us.length domains.reverse T.result
   simpa only [List.append_nil] using Hopened
 
-/-- The residual of any retained recursor-telescope translation is literally
-the owner motive applied to the canonical variables for the translated index
-and major suffix.  Keeping this theorem on `T` avoids choosing a second,
-potentially unrelated existential translation when the result shape is used
-together with the owner-motive telescope. -/
+/-- The residual of any recursor-telescope translation is literally the owner
+motive applied to the bound variables of the translated index and major suffix.
+Stating this on `T` avoids choosing a second, possibly unrelated existential
+translation when the result shape is used together with the owner-motive
+telescope. -/
 theorem RecursorTypeTelescope.resultShape
     (T : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
@@ -792,8 +796,8 @@ theorem RecursorTypeTelescope.resultShape
   exact TrExprS.concreteRecursorResult_eq howner htotal T.residual
 
 /-- Lookup form before the owner index/major suffix is opened.  This is the
-function typing consumed by the generic canonical-application context
-inversion. -/
+function typing used by the generic context inversion for bound-variable
+applications. -/
 theorem RecursorTypeTelescope.ownerMotiveOuterBvarTyping
     (T : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
@@ -858,10 +862,9 @@ def RecursorTypeTelescope.mono
   typed := T.typed.mono henv
   residual := T.residual.mono henv
 
-/-- The actual translated `.recInfo` emitted by production canonically
-determines the five-group telescope certificate.  This contains no semantic
-callback: it is obtained solely by inverting the retained executable
-translation and the exact binder selections used by `declareRecursors`. -/
+/-- The translated `.recInfo` emitted by the executable determines the
+five-group telescope. It is obtained solely by inverting the executable's
+translation and the binder selections used by `declareRecursors`. -/
 theorem GeneratedRecursorEntry.telescopeTranslation
     (H : GeneratedRecursorEntry safety env lparams elimLevel c stats
       indTypes recInfos ownerIdx entry)

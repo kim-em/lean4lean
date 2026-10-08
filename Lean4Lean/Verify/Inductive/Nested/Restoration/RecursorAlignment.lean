@@ -2,7 +2,8 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.LoweredRuleAvoidance
 import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderRenaming
 
-/-! Recursor provenance of a validated nested run.
+/-! Recursor alignment of a validated nested run: every recursor of the output is
+aligned with its abstract translation (`NewRecursorsAligned`).
 
 `NestedRun.recursorsAligned_of` discharges the `Hprovenance`
 hypothesis of `NestedRun.assemblyOfRun_of_run`.
@@ -11,7 +12,7 @@ The hypothesis quantifies over an arbitrary specialization list carrying
 `RestorationTablesAgree`. The restoration `compilationRestoration decl auxiliaries`
 is determined by the table data (`RestorationTablesAgree.expr_eq`,
 `Nested/Restoration/HeaderRenaming.lean`), so the specialization list of
-`restorationTablesRestoringAll`, for which all the formation evidence is
+`restorationTablesRestoringAll`, for which all the formation facts are
 available, may be used instead. -/
 
 namespace Lean4Lean
@@ -33,7 +34,7 @@ namespace InductiveSignature
 
 
 /-- The recursor shape of a restored recursor at the specialization head of
-its realization. -/
+its translation (`TrRestoredRecursorVal`). -/
 theorem TrRestoredRecursorVal.shape_of_head {s : InductiveSignature} {g : Instance s}
     {r : Restoration} {sourceNames : List Name} {venv : VEnv}
     {owner : Fin s.families.size} {rec : Lean.RecursorVal}
@@ -240,13 +241,13 @@ theorem NestedRun.restoredMajorFound
     rw [Kernel.Environment.find?_eq_constants hwf] at hfind0
     exact ⟨_, Htrace.preservesSourceMapFind hwf hfind0⟩
 
-/-- **Recursor provenance of a validated nested run**: the `Hprovenance`
+/-- **Recursor alignment of a validated nested run**: the `Hprovenance`
 hypothesis of `NestedRun.assemblyOfRun_of_run`, given that
 lowering recorded a nested occurrence (`hnested`, the condition under which
 the run restores at all; it makes the expanded block mutual, so no restored
 recursor is K-like). The freshness premise (restorable names outside the
-renamed recursor names) is not needed: it holds for every final assembly
-shape (`recursorVEnv_restorableNames_fresh_of_not_renamed`). -/
+renamed recursor names) is not needed: it holds for every
+`RestoredBlockDerivation` (`recursorVEnv_restorableNames_fresh_of_not_renamed`). -/
 theorem NestedRun.recursorsAligned_of
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -335,7 +336,7 @@ theorem NestedRun.recursorsAligned_of
     exact (forall₂_trInductiveType_names Hcore.types).symm
   have hinfos := E.restoredRecursorEntryInfos C hC wf Hsources hadded Haux Hexpansion hnodup
     hparamsSize D hscoped hwf
-  -- the realization of the restored recursor of an entry
+  -- the translation of the restored recursor of an entry
   have Hreal : ∀ (owner : Fin E.lowered.signature.families.size)
       (entry : ConstantInfo × VConstVal), entry ∈ C.recursorEntries →
       ∀ (s t : Environment) (Hstep : RestoredRecursorStep result E.loweredEnv
@@ -365,7 +366,7 @@ theorem NestedRun.recursorsAligned_of
       ⟨head, hhead, ?_, hlevels, hargs, happ, Hrules'⟩
     rw [E.restoredMajorInduct wf Hsources Haux Hexpansion hnodup hparamsSize D hscoped
       owner Hstep, hheadName]
-  -- the source environment and the final base environment
+  -- the source environment and the recursor environment
   have Hvalid : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe) sourceProdEnv
       (ves.venv (if isUnsafe then .unsafe else .safe)) :=
     (wf.tr (safety := if isUnsafe then .unsafe else .safe)).toCheckingValid
@@ -382,7 +383,7 @@ theorem NestedRun.recursorsAligned_of
     · exact C.auxiliaryWF.rulesWF (by simp) df ha
   obtain ⟨entries, Htrace, hsteps, -⟩ := E.restoration.freshExtensionRecursorSteps hsrcWF
   have houtWF : outEnv.constants.WF := Htrace.targetWF hsrcWF
-  -- every inductive type of the output environment is rigid in the final base
+  -- every inductive type of the output environment is rigid in the recursor environment
   have hrigid : ∀ n info, outEnv.constants.find? n = some (.inductInfo info) →
       C.recursorVEnv.Rigid n := by
     intro n info h

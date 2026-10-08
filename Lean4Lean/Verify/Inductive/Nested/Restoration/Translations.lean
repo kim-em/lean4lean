@@ -3,6 +3,12 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.ConstructorTranslations
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Recognition
 import Lean4Lean.Verify.Inductive.Install.LiteralNames
 
+/-! Translations of the executable nested restoration folds: the source family
+translations (`SourceFamilyTranslations`: header, constructors and source recursor of
+each source family) and the auxiliary recursor fold (`AuxiliaryRecursorsGuardedRules`),
+the restored block `restoredBlock`, and lookup lemmas for `AddConstants`
+installations. Section 3.3 of `docs/inductives/DESIGN.md`. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -13,10 +19,10 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- One operational auxiliary recursor restoration step: the translated
+/-- One executable auxiliary recursor restoration step: the translated
 recursor constant and the abstract rule batch of the step, of the restored
-length. The record fixes no equation syntax; the final producer result
-supplies the finite canonical compilation of the rules. -/
+length. The record fixes no equation syntax; the rules are fixed by the
+compilation of the nested installation. -/
 structure AuxiliaryRecursorGuardedRules
     (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
     (safety : DefinitionSafety) (trEnv : VEnv)
@@ -29,9 +35,9 @@ structure AuxiliaryRecursorGuardedRules
     (.recInfo Hstep.restored.newInfo) recursor
   rulesLength : rules.length = Hstep.restored.newInfo.rules.length
 
-/-- Trace-aligned steps of an auxiliary restoration fold. The chosen
-rule batches are retained explicitly, but this judgment alone does not
-constrain their left-hand sides or establish their concrete realization. -/
+/-- The steps of an auxiliary restoration fold, each with an
+`AuxiliaryRecursorGuardedRules`. The rule batches are recorded explicitly, but this
+judgment alone does not constrain their left-hand sides or their translation. -/
 inductive AuxiliaryRecursorsGuardedRules
     (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
     (safety : DefinitionSafety) (trEnv : VEnv) :
@@ -61,7 +67,7 @@ inductive AuxiliaryRecursorsGuardedRules
         (.cons Hstep Htail) priorRecursors priorRules
           finalRecursors finalRules
 
-/-- Semantic payload for one restored primary recursor. -/
+/-- Translation, typing and shape of one restored source recursor. -/
 structure SourceRecursorTranslation
     (decl : VInductDecl) (owner : VInductiveType)
     (safety : DefinitionSafety)
@@ -77,10 +83,9 @@ structure SourceRecursorTranslation
   wf : recursor.toVConstant.WF sourceVEnv
   shape : Nonempty (decl.NestedRecursorShape owner recursor)
 
-/-- Independent source-level meaning of one primary recursor.  In particular,
-this object mentions neither the lowered declaration nor any production
-restoration step: it is the abstract specification which the executable
-recursor construction must refine. -/
+/-- The abstract source recursor of one source family. It mentions neither the
+lowered declaration nor any executable restoration step: it is the abstract
+specification which the executable recursor construction must refine. -/
 structure SourceRecursorSpec
     (sourceDecl : VInductDecl) (owner : VInductiveType)
     (canonicalEnv : VEnv) where
@@ -89,9 +94,9 @@ structure SourceRecursorSpec
   isType : canonicalEnv.IsType recursor.uvars [] recursor.type
   shape : Nonempty (sourceDecl.NestedRecursorShape owner recursor)
 
-/-- Executable-to-specification refinement for a restored primary recursor.
+/-- Executable-to-specification refinement for a restored source recursor.
 The source recursor is fixed by `SourceRecursorSpec`; this record
-states that the concrete restoration step has exactly its universe arity and
+states that the executable restoration step has exactly its universe arity and
 translates its restored telescope to exactly its abstract type. -/
 structure SourceRecursorRefinement
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
@@ -101,9 +106,9 @@ structure SourceRecursorRefinement
   type : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
     Hstep.restored.newInfo.type recursor.type
 
-/-- One abstract source recursor realized by a particular restored concrete
-recursor.  The equality field prevents the source witness and refinement
-proof from drifting to different constants. -/
+/-- One abstract source recursor translating a particular restored executable
+recursor. The equality field ties the source specification and the refinement
+to the same constant. -/
 structure TrSourceRecursor
     (sourceDecl : VInductDecl) (sourceOwner : VInductiveType)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
@@ -113,7 +118,7 @@ structure TrSourceRecursor
   recursor_eq : source.recursor = recursor
   refinement : SourceRecursorRefinement Hstep canonicalEnv recursor
 
-/-- Source semantics for the inductive families in one restoration trace. -/
+/-- Source translations of the families along the source-family restoration fold. -/
 inductive SourceFamilyTranslations
     (decl : VInductDecl) (lparams : List Name)
     (safety : DefinitionSafety)
@@ -148,9 +153,9 @@ inductive SourceFamilyTranslations
         envTypes envCtors (.cons Hstep Htail) (owner :: owners)
         (Hrecursor.recursor :: recursors)
 
-/-- All canonical-stage semantic data for one exact operational family
-restoration step.  Bundling the fields keeps mutual-trace assembly independent
-of how headers, constructors, and primary recursors are proved. -/
+/-- The source translations for one executable family restoration step: header,
+constructors and source recursor. Bundling the fields keeps the mutual fold
+independent of how each of them is proved. -/
 structure SourceFamilyTranslation
     (decl : VInductDecl) (lparams : List Name)
     (safety : DefinitionSafety) (sourceVEnv envTypes envCtors : VEnv)
@@ -180,8 +185,8 @@ theorem SourceFamilyTranslations.types
   | cons Hstep Htail Hheader Hconstructors Hrecursor Hrest ih =>
     exact .cons ⟨Hheader, Hconstructors.forall₂⟩ ih
 
-/-- Header well-formedness is already pointwise data in the exact restored
-source trace; no separate final-assembly premise is needed. -/
+/-- Header well-formedness is pointwise data in the source family translations;
+no separate premise of the nested installation is needed. -/
 theorem SourceFamilyTranslations.typeConstantsWF
     (H : SourceFamilyTranslations decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners recursors)
@@ -197,8 +202,8 @@ theorem SourceFamilyTranslations.typeConstantsWF
     ⟨_source, _hsource, Howner⟩
   exact Howner.header.wf
 
-/-- Constructor well-formedness is likewise fixed by the canonical
-post-header interpretation of the restoration trace. -/
+/-- Constructor well-formedness is likewise fixed by the source family
+translations, in the header environment. -/
 theorem SourceFamilyTranslations.constructorConstantsWF
     (H : SourceFamilyTranslations decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners recursors)
@@ -216,7 +221,7 @@ theorem SourceFamilyTranslations.constructorConstantsWF
     ⟨_sourceCtor, _hsourceCtor, Hctor⟩
   exact Hctor.wf
 
-/-- Primary restored recursors are typed in the canonical environment that
+/-- Restored source recursors are typed in the constructor environment, which
 already contains every mutual constructor. -/
 theorem SourceFamilyTranslations.sourceRecursorsWF
     (H : SourceFamilyTranslations decl lparams safety sourceVEnv
@@ -231,10 +236,10 @@ theorem SourceFamilyTranslations.sourceRecursorsWF
     · exact Hrecursor.wf
     · exact ih ci hrest
 
-/-- Reconstruct the independent source declaration translation from the
-canonical-stage semantic trace.  The executable restoration trace fixes all
-pointwise source/target correspondences; only the canonical abstract stage
-extensions and declaration metadata are supplied separately. -/
+/-- The source declaration translation `TrInductDeclCore`, from the source family
+translations. The restoration fold fixes all pointwise source/target
+correspondences; only the abstract header and constructor environments and the
+declaration metadata are supplied separately. -/
 theorem SourceFamilyTranslations.core
     {sourceTypes : List InductiveType}
     {sourceProdEnv targetProdEnv : Environment}
@@ -263,8 +268,9 @@ theorem SourceFamilyTranslations.core
   rw [htypes]
   exact H.types
 
-/-- Installation semantics for one complete restored source family: header,
-its exact constructor fold, and its primary recursor. -/
+/-- The restored block of a nested declaration: the source declaration's
+families, constructors and projection entries, the source recursors followed by
+the auxiliary recursors, and their rules in the same order. -/
 def restoredBlock (decl : VInductDecl)
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq) : VInductBlock where
@@ -316,7 +322,7 @@ theorem addConstant_find_cases
   · right
     rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
 
-/-- A lockstep installation preserves every lookup from its source production
+/-- A lockstep installation preserves every lookup in its source kernel
 environment. -/
 theorem AddConstants.preservesFind
     (H : AddConstants safety env venv entries outEnv outVEnv)
@@ -342,8 +348,7 @@ theorem AddConstants.preservesFind
     exact addConstant_find_of_ne envHead ci name hwf hn hne hfind
 
 /-- Every lookup in the target of a lockstep installation either came from
-the source environment or is one of the exact newly installed production
-entries. -/
+the source environment or is one of the newly installed entries. -/
 theorem AddConstants.origin
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (hwf : env.constants.WF)
@@ -378,7 +383,7 @@ theorem AddConstants.entryNames
     · exact ih htail
 
 /-- A successful lockstep installation makes every constructor recognized as
-belonging to a fresh auxiliary family absent from the original abstract
+belonging to a fresh auxiliary family absent from the source abstract
 environment. -/
 theorem AddConstants.restoreAuxConstructorsFresh
     (H : AddConstants safety sourceProdEnv sourceVEnv entries
@@ -402,8 +407,8 @@ theorem AddConstants.restoreAuxConstructorsFresh
     rw [hname, hentryNames]
     exact habstractFresh
 
-/-- Every production entry named by an `AddConstants` certificate is present
-with its exact metadata in the final environment. -/
+/-- Every entry of an `AddConstants` installation is present with its exact
+metadata in the target kernel environment. -/
 theorem AddConstants.findOfMem
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (hwf : env.constants.WF)

@@ -2,6 +2,11 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceTranslations
 import Lean4Lean.Verify.Inductive.Nested.Restoration.FreshExtensions
 import Lean4Lean.Verify.Environment.Lemmas
 
+/-! Lookups of inductive families and constructors in the kernel environment after nested
+restoration: every visible family is a base constant or one of the source declaration's
+families (`NestedRestorationFolds.inductInfosFromDecl`), and every constructor's owner
+is present (`NestedRestorationFolds.constructorOwnersPresent`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -103,7 +108,7 @@ private theorem ConstructorLowering.Resolved.constructorArity_eq
     Expr.constructorArity_abstractN,
     Expr.constructorArity_abstractN, Hmapping.constructorArity_eq]
 
-/-- Lookup classification for one checked production addition. -/
+/-- Lookup classification for one checked addition to the kernel environment. -/
 theorem Environment.find?_freshAdd_cases
     {env : Environment} (hwf : env.constants.WF)
     (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
@@ -155,9 +160,9 @@ theorem Environment.mapFind_of_find
   rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfind
   exact hfind
 
-/-- Adding one fresh non-inductive declaration preserves the provenance of
-every visible inductive family.  Existing family and constructor lookups are
-rebased through the exact one-step production extension. -/
+/-- Adding one fresh non-inductive declaration preserves `InductInfosFromDecl`.
+Existing family and constructor lookups are rebased through the one-step
+extension. -/
 theorem InductInfosFromDecl.addNoninductive
     {source env : Environment} {ci : ConstantInfo}
     (H : InductInfosFromDecl source.constants env.constants decl)
@@ -191,8 +196,8 @@ theorem InductInfosFromDecl.addNoninductive
           rwa [Lean.Kernel.Environment.find?,
             htargetWF.find?'_eq_find?] at hpreserved)⟩⟩
 
-/-- The auxiliary restoration fold installs recursors only, so it cannot
-introduce a new inductive-family origin. -/
+/-- The auxiliary restoration fold installs recursors only, so it adds no
+inductive family. -/
 theorem FoldSteps.recursorPreservesInductInfosFromDecl
     {sourceEnv targetEnv base : Environment}
     (Htrace : FoldSteps
@@ -244,10 +249,9 @@ theorem FoldSteps.constructorInductiveFindSource
         simp [ci] at hinfo
       · exact hold
 
-/-- Positional production provenance for one operationally restored source
-constructor.  It exposes the exact lowered lookup and restoration metadata,
-and proves the restored constructor lookup in the final constructor-fold
-environment. -/
+/-- The kernel lookup of one restored source constructor, by position: the
+lowered lookup and restoration metadata of its step, and the restored
+constructor lookup in the target environment of the constructor fold. -/
 theorem FoldSteps.constructorKernelOriginAt
     (H : FoldSteps (RestoredConstructorStep result loweredEnv)
       names sourceEnv targetEnv)
@@ -306,9 +310,8 @@ theorem FoldSteps.constructorKernelOriginAt
           exact ⟨laterSource, laterTarget, oldInfo, newInfo,
             by simpa using Hlater, hold, hnew, Hrestore, htarget⟩
 
-/-- A constructor visible after an exact restoration fold either came from
-the source environment or is the result of one concrete positional
-restoration step. -/
+/-- A constructor visible after a constructor-restoration fold either came from
+the source environment or is the result of one positional restoration step. -/
 theorem FoldSteps.constructorFindCases
     (H : FoldSteps (RestoredConstructorStep result loweredEnv)
       names sourceEnv targetEnv)
@@ -394,7 +397,7 @@ theorem SourceFamilyRestoration.inductiveFindCases
   · exact .inr hold
 
 /-- The restored family header remains visible after its constructor fold and
-primary recursor addition. -/
+source recursor addition. -/
 theorem SourceFamilyRestoration.headerFind
     (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
@@ -434,10 +437,10 @@ theorem SourceFamilyRestoration.headerFind
   simpa [header, ConstantInfo.name, ConstantInfo.toConstantVal] using
     htargetFind
 
-/-- Atomic provenance extension for a complete restored source family.  The
-alignment premise is indexed by the exact restored header in the final
-family environment; all classification and old-origin rebasing are derived
-from the operational restoration trace. -/
+/-- Extension of `InductInfosFromDecl` by one restored source family. The
+alignment premise is indexed by the restored header in the target environment;
+the classification of lookups and the rebasing of earlier alignments are
+derived from the restoration fold. -/
 theorem SourceFamilyRestoration.extendInductInfosFromDecl
     {base : Environment}
     (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
@@ -470,8 +473,8 @@ theorem SourceFamilyRestoration.extendInductInfosFromDecl
         (fun {name found} hsource =>
           Hfresh.preservesSourceMapFind hsourceWF hsource)⟩⟩
 
-/-- Positional form of the lowered producer's family-header lookup retaining
-all production metadata later preserved by nested restoration. -/
+/-- Positional form of the family-header lookup after the lowered run, with
+all metadata later preserved by nested restoration. -/
 theorem RecursorCheck.findSourceHeaderAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -525,9 +528,9 @@ theorem RecursorCheck.findSourceHeaderAt
     simp [info, infos, AddInductive.inductiveTypeInfos, hindicesSize] at hout ⊢
   exact hout
 
-/-- The source-position header lookup also retains the exact executable index
-count.  This is stated separately from `findSourceHeaderAt` so existing
-consumers of its metadata tuple need not be reindexed. -/
+/-- The source-position header lookup also gives the executable index count.
+It is stated separately from `findSourceHeaderAt`, whose metadata tuple it
+extends. -/
 theorem RecursorCheck.findSourceHeaderNumIndicesAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -584,10 +587,10 @@ theorem RecursorCheck.findSourceHeaderNumIndicesAt
   subst info
   simp [expected, infos, AddInductive.inductiveTypeInfos]
 
-/-- The owner stored by a concrete restored-constructor step is the restored
-family header.  This follows from the lowered producer's exact installed
-constructor metadata and the restoration equation, rather than from the
-weaker translated-constant relation. -/
+/-- The owner stored by a restored-constructor step is the restored family
+header. This follows from the installed constructor metadata of the lowered run
+and the restoration equation, rather than from the weaker translated-constant
+relation. -/
 theorem RestoredInductiveStep.restoredConstructorOwnerAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -691,7 +694,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerAt
 
 /-- Restoring one source family preserves constructor-owner presence.  Old
 constructors retain their source owners, while every newly restored
-constructor is tied to its exact lowered producer by
+constructor is tied to its lowered constructor by
 `restoredConstructorOwnerAt`. -/
 theorem RestoredInductiveStep.constructorOwnersPresent
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -756,7 +759,8 @@ theorem RestoredInductiveStep.constructorOwnersPresent
       rw [howner]
       exact Hstep.restored.headerFind hsourceWF
 
-/-- Exact source-declaration provenance for one restored original family. -/
+/-- Alignment of one restored source family with the source declaration
+(`InductInfoAlignment`). -/
 theorem RestoredInductiveStep.inductInfoAlignmentAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
@@ -1240,8 +1244,8 @@ theorem FoldSteps.recursorConstructorOwnersPresent
         intro info hinfo
         simp [ci] at hinfo)
 
-/-- Indexed fold of exact per-family owner preservation over a suffix of the
-original mutual source list. -/
+/-- Indexed fold of per-family owner preservation over a suffix of the
+source mutual family list. -/
 theorem FoldSteps.sourceFamiliesConstructorOwnersPresent
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -1283,8 +1287,8 @@ theorem FoldSteps.sourceFamiliesConstructorOwnersPresent
         (hsplit := by simpa [List.append_assoc] using hsplit)
         hmiddleWF Hnext
 
-/-- Exact nested restoration preserves constructor-owner presence through
-the primary family fold and the auxiliary-recursors-only suffix. -/
+/-- Nested restoration preserves constructor-owner presence through the source
+family fold and the auxiliary recursor fold. -/
 theorem NestedRestorationFolds.constructorOwnersPresent
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -1314,7 +1318,7 @@ theorem NestedRestorationFolds.constructorOwnersPresent
     hprimaryWF Hprimary
 
 /-- Indexed fold of the pointwise source-family alignment over an exact
-suffix of the original mutual source list. -/
+suffix of the source mutual family list. -/
 theorem FoldSteps.sourceFamiliesInductInfosFromDecl
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
@@ -1368,9 +1372,9 @@ theorem FoldSteps.sourceFamiliesInductInfosFromDecl
         (hsplit := by simpa [List.append_assoc] using hsplit)
         hmiddleWF Hnext
 
-/-- The full nested restoration fold has exact source-declaration production
-origins.  Original families are installed positionally; auxiliary restoration
-adds recursors only. -/
+/-- After the nested restoration folds, every visible inductive family is a base
+constant or a family of the source declaration (`InductInfosFromDecl`). Source
+families are installed positionally; auxiliary restoration adds recursors only. -/
 theorem NestedRestorationFolds.inductInfosFromDecl
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}

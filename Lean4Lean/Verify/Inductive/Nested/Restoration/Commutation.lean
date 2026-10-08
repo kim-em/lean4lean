@@ -21,8 +21,8 @@ This file provides the executable-side infrastructure: the replacement head
 `restoreHead`, the characterisation of `restoreNestedNode` by it, the table
 correspondence `RestorationMapAgreement`, the opening of closed parameter
 telescopes (`TrExprS.instantiateRevFVars`), and name agreement. The
-commutation theorem itself, under the hit-shape side condition
-(`Expr.ParamUniform`), is `restorationCommutes'` in
+commutation theorem itself, under the parameter-uniformity side condition
+(`Expr.ParamUniform`), is `restorationCommutes` in
 `Nested/Restoration/CommutationUniform.lean`.
 -/
 

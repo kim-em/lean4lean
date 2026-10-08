@@ -10,7 +10,7 @@ The executable restores an auxiliary node by reopening the container
 application `nested` recorded in `aux2nested` at the opened parameters
 (`(nested.abstract result.params).instantiateRev As`). The abstract
 restoration instead substitutes the translated parameters into the
-specialisation arguments (`instantiateParams`). The bridge between the two is
+specialisation arguments (`instantiateParams`). The link between the two is
 an inversion lemma for translation (`TrExprS.instantiateRevList_inv`): the
 translation of an instantiation at free variables is the substitution of
 their translations into any translation of the abstracted body, at any
@@ -617,7 +617,7 @@ theorem RestorationTablesAgree.agreement {decl : VInductDecl}
     · rw [compilationRestoration_restoredHeadName_constructor D.headNodup ha hctor,
         ← hauxEq, hrename a ha ctor hctor]
 
-/-! ### Per-family link data of an exact run -/
+/-! ### Per-family link data of a lowering run -/
 
 private theorem inductInfo_safety_of_visible' {info : InductiveVal} {isUnsafe : Bool}
     (h : (if isUnsafe then DefinitionSafety.unsafe else .safe) ≤
@@ -633,8 +633,8 @@ private theorem inductInfo_safety_of_visible' {info : InductiveVal} {isUnsafe : 
 
 open _root_.Lean4Lean.InductiveSignature in
 /-- `AuxiliaryFamilySourceData.auxiliarySpecialization`, also
-recording that the specialisation's universe and parameter arguments are the
-native source's (`N.levels`, `N.baseArgs`). -/
+recording that the specialisation's universe and parameter arguments are those
+of the source data `N` (`N.levels`, `N.baseArgs`). -/
 theorem AuxiliaryFamilySourceData.linkedSpecialization
     {ves : VEnvs} {isUnsafe : Bool} {prodEnv : Environment}
     {params : Array Expr} {nparams : Nat}
@@ -721,8 +721,8 @@ theorem AuxiliaryFamilySourceData.linkedSpecialization
     exact N.constructorShapes
 
 /-- The container application recorded for a generated family, abstracted
-over the final lowering parameters, is the native source's container
-application. -/
+over the final lowering parameters, is the container application of its source
+data. -/
 theorem AuxiliaryFamilySourceData.auxiliaryContainerApp
     {prodEnv : Environment} {result : Lean4Lean.ElimNestedInductive.Result}
     {nparams : Nat} {finalState : Lean4Lean.ElimNestedInductive.State}
@@ -760,7 +760,7 @@ theorem AuxiliaryFamilySourceData.auxiliaryContainerApp
   · rw [hargs]; exact N.baseTranslations
 
 /-- `AuxiliaryFamilySourceData.auxiliaryContainerApp` in the source
-types environment, with the native source parameters definitionally equal to
+header environment, with the source-data parameters definitionally equal to
 a given context. -/
 theorem AuxiliaryFamilySourceData.auxiliaryContainerAppAt
     {prodEnv : Environment} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -799,7 +799,7 @@ theorem AuxiliaryFamilySourceData.auxiliaryContainerAppAt
   · rw [hlevels]; exact N.levelsTranslation
   · rw [hargs]; exact N.baseTranslations
 
-/-! ### Restoring leaves of an exact run
+/-! ### Restoring leaves of a lowering run
 
 The container application recorded for an auxiliary is unique, so the
 specialisation of the restoration table named by a replaced node is the one
@@ -883,7 +883,7 @@ theorem VExpr.levelWF_mkApps {U : Nat} :
       VExpr.levelWF_mkApps]
     simp [VExpr.LevelWF, and_assoc]
 
-/-- The specialisation arguments of an evidenced auxiliary use only the
+/-- The specialisation arguments of an auxiliary with `SpecializationGenerates` use only the
 declaration's universe parameters. -/
 theorem SpecializationGenerates.argumentsLevelWF
     {sourceEnv envTypes : VEnv} {paramCtx : List VExpr} {decl : VInductDecl}
@@ -904,10 +904,10 @@ private theorem restoration_expr_paramVars {r : InductiveSignature.Restoration}
   | cons i is ih => exact .cons rfl ih
 
 open _root_.Lean4Lean.InductiveSignature in
-/-- **Every replacement hit of an exact run is a restoring leaf** for the
+/-- **Every nested occurrence replaced by a lowering run is a restoring leaf** for the
 restoration table of a specialisation list keyed by the run's `aux2nested`
 map (`RestorationTablesAgree.familyKey`). The specialisation keyed by the
-auxiliary name is identified with the native source of the hit by
+auxiliary name is identified with the source data of the occurrence by
 `AuxiliaryContainerApp.unique`; the universe arguments of the auxiliary occurrence are
 the identity by the `ConstLevelsAt` premise of the leaf. -/
 theorem AuxiliaryFamilySources.restoringReplacement
@@ -1011,7 +1011,7 @@ theorem AuxiliaryFamilySources.restoringReplacement
         (fun head => VExpr.mkApps head (S.baseArgsAtDepth ++ S.trailing))
         ((congrArg (fun name => VExpr.const name S.sourceLevels) hinputName).trans
           (congrArg (VExpr.const Nsource.containerFamily.name) hinputLevels))
-  -- the specialisation recorded for the native source of the hit
+  -- the specialisation recorded for the source data of the occurrence
   rcases List.mem_iff_getElem.mp Nsource.familyMember with ⟨idx, hidx, hfamily⟩
   let aN : ContainerSpecialization := {
     container := Nsource.container
@@ -1100,7 +1100,7 @@ theorem AuxiliaryFamilySources.restoringReplacement
     Bool.false_eq_true, if_false, Option.pure_def]
   rw [hlv', hav', hdrop]
 
-/-! ### Lowered constructors and auxiliary keys of an exact run -/
+/-! ### Lowered constructors and auxiliary keys of a lowering run -/
 
 private theorem forall₂_trCtor_names
     {ctors : List Constructor} {ctors' : List VConstVal}
@@ -1150,7 +1150,7 @@ theorem ConstructorTypeEntries.ctorOfEntry
     · rcases ih htail with ⟨owner, howner, ctor, hctor, info, he, hn, hi⟩
       exact ⟨owner, List.mem_cons_of_mem _ howner, ctor, hctor, info, he, hn, hi⟩
 
-/-- Every constructor visible in the lowered production environment either
+/-- Every constructor visible in the kernel environment after the lowered run either
 predates the inductive installation or is a constructor of one of the
 installed families, recording that family as its owner. -/
 theorem RecursorCheck.ctorInfoOrigin
@@ -1197,10 +1197,10 @@ theorem NestedLowering.resultTypes_eq
     ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, Hqueue⟩
   exact Hqueue.resultTypes
 
-/-! ### The restoration tables of an exact validated nested run -/
+/-! ### The restoration tables of a validated nested run -/
 
 open _root_.Lean4Lean.InductiveSignature in
-/-- The container specialisations of an exact validated nested run (as in
+/-- The container specialisations of a validated nested run (as in
 `NestedRun.containerSpecializations`), together with the
 executable restoration-table data relating them to the run's `aux2nested`
 map, lowered constructors and auxiliary-recursor map, and the expansion of

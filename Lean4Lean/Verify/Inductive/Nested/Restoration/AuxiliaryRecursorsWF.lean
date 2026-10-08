@@ -1,5 +1,9 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Translations
 
+/-! Well-formedness of the restored auxiliary recursors and their rules, along the executable
+auxiliary-recursor restoration fold of a nested run (section 3.3 of
+`docs/inductives/DESIGN.md`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -8,10 +12,10 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-/-- Final well-formedness evidence attached to the exact auxiliary semantic
-restoration fold.  The two abstract environments are intentionally distinct:
-recursors are typed in the canonical constructor environment, while restored
-rules are typed in the final constant environment. -/
+/-- Well-formedness along the auxiliary recursor-restoration fold: each restored
+auxiliary recursor is well formed in `recursorEnv` and each of its restored rules in
+`ruleEnv`. The two abstract environments are distinct: recursors are typed in the
+recursor-checking environment, rules in the recursor environment. -/
 inductive RestoredAuxiliaryRecursorsWF
     (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
     (safety : DefinitionSafety) (trEnv recursorEnv ruleEnv : VEnv)
@@ -96,18 +100,18 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! # Exact auxiliary-restoration evidence
+/-! # Per-step well-formedness of auxiliary restoration
 
-The operational auxiliary-restoration loop and its semantic interpretation
-have the same recursive shape.  This module packages the per-step semantic
-and final well-formedness evidence together, then folds that package over the
-exact `FoldSteps`.  Keeping the two traces synchronized here prevents a
-final-assembly proof from choosing unrelated auxiliary recursors or rules.
+The executable auxiliary-restoration loop and its abstract interpretation have
+the same recursive shape. This section packages the per-step typing and
+well-formedness facts together; `RestoredAuxiliaryRecursorsWF` folds them over the
+same `FoldSteps`. Keeping the two folds synchronized prevents the nested
+installation proof from choosing unrelated auxiliary recursors or rules.
 -/
 
-/-- Semantic and final-WF evidence for one exact auxiliary restoration step.
-The abstract recursor and rule batch are selected by `semantics`; the two WF
-fields are therefore indexed by those same values. -/
+/-- Typing and well-formedness for one auxiliary restoration step. The abstract
+recursor and rule batch are selected by `typing`; the two WF fields are therefore
+indexed by those same values. -/
 structure RestoredAuxiliaryRecursorWF
     (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
     (safety : DefinitionSafety) (trEnv recursorEnv ruleEnv : VEnv)

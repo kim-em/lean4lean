@@ -2,17 +2,19 @@ import Lean4Lean.Theory.Inductive.Compilation
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
-/-! Concrete realization of the same finite compilation and restoration witness.
+/-! Translation of the restored recursors of a nested block (`TrRestoredRecursorVal`,
+`TrRestoredCompilation`): each executable recursor entry translates the restoration of a
+generated recursor of one finite compilation (section 3.3 of `docs/inductives/DESIGN.md`).
 
 Restoration changes a recursor's name, type, constructor names, and rule RHSs.
 It preserves the expanded block's parameter/index/motive/minor counts and its
 K flag. In particular an auxiliary recursor's constructor may have more
 parameters than the recursor itself. Its major family is the restored prior
-container, whereas its `all` metadata lists the original source families.
+container, whereas its `all` metadata lists the source families.
 
-The contracts below retain the exact generated-and-restored equations and
-explicit equalities for the specialized major and constructor applications.
-They do not infer a canonical LHS shape from RHS typing or metadata alone.
+The structures below record the restored generated equations themselves and
+explicit equalities for the specialized major and constructor applications;
+the left-hand side shape is not inferred from right-hand side typing or metadata.
 -/
 
 namespace Lean4Lean
@@ -40,7 +42,7 @@ structure TrRestoredRecursorRule {s : InductiveSignature} (g : Instance s)
         (VLevel.params g.uvars) ∧
     TrExprS venv lparams [] rule.rhs df.rhs
 
-/-- Metadata and type for one restored recursor. `sourceNames` is the original
+/-- Metadata and type for one restored recursor. `sourceNames` is the
 source family list, even for auxiliary recursors. The specialized family head
 separately fixes the major inductive and constructor parameters. -/
 structure TrRestoredRecursorVal {s : InductiveSignature} (g : Instance s)
@@ -77,7 +79,7 @@ structure TrRestoredRecursorVal {s : InductiveSignature} (g : Instance s)
     ∀ ctor ∈ s.constructors.toList, ctor.fields = []
 
 /-- The concrete entry and its abstract constant have the same generated
-owner, universe arity, restored type, and operational metadata. -/
+owner, universe arity, restored type, and executable metadata. -/
 def TrRestoredRecursorEntry {s : InductiveSignature} (g : Instance s)
     (r : Restoration) (sourceNames : List Name) (venv : VEnv)
     (owner : Fin s.families.size) (entry : Lean.ConstantInfo × VConstVal) : Prop :=
@@ -85,9 +87,9 @@ def TrRestoredRecursorEntry {s : InductiveSignature} (g : Instance s)
     r.recursor (g.recursor owner) = some entry.2 ∧
     TrRestoredRecursorVal g r sourceNames venv owner rec
 
-/-- One existential witness fixes formation, finite prior-container provenance,
-all generated equations, their exact restoration, and every concrete recursor
-entry. There is no separately chosen rule batch or restoration callback. -/
+/-- One existential fixes the formation, the finite certificates of the prior
+containers, all generated equations, their restoration, and every executable
+recursor entry. There is no separately chosen rule batch or restoration callback. -/
 structure TrRestoredCompilation (env : VEnv) (source : VInductDecl)
     (block : VInductBlock) (venv : VEnv)
     (entries : List (Lean.ConstantInfo × VConstVal)) : Prop where
@@ -106,7 +108,7 @@ theorem TrRestoredCompilation.compiles
   rcases H.generated with ⟨_, _, _, _, hdata, hprior, _⟩
   exact .intro hdata hprior
 
-/-- The realization does not read the block's case eliminators. -/
+/-- `TrRestoredCompilation` does not read the block's case eliminators. -/
 theorem TrRestoredCompilation.congr_eliminators
     (H : TrRestoredCompilation env source block venv entries)
     (es : List (Name × InductiveSignature.CaseSchema)) :
