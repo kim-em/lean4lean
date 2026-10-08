@@ -15,7 +15,7 @@ is installed with type
   `List ((a : Nat) → CE.T) → List ((a : Nat) → CE.T) → CE.T`.
 
 The two types are `==` (`Expr.eqv`) but not `Expr.equal`. See
-`Lean4Lean.Verify.Inductive.Nested.ConstructorTypeRoundTrip`.
+`Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledConstructorTypes`.
 -/
 
 namespace Lean4Lean.Tests.NestedConstructorRoundTrip

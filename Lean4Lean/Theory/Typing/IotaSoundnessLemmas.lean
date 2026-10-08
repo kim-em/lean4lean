@@ -94,7 +94,7 @@ theorem insertBinders_liftN (F X P : List VExpr) (e : Nat) (hX : X.length = e) :
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Basic.lean and Nested/AuxiliaryFamilyCorrespondence.lean
+-- from Lean4Lean/Verify/Inductive/Basic.lean and Nested/Restoration/AuxiliaryHeaders.lean
 namespace Lean4Lean
 namespace VerifyInductive
 open InductiveSignature
@@ -157,7 +157,7 @@ theorem specializeType_eq_instantiateForallPrefix {type specialized : VExpr}
 end VerifyInductive
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/AuxiliaryConstructorRestoration.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/AuxiliaryConstructors.lean
 namespace Lean4Lean
 namespace VerifyInductive
 open InductiveSignature
@@ -209,7 +209,7 @@ theorem VInductBlock.install_le
   VInductBlock.install_base_le H
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/EliminatorAvoidance.lean
+-- from Lean4Lean/Verify/Inductive/Nested/CaseEliminators/Avoidance.lean
 namespace Lean4Lean
 open InductiveSignature
 
@@ -224,7 +224,7 @@ theorem CompiledInductive.types_ctors {env : VEnv} {source : VInductDecl}
   | cons _ _ _ _ _ _ _ => trivial
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/EliminatorAvoidance.lean
+-- from Lean4Lean/Verify/Inductive/Nested/CaseEliminators/Avoidance.lean
 namespace Lean4Lean
 open InductiveSignature
 
@@ -242,7 +242,7 @@ theorem VInductBlock.install_constants {env installed : VEnv} {block : VInductBl
   · exact hle.constants (VEnv.addConstVals_get hc hv)
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/RestorationCommutation.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/Commutation.lean
 namespace Lean4Lean.InductiveSignature
 open InductiveSignature
 
@@ -251,7 +251,7 @@ def Restoration.restorableNames (r : Restoration) : List Name :=
   r.heads.map (·.auxiliary) ++ r.recursors.map Prod.fst
 end Lean4Lean.InductiveSignature
 
--- from Lean4Lean/Verify/Inductive/Nested/RestorationCommutation.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/Commutation.lean
 namespace Lean4Lean.InductiveSignature
 open InductiveSignature
 
@@ -263,7 +263,7 @@ theorem Restoration.heads_find?_eq_none {r : Restoration} {name : Name}
   exact h (List.mem_map.mpr ⟨head, hmem, by simpa using heq⟩)
 end Lean4Lean.InductiveSignature
 
--- from Lean4Lean/Verify/Inductive/Recursor/Entries/TrRestoredRecursorVal.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/TrRestoredRecursorVal.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -278,7 +278,7 @@ structure RestoredFamilyHead where
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Recursor/Entries/TrRestoredRecursorVal.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/TrRestoredRecursorVal.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -292,7 +292,7 @@ def Restoration.restoredHeadName (r : Restoration) (name : Name) : Name :=
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Recursor/Entries/TrRestoredRecursorVal.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/TrRestoredRecursorVal.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -308,7 +308,7 @@ def Instance.restoredFamilyHead {s : InductiveSignature}
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/RestoredRecursorShape.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/RecursorShape.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -328,7 +328,7 @@ theorem instantiateParams_vars {e : VExpr} {n : Nat} (he : e.ClosedN n) (below :
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/RestoredRecursorShape.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/RecursorShape.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -345,7 +345,7 @@ theorem Restoration.expr_recursorMajor_source (r : Restoration) {s : InductiveSi
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/RestoredRecursorShape.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/RecursorShape.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -419,7 +419,7 @@ theorem VInductDecl.RawCtorShape.constructorShape
       exact InductiveSignature.vars_eq_bvarRange _ _
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/AssemblyNativeWhnf.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Install/RecursorTranslations.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -429,7 +429,7 @@ open InductiveSignature
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/AssemblyNativeWhnf.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Install/RecursorTranslations.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -443,7 +443,7 @@ theorem vars_map_liftN (n k : Nat) :
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/AssemblyNativeWhnf.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Install/RecursorTranslations.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -467,7 +467,7 @@ theorem Restoration.find?_of_nodup {heads : List HeadSpecialization}
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/AssemblyNativeWhnf.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Install/RecursorTranslations.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -484,7 +484,7 @@ theorem declaration_ctor_mem (s : InductiveSignature) (index : Fin s.constructor
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/RecursorProvenance.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/RecursorAlignment.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -504,7 +504,7 @@ theorem Restoration.expr_wrapLams_eq (r : Restoration) (doms : List VExpr) (body
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/RecursorProvenance.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/RecursorAlignment.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -816,7 +816,7 @@ theorem Restoration.restored_iota_shape {s : InductiveSignature} (g : Instance s
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/RecursorProvenance.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/RecursorAlignment.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -858,7 +858,7 @@ theorem VIotaRuleShape.fieldCount {env env' : VEnv} (henv : env.WF)
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/RecursorProvenance.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/RecursorAlignment.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -878,7 +878,7 @@ theorem ContainerSpecialization.directFamily_numIndices
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/RecursorProvenance.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/RecursorAlignment.lean
 namespace Lean4Lean
 open InductiveSignature
 
@@ -896,7 +896,7 @@ theorem CompiledInductive.sourceFacts {env : VEnv} {source : VInductDecl}
   | cons _ _ _ _ _ _ _ => trivial
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/RecursorProvenance.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/RecursorAlignment.lean
 namespace Lean4Lean
 open InductiveSignature
 
@@ -928,7 +928,7 @@ theorem CertifiedSpecializations.containerConstructors {env : VEnv} :
     · exact CertifiedSpecializations.containerConstructors hrest a ha
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/RecursorProvenance.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Restoration/RecursorAlignment.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
@@ -1472,7 +1472,7 @@ theorem CompilationData.restoredConstructorFieldDomains
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/Nested/AssemblyNativeWhnf.lean
+-- from Lean4Lean/Verify/Inductive/Nested/Install/RecursorTranslations.lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature

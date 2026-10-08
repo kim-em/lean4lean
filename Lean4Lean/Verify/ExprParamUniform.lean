@@ -640,7 +640,7 @@ theorem HitShape.mkBinding_of_disjoint {heads : List Name} {params : List Expr}
 
 `Expr.replace` is modelled by `Expr.replaceNoCache` (`Expr.replace_eq`). A callback hit stops the
 traversal; otherwise the node is rebuilt from its replaced children. The relational form is
-`VerifyInductive.ExprReplacement` (`Nested/Replacement.lean`). -/
+`VerifyInductive.ExprReplacement` (`Nested/Restoration/ExprReplace.lean`). -/
 
 theorem replace_of_some {f : Expr → Option Expr} {e r : Expr} (h : f e = some r) :
     e.replace f = r := by

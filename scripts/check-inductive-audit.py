@@ -148,7 +148,7 @@ def main():
         subprocess.run(["lake", "build", "Lean4Lean.Verify.Inductive.Dispatch",
                         "Lean4Lean.Verify.TypeChecker",
                         "Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal",
-                        "Lean4Lean.Verify.Inductive.Recursor.Entries.TrRestoredRecursorVal",
+                        "Lean4Lean.Verify.Inductive.Nested.Restoration.TrRestoredRecursorVal",
                         "Lean4Lean.Theory.Inductive.CaseRegistration",
                         "Lean4Lean.Theory.Inductive.CaseProjections",
                         "Lean4Lean.Theory.Typing.CaseReduction",

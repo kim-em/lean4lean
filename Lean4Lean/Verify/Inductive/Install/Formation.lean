@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Install.Headers
 import Lean4Lean.Verify.Inductive.Install.LiteralNames
-import Lean4Lean.Verify.Inductive.Nested.Compilation
+import Lean4Lean.Verify.Inductive.Nested.Restoration.Translations
 
 namespace Lean4Lean
 

@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Install.OrdinaryExtension
 import Lean4Lean.Verify.Inductive.Primitive.Extension
 import Lean4Lean.Verify.Inductive.Install.Result
-import Lean4Lean.Verify.Inductive.Nested.FinalModelDispatch
+import Lean4Lean.Verify.Inductive.Nested.Install.Result
 
 namespace Lean4Lean
 

@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Primitive.ConstructorCheck
-import Lean4Lean.Verify.Inductive.Nested.Compilation
+import Lean4Lean.Verify.Inductive.Nested.Restoration.Translations
 import Lean4Lean.Verify.Inductive.Install.Lookups
 import Lean4Lean.Verify.Inductive.Rules.RuleTranslations
 import Lean4Lean.Verify.Inductive.Constructor.LiteralDisjoint

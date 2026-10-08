@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Recursor.Entries.AddConstants
 import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
-import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterRawShape
+import Lean4Lean.Verify.Inductive.Constructor.ParameterSyntacticTranslation
 import Lean4Lean.Verify.Inductive.Constructor.Telescopes
 
 namespace Lean4Lean

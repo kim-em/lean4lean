@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Signature.Constructors
 import Lean4Lean.Verify.Inductive.Recursor.Signature.MinorSpine
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Families
 import Lean4Lean.Verify.Inductive.Recursor.Elimination.Singleton
-import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterRawShape
+import Lean4Lean.Verify.Inductive.Constructor.ParameterSyntacticTranslation
 import Lean4Lean.Verify.Inductive.Recursor.Signature.MinorFields
 
 /-! Elimination admissibility of the consumed signature's universe instance.

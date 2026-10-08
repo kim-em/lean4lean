@@ -6,7 +6,7 @@ import Lean4Lean.Verify.Inductive.Dispatch
 import Lean4Lean.Verify.Environment
 import Lean4Lean.Verify.TypeChecker
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
-import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRestoredRecursorVal
+import Lean4Lean.Verify.Inductive.Nested.Restoration.TrRestoredRecursorVal
 import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Inductive.CaseRegistration
 import Lean4Lean.Theory.Typing.FullChurchRosser

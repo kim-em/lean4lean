@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Recursor.Signature.MinorFields
-import Lean4Lean.Verify.Inductive.Nested.Replacement
+import Lean4Lean.Verify.Inductive.Nested.Restoration.ExprReplace
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Constructors
 
 /-! Inversion of the executable's pre-installation recursor type check.

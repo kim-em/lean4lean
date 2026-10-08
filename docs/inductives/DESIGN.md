@@ -311,7 +311,7 @@ the executable's own branch selection. Primitive declarations (`Bool` and `Nat`,
 by `Primitive.checkInductive`) go through `Lean4Lean/Verify/Inductive/Primitive/`. For
 other declarations the verified lowering result decides: no auxiliary families means the
 ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
-(`Nested/EndToEnd.lean`, `NestedFinalSpecification.lean`). All three produce an
+(`Nested/Restoration/SourceTranslations.lean`, `NestedFinalSpecification.lean`). All three produce an
 `InductiveFinalResult`.
 
 ### 3.2 Phases of the ordinary path
@@ -362,42 +362,42 @@ context.
 ### 3.3 Nested declarations
 
 Nested declarations are verified by lowering and restoration (`Nested/`, 91k).
-`Nested/Lowering.lean` and `Nested/Replacement.lean` (an exact, cache-independent
+`Nested/Lowering/Basic.lean` and `Nested/Restoration/ExprReplace.lean` (an exact, cache-independent
 specification of `Expr.replace`) verify the replacement of maximal nested occurrences by
 fresh auxiliary families and its correspondence with the abstract nested expansion. The
 lowered declaration runs the ordinary pipeline, including its own constructor boundary. The
 restoration loop is then verified: restored constructors, restored recursor types and
 restored rules (`Nested/Restoration*.lean`, `Nested/EquationRestoration*.lean`). The
 typing of restored equations is transported from the lowered recursor environment by a
-context-carrying renaming restoration substitution (`Nested/RestoredEquationWF.lean`), which
+context-carrying renaming restoration substitution (`Nested/Restoration/Equations/WF.lean`), which
 replaces each auxiliary head by its restoration lambda and renames recursors and projection
 type names.
 
 The source block registers its own case eliminator: the boundary signature of the lowered
 run, under the same key, restored by the nested compilation's restoration
-(`Nested/CaseEliminators.lean`), certified from the validated run.
+(`Nested/CaseEliminators/Certificate.lean`), certified from the validated run.
 
 The executable validates the restoration before installing it: restored constructor
 types, restored recursor types, and the right-hand side of each restored rule, as the
 C++ kernel does (`validateRestoredRecursorRules`).
 Rules are validated in a copy of the restored environment in which every restored recursor
 has no rules (`stripRecursorRules`), because the abstract iota equations are only added once
-the rules are known to be well formed (`Nested/StrippedValidity.lean`). The proof reads only
+the rules are known to be well formed (`Nested/Restoration/Validation/StrippedEnvironment.lean`). The proof reads only
 the translation of each restored right-hand side off this pass. The abstract rules are the
 restorations of the generated equations: their nested-iota shape and guardedness come from
-the generator through restoration (`Nested/GeneratedRuleGuard.lean`, `primaryNestedIotaRule`),
+the generator through restoration (`Nested/Restoration/Equations/GeneratedGuard.lean`, `primaryNestedIotaRule`),
 their well-formedness from the restoration substitution, and the final assembly extends the
-rule-free assembly base by them (`Nested/RuleShapeBase.lean`). The translation of the
+rule-free assembly base by them (`Nested/Restoration/Equations/RestoredRulesBase.lean`). The translation of the
 restored right-hand sides can also be obtained by preservation, without the executable check
-(`restoredRuleRhs_translates`, `Nested/RestoredRuleRhsTranslation.lean`), which would let the
+(`restoredRuleRhs_translates`, `Nested/Restoration/Equations/RuleRhsTranslation.lean`), which would let the
 check run in the complete restored environment as in the C++ kernel; that route still assumes
 that the lowered rules keep the auxiliary family names out of the arguments copied by
-restoration (`LoweredRulesAvoidAll.lean` proves this for every other restorable name).
+restoration (`Restoration/RestorableNameAvoidance.lean` proves this for every other restorable name).
 
 The common-parameter prefix of a source constructor is not re-checked. Lowering keeps it
 verbatim, the ordinary pipeline checks it for the lowered constructor in the lowered header
 environment, and the header stage of the restoration substitution
-(`Nested/HeaderRenaming.lean`), which replaces each auxiliary header by its restoration
+(`Nested/Restoration/HeaderRenaming.lean`), which replaces each auxiliary header by its restoration
 lambda, transports that check to the source header environment, where it fixes the
 parameters and the prefix (`NestedValidatedRunResult.nativeSourceParameterWF`).
 
@@ -405,7 +405,7 @@ The parametric nested applications `I Ds` (leanprover/lean4#14577) are type-chec
 (`validateNestedAuxiliaries`), as in the C++ kernel. For a nested occurrence of a family with
 indices, `I Ds` is a type family and its auxiliary family is itself indexed. The proof closes
 each application with lambdas over the lowering parameters and its inferred type with foralls
-over the same parameters (`ClosedValidatedNestedAuxiliaries`, `Nested/Lowering.lean`), which
+over the same parameters (`ClosedValidatedNestedAuxiliaries`, `Nested/Lowering/Basic.lean`), which
 is well formed in both cases, and uses only the resulting typing of the restored head
 (`GeneratedFamilyHeadRealization`).
 
@@ -601,7 +601,7 @@ consumes. The certificates hold vacuously for an environment without constructor
 preserved by every declaration (`VEnvs.CertPres`), and the walk uses the delete branch of the
 certificate at each non-dependent field. Nested declarations need the stored constructor type
 to agree with the checked source type up to binder names
-(`Verify/Inductive/Nested/ConstructorTypeRoundTrip.lean`), because reusing an auxiliary
+(`Verify/Inductive/Nested/Restoration/InstalledConstructorTypes.lean`), because reusing an auxiliary
 renames binders inside reused occurrences, as in the C++ kernel.
 
 ## 6. The quotient declaration
@@ -774,8 +774,8 @@ Suggested order, with sizes.
 9. The inductive checker: `Lean4Lean/Inductive/Add.lean` (2.2k), then the pipeline:
    `Lean4Lean/Verify/Inductive/Constructor/CheckedFormation.lean` (1k), `Context.lean` (3.5k),
    `Header/` (9k), `Constructor/` (7k), `Recursor/` (51k), `Rules/` (33k), `Install/` (5k),
-   `Nested/` (91k, starting from `CaseEliminators.lean`, `EndToEnd.lean`,
-   `RestoredEquationWF.lean`, `StrippedValidity.lean`).
+   `Nested/` (91k, starting from `CaseEliminators/Certificate.lean`, `Restoration/SourceTranslations.lean`,
+   `Restoration/Equations/WF.lean`, `Restoration/Validation/StrippedEnvironment.lean`).
 10. Quotients: `Lean4Lean/Verify/QuotInit.lean` (630).
 11. The audit: `scripts/check-inductive-audit.py`, `scripts/inductive-audit-inventory.json`.
 

@@ -1588,5 +1588,25 @@ theorem VExpr.GuardedIota.recCallWrapped
   apply VExpr.GuardedIota.wrapLams hdomains
   exact .recCall hrecursor hargs hmajor
 
+theorem VEnv.addConstVals_projections_eq
+    {base out : VEnv} {constants : List VConstVal}
+    (H : base.addConstVals constants = some out) :
+    out.projections = base.projections := by
+  induction constants generalizing base with
+  | nil =>
+      simp [VEnv.addConstVals] at H
+      subst out
+      rfl
+  | cons ci constants ih =>
+      simp only [VEnv.addConstVals] at H
+      cases hadd : base.addConst ci.name ci.toVConstant with
+      | none => simp [hadd] at H
+      | some next =>
+          rw [hadd] at H
+          rw [ih H]
+          unfold VEnv.addConst at hadd
+          split at hadd <;> cases hadd
+          rfl
+
 end VerifyInductive
 end Lean4Lean

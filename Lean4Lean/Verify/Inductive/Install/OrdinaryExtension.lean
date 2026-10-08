@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Install.Ordinary
 import Lean4Lean.Verify.Inductive.Prelude.EqReady
 import Lean4Lean.Verify.Inductive.Install.Result
-import Lean4Lean.Verify.Inductive.Nested.EndToEnd
+import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceTranslations
 
 namespace Lean4Lean
 

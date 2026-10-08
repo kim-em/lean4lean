@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRestoredRecursorVal
+import Lean4Lean.Verify.Inductive.Nested.Restoration.TrRestoredRecursorVal
 
 namespace Lean4Lean.Tests.RestoredRecursorMetadata
 
