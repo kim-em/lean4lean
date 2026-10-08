@@ -1770,7 +1770,7 @@ theorem
     HdomainType⟩
 
 /-- Identify the source side of the selected recursive-hypothesis translation
-with the exact declaration type introduced by `mkRecInfos.loopU`.  Thus the
+with the exact declaration type introduced by `mkRecInfos.loopUTemplates`.  Thus the
 pointwise target-domain certificate is no longer mediated by an arbitrary
 existential source expression. -/
 theorem

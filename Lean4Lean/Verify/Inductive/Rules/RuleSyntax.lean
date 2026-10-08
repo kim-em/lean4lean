@@ -1060,7 +1060,7 @@ theorem RecursorRuleSyntax.abstractedAllArgsUnique
   rw [← heq, hentry]
   trivial
 
-/-- Pointwise semantic state retained from the actual `mkRecRules` field and
+/-- Pointwise semantic state retained from the actual `mkRecInfos` field and
 recursive-call loops.  The concrete arrays and generated results are fixed by
 `H`; this record stores only the independently checked classification and
 recursive-domain facts that the executable `RecursorRule` omits. -/

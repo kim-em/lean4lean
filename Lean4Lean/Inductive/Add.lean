@@ -612,24 +612,6 @@ where
       k uiTy xs
 
 variable (stats : InductiveStats) (bu u : Array Expr) (recInfos : Array RecInfo) in
-def loopU (i : Nat) (v : Array Expr) (k : Array Expr → M α) : M α := do
-  if _h : i < u.size then
-    let ui := u[i]
-    let viTy ← loopUArgs (fieldsBefore stats bu ui) ui fun uiTy xs => do
-      let some itIdx := isValidIndApp? stats uiTy
-        | throw (.other
-          "recursive constructor field lost its inductive result type")
-      let itIndices := uiTy.getAppArgs[stats.params.size:]
-      return (← getLCtx).mkForall xs <|
-        .app (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN ui xs)
-    let vName := ((← getLCtx).get! ui.fvarId!).userName.appendAfter "_ih"
-    withUnannotatedLocalDecl vName .default viTy fun vi => do
-    loopU (i + 1) (v.push vi) k
-  else
-    k v
-termination_by u.size - i
-
-variable (stats : InductiveStats) (bu u : Array Expr) (recInfos : Array RecInfo) in
 def loopUTemplates (i : Nat) (v : Array Expr)
     (calls : Array RecCallTemplate)
     (k : Array Expr → Array RecCallTemplate → M α) : M α := do
@@ -641,6 +623,12 @@ def loopUTemplates (i : Nat) (v : Array Expr)
           "recursive constructor field lost its inductive result type")
       let itIndices := uiTy.getAppArgs[stats.params.size:]
       let lctx ← getLCtx
+      -- The recursor head of the call is a placeholder for the loose variable just
+      -- outside the `xs` binders: `mkLambda` does not shift loose bound variables, so
+      -- it must be `.bvar xs.size` inside the body. `RecCallTemplate.instantiate`
+      -- then lifts the recursor application under those binders; its free variables
+      -- may reuse identifiers of `xs`, so it cannot be placed in the body before
+      -- the abstraction.
       let viTy := lctx.mkForall xs <|
         .app (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN ui xs)
       return (viTy, ({
@@ -711,69 +699,6 @@ def getRecLevels (elimLevel : Level) (levels : List Level) : List Level :=
 
 def getRecLevelParams (elimLevel : Level) (lparams : List Name) : List Name :=
   if let .param u := elimLevel then u :: lparams else lparams
-
-namespace mkRecRules
-
-def loopU (indTypes : Array InductiveType) (stats : InductiveStats)
-    (motives minors : Array Expr) (lvls : List Level) (bu u : Array Expr)
-    (i : Nat) (v : Array Expr) (k : Array Expr → M α) : M α := do
-  if _h : i < u.size then
-    let ui := u[i]
-    let val ← mkRecInfos.loopUArgs (mkRecInfos.fieldsBefore stats bu ui) ui fun uiTy xs => do
-      let some itIdx := isValidIndApp? stats uiTy
-        | throw (.other
-          "recursive constructor field lost its inductive result type")
-      let itIndices := uiTy.getAppArgs[stats.params.size:]
-      let val := .const (mkRecName indTypes[itIdx]!.name) lvls
-      let val := mkAppN (mkAppN (mkAppN val stats.params) motives) minors
-      let lctx ← getLCtx
-      -- The recursor head is a placeholder for the loose variable just outside
-      -- the `xs` binders: `mkLambda` does not shift loose bound variables, so
-      -- it must be `.bvar xs.size` inside the body. `instantiate1` then lifts
-      -- `val` under those binders; its free variables may reuse
-      -- identifiers of `xs`, so `val` cannot be placed in the body before the
-      -- abstraction.
-      return (lctx.mkLambda xs <|
-        (mkAppN (.bvar xs.size) itIndices).app (mkAppN ui xs)).instantiate1
-          val
-    loopU indTypes stats motives minors lvls bu u (i + 1) (v.push val) k
-  else
-    k v
-termination_by u.size - i
-
-end mkRecRules
-
-namespace mkRecRules
-
-def loopCtors (indTypes : Array InductiveType) (stats : InductiveStats)
-    (motives minors : Array Expr) (lvls : List Level)
-    (ctors : List Constructor) (rules : Array RecursorRule) :
-    StateT Nat M (List RecursorRule)
-  | minorIdx => match ctors with
-  | [] => pure (rules.toList, minorIdx)
-  | ctor :: ctors => do
-    let (rule, nextMinorIdx) ←
-      (fun minorIdx => mkRecInfos.loopCtorArgs stats ctor.type fun _ bu u =>
-      mkRecRules.loopU indTypes stats motives minors lvls bu u 0 #[] fun v => do
-      let lctx ← getLCtx
-      let rule := {
-        ctor := ctor.name
-        nfields := bu.size
-        rhs := lctx.mkLambda stats.params <| lctx.mkLambda motives <|
-          lctx.mkLambda minors <| lctx.mkLambda bu <|
-          mkAppN (mkAppN minors[minorIdx]! bu) v
-      }
-      return (rule, minorIdx + 1)) minorIdx
-    loopCtors indTypes stats motives minors lvls ctors (rules.push rule)
-      nextMinorIdx
-
-end mkRecRules
-
-def mkRecRules (indTypes : Array InductiveType) (elimLevel : Level) (stats : InductiveStats)
-    (dIdx : Nat) (motives : Array Expr) (minors : Array Expr) :
-    StateT Nat M (List RecursorRule) :=
-  mkRecRules.loopCtors indTypes stats motives minors
-    (getRecLevels elimLevel stats.levels) indTypes[dIdx]!.ctors #[]
 
 def RecCallTemplate.instantiate (blueprint : RecCallTemplate)
     (indTypes : Array InductiveType) (stats : InductiveStats)

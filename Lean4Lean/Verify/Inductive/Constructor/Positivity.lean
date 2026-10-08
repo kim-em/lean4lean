@@ -1051,10 +1051,6 @@ theorem getIIndices.index_arity
   have harity := isValidIndAppIdx.arity hvalid
   omega
 
-namespace mkRecRules.loopU
-
-end mkRecRules.loopU
-
 namespace mkRecInfos.loopUArgs
 
 end mkRecInfos.loopUArgs
@@ -1074,7 +1070,7 @@ def GeneratedRecursiveCall
       (mkAppN (.bvar localArgs.size) indices).app
         (mkAppN field localArgs)).instantiate1 recursor
 
-/-- Prefix invariant for `mkRecRules.loopU`: generated values correspond
+/-- Prefix invariant for the generated recursive calls: generated values correspond
 pointwise to the selected recursive fields. -/
 structure GeneratedRecursiveCalls
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
@@ -1093,10 +1089,6 @@ def GeneratedRecursiveCalls.empty
   covered := Nat.zero_le _
   size := rfl
   entries _ h := by omega
-
-namespace mkRecRules.loopU
-
-end mkRecRules.loopU
 
 /-- A validated concrete parameter argument translates to the corresponding
 abstract de Bruijn parameter.  The fvar-shape invariant is what upgrades
