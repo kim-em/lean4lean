@@ -20,7 +20,6 @@ verification of quotients, the canonical hypotheses and the checker changes
 ```lean
 theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
-    (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
     (decl : Declaration) (hdecl : decl.IsModelled env ves) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety
@@ -31,16 +30,23 @@ declarations and quotient initialization. The dependency cone has no `sorry`. Th
 a thin wrapper around
 
 ```lean
-theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+    (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (hq : ∀ safety, (ves.venv safety).QuotReady)
-    (decl : Declaration) (_hdecl : decl.IsModelled env ves) : ...
+    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+        VEnvs.CertPres env env' ves ves'
 ```
 
-which derives `hq` from `heq` (`VEnv.HasCanonicalEq.quotReady`). The iterable form
-`addDecl.WFHasCanonicalEq` also returns `HasCanonicalEq` and `HasCanonicalChoice` for `ves'`
-(both are monotone along `≤`), so the theorem applies again to the next declaration of a
-replay.
+`VEnvs.WF` is the core invariant `VEnvs.WFCore` together with the constructor-telescope
+certificates `VEnvs.CtorCert` (section 5.3); the wrapper discharges `hcorner` from the
+certificates, derives `hq` from `heq` (`VEnv.HasCanonicalEq.quotReady`), and carries the
+certificates to the output through `CertPres`. The iterable form `addDecl.WFHasCanonicalEq`
+also returns `HasCanonicalEq` for `ves'` (monotone along `≤`), so the theorem applies again
+to the next declaration of a replay. `addDecl.WF_of_canonicalChoice` is the variant over
+`VEnvs.WFCore` alone, which assumes canonical `Nonempty`/`Classical.choice` instead of the
+certificates.
 
 "Sound" means refinement: whenever the executable `addDecl` returns an environment, that
 environment is modelled, at every safety level, by an abstract environment that is well formed
@@ -543,8 +549,28 @@ binders.
 does not depend on it, the walk keeps the body without substituting anything, so the
 verification must translate the remainder without that binder. When the field's projection
 is typable it inhabits the binder and substitution does this. Otherwise (a data field of a
-structure that may be a proposition, which the kernel still walks past) the binder `D` is
-inhabited as follows (`VEnv.WF.corner_inhabit_choice`,
+structure that may be a proposition, which the kernel still walks past) a translation of the
+remainder in the smaller context is needed, and general strengthening is not available
+(section 5.1). Two proofs resolve this.
+
+The proof used by `addDecl.WF_of_canonicalEq` re-derives the smaller-context translation from
+the checker's own acceptance of the constructor type. A frame lemma for the executable
+(`Lean4Lean/Verify/TypeChecker/Frame*.lean`: a successful run in a local context with extra
+declarations that never occur in its inputs, caches or environment is the same run without
+them) and a ghost-telescope verification (`Verify/TypeChecker/GhostTelescope.lean`) show that
+when a constructor type is checked, every unused binder of its telescope can be deleted from
+the translation. The result is recorded as a depth-bounded certificate `TelTrN`
+(`Verify/Typing/TelescopeTranslation.lean`), one per visible constructor at every safety
+level (`VEnvs.CtorCert`); the bound is the constructor's own arity, which is what the walk
+consumes. The certificates hold vacuously for an environment without constructors, are
+preserved by every declaration (`VEnvs.CertPres`), and the walk uses the delete branch of the
+certificate at each non-dependent field. Nested declarations need the stored constructor type
+to agree with the checked source type up to binder names
+(`Verify/Inductive/Nested/ConstructorTypeRoundTrip.lean`), because reusing an auxiliary
+renames binders inside reused occurrences, as in the C++ kernel.
+
+The alternative proof, used by `addDecl.WF_of_canonicalChoice`, inhabits the binder `D`
+instead (`VEnv.WF.corner_inhabit_choice`,
 `Lean4Lean/Theory/Typing/ProjectionCornerChoice.lean`): eliminate the major into `Prop` with
 the structure's registered case eliminator, motive `fun _ => Nonempty D` and minor
 `fun fields => Nonempty.intro field_j`, then apply `Classical.choice`. The projections that
@@ -689,14 +715,10 @@ constructor, recursor or inductive type is rejected by the corresponding check.
 
 ## 9. Open
 
-- **Choice-free corner.** Removing `HasCanonicalChoice` needs either a strengthening theorem
-  restricted to the corner or a locality theorem for derivations; both reduce to the
-  conversion-elimination problem of section 5.1. A substitution proof needs a term of `D`,
-  which only choice provides.
 - **Declarative strengthening with canonical `Eq`** is open: no counterexample and no proof.
-  `VEnv.Strengthening` remains as a definition, as a hypothesis of a few lemmas outside the
-  cone (`UniqueTyping.lean`, `CaseReduction.lean`, `ProjectionLemmas.lean`), and in the
-  countermodel.
+  Nothing in the verification uses it; the corner is resolved by the constructor certificates
+  (section 5.3), which apply to environments built by the checker rather than to arbitrary
+  well-formed abstract environments.
 - **Realizability** of the canonical hypotheses relies on test-checked facts about the
   production declarations (section 1.3).
 - **Confluence without `Eq`.** Non-joinability in the countermodel is argued, not checked.
