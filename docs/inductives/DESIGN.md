@@ -19,8 +19,7 @@ verification of quotients, the canonical hypotheses and the checker changes
 
 ```lean
 theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
-    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety
 ```
@@ -33,7 +32,7 @@ a thin wrapper around
 theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (hq : ∀ safety, (ves.venv safety).QuotReady)
-    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         VEnvs.CertPres env env' ves ves'
@@ -107,8 +106,6 @@ imports whose well-formedness and canonical `Eq` are assumed: imports are truste
   projection-walk corner (section 5.3). `addDecl.WF_of_canonicalChoice` keeps the form that
   assumes `HasCanonicalChoice` (`Lean4Lean/Theory/CanonicalChoice.lean`) instead, over
   `VEnvs.WFCore`.
-- `hdecl : decl.IsModelled env ves` is `True` for every declaration. It is kept so that the
-  statement keeps its shape; it can be dropped.
 
 A replay from the empty environment is covered by `Replay.WF_empty`
 (`Lean4Lean/Verify/CanonicalEqRealization.lean`): every environment reached by adding a list

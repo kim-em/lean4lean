@@ -133,7 +133,7 @@ theorem Replay.WF {env env' : Environment} {ds : List Declaration}
       obtain ⟨_, _, _, hEq, hEqP, hRefl, hReflP, hRec, hRecP⟩ := hquot hd
       exact (wf.toWFCore.canonicalEq_constants hEq hEqP hRefl hReflP hRec hRecP safety).1
     obtain ⟨ves₁, wf₁, hle₁, hcert⟩ :=
-      addDecl.WF_quotReadyAt wf.toWFCore wf.ctorCert.corner d hq trivial _ hadd
+      addDecl.WF_quotReadyAt wf.toWFCore wf.ctorCert.corner d hq _ hadd
     obtain ⟨ves₂, wf₂, hle₂⟩ := ih ⟨wf₁, hcert wf.ctorCert⟩
     exact ⟨ves₂, wf₂, fun safety => (hle₁ safety).trans (hle₂ safety)⟩
 

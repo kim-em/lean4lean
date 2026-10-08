@@ -328,23 +328,13 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hc
     (fun _ _ h => by cases h) (hle' safety) (v₀ :: rest) (H safety)
     (wf.tr (safety := safety)).map_wf hfresh hnd
 
-/-- Declaration forms admitted to the generic environment theorem.  Every
-declaration form is now modelled: checked inductive declarations carry no
-declaration-specific semantic premise (ordinary, primitive, and nested evidence
-is reconstructed from execution), and quotient initialization is verified by
-`addQuot.WF`.  The predicate is kept so that the statement of
-`addDecl.WF_of_canonicalEq` is unchanged; it is trivially satisfiable. -/
-def _root_.Lean.Declaration.IsModelled
-    (_env : Environment) (_ves : VEnvs) (_decl : Declaration) : Prop := True
-
 /-- `addDecl.WF` with quotient readiness assumed only for `quotDecl`, the one form whose
 abstract rule needs it. This is the form a replay from the empty environment uses, since `Eq`
 does not exist before the prelude declares it. -/
 theorem addDecl.WF_quotReadyAt {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (decl : Declaration)
-    (hq : decl = .quotDecl → ∀ safety, (ves.venv safety).QuotReady)
-    (_hdecl : decl.IsModelled env ves) :
+    (hq : decl = .quotDecl → ∀ safety, (ves.venv safety).QuotReady) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         VEnvs.CertPres env env' ves ves' := by
@@ -374,11 +364,11 @@ at every safety level (`hq`). -/
 theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (hq : ∀ safety, (ves.venv safety).QuotReady)
-    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         VEnvs.CertPres env env' ves ves' :=
-  addDecl.WF_quotReadyAt wf hcorner decl (fun _ => hq) hdecl
+  addDecl.WF_quotReadyAt wf hcorner decl fun _ => hq
 
 /-! ### The empty environment -/
 
@@ -428,19 +418,17 @@ theorem VEnvs.HasCanonicalEq.mono {ves ves' : VEnvs} (h : ves.HasCanonicalEq)
 
 /-- The top-level preservation theorem in the canonical-`Eq` formulation. Its hypotheses are the
 well-formedness of the current environment (`VEnvs.WF`: the core invariant together with the
-constructor telescope certificates), canonical equality at every safety level, and that the
-declaration is of a modelled form; the output environment again satisfies `VEnvs.WF`. On this
-branch the checker runs in scoped contexts, so no strengthening hypothesis is needed, and the
+constructor telescope certificates) and canonical equality at every safety level; the output
+environment again satisfies `VEnvs.WF`. On this branch the checker runs in scoped contexts, so no strengthening hypothesis is needed, and the
 certificates resolve the projection-walk corner, so no choice hypothesis is needed either.
 Canonical equality is used only for quotient initialization, whose abstract rule types
 `Quot.lift` against `Eq` at every safety level (`VEnv.HasCanonicalEq.quotReady`). -/
 theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
-    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF wf.toWFCore wf.ctorCert.corner (fun safety => (heq safety).quotReady) decl
-    hdecl).mono fun _ ⟨ves', wf', hle, hcert⟩ => ⟨ves', ⟨wf', hcert wf.ctorCert⟩, hle⟩
+  (addDecl.WF wf.toWFCore wf.ctorCert.corner (fun safety => (heq safety).quotReady) decl).mono
+    fun _ ⟨ves', wf', hle, hcert⟩ => ⟨ves', ⟨wf', hcert wf.ctorCert⟩, hle⟩
 
 /-- The top-level preservation theorem over the core invariant `VEnvs.WFCore`, which does not
 record constructor telescope certificates. In exchange it assumes canonical
@@ -453,31 +441,31 @@ for quotient initialization. -/
 theorem addDecl.WF_of_canonicalChoice {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
     (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
-    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF wf (fun safety => .inl (hch safety)) (fun safety => (heq safety).quotReady) decl
-    hdecl).mono fun _ ⟨ves', wf', hle, _⟩ => ⟨ves', wf', hle⟩
+  (addDecl.WF wf (fun safety => .inl (hch safety)) (fun safety => (heq safety).quotReady) decl).mono
+    fun _ ⟨ves', wf', hle, _⟩ => ⟨ves', wf', hle⟩
 
 /-- Iterable form of `addDecl.WF_of_canonicalEq`: `VEnvs.WF` and canonical equality are
 preserved by the output environments, so the theorem applies again to the next declaration of a
 replay. -/
 theorem addDecl.WFHasCanonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (heq : ves.HasCanonicalEq) (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (heq : ves.HasCanonicalEq) (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ves'.HasCanonicalEq ∧
         ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF_of_canonicalEq wf heq decl hdecl).mono fun _ ⟨ves', wf', hle⟩ =>
+  (addDecl.WF_of_canonicalEq wf heq decl).mono fun _ ⟨ves', wf', hle⟩ =>
     ⟨ves', wf', heq.mono hle, hle⟩
 
 /-- Iterable form of `addDecl.WF_of_canonicalChoice`: canonical equality and canonical choice
 are preserved by the output environments. -/
 theorem addDecl.WFHasCanonicalChoice {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (heq : ves.HasCanonicalEq) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
-    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ ves'.HasCanonicalEq ∧
         (∀ safety, (ves'.venv safety).HasCanonicalChoice) ∧
         ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF_of_canonicalChoice wf heq hch decl hdecl).mono fun _ ⟨ves', wf', hle⟩ =>
+  (addDecl.WF_of_canonicalChoice wf heq hch decl).mono fun _ ⟨ves', wf', hle⟩ =>
     ⟨ves', wf', heq.mono hle, fun safety => (hch safety).mono (hle safety), hle⟩
