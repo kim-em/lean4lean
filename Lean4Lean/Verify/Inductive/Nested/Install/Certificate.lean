@@ -214,7 +214,7 @@ structure NestedFinalAssemblyBase
     decl.constructorConstants
   recursorValues : recursorEntries.map Prod.snd =
     primaryRecursors ++ auxiliaryRecursors
-  formationAssembly : NestedFormationAssembly sourceEnv decl
+  formationAssembly : NestedExpansionData sourceEnv decl
   formationExpanded : formationAssembly.expanded = production.loweredDecl
   materialized : SourcePrefixOfLowered decl production.loweredDecl
   uvars : decl.uvars = lparams.length
@@ -255,7 +255,7 @@ structure NestedFinalAssemblyShape
     (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
       primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.auxiliaries
       [] [] auxiliaryRecursors auxiliaryRules
-  auxiliaryWF : RestoredAuxiliaryFinalWFTrace decl
+  auxiliaryWF : RestoredAuxiliaryRecursorsWF decl
     (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
       primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
       ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
@@ -325,7 +325,7 @@ structure NestedFinalAssemblyRemainder
       [] [] auxiliaryRecursors auxiliaryRules
   recursorValues : recursorEntries.map Prod.snd =
     primaryRecursors ++ auxiliaryRecursors
-  auxiliaryWF : RestoredAuxiliaryFinalWFTrace decl
+  auxiliaryWF : RestoredAuxiliaryRecursorsWF decl
     (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
       primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
       ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
@@ -371,7 +371,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
     (htypeValues : typeEntries.map Prod.snd = decl.typeConstants)
     (hconstructorValues : constructorEntries.map Prod.snd =
       decl.constructorConstants)
-    (Hformation : NestedFormationAssembly sourceEnv decl)
+    (Hformation : NestedExpansionData sourceEnv decl)
     (hformationExpanded : Hformation.expanded = P.loweredDecl)
     (Hmaterialized : SourcePrefixOfLowered decl P.loweredDecl)
     (huvars : decl.uvars = lparams.length)
@@ -627,7 +627,7 @@ structure NestedValidatedRunResult
     PrimitiveSafeFreshConstantTrace false sourceProdEnv entries outEnv
   validationEnv : Environment
   validationEnvironment :
-    RestoredConstructorValidationEnvironment res loweredEnv sourceProdEnv
+    ValidationEnvironment res loweredEnv sourceProdEnv
       (sourceTypes.map (·.name)) false sourceTypes validationEnv
   recursorTypeValidation :
     Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
@@ -647,7 +647,7 @@ structure NestedValidatedRunResult
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok ()
   auxiliaryHeaderEnv : Environment
   headerValidationEnvironment :
-    RestoredHeaderValidationEnvironment loweredEnv sourceProdEnv
+    ValidationHeaderEnvironment loweredEnv sourceProdEnv
       (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv
   parameterValidation :
     Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
@@ -656,12 +656,12 @@ structure NestedValidatedRunResult
   auxiliaryMLCtx : TypeChecker.MLCtx
   auxiliaryMLCtx_lctx : auxiliaryMLCtx.lctx = res.lctx
   auxiliaryMLCtxWF : auxiliaryMLCtx.WF auxiliaryVEnv lparams
-  validatedAuxiliaries : ValidatedNestedAuxiliaries auxiliaryVEnv lparams
+  validatedAuxiliaries : NestedOccurrencesTyped auxiliaryVEnv lparams
     auxiliaryMLCtx.vlctx res
   auxiliarySelection : CDeclArray res.lctx res.params
-  auxiliaryTranslations : ClosedNestedAuxiliaryTranslations auxiliaryVEnv
+  auxiliaryTranslations : ClosedNestedOccurrenceTypings auxiliaryVEnv
     lparams res auxiliarySelection
-  nativeSource : NativeNestedSourceCoreResult sourceEnv lparams nparams
+  nativeSource : NestedSourceDeclaration sourceEnv lparams nparams
     sourceTypes isUnsafe production.loweredDecl safety validationEnv
       auxiliaryHeaderEnv
   nativeSourceDecl_eq : nativeSource.sourceDecl = decl
@@ -702,7 +702,7 @@ structure NestedExactFinalRunResult
     PrimitiveSafeFreshConstantTrace false sourceProdEnv entries outEnv
   validationEnv : Environment
   validationEnvironment :
-    RestoredConstructorValidationEnvironment res loweredEnv sourceProdEnv
+    ValidationEnvironment res loweredEnv sourceProdEnv
       (sourceTypes.map (·.name)) productionContext.allowPrimitive sourceTypes
       validationEnv
   recursorTypeValidation :
@@ -723,7 +723,7 @@ structure NestedExactFinalRunResult
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok ()
   auxiliaryHeaderEnv : Environment
   headerValidationEnvironment :
-    RestoredHeaderValidationEnvironment loweredEnv sourceProdEnv
+    ValidationHeaderEnvironment loweredEnv sourceProdEnv
       (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv
   parameterValidation :
     Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
@@ -732,12 +732,12 @@ structure NestedExactFinalRunResult
   auxiliaryMLCtx : TypeChecker.MLCtx
   auxiliaryMLCtx_lctx : auxiliaryMLCtx.lctx = res.lctx
   auxiliaryMLCtxWF : auxiliaryMLCtx.WF auxiliaryVEnv lparams
-  validatedAuxiliaries : ValidatedNestedAuxiliaries auxiliaryVEnv lparams
+  validatedAuxiliaries : NestedOccurrencesTyped auxiliaryVEnv lparams
     auxiliaryMLCtx.vlctx res
   auxiliarySelection : CDeclArray res.lctx res.params
-  auxiliaryTranslations : ClosedNestedAuxiliaryTranslations auxiliaryVEnv
+  auxiliaryTranslations : ClosedNestedOccurrenceTypings auxiliaryVEnv
     lparams res auxiliarySelection
-  nativeSource : NativeNestedSourceCoreResult sourceEnv lparams nparams
+  nativeSource : NestedSourceDeclaration sourceEnv lparams nparams
     sourceTypes isUnsafe production.loweredDecl safety validationEnv
       auxiliaryHeaderEnv
   nativeSourceDecl_eq : nativeSource.sourceDecl = decl
@@ -898,7 +898,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
       rw [hsafety']
       simp [c, nestedAddInductiveContext]
     have HheaderValid : ∀ auxiliaryHeaderEnv,
-        Nonempty (RestoredHeaderValidationEnvironment loweredEnv c'.env
+        Nonempty (ValidationHeaderEnvironment loweredEnv c'.env
           (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv) →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           auxiliaryHeaderEnv sourceTypesVEnv := by
@@ -954,11 +954,11 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
           ((), restoredEnv) := by
         simpa only [henv'] using Htrace
-      have Hvalidation' : RestoredConstructorValidationEnvironment res
+      have Hvalidation' : ValidationEnvironment res
           loweredEnv c'.env (sourceTypes.map (·.name)) false sourceTypes
           validationEnv := by
         simpa only [henv', hallowFalse] using Hvalidation
-      have HheaderValidation' : RestoredHeaderValidationEnvironment loweredEnv
+      have HheaderValidation' : ValidationHeaderEnvironment loweredEnv
           c'.env (sourceTypes.map (·.name)) sourceTypes
           auxiliaryHeaderEnv := by
         simpa only [henv'] using HheaderValidation
@@ -974,7 +974,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
       have Hnative := HlowerInitial'.nativeSourceCore Hc' Hprod Hsources
         Howners' rfl Htrace' Hvalidation' HheaderValidation' Hparameters'
         hvisible
-      have Hnative' : Nonempty (NativeNestedSourceCoreResult Hc'.venv lparams
+      have Hnative' : Nonempty (NestedSourceDeclaration Hc'.venv lparams
           nparams sourceTypes isUnsafe loweredDecl
           (if isUnsafe then .unsafe else .safe) validationEnv
             auxiliaryHeaderEnv) := by

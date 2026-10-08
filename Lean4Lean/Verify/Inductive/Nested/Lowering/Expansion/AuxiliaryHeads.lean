@@ -18,7 +18,7 @@ restored nested application `I Ds`, closed over the canonical parameter
 context, together with its translation and its typing there.  No index
 telescope or result sort is fixed: for a nested occurrence of an indexed
 family `I` the head is a type family rather than a type. -/
-structure GeneratedFamilyHeadRealization
+structure AuxiliaryHeadTyping
     (env : VEnv) (levelParams : List Name)
     (parameterDomains : List VExpr) (sourceFamily : Expr) where
   family : VExpr
@@ -58,9 +58,9 @@ constructor-field binder can occur in them.
 This is the source spine needed both to construct the canonical direct
 auxiliary family and, after weakening, to interpret an actual lowering hit.
 -/
-theorem GeneratedFamilyWitness.abstractContainerApplication
-    (H : GeneratedFamilyWitness prodEnv params nestedAux family)
-    (R : GeneratedFamilyHeadRealization venv lparams parameterDomains
+theorem AuxiliaryFamilySpecialization.abstractContainerApplication
+    (H : AuxiliaryFamilySpecialization prodEnv params nestedAux family)
+    (R : AuxiliaryHeadTyping venv lparams parameterDomains
       ((mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
         H.args).abstractList H.selection.fvars))
     (henv : venv.WF)
@@ -158,9 +158,9 @@ theorem GeneratedFamilyWitness.abstractContainerApplication
 exact abstract constant installed for its container.  This is deliberately a
 single environment-indexed lookup: it does not assert that translating an
 arbitrary constant is preserved by unrelated environment extensions. -/
-theorem GeneratedFamilyWitness.abstractContainerLookup
-    (H : GeneratedFamilyWitness prodEnv params nestedAux family)
-    (R : GeneratedFamilyHeadRealization venv lparams parameterDomains
+theorem AuxiliaryFamilySpecialization.abstractContainerLookup
+    (H : AuxiliaryFamilySpecialization prodEnv params nestedAux family)
+    (R : AuxiliaryHeadTyping venv lparams parameterDomains
       ((mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
         H.args).abstractList H.selection.fvars)) :
     ∃ abstractFamily,
@@ -206,9 +206,9 @@ has exactly the arity of the environment-indexed abstract container selected
 by the restored source application.  This is read from the `TrExprS.const`
 node of that exact application; it is not a global constant-preservation
 principle. -/
-theorem GeneratedFamilyWitness.levelsLengthOfAbstractLookup
-    (H : GeneratedFamilyWitness prodEnv params nestedAux family)
-    (R : GeneratedFamilyHeadRealization venv lparams parameterDomains
+theorem AuxiliaryFamilySpecialization.levelsLengthOfAbstractLookup
+    (H : AuxiliaryFamilySpecialization prodEnv params nestedAux family)
+    (R : AuxiliaryHeadTyping venv lparams parameterDomains
       ((mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
         H.args).abstractList H.selection.fvars))
     (hlookup : venv.constants H.sourceName = some abstractFamily) :
@@ -271,12 +271,12 @@ namespace VerifyInductive
 /-- A validated auxiliary is an exact source realization of a generated
 family head after its independently recovered parameter context is converted
 to the canonical production parameter context. -/
-theorem ClosedNestedAuxiliaryTranslation.toGeneratedFamilyHeadRealization
-    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+theorem ClosedNestedOccurrenceTyping.toAuxiliaryHeadTyping
+    (H : ClosedNestedOccurrenceTyping venv lparams res selection e)
     (henv : venv.WF) (parameterDomains : List VExpr)
     (Hcontexts : VEnv.IsDefEqCtx venv lparams.length []
       parameterDomains.reverse H.domains.reverse) :
-    Nonempty (GeneratedFamilyHeadRealization venv lparams parameterDomains
+    Nonempty (AuxiliaryHeadTyping venv lparams parameterDomains
       (e.abstractList selection.fvars)) := by
   rcases H.residualAtDefEqParameterDomains henv parameterDomains Hcontexts with
     ⟨family, familyType, Hfamily, HfamilyType⟩
@@ -291,24 +291,24 @@ theorem ClosedNestedAuxiliaryTranslation.toGeneratedFamilyHeadRealization
 nested-family constant applied to exactly the arguments used by auxiliary
 construction, closed over that construction's parameter selection.  Its
 translation is retained exactly, rather than only up to typing. -/
-theorem GeneratedFamilyWitness.cachedFamilyHeadRealization
-    (H : GeneratedFamilyWitness sourceEnv result.params
+theorem AuxiliaryFamilySpecialization.cachedFamilyHeadRealization
+    (H : AuxiliaryFamilySpecialization sourceEnv result.params
       finalState.nestedAux family)
     (Hmap : NestedAuxMapModels result finalState)
     {resultSelection : CDeclArray result.lctx result.params}
     (hresultNodup : resultSelection.fvars.Nodup)
-    (Htranslations : ClosedNestedAuxiliaryTranslations venv lparams result
+    (Htranslations : ClosedNestedOccurrenceTypings venv lparams result
       resultSelection)
     (henv : venv.WF) (parameterDomains : List VExpr)
-    (Hcontexts : ∀ Haux : ClosedNestedAuxiliaryTranslation venv lparams
+    (Hcontexts : ∀ Haux : ClosedNestedOccurrenceTyping venv lparams
       result resultSelection H.data.nested,
       VEnv.IsDefEqCtx venv lparams.length [] parameterDomains.reverse
         Haux.domains.reverse) :
-    Nonempty (GeneratedFamilyHeadRealization venv lparams parameterDomains
+    Nonempty (AuxiliaryHeadTyping venv lparams parameterDomains
       ((mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
         H.args).abstractList H.selection.fvars)) := by
   rcases H.closedAuxiliaryTranslation Hmap Htranslations with ⟨Haux⟩
-  have Hrealized := Haux.toGeneratedFamilyHeadRealization henv
+  have Hrealized := Haux.toAuxiliaryHeadTyping henv
     parameterDomains (Hcontexts Haux)
   simpa only [H.cachedClosureAlpha resultSelection hresultNodup] using Hrealized
 

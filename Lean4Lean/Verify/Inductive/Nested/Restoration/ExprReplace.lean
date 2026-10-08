@@ -403,7 +403,7 @@ The five lists are the abstract domains corresponding respectively to the
 production parameter, motive, minor, index, and major binder groups.  Keeping
 the translated residual in their exact abstract context makes the pieces that
 must later be transported across nested restoration explicit. -/
-structure GeneratedRecursorTelescopeTranslation
+structure RecursorTypeTelescope
     (env : VEnv) (Us : List Name) (source : Expr) (target : VExpr)
     (numParams numMotives numMinors numIndices ownerIdx : Nat) where
   params : List VExpr
@@ -430,8 +430,8 @@ structure GeneratedRecursorTelescopeTranslation
 have the same complete domain list and residual.  This lets later equation
 frames freely choose their operational witness and import semantic facts
 proved using another existential witness. -/
-theorem GeneratedRecursorTelescopeTranslation.domainsResult_eq
-    (T₁ T₂ : GeneratedRecursorTelescopeTranslation env Us source target
+theorem RecursorTypeTelescope.domainsResult_eq
+    (T₁ T₂ : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx) :
     T₁.params ++ T₁.motives ++ T₁.minors ++ T₁.indices ++ T₁.major =
         T₂.params ++ T₂.motives ++ T₂.minors ++ T₂.indices ++ T₂.major ∧
@@ -463,8 +463,8 @@ theorem GeneratedRecursorTelescopeTranslation.domainsResult_eq
 
 /-- Groupwise form of `domainsResult_eq`, using the five fixed production
 arities to recover each retained telescope component. -/
-theorem GeneratedRecursorTelescopeTranslation.groupsResult_eq
-    (T₁ T₂ : GeneratedRecursorTelescopeTranslation env Us source target
+theorem RecursorTypeTelescope.groupsResult_eq
+    (T₁ T₂ : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx) :
     T₁.params = T₂.params ∧ T₁.motives = T₂.motives ∧
       T₁.minors = T₂.minors ∧ T₁.indices = T₂.indices ∧
@@ -497,8 +497,8 @@ theorem GeneratedRecursorTelescopeTranslation.groupsResult_eq
 six computational components are fixed.  This upgrades `groupsResult_eq`
 from a rewriting interface to literal witness equality, which is needed when
 later evidence is dependently indexed by the chosen telescope value. -/
-theorem GeneratedRecursorTelescopeTranslation.eq
-    (T₁ T₂ : GeneratedRecursorTelescopeTranslation env Us source target
+theorem RecursorTypeTelescope.eq
+    (T₁ T₂ : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx) :
     T₁ = T₂ := by
   rcases T₁.groupsResult_eq T₂ with
@@ -518,11 +518,11 @@ theorem GeneratedRecursorTelescopeTranslation.eq
 mutual recursors are definitionally equal once their concrete source binder
 domains are known to agree at those positions.  Owner-specific index/major
 arities and residuals are deliberately allowed to differ. -/
-theorem GeneratedRecursorTelescopeTranslation.commonPrefixDefEqCtx
+theorem RecursorTypeTelescope.commonPrefixDefEqCtx
     (Henv : env.WF)
-    (T₁ : GeneratedRecursorTelescopeTranslation env Us source₁ target₁
+    (T₁ : RecursorTypeTelescope env Us source₁ target₁
       numParams numMotives numMinors numIndices₁ owner₁)
-    (T₂ : GeneratedRecursorTelescopeTranslation env Us source₂ target₂
+    (T₂ : RecursorTypeTelescope env Us source₂ target₂
       numParams numMotives numMinors numIndices₂ owner₂)
     (Hdomains : ∀ i,
       i < numParams + numMotives + numMinors →
@@ -576,8 +576,8 @@ the recursor owner.  In particular, the domain is checked before later
 motives, all minors, and the recursor's own index/major suffix have entered
 the context.  This is the structural side of the bridge to the independently
 replayed canonical motive telescope. -/
-theorem GeneratedRecursorTelescopeTranslation.ownerMotiveBinder
-    (T : GeneratedRecursorTelescopeTranslation env Us source target
+theorem RecursorTypeTelescope.ownerMotiveBinder
+    (T : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
     (howner : ownerIdx < T.motives.length) :
     ∃ (suffixSource : Expr) (name : Name)
@@ -631,8 +631,8 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveBinder
 /-- Expose the source and abstract domains of one flattened minor binder.
 The domain is checked after all parameters and motives and the strictly
 earlier minors, but before later minors and the owner-specific suffix. -/
-theorem GeneratedRecursorTelescopeTranslation.minorBinder
-    (T : GeneratedRecursorTelescopeTranslation env Us source target
+theorem RecursorTypeTelescope.minorBinder
+    (T : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
     (minorIdx : Nat) (hminor : minorIdx < T.minors.length) :
     ∃ (suffixSource : Expr) (name : Name)
@@ -702,8 +702,8 @@ theorem GeneratedRecursorTelescopeTranslation.minorBinder
 /-- Applying the parameter, motive, and minor prefix of a translated
 recursor to its canonical variables leaves exactly the index/major suffix.
 This is the typed spine shared by every generated equation for the owner. -/
-theorem GeneratedRecursorTelescopeTranslation.prefixTyping
-    (T : GeneratedRecursorTelescopeTranslation env Us source target
+theorem RecursorTypeTelescope.prefixTyping
+    (T : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
     (henv : env.Ordered)
     (hfn : env.HasType Us.length [] fn target) :
@@ -725,8 +725,8 @@ theorem GeneratedRecursorTelescopeTranslation.prefixTyping
 
 /-- The common parameter/motive/minor prefix is itself a well-formed local
 context, independently of the owner-specific index and major suffix. -/
-theorem GeneratedRecursorTelescopeTranslation.prefixContext
-    (T : GeneratedRecursorTelescopeTranslation env Us source target
+theorem RecursorTypeTelescope.prefixContext
+    (T : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
     (henv : env.Ordered) :
     OnCtx (T.params ++ T.motives ++ T.minors).reverse
@@ -750,8 +750,8 @@ theorem GeneratedRecursorTelescopeTranslation.prefixContext
 residual in the exact five-group context.  This is the inversion premise
 used to recover the dependency of the owner motive application on the
 generated index/major suffix. -/
-theorem GeneratedRecursorTelescopeTranslation.fullContextResultType
-    (T : GeneratedRecursorTelescopeTranslation env Us source target
+theorem RecursorTypeTelescope.fullContextResultType
+    (T : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
     (henv : env.Ordered) :
     let domains := T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
@@ -774,8 +774,8 @@ the owner motive applied to the canonical variables for the translated index
 and major suffix.  Keeping this theorem on `T` avoids choosing a second,
 potentially unrelated existential translation when the result shape is used
 together with the owner-motive telescope. -/
-theorem GeneratedRecursorTelescopeTranslation.resultShape
-    (T : GeneratedRecursorTelescopeTranslation env Us source target
+theorem RecursorTypeTelescope.resultShape
+    (T : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
     (howner : ownerIdx < numMotives) :
     T.result = VExpr.mkApps
@@ -794,8 +794,8 @@ theorem GeneratedRecursorTelescopeTranslation.resultShape
 /-- Lookup form before the owner index/major suffix is opened.  This is the
 function typing consumed by the generic canonical-application context
 inversion. -/
-theorem GeneratedRecursorTelescopeTranslation.ownerMotiveOuterBvarTyping
-    (T : GeneratedRecursorTelescopeTranslation env Us source target
+theorem RecursorTypeTelescope.ownerMotiveOuterBvarTyping
+    (T : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
     (howner : ownerIdx < T.motives.length) :
     let later := T.motives.drop (ownerIdx + 1) ++ T.minors
@@ -837,11 +837,11 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveOuterBvarTyping
   rw [hcontext]
   exact hlookup
 
-def GeneratedRecursorTelescopeTranslation.mono
+def RecursorTypeTelescope.mono
     (henv : env ≤ env')
-    (T : GeneratedRecursorTelescopeTranslation env Us source target
+    (T : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx) :
-    GeneratedRecursorTelescopeTranslation env' Us source target
+    RecursorTypeTelescope env' Us source target
       numParams numMotives numMinors numIndices ownerIdx where
   params := T.params
   motives := T.motives
@@ -868,7 +868,7 @@ theorem GeneratedRecursorEntry.telescopeTranslation
     (Hselections : RecursorBinderGroups c stats recInfos ownerIdx)
     (howner : ownerIdx < recInfos.size)
     (hnoalias : Hselections.NoAlias) :
-    Nonempty (GeneratedRecursorTelescopeTranslation env H.info.levelParams
+    Nonempty (RecursorTypeTelescope env H.info.levelParams
       H.info.type entry.2.type stats.params.size
       (recInfos.map (·.motive)).size (recInfos.flatMap (·.minors)).size
       recInfos[ownerIdx]!.indices.size ownerIdx) := by
@@ -902,14 +902,14 @@ theorem GeneratedRecursorEntry.telescopeTranslation
 
 /-- Pointwise five-group translation certificate for an entire generated
 mutual recursor block. -/
-def GeneratedRecursorTelescopeTranslations
+def RecursorTypeTelescopes
     (env : VEnv) (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
     (entries : List (ConstantInfo × VConstVal)) : Prop :=
   ∀ ownerIdx (hentry : ownerIdx < entries.length),
     ∃ info : RecursorVal,
       entries[ownerIdx].1 = .recInfo info ∧
-      Nonempty (GeneratedRecursorTelescopeTranslation env info.levelParams
+      Nonempty (RecursorTypeTelescope env info.levelParams
         info.type entries[ownerIdx].2.type stats.params.size
         (recInfos.map (·.motive)).size
         (recInfos.flatMap (·.minors)).size

@@ -6,8 +6,8 @@ types of a validated nested run.
 The executable lowering emits every auxiliary occurrence at `state.lvls`,
 which is initialised to the declaration's level parameters and never modified.
 The relational traces record this through `NestedAuxLE` (which fixes `lvls`),
-the `lvls` fields of `LoweredConstructorTranslation`,
-`LoweredConstructorMapping` and `NestedLoweringRun`, and the universe-argument
+the `lvls` fields of `ConstructorLowering`,
+`ConstructorLowering.Resolved` and `NestedLowering`, and the universe-argument
 premise of the replacement leaves in
 `NestedLoweringResultClosed.originalExpansionsAboveLvls`. Projected through
 the translation, every replacement hit is a level leaf
@@ -87,10 +87,10 @@ theorem NestedReplacementFinalTrace.levelLeaf
     exact Hexp.constLevelsAt (fun h => h)
       (hs.2 source (List.mem_append_right _ hsource))
 
-/-- `FinalLoweredGeneratedFamilyOrigin.abstractExpansion` for an arbitrary
+/-- `LoweredAuxiliaryFamily.abstractExpansion` for an arbitrary
 liftable leaf relation, with every replacement hit known to be emitted at the
 universe arguments of the final lowering state. -/
-theorem FinalLoweredGeneratedFamilyOrigin.abstractExpansionAboveLvls
+theorem LoweredAuxiliaryFamily.abstractExpansionAboveLvls
     {prodEnv : Environment} {params : Array Expr} {nparams : Nat}
     {finalState : Lean4Lean.ElimNestedInductive.State}
     {targetConcrete : InductiveType} {baseVEnv sourceTypesVEnv targetTypesVEnv : VEnv}
@@ -98,9 +98,9 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractExpansionAboveLvls
     {result : Lean4Lean.ElimNestedInductive.Result}
     {decl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
     (Hlift : NestedExpansionLeafLiftAbove decl.nparams leaf)
-    (H : FinalLoweredGeneratedFamilyOrigin prodEnv params nparams finalState
+    (H : LoweredAuxiliaryFamily prodEnv params nparams finalState
       targetConcrete)
-    (Hsource : FinalLoweredGeneratedFamilySource H baseVEnv sourceTypesVEnv
+    (Hsource : AuxiliaryFamilySource H baseVEnv sourceTypesVEnv
       lparams target)
     (Htarget : TrInductiveType baseVEnv targetTypesVEnv lparams targetConcrete
       target)
@@ -244,7 +244,7 @@ theorem NestedValidatedRunResult.loweredConstructorLevelsAll
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource HbaseWF
   have HtargetTypesWF : Hpack.1.context.venv.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Htarget HbaseWF
-  have Htranslations : ClosedNestedAuxiliaryTranslations
+  have Htranslations : ClosedNestedOccurrenceTypings
       E.nativeSource.envTypes P.c.lparams result E.auxiliarySelection := by
     rw [← E.auxiliaryVEnv_eq_native]
     simpa only [hlparams] using E.auxiliaryTranslations

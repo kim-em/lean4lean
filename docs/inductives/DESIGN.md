@@ -405,9 +405,9 @@ The parametric nested applications `I Ds` (leanprover/lean4#14577) are type-chec
 (`validateNestedAuxiliaries`), as in the C++ kernel. For a nested occurrence of a family with
 indices, `I Ds` is a type family and its auxiliary family is itself indexed. The proof closes
 each application with lambdas over the lowering parameters and its inferred type with foralls
-over the same parameters (`ClosedValidatedNestedAuxiliaries`, `Nested/Lowering/Basic.lean`), which
+over the same parameters (`ClosedNestedOccurrencesTyped`, `Nested/Lowering/Basic.lean`), which
 is well formed in both cases, and uses only the resulting typing of the restored head
-(`GeneratedFamilyHeadRealization`).
+(`AuxiliaryHeadTyping`).
 
 ### 3.4 Reconstructed and checked facts
 

@@ -236,11 +236,11 @@ theorem SameTelescopeArity.cross
 the source constructor telescope consumed by the translated cached argument
 spine.  Closedness of the raw arguments is recovered from the translation of
 their closure, so it is retained producer evidence rather than a premise. -/
-theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.sourceResidual
+theorem AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.sourceResidual
     {ves : VEnvs}
-    (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
+    (C : AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params nestedAux concrete H)
-    (B : C.BuiltConstructorTranslation i hi)
+    (B : C.AuxiliaryConstructorTranslation i hi)
     (lparams : List Name) (parameterDomains baseArgs : List VExpr)
     (Hbase : List.Forall₂
       (TrExprS (ves.venv safety) lparams
@@ -308,11 +308,11 @@ theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.sourceResi
   rw [Hrange, ← Hspecialize,
     Expr.abstractList_instantiateForallBody, HtailAbstract]
 /-- The reopened constructor residual has no loose bound variables. -/
-theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.sourceResidualClosed
+theorem AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.sourceResidualClosed
     {ves : VEnvs}
-    (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
+    (C : AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params nestedAux concrete H)
-    (B : C.BuiltConstructorTranslation i hi)
+    (B : C.AuxiliaryConstructorTranslation i hi)
     (lparams : List Name) (parameterDomains baseArgs : List VExpr)
     (Hbase : List.Forall₂
       (TrExprS (ves.venv safety) lparams
@@ -372,8 +372,8 @@ theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.sourceResi
 
 /-- The generated family residual is the installed source-family telescope
 consumed by the exact cached parameter spine. -/
-theorem GeneratedFamilyInstalledContainer.familySourceResidual
-    (C : GeneratedFamilyInstalledContainer prodEnv venv
+theorem AuxiliaryFamilyContainer.familySourceResidual
+    (C : AuxiliaryFamilyContainer prodEnv venv
       params nestedAux concrete H)
     (lparams : List Name) (parameterDomains baseArgs : List VExpr)
     (sourceTail : Expr)
@@ -445,8 +445,8 @@ theorem GeneratedFamilyInstalledContainer.familySourceResidual
   rw [Hrange, ← Hspecialize,
     Expr.abstractList_instantiateForallBody, HtailAbstract]
 /-- The reopened family residual has no loose bound variables. -/
-theorem GeneratedFamilyInstalledContainer.familySourceResidualClosed
-    (C : GeneratedFamilyInstalledContainer prodEnv venv
+theorem AuxiliaryFamilyContainer.familySourceResidualClosed
+    (C : AuxiliaryFamilyContainer prodEnv venv
       params nestedAux concrete H)
     (lparams : List Name) (parameterDomains baseArgs : List VExpr)
     (sourceTail : Expr)
@@ -512,8 +512,8 @@ theorem GeneratedFamilyInstalledContainer.familySourceResidualClosed
 /-- The residual of a generated family's source telescope, instantiated with
 the recognized application's parameters, has no loose bound variables once
 the environment's declared types have none. -/
-theorem GeneratedFamilyWitness.residualClosed
-    (H : GeneratedFamilyWitness env params nestedAux family)
+theorem AuxiliaryFamilySpecialization.residualClosed
+    (H : AuxiliaryFamilySpecialization env params nestedAux family)
     (HenvB : EnvironmentTypesBVarClosed env) (sourceTail : Expr)
     (HsourceTelescope : Expr.ForallTelescope
       (H.sourceInfo.type.instantiateLevelParams H.sourceInfo.levelParams
@@ -563,9 +563,9 @@ theorem GeneratedFamilyWitness.residualClosed
 family is definitionally the canonical specialization of its installed
 container family.  Every premise is retained by the builder, installed
 container certificate, header checker, or cached source application. -/
-theorem GeneratedFamilyInstalledContainer.directAuxiliaryFamilyType
+theorem AuxiliaryFamilyContainer.directAuxiliaryFamilyType
     {ves : VEnvs}
-    (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
+    (C : AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params nestedAux concrete H)
     (henv : (ves.venv safety).WF)
     (lparams : List Name) (parameterDomains baseArgs : List VExpr)
@@ -820,11 +820,11 @@ formation relation asks only for the resulting definitional equality.
 
 All inputs describe the actual translated family header and cached argument
 spine.  No constructor translation or compatibility callback is supplied. -/
-theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.directAuxiliary
+theorem AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.directAuxiliary
     {ves : VEnvs}
-    (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
+    (C : AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params nestedAux concrete H)
-    (B : C.BuiltConstructorTranslation i hi)
+    (B : C.AuxiliaryConstructorTranslation i hi)
     (henv : (ves.venv safety).WF)
     (lparams : List Name) (parameterDomains baseArgs : List VExpr)
     (abstractLevels : List VLevel)
@@ -998,7 +998,7 @@ theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.directAuxi
   have Happlied := HtypedTelescopeArgs.applyTranslatedArguments henv hctx
     HsourceTelescopeArgs Hfn Hbase ⟨_, Hcanonical⟩
   have hresidual :=
-    GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.sourceResidual
+    AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.sourceResidual
       C B lparams parameterDomains baseArgs Hbase hdomains
   have HresidualTranslation : TrExprS (ves.venv safety) lparams
       (abstractForallContext parameterDomains [])
@@ -1038,7 +1038,7 @@ theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.directAuxi
       simpa [hctors] using B.targetType
     rw [htargetType]
     rw [Expr.abstractN_eq_abstractList_of_closed H.selectionNodup
-      (GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.sourceResidualClosed
+      (AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.sourceResidualClosed
         C B lparams parameterDomains baseArgs Hbase hdomains)]
       at HtargetTelescope
     exact HtargetTelescope

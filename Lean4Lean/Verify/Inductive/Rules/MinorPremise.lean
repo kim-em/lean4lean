@@ -30,7 +30,7 @@ theorem
     (A : H.RuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+    ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
@@ -463,7 +463,7 @@ theorem
     (A : H.RuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+    ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
@@ -566,7 +566,7 @@ theorem
       H.bindings.flatMinors.fvars.take minorIdx
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+    ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
@@ -719,7 +719,7 @@ theorem
     (A : H.RuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+    ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
@@ -825,7 +825,7 @@ theorem
     let minorIdx := recursorMinorOffset indTypes owner + i
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+    ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
@@ -1595,7 +1595,7 @@ theorem
     (A : H.RuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+    ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
@@ -1667,7 +1667,7 @@ theorem
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+    ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
@@ -1783,7 +1783,7 @@ theorem
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+    ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size

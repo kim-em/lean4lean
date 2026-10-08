@@ -653,12 +653,12 @@ section CtorTypes
 
 /-- The lowering of a constructor closes its opened parameters with
 `LocalContext.mkForall`, so its type is a head type. -/
-theorem LoweredConstructorMapping.headType {heads : List Name} {ls : List Level}
+theorem ConstructorLowering.Resolved.headType {heads : List Name} {ls : List Level}
     {env : Environment} {params : Array Expr} {nparams : Nat}
     {finalResult : Lean4Lean.ElimNestedInductive.Result}
     {source : Constructor} {state : Lean4Lean.ElimNestedInductive.State}
     {out : Constructor × Lean4Lean.ElimNestedInductive.State}
-    (H : LoweredConstructorMapping env params nparams finalResult source state out)
+    (H : ConstructorLowering.Resolved env params nparams finalResult source state out)
     (hkeys : ∀ auxName nested, finalResult.aux2nested.find? auxName = some nested →
       auxName ∈ heads)
     (hsource : source.type.AvoidsConsts heads) (hlvls : state.lvls = ls) :
@@ -832,7 +832,7 @@ theorem NestedValidatedRunResult.generatedFamilyType_forall
     simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf
   have HsourceTypesWF : E.nativeSource.envTypes.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource HbaseWF
-  have Htranslations : ClosedNestedAuxiliaryTranslations
+  have Htranslations : ClosedNestedOccurrenceTypings
       E.nativeSource.envTypes P.c.lparams result E.auxiliarySelection := by
     rw [← E.auxiliaryVEnv_eq_native]
     simpa only [hlparams] using E.auxiliaryTranslations

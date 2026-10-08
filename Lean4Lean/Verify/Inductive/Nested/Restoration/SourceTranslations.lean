@@ -24,7 +24,7 @@ def NestedLoweringResult
     (env : Environment) (fuel nparams : Nat) (types : List InductiveType)
     (initialState : Lean4Lean.ElimNestedInductive.State)
     (result : Lean4Lean.ElimNestedInductive.Result) : Prop :=
-  ∃ finalState, NestedLoweringRun env fuel nparams types initialState
+  ∃ finalState, NestedLowering env fuel nparams types initialState
     (result, finalState)
 
 /-- Lowering result with the dynamic-queue closure argument discharged.  The
@@ -35,7 +35,7 @@ def NestedLoweringResultClosed
     (initialState : Lean4Lean.ElimNestedInductive.State)
     (result : Lean4Lean.ElimNestedInductive.Result) : Prop :=
   ∃ finalState,
-    NestedLoweringRun env fuel nparams types initialState
+    NestedLowering env fuel nparams types initialState
       (result, finalState) ∧
     NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState ∧
     NestedResultParamsNodup result
@@ -48,13 +48,13 @@ theorem NestedLoweringResultClosed.toResult
 
 /-- A generated-family provenance witness selects exactly the independently
 validated auxiliary translation associated with its surviving cache entry. -/
-theorem GeneratedFamilyWitness.closedAuxiliaryTranslation
-    (H : GeneratedFamilyWitness sourceEnv params finalState.nestedAux family)
+theorem AuxiliaryFamilySpecialization.closedAuxiliaryTranslation
+    (H : AuxiliaryFamilySpecialization sourceEnv params finalState.nestedAux family)
     (Hmap : NestedAuxMapModels result finalState)
     {selection : CDeclArray result.lctx result.params}
-    (Htranslations : ClosedNestedAuxiliaryTranslations venv lparams result
+    (Htranslations : ClosedNestedOccurrenceTypings venv lparams result
       selection) :
-    Nonempty (ClosedNestedAuxiliaryTranslation venv lparams result selection
+    Nonempty (ClosedNestedOccurrenceTyping venv lparams result selection
       H.data.nested) :=
   Htranslations H.auxName H.data.nested (Hmap _ _ H.cached)
 
@@ -85,8 +85,8 @@ the caller's parameter telescope to the domains recovered by validation.
 This is the syntax-independent core needed by nested restoration: once the
 two dependent parameter contexts have been related, neither a dummy residual
 nor the concrete free variables used by either opening remain relevant. -/
-theorem ClosedNestedAuxiliaryTranslation.residualAtDefEqParameterDomains
-    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+theorem ClosedNestedOccurrenceTyping.residualAtDefEqParameterDomains
+    (H : ClosedNestedOccurrenceTyping venv lparams res selection e)
     (henv : venv.WF) (parameterDomains : List VExpr)
     (Hcontexts : VEnv.IsDefEqCtx venv lparams.length []
       parameterDomains.reverse H.domains.reverse) :
@@ -138,7 +138,7 @@ theorem NestedLoweringResultClosed.sourceParameterPrefix
   rcases Hopening.forallTelescope with ⟨residual, Htelescope⟩
   have hsourceClosed : first.type.FVarsIn fun _ => False :=
     Hclosed first (by rw [htypes]; simp)
-  have hclosed := Hopening.toRestoreParamOpening.root_mkForall_tail Hctx.wf
+  have hclosed := Hopening.toParamOpening.root_mkForall_tail Hctx.wf
     Htelescope (FVarsIn_to_FVarIdsIn hsourceClosed)
     (HbClosed first (by rw [htypes]; simp))
   have HselectionResult : CDeclArray result.lctx result.params := by
@@ -165,7 +165,7 @@ theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
       ({} : TypeChecker.State).ngen.Reserves fv) :
     (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
       res).WF fun _ =>
-        ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res := by
+        NestedOccurrencesTyped venv lparams mlctx.vlctx res := by
   rcases H with ⟨finalState, Hrun, Hcache, _Hparams⟩
   apply Hrun.validateNestedAuxiliariesWF hvalid mlctx hmlctx hlctx hfresh
   have hfvars : res.lctx.fvars = mlctx.vlctx.fvars := by
@@ -192,11 +192,11 @@ theorem NestedLoweringResult.sourceTranslationAt
     (hj : j < sourceTypes.length) :
     ∃ params stepState target loweredState,
       params.size = nparams ∧
-      LoweredInductiveTranslation env params nparams sourceTypes[j]
+      FamilyLowering env params nparams sourceTypes[j]
         stepState (target, loweredState) ∧
       result.types[j]? = some target ∧
       ∃ finalState,
-        NestedLoweringRun env fuel nparams sourceTypes
+        NestedLowering env fuel nparams sourceTypes
           { initialState with newTypes := sourceTypes.toArray }
           (result, finalState) ∧
         NestedAuxLE loweredState finalState := by
@@ -220,13 +220,13 @@ theorem NestedLoweringResult.sourceFinalMappingAt
       { initialState with newTypes := sourceTypes.toArray } result)
     (hj : j < sourceTypes.length) :
     ∃ finalState,
-      NestedLoweringRun env fuel nparams sourceTypes
+      NestedLowering env fuel nparams sourceTypes
         { initialState with newTypes := sourceTypes.toArray }
         (result, finalState) ∧
       ((finalState.nestedAux.toList.map Prod.snd).Nodup →
         ∃ params stepState target loweredState,
           params.size = nparams ∧
-          LoweredInductiveMapping env params nparams result sourceTypes[j]
+          FamilyLowering.Resolved env params nparams result sourceTypes[j]
             stepState (target, loweredState) ∧
           result.types[j]? = some target) := by
   rcases H with ⟨finalState, Hrun⟩
@@ -251,7 +251,7 @@ theorem NestedLoweringResult.sourceFinalMappingAtOfEmpty
     (hj : j < sourceTypes.length) :
     ∃ params stepState target loweredState,
       params.size = nparams ∧
-      LoweredInductiveMapping env params nparams result sourceTypes[j]
+      FamilyLowering.Resolved env params nparams result sourceTypes[j]
         stepState (target, loweredState) ∧
       result.types[j]? = some target := by
   rcases H.sourceFinalMappingAt hj with ⟨finalState, Hrun, Hmapped⟩
@@ -267,7 +267,7 @@ theorem NestedLoweringResult.sourceFinalMappingAtFresh
     (hj : j < sourceTypes.length) :
     ∃ params stepState target loweredState,
       params.size = nparams ∧
-      LoweredInductiveMapping env params nparams result sourceTypes[j]
+      FamilyLowering.Resolved env params nparams result sourceTypes[j]
         stepState (target, loweredState) ∧
       result.types[j]? = some target :=
   H.sourceFinalMappingAtOfEmpty hempty hj
@@ -283,7 +283,7 @@ theorem NestedLoweringResult.sourceFinalMappingAtFreshAligned
     ∃ params stepState target loweredState,
       result.params = params ∧
       params.size = nparams ∧
-      LoweredInductiveMapping env params nparams result sourceTypes[j]
+      FamilyLowering.Resolved env params nparams result sourceTypes[j]
         stepState (target, loweredState) ∧
       result.types[j]? = some target := by
   rcases H with ⟨finalState, Hrun⟩
@@ -358,7 +358,7 @@ theorem NestedLoweringResultClosed.sourceFinalMappingAtFreshAligned
       result.params = (fvars.map Expr.fvar).toArray ∧
       fvars.Nodup ∧
       result.params.size = nparams ∧
-      LoweredInductiveMapping env result.params nparams result sourceTypes[j]
+      FamilyLowering.Resolved env result.params nparams result sourceTypes[j]
         stepState (target, loweredState) ∧
       result.types[j]? = some target := by
   rcases H.resultParamsNodup with ⟨fvars, hresultParams, hnodup⟩
@@ -509,14 +509,14 @@ theorem NestedLoweringResultClosed.sourceConstructorRestorationTraceAtFresh
       result.params.size = nparams ∧
       result.types[familyIdx]? = some target ∧
       Hstep.oldInfo.ctors = target.ctors.map (fun ctor => ctor.name) ∧
-      ∃ Hmappings : LoweredConstructorMappings loweredSourceEnv result.params
+      ∃ Hmappings : ConstructorLowerings.Resolved loweredSourceEnv result.params
           nparams result sourceTypes[familyIdx].ctors stepState
             (target.ctors, loweredState),
         ∃ Htrace : StateForMTrace
           (RestoredConstructorStep result loweredEnv)
           (target.ctors.map (fun ctor => ctor.name))
           Hstep.restored.headerEnv Hstep.restored.constructorEnv,
-          RestoredConstructorMappingTrace result loweredSourceEnv loweredEnv
+          LoweredRestoredConstructors result loweredSourceEnv loweredEnv
             result.params nparams c.safety c.lparams
               sourceTypes[familyIdx].ctors stepState target.ctors loweredState
               Hstep.restored.headerEnv Hstep.restored.constructorEnv := by
@@ -535,7 +535,7 @@ theorem NestedLoweringResultClosed.sourceConstructorRestorationTraceAtFresh
         Hstep.restored.constructorEnv := by
     rw [← hctorNames]
     exact Hstep.restored.constructors
-  have Haligned := RestoredConstructorMappingTrace.ofInstalled Hprod
+  have Haligned := LoweredRestoredConstructors.ofInstalled Hprod
     htargetMem Hmapping.constructors Htrace (by
       intro targetCtor htargetCtor
       exact htargetCtor)
@@ -1259,10 +1259,10 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringWF
         (sourceTypes.map (·.name)) sourceTypes
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
         ((), restoredEnv)) →
-      Nonempty (RestoredConstructorValidationEnvironment res loweredEnv
+      Nonempty (ValidationEnvironment res loweredEnv
         sourceProdEnv (sourceTypes.map (·.name)) allowPrimitive sourceTypes
         validationEnv) →
-      Nonempty (RestoredHeaderValidationEnvironment loweredEnv sourceProdEnv
+      Nonempty (ValidationHeaderEnvironment loweredEnv sourceProdEnv
         (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv) →
       Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
         lparams safety fuel sourceTypes res = .ok () →
@@ -1325,7 +1325,7 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
     (allowPrimitive : Bool) (fuel : FuelConfig)
     (venv : VEnv)
     (hvalid : ∀ auxiliaryHeaderEnv,
-      Nonempty (RestoredHeaderValidationEnvironment loweredEnv sourceProdEnv
+      Nonempty (ValidationHeaderEnvironment loweredEnv sourceProdEnv
         (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv) →
       CheckingEnv.Valid safety auxiliaryHeaderEnv venv)
     (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
@@ -1340,16 +1340,16 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
           lparams safety allowPrimitive fuel
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
           (fun _ =>
-            ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res ∧
+            NestedOccurrencesTyped venv lparams mlctx.vlctx res ∧
             ∃ selection : CDeclArray res.lctx res.params,
-              ClosedNestedAuxiliaryTranslations venv lparams res selection)
+              ClosedNestedOccurrenceTypings venv lparams res selection)
           outEnv := by
   apply Environment.restoreNestedAfterInstall.ofLoweringWF Hc H
     Hlower.toResult hsourceWF lparams safety allowPrimitive fuel
     (fun _ =>
-      ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res ∧
+      NestedOccurrencesTyped venv lparams mlctx.vlctx res ∧
       ∃ selection : CDeclArray res.lctx res.params,
-        ClosedNestedAuxiliaryTranslations venv lparams res selection)
+        ClosedNestedOccurrenceTypings venv lparams res selection)
   intro _restoredEnv _validationEnv auxiliaryHeaderEnv _Hrestoration
     _Hvalidation HheaderValidation _Hparameters _HrecursorTypes
     _HrecursorRules

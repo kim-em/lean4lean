@@ -26,7 +26,7 @@ theorem
     (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+    ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
@@ -112,7 +112,7 @@ theorem
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -155,13 +155,13 @@ theorem _root_.Lean4Lean.InductiveSignature.insertBinders_insertBinders
 /-- Two retained recursor telescopes with the same translated target have
 the same motive group and the same index/major suffix, whatever their
 environments and sources. -/
-theorem GeneratedRecursorTelescopeTranslation.motivesSuffix_eq_of_target
+theorem RecursorTypeTelescope.motivesSuffix_eq_of_target
     {env₁ env₂ : VEnv} {Us₁ Us₂ : List Name} {source₁ source₂ : Expr}
     {target₁ target₂ : VExpr}
     {numParams numMotives numMinors numIndices ownerIdx : Nat}
-    (T₁ : GeneratedRecursorTelescopeTranslation env₁ Us₁ source₁ target₁
+    (T₁ : RecursorTypeTelescope env₁ Us₁ source₁ target₁
       numParams numMotives numMinors numIndices ownerIdx)
-    (T₂ : GeneratedRecursorTelescopeTranslation env₂ Us₂ source₂ target₂
+    (T₂ : RecursorTypeTelescope env₂ Us₂ source₂ target₂
       numParams numMotives numMinors numIndices ownerIdx)
     (htarget : target₁ = target₂) :
     T₁.motives = T₂.motives ∧ T₁.indices ++ T₁.major = T₂.indices ++ T₂.major := by
@@ -204,7 +204,7 @@ theorem RecursorConstruction.recursorTelescopeNative
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat)
     (howner : owner < H.recInfos.size) :
-    Nonempty (GeneratedRecursorTelescopeTranslation R.context.venv
+    Nonempty (RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos
         H.localContext.lctx owner)
@@ -261,7 +261,7 @@ theorem RecursorCheck.ownerSuffix_eq_expected
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -348,7 +348,7 @@ theorem RecursorCheck.ownerMotiveSuffixContextFor
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -390,7 +390,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -443,7 +443,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -519,7 +519,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -639,7 +639,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -706,7 +706,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -791,7 +791,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -940,7 +940,7 @@ theorem
     (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+    ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
@@ -1008,7 +1008,7 @@ theorem
     (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+    ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
@@ -1059,7 +1059,7 @@ theorem
     (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+    ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size

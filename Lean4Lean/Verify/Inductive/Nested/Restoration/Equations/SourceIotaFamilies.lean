@@ -42,14 +42,14 @@ structure RestoredPrimaryOperationalFamilyAlignment
     Lean.mkRecName result.types.toArray[familyIdx]!.name
   constructorNames : Hstep.oldInfo.ctors =
     target.ctors.map (fun ctor => ctor.name)
-  mappings : LoweredConstructorMappings loweredSourceEnv result.params
+  mappings : ConstructorLowerings.Resolved loweredSourceEnv result.params
     nparams result sourceTypes[familyIdx].ctors stepState
       (target.ctors, loweredState)
   restorationTrace : StateForMTrace
     (RestoredConstructorStep result loweredEnv)
     (target.ctors.map (fun ctor => ctor.name)) Hstep.restored.headerEnv
       Hstep.restored.constructorEnv
-  constructors : RestoredConstructorMappingTrace result loweredSourceEnv
+  constructors : LoweredRestoredConstructors result loweredSourceEnv
     loweredEnv result.params nparams c.safety c.lparams
       sourceTypes[familyIdx].ctors stepState target.ctors loweredState
       Hstep.restored.headerEnv Hstep.restored.constructorEnv
@@ -143,7 +143,7 @@ inductive RestoredConstructorSemanticMappingTrace
         params nparams safety lparams canonicalEnv [] state [] state
           sourceProdEnv sourceProdEnv []
   | cons
-      (Hmapping : LoweredConstructorMapping mappingEnv params nparams result
+      (Hmapping : ConstructorLowering.Resolved mappingEnv params nparams result
         source state (target, nextState))
       (Hstep : RestoredConstructorStep result loweredEnv target.name
         sourceProdEnv middleProdEnv)
@@ -164,8 +164,8 @@ inductive RestoredConstructorSemanticMappingTrace
 
 /-- Re-run the source-constructor interpretation while retaining the exact
 operational mapping step instead of immediately projecting it away. -/
-theorem RestoredConstructorMappingTrace.sourceSemanticMapping
-    (H : RestoredConstructorMappingTrace result mappingEnv loweredEnv params
+theorem LoweredRestoredConstructors.sourceSemanticMapping
+    (H : LoweredRestoredConstructors result mappingEnv loweredEnv params
       nparams safety lparams sources state targets finalState sourceProdEnv
         targetProdEnv)
     (Hsources : List.Forall₂ (fun source constructor =>
@@ -230,7 +230,7 @@ theorem RestoredConstructorSemanticMappingTrace.at
     (i : Nat) (hsource : i < sources.length)
     (htarget : i < targets.length) (hconstructor : i < constructors.length) :
     ∃ before after stepSource stepTarget,
-      ∃ Hmapping : LoweredConstructorMapping mappingEnv params nparams result
+      ∃ Hmapping : ConstructorLowering.Resolved mappingEnv params nparams result
           sources[i] before (targets[i], after),
       ∃ Hstep : RestoredConstructorStep result loweredEnv targets[i].name
           stepSource stepTarget,
@@ -323,7 +323,7 @@ theorem RestoredPrimaryOperationalFamilySemantics.constructorAt
     (htarget : i < A.target.ctors.length)
     (hconstructor : i < owner.ctors.length) :
     ∃ before after stepSource stepTarget,
-      ∃ _Hmapping : LoweredConstructorMapping loweredSourceEnv result.params
+      ∃ _Hmapping : ConstructorLowering.Resolved loweredSourceEnv result.params
           nparams result sourceTypes[familyIdx].ctors[i] before
             (A.target.ctors[i], after),
       ∃ HctorStep : RestoredConstructorStep result loweredEnv

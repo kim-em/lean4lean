@@ -11,13 +11,13 @@ namespace VerifyInductive
 /-- Syntactic facts that must hold before an expression can be treated as a
 nested occurrence. The environment lookup and parameter scan are certified
 separately, at the point where their reader/state effects are exposed. -/
-structure NestedAppShape (e : Expr) : Prop where
+structure NestedOccurrenceShape (e : Expr) : Prop where
   isApp : e.isApp = true
   constHead : ∃ fn levels, e.getAppFn = .const fn levels
 
 /-- Independent specification of the occurrence test used while scanning
 parameters of a previously declared inductive application. -/
-def MentionsNestedNewType
+def MentionsQueuedFamily
     (newTypes : Array InductiveType) (e : Expr) : Prop :=
   e.findAny (fun
     | .const name _ => newTypes.any fun type => name == type.name
@@ -26,13 +26,13 @@ def MentionsNestedNewType
 theorem mentionsNestedNewType_iff
     (newTypes : Array InductiveType) (e : Expr) :
     Lean4Lean.ElimNestedInductive.mentionsNestedNewType newTypes e = true ↔
-      MentionsNestedNewType newTypes e := by
+      MentionsQueuedFamily newTypes e := by
   rfl
 
 theorem nestedParamFlags_fst
     (newTypes : Array InductiveType) (args : Array Expr) (n : Nat) :
     (Lean4Lean.ElimNestedInductive.nestedParamFlags newTypes args n).1 = true ↔
-      ∃ i, i < n ∧ MentionsNestedNewType newTypes args[i]! := by
+      ∃ i, i < n ∧ MentionsQueuedFamily newTypes args[i]! := by
   induction n with
   | zero => simp [Lean4Lean.ElimNestedInductive.nestedParamFlags]
   | succ n ih =>
@@ -68,29 +68,29 @@ theorem nestedParamFlags_snd_false
 `isNestedInductiveApp?`: the application has enough arguments, at least one
 parameter mentions a family currently being lowered, and every scanned
 parameter is closed with respect to bound variables. -/
-structure NestedParameterScan
+structure NestedOccurrenceArgs
     (newTypes : Array InductiveType) (args : Array Expr) (n : Nat) : Prop where
   arity : n ≤ args.size
-  nested : ∃ i, i < n ∧ MentionsNestedNewType newTypes args[i]!
+  nested : ∃ i, i < n ∧ MentionsQueuedFamily newTypes args[i]!
   closed : ∀ i, i < n → args[i]!.hasLooseBVars = false
 
 /-- Full abstract acceptance contract for nested-application recognition.
 This is deliberately stated without reference to the executable loop, so its
 eventual refinement theorem cannot silently inherit an implementation bug. -/
-structure NestedAppCandidate (env : Environment)
+structure NestedOccurrence (env : Environment)
     (state : Lean4Lean.ElimNestedInductive.State)
     (e : Expr) (info : InductiveVal) : Prop where
-  shape : NestedAppShape e
+  shape : NestedOccurrenceShape e
   headFound : ∃ fn levels, e.getAppFn = .const fn levels ∧
     env.find? fn = some (.inductInfo info)
-  parameters : NestedParameterScan state.newTypes e.getAppArgs info.numParams
+  parameters : NestedOccurrenceArgs state.newTypes e.getAppArgs info.numParams
 
 /-- Recognition is maximal over an application spine: adding trailing
 arguments preserves a nested-family candidate because only its leading
 parameter prefix is inspected. -/
-theorem NestedAppCandidate.app
-    (H : NestedAppCandidate env state fn info) (arg : Expr) :
-    NestedAppCandidate env state (.app fn arg) info := by
+theorem NestedOccurrence.app
+    (H : NestedOccurrence env state fn info) (arg : Expr) :
+    NestedOccurrence env state (.app fn arg) info := by
   have hargs : (Expr.app fn arg).getAppArgs = fn.getAppArgs.push arg := by
     rw [Expr.getAppArgs_eq, Expr.getAppArgs_eq, Expr.getAppArgsList_app]
     simp
@@ -137,7 +137,7 @@ theorem isNestedInductiveApp_candidate
     (state : Lean4Lean.ElimNestedInductive.State) :
     (Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e env state).WF
       fun out => ∀ info, out.1 = some info →
-        NestedAppCandidate env state e info := by
+        NestedOccurrence env state e info := by
   intro out hout info hinfo
   unfold Lean4Lean.ElimNestedInductive.isNestedInductiveApp? at hout
   by_cases happ : e.isApp = false
@@ -204,8 +204,8 @@ theorem isNestedInductiveApp_candidate
 
 /-- Completeness of the independent recognition contract: every abstract
 candidate is returned by the executable recognizer. -/
-theorem NestedAppCandidate.recognized
-    (H : NestedAppCandidate env state e info) :
+theorem NestedOccurrence.recognized
+    (H : NestedOccurrence env state e info) :
     (Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e env state).WF
       fun out => out.1 = some info := by
   intro out hout
@@ -229,9 +229,9 @@ theorem NestedAppCandidate.recognized
   cases hout
   rfl
 
-def NoNestedAppCandidate (env : Environment)
+def NotNestedOccurrence (env : Environment)
     (state : Lean4Lean.ElimNestedInductive.State) (e : Expr) : Prop :=
-  ∀ info, ¬ NestedAppCandidate env state e info
+  ∀ info, ¬ NestedOccurrence env state e info
 
 theorem isNestedInductiveApp_preservesState
     (e : Expr) (env : Environment)
@@ -304,32 +304,32 @@ theorem nestedBind.WF
 /-- A reviewable trace of the mutual-family generation loop.  Each list member
 has one certified fresh-generation step, and the accumulator passed to the
 tail is exactly the executable `Option.or` update. -/
-inductive GeneratedAuxiliaryBatch
+inductive AuxiliaryGenerationBatch
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (targetName : Name) (levels : List Level) (nparams : Nat)
     (args : Array Expr) : Option Expr → List Name →
       Lean4Lean.ElimNestedInductive.State →
       Option Expr × Lean4Lean.ElimNestedInductive.State → Prop
   | nil (hresult : result.isSome = true) :
-      GeneratedAuxiliaryBatch env lctx params As targetName levels nparams args
+      AuxiliaryGenerationBatch env lctx params As targetName levels nparams args
         result [] state (result, state)
   | cons :
-      GeneratedAuxiliary env lctx params As targetName levels nparams args
+      AuxiliaryGenerationStep env lctx params As targetName levels nparams args
         sourceName sourceInfo state step →
-      GeneratedAuxiliaryBatch env lctx params As targetName levels nparams args
+      AuxiliaryGenerationBatch env lctx params As targetName levels nparams args
         (step.1.or result) sourceNames step.2 out →
-      GeneratedAuxiliaryBatch env lctx params As targetName levels nparams args
+      AuxiliaryGenerationBatch env lctx params As targetName levels nparams args
         result (sourceName :: sourceNames) state out
 
-theorem GeneratedAuxiliaryBatch.resultSome
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+theorem AuxiliaryGenerationBatch.resultSome
+    (H : AuxiliaryGenerationBatch env lctx params As targetName levels nparams
       args result sourceNames state out) : out.1.isSome = true := by
   induction H with
   | nil hresult => exact hresult
   | cons _ _ ih => exact ih
 
-theorem GeneratedAuxiliaryBatch.auxFVarsIn
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+theorem AuxiliaryGenerationBatch.auxFVarsIn
+    (H : AuxiliaryGenerationBatch env lctx params As targetName levels nparams
       args result sourceNames state out)
     (HAs : CDeclArray lctx As)
     (hnparams : nparams ≤ args.size)
@@ -344,8 +344,8 @@ theorem GeneratedAuxiliaryBatch.auxFVarsIn
   | cons Hstep Htail ih =>
     exact ih (Hstep.auxFVarsIn HAs hnparams Hlevels Hargs Hparams Hstate)
 
-theorem GeneratedAuxiliaryBatch.pendingNewTypesClosed
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+theorem AuxiliaryGenerationBatch.pendingNewTypesClosed
+    (H : AuxiliaryGenerationBatch env lctx params As targetName levels nparams
       args result sourceNames state out)
     (Henv : EnvironmentTypesClosed env)
     (Hclosing : NestedClosingContext lctx As ngen)
@@ -368,7 +368,7 @@ private theorem generateAuxiliariesLoop_refines
     (hready : result.isSome = true ∨ targetName ∈ sourceNames) :
     (Lean4Lean.ElimNestedInductive.generateAuxiliaries.loop lctx params As
       targetName levels nparams args result sourceNames env state).WF fun out =>
-        GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+        AuxiliaryGenerationBatch env lctx params As targetName levels nparams
           args result sourceNames state out := by
   induction infos generalizing result state with
   | nil =>
@@ -411,7 +411,7 @@ theorem generateAuxiliaries_refines
     (htarget : targetName ∈ value.all) :
     (Lean4Lean.ElimNestedInductive.generateAuxiliaries lctx params As targetName
       levels nparams args value env state).WF fun out =>
-        GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+        AuxiliaryGenerationBatch env lctx params As targetName levels nparams
           args none value.all state out := by
   unfold Lean4Lean.ElimNestedInductive.generateAuxiliaries
   exact generateAuxiliariesLoop_refines env lctx params As targetName levels

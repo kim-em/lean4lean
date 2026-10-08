@@ -222,7 +222,7 @@ theorem NestedValidatedRunResult.compilationData_of_tables
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
     (henvTypes : envTypes.WF)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -309,7 +309,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntryInfos
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -376,7 +376,7 @@ theorem NestedValidatedRunResult.restoredMajorInduct
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)

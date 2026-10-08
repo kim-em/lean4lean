@@ -26,7 +26,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -140,7 +140,7 @@ structure
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -267,7 +267,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -333,7 +333,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {A : H.RuleAlignment owner howner i hctor}
-    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    {T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -462,7 +462,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {A : H.RuleAlignment owner howner i hctor}
-    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    {T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -531,7 +531,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {A : H.RuleAlignment owner howner i hctor}
-    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    {T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -628,7 +628,7 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {A : H.RuleAlignment owner howner i hctor}
-    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    {T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -689,7 +689,7 @@ theorem
     (A : H.RuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size)
     (B : A.FieldFrame)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -1800,7 +1800,7 @@ theorem
     (A : H.RuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size)
     (B : A.FieldFrame)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size

@@ -11,9 +11,9 @@ namespace VerifyInductive
 
 /-- The source parameter opening retained by nested lowering determines an
 exact semantic metacontext with the same concrete local context. -/
-theorem NestedParamOpening.toMLCtx
+theorem LoweringParamOpening.toMLCtx
     (henv : env.WF)
-    (Hopen : NestedParamOpening lctx params type n outLctx tail outParams)
+    (Hopen : LoweringParamOpening lctx params type n outLctx tail outParams)
     (houtWF : outLctx.WF)
     (mlctx : TypeChecker.MLCtx)
     (hmlctx : mlctx.lctx = lctx)

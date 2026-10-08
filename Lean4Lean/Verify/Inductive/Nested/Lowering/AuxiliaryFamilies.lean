@@ -146,8 +146,8 @@ def VInductiveType.directAuxiliary
 
 /-- Universe arity of the selected family, projected from the finite source
 derivation carried by its installation certificate. -/
-theorem GeneratedFamilyInstalledContainer.familyUvars
-    (C : GeneratedFamilyInstalledContainer prodEnv venv params nestedAux
+theorem AuxiliaryFamilyContainer.familyUvars
+    (C : AuxiliaryFamilyContainer prodEnv venv params nestedAux
       concrete H) :
     (C.container.types[C.familyIdx]'C.familyIdx_lt).uvars =
       C.container.uvars := by
@@ -159,19 +159,19 @@ theorem GeneratedFamilyInstalledContainer.familyUvars
 common-parameter arity.  The first equality is retained when the generated
 family is produced from its environment lookup; the second comes from the
 finite installation certificate for that exact container. -/
-theorem GeneratedFamilyInstalledContainer.nestedNParams
-    (C : GeneratedFamilyInstalledContainer prodEnv venv params nestedAux
+theorem AuxiliaryFamilyContainer.nestedNParams
+    (C : AuxiliaryFamilyContainer prodEnv venv params nestedAux
       concrete H) :
     H.nestedNParams = C.container.nparams :=
   H.sourceNumParams.trans C.numParams
 
 /-- Installed-container provenance is persistent under an abstract
 environment extension. -/
-def GeneratedFamilyInstalledContainer.mono
-    (C : GeneratedFamilyInstalledContainer prodEnv venv params nestedAux
+def AuxiliaryFamilyContainer.mono
+    (C : AuxiliaryFamilyContainer prodEnv venv params nestedAux
       concrete H)
     (hle : venv ≤ larger) :
-    GeneratedFamilyInstalledContainer prodEnv larger params nestedAux
+    AuxiliaryFamilyContainer prodEnv larger params nestedAux
       concrete H := {
   container := C.container
   familyIdx := C.familyIdx
@@ -194,8 +194,8 @@ def GeneratedFamilyInstalledContainer.mono
 
 /-- Universe arity of a selected installed constructor, from the same finite
 source derivation. -/
-theorem GeneratedFamilyInstalledContainer.constructorUvars
-    (C : GeneratedFamilyInstalledContainer prodEnv venv params nestedAux
+theorem AuxiliaryFamilyContainer.constructorUvars
+    (C : AuxiliaryFamilyContainer prodEnv venv params nestedAux
       concrete H)
     (i : Nat)
     (hi : i < (C.container.types[C.familyIdx]'C.familyIdx_lt).ctors.length) :
@@ -216,8 +216,8 @@ formation.  Both normalized parameter telescopes are compared with its
 canonical parameter list; the resulting context conversion is closed around
 the constructor residual, after which the ordinary dependent-application
 lemma applies with literally shared domains. -/
-theorem GeneratedFamilyInstalledContainer.specializedConstructorApplicationHasType
-    (C : GeneratedFamilyInstalledContainer prodEnv venv params nestedAux
+theorem AuxiliaryFamilyContainer.specializedConstructorApplicationHasType
+    (C : AuxiliaryFamilyContainer prodEnv venv params nestedAux
       concrete H)
     (henv : venv.WF)
     (i : Nat)
@@ -476,12 +476,12 @@ theorem GeneratedFamilyInstalledContainer.specializedConstructorApplicationHasTy
   simpa only [HconstructorType, VExpr.instL_wrapForalls] using Hraw
 
 /-- Exact concrete/abstract source-constructor pair selected by one
-`BuiltAuxiliary` position.  This retains the source telescope used by the
+`AuxiliaryFamilySpec` position.  This retains the source telescope used by the
 builder and derives its semantic translation from persistent environment
 alignment and finite installation, rather than asking for it separately. -/
-structure GeneratedFamilyInstalledContainer.BuiltConstructorTranslation
+structure AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation
     {ves : VEnvs}
-    (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
+    (C : AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params nestedAux concrete H)
     (i : Nat) (hi : i < H.sourceInfo.ctors.length) where
   targetIdx_lt : i < H.data.type.ctors.length
@@ -503,13 +503,13 @@ structure GeneratedFamilyInstalledContainer.BuiltConstructorTranslation
 /-- The executable builder, production alignment, and installed-container
 certificate determine the exact translated source constructor at every
 position. -/
-theorem GeneratedFamilyInstalledContainer.builtConstructorTranslation
+theorem AuxiliaryFamilyContainer.builtConstructorTranslation
     {ves : VEnvs}
-    (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
+    (C : AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params nestedAux concrete H)
     (wf : ves.WFCore prodEnv)
     (i : Nat) (hi : i < H.sourceInfo.ctors.length) :
-    Nonempty (C.BuiltConstructorTranslation i hi) := by
+    Nonempty (C.AuxiliaryConstructorTranslation i hi) := by
   rcases H.built.constructorAt i hi with ⟨htarget, Hbuilt⟩
   rcases Hbuilt.source with
     ⟨sourceInfo, sourceTail, hlookup, Htelescope, hname, htype⟩
@@ -544,13 +544,13 @@ theorem GeneratedFamilyInstalledContainer.builtConstructorTranslation
 
 /-- Constructor translation evidence persists with its installed container
 under an abstract-environment extension. -/
-def GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.mono
+def AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.mono
     {ves largerVes : VEnvs}
-    {C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
+    {C : AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params nestedAux concrete H}
-    (B : C.BuiltConstructorTranslation i hi)
+    (B : C.AuxiliaryConstructorTranslation i hi)
     (hle : ves.venv safety ≤ largerVes.venv safety) :
-    (C.mono hle).BuiltConstructorTranslation (ves := largerVes) i hi := {
+    (C.mono hle).AuxiliaryConstructorTranslation (ves := largerVes) i hi := {
   targetIdx_lt := B.targetIdx_lt
   sourceInfo := B.sourceInfo
   sourceTail := B.sourceTail
@@ -558,7 +558,7 @@ def GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.mono
   sourceTelescope := B.sourceTelescope
   targetName := B.targetName
   targetType := B.targetType
-  abstractIdx_lt := by simpa [GeneratedFamilyInstalledContainer.mono] using
+  abstractIdx_lt := by simpa [AuxiliaryFamilyContainer.mono] using
     B.abstractIdx_lt
   sourceTranslation := ⟨B.sourceTranslation.1, B.sourceTranslation.2.1,
     B.sourceTranslation.2.2.mono hle⟩ }
@@ -566,12 +566,12 @@ def GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.mono
 /-- A generated family header and any one of its generated constructor types
 close over exactly the same selected local declarations.  This is a literal
 producer fact: the two residual bodies may differ, but the executable
-`BuiltAuxiliary` used the same `lctx`/`As` closing operation for both. -/
-theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.sameForallPrefix
+`AuxiliaryFamilySpec` used the same `lctx`/`As` closing operation for both. -/
+theorem AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.sameForallPrefix
     {ves : VEnvs}
-    (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
+    (C : AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params nestedAux concrete H)
-    (B : C.BuiltConstructorTranslation i hi) :
+    (B : C.AuxiliaryConstructorTranslation i hi) :
     Expr.SameForallPrefix H.As.size concrete.type
       (concrete.ctors[i]'(by
         simpa [H.family_eq] using B.targetIdx_lt)).type := by

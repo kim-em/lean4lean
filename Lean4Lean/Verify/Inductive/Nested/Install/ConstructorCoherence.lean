@@ -263,7 +263,7 @@ theorem NestedFinalAssemblyCertificate.mutualInductivesClosed
 /-- The positionally aligned constructor restoration trace retains enough
 installed-production metadata to show that every restored constructor is
 exactly unsafe, not merely visible to the unsafe checker. -/
-private theorem RestoredConstructorMappingTrace.unsafeFreshTrace
+private theorem LoweredRestoredConstructors.unsafeFreshTrace
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
@@ -272,7 +272,7 @@ private theorem RestoredConstructorMappingTrace.unsafeFreshTrace
       sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
-    (Htrace : RestoredConstructorMappingTrace result mappingEnv loweredEnv
+    (Htrace : LoweredRestoredConstructors result mappingEnv loweredEnv
       params nparams c.safety c.lparams sources state targets finalState
       sourceProdEnv targetProdEnv)
     (owner : InductiveType) (howner : owner ∈ indTypes.toList)

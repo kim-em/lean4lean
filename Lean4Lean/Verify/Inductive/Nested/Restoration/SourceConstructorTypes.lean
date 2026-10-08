@@ -21,7 +21,7 @@ The second fact is a premise here; it is discharged by
 `Nested/Lowering/Levels.lean`): the executable lowering emits each auxiliary
 occurrence at `state.lvls`, which is initialised to the declaration's level
 parameters and never modified, as recorded by the relational traces of the run
-(`NestedAuxLE`, `LoweredConstructorMapping.lvls`, `NestedLoweringRun.lvls`).
+(`NestedAuxLE`, `ConstructorLowering.Resolved.lvls`, `NestedLowering.lvls`).
 -/
 
 namespace Lean4Lean
@@ -48,7 +48,7 @@ theorem NestedValidatedRunResult.restorableNames_fresh
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)

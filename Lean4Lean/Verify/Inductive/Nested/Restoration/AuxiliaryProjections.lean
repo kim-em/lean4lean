@@ -17,7 +17,7 @@ equivalence is definitional equality (`VExpr.LEquiv.defeq`).
   `λ params, J levels args` and `λ params, J.c levels args`. The generated
   constructor type of `A`, the restoration of the lowered one, is
   syntactically the parameter closure of `J.c`'s type instantiated at the
-  specialization (`AuxiliarySpecializationEvidence.constructorShapes`, up to
+  specialization (`SpecializationGenerates.constructorShapes`, up to
   level equivalence). So the transported field types of `A` are, up to beta
   reduction and level equivalence, the field types of `J` at the
   instantiated specialization arguments

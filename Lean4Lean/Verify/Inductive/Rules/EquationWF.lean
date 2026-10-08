@@ -182,7 +182,7 @@ structure RecursorCheck.RuleAlignment.EquationFrame
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) where
   frame : A.FieldFrame
-  telescope : GeneratedRecursorTelescopeTranslation H.outVEnv
+  telescope : RecursorTypeTelescope H.outVEnv
     (AddInductive.getRecLevelParams H.elimLevel c.lparams)
     (H.generated.entry owner howner).info.type H.entries[owner].2.type
     stats.params.size (H.recInfos.map (·.motive)).size
@@ -886,7 +886,7 @@ theorem RecursorCheck.telescope_groups
     (H : RecursorCheck R outEnv)
     {env : VEnv} {Us : List Name} {source : Expr} {n owner : Nat}
     (howner : owner < H.entries.length)
-    (T : GeneratedRecursorTelescopeTranslation env Us source H.entries[owner].2.type
+    (T : RecursorTypeTelescope env Us source H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size n owner) :
     T.params = H.canonicalGeneration.params ∧

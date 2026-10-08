@@ -715,7 +715,7 @@ theorem NestedValidatedRunResult.trailInputs_auxRecNames
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (ls : List Level) :
-    E.production.production.toRecursorConstruction.TrailInputs
+    E.production.production.toRecursorConstruction.TrailingArgDeclarations
       E.auxRecNames ls := by
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
   have hfresh : ∀ n ∈ E.auxRecNames, sourceProdEnv.find? n = none :=
@@ -781,18 +781,18 @@ theorem NestedValidatedRunResult.trailInputs_auxRecNames
     exact E.auxRecNames_not_familyNames wf Hsources hmemN
       (List.mem_flatMap.2 ⟨_, List.getElem_mem hi', List.mem_cons_self⟩)
 
-/-- A level list of length `lparams.length + 2`, different from `badLevels`. -/
+/-- A level list of length `lparams.length + 2`, different from `foreignLevels`. -/
 def badLevels₂ (lparams : List Name) : List Level :=
   List.replicate (lparams.length + 2) .zero
 
-theorem badLevels_ne_badLevels₂ (lparams : List Name) : badLevels lparams ≠ badLevels₂ lparams := by
+theorem badLevels_ne_badLevels₂ (lparams : List Name) : foreignLevels lparams ≠ badLevels₂ lparams := by
   intro h
   have := congrArg List.length h
-  simp [badLevels, badLevels₂] at this
+  simp [foreignLevels, badLevels₂] at this
 
 /-- **Input-side avoidance of the lowered recursor names by the lowered
 rules.** The trailing provenance chain runs at the lowered recursor names
-without parameters at two different level lists (`badLevels`, `badLevels₂`):
+without parameters at two different level lists (`foreignLevels`, `badLevels₂`):
 the recursor-pass environment does not contain them and no constant mentions
 them (`envHitShape_auxRecNames`), and the recursive calls put the recursors
 only at spine heads (`TrailingArgs.instantiate1'_argClosed`). The trailing
@@ -819,7 +819,7 @@ theorem NestedValidatedRunResult.loweredRulesAvoid_auxRecNames
     rw [E.recursorPassEnv]
     exact E.envHitShape_auxRecNames wf Hsources ls
   obtain ⟨HT, HL⟩ := C.toRecursorConstruction.ruleRhsTrail
-    (E.trailInputs_auxRecNames wf Hsources (badLevels lparams)) (W _)
+    (E.trailInputs_auxRecNames wf Hsources (foreignLevels lparams)) (W _)
     heads result.nparams owner.val howner
     (AddInductive.getRecLevels C.elimLevel E.production.stats.levels) blueprint hmem
   obtain ⟨HT', -⟩ := C.toRecursorConstruction.ruleRhsTrail

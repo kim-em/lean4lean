@@ -144,7 +144,7 @@ theorem auxiliaryFamily_header
     {decl lowered : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
     {a : ContainerSpecialization} {g t n d : VInductiveType}
     (henv : envTypes.WF) (hle : base ≤ envTypes)
-    (hev : AuxiliarySpecializationEvidence base envTypes paramCtx decl a g)
+    (hev : SpecializationGenerates base envTypes paramCtx decl a g)
     (hexp : VInductDecl.NestedTypeExpansion base decl leaf g t)
     (hshape : lowered.TypeShape base headerParams t)
     (huvars : lowered.uvars = decl.uvars) (hnparams : lowered.nparams = decl.nparams)
@@ -250,7 +250,7 @@ theorem auxiliaryFamilies_of_evidence
     {r : Restoration} {auxiliaries : List ContainerSpecialization}
     {generated targets normalized direct : List VInductiveType}
     (henv : envTypes.WF) (hle : base ≤ envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence base envTypes paramCtx decl)
+    (Haux : List.Forall₂ (SpecializationGenerates base envTypes paramCtx decl)
       auxiliaries generated)
     (Hexp : List.Forall₂ (VInductDecl.NestedTypeExpansion base decl leaf)
       generated targets)

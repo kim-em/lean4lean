@@ -194,7 +194,7 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (Hformation : NestedFormationAssembly (ves.venv (if isUnsafe then .unsafe else .safe))
+    (Hformation : NestedExpansionData (ves.venv (if isUnsafe then .unsafe else .safe))
       sourceDecl)
     (hformationExpanded : Hformation.expanded = E.production.loweredDecl)
     (B : CheckedFormation E.production.c E.production.stats E.production.loweredDecl
@@ -206,7 +206,7 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
     (henvTypes : envTypes.WF)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -422,14 +422,14 @@ theorem NestedValidatedRunResult.restorationRecursorNames
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (Hformation : NestedFormationAssembly (ves.venv (if isUnsafe then .unsafe else .safe))
+    (Hformation : NestedExpansionData (ves.venv (if isUnsafe then .unsafe else .safe))
       sourceDecl)
     (hformationExpanded : Hformation.expanded = E.production.loweredDecl)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -583,7 +583,7 @@ theorem NestedValidatedRunResult.caseEliminators
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (_Howners : ConstructorOwnersPresent sourceProdEnv)
-    (Hformation : NestedFormationAssembly (ves.venv (if isUnsafe then .unsafe else .safe))
+    (Hformation : NestedExpansionData (ves.venv (if isUnsafe then .unsafe else .safe))
       sourceDecl)
     (hformationExpanded : Hformation.expanded = E.production.loweredDecl) :
     ∃ es : List (Name × InductiveSignature.CaseSchema),
@@ -599,7 +599,7 @@ theorem NestedValidatedRunResult.caseEliminators
           (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
             sourceDecl.typeConstants = some envTypes ∧
           envTypes.WF ∧
-          List.Forall₂ (AuxiliarySpecializationEvidence
+          List.Forall₂ (SpecializationGenerates
             (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
             E.production.headers.commonParameterContext sourceDecl)
             auxiliaries generated ∧

@@ -390,7 +390,7 @@ theorem NestedValidatedRunResult.headerSetup
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
     (henvTypes : envTypes.WF)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -485,7 +485,7 @@ theorem NestedValidatedRunResult.headerSetup
   have hscopedNodup := hscoped.1
   have hfamilyHead : ∀ t ∈ E.production.loweredDecl.types.drop sourceDecl.types.length,
       ∃ a ∈ auxiliaries, ∃ g,
-        AuxiliarySpecializationEvidence (ves.venv (if isUnsafe then .unsafe else .safe))
+        SpecializationGenerates (ves.venv (if isUnsafe then .unsafe else .safe))
           envTypes E.production.headers.commonParameterContext sourceDecl a g ∧
         VInductDecl.NestedTypeExpansion (ves.venv (if isUnsafe then .unsafe else .safe))
           sourceDecl (VInductDecl.NestedOccurrenceReplacementAbs
@@ -582,7 +582,7 @@ theorem NestedValidatedRunResult.headerRenamingReplacement
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
     (henvTypes : envTypes.WF)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -722,7 +722,7 @@ theorem NestedValidatedRunResult.baseProjection_not_restorable
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)

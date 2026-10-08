@@ -627,7 +627,7 @@ theorem NestedValidatedRunResult.restorableNames_fresh_ctors
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -822,7 +822,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -920,7 +920,7 @@ theorem NestedValidatedRunResult.restoredRecursorList_of_hitShape
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -966,7 +966,7 @@ theorem NestedValidatedRunResult.restoredRecursors_of_hitShape
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -1026,7 +1026,7 @@ theorem NestedValidatedRunResult.restoredRecursorShapeFields
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -1147,7 +1147,7 @@ theorem NestedValidatedRunResult.recursorName_not_head
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)

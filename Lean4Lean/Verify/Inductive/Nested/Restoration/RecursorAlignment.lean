@@ -119,7 +119,7 @@ theorem NestedValidatedRunResult.restoredMajorFound
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)

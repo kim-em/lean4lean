@@ -40,7 +40,7 @@ theorem RecursorConstruction.recursorTelescope
       TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
         (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
         target ∧
-      Nonempty (GeneratedRecursorTelescopeTranslation R.context.venv
+      Nonempty (RecursorTypeTelescope R.context.venv
         (AddInductive.getRecLevelParams H.elimLevel c.lparams)
         (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
         target stats.params.size (H.recInfos.map (·.motive)).size
@@ -75,7 +75,7 @@ telescope: both translate the same closed parameter prefix. -/
 theorem RecursorConstruction.recursorTelescope_params
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -107,7 +107,7 @@ list: both translate the same parameter-closed motive telescope. -/
 theorem RecursorConstruction.recursorTelescope_motives
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -272,8 +272,8 @@ theorem RecursorBinderGroups.minorBinderAtRawList
         ((List.take_sublist _ _).trans (List.sublist_append_left _ _)))) hall
   rwa [Expr.abstractN_eq_abstractList_of_closed hnodup (D.closed hl)] at h
 
-theorem GeneratedRecursorTelescopeTranslation.take_minorPrefix
-    (T : GeneratedRecursorTelescopeTranslation env Us source target
+theorem RecursorTypeTelescope.take_minorPrefix
+    (T : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
     (minorIdx : Nat) (h : minorIdx ≤ T.minors.length) :
     (T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major).take
@@ -287,8 +287,8 @@ theorem GeneratedRecursorTelescopeTranslation.take_minorPrefix
     List.take_append_of_le_length (by omega),
     show numParams + numMotives + minorIdx - T.params.length - T.motives.length = minorIdx by omega]
 
-theorem GeneratedRecursorTelescopeTranslation.getElem_minor
-    (T : GeneratedRecursorTelescopeTranslation env Us source target
+theorem RecursorTypeTelescope.getElem_minor
+    (T : RecursorTypeTelescope env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
     (minorIdx : Nat) (h : minorIdx < T.minors.length)
     (hi : numParams + numMotives + minorIdx <
@@ -310,7 +310,7 @@ theorem RecursorConstruction.recursorTelescope_minor
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -346,7 +346,7 @@ theorem RecursorConstruction.recursorTelescope_minorFields
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -701,7 +701,7 @@ theorem RecursorConstruction.recursorTelescope_minorResidual
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -903,7 +903,7 @@ theorem RecursorConstruction.recursorTelescope_minorIndices
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat}
     {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -1078,7 +1078,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisSlot
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -1299,7 +1299,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisShape
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -1439,7 +1439,7 @@ theorem RecursorConstruction.recursorTelescope_indicesMajor
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -1630,7 +1630,7 @@ theorem RecursorConstruction.recursorTarget_eq_of_minors
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -1814,7 +1814,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisDomains
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size

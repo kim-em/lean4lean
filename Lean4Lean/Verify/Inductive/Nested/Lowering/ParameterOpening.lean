@@ -11,25 +11,25 @@ namespace VerifyInductive
 /-- Exact parameter-telescope path followed by nested lowering. The relation
 retains both the growing local context and the array of corresponding free
 variables, making the later restoration substitution auditable. -/
-inductive NestedParamOpening : LocalContext → Array Expr → Expr → Nat →
+inductive LoweringParamOpening : LocalContext → Array Expr → Expr → Nat →
     LocalContext → Expr → Array Expr → Prop
-  | done : NestedParamOpening lctx params type 0 lctx type params
+  | done : LoweringParamOpening lctx params type 0 lctx type params
   | step {id : FVarId} {name : Name} {dom body : Expr} {bi : BinderInfo} :
-      NestedParamOpening
+      LoweringParamOpening
         (lctx.mkLocalDecl id name dom bi) (params.push (.fvar id))
         (body.instantiate1 (.fvar id)) n outLctx tail outParams →
-      NestedParamOpening lctx params (.forallE name dom body bi) (n + 1)
+      LoweringParamOpening lctx params (.forallE name dom body bi) (n + 1)
         outLctx tail outParams
 
-theorem NestedParamOpening.params_size
-    (H : NestedParamOpening lctx params type n outLctx tail outParams) :
+theorem LoweringParamOpening.params_size
+    (H : LoweringParamOpening lctx params type n outLctx tail outParams) :
     outParams.size = params.size + n := by
   induction H with
   | done => simp
   | step _ ih => simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih
 
-theorem NestedParamOpening.params_extension
-    (H : NestedParamOpening lctx params type n outLctx tail outParams) :
+theorem LoweringParamOpening.params_extension
+    (H : LoweringParamOpening lctx params type n outLctx tail outParams) :
     ∃ suffix, outParams.toList = params.toList ++ suffix ∧
       suffix.length = n := by
   induction H with
@@ -41,8 +41,8 @@ theorem NestedParamOpening.params_extension
 
 /-- Exact local-declaration extension performed by the forall-only nested
 parameter opening. Declarations are in binder order. -/
-theorem NestedParamOpening.context_extension
-    (H : NestedParamOpening lctx As e n outLctx tail outAs) :
+theorem LoweringParamOpening.context_extension
+    (H : LoweringParamOpening lctx As e n outLctx tail outAs) :
     ∃ decls : List LocalDecl,
       outLctx.toList = decls.reverse ++ lctx.toList ∧
       outAs.toList = As.toList ++ decls.map (fun d => .fvar d.fvarId) ∧

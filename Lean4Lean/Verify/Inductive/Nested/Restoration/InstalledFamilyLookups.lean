@@ -42,8 +42,8 @@ private theorem NestedReplacementFinalTrace.input_constructorArity_eq_zero
   cases input <;>
     simp_all [AddInductive.constructorArity, Expr.getAppFn]
 
-private theorem NestedExprMapping.constructorArity_eq
-    (H : NestedExprMapping env lctx params As result input state output) :
+private theorem ExprLowering.Resolved.constructorArity_eq
+    (H : ExprLowering.Resolved env lctx params As result input state output) :
     AddInductive.constructorArity output.1 =
       AddInductive.constructorArity input := by
   induction H with
@@ -82,8 +82,8 @@ private theorem Expr.ForallTelescope.constructorArity_eq
       simp [AddInductive.constructorArity, ih]
       omega
 
-private theorem LoweredConstructorMapping.constructorArity_eq
-    (H : LoweredConstructorMapping env params nparams result source state out)
+private theorem ConstructorLowering.Resolved.constructorArity_eq
+    (H : ConstructorLowering.Resolved env params nparams result source state out)
     (Hsource : source.type.FVarsIn fun _ => False)
     (hsourceBVar : Closed source.type) :
     AddInductive.constructorArity out.1.type =
@@ -93,7 +93,7 @@ private theorem LoweredConstructorMapping.constructorArity_eq
       hnodup, htypes, haux, hnext, harity, Hmapping, htype⟩
   rcases Hopening.forallTelescope with ⟨residual, Htelescope⟩
   have hsource : lctx.mkForall As tail = source.type :=
-    Hopening.toRestoreParamOpening.root_mkForall_tail hlctxWF Htelescope
+    Hopening.toParamOpening.root_mkForall_tail hlctxWF Htelescope
       (FVarsIn_to_FVarIdsIn Hsource) hsourceBVar
   have HtailTelescope := Hselection.forallTelescope tail
   have HloweredTelescope := Hselection.forallTelescope lowered

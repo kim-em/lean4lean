@@ -749,7 +749,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisLift
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -975,7 +975,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisUnlift
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size

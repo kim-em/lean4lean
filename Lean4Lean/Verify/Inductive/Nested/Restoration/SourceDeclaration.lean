@@ -18,12 +18,12 @@ fold have the same endpoint. -/
 theorem ConstructorValidationStateTrace.headerTarget_eq
     (Hleft : ConstructorValidationStateTrace
       (fun indType : InductiveType => fun source target =>
-        ConstructorValidationHeaderStep loweredEnv
+        ValidationHeaderStep loweredEnv
         allIndNames indType.name source target)
       types sourceEnv leftTarget)
     (Hright : ConstructorValidationStateTrace
       (fun indType : InductiveType => fun source target =>
-        ConstructorValidationHeaderStep loweredEnv
+        ValidationHeaderStep loweredEnv
         allIndNames indType.name source target)
       types sourceEnv rightTarget) :
     leftTarget = rightTarget := by
@@ -47,7 +47,7 @@ private theorem installRestoredSourceConstructors
     (Hsource : RestoredSourceConstructorTrace result loweredEnv lparams safety
       canonicalEnv names traceProdEnv traceTargetEnv sources constructors)
     (Hvalidation : ConstructorValidationStateTrace
-      (ConstructorValidationConstructorStep result loweredEnv false)
+      (ValidationConstructorStep result loweredEnv false)
       names currentProdEnv targetProdEnv) :
     ∃ targetVEnv,
       currentVEnv.addConstVals constructors = some targetVEnv ∧
@@ -144,7 +144,7 @@ private theorem installRestoredSourceFamilies
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       remainingSources restorationSource restorationTarget)
     (Hvalidation : ConstructorValidationStateTrace
-      (ConstructorValidationConstructorFamilyStep result loweredEnv false)
+      (ValidationFamilyStep result loweredEnv false)
       remainingSources currentProdEnv targetProdEnv)
     (HremainingHeaders : List.Forall₂
       (fun source target => TrSourceConst sourceVEnv c.lparams source.name
@@ -211,7 +211,7 @@ private theorem installRestoredSourceFamilies
 
 /-- Source declaration and canonical header/constructor stages synthesized
 from the exact lowering, restoration, and validation executions. -/
-structure NativeNestedSourceCoreResult
+structure NestedSourceDeclaration
     (sourceVEnv : VEnv) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (loweredDecl : VInductDecl) (safety : DefinitionSafety)
@@ -256,17 +256,17 @@ theorem NestedLoweringResultClosed.nativeSourceCore
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
       (sourceTypes.map (·.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 ((), outEnv))
-    (HconstructorValidation : RestoredConstructorValidationEnvironment result
+    (HconstructorValidation : ValidationEnvironment result
       loweredEnv c.env (sourceTypes.map (·.name)) false sourceTypes
       constructorValidationEnv)
-    (HheaderValidation : RestoredHeaderValidationEnvironment loweredEnv c.env
+    (HheaderValidation : ValidationHeaderEnvironment loweredEnv c.env
       (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv)
     (HparameterRun :
       Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
         c.lparams c.safety validationFuel sourceTypes result = .ok ())
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
-    Nonempty (NativeNestedSourceCoreResult sourceVEnv c.lparams nparams
+    Nonempty (NestedSourceDeclaration sourceVEnv c.lparams nparams
       sourceTypes isUnsafe loweredDecl c.safety constructorValidationEnv
         auxiliaryHeaderEnv) := by
   rcases Hlower.sourceHeaderPrefix R.core hempty with

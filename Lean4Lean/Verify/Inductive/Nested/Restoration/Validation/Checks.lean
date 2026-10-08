@@ -570,8 +570,8 @@ namespace VerifyInductive
 semantic metacontext in the source environment.  Its free variables are also
 fresh for the independent type-checker run used by restored-constructor
 validation; both facts are consequences of the retained lowering trace. -/
-theorem NestedLoweringRun.resultParameterMLCtx
-    (H : NestedLoweringRun env fuel nparams types initialState out)
+theorem NestedLowering.resultParameterMLCtx
+    (H : NestedLowering env fuel nparams types initialState out)
     (henv : venv.WF)
     (Hfirst : ∀ first rest, types = first :: rest →
       ∃ target, TrExprS venv Us [] first.type target)

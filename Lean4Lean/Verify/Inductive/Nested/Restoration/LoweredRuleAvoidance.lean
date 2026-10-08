@@ -20,7 +20,7 @@ of the minor premises, so complete avoidance is false; the argument is:
 
 * `envHitShape_auxCtorNames`, `whnfHitOKFacts_auxCtorNames`: the type checker's
   hit-shape invariant (`TypeChecker.whnf.hitShape`) instantiated at the head
-  set `E.auxCtorNames`, without parameters, at the level list `badLevels
+  set `E.auxCtorNames`, without parameters, at the level list `foreignLevels
   lparams` of length `lparams.length + 1`. `Expr.ParamUniform names [] ls e` says
   that every occurrence of `names` in `e` carries the levels `ls`. Every
   constant of the recursor-pass environment has a type avoiding the auxiliary
@@ -35,7 +35,7 @@ of the minor premises, so complete avoidance is false; the argument is:
 * `TrailingArgs.toHitTrailAvoids`: the hit-shape chain at the declaration's
   levels (`recursorHitShape_hitHeads`) says that every occurrence of an
   auxiliary constructor is at `lparams.map Level.param`; at the trailing
-  positions occurrences are also at `badLevels lparams`, which differs, so
+  positions occurrences are also at `foreignLevels lparams`, which differs, so
   there are none.
 -/
 
@@ -869,7 +869,7 @@ carries): parameter declarations, family headers and constructor types avoid
 parameter telescope, and the family names of the majors are not in `names`.
 The generated recursor names may be in `names`: they occur in the rule
 right-hand sides only at the heads of the recursive calls. -/
-structure RecursorConstruction.TrailInputs
+structure RecursorConstruction.TrailingArgDeclarations
     (H : RecursorConstruction R) (names : List Name) (ls : List Level) : Prop where
   paramDecls : ∀ fv ∈ H.params.fvars, ∀ d, H.localContext.lctx.find? fv = some d →
     d.ParamUniformIn H.localContext.env names [] ls ∧ d.type.AvoidsConsts names
@@ -897,7 +897,7 @@ private theorem hQ {names : List Name} {ls : List Level} :
 other occurrences are the minor's constructor application, whose trailing
 arguments are fields); the call templates of its rule blueprint mention
 `names` only at `ls` and are `ArgClosed`. -/
-theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs names ls)
+theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailingArgDeclarations names ls)
     (W : WhnfPreservesParamUniform names [] ls H.localContext.env)
     (heads : List Name) (np : Nat)
     (owner : Nat) (howner : owner < H.recInfos.size) (localIndex : Nat)
@@ -1136,7 +1136,7 @@ namespace RecursorConstruction
 variable (H : RecursorConstruction R) {names : List Name} {ls : List Level}
 
 /-- Index declarations of every family (region R1). -/
-theorem indexDeclNil (I : H.TrailInputs names ls)
+theorem indexDeclNil (I : H.TrailingArgDeclarations names ls)
     (W : WhnfPreservesParamUniform names [] ls H.localContext.env)
     {k : Nat} (hk : k < H.recInfos.size) {y : FVarId}
     (hy : Expr.fvar y ∈ H.recInfos[k]!.indices) :
@@ -1160,7 +1160,7 @@ theorem indexDeclNil (I : H.TrailInputs names ls)
   exact hyMem
 
 /-- Major premise declarations: `I params indices` with `I ∉ names`. -/
-theorem majorDeclNil (I : H.TrailInputs names ls) {y : FVarId}
+theorem majorDeclNil (I : H.TrailingArgDeclarations names ls) {y : FVarId}
     (hy : Expr.fvar y ∈ H.recInfos.map (·.major)) :
     ∃ d, H.localContext.lctx.find? y = some d ∧ d.ParamUniform names [] ls := by
   refine H.origins.majors.declHitShape (fun i hi => ?_) hy
@@ -1178,7 +1178,7 @@ theorem majorDeclNil (I : H.TrailInputs names ls) {y : FVarId}
     exact .fvar fv
 
 /-- Motive declarations: `∀ indices, ∀ (t : I params indices), Sort u`. -/
-theorem motiveDeclNil (I : H.TrailInputs names ls)
+theorem motiveDeclNil (I : H.TrailingArgDeclarations names ls)
     (W : WhnfPreservesParamUniform names [] ls H.localContext.env)
     {y : FVarId} (hy : Expr.fvar y ∈ H.recInfos.map (·.motive)) :
     ∃ d, H.localContext.lctx.find? y = some d ∧ d.ParamUniform names [] ls := by
@@ -1196,7 +1196,7 @@ theorem motiveDeclNil (I : H.TrailInputs names ls)
   exact Array.mem_map.2 ⟨_, H.mem_recInfos hi', rfl⟩
 
 /-- Minor premise declarations. -/
-theorem minorDeclTrail (I : H.TrailInputs names ls)
+theorem minorDeclTrail (I : H.TrailingArgDeclarations names ls)
     (W : WhnfPreservesParamUniform names [] ls H.localContext.env) (heads : List Name) (np : Nat)
     {y : FVarId} (hy : Expr.fvar y ∈ H.recInfos.flatMap (·.minors)) :
     ∃ d, H.localContext.lctx.find? y = some d ∧
@@ -1246,7 +1246,7 @@ private theorem nil_type {y : FVarId}
 right-hand side `blueprint.build ...` satisfies `TrailingArgs` for the
 condition "mentions `names` only at `ls`", and its parameter domains avoid
 `names`. -/
-theorem ruleRhsTrail (I : H.TrailInputs names ls)
+theorem ruleRhsTrail (I : H.TrailingArgDeclarations names ls)
     (W : WhnfPreservesParamUniform names [] ls H.localContext.env) (heads : List Name) (np : Nat)
     (owner : Nat) (howner : owner < H.recInfos.size) (lvls : List Level)
     (blueprint : AddInductive.RecRuleBlueprint)
@@ -1458,13 +1458,13 @@ def NestedValidatedRunResult.auxCtorNames
 
 /-- A level list of length `lparams.length + 1`, carried by no well-formed
 occurrence of a constant of the run's declaration. -/
-def badLevels (lparams : List Name) : List Level :=
+def foreignLevels (lparams : List Name) : List Level :=
   List.replicate (lparams.length + 1) .zero
 
-theorem badLevels_ne (lparams : List Name) : badLevels lparams ≠ lparams.map Level.param := by
+theorem badLevels_ne (lparams : List Name) : foreignLevels lparams ≠ lparams.map Level.param := by
   intro h
   have := congrArg List.length h
-  simp [badLevels] at this
+  simp [foreignLevels] at this
 
 theorem NestedValidatedRunResult.auxCtorNames_auxHeads
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
@@ -1515,7 +1515,7 @@ theorem NestedValidatedRunResult.ctorType_avoids_auxCtorNames
   exact E.ctorNames_fresh_headerVEnv wf hnodup ht hc
 
 /-- **The environment condition of the type checker's hit-shape invariant at
-the auxiliary constructor names, without parameters, at `badLevels`.** Every
+the auxiliary constructor names, without parameters, at `foreignLevels`.** Every
 constant of the recursor-pass environment other than an auxiliary constructor
 has a type avoiding the auxiliary constructor names (old constants: they are
 fresh in the source; family headers: translated in the source; lowered
@@ -1527,7 +1527,7 @@ theorem NestedValidatedRunResult.envHitShape_auxCtorNames
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    EnvParamUniform E.production.ctorEnv E.auxCtorNames 0 (badLevels lparams) := by
+    EnvParamUniform E.production.ctorEnv E.auxCtorNames 0 (foreignLevels lparams) := by
   have hfresh : ∀ n ∈ E.auxCtorNames, sourceProdEnv.find? n = none :=
     fun n hn => E.hitHeads_fresh wf n (E.auxCtorNames_hitHeads n hn)
   have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
@@ -1630,7 +1630,7 @@ theorem NestedValidatedRunResult.envHitShape_auxCtorNames
     show Expr.ParamUniformBV _ _ _ _ (ci.type.instantiateLevelParams ci.levelParams _)
     rw [Expr.instantiateLevelParams_eq]
     refine (Expr.ParamUniformBV.of_avoidsConsts hav 0).instantiateLevelParamsCore' fun l hl => ?_
-    simp only [badLevels, List.mem_replicate] at hl
+    simp only [foreignLevels, List.mem_replicate] at hl
     rw [hl.2]
     rfl
   case rec_major =>
@@ -1673,27 +1673,27 @@ theorem NestedValidatedRunResult.envHitShape_auxCtorNames
     · cases heq
 
 /-- **`whnf` preserves "mentions the auxiliary constructors only at
-`badLevels`"** in the recursor pass of an exact validated nested run. -/
+`foreignLevels`"** in the recursor pass of an exact validated nested run. -/
 theorem NestedValidatedRunResult.whnfHitOKFacts_auxCtorNames
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    WhnfPreservesParamUniform E.auxCtorNames [] (badLevels lparams)
+    WhnfPreservesParamUniform E.auxCtorNames [] (foreignLevels lparams)
       E.production.production.localContext.env := by
   refine .of_env ?_ (fun a ha => by simp at ha)
   rw [E.recursorPassEnv]
   exact E.envHitShape_auxCtorNames wf Hsources
 
 /-- **The trailing-provenance inputs of an exact validated nested run** at the
-auxiliary constructor names and `badLevels`. -/
+auxiliary constructor names and `foreignLevels`. -/
 theorem NestedValidatedRunResult.trailInputs_of
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    E.production.production.toRecursorConstruction.TrailInputs
-      E.auxCtorNames (badLevels lparams) := by
+    E.production.production.toRecursorConstruction.TrailingArgDeclarations
+      E.auxCtorNames (foreignLevels lparams) := by
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
   have hfresh : ∀ n ∈ E.auxCtorNames, sourceProdEnv.find? n = none :=
     fun n hn => E.hitHeads_fresh wf n (E.auxCtorNames_hitHeads n hn)
@@ -1869,13 +1869,13 @@ list), the literals and the parameter domains avoid the auxiliary constructor
 names.
 
 The proof runs the trailing provenance chain (`ruleRhsTrail`) at the auxiliary
-constructor names without parameters, at the impossible levels `badLevels`
+constructor names without parameters, at the impossible levels `foreignLevels`
 (`whnfHitOKFacts_auxCtorNames`): the regions computed by `whnf`, the
 constructor field domains, the index domains and the parameter domains mention
-the auxiliary constructors only at `badLevels`, and the only other occurrences
+the auxiliary constructors only at `foreignLevels`, and the only other occurrences
 are the minors' constructor applications, whose trailing arguments are fields.
 The hit-shape chain at the declaration's levels (`recursorHitShape_hitHeads`)
-says that every occurrence is at `lparams.map Level.param ≠ badLevels`, so the
+says that every occurrence is at `lparams.map Level.param ≠ foreignLevels`, so the
 trailing occurrences do not exist. -/
 theorem NestedValidatedRunResult.loweredRulesAvoid_auxCtorNames
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
@@ -1893,7 +1893,7 @@ theorem NestedValidatedRunResult.loweredRulesAvoid_auxCtorNames
   have W := E.whnfHitOKFacts wf Hsources
   rw [← E.statsLevels] at W
   have HS := (C.generatedHitShape (E.hitShapeInputs_of wf Hsources) W owner.val hi).2 rule hrule'
-  -- the trailing provenance at `badLevels`
+  -- the trailing provenance at `foreignLevels`
   rw [(C.generated.entry owner.val hi).rules_eq] at hrule'
   simp only [List.mem_map] at hrule'
   obtain ⟨blueprint, hmem, rfl⟩ := hrule'
@@ -1948,11 +1948,11 @@ private theorem nestedAuxFold_keys (P : Name → Prop) :
 
 /-- **The auxiliary family names of a lowering run are numeric**:
 `Name.mkNum `_nested i` (`mkUniqueName`). -/
-theorem NestedLoweringRun.resultFamilyNamesIndexedOfEmpty
+theorem NestedLowering.resultFamilyNamesIndexedOfEmpty
     {env : Environment} {fuel nparams : Nat} {types : List InductiveType}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
     {result : Lean4Lean.ElimNestedInductive.Result}
-    (H : NestedLoweringRun env fuel nparams types initialState (result, finalState))
+    (H : NestedLowering env fuel nparams types initialState (result, finalState))
     (hempty : initialState.nestedAux = #[]) :
     ∀ (name : Name) (nested : Expr),
       (show Std.TreeMap Name Expr Name.quickCmp from result.aux2nested)[name]? = some nested →
@@ -1976,7 +1976,7 @@ theorem auxiliarySpecializations_familyNames
     {sourceEnv envTypes : VEnv} {paramCtx : List VExpr} {decl : VInductDecl}
     {env : VEnv} {leaf : Nat → VExpr → VExpr → Prop}
     {auxiliaries : List ContainerSpecialization} {generated targets : List VInductiveType}
-    (H : List.Forall₂ (AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl)
+    (H : List.Forall₂ (SpecializationGenerates sourceEnv envTypes paramCtx decl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion env decl leaf)
       generated targets) :
@@ -2011,7 +2011,7 @@ theorem NestedValidatedRunResult.restorableRenamed_auxCtorNames
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -2062,7 +2062,7 @@ theorem NestedValidatedRunResult.loweredRulesAvoid_renamed
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)

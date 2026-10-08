@@ -632,19 +632,19 @@ private theorem inductInfo_safety_of_visible' {info : InductiveVal} {isUnsafe : 
   · left; rfl
 
 open _root_.Lean4Lean.InductiveSignature in
-/-- `FinalLoweredGeneratedFamilyNativeSource.auxiliarySpecialization`, also
+/-- `AuxiliaryFamilySourceData.auxiliarySpecialization`, also
 recording that the specialisation's universe and parameter arguments are the
 native source's (`N.levels`, `N.baseArgs`). -/
-theorem FinalLoweredGeneratedFamilyNativeSource.linkedSpecialization
+theorem AuxiliaryFamilySourceData.linkedSpecialization
     {ves : VEnvs} {isUnsafe : Bool} {prodEnv : Environment}
     {params : Array Expr} {nparams : Nat}
     {finalState : Lean4Lean.ElimNestedInductive.State}
     {targetConcrete : InductiveType}
-    {H : FinalLoweredGeneratedFamilyOrigin prodEnv params nparams finalState
+    {H : LoweredAuxiliaryFamily prodEnv params nparams finalState
       targetConcrete}
     {sourceTypesVEnv : VEnv} {lparams : List Name} {target : VInductiveType}
     {baseVEnv : VEnv}
-    (N : FinalLoweredGeneratedFamilyNativeSource H baseVEnv sourceTypesVEnv
+    (N : AuxiliaryFamilySourceData H baseVEnv sourceTypesVEnv
       lparams target)
     (hbase : baseVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
     (wf : ves.WFCore prodEnv) (decl : VInductDecl)
@@ -654,7 +654,7 @@ theorem FinalLoweredGeneratedFamilyNativeSource.linkedSpecialization
     (hctx : VEnv.IsDefEqCtx baseVEnv lparams.length [] N.sourceParams.reverse
       paramCtx) :
     ∃ a : ContainerSpecialization,
-      AuxiliarySpecializationEvidence
+      SpecializationGenerates
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceTypesVEnv paramCtx
         decl a N.payload.source ∧
       a.auxiliary = N.payload.source.name ∧ a.source = N.containerFamily ∧
@@ -723,14 +723,14 @@ theorem FinalLoweredGeneratedFamilyNativeSource.linkedSpecialization
 /-- The container application recorded for a generated family, abstracted
 over the final lowering parameters, is the native source's container
 application. -/
-theorem FinalLoweredGeneratedFamilyNativeSource.auxNestedSpec
+theorem AuxiliaryFamilySourceData.auxNestedSpec
     {prodEnv : Environment} {result : Lean4Lean.ElimNestedInductive.Result}
     {nparams : Nat} {finalState : Lean4Lean.ElimNestedInductive.State}
     {targetConcrete : InductiveType}
-    {H : FinalLoweredGeneratedFamilyOrigin prodEnv result.params nparams finalState
+    {H : LoweredAuxiliaryFamily prodEnv result.params nparams finalState
       targetConcrete}
     {baseVEnv sourceTypesVEnv : VEnv} {lparams : List Name} {target : VInductiveType}
-    (N : FinalLoweredGeneratedFamilyNativeSource H baseVEnv sourceTypesVEnv
+    (N : AuxiliaryFamilySourceData H baseVEnv sourceTypesVEnv
       lparams target)
     (a : InductiveSignature.ContainerSpecialization)
     (hsrcName : a.source.name = H.generated.sourceName)
@@ -759,17 +759,17 @@ theorem FinalLoweredGeneratedFamilyNativeSource.auxNestedSpec
   · rw [hlevels]; exact N.levelsTranslation
   · rw [hargs]; exact N.baseTranslations
 
-/-- `FinalLoweredGeneratedFamilyNativeSource.auxNestedSpec` in the source
+/-- `AuxiliaryFamilySourceData.auxNestedSpec` in the source
 types environment, with the native source parameters definitionally equal to
 a given context. -/
-theorem FinalLoweredGeneratedFamilyNativeSource.auxNestedSpecAt
+theorem AuxiliaryFamilySourceData.auxNestedSpecAt
     {prodEnv : Environment} {result : Lean4Lean.ElimNestedInductive.Result}
     {nparams : Nat} {finalState : Lean4Lean.ElimNestedInductive.State}
     {targetConcrete : InductiveType}
-    {H : FinalLoweredGeneratedFamilyOrigin prodEnv result.params nparams finalState
+    {H : LoweredAuxiliaryFamily prodEnv result.params nparams finalState
       targetConcrete}
     {baseVEnv sourceTypesVEnv : VEnv} {lparams : List Name} {target : VInductiveType}
-    (N : FinalLoweredGeneratedFamilyNativeSource H baseVEnv sourceTypesVEnv
+    (N : AuxiliaryFamilySourceData H baseVEnv sourceTypesVEnv
       lparams target)
     (a : InductiveSignature.ContainerSpecialization)
     (hsrcName : a.source.name = H.generated.sourceName)
@@ -885,10 +885,10 @@ theorem VExpr.levelWF_mkApps {U : Nat} :
 
 /-- The specialisation arguments of an evidenced auxiliary use only the
 declaration's universe parameters. -/
-theorem AuxiliarySpecializationEvidence.argumentsLevelWF
+theorem SpecializationGenerates.argumentsLevelWF
     {sourceEnv envTypes : VEnv} {paramCtx : List VExpr} {decl : VInductDecl}
     {a : InductiveSignature.ContainerSpecialization} {generated : VInductiveType}
-    (H : AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl a generated) :
+    (H : SpecializationGenerates sourceEnv envTypes paramCtx decl a generated) :
     ∀ arg ∈ a.arguments, arg.LevelWF decl.uvars := by
   obtain ⟨sourceParams, -, -, hon, htyping, -⟩ := H.application
   exact (VExpr.levelWF_mkApps.mp (htyping.levelWF (OnCtx.levelWF_of_isType hon)).1).2
@@ -910,12 +910,12 @@ map (`RestorationTableData.familyKey`). The specialisation keyed by the
 auxiliary name is identified with the native source of the hit by
 `AuxNestedSpec.unique`; the universe arguments of the auxiliary occurrence are
 the identity by the `ConstLevelsAt` premise of the leaf. -/
-theorem NestedGeneratedFamilyNativeSources.restoringReplacement
+theorem AuxiliaryFamilySources.restoringReplacement
     {isUnsafe : Bool} {initialState : Lean4Lean.ElimNestedInductive.State}
-    {Hrun : NestedLoweringRun prodEnv fuel nparams sourceTypes
+    {Hrun : NestedLowering prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
       (result, finalState)}
-    (N : NestedGeneratedFamilyNativeSources Hrun baseVEnv sourceTypesVEnv
+    (N : AuxiliaryFamilySources Hrun baseVEnv sourceTypesVEnv
       lparams loweredDecl)
     (Htarget : TrInductDeclCore baseVEnv lparams nparams result.types
       isUnsafe loweredDecl targetTypesVEnv targetCtorsVEnv)
@@ -1190,8 +1190,8 @@ theorem RecursorCheck.ctorInfoOrigin
       rw [this] at hfound
       cases hfound
 
-theorem NestedLoweringRun.resultTypes_eq
-    (H : NestedLoweringRun env fuel nparams types initialState out) :
+theorem NestedLowering.resultTypes_eq
+    (H : NestedLowering env fuel nparams types initialState out) :
     out.1.types = out.2.newTypes.toList := by
   rcases H.source with
     ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, Hqueue⟩
@@ -1221,7 +1221,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
       envTypes.WF ∧
-      List.Forall₂ (AuxiliarySpecializationEvidence
+      List.Forall₂ (SpecializationGenerates
         (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
         E.production.headers.commonParameterContext sourceDecl)
         auxiliaries generated ∧
@@ -1312,7 +1312,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource
       (by simpa only [hinitial, safety] using
         (wf.tr (safety := safety)).wf)
-  have Htranslations : ClosedNestedAuxiliaryTranslations
+  have Htranslations : ClosedNestedOccurrenceTypings
       E.nativeSource.envTypes P.c.lparams result E.auxiliarySelection := by
     rw [← E.auxiliaryVEnv_eq_native]
     simpa only [hlparams] using E.auxiliaryTranslations
@@ -1366,7 +1366,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
   have hparamsSize : result.params.size = result.nparams :=
     Hrun.resultParamsSize.trans hnp.symm
   have Hpoint : ∀ family ∈ N.generated, ∃ a,
-      AuxiliarySpecializationEvidence (ves.venv safety) E.nativeSource.envTypes
+      SpecializationGenerates (ves.venv safety) E.nativeSource.envTypes
         N.parameterContext sourceDecl a family ∧
       ∃ nested, result.aux2nested.find? a.auxiliary = some nested ∧
         AuxNestedSpec result P.c.lparams nested a ∧
@@ -1416,7 +1416,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
       Hrun.resultFamilyNamesFreshOfEmpty hwfMap rfl
     -- per-auxiliary data
     have Hper : ∀ a ∈ auxiliaries, ∃ g t,
-        AuxiliarySpecializationEvidence (ves.venv safety) E.nativeSource.envTypes
+        SpecializationGenerates (ves.venv safety) E.nativeSource.envTypes
           P.headers.commonParameterContext sourceDecl a g ∧
         VInductDecl.NestedTypeExpansion (ves.venv safety) sourceDecl
           (VInductDecl.NestedOccurrenceReplacementAbs (ves.venv safety) sourceDecl
@@ -1710,7 +1710,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAll
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
       envTypes.WF ∧
-      List.Forall₂ (AuxiliarySpecializationEvidence
+      List.Forall₂ (SpecializationGenerates
         (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
         E.production.headers.commonParameterContext sourceDecl)
         auxiliaries generated ∧
@@ -1754,7 +1754,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoring
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
       envTypes.WF ∧
-      List.Forall₂ (AuxiliarySpecializationEvidence
+      List.Forall₂ (SpecializationGenerates
         (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
         E.production.headers.commonParameterContext sourceDecl)
         auxiliaries generated ∧

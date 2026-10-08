@@ -797,7 +797,7 @@ theorem foldl_pushSelectedForall_find_getElem
 /-- Exact residual view of two translated concrete forall prefixes after
 opening them with the same fresh free variables.  The `close` field is the
 structural induction that reattaches all translated binder domains. -/
-structure NestedOpenedForallProjection
+structure OpenedForallPrefixes
     (sourceVEnv targetVEnv : VEnv) (lparams : List Name)
     (leaf : Nat → VExpr → VExpr → Prop)
     (depth arity : Nat) (source target : Expr) (fvars : List FVarId)
@@ -851,8 +851,8 @@ structure NestedOpenedForallProjection
 
 /-- The retained source-prefix equation exposes every selected concrete
 parameter as its canonical de Bruijn variable. -/
-theorem NestedOpenedForallProjection.sourceParameterLookup
-    (H : NestedOpenedForallProjection sourceVEnv targetVEnv lparams leaf
+theorem OpenedForallPrefixes.sourceParameterLookup
+    (H : OpenedForallPrefixes sourceVEnv targetVEnv lparams leaf
       depth arity source target fvars sourceBaseCtx targetBaseCtx sourceTarget
       targetTarget)
     (hnodup : fvars.Nodup)
@@ -881,8 +881,8 @@ theorem NestedOpenedForallProjection.sourceParameterLookup
 
 /-- The retained target-prefix equation exposes every selected concrete
 parameter as its canonical de Bruijn variable. -/
-theorem NestedOpenedForallProjection.targetParameterLookup
-    (H : NestedOpenedForallProjection sourceVEnv targetVEnv lparams leaf
+theorem OpenedForallPrefixes.targetParameterLookup
+    (H : OpenedForallPrefixes sourceVEnv targetVEnv lparams leaf
       depth arity source target fvars sourceBaseCtx targetBaseCtx sourceTarget
       targetTarget)
     (hnodup : fvars.Nodup)
@@ -917,8 +917,8 @@ def SelectedParameterTargets
     targetCtx.find? (.inr fvars[i]) =
       some (.bvar (fieldDepth + (fvars.length - 1 - i)), type)
 
-theorem NestedOpenedForallProjection.selectedParameterTargets
-    (H : NestedOpenedForallProjection sourceVEnv targetVEnv lparams leaf
+theorem OpenedForallPrefixes.selectedParameterTargets
+    (H : OpenedForallPrefixes sourceVEnv targetVEnv lparams leaf
       depth arity source target fvars sourceBaseCtx targetBaseCtx sourceTarget
       targetTarget)
     (hnodup : fvars.Nodup) :
@@ -926,8 +926,8 @@ theorem NestedOpenedForallProjection.selectedParameterTargets
   intro i hi
   simpa using H.targetParameterLookup hnodup i hi
 
-theorem NestedOpenedForallProjection.selectedParameterSources
-    (H : NestedOpenedForallProjection sourceVEnv targetVEnv lparams leaf
+theorem OpenedForallPrefixes.selectedParameterSources
+    (H : OpenedForallPrefixes sourceVEnv targetVEnv lparams leaf
       depth arity source target fvars sourceBaseCtx targetBaseCtx sourceTarget
       targetTarget)
     (hnodup : fvars.Nodup) :
@@ -1000,7 +1000,7 @@ theorem SelectedParameterTargets.translatedSelection
 /-- Exact abstract output spine selected by one successful replacement.  The
 concrete trace fixes the auxiliary name and universe arguments; the anchored
 constructor context fixes the translated common-parameter prefix. -/
-structure NestedReplacementTargetSpine
+structure LoweredOccurrenceSpine
     (Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result finalState)
     (Hselection : CDeclArray lctx As)
@@ -1013,7 +1013,7 @@ structure NestedReplacementTargetSpine
   concreteAuxLevels : List Level
   concreteAuxLevels_eq : concreteAuxLevels = state.lvls
   nested : Expr
-  candidate : NestedAppCandidate prodEnv state input value
+  candidate : NestedOccurrence prodEnv state input value
   inputHead : input.getAppFn = .const targetName levels
   replacement : output = mkAppRange
     (mkAppN (.const auxName concreteAuxLevels) As)
@@ -1042,7 +1042,7 @@ theorem NestedReplacementFinalTrace.targetSpine
     (Hparams : SelectedParameterTargets Hselection.fvars fieldDepth targetCtx)
     (hsourceParams : result.params.size = sourceDecl.nparams)
     (Htarget : TrExprS targetVEnv lparams targetCtx output targetValue) :
-    Nonempty (NestedReplacementTargetSpine Htrace Hselection Htarget sourceDecl
+    Nonempty (LoweredOccurrenceSpine Htrace Hselection Htarget sourceDecl
       fieldDepth) := by
   rcases Htrace.mapping with
     ⟨value, targetName, levels, auxName, concreteAuxLevels, nested,
@@ -1087,7 +1087,7 @@ theorem NestedReplacementFinalTrace.targetSpine
 /-- Source-side application spine at the same exact successful hit.  This is
 obtained solely by splitting the original application at the recognized
 container's common-parameter arity. -/
-structure NestedReplacementSourceSpine
+structure SourceOccurrenceSpine
     (targetName : Name) (levels : List Level) (value : InductiveVal)
     (Hsource : TrExprS sourceVEnv lparams sourceCtx input sourceValue) where
   sourceLevels : List VLevel
@@ -1103,7 +1103,7 @@ structure NestedReplacementSourceSpine
     VExpr.mkApps (.const targetName sourceLevels)
       (baseArgsAtDepth ++ trailing)
 
-theorem NestedReplacementTargetSpine.sourceSpine
+theorem LoweredOccurrenceSpine.sourceSpine
     {prodEnv : Environment} {lctx : LocalContext}
     {result : Lean4Lean.ElimNestedInductive.Result} {As : Array Expr}
     {input output : Expr} {state nextState finalState :
@@ -1115,10 +1115,10 @@ theorem NestedReplacementTargetSpine.sourceSpine
     {targetValue : VExpr}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
     {sourceDecl : VInductDecl} {fieldDepth : Nat}
-    (T : NestedReplacementTargetSpine Htrace Hselection Htarget sourceDecl
+    (T : LoweredOccurrenceSpine Htrace Hselection Htarget sourceDecl
       fieldDepth)
     (Hsource : TrExprS sourceVEnv lparams sourceCtx input sourceValue) :
-    Nonempty (NestedReplacementSourceSpine
+    Nonempty (SourceOccurrenceSpine
       (sourceVEnv := sourceVEnv) (sourceCtx := sourceCtx)
       (sourceValue := sourceValue) (lparams := lparams) (input := input)
       T.targetName T.levels T.value Hsource) := by
@@ -1146,7 +1146,7 @@ theorem NestedReplacementTargetSpine.sourceSpine
 
 /-- The exact auxiliary name selected by the translated target spine rejoins
 the append-only generated-family queue without any name/equality heuristic. -/
-theorem NestedReplacementTargetSpine.finalGeneratedFamilyOrigin
+theorem LoweredOccurrenceSpine.finalGeneratedFamilyOrigin
     {prodEnv : Environment} {lctx : LocalContext}
     {result : Lean4Lean.ElimNestedInductive.Result} {As : Array Expr}
     {input output : Expr} {state nextState finalState :
@@ -1158,16 +1158,16 @@ theorem NestedReplacementTargetSpine.finalGeneratedFamilyOrigin
     {targetValue : VExpr}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
     {sourceDecl : VInductDecl} {fieldDepth : Nat}
-    (T : NestedReplacementTargetSpine Htrace Hselection Htarget sourceDecl
+    (T : LoweredOccurrenceSpine Htrace Hselection Htarget sourceDecl
       fieldDepth)
-    (Hrun : NestedLoweringRun prodEnv fuel nparams sourceTypes initialState
+    (Hrun : NestedLowering prodEnv fuel nparams sourceTypes initialState
       (result, runFinalState))
     (Henv : EnvironmentTypesClosed prodEnv)
     (hclosures : MutualInductivesClosed prodEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (hinitialTypes : initialState.newTypes = sourceTypes.toArray)
     (hempty : initialState.nestedAux = #[]) :
-    Nonempty (FinalCachedGeneratedFamilyOrigin prodEnv result.params nparams
+    Nonempty (CachedAuxiliaryFamily prodEnv result.params nparams
       initialState.newTypes.size runFinalState T.nested T.auxName) :=
   Hrun.finalCachedGeneratedFamilyOriginOfLookup Henv hclosures Hsources hinitialTypes
     hempty T.resultLookup
@@ -1175,7 +1175,7 @@ theorem NestedReplacementTargetSpine.finalGeneratedFamilyOrigin
 /-- Translate a shared concrete forall prefix while replacing its anonymous
 de Bruijn binders by one exact duplicate-free list of opening fvars.  This is
 the closed/opened bridge needed by constructor lowering: the returned
-residual translations live in contexts where `NestedExprMapping`'s opened
+residual translations live in contexts where `ExprLowering.Resolved`'s opened
 tail can be projected directly. -/
 theorem Expr.SameForallPrefix.openedAbstractProjection
     (Hsame : Expr.SameForallPrefix arity source target)
@@ -1191,7 +1191,7 @@ theorem Expr.SameForallPrefix.openedAbstractProjection
     (hnodup : fvars.Nodup)
     (HsourceFresh : ∀ fv ∈ fvars, fv ∉ sourceCtx.fvars)
     (HtargetFresh : ∀ fv ∈ fvars, fv ∉ targetCtx.fvars) :
-    Nonempty (NestedOpenedForallProjection sourceVEnv targetVEnv lparams leaf
+    Nonempty (OpenedForallPrefixes sourceVEnv targetVEnv lparams leaf
       depth arity source target fvars sourceCtx targetCtx sourceTarget
       targetTarget) := by
   induction arity generalizing source target depth sourceCtx targetCtx
@@ -1385,11 +1385,11 @@ theorem Expr.SameForallPrefix.openedAbstractProjection
 lookups are supplied by the leaf-free opened telescope; once traversal enters
 constructor fields, lookup lifting is justified only below the common
 parameter prefix. -/
-theorem NestedExprMapping.abstractExpansionAbove
+theorem ExprLowering.Resolved.abstractExpansionAbove
     {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
     {lvls₀ : List Level}
     (Hlift : NestedExpansionLeafLiftAbove sourceDecl.nparams leaf)
-    (H : NestedExprMapping prodEnv lctx params As result input state out)
+    (H : ExprLowering.Resolved prodEnv lctx params As result input state out)
     (hlvls : state.lvls = lvls₀)
     (Hctx : NestedExpansionLookupCtx
       leaf
@@ -1607,11 +1607,11 @@ source opening, the rebuilt target telescope, and the shared translated
 forall prefix determine the same opened residuals used by the operational
 mapping; the expression traversal can therefore be projected without an
 additional constructor-level semantic premise. -/
-theorem LoweredConstructorMapping.abstractExpansionAbove
+theorem ConstructorLowering.Resolved.abstractExpansionAbove
     {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
     {lvls₀ : List Level}
     (Hlift : NestedExpansionLeafLiftAbove sourceDecl.nparams leaf)
-    (Hmapping : LoweredConstructorMapping prodEnv params nparams result
+    (Hmapping : ConstructorLowering.Resolved prodEnv params nparams result
       sourceConcrete state (targetConcrete, nextState))
     (hlvls : state.lvls = lvls₀)
     (Hsource : TrSourceConstRaw sourceVEnv lparams sourceConcrete.name
@@ -1669,7 +1669,7 @@ theorem LoweredConstructorMapping.abstractExpansionAbove
   have htail : tail =
       openingResidual.instantiateRevList
         (Hselection.fvars.map Expr.fvar) := by
-    have htail' := Hopening.toRestoreParamOpening.forallResidual
+    have htail' := Hopening.toParamOpening.forallResidual
       HopeningTelescope
     rw [Hselection.expressions, Expr.instantiateRev_eq,
       Expr.instantiate_eq] at htail'
@@ -1729,11 +1729,11 @@ theorem LoweredConstructorMapping.abstractExpansionAbove
 /-- State threading is irrelevant after every exact constructor step has
 been projected: source and lowered translation lists become an ordered
 constructor expansion. -/
-theorem LoweredConstructorMappings.abstractExpansionsAbove
+theorem ConstructorLowerings.Resolved.abstractExpansionsAbove
     {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
     {lvls₀ : List Level}
     (Hlift : NestedExpansionLeafLiftAbove sourceDecl.nparams leaf)
-    (Hmapping : LoweredConstructorMappings prodEnv params nparams result
+    (Hmapping : ConstructorLowerings.Resolved prodEnv params nparams result
       sources state out)
     (hlvls : state.lvls = lvls₀)
     (Hsource : List.Forall₂ (fun source target =>
@@ -1805,8 +1805,8 @@ structure NestedTypeExpansionHeader
 
 /-- Two abstract headers translated from the exact source/lowered concrete
 family pair inherit all family-level expansion fields from lowering. -/
-theorem LoweredInductiveMapping.abstractHeaderExpansion
-    (Hmapping : LoweredInductiveMapping prodEnv params nparams result
+theorem FamilyLowering.Resolved.abstractHeaderExpansion
+    (Hmapping : FamilyLowering.Resolved prodEnv params nparams result
       sourceConcrete state (targetConcrete, nextState))
     (Hsource : TrInductiveTypeHeaders env envTypes lparams sourceConcrete source)
     (Htarget : TrInductiveType env targetEnvTypes lparams targetConcrete target)
@@ -1834,11 +1834,11 @@ theorem LoweredInductiveMapping.abstractHeaderExpansion
 
 /-- Family-level projection packages the exact header with the ordered
 constructor traversal. -/
-theorem LoweredInductiveMapping.abstractExpansionAbove
+theorem FamilyLowering.Resolved.abstractExpansionAbove
     {decl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
     {lvls₀ : List Level}
     (Hlift : NestedExpansionLeafLiftAbove decl.nparams leaf)
-    (Hmapping : LoweredInductiveMapping prodEnv params nparams result
+    (Hmapping : FamilyLowering.Resolved prodEnv params nparams result
       sourceConcrete state (targetConcrete, nextState))
     (hlvls : state.lvls = lvls₀)
     (Hsource : TrInductiveTypeHeaders headerVEnv sourceVEnv lparams sourceConcrete
@@ -1893,8 +1893,8 @@ theorem LoweredInductiveMapping.abstractExpansionAbove
         Hclosed HbClosed HsourceEnvWF HtargetEnvWF hparamsSize hnparams Hhit
 
 /-- `abstractExpansionAbove` at the formation leaf `NestedOccurrenceReplacementAbs`. -/
-theorem LoweredInductiveMapping.abstractExpansion
-    (Hmapping : LoweredInductiveMapping prodEnv params nparams result
+theorem FamilyLowering.Resolved.abstractExpansion
+    (Hmapping : FamilyLowering.Resolved prodEnv params nparams result
       sourceConcrete state (targetConcrete, nextState))
     (Hsource : TrInductiveTypeHeaders headerVEnv sourceVEnv lparams sourceConcrete
       sourceTarget)
@@ -1930,7 +1930,7 @@ theorem LoweredInductiveMapping.abstractExpansion
     VInductDecl.NestedTypeExpansion headerVEnv decl
       (VInductDecl.NestedOccurrenceReplacementAbs headerVEnv decl generated)
       sourceTarget targetTarget :=
-  LoweredInductiveMapping.abstractExpansionAbove nestedAuxiliarySourceAbsolute_liftAbove
+  FamilyLowering.Resolved.abstractExpansionAbove nestedAuxiliarySourceAbsolute_liftAbove
     Hmapping rfl Hsource Htarget Hheader Hclosed HsourceEnvWF HtargetEnvWF hparamsSize hnparams
     (fun Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt _ =>
       Hhit Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt)
@@ -2033,10 +2033,10 @@ queue family.  It contains no final expansion judgment: only the independent
 translation of the exact pre-lowering family, its executable closure fact,
 and the two metadata fields not represented by `TrInductiveType`.
 
-This is the intended output of the `BuiltAuxiliary`/installed-container
+This is the intended output of the `AuxiliaryFamilySpec`/installed-container
 projection, before the ordinary lowering mapping is interpreted. -/
-structure FinalLoweredGeneratedFamilySource
-    (H : FinalLoweredGeneratedFamilyOrigin prodEnv params nparams finalState
+structure AuxiliaryFamilySource
+    (H : LoweredAuxiliaryFamily prodEnv params nparams finalState
       targetConcrete)
     (baseVEnv sourceTypesVEnv : VEnv) (lparams : List Name)
     (target : VInductiveType) where
@@ -2048,10 +2048,10 @@ structure FinalLoweredGeneratedFamilySource
 
 /-- Once the narrow pre-lowering source payload is available, the exact final
 queue mapping yields the complete abstract generated-family expansion. -/
-theorem FinalLoweredGeneratedFamilyOrigin.abstractExpansion
-    (H : FinalLoweredGeneratedFamilyOrigin prodEnv params nparams finalState
+theorem LoweredAuxiliaryFamily.abstractExpansion
+    (H : LoweredAuxiliaryFamily prodEnv params nparams finalState
       targetConcrete)
-    (Hsource : FinalLoweredGeneratedFamilySource H baseVEnv sourceTypesVEnv
+    (Hsource : AuxiliaryFamilySource H baseVEnv sourceTypesVEnv
       lparams target)
     (Htarget : TrInductiveType baseVEnv targetTypesVEnv lparams targetConcrete
       target)

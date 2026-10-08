@@ -11,34 +11,34 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
 /-- Exact context/free-variable opening relation for `openRestoreParams`. -/
-inductive RestoreParamOpening : LocalContext → Array Expr → Expr → Nat →
+inductive ParamOpening : LocalContext → Array Expr → Expr → Nat →
     LocalContext → Array Expr → Expr → Prop
-  | done : RestoreParamOpening lctx As e 0 lctx As e
+  | done : ParamOpening lctx As e 0 lctx As e
   | forallE {id : FVarId} :
-      RestoreParamOpening
+      ParamOpening
         (lctx.mkLocalDecl id name dom bi) (As.push (.fvar id))
         (body.instantiate1 (.fvar id)) n outLctx outAs tail →
-      RestoreParamOpening lctx As (.forallE name dom body bi) (n + 1)
+      ParamOpening lctx As (.forallE name dom body bi) (n + 1)
         outLctx outAs tail
   | lam {id : FVarId} :
-      RestoreParamOpening
+      ParamOpening
         (lctx.mkLocalDecl id name dom bi) (As.push (.fvar id))
         (body.instantiate1 (.fvar id)) n outLctx outAs tail →
-      RestoreParamOpening lctx As (.lam name dom body bi) (n + 1)
+      ParamOpening lctx As (.lam name dom body bi) (n + 1)
         outLctx outAs tail
 
 /-- Nested lowering's parameter traversal is the forall-only fragment of the
 restoration traversal.  Sharing this relation gives both phases one audited
 telescope-substitution model. -/
-theorem NestedParamOpening.toRestoreParamOpening
-    (H : NestedParamOpening lctx As e n outLctx tail outAs) :
-    RestoreParamOpening lctx As e n outLctx outAs tail := by
+theorem LoweringParamOpening.toParamOpening
+    (H : LoweringParamOpening lctx As e n outLctx tail outAs) :
+    ParamOpening lctx As e n outLctx outAs tail := by
   induction H with
   | done => exact .done
   | step Hnext ih => exact .forallE ih
 
-theorem RestoreParamOpening.params_size
-    (H : RestoreParamOpening lctx As e n outLctx outAs tail) :
+theorem ParamOpening.params_size
+    (H : ParamOpening lctx As e n outLctx outAs tail) :
     outAs.size = As.size + n := by
   induction H with
   | done => simp
@@ -152,8 +152,8 @@ theorem _root_.Lean.Expr.FVarIdsIn.getAppArgsList
 /-- Exact local-declaration extension performed alongside parameter opening.
 Declarations are recorded in binder order; `LocalContext.toList` stores the
 same suffix in reverse because newer declarations are at the front. -/
-theorem RestoreParamOpening.context_extension
-    (H : RestoreParamOpening lctx As e n outLctx outAs tail) :
+theorem ParamOpening.context_extension
+    (H : ParamOpening lctx As e n outLctx outAs tail) :
     ∃ decls : List LocalDecl,
       outLctx.toList = decls.reverse ++ lctx.toList ∧
       outAs.toList = As.toList ++ decls.map (fun d => .fvar d.fvarId) ∧
@@ -185,8 +185,8 @@ theorem FVarDeclAt.declaration_eq_of_mem
 /-- At a root opening, the parameter array is in binder order while the
 local-context free-variable list is in the reverse (most-recent-first) order.
 This is the ordering convention required by `MLCtx.mkForall`. -/
-theorem RestoreParamOpening.root_params_reverse_fvars
-    (Hopen : RestoreParamOpening {} #[] e n outLctx outAs tail) :
+theorem ParamOpening.root_params_reverse_fvars
+    (Hopen : ParamOpening {} #[] e n outLctx outAs tail) :
     outAs.toList.reverse = outLctx.fvars.map Expr.fvar := by
   rcases Hopen.context_extension with
     ⟨decls, hlctx, hparams, _hlength⟩
@@ -203,8 +203,8 @@ theorem RestoreParamOpening.root_params_reverse_fvars
 its substitutions binder by binder.  The freshness hypothesis is deliberately
 relative to the declarations introduced by this opening, so recursive calls
 may still mention parameters introduced by earlier calls. -/
-theorem RestoreParamOpening.forall_rebuilding_data
-    (Hopen : RestoreParamOpening lctx As e n outLctx outAs tail)
+theorem ParamOpening.forall_rebuilding_data
+    (Hopen : ParamOpening lctx As e n outLctx outAs tail)
     (Hwf : outLctx.WF)
     (Htel : Expr.ForallTelescope e n residual) :
     ∃ decls : List LocalDecl,
@@ -292,8 +292,8 @@ theorem RestoreParamOpening.forall_rebuilding_data
 opens an initial lambda prefix and later closes the selected declarations
 with `mkLambda`; this certificate proves that the round trip uses the
 literal source binder prefix and is not merely alpha-equivalent to it. -/
-theorem RestoreParamOpening.lambda_rebuilding_data
-    (Hopen : RestoreParamOpening lctx As e n outLctx outAs tail)
+theorem ParamOpening.lambda_rebuilding_data
+    (Hopen : ParamOpening lctx As e n outLctx outAs tail)
     (Hwf : outLctx.WF)
     (Htel : Expr.LambdaTelescope e n residual) :
     ∃ decls : List LocalDecl,
@@ -377,8 +377,8 @@ theorem RestoreParamOpening.lambda_rebuilding_data
 
 /-- Closing a root lambda opening with its unchanged exposed body reproduces
 the original equation RHS exactly. -/
-theorem RestoreParamOpening.root_mkLambda_tail
-    (Hopen : RestoreParamOpening {} #[] e n outLctx outAs tail)
+theorem ParamOpening.root_mkLambda_tail
+    (Hopen : ParamOpening {} #[] e n outLctx outAs tail)
     (Hwf : outLctx.WF)
     (Htel : Expr.LambdaTelescope e n residual)
     (Hclosed : e.FVarIdsIn fun _ => False) (hclosed : Closed e) :
@@ -404,8 +404,8 @@ theorem RestoreParamOpening.root_mkLambda_tail
 /-- Folding the declarations copied by a forall opening removes exactly the
 new parameter IDs.  `P` describes the free variables allowed before the
 opening; the root specialization uses `P := False`. -/
-theorem RestoreParamOpening.forall_closing_data
-    (Hopen : RestoreParamOpening lctx As e n outLctx outAs tail)
+theorem ParamOpening.forall_closing_data
+    (Hopen : ParamOpening lctx As e n outLctx outAs tail)
     (Hwf : outLctx.WF)
     (Htel : Expr.ForallTelescope e n residual)
     (Hsource : e.FVarIdsIn P) :
@@ -507,8 +507,8 @@ theorem RestoreParamOpening.forall_closing_data
 level metavariable freedom recorded by `FVarsIn`.  Folding the declarations copied by a forall opening removes exactly the
 new parameter IDs.  `P` describes the free variables allowed before the
 opening; the root specialization uses `P := False`. -/
-theorem RestoreParamOpening.forall_closing_data'
-    (Hopen : RestoreParamOpening lctx As e n outLctx outAs tail)
+theorem ParamOpening.forall_closing_data'
+    (Hopen : ParamOpening lctx As e n outLctx outAs tail)
     (Hwf : outLctx.WF)
     (Htel : Expr.ForallTelescope e n residual)
     (Hsource : e.FVarsIn P) :
@@ -611,8 +611,8 @@ theorem RestoreParamOpening.forall_closing_data'
 
 /-- Closing a root forall opening with its unchanged exposed body reproduces
 the original telescope exactly. -/
-theorem RestoreParamOpening.root_mkForall_tail
-    (Hopen : RestoreParamOpening {} #[] e n outLctx outAs tail)
+theorem ParamOpening.root_mkForall_tail
+    (Hopen : ParamOpening {} #[] e n outLctx outAs tail)
     (Hwf : outLctx.WF)
     (Htel : Expr.ForallTelescope e n residual)
     (Hclosed : e.FVarIdsIn fun _ => False) (hclosed : Closed e) :
@@ -637,8 +637,8 @@ theorem RestoreParamOpening.root_mkForall_tail
 
 /-- Closing an arbitrary body scoped by a root opening's selected parameters
 produces an expression with no free-variable IDs. -/
-theorem RestoreParamOpening.root_mkForall_fvarIdsClosed
-    (Hopen : RestoreParamOpening {} #[] e n outLctx outAs tail)
+theorem ParamOpening.root_mkForall_fvarIdsClosed
+    (Hopen : ParamOpening {} #[] e n outLctx outAs tail)
     (Hwf : outLctx.WF)
     (Htel : Expr.ForallTelescope e n residual)
     (Hsource : e.FVarIdsIn fun _ => False)
@@ -679,8 +679,8 @@ theorem RestoreParamOpening.root_mkForall_fvarIdsClosed
 /-- Closing an arbitrary body scoped by a root opening's selected parameters
 produces an expression with no free variables and no level metavariables,
 provided the opened source had none. -/
-theorem RestoreParamOpening.root_mkForall_fvarsClosed
-    (Hopen : RestoreParamOpening {} #[] e n outLctx outAs tail)
+theorem ParamOpening.root_mkForall_fvarsClosed
+    (Hopen : ParamOpening {} #[] e n outLctx outAs tail)
     (Hwf : outLctx.WF)
     (Htel : Expr.ForallTelescope e n residual)
     (Hsource : e.FVarsIn fun _ => False)
@@ -1122,9 +1122,9 @@ theorem CDeclArray.sameForallPrefix
 prefix, retaining exactly the same generated context and parameter array. -/
 theorem Expr.SameForallPrefix.transferRestoreOpening
     (Hsame : Expr.SameForallPrefix n source target)
-    (Hopen : RestoreParamOpening lctx As target n outLctx outAs targetTail) :
+    (Hopen : ParamOpening lctx As target n outLctx outAs targetTail) :
     ∃ sourceTail,
-      RestoreParamOpening lctx As source n outLctx outAs sourceTail := by
+      ParamOpening lctx As source n outLctx outAs sourceTail := by
   induction n generalizing source target lctx As with
   | zero =>
     cases Hsame with
@@ -1174,8 +1174,8 @@ theorem CDeclArray.mkForall_eqv
 
 /-- The suffix created by restoration opening consists exactly of the fresh
 free variables introduced by its telescope traversal. -/
-theorem RestoreParamOpening.params_fvars_extension
-    (H : RestoreParamOpening lctx As e n outLctx outAs tail) :
+theorem ParamOpening.params_fvars_extension
+    (H : ParamOpening lctx As e n outLctx outAs tail) :
     ∃ fvars : List FVarId,
       outAs.toList = As.toList ++ fvars.map Expr.fvar ∧
       fvars.length = n := by
@@ -1189,8 +1189,8 @@ theorem RestoreParamOpening.params_fvars_extension
 
 /-- Jointly opening a generated forall telescope substitutes precisely the
 fresh restoration variables into its residual body. -/
-theorem RestoreParamOpening.forallResidualData
-    (Hopen : RestoreParamOpening lctx As outer n outLctx outAs tail)
+theorem ParamOpening.forallResidualData
+    (Hopen : ParamOpening lctx As outer n outLctx outAs tail)
     (Htel : Expr.ForallTelescope outer n residual) :
     ∃ fvars : List FVarId,
       outAs.toList = As.toList ++ fvars.map Expr.fvar ∧
@@ -1220,8 +1220,8 @@ theorem RestoreParamOpening.forallResidualData
 
 /-- Jointly opening a generated lambda telescope substitutes precisely the
 fresh restoration variables into its residual body. -/
-theorem RestoreParamOpening.lambdaResidualData
-    (Hopen : RestoreParamOpening lctx As outer n outLctx outAs tail)
+theorem ParamOpening.lambdaResidualData
+    (Hopen : ParamOpening lctx As outer n outLctx outAs tail)
     (Htel : Expr.LambdaTelescope outer n residual) :
     ∃ fvars : List FVarId,
       outAs.toList = As.toList ++ fvars.map Expr.fvar ∧
@@ -1251,8 +1251,8 @@ theorem RestoreParamOpening.lambdaResidualData
 
 /-- Root specialization of `forallResidualData`, stated using Lean's
 production array primitive. -/
-theorem RestoreParamOpening.forallResidual
-    (Hopen : RestoreParamOpening {} #[] outer n outLctx outAs tail)
+theorem ParamOpening.forallResidual
+    (Hopen : ParamOpening {} #[] outer n outLctx outAs tail)
     (Htel : Expr.ForallTelescope outer n residual) :
     tail = residual.instantiateRev outAs := by
   rcases Hopen.forallResidualData Htel with
@@ -1267,8 +1267,8 @@ theorem RestoreParamOpening.forallResidual
 prefix preserves that residual literally.  Generated recursor results have
 exactly this property: they mention motives, indices, and the major premise,
 but never the common parameter binders outside them. -/
-theorem RestoreParamOpening.forallSuffix_sameResidual
-    (Hopen : RestoreParamOpening lctx As outer n outLctx outAs tail)
+theorem ParamOpening.forallSuffix_sameResidual
+    (Hopen : ParamOpening lctx As outer n outLctx outAs tail)
     (Htelescope : Expr.ForallTelescope outer (n + suffixArity) residual)
     (Hrange : residual.looseBVarRange' ≤ suffixArity) :
     Expr.ForallTelescope tail suffixArity residual := by
@@ -1292,17 +1292,17 @@ theorem RestoreParamOpening.forallSuffix_sameResidual
       at Htelescope
     cases Htelescope
 
-theorem RestoreParamOpening.initial_size
-    (H : RestoreParamOpening {} #[] e n outLctx outAs tail) :
+theorem ParamOpening.initial_size
+    (H : ParamOpening {} #[] e n outLctx outAs tail) :
     outAs.size = n := by
   simpa using H.params_size
 
 /-- Restoration opening together with the duplicate-free local-variable
 selection produced by its concrete name generator. -/
-def RestoreParamOpeningSelected
+def ParamOpeningSelected
     (lctx : LocalContext) (As : Array Expr) (e : Expr) (n : Nat)
     (outLctx : LocalContext) (outAs : Array Expr) (tail : Expr) : Prop :=
-  RestoreParamOpening lctx As e n outLctx outAs tail ∧
+  ParamOpening lctx As e n outLctx outAs tail ∧
   outLctx.WF ∧
   ∃ Hselection : CDeclArray outLctx outAs,
     Hselection.fvars.Nodup
@@ -1314,7 +1314,7 @@ theorem openRestoreParams_refinesSelected
     ∀ (out : LocalContext × Array Expr × Expr) outNgen,
       Lean4Lean.ElimNestedInductive.Result.openRestoreParams n lctx As e ngen =
         (out, outNgen) →
-      RestoreParamOpeningSelected lctx As e n out.1 out.2.1 out.2.2 := by
+      ParamOpeningSelected lctx As e n out.1 out.2.1 out.2.2 := by
   induction n generalizing e lctx As ngen with
   | zero =>
     intro out outNgen hout
@@ -1350,7 +1350,7 @@ def NestedRestoration
     (env : Environment) (auxRec : NameMap Name)
   (input output : Expr) : Prop :=
   ∃ lctx As body restoredBody,
-    RestoreParamOpeningSelected {} #[] input result.nparams lctx As body ∧
+    ParamOpeningSelected {} #[] input result.nparams lctx As body ∧
     ExprReplacement (result.restoreNestedNode env As auxRec)
       body restoredBody ∧
     output = if input.isForall then lctx.mkForall As restoredBody
@@ -1367,7 +1367,7 @@ structure NestedRestorationOpening
   params : Array Expr
   body : Expr
   restoredBody : Expr
-  opening : RestoreParamOpening {} #[] input result.nparams lctx params body
+  opening : ParamOpening {} #[] input result.nparams lctx params body
   lctxWF : lctx.WF
   selection : CDeclArray lctx params
   selectionNodup : selection.fvars.Nodup

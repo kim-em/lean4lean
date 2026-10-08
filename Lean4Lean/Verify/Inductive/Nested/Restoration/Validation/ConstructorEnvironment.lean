@@ -312,7 +312,7 @@ theorem ConstructorValidationStateTrace.headersFreshTrace
     {loweredEnv : Environment} {allIndNames : List Name}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
     (H : ConstructorValidationStateTrace
-      (fun indType source target => ConstructorValidationHeaderStep loweredEnv
+      (fun indType source target => ValidationHeaderStep loweredEnv
         allIndNames indType.name source target) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
     ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
@@ -337,7 +337,7 @@ theorem ConstructorValidationStateTrace.headerFind
     {loweredEnv : Environment} {allIndNames : List Name}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
     (H : ConstructorValidationStateTrace
-      (fun indType source target => ConstructorValidationHeaderStep loweredEnv
+      (fun indType source target => ValidationHeaderStep loweredEnv
         allIndNames indType.name source target) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) (hmem : indType ∈ types) :
     ∃ oldInfo : InductiveVal,
@@ -371,7 +371,7 @@ theorem ConstructorValidationStateTrace.headerFindCases
     {loweredEnv : Environment} {allIndNames : List Name}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
     (H : ConstructorValidationStateTrace
-      (fun indType source target => ConstructorValidationHeaderStep loweredEnv
+      (fun indType source target => ValidationHeaderStep loweredEnv
         allIndNames indType.name source target) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF)
     (hfind : targetEnv.find? name = some ci) :
@@ -409,7 +409,7 @@ theorem ConstructorValidationStateTrace.constructorsFreshTrace
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {names : List Name} {sourceEnv targetEnv : Environment}
     (H : ConstructorValidationStateTrace
-      (ConstructorValidationConstructorStep result loweredEnv allowPrimitive)
+      (ValidationConstructorStep result loweredEnv allowPrimitive)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
     ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
@@ -436,7 +436,7 @@ theorem ConstructorValidationStateTrace.constructorFindCases
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {names : List Name} {sourceEnv targetEnv : Environment}
     (H : ConstructorValidationStateTrace
-      (ConstructorValidationConstructorStep result loweredEnv allowPrimitive)
+      (ValidationConstructorStep result loweredEnv allowPrimitive)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF)
     (hfind : targetEnv.find? name = some ci) :
@@ -476,7 +476,7 @@ theorem ConstructorValidationStateTrace.familiesFreshTrace
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
     (H : ConstructorValidationStateTrace
-      (ConstructorValidationConstructorFamilyStep result loweredEnv
+      (ValidationFamilyStep result loweredEnv
         allowPrimitive) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
     ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
@@ -493,7 +493,7 @@ theorem ConstructorValidationStateTrace.familiesFindCases
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
     (H : ConstructorValidationStateTrace
-      (ConstructorValidationConstructorFamilyStep result loweredEnv
+      (ValidationFamilyStep result loweredEnv
         allowPrimitive) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF)
     (hfind : targetEnv.find? name = some ci) :
@@ -522,15 +522,15 @@ theorem ConstructorValidationStateTrace.familiesFindCases
       exact ⟨indType, by simp [hmem], oldInfo, hlookup, cn, hcn, ctorOld, hctor,
         hn, hci⟩
 
-theorem RestoredConstructorValidationEnvironment.headerEnvWF
-    (H : RestoredConstructorValidationEnvironment result loweredEnv sourceEnv
+theorem ValidationEnvironment.headerEnvWF
+    (H : ValidationEnvironment result loweredEnv sourceEnv
       allIndNames allowPrimitive types targetEnv)
     (hwf : sourceEnv.constants.WF) : H.headerEnv.constants.WF := by
   rcases H.headers.headersFreshTrace hwf with ⟨entries, Hfresh⟩
   exact Hfresh.targetWF hwf
 
-theorem RestoredConstructorValidationEnvironment.preservesSourceFind
-    (H : RestoredConstructorValidationEnvironment result loweredEnv sourceEnv
+theorem ValidationEnvironment.preservesSourceFind
+    (H : ValidationEnvironment result loweredEnv sourceEnv
       allIndNames allowPrimitive types targetEnv)
     (hwf : sourceEnv.constants.WF)
     (hfind : sourceEnv.find? name = some ci) :
@@ -543,8 +543,8 @@ theorem RestoredConstructorValidationEnvironment.preservesSourceFind
 
 /-- The production `quotInit` flag is unchanged by the constructor validation
 restoration. -/
-theorem RestoredConstructorValidationEnvironment.quotInit_eq
-    (H : RestoredConstructorValidationEnvironment result loweredEnv sourceEnv
+theorem ValidationEnvironment.quotInit_eq
+    (H : ValidationEnvironment result loweredEnv sourceEnv
       allIndNames allowPrimitive types targetEnv)
     (hwf : sourceEnv.constants.WF) : targetEnv.quotInit = sourceEnv.quotInit := by
   rcases H.headers.headersFreshTrace hwf with ⟨entries, Hheaders⟩
@@ -552,8 +552,8 @@ theorem RestoredConstructorValidationEnvironment.quotInit_eq
     ⟨entries', Hconstructors⟩
   exact Hconstructors.quotInit_eq.trans Hheaders.quotInit_eq
 
-theorem RestoredConstructorValidationEnvironment.findCases
-    (H : RestoredConstructorValidationEnvironment result loweredEnv sourceEnv
+theorem ValidationEnvironment.findCases
+    (H : ValidationEnvironment result loweredEnv sourceEnv
       allIndNames allowPrimitive types targetEnv)
     (hwf : sourceEnv.constants.WF)
     (hfind : targetEnv.find? name = some ci) :
@@ -576,8 +576,8 @@ theorem RestoredConstructorValidationEnvironment.findCases
     · exact Or.inr (Or.inl hheader)
   · exact Or.inr (Or.inr hctor)
 
-theorem RestoredConstructorValidationEnvironment.headerFind
-    (H : RestoredConstructorValidationEnvironment result loweredEnv sourceEnv
+theorem ValidationEnvironment.headerFind
+    (H : ValidationEnvironment result loweredEnv sourceEnv
       allIndNames allowPrimitive types targetEnv)
     (hwf : sourceEnv.constants.WF) (hmem : indType ∈ types) :
     ∃ oldInfo : InductiveVal,
@@ -658,7 +658,7 @@ theorem InductInfosFromDecl.restrict
 invariant against the projected constructor-complete abstract environment.
 Owners and registry alignment are transported from the primary restoration
 endpoint, whose lookups include those of the validation environment. -/
-theorem RestoredConstructorValidationEnvironment.validProjected
+theorem ValidationEnvironment.validProjected
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
@@ -680,7 +680,7 @@ theorem RestoredConstructorValidationEnvironment.validProjected
     (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
       auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
       out)
-    (H : RestoredConstructorValidationEnvironment result loweredEnv c.env
+    (H : ValidationEnvironment result loweredEnv c.env
       (sourceTypes.map (fun type => type.name)) allowPrimitive sourceTypes
       validationEnv)
     (hvalid : CheckingEnv.ValidCore c.safety validationEnv envCtors)

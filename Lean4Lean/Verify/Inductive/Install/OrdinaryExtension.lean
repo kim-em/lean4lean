@@ -394,8 +394,8 @@ theorem ElimNestedInductive.Result.auxFind?_eq_none_of_size_eq_zero
 /-- If the final restoration map is empty, the semantic expression-lowering
 trace contains no recognized nested hit.  Every remaining constructor is a
 structural identity and does not change the lowering state. -/
-theorem NestedExprMapping.eq_of_aux2nested_size_eq_zero
-    (H : NestedExprMapping env lctx params As result input state out)
+theorem ExprLowering.Resolved.eq_of_aux2nested_size_eq_zero
+    (H : ExprLowering.Resolved env lctx params As result input state out)
     (hsize : result.aux2nested.size = 0) :
     out = (input, state) := by
   induction H with
@@ -436,8 +436,8 @@ theorem NestedExprMapping.eq_of_aux2nested_size_eq_zero
 /-- With no final auxiliary family to interpret, constructor lowering only
 opens and recloses the source parameter telescope.  Closed source syntax
 makes that round trip literal, not merely alpha-equivalent. -/
-theorem LoweredConstructorMapping.eq_of_aux2nested_size_eq_zero
-    (H : LoweredConstructorMapping env params nparams result source state out)
+theorem ConstructorLowering.Resolved.eq_of_aux2nested_size_eq_zero
+    (H : ConstructorLowering.Resolved env params nparams result source state out)
     (hsize : result.aux2nested.size = 0)
     (hclosed : source.type.FVarsIn fun _ => False)
     (hbclosed : Closed source.type) :
@@ -451,7 +451,7 @@ theorem LoweredConstructorMapping.eq_of_aux2nested_size_eq_zero
   have houtState : out.2 = openedState := congrArg Prod.snd hmapped
   rcases Hopening.forallTelescope with ⟨residual, Htelescope⟩
   have hsourceType : lctx.mkForall As tail = source.type :=
-    Hopening.toRestoreParamOpening.root_mkForall_tail hlctxWF Htelescope
+    Hopening.toParamOpening.root_mkForall_tail hlctxWF Htelescope
       (FVarsIn_to_FVarIdsIn hclosed) hbclosed
   have houtType : out.1.type = source.type := by
     rw [htargetType, hlowered, hsourceType]
@@ -463,8 +463,8 @@ theorem LoweredConstructorMapping.eq_of_aux2nested_size_eq_zero
 /-- Pointwise constructor identity composes through the state-threaded
 constructor list.  Only the dynamic family array is retained here; changes
 to the private fresh-name generator are intentionally irrelevant. -/
-theorem LoweredConstructorMappings.eq_of_aux2nested_size_eq_zero
-    (H : LoweredConstructorMappings env params nparams result sources state out)
+theorem ConstructorLowerings.Resolved.eq_of_aux2nested_size_eq_zero
+    (H : ConstructorLowerings.Resolved env params nparams result sources state out)
     (hsize : result.aux2nested.size = 0)
     (hclosed : ∀ source ∈ sources,
       source.type.FVarsIn fun _ => False)
@@ -492,8 +492,8 @@ theorem LoweredConstructorMappings.eq_of_aux2nested_size_eq_zero
 
 /-- Hence an entire source family is unchanged whenever the final lowering
 map is empty. -/
-theorem LoweredInductiveMapping.eq_of_aux2nested_size_eq_zero
-    (H : LoweredInductiveMapping env params nparams result source state out)
+theorem FamilyLowering.Resolved.eq_of_aux2nested_size_eq_zero
+    (H : FamilyLowering.Resolved env params nparams result source state out)
     (hsize : result.aux2nested.size = 0)
     (hclosed : InductiveConstructorsClosed source)
     (hbclosed : InductiveConstructorsBVarClosed source) :
@@ -510,8 +510,8 @@ theorem LoweredInductiveMapping.eq_of_aux2nested_size_eq_zero
 selected slot with the very family already stored there and appends no new
 family.  Thus exhausting the queue returns exactly its starting family
 array. -/
-theorem LoweringQueueTrace.types_eq_of_aux2nested_size_eq_zero
-    (H : LoweringQueueTrace env params nparams lctx i fuel state out)
+theorem LoweringQueue.types_eq_of_aux2nested_size_eq_zero
+    (H : LoweringQueue env params nparams lctx i fuel state out)
     (Hpending : PendingNewTypesClosed i state)
     (HpendingB : PendingNewTypesBVarClosed i state)
     (Hmap : NestedAuxMapModels out.1 out.2)

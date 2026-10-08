@@ -16,7 +16,7 @@ every witness stored in `aux2nested` has a translated typing derivation in the
 restored parameter context.  A witness is a nested occurrence `I Ds` applied
 to its parameters only, so for an indexed family `I` it is a type family, not
 a type; like the C++ kernel, validation only type-checks it. -/
-def ValidatedNestedAuxiliaries (venv : VEnv) (lparams : List Name)
+def NestedOccurrencesTyped (venv : VEnv) (lparams : List Name)
     (vlctx : VLCtx) (res : Lean4Lean.ElimNestedInductive.Result) : Prop :=
   ∀ name e, res.aux2nested.find? name = some e →
     ∃ ty e' ty', TrTyping venv lparams vlctx e ty e' ty'
@@ -31,7 +31,7 @@ statement that must be translated.  Closing the witness with lambdas, rather
 than with foralls, is what admits nested occurrences of indexed families:
 there `T` is `∀ indices, Sort u`, not a sort, and `∀ params, e` would be
 ill-typed. -/
-def ClosedValidatedNestedAuxiliaries (venv : VEnv) (lparams : List Name)
+def ClosedNestedOccurrencesTyped (venv : VEnv) (lparams : List Name)
     (res : Lean4Lean.ElimNestedInductive.Result) : Prop :=
   ∀ name e, res.aux2nested.find? name = some e →
     Closed e ∧ ∃ type domains body bodyType, Closed type ∧
@@ -49,7 +49,7 @@ fixes the translated parameter domains, and the residual translation and
 typing of the witness itself in those domains, so no production free-variable
 identifier occurs in the semantic context.  The residual is typed, not
 required to be a type: for a nested indexed family it is a type family. -/
-structure ClosedNestedAuxiliaryTranslation
+structure ClosedNestedOccurrenceTyping
     (venv : VEnv) (lparams : List Name)
     (res : Lean4Lean.ElimNestedInductive.Result)
     (selection : CDeclArray res.lctx res.params)
@@ -113,8 +113,8 @@ theorem nestedMLCtxSharedBinderDomains {c : TypeChecker.MLCtx}
 /-- The open auxiliary witness contains no pre-existing loose bound
 variables.  This is derived from the residual translation's scoping theorem,
 not imposed as an additional executable validation condition. -/
-theorem ClosedNestedAuxiliaryTranslation.sourceClosed
-    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e) :
+theorem ClosedNestedOccurrenceTyping.sourceClosed
+    (H : ClosedNestedOccurrenceTyping venv lparams res selection e) :
     Closed e 0 := by
   have HresidualClosed := H.residual.closed
   have hmap : ∀ domains : List VExpr,
@@ -135,22 +135,22 @@ theorem ClosedNestedAuxiliaryTranslation.sourceClosed
   rw [hbvars] at HresidualClosed
   simpa [H.arity, selection.size] using HresidualClosed
 
-def ClosedNestedAuxiliaryTranslations
+def ClosedNestedOccurrenceTypings
     (venv : VEnv) (lparams : List Name)
     (res : Lean4Lean.ElimNestedInductive.Result)
     (selection : CDeclArray res.lctx res.params) : Prop :=
   ∀ name e, res.aux2nested.find? name = some e →
-    Nonempty (ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+    Nonempty (ClosedNestedOccurrenceTyping venv lparams res selection e)
 
 /-- Telescope inversion turns every context-independent validated witness
 into the canonical bound-variable representation used beneath restored
 recursor parameter binders. -/
-theorem ClosedValidatedNestedAuxiliaries.residualTranslations
-    (H : ClosedValidatedNestedAuxiliaries venv lparams res)
+theorem ClosedNestedOccurrencesTyped.residualTranslations
+    (H : ClosedNestedOccurrencesTyped venv lparams res)
     (henv : venv.WF)
     (selection : CDeclArray res.lctx res.params)
     (hnodup : selection.fvars.Nodup) :
-    ClosedNestedAuxiliaryTranslations venv lparams res selection := by
+    ClosedNestedOccurrenceTypings venv lparams res selection := by
   intro name e hfind
   rcases H name e hfind with
     ⟨hclosedE, type, domains, body, bodyType, htypeClosed, harity, Hlambda,
@@ -215,7 +215,7 @@ theorem validateNestedAuxiliaries.WF
     (hfvars : ∀ name e, res.aux2nested.find? name = some e →
       e.FVarsIn (· ∈ mlctx.vlctx.fvars)) :
     (Lean4Lean.validateNestedAuxiliaries env lparams safety fuel res).WF
-      fun _ => ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res := by
+      fun _ => NestedOccurrencesTyped venv lparams mlctx.vlctx res := by
   unfold Lean4Lean.validateNestedAuxiliaries
   rw [← hlctx]
   change (TypeChecker.M.run env safety mlctx.lctx lparams fuel
@@ -535,8 +535,8 @@ def NestedClosingContext.push
       · exact Or.inr hfv
       · exact Or.inl (by simp [hfv])
 
-theorem NestedParamOpening.forallTelescope
-    (H : NestedParamOpening lctx As e n outLctx tail outAs) :
+theorem LoweringParamOpening.forallTelescope
+    (H : LoweringParamOpening lctx As e n outLctx tail outAs) :
     ∃ residual, Expr.ForallTelescope e n residual := by
   induction H with
   | done => exact ⟨_, .nil _⟩
@@ -547,8 +547,8 @@ theorem NestedParamOpening.forallTelescope
       ⟨sourceResidual, Hsource⟩
     exact ⟨sourceResidual, .cons Hsource⟩
 
-theorem NestedParamOpening.tailFVarsIn
-    (H : NestedParamOpening lctx params type n outLctx tail outParams)
+theorem LoweringParamOpening.tailFVarsIn
+    (H : LoweringParamOpening lctx params type n outLctx tail outParams)
     (Hselection : CDeclArray outLctx outParams)
     (Htype : type.FVarsIn (· ∈ Hselection.fvars)) :
     tail.FVarsIn (· ∈ Hselection.fvars) := by
@@ -566,8 +566,8 @@ theorem NestedParamOpening.tailFVarsIn
     simp
 
 /-- Opening the parameter telescope of a closed type yields a closed tail. -/
-theorem NestedParamOpening.tailClosed
-    (H : NestedParamOpening lctx params source n outLctx tail outParams)
+theorem LoweringParamOpening.tailClosed
+    (H : LoweringParamOpening lctx params source n outLctx tail outParams)
     (hsource : Closed source) : Closed tail := by
   induction H with
   | done => exact hsource
@@ -576,8 +576,8 @@ theorem NestedParamOpening.tailClosed
     rw [Expr.instantiate1_eq]
     exact hsource.2.instantiate1 trivial
 
-theorem NestedParamOpening.initial_size
-    (H : NestedParamOpening {} #[] type n outLctx tail outParams) :
+theorem LoweringParamOpening.initial_size
+    (H : LoweringParamOpening {} #[] type n outLctx tail outParams) :
     outParams.size = n := by simpa using H.params_size
 
 /-- Strengthened parameter opening for a closed source telescope.  Besides
@@ -591,7 +591,7 @@ private theorem nestedWithParamsLoop_refinesClosing {α : Type}
     (Htype : type.FVarsIn (· ∈ Hclosing.selection.fvars))
     (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
     (Hk : ∀ outLctx tail outParams outState,
-      NestedParamOpening lctx params type n outLctx tail outParams →
+      LoweringParamOpening lctx params type n outLctx tail outParams →
       (HoutClosing :
         NestedClosingContext outLctx outParams outState.ngen) →
       tail.FVarsIn (· ∈ HoutClosing.selection.fvars) →
@@ -650,7 +650,7 @@ theorem ElimNestedInductive.withParams.refinesClosing {α : Type}
     (Htype : type.FVarsIn fun _ => False)
     (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
     (Hk : ∀ lctx tail params outState,
-      NestedParamOpening {} #[] type nparams lctx tail params →
+      LoweringParamOpening {} #[] type nparams lctx tail params →
       (HoutClosing : NestedClosingContext lctx params outState.ngen) →
       tail.FVarsIn (· ∈ HoutClosing.selection.fvars) →
       outState.newTypes = state.newTypes →
@@ -884,7 +884,7 @@ theorem Expr.ForallTelescope.resultFVarsIn
   | nil => exact Houter
   | cons _ ih => exact ih Houter.2
 
-structure BuiltAuxConstructor
+structure AuxiliaryConstructorSpec
     (env : Environment) (lctx : LocalContext) (As : Array Expr)
     (levels : List Level) (nparams : Nat) (args : Array Expr)
     (sourceFamily auxFamily sourceName : Name) (target : Constructor) : Prop where
@@ -897,8 +897,8 @@ structure BuiltAuxConstructor
     target.type = lctx.mkForall As
       (sourceTail.instantiateRevRange 0 nparams args)
 
-theorem BuiltAuxConstructor.closed
-    (H : BuiltAuxConstructor env lctx As levels nparams args sourceFamily
+theorem AuxiliaryConstructorSpec.closed
+    (H : AuxiliaryConstructorSpec env lctx As levels nparams args sourceFamily
       auxFamily sourceName target)
     (Henv : EnvironmentTypesClosed env)
     (Hclosing : NestedClosingContext lctx As ngen)
@@ -917,21 +917,21 @@ theorem BuiltAuxConstructor.closed
     exact Hlevels
   · exact Hargs
 
-inductive BuiltAuxConstructors
+inductive AuxiliaryConstructorSpecs
     (env : Environment) (lctx : LocalContext) (As : Array Expr)
     (levels : List Level) (nparams : Nat) (args : Array Expr)
     (sourceFamily auxFamily : Name) : List Name → List Constructor → Prop
-  | nil : BuiltAuxConstructors env lctx As levels nparams args
+  | nil : AuxiliaryConstructorSpecs env lctx As levels nparams args
       sourceFamily auxFamily [] []
-  | cons : BuiltAuxConstructor env lctx As levels nparams args sourceFamily
+  | cons : AuxiliaryConstructorSpec env lctx As levels nparams args sourceFamily
       auxFamily sourceName target →
-      BuiltAuxConstructors env lctx As levels nparams args sourceFamily
+      AuxiliaryConstructorSpecs env lctx As levels nparams args sourceFamily
         auxFamily sourceNames targets →
-      BuiltAuxConstructors env lctx As levels nparams args sourceFamily
+      AuxiliaryConstructorSpecs env lctx As levels nparams args sourceFamily
         auxFamily (sourceName :: sourceNames) (target :: targets)
 
-theorem BuiltAuxConstructors.length_eq
-    (H : BuiltAuxConstructors env lctx As levels nparams args sourceFamily
+theorem AuxiliaryConstructorSpecs.length_eq
+    (H : AuxiliaryConstructorSpecs env lctx As levels nparams args sourceFamily
       auxFamily sourceNames targets) :
     sourceNames.length = targets.length := by
   induction H with
@@ -942,12 +942,12 @@ theorem BuiltAuxConstructors.length_eq
 generated auxiliary builder traverses the mutual constructor-name list and
 target list in lockstep; later restoration proofs need the corresponding
 single-constructor specialization without falling back to name search. -/
-theorem BuiltAuxConstructors.entryAt
-    (H : BuiltAuxConstructors env lctx As levels nparams args sourceFamily
+theorem AuxiliaryConstructorSpecs.entryAt
+    (H : AuxiliaryConstructorSpecs env lctx As levels nparams args sourceFamily
       auxFamily sourceNames targets)
     (i : Nat) (hi : i < sourceNames.length) :
     ∃ htarget : i < targets.length,
-      BuiltAuxConstructor env lctx As levels nparams args sourceFamily
+      AuxiliaryConstructorSpec env lctx As levels nparams args sourceFamily
         auxFamily sourceNames[i] targets[i] := by
   induction H generalizing i with
   | nil => simp at hi
@@ -959,8 +959,8 @@ theorem BuiltAuxConstructors.entryAt
       rcases ih i hi' with ⟨htarget, Hentry⟩
       exact ⟨by simpa using htarget, Hentry⟩
 
-theorem BuiltAuxConstructors.closed
-    (H : BuiltAuxConstructors env lctx As levels nparams args sourceFamily
+theorem AuxiliaryConstructorSpecs.closed
+    (H : AuxiliaryConstructorSpecs env lctx As levels nparams args sourceFamily
       auxFamily sourceNames targets)
     (Henv : EnvironmentTypesClosed env)
     (Hclosing : NestedClosingContext lctx As ngen)
@@ -990,7 +990,7 @@ private theorem buildAuxConstructors_refines
         sourceType nparams args
       return ({ name := targetName, type := lctx.mkForall As targetType } :
         Constructor)).WF fun targets =>
-          BuiltAuxConstructors env lctx As levels nparams args sourceFamily
+          AuxiliaryConstructorSpecs env lctx As levels nparams args sourceFamily
             auxFamily sourceNames targets := by
   induction sourceNames with
   | nil => exact Except.WF.pure .nil
@@ -1006,7 +1006,7 @@ private theorem buildAuxConstructors_refines
             sourceType nparams args
         return ({ name := targetName, type := lctx.mkForall As targetType } :
           Constructor)).WF fun target =>
-            BuiltAuxConstructor env lctx As levels nparams args sourceFamily
+            AuxiliaryConstructorSpec env lctx As levels nparams args sourceFamily
               auxFamily sourceName target :=
       (environmentGet_refines env sourceName).bind fun sourceInfo hlookup =>
       (instantiateForallParams_refines
@@ -1020,7 +1020,7 @@ private theorem buildAuxConstructors_refines
 /-- Pure auxiliary construction retains an independently inspectable account
 of the source family, its opened family type, parameter substitution, and every
 generated constructor. -/
-structure BuiltAuxiliary
+structure AuxiliaryFamilySpec
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (levels : List Level) (nparams : Nat) (args : Array Expr)
     (sourceName auxName : Name) (sourceInfo : InductiveVal)
@@ -1036,23 +1036,23 @@ structure BuiltAuxiliary
   nested : data.nested =
     ((mkAppRange (.const sourceName levels) 0 nparams args).abstract As).instantiateRev params
   name : data.type.name = auxName
-  constructors : BuiltAuxConstructors env lctx As levels nparams args
+  constructors : AuxiliaryConstructorSpecs env lctx As levels nparams args
     sourceName auxName sourceInfo.ctors data.type.ctors
 
-theorem BuiltAuxiliary.constructors_length
-    (H : BuiltAuxiliary env lctx params As levels nparams args sourceName
+theorem AuxiliaryFamilySpec.constructors_length
+    (H : AuxiliaryFamilySpec env lctx params As levels nparams args sourceName
       auxName sourceInfo data) :
     sourceInfo.ctors.length = data.type.ctors.length :=
   H.constructors.length_eq
 
 /-- Select the source constructor and generated auxiliary constructor at the
 same position in an auxiliary-family construction. -/
-theorem BuiltAuxiliary.constructorAt
-    (H : BuiltAuxiliary env lctx params As levels nparams args sourceName
+theorem AuxiliaryFamilySpec.constructorAt
+    (H : AuxiliaryFamilySpec env lctx params As levels nparams args sourceName
       auxName sourceInfo data)
     (i : Nat) (hi : i < sourceInfo.ctors.length) :
     ∃ htarget : i < data.type.ctors.length,
-      BuiltAuxConstructor env lctx As levels nparams args sourceName auxName
+      AuxiliaryConstructorSpec env lctx As levels nparams args sourceName auxName
         sourceInfo.ctors[i] data.type.ctors[i] :=
   H.constructors.entryAt i hi
 
@@ -1062,8 +1062,8 @@ family and retains its complete residual telescope.  This theorem exposes
 that residual as the exact post-parameter tail of the generated declaration.
 The later validation of the cached parameter-only witness `data.nested` is
 what forces this residual to be definitionally a sort. -/
-theorem BuiltAuxiliary.generatedFamilyTelescope
-    (H : BuiltAuxiliary env lctx params As levels nparams args sourceName
+theorem AuxiliaryFamilySpec.generatedFamilyTelescope
+    (H : AuxiliaryFamilySpec env lctx params As levels nparams args sourceName
       auxName sourceInfo data)
     (Hselection : CDeclArray lctx As) :
     ∃ sourceTail,
@@ -1120,8 +1120,8 @@ theorem SourceBVarClosed.constructorsClosed
     InductiveConstructorsBVarClosed type :=
   (H type hmem).2
 
-theorem BuiltAuxiliary.constructorsClosed
-    (H : BuiltAuxiliary env lctx params As levels nparams args sourceName
+theorem AuxiliaryFamilySpec.constructorsClosed
+    (H : AuxiliaryFamilySpec env lctx params As levels nparams args sourceName
       auxName sourceInfo data)
     (Henv : EnvironmentTypesClosed env)
     (Hclosing : NestedClosingContext lctx As ngen)
@@ -1137,8 +1137,8 @@ def NestedAuxFVarsIn (P : FVarId → Prop)
     (state : Lean4Lean.ElimNestedInductive.State) : Prop :=
   ∀ nested name, (nested, name) ∈ state.nestedAux → nested.FVarsIn P
 
-theorem BuiltAuxiliary.nestedFVarsIn
-    (H : BuiltAuxiliary env lctx params As levels nparams args sourceName
+theorem AuxiliaryFamilySpec.nestedFVarsIn
+    (H : AuxiliaryFamilySpec env lctx params As levels nparams args sourceName
       auxName sourceInfo data)
     (HAs : CDeclArray lctx As)
     (hnparams : nparams ≤ args.size)
@@ -1163,7 +1163,7 @@ theorem buildAuxiliary_refines
     As.size = params.size →
     (Lean4Lean.ElimNestedInductive.buildAuxiliary env lctx params As levels
       nparams args sourceName auxName).WF fun data =>
-        BuiltAuxiliary env lctx params As levels nparams args sourceName auxName
+        AuxiliaryFamilySpec env lctx params As levels nparams args sourceName auxName
           sourceInfo data := by
   intro hsize
   unfold Lean4Lean.ElimNestedInductive.buildAuxiliary
@@ -1184,7 +1184,7 @@ theorem buildAuxiliary_refines
 /-- A single fresh-family generation step pairs the cache entry and generated
 family through the same fresh name, and otherwise changes only the fresh-name
 counter and the two append-only arrays. -/
-structure GeneratedAuxiliary
+structure AuxiliaryGenerationStep
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (targetName : Name) (levels : List Level) (nparams : Nat)
     (args : Array Expr) (sourceName : Name) (sourceInfo : InductiveVal)
@@ -1192,7 +1192,7 @@ structure GeneratedAuxiliary
     (out : Option Expr × Lean4Lean.ElimNestedInductive.State) : Prop where
   generated : ∃ auxName nextIdx data,
     FreshNestedName env `_nested state.nextIdx auxName nextIdx ∧
-    BuiltAuxiliary env lctx params As levels nparams args sourceName auxName
+    AuxiliaryFamilySpec env lctx params As levels nparams args sourceName auxName
       sourceInfo data ∧
     out.1 = (if sourceName == targetName then
       some (mkAppRange (mkAppN (.const auxName state.lvls) As)
@@ -1212,7 +1212,7 @@ theorem generateAuxiliary_refines
     (hsize : As.size = params.size) :
     (Lean4Lean.ElimNestedInductive.generateAuxiliary lctx params As targetName
       levels nparams args sourceName env state).WF fun out =>
-        GeneratedAuxiliary env lctx params As targetName levels nparams args
+        AuxiliaryGenerationStep env lctx params As targetName levels nparams args
           sourceName sourceInfo state out := by
   unfold Lean4Lean.ElimNestedInductive.generateAuxiliary
   simp only [read, ReaderT.read, bind, ReaderT.bind]
@@ -1230,7 +1230,7 @@ theorem generateAuxiliary_refines
           ((Lean4Lean.ElimNestedInductive.buildAuxiliary env lctx params As
             levels nparams args sourceName auxName).bind fun data =>
               Except.pure (data, { state with nextIdx })).WF fun out =>
-            BuiltAuxiliary env lctx params As levels nparams args sourceName
+            AuxiliaryFamilySpec env lctx params As levels nparams args sourceName
               auxName sourceInfo out.1 ∧ out.2 = { state with nextIdx } :=
         (buildAuxiliary_refines env lctx params As levels nparams args
           sourceName auxName sourceInfo hlookup hsize).bind fun _ Hdata =>
@@ -1246,8 +1246,8 @@ theorem generateAuxiliary_refines
           exact Except.WF.pure ⟨⟨auxName, nextIdx, data, Hfresh, Hdata,
             by simp [heq], rfl⟩⟩
 
-theorem GeneratedAuxiliary.auxFVarsIn
-    (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
+theorem AuxiliaryGenerationStep.auxFVarsIn
+    (H : AuxiliaryGenerationStep env lctx params As targetName levels nparams args
       sourceName sourceInfo state out)
     (HAs : CDeclArray lctx As)
     (hnparams : nparams ≤ args.size)
@@ -1281,8 +1281,8 @@ def PendingNewTypesBVarClosed (cursor : Nat)
   ∀ j, cursor ≤ j → (hj : j < state.newTypes.size) →
     InductiveConstructorsBVarClosed state.newTypes[j]
 
-theorem GeneratedAuxiliary.pendingNewTypesClosed
-    (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
+theorem AuxiliaryGenerationStep.pendingNewTypesClosed
+    (H : AuxiliaryGenerationStep env lctx params As targetName levels nparams args
       sourceName sourceInfo state out)
     (Henv : EnvironmentTypesClosed env)
     (Hclosing : NestedClosingContext lctx As ngen)
@@ -1305,7 +1305,7 @@ theorem GeneratedAuxiliary.pendingNewTypesClosed
 
 /-- A successful cache lookup is backed by an actual previously recorded
 auxiliary entry with the requested nested expression and returned name. -/
-structure CachedNestedAux
+structure AuxiliaryCacheEntry
     (nestedAux : Array (Expr × Name)) (nested : Expr) (auxName : Name) : Prop where
   entry : ∃ item ∈ nestedAux, (item.1 == nested) = true ∧ item.2 = auxName
 
@@ -1313,7 +1313,7 @@ theorem findCachedAux?_refines
     (nestedAux : Array (Expr × Name)) (nested : Expr) (auxName : Name)
     (hfind : Lean4Lean.ElimNestedInductive.findCachedAux?
       nestedAux nested = some auxName) :
-    CachedNestedAux nestedAux nested auxName := by
+    AuxiliaryCacheEntry nestedAux nested auxName := by
   unfold Lean4Lean.ElimNestedInductive.findCachedAux? at hfind
   rcases Array.exists_of_findSome?_eq_some hfind with
     ⟨⟨found, foundName⟩, hmem, hentry⟩
@@ -1528,8 +1528,8 @@ theorem RestoreSourceDisjoint.instantiate1_fvar
   rw [Expr.instantiate1_eq]
   exact H.instantiate1'_fvar fv 0
 
-theorem NestedParamOpening.tailRestoreSourceDisjoint
-    (Hopen : NestedParamOpening lctx params source n outLctx tail outParams)
+theorem LoweringParamOpening.tailRestoreSourceDisjoint
+    (Hopen : LoweringParamOpening lctx params source n outLctx tail outParams)
     (Hsource : RestoreSourceDisjoint result env source) :
     RestoreSourceDisjoint result env tail := by
   induction Hopen with

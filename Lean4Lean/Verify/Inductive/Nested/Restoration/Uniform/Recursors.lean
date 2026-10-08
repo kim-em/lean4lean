@@ -35,7 +35,7 @@ The hits come from three sources.
   type after instantiating its parameters (`ParameterPrefix.hitOK`,
   `RecursorFieldDecisions.fieldDeclsSatisfy` in `Recursor/FieldDeclarationTypes.lean`).
   The lowered constructor types themselves are parameter telescopes in hit shape by
-  `LoweredConstructorMapping.hitShapeTele` (from `NestedExprMapping.hitShape`).
+  `ConstructorLowering.Resolved.hitShapeTele` (from `ExprLowering.Resolved.hitShape`).
 * (c) The `whnf`-produced regions: index domains (R1, `loopArgs1`), induction-hypothesis
   binder domains (R2) and their exposed indices (R3, `loopUArgs`). R1 follows along the
   retained `loopArgs1` traces (`IndexTelescopeRun.hitShape`, from the family header), R2
@@ -1502,12 +1502,12 @@ that mentions no head produces an output in free-variable hit shape over the
 opened parameters `As`: every replacement is
 `mkAppN (.const auxName state.lvls) As` applied to untouched source arguments,
 with `auxName` an auxiliary family (a key of `aux2nested`). -/
-theorem NestedExprMapping.hitShape {heads : List Name} {ls : List Level}
+theorem ExprLowering.Resolved.hitShape {heads : List Name} {ls : List Level}
     {env : Environment} {lctx : LocalContext} {params As : Array Expr}
     {finalResult : Lean4Lean.ElimNestedInductive.Result}
     {input : Expr} {state : Lean4Lean.ElimNestedInductive.State}
     {out : Expr × Lean4Lean.ElimNestedInductive.State}
-    (H : NestedExprMapping env lctx params As finalResult input state out)
+    (H : ExprLowering.Resolved env lctx params As finalResult input state out)
     (hkeys : ∀ auxName nested, finalResult.aux2nested.find? auxName = some nested →
       auxName ∈ heads)
     (hin : input.AvoidsConsts heads) (hlvls : state.lvls = ls) :
@@ -1583,10 +1583,10 @@ theorem _root_.Lean.Expr.AvoidsConsts.instantiate1'_fvar {names : List Name} {e 
   | proj _ _ _ _ ih => exact .proj _ _ _ (ih k)
 
 /-- Opening a parameter telescope with free variables keeps name avoidance. -/
-theorem NestedParamOpening.tailAvoidsConsts {names : List Name}
+theorem LoweringParamOpening.tailAvoidsConsts {names : List Name}
     {lctx : LocalContext} {params : Array Expr} {type : Expr} {n : Nat}
     {outLctx : LocalContext} {tail : Expr} {outParams : Array Expr}
-    (H : NestedParamOpening lctx params type n outLctx tail outParams)
+    (H : LoweringParamOpening lctx params type n outLctx tail outParams)
     (h : type.AvoidsConsts names) : tail.AvoidsConsts names := by
   induction H with
   | done => exact h
@@ -1600,12 +1600,12 @@ theorem NestedParamOpening.tailAvoidsConsts {names : List Name}
 /-- **Lowered constructor types are parameter telescopes in hit shape**, given
 that the constructor's source type mentions no head, every key of the final
 `aux2nested` map is a head, and the lowering state carries the levels `ls`. -/
-theorem LoweredConstructorMapping.hitShapeTele {heads : List Name} {ls : List Level}
+theorem ConstructorLowering.Resolved.hitShapeTele {heads : List Name} {ls : List Level}
     {env : Environment} {params : Array Expr} {nparams : Nat}
     {finalResult : Lean4Lean.ElimNestedInductive.Result}
     {source : Constructor} {state : Lean4Lean.ElimNestedInductive.State}
     {out : Constructor × Lean4Lean.ElimNestedInductive.State}
-    (H : LoweredConstructorMapping env params nparams finalResult source state out)
+    (H : ConstructorLowering.Resolved env params nparams finalResult source state out)
     (hkeys : ∀ auxName nested, finalResult.aux2nested.find? auxName = some nested →
       auxName ∈ heads)
     (hsource : source.type.AvoidsConsts heads) (hlvls : state.lvls = ls) :

@@ -12,7 +12,7 @@ namespace VerifyInductive
 restoration fold.  The two abstract environments are intentionally distinct:
 recursors are typed in the canonical constructor environment, while restored
 rules are typed in the final constant environment. -/
-inductive RestoredAuxiliaryFinalWFTrace
+inductive RestoredAuxiliaryRecursorsWF
     (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
     (safety : DefinitionSafety) (trEnv recursorEnv ruleEnv : VEnv)
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -29,7 +29,7 @@ inductive RestoredAuxiliaryFinalWFTrace
       List VConstVal → List VDefEq → List VConstVal → List VDefEq → Prop
   | nil (sourceEnv : Environment) (recursors : List VConstVal)
       (rules : List VDefEq) :
-      RestoredAuxiliaryFinalWFTrace decl block main safety trEnv recursorEnv
+      RestoredAuxiliaryRecursorsWF decl block main safety trEnv recursorEnv
         ruleEnv (.nil sourceEnv recursors rules) recursors rules recursors rules
   | cons
       (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
@@ -44,16 +44,16 @@ inductive RestoredAuxiliaryFinalWFTrace
           (priorRules ++ Hsemantic.rules) finalRecursors finalRules)
       (Hrecursor : Hsemantic.recursor.toVConstant.WF recursorEnv)
       (Hrules : ∀ rule ∈ Hsemantic.rules, rule.WF ruleEnv)
-      (Hfinal : RestoredAuxiliaryFinalWFTrace decl block main safety trEnv
+      (Hfinal : RestoredAuxiliaryRecursorsWF decl block main safety trEnv
         recursorEnv ruleEnv Hrest
           (priorRecursors ++ [Hsemantic.recursor])
           (priorRules ++ Hsemantic.rules) finalRecursors finalRules) :
-      RestoredAuxiliaryFinalWFTrace decl block main safety trEnv recursorEnv
+      RestoredAuxiliaryRecursorsWF decl block main safety trEnv recursorEnv
         ruleEnv (.cons Hstep Htail Hsemantic Hrest) priorRecursors priorRules
           finalRecursors finalRules
 
-theorem RestoredAuxiliaryFinalWFTrace.recursorsWF
-    (H : RestoredAuxiliaryFinalWFTrace decl block main safety trEnv
+theorem RestoredAuxiliaryRecursorsWF.recursorsWF
+    (H : RestoredAuxiliaryRecursorsWF decl block main safety trEnv
       recursorEnv ruleEnv Haux priorRecursors priorRules finalRecursors
         finalRules)
     (Hprior : ∀ recursor ∈ priorRecursors,
@@ -71,8 +71,8 @@ theorem RestoredAuxiliaryFinalWFTrace.recursorsWF
         subst recursor
         exact Hrecursor)
 
-theorem RestoredAuxiliaryFinalWFTrace.rulesWF
-    (H : RestoredAuxiliaryFinalWFTrace decl block main safety trEnv
+theorem RestoredAuxiliaryRecursorsWF.rulesWF
+    (H : RestoredAuxiliaryRecursorsWF decl block main safety trEnv
       recursorEnv ruleEnv Haux priorRecursors priorRules finalRecursors
         finalRules)
     (Hprior : ∀ rule ∈ priorRules, rule.WF ruleEnv) :
@@ -108,7 +108,7 @@ final-assembly proof from choosing unrelated auxiliary recursors or rules.
 /-- Semantic and final-WF evidence for one exact auxiliary restoration step.
 The abstract recursor and rule batch are selected by `semantics`; the two WF
 fields are therefore indexed by those same values. -/
-structure RestoredAuxiliaryStepFinalEvidence
+structure RestoredAuxiliaryRecursorWF
     (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
     (safety : DefinitionSafety) (trEnv recursorEnv ruleEnv : VEnv)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames

@@ -692,7 +692,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_steps
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -767,7 +767,7 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -959,8 +959,8 @@ end StagedShapes
 
 /-- The source constructor names are constructor names of the source prefix
 of the expanded declaration. -/
-theorem NestedFormationAssembly.sourceConstructorNames
-    (H : NestedFormationAssembly env decl) {loweredDecl : VInductDecl}
+theorem NestedExpansionData.sourceConstructorNames
+    (H : NestedExpansionData env decl) {loweredDecl : VInductDecl}
     (hexpanded : H.expanded = loweredDecl) :
     ∀ c ∈ decl.constructorConstants,
       c.name ∈ familyNames (loweredDecl.types.take decl.types.length) := by

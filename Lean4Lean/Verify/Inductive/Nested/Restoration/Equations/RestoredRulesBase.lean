@@ -119,7 +119,7 @@ theorem RestoredAuxiliaryRecursorTrace.shapeWF
     (Hwf : ∀ rule ∈ added, rule.WF ruleEnv) :
     ∃ Hsemantic : RestoredAuxiliaryShapeTrace decl block main safety trEnv Htrace
         priorRecursors priorRules finalRecursors finalRules,
-      RestoredAuxiliaryFinalWFTrace decl block main safety trEnv recursorEnv ruleEnv
+      RestoredAuxiliaryRecursorsWF decl block main safety trEnv recursorEnv ruleEnv
         Hsemantic priorRecursors priorRules finalRecursors finalRules :=
   match H, Hc with
   | .nil sourceEnv recursors, .nil => by

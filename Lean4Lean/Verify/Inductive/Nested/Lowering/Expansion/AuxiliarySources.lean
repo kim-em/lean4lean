@@ -69,14 +69,14 @@ theorem Expr.abstractList_mkAppList (head : Expr) (args : List Expr)
 cache key close the same source container application, up to Lean expression
 equivalence.  The proof cancels the two concrete parameter openings using the
 producer-retained selections and scope evidence. -/
-theorem NestedReplacementTargetSpine.cachedSourceApplicationEqv
+theorem LoweredOccurrenceSpine.cachedSourceApplicationEqv
     {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result traceFinalState}
     {Hselection : CDeclArray lctx As}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
-    (T : NestedReplacementTargetSpine Htrace Hselection Htarget sourceDecl
+    (T : LoweredOccurrenceSpine Htrace Hselection Htarget sourceDecl
       fieldDepth)
-    (O : FinalCachedGeneratedFamilyOrigin prodEnv result.params nparams
+    (O : CachedAuxiliaryFamily prodEnv result.params nparams
       initialSize runFinalState T.nested T.auxName)
     (resultSelection : CDeclArray result.lctx result.params)
     (hresultNodup : resultSelection.fvars.Nodup)
@@ -148,14 +148,14 @@ theorem NestedReplacementTargetSpine.cachedSourceApplicationEqv
   exact hclosedEqv
 
 /-- Head and ordered parameter-spine consequences of the cache alpha law. -/
-theorem NestedReplacementTargetSpine.cachedSourceSpines
+theorem LoweredOccurrenceSpine.cachedSourceSpines
     {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result traceFinalState}
     {Hselection : CDeclArray lctx As}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
-    (T : NestedReplacementTargetSpine Htrace Hselection Htarget sourceDecl
+    (T : LoweredOccurrenceSpine Htrace Hselection Htarget sourceDecl
       fieldDepth)
-    (O : FinalCachedGeneratedFamilyOrigin prodEnv result.params nparams
+    (O : CachedAuxiliaryFamily prodEnv result.params nparams
       initialSize runFinalState T.nested T.auxName)
     (resultSelection : CDeclArray result.lctx result.params)
     (hresultNodup : resultSelection.fvars.Nodup)
@@ -221,7 +221,7 @@ translation with the live translation at a lowering hit.  `abstractDepth`
 counts concrete binders (including erased lets), while `targetDepth` counts
 the binders that survive in `VExpr`.  The producer target is weakened by the
 already-open constructor fields before it is compared with the live target. -/
-structure SelectedAbstractExpansionCtx
+structure ParameterExpansionCtx
     (leaf : Nat → VExpr → VExpr → Prop)
     (fvars : List FVarId) (fieldDepth abstractDepth targetDepth : Nat)
     (canonicalCtx currentCtx : VLCtx) : Prop where
@@ -247,10 +247,10 @@ structure SelectedAbstractExpansionCtx
 /-- The canonical anonymous parameter context and the live selected-parameter
 context satisfy the comparison invariant before entering expression-local
 binders. -/
-theorem SelectedAbstractExpansionCtx.base
+theorem ParameterExpansionCtx.base
     (hdomains : domains.length = fvars.length)
     (Hparams : SelectedParameterTargets fvars fieldDepth currentCtx) :
-    SelectedAbstractExpansionCtx leaf fvars fieldDepth 0 0
+    ParameterExpansionCtx leaf fvars fieldDepth 0 0
       (abstractForallContext domains []) currentCtx := by
   refine ⟨?_, ?_⟩
   · intro i hi canonicalValue canonicalType currentValue currentType
@@ -286,11 +286,11 @@ theorem SelectedAbstractExpansionCtx.base
 
 /-- Entering a surviving lambda/forall binder advances both concrete
 abstraction depth and abstract target depth. -/
-theorem SelectedAbstractExpansionCtx.vlam
-    (H : SelectedAbstractExpansionCtx leaf fvars fieldDepth abstractDepth
+theorem ParameterExpansionCtx.vlam
+    (H : ParameterExpansionCtx leaf fvars fieldDepth abstractDepth
       targetDepth canonicalCtx currentCtx)
     (Hlift : NestedExpansionLeafLiftCompat leaf) :
-    SelectedAbstractExpansionCtx leaf fvars fieldDepth
+    ParameterExpansionCtx leaf fvars fieldDepth
       (abstractDepth + 1) (targetDepth + 1)
       ((none, .vlam canonicalType) :: canonicalCtx)
       ((none, .vlam currentType) :: currentCtx) := by
@@ -390,13 +390,13 @@ theorem SelectedAbstractExpansionCtx.vlam
 /-- Entering an erased let advances concrete abstraction depth but leaves the
 abstract target depth unchanged; the stored let value supplies the new local
 variable comparison. -/
-theorem SelectedAbstractExpansionCtx.vlet
-    (H : SelectedAbstractExpansionCtx leaf fvars fieldDepth abstractDepth
+theorem ParameterExpansionCtx.vlet
+    (H : ParameterExpansionCtx leaf fvars fieldDepth abstractDepth
       targetDepth canonicalCtx currentCtx)
     (Hvalue : VExpr.NestedExprExpansion leaf
       (fvars.length + fieldDepth + targetDepth)
       (canonicalValue.liftN fieldDepth targetDepth) currentValue) :
-    SelectedAbstractExpansionCtx leaf fvars fieldDepth
+    ParameterExpansionCtx leaf fvars fieldDepth
       (abstractDepth + 1) targetDepth
       ((none, .vlet canonicalType canonicalValue) :: canonicalCtx)
       ((none, .vlet currentType currentValue) :: currentCtx) := by
@@ -505,7 +505,7 @@ expression at the lowering hit.  Projection outputs are related through the
 environment-indexed support certificates carried by their two translations. -/
 theorem TrExprS.abstractSelectedExpansion
     (Hnodup : fvars.Nodup)
-    (Hbridge : SelectedAbstractExpansionCtx leaf fvars fieldDepth
+    (Hbridge : ParameterExpansionCtx leaf fvars fieldDepth
       abstractDepth targetDepth canonicalCtx currentCtx)
     (Hlift : NestedExpansionLeafLiftCompat leaf)
     (Hclosed : Closed (expr.abstractList fvars abstractDepth)
@@ -659,12 +659,12 @@ theorem TrExprS.abstractSelectedExpansion
 queue family.  This package is an output of the producer proof below, not a
 declaration-boundary input: it records the same constructor list both as a
 raw source translation and as the exact installed-container specialization. -/
-structure FinalLoweredGeneratedFamilyNativeSource
-    (H : FinalLoweredGeneratedFamilyOrigin prodEnv params nparams finalState
+structure AuxiliaryFamilySourceData
+    (H : LoweredAuxiliaryFamily prodEnv params nparams finalState
       targetConcrete)
     (baseVEnv sourceTypesVEnv : VEnv) (lparams : List Name)
     (target : VInductiveType) where
-  payload : FinalLoweredGeneratedFamilySource H baseVEnv sourceTypesVEnv
+  payload : AuxiliaryFamilySource H baseVEnv sourceTypesVEnv
     lparams target
   container : VInductDecl
   containerFamily : VInductiveType
@@ -728,20 +728,20 @@ the live base arguments at a cache hit are structurally identical after the
 selected parameters are closed and the live constructor fields are opened.
 The proof uses a leaf-free expansion; projection nodes are justified only by
 their environment-indexed support certificates. -/
-theorem FinalLoweredGeneratedFamilyNativeSource.baseExpansionsAtReplacement
+theorem AuxiliaryFamilySourceData.baseExpansionsAtReplacement
     {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result traceFinalState}
     {Hselection : CDeclArray lctx As}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
-    (T : NestedReplacementTargetSpine Htrace Hselection Htarget sourceDecl
+    (T : LoweredOccurrenceSpine Htrace Hselection Htarget sourceDecl
       fieldDepth)
-    (S : NestedReplacementSourceSpine
+    (S : SourceOccurrenceSpine
       (sourceVEnv := sourceTypesVEnv) (sourceCtx := sourceCtx)
       (sourceValue := sourceValue) (lparams := lparams) (input := input)
       T.targetName T.levels T.value Hsource)
-    (O : FinalCachedGeneratedFamilyOrigin prodEnv result.params nparams
+    (O : CachedAuxiliaryFamily prodEnv result.params nparams
       initialSize runFinalState T.nested T.auxName)
-    (N : FinalLoweredGeneratedFamilyNativeSource O.origin baseVEnv
+    (N : AuxiliaryFamilySourceData O.origin baseVEnv
       sourceTypesVEnv lparams target)
     (resultSelection : CDeclArray result.lctx result.params)
     (hresultNodup : resultSelection.fvars.Nodup)
@@ -812,10 +812,10 @@ theorem FinalLoweredGeneratedFamilyNativeSource.baseExpansionsAtReplacement
   have HscopeAt : currentArgs[i].FVarsIn (· ∈ Hselection.fvars) := by
     apply Hscope.getAppArgsList
     exact List.mem_of_mem_take (List.getElem_mem hiCurrent)
-  have Hbridge : SelectedAbstractExpansionCtx (fun _ _ _ => False)
+  have Hbridge : ParameterExpansionCtx (fun _ _ _ => False)
       Hselection.fvars fieldDepth 0 0
       (abstractForallContext N.sourceParams []) sourceCtx :=
-    SelectedAbstractExpansionCtx.base hparamLength Hparams
+    ParameterExpansionCtx.base hparamLength Hparams
   have Hexpansion := TrExprS.abstractSelectedExpansion hselectionNodup
     Hbridge (fun _ _ hfalse => False.elim hfalse)
     HclosedAt HscopeAt HcanonicalCurrent HcurrentAt
@@ -825,9 +825,9 @@ theorem FinalLoweredGeneratedFamilyNativeSource.baseExpansionsAtReplacement
 Each list slot retains the exact lowering origin used to construct its source;
 consumers never have to compare an arbitrary second translation with the
 chosen source by syntactic equality. -/
-structure NestedGeneratedFamilyNativeSources
+structure AuxiliaryFamilySources
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hrun : NestedLoweringRun prodEnv fuel nparams sourceTypes
+    (Hrun : NestedLowering prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
       (result, finalState))
     (baseVEnv sourceTypesVEnv : VEnv) (lparams : List Name)
@@ -837,9 +837,9 @@ structure NestedGeneratedFamilyNativeSources
   sourceAt : ∀ (i : Nat) (hi : i < generated.length)
       (hresult : sourceTypes.length + i < result.types.length)
       (htarget : sourceTypes.length + i < loweredDecl.types.length),
-    ∃ Horigin : FinalLoweredGeneratedFamilyOrigin prodEnv result.params
+    ∃ Horigin : LoweredAuxiliaryFamily prodEnv result.params
         nparams finalState result.types[sourceTypes.length + i],
-      ∃ N : FinalLoweredGeneratedFamilyNativeSource Horigin baseVEnv
+      ∃ N : AuxiliaryFamilySourceData Horigin baseVEnv
         sourceTypesVEnv lparams
           loweredDecl.types[sourceTypes.length + i],
         N.payload.source = generated[i]
@@ -850,17 +850,17 @@ structure NestedGeneratedFamilyNativeSources
   parametersAt : ∀ (i : Nat) (hi : i < generated.length)
       (hresult : sourceTypes.length + i < result.types.length)
       (htarget : sourceTypes.length + i < loweredDecl.types.length),
-    ∃ Horigin : FinalLoweredGeneratedFamilyOrigin prodEnv result.params
+    ∃ Horigin : LoweredAuxiliaryFamily prodEnv result.params
         nparams finalState result.types[sourceTypes.length + i],
-      ∃ N : FinalLoweredGeneratedFamilyNativeSource Horigin baseVEnv
+      ∃ N : AuxiliaryFamilySourceData Horigin baseVEnv
         sourceTypesVEnv lparams
           loweredDecl.types[sourceTypes.length + i],
         N.payload.source = generated[i] ∧
         VEnv.IsDefEqCtx baseVEnv lparams.length [] N.sourceParams.reverse
           parameterContext
 
-theorem FinalLoweredGeneratedFamilyOrigin.auxName_eq_targetName
-    (H : FinalLoweredGeneratedFamilyOrigin env params nparams finalState
+theorem LoweredAuxiliaryFamily.auxName_eq_targetName
+    (H : LoweredAuxiliaryFamily env params nparams finalState
       target) :
     H.generated.auxName = target.name := by
   calc
@@ -874,8 +874,8 @@ The canonical specialization arguments may have a different certified
 projection normal form from the hit's source translation, so their exact
 structural expansion is retained separately from the trailing lowering
 expansion. -/
-theorem FinalLoweredGeneratedFamilyNativeSource.nestedAuxiliarySource
-    (N : FinalLoweredGeneratedFamilyNativeSource H baseVEnv sourceTypesVEnv
+theorem AuxiliaryFamilySourceData.nestedAuxiliarySource
+    (N : AuxiliaryFamilySourceData H baseVEnv sourceTypesVEnv
       lparams target)
     (sourceDecl : VInductDecl) (generated : List VInductiveType)
     (hsourceTypes : baseVEnv.addConstVals sourceDecl.typeConstants =
@@ -915,11 +915,11 @@ theorem FinalLoweredGeneratedFamilyNativeSource.nestedAuxiliarySource
 checker header, and cached application spine have been recovered.  The
 constructor list is synthesized positionally by the executable auxiliary
 builder theorem; no family or constructor translation is supplied. -/
-theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
+theorem AuxiliaryFamilyContainer.nativeGeneratedFamilySource
     {ves : VEnvs}
-    (Horigin : FinalLoweredGeneratedFamilyOrigin prodEnv params nparams
+    (Horigin : LoweredAuxiliaryFamily prodEnv params nparams
       finalState targetConcrete)
-    (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
+    (C : AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params finalState.nestedAux Horigin.source Horigin.generated)
     (wf : ves.WFCore prodEnv)
     (henv : (ves.venv safety).WF)
@@ -957,18 +957,18 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
     (hsourceParamsLength : sourceParams.length = nparams)
     (hbaseClosed : ∀ arg ∈ baseArgs, arg.ClosedN sourceParams.length)
     (hlevelsLength : levels.length = C.container.uvars) :
-    ∃ N : FinalLoweredGeneratedFamilyNativeSource Horigin
+    ∃ N : AuxiliaryFamilySourceData Horigin
       (ves.venv safety) sourceTypesVEnv lparams target,
       N.sourceParams = sourceParams := by
   let containerFamily := C.container.types[C.familyIdx]'C.familyIdx_lt
   let largerVes : VEnvs := ⟨fun _ => sourceTypesVEnv⟩
   let Ctypes := C.mono hbaseLE
   have HfamilyData :=
-    GeneratedFamilyInstalledContainer.directAuxiliaryFamilyType
+    AuxiliaryFamilyContainer.directAuxiliaryFamilyType
       (ves := largerVes) (safety := safety) Ctypes henvTypes lparams sourceParams
     baseArgs levels Hlevels Hbase hdomains hparams familyTarget Hfamily
       HfamilyApps (by
-        simpa only [Ctypes, GeneratedFamilyInstalledContainer.mono]
+        simpa only [Ctypes, AuxiliaryFamilyContainer.mono]
           using hlevelsLength)
   have HfamilyDefEq := HfamilyData.1
   let auxiliaryFamily := VInductiveType.directAuxiliary sourceParams
@@ -992,28 +992,28 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
           (Ctypes.container.types[Ctypes.familyIdx]'Ctypes.familyIdx_lt)
           auxiliaryFamily
           ((Ctypes.container.types[Ctypes.familyIdx]'Ctypes.familyIdx_lt).ctors[i]'(by
-            simpa [Ctypes, GeneratedFamilyInstalledContainer.mono,
+            simpa [Ctypes, AuxiliaryFamilyContainer.mono,
               ← C.constructors] using hi)) targetCtor ∧
         ∃ instCtorType : VExpr,
           VExpr.LEquiv lparams.length instCtorType
             (((Ctypes.container.types[Ctypes.familyIdx]'Ctypes.familyIdx_lt).ctors[i]'(by
-              simpa [Ctypes, GeneratedFamilyInstalledContainer.mono,
+              simpa [Ctypes, AuxiliaryFamilyContainer.mono,
                 ← C.constructors] using hi)).type.instL levels) ∧
           targetCtor.type = VExpr.wrapForalls sourceParams
             (VExpr.instantiateForallPrefix instCtorType baseArgs) := by
     intro i hi
     rcases C.builtConstructorTranslation wf i hi with ⟨Bbase⟩
-    let B : Ctypes.BuiltConstructorTranslation (ves := largerVes) i hi := by
+    let B : Ctypes.AuxiliaryConstructorTranslation (ves := largerVes) i hi := by
       simpa [Ctypes, largerVes] using
         (Bbase.mono (largerVes := largerVes) (by
           simpa [largerVes] using hbaseLE))
     simpa only [auxiliaryFamily] using
-      GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.directAuxiliary
+      AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.directAuxiliary
         (ves := largerVes) (safety := safety) Ctypes B henvTypes lparams
           sourceParams baseArgs
           levels Hlevels Hbase hdomains hparams familyTarget Hfamily
             HfamilyApps (by
-              simpa only [Ctypes, GeneratedFamilyInstalledContainer.mono]
+              simpa only [Ctypes, AuxiliaryFamilyContainer.mono]
                 using hlevelsLength)
               target.numIndices target.resultLevel
   let targetCtor (i : Fin Horigin.generated.sourceInfo.ctors.length) :
@@ -1049,7 +1049,7 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
     have hlength :
         (Ctypes.container.types[Ctypes.familyIdx]'Ctypes.familyIdx_lt).ctors.length =
           Horigin.generated.sourceInfo.ctors.length := by
-      simpa [Ctypes, GeneratedFamilyInstalledContainer.mono] using
+      simpa [Ctypes, AuxiliaryFamilyContainer.mono] using
         C.constructors.symm
     apply List.forall₂_of_getElem
     · simp [targets, hlength]
@@ -1067,7 +1067,7 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
     have hlength :
         (Ctypes.container.types[Ctypes.familyIdx]'Ctypes.familyIdx_lt).ctors.length =
           Horigin.generated.sourceInfo.ctors.length := by
-      simpa [Ctypes, GeneratedFamilyInstalledContainer.mono] using
+      simpa [Ctypes, AuxiliaryFamilyContainer.mono] using
         C.constructors.symm
     apply List.forall₂_of_getElem
     · simp [targets, hlength]
@@ -1136,9 +1136,9 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
           type := Hhead.type } ih
     exact go (by
       simpa only [auxiliaryFamily, containerFamily, Ctypes,
-        GeneratedFamilyInstalledContainer.mono]
+        AuxiliaryFamilyContainer.mono]
         using HdirectConstructors)
-  let payload : FinalLoweredGeneratedFamilySource Horigin
+  let payload : AuxiliaryFamilySource Horigin
       (ves.venv safety) sourceTypesVEnv lparams target := {
     source := source
     translation := {
@@ -1154,7 +1154,7 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
     baseArgs := baseArgs
     levels := levels
     installed := by
-      simpa only [Ctypes, GeneratedFamilyInstalledContainer.mono]
+      simpa only [Ctypes, AuxiliaryFamilyContainer.mono]
         using Ctypes.installed
     installedBase := C.installed
     containerUnsafe := C.containerUnsafe
@@ -1187,16 +1187,16 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
         Htarget.uniq henvTypes (.refl henvTypes (by trivial)) Hsource
     familyType := by
       simpa only [payload, source, containerFamily, Ctypes,
-        GeneratedFamilyInstalledContainer.mono]
+        AuxiliaryFamilyContainer.mono]
         using HfamilyDefEq
     familyApplicationTyping := by
       simpa only [containerFamily, Ctypes,
-        GeneratedFamilyInstalledContainer.mono] using HfamilyData.2
+        AuxiliaryFamilyContainer.mono] using HfamilyData.2
     constructors := by
       simpa [payload, source, containerFamily] using HdirectConstructors'
     constructorShapes := by
       simpa only [payload, source, containerFamily, Ctypes,
-        GeneratedFamilyInstalledContainer.mono] using HconstructorShapes }, rfl⟩
+        AuxiliaryFamilyContainer.mono] using HconstructorShapes }, rfl⟩
 
 /-- Every family header installed by the current ordinary production was
 absent from its source production environment.  This is the producer-facing
@@ -1238,7 +1238,7 @@ after the current source headers have been installed.  Successful production
 proves that every one of those header names was fresh in the producer
 environment, whereas the container lookup was already present there; hence
 the finite header fold cannot have introduced or shadowed that lookup. -/
-theorem FinalLoweredGeneratedFamilyOrigin.installedContainerBeforeHeaders
+theorem LoweredAuxiliaryFamily.installedContainerBeforeHeaders
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv}
@@ -1250,7 +1250,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.installedContainerBeforeHeaders
     {ves : VEnvs}
     (wf : ves.WFCore c.env)
     (hsourceVEnv : sourceVEnv = ves.venv safety)
-    (Hrun : NestedLoweringRun c.env fuel nparams sourceTypes
+    (Hrun : NestedLowering c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
       (result, finalState))
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -1261,15 +1261,15 @@ theorem FinalLoweredGeneratedFamilyOrigin.installedContainerBeforeHeaders
     (HsourceAdded : sourceVEnv.addConstVals
       ((loweredDecl.types.take sourceTypes.length).map
         VInductiveType.toVConstVal) = some sourceTypesVEnv)
-    (Horigin : FinalLoweredGeneratedFamilyOrigin c.env result.params nparams
+    (Horigin : LoweredAuxiliaryFamily c.env result.params nparams
       finalState target)
-    (realization : GeneratedFamilyHeadRealization sourceTypesVEnv c.lparams
+    (realization : AuxiliaryHeadTyping sourceTypesVEnv c.lparams
       parameterDomains
       ((mkAppRange (.const Horigin.generated.sourceName
         Horigin.generated.levels) 0 Horigin.generated.nestedNParams
         Horigin.generated.args).abstractList
           Horigin.generated.selection.fvars)) :
-    Nonempty (GeneratedFamilyInstalledContainer c.env sourceVEnv
+    Nonempty (AuxiliaryFamilyContainer c.env sourceVEnv
       result.params finalState.nestedAux Horigin.source Horigin.generated) := by
   rcases Horigin.generated.abstractContainerLookup realization with
     ⟨abstractFamily, habstractAfter⟩
@@ -1306,14 +1306,14 @@ header that occurs at this exact final queue position.  Lowering preserves
 that header literally, while the builder records its pre-lowering parameter
 telescope.  Consequently the checker's canonical parameter suffix supplies
 the parameter context for the pre-lowering generated family itself. -/
-theorem FinalLoweredGeneratedFamilyOrigin.formationHeaderParameterDomains
+theorem LoweredAuxiliaryFamily.formationHeaderParameterDomains
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv targetTypesVEnv : VEnv}
     {headerEnv : Environment}
     {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv indTypes headerEnv}
-    (H : FinalLoweredGeneratedFamilyOrigin c.env params nparams finalState
+    (H : LoweredAuxiliaryFamily c.env params nparams finalState
       targetConcrete)
     (Htarget : TrInductiveType sourceVEnv targetTypesVEnv c.lparams
       targetConcrete targetAbstract)
@@ -1395,7 +1395,7 @@ theorem NestedLoweringResultClosed.auxiliaryFormationParameterContext
     (HsourceTypesWF : sourceTypesVEnv.WF)
     (hempty : initialState.nestedAux = #[])
     (selection : CDeclArray result.lctx result.params)
-    (Haux : ClosedNestedAuxiliaryTranslation sourceTypesVEnv c.lparams
+    (Haux : ClosedNestedOccurrenceTyping sourceTypesVEnv c.lparams
       result selection e) :
     let Hsuffix := Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
       (elimLevel := .zero) (by trivial)
@@ -1475,7 +1475,7 @@ theorem NestedLoweringResultClosed.auxiliaryFormationParameterContext
 from the native auxiliary-validation result and the exact lowering run.  The
 parameter-context conversion is the one derived by
 `auxiliaryCanonicalParameterContext`; it is not selected by a caller. -/
-theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
+theorem LoweredAuxiliaryFamily.abstractContainerApplication
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv}
@@ -1484,7 +1484,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hrun : NestedLoweringRun c.env fuel nparams sourceTypes
+    (Hrun : NestedLowering c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
       (result, finalState))
     (Hcache : NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState)
@@ -1500,9 +1500,9 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
     (HsourceTypesWF : sourceTypesVEnv.WF)
     (hempty : initialState.nestedAux = #[])
     (selection : CDeclArray result.lctx result.params)
-    (Htranslations : ClosedNestedAuxiliaryTranslations sourceTypesVEnv
+    (Htranslations : ClosedNestedOccurrenceTypings sourceTypesVEnv
       c.lparams result selection)
-    (Horigin : FinalLoweredGeneratedFamilyOrigin c.env result.params nparams
+    (Horigin : LoweredAuxiliaryFamily c.env result.params nparams
       finalState target) :
     let parameterDomains :=
       (Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
@@ -1511,7 +1511,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
       (mkAppRange (.const Horigin.generated.sourceName
         Horigin.generated.levels) 0 Horigin.generated.nestedNParams
         Horigin.generated.args).abstractList Horigin.generated.selection.fvars
-    ∃ realization : GeneratedFamilyHeadRealization sourceTypesVEnv
+    ∃ realization : AuxiliaryHeadTyping sourceTypesVEnv
         c.lparams parameterDomains sourceApplication,
       ∃ abstractLevels, ∃ baseArgs,
       Horigin.generated.levels.mapM
@@ -1540,7 +1540,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
   have hsourceLE : sourceVEnv ≤ sourceTypesVEnv :=
     VEnv.addConstVals_le HsourceAdded
   have henvTypesWF : sourceTypesVEnv.WF := HsourceTypesWF
-  have Hcontexts : ∀ Haux : ClosedNestedAuxiliaryTranslation sourceTypesVEnv
+  have Hcontexts : ∀ Haux : ClosedNestedOccurrenceTyping sourceTypesVEnv
       c.lparams result selection Horigin.generated.data.nested,
       VEnv.IsDefEqCtx sourceTypesVEnv c.lparams.length []
         ((Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
@@ -1579,7 +1579,7 @@ position is reconstructed from the actual lowering run and ordinary header
 production.  Parameter-context conversion, application transport, installed
 container provenance, header translation, and every constructor target are
 all derived here. -/
-theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
+theorem LoweredAuxiliaryFamily.nativeGeneratedFamilySource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv targetTypesVEnv targetCtorsVEnv : VEnv}
@@ -1591,7 +1591,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
     {ves : VEnvs}
     (wf : ves.WFCore c.env)
     (hsourceVEnv : sourceVEnv = ves.venv safety)
-    (Hrun : NestedLoweringRun c.env fuel nparams sourceTypes
+    (Hrun : NestedLowering c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
       (result, finalState))
     (Hcache : NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState)
@@ -1608,15 +1608,15 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
     (HsourceTypesWF : sourceTypesVEnv.WF)
     (hempty : initialState.nestedAux = #[])
     (selection : CDeclArray result.lctx result.params)
-    (Htranslations : ClosedNestedAuxiliaryTranslations sourceTypesVEnv
+    (Htranslations : ClosedNestedOccurrenceTypings sourceTypesVEnv
       c.lparams result selection)
-    (H : FinalLoweredGeneratedFamilyOrigin c.env result.params nparams
+    (H : LoweredAuxiliaryFamily c.env result.params nparams
       finalState targetConcrete)
     (Htarget : TrInductiveType sourceVEnv targetTypesVEnv c.lparams
       targetConcrete targetAbstract)
     (htarget : targetAbstract ∈ loweredDecl.types)
     (hparamsSize : result.params.size = nparams) :
-    ∃ N : FinalLoweredGeneratedFamilyNativeSource H sourceVEnv
+    ∃ N : AuxiliaryFamilySourceData H sourceVEnv
       sourceTypesVEnv c.lparams targetAbstract,
       VEnv.IsDefEqCtx sourceVEnv c.lparams.length [] N.sourceParams.reverse
         (Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
@@ -1755,7 +1755,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
 the literal final suffix.  Every choice is immediately certified by the
 exact position's lowering origin and native builder proof, so no translation
 or formation witness crosses a declaration boundary. -/
-theorem NestedLoweringRun.nativeGeneratedFamilySources
+theorem NestedLowering.nativeGeneratedFamilySources
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv targetTypesVEnv targetCtorsVEnv : VEnv}
@@ -1765,7 +1765,7 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
     {ves : VEnvs}
-    (Hrun : NestedLoweringRun c.env fuel nparams sourceTypes
+    (Hrun : NestedLowering c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
       (result, finalState))
     (Hcache : NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState)
@@ -1784,11 +1784,11 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
     (HsourceTypesWF : sourceTypesVEnv.WF)
     (hempty : initialState.nestedAux = #[])
     (selection : CDeclArray result.lctx result.params)
-    (Htranslations : ClosedNestedAuxiliaryTranslations sourceTypesVEnv
+    (Htranslations : ClosedNestedOccurrenceTypings sourceTypesVEnv
       c.lparams result selection)
     (Htarget : TrInductDeclCore sourceVEnv c.lparams nparams result.types
       isUnsafe loweredDecl targetTypesVEnv targetCtorsVEnv) :
-    ∃ N : NestedGeneratedFamilyNativeSources Hrun sourceVEnv
+    ∃ N : AuxiliaryFamilySources Hrun sourceVEnv
       sourceTypesVEnv c.lparams loweredDecl,
       N.parameterContext =
         (Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
@@ -1811,10 +1811,10 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
     rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Htarget]
     exact hresultAt i
   let NativeAt (i : Fin count) :=
-    Σ Horigin : FinalLoweredGeneratedFamilyOrigin c.env result.params
+    Σ Horigin : LoweredAuxiliaryFamily c.env result.params
       nparams finalState
         (getElem result.types (sourceTypes.length + i.1) (hresultAt i)),
-      { N : FinalLoweredGeneratedFamilyNativeSource Horigin (ves.venv safety)
+      { N : AuxiliaryFamilySourceData Horigin (ves.venv safety)
           sourceTypesVEnv c.lparams
             (getElem loweredDecl.types (sourceTypes.length + i.1) (htargetAt i)) //
         VEnv.IsDefEqCtx (ves.venv safety) c.lparams.length []
@@ -1871,12 +1871,12 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
 replacement.  Cache-name uniqueness identifies the retained canonical
 origin with the queried nested expression, yielding a `FinalCached` witness
 for that same native source rather than constructing a second source. -/
-theorem NestedGeneratedFamilyNativeSources.sourceForReplacement
+theorem AuxiliaryFamilySources.sourceForReplacement
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    {Hrun : NestedLoweringRun prodEnv fuel nparams sourceTypes
+    {Hrun : NestedLowering prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
       (result, finalState)}
-    (N : NestedGeneratedFamilyNativeSources Hrun baseVEnv sourceTypesVEnv
+    (N : AuxiliaryFamilySources Hrun baseVEnv sourceTypesVEnv
       lparams loweredDecl)
     (Htarget : TrInductDeclCore baseVEnv lparams nparams result.types
       isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
@@ -1884,19 +1884,19 @@ theorem NestedGeneratedFamilyNativeSources.sourceForReplacement
       state output nextState result traceFinalState}
     {Hselection : CDeclArray lctx As}
     {HtargetExpr : TrExprS targetEnvTypes lparams targetCtx output targetValue}
-    (T : NestedReplacementTargetSpine Htrace Hselection HtargetExpr sourceDecl
+    (T : LoweredOccurrenceSpine Htrace Hselection HtargetExpr sourceDecl
       fieldDepth)
-    (O : FinalCachedGeneratedFamilyOrigin prodEnv result.params nparams
+    (O : CachedAuxiliaryFamily prodEnv result.params nparams
       sourceTypes.toArray.size finalState T.nested T.auxName)
     (hempty : initialState.nestedAux = #[]) :
     ∃ (i : Nat) (hi : i < N.generated.length)
       (hresult : sourceTypes.length + i < result.types.length)
       (htarget : sourceTypes.length + i < loweredDecl.types.length),
-      ∃ Ocanonical : FinalCachedGeneratedFamilyOrigin prodEnv result.params
+      ∃ Ocanonical : CachedAuxiliaryFamily prodEnv result.params
           nparams sourceTypes.toArray.size finalState T.nested T.auxName,
         result.types[sourceTypes.length + i]'hresult =
           finalState.newTypes[Ocanonical.j]'Ocanonical.hj ∧
-        ∃ Nsource : FinalLoweredGeneratedFamilyNativeSource
+        ∃ Nsource : AuxiliaryFamilySourceData
             Ocanonical.origin baseVEnv sourceTypesVEnv lparams
               loweredDecl.types[sourceTypes.length + i],
           Nsource.payload.source = N.generated[i] := by
@@ -1946,9 +1946,9 @@ theorem NestedGeneratedFamilyNativeSources.sourceForReplacement
       hleft.symm.trans (hget.trans hright)
     simpa only [hindex] using hresultGet
   let canonicalFinal :
-      Σ Horigin : FinalLoweredGeneratedFamilyOrigin prodEnv result.params
+      Σ Horigin : LoweredAuxiliaryFamily prodEnv result.params
           nparams finalState finalTarget,
-        { Nsource : FinalLoweredGeneratedFamilyNativeSource Horigin baseVEnv
+        { Nsource : AuxiliaryFamilySourceData Horigin baseVEnv
             sourceTypesVEnv lparams
               loweredDecl.types[sourceTypes.length + i] //
           Nsource.payload.source = N.generated[i] } := by
@@ -1969,7 +1969,7 @@ theorem NestedGeneratedFamilyNativeSources.sourceForReplacement
   rw [hcanonicalAux] at hcanonicalLookup
   have hcanonicalNested : HcanonicalFinal.generated.data.nested = T.nested := by
     exact Option.some.inj (hcanonicalLookup.symm.trans T.resultLookup)
-  let Ocanonical : FinalCachedGeneratedFamilyOrigin prodEnv result.params
+  let Ocanonical : CachedAuxiliaryFamily prodEnv result.params
       nparams sourceTypes.toArray.size finalState T.nested T.auxName := {
     j := O.j
     hj := O.hj
@@ -1984,12 +1984,12 @@ theorem NestedGeneratedFamilyNativeSources.sourceForReplacement
 exact lowering hit and the producer-owned native generated-family registry.
 No declaration-boundary callback or arbitrary second source translation is
 used. -/
-theorem NestedGeneratedFamilyNativeSources.replacementCompat
+theorem AuxiliaryFamilySources.replacementCompat
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    {Hrun : NestedLoweringRun prodEnv fuel nparams sourceTypes
+    {Hrun : NestedLowering prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
       (result, finalState)}
-    (N : NestedGeneratedFamilyNativeSources Hrun baseVEnv sourceTypesVEnv
+    (N : AuxiliaryFamilySources Hrun baseVEnv sourceTypesVEnv
       lparams loweredDecl)
     (Htarget : TrInductDeclCore baseVEnv lparams nparams result.types
       isUnsafe loweredDecl targetTypesVEnv targetCtorsVEnv)
@@ -2130,16 +2130,16 @@ theorem NestedGeneratedFamilyNativeSources.replacementCompat
 
 /-- Project the producer-owned generated registry to the ordered generated
 suffix expansion using the exact origin stored at each slot. -/
-theorem NestedLoweringRun.generatedExpansionsOfNativeSources
+theorem NestedLowering.generatedExpansionsOfNativeSources
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hrun : NestedLoweringRun prodEnv fuel nparams sourceTypes
+    (Hrun : NestedLowering prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
       (result, finalState))
     (Htarget : TrInductDeclCore baseVEnv lparams nparams result.types
       isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
     (henv : baseVEnv.WF)
     (HtargetTypesWF : targetEnvTypes.WF)
-    (N : NestedGeneratedFamilyNativeSources Hrun baseVEnv sourceTypesVEnv
+    (N : AuxiliaryFamilySources Hrun baseVEnv sourceTypesVEnv
       lparams loweredDecl)
     (HsourceTypesWF : sourceTypesVEnv.WF)
     (Henv : EnvironmentTypesClosed prodEnv)
@@ -2194,9 +2194,9 @@ theorem NestedLoweringRun.generatedExpansionsOfNativeSources
 
 /-- Ordered formation expansion for the entire lowered queue, assembled only
 from the exact original translation and producer-owned generated registry. -/
-theorem NestedLoweringRun.allExpansionsOfNativeSources
+theorem NestedLowering.allExpansionsOfNativeSources
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hrun : NestedLoweringRun prodEnv fuel nparams sourceTypes
+    (Hrun : NestedLowering prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
       (result, finalState))
     (Hcache : NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState)
@@ -2211,7 +2211,7 @@ theorem NestedLoweringRun.allExpansionsOfNativeSources
     (hclosures : MutualInductivesClosed prodEnv)
     (henv : baseVEnv.WF)
     (hempty : initialState.nestedAux = #[])
-    (N : NestedGeneratedFamilyNativeSources Hrun baseVEnv sourceEnvTypes
+    (N : AuxiliaryFamilySources Hrun baseVEnv sourceEnvTypes
       lparams loweredDecl)
     (resultSelection : CDeclArray result.lctx result.params) :
     List.Forall₂

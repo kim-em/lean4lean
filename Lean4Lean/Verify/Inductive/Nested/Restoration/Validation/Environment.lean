@@ -51,7 +51,7 @@ private theorem constructorValidationForM_refines
         rcases Hout with ⟨_, ⟨Hrest⟩⟩
         exact ⟨rfl, ⟨.cons Hhead Hrest⟩⟩
 
-structure ConstructorValidationHeaderStep
+structure ValidationHeaderStep
     (loweredEnv : Environment) (allIndNames : List Name)
     (indName : Name) (sourceEnv targetEnv : Environment) where
   oldInfo : InductiveVal
@@ -65,7 +65,7 @@ private theorem restoreInductiveHeaderDecl_validationWF
     (allowPrimitive : Bool) (indName : Name) :
     (Lean4Lean.restoreInductiveHeaderDecl loweredEnv allIndNames
       allowPrimitive indName sourceEnv).WF fun out =>
-        out.1 = () ∧ Nonempty (ConstructorValidationHeaderStep loweredEnv
+        out.1 = () ∧ Nonempty (ValidationHeaderStep loweredEnv
           allIndNames indName sourceEnv out.2) := by
   intro out hout
   unfold Lean4Lean.restoreInductiveHeaderDecl at hout
@@ -95,7 +95,7 @@ private theorem restoreInductiveHeaderDecl_validationWF
         output := rfl }⟩⟩
   next other hlookup => simp at hout
 
-structure ConstructorValidationConstructorStep
+structure ValidationConstructorStep
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv : Environment) (allowPrimitive : Bool) (ctorName : Name)
     (sourceEnv targetEnv : Environment) where
@@ -113,7 +113,7 @@ private theorem restoreConstructorDecl_validationWF
     (ctorName : Name) :
     (Lean4Lean.restoreConstructorDecl result loweredEnv allowPrimitive
       ctorName sourceEnv).WF fun out =>
-        out.1 = () ∧ Nonempty (ConstructorValidationConstructorStep result
+        out.1 = () ∧ Nonempty (ValidationConstructorStep result
           loweredEnv allowPrimitive ctorName sourceEnv out.2) := by
   intro out hout
   unfold Lean4Lean.restoreConstructorDecl at hout
@@ -152,7 +152,7 @@ private theorem restoreConstructorDecl_validationWF
         output := rfl }⟩⟩
   next other hlookup => simp at hout
 
-structure ConstructorValidationConstructorFamilyStep
+structure ValidationFamilyStep
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv : Environment) (allowPrimitive : Bool)
     (indType : InductiveType)
@@ -160,7 +160,7 @@ structure ConstructorValidationConstructorFamilyStep
   oldInfo : InductiveVal
   lookup : loweredEnv.find? indType.name = some (.inductInfo oldInfo)
   constructors : ConstructorValidationStateTrace
-    (ConstructorValidationConstructorStep result loweredEnv allowPrimitive)
+    (ValidationConstructorStep result loweredEnv allowPrimitive)
     oldInfo.ctors sourceEnv targetEnv
 
 private theorem restoreInductiveConstructorsOnly_validationWF
@@ -171,14 +171,14 @@ private theorem restoreInductiveConstructorsOnly_validationWF
     (Lean4Lean.restoreInductiveConstructorsOnly result loweredEnv
       allowPrimitive indType sourceEnv).WF fun out =>
         out.1 = () ∧ Nonempty
-          (ConstructorValidationConstructorFamilyStep result loweredEnv
+          (ValidationFamilyStep result loweredEnv
             allowPrimitive indType sourceEnv out.2) := by
   unfold Lean4Lean.restoreInductiveConstructorsOnly
   simp only [hlookup]
   have Hconstructors := constructorValidationForM_refines
     (fun ctorName => Lean4Lean.restoreConstructorDecl result loweredEnv
       allowPrimitive ctorName)
-    (ConstructorValidationConstructorStep result loweredEnv allowPrimitive)
+    (ValidationConstructorStep result loweredEnv allowPrimitive)
     oldInfo.ctors
     (fun ctorName _ currentEnv =>
       restoreConstructorDecl_validationWF result loweredEnv currentEnv
@@ -193,29 +193,29 @@ private theorem restoreInductiveConstructorsOnly_validationWF
       lookup := hlookup
       constructors := Hconstructors }⟩⟩
 
-structure RestoredConstructorValidationEnvironment
+structure ValidationEnvironment
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv sourceEnv : Environment) (allIndNames : List Name)
     (allowPrimitive : Bool) (types : List InductiveType)
     (targetEnv : Environment) where
   headerEnv : Environment
   headers : ConstructorValidationStateTrace
-    (fun indType source target => ConstructorValidationHeaderStep loweredEnv
+    (fun indType source target => ValidationHeaderStep loweredEnv
       allIndNames indType.name source target)
     types sourceEnv headerEnv
   constructors : ConstructorValidationStateTrace
-    (ConstructorValidationConstructorFamilyStep result loweredEnv
+    (ValidationFamilyStep result loweredEnv
       allowPrimitive)
     types headerEnv targetEnv
 
 /-- Exact side environment obtained by restoring just the mutually recursive
 source headers.  This is the executable dependency boundary for validating
 cached nested-family applications. -/
-structure RestoredHeaderValidationEnvironment
+structure ValidationHeaderEnvironment
     (loweredEnv sourceEnv : Environment) (allIndNames : List Name)
     (types : List InductiveType) (targetEnv : Environment) where
   headers : ConstructorValidationStateTrace
-    (fun indType source target => ConstructorValidationHeaderStep loweredEnv
+    (fun indType source target => ValidationHeaderStep loweredEnv
       allIndNames indType.name source target)
     types sourceEnv targetEnv
 
@@ -224,13 +224,13 @@ theorem restoreNestedHeaders_validationWF
     (allowPrimitive : Bool) (types : List InductiveType) :
     (Lean4Lean.restoreNestedHeaders loweredEnv allIndNames allowPrimitive
       types sourceEnv).WF fun out =>
-        out.1 = () ∧ Nonempty (RestoredHeaderValidationEnvironment
+        out.1 = () ∧ Nonempty (ValidationHeaderEnvironment
           loweredEnv sourceEnv allIndNames types out.2) := by
   unfold Lean4Lean.restoreNestedHeaders
   have Hheaders := constructorValidationForM_refines
     (fun indType => Lean4Lean.restoreInductiveHeaderDecl loweredEnv allIndNames
       allowPrimitive indType.name)
-    (fun indType source target => ConstructorValidationHeaderStep loweredEnv
+    (fun indType source target => ValidationHeaderStep loweredEnv
       allIndNames indType.name source target)
     types
     (fun indType _ currentEnv =>
@@ -252,7 +252,7 @@ theorem restoreNestedConstructors_validationWF
         loweredEnv.find? indType.name = some (.inductInfo oldInfo)) :
     (Lean4Lean.restoreNestedConstructors result loweredEnv allIndNames
       allowPrimitive types sourceEnv).WF fun out =>
-        out.1 = () ∧ Nonempty (RestoredConstructorValidationEnvironment result
+        out.1 = () ∧ Nonempty (ValidationEnvironment result
           loweredEnv sourceEnv allIndNames allowPrimitive types out.2) := by
   unfold Lean4Lean.restoreNestedConstructors
   have Hheaders := restoreNestedHeaders_validationWF loweredEnv sourceEnv
@@ -265,7 +265,7 @@ theorem restoreNestedConstructors_validationWF
     have Hconstructors := constructorValidationForM_refines
       (fun indType => Lean4Lean.restoreInductiveConstructorsOnly result
         loweredEnv allowPrimitive indType)
-      (ConstructorValidationConstructorFamilyStep result loweredEnv
+      (ValidationFamilyStep result loweredEnv
         allowPrimitive)
       types
       (fun indType hind currentEnv => by

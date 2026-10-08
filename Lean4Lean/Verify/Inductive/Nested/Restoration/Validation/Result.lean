@@ -26,17 +26,17 @@ structure RestoredAfterInstallResult
   primitiveSafe : ∃ entries,
     PrimitiveSafeFreshConstantTrace allowPrimitive sourceEnv entries outEnv
   constructorParameterValidation : ∃ validationEnv,
-    Nonempty (RestoredConstructorValidationEnvironment res loweredEnv
+    Nonempty (ValidationEnvironment res loweredEnv
       sourceEnv allIndNames allowPrimitive types validationEnv)
   auxiliaryHeaderValidation : ∃ auxiliaryHeaderEnv,
-    Nonempty (RestoredHeaderValidationEnvironment loweredEnv sourceEnv
+    Nonempty (ValidationHeaderEnvironment loweredEnv sourceEnv
       allIndNames types auxiliaryHeaderEnv) ∧
     Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
       lparams safety fuel types res = .ok () ∧
     Lean4Lean.validateNestedAuxiliaries auxiliaryHeaderEnv lparams safety
       fuel res = .ok ()
   recursorTypeValidation : ∃ validationEnv,
-    Nonempty (RestoredConstructorValidationEnvironment res loweredEnv
+    Nonempty (ValidationEnvironment res loweredEnv
       sourceEnv allIndNames allowPrimitive types validationEnv) ∧
     Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
       lparams safety fuel res recNameMap allIndNames types auxRecNames = .ok ()
@@ -81,9 +81,9 @@ theorem Environment.restoreNestedAfterInstall.WF
         (Lean4Lean.mkAuxRecNameMap loweredEnv types).2 (types.map (·.name))
         types (Lean4Lean.mkAuxRecNameMap loweredEnv types).1
         ((), restoredEnv)) →
-      Nonempty (RestoredConstructorValidationEnvironment res loweredEnv env
+      Nonempty (ValidationEnvironment res loweredEnv env
         (types.map (·.name)) allowPrimitive types validationEnv) →
-      Nonempty (RestoredHeaderValidationEnvironment loweredEnv env
+      Nonempty (ValidationHeaderEnvironment loweredEnv env
         (types.map (·.name)) types auxiliaryHeaderEnv) →
       Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
         lparams safety fuel types res = .ok () →
@@ -134,7 +134,7 @@ theorem Environment.restoreNestedAfterInstall.WF
   have HvalidationEnv :
       ((·.2) <$> Lean4Lean.restoreNestedConstructors res loweredEnv
         allIndNames allowPrimitive types env).WF fun validationEnv =>
-          Nonempty (RestoredConstructorValidationEnvironment res loweredEnv
+          Nonempty (ValidationEnvironment res loweredEnv
             env allIndNames allowPrimitive types validationEnv) := by
     exact HvalidationEnvironment.map fun restored Hrestored => by
       rcases restored with ⟨unit, validationEnv⟩
@@ -146,7 +146,7 @@ theorem Environment.restoreNestedAfterInstall.WF
   have HauxiliaryHeaderEnv :
       ((·.2) <$> Lean4Lean.restoreNestedHeaders loweredEnv allIndNames
         allowPrimitive types env).WF fun auxiliaryHeaderEnv =>
-          Nonempty (RestoredHeaderValidationEnvironment loweredEnv env
+          Nonempty (ValidationHeaderEnvironment loweredEnv env
             allIndNames types auxiliaryHeaderEnv) := by
     exact HauxiliaryHeaderEnvironment.map fun restored Hrestored => by
       rcases restored with ⟨resultUnit, auxiliaryHeaderEnv⟩

@@ -82,7 +82,7 @@ private theorem restoredHeaderValidationValidAux
     {currentProdEnv targetProdEnv : Environment}
     {currentVEnv targetVEnv : VEnv}
     (Hvalidation : ConstructorValidationStateTrace
-      (fun indType source target => ConstructorValidationHeaderStep loweredEnv
+      (fun indType source target => ValidationHeaderStep loweredEnv
         (sourceTypes.map (fun type => type.name)) indType.name source target)
       remainingSources currentProdEnv targetProdEnv)
     (Htranslations : List.Forall₂
@@ -205,7 +205,7 @@ validation models exactly the abstract source-header prefix selected by the
 lowering queue.  It is reconstructed directly from lowering, ordinary
 production, and the actual header-installation trace; no restoration or
 final-assembly certificate is involved. -/
-theorem RestoredHeaderValidationEnvironment.validOfLowering
+theorem ValidationHeaderEnvironment.validOfLowering
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
@@ -217,7 +217,7 @@ theorem RestoredHeaderValidationEnvironment.validOfLowering
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
-    (Hvalidation : RestoredHeaderValidationEnvironment loweredEnv c.env
+    (Hvalidation : ValidationHeaderEnvironment loweredEnv c.env
       (sourceTypes.map (fun type => type.name)) sourceTypes validationEnv)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe)) :

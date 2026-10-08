@@ -68,7 +68,7 @@ theorem auxiliaryLoweredConstructors_restore
     {r : Restoration} {auxiliaries : List ContainerSpecialization}
     {generated targets direct : List VInductiveType}
     (henv : envTypes.WF)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence base envTypes paramCtx decl)
+    (Haux : List.Forall₂ (SpecializationGenerates base envTypes paramCtx decl)
       auxiliaries generated)
     (Hexp : List.Forall₂ (VInductDecl.NestedTypeExpansion base decl
         (r.RestoringLeaf (VLevel.params decl.uvars)))
@@ -142,7 +142,7 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
     (henvTypes : envTypes.WF)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
@@ -233,7 +233,7 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
   have hscopedNodup := hscoped.1
   have hfamilyHead : ∀ t ∈ E.production.loweredDecl.types.drop sourceDecl.types.length,
       ∃ a ∈ auxiliaries, ∃ g,
-        AuxiliarySpecializationEvidence (ves.venv (if isUnsafe then .unsafe else .safe))
+        SpecializationGenerates (ves.venv (if isUnsafe then .unsafe else .safe))
           envTypes E.production.headers.commonParameterContext sourceDecl a g ∧
         VInductDecl.NestedTypeExpansion (ves.venv (if isUnsafe then .unsafe else .safe))
           sourceDecl (VInductDecl.NestedOccurrenceReplacementAbs
@@ -354,7 +354,7 @@ theorem NestedValidatedRunResult.auxiliaryConstructors_of_evidence
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       sourceDecl.typeConstants = some envTypes)
     (henvTypes : envTypes.WF)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+    (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
       E.production.headers.commonParameterContext sourceDecl)
       auxiliaries generated)

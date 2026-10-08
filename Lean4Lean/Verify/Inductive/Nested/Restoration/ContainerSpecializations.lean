@@ -467,7 +467,7 @@ open _root_.Lean4Lean.InductiveSignature
 /-- Evidence that one container specialisation describes one generated
 (pre-lowering) auxiliary family.  `sourceEnv` is the environment the
 declaration is checked in; `envTypes` adds the original family headers. -/
-structure AuxiliarySpecializationEvidence (sourceEnv envTypes : VEnv)
+structure SpecializationGenerates (sourceEnv envTypes : VEnv)
     (paramCtx : List VExpr)
     (decl : VInductDecl) (a : ContainerSpecialization)
     (generated : VInductiveType) : Prop where
@@ -528,8 +528,8 @@ theorem nestedConstructorExpansions_names
   | nil => rfl
   | cons hhead _ ih => simp only [List.map_cons, ih, hhead.name]
 
-theorem AuxiliarySpecializationEvidence.generatedCtorNames
-    (H : AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl a generated) :
+theorem SpecializationGenerates.generatedCtorNames
+    (H : SpecializationGenerates sourceEnv envTypes paramCtx decl a generated) :
     generated.ctors.map (·.name) = a.source.ctors.map a.constructorName := by
   rcases H.application with ⟨_, _, _, _, _, _, hctors⟩
   rw [directAuxConstructors_names hctors, ← H.auxiliary]
@@ -537,8 +537,8 @@ theorem AuxiliarySpecializationEvidence.generatedCtorNames
 
 /-- Typing of the actual container application, in any parameter context
 definitionally equal to the common one. -/
-theorem AuxiliarySpecializationEvidence.wellFormed
-    (H : AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl a generated)
+theorem SpecializationGenerates.wellFormed
+    (H : SpecializationGenerates sourceEnv envTypes paramCtx decl a generated)
     (henv : envTypes.WF) (params : List VExpr)
     (hparams : VEnv.IsDefEqCtx envTypes decl.uvars [] params.reverse paramCtx) :
     a.WellFormed envTypes decl params := by
@@ -550,8 +550,8 @@ theorem AuxiliarySpecializationEvidence.wellFormed
 
 /-- The selected container constructors carry a syntactic parameter
 telescope covering the specialisation arguments. -/
-theorem AuxiliarySpecializationEvidence.ctorForallPrefix
-    (H : AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl a generated)
+theorem SpecializationGenerates.ctorForallPrefix
+    (H : SpecializationGenerates sourceEnv envTypes paramCtx decl a generated)
     {ctor : VConstVal} (hctor : ctor ∈ a.source.ctors) :
     HasForallPrefix ctor.type a.arguments.length := by
   rw [H.argumentsLength]
@@ -565,7 +565,7 @@ variable {sourceEnv envTypes : VEnv} {paramCtx : List VExpr} {decl : VInductDecl
   {leaf : Nat → VExpr → VExpr → Prop}
 
 theorem auxiliarySpecializations_certified
-    (H : List.Forall₂ (AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl)
+    (H : List.Forall₂ (SpecializationGenerates sourceEnv envTypes paramCtx decl)
       auxiliaries generated) :
     ContainersInstalled sourceEnv auxiliaries := by
   apply ContainersInstalled.of_installed
@@ -574,7 +574,7 @@ theorem auxiliarySpecializations_certified
   exact h.installed
 
 theorem auxiliarySpecializations_wellFormed
-    (H : List.Forall₂ (AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl)
+    (H : List.Forall₂ (SpecializationGenerates sourceEnv envTypes paramCtx decl)
       auxiliaries generated)
     (henv : envTypes.WF) (params : List VExpr)
     (hparams : VEnv.IsDefEqCtx envTypes decl.uvars [] params.reverse paramCtx) :
@@ -584,7 +584,7 @@ theorem auxiliarySpecializations_wellFormed
   exact h.wellFormed henv params hparams
 
 theorem auxiliarySpecializations_names
-    (H : List.Forall₂ (AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl)
+    (H : List.Forall₂ (SpecializationGenerates sourceEnv envTypes paramCtx decl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion env decl leaf)
       generated targets) :
@@ -599,7 +599,7 @@ theorem auxiliarySpecializations_names
 /-- The restoration heads claim exactly the names of the lowered auxiliary
 families and their constructors. -/
 theorem auxiliarySpecializations_headNames
-    (H : List.Forall₂ (AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl)
+    (H : List.Forall₂ (SpecializationGenerates sourceEnv envTypes paramCtx decl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion env decl leaf)
       generated targets) :
@@ -618,7 +618,7 @@ theorem auxiliarySpecializations_headNames
 
 /-- Every direct family is computed. -/
 theorem auxiliarySpecializations_directFamilies
-    (H : List.Forall₂ (AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl)
+    (H : List.Forall₂ (SpecializationGenerates sourceEnv envTypes paramCtx decl)
       auxiliaries generated)
     (uvars : Nat) (params : List VExpr) :
     ∃ direct, auxiliaries.mapM (fun a => a.specializedFamily uvars params) =
@@ -632,7 +632,7 @@ theorem auxiliarySpecializations_directFamilies
 /-- Scoping of the restoration table from the name separation of the lowered
 auxiliary families and their generated recursors. -/
 theorem auxiliarySpecializations_scoped
-    (H : List.Forall₂ (AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl)
+    (H : List.Forall₂ (SpecializationGenerates sourceEnv envTypes paramCtx decl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion env decl leaf)
       generated targets)
@@ -680,16 +680,16 @@ theorem sameTelescopeArity_hasForallPrefix
     rcases ih with ⟨domains, body, rfl, hn⟩
     exact ⟨leftDomain :: domains, body, rfl, Nat.succ_le_succ hn⟩
 
-theorem FinalLoweredGeneratedFamilyNativeSource.auxiliarySpecialization
+theorem AuxiliaryFamilySourceData.auxiliarySpecialization
     {ves : VEnvs} {isUnsafe : Bool} {prodEnv : Environment}
     {params : Array Expr} {nparams : Nat}
     {finalState : Lean4Lean.ElimNestedInductive.State}
     {targetConcrete : InductiveType}
-    {H : FinalLoweredGeneratedFamilyOrigin prodEnv params nparams finalState
+    {H : LoweredAuxiliaryFamily prodEnv params nparams finalState
       targetConcrete}
     {sourceTypesVEnv : VEnv} {lparams : List Name} {target : VInductiveType}
     {baseVEnv : VEnv}
-    (N : FinalLoweredGeneratedFamilyNativeSource H baseVEnv sourceTypesVEnv
+    (N : AuxiliaryFamilySourceData H baseVEnv sourceTypesVEnv
       lparams target)
     (hbase : baseVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
     (wf : ves.WFCore prodEnv) (decl : VInductDecl)
@@ -699,7 +699,7 @@ theorem FinalLoweredGeneratedFamilyNativeSource.auxiliarySpecialization
     (hctx : VEnv.IsDefEqCtx baseVEnv lparams.length [] N.sourceParams.reverse
       paramCtx) :
     ∃ a : ContainerSpecialization,
-      AuxiliarySpecializationEvidence
+      SpecializationGenerates
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceTypesVEnv paramCtx
         decl a N.payload.source ∧
       a.auxiliary = N.payload.source.name ∧ a.source = N.containerFamily := by
@@ -916,12 +916,12 @@ theorem Expr.getAppFn_instantiateList_of_const {e : Expr} {subst : List Expr}
     simp only [Expr.instantiateList]
     exact ih (Expr.getAppFn_instantiate1'_of_const H)
 
-theorem BuiltAuxiliary.nested_getAppFn
+theorem AuxiliaryFamilySpec.nested_getAppFn
     {env : Environment} {lctx : LocalContext} {params As : Array Expr}
     {levels : List Level} {nparams : Nat} {args : Array Expr}
     {sourceName auxName : Name} {sourceInfo : InductiveVal}
     {data : Lean4Lean.ElimNestedInductive.AuxiliaryData}
-    (H : BuiltAuxiliary env lctx params As levels nparams args sourceName
+    (H : AuxiliaryFamilySpec env lctx params As levels nparams args sourceName
       auxName sourceInfo data)
     (sel : CDeclArray lctx As) (harity : nparams ≤ args.size) :
     data.nested.getAppFn = .const sourceName levels := by
@@ -1125,7 +1125,7 @@ theorem NestedValidatedRunResult.containerSpecializations
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
       envTypes.WF ∧
-      List.Forall₂ (AuxiliarySpecializationEvidence
+      List.Forall₂ (SpecializationGenerates
         (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
         E.production.headers.commonParameterContext sourceDecl)
         auxiliaries generated ∧
@@ -1202,7 +1202,7 @@ theorem NestedValidatedRunResult.containerSpecializations
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource
       (by simpa only [hinitial, safety] using
         (wf.tr (safety := safety)).wf)
-  have Htranslations : ClosedNestedAuxiliaryTranslations
+  have Htranslations : ClosedNestedOccurrenceTypings
       E.nativeSource.envTypes P.c.lparams result E.auxiliarySelection := by
     rw [← E.auxiliaryVEnv_eq_native]
     simpa only [hlparams] using E.auxiliaryTranslations
@@ -1252,7 +1252,7 @@ theorem NestedValidatedRunResult.containerSpecializations
   have Hmap : NestedAuxMapModels result finalState :=
     Hrun.resultAuxMapModelsFresh (by simpa using hempty)
   have Hpoint : ∀ family ∈ N.generated, ∃ a,
-      AuxiliarySpecializationEvidence (ves.venv safety) E.nativeSource.envTypes
+      SpecializationGenerates (ves.venv safety) E.nativeSource.envTypes
         N.parameterContext sourceDecl a family ∧
       ∃ nested levels, result.aux2nested.find? a.auxiliary = some nested ∧
         nested.getAppFn = .const a.source.name levels := by

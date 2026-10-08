@@ -785,11 +785,11 @@ theorem MLCtx.mkLambda'_succ : ∀ (c : TypeChecker.MLCtx) (n : Nat) (h : n + 1 
 telescope, extends a semantic metacontext by the opened parameters: the opened
 body translates in the extended metacontext, and the telescope is the closure
 of that translation over the new parameters. -/
-theorem RestoreParamOpening.toMLCtxForall {env : VEnv} {Us : List Name}
+theorem ParamOpening.toMLCtxForall {env : VEnv} {Us : List Name}
     (henv : env.WF) {r : Restoration}
     {lctx : LocalContext} {As : Array Expr} {e : Expr} {n : Nat}
     {outLctx : LocalContext} {outAs : Array Expr} {tail residual : Expr}
-    (Hopen : RestoreParamOpening lctx As e n outLctx outAs tail)
+    (Hopen : ParamOpening lctx As e n outLctx outAs tail)
     (Htel : Expr.ForallTelescope e n residual)
     (houtWF : outLctx.WF)
     (m : TypeChecker.MLCtx) (hm : m.lctx = lctx) (hmWF : m.WF env Us)
@@ -1077,7 +1077,7 @@ theorem NestedRestorationOpening.translatesForall
     (Hrestored : Closed Hopen.restoredBody)
     (Hs : TrExprS envL Us [] input s) (HsTy : envL.IsType Us.length [] s) :
     ∃ t, TrExprS envT Us [] output t ∧ envT.IsType Us.length [] t ∧ r.expr s = some t := by
-  rcases RestoreParamOpening.toMLCtxForall hLwf (r := r) Hopen.opening Htel Hopen.lctxWF
+  rcases ParamOpening.toMLCtxForall hLwf (r := r) Hopen.opening Htel Hopen.lctxWF
       .nil rfl trivial Hs HsTy Hav Hpj trivial with
     ⟨ML, sR, hn, hML, hMLwf, hdrop, havML, HsR, HsRTy, hs⟩
   have hMLlen : ML.length = result.nparams := by
@@ -1143,12 +1143,12 @@ theorem NestedRestorationOpening.translatesForall
   exact hfor _ _ _ _ _ hr
 
 
-/-- Lambda counterpart of `RestoreParamOpening.toMLCtxForall`. -/
-theorem RestoreParamOpening.toMLCtxLambda {env : VEnv} {Us : List Name}
+/-- Lambda counterpart of `ParamOpening.toMLCtxForall`. -/
+theorem ParamOpening.toMLCtxLambda {env : VEnv} {Us : List Name}
     (henv : env.WF) {r : Restoration}
     {lctx : LocalContext} {As : Array Expr} {e : Expr} {n : Nat}
     {outLctx : LocalContext} {outAs : Array Expr} {tail residual : Expr}
-    (Hopen : RestoreParamOpening lctx As e n outLctx outAs tail)
+    (Hopen : ParamOpening lctx As e n outLctx outAs tail)
     (Htel : Expr.LambdaTelescope e n residual)
     (houtWF : outLctx.WF)
     (m : TypeChecker.MLCtx) (hm : m.lctx = lctx) (hmWF : m.WF env Us)
@@ -1247,7 +1247,7 @@ theorem NestedRestorationOpening.translatesLambda
     (Hs : TrExprS envL Us [] input s) :
     ∃ t, TrExprS envT Us [] output t ∧ VExpr.WF envT Us.length [] t ∧
       r.expr s = some t := by
-  rcases RestoreParamOpening.toMLCtxLambda hLwf (r := r) Hopen.opening Htel Hopen.lctxWF
+  rcases ParamOpening.toMLCtxLambda hLwf (r := r) Hopen.opening Htel Hopen.lctxWF
       .nil rfl trivial Hs Hav Hpj trivial with
     ⟨ML, sR, hn, hML, hMLwf, hdrop, havML, HsR, hs⟩
   have hMLlen : ML.length = result.nparams := by

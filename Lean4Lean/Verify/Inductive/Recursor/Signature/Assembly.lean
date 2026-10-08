@@ -570,7 +570,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisHeader
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -845,12 +845,12 @@ noncomputable def RecursorConstruction.familySignature
 theorem RecursorConstruction.recursorTelescope_motives_eq
     (H : RecursorConstruction R) {owner₁ owner₂ : Nat}
     {target₁ target₂ : VExpr}
-    (T₁ : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T₁ : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner₁)
       target₁ stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner₁]!.indices.size owner₁)
-    (T₂ : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T₂ : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner₂)
       target₂ stats.params.size (H.recInfos.map (·.motive)).size
@@ -867,12 +867,12 @@ theorem RecursorConstruction.recursorTelescope_minors_eq
     (H : RecursorConstruction R) {owner₁ owner₂ : Nat}
     (howner₁ : owner₁ < H.recInfos.size) (howner₂ : owner₂ < H.recInfos.size)
     {target₁ target₂ : VExpr}
-    (T₁ : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T₁ : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner₁)
       target₁ stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size H.recInfos[owner₁]!.indices.size owner₁)
-    (T₂ : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T₂ : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner₂)
       target₂ stats.params.size (H.recInfos.map (·.motive)).size
@@ -975,7 +975,7 @@ def RecursorConstruction.RecursiveShapesSpec
     shapes.map Prod.fst = traversal.recursivePositions) ∧
   shapes.length = S.hypotheses.size ∧
   (∀ owner (_howner : owner < H.recInfos.size) (target : VExpr)
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -1252,7 +1252,7 @@ theorem RecursorConstruction.consumedSignatureData
 theorem RecursorConstruction.recursorTelescope_minor_eq
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     {owner : Nat} (howner : owner < H.recInfos.size) {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size
@@ -1346,7 +1346,7 @@ list for the consumed signature. -/
 theorem RecursorConstruction.recursorTelescope_minors_consumed
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     {owner : Nat} (howner : owner < H.recInfos.size) {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+    (T : RecursorTypeTelescope R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       target stats.params.size (H.recInfos.map (·.motive)).size

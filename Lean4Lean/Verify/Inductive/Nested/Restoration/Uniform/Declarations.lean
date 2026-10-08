@@ -27,8 +27,8 @@ constructors):
     has a lowering mapping from a pre-lowering family whose constructor types
     are translated in the source-header environment (`loweredFamilyMappings`:
     the source translations for the source families, the native payload
-    `NestedGeneratedFamilyNativeSources` for the generated ones), so
-    `LoweredConstructorMapping.hitShapeTele` applies.
+    `AuxiliaryFamilySources` for the generated ones), so
+    `ConstructorLowering.Resolved.hitShapeTele` applies.
   - `RecursorConstruction.recursorNames_not_mem`: from the
     distinctness of family and recursor names.
 * `NestedValidatedRunResult.normalizedTotal_of`: `Restoration.expr` is total
@@ -949,15 +949,15 @@ end Completed
 
 /-! ### Lowered constructor types of a run -/
 
-theorem LoweredConstructorMappings.forall_mem
+theorem ConstructorLowerings.Resolved.forall_mem
     {env : Environment} {params : Array Expr} {nparams : Nat}
     {finalResult : Lean4Lean.ElimNestedInductive.Result}
     {sources : List Constructor} {state : Lean4Lean.ElimNestedInductive.State}
     {out : List Constructor × Lean4Lean.ElimNestedInductive.State}
-    (H : LoweredConstructorMappings env params nparams finalResult sources state out) :
+    (H : ConstructorLowerings.Resolved env params nparams finalResult sources state out) :
     ∀ t ∈ out.1, ∃ source ∈ sources, ∃ before after,
       before.lvls = state.lvls ∧
-      LoweredConstructorMapping env params nparams finalResult source before (t, after) := by
+      ConstructorLowering.Resolved env params nparams finalResult source before (t, after) := by
   induction H with
   | nil => intro t ht; simp at ht
   | @cons source state step sources out Hhead Htail ih =>
@@ -971,7 +971,7 @@ theorem LoweredConstructorMappings.forall_mem
 mapping from a pre-lowering family whose constructor types avoid the
 auxiliary heads**, at a state carrying the declaration's universe levels.
 Source families use the checked source translations; generated families use
-the native pre-lowering payload of the run (`NestedGeneratedFamilyNativeSources`),
+the native pre-lowering payload of the run (`AuxiliaryFamilySources`),
 whose constructor types are translated in the environment of the source
 headers, where the auxiliary names are fresh. -/
 theorem NestedValidatedRunResult.loweredFamilyMappings
@@ -987,7 +987,7 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
       (∀ ctor ∈ source.ctors, ctor.type.AvoidsConsts E.auxHeads) ∧
       source.type.AvoidsConsts E.auxHeads ∧
       stepState.lvls = lparams.map Level.param ∧
-      LoweredInductiveMapping sourceProdEnv result.params nparams result source stepState
+      FamilyLowering.Resolved sourceProdEnv result.params nparams result source stepState
         (result.types[i], loweredState) := by
   obtain ⟨envTypes, hadded, _henvTypes, hfreshTypes, hfreshSrc, _hreserved, _hkeys,
     _hnodup⟩ := E.auxHeadsFacts wf Hsources
@@ -1047,7 +1047,7 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
     simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf
   have HsourceTypesWF : E.nativeSource.envTypes.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource HbaseWF
-  have Htranslations : ClosedNestedAuxiliaryTranslations
+  have Htranslations : ClosedNestedOccurrenceTypings
       E.nativeSource.envTypes P.c.lparams result E.auxiliarySelection := by
     rw [← E.auxiliaryVEnv_eq_native]
     simpa only [hlparams] using E.auxiliaryTranslations
@@ -1071,7 +1071,7 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
       (∀ ctor ∈ source.ctors, ctor.type.AvoidsConsts E.auxHeads) ∧
       source.type.AvoidsConsts E.auxHeads ∧
       stepState.lvls = lparams.map Level.param ∧
-      LoweredInductiveMapping P.c.env result.params P.nparams result source stepState
+      FamilyLowering.Resolved P.c.env result.params P.nparams result source stepState
         (result.types[i], loweredState) by
     intro i hi
     obtain ⟨source, st, ls, h1, h0, h2, M⟩ := key i hi

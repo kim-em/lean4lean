@@ -72,7 +72,7 @@ structure
         A.rule.all_args_bound.fvars =
       semantic.generated.replayTrace A.rule.all_args_bound.fvars
   entry_lt : semantic.generated.ownerIdx < H.entries.length
-  telescope : GeneratedRecursorTelescopeTranslation H.outVEnv
+  telescope : RecursorTypeTelescope H.outVEnv
     (AddInductive.getRecLevelParams H.elimLevel c.lparams)
     (H.generated.entry semantic.generated.ownerIdx entry_lt).info.type
     H.entries[semantic.generated.ownerIdx].2.type

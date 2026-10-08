@@ -16,13 +16,13 @@ namespace VerifyInductive
 /-- Semantic constructor-lowering certificate.  In addition to the rebuilt
 telescope shape, it records the complete stateful nested-expression
 translation from the opened source tail to the installed constructor type. -/
-structure LoweredConstructorTranslation
+structure ConstructorLowering
     (env : Environment) (params : Array Expr) (nparams : Nat)
     (source : Constructor) (state : Lean4Lean.ElimNestedInductive.State)
     (out : Constructor × Lean4Lean.ElimNestedInductive.State) : Prop where
   name : out.1.name = source.name
   translated : ∃ lctx tail As lowered openedState,
-    NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+    LoweringParamOpening {} #[] source.type nparams lctx tail As ∧
     NestedBindingContextWF lctx openedState.ngen ∧
     ∃ Hselection : CDeclArray lctx As,
       Hselection.fvars.Nodup ∧
@@ -30,7 +30,7 @@ structure LoweredConstructorTranslation
       openedState.nestedAux = state.nestedAux ∧
       openedState.nextIdx = state.nextIdx ∧
       As.size = nparams ∧
-      NestedExprReplacement env lctx params As tail openedState
+      ExprLowering env lctx params As tail openedState
         (lowered, out.2) ∧
       out.1.type = lctx.mkForall As lowered
   /-- Lowering never modifies the universe arguments `lvls` of the state. -/
@@ -39,8 +39,8 @@ structure LoweredConstructorTranslation
 /-- The selected opening of a closed source telescope retains enough
 information to reconstruct the closing context used by the stronger
 execution invariant. -/
-def NestedParamOpening.closingContext
-    (H : NestedParamOpening {} #[] source n lctx tail As)
+def LoweringParamOpening.closingContext
+    (H : LoweringParamOpening {} #[] source n lctx tail As)
     (Hbinding : NestedBindingContextWF lctx ngen)
     (Hselection : CDeclArray lctx As)
     (hnodup : Hselection.fvars.Nodup)
@@ -53,11 +53,11 @@ def NestedParamOpening.closingContext
     close := ?_ }
   intro body Hbody
   rcases H.forallTelescope with ⟨residual, Htelescope⟩
-  exact H.toRestoreParamOpening.root_mkForall_fvarsClosed Hbinding.wf
+  exact H.toParamOpening.root_mkForall_fvarsClosed Hbinding.wf
     Htelescope Hsource Hselection Hbody
 
-theorem LoweredConstructorTranslation.targetRestoreTelescope
-    (H : LoweredConstructorTranslation env params nparams source state out) :
+theorem ConstructorLowering.targetRestoreTelescope
+    (H : ConstructorLowering env params nparams source state out) :
     RestoreTelescope out.1.type nparams := by
   rcases H.translated with
     ⟨lctx, tail, As, lowered, openedState, Hopening, _hlctxWF, Hselection,
@@ -65,8 +65,8 @@ theorem LoweredConstructorTranslation.targetRestoreTelescope
   rw [htype, ← hsize]
   exact (Hselection.forallTelescope lowered).restorePrefix (Nat.le_refl _)
 
-theorem LoweredConstructorTranslation.newTypesLE
-    (H : LoweredConstructorTranslation env params nparams source state out) :
+theorem ConstructorLowering.newTypesLE
+    (H : ConstructorLowering env params nparams source state out) :
     NestedNewTypesLE state out.2 := by
   rcases H.translated with
     ⟨lctx, tail, As, lowered, openedState, _, _, _, _, hopenedTypes, _, _,
@@ -74,8 +74,8 @@ theorem LoweredConstructorTranslation.newTypesLE
   rcases Hreplace.newTypesLE with ⟨suffix, hsuffix⟩
   exact ⟨suffix, by simpa [hopenedTypes] using hsuffix⟩
 
-theorem LoweredConstructorTranslation.nestedAuxLE
-    (H : LoweredConstructorTranslation env params nparams source state out) :
+theorem ConstructorLowering.nestedAuxLE
+    (H : ConstructorLowering env params nparams source state out) :
     NestedAuxLE state out.2 := by
   rcases H.translated with
     ⟨lctx, tail, As, lowered, openedState, _, _, _, _, _, hopenedAux, _, _,
@@ -83,8 +83,8 @@ theorem LoweredConstructorTranslation.nestedAuxLE
   rcases Hreplace.nestedAuxLE with ⟨suffix, hsuffix, -⟩
   exact ⟨suffix, by simpa [hopenedAux] using hsuffix, H.lvls⟩
 
-theorem LoweredConstructorTranslation.namesWF
-    (H : LoweredConstructorTranslation env params nparams source state out)
+theorem ConstructorLowering.namesWF
+    (H : ConstructorLowering env params nparams source state out)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   rcases H.translated with
     ⟨lctx, tail, As, lowered, openedState, _, _, _, _, _, hopenedAux,
@@ -92,8 +92,8 @@ theorem LoweredConstructorTranslation.namesWF
   exact Hreplace.namesWF
     (Hstate.ofCacheCounterEq hopenedAux hopenedNext)
 
-theorem LoweredConstructorTranslation.namesFresh
-    (H : LoweredConstructorTranslation env params nparams source state out)
+theorem ConstructorLowering.namesFresh
+    (H : ConstructorLowering env params nparams source state out)
     (Hstate : NestedAuxNamesFresh env state) :
     NestedAuxNamesFresh env out.2 := by
   rcases H.translated with
@@ -101,8 +101,8 @@ theorem LoweredConstructorTranslation.namesFresh
       _, _, Hreplace, _⟩
   exact Hreplace.namesFresh (Hstate.ofCacheEq hopenedAux)
 
-theorem LoweredConstructorTranslation.auxFVarsIn
-    (H : LoweredConstructorTranslation env params nparams source state out)
+theorem ConstructorLowering.auxFVarsIn
+    (H : ConstructorLowering env params nparams source state out)
     (Hsource : source.type.FVarsIn fun _ => False)
     (Hparams : ∀ param ∈ params, param.FVarsIn P)
     (Hstate : NestedAuxFVarsIn P state) :
@@ -123,8 +123,8 @@ theorem LoweredConstructorTranslation.auxFVarsIn
     rwa [hopenedAux] at hentry
   exact Hreplace.auxFVarsIn Hselection Hinput Hparams Hopened
 
-theorem LoweredConstructorTranslation.pendingNewTypesClosed
-    (H : LoweredConstructorTranslation env params nparams source state out)
+theorem ConstructorLowering.pendingNewTypesClosed
+    (H : ConstructorLowering env params nparams source state out)
     (Henv : EnvironmentTypesClosed env)
     (Hsource : source.type.FVarsIn fun _ => False)
     (Hstate : PendingNewTypesClosed cursor state) :
@@ -148,21 +148,21 @@ theorem LoweredConstructorTranslation.pendingNewTypesClosed
     rw [hvalue]
     exact Hstate j hcursor hjState
   apply Hreplace.pendingNewTypesClosed Henv Hclosing
-  · simpa only [Hclosing, NestedParamOpening.closingContext] using Htail
+  · simpa only [Hclosing, LoweringParamOpening.closingContext] using Htail
   · exact Hopened
 
 /-- Constructor lowering interpreted against the final restoration map. The
 opened source telescope and rebuilt target telescope are retained verbatim,
 while the body traversal is promoted from operational replacement to the
-semantic `NestedExprMapping` relation. -/
-structure LoweredConstructorMapping
+semantic `ExprLowering.Resolved` relation. -/
+structure ConstructorLowering.Resolved
     (env : Environment) (params : Array Expr) (nparams : Nat)
     (finalResult : Lean4Lean.ElimNestedInductive.Result)
     (source : Constructor) (state : Lean4Lean.ElimNestedInductive.State)
     (out : Constructor × Lean4Lean.ElimNestedInductive.State) : Prop where
   name : out.1.name = source.name
   mapped : ∃ lctx tail As lowered openedState,
-    NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+    LoweringParamOpening {} #[] source.type nparams lctx tail As ∧
     lctx.WF ∧
     ∃ Hselection : CDeclArray lctx As,
       Hselection.fvars.Nodup ∧
@@ -170,7 +170,7 @@ structure LoweredConstructorMapping
       openedState.nestedAux = state.nestedAux ∧
       openedState.nextIdx = state.nextIdx ∧
       As.size = nparams ∧
-      NestedExprMapping env lctx params As finalResult tail openedState
+      ExprLowering.Resolved env lctx params As finalResult tail openedState
         (lowered, out.2) ∧
       out.1.type = lctx.mkForall As lowered
   /-- Lowering never modifies the universe arguments `lvls` of the state. -/
@@ -178,7 +178,7 @@ structure LoweredConstructorMapping
 
 /-- Constructor lowering with its expression mapping upgraded pointwise to
 reopening under a restoration parameter array. -/
-structure LoweredConstructorReopening
+structure ConstructorLowering.Reopened
     (env : Environment) (params : Array Expr) (nparams : Nat)
     (finalResult : Lean4Lean.ElimNestedInductive.Result)
     (restoreAs : Array Expr)
@@ -186,22 +186,22 @@ structure LoweredConstructorReopening
     (out : Constructor × Lean4Lean.ElimNestedInductive.State) : Prop where
   name : out.1.name = source.name
   reopened : ∃ lctx tail As lowered openedState,
-    NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+    LoweringParamOpening {} #[] source.type nparams lctx tail As ∧
     ∃ Hselection : CDeclArray lctx As,
       Hselection.fvars.Nodup ∧
       openedState.newTypes = state.newTypes ∧
       openedState.nestedAux = state.nestedAux ∧
       openedState.nextIdx = state.nextIdx ∧
       As.size = nparams ∧
-      NestedExprReopening env lctx params As finalResult restoreAs tail
+      ExprLowering.Reopened env lctx params As finalResult restoreAs tail
         openedState (lowered, out.2) ∧
       out.1.type = lctx.mkForall As lowered
 
 /-- A mapped lowered constructor type contains no free-variable IDs: the
 translated body remains scoped by the copied source parameters, and the
 rebuilt forall telescope closes exactly those parameters. -/
-theorem LoweredConstructorMapping.targetFVarIdsClosed
-    (H : LoweredConstructorMapping env params nparams finalResult source state
+theorem ConstructorLowering.Resolved.targetFVarIdsClosed
+    (H : ConstructorLowering.Resolved env params nparams finalResult source state
       out)
     (Hsource : source.type.FVarsIn fun _ => False) :
     out.1.type.FVarIdsIn fun _ => False := by
@@ -215,13 +215,13 @@ theorem LoweredConstructorMapping.targetFVarIdsClosed
     Hmapping.outputFVarIdsIn Hselection (FVarsIn_to_FVarIdsIn Htail)
   rcases Hopening.forallTelescope with ⟨residual, Htelescope⟩
   rw [htype]
-  exact Hopening.toRestoreParamOpening.root_mkForall_fvarIdsClosed hlctxWF
+  exact Hopening.toParamOpening.root_mkForall_fvarIdsClosed hlctxWF
     Htelescope (FVarsIn_to_FVarIdsIn Hsource) Hselection Hlowered
 
 /-- Source and lowered constructor types have exactly the same retained
 forall prefix; lowering changes only the residual constructor body. -/
-theorem LoweredConstructorMapping.sourceTargetSameForallPrefix
-    (H : LoweredConstructorMapping env params nparams finalResult source state
+theorem ConstructorLowering.Resolved.sourceTargetSameForallPrefix
+    (H : ConstructorLowering.Resolved env params nparams finalResult source state
       out)
     (Hsource : source.type.FVarsIn fun _ => False)
     (hsourceBVar : Closed source.type) :
@@ -231,14 +231,14 @@ theorem LoweredConstructorMapping.sourceTargetSameForallPrefix
       hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hmapping, htype⟩
   rcases Hopening.forallTelescope with ⟨residual, Htelescope⟩
   have hsource : lctx.mkForall As tail = source.type :=
-    Hopening.toRestoreParamOpening.root_mkForall_tail hlctxWF Htelescope
+    Hopening.toParamOpening.root_mkForall_tail hlctxWF Htelescope
       (FVarsIn_to_FVarIdsIn Hsource) hsourceBVar
   have hsame := Hselection.sameForallPrefix hnodupAs tail lowered
   rw [hsize, hsource, ← htype] at hsame
   exact hsame
 
-theorem LoweredConstructorMapping.reopens
-    (H : LoweredConstructorMapping env params nparams finalResult source state
+theorem ConstructorLowering.Resolved.reopens
+    (H : ConstructorLowering.Resolved env params nparams finalResult source state
       out)
     (hresultParams : finalResult.params = params)
     (fvars : List FVarId)
@@ -246,7 +246,7 @@ theorem LoweredConstructorMapping.reopens
     (hnodup : fvars.Nodup)
     (Hsource : source.type.FVarsIn fun _ => False)
     (hparamsSize : params.size = nparams) :
-    LoweredConstructorReopening env params nparams finalResult restoreAs source
+    ConstructorLowering.Reopened env params nparams finalResult restoreAs source
       state out := by
   refine ⟨H.name, ?_⟩
   rcases H.mapped with
@@ -267,22 +267,22 @@ theorem LoweredConstructorMapping.reopens
 /-- Opening the lowered constructor with restoration's fresh parameters
 produces the lowering body renamed from its original parameter selection to
 the concrete restoration array. -/
-theorem LoweredConstructorReopening.restoreTail
-    (H : LoweredConstructorReopening env params nparams finalResult targetAs
+theorem ConstructorLowering.Reopened.restoreTail
+    (H : ConstructorLowering.Reopened env params nparams finalResult targetAs
       source state out)
     (restoreLctx : LocalContext) (restoreAs : Array Expr)
     (restoredTail : Expr)
-    (Hrestore : RestoreParamOpening {} #[] out.1.type nparams restoreLctx
+    (Hrestore : ParamOpening {} #[] out.1.type nparams restoreLctx
       restoreAs restoredTail) :
     ∃ lctx tail As lowered openedState,
-      NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+      LoweringParamOpening {} #[] source.type nparams lctx tail As ∧
       ∃ Hselection : CDeclArray lctx As,
         Hselection.fvars.Nodup ∧
         openedState.newTypes = state.newTypes ∧
         openedState.nestedAux = state.nestedAux ∧
         openedState.nextIdx = state.nextIdx ∧
         As.size = nparams ∧
-        NestedExprReopening env lctx params As finalResult targetAs tail
+        ExprLowering.Reopened env lctx params As finalResult targetAs tail
           openedState (lowered, out.2) ∧
         out.1.type = lctx.mkForall As lowered ∧
         restoredTail = (lowered.abstract As).instantiateRev restoreAs := by
@@ -301,12 +301,12 @@ theorem LoweredConstructorReopening.restoreTail
 the restoration parameters substituted for lowering's fresh parameters.
 This is the constructor-scoped inverse theorem: it combines the exact two
 telescope traversals with the structural inverse for nested replacement. -/
-theorem LoweredConstructorReopening.restoreTail_inverse
-    (H : LoweredConstructorReopening env params nparams finalResult targetAs
+theorem ConstructorLowering.Reopened.restoreTail_inverse
+    (H : ConstructorLowering.Reopened env params nparams finalResult targetAs
       source state out)
     (restoreLctx : LocalContext) (restoreAs : Array Expr)
     (restoredTail : Expr)
-    (Hrestore : RestoreParamOpening {} #[] out.1.type nparams restoreLctx
+    (Hrestore : ParamOpening {} #[] out.1.type nparams restoreLctx
       restoreAs restoredTail)
     (restoreEnv : Environment)
     (htargetAs : targetAs = restoreAs)
@@ -314,14 +314,14 @@ theorem LoweredConstructorReopening.restoreTail_inverse
     (Hsource : RestoreSourceDisjoint finalResult restoreEnv source.type)
     (hsourceBVar : Closed source.type) :
     ∃ lctx tail As lowered openedState,
-      NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+      LoweringParamOpening {} #[] source.type nparams lctx tail As ∧
       ∃ Hselection : CDeclArray lctx As,
         Hselection.fvars.Nodup ∧
         openedState.newTypes = state.newTypes ∧
         openedState.nestedAux = state.nestedAux ∧
         openedState.nextIdx = state.nextIdx ∧
         As.size = nparams ∧
-        NestedExprReopening env lctx params As finalResult targetAs tail
+        ExprLowering.Reopened env lctx params As finalResult targetAs tail
           openedState (lowered, out.2) ∧
         out.1.type = lctx.mkForall As lowered ∧
         restoredTail = (lowered.abstract As).instantiateRev restoreAs ∧
@@ -373,8 +373,8 @@ produces the correspondingly renamed source body.  Unlike
 `restoreTail_inverse`, this theorem starts from the mapping certificate
 available before restoration chooses its fresh variables and concludes about
 the `restoredBody` retained by `NestedRestoration`. -/
-theorem LoweredConstructorMapping.restoredBody_inverse
-    (H : LoweredConstructorMapping env params nparams finalResult source state
+theorem ConstructorLowering.Resolved.restoredBody_inverse
+    (H : ConstructorLowering.Resolved env params nparams finalResult source state
       out)
     (hresultParams : finalResult.params = params)
     (paramFvars : List FVarId)
@@ -385,7 +385,7 @@ theorem LoweredConstructorMapping.restoredBody_inverse
     (hparamsSize : params.size = nparams)
     (restoreLctx : LocalContext) (restoreAs : Array Expr)
     (openedBody restoredBody : Expr)
-    (Hrestore : RestoreParamOpening {} #[] out.1.type nparams restoreLctx
+    (Hrestore : ParamOpening {} #[] out.1.type nparams restoreLctx
       restoreAs openedBody)
     (restoreEnv : Environment)
     (Hbody : ExprReplacement
@@ -394,11 +394,11 @@ theorem LoweredConstructorMapping.restoredBody_inverse
     (hresultNParams : finalResult.nparams = nparams)
     (Hsource : RestoreSourceDisjoint finalResult restoreEnv source.type) :
     ∃ lctx tail As,
-      NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+      LoweringParamOpening {} #[] source.type nparams lctx tail As ∧
       ∃ Hselection : CDeclArray lctx As,
         Hselection.fvars.Nodup ∧ As.size = nparams ∧
         (restoredBody == Expr.reopenParams tail As restoreAs) = true := by
-  have Hreopening : LoweredConstructorReopening env params nparams finalResult
+  have Hreopening : ConstructorLowering.Reopened env params nparams finalResult
       restoreAs source state out :=
     H.reopens hresultParams paramFvars hparams hnodup HsourceClosed hparamsSize
   rcases Hreopening.restoreTail_inverse restoreLctx restoreAs openedBody
@@ -418,14 +418,14 @@ its restored body related back to the independently checked source
 constructor body.  The outer telescope equations are retained explicitly;
 the next abstraction layer can therefore prove alpha-equivalence without
 replaying either executable traversal. -/
-structure ConstructorRestorationBodyInverse
+structure ConstructorRestorationInverse
     (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment)
     (nparams : Nat) (source lowered : Constructor) (restoredType : Expr) where
   restoreLctx : LocalContext
   restoreAs : Array Expr
   openedBody : Expr
   restoredBody : Expr
-  loweredOpening : RestoreParamOpening {} #[] lowered.type nparams
+  loweredOpening : ParamOpening {} #[] lowered.type nparams
     restoreLctx restoreAs openedBody
   restoreLctxWF : restoreLctx.WF
   restoreSelection : CDeclArray restoreLctx restoreAs
@@ -443,7 +443,7 @@ structure ConstructorRestorationBodyInverse
   loweredFVarIdsClosed : lowered.type.FVarIdsIn fun _ => False
   sourceLoweredPrefix :
     Expr.SameForallPrefix nparams source.type lowered.type
-  sourceOpening : NestedParamOpening {} #[] source.type nparams sourceLctx
+  sourceOpening : LoweringParamOpening {} #[] source.type nparams sourceLctx
     sourceTail sourceAs
   sourceSelection : CDeclArray sourceLctx sourceAs
   sourceNodup : sourceSelection.fvars.Nodup
@@ -455,8 +455,8 @@ structure ConstructorRestorationBodyInverse
 This form does not assume any naming convention for generated auxiliary
 constructors; callers may establish source disjointness from typing and
 freshness instead. -/
-theorem LoweredConstructorMapping.nestedRestoration_inverse
-    (H : LoweredConstructorMapping env params nparams result source state out)
+theorem ConstructorLowering.Resolved.nestedRestoration_inverse
+    (H : ConstructorLowering.Resolved env params nparams result source state out)
     (hresultParams : result.params = params)
     (paramFvars : List FVarId)
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
@@ -469,7 +469,7 @@ theorem LoweredConstructorMapping.nestedRestoration_inverse
     (hresultNParams : result.nparams = nparams)
     (Hrestored : NestedRestoration result restoreEnv {} out.1.type
       restoredType) :
-    Nonempty (ConstructorRestorationBodyInverse result restoreEnv nparams source
+    Nonempty (ConstructorRestorationInverse result restoreEnv nparams source
       out.1 restoredType) := by
   rcases Hrestored with
     ⟨restoreLctx, restoreAs, openedBody, restoredBody, Hopening,
@@ -511,15 +511,15 @@ theorem LoweredConstructorMapping.nestedRestoration_inverse
 /-- Eliminate the source-opening free variables from the body inverse.  The
 restored body is the ordinary residual of the original constructor telescope,
 instantiated only with restoration's fresh parameter array. -/
-theorem ConstructorRestorationBodyInverse.restoredBody_residual
-    (H : ConstructorRestorationBodyInverse result env nparams source lowered
+theorem ConstructorRestorationInverse.restoredBody_residual
+    (H : ConstructorRestorationInverse result env nparams source lowered
       restoredType) :
     ∃ residual,
       Expr.ForallTelescope source.type nparams residual ∧
       (H.restoredBody == residual.instantiateRev H.restoreAs) = true := by
   rcases H.sourceOpening.forallTelescope with ⟨residual, Htelescope⟩
   have htail : H.sourceTail = residual.instantiateRev H.sourceAs :=
-    H.sourceOpening.toRestoreParamOpening.forallResidual Htelescope
+    H.sourceOpening.toParamOpening.forallResidual Htelescope
   have hfree : residual.FVarsIn
       (fun fv => fv ∉ H.sourceSelection.fvars) :=
     (Htelescope.resultFVarsIn H.sourceClosed).mono fun fv hfalse =>
@@ -545,8 +545,8 @@ theorem ConstructorRestorationBodyInverse.restoredBody_residual
 /-- Whole-constructor inverse: rebuilding the restored body under the copied
 parameter telescope yields a constructor type equivalent to the independent
 source constructor type. -/
-theorem ConstructorRestorationBodyInverse.restoredType_eqv_source
-    (H : ConstructorRestorationBodyInverse result env nparams source lowered
+theorem ConstructorRestorationInverse.restoredType_eqv_source
+    (H : ConstructorRestorationInverse result env nparams source lowered
       restoredType) :
     (restoredType == source.type) = true := by
   rcases H.sourceLoweredPrefix.transferRestoreOpening H.loweredOpening with
@@ -594,8 +594,8 @@ theorem ConstructorRestorationBodyInverse.restoredType_eqv_source
 `ConstructorVal`, while lowering is indexed by the corresponding
 `Constructor`; the explicit type equality is the only alignment fact needed
 to connect the two verified traces. -/
-theorem LoweredConstructorMapping.constructorRestoration_inverse
-    (H : LoweredConstructorMapping env params nparams result source state out)
+theorem ConstructorLowering.Resolved.constructorRestoration_inverse
+    (H : ConstructorLowering.Resolved env params nparams result source state out)
     (hresultParams : result.params = params)
     (paramFvars : List FVarId)
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
@@ -608,7 +608,7 @@ theorem LoweredConstructorMapping.constructorRestoration_inverse
     (hresultNParams : result.nparams = nparams)
     (Hrestored : ConstructorRestoration result restoreEnv oldInfo newInfo)
     (htype : oldInfo.type = out.1.type) :
-    Nonempty (ConstructorRestorationBodyInverse result restoreEnv nparams source
+    Nonempty (ConstructorRestorationInverse result restoreEnv nparams source
       out.1 newInfo.type) := by
   apply H.nestedRestoration_inverse hresultParams paramFvars hparams hnodup
     HsourceClosed hsourceBVar hparamsSize restoreEnv HsourceDisjoint hresultNParams
@@ -617,8 +617,8 @@ theorem LoweredConstructorMapping.constructorRestoration_inverse
 /-- Transport source translation across constructor restoration using exact
 semantic disjointness, without imposing a namespace convention on generated
 constructor names. -/
-theorem LoweredConstructorMapping.restoredType_translation
-    (H : LoweredConstructorMapping env params nparams result source state out)
+theorem ConstructorLowering.Resolved.restoredType_translation
+    (H : ConstructorLowering.Resolved env params nparams result source state out)
     (hresultParams : result.params = params)
     (paramFvars : List FVarId)
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
@@ -641,11 +641,11 @@ theorem LoweredConstructorMapping.restoredType_translation
   apply Hsource.eqv
   simpa [beq_comm] using Hinverse.restoredType_eqv_source
 
-theorem LoweredConstructorTranslation.finalMapping
-    (H : LoweredConstructorTranslation env params nparams source state out)
+theorem ConstructorLowering.finalMapping
+    (H : ConstructorLowering env params nparams source state out)
     (Hlater : NestedAuxLE out.2 finalState)
     (Hmap : NestedAuxMapModels finalResult finalState) :
-    LoweredConstructorMapping env params nparams finalResult source state out := by
+    ConstructorLowering.Resolved env params nparams finalResult source state out := by
   refine ⟨H.name, ?_, H.lvls⟩
   rcases H.translated with
     ⟨lctx, tail, As, lowered, openedState, Hopening, hlctxWF, Hselection,
@@ -664,7 +664,7 @@ theorem ElimNestedInductive.lowerConstructor.translationPending
     (Hstate : PendingNewTypesClosed cursor state) :
     (Lean4Lean.ElimNestedInductive.lowerConstructor params nparams ctor
       env state).WF fun out =>
-        LoweredConstructorTranslation env params nparams ctor state out ∧
+        ConstructorLowering env params nparams ctor state out ∧
         PendingNewTypesClosed cursor out.2 := by
   unfold Lean4Lean.ElimNestedInductive.lowerConstructor
   apply ElimNestedInductive.withParams.refinesClosing (Htype := Hctor)
@@ -695,32 +695,32 @@ theorem ElimNestedInductive.lowerConstructor.translationPending
     Hlowered.pendingNewTypesClosed Henv Hclosing Htail HopenedPending⟩
 
 /-- Stateful positional correspondence for an entire constructor list. -/
-inductive LoweredConstructorTranslations
+inductive ConstructorLowerings
     (env : Environment) (params : Array Expr) (nparams : Nat) :
     List Constructor → Lean4Lean.ElimNestedInductive.State →
       List Constructor × Lean4Lean.ElimNestedInductive.State → Prop
-  | nil : LoweredConstructorTranslations env params nparams [] state ([], state)
-  | cons : LoweredConstructorTranslation env params nparams source state step →
-      LoweredConstructorTranslations env params nparams sources step.2 out →
-      LoweredConstructorTranslations env params nparams (source :: sources)
+  | nil : ConstructorLowerings env params nparams [] state ([], state)
+  | cons : ConstructorLowering env params nparams source state step →
+      ConstructorLowerings env params nparams sources step.2 out →
+      ConstructorLowerings env params nparams (source :: sources)
         state (step.1 :: out.1, out.2)
 
-theorem LoweredConstructorTranslations.newTypesLE
-    (H : LoweredConstructorTranslations env params nparams sources state out) :
+theorem ConstructorLowerings.newTypesLE
+    (H : ConstructorLowerings env params nparams sources state out) :
     NestedNewTypesLE state out.2 := by
   induction H with
   | nil => exact .refl _
   | cons Hhead Htail ih => exact Hhead.newTypesLE.trans ih
 
-theorem LoweredConstructorTranslations.nestedAuxLE
-    (H : LoweredConstructorTranslations env params nparams sources state out) :
+theorem ConstructorLowerings.nestedAuxLE
+    (H : ConstructorLowerings env params nparams sources state out) :
     NestedAuxLE state out.2 := by
   induction H with
   | nil => exact .refl _
   | cons Hhead Htail ih => exact Hhead.nestedAuxLE.trans ih
 
-theorem LoweredConstructorTranslations.pendingNewTypesClosed
-    (H : LoweredConstructorTranslations env params nparams sources state out)
+theorem ConstructorLowerings.pendingNewTypesClosed
+    (H : ConstructorLowerings env params nparams sources state out)
     (Henv : EnvironmentTypesClosed env)
     (Hsources : ∀ source ∈ sources,
       source.type.FVarsIn fun _ => False)
@@ -732,23 +732,23 @@ theorem LoweredConstructorTranslations.pendingNewTypesClosed
     exact ih (fun source hsource => Hsources source (by simp [hsource]))
       (Hhead.pendingNewTypesClosed Henv (Hsources _ (by simp)) Hstate)
 
-theorem LoweredConstructorTranslations.namesWF
-    (H : LoweredConstructorTranslations env params nparams sources state out)
+theorem ConstructorLowerings.namesWF
+    (H : ConstructorLowerings env params nparams sources state out)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   induction H with
   | nil => exact Hstate
   | cons Hhead Htail ih => exact ih (Hhead.namesWF Hstate)
 
-theorem LoweredConstructorTranslations.namesFresh
-    (H : LoweredConstructorTranslations env params nparams sources state out)
+theorem ConstructorLowerings.namesFresh
+    (H : ConstructorLowerings env params nparams sources state out)
     (Hstate : NestedAuxNamesFresh env state) :
     NestedAuxNamesFresh env out.2 := by
   induction H with
   | nil => exact Hstate
   | cons Hhead Htail ih => exact ih (Hhead.namesFresh Hstate)
 
-theorem LoweredConstructorTranslations.auxFVarsIn
-    (H : LoweredConstructorTranslations env params nparams sources state out)
+theorem ConstructorLowerings.auxFVarsIn
+    (H : ConstructorLowerings env params nparams sources state out)
     (Hsources : ∀ source ∈ sources,
       source.type.FVarsIn fun _ => False)
     (Hparams : ∀ param ∈ params, param.FVarsIn P)
@@ -762,22 +762,22 @@ theorem LoweredConstructorTranslations.auxFVarsIn
       exact Hsources source (by simp [hsource])
     · exact Hhead.auxFVarsIn (Hsources _ (by simp)) Hparams Hstate
 
-inductive LoweredConstructorMappings
+inductive ConstructorLowerings.Resolved
     (env : Environment) (params : Array Expr) (nparams : Nat)
     (finalResult : Lean4Lean.ElimNestedInductive.Result) :
     List Constructor → Lean4Lean.ElimNestedInductive.State →
       List Constructor × Lean4Lean.ElimNestedInductive.State → Prop
-  | nil : LoweredConstructorMappings env params nparams finalResult [] state
+  | nil : ConstructorLowerings.Resolved env params nparams finalResult [] state
       ([], state)
-  | cons : LoweredConstructorMapping env params nparams finalResult source
+  | cons : ConstructorLowering.Resolved env params nparams finalResult source
       state step →
-      LoweredConstructorMappings env params nparams finalResult sources step.2
+      ConstructorLowerings.Resolved env params nparams finalResult sources step.2
         out →
-      LoweredConstructorMappings env params nparams finalResult
+      ConstructorLowerings.Resolved env params nparams finalResult
         (source :: sources) state (step.1 :: out.1, out.2)
 
-theorem LoweredConstructorMappings.length
-    (H : LoweredConstructorMappings env params nparams finalResult sources
+theorem ConstructorLowerings.Resolved.length
+    (H : ConstructorLowerings.Resolved env params nparams finalResult sources
       state out) : out.1.length = sources.length := by
   induction H with
   | nil => rfl
@@ -786,13 +786,13 @@ theorem LoweredConstructorMappings.length
 /-- Positional projection of the state-threaded constructor mapping.  Both
 the source and target list lookups are retained, so subsequent restoration
 folds can align their metadata without a name-based uniqueness assumption. -/
-theorem LoweredConstructorMappings.mappingAt
-    (H : LoweredConstructorMappings env params nparams finalResult sources
+theorem ConstructorLowerings.Resolved.mappingAt
+    (H : ConstructorLowerings.Resolved env params nparams finalResult sources
       state out) (i : Nat) (hi : i < sources.length) :
     ∃ source target before after,
       sources[i]? = some source ∧
       out.1[i]? = some target ∧
-      LoweredConstructorMapping env params nparams finalResult source before
+      ConstructorLowering.Resolved env params nparams finalResult source before
         (target, after) := by
   induction H generalizing i with
   | nil => simp at hi
@@ -810,7 +810,7 @@ theorem LoweredConstructorMappings.mappingAt
 with the exact operational restoration fold.  The production lookup theorem
 has already identified the `oldInfo.type` read at every step with that step's
 positionally corresponding lowered constructor type. -/
-inductive RestoredConstructorMappingTrace
+inductive LoweredRestoredConstructors
     (result : Lean4Lean.ElimNestedInductive.Result)
     (mappingEnv loweredEnv : Environment) (params : Array Expr)
     (nparams : Nat) (safety : DefinitionSafety) (lparams : List Name) :
@@ -819,10 +819,10 @@ inductive RestoredConstructorMappingTrace
       Environment → Environment → Prop
   | nil (state : Lean4Lean.ElimNestedInductive.State)
       (sourceProdEnv : Environment) :
-      RestoredConstructorMappingTrace result mappingEnv loweredEnv params
+      LoweredRestoredConstructors result mappingEnv loweredEnv params
         nparams safety lparams [] state [] state sourceProdEnv sourceProdEnv
   | cons
-      (Hmapping : LoweredConstructorMapping mappingEnv params nparams result
+      (Hmapping : ConstructorLowering.Resolved mappingEnv params nparams result
         source state (target, nextState))
       (Hstep : RestoredConstructorStep result loweredEnv target.name
         sourceProdEnv middleProdEnv)
@@ -830,10 +830,10 @@ inductive RestoredConstructorMappingTrace
       (hlevels : Hstep.oldInfo.levelParams = lparams)
       (hname : Hstep.oldInfo.name = target.name)
       (htype : Hstep.oldInfo.type = target.type)
-      (Hrest : RestoredConstructorMappingTrace result mappingEnv loweredEnv params
+      (Hrest : LoweredRestoredConstructors result mappingEnv loweredEnv params
         nparams safety lparams sources nextState targets finalState
           middleProdEnv targetProdEnv) :
-      RestoredConstructorMappingTrace result mappingEnv loweredEnv params nparams
+      LoweredRestoredConstructors result mappingEnv loweredEnv params nparams
         safety lparams (source :: sources) state (target :: targets) finalState
           sourceProdEnv targetProdEnv
 
@@ -843,8 +843,8 @@ independently translated source constructors.  This is the constructor-list
 implementation/specification bridge: every executable restoration step is
 shown to translate the same abstract constructor that appears in the source
 inductive specification. -/
-theorem RestoredConstructorMappingTrace.sourceSemantics
-    (H : RestoredConstructorMappingTrace result mappingEnv loweredEnv params
+theorem LoweredRestoredConstructors.sourceSemantics
+    (H : LoweredRestoredConstructors result mappingEnv loweredEnv params
       nparams safety lparams sources state targets finalState sourceProdEnv
         targetProdEnv)
     (Hsources : List.Forall₂ (fun source constructor =>
@@ -899,11 +899,11 @@ theorem RestoredConstructorMappingTrace.sourceSemantics
         intro tail htail
         exact Hdisjoint tail (by simp [htail])
 
-theorem LoweredConstructorTranslations.finalMapping
-    (H : LoweredConstructorTranslations env params nparams sources state out)
+theorem ConstructorLowerings.finalMapping
+    (H : ConstructorLowerings env params nparams sources state out)
     (Hlater : NestedAuxLE out.2 finalState)
     (Hmap : NestedAuxMapModels finalResult finalState) :
-    LoweredConstructorMappings env params nparams finalResult sources state out := by
+    ConstructorLowerings.Resolved env params nparams finalResult sources state out := by
   induction H generalizing finalState with
   | nil => exact .nil
   | cons Hhead Htail ih =>
@@ -911,8 +911,8 @@ theorem LoweredConstructorTranslations.finalMapping
       (Hhead.finalMapping (Htail.nestedAuxLE.trans Hlater) Hmap)
       (ih Hlater Hmap)
 
-theorem LoweredConstructorTranslations.targetsRestoreTelescope
-    (H : LoweredConstructorTranslations env params nparams sources state out) :
+theorem ConstructorLowerings.targetsRestoreTelescope
+    (H : ConstructorLowerings env params nparams sources state out) :
     ∀ ctor ∈ out.1, RestoreTelescope ctor.type nparams := by
   induction H with
   | nil => simp
@@ -933,7 +933,7 @@ theorem ElimNestedInductive.lowerConstructors.translationsPending
     (Hstate : PendingNewTypesClosed cursor state) :
     (ctors.mapM (Lean4Lean.ElimNestedInductive.lowerConstructor params nparams)
       env state).WF fun out =>
-        LoweredConstructorTranslations env params nparams ctors state out ∧
+        ConstructorLowerings env params nparams ctors state out ∧
         PendingNewTypesClosed cursor out.2 := by
   induction ctors generalizing state with
   | nil => exact Except.WF.pure ⟨.nil, Hstate⟩
@@ -950,54 +950,54 @@ theorem ElimNestedInductive.lowerConstructors.translationsPending
 
 /-- Family-level semantic lowering: headers are preserved and the constructor
 list carries the full state-threaded nested-expression translation. -/
-structure LoweredInductiveTranslation
+structure FamilyLowering
     (env : Environment) (params : Array Expr) (nparams : Nat)
     (source : InductiveType) (state : Lean4Lean.ElimNestedInductive.State)
     (out : InductiveType × Lean4Lean.ElimNestedInductive.State) : Prop where
   name : out.1.name = source.name
   type : out.1.type = source.type
-  constructors : LoweredConstructorTranslations env params nparams source.ctors
+  constructors : ConstructorLowerings env params nparams source.ctors
     state (out.1.ctors, out.2)
 
-structure LoweredInductiveMapping
+structure FamilyLowering.Resolved
     (env : Environment) (params : Array Expr) (nparams : Nat)
     (finalResult : Lean4Lean.ElimNestedInductive.Result)
     (source : InductiveType) (state : Lean4Lean.ElimNestedInductive.State)
     (out : InductiveType × Lean4Lean.ElimNestedInductive.State) : Prop where
   name : out.1.name = source.name
   type : out.1.type = source.type
-  constructors : LoweredConstructorMappings env params nparams finalResult
+  constructors : ConstructorLowerings.Resolved env params nparams finalResult
     source.ctors state (out.1.ctors, out.2)
 
-theorem LoweredInductiveTranslation.newTypesLE
-    (H : LoweredInductiveTranslation env params nparams source state out) :
+theorem FamilyLowering.newTypesLE
+    (H : FamilyLowering env params nparams source state out) :
     NestedNewTypesLE state out.2 := H.constructors.newTypesLE
 
-theorem LoweredInductiveTranslation.nestedAuxLE
-    (H : LoweredInductiveTranslation env params nparams source state out) :
+theorem FamilyLowering.nestedAuxLE
+    (H : FamilyLowering env params nparams source state out) :
     NestedAuxLE state out.2 := H.constructors.nestedAuxLE
 
-theorem LoweredInductiveTranslation.pendingNewTypesClosed
-    (H : LoweredInductiveTranslation env params nparams source state out)
+theorem FamilyLowering.pendingNewTypesClosed
+    (H : FamilyLowering env params nparams source state out)
     (Henv : EnvironmentTypesClosed env)
     (Hsource : InductiveConstructorsClosed source)
     (Hstate : PendingNewTypesClosed cursor state) :
     PendingNewTypesClosed cursor out.2 :=
   H.constructors.pendingNewTypesClosed Henv Hsource Hstate
 
-theorem LoweredInductiveTranslation.namesWF
-    (H : LoweredInductiveTranslation env params nparams source state out)
+theorem FamilyLowering.namesWF
+    (H : FamilyLowering env params nparams source state out)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 :=
   H.constructors.namesWF Hstate
 
-theorem LoweredInductiveTranslation.namesFresh
-    (H : LoweredInductiveTranslation env params nparams source state out)
+theorem FamilyLowering.namesFresh
+    (H : FamilyLowering env params nparams source state out)
     (Hstate : NestedAuxNamesFresh env state) :
     NestedAuxNamesFresh env out.2 :=
   H.constructors.namesFresh Hstate
 
-theorem LoweredInductiveTranslation.auxFVarsIn
-    (H : LoweredInductiveTranslation env params nparams source state out)
+theorem FamilyLowering.auxFVarsIn
+    (H : FamilyLowering env params nparams source state out)
     (Hsource : ∀ ctor ∈ source.ctors,
       ctor.type.FVarsIn fun _ => False)
     (Hparams : ∀ param ∈ params, param.FVarsIn P)
@@ -1005,15 +1005,15 @@ theorem LoweredInductiveTranslation.auxFVarsIn
     NestedAuxFVarsIn P out.2 :=
   H.constructors.auxFVarsIn Hsource Hparams Hstate
 
-theorem LoweredInductiveTranslation.finalMapping
-    (H : LoweredInductiveTranslation env params nparams source state out)
+theorem FamilyLowering.finalMapping
+    (H : FamilyLowering env params nparams source state out)
     (Hlater : NestedAuxLE out.2 finalState)
     (Hmap : NestedAuxMapModels finalResult finalState) :
-    LoweredInductiveMapping env params nparams finalResult source state out :=
+    FamilyLowering.Resolved env params nparams finalResult source state out :=
   ⟨H.name, H.type, H.constructors.finalMapping Hlater Hmap⟩
 
-theorem LoweredInductiveTranslation.targetRestoreTelescope
-    (H : LoweredInductiveTranslation env params nparams source state out) :
+theorem FamilyLowering.targetRestoreTelescope
+    (H : FamilyLowering env params nparams source state out) :
     ∀ ctor ∈ out.1.ctors, RestoreTelescope ctor.type nparams :=
   H.constructors.targetsRestoreTelescope
 
@@ -1045,7 +1045,7 @@ theorem ElimNestedInductive.lowerInductive.translationPending
     (Hstate : PendingNewTypesClosed cursor state) :
     (Lean4Lean.ElimNestedInductive.lowerInductive params nparams indType
       env state).WF fun out =>
-        LoweredInductiveTranslation env params nparams indType state out ∧
+        FamilyLowering env params nparams indType state out ∧
         PendingNewTypesClosed cursor out.2 := by
   unfold Lean4Lean.ElimNestedInductive.lowerInductive
   refine nestedBind.WF
@@ -1055,21 +1055,21 @@ theorem ElimNestedInductive.lowerInductive.translationPending
   exact Except.WF.pure ⟨⟨rfl, rfl, Hctors.1⟩, Hctors.2⟩
 
 /-- Semantic state transition for a dynamic lowering-queue iteration. -/
-inductive LowerNextTranslation
+inductive LowerNextStep
     (env : Environment) (params : Array Expr) (nparams i : Nat)
     (state : Lean4Lean.ElimNestedInductive.State) :
     Option InductiveType × Lean4Lean.ElimNestedInductive.State → Prop
   | done (hbound : state.newTypes.size ≤ i) :
-      LowerNextTranslation env params nparams i state (none, state)
+      LowerNextStep env params nparams i state (none, state)
   | step (hidx : i < state.newTypes.size)
-      (Hlowered : LoweredInductiveTranslation env params nparams
+      (Hlowered : FamilyLowering env params nparams
         state.newTypes[i] state (target, loweredState)) :
-      LowerNextTranslation env params nparams i state
+      LowerNextStep env params nparams i state
         (some state.newTypes[i], { loweredState with
           newTypes := loweredState.newTypes.set! i target })
 
-theorem LowerNextTranslation.restorablePrefix
-    (H : LowerNextTranslation env params nparams i state
+theorem LowerNextStep.restorablePrefix
+    (H : LowerNextStep env params nparams i state
       (some source, nextState))
     (Hprefix : RestorableNewTypesPrefix nparams i state) :
     RestorableNewTypesPrefix nparams (i + 1) nextState := by
@@ -1102,31 +1102,31 @@ theorem LowerNextTranslation.restorablePrefix
       rw [hsame]
       exact Hprefix j hjlt _
 
-theorem LowerNextTranslation.nestedAuxLE
-    (H : LowerNextTranslation env params nparams i state out) :
+theorem LowerNextStep.nestedAuxLE
+    (H : LowerNextStep env params nparams i state out) :
     NestedAuxLE state out.2 := by
   cases H with
   | done => exact .refl _
   | step _ Hlowered => exact Hlowered.nestedAuxLE
 
-theorem LowerNextTranslation.namesWF
-    (H : LowerNextTranslation env params nparams i state out)
+theorem LowerNextStep.namesWF
+    (H : LowerNextStep env params nparams i state out)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   cases H with
   | done => exact Hstate
   | step _ Hlowered =>
     exact (Hlowered.namesWF Hstate).ofCacheCounterEq rfl rfl
 
-theorem LowerNextTranslation.namesFresh
-    (H : LowerNextTranslation env params nparams i state out)
+theorem LowerNextStep.namesFresh
+    (H : LowerNextStep env params nparams i state out)
     (Hstate : NestedAuxNamesFresh env state) :
     NestedAuxNamesFresh env out.2 := by
   cases H with
   | done => exact Hstate
   | step _ Hlowered => exact (Hlowered.namesFresh Hstate).ofCacheEq rfl
 
-theorem LowerNextTranslation.preservesTypeName
-    (H : LowerNextTranslation env params nparams i state
+theorem LowerNextStep.preservesTypeName
+    (H : LowerNextStep env params nparams i state
       (some source, nextState))
     (Hname : NewTypeNamePresent state name) :
     NewTypeNamePresent nextState name := by
@@ -1166,8 +1166,8 @@ theorem LowerNextTranslation.preservesTypeName
 /-- A queue step changes only its selected slot. Auxiliary discovery may
 append new families before that slot is overwritten, but every distinct
 pre-existing index retains its exact family record. -/
-theorem LowerNextTranslation.getElem_ne
-    (H : LowerNextTranslation env params nparams i state
+theorem LowerNextStep.getElem_ne
+    (H : LowerNextStep env params nparams i state
       (some source, nextState))
     (hj : j < state.newTypes.size) (hne : j ≠ i) :
     ∃ hjNext : j < nextState.newTypes.size,
@@ -1191,11 +1191,11 @@ theorem LowerNextTranslation.getElem_ne
 
 /-- The selected queue slot contains the just-lowered target after the step,
 even when lowering appended auxiliary families along the way. -/
-theorem LowerNextTranslation.getElem_selected
-    (H : LowerNextTranslation env params nparams i state
+theorem LowerNextStep.getElem_selected
+    (H : LowerNextStep env params nparams i state
       (some source, nextState)) (hi : i < state.newTypes.size) :
     ∃ target loweredState,
-      LoweredInductiveTranslation env params nparams
+      FamilyLowering env params nparams
         state.newTypes[i] state
         (target, loweredState) ∧
       nextState.nestedAux = loweredState.nestedAux ∧
@@ -1213,8 +1213,8 @@ theorem LowerNextTranslation.getElem_selected
     change (loweredState.newTypes.set! i target)[i] = target
     simp [Array.getElem_setIfInBounds, hiLowered]
 
-theorem LowerNextTranslation.pendingNewTypesClosed
-    (H : LowerNextTranslation env params nparams i state out)
+theorem LowerNextStep.pendingNewTypesClosed
+    (H : LowerNextStep env params nparams i state out)
     (Henv : EnvironmentTypesClosed env)
     (Hpending : PendingNewTypesClosed i state) :
     PendingNewTypesClosed (i + 1) out.2 := by
@@ -1249,7 +1249,7 @@ theorem ElimNestedInductive.lowerNext.translationPending
     (Hstate : PendingNewTypesClosed i state) :
     (Lean4Lean.ElimNestedInductive.lowerNext params nparams i env state).WF
       fun out =>
-        LowerNextTranslation env params nparams i state out ∧
+        LowerNextStep env params nparams i state out ∧
         PendingNewTypesClosed (i + 1) out.2 := by
   unfold Lean4Lean.ElimNestedInductive.lowerNext
   simp only [get, bind, StateT.bind, ReaderT.bind]
@@ -1292,14 +1292,14 @@ theorem ElimNestedInductive.lowerNext.translationPending
 queue stops only once the index reaches the then-current array size; each
 preceding step contains the semantic family translation, including any new
 auxiliary families appended while processing it. -/
-inductive LoweringQueueTrace
+inductive LoweringQueue
     (env : Environment) (params : Array Expr) (nparams : Nat)
     (lctx : LocalContext) : Nat → Nat →
       Lean4Lean.ElimNestedInductive.State →
       Lean4Lean.ElimNestedInductive.Result ×
         Lean4Lean.ElimNestedInductive.State → Prop
   | done (hbound : state.newTypes.size ≤ i) :
-      LoweringQueueTrace env params nparams lctx i (fuel + 1) state
+      LoweringQueue env params nparams lctx i (fuel + 1) state
         ({ state with
           nparams := params.size
           lctx
@@ -1308,48 +1308,48 @@ inductive LoweringQueueTrace
             (fun map (nested, name) => map.insert name nested) {}
           types := state.newTypes.toList }, state)
   | step :
-      LowerNextTranslation env params nparams i state (some source, nextState) →
-      LoweringQueueTrace env params nparams lctx (i + 1) fuel nextState out →
-      LoweringQueueTrace env params nparams lctx i (fuel + 1) state out
+      LowerNextStep env params nparams i state (some source, nextState) →
+      LoweringQueue env params nparams lctx (i + 1) fuel nextState out →
+      LoweringQueue env params nparams lctx i (fuel + 1) state out
 
-theorem LoweringQueueTrace.resultContext
-    (H : LoweringQueueTrace env params nparams lctx i fuel state out) :
+theorem LoweringQueue.resultContext
+    (H : LoweringQueue env params nparams lctx i fuel state out) :
     out.1.lctx = lctx ∧ out.1.params = params := by
   induction H with
   | done => exact ⟨rfl, rfl⟩
   | step _ _ ih => exact ih
 
-theorem LoweringQueueTrace.resultNParams
-    (H : LoweringQueueTrace env params nparams lctx i fuel state out) :
+theorem LoweringQueue.resultNParams
+    (H : LoweringQueue env params nparams lctx i fuel state out) :
     out.1.nparams = params.size := by
   induction H with
   | done => rfl
   | step _ _ ih => exact ih
 
-theorem LoweringQueueTrace.resultAuxMap
-    (H : LoweringQueueTrace env params nparams lctx i fuel state out) :
+theorem LoweringQueue.resultAuxMap
+    (H : LoweringQueue env params nparams lctx i fuel state out) :
     out.1.aux2nested = out.2.nestedAux.foldl
       (fun map (entry : Expr × Name) => map.insert entry.2 entry.1) {} := by
   induction H with
   | done => rfl
   | step _ _ ih => exact ih
 
-theorem LoweringQueueTrace.resultNestedAuxLE
-    (H : LoweringQueueTrace env params nparams lctx i fuel state out) :
+theorem LoweringQueue.resultNestedAuxLE
+    (H : LoweringQueue env params nparams lctx i fuel state out) :
     NestedAuxLE state out.2 := by
   induction H with
   | done => exact .refl _
   | step Hnext _ ih => exact Hnext.nestedAuxLE.trans ih
 
-theorem LoweringQueueTrace.resultNamesWF
-    (H : LoweringQueueTrace env params nparams lctx i fuel state out)
+theorem LoweringQueue.resultNamesWF
+    (H : LoweringQueue env params nparams lctx i fuel state out)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   induction H with
   | done => exact Hstate
   | step Hnext Htail ih => exact ih (Hnext.namesWF Hstate)
 
-theorem LoweringQueueTrace.resultNamesFresh
-    (H : LoweringQueueTrace env params nparams lctx i fuel state out)
+theorem LoweringQueue.resultNamesFresh
+    (H : LoweringQueue env params nparams lctx i fuel state out)
     (Hstate : NestedAuxNamesFresh env state) :
     NestedAuxNamesFresh env out.2 := by
   induction H with
@@ -1358,8 +1358,8 @@ theorem LoweringQueueTrace.resultNamesFresh
 
 /-- Once an index lies strictly behind the queue cursor, later lowering
 steps preserve the exact family stored there through to the final result. -/
-theorem LoweringQueueTrace.getElem_before
-    (H : LoweringQueueTrace env params nparams lctx i fuel state out)
+theorem LoweringQueue.getElem_before
+    (H : LoweringQueue env params nparams lctx i fuel state out)
     (hj : j < i) (hbound : j < state.newTypes.size) :
     out.1.types[j]? = some state.newTypes[j] := by
   induction H with
@@ -1375,11 +1375,11 @@ theorem LoweringQueueTrace.getElem_before
 /-- Every not-yet-processed family within the current queue has a unique
 future lowering step. The theorem retains that exact semantic translation
 and identifies its target at the same index in the final result list. -/
-theorem LoweringQueueTrace.translationAt
-    (H : LoweringQueueTrace env params nparams lctx i fuel state out)
+theorem LoweringQueue.translationAt
+    (H : LoweringQueue env params nparams lctx i fuel state out)
     (hij : i ≤ j) (hj : j < state.newTypes.size) :
     ∃ stepState target loweredState,
-      LoweredInductiveTranslation env params nparams state.newTypes[j]
+      FamilyLowering env params nparams state.newTypes[j]
         stepState (target, loweredState) ∧
       out.1.types[j]? = some target ∧
       NestedAuxLE loweredState out.2 := by
@@ -1408,8 +1408,8 @@ theorem LoweringQueueTrace.translationAt
       rw [hsame] at Htranslated
       exact ⟨stepState, target, loweredState, Htranslated, hfinal, Haux⟩
 
-theorem LoweringQueueTrace.resultRestorable
-    (H : LoweringQueueTrace env params nparams lctx i fuel state out)
+theorem LoweringQueue.resultRestorable
+    (H : LoweringQueue env params nparams lctx i fuel state out)
     (Hprefix : RestorableNewTypesPrefix nparams i state) :
     ∀ type ∈ out.1.types, RestorableInductiveType nparams type := by
   induction H with
@@ -1423,8 +1423,8 @@ theorem LoweringQueueTrace.resultRestorable
   | step Hnext Htail ih =>
     exact ih (Hnext.restorablePrefix Hprefix)
 
-theorem LoweringQueueTrace.preservesTypeName
-    (H : LoweringQueueTrace env params nparams lctx i fuel state out)
+theorem LoweringQueue.preservesTypeName
+    (H : LoweringQueue env params nparams lctx i fuel state out)
     (Hname : NewTypeNamePresent state name) :
     ∃ type ∈ out.1.types, type.name = name := by
   induction H with
@@ -1447,7 +1447,7 @@ private theorem loweringQueueLoop_refinesClosed
     (Hcache : NestedAuxFVarsIn P state) :
     (Lean4Lean.ElimNestedInductive.run.loop nparams lctx params i fuel
       env state).WF fun out =>
-        LoweringQueueTrace env params nparams lctx i fuel state out ∧
+        LoweringQueue env params nparams lctx i fuel state out ∧
         NestedAuxFVarsIn P out.2 := by
   induction fuel generalizing i state with
   | zero => exact Except.WF.throw
@@ -1475,19 +1475,19 @@ private theorem loweringQueueLoop_refinesClosed
         (state := { loweredState with
           newTypes := loweredState.newTypes.set! i target })
         HpendingNext HcacheNext).mono fun _ Htail =>
-          ⟨LoweringQueueTrace.step (.step hidx Hlowered) Htail.1,
+          ⟨LoweringQueue.step (.step hidx Hlowered) Htail.1,
             Htail.2⟩
 
 /-- End-to-end semantic certificate for nested lowering from the source
 parameter telescope through the complete dynamic family queue. -/
-structure NestedLoweringRun
+structure NestedLowering
     (env : Environment) (fuel nparams : Nat) (types : List InductiveType)
     (initialState : Lean4Lean.ElimNestedInductive.State)
     (out : Lean4Lean.ElimNestedInductive.Result ×
       Lean4Lean.ElimNestedInductive.State) : Prop where
   source : ∃ first rest tail paramsState lctx params,
     types = first :: rest ∧
-    NestedParamOpening {} #[] first.type nparams
+    LoweringParamOpening {} #[] first.type nparams
       lctx tail params ∧
     paramsState.newTypes = initialState.newTypes ∧
     paramsState.nestedAux = initialState.nestedAux ∧
@@ -1495,27 +1495,27 @@ structure NestedLoweringRun
     paramsState.ngen.namePrefix = initialState.ngen.namePrefix ∧
     NestedBindingContextWF lctx paramsState.ngen ∧
     Nonempty (CDeclArray lctx params) ∧
-    LoweringQueueTrace env params nparams lctx 0 fuel
+    LoweringQueue env params nparams lctx 0 fuel
       paramsState out
   /-- The run never modifies the universe arguments `lvls` of the state. -/
   lvls : out.2.lvls = initialState.lvls
 
-theorem NestedLoweringRun.resultRestorable
-    (H : NestedLoweringRun env fuel nparams types initialState out) :
+theorem NestedLowering.resultRestorable
+    (H : NestedLowering env fuel nparams types initialState out) :
     ∀ type ∈ out.1.types, RestorableInductiveType nparams type := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _, _, _, _, Hqueue⟩
   exact Hqueue.resultRestorable (.zero paramsState)
 
-theorem NestedLoweringRun.resultNParams
-    (H : NestedLoweringRun env fuel nparams types initialState out) :
+theorem NestedLowering.resultNParams
+    (H : NestedLowering env fuel nparams types initialState out) :
     out.1.nparams = nparams := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, Hopening, _, _, _, _, _, _, Hqueue⟩
   exact Hqueue.resultNParams.trans Hopening.initial_size
 
-theorem NestedLoweringRun.resultParamsSize
-    (H : NestedLoweringRun env fuel nparams types initialState out) :
+theorem NestedLowering.resultParamsSize
+    (H : NestedLowering env fuel nparams types initialState out) :
     out.1.params.size = nparams := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, Hopening, _, _, _, _, _, _, Hqueue⟩
@@ -1524,8 +1524,8 @@ theorem NestedLoweringRun.resultParamsSize
 
 /-- The final restoration context is exactly the source parameter selection
 opened before the dynamic lowering queue starts. -/
-theorem NestedLoweringRun.resultContextSelection
-    (H : NestedLoweringRun env fuel nparams types initialState out) :
+theorem NestedLowering.resultContextSelection
+    (H : NestedLowering env fuel nparams types initialState out) :
     Nonempty (CDeclArray out.1.lctx out.1.params) := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _,
@@ -1534,8 +1534,8 @@ theorem NestedLoweringRun.resultContextSelection
   rw [hlctx, hparams]
   exact Hselection
 
-theorem NestedLoweringRun.resultContextWF
-    (H : NestedLoweringRun env fuel nparams types initialState out) :
+theorem NestedLowering.resultContextWF
+    (H : NestedLowering env fuel nparams types initialState out) :
     out.1.lctx.WF := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _, _hprefix, Hctx,
@@ -1546,8 +1546,8 @@ theorem NestedLoweringRun.resultContextWF
 /-- Every restoration-context free variable was allocated by nested
 lowering's own generator, whose prefix is disjoint from the type checker's
 private generator. -/
-theorem NestedLoweringRun.resultContextKernelFresh
-    (H : NestedLoweringRun env fuel nparams types initialState out)
+theorem NestedLowering.resultContextKernelFresh
+    (H : NestedLowering env fuel nparams types initialState out)
     (hprefix : initialState.ngen.namePrefix = `_nested_fresh) :
     ∀ fv ∈ out.1.lctx.fvars,
       ({} : TypeChecker.State).ngen.Reserves fv := by
@@ -1561,15 +1561,15 @@ theorem NestedLoweringRun.resultContextKernelFresh
 /-- Lowering stores common parameters in source binder order, whereas its
 local context (and therefore every `MLCtx.vlctx`) stores free variables in
 most-recent-first order. -/
-theorem NestedLoweringRun.resultParams_reverse_fvars
-    (H : NestedLoweringRun env fuel nparams types initialState out) :
+theorem NestedLowering.resultParams_reverse_fvars
+    (H : NestedLowering env fuel nparams types initialState out) :
     out.1.params.toList.reverse = out.1.lctx.fvars.map Expr.fvar := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _htypes, Hopening,
       _hnewTypes, _hnestedAux, _hnextIdx, _hprefix, _Hctx, _Hselection, Hqueue⟩
   rcases Hqueue.resultContext with ⟨hlctx, hparams⟩
   rw [hlctx, hparams]
-  exact Hopening.toRestoreParamOpening.root_params_reverse_fvars
+  exact Hopening.toParamOpening.root_params_reverse_fvars
 
 /-- The executable auxiliary checks can be closed over lowering's retained
 parameter telescope: each witness with lambdas, its inferred type with
@@ -1577,14 +1577,14 @@ foralls.  This removes the concrete free-variable names from the semantic
 certificate before restoration reopens the same telescope with its own fresh
 names.  Every variable of the telescope is a local assumption of lowering's
 context, so both closures wrap the same translated parameter domains. -/
-theorem NestedLoweringRun.closeValidatedNestedAuxiliaries
-    (H : NestedLoweringRun sourceEnv fuel nparams types initialState
+theorem NestedLowering.closeValidatedNestedAuxiliaries
+    (H : NestedLowering sourceEnv fuel nparams types initialState
       (res, finalState))
     (henv : venv.WF)
     (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
     (hlctx : mlctx.lctx = res.lctx)
-    (Hvalidated : ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res) :
-    ClosedValidatedNestedAuxiliaries venv lparams res := by
+    (Hvalidated : NestedOccurrencesTyped venv lparams mlctx.vlctx res) :
+    ClosedNestedOccurrencesTyped venv lparams res := by
   have hfull : mlctx.fvarRevList mlctx.length (Nat.le_refl _) =
       mlctx.vlctx.fvars := mlctx.fvarRevList_all
   have hparams : res.params.toList.reverse =
@@ -1643,15 +1643,15 @@ theorem NestedLoweringRun.closeValidatedNestedAuxiliaries
 /-- Fully name-independent auxiliary semantics retained after validation:
 the lowering-selected production variables are abstracted into the canonical
 de-Bruijn parameter context before restoration is inspected. -/
-theorem NestedLoweringRun.validatedAuxiliaryResidualTranslations
-    (H : NestedLoweringRun sourceEnv fuel nparams types initialState
+theorem NestedLowering.validatedAuxiliaryResidualTranslations
+    (H : NestedLowering sourceEnv fuel nparams types initialState
       (res, finalState))
     (henv : venv.WF)
     (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
     (hlctx : mlctx.lctx = res.lctx)
-    (Hvalidated : ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res) :
+    (Hvalidated : NestedOccurrencesTyped venv lparams mlctx.vlctx res) :
     ∃ selection : CDeclArray res.lctx res.params,
-      ClosedNestedAuxiliaryTranslations venv lparams res selection := by
+      ClosedNestedOccurrenceTypings venv lparams res selection := by
   rcases H.resultContextSelection with ⟨selection⟩
   have hparams : res.params.toList.reverse =
       (mlctx.fvarRevList mlctx.length (Nat.le_refl _)).map Expr.fvar := by
@@ -1671,16 +1671,16 @@ theorem NestedLoweringRun.validatedAuxiliaryResidualTranslations
     (H.closeValidatedNestedAuxiliaries henv mlctx hmlctx hlctx Hvalidated
       ).residualTranslations henv selection hnodup⟩
 
-theorem NestedLoweringRun.resultAuxMap
-    (H : NestedLoweringRun env fuel nparams types initialState out) :
+theorem NestedLowering.resultAuxMap
+    (H : NestedLowering env fuel nparams types initialState out) :
     out.1.aux2nested = out.2.nestedAux.foldl
       (fun map (entry : Expr × Name) => map.insert entry.2 entry.1) {} := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _, _, _, _, Hqueue⟩
   exact Hqueue.resultAuxMap
 
-theorem NestedLoweringRun.resultAuxFVarsIn
-    (H : NestedLoweringRun env fuel nparams types initialState out)
+theorem NestedLowering.resultAuxFVarsIn
+    (H : NestedLowering env fuel nparams types initialState out)
     (Hcache : NestedAuxFVarsIn P out.2) :
     NestedAuxMapFVarsIn P
       (show Std.TreeMap Name Expr Name.quickCmp from out.1.aux2nested) := by
@@ -1697,8 +1697,8 @@ theorem NestedLoweringRun.resultAuxFVarsIn
     intro name nested hfind
     simp at hfind
 
-theorem NestedLoweringRun.resultAuxNamesReserved
-    (H : NestedLoweringRun env fuel nparams types initialState
+theorem NestedLowering.resultAuxNamesReserved
+    (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (Hnames : NestedAuxNamesWF finalState) :
     NestedAuxMapNamesReserved
@@ -1715,8 +1715,8 @@ theorem NestedLoweringRun.resultAuxNamesReserved
   · intro name nested hfind
     simp at hfind
 
-theorem NestedLoweringRun.resultAuxNamesFresh
-    (H : NestedLoweringRun env fuel nparams types initialState
+theorem NestedLowering.resultAuxNamesFresh
+    (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (Hnames : NestedAuxNamesFresh env finalState) :
     NestedAuxMapNamesFresh env
@@ -1733,8 +1733,8 @@ theorem NestedLoweringRun.resultAuxNamesFresh
   · intro name nested hfind
     simp at hfind
 
-theorem NestedLoweringRun.validateNestedAuxiliariesWF
-    (H : NestedLoweringRun sourceEnv loweringFuel nparams sourceTypes
+theorem NestedLowering.validateNestedAuxiliariesWF
+    (H : NestedLowering sourceEnv loweringFuel nparams sourceTypes
       initialState (res, finalState))
     (hvalid : CheckingEnv.Valid safety restoredEnv venv)
     (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
@@ -1744,15 +1744,15 @@ theorem NestedLoweringRun.validateNestedAuxiliariesWF
     (Hcache : NestedAuxFVarsIn (· ∈ mlctx.vlctx.fvars) finalState) :
     (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
       res).WF fun _ =>
-        ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res := by
+        NestedOccurrencesTyped venv lparams mlctx.vlctx res := by
   apply validateNestedAuxiliaries.WF hvalid mlctx hmlctx hlctx hfresh
   intro name nested hfind
   exact H.resultAuxFVarsIn Hcache name nested hfind
 
 /-- Under the separately stated fresh-name invariant, every final cache entry
 is retrieved exactly by the production `aux2nested` map. -/
-theorem NestedLoweringRun.resultAuxLookup
-    (H : NestedLoweringRun env fuel nparams types initialState
+theorem NestedLowering.resultAuxLookup
+    (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hnodup : (finalState.nestedAux.toList.map Prod.snd).Nodup)
     (hentry : (nested, name) ∈ finalState.nestedAux) :
@@ -1766,16 +1766,16 @@ theorem NestedLoweringRun.resultAuxLookup
   exact nestedAuxFold_find finalState.nestedAux.toList {} hnodup
     (by simpa using hentry)
 
-theorem NestedLoweringRun.resultAuxMapModels
-    (H : NestedLoweringRun env fuel nparams types initialState
+theorem NestedLowering.resultAuxMapModels
+    (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hnodup : (finalState.nestedAux.toList.map Prod.snd).Nodup) :
     NestedAuxMapModels result finalState := by
   intro nested name hentry
   exact H.resultAuxLookup hnodup hentry
 
-theorem NestedLoweringRun.resultNamesWF
-    (H : NestedLoweringRun env fuel nparams types initialState out)
+theorem NestedLowering.resultNamesWF
+    (H : NestedLowering env fuel nparams types initialState out)
     (Hstate : NestedAuxNamesWF initialState) : NestedAuxNamesWF out.2 := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, _, _, hinitialAux,
@@ -1783,8 +1783,8 @@ theorem NestedLoweringRun.resultNamesWF
   exact Hqueue.resultNamesWF
     (Hstate.ofCacheCounterEq hinitialAux hinitialNext)
 
-theorem NestedLoweringRun.resultNamesFresh
-    (H : NestedLoweringRun env fuel nparams types initialState out)
+theorem NestedLowering.resultNamesFresh
+    (H : NestedLowering env fuel nparams types initialState out)
     (Hstate : NestedAuxNamesFresh env initialState) :
     NestedAuxNamesFresh env out.2 := by
   rcases H.source with
@@ -1792,8 +1792,8 @@ theorem NestedLoweringRun.resultNamesFresh
       _hinitialNext, _hprefix, _Hctx, _Hselection, Hqueue⟩
   exact Hqueue.resultNamesFresh (Hstate.ofCacheEq hinitialAux)
 
-theorem NestedLoweringRun.resultFamilyNamesFreshOfEmpty
-    (H : NestedLoweringRun env fuel nparams types initialState
+theorem NestedLowering.resultFamilyNamesFreshOfEmpty
+    (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hwf : env.constants.WF)
     (hempty : initialState.nestedAux = #[]) :
@@ -1805,14 +1805,14 @@ theorem NestedLoweringRun.resultFamilyNamesFreshOfEmpty
   exact find?_none_of_contains_false hwf (Hmap name nested hfind)
 
 
-theorem NestedLoweringRun.resultNamesNodupOfEmpty
-    (H : NestedLoweringRun env fuel nparams types initialState out)
+theorem NestedLowering.resultNamesNodupOfEmpty
+    (H : NestedLowering env fuel nparams types initialState out)
     (hempty : initialState.nestedAux = #[]) :
     (out.2.nestedAux.toList.map Prod.snd).Nodup :=
   (H.resultNamesWF (NestedAuxNamesWF.empty initialState hempty)).nodup
 
-theorem NestedLoweringRun.resultFamilyNamesReservedOfEmpty
-    (H : NestedLoweringRun env fuel nparams types initialState
+theorem NestedLowering.resultFamilyNamesReservedOfEmpty
+    (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hempty : initialState.nestedAux = #[]) :
     NestedAuxMapNamesReserved
@@ -1820,23 +1820,23 @@ theorem NestedLoweringRun.resultFamilyNamesReservedOfEmpty
   H.resultAuxNamesReserved
     (H.resultNamesWF (NestedAuxNamesWF.empty initialState hempty))
 
-theorem NestedLoweringRun.resultFamilyNamesReservedFresh
-    (H : NestedLoweringRun env fuel nparams types initialState
+theorem NestedLowering.resultFamilyNamesReservedFresh
+    (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hempty : initialState.nestedAux = #[]) :
     NestedAuxMapNamesReserved
       (show Std.TreeMap Name Expr Name.quickCmp from result.aux2nested) :=
   H.resultFamilyNamesReservedOfEmpty hempty
 
-theorem NestedLoweringRun.resultAuxMapModelsOfEmpty
-    (H : NestedLoweringRun env fuel nparams types initialState
+theorem NestedLowering.resultAuxMapModelsOfEmpty
+    (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hempty : initialState.nestedAux = #[]) :
     NestedAuxMapModels result finalState :=
   H.resultAuxMapModels (H.resultNamesNodupOfEmpty hempty)
 
-theorem NestedLoweringRun.resultAuxMapModelsFresh
-    (H : NestedLoweringRun env fuel nparams types initialState
+theorem NestedLowering.resultAuxMapModelsFresh
+    (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hempty : initialState.nestedAux = #[]) :
     NestedAuxMapModels result finalState :=
@@ -1845,12 +1845,12 @@ theorem NestedLoweringRun.resultAuxMapModelsFresh
 /-- Positional lowering witness for any family present in the initial queue.
 Unlike name preservation, this exposes the complete constructor-expression
 translation performed at that family's actual dynamic queue step. -/
-theorem NestedLoweringRun.translationAtInitial
-    (H : NestedLoweringRun env fuel nparams types initialState out)
+theorem NestedLowering.translationAtInitial
+    (H : NestedLowering env fuel nparams types initialState out)
     (hj : j < initialState.newTypes.size) :
     ∃ params stepState target loweredState,
       params.size = nparams ∧
-      LoweredInductiveTranslation env params nparams
+      FamilyLowering env params nparams
         initialState.newTypes[j] stepState (target, loweredState) ∧
       out.1.types[j]? = some target ∧
       NestedAuxLE loweredState out.2 := by
@@ -1872,14 +1872,14 @@ theorem NestedLoweringRun.translationAtInitial
 /-- Once final cache-name uniqueness is supplied, every initially declared
 family has a positional lowering certificate whose constructor bodies are
 all interpreted by the actual final restoration map. -/
-theorem NestedLoweringRun.finalMappingAtInitial
-    (H : NestedLoweringRun env fuel nparams types initialState
+theorem NestedLowering.finalMappingAtInitial
+    (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hauxNames : (finalState.nestedAux.toList.map Prod.snd).Nodup)
     (hj : j < initialState.newTypes.size) :
     ∃ params stepState target loweredState,
       params.size = nparams ∧
-      LoweredInductiveMapping env params nparams result
+      FamilyLowering.Resolved env params nparams result
         initialState.newTypes[j] stepState (target, loweredState) ∧
       result.types[j]? = some target := by
   rcases H.translationAtInitial hj with
@@ -1893,15 +1893,15 @@ mapping for each source family is performed with exactly the parameter array
 stored in the final restoration record, rather than merely with an array of
 the same size.  This identity is what later lets restoration cancel the
 abstraction performed when a nested application was cached. -/
-theorem NestedLoweringRun.finalMappingAtInitialAligned
-    (H : NestedLoweringRun env fuel nparams types initialState
+theorem NestedLowering.finalMappingAtInitialAligned
+    (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hauxNames : (finalState.nestedAux.toList.map Prod.snd).Nodup)
     (hj : j < initialState.newTypes.size) :
     ∃ params stepState target loweredState,
       result.params = params ∧
       params.size = nparams ∧
-      LoweredInductiveMapping env params nparams result
+      FamilyLowering.Resolved env params nparams result
         initialState.newTypes[j] stepState (target, loweredState) ∧
       result.types[j]? = some target := by
   rcases H.source with
@@ -1922,15 +1922,15 @@ theorem NestedLoweringRun.finalMappingAtInitialAligned
 
 /-- `finalMappingAtInitialAligned`, additionally recording that the lowering
 step of the family starts from the universe arguments of the initial state. -/
-theorem NestedLoweringRun.finalMappingAtInitialAlignedLvls
-    (H : NestedLoweringRun env fuel nparams types initialState
+theorem NestedLowering.finalMappingAtInitialAlignedLvls
+    (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hauxNames : (finalState.nestedAux.toList.map Prod.snd).Nodup)
     (hj : j < initialState.newTypes.size) :
     ∃ params stepState target loweredState,
       result.params = params ∧
       params.size = nparams ∧
-      LoweredInductiveMapping env params nparams result
+      FamilyLowering.Resolved env params nparams result
         initialState.newTypes[j] stepState (target, loweredState) ∧
       result.types[j]? = some target ∧
       stepState.lvls = initialState.lvls := by
@@ -1951,8 +1951,8 @@ theorem NestedLoweringRun.finalMappingAtInitialAlignedLvls
     Htranslated.finalMapping Hlater (H.resultAuxMapModels hauxNames), htarget,
     (Htranslated.nestedAuxLE.lvls.symm.trans Hlater.lvls.symm).trans H.lvls⟩
 
-theorem NestedLoweringRun.preservesInitialTypeName
-    (H : NestedLoweringRun env fuel nparams types initialState out)
+theorem NestedLowering.preservesInitialTypeName
+    (H : NestedLowering env fuel nparams types initialState out)
     (Hname : NewTypeNamePresent initialState name) :
     ∃ type ∈ out.1.types, type.name = name := by
   rcases H.source with
@@ -1984,7 +1984,7 @@ theorem ElimNestedInductive.run.translationClosed
     (hempty : state.nestedAux = #[]) :
     (Lean4Lean.ElimNestedInductive.run fuel nparams types env state).WF
       fun out =>
-        NestedLoweringRun env fuel nparams types state out ∧
+        NestedLowering env fuel nparams types state out ∧
         NestedAuxFVarsIn (· ∈ out.1.lctx.fvars) out.2 ∧
         NestedResultParamsNodup out.1 := by
   cases types with
@@ -2045,7 +2045,7 @@ namespace VerifyInductive
 The only list premise is that all mapped targets belong to the installed
 owner; in the family specialization this is immediate because `targets` is
 that owner's constructor list. -/
-theorem RestoredConstructorMappingTrace.ofInstalled
+theorem LoweredRestoredConstructors.ofInstalled
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -2055,12 +2055,12 @@ theorem RestoredConstructorMappingTrace.ofInstalled
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (howner : owner ∈ indTypes.toList)
-    (Hmapping : LoweredConstructorMappings mappingEnv params nparams result
+    (Hmapping : ConstructorLowerings.Resolved mappingEnv params nparams result
       sources state (targets, finalState))
     (Htrace : StateForMTrace (RestoredConstructorStep result loweredEnv)
       (targets.map (fun ctor => ctor.name)) sourceProdEnv targetProdEnv)
     (Htargets : ∀ target ∈ targets, target ∈ owner.ctors) :
-    RestoredConstructorMappingTrace result mappingEnv loweredEnv params nparams
+    LoweredRestoredConstructors result mappingEnv loweredEnv params nparams
       c.safety c.lparams sources state targets finalState sourceProdEnv
         targetProdEnv := by
   cases Hmapping with
@@ -2072,13 +2072,13 @@ theorem RestoredConstructorMappingTrace.ofInstalled
     | cons Hstep Hsteps =>
       have Hmetadata := Hstep.metadataOfInstalled Hprod howner
         (Htargets _ (by simp)) rfl
-      apply RestoredConstructorMappingTrace.cons Hhead Hstep
+      apply LoweredRestoredConstructors.cons Hhead Hstep
       · exact Hmetadata.1
       · exact Hmetadata.2.1
       · exact Hmetadata.2.2.1
       · exact Hstep.oldType_eq_ofInstalled Hprod howner
           (Htargets _ (by simp)) rfl
-      · apply RestoredConstructorMappingTrace.ofInstalled Hprod howner
+      · apply LoweredRestoredConstructors.ofInstalled Hprod howner
           Htail Hsteps
         intro target htarget
         exact Htargets target (by simp [htarget])
@@ -2087,8 +2087,8 @@ theorem RestoredConstructorMappingTrace.ofInstalled
 families fresh in the production source, and lockstep installation turns that
 into abstract freshness for every constructor recognized through those
 families. -/
-theorem NestedLoweringRun.restoreAuxConstructorsFreshOfInstallation
-    (H : NestedLoweringRun sourceProdEnv fuel nparams types initialState
+theorem NestedLowering.restoreAuxConstructorsFreshOfInstallation
+    (H : NestedLowering sourceProdEnv fuel nparams types initialState
       (result, finalState))
     (Hinstall : AddConstants safety sourceProdEnv sourceVEnv entries
       loweredEnv loweredVEnv)

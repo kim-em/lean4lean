@@ -14,24 +14,24 @@ namespace VerifyInductive
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
 certified batch for the entire mutual block is generated. -/
-inductive RecognizedNestedReplacement
+inductive OccurrenceReplacement
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (targetName : Name) (levels : List Level) (args : Array Expr)
     (value : InductiveVal) (state : Lean4Lean.ElimNestedInductive.State) :
     Option Expr × Lean4Lean.ElimNestedInductive.State → Prop
   | cached (auxName : Name) :
-      CachedNestedAux state.nestedAux
+      AuxiliaryCacheEntry state.nestedAux
         ((mkAppRange (.const targetName levels) 0 value.numParams args).abstract As
           |>.instantiateRev params) auxName →
-      RecognizedNestedReplacement env lctx params As targetName levels args
+      OccurrenceReplacement env lctx params As targetName levels args
         value state
         (some (mkAppRange (mkAppN (.const auxName state.lvls) As)
           value.numParams args.size args), state)
   | generated :
       MutualInductiveClosure env targetName value →
-      GeneratedAuxiliaryBatch env lctx params As targetName levels
+      AuxiliaryGenerationBatch env lctx params As targetName levels
         value.numParams args none value.all state out →
-      RecognizedNestedReplacement env lctx params As targetName levels args
+      OccurrenceReplacement env lctx params As targetName levels args
         value state out
 
 theorem replaceRecognizedNested_refines
@@ -43,7 +43,7 @@ theorem replaceRecognizedNested_refines
     (hclosure : MutualInductiveClosure env targetName value) :
     (Lean4Lean.ElimNestedInductive.replaceRecognizedNested lctx params As
       (.const targetName levels) args value env state).WF fun out =>
-        RecognizedNestedReplacement env lctx params As targetName levels args
+        OccurrenceReplacement env lctx params As targetName levels args
           value state out := by
   unfold Lean4Lean.ElimNestedInductive.replaceRecognizedNested
   simp only [hargs, ↓reduceIte]
@@ -65,7 +65,7 @@ theorem replaceRecognizedNested_refines
           |>.instantiateRev params) with
   | some auxName =>
     simp only [pure, ReaderT.pure, StateT.pure]
-    exact Except.WF.pure (RecognizedNestedReplacement.cached auxName
+    exact Except.WF.pure (OccurrenceReplacement.cached auxName
       (findCachedAux?_refines state.nestedAux
         ((mkAppRange (.const targetName levels) 0 value.numParams args).abstract As
           |>.instantiateRev params) auxName hcache))
@@ -73,23 +73,23 @@ theorem replaceRecognizedNested_refines
     exact (generateAuxiliaries_refines env lctx params As targetName levels
       value.numParams args value state hsize hclosure.members
       hclosure.target).mono fun _ Hbatch =>
-        RecognizedNestedReplacement.generated hclosure Hbatch
+        OccurrenceReplacement.generated hclosure Hbatch
 
 /-- Complete node-level result of nested replacement.  A non-candidate is
 left untouched; every accepted candidate carries both the independent
 recognition evidence and the cache-or-generation certificate. -/
-inductive NestedReplacement
+inductive NodeReplacement
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (e : Expr) (state : Lean4Lean.ElimNestedInductive.State) :
     Option Expr × Lean4Lean.ElimNestedInductive.State → Prop
-  | unrecognized : NoNestedAppCandidate env state e →
-      NestedReplacement env lctx params As e state (none, state)
+  | unrecognized : NotNestedOccurrence env state e →
+      NodeReplacement env lctx params As e state (none, state)
   | recognized :
-      NestedAppCandidate env state e value →
+      NestedOccurrence env state e value →
       e.getAppFn = .const targetName levels →
-      RecognizedNestedReplacement env lctx params As targetName levels
+      OccurrenceReplacement env lctx params As targetName levels
         e.getAppArgs value state out →
-      NestedReplacement env lctx params As e state out
+      NodeReplacement env lctx params As e state out
 
 theorem replaceIfNested_refines
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
@@ -97,15 +97,15 @@ theorem replaceIfNested_refines
     (hsize : As.size = params.size)
     (hclosures : MutualInductivesClosed env) :
     (Lean4Lean.ElimNestedInductive.replaceIfNested lctx params As e env state).WF
-      fun out => NestedReplacement env lctx params As e state out := by
+      fun out => NodeReplacement env lctx params As e state out := by
   rw [Lean4Lean.ElimNestedInductive.replaceIfNested]
   refine nestedBind.WF
     (x := Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e)
     (P := fun recognized =>
       recognized.2 = state ∧
       (∀ value, recognized.1 = some value →
-        NestedAppCandidate env state e value) ∧
-      (recognized.1 = none → NoNestedAppCandidate env state e)) ?_ ?_
+        NestedOccurrence env state e value) ∧
+      (recognized.1 = none → NotNestedOccurrence env state e)) ?_ ?_
   · intro recognized hrecognized
     refine ⟨isNestedInductiveApp_preservesState e env state
         recognized hrecognized,
@@ -133,15 +133,15 @@ theorem replaceIfNested_refines
         (hclosures targetName value hlookup)).mono fun _ Hresult =>
           .recognized Hcandidate hhead Hresult
 
-theorem RecognizedNestedReplacement.resultSome
-    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+theorem OccurrenceReplacement.resultSome
+    (H : OccurrenceReplacement env lctx params As targetName levels args
       value state out) : out.1.isSome = true := by
   cases H with
   | cached => simp
   | generated _ Hbatch => exact Hbatch.resultSome
 
-theorem NestedReplacement.outcome
-    (H : NestedReplacement env lctx params As e state out) :
+theorem NodeReplacement.outcome
+    (H : NodeReplacement env lctx params As e state out) :
     out = (none, state) ∨ ∃ output nextState, out = (some output, nextState) := by
   cases H with
   | unrecognized => exact Or.inl rfl
@@ -152,9 +152,9 @@ theorem NestedReplacement.outcome
     | none => simp [h] at hsome
     | some output => exact ⟨output, out.2, by cases out; simp_all⟩
 
-theorem NestedReplacement.noCandidate
-    (H : NestedReplacement env lctx params As e state (none, state)) :
-    NoNestedAppCandidate env state e := by
+theorem NodeReplacement.noCandidate
+    (H : NodeReplacement env lctx params As e state (none, state)) :
+    NotNestedOccurrence env state e := by
   cases H with
   | unrecognized Hnone => exact Hnone
   | recognized Hcandidate hhead Hresult =>
@@ -165,66 +165,66 @@ theorem NestedReplacement.noCandidate
 A successful node replacement stops descent; otherwise children are processed
 left-to-right with the exact intermediate states and update combinators used by
 Lean's expression traversal. -/
-inductive NestedExprReplacement
+inductive ExprLowering
     (env : Environment) (lctx : LocalContext) (params As : Array Expr) :
     Expr → Lean4Lean.ElimNestedInductive.State →
       Expr × Lean4Lean.ElimNestedInductive.State → Prop
-  | occurrence : NestedReplacement env lctx params As input state
+  | occurrence : NodeReplacement env lctx params As input state
       (some output, nextState) →
-      NestedExprReplacement env lctx params As input state (output, nextState)
-  | bvar : NestedReplacement env lctx params As (.bvar i) state (none, state) →
-      NestedExprReplacement env lctx params As (.bvar i) state (.bvar i, state)
+      ExprLowering env lctx params As input state (output, nextState)
+  | bvar : NodeReplacement env lctx params As (.bvar i) state (none, state) →
+      ExprLowering env lctx params As (.bvar i) state (.bvar i, state)
   | fvar {fvarId : FVarId} :
-      NestedReplacement env lctx params As (.fvar fvarId) state (none, state) →
-      NestedExprReplacement env lctx params As (.fvar fvarId) state
+      NodeReplacement env lctx params As (.fvar fvarId) state (none, state) →
+      ExprLowering env lctx params As (.fvar fvarId) state
         (.fvar fvarId, state)
   | mvar {mvarId : MVarId} :
-      NestedReplacement env lctx params As (.mvar mvarId) state (none, state) →
-      NestedExprReplacement env lctx params As (.mvar mvarId) state
+      NodeReplacement env lctx params As (.mvar mvarId) state (none, state) →
+      ExprLowering env lctx params As (.mvar mvarId) state
         (.mvar mvarId, state)
-  | sort : NestedReplacement env lctx params As (.sort level) state (none, state) →
-      NestedExprReplacement env lctx params As (.sort level) state (.sort level, state)
-  | const : NestedReplacement env lctx params As (.const name levels) state
+  | sort : NodeReplacement env lctx params As (.sort level) state (none, state) →
+      ExprLowering env lctx params As (.sort level) state (.sort level, state)
+  | const : NodeReplacement env lctx params As (.const name levels) state
       (none, state) →
-      NestedExprReplacement env lctx params As (.const name levels) state
+      ExprLowering env lctx params As (.const name levels) state
         (.const name levels, state)
-  | lit : NestedReplacement env lctx params As (.lit literal) state (none, state) →
-      NestedExprReplacement env lctx params As (.lit literal) state
+  | lit : NodeReplacement env lctx params As (.lit literal) state (none, state) →
+      ExprLowering env lctx params As (.lit literal) state
         (.lit literal, state)
-  | app : NestedReplacement env lctx params As (.app fn arg) state (none, state) →
-      NestedExprReplacement env lctx params As fn state (fn', fnState) →
-      NestedExprReplacement env lctx params As arg fnState (arg', outState) →
-      NestedExprReplacement env lctx params As (.app fn arg) state
+  | app : NodeReplacement env lctx params As (.app fn arg) state (none, state) →
+      ExprLowering env lctx params As fn state (fn', fnState) →
+      ExprLowering env lctx params As arg fnState (arg', outState) →
+      ExprLowering env lctx params As (.app fn arg) state
         (Expr.updateApp! (.app fn arg) fn' arg', outState)
-  | lam : NestedReplacement env lctx params As (.lam name dom body bi) state
+  | lam : NodeReplacement env lctx params As (.lam name dom body bi) state
       (none, state) →
-      NestedExprReplacement env lctx params As dom state (dom', domState) →
-      NestedExprReplacement env lctx params As body domState (body', outState) →
-      NestedExprReplacement env lctx params As (.lam name dom body bi) state
+      ExprLowering env lctx params As dom state (dom', domState) →
+      ExprLowering env lctx params As body domState (body', outState) →
+      ExprLowering env lctx params As (.lam name dom body bi) state
         (Expr.updateLambdaE! (.lam name dom body bi) dom' body', outState)
-  | forallE : NestedReplacement env lctx params As
+  | forallE : NodeReplacement env lctx params As
       (.forallE name dom body bi) state (none, state) →
-      NestedExprReplacement env lctx params As dom state (dom', domState) →
-      NestedExprReplacement env lctx params As body domState (body', outState) →
-      NestedExprReplacement env lctx params As (.forallE name dom body bi) state
+      ExprLowering env lctx params As dom state (dom', domState) →
+      ExprLowering env lctx params As body domState (body', outState) →
+      ExprLowering env lctx params As (.forallE name dom body bi) state
         (Expr.updateForallE! (.forallE name dom body bi) dom' body', outState)
-  | letE : NestedReplacement env lctx params As
+  | letE : NodeReplacement env lctx params As
       (.letE name type value body nondep) state (none, state) →
-      NestedExprReplacement env lctx params As type state (type', typeState) →
-      NestedExprReplacement env lctx params As value typeState (value', valueState) →
-      NestedExprReplacement env lctx params As body valueState (body', outState) →
-      NestedExprReplacement env lctx params As (.letE name type value body nondep) state
+      ExprLowering env lctx params As type state (type', typeState) →
+      ExprLowering env lctx params As value typeState (value', valueState) →
+      ExprLowering env lctx params As body valueState (body', outState) →
+      ExprLowering env lctx params As (.letE name type value body nondep) state
         (Expr.updateLet! (.letE name type value body nondep)
           type' value' body' nondep, outState)
-  | mdata : NestedReplacement env lctx params As (.mdata data body) state
+  | mdata : NodeReplacement env lctx params As (.mdata data body) state
       (none, state) →
-      NestedExprReplacement env lctx params As body state (body', outState) →
-      NestedExprReplacement env lctx params As (.mdata data body) state
+      ExprLowering env lctx params As body state (body', outState) →
+      ExprLowering env lctx params As (.mdata data body) state
         (Expr.updateMData! (.mdata data body) body', outState)
-  | proj : NestedReplacement env lctx params As (.proj name idx body) state
+  | proj : NodeReplacement env lctx params As (.proj name idx body) state
       (none, state) →
-      NestedExprReplacement env lctx params As body state (body', outState) →
-      NestedExprReplacement env lctx params As (.proj name idx body) state
+      ExprLowering env lctx params As body state (body', outState) →
+      ExprLowering env lctx params As (.proj name idx body) state
         (Expr.updateProj! (.proj name idx body) body', outState)
 
 /-- Nested lowering only appends to `newTypes` while traversing expressions. -/
@@ -301,8 +301,8 @@ theorem Expr.mkAppRange_looseBVarRange_zero {fn : Expr} {args : Array Expr}
     simpa [Expr.hasLooseBVars, Expr.looseBVarRange_eq] using hclosed
   simpa [List.getElem_take, Array.getElem_toList] using hz
 
-theorem NestedAppCandidate.prefixLooseBVarRange_zero
-    (H : NestedAppCandidate env state input value) (fn : Expr)
+theorem NestedOccurrence.prefixLooseBVarRange_zero
+    (H : NestedOccurrence env state input value) (fn : Expr)
     (hfn : fn.looseBVarRange' = 0) :
     (mkAppRange fn 0 value.numParams input.getAppArgs).looseBVarRange' = 0 :=
   Expr.mkAppRange_looseBVarRange_zero hfn H.parameters.arity
@@ -312,7 +312,7 @@ theorem NestedAppCandidate.prefixLooseBVarRange_zero
 cache entry that lets restoration recover the application from which it was
 built.  Keeping the two append-only arrays paired is the provenance that is
 lost by `NestedNewTypesLE` alone. -/
-structure GeneratedFamilyWitness
+structure AuxiliaryFamilySpecialization
     (env : Environment) (params : Array Expr)
     (nestedAux : Array (Expr × Name))
     (family : InductiveType) where
@@ -334,7 +334,7 @@ structure GeneratedFamilyWitness
   levelsNoMVars : ∀ level ∈ levels, level.hasMVar' = false
   argsFVars : ∀ arg ∈ args, arg.FVarsIn (· ∈ selection.fvars)
   argsClosed : ∀ i, i < nestedNParams → args[i]!.hasLooseBVars = false
-  built : BuiltAuxiliary env lctx params As levels nestedNParams args
+  built : AuxiliaryFamilySpec env lctx params As levels nestedNParams args
     sourceName auxName sourceInfo data
   family_eq : family = data.type
   cached : (data.nested, auxName) ∈ nestedAux
@@ -343,8 +343,8 @@ structure GeneratedFamilyWitness
 parameters yields the same de Bruijn application as closing the source
 application over the parameters selected when the auxiliary was built.  The
 retained argument-scope invariant is the essential alpha-conversion premise. -/
-theorem GeneratedFamilyWitness.cachedClosureAlpha
-    (H : GeneratedFamilyWitness env params nestedAux family)
+theorem AuxiliaryFamilySpecialization.cachedClosureAlpha
+    (H : AuxiliaryFamilySpecialization env params nestedAux family)
     (resultSelection : CDeclArray resultLctx params)
     (hresultNodup : resultSelection.fvars.Nodup) :
     H.data.nested.abstractList resultSelection.fvars =
@@ -375,8 +375,8 @@ theorem GeneratedFamilyWitness.cachedClosureAlpha
 the cached application over the final parameters is literally the de Bruijn
 closure of the source application over the parameters selected when the
 auxiliary was built. -/
-theorem GeneratedFamilyWitness.cachedClosureAlphaExact
-    (H : GeneratedFamilyWitness env params nestedAux family)
+theorem AuxiliaryFamilySpecialization.cachedClosureAlphaExact
+    (H : AuxiliaryFamilySpecialization env params nestedAux family)
     (resultSelection : CDeclArray resultLctx params)
     (hresultNodup : resultSelection.fvars.Nodup) :
     H.data.nested.abstract params =
@@ -668,22 +668,22 @@ theorem NestedNewTypesLE.getElem
     simpa [hsuffix, List.getElem_append, hi]
   simpa using hlist
 
-theorem GeneratedAuxiliary.newTypesLE
-    (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
+theorem AuxiliaryGenerationStep.newTypesLE
+    (H : AuxiliaryGenerationStep env lctx params As targetName levels nparams args
       sourceName sourceInfo state out) : NestedNewTypesLE state out.2 := by
   rcases H.generated with ⟨auxName, nextIdx, data, _, _, _, hstate⟩
   rw [hstate]
   exact ⟨[data.type], by simp⟩
 
-theorem GeneratedAuxiliary.nestedAuxLE
-    (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
+theorem AuxiliaryGenerationStep.nestedAuxLE
+    (H : AuxiliaryGenerationStep env lctx params As targetName levels nparams args
       sourceName sourceInfo state out) : NestedAuxLE state out.2 := by
   rcases H.generated with ⟨auxName, nextIdx, data, _, _, _, hstate⟩
   rw [hstate]
   exact ⟨[(data.nested, auxName)], by simp, rfl⟩
 
-theorem GeneratedAuxiliary.namesWF
-    (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
+theorem AuxiliaryGenerationStep.namesWF
+    (H : AuxiliaryGenerationStep env lctx params As targetName levels nparams args
       sourceName sourceInfo state out)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   rcases H.generated with
@@ -732,8 +732,8 @@ theorem GeneratedAuxiliary.namesWF
       rw [hname]
       exact nested_isPrefix_mkNum index
 
-theorem GeneratedAuxiliary.namesFresh
-    (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
+theorem AuxiliaryGenerationStep.namesFresh
+    (H : AuxiliaryGenerationStep env lctx params As targetName levels nparams args
       sourceName sourceInfo state out)
     (Hstate : NestedAuxNamesFresh env state) :
     NestedAuxNamesFresh env out.2 := by
@@ -747,30 +747,30 @@ theorem GeneratedAuxiliary.namesFresh
   · cases hnew
     exact Hfresh.fresh
 
-theorem GeneratedAuxiliaryBatch.newTypesLE
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+theorem AuxiliaryGenerationBatch.newTypesLE
+    (H : AuxiliaryGenerationBatch env lctx params As targetName levels nparams
       args result sourceNames state out) : NestedNewTypesLE state out.2 := by
   induction H with
   | nil => exact .refl _
   | cons Hstep Htail ih => exact Hstep.newTypesLE.trans ih
 
-theorem GeneratedAuxiliaryBatch.nestedAuxLE
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+theorem AuxiliaryGenerationBatch.nestedAuxLE
+    (H : AuxiliaryGenerationBatch env lctx params As targetName levels nparams
       args result sourceNames state out) : NestedAuxLE state out.2 := by
   induction H with
   | nil => exact .refl _
   | cons Hstep Htail ih => exact Hstep.nestedAuxLE.trans ih
 
-theorem GeneratedAuxiliaryBatch.namesWF
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+theorem AuxiliaryGenerationBatch.namesWF
+    (H : AuxiliaryGenerationBatch env lctx params As targetName levels nparams
       args result sourceNames state out)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   induction H with
   | nil => exact Hstate
   | cons Hstep Htail ih => exact ih (Hstep.namesWF Hstate)
 
-theorem GeneratedAuxiliaryBatch.namesFresh
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+theorem AuxiliaryGenerationBatch.namesFresh
+    (H : AuxiliaryGenerationBatch env lctx params As targetName levels nparams
       args result sourceNames state out)
     (Hstate : NestedAuxNamesFresh env state) :
     NestedAuxNamesFresh env out.2 := by
@@ -780,8 +780,8 @@ theorem GeneratedAuxiliaryBatch.namesFresh
 
 /-- If the target family does not occur in the remaining mutual-family
 suffix, that suffix cannot replace the accumulated result. -/
-theorem GeneratedAuxiliaryBatch.result_eq_of_target_not_mem
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+theorem AuxiliaryGenerationBatch.result_eq_of_target_not_mem
+    (H : AuxiliaryGenerationBatch env lctx params As targetName levels nparams
       args result sourceNames state out)
     (hnot : targetName ∉ sourceNames) : out.1 = result := by
   induction H with
@@ -800,8 +800,8 @@ theorem GeneratedAuxiliaryBatch.result_eq_of_target_not_mem
 /-- With unique mutual-family names, the batch result is exactly the
 auxiliary application generated at the unique target-family step. The same
 fresh name remains paired with its source expression in the final cache. -/
-theorem GeneratedAuxiliaryBatch.targetResult
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+theorem AuxiliaryGenerationBatch.targetResult
+    (H : AuxiliaryGenerationBatch env lctx params As targetName levels nparams
       args result sourceNames state out)
     (hnodup : sourceNames.Nodup)
     (htarget : targetName ∈ sourceNames) :
@@ -810,7 +810,7 @@ theorem GeneratedAuxiliaryBatch.targetResult
         (data : Lean4Lean.ElimNestedInductive.AuxiliaryData),
       FreshNestedName env `_nested stepState.nextIdx
         auxName nextIdx ∧
-      BuiltAuxiliary env lctx params As levels nparams args targetName auxName
+      AuxiliaryFamilySpec env lctx params As levels nparams args targetName auxName
         sourceInfo data ∧
       stepState.lvls = state.lvls ∧
       out.1 = some (mkAppRange
@@ -851,8 +851,8 @@ theorem GeneratedAuxiliaryBatch.targetResult
 /-- Global map-model evidence turns the unique target step into the exact
 `aux2nested` lookup used by restoration, even after later lowering has
 appended more cache entries. -/
-theorem GeneratedAuxiliaryBatch.targetResultMapped
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+theorem AuxiliaryGenerationBatch.targetResultMapped
+    (H : AuxiliaryGenerationBatch env lctx params As targetName levels nparams
       args result sourceNames state out)
     (hsourceNames : sourceNames.Nodup)
     (htarget : targetName ∈ sourceNames)
@@ -861,7 +861,7 @@ theorem GeneratedAuxiliaryBatch.targetResultMapped
     ∃ (stepState : Lean4Lean.ElimNestedInductive.State)
         (sourceInfo : InductiveVal) (auxName : Name)
         (data : Lean4Lean.ElimNestedInductive.AuxiliaryData),
-      BuiltAuxiliary env lctx params As levels nparams args targetName auxName
+      AuxiliaryFamilySpec env lctx params As levels nparams args targetName auxName
         sourceInfo data ∧
       stepState.lvls = state.lvls ∧
       out.1 = some (mkAppRange
@@ -876,8 +876,8 @@ theorem GeneratedAuxiliaryBatch.targetResultMapped
 /-- Both cache reuse and fresh mutual-family generation expose the same
 restoration-facing fact: the returned auxiliary application is keyed in the
 final map by the normalized source-family application it replaced. -/
-theorem RecognizedNestedReplacement.finalMapping
-    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+theorem OccurrenceReplacement.finalMapping
+    (H : OccurrenceReplacement env lctx params As targetName levels args
       value state out)
     (Hlater : NestedAuxLE out.2 finalState)
     (Hmap : NestedAuxMapModels finalResult finalState) :
@@ -912,7 +912,7 @@ def NestedReplacementHasFinalMapping
     (input : Expr) (state : Lean4Lean.ElimNestedInductive.State)
     (lowered : Expr) (finalResult : Lean4Lean.ElimNestedInductive.Result) : Prop :=
     ∃ value targetName levels auxName auxLevels nested,
-      NestedAppCandidate env state input value ∧
+      NestedOccurrence env state input value ∧
       auxLevels = state.lvls ∧
       input.getAppFn = .const targetName levels ∧
       lowered = mkAppRange (mkAppN (.const auxName auxLevels) As)
@@ -925,7 +925,7 @@ def NestedReplacementHasFinalMapping
 /-- Non-erased successful-hit provenance.  Unlike
 `NestedReplacementHasFinalMapping`, this retains the exact cache-or-generation
 branch and the state at which it completed.  In the generated branch this is
-the persistent path back to `BuiltAuxiliary`; cached hits remain identifiable
+the persistent path back to `AuxiliaryFamilySpec`; cached hits remain identifiable
 as cache reuse and can be joined to final generated-family origins. -/
 def NestedReplacementFinalTrace
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
@@ -934,9 +934,9 @@ def NestedReplacementFinalTrace
     (finalResult : Lean4Lean.ElimNestedInductive.Result)
     (finalState : Lean4Lean.ElimNestedInductive.State) : Prop :=
   ∃ value targetName levels,
-    NestedAppCandidate env state input value ∧
+    NestedOccurrence env state input value ∧
     input.getAppFn = .const targetName levels ∧
-    RecognizedNestedReplacement env lctx params As targetName levels
+    OccurrenceReplacement env lctx params As targetName levels
       input.getAppArgs value state (some lowered, nextState) ∧
     NestedAuxLE nextState finalState ∧
     NestedAuxMapModels finalResult finalState
@@ -1002,7 +1002,7 @@ def NestedReplacementReopens
     (lowered : Expr) (finalResult : Lean4Lean.ElimNestedInductive.Result)
     (restoreAs : Array Expr) : Prop :=
   ∃ value targetName levels auxName auxLevels nested,
-    NestedAppCandidate env state input value ∧
+    NestedOccurrence env state input value ∧
     input.getAppFn = .const targetName levels ∧
     lowered = mkAppRange (mkAppN (.const auxName auxLevels) As)
       value.numParams input.getAppArgs.size input.getAppArgs ∧
@@ -1125,7 +1125,7 @@ theorem NestedReplacementHasFinalMapping.reopens
     (Hselection : CDeclArray lctx As)
     (hAs : Hselection.fvars.length ≤ fvars.length)
     (hclosed : ∀ value targetName levels,
-      NestedAppCandidate env state input value →
+      NestedOccurrence env state input value →
       input.getAppFn = .const targetName levels →
       FVarsIn (fun _ => False)
         ((mkAppRange (.const targetName levels) 0 value.numParams
@@ -1170,8 +1170,8 @@ theorem NestedReplacementHasFinalMapping.reopens
 
 /-- A recognized nested application's source-family prefix becomes closed
 once all constructor-opening free variables are abstracted. -/
-theorem NestedAppCandidate.abstractedPrefixClosed
-    (H : NestedAppCandidate env state input value)
+theorem NestedOccurrence.abstractedPrefixClosed
+    (H : NestedOccurrence env state input value)
     (Hselection : CDeclArray lctx As)
     (Hinput : FVarsIn (· ∈ Hselection.fvars) input)
     (hhead : input.getAppFn = .const targetName levels) :
@@ -1225,8 +1225,8 @@ theorem NestedReplacementFinalTrace.reopensOfFVars
 
 /-- Successful node replacement with its cache-or-generation branch retained
 verbatim. -/
-theorem NestedReplacement.finalTrace
-    (H : NestedReplacement env lctx params As input state
+theorem NodeReplacement.finalTrace
+    (H : NodeReplacement env lctx params As input state
       (some lowered, nextState))
     (Hlater : NestedAuxLE nextState finalState)
     (Hmap : NestedAuxMapModels finalResult finalState) :
@@ -1240,85 +1240,85 @@ theorem NestedReplacement.finalTrace
 already connected to the final restoration map. Unlike the operational trace,
 this relation forgets monadic control flow and retains exactly the semantic
 information needed to interpret the lowered expression. -/
-inductive NestedExprMapping
+inductive ExprLowering.Resolved
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (finalResult : Lean4Lean.ElimNestedInductive.Result) :
     Expr → Lean4Lean.ElimNestedInductive.State →
       Expr × Lean4Lean.ElimNestedInductive.State → Prop
   | occurrence : NestedReplacementFinalTrace env lctx params As input state output
       nextState finalResult finalState →
-      NestedExprMapping env lctx params As finalResult input state
+      ExprLowering.Resolved env lctx params As finalResult input state
         (output, nextState)
-  | bvar : NestedReplacement env lctx params As (.bvar i) state (none, state) →
-      NestedExprMapping env lctx params As finalResult (.bvar i) state
+  | bvar : NodeReplacement env lctx params As (.bvar i) state (none, state) →
+      ExprLowering.Resolved env lctx params As finalResult (.bvar i) state
       (.bvar i, state)
   | fvar {fvarId : FVarId} :
-      NestedReplacement env lctx params As (.fvar fvarId) state (none, state) →
-      NestedExprMapping env lctx params As finalResult
+      NodeReplacement env lctx params As (.fvar fvarId) state (none, state) →
+      ExprLowering.Resolved env lctx params As finalResult
       (.fvar fvarId) state (.fvar fvarId, state)
   | mvar {mvarId : MVarId} :
-      NestedReplacement env lctx params As (.mvar mvarId) state (none, state) →
-      NestedExprMapping env lctx params As finalResult
+      NodeReplacement env lctx params As (.mvar mvarId) state (none, state) →
+      ExprLowering.Resolved env lctx params As finalResult
       (.mvar mvarId) state (.mvar mvarId, state)
-  | sort : NestedReplacement env lctx params As (.sort level) state (none, state) →
-      NestedExprMapping env lctx params As finalResult (.sort level) state
+  | sort : NodeReplacement env lctx params As (.sort level) state (none, state) →
+      ExprLowering.Resolved env lctx params As finalResult (.sort level) state
       (.sort level, state)
-  | const : NestedReplacement env lctx params As (.const name levels) state
-      (none, state) → NestedExprMapping env lctx params As finalResult
+  | const : NodeReplacement env lctx params As (.const name levels) state
+      (none, state) → ExprLowering.Resolved env lctx params As finalResult
       (.const name levels) state (.const name levels, state)
-  | lit : NestedReplacement env lctx params As (.lit literal) state (none, state) →
-      NestedExprMapping env lctx params As finalResult (.lit literal) state
+  | lit : NodeReplacement env lctx params As (.lit literal) state (none, state) →
+      ExprLowering.Resolved env lctx params As finalResult (.lit literal) state
       (.lit literal, state)
-  | app : NestedReplacement env lctx params As (.app fn arg) state (none, state) →
-      NestedExprMapping env lctx params As finalResult fn state
+  | app : NodeReplacement env lctx params As (.app fn arg) state (none, state) →
+      ExprLowering.Resolved env lctx params As finalResult fn state
       (fn', fnState) →
-      NestedExprMapping env lctx params As finalResult arg fnState
+      ExprLowering.Resolved env lctx params As finalResult arg fnState
         (arg', outState) →
-      NestedExprMapping env lctx params As finalResult (.app fn arg) state
+      ExprLowering.Resolved env lctx params As finalResult (.app fn arg) state
         (Expr.updateApp! (.app fn arg) fn' arg', outState)
-  | lam : NestedReplacement env lctx params As (.lam name dom body bi) state
-      (none, state) → NestedExprMapping env lctx params As finalResult dom state
+  | lam : NodeReplacement env lctx params As (.lam name dom body bi) state
+      (none, state) → ExprLowering.Resolved env lctx params As finalResult dom state
       (dom', domState) →
-      NestedExprMapping env lctx params As finalResult body domState
+      ExprLowering.Resolved env lctx params As finalResult body domState
         (body', outState) →
-      NestedExprMapping env lctx params As finalResult (.lam name dom body bi)
+      ExprLowering.Resolved env lctx params As finalResult (.lam name dom body bi)
         state (Expr.updateLambdaE! (.lam name dom body bi) dom' body', outState)
-  | forallE : NestedReplacement env lctx params As
+  | forallE : NodeReplacement env lctx params As
       (.forallE name dom body bi) state (none, state) →
-      NestedExprMapping env lctx params As finalResult dom state
+      ExprLowering.Resolved env lctx params As finalResult dom state
       (dom', domState) →
-      NestedExprMapping env lctx params As finalResult body domState
+      ExprLowering.Resolved env lctx params As finalResult body domState
         (body', outState) →
-      NestedExprMapping env lctx params As finalResult
+      ExprLowering.Resolved env lctx params As finalResult
         (.forallE name dom body bi) state
         (Expr.updateForallE! (.forallE name dom body bi) dom' body', outState)
-  | letE : NestedReplacement env lctx params As
+  | letE : NodeReplacement env lctx params As
       (.letE name type value body nondep) state (none, state) →
-      NestedExprMapping env lctx params As finalResult type state
+      ExprLowering.Resolved env lctx params As finalResult type state
       (type', typeState) →
-      NestedExprMapping env lctx params As finalResult value typeState
+      ExprLowering.Resolved env lctx params As finalResult value typeState
         (value', valueState) →
-      NestedExprMapping env lctx params As finalResult body valueState
+      ExprLowering.Resolved env lctx params As finalResult body valueState
         (body', outState) →
-      NestedExprMapping env lctx params As finalResult
+      ExprLowering.Resolved env lctx params As finalResult
         (.letE name type value body nondep) state
         (Expr.updateLet! (.letE name type value body nondep)
           type' value' body' nondep, outState)
-  | mdata : NestedReplacement env lctx params As (.mdata data body) state
-      (none, state) → NestedExprMapping env lctx params As finalResult body state
+  | mdata : NodeReplacement env lctx params As (.mdata data body) state
+      (none, state) → ExprLowering.Resolved env lctx params As finalResult body state
       (body', outState) →
-      NestedExprMapping env lctx params As finalResult (.mdata data body) state
+      ExprLowering.Resolved env lctx params As finalResult (.mdata data body) state
         (Expr.updateMData! (.mdata data body) body', outState)
-  | proj : NestedReplacement env lctx params As (.proj name idx body) state
-      (none, state) → NestedExprMapping env lctx params As finalResult body state
+  | proj : NodeReplacement env lctx params As (.proj name idx body) state
+      (none, state) → ExprLowering.Resolved env lctx params As finalResult body state
       (body', outState) →
-      NestedExprMapping env lctx params As finalResult (.proj name idx body) state
+      ExprLowering.Resolved env lctx params As finalResult (.proj name idx body) state
         (Expr.updateProj! (.proj name idx body) body', outState)
 
 /-- Nested lowering preserves free-variable-ID scoping. Successful hits use
 `outputFVarsIn`; structural misses inherit the property componentwise. -/
-theorem NestedExprMapping.outputFVarIdsIn
-    (H : NestedExprMapping env lctx params As finalResult input state out)
+theorem ExprLowering.Resolved.outputFVarIdsIn
+    (H : ExprLowering.Resolved env lctx params As finalResult input state out)
     (Hselection : CDeclArray lctx As)
     (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
     out.1.FVarIdsIn (· ∈ Hselection.fvars) := by
@@ -1352,8 +1352,8 @@ theorem NestedExprMapping.outputFVarIdsIn
 /-- Nested lowering preserves bound-variable closedness at every depth: a
 hit replaces a closed parameter prefix by an auxiliary head applied to the
 copied parameter variables, and structural misses recurse componentwise. -/
-theorem NestedExprMapping.closed
-    (H : NestedExprMapping env lctx params As finalResult input state out)
+theorem ExprLowering.Resolved.closed
+    (H : ExprLowering.Resolved env lctx params As finalResult input state out)
     (Hselection : CDeclArray lctx As)
     (Hinput : Closed input k) : Closed out.1 k := by
   induction H generalizing k with
@@ -1400,7 +1400,7 @@ theorem NestedExprMapping.closed
 
 /-- Structural lowering map with every successful leaf upgraded to its
 parameter-reopening certificate. -/
-inductive NestedExprReopening
+inductive ExprLowering.Reopened
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (finalResult : Lean4Lean.ElimNestedInductive.Result)
     (restoreAs : Array Expr) :
@@ -1408,82 +1408,82 @@ inductive NestedExprReopening
       Expr × Lean4Lean.ElimNestedInductive.State → Prop
   | occurrence : NestedReplacementReopens env lctx params As input state output
       finalResult restoreAs →
-      NestedExprReopening env lctx params As finalResult restoreAs input state
+      ExprLowering.Reopened env lctx params As finalResult restoreAs input state
         (output, nextState)
-  | bvar : NestedReplacement env lctx params As (.bvar i) state (none, state) →
-      NestedExprReopening env lctx params As finalResult restoreAs
+  | bvar : NodeReplacement env lctx params As (.bvar i) state (none, state) →
+      ExprLowering.Reopened env lctx params As finalResult restoreAs
       (.bvar i) state (.bvar i, state)
   | fvar {fvarId : FVarId} :
-      NestedReplacement env lctx params As (.fvar fvarId) state (none, state) →
-      NestedExprReopening env lctx params As finalResult restoreAs
+      NodeReplacement env lctx params As (.fvar fvarId) state (none, state) →
+      ExprLowering.Reopened env lctx params As finalResult restoreAs
         (.fvar fvarId) state (.fvar fvarId, state)
   | mvar {mvarId : MVarId} :
-      NestedReplacement env lctx params As (.mvar mvarId) state (none, state) →
-      NestedExprReopening env lctx params As finalResult restoreAs
+      NodeReplacement env lctx params As (.mvar mvarId) state (none, state) →
+      ExprLowering.Reopened env lctx params As finalResult restoreAs
         (.mvar mvarId) state (.mvar mvarId, state)
-  | sort : NestedReplacement env lctx params As (.sort level) state (none, state) →
-      NestedExprReopening env lctx params As finalResult restoreAs
+  | sort : NodeReplacement env lctx params As (.sort level) state (none, state) →
+      ExprLowering.Reopened env lctx params As finalResult restoreAs
       (.sort level) state (.sort level, state)
-  | const : NestedReplacement env lctx params As (.const name levels) state
-      (none, state) → NestedExprReopening env lctx params As finalResult restoreAs
+  | const : NodeReplacement env lctx params As (.const name levels) state
+      (none, state) → ExprLowering.Reopened env lctx params As finalResult restoreAs
       (.const name levels) state (.const name levels, state)
-  | lit : NestedReplacement env lctx params As (.lit literal) state (none, state) →
-      NestedExprReopening env lctx params As finalResult restoreAs
+  | lit : NodeReplacement env lctx params As (.lit literal) state (none, state) →
+      ExprLowering.Reopened env lctx params As finalResult restoreAs
       (.lit literal) state (.lit literal, state)
-  | app : NestedReplacement env lctx params As (.app fn arg) state (none, state) →
-      NestedExprReopening env lctx params As finalResult restoreAs fn state
+  | app : NodeReplacement env lctx params As (.app fn arg) state (none, state) →
+      ExprLowering.Reopened env lctx params As finalResult restoreAs fn state
       (fn', fnState) →
-      NestedExprReopening env lctx params As finalResult restoreAs arg fnState
+      ExprLowering.Reopened env lctx params As finalResult restoreAs arg fnState
         (arg', outState) →
-      NestedExprReopening env lctx params As finalResult restoreAs
+      ExprLowering.Reopened env lctx params As finalResult restoreAs
         (.app fn arg) state
         (Expr.updateApp! (.app fn arg) fn' arg', outState)
-  | lam : NestedReplacement env lctx params As (.lam name dom body bi) state
-      (none, state) → NestedExprReopening env lctx params As finalResult restoreAs dom state
+  | lam : NodeReplacement env lctx params As (.lam name dom body bi) state
+      (none, state) → ExprLowering.Reopened env lctx params As finalResult restoreAs dom state
       (dom', domState) →
-      NestedExprReopening env lctx params As finalResult restoreAs body domState
+      ExprLowering.Reopened env lctx params As finalResult restoreAs body domState
         (body', outState) →
-      NestedExprReopening env lctx params As finalResult restoreAs
+      ExprLowering.Reopened env lctx params As finalResult restoreAs
         (.lam name dom body bi) state
         (Expr.updateLambdaE! (.lam name dom body bi) dom' body', outState)
-  | forallE : NestedReplacement env lctx params As
+  | forallE : NodeReplacement env lctx params As
       (.forallE name dom body bi) state (none, state) →
-      NestedExprReopening env lctx params As finalResult restoreAs dom
+      ExprLowering.Reopened env lctx params As finalResult restoreAs dom
       state (dom', domState) →
-      NestedExprReopening env lctx params As finalResult restoreAs body domState
+      ExprLowering.Reopened env lctx params As finalResult restoreAs body domState
         (body', outState) →
-      NestedExprReopening env lctx params As finalResult restoreAs
+      ExprLowering.Reopened env lctx params As finalResult restoreAs
         (.forallE name dom body bi) state
         (Expr.updateForallE! (.forallE name dom body bi) dom' body', outState)
-  | letE : NestedReplacement env lctx params As
+  | letE : NodeReplacement env lctx params As
       (.letE name type value body nondep) state (none, state) →
-      NestedExprReopening env lctx params As finalResult restoreAs type state
+      ExprLowering.Reopened env lctx params As finalResult restoreAs type state
       (type', typeState) →
-      NestedExprReopening env lctx params As finalResult restoreAs value typeState
+      ExprLowering.Reopened env lctx params As finalResult restoreAs value typeState
         (value', valueState) →
-      NestedExprReopening env lctx params As finalResult restoreAs body valueState
+      ExprLowering.Reopened env lctx params As finalResult restoreAs body valueState
         (body', outState) →
-      NestedExprReopening env lctx params As finalResult restoreAs
+      ExprLowering.Reopened env lctx params As finalResult restoreAs
         (.letE name type value body nondep) state
         (Expr.updateLet! (.letE name type value body nondep)
           type' value' body' nondep, outState)
-  | mdata : NestedReplacement env lctx params As (.mdata data body) state
-      (none, state) → NestedExprReopening env lctx params As finalResult restoreAs body state
+  | mdata : NodeReplacement env lctx params As (.mdata data body) state
+      (none, state) → ExprLowering.Reopened env lctx params As finalResult restoreAs body state
       (body', outState) →
-      NestedExprReopening env lctx params As finalResult restoreAs
+      ExprLowering.Reopened env lctx params As finalResult restoreAs
         (.mdata data body) state
         (Expr.updateMData! (.mdata data body) body', outState)
-  | proj : NestedReplacement env lctx params As (.proj name idx body) state
-      (none, state) → NestedExprReopening env lctx params As finalResult restoreAs body state
+  | proj : NodeReplacement env lctx params As (.proj name idx body) state
+      (none, state) → ExprLowering.Reopened env lctx params As finalResult restoreAs body state
       (body', outState) →
-      NestedExprReopening env lctx params As finalResult restoreAs
+      ExprLowering.Reopened env lctx params As finalResult restoreAs
         (.proj name idx body) state
         (Expr.updateProj! (.proj name idx body) body', outState)
 
 /-- Leafwise reopening certificates also preserve bound-variable closedness
 at every depth. -/
-theorem NestedExprReopening.closed
-    (H : NestedExprReopening env lctx params As finalResult restoreAs input
+theorem ExprLowering.Reopened.closed
+    (H : ExprLowering.Reopened env lctx params As finalResult restoreAs input
       state out)
     (Hselection : CDeclArray lctx As)
     (Hinput : Closed input k) : Closed out.1 k := by
@@ -1532,8 +1532,8 @@ theorem NestedExprReopening.closed
 /-- Lift a complete expression mapping to leafwise reopening.  Source
 free-variable scoping is split structurally in exactly the same way as the
 lowering traversal. -/
-theorem NestedExprMapping.reopens
-    (H : NestedExprMapping env lctx params As finalResult input state out)
+theorem ExprLowering.Resolved.reopens
+    (H : ExprLowering.Resolved env lctx params As finalResult input state out)
     (hresultParams : finalResult.params = params)
     (fvars : List FVarId)
     (hparams : params = (fvars.map Expr.fvar).toArray)
@@ -1541,7 +1541,7 @@ theorem NestedExprMapping.reopens
     (Hselection : CDeclArray lctx As)
     (hAs : Hselection.fvars.length ≤ fvars.length)
     (Hinput : FVarsIn (· ∈ Hselection.fvars) input) :
-    NestedExprReopening env lctx params As finalResult restoreAs input state
+    ExprLowering.Reopened env lctx params As finalResult restoreAs input state
       out := by
   induction H with
   | occurrence Hnode =>
@@ -1575,10 +1575,10 @@ theorem NestedExprMapping.reopens
 unless the root itself was recognized. In the application case, maximality
 rules out a recognized function prefix whenever the parent has a certified
 miss. -/
-theorem NestedExprReopening.constHead_of_noCandidate
-    (H : NestedExprReopening env lctx params As finalResult restoreAs input
+theorem ExprLowering.Reopened.constHead_of_noCandidate
+    (H : ExprLowering.Reopened env lctx params As finalResult restoreAs input
       state out)
-    (Hmiss : NoNestedAppCandidate env state input)
+    (Hmiss : NotNestedOccurrence env state input)
     (Hhead : out.1.getAppFn = .const name levels) :
     input.getAppFn = .const name levels := by
   induction H with
@@ -1589,7 +1589,7 @@ theorem NestedExprReopening.constHead_of_noCandidate
     exact False.elim (Hmiss value Hcandidate)
   | bvar | fvar | mvar | sort | const | lit => exact Hhead
   | @app fn arg state fn' fnState arg' outState Hnode Hfn Harg ihFn ihArg =>
-    have HfnMiss : NoNestedAppCandidate env state fn := by
+    have HfnMiss : NotNestedOccurrence env state fn := by
       intro info Hcandidate
       exact Hmiss info (Hcandidate.app arg)
     apply ihFn HfnMiss
@@ -1602,11 +1602,11 @@ theorem NestedExprReopening.constHead_of_noCandidate
 
 /-- The constant-head reflection theorem remains true after the constructor
 parameters have been renamed at an arbitrary binder depth. -/
-theorem NestedExprReopening.reopenedConstHead_of_noCandidate
-    (H : NestedExprReopening env lctx params As finalResult restoreAs input
+theorem ExprLowering.Reopened.reopenedConstHead_of_noCandidate
+    (H : ExprLowering.Reopened env lctx params As finalResult restoreAs input
       state out)
     (hnd : fvars.Nodup) (hsize : restoreFvars.length = fvars.length)
-    (Hmiss : NoNestedAppCandidate env state input)
+    (Hmiss : NotNestedOccurrence env state input)
     (Hhead : (Expr.reopenFVarsAt out.1 fvars restoreFvars k).getAppFn =
       .const name levels) :
     input.getAppFn = .const name levels := by
@@ -1616,12 +1616,12 @@ theorem NestedExprReopening.reopenedConstHead_of_noCandidate
 /-- At a structural lowering node, restoration must miss the node itself.
 The proof uses recognition maximality for the lowered head and source-map
 disjointness for the corresponding original constant. -/
-theorem NestedExprReopening.restoreNode_none
-    (H : NestedExprReopening env lctx params As finalResult targetAs input
+theorem ExprLowering.Reopened.restoreNode_none
+    (H : ExprLowering.Reopened env lctx params As finalResult targetAs input
       state out)
     (restoreEnv : Environment)
     (hnd : fvars.Nodup) (hsize : restoreFvars.length = fvars.length)
-    (Hmiss : NoNestedAppCandidate env state input)
+    (Hmiss : NotNestedOccurrence env state input)
     (Hsource : RestoreSourceDisjoint finalResult restoreEnv input) (k : Nat) :
     finalResult.restoreNestedNode restoreEnv targetAs {}
       (Expr.reopenFVarsAt out.1 fvars restoreFvars k) = none := by
@@ -1660,8 +1660,8 @@ theorem NestedExprReopening.restoreNode_none
 expression equivalence, of the nested-expression traversal. The proof follows
 the same top-down stopping rule as `Expr.replace`: hits restore immediately,
 while certified misses recurse through the renamed children. -/
-theorem NestedExprReopening.restore_eqv
-    (H : NestedExprReopening env lctx params As finalResult targetAs input
+theorem ExprLowering.Reopened.restore_eqv
+    (H : ExprLowering.Reopened env lctx params As finalResult targetAs input
       state out)
     (restoreEnv : Environment)
     (Hselection : CDeclArray lctx As)
@@ -1683,13 +1683,13 @@ theorem NestedExprReopening.restore_eqv
     rw [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hrestored]
     exact heqv
   | bvar Hnode =>
-    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+    have hnone := ExprLowering.Reopened.restoreNode_none (targetAs := targetAs)
       (.bvar Hnode) restoreEnv hnd hsize
       Hnode.noCandidate Hsource k
     rw [Expr.reopenFVarsAt_bvar hsize] at hnone ⊢
     simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
   | fvar Hnode =>
-    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+    have hnone := ExprLowering.Reopened.restoreNode_none (targetAs := targetAs)
       (.fvar Hnode) restoreEnv hnd hsize
       Hnode.noCandidate Hsource k
     rcases Expr.reopenFVarsAt_fvar_exists hnd hsize _ k with
@@ -1697,7 +1697,7 @@ theorem NestedExprReopening.restore_eqv
     rw [hopen] at hnone ⊢
     simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
   | @mvar stepState id Hnode =>
-    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+    have hnone := ExprLowering.Reopened.restoreNode_none (targetAs := targetAs)
       (.mvar Hnode) restoreEnv hnd hsize
       Hnode.noCandidate Hsource k
     have hopen := Expr.reopenFVarsAt_of_abstract1_eq_self
@@ -1706,7 +1706,7 @@ theorem NestedExprReopening.restore_eqv
     rw [hopen] at hnone ⊢
     simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
   | @sort level stepState Hnode =>
-    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+    have hnone := ExprLowering.Reopened.restoreNode_none (targetAs := targetAs)
       (.sort Hnode) restoreEnv hnd hsize
       Hnode.noCandidate Hsource k
     have hopen := Expr.reopenFVarsAt_of_abstract1_eq_self
@@ -1715,7 +1715,7 @@ theorem NestedExprReopening.restore_eqv
     rw [hopen] at hnone ⊢
     simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
   | @const name levels stepState Hnode =>
-    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+    have hnone := ExprLowering.Reopened.restoreNode_none (targetAs := targetAs)
       (.const Hnode) restoreEnv hnd hsize
       Hnode.noCandidate Hsource k
     have hopen := Expr.reopenFVarsAt_of_abstract1_eq_self
@@ -1724,7 +1724,7 @@ theorem NestedExprReopening.restore_eqv
     rw [hopen] at hnone ⊢
     simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
   | @lit literal stepState Hnode =>
-    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+    have hnone := ExprLowering.Reopened.restoreNode_none (targetAs := targetAs)
       (.lit Hnode) restoreEnv hnd hsize
       Hnode.noCandidate Hsource k
     have hopen := Expr.reopenFVarsAt_of_abstract1_eq_self
@@ -1733,7 +1733,7 @@ theorem NestedExprReopening.restore_eqv
     rw [hopen] at hnone ⊢
     simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
   | @app fn arg stepState fn' fnState arg' outState Hnode Hfn Harg ihFn ihArg =>
-    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+    have hnone := ExprLowering.Reopened.restoreNode_none (targetAs := targetAs)
       (.app Hnode Hfn Harg) restoreEnv hnd hsize Hnode.noCandidate Hsource k
     let R : Expr → Expr := fun e =>
       Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
@@ -1762,7 +1762,7 @@ theorem NestedExprReopening.restore_eqv
     exact Expr.app_eqv hfn harg
   | @lam name dom body bi stepState dom' domState body' outState
       Hnode Hdom Hbody ihDom ihBody =>
-    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+    have hnone := ExprLowering.Reopened.restoreNode_none (targetAs := targetAs)
       (.lam Hnode Hdom Hbody) restoreEnv hnd hsize Hnode.noCandidate Hsource k
     let R0 : Expr → Expr := fun e =>
       Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
@@ -1795,7 +1795,7 @@ theorem NestedExprReopening.restore_eqv
     exact Expr.lam_eqv hdom hbody
   | @forallE name dom body bi stepState dom' domState body' outState
       Hnode Hdom Hbody ihDom ihBody =>
-    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+    have hnone := ExprLowering.Reopened.restoreNode_none (targetAs := targetAs)
       (.forallE Hnode Hdom Hbody) restoreEnv hnd hsize Hnode.noCandidate Hsource k
     let R0 : Expr → Expr := fun e =>
       Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
@@ -1828,7 +1828,7 @@ theorem NestedExprReopening.restore_eqv
     exact Expr.forallE_eqv hdom hbody
   | @letE name type value body nondep stepState type' typeState value'
       valueState body' outState Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
-    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+    have hnone := ExprLowering.Reopened.restoreNode_none (targetAs := targetAs)
       (.letE Hnode Htype Hvalue Hbody) restoreEnv hnd hsize
         Hnode.noCandidate Hsource k
     let R0 : Expr → Expr := fun e =>
@@ -1867,7 +1867,7 @@ theorem NestedExprReopening.restore_eqv
       (R1 body') == R1 body) = true) at hbody
     exact Expr.letE_eqv htype hvalue hbody
   | @mdata data body stepState body' outState Hnode Hbody ihBody =>
-    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+    have hnone := ExprLowering.Reopened.restoreNode_none (targetAs := targetAs)
       (.mdata Hnode Hbody) restoreEnv hnd hsize Hnode.noCandidate Hsource k
     let R : Expr → Expr := fun e =>
       Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
@@ -1890,7 +1890,7 @@ theorem NestedExprReopening.restore_eqv
       (R body') == R body) = true) at hbody
     exact Expr.mdata_eqv data hbody
   | @proj name idx body stepState body' outState Hnode Hbody ihBody =>
-    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+    have hnone := ExprLowering.Reopened.restoreNode_none (targetAs := targetAs)
       (.proj Hnode Hbody) restoreEnv hnd hsize Hnode.noCandidate Hsource k
     let R : Expr → Expr := fun e =>
       Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
@@ -1913,8 +1913,8 @@ theorem NestedExprReopening.restore_eqv
       (R body') == R body) = true) at hbody
     exact Expr.proj_eqv hbody
 
-theorem RecognizedNestedReplacement.auxFVarsIn
-    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+theorem OccurrenceReplacement.auxFVarsIn
+    (H : OccurrenceReplacement env lctx params As targetName levels args
       value state out)
     (HAs : CDeclArray lctx As)
     (hnparams : value.numParams ≤ args.size)
@@ -1929,8 +1929,8 @@ theorem RecognizedNestedReplacement.auxFVarsIn
   | generated _ Hbatch =>
     exact Hbatch.auxFVarsIn HAs hnparams Hlevels Hargs Hparams Hstate
 
-theorem NestedReplacement.auxFVarsIn
-    (H : NestedReplacement env lctx params As e state out)
+theorem NodeReplacement.auxFVarsIn
+    (H : NodeReplacement env lctx params As e state out)
     (HAs : CDeclArray lctx As)
     (Hinput : e.FVarsIn (fun fv => fv ∈ HAs.fvars ∨ P fv))
     (Hparams : ∀ param ∈ params, param.FVarsIn P)
@@ -1950,8 +1950,8 @@ theorem NestedReplacement.auxFVarsIn
     · exact Hparams
     · exact Hstate
 
-theorem RecognizedNestedReplacement.pendingNewTypesClosed
-    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+theorem OccurrenceReplacement.pendingNewTypesClosed
+    (H : OccurrenceReplacement env lctx params As targetName levels args
       value state out)
     (Henv : EnvironmentTypesClosed env)
     (Hclosing : NestedClosingContext lctx As ngen)
@@ -1965,8 +1965,8 @@ theorem RecognizedNestedReplacement.pendingNewTypesClosed
   | generated _ Hbatch =>
     exact Hbatch.pendingNewTypesClosed Henv Hclosing Hlevels Hargs Hstate
 
-theorem NestedReplacement.pendingNewTypesClosed
-    (H : NestedReplacement env lctx params As e state out)
+theorem NodeReplacement.pendingNewTypesClosed
+    (H : NodeReplacement env lctx params As e state out)
     (Henv : EnvironmentTypesClosed env)
     (Hclosing : NestedClosingContext lctx As ngen)
     (Hinput : e.FVarsIn (· ∈ Hclosing.selection.fvars))
@@ -1985,30 +1985,30 @@ theorem NestedReplacement.pendingNewTypesClosed
       exact Array.mem_toList_iff.mpr harg
     · exact Hstate
 
-theorem RecognizedNestedReplacement.newTypesLE
-    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+theorem OccurrenceReplacement.newTypesLE
+    (H : OccurrenceReplacement env lctx params As targetName levels args
       value state out) : NestedNewTypesLE state out.2 := by
   cases H with
   | cached => exact .refl _
   | generated _ Hbatch => exact Hbatch.newTypesLE
 
-theorem RecognizedNestedReplacement.nestedAuxLE
-    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+theorem OccurrenceReplacement.nestedAuxLE
+    (H : OccurrenceReplacement env lctx params As targetName levels args
       value state out) : NestedAuxLE state out.2 := by
   cases H with
   | cached => exact .refl _
   | generated _ Hbatch => exact Hbatch.nestedAuxLE
 
-theorem RecognizedNestedReplacement.namesWF
-    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+theorem OccurrenceReplacement.namesWF
+    (H : OccurrenceReplacement env lctx params As targetName levels args
       value state out)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   cases H with
   | cached => exact Hstate
   | generated _ Hbatch => exact Hbatch.namesWF Hstate
 
-theorem RecognizedNestedReplacement.namesFresh
-    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+theorem OccurrenceReplacement.namesFresh
+    (H : OccurrenceReplacement env lctx params As targetName levels args
       value state out)
     (Hstate : NestedAuxNamesFresh env state) :
     NestedAuxNamesFresh env out.2 := by
@@ -2016,37 +2016,37 @@ theorem RecognizedNestedReplacement.namesFresh
   | cached => exact Hstate
   | generated _ Hbatch => exact Hbatch.namesFresh Hstate
 
-theorem NestedReplacement.newTypesLE
-    (H : NestedReplacement env lctx params As e state out) :
+theorem NodeReplacement.newTypesLE
+    (H : NodeReplacement env lctx params As e state out) :
     NestedNewTypesLE state out.2 := by
   cases H with
   | unrecognized => exact .refl _
   | recognized _ _ Hresult => exact Hresult.newTypesLE
 
-theorem NestedReplacement.nestedAuxLE
-    (H : NestedReplacement env lctx params As e state out) :
+theorem NodeReplacement.nestedAuxLE
+    (H : NodeReplacement env lctx params As e state out) :
     NestedAuxLE state out.2 := by
   cases H with
   | unrecognized => exact .refl _
   | recognized _ _ Hresult => exact Hresult.nestedAuxLE
 
-theorem NestedReplacement.namesWF
-    (H : NestedReplacement env lctx params As e state out)
+theorem NodeReplacement.namesWF
+    (H : NodeReplacement env lctx params As e state out)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   cases H with
   | unrecognized => exact Hstate
   | recognized _ _ Hresult => exact Hresult.namesWF Hstate
 
-theorem NestedReplacement.namesFresh
-    (H : NestedReplacement env lctx params As e state out)
+theorem NodeReplacement.namesFresh
+    (H : NodeReplacement env lctx params As e state out)
     (Hstate : NestedAuxNamesFresh env state) :
     NestedAuxNamesFresh env out.2 := by
   cases H with
   | unrecognized => exact Hstate
   | recognized _ _ Hresult => exact Hresult.namesFresh Hstate
 
-theorem NestedExprReplacement.newTypesLE
-    (H : NestedExprReplacement env lctx params As e state out) :
+theorem ExprLowering.newTypesLE
+    (H : ExprLowering env lctx params As e state out) :
     NestedNewTypesLE state out.2 := by
   induction H with
   | occurrence Hnode => exact Hnode.newTypesLE
@@ -2060,8 +2060,8 @@ theorem NestedExprReplacement.newTypesLE
   | mdata Hnode _ ihBody | proj Hnode _ ihBody =>
     exact Hnode.newTypesLE.trans ihBody
 
-theorem NestedExprReplacement.nestedAuxLE
-    (H : NestedExprReplacement env lctx params As e state out) :
+theorem ExprLowering.nestedAuxLE
+    (H : ExprLowering env lctx params As e state out) :
     NestedAuxLE state out.2 := by
   induction H with
   | occurrence Hnode => exact Hnode.nestedAuxLE
@@ -2085,8 +2085,8 @@ theorem NestedReplacementFinalTrace.lvls
 
 /-- The semantic expression mapping leaves the universe arguments `lvls` of
 the lowering state unchanged. -/
-theorem NestedExprMapping.lvls
-    (H : NestedExprMapping env lctx params As finalResult input state out) :
+theorem ExprLowering.Resolved.lvls
+    (H : ExprLowering.Resolved env lctx params As finalResult input state out) :
     out.2.lvls = state.lvls := by
   induction H with
   | occurrence Hnode => exact Hnode.lvls
@@ -2096,8 +2096,8 @@ theorem NestedExprMapping.lvls
   | letE _ _ _ _ ihType ihValue ihBody => exact ihBody.trans (ihValue.trans ihType)
   | mdata _ _ ihBody | proj _ _ ihBody => exact ihBody
 
-theorem NestedExprReplacement.namesWF
-    (H : NestedExprReplacement env lctx params As e state out)
+theorem ExprLowering.namesWF
+    (H : ExprLowering env lctx params As e state out)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   induction H with
   | occurrence Hnode => exact Hnode.namesWF Hstate
@@ -2113,8 +2113,8 @@ theorem NestedExprReplacement.namesWF
   | mdata Hnode Hbody ihBody | proj Hnode Hbody ihBody =>
     exact ihBody (Hnode.namesWF Hstate)
 
-theorem NestedExprReplacement.namesFresh
-    (H : NestedExprReplacement env lctx params As e state out)
+theorem ExprLowering.namesFresh
+    (H : ExprLowering env lctx params As e state out)
     (Hstate : NestedAuxNamesFresh env state) :
     NestedAuxNamesFresh env out.2 := by
   induction H with
@@ -2130,8 +2130,8 @@ theorem NestedExprReplacement.namesFresh
   | mdata Hnode Hbody ihBody | proj Hnode Hbody ihBody =>
     exact ihBody (Hnode.namesFresh Hstate)
 
-theorem NestedExprReplacement.pendingNewTypesClosed
-    (H : NestedExprReplacement env lctx params As e state out)
+theorem ExprLowering.pendingNewTypesClosed
+    (H : ExprLowering env lctx params As e state out)
     (Henv : EnvironmentTypesClosed env)
     (Hclosing : NestedClosingContext lctx As ngen)
     (Hinput : e.FVarsIn (· ∈ Hclosing.selection.fvars))
@@ -2167,8 +2167,8 @@ theorem NestedExprReplacement.pendingNewTypesClosed
     exact ihBody Hinput
       (Hnode.pendingNewTypesClosed Henv Hclosing Hinput Hstate)
 
-theorem NestedExprReplacement.auxFVarsIn
-    (H : NestedExprReplacement env lctx params As e state out)
+theorem ExprLowering.auxFVarsIn
+    (H : ExprLowering env lctx params As e state out)
     (HAs : CDeclArray lctx As)
     (Hinput : e.FVarsIn (fun fv => fv ∈ HAs.fvars ∨ P fv))
     (Hparams : ∀ param ∈ params, param.FVarsIn P)
@@ -2201,11 +2201,11 @@ theorem NestedExprReplacement.auxFVarsIn
     exact ihBody Hinput Hparams
       (Hnode.auxFVarsIn HAs Hinput Hparams Hstate)
 
-theorem NestedExprReplacement.finalMapping
-    (H : NestedExprReplacement env lctx params As input state out)
+theorem ExprLowering.finalMapping
+    (H : ExprLowering env lctx params As input state out)
     (Hlater : NestedAuxLE out.2 finalState)
     (Hmap : NestedAuxMapModels finalResult finalState) :
-    NestedExprMapping env lctx params As finalResult input state out := by
+    ExprLowering.Resolved env lctx params As finalResult input state out := by
   induction H generalizing finalState with
   | occurrence Hnode => exact .occurrence (Hnode.finalTrace Hlater Hmap)
   | bvar Hnode => exact .bvar Hnode
@@ -2238,7 +2238,7 @@ theorem replaceAllNested_refines
     (hsize : As.size = params.size)
     (hclosures : MutualInductivesClosed env) :
     (Lean4Lean.ElimNestedInductive.replaceAllNested lctx params As e env state).WF
-      fun out => NestedExprReplacement env lctx params As e state out := by
+      fun out => ExprLowering env lctx params As e state out := by
   induction e generalizing state with
   | bvar i =>
     simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,

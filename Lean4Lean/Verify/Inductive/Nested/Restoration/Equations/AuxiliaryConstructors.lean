@@ -197,7 +197,7 @@ theorem auxiliaryConstructorLambdas_hasType
     {auxiliaries : List ContainerSpecialization}
     {generated targets : List VInductiveType}
     (henv : envTypes.WF) (hle : base ≤ envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence base envTypes paramCtx decl)
+    (Haux : List.Forall₂ (SpecializationGenerates base envTypes paramCtx decl)
       auxiliaries generated)
     (Hexp : List.Forall₂ (VInductDecl.NestedTypeExpansion base decl
         ((compilationRestoration decl auxiliaries).RestoringLeaf (VLevel.params decl.uvars)))

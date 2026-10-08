@@ -1120,7 +1120,7 @@ theorem RecursorCheck.generatedTelescopeTranslations
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) :
-    GeneratedRecursorTelescopeTranslations
+    RecursorTypeTelescopes
       R.context.venv stats
       H.recInfos H.entries := by
   intro ownerIdx hentry

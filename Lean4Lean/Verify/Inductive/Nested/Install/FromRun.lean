@@ -316,7 +316,7 @@ theorem NestedFinalAssemblyBase.ofReplay
       replay.constructorEntries replay.recursorEntries
         sourceDecl.projectionEntries canonicalProdEnv finalBaseVEnv)
     (HruleValid : CheckingEnv.Valid c.safety ruleEnv finalBaseVEnv)
-    (Hformation : NestedFormationAssembly sourceVEnv sourceDecl)
+    (Hformation : NestedExpansionData sourceVEnv sourceDecl)
     (hformationExpanded : Hformation.expanded = P.loweredDecl)
     (huvars : sourceDecl.uvars = c.lparams.length)
     (hnumParams : sourceDecl.nparams = nparams)
@@ -399,10 +399,10 @@ theorem NestedFinalAssemblyBase.ofReplay
 
 /-- Transporting the environment index of a formation assembly does not alter
 its data-valued expanded declaration. -/
-private theorem NestedFormationAssembly.expanded_eq_of_envTransport
+private theorem NestedExpansionData.expanded_eq_of_envTransport
     {env₁ env₂ : VEnv} {decl : VInductDecl} (h : env₁ = env₂)
-    (H : NestedFormationAssembly env₂ decl) :
-    (Eq.mpr (congrArg (fun env => NestedFormationAssembly env decl) h)
+    (H : NestedExpansionData env₂ decl) :
+    (Eq.mpr (congrArg (fun env => NestedExpansionData env decl) h)
       H).expanded = H.expanded := by
   subst env₂
   rfl
@@ -531,7 +531,7 @@ theorem NestedValidatedRunResult.nativeSourceTypeShapes
 
 /-- Source parameter formation of a nested run, without a source-side
 re-check. Lowering keeps the common-parameter prefix of every source
-constructor verbatim (`LoweredConstructorMapping.sourceTargetSameForallPrefix`),
+constructor verbatim (`ConstructorLowering.Resolved.sourceTargetSameForallPrefix`),
 so the translated prefix of a source constructor is the one of its lowered
 constructor, whose parameter shape the ordinary pipeline certified in the
 lowered header environment. The header-stage renaming replacement
@@ -714,7 +714,7 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
     (Howners : ConstructorOwnersPresent sourceProdEnv)
     (hvisible : safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
-    (Hformation : NestedFormationAssembly sourceVEnv sourceDecl)
+    (Hformation : NestedExpansionData sourceVEnv sourceDecl)
     (hformationExpanded : Hformation.expanded = E.production.loweredDecl) :
     Nonempty { C : NestedFinalAssemblyBase E.restoration sourceVEnv
         sourceDecl lparams nparams isUnsafe safety //
@@ -861,7 +861,7 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
     have hvalidCore : CheckingEnv.ValidCore P.c.safety E.validationEnv
         E.nativeSource.envCtors := by
       simpa only [hsafety] using E.nativeSource.validationValid
-    have HV : RestoredConstructorValidationEnvironment result E.loweredEnv
+    have HV : ValidationEnvironment result E.loweredEnv
         P.c.env ((main :: rest).map (fun type => type.name)) false
         (main :: rest) E.validationEnv := by
       rw [henv]
@@ -920,14 +920,14 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
         rw [Option.some.inj h1]
         exact canonical.formation.constructorLE.trans
           (VEnv.addEliminators_addProjections_le.trans canonical.recursorsAdded.le))).1
-  let HformationP : NestedFormationAssembly P.initialEnv sourceDecl :=
+  let HformationP : NestedExpansionData P.initialEnv sourceDecl :=
     Eq.mpr
-      (congrArg (fun env => NestedFormationAssembly env sourceDecl) hinitial)
+      (congrArg (fun env => NestedExpansionData env sourceDecl) hinitial)
       Hformation
   have hformationExpandedP : HformationP.expanded = P.loweredDecl := by
     calc
       HformationP.expanded = Hformation.expanded :=
-        NestedFormationAssembly.expanded_eq_of_envTransport hinitial Hformation
+        NestedExpansionData.expanded_eq_of_envTransport hinitial Hformation
       _ = E.production.loweredDecl := hformationExpanded
       _ = P.loweredDecl := rfl
   have huvars : sourceDecl.uvars = P.c.lparams.length := Hcore.uvars
@@ -1073,7 +1073,7 @@ theorem NestedValidatedRunResult.assemblyBaseNativeValid
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource
       (by simpa only [hinitial, safety] using
         (wf.tr (safety := safety)).wf)
-  have Htranslations : ClosedNestedAuxiliaryTranslations
+  have Htranslations : ClosedNestedOccurrenceTypings
       E.nativeSource.envTypes P.c.lparams result E.auxiliarySelection := by
     rw [← E.auxiliaryVEnv_eq_native]
     simpa only [hlparams] using E.auxiliaryTranslations
@@ -1125,15 +1125,15 @@ theorem NestedValidatedRunResult.assemblyBaseNativeValid
     calc
       P.loweredDecl.isUnsafe = P.isUnsafe := R.core.isUnsafe
       _ = sourceDecl.isUnsafe := Hsource.isUnsafe.symm
-  let HformationP : NestedFormationAssembly P.initialEnv sourceDecl :=
-    NestedFormationAssembly.ofConstructorPhases R N.generated hnonemptyArray
+  let HformationP : NestedExpansionData P.initialEnv sourceDecl :=
+    NestedExpansionData.ofConstructorPhases R N.generated hnonemptyArray
       Hparameters huvars hdeclParams hdeclUnsafe Htypes
-  let FormationAt := fun env => NestedFormationAssembly env sourceDecl
+  let FormationAt := fun env => NestedExpansionData env sourceDecl
   let Hformation : FormationAt (ves.venv safety) :=
     Eq.mp (congrArg FormationAt hinitial) HformationP
   have hformationExpanded : Hformation.expanded = E.production.loweredDecl := by
     have hexpanded : Hformation.expanded = HformationP.expanded := by
-      exact NestedFormationAssembly.expanded_eq_of_envTransport hinitial.symm
+      exact NestedExpansionData.expanded_eq_of_envTransport hinitial.symm
         HformationP
     exact hexpanded.trans rfl
   exact E.assemblyBaseOfFormationNative wf rfl rfl hnested Hsources wf.constructorOwners

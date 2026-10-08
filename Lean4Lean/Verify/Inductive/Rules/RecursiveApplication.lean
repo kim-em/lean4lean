@@ -637,7 +637,7 @@ theorem
     {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -774,7 +774,7 @@ theorem
     {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -1216,7 +1216,7 @@ theorem
     {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -1910,7 +1910,7 @@ theorem
     let parameterDecls :=
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+    ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type recursor.type
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size

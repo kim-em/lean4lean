@@ -45,11 +45,11 @@ environment invariant.  In particular, `container` is not an arbitrary
 declaration with a matching family name: it has a finite prior
 well-formedness/compilation/installation derivation in the current abstract
 environment. -/
-structure GeneratedFamilyInstalledContainer
+structure AuxiliaryFamilyContainer
     (prodEnv : Environment) (venv : VEnv)
     (params : Array Expr) (nestedAux : Array (Expr × Name))
     (family : InductiveType)
-    (H : GeneratedFamilyWitness prodEnv params nestedAux family) where
+    (H : AuxiliaryFamilySpecialization prodEnv params nestedAux family) where
   container : VInductDecl
   familyIdx : Nat
   familyIdx_lt : familyIdx < container.types.length
@@ -73,14 +73,14 @@ structure GeneratedFamilyInstalledContainer
 translated the recognized family.  Visibility is derived from the concrete
 lookup and the supplied abstract lookup through environment alignment; it is
 not an additional safety premise. -/
-theorem GeneratedFamilyWitness.installedContainerOfAbstractLookup
+theorem AuxiliaryFamilySpecialization.installedContainerOfAbstractLookup
     {ves : VEnvs}
-    (H : GeneratedFamilyWitness prodEnv params nestedAux family)
+    (H : AuxiliaryFamilySpecialization prodEnv params nestedAux family)
     (wf : ves.WFCore prodEnv) (safety : DefinitionSafety)
     (abstractFamily : VConstant)
     (habstract : (ves.venv safety).constants H.sourceName =
       some abstractFamily) :
-    Nonempty (GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
+    Nonempty (AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params nestedAux family H) := by
   have hfind : prodEnv.constants.find? H.sourceName =
       some (.inductInfo H.sourceInfo) := by
@@ -222,7 +222,7 @@ theorem VInductDecl.NestedFormationWF.ofForall₂
 /-- Reviewable inputs to the nested-formation judgment.  The expanded
 declaration is explicit, as is the exact ordered expansion of the original
 families followed by the generated queue. -/
-structure NestedFormationAssembly (env : VEnv) (source : VInductDecl) where
+structure NestedExpansionData (env : VEnv) (source : VInductDecl) where
   expanded : VInductDecl
   generated : List VInductiveType
   expandedSource : expanded.SourceWF env
@@ -236,8 +236,8 @@ structure NestedFormationAssembly (env : VEnv) (source : VInductDecl) where
       (VInductDecl.NestedOccurrenceReplacementAbs env source generated))
     (source.types ++ generated) expanded.types
 
-theorem NestedFormationAssembly.formation
-    (H : NestedFormationAssembly env source) :
+theorem NestedExpansionData.formation
+    (H : NestedExpansionData env source) :
     source.NestedFormationWF env :=
   Lean4Lean.VerifyInductive.VInductDecl.NestedFormationWF.ofForall₂
     H.expandedSource H.expandedFormation H.sourceParameters H.uvars H.nparams
@@ -245,8 +245,8 @@ theorem NestedFormationAssembly.formation
 
 /-- Constructor telescope lengths of the original families agree with those
 of the expanded declaration. -/
-theorem NestedFormationAssembly.constructorArityPrefix
-    (H : NestedFormationAssembly env source) :
+theorem NestedExpansionData.constructorArityPrefix
+    (H : NestedExpansionData env source) :
     source.ConstructorArityPrefix H.expanded := by
   have hnodup : (H.expanded.types.map (·.name)).Nodup := by
     have h := (List.nodup_append.mp H.expandedSource.2.1).1
@@ -259,7 +259,7 @@ theorem NestedFormationAssembly.constructorArityPrefix
 well-formedness judgments for the expanded block.  Thus the only genuinely
 nested input left at this boundary is the ordered lowering expansion itself
 (plus the declaration metadata equalities fixed by lowering). -/
-def NestedFormationAssembly.ofConstructorPhases
+def NestedExpansionData.ofConstructorPhases
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {expanded source : VInductDecl} {nparams depth : Nat}
     {isUnsafe : Bool} {env : VEnv} {indTypes : Array InductiveType}
@@ -277,7 +277,7 @@ def NestedFormationAssembly.ofConstructorPhases
       (VInductDecl.NestedTypeExpansion env source
         (VInductDecl.NestedOccurrenceReplacementAbs env source generated))
       (source.types ++ generated) expanded.types) :
-    NestedFormationAssembly env source where
+    NestedExpansionData env source where
   expanded := expanded
   generated := generated
   expandedSource :=
