@@ -1030,7 +1030,7 @@ def initialContext (env : Environment) (lparams : List Name)
     AddInductive.Context where
   env; lparams; safety; allowPrimitive; fuel
 
-def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (safety : DefinitionSafety) (lparams : List Name)
     (allowPrimitive : Bool) (fuel : FuelConfig)
     (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) :

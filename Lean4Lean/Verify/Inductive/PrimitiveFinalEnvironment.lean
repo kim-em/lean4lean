@@ -167,7 +167,7 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : CompletedBlockCertificate .safe prodEnv (ves.venv .safe) types ctors
       recursors rules outEnv outBase)
-    (wf : ves.WF prodEnv) (hcorner : ∀ safety, ProjectionCorner safety prodEnv (ves.venv safety))
+    (wf : ves.WFCore prodEnv) (hcorner : ∀ safety, ProjectionCorner safety prodEnv (ves.venv safety))
     (hconstants : types.map Prod.snd ++ ctors.map Prod.snd =
         primitiveBoolConstants \/
       types.map Prod.snd ++ ctors.map Prod.snd = primitiveNatConstants)
@@ -186,7 +186,7 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         H.finalVEnv)
     (Hreplay : ∀ safety, VInductBlock.EliminatorsReplay (ves.venv safety) decl H.block) :
-    exists ves' : VEnvs, ves'.WF outEnv /\
+    exists ves' : VEnvs, ves'.WFCore outEnv /\
       (forall safety, ves.venv safety <= ves'.venv safety) /\
       VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) := by
   have valid (safety : DefinitionSafety) :
@@ -294,7 +294,7 @@ theorem CompletedBlockCertificate.extendSafePrimitiveEqReadyOrAbsent
     {ves : VEnvs} {decl : VInductDecl}
     (H : CompletedBlockCertificate .safe prodEnv (ves.venv .safe) types ctors
       recursors rules outEnv outBase)
-    (wf : ves.WF prodEnv) (hcorner : ∀ safety, ProjectionCorner safety prodEnv (ves.venv safety))
+    (wf : ves.WFCore prodEnv) (hcorner : ∀ safety, ProjectionCorner safety prodEnv (ves.venv safety))
     (hEq : EqReadyOrAbsent prodEnv ves)
     (hpreserveAbsent : prodEnv.constants.find? ``Eq = none →
       outEnv.constants.find? ``Eq = none)
@@ -316,7 +316,7 @@ theorem CompletedBlockCertificate.extendSafePrimitiveEqReadyOrAbsent
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         H.finalVEnv)
     (Hreplay : ∀ safety, VInductBlock.EliminatorsReplay (ves.venv safety) decl H.block) :
-    exists ves' : VEnvs, ves'.WF outEnv /\ EqReadyOrAbsent outEnv ves' /\
+    exists ves' : VEnvs, ves'.WFCore outEnv /\ EqReadyOrAbsent outEnv ves' /\
       forall safety, ves.venv safety <= ves'.venv safety := by
   rcases hEq with habsent | hcanonical
   · have houtAbsent := hpreserveAbsent habsent
@@ -362,7 +362,7 @@ theorem GeneratedRecursors.entryNamesNeEq
 
 /-- The completed recursor suffix preserves the local checking invariants that
 were restored at the full primitive constructor boundary. (The full invariant
-is regained only once the iota rules are installed, see `VEnvs.WF`.) -/
+is regained only once the iota rules are installed, see `VEnvs.WFCore`.) -/
 theorem CompletedRecursorPhasesResult.outValid
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -378,12 +378,12 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
     {ves : VEnvs}
     (Hrun : SemanticPrimitiveRunWithStatsResult c stats nparams depth
       (ves.venv .safe) indTypes (c.safety != .safe) outEnv)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       (c.safety != .safe)) :
     exists ves' : VEnvs, exists decl : VInductDecl,
       exists envTypes envCtors : VEnv,
-      ves'.WF outEnv /\
+      ves'.WFCore outEnv /\
       (forall safety, ves.venv safety <= ves'.venv safety) /\
       TrInductDeclCore (ves.venv .safe) c.lparams nparams indTypes.toList
         (c.safety != .safe) decl envTypes envCtors /\
@@ -437,12 +437,12 @@ safety-indexed environment boundary, not merely a single abstract
 theorem SemanticPrimitiveRunWithStatsResult.extendSafeEqReadyOrAbsent
     (Hrun : SemanticPrimitiveRunWithStatsResult c stats nparams depth
       (ves.venv .safe) indTypes (c.safety != .safe) outEnv)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hEq : EqReadyOrAbsent c.env ves)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       (c.safety != .safe)) :
     exists decl : VInductDecl, exists ves' : VEnvs,
-      ves'.WF outEnv /\ EqReadyOrAbsent outEnv ves' /\
+      ves'.WFCore outEnv /\ EqReadyOrAbsent outEnv ves' /\
       forall safety, ves.venv safety <= ves'.venv safety := by
   rcases Hrun with ⟨decl, _ctorEnv, R, ⟨Hrecursors⟩⟩
   have hsafety : c.safety = .safe := by
@@ -506,16 +506,16 @@ consume the caller's exact safety-indexed source model. -/
 theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeEqReadyOrAbsent
     (Hrun : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned source
       (ves.venv .safe) nparams types numNested outEnv)
-    (wf : ves.WF source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
+    (wf : ves.WFCore source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
     (hEq : EqReadyOrAbsent source.env ves) :
     exists decl : VInductDecl, exists ves' : VEnvs,
-      ves'.WF outEnv /\ EqReadyOrAbsent outEnv ves' /\
+      ves'.WFCore outEnv /\ EqReadyOrAbsent outEnv ves' /\
       forall safety, ves.venv safety <= ves'.venv safety := by
   rcases Hrun with
     ⟨c', stats, depth, _commonParams, _commonLevel, Hc', henv, hsafety,
       _hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hshape,
       Hphases⟩
-  have wf' : ves.WF c'.env := by simpa [henv] using wf
+  have wf' : ves.WFCore c'.env := by simpa [henv] using wf
   have hcorner' : ∀ safety, ProjectionCorner safety c'.env (ves.venv safety) := by
     rw [henv]; exact hcorner
   have Hshape' : PrimitiveInductiveShape c'.lparams nparams
@@ -532,7 +532,7 @@ whenever its verified checking context is the caller's safe source model. -/
 theorem AddInductive.run.primitiveFinalEnvironmentEqReadyOrAbsentWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hsource : Hc.venv = ves.venv .safe)
     (hEq : EqReadyOrAbsent c.env ves)
     (Hshape : PrimitiveInductiveShape c.lparams nparams
@@ -542,7 +542,7 @@ theorem AddInductive.run.primitiveFinalEnvironmentEqReadyOrAbsentWF
     (HnotPartial : c.safety ≠ .partial) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       exists decl : VInductDecl, exists ves' : VEnvs,
-        ves'.WF outEnv /\ EqReadyOrAbsent outEnv ves' /\
+        ves'.WFCore outEnv /\ EqReadyOrAbsent outEnv ves' /\
         forall safety, ves.venv safety <= ves'.venv safety := by
   have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
     nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty HnotPartial
@@ -558,7 +558,7 @@ theorem AddInductive.run.primitiveFinalEnvironmentModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hsource : Hc.venv = ves.venv .safe)
     (Hshape : PrimitiveInductiveShape c.lparams nparams
       types.toArray.toList (c.safety != .safe))
@@ -567,7 +567,7 @@ theorem AddInductive.run.primitiveFinalEnvironmentModelWF
     (HnotPartial : c.safety ≠ .partial) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       exists decl : VInductDecl, exists ves' : VEnvs,
-        ves'.WF outEnv /\
+        ves'.WFCore outEnv /\
         forall safety, ves.venv safety <= ves'.venv safety := by
   have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
     nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty HnotPartial
@@ -579,7 +579,7 @@ theorem AddInductive.run.primitiveFinalEnvironmentModelWF
       ⟨c', stats, depth, _commonParams, _commonLevel, _Hc', henv, hsafety,
         _hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hshape',
         Hphases⟩
-    have wf' : ves.WF c'.env := by simpa [henv] using wf
+    have wf' : ves.WFCore c'.env := by simpa [henv] using wf
     have hcorner' : ∀ safety, ProjectionCorner safety c'.env (ves.venv safety) := by
       rw [henv]; exact hcorner
     have Hshape'' : PrimitiveInductiveShape c'.lparams nparams

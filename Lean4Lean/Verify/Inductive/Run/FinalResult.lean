@@ -17,7 +17,7 @@ structure InductiveFinalResult
     (lparams : List Name) (nparams : Nat) (sourceTypes : List InductiveType)
     (isUnsafe : Bool) where
   targetModels : VEnvs
-  wf : targetModels.WF outEnv
+  wf : targetModels.WFCore outEnv
   mono : ∀ safety, sourceModels.venv safety ≤ targetModels.venv safety
   specification : InductiveSpecificationResult
     (sourceModels.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
@@ -27,7 +27,7 @@ structure InductiveFinalResult
 /-- Construct the uniform result directly from the environment model and
 independent source specification. -/
 def InductiveFinalResult.ofModel
-    (targetModels : VEnvs) (wf : targetModels.WF outEnv)
+    (targetModels : VEnvs) (wf : targetModels.WFCore outEnv)
     (mono : ∀ safety, sourceModels.venv safety ≤ targetModels.venv safety)
     (specification : InductiveSpecificationResult
       (sourceModels.venv (if isUnsafe then .unsafe else .safe)) lparams
@@ -45,7 +45,7 @@ environment-preservation postcondition used by `addDecl.WF`. -/
 theorem InductiveFinalResult.modelExtension
     (H : InductiveFinalResult outEnv sourceModels lparams nparams sourceTypes
       isUnsafe) :
-    ∃ targetModels : VEnvs, targetModels.WF outEnv ∧
+    ∃ targetModels : VEnvs, targetModels.WFCore outEnv ∧
       ∀ safety, sourceModels.venv safety ≤ targetModels.venv safety :=
   ⟨H.targetModels, H.wf, H.mono⟩
 

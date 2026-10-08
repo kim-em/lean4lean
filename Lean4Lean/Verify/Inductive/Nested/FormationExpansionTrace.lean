@@ -1406,7 +1406,7 @@ theorem NestedReplacementTargetSpine.generatedInstalledContainer
     (Hsources : SourceSyntaxChecks sourceTypes)
     (hinitialTypes : initialState.newTypes = sourceTypes.toArray)
     (hempty : initialState.nestedAux = #[])
-    (wf : ves.WF prodEnv) :
+    (wf : ves.WFCore prodEnv) :
     ∃ O : FinalCachedGeneratedFamilyOrigin prodEnv result.params nparams
         initialState.newTypes.size runFinalState T.nested T.auxName,
       Nonempty (GeneratedFamilyInstalledContainer prodEnv (ves.venv .unsafe)

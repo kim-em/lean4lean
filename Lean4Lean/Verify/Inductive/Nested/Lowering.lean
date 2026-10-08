@@ -1112,8 +1112,8 @@ def EnvironmentTypesClosed (env : Environment) : Prop :=
   ∀ name info, env.find? name = some info →
     info.type.FVarsIn fun _ => False
 
-theorem VEnvs.WF.environmentTypesClosed
-    (H : VEnvs.WF env ves) : EnvironmentTypesClosed env := by
+theorem VEnvs.WFCore.environmentTypesClosed
+    (H : VEnvs.WFCore env ves) : EnvironmentTypesClosed env := by
   intro name info hfind
   rcases (H.tr (safety := .unsafe)).find? hfind
       DefinitionSafety.unsafe_le with ⟨vinfo, _hvfind, Htr⟩
@@ -1125,8 +1125,8 @@ rather than a syntax precheck. -/
 def EnvironmentTypesBVarClosed (env : Environment) : Prop :=
   ∀ name info, env.find? name = some info → Closed info.type
 
-theorem VEnvs.WF.environmentTypesBVarClosed
-    (H : VEnvs.WF env ves) : EnvironmentTypesBVarClosed env := by
+theorem VEnvs.WFCore.environmentTypesBVarClosed
+    (H : VEnvs.WFCore env ves) : EnvironmentTypesBVarClosed env := by
   intro name info hfind
   rcases (H.tr (safety := .unsafe)).find? hfind
       DefinitionSafety.unsafe_le with ⟨vinfo, _hvfind, Htr⟩

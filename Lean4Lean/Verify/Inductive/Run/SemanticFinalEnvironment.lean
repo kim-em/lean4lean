@@ -109,12 +109,12 @@ theorem SemanticRunWithStatsResult.extendSafeExact
     {ves : VEnvs}
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
     (hnonempty : indTypes.toList ≠ []) :
     ∃ ves' : VEnvs, ∃ decl : VInductDecl, ∃ envTypes envCtors : VEnv,
-      ves'.WF outEnv ∧
+      ves'.WFCore outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       TrInductDeclCore (ves.venv .safe) c.lparams nparams indTypes.toList
         isUnsafe decl envTypes envCtors ∧
@@ -159,11 +159,11 @@ theorem SemanticRunWithStatsResult.extendSafe
     {ves : VEnvs}
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
     (hnonempty : indTypes.toList ≠ []) :
-    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   rcases Hrun.extendSafeExact wf hcorner hsafety hsource hnonempty with
     ⟨ves', _decl, _envTypes, _envCtors, wf', hle, _source, _hadd⟩
@@ -174,12 +174,12 @@ of the generic safe extension. -/
 theorem SemanticRunWithStatsResult.extendSafeOfQuotReady
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hEq : CanonicalEqEnvs ves)
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
     (hnonempty : indTypes.toList ≠ []) :
-    ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
+    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   rcases Hrun.extendSafe wf hcorner hsafety hsource hnonempty with
     ⟨ves', wf', hle⟩
@@ -192,13 +192,13 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
     {ves : VEnvs}
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hsafety : c.safety = .unsafe)
     (hsource : sourceEnv = ves.venv .unsafe)
     (hproduction : isUnsafe = (c.safety != .safe))
     (hnonempty : indTypes.toList ≠ []) :
     ∃ ves' : VEnvs, ∃ decl : VInductDecl, ∃ envTypes envCtors : VEnv,
-      ves'.WF outEnv ∧
+      ves'.WFCore outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       TrInductDeclCore (ves.venv .unsafe) c.lparams nparams indTypes.toList
         isUnsafe decl envTypes envCtors ∧
@@ -258,12 +258,12 @@ theorem SemanticRunWithStatsResult.extendUnsafe
     {ves : VEnvs}
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hsafety : c.safety = .unsafe)
     (hsource : sourceEnv = ves.venv .unsafe)
     (hproduction : isUnsafe = (c.safety != .safe))
     (hnonempty : indTypes.toList ≠ []) :
-    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   rcases Hrun.extendUnsafeExact wf hcorner hsafety hsource hproduction hnonempty with
     ⟨ves', _decl, _envTypes, _envCtors, wf', hle, _source, _hadd⟩
@@ -274,13 +274,13 @@ of the generic unsafe extension. -/
 theorem SemanticRunWithStatsResult.extendUnsafeOfQuotReady
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hEq : CanonicalEqEnvs ves)
     (hsafety : c.safety = .unsafe)
     (hsource : sourceEnv = ves.venv .unsafe)
     (hproduction : isUnsafe = (c.safety != .safe))
     (hnonempty : indTypes.toList ≠ []) :
-    ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
+    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   rcases Hrun.extendUnsafe wf hcorner hsafety hsource hproduction hnonempty with
     ⟨ves', wf', hle⟩

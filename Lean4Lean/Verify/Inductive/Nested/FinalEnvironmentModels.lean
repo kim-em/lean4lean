@@ -324,7 +324,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
     {isUnsafe : Bool}
     (C : NestedFinalAssemblyCertificate H (ves.venv .safe) decl lparams
       nparams isUnsafe .safe)
-    (wf : ves.WF sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
       outEnv.constants decl)
     (hclosed : MutualInductivesClosed outEnv)
@@ -333,7 +333,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         (C.finalBaseVEnv.addDefEqRules
           (C.primaryRules ++ C.auxiliaryRules))) :
-    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (NestedFinalEnvironmentResult (ves.venv .safe) decl lparams
         nparams sourceTypes isUnsafe .safe outEnv) ∧
@@ -446,7 +446,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
     · rw [← hlookupEnv]
       exact hfind
     · exact hprimitive
-  have Hmodels : ∃ ves' : VEnvs, ves'.WF outEnv ∧
+  have Hmodels : ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       (∀ observer, ves.venv observer ≤ ves'.venv observer) ∧
       ∀ observer, ves'.venv observer = next observer := by
     apply wf.extendInductExact decl next adds actual.property.quotInit_eq
@@ -488,7 +488,7 @@ private theorem NestedFinalAssemblyCertificate.safeInductiveFinalResult
     {decl : VInductDecl} {lparams : List Name} {nparams : Nat}
     (C : NestedFinalAssemblyCertificate H (ves.venv .safe) decl lparams
       nparams false .safe)
-    (wf : ves.WF sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
       outEnv.constants decl)
     (hclosed : MutualInductivesClosed outEnv)
@@ -528,7 +528,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProduction
       (ves.venv .safe) result.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WF sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
@@ -569,7 +569,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
     {decl : VInductDecl} {lparams : List Name} {nparams : Nat}
     (C : NestedFinalAssemblyCertificate H (ves.venv .unsafe) decl lparams
       nparams true .unsafe)
-    (wf : ves.WF sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
       outEnv.constants decl)
     (hentriesUnsafe : ∀ entries
@@ -717,7 +717,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
     · rw [← hlookupEnv]
       exact hfind
     · exact hprimitive
-  rcases VEnvs.WF.extendUnsafeExact wf
+  rcases VEnvs.WFCore.extendUnsafeExact wf
       (C.finalBaseVEnv.addDefEqRules
         (C.primaryRules ++ C.auxiliaryRules))
       htrUnsafe htrPartial htrSafe
@@ -763,7 +763,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProduction
       (ves.venv .unsafe) result.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WF sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)

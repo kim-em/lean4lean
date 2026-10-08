@@ -23,7 +23,7 @@ declaration `Init.Prelude` submits.
   is not modelled syntactically, so this is a hypothesis on the output;
   `Lean4Lean/Tests/CanonicalEq.lean` checks it for the declaration of
   `Init.Prelude`.
-* `VEnvs.WF.canonicalEq_constants` (below): in any well-formed model of an
+* `VEnvs.WFCore.canonicalEq_constants` (below): in any well-formed model of an
   environment whose production `Eq`, `Eq.refl` and `Eq.rec` have the production
   types, the three constant clauses of `HasCanonicalEq` hold at every safety.
 -/
@@ -39,8 +39,8 @@ private theorem vconstant_ext {a b : VConstant} (huvars : a.uvars = b.uvars)
 
 /-- The translated constant of a safe production constant whose type
 translates uniquely. -/
-private theorem VEnvs.WF.constant_of_production {env : Environment} {ves : VEnvs}
-    (wf : ves.WF env) {name : Name} {ci : ConstantInfo} {uvars : Nat} {type : VExpr}
+private theorem VEnvs.WFCore.constant_of_production {env : Environment} {ves : VEnvs}
+    (wf : ves.WFCore env) {name : Name} {ci : ConstantInfo} {uvars : Nat} {type : VExpr}
     (hfind : env.find? name = some ci) (hsafe : ci.safety = .safe)
     (huvars : ci.levelParams.length = uvars)
     (htype : ∀ {venv e}, TrExprS venv ci.levelParams [] ci.type e → e = type)
@@ -54,8 +54,8 @@ private theorem VEnvs.WF.constant_of_production {env : Environment} {ves : VEnvs
 
 /-- The constant clauses of `HasCanonicalEq` hold in every well-formed model of
 an environment containing the production `Eq`, `Eq.refl` and `Eq.rec`. -/
-theorem VEnvs.WF.canonicalEq_constants {env : Environment} {ves : VEnvs}
-    (wf : ves.WF env) {eqInfo reflInfo recInfo : ConstantInfo}
+theorem VEnvs.WFCore.canonicalEq_constants {env : Environment} {ves : VEnvs}
+    (wf : ves.WFCore env) {eqInfo reflInfo recInfo : ConstantInfo}
     (hEq : env.find? ``Eq = some eqInfo) (hEqProd : IsProductionEq eqInfo)
     (hRefl : env.find? ``Eq.refl = some reflInfo) (hReflProd : IsProductionEqRefl reflInfo)
     (hRec : env.find? ``Eq.rec = some recInfo) (hRecProd : IsProductionEqRec recInfo)
@@ -86,14 +86,14 @@ input ones, and these satisfy `HasCanonicalEq` (including the iota rule of
 type.  Only the absence of `Eq` is assumed of the input, together with canonical choice
 (`VEnv.HasCanonicalChoice`) at every safety level. -/
 theorem addDecl.eqBootstrapHasCanonicalEq {env : Environment} {ves : VEnvs}
-    (wf : ves.WF env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     {lparams : List Name} {nparams : Nat} {types : List InductiveType} {isUnsafe : Bool}
     (Hshape : VerifyInductive.EqBootstrapShape lparams nparams types isUnsafe)
     (fuel : FuelConfig := {}) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe) (check := true)
       (fuel := fuel)).WF fun outEnv =>
-      ∃ ves' : VEnvs, ves'.WF outEnv ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         ∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
           ves'.HasCanonicalEq :=
   (VerifyInductive.addInductiveDeclaration.eqBootstrapFinalEnvironmentWF env lparams

@@ -125,7 +125,7 @@ theorem _root_.Lean4Lean.TrExprS.envGF {e : Expr} (H : TrExprS venv Us [] e e') 
 
 /-- No constant of a well-formed environment mentions a free variable: the unsafe observer
 translates every constant type, delta value and recursor rule in the empty context. -/
-theorem _root_.Lean4Lean.VEnvs.WF.envGF {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
+theorem _root_.Lean4Lean.VEnvs.WFCore.envGF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
     TypeChecker.EnvGF (fun _ => True) env := by
   intro n ci hfind
   have htr := wf.tr (safety := .unsafe)

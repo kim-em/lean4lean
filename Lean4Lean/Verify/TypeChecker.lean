@@ -11,7 +11,7 @@ open Kernel
 structure VEnvs where
   venv : DefinitionSafety → VEnv
 
-structure VEnvs.WF (env : Environment) (ves : VEnvs) where
+structure VEnvs.WFCore (env : Environment) (ves : VEnvs) where
   tr : TrEnv safety env (ves.venv safety)
   hasPrimitives : VEnv.HasPrimitives (ves.venv safety)
   safePrimitives : env.find? n = some ci →
@@ -28,21 +28,21 @@ structure VEnvs.WF (env : Environment) (ves : VEnvs) where
 /-- The unsafe observer sees every production inductive, so the persistent
 semantic invariant also supplies safety-independent exact constructor
 metadata coherence. -/
-theorem VEnvs.WF.inductiveConstructorsCoherent
-    {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
+theorem VEnvs.WFCore.inductiveConstructorsCoherent
+    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
     VerifyInductive.InductiveConstructorsCoherent env := by
   intro familyName familyInfo hfamily i hi
   rcases wf.constructorSemantics (safety := .unsafe)
       familyName familyInfo hfamily DefinitionSafety.unsafe_le i hi with ⟨C⟩
   exact ⟨C.toInductiveConstructorCoherenceAt⟩
 
-theorem VEnvs.WF.projectionRegistryCoherent
-    {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
+theorem VEnvs.WFCore.projectionRegistryCoherent
+    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
     ProjectionRegistryCoherent safety env.constants (ves.venv safety) :=
   wf.inductiveProvenance.projectionRegistryCoherent
 
-theorem VEnvs.WF.toCheckingValid
-    {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+theorem VEnvs.WFCore.toCheckingValid
+    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (safety : DefinitionSafety) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) :
     CheckingEnv.Valid safety env (ves.venv safety) :=
   wf.tr.toCheckingValid wf.hasPrimitives wf.safePrimitives
@@ -68,7 +68,7 @@ structure VEnvAt (env : Environment) (safety : DefinitionSafety) (venv : VEnv) :
   recursors : RecursorEnvCoherent safety env.constants venv
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
 
-theorem VEnvs.WF.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+theorem VEnvs.WFCore.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (safety : DefinitionSafety) : VEnvAt env safety (ves.venv safety) where
   tr := wf.tr
   hasPrimitives := wf.hasPrimitives
@@ -177,7 +177,7 @@ def VContext.mk1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
   mlctx_wf := trivial
   lctx_eq := rfl
 
-def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (safety : DefinitionSafety := .safe) (lparams : List Name := [])
     (fuel : FuelConfig := {}) : VContext := .mk1 (wf.toVEnvAt safety) (hcorner _) lparams fuel
@@ -260,7 +260,7 @@ theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
   whnf_hit := .empty
   inferTypeI_hit := .empty
 
-theorem VState.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WF env}
+theorem VState.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WFCore env}
     {safety : DefinitionSafety} {lparams : List Name} {fuel : FuelConfig}
     {hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)} :
     VState.WF (.mk' wf hcorner safety lparams fuel) {} := by
@@ -319,7 +319,7 @@ theorem M.WF.runCheckingValidMLC {env : Environment} {venv : VEnv}
   let ⟨_, _, _, _, hQ⟩ := H (.emptyCheckingValidMLC hfresh) _ _ eq
   exact hQ
 
-theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     {hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)}
     {x : M α} {Q} (H : x.WF (.mk' wf hcorner safety lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by

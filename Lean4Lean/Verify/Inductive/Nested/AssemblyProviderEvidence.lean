@@ -2276,7 +2276,7 @@ theorem NestedFinalCanonicalEvidence.ofProductionNativeFormation
       (result, finalState))
     (Hcache : NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState)
     (Hparams : NestedResultParamsNodup result)
-    (wf : ves.WF c.env)
+    (wf : ves.WFCore c.env)
     (hsourceVEnv : sourceVEnv = ves.venv safety)
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
@@ -2328,7 +2328,7 @@ theorem NestedFinalCanonicalEvidence.ofProductionNativeFormation
       selection Htranslations Htarget with ⟨N⟩
   have Htypes := Hrun.allExpansionsOfNativeSources Hcache Hparams Hsource
     Htarget (by simpa only [hloweredDecl] using Hmaterialized) Hsources
-      (VEnvs.WF.environmentTypesClosed wf) wf.inductivesClosed
+      (VEnvs.WFCore.environmentTypesClosed wf) wf.inductivesClosed
       (by simpa only [hsourceVEnv] using wf.tr.wf) hempty N selection
   refine ⟨NestedFinalCanonicalEvidence.ofProduction P H sourceVEnv sourceDecl
     lparams nparams declUnsafe safety typeEntries constructorEntries
@@ -2363,7 +2363,7 @@ theorem NestedLoweringResultClosed.familyRestoredIndexedRealizationAtFresh
       (result, finalState))
     (Hcache : NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState)
     (Hparams : NestedResultParamsNodup result)
-    (wf : ves.WF c.env) (hsourceVEnv : sourceVEnv = ves.venv safety)
+    (wf : ves.WFCore c.env) (hsourceVEnv : sourceVEnv = ves.venv safety)
     (Hprod : RecursorPhasesResult R loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
@@ -2407,7 +2407,7 @@ theorem NestedLoweringResultClosed.familyRestoredIndexedRealizationAtFresh
       exact hrecInfo
     have hsuffix : sourceTypes.length ≤ familyIdx := Nat.le_of_not_gt hfamily
     rcases Hrun.finalGeneratedFamilyOriginAt
-        (VEnvs.WF.environmentTypesClosed wf) wf.inductivesClosed Hsources
+        (VEnvs.WFCore.environmentTypesClosed wf) wf.inductivesClosed Hsources
         (by simp) hsuffix hresult with ⟨Horigin⟩
     rcases Horigin.abstractContainerApplicationAtRecursor Hrun Hcache Hparams
         Hprod Hsource hempty selection Htranslations with
@@ -4680,7 +4680,7 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
     {ves : VEnvs} {sourceVEnv : VEnv} {safety : DefinitionSafety}
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (wf : ves.WF sourceProdEnv)
+    (wf : ves.WFCore sourceProdEnv)
     (hsourceVEnv : sourceVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
     (hsafetyEq : safety = if isUnsafe then .unsafe else .safe)
     (hnested : result.aux2nested.size ≠ 0)
@@ -4985,7 +4985,7 @@ theorem NestedValidatedRunResult.assemblyShapeNativeValid
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (hnested : result.aux2nested.size ≠ 0) :
     Nonempty { C : NestedFinalAssemblyShape E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
@@ -5046,7 +5046,7 @@ theorem NestedValidatedRunResult.assemblyShapeNativeValid
     exact R.core
   have Hmetadata : MaterializedInductivePrefix sourceDecl P.loweredDecl := by
     simpa only [E.nativeSourceDecl_eq] using E.nativeSource.materialized
-  have wfP : ves.WF P.c.env := by
+  have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
@@ -5072,7 +5072,7 @@ theorem NestedValidatedRunResult.assemblyShapeNativeValid
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N⟩
   have Htypes := Hrun.allExpansionsOfNativeSources Hcache Hparams Hsource
     Htarget Hmetadata Hsources
-      (VEnvs.WF.environmentTypesClosed wfP) wfP.inductivesClosed
+      (VEnvs.WFCore.environmentTypesClosed wfP) wfP.inductivesClosed
       (by simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf)
       hempty N E.auxiliarySelection
   have hnonempty : result.types ≠ [] := by
@@ -5135,7 +5135,7 @@ theorem NestedValidatedRunResult.assemblyShapeNative
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (hnested : result.aux2nested.size ≠ 0) :
     Nonempty { C : NestedFinalAssemblyShape E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams

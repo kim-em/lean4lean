@@ -212,13 +212,13 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
     {ves : VEnvs}
     (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
       nparams types numNested outEnv)
-    (wf : ves.WF source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
+    (wf : ves.WFCore source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
     (hAbsent : source.env.constants.find? ``Eq = none)
     (hsafety : source.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
     (Hshape : EqBootstrapShape source.lparams nparams types
       (source.safety != .safe)) :
-    ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
+    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (InductiveSpecificationResult sourceEnv source.lparams
         nparams types (source.safety != .safe) (ves'.venv .safe)) ∧
@@ -233,7 +233,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
   rcases Hrun with
     ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hcSafety,
       hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hphases⟩
-  have wf' : ves.WF c'.env := by
+  have wf' : ves.WFCore c'.env := by
     rw [henv]
     exact wf
   have hcorner' : ∀ safety, ProjectionCorner safety c'.env (ves.venv safety) := by
@@ -256,7 +256,7 @@ theorem AddInductive.run.eqBootstrapFinalWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hAbsent : c.env.constants.find? ``Eq = none)
     (hsafety : c.safety = .safe)
     (hsource : Hc.venv = ves.venv .safe)
@@ -277,7 +277,7 @@ theorem AddInductive.run.eqBootstrapFinalWF
       SemanticRunVerificationInputs c' stats nparams depth numNested
         types.toArray (c.safety != .safe) Hc') :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
-      ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
+      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         Nonempty (InductiveSpecificationResult Hc.venv c.lparams
           nparams types (c.safety != .safe) (ves'.venv .safe)) ∧
@@ -300,14 +300,14 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WF env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : EqBootstrapShape lparams nparams types isUnsafe)
     (htypes : res.types = types)
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
       false fuel res).WF fun outEnv =>
-      ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
+      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
@@ -361,12 +361,12 @@ with the same source-aligned run that installs canonical abstract equality. -/
 theorem Environment.addInductive.eqBootstrapFinalEnvironmentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (ves : VEnvs) (wf : ves.WF env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe false fuel).WF
       fun outEnv =>
-        ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
+        ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
@@ -394,12 +394,12 @@ the theorem follows the production branch rather than assuming it. -/
 theorem addInductiveDeclaration.eqBootstrapFinalEnvironmentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (ves : VEnvs) (wf : ves.WF env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
-        ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
+        ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧

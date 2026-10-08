@@ -53,7 +53,7 @@ private theorem TypeChecker.M.WF.pureBind {c : VContext}
 /-- The part of `checkConstantVal` that does not check the name. `addDefinition` runs it before
 `Primitive.checkDef`, so that the latter's `isDefEq` calls act on terms already known to be well
 typed, and defers the name check until the primitive verdict is available. -/
-theorem checkConstantValBody.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+theorem checkConstantValBody.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (ci : ConstantInfo) (state : VState := {}) :
     (checkConstantValBody env ci.toConstantVal).WF (.mk' wf hcorner safety ci.levelParams) state fun _ _ =>
       ∃ ci' : VConstVal,
@@ -75,7 +75,7 @@ theorem checkConstantValBody.WF {env : Environment} {ves : VEnvs} (wf : ves.WF e
   refine ⟨{ name := ci.name, uvars := ci.levelParams.length, type := type' }, rfl, htype, rfl, ?_⟩
   exact ⟨_, hhasType.defeqU_r (wf.tr (safety := safety)).wf (by trivial) hdefeq.symm⟩
 
-theorem checkConstantValCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+theorem checkConstantValCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (ci : ConstantInfo) (allowPrimitive : Bool) (state : VState := {}) :
     (checkConstantVal env ci.toConstantVal allowPrimitive).WF
       (.mk' wf hcorner safety ci.levelParams) state fun _ _ =>
@@ -91,7 +91,7 @@ theorem checkConstantValCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WF e
   exact (checkConstantValBody.WF wf hcorner ci _).mono fun _ _ _ ⟨ci', hu, ht, hn', hci⟩ =>
     ⟨ci', hu, ht, hn', hci, hname⟩
 
-theorem checkConstantVal.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+theorem checkConstantVal.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (ci : ConstantInfo) (allowPrimitive : Bool) (hs : safety ≤ ci.safety) (state : VState := {}) :
     (checkConstantVal env ci.toConstantVal allowPrimitive).WF
       (.mk' wf hcorner safety ci.levelParams) state fun _ _ =>
@@ -152,7 +152,7 @@ def checkTheorem (env : Environment) (v : TheoremVal) : M Unit := do
   if !(← isDefEq valueType v.type) then
     throw <| Exception.declTypeMismatch env (.thmDecl v) valueType
 
-theorem checkTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) (v : TheoremVal) :
+theorem checkTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) (v : TheoremVal) :
     (checkTheorem env v).WF (.mk' wf hcorner .safe v.levelParams) {} fun _ _ =>
       ∃ ci' : VDefVal, TrDefVal .safe (ves.venv .safe) (.thmInfo v) ci' ∧
         ci'.WF (ves.venv .safe) ∧
@@ -171,7 +171,7 @@ theorem checkTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hco
   · simp at hnonprim; exact hnonprim
 
 /-- The type and the body, with neither the name check nor the primitive check. -/
-theorem checkDefinitionBody.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+theorem checkDefinitionBody.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (v : DefinitionVal) (state : VState := {}) :
     (checkDefinitionBody env v).WF (.mk' wf hcorner safety v.levelParams) state fun _ _ => ∃ ci' : VDefVal,
       v.levelParams.length = ci'.uvars ∧
@@ -188,7 +188,7 @@ def checkDefinition (env : Environment) (v : DefinitionVal) : M Unit := do
   checkDefinitionBody env v
   Environment.checkName env v.name (← Primitive.checkDef v)
 
-theorem checkDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+theorem checkDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (v : DefinitionVal) :
     (checkDefinition env v).WF (.mk' wf hcorner .safe v.levelParams) {} fun _ _ => ∃ ci' : VDefVal,
       (Environment.primitives.contains v.name → Primitive.PrimitiveResult (ves.venv .safe) v ci') ∧
@@ -213,7 +213,7 @@ def checkOpaque (env : Environment) (v : OpaqueVal) : M Unit := do
 the resulting `VDefVal`; `TrEnv'.opaque` consumes it. An opaque body still contributes no
 definitional equality -- that is `TrEnv'.opaque` adding no `addDefEq`, not the body going
 unrecorded. -/
-theorem checkOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) (v : OpaqueVal) :
+theorem checkOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) (v : OpaqueVal) :
     (checkOpaque env v).WF (.mk' wf hcorner .safe v.levelParams) {} fun _ _ => ∃ ci' : VDefVal,
       v.levelParams.length = ci'.uvars ∧
       TrExprS (ves.venv .safe) v.levelParams [] v.type ci'.type ∧

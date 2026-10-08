@@ -15,11 +15,11 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendWithSpecification
     {ves : VEnvs}
     (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
       nparams types numNested outEnv)
-    (wf : ves.WF source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
+    (wf : ves.WFCore source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
     (hsource : sourceEnv = ves.venv source.safety)
     (hnotPartial : source.safety ≠ .partial)
     (hnonempty : types ≠ []) :
-    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (InductiveSpecificationResult sourceEnv source.lparams nparams types
         (source.safety != .safe)
@@ -27,7 +27,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendWithSpecification
   rcases Hrun with
     ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hsafety,
       hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hphases⟩
-  have wf' : ves.WF c'.env := by
+  have wf' : ves.WFCore c'.env := by
     rw [henv]
     exact wf
   have hcorner' : ∀ safety, ProjectionCorner safety c'.env (ves.venv safety) := by
@@ -82,11 +82,11 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extend
     {ves : VEnvs}
     (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
       nparams types numNested outEnv)
-    (wf : ves.WF source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
+    (wf : ves.WFCore source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
     (hsource : sourceEnv = ves.venv source.safety)
     (hnotPartial : source.safety ≠ .partial)
     (hnonempty : types ≠ []) :
-    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   rcases Hrun.extendWithSpecification wf hcorner hsource hnotPartial hnonempty with
     ⟨ves', wf', hle, _spec⟩
@@ -97,12 +97,12 @@ when it is present in the source model. -/
 theorem VerifiedSemanticInductiveRunResultSourceAligned.extendOfQuotReady
     (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
       nparams types numNested outEnv)
-    (wf : ves.WF source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
+    (wf : ves.WFCore source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
     (hEq : CanonicalEqEnvs ves)
     (hsource : sourceEnv = ves.venv source.safety)
     (hnotPartial : source.safety ≠ .partial)
     (hnonempty : types ≠ []) :
-    ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
+    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   rcases Hrun.extend wf hcorner hsource hnotPartial hnonempty with
     ⟨ves', wf', hle⟩
@@ -114,7 +114,7 @@ theorem AddInductive.run.semanticFinalModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hsource : Hc.venv = ves.venv c.safety)
     (Hclosed : MutualInductivesClosed c.env)
     (hctx : Hc.mlctx.vlctx = [])
@@ -133,7 +133,7 @@ theorem AddInductive.run.semanticFinalModelWF
       SemanticRunVerificationInputs c' stats nparams depth numNested
         types.toArray (c.safety != .safe) Hc') :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
-      ∃ ves' : VEnvs, ves'.WF outEnv ∧
+      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
         ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   have hsize : 0 < types.toArray.size := by
     cases htypes : types with
@@ -149,7 +149,7 @@ theorem AddInductive.run.semanticFinalSpecificationModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hsource : Hc.venv = ves.venv c.safety)
     (Hclosed : MutualInductivesClosed c.env)
     (hctx : Hc.mlctx.vlctx = [])
@@ -168,7 +168,7 @@ theorem AddInductive.run.semanticFinalSpecificationModelWF
       SemanticRunVerificationInputs c' stats nparams depth numNested
         types.toArray (c.safety != .safe) Hc') :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
-      ∃ ves' : VEnvs, ves'.WF outEnv ∧
+      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         Nonempty (OrdinaryInductiveSpecificationResult Hc.venv c.lparams
           nparams types (c.safety != .safe)
@@ -188,7 +188,7 @@ invariants and the explicitly isolated shared metatheory properties. -/
 theorem AddInductive.run.semanticFinalWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hEq : CanonicalEqEnvs ves)
     (hsource : Hc.venv = ves.venv c.safety)
     (Hclosed : MutualInductivesClosed c.env)
@@ -208,7 +208,7 @@ theorem AddInductive.run.semanticFinalWF
       SemanticRunVerificationInputs c' stats nparams depth numNested
         types.toArray (c.safety != .safe) Hc') :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
-      ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
+      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
         ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   have hsize : 0 < types.toArray.size := by
     cases htypes : types with
@@ -225,7 +225,7 @@ executable run. -/
 theorem AddInductive.run.semanticFinalSpecificationWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WF c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hEq : CanonicalEqEnvs ves)
     (hsource : Hc.venv = ves.venv c.safety)
     (Hclosed : MutualInductivesClosed c.env)
@@ -245,7 +245,7 @@ theorem AddInductive.run.semanticFinalSpecificationWF
       SemanticRunVerificationInputs c' stats nparams depth numNested
         types.toArray (c.safety != .safe) Hc') :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
-      ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
+      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         Nonempty (OrdinaryInductiveSpecificationResult Hc.venv c.lparams
           nparams types (c.safety != .safe)
