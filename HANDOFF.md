@@ -129,6 +129,18 @@ state above. Recorded here with the lead's position and the actions taken:
    finishing Mario's abandoned explorations is not part of this branch's
    theorem, and some statements are believed false in their own files
    ("looks like it needs unique typing"). Kim may direct otherwise.
+   **Outcome (branch merged):** 2 of the 10 proved (`IsDefEq.induction1`,
+   `IsDefEq.inductionU1`; Experimental sorry count 58 to 56); 5 are FALSE as
+   stated, each with a set-model counterexample recorded in the agent's
+   report (SExpr: `CRDefEq.trans` via an eta-expanded major that no
+   syntactic pattern matches; `WHRedS.defeq`, `InferTypeS.hasType`,
+   `InferType.hasType` because the prototype's `Params` impose no soundness
+   on patterns; `NormalEq.symm` without `⊢ Γ`/`TypedEnv`); 3 are blocked on
+   results the prototypes lack (`NormalEq.parRed`: no `elimDF` in the
+   prototype's `NormalEq`/`Typing`; `WHRed.weakU_inv` and
+   `IsDefEqLift.subst`: strengthening for the prototype calculus, the latter
+   equivalent to it). Statements were not changed. The remaining 56 are
+   therefore not closable without rewriting Mario's prototypes.
 3. Item (b) asked for `strengthening_of_canonicalEq` to be proved; it was
    removed by the E1 redesign. The rules say a precisely stated missing
    metatheorem is an obstacle that means redesign; the missing metatheorem is
