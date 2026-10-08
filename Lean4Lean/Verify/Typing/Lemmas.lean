@@ -189,7 +189,7 @@ theorem FVarsIn.abstractList_instantiateRevList
         change fv ≠ v
         exact fun heq => hnodup.1 (heq ▸ hfv)
 
-/-- Array-facing cancellation law for Lean's production abstraction and
+/-- Array-facing cancellation law for Lean's abstraction and
 reverse-instantiation primitives. -/
 theorem FVarsIn.abstract_instantiateRev_fvarArray
     (xs : Array Expr) (vars : List FVarId)
@@ -230,13 +230,13 @@ theorem FVarsIn.mkAppRevList :
     FVarsIn P (f.mkAppRevList es) ↔ FVarsIn P f ∧ ∀ e ∈ es, FVarsIn P e := by
   induction es <;> simp [FVarsIn, and_comm, and_left_comm, *]
 
--- Kept for `Lean4Lean/Verify/TypeChecker/InferType.lean`.
+-- Used by `Lean4Lean/Verify/TypeChecker/InferType.lean`.
 alias FVarsIn.appRevList := FVarsIn.mkAppRevList
 
 theorem FVarsIn.getAppFn (h : FVarsIn P e) : FVarsIn P e.getAppFn := by
   rw [← e.mkAppRevList_getAppArgsRevList, FVarsIn.mkAppRevList] at h; exact h.1
 
--- Kept for `Lean4Lean/Verify/TypeChecker/InferType.lean`.
+-- Used by `Lean4Lean/Verify/TypeChecker/InferType.lean`.
 alias FVarsIn.appFn := FVarsIn.getAppFn
 
 /-- Abstracting a variable removes it from what the term mentions, so the predicate may drop it.
@@ -1791,8 +1791,8 @@ theorem TrExpr.abstract (W : VLCtx.Abstract Δ₀ v₀ d₀ dk k Δ₁ Δ) (H : 
     TrExpr env Us Δ (e.abstract1 v₀ dk) e' :=
   let ⟨_, s, h⟩ := H; ⟨_, s.abstract W, W.toCtx ▸ h⟩
 
-/-- Syntactic uniqueness applies to projection-free source syntax. Generated
-projection witnesses are compared by typed equality instead. -/
+/-- The projection-free source syntax, on which `TrExprS.unique'` gives syntactic uniqueness.
+`TrExprS.uniqueCtx` covers projections as well. -/
 def TrExprS.IsUnique : Expr → Prop
   | .bvar _
   | .fvar _
@@ -2114,7 +2114,7 @@ theorem IsFVarUpSet.suffixFVars (suffix : VLCtx) : ∀ (added : VLCtx),
       exact False.elim ((h.2.1 fv deps rfl).1 hmem)
 
 /-- Prepending declarations whose free-variable binders lie outside an
-up-set preserves that up-set.  This is the precise staged-context rule: fresh
+up-set preserves that up-set: fresh
 local binders may depend on the retained root scope, but do not themselves
 become members of it. -/
 theorem IsFVarUpSet.prependFresh (P : FVarId → Prop) (suffix : VLCtx) :

@@ -72,9 +72,10 @@ theorem TrExprS.cacheKey_not_forall (H : TrExprS env Us Δ e e')
   all_goals first | contradiction | (intro h; cases h)
   case proj hmajor hprojection => exact hprojection.target_not_forall rfl
 
-/-- Cached inputs have heads whose translations cannot already be foralls.
-The retained translation and equality remain valid under context changes;
-no literal choice of a projection expansion is compared across witnesses. -/
+/-- A `whnf` cache entry `e ↦ e₁` that is valid conditionally on the context: both sides are
+closed and mention only reserved free variables, and whenever the free variables of `e` lie in `Δ`,
+`e` is a cache key (`whnfCacheKey`, so its translation is not a forall) translating to some `e'`
+to which `e₁` also translates, with `FVarsBelow Δ e e₁`. -/
 def ConditionallyWHNF
     (ngen : NameGenerator) (env : VEnv) (Us : List Name) (Δ : VLCtx) (e e₁ : Expr) : Prop :=
   Closed e ∧ FVarsIn ngen.Reserves e ∧ Closed e₁ ∧ FVarsIn ngen.Reserves e₁ ∧

@@ -15,7 +15,7 @@ use. At a spine binder `∀ (x : d), b` there are two branches:
 
 Constructor types of every checker-built environment are telescope-closed: the verified checker's
 own acceptance run of the constructor type, read in the local context without the unused binder,
-derives the deleted telescope (`docs/inductives/STRENGTHENING_PLAN_2026-10-08.md`). The projection
+derives the deleted telescope (section 5.3 of `docs/inductives/DESIGN.md`). The projection
 walk of `inferProj` uses the delete branch at its non-dependent fields.
 -/
 

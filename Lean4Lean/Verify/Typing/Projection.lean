@@ -5,9 +5,8 @@ namespace Lean4Lean
 open Lean
 
 /-- A verified source projection translates to the same primitive projection
-node in the abstract syntax. The two well-formedness fields are proof
-artifacts only: the target is fixed by the indices of the relation, so a
-certificate cannot choose another implementation or result expression. -/
+node in the abstract syntax, given that the major and the projection are well formed. The
+target is fixed by the indices of the relation (`TrProj.target_eq`). -/
 inductive TrProj {env : VEnv} {U : Nat} (Gamma : List VExpr)
     (structName : Name) (index : Nat) (major : VExpr) : VExpr → Prop
   | direct
