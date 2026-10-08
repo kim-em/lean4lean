@@ -569,14 +569,12 @@ class VContext.MLCWF (c : VContext) (m : MLCtx) : Prop where
 
 instance (c : VContext) : c.MLCWF c.mlctx := ⟨c.mlctx_wf⟩
 
-structure VState extends State where
-
-def _root_.Lean4Lean.InferCache.WF (c : VContext) (s : VState) (m : InferCache) : Prop :=
+def _root_.Lean4Lean.InferCache.WF (c : VContext) (s : State) (m : InferCache) : Prop :=
   ∀ ⦃e ty : Expr⦄, m[e]? = some ty → ConditionallyHasType s.ngen c.venv c.lparams c.vlctx e ty
 
 theorem _root_.Lean4Lean.InferCache.WF.empty : InferCache.WF c s {} := fun _ => by simp
 
-def WHNFCache.WF (c : VContext) (s : VState) (m : InferCache) : Prop :=
+def WHNFCache.WF (c : VContext) (s : State) (m : InferCache) : Prop :=
   ∀ ⦃e ty : Expr⦄, m[e]? = some ty → ConditionallyWHNF s.ngen c.venv c.lparams c.vlctx e ty
 
 theorem WHNFCache.WF.empty : WHNFCache.WF c s {} := fun _ => by simp
@@ -674,7 +672,7 @@ def ParamUniformTyCache.WF (c : VContext) (pfx : Name) (m : InferCache) : Prop :
 theorem ParamUniformCache.WF.empty : ParamUniformCache.WF c pfx {} := fun _ => by simp
 theorem ParamUniformTyCache.WF.empty : ParamUniformTyCache.WF c pfx {} := fun _ => by simp
 
-class VState.WF (c : VContext) (s : VState) where
+class State.WF (c : VContext) (s : State) where
   trctx : c.TrLCtx
   ngen_wf : ∀ fv ∈ c.vlctx.fvars, s.ngen.Reserves fv
   /-- Every equivalence the manager records holds in the current context. Binder scopes restore
@@ -693,33 +691,33 @@ class VState.WF (c : VContext) (s : VState) where
   whnf_paramUniform : ParamUniformCache.WF c s.ngen.namePrefix s.whnfCache
   inferTypeI_paramUniform : ParamUniformTyCache.WF c s.ngen.namePrefix s.inferTypeI
 
-theorem VState.WF.find?_eq_none {id}
-    (wf : VState.WF c s) (H : ¬s.ngen.Reserves id) : c.lctx'.find? id = none :=
+theorem State.WF.find?_eq_none {id}
+    (wf : State.WF c s) (H : ¬s.ngen.Reserves id) : c.lctx'.find? id = none :=
   wf.trctx.find?_eq_none.2 fun h => H (wf.ngen_wf _ h)
 
-def VState.LE (s₁ s₂ : VState) : Prop :=
+def State.LE (s₁ s₂ : State) : Prop :=
   s₁.ngen ≤ s₂.ngen
 
-instance : LE VState := ⟨VState.LE⟩
+instance : LE State := ⟨State.LE⟩
 
-theorem VState.LE.rfl {s : VState} : s ≤ s := NameGenerator.LE.rfl
+theorem State.LE.rfl {s : State} : s ≤ s := NameGenerator.LE.rfl
 
-theorem VState.LE.trans {s₁ s₂ s₃ : VState} (h₁ : s₁ ≤ s₂) (h₂ : s₂ ≤ s₃) : s₁ ≤ s₃ :=
+theorem State.LE.trans {s₁ s₂ s₃ : State} (h₁ : s₁ ≤ s₂) (h₂ : s₂ ≤ s₃) : s₁ ≤ s₃ :=
   NameGenerator.LE.trans h₁ h₂
 
-theorem VState.LE.reservesV {s₁ s₂ : VState} (h : s₁ ≤ s₂) {{fv}} :
+theorem State.LE.reservesV {s₁ s₂ : State} (h : s₁ ≤ s₂) {{fv}} :
     s₁.ngen.Reserves fv → s₂.ngen.Reserves fv :=
   (·.mono h)
 
-theorem VState.LE.reserves {s₁ s₂ : VState} (h : s₁ ≤ s₂) {{e}} :
+theorem State.LE.reserves {s₁ s₂ : State} (h : s₁ ≤ s₂) {{e}} :
     FVarsIn s₁.ngen.Reserves e → FVarsIn s₂.ngen.Reserves e :=
   (·.mono h.reservesV)
 
-def M.WF (c : VContext) (vs : VState) (x : M α) (Q : α → VState → Prop) : Prop :=
-  vs.WF c → ∀ a s', x c.toContext vs.toState = .ok (a, s') →
-    ∃ vs', vs'.toState = s' ∧ vs ≤ vs' ∧ vs'.WF c ∧ Q a vs'
+def M.WF (c : VContext) (vs : State) (x : M α) (Q : α → State → Prop) : Prop :=
+  vs.WF c → ∀ a s', x c.toContext vs = .ok (a, s') →
+    ∃ vs', vs' = s' ∧ vs ≤ vs' ∧ vs'.WF c ∧ Q a vs'
 
-theorem M.WF.bind {c : VContext} {s : VState} {x : M α} {f : α → M β} {Q R}
+theorem M.WF.bind {c : VContext} {s : State} {x : M α} {f : α → M β} {Q R}
     (h1 : x.WF c s Q)
     (h2 : ∀ a s', s ≤ s' → Q a s' → (f a).WF c s' R) :
     (x >>= f).WF c s R := by
@@ -729,33 +727,33 @@ theorem M.WF.bind {c : VContext} {s : VState} {x : M α} {f : α → M β} {Q R}
   intro h; rename_i v eq
   obtain ⟨vs₂, eq1, le1, wf₂, h1⟩ := h1 wf₁ _ _ eq
   obtain ⟨vs₃, rfl, le2, wf₃, h2⟩ := h2 _ _ le1 h1 wf₂ _ _ (eq1 ▸ h)
-  exact ⟨_, rfl, le1.trans le2, wf₃, h2⟩
+  exact ⟨le1.trans le2, wf₃, h2⟩
 
-theorem M.WF.pure {c : VContext} {s : VState} {Q} (H : Q a s) :
+theorem M.WF.pure {c : VContext} {s : State} {Q} (H : Q a s) :
     (pure a : M α).WF c s Q := by rintro h _ _ ⟨⟩; exact ⟨_, rfl, .rfl, h, H⟩
 
-theorem M.WF.map {c : VContext} {s : VState} {x : M α} {f : α → β} {Q R}
+theorem M.WF.map {c : VContext} {s : State} {x : M α} {f : α → β} {Q R}
     (h1 : x.WF c s Q) (h2 : ∀ a s', s ≤ s' → Q a s' → R (f a) s') : (f <$> x).WF c s R := by
   rw [map_eq_pure_bind]
   exact h1.bind fun _ _ le h => .pure (h2 _ _ le h)
 
-theorem M.WF.mono {c : VContext} {s : VState} {x : M α} {Q R}
+theorem M.WF.mono {c : VContext} {s : State} {x : M α} {Q R}
     (h1 : x.WF c s Q) (h2 : ∀ a s', s ≤ s' → Q a s' → R a s') : x.WF c s R := by
   simpa using h1.bind fun _ _ a1 a2 => .pure (h2 _ _ a1 a2)
 
-theorem M.WF.throw {c : VContext} {s : VState} {Q} : (throw e : M α).WF c s Q := nofun
+theorem M.WF.throw {c : VContext} {s : State} {Q} : (throw e : M α).WF c s Q := nofun
 
-theorem M.WF.and {c : VContext} {s : VState} {x : M α} {Q R}
+theorem M.WF.and {c : VContext} {s : State} {x : M α} {Q R}
     (h1 : x.WF c s Q) (h2 : x.WF c s R) : x.WF c s fun a s => Q a s ∧ R a s := by
   refine fun wf a s' e => ?_
   have H1 := h1 wf a s' e
   have H2 := h2 wf a s' e
-  obtain ⟨⟨s₁⟩, rfl, h2', h3, h4⟩ := H1
-  obtain ⟨⟨s₂⟩, eq, -, -, h4'⟩ := H2
+  obtain ⟨s₁, rfl, h2', h3, h4⟩ := H1
+  obtain ⟨s₂, eq, -, -, h4'⟩ := H2
   cases eq
   exact ⟨_, rfl, h2', h3, h4, h4'⟩
 
-theorem M.WF.le {c : VContext} {s : VState} {Q R} {x : M α}
+theorem M.WF.le {c : VContext} {s : State} {Q R} {x : M α}
     (h1 : x.WF c s Q) (H : ∀ a s', s ≤ s' → Q a s' → R a s') :
     x.WF c s R := fun wf _ _ e =>
   let ⟨_, a1, a2, a3, a4⟩ := h1 wf _ _ e
@@ -801,39 +799,39 @@ structure Methods.WF (m : Methods) where
   whnf_forall_eq :
     (m.whnf (.forallE n t b bi)).WF c s fun e₁ _ => e₁ = .forallE n t b bi
 
-def RecM.WF (c : VContext) (s : VState) (x : RecM α) (Q : α → VState → Prop) : Prop :=
+def RecM.WF (c : VContext) (s : State) (x : RecM α) (Q : α → State → Prop) : Prop :=
   ∀ m, m.WF → M.WF c s (x m) Q
 
-theorem M.WF.liftExcept {c : VContext} {s : VState} {x : Except Exception α} {Q} (h : x.WF Q) :
+theorem M.WF.liftExcept {c : VContext} {s : State} {x : Except Exception α} {Q} (h : x.WF Q) :
     M.WF c s (liftM x) fun a _ => Q a := by
   rintro wf _ _ eq
   cases x <;> cases eq
   exact ⟨s, rfl, .rfl, wf, h _ rfl⟩
 
-theorem M.WF.lift {c : VContext} {s : VState} {x : M α} {Q} (h : x.WF c s Q) :
+theorem M.WF.lift {c : VContext} {s : State} {x : M α} {Q} (h : x.WF c s Q) :
     RecM.WF c s x Q := fun _ _ => h
 
 instance : Coe (M.WF c s x Q) (RecM.WF c s x Q) := ⟨M.WF.lift⟩
 
-theorem RecM.WF.bind {c : VContext} {s : VState} {x : RecM α} {f : α → RecM β} {Q R}
+theorem RecM.WF.bind {c : VContext} {s : State} {x : RecM α} {f : α → RecM β} {Q R}
     (h1 : x.WF c s Q) (h2 : ∀ a s', s ≤ s' → Q a s' → (f a).WF c s' R) : (x >>= f).WF c s R :=
   fun _ h => M.WF.bind (h1 _ h) fun _ _ h1' h2' => h2 _ _ h1' h2' _ h
 
-theorem RecM.WF.bind_le {c : VContext} {s : VState} {x : RecM α} {f : α → RecM β} {Q R}
+theorem RecM.WF.bind_le {c : VContext} {s : State} {x : RecM α} {f : α → RecM β} {Q R}
     (h1 : x.WF c s Q) (hs : s₀ ≤ s)
     (h2 : ∀ a s', s₀ ≤ s' → Q a s' → (f a).WF c s' R) : (x >>= f).WF c s R :=
   RecM.WF.bind h1 fun _ _ h => h2 _ _ (hs.trans h)
 
-theorem RecM.WF.pure {c : VContext} {s : VState} {Q} (H : Q a s) : (pure a : RecM α).WF c s Q :=
+theorem RecM.WF.pure {c : VContext} {s : State} {Q} (H : Q a s) : (pure a : RecM α).WF c s Q :=
   fun _ _ => .pure H
 
-theorem RecM.WF.and {c : VContext} {s : VState} {x : RecM α} {Q R}
+theorem RecM.WF.and {c : VContext} {s : State} {x : RecM α} {Q R}
     (h1 : x.WF c s Q) (h2 : x.WF c s R) : x.WF c s fun a s => Q a s ∧ R a s :=
   fun m wf => (h1 m wf).and (h2 m wf)
 
 /-- Combine a family of postconditions, each established under its own hypothesis, with an
 unconditional one (which supplies the state invariant when no hypothesis holds). -/
-theorem RecM.WF.and_forall {c : VContext} {s : VState} {x : RecM α} {Q : α → VState → Prop}
+theorem RecM.WF.and_forall {c : VContext} {s : State} {x : RecM α} {Q : α → State → Prop}
     {H : ι → Prop} {R : ι → α → Prop}
     (h0 : x.WF c s Q) (h : ∀ i, H i → x.WF c s fun a _ => R i a) :
     x.WF c s fun a s => Q a s ∧ ∀ i, H i → R i a := by
@@ -843,63 +841,63 @@ theorem RecM.WF.and_forall {c : VContext} {s : VState} {x : RecM α} {Q : α →
   obtain ⟨⟨vs''⟩, eq, -, -, r⟩ := h i hi m mwf wf a _ e
   cases eq; exact r
 
-theorem RecM.WF.map {c : VContext} {s : VState} {x : RecM α} {f : α → β} {Q R}
+theorem RecM.WF.map {c : VContext} {s : State} {x : RecM α} {f : α → β} {Q R}
     (h1 : x.WF c s Q) (h2 : ∀ a s', s ≤ s' → Q a s' → R (f a) s') : (f <$> x).WF c s R := by
   rw [map_eq_pure_bind]
   exact h1.bind fun _ _ le h => .pure (h2 _ _ le h)
 
-theorem RecM.WF.mono {c : VContext} {s : VState} {x : RecM α} {Q R}
+theorem RecM.WF.mono {c : VContext} {s : State} {x : RecM α} {Q R}
     (h1 : x.WF c s Q) (h2 : ∀ a s', s ≤ s' → Q a s' → R a s') : x.WF c s R := by
   rw [← id_map x]; exact h1.map h2
 
-theorem RecM.WF.throw {c : VContext} {s : VState} {Q} : (throw e : RecM α).WF c s Q := nofun
+theorem RecM.WF.throw {c : VContext} {s : State} {Q} : (throw e : RecM α).WF c s Q := nofun
 
-theorem RecM.WF.le {c : VContext} {s : VState} {Q R} {x : RecM α}
+theorem RecM.WF.le {c : VContext} {s : State} {Q R} {x : RecM α}
     (h1 : x.WF c s Q) (H : ∀ a s', s ≤ s' → Q a s' → R a s') :
     x.WF c s R := fun _ h => (h1 _ h).le H
 
-theorem RecM.WF.pureBind {c : VContext} {s : VState} {f : β → RecM α} {Q}
+theorem RecM.WF.pureBind {c : VContext} {s : State} {f : β → RecM α} {Q}
     {x : β} (H : WF c s (f x) Q) : ((Pure.pure x : RecM β) >>= f).WF c s Q := H
 
-theorem get.WF {c : VContext} {s : VState} :
-    M.WF c s get fun a s' => s.toState = a ∧ s = s' := by
+theorem get.WF {c : VContext} {s : State} :
+    M.WF c s get fun a s' => s = a ∧ s = s' := by
   rintro wf _ _ ⟨⟩; exact ⟨_, rfl, .rfl, wf, rfl, rfl⟩
 
-theorem RecM.WF.get {c : VContext} {s : VState} {f : State → RecM α} {Q}
-    (H : WF c s (f s.toState) Q) : (get >>= f).WF c s Q := H
+theorem RecM.WF.get {c : VContext} {s : State} {f : State → RecM α} {Q}
+    (H : WF c s (f s) Q) : (get >>= f).WF c s Q := H
 
-theorem getEnv.WF {c : VContext} {s : VState} :
+theorem getEnv.WF {c : VContext} {s : State} :
     M.WF c s getEnv fun a s' => c.env = a ∧ s = s' := by
   rintro wf _ _ ⟨⟩; exact ⟨_, rfl, .rfl, wf, rfl, rfl⟩
 
-theorem M.WF.getEnv {c : VContext} {s : VState} {f : Environment → M α} {Q}
+theorem M.WF.getEnv {c : VContext} {s : State} {f : Environment → M α} {Q}
     (H : WF c s (f c.env) Q) : (liftM getEnv >>= f).WF c s Q := H
 
-theorem RecM.WF.getEnv {c : VContext} {s : VState} {f : Environment → RecM α} {Q}
+theorem RecM.WF.getEnv {c : VContext} {s : State} {f : Environment → RecM α} {Q}
     (H : WF c s (f c.env) Q) : (liftM getEnv >>= f).WF c s Q := H
 
-theorem getLCtx.WF {c : VContext} {s : VState} :
+theorem getLCtx.WF {c : VContext} {s : State} :
     M.WF c s getLCtx fun a s' => c.lctx' = a ∧ s = s' := by
   rintro wf _ _ ⟨⟩; exact ⟨_, rfl, .rfl, wf, c.lctx_eq, rfl⟩
 
-theorem RecM.WF.getLCtx {c : VContext} {s : VState} {f : LocalContext → RecM α} {Q}
+theorem RecM.WF.getLCtx {c : VContext} {s : State} {f : LocalContext → RecM α} {Q}
     (H : WF c s (f c.lctx') Q) : (getLCtx >>= f).WF c s Q :=
   getLCtx.WF.lift.bind <| by rintro _ _ _ ⟨rfl, rfl⟩; exact H
 
-theorem RecM.WF.readThe {c : VContext} {s : VState} {f : Context → RecM α} {Q}
+theorem RecM.WF.readThe {c : VContext} {s : State} {f : Context → RecM α} {Q}
     (H : WF c s (f c.toContext) Q) : (readThe Context >>= f).WF c s Q := H
 
-theorem getNGen.WF {c : VContext} {s : VState} :
+theorem getNGen.WF {c : VContext} {s : State} :
     M.WF c s getNGen fun a s' => s.ngen = a ∧ s = s' := by
   rintro wf _ _ ⟨⟩; exact ⟨_, rfl, .rfl, wf, rfl, rfl⟩
 
-theorem M.WF.getNGen {c : VContext} {s : VState} {f : NameGenerator → M α} {Q}
+theorem M.WF.getNGen {c : VContext} {s : State} {f : NameGenerator → M α} {Q}
     (H : WF c s (f s.ngen) Q) : (getNGen >>= f).WF c s Q := H
 
-theorem RecM.WF.getNGen {c : VContext} {s : VState} {f : NameGenerator → RecM α} {Q}
+theorem RecM.WF.getNGen {c : VContext} {s : State} {f : NameGenerator → RecM α} {Q}
     (H : WF c s (f s.ngen) Q) : (getNGen >>= f).WF c s Q := H
 
-theorem RecM.WF.stateWF {c : VContext} {s : VState} {x : RecM α} {Q}
+theorem RecM.WF.stateWF {c : VContext} {s : State} {x : RecM α} {Q}
     (H : s.WF c → WF c s x Q) : WF c s x Q :=
   fun _ h wf => H wf _ h wf
 
@@ -907,17 +905,17 @@ theorem RecM.WF.stateWF {c : VContext} {s : VState} {x : RecM α} {Q}
 methods), without the state invariant at the end of the run. Unlike `RecM.WF`, this can be
 established for a run whose tail is not known to preserve the state invariant, as long as the
 result is already determined. -/
-def RecM.Post (c : VContext) (s : VState) (x : RecM α) (Q : α → Prop) : Prop :=
-  ∀ m, m.WF → s.WF c → ∀ a s', x m c.toContext s.toState = .ok (a, s') → Q a
+def RecM.Post (c : VContext) (s : State) (x : RecM α) (Q : α → Prop) : Prop :=
+  ∀ m, m.WF → s.WF c → ∀ a s', x m c.toContext s = .ok (a, s') → Q a
 
 /-- A postcondition on the result of every successful run, for all methods and states. -/
 def RecM.Res (x : RecM α) (Q : α → Prop) : Prop :=
   ∀ m ctx st a st', x m ctx st = .ok (a, st') → Q a
 
-theorem RecM.Res.post {c : VContext} {s : VState} {x : RecM α} {Q : α → Prop}
+theorem RecM.Res.post {c : VContext} {s : State} {x : RecM α} {Q : α → Prop}
     (H : x.Res Q) : x.Post c s Q := fun m _ _ a s' e => H m _ _ a s' e
 
-theorem RecM.Post.bind {c : VContext} {s : VState} {x : RecM α} {f : α → RecM β} {Q R}
+theorem RecM.Post.bind {c : VContext} {s : State} {x : RecM α} {f : α → RecM β} {Q R}
     (h1 : x.WF c s Q) (h2 : ∀ a s', s ≤ s' → Q a s' → (f a).Post c s' R) :
     (x >>= f).Post c s R := by
   intro m mwf wf₁ a vs₁
@@ -937,10 +935,10 @@ theorem RecM.Res.bind {x : RecM α} {f : α → RecM β} {Q} (h2 : ∀ a, (f a).
 theorem RecM.Res.pure {Q : α → Prop} (h : Q a) : (pure a : RecM α).Res Q := by
   rintro _ _ _ _ _ ⟨⟩; exact h
 
-theorem RecM.Post.pure {c : VContext} {s : VState} {Q : α → Prop} (h : Q a) :
+theorem RecM.Post.pure {c : VContext} {s : State} {Q : α → Prop} (h : Q a) :
     (pure a : RecM α).Post c s Q := (RecM.Res.pure h).post
 
-theorem RecM.WF.and_post {c : VContext} {s : VState} {x : RecM α} {Q R}
+theorem RecM.WF.and_post {c : VContext} {s : State} {x : RecM α} {Q R}
     (h1 : x.WF c s Q) (h2 : x.Post c s R) : x.WF c s fun a s => Q a s ∧ R a := by
   intro m mwf wf a s' e
   obtain ⟨vs, h3, le, wf', q⟩ := h1 m mwf wf a s' e
@@ -949,7 +947,7 @@ theorem RecM.WF.and_post {c : VContext} {s : VState} {x : RecM α} {Q R}
 @[simp] theorem toLBool_true {b : Bool} : b.toLBool = .true ↔ b = true := by
   cases b <;> simp [Bool.toLBool]
 
-theorem RecM.WF.toLBoolM {Q : VState → Prop} {x : RecM Bool}
+theorem RecM.WF.toLBoolM {Q : State → Prop} {x : RecM Bool}
     (H : x.WF c s fun b s => b → Q s) : (toLBoolM x).WF c s fun b s => b = .true → Q s :=
   H.bind fun _ _ _ H => .pure fun h => H (by simpa using h)
 
@@ -1072,7 +1070,7 @@ theorem LevelsCache.WF.fresh {c c' : VContext}
   · exact (hR h2).elim
   · exact h1
 
-theorem VState.LE.namePrefix {s₁ s₂ : VState} (h : s₁ ≤ s₂) :
+theorem State.LE.namePrefix {s₁ s₂ : State} (h : s₁ ≤ s₂) :
     s₁.ngen.namePrefix = s₂.ngen.namePrefix := by
   obtain ⟨⟨p, i⟩⟩ := s₁; obtain ⟨⟨p', j⟩⟩ := s₂; cases h; rfl
 
@@ -1172,17 +1170,14 @@ theorem ParamUniformTyCache.WF.fresh {c c' : VContext} (henv : c'.env = c.env)
   refine ⟨fun heads As ls P hs hl hP => ?_, fun heads As ls P hs n hn he => ?_⟩
   · rw [henv] at hl ⊢; exact H'.1 heads As ls P (hs.tail henv hΔ hfind hnone) hl hP
   · rw [henv]; exact H'.2 heads As ls P (hs.tail henv hΔ hfind hnone) n hn he
-def VState.next (s : VState) : VState := { s with ngen := s.ngen.next }
+def State.next (s : State) : State := { s with ngen := s.ngen.next }
 
-/-- The state on leaving a binder scope that was entered at `saved`: the executable's
-`State.leaveScope`, which puts back every context-relative cache and the equivalence manager. -/
-def VState.leaveScope (saved s : VState) : VState := ⟨saved.toState.leaveScope s.toState⟩
 
 /-- Leaving a binder scope gives back a well-formed state. The restored caches and equivalence
 manager are those of `saved`, which were well formed in this context before the scope was entered;
 the name generator has only advanced, and the `unfold` cache depends only on the environment. So
 nothing that was established under the binder has to be carried out of it. -/
-theorem VState.WF.leaveScope {c : VContext} {saved s : VState} (wf : saved.WF c) (le : saved ≤ s)
+theorem State.WF.leaveScope {c : VContext} {saved s : State} (wf : saved.WF c) (le : saved ≤ s)
     (hu : UnfoldCache.WF c s.unfold) : (saved.leaveScope s).WF c where
   trctx := wf.trctx
   ngen_wf _ h := le.reservesV (wf.ngen_wf _ h)
@@ -1202,30 +1197,30 @@ theorem VState.WF.leaveScope {c : VContext} {saved s : VState} (wf : saved.WF c)
 
 /-- A binder scope of the checker: the body runs from the state with the name generator advanced,
 and the result state is the pre-scope state with only the name generator and the `unfold` cache
-taken from the body (`VState.leaveScope`). -/
-theorem M.WF.withFreshId {c : VContext} {s : VState} {x : Name → M α} {Q : α → VState → Prop}
+taken from the body (`State.leaveScope`). -/
+theorem M.WF.withFreshId {c : VContext} {s : State} {x : Name → M α} {Q : α → State → Prop}
     (wf : s.WF c)
-    (H : ∀ a s', x s.ngen.curr c.toContext s.next.toState = .ok (a, s') →
-      ∃ vs', vs'.toState = s' ∧ s.next ≤ vs' ∧ UnfoldCache.WF c vs'.unfold ∧
+    (H : ∀ a s', x s.ngen.curr c.toContext s.next = .ok (a, s') →
+      ∃ vs', vs' = s' ∧ s.next ≤ vs' ∧ UnfoldCache.WF c vs'.unfold ∧
         Q a (s.leaveScope vs')) :
-    ∀ a s', (withFreshId x : M α) c.toContext s.toState = .ok (a, s') →
-      ∃ vs', vs'.toState = s' ∧ s ≤ vs' ∧ vs'.WF c ∧ Q a vs' := by
+    ∀ a s', (withFreshId x : M α) c.toContext s = .ok (a, s') →
+      ∃ vs', vs' = s' ∧ s ≤ vs' ∧ vs'.WF c ∧ Q a vs' := by
   intro a s' e
   rw [withFreshId_eq] at e
-  cases e' : x s.ngen.curr c.toContext { s.toState with ngen := s.ngen.next } with
+  cases e' : x s.ngen.curr c.toContext { s with ngen := s.ngen.next } with
   | error => rw [e'] at e; cases e
   | ok p =>
     obtain ⟨a', s''⟩ := p
     rw [e'] at e; cases e
     obtain ⟨vs', rfl, le, hu, hQ⟩ := H _ _ e'
-    have le' : s ≤ vs' := VState.LE.trans .next le
+    have le' : s ≤ vs' := State.LE.trans .next le
     exact ⟨s.leaveScope vs', rfl, le', wf.leaveScope le' hu, hQ⟩
 
 /-- Entering a binder keeps the state well formed: the name generator advances past the fresh
 variable and every cache is weakened to the extended context. This is the well-formedness part of
 `RecM.WF.withLocalDecl` and `M.WF.withLocalDecl`, and the state at a kept binder of the ghost
 telescope proof. -/
-theorem VState.WF.vlam {c : VContext} {m} [cwf : c.MLCWF m] {s : VState}
+theorem State.WF.vlam {c : VContext} {m} [cwf : c.MLCWF m] {s : State}
     (wf : s.WF (c.withMLC m)) (hty : (c.withMLC m).TrExprS ty ty')
     (hty' : (c.withMLC m).IsType ty')
     [cwf' : c.MLCWF (m.vlam ⟨s.ngen.curr⟩ name ty ty' bi)] :
@@ -1270,7 +1265,7 @@ theorem VState.WF.vlam {c : VContext} {m} [cwf : c.MLCWF m] {s : VState}
     inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
 
 protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
-    {s : VState} {f : Expr → RecM α} {Q name ty ty' bi}
+    {s : State} {f : Expr → RecM α} {Q name ty ty' bi}
     (hty : (c.withMLC m).TrExprS ty ty')
     (hty' : (c.withMLC m).IsType ty')
     (hs : s₀ ≤ s)
@@ -1286,13 +1281,13 @@ protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
   have h1' := wf.find?_eq_none h1
   let m' := m.vlam ⟨id⟩ name ty ty' bi
   have cwf' : c.MLCWF m' := ⟨cwf.1, h1', hty, hty'⟩
-  have : VState.WF (c.withMLC m') s.next := VState.WF.vlam (cwf' := cwf') wf hty hty'
+  have : State.WF (c.withMLC m') s.next := State.WF.vlam (cwf' := cwf') wf hty hty'
   refine M.WF.withFreshId wf fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
   exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
 
 protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
-    {s : VState} {f : Expr → M α} {Q name ty ty' bi}
+    {s : State} {f : Expr → M α} {Q name ty ty' bi}
     (hty : (c.withMLC m).TrExprS ty ty')
     (hty' : (c.withMLC m).IsType ty')
     (hs : s₀ ≤ s)
@@ -1308,14 +1303,14 @@ protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
   have h1' := wf.find?_eq_none h1
   let m' := m.vlam ⟨id⟩ name ty ty' bi
   have cwf' : c.MLCWF m' := ⟨cwf.1, h1', hty, hty'⟩
-  have : VState.WF (c.withMLC m') s.next := VState.WF.vlam (cwf' := cwf') wf hty hty'
+  have : State.WF (c.withMLC m') s.next := State.WF.vlam (cwf' := cwf') wf hty hty'
   refine M.WF.withFreshId wf fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 this a s' e
   exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
 
-/-- Entering a `let` binder keeps the state well formed, as `VState.WF.vlam` for a local
+/-- Entering a `let` binder keeps the state well formed, as `State.WF.vlam` for a local
 definition. -/
-theorem VState.WF.vlet {c : VContext} {m} [cwf : c.MLCWF m] {s : VState}
+theorem State.WF.vlet {c : VContext} {m} [cwf : c.MLCWF m] {s : State}
     (wf : s.WF (c.withMLC m)) (hty : (c.withMLC m).TrExprS ty ty')
     (hval : (c.withMLC m).TrExprS val val')
     (hval' : (c.withMLC m).HasType val' ty')
@@ -1362,7 +1357,7 @@ theorem VState.WF.vlet {c : VContext} {m} [cwf : c.MLCWF m] {s : VState}
     inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
 
 protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
-    {s : VState} {f : Expr → RecM α} {Q name ty ty'}
+    {s : State} {f : Expr → RecM α} {Q name ty ty'}
     (hty : (c.withMLC m).TrExprS ty ty')
     (hval : (c.withMLC m).TrExprS val val')
     (hval' : (c.withMLC m).HasType val' ty')
@@ -1379,7 +1374,7 @@ protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
   have h1' := wf.find?_eq_none h1
   let m' := m.vlet ⟨id⟩ name ty val ty' val'
   have cwf' : c.MLCWF m' := ⟨cwf.1, h1', hty, hval, hval'⟩
-  have : VState.WF (c.withMLC m') s.next := VState.WF.vlet (cwf' := cwf') wf hty hval hval'
+  have : State.WF (c.withMLC m') s.next := State.WF.vlet (cwf' := cwf') wf hty hval hval'
   refine M.WF.withFreshId wf fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
   exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
@@ -1788,16 +1783,16 @@ theorem MLCtx.WF.mkForall_closed {c : MLCtx} (wf : c.WF env Us) (n hn) (he : Clo
 
 namespace Inner
 
-theorem whnf.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnf.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (whnf e) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' :=
   fun _ wf => wf.whnf he
 
-theorem whnf.WF_forallE {c : VContext} {s : VState} (he : c.TrExprS e (.forallE A B)) :
+theorem whnf.WF_forallE {c : VContext} {s : State} (he : c.TrExprS e (.forallE A B)) :
     RecM.WF c s (whnf e) fun e₁ _ => c.TrExprS e₁ (.forallE A B) :=
   fun _ wf => wf.whnf_forallE he
 
 /-- Both `whnf` clauses at once. -/
-theorem whnf.WF' {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnf.WF' {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (whnf e) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧
       (∀ A B, e' = .forallE A B → c.TrExprS e₁ e') := by
   by_cases h : ∃ A B, e' = .forallE A B
@@ -1810,19 +1805,19 @@ theorem envGet.WF {c : VContext} :
     (c.env.get name).WF fun ci => c.env.find? name = some ci := by
   simp [Environment.get]; split <;> [refine .pure ‹_›; exact .throw]
 
-theorem isDefEqCore.WF {c : VContext} {s : VState}
+theorem isDefEqCore.WF {c : VContext} {s : State}
     (he₁ : c.TrExprS e₁ e₁') (he₂ : c.TrExprS e₂ e₂') :
     RecM.WF c s (isDefEqCore e₁ e₂) fun b _ => b → c.IsDefEqU e₁' e₂' :=
   fun _ wf => wf.isDefEqCore he₁ he₂
 
-theorem inferType.WF' {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
+theorem inferType.WF' {c : VContext} {s : State} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
     (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
     RecM.WF c s (inferType e inferOnly) fun ty _ => ∃ e' ty', c.TrTyping e ty e' ty' :=
   fun _ wf => wf.inferType h1 hinf
 
 /-- With the translation already in hand, `hinf` is satisfied whichever mode is used, so this
 holds at both settings of `inferOnly`. -/
-theorem inferType.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem inferType.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (inferType e inferOnly) fun ty _ => ∃ ty', c.TrTyping e ty e' ty' := by
   refine .stateWF fun wf => ?_
   refine (inferType.WF' he.fvarsIn fun _ => ⟨_, he⟩).le
@@ -1830,26 +1825,26 @@ theorem inferType.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
   have := h2.uniq c.Ewf (.refl c.Ewf c.Δwf) he
   exact h4.defeqU_l c.Ewf c.Δwf this
 
-theorem inferType.WF_uniq {c : VContext} {s : VState}
+theorem inferType.WF_uniq {c : VContext} {s : State}
     (he : c.TrExprS e e') (hty : c.HasType e' ty') :
     RecM.WF c s (inferType e true) fun ty _ => c.TrExpr ty ty' :=
   (inferType.WF he).le fun _ _ _ ⟨_, _, _, h1, h2⟩ =>
   ⟨_, h1, h2.uniqU c.Ewf c.Δwf hty⟩
 
-theorem checkType.WF {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars)) :
+theorem checkType.WF {c : VContext} {s : State} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars)) :
     RecM.WF c s (inferType e false) fun ty _ => ∃ e' ty', c.TrTyping e ty e' ty' :=
   inferType.WF' h1 nofun
 
-theorem whnfCore.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnfCore.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' :=
   fun _ wf => wf.whnfCore he
 
-theorem whnfCore.WF_forallE {c : VContext} {s : VState} (he : c.TrExprS e (.forallE A B)) :
+theorem whnfCore.WF_forallE {c : VContext} {s : State} (he : c.TrExprS e (.forallE A B)) :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ => c.TrExprS e₁ (.forallE A B) :=
   fun _ wf => wf.whnfCore_forallE he
 
 /-- Both `whnfCore` clauses at once. -/
-theorem whnfCore.WF' {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnfCore.WF' {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧
       (∀ A B, e' = .forallE A B → c.TrExprS e₁ e') := by
   by_cases h : ∃ A B, e' = .forallE A B
@@ -1859,106 +1854,106 @@ theorem whnfCore.WF' {c : VContext} {s : VState} (he : c.TrExprS e e') :
   · exact (whnfCore.WF he).mono fun _ _ _ ⟨h1, h2⟩ =>
       ⟨h1, h2, fun _ _ hAB => (h ⟨_, _, hAB⟩).elim⟩
 
-theorem whnfCore.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnfCore.WF_levels {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ => c.LevelsBelow e e₁ :=
   fun _ wf => wf.whnfCore_levels he
 
-theorem whnf.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnf.WF_levels {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (whnf e) fun e₁ _ => c.LevelsBelow e e₁ :=
   fun _ wf => wf.whnf_levels he
 
-theorem inferType.WF_levels_of_fvarsIn {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
+theorem inferType.WF_levels_of_fvarsIn {c : VContext} {s : State} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
     (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
     RecM.WF c s (inferType e inferOnly) fun ty _ => c.LevelsBelow e ty :=
   fun _ wf => wf.inferType_levels h1 hinf
 
-theorem inferType.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem inferType.WF_levels {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (inferType e inferOnly) fun ty _ => c.LevelsBelow e ty :=
   inferType.WF_levels_of_fvarsIn he.fvarsIn fun _ => ⟨_, he⟩
 
 /-- `whnfCore` with its universe-parameter support. -/
-theorem whnfCore.WF_below {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnfCore.WF_below {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ =>
       c.FVarsBelow e e₁ ∧ c.LevelsBelow e e₁ ∧ c.TrExpr e₁ e' :=
   ((whnfCore.WF he).and (whnfCore.WF_levels he)).mono fun _ _ _ ⟨⟨h1, h2⟩, h3⟩ => ⟨h1, h3, h2⟩
 
 /-- All three `whnfCore` clauses with its universe-parameter support. -/
-theorem whnfCore.WF_below_of_fvarsIn {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnfCore.WF_below_of_fvarsIn {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ => (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧
       (∀ A B, e' = .forallE A B → c.TrExprS e₁ e')) ∧ c.LevelsBelow e e₁ :=
   (whnfCore.WF' he).and (whnfCore.WF_levels he)
 
 /-- `whnf` with its universe-parameter support. -/
-theorem whnf.WF_below {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnf.WF_below {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (whnf e) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.LevelsBelow e e₁ ∧ c.TrExpr e₁ e' :=
   ((whnf.WF he).and (whnf.WF_levels he)).mono fun _ _ _ ⟨⟨h1, h2⟩, h3⟩ => ⟨h1, h3, h2⟩
 
 /-- All three `whnf` clauses with its universe-parameter support. -/
-theorem whnf.WF_below_of_fvarsIn {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnf.WF_below_of_fvarsIn {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (whnf e) fun e₁ _ => (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧
       (∀ A B, e' = .forallE A B → c.TrExprS e₁ e')) ∧ c.LevelsBelow e e₁ :=
   (whnf.WF' he).and (whnf.WF_levels he)
 
 /-- `inferType` with its universe-parameter support. -/
-theorem inferType.WF_below_of_fvarsIn {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
+theorem inferType.WF_below_of_fvarsIn {c : VContext} {s : State} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
     (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
     RecM.WF c s (inferType e inferOnly) fun ty _ =>
       (∃ e' ty', c.TrTyping e ty e' ty') ∧ c.LevelsBelow e ty :=
   (inferType.WF' h1 hinf).and (inferType.WF_levels_of_fvarsIn h1 hinf)
 
 /-- `inferType` with its universe-parameter support. -/
-theorem inferType.WF_below {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem inferType.WF_below {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (inferType e inferOnly) fun ty _ =>
       (∃ ty', c.TrTyping e ty e' ty') ∧ c.LevelsBelow e ty :=
   (inferType.WF he).and (inferType.WF_levels he)
 
 /-! ### The parameter-uniformity clauses of the methods -/
 
-theorem whnfCore.WF_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem whnfCore.WF_paramUniform {c : VContext} {s : State} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ => c.ParamUniformBelow pfx e e₁ :=
   fun _ wf => hp ▸ wf.whnfCore_paramUniform he
 
-theorem whnf.WF_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem whnf.WF_paramUniform {c : VContext} {s : State} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (whnf e) fun e₁ _ => c.ParamUniformBelow pfx e e₁ :=
   fun _ wf => hp ▸ wf.whnf_paramUniform he
 
-theorem inferType.WF_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem inferType.WF_paramUniform {c : VContext} {s : State} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (inferType e) fun ty _ => c.ParamUniformTyBelow pfx e ty :=
   fun _ wf => hp ▸ wf.inferType_paramUniform he
 
-theorem whnfCore.WF_const {c : VContext} {s : VState} :
+theorem whnfCore.WF_const {c : VContext} {s : State} :
     RecM.WF c s (whnfCore (.const n us) cheapProj) fun e₁ _ => e₁ = .const n us :=
   fun _ wf => wf.whnfCore_const
 
-theorem whnf.WF_forall {c : VContext} {s : VState} :
+theorem whnf.WF_forall {c : VContext} {s : State} :
     RecM.WF c s (whnf (.forallE n t b bi)) fun e₁ _ => e₁ = .forallE n t b bi :=
   fun _ wf => wf.whnf_forall_eq
 
 /-- `whnfCore` with its free-variable and parameter-uniformity clauses. -/
-theorem whnfCore.WF_and_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem whnfCore.WF_and_paramUniform {c : VContext} {s : State} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ =>
       (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e') ∧ c.ParamUniformBelow pfx e e₁ :=
   (whnfCore.WF he).and (whnfCore.WF_paramUniform he hp)
 
 /-- `whnf` with its free-variable and parameter-uniformity clauses. -/
-theorem whnf.WF_and_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem whnf.WF_and_paramUniform {c : VContext} {s : State} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (whnf e) fun e₁ _ => (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e') ∧ c.ParamUniformBelow pfx e e₁ :=
   (whnf.WF he).and (whnf.WF_paramUniform he hp)
 
 /-- `inferType` with its typing and parameter-uniformity clauses. -/
-theorem inferType.WF_and_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem inferType.WF_and_paramUniform {c : VContext} {s : State} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (inferType e) fun ty _ =>
       (∃ ty', c.TrTyping e ty e' ty') ∧ c.ParamUniformTyBelow pfx e ty :=
   (inferType.WF he).and (inferType.WF_paramUniform he hp)
 
 /-- The prefix of the name generator is constant along a run. -/
-theorem VState.LE.namePrefix_eq {s₀ s : VState} (hp : s₀.ngen.namePrefix = pfx) (le : s₀ ≤ s) :
+theorem State.LE.namePrefix_eq {s₀ s : State} (hp : s₀.ngen.namePrefix = pfx) (le : s₀ ≤ s) :
     s.ngen.namePrefix = pfx := le.namePrefix ▸ hp
 
 /-- An expression translating to a `forallE` is neither an application nor a constant. -/
@@ -1994,7 +1989,7 @@ def UnfoldDefinition.WF (c : VContext) (e e₀ : Expr) (e' : VExpr) : Option Exp
   | none => ∀ {{n ci v ls}}, c.env.find? n = some ci → ci.deltaValue? = some v →
     e₀ = .const n ls → ls.length = ci.numLevelParams → False
 
-theorem unfoldDefinitionCore.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem unfoldDefinitionCore.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (unfoldDefinitionCore e) fun oe _ => UnfoldDefinition.WF c e e e' oe := by
   dsimp [unfoldDefinitionCore]
   split <;> [refine .getEnv ?_; (rename_i H; exact .pure fun _ _ _ _ _ _ h => nomatch H _ _ h)]
@@ -2022,13 +2017,13 @@ theorem unfoldDefinitionCore.WF {c : VContext} {s : VState} (he : c.TrExprS e e'
     cases h3.symm.trans a1; exact this
   · refine .bind (Q := fun _ _ => True) ?_ fun _ _ _ _ => .pure this
     rintro _ mwf wf _ _ ⟨⟩
-    refine ⟨{ s with toState := _ }, rfl, .rfl, { wf with unfold_wf := ?_ }, ⟨⟩⟩
+    refine ⟨_, rfl, .rfl, { wf with unfold_wf := ?_ }, ⟨⟩⟩
     intro e e'; simp only [Std.HashMap.getElem?_insert]
     split <;> [rintro ⟨⟩; exact (wf.unfold_wf ·)]
     rename_i eq; rw [BEq.comm, Expr.eqv_const] at eq
     exact ⟨_, _, _, eq, h3, rfl⟩
 
-theorem unfoldDefinition.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem unfoldDefinition.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (unfoldDefinition e) fun oe _ => UnfoldDefinition.WF c e e.getAppFn e' oe := by
   simp [unfoldDefinition]; split; rotate_left
   · rename_i h; refine (unfoldDefinitionCore.WF he).mono fun _ _ _ H => ?_
@@ -2043,7 +2038,7 @@ theorem unfoldDefinition.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
   · exact (e.mkAppList_getAppArgsList ▸ h1.mkAppList :)
   · exact h2.rebuild_mkAppList c.Ewf c.Δwf stk.tr (e.mkAppList_getAppArgsList ▸ he :)
 
-theorem ensureSortCore.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem ensureSortCore.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (ensureSortCore e e₀) fun e1 _ =>
       (∃ u, e1 = .sort u) ∧ c.TrExpr e1 e' ∧ c.FVarsBelow e e1 := by
   simp [ensureSortCore]; split

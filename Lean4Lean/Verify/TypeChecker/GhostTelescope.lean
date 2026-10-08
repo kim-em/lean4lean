@@ -140,10 +140,10 @@ theorem uninstantiate_vlctxBV {env : VEnv} {Us : List Name} :
 /-! ### Well-formed states across a binder -/
 
 /-- Advancing the name generator keeps a state well formed (the state at a ghost binder). -/
-theorem VState.WF.next {c : VContext} {s : VState} (wf : s.WF c) : s.next.WF c :=
+theorem State.WF.next {c : VContext} {s : State} (wf : s.WF c) : s.next.WF c :=
   wf.leaveScope (s := s.next) (show s ≤ s.next from .next) wf.unfold_wf
 
-theorem mlcwf_vlam {c : VContext} {m} [cwf : c.MLCWF m] {s : VState}
+theorem mlcwf_vlam {c : VContext} {m} [cwf : c.MLCWF m] {s : State}
     (wf : s.WF (c.withMLC m)) (hty : (c.withMLC m).TrExprS ty ty')
     (hty' : (c.withMLC m).IsType ty') :
     c.MLCWF (m.vlam ⟨s.ngen.curr⟩ name ty ty' bi) :=
@@ -159,7 +159,7 @@ theorem find?_mkLocalDecl {l : LocalContext} {fv fv' : FVarId} {name : Name} {ty
   exact hwf.map_wf.find?_insert
 
 /-- The ghost relation between the actual context and the context of a view. -/
-theorem ghostRel_mk {G : FVarId → Prop} {c : VContext} {m} [c.MLCWF m] {s : VState}
+theorem ghostRel_mk {G : FVarId → Prop} {c : VContext} {m} [c.MLCWF m] {s : State}
     {ctx₁ : Context} (wf : s.WF (c.withMLC m)) (hG : ∀ fv ∈ m.vlctx.fvars, ¬ G fv)
     (hlwf : ctx₁.lctx.WF) (henv : EnvGhostFree (fun _ => True) c.env)
     (hctx : ctx₁ = { c.toContext with lctx := ctx₁.lctx })
@@ -193,7 +193,7 @@ theorem ghostRel_mk {G : FVarId → Prop} {c : VContext} {m} [c.MLCWF m] {s : VS
 /-- The cached values of a well-formed state do not mention the next fresh variable, so the state
 is ghost-free for the ghosts extended by it. -/
 theorem GhostFreeState.ghost {G : FVarId → Prop} {c : VContext} {s : State} (h : GhostFreeState G s)
-    (wf : VState.WF c ⟨s⟩) (henv : EnvGhostFree (fun _ => True) c.env) :
+    (wf : State.WF c s) (henv : EnvGhostFree (fun _ => True) c.env) :
     GhostFreeState (fun fv => G fv ∨ fv = ⟨s.ngen.curr⟩) { s with ngen := s.ngen.next } := by
   have hres {r : Expr} (h1 : GhostFree G r) (h2 : FVarsIn s.ngen.Reserves r) :
       GhostFree (fun fv => G fv ∨ fv = ⟨s.ngen.curr⟩) r :=
@@ -225,17 +225,17 @@ context of the view, where the existing verification gives its translation. -/
 theorem check_sort {c : VContext} {m} [c.MLCWF m] {G : FVarId → Prop} {ctx₁ : Context}
     {s s₁ s₂ : State} {E T t X : Expr} {k : Nat}
     (hR : GhostRel G ctx₁ (c.withMLC m).toContext) (hS : GhostFreeState G s)
-    (wf : VState.WF (c.withMLC m) ⟨s⟩)
+    (wf : State.WF (c.withMLC m) s)
     (hE : FVarsIn (· ∈ m.vlctx.fvars) E) (hG : ∀ fv ∈ m.vlctx.fvars, ¬ G fv)
     (h1 : (Methods.withFuel k).inferType E false ctx₁ s = .ok (T, s₁))
     (h2 : ensureSortCore T X (Methods.withFuel k) ctx₁ s₁ = .ok (t, s₂)) :
     ∃ e', (c.withMLC m).TrExprS E e' ∧ (c.withMLC m).IsType e' ∧
-      GhostFreeState G s₂ ∧ VState.WF (c.withMLC m) ⟨s₂⟩ := by
+      GhostFreeState G s₂ ∧ State.WF (c.withMLC m) s₂ := by
   have hGF : GhostFree G E := hE.mono hG
   have F := Methods.withFuel_framed G k
   obtain ⟨h1', gT, gs1, -⟩ := F.inferType false hGF hR hS h1
   obtain ⟨⟨s₁'⟩, eq, -, wf1, e', T', -, he', hT', hty⟩ :=
-    Inner.inferType.WF' (c := c.withMLC m) (s := ⟨s⟩) (inferOnly := false) hE nofun _
+    Inner.inferType.WF' (c := c.withMLC m) (s := s) (inferOnly := false) hE nofun _
       Methods.withFuel.WF wf _ _ h1'
   cases eq
   obtain ⟨h2', -, gs2, -⟩ := ensureSortCore.framed gT F hR gs1 h2
@@ -290,7 +290,7 @@ theorem loop_base {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True) 
     (hG : ∀ fv ∈ m.vlctx.fvars, ¬ G fv) (hlwf : L.WF)
     (hfind : ∀ ⦃fv⦄, ¬ G fv →
       (L.find? fv).map (·.setIndex 0) = (m.lctx.find? fv).map (·.setIndex 0))
-    (hS : GhostFreeState G s) (wf : VState.WF (c.withMLC m) ⟨s⟩)
+    (hS : GhostFreeState G s) (wf : State.WF (c.withMLC m) s)
     (hrun : inferForall.loop false arr us e (Methods.withFuel k) { c.toContext with lctx := L } s =
       .ok (r, s')) :
     ∃ e', TelTr c.venv c.lparams (vlctxBV m n hn) e_low e' ∧
@@ -326,7 +326,7 @@ theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True)
     L.WF →
     (∀ ⦃fv⦄, ¬ G fv → (L.find? fv).map (·.setIndex 0) = (m.lctx.find? fv).map (·.setIndex 0)) →
     GhostFreeState G s →
-    VState.WF (c.withMLC m) ⟨s⟩ →
+    State.WF (c.withMLC m) s →
     inferForall.loop false arr us e (Methods.withFuel k) { c.toContext with lctx := L } s =
       .ok (r, s') →
     ∃ e', TelTr c.venv c.lparams (vlctxBV m n hn) e_low e' ∧
@@ -365,9 +365,9 @@ theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True)
     have domty' : c.venv.IsType c.lparams.length (vlctxBV m n hn).toCtx d' :=
       vlctxBV_toCtx .. ▸ domty
     -- the kept binder
-    have cwf' : c.MLCWF (m.vlam a name E d' bi) := ha ▸ mlcwf_vlam (s := ⟨s₂⟩) wf2 hd' domty
-    have wf' : VState.WF (c.withMLC (m.vlam a name E d' bi)) ⟨{ s₂ with ngen := s₂.ngen.next }⟩ := by
-      subst ha; exact VState.WF.vlam (s := ⟨s₂⟩) wf2 hd' domty
+    have cwf' : c.MLCWF (m.vlam a name E d' bi) := ha ▸ mlcwf_vlam (s := s₂) wf2 hd' domty
+    have wf' : State.WF (c.withMLC (m.vlam a name E d' bi)) { s₂ with ngen := s₂.ngen.next } := by
+      subst ha; exact State.WF.vlam (s := s₂) wf2 hd' domty
     obtain ⟨b', hTb, hIb⟩ := ih (m := m.vlam a name E d' bi) (n := n + 1) (Nat.succ_le_succ hn)
       (G := G) (L := L.mkLocalDecl a name E bi) (e_low := b_low) (by simpa using hdrop)
       (by
@@ -400,8 +400,8 @@ theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True)
       cases h; cases h'
       subst hb0
       -- the ghosted binder: same actual run, the fresh variable joins the ghosts
-      have wfg : VState.WF (c.withMLC m) ⟨{ s₂ with ngen := s₂.ngen.next }⟩ :=
-        VState.WF.next (s := ⟨s₂⟩) wf2
+      have wfg : State.WF (c.withMLC m) { s₂ with ngen := s₂.ngen.next } :=
+        State.WF.next (s := s₂) wf2
       have gsg := GhostFreeState.ghost (c := c.withMLC m) gs2 wf2 henv
       rw [ha] at gsg
       obtain ⟨b₀'', hT0, -⟩ := ih (m := m) hn (G := fun fv => G fv ∨ fv = a)
@@ -450,7 +450,7 @@ same run read in the local context without the deleted binders (`Methods.withFue
 checker satisfies this; the frame lemma needs it for the ghosts). `hunf`, `hcache`: the start
 state has no metavariable in its `unfold` cache and no checking-mode cache entry for `e`; a fresh
 state, as used for every constructor type, has both. -/
-theorem checkType.WF_telTr {c : VContext} {s : VState} {e : Expr}
+theorem checkType.WF_telTr {c : VContext} {s : State} {e : Expr}
     (henv : EnvGhostFree (fun _ => True) c.env)
     (hunf : ∀ ⦃k r : Expr⦄, s.unfold[k]? = some r → FVarsIn (fun _ => True) r)
     (h1 : e.FVarsIn (· ∈ c.vlctx.fvars)) (hcache : s.inferTypeC[e]? = none) :
@@ -469,14 +469,14 @@ theorem checkType.WF_telTr {c : VContext} {s : VState} {e : Expr}
   | zero => cases hrun
   | succ k =>
   obtain ⟨r₁, s₁, hrun⟩ := inferType'_forallE_run hcache hrun
-  have hgf : GhostFreeState (fun _ => False) s.toState :=
+  have hgf : GhostFreeState (fun _ => False) s :=
     { inferTypeI := fun _ _ h => (wf.inferTypeI_wf h).2.2.2.1.mono fun _ _ => not_false
       inferTypeC := fun _ _ h => (wf.inferTypeC_wf h).2.2.2.1.mono fun _ _ => not_false
       whnfCore := fun _ _ h => (wf.whnfCore_wf h).2.2.2.1.mono fun _ _ => not_false
       whnf := fun _ _ h => (wf.whnf_wf h).2.2.2.1.mono fun _ _ => not_false
       unfold := fun _ _ h => (hunf h).mono fun _ _ => not_false
       reserved := nofun }
-  have wf' : VState.WF (c.withMLC c.mlctx) ⟨s.toState⟩ := by rw [c.withMLC_self]; exact wf
+  have wf' : State.WF (c.withMLC c.mlctx) s := by rw [c.withMLC_self]; exact wf
   have hlwf : c.lctx.WF := c.lctx_eq ▸ wf.trctx.1
   obtain ⟨e', H, -⟩ := loop_telTr (k := k) henv (.forallE name dom body bi) (m := c.mlctx) (n := 0)
     (Nat.zero_le _) (arr := #[]) (G := fun _ => False) (L := c.lctx) rfl (by simp) rfl h1

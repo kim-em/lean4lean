@@ -15,7 +15,7 @@ namespace Lean4Lean.TypeChecker.Inner
 open Lean hiding Environment Exception
 open Kernel
 
-variable {c : VContext} {s : VState}
+variable {c : VContext} {s : State}
 
 /-! ### Quotient reduction -/
 
@@ -121,7 +121,7 @@ theorem toCtorWhenK.Post_paramUniform {info : RecursorVal} {major : Expr} {m' : 
   unfold toCtorWhenK
   split <;> [skip; exact absurd hk ‹_›]
   refine RecM.Post.bind (inferType.WF_and_paramUniform he hp) fun T _ le ⟨⟨T', hfvT, _, hTS, hT'⟩, hT⟩ => ?_
-  refine RecM.Post.bind (whnf.WF_and_paramUniform hTS (VState.LE.namePrefix_eq hp le))
+  refine RecM.Post.bind (whnf.WF_and_paramUniform hTS (State.LE.namePrefix_eq hp le))
     fun A _ _ ⟨⟨hfvA, A', hAS, hAdefeq⟩, hA⟩ => ?_
   refine RecM.Res.post ?_
   have hid : ∀ {x : Expr}, x = major → c.ParamUniformBelow pfx major x := by rintro _ rfl; exact .rfl
@@ -178,7 +178,7 @@ theorem toCtorWhenStruct.Post_paramUniform {w : Expr} {w' : VExpr}
   have hnonrec : c.env.isNonRecStructure info.getMajorInduct = true := by
     revert hguard; cases c.env.isNonRecStructure info.getMajorInduct <;> simp
   refine RecM.Post.bind (inferType.WF_and_paramUniform he hp) fun T _ le ⟨⟨T', hfvT, _, hTS, hT'⟩, hT⟩ => ?_
-  refine RecM.Post.bind (whnf.WF_and_paramUniform hTS (VState.LE.namePrefix_eq hp le))
+  refine RecM.Post.bind (whnf.WF_and_paramUniform hTS (State.LE.namePrefix_eq hp le))
     fun A _ _ ⟨⟨hfvA, A', hAS, hAdefeq⟩, hA⟩ => ?_
   refine RecM.Res.post ?_
   split <;> [exact .pure (hid rfl); rename_i hisConst]
@@ -252,14 +252,14 @@ theorem inductiveReduceRec.Post_paramUniform (he : c.TrExprS e e') (hp : s.ngen.
       (hh heads As lv P hs (hl.of_mem_getAppArgsList hs.params.fvars hmem)
         (hP.of_mem_getAppArgsList hmem)) e₁ h
   -- after the K conversion
-  have hjp : ∀ {s₁ : VState} (m₁ : Expr) {m₁' : VExpr}, s₁.ngen.namePrefix = pfx →
+  have hjp : ∀ {s₁ : State} (m₁ : Expr) {m₁' : VExpr}, s₁.ngen.namePrefix = pfx →
       c.FVarsBelow e.getAppArgs[info.getMajorIdx] m₁ →
       c.ParamUniformBelow pfx e.getAppArgs[info.getMajorIdx] m₁ → c.TrExprS m₁ m₁' →
       RecM.Post c s₁ (jpMatch () m₁) fun oe => ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
     intro s₁ m₁ m₁' hp₁ hfv₁ hh₁ hm₁S
     simp only [jpMatch, jpTail]
     refine RecM.Post.bind (whnf.WF_and_paramUniform hm₁S hp₁) fun w s₂ le ⟨⟨hfvw, w', hwS, _⟩, hhw⟩ => ?_
-    have hp₂ := VState.LE.namePrefix_eq hp₁ le
+    have hp₂ := State.LE.namePrefix_eq hp₁ le
     split
     · rename_i n
       refine RecM.Post.pure fun e₁ h => htail _ (hfv₁.trans (hfvw.trans
@@ -282,7 +282,7 @@ theorem inductiveReduceRec.Post_paramUniform (he : c.TrExprS e e') (hp : s.ngen.
   · rename_i hk
     refine RecM.Post.bind ((toCtorWhenK.WF_all hk (hK hk) hm').and_post
       (toCtorWhenK.Post_paramUniform hk hinfo (hK hk) hm' hp)) fun m₁ s₁ le ⟨⟨⟨h1, ⟨_, h2, _⟩⟩, _⟩, hh⟩ => ?_
-    exact hjp m₁ (VState.LE.namePrefix_eq hp le) h1 hh h2
+    exact hjp m₁ (State.LE.namePrefix_eq hp le) h1 hh h2
   · exact hjp _ hp .rfl .rfl hm'
 
 /-- Recursor reduction keeps parameter uniformity. -/
@@ -291,7 +291,7 @@ theorem reduceRecursor.WF_paramUniform (he : c.TrExprS e e') (hp : s.ngen.namePr
   unfold reduceRecursor
   refine .getEnv ?_
   extract_lets jp
-  have hjp : ∀ {s : VState}, s.ngen.namePrefix = pfx → RecM.WF c s (jp ()) fun oe _ =>
+  have hjp : ∀ {s : State}, s.ngen.namePrefix = pfx → RecM.WF c s (jp ()) fun oe _ =>
       ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
     intro s hp
     simp only [jp]
@@ -304,7 +304,7 @@ theorem reduceRecursor.WF_paramUniform (he : c.TrExprS e e') (hp : s.ngen.namePr
   · refine (quotReduceRec.WF_paramUniform he hp).bind fun oq _ le hqq => ?_
     split
     · exact .pure fun _ h => hqq _ h
-    · exact hjp (VState.LE.namePrefix_eq hp le)
+    · exact hjp (State.LE.namePrefix_eq hp le)
   · exact hjp hp
 
 /-! ### Definition unfolding -/
@@ -339,7 +339,7 @@ theorem unfoldDefinitionCore.WF_paramUniform :
       · refine .bind (Q := fun _ _ => True) ?_ fun _ _ _ _ =>
           .pure fun _ h => Option.some.inj h ▸ hscope
         rintro _ mwf wf _ _ ⟨⟩
-        refine ⟨{ s with toState := _ }, rfl, .rfl, { wf with unfold_wf := ?_ }, ⟨⟩⟩
+        refine ⟨_, rfl, .rfl, { wf with unfold_wf := ?_ }, ⟨⟩⟩
         intro e e'
         simp only [Std.HashMap.getElem?_insert]
         split <;> [rintro ⟨⟩; exact (wf.unfold_wf ·)]
@@ -374,7 +374,7 @@ open Lean hiding Environment Exception
 
 /-- The parameter-uniformity clause of `whnfCore` together with the fact that a constant is returned
 unchanged. -/
-theorem whnfCore.WF_paramUniform_const {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem whnfCore.WF_paramUniform_const {c : VContext} {s : State} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ =>
       c.ParamUniformBelow pfx e e₁ ∧ ∀ n us, e = .const n us → e₁ = e := by

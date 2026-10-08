@@ -47,14 +47,14 @@ private theorem Except.WF.trivial (x : Except ε α) : x.WF fun _ => True :=
   fun _ _ => True.intro
 
 private theorem TypeChecker.M.WF.pureBind {c : VContext}
-    {s : VState} {f : β → M α} {Q} {x : β}
+    {s : State} {f : β → M α} {Q} {x : β}
     (H : (f x).WF c s Q) : ((Pure.pure x : M β) >>= f).WF c s Q := H
 
 /-- The part of `checkConstantVal` that does not check the name. `addDefinition` runs it before
 `Primitive.checkDef`, so that the latter's `isDefEq` calls act on terms already known to be well
 typed, and defers the name check until the primitive verdict is available. -/
 theorem checkConstantValBody.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
-    (ci : ConstantInfo) (state : VState := {}) :
+    (ci : ConstantInfo) (state : State := {}) :
     (checkConstantValBody env ci.toConstantVal).WF (.mk' wf htels safety ci.levelParams) state fun _ _ =>
       ∃ ci' : VConstVal,
         ci.levelParams.length = ci'.uvars ∧
@@ -76,7 +76,7 @@ theorem checkConstantValBody.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCo
   exact ⟨_, hhasType.defeqU_r (wf.tr (safety := safety)).wf (by trivial) hdefeq.symm⟩
 
 theorem checkConstantValCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
-    (ci : ConstantInfo) (allowPrimitive : Bool) (state : VState := {}) :
+    (ci : ConstantInfo) (allowPrimitive : Bool) (state : State := {}) :
     (checkConstantVal env ci.toConstantVal allowPrimitive).WF
       (.mk' wf htels safety ci.levelParams) state fun _ _ =>
         ∃ ci' : VConstVal,
@@ -92,7 +92,7 @@ theorem checkConstantValCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCo
     ⟨ci', hu, ht, hn', hci, hname⟩
 
 theorem checkConstantVal.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
-    (ci : ConstantInfo) (allowPrimitive : Bool) (hs : safety ≤ ci.safety) (state : VState := {}) :
+    (ci : ConstantInfo) (allowPrimitive : Bool) (hs : safety ≤ ci.safety) (state : State := {}) :
     (checkConstantVal env ci.toConstantVal allowPrimitive).WF
       (.mk' wf htels safety ci.levelParams) state fun _ _ =>
         ∃ ci' : VConstVal, TrConstVal safety (ves.venv safety) ci ci' ∧
@@ -116,7 +116,7 @@ temporary environment holding the whole block as axioms, which has no model at e
 theorem checkBodyCore.WF {env : Environment} {venv : VEnv} (wf : VEnvAt env safety venv) (htels : CtorTelescopes safety env venv)
     (decl : Declaration) (levelParams : List Name) (type value : Expr)
     (type' : VExpr) (hdeclType : TrExprS venv levelParams [] type type')
-    (hclosed : value.FVarsIn fun _ => False) (state : VState := {}) :
+    (hclosed : value.FVarsIn fun _ => False) (state : State := {}) :
     (checkBodyCore env decl type value).WF (.mk1 wf htels levelParams) state fun _ _ =>
       ∃ value', TrExprS venv levelParams [] value value' ∧
         venv.HasType levelParams.length [] value' type' := by
@@ -136,7 +136,7 @@ def checkBody (env : Environment) (name : Name)
 theorem checkBody.WF {env : Environment} (wf : VEnvAt env safety venv) (htels : CtorTelescopes safety env venv)
     (decl : Declaration) (name : Name) (value : Expr)
     (hdeclType : TrExprS venv levelParams [] type type')
-    (state : VState := {}) :
+    (state : State := {}) :
     (checkBody env name type value decl).WF (.mk1 wf htels levelParams) state fun _ _ =>
       ∃ value', TrExprS venv levelParams [] value value' ∧
         venv.HasType levelParams.length [] value' type' :=
@@ -172,7 +172,7 @@ theorem checkTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) 
 
 /-- The type and the body, with neither the name check nor the primitive check. -/
 theorem checkDefinitionBody.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
-    (v : DefinitionVal) (state : VState := {}) :
+    (v : DefinitionVal) (state : State := {}) :
     (checkDefinitionBody env v).WF (.mk' wf htels safety v.levelParams) state fun _ _ => ∃ ci' : VDefVal,
       v.levelParams.length = ci'.uvars ∧
       TrExprS (ves.venv safety) v.levelParams [] v.type ci'.type ∧

@@ -23,7 +23,7 @@ theorem instantiateDeltaValue_levelParams {c : VContext}
     · simpa only [Expr.levelParamsIn, List.all_eq_true] using hs
     · exact hu.trans hn.symm
 
-theorem unfoldDefinitionCore.WF_levelParams {c : VContext} {s : VState}
+theorem unfoldDefinitionCore.WF_levelParams {c : VContext} {s : State}
     (he : c.TrExprS e target) (hs : e.levelParamsIn params = true) :
     RecM.WF c s (unfoldDefinitionCore e) fun result _ =>
       ∀ e', result = some e' → e'.levelParamsIn params = true := by
@@ -44,7 +44,7 @@ theorem unfoldDefinitionCore.WF_levelParams {c : VContext} {s : VState}
       · refine .bind (Q := fun _ _ => True) ?_ fun _ _ _ _ =>
           .pure fun _ h => Option.some.inj h ▸ hscope
         rintro _ mwf wf _ _ ⟨⟩
-        refine ⟨{ s with toState := _ }, rfl, .rfl, { wf with unfold_wf := ?_ }, ⟨⟩⟩
+        refine ⟨_, rfl, .rfl, { wf with unfold_wf := ?_ }, ⟨⟩⟩
         intro e e'
         simp only [Std.HashMap.getElem?_insert]
         split <;> [rintro ⟨⟩; exact (wf.unfold_wf ·)]
@@ -53,7 +53,7 @@ theorem unfoldDefinitionCore.WF_levelParams {c : VContext} {s : VState}
         exact ⟨_, _, _, eq, hlookup, rfl⟩
     · exact .pure fun _ h => Option.some.inj h ▸ hscope
   · exact .pure nofun
-theorem unfoldDefinition.WF_levelParams {c : VContext} {s : VState}
+theorem unfoldDefinition.WF_levelParams {c : VContext} {s : State}
     (he : c.TrExprS e target) (hs : e.levelParamsIn params = true) :
     RecM.WF c s (unfoldDefinition e) fun result _ =>
       ∀ e', result = some e' → e'.levelParamsIn params = true := by

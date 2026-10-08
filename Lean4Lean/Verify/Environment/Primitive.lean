@@ -31,7 +31,7 @@ theorem checkDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hte
     (htype : TrExprS (ves.venv .safe) v.levelParams [] v.type ci'.type)
     (hvalue : TrExprS (ves.venv .safe) v.levelParams [] v.value ci'.value)
     (hci : ci'.WF (ves.venv .safe))
-    (state : VState := {}) :
+    (state : State := {}) :
     (checkDef v).WF (.mk' wf htels .safe v.levelParams) state fun allow _ =>
       allow → PrimitiveResult (ves.venv .safe) v ci' := by
   have P : Data v ci' (.mk' wf htels .safe v.levelParams) := ⟨rfl, rfl, hu, htype, hvalue, hci⟩

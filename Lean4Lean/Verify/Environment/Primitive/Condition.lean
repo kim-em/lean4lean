@@ -1181,7 +1181,7 @@ def Reflection.WF.IteEq (w : Reflection.WF c r) (ite₀ : VExpr) (b : Bool) : Pr
     E.venv.IsDefEqU c.lparams.length Γ (((ite₀.app p).app (.boolLit b)).app H)
       (.lam vexpr(Type) (.lam (.bvar 0) (.lam (.bvar 1) (.bvar (if b then 1 else 0)))))
 
-theorem Reflection.check.WF {c : VContext} {s : VState} {r : Reflection} {fail : ∀ {α}, M α}
+theorem Reflection.check.WF {c : VContext} {s : State} {r : Reflection} {fail : ∀ {α}, M α}
     (hbool : c.venv.contains ``Bool) (hnil : c.vlctx = []) (htypeOK : CondOK r.type)
     (hfail : ∀ {α c s Q}, (@fail α).WF c s Q) :
     (r.check fail).WF c s fun _ _ => Nonempty (Reflection.WF c r) := by
@@ -1209,7 +1209,7 @@ theorem Reflection.check.WF {c : VContext} {s : VState} {r : Reflection} {fail :
 
 /-- `c` and `c.withMLC c.mlctx` are the same context, but not by `rfl`, and rewriting the goal
 fails whenever its postcondition mentions `c`. Converting the whole judgement sidesteps that. -/
-theorem M.WF.withMLC_self {α} {c : VContext} {s : VState} {x : M α} {Q : α → VState → Prop}
+theorem M.WF.withMLC_self {α} {c : VContext} {s : State} {x : M α} {Q : α → State → Prop}
     (h : M.WF (c.withMLC c.mlctx) s x Q) : M.WF c s x Q := c.withMLC_self ▸ h
 
 /-- That the conditional the reflection builds is *well typed* at any proposition, boolean and
@@ -1479,7 +1479,7 @@ theorem Reflection.WF.DITE_T.toDecT {c : VContext} {r : Reflection} {w : Reflect
 /-- Verification boundary for `Reflection.checkNatDITE`: at evidence for either literal, the
 `dite` the reflection builds takes the corresponding branch, applied to the proof that `ofTrue`
 or `ofFalse` extracts. Same shape as `checkITE.WF`, with four binders instead of two. -/
-theorem Reflection.checkNatDITE.WF {c : VContext} {s : VState} {r : Reflection}
+theorem Reflection.checkNatDITE.WF {c : VContext} {s : State} {r : Reflection}
     {fail : ∀ {α}, M α} (w : Reflection.WF c r) (hnil : c.vlctx = [])
     (hbool : c.venv.contains ``Bool) (hnat : c.venv.contains ``Nat)
     {toDec' : VExpr} (htoDec : c.TrExprS r.toDec toDec') (htoDecC : toDec'.ClosedN)
@@ -2678,7 +2678,7 @@ hold, exactly as they select which checks run; `Condition.bool` at `dite := true
 that case is vacuous rather than excluded. `natOnly` follows the `impl` because the `.bool`
 branch only ever builds and compares `ite` at `Nat`, while a `reflectNatNat`'s `checkITE`
 covers every `α : Type`. -/
-theorem Condition.check.WF {c : VContext} {s : VState} {cond : Condition}
+theorem Condition.check.WF {c : VContext} {s : State} {cond : Condition}
     {fail : ∀ {α}, M α} {ite dite : Bool}
     (hnat : c.venv.contains ``Nat) (hbool : c.venv.contains ``Bool) [hok : cond.OK]
     -- the check runs before any binder, which is what makes its results usable at the arbitrary
