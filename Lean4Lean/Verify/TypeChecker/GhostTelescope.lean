@@ -38,40 +38,6 @@ theorem bind_ok_rec {x : RecM α} {f : α → RecM β} {m : Methods} {c : Contex
     ∃ a s₁, x m c s = .ok (a, s₁) ∧ f a m c s₁ = .ok (b, s') :=
   bind_ok (x := x m) (f := fun a => f a m) h
 
-theorem bind_ok_rec_of {x : RecM α} {f : α → RecM β} {m : Methods} {c : Context} {s s₁ s' : State}
-    {a : α} {b : β} (h1 : x m c s = .ok (a, s₁)) (h2 : f a m c s₁ = .ok (b, s')) :
-    (x >>= f) m c s = .ok (b, s') := by
-  show (x m >>= fun a => f a m) c s = _
-  simp only [bind, ReaderT.bind, StateT.bind, Except.bind] at h2 ⊢
-  rw [h1]; exact h2
-
-theorem throw_env_lctx_ne {f : Environment → LocalContext → Exception} {m : Methods}
-    {c : Context} {s s' : State} {a : α} :
-    ((liftM getEnv >>= fun x => do let y ← getLCtx; throw (f x y)) : RecM α) m c s ≠
-      .ok (a, s') := by
-  intro h; cases h
-
-theorem ensureSortCore_framed {G : FVarId → Prop} {m : Methods} (hm : m.Framed G)
-    {e : Expr} (he : GhostFree G e) : M.Framed G (ensureSortCore e e₀ m) (GhostFree G) := by
-  intro c₁ c₂ s a s' hR hS h
-  unfold ensureSortCore at h ⊢
-  split
-  · rename_i hs; simp [hs] at h
-    simp [pure, ReaderT.pure, StateT.pure, Except.pure] at h ⊢
-    obtain ⟨rfl, rfl⟩ := h; exact ⟨⟨rfl, rfl⟩, he, hS, .rfl⟩
-  · rename_i hs; simp only [hs, if_false, Bool.false_eq_true] at h
-    obtain ⟨e₁, s₁, h1, h2⟩ := bind_ok_rec h
-    obtain ⟨h1', g1, gs1, le1⟩ := hm.whnf he hR hS h1
-    refine ⟨bind_ok_rec_of h1' ?_, ?_⟩
-    · split at h2
-      · rename_i hs1; simp only [hs1, if_true]; exact h2
-      · exact (throw_env_lctx_ne h2).elim
-    · split at h2
-      · simp [pure, ReaderT.pure, StateT.pure, Except.pure] at h2
-        obtain ⟨rfl, rfl⟩ := h2; exact ⟨g1, gs1, le1⟩
-      · exact (throw_env_lctx_ne h2).elim
-
-
 theorem withLocalDecl_run {f : Expr → RecM α} {m : Methods} {c : Context} {s : State} :
     (withLocalDecl name bi ty f : RecM α) m c s =
       (f (.fvar ⟨s.ngen.curr⟩) m { c with lctx := c.lctx.mkLocalDecl ⟨s.ngen.curr⟩ name ty bi }
@@ -317,7 +283,7 @@ theorem check_sort {c : VContext} {m} [c.MLCWF m] {G : FVarId → Prop} {ctx₁ 
     Inner.inferType.WF' (c := c.withMLC m) (s := ⟨s⟩) (inferOnly := false) hE nofun _
       Methods.withFuel.WF wf _ _ h1'
   cases eq
-  obtain ⟨h2', -, gs2, -⟩ := ensureSortCore_framed F gT hR gs1 h2
+  obtain ⟨h2', -, gs2, -⟩ := ensureSortCore.framed gT F hR gs1 h2
   obtain ⟨⟨s₂'⟩, eq, -, wf2, ⟨u, rfl⟩, h5, -⟩ :=
     Inner.ensureSortCore.WF (c := c.withMLC m) (e₀ := X) hT' _
       Methods.withFuel.WF wf1 _ _ h2'
