@@ -837,6 +837,27 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
 
 end
 
+/-- **Validity of an environment** `E` in the model of `env`: its rules, projection entries and
+eliminator rules are valid. These are the hypotheses of `Model.sound` for `E`. -/
+structure EnvValid (env E : VEnv) : Prop where
+  rule : ∀ df, E.defeqs df → RuleValid env df
+  proj : ∀ n p, E.projections n p → ProjValid env n p
+  elim : ElimsValid env E
+
+/-- Validity of an environment with fewer rules, projections and eliminators. -/
+theorem EnvValid.of_sub {env E E' : VEnv} (V : EnvValid env E)
+    (hdf : ∀ df, E'.defeqs df → E.defeqs df) (hp : ∀ n p, E'.projections n p → E.projections n p)
+    (he : ∀ b s, E'.eliminators b s → E.eliminators b s) : EnvValid env E' :=
+  ⟨fun df h => V.rule df (hdf df h), fun n p h => V.proj n p (hp n p h), V.elim.of_elims he⟩
+
+theorem EnvValid.mono {env E E' : VEnv} (V : EnvValid env E) (h : E' ≤ E) : EnvValid env E' :=
+  V.of_sub (fun _ => h.defeqs) (fun _ _ => h.projections) (fun _ _ => h.eliminators)
+
+/-- Soundness for an environment that is valid in the model of `env`. -/
+theorem EnvValid.soundAtH {env E : VEnv} (henv : env.Ordered) (hle : E ≤ env) (V : EnvValid env E)
+    (U : Nat) (Δ : List VExpr) (hΔ : OnCtx Δ (env.IsType U)) : SoundEnvAtH env E U Δ :=
+  fun H => sound henv hΔ hle V.rule V.proj V.elim H
+
 end Model
 end VEnv
 end Lean4Lean

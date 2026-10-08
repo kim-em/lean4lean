@@ -48,6 +48,20 @@ def MajorFam (env : VEnv) (U : Nat) (Δ Γ : List VExpr) (I ctor : Name)
         ∀ τ, Obs env U Δ v vS (binderTy doms ls x) τ →
           ∃ cv', TypedOb env U Δ cv' τ [.sort fun _ => 0])
 
+/-- The part of `MajorFam` used by the left-to-right direction of a pattern rule: the family `I`
+of the major is not projection-registered and `ctor` is not a projection constructor, or `I` is
+projection-registered with the constructor `ctor`. -/
+def MajorFam0 (env : VEnv) (I ctor : Name) : Prop :=
+  ((∀ info, ¬ env.projections I info) ∧ ¬ IsProjCtor env ctor) ∨
+  ∃ info, env.projections I info ∧ info.ctorName = ctor
+
+theorem MajorFam.weak {Γ : List VExpr} {I ctor : Name} {doms lead ms : List VExpr}
+    {fs : List Nat} {ls lsC : List VLevel}
+    (h : MajorFam env U Δ Γ I ctor doms lead ms fs ls lsC) : MajorFam0 env I ctor := by
+  rcases h with h | ⟨info, h1, -, h2, -⟩
+  · exact .inl h
+  · exact .inr ⟨info, h1, h2⟩
+
 /-- Finitely many witnesses, one for each element of a list. -/
 theorem exists_list_witness {α : Type} {Q : Ob → Prop} {P : α → Ob → Prop} :
     ∀ (L : List α), (∀ a ∈ L, ∃ o, Q o ∧ P a o) →

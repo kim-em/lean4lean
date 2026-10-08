@@ -28,8 +28,7 @@ theorem FamSort.congr {I : Name} {l l' : VLevel} (H : FamSort env I l) (h : l �
 theorem famSort_container {envF env0 base : VEnv} {aux : List ContainerSpecialization}
     {a : ContainerSpecialization}
     (henvF : envF.Ordered) (h0 : env0.Ordered) (h0F : env0 ≤ envF)
-    (hnp : ∀ n p, ¬ envF.projections n p) (hEV : ElimsValid envF env0)
-    (hvalid : ∀ df, env0.defeqs df → RuleValid envF df)
+    (V : EnvValid envF env0)
     (hprior : CertifiedSpecializations base aux) (hb : base ≤ env0) (ha : a ∈ aux) :
     FamSort envF a.source.name a.source.resultLevel := by
   obtain ⟨base', block', inst', hcomp, -, hinst', hle'⟩ := hprior.mem a ha
@@ -46,7 +45,7 @@ theorem famSort_container {envF env0 base : VEnv} {aux : List ContainerSpecializ
   have hc : envF.constants a.source.name = some a.source.toVConstant :=
     h0F.constants (hti'.trans (hle'.trans hb) |>.constants
       (addConstVals_get ht' (List.mem_map_of_mem hsrc)))
-  exact (famSort_of henvF h0 h0F hvalid hnp hEV hc (h1.mono hTE) (h2.mono hTE) hlev).congr
+  exact (famSort_of henvF h0 h0F V hc (h1.mono hTE) (h2.mono hTE) hlev).congr
     hrel.resultLevel
 
 end Model
@@ -92,10 +91,15 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     (index : Fin s.constructors.size)
     (hres : (compilationRestoration source aux).equation (g.equation index) = some df)
     (hdf : env.defeqs df)
-    (hnpF : ∀ info, ¬ env.projections ((compilationRestoration source aux).headName
-      s.families[s.constructors[index].owner].name) info)
-    (hnpC : ¬ IsProjCtor env ((compilationRestoration source aux).headName
-      s.constructors[index].name))
+    (hpm : ∀ fn lsC' ms', df.lhs.stripLams = .app fn (.mkApps
+        (.const ((compilationRestoration source aux).headName s.constructors[index].name) lsC')
+        (ms' ++ (eqFs index).map .bvar)) →
+      ∃ L', ProjMajor env ((compilationRestoration source aux).headName
+          s.families[s.constructors[index].owner].name)
+        ((compilationRestoration source aux).headName s.constructors[index].name)
+        ms'.length (eqFs index).length L' ∧
+        ((∀ fam ∈ s.families.toList, (fam.resultLevel.inst g.levels).IsNeverZero) →
+          (L'.inst lsC').IsNeverZero))
     (hex : HeadExcl env ((compilationRestoration source aux).recursorName
       (g.recursorName s.constructors[index].owner)) block.rules)
     (hfs : FamSort env ((compilationRestoration source aux).headName
@@ -131,7 +135,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
   have hlenH : dsH'.length = (vars (s.params.length + (s.families.size + s.constructors.size))
       s.constructors[index].fields.length ++ idx').length + 1 := by
     rw [mapM_length hdsH, g.recDoms_length]
-    simp only [List.length_append, vars_length', hidxl, Instance.eqIndices, List.length_map]
+    simp only [List.length_append, vars_length_hi, hidxl, Instance.eqIndices, List.length_map]
     simp only [Fin.getElem_fin] at *
     omega
   obtain ⟨d', hd', hget⟩ := mapM_getElem? hdsH (g.recDoms_major s.constructors[index].owner)
@@ -144,7 +148,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
             s.families[s.constructors[index].owner].name g.levels)) iargs) := by
     rw [← hget]
     congr 1
-    simp only [List.length_append, vars_length', hidxl, Instance.eqIndices, List.length_map]
+    simp only [List.length_append, vars_length_hi, hidxl, Instance.eqIndices, List.length_map]
     simp only [Fin.getElem_fin] at *
     omega
   -- the constructor and its family
@@ -198,18 +202,20 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     have he := congrArg (fun o : Fin s.families.size => s.families[o].indices.length) ho
     refine ⟨?_, fun hc => ?_⟩
     · rw [l2]
-      simp only [List.length_append, vars_length', hidxl, mapM_length hidxj, Instance.eqIndices,
+      simp only [List.length_append, vars_length_hi, hidxl, mapM_length hidxj, Instance.eqIndices,
         List.length_map]
       simp only [Fin.getElem_fin] at harj he harity ⊢
       omega
     · have := C.restored_ctor_inj hprior ho.symm (c2.symm.trans hc)
       subst this
       exact Option.some.inj (hrj.symm.trans hres)
+  obtain ⟨L', hpmL, hnzL'⟩ := hpm _ _ _ (by rw [hl, VExpr.stripLams_wrapLams, mkApps_concat]; rfl)
   obtain ⟨envE, hE, hadm⟩ := C.admissible
   rcases hadm.elimination with hnz | hsmall | hsing
   · -- data families: mode C is impossible
     exact sound_pat henv hΔ hdf hl hr hcov hlsP hcl.1.1 hcl.2.1 hci eH hlenH hkH
-      hrigF hcf hcis (.inl ⟨hnpF, hnpC⟩) (hctor _ hcis) hctor
+      hrigF hcf hcis (hpmL.majorFam (.inl (by rw [← VLevel.inst_inst]; exact (hnzL' hnz).inst)))
+      (hctor _ hcis) hctor
       hpctor hdr huniq
       (fun keys hkl hobs => absurd hobs fun h =>
         C_absurd_gen hΔ hlw eH hlenH hkH hrigF hfs (hnzL hnz).inst hkl h)
@@ -220,13 +226,13 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     have hm := motive_eq g
     obtain ⟨ds0, e0, l0⟩ := hm _
     rw [e0] at hx
-    obtain ⟨ds0', b', hds0, hb', rfl⟩ := Restoration.expr_wrapForalls hx
+    obtain ⟨ds0', b', hds0, hb', rfl⟩ := Restoration.expr_wrapForalls_parts hx
     rw [Restoration.expr_sort, Option.some.injEq] at hb'
     subst hb'
     obtain ⟨mds, emds, lmds⟩ := binderTy_wrapForalls_sort hxget ls
     have hcl' : (df.type.instL ls).ClosedN := hcl.1.2.instL
     refine sound_pat_empty henv hΔ hdf hl hr hlsP hcl.1.1 hcl.2.1 (hctor _ hcis) hctor hpctor hdr
-      huniq hci eH hlenH hkH (.inl ⟨hnpF, hnpC⟩) ihL.1 ihR fun σ S W tv o => ?_
+      huniq hci eH hlenH hkH hpmL.weak ihL.1 ihR fun σ S W tv o => ?_
     refine rhs_empty_motive henv hΔ (doms := ds'.map (·.instL ls))
       (by rw [ht, instL_wrapForalls'']) (by rw [hr, instL_wrapLams'])
       hcl' ihT.2 (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl)

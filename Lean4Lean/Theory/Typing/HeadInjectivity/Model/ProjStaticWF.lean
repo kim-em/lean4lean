@@ -189,7 +189,7 @@ private theorem quotLift_declared (henv : env.Ordered) (hq : env.defeqs quotDefE
   (henv.defEqWF hq).1.head_const_lookup henv (Γ := []) ⟨⟩ quotDefEq_head
 
 /-- A fresh entry of a declaration names a family and a constructor fresh in the base. -/
-private theorem entry_fresh {base envTypes envCtors : VEnv} {decl : VInductDecl}
+theorem entry_fresh {base envTypes envCtors : VEnv} {decl : VInductDecl}
     {block : VInductBlock} (htypesSource : block.types = decl.typeConstants)
     (hctorsSource : block.ctors = decl.constructorConstants)
     (hprojections : block.projections = decl.projectionEntries)
@@ -423,7 +423,7 @@ theorem vars_split_le {P E F : Nat} {ps : List VExpr} {nf : Nat} (hE : 1 ≤ E)
     (h : vars P (E + F) ++ vars F 0 = ps ++ vars nf 0) : P ≤ ps.length := by
   refine Nat.le_of_not_lt fun hlt => ?_
   have hl := congrArg List.length h
-  simp only [List.length_append, vars_length'] at hl
+  simp only [List.length_append, vars_length_hi] at hl
   have h1 : (vars P (E + F) ++ vars F 0)[P - 1]? = some (.bvar (E + F)) := by
     rw [List.getElem?_append_left (by simp; omega), vars_getElem?' (by omega)]
     congr 2; omega

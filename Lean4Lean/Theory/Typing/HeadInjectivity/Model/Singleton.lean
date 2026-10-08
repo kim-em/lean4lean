@@ -54,8 +54,7 @@ theorem TV.prefix {L : List VExpr} {σ : VExpr.Subst} {S : ObSets}
 /-- **Proof binders** from typings at `Sort 0` in an earlier environment. -/
 theorem proofBinder_of {envF E : VEnv} {doms : List VExpr} {u0 x : Nat}
     (henvF : envF.Ordered) (hE : E.Ordered) (hEF : E ≤ envF)
-    (hvalid : ∀ df, E.defeqs df → RuleValid envF df)
-    (hnp : ∀ n p, ¬ E.projections n p) (hEV : ElimsValid envF E)
+    (V : EnvValid envF E)
     (hdoms : OnCtx doms.reverse (E.IsType u0))
     (hder : E.HasType u0 doms.reverse ((doms.reverse.getD x default).liftN (x + 1))
       (.sort .zero))
@@ -66,7 +65,7 @@ theorem proofBinder_of {envF E : VEnv} {doms : List VExpr} {u0 x : Nat}
     rw [← List.map_reverse]; exact hdoms.instL hlw
   have hd' := hder.instL hlw
   rw [List.map_reverse] at hd'
-  have S := (Model.sound henvF hΔ hEF hvalid (fun n p h => absurd h (hnp n p)) hEV (hd'.strong hE hL)).1
+  have S := (V.soundAtH henvF hEF U Δ hΔ (hd'.strong hE hL)).1
   have W := Wv.prefix (hL.mono (IsType.mono hEF))
   have tv := TV.prefix tvv
   refine ⟨⟨_, Or.inl rfl, (hd'.mono hEF).subst henvF W hΔ⟩, fun τ hτ => ?_⟩

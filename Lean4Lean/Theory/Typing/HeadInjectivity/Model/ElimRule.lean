@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ElimRuleSound
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.NestedRule
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjMajorWF
 
 /-! # Validity of generic case equations (stage E)
 
@@ -111,13 +112,26 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
     (henv : env.Ordered)
     (hEu : ∀ b s s', env.eliminators b s → env.eliminators b s' → s = s')
     (hctor : ∀ c, IsCtor env c → env.Rigid c)
-    (hnp : ∀ n info, ¬ env.projections n info)
     (hcert : schema.Certified base source block) (hb : env.eliminators b schema)
     (hrules : schema.genericEquations b owner = some rules) (hmem : df ∈ rules)
     (hctorsIn : ∀ value ∈ block.ctors, env.constants value.name = some value.toVConstant)
     (hbF : base ≤ env)
     (hIrig : env.Rigid (schema.restoration.headName schema.signature.families[owner].name))
     (hfs : FamSort env (schema.restoration.headName schema.signature.families[owner].name) L)
+    (hpm : ∀ (i : Fin schema.signature.constructors.size) (e : Nat) (c : Name) (lsC : List VLevel)
+      (ms : List VExpr) (fn : VExpr), schema.signature.constructors[i].owner = owner → 1 ≤ e →
+      df.lhs.stripLams = .app fn (VExpr.mkApps (.const c lsC)
+        (ms ++ vars schema.signature.constructors[i].fields.length 0)) →
+      schema.restoration.expr (VExpr.mkApps
+        (.const schema.signature.constructors[i].name schema.genericLevels)
+        (vars schema.signature.params.length (e + schema.signature.constructors[i].fields.length) ++
+          vars schema.signature.constructors[i].fields.length 0)) =
+        some (VExpr.mkApps (.const c lsC) (ms ++ vars schema.signature.constructors[i].fields.length 0)) →
+      ∃ L', ProjMajor env (schema.restoration.headName schema.signature.families[owner].name) c
+          ms.length schema.signature.constructors[i].fields.length L' ∧
+        ∀ levels target, levels.length = schema.signature.uvars →
+          (schema.sourceLevel owner levels).IsNeverZero →
+          ((L'.inst lsC).inst (target :: levels)).IsNeverZero)
     (hnzL : ∀ levels target, levels.length = schema.signature.uvars →
       (schema.sourceLevel owner levels).IsNeverZero →
       ((L.inst (schema.restoration.headLevels schema.signature.families[owner].name
@@ -169,11 +183,11 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
   have htype' := htype
   simp only [CaseSchema.genericType, CaseSchema.type] at htype'
   obtain ⟨RH, eRH⟩ := (schema.specialize owner schema.genericUvars schema.genericLevels
-    (.param 0)).recursorType_eq (schema.viewOwner owner)
+    (.param 0)).recursorType_eq_hi (schema.viewOwner owner)
   change schema.restoration.expr ((schema.specialize owner schema.genericUvars
     schema.genericLevels (.param 0)).recursor (schema.viewOwner owner)).type = some type at htype'
   rw [eRH] at htype'
-  obtain ⟨dsH', RH', hdsH, -, eT⟩ := Restoration.expr_wrapForalls htype'
+  obtain ⟨dsH', RH', hdsH, -, eT⟩ := Restoration.expr_wrapForalls_parts htype'
   have hN : (schema.view owner).families[schema.viewOwner owner] =
       schema.signature.families[owner] := rfl
   obtain ⟨d', hd', hget⟩ := mapM_getElem? hdsH
@@ -191,7 +205,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       ((schema.view owner).families.size + (schema.view owner).constructors.size))
       ((schema.view owner).constructors[j]).fields.length ++ idx').length + 1 := by
     rw [hdsHl, Instance.recDoms_length, hN]
-    simp only [List.length_append, vars_length', hidxl, hlen1]
+    simp only [List.length_append, vars_length_hi, hidxl, hlen1]
   have hkH : dsH'[(vars ((schema.view owner).params.length +
       ((schema.view owner).families.size + (schema.view owner).constructors.size))
       ((schema.view owner).constructors[j]).fields.length ++ idx').length]? =
@@ -205,7 +219,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
             schema.signature.families[owner].name schema.genericLevels)) iargs) := hget
     rw [← hget2]
     congr 1
-    simp only [List.length_append, vars_length', hidxl, hlen1]
+    simp only [List.length_append, vars_length_hi, hidxl, hlen1]
   -- the constructor
   obtain ⟨rule, hgen, hreq⟩ := CaseSchema.generates_of_genericEquation hrules hmem
   have hgen' := hgen
@@ -247,7 +261,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       schema.signature.families[o].indices.length) hio'
     refine ⟨?_, fun hc => ?_⟩
     · rw [l2, ← hleadE]
-      simp only [List.length_append, vars_length', hidxl, mapM_length hidxj, Instance.eqIndices,
+      simp only [List.length_append, vars_length_hi, hidxl, mapM_length hidxj, Instance.eqIndices,
         List.length_map, hvi, hvi']
       simp only [Fin.getElem_fin] at harity harity' he he' ⊢
       omega
@@ -261,6 +275,27 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
         exact e
       subst hj
       exact Option.some.inj (hres'.symm.trans hres)
+  -- the projection facts of the major
+  obtain ⟨L', hpmL, hnzL'⟩ : ∃ L', ProjMajor env
+      (schema.restoration.headName schema.signature.families[owner].name) cE
+      ms'.length (eqFs j).length L' ∧
+      ∀ levels target, levels.length = schema.signature.uvars →
+        (schema.sourceLevel owner levels).IsNeverZero →
+        ((L'.inst lsC').inst (target :: levels)).IsNeverZero := by
+    have hm : df.lhs.stripLams = .app (VExpr.mkApps (.elim b owner.val
+        ((schema.specialize owner schema.genericUvars schema.genericLevels (.param 0)).targetLevel ::
+          (schema.specialize owner schema.genericUvars schema.genericLevels (.param 0)).levels))
+        leadE) (VExpr.mkApps (.const cE lsC') (ms' ++ (eqFs j).map .bvar)) := by
+      rw [hl, VExpr.stripLams_wrapLams, mkApps_concat]; rfl
+    obtain ⟨i', hown', hview', e, he, hR⟩ := generic_major_at hres hm
+    have hF : (eqFs j).length = schema.signature.constructors[i'].fields.length := by
+      simp only [eqFs, List.length_reverse, List.length_range, hview']
+      simp [CaseSchema.caseConstructor, fieldTypes]
+    have hfs' : (eqFs j).map VExpr.bvar = vars schema.signature.constructors[i'].fields.length 0 := by
+      rw [← hF]; simp [eqFs, vars]
+    rw [hfs'] at hR hm
+    obtain ⟨L', h1, h2⟩ := hpm i' e cE lsC' ms' _ hown' he hm hR
+    exact ⟨L', hF ▸ h1, h2⟩
   have hlw := hperm.wf_cons
   have hcov : ∀ x < ds'.length, VExpr.bvar x ∈ leadE ∨ x ∈ eqFs j := by
     intro x hx
@@ -271,7 +306,8 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
     · exact .inl (List.mem_append_left _ (mem_vars' (by omega) (by omega)))
   rcases hperm.admissible with hnz | hsmall
   · exact sound_pat_elim henv hΔ hEu hb hrules hmem hl hr hcov hlsP hrc.1 hrc.2.1 htype eT hlenH
-      hkH hIrig hcf hcis (.inl ⟨hnp _, fun ⟨_, _, h, _⟩ => hnp _ _ h⟩) hcrig huniq
+      hkH hIrig hcf hcis (hpmL.majorFam (.inl (by
+        rw [← VLevel.inst_inst]; exact hnzL' levels target hperm.length hnz))) hcrig huniq
       (fun keys hkl hobs => C_absurd_gen hΔ hlw eT hlenH hkH hIrig hfs
         (hnzL levels target hperm.length hnz) hkl hobs) ihL ihR
       (.elimIota hb hrules hmem hrc hperm hLd.defeq hRd.defeq)
@@ -281,12 +317,12 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       (.param 0))
     obtain ⟨ds0, e0, l0⟩ := hm _
     rw [e0] at hx
-    obtain ⟨ds0', b', hds0, hb', rfl⟩ := Restoration.expr_wrapForalls hx
+    obtain ⟨ds0', b', hds0, hb', rfl⟩ := Restoration.expr_wrapForalls_parts hx
     rw [Restoration.expr_sort, Option.some.injEq] at hb'
     subst hb'
     obtain ⟨mds, emds, lmds⟩ := binderTy_wrapForalls_sort hxget (target :: levels)
     refine sound_pat_elim_empty henv hΔ hEu hb hrules hl hr hlsP hrc.1 hrc.2.1 hcrig huniq
-      htype eT hlenH hkH (.inl ⟨hnp _, fun ⟨_, _, h, _⟩ => hnp _ _ h⟩) ihL.1 ihR
+      htype eT hlenH hkH hpmL.weak ihL.1 ihR
       fun σ S W tv o => ?_
     refine rhs_empty_motive_ctx henv hΔ (doms := ds'.map (·.instL (target :: levels)))
       (by rw [ht, instL_wrapForalls'']) (by rw [hr, instL_wrapLams'])

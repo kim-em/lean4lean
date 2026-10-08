@@ -992,3 +992,42 @@ Remaining, with the decisions taken (recorded as D15-D17 in `PHASE1_NOTES.md`):
    Generic case equations: never-zero or small (case permission).
 5. **History induction** (`WF'.ruleValid` extended to projections), `ProjFree` dropped,
    `VEnv.WF.headInjectivity` and `VEnv.WF.headInversion` proved.
+
+### 10.8 Stage C completed: `VEnv.WF.headInjectivity` proved
+
+`VEnv.WF.headInjectivity` (`Theory/Typing/HeadInversion.lean`) is proved, hence
+`VEnv.WF.headInversion` has no `sorry` (axioms `propext`, `Classical.choice`, `Quot.sound`;
+`HeadInversion.lean` still imports none of `UniqueTyping`, `Injectivity`, `ChurchRosser`,
+`FullReduction`, `HeadReduction`). The chain: `VEnv.WF.soundEnv : env.WF → Model.SoundEnv env`
+and `VEnv.WF.headInjectivityCore` (`Model/Staged.lean`), then
+`HeadInjectivityCore.toHeadInjectivity`. `ProjFree` is gone; `WF.headSeparationModel` holds for
+every WF environment. What was needed beyond 10.7:
+
+* **The history induction** (`WF'.ruleValid`) now proves `Model.EnvValid envF env` (rules,
+  projection entries, eliminator rules) for every `env` of the history. A new entry (at `induct`
+  and at `inductProjections`) is valid from its `ProjOriginAt` (the types environment of the
+  step, sound by the induction hypothesis of the step's base). It carries `ProjsClosed envF env`
+  (the entries of `envF` whose constructor is a rule constructor of `env` are entries of `env`),
+  pushed down each step because new entries name constructors fresh before the step and every
+  rule constructor of a WF environment is declared (`WF.isCtor_const`); at `inductProjections`
+  the step's base has the rules and eliminators of the constructors environment.
+* **`ProjMajor`** (`Model/NativeRule.lean`, discharged in `Model/ProjMajorRules.lean`): for a
+  rule whose major family is projection-registered, the entry is the rule's own declaration's
+  (the installing block's entry via `ProjsClosed`; the certified declaration's via
+  `ProjectionsCoherent`; for a container, the container declaration's entry, because every
+  constructor of the container family is a native constructor and a registered structure has
+  only its registered constructor, `WF.container_entry`). So the parameter count is the number of
+  non-field major arguments, and the field positions condition of `MajorFam` is automatic.
+* **Field counts** (`MajorFam`'s full application): the compiled (normalized) field count equals
+  the source constructor's syntactic arity minus the parameters. This needs that definitionally
+  equal telescopes ending in rigid constant spines have equal length, which is
+  `ShapeModel.ForallArityRigid` restricted to rigid ends (the unrestricted hypothesis is false:
+  a definition `F := Nat → Nat` gives `F ≡ Nat → Nat` with arities 0 and 1). It is proved
+  semantically (`Model.tele_arity`, `Model/Arity.lean`): at the target context of the domains,
+  the domain variables anchor a codomain-chain observation as deep as the telescope; soundness
+  of the header environment (an earlier environment of the history) moves it to the other
+  telescope, whose rigid end has no codomain observation. `CompilationData.ctor_arity_sem`,
+  `source_arity_sem`, `container_arity_sem` (`Model/ArityWF.lean`) replace the
+  `ForallArityRigid` versions.
+* `sound_pat_empty` and the left-to-right lemmas take only `MajorFam0` (projection-registered
+  family with the major's constructor, or neither), so small elimination needs no field facts.

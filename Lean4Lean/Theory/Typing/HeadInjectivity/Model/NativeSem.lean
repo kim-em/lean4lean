@@ -145,7 +145,7 @@ theorem sound_pat_empty {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead 
     (hci : env.constants n = some ci) (eH : ci.type = .wrapForalls dsH RH)
     (hlenH : dsH.length = lead.length + 1)
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs))
-    (hfam : MajorFam env U Δ Γ I ctor doms lead ms fs ls lsC)
+    (hfam : MajorFam0 env I ctor)
     (ihL : SoundAt env U Δ Γ (df.lhs.instL ls) (df.lhs.instL ls) (df.type.instL ls))
     (ihR : SoundAt env U Δ Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls) ∧
       HTS env U Δ Γ (df.rhs.instL ls) (df.type.instL ls))
