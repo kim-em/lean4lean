@@ -47,26 +47,6 @@ theorem ClosedN.mkApps_inv : ∀ {f : VExpr} {args : List VExpr} {n : Nat},
     · exact hb
     · exact hbs a ha
 
-/-- Instantiating the outer variables of a term lifted past some of them skips those. -/
-theorem liftN_instOuter_drop {e : VExpr} {X Y Z : List VExpr}
-    (he : e.ClosedN (X.length + Z.length)) :
-    (e.liftN Y.length Z.length).instOuter (X ++ Y ++ Z) = e.instOuter (X ++ Z) := by
-  rw [VExpr.instOuter_eq_subst, VExpr.instOuter_eq_subst, VExpr.liftN_subst]
-  apply VExpr.subst_congr_closedN he
-  intro i hi
-  simp only [VExpr.Subst.lift_l, Lift.liftVar_consN_skipN]
-  have hX : (X ++ Z).length = X.length + Z.length := by simp
-  have hXYZ : (X ++ Y ++ Z).length = X.length + Y.length + Z.length := by simp; omega
-  by_cases hik : i < Z.length
-  · rw [liftVar_lt hik, VExpr.Subst.ofList_lt _ (by omega), VExpr.Subst.ofList_lt _ (by omega)]
-    rw [List.getElem_append_right (by simp; omega), List.getElem_append_right (by omega)]
-    congr 1; simp; omega
-  · rw [liftVar_le (Nat.le_of_not_gt hik), VExpr.Subst.ofList_lt _ (by omega),
-      VExpr.Subst.ofList_lt _ (by omega)]
-    rw [List.getElem_append_left (by simp; omega), List.getElem_append_left (by simp; omega),
-      List.getElem_append_left (by omega)]
-    congr 1; omega
-
 end VExpr
 
 namespace VEnv
@@ -155,15 +135,6 @@ namespace VEnv
 open InductiveSignature
 variable {env : VEnv} {U : Nat}
 
-theorem OnCtx.closed_reverse (henv : env.Ordered) {doms : List VExpr}
-    (h : OnCtx doms.reverse (env.IsType U)) :
-    ∀ j (hj : j < doms.length), (doms[j]).ClosedN j := by
-  intro j hj
-  have hc : OnCtx (doms.reverse ++ []) (fun Γ A => A.ClosedN Γ.length) := by
-    rw [List.append_nil]; exact CtxWF.closed henv h
-  have := OnCtx.getElem_reverse_append hc j hj
-  simpa [Nat.min_eq_left (Nat.le_of_lt hj)] using this.2
-
 theorem getElem_insertBinders {l : List VExpr} {n i : Nat} (h : i < (insertBinders l n).length) :
     (insertBinders l n)[i] = (l[i]'(by simpa using h)).liftN n i := by
   simp [insertBinders]
@@ -180,47 +151,6 @@ theorem vars_eq_bvarRange (count below : Nat) :
     congr 1
     omega
 
-theorem insertBinders_eq_mapIdx (l : List VExpr) (n : Nat) :
-    insertBinders l n = l.mapIdx fun k d => d.liftN n k := by
-  apply List.ext_getElem
-  · simp [insertBinders]
-  · intro i h1 h2; simp [insertBinders]
-
-/-- Inserting two arguments, at two inserted binders, into a telescope instance. -/
-theorem TelInst.insert2 {A B a b : List VExpr} {X Y x y : VExpr}
-    (H : TelInst env U Γ (A ++ B) (a ++ b)) (ha : a.length = A.length)
-    (hBcl : ∀ k (h : k < B.length), (B[k]).ClosedN (A.length + k))
-    (hx : env.HasType U Γ x (X.instOuter a)) (hy : env.HasType U Γ y (Y.instOuter (a ++ [x]))) :
-    TelInst env U Γ (A ++ [X] ++ [Y] ++ B.mapIdx fun k d => d.liftN 2 k)
-      (a ++ [x] ++ [y] ++ b) := by
-  have hb : b.length = B.length := by have := H.1; simp at this; omega
-  have hA : TelInst env U Γ A a := by
-    have := H.take
-    rwa [List.take_left' ha] at this
-  refine TelInst.append (TelInst.append_one (TelInst.append_one hA hx) hy) (by simp [hb]) ?_
-  intro k hk
-  have hk' : k < B.length := by simpa using hk
-  have hkb : k < b.length := by omega
-  have := H.2 (A.length + k) (by simp; omega) (by simp; omega)
-  rw [List.getElem_append_right (by omega), List.getElem_append_right (by simp)] at this
-  rw [List.take_append, List.take_of_length_le (by omega)] at this
-  simp only [ha, Nat.add_sub_cancel_left] at this
-  rw [getD_of_lt hkb, getD_of_lt hk, List.getElem_mapIdx]
-  have htk : (b.take k).length = k := by simp; omega
-  have e := VExpr.liftN_instOuter_drop (e := B[k]) (X := a) (Y := [x, y]) (Z := b.take k)
-    (by rw [htk, ha]; exact hBcl k hk')
-  simp only [List.length_cons, List.length_nil, htk] at e
-  have e' : a ++ [x] ++ [y] ++ b.take k = a ++ [x, y] ++ b.take k := by simp
-  rw [e', e]
-  have hidx : A.length + k - a.length = k := by omega
-  simpa [hidx] using this
-
-/-- The family applied to its parameters and indices, at arguments. -/
-theorem instOuter_bvarRange_apps {f : VExpr} (hf : f.ClosedN 0) (args : List VExpr) :
-    (VExpr.mkApps f (bvarRange args.length args.length)).instOuter args = VExpr.mkApps f args := by
-  rw [VExpr.instOuter_mkApps, instOuter_closed0 hf,
-    instOuter_bvarRange _ _ _ (Nat.le_refl _) (Nat.le_refl _)]
-  simp
 
 end VEnv
 

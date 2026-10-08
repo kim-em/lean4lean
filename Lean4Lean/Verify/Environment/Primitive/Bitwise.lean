@@ -28,7 +28,7 @@ theorem boolOp2_apply (henv : env.WF) {g : Bool → Bool → Bool}
   exact (VEnv.IsDefEqU.appN' henv trivial (xs := [a, b]) (ys := [VExpr.boolLit ba, .boolLit bb])
     ⟨_, hfT⟩ (.cons ha (.cons hb .nil)) (by simpa [VExpr.appN] using hwf) :)
 
-theorem checkNatBitwise.WF {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+theorem checkNatBitwise.WF {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hname : v.name = ``Nat.bitwise) :
     let c := .mk' wf hcorner .safe v.levelParams; Data v ci' c →
     (checkNatBitwise v).WF c state fun _ _ => PrimitiveResult (ves.venv .safe) v ci' := by

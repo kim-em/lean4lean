@@ -304,9 +304,8 @@ theorem AddInductive.declareConstructors.primitiveWF
         ∃ _ : PrimitiveDeclaredConstructorsResult H outEnv, True := by
   let mkInfo := AddInductive.constructorInfo stats c.lparams isUnsafe
   have Htranslated := Hchecked.translated H.translation
-  have hctors : H.context.venv.HasCanonicalChoice ∨
-      SourceCtorsCertified H.context.venv c.lparams indTypes.toList :=
-    .inr (SourceCtorsCertified.ofPrimitiveShape Hshape Htranslated)
+  have hctors : SourceCtorsCertified H.context.venv c.lparams indTypes.toList :=
+    SourceCtorsCertified.ofPrimitiveShape Hshape Htranslated
   have Hfold := AtomicAddConstants.ofConstructorTypes
     (allowPrimitive := c.allowPrimitive) mkInfo H.context.checking
     Htranslated VEnv.LE.rfl

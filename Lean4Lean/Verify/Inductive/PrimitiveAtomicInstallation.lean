@@ -29,7 +29,7 @@ structure StagedContextWF (c : AddInductive.Context) where
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv c.lparams mlctx c.lctx c.checkLCtx
   /-- The open projection-walk corner, carried to the restored checker context. -/
-  corner : ProjectionCorner c.safety c.env venv
+  corner : CtorTelescopes c.safety c.env venv
 
 def ContextWF.toStaged (H : ContextWF c) : StagedContextWF c where
   venv := H.venv
@@ -51,7 +51,7 @@ primitive invariant. -/
 def StagedContextWF.withEnv (H : StagedContextWF c)
     (hchecking : CheckingEnv c.safety env' venv')
     (hle : H.venv <= venv')
-    (hcorner : ProjectionCorner c.safety env' venv') :
+    (hcorner : CtorTelescopes c.safety env' venv') :
     StagedContextWF { c with env := env' } where
   venv := venv'
   checking := hchecking
@@ -401,9 +401,9 @@ its entries (stated in the environment before the installation). -/
 theorem AtomicAddConstants.corner
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
     (hchecking : CheckingEnv safety env venv)
-    (hcorner : ProjectionCorner safety env venv)
+    (hcorner : CtorTelescopes safety env venv)
     (hsteps : ∀ entry ∈ entries, CtorCornerStep safety venv entry.1) :
-    ProjectionCorner safety outEnv outVEnv := by
+    CtorTelescopes safety outEnv outVEnv := by
   induction H with
   | nil => exact hcorner
   | cons hn htr hwf hadd hdelta _ ih =>
@@ -827,7 +827,7 @@ def AtomicAddConstants.completeContext
     (hregistry : ProjectionRegistryCoherent c.safety outEnv.constants outVEnv)
     (hrecursors : RecursorEnvCoherent c.safety outEnv.constants outVEnv)
     (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv)
-    (hcorner : ProjectionCorner c.safety outEnv outVEnv) :
+    (hcorner : CtorTelescopes c.safety outEnv outVEnv) :
     ContextWF { c with env := outEnv } :=
   (source.withEnv (H.checking source.checking) H.le hcorner).complete
     hprimitives hsafe howners hregistry hrecursors hquot

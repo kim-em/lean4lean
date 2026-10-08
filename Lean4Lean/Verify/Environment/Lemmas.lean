@@ -2,7 +2,6 @@ import Lean4Lean.Std.SMap
 import Lean4Lean.Declaration
 import Lean4Lean.Verify.Environment.Basic
 import Lean4Lean.Verify.Environment.Recursors
-import Lean4Lean.Verify.Typing.ProjectionCorner
 import Lean4Lean.Verify.Typing.TelescopeTranslationLemmas
 
 namespace Lean4Lean
@@ -42,46 +41,25 @@ private theorem find?_add_cases
     exact hfind
 
 /-- What a constant installation must supply for the projection-walk corner: nothing for a
-non-constructor; for a visible constructor, canonical choice or its telescope certificate (stated
-in the environment before the installation, which is where the constructor was checked). -/
+non-constructor; for a visible constructor, its telescope certificate (stated in the environment
+before the installation, which is where the constructor was checked). -/
 def _root_.Lean4Lean.CtorCornerStep (safety : DefinitionSafety) (venv : VEnv)
     (ci : ConstantInfo) : Prop :=
-  ∀ info, ci = .ctorInfo info → safety ≤ ci.safety →
-    venv.HasCanonicalChoice ∨ CtorTelescopeAt venv info
+  ∀ info, ci = .ctorInfo info → safety ≤ ci.safety → CtorTelescopeAt venv info
 
 theorem _root_.Lean4Lean.CtorCornerStep.of_not_ctor (h : ∀ info, ci ≠ .ctorInfo info) :
     CtorCornerStep safety venv ci := fun info e => absurd e (h info)
 
 theorem _root_.Lean4Lean.CtorCornerStep.mono (H : CtorCornerStep safety venv ci)
     (hle : venv ≤ venv') : CtorCornerStep safety venv' ci :=
-  fun info e hs => (H info e hs).imp (·.mono hle) (·.mono hle)
-
-theorem _root_.Lean4Lean.ProjectionCorner.add {env : Environment}
-    (H : ProjectionCorner safety env venv) (hwf : env.constants.WF)
-    (hn : env.find? ci.name = none) (hle : venv ≤ venv')
-    (hstep : CtorCornerStep safety venv ci) :
-    ProjectionCorner safety (env.add ci) venv' := by
-  rcases H with hch | hcert
-  · exact .inl (hch.mono hle)
-  by_cases hctor : ∃ info, ci = .ctorInfo info ∧ safety ≤ ci.safety
-  · obtain ⟨info, rfl, hs⟩ := hctor
-    rcases hstep info rfl hs with hch | hc
-    · exact .inl (hch.mono hle)
-    · refine .inr fun {name ci₂} hfind hvis => ?_
-      rcases find?_add_cases hwf _ hn hfind with ⟨-, heq⟩ | hold
-      · cases heq; exact hc.mono hle
-      · exact (hcert hold hvis).mono hle
-  · refine .inr fun {name ci₂} hfind hvis => ?_
-    rcases find?_add_cases hwf _ hn hfind with ⟨-, heq⟩ | hold
-    · exact absurd ⟨ci₂, heq.symm, heq ▸ hvis⟩ hctor
-    · exact (hcert hold hvis).mono hle
+  fun info e hs => (H info e hs).mono hle
 
 /-- Certificates of an installed constant: none for a non-constructor; for a visible constructor,
 its certificate in the environment before the installation. -/
 theorem _root_.Lean4Lean.CtorTelescopes.add {env : Environment}
     (H : CtorTelescopes safety env venv) (hwf : env.constants.WF)
     (hn : env.find? ci.name = none) (hle : venv ≤ venv')
-    (hstep : ∀ info, ci = .ctorInfo info → safety ≤ ci.safety → CtorTelescopeAt venv info) :
+    (hstep : CtorCornerStep safety venv ci) :
     CtorTelescopes safety (env.add ci) venv' := by
   intro name ci₂ hfind hvis
   rcases find?_add_cases hwf _ hn hfind with ⟨-, heq⟩ | hold
@@ -117,42 +95,14 @@ theorem _root_.Lean4Lean.CtorTelescopes.foldlAdd {α} {f : α → ConstantInfo}
       · exact absurd (List.mem_map.2 ⟨w, hw, hname⟩) hnd.1
       · rw [hfresh w (List.mem_cons_of_mem _ hw)] at hold; cases hold
 
-/-- The corner transports to an environment whose constructors are constructors of the source. -/
-theorem _root_.Lean4Lean.ProjectionCorner.ofCtors {source target : Environment}
-    (H : ProjectionCorner safety source venv)
+/-- The certificates transport to an environment whose constructors are constructors of the
+source. -/
+theorem _root_.Lean4Lean.CtorTelescopes.ofCtors {source target : Environment}
+    (H : CtorTelescopes safety source venv)
     (hctors : ∀ {name ci}, target.find? name = some (.ctorInfo ci) →
       source.find? name = some (.ctorInfo ci)) :
-    ProjectionCorner safety target venv :=
-  H.imp id fun h _ _ hfind hvis => h (hctors hfind) hvis
-
-theorem _root_.Lean4Lean.ProjectionCorner.addNonCtor {env : Environment}
-    (H : ProjectionCorner safety env venv) (hwf : env.constants.WF)
-    (hn : env.find? ci.name = none) (hle : venv ≤ venv')
-    (hnot : ∀ info, ci ≠ .ctorInfo info) : ProjectionCorner safety (env.add ci) venv' :=
-  H.add hwf hn hle (.of_not_ctor hnot)
-
-/-- A fresh batch of non-constructor constants preserves the corner. -/
-theorem _root_.Lean4Lean.ProjectionCorner.foldlAdd {α} {f : α → ConstantInfo}
-    (hnot : ∀ v info, f v ≠ .ctorInfo info) (hle : venv ≤ venv') :
-    ∀ (vs : List α) {env : Environment}, ProjectionCorner safety env venv →
-      env.constants.WF → (∀ v ∈ vs, env.find? (f v).name = none) →
-      (vs.map (fun v => (f v).name)).Nodup →
-      ProjectionCorner safety (vs.foldl (fun e v => e.add (f v)) env) venv'
-  | [], _, H, _, _, _ => H.mono hle
-  | v :: vs, env, H, hwf, hfresh, hnd => by
-    rw [List.map_cons, List.nodup_cons] at hnd
-    have hn := hfresh v List.mem_cons_self
-    have hnMap : env.constants.find? (f v).name = none := by
-      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
-    have hwf' : (env.add (f v)).constants.WF := hwf.insert _ _ hnMap
-    refine ProjectionCorner.foldlAdd hnot hle vs (H.addNonCtor hwf hn VEnv.LE.rfl (hnot v))
-      hwf' (fun w hw => ?_) hnd.2
-    cases hfind : (env.add (f v)).find? (f w).name with
-    | none => rfl
-    | some found =>
-      rcases find?_add_cases hwf _ hn hfind with ⟨hname, -⟩ | hold
-      · exact absurd (List.mem_map.2 ⟨w, hw, hname⟩) hnd.1
-      · rw [hfresh w (List.mem_cons_of_mem _ hw)] at hold; cases hold
+    CtorTelescopes safety target venv :=
+  fun _ _ hfind hvis => H (hctors hfind) hvis
 
 /-- Adding a fresh non-constructor constant preserves constructor-owner
 presence. -/
@@ -1122,10 +1072,10 @@ structure CheckingEnv.Valid (safety : DefinitionSafety)
   /-- Once quotients are initialized, the quotient constants and the `Quot.lift` equation are
   present. This is what quotient reduction reads. -/
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
-  /-- What resolves the projection-walk corner of `inferProj`: canonical choice
-  (`projectionWalkCorner_choice`), or a telescope certificate of every visible constructor
-  (`TelTrN.delete_closed`). Constructor installations supply it through `CtorCornerStep`. -/
-  corner : ProjectionCorner safety env venv
+  /-- What resolves the projection-walk corner of `inferProj`: a telescope certificate of every
+  visible constructor (`TelTrN.delete_closed`). Constructor installations supply it through
+  `CtorCornerStep`. -/
+  corner : CtorTelescopes safety env venv
 
 theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
     (hprims : venv.HasPrimitives)
@@ -1134,7 +1084,7 @@ theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
       ci.safety = .safe ∧ ci.levelParams = [])
     (howners : VerifyInductive.ConstructorOwnersPresent env)
     (hregistry : ProjectionRegistryCoherent safety env.constants venv)
-    (hcorner : ProjectionCorner safety env venv) :
+    (hcorner : CtorTelescopes safety env venv) :
     CheckingEnv.Valid safety env venv :=
   ⟨⟨H.toChecking, hprims, hsafe⟩, howners, hregistry,
     H.recursorEnvCoherent, H.quotEnvCoherent, hcorner⟩
@@ -1304,7 +1254,7 @@ theorem CheckingEnv.ValidCore.toValid
     (hregistry : ProjectionRegistryCoherent safety env.constants venv)
     (hrecursors : RecursorEnvCoherent safety env.constants venv)
     (hquot : env.quotInit = true → QuotEnvCoherent env.constants venv)
-    (hcorner : ProjectionCorner safety env venv) :
+    (hcorner : CtorTelescopes safety env venv) :
     CheckingEnv.Valid safety env venv :=
   { H with
     constructorOwners := howners

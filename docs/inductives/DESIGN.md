@@ -19,8 +19,7 @@ verification of quotients, the canonical hypotheses and the checker changes
 
 ```lean
 theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
-    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety
 ```
@@ -31,9 +30,9 @@ a thin wrapper around
 
 ```lean
 theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hq : ∀ safety, (ves.venv safety).QuotReady)
-    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         VEnvs.CertPres env env' ves ves'
@@ -44,9 +43,7 @@ certificates `VEnvs.CtorCert` (section 5.3); the wrapper discharges `hcorner` fr
 certificates, derives `hq` from `heq` (`VEnv.HasCanonicalEq.quotReady`), and carries the
 certificates to the output through `CertPres`. The iterable form `addDecl.WFHasCanonicalEq`
 also returns `HasCanonicalEq` for `ves'` (monotone along `≤`), so the theorem applies again
-to the next declaration of a replay. `addDecl.WF_of_canonicalChoice` is the variant over
-`VEnvs.WFCore` alone, which assumes canonical `Nonempty`/`Classical.choice` instead of the
-certificates.
+to the next declaration of a replay.
 
 "Sound" means refinement: whenever the executable `addDecl` returns an environment, that
 environment is modelled, at every safety level, by an abstract environment that is well formed
@@ -103,12 +100,8 @@ imports whose well-formedness and canonical `Eq` are assumed: imports are truste
   are present with the prelude's types, and the iota rule of `Eq.rec` is a stored equation.
   It is used only in the quotient case (section 6); `addDecl.WF_quotReadyAt` assumes quotient
   readiness only for `quotDecl`.
-- There is no choice hypothesis: the constructor certificates of `VEnvs.WF` resolve the
-  projection-walk corner (section 5.3). `addDecl.WF_of_canonicalChoice` keeps the form that
-  assumes `HasCanonicalChoice` (`Lean4Lean/Theory/CanonicalChoice.lean`) instead, over
-  `VEnvs.WFCore`.
-- `hdecl : decl.IsModelled env ves` is `True` for every declaration. It is kept so that the
-  statement keeps its shape; it can be dropped.
+- There is no hypothesis about the projection-walk corner: the constructor certificates of
+  `VEnvs.WF` resolve it (section 5.3).
 
 A replay from the empty environment is covered by `Replay.WF_empty`
 (`Lean4Lean/Verify/CanonicalEqRealization.lean`): every environment reached by adding a list
@@ -183,8 +176,7 @@ eliminator table `eliminators : Name → CaseSchema → Prop`. `VEnv.IsDefEq`
 Projections are primitive, as in the kernel; `.proj` is what the checker's `Expr.proj`
 translates to. Native recursors remain constants with stored iota equations (`defeqs`).
 Abstract eliminators exist only in the abstract theory: the executable never sees `.elim`.
-They are per-family case analysis principles (no induction hypotheses), and they are what
-inhabits the projection-walk corner (section 5.3).
+They are per-family case analysis principles (no induction hypotheses).
 
 ### 2.2 Declarations and their well-formedness
 
@@ -280,12 +272,11 @@ None weakens the top-level theorem.
   certified case eliminator, keyed by its first family, between constructors and projections;
   a block may omit both eliminators and projections only if it has no families. Hence every
   registered structure has a registered case eliminator at every point of every history
-  (`VEnv.WF.projections_eliminated`), which the corner needs, including during the window.
+  (`VEnv.WF.projections_eliminated`), including during the window.
   The certificate is the case-only `CaseCompilationData` because the full `CompilationData`
   includes the typing of the generated recursors, which the window computes.
 - **Header agreement** (`CaseSchema.HeaderAgreement`). The restored normalized header of each
-  original family is definitionally equal to its declared type. The corner for indexed
-  structures needs the restored case type's index telescope to agree with the declared one.
+  original family is definitionally equal to its declared type.
 - **Window typings are stated in the window environment.** `Instance.RecursiveTypesWF` and
   `FamilyTypesWF` are required in the environment with constructors, the declaration's own
   case eliminators and its projection entries, because that is where the executable checks
@@ -561,10 +552,10 @@ verification must translate the remainder without that binder. When the field's 
 is typable it inhabits the binder and substitution does this. Otherwise (a data field of a
 structure that may be a proposition, which the kernel still walks past) a translation of the
 remainder in the smaller context is needed, and general strengthening is not available
-(section 5.1). Two proofs resolve this.
+(section 5.1).
 
-The proof used by `addDecl.WF_of_canonicalEq` re-derives the smaller-context translation from
-the checker's own acceptance of the constructor type. A frame lemma for the executable
+The proof re-derives the smaller-context translation from the checker's own acceptance of the
+constructor type. A frame lemma for the executable
 (`Lean4Lean/Verify/TypeChecker/Frame*.lean`: a successful run in a local context with extra
 declarations that never occur in its inputs, caches or environment is the same run without
 them) and a ghost-telescope verification (`Verify/TypeChecker/GhostTelescope.lean`) show that
@@ -578,26 +569,6 @@ certificate at each non-dependent field. Nested declarations need the stored con
 to agree with the checked source type up to binder names
 (`Verify/Inductive/Nested/ConstructorTypeRoundTrip.lean`), because reusing an auxiliary
 renames binders inside reused occurrences, as in the C++ kernel.
-
-The alternative proof, used by `addDecl.WF_of_canonicalChoice`, inhabits the binder `D`
-instead (`VEnv.WF.corner_inhabit_choice`,
-`Lean4Lean/Theory/Typing/ProjectionCornerChoice.lean`): eliminate the major into `Prop` with
-the structure's registered case eliminator, motive `fun _ => Nonempty D` and minor
-`fun fields => Nonempty.intro field_j`, then apply `Classical.choice`. The projections that
-`D` mentions pass the guard, so they are proof fields and the minor is typed by `projIota`
-and proof irrelevance. Substitution of the inhabitant removes the binder
-(`projectionWalkCorner_choice`, `Lean4Lean/Verify/Typing/ProjectionCorner.lean`, via
-`TrExprS.weakBV_inv₁_inhabited`). Indexed structures use the indexed case type, which is a
-type by header agreement (`ProjectionCornerIndexed*.lean`).
-
-This is why every block registers a case eliminator before its projections: the corner can
-arise in any checker run that sees a registered structure, including the runs in the window
-before the native recursors exist.
-
-Choice is needed because `Nonempty D` is a propositional fact, not a term of `D`; for
-`S := Nonempty D` the corner is literally strengthening across `d : D` under the hypothesis
-`Nonempty D`. No known proof avoids both choice and a strengthening or conversion-locality
-argument.
 
 ## 6. The quotient declaration
 
@@ -702,7 +673,7 @@ wrapper name. The other changes cannot change a decision except through checker 
   `NestedRecursorReduction.lean`, `KNormalization.lean`, `ProjectionInference.lean`, `ProjectionReduction.lean`,
   `ProjectionWithoutCasesOn.lean`, `QuotInit.lean`, additions to `NestedInductive.lean` and
   `KernelHardening.lean`;
-- realizability: `CanonicalEq.lean`, `CanonicalChoice.lean`;
+- realizability: `CanonicalEq.lean`;
 - the specification: `InductiveSignature.lean` (generated minors and hypotheses),
   `InductiveCompilation.lean`, `InductiveRestoration.lean` (simultaneous substitution),
   `InductiveTheory.lean`, `TypedInductiveCompilation.lean` (the compilation judgment is
@@ -750,7 +721,7 @@ constructor, recursor or inductive type is rejected by the corresponding check.
 Suggested order, with sizes.
 
 1. The statements: `Lean4Lean/Verify/Environment.lean` (370 lines), `Lean4Lean/Theory/CanonicalEq.lean`,
-   `Lean4Lean/Theory/CanonicalChoice.lean`, `VEnvs.WF` in `Lean4Lean/Verify/TypeChecker.lean`.
+   `VEnvs.WF` in `Lean4Lean/Verify/TypeChecker.lean`.
 2. The calculus: `Lean4Lean/Theory/VExpr.lean`, `Lean4Lean/Theory/Typing/Basic.lean` (150),
    `Lean4Lean/Theory/VEnv.lean`, `Lean4Lean/Theory/Typing/Env.lean` (`VEnv.WF'`).
 3. The specification: `Lean4Lean/Theory/DeclarationData.lean`, `Lean4Lean/Theory/InductBlock.lean`,
@@ -762,8 +733,9 @@ Suggested order, with sizes.
 5. The checker changes: the diff of `Lean4Lean/TypeChecker.lean` (1k), `VState.WF` and
    `leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean` (2k), `divergences.md`,
    `Lean4Lean/Tests/CacheScope.lean`.
-6. The corner: `Lean4Lean/Verify/Typing/ProjectionCorner.lean`,
-   `Lean4Lean/Theory/Typing/ProjectionCornerChoice.lean`, then `ProjectionCorner*.lean` (4.4k).
+6. The corner: `Lean4Lean/Verify/Typing/TelescopeTranslation.lean` (`TelTrN`),
+   `CtorTelescopes` in `TelescopeTranslationLemmas.lean`, `instantiateProjectionFields.WF_tel` in
+   `Lean4Lean/Verify/TypeChecker/Projection.lean`, then `Verify/TypeChecker/GhostTelescope.lean`.
 7. Head inversion: `HeadInversionDefs.lean`, `HeadInversion.lean`, then
    `HeadInjectivity/Model/{Classes,Obs,Interp,Sound}.lean` (3.2k), `RuleSound.lean`,
    `EtaBind.lean`, `ProjSound.lean`, `Staged.lean`, `Separation.lean`, and the syntactic layer

@@ -196,7 +196,7 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     {ves : VEnvs}
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (_hAbsent : c.env.constants.find? ``Eq = none)
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)

@@ -416,7 +416,7 @@ theorem ConstructorListEntries.cornerSteps
     {entries : List (ConstantInfo × VConstVal)}
     (H : ConstructorListEntries
       (AddInductive.constructorInfo stats lparams isUnsafe owner) initial ctors entries)
-    (hcert : venv.HasCanonicalChoice ∨ ∀ ctor ∈ ctors,
+    (hcert : ∀ ctor ∈ ctors,
       ∃ T, TelTrN venv lparams (AddInductive.constructorArity ctor.type) [] ctor.type T) :
     ∀ entry ∈ entries, CtorCornerStep safety venv entry.1 := by
   induction H with
@@ -427,23 +427,23 @@ theorem ConstructorListEntries.cornerSteps
     rcases hentry with rfl | htail
     · intro info e _
       cases e
-      exact hcert.imp id fun h => h ctor List.mem_cons_self
-    · exact ih (hcert.imp id fun h c hc => h c (List.mem_cons_of_mem _ hc)) entry htail
+      exact hcert ctor List.mem_cons_self
+    · exact ih (fun c hc => hcert c (List.mem_cons_of_mem _ hc)) entry htail
 
 theorem ConstructorTypeEntries.cornerSteps
     {stats : AddInductive.InductiveStats} {lparams : List Name} {isUnsafe : Bool}
     {owners : List InductiveType} {entries : List (ConstantInfo × VConstVal)}
     (H : ConstructorTypeEntries
       (AddInductive.constructorInfo stats lparams isUnsafe) owners entries)
-    (hcert : venv.HasCanonicalChoice ∨ SourceCtorsCertified venv lparams owners) :
+    (hcert : SourceCtorsCertified venv lparams owners) :
     ∀ entry ∈ entries, CtorCornerStep safety venv entry.1 := by
   induction H with
   | nil => simp
   | cons Hhead Htail ih =>
     intro entry hentry
     rcases List.mem_append.mp hentry with hhead | htail
-    · exact Hhead.cornerSteps (hcert.imp id fun h => h _ List.mem_cons_self) entry hhead
-    · exact ih (hcert.imp id fun h o ho => h o (List.mem_cons_of_mem _ ho)) entry htail
+    · exact Hhead.cornerSteps (hcert _ List.mem_cons_self) entry hhead
+    · exact ih (fun o ho => hcert o (List.mem_cons_of_mem _ ho)) entry htail
 
 theorem ConstructorListEntries.findSource
     {initial : Nat}
@@ -789,9 +789,9 @@ of its entries (stated in the environment before the installation). -/
 theorem AddConstants.corner
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (hchecking : CheckingEnv safety env venv)
-    (hcorner : ProjectionCorner safety env venv)
+    (hcorner : CtorTelescopes safety env venv)
     (hsteps : ∀ entry ∈ entries, CtorCornerStep safety venv entry.1) :
-    ProjectionCorner safety outEnv outVEnv := by
+    CtorTelescopes safety outEnv outVEnv := by
   induction H with
   | nil => exact hcorner
   | cons hn _ htr hwf hadd hdelta _ ih =>

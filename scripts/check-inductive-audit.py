@@ -16,9 +16,7 @@ MARKER = "INDUCTIVE_AUDIT "
 ROOTS = {
     "Lean4Lean.addDecl.WF",
     "Lean4Lean.addDecl.WF_of_canonicalEq",
-    "Lean4Lean.addDecl.WF_of_canonicalChoice",
     "Lean4Lean.addDecl.WFHasCanonicalEq",
-    "Lean4Lean.addDecl.WFHasCanonicalChoice",
     "Lean4Lean.addQuot.WF",
     "Lean4Lean.Replay.replayFresh.WF",
     "Lean4Lean.Replay.replayFromImports.WF",

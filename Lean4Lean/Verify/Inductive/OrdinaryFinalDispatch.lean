@@ -52,7 +52,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (Hlower : NestedLoweringResult env fuel.inductiveFuel nparams sourceTypes
       { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res)
     (haux : res.aux2nested.size = 0) :
@@ -108,7 +108,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourcesB : SourceBVarClosed sourceTypes)
     (Hlower : NestedLoweringResult env fuel.inductiveFuel nparams sourceTypes

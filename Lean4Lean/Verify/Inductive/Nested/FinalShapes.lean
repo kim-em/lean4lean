@@ -1086,7 +1086,7 @@ theorem NestedValidatedRunResult.finalValidOfStaged_of_hitShape
       ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) recEnv
       Hrestored.auxiliaries [] auxiliaryRecursors)
     (hrecValues : recursors.map Prod.snd = primaryRecursors ++ auxiliaryRecursors)
-    (hcorner : ProjectionCorner c.safety outEnv finalVEnv) :
+    (hcorner : CtorTelescopes c.safety outEnv finalVEnv) :
     CheckingEnv.Valid c.safety
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2

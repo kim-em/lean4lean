@@ -547,7 +547,7 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
       ∃ info, (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames)).constants.find?
           rec.getMajorInduct = some (.inductInfo info))
-    (hcorner : ProjectionCorner c.safety outEnv finalVEnv) :
+    (hcorner : CtorTelescopes c.safety outEnv finalVEnv) :
     CheckingEnv.Valid c.safety
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames))
