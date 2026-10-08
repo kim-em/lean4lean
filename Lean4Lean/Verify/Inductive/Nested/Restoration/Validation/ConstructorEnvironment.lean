@@ -5,13 +5,15 @@ import Lean4Lean.Verify.Inductive.Nested.Install.DependencyOrder
 /-!
 # Projection registry of the constructor validation environment
 
-The nested constructor-parameter validator and the restored recursor type
-validator both run the ordinary checker in a side environment holding the
-restored source headers and constructors.  This file shows that this side
-environment satisfies the complete checking invariant against the projected
-constructor-complete abstract environment: its production lookups are
-included in the primary restoration endpoint, every constructor owner is
-present, and the projection registry is coherent.
+The restored recursor type validator (`validateRestoredRecursorTypes`) runs
+the ordinary checker in a side environment holding the restored source
+headers and constructors (`ValidationEnvironment`).  This file shows that this
+side environment satisfies the complete checking invariant against the source
+recursor-checking environment (the source constructor environment with the
+case eliminators and projection entries): its lookups are included in those of
+the environment after the source-family restoration fold, every constructor
+owner is present, and the projection registry is coherent. It also gives the local checking facts of
+the restored environment (`NestedRestorationFolds.localValidOfInstallation`).
 -/
 
 namespace Lean4Lean
@@ -190,7 +192,7 @@ theorem NestedRestorationFolds.constructorInductFresh
     hempty [] (by simp) hsourceWF name info
     (Hrestored.auxiliaries.recursorConstructorFind hprimaryWF hfind)
 
-/-! ### Membership in the primary restoration endpoint -/
+/-! ### Membership in the environment after the source-family restoration fold -/
 
 theorem FoldSteps.constructorFindOfMem
     (H : FoldSteps (RestoredConstructorStep result loweredEnv)
@@ -541,8 +543,8 @@ theorem ValidationEnvironment.preservesSourceFind
   exact Hconstructors.preservesSourceFind (H.headerEnvWF hwf)
     (Hheaders.preservesSourceFind hwf hfind)
 
-/-- The production `quotInit` flag is unchanged by the constructor validation
-restoration. -/
+/-- The `quotInit` flag of the kernel environment is unchanged by the
+constructor validation restoration. -/
 theorem ValidationEnvironment.quotInit_eq
     (H : ValidationEnvironment result loweredEnv sourceEnv
       allIndNames allowPrimitive types targetEnv)
@@ -590,7 +592,7 @@ theorem ValidationEnvironment.headerFind
   exact ⟨oldInfo, hlookup,
     Hconstructors.preservesSourceFind (H.headerEnvWF hwf) hheader⟩
 
-/-! ### Restricting production origins to a sub-environment -/
+/-! ### Restricting constructor alignments to a sub-environment -/
 
 def CtorInfoAlignment.restrict
     (H : CtorInfoAlignment target decl familyIdx ctorIdx familyInfo)
@@ -652,12 +654,14 @@ theorem InductInfosFromDecl.restrict
       rw [← hname]
       exact hfind
 
-/-! ### The validation environment against the projected constructor stage -/
+/-! ### The validation environment against the source recursor-checking environment -/
 
 /-- The constructor validation environment satisfies the complete checking
-invariant against the projected constructor-complete abstract environment.
-Owners and registry alignment are transported from the primary restoration
-endpoint, whose lookups include those of the validation environment. -/
+invariant against the source recursor-checking environment (the source
+constructor environment with the case eliminators `es` and the projection
+entries). Owners and registry alignment
+are transported from the environment after the source-family restoration
+fold, whose lookups include those of the validation environment. -/
 theorem ValidationEnvironment.validProjected
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
@@ -843,11 +847,12 @@ theorem ValidationEnvironment.validProjected
     hrecursors hquot (htels.mono (VEnv.addEliminators_le.trans VEnv.addProjections_le))
 
 
-/-! ### The final restored environment -/
+/-! ### The restored environment -/
 
-/-- Local checking facts for the final restored environment: core invariants
-come from canonical replay, owners from the restoration trace, and projection
-metadata from the restored source families. These facts do not supply
+/-- Local checking facts for the restored environment: core invariants
+come from the block installation `canonical` of a permutation of the installed
+entries, owners from the restoration fold steps, and projection metadata from
+the restored source families. These facts do not supply
 recursor semantics. -/
 theorem NestedRestorationFolds.localValidOfInstallation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}

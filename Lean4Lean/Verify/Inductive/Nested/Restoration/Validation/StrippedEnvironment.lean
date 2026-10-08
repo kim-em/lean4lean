@@ -8,7 +8,7 @@ which re-adds every restored recursor with an empty rule list.  This file
 transports the checking invariant of the restored environment `outEnv` to
 the stripped environment.  Stripping overwrites existing entries, so the
 transport rests on an overwriting lemma for well-formed `SMap`s and on
-the fact that replacing a production constant by one with the same name,
+the fact that replacing a kernel constant by one with the same name,
 safety, universe parameters and type preserves `Aligned`.
 -/
 
@@ -113,7 +113,7 @@ theorem _root_.Lean.SMap.WF.exists_update {s : ConstMap} (h : s.WF) (k : Name)
 
 /-! ### Replacing a constant by one with the same header -/
 
-/-- Two production constants agree on everything `Aligned` observes: name,
+/-- Two kernel constants agree on everything `Aligned` observes: name,
 safety, universe parameters and type. -/
 structure SameConstantHeader (ci ci' : ConstantInfo) : Prop where
   name : ci.name = ci'.name
@@ -281,7 +281,7 @@ theorem stripRecursorRules_cons (env : Environment) (n : Name) (ns : List Name) 
         | some (.recInfo info) => env.add (.recInfo { info with rules := [] })
         | _ => env) ns := rfl
 
-/-- Exact specification of `stripRecursorRules` on an aligned environment
+/-- Specification of `stripRecursorRules` on an aligned environment
 whose stripped names can be overwritten. -/
 theorem stripRecursorRules_spec : ∀ (names : List Name) (env : Environment),
     Aligned safety env.constants venv →
@@ -501,10 +501,11 @@ theorem NestedRestorationFolds.restoredRecursorNamesFresh
 /-! ### Validity of the stripped environment -/
 
 /-- The stripped-rule restoration environment satisfies the full checking
-invariant against the final abstract environment, given the alignment of
+invariant against the installed environment `installedVEnv` of the block
+installation `canonical`, given the alignment of
 every new visible recursor of the stripped map.  The local invariants,
 constructor owners and projection registry are transported from
-`localValidOfInstallation`; old recursors and the quotient facts come from the
+`localValidOfInstallation`; base recursors and the quotient facts come from the
 source environment, since every stripped name is fresh there. -/
 theorem NestedRestorationFolds.validOfInstallation_of_shapes
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}

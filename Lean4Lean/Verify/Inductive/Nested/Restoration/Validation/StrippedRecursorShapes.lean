@@ -7,8 +7,8 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Recursors
 `NestedRestorationFolds.validOfInstallation_of_shapes`
 (`Nested/Restoration/Validation/StrippedEnvironment.lean`) proves validity of the stripped-rule
 restoration environment from a premise `Hshapes` about every fresh recursor
-of that environment. This file discharges `Hshapes` for the exact nested run,
-from the hit shape of the lowered recursor types given by
+of that environment. This file discharges `Hshapes` for a nested run,
+from the parameter uniformity of the lowered recursor types given by
 `NestedRun.recursorParamUniform_of_wfCore`, which needs nothing besides the
 run.
 
@@ -17,7 +17,8 @@ copies of the restoration steps' recursors. For each of them:
 
 * its type, counts and K flag are those of `RestoredRecursorShape`
   (`NestedRun.restoredRecursorShapeFields`, restated here for
-  the staged block from which the final assembly shape is built); the K flag
+  the recursor list of the two restoration folds, before the restored block
+  base is built); the K flag
   is false because the expanded block has an auxiliary family;
 * its major inductive (`getMajorInduct`, read from the concrete restored
   type) is the head of the restored major family application: the source
@@ -116,8 +117,8 @@ theorem ExprReplacement.binderAt
               (bi := bi) Hd)
 
 /-- The application head of a replaced expression: a constant head `c`
-satisfying `Good` stays a constant head satisfying `Good`, provided every hit
-on the spine produces such a head. -/
+satisfying `Good` stays a constant head satisfying `Good`, provided every
+replacement on the spine produces such a head. -/
 theorem ExprReplacement.constHead {Good : Name → Prop}
     (Hhit : ∀ t out, (∃ ls, t.getAppFn = .const c ls) →
       replaceNode t = some out → ∃ c' ls', out.getAppFn = .const c' ls' ∧ Good c')
@@ -361,7 +362,7 @@ theorem NestedRun.restoredMajorHead {ves : VEnvs}
     exact ⟨c', ls', hc', Or.inl ⟨hmem, hgood⟩⟩
 
 /-- Every nested occurrence recorded by lowering is headed by an inductive
-type of the source production environment. -/
+type of the source kernel environment. -/
 theorem NestedRun.auxNestedHead {ves : VEnvs}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
@@ -680,7 +681,7 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
   {isUnsafe : Bool} {outEnv : Environment}
 
 /-- `restoredRecursorEntries_of_paramUniform` for an arbitrary recursor list
-produced by the two restoration folds, before the final assembly shape is
+produced by the two restoration folds, before the restored block base is
 built: each entry is the abstract restoration of the owner's generated
 recursor. -/
 theorem NestedRun.restoredRecursorEntries_of_steps
@@ -973,14 +974,14 @@ theorem NestedExpansionData.sourceConstructorNames
   rw [← hcc.name]
   exact mem_familyNames_of_ctor ht hc'
 
-/-! ### Validity of the stripped environment of the exact run -/
+/-! ### Validity of the stripped environment of a nested run -/
 
-/-- **Validity of the stripped-rule restoration environment** of the exact
-nested run, from the hit shape of `recursorParamUniform_of_wfCore` and the
+/-- **Validity of the stripped-rule restoration environment** of a
+nested run, from the parameter uniformity of `recursorParamUniform_of_wfCore` and the
 executable fact that lowering recorded a nested occurrence (`hnested`, the
 condition under which `addInductiveAfterLowering` restores at all). The
 remaining arguments are those of `validOfInstallation_of_shapes`, together
-with the two restoration traces from which the staged recursor list is
+with the two restoration folds from which the recursor list is
 built. -/
 theorem NestedRun.validOfInstallation_of_paramUniform
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}

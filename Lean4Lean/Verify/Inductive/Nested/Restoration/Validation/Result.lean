@@ -10,9 +10,11 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-/-- Successful nested restoration retains the exact declaration fold, the
-canonical-order side environment, and the exact successful native parameter
-validation run before auxiliary validation begins. -/
+/-- The facts recorded by a successful nested restoration: the restoration
+folds, the fresh nonprimitive extension, the side environments of the
+validation passes with the successful constructor-parameter, nested-auxiliary
+and recursor-type checks, the successful rule validation in the stripped
+environment, and the final `Validated` predicate. -/
 structure ValidatedRestoration
     (res : Lean4Lean.ElimNestedInductive.Result)
     (sourceEnv loweredEnv : Environment) (recNameMap : NameMap Name)
@@ -47,8 +49,8 @@ structure ValidatedRestoration
       loweredEnv lparams safety fuel res recNameMap allIndNames types auxRecNames = .ok ()
   validated : Validated outEnv
 
-/-- Compose the verified declaration-restoration folds with the exact native
-constructor-parameter validation and the auxiliary validation pass. -/
+/-- The verified restoration folds composed with the constructor-parameter,
+nested-auxiliary, recursor-type and recursor-rule validation passes. -/
 theorem Environment.restoreNestedAfterInstall.WF
     (env loweredEnv : Environment) (lparams : List Name)
     (types : List InductiveType) (safety : DefinitionSafety)

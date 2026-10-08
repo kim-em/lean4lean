@@ -9,8 +9,8 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-/-- The source parameter opening retained by nested lowering determines an
-exact semantic metacontext with the same concrete local context. -/
+/-- The source parameter opening of nested lowering determines a
+well-formed metacontext with the same local context. -/
 theorem LoweringParamOpening.toMLCtx
     (henv : env.WF)
     (Hopen : LoweringParamOpening lctx params type n outLctx tail outParams)

@@ -14,9 +14,8 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-/-- Every member of a successfully traversed list has itself completed
-successfully.  This is the small executable inversion needed to select one
-constructor from the retained whole-block validation run. -/
+/-- If `List.forM` succeeds, the step succeeds on every member of the list.
+This selects one constructor from the whole-block validation run. -/
 private theorem listForM_eq_ok_of_mem
     (step : α → Except ε Unit) :
     ∀ {items : List α}, items.forM step = .ok () →
@@ -76,8 +75,8 @@ private theorem validateRestoredConstructorParameters.constructorStep_eq_ok_of_r
     hfamily hctor
   exact hconstructor
 
-/-- Select the exact successful source-type certification run for one
-constructor from the retained whole-block validation trace. -/
+/-- The successful source-type check of one constructor, selected from the
+successful whole-block validation run. -/
 theorem validateRestoredConstructorParameters.typeCheck_eq_ok_of_run
     (hrun : Lean4Lean.validateRestoredConstructorParameters.run env lparams
       safety fuel types result = .ok ())
@@ -100,9 +99,8 @@ theorem validateRestoredConstructorParameters.typeCheck_eq_ok_of_run
   | ok checked =>
     exact ⟨checked, rfl⟩
 
-/-- The executable source-type check constructs the abstract source constant
-needed by constructor restoration.  This is derived from the successful
-runtime trace, rather than supplied as final-assembly evidence. -/
+/-- The executable source-type check gives the abstract source constant
+needed by constructor restoration, read off the successful validation run. -/
 theorem validateRestoredConstructorParameters.sourceConst_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (Hsources : SourceSyntaxChecks types)
@@ -141,8 +139,8 @@ theorem validateRestoredConstructorParameters.sourceConst_of_run
     type := type' }
   exact ⟨constructor, ⟨rfl, rfl, Htype, HtypeWF⟩⟩
 
-/-- Pointwise source-type certification for a family, packaged in the exact
-constructor-list shape consumed by the nested restoration semantics. -/
+/-- The source constants of all constructors of a family, pointwise along the
+constructor list, from the successful validation run. -/
 theorem validateRestoredConstructorParameters.sourceConsts_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (Hsources : SourceSyntaxChecks types)
@@ -182,8 +180,8 @@ private theorem validateRestoredRecursorTypes.sourceCheck_eq_ok_of_run
             safety fuel result recNameMap allIndNames
               (Lean.mkRecName type.name)) hprimary htype
 
-/-- Select the exact successful source-side type-checking run for one primary
-restored recursor from the retained whole-block validation pass. -/
+/-- The successful type check of one restored source recursor, selected from
+the successful whole-block validation run. -/
 theorem validateRestoredRecursorTypes.typeCheck_eq_ok_of_run
     (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv lparams
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
@@ -243,8 +241,8 @@ theorem validateRestoredRecursorTypes.typeCheck_eq_ok_of_run
           cases hcheck
       | ok checked => exact ⟨checked, by simpa using hclosed, rfl⟩
 
-/-- The executable recursor-type pass yields a source-environment
-translation and typehood certificate for the exact restored primary type. -/
+/-- The executable recursor-type pass gives a translation of the restored
+source recursor type, which is a type. -/
 theorem validateRestoredRecursorTypes.translation_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv lparams
@@ -317,9 +315,8 @@ private theorem validateRestoredRecursorTypes.auxiliaryCheck_eq_ok_of_run
         (Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv lparams
           safety fuel result recNameMap allIndNames) hrun hrec
 
-/-- A successful exact check of any restored recursor (primary or auxiliary)
-yields translation and typehood for the concrete value produced by
-`restoreRecursor`. -/
+/-- A successful check of any restored recursor (source or auxiliary)
+gives a translation of the type produced by `restoreRecursor`, which is a type. -/
 theorem validateRestoredRecursorTypes.translation_of_check
     (hvalid : CheckingEnv.Valid safety env venv)
     (hstep : Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv
@@ -380,8 +377,8 @@ theorem validateRestoredRecursorTypes.translation_of_check
       cases hstep
   | ok checked => exact Hrun checked htypecheck
 
-/-- Select and certify one auxiliary restored recursor from the successful
-whole-block validation pass. -/
+/-- The translation of one restored auxiliary recursor type, selected from the
+successful whole-block validation run. -/
 theorem validateRestoredRecursorTypes.auxiliaryTranslation_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv lparams
@@ -444,10 +441,9 @@ private theorem validateRestoredRecursorRules.auxiliaryCheck_eq_ok_of_run
         (Lean4Lean.validateRestoredRecursorRules.check env loweredEnv lparams
           safety fuel result recNameMap allIndNames auxRecNames) hrun hrec
 
-/-- A successful exact restored-rule check supplies translated typing for
-the literal RHS selected from the restored recursor metadata.  This is the
-target-side semantic fact retained by the executable post-installation pass;
-it is not a caller-provided rule certificate. -/
+/-- A successful restored-rule check gives a translated typing (`TrTyping`) of
+the right-hand side of every rule of the restored recursor, read off the
+executable's validation of the restored rules. -/
 theorem validateRestoredRecursorRules.translation_of_check
     (hvalid : CheckingEnv.Valid safety env venv)
     (hstep : Lean4Lean.validateRestoredRecursorRules.check env loweredEnv
@@ -510,8 +506,8 @@ theorem validateRestoredRecursorRules.translation_of_check
       rcases Hcheck inferred htypecheck with ⟨target, targetType, Htyping⟩
       exact ⟨inferred, target, targetType, Htyping⟩
 
-/-- Primary specialization of `translation_of_check`, selected from the
-successful whole-block rule-validation pass. -/
+/-- `translation_of_check` for a source recursor, selected from the
+successful whole-block rule-validation run. -/
 theorem validateRestoredRecursorRules.sourceTranslation_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
@@ -535,8 +531,8 @@ theorem validateRestoredRecursorRules.sourceTranslation_of_run
     (validateRestoredRecursorRules.sourceCheck_eq_ok_of_run hrun htype)
       hlookup hrule
 
-/-- Auxiliary specialization of `translation_of_check`, selected from the
-successful whole-block rule-validation pass. -/
+/-- `translation_of_check` for an auxiliary recursor, selected from the
+successful whole-block rule-validation run. -/
 theorem validateRestoredRecursorRules.auxiliaryTranslation_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
@@ -569,7 +565,7 @@ namespace VerifyInductive
 /-- The concrete parameter context returned by an actual lowering run has a
 semantic metacontext in the source environment.  Its free variables are also
 fresh for the independent type-checker run used by restored-constructor
-validation; both facts are consequences of the retained lowering trace. -/
+validation; both facts follow from the lowering run `NestedLowering`. -/
 theorem NestedLowering.resultParameterMLCtx
     (H : NestedLowering env fuel nparams types initialState out)
     (henv : venv.WF)
