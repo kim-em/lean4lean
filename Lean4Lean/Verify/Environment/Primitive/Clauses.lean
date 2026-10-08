@@ -21,7 +21,7 @@ clause is handed the definition and the translations `addDefinition` established
 follows by induction on the second argument.
 
 The context is a `let` here for the same reason it is one in `checkDef.WF`: the probes' facts
-arrive at `ctx.vlctx.toCtx`, and only a context that reduces to `.mk' wf hcorner .safe v.levelParams`
+arrive at `ctx.vlctx.toCtx`, and only a context that reduces to `.mk' wf htels .safe v.levelParams`
 makes that the empty context on the nose. Over an abstract `VContext` the same proof needs a
 rewrite per equation. -/
 

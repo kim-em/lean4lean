@@ -3,16 +3,14 @@ import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Quot
 
 /-!
-# Recursor rules as a checking invariant
+# The quotient part of the recursor invariant
 
-The executable checker reduces a recursor application by looking up the `RecursorRule` for the
-constructor at the head of the major premise. The abstract environment stores each such rule as a
-closed lambda-wrapped equation. This file states, for a checking environment, that every visible
-recursor's rules are stored equations of the shape `VIotaRuleShape`, that the recursor's type and
-each constructor's type have the shapes `VRecursorShape` and `VConstructorShape`, that the major
-inductive type constant is rigid, and (for K-like recursors) that the inductive type is a
-proposition whose parameters type the unique constructor. The quotient reduction rules are covered
-by the same shapes for `Quot.lift`, and by proof irrelevance for `Quot.ind`.
+The quotient reduction rules of the checker as instances of the recursor invariant of
+`Lean4Lean/Verify/Environment/RecursorAlignment.lean`: under `QuotCoherent`, `Quot.lift` has the
+recursor shape `VRecursorShape`, `Quot.mk` the constructor shape `VConstructorShape`, and the
+`Quot.lift` equation the iota rule shape `VIotaRuleShape`; `Quot.ind` reduces by proof
+irrelevance (`QuotCoherent.ind_defeq`). `AddQuot.quotCoherent` establishes `QuotCoherent` when the
+quotient constants are added.
 -/
 
 namespace Lean4Lean
@@ -206,7 +204,7 @@ theorem QuotCoherent.ind_defeq (henv : VEnv.WF venv) (hΓ : OnCtx Γ (venv.IsTyp
     hX2.defeqU_r henv hΓ ⟨_, htyeq.symm⟩
   exact ⟨_, VEnv.IsDefEq.proofIrrel hβsort hX1 hX2'⟩
 
-/-! ## The quotient step of the environment trace -/
+/-! ## The quotient step of the environment translation -/
 
 /-- Initializing quotients yields the quotient invariant, provided no equation already present is
 headed by `Quot` (a fresh constant cannot head an equation of a well-formed environment). -/
