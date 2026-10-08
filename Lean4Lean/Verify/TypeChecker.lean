@@ -48,6 +48,37 @@ theorem VEnvs.WFCore.toCheckingValid
   wf.tr.toCheckingValid wf.hasPrimitives wf.safePrimitives
     wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
 
+/-- Every visible constructor of `env` carries a telescope certificate at every safety level
+(`CtorTelescopes`). This is the environment invariant that replaces canonical choice at the
+projection-walk corner of `inferProj`. -/
+def VEnvs.CtorCert (env : Environment) (ves : VEnvs) : Prop :=
+  ∀ safety, CtorTelescopes safety env (ves.venv safety)
+
+/-- The well-formedness invariant of the checker's environment model: the core invariant
+(`VEnvs.WFCore`) together with the constructor certificates (`VEnvs.CtorCert`). The empty
+environment satisfies it (`VEnvs.WF.empty`), and every checked declaration preserves it
+(`addDecl.WF_of_canonicalEq`). -/
+structure VEnvs.WF (env : Environment) (ves : VEnvs) : Prop extends VEnvs.WFCore env ves where
+  ctorCert : ves.CtorCert env
+
+/-- Certificate preservation from `env, ves` to `env', ves'`: the conclusion every declaration
+check provides alongside `VEnvs.WFCore`. -/
+def VEnvs.CertPres (env env' : Environment) (ves ves' : VEnvs) : Prop :=
+  ves.CtorCert env → ves'.CtorCert env'
+
+theorem VEnvs.CtorCert.corner {env : Environment} {ves : VEnvs} (H : ves.CtorCert env) :
+    ∀ safety, ProjectionCorner safety env (ves.venv safety) :=
+  fun safety => .inr (H safety)
+
+open private Lean.Kernel.Environment.add from Lean.Environment in
+/-- A fresh non-constructor constant needs no certificate. -/
+theorem VEnvs.CertPres.addNonCtor {env : Environment} {ves ves' : VEnvs} {ci : ConstantInfo}
+    (wf : ves.WFCore env) (hn : env.find? ci.name = none)
+    (hle : ∀ safety, ves.venv safety ≤ ves'.venv safety)
+    (hnot : ∀ info, ci ≠ .ctorInfo info) : VEnvs.CertPres env (env.add ci) ves ves' :=
+  fun H safety => CtorTelescopes.addNonCtor (H safety) (wf.tr (safety := safety)).map_wf hn
+    (hle safety) hnot
+
 /-- Assemble a `VEnvs` from a pointwise existential by case analysis on the
 three safety levels. -/
 theorem VEnvs.ofPointwiseExists {P : DefinitionSafety → VEnv → Prop}

@@ -19,6 +19,7 @@ structure PrimitiveConstructorCorePhasesResult
   constructorTails : CheckedRecursorConstructorTails H.context.venv c.lparams
     H.materialized.parameterScope stats decl indTypes
   ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
+  telescopes : SourceCtorsCertified H.context.venv c.lparams indTypes.toList
   declared : PrimitiveDeclaredConstructorsResult H outEnv
   formation : FormationCertificate sourceEnv decl
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
@@ -512,6 +513,7 @@ def PrimitiveConstructorCorePhasesResult.complete
   parameterPrefixes := R.parameterPrefixes
   constructorTails := R.constructorTails
   ownerNormalForms := R.ownerNormalForms
+  telescopes := R.telescopes
   declared := R.declared
   formation := R.formation
   core := R.core
@@ -560,6 +562,8 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
             parameterPrefixes := Hchecked.1.parameterPrefixes
             constructorTails := Hchecked.1.constructorTails
             ownerNormalForms := Hchecked.2
+            telescopes := SourceCtorsCertified.ofPrimitiveShape Hshape
+              (Hchecked.1.checked.translated H.translation)
             declared := Hdeclared
             formation := Hformation
             core := Lean4Lean.VerifyInductive.TrInductDeclCore.ofPhases

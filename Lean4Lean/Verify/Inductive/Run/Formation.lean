@@ -1149,6 +1149,8 @@ structure ConstructorPhasesResult
   constructorTails : CheckedRecursorConstructorTails H.context.venv c.lparams
     H.materialized.parameterScope stats decl indTypes
   ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
+  /-- The telescope certificates of the source constructor types, read off their checks. -/
+  telescopes : SourceCtorsCertified H.context.venv c.lparams indTypes.toList
   declared : DeclaredConstructorsResult H outEnv
   formation : FormationCertificate sourceEnv decl
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
@@ -1849,6 +1851,7 @@ theorem AddInductive.constructorPhases.WF
           parameterPrefixes := Hchecked.parameterPrefixes
           constructorTails := Hchecked.constructorTails
           ownerNormalForms := HownerNormalForms
+          telescopes := HcheckedBoth.2.2
           declared := Hdeclared
           formation := H.formation Hchecked
           core := Lean4Lean.VerifyInductive.TrInductDeclCore.ofPhases

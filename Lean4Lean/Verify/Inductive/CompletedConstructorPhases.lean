@@ -230,6 +230,8 @@ structure CompletedConstructorPhases (c : AddInductive.Context)
     params
   parameterPrefixes : CheckedRecursorParameterPrefixes stats indTypes
   ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
+  /-- The telescope certificates of the source constructor types. -/
+  telescopes : SourceCtorsCertified headerVEnv c.lparams indTypes.toList
   headerSourceAligned : exists numNested,
     InductiveHeaderEntries
       (AddInductive.inductiveTypeInfos stats nparams indTypes numNested
@@ -423,6 +425,7 @@ def ConstructorPhasesResult.completed
   parameterPrefixes := R.parameterPrefixes
   constructorTails := R.constructorTails
   ownerNormalForms := R.ownerNormalForms
+  telescopes := R.telescopes
   headerSourceAligned := H.sourceAligned
   constructorSourceAligned := R.declared.sourceAligned
   constructorProduction := R.declared.production
@@ -544,6 +547,7 @@ noncomputable def PrimitiveConstructorPhasesResult.completed
   parameterPrefixes := R.parameterPrefixes
   constructorTails := R.constructorTails
   ownerNormalForms := R.ownerNormalForms
+  telescopes := R.telescopes
   headerSourceAligned := H.sourceAligned
   constructorSourceAligned := R.declared.sourceAligned
   constructorProduction := R.declared.production

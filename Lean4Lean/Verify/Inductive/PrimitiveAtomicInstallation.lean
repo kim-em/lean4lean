@@ -945,6 +945,7 @@ structure PrimitiveConstructorPhasesResult
   constructorTails : CheckedRecursorConstructorTails H.context.venv c.lparams
     H.materialized.parameterScope stats decl indTypes
   ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
+  telescopes : SourceCtorsCertified H.context.venv c.lparams indTypes.toList
   declared : PrimitiveDeclaredConstructorsResult H outEnv
   formation : FormationCertificate sourceEnv decl
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList

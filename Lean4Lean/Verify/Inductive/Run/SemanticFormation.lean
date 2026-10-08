@@ -124,6 +124,7 @@ theorem AddInductive.semanticFormationCoreWF
             parameterPrefixes := Hchecked.parameterPrefixes
             constructorTails := Hchecked.constructorTails
             ownerNormalForms := Howners
+            telescopes := Htele
             declared := Hdeclared
             formation := Hheaders.formation Hchecked
             core := Lean4Lean.VerifyInductive.TrInductDeclCore.ofPhases
