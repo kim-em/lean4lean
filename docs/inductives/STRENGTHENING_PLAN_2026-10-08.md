@@ -172,3 +172,22 @@ checker-built environment satisfies by the preservation proof.
 2. (F) frame lemma.
 3. (G) ghost telescope verification (against the statement of (F)).
 4. (I) invariant plumbing and (R) removal; survey of constructor installation paths first.
+
+## 6. Corrections after Astra review 4 (STRENGTHENING_ASTRA_REVIEW4.md)
+
+* (F) as first stated was false: the environment's expression payloads (constant types, delta
+  values, constructor types, recursor right-hand sides) must be ghost-free too (counterexample:
+  `D := g` with `g` a ghost let variable). `GhostRel` compares declarations modulo
+  `LocalDecl.index` (opening the same fresh id in contexts of different sizes gives different
+  indices). `M.Framed` concludes name-generator monotonicity so that later fresh ids are not ghosts.
+  The theorem is extensional in the repository's pointer-equality model.
+* (G) carries a state that is `VState.WF` in the smaller context throughout (verified there step by
+  step); validity is never transferred from the larger context. The frame lemma is applied to the
+  instantiated domain/result calls, not to the loop (whose fvar array contains ghosts).
+* (T) An unrestricted `TelTr` substitution lemma would certify spines exposed inside substituted
+  types, i.e. unrestricted strengthening. The walk and the invariant use a depth-bounded
+  certificate (depth = parameters + fields of the constructor, tied to the arity metadata);
+  transport lemmas only move existing binders.
+* (I) Nested inductives install `restoreNested loweredCtor.type` while validation checks the
+  original source type: a bridge between the two is required. Primitive `Bool`/`Nat`
+  constructors get direct certificates.
