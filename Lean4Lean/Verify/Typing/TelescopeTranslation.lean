@@ -70,12 +70,4 @@ theorem delete : TelTr env Us Δ (.forallE n d b bi) (.forallE d' b') →
 
 end TelTr
 
-/-- Every constructor of the kernel environment `env` that the abstract environment `venv`
-models has a telescope-closed type translation. This is the environment invariant that the
-projection walk of `inferProj` reads at its non-dependent fields. -/
-def CtorTelescopes (env : Lean.Kernel.Environment) (venv : VEnv) : Prop :=
-  ∀ {name : Name} {ci : ConstructorVal} {ci' : VConstant},
-    env.find? name = some (.ctorInfo ci) → venv.constants name = some ci' →
-    TelTr venv ci.levelParams [] ci.type ci'.type
-
 end Lean4Lean

@@ -3,6 +3,7 @@ import Lean4Lean.Declaration
 import Lean4Lean.Verify.Environment.Basic
 import Lean4Lean.Verify.Environment.Recursors
 import Lean4Lean.Verify.Typing.ProjectionCorner
+import Lean4Lean.Verify.Typing.TelescopeTranslationLemmas
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -1156,6 +1157,9 @@ structure CheckingEnv.Valid (safety : DefinitionSafety)
   /-- Once quotients are initialized, the quotient constants and the `Quot.lift` equation are
   present. This is what quotient reduction reads. -/
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
+  /-- What resolves the projection-walk corner of `inferProj`: canonical choice, or a telescope
+  certificate for every visible constructor. -/
+  corner : ProjectionCorner safety env venv
 
 theorem TrEnv.toCheckingValidCore (H : TrEnv safety env venv)
     (hprims : venv.HasPrimitives)
@@ -1177,7 +1181,7 @@ theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
     (hch : venv.HasCanonicalChoice) :
     CheckingEnv.Valid safety env venv :=
   ⟨⟨H.toChecking, hprims, hsafe, hannotations, hch⟩, howners, hregistry,
-    H.recursorEnvCoherent, H.quotEnvCoherent⟩
+    H.recursorEnvCoherent, H.quotEnvCoherent, .inl hch⟩
 
 theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
     (hn : env.find? ci.name = none)
@@ -1242,7 +1246,8 @@ theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
     constructorOwners := ?_
     projectionRegistry := ?_
     recursors := hrecursors
-    quot := hquot }
+    quot := hquot
+    corner := .inl hcore.canonicalChoice }
   · cases ci with
     | ctorInfo info =>
       rcases hstep.1 with ⟨owner, howner⟩
@@ -1303,6 +1308,7 @@ theorem CheckingEnv.Valid.addEliminator
   quot hq := (H.quot hq).extend (fun h => h) VEnv.addEliminator_le
     (H.recursors.extendSimple (fun h => h) (fun h _ => h)
       VEnv.addEliminator_le (fun _ h => h)).heads
+  corner := H.corner.mono VEnv.addEliminator_le
 
 theorem Aligned.addEliminators {C : ConstMap} :
     ∀ {venv : VEnv} {es : List (Name × InductiveSignature.CaseSchema)}, Aligned safety C venv →
@@ -1361,6 +1367,7 @@ theorem CheckingEnv.Valid.addEliminators
   quot hq := (H.quot hq).extend (fun h => h) VEnv.addEliminators_le
     (H.recursors.extendSimple (fun h => h) (fun h _ => h)
       VEnv.addEliminators_le (fun _ h => by simpa using h)).heads
+  corner := H.corner.mono VEnv.addEliminators_le
 
 theorem CheckingEnv.Valid.addProjections
     (H : CheckingEnv.Valid safety env venv)
@@ -1372,6 +1379,7 @@ theorem CheckingEnv.Valid.addProjections
   recursors := H.recursors.addProjections entries
   quot hq := (H.quot hq).extend (fun h => h) VEnv.addProjections_le
     (H.recursors.addProjections entries).heads
+  corner := H.corner.mono VEnv.addProjections_le
 
 /-- Promote the local invariants to the full checking invariant once
 constructor-owner presence and registry coherence are known. -/
@@ -1386,7 +1394,8 @@ theorem CheckingEnv.ValidCore.toValid
     constructorOwners := howners
     projectionRegistry := hregistry
     recursors := hrecursors
-    quot := hquot }
+    quot := hquot
+    corner := .inl H.canonicalChoice }
 
 /-- Resolve the exact projection alignment selected by successful concrete
 family and constructor lookups. -/

@@ -1,5 +1,7 @@
 import Lean4Lean.Verify.Typing.TelescopeTranslation
 import Lean4Lean.Verify.Typing.LevelEquiv
+import Lean4Lean.Theory.CanonicalChoice
+import Lean4Lean.Verify.Environment.RecursorAlignment
 
 /-!
 # Transport lemmas for telescope-closed translations
@@ -482,5 +484,40 @@ theorem _root_.Lean4Lean.TelTr.toTelTrN :
         refine (H.delete e e').toTelTrN ?_
         rw [e, AddInductive.constructorArity_liftLooseBVars'] at hn; omega
     | _ => simp [AddInductive.constructorArity] at hn
+
+/-! ### The environment invariant -/
+
+/-- The certificate of one constructor: its field count is the syntactic arity of its stored type
+beyond the parameters (as `AddInductive.constructorInfo` records it), and its stored type carries
+a telescope certificate along its whole syntactic `forallE` spine. -/
+def CtorTelescopeAt (venv : VEnv) (ci : ConstructorVal) : Prop :=
+  ci.numFields = AddInductive.constructorArity ci.type - ci.numParams ∧
+  ∃ T, TelTrN venv ci.levelParams (AddInductive.constructorArity ci.type) [] ci.type T
+
+theorem CtorTelescopeAt.mono (henv : venv ≤ venv') :
+    CtorTelescopeAt venv ci → CtorTelescopeAt venv' ci
+  | ⟨h1, T, h2⟩ => ⟨h1, T, h2.mono henv⟩
+
+/-- Every constructor of the kernel environment `env` visible at `safety` is certified. This is
+the environment invariant that the projection walk of `inferProj` reads at its non-dependent
+fields (`docs/inductives/STRENGTHENING_PLAN_2026-10-08.md`). -/
+def CtorTelescopes (safety : DefinitionSafety) (env : Lean.Kernel.Environment) (venv : VEnv) :
+    Prop :=
+  ∀ {name : Name} {ci : ConstructorVal}, env.find? name = some (.ctorInfo ci) →
+    safety ≤ (ConstantInfo.ctorInfo ci).safety → CtorTelescopeAt venv ci
+
+theorem CtorTelescopes.mono (H : CtorTelescopes safety env venv) (henv : venv ≤ venv') :
+    CtorTelescopes safety env venv' := fun h hs => (H h hs).mono henv
+
+/-- The evidence that resolves the projection-walk corner in a checking context: either the
+abstract environment has canonical choice (`projectionWalkCorner_choice`), or every visible
+constructor carries a telescope certificate (`TelTrN.delete_closed`). -/
+def ProjectionCorner (safety : DefinitionSafety) (env : Lean.Kernel.Environment) (venv : VEnv) :
+    Prop :=
+  venv.HasCanonicalChoice ∨ CtorTelescopes safety env venv
+
+theorem ProjectionCorner.mono (H : ProjectionCorner safety env venv) (henv : venv ≤ venv') :
+    ProjectionCorner safety env venv' :=
+  H.imp (·.mono henv) (·.mono henv)
 
 end Lean4Lean

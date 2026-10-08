@@ -204,6 +204,7 @@ theorem CheckingEnv.Valid.mapExt
   quot hq := (H.quot (hquotInit ▸ hq)).mapExt heq
   hasPrimitives := H.hasPrimitives
   canonicalChoice := H.canonicalChoice
+  corner := .inl H.canonicalChoice
   safePrimitives := by
     intro name ci hfind hprimitive
     have hfindTarget : target.constants.find? name = some ci := by

@@ -91,7 +91,8 @@ def StagedContextWF.complete (H : StagedContextWF c)
     constructorOwners := howners
     projectionRegistry := hregistry
     recursors := hrecursors
-    quot := hquot }
+    quot := hquot
+    corner := .inl H.canonicalChoice }
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
