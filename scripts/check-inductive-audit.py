@@ -73,6 +73,7 @@ DEFINITION_ROOTS = {
     "Lean4Lean.VEnv.FullEquationCoverage",
     "Lean4Lean.InductiveSignature.CaseSchema.structureEta",
     "Lean4Lean.InductiveSignature.RecursorData.prefixUnfolding",
+    "Lean4Lean.VEnv.WF.params",
 }
 # Foundational lemmas whose proofs may use only the standard axioms and no open proof.
 FOUNDATION_ROOTS = {
@@ -83,6 +84,11 @@ FOUNDATION_ROOTS = {
     "Lean4Lean.VEnv.HasType.etaOpen_wf",
     "Lean4Lean.VEnv.HasType.etaOpen_defeq",
     "Lean4Lean.VEnv.IsDefEq.etaOpen_wrapLams",
+    # The confluence theorem for every well-formed environment with canonical `Eq`
+    # (section 4.2 of docs/inductives/DESIGN.md) and its two coverage lemmas.
+    "Lean4Lean.VEnv.WF.church_rosser",
+    "Lean4Lean.VEnv.WF.equationCoverage",
+    "Lean4Lean.VEnv.WF.singletonCoverage",
 }
 STRICT_ROOTS = DEFINITION_ROOTS | FOUNDATION_ROOTS
 ROOTS |= STRICT_ROOTS
@@ -155,6 +161,7 @@ def main():
                         "Lean4Lean.Theory.Typing.CaseReduction",
                         "Lean4Lean.Theory.Typing.PrefixUnfolding.Rule",
                         "Lean4Lean.Theory.Typing.FullChurchRosser",
+                        "Lean4Lean.Theory.Typing.Confluence.WFParams",
                         "Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift",
                         "Lean4Lean.Theory.Typing.QuotPropInhabitant",
                         "Lean4Lean.Theory.Typing.DefinitionRegistryInstallation",
