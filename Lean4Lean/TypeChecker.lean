@@ -898,7 +898,6 @@ def isDefEqUnitLike (t s : Expr) : RecM Bool := do
   -- redundant on well-typed input (see `divergences.md`)
   unless induct == I do return false
   unless ctorUnsafe == isUnsafe do return false
-  unless tType.getAppNumArgs == numParams do return false
   isDefEqCore tType (← inferType s)
 
 @[inherit_doc isDefEqCore]

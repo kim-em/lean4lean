@@ -651,7 +651,7 @@ wrapper name. The other changes cannot change a decision except through checker 
 - **Redundant guards**, each listed in `divergences.md`: `reduceProjCore` requires the
   constructor to be the structure's unique constructor; `tryEtaStructCore`
   requires the listed constructor and applies structure eta only at never-zero sorts;
-  `isDefEqUnitLike` and `toCtorWhenK` check the arity of the type's spine; constructor owner
+  `toCtorWhenK` checks the arity of the type's spine; constructor owner
   agreement is checked wherever a structure's constructor is looked up, and `isUnsafe` agreement
   wherever the family's visibility is not already known (not in `reduceProjCore` or
   `expandEtaStruct`); `toCtorWhenStruct` and

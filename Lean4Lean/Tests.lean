@@ -17,6 +17,7 @@ import Lean4Lean.Tests.NestedIndexedFamily
 import Lean4Lean.Tests.NestedRecursorReduction
 import Lean4Lean.Tests.SpecializedRecursorShape
 import Lean4Lean.Tests.KNormalization
+import Lean4Lean.Tests.UnitLikeK
 import Lean4Lean.Tests.RecursorMetadata
 import Lean4Lean.Tests.RestoredRecursorMetadata
 import Lean4Lean.Tests.KernelHardening
