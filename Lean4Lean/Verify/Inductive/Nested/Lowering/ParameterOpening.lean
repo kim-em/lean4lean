@@ -8,9 +8,14 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-/-- Exact parameter-telescope path followed by nested lowering. The relation
+/-! # Parameter opening of nested lowering
+
+The relation `LoweringParamOpening` describes how nested lowering opens the common parameters
+of a forall telescope as fresh local declarations, and its basic properties. -/
+
+/-- Parameter-telescope opening performed by nested lowering. The relation
 retains both the growing local context and the array of corresponding free
-variables, making the later restoration substitution auditable. -/
+variables, which the restoration substitution reuses. -/
 inductive LoweringParamOpening : LocalContext → Array Expr → Expr → Nat →
     LocalContext → Expr → Array Expr → Prop
   | done : LoweringParamOpening lctx params type 0 lctx type params

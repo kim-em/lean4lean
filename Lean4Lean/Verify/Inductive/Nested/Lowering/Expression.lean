@@ -11,6 +11,17 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+/-! # Nested lowering of expressions
+
+Relational specification of the expression traversal of `ElimNestedInductive`
+(`Expr.replaceM` over a constructor type): a recognized nested occurrence is replaced by an
+application of its auxiliary family, either reusing a cache entry or generating auxiliary
+families for the whole container block (`OccurrenceReplacement`, `NodeReplacement`,
+`ExprLowering`). The resolved and reopened forms (`ExprLowering.Resolved`,
+`ExprLowering.Reopened`) connect each replacement to the final `aux2nested` map and prove that
+restoration is a left inverse of lowering up to expression equivalence
+(`ExprLowering.Reopened.restore_eqv`). -/
+
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
 certified batch for the entire mutual block is generated. -/
@@ -75,9 +86,9 @@ theorem replaceRecognizedNested_refines
       hclosure.target).mono fun _ Hbatch =>
         OccurrenceReplacement.generated hclosure Hbatch
 
-/-- Complete node-level result of nested replacement.  A non-candidate is
-left untouched; every accepted candidate carries both the independent
-recognition evidence and the cache-or-generation certificate. -/
+/-- Complete node-level result of nested replacement.  An expression that is not a
+nested occurrence is left untouched; every recognized occurrence carries both the
+independent recognition fact (`NestedOccurrence`) and the cache-or-generation certificate. -/
 inductive NodeReplacement
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (e : Expr) (state : Lean4Lean.ElimNestedInductive.State) :
@@ -232,7 +243,7 @@ def NestedNewTypesLE (source target : Lean4Lean.ElimNestedInductive.State) : Pro
   ∃ suffix, target.newTypes.toList = source.newTypes.toList ++ suffix
 
 /-- Nested-expression traversal also grows the `(nested expression, fresh
-family name)` cache append-only. This is the operational source of the final
+family name)` cache append-only. This cache is the source of the final
 `aux2nested` map used by restoration. The universe arguments `lvls` at which
 every auxiliary occurrence is emitted are never modified. -/
 def NestedAuxLE (source target : Lean4Lean.ElimNestedInductive.State) : Prop :=
@@ -310,7 +321,7 @@ theorem NestedOccurrence.prefixLooseBVarRange_zero
 
 /-- A family freshly appended by nested lowering, together with the matching
 cache entry that lets restoration recover the application from which it was
-built.  Keeping the two append-only arrays paired is the provenance that is
+built.  Keeping the two append-only arrays paired is the correspondence that is
 lost by `NestedNewTypesLE` alone. -/
 structure AuxiliaryFamilySpecialization
     (env : Environment) (params : Array Expr)
@@ -610,8 +621,8 @@ theorem nestedAuxFold_find_mem_or_initial
       next => exact Or.inl hinsert
     · exact Or.inr (by simp [htail])
 
-/-- A lookup in a cache fold starting from the empty production map is
-therefore witnessed by an exact cache entry. -/
+/-- A lookup in a cache fold starting from the empty map therefore
+comes from a cache entry. -/
 theorem nestedAuxFold_find_mem
     (entries : List (Expr × Name))
     (hfind : (entries.foldl
@@ -848,7 +859,7 @@ theorem AuxiliaryGenerationBatch.targetResult
         ?_, hresult, hentry, htype⟩
       simpa [hstep] using hlevels
 
-/-- Global map-model evidence turns the unique target step into the exact
+/-- `NestedAuxMapModels` turns the unique target step into the exact
 `aux2nested` lookup used by restoration, even after later lowering has
 appended more cache entries. -/
 theorem AuxiliaryGenerationBatch.targetResultMapped
@@ -922,11 +933,11 @@ def NodeReplacementHasResolvedMapping
           input.getAppArgs).abstract As).instantiateRev params) = true ∧
       finalResult.aux2nested.find? auxName = some nested
 
-/-- Non-erased successful-hit provenance.  Unlike
-`NodeReplacementHasResolvedMapping`, this retains the exact cache-or-generation
-branch and the state at which it completed.  In the generated branch this is
-the persistent path back to `AuxiliaryFamilySpec`; cached hits remain identifiable
-as cache reuse and can be joined to final generated-family origins. -/
+/-- A successful replacement of a nested occurrence, with its cache-or-generation
+branch.  Unlike `NodeReplacementHasResolvedMapping`, this retains the
+`OccurrenceReplacement` and the state at which it completed.  In the generation branch this
+leads back to `AuxiliaryFamilySpec`; cache reuse remains identifiable
+and can be joined to the auxiliary families of the final cache (`CachedAuxiliaryFamily`). -/
 def NodeReplacementResolved
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (input : Expr) (state : Lean4Lean.ElimNestedInductive.State)
@@ -941,8 +952,8 @@ def NodeReplacementResolved
     NestedAuxLE nextState finalState ∧
     NestedAuxMapModels finalResult finalState
 
-/-- Forget the retained operational branch only after clients that need
-generated-family provenance have had a chance to inspect it. -/
+/-- Forget the cache-or-generation branch, keeping only the resolved mapping into the
+final `aux2nested` map. -/
 theorem NodeReplacementResolved.mapping
     (H : NodeReplacementResolved env lctx params As input state lowered
       nextState finalResult finalState) :
@@ -957,7 +968,7 @@ theorem NodeReplacementResolved.mapping
   exact ⟨value, targetName, levels, auxName, auxLevels, nested, Hcandidate,
     hauxLevels, hhead, hreplacement, hnested, hlookup⟩
 
-/-- A mapped lowering hit introduces only its selected parameter variables;
+/-- A mapped replacement introduces only its selected parameter variables;
 all trailing arguments are inherited from the source application. -/
 theorem NodeReplacementHasResolvedMapping.outputFVarsIn
     (H : NodeReplacementHasResolvedMapping env lctx params As input state
@@ -1011,12 +1022,12 @@ def NodeReplacementReopens
       ((mkAppRange (.const targetName levels) 0 value.numParams
         input.getAppArgs).abstract As).instantiateRev restoreAs) = true
 
-/-- A reopened lowering hit is interpreted by the concrete family branch of
+/-- A reopened replacement is interpreted by the concrete family branch of
 `restoreNestedNode`.  The auxiliary parameter prefix is discarded and the
 reopened source-family prefix is reattached to the identically renamed
-non-parameter arguments, yielding the renamed original application up to
+non-parameter arguments, yielding the renamed source application up to
 expression equivalence.  The statement is at an arbitrary binder depth `k`
-because the hit may sit below binders of the constructor body; only the
+because the occurrence may sit below binders of the constructor body; only the
 closed parameter prefix is compared with the depth-zero array operation. -/
 theorem NodeReplacementReopens.restoreNode
     (H : NodeReplacementReopens env lctx params As input state lowered
@@ -1110,7 +1121,7 @@ theorem NodeReplacementReopens.restoreNode
     rw [List.map_take, List.map_drop, List.take_append_drop] at happended
     simpa [hinput, trailing, R] using happended
 
-/-- The final-map witness retained at a lowering hit is a left inverse for
+/-- The final-map lookup retained at a replacement is a left inverse for
 the abstraction/reopening part of `restoreNestedNode`.  The only local
 scoping premise is that abstracting the constructor-opening parameters has
 removed all free variables; constructor lowering establishes that fact from
@@ -1237,8 +1248,8 @@ theorem NodeReplacement.resolvedTrace
     exact ⟨_, _, _, Hcandidate, hhead, Hrecognized, Hlater, Hmap⟩
 
 /-- Structural expression-lowering relation whose successful leaves are
-already connected to the final restoration map. Unlike the operational trace,
-this relation forgets monadic control flow and retains exactly the semantic
+already connected to the final restoration map. Unlike `ExprLowering`,
+this relation forgets monadic control flow and retains exactly the
 information needed to interpret the lowered expression. -/
 inductive ExprLowering.Resolved
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
@@ -1315,8 +1326,8 @@ inductive ExprLowering.Resolved
       ExprLowering.Resolved env lctx params As finalResult (.proj name idx body) state
         (Expr.updateProj! (.proj name idx body) body', outState)
 
-/-- Nested lowering preserves free-variable-ID scoping. Successful hits use
-`outputFVarsIn`; structural misses inherit the property componentwise. -/
+/-- Nested lowering preserves free-variable-ID scoping. Replaced occurrences use
+`outputFVarsIn`; other nodes inherit the property componentwise. -/
 theorem ExprLowering.Resolved.outputFVarIdsIn
     (H : ExprLowering.Resolved env lctx params As finalResult input state out)
     (Hselection : CDeclArray lctx As)
@@ -1350,8 +1361,8 @@ theorem ExprLowering.Resolved.outputFVarIdsIn
 
 
 /-- Nested lowering preserves bound-variable closedness at every depth: a
-hit replaces a closed parameter prefix by an auxiliary head applied to the
-copied parameter variables, and structural misses recurse componentwise. -/
+replacement swaps a closed parameter prefix for an auxiliary head applied to the
+copied parameter variables, and other nodes recurse componentwise. -/
 theorem ExprLowering.Resolved.closed
     (H : ExprLowering.Resolved env lctx params As finalResult input state out)
     (Hselection : CDeclArray lctx As)
@@ -1571,10 +1582,10 @@ theorem ExprLowering.Resolved.reopens
   | proj Hnode Hbody ihBody =>
     exact .proj Hnode (ihBody Hinput)
 
-/-- A structural lowering trace cannot introduce a constant application head
+/-- A reopened lowering cannot introduce a constant application head
 unless the root itself was recognized. In the application case, maximality
-rules out a recognized function prefix whenever the parent has a certified
-miss. -/
+rules out a recognized function prefix whenever the parent is certified not to be
+a nested occurrence. -/
 theorem ExprLowering.Reopened.constHead_of_noCandidate
     (H : ExprLowering.Reopened env lctx params As finalResult restoreAs input
       state out)
@@ -1615,7 +1626,7 @@ theorem ExprLowering.Reopened.reopenedConstHead_of_noCandidate
 
 /-- At a structural lowering node, restoration must miss the node itself.
 The proof uses recognition maximality for the lowered head and source-map
-disjointness for the corresponding original constant. -/
+disjointness for the corresponding source constant. -/
 theorem ExprLowering.Reopened.restoreNode_none
     (H : ExprLowering.Reopened env lctx params As finalResult targetAs input
       state out)
@@ -1658,8 +1669,8 @@ theorem ExprLowering.Reopened.restoreNode_none
 
 /-- Restoring a completely lowered expression is a left inverse, up to Lean
 expression equivalence, of the nested-expression traversal. The proof follows
-the same top-down stopping rule as `Expr.replace`: hits restore immediately,
-while certified misses recurse through the renamed children. -/
+the same top-down stopping rule as `Expr.replace`: replaced occurrences restore
+immediately, while other nodes recurse through the renamed children. -/
 theorem ExprLowering.Reopened.restore_eqv
     (H : ExprLowering.Reopened env lctx params As finalResult targetAs input
       state out)
@@ -2075,7 +2086,7 @@ theorem ExprLowering.nestedAuxLE
   | mdata Hnode _ ihBody | proj Hnode _ ihBody =>
     exact Hnode.nestedAuxLE.trans ihBody
 
-/-- A successful replacement hit leaves the universe arguments `lvls` of the
+/-- A successful replacement leaves the universe arguments `lvls` of the
 lowering state unchanged. -/
 theorem NodeReplacementResolved.lvls
     (H : NodeReplacementResolved env lctx params As input state lowered
@@ -2083,7 +2094,7 @@ theorem NodeReplacementResolved.lvls
   rcases H with ⟨_, _, _, _, _, Hrecognized, _, _⟩
   exact Hrecognized.nestedAuxLE.lvls
 
-/-- The semantic expression mapping leaves the universe arguments `lvls` of
+/-- The resolved expression lowering leaves the universe arguments `lvls` of
 the lowering state unchanged. -/
 theorem ExprLowering.Resolved.lvls
     (H : ExprLowering.Resolved env lctx params As finalResult input state out) :

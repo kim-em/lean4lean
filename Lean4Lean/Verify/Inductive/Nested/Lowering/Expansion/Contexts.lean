@@ -10,7 +10,13 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! # Projection of the concrete nested-lowering trace to formation
+/-! # Projection of the lowering relations to nested formation
+
+The resolved lowering relations (`ExprLowering.Resolved`, `ConstructorLowering.Resolved`,
+`FamilyLowering.Resolved`) are projected through the translation to the abstract nested
+expansion (`VExpr.NestedExprExpansion`) required by `NestedFormationWF`: the lowered
+translation of each source family and constructor is the nested expansion of its source
+translation (`NestedLoweringOutputClosed.sourceExpansions`, `LoweredAuxiliaryFamily.abstractExpansion`).
 
 The ordinary expression translation erases concrete lets by interpreting
 their bodies in a `vlet` context.  Consequently the projection induction must
@@ -260,7 +266,7 @@ inductive NestedExpansionCtx
         ((ofv, .vlet sourceType sourceValue) :: source)
         ((ofv, .vlet targetType targetValue) :: target)
 
-/-- The part of an expansion context actually consumed by expression
+/-- The part of an expansion context actually used by expression
 translation: corresponding lookups produce an expansion at the current
 absolute depth.  Keeping this property explicit lets constructor traversal
 start from a leaf-free parameter telescope without postulating that nested
@@ -850,7 +856,7 @@ structure OpenedForallPrefixes
       VExpr.NestedExprExpansion leaf' depth sourceTarget targetTarget
 
 /-- The retained source-prefix equation exposes every selected concrete
-parameter as its canonical de Bruijn variable. -/
+parameter as its de Bruijn variable. -/
 theorem OpenedForallPrefixes.sourceParameterLookup
     (H : OpenedForallPrefixes sourceVEnv targetVEnv lparams leaf
       depth arity source target fvars sourceBaseCtx targetBaseCtx sourceTarget
@@ -880,7 +886,7 @@ theorem OpenedForallPrefixes.sourceParameterLookup
   exact ⟨type, by simpa [hbindingsLength] using Hlookup⟩
 
 /-- The retained target-prefix equation exposes every selected concrete
-parameter as its canonical de Bruijn variable. -/
+parameter as its de Bruijn variable. -/
 theorem OpenedForallPrefixes.targetParameterLookup
     (H : OpenedForallPrefixes sourceVEnv targetVEnv lparams leaf
       depth arity source target fvars sourceBaseCtx targetBaseCtx sourceTarget
@@ -956,7 +962,7 @@ theorem SelectedParameterTargets.vlet
 
 /-- The executable opening selection, together with the retained target
 context lookups, determines the abstract translation of the complete selected
-parameter array.  This is the exact bridge from concrete `As` to the
+parameter array.  This connects the concrete `As` to the
 de-Bruijn prefix required by `NestedOccurrenceReplacement`. -/
 theorem SelectedParameterTargets.translatedSelection
     {sourceDecl : VInductDecl}
@@ -998,7 +1004,7 @@ theorem SelectedParameterTargets.translatedSelection
         harity] using hvalue
 
 /-- Exact abstract output spine selected by one successful replacement.  The
-concrete trace fixes the auxiliary name and universe arguments; the anchored
+replacement fixes the auxiliary name and universe arguments; the anchored
 constructor context fixes the translated common-parameter prefix. -/
 structure LoweredOccurrenceSpine
     (Htrace : NodeReplacementResolved prodEnv lctx result.params As input
@@ -1084,8 +1090,8 @@ theorem NodeReplacementResolved.targetSpine
       targetValue_eq := by simpa [hparameters] using htarget
       trailingTranslation := Htrailing }⟩
 
-/-- Source-side application spine at the same exact successful hit.  This is
-obtained solely by splitting the original application at the recognized
+/-- Source-side application spine at the same successful replacement.  This is
+obtained solely by splitting the source application at the recognized
 container's common-parameter arity. -/
 structure SourceOccurrenceSpine
     (targetName : Name) (levels : List Level) (value : InductiveVal)
@@ -1145,7 +1151,7 @@ theorem LoweredOccurrenceSpine.sourceSpine
       sourceValue_eq := hsource }⟩
 
 /-- The exact auxiliary name selected by the translated target spine rejoins
-the append-only generated-family queue without any name/equality heuristic. -/
+the append-only queue of auxiliary families without any name/equality heuristic. -/
 theorem LoweredOccurrenceSpine.resolvedAuxiliaryFamily
     {prodEnv : Environment} {lctx : LocalContext}
     {result : Lean4Lean.ElimNestedInductive.Result} {As : Array Expr}
@@ -1173,8 +1179,8 @@ theorem LoweredOccurrenceSpine.resolvedAuxiliaryFamily
     hempty T.resultLookup
 
 /-- Translate a shared concrete forall prefix while replacing its anonymous
-de Bruijn binders by one exact duplicate-free list of opening fvars.  This is
-the closed/opened bridge needed by constructor lowering: the returned
+de Bruijn binders by one exact duplicate-free list of opening fvars.  This
+relates the closed and opened telescopes for constructor lowering: the returned
 residual translations live in contexts where `ExprLowering.Resolved`'s opened
 tail can be projected directly. -/
 theorem Expr.SameForallPrefix.openedAbstractProjection
@@ -1792,7 +1798,7 @@ theorem ConstructorLowerings.Resolved.abstractExpansionsAbove
             HbClosed source (by simp [hsource])))
 
 /-- The constructor-independent fields of one nested family expansion.  This
-small carrier lets the exact lowering provenance discharge family metadata
+small carrier lets the lowering relation discharge family metadata
 without obscuring the sole remaining constructor-expression join. -/
 structure NestedTypeExpansionHeader
     (env : VEnv) (decl : VInductDecl)
@@ -1935,9 +1941,9 @@ theorem FamilyLowering.Resolved.abstractExpansion
     (fun Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt _ =>
       Hhit Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt)
 
-/-- Exact original-prefix specialization.  The source family remains at its
-original queue position; the independent source and production translations,
-together with metadata materialization, determine the complete abstract
+/-- Header expansion of a source family.  The source family remains at its
+queue position; the independent source and kernel translations,
+together with the declaration's metadata, determine the complete abstract
 header expansion at that position. -/
 theorem NestedLoweringOutputClosed.sourceHeaderExpansionAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -2028,13 +2034,13 @@ theorem TrInductiveTypeHeaders.constructorsClosed
     ⟨_target, _htarget, Hctor⟩
   simpa [Lean4Lean.FVarsIn] using Hctor.type.fvarsIn
 
-/-- Narrow source-side payload still needed for one dynamically generated
-queue family.  It contains no final expansion judgment: only the independent
+/-- Source-side data needed for one auxiliary family of the
+queue.  It contains no final expansion judgment: only the independent
 translation of the exact pre-lowering family, its executable closure fact,
 and the two metadata fields not represented by `TrInductiveType`.
 
-This is the intended output of the `AuxiliaryFamilySpec`/installed-container
-projection, before the ordinary lowering mapping is interpreted. -/
+It is the `payload` of `AuxiliaryFamilySourceData`, built from `AuxiliaryFamilySpec` and the
+installed container before the lowering mapping is interpreted. -/
 structure AuxiliaryFamilySource
     (H : LoweredAuxiliaryFamily prodEnv params nparams finalState
       targetConcrete)
@@ -2046,8 +2052,8 @@ structure AuxiliaryFamilySource
   numIndices : target.numIndices = source.numIndices
   resultLevel : target.resultLevel = source.resultLevel
 
-/-- Once the narrow pre-lowering source payload is available, the exact final
-queue mapping yields the complete abstract generated-family expansion. -/
+/-- Once the pre-lowering source data is available, the final
+queue mapping yields the complete abstract expansion of the auxiliary family. -/
 theorem LoweredAuxiliaryFamily.abstractExpansion
     (H : LoweredAuxiliaryFamily prodEnv params nparams finalState
       targetConcrete)
@@ -2095,8 +2101,8 @@ theorem LoweredAuxiliaryFamily.abstractExpansion
       Hsource.translation)
     HsourceTypesWF HtargetTypesWF hparamsSize hnparams Hhit
 
-/-- Complete original-prefix specialization.  All family and constructor
-ordering is now obtained from exact positional translations and the
+/-- Expansion of a source family and its constructors.  All family and constructor
+ordering is obtained from exact positional translations and the
 state-threaded lowering mapping. -/
 theorem NestedLoweringOutputClosed.sourceExpansionAtFreshAboveLvls
     {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
@@ -2175,7 +2181,7 @@ theorem NestedLoweringOutputClosed.sourceExpansionAtFreshAboveLvls
       (Hsyntax.getElem familyIdx hfamily).constructors.closed
       HsourceTypesWF HtargetTypesWF hparamsSize Hsource.nparams.symm Hhit⟩
 
-/-- Ordered expansion of the complete original source prefix.  This is the
+/-- Ordered expansion of all source families.  This is the
 list-valued formation payload for the initial queue; no positional choice is
 left to the caller. -/
 theorem NestedLoweringOutputClosed.sourceExpansionsAboveLvls

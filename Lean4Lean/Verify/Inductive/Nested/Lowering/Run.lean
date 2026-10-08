@@ -15,10 +15,15 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- Data-valued package for the exact completed recursor phase selected by a
-successful semantic run.  Unlike `OrdinaryInstallation`, this retains
-the existential witnesses as data and can therefore index later certificates
-without proof-irrelevance erasing run identity. -/
+/-! # The lowered run
+
+`LoweredRun` is the ordinary pipeline run on the lowered declaration of a nested inductive
+declaration (section 3.3 of `docs/inductives/DESIGN.md`). -/
+
+/-- The lowered run: the header environment, constructor check and recursor check of the
+ordinary pipeline on the lowered declaration, ending in `outEnv`.  Unlike
+`OrdinaryInstallation`, this keeps the intermediate data as fields rather than under
+existentials, so later certificates can be indexed by the run. -/
 structure LoweredRun (outEnv : Environment) where
   c : AddInductive.Context
   stats : AddInductive.InductiveStats

@@ -11,10 +11,15 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! # Producer-owned generated-family header evidence -/
+/-! # Typing of the head of an auxiliary family
 
-/-- Source-facing realization of the head of a generated family: the
-restored nested application `I Ds`, closed over the canonical parameter
+`AuxiliaryHeadTyping` records the restored nested application `I Ds` of an auxiliary family,
+closed over the parameter context, with its translation and typing (section 3.3 of
+`docs/inductives/DESIGN.md`). The file reads the container application, its arguments and its
+universe arity off the validated translation of the cached nested application. -/
+
+/-- Source-facing typing of the head of an auxiliary family: the
+restored nested application `I Ds`, closed over the common parameter
 context, together with its translation and its typing there.  No index
 telescope or result sort is fixed: for a nested occurrence of an indexed
 family `I` the head is a type family rather than a type. -/
@@ -29,7 +34,7 @@ structure AuxiliaryHeadTyping
     (abstractForallContext parameterDomains []) sourceFamily family
 
 /-- Context transport also retains the pointwise definitional equality to
-the original targets.  This is the bridge used when the cached application
+the targets translated in the source context.  It is used when the cached application
 and the generated header expose definitionally equal, but not syntactically
 identical, parameter telescopes. -/
 theorem TrExprS.forall₂DefEqDFCWithTargets
@@ -55,8 +60,9 @@ translation of every specialized parameter.  In particular, the abstract
 arguments are closed in precisely the common-parameter context; no
 constructor-field binder can occur in them.
 
-This is the source spine needed both to construct the canonical direct
-auxiliary family and, after weakening, to interpret an actual lowering hit.
+This is the source spine needed both to construct the specialized
+auxiliary family (`VInductiveType.directAuxiliary`) and, after weakening, to interpret an
+actual replaced occurrence.
 -/
 theorem AuxiliaryFamilySpecialization.abstractContainerApplication
     (H : AuxiliaryFamilySpecialization prodEnv params nestedAux family)
@@ -154,7 +160,7 @@ theorem AuxiliaryFamilySpecialization.abstractContainerApplication
       simpa [abstractForallContext_toCtx, VLCtx.toCtx] using Hclosed
     · simpa [targetFamily] using hfamily
 
-/-- The source head of a restored generated-family application exposes the
+/-- The source head of a restored auxiliary-family application exposes the
 exact abstract constant installed for its container.  This is deliberately a
 single environment-indexed lookup: it does not assert that translating an
 arbitrary constant is preserved by unrelated environment extensions. -/
@@ -268,9 +274,9 @@ open Kernel
 namespace VerifyInductive
 
 
-/-- A validated auxiliary is an exact source realization of a generated
+/-- A validated nested application gives the `AuxiliaryHeadTyping` of an auxiliary
 family head after its independently recovered parameter context is converted
-to the canonical production parameter context. -/
+to the given parameter context. -/
 theorem ClosedNestedOccurrenceTyping.toAuxiliaryHeadTyping
     (H : ClosedNestedOccurrenceTyping venv lparams res selection e)
     (henv : venv.WF) (parameterDomains : List VExpr)
@@ -287,8 +293,8 @@ theorem ClosedNestedOccurrenceTyping.toAuxiliaryHeadTyping
       simpa [abstractForallContext_toCtx, VLCtx.toCtx] using HfamilyType
     sourceTranslation := Hfamily }⟩
 
-/-- The concrete source head retained for a generated family is the original
-nested-family constant applied to exactly the arguments used by auxiliary
+/-- The concrete source head retained for an auxiliary family is the container
+family constant applied to exactly the arguments used by auxiliary
 construction, closed over that construction's parameter selection.  Its
 translation is retained exactly, rather than only up to typing. -/
 theorem AuxiliaryFamilySpecialization.cachedAuxiliaryHeadTyping
