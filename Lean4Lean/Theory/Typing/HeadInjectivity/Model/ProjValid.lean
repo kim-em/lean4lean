@@ -53,7 +53,7 @@ proved for well-formed environments (`VEnv.WF.projStatic`); none is a semantic a
 structure ProjStatic (env : VEnv) (S : Name) (info : VProjectionInfo) : Prop where
   famRigid : env.Rigid S
   ctorRigid : env.Rigid info.ctorName
-  famNotCtor : ¬ IsCtor env S
+  famNotNativeCtor : ¬ IsNativeCtor env S
   famNotProjCtor : ¬ IsProjCtor env S
   ctorClosed : info.ctorType.Closed
 
