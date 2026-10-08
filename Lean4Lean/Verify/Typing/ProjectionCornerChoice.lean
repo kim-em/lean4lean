@@ -11,9 +11,8 @@ choice (`VEnv.HasCanonicalChoice`) and a registered recursor of the structure in
 (`VEnv.StructurePropRecursor`), the binder is inhabited (`VEnv.corner_inhabit`), so removing it is
 substitution (`TrExprS.weakBV_inv₁_inhabited`).
 
-This is the statement of the conjecture `ProjectionWalkCorner` (on the E1 branch, in
-`Verify/Typing/ProjectionCorner.lean`), stated for one environment with these two extra
-hypotheses.
+Superseded on the E1 branch by `projectionWalkCorner_choice` (`Verify/Typing/ProjectionCorner.lean`),
+which needs no recursor and covers structures with indices.
 
 In the C++ kernel, every successful `infer_proj` on `.proj S i e` happens after `S`'s constructor
 has been declared, and `add_inductive` declares the recursors immediately after the constructors.
