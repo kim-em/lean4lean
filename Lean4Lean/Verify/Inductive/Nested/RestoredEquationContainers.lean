@@ -19,25 +19,10 @@ the signature parameters gives the type of the direct constructor, which is
 definitionally the generated constructor type, the syntactic restoration of
 the lowered constructor type.
 
-**Projections.** A projection entry of a lowered original structure agrees
-with the projection entry of the source structure, which the final
-environment registers, except for its constructor type, which restores
-syntactically to the source constructor type (and has the same forall arity,
-`Restoration.expr_forallArity`). If the lowered constructor type mentions no
-restorable name the two entries coincide and `ProjectionTransport.of_fixed`
-applies. Otherwise `ProjectionTransport.of_ctorType` reduces the transport to
-the correspondence of field types (`VEnv.ProjectionFieldTransport`): the
-transported field type computed from the lowered constructor type is
-definitionally the field type computed from the source constructor type. The
-two differ by beta reduction of the restoration lambdas, below substitutions
-of the parameters and of the projections of an arbitrary major premise; the
-projection rule carries no well-formedness of its context, so beta subject
-reduction (`BetaSubjectReduction`, stated for well-formed contexts) does not
-apply. This correspondence, and the whole transport for the projections of
-auxiliary structure-like families (renamed to their containers, whose
-registered projection data is the container's, specialized at the
-specialization arguments only up to beta reduction), form the hypothesis
-`NestedProjectionTransportGap`.
+**Projections.** The projection rules of the lowered declaration are transported in
+well-formed image contexts (`ProjectionTransportOnCtx`,
+`Nested/ProjectionTransport.lean` and `Nested/AuxiliaryProjectionTransport.lean`), where beta
+subject reduction applies.
 -/
 
 namespace Lean4Lean

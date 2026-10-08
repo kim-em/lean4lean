@@ -242,9 +242,7 @@ theorem VEnv.Ordered.ctxNoFreshConsts
       exact HtailFree.cons HA.1
 
 /-- A well-formed expression in a well-formed context cannot mention a name
-which is absent from its ordered environment.  Projection output freshness
-will use this theorem through the environment-indexed `EnvTrProj.targetWF`.
--/
+which is absent from its ordered environment. -/
 theorem VExpr.WF.noFreshConsts
     (Henv : VEnv.Ordered env)
     (Hfresh : ∀ name ∈ names, env.constants name = none)

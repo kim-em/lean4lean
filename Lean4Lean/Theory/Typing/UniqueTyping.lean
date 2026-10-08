@@ -17,20 +17,6 @@ variable {env : VEnv} {U : Nat}
 local notation:65 Γ " ⊢ " e " : " A:36 => HasType env U Γ e A
 local notation:65 Γ " ⊢ " e1 " ≡ " e2 " : " A:36 => IsDefEq env U Γ e1 e2 A
 
-/-- To relate a type to every type of `e`, it suffices to relate it to the
-syntax-directed ones: conversions on the second typing are appended as links. -/
-theorem HasTypeStrong.chain_peel
-    (H : ∀ {B}, env.HasTypeStrong U Γ e B false → env.TypeChain U Γ A B)
-    (h2 : env.HasTypeStrong U Γ e B b) : env.TypeChain U Γ A B := by
-  cases b with
-  | false => exact H h2
-  | true =>
-    generalize hb : true = b at h2
-    induction h2 with
-    | base h => exact H h
-    | defeq _ h1 _ _ _ _ _ ih => exact (ih H rfl).tail h1.defeq
-    | _ => cases hb
-
 /-- Uniqueness of types up to a chain of sort-typed definitional equalities. The proof is
 a plain induction on the first typing; the head inversions of `HeadInversion` replace the
 stratified inversion lemmas. -/

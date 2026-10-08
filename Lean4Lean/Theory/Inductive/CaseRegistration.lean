@@ -63,41 +63,13 @@ theorem projNames (R : VEnv.InductRegistration env decl key schema env') :
 
 end VEnv.InductRegistration
 
-/-- Every registry entry retains its independent formation derivation and
-the exact source constants justified when it was registered. -/
-theorem VEnv.WF.eliminator_origin {env : VEnv} (H : env.WF)
-    (hlookup : env.eliminators key schema) :
-    ∃ (base : VEnv) (source : VInductDecl) (block : VInductBlock), base.WF ∧ base ≤ env ∧
-      schema.Certified base source block ∧
-      source.types.head?.map (·.name) = some key ∧
-      (∀ value ∈ block.types ++ block.ctors,
-        env.constants value.name = some value.toVConstant) := by
-  rcases H with ⟨ds, H⟩
-  induction H with
-  | empty => cases hlookup
-  | decl h hds ih =>
-    rcases h.eliminators_iff.mp hlookup with ⟨source, -, R⟩ | hlookup
-    · obtain ⟨block, hcert, hkey, hc⟩ := R.constants
-      exact ⟨_, source, block, ⟨_, hds⟩, R.le, hcert, hkey, hc⟩
-    obtain ⟨base, source, block, hb, hle, hf, hk, hc⟩ := ih hlookup
-    exact ⟨base, source, block, hb, hle.trans (declaration_le h), hf, hk,
-      fun value hv => (declaration_le h).constants (hc value hv)⟩
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
-    simp only [VEnv.addProjections_eliminators] at hlookup
-    obtain ⟨base, source, block, hb, hle, hf, hk, hc⟩ := ih hlookup
-    exact ⟨base, source, block, hb, hle.trans VEnv.addProjections_le, hf, hk,
-      fun value hv => VEnv.addProjections_le.constants (hc value hv)⟩
-  | inductEliminators hb _ hle hf hk hc _ _ _ ih =>
-    rcases hlookup with ⟨rfl, rfl⟩ | hlookup
-    · exact ⟨_, _, _, ⟨_, hb⟩, hle.trans VEnv.addEliminator_le, hf, hk, hc.1⟩
-    · obtain ⟨base, source, block, hb, hle, hf, hk, hc⟩ := ih hlookup
-      exact ⟨base, source, block, hb, hle.trans VEnv.addEliminator_le, hf, hk, hc⟩
-
-/-- Every registry entry retains the header agreement certified at its registration. -/
-theorem VEnv.WF.eliminator_headerAgreement {env : VEnv} (H : env.WF)
+/-- Every registry entry retains its independent formation derivation, the header agreement
+certified at its registration and the exact source constants justified when it was registered. -/
+private theorem VEnv.WF.eliminator_registration {env : VEnv} (H : env.WF)
     (hlookup : env.eliminators key schema) :
     ∃ (base : VEnv) (source : VInductDecl) (block : VInductBlock), base.WF ∧ base ≤ env ∧
       schema.Certified base source block ∧ schema.HeaderAgreement base source ∧
+      source.types.head?.map (·.name) = some key ∧
       (∀ value ∈ block.types ++ block.ctors,
         env.constants value.name = some value.toVConstant) := by
   rcases H with ⟨ds, H⟩
@@ -107,21 +79,43 @@ theorem VEnv.WF.eliminator_headerAgreement {env : VEnv} (H : env.WF)
     rcases h.eliminators_iff.mp hlookup with ⟨source, -, R⟩ | hlookup
     · have hle := R.le
       obtain ⟨block, hcert, hkey, hc⟩ := R.constants
-      obtain ⟨block', -, -, -, -, -, hinstall', -, -, -, hcert', -, -, hhdr⟩ := R
-      exact ⟨_, source, block, ⟨_, hds⟩, hle, hcert, hhdr, hc⟩
-    obtain ⟨base, source, block, hb, hle, hf, hh, hc⟩ := ih hlookup
-    exact ⟨base, source, block, hb, hle.trans (declaration_le h), hf, hh,
+      obtain ⟨-, -, -, -, -, -, -, -, -, -, -, -, -, hhdr⟩ := R
+      exact ⟨_, source, block, ⟨_, hds⟩, hle, hcert, hhdr, hkey, hc⟩
+    obtain ⟨base, source, block, hb, hle, hf, hh, hk, hc⟩ := ih hlookup
+    exact ⟨base, source, block, hb, hle.trans (declaration_le h), hf, hh, hk,
       fun value hv => (declaration_le h).constants (hc value hv)⟩
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     simp only [VEnv.addProjections_eliminators] at hlookup
-    obtain ⟨base, source, block, hb, hle, hf, hh, hc⟩ := ih hlookup
-    exact ⟨base, source, block, hb, hle.trans VEnv.addProjections_le, hf, hh,
+    obtain ⟨base, source, block, hb, hle, hf, hh, hk, hc⟩ := ih hlookup
+    exact ⟨base, source, block, hb, hle.trans VEnv.addProjections_le, hf, hh, hk,
       fun value hv => VEnv.addProjections_le.constants (hc value hv)⟩
   | inductEliminators hb _ hle hf hk hc _ _ _ ih =>
     rcases hlookup with ⟨rfl, rfl⟩ | hlookup
-    · exact ⟨_, _, _, ⟨_, hb⟩, hle.trans VEnv.addEliminator_le, hf, hc.2.2.2.2, hc.1⟩
-    · obtain ⟨base, source, block, hb, hle, hf, hh, hc⟩ := ih hlookup
-      exact ⟨base, source, block, hb, hle.trans VEnv.addEliminator_le, hf, hh, hc⟩
+    · exact ⟨_, _, _, ⟨_, hb⟩, hle.trans VEnv.addEliminator_le, hf, hc.2.2.2.2, hk, hc.1⟩
+    · obtain ⟨base, source, block, hb, hle, hf, hh, hk, hc⟩ := ih hlookup
+      exact ⟨base, source, block, hb, hle.trans VEnv.addEliminator_le, hf, hh, hk, hc⟩
+
+/-- Every registry entry retains its independent formation derivation and
+the exact source constants justified when it was registered. -/
+theorem VEnv.WF.eliminator_origin {env : VEnv} (H : env.WF)
+    (hlookup : env.eliminators key schema) :
+    ∃ (base : VEnv) (source : VInductDecl) (block : VInductBlock), base.WF ∧ base ≤ env ∧
+      schema.Certified base source block ∧
+      source.types.head?.map (·.name) = some key ∧
+      (∀ value ∈ block.types ++ block.ctors,
+        env.constants value.name = some value.toVConstant) :=
+  let ⟨base, source, block, hb, hle, hf, _, hk, hc⟩ := H.eliminator_registration hlookup
+  ⟨base, source, block, hb, hle, hf, hk, hc⟩
+
+/-- Every registry entry retains the header agreement certified at its registration. -/
+theorem VEnv.WF.eliminator_headerAgreement {env : VEnv} (H : env.WF)
+    (hlookup : env.eliminators key schema) :
+    ∃ (base : VEnv) (source : VInductDecl) (block : VInductBlock), base.WF ∧ base ≤ env ∧
+      schema.Certified base source block ∧ schema.HeaderAgreement base source ∧
+      (∀ value ∈ block.types ++ block.ctors,
+        env.constants value.name = some value.toVConstant) :=
+  let ⟨base, source, block, hb, hle, hf, hh, _, hc⟩ := H.eliminator_registration hlookup
+  ⟨base, source, block, hb, hle, hf, hh, hc⟩
 
 /-- Schema ownership cannot precede the native family it describes. -/
 theorem VEnv.WF.eliminator_family_present {env : VEnv} (H : env.WF)

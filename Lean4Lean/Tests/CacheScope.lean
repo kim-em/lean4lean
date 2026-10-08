@@ -1,45 +1,29 @@
 import Lean4Lean.TypeChecker
 import Lean4Lean.Theory.Typing.Basic
-/-! # Conversion facts outliving a binder scope
+/-! # Conversion facts do not outlive a binder scope
 
-Design evidence, not a module of the library. Run with
+Regression test for the scope-local checker caches (`TypeChecker.State.leaveScope`; see
+`divergences.md`).
 
-    lake env lean docs/inductives/CacheScopeExperiment.lean
+Two singleton `Prop` families `I` and `J` with large elimination give types `SI := left K vv pp`
+and `SJ := right K vv rr` that are definitionally equal under a binder `q : P vv` (through
+`K vv q`, by proof irrelevance and iota), but not in the empty context, where the declarative
+theory cannot derive `SI ≡ SJ`. The closed definition
 
-Output before the checker scoped its binders (2026-10-06): "L4L whole term
-accepted", "C++ unseeded declaration rejected", "C++ whole declaration
-accepted", and the cache experiment `(false, (true, true, true, true), false,
-true, false)`. Since `withLocalDecl`/`withLetDecl` restore the caches and the
-equivalence manager on scope exit (`TypeChecker.State.leaveScope`), the output
-is "L4L whole term rejected" (the C++ lines are unchanged) and the cache
-experiment `(false, (true, true, true, true), false, false, false)`.
+    result : SJ := let seed : (q : P v) → Type 1 := fun q => …; let ret : SJ := zz; ret
 
-Using the two singleton families of `history/SingletonStrengthening.lean`, the closed
-definition `result : SJ := let seed : (q : P v) → Type 1 := fun q => …; let
-ret : SJ := zz; ret` (with `zz : SI` an axiom) is accepted by both the C++
-kernel and the Lean4Lean checker, while the same definition without the `seed`
-binding is rejected. The `seed` body forces the comparisons `SI ≡ … ≡ SJ`
-inside the scope of `q`; the persistent equivalence manager and caches then
-answer `SI ≡ SJ` outside that scope, where the declarative theory cannot derive
-it (see STRENGTHENING.md). The implemented conversion is therefore not local to
-the context, so no cache invariant of the form "every entry is derivable in the
-current context" holds for the current executable. Script originally written by
-the Astra reviewer and reproduced locally.
+(with `zz : SI` an axiom) has a `seed` body that forces the comparisons `SI ≡ … ≡ SJ` inside
+the scope of `q`. The C++ kernel, whose caches and equivalence manager persist across scopes,
+then answers `SI ≡ SJ` outside that scope and accepts `result`, while it rejects the same
+definition without `seed`. Lean4Lean restores its caches and equivalence manager when a binder
+is closed, so it rejects `result`.
+
+The last check runs the comparisons directly: before the binder `SI ≡ SJ` fails, under it
+each link succeeds, and after it `SI ≡ SJ` fails again, both before and after restoring the
+caches by hand. The axioms below are object-language declarations of the test environment.
 -/
 
-/-!
-Run with `lake env lean docs/inductives/history/SingletonStrengthening.lean`.
-
-Source admissibility and the exact declarative equality chain for the
-strengthening countermodel in STRENGTHENING.md. The opaque axioms below are
-object-language source declarations, not new axioms in the verification
-development. This file is not imported by the checker or theory.
-
-The final theorem checks the combination of the branch's actual inference
-rules. Neither it nor the source declarations formalize the complete
-VEnv.WF installation or the semantic interpretation of all abstract terms.
--/
-namespace InductiveStrengtheningPressure
+namespace Lean4Lean.Tests.CacheScope
 
 axiom C : Type
 axiom F : C → Type
@@ -54,8 +38,6 @@ inductive I : (n : C) → F n → F n → Prop where
 inductive J : (n : C) → F n → F n → Prop where
   | mk (v : F c) (h : P v) : J c v (rightMap v)
 
-#check I.rec
-#check J.rec
 
 def left (K : (v : F c) → P v → Type) (v : F c)
     (p : I c v (leftMap v)) : Type :=
@@ -87,6 +69,12 @@ theorem withProof (K : (v : F c) → P v → Type) (v : F c)
     _ = right K v (J.mk v q) := rfl
     _ = right K v r := congrArg (right K v) (show J.mk v q = r from rfl)
 
+/--
+info: Lean4Lean.Tests.CacheScope.I.rec: large singleton elimination accepted, three indices, zero parameters; isK=false
+---
+info: Lean4Lean.Tests.CacheScope.J.rec: large singleton elimination accepted, three indices, zero parameters; isK=false
+-/
+#guard_msgs in
 open Lean Lean.Elab.Command in
 run_elab do
   for name in [``I.rec, ``J.rec] do
@@ -96,9 +84,9 @@ run_elab do
       throwError "unexpected source recursor metadata"
     logInfo m!"{name}: large singleton elimination accepted, three indices, zero parameters; isK={info.k}"
 
-end InductiveStrengtheningPressure
+end Lean4Lean.Tests.CacheScope
 
-namespace InductiveStrengtheningPressure.Abstract
+namespace Lean4Lean.Tests.CacheScope.Abstract
 open Lean4Lean
 open Lean4Lean.VEnv
 
@@ -126,15 +114,26 @@ theorem proofMajorJoin {env : VEnv} {U : Nat} {Γ : List VExpr}
     .appDF hfj (.proofIrrel hj hr hcj)
   exact (left.trans hii).trans (right.trans hij).symm
 
-#print axioms proofMajorJoin
-end InductiveStrengtheningPressure.Abstract
+end Lean4Lean.Tests.CacheScope.Abstract
 
 
-namespace InductiveStrengtheningPressure
+namespace Lean4Lean.Tests.CacheScope
 axiom KK : (v : F c) → P v → Type
 axiom vv : F c
 axiom pp : I c vv (leftMap vv)
 axiom rr : J c vv (rightMap vv)
+/--
+info: small environment checked by C++: Eq present = false
+---
+info: L4L whole term rejected
+---
+info: C++ unseeded declaration rejected
+---
+info: C++ whole declaration accepted
+---
+info: cache experiment: (false, (true, true, true, true), false, false, false)
+-/
+#guard_msgs in
 open Lean in
 run_elab do
   let si := mkAppN (mkConst ``left) #[mkConst ``KK, mkConst ``vv, mkConst ``pp]
@@ -160,7 +159,7 @@ run_elab do
     return env
   let .ok smallEnv := build | throwError "small environment rejected"
   logInfo m!"small environment checked by C++: Eq present = {smallEnv.contains ``Eq}"
-  let zzName := Name.str `InductiveStrengtheningPressure "zz"
+  let zzName := Name.str `Lean4Lean.Tests.CacheScope "zz"
   let wrapped := Expr.letE `unused (mkSort (.succ .zero)) si si false
   let .ok smallEnv := Kernel.Environment.addDeclCore smallEnv 0 50000
     (.axiomDecl { name := zzName, levelParams := [], type := wrapped, isUnsafe := false }) none
@@ -186,12 +185,12 @@ run_elab do
   | .ok _ => logInfo "L4L whole term accepted"
   | .error _ => logInfo "L4L whole term rejected"
   let unseeded := Kernel.Environment.addDeclCore smallEnv 0 50000
-    (.defnDecl { name := Name.str `InductiveStrengtheningPressure "unseeded", levelParams := [], type := sj, value := finalBody, hints := .opaque, safety := .safe }) none
+    (.defnDecl { name := Name.str `Lean4Lean.Tests.CacheScope "unseeded", levelParams := [], type := sj, value := finalBody, hints := .opaque, safety := .safe }) none
   match unseeded with
   | .ok _ => logInfo "C++ unseeded declaration accepted"
   | .error _ => logInfo "C++ unseeded declaration rejected"
   let native := Kernel.Environment.addDeclCore smallEnv 0 50000
-    (.defnDecl { name := Name.str `InductiveStrengtheningPressure "result", levelParams := [], type := sj, value := term, hints := .opaque, safety := .safe }) none
+    (.defnDecl { name := Name.str `Lean4Lean.Tests.CacheScope "result", levelParams := [], type := sj, value := term, hints := .opaque, safety := .safe }) none
   match native with
   | .ok _ => logInfo "C++ whole declaration accepted"
   | .error _ => logInfo "C++ whole declaration rejected"
@@ -218,4 +217,4 @@ run_elab do
   match result with
   | .ok r => logInfo m!"cache experiment: {repr r}"
   | .error _ => throwError "checker exception"
-end InductiveStrengtheningPressure
+end Lean4Lean.Tests.CacheScope

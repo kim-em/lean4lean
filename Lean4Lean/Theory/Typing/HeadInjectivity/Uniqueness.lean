@@ -36,8 +36,9 @@ theorem forall₂_append_left {R : α → β → Prop} :
   | [], _ :: _, _, _, h, _ => nomatch h
   | _ :: _, [], _, _, h, _ => nomatch h
 
-/-- Copy of `HasTypeStrong.chain_peel` (`UniqueTyping.lean`). -/
-theorem HasTypeStrong.chain_peel'
+/-- To relate a type to every type of `e`, it suffices to relate it to the
+syntax-directed ones: conversions on the second typing are appended as links. -/
+theorem HasTypeStrong.chain_peel
     (H : ∀ {B}, env.HasTypeStrong U Γ e B false → env.TypeChain U Γ A B)
     (h2 : env.HasTypeStrong U Γ e B b) : env.TypeChain U Γ A B := by
   cases b with
@@ -77,7 +78,7 @@ theorem HasTypeStrong.uniq_congr (henv : env.WF) (core : env.HeadInjectivityCore
     intro hΓ
     have hi : ∀ {B b₂}, env.HasTypeStrong U Γ (.bvar i) B b₂ → env.TypeChain U Γ A' B := by
       intro B b₂ h2
-      refine HasTypeStrong.chain_peel' (fun h2 => ?_) h2
+      refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
       cases h2 with
       | bvar b1 _ _ => cases a1.uniq b1; exact .refl a3.hasType
     refine ⟨hi, fun {Γ₀ k e'} W hc => ?_⟩
@@ -91,7 +92,7 @@ theorem HasTypeStrong.uniq_congr (henv : env.WF) (core : env.HeadInjectivityCore
     have hi : ∀ {B b₂}, env.HasTypeStrong U Γ (.sort l) B b₂ →
         env.TypeChain U Γ (.sort (.succ l')) B := by
       intro B b₂ h2
-      refine HasTypeStrong.chain_peel' (fun h2 => ?_) h2
+      refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
       cases h2 with
       | sort' _ b2 b3 => exact .single (.sortDF a2 b2 (VLevel.succ_congr (a3.symm.trans b3)))
     refine ⟨hi, fun {Γ₀ k e'} W hc => ?_⟩
@@ -108,7 +109,7 @@ theorem HasTypeStrong.uniq_congr (henv : env.WF) (core : env.HeadInjectivityCore
     have hi : ∀ {B b₂}, env.HasTypeStrong U Γ (.const c ls) B b₂ →
         env.TypeChain U Γ (ci.type.instL ls) B := by
       intro B b₂ h2
-      refine HasTypeStrong.chain_peel' (fun h2 => ?_) h2
+      refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
       cases h2 with
       | const b1 _ _ _ _ _ => cases a1.symm.trans b1; exact .refl a6.hasType
     refine ⟨hi, fun {Γ₀ k e'} W hc => ?_⟩
@@ -122,7 +123,7 @@ theorem HasTypeStrong.uniq_congr (henv : env.WF) (core : env.HeadInjectivityCore
     have hi : ∀ {B b₂}, env.HasTypeStrong U Γ (.elim block owner.val (target :: levels)) B b₂ →
         env.TypeChain U Γ (type.instL (target :: levels)) B := by
       intro B b₂ h2
-      refine HasTypeStrong.chain_peel' (fun h2 => ?_) h2
+      refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
       generalize he : VExpr.elim block owner.val (target :: levels) = expression at h2
       cases h2 with
       | @elim block' type' levels' target' _ _ schema' owner' b1 b2 _ _ _ _ =>
@@ -148,7 +149,7 @@ theorem HasTypeStrong.uniq_congr (henv : env.WF) (core : env.HeadInjectivityCore
     have hi : ∀ {B' b₂}, env.HasTypeStrong U Γ (.app f a) B' b₂ →
         env.TypeChain U Γ (B.inst a) B' := by
       intro B' b₂ h2
-      refine HasTypeStrong.chain_peel' (fun h2 => ?_) h2
+      refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
       cases h2 with
       | app _ _ _ _ _ b6 _ _ =>
         have ⟨_, hB⟩ := core.forallE_chain hΓ ((ih6 hΓ).1 b6)
@@ -165,7 +166,7 @@ theorem HasTypeStrong.uniq_congr (henv : env.WF) (core : env.HeadInjectivityCore
     have hi : ∀ {B b₂}, env.HasTypeStrong U Γ (.proj typeName index major) B b₂ →
         env.TypeChain U Γ fieldType B := by
       intro B b₂ h2
-      refine HasTypeStrong.chain_peel' (fun h2 => ?_) h2
+      refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
       cases h2 with
       | proj b1 b2 b3 b4 b5 b6 _ b8 b9 b10 _ b12 =>
         cases henv.ordered.projections_unique a1 b1
@@ -191,7 +192,7 @@ theorem HasTypeStrong.uniq_congr (henv : env.WF) (core : env.HeadInjectivityCore
     have hi : ∀ {B' b₂}, env.HasTypeStrong U Γ (.lam A body) B' b₂ →
         env.TypeChain U Γ (.forallE A B) B' := by
       intro B' b₂ h2
-      refine HasTypeStrong.chain_peel' (fun h2 => ?_) h2
+      refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
       cases h2 with
       | lam _ _ _ _ b5 _ =>
         exact ((ih5 hΓ').1 b5).map (f := VExpr.forallE _)
@@ -209,7 +210,7 @@ theorem HasTypeStrong.uniq_congr (henv : env.WF) (core : env.HeadInjectivityCore
     have hi : ∀ {B b₂}, env.HasTypeStrong U Γ (.forallE A body) B b₂ →
         env.TypeChain U Γ (.sort (.imax u v)) B := by
       intro B b₂ h2
-      refine HasTypeStrong.chain_peel' (fun h2 => ?_) h2
+      refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
       cases h2 with
       | forallE b1 b2 b3 b4 =>
         have e1 := core.sort_sort hΓ ((ih3 hΓ).1 b3)

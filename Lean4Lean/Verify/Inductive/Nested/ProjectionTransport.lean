@@ -1,52 +1,19 @@
 import Lean4Lean.Verify.Inductive.Nested.RestoredEquationContainers
 import Lean4Lean.Verify.Inductive.Nested.RestoredEquationProjNames
 
-/-! The hypothesis `NestedProjectionTransportGap`
-(`Nested/RestoredEquationContainers.lean`) of the restored-equation route.
+/-! Beta reduction and the context-carrying projection transport.
 
-**Primary field types (`primaryFields`).** The lowered constructor type of an
-original structure restores syntactically to the source constructor type. The
-renaming replacement `replaceRen ρ σ` of the lowered constructor type beta
-reduces to its restoration (`Restoration.expr_betaRed`, the syntactic form of
-`RenamingRestorationSubstitution.go_simAt`): each inserted restoration lambda
-`λ params, target levels args` meets a complete parameter spine. Field types
-commute with the replacement (`VProjectionInfo.fieldType_replaceRen'`), and
-field types computed from a beta reduct of the constructor type are beta
-reducts of the field types (`VProjectionInfo.fieldType_betaRed`), as
-instantiating parameters and preceding fields is substitution. So the source
-field type is a beta reduct of the transported lowered field type. The
-projection rule `projDF` carries no well-formedness of its context, so the
-final step, beta conversion of a typed term, is taken in an arbitrary context:
-`VEnv.BetaConversionAnyContext`. In well-formed contexts this is beta subject
-reduction (`VExpr.BetaRed.simAt`); the arbitrary-context form is a named
-hypothesis here.
-
-**Auxiliary projections (`auxiliary`).** For a projection of an auxiliary
-structure-like family `A`, renamed to its container `J`, the transported major
-premise of `projDF` has the type `(λ params, J levels args) params' indices'`,
-a beta redex, while `projDF` of the final environment needs the major at the
-syntactic application `J levels' (args[params'] ++ indices')`. In an
-ill-formed lowered context this transport fails: take a block with a
-parameter `α` and an auxiliary family `A α := Prod Nat (Foo α)`, and the
-lowered context `[A (bvar 5)]` (unchecked, with an out-of-scope parameter).
-The lowered environment derives `proj A 0 (bvar 0) : Nat` (`projDF`: the
-major is typed by `bvar`, the field type `Nat` does not mention the
-parameter). Its image `proj J 0 (bvar 0)` in the context
-`[(λ α, Prod Nat (Foo α)) (bvar 5)]` has no typing in the final environment:
-the only rule typing a projection whose major is a variable is `projDF`, which
-needs the variable at a syntactic `Prod` application, reachable from the
-context entry only through a definitional equality whose left side (the
-context entry, mentioning an out-of-scope variable) has no typing. So the
-`auxiliary` field is not a consequence of the run in the presence of block
-parameters and auxiliary structure-like families; it is kept as the named
-hypothesis `NestedAuxiliaryProjectionTransport` of this arbitrary-context
-route. The restored-equation route instead uses the context-carrying transport
-`RenamingReplacementOnCtx.isDefEq` (`Theory/Inductive/RestorationRenamingOnCtx.lean`),
-which receives the well-formedness of the image context in every projection
-rule (`ProjectionTransportOnCtx`); there beta subject reduction applies, the
-primary transport needs no hypothesis
-(`ProjectionTransportOnCtx.of_ctorType_betaRed`, below), and the auxiliary
-transport is proved in `Nested/AuxiliaryProjectionTransport.lean`.
+The lowered constructor type of an original structure restores syntactically to the source
+constructor type. The renaming replacement `replaceRen ρ σ` of the lowered constructor type beta
+reduces to its restoration (`Restoration.expr_betaRed`): each inserted restoration lambda
+`λ params, target levels args` meets a complete parameter spine. Field types commute with the
+replacement (`VProjectionInfo.fieldType_replaceRen'`), and field types computed from a beta
+reduct of the constructor type are beta reducts of the field types
+(`VProjectionInfo.fieldType_betaRed`), as instantiating parameters and preceding fields is
+substitution. `ProjectionTransportOnCtx` receives the well-formedness of the image context in
+every projection rule, so beta subject reduction (`VExpr.BetaRed.simAt`) applies and the primary
+transport needs no hypothesis (`ProjectionTransportOnCtx.of_ctorType_betaRed`). The auxiliary
+transport is in `Nested/AuxiliaryProjectionTransport.lean`.
 -/
 
 namespace Lean4Lean
@@ -444,11 +411,4 @@ theorem ProjectionTransportOnCtx.of_ctorType_betaRed {envS : VEnv}
 
 end VEnv
 
-namespace VerifyInductive
-
-/-! ### Primary field types -/
-
-/-! ### The gap -/
-
-end VerifyInductive
 end Lean4Lean

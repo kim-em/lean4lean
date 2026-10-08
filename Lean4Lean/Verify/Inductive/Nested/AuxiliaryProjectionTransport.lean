@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Nested.ProjectionTransportGap
+import Lean4Lean.Verify.Inductive.Nested.ProjectionTransport
 
 /-! The projection transport of the restored-equation route in well-formed
 contexts, with no hypothesis.
