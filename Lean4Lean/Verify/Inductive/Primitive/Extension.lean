@@ -4,6 +4,16 @@ import Lean4Lean.Verify.Inductive.Prelude.EqReady
 import Lean4Lean.Verify.Inductive.Primitive.Context
 import Lean4Lean.Verify.Inductive.Install.Result
 
+/-!
+# The primitive inductive extension
+
+The end of the primitive path of section 3.1 of `docs/inductives/DESIGN.md`: a successful
+run on `Bool` or `Nat` yields well-formed models of the output that extend the source models,
+together with the source `AddInduct` (`SourceAddInduct`,
+`addInductiveDeclaration.primitiveExtensionModelWF`).
+None of these theorems has a premise about the prelude `Eq`.
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -12,7 +22,7 @@ open Kernel
 namespace VerifyInductive
 
 /-- A successful primitive Bool/Nat run extends the complete environment
-model without any premise about the toConstantsInstallation state of `Eq`. -/
+model without any premise about the prelude declaration of `Eq`. -/
 theorem PrimitiveInstallation.extendSafeExact
     {ves : VEnvs}
     (Hrun : PrimitiveInstallation c stats nparams depth
@@ -86,7 +96,7 @@ open Kernel
 namespace VerifyInductive
 
 /-- The primitive execution path retains its independent source judgment and
-complete final model without any equality-toConstantsInstallation premise. -/
+complete model of the output without any premise about the prelude `Eq`. -/
 theorem PrimitiveRunResult.extendSafeWithSpecification
     {ves : VEnvs}
     (Hrun : PrimitiveRunResult source
@@ -122,8 +132,8 @@ theorem PrimitiveRunResult.extendSafeWithSpecification
     extension := hadd
   }
 
-/-- Complete primitive `AddInductive.run` refinement without an
-equality-toConstantsInstallation premise. -/
+/-- Complete primitive `AddInductive.run` refinement without a premise about
+the prelude `Eq`. -/
 theorem AddInductive.run.primitiveExtensionModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
@@ -150,7 +160,7 @@ theorem AddInductive.run.primitiveExtensionModelWF
       simpa [hsource] using Hresult
     exact Hresult'.extendSafeWithSpecification wf htels
 
-/-- Primitive post-lowering refinement with no equality-toConstantsInstallation premise. -/
+/-- Primitive post-lowering refinement with no premise about the prelude `Eq`. -/
 theorem Environment.addInductiveAfterLowering.primitiveExtensionModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
@@ -192,7 +202,7 @@ theorem Environment.addInductiveAfterLowering.primitiveExtensionModelWF
   rw [haux, htypes]
   simpa [c, primitiveAddInductiveContext] using Hrun
 
-/-- End-to-end primitive refinement without an equality-toConstantsInstallation premise. -/
+/-- End-to-end primitive refinement without a premise about the prelude `Eq`. -/
 theorem Environment.addInductive.primitiveExtensionModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
@@ -217,8 +227,8 @@ theorem Environment.addInductive.primitiveExtensionModelWF
         Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
-/-- Checked primitive declaration refinement without an equality-toConstantsInstallation
-premise. -/
+/-- Checked primitive declaration refinement without a premise about the
+prelude `Eq`. -/
 theorem addInductiveDeclaration.primitiveExtensionModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)

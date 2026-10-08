@@ -1,6 +1,14 @@
 import Lean4Lean.Verify.Inductive.Primitive.ConstructorParams
 import Lean4Lean.Verify.Inductive.Rules.RuleTranslations
 
+/-!
+# Lowering is the identity on primitive declarations
+
+Nested lowering of a recognized `Bool` or `Nat` declaration returns it unchanged with no
+auxiliary families (`ElimNestedInductive.run'.primitiveNoop`), so the primitive path never
+reaches the nested pipeline.
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -10,7 +18,7 @@ namespace VerifyInductive
 
 set_option linter.unusedSimpArgs false in
 /-- Lowering a recognized primitive declaration is atomic: every successful
-run returns the original Bool/Nat declaration and introduces no nested
+run returns the submitted Bool/Nat declaration unchanged and introduces no nested
 auxiliaries.  This is proved from the executable lowering clauses for the two
 finite primitive shapes; it does not assert validity for an intermediate
 header-only context. -/

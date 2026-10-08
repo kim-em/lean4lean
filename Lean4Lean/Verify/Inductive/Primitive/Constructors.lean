@@ -1,5 +1,14 @@
 import Lean4Lean.Verify.Inductive.Install.BlockCertificate
 
+/-!
+# Constructor installation on the primitive path
+
+The executable constructor fold on a primitive declaration completes the atomic batch of
+`Bool` or `Nat` constants; only then is the ordinary `ContextWF` restored
+(`declareConstructors.primitiveWF`). The constructor types `Bool`, `Nat` and `Nat → Nat` are
+certified directly (`SourceCtorsCertified.ofPrimitiveShape`).
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -132,8 +141,8 @@ theorem PrimitiveHeaderEnvironment.parameterScope_eq_nil
 
 /-- A raw header translation of a canonical primitive declaration fixes its
 complete abstract payload.  Stating the finite fact on the translation lets
-it remain available after the executable primitive phases have been adapted
-to the shared completed-constructor boundary. -/
+it remain available after the primitive constructor check has been turned
+into the shared checked formation. -/
 theorem _root_.Lean4Lean.TrInductDeclHeaders.primitiveAbstractConstants
     (H : TrInductDeclHeaders env lparams nparams types isUnsafe decl envTypes)
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
@@ -288,8 +297,8 @@ theorem SourceCtorsCertified.ofPrimitiveShape {targets : List VInductiveType}
 
 /-- The executable constructor declaration fold is verified atomically on a
 canonical primitive branch.  Validity is restored only after the family
-header and all constructors have been identified as one complete toConstantsInstallation
-batch. -/
+header and all constructors have been identified as one complete batch of
+Bool or Nat constants. -/
 theorem AddInductive.declareConstructors.primitiveWF
     (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)

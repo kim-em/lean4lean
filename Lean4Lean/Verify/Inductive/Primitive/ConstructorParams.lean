@@ -4,6 +4,15 @@ import Lean4Lean.Verify.Inductive.Install.Lookups
 import Lean4Lean.Verify.Inductive.Rules.RuleTranslations
 import Lean4Lean.Verify.Inductive.Constructor.LiteralDisjoint
 
+/-!
+# Completing the primitive constructor check
+
+Adds to the primitive constructor facts the invariants of the kernel environment that the
+shared recursor phase needs: lookup of the installed families (`InductInfosFromDecl`),
+constructor-parameter agreement (`CtorParamsAgree`) and mutual-family closure, yielding
+`PrimitiveConstructorCheck` (`AddInductive.primitiveConstructorPhases.WF`).
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -11,8 +20,8 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- Internal completed primitive prefix before its persistent production
-origin/coherence fields are packaged for the common recursor boundary. -/
+/-- The primitive constructor check without the kernel-environment lookup and
+constructor-parameter agreement fields of `PrimitiveConstructorCheck`. -/
 structure PrimitiveConstructorCoreCheck
     (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
@@ -29,10 +38,11 @@ structure PrimitiveConstructorCoreCheck
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
     isUnsafe decl H.context.venv declared.venvCtors
 
-/-- Select one constructor installed by the completed primitive atomic batch
-and recover its exact abstract semantic witness.  This is the primitive
-counterpart of the ordinary two-fold positional bridge; it uses only the
-staged header map WF and never asserts a valid header-only context. -/
+/-- Select one constructor installed by the primitive atomic batch and recover
+its family's kernel entry and constructor-parameter agreement
+(`CtorParamsAgreeAt`).  This is the primitive counterpart of
+`OrdinaryConstructorCheck.installedConstructorCoherenceAt`; it never asserts a
+valid header-only context. -/
 theorem PrimitiveConstructorCoreCheck.installedConstructorCoherenceAt
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -166,7 +176,7 @@ theorem PrimitiveConstructorCoreCheck.installedConstructorCoherenceAt
   · exact R.declared.installed.le
 
 /-- The two atomic primitive installation stages identify every newly visible
-production inductive family with its exact source declaration position. -/
+inductive family of the kernel environment with its exact source declaration position. -/
 theorem PrimitiveConstructorCoreCheck.inductInfosFromDecl
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -410,9 +420,9 @@ theorem PrimitiveConstructorCoreCheck.inductInfosFromDecl
     exact False.elim (R.declared.nonInductive entry hentry familyInfo
       hvalue.symm)
 
-/-- Atomic primitive header and constructor installation preserves semantic
-coherence for old families and establishes it positionally for the newly
-installed canonical family. -/
+/-- Atomic primitive header and constructor installation preserves
+constructor-parameter agreement (`CtorParamsAgree`) for the base families and
+establishes it positionally for the newly installed canonical family. -/
 theorem PrimitiveConstructorCoreCheck.ctorParamsAgree
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -502,8 +512,8 @@ theorem PrimitiveConstructorCoreCheck.ctorParamsAgree
     exact False.elim (R.declared.nonInductive entry hentry familyInfo
       hvalue.symm)
 
-/-- Package the internally accumulated finite evidence as the public
-primitive constructor-phase result consumed by the common recursor adapter. -/
+/-- Package the finite facts accumulated here as the primitive constructor
+check (`PrimitiveConstructorCheck`) used by the shared recursor phase. -/
 def PrimitiveConstructorCoreCheck.complete
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -525,8 +535,8 @@ def PrimitiveConstructorCoreCheck.complete
   ctorParamsAgree := R.ctorParamsAgree
 
 /-- The successful executable check is followed by the exact atomic
-constructor fold.  Validity is regained only at the fold's completed Bool/Nat
-endpoint. -/
+constructor fold.  Validity is regained only at the end of the fold, once the
+Bool/Nat batch is complete. -/
 theorem AddInductive.primitiveConstructorCorePhases.WF
     (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
@@ -574,7 +584,8 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
               H.translation Hdeclared.translation }, trivial⟩
 
 /-- The complete executable primitive constructor prefix, including the
-persistent production-origin and constructor-semantic invariants. -/
+kernel-environment lookup (`InductInfosFromDecl`) and constructor-parameter
+agreement invariants. -/
 theorem AddInductive.primitiveConstructorPhases.WF
     (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
@@ -601,7 +612,7 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The non-inductive constructor half of a completed primitive batch
+/-- The non-inductive constructor half of a complete primitive batch
 preserves closure of every mutual family visible after the header half. -/
 theorem PrimitiveConstructorEnvironment.closesMutuals
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}

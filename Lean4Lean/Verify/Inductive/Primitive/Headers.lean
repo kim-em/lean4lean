@@ -3,6 +3,16 @@ import Lean4Lean.Verify.Inductive.Header.Declaration
 import Lean4Lean.Verify.Inductive.Header.Installation
 import Lean4Lean.Verify.Inductive.Install.Headers
 
+/-!
+# Headers of a primitive declaration
+
+The header phase on the primitive path: the executable header installation is an atomic
+batch (`declareInductiveTypes.installsHeadersAtomicWF`), the canonical `Bool`/`Nat` syntax
+fixes the constructor targets, and the checked headers are packaged as a
+`PrimitiveHeaderEnvironment` (`declareInductiveTypes.primitiveHeadersWF`), whose checking
+context is only a `LocalContextWF`.
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -35,7 +45,7 @@ theorem VEnv.exists_addConstVals
     rcases ih htailFresh hnodup.2 with ⟨out, hout⟩
     exact ⟨out, by simp [VEnv.addConstVals, hnext, hout]⟩
 
-/-- Successful production header installation always determines a matching
+/-- Successful executable header installation always determines a matching
 abstract atomic batch, even when primitive reserved names are allowed.  The
 result deliberately stops at `AtomicAddConstants`: no validity claim is made
 for the header-only abstract environment. -/
@@ -192,8 +202,8 @@ open Kernel
 namespace VerifyInductive
 
 /-- Package skeleton-free semantic assembly against an atomic primitive
-header installation.  The resulting context remains staged until constructor
-installation completes the toConstantsInstallation batch. -/
+header installation.  The resulting context is only a `LocalContextWF` until
+constructor installation completes the batch of Bool or Nat constants. -/
 def HeaderDeclarationOf.toPrimitiveHeaderEnvironment
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
