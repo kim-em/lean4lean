@@ -377,10 +377,7 @@ theorem isDefEqUnitLike.framed (ht : GF G t) (hs : GF G s) :
   refine (RecM.Framed.liftExcept (R := fun _ => True) fun _ _ => trivial).bind fun _ _ => ?_
   split <;> try exact .pure trivial
   refine (RecM.Framed.liftExcept (R := fun _ => True) fun _ _ => trivial).bind fun _ _ => ?_
-  split <;> try exact .pure trivial
-  split <;> try exact .pure trivial
-  split <;> try exact .pure trivial
-  split <;> try exact .pure trivial
+  repeat (split <;> [skip; exact .pure trivial])
   exact (RecM.Framed.inferType hs).bind fun _ h => RecM.Framed.isDefEqCore htT h
 
 theorem isDefEqCore'.framed (ht : GF G t) (hs : GF G s) :

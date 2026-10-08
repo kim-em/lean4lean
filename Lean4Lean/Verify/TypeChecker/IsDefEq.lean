@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.TypeChecker.Reduce
 import Lean4Lean.Verify.EquivManager
+import Lean4Lean.Theory.Typing.ProjectionFamilyArity
 
 open Lean4Lean
 
@@ -632,8 +633,6 @@ theorem isDefEqUnitLike.WF {c : VContext} {s : VState}
   rename_i hinduct
   split <;> [skip; exact .pure nofun]
   rename_i hunsafe
-  split <;> [skip; exact .pure nofun]
-  rename_i harity
   refine (inferType.WF he₂).bind fun sty _ _ ⟨sty', _, _, hsty, hsty'⟩ => ?_
   refine (isDefEqCore.WF htT hsty).mono fun b _ _ h hb => ?_
   have hb := h (by simpa using hb)
@@ -644,12 +643,14 @@ theorem isDefEqUnitLike.WF {c : VContext} {s : VState}
   have ⟨args', hargs, htT''⟩ := stk.translatedArguments
   have .const hfc hls hlen := stk.tr
   have heq := htT'.uniq c.Ewf (.refl c.Ewf c.Δwf) htT''
-  obtain ⟨info, hinfo, -, decl, doms, result, -, -, -, -, -, -, -, -, -, -, hnf, hnp, hni, -, -, -, -⟩ :=
+  obtain ⟨info, hinfo, -, decl, doms, result, -, -, -, -, -, -, -, -, -, -, hnf, hnp, hni, -, ⟨_, hfam⟩, -, -⟩ :=
     VContext.registryShape hci hfc rfl hcci (by simpa using hinduct)
+  -- the type is an application of the structure at a sort, so it supplies exactly the
+  -- parameters (the structure has no indices)
   have hlenP : args'.length = info.nparams := by
-    have h2 : tType.getAppNumArgs = _ := beq_iff_eq.1 harity
-    rw [Expr.getAppNumArgs_eq, ← Expr.getAppArgsList_reverse, List.length_reverse] at h2
-    rw [← Lean4Lean.List.Forall₂.length_eq hargs, h2]; exact hnp
+    have ⟨_, hsort⟩ := hty'.isType c.Ewf.ordered c.Δwf.toCtx
+    have hsort := (hsort.defeqU_l c.Ewf c.Δwf hdefeq.symm).defeqU_l c.Ewf c.Δwf heq
+    rw [VEnv.HasType.projectionFamily_arity c.Ewf c.Δwf.toCtx hinfo hfam hsort, ← hni]; rfl
   have hfields : info.numFields = 0 := hnf
   have ht : c.HasType e₁' (VExpr.mkApps (.const I _) args') :=
     (hty'.defeqU_r c.Ewf c.Δwf hdefeq.symm).defeqU_r c.Ewf c.Δwf heq
