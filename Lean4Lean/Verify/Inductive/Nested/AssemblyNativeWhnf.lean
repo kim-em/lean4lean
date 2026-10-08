@@ -176,6 +176,27 @@ theorem AddConstants.name_eq
 
 /-- The recursor entries of a final assembly shape are installed in the
 output environment under the names of their abstract values. -/
+theorem NestedFinalAssemblyBase.find_recursorEntry
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
+    {allIndNames : List Name} {sourceTypes : List InductiveType}
+    {auxRecNames : List Name} {outEnv : Environment}
+    {sourceEnv : VEnv} {decl : VInductDecl} {lparams : List Name}
+    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
+    {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
+    (C : NestedFinalAssemblyBase H sourceEnv decl lparams nparams isUnsafe safety)
+    (hwf : sourceProdEnv.constants.WF) :
+    ∀ entry ∈ C.recursorEntries,
+      outEnv.find? entry.2.name = some entry.1 := by
+  intro entry hentry
+  rcases H.freshTrace hwf with ⟨actual, Hactual⟩
+  have hperm := C.productionOrder actual Hactual
+  have hmem : entry.1 ∈ actual := hperm.symm.mem_iff.mp
+    (List.mem_map.mpr ⟨entry, List.mem_append_right _ hentry, rfl⟩)
+  rw [← C.canonical.recursorsAdded.name_eq entry hentry]
+  exact Hactual.findEntry hwf hmem
+
 theorem NestedFinalAssemblyShape.find_recursorEntry
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -188,14 +209,8 @@ theorem NestedFinalAssemblyShape.find_recursorEntry
     (C : NestedFinalAssemblyShape H sourceEnv decl lparams nparams isUnsafe safety)
     (hwf : sourceProdEnv.constants.WF) :
     ∀ entry ∈ C.recursorEntries,
-      outEnv.find? entry.2.name = some entry.1 := by
-  intro entry hentry
-  rcases H.freshTrace hwf with ⟨actual, Hactual⟩
-  have hperm := C.productionOrder actual Hactual
-  have hmem : entry.1 ∈ actual := hperm.symm.mem_iff.mp
-    (List.mem_map.mpr ⟨entry, List.mem_append_right _ hentry, rfl⟩)
-  rw [← C.canonical.recursorsAdded.name_eq entry hentry]
-  exact Hactual.findEntry hwf hmem
+      outEnv.find? entry.2.name = some entry.1 :=
+  C.toNestedFinalAssemblyBase.find_recursorEntry hwf
 
 /-- `compilationData_of_hitShape'` at a given specialization list of
 `restorationTablesRestoringAll` (rather than at an existentially chosen one):
@@ -299,7 +314,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntryInfos
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (C : NestedFinalAssemblyShape E.restoration
+    (C : NestedFinalAssemblyBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)
