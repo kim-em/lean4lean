@@ -31,23 +31,6 @@ open Kernel
 
 /-! ### Direct constructors -/
 
-/-- The constructors of a direct family are the container constructors,
-specialized at the arguments and closed over the given parameters. -/
-theorem ContainerSpecialization.directFamily_ctors
-    {a : ContainerSpecialization} {U : Nat} {params : List VExpr}
-    {direct : VInductiveType} (H : a.directFamily U params = some direct) :
-    List.Forall₂ (fun ctor dc : VConstVal => dc.type = VExpr.wrapForalls params
-        (VExpr.instantiateForallPrefix (ctor.type.instL a.levels) a.arguments))
-      a.source.ctors direct.ctors := by
-  unfold ContainerSpecialization.directFamily at H
-  simp only [bind, Option.bind_eq_some_iff] at H
-  obtain ⟨type, _, ctors, hctors, he⟩ := H
-  cases Option.some.inj he
-  refine Lean4Lean.List.Forall₂.imp (fun ctor dc h => ?_) (List.mapM_eq_some.1 hctors)
-  simp only [Option.bind_eq_some_iff, pure, Option.some.injEq] at h
-  obtain ⟨spec, hspec, rfl⟩ := h
-  rw [specializeType_eq_instantiateForallPrefix hspec]
-
 /-- Replace a parameter telescope by a definitionally equal one, for a term
 definitionally equal to the telescope. -/
 theorem VEnv.IsDefEqU.wrapForalls_params {env : VEnv} {U : Nat} (henv : env.WF)

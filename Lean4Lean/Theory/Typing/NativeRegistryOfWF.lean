@@ -132,9 +132,9 @@ theorem WF'.nativeRegistry (formed : env.WF' declarations) :
         · exact retain (covered equation (by
             rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
               VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at present))
-  | inductEliminators baseHistory _ below certified keyEq constants fresh _ ih =>
+  | inductEliminators baseHistory _ below certified keyEq constants fresh compat _ ih =>
     obtain ⟨table, history, covered⟩ := ih
-    exact ⟨table, .eliminators history baseHistory below certified keyEq constants fresh,
+    exact ⟨table, .eliminators history baseHistory below certified keyEq constants fresh compat,
       fun equation present => covered equation present⟩
   | inductProjections baseHistory _ hcovered sourceNames typeHeadersWF constructorUvars constructorsWF
       parameters shape types constructors projections addTypes addConstructors _ ih =>

@@ -1,7 +1,6 @@
 import Lean4Lean.Theory.Typing.NativeIotaPatterns
 import Lean4Lean.Theory.Typing.NativeMajorFamily
-import Lean4Lean.Verify.Inductive.Nested.RecursorProvenance
-import Lean4Lean.Verify.Inductive.Nested.AssemblyNativeWhnf
+import Lean4Lean.Theory.Inductive.NativeIotaRestoration
 
 /-! Soundness of native iota patterns.
 

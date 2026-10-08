@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.EquationRestorationRhs
 import Lean4Lean.Verify.Inductive.Recursor.RestoredRealization
 import Lean4Lean.Verify.TypeChecker.AlphaLocality
+import Lean4Lean.Theory.Inductive.NativeIotaRestoration
 
 /-! Commutation of executable nested restoration with `Restoration.expr`.
 
@@ -24,9 +25,6 @@ commutation theorem itself, under the hit-shape side condition
 
 namespace Lean4Lean.InductiveSignature
 
-/-- Names on which `Restoration.expr` acts nontrivially. -/
-def Restoration.restorableNames (r : Restoration) : List Name :=
-  r.heads.map (·.auxiliary) ++ r.recursors.map Prod.fst
 
 theorem Restoration.expr.go_mkApps (r : Restoration) {xs ys : List VExpr}
     (H : List.Forall₂ (fun x y => Restoration.expr.go r x [] = some y) xs ys)
@@ -40,12 +38,6 @@ theorem Restoration.expr.go_mkApps (r : Restoration) {xs ys : List VExpr}
     rw [ih]
     simp [Restoration.expr.go, hxy]
 
-theorem Restoration.heads_find?_eq_none {r : Restoration} {name : Name}
-    (h : name ∉ r.heads.map (·.auxiliary)) :
-    r.heads.find? (fun h => h.auxiliary == name) = none := by
-  apply List.find?_eq_none.mpr
-  intro head hmem heq
-  exact h (List.mem_map.mpr ⟨head, hmem, by simpa using heq⟩)
 
 theorem Restoration.recursorName_of_not_mem {r : Restoration} {name : Name}
     (h : name ∉ r.recursors.map Prod.fst) : r.recursorName name = name := by

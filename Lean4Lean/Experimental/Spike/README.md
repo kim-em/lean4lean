@@ -101,6 +101,11 @@ from adequacy (the relation demands reduction to the *same* `sort u`), not from 
 
 ### 1.3 Sorries and the axiom
 
+*Update (Phase 1a, `docs/inductives/PHASE1_NOTES.md`): the axiom `Params.extra_pat` is now a
+field of the class `Params.PatternRegistry`, the adequacy `const` case is the explicit hypothesis
+`LR.ConstAdequate` (false for checked patterns), and `SExpr.lean` has 8 remaining `sorry`s, all off
+the adequacy path. The table below records the state at the time of the spike.*
+
 Live counts differ from the design document's "9". `ShapeLogRel.lean`'s seven `sorry`
 tokens are all inside the block comment at 1665-1722 (dead code). `ShapeLogRelAdequacy.lean`
 has one: the **`const` case of `LR.adequacy` (154)**. `SExpr.lean` has 32 `sorry` tokens in

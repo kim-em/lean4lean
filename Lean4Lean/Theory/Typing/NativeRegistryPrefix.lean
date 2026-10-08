@@ -38,8 +38,8 @@ inductive Prefix {base : VEnv} {before : List VDecl} {old : Name → Option Nati
         env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
         schema.ProjNamesRegistered env key ∧ source.ProjectionsCoherent env ∧
         schema.HeaderAgreement base source)
-      (fresh : schema.Fresh env key) :
-      Prefix first (.eliminators previous baseHistory hle formed keyEq constants fresh)
+      (fresh : schema.Fresh env key) (compat : schema.StructCompat env) :
+      Prefix first (.eliminators previous baseHistory hle formed keyEq constants fresh compat)
   | projections {base envTypes envCtors : VEnv} {declarations baseDeclarations : List VDecl}
       {table : Name → Option NativeRecursorData} {source : VInductDecl} {block : VInductBlock}
       {previous : NativeRegistryHistory (envCtors.addEliminators block.eliminators) declarations table}
@@ -73,7 +73,7 @@ theorem le (continuation : Prefix first last) : base ≤ env := by
   | native _ original compiled formed eliminatorsWF installed _ _ _ ih =>
     exact ih.trans (declaration_le (.induct original
       (.intro original compiled formed eliminatorsWF installed)))
-  | eliminators _ _ _ _ _ _ _ ih => exact ih.trans VEnv.addEliminator_le
+  | eliminators _ _ _ _ _ _ _ _ ih => exact ih.trans VEnv.addEliminator_le
   | projections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih.trans VEnv.addProjections_le
 
 theorem declarations_eq (continuation : Prefix first last) : ∃ added, declarations = added ++ before := by
@@ -82,7 +82,7 @@ theorem declarations_eq (continuation : Prefix first last) : ∃ added, declarat
   | decl _ _ ih | native _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨added, rfl⟩ := ih
     exact ⟨_ :: added, rfl⟩
-  | eliminators _ _ _ _ _ _ _ ih => exact ih
+  | eliminators _ _ _ _ _ _ _ _ ih => exact ih
   | projections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih
 
 theorem length_le (continuation : Prefix first last) : before.length ≤ declarations.length := by
@@ -97,7 +97,7 @@ theorem previous_lookup (continuation : Prefix first last) {name : Name}
   | decl _ _ ih => exact ih lookup
   | native continuation original compiled formed _ installed compilation _ _ ih =>
     exact ih (compilation.installEntries_previous installed (continuation.le.constants present) lookup)
-  | eliminators _ _ _ _ _ _ _ ih => exact ih lookup
+  | eliminators _ _ _ _ _ _ _ _ ih => exact ih lookup
   | projections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih lookup
 
 /-- Transport only the final-history frame. The original header and its

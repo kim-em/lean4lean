@@ -93,6 +93,24 @@ theorem ProjNamesRegistered.mono {schema : CaseSchema} {env env' : VEnv}
   obtain ⟨hl, hr, ht⟩ := H.2 owner rules h df hdf
   exact ⟨hl.mono hok, hr.mono hok, ht.mono hok⟩
 
+/-- Every structure registered in `env` that is an original family of the
+schema (at source slot `owner`) has, in the schema, exactly its registered
+constructor. Without this, a schema could add constructors to a registered
+structure, and structure eta (`unitLike`) would identify the extra
+constructors with the registered one (see `SchemaStructCompat`). -/
+def StructCompat (schema : CaseSchema) (env : VEnv) : Prop :=
+  ∀ {s : Name} {info : VProjectionInfo}, env.projections s info →
+    ∀ owner : Fin schema.signature.families.size,
+      schema.originalFamilies[owner.val]? = some s →
+      (schema.view owner).constructors.toList.map (·.name) = [info.ctorName]
+
+/-- Compatibility is antitone in the projection table. -/
+theorem StructCompat.of_projections {schema : CaseSchema} {env env' : VEnv}
+    (H : schema.StructCompat env')
+    (hproj : ∀ {s info}, env.projections s info → env'.projections s info) :
+    schema.StructCompat env :=
+  fun hinfo owner hname => H (hproj hinfo) owner hname
+
 /-- The abstract registry entry is determined by the same normalized
 signature and restoration data as the native generated block. -/
 def ofCompilation (source : VInductDecl) (signature : InductiveSignature)
