@@ -107,10 +107,10 @@ theorem RestoredNestedDeclarationsResult.addInductConcrete
       auxRec allIndNames types auxRecNames out)
     (Habstract : VEnv.AddInduct sourceVEnv decl targetVEnv)
     (Hchecking : CheckingEnv safety out.2 targetVEnv)
-    (Hprovenance : InductiveRecursorProvenance safety
+    (Hprovenance : NewRecursorsAligned safety
       sourceProdEnv.constants sourceVEnv out.2.constants targetVEnv)
     (hsourceWF : sourceProdEnv.constants.WF)
-    (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
+    (Horigins : InductInfosFromDecl sourceProdEnv.constants
       out.2.constants decl) :
     AddInduct safety sourceProdEnv.constants sourceVEnv decl
       out.2.constants targetVEnv := by

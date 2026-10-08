@@ -325,10 +325,10 @@ structure CompletedConstructorPhases (c : AddInductive.Context)
   installation : CompletedFormationInstallation c.safety c.env sourceEnv
     headerEntries headerEnv headerVEnv constructorEntries ctorEnv ctorVEnv
   productionInductiveOrigins :
-    ProductionInductiveOrigins c.env.constants ctorEnv.constants decl
-  constructorSemantics : forall {safety},
-    InductiveConstructorsSemanticallyCoherent safety c.env sourceEnv ->
-    InductiveConstructorsSemanticallyCoherent safety ctorEnv ctorVEnv
+    InductInfosFromDecl c.env.constants ctorEnv.constants decl
+  ctorParamsAgree : forall {safety},
+    CtorParamsAgree safety c.env sourceEnv ->
+    CtorParamsAgree safety ctorEnv ctorVEnv
 
 /-- Every constructor of the completed constructor environment is old, or a new constructor of
 the declaration, with the declaration's safety flag and a certified type. -/
@@ -510,7 +510,7 @@ def ConstructorPhasesResult.completed
   formation := R.formation
   core := R.core
   productionInductiveOrigins := R.productionInductiveOrigins
-  constructorSemantics := fun Hsource => R.constructorSemantics Hsource
+  ctorParamsAgree := fun Hsource => R.ctorParamsAgree Hsource
 
 /-- The constructor boundary of a completed primitive formation run. -/
 noncomputable def PrimitiveConstructorPhasesResult.boundary
@@ -616,7 +616,7 @@ noncomputable def PrimitiveConstructorPhasesResult.completed
   formation := R.formation
   core := R.core
   productionInductiveOrigins := R.productionInductiveOrigins
-  constructorSemantics := fun Hsource => R.constructorSemantics Hsource
+  ctorParamsAgree := fun Hsource => R.ctorParamsAgree Hsource
 
 end VerifyInductive
 end Lean4Lean

@@ -19,7 +19,7 @@ by the same shapes for `Quot.lift`, and by proof irrelevance for `Quot.ind`.
 The predicates are carried along the environment trace (`TrEnv'`) and through the staged checking
 invariant (`CheckingEnv.Valid`); the transport lemmas at the end of this file are what every step
 of those traces uses. The inductive installation boundary (`AddInduct`) records the facts about
-the recursors it installs as `InductiveRecursorProvenance`.
+the recursors it installs as `NewRecursorsAligned`.
 -/
 
 namespace Lean4Lean
@@ -126,7 +126,7 @@ structure QuotEnvCoherent (C : ConstMap) (venv : VEnv) : Prop where
 /-- What an inductive installation certifies about the recursors it installs: every recursor of
 the target map is either an old one or aligned in the target environment (with a K clause and an
 inductive major), and every new stored equation is headed by a recursor of the target map. -/
-structure InductiveRecursorProvenance (safety : DefinitionSafety)
+structure NewRecursorsAligned (safety : DefinitionSafety)
     (m₁ : ConstMap) (env₁ : VEnv) (m₂ : ConstMap) (env₂ : VEnv) : Prop where
   recursor : ∀ {name rec}, m₂.find? name = some (.recInfo rec) →
     m₁.find? name = some (.recInfo rec) ∨
@@ -479,7 +479,7 @@ theorem RecursorEnvCoherent.insert {C : ConstMap}
 /-- The inductive installation step. -/
 theorem RecursorEnvCoherent.addInduct {m₁ m₂ : ConstMap} {env₁ env₂ : VEnv}
     (H : RecursorEnvCoherent safety m₁ env₁)
-    (P : InductiveRecursorProvenance safety m₁ env₁ m₂ env₂)
+    (P : NewRecursorsAligned safety m₁ env₁ m₂ env₂)
     (hpres : ∀ {n ci}, m₁.find? n = some ci → m₂.find? n = some ci)
     (hle : env₁ ≤ env₂) : RecursorEnvCoherent safety m₂ env₂ :=
   H.extend hpres (fun h hs => (P.recursor h).imp id fun h' => h' hs) hle fun df hdf =>
@@ -493,11 +493,11 @@ theorem QuotEnvCoherent.extend {C C' : ConstMap} (H : QuotEnvCoherent C venv)
   ⟨H.coherent.mono_of_rigid hle (hheads.rigid_quot (hpres hq) hk), q, hpres hq, hk⟩
 
 /-- Rebase an installation certificate to larger environments that add the same equations. -/
-theorem InductiveRecursorProvenance.mono {m₁ m₂ : ConstMap} {env₁ env₂ env₁' env₂' : VEnv}
-    (P : InductiveRecursorProvenance safety m₁ env₁ m₂ env₂)
+theorem NewRecursorsAligned.mono {m₁ m₂ : ConstMap} {env₁ env₂ env₁' env₂' : VEnv}
+    (P : NewRecursorsAligned safety m₁ env₁ m₂ env₂)
     (hle₁ : env₁ ≤ env₁') (hle₂ : env₂ ≤ env₂')
     (hdefeq : ∀ df, env₂'.defeqs df → env₁'.defeqs df ∨ env₂.defeqs df) :
-    InductiveRecursorProvenance safety m₁ env₁' m₂ env₂' where
+    NewRecursorsAligned safety m₁ env₁' m₂ env₂' where
   recursor h := (P.recursor h).imp id fun h' hs =>
     let ⟨hcore, hk, hmajor⟩ := h' hs
     ⟨hcore.mono hle₂, hk.mono hle₂ id, hmajor⟩
@@ -517,20 +517,20 @@ theorem VInductBlock.install_defeqs_iff
   rw [VEnv.addDefEqRules_defeqs_iff, VEnv.addConstVals_defeqs hr,
     VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs, VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht]
 
-theorem InductiveRecursorProvenance.ofUnsafe
-    (H : InductiveRecursorProvenance .unsafe source base target out) :
-    InductiveRecursorProvenance safety source base target out where
+theorem NewRecursorsAligned.ofUnsafe
+    (H : NewRecursorsAligned .unsafe source base target out) :
+    NewRecursorsAligned safety source base target out where
   recursor h := (H.recursor h).imp id (fun h _ => h DefinitionSafety.unsafe_le)
   defeq := H.defeq
 
-theorem InductiveRecursorProvenance.rebaseBlock
+theorem NewRecursorsAligned.rebaseBlock
     {block block' : VInductBlock}
-    (H : InductiveRecursorProvenance safety source base target out)
+    (H : NewRecursorsAligned safety source base target out)
     (hbase : base ≤ base') (hout : out ≤ out')
     (hi : block.install base = some out)
     (hi' : block'.install base' = some out')
     (hrules : block.rules = block'.rules) :
-    InductiveRecursorProvenance safety source base' target out' := by
+    NewRecursorsAligned safety source base' target out' := by
   apply H.mono hbase hout
   intro df hd
   rcases (VInductBlock.install_defeqs_iff hi' df).mp hd with h | h

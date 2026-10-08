@@ -51,12 +51,12 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
     simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
       CompletedBlockCertificate.block] using
       (T.compilation hnonempty).compilesTo
-  have Hsemantics : InductiveConstructorsSemanticallyCoherent .safe outEnv
+  have Hsemantics : CtorParamsAgree .safe outEnv
       Hcert.finalVEnv := by
     simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
       CompletedBlockCertificate.finalVEnv] using
     Hrecursors.completedConstructorSemantics
-      (wf.constructorSemantics (safety := .safe)) T.rules
+      (wf.ctorParamsAgree (safety := .safe)) T.rules
   rcases Hcert.extendSafeExact wf hcorner hdecl hcompile
       Hrecursors.productionInductiveOrigins T.recursorProvenance
       Hrecursors.closed

@@ -1181,12 +1181,12 @@ the monotone target environment supplied by the same certificate. -/
 theorem AddConstants.preservesConstructorSemantics
     (H : AddConstants installSafety env venv entries outEnv outVEnv)
     (hwf : env.constants.WF)
-    (Hsource : InductiveConstructorsSemanticallyCoherent
+    (Hsource : CtorParamsAgree
       observer env venv)
     (hnind : ∀ (info : ConstantInfo) (value : VConstVal),
       (info, value) ∈ entries → ∀ inductiveValue,
         info ≠ .inductInfo inductiveValue) :
-    InductiveConstructorsSemanticallyCoherent observer outEnv outVEnv := by
+    CtorParamsAgree observer outEnv outVEnv := by
   intro familyName familyInfo hfamily hvisible i hi
   rcases H.entryOrigin hwf hfamily with hold | hnew
   · rcases Hsource familyName familyInfo hold hvisible i hi with ⟨C⟩

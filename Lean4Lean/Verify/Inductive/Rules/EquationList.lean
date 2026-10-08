@@ -184,7 +184,7 @@ theorem CompletedRuleTranslationResult.recursorProvenance
       sourceEnv indTypes ctorEnv}
     {H : CompletedRecursorPhasesResult R outEnv}
     (T : CompletedRuleTranslationResult H) :
-    InductiveRecursorProvenance .unsafe c.env.constants sourceEnv
+    NewRecursorsAligned .unsafe c.env.constants sourceEnv
       outEnv.constants (H.outVEnv.addDefEqRules T.rules) := by
   refine { defeq := T.equationProvenance, recursor := ?_ }
   intro name rec hfind

@@ -18,9 +18,9 @@ structure VEnvs.WFCore (env : Environment) (ves : VEnvs) where
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   inductivesClosed : VerifyInductive.MutualInductivesClosed env
   constructorOwners : VerifyInductive.ConstructorOwnersPresent env
-  constructorSemantics : VerifyInductive.InductiveConstructorsSemanticallyCoherent
+  ctorParamsAgree : VerifyInductive.CtorParamsAgree
     safety env (ves.venv safety)
-  inductiveProvenance : InstalledInductiveProvenance
+  inductFamiliesInstalled : InductFamiliesInstalled
     safety env.constants (ves.venv safety)
   mono : safety ≤ safety' → ves.venv safety' ≤ ves.venv safety
 
@@ -31,14 +31,14 @@ theorem VEnvs.WFCore.inductiveConstructorsCoherent
     {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
     VerifyInductive.InductiveConstructorsCoherent env := by
   intro familyName familyInfo hfamily i hi
-  rcases wf.constructorSemantics (safety := .unsafe)
+  rcases wf.ctorParamsAgree (safety := .unsafe)
       familyName familyInfo hfamily DefinitionSafety.unsafe_le i hi with ⟨C⟩
-  exact ⟨C.toInductiveConstructorCoherenceAt⟩
+  exact ⟨C.toCtorInfoCoherentAt⟩
 
 theorem VEnvs.WFCore.projectionRegistryCoherent
     {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
     ProjectionRegistryCoherent safety env.constants (ves.venv safety) :=
-  wf.inductiveProvenance.projectionRegistryCoherent
+  wf.inductFamiliesInstalled.projectionRegistryCoherent
 
 /-- Every visible constructor of `env` carries a telescope certificate at every safety level
 (`CtorTelescopes`). This is the environment invariant that resolves the projection-walk corner

@@ -67,15 +67,15 @@ theorem AddConstants.availableLiteralDisjoint
     checkPositivityStep.AvailableLiteralDisjoint target indConsts :=
   fun literal havailable => hlit literal (H.sourceContainsLits havailable)
 
-theorem ProductionInductiveOrigins.addConstants
+theorem InductInfosFromDecl.addConstants
     {source middle target : Environment}
-    (O : ProductionInductiveOrigins source.constants middle.constants decl)
+    (O : InductInfosFromDecl source.constants middle.constants decl)
     (H : AddConstants safety middle venv entries target outVEnv)
     (hwf : middle.constants.WF)
     (hnind : ∀ (info : ConstantInfo) (value : VConstVal),
       (info, value) ∈ entries → ∀ inductiveValue,
         info ≠ ConstantInfo.inductInfo inductiveValue) :
-    ProductionInductiveOrigins source.constants target.constants decl := by
+    InductInfosFromDecl source.constants target.constants decl := by
   intro familyName familyInfo hfamily
   have htargetWF := H.targetMapWF hwf
   have hfamilyEnv : target.find? familyName =
@@ -350,7 +350,7 @@ theorem DeclaredConstructorsCore.installedConstructorSemanticCoherenceAt
         familyInfo.name = indTypes[familyIdx].name ∧
         familyInfo.ctors = indTypes[familyIdx].ctors.map (fun ctor => ctor.name) ∧
         outEnv.find? familyInfo.name = some (.inductInfo familyInfo) ∧
-        Nonempty (InductiveConstructorSemanticCoherenceAt
+        Nonempty (CtorParamsAgreeAt
           outEnv D.venvCtors familyInfo.name familyInfo ctorIdx hi) := by
   rcases H.sourceAligned with ⟨numNested, Haligned⟩
   let infos := AddInductive.inductiveTypeInfos stats nparams indTypes
@@ -434,7 +434,7 @@ theorem DeclaredConstructorsCore.installedConstructorSemanticCoherenceAt
     have hlength := List.Forall₂.length_eq
       H.materialized.params
     simpa [VInductDecl.paramVars] using hlength
-  let C : InductiveConstructorCoherenceAt outEnv familyInfo.name familyInfo
+  let C : CtorInfoCoherentAt outEnv familyInfo.name familyInfo
       ctorIdx hi := {
     info := ctorInfo
     lookup := hctorLookup
@@ -451,7 +451,7 @@ theorem DeclaredConstructorsCore.installedConstructorSemanticCoherenceAt
       simp [ctorInfo, familyInfo, infos, AddInductive.inductiveTypeInfos,
         AddInductive.constructorInfo, hindicesSize] }
   refine ⟨familyInfo, hi, hfamilyName, hfamilyCtors, hfamilyLookup, ?_⟩
-  apply InductiveConstructorSemanticCoherenceAt.ofShapes C hfinalWF
+  apply CtorParamsAgreeAt.ofShapes C hfinalWF
     decl.types[familyIdx] decl.types[familyIdx].ctors[ctorIdx]
     hfamilyTargetLookup hctorTargetLookup
   · exact Htype.header.uvars.trans core.uvars.symm
@@ -480,7 +480,7 @@ theorem DeclaredConstructorsCore.productionInductiveOrigins
       isUnsafe decl H.context.venv D.venvCtors)
     (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
       H.headers.params stats indTypes c.lparams H.materialized.parameterScope) :
-    ProductionInductiveOrigins c.env.constants outEnv.constants decl := by
+    InductInfosFromDecl c.env.constants outEnv.constants decl := by
   intro familyName familyInfo hfamily
   have hsourceWF := H.sourceContext.checking.tr.map_wf
   have hheaderWF := H.context.checking.tr.map_wf
@@ -719,7 +719,7 @@ theorem DeclaredConstructorsCore.productionInductiveOrigins
 for old families and supplies it positionally for every newly declared
 family.  No name-based matching is used to construct the new witness; names
 only identify the unique production lookup after installation. -/
-theorem DeclaredConstructorsCore.constructorSemantics
+theorem DeclaredConstructorsCore.ctorParamsAgree
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
@@ -731,9 +731,9 @@ theorem DeclaredConstructorsCore.constructorSemantics
       isUnsafe decl H.context.venv D.venvCtors)
     (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
       H.headers.params stats indTypes c.lparams H.materialized.parameterScope)
-    (Hsource : InductiveConstructorsSemanticallyCoherent
+    (Hsource : CtorParamsAgree
       safety c.env sourceEnv) :
-    InductiveConstructorsSemanticallyCoherent
+    CtorParamsAgree
       safety outEnv D.venvCtors := by
   intro familyName familyInfo hfamily hvisible ctorIdx hctor
   rcases D.installed.entryOrigin H.context.checking.tr.map_wf
@@ -1087,7 +1087,7 @@ theorem ConstructorPhasesResult.installedConstructorSemanticCoherenceAt
         familyInfo.name = indTypes[familyIdx].name ∧
         familyInfo.ctors = indTypes[familyIdx].ctors.map (fun ctor => ctor.name) ∧
         outEnv.find? familyInfo.name = some (.inductInfo familyInfo) ∧
-        Nonempty (InductiveConstructorSemanticCoherenceAt
+        Nonempty (CtorParamsAgreeAt
           outEnv R.declared.venvCtors familyInfo.name familyInfo ctorIdx hi) :=
   R.declared.toDeclaredConstructorsCore.installedConstructorSemanticCoherenceAt
     R.core ⟨R.checked, R.parameterPrefixes, R.constructorTails⟩ familyIdx hfamily
@@ -1103,11 +1103,11 @@ theorem ConstructorPhasesResult.productionInductiveOrigins
     {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv}
     (R : ConstructorPhasesResult H outEnv) :
-    ProductionInductiveOrigins c.env.constants outEnv.constants decl :=
+    InductInfosFromDecl c.env.constants outEnv.constants decl :=
   R.declared.toDeclaredConstructorsCore.productionInductiveOrigins R.core
     ⟨R.checked, R.parameterPrefixes, R.constructorTails⟩
 
-theorem ConstructorPhasesResult.constructorSemantics
+theorem ConstructorPhasesResult.ctorParamsAgree
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
@@ -1115,11 +1115,11 @@ theorem ConstructorPhasesResult.constructorSemantics
     {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv}
     (R : ConstructorPhasesResult H outEnv)
-    (Hsource : InductiveConstructorsSemanticallyCoherent
+    (Hsource : CtorParamsAgree
       safety c.env sourceEnv) :
-    InductiveConstructorsSemanticallyCoherent
+    CtorParamsAgree
       safety outEnv R.declared.venvCtors :=
-  R.declared.toDeclaredConstructorsCore.constructorSemantics R.core
+  R.declared.toDeclaredConstructorsCore.ctorParamsAgree R.core
     ⟨R.checked, R.parameterPrefixes, R.constructorTails⟩ Hsource
 
 /-- The independent source environment used for header translation contains

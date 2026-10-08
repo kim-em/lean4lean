@@ -466,9 +466,9 @@ structure QuotEnvInv (env : Environment) (V : DefinitionSafety → VEnv) : Prop 
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   inductivesClosed : VerifyInductive.MutualInductivesClosed env
   constructorOwners : VerifyInductive.ConstructorOwnersPresent env
-  constructorSemantics : ∀ safety,
-    VerifyInductive.InductiveConstructorsSemanticallyCoherent safety env (V safety)
-  inductiveProvenance : ∀ safety, InstalledInductiveProvenance safety env.constants (V safety)
+  ctorParamsAgree : ∀ safety,
+    VerifyInductive.CtorParamsAgree safety env (V safety)
+  inductFamiliesInstalled : ∀ safety, InductFamiliesInstalled safety env.constants (V safety)
 
 theorem QuotEnvInv.add {env : Environment} {V V'} (H : QuotEnvInv env V) (ci : QuotVal)
     (hn : env.find? ci.name = none)
@@ -482,10 +482,10 @@ theorem QuotEnvInv.add {env : Environment} {V V'} (H : QuotEnvInv env V) (ci : Q
       cases h)
   inductivesClosed := H.inductivesClosed.addNonInductive H.mapWF hn nofun
   constructorOwners := H.constructorOwners.addNonConstructor H.mapWF hn nofun
-  constructorSemantics s :=
-    (H.constructorSemantics s).addNonInductive H.mapWF hn nofun (hle s)
-  inductiveProvenance s :=
-    (H.inductiveProvenance s).insertNonInductive H.mapWF
+  ctorParamsAgree s :=
+    (H.ctorParamsAgree s).addNonInductive H.mapWF hn nofun (hle s)
+  inductFamiliesInstalled s :=
+    (H.inductFamiliesInstalled s).insertNonInductive H.mapWF
       (by rwa [← H.mapWF.find?'_eq_find?]) nofun (hle s)
 
 /-- `markQuotInit` only sets the quotient flag; constant lookup is unchanged.
@@ -496,12 +496,12 @@ theorem QuotEnvInv.markQuotInit {env : Environment} {V} (H : QuotEnvInv env V) :
   safePrimitives := H.safePrimitives
   inductivesClosed := H.inductivesClosed.mapEnvironmentEq fun _ => rfl
   constructorOwners := H.constructorOwners
-  constructorSemantics s familyName familyInfo hfamily hvisible i hi :=
-    have ⟨C⟩ := H.constructorSemantics s familyName familyInfo hfamily hvisible i hi
+  ctorParamsAgree s familyName familyInfo hfamily hvisible i hi :=
+    have ⟨C⟩ := H.ctorParamsAgree s familyName familyInfo hfamily hvisible i hi
     ⟨{ C with
-      toInductiveConstructorCoherenceAt :=
-        { C.toInductiveConstructorCoherenceAt with lookup := C.lookup } }⟩
-  inductiveProvenance := H.inductiveProvenance
+      toCtorInfoCoherentAt :=
+        { C.toCtorInfoCoherentAt with lookup := C.lookup } }⟩
+  inductFamiliesInstalled := H.inductFamiliesInstalled
 
 theorem QuotEnvInv.find?_add {env : Environment} {V} (H : QuotEnvInv env V) {ci : ConstantInfo}
     (hn : env.find? ci.name = none) {n : Name} (hne : ci.name ≠ n) :
@@ -544,8 +544,8 @@ theorem VEnvs.WFCore.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WFCore 
       safePrimitives := wf.safePrimitives
       inductivesClosed := wf.inductivesClosed
       constructorOwners := wf.constructorOwners
-      constructorSemantics := fun _ => wf.constructorSemantics
-      inductiveProvenance := fun _ => wf.inductiveProvenance }
+      ctorParamsAgree := fun _ => wf.ctorParamsAgree
+      inductFamiliesInstalled := fun _ => wf.inductFamiliesInstalled }
   have I1 : QuotEnvInv (env.add ciQuot) ves'.venv :=
     I0.add { name := ``Quot, kind := .type, levelParams := [`u], type := tQuotC } n1 p1 hle
   have m2 : (env.add ciQuot).find? ``Quot.mk = none := by
@@ -594,8 +594,8 @@ theorem VEnvs.WFCore.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WFCore 
     safePrimitives := I5.safePrimitives
     inductivesClosed := I5.inductivesClosed
     constructorOwners := I5.constructorOwners
-    constructorSemantics {safety} := I5.constructorSemantics safety
-    inductiveProvenance {safety} := I5.inductiveProvenance safety
+    ctorParamsAgree {safety} := I5.ctorParamsAgree safety
+    inductFamiliesInstalled {safety} := I5.inductFamiliesInstalled safety
     mono {safety safety'} h := VEnv.addQuot_mono (wf.mono h) (hsome safety') (hsome safety) }
 
 /-- Quotient initialization preserves well-formedness and extends every

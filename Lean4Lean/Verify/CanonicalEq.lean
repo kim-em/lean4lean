@@ -7,7 +7,7 @@ import Lean4Lean.Verify.Environment
 declaration `Init.Prelude` submits.
 
 * `Lean4Lean/Verify/Inductive/Prelude/EqSyntax.lean` states the production
-  expressions literally (`eqBootstrapType`, `eqBootstrapReflType`,
+  expressions literally (`preludeEqType`, `preludeEqReflType`,
   `eqRecTypeExpr`, `eqRecRuleRhsExpr`, `eqRecRuleLhsExpr`, `eqRecRuleTypeExpr`,
   generic only in binder and universe-parameter names) and proves that every
   `TrExprS` translation of each of the three types is the corresponding stored
@@ -17,9 +17,9 @@ declaration `Init.Prelude` submits.
   compilation of the declaration generates exactly the stored iota rule once its
   recursor has the stored type.
 * `addDecl.eqBootstrapHasCanonicalEq` (below): checked addition of the bootstrap
-  declaration (`EqBootstrapShape`) produces abstract environments satisfying
+  declaration (`PreludeEqShape`) produces abstract environments satisfying
   `HasCanonicalEq`, provided the executable installs `Eq.rec` with the
-  production type (`IsProductionEqRec`).  The executable recursor construction
+  production type (`IsPreludeEqRec`).  The executable recursor construction
   is not modelled syntactically, so this is a hypothesis on the output;
   `Lean4Lean/Tests/PreludeEq.lean` checks it for the declaration of
   `Init.Prelude`.
@@ -56,9 +56,9 @@ private theorem VEnvs.WFCore.constant_of_production {env : Environment} {ves : V
 an environment containing the production `Eq`, `Eq.refl` and `Eq.rec`. -/
 theorem VEnvs.WFCore.canonicalEq_constants {env : Environment} {ves : VEnvs}
     (wf : ves.WFCore env) {eqInfo reflInfo recInfo : ConstantInfo}
-    (hEq : env.find? ``Eq = some eqInfo) (hEqProd : IsProductionEq eqInfo)
-    (hRefl : env.find? ``Eq.refl = some reflInfo) (hReflProd : IsProductionEqRefl reflInfo)
-    (hRec : env.find? ``Eq.rec = some recInfo) (hRecProd : IsProductionEqRec recInfo)
+    (hEq : env.find? ``Eq = some eqInfo) (hEqProd : IsPreludeEq eqInfo)
+    (hRefl : env.find? ``Eq.refl = some reflInfo) (hReflProd : IsPreludeEqRefl reflInfo)
+    (hRec : env.find? ``Eq.rec = some recInfo) (hRecProd : IsPreludeEqRec recInfo)
     (safety : DefinitionSafety) :
     (ves.venv safety).constants ``Eq = some ⟨1, canonicalEqType⟩ ∧
     (ves.venv safety).constants ``Eq.refl = some ⟨1, canonicalEqReflType⟩ ∧
@@ -89,12 +89,12 @@ theorem addDecl.eqBootstrapHasCanonicalEq {env : Environment} {ves : VEnvs}
     (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     {lparams : List Name} {nparams : Nat} {types : List InductiveType} {isUnsafe : Bool}
-    (Hshape : VerifyInductive.EqBootstrapShape lparams nparams types isUnsafe)
+    (Hshape : VerifyInductive.PreludeEqShape lparams nparams types isUnsafe)
     (fuel : FuelConfig := {}) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe) (check := true)
       (fuel := fuel)).WF fun outEnv =>
       ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-        ∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+        ∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
           ves'.HasCanonicalEq :=
   (VerifyInductive.addInductiveDeclaration.eqBootstrapFinalEnvironmentWF env lparams
       nparams types isUnsafe fuel ves wf hcorner hAbsent Hshape).mono

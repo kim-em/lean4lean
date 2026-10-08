@@ -939,10 +939,10 @@ structure PrimitiveConstructorPhasesResult
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
     isUnsafe decl H.context.venv declared.venvCtors
   productionInductiveOrigins :
-    ProductionInductiveOrigins c.env.constants outEnv.constants decl
-  constructorSemantics : forall {safety},
-    InductiveConstructorsSemanticallyCoherent safety c.env sourceEnv ->
-    InductiveConstructorsSemanticallyCoherent safety outEnv
+    InductInfosFromDecl c.env.constants outEnv.constants decl
+  ctorParamsAgree : forall {safety},
+    CtorParamsAgree safety c.env sourceEnv ->
+    CtorParamsAgree safety outEnv
       declared.venvCtors
 
 end VerifyInductive

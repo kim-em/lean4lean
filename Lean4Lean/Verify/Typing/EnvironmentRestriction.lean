@@ -10,7 +10,7 @@ namespace VEnv
 derivation depends.  This is proof-relevant on purpose: merely knowing that
 the endpoints avoid a name cannot exclude a transitivity detour through that
 constant. -/
-inductive IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
+inductive IsDefEq.Avoids {env : VEnv} {uvars : Nat}
     (changed : Name → Prop) :
     ∀ {ctx lhs rhs type}, env.IsDefEq uvars ctx lhs rhs type → Prop where
   | elimDF {schema : InductiveSignature.CaseSchema}
@@ -23,8 +23,8 @@ inductive IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
       (Heq : List.Forall₂ (· ≈ ·) (target :: levels) (target' :: levels'))
       (Htyping : env.IsDefEq uvars ctx (type.instL (target :: levels))
         (type.instL (target :: levels)) (.sort typeLevel)) :
-      UsesOnly changed Htyping →
-      UsesOnly changed (.elimDF Hlookup Htype Hclosed Hperm Hright Heq Htyping)
+      Avoids changed Htyping →
+      Avoids changed (.elimDF Hlookup Htype Hclosed Hperm Hright Heq Htyping)
   | elimIota {schema : InductiveSignature.CaseSchema}
       {owner : Fin schema.signature.families.size}
       (Hlookup : env.eliminators block schema)
@@ -36,14 +36,14 @@ inductive IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
         (df.lhs.instL (target :: levels)) (df.type.instL (target :: levels)))
       (Hright : env.IsDefEq uvars ctx (df.rhs.instL (target :: levels))
         (df.rhs.instL (target :: levels)) (df.type.instL (target :: levels))) :
-      UsesOnly changed Hleft → UsesOnly changed Hright →
-      UsesOnly changed (.elimIota Hlookup Hgen Hmem Hclosed Hperm Hleft Hright)
-  | bvar (H : Lookup ctx i type) : UsesOnly changed (.bvar H)
-  | symm : UsesOnly changed H → UsesOnly changed (.symm H)
-  | trans : UsesOnly changed H₁ → UsesOnly changed H₂ →
-      UsesOnly changed (.trans H₁ H₂)
+      Avoids changed Hleft → Avoids changed Hright →
+      Avoids changed (.elimIota Hlookup Hgen Hmem Hclosed Hperm Hleft Hright)
+  | bvar (H : Lookup ctx i type) : Avoids changed (.bvar H)
+  | symm : Avoids changed H → Avoids changed (.symm H)
+  | trans : Avoids changed H₁ → Avoids changed H₂ →
+      Avoids changed (.trans H₁ H₂)
   | sortDF (Hleft : left.WF uvars) (Hright : right.WF uvars)
-      (Heq : left ≈ right) : UsesOnly changed (.sortDF Hleft Hright Heq)
+      (Heq : left ≈ right) : Avoids changed (.sortDF Hleft Hright Heq)
   | constDF
       (name : Name) (ci : VConstant)
       (levels levels' : List VLevel)
@@ -53,9 +53,9 @@ inductive IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
       (Hlength : levels.length = ci.uvars)
       (Heq : List.Forall₂ (· ≈ ·) levels levels')
       (Hname : ¬ changed name) :
-      UsesOnly changed (.constDF Hlookup Hleft Hright Hlength Heq)
-  | appDF : UsesOnly changed Hfn → UsesOnly changed Harg →
-      UsesOnly changed (.appDF Hfn Harg)
+      Avoids changed (.constDF Hlookup Hleft Hright Hlength Heq)
+  | appDF : Avoids changed Hfn → Avoids changed Harg →
+      Avoids changed (.appDF Hfn Harg)
   | projDF
       (typeName : Name) (info : VProjectionInfo)
       (levels : List VLevel) (params indexArgs : List VExpr)
@@ -77,28 +77,28 @@ inductive IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
       (Hclosed : info.ctorType.Closed)
       (Hguard : (info.resultLevel.inst levels).IsNeverZero ∨
         fieldLevel ≈ .zero) :
-      UsesOnly changed Hfield → UsesOnly changed Hmajor →
-      UsesOnly changed Hmajor' →
-      UsesOnly changed (.projDF Hinfo Hlevels Huvars Hparams Hindices
+      Avoids changed Hfield → Avoids changed Hmajor →
+      Avoids changed Hmajor' →
+      Avoids changed (.projDF Hinfo Hlevels Huvars Hparams Hindices
         HfieldType Hfield Hmajor Hmajor' Hclosed Hguard)
-  | lamDF : UsesOnly changed Htype → UsesOnly changed Hbody →
-      UsesOnly changed (.lamDF Htype Hbody)
-  | forallEDF : UsesOnly changed Htype → UsesOnly changed Hbody →
-      UsesOnly changed (.forallEDF Htype Hbody)
-  | defeqDF : UsesOnly changed Htype → UsesOnly changed Hterm →
-      UsesOnly changed (.defeqDF Htype Hterm)
-  | beta : UsesOnly changed Hbody → UsesOnly changed Harg →
-      UsesOnly changed (.beta Hbody Harg)
-  | eta : UsesOnly changed H → UsesOnly changed (.eta H)
-  | proofIrrel : UsesOnly changed Hprop → UsesOnly changed Hleft →
-      UsesOnly changed Hright →
-      UsesOnly changed (.proofIrrel Hprop Hleft Hright)
+  | lamDF : Avoids changed Htype → Avoids changed Hbody →
+      Avoids changed (.lamDF Htype Hbody)
+  | forallEDF : Avoids changed Htype → Avoids changed Hbody →
+      Avoids changed (.forallEDF Htype Hbody)
+  | defeqDF : Avoids changed Htype → Avoids changed Hterm →
+      Avoids changed (.defeqDF Htype Hterm)
+  | beta : Avoids changed Hbody → Avoids changed Harg →
+      Avoids changed (.beta Hbody Harg)
+  | eta : Avoids changed H → Avoids changed (.eta H)
+  | proofIrrel : Avoids changed Hprop → Avoids changed Hleft →
+      Avoids changed Hright →
+      Avoids changed (.proofIrrel Hprop Hleft Hright)
   | extra
       (df : VDefEq) (levels : List VLevel)
       (Hdf : env.defeqs df)
       (Hlevels : ∀ (level : VLevel), level ∈ levels → level.WF uvars)
       (Hlength : levels.length = df.uvars) :
-      UsesOnly changed (.extra Hdf Hlevels Hlength)
+      Avoids changed (.extra Hdf Hlevels Hlength)
   | projIota
       (Hinfo : env.projections typeName info)
       (Hproj : env.IsDefEq uvars Gamma
@@ -107,8 +107,8 @@ inductive IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
         fieldType)
       (Hindex : args[info.nparams + index]? = some field)
       (Hfield : env.IsDefEq uvars Gamma field field fieldType) :
-      UsesOnly changed Hproj → UsesOnly changed Hfield →
-      UsesOnly changed (.projIota Hinfo Hproj Hindex Hfield)
+      Avoids changed Hproj → Avoids changed Hfield →
+      Avoids changed (.projIota Hinfo Hproj Hindex Hfield)
   | structEta
       (Hinfo : env.projections typeName info)
       (Hparams : params.length = info.nparams)
@@ -120,8 +120,8 @@ inductive IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
         (VExpr.mkApps (.const info.ctorName levels)
           (params ++ (List.range info.numFields).map fun index => .proj typeName index e))
         (VExpr.mkApps (.const typeName levels) params)) :
-      UsesOnly changed He → UsesOnly changed Hctor →
-      UsesOnly changed (.structEta Hinfo Hparams Hindices He Hctor)
+      Avoids changed He → Avoids changed Hctor →
+      Avoids changed (.structEta Hinfo Hparams Hindices He Hctor)
   | unitLike
       (Hinfo : env.projections typeName info)
       (Hparams : params.length = info.nparams)
@@ -129,8 +129,8 @@ inductive IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
       (HnumFields : info.numFields = 0)
       (He : env.IsDefEq uvars Gamma e e (VExpr.mkApps (.const typeName levels) params))
       (He' : env.IsDefEq uvars Gamma e' e' (VExpr.mkApps (.const typeName levels) params)) :
-      UsesOnly changed He → UsesOnly changed He' →
-      UsesOnly changed (.unitLike Hinfo Hparams Hindices HnumFields He He')
+      Avoids changed He → Avoids changed He' →
+      Avoids changed (.unitLike Hinfo Hparams Hindices HnumFields He He')
 
 /-- If every installed constant is outside `changed`, every derivation in
 the environment carries a canonical restriction witness. -/
@@ -139,7 +139,7 @@ theorem IsDefEq.usesOnly_of_constants
     (H : env.IsDefEq uvars ctx lhs rhs type)
     (Hconstants : ∀ {name ci}, env.constants name = some ci →
       ¬ changed name) :
-    H.UsesOnly changed := by
+    H.Avoids changed := by
   induction H with
   | elimDF hlookup htype hclosed hperm hright heq htyping ih =>
     exact .elimDF hlookup htype hclosed hperm hright heq htyping ih
@@ -178,14 +178,14 @@ theorem IsDefEq.usesOnly_of_constants
 
 /-- Environment monotonicity preserves the exact constant-dependency
 certificate carried by a typing derivation.  This is stronger than
-reconstructing `UsesOnly` in the larger environment: the latter may already
+reconstructing `Avoids` in the larger environment: the latter may already
 contain newly installed constants which the original derivation never
 consulted. -/
-theorem IsDefEq.UsesOnly.mono
+theorem IsDefEq.Avoids.mono
     {env env' : VEnv} (henv : env ≤ env')
     {H : env.IsDefEq uvars ctx lhs rhs type}
-    (HU : H.UsesOnly changed) :
-    (H.mono henv).UsesOnly changed := by
+    (HU : H.Avoids changed) :
+    (H.mono henv).Avoids changed := by
   induction HU with
   | elimDF hlookup htype hclosed hperm hright heq htyping _ ih =>
     exact .elimDF (henv.eliminators hlookup) htype hclosed hperm hright heq
@@ -231,34 +231,34 @@ theorem IsDefEq.UsesOnly.mono
 
 /-- A typehood witness avoids `changed` when its retained typing derivation
 does. -/
-def IsType.UsesOnly {env : VEnv} {uvars : Nat} {ctx : List VExpr}
+def IsType.Avoids {env : VEnv} {uvars : Nat} {ctx : List VExpr}
     {type : VExpr} (changed : Name → Prop)
     (_H : env.IsType uvars ctx type) : Prop :=
   ∃ level, ∃ Htype : env.HasType uvars ctx type (.sort level),
-    Htype.UsesOnly changed
+    Htype.Avoids changed
 
 theorem IsType.usesOnly_of_constants
     {env : VEnv} {changed : Name → Prop}
     (H : env.IsType uvars ctx type)
     (Hconstants : ∀ {name ci}, env.constants name = some ci →
       ¬ changed name) :
-    H.UsesOnly changed := by
+    H.Avoids changed := by
   rcases H with ⟨level, Htype⟩
   exact ⟨level, Htype, Htype.usesOnly_of_constants Hconstants⟩
 
 /-- Typehood restriction evidence survives ordinary environment extension
 with the original derivation's dependency set. -/
-theorem IsType.UsesOnly.mono
+theorem IsType.Avoids.mono
     {env env' : VEnv} (henv : env ≤ env')
     {H : env.IsType uvars ctx type}
-    (HU : H.UsesOnly changed) :
-    (H.mono henv).UsesOnly changed := by
+    (HU : H.Avoids changed) :
+    (H.mono henv).Avoids changed := by
   rcases HU with ⟨level, Htype, Huses⟩
   exact ⟨level, Htype.mono henv, Huses.mono henv⟩
 
 /-- Static environment dependencies of the side condition used by literal
 translation. -/
-def ContainsLits.UsesOnly (changed : Name → Prop) : Literal → Prop
+def ContainsLits.Avoids (changed : Name → Prop) : Literal → Prop
   | .natVal _ => ¬ changed ``Nat
   | .strVal _ => ¬ changed ``Char.ofNat ∧ ¬ changed ``String.ofList
 
@@ -267,7 +267,7 @@ theorem ContainsLits.usesOnly_of_constants
     (H : env.ContainsLits literal)
     (Hconstants : ∀ {name ci}, env.constants name = some ci →
       ¬ changed name) :
-    ContainsLits.UsesOnly changed literal := by
+    ContainsLits.Avoids changed literal := by
   cases literal with
   | natVal value =>
     rcases H with ⟨ci, Hlookup⟩
@@ -310,18 +310,18 @@ def TrProj.RestrictionSupport.mono
 
 /-- The semantic premises and constant translations used by one concrete
 expression translation derivation. -/
-inductive TrExprS.UsesOnly {env : VEnv} {levelParams : List Name}
+inductive TrExprS.Avoids {env : VEnv} {levelParams : List Name}
     (changed : Name → Prop) :
     ∀ {ctx source target}, TrExprS env levelParams ctx source target → Prop where
   | bvar (ctx : VLCtx) (index : Nat) (target type : VExpr)
       (Hlookup : ctx.find? (.inl index) = some (target, type)) :
-      UsesOnly changed (.bvar Hlookup)
+      Avoids changed (.bvar Hlookup)
   | fvar (ctx : VLCtx) (fvar : FVarId) (target type : VExpr)
       (Hlookup : ctx.find? (.inr fvar) = some (target, type)) :
-      UsesOnly changed (.fvar Hlookup)
+      Avoids changed (.fvar Hlookup)
   | sort (level : Level) (targetLevel : VLevel)
       (Hlevel : VLevel.ofLevel levelParams level = some targetLevel) :
-      UsesOnly changed (.sort Hlevel)
+      Avoids changed (.sort Hlevel)
   | const
       (name : Name) (ci : VConstant) (levels : List Level)
       (targets : List VLevel)
@@ -329,51 +329,51 @@ inductive TrExprS.UsesOnly {env : VEnv} {levelParams : List Name}
       (Hlevels : levels.mapM (VLevel.ofLevel levelParams) = some targets)
       (Hlength : levels.length = ci.uvars)
       (Hname : ¬ changed name) :
-      UsesOnly changed (.const Hlookup Hlevels Hlength)
+      Avoids changed (.const Hlookup Hlevels Hlength)
   | app
-      (HfnTypeUses : HfnType.UsesOnly changed)
-      (HargTypeUses : HargType.UsesOnly changed)
-      (HfnUses : UsesOnly changed Hfn)
-      (HargUses : UsesOnly changed Harg) :
-      UsesOnly changed (.app HfnType HargType Hfn Harg)
+      (HfnTypeUses : HfnType.Avoids changed)
+      (HargTypeUses : HargType.Avoids changed)
+      (HfnUses : Avoids changed Hfn)
+      (HargUses : Avoids changed Harg) :
+      Avoids changed (.app HfnType HargType Hfn Harg)
   | lam
-      (HtypeUses : Htype.UsesOnly changed)
-      (HdomainUses : UsesOnly changed Hdomain)
-      (HbodyUses : UsesOnly changed Hbody) :
-      UsesOnly changed (.lam Htype Hdomain Hbody)
+      (HtypeUses : Htype.Avoids changed)
+      (HdomainUses : Avoids changed Hdomain)
+      (HbodyUses : Avoids changed Hbody) :
+      Avoids changed (.lam Htype Hdomain Hbody)
   | forallE
-      (HdomainTypeUses : HdomainType.UsesOnly changed)
-      (HbodyTypeUses : HbodyType.UsesOnly changed)
-      (HdomainUses : UsesOnly changed Hdomain)
-      (HbodyUses : UsesOnly changed Hbody) :
-      UsesOnly changed (.forallE HdomainType HbodyType Hdomain Hbody)
+      (HdomainTypeUses : HdomainType.Avoids changed)
+      (HbodyTypeUses : HbodyType.Avoids changed)
+      (HdomainUses : Avoids changed Hdomain)
+      (HbodyUses : Avoids changed Hbody) :
+      Avoids changed (.forallE HdomainType HbodyType Hdomain Hbody)
   | letE
-      (HvalueTypeUses : HvalueType.UsesOnly changed)
-      (HtypeUses : UsesOnly changed Htype)
-      (HvalueUses : UsesOnly changed Hvalue)
-      (HbodyUses : UsesOnly changed Hbody) :
-      UsesOnly changed (.letE HvalueType Htype Hvalue Hbody)
+      (HvalueTypeUses : HvalueType.Avoids changed)
+      (HtypeUses : Avoids changed Htype)
+      (HvalueUses : Avoids changed Hvalue)
+      (HbodyUses : Avoids changed Hbody) :
+      Avoids changed (.letE HvalueType Htype Hvalue Hbody)
   | lit
       (Hcontains : env.ContainsLits literal)
-      (Hliteral : VEnv.ContainsLits.UsesOnly changed literal)
-      (HconstructorUses : UsesOnly changed Hconstructor) :
-      UsesOnly changed (.lit Hcontains Hconstructor)
-  | mdata (Huses : UsesOnly changed H) :
-      UsesOnly changed (.mdata H)
+      (Hliteral : VEnv.ContainsLits.Avoids changed literal)
+      (HconstructorUses : Avoids changed Hconstructor) :
+      Avoids changed (.lit Hcontains Hconstructor)
+  | mdata (Huses : Avoids changed H) :
+      Avoids changed (.mdata H)
   | proj (ctx : VLCtx) (source : Expr) (target : VExpr)
       (structName : Name) (index : Nat) (projected : VExpr)
       (H : TrExprS env levelParams ctx source target)
       (Hproj : TrProj ctx.toCtx structName index target projected)
-      (Huses : UsesOnly changed H)
+      (Huses : Avoids changed H)
       (HprojUses : Hproj.RestrictionSupport changed) :
-      UsesOnly changed (.proj H Hproj)
+      Avoids changed (.proj H Hproj)
 
 theorem TrExprS.usesOnly_of_constants
     {env : VEnv} {changed : Name → Prop}
     (H : TrExprS env levelParams ctx source target)
     (Hconstants : ∀ {name ci}, env.constants name = some ci →
       ¬ changed name) :
-    H.UsesOnly changed := by
+    H.Avoids changed := by
   induction H with
   | bvar Hlookup => exact .bvar _ _ _ _ Hlookup
   | fvar Hlookup => exact .fvar _ _ _ _ Hlookup
@@ -405,11 +405,11 @@ theorem TrExprS.usesOnly_of_constants
 
 /-- A translated expression retains its proof-relevant dependency
 certificate when its derivation is weakened to a larger environment. -/
-theorem TrExprS.UsesOnly.mono
+theorem TrExprS.Avoids.mono
     {env env' : VEnv} (henv : env ≤ env')
     {H : TrExprS env levelParams ctx source target}
-    (HU : H.UsesOnly changed) :
-    (H.mono henv).UsesOnly changed := by
+    (HU : H.Avoids changed) :
+    (H.mono henv).Avoids changed := by
   induction HU with
   | bvar ctx index target type Hlookup =>
     exact .bvar ctx index target type Hlookup

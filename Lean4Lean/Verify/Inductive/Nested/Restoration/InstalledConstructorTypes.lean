@@ -49,7 +49,7 @@ binder annotations transports the same way. All other `ConstructorVal` fields
 of the installed constant are those of the lowered constructor
 (`RestoredConstructorDeclResult.newInfo_eq`, `ConstructorRestoration`); their
 alignment with the source declaration (`numParams`, `numFields`, `induct`,
-`cidx`) is `ProductionInductiveOrigins`
+`cidx`) is `InductInfosFromDecl`
 (`RestoredNestedDeclarationsResult.productionInductiveOrigins`).
 
 **Obtaining the hypotheses.** `E : NestedValidatedRunResult ...` is the

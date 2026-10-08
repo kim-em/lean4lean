@@ -32,9 +32,9 @@ theorem typeShape_mono {env env' : VEnv} (henv : env ≤ env')
 family and constructor shape judgments.  The two concrete parameter
 telescopes may differ syntactically; both are compared to the declaration's
 canonical parameter context in the common final environment. -/
-theorem InductiveConstructorSemanticCoherenceAt.ofShapes
+theorem CtorParamsAgreeAt.ofShapes
     {decl : VInductDecl}
-    (C : InductiveConstructorCoherenceAt
+    (C : CtorInfoCoherentAt
       prodEnv familyName familyInfo i hi)
     (henv : finalEnv.WF)
     (family : VInductiveType) (ctor : VConstVal)
@@ -50,7 +50,7 @@ theorem InductiveConstructorSemanticCoherenceAt.ofShapes
     (Hctor : decl.CtorShape ctorEnv params family ctor)
     (hfamilyLE : familyEnv ≤ finalEnv)
     (hctorLE : ctorEnv ≤ finalEnv) :
-    Nonempty (InductiveConstructorSemanticCoherenceAt
+    Nonempty (CtorParamsAgreeAt
       prodEnv finalEnv familyName familyInfo i hi) := by
   rcases Hfamily with
     ⟨familyNormalized, familyDomains, familyAfterParams, familyIndices,
@@ -72,7 +72,7 @@ theorem InductiveConstructorSemanticCoherenceAt.ofShapes
     VEnv.IsDefEqCtx.trans_empty henv HfamilyToCanonical
       HcanonicalToConstructor
   exact ⟨{
-    toInductiveConstructorCoherenceAt := C
+    toCtorInfoCoherentAt := C
     familyTarget := family.toVConstant
     constructorTarget := ctor.toVConstant
     familyLookup := hfamilyLookup
@@ -687,7 +687,7 @@ complete declaration-core relation without importing `SourceWF`. -/
 theorem TrInductDeclSkeletonCore.materialized
     (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe skeleton
       envTypes envCtors)
-    (Hmaterialize : skeleton.materialize metadata = some decl) :
+    (Hmaterialize : skeleton.withMetadata metadata = some decl) :
     TrInductDeclCore env lparams nparams types isUnsafe decl
       envTypes envCtors := by
   have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
@@ -731,7 +731,7 @@ semantic arity metadata recovered by the executable header checker. -/
 theorem TrInductDeclSkeletonHeaders.materialized
     (H : TrInductDeclSkeletonHeaders env lparams nparams types isUnsafe
       skeleton envTypes)
-    (Hmaterialize : skeleton.materialize metadata = some decl) :
+    (Hmaterialize : skeleton.withMetadata metadata = some decl) :
     TrInductDeclHeaders env lparams nparams types isUnsafe decl envTypes := by
   have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
   have herase := VInductDeclSkeleton.materialize_toSkeleton Hmaterialize

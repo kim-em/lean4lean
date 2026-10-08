@@ -125,12 +125,12 @@ run_meta do
   let some kenv := (Lean4Lean.addDecl (freshStart .anonymous) eqDecl).toOption
     | throwError "the kernel rejected the modified Eq"
   check (Lean4Lean.addDecl kenv .quotDecl).toBool "the kernel's checkEqType rejected it"
-  check (!hasProductionEq kenv) "hasProductionEq accepted the modified Eq"
+  check (!hasPreludeEq kenv) "hasPreludeEq accepted the modified Eq"
   -- The prelude's `Eq` passes.
   let eqDecl := Declaration.inductDecl eqI.levelParams eqI.numParams
     [{ name := ``Eq, type := eqI.type, ctors := [{ name := ``Eq.refl, type := reflI.type }] }] false
   let some kenv := (Lean4Lean.addDecl (freshStart .anonymous) eqDecl).toOption
     | throwError "the kernel rejected the prelude's Eq"
-  check (hasProductionEq kenv) "hasProductionEq rejected the prelude's Eq"
+  check (hasPreludeEq kenv) "hasPreludeEq rejected the prelude's Eq"
 
 end Lean4Lean.Tests.Replay

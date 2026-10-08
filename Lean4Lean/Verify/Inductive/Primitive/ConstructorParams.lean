@@ -48,7 +48,7 @@ theorem PrimitiveConstructorCorePhasesResult.installedConstructorSemanticCoheren
         familyInfo.name = indTypes[familyIdx].name ∧
         familyInfo.ctors = indTypes[familyIdx].ctors.map (fun ctor => ctor.name) ∧
         outEnv.find? familyInfo.name = some (.inductInfo familyInfo) ∧
-        Nonempty (InductiveConstructorSemanticCoherenceAt
+        Nonempty (CtorParamsAgreeAt
           outEnv R.declared.venvCtors familyInfo.name familyInfo ctorIdx hi) := by
   rcases H.sourceAligned with ⟨numNested, Haligned⟩
   let infos := AddInductive.inductiveTypeInfos stats nparams indTypes
@@ -133,7 +133,7 @@ theorem PrimitiveConstructorCorePhasesResult.installedConstructorSemanticCoheren
     have hlength := List.Forall₂.length_eq
       H.materialized.params
     simpa [VInductDecl.paramVars] using hlength
-  let C : InductiveConstructorCoherenceAt outEnv familyInfo.name familyInfo
+  let C : CtorInfoCoherentAt outEnv familyInfo.name familyInfo
       ctorIdx hi := {
     info := ctorInfo
     lookup := hctorLookup
@@ -150,7 +150,7 @@ theorem PrimitiveConstructorCorePhasesResult.installedConstructorSemanticCoheren
       simp [ctorInfo, familyInfo, infos, AddInductive.inductiveTypeInfos,
         AddInductive.constructorInfo, hindicesSize] }
   refine ⟨familyInfo, hi, hfamilyName, hfamilyCtors, hfamilyLookup, ?_⟩
-  apply InductiveConstructorSemanticCoherenceAt.ofShapes C hfinalWF
+  apply CtorParamsAgreeAt.ofShapes C hfinalWF
     decl.types[familyIdx] decl.types[familyIdx].ctors[ctorIdx]
     hfamilyTargetLookup hctorTargetLookup
   · exact Htype.header.uvars.trans R.core.uvars.symm
@@ -175,7 +175,7 @@ theorem PrimitiveConstructorCorePhasesResult.productionInductiveOrigins
     {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     (R : PrimitiveConstructorCorePhasesResult H outEnv) :
-    ProductionInductiveOrigins c.env.constants outEnv.constants decl := by
+    InductInfosFromDecl c.env.constants outEnv.constants decl := by
   intro familyName familyInfo hfamily
   have hsourceWF := H.sourceContext.checking.tr.map_wf
   have hheaderWF := H.context.checking.map_wf
@@ -413,7 +413,7 @@ theorem PrimitiveConstructorCorePhasesResult.productionInductiveOrigins
 /-- Atomic primitive header and constructor installation preserves semantic
 coherence for old families and establishes it positionally for the newly
 installed canonical family. -/
-theorem PrimitiveConstructorCorePhasesResult.constructorSemantics
+theorem PrimitiveConstructorCorePhasesResult.ctorParamsAgree
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
@@ -421,9 +421,9 @@ theorem PrimitiveConstructorCorePhasesResult.constructorSemantics
     {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     (R : PrimitiveConstructorCorePhasesResult H outEnv)
-    (Hsource : InductiveConstructorsSemanticallyCoherent
+    (Hsource : CtorParamsAgree
       safety c.env sourceEnv) :
-    InductiveConstructorsSemanticallyCoherent
+    CtorParamsAgree
       safety outEnv R.declared.venvCtors := by
   intro familyName familyInfo hfamily hvisible ctorIdx hctor
   rcases R.declared.installed.entryOrigin H.context.checking.map_wf
@@ -522,7 +522,7 @@ def PrimitiveConstructorCorePhasesResult.complete
   formation := R.formation
   core := R.core
   productionInductiveOrigins := R.productionInductiveOrigins
-  constructorSemantics := R.constructorSemantics
+  ctorParamsAgree := R.ctorParamsAgree
 
 /-- The successful executable check is followed by the exact atomic
 constructor fold.  Validity is regained only at the fold's completed Bool/Nat

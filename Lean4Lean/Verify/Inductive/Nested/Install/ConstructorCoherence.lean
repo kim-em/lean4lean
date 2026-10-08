@@ -18,9 +18,9 @@ namespace VerifyInductive
 source-family members are known to be present.  This isolates the only
 restoration-specific part of the closure argument from the generic lookup
 reasoning. -/
-theorem ProductionInductiveOrigins.mutualInductivesClosed
+theorem InductInfosFromDecl.mutualInductivesClosed
     {source target : Environment} {decl : VInductDecl}
-    (H : ProductionInductiveOrigins source.constants target.constants decl)
+    (H : InductInfosFromDecl source.constants target.constants decl)
     (hsourceWF : source.constants.WF) (htargetWF : target.constants.WF)
     (hsourceClosed : MutualInductivesClosed source)
     (hpreserves : ∀ {name found}, source.find? name = some found →
@@ -248,7 +248,7 @@ theorem NestedFinalAssemblyCertificate.mutualInductivesClosed
   have Hfresh := HprimaryFresh.append HauxFresh
   have Horigins := C.productionInductiveOrigins Hlower Hc Hprod Hmetadata
     Hsources Harity Howners hempty henv hlparams hnames
-  apply ProductionInductiveOrigins.mutualInductivesClosed Horigins
+  apply InductInfosFromDecl.mutualInductivesClosed Horigins
     (by simpa only [henv] using hsourceWF)
     (by simpa only [henv] using Hfresh.targetWF hsourceWF)
     hsourceClosed
@@ -710,7 +710,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProductionClose
     (henv : c.env = sourceProdEnv) (hlparams : c.lparams = lparams)
     (hnames : allIndNames = sourceTypes.map (fun type => type.name))
     (hconstructorSemantics :
-      InductiveConstructorsSemanticallyCoherent .safe outEnv
+      CtorParamsAgree .safe outEnv
         (C.finalBaseVEnv.addDefEqRules
           (C.primaryRules ++ C.auxiliaryRules)))
     {venvH : VEnv}
@@ -766,7 +766,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProductionClo
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1)
     (hsafety : c.safety = .unsafe)
     (hconstructorSemantics :
-      InductiveConstructorsSemanticallyCoherent .unsafe outEnv
+      CtorParamsAgree .unsafe outEnv
         (C.finalBaseVEnv.addDefEqRules
           (C.primaryRules ++ C.auxiliaryRules)))
     {venvH : VEnv}
@@ -819,7 +819,7 @@ theorem NestedExactFinalRunResult.safeInductiveFinalResult
     (Hsources : SourceSyntaxChecks sourceTypes)
     (hempty : initialState.nestedAux = #[])
     (hconstructorSemantics :
-      InductiveConstructorsSemanticallyCoherent .safe outEnv
+      CtorParamsAgree .safe outEnv
       (E.assembly.finalBaseVEnv.addDefEqRules
           (E.assembly.primaryRules ++ E.assembly.auxiliaryRules)))
     {venvH : VEnv}
@@ -858,7 +858,7 @@ theorem NestedExactFinalRunResult.unsafeInductiveFinalResult
     (Hsources : SourceSyntaxChecks sourceTypes)
     (hempty : initialState.nestedAux = #[])
     (hconstructorSemantics :
-      InductiveConstructorsSemanticallyCoherent .unsafe outEnv
+      CtorParamsAgree .unsafe outEnv
       (E.assembly.finalBaseVEnv.addDefEqRules
           (E.assembly.primaryRules ++ E.assembly.auxiliaryRules)))
     {venvH : VEnv}
@@ -952,12 +952,12 @@ def NestedRestoredConstructorParameterDomains
 /-- Exact production alignment already contains the complete non-semantic
 constructor metadata once the enclosing restored family alignment is fixed. -/
 def productionConstructorAlignmentToCoherence
-    (Hfamily : ProductionFamilyAlignment prodEnv.constants decl familyIdx
+    (Hfamily : InductInfoAlignment prodEnv.constants decl familyIdx
       familyInfo)
-    (Hctor : ProductionConstructorAlignment prodEnv.constants decl familyIdx ctorIdx
+    (Hctor : CtorInfoAlignment prodEnv.constants decl familyIdx ctorIdx
       familyInfo)
     (hprodWF : prodEnv.constants.WF) :
-    InductiveConstructorCoherenceAt prodEnv familyInfo.name familyInfo ctorIdx
+    CtorInfoCoherentAt prodEnv familyInfo.name familyInfo ctorIdx
       Hctor.familyInfo_ctorIdx_lt where
   info := Hctor.info
   lookup := by
@@ -976,10 +976,10 @@ def productionConstructorAlignmentToCoherence
 metadata, exact restored abstract targets, and only their common-parameter
 context conversion.  Choosing each target itself as its normal form makes
 clear that no residual-body correspondence is being assumed here. -/
-theorem ProductionConstructorAlignment.semanticCoherenceOfParameterDomains
-    (Hfamily : ProductionFamilyAlignment prodEnv.constants decl familyIdx
+theorem CtorInfoAlignment.semanticCoherenceOfParameterDomains
+    (Hfamily : InductInfoAlignment prodEnv.constants decl familyIdx
       familyInfo)
-    (Hctor : ProductionConstructorAlignment prodEnv.constants decl familyIdx
+    (Hctor : CtorInfoAlignment prodEnv.constants decl familyIdx
       ctorIdx familyInfo)
     (hctorIdx : ctorIdx < familyInfo.ctors.length)
     (familyTarget constructorTarget : VConstant)
@@ -996,12 +996,12 @@ theorem ProductionConstructorAlignment.semanticCoherenceOfParameterDomains
     (Hparams : RestoredConstructorParameterDomains venv
       familyInfo.levelParams familyInfo.numParams familyTarget
       constructorTarget) :
-    Nonempty (InductiveConstructorSemanticCoherenceAt prodEnv venv
+    Nonempty (CtorParamsAgreeAt prodEnv venv
       familyInfo.name familyInfo ctorIdx Hctor.familyInfo_ctorIdx_lt) := by
   rcases hfamilyWF with ⟨familyLevel, HfamilyType⟩
   rcases hconstructorWF with ⟨constructorLevel, HconstructorType⟩
   exact ⟨{
-    toInductiveConstructorCoherenceAt :=
+    toCtorInfoCoherentAt :=
       productionConstructorAlignmentToCoherence Hfamily Hctor hprodWF
     familyTarget := familyTarget
     constructorTarget := constructorTarget
@@ -1071,10 +1071,10 @@ theorem NestedFinalAssemblyCertificate.constructorSemanticsOfParameterDomains
     (C : NestedFinalAssemblyCertificate H (ves.venv safety) decl lparams
       nparams isUnsafe safety)
     (wf : ves.WFCore sourceProdEnv)
-    (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
+    (Horigins : InductInfosFromDecl sourceProdEnv.constants
       outEnv.constants decl)
     (Hparams : NestedRestoredConstructorParameterDomains C) :
-    InductiveConstructorsSemanticallyCoherent safety outEnv
+    CtorParamsAgree safety outEnv
       (C.finalBaseVEnv.addDefEqRules
         (C.primaryRules ++ C.auxiliaryRules)) := by
   let finalVEnv := C.finalBaseVEnv.addDefEqRules
@@ -1103,7 +1103,7 @@ theorem NestedFinalAssemblyCertificate.constructorSemanticsOfParameterDomains
       at hfamily
     rwa [houtMapWF.find?'_eq_find?] at hfamily
   rcases Horigins familyName familyInfo hfamilyMap with hold | hnew
-  · rcases wf.constructorSemantics familyName familyInfo (by
+  · rcases wf.ctorParamsAgree familyName familyInfo (by
         change sourceProdEnv.constants.find?' familyName =
           some (.inductInfo familyInfo)
         rw [hsourceMapWF.find?'_eq_find?]
@@ -1166,7 +1166,7 @@ theorem NestedFinalAssemblyCertificate.constructorSemanticsOfParameterDomains
       Lean4Lean.VerifyInductive.TrInductDeclCore.envCtorsWF Hsource
         (wf.tr (safety := safety)).wf
     exact ⟨(Classical.choice
-      (Lean4Lean.VerifyInductive.ProductionConstructorAlignment.semanticCoherenceOfParameterDomains
+      (Lean4Lean.VerifyInductive.CtorInfoAlignment.semanticCoherenceOfParameterDomains
       Hfamily Hctor hctorIdx
       (decl.types[familyIdx]'hfamilyIdx).toVConstVal.toVConstant
       ((decl.types[familyIdx]'hfamilyIdx).ctors[ctorIdx]'hdeclCtor).toVConstant
@@ -1205,7 +1205,7 @@ theorem NestedExactFinalRunResult.safeConstructorSemanticsOfParameterDomains
     (Howners : ConstructorOwnersPresent E.productionContext.env)
     (hempty : initialState.nestedAux = #[])
     (Hparams : NestedRestoredConstructorParameterDomains E.assembly) :
-    InductiveConstructorsSemanticallyCoherent .safe outEnv
+    CtorParamsAgree .safe outEnv
       (E.assembly.finalBaseVEnv.addDefEqRules
         (E.assembly.primaryRules ++ E.assembly.auxiliaryRules)) := by
   have hisUnsafe : E.production.isUnsafe = false := by
@@ -1239,7 +1239,7 @@ theorem NestedExactFinalRunResult.unsafeConstructorSemanticsOfParameterDomains
     (Howners : ConstructorOwnersPresent E.productionContext.env)
     (hempty : initialState.nestedAux = #[])
     (Hparams : NestedRestoredConstructorParameterDomains E.assembly) :
-    InductiveConstructorsSemanticallyCoherent .unsafe outEnv
+    CtorParamsAgree .unsafe outEnv
       (E.assembly.finalBaseVEnv.addDefEqRules
         (E.assembly.primaryRules ++ E.assembly.auxiliaryRules)) := by
   have hisUnsafe : E.production.isUnsafe = true := by

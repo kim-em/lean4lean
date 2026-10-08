@@ -356,9 +356,9 @@ theorem CompletedBlockCertificate.addInduct
       recursors rules outEnv outVEnv)
     (hdecl : decl.WF venv)
     (hcompile : decl.CompilesTo venv H.block)
-    (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
+    (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
       decl)
-    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+    (hprovenance : NewRecursorsAligned .unsafe prodEnv.constants
       venv outEnv.constants H.finalVEnv)
     (hsourceAligned : Aligned checkSafety prodEnv.constants venv)
     (helim : VInductBlock.EliminatorsWF venv decl H.block) :
@@ -394,9 +394,9 @@ theorem CompletedBlockCertificate.rebaseAddInductSafe
     (hbase : base <= largerBase)
     (hdecl : decl.WF base)
     (hcompile : decl.CompilesTo base H.block)
-    (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
+    (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
       decl)
-    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+    (hprovenance : NewRecursorsAligned .unsafe prodEnv.constants
       base outEnv.constants H.finalVEnv)
     (Hreplay : VInductBlock.EliminatorsReplay largerBase decl H.block) :
     ∃ largerOutBase,
@@ -522,11 +522,11 @@ theorem CompletedBlockCertificate.hiddenUnsafeConstructorSemantics
     (H : CompletedBlockCertificate .unsafe prodEnv unsafeBase types ctors recursors
       rules outEnv outBase)
     (hwf : prodEnv.constants.WF)
-    (Hsource : InductiveConstructorsSemanticallyCoherent
+    (Hsource : CtorParamsAgree
       observer prodEnv observerBase)
     (hobserver : observer ≠ .unsafe)
     (Hhidden : InstalledInductiveHeadersUnsafe prodEnv outEnv) :
-    InductiveConstructorsSemanticallyCoherent observer outEnv observerBase := by
+    CtorParamsAgree observer outEnv observerBase := by
   intro familyName familyInfo hfamily hvisible i hi
   let Hinstall := H.staged.combinedAtomic
   rcases Hinstall.entryOrigin hwf hfamily with hold | hnew
@@ -572,10 +572,10 @@ theorem CompletedBlockCertificate.extendUnsafeExact
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
-      InductiveConstructorsSemanticallyCoherent .unsafe outEnv
+      CtorParamsAgree .unsafe outEnv
         H.finalVEnv)
     (hinductiveProvenance : ∀ safety,
-      InstalledInductiveProvenance safety outEnv.constants
+      InductFamiliesInstalled safety outEnv.constants
         (match safety with
         | .unsafe => H.finalVEnv
         | .partial => ves.venv .partial
@@ -597,12 +597,12 @@ theorem CompletedBlockCertificate.extendUnsafeExact
     | «partial» =>
       exact H.hiddenUnsafeConstructorSemantics
         (wf.tr (safety := .unsafe)).map_wf
-        (wf.constructorSemantics (safety := .partial)) (by decide)
+        (wf.ctorParamsAgree (safety := .partial)) (by decide)
         hheadersUnsafe
     | safe =>
       exact H.hiddenUnsafeConstructorSemantics
         (wf.tr (safety := .unsafe)).map_wf
-        (wf.constructorSemantics (safety := .safe)) (by decide)
+        (wf.ctorParamsAgree (safety := .safe)) (by decide)
         hheadersUnsafe
   · exact hinductiveProvenance
   · exact VInductBlock.install_le H.install
@@ -618,12 +618,12 @@ theorem CompletedBlockCertificate.replaySafeConstructorSemantics
     (Hreplay : CompletedBlockCertificate observer prodEnv observerBase types ctors
       recursors rules outEnv replayBase)
     (hwf : prodEnv.constants.WF)
-    (Hsource : InductiveConstructorsSemanticallyCoherent
+    (Hsource : CtorParamsAgree
       observer prodEnv observerBase)
-    (Hcompleted : InductiveConstructorsSemanticallyCoherent .safe outEnv
+    (Hcompleted : CtorParamsAgree .safe outEnv
       H.finalVEnv)
     (hreplay : H.finalVEnv ≤ Hreplay.finalVEnv) :
-    InductiveConstructorsSemanticallyCoherent observer outEnv
+    CtorParamsAgree observer outEnv
       Hreplay.finalVEnv := by
   intro familyName familyInfo hfamily hvisible i hi
   let Hinstall := Hreplay.staged.combinedAtomic
@@ -669,14 +669,14 @@ theorem CompletedBlockCertificate.extendSafeExact
     (wf : ves.WFCore prodEnv) (hcorner : ∀ safety, CtorTelescopes safety prodEnv (ves.venv safety))
     (hdecl : decl.WF (ves.venv .safe))
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
-    (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
+    (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
       decl)
-    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+    (hprovenance : NewRecursorsAligned .unsafe prodEnv.constants
       (ves.venv .safe) outEnv.constants H.finalVEnv)
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
-      InductiveConstructorsSemanticallyCoherent .safe outEnv
+      CtorParamsAgree .safe outEnv
         H.finalVEnv)
     (Hreplay : ∀ safety, VInductBlock.EliminatorsReplay (ves.venv safety) decl H.block) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
@@ -739,7 +739,7 @@ theorem CompletedBlockCertificate.extendSafeExact
       ci.safety = .safe ∧ ci.levelParams = [] :=
     (Hsafe.validCore (valid .safe).toValidCore).safePrimitives
   have hsemantics : ∀ safety,
-      InductiveConstructorsSemanticallyCoherent safety outEnv
+      CtorParamsAgree safety outEnv
         (next safety) := by
     intro safety
     have hreplay : H.finalVEnv ≤ (cert safety).finalVEnv := by
@@ -748,7 +748,7 @@ theorem CompletedBlockCertificate.extendSafeExact
     simpa [next, CompletedBlockCertificate.finalVEnv, certProjections safety] using
       H.replaySafeConstructorSemantics (cert safety)
         (wf.tr (safety := safety)).map_wf
-        (wf.constructorSemantics (safety := safety)) hconstructorSemantics
+        (wf.ctorParamsAgree (safety := safety)) hconstructorSemantics
         hreplay
   have hmono : ∀ {safety safety'}, safety ≤ safety' →
       next safety' ≤ next safety := by
@@ -783,9 +783,9 @@ theorem CompletedBlockCertificate.trEnv'
       rules outEnv outVEnv)
     (hdecl : decl.WF venv)
     (hcompile : decl.CompilesTo venv H.block)
-    (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
+    (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
       decl)
-    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+    (hprovenance : NewRecursorsAligned .unsafe prodEnv.constants
       venv outEnv.constants H.finalVEnv)
     (hsource : TrEnv' checkSafety prodEnv.constants quotInit venv)
     (helim : VInductBlock.EliminatorsWF venv decl H.block) :
@@ -803,16 +803,16 @@ theorem CompletedBlockCertificate.extendUnsafeOfHiddenExact
     (wf : ves.WFCore prodEnv) (hcorner : ∀ safety, CtorTelescopes safety prodEnv (ves.venv safety))
     (hdecl : decl.WF (ves.venv .unsafe))
     (hcompile : decl.CompilesTo (ves.venv .unsafe) H.block)
-    (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
+    (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
       decl)
-    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+    (hprovenance : NewRecursorsAligned .unsafe prodEnv.constants
       (ves.venv .unsafe) outEnv.constants H.finalVEnv)
     (hunsafe : ∀ entry ∈ types ++ ctors ++ recursors,
       entry.1.safety = .unsafe)
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
-      InductiveConstructorsSemanticallyCoherent .unsafe outEnv
+      CtorParamsAgree .unsafe outEnv
         H.finalVEnv)
     (helim : VInductBlock.EliminatorsWF (ves.venv .unsafe) decl H.block) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
@@ -872,10 +872,10 @@ theorem CompletedBlockCertificate.extendUnsafeOfHiddenExact
     (wf.tr (safety := .unsafe)).map_wf
   have hiddenProvenance (observer : DefinitionSafety)
       (hobserver : observer ≠ .unsafe) :
-      InstalledInductiveProvenance observer outEnv.constants
+      InductFamiliesInstalled observer outEnv.constants
         (ves.venv observer) := by
-    apply VerifyInductive.InstalledInductiveProvenance.rebaseHidden
-      (wf.inductiveProvenance (safety := observer))
+    apply VerifyInductive.InductFamiliesInstalled.rebaseHidden
+      (wf.inductFamiliesInstalled (safety := observer))
       haddUnsafe.preservesSourceFind
     intro familyName familyInfo hfamily hfresh
     have hfamilyEnv : outEnv.find? familyName =
@@ -895,13 +895,13 @@ theorem CompletedBlockCertificate.extendUnsafeOfHiddenExact
     simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
       ConstantInfo.isPartial, hunsafeFamily] using hobserverNotLE
   have hinductiveProvenance : ∀ safety,
-      InstalledInductiveProvenance safety outEnv.constants
+      InductFamiliesInstalled safety outEnv.constants
         (match safety with
         | .unsafe => H.finalVEnv
         | .partial => ves.venv .partial
         | .safe => ves.venv .safe)
-    | .unsafe => InstalledInductiveProvenance.addInduct
-        (wf.inductiveProvenance (safety := .unsafe)) haddUnsafe
+    | .unsafe => InductFamiliesInstalled.addInduct
+        (wf.inductFamiliesInstalled (safety := .unsafe)) haddUnsafe
     | .partial => hiddenProvenance .partial (by decide)
     | .safe => hiddenProvenance .safe (by decide)
   rcases H.extendUnsafeExact wf htrUnsafe htrPartial htrSafe
@@ -1078,29 +1078,29 @@ theorem CompletedRecursorPhasesResult.outVEnvWF
 
 /-- Recursor installation preserves the constructor semantics established at
 the completed formation boundary. -/
-theorem CompletedRecursorPhasesResult.constructorSemantics
+theorem CompletedRecursorPhasesResult.ctorParamsAgree
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorPhasesResult R outEnv)
-    (Hsource : InductiveConstructorsSemanticallyCoherent
+    (Hsource : CtorParamsAgree
       safety c.env sourceEnv) :
-    InductiveConstructorsSemanticallyCoherent safety outEnv H.outVEnv := by
+    CtorParamsAgree safety outEnv H.outVEnv := by
   apply H.installed.preservesConstructorSemantics
   · rw [H.localExtends.env_eq]
     exact R.context.checking.tr.map_wf
   · rw [H.localExtends.env_eq]
-    exact (R.constructorSemantics Hsource).mono R.ctorLE
+    exact (R.ctorParamsAgree Hsource).mono R.ctorLE
   · exact H.generated.nonInductive
 
 theorem CompletedRecursorPhasesResult.productionInductiveOrigins
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorPhasesResult R outEnv) :
-    ProductionInductiveOrigins c.env.constants outEnv.constants decl := by
-  have hctorOrigins : ProductionInductiveOrigins c.env.constants
+    InductInfosFromDecl c.env.constants outEnv.constants decl := by
+  have hctorOrigins : InductInfosFromDecl c.env.constants
       H.localContext.env.constants decl := by
     simpa [H.localExtends.env_eq] using R.productionInductiveOrigins
-  apply ProductionInductiveOrigins.addConstants hctorOrigins H.installed
+  apply InductInfosFromDecl.addConstants hctorOrigins H.installed
   · rw [H.localExtends.env_eq]
     exact R.context.checking.tr.map_wf
   · exact H.generated.nonInductive
@@ -1109,11 +1109,11 @@ theorem CompletedRecursorPhasesResult.completedConstructorSemantics
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorPhasesResult R outEnv)
-    (Hsource : InductiveConstructorsSemanticallyCoherent
+    (Hsource : CtorParamsAgree
       safety c.env sourceEnv) (rules : List VDefEq) :
-    InductiveConstructorsSemanticallyCoherent safety outEnv
+    CtorParamsAgree safety outEnv
       (H.outVEnv.addDefEqRules rules) :=
-  (H.constructorSemantics Hsource).mono
+  (H.ctorParamsAgree Hsource).mono
     VEnv.addDefEqRules_le
 
 theorem CompletedRecursorPhasesResult.generatedTelescopeTranslations

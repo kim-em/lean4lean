@@ -519,7 +519,7 @@ structure NestedFinalAssemblyCertificate
   realization : InductiveSignature.RestoredCompilationRealization sourceEnv decl
     (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
       primaryRules auxiliaryRules) finalBaseVEnv recursorEntries
-  provenance : InductiveRecursorProvenance .unsafe sourceProdEnv.constants sourceEnv
+  provenance : NewRecursorsAligned .unsafe sourceProdEnv.constants sourceEnv
     outEnv.constants (finalBaseVEnv.addDefEqRules (primaryRules ++ auxiliaryRules))
 
 /-- Assemble the final independent nested judgment and the concrete restored

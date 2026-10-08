@@ -39,11 +39,11 @@ private theorem FreshConstantTrace.trEnvIgnore
       exact ih hnextWF (fun entry hentry =>
         hhidden entry (by simp [hentry])) hhead
 
-private def InductiveConstructorSemanticCoherenceAt.mapProduction
-    (H : InductiveConstructorSemanticCoherenceAt source venv familyName
+private def CtorParamsAgreeAt.mapProduction
+    (H : CtorParamsAgreeAt source venv familyName
       familyInfo i hi)
     (heq : ∀ name, source.find? name = target.find? name) :
-    InductiveConstructorSemanticCoherenceAt target venv familyName
+    CtorParamsAgreeAt target venv familyName
       familyInfo i hi where
   info := H.info
   lookup := by
@@ -74,10 +74,10 @@ private def InductiveConstructorSemanticCoherenceAt.mapProduction
   constructorParams := H.constructorParams
   parameterDomains := H.parameterDomains
 
-private theorem InductiveConstructorsSemanticallyCoherent.mapProduction
-    (H : InductiveConstructorsSemanticallyCoherent safety source venv)
+private theorem CtorParamsAgree.mapProduction
+    (H : CtorParamsAgree safety source venv)
     (heq : ∀ name, source.find? name = target.find? name) :
-    InductiveConstructorsSemanticallyCoherent safety target venv := by
+    CtorParamsAgree safety target venv := by
   intro familyName familyInfo hfamily hvisible i hi
   have hfamily' : source.find? familyName =
       some (.inductInfo familyInfo) := by
@@ -234,7 +234,7 @@ theorem NestedFinalAssemblyCertificate.productionInductiveOrigins
     (henv : c.env = sourceProdEnv)
     (hlparams : c.lparams = lparams)
     (hnames : allIndNames = sourceTypes.map (fun type => type.name)) :
-    ProductionInductiveOrigins sourceProdEnv.constants outEnv.constants
+    InductInfosFromDecl sourceProdEnv.constants outEnv.constants
       decl := by
   have Hsource : TrInductDeclCore sourceEnv c.lparams nparams sourceTypes
       isUnsafe decl C.canonical.venvTypes
@@ -302,12 +302,12 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
     (C : NestedFinalAssemblyCertificate H (ves.venv .safe) decl lparams
       nparams isUnsafe .safe)
     (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
-    (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
+    (Horigins : InductInfosFromDecl sourceProdEnv.constants
       outEnv.constants decl)
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
-      InductiveConstructorsSemanticallyCoherent .safe outEnv
+      CtorParamsAgree .safe outEnv
         (C.finalBaseVEnv.addDefEqRules
           (C.primaryRules ++ C.auxiliaryRules))) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
@@ -391,7 +391,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
         exact (Hchecking.of_value hfind hs hvalue).mono
           VEnv.addDefEqRules_le
     }
-    have Hprovenance : InductiveRecursorProvenance observer
+    have Hprovenance : NewRecursorsAligned observer
         sourceProdEnv.constants (ves.venv observer) outEnv.constants
         Breplay.finalVEnv :=
       (C.provenance.rebaseBlock (wf.mono DefinitionSafety.le_safe) hout
@@ -413,7 +413,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
   let next (observer : DefinitionSafety) :=
     (cert observer).finalVEnv
   have hcompletedCanonical :
-      InductiveConstructorsSemanticallyCoherent .safe C.canonicalProdEnv
+      CtorParamsAgree .safe C.canonicalProdEnv
         (C.finalBaseVEnv.addDefEqRules
           (C.primaryRules ++ C.auxiliaryRules)) :=
     hconstructorSemantics.mapProduction hlookupEnv
@@ -438,7 +438,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
     · intro observer
       have Hcanonical := B.replaySafeConstructorSemantics
         (cert observer) Hvalid.tr.map_wf
-        (wf.constructorSemantics (safety := observer)) hcompletedCanonical
+        (wf.ctorParamsAgree (safety := observer)) hcompletedCanonical
         (outputLE observer)
       exact Hcanonical.mapProduction (fun name => (hlookupEnv name).symm)
     · intro observer observer' hle
@@ -471,12 +471,12 @@ private theorem NestedFinalAssemblyCertificate.safeInductiveFinalResult
     (C : NestedFinalAssemblyCertificate H (ves.venv .safe) decl lparams
       nparams false .safe)
     (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
-    (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
+    (Horigins : InductInfosFromDecl sourceProdEnv.constants
       outEnv.constants decl)
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
-      InductiveConstructorsSemanticallyCoherent .safe outEnv
+      CtorParamsAgree .safe outEnv
         (C.finalBaseVEnv.addDefEqRules
           (C.primaryRules ++ C.auxiliaryRules)))
     {venvH : VEnv}
@@ -529,7 +529,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProduction
     (hnames : allIndNames = sourceTypes.map (fun type => type.name))
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorSemantics :
-      InductiveConstructorsSemanticallyCoherent .safe outEnv
+      CtorParamsAgree .safe outEnv
         (C.finalBaseVEnv.addDefEqRules
           (C.primaryRules ++ C.auxiliaryRules)))
     {venvH : VEnv}
@@ -564,7 +564,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
     (C : NestedFinalAssemblyCertificate H (ves.venv .unsafe) decl lparams
       nparams true .unsafe)
     (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
-    (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
+    (Horigins : InductInfosFromDecl sourceProdEnv.constants
       outEnv.constants decl)
     (hentriesUnsafe : ∀ entries
       (_Hentries : FreshConstantTrace sourceProdEnv entries outEnv),
@@ -572,7 +572,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
-      InductiveConstructorsSemanticallyCoherent .unsafe outEnv
+      CtorParamsAgree .unsafe outEnv
         (C.finalBaseVEnv.addDefEqRules
           (C.primaryRules ++ C.auxiliaryRules)))
     {venvH : VEnv}
@@ -669,17 +669,17 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
     · exact hfresh
   have hiddenSemantics (observer : DefinitionSafety)
       (hne : observer ≠ .unsafe) :
-      InductiveConstructorsSemanticallyCoherent observer outEnv
+      CtorParamsAgree observer outEnv
         (ves.venv observer) := by
     have Hcanonical := B.hiddenUnsafeConstructorSemantics Hvalid.tr.map_wf
-      (wf.constructorSemantics (safety := observer)) hne hheadersCanonical
+      (wf.ctorParamsAgree (safety := observer)) hne hheadersCanonical
     exact Hcanonical.mapProduction (fun name => (hlookupEnv name).symm)
   have hiddenProvenance (observer : DefinitionSafety)
       (hne : observer ≠ .unsafe) :
-      InstalledInductiveProvenance observer outEnv.constants
+      InductFamiliesInstalled observer outEnv.constants
         (ves.venv observer) := by
-    apply InstalledInductiveProvenance.rebaseHidden
-      (wf.inductiveProvenance (safety := observer))
+    apply InductFamiliesInstalled.rebaseHidden
+      (wf.inductFamiliesInstalled (safety := observer))
       Hadd.preservesSourceFind
     intro familyName familyInfo hfamily hfresh
     have hfamilyEnv : outEnv.find? familyName =
@@ -698,14 +698,14 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
     simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
       ConstantInfo.isPartial, hunsafe] using hnotle
   have hprovenance : ∀ observer,
-      InstalledInductiveProvenance observer outEnv.constants
+      InductFamiliesInstalled observer outEnv.constants
         (match observer with
         | .unsafe => C.finalBaseVEnv.addDefEqRules
             (C.primaryRules ++ C.auxiliaryRules)
         | .partial => ves.venv .partial
         | .safe => ves.venv .safe)
-    | .unsafe => InstalledInductiveProvenance.addInduct
-        (wf.inductiveProvenance (safety := .unsafe)) Hadd
+    | .unsafe => InductFamiliesInstalled.addInduct
+        (wf.inductFamiliesInstalled (safety := .unsafe)) Hadd
     | .partial => hiddenProvenance .partial (by decide)
     | .safe => hiddenProvenance .safe (by decide)
   have hsafePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
@@ -781,7 +781,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProduction
       ∀ entry ∈ entries, entry.safety = .unsafe)
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorSemantics :
-      InductiveConstructorsSemanticallyCoherent .unsafe outEnv
+      CtorParamsAgree .unsafe outEnv
         (C.finalBaseVEnv.addDefEqRules
           (C.primaryRules ++ C.auxiliaryRules)))
     {venvH : VEnv}

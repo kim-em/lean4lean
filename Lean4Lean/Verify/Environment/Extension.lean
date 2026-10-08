@@ -332,13 +332,13 @@ theorem addMutualBlock.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env
       (wf.tr (safety := .safe)).map_wf vs hfresh hnd
     constructorOwners := wf.constructorOwners.addDefinitions
       (wf.tr (safety := .safe)).map_wf vs hfresh hnd
-    constructorSemantics {safety} :=
-      (wf.constructorSemantics (safety := safety)).addDefinitions
+    ctorParamsAgree {safety} :=
+      (wf.ctorParamsAgree (safety := safety)).addDefinitions
         (wf.tr (safety := .safe)).map_wf vs hfresh hnd (hleFinal safety)
-    inductiveProvenance {safety} := by
+    inductFamiliesInstalled {safety} := by
       rw [Environment.constants_addDefs]
-      exact VerifyInductive.InstalledInductiveProvenance.insertDefs
-        (wf.inductiveProvenance (safety := safety))
+      exact VerifyInductive.InductFamiliesInstalled.insertDefs
+        (wf.inductFamiliesInstalled (safety := safety))
         (wf.tr (safety := .safe)).map_wf vs hfreshMap hnd
         (hleFinal safety)
     mono {sf sf'} hle := by
@@ -374,13 +374,13 @@ theorem VEnvs.WFCore.extendUnsafeExact
     (hinductivesClosed : VerifyInductive.MutualInductivesClosed env')
     (hconstructorOwners : VerifyInductive.ConstructorOwnersPresent env')
     (hconstructorSemantics : ∀ safety,
-      VerifyInductive.InductiveConstructorsSemanticallyCoherent safety env'
+      VerifyInductive.CtorParamsAgree safety env'
         (match safety with
         | .unsafe => unsafeEnv
         | .partial => ves.venv .partial
         | .safe => ves.venv .safe))
     (hinductiveProvenance : ∀ safety,
-      InstalledInductiveProvenance safety env'.constants
+      InductFamiliesInstalled safety env'.constants
         (match safety with
         | .unsafe => unsafeEnv
         | .partial => ves.venv .partial
@@ -401,15 +401,15 @@ theorem VEnvs.WFCore.extendUnsafeExact
       safePrimitives := hsafePrimitives
       inductivesClosed := hinductivesClosed
       constructorOwners := hconstructorOwners
-      constructorSemantics {safety} := by
-        change VerifyInductive.InductiveConstructorsSemanticallyCoherent
+      ctorParamsAgree {safety} := by
+        change VerifyInductive.CtorParamsAgree
           safety env' (match safety with
           | .unsafe => unsafeEnv
           | .partial => ves.venv .partial
           | .safe => ves.venv .safe)
         exact hconstructorSemantics safety
-      inductiveProvenance {safety} := by
-        change InstalledInductiveProvenance safety
+      inductFamiliesInstalled {safety} := by
+        change InductFamiliesInstalled safety
           env'.constants (match safety with
           | .unsafe => unsafeEnv
           | .partial => ves.venv .partial
@@ -465,7 +465,7 @@ theorem VEnvs.WFCore.extendInductExact
     (hinductivesClosed : VerifyInductive.MutualInductivesClosed env')
     (hconstructorOwners : VerifyInductive.ConstructorOwnersPresent env')
     (hconstructorSemantics : ∀ safety,
-      VerifyInductive.InductiveConstructorsSemanticallyCoherent safety env'
+      VerifyInductive.CtorParamsAgree safety env'
         (next safety))
     (hmono : ∀ {safety safety'}, safety ≤ safety' →
       next safety' ≤ next safety) :
@@ -487,13 +487,13 @@ theorem VEnvs.WFCore.extendInductExact
       safePrimitives := hsafePrimitives
       inductivesClosed := hinductivesClosed
       constructorOwners := hconstructorOwners
-      constructorSemantics {safety} := by
-        change VerifyInductive.InductiveConstructorsSemanticallyCoherent
+      ctorParamsAgree {safety} := by
+        change VerifyInductive.CtorParamsAgree
           safety env' (next safety)
         exact hconstructorSemantics safety
-      inductiveProvenance {safety} :=
-        InstalledInductiveProvenance.addInduct
-          (wf.inductiveProvenance (safety := safety)) (hadd safety)
+      inductFamiliesInstalled {safety} :=
+        InductFamiliesInstalled.addInduct
+          (wf.inductFamiliesInstalled (safety := safety)) (hadd safety)
       mono := by
         intro _ _ hle
         exact hmono hle }
@@ -559,14 +559,14 @@ theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
       (wf.tr (safety := .safe)).map_wf hn hnind
     constructorOwners := wf.constructorOwners.addNonConstructor
       (wf.tr (safety := .safe)).map_wf hn hnctor
-    constructorSemantics {safety} :=
-      (wf.constructorSemantics (safety := safety)).addNonInductive
+    ctorParamsAgree {safety} :=
+      (wf.ctorParamsAgree (safety := safety)).addNonInductive
         (wf.tr (safety := .safe)).map_wf hn hnind (hves' safety).le
-    inductiveProvenance {safety} := by
-      change InstalledInductiveProvenance safety
+    inductFamiliesInstalled {safety} := by
+      change InductFamiliesInstalled safety
         (env.constants.insert ci.name ci) (ves'.venv safety)
-      exact InstalledInductiveProvenance.insertNonInductive
-        (wf.inductiveProvenance (safety := safety))
+      exact InductFamiliesInstalled.insertNonInductive
+        (wf.inductFamiliesInstalled (safety := safety))
         (wf.tr (safety := .safe)).map_wf hnMap hnind (hves' safety).le
     mono {safety safety'} hle := by
       by_cases hvisible' : safety' ≤ ci.safety
@@ -654,15 +654,15 @@ theorem addDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
       (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
     constructorOwners := wf.constructorOwners.addNonConstructor
       (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
-    constructorSemantics {safety} :=
-      (wf.constructorSemantics (safety := safety)).addNonInductive
+    ctorParamsAgree {safety} :=
+      (wf.ctorParamsAgree (safety := safety)).addNonInductive
         (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
         (hves' safety).le
-    inductiveProvenance {safety} := by
-      change InstalledInductiveProvenance safety
+    inductFamiliesInstalled {safety} := by
+      change InductFamiliesInstalled safety
         (env.constants.insert v.name (.defnInfo v)) (ves'.venv safety)
-      exact InstalledInductiveProvenance.insertNonInductive
-        (ci := .defnInfo v) (wf.inductiveProvenance (safety := safety))
+      exact InductFamiliesInstalled.insertNonInductive
+        (ci := .defnInfo v) (wf.inductFamiliesInstalled (safety := safety))
         (wf.tr (safety := .safe)).map_wf hnMap (by intro _ h; cases h)
         (hves' safety).le
     mono {safety safety'} hle := by
@@ -729,17 +729,17 @@ theorem addUnsafeDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
       (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
     constructorOwners := wf.constructorOwners.addNonConstructor
       (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
-    constructorSemantics {safety} :=
-      (wf.constructorSemantics (safety := safety)).addNonInductive
+    ctorParamsAgree {safety} :=
+      (wf.ctorParamsAgree (safety := safety)).addNonInductive
         (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
         (match safety with
         | .unsafe => hle
         | .safe | .partial => VEnv.LE.rfl)
-    inductiveProvenance {safety} := by
-      change InstalledInductiveProvenance safety
+    inductFamiliesInstalled {safety} := by
+      change InductFamiliesInstalled safety
         (env.constants.insert v.name (.defnInfo v)) _
-      exact InstalledInductiveProvenance.insertNonInductive
-        (ci := .defnInfo v) (wf.inductiveProvenance (safety := safety))
+      exact InductFamiliesInstalled.insertNonInductive
+        (ci := .defnInfo v) (wf.inductFamiliesInstalled (safety := safety))
         (wf.tr (safety := .safe)).map_wf hnMap (by intro _ h; cases h)
         (match safety with
         | .unsafe => hle

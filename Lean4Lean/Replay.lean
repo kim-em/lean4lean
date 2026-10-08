@@ -135,9 +135,9 @@ only inspects the shape of `Eq` and its constructor (up to `Expr.eqv`), which is
 abstract model of `Quot.lift`; so the driver additionally requires, before the step that
 initializes the quotient module, that `Eq`, `Eq.refl` and `Eq.rec` are the prelude's: safe
 constants whose types are literally those `Init.Prelude` produces, up to binder and universe
-parameter names (`HasProductionEq` in `Lean4Lean/Verify/Replay.lean`). -/
+parameter names (`HasPreludeEq` in `Lean4Lean/Verify/Replay.lean`). -/
 
-namespace ProductionEq
+namespace PreludeEq
 
 /-- Structural equality of the expression forms occurring in the types below; `false` on any
 other form (metadata, free variables, literals, ...). -/
@@ -205,22 +205,22 @@ def isRec (ci : ConstantInfo) : Bool :=
       strictEq ci.type (recType u v alpha lhs motive motiveRhs motiveProof refl rhs proof)
   | _, _ => false
 
-end ProductionEq
+end PreludeEq
 
 /-- `Eq`, `Eq.refl` and `Eq.rec` are the prelude's in `env`. -/
-def hasProductionEq (env : Environment) : Bool :=
+def hasPreludeEq (env : Environment) : Bool :=
   match env.find? ``Eq, env.find? ``Eq.refl, env.find? ``Eq.rec with
-  | some e, some r, some c => ProductionEq.isEq e && ProductionEq.isRefl r && ProductionEq.isRec c
+  | some e, some r, some c => PreludeEq.isEq e && PreludeEq.isRefl r && PreludeEq.isRec c
   | _, _, _ => false
 
 /-- `env` is obtained from an environment satisfying `Start` by successful checked additions
 `Lean4Lean.addDecl · d (check := true) (fuel := fuel)`; a step that initializes the quotient
-module is taken only when the prelude's `Eq` is present (`hasProductionEq`). -/
+module is taken only when the prelude's `Eq` is present (`hasPreludeEq`). -/
 inductive Replayed (fuel : Lean4Lean.FuelConfig) (Start : Environment → Prop) :
     Environment → Prop where
   | start : Start env → Replayed fuel Start env
   | step : Replayed fuel Start env → Lean4Lean.addDecl env d true fuel = .ok env' →
-    (d = .quotDecl → env.quotInit = false → hasProductionEq env = true) →
+    (d = .quotDecl → env.quotInit = false → hasPreludeEq env = true) →
     Replayed fuel Start env'
 
 /-- Callbacks run around each `addDecl` call of the core. They cannot change the replay
@@ -270,11 +270,11 @@ def isTodo (name : Name) : CoreM m cfg.fuel Start Bool := do
     return false
 
 /-- Add a declaration with the verified kernel, while replaying the constant `name`. Quotient
-initialization additionally requires the prelude's `Eq` (`hasProductionEq`). -/
+initialization additionally requires the prelude's `Eq` (`hasPreludeEq`). -/
 def addDecl (name : Name) (d : Declaration) : CoreM m cfg.fuel Start Unit := do
   let s ← get
   let eqOk : Bool := match d with
-    | .quotDecl => s.env.quotInit || hasProductionEq s.env
+    | .quotDecl => s.env.quotInit || hasPreludeEq s.env
     | _ => true
   if hq : eqOk = true then
     let t ← hooks.beforeAdd d

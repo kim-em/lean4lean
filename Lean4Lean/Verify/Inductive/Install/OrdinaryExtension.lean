@@ -124,12 +124,12 @@ theorem SemanticRunWithStatsResult.extendSafeExact
       (show OrdinaryCompilationCertificate _ decl B0.block from
         T.compilation hnonempty).compilesTo
   have hconstructors :
-      InductiveConstructorsSemanticallyCoherent .safe outEnv
+      CtorParamsAgree .safe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
     exact Hrecursors.completedConstructorSemantics
-      (wf.constructorSemantics (safety := .safe)) T.rules
+      (wf.ctorParamsAgree (safety := .safe)) T.rules
   have horigins :
-      ProductionInductiveOrigins c.env.constants outEnv.constants decl :=
+      InductInfosFromDecl c.env.constants outEnv.constants decl :=
     Hrecursors.productionInductiveOrigins
   have howners : ConstructorOwnersPresent outEnv :=
     Hrecursors.constructorOwnersPresent wf.constructorOwners
@@ -192,12 +192,12 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
   have hisUnsafe : isUnsafe = true := by
     exact hproduction.trans (by rw [hsafety]; decide)
   have hconstructors :
-      InductiveConstructorsSemanticallyCoherent .unsafe outEnv
+      CtorParamsAgree .unsafe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
     exact Hrecursors.completedConstructorSemantics
-      (wf.constructorSemantics (safety := .unsafe)) T.rules
+      (wf.ctorParamsAgree (safety := .unsafe)) T.rules
   have horigins :
-      ProductionInductiveOrigins c.env.constants outEnv.constants decl :=
+      InductInfosFromDecl c.env.constants outEnv.constants decl :=
     Hrecursors.productionInductiveOrigins
   have howners : ConstructorOwnersPresent outEnv :=
     Hrecursors.constructorOwnersPresent wf.constructorOwners

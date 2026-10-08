@@ -259,11 +259,11 @@ theorem MutualInductivesClosed.addDefinitions
         exact hfresh w (by simp [hw])
       · exact hnodup.2
 
-def InductiveConstructorCoherenceAt.addConstant
+def CtorInfoCoherentAt.addConstant
     {ci : ConstantInfo}
-    (H : InductiveConstructorCoherenceAt env familyName familyInfo i hi)
+    (H : CtorInfoCoherentAt env familyName familyInfo i hi)
     (hwf : env.constants.WF) (hfresh : env.find? ci.name = none) :
-    InductiveConstructorCoherenceAt (env.add ci) familyName familyInfo i hi := by
+    CtorInfoCoherentAt (env.add ci) familyName familyInfo i hi := by
   have hne : ci.name ≠ familyInfo.ctors[i] := by
     intro heq
     rw [heq, H.lookup] at hfresh
@@ -271,11 +271,11 @@ def InductiveConstructorCoherenceAt.addConstant
   exact { H with lookup :=
     (find?_add_of_ne hwf ci hfresh hne).trans H.lookup }
 
-def InductiveConstructorSemanticCoherenceAt.mono
-    (H : InductiveConstructorSemanticCoherenceAt
+def CtorParamsAgreeAt.mono
+    (H : CtorParamsAgreeAt
       env venv familyName familyInfo i hi)
     (hle : venv ≤ venv') :
-    InductiveConstructorSemanticCoherenceAt
+    CtorParamsAgreeAt
       env venv' familyName familyInfo i hi :=
   { H with
     familyLookup := hle.constants H.familyLookup
@@ -284,50 +284,50 @@ def InductiveConstructorSemanticCoherenceAt.mono
     constructorDefEq := H.constructorDefEq.mono hle
     parameterDomains := H.parameterDomains.mono hle }
 
-def InductiveConstructorSemanticCoherenceAt.addConstant
+def CtorParamsAgreeAt.addConstant
     {ci : ConstantInfo}
-    (H : InductiveConstructorSemanticCoherenceAt
+    (H : CtorParamsAgreeAt
       env venv familyName familyInfo i hi)
     (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
     (hle : venv ≤ venv') :
-    InductiveConstructorSemanticCoherenceAt
+    CtorParamsAgreeAt
       (env.add ci) venv' familyName familyInfo i hi :=
   { H.mono hle with
-    toInductiveConstructorCoherenceAt :=
-      H.toInductiveConstructorCoherenceAt.addConstant hwf hfresh }
+    toCtorInfoCoherentAt :=
+      H.toCtorInfoCoherentAt.addConstant hwf hfresh }
 
 /-- Transport one semantic constructor witness across an arbitrary
 production-environment extension once the exact constructor lookup has been
 shown to survive.  All semantic fields only require monotonicity of the
 abstract environment. -/
-def InductiveConstructorSemanticCoherenceAt.rebaseProduction
-    (H : InductiveConstructorSemanticCoherenceAt
+def CtorParamsAgreeAt.rebaseProduction
+    (H : CtorParamsAgreeAt
       env venv familyName familyInfo i hi)
     (hlookup : env'.find? familyInfo.ctors[i] = some (.ctorInfo H.info))
     (hle : venv ≤ venv') :
-    InductiveConstructorSemanticCoherenceAt
+    CtorParamsAgreeAt
       env' venv' familyName familyInfo i hi :=
   { H.mono hle with
-    toInductiveConstructorCoherenceAt :=
-      { H.toInductiveConstructorCoherenceAt with lookup := hlookup } }
+    toCtorInfoCoherentAt :=
+      { H.toCtorInfoCoherentAt with lookup := hlookup } }
 
-theorem InductiveConstructorsSemanticallyCoherent.mono
-    (H : InductiveConstructorsSemanticallyCoherent safety env venv)
+theorem CtorParamsAgree.mono
+    (H : CtorParamsAgree safety env venv)
     (hle : venv ≤ venv') :
-    InductiveConstructorsSemanticallyCoherent safety env venv' := by
+    CtorParamsAgree safety env venv' := by
   intro familyName familyInfo hfamily hvisible i hi
   rcases H familyName familyInfo hfamily hvisible i hi with ⟨C⟩
   exact ⟨C.mono hle⟩
 
 /-- A fresh non-inductive production constant and any monotone abstract
 extension preserve visible constructor semantics. -/
-theorem InductiveConstructorsSemanticallyCoherent.addNonInductive
+theorem CtorParamsAgree.addNonInductive
     {ci : ConstantInfo}
-    (H : InductiveConstructorsSemanticallyCoherent safety env venv)
+    (H : CtorParamsAgree safety env venv)
     (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
     (hnind : ∀ value, ci ≠ .inductInfo value)
     (hle : venv ≤ venv') :
-    InductiveConstructorsSemanticallyCoherent safety (env.add ci) venv' := by
+    CtorParamsAgree safety (env.add ci) venv' := by
   intro familyName familyInfo hfamily hvisible i hi
   rcases find?_add_cases hwf ci hfresh hfamily with
     ⟨_, hvalue⟩ | hold
@@ -338,14 +338,14 @@ theorem InductiveConstructorsSemanticallyCoherent.addNonInductive
 /-- A fresh mutual-definition fold changes no inductive metadata.  All old
 semantic witnesses may be transported directly to the final abstract model,
 then retained while the remaining production definitions are inserted. -/
-theorem InductiveConstructorsSemanticallyCoherent.addDefinitions
-    (H : InductiveConstructorsSemanticallyCoherent safety env venv)
+theorem CtorParamsAgree.addDefinitions
+    (H : CtorParamsAgree safety env venv)
     (hwf : env.constants.WF) :
     ∀ (vs : List DefinitionVal),
       (∀ v ∈ vs, env.find? v.name = none) →
       (vs.map (·.name)).Nodup →
       venv ≤ venv' →
-      InductiveConstructorsSemanticallyCoherent safety
+      CtorParamsAgree safety
         (vs.foldl (fun env v => env.add (.defnInfo v)) env) venv'
   | [], _, _, hle => H.mono hle
   | v :: vs, hfresh, hnodup, hle => by
@@ -356,7 +356,7 @@ theorem InductiveConstructorsSemanticallyCoherent.addDefinitions
       have hwf' : (env.add (.defnInfo v)).constants.WF := by
         change (env.constants.insert v.name (.defnInfo v)).WF
         exact hwf.insert v.name (.defnInfo v) hvfreshMap
-      have H' : InductiveConstructorsSemanticallyCoherent safety
+      have H' : CtorParamsAgree safety
           (env.add (.defnInfo v)) venv' :=
         H.addNonInductive hwf hvfresh (by intro _ h; cases h) hle
       apply H'.addDefinitions hwf' vs
@@ -371,15 +371,15 @@ theorem InductiveConstructorsSemanticallyCoherent.addDefinitions
 
 /-- Rebase an observer across a production extension whose genuinely new
 inductive headers are all hidden at that observer's safety. -/
-theorem InstalledInductiveProvenance.rebaseHidden
-    (H : InstalledInductiveProvenance safety source env)
+theorem InductFamiliesInstalled.rebaseHidden
+    (H : InductFamiliesInstalled safety source env)
     (hpreserves : ∀ {name found}, source.find? name = some found →
       target.find? name = some found)
     (hhidden : ∀ familyName familyInfo,
       target.find? familyName = some (.inductInfo familyInfo) →
       source.find? familyName = none →
       ¬ safety ≤ (ConstantInfo.inductInfo familyInfo).safety) :
-    InstalledInductiveProvenance safety target env := by
+    InductFamiliesInstalled safety target env := by
   intro familyName familyInfo hfind hvisible
   cases hold : source.find? familyName with
   | none => exact False.elim (hhidden familyName familyInfo hfind hold hvisible)
@@ -393,23 +393,23 @@ theorem InstalledInductiveProvenance.rebaseHidden
 
 /-- A fresh mutual-definition fold contains no inductive headers and hence
 preserves installed declaration provenance. -/
-theorem InstalledInductiveProvenance.insertDefs
-    (H : InstalledInductiveProvenance safety C env)
+theorem InductFamiliesInstalled.insertDefs
+    (H : InductFamiliesInstalled safety C env)
     (hwf : C.WF) : ∀ (cis : List DefinitionVal),
       (∀ ci ∈ cis, C.find? ci.name = none) →
       (cis.map (·.name)).Nodup → env ≤ env' →
-      InstalledInductiveProvenance safety (insertDefs C cis) env'
-  | [], _, _, henv => InstalledInductiveProvenance.monoEnv H henv
+      InductFamiliesInstalled safety (insertDefs C cis) env'
+  | [], _, _, henv => InductFamiliesInstalled.monoEnv H henv
   | ci :: cis, hfresh, hnodup, henv => by
       simp only [List.map_cons, List.nodup_cons] at hnodup
       have hciFresh := hfresh ci (by simp)
       have hwf' := hwf.insert ci.name (.defnInfo ci) hciFresh
-      have H' : InstalledInductiveProvenance safety
+      have H' : InductFamiliesInstalled safety
           (C.insert ci.name (.defnInfo ci)) env' :=
-        InstalledInductiveProvenance.insertNonInductive
+        InductFamiliesInstalled.insertNonInductive
           (ci := .defnInfo ci) H hwf hciFresh
           (by intro _ h; cases h) henv
-      apply InstalledInductiveProvenance.insertDefs H' hwf' cis
+      apply InductFamiliesInstalled.insertDefs H' hwf' cis
       · intro cj hcj
         rw [hwf.find?_insert]
         have hne : ci.name ≠ cj.name := by

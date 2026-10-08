@@ -474,7 +474,7 @@ theorem VEnv.IsDefEq.noFreshConsts_addProjections {env : VEnv}
     {entries : List VProjectionEntry}
     (Henv : VEnv.Ordered env)
     (Hfresh : ∀ name ∈ names, env.constants name = none)
-    (Hctx : CtxNoConsts names Gamma)
+    (Hctx : CtxAvoidsConsts names Gamma)
     (H : (env.addProjections entries).IsDefEq U Gamma lhs rhs type) :
     lhs.containsAnyConst names = false ∧
     rhs.containsAnyConst names = false ∧
@@ -491,7 +491,7 @@ theorem VEnv.ctxNoFreshConsts_addProjections {env : VEnv}
     {entries : List VProjectionEntry}
     (Henv : VEnv.Ordered env)
     (Hfresh : ∀ name ∈ names, env.constants name = none) :
-    ∀ {Gamma}, OnCtx Gamma ((env.addProjections entries).IsType U) → CtxNoConsts names Gamma
+    ∀ {Gamma}, OnCtx Gamma ((env.addProjections entries).IsType U) → CtxAvoidsConsts names Gamma
   | [], _ => by
       intro type htype
       simp at htype
@@ -769,7 +769,7 @@ theorem VEnv.WF.eliminatorsAvoidConsts {env : VEnv} {names : List Name}
       obtain ⟨body, hbody⟩ := ContainerSpecialization.directFamily_type hdirectA
       rw [hbody] at hdtype
       have hparams := (VExpr.containsAnyConst_wrapForalls_eq_false_iff.mp hdtype).1
-      have hctx : CtxNoConsts names schema.signature.params.reverse := by
+      have hctx : CtxAvoidsConsts names schema.signature.params.reverse := by
         intro t ht
         exact hparams t (List.mem_reverse.mp ht)
       obtain ⟨_, _, _, _, _, type, htyped⟩ := hwell a ha

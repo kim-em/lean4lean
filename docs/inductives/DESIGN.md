@@ -73,10 +73,10 @@ run as well as the pure instance. `replayFresh.WF` states that a successful `--f
 constant table (default fuel) yields an environment modelled by well-formed `VEnvs` in which every
 safe, non-partial source constant is present and `==` to the source constant (`Expr.eqv`, so up to
 binder names and annotations). It has no hypothesis beyond the source table: the walk is turned
-into a `Replay` from `Kernel.Environment.empty` (`Replay.WF_empty`). The kernel's `checkEqType`
+into an `AddDeclChain` from `Kernel.Environment.empty` (`AddDeclChain.WF_empty`). The kernel's `checkEqType`
 compares `Eq` only up to `Expr.eqv` and does not look at `Eq.rec` or at safety, so before the step
 that initializes the quotient module the driver also checks that `Eq`, `Eq.refl` and `Eq.rec` are
-the prelude's (`hasProductionEq`, sound for `HasProductionEq`). `replayFromImports.WF` states the same on top of
+the prelude's (`hasPreludeEq`, sound for `HasPreludeEq`). `replayFromImports.WF` states the same on top of
 imports whose well-formedness and canonical `Eq` are assumed: imports are trusted in that mode.
 
 ### 1.3 The hypotheses
@@ -103,11 +103,11 @@ imports whose well-formedness and canonical `Eq` are assumed: imports are truste
 - There is no hypothesis about the projection-walk corner: the constructor certificates of
   `VEnvs.WF` resolve it (section 5.3).
 
-A replay from the empty environment is covered by `Replay.WF_empty`
+A replay from the empty environment is covered by `AddDeclChain.WF_empty`
 (`Lean4Lean/Verify/Replay.lean`): every environment reached by adding a list
 of declarations one at a time with the checked `addDecl`, starting from
 `Kernel.Environment.empty`, has a well-formed model, provided each `quotDecl` comes after the
-prelude's `Eq`, `Eq.refl` and `Eq.rec` (`HasProductionEq`, a decidable property of the
+prelude's `Eq`, `Eq.refl` and `Eq.rec` (`HasPreludeEq`, a decidable property of the
 executable environment; before `Eq` exists `quotDecl` has no model).
 
 Canonical `Eq` holds in every environment obtained by replaying `Init.Prelude` past `Eq`.
@@ -116,7 +116,7 @@ by a test: `addDecl.eqBootstrapHasCanonicalEq` (`Lean4Lean/Verify/CanonicalEq.le
 takes as hypothesis that the executable installs `Eq.rec` with the production type, which
 `Lean4Lean/Tests/PreludeEq.lean` checks. The honest reading of the theorem is therefore:
 `addDecl` is sound for environments that contain the prelude's `Eq`, and every declaration of
-a replay from the empty environment is sound (`Replay.WF_empty`).
+a replay from the empty environment is sound (`AddDeclChain.WF_empty`).
 
 No hypothesis names the declaration being checked or supplies a semantic fact about it.
 Inductive declarations carry no premise at all: their abstract declaration, normalized

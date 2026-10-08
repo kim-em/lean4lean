@@ -688,7 +688,7 @@ def NormalizedHeaderSourceTelescope.mono {env env' : VEnv}
 /-- Persistent result of checking one metadata-free source header.  The final
 mutual declaration need not exist yet; only its two block-wide counters are
 relevant to `TypeShape`.  This lets the outer traversal accumulate checked
-headers and materialize the declaration after every family member has
+headers and withMetadata the declaration after every family member has
 supplied its metadata. -/
 structure SynthesizedHeader (env : VEnv) (Us : List Name)
     (uvars nparams : Nat)
@@ -971,7 +971,7 @@ the corresponding family in the resulting declaration. -/
 theorem SynthesizedHeaderPrefix.normalizedSourceAtMaterialized
     (H : SynthesizedHeaderPrefix env Us skeleton params commonLevel metadata
       skeleton.types.length)
-    (Hmaterialize : skeleton.materialize metadata = some decl)
+    (Hmaterialize : skeleton.withMetadata metadata = some decl)
     (i : Nat) (hi : i < decl.types.length) :
     Nonempty (NormalizedHeaderSourceTelescope env Us params decl.nparams
       decl.types[i].numIndices) := by
@@ -1003,7 +1003,7 @@ replay, rather than by unrelated existential `TypeShape` proofs. -/
 theorem SynthesizedHeaderPrefix.normalizedShapeAtMaterialized
     (H : SynthesizedHeaderPrefix env Us skeleton params commonLevel metadata
       skeleton.types.length)
-    (Hmaterialize : skeleton.materialize metadata = some decl)
+    (Hmaterialize : skeleton.withMetadata metadata = some decl)
     (i : Nat) (hi : i < decl.types.length) :
     ∃ sourceTelescope : NormalizedHeaderSourceTelescope env Us params
         decl.nparams decl.types[i].numIndices,
@@ -1044,7 +1044,7 @@ metadata-prefix invariant into the public formation header certificate. -/
 def SynthesizedHeaderPrefix.complete
     (H : SynthesizedHeaderPrefix env Us skeleton params commonLevel metadata
       skeleton.types.length)
-    (Hmaterialize : skeleton.materialize metadata = some decl) :
+    (Hmaterialize : skeleton.withMetadata metadata = some decl) :
     HeaderCertificate env decl := by
   have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
   have hcheckedLength :

@@ -90,7 +90,7 @@ theorem GeneratedFamilyWitness.installedContainerOfAbstractLookup
     exact hlookup
   have Haligned := (wf.tr (safety := safety)).find?_uniq
     H.built.lookup habstract
-  rcases wf.inductiveProvenance H.sourceName H.sourceInfo hfind Haligned.2.1
+  rcases wf.inductFamiliesInstalled H.sourceName H.sourceInfo hfind Haligned.2.1
       with ⟨P⟩
   have hfamily := P.alignment.familyIdx_lt
   have habstractLookup : (ves.venv safety).constants H.sourceName =

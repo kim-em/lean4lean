@@ -9,10 +9,10 @@ level parameters, parameter count, family type and constructor type, read back
 from the environment), and added to an empty environment through
 `Lean4Lean.addDecl`.  The test checks that
 
-* the submitted declaration has the syntax `EqBootstrapShape` describes
+* the submitted declaration has the syntax `PreludeEqShape` describes
   (`nparams = 2`), so `addDecl.eqBootstrapHasCanonicalEq` applies to it;
 * the executable installs `Eq`, `Eq.refl` and `Eq.rec` exactly as Lean's kernel
-  does, and the installed `Eq.rec` satisfies `IsProductionEqRec` (its type is
+  does, and the installed `Eq.rec` satisfies `IsPreludeEqRec` (its type is
   `eqRecTypeExpr`) with the single rule `eqRecRuleRhsExpr`;
 * the translations of these expressions (and of the iota rule's left-hand side
   and type) are the terms stored by `VEnv.HasCanonicalEq`. -/
@@ -45,16 +45,16 @@ run_meta do
   let eqType : InductiveType := { name := ``Eq, type := I.type, ctors := [refl] }
   let types := [eqType]
   let decl := Declaration.inductDecl I.levelParams I.numParams types I.isUnsafe
-  -- `EqBootstrapShape`.
+  -- `PreludeEqShape`.
   let [u] := I.levelParams | throwError "Eq: unexpected level parameters {I.levelParams}"
   check (I.numParams == 2 && I.numIndices == 1 && !I.isUnsafe) "Eq: not 2 params, 1 index"
   let [alpha, lhs, rhs] := forallNames I.type | throwError "Eq: unexpected type"
-  check (I.type.equal (VerifyInductive.eqBootstrapType u alpha lhs rhs))
-    "Eq: type is not eqBootstrapType"
+  check (I.type.equal (VerifyInductive.preludeEqType u alpha lhs rhs))
+    "Eq: type is not preludeEqType"
   check (C.levelParams == [u]) "Eq.refl: level parameters differ from Eq's"
   let [reflAlpha, reflValue] := forallNames C.type | throwError "Eq.refl: unexpected type"
-  check (C.type.equal (VerifyInductive.eqBootstrapReflType u reflAlpha reflValue))
-    "Eq.refl: type is not eqBootstrapReflType"
+  check (C.type.equal (VerifyInductive.preludeEqReflType u reflAlpha reflValue))
+    "Eq.refl: type is not preludeEqReflType"
   -- The executable on the real declaration, from an empty environment.
   let empty ← mkEmptyEnvironment
   let kenv ← match Lean4Lean.addDecl empty.toKernelEnv decl (check := true) with
@@ -69,7 +69,7 @@ run_meta do
   check (r.numParams == R.numParams && r.numIndices == R.numIndices &&
     r.numMotives == R.numMotives && r.numMinors == R.numMinors && r.k == R.k)
     "Eq.rec: metadata differs from Lean's"
-  -- `IsProductionEqRec`.
+  -- `IsPreludeEqRec`.
   let [ru, rv] := r.levelParams | throwError "Eq.rec: unexpected level parameters"
   check (ru != rv && !r.isUnsafe) "Eq.rec: level parameters not distinct, or unsafe"
   let [nAlpha, nLhs, nMotive, nRefl, nRhs, nProof] := forallNames r.type

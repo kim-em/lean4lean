@@ -172,7 +172,7 @@ def VerifiedSemanticInductiveRunResultSourceAligned
         types.toArray (source.safety != .safe) Hc'.venv outEnv
 
 /-- The complete executable ordinary checker refines a skeleton-free
-semantic result.  This replaces `run.materialize`'s caller-supplied abstract
+semantic result.  This replaces `run.withMetadata`'s caller-supplied abstract
 skeleton with the declaration constructed from successful header and
 constructor executions. -/
 theorem AddInductive.run.semanticSourceAlignedWF

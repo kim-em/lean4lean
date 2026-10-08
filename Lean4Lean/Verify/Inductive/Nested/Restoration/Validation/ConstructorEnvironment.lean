@@ -592,20 +592,20 @@ theorem RestoredConstructorValidationEnvironment.headerFind
 
 /-! ### Restricting production origins to a sub-environment -/
 
-def ProductionConstructorAlignment.restrict
-    (H : ProductionConstructorAlignment target decl familyIdx ctorIdx familyInfo)
+def CtorInfoAlignment.restrict
+    (H : CtorInfoAlignment target decl familyIdx ctorIdx familyInfo)
     (hlookup : sub.find? (familyInfo.ctors[ctorIdx]'H.familyInfo_ctorIdx_lt) =
       some (.ctorInfo H.info)) :
-    ProductionConstructorAlignment sub decl familyIdx ctorIdx familyInfo :=
+    CtorInfoAlignment sub decl familyIdx ctorIdx familyInfo :=
   { H with lookup := hlookup }
 
-theorem ProductionFamilyAlignment.restrict
-    (H : ProductionFamilyAlignment target decl familyIdx familyInfo)
+theorem InductInfoAlignment.restrict
+    (H : InductInfoAlignment target decl familyIdx familyInfo)
     (hfamily : sub.find? familyInfo.name = some (.inductInfo familyInfo))
     (hsub : ∀ {name ci}, sub.find? name = some ci → target.find? name = some ci)
     (hctors : ∀ ctorIdx (hctor : ctorIdx < familyInfo.ctors.length),
       ∃ ci, sub.find? familyInfo.ctors[ctorIdx] = some ci) :
-    ProductionFamilyAlignment sub decl familyIdx familyInfo where
+    InductInfoAlignment sub decl familyIdx familyInfo where
   familyIdx_lt := H.familyIdx_lt
   name := H.name
   lookup := hfamily
@@ -621,20 +621,20 @@ theorem ProductionFamilyAlignment.restrict
     have hci' := hsub hci
     rw [C.lookup] at hci'
     cases hci'
-    exact ⟨ProductionConstructorAlignment.restrict C hci⟩
+    exact ⟨CtorInfoAlignment.restrict C hci⟩
 
-theorem ProductionInductiveOrigins.restrict
-    (H : ProductionInductiveOrigins source target decl)
+theorem InductInfosFromDecl.restrict
+    (H : InductInfosFromDecl source target decl)
     (hsourceSub : ∀ {name ci}, source.find? name = some ci →
       sub.find? name = some ci)
     (hsub : ∀ {name ci}, sub.find? name = some ci → target.find? name = some ci)
     (hctors : ∀ familyName familyInfo familyIdx,
       sub.find? familyName = some (.inductInfo familyInfo) →
       source.find? familyName = none →
-      ProductionFamilyAlignment target decl familyIdx familyInfo →
+      InductInfoAlignment target decl familyIdx familyInfo →
       ∀ ctorIdx (hctor : ctorIdx < familyInfo.ctors.length),
         ∃ ci, sub.find? familyInfo.ctors[ctorIdx] = some ci) :
-    ProductionInductiveOrigins source sub decl := by
+    InductInfosFromDecl source sub decl := by
   intro familyName familyInfo hfind
   cases hsrc : source.find? familyName with
   | some ci =>
@@ -647,7 +647,7 @@ theorem ProductionInductiveOrigins.restrict
     · rw [hold] at hsrc
       cases hsrc
     · right
-      refine ⟨familyIdx, hname, ⟨ProductionFamilyAlignment.restrict A ?_ hsub
+      refine ⟨familyIdx, hname, ⟨InductInfoAlignment.restrict A ?_ hsub
         (hctors familyName familyInfo familyIdx hfind hsrc A)⟩⟩
       rw [← hname]
       exact hfind
@@ -697,9 +697,9 @@ theorem RestoredConstructorValidationEnvironment.validProjected
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   have Howners : ConstructorOwnersPresent c.env := Hc.checking.constructorOwners
   have hvalidWF : validationEnv.constants.WF := hvalid.tr.map_wf
-  have Hinitial : ProductionInductiveOrigins c.env.constants c.env.constants
+  have Hinitial : InductInfosFromDecl c.env.constants c.env.constants
       sourceDecl := fun _ _ h => .inl h
-  have Hprimary : ProductionInductiveOrigins c.env.constants
+  have Hprimary : InductInfosFromDecl c.env.constants
       Hrestored.primaryEnv.constants sourceDecl :=
     Hrestored.inductives.sourceFamiliesProductionInductiveOrigins Hlower Hc
       Hprod Hsource Hmetadata Hsources Harity Howners hempty [] (by simp)
@@ -764,7 +764,7 @@ theorem RestoredConstructorValidationEnvironment.validProjected
       ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) := by
     apply hsourceRegistry.extendInductive (envTypes := envTypes)
       (envCtors := envCtors)
-    · apply ProductionInductiveOrigins.restrict Hprimary
+    · apply InductInfosFromDecl.restrict Hprimary
       · intro name ci h
         exact Environment.mapFind_of_find hvalidWF (hsourceSub (hfindS h))
       · intro name ci h
@@ -885,7 +885,7 @@ theorem RestoredNestedDeclarationsResult.finalLocalValidOfStaged
   have houtWF : outEnv.constants.WF := Hactual.targetWF hsourceWF
   have howners : ConstructorOwnersPresent outEnv :=
     Hrestored.constructorOwnersPresent Hlower Hc Hprod hempty Howners
-  have horigins : ProductionInductiveOrigins c.env.constants outEnv.constants
+  have horigins : InductInfosFromDecl c.env.constants outEnv.constants
       sourceDecl :=
     Hrestored.productionInductiveOrigins Hlower Hc Hprod Hsource Hmetadata
       Hsources Harity Howners hempty

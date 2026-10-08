@@ -272,7 +272,7 @@ theorem NestedValidatedRunResult.hprovenance_of
             C.finalBaseVEnv)
           (List.finRange E.production.compilationSignature.constructors.size)
           (C.primaryRules ++ C.auxiliaryRules) →
-        InductiveRecursorProvenance .unsafe sourceProdEnv.constants
+        NewRecursorsAligned .unsafe sourceProdEnv.constants
           (ves.venv (if isUnsafe then .unsafe else .safe)) outEnv.constants
           (C.finalBaseVEnv.addDefEqRules (C.primaryRules ++ C.auxiliaryRules)) := by
   intro aux₁ D₁ C hC _ HCrules₁

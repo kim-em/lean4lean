@@ -24,7 +24,7 @@ position. -/
 theorem VInductDeclSkeleton.materializePrefix_resultLevel
     (skeleton : VInductDeclSkeleton) (expanded source : VInductDecl)
     (hle : skeleton.types.length ≤ expanded.types.length)
-    (Hmaterialize : skeleton.materialize
+    (Hmaterialize : skeleton.withMetadata
       ((expanded.types.take skeleton.types.length).map fun type =>
         (type.numIndices, type.resultLevel)) = some source)
     (i : Nat) (hi : i < skeleton.types.length)

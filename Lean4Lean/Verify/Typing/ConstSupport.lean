@@ -28,13 +28,13 @@ theorem containsAnyConst_inst_eq_false
 end VExpr
 
 /-- Every type stored in a local typing context avoids `names`. -/
-def CtxNoConsts (names : List Lean.Name) (Gamma : List VExpr) : Prop :=
+def CtxAvoidsConsts (names : List Lean.Name) (Gamma : List VExpr) : Prop :=
   ∀ type ∈ Gamma, type.containsAnyConst names = false
 
-theorem CtxNoConsts.cons
-    (H : CtxNoConsts names Gamma)
+theorem CtxAvoidsConsts.cons
+    (H : CtxAvoidsConsts names Gamma)
     (hA : A.containsAnyConst names = false) :
-    CtxNoConsts names (A :: Gamma) := by
+    CtxAvoidsConsts names (A :: Gamma) := by
   intro type htype
   simp only [List.mem_cons] at htype
   rcases htype with rfl | htype
@@ -42,7 +42,7 @@ theorem CtxNoConsts.cons
   · exact H type htype
 
 theorem Lookup.noConsts
-    (Hctx : CtxNoConsts names Gamma)
+    (Hctx : CtxAvoidsConsts names Gamma)
     (H : Lookup Gamma index type) :
     type.containsAnyConst names = false := by
   induction H with
@@ -50,7 +50,7 @@ theorem Lookup.noConsts
       simp only [VExpr.containsAnyConst_liftN]
       exact Hctx _ (by simp)
   | @succ Gamma index type domain H ih =>
-      have htail : CtxNoConsts names Gamma := by
+      have htail : CtxAvoidsConsts names Gamma := by
         intro current hcurrent
         exact Hctx current (by simp [hcurrent])
       simpa using VExpr.containsAnyConst_liftN
@@ -65,7 +65,7 @@ theorem VEnv.IsDefEq.noConsts
       e.containsAnyConst names = false ∧
       A.containsAnyConst names = false)
     (Hfresh : ∀ {name ci}, env.constants name = some ci → name ∉ names)
-    (Hctx : CtxNoConsts names Gamma)
+    (Hctx : CtxAvoidsConsts names Gamma)
     (H : env.IsDefEq U Gamma lhs rhs type) :
     lhs.containsAnyConst names = false ∧
     rhs.containsAnyConst names = false ∧
@@ -207,7 +207,7 @@ theorem VEnv.Ordered.onTypes_noFreshConsts
 theorem VEnv.IsDefEq.noFreshConsts
     (Henv : VEnv.Ordered env)
     (Hfresh : ∀ name ∈ names, env.constants name = none)
-    (Hctx : CtxNoConsts names Gamma)
+    (Hctx : CtxAvoidsConsts names Gamma)
     (H : env.IsDefEq U Gamma lhs rhs type) :
     lhs.containsAnyConst names = false ∧
     rhs.containsAnyConst names = false ∧
@@ -221,7 +221,7 @@ theorem VEnv.IsDefEq.noFreshConsts
 theorem VEnv.Ordered.ctxNoFreshConsts
     (Henv : VEnv.Ordered env)
     (Hfresh : ∀ name ∈ names, env.constants name = none) :
-    ∀ {Gamma}, OnCtx Gamma (env.IsType U) → CtxNoConsts names Gamma
+    ∀ {Gamma}, OnCtx Gamma (env.IsType U) → CtxAvoidsConsts names Gamma
   | [], _ => by
       intro type htype
       simp at htype

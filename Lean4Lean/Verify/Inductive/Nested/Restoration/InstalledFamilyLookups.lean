@@ -158,12 +158,12 @@ theorem Environment.mapFind_of_find
 /-- Adding one fresh non-inductive declaration preserves the provenance of
 every visible inductive family.  Existing family and constructor lookups are
 rebased through the exact one-step production extension. -/
-theorem ProductionInductiveOrigins.addNoninductive
+theorem InductInfosFromDecl.addNoninductive
     {source env : Environment} {ci : ConstantInfo}
-    (H : ProductionInductiveOrigins source.constants env.constants decl)
+    (H : InductInfosFromDecl source.constants env.constants decl)
     (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
     (hnind : ∀ info, ci ≠ .inductInfo info) :
-    ProductionInductiveOrigins source.constants (env.add ci).constants decl := by
+    InductInfosFromDecl source.constants (env.add ci).constants decl := by
   intro familyName familyInfo hfamily
   have htargetWF := constantsWF_add_checked hwf hfresh
   have hfamilyEnv : (env.add ci).find? familyName =
@@ -199,9 +199,9 @@ theorem StateForMTrace.recursorPreservesProductionInductiveOrigins
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
     (hsourceWF : sourceEnv.constants.WF)
-    (Horigins : ProductionInductiveOrigins base.constants
+    (Horigins : InductInfosFromDecl base.constants
       sourceEnv.constants decl) :
-    ProductionInductiveOrigins base.constants targetEnv.constants decl := by
+    InductInfosFromDecl base.constants targetEnv.constants decl := by
   induction Htrace with
   | nil => exact Horigins
   | @cons head stepSource middle tail target Hstep Htail ih =>
@@ -214,7 +214,7 @@ theorem StateForMTrace.recursorPreservesProductionInductiveOrigins
         hmiddle.symm ▸ constantsWF_add_checked hsourceWF hfresh
       apply ih hmiddleWF
       rw [hmiddle]
-      exact ProductionInductiveOrigins.addNoninductive Horigins hsourceWF
+      exact InductInfosFromDecl.addNoninductive Horigins hsourceWF
         hfresh (by simp [ci])
 
 /-- Constructor restoration cannot create an inductive-family lookup. -/
@@ -443,11 +443,11 @@ theorem RestoredInductiveDeclResult.extendProductionInductiveOrigins
     (H : RestoredInductiveDeclResult result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
     (hsourceWF : sourceEnv.constants.WF)
-    (Horigins : ProductionInductiveOrigins base.constants
+    (Horigins : InductInfosFromDecl base.constants
       sourceEnv.constants decl)
-    (Hnew : ProductionFamilyAlignment targetEnv.constants decl familyIdx
+    (Hnew : InductInfoAlignment targetEnv.constants decl familyIdx
       H.header.newInfo) :
-    ProductionInductiveOrigins base.constants targetEnv.constants decl := by
+    InductInfosFromDecl base.constants targetEnv.constants decl := by
   intro familyName familyInfo hfind
   have htargetWF := H.freshTrace hsourceWF
   rcases htargetWF with ⟨entries, Hfresh⟩
@@ -782,7 +782,7 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
       (sourceTypes.map (fun type => type.name)) sourceTypes[familyIdx]
       stepSource stepTarget)
     (hstepWF : stepSource.constants.WF) :
-    ProductionFamilyAlignment stepTarget.constants sourceDecl familyIdx
+    InductInfoAlignment stepTarget.constants sourceDecl familyIdx
       Hstep.restored.header.newInfo := by
   rcases Hlower.sourceFinalMappingAtFreshAligned hempty hfamily with
     ⟨fvars, _mappingState, target, _loweredState, hparams, hnodup,
@@ -1341,9 +1341,9 @@ theorem StateForMTrace.sourceFamiliesProductionInductiveOrigins
     (processed : List InductiveType)
     (hsplit : sourceTypes = processed ++ remaining)
     (hsourceWF : sourceEnv.constants.WF)
-    (Horigins : ProductionInductiveOrigins c.env.constants
+    (Horigins : InductInfosFromDecl c.env.constants
       sourceEnv.constants sourceDecl) :
-    ProductionInductiveOrigins c.env.constants targetEnv.constants
+    InductInfosFromDecl c.env.constants targetEnv.constants
       sourceDecl := by
   induction Htrace generalizing processed with
   | nil => exact Horigins
@@ -1393,13 +1393,13 @@ theorem RestoredNestedDeclarationsResult.productionInductiveOrigins
     (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
       auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
       out) :
-    ProductionInductiveOrigins c.env.constants out.2.constants sourceDecl := by
+    InductInfosFromDecl c.env.constants out.2.constants sourceDecl := by
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
-  have Hinitial : ProductionInductiveOrigins c.env.constants c.env.constants
+  have Hinitial : InductInfosFromDecl c.env.constants c.env.constants
       sourceDecl := by
     intro familyName familyInfo hfind
     exact .inl hfind
-  have Hprimary : ProductionInductiveOrigins c.env.constants
+  have Hprimary : InductInfosFromDecl c.env.constants
       Hrestored.primaryEnv.constants sourceDecl := by
     apply Hrestored.inductives.sourceFamiliesProductionInductiveOrigins
       Hlower Hc Hprod Hsource Hmetadata Hsources Harity Howners hempty []

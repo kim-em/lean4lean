@@ -48,7 +48,7 @@ def CompletedConstructorPhases.checkedRecursorHeaderAt
         ∃ translation : TrExprS R.context.venv
           (AddInductive.getRecLevelParams elimLevel c.lparams) []
           indTypes[familyIdx].type targetType,
-        translation.UsesOnly (fun name => name ∈ decl.sourceNames) ∧
+        translation.Avoids (fun name => name ∈ decl.sourceNames) ∧
           targetType =
             (mkRecInfos.loopArgs1.recursorTargetSkeletonOf
               decl.types[familyIdx] c.lparams elimLevel Helim).type := by

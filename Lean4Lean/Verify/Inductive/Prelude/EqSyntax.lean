@@ -20,14 +20,14 @@ namespace VerifyInductive
 /-- The concrete family type submitted by Lean's bootstrap declaration of
 `Eq`. Binder names are operationally retained by `Expr`, although abstract
 translation erases them. -/
-def eqBootstrapType (u alphaName lhsName rhsName : Name) : Expr :=
+def preludeEqType (u alphaName lhsName rhsName : Name) : Expr :=
   .forallE alphaName (.sort (.param u))
     (.forallE lhsName (.bvar 0)
       (.forallE rhsName (.bvar 1) (.sort .zero) .default) .default)
     .implicit
 
 /-- The concrete constructor type submitted for `Eq.refl`. -/
-def eqBootstrapReflType (u alphaName valueName : Name) : Expr :=
+def preludeEqReflType (u alphaName valueName : Name) : Expr :=
   .forallE alphaName (.sort (.param u))
     (.forallE valueName (.bvar 0)
       (.app (.app (.app (.const ``Eq [.param u]) (.bvar 1)) (.bvar 0))
@@ -158,15 +158,15 @@ macro_rules | `(tactic| canonical_eq_tr_syn) => `(tactic|
         | exact mapM_one | exact mapM_two_right ‹_› | exact mapM_two ‹_›)))
 
 theorem eqBootstrapType_syn (u alphaName lhsName rhsName : Name) :
-    TrExprSyn [u] [] (eqBootstrapType u alphaName lhsName rhsName)
+    TrExprSyn [u] [] (preludeEqType u alphaName lhsName rhsName)
       canonicalEqType := by
-  unfold eqBootstrapType canonicalEqType
+  unfold preludeEqType canonicalEqType
   canonical_eq_tr_syn
 
 theorem eqBootstrapReflType_syn (u alphaName valueName : Name) :
-    TrExprSyn [u] [] (eqBootstrapReflType u alphaName valueName)
+    TrExprSyn [u] [] (preludeEqReflType u alphaName valueName)
       canonicalEqReflType := by
-  unfold eqBootstrapReflType canonicalEqReflType
+  unfold preludeEqReflType canonicalEqReflType
   canonical_eq_tr_syn
 
 theorem eqRecTypeExpr_syn {u v : Name} (huv : u ≠ v) (n : EqRecBinderNames) :
@@ -181,11 +181,11 @@ section
 variable {env : VEnv} {e : VExpr}
 
 theorem TrExprS.eq_canonicalEqType {u a b c : Name}
-    (H : TrExprS env [u] [] (eqBootstrapType u a b c) e) : e = canonicalEqType :=
+    (H : TrExprS env [u] [] (preludeEqType u a b c) e) : e = canonicalEqType :=
   H.toSyn.unique (eqBootstrapType_syn u a b c)
 
 theorem TrExprS.eq_canonicalEqReflType {u a b : Name}
-    (H : TrExprS env [u] [] (eqBootstrapReflType u a b) e) : e = canonicalEqReflType :=
+    (H : TrExprS env [u] [] (preludeEqReflType u a b) e) : e = canonicalEqReflType :=
   H.toSyn.unique (eqBootstrapReflType_syn u a b)
 
 theorem TrExprS.eq_canonicalEqRecType {u v : Name} (huv : u ≠ v) {n : EqRecBinderNames}
@@ -197,15 +197,15 @@ end
 /-! ### Production constants -/
 
 /-- A production constant with the type `Init.Prelude` gives `Eq`. -/
-def IsProductionEq (ci : ConstantInfo) : Prop :=
-  ci.safety = .safe ∧ ∃ u a b c, ci.levelParams = [u] ∧ ci.type = eqBootstrapType u a b c
+def IsPreludeEq (ci : ConstantInfo) : Prop :=
+  ci.safety = .safe ∧ ∃ u a b c, ci.levelParams = [u] ∧ ci.type = preludeEqType u a b c
 
 /-- A production constant with the type `Init.Prelude` gives `Eq.refl`. -/
-def IsProductionEqRefl (ci : ConstantInfo) : Prop :=
-  ci.safety = .safe ∧ ∃ u a b, ci.levelParams = [u] ∧ ci.type = eqBootstrapReflType u a b
+def IsPreludeEqRefl (ci : ConstantInfo) : Prop :=
+  ci.safety = .safe ∧ ∃ u a b, ci.levelParams = [u] ∧ ci.type = preludeEqReflType u a b
 
 /-- A production constant with the type the kernel generates for `Eq.rec`. -/
-def IsProductionEqRec (ci : ConstantInfo) : Prop :=
+def IsPreludeEqRec (ci : ConstantInfo) : Prop :=
   ci.safety = .safe ∧
     ∃ u v n, u ≠ v ∧ ci.levelParams = [u, v] ∧ ci.type = eqRecTypeExpr u v n
 

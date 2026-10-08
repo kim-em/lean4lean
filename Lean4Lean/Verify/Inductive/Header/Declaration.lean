@@ -23,7 +23,7 @@ structure AssembledSemanticHeaders
   skeletonTranslation : TrInductDeclSkeletonHeaders env Us nparams sources
     isUnsafe skeleton envTypes
   metadata : List (Nat × VLevel)
-  materialized : skeleton.materialize metadata = some decl
+  materialized : skeleton.withMetadata metadata = some decl
   semanticPrefix : checkInductiveTypes.loopType.SynthesizedHeaderPrefix
     env Us skeleton params commonLevel metadata skeleton.types.length
   translation : TrInductDeclHeaders env Us nparams sources isUnsafe decl
@@ -101,9 +101,9 @@ theorem AssembledSemanticHeaders.ofTargetsExact
     types := List.zipWith (fun type data =>
       type.toVInductiveType data.1 data.2) skeleton.types Hsemantic.metadata
     isUnsafe := skeleton.isUnsafe }
-  have Hmaterialized : skeleton.materialize Hsemantic.metadata =
+  have Hmaterialized : skeleton.withMetadata Hsemantic.metadata =
       some decl := by
-    simp [VInductDeclSkeleton.materialize, hmetadataLength, decl]
+    simp [VInductDeclSkeleton.withMetadata, hmetadataLength, decl]
   let A : AssembledSemanticHeaders env envTypes Us nparams sources isUnsafe
       params commonLevel := {
     skeleton := skeleton
@@ -127,14 +127,14 @@ theorem AssembledSemanticHeaders.ofTargetsExact
           VInductDeclSkeleton.materialize_toSkeleton A.materialized]
       _ = Hsemantic.headers.targets := htypeConstants
 
-/-- The metadata used to materialize a declaration is exactly the resulting
+/-- The metadata used to withMetadata a declaration is exactly the resulting
 per-family index-count vector.  This is the declaration-wide counterpart of
 `materialize_typeAt`, factored out of the old traversal terminal case so the
 skeleton-free assembly path can reuse it. -/
 theorem VInductDeclSkeleton.materialize_numIndices
     {skeleton : VInductDeclSkeleton} {metadata : List (Nat × VLevel)}
     {decl : VInductDecl}
-    (H : skeleton.materialize metadata = some decl) :
+    (H : skeleton.withMetadata metadata = some decl) :
     metadata.map Prod.fst = decl.types.map (·.numIndices) := by
   have zipIndices : ∀ (types : List VInductiveTypeSkeleton)
       (data : List (Nat × VLevel)), data.length = types.length →
@@ -156,7 +156,7 @@ theorem VInductDeclSkeleton.materialize_numIndices
             datum.1 :: data.map Prod.fst
         exact congrArg (List.cons datum.1) (ih data (by omega))
   have hlength := VInductDeclSkeleton.materialize_length H
-  simp only [VInductDeclSkeleton.materialize] at H
+  simp only [VInductDeclSkeleton.withMetadata] at H
   split at H
   · simp only [Option.some.injEq] at H
     subst decl

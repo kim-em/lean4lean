@@ -23,7 +23,7 @@ are appended to the expanded declaration. -/
 theorem VInductDeclSkeleton.materializePrefix_numIndices
     (skeleton : VInductDeclSkeleton) (expanded source : VInductDecl)
     (hle : skeleton.types.length ≤ expanded.types.length)
-    (Hmaterialize : skeleton.materialize
+    (Hmaterialize : skeleton.withMetadata
       ((expanded.types.take skeleton.types.length).map fun type =>
         (type.numIndices, type.resultLevel)) = some source)
     (i : Nat) (hi : i < skeleton.types.length)
@@ -59,7 +59,7 @@ source metadata to the lowered checker result. -/
 inductive MaterializedInductivePrefix
     (source expanded : VInductDecl) : Prop
   | intro (skeleton : VInductDeclSkeleton)
-      (materialized : skeleton.materialize
+      (materialized : skeleton.withMetadata
         ((expanded.types.take skeleton.types.length).map fun type =>
           (type.numIndices, type.resultLevel)) = some source) :
       MaterializedInductivePrefix source expanded
@@ -90,7 +90,7 @@ theorem VInductDeclSkeleton.materializeExpandedPrefix
     (skeleton : VInductDeclSkeleton) (expanded : VInductDecl)
     (hle : skeleton.types.length ≤ expanded.types.length) :
     ∃ source,
-      skeleton.materialize
+      skeleton.withMetadata
         ((expanded.types.take skeleton.types.length).map fun type =>
           (type.numIndices, type.resultLevel)) = some source ∧
       MaterializedInductivePrefix source expanded := by
@@ -105,8 +105,8 @@ theorem VInductDeclSkeleton.materializeExpandedPrefix
     types := List.zipWith (fun type data =>
       type.toVInductiveType data.1 data.2) skeleton.types metadata
     isUnsafe := skeleton.isUnsafe }
-  have Hmaterialize : skeleton.materialize metadata = some source := by
-    simp [VInductDeclSkeleton.materialize, hmetadata, source]
+  have Hmaterialize : skeleton.withMetadata metadata = some source := by
+    simp [VInductDeclSkeleton.withMetadata, hmetadata, source]
   exact ⟨source, Hmaterialize, ⟨skeleton, Hmaterialize⟩⟩
 
 /-- A declaration selected below a newer context prefix is looked up at the

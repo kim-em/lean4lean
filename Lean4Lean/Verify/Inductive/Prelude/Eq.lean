@@ -19,25 +19,25 @@ private theorem vconstant_eq_of_fields {a b : VConstant}
 bootstrap declaration, modulo binder and universe-parameter names.  As
 submitted by `Init.Prelude`, `Eq` has two parameters (`α` and the left
 endpoint `a`) and one index (the right endpoint), so `nparams = 2`. -/
-def EqBootstrapShape (lparams : List Name) (nparams : Nat)
+def PreludeEqShape (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) : Prop :=
   ∃ u alphaName lhsName rhsName reflAlphaName reflValueName,
     lparams = [u] ∧ nparams = 2 ∧ isUnsafe = false ∧
     types = [{
       name := ``Eq
-      type := eqBootstrapType u alphaName lhsName rhsName
+      type := preludeEqType u alphaName lhsName rhsName
       ctors := [{
         name := ``Eq.refl
-        type := eqBootstrapReflType u reflAlphaName reflValueName }] }]
+        type := preludeEqReflType u reflAlphaName reflValueName }] }]
 
 /-- The concrete `Eq` family arity has the canonical abstract type stored in
 `eqConst`. This proof is environment-independent: the arity contains only
 sorts and bound variables. -/
 theorem eqBootstrapType_translation
     (env : VEnv) (u alphaName lhsName rhsName : Name) :
-    TrExprS env [u] [] (eqBootstrapType u alphaName lhsName rhsName)
+    TrExprS env [u] [] (preludeEqType u alphaName lhsName rhsName)
       eqConst.type := by
-  unfold eqBootstrapType eqConst
+  unfold preludeEqType eqConst
   change TrExprS env [u] []
     (.forallE alphaName (.sort (.param u))
       (.forallE lhsName (.bvar 0)
@@ -76,7 +76,7 @@ theorem eqBootstrapType_translation
 the abstract family constant uniquely. -/
 theorem TrInductDeclHeaders.eqBootstrapConstant
     (H : TrInductDeclHeaders env lparams nparams types isUnsafe decl envTypes)
-    (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
+    (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     ∃ target : VInductiveType,
       decl.types = [target] ∧ target.name = ``Eq ∧
       target.toVConstant = eqConst := by
@@ -97,7 +97,7 @@ theorem TrInductDeclHeaders.eqBootstrapConstant
 theorem DeclaredHeadersResult.eqBootstrapEntry
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
-    (Hshape : EqBootstrapShape c.lparams nparams indTypes.toList isUnsafe) :
+    (Hshape : PreludeEqShape c.lparams nparams indTypes.toList isUnsafe) :
     ∃ (info : InductiveVal) (target : VInductiveType),
       (.inductInfo info, target.toVConstVal) ∈ H.entries ∧
       info.name = ``Eq ∧ target.name = ``Eq ∧
@@ -129,7 +129,7 @@ abstract declaration: one family `Eq` with the stored type of `Eq`, one
 constructor `Eq.refl` with the stored type of `Eq.refl`, two parameters. -/
 theorem TrInductDeclCore.eqBootstrapDecl
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl envTypes envCtors)
-    (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
+    (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     ∃ family refl, decl.types = [family] ∧ family.name = ``Eq ∧
       family.toVConstant = ⟨1, canonicalEqType⟩ ∧ family.ctors = [refl] ∧
       refl.name = ``Eq.refl ∧ refl.toVConstant = ⟨1, canonicalEqReflType⟩ ∧
@@ -200,12 +200,12 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     (_hAbsent : c.env.constants.find? ``Eq = none)
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
-    (Hshape : EqBootstrapShape c.lparams nparams indTypes.toList isUnsafe) :
+    (Hshape : PreludeEqShape c.lparams nparams indTypes.toList isUnsafe) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (InductiveSpecificationResult (ves.venv .safe) c.lparams
         nparams indTypes.toList isUnsafe (ves'.venv .safe)) ∧
-      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   subst sourceEnv
   rcases Hrun with
@@ -235,12 +235,12 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
       (show OrdinaryCompilationCertificate _ decl B0.block from
         T.compilation hnonempty).compilesTo
   have hconstructors :
-      InductiveConstructorsSemanticallyCoherent .safe outEnv
+      CtorParamsAgree .safe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
     exact Hrecursors.completedConstructorSemantics
-      (wf.constructorSemantics (safety := .safe)) T.rules
+      (wf.ctorParamsAgree (safety := .safe)) T.rules
   have horigins :
-      ProductionInductiveOrigins c.env.constants outEnv.constants decl :=
+      InductInfosFromDecl c.env.constants outEnv.constants decl :=
     Hrecursors.productionInductiveOrigins
   have htypeValue : target.toVConstVal ∈ Hheaders.entries.map Prod.snd :=
     List.mem_map.mpr ⟨(.inductInfo eqInfo, target.toVConstVal), hentry, rfl⟩
@@ -265,7 +265,7 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
   have hcanonical : CanonicalEqEnvs ves' := by
     intro safety
     exact (wf'.mono DefinitionSafety.le_safe).constants hsafeEq
-  have hHasCanonical : ∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+  have hHasCanonical : ∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
       ∀ safety, (ves'.venv safety).HasCanonicalEq := by
     intro ci hfind ⟨hciSafe, u, v, names, huv, hlps, htype⟩ safety
     refine VEnv.HasCanonicalEq.mono (wf'.mono DefinitionSafety.le_safe) ?_
@@ -343,7 +343,7 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
     (env : Environment) (fuel : Nat) (lparams : List Name)
     (nparams : Nat) (types : List InductiveType) (isUnsafe : Bool)
     (res : ElimNestedInductive.Result)
-    (Hshape : EqBootstrapShape lparams nparams types isUnsafe)
+    (Hshape : PreludeEqShape lparams nparams types isUnsafe)
     (hAbsent : env.find? ``Eq = none)
     (hout : ((ElimNestedInductive.run fuel nparams types env).run'
       { lvls := lparams.map .param, newTypes := types.toArray }) = .ok res) :
@@ -378,7 +378,7 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
           (.fvar id) .default).mkForall #[.fvar id, .fvar id']
           (.app (.app (.app (.const ``Eq [.param u]) (.fvar id)) (.fvar id'))
             (.fvar id')) =
-        eqBootstrapReflType u reflAlphaName reflValueName := by
+        preludeEqReflType u reflAlphaName reflValueName := by
     let lctx0 := ({} : LocalContext).mkLocalDecl id reflAlphaName
       (.sort (.param u)) .implicit
     let lctx := lctx0.mkLocalDecl id' reflValueName (.fvar id) .default
@@ -416,10 +416,10 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
           trivial)]
     rw [LocalContext.mkBindingList_eq_fold hfind hnd]
     simp [LocalContext.mkBindingList1, hid, hid', Expr.abstract1,
-      eqBootstrapReflType, Ne.symm hne, hne]
+      preludeEqReflType, Ne.symm hne, hne]
   cases fuel with
   | zero =>
-    simp [eqBootstrapType, eqBootstrapReflType, hheaderInstantiate, hAbsent, Lean.mkFreshId,
+    simp [preludeEqType, preludeEqReflType, hheaderInstantiate, hAbsent, Lean.mkFreshId,
       getNGen, setNGen, StateT.run', ElimNestedInductive.run,
       ElimNestedInductive.withParams, ElimNestedInductive.withParams.loop,
       ElimNestedInductive.run.loop, MonadExcept.throw,
@@ -441,7 +441,7 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
   | succ fuel =>
     cases fuel with
     | zero =>
-      simp [eqBootstrapType, eqBootstrapReflType, hheaderInstantiate, hctorInstantiate,
+      simp [preludeEqType, preludeEqReflType, hheaderInstantiate, hctorInstantiate,
         hctorBodyInstantiate, hAbsent, Lean.mkFreshId,
         getNGen, setNGen, StateT.run', ElimNestedInductive.run,
         ElimNestedInductive.run.loop, ElimNestedInductive.withParams,
@@ -470,7 +470,7 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
         Expr.replaceNoCacheT, Expr.isApp, Expr.getAppFn,
         Expr.getAppArgs] at hout
     | succ fuel =>
-      simp [eqBootstrapType, eqBootstrapReflType, hheaderInstantiate, hctorInstantiate,
+      simp [preludeEqType, preludeEqReflType, hheaderInstantiate, hctorInstantiate,
         hctorBodyInstantiate, hAbsent, Lean.mkFreshId,
         getNGen, setNGen, StateT.run', ElimNestedInductive.run,
         ElimNestedInductive.run.loop, ElimNestedInductive.withParams,
@@ -501,7 +501,7 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
       subst res
       have habstract (e : Expr) : e.abstract #[] = e := by
         simpa [Expr.abstractN_nil] using Expr.abstractN_eq e []
-      simp [eqBootstrapType, eqBootstrapReflType, habstract]
+      simp [preludeEqType, preludeEqReflType, habstract]
       constructor
       · exact hclose _ _ (by simp [NameGenerator.curr, NameGenerator.next])
       · rfl
@@ -510,7 +510,7 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
 theorem ElimNestedInductive.run'.eqBootstrapNoopWF
     (env : Environment) (fuel : Nat) (lparams : List Name)
     (nparams : Nat) (types : List InductiveType) (isUnsafe : Bool)
-    (Hshape : EqBootstrapShape lparams nparams types isUnsafe)
+    (Hshape : PreludeEqShape lparams nparams types isUnsafe)
     (hAbsent : env.find? ``Eq = none) :
     ((ElimNestedInductive.run fuel nparams types env).run'
       { lvls := lparams.map .param, newTypes := types.toArray }).WF fun res =>
@@ -524,7 +524,7 @@ ordinary branch: it has one universe parameter and two inductive parameters
 both lists to be empty. -/
 theorem checkPrimitiveInductive_eq_false_of_eqBootstrapShape
     (env : Environment)
-    (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
+    (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     Primitive.checkInductive env lparams nparams types isUnsafe =
       .ok false := by
   rcases Hshape with
@@ -543,13 +543,13 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
     (hAbsent : source.env.constants.find? ``Eq = none)
     (hsafety : source.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
-    (Hshape : EqBootstrapShape source.lparams nparams types
+    (Hshape : PreludeEqShape source.lparams nparams types
       (source.safety != .safe)) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (InductiveSpecificationResult sourceEnv source.lparams
         nparams types (source.safety != .safe) (ves'.venv .safe)) ∧
-      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have hnonempty : types ≠ [] := by
     rcases Hshape with
@@ -569,7 +569,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
     rwa [henv]
   have hcSafety' : c'.safety = .safe := hcSafety.trans hsafety
   have hcVEnv : Hc'.venv = ves.venv .safe := hvenv.trans hsource
-  have Hshape' : EqBootstrapShape c'.lparams nparams
+  have Hshape' : PreludeEqShape c'.lparams nparams
       types.toArray.toList (source.safety != .safe) := by
     simpa [hlparams] using Hshape
   rcases Hphases.extendSafeEqBootstrap wf' hcorner' hAbsent' hcSafety' hcVEnv
@@ -589,7 +589,7 @@ theorem AddInductive.run.eqBootstrapFinalWF
     (hsource : Hc.venv = ves.venv .safe)
     (Hclosed : MutualInductivesClosed c.env)
     (hctx : Hc.mlctx.vlctx = [])
-    (Hshape : EqBootstrapShape c.lparams nparams types
+    (Hshape : PreludeEqShape c.lparams nparams types
       (c.safety != .safe))
     (Hinputs : ∀ {c' : AddInductive.Context}
       {stats : AddInductive.InductiveStats} {depth : Nat}
@@ -608,7 +608,7 @@ theorem AddInductive.run.eqBootstrapFinalWF
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         Nonempty (InductiveSpecificationResult Hc.venv c.lparams
           nparams types (c.safety != .safe) (ves'.venv .safe)) ∧
-      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have hsize : 0 < types.toArray.size := by
     rcases Hshape with
@@ -629,7 +629,7 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
     (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
-    (Hshape : EqBootstrapShape lparams nparams types isUnsafe)
+    (Hshape : PreludeEqShape lparams nparams types isUnsafe)
     (htypes : res.types = types)
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
@@ -638,7 +638,7 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
-      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have hisUnsafe : isUnsafe = false := by
     rcases Hshape with
@@ -651,7 +651,7 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
     simpa [c, initialContext] using
       ContextWF.initial wf .safe lparams false fuel hcorner
   have hsource : Hc.venv = ves.venv .safe := rfl
-  have Hshape' : EqBootstrapShape c.lparams nparams res.types
+  have Hshape' : PreludeEqShape c.lparams nparams res.types
       (c.safety != .safe) := by
     simpa [c, initialContext, htypes] using Hshape
   have Hinputs : ∀ {c' : AddInductive.Context}
@@ -690,14 +690,14 @@ theorem Environment.addInductive.eqBootstrapFinalEnvironmentWF
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
-    (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
+    (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe false fuel).WF
       fun outEnv =>
         ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
-      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have hAbsentFind : env.find? ``Eq = none := by
     rw [Lean.Kernel.Environment.find?,
@@ -723,14 +723,14 @@ theorem addInductiveDeclaration.eqBootstrapFinalEnvironmentWF
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
-    (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
+    (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
-      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have Hrun := Environment.addInductive.eqBootstrapFinalEnvironmentWF env
     lparams nparams types isUnsafe fuel ves wf hcorner hAbsent Hshape

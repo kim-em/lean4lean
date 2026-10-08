@@ -91,7 +91,7 @@ structure CheckedRecursorHeaderAt
   constants were installed.  Retaining that derivation-local fact permits
   nested restoration to transport only the index prefix without asserting
   a false global preservation theorem. -/
-  sourceTranslationUses : sourceTranslation.type.UsesOnly
+  sourceTranslationUses : sourceTranslation.type.Avoids
     (fun name => name ∈ decl.sourceNames)
   /-- The same producer-local restriction certificate after applying the
   recursor universe policy.  This is retained at formation time, before the
@@ -102,7 +102,7 @@ structure CheckedRecursorHeaderAt
       ∃ translation : TrExprS Hc.venv
         (AddInductive.getRecLevelParams elimLevel c.lparams) []
         source.type targetType,
-      translation.UsesOnly (fun name => name ∈ decl.sourceNames) ∧
+      translation.Avoids (fun name => name ∈ decl.sourceNames) ∧
         targetType = (recursorTargetSkeletonOf target c.lparams elimLevel
           Helim).type
   targetLookup : Hc.venv.constants target.name = some target.toVConstant

@@ -36,26 +36,26 @@ open Kernel
 
 /-- The prelude's `Eq`, `Eq.refl` and `Eq.rec` are declared in `env` with their production
 types. -/
-def HasProductionEq (env : Environment) : Prop :=
+def HasPreludeEq (env : Environment) : Prop :=
   ∃ eqInfo reflInfo recInfo,
-    env.find? ``Eq = some eqInfo ∧ IsProductionEq eqInfo ∧
-    env.find? ``Eq.refl = some reflInfo ∧ IsProductionEqRefl reflInfo ∧
-    env.find? ``Eq.rec = some recInfo ∧ IsProductionEqRec recInfo
+    env.find? ``Eq = some eqInfo ∧ IsPreludeEq eqInfo ∧
+    env.find? ``Eq.refl = some reflInfo ∧ IsPreludeEqRefl reflInfo ∧
+    env.find? ``Eq.rec = some recInfo ∧ IsPreludeEqRec recInfo
 
 /-- A replay: the declarations `ds` added one after another by the checked `addDecl`, from
 `env` to `env'`. A `quotDecl` step records that the prelude's `Eq` is already present
-(`HasProductionEq`): `quotDecl` is modelled by an abstract rule that types `Quot.lift` against
+(`HasPreludeEq`): `quotDecl` is modelled by an abstract rule that types `Quot.lift` against
 `Eq`, so before `Eq` exists it has no model (and the executable rejects it, `checkEqType`). -/
-inductive Replay : Environment → List Declaration → Environment → Prop
-  | nil (env : Environment) : Replay env [] env
+inductive AddDeclChain : Environment → List Declaration → Environment → Prop
+  | nil (env : Environment) : AddDeclChain env [] env
   | cons {env env₁ env₂ : Environment} {d : Declaration} {ds : List Declaration} :
     addDecl env d (check := true) (fuel := {}) = .ok env₁ →
-    (d = .quotDecl → HasProductionEq env) →
-    Replay env₁ ds env₂ → Replay env (d :: ds) env₂
+    (d = .quotDecl → HasPreludeEq env) →
+    AddDeclChain env₁ ds env₂ → AddDeclChain env (d :: ds) env₂
 
 /-- Every step of a replay preserves `VEnvs.WF`. -/
-theorem Replay.WF {env env' : Environment} {ds : List Declaration}
-    (H : Replay env ds env') {ves : VEnvs} (wf : ves.WF env) :
+theorem AddDeclChain.WF {env env' : Environment} {ds : List Declaration}
+    (H : AddDeclChain env ds env') {ves : VEnvs} (wf : ves.WF env) :
     ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   induction H generalizing ves with
   | nil => exact ⟨ves, wf, fun _ => VEnv.LE.rfl⟩
@@ -71,8 +71,8 @@ theorem Replay.WF {env env' : Environment} {ds : List Declaration}
 /-- **Replay from the empty environment.** Every environment reached by a replay from the
 empty environment the executable starts from (`lake exe lean4lean --fresh`) is modelled by
 well-formed abstract environments. -/
-theorem Replay.WF_empty {m : Name} {s : Bool} {ds : List Declaration} {env : Environment}
-    (H : Replay (Kernel.Environment.empty m s) ds env) :
+theorem AddDeclChain.WF_empty {m : Name} {s : Bool} {ds : List Declaration} {env : Environment}
+    (H : AddDeclChain (Kernel.Environment.empty m s) ds env) :
     ∃ ves : VEnvs, ves.WF env :=
   let ⟨ves, wf, _⟩ := H.WF (VEnvs.WF.empty m s)
   ⟨ves, wf⟩
@@ -88,7 +88,7 @@ preserved by every successful checked `addDecl` holds for every replayed environ
 theorem Replayed.induction {fuel : FuelConfig} {Start : Environment → Prop}
     (Inv : Environment → Prop) (hstart : ∀ env, Start env → Inv env)
     (hstep : ∀ env d env', Inv env → Lean4Lean.addDecl env d true fuel = .ok env' →
-      (d = .quotDecl → env.quotInit = false → hasProductionEq env = true) → Inv env')
+      (d = .quotDecl → env.quotInit = false → hasPreludeEq env = true) → Inv env')
     {env : Environment} (h : Replayed fuel Start env) : Inv env := by
   induction h with
   | start h => exact hstart _ h
@@ -113,7 +113,7 @@ theorem Replayed.foldlM {fuel : FuelConfig} {Start : Environment → Prop} {env 
 
 /-! ### The prelude's `Eq` -/
 
-namespace ProductionEq
+namespace PreludeEq
 
 theorem strictEq_eq : ∀ {a b : Expr}, strictEq a b = true → a = b
   | .bvar _, .bvar _, h => by simp [strictEq] at h; rw [h]
@@ -152,16 +152,16 @@ theorem isSafe_spec {ci : ConstantInfo} (h : isSafe ci = true) : ci.safety = .sa
   simp only [isSafe, Bool.and_eq_true, Bool.not_eq_true'] at h
   simp [ConstantInfo.safety, h.1, h.2]
 
-theorem eqType_eq (u a b c : Name) : eqType u a b c = VerifyInductive.eqBootstrapType u a b c :=
+theorem eqType_eq (u a b c : Name) : eqType u a b c = VerifyInductive.preludeEqType u a b c :=
   rfl
 
 theorem reflType_eq (u a b : Name) :
-    reflType u a b = VerifyInductive.eqBootstrapReflType u a b := rfl
+    reflType u a b = VerifyInductive.preludeEqReflType u a b := rfl
 
 theorem recType_eq (u v a b c d e f g h : Name) :
     recType u v a b c d e f g h = eqRecTypeExpr u v ⟨a, b, c, d, e, f, g, h⟩ := rfl
 
-theorem isEq_spec {ci : ConstantInfo} (h : isEq ci = true) : IsProductionEq ci := by
+theorem isEq_spec {ci : ConstantInfo} (h : isEq ci = true) : IsPreludeEq ci := by
   simp only [isEq, Bool.and_eq_true] at h
   refine ⟨isSafe_spec h.1, ?_⟩
   have h2 := h.2
@@ -169,7 +169,7 @@ theorem isEq_spec {ci : ConstantInfo} (h : isEq ci = true) : IsProductionEq ci :
   · exact ⟨_, _, _, _, ‹ci.levelParams = _›, (strictEq_eq h2).trans (eqType_eq ..)⟩
   · cases h2
 
-theorem isRefl_spec {ci : ConstantInfo} (h : isRefl ci = true) : IsProductionEqRefl ci := by
+theorem isRefl_spec {ci : ConstantInfo} (h : isRefl ci = true) : IsPreludeEqRefl ci := by
   simp only [isRefl, Bool.and_eq_true] at h
   refine ⟨isSafe_spec h.1, ?_⟩
   have h2 := h.2
@@ -177,7 +177,7 @@ theorem isRefl_spec {ci : ConstantInfo} (h : isRefl ci = true) : IsProductionEqR
   · exact ⟨_, _, _, ‹ci.levelParams = _›, (strictEq_eq h2).trans (reflType_eq ..)⟩
   · cases h2
 
-theorem isRec_spec {ci : ConstantInfo} (h : isRec ci = true) : IsProductionEqRec ci := by
+theorem isRec_spec {ci : ConstantInfo} (h : isRec ci = true) : IsPreludeEqRec ci := by
   simp only [isRec, Bool.and_eq_true] at h
   refine ⟨isSafe_spec h.1, ?_⟩
   have h2 := h.2
@@ -186,24 +186,24 @@ theorem isRec_spec {ci : ConstantInfo} (h : isRec ci = true) : IsProductionEqRec
     exact ⟨_, _, _, h2.1, ‹ci.levelParams = _›, (strictEq_eq h2.2).trans (recType_eq ..)⟩
   · cases h2
 
-end ProductionEq
+end PreludeEq
 
-theorem hasProductionEq_spec {env : Environment} (h : hasProductionEq env = true) :
-    HasProductionEq env := by
-  unfold hasProductionEq at h
+theorem hasProductionEq_spec {env : Environment} (h : hasPreludeEq env = true) :
+    HasPreludeEq env := by
+  unfold hasPreludeEq at h
   split at h
   · rename_i e r c he hr hc
     simp only [Bool.and_eq_true] at h
-    exact ⟨e, r, c, he, ProductionEq.isEq_spec h.1.1, hr, ProductionEq.isRefl_spec h.1.2, hc,
-      ProductionEq.isRec_spec h.2⟩
+    exact ⟨e, r, c, he, PreludeEq.isEq_spec h.1.1, hr, PreludeEq.isRefl_spec h.1.2, hc,
+      PreludeEq.isRec_spec h.2⟩
   · cases h
 
-/-! ### From the driver's walk to `Replay` -/
+/-! ### From the driver's walk to `AddDeclChain` -/
 
-/-- Appending a step to a `Replay`. -/
-theorem _root_.Lean4Lean.Replay.snoc {env env₁ env₂ : Environment} {ds : List Declaration} {d : Declaration}
-    (H : Replay env ds env₁) (hadd : Lean4Lean.addDecl env₁ d (check := true) (fuel := {}) =
-      .ok env₂) (hq : d = .quotDecl → HasProductionEq env₁) : Replay env (ds ++ [d]) env₂ := by
+/-- Appending a step to an `AddDeclChain`. -/
+theorem _root_.Lean4Lean.AddDeclChain.snoc {env env₁ env₂ : Environment} {ds : List Declaration} {d : Declaration}
+    (H : AddDeclChain env ds env₁) (hadd : Lean4Lean.addDecl env₁ d (check := true) (fuel := {}) =
+      .ok env₂) (hq : d = .quotDecl → HasPreludeEq env₁) : AddDeclChain env (ds ++ [d]) env₂ := by
   induction H with
   | nil => exact .cons hadd hq (.nil _)
   | cons h₁ h₂ _ ih => exact .cons h₁ h₂ (ih hadd hq)
@@ -216,10 +216,10 @@ theorem addDecl_quotDecl_of_quotInit {env env' : Environment} (hi : env.quotInit
   simp only [Lean4Lean.addDecl, Environment.addQuot, hi, if_true] at h
   exact (Except.ok.inj h).symm
 
-/-- Every environment the driver builds with the default fuel is reached by a `Replay` from its
+/-- Every environment the driver builds with the default fuel is reached by an `AddDeclChain` from its
 start environment. -/
 theorem Replayed.replay {start env : Environment} (h : Replayed {} (· = start) env) :
-    ∃ ds, Replay start ds env := by
+    ∃ ds, AddDeclChain start ds env := by
   induction h with
   | start h => exact ⟨[], h ▸ .nil _⟩
   | @step env d env' _ hadd hq ih =>
@@ -263,8 +263,8 @@ empty environment (`--fresh` mode, default fuel, all constants) succeeds, the en
 built is modelled by well-formed abstract environments, and every safe, non-partial source
 constant is present in it and agrees with the source constant (up to `==`, see the module
 docstring). There is no hypothesis: the base case is `VEnvs.WF.empty`, and the driver only
-initializes the quotient module once the prelude's `Eq` is present (`hasProductionEq`), which is
-what the abstract model of `quotDecl` needs (`Replay.WF`). -/
+initializes the quotient module once the prelude's `Eq` is present (`hasPreludeEq`), which is
+what the abstract model of `quotDecl` needs (`AddDeclChain.WF`). -/
 theorem replayFresh.WF {src : Std.HashMap Name ConstantInfo} {mainModule : Name} :
     (replayFresh src mainModule).WF fun r =>
       (∃ ves' : VEnvs, ves'.WF r.env) ∧

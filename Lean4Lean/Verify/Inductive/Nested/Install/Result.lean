@@ -25,7 +25,7 @@ internal safe/unsafe assembly split. -/
 def NestedExactConstructorSemantics
     (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes sourceEnv
       decl lparams nparams isUnsafe safety outEnv) : Prop :=
-  InductiveConstructorsSemanticallyCoherent safety outEnv
+  CtorParamsAgree safety outEnv
     (E.assembly.finalBaseVEnv.addDefEqRules
       (E.assembly.primaryRules ++ E.assembly.auxiliaryRules))
 

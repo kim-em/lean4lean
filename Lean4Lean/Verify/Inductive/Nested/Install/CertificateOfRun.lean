@@ -113,7 +113,7 @@ theorem NestedValidatedRunResult.assemblyNative_of_run
             C.finalBaseVEnv)
           (List.finRange E.production.compilationSignature.constructors.size)
           (C.primaryRules ++ C.auxiliaryRules) →
-        InductiveRecursorProvenance .unsafe sourceProdEnv.constants
+        NewRecursorsAligned .unsafe sourceProdEnv.constants
           (ves.venv (if isUnsafe then .unsafe else .safe)) outEnv.constants
           (C.finalBaseVEnv.addDefEqRules (C.primaryRules ++ C.auxiliaryRules))) :
     Nonempty { C : NestedFinalAssemblyCertificate E.restoration
