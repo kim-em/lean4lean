@@ -262,7 +262,7 @@ theorem NestedValidatedRunResult.hruleShape_of_base
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
         C.production = E.production ∧
         List.Forall₂
-          (E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
+          (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
             C.finalBaseVEnv)
           (List.finRange E.production.compilationSignature.constructors.size)
           (C.primaryRules ++ C.auxiliaryRules) := by
@@ -311,7 +311,7 @@ theorem NestedValidatedRunResult.hruleShape_of_base
     simpa using this.symm
   -- realization, in the given table
   have Hreal' : List.Forall₂
-      (E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
+      (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
         B.finalBaseVEnv)
       (List.finRange E.production.production.generationSignature.constructors.size)
       rules :=

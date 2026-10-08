@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 
 /-! Recursor metadata realization for completed recursor phases.
 
-Every field of `RecursorRealization` except the rule list is established for
+Every field of `TrRecursorVal` except the rule list is established for
 each installed recursor entry of a `RecursorCheck`, against the
 single canonical generation instance chosen by that result.
 -/
@@ -11,7 +11,7 @@ single canonical generation instance chosen by that result.
 namespace Lean4Lean
 namespace InductiveSignature
 
-/-- `RecursorRealization` without its rule coverage: the name, universe arity,
+/-- `TrRecursorVal` without its rule coverage: the name, universe arity,
 translated type, cardinalities, major premise, mutual block, safety, and K
 metadata of one concrete recursor. -/
 structure RecursorMetadata {s : InductiveSignature} (g : Instance s)
@@ -32,13 +32,13 @@ structure RecursorMetadata {s : InductiveSignature} (g : Instance s)
     ∀ ctor ∈ s.constructors.toList, ctor.fields = []
 
 /-- Metadata together with rule coverage is a full recursor realization. -/
-theorem RecursorMetadata.toRecursorRealization
+theorem RecursorMetadata.toTrRecursorVal
     {s : InductiveSignature} {g : Instance s} {venv : VEnv}
     {owner : Fin s.families.size} {rec : Lean.RecursorVal}
     (H : RecursorMetadata g venv owner rec)
-    (rules : List.Forall₂ (RuleRealization g venv rec.levelParams)
+    (rules : List.Forall₂ (TrRecursorRule g venv rec.levelParams)
       (s.ownedConstructors owner) rec.rules) :
-    RecursorRealization g venv owner rec :=
+    TrRecursorVal g venv owner rec :=
   ⟨H.name, H.uvars, H.type, H.numParams, H.numIndices, H.numMotives,
     H.numMinors, H.major, H.all, H.isUnsafe, rules, H.k⟩
 

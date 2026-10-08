@@ -229,7 +229,7 @@ theorem RecursorCheck.ownedConstructors_map_val
 theorem RecursorCheck.ruleRealizations
     (H : RecursorCheck R outEnv) (Hrhs : H.RuleRhsTranslations)
     (o : Fin H.generationSignature.families.size) (howner : o.val < H.entries.length) :
-    List.Forall₂ (InductiveSignature.RuleRealization H.canonicalGeneration H.outVEnv
+    List.Forall₂ (InductiveSignature.TrRecursorRule H.canonicalGeneration H.outVEnv
         (H.generated.entry o.val howner).info.levelParams)
       (H.generationSignature.ownedConstructors o) (H.generated.entry o.val howner).info.rules := by
   have hmap := H.ownedConstructors_map_val o howner
@@ -260,7 +260,7 @@ theorem RecursorCheck.ruleRealizations
 /-- Every installed recursor entry realizes the canonical generation. -/
 theorem RecursorCheck.entryRealizations
     (H : RecursorCheck R outEnv) (Hrhs : H.RuleRhsTranslations) :
-    List.Forall₂ (InductiveSignature.RecursorEntryRealization H.canonicalGeneration H.outVEnv)
+    List.Forall₂ (InductiveSignature.TrRecursorEntry H.canonicalGeneration H.outVEnv)
       (List.finRange H.generationSignature.families.size) H.entries := by
   apply List.forall₂_of_getElem (by simp [H.entries_length_eq])
   intro j hj hj'
@@ -273,7 +273,7 @@ theorem RecursorCheck.entryRealizations
     have h := hsource.symm.trans (H.generated.entry j hj').source_eq
     exact ConstantInfo.recInfo.inj h
   subst hrec
-  exact ⟨_, hsource, hvalue, M.toRecursorRealization (H.ruleRealizations Hrhs ⟨j, hjf⟩ hj')⟩
+  exact ⟨_, hsource, hvalue, M.toTrRecursorVal (H.ruleRealizations Hrhs ⟨j, hjf⟩ hj')⟩
 
 /-- The second junction: given the closed RHS translations, the completed
 recursor phase determines the full rule translation result, with the

@@ -193,7 +193,7 @@ theorem RecursorCheck.alignmentOfRealization
     (hrecursors : ∀ owner, H.outVEnv.constants (g.recursorName owner) = some (g.recursor owner).toVConstant)
     (hwf : ∀ index, (g.equation index).WF H.outVEnv)
     {owner : Fin s.families.size} {rec : RecursorVal}
-    (hr : InductiveSignature.RecursorRealization g H.outVEnv owner rec) :
+    (hr : InductiveSignature.TrRecursorVal g H.outVEnv owner rec) :
     RecursorAlignmentCore (H.outVEnv.addDefEqRules g.equations) rec := by
   rcases g.recursor_shape owner (hrecursors owner) with ⟨hshape⟩
   refine ⟨s.params.length, g.levels, VExpr.bvarRange s.params.length s.params.length, ?_, ?_⟩
@@ -278,7 +278,7 @@ theorem RecursorCheck.majorOfRealization
     (H : RecursorCheck R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl) {g : s.Instance}
     {owner : Fin s.families.size} {rec : RecursorVal}
-    (hr : InductiveSignature.RecursorRealization g H.outVEnv owner rec) :
+    (hr : InductiveSignature.TrRecursorVal g H.outVEnv owner rec) :
     ∃ info, outEnv.constants.find? rec.getMajorInduct = some (.inductInfo info) := by
   rcases hm.family owner with ⟨family, hfamily, hname, _⟩
   rcases H.familyInfo family hfamily with ⟨info, hinfo, _⟩
@@ -295,7 +295,7 @@ theorem RecursorCheck.kOfRealization
     (H : RecursorCheck R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl) (g : s.Instance)
     {owner : Fin s.families.size} {rec : RecursorVal}
-    (hr : InductiveSignature.RecursorRealization g H.outVEnv owner rec) :
+    (hr : InductiveSignature.TrRecursorVal g H.outVEnv owner rec) :
     KLikeRecursor outEnv.constants (H.outVEnv.addDefEqRules g.equations) rec := by
   intro hk
   rcases hr.k hk with ⟨hfamilies, hctors, hzero, _⟩

@@ -88,11 +88,11 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.TypeChecker.Inner.reduceRecursor.WF
 #inductive_audit Lean4Lean.InductiveSignature.Instance.equation
 #inductive_audit Lean4Lean.InductiveSignature.Compiles
-#inductive_audit Lean4Lean.InductiveSignature.RecursorRealization
-#inductive_audit Lean4Lean.InductiveSignature.CompilationRealization
+#inductive_audit Lean4Lean.InductiveSignature.TrRecursorVal
+#inductive_audit Lean4Lean.InductiveSignature.TrCompilation
 #inductive_audit Lean4Lean.InductiveSignature.Restoration.expr
 #inductive_audit Lean4Lean.CompiledInductive
-#inductive_audit Lean4Lean.InductiveSignature.RestoredCompilationRealization
+#inductive_audit Lean4Lean.InductiveSignature.TrRestoredCompilation
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.ofCompilation
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.Certified
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.genericEquations

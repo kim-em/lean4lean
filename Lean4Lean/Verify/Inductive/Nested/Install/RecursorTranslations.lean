@@ -490,7 +490,7 @@ theorem NestedValidatedRunResult.restoredMajorInduct
     simp only [Restoration.restoredHeadName] at hfindB ⊢
     rw [hfindB, hcb]
 
-/-- The specialization clause of `RestoredRecursorRealization`. -/
+/-- The specialization clause of `TrRestoredRecursorVal`. -/
 def RestoredRecursorSpecialization {s : InductiveSignature} (g : Instance s)
     (r : Restoration) (venv : VEnv) (owner : Fin s.families.size)
     (rec : Lean.RecursorVal) : Prop :=
@@ -507,7 +507,7 @@ def RestoredRecursorSpecialization {s : InductiveSignature} (g : Instance s)
         (head.arguments.map (fun arg => arg.liftN
           (s.families.size + s.constructors.size + s.families[owner].indices.length)) ++
           vars s.families[owner].indices.length 0)) ∧
-    List.Forall₂ (RestoredRuleRealization g r venv rec.levelParams head)
+    List.Forall₂ (TrRestoredRecursorRule g r venv rec.levelParams head)
       (s.ownedConstructors owner) rec.rules
 
 /-- **One restored recursor realization**, modulo its specialization clause:
@@ -537,7 +537,7 @@ theorem NestedValidatedRunResult.restoredRecursorRealization_of_step
     (Hw : RestoredRecursorStepValue trEnv Hstep w)
     (Hspec : RestoredRecursorSpecialization E.production.compilationInstance
       (compilationRestoration sourceDecl auxiliaries) venv owner Hstep.restored.newInfo) :
-    RestoredRecursorRealization E.production.compilationInstance
+    TrRestoredRecursorVal E.production.compilationInstance
       (compilationRestoration sourceDecl auxiliaries) (sourceDecl.types.map (·.name))
       venv owner Hstep.restored.newInfo := by
   have M := E.recursorMetadataOfStep owner Hstep
@@ -602,7 +602,7 @@ theorem NestedValidatedRunResult.restoredRuleRealizations
     (hequations : E.production.compilationInstance.restoredEquations
       (compilationRestoration sourceDecl auxiliaries) = some rules)
     (Hrules : List.Forall₂
-      (E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries) venv)
+      (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries) venv)
       (List.finRange E.production.compilationSignature.constructors.size) rules)
     (owner : Fin E.production.compilationSignature.families.size)
     {s t : Environment}
@@ -636,7 +636,7 @@ theorem NestedValidatedRunResult.restoredRuleRealizations
                 E.production.compilationSignature.constructors.size +
                 E.production.compilationSignature.constructors[index].fields.length)) ++
               vars E.production.compilationSignature.constructors[index].fields.length 0))) :
-    List.Forall₂ (InductiveSignature.RestoredRuleRealization E.production.compilationInstance
+    List.Forall₂ (InductiveSignature.TrRestoredRecursorRule E.production.compilationInstance
         (compilationRestoration sourceDecl auxiliaries) venv
         Hstep.restored.newInfo.levelParams head)
       (E.production.compilationSignature.ownedConstructors owner)

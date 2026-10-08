@@ -34,10 +34,10 @@ namespace InductiveSignature
 
 /-- The recursor shape of a restored recursor at the specialization head of
 its realization. -/
-theorem RestoredRecursorRealization.shape_of_head {s : InductiveSignature} {g : Instance s}
+theorem TrRestoredRecursorVal.shape_of_head {s : InductiveSignature} {g : Instance s}
     {r : Restoration} {sourceNames : List Name} {venv : VEnv}
     {owner : Fin s.families.size} {rec : Lean.RecursorVal}
-    (H : RestoredRecursorRealization g r sourceNames venv owner rec)
+    (H : TrRestoredRecursorVal g r sourceNames venv owner rec)
     (hconst : ∃ type, r.expr (g.recursorType owner) = some type ∧
       venv.constants rec.name = some ⟨rec.levelParams.length, type⟩)
     {head : RestoredFamilyHead}
@@ -268,7 +268,7 @@ theorem NestedValidatedRunResult.hprovenance_of
           n ∉ (compilationRestoration sourceDecl auxiliaries).recursors.map Prod.snd →
           C.finalBaseVEnv.constants n = none) →
         List.Forall₂
-          (E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
+          (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
             C.finalBaseVEnv)
           (List.finRange E.production.compilationSignature.constructors.size)
           (C.primaryRules ++ C.auxiliaryRules) →
@@ -284,7 +284,7 @@ theorem NestedValidatedRunResult.hprovenance_of
       (compilationRestoration sourceDecl aux₁).expr e := D.expr_eq D₁
   have hfreshFinal := E.finalBaseVEnv_restorableNames_fresh_of_not_renamed wf Hsources C hC D
   have HCrules : List.Forall₂
-      (E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
+      (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
         C.finalBaseVEnv)
       (List.finRange E.production.compilationSignature.constructors.size)
       (C.primaryRules ++ C.auxiliaryRules) := by
@@ -346,7 +346,7 @@ theorem NestedValidatedRunResult.hprovenance_of
         (E.production.compilationInstance.recursor owner) = some entry.2 →
       RestoredRecursorStepValue
         ((C.canonical.venvCtors.addEliminators C.canonical.eliminators).addProjections sourceDecl.projectionEntries) Hstep entry.2 →
-      RestoredRecursorRealization E.production.compilationInstance
+      TrRestoredRecursorVal E.production.compilationInstance
         (compilationRestoration sourceDecl auxiliaries)
         (sourceDecl.types.map (·.name)) C.finalBaseVEnv owner Hstep.restored.newInfo := by
     intro owner entry hentry s t Hstep hrec Hw
@@ -405,7 +405,7 @@ theorem NestedValidatedRunResult.hprovenance_of
       ∀ rec : Lean.RecursorVal,
       (compilationRestoration sourceDecl auxiliaries).recursor
         (E.production.compilationInstance.recursor owner) = some entry.2 →
-      RestoredRecursorRealization E.production.compilationInstance
+      TrRestoredRecursorVal E.production.compilationInstance
         (compilationRestoration sourceDecl auxiliaries)
         (sourceDecl.types.map (·.name)) C.finalBaseVEnv owner rec →
       (∃ info, outEnv.constants.find? rec.getMajorInduct = some (.inductInfo info)) →

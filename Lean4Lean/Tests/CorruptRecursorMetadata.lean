@@ -15,7 +15,7 @@ theorem corrupted_parameter_count_rejected
     (h : TrConstVal safety target (.recInfo rec) value) :
     let corrupted := { rec with numParams := decl.nparams + 1 }
     TrConstVal safety target (.recInfo corrupted) value ∧
-      ¬ InductiveSignature.CompilationRealization source decl block target
+      ¬ InductiveSignature.TrCompilation source decl block target
         [(.recInfo corrupted, value)] := by
   refine ⟨h, ?_⟩
   intro realized

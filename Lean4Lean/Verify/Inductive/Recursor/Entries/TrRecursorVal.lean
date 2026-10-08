@@ -21,7 +21,7 @@ def ownedConstructors (s : InductiveSignature) (owner : Fin s.families.size) :
 
 /-- The concrete rule's constructor, field count, and RHS all correspond to
 the same generated equation. Typing its RHS alone is insufficient. -/
-structure RuleRealization {s : InductiveSignature} (g : Instance s)
+structure TrRecursorRule {s : InductiveSignature} (g : Instance s)
     (venv : VEnv) (lparams : List Name) (index : Fin s.constructors.size)
     (rule : Lean.RecursorRule) : Prop where
   ctor : rule.ctor = s.constructors[index].name
@@ -31,7 +31,7 @@ structure RuleRealization {s : InductiveSignature} (g : Instance s)
 /-- All metadata consulted by ordinary recursor reduction is justified by the
 same signature as its type and rules. The environment here is the completed
 abstract block; concrete installation may still be in progress. -/
-structure RecursorRealization {s : InductiveSignature} (g : Instance s)
+structure TrRecursorVal {s : InductiveSignature} (g : Instance s)
     (venv : VEnv) (owner : Fin s.families.size) (rec : Lean.RecursorVal) : Prop where
   name : rec.name = g.recursorName owner
   uvars : rec.levelParams.length = g.uvars
@@ -43,7 +43,7 @@ structure RecursorRealization {s : InductiveSignature} (g : Instance s)
   major : rec.getMajorInduct = s.families[owner].name
   all : rec.all = s.families.toList.map (·.name)
   isUnsafe : rec.isUnsafe = s.isUnsafe
-  rules : List.Forall₂ (RuleRealization g venv rec.levelParams)
+  rules : List.Forall₂ (TrRecursorRule g venv rec.levelParams)
     (s.ownedConstructors owner) rec.rules
   k : rec.k = true →
     s.families.size = 1 ∧ s.constructors.size = 1 ∧
@@ -52,17 +52,17 @@ structure RecursorRealization {s : InductiveSignature} (g : Instance s)
 
 /-- An installed concrete entry and its abstract constant realize the same
 owner. A type translation alone would erase the operational metadata. -/
-def RecursorEntryRealization {s : InductiveSignature} (g : Instance s)
+def TrRecursorEntry {s : InductiveSignature} (g : Instance s)
     (venv : VEnv) (owner : Fin s.families.size)
     (entry : Lean.ConstantInfo × VConstVal) : Prop :=
   ∃ rec : Lean.RecursorVal, entry.1 = .recInfo rec ∧
-    entry.2 = g.recursor owner ∧ RecursorRealization g venv owner rec
+    entry.2 = g.recursor owner ∧ TrRecursorVal g venv owner rec
 
 /-- The producer must choose one signature for both abstract compilation and
 concrete execution. In particular it cannot certify the recursor types with
 one signature and the rule list or metadata with another. `venv` is the
 completed abstract constant environment in which the RHSs are translated. -/
-structure CompilationRealization (env : VEnv) (decl : VInductDecl)
+structure TrCompilation (env : VEnv) (decl : VInductDecl)
     (block : VInductBlock) (venv : VEnv)
     (entries : List (Lean.ConstantInfo × VConstVal)) : Prop where
   generated : ∃ (s : InductiveSignature) (g : Instance s) (envTypes : VEnv),
@@ -76,11 +76,11 @@ structure CompilationRealization (env : VEnv) (decl : VInductDecl)
         decl.uvars) ∧
     (∀ owner, g.recursorName owner = s.families[owner].name.str "rec") ∧
     block.recursors = g.recursors ∧ block.rules = g.equations ∧
-    List.Forall₂ (RecursorEntryRealization g venv)
+    List.Forall₂ (TrRecursorEntry g venv)
       (List.finRange s.families.size) entries
 
-theorem CompilationRealization.compiles
-    (H : CompilationRealization env decl block venv entries) :
+theorem TrCompilation.compiles
+    (H : TrCompilation env decl block venv entries) :
     Compiles env decl block := by
   rcases H.generated with ⟨s, g, envTypes, hm, ht, ha, hrec, hn, hr, he, _⟩
   exact ⟨s, g, envTypes, hm, ht, ha, hrec, hn, hr, he⟩
@@ -88,8 +88,8 @@ theorem CompilationRealization.compiles
 /-- The parameter count is fixed by the source declaration even when the
 signature witness is existential. Choosing a different witness cannot repair
 corrupted executable metadata. -/
-theorem CompilationRealization.parameterCount
-    (H : CompilationRealization env decl block venv entries)
+theorem TrCompilation.parameterCount
+    (H : TrCompilation env decl block venv entries)
     {rec : Lean.RecursorVal} {value : VConstVal}
     (hmem : (Lean.ConstantInfo.recInfo rec, value) ∈ entries) :
     rec.numParams = decl.nparams := by

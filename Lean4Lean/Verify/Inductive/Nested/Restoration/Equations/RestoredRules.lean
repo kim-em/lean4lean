@@ -159,7 +159,7 @@ theorem NestedValidatedRunResult.restoredRuleRealization_of_equation
     {rule : VDefEq}
     (hrule : (compilationRestoration sourceDecl auxiliaries).equation
       (E.production.production.canonicalGeneration.equation k) = some rule) :
-    E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
+    E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
       C.finalBaseVEnv k rule := by
   let P := E.production.production
   have hwf : sourceProdEnv.constants.WF := (wf.tr (safety := .safe)).map_wf

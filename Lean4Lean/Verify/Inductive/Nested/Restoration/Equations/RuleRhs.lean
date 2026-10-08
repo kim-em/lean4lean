@@ -154,7 +154,7 @@ index of the rule (`recursorMinorOffset` of the owner plus `j`),
   equation's left-hand side and type. The executable `RecursorRule` carries
   no left-hand side or type, so these two components have no executable
   counterpart to be translated. -/
-def NestedValidatedRunResult.RestoredRuleRealization
+def NestedValidatedRunResult.TrRestoredRecursorRule
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}

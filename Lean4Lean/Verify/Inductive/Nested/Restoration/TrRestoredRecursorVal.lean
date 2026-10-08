@@ -21,7 +21,7 @@ namespace InductiveSignature
 /-- Each restored constructor application uses exactly the specialization
 parameters of the major family, lifted past motives, minors, and fields.
 The concrete rule's RHS translates the exact restored generated equation. -/
-structure RestoredRuleRealization {s : InductiveSignature} (g : Instance s)
+structure TrRestoredRecursorRule {s : InductiveSignature} (g : Instance s)
     (r : Restoration) (venv : VEnv) (lparams : List Name)
     (head : RestoredFamilyHead) (index : Fin s.constructors.size)
     (rule : Lean.RecursorRule) : Prop where
@@ -43,7 +43,7 @@ structure RestoredRuleRealization {s : InductiveSignature} (g : Instance s)
 /-- Metadata and type for one restored recursor. `sourceNames` is the original
 source family list, even for auxiliary recursors. The specialized family head
 separately fixes the major inductive and constructor parameters. -/
-structure RestoredRecursorRealization {s : InductiveSignature} (g : Instance s)
+structure TrRestoredRecursorVal {s : InductiveSignature} (g : Instance s)
     (r : Restoration) (sourceNames : List Name) (venv : VEnv)
     (owner : Fin s.families.size) (rec : Lean.RecursorVal) : Prop where
   name : rec.name = r.recursorName (g.recursorName owner)
@@ -69,7 +69,7 @@ structure RestoredRecursorRealization {s : InductiveSignature} (g : Instance s)
         (head.arguments.map (fun arg => arg.liftN
           (s.families.size + s.constructors.size + s.families[owner].indices.length)) ++
           vars s.families[owner].indices.length 0)) ∧
-    List.Forall₂ (RestoredRuleRealization g r venv rec.levelParams head)
+    List.Forall₂ (TrRestoredRecursorRule g r venv rec.levelParams head)
       (s.ownedConstructors owner) rec.rules
   k : rec.k = true →
     s.families.size = 1 ∧ s.constructors.size = 1 ∧
@@ -78,17 +78,17 @@ structure RestoredRecursorRealization {s : InductiveSignature} (g : Instance s)
 
 /-- The concrete entry and its abstract constant have the same generated
 owner, universe arity, restored type, and operational metadata. -/
-def RestoredRecursorEntryRealization {s : InductiveSignature} (g : Instance s)
+def TrRestoredRecursorEntry {s : InductiveSignature} (g : Instance s)
     (r : Restoration) (sourceNames : List Name) (venv : VEnv)
     (owner : Fin s.families.size) (entry : Lean.ConstantInfo × VConstVal) : Prop :=
   ∃ rec : Lean.RecursorVal, entry.1 = .recInfo rec ∧
     r.recursor (g.recursor owner) = some entry.2 ∧
-    RestoredRecursorRealization g r sourceNames venv owner rec
+    TrRestoredRecursorVal g r sourceNames venv owner rec
 
 /-- One existential witness fixes formation, finite prior-container provenance,
 all generated equations, their exact restoration, and every concrete recursor
 entry. There is no separately chosen rule batch or restoration callback. -/
-structure RestoredCompilationRealization (env : VEnv) (source : VInductDecl)
+structure TrRestoredCompilation (env : VEnv) (source : VInductDecl)
     (block : VInductBlock) (venv : VEnv)
     (entries : List (Lean.ConstantInfo × VConstVal)) : Prop where
   generated : ∃ (expanded : VInductDecl) (s : InductiveSignature) (g : Instance s)
@@ -96,29 +96,29 @@ structure RestoredCompilationRealization (env : VEnv) (source : VInductDecl)
     CompilationData env source expanded s g auxiliaries block ∧
     ContainersInstalled env auxiliaries ∧
     List.Forall₂
-      (RestoredRecursorEntryRealization g (compilationRestoration source auxiliaries)
+      (TrRestoredRecursorEntry g (compilationRestoration source auxiliaries)
         (source.types.map (·.name)) venv)
       (List.finRange s.families.size) entries
 
-theorem RestoredCompilationRealization.compiles
-    (H : RestoredCompilationRealization env source block venv entries) :
+theorem TrRestoredCompilation.compiles
+    (H : TrRestoredCompilation env source block venv entries) :
     CompiledInductive env source block := by
   rcases H.generated with ⟨_, _, _, _, hdata, hprior, _⟩
   exact .intro hdata hprior
 
 /-- The realization does not read the block's case eliminators. -/
-theorem RestoredCompilationRealization.congr_eliminators
-    (H : RestoredCompilationRealization env source block venv entries)
+theorem TrRestoredCompilation.congr_eliminators
+    (H : TrRestoredCompilation env source block venv entries)
     (es : List (Name × InductiveSignature.CaseSchema)) :
-    RestoredCompilationRealization env source { block with eliminators := es } venv entries := by
+    TrRestoredCompilation env source { block with eliminators := es } venv entries := by
   rcases H.generated with ⟨expanded, s, g, auxiliaries, hdata, hprior, hentries⟩
   exact ⟨expanded, s, g, auxiliaries, hdata.congr_eliminators es, hprior, hentries⟩
 
 /-- The source parameter count is fixed even if the restored constructor has
 additional specialized parameters. Corrupting this concrete count cannot be
 repaired by choosing another existential signature. -/
-theorem RestoredCompilationRealization.parameterCount
-    (H : RestoredCompilationRealization env source block venv entries)
+theorem TrRestoredCompilation.parameterCount
+    (H : TrRestoredCompilation env source block venv entries)
     {rec : Lean.RecursorVal} {value : VConstVal}
     (hmem : (Lean.ConstantInfo.recInfo rec, value) ∈ entries) :
     rec.numParams = source.nparams := by
@@ -128,8 +128,8 @@ theorem RestoredCompilationRealization.parameterCount
   cases he
   exact hrec.numParams.trans (hdata.model.nparams.trans hdata.nparams)
 
-theorem RestoredCompilationRealization.all
-    (H : RestoredCompilationRealization env source block venv entries)
+theorem TrRestoredCompilation.all
+    (H : TrRestoredCompilation env source block venv entries)
     {rec : Lean.RecursorVal} {value : VConstVal}
     (hmem : (Lean.ConstantInfo.recInfo rec, value) ∈ entries) :
     rec.all = source.types.map (·.name) := by

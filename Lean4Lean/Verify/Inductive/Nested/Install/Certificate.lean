@@ -516,7 +516,7 @@ structure NestedFinalAssemblyCertificate
     (sourceEnv : VEnv) (decl : VInductDecl) (lparams : List Name)
     (nparams : Nat) (isUnsafe : Bool) (safety : DefinitionSafety)
     extends NestedFinalAssemblyShape H sourceEnv decl lparams nparams isUnsafe safety where
-  realization : InductiveSignature.RestoredCompilationRealization sourceEnv decl
+  realization : InductiveSignature.TrRestoredCompilation sourceEnv decl
     (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
       primaryRules auxiliaryRules) finalBaseVEnv recursorEntries
   provenance : NewRecursorsAligned .unsafe sourceProdEnv.constants sourceEnv

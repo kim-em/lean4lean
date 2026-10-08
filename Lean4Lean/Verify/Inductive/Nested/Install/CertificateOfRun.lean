@@ -44,7 +44,7 @@ theorem NestedValidatedRunResult.hrules_of
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
         C.production = E.production ∧
         List.Forall₂
-          (E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
+          (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
             C.finalBaseVEnv)
           (List.finRange E.production.compilationSignature.constructors.size)
           (C.primaryRules ++ C.auxiliaryRules)) :
@@ -59,7 +59,7 @@ theorem NestedValidatedRunResult.hrules_of
           n ∉ (compilationRestoration sourceDecl auxiliaries).recursors.map Prod.snd →
           C.finalBaseVEnv.constants n = none) ∧
         List.Forall₂
-          (E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
+          (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
             C.finalBaseVEnv)
           (List.finRange E.production.compilationSignature.constructors.size)
           (C.primaryRules ++ C.auxiliaryRules) :=
@@ -94,7 +94,7 @@ theorem NestedValidatedRunResult.assemblyNative_of_run
           n ∉ (compilationRestoration sourceDecl auxiliaries).recursors.map Prod.snd →
           C.finalBaseVEnv.constants n = none) ∧
         List.Forall₂
-          (E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
+          (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
             C.finalBaseVEnv)
           (List.finRange E.production.compilationSignature.constructors.size)
           (C.primaryRules ++ C.auxiliaryRules))
@@ -109,7 +109,7 @@ theorem NestedValidatedRunResult.assemblyNative_of_run
           n ∉ (compilationRestoration sourceDecl auxiliaries).recursors.map Prod.snd →
           C.finalBaseVEnv.constants n = none) →
         List.Forall₂
-          (E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
+          (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
             C.finalBaseVEnv)
           (List.finRange E.production.compilationSignature.constructors.size)
           (C.primaryRules ++ C.auxiliaryRules) →
@@ -170,7 +170,7 @@ theorem NestedValidatedRunResult.assemblyNative_of_run
   have hinfos := E.restoredRecursorEntryInfos C hC wf Hsources hadded Haux Hexpansion hnodup
     hparamsSize D hscoped hwf
   have Hentries : List.Forall₂
-      (RestoredRecursorEntryRealization E.production.compilationInstance
+      (TrRestoredRecursorEntry E.production.compilationInstance
         (compilationRestoration sourceDecl auxiliaries)
         (sourceDecl.types.map (·.name)) C.finalBaseVEnv)
       (List.finRange E.production.compilationSignature.families.size)

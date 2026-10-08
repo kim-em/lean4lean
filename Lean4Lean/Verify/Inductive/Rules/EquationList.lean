@@ -62,7 +62,7 @@ structure RuleTranslations
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) extends RuleTranslationShape H where
-  realization : InductiveSignature.CompilationRealization sourceEnv decl
+  realization : InductiveSignature.TrCompilation sourceEnv decl
     (H.blockCertificate rules rulesWF).block H.outVEnv H.entries
 
 /-- Source nonemptiness comes from the existing declaration entry guard.

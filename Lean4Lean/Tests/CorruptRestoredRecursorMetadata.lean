@@ -6,7 +6,7 @@ namespace Lean4Lean.Tests.CorruptRestoredRecursorMetadata
 justify a corrupted parameter count in a concrete restored recursor. -/
 theorem rejectsCorruptedParameterCount {env venv : VEnv} {source : VInductDecl}
     {block : VInductBlock} (rec : Lean.RecursorVal) (value : VConstVal) :
-    ¬ InductiveSignature.RestoredCompilationRealization env source block venv
+    ¬ InductiveSignature.TrRestoredCompilation env source block venv
       [(.recInfo { rec with numParams := source.nparams + 1 }, value)] := by
   intro H
   have h := H.parameterCount (rec := { rec with numParams := source.nparams + 1 })
@@ -18,7 +18,7 @@ theorem rejectsCorruptedParameterCount {env venv : VEnv} {source : VInductDecl}
 `all` list must still be exactly the original source family list. -/
 theorem rejectsExtraFamilyMetadata {env venv : VEnv} {source : VInductDecl}
     {block : VInductBlock} (rec : Lean.RecursorVal) (value : VConstVal) (extra : Name) :
-    ¬ InductiveSignature.RestoredCompilationRealization env source block venv
+    ¬ InductiveSignature.TrRestoredCompilation env source block venv
       [(.recInfo { rec with all := source.types.map (·.name) ++ [extra] }, value)] := by
   intro H
   have h := H.all (rec := { rec with all := source.types.map (·.name) ++ [extra] })

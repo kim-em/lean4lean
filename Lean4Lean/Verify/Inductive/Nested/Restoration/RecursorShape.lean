@@ -20,7 +20,7 @@ namespace InductiveSignature
 its stored abstract constant is the restored generated type, its counts are the
 expanded signature's, it is not K-like, and its major family application is the
 restored owner family at the parameter and index variables
-(`RestoredRecursorRealization.specialization`). Rules are not involved. -/
+(`TrRestoredRecursorVal.specialization`). Rules are not involved. -/
 structure RestoredRecursorShapeInputs {s : InductiveSignature} (g : Instance s)
     (r : Restoration) (venv : VEnv) (owner : Fin s.families.size)
     (rec : Lean.RecursorVal) : Prop where
@@ -65,10 +65,10 @@ theorem restoredRecursor_constant {s : InductiveSignature} {g : Instance s}
     exact hconst
 
 /-- A recursor of a block with more than one family is not K-like. -/
-theorem RestoredRecursorRealization.k_eq_false {s : InductiveSignature} {g : Instance s}
+theorem TrRestoredRecursorVal.k_eq_false {s : InductiveSignature} {g : Instance s}
     {r : Restoration} {sourceNames : List Name} {venv : VEnv}
     {owner : Fin s.families.size} {rec : Lean.RecursorVal}
-    (H : RestoredRecursorRealization g r sourceNames venv owner rec)
+    (H : TrRestoredRecursorVal g r sourceNames venv owner rec)
     (hfamilies : 1 < s.families.size) : rec.k = false := by
   cases hk : rec.k with
   | false => rfl

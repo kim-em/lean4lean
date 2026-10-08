@@ -918,7 +918,7 @@ def NestedValidatedRunResult.RestoredRulesRealizationModulo
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (r : Restoration) (X : List Name) (rules : List VDefEq) : Prop :=
   ∃ trEnv : VEnv, (∀ n ∈ r.restorableNames, n ∉ X → trEnv.constants n = none) ∧
-    List.Forall₂ (E.RestoredRuleRealization r trEnv)
+    List.Forall₂ (E.TrRestoredRecursorRule r trEnv)
       (List.finRange
         E.production.production.generationSignature.constructors.size)
       rules
@@ -970,7 +970,7 @@ theorem NestedValidatedRunResult.restoredEquation_of_realizationModulo
       n ∉ X → trEnv.constants n = none)
     (k : Fin E.production.production.generationSignature.constructors.size)
     {rule : VDefEq}
-    (H : E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries) trEnv k
+    (H : E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries) trEnv k
       rule) :
     (compilationRestoration sourceDecl auxiliaries).equation
       (E.production.production.canonicalGeneration.equation k) = some rule := by
@@ -1124,7 +1124,7 @@ theorem NestedValidatedRunResult.hrules_of_modulo
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
         C.production = E.production ∧
         List.Forall₂
-          (E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
+          (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
             C.finalBaseVEnv)
           (List.finRange E.production.compilationSignature.constructors.size)
           (C.primaryRules ++ C.auxiliaryRules)) :
@@ -1139,7 +1139,7 @@ theorem NestedValidatedRunResult.hrules_of_modulo
           n ∉ (compilationRestoration sourceDecl auxiliaries).recursors.map Prod.snd →
           C.finalBaseVEnv.constants n = none) ∧
         List.Forall₂
-          (E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
+          (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
             C.finalBaseVEnv)
           (List.finRange E.production.compilationSignature.constructors.size)
           (C.primaryRules ++ C.auxiliaryRules) := by

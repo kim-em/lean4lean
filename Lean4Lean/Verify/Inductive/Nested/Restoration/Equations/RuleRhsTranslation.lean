@@ -528,7 +528,7 @@ theorem NestedValidatedRunResult.restoredRuleRealization_base
     {rule : VDefEq}
     (hrule : (compilationRestoration sourceDecl auxiliaries).equation
       (E.production.production.canonicalGeneration.equation k) = some rule) :
-    E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
+    E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
       B.finalBaseVEnv k rule := by
   let P := E.production.production
   rcases E.restorationTablesRestoringAll wf Hsources with
