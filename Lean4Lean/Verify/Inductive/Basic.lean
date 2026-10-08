@@ -252,7 +252,7 @@ theorem liftContextPrefixAt_append_singleton
   induction domains with
   | nil => simp [liftContextPrefixAt]
   | cons head domains ih =>
-    simp [liftContextPrefixAt, ih, Nat.add_assoc, Nat.add_comm,
+    simp [liftContextPrefixAt, ih, Nat.add_comm,
       Nat.add_left_comm]
 
 /-- In outermost-to-innermost telescope order, the `j`th domain is weakened
@@ -284,8 +284,7 @@ theorem liftContextPrefixAt_append
   induction left with
   | nil => simp [liftContextPrefixAt]
   | cons domain left ih =>
-    simp [liftContextPrefixAt, ih, Nat.add_assoc, Nat.add_comm,
-      Nat.add_left_comm]
+    simp [liftContextPrefixAt, ih, Nat.add_assoc, Nat.add_comm]
 
 theorem liftContextPrefixAt_reverse_append
     (n k : Nat) (outer inner : List VExpr) :
@@ -294,7 +293,7 @@ theorem liftContextPrefixAt_reverse_append
         (liftContextPrefixAt n (k + outer.length) inner.reverse).reverse := by
   rw [List.reverse_append, liftContextPrefixAt_append,
     List.reverse_append]
-  simp [Nat.add_comm]
+  simp
 
 theorem liftContextPrefixAt_reverse_append_take_left
     (n k : Nat) (outer inner : List VExpr) :
@@ -332,7 +331,7 @@ theorem VExpr.liftN_wrapForalls
       ((VExpr.wrapForalls domains body).liftN n (k + 1)) = _
     rw [ih,
       List.reverse_cons, liftContextPrefixAt_append_singleton]
-    simp [VExpr.wrapForalls, Nat.add_assoc, Nat.add_comm,
+    simp [VExpr.wrapForalls, Nat.add_comm,
       Nat.add_left_comm]
 
 /-- An arbitrary free-variable lift preserves the number of leading forall
@@ -826,7 +825,7 @@ theorem bvarSpine_add (initialCount suffixCount : Nat) :
         (initialCount + suffixCount) + 1 by omega,
       bvarSpine_succ_cons,
       bvarSpine_succ_cons, List.map_cons, ih]
-    simp [VExpr.liftN, liftVar_base, List.append_assoc]
+    simp [VExpr.liftN]
 
 theorem VExpr.liftN_mkApps
     (fn : VExpr) (args : List VExpr) (n k : Nat) :

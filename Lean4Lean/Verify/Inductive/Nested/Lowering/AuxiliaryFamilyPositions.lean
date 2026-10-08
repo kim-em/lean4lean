@@ -423,7 +423,7 @@ theorem LowerNextStep.familyPositions
           rw [Hlowered.name, hsource]
         calc
           (loweredState.newTypes.set! i target)[i].name = target.name := by
-            simp [Array.getElem_setIfInBounds, hiLowered]
+            simp
           _ = loweredState.newTypes[i].name := htargetName
           _ = name := hname
       · have hget := Array.getElem_setIfInBounds
@@ -557,7 +557,7 @@ theorem NestedLowering.resolvedAuxiliaryFamilyAt
     have hmember : initialState.newTypes[j] ∈ types := by
       have hmemInitial : initialState.newTypes[j] ∈ initialState.newTypes :=
         Array.getElem_mem hjInitial
-      simpa [hinitialTypes] using hmemInitial
+      simp [hinitialTypes]
     have hvalue : paramsState.newTypes[j] = initialState.newTypes[j] := by
       have heq := congrArg (fun xs : Array InductiveType => xs[j]!) hnewTypes
       simpa [Array.getElem!_eq_getD, Array.getD, hjState, hjInitial] using heq
@@ -581,7 +581,7 @@ theorem NestedLowering.resolvedAuxFamilyPosition
   have Hinitial : AuxiliaryCachePositions initialState.newTypes.size
       paramsState := by
     constructor
-    · simpa [hnewTypes]
+    · simp [hnewTypes]
     · intro nested name hentry
       have : (nested, name) ∈ initialState.nestedAux := by
         simpa [hinitialAux] using hentry
@@ -649,9 +649,9 @@ theorem NestedLowering.cachedAuxiliaryFamily
     have hget := congrArg
       (fun xs : Array InductiveType => xs[j]!) harr
     have hleft : result.types.toArray[j]! = result.types[j] := by
-      simp [Array.getElem!_eq_getD, Array.getD, hjResult]
+      simp [hjResult]
     have hright : finalState.newTypes[j]! = finalState.newTypes[j] := by
-      simp [Array.getElem!_eq_getD, Array.getD, hj]
+      simp [hj]
     exact hleft.symm.trans (hget.trans hright)
   have HoriginFinal : LoweredAuxiliaryFamily env result.params
       nparams finalState finalState.newTypes[j] := by

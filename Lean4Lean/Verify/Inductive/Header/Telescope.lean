@@ -1152,7 +1152,7 @@ theorem ParameterCachePrefix.empty
     (hparams : stats.params = #[]) :
     ParameterCachePrefix env Us Δ stats 0 depth := by
   refine ⟨?_, ?_⟩
-  · simpa [hparams]
+  · simp [hparams]
   · simp [hparams]
 
 def ParameterContextSuffix.empty
@@ -1164,7 +1164,7 @@ def ParameterContextSuffix.empty
   context := by simpa using hctx
   prefixLength := rfl
   cached := by simp [hparams]
-  suffixParams := by simp [hparams, cachedParamVars]
+  suffixParams := by simp [hparams]
   sources := .nil
 
 /-- The first-header parameter branch extends the cached suffix itself.  The
@@ -1214,7 +1214,7 @@ def ParameterContextSuffix.push
       refine ⟨?_, ?_, ?_⟩
       · simpa [hscope] using Hc.mlctx_wf.tr.wf
       · intro fv deps heq
-        simp only [entry, Option.some.injEq, Prod.mk.injEq] at heq
+        simp only [Option.some.injEq, Prod.mk.injEq] at heq
         rcases heq with ⟨rfl, rfl⟩
         exact ⟨by simpa [hscope] using Hc.current_not_mem,
           by simpa [hscope] using htr.fvarsList⟩

@@ -51,8 +51,8 @@ private theorem restoreInductiveHeaderDecl_validationWF
         · have himpossible :
             (Except.error (.alreadyDeclared sourceEnv oldInfo.name) :
                 Except Exception Unit) = .ok checked := by
-            simpa [Lean.Kernel.Environment.checkName, hcontains, bind,
-              Except.bind] using hcheck
+            simp [Lean.Kernel.Environment.checkName, hcontains, bind,
+              Except.bind] at hcheck
           cases himpossible
       exact ⟨rfl, ⟨{
         oldInfo := oldInfo
@@ -100,8 +100,8 @@ private theorem restoreConstructorDecl_validationWF
         · have himpossible :
             (Except.error (.alreadyDeclared sourceEnv oldInfo.name) :
                 Except Exception Unit) = .ok checked := by
-            simpa [Lean.Kernel.Environment.checkName, hcontains, bind,
-              Except.bind] using hcheck
+            simp [Lean.Kernel.Environment.checkName, hcontains, bind,
+              Except.bind] at hcheck
           cases himpossible
       have hnprim : allowPrimitive = false →
           Kernel.Environment.primitives.contains oldInfo.name = false := by
@@ -109,7 +109,7 @@ private theorem restoreConstructorDecl_validationWF
         cases hprimitive : Kernel.Environment.primitives.contains oldInfo.name
         · rfl
         · simp [Lean.Kernel.Environment.checkName, hfresh, hallow,
-            hprimitive, bind, Except.bind] at hcheck
+            hprimitive] at hcheck
       exact ⟨rfl, ⟨{
         oldInfo := oldInfo
         lookup := hlookup
@@ -151,8 +151,8 @@ private theorem restoreInductiveConstructorsOnly_validationWF
         allowPrimitive ctorName)
     sourceEnv
   exact Hconstructors.mono fun out Hout => by
-    rcases out with ⟨unit, targetEnv⟩
-    rcases unit with ⟨⟩
+    rcases out with ⟨done, targetEnv⟩
+    rcases done with ⟨⟩
     rcases Hout with ⟨_, ⟨Hconstructors⟩⟩
     exact ⟨trivial, ⟨{
       oldInfo := oldInfo
@@ -205,8 +205,8 @@ theorem restoreNestedHeaders_validationWF
         allIndNames allowPrimitive indType.name)
     sourceEnv
   exact Hheaders.mono fun out Hout => by
-    rcases out with ⟨unit, targetEnv⟩
-    rcases unit with ⟨⟩
+    rcases out with ⟨done, targetEnv⟩
+    rcases done with ⟨⟩
     rcases Hout with ⟨_, ⟨Htrace⟩⟩
     exact ⟨rfl, ⟨⟨Htrace⟩⟩⟩
 
@@ -225,8 +225,8 @@ theorem restoreNestedConstructors_validationWF
   have Hheaders := restoreNestedHeaders_validationWF loweredEnv sourceEnv
     allIndNames allowPrimitive types
   exact Hheaders.bind fun out Hout => by
-    rcases out with ⟨unit, headerEnv⟩
-    rcases unit with ⟨⟩
+    rcases out with ⟨done, headerEnv⟩
+    rcases done with ⟨⟩
     rcases Hout with ⟨_, ⟨HheaderEnvironment⟩⟩
     let Hheaders := HheaderEnvironment.headers
     have Hconstructors := stateForM_refines
@@ -241,8 +241,8 @@ theorem restoreNestedConstructors_validationWF
           currentEnv allowPrimitive indType oldInfo hlookup)
       headerEnv
     exact Hconstructors.mono fun out Hout => by
-      rcases out with ⟨unit, targetEnv⟩
-      rcases unit with ⟨⟩
+      rcases out with ⟨done, targetEnv⟩
+      rcases done with ⟨⟩
       rcases Hout with ⟨_, ⟨Hconstructors⟩⟩
       exact ⟨rfl, ⟨{
         headerEnv := headerEnv

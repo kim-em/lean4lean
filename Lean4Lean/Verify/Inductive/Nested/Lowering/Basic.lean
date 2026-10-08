@@ -260,7 +260,7 @@ structure NestedBindingContextWF (lctx : LocalContext)
   findCDecl : ∀ fv ∈ lctx.fvars, ∃ index name type bi kind,
     lctx.find? fv = some (.cdecl index fv name type bi kind)
 
-def NestedBindingContextWF.empty (ngen : NameGenerator) :
+theorem NestedBindingContextWF.empty (ngen : NameGenerator) :
     NestedBindingContextWF {} ngen :=
   ⟨.nil, by
     intro fv hmem
@@ -294,7 +294,7 @@ def NestedBindingContextWF.empty (ngen : NameGenerator) :
     rw [LocalContext.fvars, htoList] at hmem
     simp at hmem⟩
 
-def NestedBindingContextWF.withLocalDecl
+theorem NestedBindingContextWF.withLocalDecl
     (H : NestedBindingContextWF lctx ngen)
     (name : Name) (type : Expr) (bi : BinderInfo) :
     NestedBindingContextWF
@@ -622,8 +622,6 @@ private theorem nestedWithParamsLoop_refinesClosing {α : Type}
     | forallE name dom body bi =>
       simp only [Lean4Lean.ElimNestedInductive.withParams.loop]
       simp only [mkFreshId, getNGen, setNGen,
-        Lean4Lean.ElimNestedInductive.instMonadNameGeneratorM,
-        StateT.get, StateT.set, StateT.modifyGet,
         bind, StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure]
       let HnextClosing := Hclosing.push name dom bi Htype.1
       have HnextType :
@@ -795,7 +793,7 @@ theorem NestedAuxNamesWF.empty
     (state : Lean4Lean.ElimNestedInductive.State)
     (hempty : state.nestedAux = #[]) : NestedAuxNamesWF state := by
   constructor
-  · simpa [hempty]
+  · simp [hempty]
   · intro nested name hentry
     rw [hempty] at hentry
     simp at hentry
@@ -1218,7 +1216,7 @@ theorem generateAuxiliary_refines
         AuxiliaryGenerationStep env lctx params As targetName levels nparams args
           sourceName sourceInfo state out := by
   unfold Lean4Lean.ElimNestedInductive.generateAuxiliary
-  simp only [read, ReaderT.read, bind, ReaderT.bind]
+  simp only [read, bind, ReaderT.bind]
   exact (mkUniqueName_refines env state `_nested).bind
     fun unique Hunique => by
       rcases unique with ⟨auxName, nextState⟩
@@ -1226,9 +1224,7 @@ theorem generateAuxiliary_refines
       rcases Hunique with ⟨nextIdx, Hfresh, hstate⟩
       subst nextState
       simp only [liftM, MonadLiftT.monadLift, MonadLift.monadLift,
-        StateT.instMonadLift, ReaderT.instMonadLift, StateT.lift,
-        StateT.modifyGet, modify, get, StateT.get,
-        bind, StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure]
+        StateT.lift, modify, get, bind, StateT.bind, pure]
       have Hbuild :
           ((Lean4Lean.ElimNestedInductive.buildAuxiliary env lctx params As
             levels nparams args sourceName auxName).bind fun data =>
@@ -1243,8 +1239,7 @@ theorem generateAuxiliary_refines
         rcases Hbuilt with ⟨Hdata, hbuildState⟩
         simp only at Hdata hbuildState ⊢
         subst buildState
-        simp only [modifyGet, getThe, StateT.modifyGet, StateT.get,
-          bind, StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure]
+        simp only [modifyGet, getThe]
         split <;> rename_i heq <;>
           exact Except.WF.pure ⟨⟨auxName, nextIdx, data, Hfresh, Hdata,
             by simp [heq], rfl⟩⟩
@@ -1501,13 +1496,14 @@ theorem RestoreSourceDisjoint.instantiate1'_fvar
     by_cases hlt : i < k
     · simp [Expr.instantiate1', hlt, RestoreSourceDisjoint]
     · by_cases heq : i = k
-      · simp only [Expr.instantiate1', hlt, heq, ↓reduceIte]
+      · simp only [Expr.instantiate1', heq, ↓reduceIte]
         simp only [Nat.lt_irrefl, ↓reduceIte]
         change RestoreSourceDisjoint result env (.fvar fv)
         trivial
       · simp [Expr.instantiate1', hlt, heq, RestoreSourceDisjoint]
-  | fvar | mvar | sort | const | lit =>
-    simpa [Expr.instantiate1', RestoreSourceDisjoint] using H
+  | fvar | mvar | sort | lit =>
+    simp [Expr.instantiate1', RestoreSourceDisjoint]
+  | const => exact H
   | app fn arg ihFn ihArg =>
     simp only [Expr.instantiate1', RestoreSourceDisjoint] at H ⊢
     exact ⟨ihFn H.1 k, ihArg H.2 k⟩

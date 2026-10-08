@@ -1701,7 +1701,7 @@ theorem BindingContextWF.current_not_mem (H : BindingContextWF c) :
     ⟨c.ngen.curr⟩ ∉ c.lctx.fvars := fun hmem =>
   c.ngen.not_reserves_self (H.fresh _ hmem)
 
-def BindingContextWF.withLocalDecl (H : BindingContextWF c)
+theorem BindingContextWF.withLocalDecl (H : BindingContextWF c)
     (name : Name) (ty : Expr) (bi : BinderInfo) :
     BindingContextWF { c with
       ngen := c.ngen.next
@@ -2811,7 +2811,7 @@ theorem ensureTypeInContext.WF (Hc : ContextWF c)
       ∃ e'', TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e'' ∧
         ∃ u u', sort = .sort u ∧ VLevel.ofLevel c.lparams u = some u' ∧
           Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx e'' (.sort u') :=
-  (ensureTypeInContext.checkingWF Hc hn).mono fun _ ⟨e₁, h1, u, u', hs, hu, hh⟩ =>
+  (ensureTypeInContext.checkingWF Hc hn).mono fun _ ⟨_e₁, h1, u, u', hs, hu, hh⟩ =>
     ⟨e', he, u, u', hs, hu,
       Hc.check.embed.hasType Hc.checking.tr.wf h1 he (.sort hu) (.sort hu) hh⟩
 
@@ -2895,7 +2895,7 @@ possibly extended universe-parameter list. -/
 theorem AddInductive.declareRecursors.checkRecursorType.WF
     (Hvalid : CheckingEnv.Valid c.safety c.env venv)
     (info : RecursorVal) :
-    (AddInductive.declareRecursors.checkRecursorType info c).WF fun ty =>
+    (AddInductive.declareRecursors.checkRecursorType info c).WF fun _ty =>
       ∃ type', TrExprS venv info.levelParams [] info.type type' ∧
         venv.IsType info.levelParams.length [] type' := by
   unfold AddInductive.declareRecursors.checkRecursorType

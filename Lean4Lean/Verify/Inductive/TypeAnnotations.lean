@@ -428,7 +428,7 @@ theorem TrExprS.consumeTranslatedTypeAnnotations
     | app _ _ hhead harg =>
       cases hhead
       simpa only [Lean4Lean.consumeTranslatedTypeAnnotations, hannotation, ↓reduceIte] using ih harg
-  all_goals simpa [Lean4Lean.consumeTranslatedTypeAnnotations, *] using H
+  all_goals simp [Lean4Lean.consumeTranslatedTypeAnnotations, *]
 
 /-- The fixed unannotated target is a type, definitionally equal to the source domain.
 The wrapper definitions supply the equality; translation uniqueness identifies the
