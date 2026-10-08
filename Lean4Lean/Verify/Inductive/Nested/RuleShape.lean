@@ -452,7 +452,7 @@ theorem NestedValidatedRunResult.restoredRuleRealization_of_equation
     (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped)
-    (C : NestedFinalAssemblyShape E.restoration
+    (C : NestedFinalAssemblyBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)

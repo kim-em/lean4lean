@@ -305,7 +305,7 @@ theorem NestedValidatedRunResult.finalBaseVEnv_restorableNames_fresh_of_not_rena
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (C : NestedFinalAssemblyShape E.restoration
+    (C : NestedFinalAssemblyBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)

@@ -221,15 +221,16 @@ theorem NestedFinalAssemblyBase.withRules_toBase
 /-- **The rule-shape hypothesis `HruleShape` of `hrules_of`, over the
 rule-free base.** The base of `assemblyBaseNativeValid` (constructed without
 the rule validator) is extended by the restored generated equations
-(`NestedFinalAssemblyBase.withRules`). The facts about the restored generated
-equations are hypotheses stated over every base of the run in which the
-stripped output environment is valid:
+(`NestedFinalAssemblyBase.withRules`):
 
-* `Hreal`: realization of each restored generated equation;
-* `Hiota`: the restored generated equation of a source constructor is a
-  nested iota rule of the canonical restored shape block;
+* each restored generated equation realizes the executable restored rule
+  (`restoredRuleRealization_of_equation`, from the right-hand-side type check);
+* the restored generated equation of a source constructor is a nested iota
+  rule of the canonical restored shape block (`primaryNestedIotaRule`, from
+  the generator);
 * `HrestoredWF`: each restored generated equation is well formed in the
-  final abstract environment.
+  final abstract environment of every base in which the stripped output
+  environment is valid.
 
 Family counts, rule counts and block names come from the base's traces,
 the run's restoration tables and `stepRules_length`. -/
@@ -243,49 +244,6 @@ theorem NestedValidatedRunResult.hruleShape_of_base
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (hnested : result.aux2nested.size ≠ 0)
-    (Hreal : ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ B : NestedFinalAssemblyBase E.restoration
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        B.production = E.production →
-        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
-          (Lean4Lean.stripRecursorRules outEnv
-            (Lean4Lean.restoredRecursorNames
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
-        ∀ (k : Fin E.production.production.generationSignature.constructors.size)
-          (rule : VDefEq),
-          (compilationRestoration sourceDecl auxiliaries).equation
-              (E.production.production.canonicalGeneration.equation k) =
-            some rule →
-          E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
-            B.finalBaseVEnv k rule)
-    (Hiota : ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ B : NestedFinalAssemblyBase E.restoration
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        B.production = E.production →
-        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
-          (Lean4Lean.stripRecursorRules outEnv
-            (Lean4Lean.restoredRecursorNames
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
-        ∀ (k : Fin E.production.production.generationSignature.constructors.size)
-          (rule : VDefEq),
-          (compilationRestoration sourceDecl auxiliaries).equation
-              (E.production.production.canonicalGeneration.equation k) =
-            some rule →
-          ∀ (f : Nat) (hf : f < sourceDecl.types.length) (j : Nat)
-            (hj : j < (sourceDecl.types[f]'hf).ctors.length),
-            k.val = recursorMinorOffset E.production.indTypes f + j →
-            Nonempty (sourceDecl.NestedIotaRule
-              (canonicalRestoredShapeBlock sourceDecl B.primaryRecursors
-                B.auxiliaryRecursors)
-              (sourceDecl.types[f]'hf) ((sourceDecl.types[f]'hf).ctors[j]'hj) rule))
     (HrestoredWF : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
@@ -326,9 +284,12 @@ theorem NestedValidatedRunResult.hruleShape_of_base
     rcases E.containerSpecializations wf Hsources with
       ⟨_, _, _, _, _, _, _, h, _⟩
     exact h
-  obtain ⟨-, -, -, -, -, -, -, hscoped, -⟩ :=
+  obtain ⟨-, -, hauxNames, -, -, -, -, hscoped, -⟩ :=
     E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D' True.intro
   rcases E.assemblyBaseNativeValid wf Hsources hnested with ⟨⟨B, hB, hV⟩⟩
+  have hfresh := fresh_filter_restorable
+    (E.finalBaseVEnv_restorableNames_fresh_of_not_renamed wf Hsources B hB D')
+  have HL := E.loweredRulesAvoid_renamed wf Hsources Haux Hexpansion D'
   -- the restored generated equations
   have hrecs := E.restoredRecursorList_of_hitShape B hB wf Hsources hadded Haux Hexpansion
     hnodup hparamsSize D' hscoped
@@ -364,7 +325,8 @@ theorem NestedValidatedRunResult.hruleShape_of_base
       rules :=
     Lean4Lean.List.Forall₂.imp (fun k _ hk => by
       obtain ⟨owner, j, s, t, Hstep, hj, hk', hu, Ht, hl, hty⟩ :=
-        Hreal aux' D' B hB hV k _ hk
+        E.restoredRuleRealization_of_equation wf Hsources hadded Haux Hexpansion hnodup
+          hparamsSize D' hscoped B hB hV hfresh HL k hk
       exact ⟨owner, j, s, t, Hstep, hj, hk', hu, Ht, (D.expr_eq D' _).trans hl,
         (D.expr_eq D' _).trans hty⟩) Hrules
   -- families and offsets
@@ -462,7 +424,9 @@ theorem NestedValidatedRunResult.hruleShape_of_base
       simp only [List.getElem_take]
       have Hk := Lean4Lean.List.forall₂_getElem Hrules _ (by simpa using hkn) hk'
       simp only [List.getElem_finRange] at Hk
-      exact ⟨Hiota aux' D' B hB hV _ _ Hk i hi j hj rfl, HrestoredWF aux' D' B hB hV _ _ Hk⟩
+      exact ⟨E.primaryNestedIotaRule wf Hsources hadded Haux Hexpansion hnodup hparamsSize D'
+          hscoped B hB hcountPrim hauxNames _ Hk i hi j hj rfl,
+        HrestoredWF aux' D' B hB hV _ _ Hk⟩
   -- the auxiliary rule counts
   have hauxCounts : List.Forall₂ (fun (name : Name) (c : Nat) =>
       ∀ (s t : Environment) (Hstep : RestoredRecursorStep result E.loweredEnv
