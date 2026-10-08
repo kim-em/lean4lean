@@ -1,7 +1,7 @@
 import Lean
 
 /-!
-Run with `lake env lean docs/inductives/SingletonStrengtheningModel.lean`.
+Run with `lake env lean docs/inductives/history/SingletonStrengtheningModel.lean`.
 
 Semantic calculations for STRENGTHENING.md, using Lean as the metatheory.
 This verifies the finite group action and constructor origins, recursor beta
