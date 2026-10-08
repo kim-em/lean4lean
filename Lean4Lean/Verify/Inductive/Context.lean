@@ -8,11 +8,21 @@ open scoped _root_.List
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
+/-! # Contexts of the inductive checker
+
+The invariant of the inductive checker's monad `AddInductive.Context`: `ContextWF` relates
+its environment and local context to an abstract environment and a translated local
+context, and `RecursorContextWF` does the same at the recursor's universe parameters.
+Embedded typechecker runs see only the checking context `AddInductive.Context.checkLCtx`
+(parameters, indices and fields; section 3.2 of `docs/inductives/DESIGN.md`), which embeds
+into the main context (`ChkEmbeds`); facts about it are moved to the main context by
+weakening. The file also states the hypotheses about removing type annotations from binder
+domains (`ConsumeTypeAnnotationsCompat`), discharged in `TypeAnnotations.lean`. -/
+
 namespace VerifyInductive
 
-/-- Verification state for the outer inductive-construction monad. The local
-context is represented by the same `MLCtx` used by the typechecker proof, while
-the production reader retains the independently generated `_ind_fresh` names. -/
+/-- Every declaration of the `MLCtx` is a local assumption (`cdecl`), as in the local
+contexts the inductive checker builds: it opens binders but never adds let declarations. -/
 def MLCtxOnlyLams (m : TypeChecker.MLCtx) : Prop :=
   ∀ d ∈ m.decls, ∃ index fv name type bi kind,
     d = .cdecl index fv name type bi kind
@@ -312,7 +322,7 @@ theorem TypeChecker.MLCtx.vlctx_take_fvars
         List.cons.injEq]
       exact ⟨trivial, ih tail (Nat.le_of_succ_le_succ hn)⟩
 
-/-! ### The inductive checker's narrow checker context
+/-! ### The inductive checker's checking context
 
 `AddInductive.Context.checkLCtx` is the local context seen by embedded
 typechecker runs.  It is always a sub-context of the main context
@@ -495,14 +505,14 @@ theorem cons (henv : VEnv.WF env) {Us : List Name} (H : ChkEmbeds env Us.length 
   rw [hD.fvars]
   exact ⟨hfresh, h.fvarsList⟩
 
-/-- A narrow translation weakens to a main translation of the same expression. -/
+/-- A translation in the checking context weakens to a main translation of the same expression. -/
 theorem trExprS (henv : VEnv.WF env) {Us : List Name} (H : ChkEmbeds env Us.length Δc Δ)
     (h : TrExprS env Us Δc e e₀) : ∃ e₁, TrExprS env Us Δ e e₁ := by
   obtain ⟨Δ', n, W, hD⟩ := H
   exact (h.weakFV' henv.ordered W hD.wf).defeqDFC henv hD
 
-/-- Transfer a narrow output relation to the main context, along given narrow
-and main translations of the input. -/
+/-- Transfer an output relation from the checking context to the main context, along given
+translations of the input in both contexts. -/
 theorem trExpr (henv : VEnv.WF env) {Us : List Name} (H : ChkEmbeds env Us.length Δc Δ)
     (hn : TrExprS env Us Δc e e₀) (he : TrExprS env Us Δ e e')
     (h : TrExpr env Us Δc e₁ e₀) : TrExpr env Us Δ e₁ e' := by
@@ -519,8 +529,8 @@ theorem trExpr (henv : VEnv.WF env) {Us : List Name} (H : ChkEmbeds env Us.lengt
   have hΔ := (hD.symm henv.ordered).wf
   exact ⟨y, hy, hyx.trans henv hΔ.toCtx (hxe'.trans henv hΔ.toCtx hu')⟩
 
-/-- Transfer a narrow definitional equality to the main context, along given
-narrow and main translations of both sides. -/
+/-- Transfer a definitional equality from the checking context to the main context, along
+translations of both sides in both contexts. -/
 theorem isDefEqU (henv : VEnv.WF env) {Us : List Name} (H : ChkEmbeds env Us.length Δc Δ)
     (hn₁ : TrExprS env Us Δc e₁ a₁) (hn₂ : TrExprS env Us Δc e₂ a₂)
     (he₁ : TrExprS env Us Δ e₁ b₁) (he₂ : TrExprS env Us Δ e₂ b₂)
@@ -534,8 +544,8 @@ theorem isDefEqU (henv : VEnv.WF env) {Us : List Name} (H : ChkEmbeds env Us.len
   have hu₂ := ((hn₂.weakFV' henv.ordered W hΔ').uniq henv hD he₂).defeqDFC henv.ordered hD.defeqCtx
   exact hu₁.symm.trans henv hΔ.toCtx (h'.trans henv hΔ.toCtx hu₂)
 
-/-- Transfer a narrow typing judgement to the main context, along narrow and
-main translations of the term and of its type. -/
+/-- Transfer a typing judgement from the checking context to the main context, along
+translations of the term and of its type in both contexts. -/
 theorem hasType (henv : VEnv.WF env) {Us : List Name} (H : ChkEmbeds env Us.length Δc Δ)
     (hn : TrExprS env Us Δc e e₀) (he : TrExprS env Us Δ e e')
     (hTn : TrExprS env Us Δc T T₀) (hT : TrExprS env Us Δ T T')
@@ -548,8 +558,8 @@ theorem hasType (henv : VEnv.WF env) {Us : List Name} (H : ChkEmbeds env Us.leng
   have huT := ((hTn.weakFV' henv.ordered W hΔ').uniq henv hD hT).defeqDFC henv.ordered hD.defeqCtx
   exact (hh.defeqU_l henv hΔ.toCtx hu).defeqU_r henv hΔ.toCtx huT
 
-/-- Transfer a narrow typing to the main context along a main translation of the
-term. -/
+/-- Transfer a typing from the checking context to the main context along a main translation
+of the term. -/
 theorem trTyping (henv : VEnv.WF env) {Us : List Name} (H : ChkEmbeds env Us.length Δc Δ)
     (he : TrExprS env Us Δ e e') (h : TrTyping env Us Δc e ty e₀ ty₀) :
     ∃ ty', TrTyping env Us Δ e ty e' ty' := by
@@ -565,7 +575,7 @@ theorem trTyping (henv : VEnv.WF env) {Us : List Name} (H : ChkEmbeds env Us.len
   have huty := ((hty.weakFV' henv.ordered W hΔ').uniq henv hD hty₁).defeqDFC henv.ordered hD.defeqCtx
   exact (hh.defeqU_l henv hΔ.toCtx hu).defeqU_r henv hΔ.toCtx huty
 
-/-- Transfer narrow typehood to the main context along a main translation. -/
+/-- Transfer typehood from the checking context to the main context along a main translation. -/
 theorem isType (henv : VEnv.WF env) {Us : List Name} (H : ChkEmbeds env Us.length Δc Δ)
     (hn : TrExprS env Us Δc e e₀) (he : TrExprS env Us Δ e e')
     (h : env.IsType Us.length Δc.toCtx e₀) : env.IsType Us.length Δ.toCtx e' := by
@@ -893,7 +903,7 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
   check := { m := .nil, wf := trivial, onlyLams := .nil, lctx_eq := rfl,
              embed := ⟨[], _, .refl, .nil⟩, sub := .empty }
 
-/-- Retain the local checker state while moving to a production and abstract
+/-- Keep the local checker state while moving to a kernel and abstract
 environment pair known to represent the same extension. -/
 def ContextWF.withEnv (H : ContextWF c)
     (hchecking : CheckingEnv.Valid c.safety env' venv')
@@ -967,10 +977,10 @@ def ContextWF.withCheckLCtx (H : ContextWF c) (l : LocalContext) (B : H.Base l) 
 @[simp] theorem ContextWF.withCheckLCtx_chk (H : ContextWF c) (l B) :
     (H.withCheckLCtx l B).chk = B.m := rfl
 
-/-- The narrow view of a semantic context: the checker context, described as
-the main context of the context whose local context is the checker context.
-Every embedded checker run reads only the checker context, so the narrow view
-verifies the same runs, with facts about the checker context. -/
+/-- The view of a context at its checking context: the checking context, described as
+the main context of the context whose local context is `checkLCtx`.
+Every embedded checker run reads only the checking context, so this view
+verifies the same runs, with facts about the checking context. -/
 abbrev ContextWF.atCheckLCtx (H : ContextWF c) : ContextWF { c with lctx := c.checkLCtx } where
   venv := H.venv
   checking := H.checking
@@ -1347,7 +1357,7 @@ def RecursorContextWF.withCheckLCtx (H : RecursorContextWF c recLparams)
     (H : RecursorContextWF c recLparams) (l B) :
     (H.withCheckLCtx l B).chk = B.m := rfl
 
-/-- The narrow view of a recursor frame: its checker context as main context. -/
+/-- The view of a recursor frame at its checking context: `checkLCtx` as main context. -/
 abbrev RecursorContextWF.atCheckLCtx (H : RecursorContextWF c recLparams) :
     RecursorContextWF { c with lctx := c.checkLCtx } recLparams where
   venv := H.venv
@@ -1565,9 +1575,8 @@ theorem RecursorContextWF.withLocalDecl_chk
       ty' :: H.mlctx.vlctx.toCtx := rfl
 
 /-- Close the `n` most recently introduced recursor locals into the exact
-production `LocalContext.mkForall` telescope.  The free-variable equation is
-the reviewable boundary connecting the executable selection array to the
-semantic `MLCtx` suffix. -/
+`LocalContext.mkForall` telescope the executable builds.  The free-variable equation
+connects the executable's array of selected free variables to the `MLCtx` suffix. -/
 theorem RecursorContextWF.mkForallRecent
     (H : RecursorContextWF c recLparams)
     (htr : TrExprS H.venv recLparams H.mlctx.vlctx body body')
@@ -1852,7 +1861,7 @@ theorem withCheckedLocalDeclOn.WF {k : Expr → AddInductive.M α}
 
 /-- Invert the syntax-directed part of a translated forall while retaining the
 definitional equality introduced by normalization.  Header and constructor
-loops use this after `whnf`: the production expression is syntactically a
+loops use this after `whnf`: the kernel expression is syntactically a
 forall, but its abstract translation need only be definitionally equal to one. -/
 theorem TrExpr.forallE_source
     (H : TrExpr env Us Δ (.forallE name dom body bi) type') :
@@ -1867,7 +1876,7 @@ theorem TrExpr.forallE_source
   | forallE HdomType HbodyType Hdom Hbody =>
     exact ⟨_, _, Hdom, Hbody, HdomType, HbodyType, Hdefeq⟩
 
-/-- Invert a production sort after normalization, retaining both its universe
+/-- Invert a kernel sort after normalization, retaining both its universe
 translation and its definitional equality to the abstract source tail. -/
 theorem TrExpr.sort_source
     (H : TrExpr env Us Δ (.sort level) type') :
@@ -1877,7 +1886,7 @@ theorem TrExpr.sort_source
   cases Hsyntax with
   | sort Hlevel => exact ⟨_, Hlevel, Hdefeq⟩
 
-/-- A translated production sort pins the type of the abstract conversion to
+/-- A translated kernel sort pins the type of the abstract conversion to
 the successor sort, not merely to an existentially hidden type. -/
 theorem TrExpr.sort_result
     (henv : VEnv.WF env) (hctx : OnCtx Δ.toCtx (env.IsType Us.length))
@@ -2007,7 +2016,7 @@ theorem typeShape_forallAritySort
 
 
 /-- Opening a source binder with the fresh free variable chosen by the
-production checker leaves its abstract body unchanged: the extended `VLCtx`
+executable checker leaves its abstract body unchanged: the extended `VLCtx`
 maps that free variable back to the new outermost de Bruijn variable. -/
 theorem ContextWF.instantiateFresh (Hc : ContextWF c)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
@@ -2074,8 +2083,8 @@ theorem RecursorContextWF.instantiateDefEq
   rw [Expr.instantiate1_eq]
   exact hbody.inst R.checking.tr.wf.ordered hargType' harg
 
-/-- Semantic certificate for the production checker's removal of binder type
-annotations.  The consumed syntax may translate to a different abstract term,
+/-- The executable checker's removal of binder type annotations, translated: the
+unannotated syntax may translate to a different abstract term,
 but it must remain a type definitionally equal to the source domain. -/
 structure ContextWF.UnannotatedDomain (Hc : ContextWF c)
     (dom : Expr) (source' consumed' : VExpr) : Prop where
@@ -2125,8 +2134,8 @@ theorem Expr.consumeTypeAnnotationsVerified_fvarsIn
   case case4 => exact H
   case case5 => exact H
 
-/-- Transport the source body translation to the annotation-consumed binder
-type.  This is the bridge needed before opening the binder with the production
+/-- Transport the source body translation to the unannotated binder
+type.  This is needed before opening the binder with the executable's
 free variable. -/
 theorem ContextWF.UnannotatedDomain.body
     {c : AddInductive.Context} (Hc : ContextWF c)
@@ -2148,7 +2157,7 @@ theorem ContextWF.UnannotatedDomain.body
   exact ⟨body'', hbody'', hbody.uniq Hc.checking.tr.wf hctx hbody''⟩
 
 /-- Move the source/body conversion produced by `body` into the
-annotation-consumed context installed by the executable checker. -/
+unannotated context installed by the executable checker. -/
 theorem ContextWF.UnannotatedDomain.bodyDefEqUnannotated
     {c : AddInductive.Context} (Hc : ContextWF c)
     {dom : Expr} {source' consumed' sourceBody body'' : VExpr}
@@ -2210,9 +2219,11 @@ theorem RecursorContextWF.UnannotatedDomain.bodyDefEqUnannotated
     .succ (.refl R.mlctx_wf.tr.wf.toCtx) hsource
   exact hbodyEq.defeqDFC R.checking.tr.wf.ordered hctx
 
-/-- Semantic compatibility required of Lean's opaque annotation erasure.
-It is kept as one named boundary condition until the translations of
-`OptParam`, `AutoParam`, and output-parameter wrappers are verified directly. -/
+/-- Removing type annotations from a binder domain (`Expr.consumeTypeAnnotationsVerified`)
+in a context of the inductive checker yields an unannotated domain
+(`ContextWF.UnannotatedDomain`). This is a hypothesis of the verification of the header and
+constructor loops; `Lean4Lean/Verify/Inductive/TypeAnnotations.lean` proves it
+(`consumeTypeAnnotationsCompat`). -/
 def ConsumeTypeAnnotationsCompat : Prop :=
   ∀ (c : AddInductive.Context) (Hc : ContextWF c)
     {dom : Expr} {source' : VExpr},
@@ -2220,8 +2231,9 @@ def ConsumeTypeAnnotationsCompat : Prop :=
     Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx source' →
     ∃ consumed', Hc.UnannotatedDomain dom source' consumed'
 
-/-- Universe-parametric annotation-erasure boundary used after generated
-recursor frames have made `ContextWF` unavailable. -/
+/-- The form of `ConsumeTypeAnnotationsCompat` for recursor contexts
+(`RecursorContextWF`), at the generated universe parameters, where `ContextWF` is not
+available. Proved by `recursorConsumeTypeAnnotationsCompat`. -/
 def RecursorConsumeTypeAnnotationsCompat : Prop :=
   ∀ (c : AddInductive.Context) (recLparams : List Name)
     (R : RecursorContextWF c recLparams)
@@ -2400,7 +2412,7 @@ theorem MLCtxTopAgree.stepDropEq {a b M : TypeChecker.MLCtx} {n : Nat}
   obtain ⟨hn, hag, hd⟩ := h
   exact ⟨by simpa using hn, hag.vlam fv name ty t₁ t₂ bi, by simpa using hd⟩
 
-/-- `stepDrop`, additionally carrying the closure of the checker translation
+/-- `MLCtxTopAgree.stepDropEq`, additionally carrying the closure of the checker translation
 of the current telescope back to the base context. -/
 theorem MLCtxTopAgree.stepDropForall {env : VEnv} {U : Nat}
     {a b : TypeChecker.MLCtx} {n : Nat} {V : VLCtx} {T₀ X : VExpr}
@@ -2551,7 +2563,8 @@ theorem ContextWF.Aligned.isType {H : ContextWF c} (ha : H.Aligned)
   (h.defeqU_l H.checking.tr.wf H.mlctx_wf.tr.wf.toCtx hu).defeqDFC
     H.checking.tr.wf.ordered ha.defeqCtx
 
-/-- The narrow annotation-consumption certificate of an aligned context. -/
+/-- An unannotated domain of an aligned context gives one in its checking context, whose
+source and unannotated translations are definitionally equal to the given ones. -/
 theorem ContextWF.Aligned.unannotatedDomain {H : ContextWF c} (ha : H.Aligned)
     (Hdom : H.UnannotatedDomain dom source' consumed') :
     ∃ source₀ consumed₀, H.atCheckLCtx.UnannotatedDomain dom source₀ consumed₀ ∧
@@ -2875,7 +2888,8 @@ theorem checkClosedType.WF (Hc : ContextWF c) :
     checkTypeInContext.WF (Hc.withCheckLCtx {} Hc.baseNil)
       (hclosed.mono fun _ h => False.elim h)
 
-/-- Verified boundary for the extra closed generated-recursor check. Unlike
+/-- The executable's check of a generated recursor type succeeds only on a closed type that
+translates to an abstract type at the recursor's universe parameters. Unlike
 `checkClosedType`, this runs with an empty local context and the recursor's
 possibly extended universe-parameter list. -/
 theorem AddInductive.declareRecursors.checkRecursorType.WF
