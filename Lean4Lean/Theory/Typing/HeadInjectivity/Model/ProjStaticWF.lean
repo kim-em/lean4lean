@@ -376,5 +376,33 @@ theorem WF.quot_not_projection (henv : env.WF) (hq : env.defeqs quotDefEq)
   obtain ⟨-, -, h⟩ := H.quot_projections hq hlift
   exact ⟨fun info hp => (h _ info hp).1 rfl, fun ⟨S, info, hp, hn⟩ => (h S info hp).2 hn⟩
 
+/-! ## Native rules whose owner family is projection-registered -/
+
+open private defeqs_addRules from Lean4Lean.Theory.Typing.NativeConstructorRigidity in
+/-- The constructor of an ordinary native recursor equation whose owner family is
+projection-registered is the registered constructor. -/
+theorem WF.native_projFamily_ctor {s : InductiveSignature} {g : Instance s}
+    {base' installed : VEnv} (henv : env.WF)
+    (C : CompilationData base source expanded s g [] block)
+    (hinst : block.install base' = some installed) (hle : installed ≤ env)
+    (index : Fin s.constructors.size)
+    (hp : env.projections s.families[s.constructors[index].owner].name info) :
+    info.ctorName = s.constructors[index].name := by
+  have hmem : g.equation index ∈ block.rules := by
+    rw [C.ordinary_rules]; exact List.mem_map.2 ⟨_, List.mem_finRange _, rfl⟩
+  have hdf : env.defeqs (g.equation index) := by
+    refine hle.defeqs ?_
+    have hinst' := hinst
+    simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+      Option.pure_def, Option.some.injEq] at hinst'
+    obtain ⟨_, _, _, _, _, _, rfl⟩ := hinst'
+    exact defeqs_addRules.2 (.inl hmem)
+  have hcisN : Model.IsNativeCtor env s.constructors[index].name :=
+    ⟨_, hdf, _, _, _, by rw [g.equation_lhs_eq, VExpr.stripLams_wrapLams, Model.mkApps_concat]; rfl⟩
+  obtain ⟨fc, hfc, hfcn, lsc, hfch⟩ := C.ordinary_ctor index
+  have hfc' := hle.constants (VInductBlock.install_ctor_lookup hinst (by rw [C.ctors]; exact hfc))
+  rw [hfcn] at hfc'
+  exact (henv.ctor_of_projFamily hp (.inl hcisN) ⟨_, _, hfc', hfch⟩).symm
+
 end VEnv
 end Lean4Lean
