@@ -18,22 +18,22 @@ of all auxiliary constructor names from the run alone. Auxiliary constructors do
 occur in the lowered rules, as the constructor applications `c params fields`
 of the minor premises, so complete avoidance is false; the argument is:
 
-* `envHitShape_auxCtorNames`, `whnfHitOKFacts_auxCtorNames`: the type checker's
-  hit-shape invariant (`TypeChecker.whnf.hitShape`) instantiated at the head
+* `envParamUniform_auxCtorNames`, `whnfPreservesParamUniform_auxCtorNames`: the type checker's
+  hit-shape invariant (`TypeChecker.whnf.paramUniform`) instantiated at the head
   set `E.auxCtorNames`, without parameters, at the level list `foreignLevels
   lparams` of length `lparams.length + 1`. `Expr.ParamUniform names [] ls e` says
   that every occurrence of `names` in `e` carries the levels `ls`. Every
   constant of the recursor-pass environment has a type avoiding the auxiliary
   constructor names, so the environment condition holds at any level list.
 * `RecursorConstruction.ruleRhsTrail`: the trailing provenance chain
-  (the counterpart of `ruleRhsHitShape`) for the predicate
+  (the counterpart of `ruleRhsParamUniform`) for the predicate
   `Expr.TrailingArgs heads np (Expr.ParamUniform names [] ls)`: the `whnf` regions
   R1 to R3, the constructor field domains, the motives, the major premises and
   the recursive calls mention `names` only at `ls`; the minors' constructor
   applications are hits whose trailing arguments are field variables. The
   parameter domains avoid `names`.
-* `TrailingArgs.toHitTrailAvoids`: the hit-shape chain at the declaration's
-  levels (`recursorHitShape_hitHeads`) says that every occurrence of an
+* `TrailingArgs.toTrailingArgsAvoid`: the hit-shape chain at the declaration's
+  levels (`recursorParamUniform_uniformHeads`) says that every occurrence of an
   auxiliary constructor is at `lparams.map Level.param`; at the trailing
   positions occurrences are also at `foreignLevels lparams`, which differs, so
   there are none.
@@ -374,7 +374,7 @@ variable {heads names : List Name} {np : Nat} {ls : List Level}
 
 /-- A parameterless hit shape holds hereditarily, so in particular at trailing
 arguments. -/
-theorem of_hitShape_nil {e : Expr} (H : ParamUniform names [] ls e) :
+theorem of_paramUniform_nil {e : Expr} (H : ParamUniform names [] ls e) :
     TrailingArgs heads np (ParamUniform names [] ls) e := by
   induction e with
   | bvar => exact .bvar _
@@ -398,7 +398,7 @@ theorem of_hitShape_nil {e : Expr} (H : ParamUniform names [] ls e) :
 the trailing arguments of the hits of `e` mention `names` only at the levels
 `ls`, while `e` mentions `names` only at the levels `ls' ≠ ls`, then the
 trailing arguments avoid `names`, hence every `X ⊆ names`. -/
-theorem toHitTrailAvoids {ls' : List Level} {X : List Name} {e : Expr}
+theorem toTrailingArgsAvoid {ls' : List Level} {X : List Name} {e : Expr}
     (H : TrailingArgs heads np (ParamUniform names [] ls) e) (H' : ParamUniform names [] ls' e)
     (hne : ls ≠ ls') (hX : ∀ n ∈ X, n ∈ names)
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts names) :
@@ -627,7 +627,7 @@ theorem instantiate1'_argClosed {v : Expr} (hv : v.looseBVarRange' = 0)
   | closed h =>
     intro hs
     rw [Expr.instantiate1'_eq_self h]
-    exact ⟨of_hitShape_nil hs, fun x hx => hs.of_mem_getAppArgsList (by simp) hx⟩
+    exact ⟨of_paramUniform_nil hs, fun x hx => hs.of_mem_getAppArgsList (by simp) hx⟩
   | @app k f a _ ha ih =>
     intro hs
     obtain ⟨hf, ha'⟩ := hs.app_inv_nil
@@ -641,14 +641,14 @@ theorem instantiate1'_argClosed {v : Expr} (hv : v.looseBVarRange' = 0)
       rcases List.mem_append.1 hx with hx | hx
       · exact A x hx
       · rw [List.mem_singleton.1 hx]; exact ha'
-    exact ⟨.app T (of_hitShape_nil ha') fun _ _ _ _ x hx => hargs x (List.mem_of_mem_drop hx),
+    exact ⟨.app T (of_paramUniform_nil ha') fun _ _ _ _ x hx => hargs x (List.mem_of_mem_drop hx),
       hargs⟩
   | @lam k n t b bi ht _ ih =>
     intro hs
     obtain ⟨hts, hbs⟩ := hs.lam_inv
     simp only [Expr.instantiate1']
     rw [Expr.instantiate1'_eq_self ht]
-    exact ⟨.lam (of_hitShape_nil hts) (ih hbs).1, by simp [getAppArgsList]⟩
+    exact ⟨.lam (of_paramUniform_nil hts) (ih hbs).1, by simp [getAppArgsList]⟩
 
 /-- A spine headed by a non-constant (a free variable, say) whose arguments
 satisfy `TrailingArgs`. -/
@@ -712,8 +712,8 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- `IndexTelescopeRun.hitShape` at an arbitrary parameter list. -/
-theorem IndexTelescopeRun.hitShapeAt
+/-- `IndexTelescopeRun.paramUniform` at an arbitrary parameter list. -/
+theorem IndexTelescopeRun.paramUniformAt
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
     {stats : AddInductive.InductiveStats}
     (W : WhnfPreservesParamUniform heads params ls env)
@@ -730,7 +730,7 @@ theorem IndexTelescopeRun.hitShapeAt
         d.ParamUniformIn env heads params ls := by
   induction T with
   | start call =>
-    exact ⟨call.hitShape W henv (fun _ h => h.elim) hheader,
+    exact ⟨call.paramUniform W henv (fun _ h => h.elim) hheader,
       by simp [ExprArrayFVarIds]⟩
   | @param i name dom body normalized bi _ hi call ih =>
     obtain ⟨hty, -⟩ := ih
@@ -742,7 +742,7 @@ theorem IndexTelescopeRun.hitShapeAt
       obtain ⟨fv, hfv⟩ := hsp _ hmem
       rw [hfv]
       exact Expr.ParamUniformIn.fvar
-    exact ⟨call.hitShape W henv hparamDecls (hbody.instantiate1 hp hparam),
+    exact ⟨call.paramUniform W henv hparamDecls (hbody.instantiate1 hp hparam),
       by simp [ExprArrayFVarIds]⟩
   | @index indices name dom body normalized bi x _ member declaration call ih =>
     obtain ⟨hty, hidx⟩ := ih
@@ -758,7 +758,7 @@ theorem IndexTelescopeRun.hitShapeAt
         rw [hx] at hfind
         cases hfind
         exact LocalDecl.ParamUniformIn.of_cdecl ((hdom.consumeTypeAnnotationsVerified) hp)
-    refine ⟨call.hitShape W henv (fun fv hfv d hfind => ?_)
+    refine ⟨call.paramUniform W henv (fun fv hfv d hfind => ?_)
       (hbody.instantiate1 hp Expr.ParamUniformIn.fvar), hall⟩
     rcases hfv with h | h
     · exact hparamDecls fv h d hfind
@@ -781,7 +781,7 @@ theorem RecursorContextWF.declType_closed {c : AddInductive.Context} {recLparams
 /-- **The pieces of a recursive-call template**: the declarations of its
 higher-order arguments satisfy `ParamUniformIn` and have closed types, and its exposed
 target type satisfies `ParamUniformIn` and is closed. The same chain as
-`InductionHypothesisType.hitShape`, retaining closedness. -/
+`InductionHypothesisType.paramUniform`, retaining closedness. -/
 theorem InductionHypothesisType.templateFacts
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
     (W : WhnfPreservesParamUniform heads params ls env)
@@ -838,7 +838,7 @@ theorem InductionHypothesisType.templateFacts
   have hnormalizedP : O.loopInput.normalizedType.FVarsIn P :=
     hnormalizedBelow P hscope.1 hinferredP
   obtain ⟨Rcurrent, P', T, hexpTr, _, hsc', hexposedH, _, _, hargs, _⟩ :=
-    O.loopTrace.hitShape W hp recursorConsumeTypeAnnotationsCompat henv RF hscope
+    O.loopTrace.paramUniform W hp recursorConsumeTypeAnnotationsCompat henv RF hscope
       hnormalizedTr hinferredType hnormalized₀ hnormalizedH hnormalizedP
   refine ⟨fun x hx decl hdecl => ⟨?_, Rcurrent.declType_closed hdecl⟩, hexposedH, ?_⟩
   · have hxArg : Expr.fvar x ∈ O.args.toList := by
@@ -946,11 +946,11 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailingArgDecla
   have hctorMem : S.constructor ∈ indTypes[owner]!.ctors := by
     rw [← hsourceCtors]; exact List.mem_of_getElem? S.sourceConstructor
   obtain ⟨⟨body, Hlead⟩, havoid, hproj⟩ := I.constructorTypes owner hsourceOwner _ hctorMem
-  have Htail' := Hprefix.hitOK (ls := ls) H.params.expressions
+  have Htail' := Hprefix.paramUniformIn (ls := ls) H.params.expressions
     ⟨body, Hlead, Expr.ParamUniformBV.of_avoidsConsts (Hlead.avoidsConsts havoid) 0⟩ hproj
   have Htail : F.traversal.parameterTail.ParamUniformIn H.localContext.env names [] ls :=
     ⟨Htail'.1.params_nil H.params_fvar, Htail'.2⟩
-  obtain ⟨hterm, hfieldsTerm⟩ := F.traversal.decisions.hitOK Hroot hp Htail
+  obtain ⟨hterm, hfieldsTerm⟩ := F.traversal.decisions.paramUniformIn Hroot hp Htail
   rw [F.traversal_fields] at hfieldsTerm
   have hfieldDecls : ∀ y ∈ S.fields_bound.fvars, ∃ i fv n ty bi kind,
       S.sourceFullContext.lctx.find? y = some (.cdecl i fv n ty bi kind) ∧
@@ -1014,7 +1014,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailingArgDecla
       rw [hfv] at hfieldMem
       exact mem_exprArrayFVarIds_of_fvar_mem hfieldMem
     obtain ⟨hargs, hexp, htype⟩ :=
-      O.hitShape W hp henv Rorigin hscope hfieldP (by simp)
+      O.paramUniform W hp henv Rorigin hscope hfieldP (by simp)
     refine ⟨⟨D, by rw [hD]; exact (htype.consumeTypeAnnotationsVerified) hp⟩, ?_⟩
     rw [hcall]
     obtain ⟨ffv, hffv, -⟩ := O.field_fvar
@@ -1057,7 +1057,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailingArgDecla
       obtain ⟨i, fv, n, ty, bi, kind, hfind', hty⟩ := hfieldDecls y hy
       rw [hfind] at hfind'
       cases hfind'
-      exact Expr.TrailingArgs.of_hitShape_nil hty)
+      exact Expr.TrailingArgs.of_paramUniform_nil hty)
   refine Expr.TrailingArgs.mkForall' S.hypotheses_bound.expressions ?_ hQ ?_ ?_
   · rw [hmotiveApp]
     simp only [AddInductive.getIIndices]
@@ -1065,7 +1065,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailingArgDecla
     obtain ⟨mfv, hmfv⟩ := H.motive_fvar hmo
     simp only [AddInductive.getIIndices] at hmfv
     refine Expr.TrailingArgs.app_of_not_const ?_ ?_ ?_
-    · refine Expr.TrailingArgs.of_hitShape_nil
+    · refine Expr.TrailingArgs.of_paramUniform_nil
         (Expr.ParamUniform.mkAppN ?_ (hterm.1.getAppArgs_slice hp _))
       rw [hmfv]; exact .fvar mfv
     · rw [Lean.Expr.mkAppN_eq_mkAppList,
@@ -1108,7 +1108,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailingArgDecla
     subst hDy
     rw [D.declaration] at hfind
     cases hfind
-    exact Expr.TrailingArgs.of_hitShape_nil hDshape
+    exact Expr.TrailingArgs.of_paramUniform_nil hDshape
 
 end RecursorConstruction
 
@@ -1148,14 +1148,14 @@ theorem indexDeclNil (I : H.TrailingArgDeclarations names ls)
     intro fv hfv d hfind
     rw [H.params.exprArrayFVarIds] at hfv
     exact (I.paramDecls fv hfv d hfind).1
-  obtain ⟨-, hidx⟩ := T.hitShapeAt W (by simp) H.params_fvar rfl hparamDecls
+  obtain ⟨-, hidx⟩ := T.paramUniformAt W (by simp) H.params_fvar rfl hparamDecls
     (Expr.ParamUniformIn.of_avoids (I.familyHeaders k (H.sourceOwner hk)).1
       (I.familyHeaders k (H.sourceOwner hk)).2)
   have hyMem : y ∈ (H.bindings.indices k hk).fvars :=
     (H.bindings.indices k hk).mem_fvars_iff.2 hy
   obtain ⟨index, name, ty, bi, kind, hfind⟩ :=
     H.localWF.findCDecl y ((H.bindings.indices k hk).members y hyMem)
-  refine ⟨_, hfind, (hidx y ?_ _ hfind).hitShape⟩
+  refine ⟨_, hfind, (hidx y ?_ _ hfind).paramUniform⟩
   rw [(H.bindings.indices k hk).exprArrayFVarIds]
   exact hyMem
 
@@ -1163,7 +1163,7 @@ theorem indexDeclNil (I : H.TrailingArgDeclarations names ls)
 theorem majorDeclNil (I : H.TrailingArgDeclarations names ls) {y : FVarId}
     (hy : Expr.fvar y ∈ H.recInfos.map (·.major)) :
     ∃ d, H.localContext.lctx.find? y = some d ∧ d.ParamUniform names [] ls := by
-  refine H.origins.majors.declHitShape (fun i hi => ?_) hy
+  refine H.origins.majors.declParamUniform (fun i hi => ?_) hy
   have hi' : i < H.recInfos.size := by simpa using hi
   rw [H.majorShapes.shape i hi']
   refine (Expr.ParamUniform.consumeTypeAnnotationsVerified) ?_ (by simp)
@@ -1182,7 +1182,7 @@ theorem motiveDeclNil (I : H.TrailingArgDeclarations names ls)
     (W : WhnfPreservesParamUniform names [] ls H.localContext.env)
     {y : FVarId} (hy : Expr.fvar y ∈ H.recInfos.map (·.motive)) :
     ∃ d, H.localContext.lctx.find? y = some d ∧ d.ParamUniform names [] ls := by
-  refine H.origins.motives.declHitShape (fun i hi => ?_) hy
+  refine H.origins.motives.declParamUniform (fun i hi => ?_) hy
   have hi' : i < H.recInfos.size := by simpa using hi
   rw [H.motiveShapes.shape i hi']
   refine Expr.ParamUniform.mkForall_of_disjoint (H.bindings.indices i hi').expressions ?_
@@ -1343,10 +1343,10 @@ theorem ruleRhsTrail (I : H.TrailingArgDeclarations names ls)
     · obtain ⟨i, fv, n, ty, bi, kind, hfind', hty⟩ := hfieldDecls y hy
       rw [hfind] at hfind'
       cases hfind'
-      exact Expr.TrailingArgs.of_hitShape_nil hty
+      exact Expr.TrailingArgs.of_paramUniform_nil hty
   constructor
   · refine Expr.TrailingArgs.mkLambda' H.params.expressions ?_ hQ H.paramCDecls
-      (fun y hy d hfind => Expr.TrailingArgs.of_hitShape_nil
+      (fun y hy d hfind => Expr.TrailingArgs.of_paramUniform_nil
         (Expr.ParamUniform.of_avoidsConsts (I.paramDecls y hy d hfind).2))
     refine Expr.TrailingArgs.mkLambda' H.bindings.motives.expressions ?_ hQ
       (fun y hy => H.cdecl_of_mem H.bindings.motives hy)
@@ -1354,7 +1354,7 @@ theorem ruleRhsTrail (I : H.TrailingArgDeclarations names ls)
           (Expr.ParamUniform names [] ls)) (by
         obtain ⟨d, hd, hs⟩ := H.nil_type (H.motiveDeclNil I W
           (H.bindings.motives.mem_fvars_iff.1 hy)) (H.cdecl_of_mem H.bindings.motives hy)
-        exact ⟨d, hd, Expr.TrailingArgs.of_hitShape_nil hs⟩))
+        exact ⟨d, hd, Expr.TrailingArgs.of_paramUniform_nil hs⟩))
     refine Expr.TrailingArgs.mkLambda' H.bindings.flatMinors.expressions ?_ hQ
       (fun y hy => H.cdecl_of_mem H.bindings.flatMinors hy)
       (fun y hy => H.type_of_find (P := fun t => t.TrailingArgs heads np
@@ -1474,11 +1474,11 @@ theorem NestedRun.auxCtorNames_auxHeads
   obtain ⟨t, ht, hn⟩ := List.mem_flatMap.1 hn
   exact List.mem_flatMap.2 ⟨t, ht, List.mem_cons_of_mem _ hn⟩
 
-theorem NestedRun.auxCtorNames_hitHeads
+theorem NestedRun.auxCtorNames_uniformHeads
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv) :
     ∀ n ∈ E.auxCtorNames, n ∈ E.uniformHeads :=
-  fun n hn => E.auxHeads_subset_hitHeads n (E.auxCtorNames_auxHeads n hn)
+  fun n hn => E.auxHeads_subset_uniformHeads n (E.auxCtorNames_auxHeads n hn)
 
 theorem NestedRun.auxCtorNames_ctor
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
@@ -1522,14 +1522,14 @@ fresh in the source; family headers: translated in the source; lowered
 constructors: translated in the header environment, where every lowered
 constructor name is fresh), and so do the auxiliary constructors themselves,
 so their types are (parameterless) head types at any level list. -/
-theorem NestedRun.envHitShape_auxCtorNames
+theorem NestedRun.envParamUniform_auxCtorNames
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     EnvParamUniform E.lowered.ctorEnv E.auxCtorNames 0 (foreignLevels lparams) := by
   have hfresh : ∀ n ∈ E.auxCtorNames, sourceProdEnv.find? n = none :=
-    fun n hn => E.hitHeads_fresh wf n (E.auxCtorNames_hitHeads n hn)
+    fun n hn => E.uniformHeads_fresh wf n (E.auxCtorNames_uniformHeads n hn)
   have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
       E.lowered.ctorEnv.find? n = some ci := E.ctorEnv_preserves wf
   have hwfP : E.lowered.c.env.constants.WF := by
@@ -1584,11 +1584,11 @@ theorem NestedRun.envHitShape_auxCtorNames
     rules_projs := ?rules_projs }
   case prims =>
     intro n hn hmem
-    exact E.lowered.nonprimitive_familyNames (E.hitHeads_subset (E.auxCtorNames_hitHeads n hmem))
-      (hitPrimNames_primitive n hn)
+    exact E.lowered.nonprimitive_familyNames (E.uniformHeads_subset (E.auxCtorNames_uniformHeads n hmem))
+      (checkerPrimNames_primitive n hn)
   case strs =>
     intro hs n hn hmem
-    exact (E.envHitShape wf Hsources).strs hs n hn (E.auxCtorNames_hitHeads n hmem)
+    exact (E.envParamUniform wf Hsources).strs hs n hn (E.auxCtorNames_uniformHeads n hmem)
   case type_avoids =>
     intro n ci h hn
     cases hold : sourceProdEnv.find? n with
@@ -1674,7 +1674,7 @@ theorem NestedRun.envHitShape_auxCtorNames
 
 /-- **`whnf` preserves "mentions the auxiliary constructors only at
 `foreignLevels`"** in the recursor pass of an exact validated nested run. -/
-theorem NestedRun.whnfHitOKFacts_auxCtorNames
+theorem NestedRun.whnfPreservesParamUniform_auxCtorNames
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
@@ -1683,7 +1683,7 @@ theorem NestedRun.whnfHitOKFacts_auxCtorNames
       E.lowered.recursors.localContext.env := by
   refine .of_env ?_ (fun a ha => by simp at ha)
   rw [E.recursorPassEnv]
-  exact E.envHitShape_auxCtorNames wf Hsources
+  exact E.envParamUniform_auxCtorNames wf Hsources
 
 /-- **The trailing-provenance inputs of an exact validated nested run** at the
 auxiliary constructor names and `foreignLevels`. -/
@@ -1696,7 +1696,7 @@ theorem NestedRun.trailInputs_of
       E.auxCtorNames (foreignLevels lparams) := by
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
   have hfresh : ∀ n ∈ E.auxCtorNames, sourceProdEnv.find? n = none :=
-    fun n hn => E.hitHeads_fresh wf n (E.auxCtorNames_hitHeads n hn)
+    fun n hn => E.uniformHeads_fresh wf n (E.auxCtorNames_uniformHeads n hn)
   have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
       E.lowered.recursors.toRecursorConstruction.localContext.env.find?
         n = some ci := by
@@ -1734,7 +1734,7 @@ theorem NestedRun.trailInputs_of
       obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, hlookup, -⟩ :=
         (wf.tr (safety := sf)).wf.ordered.projectionShape h
       obtain ⟨ci, hci, -⟩ := (wf.tr (safety := sf)).find?_iff.2 ⟨_, hlookup⟩
-      exact projHitOK_of_old wf hpres hfresh hci
+      exact projParamUniformIn_of_old wf hpres hfresh hci
   · intro i hi
     obtain ⟨e', htr⟩ := E.familyType_tr (hmem i hi)
     exact ⟨avoids_of_tr wf hfresh _ htr,
@@ -1788,7 +1788,7 @@ theorem TrailingArgsAvoid.mono {heads names names' : List Name} {np : Nat} {e : 
 
 /-- A lambda prefix avoiding `names` around a body in parameterless hit shape
 is in parameterless hit shape. -/
-theorem LamPrefixAvoids.hitShape_nil {names : List Name} {ls : List Level} {k : Nat}
+theorem LamPrefixAvoids.paramUniform_nil {names : List Name} {ls : List Level} {k : Nat}
     {e body : Expr} (H : LamPrefixAvoids names k e) (hl : LeadingBinders k e body)
     (hb : ParamUniform names [] ls body) : ParamUniform names [] ls e := by
   induction H generalizing body with
@@ -1870,11 +1870,11 @@ names.
 
 The proof runs the trailing provenance chain (`ruleRhsTrail`) at the auxiliary
 constructor names without parameters, at the impossible levels `foreignLevels`
-(`whnfHitOKFacts_auxCtorNames`): the regions computed by `whnf`, the
+(`whnfPreservesParamUniform_auxCtorNames`): the regions computed by `whnf`, the
 constructor field domains, the index domains and the parameter domains mention
 the auxiliary constructors only at `foreignLevels`, and the only other occurrences
 are the minors' constructor applications, whose trailing arguments are fields.
-The hit-shape chain at the declaration's levels (`recursorHitShape_hitHeads`)
+The hit-shape chain at the declaration's levels (`recursorParamUniform_uniformHeads`)
 says that every occurrence is at `lparams.map Level.param ≠ foreignLevels`, so the
 trailing occurrences do not exist. -/
 theorem NestedRun.loweredRulesAvoid_auxCtorNames
@@ -1890,27 +1890,27 @@ theorem NestedRun.loweredRulesAvoid_auxCtorNames
   have howner : owner.val < C.recInfos.size := by rw [← C.generated.length]; exact hi
   have hrule' : rule ∈ (C.generated.entry owner.val hi).info.rules := by rw [hinfo]; exact hrule
   -- the declaration-level hit shape
-  have W := E.whnfHitOKFacts wf Hsources
+  have W := E.whnfPreservesParamUniform wf Hsources
   rw [← E.statsLevels] at W
-  have HS := (C.generatedHitShape (E.hitShapeInputs_of wf Hsources) W owner.val hi).2 rule hrule'
+  have HS := (C.generatedParamUniform (E.paramUniformDeclarations_of wf Hsources) W owner.val hi).2 rule hrule'
   -- the trailing provenance at `foreignLevels`
   rw [(C.generated.entry owner.val hi).rules_eq] at hrule'
   simp only [List.mem_map] at hrule'
   obtain ⟨blueprint, hmem, rfl⟩ := hrule'
   obtain ⟨HT, HL⟩ := C.toRecursorConstruction.ruleRhsTrail
-    (E.trailInputs_of wf Hsources) (E.whnfHitOKFacts_auxCtorNames wf Hsources)
+    (E.trailInputs_of wf Hsources) (E.whnfPreservesParamUniform_auxCtorNames wf Hsources)
     heads result.nparams owner.val howner
     (AddInductive.getRecLevels C.elimLevel E.lowered.stats.levels) blueprint hmem
   have hsize : E.lowered.stats.params.size = result.nparams := E.statsParamsSize
   obtain ⟨body, hl, hb⟩ := HS
   rw [hsize] at HL hl
   rw [E.statsLevels] at hb
-  have Hglob := HL.hitShape_nil hl
-    ((hb.toNil).nil_mono (fun n hn => E.auxCtorNames_hitHeads n hn))
+  have Hglob := HL.paramUniform_nil hl
+    ((hb.toNil).nil_mono (fun n hn => E.auxCtorNames_uniformHeads n hn))
   obtain ⟨-, -, -, -, -, hreserved, -, -⟩ := E.auxHeadsFacts wf Hsources
   have hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts E.auxCtorNames :=
     avoidsConsts_lit_of_reserved fun n hn => hreserved n (E.auxCtorNames_auxHeads n hn)
-  exact ⟨HT.toHitTrailAvoids Hglob (badLevels_ne lparams) (fun _ h => h) hlit, HL⟩
+  exact ⟨HT.toTrailingArgsAvoid Hglob (badLevels_ne lparams) (fun _ h => h) hlit, HL⟩
 
 end RunTrail
 

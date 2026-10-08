@@ -223,9 +223,9 @@ theorem VState.WF.vlam {c : VContext} {m} [cwf : c.MLCWF m] {s : VState}
     inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
     whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
     whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels
-    whnfCore_hit := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_hit
-    whnf_hit := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_hit
-    inferTypeI_hit := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_hit }
+    whnfCore_paramUniform := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_paramUniform
+    whnf_paramUniform := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_paramUniform
+    inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
 
 /-! ### Ghost-extended local contexts -/
 

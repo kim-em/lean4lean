@@ -69,7 +69,7 @@ theorem whnfFVar.WF_all {c : VContext} {s : VState} (he : c.TrExprS (.fvar fv) e
     c.trlctx.find?_of_mem c.Ewf (List.mem_of_find?_eq_some h)
   have .fvar h1' := he
   cases h1.symm.trans h1'
-  refine ((whnfCore.WF_below' h3).and (whnfCore.WF_hit h3 hp)).mono
+  refine ((whnfCore.WF_below' h3).and (whnfCore.WF_paramUniform h3 hp)).mono
     fun _ _ _ ⟨⟨⟨h4, h5, h6⟩, h7⟩, h8⟩ => ⟨⟨⟨h2.trans h4, h5, h6⟩, ?_⟩, ?_⟩
   · intro Us P hs _ hP
     exact h7 Us P hs ((hs.2 _ _ hP hfind).2 _ LocalDecl.value?_ldecl_true) (h2 P hs.1 hP)
@@ -107,7 +107,7 @@ theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
     have ⟨_, h1, h2, h3, h5⟩ := (wf.whnfCore_wf eq).2.2.2.2 he.fvarsIn
     refine ⟨⟨⟨h1, h3.defeq c.Ewf c.Δwf ?_, fun _ _ hAB =>
       (he.cacheKey_not_forall h5 hAB).elim⟩, wf.whnfCore_levels eq he.fvarsIn⟩,
-      hpfx ▸ wf.whnfCore_hit eq he.fvarsIn⟩
+      hpfx ▸ wf.whnfCore_paramUniform eq he.fvarsIn⟩
     exact h2.uniq c.Ewf (.refl c.Ewf c.Δwf) he
   have hsave {e₁ s} (hs : s.ngen.namePrefix = pfx) (h1 : c.FVarsBelow e e₁)
       (h2 : c.TrExpr e₁ e') (h3 : ∀ A B, e' = .forallE A B → c.TrExprS e₁ e')
@@ -132,14 +132,14 @@ theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
       { wf with
         whnfCore_wf := hic wf.whnfCore_wf
         whnfCore_levels := wf.whnfCore_levels.insert h4
-        whnfCore_hit := wf.whnfCore_hit.insert h5' },
+        whnfCore_paramUniform := wf.whnfCore_paramUniform.insert h5' },
       ⟨⟨h1, h2, h3⟩, h4⟩, h5⟩
   split <;> cases hfull
   · exact hP ▸ whnfFVar.WF_all he hpfx
   · have hne : ∀ A B, e' ≠ .forallE A B := by cases he; nofun
     rename_i fn arg _; generalize eq : fn.app arg = e at *
     have ⟨_, stk⟩ := AppStack.build <| e.mkAppList_getAppArgsList ▸ he
-    refine ((whnfCore.WF_below stk.tr).and (whnfCore.WF_hit' stk.tr hpfx)).bind
+    refine ((whnfCore.WF_below stk.tr).and (whnfCore.WF_paramUniform' stk.tr hpfx)).bind
       fun f s le ⟨⟨h1, hl1, h2⟩, hh1, hc1⟩ => ?_
     have hs := VState.LE.namePrefix_eq hpfx le
     have hhead : ∀ Us P, c.UniverseScope Us P → e.levelParamsIn Us = true → FVarsIn P e →
@@ -152,7 +152,7 @@ theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
         c.ParamUniformScope pfx heads As ls P → e.ParamUniformIn c.env heads As ls → FVarsIn P e →
         (f.mkAppRevList e.getAppArgsRevList).ParamUniformIn c.env heads As ls := by
       intro hnc heads As ls P hs hl hP
-      have hf := hh1 heads As ls P hs (hl.getAppFn_of_not_hit fun c us h => absurd h (hnc c us))
+      have hf := hh1 heads As ls P hs (hl.getAppFn_of_not_head fun c us h => absurd h (hnc c us))
         hP.getAppFn
       exact .mkAppRevList hf fun a ha => hl.of_mem_getAppArgsRevList hs.params.fvars ha
     split <;> [rename_i name dom body bi hflam; split]
@@ -184,7 +184,7 @@ theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
       have := h2.rebuild_mkAppRevList c.Ewf c.Δwf stk.tr <|
         e.mkAppRevList_getAppArgsRevList ▸ he
       have ⟨_, a1, a2⟩ := this.beta c.Ewf c.Δwf br
-      refine ((whnfCore.WF_below a1).and (whnfCore.WF_hit a1 hs)).bind
+      refine ((whnfCore.WF_below a1).and (whnfCore.WF_paramUniform a1 hs)).bind
         fun _ s₂ le₂ ⟨⟨b1, bl, b2⟩, bh⟩ => ?_
       have hb := e.mkAppRevList_getAppArgsRevList ▸ h1.mkAppRevList
       refine hsave (VState.LE.namePrefix_eq hs le₂) (hb.trans (.betaReduce br) |>.trans b1)
@@ -195,11 +195,11 @@ theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
       · exact bh heads As ls P hs ((hhead_hit hnc heads As ls P hs hl hP).betaReduce
           hs.params.fvars br) ((hb.trans (.betaReduce br)) P hs.up hP)
     · refine (((reduceRecursor.WF he).and (reduceRecursor.WF_levels he)).and
-        (reduceRecursor.WF_hit he hs)).bind fun _ s₂ le₂ ⟨⟨h, hlr⟩, hhr⟩ => ?_
+        (reduceRecursor.WF_paramUniform he hs)).bind fun _ s₂ le₂ ⟨⟨h, hlr⟩, hhr⟩ => ?_
       split <;> [skip; exact hid]
       let ⟨h1, _, h2, eq⟩ := h _ rfl
       refine hP ▸ ((whnfCore.WF_below h2).and
-        (whnfCore.WF_hit h2 (VState.LE.namePrefix_eq hs le₂))).mono
+        (whnfCore.WF_paramUniform h2 (VState.LE.namePrefix_eq hs le₂))).mono
         fun _ _ _ ⟨⟨h3, hl3, h4⟩, hh3⟩ => ?_
       exact ⟨⟨⟨h1.trans h3, h4.defeq c.Ewf c.Δwf eq, fun A B h => (hne A B h).elim⟩,
         (hlr _ rfl).trans h1 hl3⟩, (hhr _ rfl).trans h1 hh3⟩
@@ -223,7 +223,7 @@ theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
             .app c.Ewf c.Δwf h1 h2 h6 (h4.trExpr c.Ewf c.Δwf)⟩
       have eq := e.mkAppRevList_getAppArgsRevList
       let ⟨h3, _, h4, eq⟩ := eq ▸ this h1 (eq ▸ he) stk.tr h2
-      refine ((whnfCore.WF_below h4).and (whnfCore.WF_hit h4 hs)).bind
+      refine ((whnfCore.WF_below h4).and (whnfCore.WF_paramUniform h4 hs)).bind
         fun _ _ le₂ ⟨⟨h5, hl5, h6⟩, hh5⟩ => ?_
       exact hsave (VState.LE.namePrefix_eq hs le₂) (h3.trans h5) (h6.defeq c.Ewf c.Δwf eq)
         (fun A B h => (hne A B h).elim)
@@ -232,7 +232,7 @@ theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
           h3 hh5)
   · let .letE h1 h2 h3 h4 := he
     refine ((whnfCore.WF_below' (h4.inst_let c.Ewf.ordered h3)).and
-      (whnfCore.WF_hit (h4.inst_let c.Ewf.ordered h3) hpfx)).bind
+      (whnfCore.WF_paramUniform (h4.inst_let c.Ewf.ordered h3) hpfx)).bind
       fun _ _ le ⟨⟨⟨h1, h2, h5⟩, hl⟩, hh⟩ => ?_
     refine hsave (VState.LE.namePrefix_eq hpfx le)
       (.trans (fun _ _ he => he.2.2.instantiate1 he.2.1) h1) h2 h5 ?_ ?_
@@ -245,12 +245,12 @@ theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
       have ⟨_, hv, hb⟩ := hl'.letE_inv
       exact hb.instantiate1' hs.params.fvars hv 0
   · have hne : ∀ A B, e' ≠ .forallE A B := by cases he with | proj _ h2 => cases h2; nofun
-    refine (((reduceProj.WF he).and (reduceProj.WF_levels he)).and (reduceProj.WF_hit he hpfx)).bind
+    refine (((reduceProj.WF he).and (reduceProj.WF_levels he)).and (reduceProj.WF_paramUniform he hpfx)).bind
       fun _ _ le ⟨⟨H, HL⟩, HH⟩ => ?_
     have hs := VState.LE.namePrefix_eq hpfx le
     split
     · let ⟨h1, _, h2, eq⟩ := H _ rfl
-      refine ((whnfCore.WF_below h2).and (whnfCore.WF_hit h2 hs)).bind
+      refine ((whnfCore.WF_below h2).and (whnfCore.WF_paramUniform h2 hs)).bind
         fun _ _ le₂ ⟨⟨h3, hl3, h4⟩, hh3⟩ => ?_
       exact hsave (VState.LE.namePrefix_eq hs le₂) (h1.trans h3) (h4.defeq c.Ewf c.Δwf eq)
         (fun A B h => (hne A B h).elim) ((HL _ rfl).trans h1 hl3) ((HH _ rfl).trans h1 hh3)
@@ -265,7 +265,7 @@ theorem whnfCore'.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (whnfCore' e cheapProj) fun e₁ _ => c.LevelsBelow e e₁ :=
   (whnfCore'.WF_all he).mono fun _ _ _ h => h.1.2
 
-theorem whnfCore'.WF_hit {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnfCore'.WF_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (whnfCore' e cheapProj) fun e₁ _ => c.ParamUniformBelow s.ngen.namePrefix e e₁ :=
   (whnfCore'.WF_all he).mono fun _ _ _ h => h.2
 
@@ -292,7 +292,7 @@ theorem whnf'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
     have ⟨_, h1, h2, h3, h5⟩ := (wf.whnf_wf eq).2.2.2.2 he.fvarsIn
     refine ⟨⟨⟨h1, h3.defeq c.Ewf c.Δwf ?_, fun _ _ hAB =>
       (he.cacheKey_not_forall h5 hAB).elim⟩, wf.whnf_levels eq he.fvarsIn⟩,
-      hpfx ▸ wf.whnf_hit eq he.fvarsIn⟩
+      hpfx ▸ wf.whnf_paramUniform eq he.fvarsIn⟩
     exact h2.uniq c.Ewf (.refl c.Ewf c.Δwf) he
   have {e e' s n} (he : c.TrExprS e e') (hs : s.ngen.namePrefix = pfx) : (loop e n).WF c s
       fun e₁ _ =>
@@ -319,9 +319,9 @@ theorem whnf'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
     split
     · exact .pure ⟨⟨⟨.trans h1 (h3 _ rfl).1.1, (h3 _ rfl).1.2.defeq c.Ewf c.Δwf eq,
         fun A B h => (hne A B h).elim⟩, fun Us _ _ _ _ => (h3 _ rfl).2.1 Us⟩,
-        fun heads As ls P hs _ _ => (h3 _ rfl).2.2.hitOK hs.env⟩
+        fun heads As ls P hs _ _ => (h3 _ rfl).2.2.paramUniformIn hs.env⟩
     refine (((unfoldDefinition.WF he₁).and_forall fun Us (h : e₁.levelParamsIn Us = true) =>
-      unfoldDefinition.WF_levelParams he₁ h).and (unfoldDefinition.WF_hit (pfx := pfx))).bind
+      unfoldDefinition.WF_levelParams he₁ h).and (unfoldDefinition.WF_paramUniform (pfx := pfx))).bind
       fun _ _ le₄ ⟨⟨H, HL⟩, HH⟩ => ?_
     split <;> [skip; exact .pure ⟨⟨⟨h1, ⟨_, he₁, eq⟩, fun A B h => (hne A B h).elim⟩, hl1⟩, hh1⟩]
     have ⟨a1, _, a2, eq'⟩ := H
@@ -348,7 +348,7 @@ theorem whnf'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
       { wf with
         whnf_wf := hic wf.whnf_wf
         whnf_levels := wf.whnf_levels.insert hl
-        whnf_hit := wf.whnf_hit.insert hh' },
+        whnf_paramUniform := wf.whnf_paramUniform.insert hh' },
       ⟨⟨h1, h2, h3⟩, hl⟩, hh⟩
   · exact hP ▸ .pureBind (.pure ⟨⟨⟨h1, h2, h3⟩, hl⟩, hh⟩)
 
@@ -361,7 +361,7 @@ theorem whnf'.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (whnf' e) fun e₁ _ => c.LevelsBelow e e₁ :=
   (whnf'.WF_all he).mono fun _ _ _ h => h.1.2
 
-theorem whnf'.WF_hit {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnf'.WF_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (whnf' e) fun e₁ _ => c.ParamUniformBelow s.ngen.namePrefix e e₁ :=
   (whnf'.WF_all he).mono fun _ _ _ h => h.2
 

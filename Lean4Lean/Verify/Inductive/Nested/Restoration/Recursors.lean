@@ -805,7 +805,7 @@ theorem NestedRun.recursorNames_order
 each is the abstract restoration of the owner's generated recursor and the
 translation of the restored recursor of a restoration step at the owner's
 lowered recursor name. -/
-theorem NestedRun.restoredRecursorEntries_of_hitShape
+theorem NestedRun.restoredRecursorEntries_of_paramUniform
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -893,7 +893,7 @@ theorem NestedRun.restoredRecursorEntries_of_hitShape
   rw [List.forall₂_map_left_iff] at Hall
   refine Lean4Lean.List.Forall₂.imp ?_ Hall
   rintro owner w ⟨s, t, Hstep, Hw⟩
-  have Hshape := (E.recursorHitShape' wf Hsources owner Hstep).1
+  have Hshape := (E.recursorParamUniform' wf Hsources owner Hstep).1
   rw [← hheads] at Hshape
   exact ⟨E.restoredRecursor_of_step hparamsSize D hscoped owner Hstep rfl Hshape
     Hfresh Hw, s, t, Hstep, Hw⟩
@@ -902,8 +902,8 @@ theorem NestedRun.restoredRecursorEntries_of_hitShape
 
 /-- The restored generated recursor list of the lowered declaration is the
 recursor list of a final assembly base, for the specializations of
-`restorationTablesRestoringAll` (via `NestedRun.recursorHitShape'`). -/
-theorem NestedRun.restoredRecursorList_of_hitShape
+`restorationTablesRestoringAll` (via `NestedRun.recursorParamUniform'`). -/
+theorem NestedRun.restoredRecursorList_of_paramUniform
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -939,7 +939,7 @@ theorem NestedRun.restoredRecursorList_of_hitShape
         (compilationRestoration sourceDecl auxiliaries) =
       some (B.sourceRecursors ++ B.auxiliaryRecursors) := by
   have Hrec := Lean4Lean.List.Forall₂.imp (fun _ _ h => h.1)
-    (E.restoredRecursorEntries_of_hitShape B hB wf Hsources hadded Haux Hexpansion hnodup
+    (E.restoredRecursorEntries_of_paramUniform B hB wf Hsources hadded Haux Hexpansion hnodup
       hparamsSize D hscoped)
   show List.mapM _ ((List.finRange _).map _) = _
   rw [List.mapM_map]
@@ -948,8 +948,8 @@ theorem NestedRun.restoredRecursorList_of_hitShape
 /-- **The `recursors` field of `NestedCompilationRestorationFacts`.** For the
 specializations of `restorationTablesRestoringAll`, the restored generated
 recursor list of the lowered declaration is exactly the recursor list of the
-canonical restored block (via `NestedRun.recursorHitShape'`). -/
-theorem NestedRun.restoredRecursors_of_hitShape
+canonical restored block (via `NestedRun.recursorParamUniform'`). -/
+theorem NestedRun.restoredRecursors_of_paramUniform
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -985,7 +985,7 @@ theorem NestedRun.restoredRecursors_of_hitShape
         (compilationRestoration sourceDecl auxiliaries) =
       some (canonicalRestoredBlock sourceDecl C.sourceRecursors
         C.auxiliaryRecursors C.sourceRules C.auxiliaryRules).recursors :=
-  E.restoredRecursorList_of_hitShape C hC wf Hsources hadded Haux Hexpansion hnodup
+  E.restoredRecursorList_of_paramUniform C hC wf Hsources hadded Haux Hexpansion hnodup
     hparamsSize D hscoped
 
 /-- Two restoration steps at the same lowered recursor name read back the
@@ -1061,7 +1061,7 @@ theorem NestedRun.restoredRecursorShapeFields
       Hstep.restored.newInfo.numMinors =
         E.lowered.recursors.generationSignature.constructors.size := by
   intro owner s t Hstep
-  have Hentries := E.restoredRecursorEntries_of_hitShape B hB wf Hsources hadded Haux Hexpansion
+  have Hentries := E.restoredRecursorEntries_of_paramUniform B hB wf Hsources hadded Haux Hexpansion
     hnodup hparamsSize D hscoped
   obtain ⟨w, hw, hrec, s', t', Hstep', hwname, hwuvars, -⟩ :=
     Lean4Lean.List.Forall₂.forall_exists_l Hentries owner (List.mem_finRange owner)

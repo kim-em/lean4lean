@@ -73,8 +73,8 @@ theorem sourceSignature_headsApplied
     simp [getElem!_pos indTypes j hj']
   have Hsrc := hctorTypes j hj' production (by rw [hget]; exact hctorMem)
   obtain ⟨pfvs, hpfvs⟩ := R.stats_params_fvars
-  have Htail := hprefix.hitShape hpfvs Hsrc
-  have hA := Htail.hitArity fun p hp => by
+  have Htail := hprefix.paramUniform hpfvs Hsrc
+  have hA := Htail.headsApplied fun p hp => by
     rw [hpfvs] at hp
     simp only [List.mem_map] at hp
     obtain ⟨fv, -, rfl⟩ := hp

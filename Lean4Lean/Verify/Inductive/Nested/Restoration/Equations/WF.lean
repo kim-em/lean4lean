@@ -575,7 +575,7 @@ theorem NestedRun.restoredEquationSubstitution
     (G.auxiliaryConstructors envTypes hadded) G.projections
     (E.restoredEliminators wf hadded Haux Hexpansion hnodup D hnp B hB hSwf)
   -- the restored recursors
-  have hrestoredRecs := E.restoredRecursorEntries_of_hitShape B hB wf Hsources hadded Haux
+  have hrestoredRecs := E.restoredRecursorEntries_of_paramUniform B hB wf Hsources hadded Haux
     Hexpansion hnodup hparamsSize D hscoped
   have hrecAdded := B.install.recursorsAdded.abstract
   rw [B.recursorValues] at hrecAdded

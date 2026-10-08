@@ -269,7 +269,7 @@ theorem NestedRun.compilationData_of_tables
   have hP := E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D True.intro
   obtain ⟨-, -, hnames, hheadNames, hcertified, -, hwellFormed, hscoped, hdirect, -⟩ := hP
   have hlevels := E.loweredConstructorLevels_heads wf Hsources hheadNames
-  have hrecursors := E.restoredRecursors_of_hitShape C hC wf Hsources hadded Haux Hexpansion
+  have hrecursors := E.restoredRecursors_of_paramUniform C hC wf Hsources hadded Haux Hexpansion
     hnodup hparamsSize D hscoped
   have htotal := E.normalizedTotal_of wf Hsources hheadNames
   have HsourceCtors := E.sourceConstructors_of_evidence wf hadded henvTypes Haux Hexpansion
@@ -340,7 +340,7 @@ theorem NestedRun.restoredRecursorEntryInfos
       (List.finRange
         E.lowered.recursors.generationSignature.families.size)
       C.recursorEntries := by
-  have Hentries := E.restoredRecursorEntries_of_hitShape C hC wf Hsources hadded Haux Hexpansion
+  have Hentries := E.restoredRecursorEntries_of_paramUniform C hC wf Hsources hadded Haux Hexpansion
     hnodup hparamsSize D hscoped
   rw [← C.recursorValues, List.forall₂_map_right_iff] at Hentries
   have hnames := E.recursorNames_order C.sourceNonempty

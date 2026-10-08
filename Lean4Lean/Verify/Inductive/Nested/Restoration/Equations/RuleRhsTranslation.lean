@@ -390,7 +390,7 @@ theorem NestedRun.restoredRuleRhs_translates
     exact key _ hjGen hinfo Hs0
   have Hrule := Hstep.restored.restoration.rules.entry j hjOld hj
   rcases Hrule.rhs.opening hparamsSize with ⟨Hopen⟩
-  have Hshape := (E.recursorHitShape' wf Hsources owner Hstep).2 _ (List.getElem_mem hjOld)
+  have Hshape := (E.recursorParamUniform' wf Hsources owner Hstep).2 _ (List.getElem_mem hjOld)
   rw [← hheads] at Hshape
   have hnp : result.nparams = P.generationSignature.params.length := by
     rw [← E.statsParamsSize]; exact P.params_size_eq

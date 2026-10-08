@@ -192,7 +192,7 @@ theorem restoreNestedNode_eq_of_restoreHead
   · simp [← Array.length_toList, Expr.getAppArgs_toList]
 
 /-- A successful callback at the root fixes the output of `Expr.replace`. -/
-theorem ExprReplacement.output_of_hit
+theorem ExprReplacement.output_of_occurrence
     (H : ExprReplacement replaceNode input output)
     (h : replaceNode input = some out) : output = out := by
   rw [H.eq_replace]

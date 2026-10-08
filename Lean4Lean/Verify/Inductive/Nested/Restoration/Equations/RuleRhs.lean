@@ -9,7 +9,7 @@ produced by the executable (`restoreRule`, whose right-hand side is
 `restoreNested` of the lowered rule's right-hand side); this file proves that
 its translation is the abstract restoration of the generated equation's
 right-hand side, using the hit shape of the lowered right-hand sides
-(`NestedRun.recursorHitShape'`, which needs nothing beyond the
+(`NestedRun.recursorParamUniform'`, which needs nothing beyond the
 run). The lowered right-hand side is a
 lambda telescope, so we first prove the lambda analogue of
 `NestedRestoration.restorationCommutes'`. -/
@@ -114,7 +114,7 @@ theorem Expr.LambdaTelescope.closed_result' {outer result : Expr} {arity depth :
 
 /-- **Hit shape of every opening** of a stored lambda telescope whose
 parameter prefix is in bound-variable hit shape. -/
-theorem NestedRestorationOpening.hitShape_of_lowered_lam
+theorem NestedRestorationOpening.paramUniform_of_lowered_lam
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {heads : List Name} {auxLevels : List Level}
     {input output suffix : Expr}

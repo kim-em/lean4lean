@@ -680,9 +680,9 @@ class VState.WF (c : VContext) (s : VState) where
   inferTypeC_levels : LevelsCache.WF c s.inferTypeC
   whnfCore_levels : LevelsCache.WF c s.whnfCoreCache
   whnf_levels : LevelsCache.WF c s.whnfCache
-  whnfCore_hit : ParamUniformCache.WF c s.ngen.namePrefix s.whnfCoreCache
-  whnf_hit : ParamUniformCache.WF c s.ngen.namePrefix s.whnfCache
-  inferTypeI_hit : ParamUniformTyCache.WF c s.ngen.namePrefix s.inferTypeI
+  whnfCore_paramUniform : ParamUniformCache.WF c s.ngen.namePrefix s.whnfCoreCache
+  whnf_paramUniform : ParamUniformCache.WF c s.ngen.namePrefix s.whnfCache
+  inferTypeI_paramUniform : ParamUniformTyCache.WF c s.ngen.namePrefix s.inferTypeI
 
 theorem VState.WF.find?_eq_none {id}
     (wf : VState.WF c s) (H : ¬s.ngen.Reserves id) : c.lctx'.find? id = none :=
@@ -778,13 +778,13 @@ structure Methods.WF (m : Methods) where
     (inferOnly = true → ∃ e', c.TrExprS e e') →
     (m.inferType e inferOnly).WF c s fun ty _ => c.LevelsBelow e ty
   /-- `whnfCore` preserves hit shape. -/
-  whnfCore_hit : c.TrExprS e e' →
+  whnfCore_paramUniform : c.TrExprS e e' →
     (m.whnfCore e cheapProj).WF c s fun e₁ _ => c.ParamUniformBelow s.ngen.namePrefix e e₁
   /-- `whnf` preserves hit shape. -/
-  whnf_hit : c.TrExprS e e' →
+  whnf_paramUniform : c.TrExprS e e' →
     (m.whnf e).WF c s fun e₁ _ => c.ParamUniformBelow s.ngen.namePrefix e e₁
   /-- Type inference (`inferOnly := true`) preserves hit shape. -/
-  inferType_hit : c.TrExprS e e' →
+  inferType_paramUniform : c.TrExprS e e' →
     (m.inferType e true).WF c s fun ty _ => c.ParamUniformTyBelow s.ngen.namePrefix e ty
   /-- `whnfCore` returns a constant unchanged. -/
   whnfCore_const : (m.whnfCore (.const n us) cheapProj).WF c s fun e₁ _ => e₁ = .const n us
@@ -1186,9 +1186,9 @@ theorem VState.WF.leaveScope {c : VContext} {saved s : VState} (wf : saved.WF c)
   inferTypeC_levels := wf.inferTypeC_levels
   whnfCore_levels := wf.whnfCore_levels
   whnf_levels := wf.whnf_levels
-  whnfCore_hit := le.namePrefix ▸ wf.whnfCore_hit
-  whnf_hit := le.namePrefix ▸ wf.whnf_hit
-  inferTypeI_hit := le.namePrefix ▸ wf.inferTypeI_hit
+  whnfCore_paramUniform := le.namePrefix ▸ wf.whnfCore_paramUniform
+  whnf_paramUniform := le.namePrefix ▸ wf.whnf_paramUniform
+  inferTypeI_paramUniform := le.namePrefix ▸ wf.inferTypeI_paramUniform
 
 /-- A binder scope of the checker: the body runs from the state with the name generator advanced,
 and the result state is the pre-scope state with only the name generator and the `unfold` cache
@@ -1257,9 +1257,9 @@ protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
       inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
       whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
       whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels
-      whnfCore_hit := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_hit
-      whnf_hit := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_hit
-      inferTypeI_hit := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_hit }
+      whnfCore_paramUniform := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_paramUniform
+      whnf_paramUniform := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_paramUniform
+      inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
   refine M.WF.withFreshId wf fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
   exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
@@ -1310,9 +1310,9 @@ protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
       inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
       whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
       whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels
-      whnfCore_hit := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_hit
-      whnf_hit := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_hit
-      inferTypeI_hit := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_hit }
+      whnfCore_paramUniform := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_paramUniform
+      whnf_paramUniform := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_paramUniform
+      inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
   refine M.WF.withFreshId wf fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 this a s' e
   exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
@@ -1365,9 +1365,9 @@ protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
       inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
       whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
       whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels
-      whnfCore_hit := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_hit
-      whnf_hit := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_hit
-      inferTypeI_hit := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_hit }
+      whnfCore_paramUniform := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_paramUniform
+      whnf_paramUniform := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_paramUniform
+      inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
   refine M.WF.withFreshId wf fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
   exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
@@ -1902,20 +1902,20 @@ theorem inferType.WF_below {c : VContext} {s : VState} (he : c.TrExprS e e') :
 
 /-! ### The hit-shape clauses of the methods -/
 
-theorem whnfCore.WF_hit {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem whnfCore.WF_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ => c.ParamUniformBelow pfx e e₁ :=
-  fun _ wf => hp ▸ wf.whnfCore_hit he
+  fun _ wf => hp ▸ wf.whnfCore_paramUniform he
 
-theorem whnf.WF_hit {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem whnf.WF_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (whnf e) fun e₁ _ => c.ParamUniformBelow pfx e e₁ :=
-  fun _ wf => hp ▸ wf.whnf_hit he
+  fun _ wf => hp ▸ wf.whnf_paramUniform he
 
-theorem inferType.WF_hit {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem inferType.WF_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (inferType e) fun ty _ => c.ParamUniformTyBelow pfx e ty :=
-  fun _ wf => hp ▸ wf.inferType_hit he
+  fun _ wf => hp ▸ wf.inferType_paramUniform he
 
 theorem whnfCore.WF_const {c : VContext} {s : VState} :
     RecM.WF c s (whnfCore (.const n us) cheapProj) fun e₁ _ => e₁ = .const n us :=
@@ -1926,24 +1926,24 @@ theorem whnf.WF_forall {c : VContext} {s : VState} :
   fun _ wf => wf.whnf_forall_eq
 
 /-- `whnfCore` with its free-variable and hit-shape clauses. -/
-theorem whnfCore.WF_fhit {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem whnfCore.WF_and_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ =>
       (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e') ∧ c.ParamUniformBelow pfx e e₁ :=
-  (whnfCore.WF he).and (whnfCore.WF_hit he hp)
+  (whnfCore.WF he).and (whnfCore.WF_paramUniform he hp)
 
 /-- `whnf` with its free-variable and hit-shape clauses. -/
-theorem whnf.WF_fhit {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem whnf.WF_and_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (whnf e) fun e₁ _ => (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e') ∧ c.ParamUniformBelow pfx e e₁ :=
-  (whnf.WF he).and (whnf.WF_hit he hp)
+  (whnf.WF he).and (whnf.WF_paramUniform he hp)
 
 /-- `inferType` with its typing and hit-shape clauses. -/
-theorem inferType.WF_fhit {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem inferType.WF_and_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (inferType e) fun ty _ =>
       (∃ ty', c.TrTyping e ty e' ty') ∧ c.ParamUniformTyBelow pfx e ty :=
-  (inferType.WF he).and (inferType.WF_hit he hp)
+  (inferType.WF he).and (inferType.WF_paramUniform he hp)
 
 /-- The prefix of the name generator is constant along a run. -/
 theorem VState.LE.namePrefix_eq {s₀ s : VState} (hp : s₀.ngen.namePrefix = pfx) (le : s₀ ≤ s) :

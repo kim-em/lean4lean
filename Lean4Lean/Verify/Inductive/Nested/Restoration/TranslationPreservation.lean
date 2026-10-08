@@ -391,7 +391,7 @@ def RestoreHeadsTranslate (r : Restoration) (result : Lean4Lean.ElimNestedInduct
         (h.arguments.map fun arg => instantiateParams (arg.instL levels) PT)
 
 /-- The hit case of `restorationTranslates'`. -/
-theorem restorationTranslates'_hit
+theorem restorationTranslates'_paramUniform
     (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us : List Name} {auxLevels : List Level} {As : Array Expr}
@@ -411,7 +411,7 @@ theorem restorationTranslates'_hit
     (Hs : TrExprS envL Us Δs e s) :
     ∃ t, TrExprS envT Us Δt (e.replace (result.restoreNestedNode env As auxRec)) t ∧
       r.expr s = some t := by
-  obtain ⟨hus, rest, hargs, -⟩ := Hshape.getAppFn_const_hit_inv hfn hmem
+  obtain ⟨hus, rest, hargs, -⟩ := Hshape.getAppFn_const_head_inv hfn hmem
   subst us
   have hhead : restoreHead result env As c ≠ none :=
     (A.restoreHead_ne_none_iff As c).mpr hmem
@@ -524,7 +524,7 @@ theorem restorationTranslates'
     exact ⟨_, .sort h, restoration_expr_sort⟩
   | @const c ci _ _ us hcs hls hlen =>
     by_cases hmem : c ∈ r.heads.map (·.auxiliary)
-    · exact restorationTranslates'_hit S hL hβ A hc HAs hsize Hlits Hheads rfl hmem Hshape
+    · exact restorationTranslates'_paramUniform S hL hβ A hc HAs hsize Hlits Hheads rfl hmem Hshape
         (fun x hx => by
           rw [show (Expr.const c us).getAppArgsList = [] from rfl] at hx; simp at hx)
         Hprojs Hctx Hlift (.const hcs hls hlen)
@@ -561,7 +561,7 @@ theorem restorationTranslates'
           x.AvoidsConsts r.restorableNames := by
         cases Htrail with
         | app _ _ hQ => exact hQ c us hfn hmem
-      exact restorationTranslates'_hit S hL hβ A hc HAs hsize Hlits Hheads hfn hmem Hshape
+      exact restorationTranslates'_paramUniform S hL hβ A hc HAs hsize Hlits Hheads hfn hmem Hshape
         htr Hprojs Hctx Hlift (.app h1 h2 hf ha)
     · have hnot : ∀ c us, f.getAppFn = .const c us → c ∉ r.heads.map (·.auxiliary) :=
         fun c us hfn hmem => hhit ⟨c, us, by simpa [Expr.getAppFn] using hfn, hmem⟩

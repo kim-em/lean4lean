@@ -21,7 +21,7 @@ open InductiveSignature (Restoration HeadSpecialization instantiateParams)
 
 namespace VerifyInductive
 
-theorem _root_.Lean.Expr.TrailingArgsAvoid.toHitTrailWith {heads names : List Name} {np : Nat}
+theorem _root_.Lean.Expr.TrailingArgsAvoid.toTrailingArgs {heads names : List Name} {np : Nat}
     {e : Expr} (H : e.TrailingArgsAvoid heads names np) :
     e.TrailingArgs heads np (·.AvoidsConsts names) := by
   induction H with
@@ -101,7 +101,7 @@ theorem NestedRestorationOpening.translatesLambdaTrail
       result.nparams
       (·.AvoidsConsts (InductiveSignature.compilationRestoration decl auxiliaries).restorableNames) := by
     rw [hbody]
-    exact ((Htrail.lambdaTelescope Htel).instantiateRevList_fvars _ 0).toHitTrailWith
+    exact ((Htrail.lambdaTelescope Htel).instantiateRevList_fvars _ 0).toTrailingArgs
   have HbodyProjs : Hopen.body.ProjsOK
       (· ∉ (InductiveSignature.compilationRestoration decl auxiliaries).restorableNames) := by
     rw [hbody]
@@ -111,7 +111,7 @@ theorem NestedRestorationOpening.translatesLambdaTrail
         exact Expr.ProjsOK.fvar) 0
   exact Hopen.translatesLambda S hLwf hTwf hβ (D.agreement envT Us) hc Hlits Hlitnames
     Hheads Htel Hdom.lamDomainsOnly (Expr.ProjsOK.lamDomainsOnly _ Hprojs)
-    (Hopen.hitShape_of_lowered_lam Htel Hshape) HbodyTrail HbodyProjs
+    (Hopen.paramUniform_of_lowered_lam Htel Hshape) HbodyTrail HbodyProjs
     (Hopen.restoredBody_closed_lam D Htel (by simpa using Htel.closed_result' hclosed)) Hs
 
 end VerifyInductive

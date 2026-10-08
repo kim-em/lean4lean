@@ -74,7 +74,7 @@ theorem instantiateProjectionParameters.WF_all {c : VContext} {args : Array Expr
     cases xs' with | nil => cases hlen | cons a' xs'' => ?_
     have hT' : c.TrExprS type (.forallE d (VExpr.wrapForalls ds' b)) := hT
     unfold instantiateProjectionParameters
-    refine ((whnf.WF_below' hT').and (whnf.WF_hit hT' hpfx)).bind fun e₁ _ le H₁ => ?_
+    refine ((whnf.WF_below' hT').and (whnf.WF_paramUniform hT' hpfx)).bind fun e₁ _ le H₁ => ?_
     obtain ⟨⟨⟨hbe, -, hs⟩, hle₁⟩, hh₁⟩ := H₁
     have h₁ := hs _ _ rfl
     split <;> [skip; exact .pure nofun]
@@ -247,7 +247,7 @@ theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
     have hwf : RecM.WF c s (whnf type) fun e₁ _ => e₁ = type := by
       rw [htype]; exact whnf.WF_forall
     unfold instantiateProjectionFields
-    refine (((whnf.WF_below' hTS).and (whnf.WF_hit hTS hpfx)).and hwf).bind
+    refine (((whnf.WF_below' hTS).and (whnf.WF_paramUniform hTS hpfx)).and hwf).bind
       fun e₁ s₁ le₁ H₁ => ?_
     obtain ⟨⟨⟨⟨hbe, -, hs⟩, hle₁⟩, hh₁⟩, he₁⟩ := H₁
     have hpfx₁ := VState.LE.namePrefix_eq hpfx le₁

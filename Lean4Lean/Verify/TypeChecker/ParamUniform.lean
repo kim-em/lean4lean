@@ -19,7 +19,7 @@ variable {c : VContext} {s : VState}
 
 /-! ### Quotient reduction -/
 
-theorem quotReduceRecCont.WF_hit {e : Expr} {mkPos argPos : Nat} (he : c.TrExprS e e')
+theorem quotReduceRecCont.WF_paramUniform {e : Expr} {mkPos argPos : Nat} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) (hpos : argPos < mkPos) :
     RecM.WF c s (quotReduceRecCont e whnf mkPos argPos) fun oe _ =>
       ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
@@ -29,7 +29,7 @@ theorem quotReduceRecCont.WF_hit {e : Expr} {mkPos argPos : Nat} (he : c.TrExprS
   simp only [hargs_eq]
   split <;> [rename_i h5; exact .pure nofun]
   have ⟨_, ha⟩ := TrExprS.getAppArgs_get he _ h5
-  refine (whnf.WF_fhit ha hp).bind fun mk _ _ ⟨⟨hmb, _⟩, hmh⟩ => ?_
+  refine (whnf.WF_and_paramUniform ha hp).bind fun mk _ _ ⟨⟨hmb, _⟩, hmh⟩ => ?_
   split <;> [exact .pure nofun; rename_i hnot]
   have hisApp : mk.isAppOfArity ``Quot.mk 3 = true := by simpa using hnot
   obtain ⟨lsm, a1, a2, a3, rfl⟩ := Expr.isAppOfArity_three_eq_true hisApp
@@ -50,14 +50,14 @@ theorem quotReduceRecCont.WF_hit {e : Expr} {mkPos argPos : Nat} (he : c.TrExprS
         fun a h => hl.of_mem_getAppArgs hs.params.fvars h
   · exact .pure fun _ h heads As ls P hs hl hP => Option.some.inj h ▸ main heads As ls P hs hl hP
 
-theorem quotReduceRec.WF_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx) :
+theorem quotReduceRec.WF_paramUniform (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (quotReduceRec e whnf) fun oe _ => ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
   unfold quotReduceRec
   split <;> [skip; exact .pure nofun]
   split
-  · exact quotReduceRecCont.WF_hit he hp (by decide)
+  · exact quotReduceRecCont.WF_paramUniform he hp (by decide)
   split
-  · exact quotReduceRecCont.WF_hit he hp (by decide)
+  · exact quotReduceRecCont.WF_paramUniform he hp (by decide)
   exact .pure nofun
 
 /-! ### Inductive recursor reduction -/
@@ -65,7 +65,7 @@ theorem quotReduceRec.WF_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx
 /-- The final phase of inductive recursor reduction keeps hit shape: the rule's right-hand side
 mentions no head, and the remaining pieces are arguments of the recursor application and of the
 converted major premise. -/
-theorem inductiveReduceRecTail.hitOK {info : RecursorVal} {recFn : Name} {ls : List Level}
+theorem inductiveReduceRecTail.paramUniformIn {info : RecursorVal} {recFn : Name} {ls : List Level}
     {e major₂ : Expr} {heads As lv} {nparams} (H : EnvParamUniform c.env heads nparams lv)
     (hAs : ∀ a ∈ As, ∃ fv, a = .fvar fv)
     (hinfo : c.env.find? recFn = some (.recInfo info))
@@ -111,7 +111,7 @@ theorem mkNullaryCtor_eq_some {env : Environment} {A : Expr}
 
 /-- The constructor application built by `toCtorWhenK` (from the major premise's type) is in hit
 shape: recursors in the environment never eliminate families with head constructors. -/
-theorem toCtorWhenK.Post_hit {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : info.k = true)
+theorem toCtorWhenK.Post_paramUniform {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : info.k = true)
     (hrec : c.env.find? recFn = some (.recInfo info))
     (hK : ∃ ind ctorName, c.env.constants.find? info.getMajorInduct = some (.inductInfo ind) ∧
       ind.ctors = [ctorName] ∧ KLikeAlignment c.venv info ctorName)
@@ -120,8 +120,8 @@ theorem toCtorWhenK.Post_hit {info : RecursorVal} {major : Expr} {m' : VExpr} (h
       c.ParamUniformBelow pfx major r := by
   unfold toCtorWhenK
   split <;> [skip; exact absurd hk ‹_›]
-  refine RecM.Post.bind (inferType.WF_fhit he hp) fun T _ le ⟨⟨T', hfvT, _, hTS, hT'⟩, hT⟩ => ?_
-  refine RecM.Post.bind (whnf.WF_fhit hTS (VState.LE.namePrefix_eq hp le))
+  refine RecM.Post.bind (inferType.WF_and_paramUniform he hp) fun T _ le ⟨⟨T', hfvT, _, hTS, hT'⟩, hT⟩ => ?_
+  refine RecM.Post.bind (whnf.WF_and_paramUniform hTS (VState.LE.namePrefix_eq hp le))
     fun A _ _ ⟨⟨hfvA, A', hAS, hAdefeq⟩, hA⟩ => ?_
   refine RecM.Res.post ?_
   have hid : ∀ {x : Expr}, x = major → c.ParamUniformBelow pfx major x := by rintro _ rfl; exact .rfl
@@ -168,7 +168,7 @@ theorem expandEtaStruct_eq {env : Environment} {eType e r : Expr}
   exact .inr ⟨I, ls, sInfo, ctor, mkInfo, hfn, hs, hc, hm, by simpa using hinduct, rfl⟩
 
 /-- The structure-eta expansion built by `toCtorWhenStruct` is in hit shape. -/
-theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
+theorem toCtorWhenStruct.Post_paramUniform {w : Expr} {w' : VExpr}
     (hrec : c.env.find? recFn = some (.recInfo info))
     (he : c.TrExprS w w') (hp : s.ngen.namePrefix = pfx) :
     RecM.Post c s (toCtorWhenStruct c.env whnf inferType info.getMajorInduct w) fun r =>
@@ -178,8 +178,8 @@ theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
   split <;> [exact .pure (hid rfl); rename_i hguard]
   have hnonrec : c.env.isNonRecStructure info.getMajorInduct = true := by
     revert hguard; cases c.env.isNonRecStructure info.getMajorInduct <;> simp
-  refine RecM.Post.bind (inferType.WF_fhit he hp) fun T _ le ⟨⟨T', hfvT, _, hTS, hT'⟩, hT⟩ => ?_
-  refine RecM.Post.bind (whnf.WF_fhit hTS (VState.LE.namePrefix_eq hp le))
+  refine RecM.Post.bind (inferType.WF_and_paramUniform he hp) fun T _ le ⟨⟨T', hfvT, _, hTS, hT'⟩, hT⟩ => ?_
+  refine RecM.Post.bind (whnf.WF_and_paramUniform hTS (VState.LE.namePrefix_eq hp le))
     fun A _ _ ⟨⟨hfvA, A', hAS, hAdefeq⟩, hA⟩ => ?_
   refine RecM.Res.post ?_
   split <;> [exact .pure (hid rfl); rename_i hisConst]
@@ -213,7 +213,7 @@ theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
   split <;> [exact .pure hnew; exact .pure (hid rfl)]
 
 /-- Inductive recursor reduction keeps hit shape. -/
-theorem inductiveReduceRec.Post_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx) :
+theorem inductiveReduceRec.Post_paramUniform (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx) :
     RecM.Post c s (inductiveReduceRec c.env e whnf inferType isDefEq) fun oe =>
       ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
   unfold inductiveReduceRec
@@ -243,7 +243,7 @@ theorem inductiveReduceRec.Post_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefi
       ∀ e₁, inductiveReduceRecTail info ls e.getAppArgs major₂ = some e₁ →
         c.ParamUniformBelow pfx e e₁ := by
     intro major₂ hfv hh e₁ h heads As lv P hs hl hP
-    exact inductiveReduceRecTail.hitOK hs.env hs.params.fvars hinfo
+    exact inductiveReduceRecTail.paramUniformIn hs.env hs.params.fvars hinfo
       (by simp only [RecursorVal.getMajorIdx, RecursorVal.getFirstIndexIdx] at hmaj ⊢; omega) hl
       (hh heads As lv P hs (hl.of_mem_getAppArgsList hs.params.fvars hmem)
         (hP.of_mem_getAppArgsList hmem)) e₁ h
@@ -254,7 +254,7 @@ theorem inductiveReduceRec.Post_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefi
       RecM.Post c s₁ (jpMatch () m₁) fun oe => ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
     intro s₁ m₁ m₁' hp₁ hfv₁ hh₁ hm₁S
     simp only [jpMatch, jpTail]
-    refine RecM.Post.bind (whnf.WF_fhit hm₁S hp₁) fun w s₂ le ⟨⟨hfvw, w', hwS, _⟩, hhw⟩ => ?_
+    refine RecM.Post.bind (whnf.WF_and_paramUniform hm₁S hp₁) fun w s₂ le ⟨⟨hfvw, w', hwS, _⟩, hhw⟩ => ?_
     have hp₂ := VState.LE.namePrefix_eq hp₁ le
     split
     · rename_i n
@@ -263,7 +263,7 @@ theorem inductiveReduceRec.Post_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefi
       exact fun heads As lv P hs _ _ => .natLitToConstructor hs.env
     · rename_i str _
       cases hwS with | lit hcl hlit => ?_
-      refine RecM.Post.bind (whnf.WF_fhit hlit hp₂) fun major₂ _ _ ⟨⟨hfv₂, _⟩, hh₂⟩ => ?_
+      refine RecM.Post.bind (whnf.WF_and_paramUniform hlit hp₂) fun major₂ _ _ ⟨⟨hfv₂, _⟩, hh₂⟩ => ?_
       refine RecM.Post.pure fun e₁ h => htail _ (hfv₁.trans (hfvw.trans
         ((FVarsBelow.trans (e₂ := .strLitToConstructor str)
           (fun _ _ _ => FVarsIn.strLitToConstructor) hfv₂)))) ?_ e₁ h
@@ -271,18 +271,18 @@ theorem inductiveReduceRec.Post_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefi
         (.strLitToConstructor hs.env (c.strLitsDeclared hcl))
         FVarsIn.strLitToConstructor
     · refine RecM.Post.bind ((toCtorWhenStruct.WF_all hwS).and_post
-        (toCtorWhenStruct.Post_hit hinfo hwS hp₂)) fun major₂ _ _ ⟨⟨⟨hfv₂, _⟩, _⟩, hh₂⟩ => ?_
+        (toCtorWhenStruct.Post_paramUniform hinfo hwS hp₂)) fun major₂ _ _ ⟨⟨⟨hfv₂, _⟩, _⟩, hh₂⟩ => ?_
       refine RecM.Post.pure fun e₁ h => htail _ (hfv₁.trans (hfvw.trans hfv₂)) ?_ e₁ h
       exact (hh₁.trans hfv₁ hhw).trans (hfv₁.trans hfvw) hh₂
   split
   · rename_i hk
     refine RecM.Post.bind ((toCtorWhenK.WF_all hk (hK hk) hm').and_post
-      (toCtorWhenK.Post_hit hk hinfo (hK hk) hm' hp)) fun m₁ s₁ le ⟨⟨⟨h1, ⟨_, h2, _⟩⟩, _⟩, hh⟩ => ?_
+      (toCtorWhenK.Post_paramUniform hk hinfo (hK hk) hm' hp)) fun m₁ s₁ le ⟨⟨⟨h1, ⟨_, h2, _⟩⟩, _⟩, hh⟩ => ?_
     exact hjp m₁ (VState.LE.namePrefix_eq hp le) h1 hh h2
   · exact hjp _ hp .rfl .rfl hm'
 
 /-- Recursor reduction keeps hit shape. -/
-theorem reduceRecursor.WF_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx) :
+theorem reduceRecursor.WF_paramUniform (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (reduceRecursor e) fun oe _ => ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
   unfold reduceRecursor
   refine .getEnv ?_
@@ -291,13 +291,13 @@ theorem reduceRecursor.WF_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pf
       ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
     intro s hp
     simp only [jp]
-    refine ((inductiveReduceRec.WF he).and_post (inductiveReduceRec.Post_hit he hp)).bind
+    refine ((inductiveReduceRec.WF he).and_post (inductiveReduceRec.Post_paramUniform he hp)).bind
       fun oi _ _ ⟨_, hi⟩ => ?_
     split
     · exact .pure fun _ h => hi _ h
     · exact .pure nofun
   split
-  · refine (quotReduceRec.WF_hit he hp).bind fun oq _ le hqq => ?_
+  · refine (quotReduceRec.WF_paramUniform he hp).bind fun oq _ le hqq => ?_
     split
     · exact .pure fun _ h => hqq _ h
     · exact hjp (VState.LE.namePrefix_eq hp le)
@@ -305,7 +305,7 @@ theorem reduceRecursor.WF_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pf
 
 /-! ### Definition unfolding -/
 
-theorem instantiateDeltaValue_hitOK {heads As lv} {nparams}
+theorem instantiateDeltaValue_paramUniformIn {heads As lv} {nparams}
     (H : EnvParamUniform c.env heads nparams lv)
     (hlookup : c.env.find? name = some info) (hdelta : info.deltaValue? = some value) :
     (instantiateDeltaValue info levels).ParamUniformIn c.env heads As lv := by
@@ -313,7 +313,7 @@ theorem instantiateDeltaValue_hitOK {heads As lv} {nparams}
   exact .instantiateLevelParams_of_avoids (H.value_avoids hlookup hdelta)
     (H.value_projs hlookup hdelta)
 
-theorem unfoldDefinitionCore.WF_hit :
+theorem unfoldDefinitionCore.WF_paramUniform :
     RecM.WF c s (unfoldDefinitionCore e) fun result _ => ∀ e', result = some e' →
       ∀ heads As lv nparams, EnvParamUniform c.env heads nparams lv → e'.ParamUniformIn c.env heads As lv := by
   dsimp [unfoldDefinitionCore]
@@ -323,7 +323,7 @@ theorem unfoldDefinitionCore.WF_hit :
     obtain ⟨_, hlookup, ⟨_, hv⟩, _, ⟨⟩, hlen⟩ := isDelta_is_some.mp hdelta
     have hscope : ∀ heads As lv nparams, EnvParamUniform c.env heads nparams lv →
         (instantiateDeltaValue info levels).ParamUniformIn c.env heads As lv :=
-      fun _ _ _ _ H => instantiateDeltaValue_hitOK H hlookup hv
+      fun _ _ _ _ H => instantiateDeltaValue_paramUniformIn H hlookup hv
     split
     · refine .get ?_
       split
@@ -345,12 +345,12 @@ theorem unfoldDefinitionCore.WF_hit :
     · exact .pure fun _ h => Option.some.inj h ▸ hscope
   · exact .pure nofun
 
-theorem unfoldDefinition.WF_hit :
+theorem unfoldDefinition.WF_paramUniform :
     RecM.WF c s (unfoldDefinition e) fun result _ => ∀ e', result = some e' →
       c.ParamUniformBelow pfx e e' := by
   simp [unfoldDefinition]
   split
-  · refine unfoldDefinitionCore.WF_hit.bind fun result _ _ hresult => ?_
+  · refine unfoldDefinitionCore.WF_paramUniform.bind fun result _ _ hresult => ?_
     cases result with
     | none => exact .pure nofun
     | some body =>
@@ -360,7 +360,7 @@ theorem unfoldDefinition.WF_hit :
       exact .mkAppRevRange (Nat.le_refl _) (hresult _ rfl heads As lv _ hs.env) fun a h =>
         hl.of_mem_getAppArgsRevList hs.params.fvars (by
           rw [← Expr.getAppRevArgs_toList]; exact Array.mem_toList_iff.2 h)
-  · exact unfoldDefinitionCore.WF_hit.mono fun _ _ _ H e' h heads As lv P hs _ _ =>
+  · exact unfoldDefinitionCore.WF_paramUniform.mono fun _ _ _ H e' h heads As lv P hs _ _ =>
       H e' h heads As lv _ hs.env
 
 end Lean4Lean.TypeChecker.Inner
@@ -370,15 +370,15 @@ open Lean hiding Environment Exception
 
 /-- The hit-shape clause of `whnfCore` together with the fact that a constant is returned
 unchanged. -/
-theorem whnfCore.WF_hit' {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem whnfCore.WF_paramUniform' {c : VContext} {s : VState} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ =>
       c.ParamUniformBelow pfx e e₁ ∧ ∀ n us, e = .const n us → e₁ = e := by
   by_cases hc : ∃ n us, e = .const n us
   · obtain ⟨n, us, rfl⟩ := hc
-    exact ((whnfCore.WF_hit he hp).and whnfCore.WF_const).mono fun _ _ _ ⟨h1, h2⟩ =>
+    exact ((whnfCore.WF_paramUniform he hp).and whnfCore.WF_const).mono fun _ _ _ ⟨h1, h2⟩ =>
       ⟨h1, fun _ _ _ => h2⟩
-  · exact (whnfCore.WF_hit he hp).mono fun _ _ _ h1 =>
+  · exact (whnfCore.WF_paramUniform he hp).mono fun _ _ _ h1 =>
       ⟨h1, fun n us h => absurd ⟨n, us, h⟩ hc⟩
 
 end Lean4Lean.TypeChecker.Inner

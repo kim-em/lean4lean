@@ -13,22 +13,22 @@ constructors):
   the source environment (and after the source headers are added), lie in the
   reserved `_nested` namespace, and contain every key of `aux2nested`.
 * Ingredients of `RecursorConstruction.ParamUniformDeclarations` (assembled at
-  the head set `E.uniformHeads` by `NestedRun.hitShapeInputs_of` in
+  the head set `E.uniformHeads` by `NestedRun.paramUniformDeclarations_of` in
   `Nested/Restoration/Uniform/Whnf.lean`):
   - `NestedRun.familyHeadersAvoid`: headers are not lowered,
     and both source and auxiliary headers are translated in the source
     environment, where the heads are fresh.
   - `RecursorConstruction.paramDecls_of_fresh` and
-    `paramDecls_hitOK`: the parameters are declarations of the source
+    `paramDecls_paramUniformIn`: the parameters are declarations of the source
     context, translated in the source environment where the heads are fresh
     (`TrExprS.sourceAvoidsFresh`) and only its structures are registered
     (`TrExprS.projsRegistered`).
-  - `NestedRun.constructorTypesHitShape`: every lowered family
+  - `NestedRun.constructorTypesParamUniform`: every lowered family
     has a lowering mapping from a pre-lowering family whose constructor types
     are translated in the source-header environment (`loweredFamilyMappings`:
     the source translations for the source families, the native payload
     `AuxiliaryFamilySources` for the generated ones), so
-    `ConstructorLowering.Resolved.hitShapeTele` applies.
+    `ConstructorLowering.Resolved.paramUniformTele` applies.
   - `RecursorConstruction.recursorNames_not_mem`: from the
     distinctness of family and recursor names.
 * `NestedRun.normalizedTotal_of`: `Restoration.expr` is total
@@ -72,7 +72,7 @@ inductive HeadsApplied (heads : List Name) (n k : Nat) : Expr → Prop
   | proj {s : Name} {i : Nat} {e : Expr} : HeadsApplied heads n k e →
       HeadsApplied heads n k (.proj s i e)
 
-theorem ParamUniform.hitArity {heads : List Name} {params : List Expr} {ls : List Level}
+theorem ParamUniform.headsApplied {heads : List Name} {params : List Expr} {ls : List Level}
     {e : Expr} (H : ParamUniform heads params ls e)
     (hp : ∀ p ∈ params, HeadsApplied heads params.length ls.length p) :
     HeadsApplied heads params.length ls.length e := by
@@ -749,7 +749,7 @@ theorem ContextWF.declProjsOK {c : AddInductive.Context} (Hc : ContextWF c)
 declarations of the header check, translated before any family of the block
 is installed, so they mention no head fresh in the source environment and
 project only out of structures registered there. -/
-theorem RecursorConstruction.paramDecls_hitOK
+theorem RecursorConstruction.paramDecls_paramUniformIn
     (H : RecursorConstruction R) {env : Environment} {heads : List Name}
     (hfresh : ∀ name ∈ heads, sourceEnv.constants name = none)
     (hproj : ∀ s info, sourceEnv.projections s info → projAvoidsHeads env heads s) :
@@ -797,7 +797,7 @@ theorem abstractForallContext_headsApplied {heads : List Name} {n k : Nat}
 constructor's field telescope over its checked result, with the parameters
 abstracted) has hit arity, given the hit shape of the lowered constructor
 types. -/
-theorem RecursorConstruction.minorSourceHitArity
+theorem RecursorConstruction.minorSourceHeadsApplied
     (H : RecursorConstruction R) {heads : List Name}
     (hctorTypes : ∀ i, i < indTypes.size → ∀ ctor ∈ indTypes[i]!.ctors,
       Expr.ParamUniformTele heads stats.params.size stats.levels ctor.type)
@@ -824,9 +824,9 @@ theorem RecursorConstruction.minorSourceHitArity
     rwa [hstatsEq, hctorEq] at this
   have hctorMem : S.constructor ∈ indTypes[owner]!.ctors := by
     rw [← hsourceCtors]; exact List.mem_of_getElem? S.sourceConstructor
-  have Htail := Hprefix.hitShape H.params.expressions
+  have Htail := Hprefix.paramUniform H.params.expressions
     (hctorTypes owner hsourceOwner _ hctorMem)
-  obtain ⟨hterm, hfieldsTerm⟩ := traversal.decisions.hitShape Hroot hp Htail
+  obtain ⟨hterm, hfieldsTerm⟩ := traversal.decisions.paramUniform Hroot hp Htail
   rw [hfieldsEq] at hfieldsTerm
   have Hfor : (H.localContext.lctx.mkForall S.fields traversal.terminal).ParamUniform heads
       stats.params.toList stats.levels := by
@@ -842,7 +842,7 @@ theorem RecursorConstruction.minorSourceHitArity
       cases hfv
       refine ⟨.cdecl index y name type bi kind, ?_, htype⟩
       rw [hTL.declarations y hmem, hfind]
-  have hA := Hfor.hitArity fun p hpm => by
+  have hA := Hfor.headsApplied fun p hpm => by
     obtain ⟨fv, rfl⟩ := hp p hpm
     exact .fvar fv
   simp only [Array.length_toList] at hA
@@ -862,7 +862,7 @@ theorem RecursorConstruction.minorReplayHeadsApplied
     ∀ x ∈ H.declConstructorIndices owner howner localIndex hlocal,
       VExpr.HeadsApplied heads stats.params.size stats.levels.length x := by
   have Hrep := (H.sourceConstructorIndices_replay owner howner localIndex hlocal).1
-  have hA := (H.minorSourceHitArity hctorTypes owner howner localIndex hlocal).trExprS hlit
+  have hA := (H.minorSourceHeadsApplied hctorTypes owner howner localIndex hlocal).trExprS hlit
     (abstractForallContext_headsApplied _) Hrep
   obtain ⟨hdoms, hres⟩ := VExpr.HeadsApplied.wrapForalls_inv hA
   exact ⟨hdoms, fun x hx =>
@@ -1122,7 +1122,7 @@ theorem NestedRun.loweredFamilyMappings
 /-- **Lowered constructor types of an exact validated nested run are parameter
 telescopes in hit shape** for the auxiliary heads, at the production
 statistics' parameter count and levels. -/
-theorem NestedRun.constructorTypesHitShape
+theorem NestedRun.constructorTypesParamUniform
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -1147,7 +1147,7 @@ theorem NestedRun.constructorTypesHitShape
   rw [hget] at hctor
   obtain ⟨source, st, ls, havoid, -, hlv, M⟩ := hmaps i hi'
   obtain ⟨src, hsrc, before, after, hbefore, Mc⟩ := M.constructors.forall_mem ctor hctor
-  exact Mc.hitShapeTele hkeys (havoid src hsrc) (hbefore.trans hlv)
+  exact Mc.paramUniformTele hkeys (havoid src hsrc) (hbefore.trans hlv)
 
 /-! ### Totality of restoration on the normalized constructor types -/
 
@@ -1175,7 +1175,7 @@ theorem NestedRun.normalizedTotal_of
   have hfresh : ∀ name ∈ E.auxHeads, E.lowered.initialEnv.constants name = none := by
     rw [E.production_initialEnv]; exact hfreshSrc
   have hN := E.lowered.recursorConstruction.normalizedHeadsApplied
-    (E.constructorTypesHitShape wf Hsources)
+    (E.constructorTypesParamUniform wf Hsources)
     (fun l => avoidsConsts_lit_of_reserved hreserved l)
     (E.lowered.recursorConstruction.paramsFree_of_fresh hfresh)
   have Hsource := E.sourceCore.core

@@ -30,10 +30,10 @@ open Lean hiding Environment Exception
 open Kernel
 
 /-- `whnf` preserves hit shape (`VContext.ParamUniformBelow`), together with its correctness clauses. -/
-theorem whnf.hitShape {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnf.paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e') :
     M.WF c s (whnf e) fun e₁ _ =>
       (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e') ∧ c.ParamUniformBelow s.ngen.namePrefix e e₁ :=
-  (Inner.whnf.WF_fhit he rfl).run
+  (Inner.whnf.WF_and_paramUniform he rfl).run
 
 /-! ### Using the invariant -/
 

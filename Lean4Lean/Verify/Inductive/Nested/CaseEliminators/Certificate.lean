@@ -97,7 +97,7 @@ theorem NestedRun.boundarySignatureFacts
   · obtain ⟨-, -, -, -, hfreshSrc, hreserved, -, -⟩ := E.auxHeadsFacts wf Hsources
     have hfresh : ∀ name ∈ E.auxHeads, E.lowered.initialEnv.constants name = none := by
       rw [hinit]; exact hfreshSrc
-    have hN := B.sourceSignature_headsApplied (E.constructorTypesHitShape wf Hsources)
+    have hN := B.sourceSignature_headsApplied (E.constructorTypesParamUniform wf Hsources)
       (fun l => avoidsConsts_lit_of_reserved hreserved l) (B.params_avoid hloweredNe hfresh)
     have Hsource := E.sourceCore.core
     rw [E.nativeSourceDecl_eq] at Hsource

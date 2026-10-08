@@ -905,7 +905,7 @@ private theorem NestedRun.assemblyBaseOfFormationNative
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2 (main :: rest)
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1))
       finalBaseVEnv :=
-    E.finalValidOfStaged_of_hitShape wf Hsources hnested Hlower HcP Hprod Hcore
+    E.finalValidOfStaged_of_paramUniform wf Hsources hnested Hlower HcP Hprod Hcore
       Hmetadata Harity hempty Hrestored replay.fresh canonical replay.productionOrder
       (by simpa [VInductDecl.typeConstants] using replay.typeValues)
       (by simpa [VInductDecl.constructorConstants] using replay.constructorValues)

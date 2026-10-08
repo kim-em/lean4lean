@@ -39,7 +39,7 @@ parameter `i` is `.bvar (d + (nparams - 1 - i))`. This is what `Expr.abstract As
 def paramBVars (nparams d : Nat) : List Expr :=
   (List.range nparams).map fun i => .bvar (d + (nparams - 1 - i))
 
-@[simp] theorem length_hitParamBVars : (paramBVars nparams d).length = nparams := by
+@[simp] theorem length_paramBVars : (paramBVars nparams d).length = nparams := by
   simp [paramBVars]
 
 /-! ### The free-variable form -/
@@ -129,7 +129,7 @@ theorem mkAppList {f : Expr} {args : List Expr} (hf : ParamUniform heads params 
 
 /-- A hit: a head in `heads`, at the levels `ls`, applied to the parameters and then to shaped
 trailing arguments. -/
-theorem mkAppList_const_hit {c : Name} {rest : List Expr} (hc : c ∈ heads)
+theorem mkAppList_const_head {c : Name} {rest : List Expr} (hc : c ∈ heads)
     (hrest : ∀ a ∈ rest, ParamUniform heads params ls a) :
     ParamUniform heads params ls ((Expr.const c ls).mkAppList (params ++ rest)) := by
   rw [Expr.mkAppList_append]
@@ -156,7 +156,7 @@ theorem of_avoidsConsts {e : Expr} (h : e.AvoidsConsts heads) : ParamUniform hea
 /-- Spine inversion at a hit: a shaped expression whose application head is `.const c us`
 with `c ∈ heads` has `us = ls`, and its argument list is `params ++ rest` with every trailing
 argument shaped. -/
-theorem getAppFn_const_hit_inv {e : Expr} {c : Name} {us : List Level}
+theorem getAppFn_const_head_inv {e : Expr} {c : Name} {us : List Level}
     (H : ParamUniform heads params ls e) (hfn : e.getAppFn = .const c us) (hc : c ∈ heads) :
     us = ls ∧ ∃ rest, e.getAppArgsList = params ++ rest ∧
       ∀ a ∈ rest, ParamUniform heads params ls a := by
@@ -214,12 +214,12 @@ theorem mkAppList_inv {f : Expr} {args : List Expr}
 theorem const_inv {c : Name} {us : List Level} (H : ParamUniform heads params ls (.const c us)) :
     c ∉ heads ∨ (c ∈ heads ∧ us = ls ∧ params = []) := by
   by_cases hc : c ∈ heads
-  · obtain ⟨hus, rest, hargs, -⟩ := H.getAppFn_const_hit_inv rfl hc
+  · obtain ⟨hus, rest, hargs, -⟩ := H.getAppFn_const_head_inv rfl hc
     rw [getAppArgsList_const] at hargs
     exact .inr ⟨hc, hus, (List.append_eq_nil_iff.1 hargs.symm).1⟩
   · exact .inl hc
 
-private theorem not_hitHead_of_getAppFn {e : Expr} (hfn : ∀ c us, e.getAppFn ≠ .const c us)
+private theorem not_head_of_getAppFn {e : Expr} (hfn : ∀ c us, e.getAppFn ≠ .const c us)
     {c : Name} : e ≠ (Expr.const c ls).mkAppList params := by
   intro he
   have := congrArg Expr.getAppFn he
@@ -232,7 +232,7 @@ theorem lam_inv {n : Name} {t b : Expr} {bi : BinderInfo}
   generalize he : Expr.lam n t b bi = e at H
   cases H with
   | lam ht hb => cases he; exact ⟨ht, hb⟩
-  | head => exact absurd he (not_hitHead_of_getAppFn (by intros; simp [getAppFn]))
+  | head => exact absurd he (not_head_of_getAppFn (by intros; simp [getAppFn]))
   | _ => cases he
 
 theorem forallE_inv {n : Name} {t b : Expr} {bi : BinderInfo}
@@ -241,7 +241,7 @@ theorem forallE_inv {n : Name} {t b : Expr} {bi : BinderInfo}
   generalize he : Expr.forallE n t b bi = e at H
   cases H with
   | forallE ht hb => cases he; exact ⟨ht, hb⟩
-  | head => exact absurd he (not_hitHead_of_getAppFn (by intros; simp [getAppFn]))
+  | head => exact absurd he (not_head_of_getAppFn (by intros; simp [getAppFn]))
   | _ => cases he
 
 theorem letE_inv {n : Name} {t v b : Expr} {nd : Bool}
@@ -250,7 +250,7 @@ theorem letE_inv {n : Name} {t v b : Expr} {nd : Bool}
   generalize he : Expr.letE n t v b nd = e at H
   cases H with
   | letE ht hv hb => cases he; exact ⟨ht, hv, hb⟩
-  | head => exact absurd he (not_hitHead_of_getAppFn (by intros; simp [getAppFn]))
+  | head => exact absurd he (not_head_of_getAppFn (by intros; simp [getAppFn]))
   | _ => cases he
 
 theorem mdata_inv {m : MData} {e : Expr} (H : ParamUniform heads params ls (.mdata m e)) :
@@ -258,7 +258,7 @@ theorem mdata_inv {m : MData} {e : Expr} (H : ParamUniform heads params ls (.mda
   generalize he : Expr.mdata m e = e' at H
   cases H with
   | mdata h => cases he; exact h
-  | head => exact absurd he (not_hitHead_of_getAppFn (by intros; simp [getAppFn]))
+  | head => exact absurd he (not_head_of_getAppFn (by intros; simp [getAppFn]))
   | _ => cases he
 
 theorem proj_inv {s : Name} {i : Nat} {e : Expr} (H : ParamUniform heads params ls (.proj s i e)) :
@@ -266,7 +266,7 @@ theorem proj_inv {s : Name} {i : Nat} {e : Expr} (H : ParamUniform heads params 
   generalize he : Expr.proj s i e = e' at H
   cases H with
   | proj h => cases he; exact h
-  | head => exact absurd he (not_hitHead_of_getAppFn (by intros; simp [getAppFn]))
+  | head => exact absurd he (not_head_of_getAppFn (by intros; simp [getAppFn]))
   | _ => cases he
 
 /-! ### Substitution
@@ -274,7 +274,7 @@ theorem proj_inv {s : Name} {i : Nat} {e : Expr} (H : ParamUniform heads params 
 All of these assume the parameters are fvars (`hp`), so that bound-variable operations fix
 them. -/
 
-private theorem hitHead_map {g : Expr → Expr} (hg : ∀ f a, g (.app f a) = .app (g f) (g a))
+private theorem head_map {g : Expr → Expr} (hg : ∀ f a, g (.app f a) = .app (g f) (g a))
     (hc : ∀ c us, g (.const c us) = .const c us) (hfv : ∀ fv, g (.fvar fv) = .fvar fv)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) (c : Name) :
     g ((Expr.const c ls).mkAppList params) = (Expr.const c ls).mkAppList params := by
@@ -286,7 +286,7 @@ theorem liftLooseBVars' {e : Expr} (H : ParamUniform heads params ls e)
     ParamUniform heads params ls (e.liftLooseBVars' s d) := by
   induction H generalizing s with
   | head hc =>
-    rw [hitHead_map (g := fun e => e.liftLooseBVars' s d) (fun _ _ => rfl) (fun _ _ => rfl)
+    rw [head_map (g := fun e => e.liftLooseBVars' s d) (fun _ _ => rfl) (fun _ _ => rfl)
       (fun _ => rfl) hp]
     exact .head hc
   | app _ _ ihf iha => exact .app (ihf s) (iha s)
@@ -320,7 +320,7 @@ theorem lowerLooseBVars' {e : Expr} (H : ParamUniform heads params ls e)
     have hleaf : ∀ e : Expr, (∀ s' d', Expr.lowerLooseBVars' e s' d' =
         if s' < d' then e else e) → e.lowerLooseBVars' s d = e := fun e h => by
       rw [h]; split <;> rfl
-    rw [hitHead_map (g := fun e => e.lowerLooseBVars' s d) hg
+    rw [head_map (g := fun e => e.lowerLooseBVars' s d) hg
       (fun _ _ => hleaf _ fun _ _ => by unfold Expr.lowerLooseBVars'; split <;> rfl)
       (fun _ => hleaf _ fun _ _ => by unfold Expr.lowerLooseBVars'; split <;> rfl) hp]
     exact .head hc
@@ -361,7 +361,7 @@ theorem instantiate1' {e a : Expr} (H : ParamUniform heads params ls e)
     ParamUniform heads params ls (e.instantiate1' a k) := by
   induction H generalizing k with
   | head hc =>
-    rw [hitHead_map (g := fun e => e.instantiate1' a k) (fun _ _ => rfl) (fun _ _ => rfl)
+    rw [head_map (g := fun e => e.instantiate1' a k) (fun _ _ => rfl) (fun _ _ => rfl)
       (fun _ => rfl) hp]
     exact .head hc
   | app _ _ ihf iha => exact .app (ihf k) (iha k)
@@ -583,7 +583,7 @@ end Lean.LocalDecl
 
 namespace Lean.Expr
 
-private theorem hitShape_go_disjoint {heads : List Name} {params : List Expr} {ls : List Level}
+private theorem paramUniform_go_disjoint {heads : List Name} {params : List Expr} {ls : List Level}
     {isLambda : Bool} {lctx : LocalContext} :
     ∀ {l : List FVarId}, (∀ p ∈ params, ∃ fv, p = .fvar fv ∧ fv ∉ l) →
     (∀ x ∈ l, ∃ d, lctx.find? x = some d ∧ d.ParamUniform heads params ls) →
@@ -598,7 +598,7 @@ private theorem hitShape_go_disjoint {heads : List Name} {params : List Expr} {l
       obtain ⟨fv, rfl, -⟩ := hp p hp''; exact ⟨fv, rfl⟩
     obtain ⟨d, hfind, hd⟩ := hx x (.head _)
     simp only [LocalContext.mkBindingListN.go]
-    refine hitShape_go_disjoint (fun p hp'' => ?_) (fun y hy => hx y (.tail _ hy)) ?_
+    refine paramUniform_go_disjoint (fun p hp'' => ?_) (fun y hy => hx y (.tail _ hy)) ?_
     · obtain ⟨fv, rfl, hfv⟩ := hp p hp''
       exact ⟨fv, rfl, fun h => hfv (.tail _ h)⟩
     · cases d with
@@ -624,7 +624,7 @@ theorem ParamUniform.mkBindingListN_of_disjoint {heads : List Name} {params : Li
     (hdecl : ∀ y ∈ ys, ∃ d, lctx.find? y = some d ∧ d.ParamUniform heads params ls) :
     ParamUniform heads params ls (LocalContext.mkBindingListN isLambda lctx ys b) := by
   simp only [LocalContext.mkBindingListN, LocalContext.mkBindingListN.core]
-  refine hitShape_go_disjoint (fun p hp' => ?_) (fun y hy => hdecl y (List.mem_reverse.1 hy))
+  refine paramUniform_go_disjoint (fun p hp' => ?_) (fun y hy => hdecl y (List.mem_reverse.1 hy))
     (H.abstractN_of_disjoint hp 0)
   obtain ⟨fv, rfl, hfv⟩ := hp p hp'
   exact ⟨fv, rfl, fun h => hfv (List.mem_reverse.1 h)⟩

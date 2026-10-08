@@ -9,7 +9,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Recursors
 restoration environment from a premise `Hshapes` about every fresh recursor
 of that environment. This file discharges `Hshapes` for the exact nested run,
 from the hit shape of the lowered recursor types given by
-`NestedRun.recursorHitShape'`, which needs nothing besides the
+`NestedRun.recursorParamUniform'`, which needs nothing besides the
 run.
 
 The fresh recursors of the stripped environment are exactly the rule-free
@@ -298,11 +298,11 @@ theorem NestedRun.restoredMajorHead {ves : VEnvs}
   by_cases hmem : fam ∈ r.heads.map (·.auxiliary)
   · obtain ⟨nested, hnested⟩ := hfamKey' hmem
     obtain ⟨I0, lsI, hnestedFn⟩ := hnestedHead fam nested hnested
-    have Hshape := (E.recursorHitShape' wf Hsources owner Hstep).1
+    have Hshape := (E.recursorParamUniform' wf Hsources owner Hstep).1
     rw [← hheads] at Hshape
-    obtain ⟨HbodyShape, hsize, -⟩ := Hopen.hitShape_of_lowered Htel Hshape
+    obtain ⟨HbodyShape, hsize, -⟩ := Hopen.paramUniform_of_lowered Htel Hshape
     have HdomShape := HbodyShape.binderAt Hbody
-    obtain ⟨-, rest, hargs, -⟩ := HdomShape.getAppFn_const_hit_inv hold hmem
+    obtain ⟨-, rest, hargs, -⟩ := HdomShape.getAppFn_const_head_inv hold hmem
     have hH : restoreHead result E.loweredEnv Hopen.params fam =
         some ((nested.abstract result.params).instantiateRev Hopen.params) := by
       simp [restoreHead, hnested]
@@ -315,7 +315,7 @@ theorem NestedRun.restoredMajorHead {ves : VEnvs}
       exact A.notRecursor_of_head (by rw [hH]; simp)
     have hnode := restoreNestedNode_eq_of_restoreHead result E.loweredEnv Hopen.params auxRec
       _ hnotrec hold hH (by rw [hargs]; simp; omega)
-    have hout := Hrep.output_of_hit hnode
+    have hout := Hrep.output_of_occurrence hnode
     refine ⟨I0, lsI, ?_, Or.inr ⟨nested, lsI, hnested, hnestedFn⟩⟩
     rw [hout, Expr.getAppFn_mkAppList]
     obtain ⟨xs, hxs⟩ := hparamsFVars
@@ -679,7 +679,7 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
   {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
   {isUnsafe : Bool} {outEnv : Environment}
 
-/-- `restoredRecursorEntries_of_hitShape` for an arbitrary recursor list
+/-- `restoredRecursorEntries_of_paramUniform` for an arbitrary recursor list
 produced by the two restoration folds, before the final assembly shape is
 built: each entry is the abstract restoration of the owner's generated
 recursor. -/
@@ -747,7 +747,7 @@ theorem NestedRun.restoredRecursorEntries_of_steps
   rw [← E.recursorNames_order hnonempty, List.forall₂_map_left_iff] at Hall
   refine Lean4Lean.List.Forall₂.imp ?_ Hall
   rintro owner w ⟨s, t, Hstep, Hw⟩
-  have Hshape := (E.recursorHitShape' wf Hsources owner Hstep).1
+  have Hshape := (E.recursorParamUniform' wf Hsources owner Hstep).1
   rw [← hheads] at Hshape
   exact ⟨E.restoredRecursor_of_step hparamsSize D hscoped owner Hstep rfl Hshape
     Hfresh Hw, s, t, Hstep, Hw⟩
@@ -976,13 +976,13 @@ theorem NestedExpansionData.sourceConstructorNames
 /-! ### Validity of the stripped environment of the exact run -/
 
 /-- **Validity of the stripped-rule restoration environment** of the exact
-nested run, from the hit shape of `recursorHitShape'` and the
+nested run, from the hit shape of `recursorParamUniform'` and the
 executable fact that lowering recorded a nested occurrence (`hnested`, the
 condition under which `addInductiveAfterLowering` restores at all). The
 remaining arguments are those of `finalValidOfStaged_of_shapes`, together
 with the two restoration traces from which the staged recursor list is
 built. -/
-theorem NestedRun.finalValidOfStaged_of_hitShape
+theorem NestedRun.finalValidOfStaged_of_paramUniform
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}

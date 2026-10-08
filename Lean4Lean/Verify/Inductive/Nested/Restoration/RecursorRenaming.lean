@@ -425,7 +425,7 @@ theorem avoidsRestorable_of_partial {r : Restoration} {X : List Name}
   · exact .inl (by simp [hn, hnX])
 
 /-- The hit case of `restorationCommutesTrail`. -/
-theorem restorationCommutesTrail_hit
+theorem restorationCommutesTrail_paramUniform
     {r : Restoration} {result : Lean4Lean.ElimNestedInductive.Result}
     {env : Environment} {auxRec : NameMap Name} {sourceEnv targetEnv : VEnv}
     {Us : List Name} {auxLevels : List Level} {As : Array Expr}
@@ -442,7 +442,7 @@ theorem restorationCommutesTrail_hit
     (Hs : TrExprS sourceEnv Us Δs e s)
     (Ht : TrExprS targetEnv Us Δt (e.replace (result.restoreNestedNode env As auxRec)) t) :
     r.expr s = some t := by
-  obtain ⟨hus, rest, hargs, -⟩ := Hshape.getAppFn_const_hit_inv hfn hmem
+  obtain ⟨hus, rest, hargs, -⟩ := Hshape.getAppFn_const_head_inv hfn hmem
   subst us
   have hAsLen : As.toList.length = result.nparams := by simpa using hsize
   have hrestX : ∀ a ∈ rest, a.AvoidsConsts X := by
@@ -531,7 +531,7 @@ theorem restorationCommutesTrail
     | sort h' => cases h.symm.trans h'; rfl
   | @const c _ _ _ us hcs hls hlen =>
     by_cases hmem : c ∈ r.heads.map (·.auxiliary)
-    · exact restorationCommutesTrail_hit A hc HAs hsize Hfresh rfl hmem Hshape Htrail Hctx
+    · exact restorationCommutesTrail_paramUniform A hc HAs hsize Hfresh rfl hmem Hshape Htrail Hctx
         (.const hcs hls hlen) Ht
     · have hnone := A.restoreHead_eq_none (As := As) hmem
       cases hrec : auxRec.find? c with
@@ -561,7 +561,7 @@ theorem restorationCommutesTrail
     by_cases hhit : ∃ c us, (Expr.app f a).getAppFn = .const c us ∧
         c ∈ r.heads.map (·.auxiliary)
     · obtain ⟨c, us, hfn, hmem⟩ := hhit
-      exact restorationCommutesTrail_hit A hc HAs hsize Hfresh hfn hmem Hshape Htrail Hctx
+      exact restorationCommutesTrail_paramUniform A hc HAs hsize Hfresh hfn hmem Hshape Htrail Hctx
         (.app h1 h2 hf ha) Ht
     · have hnot : ∀ c us, f.getAppFn = .const c us → c ∉ r.heads.map (·.auxiliary) :=
         fun c us hfn hmem => hhit ⟨c, us, by simpa [Expr.getAppFn] using hfn, hmem⟩
@@ -819,7 +819,7 @@ theorem NestedRun.restoredRuleRhs_of_trail
   have Hrule := Hstep.restored.restoration.rules.entry j hjOld hj
   rcases Hrule.rhs.opening hparamsSize with ⟨Hopen⟩
   -- the telescope
-  have Hshape := (E.recursorHitShape' wf Hsources owner Hstep).2 _ (List.getElem_mem hjOld)
+  have Hshape := (E.recursorParamUniform' wf Hsources owner Hstep).2 _ (List.getElem_mem hjOld)
   rw [← hheads] at Hshape
   have hnp : result.nparams = P.generationSignature.params.length := by
     rw [← E.statsParamsSize]; exact P.params_size_eq
@@ -866,7 +866,7 @@ theorem NestedRun.restoredRuleRhs_of_trail
     simpa [VLCtx.bvars] using Hs.closed
   have Hinput : (Hstep.oldInfo.rules[j]'hjOld).rhs.FVarsIn fun _ => False :=
     Hs.fvarsIn.mono fun _ h => by simp [VLCtx.fvars] at h
-  have HbodyShape := Hopen.hitShape_of_lowered_lam Htel ⟨body, Hlead, HB⟩
+  have HbodyShape := Hopen.paramUniform_of_lowered_lam Htel ⟨body, Hlead, HB⟩
   have hrestored := Hopen.restoredBody_closed_lam D Htel
     (by simpa using Htel.closed_result' hclosed)
   have Ht' : TrExprS trEnv Hstep.oldInfo.levelParams []

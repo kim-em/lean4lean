@@ -261,7 +261,7 @@ theorem RestorationMapAgreement.restoreHead_eq_none
 
 /-- The hit case of `restorationCommutes'`: a node whose application head is
 a restoration head. -/
-theorem restorationCommutes'_hit
+theorem restorationCommutes'_paramUniform
     {r : Restoration} {result : Lean4Lean.ElimNestedInductive.Result}
     {env : Environment} {auxRec : NameMap Name} {sourceEnv targetEnv : VEnv}
     {Us : List Name} {auxLevels : List Level} {As : Array Expr}
@@ -276,7 +276,7 @@ theorem restorationCommutes'_hit
     (Hs : TrExprS sourceEnv Us Δs e s)
     (Ht : TrExprS targetEnv Us Δt (e.replace (result.restoreNestedNode env As auxRec)) t) :
     r.expr s = some t := by
-  obtain ⟨hus, rest, hargs, -⟩ := Hshape.getAppFn_const_hit_inv hfn hmem
+  obtain ⟨hus, rest, hargs, -⟩ := Hshape.getAppFn_const_head_inv hfn hmem
   subst us
   have hhead : restoreHead result env As c ≠ none :=
     (A.restoreHead_ne_none_iff As c).mpr hmem
@@ -358,7 +358,7 @@ theorem restorationCommutes'
     | sort h' => cases h.symm.trans h'; rfl
   | @const c _ _ _ us hcs hls hlen =>
     by_cases hmem : c ∈ r.heads.map (·.auxiliary)
-    · exact restorationCommutes'_hit A hc HAs hsize Hfresh rfl hmem Hshape Hctx
+    · exact restorationCommutes'_paramUniform A hc HAs hsize Hfresh rfl hmem Hshape Hctx
         (.const hcs hls hlen) Ht
     · have hnone := A.restoreHead_eq_none (As := As) hmem
       cases hrec : auxRec.find? c with
@@ -388,7 +388,7 @@ theorem restorationCommutes'
     by_cases hhit : ∃ c us, (Expr.app f a).getAppFn = .const c us ∧
         c ∈ r.heads.map (·.auxiliary)
     · obtain ⟨c, us, hfn, hmem⟩ := hhit
-      exact restorationCommutes'_hit A hc HAs hsize Hfresh hfn hmem Hshape Hctx
+      exact restorationCommutes'_paramUniform A hc HAs hsize Hfresh hfn hmem Hshape Hctx
         (.app h1 h2 hf ha) Ht
     · have hnot : ∀ c us, f.getAppFn = .const c us → c ∉ r.heads.map (·.auxiliary) :=
         fun c us hfn hmem => hhit ⟨c, us, by simpa [Expr.getAppFn] using hfn, hmem⟩
@@ -506,7 +506,7 @@ theorem Expr.ForallTelescope.leadingBinders_eq {e suffix body : Expr} {n : Nat}
 
 /-- **Hit shape of every opening** of a stored term whose parameter telescope
 is in bound-variable hit shape (replaces `restoreReady_of_lowered`). -/
-theorem NestedRestorationOpening.hitShape_of_lowered
+theorem NestedRestorationOpening.paramUniform_of_lowered
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {heads : List Name} {auxLevels : List Level}
     {input output suffix : Expr}
@@ -605,7 +605,7 @@ theorem NestedRestoration.restorationCommutes'
     (Hs : TrExprS sourceEnv Us [] input s) (Ht : TrExprS targetEnv Us [] output t) :
     r.expr s = some t := by
   rcases H.opening hparams with ⟨Hopen⟩
-  exact Hopen.restorationCommutes' A hc Hfresh (Hopen.hitShape_of_lowered Htel Hshape).1
+  exact Hopen.restorationCommutes' A hc Hfresh (Hopen.paramUniform_of_lowered Htel Hshape).1
     Htel Hinput hclosed (Hclosed Hopen) Hs Ht
 
 /-- The restored recursor type is the abstract restoration of the lowered

@@ -141,9 +141,9 @@ theorem Methods.withFuel.WF : ∀ {n}, (withFuel n).WF
       whnfCore_levels _ := .throw
       whnf_levels _ := .throw
       inferType_levels _ _ := .throw
-      whnfCore_hit _ := .throw
-      whnf_hit _ := .throw
-      inferType_hit _ := .throw
+      whnfCore_paramUniform _ := .throw
+      whnf_paramUniform _ := .throw
+      inferType_paramUniform _ := .throw
       whnfCore_const := .throw
       whnf_forall_eq := .throw }
   | n + 1 =>
@@ -157,9 +157,9 @@ theorem Methods.withFuel.WF : ∀ {n}, (withFuel n).WF
       whnfCore_levels h1 := whnfCore'.WF_levels h1 _ this
       whnf_levels h1 := whnf'.WF_levels h1 _ this
       inferType_levels h1 h2 := inferType'.WF_levels h1 h2 _ this
-      whnfCore_hit h1 := whnfCore'.WF_hit h1 _ this
-      whnf_hit h1 := whnf'.WF_hit h1 _ this
-      inferType_hit h1 := inferType'.WF_hit h1 _ this
+      whnfCore_paramUniform h1 := whnfCore'.WF_paramUniform h1 _ this
+      whnf_paramUniform h1 := whnf'.WF_paramUniform h1 _ this
+      inferType_paramUniform h1 := inferType'.WF_paramUniform h1 _ this
       whnfCore_const := by intro _ _ cp _ _; exact whnfCore'.WF_const (cheapProj := cp) _ this
       whnf_forall_eq := whnf'.WF_forall _ this }
 
@@ -248,9 +248,9 @@ theorem VState.WF.empty1 {env : Environment} {safety : DefinitionSafety} {venv :
   inferTypeC_levels := .empty
   whnfCore_levels := .empty
   whnf_levels := .empty
-  whnfCore_hit := .empty
-  whnf_hit := .empty
-  inferTypeI_hit := .empty
+  whnfCore_paramUniform := .empty
+  whnf_paramUniform := .empty
+  inferTypeI_paramUniform := .empty
 
 theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
     {trenv : CheckingEnv safety env venv} {hasPrimitives : venv.HasPrimitives}
@@ -275,9 +275,9 @@ theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
   inferTypeC_levels := .empty
   whnfCore_levels := .empty
   whnf_levels := .empty
-  whnfCore_hit := .empty
-  whnf_hit := .empty
-  inferTypeI_hit := .empty
+  whnfCore_paramUniform := .empty
+  whnf_paramUniform := .empty
+  inferTypeI_paramUniform := .empty
 
 theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}
@@ -298,9 +298,9 @@ theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
   inferTypeC_levels := .empty
   whnfCore_levels := .empty
   whnf_levels := .empty
-  whnfCore_hit := .empty
-  whnf_hit := .empty
-  inferTypeI_hit := .empty
+  whnfCore_paramUniform := .empty
+  whnf_paramUniform := .empty
+  inferTypeI_paramUniform := .empty
 
 theorem VState.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WFCore env}
     {safety : DefinitionSafety} {lparams : List Name} {fuel : FuelConfig}

@@ -283,7 +283,7 @@ theorem NestedRun.hruleShape_of_base
     (E.finalBaseVEnv_restorableNames_fresh_of_not_renamed wf Hsources B hB D')
   have HL := E.loweredRulesAvoid_renamed wf Hsources Haux Hexpansion D'
   -- the restored generated equations
-  have hrecs := E.restoredRecursorList_of_hitShape B hB wf Hsources hadded Haux Hexpansion
+  have hrecs := E.restoredRecursorList_of_paramUniform B hB wf Hsources hadded Haux Hexpansion
     hnodup hparamsSize D' hscoped
   have hrecTypes : ∀ owner, ∃ t, (compilationRestoration sourceDecl aux').expr
       (E.lowered.generatedInstance.recursorType owner) = some t := by

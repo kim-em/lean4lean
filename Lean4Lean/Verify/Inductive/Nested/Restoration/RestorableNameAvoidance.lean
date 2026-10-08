@@ -17,11 +17,11 @@ container constructor names with the container prefix replaced by
   any head list, literals, parameter domains). The recursor names are fresh
   in the recursor-pass environment (`auxRecNames_fresh_ctorEnv`: the
   recursor installation adds them), so the hit-shape invariant holds at them
-  at every level list (`envHitShape_auxRecNames`); the trailing provenance
+  at every level list (`envParamUniform_auxRecNames`); the trailing provenance
   chain `ruleRhsTrail` admits the recursor names (their occurrences in the
   rules are the heads of the recursive calls), and running it at two
   different level lists excludes them from trailing positions
-  (`TrailingArgs.toHitTrailAvoids_two`).
+  (`TrailingArgs.toTrailingArgsAvoid_two`).
 * `NestedRun.loweredRules_projsOK`: the lowered rules project
   out of no restorable name. The projection condition of the hit-shape chain
   (`RecursorConstruction.ruleRhsProjsOK`) excludes the auxiliary
@@ -41,7 +41,7 @@ namespace Lean.Expr
 open Lean4Lean
 
 /-- **Two trailing hit shapes at different levels give trailing avoidance.** -/
-theorem TrailingArgs.toHitTrailAvoids_two {heads names X : List Name} {np : Nat}
+theorem TrailingArgs.toTrailingArgsAvoid_two {heads names X : List Name} {np : Nat}
     {ls ls' : List Level} {e : Expr}
     (H : TrailingArgs heads np (ParamUniform names [] ls) e)
     (H' : TrailingArgs heads np (ParamUniform names [] ls') e)
@@ -296,10 +296,10 @@ theorem blueprintProjsOK {heads : List Name} (I : H.ParamUniformDeclarations hea
     rwa [F.traversal_stats, F.traversal_constructor] at this
   have hctorMem : S.constructor ∈ indTypes[owner]!.ctors := by
     rw [← hsourceCtors]; exact List.mem_of_getElem? S.sourceConstructor
-  have Htail := Hprefix.hitOK H.params.expressions
+  have Htail := Hprefix.paramUniformIn H.params.expressions
     (I.constructorTypes owner hsourceOwner _ hctorMem).1
     (I.constructorTypes owner hsourceOwner _ hctorMem).2
-  obtain ⟨-, hfieldsTerm⟩ := F.traversal.decisions.hitOK Hroot hp Htail
+  obtain ⟨-, hfieldsTerm⟩ := F.traversal.decisions.paramUniformIn Hroot hp Htail
   rw [F.traversal_fields] at hfieldsTerm
   have hfieldDecls : ∀ y ∈ S.fields_bound.fvars, ∃ d,
       S.sourceFullContext.lctx.find? y = some d ∧
@@ -567,17 +567,17 @@ theorem NestedRun.auxRecNames_fresh_headerVEnv
       (wf.tr (safety := if isUnsafe then .unsafe else .safe)).find?_iff.2 ⟨ci, hv⟩
     rw [E.auxRecNames_fresh_source wf n hn] at hfind; cases hfind
 
-theorem hitPrimNames_not_reserved : ∀ n ∈ checkerPrimNames, (`_nested).isPrefixOf n = false := by
+theorem checkerPrimNames_not_reserved : ∀ n ∈ checkerPrimNames, (`_nested).isPrefixOf n = false := by
   decide
 
-theorem hitStrNames_not_reserved : ∀ n ∈ strLitNames, (`_nested).isPrefixOf n = false := by
+theorem strLitNames_not_reserved : ∀ n ∈ strLitNames, (`_nested).isPrefixOf n = false := by
   decide
 
 /-- **The environment condition of the hit-shape invariant at the lowered
 recursor names**, without parameters, at any level list: the lowered
 recursor names are not constants of the recursor-pass environment, and no
 constant's type, value or rule mentions them. -/
-theorem NestedRun.envHitShape_auxRecNames
+theorem NestedRun.envParamUniform_auxRecNames
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
@@ -629,11 +629,11 @@ theorem NestedRun.envHitShape_auxRecNames
   case prims =>
     intro n hn hmem
     have h1 := hreserved n hmem
-    rw [hitPrimNames_not_reserved n hn] at h1; cases h1
+    rw [checkerPrimNames_not_reserved n hn] at h1; cases h1
   case strs =>
     intro _ n hn hmem
     have h1 := hreserved n hmem
-    rw [hitStrNames_not_reserved n hn] at h1; cases h1
+    rw [strLitNames_not_reserved n hn] at h1; cases h1
   case type_avoids =>
     intro n ci h _
     rcases horigin h with hold | ⟨indType, hmem, info, rfl, rfl, htype, -⟩ |
@@ -756,7 +756,7 @@ theorem NestedRun.trailInputs_auxRecNames
       obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, hlookup, -⟩ :=
         (wf.tr (safety := sf)).wf.ordered.projectionShape h
       obtain ⟨ci, hci, -⟩ := (wf.tr (safety := sf)).find?_iff.2 ⟨_, hlookup⟩
-      exact projHitOK_of_old wf hpres hfresh hci
+      exact projParamUniformIn_of_old wf hpres hfresh hci
   · intro i hi
     obtain ⟨e', htr⟩ := E.familyType_tr (hmem i hi)
     exact ⟨avoids_of_tr wf hfresh _ htr,
@@ -794,7 +794,7 @@ theorem badLevels_ne_badLevels₂ (lparams : List Name) : foreignLevels lparams 
 rules.** The trailing provenance chain runs at the lowered recursor names
 without parameters at two different level lists (`foreignLevels`, `badLevels₂`):
 the recursor-pass environment does not contain them and no constant mentions
-them (`envHitShape_auxRecNames`), and the recursive calls put the recursors
+them (`envParamUniform_auxRecNames`), and the recursive calls put the recursors
 only at spine heads (`TrailingArgs.instantiate1'_argClosed`). The trailing
 arguments mention them only at both level lists, hence not at all. -/
 theorem NestedRun.loweredRulesAvoid_auxRecNames
@@ -817,7 +817,7 @@ theorem NestedRun.loweredRulesAvoid_auxRecNames
     intro ls
     refine .of_env ?_ (fun a ha => by simp at ha)
     rw [E.recursorPassEnv]
-    exact E.envHitShape_auxRecNames wf Hsources ls
+    exact E.envParamUniform_auxRecNames wf Hsources ls
   obtain ⟨HT, HL⟩ := C.toRecursorConstruction.ruleRhsTrail
     (E.trailInputs_auxRecNames wf Hsources (foreignLevels lparams)) (W _)
     heads result.nparams owner.val howner
@@ -830,7 +830,7 @@ theorem NestedRun.loweredRulesAvoid_auxRecNames
   rw [hsize] at HL
   have hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts E.auxRecNames :=
     avoidsConsts_lit_of_reserved (E.auxRecNames_reserved wf Hsources)
-  exact ⟨HT.toHitTrailAvoids_two HT' (badLevels_ne_badLevels₂ lparams) (fun _ h => h) hlit, HL⟩
+  exact ⟨HT.toTrailingArgsAvoid_two HT' (badLevels_ne_badLevels₂ lparams) (fun _ h => h) hlit, HL⟩
 
 /-- A lockstep installation of constants registers no projection. -/
 theorem AddConstants.projections_eq {safety : DefinitionSafety} {env : Environment}
@@ -872,14 +872,14 @@ theorem NestedRun.loweredRules_projsOK
   have hrule' : rule ∈ (P.generated.entry owner.val hi).info.rules := by
     rw [hinfo]; exact hrule
   -- the projection condition of the hit-shape chain
-  have W := E.whnfHitOKFacts wf Hsources
+  have W := E.whnfPreservesParamUniform wf Hsources
   rw [← E.statsLevels] at W
   have h1 : rule.rhs.ProjsOK (projAvoidsHeads P.localContext.env E.uniformHeads) := by
     have hr := hrule'
     rw [(P.generated.entry owner.val hi).rules_eq] at hr
     simp only [List.mem_map] at hr
     obtain ⟨blueprint, hmem, rfl⟩ := hr
-    exact P.toRecursorConstruction.ruleRhsProjsOK (E.hitShapeInputs_of wf Hsources)
+    exact P.toRecursorConstruction.ruleRhsProjsOK (E.paramUniformDeclarations_of wf Hsources)
       W owner.val howner _ blueprint hmem
   -- registration of the projected structures
   obtain ⟨j, hj, hjrule⟩ := List.mem_iff_getElem.1 hrule'
@@ -901,7 +901,7 @@ theorem NestedRun.loweredRules_projsOK
       simp only [Restoration.restorableNames, List.mem_append, hheadNames,
         compilationRestoration_recursors_fst, List.mem_map] at hmem
       rcases hmem with hmem | ⟨a, ha, hname⟩
-      · exact hhit.1 (E.auxHeads_subset_hitHeads _ hmem)
+      · exact hhit.1 (E.auxHeads_subset_uniformHeads _ hmem)
       · obtain ⟨g, hg, hev⟩ := Lean4Lean.List.Forall₂.forall_exists_l Haux a ha
         obtain ⟨t', ht', hexp⟩ := Lean4Lean.List.Forall₂.forall_exists_l Hexpansion g hg
         have h1 : t.name ∈ familyNames E.lowered.loweredDecl.types :=

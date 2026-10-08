@@ -166,10 +166,8 @@ open Lean4Lean
 
 /-! ### Application spines -/
 
--- Kept for `Lean4Lean/Verify/TypeChecker/InferType.lean`.
-alias getAppFn_mkAppList_hit := getAppFn_mkAppList
 
-@[simp] theorem getAppFn_getAppFn_hit (e : Expr) : e.getAppFn.getAppFn = e.getAppFn := by
+@[simp] theorem getAppFn_getAppFn (e : Expr) : e.getAppFn.getAppFn = e.getAppFn := by
   induction e <;> simp_all [getAppFn]
 
 theorem instantiateList_eq_self_of_closed {e : Expr} {L : List Expr} {k : Nat}
@@ -210,7 +208,7 @@ theorem of_mem_getAppArgsList {e a : Expr} (H : ParamUniform heads params ls e)
     ParamUniform heads params ls a := by
   by_cases hhit : ∃ c us, e.getAppFn = .const c us ∧ c ∈ heads
   · obtain ⟨c, us, hfn, hc⟩ := hhit
-    obtain ⟨-, rest, hargs, hrest⟩ := H.getAppFn_const_hit_inv hfn hc
+    obtain ⟨-, rest, hargs, hrest⟩ := H.getAppFn_const_head_inv hfn hc
     rw [hargs] at ha
     rcases List.mem_append.1 ha with ha | ha
     · obtain ⟨fv, rfl⟩ := hp a ha; exact .fvar _
@@ -219,7 +217,7 @@ theorem of_mem_getAppArgsList {e a : Expr} (H : ParamUniform heads params ls e)
     refine (H.mkAppList_inv fun c us h hc => hhit ⟨c, us, ?_, hc⟩).2 a ha
     simpa using h
 
-theorem getAppFn_of_not_hit {e : Expr} (H : ParamUniform heads params ls e)
+theorem getAppFn_of_not_head {e : Expr} (H : ParamUniform heads params ls e)
     (hnot : ∀ c us, e.getAppFn = .const c us → c ∉ heads) :
     ParamUniform heads params ls e.getAppFn := by
   rw [← e.mkAppList_getAppArgsList] at H
@@ -588,9 +586,9 @@ theorem betaReduce (B : BetaReduce e e') (H : ParamUniformIn env heads As ls e) 
     ParamUniformIn env heads As ls e' := ⟨H.1.betaReduce B hp, H.2.betaReduce B⟩
 
 omit hp in
-theorem getAppFn_of_not_hit (H : ParamUniformIn env heads As ls e)
+theorem getAppFn_of_not_head (H : ParamUniformIn env heads As ls e)
     (hnot : ∀ c us, e.getAppFn = .const c us → c ∉ heads) :
-    ParamUniformIn env heads As ls e.getAppFn := ⟨H.1.getAppFn_of_not_hit hnot, H.2.getAppFn⟩
+    ParamUniformIn env heads As ls e.getAppFn := ⟨H.1.getAppFn_of_not_head hnot, H.2.getAppFn⟩
 
 omit hp in
 theorem mkAppList (hf : ParamUniformIn env heads As ls f) (hargs : ∀ a ∈ args, ParamUniformIn env heads As ls a) :
@@ -713,7 +711,7 @@ end Lean.Expr
 
 namespace Lean.Expr
 open Lean4Lean
-theorem IsNatResult.hitOK {env : Lean.Kernel.Environment} {heads : List Name} {As : List Expr}
+theorem IsNatResult.paramUniformIn {env : Lean.Kernel.Environment} {heads : List Name} {As : List Expr}
     {ls : List Level} {nparams} (H : EnvParamUniform env heads nparams ls) {e : Expr}
     (h : IsNatResult e) : e.ParamUniformIn env heads As ls := by
   rcases h with ⟨n, rfl⟩ | rfl | rfl
@@ -801,14 +799,12 @@ end Lean.Expr
 namespace Lean.Expr
 open Lean4Lean
 
--- Kept for `Lean4Lean/Verify/TypeChecker/InferType.lean`.
-alias getAppArgsList_mkAppList_hit := getAppArgsList_mkAppList
 
-theorem getAppArgsList_mkAppRevList_hit (f : Expr) (l : List Expr) :
+theorem getAppArgsList_mkAppRevList (f : Expr) (l : List Expr) :
     (f.mkAppRevList l).getAppArgsList = f.getAppArgsList ++ l.reverse := by
   rw [← mkAppList_reverse, getAppArgsList_mkAppList]
 
-theorem getAppFn_mkAppRevList_hit (f : Expr) (l : List Expr) :
+theorem getAppFn_mkAppRevList (f : Expr) (l : List Expr) :
     (f.mkAppRevList l).getAppFn = f.getAppFn := by
   rw [← mkAppList_reverse, getAppFn_mkAppList]
 
