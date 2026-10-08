@@ -97,7 +97,7 @@ theorem SourceFamilyTranslations.sourceIotaOfRules
 /-! ### Building the auxiliary rule facts -/
 
 /-- The guarded-rule and well-formedness facts of the auxiliary recursors
-(`AuxiliaryRecursorsGuardedRules`, `RestoredAuxiliaryRecursorsWF`) over rule-free
+(`AuxiliaryRecursorRuleBatches`, `RestoredAuxiliaryRecursorsWF`) over rule-free
 auxiliary recursor translations, for any block: the added rules need only the
 right per-step counts and be well formed. -/
 theorem AuxiliaryRecursorTranslations.shapeWF
@@ -111,7 +111,7 @@ theorem AuxiliaryRecursorTranslations.shapeWF
     {priorRecursors finalRecursors : List VConstVal}
     (H : AuxiliaryRecursorTranslations safety trEnv recursorEnv Htrace
       priorRecursors finalRecursors)
-    (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType) (ruleEnv : VEnv)
+    (ruleEnv : VEnv)
     {counts : List Nat}
     (Hc : List.Forall₂ (fun (name : Name) (c : Nat) =>
       ∀ (s t : Environment) (Hstep : RestoredRecursorStep result loweredEnv auxRec
@@ -120,9 +120,9 @@ theorem AuxiliaryRecursorTranslations.shapeWF
     (hfinal : finalRules = priorRules ++ added)
     (hlen : added.length = counts.sum)
     (Hwf : ∀ rule ∈ added, rule.WF ruleEnv) :
-    ∃ Hsemantic : AuxiliaryRecursorsGuardedRules decl block main safety trEnv Htrace
+    ∃ Hsemantic : AuxiliaryRecursorRuleBatches safety trEnv Htrace
         priorRecursors priorRules finalRecursors finalRules,
-      RestoredAuxiliaryRecursorsWF decl block main safety trEnv recursorEnv ruleEnv
+      RestoredAuxiliaryRecursorsWF safety trEnv recursorEnv ruleEnv
         Hsemantic priorRecursors priorRules finalRecursors finalRules :=
   match H, Hc with
   | .nil sourceEnv recursors, .nil => by
@@ -135,15 +135,14 @@ theorem AuxiliaryRecursorTranslations.shapeWF
     have hm := hc _ _ Hstep
     simp only [List.sum_cons] at hlen
     let m := Hstep.restored.newInfo.rules.length
-    let Hsemantic : AuxiliaryRecursorGuardedRules decl block main safety trEnv Hstep
-        priorRecursors := {
+    let Hsemantic : AuxiliaryRecursorRuleBatch safety trEnv Hstep := {
       recursor := Hhead.recursor
       rules := added.take m
       translated := Hhead.translated
       rulesLength := by
         rw [List.length_take]
         omega }
-    obtain ⟨Hrest', Hfinal'⟩ := Hrest.shapeWF decl block main ruleEnv Hc
+    obtain ⟨Hrest', Hfinal'⟩ := Hrest.shapeWF ruleEnv Hc
       (priorRules ++ added.take m) (added.drop m) finalRules
       (by rw [hfinal, List.append_assoc, List.take_append_drop])
       (by simp only [List.length_drop]; omega)
@@ -186,15 +185,13 @@ noncomputable def RestoredBlockBase.withRules
     (hauxLen : auxiliaryRules.length = counts.sum)
     (Hwf : ∀ rule ∈ auxiliaryRules, rule.WF B.recursorVEnv) :
     RestoredBlockDerivation H sourceEnv decl lparams nparams isUnsafe safety :=
-  have Haux := B.auxiliaryRecursorTrace.shapeWF decl
-    (restoredBlock decl B.sourceRecursors B.auxiliaryRecursors
-      primaryRules auxiliaryRules) B.main B.recursorVEnv hauxCounts [] auxiliaryRules
+  have Haux := B.auxiliaryRecursorTrace.shapeWF B.recursorVEnv hauxCounts [] auxiliaryRules
     auxiliaryRules (by simp) hauxLen Hwf
   { toRestoredBlockBase := B
     sourceRules := primaryRules
     auxiliaryRules := auxiliaryRules
     sourceIota := B.sourceTranslations.sourceIotaOfRules B.lowered hcount Hprimary
-    auxiliaryGuarded := Haux.elim fun Hsemantic _ => Hsemantic
+    auxiliaryRuleBatches := Haux.elim fun Hsemantic _ => Hsemantic
     auxiliaryWF := Haux.elim fun _ HWF => HWF }
 
 theorem RestoredBlockBase.withRules_toBase

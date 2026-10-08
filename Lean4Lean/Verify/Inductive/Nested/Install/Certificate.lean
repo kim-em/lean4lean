@@ -260,15 +260,11 @@ structure RestoredBlockDerivation
     (restoredShapeBlock decl sourceRecursors auxiliaryRecursors)
       recursorVEnv lowered sourceTranslations
       (main :: rest) sourceRules
-  auxiliaryGuarded : AuxiliaryRecursorsGuardedRules decl
-    (restoredBlock decl sourceRecursors auxiliaryRecursors
-      sourceRules auxiliaryRules) main safety ((install.venvCtors.addEliminators install.eliminators).addProjections decl.projectionEntries) H.auxiliaries
+  auxiliaryRuleBatches : AuxiliaryRecursorRuleBatches safety ((install.venvCtors.addEliminators install.eliminators).addProjections decl.projectionEntries) H.auxiliaries
       [] [] auxiliaryRecursors auxiliaryRules
-  auxiliaryWF : RestoredAuxiliaryRecursorsWF decl
-    (restoredBlock decl sourceRecursors auxiliaryRecursors
-      sourceRules auxiliaryRules) main safety ((install.venvCtors.addEliminators install.eliminators).addProjections decl.projectionEntries)
+  auxiliaryWF : RestoredAuxiliaryRecursorsWF safety ((install.venvCtors.addEliminators install.eliminators).addProjections decl.projectionEntries)
       ((install.venvCtors.addEliminators install.eliminators).addProjections decl.projectionEntries)
-      recursorVEnv auxiliaryGuarded [] [] auxiliaryRecursors auxiliaryRules
+      recursorVEnv auxiliaryRuleBatches [] [] auxiliaryRecursors auxiliaryRules
 
 /-- A restored block derivation coerces to its rule-independent base. -/
 instance
@@ -328,15 +324,11 @@ structure NestedFinalAssemblyRemainder
       actualEntries ~
         (typeEntries ++ constructorEntries ++ recursorEntries).map Prod.fst
   sourceMapWF : sourceProdEnv.constants.WF
-  auxiliaryTyping : AuxiliaryRecursorsGuardedRules decl
-    (restoredBlock decl primaryRecursors auxiliaryRecursors
-      primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.auxiliaries
+  auxiliaryTyping : AuxiliaryRecursorRuleBatches safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.auxiliaries
       [] [] auxiliaryRecursors auxiliaryRules
   recursorValues : recursorEntries.map Prod.snd =
     primaryRecursors ++ auxiliaryRecursors
-  auxiliaryWF : RestoredAuxiliaryRecursorsWF decl
-    (restoredBlock decl primaryRecursors auxiliaryRecursors
-      primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
+  auxiliaryWF : RestoredAuxiliaryRecursorsWF safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
       ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
       finalBaseVEnv auxiliaryTyping [] [] auxiliaryRecursors auxiliaryRules
 
@@ -417,7 +409,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
   sourceTranslations := Hsource
   auxiliaryRecursorTrace := HauxiliaryRecursors
   sourceIota := Hprimary
-  auxiliaryGuarded := R.auxiliaryTyping
+  auxiliaryRuleBatches := R.auxiliaryTyping
   typeValues := htypeValues
   constructorValues := hconstructorValues
   recursorValues := R.recursorValues

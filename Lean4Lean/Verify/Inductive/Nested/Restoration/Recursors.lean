@@ -7,7 +7,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Whnf
 The recursor entries of `restoredBlock` are the translations of the
 restored recursors of the executable restoration folds: the source recursors
 selected by the source family translations (`SourceFamilyTranslations`), then the
-auxiliary recursors selected by the auxiliary fold (`AuxiliaryRecursorsGuardedRules`).
+auxiliary recursors selected by the auxiliary fold (`AuxiliaryRecursorRuleBatches`).
 Each of these is the abstract restoration
 (`Restoration.recursor`) of the generated recursor of the same owner, so the
 `recursors` field of `NestedCompilationRestorationFacts` holds. -/
@@ -428,16 +428,16 @@ theorem SourceFamilyTranslations.recursorSteps
     · rw [Hstep.restored.recursor.restored.restoration.levelParams]
       exact Hrecursor.type
 
-/-- The auxiliary recursors of `AuxiliaryRecursorsGuardedRules`, one per restored
+/-- The auxiliary recursors of `AuxiliaryRecursorRuleBatches`, one per restored
 recursor name, each the translation of the restored recursor at that name. -/
-theorem AuxiliaryRecursorsGuardedRules.recursorSteps
+theorem AuxiliaryRecursorRuleBatches.recursorSteps
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {auxRec : NameMap Name} {allIndNames : List Name}
     {names : List Name} {sourceEnv targetEnv : Environment}
     {Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv}
-    (H : AuxiliaryRecursorsGuardedRules decl block main safety trEnv Htrace
+    (H : AuxiliaryRecursorRuleBatches safety trEnv Htrace
       priorRecursors priorRules finalRecursors finalRules) :
     ∃ added, finalRecursors = priorRecursors ++ added ∧
       List.Forall₂ (fun (name : Name) (w : VConstVal) =>
