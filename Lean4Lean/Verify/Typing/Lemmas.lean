@@ -899,6 +899,22 @@ theorem VLCtx.IsDefEq.defeqCtx : VLCtx.IsDefEq env U Δ₁ Δ₂ → env.IsDefEq
   | .cons h1 _ (.vlam h2) => .succ h1.defeqCtx h2
   | .cons h1 _ (.vlet ..) => h1.defeqCtx
 
+/-- A conversion between ordinary typing contexts induces a conversion
+between their completely anonymous verifier contexts. -/
+theorem VLCtx.IsDefEq.ofDefEqCtxAnonymous
+    (H : VEnv.IsDefEqCtx env U [] left right) :
+    VLCtx.IsDefEq env U
+      (left.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl))
+      (right.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) := by
+  induction H with
+  | zero => exact .nil
+  | succ H Htype ih =>
+    exact .cons ih (by simp) (.vlam (by simpa using Htype))
+
 theorem VLCtx.IsDefEq.fvars : VLCtx.IsDefEq env U Δ₁ Δ₂ → Δ₁.fvars = Δ₂.fvars
   | .nil => by simp
   | .cons (ofv := none) h1 h2 _ => h1.fvars
@@ -1836,6 +1852,29 @@ theorem TrExprS.unique' (hΔ : IsUniqueCtx Δ₁ Δ₂) (H : IsUnique e)
 
 theorem TrExprS.unique (H : IsUnique e)
     (H1 : TrExprS env Us Δ e e₁) (H2 : TrExprS env Us Δ e e₂) : e₁ = e₂ := H1.unique' .base H H2
+
+/-- Translation is syntactically unique: every constructor of `TrExprS` is
+determined by the source syntax and the context, including projections
+(`TrProj.target_eq`).  This strengthens `TrExprS.unique'`, whose `IsUnique`
+hypothesis excludes projections. -/
+theorem TrExprS.uniqueCtx {env : VEnv} {Us : List Name} {Δ₁ Δ₂ : VLCtx} {e : Expr}
+    {e₁ e₂ : VExpr} (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂)
+    (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ₂ e e₂) : e₁ = e₂ := by
+  induction H1 generalizing Δ₂ e₂ with cases H2
+  | bvar => exact hΔ.find?_uniq ‹_› ‹_›
+  | fvar => exact hΔ.find?_uniq ‹_› ‹_›
+  | sort h1
+  | const _ h1 => cases h1.symm.trans ‹_›; rfl
+  | app _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 hΔ ‹_›; rfl
+  | lam _ _ _ ih1 ih2
+  | forallE _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 (hΔ.cons .vlam) ‹_›; rfl
+  | letE _ _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 (hΔ.cons .vlet) ‹_›; rfl
+  | lit _ _ ih => exact ih hΔ ‹_›
+  | mdata _ ih => exact ih hΔ ‹_›
+  | proj _ hp ih =>
+    rename_i h2 hp2
+    cases ih hΔ h2
+    rw [hp.target_eq, hp2.target_eq]
 
 theorem TrExprS.boolFalse (henv : env.HasPrimitives) (H : env.contains ``Bool) :
     TrExprS env Us Δ (toExpr false) .boolFalse ∧

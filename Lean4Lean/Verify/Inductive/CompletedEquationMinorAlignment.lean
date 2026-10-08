@@ -662,7 +662,7 @@ theorem
   have HabstractCtx : VLCtx.IsDefEq H.outVEnv Us.length
       (abstractForallContext (T.params ++ T.motives ++ T.minors.take minorIdx) [])
       (abstractForallContext scope.toCtx.reverse []) := by
-    have h := VLCtx.IsDefEq.ofNoneCtx (Hprefix.symm H.outVEnvWF.ordered)
+    have h := VLCtx.IsDefEq.ofDefEqCtxAnonymous (Hprefix.symm H.outVEnvWF.ordered)
     simpa [abstractForallContext] using h
   obtain ⟨narrowTarget, HnarrowAbs⟩ :=
     HinstalledTr.defeqDFC H.outVEnvWF HabstractCtx

@@ -1745,14 +1745,6 @@ theorem _root_.Lean4Lean.OnCtx.drop (H : OnCtx Γ P) (n : Nat) :
       simp only [List.map_cons, VLCtx.fvars_cons_none, ih]
   rw [hnone, List.nil_append]
 
-@[simp] theorem VLCtx.toCtx_map_anonymousLams (types : List VExpr) :
-    VLCtx.toCtx (types.map fun type =>
-      ((none, .vlam type) :
-        Option (FVarId × List FVarId) × VLocalDecl)) = types := by
-  induction types with
-  | nil => rfl
-  | cons type types ih => simp [VLCtx.toCtx, ih]
-
 @[simp] theorem abstractForallContext_bvars
     (domains : List VExpr) (Δ : VLCtx) :
     (abstractForallContext domains Δ).bvars =
@@ -1780,22 +1772,6 @@ theorem VEnv.IsDefEqCtx.extendSamePrefix
   | cons type types ih =>
     rcases Hctx with ⟨Htail, level, Htype⟩
     exact .succ (ih Htail) Htype
-
-/-- A conversion between ordinary typing contexts induces a conversion
-between their completely anonymous verifier contexts. -/
-theorem VLCtx.IsDefEq.ofDefEqCtxAnonymous
-    (H : VEnv.IsDefEqCtx env U [] left right) :
-    VLCtx.IsDefEq env U
-      (left.map fun type =>
-        ((none, .vlam type) :
-          Option (FVarId × List FVarId) × VLocalDecl))
-      (right.map fun type =>
-        ((none, .vlam type) :
-          Option (FVarId × List FVarId) × VLocalDecl)) := by
-  induction H with
-  | zero => exact .nil
-  | succ H Htype ih =>
-    exact .cons ih (by simp) (.vlam (by simpa using Htype))
 
 /-- Context-conversion wrapper in outermost-to-innermost domain order. -/
 theorem abstractForallContext.isDefEq

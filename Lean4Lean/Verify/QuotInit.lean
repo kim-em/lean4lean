@@ -44,13 +44,6 @@ theorem plainTr_find? {As : List VExpr} {i : Nat} (h : i < As.length) :
       refine ⟨B.liftN 1, ?_⟩
       simp [VLCtx.find?, VLCtx.next, hB, VLocalDecl.depth, VExpr.liftN]
 
-theorem plainTr_toCtx (As : List VExpr) :
-    VLCtx.toCtx (As.map fun A => ((none : Option (FVarId × List FVarId)), VLocalDecl.vlam A)) =
-      As := by
-  induction As with
-  | nil => rfl
-  | cons A As ih => simp [VLCtx.toCtx, ih]
-
 theorem TrExprS.ofPlainTr {env : VEnv} {Us : List Name} (henv : env.Ordered) :
     ∀ {e : Expr} {e' : VExpr} {As : List VExpr},
       plainTr Us As.length e = some e' →
@@ -75,7 +68,7 @@ theorem TrExprS.ofPlainTr {env : VEnv} {Us : List Name} (henv : env.Ordered) :
     simp only [plainTr, Option.bind_eq_bind, Option.bind_eq_some_iff, Option.some.injEq] at h
     obtain ⟨f', hf, a', ha, rfl⟩ := h
     obtain ⟨A, B, h1, h2⟩ := hwf.app_inv henv hΓ
-    have := plainTr_toCtx As
+    have := VLCtx.toCtx_map_anonymousLams As
     refine .app (by rwa [this]) (by rwa [this]) (ofPlainTr henv hf hΓ ⟨_, h1⟩)
       (ofPlainTr henv ha hΓ ⟨_, h2⟩)
   | .forallE _ ty body _, e', As, h, hΓ, hwf => by
@@ -83,7 +76,7 @@ theorem TrExprS.ofPlainTr {env : VEnv} {Us : List Name} (henv : env.Ordered) :
     obtain ⟨ty', hty, body', hbody, rfl⟩ := h
     obtain ⟨T, hT⟩ := hwf
     obtain ⟨h1, h2⟩ := HasType.forallE_inv henv hT
-    have := plainTr_toCtx As
+    have := VLCtx.toCtx_map_anonymousLams As
     refine .forallE (by rwa [this]) (by rwa [this]) (ofPlainTr henv hty hΓ ?_) ?_
     · obtain ⟨_, h⟩ := h1; exact ⟨_, h⟩
     · have := ofPlainTr (As := ty' :: As) henv hbody ⟨hΓ, h1⟩ (by obtain ⟨_, h⟩ := h2; exact ⟨_, h⟩)
@@ -181,8 +174,6 @@ theorem find?_mkLocalDecl {lctx : LocalContext} (h : lctx.fvarIdToDecl.WF)
   simp only [LocalContext.mkLocalDecl, LocalContext.find?, h.find?_insert]
 
 theorem wf0 : ({} : LocalContext).fvarIdToDecl.WF := .empty
-theorem find?_empty (x : FVarId) : ({} : LocalContext).find? x = none := by
-  simp [LocalContext.find?, wf0.find?_eq]
 
 theorem mkForall_eq_fold {lctx : LocalContext} {xs : List FVarId} {b : Expr}
     (hex : ∀ x ∈ xs, ∃ d, lctx.find? x = some d)
@@ -206,7 +197,7 @@ theorem tQuot_eq : tQuot = tQuotC := by
       else if fid 1 == x then some (.cdecl 0 (fid 1) `α (.sort u) .implicit .default)
       else none := by
     intro x
-    rw [L2, find?_mkLocalDecl wf1, L1, find?_mkLocalDecl wf0, find?_empty]
+    rw [L2, find?_mkLocalDecl wf1, L1, find?_mkLocalDecl wf0, LocalContext.find?_empty]
   unfold tQuot
   rw [show #[α, r] = ([fid 1, fid 2].map Expr.fvar).toArray from rfl, mkForall_eq_fold]
   · simp [hf, LocalContext.mkBindingList1, Expr.abstract1, fid, α, Expr.arrow, Expr.prop, tQuotC, u]
@@ -218,7 +209,7 @@ theorem tQuot_eq : tQuot = tQuotC := by
 
 theorem fL1 (x) : L1.find? x =
     if fid 1 == x then some (.cdecl 0 (fid 1) `α (.sort u) .implicit .default) else none := by
-  rw [L1, find?_mkLocalDecl wf0, find?_empty]
+  rw [L1, find?_mkLocalDecl wf0, LocalContext.find?_empty]
 theorem fL2 (x) : L2.find? x = if fid 2 == x then some (.cdecl L1.decls.size (fid 2) `r
     (Expr.arrow α (Expr.arrow α Expr.prop)) .default .default) else L1.find? x := by
   rw [L2, find?_mkLocalDecl wf1]

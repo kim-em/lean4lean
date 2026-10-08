@@ -4,6 +4,7 @@ import Lean4Lean.Theory.Typing.ProjectionLemmas
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.ProjectionShape
 import Lean4Lean.TypeChecker
+import Lean4Lean.Verify.TypeChecker.FrameDefs
 import Lean4Lean.Verify.Typing.UniverseSupport
 import Lean4Lean.Verify.Typing.ProjectionCorner
 import Lean4Lean.Verify.HitShapeEnv
@@ -1168,15 +1169,6 @@ def VState.next (s : VState) : VState := { s with ngen := s.ngen.next }
 /-- The state on leaving a binder scope that was entered at `saved`: the executable's
 `State.leaveScope`, which puts back every context-relative cache and the equivalence manager. -/
 def VState.leaveScope (saved s : VState) : VState := ⟨saved.toState.leaveScope s.toState⟩
-
-theorem withFreshId_eq {α} (x : Name → M α) (c : Context) (s : State) :
-    (withFreshId x : M α) c s =
-      (x s.ngen.curr c { s with ngen := s.ngen.next }).map fun p => (p.1, s.leaveScope p.2) := by
-  unfold withFreshId instMonadLocalNameGeneratorM
-  simp only [bind, ReaderT.bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get, liftM,
-    monadLift, MonadLift.monadLift, Except.bind, pure, Except.pure, ReaderT.pure, StateT.pure,
-    modify, modifyGet, MonadStateOf.modifyGet, StateT.modifyGet, mkFreshId, getNGen, setNGen]
-  cases x s.ngen.curr c { s with ngen := s.ngen.next } <;> rfl
 
 /-- Leaving a binder scope gives back a well-formed state. The restored caches and equivalence
 manager are those of `saved`, which were well formed in this context before the scope was entered;

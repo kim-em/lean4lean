@@ -798,22 +798,10 @@ theorem VLCtx.fvars_length_of_noBV {scope : VLCtx} (H : scope.NoBV) :
       change VLCtx.bvars scope = 0 at H
       simp [ih H]
 
-private theorem fvarNarrowDeclarations_toCtx_length
-    {fvars : List FVarId} {scope : VLCtx}
-    (H : List.Forall₂
-      (fun fv entry => ∃ deps type,
-        entry = (some (fv, deps), .vlam type)) fvars scope) :
-    scope.toCtx.length = scope.length := by
-  induction H with
-  | nil => rfl
-  | cons h _ ih =>
-    rcases h with ⟨deps, type, rfl⟩
-    simp [VLCtx.toCtx, ih]
-
 theorem FVarNarrowScope.toCtx_length
     (H : FVarNarrowScope env Us scope runtime) :
     scope.toCtx.length = scope.length :=
-  fvarNarrowDeclarations_toCtx_length H.declarations
+  VLCtx.toCtx_length_of_forall₂_vlam H.declarations
 
 def FVarNarrowScope.nil : FVarNarrowScope env Us [] [] where
   expanded := []

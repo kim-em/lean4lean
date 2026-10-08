@@ -7,6 +7,20 @@ open Lean4Lean
 
 namespace Lean.LocalContext
 
+theorem find?_empty (fv : FVarId) : ({} : LocalContext).find? fv = none := by
+  show PersistentHashMap.find? PersistentHashMap.empty fv = none
+  rw [PersistentHashMap.WF.empty.find?_eq, PersistentHashMap.toList'_empty]
+  rfl
+
+theorem find?_mkLocalDecl
+    {l : LocalContext} {fv fv' : FVarId} {name : Name} {ty : Expr}
+    {bi : BinderInfo} {kind : LocalDeclKind} (hwf : l.fvarIdToDecl.WF) :
+    (l.mkLocalDecl fv name ty bi kind).find? fv' =
+      if fv == fv' then some (.cdecl l.decls.size fv name ty bi kind)
+      else l.find? fv' := by
+  simp only [LocalContext.mkLocalDecl, LocalContext.find?]
+  exact hwf.find?_insert
+
 noncomputable def toList (lctx : LocalContext) : List LocalDecl :=
   lctx.decls.toList'.reverse.filterMap id
 
