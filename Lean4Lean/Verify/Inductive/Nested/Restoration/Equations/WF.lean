@@ -301,7 +301,7 @@ theorem RenamingReplacement.ofAddConstants_recursors
         exact hwS
     · exact fun v hv => hrecs v (by simp only [List.map_cons, List.mem_cons]; exact .inr hv)
 
-/-- The facts used by `hrestoredWF_of_gaps`, for a restoration table
+/-- The facts used by `restoredEquationsWF_of_substitutionPremises`, for a restoration table
 `auxiliaries` and a restored block base `B` (see the module documentation;
 proved for the run by `NestedRun.restoredEquationGaps`). -/
 structure RestorationSubstitutionPremises
@@ -617,7 +617,7 @@ of the run
 `restorationTablesRestoringAll`, whose restoration agrees with that of every
 table by `RestorationTablesAgree.expr_eq`) transports it to the recursor
 environment of the base, where beta subject reduction holds by well-formedness. -/
-theorem NestedRun.hrestoredWF_of_gaps
+theorem NestedRun.restoredEquationsWF_of_substitutionPremises
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
