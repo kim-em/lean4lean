@@ -325,7 +325,14 @@ theorem NestedValidatedRunResult.restoredRuleRhs_translates
       (E.production.production.canonicalGeneration.recursorName owner) s t)
     (j : Nat) (hj : j < Hstep.restored.newInfo.rules.length) :
     ∃ target, TrExprS B.finalBaseVEnv Hstep.restored.newInfo.levelParams []
-      (Hstep.restored.newInfo.rules[j]'hj).rhs target := by
+        (Hstep.restored.newInfo.rules[j]'hj).rhs target ∧
+      ∀ (k : Fin E.production.production.generationSignature.constructors.size),
+        k.val = recursorMinorOffset E.production.indTypes owner.val + j →
+      ∀ auxiliaries : List ContainerSpecialization,
+        RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
+        (compilationRestoration sourceDecl auxiliaries).expr
+          (E.production.production.canonicalGeneration.equation k).rhs = some target := by
   let P := E.production.production
   rcases E.restorationTablesRestoringAllSpec wf Hsources with
     ⟨envTypes, generated, aux, hadded, henvTypes, Haux, Hexpansion, hparamsSize, D,
@@ -472,7 +479,7 @@ theorem NestedValidatedRunResult.restoredRuleRhs_translates
       AddInductive.getRecLevelParams P.elimLevel lparams := by
     rw [← hinfo, hlevels, hUs]
   rw [hUs'] at Hs
-  obtain ⟨target, Ht, -, -⟩ := Hopen.translatesLambdaTrail S D rfl
+  obtain ⟨target, Ht, -, hr⟩ := Hopen.translatesLambdaTrail S D rfl
     E.production.production.outVEnvWF hTwf
     hTwf.betaSubjectReduction hscoped.argumentsClosed Hlits (E.restorableNames_lit D)
     (fun Ds' Dt Δt0 sR hs hDlen hF hsame => by
@@ -486,7 +493,96 @@ theorem NestedValidatedRunResult.restoredRuleRhs_translates
       exact E.restoredHeadsTranslate hadded Haux D HauxSpec hTwf hle
         Hopen.selectionNodup hselLen hsame)
     Htel ⟨body, Hlead, HB⟩ HL.1 HL.2 HP Hs
-  exact ⟨target, hUs' ▸ Ht⟩
+  refine ⟨target, hUs' ▸ Ht, fun k' hk' auxiliaries D₁ => ?_⟩
+  have hkk : k' = k := Fin.ext (hk'.trans hk.symm)
+  subst hkk
+  rw [← D.expr_eq D₁, hrhsEq]
+  exact hr
+
+/-- **Realization of a restored generated equation over an assembly base**,
+without the rule validator: the right-hand side of the executable restored
+rule translates (`restoredRuleRhs_translates`) to the restored generated
+right-hand side. -/
+theorem NestedValidatedRunResult.restoredRuleRealization_base
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (Havoid : ∀ auxiliaries : List ContainerSpecialization,
+      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
+      E.LoweredRulesAvoid E.auxHeads (compilationRestoration sourceDecl auxiliaries).restorableNames)
+    (Hprojs : ∀ auxiliaries : List ContainerSpecialization,
+      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
+      ∀ (owner : Fin E.production.production.generationSignature.families.size)
+        (rec : RecursorVal),
+        E.loweredEnv.find?
+            (E.production.production.canonicalGeneration.recursorName owner) =
+          some (.recInfo rec) →
+        ∀ rule ∈ rec.rules,
+          rule.rhs.ProjsOK (· ∉ (compilationRestoration sourceDecl auxiliaries).restorableNames))
+    (B : NestedFinalAssemblyBase E.restoration
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe))
+    (hB : B.production = E.production)
+    (hV : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+      (Lean4Lean.stripRecursorRules outEnv
+        (Lean4Lean.restoredRecursorNames
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv)
+    {auxiliaries : List ContainerSpecialization}
+    (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
+    (k : Fin E.production.production.generationSignature.constructors.size)
+    {rule : VDefEq}
+    (hrule : (compilationRestoration sourceDecl auxiliaries).equation
+      (E.production.production.canonicalGeneration.equation k) = some rule) :
+    E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
+      B.finalBaseVEnv k rule := by
+  let P := E.production.production
+  rcases E.restorationTablesRestoringAll wf Hsources with
+    ⟨envTypes, generated, aux', hadded, henvTypes, Haux, Hexpansion, hparamsSize, D', -, -⟩
+  have hnodup :
+      (familyNames E.production.loweredDecl.types ++
+        E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
+    rcases E.containerSpecializations wf Hsources with
+      ⟨_, _, _, _, _, _, _, h, _⟩
+    exact h
+  obtain ⟨-, -, -, -, -, -, -, hscoped, -⟩ :=
+    E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D' True.intro
+  have hwf : sourceProdEnv.constants.WF := (wf.tr (safety := .safe)).map_wf
+  have hinfos := E.restoredRecursorEntryInfos B hB wf Hsources hadded Haux Hexpansion
+    hnodup hparamsSize D' hscoped hwf
+  let owner := P.generationSignature.constructors[k].owner
+  obtain ⟨entry, -, s, t, Hstep, -, -, -⟩ :=
+    Lean4Lean.List.Forall₂.forall_exists_l hinfos owner (List.mem_finRange owner)
+  obtain ⟨hi, hinfo⟩ := E.generatedEntryOfStep owner Hstep
+  have hmap := P.ownedConstructors_map_val owner hi
+  have hmem : k ∈ P.generationSignature.ownedConstructors owner := by
+    simp [InductiveSignature.ownedConstructors, owner]
+  obtain ⟨j, hj, hjk⟩ := List.getElem_of_mem hmem
+  have hval := RuleAssembly.getElem_of_map_val_eq hmap j hj
+  rw [hjk] at hval
+  have hlenOwned : (P.generationSignature.ownedConstructors owner).length =
+      Hstep.oldInfo.rules.length := by
+    have h := congrArg List.length hmap
+    simp only [List.length_map, List.length_range'] at h
+    rw [h, hinfo]
+  have hjNew : j < Hstep.restored.newInfo.rules.length := by
+    rw [Hstep.restored.restoration.rules.length, ← hlenOwned]
+    exact hj
+  obtain ⟨target, Ht, hrhs⟩ := E.restoredRuleRhs_translates wf Hsources Havoid Hprojs B hB hV
+    owner Hstep j hjNew
+  have hrhs := hrhs k hval auxiliaries D
+  obtain ⟨huvars, hlhs, hrhs', htype⟩ := Restoration.equation_eq_some hrule
+  have htarget : target = rule.rhs := Option.some.inj (hrhs.symm.trans hrhs')
+  subst htarget
+  exact ⟨owner, j, s, t, Hstep, hjNew, hval, huvars, Ht, hlhs, htype⟩
 
 end VerifyInductive
 end Lean4Lean
