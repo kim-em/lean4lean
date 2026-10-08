@@ -129,8 +129,9 @@ The goal allowed the E1 redesign instead:
   now registers a certified case eliminator before its projections (constructor boundary:
   [Verify/Inductive/ConstructorBoundary.lean](Lean4Lean/Verify/Inductive/ConstructorBoundary.lean);
   nested blocks: [Verify/Inductive/Nested/CaseEliminators.lean](Lean4Lean/Verify/Inductive/Nested/CaseEliminators.lean)).
-  Indexed structures and blocks with several families are covered
-  (`ProjectionCornerIndexed*.lean`, `ProjectionCornerGeneral.lean`).
+  Indexed structures and blocks with several families are covered: the inhabitant comes from
+  the registered case eliminator, whose families include every structure of the block
+  (`ProjectionCornerIndexed*.lean`, `ProjectionCornerChoice.lean`).
 - A choice-free corner was reviewed in
   [CORNER_ASTRA_REVIEW.md](docs/inductives/CORNER_ASTRA_REVIEW.md): no known proof avoids
   both choice and a substantial strengthening or conversion-locality argument.
