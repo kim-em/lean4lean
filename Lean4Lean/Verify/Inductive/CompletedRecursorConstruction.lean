@@ -100,8 +100,8 @@ theorem CompletedConstructorPhases.sourceSignature_familyCount
     (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv) : R.sourceSignature.families.size = indTypes.size := by
   have h := Lean4Lean.List.Forall₂.length_eq R.core.types
-  simpa [CompletedConstructorPhases.sourceSignature,
-    CompletedConstructorPhases.sourceSignatureHeader,
+  simpa [ConstructorBoundary.sourceSignature,
+    ConstructorBoundary.sourceSignatureHeader,
     checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureHeader] using h.symm
 
 end VerifyInductive

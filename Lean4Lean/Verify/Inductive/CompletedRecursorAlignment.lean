@@ -144,7 +144,7 @@ theorem CompletedRecursorPhasesResult.familyRigid
   have hrigid := hsourceWF.ordered.rigid_of_absent hfresh
   intro df hdf ls hhead
   have hdf' := H.staged.combinedAtomic.defeqs df hdf
-  rw [VEnv.addProjections_defeqs] at hdf'
+  rw [VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs] at hdf'
   exact hrigid df hdf' ls hhead
 
 /-- Typing the normalized constructor result against its family's sort

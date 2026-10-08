@@ -617,7 +617,7 @@ theorem VEnv.WF.eliminatorsAvoidConsts {env : VEnv} {names : List Name}
     intro n hn hmem
     exact hsrcPresent n hn (hfresh n hmem)
   -- the expanded environments
-  obtain ⟨envET, envEC, hET, hEC, hfam⟩ := hdata.familyTypesWF
+  obtain ⟨envET, envEC, es, hET, hEC, -, hfam⟩ := hdata.familyTypesWF
   obtain ⟨_, _, _, _, envET', envEC', hET', hEC', htWF, hcWF⟩ := hdata.expandedWF
   have : envET' = envET := Option.some.inj (hET'.symm.trans hET)
   subst this
@@ -716,7 +716,8 @@ theorem VEnv.WF.eliminatorsAvoidConsts {env : VEnv} {names : List Name}
   have hview : ∀ owner : Fin schema.signature.families.size,
       SigAvoids L (schema.view owner) := by
     intro owner
-    have hctx := VEnv.ctxNoFreshConsts_addProjections hECord hLfresh (hfam owner).1
+    have hctx := VEnv.ctxNoFreshConsts_addProjections (env := envEC'.addEliminators es)
+      hECord.addEliminators (fun n hn => by simpa using hLfresh n hn) (hfam owner).1
     obtain ⟨src, hsrc, hname, _⟩ := hdata.model.family owner
     have hfamName : L.contains schema.signature.families[owner].name = false := by
       rw [hname]

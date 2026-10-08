@@ -27,7 +27,7 @@ theorem RestoredNestedDeclarationsResult.addInductConcrete
   rcases H.freshTraceNondelta hsourceWF with
     ⟨entries, Hfresh, hnondelta⟩
   cases Habstract with
-  | intro Hdecl Hcompile Hblock Hinstall =>
+  | intro Hdecl Hcompile Hblock Helim Hinstall =>
       apply AddInduct.intro _ Hdecl Hcompile Hblock Hinstall Horigins
       · intro name ci hfind
         exact Hfresh.preservesSourceMapFind hsourceWF hfind
@@ -35,6 +35,7 @@ theorem RestoredNestedDeclarationsResult.addInductConcrete
         exact Hchecking.aligned
       · exact Hfresh.deltaConservative hsourceWF hnondelta
       · exact Hprovenance
+      · exact Helim
 
 end VerifyInductive
 end Lean4Lean

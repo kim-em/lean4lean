@@ -485,7 +485,7 @@ theorem
   have hselectedOwner : selectedOwner < H.recInfos.size := by
     simpa [selectedOwner, H.generated.length] using F.entry_lt
   have hsemantic : F.semantic.current_context.venv =
-      R.declared.venvCtors.addProjections decl.projectionEntries :=
+      (R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries :=
     F.semantic.recent.venv_eq.trans <|
       F.originRecent.venv_eq.trans <|
         A.semantics.context_venv.trans <|

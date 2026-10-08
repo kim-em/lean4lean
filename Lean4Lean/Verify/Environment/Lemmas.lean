@@ -1305,6 +1305,39 @@ theorem CheckingEnv.Valid.addEliminator
     (H.recursors.extendSimple (fun h => h) (fun h _ => h)
       VEnv.addEliminator_le (fun _ h => h)).heads
 
+theorem Aligned.addEliminators {C : ConstMap} :
+    ∀ {venv : VEnv} {es : List (Name × InductiveSignature.CaseSchema)}, Aligned safety C venv →
+      Aligned safety C (venv.addEliminators es)
+  | _, [], H => H
+  | v, (k, sc) :: rest, H =>
+    Aligned.addEliminators (venv := v.addEliminator k sc) (es := rest) (.eliminators H)
+
+theorem VEnv.HasPrimitives.addEliminators :
+    ∀ {venv : VEnv} {es : List (Name × InductiveSignature.CaseSchema)}, venv.HasPrimitives →
+      (venv.addEliminators es).HasPrimitives
+  | _, [], H => H
+  | v, (k, sc) :: rest, H =>
+    VEnv.HasPrimitives.addEliminators (venv := v.addEliminator k sc) (es := rest) H.addEliminator
+
+theorem CheckingEnv.addEliminators
+    (H : CheckingEnv safety env venv)
+    (hwf : (venv.addEliminators es).WF) :
+    CheckingEnv safety env (venv.addEliminators es) where
+  aligned := H.aligned.addEliminators
+  wf := hwf
+  of_value := fun hfind hvisible hvalue =>
+    (H.of_value hfind hvisible hvalue).mono VEnv.addEliminators_le
+
+theorem CheckingEnv.ValidCore.addEliminators
+    (H : CheckingEnv.ValidCore safety env venv)
+    (hwf : (venv.addEliminators es).WF) :
+    CheckingEnv.ValidCore safety env (venv.addEliminators es) where
+  tr := H.tr.addEliminators hwf
+  hasPrimitives := H.hasPrimitives.addEliminators
+  safePrimitives := H.safePrimitives
+  typeAnnotationWrappers := H.typeAnnotationWrappers
+  projectionCorner := H.projectionCorner
+
 theorem CheckingEnv.ValidCore.addProjections
     (H : CheckingEnv.ValidCore safety env venv)
     (hwf : (venv.addProjections entries).WF) :
@@ -1317,6 +1350,19 @@ theorem CheckingEnv.ValidCore.addProjections
 
 /-- Add an exact, independently well-formed projection table without changing
 the represented production environment. -/
+theorem CheckingEnv.Valid.addEliminators
+    (H : CheckingEnv.Valid safety env venv)
+    (hwf : (venv.addEliminators es).WF) :
+    CheckingEnv.Valid safety env (venv.addEliminators es) where
+  toValidCore := H.toValidCore.addEliminators hwf
+  constructorOwners := H.constructorOwners
+  projectionRegistry := H.projectionRegistry.monoEnv VEnv.addEliminators_le
+  recursors := H.recursors.extendSimple (fun h => h) (fun h _ => h)
+    VEnv.addEliminators_le (fun _ h => by simpa using h)
+  quot hq := (H.quot hq).extend (fun h => h) VEnv.addEliminators_le
+    (H.recursors.extendSimple (fun h => h) (fun h _ => h)
+      VEnv.addEliminators_le (fun _ h => by simpa using h)).heads
+
 theorem CheckingEnv.Valid.addProjections
     (H : CheckingEnv.Valid safety env venv)
     (hwf : (venv.addProjections entries).WF) :

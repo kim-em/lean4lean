@@ -28,7 +28,7 @@ theorem CompletedRecursorPhasesResult.addInductOfOrdinaryCompilation
       (H.blockCertificate rules hrules).block) :
     VEnv.AddInduct sourceEnv decl (H.blockCertificate rules hrules).finalVEnv :=
   (H.blockCertificate rules hrules).addInductOfOrdinaryCompilation
-    R.formation R.core hnonempty Hcompile
+    R.formation R.core hnonempty Hcompile (H.blockEliminatorsWF rules hrules)
 
 theorem CompletedRecursorPhasesResult.addInductOfNestedCompilation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -45,7 +45,7 @@ theorem CompletedRecursorPhasesResult.addInductOfNestedCompilation
       (H.blockCertificate rules hrules).block) :
     VEnv.AddInduct sourceEnv decl (H.blockCertificate rules hrules).finalVEnv :=
   (H.blockCertificate rules hrules).addInductOfNestedCompilation
-    R.formation R.core hnonempty Hcompile
+    R.formation R.core hnonempty Hcompile (H.blockEliminatorsWF rules hrules)
 
 /-- Owner-prefix accumulation of reconstructed equations and their typing
 proofs.  Keeping the equation traversal independent of the final block lets

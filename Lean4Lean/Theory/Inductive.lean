@@ -18,7 +18,8 @@ structure VInductDecl.OrdinaryShape
     env.addConstVals block.types = some envTypes ∧
     envTypes.addConstVals block.ctors = some envCtors ∧
     List.Forall₂ (fun owned rule =>
-      Nonempty (decl.IotaRule (envCtors.addProjections block.projections)
+      Nonempty (decl.IotaRule
+        ((envCtors.addEliminators block.eliminators).addProjections block.projections)
         block owned.1 owned.2 rule))
       decl.ownedConstructors block.rules
   names : List.Nodup ((block.types ++ block.ctors ++ block.recursors).map (·.name))
@@ -101,7 +102,7 @@ theorem VInductDecl.OrdinaryShape.mono
     rules := ⟨envTypes, envCtors, htypes, hctors,
       Lean4Lean.List.Forall₂.imp
       (fun _ _ h => let ⟨rule⟩ := h;
-        ⟨rule.mono (VEnv.addProjections_mono hctorsLE)⟩)
+        ⟨rule.mono (VEnv.addProjections_mono (VEnv.addEliminators_mono hctorsLE))⟩)
       holdRules⟩ }
 
 theorem InductiveSignature.Instance.RecursiveTypesWF.mono {s : InductiveSignature}
@@ -150,6 +151,13 @@ theorem InductiveSignature.Instance.Admissible.mono
     intro ctor hctor i hi
     exact (hfields ctor hctor i hi).imp (fun h => h.mono henv) id
 
+theorem VInductDecl.OwnCaseEliminators.mono {env env' envTypes' : VEnv} {decl : VInductDecl}
+    {es : List (Name × InductiveSignature.CaseSchema)} (H : decl.OwnCaseEliminators env es)
+    (henv : env ≤ env') (htypes : env'.addConstVals decl.typeConstants = some envTypes') :
+    decl.OwnCaseEliminators env' es := fun p hp =>
+  let ⟨hr, ho, hm⟩ := H p hp
+  ⟨hr, ho, hm.mono henv htypes⟩
+
 theorem InductiveSignature.Compiles.mono
     {env env' envTypes' envCtors' : VEnv} {decl : VInductDecl} {block : VInductBlock}
     (H : Compiles env decl block) (henv : env ≤ env')
@@ -157,13 +165,14 @@ theorem InductiveSignature.Compiles.mono
     (hctors : envTypes'.addConstVals decl.constructorConstants = some envCtors') :
     Compiles env' decl block := by
   rcases H.generated with
-    ⟨s, g, envTypes, hmodel, htypesOld, hadmissible, ⟨envCtors, hctorsOld, hrec, hfam⟩, hrest⟩
+    ⟨s, g, envTypes, hmodel, htypesOld, hadmissible, ⟨envCtors, es, hctorsOld, hes, hrec, hfam⟩,
+      hrest⟩
   have htypesLE := VEnv.addConstVals_mono henv htypesOld htypes
   have hprojLE := VEnv.addProjections_mono (entries := decl.projectionEntries)
-    (VEnv.addConstVals_mono htypesLE hctorsOld hctors)
+    (VEnv.addEliminators_mono (es := es) (VEnv.addConstVals_mono htypesLE hctorsOld hctors))
   exact ⟨s, g, envTypes', hmodel.mono henv htypes, htypes,
     hadmissible.mono htypesLE,
-    ⟨envCtors', hctors, hrec.mono hprojLE, hfam.mono hprojLE⟩, hrest⟩
+    ⟨envCtors', es, hctors, hes.mono henv htypes, hrec.mono hprojLE, hfam.mono hprojLE⟩, hrest⟩
 
 theorem VInductDecl.OrdinaryCompilation.mono
     {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}

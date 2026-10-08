@@ -35,7 +35,7 @@ theorem installedInductCertificate_familyLookup
       subst installed
       exact VEnv.addDefEqRules_le.constants
         ((VEnv.addConstVals_le hrecursors).constants
-          (VEnv.addProjections_le.constants
+          (VEnv.addEliminators_addProjections_le.constants
             ((VEnv.addConstVals_le hctors).constants hlookupTypes)))
     exact hle.constants hlookupInstalled
 
