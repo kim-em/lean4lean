@@ -9,7 +9,7 @@ trace `auxiliaryRecursorTrace`. The underlying base is the given one
 definitionally.
 
 `NestedRun.hruleShape_of_base` then extends the base of
-`assemblyBaseNativeValid` by the restored generated equations: their
+`assemblyBaseValid` by the restored generated equations: their
 realization comes from the right-hand-side type check of the restored rules,
 their nested-iota shape from the generator, and their well-formedness is the
 hypothesis `HrestoredWF`. Family counts, rule counts and block names are read
@@ -211,7 +211,7 @@ theorem RestoredBlockBase.withRules_toBase
 /-! ### The rule-shape hypothesis over the base -/
 
 /-- **The rule-shape hypothesis `HruleShape` of `hrules_of`, over the
-rule-free base.** The base of `assemblyBaseNativeValid` (constructed without
+rule-free base.** The base of `assemblyBaseValid` (constructed without
 the rule validator) is extended by the restored generated equations
 (`RestoredBlockBase.withRules`):
 
@@ -278,7 +278,7 @@ theorem NestedRun.hruleShape_of_base
     exact h
   obtain ⟨-, -, hauxNames, -, -, -, -, hscoped, -⟩ :=
     E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D' True.intro
-  rcases E.assemblyBaseNativeValid wf Hsources hnested with ⟨⟨B, hB, hV⟩⟩
+  rcases E.assemblyBaseValid wf Hsources hnested with ⟨⟨B, hB, hV⟩⟩
   have hfresh := fresh_filter_restorable
     (E.recursorVEnv_restorableNames_fresh_of_not_renamed wf Hsources B hB D')
   have HL := E.loweredRulesAvoid_renamed wf Hsources Haux Hexpansion D'

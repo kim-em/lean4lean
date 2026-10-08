@@ -1939,7 +1939,7 @@ theorem FamilyLowering.Resolved.abstractExpansion
 original queue position; the independent source and production translations,
 together with metadata materialization, determine the complete abstract
 header expansion at that position. -/
-theorem NestedLoweringOutputClosed.originalHeaderExpansionAtFresh
+theorem NestedLoweringOutputClosed.sourceHeaderExpansionAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -2098,7 +2098,7 @@ theorem LoweredAuxiliaryFamily.abstractExpansion
 /-- Complete original-prefix specialization.  All family and constructor
 ordering is now obtained from exact positional translations and the
 state-threaded lowering mapping. -/
-theorem NestedLoweringOutputClosed.originalExpansionAtFreshAboveLvls
+theorem NestedLoweringOutputClosed.sourceExpansionAtFreshAboveLvls
     {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
     (Hlift : NestedExpansionLeafLiftAbove sourceDecl.nparams leaf)
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -2138,7 +2138,7 @@ theorem NestedLoweringOutputClosed.originalExpansionAtFreshAboveLvls
         leaf
         (sourceDecl.types[familyIdx]'hsourceDecl)
         (loweredDecl.types[familyIdx]'htargetDecl) := by
-  rcases H.originalHeaderExpansionAtFresh Hsource Htarget Hmetadata hempty henv
+  rcases H.sourceHeaderExpansionAtFresh Hsource Htarget Hmetadata hempty henv
       familyIdx hfamily with ⟨hsourceDecl, htargetDecl, Hheader⟩
   have hresult : familyIdx < result.types.length :=
     Nat.lt_of_lt_of_le hfamily H.toResult.sourceTypes_length_le
@@ -2178,7 +2178,7 @@ theorem NestedLoweringOutputClosed.originalExpansionAtFreshAboveLvls
 /-- Ordered expansion of the complete original source prefix.  This is the
 list-valued formation payload for the initial queue; no positional choice is
 left to the caller. -/
-theorem NestedLoweringOutputClosed.originalExpansionsAboveLvls
+theorem NestedLoweringOutputClosed.sourceExpansionsAboveLvls
     {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
     (Hlift : NestedExpansionLeafLiftAbove sourceDecl.nparams leaf)
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -2231,7 +2231,7 @@ theorem NestedLoweringOutputClosed.originalExpansionsAboveLvls
       (loweredDecl.types.take sourceDecl.types.length)[familyIdx] =
         loweredDecl.types[familyIdx] := by
     simp only [List.getElem_take]
-  rcases H.originalExpansionAtFreshAboveLvls Hlift Hsource Htarget Hmetadata Hsyntax hempty
+  rcases H.sourceExpansionAtFreshAboveLvls Hlift Hsource Htarget Hmetadata Hsyntax hempty
       henv Hhit familyIdx hfamily
       with ⟨hsourceDecl', htargetDecl', Hfamily⟩
   have hsourceProof : hsourceDecl' = hsourceDecl := Subsingleton.elim _ _
@@ -2240,8 +2240,8 @@ theorem NestedLoweringOutputClosed.originalExpansionsAboveLvls
   subst htargetDecl'
   simpa only [htargetEq] using Hfamily
 
-/-- `originalExpansionsAboveLvls` without the universe-argument premise. -/
-theorem NestedLoweringOutputClosed.originalExpansionsAbove
+/-- `sourceExpansionsAboveLvls` without the universe-argument premise. -/
+theorem NestedLoweringOutputClosed.sourceExpansionsAbove
     {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
     (Hlift : NestedExpansionLeafLiftAbove sourceDecl.nparams leaf)
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -2276,12 +2276,12 @@ theorem NestedLoweringOutputClosed.originalExpansionsAbove
       (VInductDecl.NestedTypeExpansion sourceVEnv sourceDecl
         leaf)
       sourceDecl.types (loweredDecl.types.take sourceDecl.types.length) :=
-  H.originalExpansionsAboveLvls Hlift Hsource Htarget Hmetadata Hsyntax hempty henv
+  H.sourceExpansionsAboveLvls Hlift Hsource Htarget Hmetadata Hsyntax hempty henv
     (fun Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt _ =>
       Hhit Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt)
 
-/-- `originalExpansionsAbove` at the formation leaf `NestedOccurrenceReplacementAbs`. -/
-theorem NestedLoweringOutputClosed.originalExpansions
+/-- `sourceExpansionsAbove` at the formation leaf `NestedOccurrenceReplacementAbs`. -/
+theorem NestedLoweringOutputClosed.sourceExpansions
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -2302,7 +2302,7 @@ theorem NestedLoweringOutputClosed.originalExpansions
         (VInductDecl.NestedOccurrenceReplacementAbs sourceVEnv sourceDecl
           generated))
       sourceDecl.types (loweredDecl.types.take sourceDecl.types.length) :=
-  NestedLoweringOutputClosed.originalExpansionsAbove
+  NestedLoweringOutputClosed.sourceExpansionsAbove
     nestedOccurrenceReplacementAbs_liftAbove
     H Hsource Htarget Hmetadata Hsyntax hempty henv Hhit
 

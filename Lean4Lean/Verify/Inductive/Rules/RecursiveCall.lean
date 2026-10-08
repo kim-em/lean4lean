@@ -1574,7 +1574,7 @@ theorem
     obtain ⟨d, Hd⟩ := hagM.binderAt_indep hnM 0 (by omega)
     have Hb := Hd (S.sourceFullContext.lctx.mkForall S.hypotheses S.motiveApp)
     rw [← hsourceM] at Hb
-    rw [← S.consumed_eq, Hb.consumeTypeAnnotationsVerified_eq_self, hsourceM]
+    rw [← S.unannotated_eq, Hb.consumeTypeAnnotationsVerified_eq_self, hsourceM]
   -- The checker closure of the fields over a dummy body.
   have HMsort₀ := hMwf.mkForall_trS HS.semantic.terminalWF.checking.tr.wf
     (e := .sort .zero) (e' := .sort .zero) (.sort (by simp [VLevel.ofLevel]))

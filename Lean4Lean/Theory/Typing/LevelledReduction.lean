@@ -989,7 +989,7 @@ theorem eq_nil_or_snoc' (l : List α) : l = [] ∨ ∃ L b, l = L ++ [b] := by
 
 theorem PrefixUnfold.not_rigid
     (H : PrefixUnfold env univs recursorData Γ name ls args rhs) :
-    ¬ env.NativeHeadRigid name := by
+    ¬ env.ConstHeadRigid name := by
   intro hrig
   cases H with
   | @intro data program hl hreg hname _ _ _ hg _ =>
@@ -1009,7 +1009,7 @@ theorem PrefixUnfold.not_rigid
     exact hrig _ hinst _ ((VExpr.equationHead_eq _).trans hhead)
 
 theorem QuotPrefixUnfold.not_rigid (H : QuotPrefixUnfold env univs Γ ls args rhs) :
-    ¬ env.NativeHeadRigid ``Quot.lift := by
+    ¬ env.ConstHeadRigid ``Quot.lift := by
   intro hrig
   cases H with
   | intro hr _ _ _ _ => exact hrig _ hr.equation _ rfl
@@ -1216,7 +1216,7 @@ theorem DeltaPar.elim_spine (H : DeltaPar Γ (VExpr.mkApps (.elim block owner le
     | projIota => cases hshape
     | _ => cases hshape
 
-theorem DeltaPar.rigid_spine (hrig : env.NativeHeadRigid name)
+theorem DeltaPar.rigid_spine (hrig : env.ConstHeadRigid name)
     (H : DeltaPar Γ (VExpr.mkApps (.const name levels) args) out) :
     ∃ args', out = VExpr.mkApps (.const name levels) args' ∧
       List.Forall₂ (DeltaPar Γ) args args' :=

@@ -2227,7 +2227,7 @@ theorem NestedLowering.allExpansionsOfSources
       sourceEnvTypes targetEnvTypes lparams sourceDecl N.generated :=
     N.replacementCompat Htarget Henv hclosures Hsources Hsource.typesAdded
       resultSelection hresultNodup hempty Hsource.uvars Hsource.nparams
-  have Horiginal := Hclosed.originalExpansions Hsource Htarget Hmetadata
+  have Horiginal := Hclosed.sourceExpansions Hsource Htarget Hmetadata
     Hsources (by simpa using hempty) henv N.generated Hhit
   have HsourceTypesWF : sourceEnvTypes.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource henv

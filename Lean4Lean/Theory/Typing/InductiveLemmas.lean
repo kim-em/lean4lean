@@ -92,7 +92,7 @@ theorem VInductBlock.WF.ordered (H : VInductBlock.WF env block)
   have htypes' : env.addConstVals decl.typeConstants = some envTypes := by
     rwa [hcompile.types] at htypes
   have hparams := hdecl.sourceParameterWF htypes'
-  have h3 := Ordered.inductProjections (es := block.eliminators) henv h2 hcompile.sourceNames hdecl.1.originalTypes
+  have h3 := Ordered.inductProjections (es := block.eliminators) henv h2 hcompile.sourceNames hdecl.1.sourceTypes
     hdecl.1.2.2.2.1 (hdecl.1.constructorsWF_at htypes') hparams
     hparams.rawCtorShape
     hcompile.types hcompile.ctors

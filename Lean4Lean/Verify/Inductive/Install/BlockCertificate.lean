@@ -304,15 +304,15 @@ theorem BlockCertificate.rebaseCertificate
     · exact hcasesWF
     · exact ⟨key, schema, hE, hreg⟩
     · exact Hcompile.sourceNames
-    · exact fun type member => (Hdecl.1.originalTypes type member).mono hbase
+    · exact fun type member => (Hdecl.1.sourceTypes type member).mono hbase
     · exact Hdecl.1.2.2.2.1
-    · rcases Hdecl.1.originalConstructors with ⟨baseTypes, hbaseTypes, hwf⟩
+    · rcases Hdecl.1.sourceConstructors with ⟨baseTypes, hbaseTypes, hwf⟩
       have hle : baseTypes ≤ largerTypes :=
         VEnv.addConstVals_mono hbase hbaseTypes htypes'
       exact fun ctor hctor => (hwf ctor hctor).mono hle
-    · rcases Hdecl.1.originalConstructors with ⟨baseTypes, hbaseTypes, _⟩
+    · rcases Hdecl.1.sourceConstructors with ⟨baseTypes, hbaseTypes, _⟩
       exact (Hdecl.sourceParameterWF hbaseTypes).mono_of_addConstVals hbase htypes'
-    · rcases Hdecl.1.originalConstructors with ⟨baseTypes, hbaseTypes, _⟩
+    · rcases Hdecl.1.sourceConstructors with ⟨baseTypes, hbaseTypes, _⟩
       exact (Hdecl.sourceParameterWF hbaseTypes).rawCtorShape
     · exact Hcompile.types
     · exact Hcompile.ctors

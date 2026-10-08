@@ -44,7 +44,7 @@ theorem TrExprS.forallDomainsOnly
 
 /-- Original-universe domains chosen by replacing only the extra parameter.
 The old recursor-universe domains need not be syntactic shifts of these. -/
-theorem TrExprS.chooseOriginalForallDomains
+theorem TrExprS.chooseDeclUnivForallDomains
     (henv : env.WF) (hΔ : VLCtx.WF env Us.length Δ)
     (hfresh : fresh ∉ Us)
     (Htel : Expr.ForallTelescope source n residual)
@@ -203,7 +203,7 @@ theorem RecursorConstruction.indexDomainSource_levelParams
   rw [H.indexDomainSource_eq owner howner, Expr.levelParamsIn_abstractList]
   exact hsource
 
-theorem RecursorConstruction.chooseOriginalIndexDomains_large
+theorem RecursorConstruction.chooseDeclUnivIndexDomains_large
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (helim : H.elimLevel = .param fresh) :
@@ -221,7 +221,7 @@ theorem RecursorConstruction.chooseOriginalIndexDomains_large
         (VExpr.wrapForalls (sourceDomains.map (VExpr.instL (VLevel.prependShift c.lparams.length)))
           (.sort .zero)) := by
   obtain ⟨S, indices, major, level, hindices, hlevel, Htr, _, _⟩ :=
-    H.consumedMotiveDomains owner howner
+    H.unannotatedMotiveDomains owner howner
   have Htel := (S.indicesBound.mkForall_forallTelescope H.localWF
     (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] (.sort H.elimLevel))).abstractList
       H.params.fvars
@@ -253,14 +253,14 @@ theorem RecursorConstruction.chooseOriginalIndexDomains_large
           H.params.fvars)
       (VExpr.wrapForalls indices (.forallE major (.sort level))) := by
     simpa [helim, AddInductive.getRecLevelParams] using Htr
-  have Hchosen := TrExprS.chooseOriginalForallDomains R.context.checking.tr.wf
+  have Hchosen := TrExprS.chooseDeclUnivForallDomains R.context.checking.tr.wf
     R.sourceAnonymousParameterWF hfresh Htel hindices Htr' hsource
   simpa only [indexDomainSource, abstractForallContext_toCtx, List.reverse_reverse,
     VLCtx.toCtx, List.append_nil] using Hchosen
 
 /-- Small elimination already runs at the source universes, so its concrete
 index choice requires no universe-support transport. -/
-theorem RecursorConstruction.chooseOriginalIndexDomains_small
+theorem RecursorConstruction.chooseDeclUnivIndexDomains_small
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (helim : H.elimLevel = .zero) :
@@ -272,7 +272,7 @@ theorem RecursorConstruction.chooseOriginalIndexDomains_small
       R.context.venv.IsType c.lparams.length R.parameterScope.toCtx
         (VExpr.wrapForalls sourceDomains (.sort .zero)) := by
   obtain ⟨S, indices, major, level, hindices, hlevel, Htr, _, _⟩ :=
-    H.consumedMotiveDomains owner howner
+    H.unannotatedMotiveDomains owner howner
   have Htel := (S.indicesBound.mkForall_forallTelescope H.localWF
     (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] (.sort H.elimLevel))).abstractList
       H.params.fvars

@@ -128,7 +128,7 @@ def HeaderTelescope.withParameter
     (hdom₀ : Hc.atCheckLCtx.UnannotatedDomain dom sourceDom₀ consumedDom₀) :
     HeaderTelescope
       (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-        hdom.consumed hdom.isType hdom₀.consumed hdom₀.isType)
+        hdom.unannotated hdom.isType hdom₀.unannotated hdom₀.isType)
       target body (i + 1) nindices where
   params := H.params ++ [sourceDom]
   indices := []
@@ -166,7 +166,7 @@ def HeaderTelescope.withIndex
     (hdom₀ : Hc.atCheckLCtx.UnannotatedDomain dom sourceDom₀ consumedDom₀) :
     HeaderTelescope
       (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-        hdom.consumed hdom.isType hdom₀.consumed hdom₀.isType)
+        hdom.unannotated hdom.isType hdom₀.unannotated hdom₀.isType)
       target body i (nindices + 1) where
   params := H.params
   indices := H.indices ++ [sourceDom]
@@ -1641,7 +1641,7 @@ theorem ReusedParameterScope.openedUpSet
 /-- Substitution of the current cached parameter, followed by an executable
 normalization step, cannot introduce dependencies outside the newly consumed
 parameter scope. -/
-theorem ReusedParameterScope.consumedFVars
+theorem ReusedParameterScope.unannotatedFVars
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth i : Nat}
     {Hsuffix : ParameterContextSuffix Hc stats depth}
@@ -1983,18 +1983,18 @@ theorem index.sourceWF
       ∀ normalized,
         FVarsBelow
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).mlctx.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) normalized →
         TrExpr Hc.venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx normalized body'' →
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).mlctx.vlctx normalized body'' →
         FVarsBelow
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).chk.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) normalized →
         TrExpr Hc.venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx normalized body₀' →
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).chk.vlctx normalized body₀' →
         (AddInductive.checkInductiveTypes.loopType nparams stats normalized
           i (nindices + 1) fuel k
           { c with
@@ -2007,8 +2007,8 @@ theorem index.sourceWF
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
   rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀', hbody₀', hbodyEq₀⟩
-  exact index.WF Hc hi Hdom.consumed Hdom.isType hbody''
-    Hdom₀.consumed Hdom₀.isType hbody₀'
+  exact index.WF Hc hi Hdom.unannotated Hdom.isType hbody''
+    Hdom₀.unannotated Hdom₀.isType hbody₀'
     (fun normalized h1 h2 h3 h4 =>
       Hrec body'' hbodyEq body₀' hbodyEq₀ normalized h1 h2 h3 h4)
 
@@ -2033,21 +2033,21 @@ theorem index.cacheWF
       ∀ normalized,
         FVarsBelow
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).mlctx.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) normalized →
         TrExpr Hc.venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx normalized body'' →
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).mlctx.vlctx normalized body'' →
         FVarsBelow
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).chk.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) normalized →
         TrExpr Hc.venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx normalized body₀' →
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).chk.vlctx normalized body₀' →
         ParameterCachePrefix Hc.venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx stats done (depth + 1) →
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).mlctx.vlctx stats done (depth + 1) →
         (AddInductive.checkInductiveTypes.loopType nparams stats normalized
           i (nindices + 1) fuel k
           { c with
@@ -2063,7 +2063,7 @@ theorem index.cacheWF
     Hc hi Hdom hbody Hdom₀ hbody₀
   intro body'' hbodyEq body₀' hbodyEq₀ normalized h1 h2 h3 h4
   exact Hrec body'' hbodyEq body₀' hbodyEq₀ normalized h1 h2 h3 h4
-    (Hcache.withIndex Hc Hdom.consumed Hdom.isType)
+    (Hcache.withIndex Hc Hdom.unannotated Hdom.isType)
 
 /-- Complete index branch for the synthesized header telescope of the first
 header, whose checker context is aligned with the main context.  The source
@@ -2105,8 +2105,8 @@ theorem index.cacheTelescopeWF
     Hc hi Hcache Hdom hbody Hdom₀ hbody₀
   intro body'' hbodyEq _ _ normalized _ hnormalized _ _ Hcache'
   let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-    Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
-  have hbodyEq' := Hdom.bodyDefEqConsumed Hc hbodyEq
+    Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
+  have hbodyEq' := Hdom.bodyDefEqUnannotated Hc hbodyEq
   have hbodyEq'' : Hc'.venv.IsDefEqU c.lparams.length
       Hc'.mlctx.vlctx.toCtx sourceBody' body'' := by
     simpa only [Hc', ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv,
@@ -2117,7 +2117,7 @@ theorem index.cacheTelescopeWF
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
   exact Hrec Hc' rfl rfl rfl rfl rfl rfl normalized next
     (halign.withCheckedLocalDecl _ _ _ _) hnext Hcache'
-    (Hsuffix.withIndex Hc Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType)
+    (Hsuffix.withIndex Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType)
     ((Hsynthesis.withIndex Hdom Hdom₀).normalize hsourceNext)
 
 /-- Verification step for a common parameter of the first mutual header.  In
@@ -2185,9 +2185,9 @@ theorem firstParameter.sourceWF
         (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
       ∀ normalized,
         TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).venv c.lparams
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx normalized body'' →
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).mlctx.vlctx normalized body'' →
         (AddInductive.checkInductiveTypes.loopType nparams
           { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
           normalized (i + 1) nindices fuel k
@@ -2201,8 +2201,8 @@ theorem firstParameter.sourceWF
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
   rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀', hbody₀', -⟩
-  exact firstParameter.WF Hc hi hempty Hdom.consumed Hdom.isType hbody''
-    Hdom₀.consumed Hdom₀.isType hbody₀'
+  exact firstParameter.WF Hc hi hempty Hdom.unannotated Hdom.isType hbody''
+    Hdom₀.unannotated Hdom₀.isType hbody₀'
     (fun normalized hnormalized => Hrec body'' hbodyEq normalized hnormalized)
 
 /-- First-parameter wrapper synchronized with the executable cache push. -/
@@ -2222,14 +2222,14 @@ theorem firstParameter.cacheWF
         (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
       ∀ normalized,
         TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).venv c.lparams
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx normalized body'' →
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).mlctx.vlctx normalized body'' →
         ParameterCachePrefix
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).venv c.lparams
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).mlctx.vlctx
           { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
           (done + 1) 0 →
         (AddInductive.checkInductiveTypes.loopType nparams
@@ -2248,7 +2248,7 @@ theorem firstParameter.cacheWF
     Hc hi hempty Hdom hbody Hdom₀ hbody₀
   intro body'' hbodyEq normalized hnormalized
   exact Hrec body'' hbodyEq normalized hnormalized
-    (Hcache.push Hc Hdom.consumed Hdom.isType)
+    (Hcache.push Hc Hdom.unannotated Hdom.isType)
 
 /-- Complete first-parameter branch for the synthesized header telescope. -/
 theorem firstParameter.cacheTelescopeWF
@@ -2296,8 +2296,8 @@ theorem firstParameter.cacheTelescopeWF
     Hc hi hempty Hcache Hdom hbody Hdom₀ hbody₀
   intro body'' hbodyEq normalized hnormalized Hcache'
   let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-    Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
-  have hbodyEq' := Hdom.bodyDefEqConsumed Hc hbodyEq
+    Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
+  have hbodyEq' := Hdom.bodyDefEqUnannotated Hc hbodyEq
   have hbodyEq'' : Hc'.venv.IsDefEqU c.lparams.length
       Hc'.mlctx.vlctx.toCtx sourceBody' body'' := by
     simpa only [Hc', ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv,
@@ -2310,7 +2310,7 @@ theorem firstParameter.cacheTelescopeWF
     (Hsynthesis.withParameter hindices Hdom Hdom₀).normalize hsourceNext
   exact Hrec Hc' rfl rfl rfl rfl rfl rfl normalized next
     (halign.withCheckedLocalDecl _ _ _ _) hnext Hcache'
-    (Hsuffix.push Hc hprefix Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType)
+    (Hsuffix.push Hc hprefix Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType)
     Hsynthesis' (by rfl)
 
 /-- A closed source header starts the later-parameter traversal with an empty
@@ -2741,7 +2741,7 @@ theorem laterParameterTelescopeWF
               exact heq
             exact Hcurrent.scope hdone)
           Hsynthesis' hnormalized'
-          (Hbody.consumedFVars hbelow) hnormalized
+          (Hbody.unannotatedFVars hbelow) hnormalized
       · exact parameterMismatch.WF hforall (Nat.ne_of_lt hi)
     · have hieq : i = nparams := by omega
       exact Hresult hieq Hsynthesis (hcompleteScope hieq)
@@ -2845,11 +2845,11 @@ theorem laterIndexTelescopeWF
           ⟨consumedBody₀, hbodyConsumed₀, _hbodyEq₀⟩
         apply index.WF (stats := stats) (nparams := nparams)
           (i := nparams) (nindices := nindices) (fuel := fuel)
-          (k := k) (Q := Q) Hc (by omega) Hdom.consumed Hdom.isType
-          hbodyConsumed Hdom₀.consumed Hdom₀.isType hbodyConsumed₀
+          (k := k) (Q := Q) Hc (by omega) Hdom.unannotated Hdom.isType
+          hbodyConsumed Hdom₀.unannotated Hdom₀.isType hbodyConsumed₀
         intro normalized hbelow hnormalized _hbelow₀ hnormalized₀
         let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+          Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp
             (Expr.consumeTypeAnnotationsVerified_fvarsIn htypeFVars.1)).1
@@ -2956,12 +2956,12 @@ theorem laterIndexTelescopeWF
           (by simpa using henv) (by simpa using hsafety)
           (by simpa using hallowPrimitive) (by simpa using hfuel)
           (by
-            have h := Hcache.withIndex (name := name) (bi := bi) Hc Hdom.consumed Hdom.isType
+            have h := Hcache.withIndex (name := name) (bi := bi) Hc Hdom.unannotated Hdom.isType
             rw [← Nat.add_assoc]; exact h)
           (by simpa [Nat.add_assoc] using
-            Hsuffix.withIndex Hc Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType)
+            Hsuffix.withIndex Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType)
           (by simpa [Nat.add_assoc] using
-            (Hambient.withIndex Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+            (Hambient.withIndex Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
               Hdom.source_defeq))
           (by change R Hc.venv; exact HR)
           Hsynthesis' (by

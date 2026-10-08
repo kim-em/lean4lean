@@ -9,7 +9,7 @@ The relational traces record this through `NestedAuxLE` (which fixes `lvls`),
 the `lvls` fields of `ConstructorLowering`,
 `ConstructorLowering.Resolved` and `NestedLowering`, and the universe-argument
 premise of the replacement leaves in
-`NestedLoweringOutputClosed.originalExpansionsAboveLvls`. Projected through
+`NestedLoweringOutputClosed.sourceExpansionsAboveLvls`. Projected through
 the translation, every replacement hit is a level leaf
 (`NodeReplacementResolved.levelLeaf`), so the lowered constructor types of
 the source families use the auxiliary family and constructor names only at
@@ -179,7 +179,7 @@ theorem NestedRun.loweredConstructorLevelsAll
     rw [← hnames] at hname
     exact List.mem_append_left _ hname
   have HsourceCore := E.sourceCore.core
-  rw [E.nativeSourceDecl_eq] at HsourceCore
+  rw [E.sourceCoreDecl_eq] at HsourceCore
   have htypesEq : E.sourceCore.envTypes = envTypes :=
     Option.some.inj (HsourceCore.typesAdded.symm.trans hadded)
   have hordered := henvTypes.ordered
@@ -221,12 +221,12 @@ theorem NestedRun.loweredConstructorLevelsAll
       sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
-      E.nativeSourceDecl_eq] using E.sourceCore.core
+      E.sourceCoreDecl_eq] using E.sourceCore.core
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       result.types P.isUnsafe P.loweredDecl Hpack.1.context.venv
         R.declared.venvCtors := R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
-    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.checked
+    simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked
   have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
   have HbaseWF : P.initialEnv.WF := by
@@ -273,7 +273,7 @@ theorem NestedRun.loweredConstructorLevelsAll
       obtain ⟨u, hu⟩ := hC.wf
       rw [htypesEq] at hu
       exact (hu.noFreshConsts hordered hfresh (by intro _ h; simp at h)).1
-    have Hexpansions := NestedLoweringOutputClosed.originalExpansionsAboveLvls HliftLv
+    have Hexpansions := NestedLoweringOutputClosed.sourceExpansionsAboveLvls HliftLv
       ⟨finalState, Hrun, Hcache, Hparams⟩ Hsource Htarget Hmetadata Hsources hempty
       HbaseWF
       (fun Htrace Hctx selection _ Harity Hdepth _ HtargetParams _ HsourceExpr

@@ -152,7 +152,7 @@ private theorem ProjectionRigid.addInduct {base env' : VEnv} {decl : VInductDecl
     have henvTypes := hbase.addConstVals htypesWF htypes
     have henvCtors := henvTypes.addConstVals hctorsWF hctors
     have hparams := hdecl.sourceParameterWF (by rwa [hcompile.types] at htypes)
-    have hpreOrdered := Ordered.inductProjections (es := block.eliminators) hbase henvCtors hcompile.sourceNames hdecl.1.originalTypes
+    have hpreOrdered := Ordered.inductProjections (es := block.eliminators) hbase henvCtors hcompile.sourceNames hdecl.1.sourceTypes
       hdecl.1.2.2.2.1 (hdecl.1.constructorsWF_at (by rwa [hcompile.types] at htypes))
       hparams hparams.rawCtorShape hcompile.types hcompile.ctors hcompile.projections htypes hctors
     have hpreRigid := (H.addConstVals htypes).addConstVals hctors

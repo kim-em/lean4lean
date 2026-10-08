@@ -22,7 +22,7 @@ open Kernel
 that differ only in binder types, have syntactically equal bodies once the
 same number of binders is opened, provided the residual has no further
 binders to consume. -/
-theorem TrExprS.consumedTelescope_body_eq {venv : VEnv} {Us : List Name}
+theorem TrExprS.unannotatedTelescope_body_eq {venv : VEnv} {Us : List Name}
     (Htel : Expr.ForallTelescope raw n residual) :
     Lean4Lean.Expr.consumeForallTypes annOk residual = residual →
     ∀ {Δ₁ Δ₂ : VLCtx} {As Cs : List VExpr} {B D : VExpr},
@@ -70,7 +70,7 @@ theorem RecursorConstruction.sourceConstructorIndices_eq_header
   have Hraw := H.constructorRawSourceReplay owner howner localIndex hlocal
     (H.sourceMinorTyping owner howner localIndex hlocal)
   have Hcons := (H.sourceConstructorIndices_replay owner howner localIndex hlocal).1
-  rw [H.constructorConsumedSource owner howner localIndex hlocal
+  rw [H.constructorUnannotatedSource owner howner localIndex hlocal
     (H.sourceMinorTyping owner howner localIndex hlocal)] at Hcons
   have Htel := (H.sourceMinorTyping owner howner localIndex hlocal).semantic.traversal.fieldTelescope.abstractList
     H.params.fvars
@@ -88,7 +88,7 @@ theorem RecursorConstruction.sourceConstructorIndices_eq_header
   obtain ⟨hlen, -⟩ := H.sourceFields_defeq_header owner howner localIndex hlocal
   have hconsLen := H.sourceFields_length owner howner localIndex hlocal
   have hfields := (H.sourceMinorTyping owner howner localIndex hlocal).semantic.traversal_fields
-  have hbody := TrExprS.consumedTelescope_body_eq Htel hcons .base Hraw Hcons
+  have hbody := TrExprS.unannotatedTelescope_body_eq Htel hcons .base Hraw Hcons
     (by rw [hfields]; omega) (by rw [hfields]; exact hconsLen)
   have hargs := congrArg (fun e => e.getAppFnArgs.2) hbody
   simp only [InductiveSignature.familyApp, VExpr.getAppFnArgs_mkApps_const] at hargs
@@ -220,7 +220,7 @@ theorem RecursorConstruction.elimLevelDecision
 /-- A singleton source block accepted by the concrete large-elimination
 check satisfies the generator's field condition for any signature carrying
 the consumed field domains and result indices, at every universe instance. -/
-theorem RecursorConstruction.consumedSingletonElimination
+theorem RecursorConstruction.unannotatedSingletonElimination
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {s : InductiveSignature}
     (hparams : s.params = R.parameterScope.toCtx.reverse)
@@ -385,7 +385,7 @@ theorem RecursorConstruction.generatedInstance_admissible
         rfl
       · obtain ⟨htarget, hfree⟩ := recursorDeclarationAbstractLevels_freeTarget
           H.elimLevelAdmissible hz (H.generatedInstance_target s)
-        exact .inr (.inr ⟨H.consumedSingletonElimination hparams hfam hsize hfields
+        exact .inr (.inr ⟨H.unannotatedSingletonElimination hparams hfam hsize hfields
           (recursorDeclarationAbstractLevels_wf H.elimLevelAdmissible) hsingleton,
           0, htarget, hfree⟩)
 

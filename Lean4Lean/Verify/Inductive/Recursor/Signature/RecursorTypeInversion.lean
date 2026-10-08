@@ -378,7 +378,7 @@ theorem RecursorConstruction.recursorTelescope_minorFields
     H.minorSources.rows mowner hmowner hsourceOwner localIndex hlocal
   let HS := H.sourceMinorTyping mowner hmowner localIndex hlocal
   have hsource : D.type = S.sourceType := by
-    rw [hD, ← horigin, ← S.consumed_eq, HS.semantic.sourceType_consumeTypeAnnotations_eq_self]
+    rw [hD, ← horigin, ← S.unannotated_eq, HS.semantic.sourceType_consumeTypeAnnotations_eq_self]
   rw [hsource] at Hminor
   have hminor : minorIdx < (H.recInfos.flatMap (·.minors)).size := D.inBounds
   have Htel := (S.fieldTelescope (S.sourceContext.mkForall S.hypotheses S.motiveApp)).abstractList ys

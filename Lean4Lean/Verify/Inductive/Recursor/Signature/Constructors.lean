@@ -60,7 +60,7 @@ theorem RecursorConstruction.sourceConstructorTail
       R.headerVEnv.IsType c.lparams.length (domains.reverse ++ R.parameterScope.toCtx) result := by
   let S := H.origins.minorShapes owner howner localIndex hlocal
   obtain ⟨sourceTarget, Hsource, HsourceType, _⟩ :=
-    H.constructorConsumedHeaderReplay owner howner localIndex hlocal HS
+    H.constructorUnannotatedHeaderReplay owner howner localIndex hlocal HS
   have Hext := HS.semantic.hypothesesRecent.contextLE.trans HS.semantic.extension.contextLE
   let Hbound := HS.semantic.fieldsRecent.toFVarArrayIn.mono Hext
   have Htel := (Hbound.mkForall_forallTelescope H.localWF HS.semantic.traversal.terminal).abstractList H.params.fvars
@@ -425,7 +425,7 @@ theorem RecursorConstruction.sourceConstructorDefEq
           (InductiveSignature.vars stats.params.size S.fields.size ++
             H.declConstructorIndices owner howner localIndex hlocal))) := by
   let HS := H.sourceMinorTyping owner howner localIndex hlocal
-  obtain ⟨consumed, Hconsumed, _, Heq⟩ := H.constructorConsumedHeaderReplay owner howner localIndex hlocal HS
+  obtain ⟨consumed, Hconsumed, _, Heq⟩ := H.constructorUnannotatedHeaderReplay owner howner localIndex hlocal HS
   have HfixedConsumed := (H.sourceConstructorIndices_replay owner howner localIndex hlocal).1
   have henv := R.headerCheckingAnnotations.1.wf
   have hΔ := R.headerAnonymousParameterWF

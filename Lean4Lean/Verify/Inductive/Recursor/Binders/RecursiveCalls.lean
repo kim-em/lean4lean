@@ -257,7 +257,7 @@ theorem motiveSourceReplay
   rcases hconsume _ _ Rindices.atCheckLCtx HfamChk HfamChkType with
     ⟨majorChk, HmajorChk⟩
   have HmotiveChk := Rindices.scopedMotiveClosure indices.size hnChk
-    indices hxsChk HmajorChk.consumed HmajorChk.isType
+    indices hxsChk HmajorChk.unannotated HmajorChk.isType
     hresultLevel
   have hdropAlign : VLCtx.IsDefEq Rindices.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams).length
@@ -1642,7 +1642,7 @@ theorem resultRecursiveDomain {alpha : Type}
             decl.RecursiveArgAtTarget R.venv recLparams.length
               (decl.types[target]'htarget).name
               R.mlctx.vlctx.toCtx depth typeTarget ∧ Q target out)
-        R Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
+        R Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
       let c' : AddInductive.Context := { c with
         ngen := c.ngen.next
         lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
@@ -1651,7 +1651,7 @@ theorem resultRecursiveDomain {alpha : Type}
           (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
       let R' : RecursorContextWF c' recLparams :=
         R.withCheckedLocalDecl (name := name) (bi := bi)
-        Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+        Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
       let W : VLCtx.FVLift R.mlctx.vlctx R'.mlctx.vlctx 0 1 0 :=
         .skip_fvar _ _ .refl
       have happliedFn := happlied.weakFV R.checking.tr.wf.ordered W
@@ -1700,17 +1700,17 @@ theorem resultRecursiveDomain {alpha : Type}
           R'.mlctx.vlctx.toCtx
           (.app (appliedTarget.liftN 1 0) (.bvar 0)) consumedBody := by
         have happ := VEnv.HasType.app happliedFnType hargType
-        have hbodyEq' := Hdom.bodyDefEqConsumed R hbodyEq
+        have hbodyEq' := Hdom.bodyDefEqUnannotated R hbodyEq
         apply happ.defeqU_r R'.checking.tr.wf R'.mlctx_wf.tr.wf.toCtx
         simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
           RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VExpr.inst_liftN_bvar] using
             hbodyEq'
       have hopened := R.instantiateFresh (name := name) (bi := bi)
-        Hdom.consumed Hdom.isType hbodyConsumed
+        Hdom.unannotated Hdom.isType hbodyConsumed
       let Hxs' := Hxs.pushCurrentChecked name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
-        consumedDom bi Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+        consumedDom bi Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
       have hopened₀ := R.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
-        Hdom₀.consumed Hdom₀.isType hbodyConsumed₀
+        Hdom₀.unannotated Hdom₀.isType hbodyConsumed₀
       have hbodyScope : (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)).FVarsIn
           (fun fv => fv ∈ Hxs'.fvars ∨ P fv) := by
         have hbodyScopeBase : body.FVarsIn
@@ -1779,7 +1779,7 @@ theorem resultRecursiveDomain {alpha : Type}
         simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
           RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
           hbodyType.defeqDFC R.checking.tr.wf.ordered hctxEq.defeqCtx
-      have hbodyEq' := Hdom.bodyDefEqConsumed R hbodyEq
+      have hbodyEq' := Hdom.bodyDefEqUnannotated R hbodyEq
       have hconsumedBodyType : R'.venv.IsType recLparams.length
           R'.mlctx.vlctx.toCtx consumedBody := by
         apply hsourceBodyType.defeqU_l R'.checking.tr.wf

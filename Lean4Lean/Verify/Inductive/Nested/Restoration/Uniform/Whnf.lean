@@ -813,7 +813,7 @@ theorem NestedRun.generatedFamilyType_forall
       sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
-      E.nativeSourceDecl_eq] using E.sourceCore.core
+      E.sourceCoreDecl_eq] using E.sourceCore.core
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       result.types P.isUnsafe P.loweredDecl Hpack.1.context.venv
         R.declared.venvCtors := R.core
@@ -968,7 +968,7 @@ theorem NestedRun.familyType_headType
   have HT := Lean4Lean.List.forall₂_getElem hcore.types i hi hiD
   have hsrcLen : sourceTypes.length = sourceDecl.types.length := by
     have := TrInductDeclCore.types_length E.sourceCore.core
-    rwa [E.nativeSourceDecl_eq] at this
+    rwa [E.sourceCoreDecl_eq] at this
   have hge : sourceTypes.length ≤ i := by
     refine Nat.le_of_not_gt fun hlt => E.mainFamily_not_mem_uniformHeads hnodup
       (t := E.lowered.loweredDecl.types[i]) ?_ ?_

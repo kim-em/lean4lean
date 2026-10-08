@@ -151,12 +151,12 @@ theorem LoopUArgsRun.universeSupport
       ⟨consumedDom₀, Hdom₀⟩
     rcases Hdom₀.body R.atCheckLCtx hbodyN₀ with ⟨consumedBody₀, hbodyConsumed₀, _⟩
     let x : FVarId := ⟨current.ngen.curr⟩
-    let R' := R.withCheckedLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
-      Hdom₀.consumed Hdom₀.isType
+    let R' := R.withCheckedLocalDecl (name := name) (bi := bi) Hdom.unannotated Hdom.isType
+      Hdom₀.unannotated Hdom₀.isType
     have hopened := R.instantiateFresh (name := name) (bi := bi)
-      Hdom.consumed Hdom.isType hbodyConsumed
+      Hdom.unannotated Hdom.isType hbodyConsumed
     have hopened₀ := R.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
-      Hdom₀.consumed Hdom₀.isType hbodyConsumed₀
+      Hdom₀.unannotated Hdom₀.isType hbodyConsumed₀
     simp only [Expr.levelParamsIn, Bool.and_eq_true] at hU
     have hdomP : domain.FVarsIn P' := hP.1
     have hbodyP : body.FVarsIn P' := hP.2
@@ -195,7 +195,7 @@ theorem LoopUArgsRun.universeSupport
       normalization
     have hscopeRun := hdualRun.1
     have hlevelRun := (whnfInRecursorContext.levelsWF R' hopened₀) normalized normalization
-    have hbodyEq' := Hdom.bodyDefEqConsumed R hbodyEq
+    have hbodyEq' := Hdom.bodyDefEqUnannotated R hbodyEq
     have hsourceBodyType : R'.venv.IsType recLparams.length
         R'.mlctx.vlctx.toCtx sourceBody := by
       let hctxEq : VLCtx.IsDefEq R.venv recLparams.length

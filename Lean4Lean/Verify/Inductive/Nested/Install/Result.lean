@@ -135,7 +135,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv := by
       simpa only [hsource] using V
-    rcases V'.assemblyNative wf Hsources hnested htels with ⟨⟨C, hproduction⟩⟩
+    rcases V'.assemblyOfRun wf Hsources hnested htels with ⟨⟨C, hproduction⟩⟩
     have Hvalid : CheckingEnv.Valid
         (if isUnsafe then .unsafe else .safe) env
           (ves.venv (if isUnsafe then .unsafe else .safe)) :=
@@ -179,7 +179,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
       auxiliarySelection := V'.auxiliarySelection
       auxiliaryTranslations := V'.auxiliaryTranslations
       sourceCore := V'.sourceCore
-      nativeSourceDecl_eq := V'.nativeSourceDecl_eq
+      sourceCoreDecl_eq := V'.sourceCoreDecl_eq
       assembly := C
       lowered_eq := hproduction
       installedResult := C.extension Hvalid }
@@ -190,7 +190,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
           newTypes := sourceTypes.toArray } res := by
       simpa only [E'.context_env] using HlowerInitialClosed
     have hconstructors : NestedInstalledConstructorsCoherent E' := by
-      have Hparams := E'.constructorParameterDomainsDefEqNative
+      have Hparams := E'.constructorParameterDomainsDefEqOfSource
         (E'.restoredFamilyParameterScopes HlowerExact rfl)
       have Howners : ConstructorOwnersPresent E'.context.env := by
         rw [E'.context_env]
@@ -208,7 +208,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
     have htypesH : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some V'.sourceCore.envTypes := by
       have h := V'.sourceCore.core.typesAdded
-      rw [V'.nativeSourceDecl_eq] at h
+      rw [V'.sourceCoreDecl_eq] at h
       exact h
     exact E'.inductiveExtension wf htels Hsources HlowerInitialClosed rfl
       hconstructors htypesH

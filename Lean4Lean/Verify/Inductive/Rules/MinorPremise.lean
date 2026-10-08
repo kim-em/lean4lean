@@ -579,7 +579,7 @@ theorem
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
       ∃ narrowTarget,
       ∃ fullTarget,
-        fullTarget = HS.semantic.consumedTarget.lift'
+        fullTarget = HS.semantic.unannotatedTarget.lift'
           (HS.semantic.extension.shift.consN 0) ∧
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
@@ -648,12 +648,12 @@ theorem
     exact hscopeSource S.origin
   have HsourceOrigin : TrExprS HS.semantic.sourceWF.venv Us
       HS.semantic.sourceWF.mlctx.vlctx S.origin
-      HS.semantic.consumedTarget := by
-    rw [← S.consumed_eq]
+      HS.semantic.unannotatedTarget := by
+    rw [← S.unannotated_eq]
     simpa only [HS.semantic.extension.venv_eq] using
-      HS.semantic.consumption.consumed
+      HS.semantic.consumption.unannotated
   have Hfull₀ := HS.semantic.extension.weakTrExprS HsourceOrigin
-  let fullTarget := HS.semantic.consumedTarget.lift'
+  let fullTarget := HS.semantic.unannotatedTarget.lift'
     (HS.semantic.extension.shift.consN 0)
   have Hfull : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx S.origin
       fullTarget :=
@@ -924,7 +924,7 @@ theorem
   have hconsume := HS.semantic.sourceType_consumeTypeAnnotations_eq_self
     (ok := S.sourceFullContext.env.isTypeAnnotationWrapper)
   have hsourceType : S.origin = S.sourceType :=
-    S.consumed_eq.symm.trans hconsume
+    S.unannotated_eq.symm.trans hconsume
   have hmotiveClosed : Closed S.motiveApp := by
     have h := HS.semantic.motivePreTranslation.closed
     simpa [HS.semantic.terminalWF.mlctx.noBV] using h

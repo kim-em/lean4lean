@@ -1281,7 +1281,7 @@ theorem RecursorReusedParameterScope.openedUpSet
     ((some (H.fv, H.deps), .vlam H.paramType) :: H.older)
     H.added (by simpa [H.context] using R.mlctx_wf.tr.wf)
 
-theorem RecursorReusedParameterScope.consumedFVars
+theorem RecursorReusedParameterScope.unannotatedFVars
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {Hsuffix : RecursorParameterContextSuffix R stats depth}
@@ -1411,7 +1411,7 @@ noncomputable def RecursorReusedParameterScope.next
       omega
     have htail : currentEntry :: H.older = older :=
       List.append_inj_right hdecomp hprefixLength
-    have hnormalized := H.consumedFVars hbelow
+    have hnormalized := H.unannotatedFVars hbelow
     have hnextFVars : FVarsIn (· ∈ VLCtx.fvars older) normalized := by
       rw [← htail]
       exact hnormalized

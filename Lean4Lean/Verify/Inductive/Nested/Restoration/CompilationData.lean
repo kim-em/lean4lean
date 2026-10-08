@@ -192,7 +192,7 @@ theorem NestedRun.compilationData_of_specializations
       E.lowered.loweredDecl at h
     rwa [hinit] at h
   have Hsource := E.sourceCore.core
-  rw [E.nativeSourceDecl_eq] at Hsource
+  rw [E.sourceCoreDecl_eq] at Hsource
   have hsourceNonempty : sourceDecl.types ≠ [] := by
     rw [C.typesSource]; simp
   have hloweredTypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -226,7 +226,7 @@ theorem NestedRun.compilationData_of_specializations
     expandedWF := HexpandedSource
     headerPrefix := by
       have h := E.sourceCore.sourceTypeValues
-      rw [E.nativeSourceDecl_eq] at h
+      rw [E.sourceCoreDecl_eq] at h
       rw [h, VInductDecl.typeConstants, List.map_take, hsourceLength]
     expandedFormation := hexpanded ▸ C.formationAssembly.expandedFormation
     model := Hmodels

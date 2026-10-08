@@ -1343,7 +1343,7 @@ theorem RecursorConstruction.flatMinors_size_eq
 
 /-- The minor group of every checked recursor type is the generator's minor
 list for the consumed signature. -/
-theorem RecursorConstruction.recursorTelescope_minors_consumed
+theorem RecursorConstruction.recursorTelescope_minors_unannotated
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     {owner : Nat} (howner : owner < H.recInfos.size) {target : VExpr}
     (T : RecursorTypeTelescope R.context.venv
@@ -1473,7 +1473,7 @@ theorem RecursorConstruction.signature_types
   have heq := H.recursorTarget_eq_of_minors howner' T (H.generatedInstance (H.signature HU))
     rfl rfl rfl (H.generatedInstance_target _)
     (by simp [signature, H.flatMinors_size_eq])
-    (H.recursorTelescope_minors_consumed HU howner' T)
+    (H.recursorTelescope_minors_unannotated HU howner' T)
   rw [heq] at Htr
   exact Htr
 
@@ -1505,7 +1505,7 @@ theorem RecursorConstruction.signature_minorTranslation
     have hp := H.recursorTelescope_params T
     have hm := H.recursorTelescope_motives T (H.generatedInstance (H.signature HU))
       rfl rfl rfl (H.generatedInstance_target _)
-    have hmi := H.recursorTelescope_minors_consumed HU (by omega) T
+    have hmi := H.recursorTelescope_minors_unannotated HU (by omega) T
     have hp' : (H.generatedInstance (H.signature HU)).params =
         H.parameterSuffix.parameterDecls.toCtx.reverse := by
       rw [InductiveSignature.Instance.params, H.parameterDomains]

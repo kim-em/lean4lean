@@ -2080,7 +2080,7 @@ but it must remain a type definitionally equal to the source domain. -/
 structure ContextWF.UnannotatedDomain (Hc : ContextWF c)
     (dom : Expr) (source' consumed' : VExpr) : Prop where
   source : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom source'
-  consumed : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+  unannotated : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
     (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumed'
   isType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx consumed'
   source_defeq : ∃ u, Hc.venv.IsDefEq c.lparams.length Hc.mlctx.vlctx.toCtx
@@ -2149,7 +2149,7 @@ theorem ContextWF.UnannotatedDomain.body
 
 /-- Move the source/body conversion produced by `body` into the
 annotation-consumed context installed by the executable checker. -/
-theorem ContextWF.UnannotatedDomain.bodyDefEqConsumed
+theorem ContextWF.UnannotatedDomain.bodyDefEqUnannotated
     {c : AddInductive.Context} (Hc : ContextWF c)
     {dom : Expr} {source' consumed' sourceBody body'' : VExpr}
     (H : Hc.UnannotatedDomain dom source' consumed')
@@ -2170,7 +2170,7 @@ structure RecursorContextWF.UnannotatedDomain
     (R : RecursorContextWF c recLparams)
     (dom : Expr) (source' consumed' : VExpr) : Prop where
   source : TrExprS R.venv recLparams R.mlctx.vlctx dom source'
-  consumed : TrExprS R.venv recLparams R.mlctx.vlctx
+  unannotated : TrExprS R.venv recLparams R.mlctx.vlctx
     (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumed'
   isType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx consumed'
   source_defeq : ∃ u, R.venv.IsDefEq recLparams.length R.mlctx.vlctx.toCtx
@@ -2195,7 +2195,7 @@ theorem RecursorContextWF.UnannotatedDomain.body
   rcases hbody.defeqDFC R.checking.tr.wf hctx with ⟨body'', hbody''⟩
   exact ⟨body'', hbody'', hbody.uniq R.checking.tr.wf hctx hbody''⟩
 
-theorem RecursorContextWF.UnannotatedDomain.bodyDefEqConsumed
+theorem RecursorContextWF.UnannotatedDomain.bodyDefEqUnannotated
     (R : RecursorContextWF c recLparams)
     {dom : Expr} {source' consumed' sourceBody body'' : VExpr}
     (H : R.UnannotatedDomain dom source' consumed')
@@ -2451,7 +2451,7 @@ theorem ContextWF.alignedBinder (Hc : ContextWF c)
       ((some (⟨c.ngen.curr⟩, (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
         .vlam narrowDom) :: scope)
       (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-        Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx := by
+        Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).chk.vlctx := by
   have henv := Hc.checking.tr.wf
   have hscopeΓ := halign.wf.toCtx
   have hdomU := hdomNarrow.uniq henv halign Hdom₀.source
@@ -2479,7 +2479,7 @@ theorem RecursorContextWF.alignedBinder (R : RecursorContextWF c recLparams)
       ((some (⟨c.ngen.curr⟩, (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
         .vlam narrowDom) :: scope)
       (R.withCheckedLocalDecl (name := name) (bi := bi)
-        Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx := by
+        Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).chk.vlctx := by
   have henv := R.checking.tr.wf
   have hscopeΓ := halign.wf.toCtx
   have hdomU := hdomNarrow.uniq henv halign Hdom₀.source
@@ -2558,7 +2558,7 @@ theorem ContextWF.Aligned.unannotatedDomain {H : ContextWF c} (ha : H.Aligned)
       H.venv.IsDefEqU c.lparams.length H.mlctx.vlctx.toCtx source' source₀ ∧
       H.venv.IsDefEqU c.lparams.length H.mlctx.vlctx.toCtx consumed' consumed₀ := by
   obtain ⟨s₀, hs₀, hsu⟩ := ha.tr Hdom.source
-  obtain ⟨c₀, hc₀, hcu⟩ := ha.tr Hdom.consumed
+  obtain ⟨c₀, hc₀, hcu⟩ := ha.tr Hdom.unannotated
   have hΓ := H.mlctx_wf.tr.wf.toCtx
   have hct := ha.isType Hdom.isType hcu
   obtain ⟨u, hsd⟩ := Hdom.source_defeq

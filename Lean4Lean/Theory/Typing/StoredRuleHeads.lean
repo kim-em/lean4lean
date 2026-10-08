@@ -22,7 +22,7 @@ def VEnv.PatternHeadsStoredRule (env : VEnv) (pattern : Pattern) : Prop :=
     equation.lhs.equationHead = .const name levels
 
 /-- No installed native equation computes at this constant's head. -/
-def VEnv.NativeHeadRigid (env : VEnv) (name : Name) : Prop :=
+def VEnv.ConstHeadRigid (env : VEnv) (name : Name) : Prop :=
   ∀ equation, env.defeqs equation → ∀ levels,
     equation.lhs.equationHead ≠ .const name levels
 

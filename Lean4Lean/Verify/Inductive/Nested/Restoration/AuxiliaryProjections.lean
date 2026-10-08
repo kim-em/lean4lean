@@ -440,7 +440,7 @@ theorem NestedRun.projectionSourceOnCtx_of
   have hsourceTyped : ∀ family ∈ sourceDecl.types, ∀ sc ∈ family.ctors,
       ∃ u, envTypes.HasType sourceDecl.uvars [] sc.type (.sort u) := by
     have Hsource := E.sourceCore.core
-    rw [E.nativeSourceDecl_eq] at Hsource
+    rw [E.sourceCoreDecl_eq] at Hsource
     have htypesEq : E.sourceCore.envTypes = envTypes :=
       Option.some.inj (Hsource.typesAdded.symm.trans hadded)
     intro family hfamily sc hsc

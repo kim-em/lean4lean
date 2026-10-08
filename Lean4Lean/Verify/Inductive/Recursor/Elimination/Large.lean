@@ -203,7 +203,7 @@ theorem ContextWF.UnannotatedDomain.proof_of_largeEliminationCheck
     (Hzero : result.sortLevel!.isAlwaysZero = true) :
     Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx consumed' (.sort .zero) := by
   let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-    Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+    Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
   have W : VLCtx.FVLift Hc.mlctx.vlctx Hnext.mlctx.vlctx 0 1 0 :=
     .skip_fvar _ _ .refl
   have Hraw := Hdom.source.weakFV Hc.checking.tr.wf.ordered W Hnext.mlctx_wf.tr.wf

@@ -6,7 +6,7 @@ open Kernel
 
 /-- The actual consumed motive telescope in its original narrow parameter
 scope, as replayed in the checker context of the index loop. -/
-theorem MotiveDecl.consumedTranslation
+theorem MotiveDecl.unannotatedTranslation
     {Rroot : RecursorContextWF root recLparams}
     (S : MotiveDecl Rroot stats decl owner info elimLevel) :
     ∃ target,
@@ -21,7 +21,7 @@ theorem MotiveDecl.consumedTranslation
 
 /-- Translate a completed motive over the block's one cached parameter
 choice, before any recursor declaration is installed. -/
-theorem RecursorConstruction.consumedMotiveAtParameters
+theorem RecursorConstruction.unannotatedMotiveAtParameters
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size) :
@@ -42,7 +42,7 @@ theorem RecursorConstruction.consumedMotiveAtParameters
   have henv := H.recursorWF.checking.tr.wf
   obtain ⟨S, hparams⟩ := H.motiveTelescopes.motiveDecls owner howner
   rw [← H.parameterDecls] at hparams
-  obtain ⟨narrowTarget, Hnarrow, HnarrowType, Hcanonical⟩ := S.consumedTranslation
+  obtain ⟨narrowTarget, Hnarrow, HnarrowType, Hcanonical⟩ := S.unannotatedTranslation
   let source := H.localContext.lctx.mkForall H.recInfos[owner]!.indices
     (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] (.sort H.elimLevel))
   have HnarrowParameters : TrExprS H.recursorWF.venv
@@ -116,7 +116,7 @@ private theorem abstractList_sort (u : Level) (fvars : List FVarId) (k : Nat := 
 /-- The actual consumed index domains and the major binder are exposed from
 one pre-install translation. In particular, the terminal sort is the exact
 universe selected by the executable elimination check. -/
-theorem RecursorConstruction.consumedMotiveDomains
+theorem RecursorConstruction.unannotatedMotiveDomains
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size) :
@@ -138,7 +138,7 @@ theorem RecursorConstruction.consumedMotiveDomains
           (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
           H.parameterSuffix.parameterDecls.toCtx
           (VExpr.wrapForalls indices (.forallE major (.sort level))) S.canonical.motiveType := by
-  obtain ⟨S, target, Htr, Htype, Heq⟩ := H.consumedMotiveAtParameters owner howner
+  obtain ⟨S, target, Htr, Htype, Heq⟩ := H.unannotatedMotiveAtParameters owner howner
   have hlctx : LocalContext.LctxClosed H.localContext.lctx := H.recursorWF.lctxClosed
   have hparts := (H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner howner).parts
   have hmajorNodup : S.majorBound.fvars.Nodup := by
@@ -415,7 +415,7 @@ theorem TrExprS.const_bvarSpine_eq
 
 /-- Any strict motive translation has the same major family application,
 although its index domains may legitimately vary by typed equality. -/
-theorem RecursorConstruction.consumedMotiveMajor
+theorem RecursorConstruction.unannotatedMotiveMajor
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (hindices : indices.length = H.recInfos[owner]!.indices.size)

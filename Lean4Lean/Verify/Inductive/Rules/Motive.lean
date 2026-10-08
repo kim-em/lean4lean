@@ -199,7 +199,7 @@ theorem RecursorTypeTelescope.motivesSuffix_eq_of_target
 
 /-- The checked recursor telescope decomposes the canonical generated
 recursor type itself. -/
-theorem RecursorConstruction.recursorTelescopeNative
+theorem RecursorConstruction.recursorTelescopeGenerated
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat)
@@ -277,7 +277,7 @@ theorem RecursorCheck.ownerSuffix_eq_expected
   dsimp only
   have hrec : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
-  obtain ⟨T₀⟩ := H.recursorTelescopeNative owner hrec
+  obtain ⟨T₀⟩ := H.recursorTelescopeGenerated owner hrec
   have htgt : H.entries[owner].2.type = (H.recursorTarget owner).type := by
     rw [H.targets owner howner]
   obtain ⟨hmot, hidx⟩ := T.motivesSuffix_eq_of_target T₀ htgt

@@ -381,7 +381,7 @@ structure MinorPremiseType where
   sourceType_eq : sourceType =
     sourceContext.mkForall fields
       (sourceContext.mkForall hypotheses motiveApp)
-  consumed_eq :
+  unannotated_eq :
     (sourceType.consumeTypeAnnotationsVerified sourceFullContext.env.isTypeAnnotationWrapper) = origin
 
 /-- A semantic minor retained its completed hypothesis-origin table, and the
@@ -497,7 +497,7 @@ theorem MinorPremiseType.originTelescope
       (S.fields.size + S.hypotheses.size) residual := by
   rcases S.sourceTelescope.consumeTypeAnnotationsVerified_arity with
     ⟨residual, Htelescope⟩
-  rw [S.consumed_eq] at Htelescope
+  rw [S.unannotated_eq] at Htelescope
   exact ⟨residual, Htelescope⟩
 
 /-- Exact `withLocalDecl` origin types retained in the same row structure as

@@ -304,7 +304,7 @@ theorem projValid_of_decl {envF env0 env' : VEnv} {ds : List VDecl} (hF : envF.W
           VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hrecs).trans <|
             VEnv.addDefEqRules_le.trans hle
         exact Model.ProjValid.of_origin hF hpF (ProjDeclAt.ofEntry hbase htypes' hTF
-          hdeclWF.1.originalTypes (hdeclWF.1.constructorsWF_at htypes') hdeclWF.1.2.2.2.1
+          hdeclWF.1.sourceTypes (hdeclWF.1.constructorsWF_at htypes') hdeclWF.1.2.2.2.1
           hparams.rawCtorShape hcompile.sourceNames hparams hentry) (V0.addConstVals htypes')
       · rw [VEnv.addEliminators_projections, VEnv.addConstVals_projections hctors,
           VEnv.addConstVals_projections htypes] at hold
@@ -370,7 +370,7 @@ theorem ordered_addProjections {env0 types ctors : VEnv} {decl : VInductDecl}
   rw [hcomp.types] at ht'
   have hparams := hdw.sourceParameterWF ht'
   exact .inductProjections h0 ((h0.addConstVals htwf ht).addConstVals hcwf hc) hcomp.sourceNames
-    hdw.1.originalTypes hdw.1.2.2.2.1 (hdw.1.constructorsWF_at ht') hparams hparams.rawCtorShape
+    hdw.1.sourceTypes hdw.1.2.2.2.1 (hdw.1.constructorsWF_at ht') hparams hparams.rawCtorShape
     hcomp.types hcomp.ctors hcomp.projections ht hc
 
 /-- **Validity of the generic equations of a registered case eliminator** (D15), from validity of
@@ -501,8 +501,8 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
   have hdr := hF.deltaRules
   have hctor : ∀ c, Model.IsCtor envF c → envF.Rigid c := by
     rintro _ (⟨_, hdf, hm⟩ | ⟨_, _, _, _, hb, hgen, rfl⟩)
-    · exact VEnv.nativeHeadRigid_iff.1 (hF.installed_constructor_rigid hdf hm)
-    · exact VEnv.nativeHeadRigid_iff.1 (hF.case_constructor_rigid hb hgen)
+    · exact VEnv.constHeadRigid_iff.1 (hF.installed_constructor_rigid hdf hm)
+    · exact VEnv.constHeadRigid_iff.1 (hF.case_constructor_rigid hb hgen)
   have hcres : ∀ c, Model.IsInstalledCtor envF c → envF.CtorResultRigid c :=
     fun _ ⟨_, hdf, hm⟩ => hF.installed_constructor_result_rigid hdf hm
   have hpctor : ∀ c, Model.IsProjCtor envF c → envF.Rigid c := fun _ h => hF.projCtor_rigid h

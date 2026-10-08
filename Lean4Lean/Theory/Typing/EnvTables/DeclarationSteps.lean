@@ -551,7 +551,7 @@ theorem Tables.Inv.install {decl : VInductDecl} {block : VInductBlock}
   have hfamT' : ∀ t ∈ decl.types, t.ctors ≠ [] → T'.fam t.name = some (famView decl t) :=
     fun t ht hne => addView_some.mpr (.inr ⟨(H.freshT (hfreshType t ht)).1,
       viewFams_mem hnd ht (selCtors_iff.mpr hne)⟩)
-  have hnewEvidence : ∀ data ∈ entries, NativeEntryCompiled env' T' data := by
+  have hnewEvidence : ∀ data ∈ entries, RecursorEntryCompiled env' T' data := by
     intro data hd
     obtain ⟨owner, _, rfl⟩ := List.mem_map.mp hd
     have hinstance : (RecursorData.ofInstance default (CaseSchema.ofCompilation decl s aux)

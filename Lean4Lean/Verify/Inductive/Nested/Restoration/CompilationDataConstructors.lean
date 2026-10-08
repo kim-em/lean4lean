@@ -190,7 +190,7 @@ theorem NestedRun.loweredConstructors_of_lowering
       (E.lowered.loweredDecl.types.take sourceDecl.types.length) sourceDecl.types := by
   let r := compilationRestoration sourceDecl auxiliaries
   have Hsource := E.sourceCore.core
-  rw [E.nativeSourceDecl_eq] at Hsource
+  rw [E.sourceCoreDecl_eq] at Hsource
   have htypesEq : E.sourceCore.envTypes = envTypes := by
     exact Option.some.inj (Hsource.typesAdded.symm.trans hadded)
   have hordered := henvTypes.ordered
@@ -293,13 +293,13 @@ theorem NestedRun.auxiliaryFamiliesField_of_lowering
     rwa [hinit] at h
   have hsourceUvars : sourceDecl.uvars = E.lowered.c.lparams.length := by
     have h := E.sourceCore.core.uvars
-    rw [E.nativeSourceDecl_eq] at h
+    rw [E.sourceCoreDecl_eq] at h
     rw [h, E.lowered_c, E.context_lparams]
   have hloweredUvars : E.lowered.loweredDecl.uvars = sourceDecl.uvars :=
     E.lowered.constructors.core.uvars.trans hsourceUvars.symm
   have hloweredNparams : E.lowered.loweredDecl.nparams = sourceDecl.nparams := by
     have h := E.sourceCore.core.nparams
-    rw [E.nativeSourceDecl_eq] at h
+    rw [E.sourceCoreDecl_eq] at h
     rw [h, E.lowered.constructors.core.nparams, E.lowered_nparams]
   have hparams : E.lowered.signature.params =
       E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=

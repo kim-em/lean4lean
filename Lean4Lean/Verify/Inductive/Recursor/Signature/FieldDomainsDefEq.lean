@@ -121,7 +121,7 @@ theorem RecursorConstruction.sourceFields_defeq_header
   have hsrc : (H.localContext.lctx.mkForall S.fields (.sort .zero)).abstractList H.params.fvars =
       Expr.forallDomainsOnly S.fields.size (Lean4Lean.Expr.consumeForallTypes ctorEnv.isTypeAnnotationWrapper
         (HS.semantic.traversal.parameterTail.abstractList H.params.fvars)) := by
-    rw [← H.constructorConsumedSource owner howner localIndex hlocal HS,
+    rw [← H.constructorUnannotatedSource owner howner localIndex hlocal HS,
       Expr.forallDomainsOnly_abstractList,
       Hbound.forallDomainsOnly H.localWF HS.semantic.fieldsRecent.nodup]
   rw [hsrc] at Hsrc

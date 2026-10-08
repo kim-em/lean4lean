@@ -11,7 +11,7 @@ namespace Lean4Lean.InductiveSignature
 definitionally the family sort recorded by the normalized source signature.
 This open form needs no well-formedness of the environment; it is closed by
 `VEnv.IsDefEq.close_sort_header`. -/
-theorem CompilationData.original_family_header {s : InductiveSignature} {g : Instance s}
+theorem CompilationData.source_family_header {s : InductiveSignature} {g : Instance s}
     (H : CompilationData base source expanded s g auxiliaries block)
     (hfamily : family ∈ source.types) :
     ∃ envTypes, base.addConstVals source.typeConstants = some envTypes ∧
@@ -98,7 +98,7 @@ namespace Lean4Lean
 
 /-- Every finite source header retains a normalized telescope ending in its
 recorded family sort in an environment where its exact constants are present. -/
-theorem CompiledInductive.original_family_header (H : CompiledInductive base source block) :
+theorem CompiledInductive.source_family_header (H : CompiledInductive base source block) :
     ∀ (current : VEnv), current.WF → base ≤ current →
       (∀ family ∈ source.types,
         current.constants family.name = some family.toVConstant) →
@@ -115,7 +115,7 @@ theorem CompiledInductive.original_family_header (H : CompiledInductive base sou
     (motive_2 := fun _ _ _ => True)
     (fun hdata _ _ current hcurrentWF hle hconstants family hfamily => by
       obtain ⟨envTypes, htypes, domains, body, level, exprType, hlevel, htype, hbody⟩ :=
-        hdata.original_family_header hfamily
+        hdata.source_family_header hfamily
       have htypesLE := VEnv.addConstVals_le_target hle htypes (by
         intro value hvalue
         obtain ⟨family, hfamily, rfl⟩ := List.mem_map.mp hvalue
@@ -163,7 +163,7 @@ theorem ContainersInstalled.family_header (H : ContainersInstalled env auxiliari
           rw [hcompile.types_eq]
           exact List.mem_map.mpr ⟨family, hfamily, rfl⟩
         exact ⟨hconstants family hfamily,
-          hcompile.original_family_header current hcurrent
+          hcompile.source_family_header current hcurrent
             (((VInductBlock.install_base_le hinstall).trans hle).trans hcurrentLE)
             (fun family hfamily => hcurrentLE.constants (hconstants family hfamily))
             family hfamily⟩

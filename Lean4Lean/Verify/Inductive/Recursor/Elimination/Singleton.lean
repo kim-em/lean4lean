@@ -225,7 +225,7 @@ theorem LargeEliminationCheck.singletonTelescope
         obtain ⟨consumed₀, Hdom₀⟩ :=
           consumeTypeAnnotationsCompat _ Hc.atCheckLCtx hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+          Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hc Hdom hdomNarrow
@@ -237,7 +237,7 @@ theorem LargeEliminationCheck.singletonTelescope
         rw [← Expr.instantiate1_eq] at hopened
         obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
         have hopenedFull := Hc.instantiateFresh (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType hfullBody'
+          Hdom.unannotated Hdom.isType hfullBody'
         have hspineBody : ∃ n, Expr.ForallSpine body n := by
           cases Hspine with
           | codomain hh => cases hh
@@ -275,7 +275,7 @@ theorem LargeEliminationCheck.singletonTelescope
         obtain ⟨consumed₀, Hdom₀⟩ :=
           consumeTypeAnnotationsCompat _ Hc.atCheckLCtx hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+          Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hc Hdom hdomNarrow
@@ -287,7 +287,7 @@ theorem LargeEliminationCheck.singletonTelescope
         rw [← Expr.instantiate1_eq] at hopened
         obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
         have hopenedFull := Hc.instantiateFresh (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType hfullBody'
+          Hdom.unannotated Hdom.isType hfullBody'
         have hspineBody : ∃ n, Expr.ForallSpine body n := by
           cases Hspine with
           | codomain hh => cases hh
@@ -331,7 +331,7 @@ theorem LargeEliminationCheck.singletonTelescope
         obtain ⟨consumed₀, Hdom₀⟩ :=
           consumeTypeAnnotationsCompat _ Hc.atCheckLCtx hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+          Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hc Hdom hdomNarrow
@@ -343,7 +343,7 @@ theorem LargeEliminationCheck.singletonTelescope
         rw [← Expr.instantiate1_eq] at hopened
         obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
         have hopenedFull := Hc.instantiateFresh (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType hfullBody'
+          Hdom.unannotated Hdom.isType hfullBody'
         have hspineBody : ∃ n, Expr.ForallSpine body n := by
           cases Hspine with
           | codomain hh => cases hh

@@ -984,7 +984,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
               _htyped _ _ _ _hfieldBound _hpositive bodyFull' _hbodyFullEq
               _ _ hopenedFull _
             let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-              Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+              Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
             let Hruntime' :
                 checkInductiveTypes.loopType.FrontScopeEmbedding
                   Hc'.venv c.lparams
@@ -1007,7 +1007,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
             have Hstats' := Hstats.withFVar Hc'.checking.tr.wf hscopeWF
             let Hfields' := Hfields.pushCurrentChecked name
               (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom bi
-              Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+              Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
             have hopenFvars : Hopening.fvars =
                 Hfields.toFVarArrayIn.fvars :=
               Hopening.fvars_eq_bound Hfields.toFVarArrayIn
@@ -1038,7 +1038,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
               _htyped _ _ _ _hfieldBound bodyFull' _hbodyFullEq _ _
               hopenedFull _
             let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-              Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+              Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
             let Hruntime' :
                 checkInductiveTypes.loopType.FrontScopeEmbedding
                   Hc'.venv c.lparams
@@ -1061,7 +1061,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
             have Hstats' := Hstats.withFVar Hc'.checking.tr.wf hscopeWF
             let Hfields' := Hfields.pushCurrentChecked name
               (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom bi
-              Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+              Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
             have hopenFvars : Hopening.fvars =
                 Hfields.toFVarArrayIn.fvars :=
               Hopening.fvars_eq_bound Hfields.toFVarArrayIn
@@ -1619,7 +1619,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         ⟨consumedDom₀, Hdom₀⟩
       rcases Hdom₀.body RB.atCheckLCtx hbodyN₀ with ⟨body₀'', hbody₀'', hbody₀Eq⟩
       have hcons₀ : TrExprS R.venv recLparams B.m.vlctx
-          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom₀ := Hdom₀.consumed
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom₀ := Hdom₀.unannotated
       have hconsT₀ : R.venv.IsType recLparams.length B.m.vlctx.toCtx
           consumedDom₀ := Hdom₀.isType
       refine AddInductive.M.WF_bind AddInductive.getLCtx.WF fun _ hlctx => ?_
@@ -1634,7 +1634,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       let R' : RecursorContextWF c' recLparams :=
         R.withCheckedLocalDeclOn (name := name) (bi := bi)
           (ctorFieldCheck c stats bu) B
-          Hdom.consumed Hdom.isType hcons₀ hconsT₀
+          Hdom.unannotated Hdom.isType hcons₀ hconsT₀
       have Hstats' := Hstats.withFVar R'.checking.tr.wf
         R'.mlctx_wf.tr.wf
       have hctx' : VLCtx.NoIndConsts
@@ -1696,13 +1696,13 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           R'.mlctx.vlctx.toCtx
           (.app (appliedTarget.liftN 1 0) (.bvar 0)) consumedBody := by
         have happ := VEnv.HasType.app happliedFnType hargType
-        have hbodyEq' := Hdom.bodyDefEqConsumed R _hbodyEq
+        have hbodyEq' := Hdom.bodyDefEqUnannotated R _hbodyEq
         apply happ.defeqU_r R'.checking.tr.wf R'.mlctx_wf.tr.wf.toCtx
         simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
           RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VExpr.inst_liftN_bvar] using
             hbodyEq'
       have hopened := R.instantiateFresh (name := name) (bi := bi)
-        Hdom.consumed Hdom.isType hbodyConsumed
+        Hdom.unannotated Hdom.isType hbodyConsumed
       have hsourceBodyType : R'.venv.IsType recLparams.length
           R'.mlctx.vlctx.toCtx sourceBody := by
         let hctxEq : VLCtx.IsDefEq R.venv recLparams.length
@@ -1714,7 +1714,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
           RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
           hbodyType.defeqDFC R.checking.tr.wf.ordered hctxEq.defeqCtx
-      have hbodyEq' := Hdom.bodyDefEqConsumed R _hbodyEq
+      have hbodyEq' := Hdom.bodyDefEqUnannotated R _hbodyEq
       have hconsumedBodyType : R'.venv.IsType recLparams.length
           R'.mlctx.vlctx.toCtx consumedBody := by
         apply hsourceBodyType.defeqU_l R'.checking.tr.wf
@@ -1764,7 +1764,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         ⟨.sort closedLevel, HclosedConsumed⟩
       let Hrecent' := Hrecent.pushCurrentOn name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
         consumedDom bi (ctorFieldCheck c stats bu) B
-        Hdom.consumed Hdom.isType hcons₀ hconsT₀
+        Hdom.unannotated Hdom.isType hcons₀ hconsT₀
       have HclosedConsumedRoot : Rroot.venv.IsDefEqU recLparams.length
           Rroot.mlctx.vlctx.toCtx
           (R.mlctx.mkForall' bu.size Hrecent.size_le typeTarget)
@@ -1781,18 +1781,18 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           Rroot.mlctx_wf.tr.wf.toCtx HclosedConsumedRoot
       -- `isRecArg` runs in the checker context saved before the field binder.
       have Hclass := isRecArg.refinesRecursor
-        ((R.withLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType).withCheckLCtx
+        ((R.withLocalDecl (name := name) (bi := bi) Hdom.unannotated Hdom.isType).withCheckLCtx
           (ctorFieldCheck c stats bu)
           (B.skip R.checking.tr.wf.ordered R.mlctx_wf R.lctx_eq
             (R.withLocalDecl (name := name) (bi := bi)
-              Hdom.consumed Hdom.isType).mlctx_wf))
+              Hdom.unannotated Hdom.isType).mlctx_wf))
         Hstats' hconsume
         hlit hctx'
         (hdomWeak.trExpr R'.checking.tr.wf R'.mlctx_wf.tr.wf) hdom₀
       let B' := R.fieldBaseNext (name := name) (bi := bi) B hB
-        Hdom.consumed Hdom.isType hcons₀ hconsT₀
+        Hdom.unannotated Hdom.isType hcons₀ hconsT₀
       have hB' := R.fieldBaseNext_fvarList (name := name) (bi := bi) B hB
-        Hdom.consumed Hdom.isType hcons₀ hconsT₀
+        Hdom.unannotated Hdom.isType hcons₀ hconsT₀
       have hagreeB₁ : ∃ hn : bu.size ≤ B.m.length,
           MLCtxTopAgree R.mlctx B.m bu.size ∧
             (B.m.dropN bu.size hn).vlctx = baseV ∧
@@ -1800,7 +1800,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
               (B.m.mkForall' bu.size hn (.forallE consumedDom₀ body₀'')) := by
         obtain ⟨hnB, hagB, hdropB, hrootB⟩ := hagreeB
         refine ⟨hnB, hagB, hdropB, ?_⟩
-        have hbodyEq₀ := Hdom₀.bodyDefEqConsumed RB.atCheckLCtx hbody₀Eq
+        have hbodyEq₀ := Hdom₀.bodyDefEqUnannotated RB.atCheckLCtx hbody₀Eq
         let HdomainCtx₀ : VLCtx.IsDefEq R.venv recLparams.length
             ((none, .vlam dom₀) :: B.m.vlctx)
             ((none, .vlam consumedDom₀) :: B.m.vlctx) :=
@@ -1842,7 +1842,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       have hopened₀ : TrExprS R.venv recLparams B'.m.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body₀'' :=
         RB.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
-          Hdom₀.consumed Hdom₀.isType hbody₀''
+          Hdom₀.unannotated Hdom₀.isType hbody₀''
       have hopenFvars : Hopening.fvars =
           Hrecent.toFVarArrayIn.fvars :=
         Hopening.fvars_eq_bound Hrecent.toFVarArrayIn

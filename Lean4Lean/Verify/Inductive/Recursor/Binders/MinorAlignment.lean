@@ -316,9 +316,9 @@ structure TypedMinorTraversal
   motiveType : sourceWF.venv.IsType recLparams.length
     sourceWF.mlctx.vlctx.toCtx motiveTarget
   sourceTarget : VExpr
-  consumedTarget : VExpr
+  unannotatedTarget : VExpr
   consumption : sourceWF.UnannotatedDomain S.sourceType sourceTarget
-    consumedTarget
+    unannotatedTarget
 
 def TypedMinorTraversal.mono
     {root current : AddInductive.Context} {recLparams : List Name}
@@ -360,7 +360,7 @@ def TypedMinorTraversal.mono
   motiveTranslation := HS.motiveTranslation
   motiveType := HS.motiveType
   sourceTarget := HS.sourceTarget
-  consumedTarget := HS.consumedTarget
+  unannotatedTarget := HS.unannotatedTarget
   consumption := HS.consumption
 
 /-- Recursive hypotheses are introduced only after the selected-motive

@@ -358,12 +358,12 @@ theorem LoopUArgsRun.paramUniform
       ⟨consumedDom₀, Hdom₀⟩
     rcases Hdom₀.body R.atCheckLCtx hbodyN₀ with ⟨consumedBody₀, hbodyConsumed₀, _⟩
     let x : FVarId := ⟨current.ngen.curr⟩
-    let R' := R.withCheckedLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
-      Hdom₀.consumed Hdom₀.isType
+    let R' := R.withCheckedLocalDecl (name := name) (bi := bi) Hdom.unannotated Hdom.isType
+      Hdom₀.unannotated Hdom₀.isType
     have hopened := R.instantiateFresh (name := name) (bi := bi)
-      Hdom.consumed Hdom.isType hbodyConsumed
+      Hdom.unannotated Hdom.isType hbodyConsumed
     have hopened₀ := R.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
-      Hdom₀.consumed Hdom₀.isType hbodyConsumed₀
+      Hdom₀.unannotated Hdom₀.isType hbodyConsumed₀
     obtain ⟨hdomH, hbodyH⟩ := hH.forallE_inv
     have hdomP : domain.FVarsIn P' := hP.1
     have hbodyP : body.FVarsIn P' := hP.2
@@ -409,7 +409,7 @@ theorem LoopUArgsRun.paramUniform
     have hscopeRun := hdualRun.1
     have hnormH : normalized.ParamUniformIn env heads params ls :=
       W.whnf R' hcenv hopened ⟨_, hopened₀⟩ hsc' hinstP hinstH normalization
-    have hbodyEq' := Hdom.bodyDefEqConsumed R hbodyEq
+    have hbodyEq' := Hdom.bodyDefEqUnannotated R hbodyEq
     have hsourceBodyType : R'.venv.IsType recLparams.length
         R'.mlctx.vlctx.toCtx sourceBody := by
       let hctxEq : VLCtx.IsDefEq R.venv recLparams.length
@@ -1053,7 +1053,7 @@ theorem minorParamUniform {heads : List Name} (I : H.ParamUniformDeclarations he
       exact ⟨_, hfind, hargs y hy _ hfind⟩
   refine ⟨hfieldDecls, ?_, fun j hj => (hper j hj).2⟩
   -- The minor premise type.
-  rw [← S.consumed_eq]
+  rw [← S.unannotated_eq]
   refine (Expr.ParamUniform.consumeTypeAnnotationsVerified) ?_ hp
   rw [S.sourceType_eq, ← S.sourceContext_eq]
   refine Expr.ParamUniform.mkForall_of_disjoint S.fields_bound.expressions ?_ ?_ hfieldDecls

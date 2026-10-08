@@ -40,7 +40,7 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
 /-- The consumed index telescope of each family, over the cached parameter
 context, is a well-formed context.  It is read off the recursor pass's index
 replay (`sourceIndexDomains`). -/
-theorem RecursorConstruction.consumedIndices_onCtx
+theorem RecursorConstruction.unannotatedIndices_onCtx
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     OnCtx ((H.declIndexDomains owner).reverse ++ R.parameterScope.toCtx)
       (R.context.venv.IsType c.lparams.length) := by
@@ -54,7 +54,7 @@ theorem RecursorConstruction.consumedIndices_onCtx
 universes, contains the family applied to the canonical parameter and index
 variables, over the consumed index telescope in the cached parameter
 context. -/
-theorem RecursorConstruction.consumedFamilyApp_isType
+theorem RecursorConstruction.unannotatedFamilyApp_isType
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     R.context.venv.IsType c.lparams.length
       ((H.declIndexDomains owner).reverse ++ R.parameterScope.toCtx)
@@ -65,7 +65,7 @@ theorem RecursorConstruction.consumedFamilyApp_isType
   have henv : R.context.venv.WF := R.context.checking.tr.wf
   have hP : OnCtx R.parameterScope.toCtx (R.context.venv.IsType c.lparams.length) := by
     simpa [VLCtx.toCtx] using R.sourceAnonymousParameterWF.toCtx
-  have hIdx := H.consumedIndices_onCtx owner
+  have hIdx := H.unannotatedIndices_onCtx owner
   have hidxId : (H.declIndexDomains owner).map (VExpr.instL (VLevel.params c.lparams.length)) =
       H.declIndexDomains owner := by
     have h := onCtx_isType_instL_id hIdx
@@ -128,7 +128,7 @@ universes); its sort from the declared family constant, whose header is
 definitionally a telescope ending in the recorded sort (source formation).
 No definitional agreement of the consumed index domains with the declared
 ones is used, and the checked recursor type is not consulted. -/
-theorem RecursorConstruction.consumedFamilyTypesWF
+theorem RecursorConstruction.unannotatedFamilyTypesWF
     (H : RecursorConstruction R) {s : InductiveSignature}
     (hp : s.params = R.parameterScope.toCtx.reverse) (hf : s.families = H.families) :
     s.FamilyTypesWF R.context.venv decl.uvars := by
@@ -154,11 +154,11 @@ theorem RecursorConstruction.consumedFamilyTypesWF
   have hilen : (H.declIndexDomains o).length = H.recInfos[owner.val]!.indices.size :=
     H.sourceIndices_length o
   have henv : R.context.venv.WF := R.context.checking.tr.wf
-  have hIdx := H.consumedIndices_onCtx o
+  have hIdx := H.unannotatedIndices_onCtx o
   rw [← hU] at hIdx
   refine ⟨by rw [hidx, hPrev]; exact hIdx, ?_⟩
   -- The application is well formed (generated motive).
-  have hA := H.consumedFamilyApp_isType o
+  have hA := H.unannotatedFamilyApp_isType o
   rw [← hU] at hA
   obtain ⟨_, hAty⟩ := hA
   -- The declared header is a telescope ending in the recorded sort.

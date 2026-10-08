@@ -1046,7 +1046,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailingArgDecla
       exact ⟨_, hfind, hargs y hy _ hfind⟩
   refine ⟨hfieldDecls, ?_, fun j hj => (hper j hj).2⟩
   -- The minor premise type.
-  rw [← S.consumed_eq]
+  rw [← S.unannotated_eq]
   refine (Expr.TrailingArgs.consumeTypeAnnotationsVerified) ?_
   rw [S.sourceType_eq, ← S.sourceContext_eq]
   refine Expr.TrailingArgs.mkForall' S.fields_bound.expressions ?_ hQ

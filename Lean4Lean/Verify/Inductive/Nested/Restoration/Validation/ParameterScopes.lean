@@ -208,7 +208,7 @@ certificate fixes one canonical parameter list for every family and
 constructor.  For each restored family, equal-length forall inversion aligns
 that list with the executable cached parameter scope.  Consequently no
 derivation-locality or environment-restriction premise is required. -/
-theorem NestedInstalledRun.constructorParameterDomainsDefEqNative
+theorem NestedInstalledRun.constructorParameterDomainsDefEqOfSource
     (E : NestedInstalledRun result sourceProdEnv sourceTypes sourceEnv
       decl lparams nparams isUnsafe safety outEnv)
     (Hfamilies : NestedRestoredFamilyParameterScopes E) :

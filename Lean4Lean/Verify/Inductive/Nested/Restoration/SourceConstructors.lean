@@ -369,13 +369,13 @@ theorem NestedRun.sourceConstructors_of_lowering
           some E.lowered.constructors.toConstructorCheck.headerVEnv) hinit)
       E.lowered.constructors.toConstructorCheck.core.typesAdded
   have Hsource := E.sourceCore.core
-  rw [E.nativeSourceDecl_eq] at Hsource
+  rw [E.sourceCoreDecl_eq] at Hsource
   have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
     (TrInductDeclCore.types_length Hsource).symm
   have hprefix : sourceDecl.typeConstants =
       E.lowered.loweredDecl.typeConstants.take sourceDecl.types.length := by
     have h := E.sourceCore.sourceTypeValues
-    rw [E.nativeSourceDecl_eq] at h
+    rw [E.sourceCoreDecl_eq] at h
     rw [h, VInductDecl.typeConstants, List.map_take, hsourceLength]
   have hloweredSplit : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       (sourceDecl.typeConstants ++
@@ -500,7 +500,7 @@ theorem NestedRun.sourceConstructors_of_lowering
   have hloweredUvars : E.lowered.loweredDecl.uvars = sourceDecl.uvars := by
     have h1 := E.lowered.constructors.toConstructorCheck.core.uvars
     have h2 := E.sourceCore.core.uvars
-    rw [E.nativeSourceDecl_eq] at h2
+    rw [E.sourceCoreDecl_eq] at h2
     rw [h1, h2, E.lowered_c, E.context_lparams]
   obtain ⟨envT, henvT, Hctors⟩ := Hmodels.constructors
   rw [hloweredTypes] at henvT

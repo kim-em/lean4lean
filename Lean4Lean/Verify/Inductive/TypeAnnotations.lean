@@ -354,7 +354,7 @@ theorem consumeTypeAnnotationsCompat : VerifyInductive.ConsumeTypeAnnotationsCom
     ⟨consumed', hconsumed, hconsumedType, u, hsourceEq⟩
   exact ⟨consumed', {
     source := htr
-    consumed := hconsumed
+    unannotated := hconsumed
     isType := hconsumedType
     source_defeq := ⟨u, hsourceEq⟩ }⟩
 
@@ -368,7 +368,7 @@ theorem recursorConsumeTypeAnnotationsCompat :
     ⟨consumed', hconsumed, hconsumedType, u, hsourceEq⟩
   exact ⟨consumed', {
     source := htr
-    consumed := hconsumed
+    unannotated := hconsumed
     isType := hconsumedType
     source_defeq := ⟨u, hsourceEq⟩ }⟩
 

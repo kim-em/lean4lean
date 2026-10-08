@@ -1079,7 +1079,7 @@ theorem NestedRun.auxRecName_not_renamed
     -- the first source family is the first lowered family
     have hnames : sourceTypes.map (·.name) = sourceDecl.types.map (·.name) := by
       have Hcore := E.sourceCore.core
-      rw [E.nativeSourceDecl_eq] at Hcore
+      rw [E.sourceCoreDecl_eq] at Hcore
       exact (forall₂_trInductiveType_names Hcore.types).symm
     have hlen : sourceTypes.length = sourceDecl.types.length := by
       simpa using congrArg List.length hnames

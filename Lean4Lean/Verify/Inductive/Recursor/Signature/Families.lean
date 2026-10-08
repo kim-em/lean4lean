@@ -27,7 +27,7 @@ theorem RecursorConstruction.sourceIndexDomains
     cases helim : H.elimLevel <;> simp_all [AddInductive.AdmissibleElimLevel]
   rcases hsplit with helim | ⟨fresh, helim⟩
   ·
-    obtain ⟨domains, hdomains, Hsource, Htype⟩ := H.chooseOriginalIndexDomains_small owner howner helim
+    obtain ⟨domains, hdomains, Hsource, Htype⟩ := H.chooseDeclUnivIndexDomains_small owner howner helim
     refine ⟨domains, hdomains, Hsource, Htype, ?_⟩
     have Hidentity := Hsource.substLevelParamsCore
       (Us := c.lparams) (F := Level.param) (ls := VLevel.params c.lparams.length)
@@ -43,7 +43,7 @@ theorem RecursorConstruction.sourceIndexDomains
       using Hidentity
   ·
     obtain ⟨domains, hdomains, Hsource, Htype, Hrec⟩ :=
-      H.chooseOriginalIndexDomains_large owner howner helim
+      H.chooseDeclUnivIndexDomains_large owner howner helim
     refine ⟨domains, hdomains, Hsource, Htype, ?_⟩
     rw [H.parameterAnonymousContext, H.recursorEnv,
       recursorDeclarationAbstractLevels_param H.elimLevelAdmissible helim]

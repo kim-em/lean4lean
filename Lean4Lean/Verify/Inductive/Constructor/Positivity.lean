@@ -224,11 +224,11 @@ theorem safeField.sourceWF
           (sourceDom₀ :: Hc.chk.vlctx.toCtx) sourceBody₀ body₀'' →
         TrExprS Hc.venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).mlctx.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
         TrExprS Hc.venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).chk.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body₀'' →
         (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1) fuel
@@ -267,11 +267,11 @@ theorem safeField.sourceWF
       (k := fun arg =>
         AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
           (body.instantiate1 arg) (i + 1) fuel)
-      Hc Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
+      Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
-      Hdom.consumed Hdom.isType hbody''
+      Hdom.unannotated Hdom.isType hbody''
     have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
-      Hdom₀.consumed Hdom₀.isType hbody₀''
+      Hdom₀.unannotated Hdom₀.isType hbody₀''
     exact Hrec _ fieldLevel fieldLevel' Hdom.source hfieldLevel
       hfieldHasType fieldType₀ hfieldType₀ hfieldHasType₀ hbound hpos body'' hbodyEq
       body₀'' hbodyEq₀ hopened hopened₀
@@ -307,11 +307,11 @@ theorem unsafeField.sourceWF
           (sourceDom₀ :: Hc.chk.vlctx.toCtx) sourceBody₀ body₀'' →
         TrExprS Hc.venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).mlctx.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
         TrExprS Hc.venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).chk.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body₀'' →
         (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1) fuel
@@ -349,11 +349,11 @@ theorem unsafeField.sourceWF
       (k := fun arg =>
         AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
           (body.instantiate1 arg) (i + 1) fuel)
-      Hc Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
+      Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
-      Hdom.consumed Hdom.isType hbody''
+      Hdom.unannotated Hdom.isType hbody''
     have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
-      Hdom₀.consumed Hdom₀.isType hbody₀''
+      Hdom₀.unannotated Hdom₀.isType hbody₀''
     exact Hrec _ fieldLevel fieldLevel' Hdom.source hfieldLevel
       hfieldHasType fieldType₀ hfieldType₀ hfieldHasType₀ hbound body'' hbodyEq
       body₀'' hbodyEq₀ hopened hopened₀
@@ -1589,11 +1589,11 @@ theorem forallE.sourceWF
         (sourceDom₀ :: Hc.chk.vlctx.toCtx) sourceBody₀ body₀'' →
       TrExprS Hc.venv c.lparams
         (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx
+          Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).mlctx.vlctx
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
       TrExprS Hc.venv c.lparams
         (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx
+          Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).chk.vlctx
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body₀'' →
       (recur (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
         { c with
@@ -1610,11 +1610,11 @@ theorem forallE.sourceWF
   rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
   refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
     (k := fun arg => recur (body.instantiate1 arg))
-    Hc Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
+    Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
   have hopened := Hc.instantiateFresh (name := name) (bi := bi)
-    Hdom.consumed Hdom.isType hbody''
+    Hdom.unannotated Hdom.isType hbody''
   have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
-    Hdom₀.consumed Hdom₀.isType hbody₀''
+    Hdom₀.unannotated Hdom₀.isType hbody₀''
   exact Hrec body'' hbodyEq body₀'' hbodyEq₀ hopened hopened₀
 
 
@@ -1763,7 +1763,7 @@ theorem refinesScoped
             Hc hocc' hdomOcc' Hdom hbodyFull Hdom₀ hbody₀ ?_
           intro bodyFull' _hbodyFullEq body₀' _hbody₀Eq hopenedFull _hopened₀
           let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
           have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hnormalizedFVars.1)).1

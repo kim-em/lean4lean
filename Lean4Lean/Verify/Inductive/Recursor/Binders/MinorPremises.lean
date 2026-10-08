@@ -939,7 +939,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
           hmotiveMember⟩
         type_eq := rfl }
     refine Except.WF.pure
-      ⟨consumedTarget, Hconsumed.consumed, Hconsumed.isType, O, rfl, rfl, ?_⟩
+      ⟨consumedTarget, Hconsumed.unannotated, Hconsumed.isType, O, rfl, rfl, ?_⟩
     intro domain hfieldTyping htargetDecl hrecursive
     have hcallUniverses := Hinput.callUniverses hconsume Htrace R hscopeUniverses.1
       hfield (hscopeUniverses.2 _ Hinput.inference)
@@ -3206,7 +3206,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
       HparamsOut
       (Hbindings.mono_noAlias Hparams HextAll.contextLE HnoAlias)
       HorderOut (Hroot.trans HextAll.contextLE) hidx hsourceIdx Harities
-      Hlater Hconsumed.consumed
+      Hlater Hconsumed.unannotated
       Hconsumed.isType {
         localIndex := HoriginsOut.minorTypes[dIdx]!.size
         origin := minorSourceType.consumeTypeAnnotationsVerified
@@ -3249,7 +3249,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
         motiveApp := motiveApp
         sourceType := minorSourceType
         sourceType_eq := rfl
-        consumed_eq := rfl } ⟨rfl, rfl⟩ (by
+        unannotated_eq := rfl } ⟨rfl, rfl⟩ (by
           simpa [HoriginsOut, RecInfoBinderTypes.mono, horiginIndex] using
             hsourceFamily)
       (by exact ⟨rfl, rfl⟩)
@@ -3297,7 +3297,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
           motiveTranslation := HmotiveAt
           motiveType := HmotiveTypeAt
           sourceTarget := minorTarget.lift' (HextAll.shift.consN 0)
-          consumedTarget := consumedTarget
+          unannotatedTarget := consumedTarget
           consumption := Hconsumed }
         parameterDecls_eq := rfl }⟩
       (constructorFieldsOuterFresh HfieldsRecent Hparams Hbindings)

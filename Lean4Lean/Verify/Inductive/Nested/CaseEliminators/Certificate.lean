@@ -78,7 +78,7 @@ theorem NestedRun.boundarySignatureFacts
       ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
   have hsourceUvars : sourceDecl.uvars = E.lowered.c.lparams.length := by
     have h := E.sourceCore.core.uvars
-    rw [E.nativeSourceDecl_eq] at h
+    rw [E.sourceCoreDecl_eq] at h
     rw [h, E.lowered_c, E.context_lparams]
   have hloweredUvars : E.lowered.loweredDecl.uvars = sourceDecl.uvars :=
     E.lowered.constructors.core.uvars.trans hsourceUvars.symm
@@ -100,7 +100,7 @@ theorem NestedRun.boundarySignatureFacts
     have hN := B.sourceSignature_headsApplied (E.constructorTypesParamUniform wf Hsources)
       (fun l => avoidsConsts_lit_of_reserved hreserved l) (B.params_avoid hloweredNe hfresh)
     have Hsource := E.sourceCore.core
-    rw [E.nativeSourceDecl_eq] at Hsource
+    rw [E.sourceCoreDecl_eq] at Hsource
     have hnp : E.lowered.stats.params.size = sourceDecl.nparams := by
       obtain ⟨_, Hrun, _, _⟩ := E.lowering
       rw [E.statsParamsSize, Hrun.resultNParams, Hsource.nparams]
@@ -144,7 +144,7 @@ theorem NestedRun.sourceLoweredBasics
   have hinit : E.lowered.initialEnv =
       ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
   have Hsource := E.sourceCore.core
-  rw [E.nativeSourceDecl_eq] at Hsource
+  rw [E.sourceCoreDecl_eq] at Hsource
   have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
     (TrInductDeclCore.types_length Hsource).symm
   have hsourceNonempty : sourceDecl.types ≠ [] := by
@@ -161,11 +161,11 @@ theorem NestedRun.sourceLoweredBasics
   have hprefix : sourceDecl.typeConstants =
       E.lowered.loweredDecl.typeConstants.take sourceDecl.types.length := by
     have h := E.sourceCore.sourceTypeValues
-    rw [E.nativeSourceDecl_eq] at h
+    rw [E.sourceCoreDecl_eq] at h
     rw [h, VInductDecl.typeConstants, List.map_take, hsourceLength]
   have hsourceUvars : sourceDecl.uvars = E.lowered.c.lparams.length := by
     have h := E.sourceCore.core.uvars
-    rw [E.nativeSourceDecl_eq] at h
+    rw [E.sourceCoreDecl_eq] at h
     rw [h, E.lowered_c, E.context_lparams]
   refine ⟨hsourceNonempty, ?_, hprefix,
     E.lowered.constructors.core.uvars.trans hsourceUvars.symm, ?_,
@@ -176,7 +176,7 @@ theorem NestedRun.sourceLoweredBasics
       rw [hprefix, VInductDecl.typeConstants, h]; simp
     simpa [VInductDecl.typeConstants] using this
   · have h := E.sourceCore.core.nparams
-    rw [E.nativeSourceDecl_eq] at h
+    rw [E.sourceCoreDecl_eq] at h
     rw [h, E.lowered.constructors.core.nparams, E.lowered_nparams]
   · exact Eq.mp (congrArg (fun env : VEnv => env.addConstVals
         E.lowered.loweredDecl.typeConstants =
@@ -294,7 +294,7 @@ theorem NestedRun.boundaryCaseCompilationData
       (fun n hn => htotal n (List.mem_of_mem_drop hn))
   have hsourceUvars : sourceDecl.uvars = E.lowered.c.lparams.length := by
     have h := E.sourceCore.core.uvars
-    rw [E.nativeSourceDecl_eq] at h
+    rw [E.sourceCoreDecl_eq] at h
     rw [h, E.lowered_c, E.context_lparams]
   have HauxFamilies : ∀ direct,
       auxiliaries.mapM (fun a => a.specializedFamily sourceDecl.uvars B.sourceSignature.params) =

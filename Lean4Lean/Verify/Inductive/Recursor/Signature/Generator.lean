@@ -160,7 +160,7 @@ noncomputable def RecursorConstruction.generatorOf
     minorTranslation := H.signature_minorTranslation HU
     types := H.signature_types HU
     recursiveTypesWF := H.signature_recursiveTypesWF HU
-    familyTypesWF := H.consumedFamilyTypesWF rfl rfl
+    familyTypesWF := H.unannotatedFamilyTypesWF rfl rfl
     sourceOrigins := ?_ }
   · intro owner howner
     have howner' : owner < H.recInfos.size := by

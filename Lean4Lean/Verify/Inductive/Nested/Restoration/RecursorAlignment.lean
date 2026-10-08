@@ -5,7 +5,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderRenaming
 /-! Recursor provenance of a validated nested run.
 
 `NestedRun.recursorsAligned_of` discharges the `Hprovenance`
-hypothesis of `NestedRun.assemblyNative_of_run`.
+hypothesis of `NestedRun.assemblyOfRun_of_run`.
 
 The hypothesis quantifies over an arbitrary specialization list carrying
 `RestorationTablesAgree`. The restoration `compilationRestoration decl auxiliaries`
@@ -208,7 +208,7 @@ theorem NestedRun.restoredMajorFound
   rcases hdisj with ⟨hnot, hceq⟩ | ⟨nested, ls', hfindN, hfn⟩
   · have hsourceLength : sourceTypes.length = sourceDecl.types.length := by
       have Hcore := E.sourceCore.core
-      rw [E.nativeSourceDecl_eq] at Hcore
+      rw [E.sourceCoreDecl_eq] at Hcore
       exact Lean4Lean.List.Forall₂.length_eq Hcore.types
     have hlt : owner.val < sourceDecl.types.length := by
       by_contra hge
@@ -241,7 +241,7 @@ theorem NestedRun.restoredMajorFound
     exact ⟨_, Htrace.preservesSourceMapFind hwf hfind0⟩
 
 /-- **Recursor provenance of a validated nested run**: the `Hprovenance`
-hypothesis of `NestedRun.assemblyNative_of_run`, given that
+hypothesis of `NestedRun.assemblyOfRun_of_run`, given that
 lowering recorded a nested occurrence (`hnested`, the condition under which
 the run restores at all; it makes the expanded block mutual, so no restored
 recursor is K-like). The freshness premise (restorable names outside the
@@ -291,7 +291,7 @@ theorem NestedRun.recursorsAligned_of
     refine Lean4Lean.List.Forall₂.imp (fun k rule h => ?_) HCrules₁
     obtain ⟨owner, j, s, t, Hstep, hj, hk, hu, ht, hl, hty⟩ := h
     exact ⟨owner, j, s, t, Hstep, hj, hk, hu, ht, (hexpr _).trans hl, (hexpr _).trans hty⟩
-  -- the compilation data (as in `assemblyNative_of_run`)
+  -- the compilation data (as in `assemblyOfRun_of_run`)
   have hnodup :
       (familyNames E.lowered.loweredDecl.types ++
         E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
@@ -331,7 +331,7 @@ theorem NestedRun.recursorsAligned_of
   have hleCtors : C.install.venvCtors ≤ C.recursorVEnv := VEnv.addEliminators_addProjections_le.trans hle
   have hnames : sourceTypes.map (·.name) = sourceDecl.types.map (·.name) := by
     have Hcore := E.sourceCore.core
-    rw [E.nativeSourceDecl_eq] at Hcore
+    rw [E.sourceCoreDecl_eq] at Hcore
     exact (forall₂_trInductiveType_names Hcore.types).symm
   have hinfos := E.restoredRecursorEntryInfos C hC wf Hsources hadded Haux Hexpansion hnodup
     hparamsSize D hscoped hwf

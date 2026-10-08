@@ -197,7 +197,7 @@ theorem MinorPremiseType.hypothesisBinderAt
   have hconsumed : (S.sourceType.consumeTypeAnnotationsVerified S.sourceFullContext.env.isTypeAnnotationWrapper) = S.sourceType :=
     Hsource.consumeTypeAnnotationsVerified_eq_self
   have horigin : S.origin = S.sourceType :=
-    S.consumed_eq.symm.trans hconsumed
+    S.unannotated_eq.symm.trans hconsumed
   rw [horigin]
   exact Hsource
 

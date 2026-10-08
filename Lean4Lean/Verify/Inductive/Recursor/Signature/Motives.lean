@@ -114,7 +114,7 @@ theorem RecursorConstruction.replayMotiveWithIndexDomains
         H.parameterSuffix.parameterDecls.toCtx motive := by
   have henv := H.recursorWF.checking.tr.wf
   obtain ⟨S, oldIndices, oldMajor, oldLevel, holdIndices, _, Htr, Htype, _⟩ :=
-    H.consumedMotiveDomains owner howner
+    H.unannotatedMotiveDomains owner howner
   have Htel := (S.indicesBound.mkForall_forallTelescope H.localWF
     (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] (.sort H.elimLevel))).abstractList
       H.params.fvars
@@ -164,7 +164,7 @@ theorem RecursorConstruction.replayMotiveWithIndexDomains
       simp only [VExpr.wrapForalls] at hnewResult
       rw [hnewResult] at HnewRes HnewType
       obtain ⟨Hfull, HfullType⟩ := TrExprS.rebuildForallPrefix Htel hindices Hindex HnewRes HnewType
-      have HmajorEq := H.consumedMotiveMajor owner howner hindices hlevels Hfull
+      have HmajorEq := H.unannotatedMotiveMajor owner howner hindices hlevels Hfull
       rw [HmajorEq] at Hfull HfullType
       exact ⟨Hfull, by simpa [VLCtx.toCtx] using HfullType⟩
 end Lean4Lean.VerifyInductive

@@ -664,7 +664,7 @@ structure NestedRun
   sourceCore : NestedSourceDeclaration sourceEnv lparams nparams
     sourceTypes isUnsafe lowered.loweredDecl safety validationEnv
       auxiliaryHeaderEnv
-  nativeSourceDecl_eq : sourceCore.sourceDecl = decl
+  sourceCoreDecl_eq : sourceCore.sourceDecl = decl
   auxiliaryVEnv_eq_sourceCore : auxiliaryVEnv = sourceCore.envTypes
 
 /-- Rich final nested result retaining the exact ordinary installation,
@@ -740,7 +740,7 @@ structure NestedInstalledRun
   sourceCore : NestedSourceDeclaration sourceEnv lparams nparams
     sourceTypes isUnsafe lowered.loweredDecl safety validationEnv
       auxiliaryHeaderEnv
-  nativeSourceDecl_eq : sourceCore.sourceDecl = decl
+  sourceCoreDecl_eq : sourceCore.sourceDecl = decl
   assembly : RestoredBlockCertificate restoration sourceEnv decl lparams
     nparams isUnsafe safety
   lowered_eq : assembly.lowered = lowered
@@ -1042,7 +1042,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
             auxiliaryTranslations := by
               simpa only [hlparams'] using Htranslations
             sourceCore := N
-            nativeSourceDecl_eq := rfl
+            sourceCoreDecl_eq := rfl
             auxiliaryVEnv_eq_sourceCore :=
               Option.some.inj (HsourceTypesAdded.symm.trans N.sourceAdded)
           }⟩⟩ }

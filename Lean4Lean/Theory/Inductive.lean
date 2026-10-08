@@ -432,7 +432,7 @@ theorem VInductDecl.SourceWF.constructorsWF_at
     (H : decl.SourceWF env)
     (htypes : env.addConstVals decl.typeConstants = some envTypes) :
     ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes := by
-  rcases H.originalConstructors with ⟨envTypes', htypes', hwf⟩
+  rcases H.sourceConstructors with ⟨envTypes', htypes', hwf⟩
   cases Option.some.inj (htypes'.symm.trans htypes)
   exact hwf
 

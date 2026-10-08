@@ -1685,7 +1685,7 @@ theorem MotivePassHeaderAt.recursorFrame
     ⟨familyTarget, familyIndexTargets, hfamily, hfamilyIndices,
       hsourceTarget⟩
   let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
-    Hdom.consumed Hdom.isType
+    Hdom.unannotated Hdom.isType
   let cMajor : AddInductive.Context := { current with
     ngen := current.ngen.next
     lctx := current.lctx.mkLocalDecl ⟨current.ngen.curr⟩ `t majorTy .default }
@@ -1773,7 +1773,7 @@ theorem MotivePassHeaderAt.recursorFrame
       rcases Hdom.source_defeq with ⟨level, heq⟩
       exact ⟨.sort level, heq⟩
     majorTarget := majorTarget
-    majorTr := Hdom.consumed
+    majorTr := Hdom.unannotated
     majorType := Hdom.isType
     indexDomains := MLCtxForallDomains Rindices.mlctx indices.size
       hindicesSize
@@ -2123,11 +2123,11 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
           rcases Hdom₀.body R.atCheckLCtx hbodyC with
             ⟨consumedBody₀, hbodyConsumed₀, _hbodyEq₀⟩
           refine withCheckedLocalDecl.recursorWF (name := name) (bi := bi) (Q := Q)
-            R Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
+            R Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
           let R' := R.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
           let Hsuffix' := Hsuffix.withAmbientChecked (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
           let W : VLCtx.FVLift R.mlctx.vlctx R'.mlctx.vlctx 0 1 0 :=
             .skip_fvar _ _ .refl
           have HindicesWeak : List.Forall₂
@@ -2159,7 +2159,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
             simpa using List.Forall₂.append' HindicesWeak
               (.cons Hindex .nil)
           have hopened := R.instantiateFresh (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType hbodyConsumed
+            Hdom.unannotated Hdom.isType hbodyConsumed
           have hctx : VLCtx.IsDefEq R.venv
               (AddInductive.getRecLevelParams elimLevel base.lparams).length
               ((none, .vlam sourceDom) :: R.mlctx.vlctx)
@@ -2173,7 +2173,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
             simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
               RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
               hbodyFullType.defeqDFC R.checking.tr.wf.ordered hctx.defeqCtx
-          have hbodyEq' := Hdom.bodyDefEqConsumed R hbodyEq
+          have hbodyEq' := Hdom.bodyDefEqUnannotated R hbodyEq
           have hconsumedBodyType : R'.venv.IsType
               (AddInductive.getRecLevelParams elimLevel base.lparams).length
               R'.mlctx.vlctx.toCtx consumedBody := by
@@ -2308,7 +2308,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
             rw [Expr.instantiate1_eq]
             exact Expr.levelParamsIn_instantiate1 hdomBodyU.2 rfl
           have hopened₀ := R.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
-            Hdom₀.consumed Hdom₀.isType hbodyConsumed₀
+            Hdom₀.unannotated Hdom₀.isType hbodyConsumed₀
           have hnormalize := whnfInRecursorContext.dualWF R' hopened hopened₀
           have hnormalizeLevels := whnfInRecursorContext.levelsWF R' hopened₀
           exact ((hnormalize.and hnormalizeLevels).and (Except.WF.self _)).bind
@@ -2447,9 +2447,9 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
               (Horigins.pushCurrentChecked R.toBindingContextWF name
                 (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) bi)
               (HoriginTypes.pushChecked (name := name) (bi := bi)
-                Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType)
+                Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType)
               (Hrecent.pushCurrentChecked name (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) consumedDom
-                bi Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType)
+                bi Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType)
               Htrace' hscopeFVars'
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
@@ -2676,7 +2676,7 @@ theorem continueRecursorParameterTyping {alpha : Type}
                   (Hbody.next hlt hnext.1) hlt)
                 (fun heq => Hcurrent.scope heq)
                 Hsynthesis' hnextNarrow
-                (Hbody.consumedFVars hnext.1)
+                (Hbody.unannotatedFVars hnext.1)
                 (hnextLevels _ _ hparamScope hopenedU hopenedP)
                 hnext.2 hopenedType
                 hindicesEmpty (.param Htrace hi hcallParam)

@@ -930,7 +930,7 @@ theorem VInductDecl.SourceParameterWF.mono_of_addConstVals
     fun type htype => (Htypes type htype).mono henv,
     fun type htype ctor hctor => (Hctors type htype ctor hctor).mono hle, Hraw⟩
 
-theorem VInductDecl.SourceWF.originalTypes
+theorem VInductDecl.SourceWF.sourceTypes
     {env : VEnv} {decl : VInductDecl}
     (H : decl.SourceWF env) :
     ∀ type ∈ decl.types, type.toVConstant.WF env := by
@@ -940,7 +940,7 @@ theorem VInductDecl.SourceWF.originalTypes
 /-- In particular, source constructor types are checked before nested lowering.
 This is the abstract obligation whose absence exposed the erased-parameter
 kernel bug: a proof about generated auxiliary constructors cannot discharge it. -/
-theorem VInductDecl.SourceWF.originalConstructors
+theorem VInductDecl.SourceWF.sourceConstructors
     {env : VEnv} {decl : VInductDecl}
     (H : decl.SourceWF env) :
     ∃ envTypes,

@@ -6,9 +6,9 @@ import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 /-! Final assembly certificate of a validated nested run: the pieces.
 
-`NestedRun.assemblyNative` asks for a
+`NestedRun.assemblyOfRun` asks for a
 `RestoredBlockCertificate` whose production is the run's.
-`NestedRun.assemblyNative_of_run` (`Nested/Install/CertificateOfRun.lean`)
+`NestedRun.assemblyOfRun_of_run` (`Nested/Install/CertificateOfRun.lean`)
 assembles one from the run, given the rule junction `Hrules` and the recursor
 provenance `Hprovenance`. This file derives everything else from the run:
 the `CompilationData` and the certified specializations

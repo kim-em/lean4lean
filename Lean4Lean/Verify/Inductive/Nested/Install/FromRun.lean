@@ -440,7 +440,7 @@ private theorem LoweredRun.rebuildIndTypes_eq
 ordinary header shapes of the exact lowered prefix.  The source-core builder
 retains literal header values, while materialization retains the separately
 checked index count and result universe. -/
-theorem NestedRun.nativeSourceTypeShapes
+theorem NestedRun.sourceCoreTypeShapes
     (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     {params : List VExpr}
@@ -452,7 +452,7 @@ theorem NestedRun.nativeSourceTypeShapes
   have hinitial : P.initialEnv = sourceVEnv := E.lowered_initialEnv
   have Hsource : TrInductDeclCore sourceVEnv lparams nparams sourceTypes
       isUnsafe sourceDecl E.sourceCore.envTypes E.sourceCore.envCtors := by
-    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.core
+    simpa only [E.sourceCoreDecl_eq] using E.sourceCore.core
   have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
     (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource).symm
   have hloweredLength : P.loweredDecl.types.length = result.types.length :=
@@ -491,7 +491,7 @@ theorem NestedRun.nativeSourceTypeShapes
     have hvaluesAll : sourceDecl.typeConstants =
         (P.loweredDecl.types.take sourceTypes.length).map
           VInductiveType.toVConstVal := by
-      simpa only [P, E.nativeSourceDecl_eq] using
+      simpa only [P, E.sourceCoreDecl_eq] using
         E.sourceCore.sourceTypeValues
     have hvalues := congrArg (fun values => values[i]?)
       hvaluesAll
@@ -507,7 +507,7 @@ theorem NestedRun.nativeSourceTypeShapes
   have htype : sourceTarget.type = expandedTarget.type :=
     congrArg (fun value : VConstVal => value.type) hvalue
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
-    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.checked
+    simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked
   have hnumIndices : sourceTarget.numIndices = expandedTarget.numIndices :=
     Hmetadata.numIndices hprefix i hi hiExpanded
   have hresultLevel : sourceTarget.resultLevel = expandedTarget.resultLevel :=
@@ -538,7 +538,7 @@ lowered header environment. The header-stage renaming replacement
 (`headerRenamingReplacement`) transports that certificate to the source header
 environment: the parameters and the prefix mention no auxiliary family, so the
 replacement fixes them. -/
-theorem NestedRun.nativeSourceParameterWF
+theorem NestedRun.sourceCoreParameterWF
     {ves : VEnvs}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
@@ -574,12 +574,12 @@ theorem NestedRun.nativeSourceParameterWF
   have Hsource : TrInductDeclCore (ves.venv (if isUnsafe then .unsafe else .safe))
       lparams nparams sourceTypes isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
-    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.core
+    simpa only [E.sourceCoreDecl_eq] using E.sourceCore.core
   have hnativeTypes : E.sourceCore.envTypes = envTypes := by
     have h := Hsource.typesAdded
     rw [hadded] at h
     exact (Option.some.inj h).symm
-  have HtypeShapes := E.nativeSourceTypeShapes HtypeShapesL
+  have HtypeShapes := E.sourceCoreTypeShapes HtypeShapesL
   refine ⟨paramsL, envTypes, hadded, HtypeShapes, ?_, Hraw⟩
   intro target htarget ctor hctor
   rcases List.mem_iff_getElem.1 htarget with ⟨familyIdx, hfamily, rfl⟩
@@ -702,7 +702,7 @@ theorem NestedRun.nativeSourceParameterWF
 production record's native dependent indices, without the recursor-rule
 validator, then transport it once to the public indices.  Transporting only the finished aggregate avoids splitting
 the dependent header/constructor/recursor phase chain apart. -/
-private theorem NestedRun.assemblyBaseOfFormationNative
+private theorem NestedRun.assemblyBaseOfFormation
     {ves : VEnvs} {sourceVEnv : VEnv} {safety : DefinitionSafety}
     (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
@@ -798,11 +798,11 @@ private theorem NestedRun.assemblyBaseOfFormationNative
       (main :: rest) P.isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe,
-      E.nativeSourceDecl_eq] using E.sourceCore.core
+      E.sourceCoreDecl_eq] using E.sourceCore.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
     exact Eq.mp
       (congrArg (fun decl => SourcePrefixOfLowered decl P.loweredDecl)
-        E.nativeSourceDecl_eq)
+        E.sourceCoreDecl_eq)
       E.sourceCore.checked
   have HownersP : ConstructorOwnersPresent P.c.env := by
     rw [henv]
@@ -992,7 +992,7 @@ formation comes from the literal restored-parameter validator; and the full
 ordered nested expansion comes from the producer-owned generated registry.
 No declaration-specific evidence is accepted from the caller. The stripped
 output environment is valid in the base's final abstract environment. -/
-theorem NestedRun.assemblyBaseNativeValid
+theorem NestedRun.assemblyBaseValid
     {ves : VEnvs}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
@@ -1051,13 +1051,13 @@ theorem NestedRun.assemblyBaseNativeValid
       sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
-      E.nativeSourceDecl_eq] using E.sourceCore.core
+      E.sourceCoreDecl_eq] using E.sourceCore.core
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       result.types P.isUnsafe P.loweredDecl Hheaders.context.venv
         R.declared.venvCtors := by
     exact R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
-    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.checked
+    simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked
   have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
@@ -1120,7 +1120,7 @@ theorem NestedRun.assemblyBaseNativeValid
       R.formation.formationWF.sourceParameterWF.rawCtorShape huvars hdeclParams
       hloweredNodup
   have Hparameters : sourceDecl.SourceParameterWF P.initialEnv := by
-    simpa only [hinitial, safety] using E.nativeSourceParameterWF wf Hsources Hraw
+    simpa only [hinitial, safety] using E.sourceCoreParameterWF wf Hsources Hraw
   have hdeclUnsafe : P.loweredDecl.isUnsafe = sourceDecl.isUnsafe := by
     calc
       P.loweredDecl.isUnsafe = P.isUnsafe := R.core.isUnsafe
@@ -1136,7 +1136,7 @@ theorem NestedRun.assemblyBaseNativeValid
       exact NestedExpansionData.expanded_eq_of_envTransport hinitial.symm
         HformationP
     exact hexpanded.trans rfl
-  exact E.assemblyBaseOfFormationNative wf rfl rfl hnested Hsources wf.constructorOwners
+  exact E.assemblyBaseOfFormation wf rfl rfl hnested Hsources wf.constructorOwners
     (by cases isUnsafe <;> decide) Hformation (by
       simpa only [safety] using hformationExpanded)
 

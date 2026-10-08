@@ -61,7 +61,7 @@ theorem IsMajorPremise.head (H : IsMajorPremise e) :
   obtain ⟨name, he⟩ := hn.matches_head hm
   exact ⟨name, levels, he⟩
 
-theorem IsMajorPremise.not_rigid (H : IsMajorPremise e) (hrigid : env.NativeHeadRigid name)
+theorem IsMajorPremise.not_rigid (H : IsMajorPremise e) (hrigid : env.ConstHeadRigid name)
     (hhead : e.getAppFnArgs.1 = .const name levels) : False := by
   obtain ⟨p, ⟨r, hp⟩, p₁, p₂, hs, levels', values, hm⟩ := H
   cases Params.simple_app hp hs
@@ -186,7 +186,7 @@ theorem WHNF.case_prefix (Hprefix : IsCasePrefix env e) : WHNF Γ e := by
 theorem IsCaseMajorPremise.whnf (H : IsCaseMajorPremise env e) : WHNF Γ e :=
   WHNF.case_prefix H.toPrefix
 
-theorem WHNF.rigid_head (hrigid : env.NativeHeadRigid name)
+theorem WHNF.rigid_head (hrigid : env.ConstHeadRigid name)
     (hhead : e.getAppFnArgs.1 = .const name levels) : WHNF Γ e := by
   intro out H
   revert hhead

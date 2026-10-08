@@ -126,7 +126,7 @@ theorem checkPositivity.loop.uniformNormalFormScoped
             Hc hocc' hdomOcc' Hdom hbodyFull Hdom₀ hbody₀ ?_
           intro bodyFull' _hbodyFullEq body₀' _hbody₀Eq hopenedFull _hopened₀
           let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+            Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
           have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hnormalizedFVars.1)).1

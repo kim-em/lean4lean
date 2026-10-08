@@ -580,13 +580,13 @@ theorem refinesRecursor
             decl.RecursiveArgAtTarget R.venv recLparams.length
               (decl.types[target]'htarget).name
               R.mlctx.vlctx.toCtx depth type')
-          R Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
+          R Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
         let R' := R.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+          Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hopened := R.instantiateFresh (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType hbody''
+          Hdom.unannotated Hdom.isType hbody''
         have hopened₀ := R.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
-          Hdom₀.consumed Hdom₀.isType hbody₀''
+          Hdom₀.unannotated Hdom₀.isType hbody₀''
         have Hstats' := Hstats.withFVar R'.checking.tr.wf
           R'.mlctx_wf.tr.wf
         have hctx' : checkPositivityStep.VLCtx.NoIndConsts

@@ -645,7 +645,7 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
               hfieldBound hpositive bodyFull' _hbodyFullEq body₀' _hbody₀Eq
               hopenedFull _hopened₀
             let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-              Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+              Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
             let Hruntime' :
                 checkInductiveTypes.loopType.FrontScopeEmbedding
                   Hc'.venv c.lparams
@@ -740,7 +740,7 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
               hfieldBound bodyFull' _hbodyFullEq body₀' _hbody₀Eq
               hopenedFull _hopened₀
             let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-              Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
+              Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
             let Hruntime' :
                 checkInductiveTypes.loopType.FrontScopeEmbedding
                   Hc'.venv c.lparams

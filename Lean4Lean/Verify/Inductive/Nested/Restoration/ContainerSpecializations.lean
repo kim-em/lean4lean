@@ -1180,13 +1180,13 @@ theorem NestedRun.containerSpecializations
       sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
-      E.nativeSourceDecl_eq] using E.sourceCore.core
+      E.sourceCoreDecl_eq] using E.sourceCore.core
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       result.types P.isUnsafe P.loweredDecl Hpack.1.context.venv
         R.declared.venvCtors := by
     exact R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
-    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.checked
+    simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked
   have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
@@ -1234,7 +1234,7 @@ theorem NestedRun.containerSpecializations
       (P.loweredDecl.types.take sourceTypes.length).map
         VInductiveType.toVConstVal := by
     have h := E.sourceCore.sourceTypeValues
-    rw [E.nativeSourceDecl_eq] at h
+    rw [E.sourceCoreDecl_eq] at h
     exact h
   have hadded : (ves.venv safety).addConstVals sourceDecl.typeConstants =
       some E.sourceCore.envTypes := by
@@ -1380,7 +1380,7 @@ theorem NestedRun.commonParameterContext_refl
     (wf.tr (safety := if isUnsafe then .unsafe else .safe)).wf
   have huvars : sourceDecl.uvars = E.lowered.c.lparams.length := by
     have h := E.sourceCore.core.uvars
-    rw [E.nativeSourceDecl_eq] at h
+    rw [E.sourceCoreDecl_eq] at h
     rw [h, E.lowered_c, E.context_lparams]
   rw [huvars]
   exact VEnv.IsDefEqCtx.refl (hctx.symm henv.ordered).isType

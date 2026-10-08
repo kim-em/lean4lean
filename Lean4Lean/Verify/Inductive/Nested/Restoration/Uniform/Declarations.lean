@@ -1028,7 +1028,7 @@ theorem NestedRun.loweredFamilyMappings
       sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
-      E.nativeSourceDecl_eq] using E.sourceCore.core
+      E.sourceCoreDecl_eq] using E.sourceCore.core
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       result.types P.isUnsafe P.loweredDecl Hpack.1.context.venv
         R.declared.venvCtors := R.core
@@ -1056,7 +1056,7 @@ theorem NestedRun.loweredFamilyMappings
       hinitial HcP Hprod Hsources HsourceHeaders HsourceAdded HsourceTypesWF
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N, -⟩
   have HsourceCore := E.sourceCore.core
-  rw [E.nativeSourceDecl_eq] at HsourceCore
+  rw [E.sourceCoreDecl_eq] at HsourceCore
   have htypesEq : E.sourceCore.envTypes = envTypes :=
     Option.some.inj (HsourceCore.typesAdded.symm.trans hadded)
   have hfreshN : ∀ name ∈ E.auxHeads, E.sourceCore.envTypes.constants name = none := by
@@ -1179,7 +1179,7 @@ theorem NestedRun.normalizedTotal_of
     (fun l => avoidsConsts_lit_of_reserved hreserved l)
     (E.lowered.recursorConstruction.paramsFree_of_fresh hfresh)
   have Hsource := E.sourceCore.core
-  rw [E.nativeSourceDecl_eq] at Hsource
+  rw [E.sourceCoreDecl_eq] at Hsource
   have hnp : E.lowered.stats.params.size = sourceDecl.nparams := by
     obtain ⟨_, Hrun, _, _⟩ := E.lowering
     rw [E.statsParamsSize, Hrun.resultNParams, Hsource.nparams]

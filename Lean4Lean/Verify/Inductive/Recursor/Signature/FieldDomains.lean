@@ -89,7 +89,7 @@ theorem RecursorConstruction.minorRootEnv
   have h3 := H.localExtends.env_eq
   exact h1.symm.trans (h2.symm.trans h3)
 
-theorem RecursorConstruction.constructorConsumedSource
+theorem RecursorConstruction.constructorUnannotatedSource
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
@@ -250,7 +250,7 @@ theorem ConstructorCheck.sourceConstructorTailType
 /-- Consume the original source constructor directly in the header
 checking environment, using the actual production trace to identify its
 closed native syntax. -/
-theorem RecursorConstruction.constructorConsumedHeaderReplay
+theorem RecursorConstruction.constructorUnannotatedHeaderReplay
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
@@ -276,7 +276,7 @@ theorem RecursorConstruction.constructorConsumedHeaderReplay
   rw [← hctx] at Htype
   obtain ⟨consumed, Hconsumed, HconsumedType, Heq⟩ := Hraw.consumeForallTypes_of_wrappers
     R.headerCheckingAnnotations.1 R.headerCheckingAnnotations.2 R.headerAnonymousParameterWF Htype
-  rw [← H.constructorConsumedSource owner howner localIndex hlocal HS] at Hconsumed
+  rw [← H.constructorUnannotatedSource owner howner localIndex hlocal HS] at Hconsumed
   exact ⟨consumed, Hconsumed, by simpa [abstractForallContext_toCtx, VLCtx.toCtx] using HconsumedType,
     by simpa [abstractForallContext_toCtx, VLCtx.toCtx] using Heq⟩
 
@@ -372,7 +372,7 @@ theorem RecursorConstruction.sourceFieldDomains
           (sourceDomains.map (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
           (.sort .zero)) := by
   obtain ⟨HS⟩ := H.minorTyping owner howner localIndex hlocal
-  obtain ⟨target, Htr, _⟩ := H.constructorConsumedHeaderReplay owner howner localIndex hlocal HS
+  obtain ⟨target, Htr, _⟩ := H.constructorUnannotatedHeaderReplay owner howner localIndex hlocal HS
   have Hext := HS.semantic.hypothesesRecent.contextLE.trans HS.semantic.extension.contextLE
   let Hbound := HS.semantic.fieldsRecent.toFVarArrayIn.mono Hext
   have Htel := (Hbound.mkForall_forallTelescope H.localWF HS.semantic.traversal.terminal).abstractList H.params.fvars

@@ -165,7 +165,7 @@ theorem QuotInstalled.mono (H : QuotInstalled env) (hle : env ≤ env') : QuotIn
 
 /-- Actual provenance of a native recursor entry: the finite compilation of the very block that
 installed it, together with the family views it recorded. -/
-def NativeEntryCompiled (env : VEnv) (T : Tables) (data : RecursorData) : Prop :=
+def RecursorEntryCompiled (env : VEnv) (T : Tables) (data : RecursorData) : Prop :=
   ∃ base installBase source expanded auxiliaries block installed,
     CompilationData base source expanded data.schema.signature data.recursorInstance
       auxiliaries block ∧
@@ -177,14 +177,14 @@ def NativeEntryCompiled (env : VEnv) (T : Tables) (data : RecursorData) : Prop :
     installBase.WF ∧ VInductBlock.WF installBase block ∧
     ∀ type ∈ source.types, type.ctors ≠ [] → T.fam type.name = some (famView source type)
 
-theorem NativeEntryCompiled.mono (H : NativeEntryCompiled env T data) (hle : env ≤ env')
-    (hT : T.Extends T') : NativeEntryCompiled env' T' data := by
+theorem RecursorEntryCompiled.mono (H : RecursorEntryCompiled env T data) (hle : env ≤ env')
+    (hT : T.Extends T') : RecursorEntryCompiled env' T' data := by
   obtain ⟨base, installBase, source, expanded, auxiliaries, block, installed,
     h1, h2, h3, h4, h5, h6, h7, h9, h10, h8⟩ := H
   exact ⟨base, installBase, source, expanded, auxiliaries, block, installed,
     h1, h2, h3, h4, h5, h6, h7.trans hle, h9, h10, fun type ht hc => hT.fam (h8 type ht hc)⟩
 
-theorem NativeEntryCompiled.registered (H : NativeEntryCompiled env T data) :
+theorem RecursorEntryCompiled.registered (H : RecursorEntryCompiled env T data) :
     RecursorRegistered env data := by
   obtain ⟨base, installBase, source, expanded, auxiliaries, block, installed,
     h1, h2, h3, h4, h5, h6, h7, _, _, _⟩ := H
@@ -213,7 +213,7 @@ structure Tables.Inv (env : VEnv) (T : Tables) : Prop where
   defs : T.defs n = some v → v.name = n ∧ env.constants n = some v.toVConstant ∧
     env.defeqs v.toDefEq
   /-- Native recursor entries, with their actual installation. -/
-  recursors : T.recursors n = some data → data.name = n ∧ NativeEntryCompiled env T data
+  recursors : T.recursors n = some data → data.name = n ∧ RecursorEntryCompiled env T data
   /-- The quotient flag. -/
   quot : T.quot = true → QuotInstalled env ∧ T.fam ``Quot = some quotFam ∧
     T.ctor ``Quot.mk = some quotCtor ∧ T.defs ``Quot.lift = none ∧

@@ -396,7 +396,7 @@ theorem minorProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads)
       exact mem_exprArrayFVarIds_of_fvar_mem hfieldMem
     have htype := O.projsOK W hp henv Rorigin hscope hfieldP
     exact ⟨D, by rw [hD]; exact htype.consumeTypeAnnotationsVerified'⟩
-  rw [← S.consumed_eq]
+  rw [← S.unannotated_eq]
   refine Expr.ProjsOK.consumeTypeAnnotationsVerified' ?_
   rw [S.sourceType_eq, ← S.sourceContext_eq]
   refine Expr.ProjsOK.mkForall' S.fields_bound.expressions ?_ hfieldDecls

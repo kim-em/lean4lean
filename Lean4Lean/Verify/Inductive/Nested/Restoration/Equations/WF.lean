@@ -173,7 +173,7 @@ theorem NestedRun.constructorRenamingReplacement
   -- the lowered constructor constants are well formed in the lowered header environment
   have hloweredUvars : E.lowered.c.lparams.length = sourceDecl.uvars := by
     have h2 := E.sourceCore.core.uvars
-    rw [E.nativeSourceDecl_eq] at h2
+    rw [E.sourceCoreDecl_eq] at h2
     rw [h2, E.lowered_c, E.context_lparams]
   have hlcWF : ∀ lc ∈ E.lowered.loweredDecl.constructorConstants,
       lc.uvars = sourceDecl.uvars ∧
@@ -230,7 +230,7 @@ theorem NestedRun.constructorRenamingReplacement
     have hscUvars : sc.uvars = lc.uvars := by
       rw [(hlcWF lc hlc).1]
       have Hsource := E.sourceCore.core
-      rw [E.nativeSourceDecl_eq] at Hsource
+      rw [E.sourceCoreDecl_eq] at Hsource
       obtain ⟨T, -, hT⟩ := Lean4Lean.List.Forall₂.forall_exists_r Hsource.types st hst
       obtain ⟨C, -, hC⟩ := Lean4Lean.List.Forall₂.forall_exists_r hT.ctors sc hsc
       rw [hC.uvars, Hsource.uvars]
