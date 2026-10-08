@@ -11,7 +11,7 @@ instruction for the branch is [docs/inductives/GOAL.md](docs/inductives/GOAL.md)
 
 ```lean
 theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (_heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
+    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
     (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
     (decl : Declaration) (hdecl : decl.IsModelled env ves) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
@@ -29,16 +29,19 @@ The hypotheses, and what each one costs:
 
 - `wf : ves.WF env`. The executable environment is modelled by well-formed abstract
   environments. This is the invariant being preserved; it is not an extra assumption.
-- `_heq : HasCanonicalEq` ([Theory/CanonicalEq.lean](Lean4Lean/Theory/CanonicalEq.lean)).
+- `heq : HasCanonicalEq` ([Theory/CanonicalEq.lean](Lean4Lean/Theory/CanonicalEq.lean)).
   A constant-presence predicate: `Eq`, `Eq.refl`, `Eq.rec` are present with the stored types
   of the prelude, and the iota rule of `Eq.rec` is a definitional equation. It is monotone
   (`VEnv.HasCanonicalEq.mono`) and realized by the replay of `Init.Prelude`
   ([Verify/CanonicalEqRealization.lean](Lean4Lean/Verify/CanonicalEqRealization.lean),
   `addDecl.eqBootstrapHasCanonicalEq`; executable side checked by
-  [Tests/CanonicalEq.lean](Lean4Lean/Tests/CanonicalEq.lean)). **The proof does not use it**:
-  the underlying theorem is `addDecl.WF wf hch decl hdecl`. It is kept so that the statement
-  matches GOAL.md item (3); it is used by the confluence theorem `WF.church_rosser`, which is
-  outside the cone.
+  [Tests/CanonicalEq.lean](Lean4Lean/Tests/CanonicalEq.lean)). It is used at exactly one
+  place: the quotient declaration. `addQuot.WF`
+  ([Verify/QuotInit.lean](Lean4Lean/Verify/QuotInit.lean)) needs `Eq` present at every safety
+  level, because the executable's `checkEqType` checks the shape of `Eq` but not its safety,
+  and the type of `Quot.lift` mentions `Eq`; the underlying theorem `addDecl.WF` takes that
+  readiness (`VEnv.QuotReady` at each level) as its hypothesis and `WF_of_canonicalEq` derives
+  it from `heq`. The confluence theorem `WF.church_rosser` also needs it, outside the cone.
 - `hch : HasCanonicalChoice`
   ([Theory/CanonicalChoice.lean](Lean4Lean/Theory/CanonicalChoice.lean)). A constant-presence
   predicate: `Nonempty`, `Nonempty.intro` and the axiom `Classical.choice` are present with the
@@ -49,11 +52,12 @@ The hypotheses, and what each one costs:
   It is used at exactly one place, the projection-walk corner (section 3(b)). The honest
   reading of the theorem is therefore: soundness of `addDecl` in environments that contain
   the canonical prelude declarations, which every real Lean environment does.
-- `hdecl : decl.IsModelled env ves`. `True` for every declaration form except `quotDecl`,
-  for which it is `False`. Inductive declarations (ordinary, mutual, nested) carry no
-  declaration-specific premise; their evidence is reconstructed from the execution. The
-  `quotDecl` exclusion is the only scope restriction and is unchanged from `master`; it is
-  being removed on a concurrent branch (section 6).
+- `hdecl : decl.IsModelled env ves`. Now `True` for every declaration form, including
+  `quotDecl` (covered by `addQuot.WF` since 2026-10-08; see
+  [QUOT_THEOREM.md](docs/inductives/QUOT_THEOREM.md) and
+  [Tests/QuotInit.lean](Lean4Lean/Tests/QuotInit.lean)). It is kept only because GOAL.md fixes
+  the statement; it can be dropped. Inductive declarations (ordinary, mutual, nested) carry no
+  declaration-specific premise; their evidence is reconstructed from the execution.
 
 No hypothesis names an input, hides a proof in a structure field, or supplies a semantic
 answer: the obligations of section 3 are theorems for every well-formed environment.
@@ -193,14 +197,19 @@ Recorded in GOAL.md ("Amendments") and, with the reasoning at the time, in the c
    choice-free strengthening effort continues as a bonus and, if it succeeds, deletes `hch`.
 
 With these, the branch meets the goal as amended, buildable with hypotheses `WF`,
-`HasCanonicalEq` (unused), `HasCanonicalChoice`, `IsModelled`, and not with fewer.
+`HasCanonicalEq` (used by the quotient case), `HasCanonicalChoice`, `IsModelled` (trivial),
+and not with fewer.
 
 ## 6. Open and in-progress work
 
 In progress on branches off `agent/verify-inductives` (none of this is merged yet):
 
-- `agent/verify-inductives-quot`: a theorem for `quotDecl`, making `IsModelled` true for
-  every declaration form.
+- `agent/verify-inductives-quot`: MERGED (d7f53f0b). `addQuot.WF` covers `quotDecl`;
+  `IsModelled` is true for every declaration form. The new test exposed a pre-existing
+  executable quirk inherited from `master`: lean4lean's `addQuot` marks the `q` binder of
+  `Quot.ind` implicit where the C++ kernel and Lean's declaration have it explicit (binder
+  info does not affect typing; the test compares up to binder info). A one-line fix is
+  prepared as a separate branch for upstream.
 - `agent/verify-inductives-cleanup`: removal of the shape model `Theory/Typing/ShapeModel/`
   from the proof, using `WF.headSeparationModel` of the observation model for the separation
   half, and deletion of dead modules.
