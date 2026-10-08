@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.PrimitiveLowering
+import Lean4Lean.Verify.Inductive.Primitive.Lowering
 
 namespace Lean4Lean
 

@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.PrimitiveEvidence
+import Lean4Lean.Verify.Inductive.Primitive.Shape
 
 namespace Lean4Lean
 

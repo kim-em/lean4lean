@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.PrimitiveBootstrap
+import Lean4Lean.Verify.Inductive.Primitive.Constants
 import Lean4Lean.Verify.Inductive.Run.Formation
 
 namespace Lean4Lean

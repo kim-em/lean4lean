@@ -145,7 +145,7 @@ def main():
         self_test()
         return 0
     if not args.no_build:
-        subprocess.run(["lake", "build", "Lean4Lean.Verify.Inductive.FinalDispatch",
+        subprocess.run(["lake", "build", "Lean4Lean.Verify.Inductive.Dispatch",
                         "Lean4Lean.Verify.TypeChecker",
                         "Lean4Lean.Verify.Inductive.Recursor.Realization",
                         "Lean4Lean.Verify.Inductive.Recursor.RestoredRealization",

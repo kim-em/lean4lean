@@ -6,7 +6,7 @@ import Lean4Lean.Verify.Environment
 `Eq.rec` and the iota rule of `Eq.rec`.  This file connects them to the
 declaration `Init.Prelude` submits.
 
-* `Lean4Lean/Verify/Inductive/EqCanonicalForms.lean` states the production
+* `Lean4Lean/Verify/Inductive/Prelude/EqSyntax.lean` states the production
   expressions literally (`eqBootstrapType`, `eqBootstrapReflType`,
   `eqRecTypeExpr`, `eqRecRuleRhsExpr`, `eqRecRuleLhsExpr`, `eqRecRuleTypeExpr`,
   generic only in binder and universe-parameter names) and proves that every

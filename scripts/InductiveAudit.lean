@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Typing.QuotWitnessTyping
 import Lean4Lean.Theory.Typing.QuotPrefixReduction
 import Lean4Lean.Theory.Typing.DefinitionRegistryInstallation
 import Lean4Lean.Theory.Typing.NativeRegistryInstallation
-import Lean4Lean.Verify.Inductive.FinalDispatch
+import Lean4Lean.Verify.Inductive.Dispatch
 import Lean4Lean.Verify.Environment
 import Lean4Lean.Verify.TypeChecker
 import Lean4Lean.Verify.Inductive.Recursor.Realization

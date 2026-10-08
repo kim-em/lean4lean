@@ -1,5 +1,5 @@
-import Lean4Lean.Verify.Inductive.PrimitiveSemanticFormation
-import Lean4Lean.Verify.Inductive.PrimitiveRunWithStats
+import Lean4Lean.Verify.Inductive.Primitive.Headers
+import Lean4Lean.Verify.Inductive.Primitive.ConstructorParams
 import Lean4Lean.Verify.Inductive.Recursor.ConsumeAlpha
 
 namespace Lean4Lean

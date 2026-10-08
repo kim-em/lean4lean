@@ -1,6 +1,6 @@
 import Lean4Lean.Environment
 import Lean4Lean.Theory.Meta
-import Lean4Lean.Verify.Inductive.EqCanonicalForms
+import Lean4Lean.Verify.Inductive.Prelude.EqSyntax
 
 /-! Realizability of `VEnv.HasCanonicalEq` for the real `Eq`.
 

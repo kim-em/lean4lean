@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Run.SemanticRun
-import Lean4Lean.Verify.Inductive.Run.EqCanonical
+import Lean4Lean.Verify.Inductive.Prelude.EqReady
 
 namespace Lean4Lean
 

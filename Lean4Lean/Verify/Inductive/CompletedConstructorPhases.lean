@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.PrimitiveAtomicInstallation
+import Lean4Lean.Verify.Inductive.Primitive.BatchInstallation
 import Lean4Lean.Verify.Inductive.ConstructorBoundary
 
 namespace Lean4Lean

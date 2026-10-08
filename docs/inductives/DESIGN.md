@@ -308,7 +308,7 @@ None weakens the top-level theorem.
 
 `addInductiveDeclaration.finalPreservesWF` (`Lean4Lean/Verify/Environment.lean`) splits on
 the executable's own branch selection. Primitive declarations (`Bool` and `Nat`, recognized
-by `Primitive.checkInductive`) go through `Lean4Lean/Verify/Inductive/Primitive*.lean`. For
+by `Primitive.checkInductive`) go through `Lean4Lean/Verify/Inductive/Primitive/`. For
 other declarations the verified lowering result decides: no auxiliary families means the
 ordinary path (`OrdinaryFinalDispatch.lean`), otherwise the nested path
 (`Nested/EndToEnd.lean`, `NestedFinalSpecification.lean`). All three produce an

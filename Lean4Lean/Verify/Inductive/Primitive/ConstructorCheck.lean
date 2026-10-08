@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.PrimitiveConstructors
+import Lean4Lean.Verify.Inductive.Primitive.Constructors
 
 namespace Lean4Lean
 
