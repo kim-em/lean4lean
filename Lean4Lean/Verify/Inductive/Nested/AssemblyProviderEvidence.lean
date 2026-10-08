@@ -3700,6 +3700,8 @@ structure NestedFinalAssemblyShapeSemanticEvidence
   eliminatorsReplay : ∀ env', sourceEnv ≤ env' →
     (∀ n, sourceProdEnv.constants.find? n = none → env'.constants n = none) →
     VInductBlock.EliminatorsReplay env' decl (decl.caseBlock canonical.eliminators)
+  eliminatorsRestored : NestedEliminatorsRestored P result auxRec decl lparams
+    canonical.eliminators
   auxiliaryRecursors : List VConstVal
   auxiliaryRules : List VDefEq
   exactSource : ∃ primaryRecursors,
@@ -3803,7 +3805,9 @@ theorem NestedFinalAssemblyShapeSemanticEvidence.ofCanonical
     (Helim : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock C.canonical.eliminators))
     (Hreplay : ∀ env', sourceEnv ≤ env' →
       (∀ n, sourceProdEnv.constants.find? n = none → env'.constants n = none) →
-      VInductBlock.EliminatorsReplay env' decl (decl.caseBlock C.canonical.eliminators)) :
+      VInductBlock.EliminatorsReplay env' decl (decl.caseBlock C.canonical.eliminators))
+    (HelimRestored : NestedEliminatorsRestored P result auxRec decl lparams
+      C.canonical.eliminators) :
     Nonempty (NestedFinalAssemblyShapeSemanticEvidence P H sourceEnv decl lparams
       nparams isUnsafe safety actualEntries) := by
   exact ⟨{
@@ -3823,6 +3827,7 @@ theorem NestedFinalAssemblyShapeSemanticEvidence.ofCanonical
     unsafeEq := C.unsafeEq
     eliminatorsWF := Helim
     eliminatorsReplay := Hreplay
+    eliminatorsRestored := HelimRestored
     auxiliaryRecursors := C.auxiliaryRecursors
     auxiliaryRules := C.auxiliaryRules
     exactSource := HexactSource
@@ -3940,7 +3945,10 @@ theorem NestedFinalAssemblyShapeSemanticEvidence.ofCanonicalStructuralPrimary
       (sourceDecl.caseBlock C.canonical.eliminators))
     (Hreplay : ∀ env', sourceVEnv ≤ env' →
       (∀ n, c.env.constants.find? n = none → env'.constants n = none) →
-      VInductBlock.EliminatorsReplay env' sourceDecl (sourceDecl.caseBlock C.canonical.eliminators)) :
+      VInductBlock.EliminatorsReplay env' sourceDecl (sourceDecl.caseBlock C.canonical.eliminators))
+    (HelimRestored : NestedEliminatorsRestored P result
+      (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 sourceDecl c.lparams
+      C.canonical.eliminators) :
     Nonempty (NestedFinalAssemblyShapeSemanticEvidence P Hrestored sourceVEnv
       sourceDecl c.lparams nparams isUnsafe c.safety actualEntries) := by
   subst P
@@ -3994,6 +4002,7 @@ theorem NestedFinalAssemblyShapeSemanticEvidence.ofCanonicalStructuralPrimary
   · exact Hauxiliary
   · exact Helim
   · exact Hreplay
+  · exact HelimRestored
 
 /-- Construct the final nested certificate directly from the exact traces
 retained by the executable run.  Primary rules are first selected by the
@@ -4069,7 +4078,9 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
     (Hcases : VInductBlock.EliminatorsWF sourceVEnv sourceDecl (sourceDecl.caseBlock es))
     (Hreplay : ∀ env', sourceVEnv ≤ env' →
       (∀ n, c.env.constants.find? n = none → env'.constants n = none) →
-      VInductBlock.EliminatorsReplay env' sourceDecl (sourceDecl.caseBlock es)) :
+      VInductBlock.EliminatorsReplay env' sourceDecl (sourceDecl.caseBlock es))
+    (HelimRestored : NestedEliminatorsRestored P result
+      (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 sourceDecl c.lparams es) :
     Nonempty { C : NestedFinalAssemblyShape Hrestored sourceVEnv
         sourceDecl c.lparams nparams isUnsafe c.safety //
       C.production = P ∧ CheckingEnv.Valid c.safety ruleEnv C.finalBaseVEnv } := by
@@ -4229,7 +4240,8 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
         replay.typeValues replay.constructorValues Hformation
         hformationExpanded Hmetadata huvars hnumParams hunsafeEq htypesSource
         hsourceNonempty (by rw [hcanonicalElims]; exact Hcases)
-        (by rw [hcanonicalElims]; exact Hreplay), rfl,
+        (by rw [hcanonicalElims]; exact Hreplay)
+        (by rw [hcanonicalElims]; exact HelimRestored), rfl,
         HruleValid⟩⟩
 
 /- Work-in-progress adapter retained outside the active declarations while
@@ -4795,8 +4807,15 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
   have HbaseValid : CheckingEnv.Valid P.c.safety P.c.env P.initialEnv := by
     have Hchecking := E.productionContextWF.checking
     simpa only [hc, hinitial, E.productionContext_venv] using Hchecking
-  obtain ⟨es, Hcases, Hreplay, -⟩ := E.caseEliminators wf Hsources Howners Hformation
-    hformationExpanded
+  obtain ⟨es, Hcases, Hreplay, key, sL, auxC, hcompEl, hesEq, -, -, -, -, -, -, -, DC, -, -⟩ :=
+    E.caseEliminators wf Hsources Howners Hformation hformationExpanded
+  have HelimRestored : NestedEliminatorsRestored P' result
+      (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2 sourceDecl P.c.lparams es := by
+    have hP'P : P' = P := by
+      simpa only [P', Hheaders, R, Hprod, Hpack] using
+        NestedInstalledProduction.rebuildIndTypes_eq P result.types.toArray hindTypes
+    rw [hP'P, hlparams]
+    exact ⟨key, sL, auxC, hcompEl, hesEq, DC⟩
   have HcasesP : VInductBlock.EliminatorsWF P.initialEnv sourceDecl (sourceDecl.caseBlock es) := by
     rw [hinitial]; exact Hcases
   have HtypeValid : CheckingEnv.Valid P.c.safety E.validationEnv
@@ -4896,7 +4915,7 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
       auxiliaryRecursors Hsource HauxiliaryRecursors replay canonical
       HruleValid HruleRun HformationP hformationExpandedP huvars hnumParams
       hunsafeEq (by simp) hcanonicalElims HcasesP
-      (by rw [hinitial, henv]; exact Hreplay) with ⟨⟨C, hproduction, hCvalid⟩⟩
+      (by rw [hinitial, henv]; exact Hreplay) HelimRestored with ⟨⟨C, hproduction, hCvalid⟩⟩
   have hproductionOriginal : C.production = P := by
     calc
       C.production = P' := hproduction
@@ -5139,6 +5158,7 @@ theorem NestedFinalAssemblyShapeSemanticEvidence.producerEvidence
     sourceNonempty := hsourceNonempty
     eliminatorsWF := E.eliminatorsWF
     eliminatorsReplay := E.eliminatorsReplay
+    eliminatorsRestored := E.eliminatorsRestored
     auxiliaryRecursors := E.auxiliaryRecursors
     auxiliaryRules := E.auxiliaryRules
     exactSource := E.exactSource

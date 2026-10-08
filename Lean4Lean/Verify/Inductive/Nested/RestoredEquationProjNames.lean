@@ -635,38 +635,6 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
 
-/-- A structure registered in the base environment is an old constant, so its
-name is not restorable. -/
-theorem NestedValidatedRunResult.baseProjection_not_restorable
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv)
-    {envTypes : VEnv} {generated : List VInductiveType}
-    {auxiliaries : List ContainerSpecialization}
-    (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
-      sourceDecl.typeConstants = some envTypes)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
-      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-      E.production.headers.commonParameterContext sourceDecl)
-      auxiliaries generated)
-    (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
-        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-        (VInductDecl.NestedAuxiliarySourceAbsolute
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
-    (hnodup : (familyNames E.production.loweredDecl.types ++
-      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
-    {S : Name} {info : VProjectionInfo}
-    (hS : (ves.venv (if isUnsafe then .unsafe else .safe)).projections S info) :
-    S ∉ (compilationRestoration sourceDecl auxiliaries).restorableNames := by
-  intro hmem
-  obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, hlookup, -⟩ :=
-    (wf.tr (safety := if isUnsafe then .unsafe else .safe)).wf.ordered.projectionShape hS
-  have h := (VEnv.addConstVals_le hadded).constants hlookup
-  rw [E.restorableNames_fresh hadded Haux Hexpansion hnodup S hmem] at h
-  cases h
-
 /-- **Field `constructorProjNames`**: the lowered constructor types are
 translated in the lowered header environment, which registers only the
 structures of the base environment. -/

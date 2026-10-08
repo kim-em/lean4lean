@@ -94,11 +94,6 @@ theorem compilationRestoration_recursorName_of_not_mem
   · rfl
 
 
-/-- Names claimed by the restoration heads of one specialisation: the
-auxiliary family followed by its constructors. -/
-def ContainerSpecialization.headNames (a : ContainerSpecialization) : List Name :=
-  a.auxiliary :: a.source.ctors.map a.constructorName
-
 theorem ContainerSpecialization.heads_map_auxiliary (a : ContainerSpecialization)
     (uvars nparams : Nat) :
     (a.heads uvars nparams).map (·.auxiliary) = a.headNames := by
