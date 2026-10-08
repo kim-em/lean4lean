@@ -70,6 +70,7 @@ structure CompletedRecursorConstruction
     parameterSuffix.parameterDecls
   majorTypes : RecursorTranslatedOriginTypes recursorWF origins.majorTypes
   majorShapes : RecInfoMajorTypeShapes stats recInfos origins.majorTypes
+    localContext.env.isTypeAnnotationWrapper
   motiveTypes : RecursorTranslatedOriginTypes recursorWF origins.motiveTypes
   motiveShapes : RecInfoMotiveTypeShapes localContext recInfos
     origins.motiveTypes elimLevel

@@ -1038,7 +1038,7 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
   venv := ves.venv safety
   checking := (wf.tr (safety := safety)).toCheckingValid
     (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
+    wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   mlctx := .nil
   mlctx_wf := trivial
   typeCheckerLParams_eq := rfl
@@ -2404,7 +2404,7 @@ structure ContextWF.ConsumedDomain (Hc : ContextWF c)
     (dom : Expr) (source' consumed' : VExpr) : Prop where
   source : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom source'
   consumed : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-    dom.consumeTypeAnnotationsVerified consumed'
+    (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumed'
   isType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx consumed'
   source_defeq : ∃ u, Hc.venv.IsDefEq c.lparams.length Hc.mlctx.vlctx.toCtx
     source' consumed' (.sort u)
@@ -2417,15 +2417,15 @@ theorem ContextWF.ConsumedDomain.sourceIsType {Hc : ContextWF c}
 theorem Expr.consumeTypeAnnotationsVerified_eq_self {dom : Expr}
     (hopt : dom.isOptParam = false) (hauto : dom.isAutoParam = false)
     (hout : dom.isOutParam = false) (hsemi : dom.isSemiOutParam = false) :
-    dom.consumeTypeAnnotationsVerified = dom := by
-  fun_induction Expr.consumeTypeAnnotationsVerified dom
+    (dom.consumeTypeAnnotationsVerified annOk) = dom := by
+  fun_induction Expr.consumeTypeAnnotationsVerified _ dom
   all_goals simp_all [Expr.isOptParam, Expr.isAutoParam,
     Expr.isOutParam, Expr.isSemiOutParam, Expr.isAppOfArity]
 
 theorem MLCtxOnlyLams.mkForall_consumeTypeAnnotations_eq_self
     (H : MLCtxOnlyLams m) (n : Nat) (hn : n ≤ m.length)
-    (hbody : body.consumeTypeAnnotationsVerified = body) :
-    (m.mkForall n hn body).consumeTypeAnnotationsVerified = m.mkForall n hn body := by
+    (hbody : (body.consumeTypeAnnotationsVerified annOk) = body) :
+    ((m.mkForall n hn body).consumeTypeAnnotationsVerified annOk) = m.mkForall n hn body := by
   induction n generalizing m body with
   | zero => exact hbody
   | succ n ih =>
@@ -2440,8 +2440,8 @@ theorem MLCtxOnlyLams.mkForall_consumeTypeAnnotations_eq_self
 /-- Removing binder annotations only selects subexpressions of the original
 domain, so it cannot introduce a new free-variable dependency. -/
 theorem Expr.consumeTypeAnnotationsVerified_fvarsIn
-    (H : FVarsIn P e) : FVarsIn P e.consumeTypeAnnotationsVerified := by
-  fun_induction Expr.consumeTypeAnnotationsVerified e
+    (H : FVarsIn P e) : FVarsIn P (e.consumeTypeAnnotationsVerified annOk) := by
+  fun_induction Expr.consumeTypeAnnotationsVerified _ e
   case case1 ih => exact ih H.1.2
   case case2 => exact H
   case case3 ih => exact ih H.2
@@ -2450,7 +2450,7 @@ theorem Expr.consumeTypeAnnotationsVerified_fvarsIn
 
 /-- Domains without a leading type annotation need no semantic transport. -/
 theorem ContextWF.ConsumedDomain.unchanged (Hc : ContextWF c)
-    (heq : dom.consumeTypeAnnotationsVerified = dom)
+    (heq : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) = dom)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom') :
     Hc.ConsumedDomain dom dom' dom' := by
@@ -2515,14 +2515,14 @@ structure RecursorContextWF.ConsumedDomain
     (dom : Expr) (source' consumed' : VExpr) : Prop where
   source : TrExprS R.venv recLparams R.mlctx.vlctx dom source'
   consumed : TrExprS R.venv recLparams R.mlctx.vlctx
-    dom.consumeTypeAnnotationsVerified consumed'
+    (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumed'
   isType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx consumed'
   source_defeq : ∃ u, R.venv.IsDefEq recLparams.length R.mlctx.vlctx.toCtx
     source' consumed' (.sort u)
 
 theorem RecursorContextWF.ConsumedDomain.unchanged
     (R : RecursorContextWF c recLparams)
-    (heq : dom.consumeTypeAnnotationsVerified = dom)
+    (heq : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) = dom)
     (htr : TrExprS R.venv recLparams R.mlctx.vlctx dom dom')
     (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx dom') :
     R.ConsumedDomain dom dom' dom' := by
@@ -2812,9 +2812,9 @@ theorem ContextWF.alignedBinder (Hc : ContextWF c)
     (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
     (hdomNarrow : TrExprS Hc.venv c.lparams scope dom narrowDom)
     (hdomNarrowType : Hc.venv.IsType c.lparams.length scope.toCtx narrowDom)
-    (hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars) :
+    (hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars) :
     VLCtx.IsDefEq Hc.venv c.lparams.length
-      ((some (⟨c.ngen.curr⟩, dom.consumeTypeAnnotationsVerified.fvarsList),
+      ((some (⟨c.ngen.curr⟩, (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
         .vlam narrowDom) :: scope)
       (Hc.withCheckedLocalDecl (name := name) (bi := bi)
         Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx := by
@@ -2840,9 +2840,9 @@ theorem RecursorContextWF.alignedBinder (R : RecursorContextWF c recLparams)
     (Hdom₀ : R.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
     (hdomNarrow : TrExprS R.venv recLparams scope dom narrowDom)
     (hdomNarrowType : R.venv.IsType recLparams.length scope.toCtx narrowDom)
-    (hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars) :
+    (hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars) :
     VLCtx.IsDefEq R.venv recLparams.length
-      ((some (⟨c.ngen.curr⟩, dom.consumeTypeAnnotationsVerified.fvarsList),
+      ((some (⟨c.ngen.curr⟩, (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
         .vlam narrowDom) :: scope)
       (R.withCheckedLocalDecl (name := name) (bi := bi)
         Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx := by

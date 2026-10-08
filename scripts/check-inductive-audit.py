@@ -20,6 +20,9 @@ ROOTS = {
     "Lean4Lean.addDecl.WFHasCanonicalEq",
     "Lean4Lean.addDecl.WFHasCanonicalChoice",
     "Lean4Lean.addQuot.WF",
+    "Lean4Lean.Replay.replayFresh.WF",
+    "Lean4Lean.Replay.replayFromImports.WF",
+    "Lean4Lean.Replay.Replayed.foldlM",
     "Lean4Lean.VEnv.QuotRegistered.witness_app",
     "Lean4Lean.VEnv.QuotDeltaRule.defeq",
     "Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveFinalResultWF",
@@ -160,7 +163,8 @@ def main():
                         "Lean4Lean.Theory.Typing.NativeRegistryInstallation",
 
                         "Lean4Lean.Theory.Typing.ChurchRosser",
-                        "Lean4Lean.Verify.Typing.ProjectionDesugaring"], cwd=ROOT, check=True)
+                        "Lean4Lean.Verify.Typing.ProjectionDesugaring",
+                        "Lean4Lean.Verify.Replay"], cwd=ROOT, check=True)
     reports = run_audit(ROOT / "scripts/InductiveAudit.lean")
     if len(reports) != len(ROOTS) or {r["root"] for r in reports} != ROOTS:
         raise RuntimeError("audit roots changed or a theorem report is missing")

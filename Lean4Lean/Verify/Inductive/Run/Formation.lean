@@ -1697,7 +1697,8 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
       (Hbindings : RecInfoBindings cOut recInfos)
       (Horigins : RecInfoTypeOrigins cOut recInfos),
       RecursorTranslatedOriginTypes Rout Horigins.majorTypes →
-      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
+      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
+        cOut.env.isTypeAnnotationWrapper →
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
       RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel →
       RecInfoMotiveTelescopes Rout stats decl
@@ -1764,7 +1765,7 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
     Hsuffix HparamsCtx
     Hstats (RecInfoBindings.empty _) (RecInfoTypeOrigins.empty _)
     (RecursorTranslatedOriginTypes.empty Rbase)
-    (RecInfoMajorTypeShapes.empty stats)
+    (RecInfoMajorTypeShapes.empty stats _)
     (RecursorTranslatedOriginTypes.empty Rbase)
     (RecInfoMotiveTypeShapes.empty _ elimLevel)
     (RecInfoMotiveTelescopes.empty Rbase stats decl
@@ -2484,9 +2485,6 @@ theorem BlockCertificate.extendUnsafeExact
     htrUnsafe htrPartial htrSafe
   · exact H.hasPrimitives wf.hasPrimitives
   · exact hsafePrimitives
-  · exact wf.typeAnnotationWrappers.rebase
-      (H.staged.productionTrace.preservesSourceFind
-        (wf.tr (safety := .unsafe)).map_wf)
   · exact hclosed
   · exact hconstructorOwners
   · intro safety
@@ -2799,7 +2797,7 @@ theorem BlockCertificate.extendSafeExact
       CheckingEnv.Valid safety prodEnv (ves.venv safety) :=
     (wf.tr (safety := safety)).toCheckingValid
       (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
+      wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   rcases H.rebaseAddInductSafe (valid .unsafe)
       (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins hprovenance
       (Hreplay .unsafe) with
@@ -2977,7 +2975,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
       (ves.venv .unsafe) :=
     (wf.tr (safety := .unsafe)).toCheckingValid
       (wf.hasPrimitives (safety := .unsafe)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
+      wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   have hiddenPartial : ∀ entry ∈ types ++ ctors ++ recursors,
       ¬ DefinitionSafety.partial ≤ entry.1.safety := by
     intro entry hentry

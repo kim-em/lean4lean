@@ -344,7 +344,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
   have Hvalid : CheckingEnv.Valid .safe sourceProdEnv (ves.venv .safe) :=
     (wf.tr (safety := .safe)).toCheckingValid
       (wf.hasPrimitives (safety := .safe)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
+      wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   let HactualExists : Nonempty { entries : List ConstantInfo //
       FreshConstantTrace sourceProdEnv entries outEnv } := by
     rcases H.freshTrace Hvalid.tr.map_wf with ⟨entries, Hentries⟩
@@ -366,7 +366,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
       CheckingEnv.Valid observer sourceProdEnv (ves.venv observer) :=
     (wf.tr (safety := observer)).toCheckingValid
       (wf.hasPrimitives (safety := observer)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
+      wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   have replay (observer : DefinitionSafety) :
       ∃ replayBase,
         ∃ Breplay : BlockCertificate observer sourceProdEnv
@@ -609,7 +609,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
   have Hvalid : CheckingEnv.Valid .unsafe sourceProdEnv (ves.venv .unsafe) :=
     (wf.tr (safety := .unsafe)).toCheckingValid
       (wf.hasPrimitives (safety := .unsafe)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
+      wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   let HactualExists : Nonempty { entries : List ConstantInfo //
       FreshConstantTrace sourceProdEnv entries outEnv } := by
     rcases H.freshTrace Hvalid.tr.map_wf with ⟨entries, Hentries⟩
@@ -745,8 +745,6 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
       htrUnsafe htrPartial htrSafe
       (B.hasPrimitives (wf.hasPrimitives (safety := .unsafe)))
       hsafePrimitives
-      (wf.typeAnnotationWrappers.rebase
-        (actual.property.preservesSourceFind Hvalid.tr.map_wf))
       hclosed
       hconstructorOwners
       (fun observer => match observer with

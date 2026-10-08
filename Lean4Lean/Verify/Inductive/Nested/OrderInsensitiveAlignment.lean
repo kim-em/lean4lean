@@ -174,17 +174,6 @@ theorem CheckingEnv.ValidCore.mapExt
     apply H.safePrimitives _ hprimitive
     rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?]
     exact hfindSource
-  typeAnnotationWrappers := H.typeAnnotationWrappers.rebase (by
-    intro name ci hfind
-    have hfindSource : source.constants.find? name = some ci := by
-      rw [← H.tr.map_wf.find?'_eq_find?,
-        ← Lean.Kernel.Environment.find?]
-      exact hfind
-    have hfindTarget : target.constants.find? name = some ci := by
-      rw [← heq]
-      exact hfindSource
-    rw [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?]
-    exact hfindTarget)
 
 /-- Rebase the complete executable type-checking invariant across an exact
 extensional change of the production constant-map representation.  The
@@ -215,17 +204,6 @@ theorem CheckingEnv.Valid.mapExt
     apply H.safePrimitives _ hprimitive
     rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?]
     exact hfindSource
-  typeAnnotationWrappers := H.typeAnnotationWrappers.rebase (by
-    intro name ci hfind
-    have hfindSource : source.constants.find? name = some ci := by
-      rw [← H.tr.map_wf.find?'_eq_find?,
-        ← Lean.Kernel.Environment.find?]
-      exact hfind
-    have hfindTarget : target.constants.find? name = some ci := by
-      rw [← heq]
-      exact hfindSource
-    rw [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?]
-    exact hfindTarget)
   constructorOwners := H.constructorOwners.mapEnvironmentEq fun name => by
     rw [Lean.Kernel.Environment.find?, Lean.Kernel.Environment.find?,
       H.tr.map_wf.find?'_eq_find?, htargetWF.find?'_eq_find?]

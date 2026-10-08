@@ -498,14 +498,14 @@ def TranslatedOriginTypes.empty (Hc : ContextWF c) :
 
 /-- Append a newly consumed declaration domain and weaken all earlier origin
 translations through the corresponding fresh local declaration. -/
-def TranslatedOriginTypes.push
+def TranslatedOriginTypes.push {c : AddInductive.Context} {Hc : ContextWF c}
     (H : TranslatedOriginTypes Hc origins)
     (Hdom : Hc.ConsumedDomain dom sourceTarget consumedTarget)
     (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceTarget₀ consumedTarget₀)
     (name : Name) (bi : BinderInfo) :
     let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
       Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
-    TranslatedOriginTypes Hc' (origins.push dom.consumeTypeAnnotationsVerified) := by
+    TranslatedOriginTypes Hc' (origins.push (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)) := by
   dsimp only
   let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
     Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
@@ -1066,9 +1066,9 @@ inductive RecursorLoopUArgsPrefix
       (next_eq : next = { current with
         ngen := current.ngen.next
         lctx := current.lctx.mkLocalDecl ⟨current.ngen.curr⟩ name
-          domain.consumeTypeAnnotationsVerified bi
+          (domain.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) bi
         checkLCtx := current.checkLCtx.mkLocalDecl ⟨current.ngen.curr⟩ name
-          domain.consumeTypeAnnotationsVerified bi })
+          (domain.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) bi })
       (normalization :
         (monadLift (TypeChecker.whnf
           (body.instantiate1 (.fvar ⟨current.ngen.curr⟩))) :
@@ -1380,7 +1380,7 @@ annotation: a nonempty local suffix produces a forall, while the empty case
 is the explicit motive application. -/
 theorem RecInfoMinorHypothesisTypeOrigin.consumeTypeAnnotationsVerified_eq_self
     (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) :
-    type.consumeTypeAnnotationsVerified = type := by
+    (type.consumeTypeAnnotationsVerified annOk) = type := by
   let itIndices := O.exposedType.getAppArgs[stats.params.size:]
   let motiveApp := Expr.app
     (mkAppN recInfos[O.ownerIdx]!.motive itIndices)
@@ -1428,7 +1428,7 @@ structure RecInfoMinorHypothesisTypeOrigins
       Nonempty (RecInfoMinorHypothesisTypeOrigin
         stats recInfos root fields[j]! sourceType) ∧
       ∃ D : BoundFVarDeclarationAt c hypotheses j,
-        D.type = sourceType.consumeTypeAnnotationsVerified
+        D.type = (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
 
 /-- The exact source construction retained for one generated minor domain.
 The source local context is intentionally stored in the certificate: after
@@ -1467,7 +1467,8 @@ structure RecInfoMinorTypeShape where
   sourceType_eq : sourceType =
     sourceContext.mkForall fields
       (sourceContext.mkForall hypotheses motiveApp)
-  consumed_eq : sourceType.consumeTypeAnnotationsVerified = origin
+  consumed_eq :
+    (sourceType.consumeTypeAnnotationsVerified sourceFullContext.env.isTypeAnnotationWrapper) = origin
 
 /-- A semantic minor retained its completed hypothesis-origin table, and the
 table was produced with the expected inductive statistics. -/
@@ -1623,7 +1624,8 @@ structure RecInfoCallBlueprintOrigins
         originRoot fields[j]! sourceType),
         ∃ (D : BoundFVarDeclarationAt sourceFullContext hypotheses j),
           BindingContextLE origins.fieldRoot originRoot ∧
-          D.type = sourceType.consumeTypeAnnotationsVerified ∧
+          D.type = (sourceType.consumeTypeAnnotationsVerified
+            sourceFullContext.env.isTypeAnnotationWrapper) ∧
           calls[j]! = {
             major := fields[j]!
             args := O.args
@@ -1650,7 +1652,8 @@ structure RecInfoCallBlueprintOrigins
         BindingContextLE origins.fieldRoot originRoot ∧
         IsFVarUpSet (fun fv => fv ∈ ExprArrayFVarIds allFields ∨
           fv ∈ ExprArrayFVarIds origins.stats.params) Rorigin.mlctx.vlctx ∧
-        D.type = sourceType.consumeTypeAnnotationsVerified ∧
+        D.type = (sourceType.consumeTypeAnnotationsVerified
+            sourceFullContext.env.isTypeAnnotationWrapper) ∧
         calls[j]! = {
           major := fields[j]!
           args := O.args
@@ -1712,27 +1715,28 @@ This positional certificate is independent of translation: it records that
 the stored origin is the selected family applied to the retained common
 parameters and this record's indices. -/
 structure RecInfoMajorTypeShapes (stats : AddInductive.InductiveStats)
-    (recInfos : Array AddInductive.RecInfo) (majorTypes : Array Expr) : Prop where
+    (recInfos : Array AddInductive.RecInfo) (majorTypes : Array Expr)
+    (ok : Name → Bool) : Prop where
   size_eq : majorTypes.size = recInfos.size
   shape : ∀ i (hi : i < recInfos.size),
     majorTypes[i]! =
-      (mkAppN (mkAppN stats.indConsts[i]! stats.params)
-        recInfos[i]!.indices).consumeTypeAnnotationsVerified
+      ((mkAppN (mkAppN stats.indConsts[i]! stats.params)
+        recInfos[i]!.indices).consumeTypeAnnotationsVerified ok)
 
-def RecInfoMajorTypeShapes.empty (stats : AddInductive.InductiveStats) :
-    RecInfoMajorTypeShapes stats #[] #[] where
+def RecInfoMajorTypeShapes.empty (stats : AddInductive.InductiveStats) (ok : Name → Bool) :
+    RecInfoMajorTypeShapes stats #[] #[] ok where
   size_eq := rfl
   shape i hi := by simp at hi
 
 /-- Append one family frame to the positional major-domain certificate. -/
 def RecInfoMajorTypeShapes.push
-    (H : RecInfoMajorTypeShapes stats recInfos majorTypes)
+    (H : RecInfoMajorTypeShapes stats recInfos majorTypes ok)
     (info : AddInductive.RecInfo) (majorType : Expr)
     (hnew : majorType =
-      (mkAppN (mkAppN stats.indConsts[recInfos.size]! stats.params)
-        info.indices).consumeTypeAnnotationsVerified) :
+      ((mkAppN (mkAppN stats.indConsts[recInfos.size]! stats.params)
+        info.indices).consumeTypeAnnotationsVerified ok)) :
     RecInfoMajorTypeShapes stats (recInfos.push info)
-      (majorTypes.push majorType) where
+      (majorTypes.push majorType) ok where
   size_eq := by simpa using H.size_eq
   shape i hi := by
     by_cases hold : i < recInfos.size
@@ -2889,8 +2893,8 @@ structure RecursorMajorBindingAt
   major : TrExprS R.venv recLparams R.mlctx.vlctx
     recInfos[target]!.major majorTarget
   majorType : TrExprS R.venv recLparams R.mlctx.vlctx
-    ((mkAppN (mkAppN stats.indConsts[target]! stats.params)
-      recInfos[target]!.indices).consumeTypeAnnotationsVerified) majorTypeTarget
+    (((mkAppN (mkAppN stats.indConsts[target]! stats.params)
+      recInfos[target]!.indices).consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)) majorTypeTarget
   typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
     majorTarget majorTypeTarget
   typeIsType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
@@ -2902,7 +2906,7 @@ theorem RecInfoMajorTypeShapes.majorBindingAt
     (R : RecursorContextWF c recLparams)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
-    (Hshape : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes)
+    (Hshape : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes c.env.isTypeAnnotationWrapper)
     (target : Nat) (htarget : target < recInfos.size) :
     Nonempty (RecursorMajorBindingAt R stats recInfos target) := by
   have htargetMap : target < (recInfos.map (·.major)).size := by
@@ -2913,8 +2917,8 @@ theorem RecInfoMajorTypeShapes.majorBindingAt
     have h := D.expression
     simpa [Array.getElem!_eq_getD, Array.getD, htarget] using h
   have htype : D.type =
-      (mkAppN (mkAppN stats.indConsts[target]! stats.params)
-        recInfos[target]!.indices).consumeTypeAnnotationsVerified :=
+      ((mkAppN (mkAppN stats.indConsts[target]! stats.params)
+        recInfos[target]!.indices).consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) :=
     (Horigins.majors.type_eq D).trans (Hshape.shape target htarget)
   have hfind := D.declaration
   rw [R.toBindingContextWF.wf.find?_eq_find?_toList] at hfind
@@ -3522,11 +3526,11 @@ theorem RecInfoArities.modifyMinors
 /-- Major-domain shapes ignore the minor array updated by the constructor
 pass. -/
 theorem RecInfoMajorTypeShapes.modifyMinors
-    (H : RecInfoMajorTypeShapes stats recInfos majorTypes)
+    (H : RecInfoMajorTypeShapes stats recInfos majorTypes ok)
     (dIdx : Nat) (f : Array Expr → Array Expr) :
     RecInfoMajorTypeShapes stats
       (recInfos.modify dIdx fun info =>
-        { info with minors := f info.minors }) majorTypes where
+        { info with minors := f info.minors }) majorTypes ok where
   size_eq := by simpa using H.size_eq
   shape i hi := by
     have hiOld : i < recInfos.size := by simpa using hi
@@ -3812,11 +3816,15 @@ theorem RecInfoMajorTypeShapes.majorBindingAtRecent
     {Rcurrent : RecursorContextWF current recLparams} {args : Array Expr}
     (Hbindings : RecInfoBindings root recInfos)
     (Horigins : RecInfoTypeOrigins root recInfos)
-    (Hshape : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes)
+    (Hshape : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
+      root.env.isTypeAnnotationWrapper)
     (Hrecent : RecursorRecentBoundFVarArray Rroot Rcurrent args)
     (target : Nat) (htarget : target < recInfos.size) :
     Nonempty (RecursorMajorBindingAt Rcurrent stats recInfos target) := by
-  exact Hshape.majorBindingAt Rcurrent
+  have Hshape' : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
+      current.env.isTypeAnnotationWrapper := by
+    rw [Hrecent.contextLE.env_eq]; exact Hshape
+  exact Hshape'.majorBindingAt Rcurrent
     (Hbindings.mono Hrecent.contextLE) (Horigins.mono Hrecent.contextLE)
     target htarget
 
@@ -4483,7 +4491,8 @@ inductive RecursorIndexTrace (stats : AddInductive.InductiveStats)
       (member : x ∈ final.lctx.fvars)
       (declaration : ∃ index userName binderInfo kind,
         final.lctx.find? x = some (.cdecl index x userName
-          dom.consumeTypeAnnotationsVerified binderInfo kind))
+          (dom.consumeTypeAnnotationsVerified final.env.isTypeAnnotationWrapper)
+          binderInfo kind))
       (call : RecursorWhnfCallAt final
         (fun fv => fv ∈ ExprArrayFVarIds stats.params ∨
           fv ∈ ExprArrayFVarIds (indices.push (.fvar x)))
@@ -4504,7 +4513,7 @@ theorem RecursorIndexTrace.mono {stats : AddInductive.InductiveStats}
     obtain ⟨index, userName, binderInfo, kind, hfind⟩ := declaration
     refine .index ih (hle.fvars member)
       ⟨index, userName, binderInfo, kind, ?_⟩ (call.mono hle fun _ h => h)
-    rw [hle.declarations _ member]
+    rw [hle.declarations _ member, hle.env_eq]
     exact hfind
 
 /-- Every family's index telescope was opened by a retained `loopArgs1`
@@ -4811,8 +4820,8 @@ top-level parameter-annotation encodings either. -/
 theorem RecInfoMinorSemanticSource.sourceType_consumeTypeAnnotations_eq_self
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
-    (HS : RecInfoMinorSemanticSource R S) :
-    S.sourceType.consumeTypeAnnotationsVerified = S.sourceType := by
+    (HS : RecInfoMinorSemanticSource R S) {ok : Name → Bool} :
+    (S.sourceType.consumeTypeAnnotationsVerified ok) = S.sourceType := by
   by_cases hpositive : 0 < S.fields.size + S.hypotheses.size
   · exact S.sourceTelescope.consumeTypeAnnotationsVerified_eq_self_of_pos hpositive
   · have hfields : S.fields.size = 0 := by omega

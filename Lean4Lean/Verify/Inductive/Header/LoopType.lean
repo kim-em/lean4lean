@@ -4086,12 +4086,12 @@ normal form in both contexts. -/
 theorem index.WF
     (Hc : ContextWF c) (hi : ¬ i < nparams)
     (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-      dom.consumeTypeAnnotationsVerified dom')
+      (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) dom')
     (hdomType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
     (hdom₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx
-      dom.consumeTypeAnnotationsVerified dom₀)
+      (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) dom₀)
     (hdomType₀ : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx dom₀)
     (hbody₀ : TrExprS Hc.venv c.lparams
       ((none, .vlam dom₀) :: Hc.chk.vlctx) body body₀)
@@ -4114,9 +4114,9 @@ theorem index.WF
         { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
           checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi }).WF Q) :
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF Q) :
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   rw [AddInductive.checkInductiveTypes.loopType]
@@ -4171,9 +4171,9 @@ theorem index.sourceWF
           { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
             checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }).WF Q) :
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF Q) :
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
@@ -4224,9 +4224,9 @@ theorem index.cacheWF
           { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
             checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }).WF Q) :
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF Q) :
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   apply index.sourceWF (stats := stats) (nparams := nparams) (i := i)
@@ -4298,12 +4298,12 @@ theorem firstParameter.WF
     (Hc : ContextWF c) (hi : i < nparams)
     (hempty : stats.indConsts.isEmpty = true)
     (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-      dom.consumeTypeAnnotationsVerified dom')
+      (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) dom')
     (hdomType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
     (hdom₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx
-      dom.consumeTypeAnnotationsVerified dom₀)
+      (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) dom₀)
     (hdomType₀ : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx dom₀)
     (hbody₀ : TrExprS Hc.venv c.lparams
       ((none, .vlam dom₀) :: Hc.chk.vlctx) body body₀)
@@ -4318,9 +4318,9 @@ theorem firstParameter.WF
         { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
           checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi }).WF Q) :
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF Q) :
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   rw [AddInductive.checkInductiveTypes.loopType]
@@ -4365,9 +4365,9 @@ theorem firstParameter.sourceWF
           { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
             checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }).WF Q) :
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF Q) :
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
@@ -4409,9 +4409,9 @@ theorem firstParameter.cacheWF
           { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
             checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }).WF Q) :
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF Q) :
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   apply firstParameter.sourceWF (stats := stats) (nparams := nparams) (i := i)
@@ -5023,14 +5023,14 @@ theorem laterIndexSynthesisWF
         intro normalized hbelow hnormalized _hbelow₀ hnormalized₀
         let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
-        have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
+        have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp
             (Expr.consumeTypeAnnotationsVerified_fvarsIn htypeFVars.1)).1
         rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
           ⟨domainLevel, hdomain⟩
         let Hruntime' : NarrowRuntimeScope Hc'.venv c.lparams
             ((some (⟨c.ngen.curr⟩,
-              dom.consumeTypeAnnotationsVerified.fvarsList),
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
               .vlam indexType) :: scope)
             Hc'.mlctx.vlctx :=
           Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
@@ -5046,24 +5046,24 @@ theorem laterIndexSynthesisWF
           exact Hc.current_not_mem (Hc.check.embed.fvars_subset h)
         have halign' : VLCtx.IsDefEq Hc'.venv c.lparams.length
             ((some (⟨c.ngen.curr⟩,
-              dom.consumeTypeAnnotationsVerified.fvarsList),
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
               .vlam indexType) :: scope) Hc'.chk.vlctx :=
           .cons halign (by rintro _ _ ⟨⟩; exact ⟨hfreshScope, hdeps⟩)
             (.vlam (hindexCons.of_l henvWF hscopeWF₀.toCtx hv))
         have hscopeWF : VLCtx.WF Hc'.venv c.lparams.length
             ((some (⟨c.ngen.curr⟩,
-              dom.consumeTypeAnnotationsVerified.fvarsList),
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
               .vlam indexType) :: scope) := halign'.wf
         have hopenedNarrow : TrExprS Hc'.venv c.lparams
             ((some (⟨c.ngen.curr⟩,
-              dom.consumeTypeAnnotationsVerified.fvarsList),
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
               .vlam indexType) :: scope)
             (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
           rw [Expr.instantiate1_eq]
           exact hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
         have hopenedFVars : FVarsIn
             (· ∈ VLCtx.fvars ((some (⟨c.ngen.curr⟩,
-              dom.consumeTypeAnnotationsVerified.fvarsList),
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
               .vlam indexType) :: scope))
             (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) := by
           rw [Expr.instantiate1_eq]
@@ -5087,7 +5087,7 @@ theorem laterIndexSynthesisWF
             (indexType :: scope.toCtx) normalizedC consumedBody₀ :=
           hnormalizedCEq.defeqDFC henvWF.ordered (hctxB.symm henvWF.ordered).defeqCtx
         have hscope'Ctx : VLCtx.toCtx ((some (⟨c.ngen.curr⟩,
-              dom.consumeTypeAnnotationsVerified.fvarsList),
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
               .vlam indexType) :: scope) = indexType :: scope.toCtx := rfl
         have hΓ' : OnCtx (indexType :: scope.toCtx) (Hc.venv.IsType c.lparams.length) := by
           rw [← hscope'Ctx]; exact hscopeWF.toCtx
@@ -5109,7 +5109,7 @@ theorem laterIndexSynthesisWF
               body sourceBody' ∧
             TrExprS Hc'.venv c.lparams
               ((some (⟨c.ngen.curr⟩,
-                dom.consumeTypeAnnotationsVerified.fvarsList),
+                (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                 .vlam indexType) :: scope)
               normalized normalized' ∧
             Hc'.venv.IsDefEqU c.lparams.length

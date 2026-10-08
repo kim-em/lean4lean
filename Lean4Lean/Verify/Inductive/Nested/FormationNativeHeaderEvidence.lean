@@ -11,6 +11,21 @@ namespace VerifyInductive
 
 /-! # Producer-owned generated-family header evidence -/
 
+/-- Source-facing realization of the head of a generated family: the
+restored nested application `I Ds`, closed over the canonical parameter
+context, together with its translation and its typing there.  No index
+telescope or result sort is fixed: for a nested occurrence of an indexed
+family `I` the head is a type family rather than a type. -/
+structure GeneratedFamilyHeadRealization
+    (env : VEnv) (levelParams : List Name)
+    (parameterDomains : List VExpr) (sourceFamily : Expr) where
+  family : VExpr
+  familyType : VExpr
+  familyTyping : env.HasType levelParams.length parameterDomains.reverse
+    family familyType
+  sourceTranslation : TrExprS env levelParams
+    (abstractForallContext parameterDomains []) sourceFamily family
+
 /-- Transport an ordered concrete argument translation across a semantic
 local-context conversion.  The target expressions are reconstructed by the
 translation relation itself; no equality or global preservation principle is
@@ -60,7 +75,7 @@ auxiliary family and, after weakening, to interpret an actual lowering hit.
 -/
 theorem GeneratedFamilyWitness.abstractContainerApplication
     (H : GeneratedFamilyWitness prodEnv params nestedAux family)
-    (R : RestoredFamilyRealization venv lparams parameterDomains 0
+    (R : GeneratedFamilyHeadRealization venv lparams parameterDomains
       ((mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
         H.args).abstractList H.selection.fvars))
     (henv : venv.WF)
@@ -76,7 +91,7 @@ theorem GeneratedFamilyWitness.abstractContainerApplication
           (fun arg => arg.abstractList H.selection.fvars))
         baseArgs ∧
       (∀ arg ∈ baseArgs, arg.ClosedN parameterDomains.length) ∧
-      R.semantics.family = VExpr.mkApps
+      R.family = VExpr.mkApps
       (.const H.sourceName abstractLevels) baseArgs := by
   have hsourceApp :
       mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams H.args =
@@ -107,7 +122,7 @@ theorem GeneratedFamilyWitness.abstractContainerApplication
         simp [Expr.mkAppList, Expr.abstractList_app, ih]
     simpa using go (H.args.toList.take H.nestedNParams)
       (.const H.sourceName H.levels)
-  let targetFamily : VExpr := R.semantics.family
+  let targetFamily : VExpr := R.family
   have Htranslated : TrExprS venv lparams
       (abstractForallContext parameterDomains [])
       ((mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
@@ -160,7 +175,7 @@ single environment-indexed lookup: it does not assert that translating an
 arbitrary constant is preserved by unrelated environment extensions. -/
 theorem GeneratedFamilyWitness.abstractContainerLookup
     (H : GeneratedFamilyWitness prodEnv params nestedAux family)
-    (R : RestoredFamilyRealization venv lparams parameterDomains 0
+    (R : GeneratedFamilyHeadRealization venv lparams parameterDomains
       ((mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
         H.args).abstractList H.selection.fvars)) :
     ∃ abstractFamily,
@@ -194,7 +209,7 @@ theorem GeneratedFamilyWitness.abstractContainerLookup
         simp [Expr.mkAppList, Expr.abstractList_app, ih]
     simpa using go (H.args.toList.take H.nestedNParams)
       (.const H.sourceName H.levels)
-  rcases R with ⟨_semantics, Htranslated⟩
+  rcases R with ⟨_family, _familyType, _familyTyping, Htranslated⟩
   rw [hsourceApp, habstractApp] at Htranslated
   rcases checkPositivityStep.TrExprS.mkAppList_inv Htranslated with
     ⟨_abstractHead, _baseArgs, Hhead, _HbaseArgs, _hfamily⟩
@@ -208,7 +223,7 @@ node of that exact application; it is not a global constant-preservation
 principle. -/
 theorem GeneratedFamilyWitness.levelsLengthOfAbstractLookup
     (H : GeneratedFamilyWitness prodEnv params nestedAux family)
-    (R : RestoredFamilyRealization venv lparams parameterDomains 0
+    (R : GeneratedFamilyHeadRealization venv lparams parameterDomains
       ((mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
         H.args).abstractList H.selection.fvars))
     (hlookup : venv.constants H.sourceName = some abstractFamily) :
@@ -242,7 +257,7 @@ theorem GeneratedFamilyWitness.levelsLengthOfAbstractLookup
         simp [Expr.mkAppList, Expr.abstractList_app, ih]
     simpa using go (H.args.toList.take H.nestedNParams)
       (.const H.sourceName H.levels)
-  let targetFamily : VExpr := R.semantics.family
+  let targetFamily : VExpr := R.family
   have Htranslated : TrExprS venv lparams
       (abstractForallContext parameterDomains [])
       ((mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams

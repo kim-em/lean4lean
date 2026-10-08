@@ -29,45 +29,102 @@ theorem checkType_closed.WF
 
 /-- Semantic postcondition of the production nested-auxiliary validation pass:
 every witness stored in `aux2nested` has a translated typing derivation in the
-restored parameter context. -/
+restored parameter context.  A witness is a nested occurrence `I Ds` applied
+to its parameters only, so for an indexed family `I` it is a type family, not
+a type; like the C++ kernel, validation only type-checks it. -/
 def ValidatedNestedAuxiliaries (venv : VEnv) (lparams : List Name)
     (vlctx : VLCtx) (res : Lean4Lean.ElimNestedInductive.Result) : Prop :=
   ∀ name e, res.aux2nested.find? name = some e →
-    ∃ ty e' ty', TrTyping venv lparams vlctx e ty e' ty' ∧
-      venv.IsType lparams.length vlctx.toCtx e'
+    ∃ ty e' ty', TrTyping venv lparams vlctx e ty e' ty'
 
 /-- Context-independent form of nested-auxiliary validation.  Each open
-witness is closed using the exact parameter telescope retained by lowering,
-so later restoration may choose fresh binder names without changing the
-statement that must be translated. -/
+witness `e : T` is closed with lambdas over the exact parameter telescope
+retained by lowering, and its inferred type `T` with foralls over the same
+telescope, so that the closed witness `fun params => e` has type
+`∀ params, T`; both closures share one list of translated parameter domains.
+Later restoration may choose fresh binder names without changing the
+statement that must be translated.  Closing the witness with lambdas, rather
+than with foralls, is what admits nested occurrences of indexed families:
+there `T` is `∀ indices, Sort u`, not a sort, and `∀ params, e` would be
+ill-typed. -/
 def ClosedValidatedNestedAuxiliaries (venv : VEnv) (lparams : List Name)
     (res : Lean4Lean.ElimNestedInductive.Result) : Prop :=
   ∀ name e, res.aux2nested.find? name = some e →
-    Closed e ∧ ∃ e', TrExprS venv lparams [] (res.lctx.mkForall res.params e) e' ∧
-      venv.IsType lparams.length [] e'
+    Closed e ∧ ∃ type domains body bodyType, Closed type ∧
+      domains.length = res.params.size ∧
+      TrExprS venv lparams [] (res.lctx.mkLambda res.params e)
+        (VExpr.wrapLams domains body) ∧
+      TrExprS venv lparams [] (res.lctx.mkForall res.params type)
+        (VExpr.wrapForalls domains bodyType) ∧
+      venv.HasType lparams.length [] (VExpr.wrapLams domains body)
+        (VExpr.wrapForalls domains bodyType)
 
-/-- De-Bruijn form of one closed auxiliary witness.  It records both the
-closed translation and the residual translation obtained by inverting its
-parameter forall telescope, so no production free-variable identifier occurs
-in the semantic context. -/
+/-- De-Bruijn form of one closed auxiliary witness.  It records the closed
+translation of the witness's parameter-closed type, whose forall telescope
+fixes the translated parameter domains, and the residual translation and
+typing of the witness itself in those domains, so no production free-variable
+identifier occurs in the semantic context.  The residual is typed, not
+required to be a type: for a nested indexed family it is a type family. -/
 structure ClosedNestedAuxiliaryTranslation
     (venv : VEnv) (lparams : List Name)
     (res : Lean4Lean.ElimNestedInductive.Result)
     (selection : LocalForallSelection res.lctx res.params)
     (e : Expr) where
-  closedTarget : VExpr
+  /-- The type inferred for the open witness by validation. -/
+  type : Expr
+  typeClosed : Closed type
   domains : List VExpr
   residualTarget : VExpr
+  residualType : VExpr
   arity : domains.length = res.params.size
   closed : TrExprS venv lparams []
-    (res.lctx.mkForall res.params e) closedTarget
-  closedType : venv.IsType lparams.length [] closedTarget
-  target : closedTarget = VExpr.wrapForalls domains residualTarget
+    (res.lctx.mkForall res.params type)
+    (VExpr.wrapForalls domains residualType)
   residual : TrExprS venv lparams (abstractForallContext domains [])
     (e.abstractList selection.fvars) residualTarget
-  residualType : venv.IsType lparams.length
-    (abstractForallContext domains []).toCtx residualTarget
+  residualTyping : venv.HasType lparams.length
+    (abstractForallContext domains []).toCtx residualTarget residualType
 
+/-- Over a telescope of local assumptions, `mkLambda'` and `mkForall'` wrap
+one common list of translated domains, one per opened variable. -/
+theorem nestedMLCtxSharedBinderDomains {c : TypeChecker.MLCtx}
+    (wf : c.WF env Us) (n : Nat) (hn : n ≤ c.length)
+    (hcdecl : ∀ fv ∈ c.fvarRevList n hn, ∃ index name type bi kind,
+      c.lctx.find? fv = some (.cdecl index fv name type bi kind)) :
+    ∃ domains : List VExpr, domains.length = n ∧
+      (∀ e, c.mkLambda' n hn e = VExpr.wrapLams domains e) ∧
+      (∀ e, c.mkForall' n hn e = VExpr.wrapForalls domains e) := by
+  induction n generalizing c with
+  | zero => exact ⟨[], rfl, fun _ => rfl, fun _ => rfl⟩
+  | succ n ih =>
+    match c, wf, hn, hcdecl with
+    | .nil, _, hn, _ => simp at hn
+    | .vlam id name ty ty' bi c, wf, hn, hcdecl =>
+      have hrest : ∀ fv ∈ c.fvarRevList n (Nat.le_of_succ_le_succ hn),
+          ∃ index name type bi kind,
+            c.lctx.find? fv = some (.cdecl index fv name type bi kind) := by
+        intro fv hfv
+        have hne : fv ≠ id := by
+          rintro rfl
+          exact wf.1.tr.find?_eq_none.1 wf.2.1
+            (c.fvarRevList_prefix.subset hfv)
+        rcases hcdecl fv (by simp [hfv]) with
+          ⟨index, name', type, bi', kind, hfind⟩
+        refine ⟨index, name', type, bi', kind, ?_⟩
+        rw [wf.find?_eq] at hfind
+        rw [wf.1.find?_eq]
+        have hbeq : (fv == id) = false := by simpa using hne
+        simpa [TypeChecker.MLCtx.decls, LocalDecl.fvarId, hbeq] using hfind
+      rcases ih wf.1 (Nat.le_of_succ_le_succ hn) hrest with
+        ⟨domains, hlength, hlam, hforall⟩
+      exact ⟨domains ++ [ty'], by simp [hlength],
+        fun e => by simp [hlam, VExpr.wrapLams],
+        fun e => by simp [hforall, VExpr.wrapForalls]⟩
+    | .vlet id name ty v ty' v' c, wf, hn, hcdecl =>
+      exfalso
+      rcases hcdecl id (by simp) with ⟨index, name', type, bi', kind, hfind⟩
+      rw [wf.find?_eq] at hfind
+      simp [TypeChecker.MLCtx.decls, LocalDecl.fvarId] at hfind
 
 /-- The open auxiliary witness contains no pre-existing loose bound
 variables.  This is derived from the residual translation's scoping theorem,
@@ -122,16 +179,6 @@ theorem ClosedNestedAuxiliaryTranslation.restorationAlphaAt
       exact Hscope.mono fun fv hfv => Or.inl hfv
     exact Hclosed.mono fun _ hfalse => False.elim hfalse
   · exact hrestoreNodup
-
-/-- The closed auxiliary witness itself is a binder-by-binder typed
-telescope, using the same certificate language as restored recursor types. -/
-theorem ClosedNestedAuxiliaryTranslation.telescopeTyped
-    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e) :
-    Expr.ForallTelescopeTypeTranslation venv lparams []
-      (res.lctx.mkForall res.params e) res.params.size H.closedTarget := by
-  have Htel := selection.forallTelescope e
-  exact Expr.ForallTelescopeTypeTranslation.ofTrExprS Htel H.closed
-    H.closedType
 
 /-- The expression inserted by a family hit in `restoreNestedNode` closes to
 the same de-Bruijn auxiliary body retained by `residual`, independently of
@@ -192,20 +239,6 @@ theorem ClosedNestedAuxiliaryTranslation.residualUnder
     hselectionNodup] at Hweak
   simpa using Hweak
 
-/-- Typehood is weakened through the same suffix context as `residualUnder`.
-Together the two theorems provide exactly the leaf payload required by
-`ForallTelescopeTypeTranslation`. -/
-theorem ClosedNestedAuxiliaryTranslation.residualTypeUnder
-    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
-    (henv : venv.Ordered) (suffixDomains : List VExpr) :
-    venv.IsType lparams.length
-      (abstractForallContext suffixDomains
-        (abstractForallContext H.domains [])).toCtx
-      (H.residualTarget.liftN suffixDomains.length 0) := by
-  exact H.residualType.weakN henv
-    (abstractForallContext.bvLift suffixDomains
-      (abstractForallContext H.domains [])).toCtx
-
 def ClosedNestedAuxiliaryTranslations
     (venv : VEnv) (lparams : List Name)
     (res : Lean4Lean.ElimNestedInductive.Result)
@@ -223,14 +256,22 @@ theorem ClosedValidatedNestedAuxiliaries.residualTranslations
     (hnodup : selection.fvars.Nodup) :
     ClosedNestedAuxiliaryTranslations venv lparams res selection := by
   intro name e hfind
-  rcases H name e hfind with ⟨hclosedE, closedTarget, Hclosed, HclosedType⟩
-  have Htel := selection.forallTelescope e
-  rcases TrExprS.forallTelescope_typed_shape_with_context henv Htel Hclosed
-      HclosedType with
-    ⟨domains, residualTarget, harity, htarget, Hresidual, HresidualType⟩
-  rw [Expr.abstractN_eq_abstractList_of_closed hnodup hclosedE] at Hresidual
-  exact ⟨⟨closedTarget, domains, residualTarget, harity, Hclosed,
-    HclosedType, htarget, Hresidual, HresidualType⟩⟩
+  rcases H name e hfind with
+    ⟨hclosedE, type, domains, body, bodyType, htypeClosed, harity, Hlambda,
+      Hforall, Htyping⟩
+  have Htel : Expr.LambdaTelescope (res.lctx.mkLambda res.params e)
+      domains.length (e.abstractList selection.fvars) := by
+    have Htel := LocalContext.mkLambda_fvars_lambdaTelescopeList
+      (lctx := res.lctx) selection.declarations hnodup hclosedE
+    have hlambda : res.lctx.mkLambda res.params e =
+        res.lctx.mkLambda (selection.fvars.map Expr.fvar).toArray e :=
+      congrArg (res.lctx.mkLambda · e) selection.expressions
+    rw [hlambda, harity, selection.size]
+    exact Htel
+  have Hresidual := TrExprS.lambdaTelescope_exact_residual Htel rfl Hlambda
+  have Hbody := (VEnv.HasType.wrapLams_inv henv (by trivial) Htyping).2
+  exact ⟨⟨type, htypeClosed, domains, body, bodyType, harity, Hforall,
+    Hresidual, by simpa [abstractForallContext_toCtx, VLCtx.toCtx] using Hbody⟩⟩
 
 private theorem checkNestedAuxiliaryList.WF
     {c : TypeChecker.VContext} {s : TypeChecker.VState}
@@ -238,11 +279,9 @@ private theorem checkNestedAuxiliaryList.WF
     (hfvars : ∀ item ∈ items,
       item.2.FVarsIn (· ∈ c.vlctx.fvars)) :
     (items.forM fun item => do
-      let type ← TypeChecker.checkType item.2
-      _ ← TypeChecker.ensureSort type item.2).WF c s fun _ _ =>
+      _ ← TypeChecker.checkType item.2).WF c s fun _ _ =>
         ∀ item ∈ items, ∃ ty e' ty',
-          TrTyping c.venv c.lparams c.vlctx item.2 ty e' ty' ∧
-          c.venv.IsType c.lparams.length c.vlctx.toCtx e' := by
+          TrTyping c.venv c.lparams c.vlctx item.2 ty e' ty' := by
   induction items generalizing s with
   | nil =>
     rw [List.forM]
@@ -250,22 +289,13 @@ private theorem checkNestedAuxiliaryList.WF
   | cons head tail ih =>
     rw [List.forM]
     have Hhead : (do
-        let type ← TypeChecker.checkType head.2
-        _ ← TypeChecker.ensureSort type head.2).WF c s fun _ _ =>
+        _ ← TypeChecker.checkType head.2).WF c s fun _ _ =>
           ∃ ty e' ty', TrTyping c.venv c.lparams c.vlctx
-            head.2 ty e' ty' ∧
-            c.venv.IsType c.lparams.length c.vlctx.toCtx e' := by
+            head.2 ty e' ty' := by
       refine (TypeChecker.checkType.WF (hfvars head (by simp))).bind
-        fun ty _ _ htyping => ?_
+        fun ty _ _ htyping => .pure ?_
       rcases htyping with ⟨e', ty', htyping⟩
-      rcases htyping with ⟨hbelow, hexpr, htype, hhasType⟩
-      refine (TypeChecker.ensureSort.WF htype).bind
-        fun _ _ _ ⟨⟨_, hsort, hdefeq⟩, hsortEq⟩ => .pure ?_
-      obtain ⟨u, rfl⟩ := hsortEq
-      cases hsort with
-      | sort hu =>
-        exact ⟨ty, e', ty', ⟨hbelow, hexpr, htype, hhasType⟩,
-          ⟨_, hhasType.defeqU_r c.Ewf c.Δwf hdefeq.symm⟩⟩
+      exact ⟨ty, e', ty', htyping⟩
     have htail : ∀ item ∈ tail,
         item.2.FVarsIn (· ∈ c.vlctx.fvars) := by
       intro item hitem
@@ -295,8 +325,7 @@ theorem validateNestedAuxiliaries.WF
   change (TypeChecker.M.run env safety mlctx.lctx lparams fuel
     ((show Std.TreeMap Name Expr Name.quickCmp from res.aux2nested).forM
       fun _ e => do
-        let type ← TypeChecker.checkType e
-        _ ← TypeChecker.ensureSort type e)).WF _
+        _ ← TypeChecker.checkType e)).WF _
   rw [Std.TreeMap.forM_eq_forM, Std.TreeMap.forM_eq_forM_toList]
   refine TypeChecker.M.WF.runCheckingValidMLC
     (wf := hvalid) (mlctx_wf := hmlctx) hfresh ?_

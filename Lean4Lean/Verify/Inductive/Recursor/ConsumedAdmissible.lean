@@ -24,11 +24,11 @@ same number of binders is opened, provided the residual has no further
 binders to consume. -/
 theorem TrExprS.consumedTelescope_body_eq {venv : VEnv} {Us : List Name}
     (Htel : Expr.ForallTelescope raw n residual) :
-    Lean4Lean.Expr.consumeForallTypes residual = residual →
+    Lean4Lean.Expr.consumeForallTypes annOk residual = residual →
     ∀ {Δ₁ Δ₂ : VLCtx} {As Cs : List VExpr} {B D : VExpr},
       TrExprS.IsUniqueCtx Δ₁ Δ₂ →
       TrExprS venv Us Δ₁ raw (VExpr.wrapForalls As B) →
-      TrExprS venv Us Δ₂ (Lean4Lean.Expr.consumeForallTypes raw) (VExpr.wrapForalls Cs D) →
+      TrExprS venv Us Δ₂ (Lean4Lean.Expr.consumeForallTypes annOk raw) (VExpr.wrapForalls Cs D) →
       As.length = n → Cs.length = n → B = D := by
   induction Htel with
   | nil body =>
@@ -75,7 +75,7 @@ theorem CompletedRecursorConstruction.sourceConstructorIndices_eq_header
   have Htel := (H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.fieldTelescope.abstractList
     H.params.fvars
   have hres := (H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.fieldResidual_not_forall
-  have hcons : Lean4Lean.Expr.consumeForallTypes
+  have hcons : Lean4Lean.Expr.consumeForallTypes ctorEnv.isTypeAnnotationWrapper
       (((H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.fieldResidual).abstractList
         H.params.fvars (0 + (H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.fields.size)) =
       ((H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.fieldResidual).abstractList

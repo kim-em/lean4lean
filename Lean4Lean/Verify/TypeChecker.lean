@@ -16,7 +16,6 @@ structure VEnvs.WFCore (env : Environment) (ves : VEnvs) where
   hasPrimitives : VEnv.HasPrimitives (ves.venv safety)
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
-  typeAnnotationWrappers : TypeAnnotationWrappers env
   inductivesClosed : VerifyInductive.MutualInductivesClosed env
   constructorOwners : VerifyInductive.ConstructorOwnersPresent env
   constructorSemantics : VerifyInductive.InductiveConstructorsSemanticallyCoherent
@@ -46,7 +45,7 @@ theorem VEnvs.WFCore.toCheckingValid
     (safety : DefinitionSafety) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) :
     CheckingEnv.Valid safety env (ves.venv safety) :=
   wf.tr.toCheckingValid wf.hasPrimitives wf.safePrimitives
-    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
+    wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
 
 /-- Every visible constructor of `env` carries a telescope certificate at every safety level
 (`CtorTelescopes`). This is the environment invariant that replaces canonical choice at the

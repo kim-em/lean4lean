@@ -267,22 +267,22 @@ theorem consumeTypeAnnotationsSemantic_of_wrappers
     {env : Environment} {venv : VEnv} {safety : DefinitionSafety}
     {Us : List Name} {Delta : VLCtx}
     (Hchecking : CheckingEnv safety env venv)
-    (Hwrappers : TypeAnnotationWrappers env)
+    {annOk : Name → Bool} (Hwrappers : TypeAnnotationWrappers env annOk)
     (hDelta : Delta.WF venv Us.length)
     {dom : Expr} {source' : VExpr}
     (htr : TrExprS venv Us Delta dom source')
     (htype : venv.IsType Us.length Delta.toCtx source') :
     ∃ consumed',
-      TrExprS venv Us Delta dom.consumeTypeAnnotationsVerified consumed' ∧
+      TrExprS venv Us Delta (dom.consumeTypeAnnotationsVerified annOk) consumed' ∧
       venv.IsType Us.length Delta.toCtx consumed' ∧
       ∃ u, venv.IsDefEq Us.length Delta.toCtx
         source' consumed' (.sort u) := by
-  fun_induction Expr.consumeTypeAnnotationsVerified dom generalizing source'
+  fun_induction Expr.consumeTypeAnnotationsVerified _ dom generalizing source'
   case case1 name levels first second hannotation ih =>
-    simp only [Bool.or_eq_true, beq_iff_eq] at hannotation
-    rcases hannotation with hopt | hauto
+    simp only [Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq] at hannotation
+    rcases hannotation with ⟨hopt | hauto, hok⟩
     · subst name
-      rcases Hwrappers.optParam.applicationDefEq
+      rcases (Hwrappers.optParam hok).applicationDefEq
           Hchecking hDelta htr with ⟨first', hfirst, hwrap⟩
       rcases htype with ⟨u, hsourceType⟩
       have hwrapAtSort :=
@@ -298,7 +298,7 @@ theorem consumeTypeAnnotationsSemantic_of_wrappers
       exact ⟨consumed', hconsumed, hconsumedType, u,
         hwrapAtSort.trans_l Hchecking.wf hDelta.toCtx hconsumedAtSort⟩
     · subst name
-      rcases Hwrappers.autoParam.applicationDefEq
+      rcases (Hwrappers.autoParam hok).applicationDefEq
           Hchecking hDelta htr with ⟨first', hfirst, hwrap⟩
       rcases htype with ⟨u, hsourceType⟩
       have hwrapAtSort :=
@@ -317,10 +317,10 @@ theorem consumeTypeAnnotationsSemantic_of_wrappers
     rcases htype with ⟨u, hsourceType⟩
     exact ⟨source', htr, ⟨u, hsourceType⟩, u, hsourceType⟩
   case case3 name levels arg hannotation ih =>
-      simp only [Bool.or_eq_true, beq_iff_eq] at hannotation
-      rcases hannotation with hout | hsemi
+      simp only [Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq] at hannotation
+      rcases hannotation with ⟨hout | hsemi, hok⟩
       · subst name
-        rcases Hwrappers.outParam.applicationDefEq
+        rcases (Hwrappers.outParam hok).applicationDefEq
             Hchecking hDelta htr with ⟨arg', harg, hwrap⟩
         rcases htype with ⟨u, hsourceType⟩
         have hwrapAtSort :=
@@ -336,7 +336,7 @@ theorem consumeTypeAnnotationsSemantic_of_wrappers
         exact ⟨consumed', hconsumed, hconsumedType, u,
           hwrapAtSort.trans_l Hchecking.wf hDelta.toCtx hconsumedAtSort⟩
       · subst name
-        rcases Hwrappers.semiOutParam.applicationDefEq
+        rcases (Hwrappers.semiOutParam hok).applicationDefEq
             Hchecking hDelta htr with ⟨arg', harg, hwrap⟩
         rcases htype with ⟨u, hsourceType⟩
         have hwrapAtSort :=
@@ -363,11 +363,12 @@ theorem consumeTypeAnnotationsSemantic
     (htr : TrExprS venv Us Delta dom source')
     (htype : venv.IsType Us.length Delta.toCtx source') :
     ∃ consumed',
-      TrExprS venv Us Delta dom.consumeTypeAnnotationsVerified consumed' ∧
+      TrExprS venv Us Delta (dom.consumeTypeAnnotationsVerified env.isTypeAnnotationWrapper)
+        consumed' ∧
       venv.IsType Us.length Delta.toCtx consumed' ∧
       ∃ u, venv.IsDefEq Us.length Delta.toCtx
         source' consumed' (.sort u) :=
-  consumeTypeAnnotationsSemantic_of_wrappers Hchecking.tr Hchecking.typeAnnotationWrappers hDelta htr htype
+  consumeTypeAnnotationsSemantic_of_wrappers Hchecking.tr (.of_env env) hDelta htr htype
 
 /-- The ordinary inductive-checker annotation boundary is discharged by the
 persisted production wrapper invariant. -/

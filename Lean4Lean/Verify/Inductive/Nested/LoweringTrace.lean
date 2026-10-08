@@ -2543,9 +2543,11 @@ theorem NestedLoweringRun.resultSelection_reverse_fvars
   exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hparams
 
 /-- The executable auxiliary checks can be closed over lowering's retained
-parameter telescope.  This removes the concrete free-variable names from the
-semantic certificate before restoration reopens the same telescope with its
-own fresh names. -/
+parameter telescope: each witness with lambdas, its inferred type with
+foralls.  This removes the concrete free-variable names from the semantic
+certificate before restoration reopens the same telescope with its own fresh
+names.  Every variable of the telescope is a local assumption of lowering's
+context, so both closures wrap the same translated parameter domains. -/
 theorem NestedLoweringRun.closeValidatedNestedAuxiliaries
     (H : NestedLoweringRun sourceEnv fuel nparams types initialState
       (res, finalState))
@@ -2560,26 +2562,59 @@ theorem NestedLoweringRun.closeValidatedNestedAuxiliaries
       (mlctx.fvarRevList mlctx.length (Nat.le_refl _)).map Expr.fvar := by
     rw [hfull, ← hmlctx.tr.fvars_eq, hlctx]
     exact H.resultParams_reverse_fvars
+  rcases H.resultContextSelection with ⟨selection⟩
+  have hcdecl : ∀ fv ∈ mlctx.fvarRevList mlctx.length (Nat.le_refl _),
+      ∃ index name type bi kind,
+        mlctx.lctx.find? fv = some (.cdecl index fv name type bi kind) := by
+    intro fv hfv
+    have hmem : Expr.fvar fv ∈ res.params.toList := by
+      rw [← List.mem_reverse, hparams]
+      exact List.mem_map_of_mem hfv
+    have hsel : fv ∈ selection.fvars := by
+      rw [selection.expressions] at hmem
+      simpa using hmem
+    rw [hlctx]
+    exact selection.declarations fv hsel
+  rcases nestedMLCtxSharedBinderDomains hmlctx mlctx.length (Nat.le_refl _)
+      hcdecl with ⟨domains, hlength, hlam, hforall⟩
+  have hsize : res.params.size = mlctx.length := by
+    have := congrArg List.length hparams
+    simpa using this
   intro name e hfind
   rcases Hvalidated name e hfind with
-    ⟨ty, e', ty', ⟨_hfvars, Hexpr, _Htype, _Htyping⟩, HisType⟩
-  have Hclosed := hmlctx.mkForall_trS henv Hexpr HisType
+    ⟨ty, e', ty', ⟨_hfvars, Hexpr, Htype, Htyping⟩⟩
+  have hclosedE : Closed e := by
+    simpa [TypeChecker.MLCtx.noBV] using Hexpr.closed
+  have hclosedTy : Closed ty := by
+    simpa [TypeChecker.MLCtx.noBV] using Htype.closed
+  have HtyType : venv.IsType lparams.length mlctx.vlctx.toCtx ty' :=
+    Htyping.isType henv.ordered hmlctx.tr.wf.toCtx
+  have Hlambda := hmlctx.mkLambda_trS henv Hexpr Htyping
     mlctx.length (Nat.le_refl _)
-  rw [mlctx.dropN_all] at Hclosed
-  have hconcrete : res.lctx.mkForall res.params e =
-      mlctx.mkForall mlctx.length (Nat.le_refl _) e := by
+  have Hforall := hmlctx.mkForall_trS henv Htype HtyType
+    mlctx.length (Nat.le_refl _)
+  rw [mlctx.dropN_all] at Hlambda Hforall
+  have hlambdaEq : res.lctx.mkLambda res.params e =
+      mlctx.mkLambda mlctx.length (Nat.le_refl _) e := by
     rw [← hlctx]
-    exact hmlctx.mkForall_eq mlctx.length (Nat.le_refl _) hparams
-      (by simpa [TypeChecker.MLCtx.noBV] using Hexpr.closed)
-  refine ⟨by simpa [TypeChecker.MLCtx.noBV] using Hexpr.closed,
-    mlctx.mkForall' mlctx.length (Nat.le_refl _) e', ?_⟩
-  rw [hconcrete]
-  exact Hclosed
+    exact hmlctx.mkLambda_eq mlctx.length (Nat.le_refl _) hparams hclosedE
+  have hforallEq : res.lctx.mkForall res.params ty =
+      mlctx.mkForall mlctx.length (Nat.le_refl _) ty := by
+    rw [← hlctx]
+    exact hmlctx.mkForall_eq mlctx.length (Nat.le_refl _) hparams hclosedTy
+  refine ⟨hclosedE, ty, domains, e', ty', hclosedTy,
+    hlength.trans hsize.symm, ?_, ?_, ?_⟩
+  · rw [hlambdaEq, ← hlam]
+    exact Hlambda.1
+  · rw [hforallEq, ← hforall]
+    exact Hforall.1
+  · rw [← hlam, ← hforall]
+    exact Hlambda.2
 
 /-- The complete evidence available for a generated family at the validation
 boundary.  In particular, this retains the inferred type translated by
-`checkType`; `closeValidatedNestedAuxiliaries` intentionally forgets that
-target after deriving typehood of the cached family application.  Header
+`checkType`; `closeValidatedNestedAuxiliaries` retains it only up to its
+parameter closure.  Header
 alignment can use the built-family equation and this typing witness together
 to identify the materialized post-parameter tail. -/
 theorem GeneratedFamilyWitness.validatedHeader
@@ -2594,15 +2629,14 @@ theorem GeneratedFamilyWitness.validatedHeader
       H.data.type.type = H.lctx.mkForall H.As
         (sourceTail.instantiateRevRange 0 H.nestedNParams H.args) ∧
       TrTyping venv lparams vlctx H.data.nested inferredSource familyTarget
-        inferredTarget ∧
-      venv.IsType lparams.length vlctx.toCtx familyTarget := by
+        inferredTarget := by
   rcases H.built.opening with ⟨sourceTail, Hsource, htype⟩
   have hfind : result.aux2nested.find? H.auxName = some H.data.nested :=
     Hmap _ _ H.cached
   rcases Hvalidated H.auxName H.data.nested hfind with
-    ⟨inferredSource, familyTarget, inferredTarget, Htyping, HisType⟩
+    ⟨inferredSource, familyTarget, inferredTarget, Htyping⟩
   exact ⟨sourceTail, inferredSource, familyTarget, inferredTarget,
-    Hsource, htype, Htyping, HisType⟩
+    Hsource, htype, Htyping⟩
 
 /-- Fully name-independent auxiliary semantics retained after validation:
 the lowering-selected production variables are abstracted into the canonical

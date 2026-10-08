@@ -1041,7 +1041,8 @@ def CompletedRecursorConstruction.MinorShapeSpec
         root S.recursiveFields[j]! sourceType,
       ∃ _D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
         BindingContextLE origins.fieldRoot root ∧
-        _D.type = sourceType.consumeTypeAnnotationsVerified ∧
+        _D.type = (sourceType.consumeTypeAnnotationsVerified
+          S.sourceFullContext.env.isTypeAnnotationWrapper) ∧
         shapes[j].2.target.val = O.ownerIdx ∧
         shapes[j].2.binders.length = O.args.size) ∧
   (∀ j (hj : j < shapes.length),
@@ -1084,7 +1085,8 @@ theorem CompletedRecursorConstruction.minorShapes_exist
             root S.recursiveFields[j]! sourceType,
           ∃ _D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
             BindingContextLE origins.fieldRoot root ∧
-            _D.type = sourceType.consumeTypeAnnotationsVerified ∧
+            _D.type = (sourceType.consumeTypeAnnotationsVerified
+          S.sourceFullContext.env.isTypeAnnotationWrapper) ∧
             x.2.target.val = O.ownerIdx ∧ x.2.binders.length = O.args.size
   have hP : ∀ j, j < S.hypotheses.size → ∃ x, P j x := by
     intro j hj

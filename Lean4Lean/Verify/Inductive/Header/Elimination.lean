@@ -115,9 +115,9 @@ def eliminationFieldContext (c : AddInductive.Context) (name : Name)
   { c with
     ngen := c.ngen.next
     lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-      dom.consumeTypeAnnotationsVerified bi
+      (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
     checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-      dom.consumeTypeAnnotationsVerified bi }
+      (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
 
 /-- Finite trace of the singleton decision. Each field is either certified
 as a proof or added to the result-argument requirement checked at the leaf. -/

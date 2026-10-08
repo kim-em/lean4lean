@@ -127,7 +127,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
           intro bodyFull' _hbodyFullEq body₀' _hbody₀Eq hopenedFull _hopened₀
           let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
-          have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
+          have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hnormalizedFVars.1)).1
           rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
@@ -136,7 +136,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
               checkInductiveTypes.loopType.NarrowRuntimeScope
                 Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
-                  dom.consumeTypeAnnotationsVerified.fvarsList),
+                  (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                   .vlam narrowDom) :: scope)
                 Hc'.mlctx.vlctx :=
             Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
@@ -146,7 +146,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
           have hscopeWF := halign'.wf
           have hopenedNarrow : TrExprS Hc'.venv c.lparams
               ((some (⟨c.ngen.curr⟩,
-                dom.consumeTypeAnnotationsVerified.fvarsList),
+                (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                 .vlam narrowDom) :: scope)
               (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
             rw [Expr.instantiate1_eq]

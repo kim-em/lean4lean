@@ -127,6 +127,26 @@ def getType (fvar : Expr) : M Expr :=
       lctx := c.lctx.mkLocalDecl ⟨id⟩ name ty bi
       checkLCtx := base.mkLocalDecl ⟨id⟩ name ty bi }) <| k <| .fvar ⟨id⟩
 
+/-- `withCheckedLocalDecl` on the annotation-consumed domain. A type-annotation
+wrapper is stripped only if the current environment declares it as the prelude's
+definition (`Kernel.Environment.isTypeAnnotationWrapper`); otherwise the domain is kept
+literally. -/
+@[inline] def withConsumedCheckedLocalDecl (name : Name) (bi : BinderInfo) (dom : Expr)
+    (k : Expr → M α) : M α := fun c =>
+  withCheckedLocalDecl name bi (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
+    k c
+
+/-- `withCheckedLocalDeclOn` on the annotation-consumed domain. -/
+@[inline] def withConsumedCheckedLocalDeclOn (base : LocalContext) (name : Name)
+    (bi : BinderInfo) (dom : Expr) (k : Expr → M α) : M α := fun c =>
+  withCheckedLocalDeclOn base name bi
+    (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) k c
+
+/-- `withLocalDecl` on the annotation-consumed domain. -/
+@[inline] def withConsumedLocalDecl (name : Name) (bi : BinderInfo) (dom : Expr)
+    (k : Expr → M α) : M α := fun c =>
+  withLocalDecl name bi (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) k c
+
 /-- Rebuild a local context from the declarations of `lctx` for `fvars`, in
 order.  Free variables without a declaration are skipped. -/
 def _root_.Lean.LocalContext.restrictTo (lctx : LocalContext) (fvars : List FVarId) :
@@ -159,7 +179,7 @@ def loopType (nparams : Nat) (stats : InductiveStats) (type : Expr)
       if i < nparams then
         if stats.indConsts.isEmpty then
           -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-          withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun param => do
+          withConsumedCheckedLocalDecl name bi dom fun param => do
             let stats := { stats with params := stats.params.push param }
             let type := body.instantiate1 param
             loopType nparams stats (← whnf type) (i + 1) nindices fuel k
@@ -174,7 +194,7 @@ def loopType (nparams : Nat) (stats : InductiveStats) (type : Expr)
           loopType nparams stats type (i + 1) nindices fuel k
       else
         -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-        withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
+        withConsumedCheckedLocalDecl name bi dom fun arg => do
           let type := body.instantiate1 arg
           loopType nparams stats (← whnf type) i (nindices + 1) fuel k
     else
@@ -314,7 +334,7 @@ where
     let t ← whnf t
     let .forallE name dom body bi := t | return isValidIndApp? stats t
     -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-    withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
+    withConsumedCheckedLocalDecl name bi dom fun arg => do
     loop (body.instantiate1 arg) fuel
 
 def checkPositivityStep (stats : InductiveStats) (t : Expr)
@@ -325,7 +345,7 @@ def checkPositivityStep (stats : InductiveStats) (t : Expr)
       throw <| .other s!"arg #{idx + 1} of '{ctor}' \
         has a non positive occurrence of the datatypes being declared"
     -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-    withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
+    withConsumedCheckedLocalDecl name bi dom fun arg => do
       recur (body.instantiate1 arg)
   else if let none := isValidIndApp? stats t then
     throw <| .other s!"arg #{idx + 1} of '{ctor}' \
@@ -363,7 +383,7 @@ def loopCtor (stats : InductiveStats) (isUnsafe : Bool) (ctor : Name)
         if !isUnsafe then
           checkPositivity stats dom ctor i
         -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-        withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
+        withConsumedCheckedLocalDecl name bi dom fun arg => do
           loopCtor stats isUnsafe ctor targetIdx
             (body.instantiate1 arg) (i + 1) fuel
     else if !isValidIndAppIdx stats t targetIdx then
@@ -464,7 +484,7 @@ def isLargeEliminator (stats : InductiveStats) (indTypes : Array InductiveType) 
     | fuel+1 => do
       if let .forallE name dom body bi := type then
         -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-        withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
+        withConsumedCheckedLocalDecl name bi dom fun arg => do
           let mut toCheck := toCheck
           if i ≥ stats.params.size then
             if !(← ensureType dom).sortLevel!.isAlwaysZero then
@@ -515,7 +535,7 @@ def loopArgs1 (stats : InductiveStats) (type : Expr) (i : Nat) (indices : Array 
         loopArgs1 stats type (i + 1) indices fuel k
       else
         -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-        withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
+        withConsumedCheckedLocalDecl name bi dom fun arg => do
         loopArgs1 stats (← whnf <| body.instantiate1 arg) i (indices.push arg) fuel k
     else
       if i < stats.params.size then
@@ -534,11 +554,11 @@ def loopInd1 (dIdx : Nat) (recInfos : Array RecInfo) (k : Array RecInfo → M α
     unless indices.size == stats.nindices[dIdx]! do
       throw <| .other "recursor index arity does not match checked inductive header"
     let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
-    withLocalDecl `t .default tTy.consumeTypeAnnotationsVerified fun major => do
+    withConsumedLocalDecl `t .default tTy fun major => do
     let lctx ← getLCtx
     let motiveTy := lctx.mkForall indices <| lctx.mkForall #[major] <| .sort elimLevel
     let name := if indTypes.size > 1 then (`motive).appendIndexAfter (dIdx+1) else `motive
-    withLocalDecl name .default motiveTy.consumeTypeAnnotationsVerified fun motive => do
+    withConsumedLocalDecl name .default motiveTy fun motive => do
     loopInd1 (dIdx + 1) (recInfos.push {
       motive, minors := #[], indices, major, ruleBlueprints := #[] }) k
   else
@@ -560,7 +580,7 @@ where
         -- The field is checked on top of the parameters and earlier fields.
         let fieldCheck := (← getLCtx).restrictTo
           ((stats.params ++ bu).toList.map (·.fvarId!))
-        withCheckedLocalDeclOn fieldCheck name bi dom.consumeTypeAnnotationsVerified
+        withConsumedCheckedLocalDeclOn fieldCheck name bi dom
           fun arg => do
         let bu := bu.push arg
         let u := if (← withCheckLCtx fieldCheck (isRecArg stats dom)).isSome then
@@ -587,7 +607,7 @@ where
   | fuel+1 => do
     if let .forallE name dom body bi := uiTy then
       -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-      withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
+      withConsumedCheckedLocalDecl name bi dom fun arg => do
       loop (← whnf <| body.instantiate1 arg) (xs.push arg) fuel
     else
       k uiTy xs
@@ -604,7 +624,7 @@ def loopU (i : Nat) (v : Array Expr) (k : Array Expr → M α) : M α := do
       return (← getLCtx).mkForall xs <|
         .app (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN ui xs)
     let vName := ((← getLCtx).get! ui.fvarId!).userName.appendAfter "_ih"
-    withLocalDecl vName .default viTy.consumeTypeAnnotationsVerified fun vi => do
+    withConsumedLocalDecl vName .default viTy fun vi => do
     loopU (i + 1) (v.push vi) k
   else
     k v
@@ -634,7 +654,7 @@ def loopUBlueprints (i : Nat) (v : Array Expr)
           (mkAppN (.bvar xs.size) itIndices).app (mkAppN ui xs) } :
             RecCallBlueprint))
     let vName := ((← getLCtx).get! ui.fvarId!).userName.appendAfter "_ih"
-    withLocalDecl vName .default viTy.consumeTypeAnnotationsVerified fun vi => do
+    withConsumedLocalDecl vName .default viTy fun vi => do
     loopUBlueprints (i + 1) (v.push vi)
       (calls.push call) k
   else
@@ -653,7 +673,7 @@ def loopCtors (recInfos : Array RecInfo)
     let lctx ← getLCtx
     let minorTy := lctx.mkForall bu <| lctx.mkForall v motiveApp
     let minorName := ctor.name.replacePrefix indTypeName .anonymous
-    withLocalDecl minorName .default minorTy.consumeTypeAnnotationsVerified fun minor => do
+    withConsumedLocalDecl minorName .default minorTy fun minor => do
     let blueprint : RecRuleBlueprint := {
       ctor := ctor.name
       fields := bu
@@ -1894,7 +1914,10 @@ def buildEquationLhsPlan (env : Environment) (recInfo : RecursorVal)
   let majorArgs := majorDomain.getAppArgs
   if majorArgs.size < ctorInfo.numParams then
     throw <| .other s!"restored recursor '{recInfo.name}' has an invalid major family spine"
-  let ctorParams := majorArgs.extract 0 ctorInfo.numParams
+  -- The major domain sits below the recursor's index binders; the parameter
+  -- arguments do not mention those binders and are read back at rule depth.
+  let ctorParams := (majorArgs.extract 0 ctorInfo.numParams).map
+    (·.lowerLooseBVars recInfo.numIndices recInfo.numIndices)
   let .const majorName ctorLevels := majorDomain.getAppFn
     | throw <| .other s!"restored recursor '{recInfo.name}' has an invalid major family head"
   unless majorName == ctorInfo.induct do
@@ -2082,8 +2105,7 @@ def validateNestedAuxiliaries (env : Environment) (lparams : List Name)
   TypeChecker.M.run env (safety := safety) (lctx := res.lctx)
       (lparams := lparams) (fuel := fuel) do
     res.aux2nested.forM fun _ e => do
-      let type ← TypeChecker.checkType e
-      _ ← TypeChecker.ensureSort type e
+      _ ← TypeChecker.checkType e
 
 /-- The names of the recursors produced by nested restoration: the primary recursors of the
 source types and the auxiliary recursors, each renamed through `recNameMap`. -/

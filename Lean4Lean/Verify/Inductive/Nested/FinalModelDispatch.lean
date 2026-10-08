@@ -141,7 +141,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
           (ves.venv (if isUnsafe then .unsafe else .safe)) :=
       (wf.tr (safety := if isUnsafe then .unsafe else .safe)).toCheckingValid
         (wf.hasPrimitives (safety := if isUnsafe then .unsafe else .safe))
-        wf.safePrimitives wf.typeAnnotationWrappers wf.constructorOwners
+        wf.safePrimitives wf.constructorOwners
         wf.projectionRegistryCoherent ((hcorner _))
     let E' : NestedExactFinalRunResult res env sourceTypes
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams

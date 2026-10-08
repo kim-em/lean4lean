@@ -538,7 +538,7 @@ theorem NestedValidatedRunResult.hprovenance_of
       (ves.venv (if isUnsafe then .unsafe else .safe)) :=
     (wf.tr (safety := if isUnsafe then .unsafe else .safe)).toCheckingValid
       (wf.hasPrimitives (safety := if isUnsafe then .unsafe else .safe))
-      wf.safePrimitives wf.typeAnnotationWrappers wf.constructorOwners
+      wf.safePrimitives wf.constructorOwners
       wf.projectionRegistryCoherent ((hcorner _))
   have hheadsSrc := Hvalid.recursors.heads
   have hsrcWF : sourceProdEnv.constants.WF := Hvalid.tr.map_wf

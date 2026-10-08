@@ -6,17 +6,17 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-theorem _root_.Lean4Lean.Closed.consumeTypeAnnotationsVerified {e : Expr} {k}
-    (H : Closed e k) : Closed e.consumeTypeAnnotationsVerified k := by
-  fun_induction Expr.consumeTypeAnnotationsVerified e
+theorem _root_.Lean4Lean.Closed.consumeTypeAnnotationsVerified {ok : Name → Bool} {e : Expr} {k}
+    (H : Closed e k) : Closed (e.consumeTypeAnnotationsVerified ok) k := by
+  fun_induction Expr.consumeTypeAnnotationsVerified ok e
   case case1 ih => exact ih H.1.2
   case case2 => exact H
   case case3 ih => exact ih H.2
   case case4 => exact H
   case case5 => exact H
 
-theorem _root_.Lean4Lean.Closed.consumeForallTypes {e : Expr} {k} (H : Closed e k) :
-    Closed (Lean4Lean.Expr.consumeForallTypes e) k := by
+theorem _root_.Lean4Lean.Closed.consumeForallTypes {ok : Name → Bool} {e : Expr} {k}
+    (H : Closed e k) : Closed (Lean4Lean.Expr.consumeForallTypes ok e) k := by
   induction e generalizing k with
   | forallE _ _ _ _ _ ih => exact ⟨H.1.consumeTypeAnnotationsVerified, ih H.2⟩
   | _ => exact H
@@ -41,14 +41,14 @@ theorem RecursorFieldDecisions.consumeClosed
     (hclosed : Closed source)
     (C : Expr → Expr)
     (hforall : ∀ name dom body bi, C (.forallE name dom body bi) =
-      .forallE name dom.consumeTypeAnnotationsVerified (C body) bi)
+      .forallE name (dom.consumeTypeAnnotationsVerified root.env.isTypeAnnotationWrapper) (C body) bi)
     (habstract : ∀ e fv, (C e).abstractN [fv] = C (e.abstractN [fv])) :
     current.lctx.mkForall fields (C terminal) = C source := by
   induction H with
   | nil => exact LocalContext.mkForall_empty _ _
   | @nonrecursive c name dom body bi fields selected positions H _ ih
   | @recursive c name dom body bi fields selected positions target H _ ih =>
-    obtain ⟨Hc, _, ⟨Hfields⟩⟩ := H.freshBindings Hroot
+    obtain ⟨Hc, HrootC, ⟨Hfields⟩⟩ := H.freshBindings Hroot
     have hbodyScope := (H.currentFVarsIn Hroot hsource).2
     have hbodyFresh : body.FVarsIn (fun fv => fv ≠ (⟨c.ngen.curr⟩ : FVarId)) := by
       apply hbodyScope.mono
@@ -61,12 +61,13 @@ theorem RecursorFieldDecisions.consumeClosed
       exact ⟨_, hfind⟩
     have hclose := LocalContext.mkForall_append_fresh Hc.wf Hc.currentFind?_eq_none hdecl Hfields.nodup
       (body := C (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) (name := name)
-      (type := dom.consumeTypeAnnotationsVerified) (bi := bi)
+      (type := (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)) (bi := bi)
     have hforallClosed := H.terminalClosed hclosed
     simp only [Closed] at hforallClosed
     have hbodyClose : (C (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))).abstractN [⟨c.ngen.curr⟩] = C body := by
       rw [habstract, Expr.instantiate1_eq, hbodyFresh.abstractN_instantiate1 hforallClosed.2]
-    rw [hbodyClose, ← hforall] at hclose
+    rw [hbodyClose, HrootC.env_eq, ← hforall] at hclose
+    rw [HrootC.env_eq]
     have harr : ((Hfields.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)]).map Expr.fvar).toArray =
         fields.push (.fvar ⟨c.ngen.curr⟩) := by simp [Hfields.expressions]
     rw [harr, ← Hfields.expressions] at hclose
@@ -77,10 +78,27 @@ theorem RecursorFieldDecisions.consumeForallTypes
     (Hroot : BindingContextWF root)
     (hsource : source.FVarsIn (fun fv => fv ∈ root.lctx.fvars))
     (hclosed : Closed source) :
-    current.lctx.mkForall fields (Lean4Lean.Expr.consumeForallTypes terminal) =
-      Lean4Lean.Expr.consumeForallTypes source :=
-  H.consumeClosed Hroot hsource hclosed Lean4Lean.Expr.consumeForallTypes
+    current.lctx.mkForall fields
+        (Lean4Lean.Expr.consumeForallTypes root.env.isTypeAnnotationWrapper terminal) =
+      Lean4Lean.Expr.consumeForallTypes root.env.isTypeAnnotationWrapper source :=
+  H.consumeClosed Hroot hsource hclosed
+    (Lean4Lean.Expr.consumeForallTypes root.env.isTypeAnnotationWrapper)
     (fun _ _ _ _ => rfl) (fun e fv => Lean4Lean.Expr.abstractN_consumeForallTypes e [fv])
+
+/-- Every minor traversal runs in the constructor environment. -/
+theorem CompletedRecursorConstruction.minorRootEnv
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R)
+    (owner : Nat) (howner : owner < H.recInfos.size)
+    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
+    (HS : RecInfoMinorSemanticSourceAt H.recursorWF
+      (H.origins.minorShapes owner howner localIndex hlocal) H.parameterSuffix.parameterDecls) :
+    HS.semantic.traversal.rootContext.env = ctorEnv := by
+  have h1 := HS.semantic.fieldsRecent.contextLE.env_eq
+  have h2 := (HS.semantic.hypothesesRecent.contextLE.trans
+    HS.semantic.extension.contextLE).env_eq
+  have h3 := H.localExtends.env_eq
+  exact h1.symm.trans (h2.symm.trans h3)
 
 theorem CompletedRecursorConstruction.constructorConsumedSource
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
@@ -91,7 +109,7 @@ theorem CompletedRecursorConstruction.constructorConsumedSource
       (H.origins.minorShapes owner howner localIndex hlocal) H.parameterSuffix.parameterDecls) :
     let S := H.origins.minorShapes owner howner localIndex hlocal
     (H.localContext.lctx.mkForall S.fields HS.semantic.traversal.terminal).abstractList H.params.fvars =
-      Lean4Lean.Expr.consumeForallTypes
+      Lean4Lean.Expr.consumeForallTypes ctorEnv.isTypeAnnotationWrapper
         (HS.semantic.traversal.parameterTail.abstractList H.params.fvars) := by
   have hsource : HS.semantic.traversal.parameterTail.FVarsIn
       (fun fv => fv ∈ HS.semantic.traversal.rootContext.lctx.fvars) := by
@@ -105,6 +123,7 @@ theorem CompletedRecursorConstruction.constructorConsumedSource
     simpa [HS.semantic.rootWF.mlctx.noBV] using h
   have hclosed := HS.semantic.traversal.decisions.consumeForallTypes
     HS.semantic.rootWF.toBindingContextWF hsource hsourceBVar
+  rw [H.minorRootEnv owner howner localIndex hlocal HS] at hclosed
   obtain ⟨_, _, _, _, traversal, htraversal, _, _, _, _, hvalid, _⟩ :=
     H.minorSources.rows owner howner (by rwa [← H.sourceFamilyCount]) localIndex hlocal
   have heq : traversal = HS.semantic.traversal :=
@@ -114,10 +133,10 @@ theorem CompletedRecursorConstruction.constructorConsumedSource
   have htarget' : (AddInductive.getIIndices stats HS.semantic.traversal.terminal).1 < decl.types.length := by
     rwa [H.cardinality.families] at htarget
   have hhead := checkPositivityStep.isValidIndAppIdx.constHead hvalidIdx (H.validStats.indConstAt htarget')
-  have hterminal : Lean4Lean.Expr.consumeForallTypes HS.semantic.traversal.terminal =
+  have hterminal : Lean4Lean.Expr.consumeForallTypes ctorEnv.isTypeAnnotationWrapper HS.semantic.traversal.terminal =
       HS.semantic.traversal.terminal := by
     have hterminalConst (e : Expr) (name : Name) (levels : List Level)
-        (hhead : e.getAppFn = .const name levels) : Lean4Lean.Expr.consumeForallTypes e = e := by
+        (hhead : e.getAppFn = .const name levels) : Lean4Lean.Expr.consumeForallTypes ctorEnv.isTypeAnnotationWrapper e = e := by
       cases e <;> simp_all [Lean4Lean.Expr.consumeForallTypes, Expr.getAppFn]
     exact hterminalConst _ _ _ hhead
   rw [hterminal, HS.semantic.traversal_fields] at hclosed
@@ -191,19 +210,35 @@ theorem CompletedRecursorConstruction.constructorRawSourceUniverses
   (H.constructorRawSourceReplay owner howner localIndex hlocal HS).levelParamsIn
 
 
-/-- Header installation preserves the local checking relation and annotation
-wrapper bodies, even while primitive metadata is not yet complete. -/
+/-- Header installation preserves the local checking relation; the
+annotation wrappers accepted in the constructor environment are definitions
+of the header environment, since the constructor stage adds only constructors. -/
 theorem CompletedConstructorPhases.headerCheckingAnnotations
     (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
-    CheckingEnv c.safety R.headerEnv R.headerVEnv ∧ TypeAnnotationWrappers R.headerEnv := by
+    CheckingEnv c.safety R.headerEnv R.headerVEnv ∧
+      TypeAnnotationWrappers R.headerEnv ctorEnv.isTypeAnnotationWrapper := by
   have Hsource := R.sourceContext.checking
   rw [R.sourceContextVEnv] at Hsource
+  have Hheader : CheckingEnv c.safety R.headerEnv R.headerVEnv := by
+    cases R.installation with
+    | ordinary Htypes _ => exact (Htypes.validCore Hsource.toValidCore).tr
+    | primitive Htypes _ _ => exact Htypes.checking Hsource.tr
+  refine ⟨Hheader, .of_reflect _ _ fun {n v} hfind => ?_⟩
+  have hreflect : ∀ {entries : List (ConstantInfo × VConstVal)},
+      (∀ entry ∈ entries, ∃ info : ConstructorVal, entry.1 = .ctorInfo info) →
+      (R.headerEnv.find? n = some (.defnInfo v) ∨
+        ∃ entry ∈ entries, n = entry.1.name ∧ ConstantInfo.defnInfo v = entry.1) →
+      R.headerEnv.find? n = some (.defnInfo v) := by
+    intro entries hctor h
+    rcases h with h | ⟨entry, hentry, -, heq⟩
+    · exact h
+    · obtain ⟨info, hinfo⟩ := hctor entry hentry
+      rw [hinfo] at heq; cases heq
   cases R.installation with
-  | ordinary Htypes _ =>
-    exact ⟨(Htypes.validCore Hsource.toValidCore).tr, (Htypes.validCore Hsource.toValidCore).typeAnnotationWrappers⟩
-  | primitive Htypes _ _ =>
-    exact ⟨Htypes.checking Hsource.tr,
-      Htypes.typeAnnotationWrappers Hsource.tr.map_wf Hsource.typeAnnotationWrappers⟩
+  | ordinary _ Hctors =>
+    exact hreflect R.constructorProduction (Hctors.entryOrigin Hheader.map_wf hfind)
+  | primitive _ Hctors _ =>
+    exact hreflect R.constructorProduction (Hctors.entryOrigin Hheader.map_wf hfind)
 
 theorem CompletedConstructorPhases.headerAnonymousParameterWF
     (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :

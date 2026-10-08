@@ -20,7 +20,6 @@ verification of quotients, the canonical hypotheses and the checker changes
 ```lean
 theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
-    (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
     (decl : Declaration) (hdecl : decl.IsModelled env ves) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety
@@ -31,16 +30,23 @@ declarations and quotient initialization. The dependency cone has no `sorry`. Th
 a thin wrapper around
 
 ```lean
-theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+    (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (hq : ∀ safety, (ves.venv safety).QuotReady)
-    (decl : Declaration) (_hdecl : decl.IsModelled env ves) : ...
+    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+        VEnvs.CertPres env env' ves ves'
 ```
 
-which derives `hq` from `heq` (`VEnv.HasCanonicalEq.quotReady`). The iterable form
-`addDecl.WFHasCanonicalEq` also returns `HasCanonicalEq` and `HasCanonicalChoice` for `ves'`
-(both are monotone along `≤`), so the theorem applies again to the next declaration of a
-replay.
+`VEnvs.WF` is the core invariant `VEnvs.WFCore` together with the constructor-telescope
+certificates `VEnvs.CtorCert` (section 5.3); the wrapper discharges `hcorner` from the
+certificates, derives `hq` from `heq` (`VEnv.HasCanonicalEq.quotReady`), and carries the
+certificates to the output through `CertPres`. The iterable form `addDecl.WFHasCanonicalEq`
+also returns `HasCanonicalEq` for `ves'` (monotone along `≤`), so the theorem applies again
+to the next declaration of a replay. `addDecl.WF_of_canonicalChoice` is the variant over
+`VEnvs.WFCore` alone, which assumes canonical `Nonempty`/`Classical.choice` instead of the
+certificates.
 
 "Sound" means refinement: whenever the executable `addDecl` returns an environment, that
 environment is modelled, at every safety level, by an abstract environment that is well formed
@@ -57,43 +63,73 @@ attributed to a different (for example lowered) declaration. It assumes that the
 no loose bound variables (`SourceBVarClosed`), which the executable does not check;
 `finalPreservesWF`, used by `addDecl.WF`, does not need it.
 
-### 1.2 The hypotheses
+### 1.2 End to end: the replay driver
+
+`lake exe lean4lean` runs `Lean4Lean.Replay.replayCore` (`Lean4Lean/Replay.lean`), which walks
+the source constants in dependency order, adds a declaration rebuilt from each with
+`Lean4Lean.addDecl`, compares the generated constructors and recursors with the source's, and
+finally checks that every replayed constant is present and agrees with the source. The core is
+generic in a monad that only runs logging and `--compare` hooks; its state and result carry the
+evidence (`Replayed`: the environment is a fold of successful `addDecl` calls; `ReplayResult`: the
+agreement check passed), so the theorems of `Lean4Lean/Verify/Replay.lean` cover the executable's
+run as well as the pure instance. `replayFresh.WF` states that a successful `--fresh` replay of a
+constant table (default fuel) yields an environment modelled by well-formed `VEnvs` in which every
+safe, non-partial source constant is present and `==` to the source constant (`Expr.eqv`, so up to
+binder names and annotations). It has no hypothesis beyond the source table: the walk is turned
+into a `Replay` from `Kernel.Environment.empty` (`Replay.WF_empty`). The kernel's `checkEqType`
+compares `Eq` only up to `Expr.eqv` and does not look at `Eq.rec` or at safety, so before the step
+that initializes the quotient module the driver also checks that `Eq`, `Eq.refl` and `Eq.rec` are
+the prelude's (`hasProductionEq`, sound for `HasProductionEq`). `replayFromImports.WF` states the same on top of
+imports whose well-formedness and canonical `Eq` are assumed: imports are trusted in that mode.
+
+### 1.3 The hypotheses
 
 - `wf : ves.WF env` is the invariant being preserved. `VEnvs.WF`
-  (`Lean4Lean/Verify/TypeChecker.lean`) gains fields in this pull request: closure of mutual
-  inductives, presence of constructor owners, semantic coherence of installed constructors
-  with the abstract model, inductive provenance (which carries projection-registry
-  coherence), and `TypeAnnotationWrappers`. The last one requires `optParam`, `autoParam`,
-  `outParam` and `semiOutParam` to be present as safe definitions with their identity-like
-  bodies. The inductive checker strips these wrappers from binder domains by name
-  (`consumeTypeAnnotations`, as the C++ kernel does), which is only sound if the names denote
-  the prelude's definitions. Consequently `VEnvs.WF` does not hold for the empty environment;
-  see section 9.
+  (`Lean4Lean/Verify/TypeChecker.lean`) is the core invariant `VEnvs.WFCore` together with
+  the constructor telescope certificates (`VEnvs.CtorCert`). The core gains fields in this pull
+  request: closure of mutual inductives, presence of constructor owners, semantic coherence of
+  installed constructors with the abstract model, and inductive provenance (which carries
+  projection-registry coherence). It holds for the empty environment the executable replays
+  from (`VEnvs.WF.empty`, `Lean4Lean/Verify/Environment.lean`): every field is vacuous there
+  except the translation, and an environment without constructors carries the certificates
+  vacuously (`VEnvs.WF.ofNoCtors`). There is no invariant about the type-annotation wrappers:
+  the inductive checker strips `optParam`, `autoParam`, `outParam` and `semiOutParam` from
+  binder domains only when the environment at that point declares the name as the prelude's
+  definition (`Kernel.Environment.isTypeAnnotationWrapper`), and each strip is justified from
+  the definition it looked up (`TypeAnnotationWrappers.of_env`). This differs from the C++
+  kernel, which strips by name, only where a wrapper name is declared with another definition
+  (`divergences.md`).
 - `heq : HasCanonicalEq` (`Lean4Lean/Theory/CanonicalEq.lean`): `Eq`, `Eq.refl` and `Eq.rec`
   are present with the prelude's types, and the iota rule of `Eq.rec` is a stored equation.
-  It is used only in the quotient case (section 6).
-- `hch : HasCanonicalChoice` (`Lean4Lean/Theory/CanonicalChoice.lean`): `Nonempty`,
-  `Nonempty.intro` and `Classical.choice` are present with the prelude's types. It is stored
-  in every checker context (`VContext.canonicalChoice`) and consumed at exactly one place,
-  the projection-walk corner (section 5.3). This is why `addAxiom.WF`, `addDefinition.WF`
-  and the other per-form theorems take it.
+  It is used only in the quotient case (section 6); `addDecl.WF_quotReadyAt` assumes quotient
+  readiness only for `quotDecl`.
+- There is no choice hypothesis: the constructor certificates of `VEnvs.WF` resolve the
+  projection-walk corner (section 5.3). `addDecl.WF_of_canonicalChoice` keeps the form that
+  assumes `HasCanonicalChoice` (`Lean4Lean/Theory/CanonicalChoice.lean`) instead, over
+  `VEnvs.WFCore`.
 - `hdecl : decl.IsModelled env ves` is `True` for every declaration. It is kept so that the
   statement keeps its shape; it can be dropped.
 
-Both canonical hypotheses hold in every environment obtained by replaying `Init.Prelude`.
-Realizability is proved up to facts about concrete production declarations that are checked
-by tests: `addDecl.eqBootstrapHasCanonicalEq` (`Lean4Lean/Verify/CanonicalEqRealization.lean`)
+A replay from the empty environment is covered by `Replay.WF_empty`
+(`Lean4Lean/Verify/CanonicalEqRealization.lean`): every environment reached by adding a list
+of declarations one at a time with the checked `addDecl`, starting from
+`Kernel.Environment.empty`, has a well-formed model, provided each `quotDecl` comes after the
+prelude's `Eq`, `Eq.refl` and `Eq.rec` (`HasProductionEq`, a decidable property of the
+executable environment; before `Eq` exists `quotDecl` has no model).
+
+Canonical `Eq` holds in every environment obtained by replaying `Init.Prelude` past `Eq`.
+Realizability is proved up to a fact about the concrete production declaration that is checked
+by a test: `addDecl.eqBootstrapHasCanonicalEq` (`Lean4Lean/Verify/CanonicalEqRealization.lean`)
 takes as hypothesis that the executable installs `Eq.rec` with the production type, which
-`Lean4Lean/Tests/CanonicalEq.lean` checks; `VEnvs.WF.hasCanonicalChoice`
-(`Lean4Lean/Verify/CanonicalChoiceRealization.lean`) is checked against the prelude by
-`Lean4Lean/Tests/CanonicalChoice.lean`. The honest reading of the theorem is therefore:
-`addDecl` is sound for environments that contain the canonical prelude declarations.
+`Lean4Lean/Tests/CanonicalEq.lean` checks. The honest reading of the theorem is therefore:
+`addDecl` is sound for environments that contain the prelude's `Eq`, and every declaration of
+a replay from the empty environment is sound (`Replay.WF_empty`).
 
 No hypothesis names the declaration being checked or supplies a semantic fact about it.
 Inductive declarations carry no premise at all: their abstract declaration, normalized
 signature, compilation certificate and case eliminators are reconstructed from the execution.
 
-### 1.3 Acceptance checks
+### 1.4 Acceptance checks
 
 | check | expected |
 |---|---|
@@ -102,18 +138,19 @@ signature, compilation certificate and case eliminators are reconstructed from t
 | `lake build Lean4Lean.Experimental` | green; 56 inherited `sorry` declarations (section 9) |
 | `lake exe lean4lean --fresh Init.Prelude` | 1975 declarations checked |
 | `lake exe lean4lean --fresh Init.Core` | 3953 declarations checked |
+| `lake exe lean4lean Init.Core` | 1035 declarations checked |
 | `python3 scripts/check-inductive-audit.py --self-test` | passes |
 | `python3 scripts/check-inductive-audit.py --require-complete` | "No sorry dependencies; all remaining axioms are listed." |
 
 The audit (`scripts/InductiveAudit.lean`, driven by `scripts/check-inductive-audit.py`) walks
-the transitive dependency closure of a fixed list of roots, including opaque theorem bodies
-and the types of dependencies. The roots are the top-level theorems, the three inductive
-dispatch theorems, `addQuot.WF`, the checker's `whnf` and recursor reduction theorems, and
-`IsDefEq.full_church_rosser`. It fails on any `sorry` and on any axiom not listed in
-`scripts/inductive-audit-inventory.json`. A second set of strict roots (the generator
-definitions of section 2 and a few foundational lemmas) may depend only on the three standard
-axioms. The self-test checks that the walker finds a `sorry` behind an opaque body and an
-axiom used only in a type.
+the transitive dependency closure of a fixed list of roots, including opaque theorem bodies and
+the types of dependencies. The roots are the top-level theorems, the replay theorems of section
+1.2, the three inductive dispatch theorems, `addQuot.WF`, the checker's `whnf` and recursor
+reduction theorems, and `IsDefEq.full_church_rosser`. It fails on any `sorry` and on any axiom
+not listed in `scripts/inductive-audit-inventory.json`. A second set of strict roots (the
+generator definitions of section 2 and a few foundational lemmas) may depend only on the three
+standard axioms. The self-test checks that the walker finds a `sorry` behind an opaque body and
+an axiom used only in a type.
 
 ## 2. The generative specification of inductive types
 
@@ -339,6 +376,14 @@ validated in a copy of the restored environment in which every restored recursor
 are known to be well formed. The proof consumes these checks as evidence
 (`Nested/StrippedValidity.lean`, `Nested/CheckedGuardedIota.lean`).
 
+The parametric nested applications `I Ds` (leanprover/lean4#14577) are type-checked
+(`validateNestedAuxiliaries`), as in the C++ kernel. For a nested occurrence of a family with
+indices, `I Ds` is a type family and its auxiliary family is itself indexed. The proof closes
+each application with lambdas over the lowering parameters and its inferred type with foralls
+over the same parameters (`ClosedValidatedNestedAuxiliaries`, `Nested/Lowering.lean`), which
+is well formed in both cases, and uses only the resulting typing of the restored head
+(`GeneratedFamilyHeadRealization`).
+
 ### 3.4 Reconstructed and checked facts
 
 Everything about an inductive declaration's abstract counterpart is reconstructed from the
@@ -479,7 +524,7 @@ irrelevance is circular, and the calculus does not normalize. The verification i
 organised so that it never
 moves a typing fact to a smaller context.
 
-### 5.2 Scoped caches: the executable divergence
+### 5.2 Scoped caches
 
 Every binder of the checker saves and restores the context-relative state
 (`TypeChecker.State.leaveScope`, `Lean4Lean/TypeChecker.lean`): the inference caches, the
@@ -495,8 +540,11 @@ value `let seed := fun (q : P v) => ... ; (zz : SI)`, where the body of `seed` f
 comparisons `SI ≡ ... ≡ SJ` under `q`. The C++ kernel accepts this definition and rejects it
 without `seed`; the unscoped lean4lean checker accepted it too; the scoped checker rejects
 it. So the scoped checker can reject a declaration the C++ kernel accepts. Such a declaration
-relies on a conversion fact outside the scope where it holds; both fresh replays of
-`Init.Prelude` and `Init.Core` are unaffected.
+relies on a conversion fact outside the scope where it holds: `SI ≡ SJ` is derivable under `q`
+but not in the outer context, so it is the C++ acceptance that is non-local. Both fresh replays
+of `Init.Prelude` and `Init.Core` are unaffected. This is one of several divergences of the
+executable; `divergences.md` lists all of them, with an audit table of every executable change
+(section 7.2).
 
 Two primitive checks were adjusted for the same reason (`Lean4Lean/Primitive.lean`): the
 pieces of a `reflectNatNat` condition and the functional of a well-founded definition are
@@ -509,8 +557,28 @@ binders.
 does not depend on it, the walk keeps the body without substituting anything, so the
 verification must translate the remainder without that binder. When the field's projection
 is typable it inhabits the binder and substitution does this. Otherwise (a data field of a
-structure that may be a proposition, which the kernel still walks past) the binder `D` is
-inhabited as follows (`VEnv.WF.corner_inhabit_choice`,
+structure that may be a proposition, which the kernel still walks past) a translation of the
+remainder in the smaller context is needed, and general strengthening is not available
+(section 5.1). Two proofs resolve this.
+
+The proof used by `addDecl.WF_of_canonicalEq` re-derives the smaller-context translation from
+the checker's own acceptance of the constructor type. A frame lemma for the executable
+(`Lean4Lean/Verify/TypeChecker/Frame*.lean`: a successful run in a local context with extra
+declarations that never occur in its inputs, caches or environment is the same run without
+them) and a ghost-telescope verification (`Verify/TypeChecker/GhostTelescope.lean`) show that
+when a constructor type is checked, every unused binder of its telescope can be deleted from
+the translation. The result is recorded as a depth-bounded certificate `TelTrN`
+(`Verify/Typing/TelescopeTranslation.lean`), one per visible constructor at every safety
+level (`VEnvs.CtorCert`); the bound is the constructor's own arity, which is what the walk
+consumes. The certificates hold vacuously for an environment without constructors, are
+preserved by every declaration (`VEnvs.CertPres`), and the walk uses the delete branch of the
+certificate at each non-dependent field. Nested declarations need the stored constructor type
+to agree with the checked source type up to binder names
+(`Verify/Inductive/Nested/ConstructorTypeRoundTrip.lean`), because reusing an auxiliary
+renames binders inside reused occurrences, as in the C++ kernel.
+
+The alternative proof, used by `addDecl.WF_of_canonicalChoice`, inhabits the binder `D`
+instead (`VEnv.WF.corner_inhabit_choice`,
 `Lean4Lean/Theory/Typing/ProjectionCornerChoice.lean`): eliminate the major into `Prop` with
 the structure's registered case eliminator, motive `fun _ => Nonempty D` and minor
 `fun fields => Nonempty.intro field_j`, then apply `Classical.choice`. The projections that
@@ -572,7 +640,13 @@ the two agree. No axiom is added.
 
 ### 7.2 Executable changes
 
-Besides scoped caches (section 5.2), the executable changes in these ways.
+Every behavioural change to the executable is classified in the audit table at the end of
+`divergences.md`: a refactor with the C++ kernel's decisions, a divergence documented there, or
+(with an entry) a divergence found by the audit. Scoped caches (section 5.2) are not the only
+divergence, but they are the only one that can change a decision against the C++ kernel on an
+environment whose type-annotation wrappers are the prelude's: they reject a term whose
+acceptance needs a conversion fact outside its scope. The wrapper stripping below can change a decision only on an environment that redefines a
+wrapper name. The other changes cannot change a decision except through checker fuel, as follows.
 
 - **Redundant guards**, each listed in `divergences.md`: `reduceProjCore` requires the
   constructor to be the structure's unique constructor and fully applied; `tryEtaStructCore`
@@ -587,17 +661,35 @@ Besides scoped caches (section 5.2), the executable changes in these ways.
   universe is neither always nor never zero (`Sort u`), so a conversion that needs it there
   is rejected.
 - **Inductive checker** (`Lean4Lean/Inductive/Add.lean`): restructured into explicit loops
-  with total fresh-name searches, narrow checker contexts (section 3.2), a type check of each
-  generated recursor type, and the nested restoration validation of section 3.3. Restored
-  rules are validated in the stripped environment, a strictly more conservative check than
-  the C++ kernel's revalidation (leanprover/lean4#14621).
+  with total fresh-name searches, narrow checker contexts (section 3.2), unreachable arity
+  guards in recursor construction, and recursor rules built from the first constructor
+  traversal. Each generated recursor type is type-checked (`checkRecursorTypes`); the kernel
+  of the pinned toolchain does not do this, upstream does since leanprover/lean4#14808, which
+  also checks rule type preservation, which lean4lean proves instead. Nested auxiliary types
+  are named `_nested.i` rather than `_nested.J_i` (internal names only). The nested
+  restoration validation of section 3.3 re-checks restored declarations in side environments,
+  additionally re-checks constructor parameter prefixes, and validates restored rules in the
+  stripped environment with guardedness, shape and equation-type checks, all stricter than the
+  C++ kernel's revalidation (leanprover/lean4#14621). The nested applications `I Ds`
+  themselves are only type-checked, as in the C++ kernel.
 - **Caching**: `whnf` results are cached only for applications, constants, lambdas and
   projections (`Lean4Lean/WHNFCacheKey.lean`), which keeps the cache invariant within reach
   of the translation; this affects performance only.
 - **Transparent re-implementations** used by the executable so that proofs can see through
-  them: `Expr.findAny` (in place of `Expr.find?`) and `consumeTypeAnnotationsVerified` (same
-  behaviour as `consumeTypeAnnotations`).
-- `Quot.ind`'s major binder is explicit (section 6).
+  them: `Expr.findAny` (in place of `Expr.find?`) and `consumeTypeAnnotationsVerified` (in
+  place of `consumeTypeAnnotations`).
+- **Type-annotation wrappers**: a wrapper application in a binder domain is stripped only when
+  the environment declares the wrapper as the prelude's definition
+  (`Kernel.Environment.isTypeAnnotationWrapper`); otherwise the domain is checked literally.
+  The C++ kernel strips by name. This differs only on environments that declare one of the
+  four names with another definition, where the C++ stripping is unsound and can change a
+  decision (`Lean4Lean/Tests/TypeAnnotationWrappers.lean`). It replaces an environment
+  invariant, so that the empty environment satisfies `VEnvs.WF` (section 1.2).
+- `Quot.ind`'s major binder is explicit (section 6), and projections are compared by
+  structure name in `isDefEqCore'` and the equivalence manager; both now match the C++ kernel.
+- **Primitive recognizer** (`Lean4Lean/Primitive.lean`): extra `checkType` calls read the closed
+  pieces of a condition and a well-founded functional in the outer context (section 5.2);
+  they concern only reserved primitive names.
 
 ## 8. Tests
 
@@ -617,30 +709,25 @@ Besides scoped caches (section 5.2), the executable changes in these ways.
   specialization while the native recursor eliminates only into `Prop`);
 - negative tests: `InductiveEquationRejection.lean`, `RecursorMetadata.lean`,
   `RestoredRecursorMetadata.lean` (corrupted metadata admits no certificate).
+- nested indexed families: `NestedIndexedFamily.lean` (nested occurrences of indexed families,
+  and indexed families with parameters inside nested blocks; the generated types,
+  constructors and recursors are compared with the kernel's).
+
+`Replay.lean` runs the pure replay core on a hand-built constant table (an axiom, an inductive
+type, a definition, an inductive predicate and a theorem) from the empty environment and checks
+the added declarations and the agreement of every source constant; corrupting a source
+constructor, recursor or inductive type is rejected by the corresponding check.
 
 `docs/inductives/CacheScopeExperiment.lean` is run with `lake env lean` (section 5.2).
 
 ## 9. Open
 
-- **Choice-free corner.** Removing `HasCanonicalChoice` needs either a strengthening theorem
-  restricted to the corner or a locality theorem for derivations; both reduce to the
-  conversion-elimination problem of section 5.1. A substitution proof needs a term of `D`,
-  which only choice provides.
 - **Declarative strengthening with canonical `Eq`** is open: no counterexample and no proof.
-  `VEnv.Strengthening` remains as a definition, as a hypothesis of a few lemmas outside the
-  cone (`UniqueTyping.lean`, `CaseReduction.lean`, `ProjectionLemmas.lean`), and in the
-  countermodel.
-- **Base case of the invariant.** `VEnvs.WF` requires the four type-annotation wrappers, so
-  no environment before their declarations satisfies it, and no theorem establishes
-  `VEnvs.WF` for a concrete environment. Given `VEnvs.WF` at the point of a replay of
-  `Init.Prelude` where the wrappers, `Eq` and `Nonempty`/`Classical.choice` are installed,
-  the theorem covers the rest of the replay. The invariant cannot simply be weakened to
-  "absent, or the identity wrapper": the executable does not stop a later declaration from
-  defining `optParam` differently, and then stripping it would be unsound. Starting at the
-  empty environment needs a check, like `checkEqType` for `Eq`, that the wrappers are the
-  prelude's.
+  Nothing in the verification uses it; the corner is resolved by the constructor certificates
+  (section 5.3), which apply to environments built by the checker rather than to arbitrary
+  well-formed abstract environments.
 - **Realizability** of the canonical hypotheses relies on test-checked facts about the
-  production declarations (section 1.2).
+  production declarations (section 1.3).
 - **Confluence without `Eq`.** Non-joinability in the countermodel is argued, not checked.
 - **Inherited prototype sorries.** `Lean4Lean.Experimental` has 56 `sorry` declarations in the
   prototypes (`Thierry`, `Thierry2`, `LogRel`, `DomainTheory`, `MoreStepIndexed`, `Stronger`,
