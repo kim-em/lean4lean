@@ -462,5 +462,34 @@ theorem WF.native_projFamily_nparams {s : InductiveSignature} {g : Instance s}
   simp only [eqMs, Nat.add_zero, hfs] at hargs ⊢
   simpa using vars_split_le hE hargs
 
+/-- **The major of a generic case equation whose constructor is projection-registered**: it
+splits after `info.nparams` arguments into the innermost bound variables, or the schema's own
+view `kS` of the constructor (a constructor shape returning the same structure `S`, an original
+family of the schema) has a different parameter count and the major splits after `kS.nparams`
+arguments (the situation of the counterexample in `ShapeModel/EnvTables.lean`). -/
+theorem WF.generic_major_projCtor (henv : env.WF) {schema : CaseSchema}
+    (hreg : env.eliminators key schema) {owner : Fin schema.signature.families.size}
+    {rules : List VDefEq} (hgen : schema.genericEquations key owner = some rules)
+    (hdf : df ∈ rules) (hm : df.lhs.stripLams = .app fn (VExpr.mkApps (.const c ls) args))
+    (hp : env.projections S info) (hc : info.ctorName = c) :
+    (∃ ps nf, args = ps ++ vars nf 0 ∧ ps.length = info.nparams) ∨
+      ∃ kS ps nf, args = ps ++ vars nf 0 ∧ ps.length = kS.nparams ∧
+        ShapeModel.CtorShape env c kS ∧ kS.family = S ∧ kS.nparams ≠ info.nparams ∧
+        S ∈ schema.originalFamilies := by
+  obtain ⟨kS, ps, nf, hargs, hlen, hshape, -, hor⟩ := ShapeModel.schema_major henv hreg hgen hdf hm
+  have hk := ShapeModel.ctorOf_projection henv hp
+  rw [hc] at hk
+  rcases hor with h | ⟨hmem, hall⟩
+  · rw [hk] at h
+    cases h
+    exact .inl ⟨ps, nf, hargs, hlen⟩
+  · have hf1 := hshape.family
+    have hf2 := (ShapeModel.ctorOf_shape' henv hk).family
+    rw [hf1] at hf2
+    cases hf2
+    rcases hall _ (ShapeModel.famOf_projection henv hp) with h | h
+    · exact .inr ⟨kS, ps, nf, hargs, hlen, hshape, rfl, h, hmem⟩
+    · exact absurd (by rw [← hc]; simp) h
+
 end VEnv
 end Lean4Lean
