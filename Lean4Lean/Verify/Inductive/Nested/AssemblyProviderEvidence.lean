@@ -528,7 +528,7 @@ theorem RecursorPhasesResult.GeneratedEquationWitness.ordinaryIotaRule
     ∃ block : VInductBlock,
       block.recursors = H.entries.map Prod.snd ∧
       Nonempty (decl.IotaRule
-        (R.declared.venvCtors.addProjections decl.projectionEntries) block
+        ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries) block
         (getElem decl.types owner G.alignment.abstractOwner_lt)
         (getElem
           (getElem decl.types owner G.alignment.abstractOwner_lt).ctors i
@@ -575,7 +575,7 @@ structure RecursorPhasesResult.GeneratedEquationWitness.OrdinarySource
   block : VInductBlock
   blockRecursors : block.recursors = H.entries.map Prod.snd
   semantics : decl.IotaRule
-    (R.declared.venvCtors.addProjections decl.projectionEntries) block
+    ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries) block
     (getElem decl.types owner G.alignment.abstractOwner_lt)
     (getElem
       (getElem decl.types owner G.alignment.abstractOwner_lt).ctors i
@@ -3697,11 +3697,11 @@ structure NestedFinalAssemblyShapeSemanticEvidence
   auxiliaryRules : List VDefEq
   exactSource : ∃ primaryRecursors,
     RestoredSourceInductiveSemanticTrace decl lparams safety sourceEnv
-      canonical.venvTypes (canonical.venvCtors.addProjections decl.projectionEntries) H.inductives decl.types
+      canonical.venvTypes ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.inductives decl.types
         primaryRecursors
   primaryFamilies : ∀ primaryRecursors
     (Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
-      sourceEnv canonical.venvTypes (canonical.venvCtors.addProjections decl.projectionEntries) H.inductives
+      sourceEnv canonical.venvTypes ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.inductives
       decl.types primaryRecursors),
     ∀ indType stepSource stepTarget owner
     (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
@@ -3713,14 +3713,14 @@ structure NestedFinalAssemblyShapeSemanticEvidence
       canonical.venvTypes Hstep.oldInfo.ctors Hstep.restored.headerEnv
         Hstep.restored.constructorEnv indType.ctors owner.ctors)
     (Hrecursor : RestoredPrimaryRecursorSemantics decl owner safety
-      Hstep.restored.recursor (canonical.venvCtors.addProjections decl.projectionEntries)),
+      Hstep.restored.recursor ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)),
     Hrecursor.recursor ∈ primaryRecursors →
     Nonempty (RestoredPrimaryIotaFamilySemantics decl
       (canonicalRestoredShapeBlock decl primaryRecursors
         auxiliaryRecursors) finalBaseVEnv owner P Hstep)
   finish : ∀ main rest primaryRecursors
     (Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
-      sourceEnv canonical.venvTypes (canonical.venvCtors.addProjections decl.projectionEntries) H.inductives
+      sourceEnv canonical.venvTypes ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.inductives
       (main :: rest) primaryRecursors)
     primaryRules
     (Hprimary : RestoredPrimaryIotaSemanticTrace decl
@@ -3732,7 +3732,7 @@ structure NestedFinalAssemblyShapeSemanticEvidence
           auxiliaryRecursors ∧
       NestedFinalAuxiliaryEvidence H sourceEnv decl safety main
         primaryRecursors auxiliaryRecursors primaryRules auxiliaryRules
-          (canonical.venvCtors.addProjections decl.projectionEntries) finalBaseVEnv
+          ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) finalBaseVEnv
 
 /-- Build the exact semantic aggregate from fold-independent canonical data,
 pointwise source/primary producers, an exact pre-rule layout callback, and
@@ -3753,11 +3753,11 @@ theorem NestedFinalAssemblyShapeSemanticEvidence.ofCanonical
       isUnsafe safety)
     (HexactSource : ∃ primaryRecursors,
       RestoredSourceInductiveSemanticTrace decl lparams safety sourceEnv
-        C.canonical.venvTypes (C.canonical.venvCtors.addProjections decl.projectionEntries) H.inductives decl.types
+        C.canonical.venvTypes (C.(canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.inductives decl.types
           primaryRecursors)
     (HprimaryFamilies : ∀ primaryRecursors
       (Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
-        sourceEnv C.canonical.venvTypes (C.canonical.venvCtors.addProjections decl.projectionEntries) H.inductives
+        sourceEnv C.canonical.venvTypes (C.(canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.inductives
         decl.types primaryRecursors),
       ∀ indType stepSource stepTarget owner
       (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
@@ -3769,21 +3769,21 @@ theorem NestedFinalAssemblyShapeSemanticEvidence.ofCanonical
         C.canonical.venvTypes Hstep.oldInfo.ctors Hstep.restored.headerEnv
           Hstep.restored.constructorEnv indType.ctors owner.ctors)
       (Hrecursor : RestoredPrimaryRecursorSemantics decl owner safety
-        Hstep.restored.recursor (C.canonical.venvCtors.addProjections decl.projectionEntries)),
+        Hstep.restored.recursor (C.(canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)),
       Hrecursor.recursor ∈ primaryRecursors →
       Nonempty (RestoredPrimaryIotaFamilySemantics decl
         (canonicalRestoredShapeBlock decl primaryRecursors
           C.auxiliaryRecursors) C.finalBaseVEnv owner P Hstep))
     (Hlayout : ∀ owners primaryRecursors
       (Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
-        sourceEnv C.canonical.venvTypes (C.canonical.venvCtors.addProjections decl.projectionEntries) H.inductives
+        sourceEnv C.canonical.venvTypes (C.(canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.inductives
         owners primaryRecursors),
       NestedFinalAssemblyExactLayout actualEntries C.typeEntries
         C.constructorEntries C.recursorEntries primaryRecursors
           C.auxiliaryRecursors)
     (Hauxiliary : ∀ main rest primaryRecursors
       (Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
-        sourceEnv C.canonical.venvTypes (C.canonical.venvCtors.addProjections decl.projectionEntries) H.inductives
+        sourceEnv C.canonical.venvTypes (C.(canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.inductives
         (main :: rest) primaryRecursors)
       primaryRules
       (Hprimary : RestoredPrimaryIotaSemanticTrace decl
@@ -3792,7 +3792,7 @@ theorem NestedFinalAssemblyShapeSemanticEvidence.ofCanonical
             primaryRules),
       NestedFinalAuxiliaryEvidence H sourceEnv decl safety main
         primaryRecursors C.auxiliaryRecursors primaryRules C.auxiliaryRules
-          (C.canonical.venvCtors.addProjections decl.projectionEntries) C.finalBaseVEnv) :
+          (C.(canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) C.finalBaseVEnv) :
     Nonempty (NestedFinalAssemblyShapeSemanticEvidence P H sourceEnv decl lparams
       nparams isUnsafe safety actualEntries) := by
   exact ⟨{

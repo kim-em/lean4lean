@@ -375,7 +375,7 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.constructorType_defe
           ⟨recursorMinorOffset indTypes owner + localIndex, bound⟩))
         (decl.ownedConstructors[recursorMinorOffset indTypes owner + localIndex]'bound).2.type :=
       hmodel.2.2.1
-    simpa only [CompletedConstructorPhases.sourceSignature_constructorType] using ht
+    simpa only [ConstructorBoundary.sourceSignature_constructorType] using ht
   have hdefeq := H.sourceConstructorDefEq owner howner localIndex hlocal
   have hreplay := (H.sourceConstructorIndices_replay owner howner localIndex hlocal).2.1
   have henv := R.headerCheckingAnnotations.1.wf

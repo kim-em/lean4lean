@@ -31,13 +31,13 @@ structure RecursorPhasesResult
   outVEnv : VEnv
   entries : List (ConstantInfo × VConstVal)
   generated : GeneratedRecursors localContext.safety
-    (R.declared.venvCtors.addProjections decl.projectionEntries)
+    ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries)
     localContext.lparams elimLevel localContext stats indTypes recInfos entries
   ruleSemantics : GeneratedRecursorRuleSemanticsRange
     recursorWF decl stats indTypes recInfos origins elimLevel
       parameterSuffix.parameterDecls 0 entries
   installed : AddConstants localContext.safety localContext.env
-    (R.declared.venvCtors.addProjections decl.projectionEntries)
+    ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries)
     entries outEnv outVEnv
   closed : MutualInductivesClosed outEnv
   canonicalTargets : ∀ i (hi : i < entries.length), entries[i].2 =
@@ -201,6 +201,8 @@ def RecursorPhasesResult.staged
   venvCtors := R.declared.venvCtors
   typesAdded := Hheaders.installed
   ctorsAdded := R.declared.installed
+  eliminators := R.declared.eliminators
+  casesWF := R.completed.casesWF
   projectedWF := by
     simpa [ConstructorPhasesResult.completed, R.declared.contextVEnv] using
       R.completed.projectedWF
@@ -281,7 +283,7 @@ theorem RecursorPhasesResult.generatedTelescopeTranslations
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     (H : RecursorPhasesResult R outEnv) :
     GeneratedRecursorTelescopeTranslations
-      (R.declared.venvCtors.addProjections decl.projectionEntries) stats
+      ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries) stats
       H.recInfos H.entries := by
   simpa [RecursorPhasesResult.completed, ConstructorPhasesResult.completed,
     R.declared.contextVEnv] using
@@ -1018,7 +1020,7 @@ theorem RecursorPhasesResult.sourcePrimaryRecursorSemantics
         have howner : ownerIdx < H.recInfos.size := by
           simpa [H.generated.length] using hentry
         simpa [H.cardinality.records] using howner))
-      (R.declared.venvCtors.addProjections decl.projectionEntries)) := by
+      ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries)) := by
   have Hcore : TrInductDeclCore sourceEnv H.localContext.lparams nparams
       indTypes.toList isUnsafe decl Hheaders.context.venv
       R.declared.venvCtors := by
@@ -1240,12 +1242,16 @@ def RecursorPhasesResult.blockCertificate
     BlockCertificate c.safety c.env sourceEnv Hheaders.entries
       R.declared.entries H.entries rules outEnv H.outVEnv := by
   let Hgenerated : GeneratedRecursors c.safety
-      (R.declared.venvCtors.addProjections decl.projectionEntries)
+      ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries)
       c.lparams H.elimLevel H.localContext stats indTypes H.recInfos
       H.entries := by
     simpa [H.localExtends.safety_eq, H.localExtends.lparams_eq] using
       H.generated
-  exact Hgenerated.toBlockCertificate decl.projectionEntries H.staged
+  let Hgenerated' : GeneratedRecursors c.safety
+      ((H.staged.venvCtors.addEliminators H.staged.eliminators).addProjections
+        decl.projectionEntries)
+      c.lparams H.elimLevel H.localContext stats indTypes H.recInfos H.entries := Hgenerated
+  exact Hgenerated'.toBlockCertificate decl.projectionEntries H.staged
     H.localWF H.bindings H.params Hheaders.typesWF R.declared.ctorsWF hrules
 
 /-- Generated recursor names are fresh already at the post-constructor
@@ -1263,7 +1269,7 @@ theorem RecursorPhasesResult.recursorNamesFresh
     (H : RecursorPhasesResult R outEnv)
     (rules : List VDefEq) (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
     ∀ name ∈ (H.blockCertificate rules hrules).block.recursors.map (·.name),
-      (R.declared.venvCtors.addProjections decl.projectionEntries).constants
+      ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries).constants
         name = none := by
   have hfresh :=
     VEnv.addConstVals_names_fresh H.installed.abstract |>.2
@@ -1282,7 +1288,7 @@ def RecursorPhasesResult.generatedCertificate
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     (H : RecursorPhasesResult R outEnv) :
     GeneratedRecursors c.safety
-      (R.declared.venvCtors.addProjections decl.projectionEntries)
+      ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries)
       c.lparams H.elimLevel
       H.localContext stats indTypes H.recInfos H.entries := by
   simpa [H.localExtends.safety_eq, H.localExtends.lparams_eq] using H.generated
@@ -1567,7 +1573,7 @@ theorem RecursorPhasesResult.recursorTelescopeTranslationAt
     (H : RecursorPhasesResult R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     Nonempty (GeneratedRecursorTelescopeTranslation
-      (R.declared.venvCtors.addProjections decl.projectionEntries)
+      ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries)
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -1656,7 +1662,7 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorTelescopeTranslation
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (_A : H.GeneratedRuleAlignment owner howner i hctor) :
     Nonempty (GeneratedRecursorTelescopeTranslation
-      (R.declared.venvCtors.addProjections decl.projectionEntries)
+      ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries)
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -2042,7 +2048,7 @@ theorem
   rcases A.sourceConstructorTelescope with ⟨residual, Htelescope⟩
   have henv : Hheaders.context.venv ≤ H.outVEnv :=
     R.declared.installed.le.trans
-      (VEnv.addProjections_le.trans H.installed.le)
+      (VEnv.addEliminators_addProjections_le.trans H.installed.le)
   have Htranslation := A.ctorTranslation.type.mono henv
   have Htype : H.outVEnv.IsType c.lparams.length []
       ((decl.types[owner]'A.abstractOwner_lt).ctors[i]'A.abstractCtor_lt).type := by

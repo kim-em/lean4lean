@@ -131,6 +131,16 @@ def FamilyTypesWF (s : InductiveSignature) (env : VEnv) (uvars : Nat) : Prop :=
         (vars s.families[owner].indices.length 0))
       (.sort s.families[owner].resultLevel)
 
+/-- Case eliminators registered with a declaration at its constructor boundary, before its
+native recursors are generated: restoration-free case schemas of the declaration itself, whose
+signatures model it. The generated recursors and the typing facts of their generation are
+checked in the constructor environment extended by these eliminators and the declaration's
+projection entries (`VInductBlock.install`). -/
+def _root_.Lean4Lean.VInductDecl.OwnCaseEliminators (env : VEnv) (decl : VInductDecl)
+    (es : List (Name × CaseSchema)) : Prop :=
+  ∀ p ∈ es, p.2.restoration = {} ∧ p.2.originalFamilies = decl.types.map (·.name) ∧
+    p.2.signature.Models env decl
+
 /-- Ordinary canonical generation fixes every motive, minor, recursive call,
 and both sides of every equation. This certificate does not accept an
 arbitrary list of equations on the strength of their typing. -/
@@ -139,9 +149,11 @@ structure Compiles (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Pr
     s.Models env decl ∧
     env.addConstVals decl.typeConstants = some envTypes ∧
     g.Admissible envTypes ∧
-    (∃ envCtors, envTypes.addConstVals decl.constructorConstants = some envCtors ∧
-      g.RecursiveTypesWF (envCtors.addProjections decl.projectionEntries) ∧
-      s.FamilyTypesWF (envCtors.addProjections decl.projectionEntries) decl.uvars) ∧
+    (∃ envCtors es, envTypes.addConstVals decl.constructorConstants = some envCtors ∧
+      decl.OwnCaseEliminators env es ∧
+      g.RecursiveTypesWF ((envCtors.addEliminators es).addProjections decl.projectionEntries) ∧
+      s.FamilyTypesWF ((envCtors.addEliminators es).addProjections decl.projectionEntries)
+        decl.uvars) ∧
     (∀ owner, g.recursorName owner = s.families[owner].name.str "rec") ∧
     block.recursors = g.recursors ∧ block.rules = g.equations
 

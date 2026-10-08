@@ -736,11 +736,11 @@ theorem
     (⟨resultLevel, Htyped⟩ : A.semantics.context.venv.IsType Us.length
       A.semantics.context.mlctx.vlctx.toCtx motiveTarget)
   have hsemantic : A.semantics.fieldRootContext.venv =
-      R.declared.venvCtors.addProjections decl.projectionEntries := by
+      (R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries := by
     calc
       A.semantics.fieldRootContext.venv = A.semantics.context.venv :=
         A.semantics.fieldsRecent.venv_eq.symm
-      _ = R.declared.venvCtors.addProjections decl.projectionEntries :=
+      _ = (R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries :=
         A.semantics.context_venv.trans
           (H.recursorEnv_legacy.trans R.declared.contextVEnv)
   rw [hsemantic] at Hclosed
@@ -769,7 +769,7 @@ theorem
     rw [A.semantics.context.onlyLams.toCtx_take] at hvlctxToCtx
     simpa [VLCtx.toCtx] using hvlctxToCtx
   have hcurrentSemantic : A.semantics.context.venv =
-      R.declared.venvCtors.addProjections decl.projectionEntries :=
+      (R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries :=
     A.semantics.context_venv.trans
       (H.recursorEnv_legacy.trans R.declared.contextVEnv)
   have HtypedFinal := Htyped
@@ -848,11 +848,11 @@ theorem
           (VExpr.mkApps binding.motiveTarget evidence.indices)
           A.semantics.constructorTarget))
   have hsemanticRoot : A.semantics.fieldRootContext.venv =
-      R.declared.venvCtors.addProjections decl.projectionEntries := by
+      (R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries := by
     calc
       A.semantics.fieldRootContext.venv = A.semantics.context.venv :=
         A.semantics.fieldsRecent.venv_eq.symm
-      _ = R.declared.venvCtors.addProjections decl.projectionEntries :=
+      _ = (R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries :=
         A.semantics.context_venv.trans
           (H.recursorEnv_legacy.trans R.declared.contextVEnv)
   rw [hsemanticRoot] at Hclosed
@@ -881,7 +881,7 @@ theorem
     rw [A.semantics.context.onlyLams.toCtx_take] at hvlctxToCtx
     simpa [VLCtx.toCtx] using hvlctxToCtx
   have hsemanticCurrent : A.semantics.context.venv =
-      R.declared.venvCtors.addProjections decl.projectionEntries :=
+      (R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries :=
     A.semantics.context_venv.trans
       (H.recursorEnv_legacy.trans R.declared.contextVEnv)
   rw [hsemanticCurrent] at Hindices Htyped
@@ -933,13 +933,13 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.finalFieldTelescope
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let F := A.semantics.fieldTelescope
   have hsemantic : A.semantics.fieldRootContext.venv =
-      R.declared.venvCtors.addProjections decl.projectionEntries := by
+      (R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries := by
     calc
       A.semantics.fieldRootContext.venv = A.semantics.context.venv :=
         A.semantics.fieldsRecent.venv_eq.symm
       _ = H.recursorWF.venv := A.semantics.context_venv
       _ = R.declared.context.venv := H.recursorEnv_legacy
-      _ = R.declared.venvCtors.addProjections decl.projectionEntries :=
+      _ = (R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries :=
         R.declared.contextVEnv
   have Htarget := F.target_translation
   have HtargetType := F.target_type
@@ -1008,7 +1008,7 @@ theorem
     ⟨originRoot, Rorigin, Hext, callDepth, S, _hscope⟩
   let F := S.appliedFieldTelescope
   have hsemantic : Rorigin.venv =
-      R.declared.venvCtors.addProjections decl.projectionEntries :=
+      (R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries :=
     Hext.venv_eq.trans <|
       A.semantics.context_venv.trans <|
         H.recursorEnv_legacy.trans R.declared.contextVEnv
@@ -1049,7 +1049,7 @@ theorem RecursorPhasesResult.recursorTypingAt
     apply VEnv.addConstVals_get H.installed.abstract
     exact hmem
   have hwfBase : recursor.toVConstant.WF
-      (R.declared.venvCtors.addProjections decl.projectionEntries) :=
+      ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries) :=
     H.generated.recursorsWF H.localWF H.bindings H.params recursor hmem
   have hwf : recursor.toVConstant.WF H.outVEnv :=
     hwfBase.mono H.installed.le

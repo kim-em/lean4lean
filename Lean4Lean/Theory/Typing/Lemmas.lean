@@ -265,6 +265,13 @@ inductive Ordered : VEnv → Prop where
     envTypes.addConstVals block.ctors = some envCtors →
     Ordered ((envCtors.addEliminators es).addProjections block.projections)
 
+theorem Ordered.addEliminators :
+    ∀ {env : VEnv} {es : List (Name × InductiveSignature.CaseSchema)}, Ordered env →
+      Ordered (env.addEliminators es)
+  | _, [], H => H
+  | env, (k, sc) :: rest, H =>
+    Ordered.addEliminators (env := env.addEliminator k sc) (es := rest) H.eliminator
+
 theorem Ordered.projectionConstant (H : Ordered env)
     (hprojection : env.projections name info) :
     ∃ constant, env.constants name = some constant := by

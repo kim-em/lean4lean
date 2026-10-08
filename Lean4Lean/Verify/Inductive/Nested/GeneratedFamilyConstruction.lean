@@ -70,7 +70,7 @@ theorem VEnv.InstalledInductCertificate.sourceParameterWF
     subst installed
     have htypesEnv : envTypes ≤ env :=
       (VEnv.addConstVals_le hctors).trans
-        (VEnv.addProjections_le.trans
+        (VEnv.addEliminators_addProjections_le.trans
           ((VEnv.addConstVals_le hrecursors).trans
             (VEnv.addDefEqRules_le.trans hle)))
     have hbaseEnv : base ≤ env :=
@@ -110,7 +110,7 @@ theorem installedInductCertificate_constructorLookup
     subst installed
     exact hle.constants <| VEnv.addDefEqRules_le.constants <|
       (VEnv.addConstVals_le hrecursors).constants <|
-        VEnv.addProjections_le.constants hlookupCtors
+        VEnv.addEliminators_addProjections_le.constants hlookupCtors
 
 /-- Canonical abstract constructor obtained by specializing one constructor
 of a previously installed family.  Keeping this definition independent of

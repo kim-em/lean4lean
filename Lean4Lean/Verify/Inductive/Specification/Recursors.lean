@@ -291,7 +291,8 @@ structure OrdinaryShapeCertificate (env : VEnv)
   rules : ∃ envTypes envCtors,
     env.addConstVals block.types = some envTypes ∧
     envTypes.addConstVals block.ctors = some envCtors ∧
-    IotaCertificate (envCtors.addProjections block.projections) decl block
+    IotaCertificate ((envCtors.addEliminators block.eliminators).addProjections block.projections)
+      decl block
   names : List.Nodup
     ((block.types ++ block.ctors ++ block.recursors).map (·.name))
 

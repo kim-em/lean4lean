@@ -313,6 +313,18 @@ theorem AddConstants.addProjections
       (hwf.mono VEnv.addProjections_le)
       (by rw [VEnv.addProjections_addConst, hadd]; rfl) hdelta ih
 
+/-- Registered case eliminators commute with an ordinary lockstep constant batch. -/
+theorem AddConstants.addEliminators
+    (H : AddConstants safety env venv entries outEnv outVEnv) :
+    AddConstants safety env (venv.addEliminators es) entries
+      outEnv (outVEnv.addEliminators es) := by
+  induction H with
+  | nil => exact .nil
+  | cons hn hnprim htr hwf hadd hdelta _ ih =>
+    exact .cons hn hnprim (htr.mono VEnv.addEliminators_le)
+      (hwf.mono VEnv.addEliminators_le)
+      (by rw [VEnv.addEliminators_addConst, hadd]; rfl) hdelta ih
+
 theorem AddConstants.hasPrimitives
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (Hprimitives : venv.HasPrimitives) : outVEnv.HasPrimitives := by

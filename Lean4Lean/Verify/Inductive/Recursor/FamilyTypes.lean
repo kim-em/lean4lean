@@ -15,53 +15,6 @@ generated motive, and recover the result sort from the declared constant. -/
 
 namespace Lean4Lean
 
-theorem InductiveSignature.vars_append_eq_bvarRange (a b : Nat) :
-    vars a b ++ vars b 0 = VExpr.bvarRange (a + b) (a + b) := by
-  apply List.ext_getElem
-  · simp [vars]
-  · intro j h1 h2
-    simp only [List.length_append, vars, List.length_map, List.length_reverse,
-      List.length_range] at h1
-    rw [VExpr.bvarRange_getElem _ _ _ (by omega)]
-    by_cases hj : j < a
-    · rw [List.getElem_append_left (by simp [vars]; omega)]
-      simp only [vars, List.getElem_map, List.getElem_reverse, List.getElem_range,
-        List.length_range, VExpr.bvar.injEq]
-      omega
-    · rw [List.getElem_append_right (by simp [vars]; omega)]
-      simp only [vars, List.getElem_map, List.getElem_reverse, List.getElem_range,
-        List.length_range, List.length_map, List.length_reverse, VExpr.bvar.injEq]
-      omega
-
-namespace VEnv
-
-/-- A closed term typed at a telescope, applied to the telescope's own
-variables in the telescope's context, has the telescope's body type. -/
-theorem HasType.mkApps_bvarRange {env : VEnv} {U : Nat} (henv : env.WF)
-    {f B : VExpr} {doms : List VExpr}
-    (hf : env.HasType U [] f (VExpr.wrapForalls doms B))
-    (hctx : OnCtx doms.reverse (env.IsType U))
-    (hB : B.ClosedN doms.length) :
-    env.HasType U doms.reverse
-      (VExpr.mkApps f (VExpr.bvarRange doms.length doms.length)) B := by
-  have hf' : env.HasType U doms.reverse f (VExpr.wrapForalls doms B) :=
-    hf.weak0 henv.ordered
-  have h := HasType.mkApps_of_telescope henv hctx
-    (args := VExpr.bvarRange doms.length doms.length) hf' (by simp) ?_
-  · rwa [VExpr.instOuter_range_bvar' B _ _ hB (Nat.le_refl _), Nat.sub_self,
-      VExpr.liftN_zero] at h
-  · intro j hj hj'
-    simp only [VExpr.bvarRange_length] at hj
-    rw [VExpr.bvarRange_getElem _ _ _ hj, VExpr.bvarRange_take _ _ _ (Nat.le_of_lt hj)]
-    have hclosed : doms[j].ClosedN j := by
-      have := OnCtx.reverse_getElem_closedN henv (Γ := []) (by simpa using hctx) j hj'
-      simpa using this
-    rw [VExpr.instOuter_range_bvar' _ _ _ hclosed (by omega)]
-    have hl := Lookup.reverse_append doms [] j hj'
-    simp only [List.append_nil] at hl
-    exact .bvar hl
-
-end VEnv
 
 namespace VerifyInductive
 open Lean hiding Environment Exception
@@ -80,57 +33,11 @@ each family applied to its own telescope variables has the recorded sort. -/
 theorem sourceSignature_familyTypesWF
     (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv) :
-    R.sourceSignature.FamilyTypesWF (R.ctorVEnv.addProjections decl.projectionEntries)
-      decl.uvars := by
-  intro owner
-  have henv := R.projectedWF
-  have hctorsLE : R.headerVEnv ≤ R.ctorVEnv.addProjections decl.projectionEntries :=
-    (VEnv.addConstVals_le R.core.ctorsAdded).trans VEnv.addProjections_le
-  have hle : sourceEnv ≤ R.ctorVEnv.addProjections decl.projectionEntries :=
-    (VEnv.addConstVals_le R.core.typesAdded).trans hctorsLE
-  have hheader : owner.val < R.sourceSignatureHeader.families.size := owner.isLt
-  have hdecl : owner.val < decl.types.length := by
-    have := Lean4Lean.List.Forall₂.length_eq R.sourceSignatureHeader_families
-    simp only [Array.length_toList] at this
-    omega
-  have hfam := Lean4Lean.List.forall₂_getElem R.sourceSignatureHeader_families owner.val
-    (by simpa using hheader) hdecl
-  simp only [Array.getElem_toList] at hfam
-  obtain ⟨hname, _, _, hdefeq⟩ := hfam
-  have hmem : decl.types[owner.val] ∈ decl.types := List.getElem_mem hdecl
-  have hsourceWF := Lean4Lean.VerifyInductive.TrInductDeclCore.sourceWF R.core
-    (List.ne_nil_of_mem hmem) (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core)
-  have huvars : decl.types[owner.val].uvars = decl.uvars := hsourceWF.2.2.1 _ hmem
-  have hlookup : (R.ctorVEnv.addProjections decl.projectionEntries).constants
-      decl.types[owner.val].name = some decl.types[owner.val].toVConstant :=
-    hctorsLE.constants (VEnv.addConstVals_get R.core.typesAdded
-      (List.mem_map.mpr ⟨_, hmem, rfl⟩))
-  have hconst := VEnv.HasType.const0 hlookup (henv.ordered.constWF hlookup)
-  change (R.ctorVEnv.addProjections decl.projectionEntries).HasType
-    decl.types[owner.val].uvars [] (.const decl.types[owner.val].name
-      (VLevel.params decl.types[owner.val].uvars)) decl.types[owner.val].type at hconst
-  rw [huvars, ← hname] at hconst
-  have hW := hconst.defeqU_r henv trivial (hdefeq.symm.mono hle)
-  have hWT := hW.isType henv.ordered trivial
-  have hctx := (VEnv.IsType.wrapForalls_inv henv.ordered (ctx := []) trivial hWT).1
-  simp only [List.append_nil] at hctx
-  have happ := VEnv.HasType.mkApps_bvarRange henv hW hctx trivial
-  have hctx' : OnCtx (R.sourceSignatureHeader.families[owner.val].indices.reverse ++
-      R.sourceSignatureHeader.params.reverse)
-      ((R.ctorVEnv.addProjections decl.projectionEntries).IsType decl.uvars) := by
-    simpa [List.reverse_append] using hctx
-  refine ⟨hctx', ?_⟩
-  change (R.ctorVEnv.addProjections decl.projectionEntries).HasType decl.uvars
-    (R.sourceSignatureHeader.families[owner.val].indices.reverse ++
-      R.sourceSignatureHeader.params.reverse)
-    (VExpr.mkApps (.const R.sourceSignatureHeader.families[owner.val].name
-      (VLevel.params decl.uvars))
-      (InductiveSignature.vars R.sourceSignatureHeader.params.length
-          R.sourceSignatureHeader.families[owner.val].indices.length ++
-        InductiveSignature.vars R.sourceSignatureHeader.families[owner.val].indices.length 0))
-    (.sort R.sourceSignatureHeader.families[owner.val].resultLevel)
-  rw [InductiveSignature.vars_append_eq_bvarRange, ← List.length_append]
-  simpa [List.reverse_append] using happ
+    R.sourceSignature.FamilyTypesWF
+      ((R.ctorVEnv.addEliminators R.eliminators).addProjections decl.projectionEntries)
+      decl.uvars :=
+  R.sourceSignature_familyTypesWF_header.mono
+    ((VEnv.addConstVals_le R.core.ctorsAdded).trans VEnv.addEliminators_addProjections_le)
 
 /-- The same statement in the retained checking context's environment. -/
 theorem sourceSignature_familyTypesWF_context

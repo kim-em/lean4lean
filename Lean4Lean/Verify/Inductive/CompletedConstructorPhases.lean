@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.PrimitiveAtomicInstallation
+import Lean4Lean.Verify.Inductive.ConstructorBoundary
 
 namespace Lean4Lean
 
@@ -215,36 +216,19 @@ structure CompletedConstructorPhases (c : AddInductive.Context)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (nparams : Nat) (isUnsafe : Bool) (depth : Nat)
     (sourceEnv : VEnv) (indTypes : Array InductiveType)
-    (ctorEnv : Environment) where
+    (ctorEnv : Environment) extends
+    ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes where
   headerEnv : Environment
-  headerVEnv : VEnv
   headerEntries : List (ConstantInfo × VConstVal)
   constructorEntries : List (ConstantInfo × VConstVal)
   headerValues : headerEntries.map Prod.snd = decl.typeConstants
   constructorValues : constructorEntries.map Prod.snd =
     decl.constructorConstants
-  sourceContext : ContextWF c
-  sourceContextVEnv : sourceContext.venv = sourceEnv
-  sourceMaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
-    sourceContext.venv c.lparams sourceContext.mlctx.vlctx stats decl depth
   context : ContextWF { c with env := ctorEnv }
-  headerMLCtx : TypeChecker.MLCtx
   contextMLCtx : context.mlctx = headerMLCtx
-  headers : HeaderCertificate sourceEnv decl
-  params : List VExpr
-  headerParams : headers.params = params
-  sourceHeaderParams : sourceMaterialized.headers.params = params
-  parameterScope : VLCtx
-  sourceParameterScope : sourceMaterialized.parameterScope = parameterScope
-  materialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
-    headerVEnv c.lparams headerMLCtx.vlctx stats decl depth
-  materializedParams : materialized.headers.params = params
-  materializedParameterScope : materialized.parameterScope = parameterScope
   checked : CheckedConstructorCertificate sourceEnv decl headerVEnv
     params
   parameterPrefixes : CheckedRecursorParameterPrefixes stats indTypes
-  constructorTails : CheckedRecursorConstructorTails headerVEnv c.lparams
-    parameterScope stats decl indTypes
   ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
   headerSourceAligned : exists numNested,
     InductiveHeaderEntries
@@ -260,18 +244,16 @@ structure CompletedConstructorPhases (c : AddInductive.Context)
       (entry : ConstantInfo × VConstVal), entry ∈ constructorEntries ->
     forall value : InductiveVal,
       entry.1 ≠ ConstantInfo.inductInfo value
-  /-- Exact abstract constructor-complete endpoint, before projection
-  registration. -/
-  ctorVEnv : VEnv
-  /-- The retained checking context already carries the declaration's
-  projection entries: every checker run after the constructor stage happens in
-  the projected environment. -/
-  contextVEnv : context.venv = ctorVEnv.addProjections decl.projectionEntries
+  /-- The declaration's certified case eliminator, registered over the constructors. -/
+  eliminators : List (Name × InductiveSignature.CaseSchema)
+  eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock eliminators)
+  eliminatorsOrdinary : decl.OrdinaryCaseEliminators sourceEnv eliminators
+  /-- The retained checking context carries the declaration's case eliminator and projection
+  entries: every checker run after the constructor stage happens in this environment. -/
+  contextVEnv : context.venv =
+    (ctorVEnv.addEliminators eliminators).addProjections decl.projectionEntries
   installation : CompletedFormationInstallation c.safety c.env sourceEnv
     headerEntries headerEnv headerVEnv constructorEntries ctorEnv ctorVEnv
-  formation : FormationCertificate sourceEnv decl
-  core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
-    isUnsafe decl headerVEnv ctorVEnv
   productionInductiveOrigins :
     ProductionInductiveOrigins c.env.constants ctorEnv.constants decl
   constructorSemantics : forall {safety},
@@ -283,16 +265,28 @@ prefix of this declaration as a genuine staged well-formed environment. -/
 theorem CompletedConstructorPhases.projectedWF
     (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv) :
-    (R.ctorVEnv.addProjections decl.projectionEntries).WF := by
+    ((R.ctorVEnv.addEliminators R.eliminators).addProjections decl.projectionEntries).WF := by
   rw [← R.contextVEnv]
   exact R.context.checking.tr.wf
+
+/-- The constructor-complete abstract environment with the declaration's case eliminators is
+well formed. -/
+theorem CompletedConstructorPhases.casesWF
+    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv) :
+    (R.ctorVEnv.addEliminators R.eliminators).WF := by
+  have hsourceWF : sourceEnv.WF := by
+    rw [← R.sourceContextVEnv]; exact R.sourceContext.checking.tr.wf
+  exact R.eliminatorsWF.casesWF hsourceWF
+    (Lean4Lean.VerifyInductive.TrInductDeclCore.envCtorsWF R.core hsourceWF)
+    R.core.typesAdded R.core.ctorsAdded
 
 /-- The retained context is the projected constructor-complete environment. -/
 theorem CompletedConstructorPhases.projectedChecking
     (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv) :
     CheckingEnv.Valid c.safety ctorEnv
-      (R.ctorVEnv.addProjections decl.projectionEntries) := by
+      ((R.ctorVEnv.addEliminators R.eliminators).addProjections decl.projectionEntries) := by
   rw [← R.contextVEnv]
   exact R.context.checking
 
@@ -301,7 +295,7 @@ theorem CompletedConstructorPhases.ctorLE
       sourceEnv indTypes ctorEnv) :
     R.ctorVEnv ≤ R.context.venv := by
   rw [R.contextVEnv]
-  exact VEnv.addProjections_le
+  exact VEnv.addEliminators_addProjections_le
 
 /-- The exact header/constructor installation trace preserves the persistent
 constructor-owner invariant.  New constructor metadata obtains its owner from
@@ -430,6 +424,9 @@ def ConstructorPhasesResult.completed
   constructorProduction := R.declared.production
   constructorNonInductive := R.declared.nonInductive
   ctorVEnv := R.declared.venvCtors
+  eliminators := R.declared.eliminators
+  eliminatorsWF := R.declared.eliminatorsWF
+  eliminatorsOrdinary := R.declared.eliminatorsOrdinary
   contextVEnv := R.declared.contextVEnv
   installation := .ordinary H.installed R.declared.installed
   formation := R.formation
@@ -456,9 +453,8 @@ def PrimitiveConstructorPhasesResult.materialized
   let M := H.materialized.mono henv
   simpa only [R.declared.contextMLCtx] using M
 
-/-- The primitive constructor-complete abstract environment admits the
-declaration's projection entries as a staged well-formed environment. -/
-theorem PrimitiveConstructorPhasesResult.projectedWF
+/-- The constructor boundary of a completed primitive formation run. -/
+noncomputable def PrimitiveConstructorPhasesResult.boundary
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -466,33 +462,28 @@ theorem PrimitiveConstructorPhasesResult.projectedWF
     {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     (R : PrimitiveConstructorPhasesResult H ctorEnv) :
-    (R.declared.venvCtors.addProjections decl.projectionEntries).WF := by
-  let block : VInductBlock := {
-    types := decl.typeConstants
-    ctors := decl.constructorConstants
-    recursors := []
-    rules := []
-    projections := decl.projectionEntries }
-  apply VEnv.WF.inductProjections
-      (base := sourceEnv) (envTypes := H.context.venv)
-      (decl := decl) (block := block)
-  · rw [← H.sourceContextVEnv]
-    exact H.sourceContext.checking.tr.wf
-  · rw [← R.declared.contextVEnv]
-    exact R.declared.context.checking.tr.wf
-  · exact Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core
-  · exact Lean4Lean.VerifyInductive.TrInductDeclCore.typeHeadersWF R.core
-  · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars R.core
-  · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorsWF R.core
-  · exact R.formation.formationWF.sourceParameterWF
-  · exact R.formation.formationWF.sourceParameterWF.rawCtorShape
-  · rfl
-  · rfl
-  · rfl
-  · exact R.core.typesAdded
-  · exact R.core.ctorsAdded
+    ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes where
+  headerVEnv := H.context.venv
+  sourceContext := H.sourceContext
+  sourceContextVEnv := H.sourceContextVEnv
+  sourceMaterialized := H.sourceMaterialized
+  headerMLCtx := H.context.mlctx
+  headers := H.headers
+  params := H.headers.params
+  headerParams := rfl
+  sourceHeaderParams := H.sourceHeaderParams
+  parameterScope := H.materialized.parameterScope
+  sourceParameterScope := H.parameterScopeEq.symm
+  materialized := H.materialized
+  materializedParams := H.headerParams
+  materializedParameterScope := rfl
+  constructorTails := R.constructorTails
+  ctorVEnv := R.declared.venvCtors
+  formation := R.formation
+  core := R.core
 
-/-- The primitive constructor context, projected. -/
+/-- The primitive constructor context, with the declaration's case eliminators and
+projections. -/
 theorem PrimitiveConstructorPhasesResult.projectedChecking
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -502,15 +493,16 @@ theorem PrimitiveConstructorPhasesResult.projectedChecking
       sourceEnv indTypes headerEnv}
     (R : PrimitiveConstructorPhasesResult H ctorEnv) :
     CheckingEnv.Valid c.safety ctorEnv
-      (R.declared.venvCtors.addProjections decl.projectionEntries) := by
+      ((R.declared.venvCtors.addEliminators R.boundary.caseEliminators).addProjections
+        decl.projectionEntries) := by
   have hchecking : CheckingEnv.Valid c.safety ctorEnv R.declared.venvCtors := by
     rw [← R.declared.contextVEnv]
     exact R.declared.context.checking
-  exact hchecking.addProjections R.projectedWF
+  exact (hchecking.addEliminators R.boundary.casesWF).addProjections R.boundary.projectedWF
 
 /-- The atomic primitive formation pipeline embeds into the same completed
 recursor boundary. -/
-def PrimitiveConstructorPhasesResult.completed
+noncomputable def PrimitiveConstructorPhasesResult.completed
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -531,7 +523,7 @@ def PrimitiveConstructorPhasesResult.completed
   sourceMaterialized := H.sourceMaterialized
   context := R.declared.context.withEnv R.projectedChecking (by
     rw [R.declared.contextVEnv]
-    exact VEnv.addProjections_le)
+    exact VEnv.addEliminators_addProjections_le)
   headerMLCtx := H.context.mlctx
   contextMLCtx := R.declared.contextMLCtx
   headers := H.headers
@@ -552,6 +544,9 @@ def PrimitiveConstructorPhasesResult.completed
   constructorProduction := R.declared.production
   constructorNonInductive := R.declared.nonInductive
   ctorVEnv := R.declared.venvCtors
+  eliminators := R.boundary.caseEliminators
+  eliminatorsWF := R.boundary.caseEliminatorsWF
+  eliminatorsOrdinary := R.boundary.caseEliminatorsOrdinary
   contextVEnv := rfl
   installation := .primitive H.installed R.declared.installed (by
     simpa [H.values, R.declared.values] using R.declared.bootstrap)

@@ -139,6 +139,17 @@ theorem AtomicAddConstants.addProjections
       (hwf.mono VEnv.addProjections_le)
       (by rw [VEnv.addProjections_addConst, hadd]; rfl) hdelta ih
 
+theorem AtomicAddConstants.addEliminators
+    (H : AtomicAddConstants safety env venv entries outEnv outVEnv) :
+    AtomicAddConstants safety env (venv.addEliminators es) entries
+      outEnv (outVEnv.addEliminators es) := by
+  induction H with
+  | nil => exact .nil
+  | cons hn htr hwf hadd hdelta _ ih =>
+    exact .cons hn (htr.mono VEnv.addEliminators_le)
+      (hwf.mono VEnv.addEliminators_le)
+      (by rw [VEnv.addEliminators_addConst, hadd]; rfl) hdelta ih
+
 def AtomicAddConstants.sf_mono
     (hsafety : safety ≤ checkSafety)
     (H : AtomicAddConstants checkSafety env venv entries outEnv outVEnv) :

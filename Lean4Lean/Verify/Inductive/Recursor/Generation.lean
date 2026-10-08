@@ -2175,8 +2175,8 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate
     (hctors : block.ctors = decl.constructorConstants)
     (hprojections : block.projections = decl.projectionEntries)
     (hrecursors : block.recursors = entries.map Prod.snd)
-    (hrules : IotaCertificate (envCtors.addProjections block.projections)
-      decl block)
+    (hrules : IotaCertificate
+      ((envCtors.addEliminators block.eliminators).addProjections block.projections) decl block)
     (hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
     OrdinaryShapeCertificate sourceEnv decl block := by
@@ -2211,7 +2211,8 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate_ofRuleBuild
     (hctors : block.ctors = decl.constructorConstants)
     (hprojections : block.projections = decl.projectionEntries)
     (hrecursors : block.recursors = entries.map Prod.snd)
-    (Hrules : IotaBuildCertificate (envCtors.addProjections block.projections)
+    (Hrules : IotaBuildCertificate
+      ((envCtors.addEliminators block.eliminators).addProjections block.projections)
       decl block block.rules)
     (hrulesLength : block.rules.length = decl.ownedConstructors.length)
     (hnames : List.Nodup

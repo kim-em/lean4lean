@@ -288,7 +288,8 @@ theorem familyTypesWF :
 
 theorem compiles : InductiveSignature.Compiles Eb sp.decl sp.block :=
   ⟨⟨sp.sig, sp.inst, ET, models H, H.hT, admissible H,
-    ⟨EC, H.hC, recursiveTypesWF H, familyTypesWF H⟩, fun ⟨0, _⟩ => rfl, rfl, rfl⟩⟩
+    ⟨EC, [], H.hC, (fun _ h => by cases h), recursiveTypesWF H, familyTypesWF H⟩,
+    fun ⟨0, _⟩ => rfl, rfl, rfl⟩⟩
 
 theorem blockWF : VInductBlock.WF Eb sp.block := by
   refine ⟨ET, EC, ER, H.hT, H.hC, H.hR, ?_, ?_, ?_, ?_⟩
@@ -319,7 +320,7 @@ theorem eliminatorsWF : VInductBlock.EliminatorsWF Eb sp.decl sp.block := by
   refine ⟨ET, EC, H.hT, H.hC, .inr ⟨sp.fam, _, rfl, ?_, rfl, ?_, ?_⟩⟩
   · exact CaseSchema.ofCaseCompilation_certified
       (CaseCompilationData.ofOrdinary (sourceWF H) (formationWF H) (models H) H.hT H.hC
-        (familyTypesWF H) rfl rfl rfl) .nil recursorNamesFresh_nil
+        (es := []) (fun _ h => by cases h) (familyTypesWF H) rfl rfl rfl) .nil recursorNamesFresh_nil
   · apply CaseSchema.projNamesRegistered_of_projFree
     · intro owner
       have h0 : owner = ⟨0, by simp [sig, CaseSchema.ofCompilation]⟩ :=

@@ -174,11 +174,14 @@ structure CaseCompilationData (env : VEnv) (source expanded : VInductDecl)
       (RestoresFamily (compilationRestoration source auxiliaries) envTypes source.uvars)
       s.declaration.types (source.types ++ direct)
   /-- Well-formed family applications of the normalized signature, in the expanded
-  constructor environment with its projection entries. -/
-  familyTypesWF : ∃ envExpandedTypes envExpandedCtors,
+  constructor environment with the expanded declaration's own case eliminators
+  (`VInductDecl.OwnCaseEliminators`) and its projection entries. -/
+  familyTypesWF : ∃ envExpandedTypes envExpandedCtors es,
     env.addConstVals expanded.typeConstants = some envExpandedTypes ∧
     envExpandedTypes.addConstVals expanded.constructorConstants = some envExpandedCtors ∧
-    s.FamilyTypesWF (envExpandedCtors.addProjections expanded.projectionEntries) expanded.uvars
+    expanded.OwnCaseEliminators env es ∧
+    s.FamilyTypesWF ((envExpandedCtors.addEliminators es).addProjections
+      expanded.projectionEntries) expanded.uvars
   types : block.types = source.typeConstants
   ctors : block.ctors = source.constructorConstants
   projections : block.projections = source.projectionEntries
@@ -200,11 +203,14 @@ structure CompilationData (env : VEnv) (source expanded : VInductDecl)
   admissible : ∃ envExpandedTypes,
     env.addConstVals expanded.typeConstants = some envExpandedTypes ∧
     g.Admissible envExpandedTypes
-  recursiveTypesWF : ∃ envExpandedTypes envExpandedCtors,
+  recursiveTypesWF : ∃ envExpandedTypes envExpandedCtors es,
     env.addConstVals expanded.typeConstants = some envExpandedTypes ∧
     envExpandedTypes.addConstVals expanded.constructorConstants = some envExpandedCtors ∧
-    g.RecursiveTypesWF (envExpandedCtors.addProjections expanded.projectionEntries) ∧
-    s.FamilyTypesWF (envExpandedCtors.addProjections expanded.projectionEntries) expanded.uvars
+    expanded.OwnCaseEliminators env es ∧
+    g.RecursiveTypesWF ((envExpandedCtors.addEliminators es).addProjections
+      expanded.projectionEntries) ∧
+    s.FamilyTypesWF ((envExpandedCtors.addEliminators es).addProjections
+      expanded.projectionEntries) expanded.uvars
   recursorNames : ∀ owner, g.recursorName owner = s.families[owner].name.str "rec"
   generatedNames : ((expanded.typeConstants ++ expanded.constructorConstants ++
     g.recursors).map (·.name)).Nodup
@@ -302,10 +308,10 @@ theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}
     restorationScoped := ?_
     correspondence := ?_
     admissible := ⟨envTypes, hadded, Hadmissible⟩
-    recursiveTypesWF := let ⟨envCtors, hc, hwf, hfam⟩ := Hrec
-      ⟨envTypes, envCtors, hadded, hc, hwf, hfam⟩
-    familyTypesWF := let ⟨envCtors, hc, _, hfam⟩ := Hrec
-      ⟨envTypes, envCtors, hadded, hc, hfam⟩
+    recursiveTypesWF := let ⟨envCtors, es, hc, hes, hwf, hfam⟩ := Hrec
+      ⟨envTypes, envCtors, es, hadded, hc, hes, hwf, hfam⟩
+    familyTypesWF := let ⟨envCtors, es, hc, hes, _, hfam⟩ := Hrec
+      ⟨envTypes, envCtors, es, hadded, hc, hes, hfam⟩
     recursorNames := hrecNames
     generatedNames := ?_
     recursorsFresh := ?_
@@ -337,7 +343,9 @@ theorem CaseCompilationData.ofOrdinary {env : VEnv} {source : VInductDecl}
     (Hmodel : s.Models env source)
     (hadded : env.addConstVals source.typeConstants = some envTypes)
     (hctorsAdded : envTypes.addConstVals source.constructorConstants = some envCtors)
-    (hfam : s.FamilyTypesWF (envCtors.addProjections source.projectionEntries) source.uvars)
+    {es : List (Name × CaseSchema)} (hes : source.OwnCaseEliminators env es)
+    (hfam : s.FamilyTypesWF ((envCtors.addEliminators es).addProjections source.projectionEntries)
+      source.uvars)
     (htypes : block.types = source.typeConstants)
     (hctors : block.ctors = source.constructorConstants)
     (hprojections : block.projections = source.projectionEntries) :
@@ -358,7 +366,7 @@ theorem CaseCompilationData.ofOrdinary {env : VEnv} {source : VInductDecl}
     · simp
     · simpa only [show compilationRestoration source [] = {} from rfl, List.append_nil] using
         Hmodel.restores_empty Hformation.sourceParameterWF hadded
-  familyTypesWF := ⟨envTypes, envCtors, hadded, hctorsAdded, hfam⟩
+  familyTypesWF := ⟨envTypes, envCtors, es, hadded, hctorsAdded, hes, hfam⟩
   types := htypes
   ctors := hctors
   projections := hprojections
