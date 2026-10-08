@@ -120,7 +120,7 @@ structure
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) where
   fieldScope : VLCtx
-  runtime : checkInductiveTypes.loopType.NarrowRuntimeScope
+  runtime : checkInductiveTypes.loopType.FrontScopeEmbedding
     A.semantics.fieldRootContext.venv
     (AddInductive.getRecLevelParams H.elimLevel c.lparams)
     fieldScope A.semantics.context.mlctx.vlctx
@@ -149,7 +149,7 @@ structure
 
 /-- The rule-wide narrowing frame is literally the constructor-field
 telescope abstracted over the cached parameter declarations.  This exposes
-the context hidden behind `NarrowRuntimeScope` in the form used by the
+the context hidden behind `FrontScopeEmbedding` in the form used by the
 selected-minor translation. -/
 theorem
     RecursorCheck.RuleAlignment.FieldFrame.fieldScope_eq
@@ -235,7 +235,7 @@ def RecursorCheck.RuleAlignment.FieldFrame.core
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {A : H.RuleAlignment owner howner i hctor}
     (B : A.FieldFrame) :
-    checkInductiveTypes.loopType.FVarNarrowCore H.outVEnv
+    checkInductiveTypes.loopType.FVarCheckingScopeCore H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       B.fieldScope A.semantics.context.mlctx.vlctx := by
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
@@ -263,7 +263,7 @@ def RecursorCheck.RuleAlignment.FieldFrame.core
         B.fieldScope
     rw [← hscope, VLCtx.fvars_append]
     simpa [Hruntime,
-      checkInductiveTypes.loopType.NarrowRuntimeScope.mono] using Happ
+      checkInductiveTypes.loopType.FrontScopeEmbedding.mono] using Happ
   exact {
     expanded := Hruntime.expanded
     shift := Hruntime.shift
@@ -295,7 +295,7 @@ theorem
     (B : A.FieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowCore H.outVEnv Us
+      ∃ Hscope : checkInductiveTypes.loopType.FVarCheckingScopeCore H.outVEnv Us
           scope F.semantic.current_context.mlctx.vlctx,
         scope.fvars = F.semantic.recent.fvars.reverse ++
           B.fieldScope.fvars ∧
@@ -447,11 +447,11 @@ theorem
         have h := Hbody.closed
         rwa [Hscope.noBV] at h)]
       simpa [HlocalBase,
-        checkInductiveTypes.loopType.FVarNarrowCore.retargetRuntime] using
+        checkInductiveTypes.loopType.FVarCheckingScopeCore.retargetRuntime] using
         Hreplay Hbody HbodyType, hembLocal⟩
 
-theorem checkInductiveTypes.loopType.FVarNarrowCore.fullTargetEqs
-    (H : checkInductiveTypes.loopType.FVarNarrowCore env Us scope runtime)
+theorem checkInductiveTypes.loopType.FVarCheckingScopeCore.fullTargetEqs
+    (H : checkInductiveTypes.loopType.FVarCheckingScopeCore env Us scope runtime)
     (henv : env.WF) :
     ∀ {sources : List Expr} {narrow full : List VExpr},
       List.Forall₂ (TrExprS env Us scope) sources narrow →
@@ -492,7 +492,7 @@ theorem
           F.semantic.current_context stats H.recInfos[selectedOwner]!
           binding F.semantic.generated.exposedType F.semantic.exposedTarget,
       ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowCore H.outVEnv Us
+      ∃ Hscope : checkInductiveTypes.loopType.FVarCheckingScopeCore H.outVEnv Us
           scope F.semantic.current_context.mlctx.vlctx,
       ∃ localDomains narrowIndices,
         scope.fvars = F.semantic.recent.fvars.reverse ++
@@ -688,7 +688,7 @@ theorem
           F.semantic.current_context stats H.recInfos[selectedOwner]!
           binding F.semantic.generated.exposedType F.semantic.exposedTarget,
       ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowCore H.outVEnv Us
+      ∃ Hscope : checkInductiveTypes.loopType.FVarCheckingScopeCore H.outVEnv Us
           scope F.semantic.current_context.mlctx.vlctx,
       ∃ (fieldDomains localDomains narrowIndices : List VExpr)
           (narrowMajor narrowExposed : VExpr),
@@ -1323,7 +1323,7 @@ theorem
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
     {outerScope : VLCtx}
-    (Houter : checkInductiveTypes.loopType.FVarNarrowScope H.outVEnv
+    (Houter : checkInductiveTypes.loopType.ScopeEmbedding H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       outerScope H.recursorWF.mlctx.vlctx)
     (restBinders : List FVarId) (Trest : List VExpr)

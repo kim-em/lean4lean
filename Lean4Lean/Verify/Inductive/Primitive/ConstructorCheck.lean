@@ -189,7 +189,7 @@ private theorem primitiveTailReplay
     change env.IsDefEq Us.length [] ctorVal.type ctorVal.type (.sort u)
     exact htyped
   have Hsynthesis :=
-    checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.empty
+    checkInductiveTypes.loopType.ScopedHeaderTelescope.empty
       htailType' htailType' hheader
   simpa [hparams] using Nonempty.intro Hsynthesis
 
@@ -880,7 +880,7 @@ theorem AddInductive.checkConstructors.primitiveCoreWF
       isUnsafe) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := headerEnv }).WF fun _ =>
-        CheckedConstructorsResult sourceEnv decl H.context.venv
+        CheckedConstructors sourceEnv decl H.context.venv
             H.headers.params stats indTypes c.lparams
             H.statsWF.parameterScope ∧
           CheckedConstructorOwnerNormalForms stats indTypes := by

@@ -53,7 +53,7 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScopeAligned
     (H : MLCtxLamPrefix runtime n domains)
     (henv : env.WF)
     (Hwf : runtime.WF env Us)
-    (Hbase : checkInductiveTypes.loopType.NarrowRuntimeScope env Us
+    (Hbase : checkInductiveTypes.loopType.FrontScopeEmbedding env Us
       baseScope (runtime.dropN n H.le).vlctx)
     (hup : IsFVarUpSet
       (fun fv => fv ∈ runtime.fvarRevList n H.le ++ baseScope.fvars)
@@ -62,7 +62,7 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScopeAligned
     (hn : n ≤ chk.length) (hagree : MLCtxTopAgree runtime chk n)
     (hbaseAlign : VLCtx.IsDefEq env Us.length baseScope (chk.dropN n hn).vlctx) :
     ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope env Us
+      ∃ Hscope : checkInductiveTypes.loopType.FrontScopeEmbedding env Us
           scope runtime.vlctx,
         scope.fvars = runtime.fvarRevList n H.le ++ baseScope.fvars ∧
         scope.drop Hscope.frontSourceDomains.length =
@@ -141,11 +141,11 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScopeAligned
     obtain ⟨v, hv⟩ := HnarrowIsType
     refine ⟨_, Hnext, ?_, ?_, ⟨tailDomains ++ [narrowType], ?_, ?_⟩, ?_⟩
     · simp [Hnext, htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
-    · dsimp [Hnext, checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex]
+    · dsimp [Hnext, checkInductiveTypes.loopType.FrontScopeEmbedding.withIndex]
       simpa only [List.length_append, List.length_singleton,
         List.drop_succ_cons] using htailBase
     · simp [htailDomains]
-    · dsimp [Hnext, checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex]
+    · dsimp [Hnext, checkInductiveTypes.loopType.FrontScopeEmbedding.withIndex]
       rw [htailFront]
       simp [List.append_assoc]
     · exact halignTail.consAligned hfreshScope hdeps

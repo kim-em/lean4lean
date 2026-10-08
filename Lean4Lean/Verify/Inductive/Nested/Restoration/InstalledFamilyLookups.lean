@@ -771,7 +771,7 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
@@ -1329,7 +1329,7 @@ theorem StateForMTrace.sourceFamiliesProductionInductiveOrigins
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
@@ -1385,7 +1385,7 @@ theorem RestoredNestedDeclarationsResult.productionInductiveOrigins
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)

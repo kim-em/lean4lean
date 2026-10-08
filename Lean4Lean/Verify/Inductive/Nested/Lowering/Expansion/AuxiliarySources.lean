@@ -2205,7 +2205,7 @@ theorem NestedLoweringRun.allExpansionsOfNativeSources
       isUnsafe sourceDecl sourceEnvTypes sourceEnvCtors)
     (Htarget : TrInductDeclCore baseVEnv lparams nparams result.types
       isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Henv : EnvironmentTypesClosed prodEnv)
     (hclosures : MutualInductivesClosed prodEnv)

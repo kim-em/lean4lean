@@ -21,14 +21,14 @@ theorem accumulatesSemanticTargets
     {indTypes : Array InductiveType} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     {Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList}
     {headerEnv : Environment}
     (Hheader : ContextWF { c with env := headerEnv })
     (hmlctx : Hheader.mlctx = Hc.mlctx)
     (htypesAdded : Hc.venv.addConstVals
       (Hsemantic.headerDecl isUnsafe).typeConstants = some Hheader.venv)
-    (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+    (Hmaterialized : checkInductiveTypes.loopInd.HeaderStatsWF
       Hc.venv c.lparams Hc.mlctx.vlctx stats
         (Hsemantic.headerDecl isUnsafe) depth)
     (hheaderParams : Hmaterialized.headers.params = commonParams)
@@ -38,7 +38,7 @@ theorem accumulatesSemanticTargets
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Hheader.venv stats.indConsts)
     (hlparams : c.lparams.Nodup)
-    (Hfinish : CheckedSourceConstructorRows Hheader.venv
+    (Hfinish : RawBlockCtorTranslations Hheader.venv
       c.lparams indTypes.toList → Q ()) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
       { c with env := headerEnv }).WF Q := by
@@ -46,7 +46,7 @@ theorem accumulatesSemanticTargets
     Hmaterialized.mono (VEnv.addConstVals_le htypesAdded)
   have hscope : Hc.mlctx.vlctx = Hheader.mlctx.vlctx :=
     congrArg TypeChecker.MLCtx.vlctx hmlctx.symm
-  let Hmaterialized' : checkInductiveTypes.loopInd.MaterializedHeaderResult
+  let Hmaterialized' : checkInductiveTypes.loopInd.HeaderStatsWF
       Hheader.venv c.lparams Hheader.mlctx.vlctx stats
         (Hsemantic.headerDecl isUnsafe) depth :=
     HmaterializedMono.retargetScope hscope
@@ -59,17 +59,17 @@ theorem accumulatesSemanticTargets
       calc
         Hmaterialized'.headers.params =
             HmaterializedMono.headers.params := by
-          exact checkInductiveTypes.loopInd.MaterializedHeaderResult.retargetScope_headers_params
+          exact checkInductiveTypes.loopInd.HeaderStatsWF.retargetScope_headers_params
             HmaterializedMono hscope
         _ = Hmaterialized.headers.params :=
-          checkInductiveTypes.loopInd.MaterializedHeaderResult.mono_headers_params
+          checkInductiveTypes.loopInd.HeaderStatsWF.mono_headers_params
             Hmaterialized (VEnv.addConstVals_le htypesAdded)
         _ = commonParams := hheaderParams
   have hparamsCtx : VEnv.IsDefEqCtx Hheader.venv
       (Hsemantic.headerDecl isUnsafe).uvars []
       commonParams.reverse Hsuffix.parameterDecls.toCtx := by
     simpa [Hsuffix,
-      checkInductiveTypes.loopInd.MaterializedHeaderResult.parameterSuffix,
+      checkInductiveTypes.loopInd.HeaderStatsWF.parameterSuffix,
       hheaderParams', Hmaterialized'.uvars] using
       Hmaterialized'.paramsContext
   apply checkConstructors.loopTypes.accumulatesRawTargets
@@ -77,7 +77,7 @@ theorem accumulatesSemanticTargets
     (targetIdx := 0) (Q := Q) Hheader
     (by
       simpa using
-        (CheckedSourceConstructorRows.empty Hheader.venv c.lparams))
+        (RawBlockCtorTranslations.empty Hheader.venv c.lparams))
   · intro familyIdx hfamily ctorIdx hctor checkedType Hchecked R hR
     have htarget : familyIdx <
         (Hsemantic.headerDecl isUnsafe).types.length := by
@@ -105,12 +105,12 @@ theorem accumulatesSemanticTargets
       (fuel := { c with env := headerEnv }.fuel.inductiveFuel)
       Hheader Hsuffix Hstats
       (by simpa [Hsuffix, Hmaterialized', HmaterializedMono,
-        checkInductiveTypes.loopInd.MaterializedHeaderResult.parameterSuffix]
+        checkInductiveTypes.loopInd.HeaderStatsWF.parameterSuffix]
         using halign)
       hparamsCtx
       Hchecked.source Hchecked.typing htarget rfl htargetUvars
       htargetLookup htargetWF htargetShape hconsume hlit
-      (fun h => by simpa [checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.headerDecl]
+      (fun h => by simpa [checkInductiveTypes.loopType.CheckedHeaders.headerDecl]
         using h)
       (Hmaterialized'.universeBound familyIdx htarget)
       (Hmaterialized'.levelParamsTranslation hlparams)
@@ -126,14 +126,14 @@ theorem assemblesSemanticHeadersExact
     {indTypes : Array InductiveType} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     {Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList}
     {headerEnv : Environment}
     (Hheader : ContextWF { c with env := headerEnv })
     (hmlctx : Hheader.mlctx = Hc.mlctx)
     (htypesAdded : Hc.venv.addConstVals
       (Hsemantic.headerDecl isUnsafe).typeConstants = some Hheader.venv)
-    (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+    (Hmaterialized : checkInductiveTypes.loopInd.HeaderStatsWF
       Hc.venv c.lparams Hc.mlctx.vlctx stats
         (Hsemantic.headerDecl isUnsafe) depth)
     (hheaderParams : Hmaterialized.headers.params = commonParams)
@@ -146,17 +146,17 @@ theorem assemblesSemanticHeadersExact
     (hlparams : c.lparams.Nodup) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
       { c with env := headerEnv }).WF fun _ =>
-        Nonempty (AssembledSemanticHeadersOf Hc.venv
+        Nonempty (HeaderDeclarationOf Hc.venv
           Hheader.venv c.lparams nparams indTypes.toList
             isUnsafe commonParams commonLevel Hsemantic) := by
   apply accumulatesSemanticTargets
-    (Q := fun _ => Nonempty (AssembledSemanticHeadersOf Hc.venv
+    (Q := fun _ => Nonempty (HeaderDeclarationOf Hc.venv
       Hheader.venv c.lparams nparams indTypes.toList isUnsafe
         commonParams commonLevel Hsemantic))
     Hheader hmlctx htypesAdded Hmaterialized hheaderParams halign
     hconsume hlit hlparams
   intro Hrows
-  exact AssembledSemanticHeaders.ofTargetsExact Hsemantic Hrows hcommonParams
+  exact HeaderDeclaration.ofTargetsExact Hsemantic Hrows hcommonParams
     (by simpa using htypesAdded)
 
 end checkConstructors.loopTypes

@@ -98,8 +98,8 @@ end checkPositivityStep
 
 /-- Header materialization exposes the exact family-name array, so the finite
 source-name condition is sufficient at every downstream positivity call. -/
-theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.literalDisjoint
-    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult
+theorem checkInductiveTypes.loopInd.HeaderStatsWF.literalDisjoint
+    (H : checkInductiveTypes.loopInd.HeaderStatsWF
       env Us Delta stats decl depth)
     (hdisjoint : checkPositivityStep.LiteralConstructorNamesDisjoint
       (decl.types.map (·.name))) :
@@ -115,8 +115,8 @@ theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.literalDisjoint
 
 /-- Materialized family constants cannot occur in a natural-number literal
 when neither reserved natural constructor is a family name. -/
-theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.natLiteralDisjoint
-    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult
+theorem checkInductiveTypes.loopInd.HeaderStatsWF.natLiteralDisjoint
+    (H : checkInductiveTypes.loopInd.HeaderStatsWF
       env Us Delta stats decl depth)
     (hzero : ``Nat.zero ∉ decl.types.map (·.name))
     (hsucc : ``Nat.succ ∉ decl.types.map (·.name))

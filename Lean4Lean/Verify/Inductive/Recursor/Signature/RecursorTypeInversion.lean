@@ -418,10 +418,10 @@ theorem RecursorConstruction.recursorTelescope_minorFields
 
 /-- The executable's universe arguments translate to the recursor's abstract
 level list, for any materialized header over the same parameter names. -/
-theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.recursorLevelTranslation'
+theorem checkInductiveTypes.loopInd.HeaderStatsWF.recursorLevelTranslation'
     {env : VEnv} {Us : List Name} {Δ : VLCtx} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat}
-    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult env Us Δ stats decl depth)
+    (H : checkInductiveTypes.loopInd.HeaderStatsWF env Us Δ stats decl depth)
     (hlparams : Us.Nodup) {elimLevel : Level}
     (Helim : AddInductive.AdmissibleElimLevel Us elimLevel) :
     stats.levels.mapM (VLevel.ofLevel (AddInductive.getRecLevelParams elimLevel Us)) =

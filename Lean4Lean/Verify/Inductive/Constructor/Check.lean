@@ -423,7 +423,7 @@ constructor environment only when recursor checking begins. -/
 def ConstructorCheck.recursorHeaders
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv) :
-    checkInductiveTypes.loopInd.MaterializedHeaderResult
+    checkInductiveTypes.loopInd.HeaderStatsWF
       R.context.venv c.lparams R.context.mlctx.vlctx stats decl depth := by
   let M := R.statsWF.mono (R.installation.constructorLE.trans R.ctorLE)
   exact {
@@ -445,16 +445,16 @@ def ConstructorCheck.recursorHeaders
       simpa only [R.contextMLCtx] using M.scopeDecomposition
     ambientLength := M.ambientLength
     cachedScope := M.cachedScope
-    runtimeScope := by simpa only [R.contextMLCtx] using M.runtimeScope
+    parameterEmbedding := by simpa only [R.contextMLCtx] using M.parameterEmbedding
     paramsContext := M.paramsContext
-    narrowParams := M.narrowParams }
+    suffixParams := M.suffixParams }
 
 theorem ConstructorCheck.materializedFinal_parameterScope
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv) :
     R.recursorHeaders.parameterScope = R.parameterScope := by
   simp [ConstructorCheck.recursorHeaders,
-    checkInductiveTypes.loopInd.MaterializedHeaderResult.mono,
+    checkInductiveTypes.loopInd.HeaderStatsWF.mono,
     R.materializedParameterScope]
 
 /-- Embed the ordinary formation result into the completed constructor

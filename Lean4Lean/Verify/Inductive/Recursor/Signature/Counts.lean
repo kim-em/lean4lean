@@ -305,7 +305,7 @@ theorem RecursorCardinalityCertificate.ofResult
     (Hdecl : TrInductDeclCore env lparams nparams indTypes.toList isUnsafe
       decl envTypes envCtors)
     (Hmaterialized :
-      checkInductiveTypes.loopInd.MaterializedHeaderResult
+      checkInductiveTypes.loopInd.HeaderStatsWF
         headerEnv lparams Δ stats decl depth)
     (hsize : recInfos.size = indTypes.size)
     (hcounts : ∀ i, i < recInfos.size →
@@ -321,7 +321,7 @@ theorem RecursorCardinalityCertificate.ofResult
         Hmaterialized).types_size
   params := by
     have hlen := List.Forall₂.length_eq
-      Hmaterialized.narrowParams
+      Hmaterialized.suffixParams
     simpa [VInductDecl.paramVars] using hlen
   motives := mkRecInfos.motives_size_of_translation Hdecl hsize
   minors := mkRecInfos.flatMinors_size_of_translation Hdecl hsize hcounts

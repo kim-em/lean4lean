@@ -549,7 +549,7 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
             typesInstalled := H.translation.typesAdded
             constructorParameters := Hchecked.1.parameterShapes
               H.context.checking.wf H.translation.types
-              (H.statsWF.runtimeScope.scopeWF H.context.checking.wf)
+              (H.statsWF.parameterEmbedding.scopeWF H.context.checking.wf)
               (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
                 H.statsWF).params_size
               H.statsWF.uvars.symm (by
@@ -558,7 +558,7 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
             constructors := Hchecked.1.checked.formation
             rawShapes := Hchecked.1.rawShapes H.context.checking.wf
               H.translation.types
-              (H.statsWF.runtimeScope.scopeWF H.context.checking.wf)
+              (H.statsWF.parameterEmbedding.scopeWF H.context.checking.wf)
               (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
                 H.statsWF).params_size }
           exact ⟨{

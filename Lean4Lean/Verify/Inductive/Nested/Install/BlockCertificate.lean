@@ -226,7 +226,7 @@ theorem NestedFinalAssemblyCertificate.productionInductiveOrigins
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c)
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
-    (Hmetadata : MaterializedInductivePrefix decl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered decl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : decl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
@@ -521,7 +521,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProduction
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
-    (Hmetadata : MaterializedInductivePrefix decl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered decl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : decl.ConstructorArityPrefix loweredDecl)
     (hempty : initialState.nestedAux = #[])
@@ -770,7 +770,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProduction
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
-    (Hmetadata : MaterializedInductivePrefix decl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered decl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : decl.ConstructorArityPrefix loweredDecl)
     (hempty : initialState.nestedAux = #[])

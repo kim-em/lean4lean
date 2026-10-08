@@ -174,12 +174,12 @@ namespace VerifyInductive
 namespace checkInductiveTypes.loopType
 
 /-- The proof-relevant core of a dependency-selected scope.  Unlike
-`FVarNarrowScope`, this certificate does not retain source declaration names
+`ScopeEmbedding`, this certificate does not retain source declaration names
 and domains; equation assembly needs the checked embedding, declaration
 shape, and target context, but closes its already-abstracted source terms
 directly.  Omitting source provenance lets the certificate reuse the exact
 cached parameter/field targets rather than choosing a second translation. -/
-structure FVarNarrowCore (env : VEnv) (Us : List Name)
+structure FVarCheckingScopeCore (env : VEnv) (Us : List Name)
     (scope runtime : VLCtx) : Type where
   expanded : VLCtx
   shift : Lift
@@ -193,9 +193,9 @@ structure FVarNarrowCore (env : VEnv) (Us : List Name)
     scope.fvars scope
   wf : scope.WF env Us.length
 
-def FVarNarrowCore.retargetRuntime
-    (H : FVarNarrowCore env Us scope runtime) (h : runtime = runtime') :
-    FVarNarrowCore env Us scope runtime' where
+def FVarCheckingScopeCore.retargetRuntime
+    (H : FVarCheckingScopeCore env Us scope runtime) (h : runtime = runtime') :
+    FVarCheckingScopeCore env Us scope runtime' where
   expanded := H.expanded
   shift := H.shift
   lift := H.lift
@@ -205,17 +205,17 @@ def FVarNarrowCore.retargetRuntime
   declarations := H.declarations
   wf := H.wf
 
-theorem FVarNarrowCore.scopeWF
-    (H : FVarNarrowCore env Us scope runtime) (_henv : env.WF) :
+theorem FVarCheckingScopeCore.scopeWF
+    (H : FVarCheckingScopeCore env Us scope runtime) (_henv : env.WF) :
     scope.WF env Us.length := H.wf
 
-theorem FVarNarrowCore.toCtx_length
-    (H : FVarNarrowCore env Us scope runtime) :
+theorem FVarCheckingScopeCore.toCtx_length
+    (H : FVarCheckingScopeCore env Us scope runtime) :
     scope.toCtx.length = scope.length :=
   VLCtx.toCtx_length_of_forall₂_vlam H.declarations
 
-theorem FVarNarrowCore.fullTargetEq
-    (H : FVarNarrowCore env Us scope runtime) (henv : env.WF)
+theorem FVarCheckingScopeCore.fullTargetEq
+    (H : FVarCheckingScopeCore env Us scope runtime) (henv : env.WF)
     (hnarrow : TrExprS env Us scope e narrow')
     (hfull : TrExpr env Us runtime e full') :
     env.IsDefEqU Us.length runtime.toCtx
@@ -239,13 +239,13 @@ private theorem coreNamedDeclarations_fvars
     rcases h with ⟨deps, type, rfl⟩
     simpa [VLCtx.fvars] using ih
 
-theorem FVarNarrowCore.fvars_take
-    (H : FVarNarrowCore env Us scope runtime) (n : Nat) :
+theorem FVarCheckingScopeCore.fvars_take
+    (H : FVarCheckingScopeCore env Us scope runtime) (n : Nat) :
     VLCtx.fvars (scope.take n) = scope.fvars.take n :=
   coreNamedDeclarations_fvars (List.forall₂_take H.declarations n)
 
-theorem FVarNarrowCore.abstractPrefix
-    (H : FVarNarrowCore env Us scope runtime) (henv : env.WF) (n : Nat)
+theorem FVarCheckingScopeCore.abstractPrefix
+    (H : FVarCheckingScopeCore env Us scope runtime) (henv : env.WF) (n : Nat)
     (hbase : scope.drop n = baseScope)
     (Htr : TrExprS env Us scope source target) :
     TrExprS env Us
@@ -268,15 +268,15 @@ theorem FVarNarrowCore.abstractPrefix
     (domains := []) Hprefix hnodup Htr'
   simpa [scopePrefix, tail, hprefixFVars, hbase] using Habstract
 
-def FVarNarrowCore.withIndex
-    (H : FVarNarrowCore env Us scope runtime)
+def FVarCheckingScopeCore.withIndex
+    (H : FVarCheckingScopeCore env Us scope runtime)
     (hnewRuntime : VLCtx.WF env Us.length
       ((some (fv, deps), .vlam runtimeType) :: runtime))
     (hdeps : deps ⊆ scope.fvars)
     (hdomain : env.IsDefEq Us.length H.expanded.toCtx
       (indexType.lift' H.shift) runtimeType (.sort u))
     (htype : env.IsType Us.length scope.toCtx indexType) :
-    FVarNarrowCore env Us
+    FVarCheckingScopeCore env Us
       ((some (fv, deps), .vlam indexType) :: scope)
       ((some (fv, deps), .vlam runtimeType) :: runtime) where
   expanded :=
@@ -311,12 +311,12 @@ def FVarNarrowCore.withIndex
       exact H.lift.fvars_sublist.subset
     exact (hnewRuntime.2.1 _ _ rfl).1 (hsub hmem)
 
-def FVarNarrowCore.skipIndex
-    (H : FVarNarrowCore env Us scope runtime) (henv : env.WF)
+def FVarCheckingScopeCore.skipIndex
+    (H : FVarCheckingScopeCore env Us scope runtime) (henv : env.WF)
     (hnewRuntime : VLCtx.WF env Us.length
       ((some (fv, deps), .vlam runtimeType) :: runtime))
     (hskip : fv ∉ scope.fvars) :
-    FVarNarrowCore env Us scope
+    FVarCheckingScopeCore env Us scope
       ((some (fv, deps), .vlam runtimeType) :: runtime) where
   expanded := (some (fv, deps), .vlam runtimeType) :: H.expanded
   shift := H.shift.skipN 1
@@ -345,11 +345,11 @@ theorem MLCtxLamPrefix.skipFVarNarrowCore
     (H : MLCtxLamPrefix runtime n domains)
     (henv : env.WF) (Hwf : runtime.WF env Us)
     (Hbase : Nonempty
-      (checkInductiveTypes.loopType.FVarNarrowCore env Us
+      (checkInductiveTypes.loopType.FVarCheckingScopeCore env Us
         baseScope (runtime.dropN n H.le).vlctx))
     (hskip : ∀ fv ∈ runtime.fvarRevList n H.le,
       fv ∉ baseScope.fvars) :
-    Nonempty (checkInductiveTypes.loopType.FVarNarrowCore env Us
+    Nonempty (checkInductiveTypes.loopType.FVarCheckingScopeCore env Us
       baseScope runtime.vlctx) := by
   induction H with
   | nil runtime => exact Hbase
@@ -372,7 +372,7 @@ restricted. -/
 theorem MLCtxLamPrefix.extendFVarNarrowCoreEmbedded
     (H : MLCtxLamPrefix runtime n domains)
     (henv : env.WF) (Hwf : runtime.WF env Us)
-    (Hbase : checkInductiveTypes.loopType.FVarNarrowCore env Us
+    (Hbase : checkInductiveTypes.loopType.FVarCheckingScopeCore env Us
       baseScope (runtime.dropN n H.le).vlctx)
     (hup : IsFVarUpSet
       (fun fv => fv ∈ runtime.fvarRevList n H.le ++ baseScope.fvars)
@@ -381,7 +381,7 @@ theorem MLCtxLamPrefix.extendFVarNarrowCoreEmbedded
     (hn : n ≤ chk.length) (hagree : MLCtxTopAgree runtime chk n)
     (hbaseEmb : ChkEmbeds env Us.length (chk.dropN n hn).vlctx baseScope) :
     ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowCore env Us
+      ∃ Hscope : checkInductiveTypes.loopType.FVarCheckingScopeCore env Us
           scope runtime.vlctx,
         scope.fvars = runtime.fvarRevList n H.le ++ baseScope.fvars ∧
         scope.drop n = baseScope ∧
@@ -488,11 +488,11 @@ theorem MLCtxLamPrefix.extendFVarNarrowCoreEmbedded
           (body.abstract1 fv) target := by
         apply TrExprS.abstract W
         simpa [Hnext,
-          checkInductiveTypes.loopType.FVarNarrowCore.withIndex] using Hbody
+          checkInductiveTypes.loopType.FVarCheckingScopeCore.withIndex] using Hbody
       have HbodyType' : env.IsType Us.length
           (narrowType :: tailScope.toCtx) target := by
         simpa [Hnext,
-          checkInductiveTypes.loopType.FVarNarrowCore.withIndex,
+          checkInductiveTypes.loopType.FVarCheckingScopeCore.withIndex,
           VLCtx.toCtx] using HbodyType
       have Hone : TrExprS env Us tailScope
           (.forallE name type (body.abstract1 fv) bi)
@@ -566,7 +566,7 @@ theorem
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let parameterDecls := A.semantics.parameterSuffix.parameterDecls
     ∃ fieldScope,
-      ∃ HfieldScope : checkInductiveTypes.loopType.NarrowRuntimeScope
+      ∃ HfieldScope : checkInductiveTypes.loopType.FrontScopeEmbedding
           A.semantics.fieldRootContext.venv Us fieldScope
             A.semantics.context.mlctx.vlctx,
         fieldScope.fvars =
@@ -581,7 +581,7 @@ theorem
             fieldScope A.semantics.context.chk.vlctx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let parameterDecls := A.semantics.parameterSuffix.parameterDecls
-  let Hparameter := A.semantics.parameterSuffix.runtimeScope
+  let Hparameter := A.semantics.parameterSuffix.parameterEmbedding
   rcases A.semantics.context.onlyLams.lamPrefix
       A.rule.allArgs.size A.semantics.fieldsRecent.size_le with
     ⟨_runtimeFieldDomains, HfieldPrefix⟩
@@ -628,15 +628,15 @@ theorem
   have hbase : fieldScope.drop HfieldScope.frontSourceDomains.length =
       parameterDecls := by
     simpa [HfieldBase, Hparameter,
-      checkInductiveTypes.loopType.NarrowRuntimeScope.retargetRuntime,
-      RecursorParameterContextSuffix.runtimeScope,
-      checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix]
+      checkInductiveTypes.loopType.FrontScopeEmbedding.retargetRuntime,
+      RecursorParameterContextSuffix.parameterEmbedding,
+      checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix]
       using hfieldBase
   have hfront : HfieldScope.frontSourceDomains = fieldDomains := by
     simpa [HfieldBase, Hparameter,
-      checkInductiveTypes.loopType.NarrowRuntimeScope.retargetRuntime,
-      RecursorParameterContextSuffix.runtimeScope,
-      checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix]
+      checkInductiveTypes.loopType.FrontScopeEmbedding.retargetRuntime,
+      RecursorParameterContextSuffix.parameterEmbedding,
+      checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix]
       using hfieldFront
   exact ⟨fieldScope, HfieldScope, by simpa [hfieldRev] using
     hfieldScopeFVars, hbase, ⟨fieldDomains, hfieldDomains, hfront⟩,

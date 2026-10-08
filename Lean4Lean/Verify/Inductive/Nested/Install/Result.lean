@@ -56,7 +56,7 @@ theorem NestedExactFinalRunResult.inductiveFinalResult
       nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result := by
     simpa only [E.productionContext_env] using Hlower
-  have Hmetadata : MaterializedInductivePrefix decl
+  have Hmetadata : SourcePrefixOfLowered decl
       E.production.loweredDecl := by
     simpa only [E.production_eq] using E.assembly.materialized
   cases isUnsafe with
@@ -96,7 +96,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
       (Hctx : ContextWF c') →
       c'.allowPrimitive = false →
       c'.fuel = fuel →
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hctx.venv c'.lparams nparams commonParams commonLevel
           res.types.toArray.toList →
       PrimitiveNamesFresh c' stats nparams depth
@@ -195,7 +195,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
       have Howners : ConstructorOwnersPresent E'.productionContext.env := by
         rw [E'.productionContext_env]
         exact wf.constructorOwners
-      have Hmetadata : MaterializedInductivePrefix sourceDecl
+      have Hmetadata : SourcePrefixOfLowered sourceDecl
           E'.production.loweredDecl := by
         simpa only [E'.production_eq] using E'.assembly.materialized
       cases isUnsafe with

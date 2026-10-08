@@ -129,7 +129,7 @@ theorem ConstructorCheck.checkedConstructorPrefixSeedAt
         (AddInductive.getRecLevelParams elimLevel c.lparams).length
         Hsuffix.parameterDecls.toCtx introTarget tailTarget ∧
       Nonempty
-        (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        (checkInductiveTypes.loopType.ScopedHeaderTelescope
           Rbase.venv
           (AddInductive.getRecLevelParams elimLevel c.lparams)
           (recursorConstructorTelescopeTarget ctorVal Helim)
@@ -220,7 +220,7 @@ theorem ConstructorCheck.checkedConstructorPrefixSeedAt
       stats.params.toList
       (recursorCanonicalVars Hsynthesis.params.length) := by
     rw [← hcanonical]
-    exact Hsuffix.narrowParams
+    exact Hsuffix.suffixParams
   have Hintro : TrExprS Rbase.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       Hsuffix.parameterDecls
@@ -325,7 +325,7 @@ theorem ConstructorCheck.checkedConstructorRuntimeSeedAt
       HsuffixCurrent.parameterDecls.toCtx introNarrow tailNarrow := by
     rw [henvCurrent, hparameterDecls]
     simpa [Rbase, Hbase, HsuffixBase] using HintroType
-  rcases HsuffixCurrent.runtimeScope.transportTypedTerm
+  rcases HsuffixCurrent.parameterEmbedding.transportTypedTerm
       Rcurrent.checking.tr.wf HintroCurrent HtailCurrent
       HintroTypeCurrent HtailTypeCurrent with
     ⟨introTarget, tailTarget, HintroRuntime, HtailRuntime,

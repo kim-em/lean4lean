@@ -72,7 +72,7 @@ theorem AddConstants.ofDeclareInductiveTypeInfosExists
 /-- Production mutual-header metadata translates directly to the exact
 constants recovered by the skeleton-free header traversal. -/
 theorem AddInductive.inductiveTypeInfos.translatedMaterializedHeaders
-    (Hheaders : MaterializedSourceHeaderAccumulator env lparams
+    (Hheaders : HeaderTranslations env lparams
       indTypes.toList)
     (hindices : stats.nindices.size = indTypes.size)
     (hvisible : safety ≤
@@ -116,7 +116,7 @@ header constants in exact source order.  In particular the abstract
 caller skeleton. -/
 theorem AddInductive.declareInductiveTypes.installsMaterializedHeadersWF
     (Hc : ContextWF c)
-    (Hheaders : MaterializedSourceHeaderAccumulator Hc.venv c.lparams
+    (Hheaders : HeaderTranslations Hc.venv c.lparams
       indTypes.toList)
     (hindices : stats.nindices.size = indTypes.size)
     (hvisible : c.safety ≤
@@ -164,14 +164,14 @@ theorem AddInductive.declareInductiveTypes.installsMaterializedHeadersWF
 
 /-- Skeleton-free production boundary after all mutual family constants have
 been installed and before any constructor is checked. -/
-structure InstalledSemanticHeaders
+structure InstalledHeaders
     (c : AddInductive.Context) (Hc : ContextWF c)
     (stats : AddInductive.InductiveStats)
     (nparams : Nat) (indTypes : Array InductiveType)
     (numNested : Nat) (isUnsafe : Bool)
     (commonParams : List VExpr) (commonLevel : VLevel)
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList)
     (outEnv : Environment) where
   envTypes : VEnv
@@ -198,7 +198,7 @@ and normalized source telescope. -/
 theorem AddInductive.declareInductiveTypes.semanticHeadersWF
     (Hc : ContextWF c)
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams numParams commonParams commonLevel indTypes.toList)
     (hindices : stats.nindices.size = indTypes.size)
     (hvisible : c.safety ≤
@@ -209,7 +209,7 @@ theorem AddInductive.declareInductiveTypes.semanticHeadersWF
       ¬ Kernel.Environment.primitives.contains info.name) :
     (AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe c).WF fun outEnv =>
-        Nonempty (InstalledSemanticHeaders c Hc stats numParams indTypes
+        Nonempty (InstalledHeaders c Hc stats numParams indTypes
           numNested isUnsafe commonParams commonLevel Hsemantic outEnv) := by
   have Hinstall :=
     AddInductive.declareInductiveTypes.installsMaterializedHeadersWF

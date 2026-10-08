@@ -78,7 +78,7 @@ theorem AddInductive.runWithStats.semanticClosedWF
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList)
     (hlevels : stats.levels.length = c.lparams.length)
     (hlevelParams : stats.levels = c.lparams.map .param)
@@ -165,7 +165,7 @@ def OrdinaryRunResult
     c'.fuel = source.fuel ∧
     Hc'.venv = sourceEnv ∧
     ∃ Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc'.venv c'.lparams nparams commonParams commonLevel
           types.toArray.toList,
       OrdinaryInstallation c' stats nparams depth
@@ -190,7 +190,7 @@ theorem AddInductive.run.semanticSourceAlignedWF
       c'.allowPrimitive = c.allowPrimitive →
       c'.fuel = c.fuel →
       (Hsemantic :
-        checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+        checkInductiveTypes.loopType.CheckedHeaders
           Hc'.venv c'.lparams nparams commonParams commonLevel
             types.toArray.toList) →
       PrimitiveNamesFresh c' stats nparams depth numNested

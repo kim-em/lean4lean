@@ -259,7 +259,7 @@ structure CheckedFormation (c : AddInductive.Context)
   headerVEnv : VEnv
   sourceContext : ContextWF c
   sourceContextVEnv : sourceContext.venv = sourceEnv
-  sourceStatsWF : checkInductiveTypes.loopInd.MaterializedHeaderResult
+  sourceStatsWF : checkInductiveTypes.loopInd.HeaderStatsWF
     sourceContext.venv c.lparams sourceContext.mlctx.vlctx stats decl depth
   headerMLCtx : TypeChecker.MLCtx
   headers : HeaderCertificate sourceEnv decl
@@ -268,7 +268,7 @@ structure CheckedFormation (c : AddInductive.Context)
   sourceHeaderParams : sourceStatsWF.headers.params = params
   parameterScope : VLCtx
   sourceParameterScope : sourceStatsWF.parameterScope = parameterScope
-  statsWF : checkInductiveTypes.loopInd.MaterializedHeaderResult
+  statsWF : checkInductiveTypes.loopInd.HeaderStatsWF
     headerVEnv c.lparams headerMLCtx.vlctx stats decl depth
   materializedParams : statsWF.headers.params = params
   materializedParameterScope : statsWF.parameterScope = parameterScope
@@ -329,7 +329,7 @@ def SourceConstructorReplay (env : VEnv) (Us : List Name) (scope : VLCtx)
     CheckedConstructorParameterPrefix env Us stats source.type stats.params.size tail scope sourceDomains ∧
     TrExprS env Us scope tail tailTarget ∧
     ConstructorTailCertificate env decl target scope.toCtx 0 tailTarget ∧
-    Nonempty (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+    Nonempty (checkInductiveTypes.loopType.ScopedHeaderTelescope
       env Us (constructorTelescopeTarget sourceCtor) scope tailTarget stats.params.size 0) ∧
     VExpr.wrapForalls s.params tailTarget = s.constructorType ctor
 
@@ -493,7 +493,7 @@ theorem sourceSignatureHeader_families
         src.type)
       R.sourceSignatureHeader.families.toList decl.types := by
   apply Lean4Lean.List.forall₂_of_getElem (by
-    simp [sourceSignatureHeader, checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureHeader])
+    simp [sourceSignatureHeader, checkInductiveTypes.loopInd.HeaderStatsWF.signatureHeader])
   intro i hi hi'
   obtain ⟨source, _, htr⟩ := Lean4Lean.List.Forall₂.forall_exists_r R.core.types
     _ (List.getElem_mem hi')
@@ -503,8 +503,8 @@ theorem sourceSignatureHeader_families
   obtain ⟨hn, hiCount, hl, ht⟩ := R.sourceStatsWF.signatureFamily_model
     R.sourceContext.checking.tr.wf i hi' htype
   simpa [sourceSignatureHeader,
-    checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureHeader,
-    checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureFamilies,
+    checkInductiveTypes.loopInd.HeaderStatsWF.signatureHeader,
+    checkInductiveTypes.loopInd.HeaderStatsWF.signatureFamilies,
     R.sourceContextVEnv] using And.intro hn (And.intro hiCount (And.intro hl ht.symm))
 
 /-- Each checked source constructor supplies one constructor over the same
@@ -541,12 +541,12 @@ theorem sourceSignatureHeader_constructor
       R.materializedParameterScope, R.sourceSignatureHeader_params] using R.statsWF.paramsContext
   let owner : Fin R.sourceSignatureHeader.families.size :=
     ⟨i, by simpa [sourceSignatureHeader,
-      checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureHeader] using hi⟩
+      checkInductiveTypes.loopInd.HeaderStatsWF.signatureHeader] using hi⟩
   have howner : R.sourceSignatureHeader.families[owner].name = decl.types[i].name := by
     simp [owner, sourceSignatureHeader,
-      checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureHeader,
-      checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureFamilies,
-      checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureFamily]
+      checkInductiveTypes.loopInd.HeaderStatsWF.signatureHeader,
+      checkInductiveTypes.loopInd.HeaderStatsWF.signatureFamilies,
+      checkInductiveTypes.loopInd.HeaderStatsWF.signatureFamily]
   obtain ⟨sourceCtor, hmem, ctor, hsourceName, hname, hctorOwner, htype, hfields, hreplay⟩ :=
     (R.constructorTails.replay i hip j hjp).signatureConstructor
       (Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF R.core henv) R.core.uvars.symm rfl
@@ -719,8 +719,8 @@ theorem sourceSignature_constructorArity
   have ownerBound : (R.sourceSignatureConstructor position).owner.val < decl.types.length := by
     have bound := (R.sourceSignatureConstructor position).owner.isLt
     simpa only [sourceSignatureHeader,
-      checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureHeader,
-      checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureFamilies_size] using bound
+      checkInductiveTypes.loopInd.HeaderStatsWF.signatureHeader,
+      checkInductiveTypes.loopInd.HeaderStatsWF.signatureFamilies_size] using bound
   have family := Lean4Lean.List.forall₂_getElem R.sourceSignatureHeader_families
     (R.sourceSignatureConstructor position).owner.val
     (by simpa using (R.sourceSignatureConstructor position).owner.isLt) ownerBound
@@ -786,7 +786,7 @@ theorem sourceSignature_models
   · have hfamilies : R.sourceSignature.families = #[] := by
       apply Array.eq_empty_of_size_eq_zero
       simp [sourceSignature, sourceSignatureHeader,
-        checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureHeader, hempty]
+        checkInductiveTypes.loopInd.HeaderStatsWF.signatureHeader, hempty]
     have hctors : R.sourceSignature.constructors = #[] := by
       apply Array.eq_empty_of_size_eq_zero
       simp only [sourceSignature, Array.size_ofFn]

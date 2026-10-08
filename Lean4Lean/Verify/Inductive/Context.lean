@@ -971,7 +971,7 @@ def ContextWF.withCheckLCtx (H : ContextWF c) (l : LocalContext) (B : H.Base l) 
 the main context of the context whose local context is the checker context.
 Every embedded checker run reads only the checker context, so the narrow view
 verifies the same runs, with facts about the checker context. -/
-abbrev ContextWF.narrow (H : ContextWF c) : ContextWF { c with lctx := c.checkLCtx } where
+abbrev ContextWF.atCheckLCtx (H : ContextWF c) : ContextWF { c with lctx := c.checkLCtx } where
   venv := H.venv
   checking := H.checking
   mlctx := H.chk
@@ -987,9 +987,9 @@ abbrev ContextWF.narrow (H : ContextWF c) : ContextWF { c with lctx := c.checkLC
              embed := .refl H.checking.tr.wf.ordered H.check.wf.tr.wf,
              sub := .refl _ }
 
-@[simp] theorem ContextWF.narrow_venv (H : ContextWF c) : H.narrow.venv = H.venv := rfl
-@[simp] theorem ContextWF.narrow_mlctx (H : ContextWF c) : H.narrow.mlctx = H.chk := rfl
-@[simp] theorem ContextWF.narrow_chk (H : ContextWF c) : H.narrow.chk = H.chk := rfl
+@[simp] theorem ContextWF.narrow_venv (H : ContextWF c) : H.atCheckLCtx.venv = H.venv := rfl
+@[simp] theorem ContextWF.narrow_mlctx (H : ContextWF c) : H.atCheckLCtx.mlctx = H.chk := rfl
+@[simp] theorem ContextWF.narrow_chk (H : ContextWF c) : H.atCheckLCtx.chk = H.chk := rfl
 
 def ContextWF.withLocalDecl (H : ContextWF c)
     (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
@@ -1348,7 +1348,7 @@ def RecursorContextWF.withCheckLCtx (H : RecursorContextWF c recLparams)
     (H.withCheckLCtx l B).chk = B.m := rfl
 
 /-- The narrow view of a recursor frame: its checker context as main context. -/
-abbrev RecursorContextWF.narrow (H : RecursorContextWF c recLparams) :
+abbrev RecursorContextWF.atCheckLCtx (H : RecursorContextWF c recLparams) :
     RecursorContextWF { c with lctx := c.checkLCtx } recLparams where
   venv := H.venv
   checking := H.checking
@@ -1367,9 +1367,9 @@ abbrev RecursorContextWF.narrow (H : RecursorContextWF c recLparams) :
              sub := .refl _ }
 
 @[simp] theorem RecursorContextWF.narrow_venv (H : RecursorContextWF c recLparams) :
-    H.narrow.venv = H.venv := rfl
+    H.atCheckLCtx.venv = H.venv := rfl
 @[simp] theorem RecursorContextWF.narrow_mlctx (H : RecursorContextWF c recLparams) :
-    H.narrow.mlctx = H.chk := rfl
+    H.atCheckLCtx.mlctx = H.chk := rfl
 
 /-- Extend a universe-rebased recursor context by one semantically checked
 raw local declaration. -/
@@ -2077,7 +2077,7 @@ theorem RecursorContextWF.instantiateDefEq
 /-- Semantic certificate for the production checker's removal of binder type
 annotations.  The consumed syntax may translate to a different abstract term,
 but it must remain a type definitionally equal to the source domain. -/
-structure ContextWF.ConsumedDomain (Hc : ContextWF c)
+structure ContextWF.UnannotatedDomain (Hc : ContextWF c)
     (dom : Expr) (source' consumed' : VExpr) : Prop where
   source : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom source'
   consumed : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
@@ -2086,8 +2086,8 @@ structure ContextWF.ConsumedDomain (Hc : ContextWF c)
   source_defeq : ∃ u, Hc.venv.IsDefEq c.lparams.length Hc.mlctx.vlctx.toCtx
     source' consumed' (.sort u)
 
-theorem ContextWF.ConsumedDomain.sourceIsType {Hc : ContextWF c}
-    (H : Hc.ConsumedDomain dom source' consumed') :
+theorem ContextWF.UnannotatedDomain.sourceIsType {Hc : ContextWF c}
+    (H : Hc.UnannotatedDomain dom source' consumed') :
     Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx source' :=
   let ⟨_, h⟩ := H.source_defeq; ⟨_, h.hasType.1⟩
 
@@ -2128,10 +2128,10 @@ theorem Expr.consumeTypeAnnotationsVerified_fvarsIn
 /-- Transport the source body translation to the annotation-consumed binder
 type.  This is the bridge needed before opening the binder with the production
 free variable. -/
-theorem ContextWF.ConsumedDomain.body
+theorem ContextWF.UnannotatedDomain.body
     {c : AddInductive.Context} (Hc : ContextWF c)
     {dom body : Expr} {source' consumed' body' : VExpr}
-    (H : Hc.ConsumedDomain dom source' consumed')
+    (H : Hc.UnannotatedDomain dom source' consumed')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam source') :: Hc.mlctx.vlctx) body body') :
     ∃ body'', TrExprS Hc.venv c.lparams
@@ -2149,10 +2149,10 @@ theorem ContextWF.ConsumedDomain.body
 
 /-- Move the source/body conversion produced by `body` into the
 annotation-consumed context installed by the executable checker. -/
-theorem ContextWF.ConsumedDomain.bodyDefEqConsumed
+theorem ContextWF.UnannotatedDomain.bodyDefEqConsumed
     {c : AddInductive.Context} (Hc : ContextWF c)
     {dom : Expr} {source' consumed' sourceBody body'' : VExpr}
-    (H : Hc.ConsumedDomain dom source' consumed')
+    (H : Hc.UnannotatedDomain dom source' consumed')
     (hbodyEq : Hc.venv.IsDefEqU c.lparams.length
       (source' :: Hc.mlctx.vlctx.toCtx) sourceBody body'') :
     Hc.venv.IsDefEqU c.lparams.length
@@ -2166,7 +2166,7 @@ theorem ContextWF.ConsumedDomain.bodyDefEqConsumed
 
 /-- Annotation-erased domain certificate interpreted under the universe list
 of a generated recursor context. -/
-structure RecursorContextWF.ConsumedDomain
+structure RecursorContextWF.UnannotatedDomain
     (R : RecursorContextWF c recLparams)
     (dom : Expr) (source' consumed' : VExpr) : Prop where
   source : TrExprS R.venv recLparams R.mlctx.vlctx dom source'
@@ -2176,10 +2176,10 @@ structure RecursorContextWF.ConsumedDomain
   source_defeq : ∃ u, R.venv.IsDefEq recLparams.length R.mlctx.vlctx.toCtx
     source' consumed' (.sort u)
 
-theorem RecursorContextWF.ConsumedDomain.body
+theorem RecursorContextWF.UnannotatedDomain.body
     (R : RecursorContextWF c recLparams)
     {dom body : Expr} {source' consumed' body' : VExpr}
-    (H : R.ConsumedDomain dom source' consumed')
+    (H : R.UnannotatedDomain dom source' consumed')
     (hbody : TrExprS R.venv recLparams
       ((none, .vlam source') :: R.mlctx.vlctx) body body') :
     ∃ body'', TrExprS R.venv recLparams
@@ -2195,10 +2195,10 @@ theorem RecursorContextWF.ConsumedDomain.body
   rcases hbody.defeqDFC R.checking.tr.wf hctx with ⟨body'', hbody''⟩
   exact ⟨body'', hbody'', hbody.uniq R.checking.tr.wf hctx hbody''⟩
 
-theorem RecursorContextWF.ConsumedDomain.bodyDefEqConsumed
+theorem RecursorContextWF.UnannotatedDomain.bodyDefEqConsumed
     (R : RecursorContextWF c recLparams)
     {dom : Expr} {source' consumed' sourceBody body'' : VExpr}
-    (H : R.ConsumedDomain dom source' consumed')
+    (H : R.UnannotatedDomain dom source' consumed')
     (hbodyEq : R.venv.IsDefEqU recLparams.length
       (source' :: R.mlctx.vlctx.toCtx) sourceBody body'') :
     R.venv.IsDefEqU recLparams.length
@@ -2218,7 +2218,7 @@ def ConsumeTypeAnnotationsCompat : Prop :=
     {dom : Expr} {source' : VExpr},
     TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom source' →
     Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx source' →
-    ∃ consumed', Hc.ConsumedDomain dom source' consumed'
+    ∃ consumed', Hc.UnannotatedDomain dom source' consumed'
 
 /-- Universe-parametric annotation-erasure boundary used after generated
 recursor frames have made `ContextWF` unavailable. -/
@@ -2228,7 +2228,7 @@ def RecursorConsumeTypeAnnotationsCompat : Prop :=
     {dom : Expr} {source' : VExpr},
     TrExprS R.venv recLparams R.mlctx.vlctx dom source' →
     R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx source' →
-    ∃ consumed', R.ConsumedDomain dom source' consumed'
+    ∃ consumed', R.UnannotatedDomain dom source' consumed'
 
 set_option linter.unusedSimpArgs false in
 /-! ### Contexts whose checker context is the main context
@@ -2442,8 +2442,8 @@ theorem MLCtxTopAgree.toCtx_split {a b : TypeChecker.MLCtx} {n : Nat}
 checker context by the scope translation of the binder's domain. -/
 theorem ContextWF.alignedBinder (Hc : ContextWF c)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
-    (Hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
-    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (Hdom : Hc.UnannotatedDomain dom sourceDom consumedDom)
+    (Hdom₀ : Hc.atCheckLCtx.UnannotatedDomain dom sourceDom₀ consumedDom₀)
     (hdomNarrow : TrExprS Hc.venv c.lparams scope dom narrowDom)
     (hdomNarrowType : Hc.venv.IsType c.lparams.length scope.toCtx narrowDom)
     (hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars) :
@@ -2470,8 +2470,8 @@ theorem ContextWF.alignedBinder (Hc : ContextWF c)
 /-- Recursor-frame analogue of `ContextWF.alignedBinder`. -/
 theorem RecursorContextWF.alignedBinder (R : RecursorContextWF c recLparams)
     (halign : VLCtx.IsDefEq R.venv recLparams.length scope R.chk.vlctx)
-    (Hdom : R.ConsumedDomain dom sourceDom consumedDom)
-    (Hdom₀ : R.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (Hdom : R.UnannotatedDomain dom sourceDom consumedDom)
+    (Hdom₀ : R.atCheckLCtx.UnannotatedDomain dom sourceDom₀ consumedDom₀)
     (hdomNarrow : TrExprS R.venv recLparams scope dom narrowDom)
     (hdomNarrowType : R.venv.IsType recLparams.length scope.toCtx narrowDom)
     (hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars) :
@@ -2553,8 +2553,8 @@ theorem ContextWF.Aligned.isType {H : ContextWF c} (ha : H.Aligned)
 
 /-- The narrow annotation-consumption certificate of an aligned context. -/
 theorem ContextWF.Aligned.consumedDomain {H : ContextWF c} (ha : H.Aligned)
-    (Hdom : H.ConsumedDomain dom source' consumed') :
-    ∃ source₀ consumed₀, H.narrow.ConsumedDomain dom source₀ consumed₀ ∧
+    (Hdom : H.UnannotatedDomain dom source' consumed') :
+    ∃ source₀ consumed₀, H.atCheckLCtx.UnannotatedDomain dom source₀ consumed₀ ∧
       H.venv.IsDefEqU c.lparams.length H.mlctx.vlctx.toCtx source' source₀ ∧
       H.venv.IsDefEqU c.lparams.length H.mlctx.vlctx.toCtx consumed' consumed₀ := by
   obtain ⟨s₀, hs₀, hsu⟩ := ha.tr Hdom.source

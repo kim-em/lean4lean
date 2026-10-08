@@ -94,7 +94,7 @@ theorem canonicalFamilyApp_split
     {env : VEnv} {Us : List Name} {scope : VLCtx} {narrowTarget : VExpr}
     {nindices : Nat}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         env Us (Hheader.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
     {indices : Array Expr} (hindicesSize : indices.size = nindices)
@@ -155,14 +155,14 @@ theorem motiveSourceReplay
     {narrowTarget : VExpr} {scope : VLCtx} {nindices : Nat}
     {indices : Array Expr} {indexTargets : List VExpr}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         Rindices.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
         (Hheader.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
     (HnarrowStats : RecursorValidAppStatsWF Rindices.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams)
       scope stats decl nindices)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope Rindices.venv
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding Rindices.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams)
       scope Rindices.mlctx.vlctx)
     (hfront : Hruntime.frontSourceDomains = Hsynthesis.indices)
@@ -254,7 +254,7 @@ theorem motiveSourceReplay
       Rindices.chk.vlctx.toCtx famChk :=
     (HfamNarrow.2.2.defeqU_l henvR halign.wf.toCtx HfamChkEq).defeqDFC
       henvR.ordered halign.defeqCtx
-  rcases hconsume _ _ Rindices.narrow HfamChk HfamChkType with
+  rcases hconsume _ _ Rindices.atCheckLCtx HfamChk HfamChkType with
     ⟨majorChk, HmajorChk⟩
   have HmotiveChk := Rindices.narrowMotiveClosure indices.size hnChk
     indices hxsChk HmajorChk.consumed HmajorChk.isType
@@ -351,14 +351,14 @@ theorem motiveSourceFVars
     {narrowTarget : VExpr} {scope : VLCtx} {nindices : Nat}
     {indices : Array Expr} {indexTargets : List VExpr}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         Rindices.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
         (Hheader.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
     (HnarrowStats : RecursorValidAppStatsWF Rindices.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams)
       scope stats decl nindices)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope Rindices.venv
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding Rindices.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams)
       scope Rindices.mlctx.vlctx)
     (hfront : Hruntime.frontSourceDomains = Hsynthesis.indices)
@@ -498,7 +498,7 @@ theorem canonicalMotiveTelescope
     {narrowTarget : VExpr} {scope : VLCtx} {nindices : Nat}
     {indices : Array Expr} {indexTargets : List VExpr}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         Rindices.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
         (Hheader.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
@@ -682,10 +682,10 @@ theorem motiveSourceScopeFacts
     {skeleton : VInductiveTypeSkeleton} {narrowTarget : VExpr}
     {scope P : VLCtx} {nparams nindices : Nat} {indices : Array Expr}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         Rindices.venv recLparams skeleton scope narrowTarget nparams nindices)
     (hscopeBase : scope.drop nindices = P)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope Rindices.venv
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding Rindices.venv
       recLparams scope Rindices.mlctx.vlctx)
     (hfront : Hruntime.frontSourceDomains = Hsynthesis.indices)
     (hindicesSize : indices.size = nindices)
@@ -792,7 +792,7 @@ theorem motiveTelescopeSeed
     {narrowTarget : VExpr} {scope : VLCtx} {nindices : Nat}
     {indices : Array Expr} {indexTargets : List VExpr}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         Rindices.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
         (Hheader.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
@@ -802,7 +802,7 @@ theorem motiveTelescopeSeed
     (HnarrowStats : RecursorValidAppStatsWF Rindices.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams)
       scope stats decl nindices)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope Rindices.venv
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding Rindices.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams)
       scope Rindices.mlctx.vlctx)
     (hfront : Hruntime.frontSourceDomains = Hsynthesis.indices)
@@ -1610,9 +1610,9 @@ theorem resultRecursiveDomain {alpha : Type}
         ⟨consumedBody, hbodyConsumed, hbodyEq⟩
       rcases TrExpr.forallE_source htype₀ with
         ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, hbodyN₀Type, hforallEq₀⟩
-      rcases hconsume _ recLparams R.narrow hdom₀ hdom₀Type with
+      rcases hconsume _ recLparams R.atCheckLCtx hdom₀ hdom₀Type with
         ⟨consumedDom₀, Hdom₀⟩
-      rcases Hdom₀.body R.narrow hbodyN₀ with
+      rcases Hdom₀.body R.atCheckLCtx hbodyN₀ with
         ⟨consumedBody₀, hbodyConsumed₀, hbodyEq₀⟩
       -- the closed checker type stays fixed across the narrow binder
       have hchkWF := R.check.wf.tr.wf
@@ -1709,7 +1709,7 @@ theorem resultRecursiveDomain {alpha : Type}
         Hdom.consumed Hdom.isType hbodyConsumed
       let Hxs' := Hxs.pushCurrentChecked name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
         consumedDom bi Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
-      have hopened₀ := R.narrow.instantiateFresh (name := name) (bi := bi)
+      have hopened₀ := R.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
         Hdom₀.consumed Hdom₀.isType hbodyConsumed₀
       have hbodyScope : (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)).FVarsIn
           (fun fv => fv ∈ Hxs'.fvars ∨ P fv) := by

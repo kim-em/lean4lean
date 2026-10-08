@@ -295,7 +295,7 @@ theorem NestedFinalAssemblyBase.ofReplay
     (Hcore : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (P : NestedInstalledProduction loweredEnv)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl P.loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl)
     (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
       (sourceTypes.map (fun type => type.name)) sourceTypes
@@ -506,7 +506,7 @@ theorem NestedValidatedRunResult.nativeSourceTypeShapes
     simpa only [sourceTarget, expandedTarget] using Option.some.inj hvalues
   have htype : sourceTarget.type = expandedTarget.type :=
     congrArg (fun value : VConstVal => value.type) hvalue
-  have Hmetadata : MaterializedInductivePrefix sourceDecl P.loweredDecl := by
+  have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
     simpa only [E.nativeSourceDecl_eq] using E.nativeSource.materialized
   have hnumIndices : sourceTarget.numIndices = expandedTarget.numIndices :=
     Hmetadata.numIndices hprefix i hi hiExpanded
@@ -799,9 +799,9 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
         E.nativeSource.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe,
       E.nativeSourceDecl_eq] using E.nativeSource.core
-  have Hmetadata : MaterializedInductivePrefix sourceDecl P.loweredDecl := by
+  have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
     exact Eq.mp
-      (congrArg (fun decl => MaterializedInductivePrefix decl P.loweredDecl)
+      (congrArg (fun decl => SourcePrefixOfLowered decl P.loweredDecl)
         E.nativeSourceDecl_eq)
       E.nativeSource.materialized
   have HownersP : ConstructorOwnersPresent P.c.env := by
@@ -1056,7 +1056,7 @@ theorem NestedValidatedRunResult.assemblyBaseNativeValid
       result.types P.isUnsafe P.loweredDecl Hheaders.context.venv
         R.declared.venvCtors := by
     exact R.core
-  have Hmetadata : MaterializedInductivePrefix sourceDecl P.loweredDecl := by
+  have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
     simpa only [E.nativeSourceDecl_eq] using E.nativeSource.materialized
   have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf

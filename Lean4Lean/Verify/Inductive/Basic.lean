@@ -56,17 +56,17 @@ theorem VInductDeclSkeleton.materializePrefix_numIndices
 of an expanded declaration.  Nested lowering appends auxiliary families, so
 this is the declaration-level certificate connecting independently recovered
 source metadata to the lowered checker result. -/
-inductive MaterializedInductivePrefix
+inductive SourcePrefixOfLowered
     (source expanded : VInductDecl) : Prop
   | intro (skeleton : VInductDeclSkeleton)
       (materialized : skeleton.withMetadata
         ((expanded.types.take skeleton.types.length).map fun type =>
           (type.numIndices, type.resultLevel)) = some source) :
-      MaterializedInductivePrefix source expanded
+      SourcePrefixOfLowered source expanded
 
-theorem MaterializedInductivePrefix.numIndices
+theorem SourcePrefixOfLowered.numIndices
     {source expanded : VInductDecl}
-    (H : MaterializedInductivePrefix source expanded)
+    (H : SourcePrefixOfLowered source expanded)
     (hle : source.types.length ≤ expanded.types.length)
     (i : Nat) (hsource : i < source.types.length)
     (hexpanded : i < expanded.types.length) :
@@ -93,7 +93,7 @@ theorem VInductDeclSkeleton.materializeExpandedPrefix
       skeleton.withMetadata
         ((expanded.types.take skeleton.types.length).map fun type =>
           (type.numIndices, type.resultLevel)) = some source ∧
-      MaterializedInductivePrefix source expanded := by
+      SourcePrefixOfLowered source expanded := by
   let metadata :=
     (expanded.types.take skeleton.types.length).map fun type =>
       (type.numIndices, type.resultLevel)

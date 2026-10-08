@@ -10,10 +10,10 @@ open Kernel
 namespace VerifyInductive
 
 /-- Ordered raw abstract constructor targets for one source family.  This is
-the constructor-side counterpart of `CheckedSourceHeaderAccumulator`: target
+the constructor-side counterpart of `RawHeaderTranslations`: target
 constants are outputs of the executable closed-type checks, not inputs
 chosen by a declaration skeleton. -/
-structure CheckedSourceConstructorAccumulator (env : VEnv) (Us : List Name)
+structure RawCtorTranslations (env : VEnv) (Us : List Name)
     (sources : List Constructor) where
   targets : List VConstVal
   translations : List.Forall₂
@@ -21,26 +21,26 @@ structure CheckedSourceConstructorAccumulator (env : VEnv) (Us : List Name)
       TrSourceConstRaw env Us source.name source.type target)
     sources targets
 
-namespace CheckedSourceConstructorAccumulator
+namespace RawCtorTranslations
 
 def empty (env : VEnv) (Us : List Name) :
-    CheckedSourceConstructorAccumulator env Us [] where
+    RawCtorTranslations env Us [] where
   targets := []
   translations := .nil
 
-def snoc (H : CheckedSourceConstructorAccumulator env Us sources)
+def snoc (H : RawCtorTranslations env Us sources)
     (source : Constructor) (target : VConstVal)
     (Htarget : TrSourceConstRaw env Us source.name source.type target) :
-    CheckedSourceConstructorAccumulator env Us (sources ++ [source]) where
+    RawCtorTranslations env Us (sources ++ [source]) where
   targets := H.targets ++ [target]
   translations := List.Forall₂.append'
     H.translations (.cons Htarget .nil)
 
-end CheckedSourceConstructorAccumulator
+end RawCtorTranslations
 
 /-- Two-dimensional, source-aligned raw constructor targets for a prefix of
 the mutual family list. -/
-structure CheckedSourceConstructorRows (env : VEnv) (Us : List Name)
+structure RawBlockCtorTranslations (env : VEnv) (Us : List Name)
     (sources : List InductiveType) where
   targets : List (List VConstVal)
   translations : List.Forall₂
@@ -50,22 +50,22 @@ structure CheckedSourceConstructorRows (env : VEnv) (Us : List Name)
       source.ctors targets)
     sources targets
 
-namespace CheckedSourceConstructorRows
+namespace RawBlockCtorTranslations
 
 def empty (env : VEnv) (Us : List Name) :
-    CheckedSourceConstructorRows env Us [] where
+    RawBlockCtorTranslations env Us [] where
   targets := []
   translations := .nil
 
-def snoc (H : CheckedSourceConstructorRows env Us sources)
+def snoc (H : RawBlockCtorTranslations env Us sources)
     (source : InductiveType)
-    (row : CheckedSourceConstructorAccumulator env Us source.ctors) :
-    CheckedSourceConstructorRows env Us (sources ++ [source]) where
+    (row : RawCtorTranslations env Us source.ctors) :
+    RawBlockCtorTranslations env Us (sources ++ [source]) where
   targets := H.targets ++ [row.targets]
   translations := List.Forall₂.append'
     H.translations (.cons row.translations .nil)
 
-end CheckedSourceConstructorRows
+end RawBlockCtorTranslations
 
 /-- Assemble metadata-free family targets from independently accumulated
 header constants and constructor rows. -/
@@ -152,13 +152,13 @@ theorem stepPrefix.accumulatesRawTargets
     {ctors : List Constructor} {foundCtors : NameSet}
     {sources : List Constructor} {Q : Unit → Prop}
     (Hc : ContextWF c)
-    (Hprefix : CheckedSourceConstructorAccumulator
+    (Hprefix : RawCtorTranslations
       Hc.venv c.lparams sources)
     (hidx : ctorIdx < ctors.length)
     (Hloop : ∀ checkedType,
-      (Hchecked : CheckedSourceHeaderTranslation Hc
+      (Hchecked : ClosedHeaderCheck Hc
         ctors[ctorIdx].name ctors[ctorIdx].type checkedType) →
-      CheckedSourceConstructorAccumulator Hc.venv c.lparams
+      RawCtorTranslations Hc.venv c.lparams
         (sources ++ [ctors[ctorIdx]]) →
       (AddInductive.checkConstructors.loopCtor stats isUnsafe
         ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
@@ -215,16 +215,16 @@ theorem accumulatesRawTargets
     {ctors : List Constructor} {foundCtors : NameSet}
     {Q : Unit → Prop}
     (Hc : ContextWF c)
-    (Hprefix : CheckedSourceConstructorAccumulator Hc.venv c.lparams
+    (Hprefix : RawCtorTranslations Hc.venv c.lparams
       (ctors.take ctorIdx))
     (Hcheck : ∀ i (hi : i < ctors.length) checkedType,
-      (Hchecked : CheckedSourceHeaderTranslation Hc
+      (Hchecked : ClosedHeaderCheck Hc
         ctors[i].name ctors[i].type checkedType) →
       ∀ (R : Unit → Prop), R () →
       (AddInductive.checkConstructors.loopCtor stats isUnsafe
         ctors[i].name targetIdx ctors[i].type 0
         c.fuel.inductiveFuel c).WF R)
-    (Hfinish : CheckedSourceConstructorAccumulator Hc.venv c.lparams
+    (Hfinish : RawCtorTranslations Hc.venv c.lparams
       ctors → Q ()) :
     (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
       ctors ctorIdx foundCtors c).WF Q := by
@@ -233,7 +233,7 @@ theorem accumulatesRawTargets
       (stats := stats) (isUnsafe := isUnsafe) (targetIdx := targetIdx)
       (foundCtors := foundCtors) (Q := Q) Hc Hprefix hidx
     intro checkedType Hchecked Hprefix'
-    have Hnext : CheckedSourceConstructorAccumulator Hc.venv c.lparams
+    have Hnext : RawCtorTranslations Hc.venv c.lparams
         (ctors.take (ctorIdx + 1)) := by
       rw [List.take_succ_eq_append_getElem hidx]
       exact Hprefix'
@@ -258,12 +258,12 @@ theorem accumulatesRawTargets
     {isUnsafe : Bool} {indTypes : Array InductiveType}
     {targetIdx : Nat} {Q : Unit → Prop}
     (Hc : ContextWF c)
-    (Hrows : CheckedSourceConstructorRows Hc.venv c.lparams
+    (Hrows : RawBlockCtorTranslations Hc.venv c.lparams
       (indTypes.toList.take targetIdx))
     (Hcheck : ∀ familyIdx (hfamily : familyIdx < indTypes.size)
       ctorIdx (hctor : ctorIdx < indTypes[familyIdx].ctors.length)
       checkedType,
-      (Hchecked : CheckedSourceHeaderTranslation Hc
+      (Hchecked : ClosedHeaderCheck Hc
         indTypes[familyIdx].ctors[ctorIdx].name
         indTypes[familyIdx].ctors[ctorIdx].type checkedType) →
       ∀ (R : Unit → Prop), R () →
@@ -271,7 +271,7 @@ theorem accumulatesRawTargets
         indTypes[familyIdx].ctors[ctorIdx].name familyIdx
         indTypes[familyIdx].ctors[ctorIdx].type 0
         c.fuel.inductiveFuel c).WF R)
-    (Hfinish : CheckedSourceConstructorRows Hc.venv c.lparams
+    (Hfinish : RawBlockCtorTranslations Hc.venv c.lparams
       indTypes.toList → Q ()) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
       targetIdx c).WF Q := by
@@ -285,12 +285,12 @@ theorem accumulatesRawTargets
         (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
           (targetIdx + 1) c).WF Q)
       Hc (by
-        change CheckedSourceConstructorAccumulator Hc.venv c.lparams []
-        exact CheckedSourceConstructorAccumulator.empty Hc.venv c.lparams)
+        change RawCtorTranslations Hc.venv c.lparams []
+        exact RawCtorTranslations.empty Hc.venv c.lparams)
     · intro ctorIdx hctor checkedType Hchecked R hR
       exact Hcheck targetIdx hidx ctorIdx hctor checkedType Hchecked R hR
     · intro Hrow
-      have Hrows' : CheckedSourceConstructorRows Hc.venv c.lparams
+      have Hrows' : RawBlockCtorTranslations Hc.venv c.lparams
           (indTypes.toList.take (targetIdx + 1)) := by
         rw [List.take_succ_eq_append_getElem (by simpa using hidx)]
         exact Hrows.snoc indTypes[targetIdx] Hrow

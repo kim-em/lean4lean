@@ -147,15 +147,15 @@ theorem RecursorLoopUArgsPrefix.universeSupport
     rcases Hdom.body R hbody with ⟨consumedBody, hbodyConsumed, hbodyEq⟩
     rcases TrExpr.forallE_source htype₀ with
       ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, _, _⟩
-    rcases hconsume _ recLparams R.narrow hdom₀ hdom₀Type with
+    rcases hconsume _ recLparams R.atCheckLCtx hdom₀ hdom₀Type with
       ⟨consumedDom₀, Hdom₀⟩
-    rcases Hdom₀.body R.narrow hbodyN₀ with ⟨consumedBody₀, hbodyConsumed₀, _⟩
+    rcases Hdom₀.body R.atCheckLCtx hbodyN₀ with ⟨consumedBody₀, hbodyConsumed₀, _⟩
     let x : FVarId := ⟨current.ngen.curr⟩
     let R' := R.withCheckedLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
       Hdom₀.consumed Hdom₀.isType
     have hopened := R.instantiateFresh (name := name) (bi := bi)
       Hdom.consumed Hdom.isType hbodyConsumed
-    have hopened₀ := R.narrow.instantiateFresh (name := name) (bi := bi)
+    have hopened₀ := R.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
       Hdom₀.consumed Hdom₀.isType hbodyConsumed₀
     simp only [Expr.levelParamsIn, Bool.and_eq_true] at hU
     have hdomP : domain.FVarsIn P' := hP.1

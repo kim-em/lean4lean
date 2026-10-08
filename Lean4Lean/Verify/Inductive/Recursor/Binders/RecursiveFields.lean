@@ -107,7 +107,7 @@ def RecursorParameterContextSuffix.narrowStats
       simpa [VInductDecl.paramVars] using hlength
     rw [← checkInductiveTypes.loopType.cachedParamVars_eq_paramVars decl,
       ← hsize]
-    exact H.narrowParams
+    exact H.suffixParams
   paramFVars := Hstats.paramFVars
 
 /-- Opening one semantic index under recursor universes weakens every cached
@@ -571,9 +571,9 @@ theorem refinesRecursor
         rcases Hdom.body R hbody with ⟨body'', hbody'', hbodyEq⟩
         rcases TrExpr.forallE_source hnormalized₀ with
           ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, _, _⟩
-        rcases hconsume _ recLparams R.narrow hdom₀ hdom₀Type with
+        rcases hconsume _ recLparams R.atCheckLCtx hdom₀ hdom₀Type with
           ⟨consumedDom₀, Hdom₀⟩
-        rcases Hdom₀.body R.narrow hbodyN₀ with ⟨body₀'', hbody₀'', _⟩
+        rcases Hdom₀.body R.atCheckLCtx hbodyN₀ with ⟨body₀'', hbody₀'', _⟩
         refine withCheckedLocalDecl.recursorWF (name := name) (bi := bi)
           (Q := fun result => ∀ target, result = some target →
             ∃ htarget : target < decl.types.length,
@@ -585,7 +585,7 @@ theorem refinesRecursor
           Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
         have hopened := R.instantiateFresh (name := name) (bi := bi)
           Hdom.consumed Hdom.isType hbody''
-        have hopened₀ := R.narrow.instantiateFresh (name := name) (bi := bi)
+        have hopened₀ := R.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
           Hdom₀.consumed Hdom₀.isType hbody₀''
         have Hstats' := Hstats.withFVar R'.checking.tr.wf
           R'.mlctx_wf.tr.wf

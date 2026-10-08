@@ -1770,8 +1770,8 @@ theorem TrExprS.abstractFVarLambdaPrefix
 executable target is unchanged; the concrete source is abstracted over the
 front's free variables in oldest-first order, and the resulting anonymous
 telescope sits directly above the identified base scope. -/
-theorem checkInductiveTypes.loopType.NarrowRuntimeScope.abstractFront
-    (H : checkInductiveTypes.loopType.NarrowRuntimeScope
+theorem checkInductiveTypes.loopType.FrontScopeEmbedding.abstractFront
+    (H : checkInductiveTypes.loopType.FrontScopeEmbedding
       env Us scope runtime)
     (henv : env.WF)
     (hbase : scope.drop H.frontSourceDomains.length = baseScope)
@@ -1799,8 +1799,8 @@ theorem checkInductiveTypes.loopType.NarrowRuntimeScope.abstractFront
 
 /-- The names in a retained front are exactly the free-variable prefix of
 the full narrow scope; after the front, only the identified base remains. -/
-theorem checkInductiveTypes.loopType.NarrowRuntimeScope.frontFVars
-    (H : checkInductiveTypes.loopType.NarrowRuntimeScope
+theorem checkInductiveTypes.loopType.FrontScopeEmbedding.frontFVars
+    (H : checkInductiveTypes.loopType.FrontScopeEmbedding
       env Us scope runtime)
     (hbase : scope.drop H.frontSourceDomains.length = baseScope) :
     scope.fvars =
@@ -1857,8 +1857,8 @@ theorem TrExprS.abstractFVarLambdaSuffix
 scope.  Exact binder order is recorded by `scope.fvars`, so the resulting
 anonymous telescope abstracts the source in oldest-first order without
 assuming that the selected declarations formed a runtime prefix. -/
-theorem checkInductiveTypes.loopType.FVarNarrowScope.abstractAll
-    (H : checkInductiveTypes.loopType.FVarNarrowScope
+theorem checkInductiveTypes.loopType.ScopeEmbedding.abstractAll
+    (H : checkInductiveTypes.loopType.ScopeEmbedding
       env Us scope runtime)
     (henv : env.WF)
     (Htr : TrExprS env Us scope source target) :
@@ -1874,8 +1874,8 @@ theorem checkInductiveTypes.loopType.FVarNarrowScope.abstractAll
     H.declarations hnodup Htr'
 
 /-- Closing an exact free-variable scope preserves its typing context. -/
-theorem checkInductiveTypes.loopType.FVarNarrowScope.abstractAllWF
-    (H : checkInductiveTypes.loopType.FVarNarrowScope
+theorem checkInductiveTypes.loopType.ScopeEmbedding.abstractAllWF
+    (H : checkInductiveTypes.loopType.ScopeEmbedding
       env Us scope runtime)
     (henv : env.WF) :
     OnCtx (abstractForallContext scope.toCtx.reverse []).toCtx
@@ -2638,8 +2638,8 @@ theorem Expr.ForallTelescopeTypeTranslation.ofTrExprS
 /-- The source closure retained by non-contiguous narrowing has exactly one
 forall per selected free variable, and its residual is exact simultaneous
 abstraction in oldest-first order. -/
-theorem checkInductiveTypes.loopType.FVarNarrowSources.closeSource_telescope
-    (H : checkInductiveTypes.loopType.FVarNarrowSources env Us scope)
+theorem checkInductiveTypes.loopType.SourceTelescope.closeSource_telescope
+    (H : checkInductiveTypes.loopType.SourceTelescope env Us scope)
     (_hnodup : scope.fvars.Nodup) (body : Expr) :
     Expr.ForallTelescope (H.closeSource body) scope.length
       (body.abstractN scope.fvars.reverse) := by
@@ -2647,7 +2647,7 @@ theorem checkInductiveTypes.loopType.FVarNarrowSources.closeSource_telescope
   induction H generalizing body with
   | nil =>
     have hfvars : (VLCtx.fvars ([] : VLCtx)) = [] := rfl
-    simp only [FVarNarrowSources.closeSource, hfvars, List.reverse_nil,
+    simp only [SourceTelescope.closeSource, hfvars, List.reverse_nil,
       Expr.abstractN_nil, List.length_nil]
     exact .nil body
   | @cons scope domainTarget fv deps tail name binderInfo domain Hdomain ih =>
@@ -2673,13 +2673,13 @@ theorem checkInductiveTypes.loopType.FVarNarrowSources.closeSource_telescope
       rw [List.reverse_cons, Expr.abstractN_append]
       rfl
     rw [hresidual] at Hcombined
-    simpa [FVarNarrowSources.closeSource] using Hcombined
+    simpa [SourceTelescope.closeSource] using Hcombined
 
 /-- Translate a source body while closing every retained named declaration.
 The target is the ordinary anonymous forall telescope over the narrowed
 semantic domains, in oldest-first order. -/
-theorem checkInductiveTypes.loopType.FVarNarrowSources.closeTranslation
-    (H : checkInductiveTypes.loopType.FVarNarrowSources env Us scope)
+theorem checkInductiveTypes.loopType.SourceTelescope.closeTranslation
+    (H : checkInductiveTypes.loopType.SourceTelescope env Us scope)
     (henv : env.WF) (Hscope : scope.WF env Us.length)
     (Hbody : TrExprS env Us scope body target)
     (HbodyType : env.IsType Us.length scope.toCtx target) :
@@ -2712,14 +2712,14 @@ theorem checkInductiveTypes.loopType.FVarNarrowSources.closeTranslation
       simpa [VLCtx.bvars, tail.noBV] using h
     have h1 : body.abstractN [fv] = body.abstract1 fv :=
       Expr.abstractN_singleton hbodyClosed.looseBVarRange_le
-    simpa [h1, FVarNarrowSources.closeSource, VLCtx.toCtx,
+    simpa [h1, SourceTelescope.closeSource, VLCtx.toCtx,
       List.reverse_cons, VExpr.wrapForalls] using Hclosed
 
 /-- Typed telescope form of `closeTranslation` when the exact semantic
 source provenance is retained directly, without an ambient narrowing
 wrapper. -/
-theorem checkInductiveTypes.loopType.FVarNarrowSources.closeTypedTelescope
-    (H : checkInductiveTypes.loopType.FVarNarrowSources env Us scope)
+theorem checkInductiveTypes.loopType.SourceTelescope.closeTypedTelescope
+    (H : checkInductiveTypes.loopType.SourceTelescope env Us scope)
     (henv : env.WF) (Hscope : scope.WF env Us.length)
     (Hbody : TrExprS env Us scope body target)
     (HbodyType : env.IsType Us.length scope.toCtx target) :
@@ -2740,27 +2740,27 @@ theorem checkInductiveTypes.loopType.FVarNarrowSources.closeTypedTelescope
 is the reusable boundary between a named, non-contiguously narrowed scope and
 the completely closed source declaration used by an independent
 specification: the body may itself be a dependent telescope. -/
-theorem checkInductiveTypes.loopType.FVarNarrowScope.closeTypedTelescope
-    (H : checkInductiveTypes.loopType.FVarNarrowScope
+theorem checkInductiveTypes.loopType.ScopeEmbedding.closeTypedTelescope
+    (H : checkInductiveTypes.loopType.ScopeEmbedding
       env Us scope runtime)
     (henv : env.WF)
     (Hbody : TrExprS env Us scope body target)
     (HbodyType : env.IsType Us.length scope.toCtx target) :
     Expr.ForallTelescopeTypeTranslation env Us []
-      (H.sources.closeSource body) scope.length
+      (H.sourceTelescope.closeSource body) scope.length
       (VExpr.wrapForalls scope.toCtx.reverse target) := by
-  exact H.sources.closeTypedTelescope henv (H.scopeWF henv)
+  exact H.sourceTelescope.closeTypedTelescope henv (H.scopeWF henv)
     Hbody HbodyType
 
 /-- Close the retained source declarations around a trivial sort.  This is
 an independent translation of the complete narrowed prefix, rather than a
 translation of only a later expression under that prefix. -/
-theorem checkInductiveTypes.loopType.FVarNarrowScope.closedSortTranslation
-    (H : checkInductiveTypes.loopType.FVarNarrowScope
+theorem checkInductiveTypes.loopType.ScopeEmbedding.closedSortTranslation
+    (H : checkInductiveTypes.loopType.ScopeEmbedding
       env Us scope runtime)
     (henv : env.WF) :
     TrExprS env Us []
-      (H.sources.closeSource (.sort (.zero : Level)))
+      (H.sourceTelescope.closeSource (.sort (.zero : Level)))
       (VExpr.wrapForalls scope.toCtx.reverse
         (.sort (.zero : VLevel))) ∧
     env.IsType Us.length []
@@ -2774,7 +2774,7 @@ theorem checkInductiveTypes.loopType.FVarNarrowScope.closedSortTranslation
   have HsortType : env.IsType Us.length scope.toCtx
       (.sort (.zero : VLevel)) :=
     ⟨.succ .zero, VEnv.HasType.sort (.of_ofLevel hzero)⟩
-  have Hclosed := H.sources.closeTranslation henv HscopeWF
+  have Hclosed := H.sourceTelescope.closeTranslation henv HscopeWF
     Hsort HsortType
   have HtargetType : env.IsType Us.length []
       (VExpr.wrapForalls scope.toCtx.reverse
@@ -2787,19 +2787,19 @@ theorem checkInductiveTypes.loopType.FVarNarrowScope.closedSortTranslation
 /-- Binder-by-binder form of `closedSortTranslation`.  The retained concrete
 source expression and narrowed abstract target constitute a complete typed
 forall telescope, not merely a whole-expression translation. -/
-theorem checkInductiveTypes.loopType.FVarNarrowScope.closedSortTelescope
-    (H : checkInductiveTypes.loopType.FVarNarrowScope
+theorem checkInductiveTypes.loopType.ScopeEmbedding.closedSortTelescope
+    (H : checkInductiveTypes.loopType.ScopeEmbedding
       env Us scope runtime)
     (henv : env.WF) :
     Expr.ForallTelescopeTypeTranslation env Us []
-      (H.sources.closeSource (.sort (.zero : Level))) scope.length
+      (H.sourceTelescope.closeSource (.sort (.zero : Level))) scope.length
       (VExpr.wrapForalls scope.toCtx.reverse
         (.sort (.zero : VLevel))) := by
   rcases H.closedSortTranslation henv with ⟨Htranslation, Htype⟩
-  have Htelescope := H.sources.closeSource_telescope
+  have Htelescope := H.sourceTelescope.closeSource_telescope
     (H.scopeWF henv).fvars_nodup (.sort (.zero : Level))
   have Htelescope' : Expr.ForallTelescope
-      (H.sources.closeSource (.sort (.zero : Level))) scope.length
+      (H.sourceTelescope.closeSource (.sort (.zero : Level))) scope.length
       (.sort (.zero : Level)) := by
     have hsort : ∀ fvars : List FVarId,
         (Expr.sort (.zero : Level)).abstractN fvars =

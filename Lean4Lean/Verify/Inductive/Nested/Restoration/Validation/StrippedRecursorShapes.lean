@@ -1007,7 +1007,7 @@ theorem NestedValidatedRunResult.finalValidOfStaged_of_hitShape
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck E.loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams' sourceTypes
       isUnsafe' sourceDecl envTypes envCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (hempty : initialState.nestedAux = #[])
     (Hrestored : RestoredNestedDeclarationsResult result E.loweredEnv c.env

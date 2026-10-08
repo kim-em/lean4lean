@@ -9,8 +9,8 @@ namespace VerifyInductive
 
 /-- Ordered abstract header targets after the executable telescope/result
 checks have supplied the formation evidence deliberately absent from
-`CheckedSourceHeaderAccumulator`. -/
-structure MaterializedSourceHeaderAccumulator (env : VEnv) (Us : List Name)
+`RawHeaderTranslations`. -/
+structure HeaderTranslations (env : VEnv) (Us : List Name)
     (sources : List InductiveType) where
   targets : List VConstVal
   translations : List.Forall₂
@@ -18,23 +18,23 @@ structure MaterializedSourceHeaderAccumulator (env : VEnv) (Us : List Name)
       TrSourceConst env Us source.name source.type target)
     sources targets
 
-namespace MaterializedSourceHeaderAccumulator
+namespace HeaderTranslations
 
 def empty (env : VEnv) (Us : List Name) :
-    MaterializedSourceHeaderAccumulator env Us [] where
+    HeaderTranslations env Us [] where
   targets := []
   translations := .nil
 
-def snoc (H : MaterializedSourceHeaderAccumulator env Us sources)
+def snoc (H : HeaderTranslations env Us sources)
     (source : InductiveType) (target : VConstVal)
     (Htarget : TrSourceConst env Us source.name source.type target) :
-    MaterializedSourceHeaderAccumulator env Us (sources ++ [source]) where
+    HeaderTranslations env Us (sources ++ [source]) where
   targets := H.targets ++ [target]
   translations := List.Forall₂.append'
     H.translations (.cons Htarget .nil)
 
-def raw (H : MaterializedSourceHeaderAccumulator env Us sources) :
-    CheckedSourceHeaderAccumulator env Us sources where
+def raw (H : HeaderTranslations env Us sources) :
+    RawHeaderTranslations env Us sources where
   targets := H.targets
   translations := Lean4Lean.List.Forall₂.imp
     (fun _ _ h => h.raw) H.translations
@@ -42,23 +42,23 @@ def raw (H : MaterializedSourceHeaderAccumulator env Us sources) :
 @[simp] theorem empty_targets : (empty env Us).targets = [] := rfl
 
 @[simp] theorem snoc_targets
-    (H : MaterializedSourceHeaderAccumulator env Us sources)
+    (H : HeaderTranslations env Us sources)
     (Htarget : TrSourceConst env Us source.name source.type target) :
     (H.snoc source target Htarget).targets = H.targets ++ [target] := rfl
 
-end MaterializedSourceHeaderAccumulator
+end HeaderTranslations
 
 /-- Exact loop-indexed view of the fully formed mutual-header prefix. -/
 structure MaterializedSourceHeaderTraversal (env : VEnv) (Us : List Name)
     (indTypes : Array InductiveType) (dIdx : Nat) where
-  accumulator : MaterializedSourceHeaderAccumulator env Us
+  accumulator : HeaderTranslations env Us
     (indTypes.toList.take dIdx)
 
 namespace MaterializedSourceHeaderTraversal
 
 def empty (env : VEnv) (Us : List Name) (indTypes : Array InductiveType) :
     MaterializedSourceHeaderTraversal env Us indTypes 0 where
-  accumulator := MaterializedSourceHeaderAccumulator.empty env Us
+  accumulator := HeaderTranslations.empty env Us
 
 end MaterializedSourceHeaderTraversal
 
@@ -108,11 +108,11 @@ the narrow `ensureSort` result and the closed normal-form translation live in
 the same empty context.  Uniqueness of translation then shows the raw target
 is a type, which is the non-forall/zero-remaining-arity half of raw header
 materialization. -/
-theorem CheckedSourceHeaderTranslation.checkedTerminal
+theorem ClosedHeaderCheck.checkedTerminal
     {c : AddInductive.Context} {Hc : ContextWF c}
     {source : InductiveType} {checkedType : Expr}
     {normalized : Expr} {type₀ : VExpr}
-    (H : CheckedSourceHeaderTranslation Hc source.name source.type
+    (H : ClosedHeaderCheck Hc source.name source.type
       checkedType)
     (hclosed : TrExpr Hc.venv c.lparams [] normalized H.target.type)
     (htype₀ : TrExprS Hc.venv c.lparams [] normalized type₀)
@@ -135,10 +135,10 @@ theorem CheckedSourceHeaderTranslation.checkedTerminal
 /-- A forall-headed first normal form is already type-valued by strict
 translation, so its raw existential target can initialize the existing
 header-synthesis recursion without assuming a skeleton from the caller. -/
-theorem CheckedSourceHeaderTranslation.checkedFirstForall
+theorem ClosedHeaderCheck.checkedFirstForall
     {c : AddInductive.Context} {Hc : ContextWF c}
     {source : InductiveType} {checkedType : Expr}
-    (H : CheckedSourceHeaderTranslation Hc source.name source.type
+    (H : ClosedHeaderCheck Hc source.name source.type
       checkedType)
     (hctx : Hc.mlctx.vlctx = [])
     (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
@@ -161,10 +161,10 @@ theorem CheckedSourceHeaderTranslation.checkedFirstForall
 context by the closed `whnf`; their strict translation then upgrades the
 corresponding raw target without importing ambient indices from earlier
 mutual headers. -/
-theorem CheckedSourceHeaderTranslation.checkedLaterForall
+theorem ClosedHeaderCheck.checkedLaterForall
     {c : AddInductive.Context} {Hc : ContextWF c}
     {source : InductiveType} {checkedType : Expr}
-    (H : CheckedSourceHeaderTranslation Hc source.name source.type
+    (H : ClosedHeaderCheck Hc source.name source.type
       checkedType)
     (hclosed : TrExpr Hc.venv c.lparams []
       (.forallE binderName domain body binderInfo) H.target.type) :

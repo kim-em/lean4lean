@@ -1295,7 +1295,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
       result.types P.isUnsafe P.loweredDecl Hpack.1.context.venv
         R.declared.venvCtors := by
     exact R.core
-  have Hmetadata : MaterializedInductivePrefix sourceDecl P.loweredDecl := by
+  have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
     simpa only [E.nativeSourceDecl_eq] using E.nativeSource.materialized
   have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf

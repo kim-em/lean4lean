@@ -575,7 +575,7 @@ theorem
       ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
       ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+      ∃ Hscope : checkInductiveTypes.loopType.ScopeEmbedding
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
       ∃ narrowTarget,
       ∃ fullTarget,
@@ -591,7 +591,7 @@ theorem
           S.origin fullTarget ∧
         H.outVEnv.IsDefEqU Us.length H.recursorWF.mlctx.vlctx.toCtx
           fullTarget (narrowTarget.lift' Hscope.shift) ∧
-        Hscope.sources.closeSource S.origin =
+        Hscope.sourceTelescope.closeSource S.origin =
           H.localContext.lctx.mkForall
             (sourceBinders.map Expr.fvar).toArray S.origin ∧
         VEnv.IsDefEqCtx H.outVEnv Us.length [] scope.toCtx
@@ -642,7 +642,7 @@ theorem
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
     exact H.installed.le
-  have hscopeSourceOut : Hscope.sources.closeSource S.origin =
+  have hscopeSourceOut : Hscope.sourceTelescope.closeSource S.origin =
       H.localContext.lctx.mkForall
         (sourceBinders.map Expr.fvar).toArray S.origin := by
     exact hscopeSource S.origin

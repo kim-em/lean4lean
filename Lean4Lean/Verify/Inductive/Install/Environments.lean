@@ -120,10 +120,10 @@ structure HeaderEnvironment (c : AddInductive.Context)
   installed : AddConstants c.safety c.env sourceEnv entries outEnv context.venv
   sourceContext : ContextWF c
   sourceContextVEnv : sourceContext.venv = sourceEnv
-  sourceStatsWF : checkInductiveTypes.loopInd.MaterializedHeaderResult
+  sourceStatsWF : checkInductiveTypes.loopInd.HeaderStatsWF
     sourceContext.venv c.lparams sourceContext.mlctx.vlctx stats decl depth
   sourceHeaderParams : sourceStatsWF.headers.params = headers.params
-  statsWF : checkInductiveTypes.loopInd.MaterializedHeaderResult
+  statsWF : checkInductiveTypes.loopInd.HeaderStatsWF
     context.venv c.lparams context.mlctx.vlctx stats decl depth
   headerParams : statsWF.headers.params = headers.params
   parameterScopeEq : statsWF.parameterScope =
@@ -143,7 +143,7 @@ theorem HeaderEnvironment.entriesNoRecursor
 def HeaderEnvironment.formation
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
-    (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
+    (Hchecked : CheckedConstructors sourceEnv decl H.context.venv
       H.headers.params stats indTypes c.lparams
       H.statsWF.parameterScope) :
     FormationCertificate sourceEnv decl where
@@ -152,7 +152,7 @@ def HeaderEnvironment.formation
   typesInstalled := H.translation.typesAdded
   constructorParameters := Hchecked.parameterShapes
     H.context.checking.tr.wf H.translation.types
-    (H.statsWF.runtimeScope.scopeWF H.context.checking.tr.wf)
+    (H.statsWF.parameterEmbedding.scopeWF H.context.checking.tr.wf)
     (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
       H.statsWF).params_size
     H.statsWF.uvars.symm (by
@@ -160,7 +160,7 @@ def HeaderEnvironment.formation
       exact H.statsWF.paramsContext)
   constructors := Hchecked.checked.formation
   rawShapes := Hchecked.rawShapes H.context.checking.tr.wf H.translation.types
-    (H.statsWF.runtimeScope.scopeWF H.context.checking.tr.wf)
+    (H.statsWF.parameterEmbedding.scopeWF H.context.checking.tr.wf)
     (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
       H.statsWF).params_size
 
@@ -226,7 +226,7 @@ theorem AddInductive.checkConstructors.checkedWF
     (hlparams : c.lparams.Nodup) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := outEnv }).WF fun _ =>
-        CheckedConstructorsResult sourceEnv decl H.context.venv
+        CheckedConstructors sourceEnv decl H.context.venv
           H.headers.params stats indTypes c.lparams
           H.statsWF.parameterScope := by
   have Hloops := checkConstructors.loopTypes.refinesMaterialized
@@ -341,7 +341,7 @@ theorem ConstructorEnvironment.installedConstructorSemanticCoherenceAt
     (D : ConstructorEnvironment H outEnv)
     (core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
       isUnsafe decl H.context.venv D.venvCtors)
-    (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
+    (Hchecked : CheckedConstructors sourceEnv decl H.context.venv
       H.headers.params stats indTypes c.lparams H.statsWF.parameterScope)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
@@ -478,7 +478,7 @@ theorem ConstructorEnvironment.productionInductiveOrigins
     (D : ConstructorEnvironment H outEnv)
     (core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
       isUnsafe decl H.context.venv D.venvCtors)
-    (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
+    (Hchecked : CheckedConstructors sourceEnv decl H.context.venv
       H.headers.params stats indTypes c.lparams H.statsWF.parameterScope) :
     InductInfosFromDecl c.env.constants outEnv.constants decl := by
   intro familyName familyInfo hfamily
@@ -729,7 +729,7 @@ theorem ConstructorEnvironment.ctorParamsAgree
     (D : ConstructorEnvironment H outEnv)
     (core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
       isUnsafe decl H.context.venv D.venvCtors)
-    (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
+    (Hchecked : CheckedConstructors sourceEnv decl H.context.venv
       H.headers.params stats indTypes c.lparams H.statsWF.parameterScope)
     (Hsource : CtorParamsAgree
       safety c.env sourceEnv) :
@@ -816,7 +816,7 @@ theorem ConstructorEnvironment.ctorParamsAgree
 whose constructors are declared. -/
 noncomputable def HeaderEnvironment.toCheckedFormation
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv)
-    (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
+    (Hchecked : CheckedConstructors sourceEnv decl H.context.venv
       H.headers.params stats indTypes c.lparams H.statsWF.parameterScope)
     (venvCtors : VEnv)
     (core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList isUnsafe decl
@@ -844,7 +844,7 @@ noncomputable def HeaderEnvironment.toCheckedFormation
 theorem AddInductive.declareConstructors.WF
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv)
-    (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
+    (Hchecked : CheckedConstructors sourceEnv decl H.context.venv
       H.headers.params stats indTypes c.lparams H.statsWF.parameterScope)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))

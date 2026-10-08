@@ -19,7 +19,7 @@ theorem AddInductive.semanticFormationCoreWF
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList)
     (hlevels : stats.levels.length = c.lparams.length)
     (hlevelParams : stats.levels = c.lparams.map .param)
@@ -83,7 +83,7 @@ theorem AddInductive.semanticFormationCoreWF
             ∃ decl,
             ∃ Hheaders : HeaderEnvironment c stats decl nparams
               isUnsafe depth Hc.venv indTypes headerEnv,
-              CheckedConstructorsResult Hc.venv decl Hheaders.context.venv
+              CheckedConstructors Hc.venv decl Hheaders.context.venv
                   Hheaders.headers.params stats indTypes c.lparams
                   Hheaders.statsWF.parameterScope /\
                 CheckedConstructorOwnerNormalForms stats indTypes ∧
@@ -304,7 +304,7 @@ theorem AddInductive.semanticFormationCoreClosedWF
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList)
     (hlevels : stats.levels.length = c.lparams.length)
     (hlevelParams : stats.levels = c.lparams.map .param)

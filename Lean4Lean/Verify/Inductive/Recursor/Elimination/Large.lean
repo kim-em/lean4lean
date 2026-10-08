@@ -75,8 +75,8 @@ theorem AddInductive.isLargeEliminator.shape_of_checked
 
 /-- The nonzero shortcut is justified by the same result universe checked
 for every family in the source block. -/
-theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.familyNeverZero
-    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult env Us Δ
+theorem checkInductiveTypes.loopInd.HeaderStatsWF.familyNeverZero
+    (H : checkInductiveTypes.loopInd.HeaderStatsWF env Us Δ
       stats decl depth)
     (hnotzero : stats.isNotZero = true)
     {family : VInductiveType} (hfamily : family ∈ decl.types) :
@@ -121,37 +121,37 @@ def eliminationFieldContext (c : AddInductive.Context) (name : Name)
 
 /-- Finite trace of the singleton decision. Each field is either certified
 as a proof or added to the result-argument requirement checked at the leaf. -/
-inductive LargeEliminationTrace (stats : AddInductive.InductiveStats) :
+inductive LargeEliminationCheck (stats : AddInductive.InductiveStats) :
     AddInductive.Context → Expr → Nat → Array Expr → Prop where
   | done {c type i required} : type.isForall = false →
       required.all type.getAppArgs.contains = true →
-      LargeEliminationTrace stats c type i required
+      LargeEliminationCheck stats c type i required
   | param {c name dom body bi i required} : i < stats.params.size →
-      LargeEliminationTrace stats (eliminationFieldContext c name dom bi)
+      LargeEliminationCheck stats (eliminationFieldContext c name dom bi)
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1) required →
-      LargeEliminationTrace stats c (.forallE name dom body bi) i required
+      LargeEliminationCheck stats c (.forallE name dom body bi) i required
   | proof {c name dom body bi i required result} : stats.params.size ≤ i →
       (monadLift (TypeChecker.ensureType dom) : AddInductive.M Expr)
         (eliminationFieldContext c name dom bi) = .ok result →
       result.sortLevel!.isAlwaysZero = true →
-      LargeEliminationTrace stats (eliminationFieldContext c name dom bi)
+      LargeEliminationCheck stats (eliminationFieldContext c name dom bi)
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1) required →
-      LargeEliminationTrace stats c (.forallE name dom body bi) i required
+      LargeEliminationCheck stats c (.forallE name dom body bi) i required
   | index {c name dom body bi i required result} : stats.params.size ≤ i →
       (monadLift (TypeChecker.ensureType dom) : AddInductive.M Expr)
         (eliminationFieldContext c name dom bi) = .ok result →
       result.sortLevel!.isAlwaysZero = false →
-      LargeEliminationTrace stats (eliminationFieldContext c name dom bi)
+      LargeEliminationCheck stats (eliminationFieldContext c name dom bi)
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1)
         (required.push (.fvar ⟨c.ngen.curr⟩)) →
-      LargeEliminationTrace stats c (.forallE name dom body bi) i required
+      LargeEliminationCheck stats c (.forallE name dom body bi) i required
 
 /-- Reconstruct the trace from the actual successful executable check. -/
 theorem AddInductive.isLargeEliminator.loop.trace
     {stats : AddInductive.InductiveStats} {c : AddInductive.Context}
     {type : Expr} {i : Nat} {required : Array Expr} {fuel : Nat}
     (H : AddInductive.isLargeEliminator.loop stats type i required fuel c = .ok true) :
-    LargeEliminationTrace stats c type i required := by
+    LargeEliminationCheck stats c type i required := by
   induction fuel generalizing c type i required with
   | zero => simp [AddInductive.isLargeEliminator.loop] at H
   | succ fuel ih =>
@@ -178,26 +178,26 @@ theorem AddInductive.isLargeEliminator.loop.trace
         | ok result =>
           cases hz : result.sortLevel!.isAlwaysZero with
           | false =>
-            apply LargeEliminationTrace.index hfield hcheck hz
+            apply LargeEliminationCheck.index hfield hcheck hz
             apply ih
             simpa [bind, ReaderT.bind, hcheck, Except.bind, hz] using H
           | true =>
-            apply LargeEliminationTrace.proof hfield hcheck hz
+            apply LargeEliminationCheck.proof hfield hcheck hz
             apply ih
             simpa [bind, ReaderT.bind, hcheck, Except.bind, hz] using H
     | _ =>
       simp only [AddInductive.isLargeEliminator.loop] at H
-      apply LargeEliminationTrace.done rfl
+      apply LargeEliminationCheck.done rfl
       exact Except.ok.inj H
 
 
 
 /-- A proof-field result remains a proof after annotation consumption, in
 the original field-prefix context rather than beneath the newly opened field. -/
-theorem ContextWF.ConsumedDomain.proof_of_largeEliminationCheck
+theorem ContextWF.UnannotatedDomain.proof_of_largeEliminationCheck
     {c : AddInductive.Context} {name : Name} {bi : BinderInfo}
-    (Hc : ContextWF c) (Hdom : Hc.ConsumedDomain dom source' consumed')
-    (Hdom₀ : Hc.narrow.ConsumedDomain dom source₀ consumed₀)
+    (Hc : ContextWF c) (Hdom : Hc.UnannotatedDomain dom source' consumed')
+    (Hdom₀ : Hc.atCheckLCtx.UnannotatedDomain dom source₀ consumed₀)
     (Hrun : (monadLift (TypeChecker.ensureType dom) : AddInductive.M Expr)
       (eliminationFieldContext c name dom bi) = .ok result)
     (Hzero : result.sortLevel!.isAlwaysZero = true) :
@@ -235,7 +235,7 @@ theorem ContextWF.ConsumedDomain.proof_of_largeEliminationCheck
 
 /-- Boolean argument containment recognizes a literal field variable even
 though executable expression equality is alpha equivalence. -/
-theorem LargeEliminationTrace.contains_bvar_of_fvar
+theorem LargeEliminationCheck.contains_bvar_of_fvar
     (Hargs : List.Forall₂ (TrExprS env Us Δ) args args')
     (Hcontains : args.contains (.fvar fv) = true)
     (Hfind : Δ.find? (.inr fv) = some (.bvar i, type)) :

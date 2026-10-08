@@ -48,7 +48,7 @@ theorem refinesTypeWithReplay
           TrSourceConstRaw Hc.venv c.lparams source.ctors[i].name
             source.ctors[i].type target.ctors[i] ∧
           Nonempty
-            (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+            (checkInductiveTypes.loopType.ScopedHeaderTelescope
               Hc.venv c.lparams
               (constructorTelescopeTarget target.ctors[i]) tailScope
               tailTarget stats.params.size 0) ∧
@@ -151,7 +151,7 @@ theorem refinesBlockWithReplay
             indTypes[targetIdx].ctors[i].type
             decl.types[targetIdx].ctors[i] ∧
           Nonempty
-            (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+            (checkInductiveTypes.loopType.ScopedHeaderTelescope
               Hc.venv c.lparams
               (constructorTelescopeTarget
                 decl.types[targetIdx].ctors[i]) tailScope tailTarget
@@ -217,7 +217,7 @@ end checkConstructors.loopTypes
 recursor replay.  The first component is the abstract formation certificate;
 the second retains the exact concrete parameter tails for production
 constructors. -/
-structure CheckedConstructorsResult
+structure CheckedConstructors
     (sourceEnv : VEnv) (decl : VInductDecl) (envTypes : VEnv)
     (params : List VExpr) (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) (Us : List Name)
@@ -240,7 +240,7 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       indTypes.toList decl.types)
     (htypesAdded : sourceEnv.addConstVals decl.typeConstants = some Hc.venv)
     (Hmaterialized :
-      checkInductiveTypes.loopInd.MaterializedHeaderResult
+      checkInductiveTypes.loopInd.HeaderStatsWF
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
     (hparams : Hmaterialized.headers.params = params)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length
@@ -258,7 +258,7 @@ theorem checkConstructors.loopTypes.refinesMaterialized
         fieldLevel' ≤ decl.types[targetIdx].resultLevel)
     (hlparams : c.lparams.Nodup) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0 c).WF
-      (fun _ => CheckedConstructorsResult sourceEnv decl Hc.venv
+      (fun _ => CheckedConstructors sourceEnv decl Hc.venv
         params stats indTypes c.lparams Hmaterialized.parameterScope) := by
   have hlevels := Hmaterialized.levelParamsTranslation hlparams
   let Hsuffix := Hmaterialized.parameterSuffix
@@ -274,7 +274,7 @@ theorem checkConstructors.loopTypes.refinesMaterialized
   have hindTypesSize : indTypes.size = decl.types.length := by
     simpa using List.Forall₂.length_eq Htypes
   apply checkConstructors.loopTypes.refinesBlockWithReplay
-    (Q := fun _ => CheckedConstructorsResult sourceEnv decl Hc.venv
+    (Q := fun _ => CheckedConstructors sourceEnv decl Hc.venv
       params stats indTypes c.lparams Hmaterialized.parameterScope)
     Hc Htypes (ConstructorTypesPrefix.empty Hc.venv decl params)
     (ConstructorParamPrefixRows.empty stats indTypes)

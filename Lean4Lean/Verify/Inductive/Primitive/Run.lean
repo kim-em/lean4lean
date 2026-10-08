@@ -17,7 +17,7 @@ theorem AddInductive.declareInductiveTypes.primitiveSemanticHeadersClosedWF
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList)
     (Hclosed : MutualInductivesClosed c.env)
     (hlevels : stats.levels.length = c.lparams.length)
@@ -77,7 +77,7 @@ theorem AddInductive.formationCore.primitiveSemanticClosedWF
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList)
     (Hclosed : MutualInductivesClosed c.env)
     (hlevels : stats.levels.length = c.lparams.length)
@@ -145,7 +145,7 @@ theorem AddInductive.runWithStats.primitiveSemanticWF
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList)
     (Hclosed : MutualInductivesClosed c.env)
     (hlevels : stats.levels.length = c.lparams.length)
@@ -214,7 +214,7 @@ def PrimitiveRunResult
     c'.fuel = source.fuel ∧
     Hc'.venv = sourceEnv ∧
     ∃ Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc'.venv c'.lparams nparams commonParams commonLevel
           types.toArray.toList,
     ∃ Hshape : PrimitiveInductiveShape c'.lparams nparams

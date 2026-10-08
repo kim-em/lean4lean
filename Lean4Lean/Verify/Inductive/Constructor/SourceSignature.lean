@@ -284,28 +284,28 @@ namespace checkInductiveTypes.loopInd
 
 /-- Select one normalized source header per family, before adding the fresh
 recursor universe. The family table and later generation share this choice. -/
-noncomputable def MaterializedHeaderResult.signatureFamily
-    (H : MaterializedHeaderResult env Us Δ stats decl depth)
+noncomputable def HeaderStatsWF.signatureFamily
+    (H : HeaderStatsWF env Us Δ stats decl depth)
     (i : Nat) (hi : i < decl.types.length) : InductiveSignature.Family :=
   let source := Classical.choose (H.normalizedShapes i hi)
   { name := decl.types[i].name
     indices := source.indices
     resultLevel := decl.types[i].resultLevel }
 
-noncomputable def MaterializedHeaderResult.signatureFamilies
-    (H : MaterializedHeaderResult env Us Δ stats decl depth) :
+noncomputable def HeaderStatsWF.signatureFamilies
+    (H : HeaderStatsWF env Us Δ stats decl depth) :
     Array InductiveSignature.Family :=
   Array.ofFn fun i : Fin decl.types.length => H.signatureFamily i.val i.isLt
 
-@[simp] theorem MaterializedHeaderResult.signatureFamilies_size
-    (H : MaterializedHeaderResult env Us Δ stats decl depth) :
+@[simp] theorem HeaderStatsWF.signatureFamilies_size
+    (H : HeaderStatsWF env Us Δ stats decl depth) :
     H.signatureFamilies.size = decl.types.length := by
   simp [signatureFamilies]
 
 /-- The chosen index domains are those of the same retained normalized source
 header that proves this family's model; their universe context is unchanged. -/
-theorem MaterializedHeaderResult.signatureFamily_model
-    (H : MaterializedHeaderResult env Us Δ stats decl depth)
+theorem HeaderStatsWF.signatureFamily_model
+    (H : HeaderStatsWF env Us Δ stats decl depth)
     (henv : env.WF)
     (i : Nat) (hi : i < decl.types.length)
     (htype : env.IsType decl.uvars [] decl.types[i].type) :
@@ -323,8 +323,8 @@ theorem MaterializedHeaderResult.signatureFamily_model
     (by simpa [H.uvars] using htype) hnormalized source.parameters hresult
   simpa [signatureFamily, source, H.uvars] using hcanonical
 
-theorem MaterializedHeaderResult.signatureFamilies_names
-    (H : MaterializedHeaderResult env Us Δ stats decl depth) :
+theorem HeaderStatsWF.signatureFamilies_names
+    (H : HeaderStatsWF env Us Δ stats decl depth) :
     H.signatureFamilies.toList.map (·.name) = decl.types.map (·.name) := by
   apply List.ext_getElem
   · simp
@@ -334,8 +334,8 @@ theorem MaterializedHeaderResult.signatureFamilies_names
 
 /-- The common source parameter list has exactly the arity checked by the
 executable parameter cache. -/
-theorem MaterializedHeaderResult.signatureParams_length
-    (H : MaterializedHeaderResult env Us Δ stats decl depth) :
+theorem HeaderStatsWF.signatureParams_length
+    (H : HeaderStatsWF env Us Δ stats decl depth) :
     H.headers.params.length = decl.nparams := by
   have hcontext := H.paramsContext.length_eq
   have hcached := checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length H.cachedScope
@@ -347,8 +347,8 @@ theorem MaterializedHeaderResult.signatureParams_length
 
 /-- Shared source-universe family and parameter choices. Constructor fields
 are filled from the checked source-tail certificates over this same table. -/
-noncomputable def MaterializedHeaderResult.signatureHeader
-    (H : MaterializedHeaderResult env Us Δ stats decl depth) : InductiveSignature where
+noncomputable def HeaderStatsWF.signatureHeader
+    (H : HeaderStatsWF env Us Δ stats decl depth) : InductiveSignature where
   uvars := decl.uvars
   params := H.headers.params
   families := H.signatureFamilies

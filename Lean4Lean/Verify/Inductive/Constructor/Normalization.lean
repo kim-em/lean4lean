@@ -38,7 +38,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
     {decl : VInductDecl} {depth : Nat} {scope : VLCtx}
     {narrowType fullType : VExpr}
     (Hc : ContextWF c)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding
       Hc.venv c.lparams scope Hc.mlctx.vlctx)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
@@ -115,7 +115,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
             ⟨consumedDom, Hdom⟩
           rcases halign.forallE_align henv hdomNarrow hdomNarrowType hbodyNarrow with
             ⟨dom₀, body₀, hdom₀, hdom₀Type, _hdomU, hbody₀, _⟩
-          rcases hconsume _ Hc.narrow hdom₀ hdom₀Type with
+          rcases hconsume _ Hc.atCheckLCtx hdom₀ hdom₀Type with
             ⟨consumedDom₀, Hdom₀⟩
           refine finish <| checkPositivityStep.forallE.sourceWF
             (Q := fun _ => ∃ result,
@@ -133,7 +133,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
           rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
             ⟨domainLevel, hdomain⟩
           let Hruntime' :
-              checkInductiveTypes.loopType.NarrowRuntimeScope
+              checkInductiveTypes.loopType.FrontScopeEmbedding
                 Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
                   (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
@@ -186,13 +186,13 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
               hvalid hlevels hlit (Hruntime.noIndConsts (decl.types.map (·.name)))⟩
 
 /-- Source-boundary form of the production positivity check. The levels
-premise is obtained from `MaterializedHeaderResult.levelParamsTranslation`;
+premise is obtained from `HeaderStatsWF.levelParamsTranslation`;
 it is preserved while recursive binders are opened. -/
 theorem checkPositivity.uniformNormalFormNarrow
     {decl : VInductDecl} {depth : Nat} {scope : VLCtx}
     {narrowType fullType : VExpr}
     (Hc : ContextWF c)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding
       Hc.venv c.lparams scope Hc.mlctx.vlctx)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams

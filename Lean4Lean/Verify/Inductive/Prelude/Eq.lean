@@ -598,7 +598,7 @@ theorem AddInductive.run.eqBootstrapFinalWF
       c'.allowPrimitive = c.allowPrimitive →
       c'.fuel = c.fuel →
       (Hsemantic :
-        checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+        checkInductiveTypes.loopType.CheckedHeaders
           Hc'.venv c'.lparams nparams commonParams commonLevel
             types.toArray.toList) →
       PrimitiveNamesFresh c' stats nparams depth numNested
@@ -661,7 +661,7 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
       c'.allowPrimitive = c.allowPrimitive →
       c'.fuel = c.fuel →
       (Hsemantic :
-        checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+        checkInductiveTypes.loopType.CheckedHeaders
           Hc'.venv c'.lparams nparams commonParams commonLevel
             res.types.toArray.toList) →
       PrimitiveNamesFresh c' stats nparams depth 0

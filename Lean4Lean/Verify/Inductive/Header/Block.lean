@@ -63,7 +63,7 @@ theorem initialHeaderSynthesisState
       normalized sourceType) :
     ∃ normalized',
       TrExprS Hc.venv c.lparams Hc.mlctx.vlctx normalized normalized' ∧
-      Nonempty (checkInductiveTypes.loopType.HeaderSynthesisCertificate
+      Nonempty (checkInductiveTypes.loopType.HeaderTelescope
         Hc target normalized' 0 0) := by
   rcases initialHeaderNormalization Hc hctx Htarget.raw hchecked hnormalized with
     ⟨normalized', exprType, hnormalized', hheader⟩
@@ -81,7 +81,7 @@ theorem initialHeaderSynthesisState
   have hcurrent : Hc.venv.IsType c.lparams.length [] normalized' :=
     htargetType.defeqU_l Hc.checking.tr.wf (by trivial) hheader.toU
   exact ⟨normalized', hnormalized',
-    ⟨checkInductiveTypes.loopType.HeaderSynthesisCertificate.empty
+    ⟨checkInductiveTypes.loopType.HeaderTelescope.empty
       hctxEq hcurrent hheader⟩⟩
 
 /-- A later source header is closed before cached parameters are substituted.
@@ -96,7 +96,7 @@ noncomputable def initialLaterParameterScope
     (Htarget : TrSourceConstRaw Hc.venv c.lparams source.name source.type
       target.toVConstVal)
     (hnormalized : FVarsBelow Hc.mlctx.vlctx source.type normalized) :
-    checkInductiveTypes.loopType.LaterParameterScope
+    checkInductiveTypes.loopType.ReusedParameterScope
       Hsuffix 0 normalized := by
   have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
     Htarget.type.fvarsIn.mono fun fv hfv => by
@@ -105,7 +105,7 @@ noncomputable def initialLaterParameterScope
     have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
       Hc.mlctx.vlctx (by simpa using Hc.mlctx_wf.tr.wf)
     simpa [VLCtx.fvars] using hsuffix
-  exact checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars hi
+  exact checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars hi
     (hnormalized _ hfalseUpSet hsourceNoFVars)
 
 
@@ -120,7 +120,7 @@ theorem initialLaterHeaderSynthesisState
     (hclosed : TrExpr Hc.venv c.lparams [] normalized target.type) :
     ∃ normalized',
       TrExprS Hc.venv c.lparams [] normalized normalized' ∧
-      Nonempty (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      Nonempty (checkInductiveTypes.loopType.ScopedHeaderTelescope
         Hc.venv c.lparams target [] normalized' 0 0) := by
   rcases hclosed with ⟨normalized', hnormalized', hheader⟩
   have htargetType : Hc.venv.IsType c.lparams.length [] target.type := by
@@ -134,7 +134,7 @@ theorem initialLaterHeaderSynthesisState
   have hheaderTyped := hheader.symm.of_l Hc.checking.tr.wf (by trivial)
     htargetType
   exact ⟨normalized', hnormalized',
-    ⟨checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.empty
+    ⟨checkInductiveTypes.loopType.ScopedHeaderTelescope.empty
       ⟨targetLevel, htargetType⟩ hnormalizedType hheaderTyped⟩⟩
 
 /-- A sort translation of a narrow checker run transfers to any scope aligned
@@ -228,14 +228,14 @@ theorem firstResult.synthesizesHeader
     {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
     (Q : α → Prop)
     (Hc : ContextWF c) (hempty : stats.indConsts.isEmpty = true)
-    (Hsynthesis : checkInductiveTypes.loopType.HeaderSynthesisCertificate
+    (Hsynthesis : checkInductiveTypes.loopType.HeaderTelescope
       Hc source current nparams nindices)
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type current)
     (halign : Hc.Aligned)
     (huvars : c.lparams.length = uvars)
     (Hrec : ∀ resultSort resultLevel,
       VLevel.ofLevel c.lparams resultSort = some resultLevel →
-      checkInductiveTypes.loopType.SynthesizedHeader Hc.venv c.lparams
+      checkInductiveTypes.loopType.HeaderFormation Hc.venv c.lparams
         uvars nparams
         Hsynthesis.params source nindices resultLevel →
       checkInductiveTypes.loopType.AmbientParamContext
@@ -355,16 +355,16 @@ theorem result.WF
 This is the early traversal-facing form of `ValidAppStatsWF`; it is kept here
 because the latter also packages the derived name-search invariant used by
 positivity, which is defined after the executable constructor interfaces. -/
-structure MaterializedHeaderResult (env : VEnv) (Us : List Name)
+structure HeaderStatsWF (env : VEnv) (Us : List Name)
     (Δ : VLCtx) (stats : AddInductive.InductiveStats)
     (decl : VInductDecl) (depth : Nat) where
   headers : HeaderCertificate env decl
   normalizedSources : ∀ i (hi : i < decl.types.length), Nonempty
-    (checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope env Us
+    (checkInductiveTypes.loopType.HeaderSourceTelescope env Us
       headers.params decl.nparams decl.types[i].numIndices)
   normalizedShapes : ∀ i (hi : i < decl.types.length),
     ∃ sourceTelescope :
-        checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope env Us
+        checkInductiveTypes.loopType.HeaderSourceTelescope env Us
           headers.params decl.nparams decl.types[i].numIndices,
       ∃ residual exprType,
         env.IsDefEq Us.length [] decl.types[i].type
@@ -395,11 +395,11 @@ structure MaterializedHeaderResult (env : VEnv) (Us : List Name)
   cachedScope : List.Forall₂
     checkInductiveTypes.loopType.CachedParameterDecl
     stats.params.toList.reverse parameterScope
-  runtimeScope : checkInductiveTypes.loopType.NarrowRuntimeScope
+  parameterEmbedding : checkInductiveTypes.loopType.FrontScopeEmbedding
     env Us parameterScope Δ
   paramsContext : VEnv.IsDefEqCtx env Us.length []
     headers.params.reverse parameterScope.toCtx
-  narrowParams : List.Forall₂ (TrExprS env Us parameterScope)
+  suffixParams : List.Forall₂ (TrExprS env Us parameterScope)
     stats.params.toList (decl.paramVars 0)
 
 /-- The executable universe arguments initialized from the declaration's
@@ -421,8 +421,8 @@ theorem VLevel.mapM_ofLevel_paramNames (names : List Name) :
         ih (fun value hvalue => hsubset (by simp [hvalue]))]
   exact go names fun _ => id
 
-theorem MaterializedHeaderResult.levelTranslation
-    (H : MaterializedHeaderResult env Us Δ stats decl depth) :
+theorem HeaderStatsWF.levelTranslation
+    (H : HeaderStatsWF env Us Δ stats decl depth) :
     stats.levels.mapM (VLevel.ofLevel Us) =
       some (Us.map fun name => .param (Us.idxOf name)) := by
   rw [H.levelParams]
@@ -442,8 +442,8 @@ theorem _root_.Lean4Lean.VerifyInductive.List.map_param_idxOf_eq_params
 /-- With distinct universe parameters, the block's concrete level list
 translates to the identity instantiation of the declaration's universe
 context. -/
-theorem MaterializedHeaderResult.levelParamsTranslation
-    (H : MaterializedHeaderResult env Us Δ stats decl depth)
+theorem HeaderStatsWF.levelParamsTranslation
+    (H : HeaderStatsWF env Us Δ stats decl depth)
     (hlparams : Us.Nodup) :
     stats.levels.mapM (VLevel.ofLevel Us) = some (VLevel.params decl.uvars) := by
   rw [H.levelTranslation,
@@ -453,8 +453,8 @@ theorem MaterializedHeaderResult.levelParamsTranslation
 bound.  The zero branch is semantic level equivalence, matching Lean's
 `isAlwaysZero`; the comparison branch is soundness of `geq'`, transported
 from the common mutual level to the selected family member. -/
-theorem MaterializedHeaderResult.universeBound
-    (H : MaterializedHeaderResult env Us Δ stats decl depth) :
+theorem HeaderStatsWF.universeBound
+    (H : HeaderStatsWF env Us Δ stats decl depth) :
     ∀ targetIdx (hi : targetIdx < decl.types.length)
       fieldLevel fieldLevel',
       VLevel.ofLevel Us fieldLevel = some fieldLevel' →
@@ -490,10 +490,10 @@ private theorem forall₂_trExprS_mono {env env' : VEnv}
   | _ :: _, _ :: _, .cons h hs => .cons (h.mono henv)
       (forall₂_trExprS_mono henv hs)
 
-def MaterializedHeaderResult.mono {env env' : VEnv}
+def HeaderStatsWF.mono {env env' : VEnv}
     (henv : env ≤ env')
-    (H : MaterializedHeaderResult env Us Δ stats decl depth) :
-    MaterializedHeaderResult env' Us Δ stats decl depth where
+    (H : HeaderStatsWF env Us Δ stats decl depth) :
+    HeaderStatsWF env' Us Δ stats decl depth where
   headers := H.headers.mono henv
   normalizedSources := fun i hi =>
     ⟨(Classical.choice (H.normalizedSources i hi)).mono henv⟩
@@ -516,13 +516,13 @@ def MaterializedHeaderResult.mono {env env' : VEnv}
   scopeDecomposition := H.scopeDecomposition
   ambientLength := H.ambientLength
   cachedScope := H.cachedScope
-  runtimeScope := H.runtimeScope.mono henv
+  parameterEmbedding := H.parameterEmbedding.mono henv
   paramsContext := H.paramsContext.mono henv
-  narrowParams := forall₂_trExprS_mono henv H.narrowParams
+  suffixParams := forall₂_trExprS_mono henv H.suffixParams
 
-def MaterializedHeaderResult.parameterSuffix
+def HeaderStatsWF.parameterSuffix
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : MaterializedHeaderResult Hc.venv c.lparams Hc.mlctx.vlctx
+    (H : HeaderStatsWF Hc.venv c.lparams Hc.mlctx.vlctx
       stats decl depth) :
     checkInductiveTypes.loopType.ParameterContextSuffix Hc stats depth where
   ambientDecls := H.ambientScope
@@ -530,15 +530,15 @@ def MaterializedHeaderResult.parameterSuffix
   context := H.scopeDecomposition
   prefixLength := H.ambientLength
   cached := H.cachedScope
-  narrowParams := by
+  suffixParams := by
     have hsize : stats.params.size = decl.nparams := by
       have hlength :=
-        List.Forall₂.length_eq H.narrowParams
+        List.Forall₂.length_eq H.suffixParams
       simpa [VInductDecl.paramVars] using hlength
     rw [hsize,
       checkInductiveTypes.loopType.cachedParamVars_eq_paramVars decl]
-    exact H.narrowParams
-  sources := H.runtimeScope.sources
+    exact H.suffixParams
+  sources := H.parameterEmbedding.sourceTelescope
 
 
 end checkInductiveTypes.loopInd

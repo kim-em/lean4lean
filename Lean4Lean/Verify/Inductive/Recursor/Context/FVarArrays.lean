@@ -722,8 +722,8 @@ def RecursorParameterContextSuffix.weakenRecent
       simp only [List.length_append, hadded, H.prefixLength]
       omega
     cached := H.cached
-    narrowParams := by
-      simpa only [Hrecent.venv_eq] using H.narrowParams
+    suffixParams := by
+      simpa only [Hrecent.venv_eq] using H.suffixParams
     sources := by
       simpa only [Hrecent.venv_eq] using H.sources }
 
@@ -924,7 +924,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
     {root c : AddInductive.Context} {Hroot : ContextWF root}
     {fields : Array Expr} {source : Expr}
     (Hc : ContextWF c)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding
       Hc.venv c.lparams scope Hc.mlctx.vlctx)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
@@ -960,7 +960,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
           rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow
               hdomNarrowType hbodyNarrow with
             ⟨dom₀, _, hdom₀, hdom₀Type, _, hbody₀, _⟩
-          rcases hconsume _ Hc.narrow hdom₀ hdom₀Type with
+          rcases hconsume _ Hc.atCheckLCtx hdom₀ hdom₀Type with
             ⟨consumedDom₀, Hdom₀⟩
           have hparamNext : stats.params[i + 1]? = none := by
             rw [Array.getElem?_eq_none_iff] at hparamAt ⊢
@@ -986,7 +986,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
             let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
               Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
             let Hruntime' :
-                checkInductiveTypes.loopType.NarrowRuntimeScope
+                checkInductiveTypes.loopType.FrontScopeEmbedding
                   Hc'.venv c.lparams
                   ((some (⟨c.ngen.curr⟩,
                     (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
@@ -1040,7 +1040,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
             let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
               Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
             let Hruntime' :
-                checkInductiveTypes.loopType.NarrowRuntimeScope
+                checkInductiveTypes.loopType.FrontScopeEmbedding
                   Hc'.venv c.lparams
                   ((some (⟨c.ngen.curr⟩,
                     (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
@@ -1136,7 +1136,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
         (i := 0) (ctor := ctor) (fuel := fuel + 1)
         (isUnsafe := isUnsafe)
         (Hroot := Hc) Hc
-        (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+        (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
           Hc Hsuffix) halign
         Hstats hi hparamAt hconsume hlit Hsuffix.paramsBound
         (RecentBoundFVarArray.empty Hc)
@@ -1172,7 +1172,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
           (i := decl.nparams) (ctor := ctor) (fuel := fuel' + 1)
           (isUnsafe := isUnsafe)
           (Hroot := Hc) Hc
-          (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+          (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
             Hc Hsuffix) halign
           Hstats hi hparamAt hconsume hlit Hsuffix.paramsBound
           (RecentBoundFVarArray.empty Hc)
@@ -1192,9 +1192,9 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
           (by simpa [Hstats.params_size] using hi') hforall)
       Hstats.params_size (by omega) (.done)
       (fun h =>
-        checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars h hnoFVars)
+        checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars h hnoFVars)
       (fun h =>
-        (checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars
+        (checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars
           h hnoFVars).older_eq_nil h |>.symm)
       (by
         intro hdone
@@ -1214,7 +1214,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
         omega
       exact checkConstructors.loopCtor.earlyParameterResult.WF
         (Hsuffix := Hsuffix) (fuel := fuel) Hc
-        (checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars
+        (checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars
           (Hsuffix := Hsuffix) hiStats hnoFVars)
         (by omega) hforall
 
@@ -1615,9 +1615,9 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       let RB := R.withCheckLCtx _ B
       rcases TrExpr.forallE_source (htype₀.trExpr R.checking.tr.wf B.wf.tr.wf) with
         ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, hbodyN₀Type, hforallEq₀⟩
-      rcases hconsume _ recLparams RB.narrow hdom₀ hdom₀Type with
+      rcases hconsume _ recLparams RB.atCheckLCtx hdom₀ hdom₀Type with
         ⟨consumedDom₀, Hdom₀⟩
-      rcases Hdom₀.body RB.narrow hbodyN₀ with ⟨body₀'', hbody₀'', hbody₀Eq⟩
+      rcases Hdom₀.body RB.atCheckLCtx hbodyN₀ with ⟨body₀'', hbody₀'', hbody₀Eq⟩
       have hcons₀ : TrExprS R.venv recLparams B.m.vlctx
           (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom₀ := Hdom₀.consumed
       have hconsT₀ : R.venv.IsType recLparams.length B.m.vlctx.toCtx
@@ -1800,7 +1800,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
               (B.m.mkForall' bu.size hn (.forallE consumedDom₀ body₀'')) := by
         obtain ⟨hnB, hagB, hdropB, hrootB⟩ := hagreeB
         refine ⟨hnB, hagB, hdropB, ?_⟩
-        have hbodyEq₀ := Hdom₀.bodyDefEqConsumed RB.narrow hbody₀Eq
+        have hbodyEq₀ := Hdom₀.bodyDefEqConsumed RB.atCheckLCtx hbody₀Eq
         let HdomainCtx₀ : VLCtx.IsDefEq R.venv recLparams.length
             ((none, .vlam dom₀) :: B.m.vlctx)
             ((none, .vlam consumedDom₀) :: B.m.vlctx) :=
@@ -1841,7 +1841,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         exact h
       have hopened₀ : TrExprS R.venv recLparams B'.m.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body₀'' :=
-        RB.narrow.instantiateFresh (name := name) (bi := bi)
+        RB.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
           Hdom₀.consumed Hdom₀.isType hbody₀''
       have hopenFvars : Hopening.fvars =
           Hrecent.toBoundFVarArray.fvars :=

@@ -673,7 +673,7 @@ theorem RestoredConstructorValidationEnvironment.validProjected
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (hempty : initialState.nestedAux = #[])
@@ -863,7 +863,7 @@ theorem RestoredNestedDeclarationsResult.finalLocalValidOfStaged
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (hempty : initialState.nestedAux = #[])

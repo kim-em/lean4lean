@@ -139,8 +139,8 @@ theorem CheckedConstructorParameterPrefix.rawCtorShape
 
 /-- The completed constructor replay yields the raw syntactic shape of every
 source constructor, positionally aligned with the declaration. -/
-theorem CheckedConstructorsResult.rawShapes
-    (H : CheckedConstructorsResult sourceEnv decl env params stats indTypes
+theorem CheckedConstructors.rawShapes
+    (H : CheckedConstructors sourceEnv decl env params stats indTypes
       Us scope)
     (henv : env.WF)
     (Htypes : List.Forall₂
@@ -182,8 +182,8 @@ theorem CheckedConstructorsResult.rawShapes
 parameter comparison.  Pair it with the declaration translation at the same
 family/constructor indices to obtain the independent raw shape judgment,
 without changing the executable loop or adding a semantic callback. -/
-theorem CheckedConstructorsResult.parameterShapes
-    (H : CheckedConstructorsResult sourceEnv decl env params stats indTypes
+theorem CheckedConstructors.parameterShapes
+    (H : CheckedConstructors sourceEnv decl env params stats indTypes
       Us scope)
     (henv : env.WF)
     (Htypes : List.Forall₂

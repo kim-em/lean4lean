@@ -11,7 +11,7 @@ namespace checkInductiveTypes.loopInd
 /-- The first successful family initializes declaration-independent semantic
 header accumulation.  Both the telescope and zero-binder paths recover the
 same payload: exact header translation, arity, result universe, common
-parameters, and `SynthesizedHeader`. -/
+parameters, and `HeaderFormation`. -/
 theorem firstStep.initializesSemanticAccumulator
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {indTypes : Array InductiveType} {nparams : Nat}
@@ -37,7 +37,7 @@ theorem firstStep.initializesSemanticAccumulator
       stats'.nindices = stats.nindices →
       stats'.indConsts = stats.indConsts →
       (Hsemantic :
-        checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+        checkInductiveTypes.loopType.CheckedHeaders
           Hc'.venv c'.lparams nparams params resultLevel [indTypes[0]]) →
       Hsemantic.metadata = [(nindices, resultLevel)] →
       VLevel.ofLevel c'.lparams resultSort = some resultLevel →
@@ -52,7 +52,7 @@ theorem firstStep.initializesSemanticAccumulator
           indTypes[0].name) k c').WF Q) :
     (AddInductive.checkInductiveTypes.loopInd nparams indTypes 0
       stats k c).WF Q := by
-  let Hraw := CheckedSourceHeaderAccumulator.empty Hc.venv c.lparams
+  let Hraw := RawHeaderTranslations.empty Hc.venv c.lparams
   apply stepPrefix.accumulatesRawHeaders
     (nparams := nparams) (stats := stats) (k := k) (Q := Q)
     Hc Hraw hidx
@@ -62,7 +62,7 @@ theorem firstStep.initializesSemanticAccumulator
   by_cases hforall : ∃ name dom body bi,
       normalized = .forallE name dom body bi
   · rcases hforall with ⟨name, dom, body, bi, rfl⟩
-    have Htarget := CheckedSourceHeaderTranslation.checkedFirstForall
+    have Htarget := ClosedHeaderCheck.checkedFirstForall
       Hchecked hctx htype
     have HtargetSkeleton : TrSourceConst Hc.venv c.lparams
         indTypes[0].name indTypes[0].type sourceSkeleton.toVConstVal := by
@@ -127,7 +127,7 @@ theorem firstStep.initializesSemanticAccumulator
             have hvenvBase : HcBase.venv = Hc'.venv := hvenv'
             simpa [← hvenvBase, hlparams'] using Htarget
           let Hsemantic :=
-            checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.first
+            checkInductiveTypes.loopType.CheckedHeaders.first
               indTypes[0] Hchecked.target nindices' resultLevel
               Htranslation
               (by simpa [sourceSkeleton, Htarget.uvars, hlparams'] using Hheader)
@@ -161,7 +161,7 @@ theorem firstStep.initializesSemanticAccumulator
           k Q Hc hempty htype' (type₀ := closed) (by rw [hchk]; exact hclosedS)
         intro resultSort hsorted hsorted₀
         rw [hchk] at hsorted₀
-        rcases CheckedSourceHeaderTranslation.checkedTerminal
+        rcases ClosedHeaderCheck.checkedTerminal
             Hchecked ⟨closed, hclosedS, hclosedEq⟩ hclosedS hsorted₀ with
           ⟨resultLevel, hofLevel, Htarget⟩
         rcases initialHeaderNormalization Hc hctx
@@ -198,12 +198,12 @@ theorem firstStep.initializesSemanticAccumulator
             (by trivial : OnCtx ([] : List VExpr)
               (Hc.venv.IsType c.lparams.length)))
         let Hsynthesis :=
-          checkInductiveTypes.loopType.HeaderSynthesisCertificate.empty
+          checkInductiveTypes.loopType.HeaderTelescope.empty
             hctxEq hcurrentType htargetCurrent
         have Hheader := Hsynthesis.synthesizedHeader
           (uvars := c.lparams.length) rfl hofLevel hsorted
         let Hsemantic :=
-          checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.first
+          checkInductiveTypes.loopType.CheckedHeaders.first
             indTypes[0] Hchecked.target 0 resultLevel Htarget
             (by simpa [Hc, sourceSkeleton] using Hheader)
         have Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
@@ -233,13 +233,13 @@ theorem laterResult.snocsSemanticNarrow
     (Htranslation : TrSourceConst Hc.venv c.lparams
       source.name source.type target)
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel priorSources)
-    (Hsynthesis : checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+    (Hsynthesis : checkInductiveTypes.loopType.ScopedHeaderTelescope
       Hc.venv c.lparams
         (checkInductiveTypes.loopType.headerSkeleton target)
         scope narrowCurrent nparams nindices)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding
       Hc.venv c.lparams scope Hc.mlctx.vlctx)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowCurrent)
@@ -252,7 +252,7 @@ theorem laterResult.snocsSemanticNarrow
       resultSort.isEquiv stats.resultLevel = true →
       VLevel.ofLevel c.lparams resultSort = some resultLevel →
       (HsemanticNext :
-        checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+        checkInductiveTypes.loopType.CheckedHeaders
           Hc.venv c.lparams nparams commonParams commonLevel
             (priorSources ++ [source])) →
       HsemanticNext.metadata =
@@ -285,7 +285,7 @@ theorem laterResult.snocsSemanticNarrow
     halign htypeNarrow htype₀ hsorted₀
   rcases TrExpr.sort_source hsortedNarrow with
     ⟨resultLevel, hofLevel, _hresult⟩
-  rcases checkInductiveTypes.loopType.NarrowRuntimeScope.independentSourceScopeOfCheck
+  rcases checkInductiveTypes.loopType.FrontScopeEmbedding.independentSourceScopeOfCheck
       halign with
     ⟨sourceScope, HsourceScope, hsourceScopeFVars, hsourceClosure⟩
   have hheader := Hsynthesis.synthesizedHeaderWithParams
@@ -297,7 +297,7 @@ theorem laterResult.snocsSemanticNarrow
   let HsemanticNext := Hsemantic.snoc source target nindices resultLevel
     Htranslation hheader hlevel
   exact Hrec resultSort resultLevel hguard hofLevel HsemanticNext
-    (checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.metadata_snoc Hsemantic
+    (checkInductiveTypes.loopType.CheckedHeaders.metadata_snoc Hsemantic
       source target nindices resultLevel Htranslation hheader hlevel)
 
 /-- Fold one noninitial mutual header while preserving the exact ordered
@@ -317,7 +317,7 @@ theorem laterStep.extendsSemanticAccumulator
     (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       Hc stats depth)
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel
           (indTypes.toList.take dIdx))
     (Hambient : checkInductiveTypes.loopType.AmbientParamContext
@@ -344,7 +344,7 @@ theorem laterStep.extendsSemanticAccumulator
           indTypes[dIdx].name)
         (depth + nindices) →
       (Hsemantic' :
-        checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+        checkInductiveTypes.loopType.CheckedHeaders
           Hc'.venv c'.lparams nparams commonParams commonLevel
             (indTypes.toList.take (dIdx + 1))) →
       Hsemantic'.metadata =
@@ -375,7 +375,7 @@ theorem laterStep.extendsSemanticAccumulator
   by_cases hforall : ∃ name dom body bi,
       normalized = .forallE name dom body bi
   · rcases hforall with ⟨name, dom, body, bi, rfl⟩
-    have Htarget := CheckedSourceHeaderTranslation.checkedLaterForall
+    have Htarget := ClosedHeaderCheck.checkedLaterForall
       Hchecked hclosed
     let sourceSkeleton :=
       checkInductiveTypes.loopType.headerSkeleton Hchecked.target
@@ -399,7 +399,7 @@ theorem laterStep.extendsSemanticAccumulator
         hclosed with
       ⟨narrowCurrent, hnormalizedNarrow, ⟨Hsynthesis⟩⟩
     let Hscope : ∀ h : 0 < stats.params.size,
-        checkInductiveTypes.loopType.LaterParameterScope Hsuffix 0
+        checkInductiveTypes.loopType.ReusedParameterScope Hsuffix 0
           (.forallE name dom body bi) := fun h =>
       initialLaterParameterScope Hc Hsuffix h HtargetSkeleton.raw hbelow
     apply checkInductiveTypes.loopType.laterParameterSynthesisWF Hc
@@ -428,7 +428,7 @@ theorem laterStep.extendsSemanticAccumulator
         cases hi'
         subst scope'
         let Hruntime :=
-          checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+          checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
             Hc Hsuffix
         have hindices' : Hsynthesis'.indices = [] :=
           List.eq_nil_of_length_eq_zero Hsynthesis'.indexCount
@@ -443,7 +443,7 @@ theorem laterStep.extendsSemanticAccumulator
           (paramU := c.lparams.length)
           (R := fun env =>
             ∃ Hprior :
-              checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+              checkInductiveTypes.loopType.CheckedHeaders
                 env c.lparams nparams commonParams commonLevel
                   (indTypes.toList.take dIdx),
               Hprior.metadata = Hsemantic.metadata ∧
@@ -493,7 +493,7 @@ theorem laterStep.extendsSemanticAccumulator
             have hidxList : dIdx < indTypes.toList.length := by
               simpa using hidx
             let HsemanticNext' :
-                checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+                checkInductiveTypes.loopType.CheckedHeaders
                   Hc'.venv c'.lparams nparams commonParams commonLevel
                     (indTypes.toList.take (dIdx + 1)) := by
               apply HsemanticNext.reindexSources
@@ -509,7 +509,7 @@ theorem laterStep.extendsSemanticAccumulator
                     [(nindices'', resultLevel)] := hmetadataNext
                 _ = Hsemantic''.metadata ++
                     [(nindices'', resultLevel)] := by
-                  rw [checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.metadata_reindexUs]
+                  rw [checkInductiveTypes.loopType.CheckedHeaders.metadata_reindexUs]
                 _ = Hsemantic.metadata ++
                     [(nindices'', resultLevel)] := by rw [hmetadataPrior]
             · exact Hambient'')
@@ -556,7 +556,7 @@ theorem laterStep.extendsSemanticAccumulator
           k Q Hc hnonempty htype (type₀ := closed) (by rw [hchk]; exact hclosedS)
         intro resultSort hguard _hsorted hsorted₀
         rw [hchk] at hsorted₀
-        rcases CheckedSourceHeaderTranslation.checkedTerminal
+        rcases ClosedHeaderCheck.checkedTerminal
             Hchecked hclosed hclosedS hsorted₀ with
           ⟨resultLevel, hofLevel, Htarget⟩
         let sourceSkeleton :=
@@ -574,14 +574,14 @@ theorem laterStep.extendsSemanticAccumulator
           apply List.eq_nil_of_length_eq_zero
           rw [Hsuffix.parameterDecls_length, hparams, ← hzero]
         let HruntimeBase :=
-          checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+          checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
             Hc Hsuffix
-        have Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+        have Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding
             Hc.venv c.lparams [] Hc.mlctx.vlctx := by
           simpa [hscopeEmpty] using HruntimeBase
         have hsortedNarrow := TrExpr.sort_of_aligned Hc.checking.tr.wf
           .nil hnormalizedNarrow hclosedS hsorted₀
-        rcases checkInductiveTypes.loopType.NarrowRuntimeScope.independentSourceScopeOfCheck
+        rcases checkInductiveTypes.loopType.FrontScopeEmbedding.independentSourceScopeOfCheck
             (scope := []) (Hc := Hc) (by rw [hchk]; exact .nil) with
           ⟨sourceScope, HsourceScope, hsourceScopeFVars,
             hsourceClosure⟩
@@ -597,7 +597,7 @@ theorem laterStep.extendsSemanticAccumulator
           Hc.checking.tr.wf Hruntime HsourceScope hsourceScopeFVars
           Hc.mlctx.lctx hsourceClosure rfl hparamEq hofLevel
           hsortedNarrow
-        have Hheader' : checkInductiveTypes.loopType.SynthesizedHeader
+        have Hheader' : checkInductiveTypes.loopType.HeaderFormation
             Hc.venv c.lparams c.lparams.length nparams commonParams
               sourceSkeleton 0 resultLevel := by
           simpa [hzero] using Hheader
@@ -608,7 +608,7 @@ theorem laterStep.extendsSemanticAccumulator
         have hidxList : dIdx < indTypes.toList.length := by
           simpa using hidx
         let HsemanticNext' :
-            checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+            checkInductiveTypes.loopType.CheckedHeaders
               Hc.venv c.lparams nparams commonParams commonLevel
                 (indTypes.toList.take (dIdx + 1)) := by
           apply HsemanticNext.reindexSources
@@ -623,7 +623,7 @@ theorem laterStep.extendsSemanticAccumulator
             HsemanticNext'.metadata = HsemanticNext.metadata := rfl
             _ = Hsemantic.metadata ++ [(0, resultLevel)] := by
               simpa [HsemanticNext] using
-                (checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.metadata_snoc
+                (checkInductiveTypes.loopType.CheckedHeaders.metadata_snoc
                   Hsemantic indTypes[dIdx] Hchecked.target 0 resultLevel
                     Htarget Hheader' hlevel)
         · simpa using Hambient
@@ -650,7 +650,7 @@ theorem laterLoopIndSemantic
       c'.fuel = root.fuel →
       Hc'.venv = rootVEnv →
       (Hsemantic' :
-        checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+        checkInductiveTypes.loopType.CheckedHeaders
           Hc'.venv c'.lparams nparams commonParams commonLevel
             indTypes.toList) →
       stats'.levels.length = c'.lparams.length →
@@ -682,7 +682,7 @@ theorem laterLoopIndSemantic
     (hfuelRoot : c.fuel = root.fuel)
     (hvenvRoot : Hc.venv = rootVEnv)
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel
           (indTypes.toList.take dIdx))
     (hdone : dIdx ≤ indTypes.size)
@@ -748,7 +748,7 @@ theorem laterLoopIndSemantic
     have htake : indTypes.toList.take dIdx = indTypes.toList :=
       List.take_of_length_le (by simpa using hcoverage)
     let HsemanticFull :
-        checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+        checkInductiveTypes.loopType.CheckedHeaders
           Hc.venv c.lparams nparams commonParams commonLevel
             indTypes.toList := Hsemantic.reindexSources htake
     apply result.WF (k := k) (Q := Q) hidx
@@ -793,7 +793,7 @@ theorem firstLoopIndSemantic
       c'.fuel = c.fuel →
       Hc'.venv = Hc.venv →
       (Hsemantic' :
-        checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+        checkInductiveTypes.loopType.CheckedHeaders
           Hc'.venv c'.lparams nparams commonParams commonLevel
             indTypes.toList) →
       stats'.levels.length = c'.lparams.length →
@@ -844,7 +844,7 @@ theorem firstLoopIndSemantic
     exact Hsemantic.payloads[0].2.synthesized.parameterCount
   have hidxList : 0 < indTypes.toList.length := by simpa using hnonempty
   let HsemanticTake :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc'.venv c'.lparams nparams params resultLevel
           (indTypes.toList.take 1) := by
     apply Hsemantic.reindexSources
@@ -898,7 +898,7 @@ theorem checkInductiveTypes.accumulatesSemanticHeadersSourceAligned
       c'.fuel = c.fuel →
       Hc'.venv = Hc.venv →
       (Hsemantic' :
-        checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+        checkInductiveTypes.loopType.CheckedHeaders
           Hc'.venv c'.lparams nparams commonParams commonLevel
             indTypes.toList) →
       stats'.levels.length = c'.lparams.length →

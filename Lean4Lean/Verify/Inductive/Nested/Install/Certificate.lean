@@ -216,7 +216,7 @@ structure NestedFinalAssemblyBase
     primaryRecursors ++ auxiliaryRecursors
   formationAssembly : NestedFormationAssembly sourceEnv decl
   formationExpanded : formationAssembly.expanded = production.loweredDecl
-  materialized : MaterializedInductivePrefix decl production.loweredDecl
+  materialized : SourcePrefixOfLowered decl production.loweredDecl
   uvars : decl.uvars = lparams.length
   numParams : decl.nparams = nparams
   unsafeEq : decl.isUnsafe = isUnsafe
@@ -373,7 +373,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
       decl.constructorConstants)
     (Hformation : NestedFormationAssembly sourceEnv decl)
     (hformationExpanded : Hformation.expanded = P.loweredDecl)
-    (Hmaterialized : MaterializedInductivePrefix decl P.loweredDecl)
+    (Hmaterialized : SourcePrefixOfLowered decl P.loweredDecl)
     (huvars : decl.uvars = lparams.length)
     (hnumParams : decl.nparams = nparams)
     (hunsafeEq : decl.isUnsafe = isUnsafe)
@@ -611,7 +611,7 @@ structure NestedValidatedRunResult
   commonParams : List VExpr
   commonLevel : VLevel
   sourceHeaderSemantics :
-    checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+    checkInductiveTypes.loopType.CheckedHeaders
       productionContextWF.venv productionContext.lparams nparams commonParams
         commonLevel res.types.toArray.toList
   validationFuel : FuelConfig
@@ -780,7 +780,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
       c'.allowPrimitive = allowPrimitive →
       c'.fuel = fuel →
       (Hsemantic :
-        checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+        checkInductiveTypes.loopType.CheckedHeaders
           Hc'.venv c'.lparams nparams commonParams commonLevel
             res.types.toArray.toList) →
       PrimitiveNamesFresh c' stats nparams depth

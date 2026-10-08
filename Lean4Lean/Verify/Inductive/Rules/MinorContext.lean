@@ -151,10 +151,10 @@ theorem MLCtxOnlyLams.closedTelescopeScope
     (HT : Expr.ForallTelescopeTypeTranslation env Us []
       (c.lctx.mkForall (outer.map Expr.fvar).toArray body)
       (outer.length + k) tgt) :
-    ∃ scope, ∃ Hscope : FVarNarrowScope env Us scope c.vlctx,
+    ∃ scope, ∃ Hscope : ScopeEmbedding env Us scope c.vlctx,
       scope.fvars = outer.reverse ∧
       Hscope.shift = fvarSelectionLift c.vlctx.fvars (· ∈ outer) ∧
-      (∀ body', Hscope.sources.closeSource body' =
+      (∀ body', Hscope.sourceTelescope.closeSource body' =
         c.lctx.mkForall (outer.map Expr.fvar).toArray body') ∧
       ∃ t', Expr.ForallTelescopeTypeTranslation env Us scope body k t' ∧
         tgt = VExpr.wrapForalls scope.toCtx.reverse t' := by
@@ -923,9 +923,9 @@ theorem TrExprS.instantiateFVarLambdaSuffix {env : VEnv} {Us : List Name}
     rwa [Expr.instantiate1'_abstract1_self] at Hinst
 
 /-- Reopen the anonymous closure of a non-contiguous free-variable scope. -/
-theorem checkInductiveTypes.loopType.FVarNarrowScope.instantiateAll
+theorem checkInductiveTypes.loopType.ScopeEmbedding.instantiateAll
     {env : VEnv} {Us : List Name} {scope runtime : VLCtx}
-    (H : checkInductiveTypes.loopType.FVarNarrowScope env Us scope runtime)
+    (H : checkInductiveTypes.loopType.ScopeEmbedding env Us scope runtime)
     (henv : env.WF) {source : Expr} {target : VExpr}
     (Htr : TrExprS env Us
       (abstractForallContext scope.toCtx.reverse [])
@@ -970,13 +970,13 @@ theorem
     let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars
     ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+      ∃ Hscope : checkInductiveTypes.loopType.ScopeEmbedding
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
         scope.fvars = (outerBinders.take k).reverse ∧
         Hscope.shift = fvarSelectionLift
           H.recursorWF.mlctx.vlctx.fvars (· ∈ outerBinders.take k) ∧
         (∀ body,
-          Hscope.sources.closeSource body =
+          Hscope.sourceTelescope.closeSource body =
             H.localContext.lctx.mkForall
               ((outerBinders.take k).map Expr.fvar).toArray body) ∧
         Closed (H.localContext.lctx.mkForall H.recInfos[owner]!.indices
@@ -1210,14 +1210,14 @@ theorem
       ∃ O : H.origins.FlatMinorOrigin D,
       ∃ S : RecInfoMinorTypeShape,
       ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+      ∃ Hscope : checkInductiveTypes.loopType.ScopeEmbedding
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
       ∃ narrowTarget,
         scope.fvars = sourceBinders.reverse ∧
         Hscope.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
           (· ∈ sourceBinders) ∧
         (∀ body,
-          Hscope.sources.closeSource body =
+          Hscope.sourceTelescope.closeSource body =
             H.localContext.lctx.mkForall
               (sourceBinders.map Expr.fvar).toArray body) ∧
         TrExprS H.outVEnv Us scope D.type narrowTarget ∧
@@ -1332,17 +1332,17 @@ theorem
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
       ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+      ∃ Hscope : checkInductiveTypes.loopType.ScopeEmbedding
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
       ∃ prefixSource,
         scope.fvars = sourceBinders.reverse ∧
         Hscope.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
           (· ∈ sourceBinders) ∧
         (∀ body,
-          Hscope.sources.closeSource body =
+          Hscope.sourceTelescope.closeSource body =
             H.localContext.lctx.mkForall
               (sourceBinders.map Expr.fvar).toArray body) ∧
-        prefixSource = Hscope.sources.closeSource
+        prefixSource = Hscope.sourceTelescope.closeSource
           (.sort (.zero : Level)) ∧
         prefixSource = H.localContext.lctx.mkForall
           (sourceBinders.map Expr.fvar).toArray
@@ -1388,7 +1388,7 @@ theorem
           H.bindings.flatMinors.length_fvars,
           T.params_length, T.motives_length, T.minors_length]
   exact ⟨T, scope, Hscope,
-    Hscope.sources.closeSource (.sort (.zero : Level)), hscope,
+    Hscope.sourceTelescope.closeSource (.sort (.zero : Level)), hscope,
     hscopeShift, hscopeSource, rfl,
     hscopeSource (.sort (.zero : Level)),
     Hprefix, HprefixType, HprefixTelescope, hprefixLength⟩
@@ -1692,13 +1692,13 @@ theorem
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
       ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+      ∃ Hscope : checkInductiveTypes.loopType.ScopeEmbedding
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
         scope.fvars = sourceBinders.reverse ∧
         Hscope.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
           (· ∈ sourceBinders) ∧
         (∀ body,
-          Hscope.sources.closeSource body =
+          Hscope.sourceTelescope.closeSource body =
             H.localContext.lctx.mkForall
               (sourceBinders.map Expr.fvar).toArray body) ∧
         VEnv.IsDefEqCtx H.outVEnv Us.length [] scope.toCtx

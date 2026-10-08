@@ -164,8 +164,8 @@ theorem SingletonTelescope.of_mono
 
 /-- The singleton checker starts with a closed constructor type, so none
 of the ambient runtime variables belong to its source telescope. -/
-def checkInductiveTypes.loopType.NarrowRuntimeScope.empty (Hc : ContextWF c) :
-    checkInductiveTypes.loopType.NarrowRuntimeScope Hc.venv c.lparams [] Hc.mlctx.vlctx := by
+def checkInductiveTypes.loopType.FrontScopeEmbedding.empty (Hc : ContextWF c) :
+    checkInductiveTypes.loopType.FrontScopeEmbedding Hc.venv c.lparams [] Hc.mlctx.vlctx := by
   let W := VLCtx.FVLift.to_append [] Hc.mlctx.noBV
   refine {
     expanded := Hc.mlctx.vlctx
@@ -178,15 +178,15 @@ def checkInductiveTypes.loopType.NarrowRuntimeScope.empty (Hc : ContextWF c) :
     upset := by simpa using IsFVarUpSet.suffixFVars [] Hc.mlctx.vlctx (by simpa using Hc.mlctx_wf.tr.wf)
     noBV := rfl
     noIndConsts := fun _ => nofun
-    sources := .nil
+    sourceTelescope := .nil
     wf := trivial }
 
 /-- Pending index requirements remain attached to their actual named field
 through the exact binder opening performed by the executable check. -/
-theorem LargeEliminationTrace.singletonTelescope
-    (H : LargeEliminationTrace stats c source i required)
+theorem LargeEliminationCheck.singletonTelescope
+    (H : LargeEliminationCheck stats c source i required)
     (Hc : ContextWF c)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding
       Hc.venv c.lparams scope Hc.mlctx.vlctx)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hspine : Expr.ForallSpine source arity)
@@ -211,7 +211,7 @@ theorem LargeEliminationTrace.singletonTelescope
         simp only [Array.getElem_toList] at heq
         rw [heq] at hh
         simpa [← Expr.getAppArgs_toList] using hh
-      have hmem := LargeEliminationTrace.contains_bvar_of_fvar hargs hcontains' hfind
+      have hmem := LargeEliminationCheck.contains_bvar_of_fvar hargs hcontains' hfind
       exact .here (congrArg Prod.fst hspine) (by simpa [hspine] using hmem)
   | @param c name dom body bi i required hparam Htail ih =>
     cases hnarrow with
@@ -223,7 +223,7 @@ theorem LargeEliminationTrace.singletonTelescope
         rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow hdomType hbodyNarrow with
           ⟨dom₀, _, hdom₀, hdom₀Type, _, _, _⟩
         obtain ⟨consumed₀, Hdom₀⟩ :=
-          consumeTypeAnnotationsCompat _ Hc.narrow hdom₀ hdom₀Type
+          consumeTypeAnnotationsCompat _ Hc.atCheckLCtx hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
@@ -273,7 +273,7 @@ theorem LargeEliminationTrace.singletonTelescope
         rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow hdomType hbodyNarrow with
           ⟨dom₀, _, hdom₀, hdom₀Type, _, _, _⟩
         obtain ⟨consumed₀, Hdom₀⟩ :=
-          consumeTypeAnnotationsCompat _ Hc.narrow hdom₀ hdom₀Type
+          consumeTypeAnnotationsCompat _ Hc.atCheckLCtx hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
@@ -299,7 +299,7 @@ theorem LargeEliminationTrace.singletonTelescope
           (hopenedFull.trExpr Hnext.checking.tr.wf Hnext.mlctx_wf.tr.wf)
         refine ⟨.field hdomType ?_ htail, ?_⟩
         · have hconsumed₀ := Hdom₀.proof_of_largeEliminationCheck
-            (Hc := Hc.narrow) Hdom₀ hcheck hzero
+            (Hc := Hc.atCheckLCtx) Hdom₀ hcheck hzero
           obtain ⟨u, hu⟩ := Hdom₀.source_defeq
           have hsource₀ := hconsumed₀.defeqU_l Hc.checking.tr.wf
             Hc.check.wf.tr.wf.toCtx ⟨_, hu.symm⟩
@@ -329,7 +329,7 @@ theorem LargeEliminationTrace.singletonTelescope
         rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow hdomType hbodyNarrow with
           ⟨dom₀, _, hdom₀, hdom₀Type, _, _, _⟩
         obtain ⟨consumed₀, Hdom₀⟩ :=
-          consumeTypeAnnotationsCompat _ Hc.narrow hdom₀ hdom₀Type
+          consumeTypeAnnotationsCompat _ Hc.atCheckLCtx hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
@@ -372,8 +372,8 @@ theorem LargeEliminationTrace.singletonTelescope
 
 /-- Interpret the full closed constructor directly in the actual checker
 context; ambient mutual-header locals cannot affect its literal arguments. -/
-theorem LargeEliminationTrace.singletonClosed
-    (H : LargeEliminationTrace stats c source 0 #[])
+theorem LargeEliminationCheck.singletonClosed
+    (H : LargeEliminationCheck stats c source 0 #[])
     (Hc : ContextWF c) (hchk : Hc.chk.vlctx = [])
     (Hspine : Expr.ForallSpine source arity)
     (Hsource : TrExprS Hc.venv c.lparams [] source target) :

@@ -231,7 +231,7 @@ structure NativeNestedSourceCoreResult
       VInductiveType.toVConstVal
   core : TrInductDeclCore sourceVEnv lparams nparams sourceTypes isUnsafe
     sourceDecl envTypes envCtors
-  materialized : MaterializedInductivePrefix sourceDecl loweredDecl
+  materialized : SourcePrefixOfLowered sourceDecl loweredDecl
   headerValidationValid : CheckingEnv.Valid safety auxiliaryHeaderEnv envTypes
   validationValid : CheckingEnv.ValidCore safety validationEnv envCtors
 

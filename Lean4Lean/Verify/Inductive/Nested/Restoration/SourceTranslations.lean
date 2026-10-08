@@ -733,7 +733,7 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFresh
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (hdecl : familyIdx < sourceDecl.types.length)
@@ -834,7 +834,7 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFreshOfTele
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (hdecl : familyIdx < sourceDecl.types.length)
@@ -1028,7 +1028,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTelescopeTranslat
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (Hfamilies : ∀ name nested,
       result.aux2nested.find? name = some nested →
       (`_nested).isPrefixOf name = true)

@@ -12,7 +12,7 @@ check.  Its type translation is exact, but it deliberately does not claim
 `VConstVal.WF`: header formation is established only after the executable
 telescope traversal has checked the parameter/index telescope and result
 sort. -/
-structure CheckedSourceHeaderTranslation
+structure ClosedHeaderCheck
     (Hc : ContextWF c) (name : Name) (type checkedType : Expr) where
   target : VConstVal
   runtimeTarget : VExpr
@@ -22,11 +22,11 @@ structure CheckedSourceHeaderTranslation
   source : TrSourceConstRaw Hc.venv c.lparams name type target
 
 /-- The declaration-facing part of a checked source header.  Unlike
-`CheckedSourceHeaderTranslation`, this payload no longer mentions the
+`ClosedHeaderCheck`, this payload no longer mentions the
 executable result of `checkClosedType`, so payloads from successive mutual
 headers can be retained in one ordered accumulator even though those checks
 run in different local contexts. -/
-structure CheckedSourceHeaderPayload (env : VEnv) (Us : List Name)
+structure RawHeaderTranslation (env : VEnv) (Us : List Name)
     (source : InductiveType) where
   target : VConstVal
   translation : TrSourceConstRaw env Us source.name source.type target
@@ -35,7 +35,7 @@ structure CheckedSourceHeaderPayload (env : VEnv) (Us : List Name)
 mutual-header traversal.  This is intentionally earlier than a
 `VInductDeclSkeleton`: constructors have not been translated yet, and the
 header telescope traversal has not yet supplied semantic arities. -/
-structure CheckedSourceHeaderAccumulator (env : VEnv) (Us : List Name)
+structure RawHeaderTranslations (env : VEnv) (Us : List Name)
     (sources : List InductiveType) where
   targets : List VConstVal
   translations : List.Forall₂
@@ -43,18 +43,18 @@ structure CheckedSourceHeaderAccumulator (env : VEnv) (Us : List Name)
       TrSourceConstRaw env Us source.name source.type target)
     sources targets
 
-namespace CheckedSourceHeaderAccumulator
+namespace RawHeaderTranslations
 
 /-- The empty executable header prefix has an empty abstract payload. -/
 def empty (env : VEnv) (Us : List Name) :
-    CheckedSourceHeaderAccumulator env Us [] where
+    RawHeaderTranslations env Us [] where
   targets := []
   translations := .nil
 
 /-- Retain one newly checked source header at the end of the ordered prefix. -/
-def snoc (H : CheckedSourceHeaderAccumulator env Us sources)
-    (source : InductiveType) (payload : CheckedSourceHeaderPayload env Us source) :
-    CheckedSourceHeaderAccumulator env Us (sources ++ [source]) where
+def snoc (H : RawHeaderTranslations env Us sources)
+    (source : InductiveType) (payload : RawHeaderTranslation env Us source) :
+    RawHeaderTranslations env Us (sources ++ [source]) where
   targets := H.targets ++ [payload.target]
   translations := List.Forall₂.append'
     H.translations (.cons payload.translation .nil)
@@ -62,39 +62,39 @@ def snoc (H : CheckedSourceHeaderAccumulator env Us sources)
 @[simp] theorem empty_targets : (empty env Us).targets = [] := rfl
 
 @[simp] theorem snoc_targets
-    (H : CheckedSourceHeaderAccumulator env Us sources)
-    (payload : CheckedSourceHeaderPayload env Us source) :
+    (H : RawHeaderTranslations env Us sources)
+    (payload : RawHeaderTranslation env Us source) :
     (H.snoc source payload).targets = H.targets ++ [payload.target] := rfl
 
-end CheckedSourceHeaderAccumulator
+end RawHeaderTranslations
 
 /-- Exact loop-indexed view of the accumulated mutual-header payloads. -/
 structure CheckedSourceHeaderTraversal (env : VEnv) (Us : List Name)
     (indTypes : Array InductiveType) (dIdx : Nat) where
-  accumulator : CheckedSourceHeaderAccumulator env Us
+  accumulator : RawHeaderTranslations env Us
     (indTypes.toList.take dIdx)
 
 namespace CheckedSourceHeaderTraversal
 
 def empty (env : VEnv) (Us : List Name) (indTypes : Array InductiveType) :
     CheckedSourceHeaderTraversal env Us indTypes 0 where
-  accumulator := CheckedSourceHeaderAccumulator.empty env Us
+  accumulator := RawHeaderTranslations.empty env Us
 
 end CheckedSourceHeaderTraversal
 
-namespace CheckedSourceHeaderTranslation
+namespace ClosedHeaderCheck
 
 /-- Forget the context-sensitive checked-type evidence after the executable
 telescope traversal has consumed it. -/
 def payload
     {c : AddInductive.Context} {source : InductiveType} {checkedType : Expr}
     (Hc : ContextWF c)
-    (H : CheckedSourceHeaderTranslation Hc source.name source.type checkedType) :
-    CheckedSourceHeaderPayload Hc.venv c.lparams source where
+    (H : ClosedHeaderCheck Hc source.name source.type checkedType) :
+    RawHeaderTranslation Hc.venv c.lparams source where
   target := H.target
   translation := H.source
 
-end CheckedSourceHeaderTranslation
+end ClosedHeaderCheck
 
 /-- A successful `checkClosedType` constructs its abstract header payload;
 no caller-selected declaration skeleton is needed at this boundary.  This is
@@ -102,7 +102,7 @@ the existential seed used to split header materialization from later
 constructor translation. -/
 theorem checkClosedType.rawSourceTranslationWF (Hc : ContextWF c) :
     (AddInductive.checkClosedType name type c).WF fun checkedType =>
-      Nonempty (CheckedSourceHeaderTranslation Hc name type checkedType) := by
+      Nonempty (ClosedHeaderCheck Hc name type checkedType) := by
   change (c.env.checkNoMVarNoFVar name type >>= fun _ =>
     (monadLift (TypeChecker.checkType type) : AddInductive.M Expr)
       { c with checkLCtx := {} }).WF _
@@ -153,12 +153,12 @@ theorem stepPrefix.accumulatesRawHeaders
     {k : AddInductive.InductiveStats → AddInductive.M α}
     {Q : α → Prop}
     (Hc : ContextWF c)
-    (Hprefix : CheckedSourceHeaderAccumulator Hc.venv c.lparams sources)
+    (Hprefix : RawHeaderTranslations Hc.venv c.lparams sources)
     (hidx : dIdx < indTypes.size)
     (Hloop : ∀ checkedType,
-      (Hchecked : CheckedSourceHeaderTranslation Hc indTypes[dIdx].name
+      (Hchecked : ClosedHeaderCheck Hc indTypes[dIdx].name
         indTypes[dIdx].type checkedType) →
-      CheckedSourceHeaderAccumulator Hc.venv c.lparams
+      RawHeaderTranslations Hc.venv c.lparams
         (sources ++ [indTypes[dIdx]]) →
       ∀ normalized,
         FVarsBelow Hc.mlctx.vlctx indTypes[dIdx].type normalized →

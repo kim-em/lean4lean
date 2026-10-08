@@ -83,7 +83,7 @@ structure CheckedRecursorHeaderAt
     (familyIdx : Nat) where
   target : VInductiveType
   targetAt : decl.types[familyIdx]? = some target
-  materialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+  materialized : checkInductiveTypes.loopInd.HeaderStatsWF
     Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth
   sourceTranslation : TrSourceConst Hc.venv c.lparams source.name
     source.type target.toVConstVal
@@ -170,9 +170,9 @@ to the independently cached parameter suffix.  Unlike
 `CheckedRecursorHeaderAt.recursorParameterPresentation`, this theorem needs
 neither an installed target lookup nor the lowered constructor environment;
 it can therefore be used at the source-environment side of nested lowering. -/
-theorem _root_.Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.MaterializedHeaderResult.sourceParameterDomainsAt
+theorem _root_.Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.HeaderStatsWF.sourceParameterDomainsAt
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult
+    (H : checkInductiveTypes.loopInd.HeaderStatsWF
       Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
     (source : InductiveType) (target : VInductiveType)
     (Hsource : TrSourceConst Hc.venv c.lparams source.name source.type
@@ -366,10 +366,10 @@ theorem CheckedRecursorHeaderAt.recursorCurrentDomainDefEq
     {Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth}
     {name : Name} {dom body : Expr} {bi : BinderInfo}
     {currentDomain currentBody : VExpr}
-    (Hscope : RecursorLaterParameterScope Hsuffix i
+    (Hscope : RecursorReusedParameterScope Hsuffix i
       (.forallE name dom body bi))
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
         (H.recursorTargetSkeleton Helim) Hscope.older
         (.forallE currentDomain currentBody) i 0)
@@ -383,7 +383,7 @@ theorem CheckedRecursorHeaderAt.recursorCurrentDomainDefEq
       Hscope.older.toCtx currentDomain Hscope.paramType := by
   have hparameterCount : stats.params.size = decl.nparams := by
     have hlength := List.Forall₂.length_eq
-      H.materialized.narrowParams
+      H.materialized.suffixParams
     simpa [VInductDecl.paramVars] using hlength
   have hiDecl : i < decl.nparams := by
     rw [← hparameterCount]
@@ -527,7 +527,7 @@ theorem CheckedRecursorHeaderAt.startRecursorHeaderSemantics
           (AddInductive.getRecLevelParams elimLevel c.lparams) []
           normalized normalizedTarget ∧
         Nonempty
-          (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          (checkInductiveTypes.loopType.ScopedHeaderTelescope
             R.venv
             (AddInductive.getRecLevelParams elimLevel c.lparams)
             (H.recursorTargetSkeleton Helim) [] normalizedTarget 0 0) := by
@@ -571,7 +571,7 @@ theorem CheckedRecursorHeaderAt.startRecursorHeaderSemantics
   have hheaderTyped := hheader.of_l R.checking.tr.wf (by trivial)
     htargetHasType
   exact ⟨hnormalized.1, normalizedTarget, hnormalizedTarget,
-    ⟨checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.empty
+    ⟨checkInductiveTypes.loopType.ScopedHeaderTelescope.empty
       ⟨targetLevel, htargetHasType⟩ hnormalizedType hheaderTyped⟩⟩
 
 /-- The header normalization of `loopInd1` as a retained recursor `whnf`
@@ -625,7 +625,7 @@ theorem CheckedRecursorHeaderAt.parameterCount
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
     stats.params.size = decl.nparams := by
   have hlength := List.Forall₂.length_eq
-    H.materialized.narrowParams
+    H.materialized.suffixParams
   simpa [VInductDecl.paramVars] using hlength
 
 theorem CheckedRecursorHeaderAt.indexCount
@@ -881,7 +881,7 @@ theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyPrefix
       (AddInductive.getRecLevelParams elimLevel c.lparams))
     {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
         (H.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
@@ -918,7 +918,7 @@ theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyPrefixAtScope
       (AddInductive.getRecLevelParams elimLevel c.lparams))
     {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
         (H.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
@@ -950,7 +950,7 @@ theorem CheckedRecursorHeaderAt.recursorNarrowFamilyPrefixTranslation
       (AddInductive.getRecLevelParams elimLevel c.lparams))
     {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
         (H.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
@@ -1012,14 +1012,14 @@ theorem CheckedRecursorHeaderAt.completedRecursorFamilyPrefixTyping
     {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
     {indices : Array Expr}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
         (H.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
     (Hstats : RecursorValidAppStatsWF R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       scope stats decl nindices)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       scope R.mlctx.vlctx)
     (henv : R.venv = Hc.venv)
@@ -1073,14 +1073,14 @@ theorem CheckedRecursorHeaderAt.completedRecursorFamilyPrefixEq
     {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
     {indices : Array Expr}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
         (H.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
     (Hstats : RecursorValidAppStatsWF R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       scope stats decl nindices)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       scope R.mlctx.vlctx)
     (henv : R.venv = Hc.venv)
@@ -1121,11 +1121,11 @@ theorem CheckedRecursorHeaderAt.completedRecursorIndexTargetsEq
     {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
     {indices : Array Expr} {indexTargets : List VExpr}
     (_Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
         (H.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       scope R.mlctx.vlctx)
     (Hindices : List.Forall₂ (TrExprS R.venv
@@ -1171,14 +1171,14 @@ theorem CheckedRecursorHeaderAt.completedRecursorCanonicalMotiveFrame
     {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
     {indices : Array Expr}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
         (H.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
     (Hstats : RecursorValidAppStatsWF R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       scope stats decl nindices)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       scope R.mlctx.vlctx)
     (henv : R.venv = Hc.venv)
@@ -1270,14 +1270,14 @@ theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
     {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
     {indices : Array Expr} {indexTargets : List VExpr}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
         (H.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
     (Hstats : RecursorValidAppStatsWF R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       scope stats decl nindices)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       scope R.mlctx.vlctx)
     (Hindices : List.Forall₂ (TrExprS R.venv
@@ -1451,7 +1451,7 @@ theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyApplication
       (AddInductive.getRecLevelParams elimLevel c.lparams))
     {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
         (H.recursorTargetSkeleton Helim) scope narrowTarget
         stats.params.size nindices)
@@ -1491,7 +1491,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorNarrowFamilyApplication
     {scope : VLCtx} {type : VExpr}
     {indices : Array Expr} {indexTargets : List VExpr} {nindices : Nat}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
         (H.recursorTargetSkeleton Helim) scope type
         stats.params.size nindices)
@@ -1597,14 +1597,14 @@ theorem CheckedRecursorHeaderAt.completedRecursorMajorDomain
     {scope : VLCtx} {type : VExpr}
     {indices : Array Expr} {indexTargets : List VExpr} {nindices : Nat}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
         (H.recursorTargetSkeleton Helim) scope type
         stats.params.size nindices)
     (Hstats : RecursorValidAppStatsWF R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       scope stats decl nindices)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       scope R.mlctx.vlctx)
     (Hindices : List.Forall₂ (TrExprS R.venv
@@ -1616,7 +1616,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorMajorDomain
     (henv : R.venv = Hc.venv)
     (hconsume : RecursorConsumeTypeAnnotationsCompat) :
     ∃ sourceTarget consumedTarget,
-      R.ConsumedDomain
+      R.UnannotatedDomain
         (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params) indices)
         sourceTarget consumedTarget := by
   rcases H.completedRecursorNarrowFamilyApplication Helim R Hsynthesis Hstats
@@ -1645,7 +1645,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
     {scope : VLCtx} {type : VExpr}
     {indices : Array Expr} {indexTargets : List VExpr} {nindices : Nat}
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         Rindices.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         (H.recursorTargetSkeleton Helim) scope type
@@ -1653,7 +1653,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
     (Hstats : RecursorValidAppStatsWF Rindices.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams)
       scope stats decl nindices)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding
       Rindices.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams)
       scope Rindices.mlctx.vlctx)
@@ -1874,10 +1874,10 @@ theorem parameterStepOfCheckedRecursorHeader
     {Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth}
     {i : Nat} {name : Name} {dom body : Expr} {bi : BinderInfo}
     {currentTarget currentDomain currentBody : VExpr}
-    (Hscope : RecursorLaterParameterScope Hsuffix i
+    (Hscope : RecursorReusedParameterScope Hsuffix i
       (.forallE name dom body bi))
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
         (H.recursorTargetSkeleton Helim) Hscope.older
         (.forallE currentDomain currentBody) i 0)
@@ -1987,7 +1987,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       {nindices : Nat} {indices originTypes : Array Expr}
       {indexTargets : List VExpr},
       (Hsynthesis :
-        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        checkInductiveTypes.loopType.ScopedHeaderTelescope
           R.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
           (H.recursorTargetSkeleton Helim) scope narrowTarget
           stats.params.size nindices) →
@@ -1999,7 +1999,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       RecursorValidAppStatsWF R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         R.mlctx.vlctx stats decl runtimeDepth →
-      (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+      (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope R.mlctx.vlctx) →
       Hruntime.frontSourceDomains = Hsynthesis.indices →
@@ -2041,7 +2041,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       type fullTarget narrowTarget scope nindices indices originTypes
         indexTargets fuel,
       (Hsynthesis :
-        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        checkInductiveTypes.loopType.ScopedHeaderTelescope
           R.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
           (H.recursorTargetSkeleton Helim) scope narrowTarget
           stats.params.size nindices) →
@@ -2053,7 +2053,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       RecursorValidAppStatsWF R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         R.mlctx.vlctx stats decl runtimeDepth →
-      (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+      (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope R.mlctx.vlctx) →
       Hruntime.frontSourceDomains = Hsynthesis.indices →
@@ -2119,8 +2119,8 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
           have hscopeWF₀ := halign.wf
           rcases halign.forallE_align henvWF hdomNarrow hdomType hbodyNarrow with
             ⟨domC, bodyC, hdomC, hdomCType, hdomCU, hbodyC, _⟩
-          rcases hconsume _ _ R.narrow hdomC hdomCType with ⟨consumed₀, Hdom₀⟩
-          rcases Hdom₀.body R.narrow hbodyC with
+          rcases hconsume _ _ R.atCheckLCtx hdomC hdomCType with ⟨consumed₀, Hdom₀⟩
+          rcases Hdom₀.body R.atCheckLCtx hbodyC with
             ⟨consumedBody₀, hbodyConsumed₀, _hbodyEq₀⟩
           refine withCheckedLocalDecl.recursorWF (name := name) (bi := bi) (Q := Q)
             R Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
@@ -2188,7 +2188,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
           rcases Hruntime.recursorConsumedDomain R Hdom hdomNarrow with
             ⟨_domainLevel, hdomain⟩
           let Hruntime' :
-              checkInductiveTypes.loopType.NarrowRuntimeScope
+              checkInductiveTypes.loopType.FrontScopeEmbedding
                 R'.venv
                 (AddInductive.getRecLevelParams elimLevel base.lparams)
                 ((some (⟨current.ngen.curr⟩,
@@ -2307,7 +2307,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                 base.lparams = true := by
             rw [Expr.instantiate1_eq]
             exact Expr.levelParamsIn_instantiate1 hdomBodyU.2 rfl
-          have hopened₀ := R.narrow.instantiateFresh (name := name) (bi := bi)
+          have hopened₀ := R.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
             Hdom₀.consumed Hdom₀.isType hbodyConsumed₀
           have hnormalize := whnfInRecursorContext.dualWF R' hopened hopened₀
           have hnormalizeLevels := whnfInRecursorContext.levelsWF R' hopened₀
@@ -2492,14 +2492,14 @@ theorem continueRecursorParameterSemantics {alpha : Type}
       (· ∈ Hsuffix.parameterDecls.fvars))
     (Hk : ∀ {type : Expr} {fullTarget narrowTarget : VExpr},
       (Hsynthesis :
-        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        checkInductiveTypes.loopType.ScopedHeaderTelescope
           R.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
           (H.recursorTargetSkeleton Helim) Hsuffix.parameterDecls
           narrowTarget stats.params.size 0) →
       RecursorValidAppStatsWF R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Hsuffix.parameterDecls stats decl 0 →
-      (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+      (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Hsuffix.parameterDecls R.mlctx.vlctx) →
       Hruntime.frontSourceDomains = Hsynthesis.indices →
@@ -2523,10 +2523,10 @@ theorem continueRecursorParameterSemantics {alpha : Type}
     ∀ type fullTarget narrowTarget scope i indices fuel,
       i ≤ stats.params.size →
       (Hscope : ∀ hi : i < stats.params.size,
-        RecursorLaterParameterScope Hsuffix i type) →
+        RecursorReusedParameterScope Hsuffix i type) →
       (∀ hi : i < stats.params.size, scope = (Hscope hi).older) →
       (i = stats.params.size → scope = Hsuffix.parameterDecls) →
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         R.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
         (H.recursorTargetSkeleton Helim) scope narrowTarget i 0 →
       TrExprS R.venv
@@ -2558,7 +2558,7 @@ theorem continueRecursorParameterSemantics {alpha : Type}
           hcompleteScope rfl
         subst scope
         exact Hk Hsynthesis (Hsuffix.narrowStats Hstats)
-          Hsuffix.runtimeScope (by
+          Hsuffix.parameterEmbedding (by
             change [] = Hsynthesis.indices
             exact (List.eq_nil_of_length_eq_zero
               Hsynthesis.indexCount).symm)
@@ -2648,7 +2648,7 @@ theorem continueRecursorParameterSemantics {alpha : Type}
                 exact ⟨hparam, Hsuffix.mem_lctx_of_mem_params hparam⟩
               have hindices : Hsynthesis.indices = [] :=
                 List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
-              let Hbody : RecursorLaterParameterScope Hsuffix i body :=
+              let Hbody : RecursorReusedParameterScope Hsuffix i body :=
                 { Hcurrent with fvars := Hcurrent.fvars.2 }
               have hnext₀' : TrExpr R.venv
                   (AddInductive.getRecLevelParams elimLevel base.lparams)
@@ -2711,14 +2711,14 @@ theorem CheckedRecursorHeaderAt.startRecursorParameterSemantics
     (k : Array Expr → AddInductive.M alpha)
     (Hk : ∀ {type : Expr} {fullTarget narrowTarget : VExpr},
       (Hsynthesis :
-        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        checkInductiveTypes.loopType.ScopedHeaderTelescope
           R.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
           (H.recursorTargetSkeleton Helim) Hsuffix.parameterDecls
           narrowTarget stats.params.size 0) →
       RecursorValidAppStatsWF R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Hsuffix.parameterDecls stats decl 0 →
-      (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+      (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Hsuffix.parameterDecls R.mlctx.vlctx) →
       Hruntime.frontSourceDomains = Hsynthesis.indices →
@@ -2790,8 +2790,8 @@ theorem CheckedRecursorHeaderAt.startRecursorParameterSemantics
         (narrowTarget.liftN R.mlctx.vlctx.toCtx.length 0) :=
       Hsynthesis.currentType.weakN R.checking.tr.wf.ordered W.toCtx
     let Hscope : ∀ hi : 0 < stats.params.size,
-        RecursorLaterParameterScope Hsuffix 0 normalized := fun hi =>
-      RecursorLaterParameterScope.ofNoFVars hi hnormalizedNoFVars
+        RecursorReusedParameterScope Hsuffix 0 normalized := fun hi =>
+      RecursorReusedParameterScope.ofNoFVars hi hnormalizedNoFVars
     have hscopeEq : ∀ hi : 0 < stats.params.size,
         [] = (Hscope hi).older := by
       intro hi
@@ -2882,7 +2882,7 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
       {nindices : Nat} {indices originTypes : Array Expr}
       {indexTargets : List VExpr},
       (Hsynthesis :
-        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        checkInductiveTypes.loopType.ScopedHeaderTelescope
           Rnext.venv
           (AddInductive.getRecLevelParams elimLevel base.lparams)
           (H.recursorTargetSkeleton Helim) scope narrowTarget
@@ -2895,7 +2895,7 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
       RecursorValidAppStatsWF Rnext.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Rnext.mlctx.vlctx stats decl nextDepth →
-      (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope Rnext.venv
+      (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding Rnext.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope Rnext.mlctx.vlctx) →
       Hruntime.frontSourceDomains = Hsynthesis.indices →
@@ -2936,7 +2936,7 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
           current).WF Q := by
   have hparamScope : R.typeChecker.UniverseScope base.lparams
       (· ∈ Hsuffix.parameterDecls.fvars) := by
-    refine R.universeScope_of_types Hsuffix.runtimeScope.upset ?_
+    refine R.universeScope_of_types Hsuffix.parameterEmbedding.upset ?_
     intro fv hfv decl hfind
     rw [← hlparams]
     refine hparamU fv ?_ decl hfind

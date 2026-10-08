@@ -198,10 +198,10 @@ all delivered to the recursive continuation. -/
 theorem safeField.sourceWF
     {Pos : Prop}
     (Hc : ContextWF c) (hparamAt : stats.params[i]? = none)
-    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (Hdom : Hc.UnannotatedDomain dom sourceDom' consumedDom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
-    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (Hdom₀ : Hc.atCheckLCtx.UnannotatedDomain dom sourceDom₀ consumedDom₀)
     (hbody₀ : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom₀) :: Hc.chk.vlctx) body sourceBody₀)
     (Hpos : (AddInductive.checkPositivity stats dom ctor i c).WF (fun _ => Pos))
@@ -262,7 +262,7 @@ theorem safeField.sourceWF
   · rw [if_pos hbound]
     refine Hpos.bind fun _ hpos => ?_
     rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-    rcases Hdom₀.body Hc.narrow hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
+    rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
     refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
       (k := fun arg =>
         AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
@@ -270,7 +270,7 @@ theorem safeField.sourceWF
       Hc Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
       Hdom.consumed Hdom.isType hbody''
-    have hopened₀ := Hc.narrow.instantiateFresh (name := name) (bi := bi)
+    have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
       Hdom₀.consumed Hdom₀.isType hbody₀''
     exact Hrec _ fieldLevel fieldLevel' Hdom.source hfieldLevel
       hfieldHasType fieldType₀ hfieldType₀ hfieldHasType₀ hbound hpos body'' hbodyEq
@@ -283,10 +283,10 @@ theorem safeField.sourceWF
 annotation obligations apply, while positivity is intentionally skipped. -/
 theorem unsafeField.sourceWF
     (Hc : ContextWF c) (hparamAt : stats.params[i]? = none)
-    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (Hdom : Hc.UnannotatedDomain dom sourceDom' consumedDom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
-    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (Hdom₀ : Hc.atCheckLCtx.UnannotatedDomain dom sourceDom₀ consumedDom₀)
     (hbody₀ : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom₀) :: Hc.chk.vlctx) body sourceBody₀)
     (Hrec : ∀ fieldType' fieldLevel fieldLevel',
@@ -344,7 +344,7 @@ theorem unsafeField.sourceWF
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true
   · rw [if_pos hbound]
     rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-    rcases Hdom₀.body Hc.narrow hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
+    rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
     refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
       (k := fun arg =>
         AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
@@ -352,7 +352,7 @@ theorem unsafeField.sourceWF
       Hc Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
       Hdom.consumed Hdom.isType hbody''
-    have hopened₀ := Hc.narrow.instantiateFresh (name := name) (bi := bi)
+    have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
       Hdom₀.consumed Hdom₀.isType hbody₀''
     exact Hrec _ fieldLevel fieldLevel' Hdom.source hfieldLevel
       hfieldHasType fieldType₀ hfieldType₀ hfieldHasType₀ hbound body'' hbodyEq
@@ -644,7 +644,7 @@ theorem IndConstArray.ofExact
 /-- Promote the exact traversal-facing statistics into the positivity-facing
 application invariant. -/
 def ValidAppStatsWF.ofMaterializedHeader
-    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult
+    (H : checkInductiveTypes.loopInd.HeaderStatsWF
       env Us Δ stats decl depth) :
     ValidAppStatsWF env Us Δ stats decl depth where
   levels := H.levels
@@ -656,7 +656,7 @@ def ValidAppStatsWF.ofMaterializedHeader
   paramFVars := H.paramFVars
 
 def ValidAppStatsWF.ofMaterializedHeaderNarrow
-    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult
+    (H : checkInductiveTypes.loopInd.HeaderStatsWF
       env Us Δ stats decl depth) :
     ValidAppStatsWF env Us H.parameterScope stats decl 0 where
   levels := H.levels
@@ -664,7 +664,7 @@ def ValidAppStatsWF.ofMaterializedHeaderNarrow
   consts := IndConstArray.ofExact (by
     simpa [List.map_map, Function.comp_def] using H.consts)
   indices := H.indices
-  params := H.narrowParams
+  params := H.suffixParams
   paramFVars := H.paramFVars
 
 def LiteralDisjoint (indConsts : Array Expr) : Prop :=
@@ -1575,10 +1575,10 @@ theorem forallE.sourceWF
     (hocc : AddInductive.hasIndOcc stats.indConsts
       (.forallE name dom body bi) = true)
     (hdomOcc : AddInductive.hasIndOcc stats.indConsts dom = false)
-    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (Hdom : Hc.UnannotatedDomain dom sourceDom' consumedDom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
-    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (Hdom₀ : Hc.atCheckLCtx.UnannotatedDomain dom sourceDom₀ consumedDom₀)
     (hbody₀ : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom₀) :: Hc.chk.vlctx) body sourceBody₀)
     (Hrec : ∀ body'',
@@ -1607,13 +1607,13 @@ theorem forallE.sourceWF
   rw [AddInductive.checkPositivityStep]
   rw [if_neg (by simp [hocc]), if_neg (by simp [hdomOcc])]
   rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-  rcases Hdom₀.body Hc.narrow hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
+  rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
   refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
     (k := fun arg => recur (body.instantiate1 arg))
     Hc Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
   have hopened := Hc.instantiateFresh (name := name) (bi := bi)
     Hdom.consumed Hdom.isType hbody''
-  have hopened₀ := Hc.narrow.instantiateFresh (name := name) (bi := bi)
+  have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
     Hdom₀.consumed Hdom₀.isType hbody₀''
   exact Hrec body'' hbodyEq body₀'' hbodyEq₀ hopened hopened₀
 
@@ -1689,7 +1689,7 @@ theorem refinesNarrow
     {decl : VInductDecl} {depth : Nat} {scope : VLCtx}
     {narrowType fullType : VExpr}
     (Hc : ContextWF c)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding
       Hc.venv c.lparams scope Hc.mlctx.vlctx)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
@@ -1753,7 +1753,7 @@ theorem refinesNarrow
             ⟨consumedDom, Hdom⟩
           rcases halign.forallE_align henv hdomNarrow hdomNarrowType hbodyNarrow with
             ⟨dom₀, body₀, hdom₀, hdom₀Type, hdomU, hbody₀, _⟩
-          rcases hconsume _ Hc.narrow hdom₀ hdom₀Type with
+          rcases hconsume _ Hc.atCheckLCtx hdom₀ hdom₀Type with
             ⟨consumedDom₀, Hdom₀⟩
           refine finish <| checkPositivityStep.forallE.sourceWF
             (Q := fun _ => decl.SyntacticallyPositive Hc.venv
@@ -1770,7 +1770,7 @@ theorem refinesNarrow
           rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
             ⟨domainLevel, hdomain⟩
           let Hruntime' :
-              checkInductiveTypes.loopType.NarrowRuntimeScope
+              checkInductiveTypes.loopType.FrontScopeEmbedding
                 Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
                   (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
@@ -1853,7 +1853,7 @@ theorem checkPositivity.refinesNarrow
     {decl : VInductDecl} {depth : Nat} {scope : VLCtx}
     {narrowType fullType : VExpr}
     (Hc : ContextWF c)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding
       Hc.venv c.lparams scope Hc.mlctx.vlctx)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams

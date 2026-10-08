@@ -1806,7 +1806,7 @@ theorem
           F.semantic.current_context stats H.recInfos[selectedOwner]!
           binding F.semantic.generated.exposedType F.semantic.exposedTarget,
         ∃ scope,
-          ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowCore
+          ∃ Hscope : checkInductiveTypes.loopType.FVarCheckingScopeCore
               H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
             ∃ (fieldDomains localDomains liftedFront : List VExpr)
                 (narrowIndices : List VExpr) (narrowMajor narrowExposed : VExpr),

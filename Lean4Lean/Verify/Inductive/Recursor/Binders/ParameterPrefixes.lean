@@ -22,11 +22,11 @@ translated source constant. -/
 noncomputable def ConstructorSynthesisState.initial
     (Hctor : TrSourceConstRaw env Us ctor type ctorVal)
     (htype : env.IsType Us.length [] ctorVal.type) :
-    checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+    checkInductiveTypes.loopType.ScopedHeaderTelescope
       env Us (constructorTelescopeTarget ctorVal) [] ctorVal.type 0 0 := by
   let level := Classical.choose htype
   have htyped := Classical.choose_spec htype
-  exact checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.empty
+  exact checkInductiveTypes.loopType.ScopedHeaderTelescope.empty
     htype htype htyped
 
 /-- Exact semantic record of the common-parameter comparisons performed
@@ -63,9 +63,9 @@ constructor telescope directly.  The executable loop performs no
 normalization in this branch: after converting the binder context from the
 source domain to the cached parameter type, opening the source body with the
 cached free variable supplies the next residual verbatim. -/
-theorem checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.consumeConstructorParameter
+theorem checkInductiveTypes.loopType.ScopedHeaderTelescope.consumeConstructorParameter
     (henv : env.WF)
-    (H : NarrowHeaderSynthesisCertificate env Us target scope current i 0)
+    (H : ScopedHeaderTelescope env Us target scope current i 0)
     (htype : TrExprS env Us scope (.forallE name dom body bi) current)
     (hscopeWF : VLCtx.WF env Us.length
       ((some (fv, deps), .vlam paramType) :: scope))
@@ -75,7 +75,7 @@ theorem checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.consumeCon
     ∃ next,
       TrExprS env Us ((some (fv, deps), .vlam paramType) :: scope)
         (body.instantiate1' (.fvar fv)) next ∧
-      Nonempty (NarrowHeaderSynthesisCertificate env Us target
+      Nonempty (ScopedHeaderTelescope env Us target
         ((some (fv, deps), .vlam paramType) :: scope) next (i + 1) 0) := by
   cases htype with
   | forallE hdomType _hbodyType hdom hbody =>
@@ -130,7 +130,7 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
         {current' fullCurrent' : VExpr} {fuel' : Nat}
         {sourceDomains : List VExpr},
       (Hsynthesis' :
-        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        checkInductiveTypes.loopType.ScopedHeaderTelescope
           Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
           Hsuffix.parameterDecls current' decl.nparams 0) →
       TrExprS Hc.venv c.lparams Hsuffix.parameterDecls source' current' →
@@ -145,10 +145,10 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
         {sourceDomains : List VExpr},
       i' < decl.nparams →
       (¬ ∃ name dom body bi, source' = .forallE name dom body bi) →
-      checkInductiveTypes.loopType.LaterParameterScope
+      checkInductiveTypes.loopType.ReusedParameterScope
         Hsuffix i' source' →
       (Hsynthesis' :
-        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        checkInductiveTypes.loopType.ScopedHeaderTelescope
           Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
           scope' current' i' 0) →
       TrExprS Hc.venv c.lparams scope' source' current' →
@@ -161,13 +161,13 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
     (hbound : i ≤ decl.nparams)
     (Hsegment : RecursorParamSegment stats 0 i original source)
     (Hscope : ∀ h : i < stats.params.size,
-      checkInductiveTypes.loopType.LaterParameterScope Hsuffix i source)
+      checkInductiveTypes.loopType.ReusedParameterScope Hsuffix i source)
     (hscopeEq : ∀ h : i < stats.params.size,
       scope = (Hscope h).older)
     (hcompleteScope : i = decl.nparams →
       scope = Hsuffix.parameterDecls)
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
         scope current i 0)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope source current)
@@ -253,7 +253,7 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
             .step Hcomparisons hparamAt Hcurrent.parameter hsourceDom hsourceDomType
               hsourceDomEq
           let Hbody :
-              checkInductiveTypes.loopType.LaterParameterScope
+              checkInductiveTypes.loopType.ReusedParameterScope
                 Hsuffix i body :=
             { Hcurrent with fvars := Hcurrent.fvars.2 }
           exact ih (i := i + 1)
@@ -518,13 +518,13 @@ theorem _root_.Lean4Lean.Expr.eqv_fvar_eq
 
 /-- A constructor cannot reach its result before consuming every cached
 parameter.  A valid result application would contain the current cached free
-variable as argument `i`, whereas `LaterParameterScope` proves that the tail
+variable as argument `i`, whereas `ReusedParameterScope` proves that the tail
 can mention only the strictly older cached parameters. -/
 theorem checkConstructors.loopCtor.earlyParameterResult.WF
     (Hc : ContextWF c)
     {Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       Hc stats depth}
-    (Hscope : checkInductiveTypes.loopType.LaterParameterScope
+    (Hscope : checkInductiveTypes.loopType.ReusedParameterScope
       Hsuffix i source)
     (hi : i < stats.params.size)
     (hforall : ¬ ∃ name dom body bi,
@@ -563,7 +563,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
     {decl : VInductDecl} {target : VInductiveType}
     {scope : VLCtx} {depth : Nat} {narrowType fullType : VExpr}
     (Hc : ContextWF c)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding
       Hc.venv c.lparams scope Hc.mlctx.vlctx)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
@@ -610,7 +610,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
           have henv := Hc.checking.tr.wf
           rcases halign.forallE_align henv hdomNarrow hdomNarrowType hbodyNarrow with
             ⟨dom₀, body₀, hdom₀, hdom₀Type, _hdomU, hbody₀, _⟩
-          rcases hconsume _ Hc.narrow hdom₀ hdom₀Type with
+          rcases hconsume _ Hc.atCheckLCtx hdom₀ hdom₀Type with
             ⟨consumedDom₀, Hdom₀⟩
           have hparamNext : stats.params[i + 1]? = none := by
             rw [Array.getElem?_eq_none_iff] at hparamAt ⊢
@@ -647,7 +647,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
             let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
               Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
             let Hruntime' :
-                checkInductiveTypes.loopType.NarrowRuntimeScope
+                checkInductiveTypes.loopType.FrontScopeEmbedding
                   Hc'.venv c.lparams
                   ((some (⟨c.ngen.curr⟩,
                     (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
@@ -742,7 +742,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
             let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
               Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
             let Hruntime' :
-                checkInductiveTypes.loopType.NarrowRuntimeScope
+                checkInductiveTypes.loopType.FrontScopeEmbedding
                   Hc'.venv c.lparams
                   ((some (⟨c.ngen.curr⟩,
                     (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
@@ -867,7 +867,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesNarrow
     {normalized tail exprType narrowType fullType : VExpr}
     {scope : VLCtx}
     (Hc : ContextWF c)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding
       Hc.venv c.lparams scope Hc.mlctx.vlctx)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
@@ -932,13 +932,13 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
     {ctorVal : VConstVal} {params : List VExpr}
     {source : Expr} {current fullType : VExpr} {scope : VLCtx}
     (Hc : ContextWF c)
-    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding
       Hc.venv c.lparams scope Hc.mlctx.vlctx)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       scope stats decl 0)
     (Hsynthesis :
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      checkInductiveTypes.loopType.ScopedHeaderTelescope
         Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
         scope current decl.nparams 0)
     (hi : targetIdx < decl.types.length)
@@ -1044,7 +1044,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         ConstructorTailCertificate Hc.venv decl target
           Hsuffix.parameterDecls.toCtx 0 tailTarget ∧
         Nonempty
-          (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          (checkInductiveTypes.loopType.ScopedHeaderTelescope
             Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
             Hsuffix.parameterDecls tailTarget stats.params.size 0) ∧
         decl.CtorShape Hc.venv params target ctorVal ∧
@@ -1082,7 +1082,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
           (decl := decl) (ctorVal := ctorVal) (params := params)
           (type := source) (i := 0) (ctor := ctor) (fuel := fuel + 1) Hc
           (narrowType := ctorVal.type) (fullType := fullType)
-          (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+          (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
             Hc Hsuffix) halign
           Hstats hi htarget htargetUvars htargetLookup htargetWF htargetShape
           hparamAt
@@ -1100,7 +1100,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       have Htail := checkConstructors.loopCtor.tailRefinesNarrow
         (params := params) (type := source) (i := 0) (ctor := ctor)
         (fuel := fuel + 1) Hc
-        (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+        (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
           Hc Hsuffix) halign
         Hstats hi htarget htargetUvars htargetLookup htargetWF
         htargetShape hparamAt hconsume hlit hunsafe hbound hlevels
@@ -1145,7 +1145,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         ConstructorTailCertificate Hc.venv decl target
           Hsuffix.parameterDecls.toCtx 0 tailTarget ∧
         Nonempty
-          (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          (checkInductiveTypes.loopType.ScopedHeaderTelescope
             Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
             Hsuffix.parameterDecls tailTarget stats.params.size 0) ∧
         decl.CtorShape Hc.venv params target ctorVal ∧
@@ -1158,7 +1158,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
           List.eq_nil_of_length_eq_zero Hsynthesis'.indexCount
         have hscopeCtx : Hsuffix.parameterDecls.toCtx =
             Hsynthesis'.indices.reverse ++ Hsynthesis'.params.reverse :=
-          @checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.scopeCtx
+          @checkInductiveTypes.loopType.ScopedHeaderTelescope.scopeCtx
             Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
             Hsuffix.parameterDecls current' decl.nparams 0 Hsynthesis'
         have hparams : decl.ParamsDefEq Hc.venv
@@ -1176,7 +1176,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
                 Hc.venv.IsType decl.uvars [] ctorVal.type) := by
           exact checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
             (ctor := ctor) (fuel := fuel' + 1) Hc
-            (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+            (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
               Hc Hsuffix) halign
             Hstats Hsynthesis' hi htarget htargetUvars htargetLookup
             htargetWF htargetShape hparamAt hconsume hlit hunsafe
@@ -1184,7 +1184,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         have Htail := checkConstructors.loopCtor.tailRefinesNarrow
           (params := params) (type := source') (i := decl.nparams)
           (ctor := ctor) (fuel := fuel' + 1) Hc
-          (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+          (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
             Hc Hsuffix) halign
           Hstats hi htarget htargetUvars htargetLookup htargetWF
           htargetShape hparamAt hconsume hlit hunsafe hbound hlevels
@@ -1212,9 +1212,9 @@ theorem checkConstructors.loopCtor.refinesCtorShape
           (by simpa [Hstats.params_size] using hi') hforall)
       Hstats.params_size (by omega) (.done)
       (fun h =>
-        checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars h hnoFVars)
+        checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars h hnoFVars)
       (fun h =>
-        (checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars
+        (checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars
           h hnoFVars).older_eq_nil h |>.symm)
       (by
         intro hdone
@@ -1234,7 +1234,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         omega
       exact checkConstructors.loopCtor.earlyParameterResult.WF
         (Hsuffix := Hsuffix) (fuel := fuel) Hc
-        (checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars
+        (checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars
           (Hsuffix := Hsuffix) hiStats hnoFVars)
         (by omega) hforall
 
@@ -1342,7 +1342,7 @@ def CheckedConstructorTailReplayAt
     TrExprS env Us scope tail tailTarget ∧
     ConstructorTailCertificate env decl target scope.toCtx 0 tailTarget ∧
     Nonempty
-      (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      (checkInductiveTypes.loopType.ScopedHeaderTelescope
         env Us (constructorTelescopeTarget ctorVal) scope tailTarget
         stats.params.size 0)
 

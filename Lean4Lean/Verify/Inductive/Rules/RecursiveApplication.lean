@@ -41,7 +41,7 @@ theorem
           F.semantic.current_context stats H.recInfos[selectedOwner]!
           binding F.semantic.generated.exposedType F.semantic.exposedTarget,
         ∃ scope,
-          ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowCore
+          ∃ Hscope : checkInductiveTypes.loopType.FVarCheckingScopeCore
               H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
             ∃ fieldDomains localDomains narrowIndices narrowMajor
                 narrowExposed,
@@ -414,7 +414,7 @@ theorem
           F.semantic.current_context stats H.recInfos[selectedOwner]!
           binding F.semantic.generated.exposedType F.semantic.exposedTarget,
         ∃ scope,
-          ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowCore
+          ∃ Hscope : checkInductiveTypes.loopType.FVarCheckingScopeCore
               H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
             ∃ fieldDomains localDomains narrowIndices narrowMajor
                 narrowExposed,
@@ -555,12 +555,12 @@ theorem
         (B.fieldScope.take HfieldRuntime.frontSourceDomains.length)).reverse =
           A.rule.all_args_bound.fvars := by
     simpa [HfieldRuntime,
-      checkInductiveTypes.loopType.NarrowRuntimeScope.mono] using
+      checkInductiveTypes.loopType.FrontScopeEmbedding.mono] using
       B.frontFVars
   rw [hfieldFVars] at HfieldTemplate
   have hfieldFront : HfieldRuntime.frontSourceDomains = B.fieldDomains := by
     simpa [HfieldRuntime,
-      checkInductiveTypes.loopType.NarrowRuntimeScope.mono] using B.front
+      checkInductiveTypes.loopType.FrontScopeEmbedding.mono] using B.front
   have HfieldTemplate' : TrExprS H.outVEnv Us
       (abstractForallContext HfieldRuntime.frontSourceDomains
         H.parameterSuffix.parameterDecls)
@@ -795,7 +795,7 @@ theorem
           F.semantic.current_context stats H.recInfos[selectedOwner]!
           binding F.semantic.generated.exposedType F.semantic.exposedTarget,
         ∃ scope,
-          ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowCore
+          ∃ Hscope : checkInductiveTypes.loopType.FVarCheckingScopeCore
               H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
             ∃ (fieldDomains localDomains liftedFront : List VExpr)
                 (narrowIndices : List VExpr) (narrowMajor narrowExposed : VExpr),

@@ -42,7 +42,7 @@ for the header-only abstract environment. -/
 theorem AddInductive.declareInductiveTypes.installsSemanticHeadersAtomicWF
     (Hc : ContextWF c)
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams numParams commonParams commonLevel indTypes.toList)
     (hindices : stats.nindices.size = indTypes.size)
     (hvisible : c.safety ≤
@@ -107,11 +107,11 @@ input. -/
 theorem PrimitiveInductiveShape.checkedConstructorRows
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         env lparams nparams params commonLevel types)
     (htypesAdded : env.addConstVals Hsemantic.headers.targets =
       some envTypes) :
-    Nonempty (CheckedSourceConstructorRows envTypes lparams types) := by
+    Nonempty (RawBlockCtorTranslations envTypes lparams types) := by
   rcases Hshape with ⟨rfl, rfl, rfl, hbool | ⟨binderName, binderInfo, hnat⟩⟩
   · subst types
     rcases List.Forall₂.leftSingleton Hsemantic.headers.translations with
@@ -194,13 +194,13 @@ namespace VerifyInductive
 /-- Package skeleton-free semantic assembly against an atomic primitive
 header installation.  The resulting context remains staged until constructor
 installation completes the bootstrap batch. -/
-def AssembledSemanticHeadersOf.primitiveDeclaredResult
+def HeaderDeclarationOf.primitiveDeclaredResult
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     {Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList}
     {envTypes : VEnv} {outEnv : Environment}
     (Hinstalled : AtomicAddConstants c.safety c.env Hc.venv
@@ -209,7 +209,7 @@ def AssembledSemanticHeadersOf.primitiveDeclaredResult
           isUnsafe c.lparams).toList.map (fun info => .inductInfo info))
         Hsemantic.headers.targets)
       outEnv envTypes)
-    (H : AssembledSemanticHeadersOf Hc.venv envTypes c.lparams nparams
+    (H : HeaderDeclarationOf Hc.venv envTypes c.lparams nparams
       indTypes.toList isUnsafe commonParams commonLevel Hsemantic)
     (hlevels : stats.levels.length = c.lparams.length)
     (hlevelParams : stats.levels = c.lparams.map .param)
@@ -268,7 +268,7 @@ def AssembledSemanticHeadersOf.primitiveDeclaredResult
     apply List.map_snd_zip
     simpa using Nat.le_of_eq hinfosLength.symm
   let sourceMaterialized :=
-    H.toAssembledSemanticHeaders.materializedResult hlevels hlevelParams
+    H.toHeaderDeclaration.materializedResult hlevels hlevelParams
       hindices hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
   have hsourceHeaders : sourceMaterialized.headers = H.headers := by
     change H.semanticPrefix.complete H.materialized = H.headers
@@ -304,16 +304,16 @@ def AssembledSemanticHeadersOf.primitiveDeclaredResult
       calc
         materialized.headers.params = materializedMono.headers.params := by
           simpa [materialized] using
-            checkInductiveTypes.loopInd.MaterializedHeaderResult.retargetScope_headers_params
+            checkInductiveTypes.loopInd.HeaderStatsWF.retargetScope_headers_params
               materializedMono hscope
         _ = sourceMaterialized.headers.params :=
-          checkInductiveTypes.loopInd.MaterializedHeaderResult.mono_headers_params
+          checkInductiveTypes.loopInd.HeaderStatsWF.mono_headers_params
             sourceMaterialized hle
         _ = H.headers.params := congrArg (fun headers => headers.params)
           hsourceHeaders
     parameterScopeEq := by
       simpa [materialized, materializedMono] using
-        checkInductiveTypes.loopInd.MaterializedHeaderResult.retargetScope_parameterScope
+        checkInductiveTypes.loopInd.HeaderStatsWF.retargetScope_parameterScope
           materializedMono hscope }
 
 /-- Primitive header installation with the declaration synthesized from the
@@ -325,7 +325,7 @@ theorem AddInductive.declareInductiveTypes.primitiveSemanticHeadersWF
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList)
     (hlevels : stats.levels.length = c.lparams.length)
     (hlevelParams : stats.levels = c.lparams.map .param)
@@ -361,7 +361,7 @@ theorem AddInductive.declareInductiveTypes.primitiveSemanticHeadersWF
     rcases Hresult with ⟨envTypes, htypesAdded, Hatomic⟩
     rcases Hshape.checkedConstructorRows Hsemantic htypesAdded with
       ⟨Hconstructors⟩
-    rcases AssembledSemanticHeaders.ofTargetsExact (isUnsafe := isUnsafe)
+    rcases HeaderDeclaration.ofTargetsExact (isUnsafe := isUnsafe)
       Hsemantic Hconstructors hcommonParams htypesAdded with ⟨A⟩
     have hindices' : stats.nindices.toList = A.metadata.map Prod.fst := by
       rw [A.metadata_eq]

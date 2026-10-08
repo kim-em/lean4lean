@@ -317,7 +317,7 @@ structure RecInfoMinorSemanticSource
     sourceWF.mlctx.vlctx.toCtx motiveTarget
   sourceTarget : VExpr
   consumedTarget : VExpr
-  consumption : sourceWF.ConsumedDomain S.sourceType sourceTarget
+  consumption : sourceWF.UnannotatedDomain S.sourceType sourceTarget
     consumedTarget
 
 def RecInfoMinorSemanticSource.mono

@@ -97,19 +97,19 @@ theorem cachedParamVars_zero_eq_recursorCanonicalVars (n : Nat) :
 /-- Source-domain provenance for a dependency-closed narrowed context.
 The context is newest first.  At each retained declaration, its original
 Lean domain is translated in the already retained older tail. -/
-inductive FVarNarrowSources (env : VEnv) (Us : List Name) :
+inductive SourceTelescope (env : VEnv) (Us : List Name) :
     VLCtx → Type
-  | nil : FVarNarrowSources env Us []
+  | nil : SourceTelescope env Us []
   | cons
-      (tail : FVarNarrowSources env Us scope)
+      (tail : SourceTelescope env Us scope)
       (name : Name) (binderInfo : BinderInfo)
       (domain : Expr)
       (translation : TrExprS env Us scope domain target) :
-      FVarNarrowSources env Us
+      SourceTelescope env Us
         ((some (fv, deps), .vlam target) :: scope)
 
-def FVarNarrowSources.mono {env env' : VEnv} (henv : env ≤ env') :
-    FVarNarrowSources env Us scope → FVarNarrowSources env' Us scope
+def SourceTelescope.mono {env env' : VEnv} (henv : env ≤ env') :
+    SourceTelescope env Us scope → SourceTelescope env' Us scope
   | .nil => .nil
   | .cons tail name binderInfo domain translation =>
     .cons (tail.mono henv) name binderInfo domain
@@ -117,11 +117,11 @@ def FVarNarrowSources.mono {env env' : VEnv} (henv : env ≤ env') :
 
 /-- Prepend one fresh recursor universe parameter to a retained source
 telescope without changing its concrete domains. -/
-def FVarNarrowSources.prependLevelParam
-    (H : FVarNarrowSources env Us scope)
+def SourceTelescope.prependLevelParam
+    (H : SourceTelescope env Us scope)
     (henv : env.WF) (hscope : scope.WF env Us.length)
     (hfresh : fresh ∉ Us) :
-    FVarNarrowSources env (fresh :: Us)
+    SourceTelescope env (fresh :: Us)
       (scope.instL (VLevel.prependShift Us.length)) :=
   match H with
   | .nil => .nil
@@ -131,8 +131,8 @@ def FVarNarrowSources.prependLevelParam
       (translation.prependLevelParam henv hscope.1 hfresh)
 
 /-- Close a body through all retained source declarations. -/
-def FVarNarrowSources.closeSource
-    (H : FVarNarrowSources env Us scope) (body : Expr) : Expr :=
+def SourceTelescope.closeSource
+    (H : SourceTelescope env Us scope) (body : Expr) : Expr :=
   match H with
   | .nil => body
   | .cons (fv := fv) tail name binderInfo domain _ =>
@@ -140,23 +140,23 @@ def FVarNarrowSources.closeSource
       (body.abstractN [fv]) binderInfo)
 
 /-- Retained source scopes consist of free-variable entries only. -/
-theorem FVarNarrowSources.noBV (H : FVarNarrowSources env Us scope) : scope.bvars = 0 := by
+theorem SourceTelescope.noBV (H : SourceTelescope env Us scope) : scope.bvars = 0 := by
   induction H with
   | nil => rfl
   | cons _ _ _ _ _ ih => simpa [VLCtx.bvars] using ih
 
-@[simp] theorem FVarNarrowSources.closeSource_mono
+@[simp] theorem SourceTelescope.closeSource_mono
     {env env' : VEnv} (henv : env ≤ env')
-    (H : FVarNarrowSources env Us scope) (body : Expr) :
+    (H : SourceTelescope env Us scope) (body : Expr) :
     (H.mono henv).closeSource body = H.closeSource body := by
   induction H generalizing body with
   | nil => rfl
   | cons tail name binderInfo domain translation ih =>
     exact ih _
 
-@[simp] theorem FVarNarrowSources.closeSource_nil
+@[simp] theorem SourceTelescope.closeSource_nil
     (body : Expr) :
-    (FVarNarrowSources.nil : FVarNarrowSources env Us []).closeSource body =
+    (SourceTelescope.nil : SourceTelescope env Us []).closeSource body =
       body := rfl
 
 theorem _root_.Lean4Lean.VLCtx.WF.mono
@@ -179,7 +179,7 @@ only lambda declarations.  Each `MLCtx` node already retains the strict
 translation used to install its abstract domain. -/
 def MLCtxOnlyLams.sources
     {m : TypeChecker.MLCtx} (H : MLCtxOnlyLams m)
-    (Hwf : m.WF env Us) : FVarNarrowSources env Us m.vlctx :=
+    (Hwf : m.WF env Us) : SourceTelescope env Us m.vlctx :=
   match m with
   | .nil => .nil
   | .vlam fv name type type' bi tail =>
@@ -239,10 +239,10 @@ structure ParameterContextSuffix (Hc : ContextWF c)
   prefixLength : ambientDecls.length = depth
   cached : List.Forall₂ CachedParameterDecl
     stats.params.toList.reverse parameterDecls
-  narrowParams : List.Forall₂
+  suffixParams : List.Forall₂
     (TrExprS Hc.venv c.lparams parameterDecls)
     stats.params.toList (cachedParamVars stats.params.size 0)
-  sources : FVarNarrowSources Hc.venv c.lparams parameterDecls
+  sources : SourceTelescope Hc.venv c.lparams parameterDecls
 
 /-- Reindex a parameter cache across statistics updates that leave the
 cached parameter array unchanged. -/
@@ -264,7 +264,7 @@ def ParameterContextSuffix.reindex
   context := H.context
   prefixLength := H.prefixLength
   cached := by rw [hparams]; exact H.cached
-  narrowParams := by rw [hparams]; exact H.narrowParams
+  suffixParams := by rw [hparams]; exact H.suffixParams
   sources := H.sources
 
 def _root_.Lean4Lean.checkPositivityStep.VLCtx.NoIndConsts
@@ -561,7 +561,7 @@ theorem FrontFVLift.closeAtBase
     simpa [VExpr.wrapForalls_append, VExpr.wrapForalls,
       VExpr.lift', Lift.consN] using h
 
-structure NarrowRuntimeScope (env : VEnv) (Us : List Name)
+structure FrontScopeEmbedding (env : VEnv) (Us : List Name)
     (scope runtime : VLCtx) : Type where
   expanded : VLCtx
   shift : Lift
@@ -575,14 +575,14 @@ structure NarrowRuntimeScope (env : VEnv) (Us : List Name)
   noBV : scope.NoBV
   noIndConsts : ∀ names,
     checkPositivityStep.VLCtx.NoIndConsts names scope
-  sources : FVarNarrowSources env Us scope
+  sourceTelescope : SourceTelescope env Us scope
   /-- The semantic scope is well formed in its own right; it is not derived
   from the executable context, since that would be context strengthening. -/
   wf : scope.WF env Us.length
 
-def NarrowRuntimeScope.mono {env env' : VEnv} (henv : env ≤ env')
-    (H : NarrowRuntimeScope env Us scope runtime) :
-    NarrowRuntimeScope env' Us scope runtime where
+def FrontScopeEmbedding.mono {env env' : VEnv} (henv : env ≤ env')
+    (H : FrontScopeEmbedding env Us scope runtime) :
+    FrontScopeEmbedding env' Us scope runtime where
   expanded := H.expanded
   shift := H.shift
   lift := H.lift
@@ -593,17 +593,17 @@ def NarrowRuntimeScope.mono {env env' : VEnv} (henv : env ≤ env')
   upset := H.upset
   noBV := H.noBV
   noIndConsts := H.noIndConsts
-  sources := H.sources.mono henv
+  sourceTelescope := H.sourceTelescope.mono henv
   wf := H.wf.mono henv
 
 /-- Retarget only the executable context of a narrow scope along an exact
 context equality.  The semantic front is copied field-by-field so its data
 projections remain definitionally unchanged, rather than being hidden below
 a dependent cast. -/
-def NarrowRuntimeScope.retargetRuntime
-    (H : NarrowRuntimeScope env Us scope runtime)
+def FrontScopeEmbedding.retargetRuntime
+    (H : FrontScopeEmbedding env Us scope runtime)
     (h : runtime = runtime') :
-    NarrowRuntimeScope env Us scope runtime' where
+    FrontScopeEmbedding env Us scope runtime' where
   expanded := H.expanded
   shift := H.shift
   lift := H.lift
@@ -614,17 +614,17 @@ def NarrowRuntimeScope.retargetRuntime
   upset := by cases h; exact H.upset
   noBV := H.noBV
   noIndConsts := H.noIndConsts
-  sources := H.sources
+  sourceTelescope := H.sourceTelescope
   wf := H.wf
 
-theorem NarrowRuntimeScope.scopeWF
-    (H : NarrowRuntimeScope env Us scope runtime)
+theorem FrontScopeEmbedding.scopeWF
+    (H : FrontScopeEmbedding env Us scope runtime)
     (_henv : env.WF) :
     scope.WF env Us.length :=
   H.wf
 
-theorem NarrowRuntimeScope.transportType
-    (H : NarrowRuntimeScope env Us scope runtime)
+theorem FrontScopeEmbedding.transportType
+    (H : FrontScopeEmbedding env Us scope runtime)
     (henv : env.WF)
     (htr : TrExprS env Us scope e narrow')
     (htype : env.IsType Us.length scope.toCtx narrow') :
@@ -646,8 +646,8 @@ theorem NarrowRuntimeScope.transportType
 
 /-- Weaken a term together with its independently translated type from the
 narrow parameter scope into the executable runtime context. -/
-theorem NarrowRuntimeScope.transportTypedTerm
-    (H : NarrowRuntimeScope env Us scope runtime)
+theorem FrontScopeEmbedding.transportTypedTerm
+    (H : FrontScopeEmbedding env Us scope runtime)
     (henv : env.WF)
     (hterm : TrExprS env Us scope term termTarget)
     (htype : TrExprS env Us scope type typeTarget)
@@ -684,8 +684,8 @@ theorem NarrowRuntimeScope.transportTypedTerm
   exact ⟨termRuntime, typeRuntime, htermRuntime, htypeRuntime,
     htypingBoth, htypeRuntimeType⟩
 
-def NarrowRuntimeScope.withIndex
-    (H : NarrowRuntimeScope env Us scope runtime)
+def FrontScopeEmbedding.withIndex
+    (H : FrontScopeEmbedding env Us scope runtime)
     (hnewRuntime : VLCtx.WF env Us.length
       ((some (fv, deps), .vlam runtimeType) :: runtime))
     (hdeps : deps ⊆ scope.fvars)
@@ -695,7 +695,7 @@ def NarrowRuntimeScope.withIndex
     (hdomain : env.IsDefEq Us.length H.expanded.toCtx
       (indexType.lift' H.shift) runtimeType (.sort u))
     (htype : env.IsType Us.length scope.toCtx indexType) :
-    NarrowRuntimeScope env Us
+    FrontScopeEmbedding env Us
       ((some (fv, deps), .vlam indexType) :: scope)
       ((some (fv, deps), .vlam runtimeType) :: runtime) where
   expanded :=
@@ -729,7 +729,7 @@ def NarrowRuntimeScope.withIndex
   noIndConsts := fun names =>
     checkPositivityStep.VLCtx.NoIndConsts.cons
       (H.noIndConsts names) rfl
-  sources := .cons H.sources sourceName sourceBinderInfo sourceDomain
+  sourceTelescope := .cons H.sourceTelescope sourceName sourceBinderInfo sourceDomain
     hsourceDomain
   wf := by
     refine ⟨H.wf, ?_, htype⟩
@@ -741,12 +741,12 @@ def NarrowRuntimeScope.withIndex
     exact (hnewRuntime.2.1 _ _ rfl).1 (hsub hmem)
 
 /-- A dependency-closed semantic subcontext of an executable all-lambda
-context.  Unlike `NarrowRuntimeScope`, this deliberately has no contiguous
+context.  Unlike `FrontScopeEmbedding`, this deliberately has no contiguous
 `front`: callers may retain one named local, skip the next, and retain a
 later one.  That is the shape of the recursor context, where indices and
 majors are interleaved with the motives selected by the generated telescope.
 -/
-structure FVarNarrowScope (env : VEnv) (Us : List Name)
+structure ScopeEmbedding (env : VEnv) (Us : List Name)
     (scope runtime : VLCtx) : Type where
   expanded : VLCtx
   shift : Lift
@@ -758,12 +758,12 @@ structure FVarNarrowScope (env : VEnv) (Us : List Name)
     (fun fv entry => ∃ deps type,
       entry = (some (fv, deps), .vlam type))
     scope.fvars scope
-  sources : FVarNarrowSources env Us scope
+  sourceTelescope : SourceTelescope env Us scope
   wf : scope.WF env Us.length
 
-def FVarNarrowScope.mono {env env' : VEnv} (henv : env ≤ env')
-    (H : FVarNarrowScope env Us scope runtime) :
-    FVarNarrowScope env' Us scope runtime where
+def ScopeEmbedding.mono {env env' : VEnv} (henv : env ≤ env')
+    (H : ScopeEmbedding env Us scope runtime) :
+    ScopeEmbedding env' Us scope runtime where
   expanded := H.expanded
   shift := H.shift
   lift := H.lift
@@ -771,16 +771,16 @@ def FVarNarrowScope.mono {env env' : VEnv} (henv : env ≤ env')
   upset := H.upset
   noBV := H.noBV
   declarations := H.declarations
-  sources := H.sources.mono henv
+  sourceTelescope := H.sourceTelescope.mono henv
   wf := H.wf.mono henv
 
-theorem FVarNarrowScope.scopeWF
-    (H : FVarNarrowScope env Us scope runtime)
+theorem ScopeEmbedding.scopeWF
+    (H : ScopeEmbedding env Us scope runtime)
     (_henv : env.WF) : scope.WF env Us.length :=
   H.wf
 
-theorem FVarNarrowScope.fvars_length
-    (H : FVarNarrowScope env Us scope runtime) :
+theorem ScopeEmbedding.fvars_length
+    (H : ScopeEmbedding env Us scope runtime) :
     scope.fvars.length = scope.length :=
   List.Forall₂.length_eq H.declarations
 
@@ -798,12 +798,12 @@ theorem VLCtx.fvars_length_of_noBV {scope : VLCtx} (H : scope.NoBV) :
       change VLCtx.bvars scope = 0 at H
       simp [ih H]
 
-theorem FVarNarrowScope.toCtx_length
-    (H : FVarNarrowScope env Us scope runtime) :
+theorem ScopeEmbedding.toCtx_length
+    (H : ScopeEmbedding env Us scope runtime) :
     scope.toCtx.length = scope.length :=
   VLCtx.toCtx_length_of_forall₂_vlam H.declarations
 
-def FVarNarrowScope.nil : FVarNarrowScope env Us [] [] where
+def ScopeEmbedding.nil : ScopeEmbedding env Us [] [] where
   expanded := []
   shift := .refl
   lift := .refl
@@ -811,7 +811,7 @@ def FVarNarrowScope.nil : FVarNarrowScope env Us [] [] where
   upset := trivial
   noBV := rfl
   declarations := .nil
-  sources := .nil
+  sourceTelescope := .nil
   wf := trivial
 
 /-- A translated local context is dependency-closed for `P` whenever every
@@ -830,8 +830,8 @@ theorem TrLCtx'.isFVarUpSet
     intro hselected fv hfv
     exact hdeps declaration (by simp) hselected fv hfv
 
-theorem FVarNarrowScope.fullTargetEq
-    (H : FVarNarrowScope env Us scope runtime)
+theorem ScopeEmbedding.fullTargetEq
+    (H : ScopeEmbedding env Us scope runtime)
     (henv : env.WF)
     (hnarrow : TrExprS env Us scope e narrow')
     (hfull : TrExpr env Us runtime e full') :
@@ -848,8 +848,8 @@ theorem FVarNarrowScope.fullTargetEq
 /-- Retain one newly introduced named lambda.  Its semantic domain is
 obtained by inverse weakening; the executable domain need only be
 definitionally equal after weakening back into the expanded context. -/
-def FVarNarrowScope.withIndex
-    (H : FVarNarrowScope env Us scope runtime)
+def ScopeEmbedding.withIndex
+    (H : ScopeEmbedding env Us scope runtime)
     (hnewRuntime : VLCtx.WF env Us.length
       ((some (fv, deps), .vlam runtimeType) :: runtime))
     (hdeps : deps ⊆ scope.fvars)
@@ -859,7 +859,7 @@ def FVarNarrowScope.withIndex
     (hdomain : env.IsDefEq Us.length H.expanded.toCtx
       (indexType.lift' H.shift) runtimeType (.sort u))
     (htype : env.IsType Us.length scope.toCtx indexType) :
-    FVarNarrowScope env Us
+    ScopeEmbedding env Us
       ((some (fv, deps), .vlam indexType) :: scope)
       ((some (fv, deps), .vlam runtimeType) :: runtime) where
   expanded :=
@@ -885,7 +885,7 @@ def FVarNarrowScope.withIndex
       exact List.mem_cons_of_mem _ (hdeps hdep)
   noBV := H.noBV
   declarations := .cons ⟨deps, indexType, rfl⟩ H.declarations
-  sources := .cons H.sources sourceName sourceBinderInfo sourceType hsource
+  sourceTelescope := .cons H.sourceTelescope sourceName sourceBinderInfo sourceType hsource
   wf := by
     refine ⟨H.wf, ?_, htype⟩
     rintro _ _ ⟨⟩
@@ -897,13 +897,13 @@ def FVarNarrowScope.withIndex
 
 /-- Skip one newly introduced named lambda while preserving a previously
 selected, possibly non-contiguous semantic scope. -/
-def FVarNarrowScope.skipIndex
-    (H : FVarNarrowScope env Us scope runtime)
+def ScopeEmbedding.skipIndex
+    (H : ScopeEmbedding env Us scope runtime)
     (henv : env.WF)
     (hnewRuntime : VLCtx.WF env Us.length
       ((some (fv, deps), .vlam runtimeType) :: runtime))
     (hskip : fv ∉ scope.fvars) :
-    FVarNarrowScope env Us scope
+    ScopeEmbedding env Us scope
       ((some (fv, deps), .vlam runtimeType) :: runtime) where
   expanded := (some (fv, deps), .vlam runtimeType) :: H.expanded
   shift := H.shift.skipN 1
@@ -924,7 +924,7 @@ def FVarNarrowScope.skipIndex
     exact False.elim (hskip hmem)
   noBV := H.noBV
   declarations := H.declarations
-  sources := H.sources
+  sourceTelescope := H.sourceTelescope
   wf := H.wf
 
 def fvarSelectionLift (fvars : List FVarId) (P : FVarId → Prop)
@@ -956,13 +956,13 @@ theorem MLCtxOnlyLams.narrowFVarsSourceOracle
         env.IsType Us.length tailScope.toCtx t ∧
         Good ((some (fv, type.fvarsList), .vlam t) :: tailScope)) :
     ∃ scope,
-      ∃ Hscope : FVarNarrowScope env Us scope c.vlctx,
+      ∃ Hscope : ScopeEmbedding env Us scope c.vlctx,
         scope.fvars = c.vlctx.fvars.filter P ∧
         Hscope.shift = fvarSelectionLift c.vlctx.fvars P ∧
         (∀ fv ∈ scope.fvars, ∃ decl,
           c.lctx.find? fv = some decl) ∧
         (∀ body,
-          Hscope.sources.closeSource body =
+          Hscope.sourceTelescope.closeSource body =
             c.lctx.mkForall
               (scope.fvars.reverse.map Expr.fvar).toArray body) ∧
         Good scope := by
@@ -1043,8 +1043,8 @@ theorem MLCtxOnlyLams.narrowFVarsSourceOracle
       let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
         HnarrowType Hdomain HnarrowIsType
       have hnextFVars : ∀ body,
-          Hnext.sources.closeSource body =
-            HtailScope.sources.closeSource
+          Hnext.sourceTelescope.closeSource body =
+            HtailScope.sourceTelescope.closeSource
               (.forallE name type (body.abstractN [fv]) bi) := by
         intro body
         rfl
@@ -1089,8 +1089,8 @@ theorem MLCtxOnlyLams.narrowFVarsSourceOracle
         simp [hP]
       let Hnext := HtailScope.skipIndex henv HruntimeWF hskip
       have hnextFVars : ∀ body,
-          Hnext.sources.closeSource body =
-            HtailScope.sources.closeSource body := by
+          Hnext.sourceTelescope.closeSource body =
+            HtailScope.sourceTelescope.closeSource body := by
         intro body
         rfl
       refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_, ?_, htailGood⟩
@@ -1216,12 +1216,12 @@ theorem _root_.Lean4Lean.VLCtx.FVLift'.upsetScope {Δ Δ' : VLCtx}
 
 /-- A checker `MLCtx` embedded in a runtime context is a dependency-selected
 scope of it, with its own source telescope. -/
-theorem FVarNarrowScope.ofEmbedding {m : TypeChecker.MLCtx}
+theorem ScopeEmbedding.ofEmbedding {m : TypeChecker.MLCtx}
     {env : VEnv} {Us : List Name} {runtime : VLCtx}
     (Hm : m.WF env Us) (Honly : MLCtxOnlyLams m)
     (hemb : ChkEmbeds env Us.length m.vlctx runtime) :
-    ∃ Hs : FVarNarrowScope env Us m.vlctx runtime,
-      Hs.sources = MLCtxOnlyLams.sources Honly Hm := by
+    ∃ Hs : ScopeEmbedding env Us m.vlctx runtime,
+      Hs.sourceTelescope = MLCtxOnlyLams.sources Honly Hm := by
   obtain ⟨Δ', n, W, hD⟩ := hemb
   exact ⟨{
     expanded := Δ'
@@ -1231,24 +1231,24 @@ theorem FVarNarrowScope.ofEmbedding {m : TypeChecker.MLCtx}
     upset := hD.isFVarUpSet.1 (W.upsetScope hD.wf)
     noBV := m.noBV
     declarations := MLCtxOnlyLams.declarations Honly
-    sources := MLCtxOnlyLams.sources Honly Hm
+    sourceTelescope := MLCtxOnlyLams.sources Honly Hm
     wf := Hm.tr.wf }, rfl⟩
 
 /-- The checker context of `Hc`, aligned with a semantic scope, supplies an
 independent source-aware scope without restricting any runtime
 translation. -/
-theorem NarrowRuntimeScope.independentSourceScopeOfCheck
+theorem FrontScopeEmbedding.independentSourceScopeOfCheck
     {c : AddInductive.Context} {Hc : ContextWF c}
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx) :
     ∃ sourceScope,
-      ∃ Hsource : FVarNarrowScope Hc.venv c.lparams sourceScope
+      ∃ Hsource : ScopeEmbedding Hc.venv c.lparams sourceScope
           Hc.mlctx.vlctx,
         sourceScope.fvars = scope.fvars ∧
         ∀ body,
-          Hsource.sources.closeSource body =
+          Hsource.sourceTelescope.closeSource body =
             Hc.mlctx.lctx.mkForall
               (sourceScope.fvars.reverse.map Expr.fvar).toArray body := by
-  obtain ⟨Hsource, hsources⟩ := FVarNarrowScope.ofEmbedding
+  obtain ⟨Hsource, hsources⟩ := ScopeEmbedding.ofEmbedding
     Hc.check.wf Hc.check.onlyLams Hc.check.embed
   refine ⟨Hc.chk.vlctx, Hsource, halign.fvars.symm, fun body => ?_⟩
   rw [hsources, MLCtxOnlyLams.sources_closeSource, Hc.lctx_eq]
@@ -1266,13 +1266,13 @@ theorem MLCtxOnlyLams.fullSourceScope
     {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
     (H : MLCtxOnlyLams c) (henv : env.WF) (Hwf : c.WF env Us) :
     ∃ scope,
-      ∃ Hscope : FVarNarrowScope env Us scope c.vlctx,
+      ∃ Hscope : ScopeEmbedding env Us scope c.vlctx,
         scope.fvars = c.vlctx.fvars.filter (· ∈ c.vlctx.fvars) ∧
         ∀ body,
-          Hscope.sources.closeSource body =
+          Hscope.sourceTelescope.closeSource body =
             c.lctx.mkForall
               (scope.fvars.reverse.map Expr.fvar).toArray body := by
-  obtain ⟨Hscope, hsources⟩ := FVarNarrowScope.ofEmbedding Hwf H
+  obtain ⟨Hscope, hsources⟩ := ScopeEmbedding.ofEmbedding Hwf H
     (ChkEmbeds.refl henv.ordered Hwf.tr.wf)
   refine ⟨c.vlctx, Hscope, ?_, fun body => ?_⟩
   · exact (List.filter_mem_eq_of_sublist_nodup (.refl _)
@@ -1283,10 +1283,10 @@ theorem MLCtxOnlyLams.fullSourceScope
 /-- At the parameter/index boundary, discard the ambient prefix retained
 from previously checked mutual headers and keep the exact cached-parameter
 suffix as the semantic scope. -/
-def NarrowRuntimeScope.ofParameterSuffix
+def FrontScopeEmbedding.ofParameterSuffix
     (Hc : ContextWF c)
     (Hsuffix : ParameterContextSuffix Hc stats depth) :
-    NarrowRuntimeScope Hc.venv c.lparams Hsuffix.parameterDecls
+    FrontScopeEmbedding Hc.venv c.lparams Hsuffix.parameterDecls
       Hc.mlctx.vlctx := by
   have hambient : Hsuffix.ambientDecls.NoBV := by
     apply VLCtx.NoBV.leftOfAppend Hsuffix.ambientDecls
@@ -1305,7 +1305,7 @@ def NarrowRuntimeScope.ofParameterSuffix
     upset := ?_
     noBV := ?_
     noIndConsts := Hsuffix.noIndConsts
-    sources := Hsuffix.sources
+    sourceTelescope := Hsuffix.sources
     wf := ?_ }
   · rw [Hsuffix.context]
     exact W.toFVLift'
@@ -1336,10 +1336,10 @@ def NarrowRuntimeScope.ofParameterSuffix
 
 /-- Relate a domain translated in the semantic scope to the annotation-
 consumed domain installed by the executable checker. -/
-theorem NarrowRuntimeScope.consumedDomain
+theorem FrontScopeEmbedding.consumedDomain
     (Hc : ContextWF c)
-    (H : NarrowRuntimeScope Hc.venv c.lparams scope Hc.mlctx.vlctx)
-    (Hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
+    (H : FrontScopeEmbedding Hc.venv c.lparams scope Hc.mlctx.vlctx)
+    (Hdom : Hc.UnannotatedDomain dom sourceDom consumedDom)
     (hnarrow : TrExprS Hc.venv c.lparams scope dom indexType) :
     ∃ u, Hc.venv.IsDefEq c.lparams.length H.expanded.toCtx
       (indexType.lift' H.shift) consumedDom (.sort u) := by
@@ -1357,10 +1357,10 @@ theorem NarrowRuntimeScope.consumedDomain
   exact ⟨u, hdomainU.of_r Hc.checking.tr.wf H.context.wf.toCtx
     hsourceConsumed'.hasType.2⟩
 
-theorem NarrowRuntimeScope.recursorConsumedDomain
+theorem FrontScopeEmbedding.recursorConsumedDomain
     (R : RecursorContextWF c recLparams)
-    (H : NarrowRuntimeScope R.venv recLparams scope R.mlctx.vlctx)
-    (Hdom : R.ConsumedDomain dom sourceDom consumedDom)
+    (H : FrontScopeEmbedding R.venv recLparams scope R.mlctx.vlctx)
+    (Hdom : R.UnannotatedDomain dom sourceDom consumedDom)
     (hnarrow : TrExprS R.venv recLparams scope dom indexType) :
     ∃ u, R.venv.IsDefEq recLparams.length H.expanded.toCtx
       (indexType.lift' H.shift) consumedDom (.sort u) := by

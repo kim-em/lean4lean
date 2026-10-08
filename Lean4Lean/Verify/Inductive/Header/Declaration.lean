@@ -14,7 +14,7 @@ namespace VerifyInductive
 made it possible to translate constructor types.  The semantic prefix is
 retained alongside the ordinary header translation so nested lowering can
 still project each exact normalized source telescope. -/
-structure AssembledSemanticHeaders
+structure HeaderDeclaration
     (env envTypes : VEnv) (Us : List Name) (nparams : Nat)
     (sources : List InductiveType) (isUnsafe : Bool)
     (params : List VExpr) (commonLevel : VLevel) where
@@ -24,7 +24,7 @@ structure AssembledSemanticHeaders
     isUnsafe skeleton envTypes
   metadata : List (Nat × VLevel)
   materialized : skeleton.withMetadata metadata = some decl
-  semanticPrefix : checkInductiveTypes.loopType.SynthesizedHeaderPrefix
+  semanticPrefix : checkInductiveTypes.loopType.HeaderFormations
     env Us skeleton params commonLevel metadata skeleton.types.length
   translation : TrInductDeclHeaders env Us nparams sources isUnsafe decl
     envTypes
@@ -34,14 +34,14 @@ structure AssembledSemanticHeaders
 /-- Final semantic assembly together with the exact header target list from
 which it was built.  Keeping this equality at the assembly boundary lets the
 production installer be reused without reconstructing target uniqueness. -/
-structure AssembledSemanticHeadersOf
+structure HeaderDeclarationOf
     (env envTypes : VEnv) (Us : List Name) (nparams : Nat)
     (sources : List InductiveType) (isUnsafe : Bool)
     (params : List VExpr) (commonLevel : VLevel)
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         env Us nparams params commonLevel sources)
-    extends AssembledSemanticHeaders env envTypes Us nparams sources isUnsafe
+    extends HeaderDeclaration env envTypes Us nparams sources isUnsafe
       params commonLevel where
   typeConstants : decl.typeConstants = Hsemantic.headers.targets
   metadata_eq : metadata = Hsemantic.metadata
@@ -49,15 +49,15 @@ structure AssembledSemanticHeadersOf
 /-- Join the skeleton-free semantic header traversal with the skeleton-free
 constructor target traversal.  The only installation premise is precisely
 the equation produced by `semanticHeadersWF`. -/
-theorem AssembledSemanticHeaders.ofTargetsExact
+theorem HeaderDeclaration.ofTargetsExact
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         env Us nparams params commonLevel sources)
-    (Hconstructors : CheckedSourceConstructorRows envTypes Us sources)
+    (Hconstructors : RawBlockCtorTranslations envTypes Us sources)
     (hparams : params.length = nparams)
     (htypesAdded : env.addConstVals Hsemantic.headers.targets =
       some envTypes) :
-    Nonempty (AssembledSemanticHeadersOf env envTypes Us nparams sources
+    Nonempty (HeaderDeclarationOf env envTypes Us nparams sources
       isUnsafe params commonLevel Hsemantic) := by
   let skeleton : VInductDeclSkeleton := {
     uvars := Us.length
@@ -92,7 +92,7 @@ theorem AssembledSemanticHeaders.ofTargetsExact
     have hconstructorLength : Hconstructors.targets.length = sources.length :=
       (List.Forall₂.length_eq
         Hconstructors.translations).symm
-    simp [checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.metadata,
+    simp [checkInductiveTypes.loopType.CheckedHeaders.metadata,
       skeleton, assembleInductiveSkeletonTypes, hpayloadLength,
       hheaderLength, hconstructorLength]
   let decl : VInductDecl := {
@@ -104,7 +104,7 @@ theorem AssembledSemanticHeaders.ofTargetsExact
   have Hmaterialized : skeleton.withMetadata Hsemantic.metadata =
       some decl := by
     simp [VInductDeclSkeleton.withMetadata, hmetadataLength, decl]
-  let A : AssembledSemanticHeaders env envTypes Us nparams sources isUnsafe
+  let A : HeaderDeclaration env envTypes Us nparams sources isUnsafe
       params commonLevel := {
     skeleton := skeleton
     decl := decl
@@ -118,7 +118,7 @@ theorem AssembledSemanticHeaders.ofTargetsExact
     headers := Hprefix.complete Hmaterialized
     headers_eq := rfl }
   refine ⟨{
-    toAssembledSemanticHeaders := A
+    toHeaderDeclaration := A
     typeConstants := ?_
     metadata_eq := rfl }⟩
   calc
@@ -182,13 +182,13 @@ theorem TrInductDeclSkeletonHeaders.typeNames
   exact go H.types
 
 /-- Repackage a completed skeleton-free semantic traversal in the established
-`MaterializedHeaderResult` interface.  All executable statistics and context
+`HeaderStatsWF` interface.  All executable statistics and context
 facts are supplied by the outer fold; the declaration, header certificate and
 normalized source telescopes come solely from semantic assembly. -/
-def AssembledSemanticHeaders.materializedResult
+def HeaderDeclaration.materializedResult
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : AssembledSemanticHeaders Hc.venv envTypes c.lparams nparams
+    (H : HeaderDeclaration Hc.venv envTypes c.lparams nparams
       sources isUnsafe params commonLevel)
     (hlevels : stats.levels.length = c.lparams.length)
     (hlevelParams : stats.levels = c.lparams.map .param)
@@ -206,7 +206,7 @@ def AssembledSemanticHeaders.materializedResult
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
       some commonLevel)
     (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero) :
-    checkInductiveTypes.loopInd.MaterializedHeaderResult
+    checkInductiveTypes.loopInd.HeaderStatsWF
       Hc.venv c.lparams Hc.mlctx.vlctx
       stats H.decl depth := by
   have hfields := VInductDeclSkeleton.materialize_fields H.materialized
@@ -232,11 +232,11 @@ def AssembledSemanticHeaders.materializedResult
     scopeDecomposition := Hsuffix.context
     ambientLength := Hsuffix.prefixLength
     cachedScope := Hsuffix.cached
-    runtimeScope :=
-      checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+    parameterEmbedding :=
+      checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
         Hc Hsuffix
     paramsContext := ?_
-    narrowParams := ?_ }
+    suffixParams := ?_ }
   · exact hlevels.trans
       (H.skeletonTranslation.uvars.symm.trans hfields.1.symm)
   · exact H.skeletonTranslation.uvars.symm.trans hfields.1.symm
@@ -275,7 +275,7 @@ def AssembledSemanticHeaders.materializedResult
     have hsize : stats.params.size = H.decl.nparams :=
       hparams.trans
         (H.skeletonTranslation.nparams.symm.trans hfields.2.1.symm)
-    simpa [hsize] using Hsuffix.narrowParams
+    simpa [hsize] using Hsuffix.suffixParams
 
 end VerifyInductive
 end Lean4Lean

@@ -109,7 +109,7 @@ private theorem SourceConstructorReplay.singletonFieldsInScope
     (hle : env ≤ Hc.venv) (henv : env.WF)
     (hscope : scope.WF env Us.length)
     (hu : decl.uvars = Us.length)
-    (Htrace : LargeEliminationTrace stats c source.type 0 #[])
+    (Htrace : LargeEliminationCheck stats c source.type 0 #[])
     (Hspine : Expr.ForallSpine source.type arity) :
     ∀ i (hi : i < (s.fieldTypes ctor).length),
       env.HasType Us.length (((s.fieldTypes ctor).take i).reverse ++ scope.toCtx)
@@ -202,7 +202,7 @@ theorem RecursorConstruction.elimLevelDecision
     H.elimLevel = .zero ∨
     ∃ ind, indTypes = #[ind] ∧
       (ind.ctors = [] ∨ ∃ ctor, ind.ctors = [ctor] ∧
-        LargeEliminationTrace stats
+        LargeEliminationCheck stats
           { c with env := ctorEnv, checkLCtx := {} } ctor.type 0 #[]) := by
   by_cases hzero : H.elimLevel = .zero
   · exact .inr (.inl hzero)
@@ -236,7 +236,7 @@ theorem RecursorConstruction.consumedSingletonElimination
     (hls : ∀ level ∈ levels, level.WF U)
     (Hsingleton : ∃ ind, indTypes = #[ind] ∧
       (ind.ctors = [] ∨ ∃ ctor, ind.ctors = [ctor] ∧
-        LargeEliminationTrace stats { c with env := ctorEnv, checkLCtx := {} }
+        LargeEliminationCheck stats { c with env := ctorEnv, checkLCtx := {} }
           ctor.type 0 #[])) :
     s.SingletonElimination R.headerVEnv U levels := by
   obtain ⟨ind, hind, hctors⟩ := Hsingleton
@@ -283,7 +283,7 @@ theorem RecursorConstruction.consumedSingletonElimination
   have hheader := Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF R.core henvSource
   have hscope : R.parameterScope.WF R.headerVEnv c.lparams.length := by
     rw [← R.materializedParameterScope]
-    exact R.statsWF.runtimeScope.scopeWF hheader
+    exact R.statsWF.parameterEmbedding.scopeWF hheader
   have hspine := R.parameterPrefixes.spines 0 (by simp [hind]) 0 (by simp [hind, hsource])
   simp only [hind, Array.getElem_singleton, hsource, List.getElem_cons_zero] at hspine
   obtain ⟨arity, hspine⟩ := hspine

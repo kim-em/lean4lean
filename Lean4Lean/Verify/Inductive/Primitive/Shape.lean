@@ -161,7 +161,7 @@ theorem PrimitiveInductiveShape.materializedLiteralDisjoint
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
     (Hdecl : TrInductDeclHeaders env lparams nparams types isUnsafe decl
       envTypes)
-    (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+    (Hmaterialized : checkInductiveTypes.loopInd.HeaderStatsWF
       env lparams Delta stats decl depth) :
     checkPositivityStep.LiteralDisjoint stats.indConsts := by
   rcases Hshape with ⟨rfl, rfl, rfl, htypes | htypes⟩

@@ -13,16 +13,16 @@ namespace VerifyInductive
 
 /-- A successfully installed skeleton-free family cannot use a
 production-reserved primitive name. -/
-theorem InstalledSemanticHeaders.familyNamesExcludePrimitive
+theorem InstalledHeaders.familyNamesExcludePrimitive
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     {Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList}
     {outEnv : Environment}
-    (H : InstalledSemanticHeaders c Hc stats nparams indTypes numNested
+    (H : InstalledHeaders c Hc stats nparams indTypes numNested
       isUnsafe commonParams commonLevel Hsemantic outEnv)
     (hprimitive : Kernel.Environment.primitives.contains name) :
     name ∉ (Hsemantic.headerDecl isUnsafe).types.map (·.name) := by
@@ -43,16 +43,16 @@ theorem InstalledSemanticHeaders.familyNamesExcludePrimitive
 
 /-- Primitive support visible after skeleton-free header installation was
 already present in the source model. -/
-theorem InstalledSemanticHeaders.sourceContainsOfTargetContainsPrimitive
+theorem InstalledHeaders.sourceContainsOfTargetContainsPrimitive
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     {Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList}
     {outEnv : Environment}
-    (H : InstalledSemanticHeaders c Hc stats nparams indTypes numNested
+    (H : InstalledHeaders c Hc stats nparams indTypes numNested
       isUnsafe commonParams commonLevel Hsemantic outEnv)
     (hprimitive : Kernel.Environment.primitives.contains name)
     (htarget : H.context.venv.contains name) : Hc.venv.contains name := by
@@ -63,16 +63,16 @@ theorem InstalledSemanticHeaders.sourceContainsOfTargetContainsPrimitive
 /-- Source freshness from the skeleton-free header installer excludes the
 three literal expansion names not reserved by the production primitive
 table whenever those names are already present. -/
-theorem InstalledSemanticHeaders.unreservedLiteralNamesDisjointOfSourceContains
+theorem InstalledHeaders.unreservedLiteralNamesDisjointOfSourceContains
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     {Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList}
     {outEnv : Environment}
-    (H : InstalledSemanticHeaders c Hc stats nparams indTypes numNested
+    (H : InstalledHeaders c Hc stats nparams indTypes numNested
       isUnsafe commonParams commonLevel Hsemantic outEnv)
     (hpresent : ∀ name ∈
       checkPositivityStep.unreservedLiteralConstructorNames,
@@ -111,18 +111,18 @@ theorem InstalledSemanticHeaders.unreservedLiteralNamesDisjointOfSourceContains
 /-- The installed semantic header result itself supplies positivity's
 environment-indexed literal side condition; no caller disjointness premise
 is needed. -/
-theorem InstalledSemanticHeaders.materializedAvailableLiteralDisjoint
+theorem InstalledHeaders.materializedAvailableLiteralDisjoint
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {nparams depth : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     {Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList}
     {outEnv : Environment}
-    (H : InstalledSemanticHeaders c Hc stats nparams indTypes numNested
+    (H : InstalledHeaders c Hc stats nparams indTypes numNested
       isUnsafe commonParams commonLevel Hsemantic outEnv)
-    (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+    (Hmaterialized : checkInductiveTypes.loopInd.HeaderStatsWF
       Hc.venv c.lparams Hc.mlctx.vlctx stats
         (Hsemantic.headerDecl isUnsafe) depth) :
     checkPositivityStep.AvailableLiteralDisjoint
@@ -181,18 +181,18 @@ target assembly in the standard production header boundary.  The declaration,
 translation and header certificate are all synthesized; the remaining inputs
 are exactly the executable statistics and scope invariants retained by the
 outer header fold. -/
-def AssembledSemanticHeadersOf.declaredResult
+def HeaderDeclarationOf.declaredResult
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     {Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList}
     {outEnv : Environment}
-    (Hinstalled : InstalledSemanticHeaders c Hc stats nparams indTypes
+    (Hinstalled : InstalledHeaders c Hc stats nparams indTypes
       numNested isUnsafe commonParams commonLevel Hsemantic outEnv)
-    (H : AssembledSemanticHeadersOf Hc.venv Hinstalled.context.venv
+    (H : HeaderDeclarationOf Hc.venv Hinstalled.context.venv
       c.lparams nparams indTypes.toList isUnsafe commonParams commonLevel
       Hsemantic)
     (hlevels : stats.levels.length = c.lparams.length)
@@ -254,7 +254,7 @@ def AssembledSemanticHeadersOf.declaredResult
     apply List.map_snd_zip
     simpa using Nat.le_of_eq hinfosLength.symm
   let sourceMaterialized :=
-    H.toAssembledSemanticHeaders.materializedResult hlevels hlevelParams
+    H.toHeaderDeclaration.materializedResult hlevels hlevelParams
       hindices hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
   have hsourceHeaders : sourceMaterialized.headers = H.headers := by
     change H.semanticPrefix.complete H.materialized = H.headers
@@ -288,10 +288,10 @@ def AssembledSemanticHeadersOf.declaredResult
       calc
         materialized.headers.params = materializedMono.headers.params := by
           simpa [materialized] using
-            checkInductiveTypes.loopInd.MaterializedHeaderResult.retargetScope_headers_params
+            checkInductiveTypes.loopInd.HeaderStatsWF.retargetScope_headers_params
               materializedMono hscope
         _ = sourceMaterialized.headers.params :=
-          checkInductiveTypes.loopInd.MaterializedHeaderResult.mono_headers_params
+          checkInductiveTypes.loopInd.HeaderStatsWF.mono_headers_params
             sourceMaterialized hle
         _ = H.headers.params := congrArg (fun headers => headers.params)
           hsourceHeaders
@@ -299,11 +299,11 @@ def AssembledSemanticHeadersOf.declaredResult
       calc
         materialized.parameterScope = materializedMono.parameterScope := by
           simpa [materialized] using
-            checkInductiveTypes.loopInd.MaterializedHeaderResult.retargetScope_parameterScope
+            checkInductiveTypes.loopInd.HeaderStatsWF.retargetScope_parameterScope
               materializedMono hscope
         _ = sourceMaterialized.parameterScope := by
           simpa [materializedMono] using
-            checkInductiveTypes.loopInd.MaterializedHeaderResult.mono_parameterScope
+            checkInductiveTypes.loopInd.HeaderStatsWF.mono_parameterScope
               sourceMaterialized hle }
 
 /-- Execute the production header installation and constructor-type fold,
@@ -316,7 +316,7 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
     {commonParams : List VExpr} {commonLevel : VLevel}
     (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
+      checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList)
     (hlevels : stats.levels.length = c.lparams.length)
     (hlevelParams : stats.levels = c.lparams.map .param)
@@ -356,8 +356,8 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
   have hheaderParams : HheaderMaterialized.headers.params =
       commonParams := by
     simp [HheaderMaterialized,
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.materializedResult,
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.headerCertificate]
+      checkInductiveTypes.loopType.CheckedHeaders.materializedResult,
+      checkInductiveTypes.loopType.CheckedHeaders.headerCertificate]
   have Hdeclare :=
     AddInductive.declareInductiveTypes.semanticHeadersWF Hc Hsemantic
       hindicesSize hvisible hnprim

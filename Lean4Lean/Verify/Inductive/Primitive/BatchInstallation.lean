@@ -877,10 +877,10 @@ structure PrimitiveHeaderEnvironment (c : AddInductive.Context)
     outEnv context.venv
   sourceContext : ContextWF c
   sourceContextVEnv : sourceContext.venv = sourceEnv
-  sourceStatsWF : checkInductiveTypes.loopInd.MaterializedHeaderResult
+  sourceStatsWF : checkInductiveTypes.loopInd.HeaderStatsWF
     sourceContext.venv c.lparams sourceContext.mlctx.vlctx stats decl depth
   sourceHeaderParams : sourceStatsWF.headers.params = headers.params
-  statsWF : checkInductiveTypes.loopInd.MaterializedHeaderResult
+  statsWF : checkInductiveTypes.loopInd.HeaderStatsWF
     context.venv c.lparams context.mlctx.vlctx stats decl depth
   headerParams : statsWF.headers.params = headers.params
   parameterScopeEq : statsWF.parameterScope = sourceStatsWF.parameterScope

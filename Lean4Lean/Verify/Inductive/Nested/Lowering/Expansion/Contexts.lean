@@ -18,7 +18,7 @@ relate those contexts by nested expansion, rather than by literal equality.
 -/
 
 /-- The metadata-prefix certificate preserves the result universe as well as
-the index count.  `MaterializedInductivePrefix.numIndices` exposes the first
+the index count.  `SourcePrefixOfLowered.numIndices` exposes the first
 projection; formation needs this second projection at the same exact source
 position. -/
 theorem VInductDeclSkeleton.materializePrefix_resultLevel
@@ -53,8 +53,8 @@ theorem VInductDeclSkeleton.materializePrefix_resultLevel
   have hresult := congrArg VInductiveType.resultLevel hsourceEq
   simpa [VInductiveTypeSkeleton.toVInductiveType] using hresult
 
-theorem MaterializedInductivePrefix.resultLevel
-    (H : MaterializedInductivePrefix source expanded)
+theorem SourcePrefixOfLowered.resultLevel
+    (H : SourcePrefixOfLowered source expanded)
     (hle : source.types.length ≤ expanded.types.length)
     (i : Nat) (hsource : i < source.types.length)
     (hexpanded : i < expanded.types.length) :
@@ -1947,7 +1947,7 @@ theorem NestedLoweringResultClosed.originalHeaderExpansionAtFresh
       isUnsafe sourceDecl sourceEnvTypes sourceEnvCtors)
     (Htarget : TrInductDeclCore sourceVEnv lparams nparams result.types
       isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (hempty : initialState.nestedAux = #[])
     (henv : sourceVEnv.WF)
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length) :
@@ -2108,7 +2108,7 @@ theorem NestedLoweringResultClosed.originalExpansionAtFreshAboveLvls
       isUnsafe sourceDecl sourceEnvTypes sourceEnvCtors)
     (Htarget : TrInductDeclCore sourceVEnv lparams nparams result.types
       isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (Hsyntax : SourceSyntaxChecks sourceTypes)
     (hempty : initialState.nestedAux = #[])
     (henv : sourceVEnv.WF)
@@ -2188,7 +2188,7 @@ theorem NestedLoweringResultClosed.originalExpansionsAboveLvls
       isUnsafe sourceDecl sourceEnvTypes sourceEnvCtors)
     (Htarget : TrInductDeclCore sourceVEnv lparams nparams result.types
       isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (Hsyntax : SourceSyntaxChecks sourceTypes)
     (hempty : initialState.nestedAux = #[])
     (henv : sourceVEnv.WF)
@@ -2251,7 +2251,7 @@ theorem NestedLoweringResultClosed.originalExpansionsAbove
       isUnsafe sourceDecl sourceEnvTypes sourceEnvCtors)
     (Htarget : TrInductDeclCore sourceVEnv lparams nparams result.types
       isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (Hsyntax : SourceSyntaxChecks sourceTypes)
     (hempty : initialState.nestedAux = #[])
     (henv : sourceVEnv.WF)
@@ -2289,7 +2289,7 @@ theorem NestedLoweringResultClosed.originalExpansions
       isUnsafe sourceDecl sourceEnvTypes sourceEnvCtors)
     (Htarget : TrInductDeclCore sourceVEnv lparams nparams result.types
       isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
     (Hsyntax : SourceSyntaxChecks sourceTypes)
     (hempty : initialState.nestedAux = #[])
     (henv : sourceVEnv.WF)
