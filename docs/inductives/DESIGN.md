@@ -76,8 +76,10 @@ binder names and annotations). It has no hypothesis beyond the source table: the
 into an `AddDeclChain` from `Kernel.Environment.empty` (`AddDeclChain.WF_empty`). The kernel's `checkEqType`
 compares `Eq` only up to `Expr.eqv` and does not look at `Eq.rec` or at safety, so before the step
 that initializes the quotient module the driver also checks that `Eq`, `Eq.refl` and `Eq.rec` are
-the prelude's (`hasPreludeEq`, sound for `HasPreludeEq`). `replayFromImports.WF` states the same on top of
-imports whose well-formedness and canonical `Eq` are assumed: imports are trusted in that mode.
+the prelude's (`hasPreludeEq`, sound for `HasPreludeEq`). `replayPure.WF_fromImports` states the same for the
+pure replay `replayPure` on top of imports whose well-formedness and canonical `Eq` are assumed:
+imports are trusted in that mode. It does not cover the module loading of the executable's
+`replayFromImports` (`importModulesCore`, `finalizeImport`), only the replay that follows it.
 
 ### 1.3 The hypotheses
 

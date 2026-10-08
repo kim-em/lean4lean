@@ -85,7 +85,7 @@ You can also use `lake exe lean4lean --fresh Mathlib.Data.Nat.Basic` to replay a
 but this can only be used on a single file.
 
 Both modes run the replay core `Lean4Lean.Replay.replayCore` (through `replay`), whose results are
-covered by `replayFresh.WF` and `replayFromImports.WF` in `Lean4Lean/Verify/Replay.lean`. Those
+covered by `replayFresh.WF` and `replayPure.WF_fromImports` in `Lean4Lean/Verify/Replay.lean`. Those
 theorems are stated for the default fuel `{}`, which is the configuration used here when no
 `--config` flag is given.
 -/

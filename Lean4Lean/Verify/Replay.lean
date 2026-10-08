@@ -279,8 +279,9 @@ is modelled by well-formed abstract environments with canonical `Eq`, then so is
 the replay built (extending the model of `env`), and every safe, non-partial source constant is
 present in it and agrees with the source constant. The imports are trusted in this mode
 (`lake exe lean4lean M` without `--fresh`): the well-formedness of `env` is a hypothesis, not
-checked by the replay. -/
-theorem replayFromImports.WF {src : Std.HashMap Name ConstantInfo} {checkQuot : Bool}
+checked by the replay. The theorem is about the pure core `replayPure`; the module loading
+the executable's `replayFromImports` performs before it is not covered. -/
+theorem replayPure.WF_fromImports {src : Std.HashMap Name ConstantInfo} {checkQuot : Bool}
     {env : Environment} {ves : VEnvs} (wf : ves.WF env) (heq : ves.HasCanonicalEq) :
     (replayPure { newConstants := src, checkQuot } env).WF fun r =>
       (∃ ves' : VEnvs, ves'.WF r.env ∧ ves'.HasCanonicalEq ∧
