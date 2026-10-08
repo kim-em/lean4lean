@@ -674,7 +674,7 @@ wrapper name. The other changes cannot change a decision except through checker 
   are named `_nested.i` rather than `_nested.J_i` (internal names only). The nested
   restoration validation of section 3.3 re-checks restored declarations in side environments
   and validates restored rules in the
-  stripped environment with shape and equation-type checks, all stricter than the
+  stripped environment with equation-type checks, stricter than the
   C++ kernel's revalidation (leanprover/lean4#14621). The nested applications `I Ds`
   themselves are only type-checked, as in the C++ kernel.
 - **Caching**: `whnf` results are cached only for applications, constants, lambdas and

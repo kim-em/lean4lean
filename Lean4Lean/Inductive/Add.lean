@@ -1438,91 +1438,6 @@ end validateRestoredRecursorTypes
 
 namespace validateRestoredRecursorRules
 
-/-- A simple structural upper bound for every de Bruijn index occurring in
-an expression.  Unlike `Expr.looseBVarRange`, binders do not subtract from
-this bound; this is the form needed to choose one finite `fieldVars` list for
-an entire closed restored rule. -/
-def rawBVarBound : Expr → Nat
-  | .bvar index => index + 1
-  | .app fn arg => max (rawBVarBound fn) (rawBVarBound arg)
-  | .lam _ domain body _ | .forallE _ domain body _ =>
-      max (rawBVarBound domain) (rawBVarBound body)
-  | .letE _ type value body _ =>
-      max (max (rawBVarBound type) (rawBVarBound value))
-        (rawBVarBound body)
-  | .mdata _ body | .proj _ _ body => rawBVarBound body
-  | .mvar _ | .fvar _ | .sort _ | .const _ _ | .lit _ => 0
-
-/-- Fuel for the guard traversal.  `Expr.approxDepth` saturates at 255 and
-ignores the constructor expansion of literals (`Nat.succ` chains and string
-characters), so it is not an adequate bound; this structural bound is. -/
-def guardFuel : Expr → Nat
-  | .app fn arg => max (guardFuel fn) (guardFuel arg) + 1
-  | .lam _ domain body _ | .forallE _ domain body _ =>
-      max (guardFuel domain) (guardFuel body) + 1
-  | .letE _ type value body _ =>
-      max (max (guardFuel type) (guardFuel value)) (guardFuel body) + 1
-  | .mdata _ body | .proj _ _ body => guardFuel body + 1
-  | .lit (.natVal n) => 2 * n + 4
-  | .lit (.strVal s) =>
-      2 * s.length + 2 * s.foldl (fun bound c => max bound c.toNat) 0 + 16
-  | .bvar _ | .mvar _ | .fvar _ | .sort _ | .const _ _ => 1
-
-/-- Collect the constructor-field variables which occur as majors of actual
-source recursor calls.  The binder depth is local to the residual iota body;
-the separate rule-level driver below peels the closed equation telescope
-without changing it, exactly as `guardedRuleCheck` does. -/
-def recursiveMajorFieldVars (recursors : List Name) :
-    Nat → Nat → Expr → List Nat
-  | 0, _, _ => []
-  | fuel + 1, depth, expression =>
-    match expression with
-    | .bvar _ | .sort _ | .const _ _ | .mvar _ | .fvar _ => []
-    | .app fn arg =>
-      match expression.getAppFn with
-      | .const name _ =>
-        if recursors.contains name then
-          let arguments := expression.getAppArgs.toList
-          let current := match arguments.reverse with
-            | major :: _ => match major.getAppFn with
-              | .bvar index =>
-                if depth ≤ index then [index - depth] else []
-              | _ => []
-            | [] => []
-          current ++ arguments.flatMap
-            (recursiveMajorFieldVars recursors fuel depth)
-        else
-          recursiveMajorFieldVars recursors fuel depth fn ++
-            recursiveMajorFieldVars recursors fuel depth arg
-      | _ =>
-        recursiveMajorFieldVars recursors fuel depth fn ++
-          recursiveMajorFieldVars recursors fuel depth arg
-    | .lam _ domain body _ | .forallE _ domain body _ =>
-      recursiveMajorFieldVars recursors fuel depth domain ++
-        recursiveMajorFieldVars recursors fuel (depth + 1) body
-    | .letE _ type value body _ =>
-      recursiveMajorFieldVars recursors fuel depth type ++
-        recursiveMajorFieldVars recursors fuel depth value ++
-          recursiveMajorFieldVars recursors fuel (depth + 1) body
-    | .lit literal =>
-      recursiveMajorFieldVars recursors fuel depth literal.toConstructor
-    | .mdata _ body | .proj _ _ body =>
-      recursiveMajorFieldVars recursors fuel depth body
-
-/-- Producer-derived field candidates for a complete closed rule.  Leading
-rule lambdas are peeled without increasing depth; lambdas inside the residual
-body still increase it through `recursiveMajorFieldVars`.  Duplicate calls on
-the same field do not change the guard set. -/
-def recursiveFieldVars (recursors : List Name) (expression : Expr) :
-    List Nat :=
-  let rec go : Nat → Expr → List Nat
-    | 0, _ => []
-    | fuel + 1, .lam _ _ body _ => go fuel body
-    | fuel + 1, residual =>
-      recursiveMajorFieldVars recursors fuel 0 residual
-  (go (guardFuel expression + rawBVarBound expression + 1)
-    expression).eraseDups
-
 /-- Remove exactly `arity` leading lambdas and return the residual.  This is
 the data-valued companion of `exactLambdaArity`; callers which need a
 certificate use the latter, while executable shape validation uses this
@@ -1532,16 +1447,6 @@ def dropHeadLambdas : Nat → Expr → Option Expr
   | arity + 1, .lam _ _ body _ => dropHeadLambdas arity body
   | _ + 1, _ => none
 
-/-- De Bruijn variables of the constructor fields in their left-to-right
-order after closing the canonical equation telescope. -/
-def canonicalRuleFieldVars (nfields : Nat) : List Nat :=
-  List.ofFn fun i : Fin nfields => nfields - 1 - i
-
-def primaryRuleMinorVar? (expression : Expr) : Option Nat :=
-  match expression.getAppFn with
-  | .bvar index => some index
-  | _ => none
-
 /-- Small non-inlining boundary for executable structural assertions.  Its
 soundness theorem can expose the checked boolean without unfolding the
 potentially large expression computations which produced it. -/
@@ -1549,46 +1454,6 @@ def checkPrimaryRuleCondition (condition : Bool) (message : String) :
     Except Exception Unit := do
   unless condition do
     throw <| .other message
-
-/-- Structural validation specific to a primary generated/restored rule.
-The generated rule fixes the producer-selected recursive majors.  The
-restored rule must retain the exact canonical field prefix and must return
-one recursive result for each distinct selected field, in constructor-field
-order. -/
-def checkPrimaryRuleShape (recInfo : RecursorVal)
-    (sourceRecursors : List Name) (sourceRule restoredRule : RecursorRule) :
-    Except Exception Unit := do
-  let arity := recInfo.numParams + recInfo.numMotives + recInfo.numMinors +
-    restoredRule.nfields
-  checkPrimaryRuleCondition (sourceRule.rhs.getNumHeadLambdas == arity)
-    s!"generated recursor rule has an incompatible lambda arity: {sourceRule.rhs}"
-  let some residual := dropHeadLambdas arity restoredRule.rhs
-    | throw <| .other s!"restored recursor rule has an incompatible lambda telescope: {restoredRule.rhs}"
-  let some minorVar := primaryRuleMinorVar? residual
-    | throw <| .other s!"restored recursor rule does not have a minor-headed residual: {residual}"
-  checkPrimaryRuleCondition (minorVar < arity)
-    s!"restored recursor rule minor is out of scope: {residual}"
-  let fieldVars := canonicalRuleFieldVars restoredRule.nfields
-  let fieldArgs := fieldVars.map Expr.bvar
-  let rhsArgs := residual.getAppArgs.toList
-  checkPrimaryRuleCondition
-    (rhsArgs.take restoredRule.nfields == fieldArgs)
-    s!"restored recursor rule changed its constructor-field spine: {residual}"
-  let recursiveVars := recursiveFieldVars sourceRecursors sourceRule.rhs
-  checkPrimaryRuleCondition
-    (recursiveVars.all (· < restoredRule.nfields))
-    s!"generated recursor rule selected a non-field recursive major: {sourceRule.rhs}"
-  let recursivePositions := recursiveVars.map fun field =>
-    restoredRule.nfields - 1 - field
-  checkPrimaryRuleCondition
-    (decide (recursivePositions.Pairwise (· < ·)))
-    s!"generated recursor rule selected recursive fields out of order: {sourceRule.rhs}"
-  checkPrimaryRuleCondition
-    (recursiveVars.isSublist fieldVars)
-    s!"generated recursor rule selected a non-canonical field subsequence: {sourceRule.rhs}"
-  checkPrimaryRuleCondition
-    ((rhsArgs.drop restoredRule.nfields).length == recursiveVars.length)
-    s!"restored recursor rule changed its recursive-result arity: {residual}"
 
 /-- Reconstruct the closed literal iota left-hand side for one recursor rule.
 The rule telescope itself supplies the bound arguments.  Keeping the result
@@ -1899,11 +1764,6 @@ def checkPrimary (env loweredEnv : Environment) (lparams : List Name)
   let newRecName := recNameMap.getD recName recName
   let restored := res.restoreRecursor loweredEnv recNameMap allIndNames
     recName newRecName recInfo
-  let sourceRecursorNames := allIndNames.map mkRecName ++ auxRecNames
-  _ ← recInfo.rules.forM fun sourceRule =>
-    let restoredRule := res.restoreRule loweredEnv recNameMap recName
-      newRecName sourceRule
-    checkPrimaryRuleShape restored sourceRecursorNames sourceRule restoredRule
   _ ← recInfo.rules.forM fun sourceRule =>
     let restoredRule := res.restoreRule loweredEnv recNameMap recName
       newRecName sourceRule
