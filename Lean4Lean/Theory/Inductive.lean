@@ -273,8 +273,6 @@ inductive VInductDecl.NestedConstructorWFExpansions :
       targetCtor.uvars = sourceCtor.uvars →
       VInductDecl.NestedForallPrefixWFExpansion env source generated 0
         source.nparams sourceCtor.type targetCtor.type →
-      VInductDecl.NestedExprWFExpansion env source generated 0 sourceCtor.type
-        targetCtor.type →
       VInductDecl.NestedConstructorWFExpansions env source generated
         sourceCtors targetCtors →
       VInductDecl.NestedConstructorWFExpansions env source generated

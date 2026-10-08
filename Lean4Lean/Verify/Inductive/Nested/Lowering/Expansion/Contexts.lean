@@ -846,14 +846,6 @@ structure OpenedForallPrefixes
         sourceResidualTarget targetResidualTarget →
       VExpr.NestedForallPrefixExpansion leaf' depth arity
         sourceTarget targetTarget
-  close : VExpr.NestedExprExpansion leaf (depth + arity)
-      sourceResidualTarget targetResidualTarget →
-    VExpr.NestedExprExpansion leaf depth sourceTarget targetTarget
-  closeMap : ∀ (leaf' : Nat → VExpr → VExpr → Prop),
-      (∀ {d source target}, leaf d source target → leaf' d source target) →
-      VExpr.NestedExprExpansion leaf' (depth + arity)
-        sourceResidualTarget targetResidualTarget →
-      VExpr.NestedExprExpansion leaf' depth sourceTarget targetTarget
 
 /-- The retained source-prefix equation exposes every selected concrete
 parameter as its de Bruijn variable. -/
@@ -1229,11 +1221,7 @@ theorem Expr.SameForallPrefix.openedAbstractProjection
         VExpr.NestedForallPrefixExpansion.nil Htail
       parameterPrefixMap := by
         intro leaf' Hmap Htail
-        simpa using VExpr.NestedForallPrefixExpansion.nil Htail
-      close := fun Htail => by simpa using Htail
-      closeMap := by
-        intro leaf' Hmap Htail
-        simpa using Htail }⟩
+        simpa using VExpr.NestedForallPrefixExpansion.nil Htail }⟩
   | succ arity ih =>
     cases Hsame with
     | @cons _ sourceBody targetBody name domain bi Htail =>
@@ -1374,16 +1362,6 @@ theorem Expr.SameForallPrefix.openedAbstractProjection
             parameterPrefixMap := fun leaf' Hmap Hresidual =>
               VExpr.NestedForallPrefixExpansion.cons (Hdomain.map Hmap)
                 (Hopened.parameterPrefixMap leaf' Hmap (by
-                  simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
-                    Hresidual))
-            close := fun Hresidual =>
-              VExpr.NestedExprExpansion.forallE Hdomain
-                (Hopened.close (by
-                  simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
-                    Hresidual))
-            closeMap := fun leaf' Hmap Hresidual =>
-              VExpr.NestedExprExpansion.forallE (Hdomain.map Hmap)
-                (Hopened.closeMap leaf' Hmap (by
                   simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
                     Hresidual)) }⟩
 
@@ -1728,8 +1706,6 @@ theorem ConstructorLowering.Resolved.abstractExpansionAbove
         _ = sourceTarget.name := Hsource.name.symm
     uvars := Htarget.uvars.trans Hsource.uvars.symm
     parameters := Hopened.parameterPrefixMap _
-      (fun Hfalse => False.elim Hfalse) (by simpa using Hresidual)
-    type := Hopened.closeMap _
       (fun Hfalse => False.elim Hfalse) (by simpa using Hresidual) }
 
 /-- State threading is irrelevant after every exact constructor step has

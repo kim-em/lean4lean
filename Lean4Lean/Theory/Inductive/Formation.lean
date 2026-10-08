@@ -538,9 +538,19 @@ inductive VExpr.NestedForallPrefixExpansion
       VExpr.NestedForallPrefixExpansion leaf depth (arity + 1)
         (.forallE sourceDomain sourceBody) (.forallE targetDomain targetBody)
 
+/-- A forall-prefix expansion is in particular an expansion of the whole
+expressions: the prefix relation already expands the remaining body. -/
+theorem VExpr.NestedForallPrefixExpansion.toNestedExprExpansion
+    {leaf : Nat → VExpr → VExpr → Prop} {depth arity : Nat} {source target : VExpr}
+    (H : VExpr.NestedForallPrefixExpansion leaf depth arity source target) :
+    VExpr.NestedExprExpansion leaf depth source target := by
+  induction H with
+  | nil Hbody => exact Hbody
+  | cons Hdomain _ ih => exact .forallE Hdomain ih
+
 /-- One positionally corresponding source/expanded constructor.  The common
-parameter prefix is retained separately from the complete structural body so
-the proof never has to re-run the executable parameter loop. -/
+parameter prefix also expands the remaining body, so the whole type expansion
+follows (`NestedForallPrefixExpansion.toNestedExprExpansion`). -/
 structure VInductDecl.NestedConstructorExpansion
     (leaf : Nat → VExpr → VExpr → Prop) (nparams : Nat)
     (source target : VConstVal) : Prop where
@@ -548,7 +558,13 @@ structure VInductDecl.NestedConstructorExpansion
   uvars : target.uvars = source.uvars
   parameters : VExpr.NestedForallPrefixExpansion leaf 0 nparams
     source.type target.type
-  type : VExpr.NestedExprExpansion leaf 0 source.type target.type
+
+/-- The whole constructor type expands. -/
+theorem VInductDecl.NestedConstructorExpansion.type
+    {leaf : Nat → VExpr → VExpr → Prop} {nparams : Nat} {source target : VConstVal}
+    (H : VInductDecl.NestedConstructorExpansion leaf nparams source target) :
+    VExpr.NestedExprExpansion leaf 0 source.type target.type :=
+  H.parameters.toNestedExprExpansion
 
 /-- One source family and its positionally corresponding expanded family.
 Headers are compared semantically; constructor bodies retain the structural
