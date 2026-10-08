@@ -425,7 +425,7 @@ end
 
 end InductiveSignature
 
-/-! ### Provenance facts of a certified schema -/
+/-! ### Restoration targets of a certified schema -/
 
 
 

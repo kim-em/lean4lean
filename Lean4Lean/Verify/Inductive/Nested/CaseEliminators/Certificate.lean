@@ -13,12 +13,12 @@ import Lean4Lean.Std.List
 
 The source declaration of a validated nested run registers its case eliminator before its
 projections and restored recursors (`VInductBlock.install`). The lowered declaration registers,
-at its constructor boundary `B`, the restoration-free schema of the boundary signature
+for a checked formation `B` of its run, the restoration-free schema of the signature
 `B.sourceSignature` (`ConstructorCheck.eliminatorsBoundary`). The source declaration
 registers the same signature under the same key, restored by the nested compilation restoration:
-`CaseSchema.ofCompilation sourceDecl B.sourceSignature auxiliaries`. This file certifies it from
-the validated run alone, without the final assembly shape (which already carries the
-eliminators). -/
+`CaseSchema.ofCompilation sourceDecl B.sourceSignature auxiliaries` (section 3.3 of
+`docs/inductives/DESIGN.md`). This file certifies it from the validated run alone, without the
+restored block derivation (which already carries the eliminators). -/
 
 open Lean4Lean.InductiveSignature
 
@@ -45,7 +45,7 @@ theorem VEnv.addConstVals_exists_of_fresh :
         simp [hne, hfresh c (List.mem_cons_of_mem _ hc)])
     exact ⟨env', by simp [VEnv.addConstVals, hadd, h]⟩
 
-/-- The boundary signature models the lowered declaration in the base environment, its
+/-- The checked-formation signature models the lowered declaration in the base environment, its
 parameters are the common parameter context, and restoration is total on its constructor
 types. -/
 theorem NestedRun.boundarySignatureFacts
@@ -183,7 +183,7 @@ theorem NestedRun.sourceLoweredBasics
           some E.lowered.constructors.toConstructorCheck.headerVEnv) hinit)
       E.lowered.constructors.toConstructorCheck.core.typesAdded
 
-/-- **The case part of the nested compilation for the boundary signature of the lowered
+/-- **The case part of the nested compilation for the checked-formation signature of the lowered
 declaration**, with the restoration of the nested compilation's specializations. -/
 theorem NestedRun.boundaryCaseCompilationData
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -252,7 +252,7 @@ theorem NestedRun.boundaryCaseCompilationData
     E.boundarySignatureFacts wf Hsources B hBscope hadded hheadNames hloweredNe
   obtain ⟨-, -, hnames, -, -, hwellFormedAll, -, hscoped, hdirect, -⟩ :=
     E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D True.intro
-  -- the restoration substitution and the lowered defeqs of the boundary constructors
+  -- the restoration substitution and the lowered defeqs of the checked constructors
   obtain ⟨ρ, S, -⟩ := E.constructorRestorationSubstitution wf hadded henvTypes Haux Hexpansion
     hnodup hfresh hrecFresh
   obtain ⟨envT, henvT, Hctors⟩ := HmodelsL.constructors
@@ -485,7 +485,7 @@ theorem NestedRun.restorationRecursorNames
       obtain ⟨t, ht, h⟩ := hc
       exact ⟨t, List.mem_of_mem_take ht, h⟩
 
-/-- Every installed entry of a staged constant list has the name of its
+/-- Every entry of a constant list added by `AddConstants` has the name of its
 abstract value. -/
 theorem AddConstants.name_eq
     {safety : DefinitionSafety} {env : Environment} {venv : VEnv}
@@ -500,8 +500,8 @@ theorem AddConstants.name_eq
     · exact htr.2
     · exact ih entry h
 
-/-- **The recursor names of the lowered families are fresh in the source production
-environment**: the lowered production installed them over an extension of it. -/
+/-- **The recursor names of the lowered families are fresh in the source kernel
+environment**: the lowered run installed them over an extension of it. -/
 theorem NestedRun.loweredRecursorNames_fresh
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -569,7 +569,7 @@ theorem NestedRun.loweredRecursorNames_fresh
 
 /-- **The case eliminators of a validated nested run's source declaration are certified**, in
 the source environment and in every larger environment in which the names fresh in the
-production source environment are fresh. The source declaration registers the boundary
+source kernel environment are fresh. The source declaration registers the checked-formation
 signature `sL` of the lowered declaration's case eliminator, under the same key, restored by the
 nested compilation restoration of specializations `auxiliaries` identified with the restoration
 tables of the run. -/
@@ -715,7 +715,7 @@ theorem NestedRun.caseEliminators
     hhdr⟩, hprojs⟩⟩, ?_, B.caseKey, B.sourceSignature, auxiliaries, hBel.trans hBcase, rfl,
     envTypes, generated, hadded, henvTypes, Haux, Hexpansion, hparamsSize, D, Hrestoring,
     HauxRestoring⟩
-  -- replay
+  -- every larger environment in which the reserved names are fresh
   intro env' hle hfresh' T' C' hT' hC'
   have hwfP : sourceProdEnv.constants.WF := (wf.tr (safety := .unsafe)).map_wf
   have hfreshK : ∀ n, sourceProdEnv.find? n = none → env'.constants n = none := by
