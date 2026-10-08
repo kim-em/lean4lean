@@ -83,6 +83,11 @@ as it was at the beginning of the file, using the kernel to check them.
 You can also use `lake exe lean4lean --fresh Mathlib.Data.Nat.Basic` to replay all the constants
 (both imported and defined in that file) into a fresh environment,
 but this can only be used on a single file.
+
+Both modes run the replay core `Lean4Lean.Replay.replayCore` (through `replay`), whose results are
+covered by `replayFresh.WF` and `replayFromImports.WF` in `Lean4Lean/Verify/Replay.lean`. Those
+theorems are stated for the default fuel `{}`, which is the configuration used here when no
+`--config` flag is given.
 -/
 unsafe def main (args : List String) : IO UInt32 := do
   initSearchPath (← findSysroot)

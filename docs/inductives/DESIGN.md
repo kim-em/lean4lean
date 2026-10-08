@@ -57,7 +57,23 @@ attributed to a different (for example lowered) declaration. It assumes that the
 no loose bound variables (`SourceBVarClosed`), which the executable does not check;
 `finalPreservesWF`, used by `addDecl.WF`, does not need it.
 
-### 1.2 The hypotheses
+### 1.2 End to end: the replay driver
+
+`lake exe lean4lean` runs `Lean4Lean.Replay.replayCore` (`Lean4Lean/Replay.lean`), which walks
+the source constants in dependency order, adds a declaration rebuilt from each with
+`Lean4Lean.addDecl`, compares the generated constructors and recursors with the source's, and
+finally checks that every replayed constant is present and agrees with the source. The core is
+generic in a monad that only runs logging and `--compare` hooks; its state and result carry the
+evidence (`Replayed`: the environment is a fold of successful `addDecl` calls; `ReplayResult`: the
+agreement check passed), so the theorems of `Lean4Lean/Verify/Replay.lean` cover the executable's
+run as well as the pure instance. `replayFresh.WF` states that a successful `--fresh` replay of a
+constant table (default fuel) yields an environment modelled by well-formed `VEnvs` in which every
+safe, non-partial source constant is present and `==` to the source constant (`Expr.eqv`, so up to
+binder names and annotations). Its hypothesis `ListReplaySound (freshStart _)` is the list-form
+replay theorem from the empty environment. `replayFromImports.WF` states the same on top of
+imports whose well-formedness and canonical `Eq` are assumed: imports are trusted in that mode.
+
+### 1.3 The hypotheses
 
 - `wf : ves.WF env` is the invariant being preserved. `VEnvs.WF`
   (`Lean4Lean/Verify/TypeChecker.lean`) gains fields in this pull request: closure of mutual
@@ -93,7 +109,7 @@ No hypothesis names the declaration being checked or supplies a semantic fact ab
 Inductive declarations carry no premise at all: their abstract declaration, normalized
 signature, compilation certificate and case eliminators are reconstructed from the execution.
 
-### 1.3 Acceptance checks
+### 1.4 Acceptance checks
 
 | check | expected |
 |---|---|
@@ -102,18 +118,19 @@ signature, compilation certificate and case eliminators are reconstructed from t
 | `lake build Lean4Lean.Experimental` | green; 56 inherited `sorry` declarations (section 9) |
 | `lake exe lean4lean --fresh Init.Prelude` | 1975 declarations checked |
 | `lake exe lean4lean --fresh Init.Core` | 3953 declarations checked |
+| `lake exe lean4lean Init.Core` | 1035 declarations checked |
 | `python3 scripts/check-inductive-audit.py --self-test` | passes |
 | `python3 scripts/check-inductive-audit.py --require-complete` | "No sorry dependencies; all remaining axioms are listed." |
 
 The audit (`scripts/InductiveAudit.lean`, driven by `scripts/check-inductive-audit.py`) walks
-the transitive dependency closure of a fixed list of roots, including opaque theorem bodies
-and the types of dependencies. The roots are the top-level theorems, the three inductive
-dispatch theorems, `addQuot.WF`, the checker's `whnf` and recursor reduction theorems, and
-`IsDefEq.full_church_rosser`. It fails on any `sorry` and on any axiom not listed in
-`scripts/inductive-audit-inventory.json`. A second set of strict roots (the generator
-definitions of section 2 and a few foundational lemmas) may depend only on the three standard
-axioms. The self-test checks that the walker finds a `sorry` behind an opaque body and an
-axiom used only in a type.
+the transitive dependency closure of a fixed list of roots, including opaque theorem bodies and
+the types of dependencies. The roots are the top-level theorems, the replay theorems of section
+1.2, the three inductive dispatch theorems, `addQuot.WF`, the checker's `whnf` and recursor
+reduction theorems, and `IsDefEq.full_church_rosser`. It fails on any `sorry` and on any axiom
+not listed in `scripts/inductive-audit-inventory.json`. A second set of strict roots (the
+generator definitions of section 2 and a few foundational lemmas) may depend only on the three
+standard axioms. The self-test checks that the walker finds a `sorry` behind an opaque body and
+an axiom used only in a type.
 
 ## 2. The generative specification of inductive types
 
@@ -618,6 +635,11 @@ Besides scoped caches (section 5.2), the executable changes in these ways.
 - negative tests: `InductiveEquationRejection.lean`, `RecursorMetadata.lean`,
   `RestoredRecursorMetadata.lean` (corrupted metadata admits no certificate).
 
+`Replay.lean` runs the pure replay core on a hand-built constant table (an axiom, an inductive
+type, a definition, an inductive predicate and a theorem) from the empty environment and checks
+the added declarations and the agreement of every source constant; corrupting a source
+constructor, recursor or inductive type is rejected by the corresponding check.
+
 `docs/inductives/CacheScopeExperiment.lean` is run with `lake env lean` (section 5.2).
 
 ## 9. Open
@@ -640,7 +662,7 @@ Besides scoped caches (section 5.2), the executable changes in these ways.
   empty environment needs a check, like `checkEqType` for `Eq`, that the wrappers are the
   prelude's.
 - **Realizability** of the canonical hypotheses relies on test-checked facts about the
-  production declarations (section 1.2).
+  production declarations (section 1.3).
 - **Confluence without `Eq`.** Non-joinability in the countermodel is argued, not checked.
 - **Inherited prototype sorries.** `Lean4Lean.Experimental` has 56 `sorry` declarations in the
   prototypes (`Thierry`, `Thierry2`, `LogRel`, `DomainTheory`, `MoreStepIndexed`, `Stronger`,
