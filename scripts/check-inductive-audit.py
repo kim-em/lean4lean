@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Audit inductive/checker theorem dependencies, including opaque bodies.
+"""Audit the dependency closure of the verified theorems, including opaque bodies and types.
 
-The default migration check rejects unlisted axioms and new sorry sources.
---require-complete additionally rejects every remaining sorry dependency.
+The roots are listed below (section 1.4 of docs/inductives/DESIGN.md). The default check
+rejects axioms not listed in scripts/inductive-audit-inventory.json and sorry sources not
+listed there as open proofs; --require-complete rejects every sorry dependency. The strict
+roots (generator definitions and foundational lemmas) may use only the standard axioms.
 """
 import argparse
 import json
@@ -72,8 +74,7 @@ DEFINITION_ROOTS = {
     "Lean4Lean.InductiveSignature.CaseSchema.structureEta",
     "Lean4Lean.InductiveSignature.RecursorData.prefixUnfolding",
 }
-# These lemmas are available below the open inversion/confluence layer.
-# A migration must not silently reintroduce that layer into their proofs.
+# Foundational lemmas whose proofs may use only the standard axioms and no open proof.
 FOUNDATION_ROOTS = {
     "Lean4Lean.VEnv.IsDefEq.strong",
     "Lean4Lean.VEnv.IsDefEqStrong.subst",

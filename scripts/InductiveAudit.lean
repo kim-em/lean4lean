@@ -139,7 +139,8 @@ elab "#inductive_audit " ids:ident* : command => do
 
 #inductive_audit Lean4Lean.VEnv.QuotRegistered.propInhabitant_app
 
--- These proofs must remain below the admitted inversion/confluence layer.
+-- Foundational lemmas: their proofs may use only the standard axioms and no open proof
+-- (`FOUNDATION_ROOTS` in `scripts/check-inductive-audit.py`).
 #inductive_audit Lean4Lean.VEnv.IsDefEq.strong
 #inductive_audit Lean4Lean.VEnv.IsDefEqStrong.subst
 #inductive_audit Lean4Lean.VEnv.IsDefEq.transport_bvar
