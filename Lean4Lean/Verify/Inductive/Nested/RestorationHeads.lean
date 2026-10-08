@@ -66,9 +66,8 @@ every bound-binder lift of the base context. -/
 private theorem reopenedArgs_translate {result : Lean4Lean.ElimNestedInductive.Result}
     {envT : VEnv} (hT : envT.WF) {Us : List Name}
     {doms : List VExpr} (hdoms : doms.length = result.nparams)
-    {nested : Expr} {name : Name} {lvls : List Level} {Ys : List Expr}
-    (hab : nested.abstract result.params = Expr.mkAppList (.const name lvls) Ys)
-    (Hval : ∃ v, TrExprS envT Us (abstractForallContext doms []) (nested.abstract result.params) v)
+    {Ys : List Expr}
+    (HY : ∀ Y ∈ Ys, ∃ v, TrExprS envT Us (abstractForallContext doms []) Y v)
     {ats : List FVarId}
     (hclosed : ∀ Y ∈ Ys, Closed (Y.instantiateRevList (ats.map Expr.fvar) 0))
     (hnodup : ats.Nodup) (hlen : ats.length = result.nparams)
@@ -77,11 +76,8 @@ private theorem reopenedArgs_translate {result : Lean4Lean.ElimNestedInductive.R
     {Δt0 : VLCtx} (hsame : VLCtx.SameUpToDeps (fvarScope ats Dt) Δt0)
     {Δt : VLCtx} {dn n : Nat} (hlift : VLCtx.BVLift Δt0 Δt dn 0 n 0) :
     ∀ Y ∈ Ys, ∃ v, TrExprS envT Us Δt (Y.instantiateRevList (ats.map Expr.fvar) 0) v := by
-  obtain ⟨v, hv⟩ := Hval
-  rw [hab] at hv
-  obtain ⟨_, args', _, hargs, _⟩ := checkPositivityStep.TrExprS.mkAppList_inv hv
   intro Y hY
-  obtain ⟨_, _, hY'⟩ := Lean4Lean.List.Forall₂.forall_exists_l hargs Y hY
+  obtain ⟨_, hY'⟩ := HY Y hY
   have hfresh : Y.FVarIdsIn (· ∉ ats) := by
     have h := FVarsIn_to_FVarIdsIn hY'.fvarsIn
     refine Expr.FVarIdsIn.mono h ?_
@@ -109,8 +105,10 @@ theorem RestorationTableData.restoreHeadsTranslate
     {envT : VEnv} (hT : envT.WF)
     {ats : List FVarId} {Dt : List VExpr}
     (Hval : ∀ name nested, result.aux2nested.find? name = some nested →
-      ∃ (doms : List VExpr) (v : VExpr), doms.length = result.nparams ∧
-        TrExprS envT Us (abstractForallContext doms []) (nested.abstract result.params) v ∧
+      ∀ (c : Name) (lvls : List Level) (Ys : List Expr),
+        nested.abstract result.params = Expr.mkAppList (.const c lvls) Ys →
+      ∃ doms : List VExpr, doms.length = result.nparams ∧
+        (∀ Y ∈ Ys, ∃ v, TrExprS envT Us (abstractForallContext doms []) Y v) ∧
         VLCtx.IsDefEq envT Us.length (fvarScope ats doms) (fvarScope ats Dt))
     (Hconsts : ∀ a ∈ auxiliaries,
       (∃ ci, envT.constants a.source.name = some ci ∧ ci.uvars = a.levels.length) ∧
@@ -157,8 +155,8 @@ theorem RestorationTableData.restoreHeadsTranslate
       exact forall₂_instantiate_of_exists hlevels hAs hPT
         (by simp [hdom, hlen]) hYs
         (by
-          obtain ⟨doms, v, hdoms, hv, hΔ⟩ := Hval _ nested hn
-          exact reopenedArgs_translate hT hdoms hab ⟨v, hv⟩ hclosed hnodup hlen hΔ
+          obtain ⟨doms, hdoms, HY, hΔ⟩ := Hval _ nested hn _ _ _ hab
+          exact reopenedArgs_translate hT hdoms HY hclosed hnodup hlen hΔ
             hsame hlift)
   unfold restoreHead at hH
   cases hfind : result.aux2nested.find? c with
