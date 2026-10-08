@@ -2555,17 +2555,14 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
     rw [hinitial]; exact Hcases
   -- the corner in the environments containing the restored constructors
   have hcornerAt : ∀ {venv'}, E.nativeSource.envTypes ≤ venv' →
-      ProjectionCorner P.c.safety outEnv venv' ∧
-      ProjectionCorner P.c.safety E.validationEnv venv' := by
+      CtorTelescopes P.c.safety outEnv venv' ∧
+      CtorTelescopes P.c.safety E.validationEnv venv' := by
     intro venv' hle
-    have hsourceLE : P.initialEnv ≤ E.nativeSource.envTypes :=
-      VEnv.addConstVals_le Hcore.typesAdded
-    rcases HbaseValid.corner with hch | hcert
-    · exact ⟨.inl (hch.mono (hsourceLE.trans hle)), .inl (hch.mono (hsourceLE.trans hle))⟩
-    · rw [henv, hinitial, hsafety] at hcert
-      have H := E.restoredCtorTelescopes Hsources Howners wf.envGF hcert
-      rw [hsafety]
-      exact ⟨.inr (CtorTelescopes.mono H.1 hle), .inr (CtorTelescopes.mono H.2 hle)⟩
+    have hcert := HbaseValid.corner
+    rw [henv, hinitial, hsafety] at hcert
+    have H := E.restoredCtorTelescopes Hsources Howners wf.envGF hcert
+    rw [hsafety]
+    exact ⟨CtorTelescopes.mono H.1 hle, CtorTelescopes.mono H.2 hle⟩
   have HtypeValid : CheckingEnv.Valid P.c.safety E.validationEnv
       ((E.nativeSource.envCtors.addEliminators es).addProjections
         sourceDecl.projectionEntries) := by
