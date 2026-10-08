@@ -79,6 +79,1061 @@ theorem RecursorContextWF.narrowMotiveClosure
 
 namespace mkRecInfos.loopInd1
 
+/-- The canonical application of family `dIdx` to all of its parameter and
+index variables splits as the canonical parameter application, lifted over
+the indices, applied to the canonical index variables. -/
+theorem canonicalFamilyApp_split
+    {base : AddInductive.Context} {Hbase : ContextWF base}
+    {decl : VInductDecl} {baseDepth : Nat}
+    {stats : AddInductive.InductiveStats} {source : InductiveType}
+    {dIdx : Nat} {elimLevel : Level}
+    {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
+    (Hheader : mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl
+      baseDepth source dIdx)
+    {env : VEnv} {Us : List Name} {scope : VLCtx} {narrowTarget : VExpr}
+    {nindices : Nat}
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        env Us (Hheader.recursorTargetSkeleton Helim) scope narrowTarget
+        stats.params.size nindices)
+    {indices : Array Expr} (hindicesSize : indices.size = nindices)
+    (harity : (indices.size == stats.nindices[dIdx]!) = true) :
+    VExpr.mkApps
+      (.const Hheader.target.name (Hheader.recursorAbstractLevels Helim))
+      (mkRecInfos.loopArgs1.canonicalIndexVars
+        (decl.nparams + Hheader.target.numIndices)) =
+      VExpr.mkApps
+        ((VExpr.mkApps
+          ((VExpr.const Hheader.target.name
+            (Hheader.recursorAbstractLevels Helim)).liftN
+              Hsynthesis.params.length 0)
+          (recursorCanonicalVars Hsynthesis.params.length)).liftN
+            Hsynthesis.indices.length 0)
+        (recursorCanonicalVars Hsynthesis.indices.length) := by
+  have hp : Hsynthesis.params.length = decl.nparams :=
+    Hsynthesis.parameterCount.trans Hheader.parameterCount
+  have hn : Hsynthesis.indices.length =
+      Hheader.target.numIndices := by
+    have hguard : indices.size = stats.nindices[dIdx]! := by
+      simpa using harity
+    have hfam : stats.nindices[dIdx]! =
+        Hheader.target.numIndices := by
+      simp [Array.getElem!_eq_getD, Hheader.indexCount]
+    rw [Hsynthesis.indexCount]
+    omega
+  have hsplit := VExpr.mkApps_canonical_add
+    (.const Hheader.target.name
+      (Hheader.recursorAbstractLevels Helim))
+    Hsynthesis.params.length Hsynthesis.indices.length
+  have hcv : mkRecInfos.loopArgs1.canonicalIndexVars
+      (decl.nparams + Hheader.target.numIndices) =
+      recursorCanonicalVars
+        (Hsynthesis.params.length + Hsynthesis.indices.length) := by
+    rw [hp, hn]; rfl
+  rw [hcv]
+  simpa [VExpr.liftN] using hsplit
+
+/-- Replaying the completed motive of family `dIdx` in the checker context of
+the index loop and closing it over the indices translates it in the narrow
+parameter scope `motiveSourceScope` below those indices, to a type that is
+definitionally equal to the canonical motive telescope of the family. -/
+theorem motiveSourceReplay
+    {base current cIndices : AddInductive.Context} {Hbase : ContextWF base}
+    {decl : VInductDecl} {baseDepth : Nat}
+    {stats : AddInductive.InductiveStats} {source : InductiveType}
+    {dIdx : Nat} {elimLevel : Level}
+    {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
+    (Hheader : mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl
+      baseDepth source dIdx)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    {R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel base.lparams)}
+    (Rindices : RecursorContextWF cIndices
+      (AddInductive.getRecLevelParams elimLevel base.lparams))
+    (henvIndices : Rindices.venv = Hbase.venv)
+    {narrowTarget : VExpr} {scope : VLCtx} {nindices : Nat}
+    {indices : Array Expr} {indexTargets : List VExpr}
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Rindices.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
+        (Hheader.recursorTargetSkeleton Helim) scope narrowTarget
+        stats.params.size nindices)
+    (HnarrowStats : RecursorValidAppStatsWF Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams)
+      scope stats decl nindices)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams)
+      scope Rindices.mlctx.vlctx)
+    (hfront : Hruntime.frontSourceDomains = Hsynthesis.indices)
+    (halign : VLCtx.IsDefEq Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams).length
+      scope Rindices.chk.vlctx)
+    (HnarrowIndices : List.Forall₂ (TrExprS Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams) scope)
+      indices.toList indexTargets)
+    (hindexCount : indexTargets.length = nindices)
+    (hcanonical :
+      indexTargets = mkRecInfos.loopArgs1.canonicalIndexVars nindices)
+    (Hrecent : RecursorRecentBoundFVarArray R Rindices indices)
+    (harity : (indices.size == stats.nindices[dIdx]!) = true)
+    {resultLevel : VLevel}
+    (hresultLevel : VLevel.ofLevel
+      (AddInductive.getRecLevelParams elimLevel base.lparams) elimLevel =
+        some resultLevel)
+    {motiveSourceScope : VLCtx}
+    (hsourceScope : scope.drop Hsynthesis.indices.length = motiveSourceScope)
+    (hsourceCtx : VLCtx.toCtx motiveSourceScope = Hsynthesis.params.reverse) :
+    ∃ motiveSourceTarget,
+      TrExprS Rindices.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        motiveSourceScope
+        (cIndices.lctx.mkForall indices
+          (.forallE `t
+            ((mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
+              indices).consumeTypeAnnotationsVerified
+                cIndices.env.isTypeAnnotationWrapper)
+            (.sort elimLevel) .default))
+        motiveSourceTarget ∧
+      Rindices.venv.IsType
+        (AddInductive.getRecLevelParams elimLevel base.lparams).length
+        (VLCtx.toCtx motiveSourceScope) motiveSourceTarget ∧
+      Rindices.venv.IsDefEqU
+        (AddInductive.getRecLevelParams elimLevel base.lparams).length
+        (VLCtx.toCtx motiveSourceScope) motiveSourceTarget
+        (VExpr.wrapForalls Hsynthesis.indices
+          (.forallE
+            (VExpr.mkApps
+              ((VExpr.mkApps
+                ((VExpr.const Hheader.target.name
+                  (Hheader.recursorAbstractLevels Helim)).liftN
+                    Hsynthesis.params.length 0)
+                (recursorCanonicalVars Hsynthesis.params.length)).liftN
+                  Hsynthesis.indices.length 0)
+              (recursorCanonicalVars Hsynthesis.indices.length))
+            (.sort resultLevel))) ∧
+      motiveSourceScope.WF Rindices.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams).length := by
+  have hindicesSize : indices.size = nindices := by
+    have hlength :=
+      Lean4Lean.VerifyInductive.List.Forall₂.length_eq' HnarrowIndices
+    simpa [hindexCount] using hlength
+  have hfrontLength : Hruntime.frontSourceDomains.length =
+      indices.size := by
+    rw [hfront, Hsynthesis.indexCount, ← hindicesSize]
+  have henvR := Rindices.checking.tr.wf
+  have hmainTake : (Rindices.mlctx.fvarRevList indices.size
+      Hrecent.size_le) = Rindices.mlctx.vlctx.fvars.take indices.size :=
+    mlctx_fvarRevList_eq_take _ _ _
+  have hfrontTake := Hruntime.front.fvars_take
+  rw [hfrontLength] at hfrontTake
+  have hchkTake : Rindices.chk.vlctx.fvars.take indices.size =
+      Rindices.mlctx.vlctx.fvars.take indices.size := by
+    rw [← halign.fvars, hfrontTake, Hruntime.context.fvars]
+  have hnChk : indices.size ≤ Rindices.chk.length := by
+    have hlen := congrArg List.length hchkTake
+    simp only [List.length_take] at hlen
+    have h1 : Rindices.mlctx.vlctx.fvars.length = Rindices.mlctx.length :=
+      Rindices.onlyLams.fvars_length
+    have h2 : Rindices.chk.vlctx.fvars.length = Rindices.chk.length :=
+      Rindices.check.onlyLams.fvars_length
+    have hmainLen := Hrecent.size_le
+    omega
+  have hxsChk : indices.toList.reverse =
+      (Rindices.chk.fvarRevList indices.size hnChk).map Expr.fvar := by
+    rw [mlctx_fvarRevList_eq_take, hchkTake, ← hmainTake]
+    exact Hrecent.reverse_eq
+  have HfamNarrow :=
+    Hheader.completedRecursorNarrowFamilyApplication Helim
+      Rindices Hsynthesis HnarrowStats HnarrowIndices
+      hindexCount hcanonical harity henvIndices
+  obtain ⟨famChk, HfamChk⟩ := HfamNarrow.1.defeqDFC henvR halign
+  have HfamChkEq := HfamNarrow.1.uniq henvR halign HfamChk
+  have HfamChkType : Rindices.venv.IsType
+      (AddInductive.getRecLevelParams elimLevel base.lparams).length
+      Rindices.chk.vlctx.toCtx famChk :=
+    (HfamNarrow.2.2.defeqU_l henvR halign.wf.toCtx HfamChkEq).defeqDFC
+      henvR.ordered halign.defeqCtx
+  rcases hconsume _ _ Rindices.narrow HfamChk HfamChkType with
+    ⟨majorChk, HmajorChk⟩
+  have HmotiveChk := Rindices.narrowMotiveClosure indices.size hnChk
+    indices hxsChk HmajorChk.consumed HmajorChk.isType
+    hresultLevel
+  have hdropAlign : VLCtx.IsDefEq Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams).length
+      motiveSourceScope (Rindices.chk.dropN indices.size hnChk).vlctx := by
+    rw [Rindices.check.onlyLams.vlctx_dropN, ← hsourceScope,
+      Hsynthesis.indexCount, ← hindicesSize]
+    exact halign.drop indices.size
+  obtain ⟨motiveSourceTarget, HmotiveSourceTr⟩ :=
+    HmotiveChk.1.defeqDFC henvR (hdropAlign.symm henvR.ordered)
+  have HmotiveSourceEq := HmotiveChk.1.uniq henvR
+    (hdropAlign.symm henvR.ordered) HmotiveSourceTr
+  have HmotiveSourceType : Rindices.venv.IsType
+      (AddInductive.getRecLevelParams elimLevel base.lparams).length
+      (VLCtx.toCtx motiveSourceScope) motiveSourceTarget :=
+    (HmotiveChk.2.defeqU_l henvR (hdropAlign.symm henvR.ordered).wf.toCtx
+      HmotiveSourceEq).defeqDFC henvR.ordered
+        (hdropAlign.symm henvR.ordered).defeqCtx
+  have hsplitK := canonicalFamilyApp_split Hheader Hsynthesis hindicesSize
+    harity
+  have hscopeWF := halign.wf.toCtx
+  have hFK := HfamChkEq
+  rw [hsplitK] at hFK
+  have hfamMajor : Rindices.venv.IsDefEqU
+      (AddInductive.getRecLevelParams elimLevel base.lparams).length
+      scope.toCtx famChk majorChk := by
+    rcases HmajorChk.source_defeq with ⟨w, hw⟩
+    exact ⟨_, hw.defeqDFC henvR.ordered
+      (halign.defeqCtx.symm henvR.ordered)⟩
+  have hdomK := hFK.trans henvR hscopeWF hfamMajor
+  have HKty := HfamNarrow.2.2
+  rw [hsplitK] at HKty
+  obtain ⟨vK, hKty⟩ := HKty
+  have hdomK' := hdomK.of_l henvR hscopeWF hKty
+  have HbodyK := VEnv.IsDefEq.forallEDF hdomK'
+    (VEnv.HasType.sort (.of_ofLevel hresultLevel))
+  have hnScope : indices.size ≤ scope.toCtx.length := by
+    rw [Hsynthesis.scopeCtx]
+    simp [Hsynthesis.indexCount, hindicesSize]
+  obtain ⟨_, hclose⟩ := VEnv.IsDefEqCtx.closeHeads halign.defeqCtx
+    indices.size hnScope HbodyK
+  have hscopeTake : (scope.toCtx.take indices.size).reverse =
+      Hsynthesis.indices := by
+    rw [Hsynthesis.scopeCtx, hindicesSize.trans Hsynthesis.indexCount.symm]
+    simp
+  have hscopeDrop : scope.toCtx.drop indices.size =
+      VLCtx.toCtx motiveSourceScope := by
+    rw [hsourceCtx, Hsynthesis.scopeCtx,
+      hindicesSize.trans Hsynthesis.indexCount.symm]
+    simp
+  have hchkTakeCtx : (Rindices.chk.vlctx.toCtx.take indices.size).reverse =
+      MLCtxForallDomains Rindices.chk indices.size hnChk :=
+    (Rindices.check.onlyLams.forallDomains_eq_take_reverse _ _).symm
+  rw [hscopeTake, hscopeDrop, hchkTakeCtx,
+    ← TypeChecker.MLCtx.mkForall'_eq_wrapForalls] at hclose
+  have HmotiveSourceCanonical : Rindices.venv.IsDefEqU
+      (AddInductive.getRecLevelParams elimLevel base.lparams).length
+      (VLCtx.toCtx motiveSourceScope) motiveSourceTarget
+      (VExpr.wrapForalls Hsynthesis.indices
+        (.forallE
+          (VExpr.mkApps
+            ((VExpr.mkApps
+              ((VExpr.const Hheader.target.name
+                (Hheader.recursorAbstractLevels Helim)).liftN
+                  Hsynthesis.params.length 0)
+              (recursorCanonicalVars Hsynthesis.params.length)).liftN
+                Hsynthesis.indices.length 0)
+            (recursorCanonicalVars Hsynthesis.indices.length))
+          (.sort resultLevel))) := by
+    have hNT := HmotiveSourceEq.defeqDFC henvR.ordered
+      (hdropAlign.symm henvR.ordered).defeqCtx
+    exact hNT.symm.trans henvR hdropAlign.wf.toCtx ⟨_, hclose.symm⟩
+  exact ⟨motiveSourceTarget, HmotiveSourceTr, HmotiveSourceType,
+    HmotiveSourceCanonical, hdropAlign.wf⟩
+
+/-- Every free variable of the completed motive type of family `dIdx`, built
+over its indices and major premise, lies in the narrow scope below those
+indices. -/
+theorem motiveSourceFVars
+    {base current cIndices : AddInductive.Context} {Hbase : ContextWF base}
+    {decl : VInductDecl} {baseDepth : Nat}
+    {stats : AddInductive.InductiveStats} {source : InductiveType}
+    {dIdx : Nat} {elimLevel : Level}
+    {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
+    (Hheader : mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl
+      baseDepth source dIdx)
+    {R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel base.lparams)}
+    (Rindices : RecursorContextWF cIndices
+      (AddInductive.getRecLevelParams elimLevel base.lparams))
+    (henvIndices : Rindices.venv = Hbase.venv)
+    {narrowTarget : VExpr} {scope : VLCtx} {nindices : Nat}
+    {indices : Array Expr} {indexTargets : List VExpr}
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Rindices.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
+        (Hheader.recursorTargetSkeleton Helim) scope narrowTarget
+        stats.params.size nindices)
+    (HnarrowStats : RecursorValidAppStatsWF Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams)
+      scope stats decl nindices)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams)
+      scope Rindices.mlctx.vlctx)
+    (hfront : Hruntime.frontSourceDomains = Hsynthesis.indices)
+    (HnarrowIndices : List.Forall₂ (TrExprS Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams) scope)
+      indices.toList indexTargets)
+    (hindexCount : indexTargets.length = nindices)
+    (Hrecent : RecursorRecentBoundFVarArray R Rindices indices)
+    (Hframe : RecursorMotiveFrameWF Rindices stats dIdx indices elimLevel) :
+    let majorTy :=
+      ((mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
+        indices).consumeTypeAnnotationsVerified
+          cIndices.env.isTypeAnnotationWrapper)
+    let lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩ `t majorTy
+      .default
+    (lctx.mkForall indices
+      (lctx.mkForall #[.fvar ⟨cIndices.ngen.curr⟩] (.sort elimLevel))).FVarsIn
+      (· ∈ VLCtx.fvars (scope.drop Hruntime.frontSourceDomains.length)) := by
+  intro majorTy _
+  have hindicesSize : indices.size = nindices := by
+    have hlength :=
+      Lean4Lean.VerifyInductive.List.Forall₂.length_eq' HnarrowIndices
+    simpa [hindexCount] using hlength
+  let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
+    Hframe.majorTr Hframe.majorType
+  let cMajor : AddInductive.Context := { cIndices with
+    ngen := cIndices.ngen.next
+    lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩ `t
+      majorTy .default }
+  let major := Expr.fvar ⟨cIndices.ngen.curr⟩
+  let motiveTy := cMajor.lctx.mkForall indices <|
+    cMajor.lctx.mkForall #[major] <| .sort elimLevel
+  let majorBody := cMajor.lctx.mkForall #[major] (.sort elimLevel)
+  have HnarrowFamily :=
+    (Hheader.recursorNarrowFamilyPrefixTranslation Helim Rindices
+      Hsynthesis HnarrowStats henvIndices).1
+  have HnarrowIndexFVars : ∀ arg ∈ indices.toList,
+      arg.FVarsIn (· ∈ scope.fvars) := by
+    have go : ∀ {sources targets : List _},
+        List.Forall₂ (TrExprS Rindices.venv
+          (AddInductive.getRecLevelParams elimLevel base.lparams)
+          scope) sources targets →
+        ∀ arg ∈ sources, arg.FVarsIn (· ∈ scope.fvars) := by
+      intro sources targets Htranslated arg harg
+      induction Htranslated with
+      | nil => simp at harg
+      | cons Hhead Htail ih =>
+        simp only [List.mem_cons] at harg
+        rcases harg with rfl | harg
+        · exact Hhead.fvarsIn
+        · exact ih harg
+    exact go HnarrowIndices
+  have HmajorRawFVars :
+      (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
+        indices).FVarsIn (· ∈ scope.fvars) := by
+    rw [Expr.mkAppN_eq_mkAppList]
+    apply FVarsIn.mkAppList.mpr
+    refine ⟨HnarrowFamily.fvarsIn, ?_⟩
+    exact HnarrowIndexFVars
+  have HmajorTyFVars : majorTy.FVarsIn (· ∈ scope.fvars) := by
+    exact Expr.consumeTypeAnnotationsVerified_fvarsIn HmajorRawFVars
+  rcases Helim.sortType (env := Rindices.venv) (Δ := scope) with
+    ⟨narrowSortLevel, HsortNarrow, _HsortNarrowType⟩
+  have hone : 1 ≤ Rmajor.mlctx.length := by
+    dsimp only [Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
+    simp
+  have hmajorRecent : #[major].toList.reverse =
+      (Rmajor.mlctx.fvarRevList 1 hone).map Expr.fvar := by
+    dsimp only [major, Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
+    simp
+  have hmajorConcrete : majorBody =
+      Rmajor.mlctx.mkForall 1 hone (.sort elimLevel) := by
+    dsimp only [majorBody]
+    rw [← Rmajor.lctx_eq]
+    exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent trivial
+  have HmajorBodyFVars : majorBody.FVarsIn
+      (· ∈ scope.fvars) := by
+    rw [hmajorConcrete]
+    have HsortAbstract :
+        (Expr.abstract1 ⟨cIndices.ngen.curr⟩
+          (.sort elimLevel)).FVarsIn (· ∈ scope.fvars) := by
+      apply FVarsIn.abstract1_of
+      exact HsortNarrow.fvarsIn.mono fun _ h => Or.inr h
+    simpa only [Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
+      TypeChecker.MLCtx.mkForall] using
+      (show (Expr.forallE `t majorTy
+          (Expr.abstract1 ⟨cIndices.ngen.curr⟩ (.sort elimLevel))
+          .default).FVarsIn
+          (· ∈ scope.fvars) from
+        ⟨HmajorTyFVars, HsortAbstract⟩)
+  let hmajorLE := BindingContextLE.withLocalDecl cIndices
+    Rindices.toBindingContextWF `t majorTy .default
+  have hmotiveConcrete : motiveTy =
+      cIndices.lctx.mkForall indices majorBody := by
+    dsimp [motiveTy, majorBody]
+    exact Hrecent.toFreshBoundFVarArray.toBoundFVarArray.mkForall_mono
+      hmajorLE _
+  have hmotiveMkForall : motiveTy =
+      Rindices.mlctx.mkForall indices.size Hrecent.size_le
+        majorBody := by
+    rw [hmotiveConcrete, ← Rindices.lctx_eq]
+    exact Rindices.mlctx_wf.mkForall_eq indices.size Hrecent.size_le
+      Hrecent.reverse_eq
+      (hmajorConcrete ▸ Rmajor.mlctx_wf.mkForall_closed 1 hone trivial)
+  have hfrontLength : Hruntime.frontSourceDomains.length =
+      indices.size := by
+    rw [hfront, Hsynthesis.indexCount, ← hindicesSize]
+  have hfrontLE : Hruntime.frontSourceDomains.length ≤
+      Rindices.mlctx.length := by
+    rw [hfrontLength]
+    exact Hrecent.size_le
+  have HmotiveSourceFVarsAtBase : motiveTy.FVarsIn
+      (· ∈ VLCtx.fvars
+        (scope.drop Hruntime.frontSourceDomains.length)) := by
+    rw [hmotiveMkForall]
+    simpa only [hfrontLength] using
+      Hruntime.front.mkForall_fvarsIn_sourceBase
+        Rindices.onlyLams Rindices.mlctx_wf Hruntime.context
+        hfrontLE majorBody HmajorBodyFVars
+  exact HmotiveSourceFVarsAtBase
+
+/-- The canonical, permutation-free motive telescope of family `dIdx`, over
+the parameter and index domains synthesized from its checked header.  Its
+parameter domains are those of `Hsynthesis`, and its motive type is the
+canonical index telescope closed over the canonical major premise. -/
+theorem canonicalMotiveTelescope
+    {base cIndices : AddInductive.Context} {Hbase : ContextWF base}
+    {decl : VInductDecl} {baseDepth : Nat}
+    {stats : AddInductive.InductiveStats} {source : InductiveType}
+    {dIdx : Nat} {elimLevel : Level}
+    {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
+    (Hheader : mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl
+      baseDepth source dIdx)
+    (Rindices : RecursorContextWF cIndices
+      (AddInductive.getRecLevelParams elimLevel base.lparams))
+    (henvIndices : Rindices.venv = Hbase.venv)
+    {narrowTarget : VExpr} {scope : VLCtx} {nindices : Nat}
+    {indices : Array Expr} {indexTargets : List VExpr}
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Rindices.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
+        (Hheader.recursorTargetSkeleton Helim) scope narrowTarget
+        stats.params.size nindices)
+    (HnarrowStats : RecursorValidAppStatsWF Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams)
+      scope stats decl nindices)
+    (HnarrowIndices : List.Forall₂ (TrExprS Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams) scope)
+      indices.toList indexTargets)
+    (hindexCount : indexTargets.length = nindices)
+    (hcanonical :
+      indexTargets = mkRecInfos.loopArgs1.canonicalIndexVars nindices)
+    (harity : (indices.size == stats.nindices[dIdx]!) = true)
+    (info : AddInductive.RecInfo) (hinfo : info.indices = indices)
+    (resultLevel : VLevel) :
+    ∃ C : RecursorCanonicalMotiveTelescope Rindices.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        stats decl dIdx info elimLevel,
+      C.params = Hsynthesis.params ∧
+      C.motiveType = VExpr.wrapForalls Hsynthesis.indices
+        (.forallE
+          (VExpr.mkApps
+            ((VExpr.mkApps
+              ((VExpr.const Hheader.target.name
+                (Hheader.recursorAbstractLevels Helim)).liftN
+                  Hsynthesis.params.length 0)
+              (recursorCanonicalVars Hsynthesis.params.length)).liftN
+                Hsynthesis.indices.length 0)
+            (recursorCanonicalVars Hsynthesis.indices.length))
+          (.sort resultLevel)) := by
+  subst hinfo
+  have hindicesSize : info.indices.size = nindices := by
+    have hlength :=
+      Lean4Lean.VerifyInductive.List.Forall₂.length_eq' HnarrowIndices
+    simpa [hindexCount] using hlength
+  have htargetLt : dIdx < decl.types.length :=
+    (List.getElem?_eq_some_iff.mp Hheader.targetAt).1
+  have htargetEq : decl.types[dIdx] = Hheader.target := by
+    have htargetAt := Hheader.targetAt
+    rw [List.getElem?_eq_getElem htargetLt] at htargetAt
+    exact Option.some.inj htargetAt
+  have hcanonicalLevelTranslation : stats.levels.mapM
+      (VLevel.ofLevel
+        (AddInductive.getRecLevelParams elimLevel base.lparams)) =
+      some (Hheader.recursorAbstractLevels Helim) := by
+    cases elimLevel with
+    | zero =>
+      simpa [mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.recursorAbstractLevels,
+        mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.abstractLevels,
+        AddInductive.getRecLevelParams] using
+        Hheader.materialized.levelTranslation
+    | param fresh =>
+      have hshifted := VLevel.mapM_ofLevel_fresh_cons Helim
+        Hheader.materialized.levelTranslation
+      simpa [mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.recursorAbstractLevels,
+        mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.abstractLevels,
+        AddInductive.getRecLevelParams] using hshifted
+    | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+      simp [AddInductive.AdmissibleElimLevel] at Helim
+  refine ⟨{
+    target_lt := htargetLt
+    params := Hsynthesis.params
+    indices := Hsynthesis.indices
+    levels := Hheader.recursorAbstractLevels Helim
+    family := VExpr.mkApps
+      ((VExpr.const Hheader.target.name
+        (Hheader.recursorAbstractLevels Helim)).liftN
+          Hsynthesis.params.length 0)
+      (recursorCanonicalVars Hsynthesis.params.length)
+    familyResult := narrowTarget
+    motiveType := VExpr.wrapForalls Hsynthesis.indices
+      (.forallE
+        (VExpr.mkApps
+          ((VExpr.mkApps
+            ((VExpr.const Hheader.target.name
+              (Hheader.recursorAbstractLevels Helim)).liftN
+                Hsynthesis.params.length 0)
+            (recursorCanonicalVars Hsynthesis.params.length)).liftN
+              Hsynthesis.indices.length 0)
+          (recursorCanonicalVars Hsynthesis.indices.length))
+        (.sort resultLevel))
+    resultLevel := resultLevel
+    params_length := Hsynthesis.parameterCount
+    indices_length := Hsynthesis.indexCount.trans hindicesSize.symm
+    levels_length := by
+      rw [htargetEq]
+      exact Hheader.recursorAbstractLevels_length Helim
+    levels_wf := Hheader.recursorAbstractLevels_wf Helim
+    levels_translation := hcanonicalLevelTranslation
+    family_eq := by rw [htargetEq]
+    motiveType_eq := rfl
+    family_typing :=
+      Hheader.recursorCanonicalFamilyPrefix Helim Rindices Hsynthesis
+        henvIndices
+    familyApplicationType := by
+      have Hfamily :=
+        (Hheader.completedRecursorNarrowFamilyApplication Helim
+          Rindices Hsynthesis HnarrowStats HnarrowIndices
+          hindexCount hcanonical harity henvIndices).2.2
+      rw [canonicalFamilyApp_split Hheader Hsynthesis hindicesSize harity]
+        at Hfamily
+      simpa [Hsynthesis.scopeCtx, VExpr.liftN] using Hfamily
+    telescope :=
+      RecursorMotiveTelescope.wrapForalls Hsynthesis.indices
+        (VExpr.mkApps
+          ((VExpr.const Hheader.target.name
+            (Hheader.recursorAbstractLevels Helim)).liftN
+              Hsynthesis.params.length 0)
+          (recursorCanonicalVars Hsynthesis.params.length))
+        narrowTarget resultLevel }, rfl, rfl⟩
+
+/-- Once the major premise and then the motive of a completed frame have been
+declared, the annotation-consumed motive type is the binder telescope over
+the frame's indices and major premise read in the extended local context. -/
+theorem motiveTypeShape
+    {cIndices : AddInductive.Context} {recLparams : List Name}
+    {stats : AddInductive.InductiveStats} {dIdx : Nat}
+    {indices : Array Expr} {elimLevel : Level}
+    (Rindices : RecursorContextWF cIndices recLparams)
+    (Hframe : RecursorMotiveFrameWF Rindices stats dIdx indices elimLevel)
+    (Hbound : BoundFVarArray cIndices indices) (motiveName : Name) :
+    let majorTy :=
+      ((mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
+        indices).consumeTypeAnnotationsVerified
+          cIndices.env.isTypeAnnotationWrapper)
+    let cMajor : AddInductive.Context := { cIndices with
+      ngen := cIndices.ngen.next
+      lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩ `t
+        majorTy .default }
+    let motiveTy := cMajor.lctx.mkForall indices <|
+      cMajor.lctx.mkForall #[.fvar ⟨cIndices.ngen.curr⟩] <| .sort elimLevel
+    let cMotive : AddInductive.Context := { cMajor with
+      ngen := cMajor.ngen.next
+      lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩ motiveName
+        (motiveTy.consumeTypeAnnotationsVerified
+          cIndices.env.isTypeAnnotationWrapper) .default }
+    motiveTy.consumeTypeAnnotationsVerified
+        cIndices.env.isTypeAnnotationWrapper =
+      cMotive.lctx.mkForall indices
+        (cMotive.lctx.mkForall #[.fvar ⟨cIndices.ngen.curr⟩]
+          (.sort elimLevel)) := by
+  intro majorTy cMajor motiveTy cMotive
+  let major := Expr.fvar ⟨cIndices.ngen.curr⟩
+  let hMajorFrame := BindingContextLE.withLocalDecl cIndices
+    Rindices.toBindingContextWF `t majorTy .default
+  let hMotiveFrame := BindingContextLE.withLocalDecl cMajor
+    (Rindices.toBindingContextWF.withLocalDecl
+      `t majorTy .default)
+    motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
+  let HindicesAtMajor : BoundFVarArray cMajor indices :=
+    Hbound.mono hMajorFrame
+  let HmajorAtMajor : BoundFVarArray cMajor #[major] := by
+    simpa [cMajor, major] using
+      (BoundFVarArray.empty cIndices).pushCurrent
+        `t majorTy .default
+  have hsourceShape : (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) =
+      cMajor.lctx.mkForall indices
+        (cMajor.lctx.mkForall #[major] (.sort elimLevel)) := by
+    change (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) = motiveTy
+    exact Hframe.motiveSourceEq
+  calc
+    (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) =
+        cMajor.lctx.mkForall indices
+          (cMajor.lctx.mkForall #[major] (.sort elimLevel)) :=
+      hsourceShape
+    _ = cMotive.lctx.mkForall indices
+          (cMajor.lctx.mkForall #[major] (.sort elimLevel)) :=
+      (HindicesAtMajor.mkForall_mono hMotiveFrame _).symm
+    _ = cMotive.lctx.mkForall indices
+          (cMotive.lctx.mkForall #[major] (.sort elimLevel)) :=
+      congrArg (fun body => cMotive.lctx.mkForall indices body)
+        (HmajorAtMajor.mkForall_mono hMotiveFrame _).symm
+
+/-- The narrow scope below the genuine indices of a runtime index front is
+the parameter scope `P`: it has no bound variables, its typing context is the
+synthesized parameter telescope, and its literal weakening is definitionally
+equal to the runtime context with those indices dropped. -/
+theorem motiveSourceScopeFacts
+    {cIndices : AddInductive.Context} {recLparams : List Name}
+    (Rindices : RecursorContextWF cIndices recLparams)
+    {skeleton : VInductiveTypeSkeleton} {narrowTarget : VExpr}
+    {scope P : VLCtx} {nparams nindices : Nat} {indices : Array Expr}
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Rindices.venv recLparams skeleton scope narrowTarget nparams nindices)
+    (hscopeBase : scope.drop nindices = P)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope Rindices.venv
+      recLparams scope Rindices.mlctx.vlctx)
+    (hfront : Hruntime.frontSourceDomains = Hsynthesis.indices)
+    (hindicesSize : indices.size = nindices)
+    (hsize : indices.size ≤ Rindices.mlctx.length)
+    {motiveSourceScope motiveSourceExpanded : VLCtx}
+    (hmotiveSourceScope :
+      scope.drop Hruntime.frontSourceDomains.length = motiveSourceScope)
+    (hmotiveSourceExpanded :
+      Hruntime.expanded.drop Hruntime.frontExpandedDomains.length =
+        motiveSourceExpanded) :
+    scope.drop Hsynthesis.indices.length = motiveSourceScope ∧
+      motiveSourceScope = P ∧
+      VLCtx.NoBV motiveSourceScope ∧
+      VLCtx.toCtx motiveSourceScope = Hsynthesis.params.reverse ∧
+      VLCtx.IsDefEq Rindices.venv recLparams.length motiveSourceExpanded
+        (Rindices.mlctx.dropN indices.size hsize).vlctx := by
+  have hfrontSourceLength : Hruntime.frontSourceDomains.length =
+      indices.size := by
+    rw [hfront, Hsynthesis.indexCount, ← hindicesSize]
+  have hfrontExpandedLength : Hruntime.frontExpandedDomains.length =
+      indices.size := by
+    rw [← Hruntime.front.length_eq, hfrontSourceLength]
+  have hmotiveSourceScope' :
+      scope.drop Hsynthesis.indices.length = motiveSourceScope := by
+    simpa [hfront] using hmotiveSourceScope
+  refine ⟨hmotiveSourceScope', ?_, ?_, ?_, ?_⟩
+  · rw [← hmotiveSourceScope', Hsynthesis.indexCount]
+    exact hscopeBase
+  · change VLCtx.bvars motiveSourceScope = 0
+    rw [← hmotiveSourceScope', ← hfront]
+    rw [Hruntime.front.sourceBaseBVars]
+    exact Hruntime.noBV
+  · have hdecomposition := Hruntime.front.sourceContext
+    rw [hfront, Hsynthesis.scopeCtx, hmotiveSourceScope'] at hdecomposition
+    exact List.append_inj_right hdecomposition.symm rfl
+  · have Hdrop := Hruntime.context.drop indices.size
+    rw [← Rindices.onlyLams.vlctx_dropN indices.size hsize] at Hdrop
+    have hexpandedDrop : Hruntime.expanded.drop indices.size =
+        motiveSourceExpanded := by
+      simpa [hfrontExpandedLength] using hmotiveSourceExpanded
+    change VLCtx.IsDefEq Rindices.venv recLparams.length
+      (Hruntime.expanded.drop indices.size)
+      (Rindices.mlctx.dropN indices.size hsize).vlctx at Hdrop
+    rw [hexpandedDrop] at Hdrop
+    exact Hdrop
+
+/-- Weakening past the freshly declared major premise: the frame's motive
+target is definitionally equal to the weakening of every type that is
+definitionally equal to the closed motive telescope reopened over the
+indices. -/
+theorem motiveTargetDefEqAfterMajor
+    {cIndices : AddInductive.Context} {recLparams : List Name}
+    {stats : AddInductive.InductiveStats} {dIdx : Nat}
+    {indices : Array Expr} {elimLevel : Level}
+    {Rindices : RecursorContextWF cIndices recLparams}
+    (Hframe : RecursorMotiveFrameWF Rindices stats dIdx indices elimLevel)
+    {T : VExpr}
+    (H : Rindices.venv.IsDefEqU recLparams.length Rindices.mlctx.vlctx.toCtx
+      ((VExpr.wrapForalls Hframe.indexDomains
+        (.forallE Hframe.majorTarget (.sort Hframe.resultLevel))).liftN
+          indices.size 0) T) :
+    let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
+      Hframe.majorTr Hframe.majorType
+    Rmajor.venv.IsDefEqU recLparams.length Rmajor.mlctx.vlctx.toCtx
+      Hframe.motiveTarget
+      (T.lift' ((RecursorContextExtension.withLocalDecl (name := `t)
+        (bi := .default) Rindices Hframe.majorTr Hframe.majorType).shift.consN
+          0)) := by
+  intro _
+  let HmajorExtension :=
+    RecursorContextExtension.withLocalDecl (name := `t)
+      (bi := .default) Rindices
+      Hframe.majorTr Hframe.majorType
+  have hmajorLift (expression : VExpr) :
+      expression.liftN 1 0 =
+        expression.lift' (HmajorExtension.shift.consN 0) := by
+    change expression.liftN 1 0 =
+      expression.lift' ((Lift.skip .refl).consN 0)
+    rw [← Lift.skipN_one, VExpr.lift'_consN_skipN]
+  rw [Hframe.motiveTarget_eq, hmajorLift]
+  exact HmajorExtension.weakDefEqU H
+
+/-- The motive-telescope seed for family `dIdx`, established once its major
+premise and motive have been opened over the completed index telescope.  The
+seed lives over the recursor context extended by both new declarations, and
+its canonical parameter domains are aligned with the shared recursor
+parameter context of `Hsuffix`. -/
+theorem motiveTelescopeSeed
+    {base current cIndices : AddInductive.Context} {Hbase : ContextWF base}
+    {decl : VInductDecl} {baseDepth runtimeDepth : Nat}
+    {stats : AddInductive.InductiveStats} {source : InductiveType}
+    {dIdx : Nat} {elimLevel : Level}
+    {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
+    (Hheader : mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl
+      baseDepth source dIdx)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    {R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel base.lparams)}
+    (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
+    (Hroot : BindingContextLE base current)
+    (Rindices : RecursorContextWF cIndices
+      (AddInductive.getRecLevelParams elimLevel base.lparams))
+    (henvIndices : Rindices.venv = Hbase.venv)
+    {narrowTarget : VExpr} {scope : VLCtx} {nindices : Nat}
+    {indices : Array Expr} {indexTargets : List VExpr}
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Rindices.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
+        (Hheader.recursorTargetSkeleton Helim) scope narrowTarget
+        stats.params.size nindices)
+    (hcanonicalParams :
+      Hsynthesis.params.reverse = Hsuffix.parameterDecls.toCtx)
+    (hscopeBase : scope.drop nindices = Hsuffix.parameterDecls)
+    (HnarrowStats : RecursorValidAppStatsWF Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams)
+      scope stats decl nindices)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams)
+      scope Rindices.mlctx.vlctx)
+    (hfront : Hruntime.frontSourceDomains = Hsynthesis.indices)
+    (halign : VLCtx.IsDefEq Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams).length
+      scope Rindices.chk.vlctx)
+    (HnarrowIndices : List.Forall₂ (TrExprS Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams) scope)
+      indices.toList indexTargets)
+    (hindexCount : indexTargets.length = nindices)
+    (hcanonical :
+      indexTargets = mkRecInfos.loopArgs1.canonicalIndexVars nindices)
+    (Hbound : BoundFVarArray cIndices indices)
+    (Hrecent : RecursorRecentBoundFVarArray R Rindices indices)
+    (hindexUniverses :
+      (cIndices.lctx.mkForall indices (.sort .zero)).levelParamsIn
+        base.lparams = true)
+    (harity : (indices.size == stats.nindices[dIdx]!) = true)
+    (Hframe : RecursorMotiveFrameWF Rindices stats dIdx indices elimLevel)
+    (motiveName : Name) :
+    ∃ S : RecursorMotiveTelescopeSeed
+        ((Rindices.withLocalDecl (name := `t) (bi := .default)
+          Hframe.majorTr Hframe.majorType).withLocalDecl
+            (name := motiveName) (bi := .default)
+            Hframe.motiveTr Hframe.motiveType)
+        stats decl dIdx
+        { motive := .fvar ⟨cIndices.ngen.next.curr⟩
+          minors := #[]
+          indices
+          major := .fvar ⟨cIndices.ngen.curr⟩ }
+        elimLevel,
+      VEnv.IsDefEqCtx Rindices.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams).length
+        [] S.canonical.params.reverse Hsuffix.parameterDecls.toCtx := by
+  have hindicesSize : indices.size = nindices := by
+    have hlength :=
+      Lean4Lean.VerifyInductive.List.Forall₂.length_eq' HnarrowIndices
+    simpa [hindexCount] using hlength
+  rcases Hheader.completedRecursorMotiveTypeDefEq Helim Rindices
+      Hsynthesis HnarrowStats Hruntime HnarrowIndices hcanonical
+      Hbound henvIndices hindicesSize hfront Hframe with
+    ⟨Hcanonical, HmotiveCanonical, HmotiveCanonicalClosed,
+      hcanonicalMotiveReopen, hcanonicalMotiveBody⟩
+  let majorTy :=
+    ((mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
+      indices).consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper)
+  let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
+    Hframe.majorTr Hframe.majorType
+  let cMajor : AddInductive.Context := { cIndices with
+    ngen := cIndices.ngen.next
+    lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩ `t
+      majorTy .default }
+  let major := Expr.fvar ⟨cIndices.ngen.curr⟩
+  let motiveTy := cMajor.lctx.mkForall indices <|
+    cMajor.lctx.mkForall #[major] <| .sort elimLevel
+  let Rmotive := Rmajor.withLocalDecl (name := motiveName)
+    (bi := .default) Hframe.motiveTr Hframe.motiveType
+  let cMotive : AddInductive.Context := { cMajor with
+    ngen := cMajor.ngen.next
+    lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩ motiveName
+      (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default }
+  let hIndices := Hrecent.contextLE
+  let hMajorFrame := BindingContextLE.withLocalDecl cIndices
+    Rindices.toBindingContextWF `t majorTy .default
+  let hMotiveFrame := BindingContextLE.withLocalDecl cMajor
+    (Rindices.toBindingContextWF.withLocalDecl
+      `t majorTy .default)
+    motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
+  let hAllFrames : BindingContextLE current cMotive :=
+    hIndices.trans (hMajorFrame.trans hMotiveFrame)
+  let HindicesAtMajor : BoundFVarArray cMajor indices :=
+    Hbound.mono hMajorFrame
+  let HmajorAtMajor : BoundFVarArray cMajor #[major] := by
+    simpa [cMajor, major] using
+      (BoundFVarArray.empty cIndices).pushCurrent
+        `t majorTy .default
+  have hnewMotiveShape := motiveTypeShape Rindices Hframe Hbound motiveName
+  let nextInfo : AddInductive.RecInfo := {
+    motive := .fvar ⟨cMajor.ngen.curr⟩
+    minors := #[]
+    indices
+    major }
+  have hnewMotiveShape' : (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) =
+      cMotive.lctx.mkForall nextInfo.indices
+        (cMotive.lctx.mkForall #[nextInfo.major]
+          (.sort elimLevel)) := by
+    change (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) =
+      cMotive.lctx.mkForall indices
+        (cMotive.lctx.mkForall #[major] (.sort elimLevel))
+    exact hnewMotiveShape
+  let HmajorExtension :=
+    RecursorContextExtension.withLocalDecl (name := `t)
+      (bi := .default) Rindices
+      Hframe.majorTr Hframe.majorType
+  let HmotiveExtension :=
+    RecursorContextExtension.withLocalDecl (name := motiveName)
+      (bi := .default) Rmajor
+      Hframe.motiveTr Hframe.motiveType
+  have HmotiveTypeDefEqMajor' :=
+    motiveTargetDefEqAfterMajor Hframe HmotiveCanonical
+  have htargetLt : dIdx < decl.types.length :=
+    (List.getElem?_eq_some_iff.mp Hheader.targetAt).1
+  have htargetEq : decl.types[dIdx] = Hheader.target := by
+    have htargetAt := Hheader.targetAt
+    rw [List.getElem?_eq_getElem htargetLt] at htargetAt
+    exact Option.some.inj htargetAt
+  have hseedIndexCount : indices.size =
+      (decl.types[dIdx]'htargetLt).numIndices := by
+    rw [htargetEq]
+    have hguard : indices.size = stats.nindices[dIdx]! := by
+      simpa using harity
+    exact hguard.trans (by
+      simp [Array.getElem!_eq_getD, Hheader.indexCount])
+  let HindicesAtMotive : BoundFVarArray cMotive indices :=
+    Hbound.mono (hMajorFrame.trans hMotiveFrame)
+  let HmajorAtMotiveBound : BoundFVarArray cMotive #[major] :=
+    HmajorAtMajor.mono hMotiveFrame
+  rcases Hframe.motiveClosed with
+    ⟨hclosedSize, motiveClosedTarget, HmotiveClosedTr,
+      HmotiveClosedType, hmotiveClosedTarget⟩
+  let majorBody := cMajor.lctx.mkForall #[major] (.sort elimLevel)
+  have hone : 1 ≤ Rmajor.mlctx.length := by
+    dsimp only [Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
+    simp
+  have hmajorRecent : #[major].toList.reverse =
+      (Rmajor.mlctx.fvarRevList 1 hone).map Expr.fvar := by
+    dsimp only [major, Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
+    simp
+  have hmajorConcrete : majorBody =
+      Rmajor.mlctx.mkForall 1 hone (.sort elimLevel) := by
+    dsimp only [majorBody]
+    rw [← Rmajor.lctx_eq]
+    exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent trivial
+  let hmajorLE := BindingContextLE.withLocalDecl cIndices
+    Rindices.toBindingContextWF `t majorTy .default
+  have hmotiveConcrete : motiveTy =
+      cIndices.lctx.mkForall indices majorBody := by
+    dsimp [motiveTy, majorBody]
+    exact Hrecent.toFreshBoundFVarArray.toBoundFVarArray.mkForall_mono
+      hmajorLE _
+  have HmotiveSourceFVarsAtBase := motiveSourceFVars Hheader Rindices
+    henvIndices Hsynthesis HnarrowStats Hruntime hfront HnarrowIndices
+    hindexCount Hrecent Hframe
+  have HmotiveClosedTrSeed : TrExprS Rmotive.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams)
+      (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
+      (cMotive.lctx.mkForall nextInfo.indices
+        (cMotive.lctx.mkForall #[nextInfo.major]
+          (.sort elimLevel))) motiveClosedTarget := by
+    rw [← hnewMotiveShape']
+    change TrExprS Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams)
+      (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
+      (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) motiveClosedTarget
+    simpa only [motiveTy, cMajor] using HmotiveClosedTr
+  rcases Hruntime.front.base with
+    ⟨motiveSourceScope, motiveSourceExpanded, motiveSourceShift,
+      hmotiveSourceScope, hmotiveSourceExpanded, hmotiveSourceShift,
+      HmotiveSourceLift⟩
+  obtain ⟨hmotiveSourceScope', hmotiveSourceParameterScope,
+      HmotiveSourceNoBV, hmotiveSourceScopeCtx, HmotiveSourceContext⟩ :=
+    motiveSourceScopeFacts Rindices Hsynthesis hscopeBase Hruntime hfront
+      hindicesSize hclosedSize hmotiveSourceScope hmotiveSourceExpanded
+  have HmotiveSourceFVarsNarrow : motiveTy.FVarsIn
+      (· ∈ VLCtx.fvars motiveSourceScope) := by
+    rw [← hmotiveSourceScope']
+    simpa [hfront] using HmotiveSourceFVarsAtBase
+  -- The motive replayed in the checker context of the index loop.
+  obtain ⟨motiveSourceTarget, HmotiveSourceTr, HmotiveSourceType,
+      HmotiveSourceCanonical, HmotiveSourceWF⟩ :=
+    motiveSourceReplay Hheader hconsume Rindices henvIndices Hsynthesis
+      HnarrowStats Hruntime hfront halign HnarrowIndices hindexCount
+      hcanonical Hrecent harity Hframe.resultLevelOf hmotiveSourceScope'
+      hmotiveSourceScopeCtx
+  have hmajorBodyShape : cMajor.lctx.mkForall #[major] (.sort elimLevel) =
+      .forallE `t majorTy (.sort elimLevel) .default := by
+    change majorBody = _
+    rw [hmajorConcrete]
+    simp [Rmajor, RecursorContextWF.withLocalDecl,
+      RecursorContextWF.withCheckedLocalDecl,
+      RecursorContextWF.withCheckedLocalDeclOn,
+      TypeChecker.MLCtx.mkForall, Expr.abstract1]
+    try rfl
+  have hmotiveSourceShape :
+      cMotive.lctx.mkForall nextInfo.indices
+        (cMotive.lctx.mkForall #[nextInfo.major] (.sort elimLevel)) =
+      cIndices.lctx.mkForall indices
+        (.forallE `t majorTy (.sort elimLevel) .default) := by
+    have hsourceShape : motiveTy.consumeTypeAnnotationsVerified
+        cIndices.env.isTypeAnnotationWrapper = motiveTy :=
+      Hframe.motiveSourceEq
+    rw [← hnewMotiveShape', hsourceShape, ← hmajorBodyShape]
+    exact hmotiveConcrete
+  obtain ⟨Ccanonical, hCparams, hCmotive⟩ := canonicalMotiveTelescope Hheader
+    Rindices henvIndices Hsynthesis HnarrowStats HnarrowIndices hindexCount
+    hcanonical harity nextInfo rfl Hframe.resultLevel
+  have HparamsSelf : VEnv.IsDefEqCtx Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams).length []
+      Ccanonical.params.reverse Hsynthesis.params.reverse := by
+    rw [hCparams]
+    exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
+      rw [← Hsynthesis.scopeCtx]
+      exact Hsynthesis.scopeWF.toCtx))
+  let Hseed : RecursorMotiveTelescopeSeed Rmotive stats decl dIdx
+      nextInfo elimLevel := {
+    canonical := Ccanonical
+    target_lt := htargetLt
+    indexCount := hseedIndexCount
+    family := (Hframe.familyTarget.lift'
+      (HmajorExtension.shift.consN 0)).lift'
+        (HmotiveExtension.shift.consN 0)
+    familyActualType :=
+      (Hcanonical.familyType.lift'
+        (HmajorExtension.shift.consN 0)).lift'
+          (HmotiveExtension.shift.consN 0)
+    familyType :=
+      (Hcanonical.familyType.lift'
+        (HmajorExtension.shift.consN 0)).lift'
+          (HmotiveExtension.shift.consN 0)
+    motiveActualType :=
+      Hframe.motiveTarget.lift' (HmotiveExtension.shift.consN 0)
+    motiveType :=
+      (Hcanonical.motiveType.lift'
+        (HmajorExtension.shift.consN 0)).lift'
+          (HmotiveExtension.shift.consN 0)
+    resultLevel := Hframe.resultLevel
+    indexUniverses := by
+      change (cMotive.lctx.mkForall indices (.sort .zero)).levelParamsIn
+        cIndices.lparams = true
+      rw [Hbound.mkForall_mono
+        (HmajorExtension.contextLE.trans HmotiveExtension.contextLE),
+        (Hroot.trans hIndices).lparams_eq]
+      exact hindexUniverses
+    motiveClosedScope :=
+      (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
+    motiveClosedAmbient := Hsuffix.ambientDecls
+    motiveParameterScope := Hsuffix.parameterDecls
+    motiveClosedContext := by
+      change (Rindices.mlctx.dropN indices.size hclosedSize).vlctx =
+        Hsuffix.ambientDecls ++ Hsuffix.parameterDecls
+      rw [show hclosedSize = Hrecent.size_le from rfl,
+        Hrecent.drop_eq]
+      exact Hsuffix.context
+    motiveParameterAlignment := hcanonicalParams ▸ HparamsSelf
+    motiveParameterDecls := Hsuffix.cached
+    motiveSourceScope := motiveSourceScope
+    motiveSourceExpanded := motiveSourceExpanded
+    motiveSourceShift := motiveSourceShift
+    motiveSourceAlignment := hmotiveSourceScopeCtx ▸ HparamsSelf
+    motiveSourceParameterScope := hmotiveSourceParameterScope
+    motiveSourceLift := HmotiveSourceLift
+    motiveSourceContext := HmotiveSourceContext
+    motiveSourceNoBV := HmotiveSourceNoBV
+    motiveSourceFVars := by
+      rw [← hnewMotiveShape', Hframe.motiveSourceEq]
+      exact HmotiveSourceFVarsNarrow
+    motiveSourceTarget := motiveSourceTarget
+    motiveSourceTr := by
+      rw [hmotiveSourceShape]
+      exact HmotiveSourceTr
+    motiveSourceType := HmotiveSourceType
+    motiveSourceCanonical := hCmotive ▸ HmotiveSourceCanonical
+    motiveSourceWF := HmotiveSourceWF
+    motiveClosedTarget := motiveClosedTarget
+    motiveClosedTr := HmotiveClosedTrSeed
+    motiveClosedType := HmotiveClosedType
+    motiveClosedCanonicalTarget :=
+      VExpr.wrapForalls Hruntime.frontExpandedDomains
+        (.forallE Hframe.majorSourceTarget
+          (.sort Hframe.resultLevel))
+    motiveClosedCanonicalEq := by
+      rw [hCmotive]
+      let canonicalBody := VExpr.forallE
+        (VExpr.mkApps
+          ((VExpr.mkApps
+            (.const Hheader.target.name
+              (Hheader.recursorAbstractLevels Helim))
+            (recursorCanonicalVars Hsynthesis.params.length)).liftN
+              Hsynthesis.indices.length 0)
+          (recursorCanonicalVars Hsynthesis.indices.length))
+        (.sort Hframe.resultLevel)
+      have Hclose := Hruntime.front.closeAtBase motiveSourceShift
+        hmotiveSourceShift canonicalBody
+      have hbody := hcanonicalMotiveBody
+      dsimp only at hbody
+      rw [hfront, hbody] at Hclose
+      simpa [canonicalBody, VExpr.liftN] using Hclose
+    motiveClosedCanonicalDefEq := by
+      change Rindices.venv.IsDefEqU
+        (AddInductive.getRecLevelParams elimLevel base.lparams).length
+        (Rindices.mlctx.dropN indices.size hclosedSize).vlctx.toCtx
+        motiveClosedTarget
+        (VExpr.wrapForalls Hruntime.frontExpandedDomains
+          (.forallE Hframe.majorSourceTarget
+            (.sort Hframe.resultLevel)))
+      rw [Rindices.onlyLams.toCtx_dropN indices.size hclosedSize]
+      rw [hmotiveClosedTarget]
+      exact HmotiveCanonicalClosed
+    motiveReopenedCanonicalTarget :=
+      (((VExpr.wrapForalls Hruntime.frontExpandedDomains
+        (.forallE Hframe.majorSourceTarget
+          (.sort Hframe.resultLevel))).liftN indices.size 0).lift'
+            (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0)
+    motiveTypeCanonicalEq := by
+      rw [hcanonicalMotiveReopen]
+    familyUnique := HnarrowStats.familyPrefixUnique dIdx htargetLt
+    familyTr := HmotiveExtension.weakTrExprS
+      (HmajorExtension.weakTrExprS Hframe.familyTr)
+    familyTyping := HmotiveExtension.weakHasType
+      (HmajorExtension.weakHasType Hcanonical.familyTyping)
+    familyTypeDefEq := ⟨_, Classical.choose_spec
+      ((HmotiveExtension.weakHasType
+        (HmajorExtension.weakHasType Hcanonical.familyTyping)).isType
+          Rmotive.checking.tr.wf Rmotive.mlctx_wf.tr.wf.toCtx)⟩
+    indicesBound := HindicesAtMotive
+    majorBound := HmajorAtMotiveBound
+    motiveTypeTr := by
+      rw [← hnewMotiveShape']
+      exact HmotiveExtension.weakTrExprS Hframe.motiveTr
+    motiveTypeDefEq := HmotiveExtension.weakDefEqU HmotiveTypeDefEqMajor'
+    telescope := (Hcanonical.telescope.lift'
+      (HmajorExtension.shift.consN 0)).lift'
+        (HmotiveExtension.shift.consN 0) }
+  have HseedParams0 :
+      VEnv.IsDefEqCtx Rindices.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams).length
+        [] Hseed.canonical.params.reverse
+          Hsuffix.parameterDecls.toCtx :=
+    hcanonicalParams ▸ HparamsSelf
+  exact ⟨Hseed, HseedParams0⟩
+
 /-- Semantic strengthening of the first mutual recursor pass.  In addition
 to the operational binder certificates retained by `resultBindings`, every
 family is replayed against its independently checked header under the common
@@ -212,15 +1267,6 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         rcases Hheader.completedRecursorFrame Helim R Rindices Hsynthesis
             HnarrowStats Hruntime HnarrowIndices hindexCount hcanonical
             harity henvIndices hconsume Hrecent with ⟨Hframe⟩
-        have hindicesSize : indices.size = nindices := by
-          have hlength :=
-            Lean4Lean.VerifyInductive.List.Forall₂.length_eq' HnarrowIndices
-          simpa [hindexCount] using hlength
-        rcases Hheader.completedRecursorMotiveTypeDefEq Helim Rindices
-            Hsynthesis HnarrowStats Hruntime HnarrowIndices hcanonical
-            HindexOrigins.bound henvIndices hindicesSize hfront Hframe with
-          ⟨Hcanonical, HmotiveCanonical, HmotiveCanonicalClosed,
-            hcanonicalMotiveReopen, hcanonicalMotiveBody⟩
         let majorTy :=
           ((mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
             indices).consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper)
@@ -287,6 +1333,14 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩ motiveName
             (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default }
         let hIndices := Hrecent.contextLE
+        let hMajorFrame := BindingContextLE.withLocalDecl cIndices
+          Rindices.toBindingContextWF `t majorTy .default
+        let hMotiveFrame := BindingContextLE.withLocalDecl cMajor
+          (Rindices.toBindingContextWF.withLocalDecl
+            `t majorTy .default)
+          motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
+        let hAllFrames : BindingContextLE current cMotive :=
+          hIndices.trans (hMajorFrame.trans hMotiveFrame)
         let Hbindings' := Hbindings.pushFrame hIndices
           Rindices.toBindingContextWF
           Hrecent.toFreshBoundFVarArray.toBoundFVarArray
@@ -296,13 +1350,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           Rindices.toBindingContextWF HindexOrigins
           `t majorTy .default motiveName
           (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
-        let Hparams' := Hparams.mono <| hIndices.trans <|
-          (BindingContextLE.withLocalDecl cIndices
-            Rindices.toBindingContextWF `t majorTy .default).trans <|
-            BindingContextLE.withLocalDecl cMajor
-              (Rindices.toBindingContextWF.withLocalDecl
-                `t majorTy .default)
-              motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
+        let Hparams' := Hparams.mono hAllFrames
         have HnoAlias' : Hbindings'.NoAlias Hparams' := by
           exact Hbindings.pushFrame_noAlias Hparams HnoAlias hIndices
             Rindices.toBindingContextWF
@@ -332,11 +1380,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           RecInfoOuterOrder.pushMotive Horder holdMinors hparamsFVars
             hmotiveFVars hnewMinors hcontextFVars
         have hparameterDeclsMotive :
-            HsuffixMotive.parameterDecls = Hsuffix.parameterDecls := by
-          calc
-            HsuffixMotive.parameterDecls =
-                HsuffixIndices.parameterDecls := by rfl
-            _ = Hsuffix.parameterDecls := hparameterDecls
+            HsuffixMotive.parameterDecls = Hsuffix.parameterDecls :=
+          hparameterDecls
         have HparamsCtx' : ∀ i (hi : i < indTypes.size),
             VEnv.IsDefEqCtx Rmotive.venv
               (AddInductive.getRecLevelParams elimLevel base.lparams).length []
@@ -348,40 +1393,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             exact henvIndices.trans henv.symm
           rw [hvenvMotive, hparameterDeclsMotive]
           exact HparamsCtx i hi
-        let hMajorFrame := BindingContextLE.withLocalDecl cIndices
-          Rindices.toBindingContextWF `t majorTy .default
-        let hMotiveFrame := BindingContextLE.withLocalDecl cMajor
-          (Rindices.toBindingContextWF.withLocalDecl
-            `t majorTy .default)
-          motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
-        let hAllFrames : BindingContextLE current cMotive :=
-          hIndices.trans (hMajorFrame.trans hMotiveFrame)
-        let HindicesAtMajor : BoundFVarArray cMajor indices :=
-          HindexOrigins.bound.mono hMajorFrame
-        let HmajorAtMajor : BoundFVarArray cMajor #[major] := by
-          simpa [cMajor, major] using
-            (BoundFVarArray.empty cIndices).pushCurrent
-              `t majorTy .default
-        have hsourceShape : (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) =
-            cMajor.lctx.mkForall indices
-              (cMajor.lctx.mkForall #[major] (.sort elimLevel)) := by
-          change (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) = motiveTy
-          exact Hframe.motiveSourceEq
-        have hnewMotiveShape : (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) =
-            cMotive.lctx.mkForall indices
-              (cMotive.lctx.mkForall #[major] (.sort elimLevel)) := by
-          calc
-            (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) =
-                cMajor.lctx.mkForall indices
-                  (cMajor.lctx.mkForall #[major] (.sort elimLevel)) :=
-              hsourceShape
-            _ = cMotive.lctx.mkForall indices
-                  (cMajor.lctx.mkForall #[major] (.sort elimLevel)) :=
-              (HindicesAtMajor.mkForall_mono hMotiveFrame _).symm
-            _ = cMotive.lctx.mkForall indices
-                  (cMotive.lctx.mkForall #[major] (.sort elimLevel)) :=
-              congrArg (fun body => cMotive.lctx.mkForall indices body)
-                (HmajorAtMajor.mkForall_mono hMotiveFrame _).symm
+        have hnewMotiveShape := motiveTypeShape Rindices Hframe HindexOrigins.bound motiveName
         let nextInfo : AddInductive.RecInfo := {
           motive := .fvar ⟨cMajor.ngen.curr⟩
           minors := #[]
@@ -418,664 +1430,6 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           HmajorExtension.trans HmotiveExtension
         let HrootExtension : RecursorContextExtension R Rmotive :=
           Hrecent.contextExtension.trans HframeExtension
-        have HfamilyTrMajor := HmajorExtension.weakTrExprS Hframe.familyTr
-        have HfamilyTrMotive :=
-          HmotiveExtension.weakTrExprS HfamilyTrMajor
-        have HfamilyTypingMajor :=
-          HmajorExtension.weakHasType Hcanonical.familyTyping
-        have HfamilyTypingMotive :=
-          HmotiveExtension.weakHasType HfamilyTypingMajor
-        have HmotiveTypeTrMotive :=
-          HmotiveExtension.weakTrExprS Hframe.motiveTr
-        have HfamilyTrSeed : TrExprS Rmotive.venv
-            (AddInductive.getRecLevelParams elimLevel base.lparams)
-            Rmotive.mlctx.vlctx
-            (mkAppN stats.indConsts[dIdx]! stats.params)
-            ((Hframe.familyTarget.lift' (HmajorExtension.shift.consN 0)).lift'
-              (HmotiveExtension.shift.consN 0)) := by
-          simpa only [Rmotive] using HfamilyTrMotive
-        have HfamilyTypingSeed : Rmotive.venv.HasType
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length
-            Rmotive.mlctx.vlctx.toCtx
-            ((Hframe.familyTarget.lift' (HmajorExtension.shift.consN 0)).lift'
-              (HmotiveExtension.shift.consN 0))
-            ((Hcanonical.familyType.lift'
-                (HmajorExtension.shift.consN 0)).lift'
-              (HmotiveExtension.shift.consN 0)) := by
-          simpa only [Rmotive] using HfamilyTypingMotive
-        have HfamilyTypeIsType := HfamilyTypingSeed.isType
-          Rmotive.checking.tr.wf Rmotive.mlctx_wf.tr.wf.toCtx
-        have HfamilyTypeDefEq : Rmotive.venv.IsDefEqU
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length
-            Rmotive.mlctx.vlctx.toCtx
-            ((Hcanonical.familyType.lift'
-                (HmajorExtension.shift.consN 0)).lift'
-              (HmotiveExtension.shift.consN 0))
-            ((Hcanonical.familyType.lift'
-                (HmajorExtension.shift.consN 0)).lift'
-              (HmotiveExtension.shift.consN 0)) :=
-          ⟨_, Classical.choose_spec HfamilyTypeIsType⟩
-        have HmotiveTypeTrSeed : TrExprS Rmotive.venv
-            (AddInductive.getRecLevelParams elimLevel base.lparams)
-            Rmotive.mlctx.vlctx
-            (cMotive.lctx.mkForall nextInfo.indices
-              (cMotive.lctx.mkForall #[nextInfo.major]
-                (.sort elimLevel)))
-            (Hframe.motiveTarget.lift'
-              (HmotiveExtension.shift.consN 0)) := by
-          rw [← hnewMotiveShape']
-          simpa only [Rmotive] using HmotiveTypeTrMotive
-        have HmotiveTypeDefEqMajor :=
-          HmajorExtension.weakDefEqU HmotiveCanonical
-        have hmajorLift (expression : VExpr) :
-            expression.liftN 1 0 =
-              expression.lift' (HmajorExtension.shift.consN 0) := by
-          change expression.liftN 1 0 =
-            expression.lift' ((Lift.skip .refl).consN 0)
-          rw [← Lift.skipN_one, VExpr.lift'_consN_skipN]
-        have HmotiveTypeDefEqMajor' : Rmajor.venv.IsDefEqU
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length
-            Rmajor.mlctx.vlctx.toCtx Hframe.motiveTarget
-            (Hcanonical.motiveType.lift'
-              (HmajorExtension.shift.consN 0)) := by
-          rw [Hframe.motiveTarget_eq]
-          rw [hmajorLift]
-          exact HmotiveTypeDefEqMajor
-        have HmotiveTypeDefEqWeak :=
-          HmotiveExtension.weakDefEqU HmotiveTypeDefEqMajor'
-        have HmotiveTypeDefEqSeed : Rmotive.venv.IsDefEqU
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length
-            Rmotive.mlctx.vlctx.toCtx
-            (Hframe.motiveTarget.lift'
-              (HmotiveExtension.shift.consN 0))
-            ((Hcanonical.motiveType.lift'
-                (HmajorExtension.shift.consN 0)).lift'
-              (HmotiveExtension.shift.consN 0)) := by
-          simpa only [Rmotive] using HmotiveTypeDefEqWeak
-        have htargetLt : dIdx < decl.types.length :=
-          (List.getElem?_eq_some_iff.mp Hheader.targetAt).1
-        have htargetEq : decl.types[dIdx] = Hheader.target := by
-          have htargetAt := Hheader.targetAt
-          rw [List.getElem?_eq_getElem htargetLt] at htargetAt
-          exact Option.some.inj htargetAt
-        have hseedIndexCount : indices.size =
-            (decl.types[dIdx]'htargetLt).numIndices := by
-          rw [htargetEq]
-          have hguard : indices.size = stats.nindices[dIdx]! := by
-            simpa using harity
-          exact hguard.trans (by
-            simp [Array.getElem!_eq_getD, Hheader.indexCount])
-        let HindicesAtMotive : BoundFVarArray cMotive indices :=
-          HindexOrigins.bound.mono (hMajorFrame.trans hMotiveFrame)
-        let HmajorAtMotiveBound : BoundFVarArray cMotive #[major] :=
-          HmajorAtMajor.mono hMotiveFrame
-        rcases Hframe.motiveClosed with
-          ⟨hclosedSize, motiveClosedTarget, HmotiveClosedTr,
-            HmotiveClosedType, hmotiveClosedTarget⟩
-        let majorBody := cMajor.lctx.mkForall #[major] (.sort elimLevel)
-        have HnarrowFamily :=
-          (Hheader.recursorNarrowFamilyPrefixTranslation Helim Rindices
-            Hsynthesis HnarrowStats henvIndices).1
-        have HnarrowIndexFVars : ∀ arg ∈ indices.toList,
-            arg.FVarsIn (· ∈ scope.fvars) := by
-          have go : ∀ {sources targets : List _},
-              List.Forall₂ (TrExprS Rindices.venv
-                (AddInductive.getRecLevelParams elimLevel base.lparams)
-                scope) sources targets →
-              ∀ arg ∈ sources, arg.FVarsIn (· ∈ scope.fvars) := by
-            intro sources targets Htranslated arg harg
-            induction Htranslated with
-            | nil => simp at harg
-            | cons Hhead Htail ih =>
-              simp only [List.mem_cons] at harg
-              rcases harg with rfl | harg
-              · exact Hhead.fvarsIn
-              · exact ih harg
-          exact go HnarrowIndices
-        have HmajorRawFVars :
-            (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
-              indices).FVarsIn (· ∈ scope.fvars) := by
-          rw [Expr.mkAppN_eq_mkAppList]
-          apply FVarsIn.mkAppList.mpr
-          refine ⟨HnarrowFamily.fvarsIn, ?_⟩
-          exact HnarrowIndexFVars
-        have HmajorTyFVars : majorTy.FVarsIn (· ∈ scope.fvars) := by
-          exact Expr.consumeTypeAnnotationsVerified_fvarsIn HmajorRawFVars
-        rcases Helim.sortType (env := Rindices.venv) (Δ := scope) with
-          ⟨narrowSortLevel, HsortNarrow, _HsortNarrowType⟩
-        have hone : 1 ≤ Rmajor.mlctx.length := by
-          dsimp only [Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
-          simp
-        have hmajorRecent : #[major].toList.reverse =
-            (Rmajor.mlctx.fvarRevList 1 hone).map Expr.fvar := by
-          dsimp only [major, Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
-          simp
-        have hmajorConcrete : majorBody =
-            Rmajor.mlctx.mkForall 1 hone (.sort elimLevel) := by
-          dsimp only [majorBody]
-          rw [← Rmajor.lctx_eq]
-          exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent trivial
-        have HmajorBodyFVars : majorBody.FVarsIn
-            (· ∈ scope.fvars) := by
-          rw [hmajorConcrete]
-          have HsortAbstract :
-              (Expr.abstract1 ⟨cIndices.ngen.curr⟩
-                (.sort elimLevel)).FVarsIn (· ∈ scope.fvars) := by
-            apply FVarsIn.abstract1_of
-            exact HsortNarrow.fvarsIn.mono fun _ h => Or.inr h
-          simpa only [Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
-            TypeChecker.MLCtx.mkForall] using
-            (show (Expr.forallE `t majorTy
-                (Expr.abstract1 ⟨cIndices.ngen.curr⟩ (.sort elimLevel))
-                .default).FVarsIn
-                (· ∈ scope.fvars) from
-              ⟨HmajorTyFVars, HsortAbstract⟩)
-        let hmajorLE := BindingContextLE.withLocalDecl cIndices
-          Rindices.toBindingContextWF `t majorTy .default
-        have hmotiveConcrete : motiveTy =
-            cIndices.lctx.mkForall indices majorBody := by
-          dsimp [motiveTy, majorBody]
-          exact Hrecent.toFreshBoundFVarArray.toBoundFVarArray.mkForall_mono
-            hmajorLE _
-        have hmotiveMkForall : motiveTy =
-            Rindices.mlctx.mkForall indices.size Hrecent.size_le
-              majorBody := by
-          rw [hmotiveConcrete, ← Rindices.lctx_eq]
-          exact Rindices.mlctx_wf.mkForall_eq indices.size Hrecent.size_le
-            Hrecent.reverse_eq
-            (hmajorConcrete ▸ Rmajor.mlctx_wf.mkForall_closed 1 hone trivial)
-        have hfrontLength : Hruntime.frontSourceDomains.length =
-            indices.size := by
-          rw [hfront, Hsynthesis.indexCount, ← hindicesSize]
-        have hfrontLE : Hruntime.frontSourceDomains.length ≤
-            Rindices.mlctx.length := by
-          rw [hfrontLength]
-          exact Hrecent.size_le
-        have HmotiveSourceFVarsAtBase : motiveTy.FVarsIn
-            (· ∈ VLCtx.fvars
-              (scope.drop Hruntime.frontSourceDomains.length)) := by
-          rw [hmotiveMkForall]
-          simpa only [hfrontLength] using
-            Hruntime.front.mkForall_fvarsIn_sourceBase
-              Rindices.onlyLams Rindices.mlctx_wf Hruntime.context
-              hfrontLE majorBody HmajorBodyFVars
-        have HmotiveClosedTrSeed : TrExprS Rmotive.venv
-            (AddInductive.getRecLevelParams elimLevel base.lparams)
-            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
-            (cMotive.lctx.mkForall nextInfo.indices
-              (cMotive.lctx.mkForall #[nextInfo.major]
-                (.sort elimLevel))) motiveClosedTarget := by
-          rw [← hnewMotiveShape']
-          change TrExprS Rindices.venv
-            (AddInductive.getRecLevelParams elimLevel base.lparams)
-            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
-            (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) motiveClosedTarget
-          simpa only [motiveTy, cMajor] using HmotiveClosedTr
-        have HmotiveClosedTypeSeed : Rmotive.venv.IsType
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length
-            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx.toCtx
-            motiveClosedTarget := by
-          change Rindices.venv.IsType
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length
-            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx.toCtx
-            motiveClosedTarget
-          exact HmotiveClosedType
-        have hcanonicalLevelTranslation : stats.levels.mapM
-            (VLevel.ofLevel
-              (AddInductive.getRecLevelParams elimLevel base.lparams)) =
-            some (Hheader.recursorAbstractLevels Helim) := by
-          cases elimLevel with
-          | zero =>
-            simpa [mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.recursorAbstractLevels,
-              mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.abstractLevels,
-              AddInductive.getRecLevelParams] using
-              Hheader.materialized.levelTranslation
-          | param fresh =>
-            have hshifted := VLevel.mapM_ofLevel_fresh_cons Helim
-              Hheader.materialized.levelTranslation
-            simpa [mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.recursorAbstractLevels,
-              mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.abstractLevels,
-              AddInductive.getRecLevelParams] using hshifted
-          | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
-            simp [AddInductive.AdmissibleElimLevel] at Helim
-        rcases Hruntime.front.base with
-          ⟨motiveSourceScope, motiveSourceExpanded, motiveSourceShift,
-            hmotiveSourceScope, hmotiveSourceExpanded, hmotiveSourceShift,
-            HmotiveSourceLift⟩
-        have hfrontSourceLength : Hruntime.frontSourceDomains.length =
-            indices.size := by
-          rw [hfront, Hsynthesis.indexCount, ← hindicesSize]
-        have hfrontExpandedLength : Hruntime.frontExpandedDomains.length =
-            indices.size := by
-          rw [← Hruntime.front.length_eq, hfrontSourceLength]
-        have hmotiveSourceScope' :
-            scope.drop Hsynthesis.indices.length = motiveSourceScope := by
-          simpa [hfront] using hmotiveSourceScope
-        have hmotiveSourceParameterScope :
-          motiveSourceScope = Hsuffix.parameterDecls := by
-          rw [← hmotiveSourceScope', Hsynthesis.indexCount]
-          exact hscopeBase
-        have HmotiveSourceFVarsNarrow : motiveTy.FVarsIn
-            (· ∈ VLCtx.fvars motiveSourceScope) := by
-          rw [← hmotiveSourceScope']
-          simpa [hfront] using HmotiveSourceFVarsAtBase
-        have HmotiveSourceNoBV : VLCtx.NoBV motiveSourceScope := by
-          change VLCtx.bvars motiveSourceScope = 0
-          rw [← hmotiveSourceScope', ← hfront]
-          rw [Hruntime.front.sourceBaseBVars]
-          exact Hruntime.noBV
-        have hmotiveSourceScopeCtx : VLCtx.toCtx motiveSourceScope =
-            Hsynthesis.params.reverse := by
-          have hdecomposition := Hruntime.front.sourceContext
-          rw [hfront, Hsynthesis.scopeCtx, hmotiveSourceScope'] at hdecomposition
-          exact List.append_inj_right hdecomposition.symm rfl
-        have HmotiveSourceContext : VLCtx.IsDefEq Rindices.venv
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length
-            motiveSourceExpanded
-            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx := by
-          have Hdrop := Hruntime.context.drop indices.size
-          rw [← Rindices.onlyLams.vlctx_dropN indices.size hclosedSize]
-            at Hdrop
-          have hexpandedDrop : Hruntime.expanded.drop indices.size =
-              motiveSourceExpanded := by
-            simpa [hfrontExpandedLength] using hmotiveSourceExpanded
-          change VLCtx.IsDefEq Rindices.venv
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length
-            (Hruntime.expanded.drop indices.size)
-            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx at Hdrop
-          rw [hexpandedDrop] at Hdrop
-          exact Hdrop
-        -- The motive replayed in the checker context of the index loop.
-        have henvR := Rindices.checking.tr.wf
-        have hmainTake : (Rindices.mlctx.fvarRevList indices.size
-            Hrecent.size_le) = Rindices.mlctx.vlctx.fvars.take indices.size :=
-          mlctx_fvarRevList_eq_take _ _ _
-        have hfrontTake := Hruntime.front.fvars_take
-        rw [hfrontLength] at hfrontTake
-        have hchkTake : Rindices.chk.vlctx.fvars.take indices.size =
-            Rindices.mlctx.vlctx.fvars.take indices.size := by
-          rw [← halign.fvars, hfrontTake, Hruntime.context.fvars]
-        have hnChk : indices.size ≤ Rindices.chk.length := by
-          have hlen := congrArg List.length hchkTake
-          simp only [List.length_take] at hlen
-          have h1 : Rindices.mlctx.vlctx.fvars.length = Rindices.mlctx.length :=
-            Rindices.onlyLams.fvars_length
-          have h2 : Rindices.chk.vlctx.fvars.length = Rindices.chk.length :=
-            Rindices.check.onlyLams.fvars_length
-          have hmainLen := Hrecent.size_le
-          omega
-        have hxsChk : indices.toList.reverse =
-            (Rindices.chk.fvarRevList indices.size hnChk).map Expr.fvar := by
-          rw [mlctx_fvarRevList_eq_take, hchkTake, ← hmainTake]
-          exact Hrecent.reverse_eq
-        have HfamNarrow :=
-          Hheader.completedRecursorNarrowFamilyApplication Helim
-            Rindices Hsynthesis HnarrowStats HnarrowIndices
-            hindexCount hcanonical harity henvIndices
-        obtain ⟨famChk, HfamChk⟩ := HfamNarrow.1.defeqDFC henvR halign
-        have HfamChkEq := HfamNarrow.1.uniq henvR halign HfamChk
-        have HfamChkType : Rindices.venv.IsType
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length
-            Rindices.chk.vlctx.toCtx famChk :=
-          (HfamNarrow.2.2.defeqU_l henvR halign.wf.toCtx HfamChkEq).defeqDFC
-            henvR.ordered halign.defeqCtx
-        rcases hconsume _ _ Rindices.narrow HfamChk HfamChkType with
-          ⟨majorChk, HmajorChk⟩
-        have HmotiveChk := Rindices.narrowMotiveClosure indices.size hnChk
-          indices hxsChk HmajorChk.consumed HmajorChk.isType
-          Hframe.resultLevelOf
-        have hmajorBodyShape : cMajor.lctx.mkForall #[major] (.sort elimLevel) =
-            .forallE `t majorTy (.sort elimLevel) .default := by
-          change majorBody = _
-          rw [hmajorConcrete]
-          simp [Rmajor, RecursorContextWF.withLocalDecl,
-            RecursorContextWF.withCheckedLocalDecl,
-            RecursorContextWF.withCheckedLocalDeclOn,
-            TypeChecker.MLCtx.mkForall, Expr.abstract1]
-          try rfl
-        have hmotiveSourceShape :
-            cMotive.lctx.mkForall nextInfo.indices
-              (cMotive.lctx.mkForall #[nextInfo.major] (.sort elimLevel)) =
-            cIndices.lctx.mkForall indices
-              (.forallE `t majorTy (.sort elimLevel) .default) := by
-          rw [← hnewMotiveShape', hsourceShape, ← hmajorBodyShape]
-          exact hmotiveConcrete
-        have hdropAlign : VLCtx.IsDefEq Rindices.venv
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length
-            motiveSourceScope (Rindices.chk.dropN indices.size hnChk).vlctx := by
-          rw [Rindices.check.onlyLams.vlctx_dropN, ← hmotiveSourceScope',
-            Hsynthesis.indexCount, ← hindicesSize]
-          exact halign.drop indices.size
-        obtain ⟨motiveSourceTarget, HmotiveSourceTr⟩ :=
-          HmotiveChk.1.defeqDFC henvR (hdropAlign.symm henvR.ordered)
-        have HmotiveSourceEq := HmotiveChk.1.uniq henvR
-          (hdropAlign.symm henvR.ordered) HmotiveSourceTr
-        have HmotiveSourceType : Rindices.venv.IsType
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length
-            (VLCtx.toCtx motiveSourceScope) motiveSourceTarget :=
-          (HmotiveChk.2.defeqU_l henvR (hdropAlign.symm henvR.ordered).wf.toCtx
-            HmotiveSourceEq).defeqDFC henvR.ordered
-              (hdropAlign.symm henvR.ordered).defeqCtx
-        have hsplitK : VExpr.mkApps
-            (.const Hheader.target.name (Hheader.recursorAbstractLevels Helim))
-            (mkRecInfos.loopArgs1.canonicalIndexVars
-              (decl.nparams + Hheader.target.numIndices)) =
-            VExpr.mkApps
-              ((VExpr.mkApps
-                ((VExpr.const Hheader.target.name
-                  (Hheader.recursorAbstractLevels Helim)).liftN
-                    Hsynthesis.params.length 0)
-                (recursorCanonicalVars Hsynthesis.params.length)).liftN
-                  Hsynthesis.indices.length 0)
-              (recursorCanonicalVars Hsynthesis.indices.length) := by
-          have hp : Hsynthesis.params.length = decl.nparams :=
-            Hsynthesis.parameterCount.trans Hheader.parameterCount
-          have hn : Hsynthesis.indices.length =
-              Hheader.target.numIndices := by
-            have hguard : indices.size = stats.nindices[dIdx]! := by
-              simpa using harity
-            have hfam : stats.nindices[dIdx]! =
-                Hheader.target.numIndices := by
-              simp [Array.getElem!_eq_getD, Hheader.indexCount]
-            rw [Hsynthesis.indexCount]
-            omega
-          have hsplit := VExpr.mkApps_canonical_add
-            (.const Hheader.target.name
-              (Hheader.recursorAbstractLevels Helim))
-            Hsynthesis.params.length Hsynthesis.indices.length
-          have hcv : mkRecInfos.loopArgs1.canonicalIndexVars
-              (decl.nparams + Hheader.target.numIndices) =
-              recursorCanonicalVars
-                (Hsynthesis.params.length + Hsynthesis.indices.length) := by
-            rw [hp, hn]; rfl
-          rw [hcv]
-          simpa [VExpr.liftN] using hsplit
-        have hscopeWF := halign.wf.toCtx
-        have hFK := HfamChkEq
-        rw [hsplitK] at hFK
-        have hfamMajor : Rindices.venv.IsDefEqU
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length
-            scope.toCtx famChk majorChk := by
-          rcases HmajorChk.source_defeq with ⟨w, hw⟩
-          exact ⟨_, hw.defeqDFC henvR.ordered
-            (halign.defeqCtx.symm henvR.ordered)⟩
-        have hdomK := hFK.trans henvR hscopeWF hfamMajor
-        have HKty := HfamNarrow.2.2
-        rw [hsplitK] at HKty
-        obtain ⟨vK, hKty⟩ := HKty
-        have hdomK' := hdomK.of_l henvR hscopeWF hKty
-        have HbodyK := VEnv.IsDefEq.forallEDF hdomK'
-          (VEnv.HasType.sort (.of_ofLevel Hframe.resultLevelOf))
-        have hnScope : indices.size ≤ scope.toCtx.length := by
-          rw [Hsynthesis.scopeCtx]
-          simp [Hsynthesis.indexCount, hindicesSize]
-        obtain ⟨_, hclose⟩ := VEnv.IsDefEqCtx.closeHeads halign.defeqCtx
-          indices.size hnScope HbodyK
-        have hscopeTake : (scope.toCtx.take indices.size).reverse =
-            Hsynthesis.indices := by
-          rw [Hsynthesis.scopeCtx, hindicesSize.trans Hsynthesis.indexCount.symm]
-          simp
-        have hscopeDrop : scope.toCtx.drop indices.size =
-            VLCtx.toCtx motiveSourceScope := by
-          rw [hmotiveSourceScopeCtx, Hsynthesis.scopeCtx,
-            hindicesSize.trans Hsynthesis.indexCount.symm]
-          simp
-        have hchkTakeCtx : (Rindices.chk.vlctx.toCtx.take indices.size).reverse =
-            MLCtxForallDomains Rindices.chk indices.size hnChk :=
-          (Rindices.check.onlyLams.forallDomains_eq_take_reverse _ _).symm
-        rw [hscopeTake, hscopeDrop, hchkTakeCtx,
-          ← TypeChecker.MLCtx.mkForall'_eq_wrapForalls] at hclose
-        have HmotiveSourceCanonical : Rindices.venv.IsDefEqU
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length
-            (VLCtx.toCtx motiveSourceScope) motiveSourceTarget
-            (VExpr.wrapForalls Hsynthesis.indices
-              (.forallE
-                (VExpr.mkApps
-                  ((VExpr.mkApps
-                    ((VExpr.const Hheader.target.name
-                      (Hheader.recursorAbstractLevels Helim)).liftN
-                        Hsynthesis.params.length 0)
-                    (recursorCanonicalVars Hsynthesis.params.length)).liftN
-                      Hsynthesis.indices.length 0)
-                  (recursorCanonicalVars Hsynthesis.indices.length))
-                (.sort Hframe.resultLevel))) := by
-          have hNT := HmotiveSourceEq.defeqDFC henvR.ordered
-            (hdropAlign.symm henvR.ordered).defeqCtx
-          exact hNT.symm.trans henvR hdropAlign.wf.toCtx ⟨_, hclose.symm⟩
-        let Hseed : RecursorMotiveTelescopeSeed Rmotive stats decl dIdx
-            nextInfo elimLevel := {
-          canonical := {
-            target_lt := htargetLt
-            params := Hsynthesis.params
-            indices := Hsynthesis.indices
-            levels := Hheader.recursorAbstractLevels Helim
-            family := VExpr.mkApps
-              ((VExpr.const Hheader.target.name
-                (Hheader.recursorAbstractLevels Helim)).liftN
-                  Hsynthesis.params.length 0)
-              (recursorCanonicalVars Hsynthesis.params.length)
-            familyResult := narrowTarget
-            motiveType := VExpr.wrapForalls Hsynthesis.indices
-              (.forallE
-                (VExpr.mkApps
-                  ((VExpr.mkApps
-                    ((VExpr.const Hheader.target.name
-                      (Hheader.recursorAbstractLevels Helim)).liftN
-                        Hsynthesis.params.length 0)
-                    (recursorCanonicalVars Hsynthesis.params.length)).liftN
-                      Hsynthesis.indices.length 0)
-                  (recursorCanonicalVars Hsynthesis.indices.length))
-                (.sort Hframe.resultLevel))
-            resultLevel := Hframe.resultLevel
-            params_length := Hsynthesis.parameterCount
-            indices_length := by
-              simpa [nextInfo] using Hsynthesis.indexCount.trans
-                hindicesSize.symm
-            levels_length := by
-              rw [htargetEq]
-              exact Hheader.recursorAbstractLevels_length Helim
-            levels_wf := Hheader.recursorAbstractLevels_wf Helim
-            levels_translation := hcanonicalLevelTranslation
-            family_eq := by rw [htargetEq]
-            motiveType_eq := rfl
-            family_typing := by
-              simpa [Rmotive, Rmajor] using
-                Hheader.recursorCanonicalFamilyPrefix Helim Rindices
-                  Hsynthesis henvIndices
-            familyApplicationType := by
-              let canonicalFamily := VExpr.mkApps
-                ((VExpr.const Hheader.target.name
-                  (Hheader.recursorAbstractLevels Helim)).liftN
-                    Hsynthesis.params.length 0)
-                (recursorCanonicalVars Hsynthesis.params.length)
-              let canonicalMajor := VExpr.mkApps
-                (canonicalFamily.liftN Hsynthesis.indices.length 0)
-                (recursorCanonicalVars Hsynthesis.indices.length)
-              let canonicalBody := VExpr.forallE canonicalMajor
-                (.sort Hframe.resultLevel)
-              have Hfamily :=
-                (Hheader.completedRecursorNarrowFamilyApplication Helim
-                  Rindices Hsynthesis HnarrowStats HnarrowIndices
-                  hindexCount hcanonical harity henvIndices).2.2
-              have hp : Hsynthesis.params.length = decl.nparams :=
-                Hsynthesis.parameterCount.trans Hheader.parameterCount
-              have hn : Hsynthesis.indices.length =
-                  Hheader.target.numIndices := by
-                have hguard : indices.size = stats.nindices[dIdx]! := by
-                  simpa using harity
-                have hfam : stats.nindices[dIdx]! =
-                    Hheader.target.numIndices := by
-                  simp [Array.getElem!_eq_getD, Hheader.indexCount]
-                rw [Hsynthesis.indexCount]
-                omega
-              have hsplit := VExpr.mkApps_canonical_add
-                (.const Hheader.target.name
-                  (Hheader.recursorAbstractLevels Helim))
-                Hsynthesis.params.length Hsynthesis.indices.length
-              have HcanonicalNarrow : Rindices.venv.IsType
-                  (AddInductive.getRecLevelParams elimLevel
-                    base.lparams).length scope.toCtx canonicalMajor := by
-                have hcv : mkRecInfos.loopArgs1.canonicalIndexVars
-                    (decl.nparams + Hheader.target.numIndices) =
-                    recursorCanonicalVars
-                      (Hsynthesis.params.length + Hsynthesis.indices.length) := by
-                  rw [hp, hn]; rfl
-                have hsplit' : VExpr.mkApps
-                    (.const Hheader.target.name
-                      (Hheader.recursorAbstractLevels Helim))
-                    (recursorCanonicalVars
-                      (Hsynthesis.params.length + Hsynthesis.indices.length)) =
-                    canonicalMajor := by
-                  simpa [canonicalMajor, canonicalFamily, VExpr.liftN] using
-                    hsplit
-                rw [hcv, hsplit'] at Hfamily
-                exact Hfamily
-              simpa [Rmotive, Rmajor, Hsynthesis.scopeCtx,
-                canonicalMajor, canonicalFamily] using HcanonicalNarrow
-            telescope := by
-              exact RecursorMotiveTelescope.wrapForalls Hsynthesis.indices
-                (VExpr.mkApps
-                  ((VExpr.const Hheader.target.name
-                    (Hheader.recursorAbstractLevels Helim)).liftN
-                      Hsynthesis.params.length 0)
-                  (recursorCanonicalVars Hsynthesis.params.length))
-                narrowTarget Hframe.resultLevel }
-          target_lt := htargetLt
-          indexCount := hseedIndexCount
-          family := (Hframe.familyTarget.lift'
-            (HmajorExtension.shift.consN 0)).lift'
-              (HmotiveExtension.shift.consN 0)
-          familyActualType :=
-            (Hcanonical.familyType.lift'
-              (HmajorExtension.shift.consN 0)).lift'
-                (HmotiveExtension.shift.consN 0)
-          familyType :=
-            (Hcanonical.familyType.lift'
-              (HmajorExtension.shift.consN 0)).lift'
-                (HmotiveExtension.shift.consN 0)
-          motiveActualType :=
-            Hframe.motiveTarget.lift' (HmotiveExtension.shift.consN 0)
-          motiveType :=
-            (Hcanonical.motiveType.lift'
-              (HmajorExtension.shift.consN 0)).lift'
-                (HmotiveExtension.shift.consN 0)
-          resultLevel := Hframe.resultLevel
-          indexUniverses := by
-            change (cMotive.lctx.mkForall indices (.sort .zero)).levelParamsIn
-              cIndices.lparams = true
-            rw [HindexOrigins.bound.mkForall_mono
-              (HmajorExtension.contextLE.trans HmotiveExtension.contextLE),
-              (Hroot.trans hIndices).lparams_eq]
-            exact hindexUniverses
-          motiveClosedScope :=
-            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
-          motiveClosedAmbient := Hsuffix.ambientDecls
-          motiveParameterScope := Hsuffix.parameterDecls
-          motiveClosedContext := by
-            change (Rindices.mlctx.dropN indices.size hclosedSize).vlctx =
-              Hsuffix.ambientDecls ++ Hsuffix.parameterDecls
-            rw [show hclosedSize = Hrecent.size_le from rfl,
-              Hrecent.drop_eq]
-            exact Hsuffix.context
-          motiveParameterAlignment := by
-            change VEnv.IsDefEqCtx Rindices.venv
-              (AddInductive.getRecLevelParams elimLevel base.lparams).length
-              [] Hsynthesis.params.reverse Hsuffix.parameterDecls.toCtx
-            rw [← hcanonicalParams]
-            exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
-              rw [← Hsynthesis.scopeCtx]
-              exact Hsynthesis.scopeWF.toCtx))
-          motiveParameterDecls := Hsuffix.cached
-          motiveSourceScope := motiveSourceScope
-          motiveSourceExpanded := motiveSourceExpanded
-          motiveSourceShift := motiveSourceShift
-          motiveSourceAlignment := by
-            change VEnv.IsDefEqCtx Rindices.venv
-              (AddInductive.getRecLevelParams elimLevel base.lparams).length
-              [] Hsynthesis.params.reverse (VLCtx.toCtx motiveSourceScope)
-            rw [hmotiveSourceScopeCtx]
-            exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
-              rw [← Hsynthesis.scopeCtx]
-              exact Hsynthesis.scopeWF.toCtx))
-          motiveSourceParameterScope := hmotiveSourceParameterScope
-          motiveSourceLift := HmotiveSourceLift
-          motiveSourceContext := HmotiveSourceContext
-          motiveSourceNoBV := HmotiveSourceNoBV
-          motiveSourceFVars := by
-            rw [← hnewMotiveShape', Hframe.motiveSourceEq]
-            exact HmotiveSourceFVarsNarrow
-          motiveSourceTarget := motiveSourceTarget
-          motiveSourceTr := by
-            rw [hmotiveSourceShape]
-            exact HmotiveSourceTr
-          motiveSourceType := HmotiveSourceType
-          motiveSourceCanonical := HmotiveSourceCanonical
-          motiveSourceWF := hdropAlign.wf
-          motiveClosedTarget := motiveClosedTarget
-          motiveClosedTr := HmotiveClosedTrSeed
-          motiveClosedType := HmotiveClosedTypeSeed
-          motiveClosedCanonicalTarget :=
-            VExpr.wrapForalls Hruntime.frontExpandedDomains
-              (.forallE Hframe.majorSourceTarget
-                (.sort Hframe.resultLevel))
-          motiveClosedCanonicalEq := by
-            let canonicalBody := VExpr.forallE
-              (VExpr.mkApps
-                ((VExpr.mkApps
-                  (.const Hheader.target.name
-                    (Hheader.recursorAbstractLevels Helim))
-                  (recursorCanonicalVars Hsynthesis.params.length)).liftN
-                    Hsynthesis.indices.length 0)
-                (recursorCanonicalVars Hsynthesis.indices.length))
-              (.sort Hframe.resultLevel)
-            have Hclose := Hruntime.front.closeAtBase motiveSourceShift
-              hmotiveSourceShift canonicalBody
-            have hbody := hcanonicalMotiveBody
-            dsimp only at hbody
-            rw [hfront, hbody] at Hclose
-            simpa [canonicalBody, VExpr.liftN] using Hclose
-          motiveClosedCanonicalDefEq := by
-            change Rindices.venv.IsDefEqU
-              (AddInductive.getRecLevelParams elimLevel base.lparams).length
-              (Rindices.mlctx.dropN indices.size hclosedSize).vlctx.toCtx
-              motiveClosedTarget
-              (VExpr.wrapForalls Hruntime.frontExpandedDomains
-                (.forallE Hframe.majorSourceTarget
-                  (.sort Hframe.resultLevel)))
-            rw [Rindices.onlyLams.toCtx_dropN indices.size hclosedSize]
-            rw [hmotiveClosedTarget]
-            exact HmotiveCanonicalClosed
-          motiveReopenedCanonicalTarget :=
-            (((VExpr.wrapForalls Hruntime.frontExpandedDomains
-              (.forallE Hframe.majorSourceTarget
-                (.sort Hframe.resultLevel))).liftN indices.size 0).lift'
-                  (HmajorExtension.shift.consN 0)).lift'
-                    (HmotiveExtension.shift.consN 0)
-          motiveTypeCanonicalEq := by
-            rw [hcanonicalMotiveReopen]
-          familyUnique := HnarrowStats.familyPrefixUnique dIdx htargetLt
-          familyTr := HfamilyTrSeed
-          familyTyping := HfamilyTypingSeed
-          familyTypeDefEq := HfamilyTypeDefEq
-          indicesBound := HindicesAtMotive
-          majorBound := HmajorAtMotiveBound
-          motiveTypeTr := HmotiveTypeTrSeed
-          motiveTypeDefEq := HmotiveTypeDefEqSeed
-          telescope := (Hcanonical.telescope.lift'
-            (HmajorExtension.shift.consN 0)).lift'
-              (HmotiveExtension.shift.consN 0) }
-        have HseedParams0 :
-            VEnv.IsDefEqCtx Rmotive.venv
-              (AddInductive.getRecLevelParams elimLevel base.lparams).length
-              [] Hseed.canonical.params.reverse
-                Hsuffix.parameterDecls.toCtx := by
-          change VEnv.IsDefEqCtx Rindices.venv
-            (AddInductive.getRecLevelParams elimLevel base.lparams).length []
-            Hsynthesis.params.reverse Hsuffix.parameterDecls.toCtx
-          rw [← hcanonicalParams]
-          exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
-            rw [← Hsynthesis.scopeCtx]
-            exact Hsynthesis.scopeWF.toCtx))
         have HseedPair :
             ∃ S : RecursorMotiveTelescopeSeed Rmotive stats decl
                 recInfos.size nextInfo elimLevel,
@@ -1084,7 +1438,11 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
                 [] S.canonical.params.reverse
                   Hsuffix.parameterDecls.toCtx := by
           rw [hprogress]
-          exact ⟨Hseed, HseedParams0⟩
+          exact motiveTelescopeSeed Hheader hconsume Hsuffix Hroot Rindices
+            henvIndices Hsynthesis hcanonicalParams hscopeBase HnarrowStats
+            Hruntime hfront halign HnarrowIndices hindexCount hcanonical
+            HindexOrigins.bound Hrecent hindexUniverses harity Hframe
+            motiveName
         rcases HseedPair with ⟨Hseed', HseedParams⟩
         have HseedAt : RecursorMotiveTelescopeAt Rmotive stats decl
             recInfos.size nextInfo elimLevel := Hseed'.toTelescopeAt
@@ -1106,16 +1464,10 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             indices
             major }) k Rmotive (by simpa [Rmotive, Rmajor] using henvIndices)
           HsuffixMotive HparamsCtx' HstatsMotive Hbindings' Horigins'
-          ?_ ?_ ?_ ?_ (by
-            simpa [hparameterDeclsMotive] using Htelescopes') ?_ Hparams'
+          HmajorAtMotive HmajorShapes' HmotiveAtMotive HmotiveShapes' (by
+            simpa [hparameterDeclsMotive] using Htelescopes') HindexRows' Hparams'
           HnoAlias' Horder'
-          (Hroot.trans <| hIndices.trans <|
-            (BindingContextLE.withLocalDecl cIndices
-              Rindices.toBindingContextWF `t majorTy .default).trans <|
-              BindingContextLE.withLocalDecl cMajor
-                (Rindices.toBindingContextWF.withLocalDecl
-                  `t majorTy .default)
-                motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default)
+          (Hroot.trans hAllFrames)
           (by simp [hprogress])
           (by
             apply Harities.push
@@ -1123,40 +1475,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               simpa using harity
             simpa [hprogress] using hnew)
           Hempty.push Hblueprints.pushEmpty
-          (hparamU.mono Hparams <| hIndices.trans <|
-            (BindingContextLE.withLocalDecl cIndices
-              Rindices.toBindingContextWF `t majorTy .default).trans <|
-              BindingContextLE.withLocalDecl cMajor
-                (Rindices.toBindingContextWF.withLocalDecl
-                  `t majorTy .default)
-                motiveName (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default)
+          (hparamU.mono Hparams hAllFrames)
           HindexTraces' ?_
-        · change RecursorTranslatedOriginTypes Rmotive
-            (Horigins.majorTypes.push majorTy)
-          exact HmajorAtMotive
-        · change RecInfoMajorTypeShapes stats
-            (recInfos.push {
-              motive := .fvar ⟨cMajor.ngen.curr⟩
-              minors := #[]
-              indices
-              major })
-            (Horigins.majorTypes.push majorTy) cMotive.env.isTypeAnnotationWrapper
-          exact HmajorShapes'
-        · change RecursorTranslatedOriginTypes Rmotive
-            (Horigins.motiveTypes.push (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper))
-          exact HmotiveAtMotive
-        · change RecInfoMotiveTypeShapes cMotive
-            (recInfos.push {
-              motive := .fvar ⟨cMajor.ngen.curr⟩
-              minors := #[]
-              indices
-              major })
-            (Horigins.motiveTypes.push (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper))
-            elimLevel
-          exact HmotiveShapes'
-        · change RecursorTranslatedOriginTypeRows Rmotive
-            (Horigins.indexTypes.push indexOrigins)
-          exact HindexRows'
         · intro cOut outDepth out Rout henvOut HsuffixOut
             hparameterDeclsOut HstatsOut HbindingsOut
             HoriginsOut HmajorOut HmajorShapesOut HmotiveOut HmotiveShapesOut
