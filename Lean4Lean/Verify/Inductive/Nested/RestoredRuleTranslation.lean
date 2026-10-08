@@ -21,7 +21,7 @@ open InductiveSignature (Restoration HeadSpecialization instantiateParams)
 
 namespace VerifyInductive
 
-theorem Expr.HitTrailAvoids.toHitTrailWith {heads names : List Name} {np : Nat}
+theorem _root_.Lean.Expr.HitTrailAvoids.toHitTrailWith {heads names : List Name} {np : Nat}
     {e : Expr} (H : e.HitTrailAvoids heads names np) :
     e.HitTrailWith heads np (·.AvoidsConsts names) := by
   induction H with
@@ -38,13 +38,13 @@ theorem Expr.HitTrailAvoids.toHitTrailWith {heads names : List Name} {np : Nat}
   | mdata _ ih => exact .mdata ih
   | proj _ ih => exact .proj ih
 
-theorem Expr.LamPrefixAvoids.lamDomainsOnly {names : List Name} :
+theorem _root_.Lean.Expr.LamPrefixAvoids.lamDomainsOnly {names : List Name} :
     ∀ {n : Nat} {e : Expr}, e.LamPrefixAvoids names n →
       (Expr.lamDomainsOnly n e).AvoidsConsts names
   | 0, _, _ => by simpa [Expr.lamDomainsOnly] using Lean.Expr.AvoidsConsts.sort _
   | _ + 1, _, .succ hd hb => by
     simp only [Expr.lamDomainsOnly]
-    exact .lam _ _ _ _ hd (Expr.LamPrefixAvoids.lamDomainsOnly hb)
+    exact .lam _ _ _ _ hd (Lean.Expr.LamPrefixAvoids.lamDomainsOnly hb)
 
 theorem Expr.ProjsOK.lamDomainsOnly {ok : Name → Prop} :
     ∀ (n : Nat) {e : Expr}, e.ProjsOK ok → (Expr.lamDomainsOnly n e).ProjsOK ok
@@ -69,8 +69,8 @@ theorem NestedRestorationOpening.translatesLambdaTrail
     (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
     {decl : VInductDecl} {auxiliaries : List InductiveSignature.ContainerSpecialization}
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
-    {auxRec : NameMap Name} {Us : List Name}
-    (D : RestorationTableData decl auxiliaries result env auxRec Us)
+    {auxRec : NameMap Name} {Us₀ Us : List Name}
+    (D : RestorationTableData decl auxiliaries result env auxRec Us₀)
     (hr : r = InductiveSignature.compilationRestoration decl auxiliaries)
     {input output suffix : Expr} {s : VExpr}
     (Hopen : NestedRestorationOpening result env auxRec input output)
@@ -78,11 +78,14 @@ theorem NestedRestorationOpening.translatesLambdaTrail
     (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
     (Hlits : ∀ l, envL.ContainsLits l → envT.ContainsLits l)
     (Hlitnames : ∀ l : Literal, l.toConstructor.AvoidsConsts r.restorableNames)
-    (Hheads : ∀ MT : TypeChecker.MLCtx, MT.lctx = Hopen.lctx → MT.WF envT Us →
-      RestoreHeadsTranslate r result env envT Us (Us.map Level.param) Hopen.params MT.vlctx)
+    (Hheads : ∀ (Ds Dt : List VExpr) (Δt0 : VLCtx) (sR : VExpr),
+      s = VExpr.wrapLams Ds sR → Ds.length = result.nparams →
+      List.Forall₂ (fun x y => r.expr x = some y) Ds Dt →
+      VLCtx.SameUpToDeps (fvarScope Hopen.selection.fvars Dt) Δt0 →
+      RestoreHeadsTranslate r result env envT Us (Us₀.map Level.param) Hopen.params Δt0)
     (Htel : Expr.LambdaTelescope input result.nparams suffix)
     (Hshape : Expr.HitShapeTele (r.heads.map (·.auxiliary)) result.nparams
-      (Us.map Level.param) input)
+      (Us₀.map Level.param) input)
     (Htrail : input.HitTrailAvoids (r.heads.map (·.auxiliary)) r.restorableNames
       result.nparams)
     (Hdom : input.LamPrefixAvoids r.restorableNames result.nparams)

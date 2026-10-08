@@ -895,6 +895,112 @@ theorem RestoreTypedCtx.vlam'
     hd _ Hσ
   exact .succ H.defeq h1
 
+/-! ### Contexts differing only in recorded dependencies -/
+
+/-- Two translation contexts with the same declarations and the same free
+variables, whose recorded dependency lists may differ. Lookups and the typing
+context ignore the dependency lists. -/
+inductive VLCtx.SameUpToDeps : VLCtx → VLCtx → Prop
+  | nil : VLCtx.SameUpToDeps [] []
+  | none {Δ₁ Δ₂ : VLCtx} {d : VLocalDecl} :
+      VLCtx.SameUpToDeps Δ₁ Δ₂ → VLCtx.SameUpToDeps ((none, d) :: Δ₁) ((none, d) :: Δ₂)
+  | some {Δ₁ Δ₂ : VLCtx} {d : VLocalDecl} {fv : FVarId} {deps₁ deps₂ : List FVarId} :
+      VLCtx.SameUpToDeps Δ₁ Δ₂ →
+      VLCtx.SameUpToDeps ((some (fv, deps₁), d) :: Δ₁) ((some (fv, deps₂), d) :: Δ₂)
+
+theorem VLCtx.SameUpToDeps.find? {Δ₁ Δ₂ : VLCtx} (H : VLCtx.SameUpToDeps Δ₁ Δ₂) :
+    ∀ v, Δ₁.find? v = Δ₂.find? v := by
+  induction H with
+  | nil => intro v; rfl
+  | none _ ih => intro v; simp only [VLCtx.find?, ih]
+  | some _ ih =>
+    intro v
+    cases v with
+    | inl n => simp only [VLCtx.find?, VLCtx.next, ih]
+    | inr fv' =>
+      simp only [VLCtx.find?, VLCtx.next]
+      split <;> simp [ih]
+
+theorem VLCtx.SameUpToDeps.toCtx {Δ₁ Δ₂ : VLCtx} (H : VLCtx.SameUpToDeps Δ₁ Δ₂) :
+    Δ₁.toCtx = Δ₂.toCtx := by
+  induction H with
+  | nil => rfl
+  | @none _ _ d _ ih | @some _ _ d _ _ _ _ ih => cases d <;> simp [VLCtx.toCtx, ih]
+
+theorem TrExprS.sameUpToDeps {env : VEnv} {Us : List Name} {Δ₁ Δ₂ : VLCtx}
+    {e : Expr} {v : VExpr} (H : TrExprS env Us Δ₁ e v)
+    (hΔ : VLCtx.SameUpToDeps Δ₁ Δ₂) : TrExprS env Us Δ₂ e v := by
+  induction H generalizing Δ₂ with
+  | bvar h => exact .bvar (hΔ.find? _ ▸ h)
+  | fvar h => exact .fvar (hΔ.find? _ ▸ h)
+  | sort h => exact .sort h
+  | const h1 h2 h3 => exact .const h1 h2 h3
+  | app h1 h2 _ _ ih1 ih2 =>
+    exact .app (hΔ.toCtx ▸ h1) (hΔ.toCtx ▸ h2) (ih1 hΔ) (ih2 hΔ)
+  | lam h1 _ _ ih1 ih2 => exact .lam (hΔ.toCtx ▸ h1) (ih1 hΔ) (ih2 hΔ.none)
+  | forallE h1 h2 _ _ ih1 ih2 =>
+    exact .forallE (hΔ.toCtx ▸ h1) (hΔ.toCtx ▸ h2) (ih1 hΔ) (ih2 hΔ.none)
+  | letE h1 _ _ _ ih1 ih2 ih3 =>
+    exact .letE (hΔ.toCtx ▸ h1) (ih1 hΔ) (ih2 hΔ) (ih3 hΔ.none)
+  | lit h _ ih => exact .lit h (ih hΔ)
+  | mdata _ ih => exact .mdata (ih hΔ)
+  | proj _ hp ih => exact .proj (ih hΔ) (hΔ.toCtx ▸ hp)
+
+
+/-- The binder types of a metacontext, outermost first (lets are skipped). -/
+def MLCtx.types : TypeChecker.MLCtx → List VExpr
+  | .nil => []
+  | .vlam _ _ _ ty' _ c => MLCtx.types c ++ [ty']
+  | .vlet _ _ _ _ _ _ c => MLCtx.types c
+
+/-- The free variables of a metacontext, outermost first. -/
+def MLCtx.fvarsOuter : TypeChecker.MLCtx → List FVarId
+  | .nil => []
+  | .vlam id _ _ _ _ c => MLCtx.fvarsOuter c ++ [id]
+  | .vlet id _ _ _ _ _ c => MLCtx.fvarsOuter c ++ [id]
+
+theorem MLCtx.mkLambda'_full : ∀ (c : TypeChecker.MLCtx), MLCtxAvoids r c → ∀ (X : VExpr),
+    c.mkLambda' c.length (Nat.le_refl _) X = VExpr.wrapLams (MLCtx.types c) X
+  | .nil, _, _ => rfl
+  | .vlet .., h, _ => h.elim
+  | .vlam _ _ _ ty' _ c, ⟨_, _, h⟩, X => by
+    simp only [TypeChecker.MLCtx.mkLambda', TypeChecker.MLCtx.length, MLCtx.types]
+    rw [MLCtx.mkLambda'_full c h]
+    simp [VExpr.wrapLams]
+
+theorem fvarScope_append_single : ∀ (fs : List FVarId) (ds : List VExpr) (f : FVarId)
+    (d : VExpr), fs.length = ds.length →
+    fvarScope (fs ++ [f]) (ds ++ [d]) = (some (f, []), .vlam d) :: fvarScope fs ds
+  | [], [], _, _, _ => by simp [fvarScope]
+  | [], _ :: _, _, _, h => by simp at h
+  | _ :: _, [], _, _, h => by simp at h
+  | f' :: fs, d' :: ds, f, d, h => by
+    simp only [List.cons_append, fvarScope]
+    rw [fvarScope_append_single fs ds f d (by simpa using h)]
+    rfl
+
+theorem MLCtx.types_length : ∀ (c : TypeChecker.MLCtx), MLCtxAvoids r c →
+    (MLCtx.types c).length = (MLCtx.fvarsOuter c).length
+  | .nil, _ => rfl
+  | .vlet .., h => h.elim
+  | .vlam _ _ _ _ _ c, ⟨_, _, h⟩ => by
+    simp [MLCtx.types, MLCtx.fvarsOuter, MLCtx.types_length c h]
+
+theorem MLCtx.sameUpToDeps_fvarScope : ∀ (c : TypeChecker.MLCtx), MLCtxAvoids r c →
+    VLCtx.SameUpToDeps (fvarScope (MLCtx.fvarsOuter c) (MLCtx.types c)) c.vlctx
+  | .nil, _ => .nil
+  | .vlet .., h => h.elim
+  | .vlam _ _ _ _ _ c, ⟨_, _, h⟩ => by
+    simp only [MLCtx.fvarsOuter, MLCtx.types, TypeChecker.MLCtx.vlctx]
+    rw [fvarScope_append_single _ _ _ _ (MLCtx.types_length c h).symm]
+    exact .some (MLCtx.sameUpToDeps_fvarScope c h)
+
+theorem MLCtx.fvarRevList_full_eq : ∀ (c : TypeChecker.MLCtx),
+    c.fvarRevList c.length (Nat.le_refl _) = (MLCtx.fvarsOuter c).reverse
+  | .nil => rfl
+  | .vlam _ _ _ _ _ c | .vlet _ _ _ _ _ _ c => by
+    simp [TypeChecker.MLCtx.fvarRevList, MLCtx.fvarsOuter, MLCtx.fvarRevList_full_eq c]
+
 /-- **Restoration of a metacontext of binders**: the binder types translate in
 the target environment to the restorations of their lowered translations. -/
 theorem MLCtx.restore
@@ -909,7 +1015,9 @@ theorem MLCtx.restore
       (∀ n hn hn' X Y, r.expr X = some Y →
         r.expr (ML.mkForall' n hn X) = some (MT.mkForall' n hn' Y)) ∧
       (∀ n hn hn' X Y, r.expr X = some Y →
-        r.expr (ML.mkLambda' n hn X) = some (MT.mkLambda' n hn' Y))
+        r.expr (ML.mkLambda' n hn X) = some (MT.mkLambda' n hn' Y)) ∧
+      MLCtxAvoids r MT ∧ MLCtx.fvarsOuter MT = MLCtx.fvarsOuter ML ∧
+      List.Forall₂ (fun x y => r.expr x = some y) (MLCtx.types ML) (MLCtx.types MT)
   | .nil, _, _ => ⟨.nil, rfl, trivial, rfl, RestoreTypedCtx.nil,
       fun n hn hn' X Y h => by
         cases n with
@@ -918,16 +1026,18 @@ theorem MLCtx.restore
       fun n hn hn' X Y h => by
         cases n with
         | zero => simpa using h
-        | succ n => simp at hn⟩
+        | succ n => simp at hn, trivial, rfl, .nil⟩
   | .vlet .., _, h => h.elim
   | .vlam id name ty tyL bi c, hwf, ⟨hav, hprojs, hrest⟩ => by
     obtain ⟨hcwf, hfresh, Hty, HtyType⟩ := hwf
-    obtain ⟨MT, hlctx, hMwf, hlen, Hctx, hfor, hlam⟩ := MLCtx.restore S hβ hc Hlits c hcwf hrest
+    obtain ⟨MT, hlctx, hMwf, hlen, Hctx, hfor, hlam, havT, hfvT, htysT⟩ :=
+      MLCtx.restore S hβ hc Hlits c hcwf hrest
     obtain ⟨tyT, HtyT, hr⟩ := translate_avoids_exists S hβ hc Hlits hav hprojs Hctx Hty
     have hok := Hty.projNamesOK_of_source hprojs Hctx.projs
     refine ⟨.vlam id name ty tyT bi MT, by simp [TypeChecker.MLCtx.lctx, hlctx],
       ⟨hMwf, by rw [hlctx]; exact hfresh, HtyT, Hctx.isType S hβ HtyType hr hok⟩,
-      by simp [hlen], ?_, ?_, ?_⟩
+      by simp [hlen], ?_, ?_, ?_, ⟨hav, hprojs, havT⟩,
+      by simp [MLCtx.fvarsOuter, hfvT], ?_⟩
     · have hwf' : (TypeChecker.MLCtx.vlam id name ty tyL bi c).WF envL Us :=
         ⟨hcwf, hfresh, Hty, HtyType⟩
       exact Hctx.vlam' S hβ hwf'.tr.wf hr hok
@@ -943,6 +1053,8 @@ theorem MLCtx.restore
       | succ n =>
         simp only [TypeChecker.MLCtx.mkLambda']
         exact hlam n _ _ _ _ (restoration_expr_lam hr h)
+    · simp only [MLCtx.types]
+      exact forall₂_append' htysT (.cons hr .nil)
 
 
 theorem MLCtx.eq_nil_of_length : ∀ {c : TypeChecker.MLCtx}, c.length = 0 → c = .nil
@@ -988,7 +1100,7 @@ theorem NestedRestorationOpening.translatesForall
     simp at this
     omega
   rcases MLCtx.restore S hβ hc Hlits ML hMLwf havML with
-    ⟨MT, hMT, hMTwf, hlen, Hctx, hfor, -⟩
+    ⟨MT, hMT, hMTwf, hlen, Hctx, hfor, -, -, -, -⟩
   have hn' : result.nparams ≤ MT.length := by omega
   have hparams := Hopen.selection.expressions
   have hlenSel : Hopen.selection.fvars.length = result.nparams :=
@@ -1133,8 +1245,11 @@ theorem NestedRestorationOpening.translatesLambda
     (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
     (Hlits : ∀ l, envL.ContainsLits l → envT.ContainsLits l)
     (Hlitnames : ∀ l : Literal, l.toConstructor.AvoidsConsts r.restorableNames)
-    (Hheads : ∀ MT : TypeChecker.MLCtx, MT.lctx = Hopen.lctx → MT.WF envT Us →
-      RestoreHeadsTranslate r result env envT Us auxLevels Hopen.params MT.vlctx)
+    (Hheads : ∀ (Ds Dt : List VExpr) (Δt0 : VLCtx) (sR : VExpr),
+      s = VExpr.wrapLams Ds sR → Ds.length = result.nparams →
+      List.Forall₂ (fun x y => r.expr x = some y) Ds Dt →
+      VLCtx.SameUpToDeps (fvarScope Hopen.selection.fvars Dt) Δt0 →
+      RestoreHeadsTranslate r result env envT Us auxLevels Hopen.params Δt0)
     (Htel : Expr.LambdaTelescope input result.nparams suffix)
     (Hav : (Expr.lamDomainsOnly result.nparams input).AvoidsConsts r.restorableNames)
     (Hpj : (Expr.lamDomainsOnly result.nparams input).ProjsOK (· ∉ r.restorableNames))
@@ -1155,7 +1270,7 @@ theorem NestedRestorationOpening.translatesLambda
     simp at this
     omega
   rcases MLCtx.restore S hβ hc Hlits ML hMLwf havML with
-    ⟨MT, hMT, hMTwf, hlen, Hctx, -, hlam⟩
+    ⟨MT, hMT, hMTwf, hlen, Hctx, -, hlam, havMT, hfvMT, htysMT⟩
   have hn' : result.nparams ≤ MT.length := by omega
   have hparams := Hopen.selection.expressions
   have HAs : ∀ a ∈ Hopen.params.toList, ∃ fv, a = .fvar fv := by
@@ -1165,8 +1280,40 @@ theorem NestedRestorationOpening.translatesLambda
     rcases ha with ⟨fv, _, rfl⟩
     exact ⟨fv, rfl⟩
   have hsize : Hopen.params.size = result.nparams := Hopen.opening.initial_size
+  have harr : Hopen.params.toList.reverse =
+      (MT.fvarRevList result.nparams hn').map Expr.fvar := by
+    have hall : MT.fvarRevList result.nparams hn' = MT.vlctx.fvars := by
+      have key : ∀ (c : TypeChecker.MLCtx) (n : Nat) (h : n ≤ c.length), n = c.length →
+          c.fvarRevList n h = c.vlctx.fvars := by
+        rintro c n h rfl; exact c.fvarRevList_all
+      exact key MT _ hn' (by omega)
+    rw [hall, ← hMTwf.tr.fvars_eq, hMT, hML]
+    exact Hopen.opening.root_params_reverse_fvars
+  have hfvOuter : MLCtx.fvarsOuter MT = Hopen.selection.fvars := by
+    have key : ∀ (c : TypeChecker.MLCtx) (n : Nat) (h : n ≤ c.length), n = c.length →
+        c.fvarRevList n h = (MLCtx.fvarsOuter c).reverse := by
+      rintro c n h rfl; exact MLCtx.fvarRevList_full_eq c
+    have h1 := harr
+    rw [key MT _ hn' (by omega), hparams] at h1
+    simp only [List.map_reverse] at h1
+    have h2 := congrArg List.reverse h1
+    simp only [List.reverse_reverse] at h2
+    exact ((List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp h2).symm
+  have hDs : s = VExpr.wrapLams (MLCtx.types ML) sR := by
+    rw [hs]
+    have key : ∀ (c : TypeChecker.MLCtx) (n : Nat) (h : n ≤ c.length), n = c.length →
+        MLCtxAvoids r c → c.mkLambda' n h sR = VExpr.wrapLams (MLCtx.types c) sR := by
+      rintro c n h rfl hc; exact MLCtx.mkLambda'_full c hc sR
+    exact key ML _ hn (by omega) havML
+  have hDsLen : (MLCtx.types ML).length = result.nparams := by
+    rw [MLCtx.types_length ML havML]
+    have key : ∀ (c : TypeChecker.MLCtx), (MLCtx.fvarsOuter c).length = c.length := by
+      intro c; induction c <;> simp [MLCtx.fvarsOuter, *]
+    rw [key]; omega
+  have Hheads' := Hheads (MLCtx.types ML) (MLCtx.types MT) MT.vlctx sR hDs hDsLen htysMT
+    (by rw [← hfvOuter]; exact MLCtx.sameUpToDeps_fvarScope MT havMT)
   rcases restorationTranslates' S hLwf.ordered hβ A hc HAs hsize Hlits Hlitnames
-      (Hheads MT (hMT.trans hML) hMTwf) Hshape Htrail Hprojs Hctx ⟨0, 0, .refl⟩ HsR with
+      Hheads' Hshape Htrail Hprojs Hctx ⟨0, 0, .refl⟩ HsR with
     ⟨tR, HtR, hr⟩
   rw [← Hopen.replacement.eq_replace] at HtR
   have hokR := HsR.projNamesOK_of_source Hprojs Hctx.projs
@@ -1213,57 +1360,6 @@ theorem NestedRestorationOpening.translatesLambda
   rw [hs]
   exact hlam _ _ _ _ _ hr
 
-
-/-! ### Contexts differing only in recorded dependencies -/
-
-/-- Two translation contexts with the same declarations and the same free
-variables, whose recorded dependency lists may differ. Lookups and the typing
-context ignore the dependency lists. -/
-inductive VLCtx.SameUpToDeps : VLCtx → VLCtx → Prop
-  | nil : VLCtx.SameUpToDeps [] []
-  | none {Δ₁ Δ₂ : VLCtx} {d : VLocalDecl} :
-      VLCtx.SameUpToDeps Δ₁ Δ₂ → VLCtx.SameUpToDeps ((none, d) :: Δ₁) ((none, d) :: Δ₂)
-  | some {Δ₁ Δ₂ : VLCtx} {d : VLocalDecl} {fv : FVarId} {deps₁ deps₂ : List FVarId} :
-      VLCtx.SameUpToDeps Δ₁ Δ₂ →
-      VLCtx.SameUpToDeps ((some (fv, deps₁), d) :: Δ₁) ((some (fv, deps₂), d) :: Δ₂)
-
-theorem VLCtx.SameUpToDeps.find? {Δ₁ Δ₂ : VLCtx} (H : VLCtx.SameUpToDeps Δ₁ Δ₂) :
-    ∀ v, Δ₁.find? v = Δ₂.find? v := by
-  induction H with
-  | nil => intro v; rfl
-  | none _ ih => intro v; simp only [VLCtx.find?, ih]
-  | some _ ih =>
-    intro v
-    cases v with
-    | inl n => simp only [VLCtx.find?, VLCtx.next, ih]
-    | inr fv' =>
-      simp only [VLCtx.find?, VLCtx.next]
-      split <;> simp [ih]
-
-theorem VLCtx.SameUpToDeps.toCtx {Δ₁ Δ₂ : VLCtx} (H : VLCtx.SameUpToDeps Δ₁ Δ₂) :
-    Δ₁.toCtx = Δ₂.toCtx := by
-  induction H with
-  | nil => rfl
-  | @none _ _ d _ ih | @some _ _ d _ _ _ _ ih => cases d <;> simp [VLCtx.toCtx, ih]
-
-theorem TrExprS.sameUpToDeps {env : VEnv} {Us : List Name} {Δ₁ Δ₂ : VLCtx}
-    {e : Expr} {v : VExpr} (H : TrExprS env Us Δ₁ e v)
-    (hΔ : VLCtx.SameUpToDeps Δ₁ Δ₂) : TrExprS env Us Δ₂ e v := by
-  induction H generalizing Δ₂ with
-  | bvar h => exact .bvar (hΔ.find? _ ▸ h)
-  | fvar h => exact .fvar (hΔ.find? _ ▸ h)
-  | sort h => exact .sort h
-  | const h1 h2 h3 => exact .const h1 h2 h3
-  | app h1 h2 _ _ ih1 ih2 =>
-    exact .app (hΔ.toCtx ▸ h1) (hΔ.toCtx ▸ h2) (ih1 hΔ) (ih2 hΔ)
-  | lam h1 _ _ ih1 ih2 => exact .lam (hΔ.toCtx ▸ h1) (ih1 hΔ) (ih2 hΔ.none)
-  | forallE h1 h2 _ _ ih1 ih2 =>
-    exact .forallE (hΔ.toCtx ▸ h1) (hΔ.toCtx ▸ h2) (ih1 hΔ) (ih2 hΔ.none)
-  | letE h1 _ _ _ ih1 ih2 ih3 =>
-    exact .letE (hΔ.toCtx ▸ h1) (ih1 hΔ) (ih2 hΔ) (ih3 hΔ.none)
-  | lit h _ ih => exact .lit h (ih hΔ)
-  | mdata _ ih => exact .mdata (ih hΔ)
-  | proj _ hp ih => exact .proj (ih hΔ) (hΔ.toCtx ▸ hp)
 
 end VerifyInductive
 end Lean4Lean
