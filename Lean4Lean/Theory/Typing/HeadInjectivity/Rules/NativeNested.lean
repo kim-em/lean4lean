@@ -25,22 +25,22 @@ theorem Restoration.expr_forall_parts {r : Restoration} {domain body restored : 
   obtain ⟨domain', hd, body', hb, h⟩ := h
   exact ⟨domain', body', hd, hb, Option.some.inj h.symm⟩
 
-theorem Restoration.expr_wrapLams {r : Restoration} : ∀ {ds : List VExpr} {b out : VExpr},
+theorem Restoration.expr_wrapLams_parts {r : Restoration} : ∀ {ds : List VExpr} {b out : VExpr},
     r.expr (.wrapLams ds b) = some out →
     ∃ ds' b', ds.mapM r.expr = some ds' ∧ r.expr b = some b' ∧ out = .wrapLams ds' b'
   | [], b, out, h => ⟨[], out, rfl, h, rfl⟩
   | d :: ds, b, out, h => by
     obtain ⟨d', body', hd, hb, rfl⟩ := Restoration.expr_lam_parts h
-    obtain ⟨ds', b', hds, hb', rfl⟩ := Restoration.expr_wrapLams hb
+    obtain ⟨ds', b', hds, hb', rfl⟩ := Restoration.expr_wrapLams_parts hb
     exact ⟨d' :: ds', b', by simp [List.mapM_cons, hd, hds], hb', rfl⟩
 
-theorem Restoration.expr_wrapForalls {r : Restoration} : ∀ {ds : List VExpr} {b out : VExpr},
+theorem Restoration.expr_wrapForalls_parts {r : Restoration} : ∀ {ds : List VExpr} {b out : VExpr},
     r.expr (.wrapForalls ds b) = some out →
     ∃ ds' b', ds.mapM r.expr = some ds' ∧ r.expr b = some b' ∧ out = .wrapForalls ds' b'
   | [], b, out, h => ⟨[], out, rfl, h, rfl⟩
   | d :: ds, b, out, h => by
     obtain ⟨d', body', hd, hb, rfl⟩ := Restoration.expr_forall_parts h
-    obtain ⟨ds', b', hds, hb', rfl⟩ := Restoration.expr_wrapForalls hb
+    obtain ⟨ds', b', hds, hb', rfl⟩ := Restoration.expr_wrapForalls_parts hb
     exact ⟨d' :: ds', b', by simp [List.mapM_cons, hd, hds], hb', rfl⟩
 
 theorem mapM_length {f : VExpr → Option VExpr} : ∀ {l l' : List VExpr},
@@ -125,9 +125,9 @@ theorem restored_equation {r : Restoration} {df : VDefEq}
     simp only [Restoration.equation, bind, Option.bind_eq_some_iff] at he
     obtain ⟨_, _, _, _, _, _, h⟩ := he
     cases h; rfl
-  obtain ⟨ds', l, hds, hl', el⟩ := Restoration.expr_wrapLams (ds := g.eqDoms index) hl
-  obtain ⟨ds2, body', hds2, -, er⟩ := Restoration.expr_wrapLams (ds := g.eqDoms index) hr
-  obtain ⟨ds3, T', hds3, hT', et⟩ := Restoration.expr_wrapForalls (ds := g.eqDoms index) ht
+  obtain ⟨ds', l, hds, hl', el⟩ := Restoration.expr_wrapLams_parts (ds := g.eqDoms index) hl
+  obtain ⟨ds2, body', hds2, -, er⟩ := Restoration.expr_wrapLams_parts (ds := g.eqDoms index) hr
+  obtain ⟨ds3, T', hds3, hT', et⟩ := Restoration.expr_wrapForalls_parts (ds := g.eqDoms index) ht
   cases hds.symm.trans hds2
   cases hds.symm.trans hds3
   -- the left-hand side body
@@ -174,9 +174,9 @@ theorem restored_equation_abstract {r : Restoration} {df : VDefEq} (blk : Name) 
     simp only [Restoration.equation, bind, Option.bind_eq_some_iff] at he
     obtain ⟨_, _, _, _, _, _, h⟩ := he
     cases h; rfl
-  obtain ⟨ds', l, hds, hl', el⟩ := Restoration.expr_wrapLams (ds := g.eqDoms index) hl
-  obtain ⟨ds2, body', hds2, -, er⟩ := Restoration.expr_wrapLams (ds := g.eqDoms index) hr
-  obtain ⟨ds3, T', hds3, hT', et⟩ := Restoration.expr_wrapForalls (ds := g.eqDoms index) ht
+  obtain ⟨ds', l, hds, hl', el⟩ := Restoration.expr_wrapLams_parts (ds := g.eqDoms index) hl
+  obtain ⟨ds2, body', hds2, -, er⟩ := Restoration.expr_wrapLams_parts (ds := g.eqDoms index) hr
+  obtain ⟨ds3, T', hds3, hT', et⟩ := Restoration.expr_wrapForalls_parts (ds := g.eqDoms index) ht
   cases hds.symm.trans hds2
   cases hds.symm.trans hds3
   -- the left-hand side body
@@ -273,9 +273,9 @@ theorem CompilationData.restored_recursor {s : InductiveSignature} {g : Instance
   obtain ⟨rec', hrec', hr⟩ := Lean4Lean.List.Forall₂.forall_exists_l hrs (g.recursor o)
     (List.mem_map.2 ⟨o, List.mem_finRange _, rfl⟩)
   obtain ⟨hn, hu, ht⟩ := Restoration.recursor_parts hr
-  obtain ⟨RH, eH⟩ := g.recursorType_eq o
+  obtain ⟨RH, eH⟩ := g.recursorType_eq_hi o
   rw [eH] at ht
-  obtain ⟨dsH', RH', hds, -, et⟩ := Restoration.expr_wrapForalls ht
+  obtain ⟨dsH', RH', hds, -, et⟩ := Restoration.expr_wrapForalls_parts ht
   exact ⟨rec', hrec', hn, hu, dsH', RH', et, hds⟩
 
 /-- Restored recursor names are distinct across owners. -/
@@ -344,7 +344,7 @@ theorem CompilationData.restored_ctor_inj {s : InductiveSignature} {g : Instance
     simp only [Fin.getElem_fin] at this
     simp [this]
 
-theorem ContainerSpecialization.directFamily_resultLevel {a : ContainerSpecialization}
+theorem ContainerSpecialization.directFamily_resultLevel_nested {a : ContainerSpecialization}
     {params : List VExpr} (H : a.directFamily U params = some direct) :
     direct.resultLevel = a.source.resultLevel.inst a.levels := by
   simp only [ContainerSpecialization.directFamily, bind, Option.bind_eq_some_iff, pure,
@@ -390,7 +390,7 @@ theorem CompilationData.family_origin {s : InductiveSignature} {g : Instance s}
     · rw [hfa, ← hsa, ← hst]; exact Restoration.headName_of_mem H.restorationScoped hspec
     · rw [hfa, ← hsa, ← hsl]; exact Restoration.headLevels_of_mem H.restorationScoped hspec
     · have := hrel.resultLevel
-      rw [ContainerSpecialization.directFamily_resultLevel hdf] at this
+      rw [ContainerSpecialization.directFamily_resultLevel_nested hdf] at this
       exact this
 
 /-- A compilation with container specializations has at least two families. -/

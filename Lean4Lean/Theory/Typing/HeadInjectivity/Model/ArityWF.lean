@@ -101,7 +101,7 @@ theorem EndHead.restore {h : Name} {r : Restoration} {e e' : VExpr} (H : EndHead
     (hr : r.expr e = some e') : EndHead e' (r.headName h) := by
   obtain ⟨doms, ls, args, he, -⟩ := H.form
   rw [he] at hr
-  obtain ⟨ds', b', -, hb, rfl⟩ := Restoration.expr_wrapForalls hr
+  obtain ⟨ds', b', -, hb, rfl⟩ := Restoration.expr_wrapForalls_parts hr
   obtain ⟨args', rfl⟩ := Restoration.const_mkApps_exact hb
   exact EndHead.wrapForalls.2 .of_mkApps
 

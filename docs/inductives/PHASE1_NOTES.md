@@ -318,7 +318,8 @@ validity and soundness are proved together by induction along the `VEnv.WF'` cha
   from it, with no `sorry` (axioms: `propext`, `Classical.choice`, `Quot.sound`). The statements
   of head inversion moved to `Theory/Typing/HeadInversionDefs.lean`, imported by
   `HeadSeparationModel.lean`, so that `HeadInversion.lean` can import the shape model.
-  `VEnv.WF.headInjectivity` is the remaining conjecture.
+  `VEnv.WF.headInjectivity` was the remaining conjecture; it is proved by the glued observation
+  model (`docs/inductives/PHASE1B_NOTES.md`, section 10.8).
 
 ## 6. Phase 1b stage C decisions (branch `agent/verify-inductives-headinj`)
 

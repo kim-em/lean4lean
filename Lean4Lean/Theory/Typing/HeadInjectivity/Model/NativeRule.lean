@@ -326,7 +326,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
   have hrec : g.recursor s.constructors[index].owner ∈ block.recursors := by
     rw [C.ordinary_recursors]; exact List.mem_map.2 ⟨_, List.mem_finRange _, rfl⟩
   have hci := hle.constants (VInductBlock.install_recursor_lookup hinst hrec)
-  obtain ⟨RH, eH⟩ := g.recursorType_eq s.constructors[index].owner
+  obtain ⟨RH, eH⟩ := g.recursorType_eq_hi s.constructors[index].owner
   have hlenH : (g.recDoms s.constructors[index].owner).length = (g.eqLead index).length + 1 := by
     rw [g.recDoms_length, eqLead_length_owner C]
   have hkH := g.recDoms_major s.constructors[index].owner
@@ -348,7 +348,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
   have hpm' : ProjMajor env s.families[s.constructors[index].owner].name
       s.constructors[index].name (eqMs index).length (eqFs index).length
       s.families[s.constructors[index].owner].resultLevel := by
-    simpa [eqMs, eqFs, vars_length'] using hpm
+    simpa [eqMs, eqFs, vars_length_hi] using hpm
   obtain ⟨envE, hE, hadm⟩ := C.admissible
   rcases hadm.elimination with hnz | hsmall | hsing
   · -- data families: mode C is impossible

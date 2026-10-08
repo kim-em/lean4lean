@@ -183,11 +183,11 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
   have htype' := htype
   simp only [CaseSchema.genericType, CaseSchema.type] at htype'
   obtain ⟨RH, eRH⟩ := (schema.specialize owner schema.genericUvars schema.genericLevels
-    (.param 0)).recursorType_eq (schema.viewOwner owner)
+    (.param 0)).recursorType_eq_hi (schema.viewOwner owner)
   change schema.restoration.expr ((schema.specialize owner schema.genericUvars
     schema.genericLevels (.param 0)).recursor (schema.viewOwner owner)).type = some type at htype'
   rw [eRH] at htype'
-  obtain ⟨dsH', RH', hdsH, -, eT⟩ := Restoration.expr_wrapForalls htype'
+  obtain ⟨dsH', RH', hdsH, -, eT⟩ := Restoration.expr_wrapForalls_parts htype'
   have hN : (schema.view owner).families[schema.viewOwner owner] =
       schema.signature.families[owner] := rfl
   obtain ⟨d', hd', hget⟩ := mapM_getElem? hdsH
@@ -205,7 +205,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       ((schema.view owner).families.size + (schema.view owner).constructors.size))
       ((schema.view owner).constructors[j]).fields.length ++ idx').length + 1 := by
     rw [hdsHl, Instance.recDoms_length, hN]
-    simp only [List.length_append, vars_length', hidxl, hlen1]
+    simp only [List.length_append, vars_length_hi, hidxl, hlen1]
   have hkH : dsH'[(vars ((schema.view owner).params.length +
       ((schema.view owner).families.size + (schema.view owner).constructors.size))
       ((schema.view owner).constructors[j]).fields.length ++ idx').length]? =
@@ -219,7 +219,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
             schema.signature.families[owner].name schema.genericLevels)) iargs) := hget
     rw [← hget2]
     congr 1
-    simp only [List.length_append, vars_length', hidxl, hlen1]
+    simp only [List.length_append, vars_length_hi, hidxl, hlen1]
   -- the constructor
   obtain ⟨rule, hgen, hreq⟩ := CaseSchema.generates_of_genericEquation hrules hmem
   have hgen' := hgen
@@ -261,7 +261,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       schema.signature.families[o].indices.length) hio'
     refine ⟨?_, fun hc => ?_⟩
     · rw [l2, ← hleadE]
-      simp only [List.length_append, vars_length', hidxl, mapM_length hidxj, Instance.eqIndices,
+      simp only [List.length_append, vars_length_hi, hidxl, mapM_length hidxj, Instance.eqIndices,
         List.length_map, hvi, hvi']
       simp only [Fin.getElem_fin] at harity harity' he he' ⊢
       omega
@@ -317,7 +317,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       (.param 0))
     obtain ⟨ds0, e0, l0⟩ := hm _
     rw [e0] at hx
-    obtain ⟨ds0', b', hds0, hb', rfl⟩ := Restoration.expr_wrapForalls hx
+    obtain ⟨ds0', b', hds0, hb', rfl⟩ := Restoration.expr_wrapForalls_parts hx
     rw [Restoration.expr_sort, Option.some.injEq] at hb'
     subst hb'
     obtain ⟨mds, emds, lmds⟩ := binderTy_wrapForalls_sort hxget (target :: levels)

@@ -6,7 +6,7 @@ For a finite compilation without container specializations (`auxiliaries = []`) 
 restoration is the identity, the installed rules are the generated equations and the
 installed recursors are the generated recursors. This file computes the pattern
 decomposition of a generated equation (`Instance.equation_lhs_eq`), its coverage, the shape of
-the recursor's type (`Instance.recursorType_eq`), and uniqueness of the equations per head and
+the recursor's type (`Instance.recursorType_eq_hi`), and uniqueness of the equations per head and
 constructor (`CompilationData.ordinary_uniq`). -/
 
 namespace Lean4Lean
@@ -36,7 +36,7 @@ theorem mem_vars' {count below x : Nat} (h1 : below ≤ x) (h2 : x < below + cou
   simp only [vars, List.mem_map, List.mem_reverse, List.mem_range]
   exact ⟨x - below, by omega, by congr 1; omega⟩
 
-@[simp] theorem vars_length' (n k : Nat) : (vars n k).length = n := by simp [vars]
+@[simp] theorem vars_length_hi (n k : Nat) : (vars n k).length = n := by simp [vars]
 
 /-- The parameters of the major of a generated equation. -/
 def eqMs {s : InductiveSignature} (index : Fin s.constructors.size) : List VExpr :=
@@ -117,7 +117,7 @@ def recDoms (owner : Fin s.families.size) : List VExpr :=
     [g.familyApp owner (vars s.params.length ((s.families.size + s.constructors.size) +
       s.families[owner].indices.length)) (vars s.families[owner].indices.length 0)]
 
-theorem recursorType_eq (owner : Fin s.families.size) :
+theorem recursorType_eq_hi (owner : Fin s.families.size) :
     ∃ RH, (g.recursor owner).type = .wrapForalls (g.recDoms owner) RH :=
   ⟨VExpr.mkApps (.bvar ((insertBinders (s.families[owner].indices.map (·.instL g.levels))
       (s.families.size + s.constructors.size)).length + 1 + s.constructors.size +

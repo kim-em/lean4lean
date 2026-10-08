@@ -135,7 +135,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
   have hlenH : dsH'.length = (vars (s.params.length + (s.families.size + s.constructors.size))
       s.constructors[index].fields.length ++ idx').length + 1 := by
     rw [mapM_length hdsH, g.recDoms_length]
-    simp only [List.length_append, vars_length', hidxl, Instance.eqIndices, List.length_map]
+    simp only [List.length_append, vars_length_hi, hidxl, Instance.eqIndices, List.length_map]
     simp only [Fin.getElem_fin] at *
     omega
   obtain ⟨d', hd', hget⟩ := mapM_getElem? hdsH (g.recDoms_major s.constructors[index].owner)
@@ -148,7 +148,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
             s.families[s.constructors[index].owner].name g.levels)) iargs) := by
     rw [← hget]
     congr 1
-    simp only [List.length_append, vars_length', hidxl, Instance.eqIndices, List.length_map]
+    simp only [List.length_append, vars_length_hi, hidxl, Instance.eqIndices, List.length_map]
     simp only [Fin.getElem_fin] at *
     omega
   -- the constructor and its family
@@ -202,7 +202,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     have he := congrArg (fun o : Fin s.families.size => s.families[o].indices.length) ho
     refine ⟨?_, fun hc => ?_⟩
     · rw [l2]
-      simp only [List.length_append, vars_length', hidxl, mapM_length hidxj, Instance.eqIndices,
+      simp only [List.length_append, vars_length_hi, hidxl, mapM_length hidxj, Instance.eqIndices,
         List.length_map]
       simp only [Fin.getElem_fin] at harj he harity ⊢
       omega
@@ -226,7 +226,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     have hm := motive_eq g
     obtain ⟨ds0, e0, l0⟩ := hm _
     rw [e0] at hx
-    obtain ⟨ds0', b', hds0, hb', rfl⟩ := Restoration.expr_wrapForalls hx
+    obtain ⟨ds0', b', hds0, hb', rfl⟩ := Restoration.expr_wrapForalls_parts hx
     rw [Restoration.expr_sort, Option.some.injEq] at hb'
     subst hb'
     obtain ⟨mds, emds, lmds⟩ := binderTy_wrapForalls_sort hxget ls

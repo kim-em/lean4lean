@@ -74,7 +74,7 @@ theorem CompilationData.aux_slot {base : VEnv} {source expanded : VInductDecl}
       source.nparams a.source.name a.levels a.arguments) C.restorationScoped
       (List.mem_flatMap.mpr ⟨a, List.mem_of_getElem? ha, List.mem_cons_self⟩)
   · have := hrel.resultLevel
-    rw [ContainerSpecialization.directFamily_resultLevel hdf] at this
+    rw [ContainerSpecialization.directFamily_resultLevel_nested hdf] at this
     exact this
 
 namespace Model
@@ -272,7 +272,7 @@ theorem projMajor_restored {envF env0 installed base E : VEnv} {source expanded 
     have ho : s.constructors[index].owner.val < source.types.length :=
       (List.getElem?_eq_some_iff.1 hFget).1
     refine ⟨s.families[s.constructors[index].owner].resultLevel, ?_, fun hnz => hnz _ hmemF⟩
-    rw [← hms, vars_length']
+    rw [← hms, vars_length_hi]
     exact projMajor_source hF C hprior h0 hinst hle hpc hPV hE hEF hsnd hbE htypesE index ho hrigF
   · obtain ⟨hcn', rfl, hargs⟩ := ShapeModel.mkApps_const_inj hmaj
     have hms := (List.append_inj' hargs (by simp)).1
@@ -381,7 +381,7 @@ theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
     have hlev := hrel.resultLevel
     refine ⟨source.types[schema.signature.constructors[i].owner.val].resultLevel, ?_,
       fun levels target hlen hnz => ?_⟩
-    · rw [hhd, hms, vars_length']; exact hpm
+    · rw [hhd, hms, vars_length_hi]; exact hpm
     · rw [VLevel.inst_inst, CaseSchema.genericLevels_inst' hlen]
       have : (schema.sourceLevel owner levels) ≈
           (source.types[schema.signature.constructors[i].owner.val].resultLevel.inst levels) := by
