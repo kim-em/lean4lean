@@ -716,11 +716,7 @@ theorem toCtorWhenStruct.WF_all {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
   split <;> [exact hid; rename_i hguard']
   split <;> [exact hid; rename_i hsize]
   simp only [bne_iff_ne, ne_eq, Classical.not_not] at hsize
-  have hinduct : mkInfo.induct = n := by
-    revert hguard'; cases h : mkInfo.induct == n <;> simp [beq_iff_eq] at h ⊢ <;> simp [h]
-  have hunsafe : mkInfo.isUnsafe = sInfo.isUnsafe := by
-    revert hguard'; cases h : mkInfo.isUnsafe == sInfo.isUnsafe <;> simp [beq_iff_eq] at h ⊢ <;>
-      simp [h]
+  have hinduct : mkInfo.induct = n := by simpa using hguard'
   rw [foldl_app_proj]
   have hnullary : mkAppRange (Expr.const ctor lsI) 0 mkInfo.numParams A.getAppArgs =
       (Expr.const ctor lsI).mkAppList A.getAppArgsList := by

@@ -652,8 +652,9 @@ wrapper name. The other changes cannot change a decision except through checker 
   constructor to be the structure's unique constructor and fully applied; `tryEtaStructCore`
   requires the listed constructor and applies structure eta only at never-zero sorts;
   `isDefEqUnitLike` and `toCtorWhenK` check the arity of the type's spine; `inferProj`
-  rejects field indices beyond `numFields`; constructor owner and `isUnsafe` agreement are
-  checked wherever a structure's constructor is looked up; `toCtorWhenStruct` and
+  rejects field indices beyond `numFields`; constructor owner agreement is checked wherever a
+  structure's constructor is looked up, and `isUnsafe` agreement wherever the family's
+  visibility is not already known; `toCtorWhenStruct` and
   `expandEtaStruct` return the term unchanged where the C++ kernel has `unreachable!`. Each
   guard lets the verification justify a step from the registry entry alone, without
   injectivity or head separation. All are redundant on well-formed environments and
