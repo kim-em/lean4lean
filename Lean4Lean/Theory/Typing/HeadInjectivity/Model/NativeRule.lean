@@ -161,7 +161,7 @@ theorem native_C_absurd {s : InductiveSignature} {g : Instance s} {ls : List VLe
         (s.families.size + s.constructors.size)) ++
       [g.familyApp o (vars s.params.length ((s.families.size + s.constructors.size) +
         s.families[o].indices.length)) (vars s.families[o].indices.length 0)] from rfl,
-    VExpr.instL_wrapForalls, List.map_append, wrapForalls_append] at h
+    VExpr.instL_wrapForalls, List.map_append, VExpr.wrapForalls_append] at h
   rw [show g.recDoms o = (g.params ++ g.motives ++ g.minors ++
       insertBinders (s.families[o].indices.map (·.instL g.levels))
         (s.families.size + s.constructors.size)) ++
@@ -202,7 +202,7 @@ theorem C_absurd_gen {T : VExpr} {dsH : List VExpr} {RH : VExpr} {I : Name}
     rw [List.drop_eq_getElem_cons (by omega), List.drop_eq_nil_of_le (by omega)]
     rw [List.getElem?_eq_getElem (by omega)] at hkH
     injection hkH with hkH; rw [hkH]
-  rw [eH, hsplit, VExpr.instL_wrapForalls, List.map_append, wrapForalls_append] at h
+  rw [eH, hsplit, VExpr.instL_wrapForalls, List.map_append, VExpr.wrapForalls_append] at h
   obtain ⟨σ', S', h⟩ := tele_obs_inv (by simp; omega) h
   simp only [List.map_cons, List.map_nil, VExpr.wrapForalls, List.foldr_cons,
     List.foldr_nil] at h

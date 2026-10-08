@@ -12,6 +12,12 @@ namespace Lean4Lean
 open Lean4Lean VEnv Lean
 open scoped _root_.List
 
+theorem OnCtx.levelWF_of_isType {env : VEnv} {U : Nat} {Γ : List VExpr}
+    (H : OnCtx Γ (env.IsType U)) : OnCtx Γ (fun _ A => A.LevelWF U) := by
+  induction Γ with
+  | nil => trivial
+  | cons A Γ ih => exact ⟨ih H.1, (Classical.choose_spec H.2).levelWF (ih H.1) |>.1⟩
+
 theorem fvarsIn_iff : FVarsIn P e ↔ (∀ fv ∈ e.fvarsList, P fv) ∧ FVarsIn (fun _ => True) e := by
   induction e <;> simp [FVarsIn, Expr.fvarsList, *] <;> grind
 

@@ -22,10 +22,6 @@ variable {env : VEnv} {U : Nat} {Δ : List VExpr}
 
 local notation "Obs'" => Obs env U Δ
 
-theorem wrapForalls_append (a b : List VExpr) (R : VExpr) :
-    VExpr.wrapForalls (a ++ b) R = VExpr.wrapForalls a (VExpr.wrapForalls b R) := by
-  simp [VExpr.wrapForalls, List.foldr_append]
-
 theorem DomsSD.left : ∀ {pre post : List VExpr} {Γ},
     DomsSD env U Δ Γ (pre ++ post) → DomsSD env U Δ Γ pre
   | [], _, _, _ => .nil
@@ -218,7 +214,7 @@ theorem major_indicator_gen {Th : VExpr} {ls : List VLevel} {uH : VLevel} {Γ0 :
     exact Obs.piDomOb hr
   have := tele_obs hk1 hd
   refine ⟨u, ?_⟩
-  rw [hsplit, wrapForalls_append] at hTcl ⊢
+  rw [hsplit, VExpr.wrapForalls_append] at hTcl ⊢
   exact (Obs.closed_iff_id hTcl).1 this
 
 /-- Binding a variable that occurs bare among the leading arguments, from its key at its

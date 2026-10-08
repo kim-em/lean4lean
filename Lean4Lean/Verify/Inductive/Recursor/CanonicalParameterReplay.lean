@@ -4,17 +4,10 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-/-- The types of a well-typed context mention only the universe parameters in scope. -/
-theorem onCtx_isType_levelWF {env : VEnv} {Γ : List VExpr} (H : OnCtx Γ (env.IsType U)) :
-    OnCtx Γ (fun _ A => A.LevelWF U) := by
-  induction Γ with
-  | nil => trivial
-  | cons A Γ ih => exact ⟨ih H.1, (Classical.choose_spec H.2).levelWF (ih H.1) |>.1⟩
-
 /-- Instantiating the identity universe substitution leaves a well-typed context unchanged. -/
 theorem onCtx_isType_instL_id {env : VEnv} {Γ : List VExpr} (H : OnCtx Γ (env.IsType U)) :
     Γ.map (VExpr.instL (VLevel.params U)) = Γ := by
-  have Hw := onCtx_isType_levelWF H
+  have Hw := OnCtx.levelWF_of_isType H
   induction Γ with
   | nil => rfl
   | cons A Γ ih =>

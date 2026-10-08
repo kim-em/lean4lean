@@ -25,10 +25,6 @@ theorem forall₂_zip {R : γ → α → Prop} {R' : γ → β → Prop} {P : α
 
 /-! ## Syntax -/
 
-theorem VExpr.getAppFnArgs_mkApps_const :
-    (VExpr.mkApps (.const n ls) as).getAppFnArgs = (.const n ls, as) := by
-  rw [VExpr.getAppFnArgs, VExpr.getAppFnArgs_go_mkApps]; simp [VExpr.getAppFnArgs.go]
-
 theorem wrapLams_pat_inj :
     ∀ {ds ds' : List VExpr} {as as' : List VExpr} {a a' : VExpr},
     VExpr.wrapLams ds (.mkApps (.const n ls) (as ++ [a])) =

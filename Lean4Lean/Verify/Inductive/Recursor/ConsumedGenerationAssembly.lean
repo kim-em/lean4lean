@@ -308,12 +308,6 @@ theorem List.map_unshift_abstract
   simp only [Function.comp_apply, id]
   rw [VExpr.instL_instL, recursorUnshiftLevels_abstract ha, (h x hx).instL_id]
 
-theorem OnCtx.levelWF_of_isType {env : VEnv} {U : Nat} :
-    ∀ {Γ : List VExpr}, OnCtx Γ (env.IsType U) → OnCtx Γ (fun _ A => A.LevelWF U)
-  | [], _ => trivial
-  | _ :: _, H => ⟨OnCtx.levelWF_of_isType H.1,
-      (Classical.choose_spec H.2).levelWF (OnCtx.levelWF_of_isType H.1) |>.1⟩
-
 theorem OnCtx.levelWF_mem {env : VEnv} {U : Nat} :
     ∀ {Γ : List VExpr}, OnCtx Γ (env.IsType U) → ∀ x ∈ Γ, x.LevelWF U
   | [], _, _, hx => by simp at hx
