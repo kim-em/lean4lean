@@ -293,7 +293,7 @@ theorem NestedRun.compilationData_of_specializations
           (List.mem_of_mem_drop ha), Hmodels.uvars, hloweredUvars, hshape.uvars]
     admissible := ⟨_, hloweredTypes,
       E.lowered.recursorConstruction.generator.admissible⟩
-    recursiveTypesWF := by
+    generatedIHsWellTyped := by
       refine ⟨_, _, E.lowered.constructors.toConstructorCheck.eliminators, hloweredTypes,
         hloweredCtors, ?_, ?_, ?_⟩
       · have hown := E.lowered.constructors.toConstructorCheck.eliminatorsOwn
@@ -301,7 +301,7 @@ theorem NestedRun.compilationData_of_specializations
         rw [hinit] at hown
         exact hown
       · rw [← E.lowered.constructors.toConstructorCheck.contextVEnv]
-        exact E.lowered.recursorConstruction.generator.recursiveTypesWF
+        exact E.lowered.recursorConstruction.generator.generatedIHsWellTyped
       · rw [← E.lowered.constructors.toConstructorCheck.contextVEnv]
         exact E.lowered.recursorConstruction.generator.familyTypesWF
     familyTypesWF := by

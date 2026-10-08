@@ -97,9 +97,9 @@ theorem hypothesis_isType_of_recursorType {s : InductiveSignature} (g : Instance
 
 /-- The recursive-field clause of the generative specification holds in any
 environment in which some generated recursor type is well-formed. -/
-theorem recursiveTypesWF_of_recursorType {s : InductiveSignature} (g : Instance s)
+theorem generatedIHsWellTyped_of_recursorType {s : InductiveSignature} (g : Instance s)
     {env : VEnv} (henv : env.WF) (owner : Fin s.families.size)
-    (H : env.IsType g.uvars [] (g.recursorType owner)) : g.RecursiveTypesWF env :=
+    (H : env.IsType g.uvars [] (g.recursorType owner)) : g.GeneratedIHsWellTyped env :=
   hypothesis_isType_of_recursorType g henv owner H
 
 end Instance

@@ -72,7 +72,7 @@ structure TrCompilation (env : VEnv) (decl : VInductDecl)
     g.Admissible envTypes ∧
     (∃ envCtors es, envTypes.addConstVals decl.constructorConstants = some envCtors ∧
       decl.OwnCaseEliminators env es ∧
-      g.RecursiveTypesWF ((envCtors.addEliminators es).addProjections decl.projectionEntries) ∧
+      g.GeneratedIHsWellTyped ((envCtors.addEliminators es).addProjections decl.projectionEntries) ∧
       s.FamilyTypesWF ((envCtors.addEliminators es).addProjections decl.projectionEntries)
         decl.uvars) ∧
     (∀ owner, g.recursorName owner = s.families[owner].name.str "rec") ∧

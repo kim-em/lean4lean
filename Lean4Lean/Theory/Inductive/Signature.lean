@@ -41,7 +41,7 @@ structure Models (s : InductiveSignature) (env : VEnv) (decl : VInductDecl) : Pr
   the constructor phase's positivity check establishes.  It is stated for every
   field regardless of the generator's `external`/`recursive` classification:
   the generator's classification and recursive shapes are constrained only
-  by the well-formedness of the generated recursor (`Instance.RecursiveTypesWF`);
+  by the well-formedness of the generated recursor (`Instance.GeneratedIHsWellTyped`);
   tying them to the header's classification would need agreement between two
   normalisation passes, which the checker does not establish. -/
   positiveFields : s.isUnsafe = true ∨ ∃ envTypes,
@@ -102,14 +102,16 @@ structure Instance.Admissible {s : InductiveSignature} (g : Instance s)
 /-- Each generated induction hypothesis is a well-formed type in the context in
 which the generated minor premise binds it: parameters, motives, earlier
 minors, the constructor's fields and the earlier hypotheses.  This is the
-typing fact the generated recursor needs from the recursive shapes.  It is
+typing fact the generated recursor needs from the recursive shapes.  It
+concerns only the hypotheses the generator produces, not the correctness or
+completeness of the external/recursive field classification.  It is
 stated in the recursor-checking environment, that is after the family headers, the
 constructors, the declaration's own case eliminators and its projection entries,
 since that is where the executable checks the generated types.  A
 definitional-equality form in a smaller context is not derivable from the
 checker's runs without context strengthening of definitional equality, which is false
 in general (section 5.1 of `docs/inductives/DESIGN.md`). -/
-def Instance.RecursiveTypesWF {s : InductiveSignature} (g : Instance s) (env : VEnv) : Prop :=
+def Instance.GeneratedIHsWellTyped {s : InductiveSignature} (g : Instance s) (env : VEnv) : Prop :=
   ∀ (index : Fin s.constructors.size) (j : Nat)
     (hj : j < (recursiveFields s.constructors[index]).length),
     env.IsType g.uvars (g.hypothesisContext s.constructors[index] index.val j)
@@ -152,7 +154,7 @@ structure Compiles (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Pr
     g.Admissible envTypes ∧
     (∃ envCtors es, envTypes.addConstVals decl.constructorConstants = some envCtors ∧
       decl.OwnCaseEliminators env es ∧
-      g.RecursiveTypesWF ((envCtors.addEliminators es).addProjections decl.projectionEntries) ∧
+      g.GeneratedIHsWellTyped ((envCtors.addEliminators es).addProjections decl.projectionEntries) ∧
       s.FamilyTypesWF ((envCtors.addEliminators es).addProjections decl.projectionEntries)
         decl.uvars) ∧
     (∀ owner, g.recursorName owner = s.families[owner].name.str "rec") ∧

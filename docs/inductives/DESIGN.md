@@ -298,7 +298,7 @@ None weakens the top-level theorem.
   environment.
 - **Header agreement** (`CaseSchema.HeaderAgreement`). The restored normalized header of each
   source family is definitionally equal to its declared type.
-- **Recursor typings are stated in the recursor-checking environment.** `Instance.RecursiveTypesWF` and
+- **Recursor typings are stated in the recursor-checking environment.** `Instance.GeneratedIHsWellTyped` and
   `FamilyTypesWF` are required in the environment with constructors, the declaration's own
   case eliminators and its projection entries, because that is where the executable checks
   the generated types. Stating them in a smaller environment or context would need
@@ -350,7 +350,7 @@ ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
   generator's output for one `Instance`
   (`Recursor/Entries/TrRecursorVal.lean`, `Recursor/Metadata.lean`). Typing of the generated
   recursor types is not derived from the generator: it is read off the executable's check of
-  each generated recursor type (`checkRecursorTypes`), which supplies `RecursiveTypesWF` in
+  each generated recursor type (`checkRecursorTypes`), which supplies `GeneratedIHsWellTyped` in
   the recursor-checking environment; `FamilyTypesWF` likewise comes from checker runs there.
   Rules are proved well typed in the recursor
   environment (`Rules/EquationWF.lean`, `Rules/Translation.lean`, `Rules/RuleTranslations.lean`).
