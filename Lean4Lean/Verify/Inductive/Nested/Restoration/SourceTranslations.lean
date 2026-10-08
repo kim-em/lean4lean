@@ -693,7 +693,7 @@ theorem NestedLoweringOutputClosed.sourceConstructorTypingAtFreshOfValidation
     (HvalidationValid : CheckingEnv.Valid c.safety validationEnv
       sourceTypesVEnv)
     (HparameterRun :
-      Lean4Lean.validateRestoredConstructorParameters.run validationEnv
+      Lean4Lean.validateSourceConstructorTypes.run validationEnv
         c.lparams c.safety validationFuel sourceTypes result = .ok ())
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
@@ -704,7 +704,7 @@ theorem NestedLoweringOutputClosed.sourceConstructorTypingAtFreshOfValidation
         sourceTypesVEnv Hstep.oldInfo.ctors Hstep.restored.headerEnv
           Hstep.restored.constructorEnv sourceTypes[familyIdx].ctors
             constructors := by
-  rcases validateRestoredConstructorParameters.sourceConsts_of_run
+  rcases validateSourceConstructorTypes.sourceConsts_of_run
       HvalidationValid Hsources HparameterRun (List.getElem_mem hfamily) with
     ⟨constructors, Htranslations⟩
   have Hfamilies : ∀ name nested,
@@ -1266,7 +1266,7 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringWF
         validationEnv) →
       Nonempty (ValidationHeaderEnvironment loweredEnv sourceProdEnv
         (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv) →
-      Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
+      Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
         lparams safety fuel sourceTypes res = .ok () →
       Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
         lparams safety fuel res

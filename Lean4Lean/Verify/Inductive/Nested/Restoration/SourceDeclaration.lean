@@ -143,7 +143,7 @@ private theorem installRestoredSourceFamilies
     (HvalidationValid : CheckingEnv.Valid c.safety auxiliaryHeaderEnv
       sourceTypesVEnv)
     (HparameterRun :
-      Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
+      Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
         c.lparams c.safety validationFuel sourceTypes result = .ok ())
     (hempty : initialState.nestedAux = #[])
     (Hrestoration : FoldSteps
@@ -268,7 +268,7 @@ theorem NestedLoweringOutputClosed.sourceCore
     (HheaderValidation : ValidationHeaderEnvironment loweredEnv c.env
       (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv)
     (HparameterRun :
-      Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
+      Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
         c.lparams c.safety validationFuel sourceTypes result = .ok ())
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe)) :

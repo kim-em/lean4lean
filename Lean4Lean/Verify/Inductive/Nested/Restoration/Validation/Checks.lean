@@ -49,8 +49,8 @@ private theorem forallExists_to_forall₂
       ⟨targets, Htargets⟩
     exact ⟨target :: targets, .cons Htarget Htargets⟩
 
-private theorem validateRestoredConstructorParameters.constructorStep_eq_ok_of_run
-    (hrun : Lean4Lean.validateRestoredConstructorParameters.run env lparams
+private theorem validateSourceConstructorTypes.constructorStep_eq_ok_of_run
+    (hrun : Lean4Lean.validateSourceConstructorTypes.run env lparams
       safety fuel types result = .ok ())
     (htype : indType ∈ types) (hctor : ctor ∈ indType.ctors) :
     (do
@@ -58,7 +58,7 @@ private theorem validateRestoredConstructorParameters.constructorStep_eq_ok_of_r
         (lparams := lparams) (fuel := fuel) do
           let type ← TypeChecker.checkType ctor.type
           TypeChecker.ensureSort type ctor.type) = .ok () := by
-  unfold Lean4Lean.validateRestoredConstructorParameters.run at hrun
+  unfold Lean4Lean.validateSourceConstructorTypes.run at hrun
   have hfamily := listForM_eq_ok_of_mem
     (fun type : InductiveType => type.ctors.forM fun ctor => do
       _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
@@ -77,8 +77,8 @@ private theorem validateRestoredConstructorParameters.constructorStep_eq_ok_of_r
 
 /-- The successful source-type check of one constructor, selected from the
 successful whole-block validation run. -/
-theorem validateRestoredConstructorParameters.typeCheck_eq_ok_of_run
-    (hrun : Lean4Lean.validateRestoredConstructorParameters.run env lparams
+theorem validateSourceConstructorTypes.typeCheck_eq_ok_of_run
+    (hrun : Lean4Lean.validateSourceConstructorTypes.run env lparams
       safety fuel types result = .ok ())
     (htype : indType ∈ types) (hctor : ctor ∈ indType.ctors) :
     ∃ checked, TypeChecker.M.run env (safety := safety) (lctx := {})
@@ -86,7 +86,7 @@ theorem validateRestoredConstructorParameters.typeCheck_eq_ok_of_run
         let type ← TypeChecker.checkType ctor.type
         TypeChecker.ensureSort type ctor.type) = .ok checked := by
   have hconstructor :=
-    validateRestoredConstructorParameters.constructorStep_eq_ok_of_run
+    validateSourceConstructorTypes.constructorStep_eq_ok_of_run
       hrun htype hctor
   cases hcheck : TypeChecker.M.run env (safety := safety) (lctx := {})
       (lparams := lparams) (fuel := fuel)
@@ -101,15 +101,15 @@ theorem validateRestoredConstructorParameters.typeCheck_eq_ok_of_run
 
 /-- The executable source-type check gives the abstract source constant
 needed by constructor restoration, read off the successful validation run. -/
-theorem validateRestoredConstructorParameters.sourceConst_of_run
+theorem validateSourceConstructorTypes.sourceConst_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (Hsources : SourceSyntaxChecks types)
-    (hrun : Lean4Lean.validateRestoredConstructorParameters.run env lparams
+    (hrun : Lean4Lean.validateSourceConstructorTypes.run env lparams
       safety fuel types result = .ok ())
     (htype : indType ∈ types) (hctor : ctor ∈ indType.ctors) :
     ∃ constructor : VConstVal,
       TrSourceConst venv lparams ctor.name ctor.type constructor := by
-  rcases validateRestoredConstructorParameters.typeCheck_eq_ok_of_run
+  rcases validateSourceConstructorTypes.typeCheck_eq_ok_of_run
       hrun htype hctor with ⟨checked, hcheck⟩
   have hclosed := Hsources.constructorsClosed htype ctor hctor
   have hfvars : ctor.type.FVarsIn fun fv => fv ∈
@@ -141,10 +141,10 @@ theorem validateRestoredConstructorParameters.sourceConst_of_run
 
 /-- The source constants of all constructors of a family, pointwise along the
 constructor list, from the successful validation run. -/
-theorem validateRestoredConstructorParameters.sourceConsts_of_run
+theorem validateSourceConstructorTypes.sourceConsts_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (Hsources : SourceSyntaxChecks types)
-    (hrun : Lean4Lean.validateRestoredConstructorParameters.run env lparams
+    (hrun : Lean4Lean.validateSourceConstructorTypes.run env lparams
       safety fuel types result = .ok ())
     (htype : indType ∈ types) :
     ∃ constructors : List VConstVal,
@@ -153,7 +153,7 @@ theorem validateRestoredConstructorParameters.sourceConsts_of_run
         indType.ctors constructors := by
   apply forallExists_to_forall₂
   intro ctor hctor
-  exact validateRestoredConstructorParameters.sourceConst_of_run hvalid
+  exact validateSourceConstructorTypes.sourceConst_of_run hvalid
     Hsources hrun htype hctor
 
 private theorem validateRestoredRecursorTypes.sourceCheck_eq_ok_of_run

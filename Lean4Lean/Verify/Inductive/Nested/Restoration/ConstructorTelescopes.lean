@@ -11,7 +11,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceTranslations
 A successful nested run stores, for every source constructor, the restoration of the lowered
 constructor type, which is `Expr.eqv` to the source type
 (`NestedRun.installedConstructorSource`). The source type itself is checked by
-`validateRestoredConstructorParameters.run` in the header-only validation environment, before
+`validateSourceConstructorTypes.run` in the header-only validation environment, before
 any environment containing the restored constructors is used by the checker; that run certifies
 its telescope (`checkType.WF_telTr`), and `Expr.eqv` transports the certificate.
 -/
@@ -24,15 +24,15 @@ namespace VerifyInductive
 
 /-- The executable source-type check of the nested constructor validation certifies the
 telescope of every source constructor type in the validation environment. -/
-theorem validateRestoredConstructorParameters.telTr_of_run
+theorem validateSourceConstructorTypes.telTr_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (henv : TypeChecker.EnvGhostFree (fun _ => True) env)
     (Hsources : SourceSyntaxChecks types)
-    (hrun : Lean4Lean.validateRestoredConstructorParameters.run env lparams
+    (hrun : Lean4Lean.validateSourceConstructorTypes.run env lparams
       safety fuel types result = .ok ())
     (htype : indType ∈ types) (hctor : ctor ∈ indType.ctors) :
     ∃ T, TelTr venv lparams [] ctor.type T := by
-  rcases validateRestoredConstructorParameters.typeCheck_eq_ok_of_run
+  rcases validateSourceConstructorTypes.typeCheck_eq_ok_of_run
       hrun htype hctor with ⟨checked, hcheck⟩
   have hclosed := Hsources.constructorsClosed htype ctor hctor
   have hfvars : ctor.type.FVarsIn fun fv => fv ∈
@@ -123,7 +123,7 @@ theorem NestedRun.restoredCtorOrigin
   -- every source constructor type is certified by the validation run
   have hsrc : ∀ type ∈ sourceTypes, ∀ source ∈ type.ctors,
       ∃ T, TelTr E.sourceCore.envTypes lparams [] source.type T :=
-    fun _ htype _ hsource => validateRestoredConstructorParameters.telTr_of_run
+    fun _ htype _ hsource => validateSourceConstructorTypes.telTr_of_run
       E.sourceCore.headerValidationValid hgf Hsources E.parameterValidation htype hsource
   rcases E.installedConstructorSource Hsources Howners hfind with
     hold | ⟨type, htype, source, hsource, -, hlp, heqv, -, hu⟩

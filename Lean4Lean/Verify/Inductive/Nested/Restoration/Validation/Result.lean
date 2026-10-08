@@ -33,7 +33,7 @@ structure ValidatedRestoration
   auxiliaryHeaderValidation : ∃ auxiliaryHeaderEnv,
     Nonempty (ValidationHeaderEnvironment loweredEnv sourceEnv
       allIndNames types auxiliaryHeaderEnv) ∧
-    Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
+    Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
       lparams safety fuel types res = .ok () ∧
     Lean4Lean.validateNestedAuxiliaries auxiliaryHeaderEnv lparams safety
       fuel res = .ok ()
@@ -87,7 +87,7 @@ theorem Environment.restoreNestedAfterInstall.WF
         (types.map (·.name)) allowPrimitive types validationEnv) →
       Nonempty (ValidationHeaderEnvironment loweredEnv env
         (types.map (·.name)) types auxiliaryHeaderEnv) →
-      Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
+      Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
         lparams safety fuel types res = .ok () →
       Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
         lparams safety fuel res (Lean4Lean.mkAuxRecNameMap loweredEnv types).2
@@ -162,7 +162,7 @@ theorem Environment.restoreNestedAfterInstall.WF
             allIndNames allowPrimitive types env).bind fun validationEnv =>
           ((·.2) <$> Lean4Lean.restoreNestedHeaders loweredEnv allIndNames
             allowPrimitive types env).bind fun auxiliaryHeaderEnv =>
-          (Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
+          (Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
             lparams safety fuel types res).bind fun _ =>
           (Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
             lparams safety fuel res recNameMap allIndNames types recNames).bind
@@ -182,9 +182,9 @@ theorem Environment.restoreNestedAfterInstall.WF
         exact HauxiliaryHeaderEnv.bind fun auxiliaryHeaderEnv
             HauxiliaryHeaderEnv => by
           have Hparameter :
-            (Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
+            (Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
               lparams safety fuel types res).WF fun _ =>
-                Lean4Lean.validateRestoredConstructorParameters.run
+                Lean4Lean.validateSourceConstructorTypes.run
                   auxiliaryHeaderEnv lparams safety fuel types res = .ok () := by
             intro unit hrun
             rcases unit with ⟨⟩

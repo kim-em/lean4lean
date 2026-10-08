@@ -652,7 +652,7 @@ structure NestedRun
     ValidationHeaderEnvironment loweredEnv sourceProdEnv
       (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv
   parameterValidation :
-    Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
+    Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
       lparams safety validationFuel sourceTypes res = .ok ()
   auxiliaryVEnv : VEnv
   auxiliaryMLCtx : TypeChecker.MLCtx
@@ -728,7 +728,7 @@ structure NestedInstalledRun
     ValidationHeaderEnvironment loweredEnv sourceProdEnv
       (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv
   parameterValidation :
-    Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
+    Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
       lparams safety validationFuel sourceTypes res = .ok ()
   auxiliaryVEnv : VEnv
   auxiliaryMLCtx : TypeChecker.MLCtx
@@ -967,7 +967,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
           auxiliaryHeaderEnv := by
         simpa only [henv'] using HheaderValidation
       have Hparameters' :
-          Lean4Lean.validateRestoredConstructorParameters.run
+          Lean4Lean.validateSourceConstructorTypes.run
             auxiliaryHeaderEnv c'.lparams c'.safety fuel sourceTypes res =
               .ok () := by
         simpa only [hlparams', hsafety', c, nestedAddInductiveContext] using

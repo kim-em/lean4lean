@@ -175,9 +175,9 @@ structure ValidationEnvironment
     types headerEnv targetEnv
 
 /-- The side environment obtained by restoring only the mutually recursive
-source headers, in which the executable validates the restored constructor
-parameters and the nested applications recorded by lowering
-(`validateRestoredConstructorParameters`, `validateNestedAuxiliaries`). -/
+source headers, in which the executable validates the source constructor
+types and the nested applications recorded by lowering
+(`validateSourceConstructorTypes`, `validateNestedAuxiliaries`). -/
 structure ValidationHeaderEnvironment
     (loweredEnv sourceEnv : Environment) (allIndNames : List Name)
     (types : List InductiveType) (targetEnv : Environment) where
