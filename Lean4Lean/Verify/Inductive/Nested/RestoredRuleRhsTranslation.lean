@@ -447,10 +447,10 @@ theorem NestedValidatedRunResult.restoredRuleRhs_translates
   -- the canonical parameters are fixed by restoration
   have hle : envTypes ≤ B.finalBaseVEnv := by
     have hvenvTypes : B.canonical.venvTypes = envTypes := by
-      have h1 := B.canonical.typesAdded.abstract
+      have h1 := B.canonical.abstract_types
       rw [B.typeValues, hadded] at h1
       exact (Option.some.inj h1).symm
-    have hctorsAdded := B.canonical.ctorsAdded.abstract
+    have hctorsAdded := B.canonical.abstract_ctors
     rw [B.constructorValues, hvenvTypes] at hctorsAdded
     exact (VEnv.addConstVals_le hctorsAdded).trans
       (VEnv.addEliminators_addProjections_le.trans B.canonical.recursorsAdded.le)

@@ -368,7 +368,7 @@ assembly base** (`VEnv.RestoredEliminator`): the base registers the schema with 
 and signature, restored by a specialisation list whose restoration tables are those of the run,
 so its restoration agrees with the lambda replacement and renaming of every restoration table of
 the run (`RestorationTableData.find_eq`). The lowered schema projects only out of base
-structures (its certificate `OrdinaryCaseEliminators`), which are not restorable, and the
+structures (its certificate `EliminatorsWF`), which are not restorable, and the
 restoration succeeds on its generic equations because it succeeds on its generic case type, the
 registered source case type. -/
 theorem NestedValidatedRunResult.restoredEliminators
@@ -428,12 +428,12 @@ theorem NestedValidatedRunResult.restoredEliminators
           true ∧
         df.type.projNamesAvoid (compilationRestoration sourceDecl auxiliaries).restorableNames =
           true) := by
-    have Hord := E.production.constructors.completed.eliminatorsOrdinary
-    rw [hcompEl] at Hord
-    rcases Hord with ⟨hE, -⟩ | ⟨s, key', hE', -, -, -, -, envTypes', envCtors', ht', hc', -,
-      hprojs, -⟩
-    · cases hE
-    · simp only [List.cons.injEq, Prod.mk.injEq, and_true] at hE'
+    obtain ⟨envTypes', envCtors', ht', hc', Hel⟩ :=
+      E.production.constructors.completed.eliminatorsWF
+    rcases Hel with ⟨-, hE⟩ | ⟨key', schema', hE', -, hprojs⟩
+    · simp [VInductDecl.caseBlock, hcompEl] at hE
+    · simp only [VInductDecl.caseBlock, hcompEl, List.cons.injEq, Prod.mk.injEq,
+        and_true] at hE'
       obtain ⟨rfl, hs⟩ := hE'
       rw [← hs] at hprojs
       have hnot : ∀ S, (∃ info, envCtors'.projections S info) →
@@ -539,10 +539,10 @@ theorem NestedValidatedRunResult.restoredEquationSubstitution
   have hSwf : B.finalBaseVEnv.WF := hV.tr.wf
   -- the source header environment of the shape
   have hvenvTypes : B.canonical.venvTypes = envTypes := by
-    have h1 := B.canonical.typesAdded.abstract
+    have h1 := B.canonical.abstract_types
     rw [B.typeValues, hadded] at h1
     exact (Option.some.inj h1).symm
-  have hctorsAdded := B.canonical.ctorsAdded.abstract
+  have hctorsAdded := B.canonical.abstract_ctors
   rw [B.constructorValues, hvenvTypes] at hctorsAdded
   have hleCtors : B.canonical.venvCtors ≤ B.finalBaseVEnv :=
     VEnv.addEliminators_addProjections_le.trans B.canonical.recursorsAdded.le

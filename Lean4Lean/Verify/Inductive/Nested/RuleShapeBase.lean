@@ -10,7 +10,7 @@ definitionally.
 
 `NestedValidatedRunResult.hruleShape_of_base` then proves the conclusion of
 `NestedValidatedRunResult.hruleShape_of` from `assemblyBaseNativeValid`,
-without the rule validator: the realization, nested-iota shape, guardedness
+without the rule validator: the realization, nested-iota shape
 and well-formedness of the restored generated equations are hypotheses stated
 over every base of the run. Family counts, rule counts and block names are
 read off the base's traces and `stepRules_length`. -/
@@ -104,7 +104,7 @@ theorem RestoredSourceInductiveSemanticTrace.primaryIotaOfRules
 
 /-- The auxiliary shape and final well-formedness traces over a rule-free
 auxiliary recursor trace, for any block: the added rules need only the right
-per-step counts, guarded right-hand sides for the block, and be well formed. -/
+per-step counts and be well formed. -/
 theorem RestoredAuxiliaryRecursorTrace.shapeWF
     {safety : DefinitionSafety} {trEnv recursorEnv : VEnv}
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -124,7 +124,6 @@ theorem RestoredAuxiliaryRecursorTrace.shapeWF
     (priorRules added finalRules : List VDefEq)
     (hfinal : finalRules = priorRules ++ added)
     (hlen : added.length = counts.sum)
-    (Hguard : ∀ rule ∈ added, rule.rhs.GuardedRuleRhs (block.recursors.map (·.name)))
     (Hwf : ∀ rule ∈ added, rule.WF ruleEnv) :
     ∃ Hsemantic : RestoredAuxiliaryShapeTrace decl block main safety trEnv Htrace
         priorRecursors priorRules finalRecursors finalRules,
@@ -148,15 +147,11 @@ theorem RestoredAuxiliaryRecursorTrace.shapeWF
       translated := Hhead.translated
       rulesLength := by
         rw [List.length_take]
-        omega
-      guarded := by
-        intro i _ _ habstract _
-        exact Hguard _ (List.mem_of_mem_take (List.getElem_mem habstract)) }
+        omega }
     obtain ⟨Hrest', Hfinal'⟩ := Hrest.shapeWF decl block main ruleEnv Hc
       (priorRules ++ added.take m) (added.drop m) finalRules
       (by rw [hfinal, List.append_assoc, List.take_append_drop])
       (by simp only [List.length_drop]; omega)
-      (fun rule hrule => Hguard rule (List.mem_of_mem_drop hrule))
       (fun rule hrule => Hwf rule (List.mem_of_mem_drop hrule))
     exact ⟨.cons Hstep Htail Hsemantic Hrest', .cons Hstep Htail Hsemantic Hrest' Hhead.wf
       (fun rule hrule => Hwf rule (List.mem_of_mem_take hrule)) Hfinal'⟩
@@ -193,15 +188,12 @@ noncomputable def NestedFinalAssemblyBase.withRules
       ∀ (s t : Environment) (Hstep : RestoredRecursorStep result loweredEnv auxRec
         allIndNames name s t), Hstep.restored.newInfo.rules.length = c) auxRecNames counts)
     (hauxLen : auxiliaryRules.length = counts.sum)
-    (Hguard : ∀ rule ∈ auxiliaryRules, rule.rhs.GuardedRuleRhs
-      ((canonicalRestoredBlock decl B.primaryRecursors B.auxiliaryRecursors
-        primaryRules auxiliaryRules).recursors.map (·.name)))
     (Hwf : ∀ rule ∈ auxiliaryRules, rule.WF B.finalBaseVEnv) :
     NestedFinalAssemblyShape H sourceEnv decl lparams nparams isUnsafe safety :=
   have Haux := B.auxiliaryRecursorTrace.shapeWF decl
     (canonicalRestoredBlock decl B.primaryRecursors B.auxiliaryRecursors
       primaryRules auxiliaryRules) B.main B.finalBaseVEnv hauxCounts [] auxiliaryRules
-    auxiliaryRules (by simp) hauxLen Hguard Hwf
+    auxiliaryRules (by simp) hauxLen Hwf
   { toNestedFinalAssemblyBase := B
     primaryRules := primaryRules
     auxiliaryRules := auxiliaryRules
@@ -220,9 +212,9 @@ theorem NestedFinalAssemblyBase.withRules_toBase
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     (B : NestedFinalAssemblyBase H sourceEnv decl lparams nparams isUnsafe safety)
     (primaryRules auxiliaryRules : List VDefEq) (hcount Hprimary)
-    {counts : List Nat} (hauxCounts hauxLen Hguard Hwf) :
+    {counts : List Nat} (hauxCounts hauxLen Hwf) :
     (B.withRules primaryRules auxiliaryRules hcount Hprimary (counts := counts)
-      hauxCounts hauxLen Hguard Hwf).toNestedFinalAssemblyBase = B := rfl
+      hauxCounts hauxLen Hwf).toNestedFinalAssemblyBase = B := rfl
 
 /-! ### The rule-shape hypothesis over the base -/
 
@@ -236,8 +228,6 @@ stripped output environment is valid:
 * `Hreal`: realization of each restored generated equation;
 * `Hiota`: the restored generated equation of a source constructor is a
   nested iota rule of the canonical restored shape block;
-* `Hguard`: the right-hand side of the restored generated equation of an
-  auxiliary constructor is guarded for the restored recursor names;
 * `HrestoredWF`: each restored generated equation is well formed in the
   final abstract environment.
 
@@ -296,30 +286,6 @@ theorem NestedValidatedRunResult.hruleShape_of_base
               (canonicalRestoredShapeBlock sourceDecl B.primaryRecursors
                 B.auxiliaryRecursors)
               (sourceDecl.types[f]'hf) ((sourceDecl.types[f]'hf).ctors[j]'hj) rule))
-    (Hguard : ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ B : NestedFinalAssemblyBase E.restoration
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        B.production = E.production →
-        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
-          (Lean4Lean.stripRecursorRules outEnv
-            (Lean4Lean.restoredRecursorNames
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
-        ∀ (k : Fin E.production.production.generationSignature.constructors.size)
-          (rule : VDefEq),
-          (compilationRestoration sourceDecl auxiliaries).equation
-              (E.production.production.canonicalGeneration.equation k) =
-            some rule →
-          recursorMinorOffset E.production.indTypes sourceDecl.types.length ≤ k.val →
-          rule.rhs.GuardedRuleRhs
-            ((sourceTypes.map (·.name)).map (fun name =>
-                let oldName := Lean.mkRecName name
-                (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.getD oldName oldName) ++
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1.map fun oldName =>
-                (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.getD oldName oldName))
     (HrestoredWF : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
@@ -517,41 +483,6 @@ theorem NestedValidatedRunResult.hruleShape_of_base
     rw [recursorMinorOffset_sum _ _ _ (by omega), hsrcLen, show sourceDecl.types.length +
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1.length =
         E.production.indTypes.size by omega, hOn, List.length_drop, hlenRules]
-  -- block names
-  have hblockNames : (canonicalRestoredBlock sourceDecl B.primaryRecursors
-      B.auxiliaryRecursors
-      (rules.take (recursorMinorOffset E.production.indTypes sourceDecl.types.length))
-      (rules.drop (recursorMinorOffset E.production.indTypes sourceDecl.types.length))).recursors.map
-        (·.name) =
-      (sourceTypes.map (·.name)).map (fun name =>
-          let oldName := Lean.mkRecName name
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.getD oldName oldName) ++
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1.map fun oldName =>
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.getD oldName oldName := by
-    simp only [canonicalRestoredBlock, List.map_append, List.map_map]
-    obtain ⟨added, hadded', Hadded⟩ := B.auxiliaryRecursorTrace.recursorSteps
-    simp only [List.nil_append] at hadded'
-    rw [B.sourceSemantics.recursorNames, hadded']
-    congr 1
-    exact stepValues_names Hadded
-  have HguardAux : ∀ rule ∈ rules.drop
-      (recursorMinorOffset E.production.indTypes sourceDecl.types.length),
-      rule.rhs.GuardedRuleRhs ((canonicalRestoredBlock sourceDecl B.primaryRecursors
-        B.auxiliaryRecursors
-        (rules.take (recursorMinorOffset E.production.indTypes sourceDecl.types.length))
-        (rules.drop (recursorMinorOffset E.production.indTypes
-          sourceDecl.types.length))).recursors.map (·.name)) := by
-    intro rule hrule
-    obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hrule
-    simp only [List.length_drop] at hi
-    simp only [List.getElem_drop]
-    have hm : recursorMinorOffset E.production.indTypes sourceDecl.types.length + i <
-        rules.length := by omega
-    have hmn : recursorMinorOffset E.production.indTypes sourceDecl.types.length + i <
-        E.production.production.generationSignature.constructors.size := by omega
-    have Hk := Lean4Lean.List.forall₂_getElem Hrules _ (by simpa using hmn) hm
-    rw [hblockNames]
-    exact Hguard aux' D' B hB hV _ _ Hk (by simp)
   have HwfAux : ∀ rule ∈ rules.drop
       (recursorMinorOffset E.production.indTypes sourceDecl.types.length),
       rule.WF B.finalBaseVEnv := by
@@ -568,7 +499,7 @@ theorem NestedValidatedRunResult.hruleShape_of_base
   refine ⟨B.withRules
     (rules.take (recursorMinorOffset E.production.indTypes sourceDecl.types.length))
     (rules.drop (recursorMinorOffset E.production.indTypes sourceDecl.types.length))
-    hcount Hprim hauxCounts hauxLen HguardAux HwfAux, hB, ?_⟩
+    hcount Hprim hauxCounts hauxLen HwfAux, hB, ?_⟩
   show List.Forall₂ _ _ (rules.take _ ++ rules.drop _)
   rw [List.take_append_drop]
   exact Hreal'

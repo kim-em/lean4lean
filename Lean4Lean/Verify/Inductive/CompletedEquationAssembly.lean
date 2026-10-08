@@ -40,11 +40,9 @@ def CompletedRecursorPhasesResult.GeneratedEquationBuild.empty
   equations := .nil
   rulesWF _ h := by simp at h
 
-/-- Declaration-facing package for the remaining concrete equation
-translations of an ordinary recursor run.  Field selection, recursive-call
-semantics, recursor presence, and pre-installation freshness are all derived
-from `CompletedRecursorPhasesResult`; callers retain only post-installation equation
-translation plus the opaque projection-preservation boundary. -/
+/-- The installed rule list of an ordinary recursor run and its typing in the
+environment with the recursors. The compilation realization of
+`CompletedRuleTranslationResult` fixes the list as the canonical equations. -/
 structure CompletedRuleTranslationShape
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -53,15 +51,8 @@ structure CompletedRuleTranslationShape
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorPhasesResult R outEnv) where
-  Us : List Name
-  Δ : VLCtx
   rules : List VDefEq
   rulesWF : ∀ df ∈ rules, df.WF H.outVEnv
-  owner : Nat
-  equations : H.GeneratedIotaEquationTranslations Us Δ owner rules
-  contextFree : VLCtx.NoIndConsts
-    ((H.blockCertificate rules rulesWF).block.recursors.map (·.name)) Δ
-  complete : owner = H.entries.length
 
 structure CompletedRuleTranslationResult
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -89,18 +80,23 @@ theorem CompletedRuleTranslationResult.compilation
     (hnonempty : indTypes.toList ≠ []) :
     OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate T.rules T.rulesWF).block := by
-  let shape := H.ordinaryCompilationOfRuleBuild T.rules T.rulesWF
-    (T.equations.build T.rules T.rulesWF T.contextFree)
-    (T.equations.completeLength T.complete)
+  let B := H.blockCertificate T.rules T.rulesWF
+  have htypes : B.block.types = decl.typeConstants := R.headerValues
+  have hctors : B.block.ctors = decl.constructorConstants := R.constructorValues
+  have hprojections : B.block.projections = decl.projectionEntries := by
+    simp [B, CompletedBlockCertificate.block]
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty R.core
       (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty R.core hnonempty)
-  exact { shape with
+  exact {
+    types := htypes
+    ctors := hctors
+    projections := hprojections
+    names := B.names
     canonical := T.realization.compiles
     finite := CompiledInductive.ordinary
       (Lean4Lean.TrInductDecl.sourceWF Htranslated) R.formation.formationWF
-      T.realization.compiles (H.blockCertificate T.rules T.rulesWF).wf
-      shape.types shape.ctors shape.projections shape.names }
+      T.realization.compiles B.wf htypes hctors hprojections B.names }
 
 
 /-- Every newly stored equation is headed by a recursor from the same joint

@@ -87,6 +87,11 @@ def VInductDecl.projectionEntries (decl : VInductDecl) : List VProjectionEntry :
           ctorType := ctor.type } }
     | _ => none
 
+/-- A declaration without families has no projection entries. -/
+theorem VInductDecl.projectionEntries_eq_nil {decl : VInductDecl} (h : decl.types = []) :
+    decl.projectionEntries = [] := by
+  simp [VInductDecl.projectionEntries, h]
+
 /-- The common parameters as de Bruijn variables beneath `depth` additional
 constructor-field binders. -/
 def VInductDecl.paramVars (decl : VInductDecl) (depth : Nat) : List VExpr :=

@@ -139,101 +139,6 @@ theorem CompletedRecursorPhasesResult.ownedConstructors_length_eq
   change _ = H.consumedGeneration.signature.constructors.size
   rw [H.consumedGeneration.constructorCount]
 
-/-- The installed recursor value of an owner is the canonical generator's
-recursor. -/
-theorem CompletedRecursorPhasesResult.entry_value_eq
-    (H : CompletedRecursorPhasesResult R outEnv) (owner : Nat)
-    (howner : owner < H.entries.length)
-    (hf : owner < H.generationSignature.families.size) :
-    H.entries[owner].2 = H.canonicalGeneration.recursor ⟨owner, hf⟩ := by
-  rw [H.canonicalTargets owner howner]
-  unfold CompletedRecursorConstruction.nativeTarget
-  rw [dif_pos hf]
-  rfl
-
-/-- The equation batch of one owner translates its installed rules. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.canonicalEquationTranslation
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
-    (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size)
-    (Hrhs : TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
-      ((H.generated.entry owner howner).info.rules[i]'A.sourceRule_lt).rhs
-      (H.canonicalGeneration.equation ⟨recursorMinorOffset indTypes owner + i, hk⟩).rhs) :
-    Nonempty (A.rule.EquationTranslation H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
-      (H.canonicalGeneration.equation ⟨recursorMinorOffset indTypes owner + i, hk⟩)) :=
-  ⟨{ domains := H.canonicalGeneration.equationDomains ⟨recursorMinorOffset indTypes owner + i, hk⟩
-     lhsBody := H.canonicalGeneration.equationLhsBody ⟨recursorMinorOffset indTypes owner + i, hk⟩
-     rhsBody := H.canonicalGeneration.equationRhsBody ⟨recursorMinorOffset indTypes owner + i, hk⟩
-     typeBody := H.canonicalGeneration.equationTypeBody ⟨recursorMinorOffset indTypes owner + i, hk⟩
-     domains_length := A.equationDomains_length hk
-     lhs_wrapped := rfl
-     rhs_wrapped := rfl
-     type_wrapped := rfl
-     lhs_residual := A.lhsTranslation hk
-     rhs_residual := A.rhsResidualOfClosed hk A.sourceRhsBody_closed Hrhs }⟩
-
-/-- Every owner prefix of the canonical equation list is an equation-only
-traversal of the corresponding installed rule batches. -/
-theorem CompletedRecursorPhasesResult.equationPrefixTranslations
-    (H : CompletedRecursorPhasesResult R outEnv) (Hrhs : H.RuleRhsTranslations) :
-    ∀ owner, owner ≤ H.entries.length →
-      H.GeneratedIotaEquationTranslations
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams) [] owner
-        (H.canonicalGeneration.equations.take (recursorMinorOffset indTypes owner)) := by
-  intro owner hcovered
-  induction owner with
-  | zero => simpa [recursorMinorOffset] using CompletedRecursorPhasesResult.GeneratedIotaEquationTranslations.nil
-  | succ owner ih =>
-    have howner : owner < H.entries.length := by omega
-    have hrec : owner < H.recInfos.size := by rw [← H.generated.length]; exact howner
-    have hsrc : owner < indTypes.size := by rw [← H.recInfos_size_eq_source]; exact hrec
-    have hcnt : (H.generated.entry owner howner).info.rules.length =
-        indTypes[owner]!.ctors.length := (H.generated.entry owner howner).rules.length
-    have hstep : recursorMinorOffset indTypes (owner + 1) =
-        recursorMinorOffset indTypes owner + (H.generated.entry owner howner).info.rules.length := by
-      rw [recursorMinorOffset_step indTypes owner hsrc, hcnt]
-    have hlenEq : H.canonicalGeneration.equations.length =
-        H.generationSignature.constructors.size := by
-      simp [InductiveSignature.Instance.equations]
-    have htotal : recursorMinorOffset indTypes owner +
-        (H.generated.entry owner howner).info.rules.length ≤
-        H.generationSignature.constructors.size := by
-      rw [H.constructors_size_offset, ← hstep]
-      exact recursorMinorOffset_mono indTypes _ _ (by omega) (Nat.le_refl _)
-    have hsplit : H.canonicalGeneration.equations.take (recursorMinorOffset indTypes (owner + 1)) =
-        H.canonicalGeneration.equations.take (recursorMinorOffset indTypes owner) ++
-          (H.canonicalGeneration.equations.drop (recursorMinorOffset indTypes owner)).take
-            (H.generated.entry owner howner).info.rules.length := by
-      rw [hstep, List.take_add]
-    rw [hsplit]
-    have hlength : ((H.canonicalGeneration.equations.drop (recursorMinorOffset indTypes owner)).take
-        (H.generated.entry owner howner).info.rules.length).length =
-        (H.generated.entry owner howner).info.rules.length := by
-      simp only [List.length_take, List.length_drop, hlenEq]; omega
-    have hpriorLen : (H.canonicalGeneration.equations.take
-        (recursorMinorOffset indTypes owner)).length = recursorMinorOffset indTypes owner := by
-      simp only [List.length_take, hlenEq]; omega
-    refine .cons (ih (by omega)) howner _ hlength ?_ ?_
-    · rw [hlength, hpriorLen, H.ownedConstructors_length_eq]; omega
-    · intro i hctor hsource habstract _hindex
-      have hk : recursorMinorOffset indTypes owner + i <
-          H.generationSignature.constructors.size := by omega
-      have hbatch : ((H.canonicalGeneration.equations.drop (recursorMinorOffset indTypes owner)).take
-          (H.generated.entry owner howner).info.rules.length)[i] =
-          H.canonicalGeneration.equation ⟨recursorMinorOffset indTypes owner + i, hk⟩ := by
-        simp [InductiveSignature.Instance.equations]
-      rcases H.generatedRuleAlignment owner howner i hctor with ⟨A⟩
-      have hf : owner < H.generationSignature.families.size := by
-        rw [← H.entries_length_eq]; exact howner
-      refine ⟨A, ?_, ?_⟩
-      · rw [hbatch]
-        exact A.canonicalEquationTranslation hk (Hrhs owner howner i A.sourceRule_lt hk)
-      · rw [hbatch, H.entry_value_eq owner howner hf]
-        rfl
-
 /-- The installed rule names the generated constructor at its flattened
 position. -/
 theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.ruleCtor_eq
@@ -376,29 +281,12 @@ theorem CompletedRecursorPhasesResult.completedRuleTranslation_of
     (H : CompletedRecursorPhasesResult R outEnv) (Hrhs : H.RuleRhsTranslations) :
     Nonempty (CompletedRuleTranslationResult H) := by
   have hrulesWF := H.equationsWF (H.generatorBodyTranslations_of Hrhs)
-  have hsize : H.entries.length = indTypes.size := by
-    rw [H.generated.length, H.recInfos_size_eq_source]
-  have hfull : H.canonicalGeneration.equations.take
-      (recursorMinorOffset indTypes H.entries.length) = H.canonicalGeneration.equations := by
-    apply List.take_of_length_le
-    rw [hsize, ← H.constructors_size_offset]
-    simp [InductiveSignature.Instance.equations]
-  have Htr := H.equationPrefixTranslations Hrhs H.entries.length (Nat.le_refl _)
-  rw [hfull] at Htr
-  refine ⟨{ Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-            Δ := []
-            rules := H.canonicalGeneration.equations
+  refine ⟨{ rules := H.canonicalGeneration.equations
             rulesWF := hrulesWF
-            owner := H.entries.length
-            equations := Htr
-            contextFree := ?_
-            complete := rfl
             realization := ?_ }⟩
-  · intro v mapped type hfind
-    simp [VLCtx.find?] at hfind
   · refine ⟨⟨H.generationSignature, H.canonicalGeneration, R.headerVEnv,
       H.consumedGeneration.models, R.core.typesAdded, H.canonicalGeneration_admissible,
-      ⟨R.ctorVEnv, R.eliminators, R.core.ctorsAdded, R.eliminatorsOrdinary.own, ?_, ?_⟩,
+      ⟨R.ctorVEnv, R.eliminators, R.core.ctorsAdded, R.eliminatorsOwn, ?_, ?_⟩,
       H.consumedGeneration.names, ?_, rfl,
       H.entryRealizations Hrhs⟩⟩
     · rw [← R.contextVEnv]; exact H.consumedGeneration.recursiveTypesWF

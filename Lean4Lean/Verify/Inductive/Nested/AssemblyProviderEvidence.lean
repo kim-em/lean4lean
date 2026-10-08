@@ -946,13 +946,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.finalEvidenceOfRecursorTrace
     recursor := Hrecursor.recursor
     rules := rules
     translated := Hrecursor.translated
-    rulesLength := Hlength
-    guarded := by
-      intro i _hsource _hrestored habstract _Hrestoration
-      have hmember : rules[i] ∈ rules := List.getElem_mem habstract
-      exact (HrulesGuarded rules[i] hmember).congrRecursors (by
-        intro name
-        rw [Hnames]) }
+    rulesLength := Hlength }
   exact ⟨⟨{
     semantics := Hsemantics
     recursorWF := Hrecursor.wf
@@ -974,10 +968,6 @@ def RestoredAuxiliaryStepShape.rebaseBlock
   rules := H.rules
   translated := H.translated
   rulesLength := H.rulesLength
-  guarded := by
-    intro i hsource hrestored habstract Hrestoration
-    exact (H.guarded i hsource hrestored habstract Hrestoration).congrRecursors
-      Hnames
 
 /-- Reindex a completed auxiliary semantic/WF fold across blocks with the
 same recursor-name support.  This is useful because the final rule list is an
@@ -1268,7 +1258,7 @@ theorem NestedLoweringResultClosed.existsValidatedExactStagedRestoration
           sourceVEnv envTypes ((envCtors.addEliminators es).addProjections decl.projectionEntries)
           decl.types primaryRecursors auxiliaryRecursors,
         ∃ canonicalProdEnv finalVEnv,
-          Nonempty { S : StagedBlock c.safety c.env sourceVEnv replay.typeEntries
+          Nonempty { S : CompletedStagedBlock c.safety c.env sourceVEnv replay.typeEntries
             replay.constructorEntries replay.recursorEntries
               decl.projectionEntries canonicalProdEnv finalVEnv // S.eliminators = es } ∧
           ∀ name, outProdEnv.constants.find? name =
@@ -1340,7 +1330,7 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
     (replay : CanonicalRestorationReplay c.safety c.env outEnv sourceVEnv
       envTypes ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries)
       sourceDecl.types primaryRecursors auxiliaryRecursors)
-    (canonical : StagedBlock c.safety c.env sourceVEnv replay.typeEntries
+    (canonical : CompletedStagedBlock c.safety c.env sourceVEnv replay.typeEntries
       replay.constructorEntries replay.recursorEntries
         sourceDecl.projectionEntries canonicalProdEnv finalBaseVEnv)
     (HruleValid : CheckingEnv.Valid c.safety ruleEnv finalBaseVEnv)
@@ -1357,9 +1347,8 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
     (hsourceNonempty : sourceTypes ≠ [])
     (hcanonicalElims : canonical.eliminators = es)
     (Hcases : VInductBlock.EliminatorsWF sourceVEnv sourceDecl (sourceDecl.caseBlock es))
-    (Hreplay : ∀ env', sourceVEnv ≤ env' →
-      (∀ n, c.env.constants.find? n = none → env'.constants n = none) →
-      VInductBlock.EliminatorsReplay env' sourceDecl (sourceDecl.caseBlock es))
+    (Hreplay : sourceDecl.CaseEliminators sourceVEnv
+      (fun n => c.env.constants.find? n = none) es)
     (HelimRestored : NestedEliminatorsRestored P result
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 sourceDecl c.lparams es) :
     Nonempty { C : NestedFinalAssemblyShape Hrestored sourceVEnv
@@ -1391,11 +1380,11 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
     rw [HprimaryNames, HauxiliaryNames]
     simp only [List.map_map, Function.comp_def]
   have hcanonicalTypes : canonical.venvTypes = envTypes := by
-    have hadded := canonical.typesAdded.abstract
+    have hadded := canonical.abstract_types
     rw [replay.typeValues] at hadded
     exact Option.some.inj (hadded.symm.trans Hcore.typesAdded)
   have hcanonicalCtors : canonical.venvCtors = envCtors := by
-    have hadded := canonical.ctorsAdded.abstract
+    have hadded := canonical.abstract_ctors
     rw [hcanonicalTypes, replay.constructorValues] at hadded
     exact Option.some.inj (hadded.symm.trans Hcore.ctorsAdded)
   have Hfamilies := Hlower.primaryFamiliesOfValidation
@@ -1562,7 +1551,7 @@ theorem NestedFinalAssemblyBase.ofReplay
     (replay : CanonicalRestorationReplay c.safety c.env outEnv sourceVEnv
       envTypes ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries)
       sourceDecl.types primaryRecursors auxiliaryRecursors)
-    (canonical : StagedBlock c.safety c.env sourceVEnv replay.typeEntries
+    (canonical : CompletedStagedBlock c.safety c.env sourceVEnv replay.typeEntries
       replay.constructorEntries replay.recursorEntries
         sourceDecl.projectionEntries canonicalProdEnv finalBaseVEnv)
     (HruleValid : CheckingEnv.Valid c.safety ruleEnv finalBaseVEnv)
@@ -1574,20 +1563,19 @@ theorem NestedFinalAssemblyBase.ofReplay
     (hsourceNonempty : sourceTypes ≠ [])
     (hcanonicalElims : canonical.eliminators = es)
     (Hcases : VInductBlock.EliminatorsWF sourceVEnv sourceDecl (sourceDecl.caseBlock es))
-    (Hreplay : ∀ env', sourceVEnv ≤ env' →
-      (∀ n, c.env.constants.find? n = none → env'.constants n = none) →
-      VInductBlock.EliminatorsReplay env' sourceDecl (sourceDecl.caseBlock es))
+    (Hreplay : sourceDecl.CaseEliminators sourceVEnv
+      (fun n => c.env.constants.find? n = none) es)
     (HelimRestored : NestedEliminatorsRestored P result
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 sourceDecl c.lparams es) :
     Nonempty { B : NestedFinalAssemblyBase Hrestored sourceVEnv
         sourceDecl c.lparams nparams isUnsafe c.safety //
       B.production = P ∧ CheckingEnv.Valid c.safety ruleEnv B.finalBaseVEnv } := by
   have hcanonicalTypes : canonical.venvTypes = envTypes := by
-    have hadded := canonical.typesAdded.abstract
+    have hadded := canonical.abstract_types
     rw [replay.typeValues] at hadded
     exact Option.some.inj (hadded.symm.trans Hcore.typesAdded)
   have hcanonicalCtors : canonical.venvCtors = envCtors := by
-    have hadded := canonical.ctorsAdded.abstract
+    have hadded := canonical.abstract_ctors
     rw [hcanonicalTypes, replay.constructorValues] at hadded
     exact Option.some.inj (hadded.symm.trans Hcore.ctorsAdded)
   have hownersNonempty : sourceDecl.types ≠ [] :=
@@ -1644,7 +1632,7 @@ theorem NestedFinalAssemblyBase.ofReplay
         unsafeEq := hunsafeEq
         sourceNonempty := hsourceNonempty
         eliminatorsWF := by rw [hcanonicalElims]; exact Hcases
-        eliminatorsReplay := by rw [hcanonicalElims]; exact Hreplay
+        eliminatorsCertified := by rw [hcanonicalElims]; exact Hreplay
         eliminatorsRestored := by rw [hcanonicalElims]; exact HelimRestored },
         rfl, HruleValid⟩⟩
 
@@ -2321,14 +2309,14 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
       (by simpa [VInductDecl.constructorConstants] using replay.constructorValues)
       HbaseValid henv hinitial hctorNames Hsource HauxiliaryRecursors
       replay.recursorValues (hcornerAt (by
-        have h1 := canonical.typesAdded.abstract
+        have h1 := canonical.abstract_types
         rw [show _ = _ from replay.typeValues] at h1
         have h2 : P.initialEnv.addConstVals
             (List.map VInductiveType.toVConstVal sourceDecl.types) =
               some E.nativeSource.envTypes := Hcore.typesAdded
         rw [h2] at h1
         rw [Option.some.inj h1]
-        exact canonical.ctorsAdded.le.trans
+        exact canonical.formationAdded.constructorLE.trans
           (VEnv.addEliminators_addProjections_le.trans canonical.recursorsAdded.le))).1
   have HruleRun : Lean4Lean.validateRestoredRecursorRules.run
       (Lean4Lean.stripRecursorRules outEnv
@@ -2619,14 +2607,14 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
       (by simpa [VInductDecl.constructorConstants] using replay.constructorValues)
       HbaseValid henv hinitial hctorNames Hsource HauxiliaryRecursors
       replay.recursorValues (hcornerAt (by
-        have h1 := canonical.typesAdded.abstract
+        have h1 := canonical.abstract_types
         rw [show _ = _ from replay.typeValues] at h1
         have h2 : P.initialEnv.addConstVals
             (List.map VInductiveType.toVConstVal sourceDecl.types) =
               some E.nativeSource.envTypes := Hcore.typesAdded
         rw [h2] at h1
         rw [Option.some.inj h1]
-        exact canonical.ctorsAdded.le.trans
+        exact canonical.formationAdded.constructorLE.trans
           (VEnv.addEliminators_addProjections_le.trans canonical.recursorsAdded.le))).1
   let HformationP : NestedFormationAssembly P.initialEnv sourceDecl :=
     Eq.mpr

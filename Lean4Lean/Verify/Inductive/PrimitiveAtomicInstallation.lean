@@ -570,6 +570,25 @@ theorem AtomicAddConstants.findEntry
       simpa [hi] using hinstalled
     · exact ih hnextWF htail
 
+/-- Constants hidden from an observer can be installed without changing that
+observer's translated environment. -/
+theorem AtomicAddConstants.trEnvIgnore
+    (H : AtomicAddConstants checkSafety prodEnv venv entries outEnv outVEnv)
+    (hhidden : ∀ entry ∈ entries, ¬ observerSafety ≤ entry.1.safety)
+    (htr : TrEnv' observerSafety prodEnv.constants quotInit observerEnv) :
+    TrEnv' observerSafety outEnv.constants quotInit observerEnv := by
+  induction H with
+  | nil => exact htr
+  | cons hn _hentry _hwf _hadd _hdelta _Htail ih =>
+    rename_i venvHead ci ci' venvNext rest outProd outAbs envHead
+    have hnMap : envHead.constants.find? ci.name = none := by
+      rw [← htr.map_wf.find?'_eq_find?]
+      exact hn
+    have htrHead : TrEnv' observerSafety
+        (envHead.constants.insert ci.name ci) quotInit observerEnv :=
+      TrEnv'.ignore hnMap (hhidden (ci, ci') (by simp)) htr
+    exact ih (fun entry hentry => hhidden entry (by simp [hentry])) htrHead
+
 /-- Global primitive metadata can be restored once every primitive member of
 the complete atomic batch is known to carry canonical safe metadata. -/
 theorem AtomicAddConstants.safePrimitives
@@ -887,8 +906,15 @@ structure PrimitiveDeclaredConstructorsResult
     entry.1 ≠ ConstantInfo.inductInfo value
   translation : TrInductDeclConstructors H.context.venv c.lparams
     indTypes.toList decl venvCtors
-  bootstrap : PrimitiveBootstrapInstallation sourceEnv venvCtors
-    (decl.typeConstants ++ decl.constructorConstants)
+  /-- The complete header/constructor batch is the canonical Bool or Nat batch. -/
+  primitiveConstants :
+    decl.typeConstants ++ decl.constructorConstants = primitiveBoolConstants ∨
+      decl.typeConstants ++ decl.constructorConstants = primitiveNatConstants
+  /-- Every installed entry with a reserved primitive name is safe and
+  universe-monomorphic. -/
+  safeEntries : ∀ entry ∈ H.entries ++ entries,
+    Kernel.Environment.primitives.contains entry.1.name →
+    entry.1.safety = .safe ∧ entry.1.levelParams = []
   context : ContextWF { c with env := outEnv }
   contextVEnv : context.venv = venvCtors
   contextMLCtx : context.mlctx = H.context.mlctx

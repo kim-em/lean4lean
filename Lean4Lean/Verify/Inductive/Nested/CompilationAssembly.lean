@@ -14,23 +14,10 @@ as a surrogate for this semantic trace. -/
 theorem RestoredNestedDeclarationsResult.addInductOfStagedInstallation
     (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
       auxRec allIndNames types auxRecNames out)
-    (envTypes envCtors : VEnv) (main : VInductiveType)
-    (rest : List VInductiveType)
-    (htypesSource : decl.types = main :: rest)
+    (envTypes envCtors : VEnv)
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq)
     (es : List (Name × InductiveSignature.CaseSchema))
-    (HprimaryRecursors : RestoredPrimaryRecursorSemanticTrace decl safety
-      ((envCtors.addEliminators es).addProjections decl.projectionEntries) H.inductives
-      (main :: rest) primaryRecursors)
-    (HprimaryRules : NestedIotaBuildCertificate decl
-      { canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
-        primaryRules auxiliaryRules with eliminators := es } primaryRules)
-    (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
-    (Hauxiliary : RestoredAuxiliaryShapeTrace decl
-      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
-        primaryRules auxiliaryRules) main safety trEnv H.auxiliaries
-      [] [] auxiliaryRecursors auxiliaryRules)
     (Hcanonical : CompiledInductive sourceEnv decl
       { canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules with eliminators := es })
@@ -73,16 +60,6 @@ theorem RestoredNestedDeclarationsResult.addInductOfStagedInstallation
         Hsource.ctorsAdded, hraw]
     simpa [block, canonicalRestoredBlock] using
       VEnv.addConstVals_names_nodup hall
-  have Haux : AuxiliaryRestorationPrefix decl block main auxiliaryRecursors
-      auxiliaryRules :=
-    ⟨(Hauxiliary.prefix (AuxiliaryRestorationPrefix.empty decl _ main)).guarded⟩
-  let Hshape : NestedShapeCertificate sourceEnv decl block :=
-    NestedShapeCertificate.ofRestoration sourceEnv envTypes envCtors
-      decl block main rest htypesSource primaryRecursors auxiliaryRecursors
-      primaryRules auxiliaryRules
-      (HprimaryRecursors.recursorCertificate htypesSource) HprimaryRules
-      hprimaryLength Haux rfl rfl rfl Hsource.typesAdded Hsource.ctorsAdded rfl rfl
-      hnames
   have HblockWF : block.WF sourceEnv := by
     refine ⟨envTypes, envCtors, outVEnv, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
     · simpa [block, canonicalRestoredBlock] using Hsource.typesAdded
@@ -106,8 +83,7 @@ theorem RestoredNestedDeclarationsResult.addInductOfStagedInstallation
   exact .intro
     ⟨Lean4Lean.TrInductDecl.sourceWF Htranslated,
       .nested Hformation VEnv.LE.rfl⟩
-    (NestedCompilationCertificate.compilesTo
-      { Hshape with canonical := Hcanonical }) HblockWF
+    ⟨rfl, rfl, rfl, hnames, Hcanonical⟩ HblockWF
     (Helim.congr_block rfl rfl rfl rfl) Hinstall
 
 end VerifyInductive
