@@ -328,12 +328,12 @@ theorem NestedValidatedRunResult.finalBaseVEnv_restorableNames_fresh_of_not_rena
     E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D' True.intro
   have hwf : sourceProdEnv.constants.WF := (wf.tr (safety := .safe)).map_wf
   have htypesEq : C.canonical.venvTypes = envTypes := by
-    have h := C.canonical.typesAdded.abstract
+    have h := C.canonical.abstract_types
     rw [C.typeValues, hadded] at h
     exact (Option.some.inj h).symm
   have hctorsAdded : envTypes.addConstVals sourceDecl.constructorConstants =
       some C.canonical.venvCtors := by
-    have h := C.canonical.ctorsAdded.abstract
+    have h := C.canonical.abstract_ctors
     rwa [C.constructorValues, htypesEq] at h
   have hsourceCtorNames := C.sourceConstructorNames
   rw [hC] at hsourceCtorNames

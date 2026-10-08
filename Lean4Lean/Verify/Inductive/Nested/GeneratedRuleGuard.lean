@@ -26,6 +26,13 @@ open InductiveSignature
 
 namespace VerifyInductive
 
+theorem VExpr.IsFieldApp.mkApps {field depth : Nat} {fieldVars : List Nat}
+    (hfield : field ∈ fieldVars) (args : List VExpr) :
+    (VExpr.mkApps (.bvar (field + depth)) args).IsFieldApp fieldVars depth := by
+  refine ⟨field, hfield, args, ?_⟩
+  simpa [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go] using
+    VExpr.getAppFnArgs_mkApps (.bvar (field + depth)) args
+
 /-! ### Guardedness from constant avoidance -/
 
 /-- An expression mentioning no recursor is guarded, for any field variables
@@ -457,12 +464,12 @@ theorem NestedValidatedRunResult.restoredGeneratedAvoidance
   let R := r.recursors.map Prod.fst
   let L := R ++ N.filter (fun n => !(Hd.contains n))
   -- the source stages
-  have hTypesAdded := C.canonical.typesAdded.abstract
+  have hTypesAdded := C.canonical.abstract_types
   rw [C.typeValues] at hTypesAdded
   have henvTypes : envTypes = C.canonical.venvTypes :=
     Option.some.inj (hadded.symm.trans hTypesAdded)
   subst henvTypes
-  have hCtorsAdded := C.canonical.ctorsAdded.abstract
+  have hCtorsAdded := C.canonical.abstract_ctors
   rw [C.constructorValues] at hCtorsAdded
   have hRecsAdded := C.canonical.recursorsAdded.abstract
   rw [C.recursorValues] at hRecsAdded

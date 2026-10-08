@@ -304,7 +304,7 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
     recursiveTypesWF := by
       refine ⟨_, _, E.production.constructors.completed.eliminators, hloweredTypes,
         hloweredCtors, ?_, ?_, ?_⟩
-      · have hown := E.production.constructors.completed.eliminatorsOrdinary.own
+      · have hown := E.production.constructors.completed.eliminatorsOwn
         generalize E.production.constructors.completed.eliminators = es at hown ⊢
         rw [hinit] at hown
         exact hown
@@ -315,7 +315,7 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
     familyTypesWF := by
       refine ⟨_, _, E.production.constructors.completed.eliminators, hloweredTypes,
         hloweredCtors, ?_, ?_⟩
-      · have hown := E.production.constructors.completed.eliminatorsOrdinary.own
+      · have hown := E.production.constructors.completed.eliminatorsOwn
         generalize E.production.constructors.completed.eliminators = es at hown ⊢
         rw [hinit] at hown
         exact hown
@@ -360,7 +360,7 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
         simp only [List.map_append, canonicalRestoredBlock]
         rw [C.typeValues, C.constructorValues, C.recursorValues]
       rw [← hvalues]
-      exact VEnv.addConstVals_names_nodup C.canonical.productionTrace.abstract }
+      exact VEnv.addConstVals_names_nodup C.canonical.combinedAtomic.abstract }
 
 end VerifyInductive
 end Lean4Lean

@@ -541,7 +541,7 @@ private theorem ConstructorHistory.addInduct
     have hdf0 : envCtors.defeqs = env.defeqs :=
       (VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)
     have hpre := (show ConstructorHistory (envCtors.addEliminators block.eliminators) by
-      rcases helim with ⟨hE, -⟩ | ⟨key, schema, hE, hcert, hkey, hprojs, -⟩
+      rcases helim with ⟨-, hE⟩ | ⟨key, schema, hE, ⟨hcert, hkey, -⟩, hprojs⟩
       · rw [hE]; exact (H.addConstVals htypes).addConstVals hctors
       · rw [hE]
         exact H.register ((H.addConstVals htypes).addConstVals hctors) hordered
@@ -612,9 +612,9 @@ private theorem WF.constructorHistory {env : VEnv} (H : env.WF) : ConstructorHis
     | mutualDef _ hadd _ => exact ih.addDefinitions hadd
     | quot _ hadd => exact ih.addQuot hordered hadd
     | induct _ hadd => exact ih.addInduct hordered hadd
-  | inductEliminators hbase henv hle hcert hkey hconstants hfresh _ ihBase ihEnv =>
+  | inductEliminators hbase henv hle hreg hconstants hdefeqs _ _ _ _ ihBase ihEnv =>
     exact ihBase.register ihEnv (show VEnv.WF _ from ⟨_, hbase⟩).ordered
-      hle hcert hconstants.1 hconstants.2.1
+      hle hreg.certified hconstants hdefeqs
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
     exact ihCtors.addProjections
 

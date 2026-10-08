@@ -102,7 +102,7 @@ def NestedFinalAssemblyCertificate.blockCertificate
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     (C : NestedFinalAssemblyCertificate H sourceEnv decl lparams nparams
       isUnsafe safety) :
-    BlockCertificate safety sourceProdEnv sourceEnv C.typeEntries
+    CompletedBlockCertificate safety sourceProdEnv sourceEnv C.typeEntries
       C.constructorEntries C.recursorEntries
       (C.primaryRules ++ C.auxiliaryRules) C.canonicalProdEnv
         C.finalBaseVEnv where
@@ -140,13 +140,13 @@ theorem NestedFinalAssemblyCertificate.block_eq_canonicalRestoredBlock
     C.blockCertificate.block =
       { canonicalRestoredBlock decl C.primaryRecursors C.auxiliaryRecursors
         C.primaryRules C.auxiliaryRules with eliminators := C.canonical.eliminators } := by
-  simp [BlockCertificate.block, canonicalRestoredBlock,
+  simp [CompletedBlockCertificate.block, canonicalRestoredBlock,
     NestedFinalAssemblyCertificate.blockCertificate, C.typeValues,
     C.constructorValues, C.recursorValues]
 
 /-- The replayable block is the same source nested compilation used by the
 final independent `AddInduct` result. -/
-noncomputable def NestedFinalAssemblyCertificate.compilation
+theorem NestedFinalAssemblyCertificate.compilation
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -157,12 +157,8 @@ noncomputable def NestedFinalAssemblyCertificate.compilation
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     (C : NestedFinalAssemblyCertificate H sourceEnv decl lparams nparams
       isUnsafe safety) :
-    NestedCompilationCertificate sourceEnv decl C.blockCertificate.block := by
+    decl.CompilesTo sourceEnv C.blockCertificate.block := by
   rw [C.block_eq_canonicalRestoredBlock]
-  let Hsource : TrInductDeclCore sourceEnv lparams nparams sourceTypes
-      isUnsafe decl C.canonical.venvTypes C.canonical.venvCtors :=
-    C.sourceSemantics.core C.typesSource C.uvars C.numParams C.unsafeEq
-      C.typesAdded C.constructorsAdded
   let block : VInductBlock := { canonicalRestoredBlock decl C.primaryRecursors
     C.auxiliaryRecursors C.primaryRules C.auxiliaryRules with
       eliminators := C.canonical.eliminators }
@@ -174,19 +170,14 @@ noncomputable def NestedFinalAssemblyCertificate.compilation
   have hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name)) := by
     rw [← hvalues]
-    exact VEnv.addConstVals_names_nodup C.canonical.productionTrace.abstract
+    exact VEnv.addConstVals_names_nodup C.canonical.combinedAtomic.abstract
   have Hcanonical := (C.realization.congr_eliminators C.canonical.eliminators).compiles
-  refine { toNestedShapeCertificate := ?_, canonical := Hcanonical }
-  exact NestedShapeCertificate.ofRestoration sourceEnv
-    C.canonical.venvTypes C.canonical.venvCtors decl block C.main C.rest
-    C.typesSource C.primaryRecursors C.auxiliaryRecursors C.primaryRules
-    C.auxiliaryRules
-    (C.sourceSemantics.primaryRecursors.recursorCertificate C.typesSource)
-    (C.primaryIotaBuild.rebaseRecursors rfl)
-    (C.primaryIota.length C.typesSource)
-    ⟨(C.auxiliarySemantics.prefix
-      (AuxiliaryRestorationPrefix.empty decl _ C.main)).guarded⟩
-    rfl rfl rfl Hsource.typesAdded Hsource.ctorsAdded rfl rfl hnames
+  exact {
+    types := rfl
+    ctors := rfl
+    projections := rfl
+    names := hnames
+    compiled := Hcanonical }
 
 theorem NestedFinalAssemblyCertificate.declWF
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -338,7 +329,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
   let actual := Classical.choice HactualExists
   have hlookup : ∀ name, outEnv.constants.find? name =
       C.canonicalProdEnv.constants.find? name :=
-    actual.property.lookupEqOfPerm C.canonical.productionTrace.freshTrace
+    actual.property.lookupEqOfPerm C.canonical.combinedAtomic.freshTrace
       Hvalid.tr.map_wf (C.productionOrder actual.val actual.property)
   have hlookupEnv : ∀ name, outEnv.find? name =
       C.canonicalProdEnv.find? name := by
@@ -346,7 +337,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
     change outEnv.constants.find?' name =
       C.canonicalProdEnv.constants.find?' name
     rw [(actual.property.targetWF Hvalid.tr.map_wf).find?'_eq_find?,
-      (C.canonical.productionTrace.targetMapWF Hvalid.tr.map_wf).find?'_eq_find?]
+      (C.canonical.combinedAtomic.targetMapWF Hvalid.tr.map_wf).find?'_eq_find?]
     exact hlookup name
   have valid (observer : DefinitionSafety) :
       CheckingEnv.Valid observer sourceProdEnv (ves.venv observer) :=
@@ -355,7 +346,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
       wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   have replay (observer : DefinitionSafety) :
       ∃ replayBase,
-        ∃ Breplay : BlockCertificate observer sourceProdEnv
+        ∃ Breplay : CompletedBlockCertificate observer sourceProdEnv
           (ves.venv observer) C.typeEntries C.constructorEntries
           C.recursorEntries (C.primaryRules ++ C.auxiliaryRules)
           C.canonicalProdEnv replayBase,
@@ -366,7 +357,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
         Breplay.staged.eliminators = B.staged.eliminators := by
     have hB : B.block = _ := C.block_eq_canonicalRestoredBlock
     have Hreplay : VInductBlock.EliminatorsReplay (ves.venv observer) decl B.block :=
-      (C.eliminatorsReplay (ves.venv observer) (wf.mono DefinitionSafety.le_safe)
+      (C.eliminatorsCertified (ves.venv observer) (wf.mono DefinitionSafety.le_safe)
         (fun n hn => by
           cases h : (ves.venv observer).constants n with
           | none => rfl
@@ -376,7 +367,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
         (by rw [hB]; rfl) (by rw [hB]; rfl) (by rw [hB]; rfl) (by rw [hB]; rfl)
     rcases B.rebaseAddInduct (valid observer) DefinitionSafety.le_safe
         (wf.mono DefinitionSafety.le_safe) C.declWF
-        C.compilation.compilesTo Hreplay with
+        C.compilation Hreplay with
       ⟨replayBase, Breplay, hprojections, Habstract, hout, heliminators⟩
     have HcheckingCanonical : CheckingEnv observer C.canonicalProdEnv
         replayBase := (Breplay.staged.validCore (valid observer).toValidCore).tr
@@ -388,7 +379,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
       abstractAddInduct_declWF Habstract
     have HcheckingRules : CheckingEnv observer outEnv Breplay.finalVEnv := {
       aligned := by
-        rw [BlockCertificate.finalVEnv]
+        rw [CompletedBlockCertificate.finalVEnv]
         exact aligned_addDefEqs Hchecking.aligned
           (C.primaryRules ++ C.auxiliaryRules)
       wf := by
@@ -604,7 +595,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
   have hperm := C.productionOrder actual.val actual.property
   have hlookup : ∀ name, outEnv.constants.find? name =
       C.canonicalProdEnv.constants.find? name :=
-    actual.property.lookupEqOfPerm C.canonical.productionTrace.freshTrace
+    actual.property.lookupEqOfPerm C.canonical.combinedAtomic.freshTrace
       Hvalid.tr.map_wf hperm
   have hlookupEnv : ∀ name, outEnv.find? name =
       C.canonicalProdEnv.find? name := by
@@ -612,7 +603,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
     change outEnv.constants.find?' name =
       C.canonicalProdEnv.constants.find?' name
     rw [(actual.property.targetWF Hvalid.tr.map_wf).find?'_eq_find?,
-      (C.canonical.productionTrace.targetMapWF Hvalid.tr.map_wf).find?'_eq_find?]
+      (C.canonical.combinedAtomic.targetMapWF Hvalid.tr.map_wf).find?'_eq_find?]
     exact hlookup name
   let F := C.finalEnvironment Hvalid
   have HcheckingRules : CheckingEnv .unsafe outEnv

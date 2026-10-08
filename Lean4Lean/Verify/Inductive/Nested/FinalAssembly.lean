@@ -188,7 +188,7 @@ structure NestedFinalAssemblyBase
   recursorEntries : List (ConstantInfo × VConstVal)
   canonicalProdEnv : Environment
   finalBaseVEnv : VEnv
-  canonical : StagedBlock safety sourceProdEnv sourceEnv typeEntries
+  canonical : CompletedStagedBlock safety sourceProdEnv sourceEnv typeEntries
     constructorEntries recursorEntries decl.projectionEntries canonicalProdEnv
       finalBaseVEnv
   productionOrder : ∀ actualEntries,
@@ -226,9 +226,8 @@ structure NestedFinalAssemblyBase
   eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock canonical.eliminators)
   /-- The certificate of the case eliminators replays over larger safety models of the same
   production environment. -/
-  eliminatorsReplay : ∀ env', sourceEnv ≤ env' →
-    (∀ n, sourceProdEnv.constants.find? n = none → env'.constants n = none) →
-    VInductBlock.EliminatorsReplay env' decl (decl.caseBlock canonical.eliminators)
+  eliminatorsCertified : decl.CaseEliminators sourceEnv
+    (fun n => sourceProdEnv.constants.find? n = none) canonical.eliminators
   /-- The case eliminators restore the case eliminator of the lowered window. -/
   eliminatorsRestored : NestedEliminatorsRestored production result auxRec decl lparams
     canonical.eliminators
@@ -312,7 +311,7 @@ structure NestedFinalAssemblyRemainder
     (typeEntries constructorEntries recursorEntries :
       List (ConstantInfo × VConstVal))
     (canonicalProdEnv : Environment) (finalBaseVEnv : VEnv)
-    (canonical : StagedBlock safety sourceProdEnv sourceEnv typeEntries
+    (canonical : CompletedStagedBlock safety sourceProdEnv sourceEnv typeEntries
       constructorEntries recursorEntries decl.projectionEntries canonicalProdEnv
         finalBaseVEnv) where
   productionOrder : ∃ actualEntries,
@@ -350,7 +349,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
     {typeEntries constructorEntries recursorEntries :
       List (ConstantInfo × VConstVal)}
     {canonicalProdEnv : Environment} {finalBaseVEnv : VEnv}
-    {canonical : StagedBlock safety sourceProdEnv sourceEnv typeEntries
+    {canonical : CompletedStagedBlock safety sourceProdEnv sourceEnv typeEntries
       constructorEntries recursorEntries decl.projectionEntries canonicalProdEnv
         finalBaseVEnv}
     (R : NestedFinalAssemblyRemainder (sourceTypes := sourceTypes) P H
@@ -381,9 +380,8 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
     (htypesSource : decl.types = main :: rest)
     (hsourceNonempty : sourceTypes ≠ [])
     (Helim : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock canonical.eliminators))
-    (Hreplay : ∀ env', sourceEnv ≤ env' →
-      (∀ n, sourceProdEnv.constants.find? n = none → env'.constants n = none) →
-      VInductBlock.EliminatorsReplay env' decl (decl.caseBlock canonical.eliminators))
+    (Hreplay : decl.CaseEliminators sourceEnv
+      (fun n => sourceProdEnv.constants.find? n = none) canonical.eliminators)
     (Hrestored : NestedEliminatorsRestored P result auxRec decl lparams canonical.eliminators) :
     NestedFinalAssemblyShape (sourceTypes := sourceTypes) H sourceEnv
       decl lparams nparams isUnsafe safety where
@@ -423,7 +421,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
   sourceNonempty := hsourceNonempty
   auxiliaryWF := R.auxiliaryWF
   eliminatorsWF := Helim
-  eliminatorsReplay := Hreplay
+  eliminatorsCertified := Hreplay
   eliminatorsRestored := Hrestored
 
 /-- Fold primary equations while retaining membership of both the concrete
@@ -482,7 +480,7 @@ theorem NestedFinalAssemblyShape.typesAdded
       isUnsafe safety) :
     sourceEnv.addConstVals decl.typeConstants = some C.canonical.venvTypes := by
   rw [← C.typeValues]
-  exact C.canonical.typesAdded.abstract
+  exact C.canonical.abstract_types
 
 theorem NestedFinalAssemblyShape.constructorsAdded
     {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
@@ -492,7 +490,7 @@ theorem NestedFinalAssemblyShape.constructorsAdded
     C.canonical.venvTypes.addConstVals decl.constructorConstants =
       some C.canonical.venvCtors := by
   rw [← C.constructorValues]
-  exact C.canonical.ctorsAdded.abstract
+  exact C.canonical.abstract_ctors
 
 theorem NestedFinalAssemblyShape.primaryIotaBuild
     {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
@@ -563,10 +561,9 @@ noncomputable def NestedFinalAssemblyCertificate.finalEnvironment
     addInduct := ?_ }
   exact H.addInductOfStagedInstallation
     C.canonical.venvTypes C.canonical.venvCtors
-    C.main C.rest C.typesSource C.primaryRecursors C.auxiliaryRecursors
-    C.primaryRules C.auxiliaryRules C.canonical.eliminators C.sourceSemantics.primaryRecursors
-    (C.primaryIotaBuild.rebaseRecursors rfl) (C.primaryIota.length C.typesSource)
-    C.auxiliarySemantics (C.realization.congr_eliminators C.canonical.eliminators).compiles
+    C.primaryRecursors C.auxiliaryRecursors
+    C.primaryRules C.auxiliaryRules C.canonical.eliminators
+    (C.realization.congr_eliminators C.canonical.eliminators).compiles
     C.formationAssembly.formation Hsource C.sourceNonempty
     (by
       rw [← C.recursorValues]

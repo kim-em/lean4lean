@@ -871,7 +871,7 @@ theorem RestoredNestedDeclarationsResult.finalLocalValidOfStaged
       auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
       ((), outEnv))
     (Hactual : FreshConstantTrace c.env actualEntries outEnv)
-    (canonical : StagedBlock c.safety c.env sourceVEnv types ctors recursors
+    (canonical : CompletedStagedBlock c.safety c.env sourceVEnv types ctors recursors
       sourceDecl.projectionEntries canonicalProdEnv finalVEnv)
     (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
     (htypeValues : types.map Prod.snd = sourceDecl.typeConstants)

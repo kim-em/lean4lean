@@ -292,14 +292,6 @@ theorem BoundFVarArray.get_eq_fvar
   refine ⟨fvars[i], ?_, members fvars[i] (List.getElem_mem hifvars)⟩
   simp
 
-theorem BoundFVarArray.avoidsConsts
-    (H : BoundFVarArray c xs) (e : Expr) (he : e ∈ xs) :
-    e.AvoidsConsts names := by
-  rcases Array.mem_iff_getElem.mp he with ⟨i, hi, heq⟩
-  rcases H.get_eq_fvar i hi with ⟨fv, hfv, _⟩
-  rw [← heq, hfv]
-  exact Lean.Expr.AvoidsConsts.fvar fv
-
 /-- The retained free variable at one array position together with the exact
 ordinary local declaration which introduced it. -/
 structure BoundFVarDeclarationAt

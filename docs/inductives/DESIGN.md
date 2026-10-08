@@ -210,6 +210,9 @@ recursor renaming. The installed block's recursors and rules are exactly the res
 generated ones. `CompiledInductive` makes the certificate a finite tree: each container used
 by a nested declaration is itself certified by an earlier `CompiledInductive`
 (`CertifiedSpecializations`), so no environment lookup can serve as provenance.
+`VInductDecl.CompilesTo env decl block` is the record that installation reads: the block's
+families, constructors and projection entries are those of the declaration, its installed
+names are distinct, and `CompiledInductive` derives the block.
 
 ### 2.3 Installation order and the abstract `AddInduct`
 
@@ -227,7 +230,10 @@ def VInductBlock.install (env : VEnv) (block : VInductBlock) : Option VEnv := do
 declaration (`CompilesTo`), the block is well typed stage by stage (`VInductBlock.WF`: types
 in `env`, constructors in the types environment, recursors in the environment with
 constructors, eliminators and projections, rules in the environment with recursors),
-the eliminators are certified (`VInductBlock.EliminatorsWF`), and `install` succeeds.
+the eliminators are certified (`VInductBlock.EliminatorsWF`: either the declaration has no
+families and the block registers no eliminator, or it registers exactly one, with a
+`CaseSchema.Registered` certificate and projecting only out of structures registered at the
+constructor stage), and `install` succeeds.
 
 `VEnv.WF'` (`Lean4Lean/Theory/Typing/Env.lean`) has, besides `empty` and `decl`, two
 constructors that describe the intermediate environments of an installation:
@@ -235,14 +241,21 @@ constructors that describe the intermediate environments of an installation:
 present, and `inductProjections` registers the projection entries of a declaration whose
 constructors and case eliminator are present. The checker runs that happen after the
 constructors are declared and before the recursors are installed (the window) therefore run
-in a well-formed environment, which every checker theorem requires.
+in a well-formed environment, which every checker theorem requires. The registry facts that
+every well-formed environment satisfies (each schema keeps its registration certificate, a key
+fixes its schema, schemas project only out of registered structures, every registered
+structure has a registered schema) are the fields of `VEnv.RegistryInv`, proved by one
+induction over the history (`VEnv.WF'.registryInv`,
+`Lean4Lean/Theory/Inductive/CaseRegistration.lean`).
 
 A case schema (`Lean4Lean/Theory/Inductive/CaseSchema.lean`) is the normalized signature with
 its restoration and its original family names; its per-family view and generated case type
 and equations are computed. `CaseSchema.Certified` is `CaseCompilationData`: the part of a
 compilation that fixes the schema (formation, model, restoration correspondence and scoping,
 installed source constants, family typing), without anything about the generated native
-recursors, which `elimDF`/`elimIota` never read.
+recursors, which `elimDF`/`elimIota` never read. Every registration point carries
+`CaseSchema.Registered schema base source block key`: the `Certified` certificate, the key
+(the name of the first original family) and `HeaderAgreement`.
 
 ### 2.4 Restrictions of the specification to what Lean produces
 
@@ -270,7 +283,7 @@ None weakens the top-level theorem.
   (`Lean4Lean/Theory/Typing/EliminatorCoherence.lean`).
 - **Case eliminators at the constructor boundary.** Every block with families registers one
   certified case eliminator, keyed by its first family, between constructors and projections;
-  a block may omit both eliminators and projections only if it has no families. Hence every
+  a block registers no eliminator only if its declaration has no families. Hence every
   registered structure has a registered case eliminator at every point of every history
   (`VEnv.WF.projections_eliminated`), including during the window.
   The certificate is the case-only `CaseCompilationData` because the full `CompilationData`
@@ -314,10 +327,15 @@ ordinary path (`OrdinaryFinalDispatch.lean`), otherwise the nested path
   constructors are declared, the proof computes the source signature
   (`ConstructorBoundary.sourceSignature`, with `sourceSignature_models`) and the
   declaration's case eliminator `(first family, CaseSchema.ofCompilation decl signature [])`.
-  Its certificate is kept in a monotone form that replays in every larger environment in
-  which the declaration installs. The window environment
+  Its certificate is kept in the monotone form `VInductDecl.CaseEliminators env decl reserved
+  es`: `EliminatorsWF` over every extension of the source environment in which the
+  `reserved` names are fresh and the declaration installs (an ordinary declaration reserves
+  no names, a nested one the names fresh in its production environment). Its views are
+  `EliminatorsReplay` at one environment, used to rebase the block certificate onto larger
+  safety models, and `EliminatorsWF` at the source environment. The window environment
   `(ctors.addEliminators es).addProjections P` is shown well formed by `inductEliminators`
-  and `inductProjections`. The executable is unchanged by this: it has no case eliminators.
+  and `inductProjections` (`VInductBlock.EliminatorsWF.windowWF`). The executable is
+  unchanged by this: it has no case eliminators.
 - **Recursors** (`Recursor/`, 51k; `Completed*.lean`, 33k). The executable's recursor
   construction (first and second pass over the fields, elimination level, motives, minors,
   induction hypotheses, rules) is shown to produce exactly the translation of the abstract
@@ -328,9 +346,10 @@ ordinary path (`OrdinaryFinalDispatch.lean`), otherwise the nested path
   the window environment; `FamilyTypesWF` likewise comes from checker runs in the window.
   Rules are proved well typed in the recursor
   environment (`EquationWF.lean`, `RuleTranslation*.lean`).
-- **Assembly** (`CompletedBlockCertificate.lean`, `Run/`). The phases assemble into
-  `VInductDecl.CompilesTo`, `VInductBlock.WF`, `EliminatorsWF` and the final `AddInduct`, and
-  into the safety-indexed `VEnvs.WF` of the output.
+- **Assembly** (`CompletedBlockCertificate.lean`, `Run/`). The phases assemble into one
+  `CompletedBlockCertificate` (shared by the ordinary, primitive and nested paths), which
+  yields `VInductDecl.CompilesTo`, `VInductBlock.WF`, `EliminatorsWF`, the final `AddInduct`
+  and the safety-indexed `VEnvs.WF` of the output.
 
 Embedded checker runs of the inductive checker see a narrow local context
 (`AddInductive.Context.checkLCtx`, verified in `Lean4Lean/Verify/Inductive/Context.lean`):
@@ -716,9 +735,6 @@ constructor, recursor or inductive type is rejected by the corresponding check.
   The ported files (`SExpr`, `NormalEq`, `ParallelReduction`, `Stratified`,
   `StratifiedUntyped`, the shape logical relation) build against the extended `VExpr`; the
   global axiom `Params.extra_pat` of `SExpr.lean` is now a hypothesis class.
-- **Legacy shape records.** `VInductDecl.CompilesTo` still carries `OrdinaryShape` and
-  `NestedShape` beside the finite compilation certificate; they are redundant and could be
-  removed.
 - **Executable cost.** `guardedIotaCheck` expands natural-number literals in nested
   constructor types, so a large literal makes it slow. Replay performance relative to `master`
   has not been profiled.

@@ -1239,7 +1239,7 @@ theorem CompletedRecursorPhasesResult.ctorInfoOrigin
     c.env.find? n = some (.ctorInfo info) ∨
       ∃ owner ∈ indTypes.toList, ∃ ctor ∈ owner.ctors,
         n = ctor.name ∧ info.induct = owner.name := by
-  rcases H.declaredStaged.productionTrace.origin hwf hfind with hold | ⟨entry, hentry, hname, hfound⟩
+  rcases H.staged.combinedAtomic.entryOrigin hwf hfind with hold | ⟨entry, hentry, hname, hfound⟩
   · exact .inl hold
   · right
     rcases List.mem_append.mp hentry with h12 | hrec

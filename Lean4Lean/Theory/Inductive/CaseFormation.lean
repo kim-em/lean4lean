@@ -116,6 +116,18 @@ def HeaderAgreement (schema : CaseSchema) (base : VEnv) (source : VInductDecl) :
             envTypes.IsDefEqU source.uvars [] type.type
               (VExpr.wrapForalls (RP ++ RI) (.sort schema.signature.families[owner].resultLevel))
 
+/-- **The registration certificate of a case schema.** The schema is certified by the case part
+of a compilation of `source` with block `block` over `base` (`Certified`), it is registered under
+the key of the first original family, and the declared header of every original family is its
+restored normalized header (`HeaderAgreement`). Every registration point
+(`VEnv.WF'.inductEliminators`, `VEnv.WF'.inductProjections`, `VInductBlock.EliminatorsWF`)
+carries exactly this certificate. -/
+structure Registered (schema : CaseSchema) (base : VEnv) (source : VInductDecl)
+    (block : VInductBlock) (key : Name) : Prop where
+  certified : schema.Certified base source block
+  keyHead : source.types.head?.map (·.name) = some key
+  headerAgreement : schema.HeaderAgreement base source
+
 /-- Keys and native-family ownership are both fresh. Lowering auxiliaries do
 not reserve native names: they are identified by their block and owner slot. -/
 def Fresh (schema : CaseSchema) (env : VEnv) (key : Name) : Prop :=
