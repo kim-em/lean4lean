@@ -1,12 +1,12 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Arity
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjStaticWF
-import Lean4Lean.Theory.Typing.ShapeModel.EnvArity
+import Lean4Lean.Theory.Typing.EnvTables.EnvArity
 
 /-! # Field counts of compiled constructors, from soundness of the header environment
 
 `CaseCompilationData.ctor_arity_sem`: the field count of a constructor of a compilation's normalized
 signature, plus its parameter count, is the syntactic arity of the source (or container)
-constructor type. It is `ShapeModel.CaseCompilationData.ctor_arity` with the hypothesis
+constructor type. It is `EnvTables.CaseCompilationData.ctor_arity` with the hypothesis
 `ForallArityRigid` replaced by the soundness, in the model of a later environment `envF`, of an
 environment containing the compilation's headers (`Model.tele_arity`): the restored normalized
 constructor type and the source constructor type are definitionally equal telescopes ending in
@@ -106,9 +106,9 @@ theorem EndHead.restore {h : Name} {r : Restoration} {e e' : VExpr} (H : EndHead
   exact EndHead.wrapForalls.2 .of_mkApps
 
 theorem EndHead.forallArity_teleArity {h : Name} {e : VExpr} (H : EndHead e h) :
-    ShapeModel.teleArity e = some e.forallArity := by
+    EnvTables.teleArity e = some e.forallArity := by
   obtain ⟨ls, hh⟩ := H
-  exact ShapeModel.teleArity_of_forallResult hh
+  exact EnvTables.teleArity_of_forallResult hh
 
 /-- **Arity of rigid-ended telescopes**, by end heads. -/
 theorem Model.tele_arity_end {envF E : VEnv} (hE : E.Ordered) (hEF : E ≤ envF)
@@ -156,7 +156,7 @@ theorem CaseCompilationData.ctor_arity_sem {envF base E : VEnv} {src exp : VIndu
       (compilationRestoration src aux).headName s.constructors[index].name = c.name ∧
       s.constructors[index].fields.length + a.arguments.length = c.type.forallArity) := by
   obtain ⟨envTypes, direct, hT, hdirect, _, hfamilies⟩ := hdata.correspondence
-  have hTE : envTypes ≤ E := ShapeModel.addConstVals_le_of hT hle (fun ci hci => by
+  have hTE : envTypes ≤ E := EnvTables.addConstVals_le_of hT hle (fun ci hci => by
     obtain ⟨t, ht, rfl⟩ := List.mem_map.mp hci; exact htypes t ht)
   obtain ⟨fam, hfam, hrel⟩ := Lean4Lean.List.Forall₂.forall_exists_l hfamilies _
     (s.declarationFamily_mem s.constructors[index].owner)
@@ -171,14 +171,14 @@ theorem CaseCompilationData.ctor_arity_sem {envF base E : VEnv} {src exp : VIndu
   have hrestE := hnormE.restore hres
   have hrigR := hrigF
   have hfn : s.families[s.constructors[index].owner].name = fam.name := hrel.name
-  have hnorm : ShapeModel.teleArity (s.declarationCtor index).type =
+  have hnorm : EnvTables.teleArity (s.declarationCtor index).type =
       some (s.params.length + s.constructors[index].fields.length) := by
-    have := ShapeModel.teleArity_ctorShape (doms := s.params ++ s.fieldTypes s.constructors[index])
+    have := EnvTables.teleArity_ctorShape (doms := s.params ++ s.fieldTypes s.constructors[index])
       (c := s.families[s.constructors[index].owner].name) (ls := VLevel.params s.uvars)
       (args := vars s.params.length s.constructors[index].fields.length ++
         s.constructors[index].indices)
     simpa [declarationCtor, constructorType, familyApp, fieldTypes] using this
-  have hrestA := ShapeModel.teleArity_restore hnorm hres
+  have hrestA := EnvTables.teleArity_restore hnorm hres
   rw [hrestE.forallArity_teleArity, Option.some.injEq] at hrestA
   have hname' : s.constructors[index].name = sc.name := hname
   rcases List.mem_append.mp hfam with hsrc | hdir
@@ -200,16 +200,16 @@ theorem CaseCompilationData.ctor_arity_sem {envF base E : VEnv} {src exp : VIndu
   · right
     obtain ⟨a, ha, hdf⟩ := Lean4Lean.List.Forall₂.forall_exists_r
       (List.mapM_eq_some.mp hdirect) fam hdir
-    obtain ⟨c, hc, t, hspec, hdcn, hdct⟩ := ShapeModel.directFamily_ctor hdf hsc
+    obtain ⟨c, hc, t, hspec, hdcn, hdct⟩ := EnvTables.directFamily_ctor hdf hsc
     refine ⟨a, ha, c, hc, hname'.trans hdcn, ?_, ?_⟩
     · rw [hname', hdcn]
       exact hdata.headName_auxiliary_constructor ha hc
     · obtain ⟨_, ls, hres'⟩ := (hprior.container_ctor a ha c hc)
-      have hcA := ShapeModel.teleArity_instL (ShapeModel.teleArity_of_forallResult hres') a.levels
-      obtain ⟨hk, htA⟩ := ShapeModel.teleArity_specializeType hcA hspec
-      have hscA : ShapeModel.teleArity sc.type = some (s.params.length + (c.type.forallArity -
+      have hcA := EnvTables.teleArity_instL (EnvTables.teleArity_of_forallResult hres') a.levels
+      obtain ⟨hk, htA⟩ := EnvTables.teleArity_specializeType hcA hspec
+      have hscA : EnvTables.teleArity sc.type = some (s.params.length + (c.type.forallArity -
           a.arguments.length)) := by
-        rw [hdct]; exact ShapeModel.teleArity_wrapForalls htA
+        rw [hdct]; exact EnvTables.teleArity_wrapForalls htA
       have hcE : EndHead (c.type.instL a.levels) a.source.name := EndHead.instL ⟨ls, hres'⟩
       have hscE : EndHead sc.type a.source.name := by
         rw [hdct, EndHead.wrapForalls]; exact hcE.specialize hspec
@@ -250,7 +250,7 @@ theorem CaseCompilationData.source_arity_sem {envF base E : VEnv} {src exp : VIn
     rw [← hcc]; exact harity
   · exfalso
     exact hdata.source_head_disjoint hcn'
-      (List.mem_map.mpr ⟨_, ShapeModel.auxCtor_head_mem (src := src) ha hc',
+      (List.mem_map.mpr ⟨_, EnvTables.auxCtor_head_mem (src := src) ha hc',
         (hn'.symm.trans hcn.symm)⟩)
 
 /-- The field count of a container-constructor equation (`container_arity` without
@@ -273,10 +273,10 @@ theorem CaseCompilationData.container_arity_sem {envF base E : VEnv} {src exp : 
     have hcn' : c'.name ∈ familyNames src.types :=
       List.mem_flatMap.mpr ⟨F', hF', List.mem_cons_of_mem _ (List.mem_map.mpr ⟨c', hc', rfl⟩)⟩
     exact hdata.source_head_disjoint hcn'
-      (List.mem_map.mpr ⟨_, ShapeModel.auxCtor_head_mem (src := src) ha hc, (hcn.symm.trans hn')⟩)
+      (List.mem_map.mpr ⟨_, EnvTables.auxCtor_head_mem (src := src) ha hc, (hcn.symm.trans hn')⟩)
   · have heq := List.eq_of_mem_of_nodup_map hdata.restorationScoped.1
-      (ShapeModel.auxCtor_head_mem (src := src) ha' hc')
-      (ShapeModel.auxCtor_head_mem (src := src) ha hc)
+      (EnvTables.auxCtor_head_mem (src := src) ha' hc')
+      (EnvTables.auxCtor_head_mem (src := src) ha hc)
       (hn'.symm.trans hcn)
     simp only [HeadSpecialization.mk.injEq] at heq
     obtain ⟨_, _, _, htarget, _, hargs⟩ := heq

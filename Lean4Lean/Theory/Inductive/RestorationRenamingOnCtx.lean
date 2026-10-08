@@ -2,6 +2,7 @@ import Lean4Lean.Theory.Inductive.RestorationRenaming
 import Lean4Lean.Theory.Inductive.RestorationNaturality
 import Lean4Lean.Theory.Inductive.BetaSubjectReduction
 import Lean4Lean.Theory.Typing.CanonicalDataRegistryScope
+import Lean4Lean.Theory.Typing.EnvTables.EnvSchemaTypes
 
 /-! Context-carrying renaming replacement.
 
@@ -204,7 +205,7 @@ theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.Permission.withRestoratio
 
 private theorem restoredEliminator_closedN {r : InductiveSignature.Restoration}
     (hr : r.Scoped) {e e' : VExpr} (he : e.Closed) (h : r.expr e = some e') : e'.Closed :=
-  ShapeModel.restore_go_closedN r (fun h hh a ha => (hr.2.2.1 h hh).2 a ha) e [] 0 e' he
+  EnvTables.restore_go_closedN r (fun h hh a ha => (hr.2.2.1 h hh).2 a ha) e [] 0 e' he
     (by simp) h
 
 private theorem restoredEliminator_instL {r : InductiveSignature.Restoration} {e e' : VExpr}
@@ -559,7 +560,7 @@ theorem RestoredEliminator.of_wf {block : Name} {schema : InductiveSignature.Cas
   betaSubjectReduction _ := hS.betaSubjectReduction
   genericType owner type h := by
     refine ⟨htype owner type h, ?_⟩
-    obtain ⟨type', h', -⟩ := ShapeModel.VEnv.WF.eliminator_genericType_closed hS hreg owner
+    obtain ⟨type', h', -⟩ := EnvTables.VEnv.WF.eliminator_genericType_closed hS hreg owner
     rw [InductiveSignature.CaseSchema.genericType_withRestoration h0 h families r] at h'
     rw [h']
     rfl

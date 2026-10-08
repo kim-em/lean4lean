@@ -18,7 +18,7 @@ variable {env : VEnv}
 theorem WF.nativeCtor_const (H : env.WF) (h : Model.IsNativeCtor env c) :
     ∃ ci, env.constants c = some ci := by
   obtain ⟨k, hk⟩ := Option.ne_none_iff_exists'.mp (H.ctorOf_of_nativeCtor h)
-  obtain ⟨ci, -, -, hci, -⟩ := ShapeModel.ctorOf_shape H hk
+  obtain ⟨ci, -, -, hci, -⟩ := EnvTables.ctorOf_shape H hk
   exact ⟨ci, hci⟩
 
 theorem WF.caseCtor_const (H : env.WF) (h : Model.IsCaseCtor env c) :
@@ -29,15 +29,15 @@ theorem WF.caseCtor_const (H : env.WF) (h : Model.IsCaseCtor env c) :
   obtain ⟨base, source, block, _, hle, hcert, _, hconsts⟩ := H.eliminator_origin hreg
   have hcert' := hcert
   obtain ⟨expanded, aux, hdata, hprior, hr, -, hfresh⟩ := hcert'
-  obtain ⟨j, -, e, _, hrestore⟩ := ShapeModel.Certified.generic_major hcert hrules hmem hm
+  obtain ⟨j, -, e, _, hrestore⟩ := EnvTables.Certified.generic_major hcert hrules hmem hm
   rw [hr] at hrestore
-  rcases ShapeModel.CaseCompilationData.ctorApp_cases hdata hfresh j hrestore with
+  rcases EnvTables.CaseCompilationData.ctorApp_cases hdata hfresh j hrestore with
     ⟨F, hF, _, c', hc', _, hmaj⟩ | ⟨a, ha, _, _, c', hc', _, hmaj⟩
-  · obtain ⟨h1, -, -⟩ := ShapeModel.mkApps_const_inj hmaj.symm
+  · obtain ⟨h1, -, -⟩ := EnvTables.mkApps_const_inj hmaj.symm
     rw [← h1]
     exact ⟨_, hconsts c' (List.mem_append_right _ (by
       rw [hdata.ctors]; exact List.mem_flatMap.mpr ⟨F, hF, hc'⟩))⟩
-  · obtain ⟨h1, -, -⟩ := ShapeModel.mkApps_const_inj hmaj.symm
+  · obtain ⟨h1, -, -⟩ := EnvTables.mkApps_const_inj hmaj.symm
     rw [← h1]
     exact ⟨_, hle.constants (hprior.container_ctor a ha c' hc').1⟩
 
@@ -61,15 +61,15 @@ theorem container_ctor_native {base : VEnv} {aux : List ContainerSpecialization}
     {a : ContainerSpecialization} (ha : a ∈ aux) {c : VConstVal} (hc : c ∈ a.source.ctors) :
     Model.IsNativeCtor env c.name := by
   obtain ⟨base', block', inst', hcomp', hinst', hle'⟩ :=
-    ShapeModel.CertifiedSpecializations.member hprior ha
+    EnvTables.CertifiedSpecializations.member hprior ha
   obtain ⟨b'', exp', s', g', aux', hb'', hdata', hprior'⟩ := hcomp'.compilationOrigin
   have hfam_lt : a.family.val < s'.families.size :=
-    Nat.lt_of_lt_of_le a.family.isLt (ShapeModel.CaseCompilationData.families_size_ge hdata'.toCaseCompilationData)
+    Nat.lt_of_lt_of_le a.family.isLt (EnvTables.CaseCompilationData.families_size_ge hdata'.toCaseCompilationData)
   let o' : Fin s'.families.size := ⟨a.family.val, hfam_lt⟩
   have hsrc : a.container.types[o'.val] = a.source := rfl
   have hc' : c ∈ a.container.types[o'.val].ctors := by rw [hsrc]; exact hc
   obtain ⟨j, hjown, hjname⟩ :=
-    (ShapeModel.CaseCompilationData.source_slot hdata'.toCaseCompilationData o' a.family.isLt).2.1 c hc'
+    (EnvTables.CaseCompilationData.source_slot hdata'.toCaseCompilationData o' a.family.isLt).2.1 c hc'
   have hjlt : s'.constructors[j].owner.val < a.container.types.length := by
     rw [hjown]; exact a.family.isLt
   obtain ⟨ρ, hρmem, hρ⟩ := Lean4Lean.List.Forall₂.forall_exists_l
@@ -81,8 +81,8 @@ theorem container_ctor_native {base : VEnv} {aux : List ContainerSpecialization}
     simp only [hjown]; rfl
   have hcj : c ∈ a.container.types[s'.constructors[j].owner.val].ctors := by
     rw [hsrc']; exact hc
-  obtain ⟨Ds, idx, hρlhs⟩ := ShapeModel.CompilationData.source_rule hdata' j hjlt hcj hjname.symm hρ
-  exact ⟨ρ, hρenv, _, _, _, by rw [hρlhs, ShapeModel.ruleBody_stripLams]⟩
+  obtain ⟨Ds, idx, hρlhs⟩ := EnvTables.CompilationData.source_rule hdata' j hjlt hcj hjname.symm hρ
+  exact ⟨ρ, hρenv, _, _, _, by rw [hρlhs, EnvTables.ruleBody_stripLams]⟩
 
 /-- **The entry of a projection-registered container family** is the container declaration's
 own entry, and the family has the single constructor of the major. -/
@@ -99,21 +99,21 @@ theorem WF.container_entry {base : VEnv} {aux : List ContainerSpecialization} (h
     exact henv.ctor_of_projFamily hp (.inl (container_ctor_native hprior hle ha hc'))
       ⟨_, ls, hle.constants h1, h2⟩
   obtain ⟨base', block', inst', hcomp', hinst', hle'⟩ :=
-    ShapeModel.CertifiedSpecializations.member hprior ha
+    EnvTables.CertifiedSpecializations.member hprior ha
   obtain ⟨b'', exp', s', g', aux', hb'', hdata', hprior'⟩ := hcomp'.compilationOrigin
   have hsrc : a.source ∈ a.container.types := List.getElem_mem a.family.isLt
-  have hnd := ShapeModel.sourceNames_ctors_nodup hdata'.sourceWF.2.1 hsrc
+  have hnd := EnvTables.sourceNames_ctors_nodup hdata'.sourceWF.2.1 hsrc
   have hone := list_eq_single_of_names hnd hall hc
   refine ⟨hone, ?_⟩
   have hmem := VInductDecl.mem_projectionEntries hsrc hone
   have hin : inst'.projections a.source.name ⟨a.container.uvars, a.container.nparams,
       a.source.numIndices, a.source.resultLevel, c.name, c.type⟩ :=
-    (ShapeModel.install_projections hinst').2 (.inl ⟨_, by rw [hdata'.projections]; exact hmem,
+    (EnvTables.install_projections hinst').2 (.inl ⟨_, by rw [hdata'.projections]; exact hmem,
       rfl, rfl⟩)
   exact henv.ordered.projections_unique hp ((hle'.trans hle).projections hin)
 
 /-- The major of a generic case equation, at the view constructor `index` of its origin: the
-restoration of the case form of a signature constructor. (`ShapeModel.Certified.generic_major` at
+restoration of the case form of a signature constructor. (`EnvTables.Certified.generic_major` at
 a given equation index.) -/
 theorem generic_major_at {schema : CaseSchema} {owner : Fin schema.signature.families.size}
     {index : Fin (schema.view owner).constructors.size} {key : Name} {df : VDefEq}
@@ -139,12 +139,12 @@ theorem generic_major_at {schema : CaseSchema} {owner : Fin schema.signature.fam
     [g.constructorApp ctor extra 0])) = some lhs' at hl'
   change Restoration.expr.go schema.restoration (VExpr.mkApps _ _) [] = _ at hl'
   rw [restoration_mkApps] at hl'
-  simp only [List.mapM_append, ShapeModel.restoration_vars', List.mapM_cons, List.mapM_nil, bind,
+  simp only [List.mapM_append, EnvTables.restoration_vars', List.mapM_cons, List.mapM_nil, bind,
     Option.bind_eq_some_iff, pure, Option.some.injEq] at hl'
   obtain ⟨_, ⟨_, ⟨_, rfl, idx', _, rfl⟩, _, ⟨major', hmajor, _, rfl, rfl⟩, rfl⟩, hout⟩ := hl'
   simp only [List.append_nil, Instance.recursorHead, Restoration.expr.go,
     Option.some.injEq] at hout
-  rw [hel, ShapeModel.stripLams_wrapLams', ← hout, ShapeModel.mkApps_snoc] at hm
+  rw [hel, EnvTables.stripLams_wrapLams', ← hout, EnvTables.mkApps_snoc] at hm
   have hmaj : major' = major := (VExpr.app.inj hm).2
   obtain ⟨sc, hsc, hown, hview⟩ := CaseSchema.view_constructor_origin index
   obtain ⟨jn, hjn, hjget⟩ := List.mem_iff_getElem.mp hsc

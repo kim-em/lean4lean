@@ -9,7 +9,7 @@ evidence, not inferred from two typings using uniqueness.
 The induction follows the DECLARED constructor telescope. In particular it
 does not assume that its domain instantiated with reconstructed index terms
 is well typed before substitution. That assumption fails for dependent
-singleton indices; see docs/inductives/DependentSingletonObstruction.lean.
+singleton indices; see docs/inductives/history/DependentSingletonObstruction.lean.
 
 This is a conditional transport theorem for the proposed witnessed replay.
 It does not construct the initial alignment paths, establish equation

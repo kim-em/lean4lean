@@ -8,14 +8,13 @@ import Lean4Lean.Theory.Typing.ProjectionRigidity
 The definitions of the base obligation of the inversion layer (`HeadInversion`, its separation
 half `HeadSeparation` and its injectivity half `HeadInjectivity`) and the chain lemmas. The
 theorems `VEnv.WF.headSeparation`, `VEnv.WF.headInjectivity` and `VEnv.WF.headInversion` are in
-`HeadInversion.lean`, which also imports the shape model proving separation; the shape model
-imports only this file (through `HeadSeparationModel.lean`).
+`HeadInversion.lean`, which also imports the observation model proving both halves.
 
 This file imports only the uniqueness-free base (`Lemmas`, `Strong`, `EnvLemmas`,
 `ProjectionRigidity`). It must not import `UniqueTyping`, `Injectivity`, `ChurchRosser`,
 `FullReduction` or `HeadReduction`.
 
-See `docs/inductives/BASE_OBLIGATIONS_DESIGN.md`, section 4, Phase 0. -/
+See `docs/inductives/history/BASE_OBLIGATIONS_DESIGN.md`, section 4, Phase 0. -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -90,7 +89,7 @@ structure HeadInversion (env : VEnv) : Prop where
 
 /-- The separation half of `HeadInversion`: chains cannot connect types with different head
 classes, and equal rigid heads have equivalent universe levels. It is proved from a sound
-denotational model of the calculus (`Theory/Typing/ShapeModel/`), with no adequacy theorem. -/
+denotational model of the calculus (`Theory/Typing/EnvTables/`), with no adequacy theorem. -/
 structure HeadSeparation (env : VEnv) : Prop where
   sort_sort : ∀ {U Γ u v}, OnCtx Γ (env.IsType U) →
     env.TypeChain U Γ (.sort u) (.sort v) → u ≈ v

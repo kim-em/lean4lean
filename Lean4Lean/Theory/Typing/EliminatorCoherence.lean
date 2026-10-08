@@ -20,7 +20,6 @@ import Lean4Lean.Theory.Typing.CanonicalRegistryMetadata
 import Lean4Lean.Theory.Quot
 import Lean4Lean.Theory.Inductive.Formation
 import Lean4Lean.Theory.Typing.QuotPatternTyping
-import Lean4Lean.Theory.Typing.NativeConstructorUniqueness
 import Lean4Lean.Theory.Typing.NativeMajorFamily
 import Lean4Lean.Theory.Typing.DefinitionPatterns
 import Lean4Lean.Theory.Typing.Injectivity

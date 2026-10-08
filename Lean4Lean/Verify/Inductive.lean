@@ -6,7 +6,8 @@ import Lean4Lean.Verify.Inductive.Nested.ConcreteBoundary
 import Lean4Lean.Verify.Inductive.Nested.Mapping
 import Lean4Lean.Verify.Inductive.Nested.FormationEvidence
 import Lean4Lean.Verify.Inductive.Nested.Opening
-import Lean4Lean.Verify.Inductive.Recursor.TelescopeRestriction
+import Lean4Lean.Verify.Inductive.Recursor.Telescope
+import Lean4Lean.Verify.Typing.EnvironmentRestriction
 import Lean4Lean.Verify.Inductive.CompletedRecursorSetup
 import Lean4Lean.Verify.Inductive.Recursor.ReplayCompat
 import Lean4Lean.Verify.Inductive.Nested.OriginalHeaderSeedRebase

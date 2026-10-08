@@ -1,29 +1,28 @@
 import Lean4Lean.Theory.Typing.HeadInversionDefs
-import Lean4Lean.Theory.Typing.ShapeModel.RuleValidHistory
 import Lean4Lean.Theory.Typing.HeadInjectivity.Fields
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Separation
 
 /-! # Head inversion for types: the base obligation of the inversion layer
 
 The statements (`HeadInversion`, `HeadSeparation`, `HeadInjectivity`) and the chain lemmas are in
-`HeadInversionDefs.lean`. The separation half is proved for every well-formed environment by the
-shape model (`ShapeModel.headSeparation_of_wf`, `Theory/Typing/ShapeModel/RuleValidHistory.lean`);
-the injectivity half is the remaining conjecture.
+`HeadInversionDefs.lean`. Both halves are proved for every well-formed environment from the glued
+observation model (`Theory/Typing/HeadInjectivity/Model/`): separation by
+`VEnv.WF.headSeparationModel`, injectivity by `VEnv.WF.headInjectivityCore`.
 
-This file and the shape model do not import `UniqueTyping`, `Injectivity`, `ChurchRosser`,
-`FullReduction` or `HeadReduction`: the conjecture `VEnv.WF.headInversion` stated here is
-the single semantic obligation from which uniqueness of types (`IsDefEq.uniq`) and every
-inversion lemma in `Injectivity.lean` are derived.
+This file and the model do not import `UniqueTyping`, `Injectivity`, `ChurchRosser`,
+`FullReduction` or `HeadReduction`: `VEnv.WF.headInversion`, assembled here, is the single
+semantic fact from which uniqueness of types (`IsDefEq.uniq`) and every inversion lemma in
+`Injectivity.lean` are derived.
 
-See `docs/inductives/BASE_OBLIGATIONS_DESIGN.md`, section 4, Phase 0. -/
+See `docs/inductives/history/BASE_OBLIGATIONS_DESIGN.md`, section 4, Phase 0. -/
 
 namespace Lean4Lean
 namespace VEnv
 
-/-- Separation for every well-formed environment, from the shape model. -/
+/-- Separation for every well-formed environment, from the glued observation model. -/
 theorem _root_.Lean4Lean.VEnv.WF.headSeparation {env : VEnv} (henv : env.WF) :
     env.HeadSeparation :=
-  ShapeModel.headSeparation_of_wf henv
+  henv.headSeparationModel
 
 /-- Injectivity of type heads for every well-formed environment: the chain-level core from
 soundness of the glued observation model (`VEnv.WF.headInjectivityCore`,

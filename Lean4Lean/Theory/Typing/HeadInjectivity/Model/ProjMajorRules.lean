@@ -60,10 +60,10 @@ theorem CaseCompilationData.aux_slot {base : VEnv} {source expanded : VInductDec
     (ha : aux[o.val - source.types.length]? = some a) :
     (compilationRestoration source aux).headName s.families[o].name = a.source.name ∧
       s.families[o].resultLevel ≈ a.source.resultLevel.inst a.levels := by
-  obtain ⟨_, direct, _, hdirect, hlt, hrel⟩ := ShapeModel.CaseCompilationData.family_slot C o
+  obtain ⟨_, direct, _, hdirect, hlt, hrel⟩ := EnvTables.CaseCompilationData.family_slot C o
   have hrel' := List.mapM_eq_some.mp hdirect
   obtain ⟨hi, hai⟩ := List.getElem?_eq_some_iff.1 ha
-  obtain ⟨hdi, hdf⟩ := ShapeModel.forall₂_getElem_exists hrel' (o.val - source.types.length) hi
+  obtain ⟨hdi, hdf⟩ := EnvTables.forall₂_getElem_exists hrel' (o.val - source.types.length) hi
   rw [List.getElem_append_right ho] at hrel
   rw [hai] at hdf
   have hname : s.families[o].name = a.auxiliary :=
@@ -157,7 +157,7 @@ theorem projMajor_source {envF env0 installed base E : VEnv} {source expanded : 
       ((compilationRestoration source aux).headName s.constructors[index].name)
       s.params.length s.constructors[index].fields.length
       s.families[s.constructors[index].owner].resultLevel := by
-  obtain ⟨hfn, -, hctorOf⟩ := ShapeModel.CaseCompilationData.source_slot C.toCaseCompilationData _ ho
+  obtain ⟨hfn, -, hctorOf⟩ := EnvTables.CaseCompilationData.source_slot C.toCaseCompilationData _ ho
   obtain ⟨c, hc, hcn⟩ := hctorOf index rfl
   have hFm := List.getElem_mem ho
   have hfnF : s.families[s.constructors[index].owner].name ∈ familyNames source.types := by
@@ -166,7 +166,7 @@ theorem projMajor_source {envF env0 installed base E : VEnv} {source expanded : 
     List.mem_flatMap.mpr ⟨_, hFm, List.mem_cons_of_mem _ (List.mem_map.mpr ⟨c, hc, rfl⟩)⟩
   rw [C.headName_source hfnF, ← hcn, C.headName_source hcnF, hfn]
   -- the result level
-  obtain ⟨_, direct, _, _, hlt, hrel⟩ := ShapeModel.CaseCompilationData.family_slot C.toCaseCompilationData
+  obtain ⟨_, direct, _, _, hlt, hrel⟩ := EnvTables.CaseCompilationData.family_slot C.toCaseCompilationData
     s.constructors[index].owner
   have hget : (source.types ++ direct)[s.constructors[index].owner.val] =
       source.types[s.constructors[index].owner.val] := List.getElem_append_left ho
@@ -179,9 +179,9 @@ theorem projMajor_source {envF env0 installed base E : VEnv} {source expanded : 
     (List.mapM_eq_some.mp C.equations) (g.equation index)
     (List.mem_map.mpr ⟨index, List.mem_finRange _, rfl⟩)
   have hρI : installed.defeqs ρ := VInductBlock.install_rule hinst hρmem
-  obtain ⟨Ds, idx, hρlhs⟩ := ShapeModel.CompilationData.source_rule C index ho hc hcn hρ
+  obtain ⟨Ds, idx, hρlhs⟩ := EnvTables.CompilationData.source_rule C index ho hc hcn hρ
   have hcis : IsNativeCtor installed c.name :=
-    ⟨ρ, hρI, _, _, _, by rw [hρlhs, ShapeModel.ruleBody_stripLams]⟩
+    ⟨ρ, hρI, _, _, _, by rw [hρlhs, EnvTables.ruleBody_stripLams]⟩
   have hcconst : envF.constants c.name = some c.toVConstant :=
     hle.constants (VInductBlock.install_ctor_lookup hinst (by
       rw [C.ctors]; exact List.mem_flatMap.mpr ⟨_, hFm, hc⟩))
@@ -196,7 +196,7 @@ theorem projMajor_source {envF env0 installed base E : VEnv} {source expanded : 
       rw [heq, VExpr.forallResult_wrapForalls, VExpr.forallResult_of_head hhead, hhead]⟩
   have hpI := hpc _ _ hp (by rw [← hcn2]; exact .inl hcis)
   refine ⟨?_, hPV _ _ hpI⟩
-  rcases (ShapeModel.install_projections hinst).1 hpI with ⟨entry, hentry, hS, hinfo⟩ | hold
+  rcases (EnvTables.install_projections hinst).1 hpI with ⟨entry, hentry, hS, hinfo⟩ | hold
   · rw [C.projections] at hentry
     rw [hS, hinfo]; exact hentry
   · exfalso
@@ -256,10 +256,10 @@ theorem projMajor_restored {envF env0 installed base E : VEnv} {source expanded 
         ((∀ fam ∈ s.families.toList, (fam.resultLevel.inst g.levels).IsNeverZero) →
           (L'.inst lsC').IsNeverZero) := by
   intro fn lsC' ms' hm
-  obtain ⟨Ds, idx, major, hlhs, _, hcases⟩ := ShapeModel.CompilationData.major_cases C index hres
+  obtain ⟨Ds, idx, major, hlhs, _, hcases⟩ := EnvTables.CompilationData.major_cases C index hres
   have hmaj : major = .mkApps (.const ((compilationRestoration source aux).headName
       s.constructors[index].name) lsC') (ms' ++ (eqFs index).map .bvar) := by
-    rw [hlhs, ShapeModel.ruleBody_stripLams] at hm; exact (VExpr.app.inj hm).2
+    rw [hlhs, EnvTables.ruleBody_stripLams] at hm; exact (VExpr.app.inj hm).2
   have hfs : (eqFs index).map VExpr.bvar = vars s.constructors[index].fields.length 0 := by
     simp [eqFs, vars]
   rw [hfs] at hmaj
@@ -268,14 +268,14 @@ theorem projMajor_restored {envF env0 installed base E : VEnv} {source expanded 
   have hfl : (eqFs index).length = s.constructors[index].fields.length := by simp [eqFs]
   rw [hfl]
   rcases hcases with ⟨F, hF', hFget, c, hc, hcn, rfl⟩ | ⟨a, ha, hge, haget, c, hc, hcn, rfl⟩
-  · obtain ⟨-, rfl, hargs⟩ := ShapeModel.mkApps_const_inj hmaj
+  · obtain ⟨-, rfl, hargs⟩ := EnvTables.mkApps_const_inj hmaj
     have hms := (List.append_inj' hargs (by simp)).1
     have ho : s.constructors[index].owner.val < source.types.length :=
       (List.getElem?_eq_some_iff.1 hFget).1
     refine ⟨s.families[s.constructors[index].owner].resultLevel, ?_, fun hnz => hnz _ hmemF⟩
     rw [← hms, vars_length_hi]
     exact projMajor_source hF C hprior h0 hinst hle hpc hPV hE hEF hsnd hbE htypesE index ho hrigF
-  · obtain ⟨hcn', rfl, hargs⟩ := ShapeModel.mkApps_const_inj hmaj
+  · obtain ⟨hcn', rfl, hargs⟩ := EnvTables.mkApps_const_inj hmaj
     have hms := (List.append_inj' hargs (by simp)).1
     obtain ⟨hhd, hlev⟩ := CaseCompilationData.aux_slot C.toCaseCompilationData _ hge haget
     obtain ⟨_, _, _, _, hwf, _⟩ := C.correspondence
@@ -344,9 +344,9 @@ theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
       schema.signature.families[schema.signature.constructors[i].owner].name) := by
     rw [hfo, ← hrr]; exact hIrig
   rw [hrr] at hR ⊢
-  rcases ShapeModel.CaseCompilationData.ctorApp_cases C hfresh i hR with
+  rcases EnvTables.CaseCompilationData.ctorApp_cases C hfresh i hR with
     ⟨F, hF', hFget, c', hc', hcn, hmj⟩ | ⟨a, ha, hge, haget, c', hc', hcn, hmj⟩
-  · obtain ⟨hcc, rfl, hargs⟩ := ShapeModel.mkApps_const_inj hmj
+  · obtain ⟨hcc, rfl, hargs⟩ := EnvTables.mkApps_const_inj hmj
     subst hcc
     have hms := (List.append_inj' hargs (by simp)).1
     have ho : schema.signature.constructors[i].owner.val < source.types.length :=
@@ -370,13 +370,13 @@ theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
       hcn hcconst hcis fun info hp => by
         have hcn2 : c'.name = info.ctorName := hF.ctor_of_projFamily hp hcis hcf
         exact hsrc _ hFm info hp (by rw [← hcn2]; exact hcisE)
-    obtain ⟨hfn, -, -⟩ := ShapeModel.CaseCompilationData.source_slot C _ ho
+    obtain ⟨hfn, -, -⟩ := EnvTables.CaseCompilationData.source_slot C _ ho
     have hhd : (compilationRestoration source aux).headName
         schema.signature.families[owner].name =
         source.types[schema.signature.constructors[i].owner.val].name := by
       rw [← hfo, hfn]
       exact C.headName_source hfresh (List.mem_flatMap.mpr ⟨_, hFm, List.mem_cons_self⟩)
-    obtain ⟨_, direct, _, _, hlt, hrel⟩ := ShapeModel.CaseCompilationData.family_slot C
+    obtain ⟨_, direct, _, _, hlt, hrel⟩ := EnvTables.CaseCompilationData.family_slot C
       schema.signature.constructors[i].owner
     rw [List.getElem_append_left ho] at hrel
     have hlev := hrel.resultLevel
@@ -390,7 +390,7 @@ theorem projMajor_generic {envF env base : VEnv} {source expanded : VInductDecl}
         rw [← hown]
         exact VLevel.inst_congr_l hlev
       exact hnz.of_equiv this
-  · obtain ⟨hcc, rfl, hargs⟩ := ShapeModel.mkApps_const_inj hmj
+  · obtain ⟨hcc, rfl, hargs⟩ := EnvTables.mkApps_const_inj hmj
     subst hcc
     have hms := (List.append_inj' hargs (by simp)).1
     obtain ⟨hhd, hlev⟩ := CaseCompilationData.aux_slot C _ hge haget

@@ -1014,7 +1014,7 @@ theorem NestedValidatedRunResult.restoredEliminators
   refine ⟨Restoration.projNamesFixed_of_avoid hl, Restoration.projNamesFixed_of_avoid hr,
     Restoration.projNamesFixed_of_avoid ht, ?_⟩
   refine CaseSchema.genericEquations_restorable rfl key owner (fun type htype => ?_) h df hdf
-  obtain ⟨type', h', -⟩ := ShapeModel.VEnv.WF.eliminator_genericType_closed hSwf hreg owner
+  obtain ⟨type', h', -⟩ := EnvTables.VEnv.WF.eliminator_genericType_closed hSwf hreg owner
   have := CaseSchema.genericType_withRestoration (schema :=
     CaseSchema.ofCompilation E.production.loweredDecl sL []) rfl htype
     (sourceDecl.types.map fun t : VInductiveType => t.name)

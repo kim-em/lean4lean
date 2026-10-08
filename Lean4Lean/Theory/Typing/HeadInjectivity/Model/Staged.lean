@@ -231,8 +231,8 @@ theorem projections_of_decl {env0 env' : VEnv} (hdecl : VDecl.WF env0 d env') :
   | induct _ installed =>
     cases installed with
     | @intro block _ _ compiled _ _ hinst =>
-      rcases (ShapeModel.install_projections hinst).1 hp with ⟨entry, hentry, rfl, rfl⟩ | hp
-      · obtain ⟨t, c, r, ht, hc, -, -⟩ := ShapeModel.install_parts hinst
+      rcases (EnvTables.install_projections hinst).1 hp with ⟨entry, hentry, rfl, rfl⟩ | hp
+      · obtain ⟨t, c, r, ht, hc, -, -⟩ := EnvTables.install_parts hinst
         exact .inr (entry_fresh compiled.compiled.types_eq compiled.compiled.ctors_eq
           compiled.projections ht hc hentry).2
       · exact .inl hp
@@ -353,7 +353,7 @@ theorem ordinary_owner_lt {base : VEnv} {source expanded : VInductDecl}
     (C : CompilationData base source expanded s g [] block) (o : Fin s.families.size) :
     o.val < source.types.length := by
   obtain ⟨_, direct, _, hdirect, hlt, -⟩ :=
-    ShapeModel.CaseCompilationData.family_slot C.toCaseCompilationData o
+    EnvTables.CaseCompilationData.family_slot C.toCaseCompilationData o
   have hd : direct = [] := by simpa using hdirect.symm
   subst hd
   simpa using hlt
@@ -486,7 +486,7 @@ theorem elimsValid_of_decl {envF env0 env' : VEnv} {ds : List VDecl} (hF : envF.
       .inr (let ⟨b', s', o, r, h, hg, he⟩ := hcc; ⟨b', s', o, r, hCE.eliminators h, hg, he⟩)
     have hp' := hpc _ _ hp hcF
     refine ⟨?_, hprojV _ _ hp'⟩
-    rcases (ShapeModel.install_projections hinst).1 hp' with ⟨entry, hentry, hS, hinfo⟩ | hold
+    rcases (EnvTables.install_projections hinst).1 hp' with ⟨entry, hentry, hS, hinfo⟩ | hold
     · rw [hcomp.projections] at hentry
       rw [hS, hinfo]; exact hentry
     · exfalso
