@@ -284,25 +284,6 @@ theorem vars_closedN_of_le {count below n : Nat} (h : below + count ≤ n) :
 
 /-! ## The case view -/
 
-theorem caseConstructor_recursiveFields (schema : CaseSchema)
-    (owner : Fin schema.signature.families.size)
-    (c : Constructor schema.signature.families.size) :
-    Instance.recursiveFields (s := schema.view owner) (schema.caseConstructor c) = [] := by
-  unfold Instance.recursiveFields
-  apply List.filterMap_eq_nil_iff.mpr
-  rintro ⟨f, i⟩ hp
-  obtain ⟨_, _, h⟩ := List.mem_zipIdx hp
-  rw [h]; simp [CaseSchema.caseConstructor]
-
-theorem caseConstructor_fieldTypes (schema : CaseSchema)
-    (owner : Fin schema.signature.families.size)
-    (c : Constructor schema.signature.families.size) :
-    (schema.view owner).fieldTypes (schema.caseConstructor c) = schema.signature.fieldTypes c := by
-  apply List.ext_getElem
-  · simp [fieldTypes, CaseSchema.caseConstructor]
-  · intro i h1 h2
-    simp [fieldTypes, CaseSchema.caseConstructor, fieldType]
-
 theorem view_constructors_mem {schema : CaseSchema}
     {owner : Fin schema.signature.families.size}
     {ctor : Constructor (schema.view owner).families.size}
@@ -373,7 +354,7 @@ theorem case_restorable (schema : CaseSchema) (owner : Fin schema.signature.fami
         rw [hxe]; exact List.getElem_mem _
       obtain ⟨c, hcm, _, rfl⟩ := view_constructors_mem hctor
       obtain ⟨hf, hix⟩ := hc c hcm
-      simp only [Instance.minor, caseConstructor_recursiveFields, caseConstructor_fieldTypes,
+      simp only [Instance.minor, CaseSchema.caseConstructor_recursiveFields, CaseSchema.view_fieldTypes_case,
         List.zipIdx_nil, List.map_nil, List.append_nil, List.length_nil]
       rw [restorable_wrapForalls]
       refine ⟨fun d hd => ?_, ?_⟩
@@ -474,7 +455,7 @@ theorem case_closedN (schema : CaseSchema) (owner : Fin schema.signature.familie
       obtain ⟨c, hcm, _, hce⟩ := view_constructors_mem (List.getElem_mem hi')
       rw [hce]
       obtain ⟨hf, hix⟩ := hc c hcm
-      simp only [Instance.minor, caseConstructor_recursiveFields, caseConstructor_fieldTypes,
+      simp only [Instance.minor, CaseSchema.caseConstructor_recursiveFields, CaseSchema.view_fieldTypes_case,
         List.zipIdx_nil, List.map_nil, List.append_nil, List.length_nil]
       apply ClosedN.wrapForalls_closed
       · exact ((hf.map_instL _).insertBinders _).shift (by simp [CaseSchema.view] <;> omega)
