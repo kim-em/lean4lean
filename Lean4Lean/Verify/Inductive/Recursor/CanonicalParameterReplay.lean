@@ -4,15 +4,17 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-private theorem ctx_levelWF {env : VEnv} {Γ : List VExpr} (H : OnCtx Γ (env.IsType U)) :
+/-- The types of a well-typed context mention only the universe parameters in scope. -/
+theorem onCtx_isType_levelWF {env : VEnv} {Γ : List VExpr} (H : OnCtx Γ (env.IsType U)) :
     OnCtx Γ (fun _ A => A.LevelWF U) := by
   induction Γ with
   | nil => trivial
   | cons A Γ ih => exact ⟨ih H.1, (Classical.choose_spec H.2).levelWF (ih H.1) |>.1⟩
 
-private theorem ctx_instL_id {env : VEnv} {Γ : List VExpr} (H : OnCtx Γ (env.IsType U)) :
+/-- Instantiating the identity universe substitution leaves a well-typed context unchanged. -/
+theorem onCtx_isType_instL_id {env : VEnv} {Γ : List VExpr} (H : OnCtx Γ (env.IsType U)) :
     Γ.map (VExpr.instL (VLevel.params U)) = Γ := by
-  have Hw := ctx_levelWF H
+  have Hw := onCtx_isType_levelWF H
   induction Γ with
   | nil => rfl
   | cons A Γ ih =>
@@ -26,7 +28,7 @@ theorem checkInductiveTypes.loopType.ParameterContextSuffix.recursorDomains
     (H.toRecursorContext Helim).parameterDecls.toCtx =
       H.parameterDecls.toCtx.map (VExpr.instL (recursorDeclarationAbstractLevels c.lparams Helim)) := by
   have Hwf := (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix Hc H).scopeWF Hc.checking.tr.wf
-  have hid := ctx_instL_id Hwf.toCtx
+  have hid := onCtx_isType_instL_id Hwf.toCtx
   cases elimLevel with
   | zero => exact hid.symm
   | param fresh =>

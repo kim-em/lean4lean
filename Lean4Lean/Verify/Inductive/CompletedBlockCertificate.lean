@@ -257,7 +257,7 @@ theorem CompletedBlockCertificate.rebaseCertificate
       (H.staged.venvCtors.addEliminators H.staged.eliminators).addProjections H.projections ≤
         (largerCtors.addEliminators H.staged.eliminators).addProjections H.projections :=
     VEnv.addProjections_mono (VEnv.addEliminators_mono hctors)
-  rcases H.staged.recursorsAdded.rebaseChecking HcheckingProjected hsafety
+  rcases H.staged.recursorsAdded.rebase HcheckingProjected hsafety
       hctorsProjected with ⟨largerOutBase, Hrecursors, hout⟩
   let Hlarger : CompletedBlockCertificate safety prodEnv largerBase types
       ctors recursors rules outEnv largerOutBase := {

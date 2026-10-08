@@ -216,10 +216,6 @@ theorem TrExprSyn.lambdaTelescope {Us : List Name} {n : Nat} {Fa L res : Lean.Ex
             List.map_append, List.append_assoc] using h
         · simpa [abstractForallContext, List.map_append, List.append_assoc] using Hres
 
-theorem abstractForallContext_append (xs ys : List VExpr) (Δ : VLCtx) :
-    abstractForallContext ys (abstractForallContext xs Δ) = abstractForallContext (xs ++ ys) Δ := by
-  simp [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc]
-
 theorem Expr.abstractN_mkAppList' (fn : Lean.Expr) (args : List Lean.Expr) (xs : List FVarId)
     (k : Nat) :
     (Lean.Expr.mkAppList fn args).abstractN xs k =
