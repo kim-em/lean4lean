@@ -99,22 +99,6 @@ theorem CompiledInductive.ctor_result (H : CompiledInductive env source block) :
       exact ⟨_, h2⟩)
     (fun _ _ _ ih => ih) trivial (fun _ _ _ _ _ _ _ => trivial) H
 
-theorem CompiledInductive.types_eq (H : CompiledInductive env source block) :
-    block.types = source.typeConstants := by
-  exact CompiledInductive.rec
-    (motive_1 := fun _ source block _ => block.types = source.typeConstants)
-    (motive_2 := fun _ _ _ => True)
-    (fun hdata _ _ => hdata.types) (fun _ _ _ ih => ih)
-    trivial (fun _ _ _ _ _ _ _ => trivial) H
-
-theorem CompiledInductive.ctors_eq (H : CompiledInductive env source block) :
-    block.ctors = source.constructorConstants := by
-  exact CompiledInductive.rec
-    (motive_1 := fun _ source block _ => block.ctors = source.constructorConstants)
-    (motive_2 := fun _ _ _ => True)
-    (fun hdata _ _ => hdata.ctors) (fun _ _ _ ih => ih)
-    trivial (fun _ _ _ _ _ _ _ => trivial) H
-
 theorem VInductBlock.install_ctor_lookup (H : VInductBlock.install base block = some installed)
     (hvalue : value ∈ block.ctors) : installed.constants value.name = some value.toVConstant := by
   simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
@@ -516,10 +500,10 @@ private theorem ConstructorHeadsRigid.addInduct
     have hdf : ((envCtors.addEliminators block.eliminators).addProjections
         block.projections).defeqs = env.defeqs := by
       simp only [VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs, hdf0]
-    apply hpre.compileRules hrecs hcompile.compiled.equation_head_owned
+    apply hpre.compileRules hrecs hcompile.equation_head_owned
     intro df hdfMem name hmajor
     obtain ⟨originName, horigin, hctor | ⟨prior, hprior, hpriorMajor⟩⟩ :=
-      hcompile.compiled.equation_major_cases df hdfMem
+      hcompile.equation_major_cases df hdfMem
     · have heq := hmajor.unique horigin
       obtain ⟨ctor, hctor, hname⟩ := hctor
       have hn : name = ctor.name := heq.trans hname
@@ -533,9 +517,9 @@ private theorem ConstructorHeadsRigid.addInduct
           some ctor.toVConstant := by
         simpa only [VEnv.addEliminators_constants, VEnv.addProjections_constants] using VEnv.addConstVals_get hctors hc
       obtain ⟨type, htype, hct⟩ := List.mem_flatMap.mp hctor
-      obtain ⟨ls, hres⟩ := hcompile.compiled.ctor_result type htype ctor hct
+      obtain ⟨ls, hres⟩ := hcompile.ctor_result type htype ctor hct
       have ht : type.toVConstVal ∈ block.types := by
-        rw [hcompile.compiled.types_eq]; exact List.mem_map.mpr ⟨type, htype, rfl⟩
+        rw [hcompile.types_eq]; exact List.mem_map.mpr ⟨type, htype, rfl⟩
       have hTfresh := VEnv.addConstVals_names_fresh htypes _ ht
       have hTr := hordered.rigid_of_absent hTfresh
       have hTc : ((envCtors.addEliminators block.eliminators).addProjections

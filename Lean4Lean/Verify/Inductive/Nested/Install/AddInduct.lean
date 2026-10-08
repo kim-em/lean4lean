@@ -47,24 +47,6 @@ theorem NestedRestorationFolds.addInductOfInstallation
       (outVEnv.addDefEqRules (primaryRules ++ auxiliaryRules)) := by
   let block : VInductBlock := { restoredBlock decl primaryRecursors
     auxiliaryRecursors primaryRules auxiliaryRules with eliminators := es }
-  have hnames : List.Nodup
-      ((block.types ++ block.ctors ++ block.recursors).map (·.name)) := by
-    have hraw : ∃ rawOut,
-        envCtors.addConstVals (primaryRecursors ++ auxiliaryRecursors) =
-          some rawOut := by
-      rw [VEnv.addProjections_addConstVals, VEnv.addEliminators_addConstVals] at HrecursorsAdded
-      cases hraw : envCtors.addConstVals
-          (primaryRecursors ++ auxiliaryRecursors) with
-      | none => simp [hraw] at HrecursorsAdded
-      | some rawOut => exact ⟨rawOut, rfl⟩
-    rcases hraw with ⟨rawOut, hraw⟩
-    have hall : sourceEnv.addConstVals
-        (decl.typeConstants ++ decl.constructorConstants ++
-          (primaryRecursors ++ auxiliaryRecursors)) = some rawOut := by
-      simp [VEnv.addConstVals_append, Hsource.typesAdded,
-        Hsource.ctorsAdded, hraw]
-    simpa [block, restoredBlock] using
-      VEnv.addConstVals_names_nodup hall
   have HblockWF : block.WF sourceEnv := by
     refine ⟨envTypes, envCtors, outVEnv, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
     · simpa [block, restoredBlock] using Hsource.typesAdded
@@ -88,7 +70,7 @@ theorem NestedRestorationFolds.addInductOfInstallation
   exact .intro
     ⟨Lean4Lean.TrInductDecl.sourceWF Htranslated,
       .nested Hformation VEnv.LE.rfl⟩
-    ⟨rfl, rfl, rfl, hnames, Hcanonical⟩ HblockWF
+    Hcanonical HblockWF
     (Helim.congr_block rfl rfl rfl rfl) Hinstall
 
 end VerifyInductive

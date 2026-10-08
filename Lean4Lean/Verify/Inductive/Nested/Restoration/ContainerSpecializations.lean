@@ -295,7 +295,7 @@ theorem ContainersInstalled.of_installed {env : VEnv} :
   | a :: rest, H => by
     cases H a List.mem_cons_self with
     | intro _ _ hcompile hblock hinstall hle =>
-      exact .cons hcompile.compiled hblock hinstall hle
+      exact .cons hcompile hblock hinstall hle
         (ContainersInstalled.of_installed fun b hb =>
           H b (List.mem_cons_of_mem _ hb))
 

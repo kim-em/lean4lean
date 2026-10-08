@@ -73,7 +73,7 @@ structure OrdinaryCompilationCertificate (env : VEnv)
 
 theorem OrdinaryCompilationCertificate.compilesTo
     (H : OrdinaryCompilationCertificate env decl block) : decl.CompilesTo env block :=
-  ⟨H.types, H.ctors, H.projections, H.names, H.finite⟩
+  H.finite
 
 
 end VerifyInductive

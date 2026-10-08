@@ -165,25 +165,7 @@ theorem RestoredBlockCertificate.compilation
       isUnsafe safety) :
     decl.CompilesTo sourceEnv C.blockCertificate.block := by
   rw [C.block_eq_restoredBlock]
-  let block : VInductBlock := { restoredBlock decl C.sourceRecursors
-    C.auxiliaryRecursors C.sourceRules C.auxiliaryRules with
-      eliminators := C.install.eliminators }
-  have hvalues :
-      (C.typeEntries ++ C.constructorEntries ++ C.recursorEntries).map
-          Prod.snd = block.types ++ block.ctors ++ block.recursors := by
-    simp only [List.map_append, block, restoredBlock]
-    rw [C.typeValues, C.constructorValues, C.recursorValues]
-  have hnames : List.Nodup
-      ((block.types ++ block.ctors ++ block.recursors).map (·.name)) := by
-    rw [← hvalues]
-    exact VEnv.addConstVals_names_nodup C.install.atomic.abstract
-  have Hcanonical := (C.trCompilation.congr_eliminators C.install.eliminators).compiles
-  exact {
-    types := rfl
-    ctors := rfl
-    projections := rfl
-    names := hnames
-    compiled := Hcanonical }
+  exact (C.trCompilation.congr_eliminators C.install.eliminators).compiles
 
 theorem RestoredBlockCertificate.declWF
     {result : Lean4Lean.ElimNestedInductive.Result}

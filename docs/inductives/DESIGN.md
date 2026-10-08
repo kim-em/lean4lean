@@ -213,9 +213,11 @@ recursor renaming. The installed block's recursors and rules are exactly the res
 generated ones. `CompiledInductive` makes the certificate a finite tree: each container used
 by a nested declaration is itself certified by an earlier `CompiledInductive`
 (`ContainersInstalled`), so no environment lookup can serve as provenance.
-`VInductDecl.CompilesTo env decl block` is the record that installation reads: the block's
-families, constructors and projection entries are those of the declaration, its installed
-names are distinct, and `CompiledInductive` derives the block.
+`VInductDecl.CompilesTo env decl block`, the judgment that installation reads, abbreviates
+`CompiledInductive env decl block`. That the block's families, constructors and projection
+entries are those of the declaration, and that its installed names are distinct, are accessor
+theorems (`CompilesTo.types`, `.ctors`, `.projections`, `.names`) proved by induction on
+`CompiledInductive`, whose `replay` constructor preserves source and block.
 
 ### 2.3 Installation order and the abstract `AddInduct`
 

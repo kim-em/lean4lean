@@ -209,13 +209,8 @@ open InductiveSignature
 
 theorem CompiledInductive.types_ctors {env : VEnv} {source : VInductDecl}
     {block : VInductBlock} (H : CompiledInductive env source block) :
-    block.types = source.typeConstants ∧ block.ctors = source.constructorConstants := by
-  induction H using CompiledInductive.rec
-    (motive_2 := fun _ _ _ => True) with
-  | intro h _ _ => exact ⟨h.types, h.ctors⟩
-  | replay _ _ _ ih => exact ih
-  | nil => trivial
-  | cons _ _ _ _ _ _ _ => trivial
+    block.types = source.typeConstants ∧ block.ctors = source.constructorConstants :=
+  ⟨H.types_eq, H.ctors_eq⟩
 end Lean4Lean
 
 namespace Lean4Lean

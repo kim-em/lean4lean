@@ -168,7 +168,7 @@ theorem HeadsClosed.of_decl {envF env0 env' : VEnv} (hdecl : VDecl.WF env0 d env
   | induct _ installed =>
     cases installed with
     | @intro block _ _ compiled _ _ hinst =>
-      have howned := compiled.compiled.equation_head_owned
+      have howned := compiled.equation_head_owned
       simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
         Option.pure_def, Option.some.injEq] at hinst
       obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hinst
@@ -229,7 +229,7 @@ theorem projections_of_decl {env0 env' : VEnv} (hdecl : VDecl.WF env0 d env') :
     | @intro block _ _ compiled _ _ hinst =>
       rcases (EnvTables.install_projections hinst).1 hp with ⟨entry, hentry, rfl, rfl⟩ | hp
       · obtain ⟨t, c, r, ht, hc, -, -⟩ := EnvTables.install_parts hinst
-        exact .inr (entry_fresh compiled.compiled.types_eq compiled.compiled.ctors_eq
+        exact .inr (entry_fresh compiled.types_eq compiled.ctors_eq
           compiled.projections ht hc hentry).2
       · exact .inl hp
 
@@ -604,8 +604,8 @@ theorem WF'.envValid {envF : VEnv} (hF : envF.WF) :
       cases installed with
       | @intro block _ hdw compiled hbwf _ hinst =>
         obtain ⟨base, expanded, s, g, aux, hbase', C, hprior⟩ :=
-          compiled.compiled.exists_compilation
-        have howned := compiled.compiled.equation_head_owned
+          compiled.exists_compilation
+        have howned := compiled.equation_head_owned
         have hinst' := hinst
         simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
           Option.pure_def, Option.some.injEq] at hinst'

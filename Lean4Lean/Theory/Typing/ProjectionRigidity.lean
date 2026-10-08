@@ -157,7 +157,7 @@ private theorem ProjectionRigid.addInduct {base env' : VEnv} {decl : VInductDecl
       hparams hparams.rawCtorShape hcompile.types hcompile.ctors hcompile.projections htypes hctors
     have hpreRigid := (H.addConstVals htypes).addConstVals hctors
     have hpreRegistered := hpreRigid.register (es := block.eliminators) hbase hcompile.types hcompile.ctors hcompile.projections htypes hctors
-    have hresult := hpreRegistered.compileRules hpreOrdered hrecs hcompile.compiled.equation_head_owned
+    have hresult := hpreRegistered.compileRules hpreOrdered hrecs hcompile.equation_head_owned
     simp [VInductBlock.install, htypes, hctors, hrecs] at hinstall
     cases hinstall
     exact hresult

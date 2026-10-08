@@ -413,19 +413,12 @@ theorem enumBlockWellFormed : enumBlock.WF .empty := by
     subst df
     exact enumEquationTyping
 
-theorem enumOrdinaryCompilation : enumDecl.CompilesTo .empty enumBlock where
-  compiled := CompiledInductive.ordinary enumDecl_wf.1 enumFormation
+theorem enumOrdinaryCompilation : enumDecl.CompilesTo .empty enumBlock :=
+  CompiledInductive.ordinary enumDecl_wf.1 enumFormation
     enumCanonicalCompilation enumBlockWellFormed rfl rfl rfl (by
       simp [enumBlock, enumDecl, enumType, enumCtor, enumRecursor,
         VInductDecl.typeConstants, VInductDecl.constructorConstants,
         InductiveSignature.Instance.recursor, enumInstance])
-  types := rfl
-  ctors := rfl
-  projections := rfl
-  names := by
-    simp [enumBlock, enumDecl, enumType, enumCtor, enumRecursor,
-      VInductDecl.typeConstants, VInductDecl.constructorConstants,
-      InductiveSignature.Instance.recursor, enumInstance]
 
 theorem enumCompiles : VInductDecl.CompilesTo .empty enumDecl enumBlock :=
   enumOrdinaryCompilation
