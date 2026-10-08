@@ -398,7 +398,6 @@ def reduceProjCoreCont (structName : Name) (idx : Nat) (c : Expr) : RecM (Option
   let some (.inductInfo structInfo) := env.find? structName | return none
   unless structInfo.ctors == [mkC] do return none
   unless mkInfo.induct == structName do return none
-  unless mkInfo.isUnsafe == structInfo.isUnsafe do return none
   return args[mkInfo.numParams + idx]?
 
 @[inherit_doc reduceProjCoreCont]
