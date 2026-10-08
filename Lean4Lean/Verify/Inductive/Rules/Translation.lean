@@ -723,7 +723,7 @@ theorem RecursorConstruction.ruleCounts (H : RecursorConstruction R)
       H.generator.signature.params.length = H.params.fvars.length ∧
       H.generator.signature.families.size = H.bindings.motives.fvars.length ∧
       H.generator.signature.constructors.size = H.bindings.flatMinors.fvars.length := by
-  obtain ⟨_, hft, _, _⟩ := H.consumedGeneration_shapeTranslations o ho i hlocal
+  obtain ⟨_, hft, _, _⟩ := H.generatedBy_shapeTranslations o ho i hlocal
   refine ⟨?_, ?_, ?_, ?_⟩
   · rw [← InductiveSignature.fieldTypes_length, hft, H.sourceFields_length,
       (H.origins.minorShapes o ho i hlocal).fields_bound.length_fvars]
@@ -760,7 +760,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
         (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
           H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2
         .recursor) := by
-  obtain ⟨_, hft, hrfLen, Hshape⟩ := H.consumedGeneration_shapeTranslations o ho i hlocal
+  obtain ⟨_, hft, hrfLen, Hshape⟩ := H.generatedBy_shapeTranslations o ho i hlocal
   obtain ⟨hjB, hpos, hfield, htarget, hbinders, hmajor, htemplate, Hdom, Hidx⟩ := Hshape j hj
   have hjS : j < (H.origins.minorShapes o ho i hlocal).hypotheses.size := hrfLen ▸ hj
   obtain ⟨_, _, _, _, traversal, origins, _, horig, _, _, Hcalls⟩ := H.blueprints.entry o ho i hlocal
@@ -995,7 +995,7 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
       ((H.recInfos[o]!.ruleTemplates[i]!).instantiate indTypes stats
           (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
           (AddInductive.getRecLevels H.elimLevel stats.levels) H.localContext.lctx).rhs X := by
-  obtain ⟨_, hft, hrfLen, Hshape⟩ := H.consumedGeneration_shapeTranslations o ho i hlocal
+  obtain ⟨_, hft, hrfLen, Hshape⟩ := H.generatedBy_shapeTranslations o ho i hlocal
   obtain ⟨hnf, hnp, hnfam, hnctor⟩ := H.ruleCounts o ho i hlocal hk
   obtain ⟨_, hfieldsB, hlctxB, hminorB, traversal, origins, _, horig, _, _, Hcalls⟩ :=
     H.blueprints.entry o ho i hlocal
@@ -1191,7 +1191,7 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
           (AddInductive.getRecLevels H.elimLevel stats.levels) H.localContext.lctx).rhs
         (H.generator.generation.equation
           ⟨recursorMinorOffset indTypes o + i, hk⟩).rhs := by
-  obtain ⟨hk, hft, hrfLen, Hshape⟩ := H.consumedGeneration_shapeTranslations o ho i hlocal
+  obtain ⟨hk, hft, hrfLen, Hshape⟩ := H.generatedBy_shapeTranslations o ho i hlocal
   refine ⟨hk, ?_⟩
   obtain ⟨hnf, hnp, hnfam, hnctor⟩ := H.ruleCounts o ho i hlocal hk
   obtain ⟨_, hfieldsB, hlctxB, hminorB, traversal, origins, _, horig, _, _, Hcalls⟩ :=
@@ -1448,7 +1448,7 @@ theorem RecursorCheck.ruleRhsSyn {outEnv : Environment}
 
 /-- The right-hand side of every installed recursor rule has a typed
 translation in the installed environment.  The residual is typed by the
-production equation frame (`canonicalEquationFrame`), transported to the
+production equation frame (`equationFrame`), transported to the
 generator's equation telescope along `domains_defeq`; the binder domains are
 typed by `ruleRhsTypedOfResidual`. -/
 theorem RecursorCheck.ruleRhsTyped {outEnv : Environment}
@@ -1463,8 +1463,8 @@ theorem RecursorCheck.ruleRhsTyped {outEnv : Environment}
     exact hi
   have hctor : i < indTypes[o]!.ctors.length := by
     rw [← H.minorTypes_size o howner]; exact hlocal
-  rcases H.generatedRuleAlignment o ho i hctor with ⟨A⟩
-  rcases A.canonicalEquationFrame with ⟨F⟩
+  rcases H.ruleAlignment o ho i hctor with ⟨A⟩
+  rcases A.equationFrame with ⟨F⟩
   obtain ⟨hk, -, hnf⟩ := A.generatedConstructor
   have D := F.domains_defeq hk hnf
   obtain ⟨e₂, He₂⟩ := TrExprS.defeqDFC H.outVEnvWF (abstractForallContext.isDefEq D)

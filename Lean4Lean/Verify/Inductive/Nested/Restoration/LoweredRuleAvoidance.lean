@@ -1203,7 +1203,7 @@ theorem minorDeclTrail (I : H.TrailingArgDeclarations names ls)
       d.type.TrailingArgs heads np (Expr.ParamUniform names [] ls) := by
   obtain ⟨i, hi, hget⟩ := Array.mem_iff_getElem.mp hy
   obtain ⟨D⟩ := H.bindings.flatMinors.declarationAt H.localWF i hi
-  obtain ⟨Fm⟩ := H.origins.flatMinorOrigin D
+  obtain ⟨Fm⟩ := H.origins.flatMinorBinderType D
   have hDy : D.fvar = y := Expr.fvar.inj (D.expression.symm.trans hget)
   subst hDy
   refine ⟨_, D.declaration, ?_⟩
@@ -1687,7 +1687,7 @@ theorem NestedRun.whnfPreservesParamUniform_auxCtorNames
 
 /-- **The trailing-provenance inputs of an exact validated nested run** at the
 auxiliary constructor names and `foreignLevels`. -/
-theorem NestedRun.trailInputs_of
+theorem NestedRun.trailingArgDeclarations_of
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
@@ -1898,7 +1898,7 @@ theorem NestedRun.loweredRulesAvoid_auxCtorNames
   simp only [List.mem_map] at hrule'
   obtain ⟨blueprint, hmem, rfl⟩ := hrule'
   obtain ⟨HT, HL⟩ := C.toRecursorConstruction.ruleRhsTrail
-    (E.trailInputs_of wf Hsources) (E.whnfPreservesParamUniform_auxCtorNames wf Hsources)
+    (E.trailingArgDeclarations_of wf Hsources) (E.whnfPreservesParamUniform_auxCtorNames wf Hsources)
     heads result.nparams owner.val howner
     (AddInductive.getRecLevels C.elimLevel E.lowered.stats.levels) blueprint hmem
   have hsize : E.lowered.stats.params.size = result.nparams := E.statsParamsSize

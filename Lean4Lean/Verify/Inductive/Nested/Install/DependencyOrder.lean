@@ -410,7 +410,7 @@ structure SourceFamilyTranslations.InDependencyOrder
 /-- Fold the exact source semantics together with the exact executable
 restoration steps.  The result proves the canonical grouping permutation;
 it does not ask a caller to identify two independently selected endpoints. -/
-theorem SourceFamilyTranslations.existsCanonicalReplay
+theorem SourceFamilyTranslations.existsInDependencyOrder
     {Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       sourceTypes sourceProdEnv targetProdEnv}
@@ -572,7 +572,7 @@ theorem SourceFamilyTranslations.existsExactCanonicalPrimaryReplay
     ∃ typeEntries constructorEntries recursorEntries actualEntries,
       H.InDependencyOrder typeEntries constructorEntries recursorEntries
         actualEntries := by
-  apply H.existsCanonicalReplay
+  apply H.existsInDependencyOrder
   · intro indType stepSource stepTarget owner Hstep hmem Hheader
     rcases List.mem_iff_getElem.mp hmem with ⟨familyIdx, hfamily, heq⟩
     subst indType
@@ -873,7 +873,7 @@ structure AuxiliaryRecursorTranslations.InDependencyOrder
 
 /-- Recover the exact concrete auxiliary-recursion suffix from its
 block-independent semantic trace. -/
-theorem AuxiliaryRecursorTranslations.existsCanonicalReplay
+theorem AuxiliaryRecursorTranslations.existsInDependencyOrder
     {Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceProdEnv targetProdEnv}
@@ -896,7 +896,7 @@ theorem AuxiliaryRecursorTranslations.existsCanonicalReplay
       have haddWF := constantsWF_add_checked hsourceWF hheadFresh
       dsimp [head] at haddWF
       have hmiddleWF := hmiddle.symm ▸ haddWF
-      rcases Hrest.existsCanonicalReplay hmiddleWF with
+      rcases Hrest.existsInDependencyOrder hmiddleWF with
         ⟨entries, HtailReplay⟩
       have Hfresh' : FreshExtension (sourceProdEnv.add head.1)
           (entries.map Prod.fst) targetProdEnv := by
@@ -1218,7 +1218,7 @@ theorem SourceFamilyTranslations.existsExactStagedRestoration
         primaryActualEntries, Hprimary⟩
   have hprimaryWF : primaryProdEnv.constants.WF :=
     Hprimary.fresh.targetWF Hc.checking.tr.map_wf
-  rcases Haux.existsCanonicalReplay hprimaryWF with
+  rcases Haux.existsInDependencyOrder hprimaryWF with
     ⟨auxiliaryEntries, Hauxiliary⟩
   let replay := Hprimary.appendAuxiliaryRecursors Hauxiliary
   have htypesAbstract : sourceVEnv.addConstVals

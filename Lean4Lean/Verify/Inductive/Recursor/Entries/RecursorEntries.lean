@@ -1122,7 +1122,7 @@ recursor-type certificate consumed by the installation loop.  The sole
 non-computational premise excludes `.partial`, which production inductive
 checking never uses and whose visibility order is incompatible with the
 generated `isUnsafe` bit. -/
-theorem AddInductive.declareRecursors.checkRecursorTypes.recursorTypeTranslationsWF
+theorem AddInductive.declareRecursors.checkRecursorTypes.trRecursorTypesWF
     (Hvalid : CheckingEnv.Valid c.safety c.env venv)
     (hnotPartial : c.safety ≠ .partial)
     (stats : AddInductive.InductiveStats)

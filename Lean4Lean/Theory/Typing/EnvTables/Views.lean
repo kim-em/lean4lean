@@ -429,7 +429,7 @@ theorem ctorView_unique
   simp only [ctorView, htype, RawCtorShape.family_eq h2' h2 htype]
 
 /-- New views of a declaration are consistent. -/
-theorem viewsOK_decl {famT : Name → Option FamData} {ctorT : Name → Option CtorData}
+theorem newViewsWF_decl {famT : Name → Option FamData} {ctorT : Name → Option CtorData}
     (hnd : decl.sourceNames.Nodup)
     (hfresh : ∀ t ∈ decl.types, sel t → famT t.name = none ∧ ctorT t.name = none ∧
       ∀ c ∈ t.ctors, famT c.name = none ∧ ctorT c.name = none)

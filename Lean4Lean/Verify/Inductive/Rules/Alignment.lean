@@ -174,7 +174,7 @@ noncomputable def RecursorCheck.RuleAlignment.minorReplayAt
 /-- Select the fully aligned pointwise rule package directly from the
 completed recursor phase.  All bounds not supplied by the caller follow from
 the generated-recursors cardinality and the source-declaration translation. -/
-theorem RecursorCheck.generatedRuleAlignment
+theorem RecursorCheck.ruleAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}

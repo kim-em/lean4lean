@@ -723,7 +723,7 @@ theorem AuxiliaryFamilySourceData.linkedSpecialization
 /-- The container application recorded for a generated family, abstracted
 over the final lowering parameters, is the native source's container
 application. -/
-theorem AuxiliaryFamilySourceData.auxNestedSpec
+theorem AuxiliaryFamilySourceData.auxiliaryContainerApp
     {prodEnv : Environment} {result : Lean4Lean.ElimNestedInductive.Result}
     {nparams : Nat} {finalState : Lean4Lean.ElimNestedInductive.State}
     {targetConcrete : InductiveType}
@@ -759,10 +759,10 @@ theorem AuxiliaryFamilySourceData.auxNestedSpec
   · rw [hlevels]; exact N.levelsTranslation
   · rw [hargs]; exact N.baseTranslations
 
-/-- `AuxiliaryFamilySourceData.auxNestedSpec` in the source
+/-- `AuxiliaryFamilySourceData.auxiliaryContainerApp` in the source
 types environment, with the native source parameters definitionally equal to
 a given context. -/
-theorem AuxiliaryFamilySourceData.auxNestedSpecAt
+theorem AuxiliaryFamilySourceData.auxiliaryContainerAppAt
     {prodEnv : Environment} {result : Lean4Lean.ElimNestedInductive.Result}
     {nparams : Nat} {finalState : Lean4Lean.ElimNestedInductive.State}
     {targetConcrete : InductiveType}
@@ -779,7 +779,7 @@ theorem AuxiliaryFamilySourceData.auxNestedSpecAt
     (hclosed : H.generated.data.nested.looseBVarRange' = 0)
     (hnp : result.nparams = nparams) {ctx : List VExpr}
     (hctx : VEnv.IsDefEqCtx sourceTypesVEnv lparams.length [] N.sourceParams.reverse ctx) :
-    AuxNestedSpecAt sourceTypesVEnv ctx result lparams H.generated.data.nested a := by
+    AuxiliaryContainerAppAt sourceTypesVEnv ctx result lparams H.generated.data.nested a := by
   have hsel : sel.fvars = fvars := by
     have h : (sel.fvars.map Expr.fvar).toArray = (fvars.map Expr.fvar).toArray :=
       sel.expressions.symm.trans hfvars
@@ -944,7 +944,7 @@ theorem AuxiliaryFamilySources.restoringReplacement
     ∀ {lctx : LocalContext} {As : Array Expr}
       {input state output nextState traceFinalState depth fieldDepth sourceValue
         targetValue sourceCtx targetCtx},
-      NestedReplacementFinalTrace prodEnv lctx result.params As input state output
+      NodeReplacementFinalTrace prodEnv lctx result.params As input state output
         nextState result traceFinalState →
       NestedExpansionLookupCtx
         ((compilationRestoration sourceDecl auxiliaries).RestoringLeaf
@@ -1023,7 +1023,7 @@ theorem AuxiliaryFamilySources.restoringReplacement
     rw [Ocanonical.nested_eq]
     exact hclosedNested _ _ T.resultLookup
   have hspecN : AuxiliaryContainerApp result lparams T.nested aN := by
-    have h := Nsource.auxNestedSpec aN
+    have h := Nsource.auxiliaryContainerApp aN
       (by
         change Nsource.container.types[idx].name = _
         rw [hfamily]
@@ -1245,7 +1245,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
             (VLevel.params sourceDecl.uvars)))
         generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
       ∀ a ∈ auxiliaries, ∃ nested, result.aux2nested.find? a.auxiliary = some nested ∧
-        AuxNestedSpecAt envTypes E.lowered.headers.commonParameterContext result lparams
+        AuxiliaryContainerAppAt envTypes E.lowered.headers.commonParameterContext result lparams
           nested a := by
   have hloweredNodup :
       (familyNames E.lowered.loweredDecl.types ++
@@ -1370,7 +1370,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
         N.parameterContext sourceDecl a family ∧
       ∃ nested, result.aux2nested.find? a.auxiliary = some nested ∧
         AuxiliaryContainerApp result P.c.lparams nested a ∧
-        AuxNestedSpecAt E.sourceCore.envTypes N.parameterContext result P.c.lparams
+        AuxiliaryContainerAppAt E.sourceCore.envTypes N.parameterContext result P.c.lparams
           nested a := by
     intro family hfamily
     rcases List.mem_iff_getElem.mp hfamily with ⟨i, hi, rfl⟩
@@ -1388,9 +1388,9 @@ theorem NestedRun.restorationTablesRestoringAllSpec
       exact Hmap _ _ Horigin.generated.cached
     rcases Htranslations _ _ hfind with ⟨Htr⟩
     refine ⟨a, hev, Horigin.generated.data.nested, hfind, ?_, ?_⟩
-    · exact NN.auxNestedSpec a (by rw [hsrc, NN.containerName]) hlev hargs hfvars
+    · exact NN.auxiliaryContainerApp a (by rw [hsrc, NN.containerName]) hlev hargs hfvars
         hfvarsNodup E.auxiliarySelection Htr.sourceClosed.looseBVarRange_zero hnp
-    · exact NN.auxNestedSpecAt a (by rw [hsrc, NN.containerName]) hlev hargs hfvars
+    · exact NN.auxiliaryContainerAppAt a (by rw [hsrc, NN.containerName]) hlev hargs hfvars
         hfvarsNodup E.auxiliarySelection Htr.sourceClosed.looseBVarRange_zero hnp
         (VEnv.IsDefEqCtx.mono hbaseLE hctx)
   rcases exists_forall₂_of_forall Hpoint with ⟨auxiliaries, Haux'⟩
@@ -1594,7 +1594,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
       exact hsome rfl
 
   have Hspec : ∀ a ∈ auxiliaries, ∃ nested, result.aux2nested.find? a.auxiliary = some nested ∧
-      AuxNestedSpecAt E.sourceCore.envTypes E.lowered.headers.commonParameterContext
+      AuxiliaryContainerAppAt E.sourceCore.envTypes E.lowered.headers.commonParameterContext
         result lparams nested a := by
     intro a ha
     rcases Lean4Lean.List.Forall₂.forall_exists_l Haux' a ha with

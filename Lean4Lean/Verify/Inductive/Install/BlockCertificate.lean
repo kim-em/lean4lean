@@ -491,7 +491,7 @@ theorem BlockCertificate.rebaseAddInduct
 
 /-- A batch whose production entries are all tagged unsafe supplies the
 exact hidden-header certificate required by the safety-indexed extension. -/
-theorem BlockCertificate.installedInductiveHeadersUnsafe
+theorem BlockCertificate.newFamiliesUnsafe
     (H : BlockCertificate .unsafe prodEnv unsafeBase types ctors recursors
       rules outEnv outBase)
     (hwf : prodEnv.constants.WF)
@@ -861,7 +861,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
     · intro entry hentry
       exact hiddenSafe entry (by simp [hentry])
     · exact wf.tr (safety := .safe)
-  have hheadersUnsafe := H.installedInductiveHeadersUnsafe
+  have hheadersUnsafe := H.newFamiliesUnsafe
     (wf.tr (safety := .unsafe)).map_wf hunsafe
   have haddUnsafe : AddInduct .unsafe prodEnv.constants
       (ves.venv .unsafe) decl outEnv.constants
@@ -1092,14 +1092,14 @@ theorem RecursorCheck.ctorParamsAgree
     exact (R.ctorParamsAgree Hsource).mono R.ctorLE
   · exact H.generated.nonInductive
 
-theorem RecursorCheck.productionInductiveOrigins
+theorem RecursorCheck.inductInfosFromDecl
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) :
     InductInfosFromDecl c.env.constants outEnv.constants decl := by
   have hctorOrigins : InductInfosFromDecl c.env.constants
       H.localContext.env.constants decl := by
-    simpa [H.localExtends.env_eq] using R.productionInductiveOrigins
+    simpa [H.localExtends.env_eq] using R.inductInfosFromDecl
   apply InductInfosFromDecl.addConstants hctorOrigins H.installed
   · rw [H.localExtends.env_eq]
     exact R.context.checking.tr.map_wf

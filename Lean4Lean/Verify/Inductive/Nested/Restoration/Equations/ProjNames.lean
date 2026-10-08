@@ -503,7 +503,7 @@ theorem minorDeclProjsOK (I : H.ParamUniformDeclarations heads)
       d.DeclProjsOK (projAvoidsHeads H.localContext.env heads) := by
   obtain ⟨i, hi, hget⟩ := Array.mem_iff_getElem.mp hy
   obtain ⟨D⟩ := H.bindings.flatMinors.declarationAt H.localWF i hi
-  obtain ⟨Fm⟩ := H.origins.flatMinorOrigin D
+  obtain ⟨Fm⟩ := H.origins.flatMinorBinderType D
   have hDy : D.fvar = y := Expr.fvar.inj (D.expression.symm.trans hget)
   subst hDy
   refine ⟨_, D.declaration, ?_⟩

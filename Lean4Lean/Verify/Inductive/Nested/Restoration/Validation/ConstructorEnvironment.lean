@@ -701,7 +701,7 @@ theorem ValidationEnvironment.validProjected
       sourceDecl := fun _ _ h => .inl h
   have Hprimary : InductInfosFromDecl c.env.constants
       Hrestored.sourceFamiliesEnv.constants sourceDecl :=
-    Hrestored.inductives.sourceFamiliesProductionInductiveOrigins Hlower Hc
+    Hrestored.inductives.sourceFamiliesInductInfosFromDecl Hlower Hc
       Hprod Hsource Hmetadata Hsources Harity Howners hempty [] (by simp)
       hsourceWF Hinitial
   have HprimaryOwners : ConstructorOwnersPresent Hrestored.sourceFamiliesEnv :=
@@ -887,7 +887,7 @@ theorem NestedRestorationFolds.finalLocalValidOfStaged
     Hrestored.constructorOwnersPresent Hlower Hc Hprod hempty Howners
   have horigins : InductInfosFromDecl c.env.constants outEnv.constants
       sourceDecl :=
-    Hrestored.productionInductiveOrigins Hlower Hc Hprod Hsource Hmetadata
+    Hrestored.inductInfosFromDecl Hlower Hc Hprod Hsource Hmetadata
       Hsources Harity Howners hempty
   have hinduct := Hrestored.constructorInductFresh Hlower Hc Hprod hempty
   have hvenvTypes : canonical.venvTypes = envTypes := by

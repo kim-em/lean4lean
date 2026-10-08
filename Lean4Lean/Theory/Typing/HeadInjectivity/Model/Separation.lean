@@ -71,9 +71,9 @@ end Model
 /-- **Head separation from soundness** of the observation model. -/
 theorem WF.headSeparation_of_sound {env : VEnv} (henv : env.WF) (hnr : Model.SoundEnv env) :
     env.HeadSeparation where
-  sort_sort hΓ h := (WF.headInjectivityCore_of_sound henv hnr).sort_sort hΓ h
+  sort_sort hΓ h := (WF.chainHeadInjectivity_of_sound henv hnr).sort_sort hΓ h
   rigid_heads hΓ hc hc' h :=
-    let r := (WF.headInjectivityCore_of_sound henv hnr).rigid_rigid hΓ hc hc' h; ⟨r.1, r.2.1⟩
+    let r := (WF.chainHeadInjectivity_of_sound henv hnr).rigid_rigid hΓ hc hc' h; ⟨r.1, r.2.1⟩
   sort_forallE hΓ h := Model.sort_forallE henv.ordered hnr hΓ h
   sort_rigid hΓ hrig h := Model.sort_rigid henv.ordered hnr hΓ hrig h
   forallE_rigid hΓ hrig h := Model.forallE_rigid henv.ordered hnr hΓ hrig h

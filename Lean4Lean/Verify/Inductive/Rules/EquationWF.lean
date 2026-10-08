@@ -246,7 +246,7 @@ structure RecursorCheck.RuleAlignment.EquationFrame
       telescope.motives telescope.minors frame.fieldDomains).reverse
     rhsBody typeBody
 
-/-- Positive-arity case of `canonicalEquationFrame`; the proof is that of
+/-- Positive-arity case of `equationFrame`; the proof is that of
 `finalCanonicalPositiveEquationWitness`, retaining its context. -/
 theorem
     RecursorCheck.RuleAlignment.canonicalPositiveEquationFrame
@@ -575,7 +575,7 @@ theorem
     lhs_typing := HlhsTyping'
     rhs_typing := HrhsAtLhs }⟩
 
-/-- Zero-arity case of `canonicalEquationFrame`; the proof is that of
+/-- Zero-arity case of `equationFrame`; the proof is that of
 `finalCanonicalZeroEquationWitness`, retaining its context. -/
 theorem
     RecursorCheck.RuleAlignment.canonicalZeroEquationFrame
@@ -819,7 +819,7 @@ theorem
 
 /-- Every generated rule has a production equation frame. -/
 theorem
-    RecursorCheck.RuleAlignment.canonicalEquationFrame
+    RecursorCheck.RuleAlignment.equationFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1085,7 +1085,7 @@ theorem RecursorCheck.RuleAlignment.generatorEquationWF
     (Htr : A.EquationBodyTranslations hk) :
     (H.canonicalGeneration.equation ⟨recursorMinorOffset indTypes owner + i, hk⟩).WF
       H.outVEnv := by
-  rcases A.canonicalEquationFrame with ⟨F⟩
+  rcases A.equationFrame with ⟨F⟩
   obtain ⟨_hk, -, hnf⟩ := A.generatedConstructor
   have D := F.domains_defeq hk hnf
   have huvars : H.canonicalGeneration.uvars =
@@ -1140,7 +1140,7 @@ theorem RecursorCheck.RuleAlignment.equationDomains_length
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size) :
     (H.canonicalGeneration.equationDomains
       ⟨recursorMinorOffset indTypes owner + i, hk⟩).length = A.rule.binders.length := by
-  rcases A.canonicalEquationFrame with ⟨F⟩
+  rcases A.equationFrame with ⟨F⟩
   obtain ⟨_hk, -, hnf⟩ := A.generatedConstructor
   have hlen := (F.domains_defeq hk hnf).length_eq
   simp only [List.length_reverse] at hlen

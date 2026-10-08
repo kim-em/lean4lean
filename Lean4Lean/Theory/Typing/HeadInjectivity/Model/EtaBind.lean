@@ -483,7 +483,7 @@ theorem eta_field_cls {I : Name} {info : VProjectionInfo} (hp : env.projections 
   have hpi : PiSD env U Δ [] (doms.map (·.instL lsc)) (R.instL lsc) := by
     obtain ⟨w, h⟩ := IsType.instL hls hwfE
     rw [← hct, hshape, VExpr.instL_wrapForalls] at h
-    exact piSD_of hord hle (SoundTypedIn.soundEnvAt (hsnd U Δ hΔ)) trivial h
+    exact piSD_of hord hle (SoundTypedIn.soundIn (hsnd U Δ hΔ)) trivial h
   have hnf := (ProjTele.of (S := I) henv (hRdef ▸ hshape) hwf hls).numFields
   simp only [List.length_map] at hnf
   have hDl : (doms.map (·.instL lsc)).length = margs.length := by simp; omega

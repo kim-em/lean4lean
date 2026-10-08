@@ -18,7 +18,7 @@ noncomputable def singletonFields (data : RecursorData) (S : SingletonLayout) (E
 
 theorem singletonProgram_layout {data : RecursorData} {env : VEnv}
     (H : data.singletonUnfolding env U levels args = some program) :
-    ∃ S E, data.castSpec env levels = some S ∧ data.propElim levels = some E ∧
+    ∃ S E, data.singletonLayout env levels = some S ∧ data.propElim levels = some E ∧
       program.domains.length = data.majorOffset + 1 - args.length ∧
       program.constructor = VExpr.mkApps E.ctor
         ((data.openedArguments args).take data.numParams ++ data.singletonFields S E levels args) ∧

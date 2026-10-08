@@ -549,7 +549,7 @@ private theorem ConstructorHeadsRigid.addInduct
       exact ⟨⟨ci, hle.constants hci⟩, rigid_of_defeqs_eq hdf hr,
         hres.mono hle fun _ hr => rigid_of_defeqs_eq hdf hr⟩
 
-private theorem WF.constructorHistory {env : VEnv} (H : env.WF) : ConstructorHeadsRigid env := by
+private theorem WF.constructorHeadsRigid {env : VEnv} (H : env.WF) : ConstructorHeadsRigid env := by
   suffices h : ∀ {ds env}, VEnv.WF' ds env → ConstructorHeadsRigid env from h H.choose_spec
   intro ds env H
   induction H with
@@ -583,7 +583,7 @@ theorem WF.case_constructor_rigid {env : VEnv} (H : env.WF)
     {owner : Fin schema.signature.families.size}
     (hgenerated : schema.Generates block owner rule) :
     env.NativeHeadRigid rule.application.ctorName :=
-  nativeHeadRigid_iff.mpr ((H.constructorHistory.2.1 _ _ hregistered _ _ hgenerated).2)
+  nativeHeadRigid_iff.mpr ((H.constructorHeadsRigid.2.1 _ _ hregistered _ _ hgenerated).2)
 
 /-- The original family behind a registered projection or case program is
 rigid throughout declaration extension. This uses registration provenance,
@@ -591,7 +591,7 @@ not a primitive projection entry or a general monotonicity assumption. -/
 theorem WF.case_original_family_rigid {env : VEnv} (H : env.WF)
     (hregistered : env.eliminators key schema)
     (hfamily : name ∈ schema.sourceFamilies) : env.NativeHeadRigid name :=
-  nativeHeadRigid_iff.mpr ((H.constructorHistory.2.2.1 _ _ hregistered _ hfamily).2)
+  nativeHeadRigid_iff.mpr ((H.constructorHeadsRigid.2.2.1 _ _ hregistered _ hfamily).2)
 
 /-- The family head of every registered case owner that generates a rule is
 a rigid constant. -/
@@ -600,21 +600,21 @@ theorem WF.case_family_head_rigid {env : VEnv} (H : env.WF)
     {owner : Fin schema.signature.families.size}
     (hgenerated : schema.Generates block owner rule) :
     env.Rigid (schema.restoration.headName schema.signature.families[owner].name) :=
-  (H.constructorHistory.2.2.2 _ _ hregistered _ _ hgenerated).2
+  (H.constructorHeadsRigid.2.2.2 _ _ hregistered _ _ hgenerated).2
 
 /-- The major constructor of every installed native iota equation remains
 rigid throughout all subsequent declarations. -/
 theorem WF.native_constructor_rigid {env : VEnv} (H : env.WF)
     (hinstalled : env.defeqs equation) (hmajor : equation.HasConstructorMajor name) :
     env.NativeHeadRigid name :=
-  nativeHeadRigid_iff.mpr ((H.constructorHistory.1 _ hinstalled _ hmajor).2.1)
+  nativeHeadRigid_iff.mpr ((H.constructorHeadsRigid.1 _ hinstalled _ hmajor).2.1)
 
 /-- The constructor major of every installed equation returns an application
 of a rigid family constant. -/
 theorem WF.native_constructor_result_rigid {env : VEnv} (H : env.WF)
     (hinstalled : env.defeqs equation) (hmajor : equation.HasConstructorMajor name) :
     env.CtorResultRigid name :=
-  (H.constructorHistory.1 _ hinstalled _ hmajor).2.2
+  (H.constructorHeadsRigid.1 _ hinstalled _ hmajor).2.2
 
 end VEnv
 end Lean4Lean

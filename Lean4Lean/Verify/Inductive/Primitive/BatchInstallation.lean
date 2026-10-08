@@ -938,7 +938,7 @@ structure PrimitiveConstructorCheck
   formation : FormationCertificate sourceEnv decl
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
     isUnsafe decl H.context.venv declared.venvCtors
-  productionInductiveOrigins :
+  inductInfosFromDecl :
     InductInfosFromDecl c.env.constants outEnv.constants decl
   ctorParamsAgree : forall {safety},
     CtorParamsAgree safety c.env sourceEnv ->

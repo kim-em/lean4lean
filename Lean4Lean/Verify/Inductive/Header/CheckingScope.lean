@@ -1336,7 +1336,7 @@ def FrontScopeEmbedding.ofParameterSuffix
 
 /-- Relate a domain translated in the semantic scope to the annotation-
 consumed domain installed by the executable checker. -/
-theorem FrontScopeEmbedding.consumedDomain
+theorem FrontScopeEmbedding.unannotatedDomain
     (Hc : ContextWF c)
     (H : FrontScopeEmbedding Hc.venv c.lparams scope Hc.mlctx.vlctx)
     (Hdom : Hc.UnannotatedDomain dom sourceDom consumedDom)
@@ -1357,7 +1357,7 @@ theorem FrontScopeEmbedding.consumedDomain
   exact ⟨u, hdomainU.of_r Hc.checking.tr.wf H.context.wf.toCtx
     hsourceConsumed'.hasType.2⟩
 
-theorem FrontScopeEmbedding.recursorConsumedDomain
+theorem FrontScopeEmbedding.recursorUnannotatedDomain
     (R : RecursorContextWF c recLparams)
     (H : FrontScopeEmbedding R.venv recLparams scope R.mlctx.vlctx)
     (Hdom : R.UnannotatedDomain dom sourceDom consumedDom)

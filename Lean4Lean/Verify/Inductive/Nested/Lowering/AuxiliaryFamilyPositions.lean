@@ -618,7 +618,7 @@ theorem NestedLowering.finalCacheEntryOfResultLookup
   rw [← Array.foldl_toList] at hlookup
   simpa using nestedAuxFold_find_mem finalState.nestedAux.toList hlookup
 
-theorem NestedLowering.finalCachedGeneratedFamilyOrigin
+theorem NestedLowering.cachedAuxiliaryFamily
     (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (Henv : EnvironmentTypesClosed env)
@@ -683,11 +683,11 @@ theorem NestedLowering.finalCachedGeneratedFamilyOrigin
     nested_eq := hnested
     auxName_eq := hauxName }⟩
 
-/-- Map-facing form of `finalCachedGeneratedFamilyOrigin`.  Replacement
+/-- Map-facing form of `cachedAuxiliaryFamily`.  Replacement
 traces expose an exact production-map lookup; both cache hits and newly
 generated hits can therefore recover their concrete generated suffix slot
 without any caller-supplied correspondence. -/
-theorem NestedLowering.finalCachedGeneratedFamilyOriginOfLookup
+theorem NestedLowering.cachedAuxiliaryFamilyOfLookup
     (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (Henv : EnvironmentTypesClosed env)
@@ -698,7 +698,7 @@ theorem NestedLowering.finalCachedGeneratedFamilyOriginOfLookup
     (hlookup : result.aux2nested.find? auxName = some nested) :
     Nonempty (CachedAuxiliaryFamily env result.params nparams
       initialState.newTypes.size finalState nested auxName) :=
-  H.finalCachedGeneratedFamilyOrigin Henv hclosures Hsources hinitialTypes hempty
+  H.cachedAuxiliaryFamily Henv hclosures Hsources hinitialTypes hempty
     (H.finalCacheEntryOfResultLookup hlookup)
 
 theorem LoweredAuxiliaryFamily.finalMapping

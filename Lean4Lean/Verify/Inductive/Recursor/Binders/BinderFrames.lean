@@ -32,7 +32,7 @@ structure RecInfoBinderTypes.FlatMinorBinderType
 proof follows the executable `Array.flatMap` membership, then uses local
 declaration uniqueness to connect the row certificate to the flattened
 witness. -/
-theorem RecInfoBinderTypes.flatMinorOrigin
+theorem RecInfoBinderTypes.flatMinorBinderType
     (H : RecInfoBinderTypes c recInfos)
     (D : FVarDeclAt c (recInfos.flatMap (·.minors)) i) :
     Nonempty (H.FlatMinorBinderType D) := by

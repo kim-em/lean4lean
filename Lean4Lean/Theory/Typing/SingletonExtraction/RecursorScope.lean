@@ -34,14 +34,14 @@ variable {env : VEnv} {data : RecursorData}
 theorem propElim_closed (henv : env.WF) (H : RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
     {ls : List VLevel} {S : SingletonLayout} {E : PropElim}
-    (hS : data.castSpec env ls = some S) (hE : data.propElim ls = some E) :
+    (hS : data.singletonLayout env ls = some S) (hE : data.propElim ls = some E) :
     PropElim.Closed S (data.propParams ls) E := by
-  have F := singletonFacts H hlarge hzero
+  have F := singletonSignature H hlarge hzero
   unfold propElim at hE
   simp only [Option.bind_eq_bind, Option.pure_def, Option.bind_eq_some_iff,
     Option.some.injEq] at hE
   obtain ⟨k, hk, i, hi, rfl⟩ := hE
-  unfold castSpec castSpecGeneric at hS
+  unfold singletonLayout singletonLayoutGeneric at hS
   simp only [hi, Option.bind_eq_bind, Option.pure_def, Option.bind_some, Option.map_some,
     Option.some.injEq] at hS
   subst hS

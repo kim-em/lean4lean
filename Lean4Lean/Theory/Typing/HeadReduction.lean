@@ -57,7 +57,7 @@ theorem IsMajorPremise.lam : ¬IsMajorPremise (.lam A e) := nofun
 theorem IsMajorPremise.head (H : IsMajorPremise e) :
     ∃ name levels, e.getAppFnArgs.1 = .const name levels := by
   obtain ⟨p, ⟨r, hp⟩, p₁, p₂, hs, levels, values, hm⟩ := H
-  have hn := (Params.nativeHeads hp).subpattern (Subpattern.trans (.appL .refl) hs)
+  have hn := (Params.constHeaded hp).subpattern (Subpattern.trans (.appL .refl) hs)
   obtain ⟨name, he⟩ := hn.matches_head hm
   exact ⟨name, levels, he⟩
 

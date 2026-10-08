@@ -5,7 +5,7 @@ import Lean4Lean.Theory.Typing.SingletonExtraction.Congruence
 
 Universe instantiation and level congruence of the cast specification, the elimination
 into `Prop` and the reconstruction of a registered native recursor
-(`RecursorData.castSpec`, `propElim`, `PropElim.occ`). -/
+(`RecursorData.singletonLayout`, `propElim`, `PropElim.occ`). -/
 
 set_option linter.unusedSimpArgs false
 
@@ -141,12 +141,12 @@ theorem propElim_levels {ls ls' : List VLevel} {E : PropElim} (hE : data.propEli
   have hset := forall₂_set (R := (· ≈ ·)) (d := VLevel.zero) rfl heq k
   exact Instance.singletonElim_levels _ _ _ h0 h0' hset (.const h0 h0' hset)
 
-theorem castSpec_levels {ls ls' : List VLevel} {S : SingletonLayout}
-    (hS : data.castSpec env ls = some S)
+theorem singletonLayout_levels {ls ls' : List VLevel} {S : SingletonLayout}
+    (hS : data.singletonLayout env ls = some S)
     (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
-    ∃ S', data.castSpec env ls' = some S' ∧
+    ∃ S', data.singletonLayout env ls' = some S' ∧
       SingletonLayout.Rel (EqUpToLevels U) (fun u v => u.WF U ∧ v.WF U ∧ u ≈ v) S S' := by
-  unfold castSpec at hS ⊢
+  unfold singletonLayout at hS ⊢
   obtain ⟨G, hG, rfl⟩ := Option.map_eq_some_iff.1 hS
   exact ⟨_, by simp [hG], SingletonLayout.rel_levels G hls hls' heq⟩
 
@@ -162,9 +162,9 @@ theorem propParams_levels {ls ls' : List VLevel}
 /-- The reconstruction at equivalent universes, from arguments equal up to levels, is equal
 up to levels. -/
 theorem occ_levels {ls ls' : List VLevel} {S : SingletonLayout} {E : PropElim}
-    (hS : data.castSpec env ls = some S) (hE : data.propElim ls = some E)
+    (hS : data.singletonLayout env ls = some S) (hE : data.propElim ls = some E)
     (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
-    ∃ S' E', data.castSpec env ls' = some S' ∧ data.propElim ls' = some E' ∧
+    ∃ S' E', data.singletonLayout env ls' = some S' ∧ data.propElim ls' = some E' ∧
       S'.fields.length = S.fields.length ∧
       ∀ {ps ps' idx idx' m m'}, List.Forall₂ (EqUpToLevels U) ps ps' →
         List.Forall₂ (EqUpToLevels U) idx idx' → EqUpToLevels U m m' → ∀ i,
@@ -172,7 +172,7 @@ theorem occ_levels {ls ls' : List VLevel} {S : SingletonLayout} {E : PropElim}
             (PropElim.occ S' (data.propParams ls') E' ps' idx' m' i).1 ∧
           List.Forall₂ (EqUpToLevels U) (PropElim.occ S (data.propParams ls) E ps idx m i).2
             (PropElim.occ S' (data.propParams ls') E' ps' idx' m' i).2 := by
-  obtain ⟨S', hS', hSrel⟩ := castSpec_levels hS hls hls' heq
+  obtain ⟨S', hS', hSrel⟩ := singletonLayout_levels hS hls hls' heq
   obtain ⟨E', hE', hErel⟩ := propElim_levels hE hls hls' heq
   refine ⟨S', E', hS', hE', hSrel.fields_length.symm, fun hps hidx hm i => ?_⟩
   exact PropElim.occ_rel (SynRel.levels U) hSrel (propParams_levels hls hls' heq) hErel

@@ -134,7 +134,7 @@ theorem RecursorCheck.RuleAlignment.typeTranslation
     (mkAppN H.recInfos[owner]!.motive
       (AddInductive.getIIndices stats A.rule.target).2)
     A.rule.sourceConstructorMajor
-  rcases A.canonicalEquationFrame with ⟨F⟩
+  rcases A.equationFrame with ⟨F⟩
   obtain ⟨_hk, hown, hnf⟩ := A.generatedConstructor
   have D := F.domains_defeq hk hnf
   obtain ⟨Y, HY⟩ := F.type_translation.defeqDFC H.outVEnvWF (abstractForallContext.isDefEq D)
@@ -240,7 +240,7 @@ theorem RecursorCheck.RuleAlignment.lhsTranslation
       (A.rule.sourceLhsBody.abstractList A.rule.binders)
       (H.canonicalGeneration.equationLhsBody ⟨recursorMinorOffset indTypes owner + i, hk⟩) := by
   let minorIdx := recursorMinorOffset indTypes owner + i
-  rcases A.canonicalEquationFrame with ⟨F⟩
+  rcases A.equationFrame with ⟨F⟩
   obtain ⟨_hk, hown, hnf⟩ := A.generatedConstructor
   have D := F.domains_defeq hk hnf
   obtain ⟨L, HL⟩ := F.lhs_translation.defeqDFC H.outVEnvWF (abstractForallContext.isDefEq D)
@@ -364,7 +364,7 @@ theorem RecursorCheck.RuleAlignment.sourceRhsBody_closed
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
     Closed A.rule.sourceRhsBody := by
-  rcases A.canonicalEquationFrame with ⟨F⟩
+  rcases A.equationFrame with ⟨F⟩
   obtain ⟨hk, -, hnf⟩ := A.generatedConstructor
   have hlen := (F.domains_defeq hk hnf).length_eq
   simp only [List.length_reverse] at hlen
@@ -372,7 +372,7 @@ theorem RecursorCheck.RuleAlignment.sourceRhsBody_closed
     F.rhs_translation
 
 /-- The generator body translations reduce to the RHS component. -/
-theorem RecursorCheck.RuleAlignment.generatorBodyTranslationsOfRhs
+theorem RecursorCheck.RuleAlignment.equationBodyTranslationsOfRhs
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
@@ -388,7 +388,7 @@ theorem RecursorCheck.RuleAlignment.generatorBodyTranslationsOfRhs
 
 /-- The generator body translations from a closed translation of the
 installed rule RHS to the generator's equation RHS. -/
-theorem RecursorCheck.RuleAlignment.generatorBodyTranslationsOfClosedRhs
+theorem RecursorCheck.RuleAlignment.equationBodyTranslationsOfClosedRhs
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
@@ -398,7 +398,7 @@ theorem RecursorCheck.RuleAlignment.generatorBodyTranslationsOfClosedRhs
       ((H.generated.entry owner howner).info.rules[i]'A.sourceRule_lt).rhs
       (H.canonicalGeneration.equation ⟨recursorMinorOffset indTypes owner + i, hk⟩).rhs) :
     A.EquationBodyTranslations hk :=
-  A.generatorBodyTranslationsOfRhs hk (A.rhsResidualOfClosed hk A.sourceRhsBody_closed Htr)
+  A.equationBodyTranslationsOfRhs hk (A.rhsResidualOfClosed hk A.sourceRhsBody_closed Htr)
 
 end
 end VerifyInductive

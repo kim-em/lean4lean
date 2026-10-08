@@ -33,7 +33,7 @@ def NestedInstalledConstructorsCoherent
 final result.  The lowering trace is reindexed only by the exact production
 context equality retained in `E`; no separately chosen production witness is
 used. -/
-theorem NestedInstalledRun.inductiveFinalResult
+theorem NestedInstalledRun.inductiveExtension
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) decl lparams nparams
       isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
@@ -61,16 +61,16 @@ theorem NestedInstalledRun.inductiveFinalResult
     simpa only [E.production_eq] using E.assembly.materialized
   cases isUnsafe with
   | false =>
-      exact E.safeInductiveFinalResult wf htels Hlower' Hmetadata
+      exact E.safeInductiveExtension wf htels Hlower' Hmetadata
         Hsources hempty hconstructors htypesH hctorOrigin
   | true =>
-      exact E.unsafeInductiveFinalResult wf htels Hlower' Hmetadata
+      exact E.unsafeInductiveExtension wf htels Hlower' Hmetadata
         Hsources hempty hconstructors htypesH hctorOrigin
 
 /-- Final-result refinement for the nested post-lowering branch.  Exact
 assembly and constructor parameter domains are reconstructed internally from
 the checked production, lowering, validation, and restoration traces. -/
-theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
+theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : Lean4Lean.ElimNestedInductive.Result)
@@ -122,7 +122,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
   have Hrun :=
     Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSemanticWF
       env lparams nparams sourceTypes isUnsafe false fuel res
-      Hc' wf.inductivesClosed wf.envGF wf.constructorOwners hctx
+      Hc' wf.inductivesClosed wf.envGhostFree wf.constructorOwners hctx
       hnonempty (inductiveSafety_notPartial isUnsafe)
       Hinputs Hsources rfl Hlower hnested
   exact Hrun.mono fun outEnv Hout => by
@@ -190,7 +190,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
           newTypes := sourceTypes.toArray } res := by
       simpa only [E'.productionContext_env] using HlowerInitialClosed
     have hconstructors : NestedInstalledConstructorsCoherent E' := by
-      have Hparams := E'.restoredConstructorParameterDomainsNative
+      have Hparams := E'.constructorParameterDomainsDefEqNative
         (E'.restoredFamilyParameterScopes HlowerExact rfl)
       have Howners : ConstructorOwnersPresent E'.context.env := by
         rw [E'.productionContext_env]
@@ -210,9 +210,9 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
       have h := V'.sourceCore.core.typesAdded
       rw [V'.nativeSourceDecl_eq] at h
       exact h
-    exact E'.inductiveFinalResult wf htels Hsources HlowerInitialClosed rfl
+    exact E'.inductiveExtension wf htels Hsources HlowerInitialClosed rfl
       hconstructors htypesH
-      (V'.restoredCtorOrigin Hsources wf.constructorOwners wf.envGF)
+      (V'.restoredCtorOrigin Hsources wf.constructorOwners wf.envGhostFree)
 
 end VerifyInductive
 end Lean4Lean

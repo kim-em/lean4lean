@@ -7,7 +7,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Separation
 The statements (`HeadInversion`, `HeadSeparation`, `HeadInjectivity`) and the chain lemmas are in
 `HeadInversionDefs.lean`. Both halves are proved for every well-formed environment from the glued
 observation model (`Theory/Typing/HeadInjectivity/Model/`): separation by
-`VEnv.WF.headSeparationModel`, injectivity by `VEnv.WF.headInjectivityCore`.
+`VEnv.WF.headSeparationModel`, injectivity by `VEnv.WF.chainHeadInjectivity`.
 
 This file and the model do not import `UniqueTyping`, `Injectivity`, `ChurchRosser`,
 `FullReduction` or `HeadReduction`: `VEnv.WF.headInversion`, assembled here, is the single
@@ -25,12 +25,12 @@ theorem _root_.Lean4Lean.VEnv.WF.headSeparation {env : VEnv} (henv : env.WF) :
   henv.headSeparationModel
 
 /-- Injectivity of type heads for every well-formed environment: the chain-level core from
-soundness of the glued observation model (`VEnv.WF.headInjectivityCore`,
+soundness of the glued observation model (`VEnv.WF.chainHeadInjectivity`,
 `Theory/Typing/HeadInjectivity/Model/EnvValid.lean`), lifted by the syntactic layer
 (`VEnv.ChainHeadInjectivity.toHeadInjectivity`). -/
 theorem _root_.Lean4Lean.VEnv.WF.headInjectivity {env : VEnv} (henv : env.WF) :
     env.HeadInjectivity :=
-  henv.headInjectivityCore.toHeadInjectivity henv
+  henv.chainHeadInjectivity.toHeadInjectivity henv
 
 /-- The base obligation of the inversion layer, assembled from separation and injectivity.
 

@@ -346,7 +346,7 @@ theorem
       Hfield.lift.fvars_sublist.subset hselected
     rw [Hfield.context.fvars] at hexpanded
     exact hexpanded
-  rcases HpriorPrefix.skipFVarNarrowCore H.outVEnvWF HoriginWF
+  rcases HpriorPrefix.skipFVarCheckingScopeCore H.outVEnvWF HoriginWF
       ⟨HpriorBase⟩ hpriorSkip with ⟨Horigin⟩
   rcases F.semantic.current_context.onlyLams.lamPrefix
       F.semantic.generated.localArgs.size F.semantic.recent.size_le with
@@ -424,7 +424,7 @@ theorem
       exact H.constructorVEnv_le
     exact ⟨_, _, (A.semantics.context.check.onlyLams.dropN_fvlift jC hjC').toFVLift',
       ((B.checkAlign hposFields).mono hfieldEnv).symm H.outVEnvWF.ordered⟩
-  rcases HlocalPrefix.extendFVarNarrowCoreEmbedded H.outVEnvWF HlocalWF
+  rcases HlocalPrefix.extendFVarCheckingScopeCoreEmbedded H.outVEnvWF HlocalWF
       HlocalBase HlocalUp hchkLocalWF hnC hagreeC hbaseEmb with
     ⟨scope, Hscope, hscope, hdrop, localDomains, hlocal,
       hcontext, _hshift, Hreplay, hembLocal⟩
@@ -2321,7 +2321,7 @@ theorem
     hfields, hhypotheses, htarget, HfixedContext, Hminor⟩
 
 theorem
-    RecursorCheck.RuleAlignment.narrowFieldRuntimeFrame
+    RecursorCheck.RuleAlignment.fieldFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}

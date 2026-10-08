@@ -819,7 +819,7 @@ theorem
   simpa only [Us, equationDomains] using E.closed_typing
 
 theorem
-    RecursorCheck.RuleAlignment.canonicalRecursiveResults
+    RecursorCheck.RuleAlignment.recursiveResults
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -841,7 +841,7 @@ theorem
   classical
   exact ⟨{
     resultAt := fun j hj => Classical.choice
-      (A.canonicalRecursiveResultAt T B j hj) }⟩
+      (A.recursiveResult T B j hj) }⟩
 
 /-- Synchronize the selected minor and every canonical recursive result on one
 recursor telescope, one narrowed field frame, and one literal anonymous
@@ -920,11 +920,11 @@ theorem
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
-  rcases A.narrowFieldRuntimeFrame with ⟨B⟩
+  rcases A.fieldFrame with ⟨B⟩
   rcases A.finalNarrowSelectedMinorTypeFrame B with
     ⟨T, fieldDomains, hypothesisDomains, targetResidual,
       hfields, hhypotheses, hminorType, HfixedContext, Hminor⟩
-  rcases A.canonicalRecursiveResults T B with ⟨C⟩
+  rcases A.recursiveResults T B with ⟨C⟩
   let inserted := T.motives ++ T.minors
   let equationFieldDomains :=
     (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse

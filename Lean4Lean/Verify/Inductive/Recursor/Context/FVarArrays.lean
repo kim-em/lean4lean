@@ -968,7 +968,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
           have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-          rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
+          rcases Hruntime.unannotatedDomain Hc Hdom hdomNarrow with
             ⟨_domainLevel, hdomain⟩
           cases isUnsafe with
           | false =>
@@ -1219,7 +1219,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
         (by omega) hforall
 
 /-- Checked owner normal form selected by a concrete constructor position. -/
-def CheckedConstructorOwnerNormalFormAt
+def ConstructorOwnerNormalFormAt
     (stats : AddInductive.InductiveStats) (targetIdx : Nat)
     (ctor : Constructor) : Prop :=
   ∃ tail,
@@ -1231,7 +1231,7 @@ structure ConstructorOwnerNormalFormRow
     (ctors : List Constructor) (done : Nat) : Prop where
   covered : done ≤ ctors.length
   entries : ∀ i, i < done → (hi : i < ctors.length) →
-    CheckedConstructorOwnerNormalFormAt stats targetIdx ctors[i]
+    ConstructorOwnerNormalFormAt stats targetIdx ctors[i]
 
 def ConstructorOwnerNormalFormRow.empty
     (stats : AddInductive.InductiveStats) (targetIdx : Nat)
@@ -1243,7 +1243,7 @@ def ConstructorOwnerNormalFormRow.empty
 def ConstructorOwnerNormalFormRow.push
     (H : ConstructorOwnerNormalFormRow stats targetIdx ctors done)
     (hi : done < ctors.length)
-    (Hentry : CheckedConstructorOwnerNormalFormAt stats targetIdx ctors[done]) :
+    (Hentry : ConstructorOwnerNormalFormAt stats targetIdx ctors[done]) :
     ConstructorOwnerNormalFormRow stats targetIdx ctors (done + 1) where
   covered := by omega
   entries i hidone hi' := by
@@ -1287,7 +1287,7 @@ structure ConstructorOwnerNormalForms
     (indTypes : Array InductiveType) : Prop where
   replay : ∀ familyIdx (hfamily : familyIdx < indTypes.size)
       ctorIdx (hctor : ctorIdx < indTypes[familyIdx].ctors.length),
-    CheckedConstructorOwnerNormalFormAt stats familyIdx
+    ConstructorOwnerNormalFormAt stats familyIdx
       indTypes[familyIdx].ctors[ctorIdx]
 
 def ConstructorOwnerNormalFormRows.complete

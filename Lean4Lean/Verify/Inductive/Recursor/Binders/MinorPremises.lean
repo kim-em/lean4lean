@@ -15,7 +15,7 @@ namespace VerifyInductive
 /-- The allocation-insensitive payload represented by a retained recursive-
 call blueprint.  This is the common normal form of the first-pass
 `loopUArgs` origin and the second-pass generated call. -/
-def recCallBlueprintReplayTrace
+def recCallTemplateReplayTrace
     (call : AddInductive.RecCallTemplate) (motives : Array Expr)
     (fieldBinders : List FVarId) : InductionHypothesisShape where
   ownerIdx := call.targetTypeIdx
@@ -51,7 +51,7 @@ structure TypedCallTemplate
         Nonempty S.MotiveApplication ∧
         ∀ fieldBinders,
           S.generated.replayTrace fieldBinders =
-            recCallBlueprintReplayTrace call motives fieldBinders
+            recCallTemplateReplayTrace call motives fieldBinders
   /-- The retained argument telescope and exposed indices mention only the
   declaration's universe parameters. -/
   universes : (call.lctx.mkForall call.args (.sort .zero)).levelParamsIn root.lparams = true ∧
@@ -1039,7 +1039,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
     · intro fieldBinders
       simp [S, Hgenerated, call,
         RecursiveCall.replayTrace,
-        recCallBlueprintReplayTrace,
+        recCallTemplateReplayTrace,
         Hargs.toFVarArrayAfter.toFVarArrayIn.exprArrayFVarIds]
       rfl
 

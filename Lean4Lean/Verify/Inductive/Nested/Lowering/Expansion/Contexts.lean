@@ -282,7 +282,7 @@ def NestedExpansionLeafLiftAbove (np : Nat)
     leaf depth source target →
     leaf (depth + 1) (source.liftN 1 cutoff) (target.liftN 1 cutoff)
 
-theorem nestedAuxiliarySourceAbsolute_liftAbove :
+theorem nestedOccurrenceReplacementAbs_liftAbove :
     NestedExpansionLeafLiftAbove source.nparams
       (VInductDecl.NestedOccurrenceReplacementAbs env source generated) :=
   fun cutoff Hcutoff Hleaf =>
@@ -677,7 +677,7 @@ theorem TrExprS.forall₂_abstractExpansionAbsolute
     List.Forall₂ (VExpr.NestedExprExpansion
       (VInductDecl.NestedOccurrenceReplacementAbs env source generated) depth)
       sourceTargets targetTargets :=
-  TrExprS.forall₂_abstractExpansionAbove nestedAuxiliarySourceAbsolute_liftAbove
+  TrExprS.forall₂_abstractExpansionAbove nestedOccurrenceReplacementAbs_liftAbove
     Hctx Hbase Hsource Htarget
 
 /-- Pointwise expansion of an application spine lifts to expansion of the
@@ -821,11 +821,11 @@ structure OpenedForallPrefixes
     Expr.ForallTelescope target arity residual ∧
     targetResidual = residual.instantiateRevList (fvars.map Expr.fvar)
   sourceBindings : List (FVarId × VExpr)
-  sourceBindingFVars : sourceBindings.map Prod.fst = fvars
+  sourceBindinghostFreeVars : sourceBindings.map Prod.fst = fvars
   sourceContext_eq : sourceCtx =
     sourceBindings.foldl pushSelectedForall sourceBaseCtx
   targetBindings : List (FVarId × VExpr)
-  targetBindingFVars : targetBindings.map Prod.fst = fvars
+  targetBindinghostFreeVars : targetBindings.map Prod.fst = fvars
   targetContext_eq : targetCtx =
     targetBindings.foldl pushSelectedForall targetBaseCtx
   parameterPrefix :
@@ -861,11 +861,11 @@ theorem OpenedForallPrefixes.sourceParameterLookup
       H.sourceCtx.find? (.inr fvars[i]) =
         some (.bvar (fvars.length - 1 - i), type) := by
   have hbindingsLength : H.sourceBindings.length = fvars.length := by
-    simpa using congrArg List.length H.sourceBindingFVars
+    simpa using congrArg List.length H.sourceBindinghostFreeVars
   have hiBindings : i < H.sourceBindings.length := by
     simpa [hbindingsLength] using hi
   have hnodupBindings : (H.sourceBindings.map Prod.fst).Nodup := by
-    simpa [H.sourceBindingFVars] using hnodup
+    simpa [H.sourceBindinghostFreeVars] using hnodup
   rcases foldl_pushSelectedForall_find_getElem H.sourceBindings
       hnodupBindings i hiBindings (base := sourceBaseCtx) with
     ⟨type, Hlookup⟩
@@ -873,7 +873,7 @@ theorem OpenedForallPrefixes.sourceParameterLookup
     have hiMap : i < (H.sourceBindings.map Prod.fst).length := by
       simpa using hiBindings
     have hgets := congrArg (fun names : List FVarId => names[i]?)
-      H.sourceBindingFVars
+      H.sourceBindinghostFreeVars
     rw [List.getElem?_eq_getElem hiMap, List.getElem?_eq_getElem hi] at hgets
     simpa using hgets
   rw [H.sourceContext_eq, ← hname]
@@ -891,11 +891,11 @@ theorem OpenedForallPrefixes.targetParameterLookup
       H.targetCtx.find? (.inr fvars[i]) =
         some (.bvar (fvars.length - 1 - i), type) := by
   have hbindingsLength : H.targetBindings.length = fvars.length := by
-    simpa using congrArg List.length H.targetBindingFVars
+    simpa using congrArg List.length H.targetBindinghostFreeVars
   have hiBindings : i < H.targetBindings.length := by
     simpa [hbindingsLength] using hi
   have hnodupBindings : (H.targetBindings.map Prod.fst).Nodup := by
-    simpa [H.targetBindingFVars] using hnodup
+    simpa [H.targetBindinghostFreeVars] using hnodup
   rcases foldl_pushSelectedForall_find_getElem H.targetBindings
       hnodupBindings i hiBindings (base := targetBaseCtx) with
     ⟨type, Hlookup⟩
@@ -903,7 +903,7 @@ theorem OpenedForallPrefixes.targetParameterLookup
     have hiMap : i < (H.targetBindings.map Prod.fst).length := by
       simpa using hiBindings
     have hgets := congrArg (fun names : List FVarId => names[i]?)
-      H.targetBindingFVars
+      H.targetBindinghostFreeVars
     rw [List.getElem?_eq_getElem hiMap, List.getElem?_eq_getElem hi] at hgets
     simpa using hgets
   rw [H.targetContext_eq, ← hname]
@@ -1001,7 +1001,7 @@ theorem SelectedParameterTargets.translatedSelection
 concrete trace fixes the auxiliary name and universe arguments; the anchored
 constructor context fixes the translated common-parameter prefix. -/
 structure LoweredOccurrenceSpine
-    (Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
+    (Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result finalState)
     (Hselection : CDeclArray lctx As)
     (Htarget : TrExprS targetVEnv lparams targetCtx output targetValue)
@@ -1034,8 +1034,8 @@ structure LoweredOccurrenceSpine
   trailingTranslation : List.Forall₂ (TrExprS targetVEnv lparams targetCtx)
     (input.getAppArgsList.drop value.numParams) trailing
 
-theorem NestedReplacementFinalTrace.targetSpine
-    (Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
+theorem NodeReplacementFinalTrace.targetSpine
+    (Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result finalState)
     (Hselection : CDeclArray lctx As)
     (Harity : As.size = result.params.size)
@@ -1108,7 +1108,7 @@ theorem LoweredOccurrenceSpine.sourceSpine
     {result : Lean4Lean.ElimNestedInductive.Result} {As : Array Expr}
     {input output : Expr} {state nextState finalState :
       Lean4Lean.ElimNestedInductive.State}
-    {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
+    {Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result finalState}
     {Hselection : CDeclArray lctx As}
     {targetVEnv : VEnv} {lparams : List Name} {targetCtx : VLCtx}
@@ -1151,7 +1151,7 @@ theorem LoweredOccurrenceSpine.finalGeneratedFamilyOrigin
     {result : Lean4Lean.ElimNestedInductive.Result} {As : Array Expr}
     {input output : Expr} {state nextState finalState :
       Lean4Lean.ElimNestedInductive.State}
-    {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
+    {Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result finalState}
     {Hselection : CDeclArray lctx As}
     {targetVEnv : VEnv} {lparams : List Name} {targetCtx : VLCtx}
@@ -1169,7 +1169,7 @@ theorem LoweredOccurrenceSpine.finalGeneratedFamilyOrigin
     (hempty : initialState.nestedAux = #[]) :
     Nonempty (CachedAuxiliaryFamily prodEnv result.params nparams
       initialState.newTypes.size runFinalState T.nested T.auxName) :=
-  Hrun.finalCachedGeneratedFamilyOriginOfLookup Henv hclosures Hsources hinitialTypes
+  Hrun.cachedAuxiliaryFamilyOfLookup Henv hclosures Hsources hinitialTypes
     hempty T.resultLookup
 
 /-- Translate a shared concrete forall prefix while replacing its anonymous
@@ -1214,10 +1214,10 @@ theorem Expr.SameForallPrefix.openedAbstractProjection
       sourceResidualData := ⟨source, .nil source, by simp⟩
       targetResidualData := ⟨target, .nil target, by simp⟩
       sourceBindings := []
-      sourceBindingFVars := rfl
+      sourceBindinghostFreeVars := rfl
       sourceContext_eq := rfl
       targetBindings := []
-      targetBindingFVars := rfl
+      targetBindinghostFreeVars := rfl
       targetContext_eq := rfl
       parameterPrefix := fun Htail => by simpa using
         VExpr.NestedForallPrefixExpansion.nil Htail
@@ -1348,15 +1348,15 @@ theorem Expr.SameForallPrefix.openedAbstractProjection
               simpa using hcomm⟩
             sourceBindings := (fv, sourceDomainTarget) ::
               Hopened.sourceBindings
-            sourceBindingFVars := by
-              simp [Hopened.sourceBindingFVars]
+            sourceBindinghostFreeVars := by
+              simp [Hopened.sourceBindinghostFreeVars]
             sourceContext_eq := by
               simpa [sourceCtx', pushSelectedForall] using
                 Hopened.sourceContext_eq
             targetBindings := (fv, targetDomainTarget) ::
               Hopened.targetBindings
-            targetBindingFVars := by
-              simp [Hopened.targetBindingFVars]
+            targetBindinghostFreeVars := by
+              simp [Hopened.targetBindinghostFreeVars]
             targetContext_eq := by
               simpa [targetCtx', pushSelectedForall] using
                 Hopened.targetContext_eq
@@ -1405,7 +1405,7 @@ theorem ExprLowering.Resolved.abstractExpansionAbove
     (Hscope : input.FVarsIn (· ∈ Hselection.fvars))
     (Hhit : ∀ {input state output nextState finalState depth fieldDepth
         sourceTarget targetTarget sourceCtx targetCtx},
-      NestedReplacementFinalTrace prodEnv lctx params As input state output
+      NodeReplacementFinalTrace prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
         leaf
@@ -1627,7 +1627,7 @@ theorem ConstructorLowering.Resolved.abstractExpansionAbove
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NestedReplacementFinalTrace prodEnv lctx params As input state output
+      NodeReplacementFinalTrace prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
         leaf
@@ -1752,7 +1752,7 @@ theorem ConstructorLowerings.Resolved.abstractExpansionsAbove
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NestedReplacementFinalTrace prodEnv lctx params As input state output
+      NodeReplacementFinalTrace prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
         leaf
@@ -1855,7 +1855,7 @@ theorem FamilyLowering.Resolved.abstractExpansionAbove
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NestedReplacementFinalTrace prodEnv lctx params As input state output
+      NodeReplacementFinalTrace prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
         leaf
@@ -1910,7 +1910,7 @@ theorem FamilyLowering.Resolved.abstractExpansion
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NestedReplacementFinalTrace prodEnv lctx params As input state output
+      NodeReplacementFinalTrace prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
         (VInductDecl.NestedOccurrenceReplacementAbs headerVEnv decl generated)
@@ -1930,7 +1930,7 @@ theorem FamilyLowering.Resolved.abstractExpansion
     VInductDecl.NestedTypeExpansion headerVEnv decl
       (VInductDecl.NestedOccurrenceReplacementAbs headerVEnv decl generated)
       sourceTarget targetTarget :=
-  FamilyLowering.Resolved.abstractExpansionAbove nestedAuxiliarySourceAbsolute_liftAbove
+  FamilyLowering.Resolved.abstractExpansionAbove nestedOccurrenceReplacementAbs_liftAbove
     Hmapping rfl Hsource Htarget Hheader Hclosed HsourceEnvWF HtargetEnvWF hparamsSize hnparams
     (fun Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt _ =>
       Hhit Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt)
@@ -1991,7 +1991,7 @@ theorem NestedLoweringOutputClosed.originalHeaderExpansionAtFresh
 /-- Exact interpretation of successful replacement leaves for one closed
 lowering result and one independently translated source/expanded block.  In
 contrast to a generic expression provider, every quantified replacement is
-an actual `NestedReplacementHasFinalMapping` into this exact final result,
+an actual `NodeReplacementHasFinalMapping` into this exact final result,
 and both translations use the exact mutual-header environments. -/
 def NestedFormationReplacementCompat
     (prodEnv : Environment) (result : Lean4Lean.ElimNestedInductive.Result)
@@ -2000,7 +2000,7 @@ def NestedFormationReplacementCompat
   ∀ {lctx : LocalContext} {As : Array Expr}
       {input state output nextState finalState depth fieldDepth sourceValue targetValue
         sourceCtx targetCtx},
-    NestedReplacementFinalTrace prodEnv lctx result.params As input state output
+    NodeReplacementFinalTrace prodEnv lctx result.params As input state output
       nextState result finalState →
     NestedExpansionLookupCtx
       (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv sourceDecl generated)
@@ -2066,7 +2066,7 @@ theorem LoweredAuxiliaryFamily.abstractExpansion
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NestedReplacementFinalTrace prodEnv lctx params As input state output
+      NodeReplacementFinalTrace prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
         (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv decl generated)
@@ -2115,7 +2115,7 @@ theorem NestedLoweringOutputClosed.originalExpansionAtFreshAboveLvls
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NestedReplacementFinalTrace prodEnv lctx result.params As input state
+      NodeReplacementFinalTrace prodEnv lctx result.params As input state
         output nextState result finalState →
       NestedExpansionLookupCtx
         leaf depth sourceCtx targetCtx →
@@ -2195,7 +2195,7 @@ theorem NestedLoweringOutputClosed.originalExpansionsAboveLvls
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NestedReplacementFinalTrace prodEnv lctx result.params As input state
+      NodeReplacementFinalTrace prodEnv lctx result.params As input state
         output nextState result finalState →
       NestedExpansionLookupCtx leaf depth sourceCtx targetCtx →
       (selection : CDeclArray lctx As) →
@@ -2258,7 +2258,7 @@ theorem NestedLoweringOutputClosed.originalExpansionsAbove
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NestedReplacementFinalTrace prodEnv lctx result.params As input state
+      NodeReplacementFinalTrace prodEnv lctx result.params As input state
         output nextState result finalState →
       NestedExpansionLookupCtx leaf depth sourceCtx targetCtx →
       (selection : CDeclArray lctx As) →
@@ -2303,7 +2303,7 @@ theorem NestedLoweringOutputClosed.originalExpansions
           generated))
       sourceDecl.types (loweredDecl.types.take sourceDecl.types.length) :=
   NestedLoweringOutputClosed.originalExpansionsAbove
-    nestedAuxiliarySourceAbsolute_liftAbove
+    nestedOccurrenceReplacementAbs_liftAbove
     H Hsource Htarget Hmetadata Hsyntax hempty henv Hhit
 
 end VerifyInductive

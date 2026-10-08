@@ -29,7 +29,7 @@ theorem
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
     (B : A.FieldFrame :=
-      Classical.choice A.narrowFieldRuntimeFrame) :
+      Classical.choice A.fieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
@@ -401,7 +401,7 @@ theorem
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
     (B : A.FieldFrame :=
-      Classical.choice A.narrowFieldRuntimeFrame) :
+      Classical.choice A.fieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
@@ -781,7 +781,7 @@ theorem
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
     (B : A.FieldFrame :=
-      Classical.choice A.narrowFieldRuntimeFrame) :
+      Classical.choice A.fieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=

@@ -60,7 +60,7 @@ Every behavioural change made to the executable relative to `master` (`Lean4Lean
 | `inductiveReduceRecTail`, `quotReduceRecCont`, `reduceProjCoreCont` extracted | (i) | none; code motion |
 | `Quot.ind` major declared with an explicit binder | (i) | now matches `quot.cpp` (`mk_local_decl(g, "q", quot_r)`), checked by `Tests/QuotInit.lean` |
 | `checkEqType` compares with `expectedEqType` | (i) | none; `!=` ignores binder names and binder infos, so the test is the one `master` made |
-| `Expr.findAny` for `find?`-based tests (`hasIndOcc`, `checkNoNestedAux`, `mentionsNestedNewType`, `hasStrLit`) | (i) | none; the same predicate over the same subterms |
+| `Expr.findAny` for `find?`-based tests (`hasIndOcc`, `checkNoNestedAux`, `mentionsQueuedFamily`, `hasStrLit`) | (i) | none; the same predicate over the same subterms |
 | `consumeTypeAnnotationsVerified` for `consumeTypeAnnotations` | (i) | none; same arities and heads as `Expr.consumeTypeAnnotations` (`isAppOfArity`), which the C++ `consume_type_annotations` calls |
 | type-annotation wrappers stripped only when the environment declares the prelude's definition (`isTypeAnnotationWrapper`) | (iii) | entry added; differs only where a wrapper name is declared with another definition, where the C++ stripping is unsound |
 | narrowed checker contexts in the inductive checker (`checkLCtx`) | (iii) | entry added; no decision changes |

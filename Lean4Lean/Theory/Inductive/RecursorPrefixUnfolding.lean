@@ -33,7 +33,7 @@ def supplyType : List VExpr → VExpr → Option VExpr
 /-- Retain the selected equation and its exact deterministic captures. The
 generated body is obtained from that equation directly, rather than by
 constructing an ill-typed generic delta function and applying it later. -/
-def prefixProgram (data : RecursorData) (U : Nat) (levels : List VLevel)
+def prefixUnfolding (data : RecursorData) (U : Nat) (levels : List VLevel)
     (arguments : List VExpr) : Option PrefixUnfolding := do
   if levels.length != data.uvars || arguments.length > data.majorOffset then none else
   let type ← data.recursorType

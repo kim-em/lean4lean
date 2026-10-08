@@ -498,7 +498,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
   have henvF := hF.ordered
   have hEu : ∀ b s s', envF.eliminators b s → envF.eliminators b s' → s = s' :=
     fun _ _ _ h1 h2 => hF.eliminators_unique h1 h2
-  have hdr := hF.defRules
+  have hdr := hF.deltaRules
   have hctor : ∀ c, Model.IsCtor envF c → envF.Rigid c := by
     rintro _ (⟨_, hdf, hm⟩ | ⟨_, _, _, _, hb, hgen, rfl⟩)
     · exact VEnv.nativeHeadRigid_iff.1 (hF.native_constructor_rigid hdf hm)
@@ -835,8 +835,8 @@ theorem WF.soundEnv {env : VEnv} (henv : env.WF) : Model.SoundEnv env := by
   exact V.soundAtH (VEnv.WF.ordered ⟨ds, H⟩) .rfl U Δ hΔ H'
 
 /-- **Chain-level head injectivity** for every well-formed environment. -/
-theorem WF.headInjectivityCore {env : VEnv} (henv : env.WF) : env.ChainHeadInjectivity :=
-  WF.headInjectivityCore_of_sound henv henv.soundEnv
+theorem WF.chainHeadInjectivity {env : VEnv} (henv : env.WF) : env.ChainHeadInjectivity :=
+  WF.chainHeadInjectivity_of_sound henv henv.soundEnv
 
 end VEnv
 end Lean4Lean

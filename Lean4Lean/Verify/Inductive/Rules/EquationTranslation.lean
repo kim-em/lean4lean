@@ -1662,7 +1662,7 @@ theorem
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
     (B : A.FieldFrame :=
-      Classical.choice A.narrowFieldRuntimeFrame) :
+      Classical.choice A.fieldFrame) :
     let inserted := T.motives ++ T.minors
     (((((F.semantic.generated.current.lctx.mkForall
         F.semantic.generated.localArgs (.sort .zero)).abstractList
@@ -1792,7 +1792,7 @@ theorem
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
     (B : A.FieldFrame :=
-      Classical.choice A.narrowFieldRuntimeFrame) :
+      Classical.choice A.fieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
@@ -1936,7 +1936,7 @@ theorem
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
     (B : A.FieldFrame :=
-      Classical.choice A.narrowFieldRuntimeFrame) :
+      Classical.choice A.fieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=

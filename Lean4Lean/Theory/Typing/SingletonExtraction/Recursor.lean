@@ -50,15 +50,15 @@ noncomputable def genericSorts (env : VEnv) (data : RecursorData)
     | none => .zero
 
 /-- The cast specification at the generic universes. -/
-noncomputable def castSpecGeneric (env : VEnv) (data : RecursorData) : Option SingletonLayout := do
+noncomputable def singletonLayoutGeneric (env : VEnv) (data : RecursorData) : Option SingletonLayout := do
   let i ← data.singletonCtor
   let c := data.schema.signature.constructors[i]
   return data.nativeInstance.singletonCast data.owner c (data.genericSorts env c)
 
 /-- The cast specification at an occurrence's universes: the generic one, instantiated. -/
-noncomputable def castSpec (env : VEnv) (data : RecursorData) (packed : List VLevel) :
+noncomputable def singletonLayout (env : VEnv) (data : RecursorData) (packed : List VLevel) :
     Option SingletonLayout :=
-  (data.castSpecGeneric env).map (·.instL packed)
+  (data.singletonLayoutGeneric env).map (·.instL packed)
 
 /-- The parameter telescope at an occurrence's universes. -/
 def propParams (data : RecursorData) (packed : List VLevel) : List VExpr :=
@@ -105,7 +105,7 @@ structure SingletonSignature (env : VEnv) (data : RecursorData) : Prop where
     ctor.indices.length = data.schema.signature.families[ctor.owner].indices.length
   uvars : data.levels.length = data.schema.signature.uvars
 
-theorem singletonFacts (H : RecursorRegistered env data) (hlarge : data.largeTarget = true)
+theorem singletonSignature (H : RecursorRegistered env data) (hlarge : data.largeTarget = true)
     (hzero : data.sourceLevel packed ≈ .zero) : SingletonSignature env data := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, _, hbase, hr, _, hu, hl, ht, hi, he⟩ := H

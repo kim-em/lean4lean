@@ -14,7 +14,7 @@ extracted from the major by the native recursor itself at the motive universe
 `Prop`, with the earlier data fields cast along type equations
 (`PropElim.occ`, `SingletonExtraction.lean`). These extraction terms are well
 typed whenever the indices are aligned with a constructor instance, without an
-eliminator registration; the earlier selectors of `prefixProgram` were not. -/
+eliminator registration; the earlier selectors of `prefixUnfolding` were not. -/
 
 namespace Lean4Lean.InductiveSignature.RecursorData
 open VExpr VEnv
@@ -25,7 +25,7 @@ variable {env : VEnv} {data : RecursorData} {levels levels' packed : List VLevel
 (parameters, motives, minors, indices, then the major as `bvar 0`). -/
 noncomputable def singletonReconstruction (env : VEnv) (data : RecursorData) (levels : List VLevel)
     (allArguments : List VExpr) : Option (VExpr × List VExpr) := do
-  let S ← data.castSpec env levels
+  let S ← data.singletonLayout env levels
   let E ← data.propElim levels
   let ps := allArguments.take data.numParams
   let idx := (allArguments.drop data.indexOffset).take data.numIndices
@@ -36,10 +36,10 @@ theorem singletonRecon_isSome (env : VEnv) (data : RecursorData) (levels : List 
     (all all' : List VExpr) :
     (data.singletonReconstruction env levels all).isSome = (data.singletonReconstruction env levels all').isSome := by
   unfold singletonReconstruction
-  cases data.castSpec env levels <;> cases data.propElim levels <;> rfl
+  cases data.singletonLayout env levels <;> cases data.propElim levels <;> rfl
 
 theorem singletonRecon_fields_length (H : data.singletonReconstruction env levels all = some (c, fs)) :
-    ∃ S, data.castSpec env levels = some S ∧ fs.length = S.fields.length := by
+    ∃ S, data.singletonLayout env levels = some S ∧ fs.length = S.fields.length := by
   unfold singletonReconstruction at H
   simp only [bind, Option.bind_eq_some_iff, pure, Option.some.injEq, Prod.mk.injEq] at H
   obtain ⟨S, hS, E, hE, -, rfl⟩ := H
@@ -55,9 +55,9 @@ theorem propElim_ctor (hE : data.propElim levels = some E) : ∃ c ls, E.ctor = 
   obtain ⟨k, hk, i, hi, rfl⟩ := hE
   exact ⟨_, _, rfl⟩
 
-theorem castSpec_lengths (hS : data.castSpec env levels = some S) :
+theorem singletonLayout_lengths (hS : data.singletonLayout env levels = some S) :
     S.indices.length = data.numIndices ∧ (data.propParams levels).length = data.numParams := by
-  unfold castSpec castSpecGeneric at hS
+  unfold singletonLayout singletonLayoutGeneric at hS
   simp only [Option.bind_eq_bind, Option.pure_def, Option.bind_eq_some_iff, Option.map_eq_some_iff,
     Option.some.injEq] at hS
   obtain ⟨_, ⟨i, hi, rfl⟩, rfl⟩ := hS
@@ -76,7 +76,7 @@ theorem singletonRecon_subst {σ : VExpr.Subst} (henv : env.WF) (hr : RecursorRe
   simp only [bind, Option.bind_eq_some_iff, pure, Option.some.injEq, Prod.mk.injEq] at H
   obtain ⟨S, hS, E, hE, rfl, rfl⟩ := H
   have hC := propElim_closed henv hr hlarge hzero hS hE
-  obtain ⟨hidxl, hpl⟩ := castSpec_lengths hS
+  obtain ⟨hidxl, hpl⟩ := singletonLayout_lengths hS
   have hps : (all.take data.numParams).length = (data.propParams levels).length := by
     rw [hpl]; simp [majorOffset, indexOffset] at hall ⊢; omega
   have hidx : ((all.drop data.indexOffset).take data.numIndices).length = S.indices.length := by
@@ -129,7 +129,7 @@ theorem singletonRecon_levels
   simp only [hS', hE', bind, Option.bind_some, hlenF]
   exact ⟨_, _, rfl, hrel.ctor.mkApps_args (List.Forall₂.append' hps h), h⟩
 
-/-- The singleton prefix program: `prefixProgram` with the reconstruction of
+/-- The singleton prefix program: `prefixUnfolding` with the reconstruction of
 `singletonReconstruction`. -/
 noncomputable def singletonUnfolding (env : VEnv) (data : RecursorData) (_U : Nat)
     (levels : List VLevel) (arguments : List VExpr) : Option PrefixUnfolding := do

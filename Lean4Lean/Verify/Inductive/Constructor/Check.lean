@@ -324,7 +324,7 @@ structure ConstructorCheck (c : AddInductive.Context)
     (ctorVEnv.addEliminators eliminators).addProjections decl.projectionEntries
   installation : FormationInstallation c.safety c.env sourceEnv
     headerEntries headerEnv headerVEnv constructorEntries ctorEnv ctorVEnv
-  productionInductiveOrigins :
+  inductInfosFromDecl :
     InductInfosFromDecl c.env.constants ctorEnv.constants decl
   ctorParamsAgree : forall {safety},
     CtorParamsAgree safety c.env sourceEnv ->
@@ -509,7 +509,7 @@ def OrdinaryConstructorCheck.toConstructorCheck
   installation := .ordinary H.installed R.declared.installed
   formation := R.formation
   core := R.core
-  productionInductiveOrigins := R.productionInductiveOrigins
+  inductInfosFromDecl := R.inductInfosFromDecl
   ctorParamsAgree := fun Hsource => R.ctorParamsAgree Hsource
 
 /-- The constructor boundary of a completed primitive formation run. -/
@@ -615,7 +615,7 @@ noncomputable def PrimitiveConstructorCheck.toConstructorCheck
     R.declared.safeEntries
   formation := R.formation
   core := R.core
-  productionInductiveOrigins := R.productionInductiveOrigins
+  inductInfosFromDecl := R.inductInfosFromDecl
   ctorParamsAgree := fun Hsource => R.ctorParamsAgree Hsource
 
 end VerifyInductive

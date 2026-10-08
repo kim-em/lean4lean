@@ -134,7 +134,7 @@ inductive IsDefEq.Avoids {env : VEnv} {uvars : Nat}
 
 /-- If every installed constant is outside `changed`, every derivation in
 the environment carries a canonical restriction witness. -/
-theorem IsDefEq.usesOnly_of_constants
+theorem IsDefEq.avoids_of_constants
     {env : VEnv} {changed : Name → Prop}
     (H : env.IsDefEq uvars ctx lhs rhs type)
     (Hconstants : ∀ {name ci}, env.constants name = some ci →
@@ -237,14 +237,14 @@ def IsType.Avoids {env : VEnv} {uvars : Nat} {ctx : List VExpr}
   ∃ level, ∃ Htype : env.HasType uvars ctx type (.sort level),
     Htype.Avoids changed
 
-theorem IsType.usesOnly_of_constants
+theorem IsType.avoids_of_constants
     {env : VEnv} {changed : Name → Prop}
     (H : env.IsType uvars ctx type)
     (Hconstants : ∀ {name ci}, env.constants name = some ci →
       ¬ changed name) :
     H.Avoids changed := by
   rcases H with ⟨level, Htype⟩
-  exact ⟨level, Htype, Htype.usesOnly_of_constants Hconstants⟩
+  exact ⟨level, Htype, Htype.avoids_of_constants Hconstants⟩
 
 /-- Typehood restriction evidence survives ordinary environment extension
 with the original derivation's dependency set. -/
@@ -262,7 +262,7 @@ def ContainsLits.Avoids (changed : Name → Prop) : Literal → Prop
   | .natVal _ => ¬ changed ``Nat
   | .strVal _ => ¬ changed ``Char.ofNat ∧ ¬ changed ``String.ofList
 
-theorem ContainsLits.usesOnly_of_constants
+theorem ContainsLits.avoids_of_constants
     {env : VEnv} {changed : Name → Prop} {literal : Literal}
     (H : env.ContainsLits literal)
     (Hconstants : ∀ {name ci}, env.constants name = some ci →
@@ -368,7 +368,7 @@ inductive TrExprS.Avoids {env : VEnv} {levelParams : List Name}
       (HprojUses : Hproj.RestrictionSupport changed) :
       Avoids changed (.proj H Hproj)
 
-theorem TrExprS.usesOnly_of_constants
+theorem TrExprS.avoids_of_constants
     {env : VEnv} {changed : Name → Prop}
     (H : TrExprS env levelParams ctx source target)
     (Hconstants : ∀ {name ci}, env.constants name = some ci →
@@ -382,19 +382,19 @@ theorem TrExprS.usesOnly_of_constants
     exact .const _ _ _ _ Hlookup Hlevels Hlength (Hconstants Hlookup)
   | app HfnType HargType Hfn Harg IHfn IHarg =>
     exact .app
-      (HfnType.usesOnly_of_constants Hconstants)
-      (HargType.usesOnly_of_constants Hconstants) IHfn IHarg
+      (HfnType.avoids_of_constants Hconstants)
+      (HargType.avoids_of_constants Hconstants) IHfn IHarg
   | lam Htype Hdomain Hbody IHdomain IHbody =>
-    exact .lam (Htype.usesOnly_of_constants Hconstants) IHdomain IHbody
+    exact .lam (Htype.avoids_of_constants Hconstants) IHdomain IHbody
   | forallE HdomainType HbodyType Hdomain Hbody IHdomain IHbody =>
     exact .forallE
-      (HdomainType.usesOnly_of_constants Hconstants)
-      (HbodyType.usesOnly_of_constants Hconstants) IHdomain IHbody
+      (HdomainType.avoids_of_constants Hconstants)
+      (HbodyType.avoids_of_constants Hconstants) IHdomain IHbody
   | letE HvalueType Htype Hvalue Hbody IHtype IHvalue IHbody =>
-    exact .letE (HvalueType.usesOnly_of_constants Hconstants)
+    exact .letE (HvalueType.avoids_of_constants Hconstants)
       IHtype IHvalue IHbody
   | lit Hcontains Hconstructor IH =>
-    exact .lit Hcontains (Hcontains.usesOnly_of_constants Hconstants) IH
+    exact .lit Hcontains (Hcontains.avoids_of_constants Hconstants) IH
   | mdata H IH => exact .mdata IH
   | proj H Hproj IH =>
     exact .proj _ _ _ _ _ _ H Hproj IH {

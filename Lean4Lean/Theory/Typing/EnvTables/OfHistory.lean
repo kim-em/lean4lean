@@ -6,7 +6,7 @@ import Lean4Lean.Theory.Typing.EnvTables.Registration
 `Tables.OfHistory env T`: the tables `T` are those built step by step along a `VEnv.WF'` history of
 `env` (one constructor per step, with the step's premises and the explicit table update). Every
 such `T` satisfies the history invariant `Tables.Inv env` (`Tables.OfHistory.inv`), and every
-well-formed environment has such tables (`VEnv.WF'.histTables`).
+well-formed environment has such tables (`VEnv.WF'.tablesOfHistory`).
 
 The environment tables (`envTables`, `EnvTables.lean`) are chosen among these:
 the validity of the computation rules (milestone M4c) is proved by induction along the history
@@ -188,7 +188,7 @@ theorem Tables.OfHistory.inv (H : Tables.OfHistory env T) : T.Inv env ∧ env.WF
     exact ⟨(ih.1.registerCasesProjections hbase hE hreg.certified htypes hctors).2, henv'⟩
 
 /-- Every well-formed history builds tables. -/
-theorem VEnv.WF'.histTables {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
+theorem VEnv.WF'.tablesOfHistory {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
     ∃ T : Tables, Tables.OfHistory env T := by
   induction H with
   | empty => exact ⟨_, .empty⟩

@@ -513,7 +513,7 @@ def RestoredRecursorSpecialization {s : InductiveSignature} (g : Instance s)
 /-- **One restored recursor realization**, modulo its specialization clause:
 the restored recursor of a restoration step at a generated owner's lowered
 recursor name realizes the owner's restored generated recursor. -/
-theorem NestedRun.restoredRecursorRealization_of_step
+theorem NestedRun.trRestoredRecursorVal_of_step
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}

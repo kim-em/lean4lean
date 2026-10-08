@@ -79,7 +79,7 @@ theorem NestedRun.loweredEquationWF
     (E.lowered.recursors.canonicalGeneration.equation k).WF
       E.lowered.recursors.outVEnv := by
   have H := E.lowered.recursors.equationsWF
-    (E.lowered.recursors.generatorBodyTranslations_of
+    (E.lowered.recursors.equationBodyTranslations_of
       E.lowered.recursors.ruleRhsTranslations)
   exact H _ (by
     simp only [InductiveSignature.Instance.equations, List.mem_map, List.mem_finRange,

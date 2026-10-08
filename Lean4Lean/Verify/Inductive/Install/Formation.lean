@@ -103,7 +103,7 @@ theorem AddInductive.semanticFormationCoreWF
           hconsume hlitInstalled
           checkedOut hfull
       have Htele := AddInductive.checkConstructors.telescopesWF Hheaders
-        (Hheaders.installed.envGF Hc.checking.tr.map_wf henv
+        (Hheaders.installed.envGhostFree Hc.checking.tr.map_wf henv
           (Hheaders.entriesNoRecursor))
         checkedOut hfull
       exact ⟨decl, Hheaders, Hchecked, Howners, Htele⟩

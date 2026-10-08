@@ -34,7 +34,7 @@ def AuxiliaryContainerApp (result : Lean4Lean.ElimNestedInductive.Result) (Us₀
 
 /-- `AuxiliaryContainerApp` in a fixed environment, with parameter domains
 definitionally equal to the context `ctx`. -/
-def AuxNestedSpecAt (envS : VEnv) (ctx : List VExpr)
+def AuxiliaryContainerAppAt (envS : VEnv) (ctx : List VExpr)
     (result : Lean4Lean.ElimNestedInductive.Result) (Us₀ : List Name)
     (nested : Expr) (a : InductiveSignature.ContainerSpecialization) : Prop :=
   ∃ (domains : List VExpr) (lvls : List Level) (Ys : List Expr),

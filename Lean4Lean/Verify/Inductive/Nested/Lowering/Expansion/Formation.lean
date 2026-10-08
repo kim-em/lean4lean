@@ -10,7 +10,7 @@ namespace VerifyInductive
 
 /-- A finite installed-declaration derivation exposes the exact abstract
 family constant at every source position. -/
-theorem installedInductCertificate_familyLookup
+theorem installedBelow_familyLookup
     (H : VEnv.InstalledBelow env decl)
     (i : Nat) (hi : i < decl.types.length) :
     env.constants decl.types[i].name = some decl.types[i].toVConstant := by
@@ -103,7 +103,7 @@ theorem AuxiliaryFamilySpecialization.installedContainerOfAbstractLookup
           (P.decl.types[P.familyIdx]'hfamily).name :=
         congrArg (ves.venv safety).constants P.alignment.name
       _ = some (P.decl.types[P.familyIdx]'hfamily).toVConstant :=
-        installedInductCertificate_familyLookup P.installed P.familyIdx
+        installedBelow_familyLookup P.installed P.familyIdx
           hfamily
   refine ⟨{
     container := P.decl

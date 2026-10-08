@@ -19,8 +19,8 @@ private theorem Expr.constructorArity_mkAppList_of_zero
   | cons arg args ih =>
       exact ih (e := .app e arg) rfl
 
-private theorem NestedReplacementFinalTrace.output_constructorArity_eq_zero
-    (H : NestedReplacementFinalTrace env lctx params As input state output
+private theorem NodeReplacementFinalTrace.output_constructorArity_eq_zero
+    (H : NodeReplacementFinalTrace env lctx params As input state output
       nextState result finalState) :
     AddInductive.constructorArity output = 0 := by
   rcases H.mapping with
@@ -33,8 +33,8 @@ private theorem NestedReplacementFinalTrace.output_constructorArity_eq_zero
   apply Expr.constructorArity_mkAppList_of_zero
   rfl
 
-private theorem NestedReplacementFinalTrace.input_constructorArity_eq_zero
-    (H : NestedReplacementFinalTrace env lctx params As input state output
+private theorem NodeReplacementFinalTrace.input_constructorArity_eq_zero
+    (H : NodeReplacementFinalTrace env lctx params As input state output
       nextState result finalState) :
     AddInductive.constructorArity input = 0 := by
   rcases H with
@@ -193,7 +193,7 @@ theorem InductInfosFromDecl.addNoninductive
 
 /-- The auxiliary restoration fold installs recursors only, so it cannot
 introduce a new inductive-family origin. -/
-theorem FoldSteps.recursorPreservesProductionInductiveOrigins
+theorem FoldSteps.recursorPreservesInductInfosFromDecl
     {sourceEnv targetEnv base : Environment}
     (Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
@@ -438,7 +438,7 @@ theorem SourceFamilyRestoration.headerFind
 alignment premise is indexed by the exact restored header in the final
 family environment; all classification and old-origin rebasing are derived
 from the operational restoration trace. -/
-theorem SourceFamilyRestoration.extendProductionInductiveOrigins
+theorem SourceFamilyRestoration.extendInductInfosFromDecl
     {base : Environment}
     (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
@@ -757,7 +757,7 @@ theorem RestoredInductiveStep.constructorOwnersPresent
       exact Hstep.restored.headerFind hsourceWF
 
 /-- Exact source-declaration provenance for one restored original family. -/
-theorem RestoredInductiveStep.productionFamilyAlignmentAt
+theorem RestoredInductiveStep.inductInfoAlignmentAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
@@ -1315,7 +1315,7 @@ theorem NestedRestorationFolds.constructorOwnersPresent
 
 /-- Indexed fold of the pointwise source-family alignment over an exact
 suffix of the original mutual source list. -/
-theorem FoldSteps.sourceFamiliesProductionInductiveOrigins
+theorem FoldSteps.sourceFamiliesInductInfosFromDecl
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
@@ -1357,10 +1357,10 @@ theorem FoldSteps.sourceFamiliesProductionInductiveOrigins
           (sourceTypes.map (fun type => type.name)) sourceTypes[familyIdx]
           stepSource middle := by
         simpa [hfamilyEq] using Hstep
-      have Halign := Hstep'.productionFamilyAlignmentAt Hlower Hc Hprod
+      have Halign := Hstep'.inductInfoAlignmentAt Hlower Hc Hprod
         Hsource Hmetadata Hsources Harity Howners hempty familyIdx hfamily
         hsourceWF
-      have Hnext := Hstep'.restored.extendProductionInductiveOrigins
+      have Hnext := Hstep'.restored.extendInductInfosFromDecl
         hsourceWF Horigins Halign
       obtain ⟨entries, Hfresh⟩ := Hstep'.restored.freshTrace hsourceWF
       have hmiddleWF : middle.constants.WF := Hfresh.targetWF hsourceWF
@@ -1371,7 +1371,7 @@ theorem FoldSteps.sourceFamiliesProductionInductiveOrigins
 /-- The full nested restoration fold has exact source-declaration production
 origins.  Original families are installed positionally; auxiliary restoration
 adds recursors only. -/
-theorem NestedRestorationFolds.productionInductiveOrigins
+theorem NestedRestorationFolds.inductInfosFromDecl
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
@@ -1401,12 +1401,12 @@ theorem NestedRestorationFolds.productionInductiveOrigins
     exact .inl hfind
   have Hprimary : InductInfosFromDecl c.env.constants
       Hrestored.sourceFamiliesEnv.constants sourceDecl := by
-    apply Hrestored.inductives.sourceFamiliesProductionInductiveOrigins
+    apply Hrestored.inductives.sourceFamiliesInductInfosFromDecl
       Hlower Hc Hprod Hsource Hmetadata Hsources Harity Howners hempty []
         (by simp) hsourceWF Hinitial
   obtain ⟨entries, Hfresh⟩ :=
     Hrestored.inductives.inductiveFreshTrace hsourceWF
-  exact Hrestored.auxiliaries.recursorPreservesProductionInductiveOrigins
+  exact Hrestored.auxiliaries.recursorPreservesInductInfosFromDecl
     (Hfresh.targetWF hsourceWF) Hprimary
 
 end VerifyInductive

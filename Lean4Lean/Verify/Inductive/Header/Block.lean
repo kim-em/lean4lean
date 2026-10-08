@@ -87,7 +87,7 @@ theorem initialHeaderSynthesisState
 /-- A later source header is closed before cached parameters are substituted.
 The outer `whnf` scope witness therefore initializes the narrow
 later-parameter invariant at executable parameter zero. -/
-noncomputable def initialLaterParameterScope
+noncomputable def initialReusedParameterScope
     {source : InductiveType} {target : VInductiveTypeSkeleton}
     (Hc : ContextWF c)
     (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
@@ -262,7 +262,7 @@ theorem firstResult.synthesizesHeader
   intro resultSort hsorted _
   rcases TrExpr.sort_source hsorted with ⟨resultLevel, hofLevel, _⟩
   exact Hrec resultSort resultLevel hofLevel
-    (Hsynthesis.synthesizedHeader huvars hofLevel hsorted)
+    (Hsynthesis.headerFormation huvars hofLevel hsorted)
     (checkInductiveTypes.loopType.AmbientParamContext.ofFirstDefEq
       Hsynthesis.context)
 

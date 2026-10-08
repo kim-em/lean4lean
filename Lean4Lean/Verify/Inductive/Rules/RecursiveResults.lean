@@ -84,7 +84,7 @@ theorem
       T.motives ++ T.minors ++
         (liftContextPrefix (T.motives ++ T.minors).length
           B.fieldDomains.reverse).reverse
-  rcases A.recursiveCallRecursorFrame j hj with ⟨F⟩
+  rcases A.recursiveCallFrame j hj with ⟨F⟩
   rcases F.canonicalRecursiveCallBodyWF T (B := B) with
     ⟨actualDomains, localDomains, prefixTarget, indexTargets,
       majorTarget, ownerTarget, hlocal, hdomains, hequation, _Hctx,
@@ -256,7 +256,7 @@ structure
       (VExpr.wrapForalls localDomains resultType)
 
 theorem
-    RecursorCheck.RuleAlignment.canonicalRecursiveResultAt
+    RecursorCheck.RuleAlignment.recursiveResult
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}

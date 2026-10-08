@@ -49,7 +49,7 @@ checker context aligned with the base scope.  Each retained domain is the
 checker translation transported along the alignment, so no runtime
 translation is restricted, and the resulting scope stays aligned with the
 checker context. -/
-theorem MLCtxLamPrefix.extendNarrowRuntimeScopeAligned
+theorem MLCtxLamPrefix.extendFrontScopeEmbeddingAligned
     (H : MLCtxLamPrefix runtime n domains)
     (henv : env.WF)
     (Hwf : runtime.WF env Us)
@@ -1558,7 +1558,7 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
             TrRecursorTypes currentVEnv c.lparams elimLevel c
               stats indTypes recInfos := by
       simpa using
-        (AddInductive.declareRecursors.checkRecursorTypes.recursorTypeTranslationsWF
+        (AddInductive.declareRecursors.checkRecursorTypes.trRecursorTypesWF
           Hvalid hnotPartial stats indTypes elimLevel recInfos
           (recInfos.flatMap (·.minors)).size
           (recInfos.map (·.motive)).size

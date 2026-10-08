@@ -97,12 +97,12 @@ def RecursorCheck.RuleRhsTranslations
       (H.canonicalGeneration.equation ⟨recursorMinorOffset indTypes owner + i, hk⟩).rhs
 
 /-- The generator body translations follow from the closed RHS translations. -/
-theorem RecursorCheck.generatorBodyTranslations_of
+theorem RecursorCheck.equationBodyTranslations_of
     (H : RecursorCheck R outEnv) (Hrhs : H.RuleRhsTranslations) :
     H.EquationBodyTranslations := by
   intro owner howner i hctor hk
-  rcases H.generatedRuleAlignment owner howner i hctor with ⟨A⟩
-  exact ⟨A, A.generatorBodyTranslationsOfClosedRhs hk
+  rcases H.ruleAlignment owner howner i hctor with ⟨A⟩
+  exact ⟨A, A.equationBodyTranslationsOfClosedRhs hk
     (Hrhs owner howner i A.sourceRule_lt hk)⟩
 
 theorem RecursorCheck.recInfos_size_eq_source
@@ -242,7 +242,7 @@ theorem RecursorCheck.ruleRealizations
   have hval := RuleAssembly.getElem_of_map_val_eq hmap j hj
   have hctor : j < indTypes[o.val]!.ctors.length := by
     rw [← (H.generated.entry o.val howner).rules.length]; exact hj'
-  rcases H.generatedRuleAlignment o.val howner j hctor with ⟨A⟩
+  rcases H.ruleAlignment o.val howner j hctor with ⟨A⟩
   have hk : recursorMinorOffset indTypes o.val + j < H.generationSignature.constructors.size :=
     hval ▸ (H.generationSignature.ownedConstructors o)[j].isLt
   have hfin : (H.generationSignature.ownedConstructors o)[j] =
@@ -281,7 +281,7 @@ canonical generation's equations as the rule list. -/
 theorem RecursorCheck.completedRuleTranslation_of
     (H : RecursorCheck R outEnv) (Hrhs : H.RuleRhsTranslations) :
     Nonempty (RuleTranslations H) := by
-  have hrulesWF := H.equationsWF (H.generatorBodyTranslations_of Hrhs)
+  have hrulesWF := H.equationsWF (H.equationBodyTranslations_of Hrhs)
   refine ⟨{ rules := H.canonicalGeneration.equations
             rulesWF := hrulesWF
             realization := ?_ }⟩

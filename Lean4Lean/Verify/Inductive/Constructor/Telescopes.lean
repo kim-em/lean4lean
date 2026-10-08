@@ -119,27 +119,27 @@ theorem checkConstructors.loopTypes.telTrWF
 termination_by targetIdx => indTypes.size - targetIdx
 
 /-- A translation in the empty context mentions no free variable at all. -/
-theorem _root_.Lean4Lean.TrExprS.envGF {e : Expr} (H : TrExprS venv Us [] e e') :
+theorem _root_.Lean4Lean.TrExprS.envGhostFree {e : Expr} (H : TrExprS venv Us [] e e') :
     TypeChecker.GhostFree (fun _ => True) e :=
   H.fvarsIn.mono fun _ h => absurd h (by simp)
 
 /-- No constant of a well-formed environment mentions a free variable: the unsafe observer
 translates every constant type, delta value and recursor rule in the empty context. -/
-theorem _root_.Lean4Lean.VEnvs.WFCore.envGF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
+theorem _root_.Lean4Lean.VEnvs.WFCore.envGhostFree {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
     TypeChecker.EnvGhostFree (fun _ => True) env := by
   intro n ci hfind
   have htr := wf.tr (safety := .unsafe)
   have hvis : DefinitionSafety.unsafe ≤ ci.safety := by cases h : ci.safety <;> decide
   obtain ⟨ci', hci'⟩ := htr.toChecking.find?_iff.1 ⟨ci, hfind, hvis⟩
   obtain ⟨-, -, -, hty⟩ := htr.toChecking.find?_uniq hfind hci'
-  refine ⟨hty.envGF, fun v hv => ?_, fun rv hrv r hr => ?_⟩
+  refine ⟨hty.envGhostFree, fun v hv => ?_, fun rv hrv r hr => ?_⟩
   · exact (htr.of_value hfind hvis hv).fvarsIn.mono fun _ h => absurd h (by simp)
   · subst hrv
     have hrec := (htr.recursorEnvCoherent.rules (name := n)
       (by rwa [← htr.map_wf.find?'_eq_find?]) hvis).1
     obtain ⟨_, _, _, _, -, hrules⟩ := hrec
     obtain ⟨df, hdf⟩ := hrules r hr
-    exact hdf.rhs.envGF
+    exact hdf.rhs.envGhostFree
 
 end VerifyInductive
 end Lean4Lean

@@ -241,7 +241,7 @@ theorem OrdinaryInstallation.extendSafeEqBootstrap
       (wf.ctorParamsAgree (safety := .safe)) T.rules
   have horigins :
       InductInfosFromDecl c.env.constants outEnv.constants decl :=
-    Hrecursors.productionInductiveOrigins
+    Hrecursors.inductInfosFromDecl
   have htypeValue : target.toVConstVal ∈ Hheaders.entries.map Prod.snd :=
     List.mem_map.mpr ⟨(.inductInfo eqInfo, target.toVConstVal), hentry, rfl⟩
   have htypesEq : B.installation.venvTypes.constants ``Eq = some eqConst := by
@@ -522,7 +522,7 @@ theorem ElimNestedInductive.run'.eqBootstrapNoopWF
 ordinary branch: it has one universe parameter and two inductive parameters
 (`α` and the left endpoint), whereas primitive Bool/Nat recognition requires
 both lists to be empty. -/
-theorem checkPrimitiveInductive_eq_false_of_eqBootstrapShape
+theorem checkPrimitiveInductive_eq_false_of_preludeEqShape
     (env : Environment)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     Primitive.checkInductive env lparams nparams types isUnsafe =
@@ -618,7 +618,7 @@ theorem AddInductive.run.eqBootstrapFinalWF
     change 0 < 1
     decide
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
-    Hclosed wf.envGF hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
+    Hclosed wf.envGhostFree hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
       Hrun.extendEqBootstrap wf htels hAbsent hsafety hsource Hshape
 
 /-- Final-model boundary for the zero-auxiliary production branch reached by
@@ -734,7 +734,7 @@ theorem addInductiveDeclaration.eqBootstrapFinalEnvironmentWF
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have Hrun := Environment.addInductive.eqBootstrapFinalEnvironmentWF env
     lparams nparams types isUnsafe fuel ves wf htels hAbsent Hshape
-  have hcheck := checkPrimitiveInductive_eq_false_of_eqBootstrapShape env Hshape
+  have hcheck := checkPrimitiveInductive_eq_false_of_preludeEqShape env Hshape
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun
 
 end VerifyInductive

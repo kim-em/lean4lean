@@ -50,7 +50,7 @@ of the installed constant are those of the lowered constructor
 (`ConstructorRestorationStep.newInfo_eq`, `ConstructorRestoration`); their
 alignment with the source declaration (`numParams`, `numFields`, `induct`,
 `cidx`) is `InductInfosFromDecl`
-(`NestedRestorationFolds.productionInductiveOrigins`).
+(`NestedRestorationFolds.inductInfosFromDecl`).
 
 **Obtaining the hypotheses.** `E : NestedRun ...` is the
 `validated` field produced by
@@ -186,7 +186,7 @@ theorem ConstructorTypesInstalled.fresh
 constructor lowering with the production restoration fold, every installed
 constructor is the restoration of its positionally corresponding source
 constructor, with an `Expr.eqv`-equal type. -/
-theorem LoweredRestoredConstructors.constructorTypeOrigins
+theorem LoweredRestoredConstructors.constructorsFromSources
     (H : LoweredRestoredConstructors result mappingEnv loweredEnv params
       nparams safety lparams sources state targets finalState sourceProdEnv
         targetProdEnv)
@@ -268,7 +268,7 @@ theorem LoweredRestoredConstructors.freshTrace
     rw [hmiddle] at Htail
     exact ⟨ci :: entries, .cons hfresh Htail⟩
 
-/-- Forward form of `LoweredRestoredConstructors.constructorTypeOrigins`:
+/-- Forward form of `LoweredRestoredConstructors.constructorsFromSources`:
 every source constructor is installed. -/
 theorem LoweredRestoredConstructors.constructorTypesInstalled
     (H : LoweredRestoredConstructors result mappingEnv loweredEnv params
@@ -350,7 +350,7 @@ theorem RecursorCheck.ctorIsUnsafe
 
 /-- One restored original family: its header and primary recursor add no
 constructor, and its constructor fold is the aligned mapping trace. -/
-theorem NestedLoweringOutputClosed.familyConstructorTypeOrigins
+theorem NestedLoweringOutputClosed.familyConstructorsFromSources
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -392,7 +392,7 @@ theorem NestedLoweringOutputClosed.familyConstructorTypeOrigins
       simp [header] at h)
   have Hctors : ConstructorsFromSources c.lparams c.env isUnsafe sourceTypes[familyIdx].ctors
       Hstep.restored.headerEnv Hstep.restored.constructorEnv :=
-    Haligned.constructorTypeOrigins
+    Haligned.constructorsFromSources
       (Hsources.getElem familyIdx hfamily).constructors HsourceBVar Hdisjoint
       rfl fvars hparams hnodup H.toResult.resultNParams
       (H.resultParamsSize.trans H.toResult.resultNParams) hheaderWF
@@ -419,7 +419,7 @@ theorem NestedLoweringOutputClosed.familyConstructorTypeOrigins
   exact ((Hheader.trans Hctors).trans Hrec).mono (by simp)
 
 /-- The auxiliary-recursor suffix of nested restoration adds no constructor. -/
-theorem FoldSteps.recursorConstructorTypeOrigins
+theorem FoldSteps.recursorConstructorsFromSources
     (H : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
@@ -444,7 +444,7 @@ theorem FoldSteps.recursorConstructorTypeOrigins
     exact (Hhead.trans (ih hmiddleWF)).mono (by simp)
 
 /-- The fold over the original families. -/
-theorem NestedLoweringOutputClosed.familiesConstructorTypeOrigins
+theorem NestedLoweringOutputClosed.familiesConstructorsFromSources
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -482,7 +482,7 @@ theorem NestedLoweringOutputClosed.familiesConstructorTypeOrigins
       simpa [hfamilyEq] using Hstep
     have hmem : sourceTypes[familyIdx] ∈ sourceTypes :=
       List.getElem_mem hfamily
-    have Hhead := H.familyConstructorTypeOrigins Hc Hprod hempty Hsources
+    have Hhead := H.familyConstructorsFromSources Hc Hprod hempty Hsources
       familyIdx hfamily (HsourceBVar _ hmem) (Hdisjoint _ hmem) Hstep' hwf
     obtain ⟨_entries, Hfresh⟩ := Hstep'.restored.freshTrace hwf
     have hmiddleWF : middle.constants.WF := Hfresh.targetWF hwf
@@ -495,7 +495,7 @@ theorem NestedLoweringOutputClosed.familiesConstructorTypeOrigins
     · exact hsource
 
 /-- The complete production restoration fold of a nested block. -/
-theorem NestedLoweringOutputClosed.restorationConstructorTypeOrigins
+theorem NestedLoweringOutputClosed.restorationConstructorsFromSources
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -517,10 +517,10 @@ theorem NestedLoweringOutputClosed.restorationConstructorTypeOrigins
     (hwf : sourceEnv.constants.WF) :
     ConstructorsFromSources c.lparams c.env isUnsafe (sourceTypes.flatMap (·.ctors))
       sourceEnv out.2 := by
-  have Hprimary := H.familiesConstructorTypeOrigins Hc Hprod hempty Hsources
+  have Hprimary := H.familiesConstructorsFromSources Hc Hprod hempty Hsources
     HsourceBVar Hdisjoint Hrestored.inductives [] (by simp) hwf
   obtain ⟨_entries, Hfresh⟩ := Hrestored.inductives.inductiveFreshTrace hwf
-  have Haux := Hrestored.auxiliaries.recursorConstructorTypeOrigins
+  have Haux := Hrestored.auxiliaries.recursorConstructorsFromSources
     (lparams := c.lparams) (baseEnv := c.env) (isUnsafe := isUnsafe) (Hfresh.targetWF hwf)
   exact (Hprimary.trans Haux).mono (by simp)
 
@@ -535,7 +535,7 @@ private theorem SourceSyntaxChecks.inductiveSyntaxOfMem
     · exact Hhead
     · exact ih htail
 
-/-- Forward form of `familyConstructorTypeOrigins`. -/
+/-- Forward form of `familyConstructorsFromSources`. -/
 theorem NestedLoweringOutputClosed.familyConstructorTypesInstalled
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -595,7 +595,7 @@ theorem NestedLoweringOutputClosed.familyConstructorTypesInstalled
     rwa [← htarget] at Hadd
   exact Hctors.fresh HrecFresh hconstructorWF
 
-/-- Forward form of `familiesConstructorTypeOrigins`. -/
+/-- Forward form of `familiesConstructorsFromSources`. -/
 theorem NestedLoweringOutputClosed.familiesConstructorTypesInstalled
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -644,7 +644,7 @@ theorem NestedLoweringOutputClosed.familiesConstructorTypesInstalled
       (by simpa [List.append_assoc] using hsplit) hmiddleWF
     simpa using (Hhead.fresh HtailFresh hmiddleWF).append Hrest
 
-/-- Forward form of `restorationConstructorTypeOrigins`. -/
+/-- Forward form of `restorationConstructorsFromSources`. -/
 theorem NestedLoweringOutputClosed.restorationConstructorTypesInstalled
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -732,7 +732,7 @@ theorem NestedLoweringOutputClosed.constructorTypeRoundTripOfSource
     exact ((Hsources.inductiveSyntaxOfMem htype).constructors.of_mem
       hsource).noNestedAux.restoreSourceDisjointOfFresh
         Hctor.type.constantsDefined Hfamilies Hconstructors
-  exact ⟨H.restorationConstructorTypeOrigins Hc Hprod hempty Hsources
+  exact ⟨H.restorationConstructorsFromSources Hc Hprod hempty Hsources
       HsourceBVar Hdisjoint Hrestored Hc.checking.tr.map_wf,
     H.restorationConstructorTypesInstalled Hc Hprod hempty Hsources
       HsourceBVar Hdisjoint Hrestored Hc.checking.tr.map_wf⟩

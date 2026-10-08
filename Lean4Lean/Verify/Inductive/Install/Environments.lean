@@ -178,7 +178,7 @@ theorem AddConstants.entryTr
     · exact ih entry h
 
 /-- An installation of translated, non-recursor constants keeps the environment ghost-free. -/
-theorem AddConstants.envGF
+theorem AddConstants.envGhostFree
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (hwf : env.constants.WF) (henv : TypeChecker.EnvGhostFree (fun _ => True) env)
     (hnorec : ∀ entry ∈ entries, ∀ r, entry.1 ≠ .recInfo r) :
@@ -187,7 +187,7 @@ theorem AddConstants.envGF
   rcases H.entryOrigin hwf hfind with h | ⟨entry, hentry, -, rfl⟩
   · exact henv h
   · obtain ⟨⟨_, htr, -⟩, hdelta⟩ := H.entryTr entry hentry
-    exact ⟨htr.2.2.envGF, fun v hv => (by rw [hdelta] at hv; cases hv),
+    exact ⟨htr.2.2.envGhostFree, fun v hv => (by rw [hdelta] at hv; cases hv),
       fun r hr => absurd hr (hnorec entry hentry r)⟩
 
 /-- The constructor check certifies the telescope of every source constructor type. -/
@@ -468,7 +468,7 @@ theorem ConstructorEnvironment.installedConstructorSemanticCoherenceAt
 
 /-- The executable header and constructor folds identify every newly visible
 production inductive family with one exact source declaration position. -/
-theorem ConstructorEnvironment.productionInductiveOrigins
+theorem ConstructorEnvironment.inductInfosFromDecl
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
@@ -994,7 +994,7 @@ theorem AddInductive.declareConstructors.WF
         (by
           rw [← H.sourceContextVEnv]
           exact H.sourceContext.checking.projectionRegistry)
-        (D.productionInductiveOrigins core Hchecked)
+        (D.inductInfosFromDecl core Hchecked)
         hpreserves hreflect htypeUvars
         (Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars core)
         core.typesAdded core.ctorsAdded VEnv.addProjections_le
@@ -1095,7 +1095,7 @@ theorem OrdinaryConstructorCheck.installedConstructorSemanticCoherenceAt
 
 /-- The executable header and constructor folds identify every newly visible
 production inductive family with one exact source declaration position. -/
-theorem OrdinaryConstructorCheck.productionInductiveOrigins
+theorem OrdinaryConstructorCheck.inductInfosFromDecl
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
@@ -1104,7 +1104,7 @@ theorem OrdinaryConstructorCheck.productionInductiveOrigins
       indTypes headerEnv}
     (R : OrdinaryConstructorCheck H outEnv) :
     InductInfosFromDecl c.env.constants outEnv.constants decl :=
-  R.declared.toConstructorEnvironment.productionInductiveOrigins R.core
+  R.declared.toConstructorEnvironment.inductInfosFromDecl R.core
     ⟨R.checked, R.parameterPrefixes, R.constructorTails⟩
 
 theorem OrdinaryConstructorCheck.ctorParamsAgree

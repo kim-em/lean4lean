@@ -198,7 +198,7 @@ private theorem primitiveResultOwnerNormalForm
     (hparamsArray : stats.params = #[])
     (hconsts : stats.indConsts = #[.const family []])
     (hindices : stats.nindices = #[0]) :
-    CheckedConstructorOwnerNormalFormAt stats 0
+    ConstructorOwnerNormalFormAt stats 0
       ({ name := ctorName, type := .const family [] } : Constructor) := by
   refine ⟨.const family [], .done hparams.symm, ⟨{
     arity := 0
@@ -214,7 +214,7 @@ private theorem primitiveNatSuccOwnerNormalForm
     (hparamsArray : stats.params = #[])
     (hconsts : stats.indConsts = #[.const ``Nat []])
     (hindices : stats.nindices = #[0]) :
-    CheckedConstructorOwnerNormalFormAt stats 0 ({
+    ConstructorOwnerNormalFormAt stats 0 ({
       name := ``Nat.succ
       type := .forallE binderName (.const ``Nat []) (.const ``Nat [])
         binderInfo } : Constructor) := by

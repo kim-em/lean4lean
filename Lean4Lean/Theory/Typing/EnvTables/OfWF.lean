@@ -37,7 +37,7 @@ noncomputable def envTables (env : VEnv) : Tables := by
 
 theorem envTables_hist (H : env.WF) : Tables.OfHistory env (envTables env) := by
   classical
-  have h := VEnv.WF'.histTables H.choose_spec
+  have h := VEnv.WF'.tablesOfHistory H.choose_spec
   simp only [envTables, dif_pos h]
   exact Classical.choose_spec h
 

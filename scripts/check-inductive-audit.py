@@ -23,9 +23,9 @@ ROOTS = {
     "Lean4Lean.Replay.Replayed.foldlM",
     "Lean4Lean.VEnv.QuotRegistered.witness_app",
     "Lean4Lean.VEnv.QuotPrefixUnfold.defeq",
-    "Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveFinalResultWF",
-    "Lean4Lean.VerifyInductive.addInductiveDeclaration.primitiveInductiveFinalResultWF",
-    "Lean4Lean.VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF",
+    "Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveExtensionWF",
+    "Lean4Lean.VerifyInductive.addInductiveDeclaration.primitiveInductiveExtensionWF",
+    "Lean4Lean.VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveExtensionWF",
     "Lean4Lean.TypeChecker.whnf.WF",
     "Lean4Lean.TypeChecker.Inner.reduceRecursor.WF",
     "Lean4Lean.VEnv.NormalEq.parRed",
@@ -70,7 +70,7 @@ DEFINITION_ROOTS = {
     "Lean4Lean.VEnv.FullReduction",
     "Lean4Lean.VEnv.FullEquationCoverage",
     "Lean4Lean.InductiveSignature.CaseSchema.structureEta",
-    "Lean4Lean.InductiveSignature.RecursorData.prefixProgram",
+    "Lean4Lean.InductiveSignature.RecursorData.prefixUnfolding",
 }
 # These lemmas are available below the open inversion/confluence layer.
 # A migration must not silently reintroduce that layer into their proofs.

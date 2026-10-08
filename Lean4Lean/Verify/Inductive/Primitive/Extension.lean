@@ -58,7 +58,7 @@ theorem PrimitiveInstallation.extendSafeExact
     Hrecursors.completedConstructorSemantics
       (wf.ctorParamsAgree (safety := .safe)) T.rules
   rcases Hcert.extendSafeExact wf htels hdecl hcompile
-      Hrecursors.productionInductiveOrigins T.recursorProvenance
+      Hrecursors.inductInfosFromDecl T.recursorProvenance
       Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics
       (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF

@@ -720,7 +720,7 @@ structure HeaderFormation (env : VEnv) (Us : List Name)
     decl.TypeShape env params
       (source.toVInductiveType numIndices resultLevel)
 
-theorem ScopedHeaderTelescope.synthesizedHeaderWithParams
+theorem ScopedHeaderTelescope.headerFormationWithParams
     {source : VInductiveTypeSkeleton} {commonParams : List VExpr}
     (H : ScopedHeaderTelescope env Us source scope current
       nparams nindices)
@@ -821,7 +821,7 @@ theorem ScopedHeaderTelescope.synthesizedHeaderWithParams
       rfl
     · exact hsort
 
-theorem HeaderTelescope.synthesizedHeader
+theorem HeaderTelescope.headerFormation
     {c : AddInductive.Context} {Hc : ContextWF c}
     {source : VInductiveTypeSkeleton}
     (H : HeaderTelescope Hc source current nparams nindices)
@@ -2098,7 +2098,7 @@ theorem index.cacheSynthesisWF
         i (nindices + 1) fuel k c').WF Q) :
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
-  obtain ⟨source₀, consumed₀, Hdom₀, hsu, -⟩ := halign.consumedDomain Hdom
+  obtain ⟨source₀, consumed₀, Hdom₀, hsu, -⟩ := halign.unannotatedDomain Hdom
   obtain ⟨body₀, hbody₀, -⟩ := halign.body Hdom.sourceIsType hsu hbody
   apply index.cacheWF (stats := stats) (nparams := nparams) (i := i)
     (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
@@ -2289,7 +2289,7 @@ theorem firstParameter.cacheSynthesisWF
         normalized (i + 1) nindices fuel k c').WF Q) :
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
-  obtain ⟨source₀, consumed₀, Hdom₀, hsu, -⟩ := halign.consumedDomain Hdom
+  obtain ⟨source₀, consumed₀, Hdom₀, hsu, -⟩ := halign.unannotatedDomain Hdom
   obtain ⟨body₀, hbody₀, -⟩ := halign.body Hdom.sourceIsType hsu hbody
   apply firstParameter.cacheWF (stats := stats) (nparams := nparams)
     (i := i) (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
@@ -2853,7 +2853,7 @@ theorem laterIndexSynthesisWF
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp
             (Expr.consumeTypeAnnotationsVerified_fvarsIn htypeFVars.1)).1
-        rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
+        rcases Hruntime.unannotatedDomain Hc Hdom hdomNarrow with
           ⟨domainLevel, hdomain⟩
         let Hruntime' : FrontScopeEmbedding Hc'.venv c.lparams
             ((some (⟨c.ngen.curr⟩,

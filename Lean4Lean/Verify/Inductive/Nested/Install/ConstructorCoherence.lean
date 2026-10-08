@@ -120,7 +120,7 @@ private theorem FoldSteps.restoredSourceMemberInfos
           (sourceTypes.map (fun type => type.name)) sourceTypes[familyIdx]
           source middle := by
         simpa only [hfamilyEq] using Hstep
-      have Halign := Hstep'.productionFamilyAlignmentAt Hlower Hc Hprod
+      have Halign := Hstep'.inductInfoAlignmentAt Hlower Hc Hprod
         Hsource Hmetadata Hsources Harity Howners hempty familyIdx hfamily
         hsourceWF
       obtain ⟨headEntries, HheadFresh⟩ :=
@@ -246,7 +246,7 @@ theorem RestoredBlockCertificate.mutualInductivesClosed
     simpa [VInductDecl.typeConstants, VInductiveType.toVConstVal,
       Function.comp_def] using VEnv.addConstVals_names_nodup C.typesAdded
   have Hfresh := HprimaryFresh.append HauxFresh
-  have Horigins := C.productionInductiveOrigins Hlower Hc Hprod Hmetadata
+  have Horigins := C.inductInfosFromDecl Hlower Hc Hprod Hmetadata
     Hsources Harity Howners hempty henv hlparams hnames
   apply InductInfosFromDecl.mutualInductivesClosed Horigins
     (by simpa only [henv] using hsourceWF)
@@ -409,7 +409,7 @@ private theorem RestoredInductiveStep.unsafeFreshTraceAt
   have htargetMem : target ∈ result.types.toArray.toList := by
     rw [← htargetArrayEq]
     simpa using Array.getElem_mem hresultArray
-  have Halign := Hstep.productionFamilyAlignmentAt Hlower Hc Hprod Hsource
+  have Halign := Hstep.inductInfoAlignmentAt Hlower Hc Hprod Hsource
     Hmetadata Hsources Harity Howners hempty familyIdx hfamily hwf
   let header : ConstantInfo := .inductInfo Hstep.restored.header.newInfo
   have hheaderBool : Hstep.restored.header.newInfo.isUnsafe = true :=
@@ -682,7 +682,7 @@ theorem RestoredBlockCertificate.entriesUnsafe
 
 /-- Safe final assembly with both production origins and final mutual closure
 derived from the exact producer/restoration evidence. -/
-theorem RestoredBlockCertificate.safeInductiveFinalResultOfProductionClosed
+theorem RestoredBlockCertificate.safeInductiveExtensionOfProductionClosed
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -725,7 +725,7 @@ theorem RestoredBlockCertificate.safeInductiveFinalResultOfProductionClosed
     exact wf.constructorOwners
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
     Harity Howners hempty henv hlparams hnames wf.inductivesClosed
-  exact C.safeInductiveFinalResultOfProduction wf htels Hlower Hc Hprod
+  exact C.safeInductiveExtensionOfProduction wf htels Hlower Hc Hprod
     Hmetadata Hsources Harity hempty henv hlparams hnames hclosed
       hconstructorSemantics htypesH hctorOrigin
 
@@ -733,7 +733,7 @@ theorem RestoredBlockCertificate.safeInductiveFinalResultOfProductionClosed
 restoration-entry safety all derived from the exact producer/restoration
 evidence.  Constructor semantic coherence is the only remaining final-model
 premise. -/
-theorem RestoredBlockCertificate.unsafeInductiveFinalResultOfProductionClosed
+theorem RestoredBlockCertificate.unsafeInductiveExtensionOfProductionClosed
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -783,7 +783,7 @@ theorem RestoredBlockCertificate.unsafeInductiveFinalResultOfProductionClosed
     Howners hempty henv hlparams hnames hauxRec hauxNames hsafety
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
     Harity Howners hempty henv hlparams hnames wf.inductivesClosed
-  exact C.unsafeInductiveFinalResultOfProduction wf htels Hlower Hc Hprod
+  exact C.unsafeInductiveExtensionOfProduction wf htels Hlower Hc Hprod
     Hmetadata Hsources Harity hempty henv hlparams hnames hentries hclosed
       hconstructorSemantics htypesH hctorOrigin
 
@@ -808,7 +808,7 @@ private theorem LoweredRun.reindex
   subst indTypes'
   exact ⟨P.headers, P.constructors, ⟨P.recursors⟩⟩
 
-theorem NestedInstalledRun.safeInductiveFinalResult
+theorem NestedInstalledRun.safeInductiveExtension
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv .safe) decl lparams nparams false .safe outEnv)
     (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
@@ -839,7 +839,7 @@ theorem NestedInstalledRun.safeInductiveFinalResult
     have h := E.assembly.constructorArityPrefix
     rw [E.production_eq] at h
     exact h
-  exact E.assembly.safeInductiveFinalResultOfProductionClosed wf htels Hlower
+  exact E.assembly.safeInductiveExtensionOfProductionClosed wf htels Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity hempty
     E.productionContext_env E.productionContext_lparams rfl
       hconstructorSemantics htypesH hctorOrigin
@@ -847,7 +847,7 @@ theorem NestedInstalledRun.safeInductiveFinalResult
 /-- Consume a rich exact unsafe nested run directly.  Closure and every
 unsafe restoration-entry tag are reconstructed from its exact production
 and restoration traces. -/
-theorem NestedInstalledRun.unsafeInductiveFinalResult
+theorem NestedInstalledRun.unsafeInductiveExtension
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv .unsafe) decl lparams nparams true .unsafe outEnv)
     (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
@@ -878,7 +878,7 @@ theorem NestedInstalledRun.unsafeInductiveFinalResult
     have h := E.assembly.constructorArityPrefix
     rw [E.production_eq] at h
     exact h
-  exact E.assembly.unsafeInductiveFinalResultOfProductionClosed wf htels Hlower
+  exact E.assembly.unsafeInductiveExtensionOfProductionClosed wf htels Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity hempty
     E.productionContext_env E.productionContext_lparams rfl rfl rfl
       E.productionContext_safety hconstructorSemantics htypesH hctorOrigin
@@ -951,7 +951,7 @@ def NestedConstructorParameterDomainsDefEq
 
 /-- Exact production alignment already contains the complete non-semantic
 constructor metadata once the enclosing restored family alignment is fixed. -/
-def productionConstructorAlignmentToCoherence
+def ctorInfoAlignmentToCoherence
     (Hfamily : InductInfoAlignment prodEnv.constants decl familyIdx
       familyInfo)
     (Hctor : CtorInfoAlignment prodEnv.constants decl familyIdx ctorIdx
@@ -1002,7 +1002,7 @@ theorem CtorInfoAlignment.semanticCoherenceOfParameterDomains
   rcases hconstructorWF with ⟨constructorLevel, HconstructorType⟩
   exact ⟨{
     toCtorInfoCoherentAt :=
-      productionConstructorAlignmentToCoherence Hfamily Hctor hprodWF
+      ctorInfoAlignmentToCoherence Hfamily Hctor hprodWF
     familyTarget := familyTarget
     constructorTarget := constructorTarget
     familyLookup := hfamilyLookup
@@ -1218,7 +1218,7 @@ theorem NestedInstalledRun.safeConstructorSemanticsOfParameterDomains
     have h := E.assembly.constructorArityPrefix
     rw [E.production_eq] at h
     exact h
-  have Horigins := E.assembly.productionInductiveOrigins Hlower
+  have Horigins := E.assembly.inductInfosFromDecl Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity Howners hempty
       E.productionContext_env E.productionContext_lparams rfl
   exact E.assembly.constructorSemanticsOfParameterDomains wf Horigins Hparams
@@ -1252,7 +1252,7 @@ theorem NestedInstalledRun.unsafeConstructorSemanticsOfParameterDomains
     have h := E.assembly.constructorArityPrefix
     rw [E.production_eq] at h
     exact h
-  have Horigins := E.assembly.productionInductiveOrigins Hlower
+  have Horigins := E.assembly.inductInfosFromDecl Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity Howners hempty
       E.productionContext_env E.productionContext_lparams rfl
   exact E.assembly.constructorSemanticsOfParameterDomains wf Horigins Hparams

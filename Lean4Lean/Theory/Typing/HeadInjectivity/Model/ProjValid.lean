@@ -26,13 +26,13 @@ def VEnv.ProjDeclAt (env envTypes : VEnv) (S : Name) (info : VProjectionInfo) : 
     ctor.uvars = decl.uvars ∧ envTypes.IsType decl.uvars [] ctor.type ∧
     decl.RawCtorShape type ctor ∧ decl.sourceNames.Nodup ∧ decl.SourceParameterWF base
 
-theorem VEnv.projOrigin_iff {env : VEnv} {S : Name} {info : VProjectionInfo} :
+theorem VEnv.projDecl_iff {env : VEnv} {S : Name} {info : VProjectionInfo} :
     env.ProjDecl S info ↔ ∃ envTypes, env.ProjDeclAt envTypes S info :=
   ⟨fun ⟨b, e, d, h⟩ => ⟨e, b, d, h⟩, fun ⟨e, b, d, h⟩ => ⟨b, e, d, h⟩⟩
 
 theorem VEnv.ProjDeclAt.origin {env envTypes : VEnv} {S : Name} {info : VProjectionInfo}
     (h : env.ProjDeclAt envTypes S info) : env.ProjDecl S info :=
-  VEnv.projOrigin_iff.2 ⟨_, h⟩
+  VEnv.projDecl_iff.2 ⟨_, h⟩
 
 namespace VEnv
 namespace Model
@@ -44,7 +44,7 @@ def SoundTypedIn (env E : VEnv) (U : Nat) (Δ : List VExpr) : Prop :=
   ∀ {Γ t t' T}, E.IsDefEqStrong U Γ t t' T →
     SoundAt env U Δ Γ t t' T ∧ HTS env U Δ Γ t T ∧ HTS env U Δ Γ t' T
 
-theorem SoundTypedIn.soundEnvAt {env E : VEnv} {U : Nat} {Δ : List VExpr}
+theorem SoundTypedIn.soundIn {env E : VEnv} {U : Nat} {Δ : List VExpr}
     (h : SoundTypedIn env E U Δ) : SoundIn env E U Δ := fun H => (h H).1
 
 /-- Static facts about a projection entry of a well-formed environment, used by the

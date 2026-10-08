@@ -200,7 +200,7 @@ theorem firstStep.initializesSemanticAccumulator
         let Hsynthesis :=
           checkInductiveTypes.loopType.HeaderTelescope.empty
             hctxEq hcurrentType htargetCurrent
-        have Hheader := Hsynthesis.synthesizedHeader
+        have Hheader := Hsynthesis.headerFormation
           (uvars := c.lparams.length) rfl hofLevel hsorted
         let Hsemantic :=
           checkInductiveTypes.loopType.CheckedHeaders.first
@@ -288,7 +288,7 @@ theorem laterResult.snocsSemanticNarrow
   rcases checkInductiveTypes.loopType.FrontScopeEmbedding.independentSourceScopeOfCheck
       halign with
     ⟨sourceScope, HsourceScope, hsourceScopeFVars, hsourceClosure⟩
-  have hheader := Hsynthesis.synthesizedHeaderWithParams
+  have hheader := Hsynthesis.headerFormationWithParams
     (uvars := c.lparams.length) (commonParams := commonParams)
     Hc.checking.tr.wf Hruntime HsourceScope hsourceScopeFVars
       Hc.mlctx.lctx hsourceClosure rfl hparams hofLevel hsortedNarrow
@@ -401,7 +401,7 @@ theorem laterStep.extendsSemanticAccumulator
     let Hscope : ∀ h : 0 < stats.params.size,
         checkInductiveTypes.loopType.ReusedParameterScope Hsuffix 0
           (.forallE name dom body bi) := fun h =>
-      initialLaterParameterScope Hc Hsuffix h HtargetSkeleton.raw hbelow
+      initialReusedParameterScope Hc Hsuffix h HtargetSkeleton.raw hbelow
     apply checkInductiveTypes.loopType.laterParameterSynthesisWF Hc
       (target := sourceSkeleton)
       (k := fun type stats nindices => show AddInductive.M alpha from do
@@ -592,7 +592,7 @@ theorem laterStep.extendsSemanticAccumulator
           rw [hcommonEmpty,
             List.eq_nil_of_length_eq_zero Hsynthesis.parameterCount]
           exact .refl (by trivial)
-        have Hheader := Hsynthesis.synthesizedHeaderWithParams
+        have Hheader := Hsynthesis.headerFormationWithParams
           (uvars := c.lparams.length) (commonParams := commonParams)
           Hc.checking.tr.wf Hruntime HsourceScope hsourceScopeFVars
           Hc.mlctx.lctx hsourceClosure rfl hparamEq hofLevel

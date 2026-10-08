@@ -618,7 +618,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
           have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-          rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
+          rcases Hruntime.unannotatedDomain Hc Hdom hdomNarrow with
             ⟨domainLevel, hdomain⟩
           cases isUnsafe with
           | false =>

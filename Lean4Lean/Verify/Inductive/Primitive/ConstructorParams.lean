@@ -167,7 +167,7 @@ theorem PrimitiveConstructorCoreCheck.installedConstructorSemanticCoherenceAt
 
 /-- The two atomic primitive installation stages identify every newly visible
 production inductive family with its exact source declaration position. -/
-theorem PrimitiveConstructorCoreCheck.productionInductiveOrigins
+theorem PrimitiveConstructorCoreCheck.inductInfosFromDecl
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
@@ -521,7 +521,7 @@ def PrimitiveConstructorCoreCheck.complete
   declared := R.declared
   formation := R.formation
   core := R.core
-  productionInductiveOrigins := R.productionInductiveOrigins
+  inductInfosFromDecl := R.inductInfosFromDecl
   ctorParamsAgree := R.ctorParamsAgree
 
 /-- The successful executable check is followed by the exact atomic

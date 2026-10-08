@@ -104,7 +104,7 @@ def RecursorCheck.RuleAlignment.RecursiveCallFrame.originExtension
   F.originRecent.contextExtension
 
 theorem
-    RecursorCheck.RuleAlignment.recursiveCallRecursorFrame
+    RecursorCheck.RuleAlignment.recursiveCallFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -341,7 +341,7 @@ def FVarCheckingScopeCore.skipIndex
 
 end checkInductiveTypes.loopType
 
-theorem MLCtxLamPrefix.skipFVarNarrowCore
+theorem MLCtxLamPrefix.skipFVarCheckingScopeCore
     (H : MLCtxLamPrefix runtime n domains)
     (henv : env.WF) (Hwf : runtime.WF env Us)
     (Hbase : Nonempty
@@ -369,7 +369,7 @@ theorem MLCtxLamPrefix.skipFVarNarrowCore
 context embedded in the base scope.  Each retained domain is the checker
 translation weakened along the embedding, so no runtime translation is
 restricted. -/
-theorem MLCtxLamPrefix.extendFVarNarrowCoreEmbedded
+theorem MLCtxLamPrefix.extendFVarCheckingScopeCoreEmbedded
     (H : MLCtxLamPrefix runtime n domains)
     (henv : env.WF) (Hwf : runtime.WF env Us)
     (Hbase : checkInductiveTypes.loopType.FVarCheckingScopeCore env Us
@@ -620,7 +620,7 @@ theorem
       parameterDecls (M.dropN A.rule.allArgs.size hnM).vlctx := by
     rw [hdrop]
     exact .refl A.semantics.fieldRootContext.checking.tr.wf HfieldBase.wf
-  rcases HfieldPrefix.extendNarrowRuntimeScopeAligned
+  rcases HfieldPrefix.extendFrontScopeEmbeddingAligned
       A.semantics.fieldRootContext.checking.tr.wf HfieldWF HfieldBase
         HfieldUp hMwf' hnM hagree hbaseAlign with
     ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,

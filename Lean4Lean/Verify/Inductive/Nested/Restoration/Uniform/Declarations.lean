@@ -916,7 +916,7 @@ theorem RecursorConstruction.normalizedHeadsApplied
   obtain ⟨hfields, hindices⟩ :=
     H.minorReplayHeadsApplied hctorTypes hlit owner howner localIndex hlocal
   have hsu : H.generator.signature.uvars = decl.uvars := by
-    rw [H.consumedGeneration_signature]
+    rw [H.generatedBy_signature]
   have hsp : H.generator.signature.params.length = stats.params.size := by
     rw [H.generator.params, List.length_reverse, H.sourceParameterCount]
   have hlevels : stats.levels.length = decl.uvars := R.sourceStatsWF.levels

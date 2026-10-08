@@ -14,7 +14,7 @@ inductive Expr.UnannotatedForallPrefix (ok : Name → Bool) : Nat → Lean.Expr 
 
 /-- Consuming a telescope and keeping only its first `n` domains consumes
 each of those domains in place. -/
-theorem Expr.ForallTelescope.consumedForallPrefix
+theorem Expr.ForallTelescope.unannotatedForallPrefix
     (H : Expr.ForallTelescope raw n residual) :
     Expr.UnannotatedForallPrefix ok n raw
       (Expr.forallDomainsOnly n (Lean4Lean.Expr.consumeForallTypes ok raw)) := by
@@ -25,7 +25,7 @@ theorem Expr.ForallTelescope.consumedForallPrefix
 /-- Binder by binder, a translation of a telescope and a translation of its
 domain-consumed prefix (in definitionally equal contexts) have definitionally
 equal domains, in either prefix context. -/
-theorem TrExprS.consumedForallPrefix_defeq
+theorem TrExprS.unannotatedForallPrefix_defeq
     {env : Environment} {venv : VEnv} {safety : DefinitionSafety} {Us : List Name}
     (Hchecking : CheckingEnv safety env venv)
     (Hwrappers : TypeAnnotationWrappers env ok)
@@ -114,7 +114,7 @@ theorem RecursorConstruction.sourceFields_defeq_header
     H.sourceFields_length owner howner localIndex hlocal
   have Htel := HS.semantic.traversal.fieldTelescope.abstractList H.params.fvars
   rw [HS.semantic.traversal_fields] at Htel
-  have Hpre := Htel.consumedForallPrefix (ok := ctorEnv.isTypeAnnotationWrapper)
+  have Hpre := Htel.unannotatedForallPrefix (ok := ctorEnv.isTypeAnnotationWrapper)
   have Hsrc := (H.sourceFields_headerReplay owner howner localIndex hlocal).1
   have Hext := HS.semantic.hypothesesRecent.contextLE.trans HS.semantic.extension.contextLE
   let Hbound := HS.semantic.fieldsRecent.toFVarArrayIn.mono Hext
@@ -127,7 +127,7 @@ theorem RecursorConstruction.sourceFields_defeq_header
   rw [hsrc] at Hsrc
   have hΔ := R.headerAnonymousParameterWF
   have henv := R.headerCheckingAnnotations.1.wf
-  have Hall := TrExprS.consumedForallPrefix_defeq R.headerCheckingAnnotations.1
+  have Hall := TrExprS.unannotatedForallPrefix_defeq R.headerCheckingAnnotations.1
     R.headerCheckingAnnotations.2 Hpre (.refl henv hΔ) Hraw Hsrc hheaderLen hconsumedLen
   have hctx : (abstractForallContext R.parameterScope.toCtx.reverse []).toCtx =
       R.parameterScope.toCtx := by

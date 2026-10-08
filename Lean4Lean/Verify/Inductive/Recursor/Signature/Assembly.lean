@@ -114,7 +114,7 @@ theorem recursorUnshiftLevels_roundtrip
 def IsDeclUnivImage (L Q : List VLevel) (e : VExpr) : Prop :=
   (e.instL Q).instL L = e
 
-theorem unshiftFixed_instL
+theorem isDeclUnivImage_instL
     (ha : AddInductive.AdmissibleElimLevel Us elim) (e : VExpr) :
     IsDeclUnivImage (recursorDeclarationAbstractLevels Us ha) (recursorToDeclLevels Us.length elim)
       (e.instL (recursorDeclarationAbstractLevels Us ha)) := by
@@ -127,7 +127,7 @@ theorem VLCtx.instL_abstractForallContext_nil (domains : List VExpr) (levels : L
   rw [VLCtx.instL_abstractForallContext]
   rfl
 
-theorem unshiftFixed_context {L Q : List VLevel} {domains : List VExpr}
+theorem isDeclUnivImage_context {L Q : List VLevel} {domains : List VExpr}
     (h : ∀ d ∈ domains, IsDeclUnivImage L Q d) :
     ((abstractForallContext domains []).instL Q).instL L = abstractForallContext domains [] := by
   rw [VLCtx.instL_abstractForallContext_nil, VLCtx.instL_abstractForallContext_nil, List.map_map]
@@ -140,7 +140,7 @@ theorem unshiftFixed_context {L Q : List VLevel} {domains : List VExpr}
 /-- Universe un-shift of a recursor-universe translation: a translation of
 declaration-universe syntax, in a context which is the image of a
 declaration-universe context, is itself such an image. -/
-theorem TrExprS.unshiftFixed
+theorem TrExprS.isDeclUnivImage
     {env : VEnv} {Us : List Name} {elim : Level}
     (ha : AddInductive.AdmissibleElimLevel Us elim)
     {Δ : VLCtx} {e : Expr} {e' : VExpr}
@@ -179,7 +179,7 @@ theorem TrExprS.unshiftFixed
     exact (Htr.uniqueS H2).symm
   | succ | max | imax | mvar => simp [AddInductive.AdmissibleElimLevel] at ha
 
-theorem TrExprS.unshiftFixed_forall₂
+theorem TrExprS.isDeclUnivImage_forall₂
     {env : VEnv} {Us : List Name} {elim : Level}
     (ha : AddInductive.AdmissibleElimLevel Us elim) {Δ : VLCtx}
     (hΔ : (Δ.instL (recursorToDeclLevels Us.length elim)).instL
@@ -194,13 +194,13 @@ theorem TrExprS.unshiftFixed_forall₂
   | @cons a b as bs hab _ ih =>
     intro d hd
     rcases List.mem_cons.mp hd with rfl | hd
-    · exact TrExprS.unshiftFixed ha hΔ (hsrc a (by simp)) hab
+    · exact TrExprS.isDeclUnivImage ha hΔ (hsrc a (by simp)) hab
     · exact ih (fun e he => hsrc e (by simp [he])) d hd
 
 /-- A telescope of recursor-universe translations of declaration-universe
 syntax, over a base which is the image of declaration-universe domains, is
 pointwise the image of declaration-universe domains. -/
-theorem TrExprS.unshiftFixed_telescope
+theorem TrExprS.isDeclUnivImage_telescope
     {env : VEnv} {Us : List Name} {elim : Level}
     (ha : AddInductive.AdmissibleElimLevel Us elim)
     {base binders : List VExpr} {srcs : Nat → Expr}
@@ -226,8 +226,8 @@ theorem TrExprS.unshiftFixed_telescope
       · exact ih (by omega) d hd
       · have hd' : d = binders[n] := by simpa using hd
         subst hd'
-        apply TrExprS.unshiftFixed ha _ (hsrc n hn') (Htr n hn')
-        apply unshiftFixed_context
+        apply TrExprS.isDeclUnivImage ha _ (hsrc n hn') (Htr n hn')
+        apply isDeclUnivImage_context
         intro x hx
         rcases List.mem_append.mp hx with hx | hx
         · exact hbase x hx
@@ -619,9 +619,9 @@ theorem RecursorConstruction.recursorTelescope_hypothesisHeader
     rw [H.parameterDomains] at hd
     rcases List.mem_append.mp hd with hd | hd
     · obtain ⟨x, _, rfl⟩ := List.mem_map.mp hd
-      exact unshiftFixed_instL H.elimLevelAdmissible x
+      exact isDeclUnivImage_instL H.elimLevelAdmissible x
     · obtain ⟨x, _, rfl⟩ := List.mem_map.mp (List.mem_of_mem_take hd)
-      exact unshiftFixed_instL H.elimLevelAdmissible x
+      exact isDeclUnivImage_instL H.elimLevelAdmissible x
   have hsrcB : ∀ i, i < binders.length →
       ((O.argDomains[i]!.abstractList (S.fields_bound.fvars.take pos) i).abstractList
         H.params.fvars (pos + i)).levelParamsIn c.lparams = true := by
@@ -639,10 +639,10 @@ theorem RecursorConstruction.recursorTelescope_hypothesisHeader
     simp only [Expr.levelParamsIn_abstractList, Expr.levelParamsIn_abstractN]
     exact hidxU e₀ he₀
   have hbinders : ∀ d ∈ binders, IsDeclUnivImage L Q d :=
-    TrExprS.unshiftFixed_telescope H.elimLevelAdmissible hbase hsrcB Hbinders
+    TrExprS.isDeclUnivImage_telescope H.elimLevelAdmissible hbase hsrcB Hbinders
   have hindices : ∀ d ∈ indices, IsDeclUnivImage L Q d := by
-    refine TrExprS.unshiftFixed_forall₂ H.elimLevelAdmissible ?_ hsrcI Hindices
-    apply unshiftFixed_context
+    refine TrExprS.isDeclUnivImage_forall₂ H.elimLevelAdmissible ?_ hsrcI Hindices
+    apply isDeclUnivImage_context
     intro x hx
     rcases List.mem_append.mp hx with hx | hx
     · exact hbase x hx
@@ -765,7 +765,7 @@ theorem RecursorConstruction.flatMinorDeclaration
       simp [ownedConstructors, List.length_flatMap]
     omega
   obtain ⟨D⟩ := H.bindings.flatMinors.declarationAt H.localWF minorIdx hminorArray
-  obtain ⟨O⟩ := H.origins.flatMinorOrigin D
+  obtain ⟨O⟩ := H.origins.flatMinorBinderType D
   let originIdx := recursorMinorOffset indTypes O.owner + O.localIndex
   have horiginOwner : O.owner < indTypes.size := by rw [← hsizes]; exact O.owner_lt
   have horiginRoom := recursorMinorOffset_room indTypes O.owner horiginOwner
@@ -1230,7 +1230,7 @@ theorem RecursorConstruction.consumedConstructorAt_recursiveFields
     rw [H.sourceFields_length]
     exact this
 
-theorem RecursorConstruction.consumedSignatureData
+theorem RecursorConstruction.signatureSpec
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
     H.SignatureSpec (H.signature HU) where
   uvars := rfl

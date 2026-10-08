@@ -1577,7 +1577,7 @@ foralls.  This removes the concrete free-variable names from the semantic
 certificate before restoration reopens the same telescope with its own fresh
 names.  Every variable of the telescope is a local assumption of lowering's
 context, so both closures wrap the same translated parameter domains. -/
-theorem NestedLowering.closeValidatedNestedAuxiliaries
+theorem NestedLowering.closeNestedOccurrencesTyped
     (H : NestedLowering sourceEnv fuel nparams types initialState
       (res, finalState))
     (henv : venv.WF)
@@ -1668,7 +1668,7 @@ theorem NestedLowering.validatedAuxiliaryResidualTranslations
     rw [← h2] at this
     simpa using this
   exact ⟨selection,
-    (H.closeValidatedNestedAuxiliaries henv mlctx hmlctx hlctx Hvalidated
+    (H.closeNestedOccurrencesTyped henv mlctx hmlctx hlctx Hvalidated
       ).residualTranslations henv selection hnodup⟩
 
 theorem NestedLowering.resultAuxMap

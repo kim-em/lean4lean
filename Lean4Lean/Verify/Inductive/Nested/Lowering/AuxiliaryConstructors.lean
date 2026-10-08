@@ -901,7 +901,7 @@ theorem AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.directAuxiliary
   have HabstractLookup : (ves.venv safety).constants abstractCtor.name =
       some abstractCtor.toVConstant := by
     simpa [abstractCtor, containerFamily] using
-      installedInductCertificate_constructorLookup C.installed C.familyIdx i
+      installedBelow_constructorLookup C.installed C.familyIdx i
         C.familyIdx_lt B.abstractIdx_lt
   have HabstractConst : (ves.venv safety).HasType lparams.length []
       (.const abstractCtor.name abstractLevels)

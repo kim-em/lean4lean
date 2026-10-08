@@ -5,7 +5,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.GeneratedGuard
 to extend the rule-free assembly base by the restored generated equations:
 
 * realization of the executable restored rules
-  (`restoredRuleRealization_of_equation`): the right-hand side of each
+  (`trRestoredRecursorRule_of_equation`): the right-hand side of each
   restored rule translates (the right-hand-side type check of the restored
   rules) and its translation is the restored generated right-hand side
   (`restoredRuleRhs_of_trail`, with the freshness of the non-renamed
@@ -114,7 +114,7 @@ theorem NestedRun.restoredRuleRhs_translation
 environment of an assembly shape in which the stripped output environment is
 valid and the restorable names are fresh, the abstract restoration of the
 `k`-th generated equation realizes the executable restored rule at `k`. -/
-theorem NestedRun.restoredRuleRealization_of_equation
+theorem NestedRun.trRestoredRecursorRule_of_equation
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}

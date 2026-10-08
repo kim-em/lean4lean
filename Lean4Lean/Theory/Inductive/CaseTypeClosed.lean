@@ -84,26 +84,26 @@ theorem restore_go_isSome (r : Restoration) (e : VExpr) (args : List VExpr) :
       simp [this]
   | bvar | sort | elim => simp [Restoration.expr.go, Restorable]
 
-theorem restoreOK_instL (r : Restoration) (ls : List VLevel) :
+theorem restorable_instL (r : Restoration) (ls : List VLevel) :
     ∀ (e : VExpr) (n : Nat), Restorable r (e.instL ls) n ↔ Restorable r e n
-  | .app f a, n => by simp only [instL, Restorable, restoreOK_instL r ls f, restoreOK_instL r ls a]
+  | .app f a, n => by simp only [instL, Restorable, restorable_instL r ls f, restorable_instL r ls a]
   | .lam d b, n | .forallE d b, n => by
-    simp only [instL, Restorable, restoreOK_instL r ls d, restoreOK_instL r ls b]
-  | .proj _ _ m, n => by simp only [instL, Restorable, restoreOK_instL r ls m]
+    simp only [instL, Restorable, restorable_instL r ls d, restorable_instL r ls b]
+  | .proj _ _ m, n => by simp only [instL, Restorable, restorable_instL r ls m]
   | .const c us, n => by simp [instL, Restorable]
   | .bvar _, _ | .sort _, _ | .elim .., _ => by simp [instL, Restorable]
 
-theorem restoreOK_liftN (r : Restoration) (k : Nat) :
+theorem restorable_liftN (r : Restoration) (k : Nat) :
     ∀ (e : VExpr) (j n : Nat), Restorable r (e.liftN k j) n ↔ Restorable r e n
   | .app f a, j, n => by
-    simp only [liftN, Restorable, restoreOK_liftN r k f, restoreOK_liftN r k a]
+    simp only [liftN, Restorable, restorable_liftN r k f, restorable_liftN r k a]
   | .lam d b, j, n | .forallE d b, j, n => by
-    simp only [liftN, Restorable, restoreOK_liftN r k d, restoreOK_liftN r k b]
-  | .proj _ _ m, j, n => by simp only [liftN, Restorable, restoreOK_liftN r k m]
+    simp only [liftN, Restorable, restorable_liftN r k d, restorable_liftN r k b]
+  | .proj _ _ m, j, n => by simp only [liftN, Restorable, restorable_liftN r k m]
   | .const c us, _, n => by simp [liftN, Restorable]
   | .bvar _, _, _ | .sort _, _, _ | .elim .., _, _ => by simp [liftN, Restorable]
 
-theorem restoreOK_mkApps (r : Restoration) (fn : VExpr) (args : List VExpr) (n : Nat) :
+theorem restorable_mkApps (r : Restoration) (fn : VExpr) (args : List VExpr) (n : Nat) :
     Restorable r (mkApps fn args) n ↔
       (∀ a ∈ args, Restorable r a 0) ∧ Restorable r fn (n + args.length) := by
   induction args generalizing fn n with
@@ -116,7 +116,7 @@ theorem restoreOK_mkApps (r : Restoration) (fn : VExpr) (args : List VExpr) (n :
     · rintro ⟨h1, h2, h3⟩; exact ⟨⟨h2, h1⟩, by simpa [Nat.add_assoc, Nat.add_comm 1] using h3⟩
     · rintro ⟨⟨h2, h1⟩, h3⟩; exact ⟨h1, h2, by simpa [Nat.add_assoc, Nat.add_comm 1] using h3⟩
 
-theorem restoreOK_wrapForalls (r : Restoration) (doms : List VExpr) (body : VExpr) :
+theorem restorable_wrapForalls (r : Restoration) (doms : List VExpr) (body : VExpr) :
     Restorable r (wrapForalls doms body) 0 ↔
       (∀ d ∈ doms, Restorable r d 0) ∧ Restorable r body 0 := by
   induction doms with
@@ -125,7 +125,7 @@ theorem restoreOK_wrapForalls (r : Restoration) (doms : List VExpr) (body : VExp
     simp only [wrapForalls, List.foldr_cons] at ih ⊢
     simp only [Restorable, ih, List.mem_cons, forall_eq_or_imp, and_assoc]
 
-theorem restoreOK_vars (r : Restoration) (count below : Nat) :
+theorem restorable_vars (r : Restoration) (count below : Nat) :
     ∀ a ∈ vars count below, Restorable r a 0 := by
   intro a ha
   obtain ⟨i, _, rfl⟩ := List.mem_map.mp ha
@@ -324,7 +324,7 @@ theorem mem_insertBinders {l : List VExpr} {x : VExpr} (h : x ∈ l) (k : Nat) :
 
 /-! ## Restoration success of the case type -/
 
-theorem case_restoreOK (schema : CaseSchema) (owner : Fin schema.signature.families.size)
+theorem case_restorable (schema : CaseSchema) (owner : Fin schema.signature.families.size)
     {r : Restoration}
     (hp : ∀ p ∈ schema.signature.params, Restorable r p 0)
     (hc : ∀ c ∈ schema.signature.constructors.toList,
@@ -335,19 +335,19 @@ theorem case_restoreOK (schema : CaseSchema) (owner : Fin schema.signature.famil
     Restorable r ((schema.specialize owner schema.genericUvars schema.genericLevels
       (.param 0)).recursorType (schema.viewOwner owner)) 0 := by
   simp only [Instance.recursorType]
-  rw [restoreOK_wrapForalls]
+  rw [restorable_wrapForalls]
   refine ⟨?_, ?_⟩
   · intro d hd
     simp only [List.mem_append, List.mem_singleton] at hd
     rcases hd with ((((hd | hd) | hd) | hd) | rfl)
     · -- parameters
       obtain ⟨p, hpm, rfl⟩ := List.mem_map.mp hd
-      exact (restoreOK_instL r _ p 0).mpr (hp p hpm)
+      exact (restorable_instL r _ p 0).mpr (hp p hpm)
     · -- the single motive
       simp [Instance.motives, CaseSchema.view] at hd
       subst hd
       simp only [Instance.motive]
-      rw [restoreOK_wrapForalls]
+      rw [restorable_wrapForalls]
       refine ⟨?_, trivial⟩
       intro d hd
       simp only [List.mem_append, List.mem_singleton] at hd
@@ -355,11 +355,11 @@ theorem case_restoreOK (schema : CaseSchema) (owner : Fin schema.signature.famil
       · obtain ⟨⟨x, j⟩, hx, rfl⟩ := List.mem_map.mp hd
         obtain ⟨_, _, hxe⟩ := List.mem_zipIdx hx
         simp only at hxe ⊢
-        rw [restoreOK_liftN, hxe]
+        rw [restorable_liftN, hxe]
         simp only [List.getElem_map, Nat.sub_zero]
-        rw [restoreOK_instL]
+        rw [restorable_instL]
         exact hi _ (List.getElem_mem _)
-      · rw [restoreOK_mkApps]
+      · rw [restorable_mkApps]
         refine ⟨fun a ha => ?_, hconst _ _ ?_⟩
         · rcases List.mem_append.mp ha with ha | ha <;>
           · obtain ⟨_, _, rfl⟩ := List.mem_map.mp ha; trivial
@@ -373,25 +373,25 @@ theorem case_restoreOK (schema : CaseSchema) (owner : Fin schema.signature.famil
       obtain ⟨hf, hix⟩ := hc c hcm
       simp only [Instance.minor, caseConstructor_recursiveFields, caseConstructor_fieldTypes,
         List.zipIdx_nil, List.map_nil, List.append_nil, List.length_nil]
-      rw [restoreOK_wrapForalls]
+      rw [restorable_wrapForalls]
       refine ⟨fun d hd => ?_, ?_⟩
       · obtain ⟨⟨x, k⟩, hx, rfl⟩ := List.mem_map.mp hd
         obtain ⟨_, _, hxe⟩ := List.mem_zipIdx hx
         simp only at hxe ⊢
-        rw [restoreOK_liftN, hxe]
+        rw [restorable_liftN, hxe]
         simp only [List.getElem_map, Nat.sub_zero]
-        rw [restoreOK_instL]
+        rw [restorable_instL]
         exact hf _ (List.getElem_mem _)
-      · rw [restoreOK_mkApps]
+      · rw [restorable_mkApps]
         refine ⟨fun a ha => ?_, trivial⟩
         rcases List.mem_append.mp ha with ha | ha
         · obtain ⟨e, he, rfl⟩ := List.mem_map.mp ha
-          rw [restoreOK_liftN, restoreOK_liftN, restoreOK_instL]
+          rw [restorable_liftN, restorable_liftN, restorable_instL]
           exact hix e (by simpa [CaseSchema.caseConstructor] using he)
         · simp only [List.mem_singleton] at ha
           subst ha
           simp only [Instance.constructorApp]
-          rw [restoreOK_mkApps]
+          rw [restorable_mkApps]
           refine ⟨fun a ha => ?_, hconst _ _ ?_⟩
           · rcases List.mem_append.mp ha with ha | ha <;>
             · obtain ⟨_, _, rfl⟩ := List.mem_map.mp ha; trivial
@@ -400,18 +400,18 @@ theorem case_restoreOK (schema : CaseSchema) (owner : Fin schema.signature.famil
       obtain ⟨⟨x, j⟩, hx, rfl⟩ := List.mem_map.mp hd
       obtain ⟨_, _, hxe⟩ := List.mem_zipIdx hx
       simp only at hxe ⊢
-      rw [restoreOK_liftN, hxe]
+      rw [restorable_liftN, hxe]
       simp only [List.getElem_map, Nat.sub_zero]
-      rw [restoreOK_instL]
+      rw [restorable_instL]
       exact hi _ (List.getElem_mem _)
     · -- major premise
       simp only [Instance.familyApp, InductiveSignature.familyApp]
-      rw [restoreOK_mkApps]
+      rw [restorable_mkApps]
       refine ⟨fun a ha => ?_, hconst _ _ ?_⟩
       · rcases List.mem_append.mp ha with ha | ha <;>
         · obtain ⟨_, _, rfl⟩ := List.mem_map.mp ha; trivial
       · simp [vars, CaseSchema.view]
-  · rw [restoreOK_mkApps]
+  · rw [restorable_mkApps]
     refine ⟨fun a ha => ?_, trivial⟩
     rcases List.mem_append.mp ha with ha | ha
     · obtain ⟨_, _, rfl⟩ := List.mem_map.mp ha; trivial
@@ -642,11 +642,11 @@ theorem CaseSchema.Certified.genericType_closed {schema : CaseSchema}
         hrest.constructors _ (schema.signature.declarationCtor_family index)
       exact hOK _ restored hrestored
     simp only [constructorType] at hctorOK
-    rw [restoreOK_wrapForalls] at hctorOK
+    rw [restorable_wrapForalls] at hctorOK
     obtain ⟨hdoms, hbody⟩ := hctorOK
     refine ⟨fun f hf => hdoms f (List.mem_append_right _ hf), fun e he => ?_⟩
     simp only [familyApp] at hbody
-    rw [restoreOK_mkApps] at hbody
+    rw [restorable_mkApps] at hbody
     exact hbody.1 e (List.mem_append_right _ he)
   -- every head has the source universe and parameter arity
   have hheads : ∀ h ∈ r.heads, h.uvars = source.uvars ∧ h.nparams = source.nparams := by
@@ -665,7 +665,7 @@ theorem CaseSchema.Certified.genericType_closed {schema : CaseSchema}
     refine ⟨?_, ?_⟩
     · simp [CaseSchema.genericLevels, hu, huvars]
     · omega
-  have hok := case_restoreOK schema owner hpOK hcOK hiOK hconst
+  have hok := case_restorable schema owner hpOK hcOK hiOK hconst
   obtain ⟨type, htype⟩ := Option.isSome_iff_exists.mp
     ((restore_go_isSome r _ []).mpr (by simpa using hok))
   obtain ⟨hp, hc, hi⟩ := CaseCompilationData.case_scoping hdata hbase owner

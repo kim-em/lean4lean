@@ -370,7 +370,7 @@ theorem NestedRun.auxNestedHead {ves : VEnvs}
     ∃ I ls info, nested.getAppFn = .const I ls ∧
       sourceProdEnv.find? I = some (.inductInfo info) := by
   rcases E.lowering with ⟨finalState, Hrun, _Hcache, _Hparams⟩
-  rcases Hrun.finalCachedGeneratedFamilyOriginOfLookup
+  rcases Hrun.cachedAuxiliaryFamilyOfLookup
       (VEnvs.WFCore.environmentTypesClosed wf) wf.inductivesClosed Hsources rfl rfl hfind with
     ⟨O⟩
   have hhead := O.origin.generated.built.nested_getAppFn O.origin.generated.selection

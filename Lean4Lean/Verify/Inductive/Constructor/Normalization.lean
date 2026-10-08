@@ -130,7 +130,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
           have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hnormalizedFVars.1)).1
-          rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
+          rcases Hruntime.unannotatedDomain Hc Hdom hdomNarrow with
             ⟨domainLevel, hdomain⟩
           let Hruntime' :
               checkInductiveTypes.loopType.FrontScopeEmbedding

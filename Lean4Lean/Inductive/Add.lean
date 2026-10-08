@@ -1065,7 +1065,7 @@ def replaceParams (params : Array Expr) (e : Expr) (As : Array Expr) : M Expr :=
   2) the parametric arguments `Ds` do not contain loose bound variables, and do contain inductive datatypes in `m_new_types`
 THEN return the `inductive_val` in the `constant_info` associated with `I`.
 Otherwise, return none. -/
-def mentionsNestedNewType (newTypes : Array InductiveType) (e : Expr) : Bool :=
+def mentionsQueuedFamily (newTypes : Array InductiveType) (e : Expr) : Bool :=
   e.findAny fun
     | .const t _ => newTypes.any fun ty => t == ty.name
     | _ => false
@@ -1075,7 +1075,7 @@ def nestedParamFlags (newTypes : Array InductiveType) (args : Array Expr) :
   | 0 => (false, false)
   | n + 1 =>
     let flags := nestedParamFlags newTypes args n
-    (flags.1 || mentionsNestedNewType newTypes args[n]!,
+    (flags.1 || mentionsQueuedFamily newTypes args[n]!,
       flags.2 || args[n]!.hasLooseBVars)
 
 def isNestedInductiveAppConst? (e : Expr) (fn : Name) : M (Option InductiveVal) :=

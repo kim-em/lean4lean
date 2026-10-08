@@ -111,7 +111,7 @@ theorem Tables.Inv.eliminator {base : VEnv} {source : VInductDecl} {block : VInd
       have := hbase.ordered.rigid_of_absent hn
       simpa only [VEnv.Rigid, VEnv.addEliminator_defeqs, hdf] using this
     have hreg : (env.addEliminator key schema).eliminators key schema := VEnv.addEliminator_self
-    apply viewsOK_decl hnd
+    apply newViewsWF_decl hnd
     · intro t ht hs; exact hfree t ht hs
     · intro t ht _
       exact famShape_of_typeShape ((hTypeShape t ht).mono hle') (hTypeUv t ht) (htypeConst t ht)
@@ -155,7 +155,7 @@ theorem Tables.Inv.addSchema_registered {base E : VEnv} {source : VInductDecl}
     intro t ht c hc
     exact hconsts c (List.mem_append_right _ (by
       rw [hdata.ctors]; exact List.mem_flatMap.mpr ⟨t, ht, hc⟩))
-  apply viewsOK_decl hnd
+  apply newViewsWF_decl hnd
   · intro t ht hs; exact hfree t ht hs
   · intro t ht _
     exact famShape_of_typeShape ((hTypeShape t ht).mono hle) (hTypeUv t ht) (htypeConst t ht)

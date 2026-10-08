@@ -719,7 +719,7 @@ fact about it: translation of its restored concrete type in the canonical
 source environment. Source translation, shared metadata materialization,
 lowering, and the generated recursor certificate determine every remaining
 name, universe, and telescope-cardinality premise. -/
-theorem NestedLoweringOutputClosed.sourcePrimaryRecursorRealizationAtFresh
+theorem NestedLoweringOutputClosed.trSourceRecursorAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors recEnv : VEnv}
@@ -809,18 +809,18 @@ theorem NestedLoweringOutputClosed.sourcePrimaryRecursorRealizationAtFresh
           R.core
       _ = (Hprod.recInfos.flatMap (·.minors)).size :=
         Hprod.cardinality.minors.symm
-  refine ⟨recursor, ⟨Hprod.restoredSourcePrimaryRecursorRealization
+  refine ⟨recursor, ⟨Hprod.restoredTrSourceRecursor
     familyIdx hentry Hstep.restored.recursor holdRecName sourceDecl hdecl
     recursor recEnv rfl huvars rfl H.toResult.resultNParams
     (Hsource.nparams.trans H.toResult.resultNParams.symm) hmotives hminors
     hindices ?_⟩⟩
   simpa [recursor] using Htype
 
-/-- Binder-explicit form of `sourcePrimaryRecursorRealizationAtFresh`.
+/-- Binder-explicit form of `trSourceRecursorAtFresh`.
 This is the preferred boundary for the pending nested-restoration transport:
 the caller must provide the exact typed restored telescope, rather than an
 opaque translation of the whole expression. -/
-theorem NestedLoweringOutputClosed.sourcePrimaryRecursorRealizationAtFreshOfTelescope
+theorem NestedLoweringOutputClosed.trSourceRecursorAtFreshOfTelescope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors recEnv : VEnv}
@@ -853,7 +853,7 @@ theorem NestedLoweringOutputClosed.sourcePrimaryRecursorRealizationAtFreshOfTele
     ∃ recursor, Nonempty (TrSourceRecursor sourceDecl
       (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor recEnv
       recursor) :=
-  H.sourcePrimaryRecursorRealizationAtFresh Hprod Hsource Hmetadata hempty
+  H.trSourceRecursorAtFresh Hprod Hsource Hmetadata hempty
     familyIdx hfamily hdecl hentry Hstep targetType Htype.translation
 
 /-- Package one original family into the payload consumed by whole-mutual
@@ -1070,7 +1070,7 @@ theorem NestedLoweringOutputClosed.sourceSemanticTraceAtFreshOfTelescopeTranslat
     simpa using hresult
   rcases HtelescopeTypes familyIdx hfamily hdecl hentry stepSource stepTarget
       Hstep with ⟨targetType, Htelescope⟩
-  rcases H.sourcePrimaryRecursorRealizationAtFreshOfTelescope Hprod Hsource
+  rcases H.trSourceRecursorAtFreshOfTelescope Hprod Hsource
       Hmetadata hempty familyIdx hfamily hdecl hentry Hstep targetType
         Htelescope with
     ⟨recursor, ⟨Hrealization⟩⟩

@@ -302,7 +302,7 @@ end Model
 
 /-- **Chain-level head injectivity from soundness**: in a well-formed environment for which
 the observation model is sound, the hypothesis of the syntactic layer holds. -/
-theorem WF.headInjectivityCore_of_sound {env : VEnv} (henv : env.WF) (hnr : Model.SoundEnv env) :
+theorem WF.chainHeadInjectivity_of_sound {env : VEnv} (henv : env.WF) (hnr : Model.SoundEnv env) :
     env.ChainHeadInjectivity where
   sort_sort hΓ h := Model.sort_sort henv.ordered hnr hΓ h
   forallE_chain hΓ h := Model.forallE_chain henv.ordered hnr hΓ h

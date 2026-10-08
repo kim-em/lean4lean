@@ -2552,7 +2552,7 @@ theorem ContextWF.Aligned.isType {H : ContextWF c} (ha : H.Aligned)
     H.checking.tr.wf.ordered ha.defeqCtx
 
 /-- The narrow annotation-consumption certificate of an aligned context. -/
-theorem ContextWF.Aligned.consumedDomain {H : ContextWF c} (ha : H.Aligned)
+theorem ContextWF.Aligned.unannotatedDomain {H : ContextWF c} (ha : H.Aligned)
     (Hdom : H.UnannotatedDomain dom source' consumed') :
     ∃ source₀ consumed₀, H.atCheckLCtx.UnannotatedDomain dom source₀ consumed₀ ∧
       H.venv.IsDefEqU c.lparams.length H.mlctx.vlctx.toCtx source' source₀ ∧

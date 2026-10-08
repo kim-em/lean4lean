@@ -25,7 +25,7 @@ structure SourceAddInduct
 
 /-- Ordinary runs and primitive-bootstrap runs share the same independent
 source judgment; this alias documents the ordinary use site. -/
-abbrev OrdinaryInductiveSpecificationResult := SourceAddInduct
+abbrev OrdinarySourceAddInduct := SourceAddInduct
 
 end VerifyInductive
 end Lean4Lean

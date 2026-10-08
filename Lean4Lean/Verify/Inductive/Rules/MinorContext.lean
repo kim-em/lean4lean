@@ -480,7 +480,7 @@ theorem
     A.rule.minor_valid
   rcases H.bindings.flatMinors.declarationAt H.localWF minorIdx
       hminorArray with ⟨D⟩
-  rcases H.origins.flatMinorOrigin D with ⟨O⟩
+  rcases H.origins.flatMinorBinderType D with ⟨O⟩
   have hshapeBound : O.localIndex <
       H.origins.minorTypes[O.owner]!.size := by
     rw [(H.origins.minors O.owner O.owner_lt).size_eq]

@@ -852,7 +852,7 @@ private theorem NestedRun.assemblyBaseOfFormationNative
     intro venv' hle
     have hcert := HbaseValid.ctorTelescopes
     rw [henv, hinitial, hsafety] at hcert
-    have H := E.restoredCtorTelescopes Hsources Howners wf.envGF hcert
+    have H := E.restoredCtorTelescopes Hsources Howners wf.envGhostFree hcert
     rw [hsafety]
     exact ⟨CtorTelescopes.mono H.1 hle, CtorTelescopes.mono H.2 hle⟩
   have HtypeValid : CheckingEnv.Valid P.c.safety E.validationEnv

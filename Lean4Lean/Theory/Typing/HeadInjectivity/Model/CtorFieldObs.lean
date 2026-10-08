@@ -471,7 +471,7 @@ theorem ProjValid.ctx (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U)) {S : 
   obtain ⟨famType, params, own, pdoms, fdoms, idoms, idx, result, exprType, hord, hle, hfc,
     hshape, hpl, hol, hil, hidx, hT, ⟨w, hconv⟩, hctx1, hctx2, hwfT⟩ := ho.familyTele_data
   have hsE : SoundTypedIn env envTypes U Δ := fun h => hsnd U Δ hΔ h
-  have hsE' : SoundIn env envTypes U Δ := fun h => hsE.soundEnvAt h
+  have hsE' : SoundIn env envTypes U Δ := fun h => hsE.soundIn h
   have hwf : env.IsType info.uvars [] info.ctorType := hwfT.mono hle
   have hshape' : info.ctorType = .wrapForalls (pdoms ++ fdoms)
       (ctorRes S info (pdoms ++ fdoms).length idx) := hshape

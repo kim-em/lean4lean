@@ -81,9 +81,9 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.Replay.replayFresh.WF
 #inductive_audit Lean4Lean.Replay.replayFromImports.WF
 #inductive_audit Lean4Lean.Replay.Replayed.foldlM
-#inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveFinalResultWF
-#inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.primitiveInductiveFinalResultWF
-#inductive_audit Lean4Lean.VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
+#inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveExtensionWF
+#inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.primitiveInductiveExtensionWF
+#inductive_audit Lean4Lean.VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
 #inductive_audit Lean4Lean.TypeChecker.whnf.WF
 #inductive_audit Lean4Lean.TypeChecker.Inner.reduceRecursor.WF
 #inductive_audit Lean4Lean.InductiveSignature.Instance.equation
@@ -111,7 +111,7 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.VEnv.PrefixUnfold
 #inductive_audit Lean4Lean.VEnv.PrefixUnfold.defeq
 
-#inductive_audit Lean4Lean.InductiveSignature.RecursorData.prefixProgram
+#inductive_audit Lean4Lean.InductiveSignature.RecursorData.prefixUnfolding
 
 #inductive_audit Lean4Lean.VEnv.FullStep
 

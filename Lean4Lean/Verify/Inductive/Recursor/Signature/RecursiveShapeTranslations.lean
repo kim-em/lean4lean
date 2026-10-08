@@ -101,7 +101,7 @@ blueprint call `C := B.recursiveCalls[j]!` is the call of this hypothesis
 are the declaration-universe translations, in the small context
 `parameters ++ fields.take pos ++ binders`, of `C`'s argument domains and
 target indices closed over the earlier fields and the parameters. -/
-theorem RecursorConstruction.consumedGeneration_shapeTranslations
+theorem RecursorConstruction.generatedBy_shapeTranslations
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     let G := H.generator

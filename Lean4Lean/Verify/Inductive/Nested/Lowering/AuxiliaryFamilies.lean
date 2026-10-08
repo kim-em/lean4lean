@@ -83,7 +83,7 @@ theorem VEnv.InstalledBelow.sourceParameterWF
 
 /-- Finite installation provenance exposes the exact abstract constructor at
 each family/constructor position, just as it exposes the family header. -/
-theorem installedInductCertificate_constructorLookup
+theorem installedBelow_constructorLookup
     (H : VEnv.InstalledBelow env decl)
     (familyIdx ctorIdx : Nat) (hfamily : familyIdx < decl.types.length)
     (hctor : ctorIdx < decl.types[familyIdx].ctors.length) :
@@ -283,7 +283,7 @@ theorem AuxiliaryFamilyContainer.specializedConstructorApplicationHasType
     exact C.familyLookup
   have HconstructorLookup : venv.constants family.ctors[i].name =
       some family.ctors[i].toVConstant :=
-    installedInductCertificate_constructorLookup C.installed C.familyIdx i
+    installedBelow_constructorLookup C.installed C.familyIdx i
       C.familyIdx_lt habstractCtor'
   have HfamilyConst₀ : venv.HasType outerUvars []
       (.const family.name levels) (family.type.instL levels) := by
@@ -503,7 +503,7 @@ structure AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation
 /-- The executable builder, production alignment, and installed-container
 certificate determine the exact translated source constructor at every
 position. -/
-theorem AuxiliaryFamilyContainer.builtConstructorTranslation
+theorem AuxiliaryFamilyContainer.auxiliaryConstructorTranslation
     {ves : VEnvs}
     (C : AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params nestedAux concrete H)
@@ -519,7 +519,7 @@ theorem AuxiliaryFamilyContainer.builtConstructorTranslation
   have habstractLookup : (ves.venv safety).constants
       (((C.container.types[C.familyIdx]'C.familyIdx_lt).ctors[i]'habstractIdx).name) =
       some (((C.container.types[C.familyIdx]'C.familyIdx_lt).ctors[i]'habstractIdx).toVConstant) :=
-    installedInductCertificate_constructorLookup C.installed C.familyIdx i
+    installedBelow_constructorLookup C.installed C.familyIdx i
       C.familyIdx_lt habstractIdx
   have hsourceName : H.sourceInfo.ctors[i] =
       ((C.container.types[C.familyIdx]'C.familyIdx_lt).ctors[i]'habstractIdx).name :=

@@ -526,7 +526,7 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
   have hctorWitness : ∀ t ∈ decl.types, ∀ c ∈ t.ctors, MetadataMentions env' c.name :=
     fun t ht c hc => .inl (hctorMention t ht c hc)
   have hok : NewViewsWF env' T.fam T.ctor (viewFams decl selCtors) (viewCtors decl selCtors) := by
-    apply viewsOK_decl hnd
+    apply newViewsWF_decl hnd
     · intro t ht _
       obtain ⟨h1, h2, _⟩ := H.freshT (hfreshType t ht)
       exact ⟨h1, h2, fun c hc => by

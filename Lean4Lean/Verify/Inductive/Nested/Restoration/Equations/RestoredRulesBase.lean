@@ -216,7 +216,7 @@ the rule validator) is extended by the restored generated equations
 (`RestoredBlockBase.withRules`):
 
 * each restored generated equation realizes the executable restored rule
-  (`restoredRuleRealization_of_equation`, from the right-hand-side type check);
+  (`trRestoredRecursorRule_of_equation`, from the right-hand-side type check);
 * the restored generated equation of a source constructor is a nested iota
   rule of the canonical restored shape block (`primaryNestedIotaRule`, from
   the generator);
@@ -317,7 +317,7 @@ theorem NestedRun.hruleShape_of_base
       rules :=
     Lean4Lean.List.Forall₂.imp (fun k _ hk => by
       obtain ⟨owner, j, s, t, Hstep, hj, hk', hu, Ht, hl, hty⟩ :=
-        E.restoredRuleRealization_of_equation wf Hsources hadded Haux Hexpansion hnodup
+        E.trRestoredRecursorRule_of_equation wf Hsources hadded Haux Hexpansion hnodup
           hparamsSize D' hscoped B hB hV hfresh HL k hk
       exact ⟨owner, j, s, t, Hstep, hj, hk', hu, Ht, (D.expr_eq D' _).trans hl,
         (D.expr_eq D' _).trans hty⟩) Hrules

@@ -15,7 +15,7 @@ namespace Lean4Lean
 namespace EnvTables
 open InductiveSignature VExpr
 
-theorem restoreOK_wrapLams (r : Restoration) (doms : List VExpr) (body : VExpr) :
+theorem restorable_wrapLams (r : Restoration) (doms : List VExpr) (body : VExpr) :
     Restorable r (VExpr.wrapLams doms body) 0 ↔
       (∀ d ∈ doms, Restorable r d 0) ∧ Restorable r body 0 := by
   induction doms with
@@ -24,34 +24,34 @@ theorem restoreOK_wrapLams (r : Restoration) (doms : List VExpr) (body : VExpr) 
     simp only [VExpr.wrapLams, List.foldr_cons] at ih ⊢
     simp only [Restorable, ih, List.mem_cons, forall_eq_or_imp, and_assoc]
 
-theorem restoreOK_insertBinders {r : Restoration} {l : List VExpr} {k : Nat} :
+theorem restorable_insertBinders {r : Restoration} {l : List VExpr} {k : Nat} :
     (∀ d ∈ insertBinders l k, Restorable r d 0) ↔ ∀ x ∈ l, Restorable r x 0 := by
   constructor
   · intro h x hx
     obtain ⟨j, hj⟩ := mem_insertBinders hx k
-    exact (restoreOK_liftN r k x j 0).mp (h _ hj)
+    exact (restorable_liftN r k x j 0).mp (h _ hj)
   · intro h d hd
     obtain ⟨⟨x, j⟩, hx, rfl⟩ := List.mem_map.mp hd
-    exact (restoreOK_liftN r k x j 0).mpr (h x (List.fst_mem_of_mem_zipIdx hx))
+    exact (restorable_liftN r k x j 0).mpr (h x (List.fst_mem_of_mem_zipIdx hx))
 
-theorem constructorApp_restoreOK_iff {s : InductiveSignature} (g : Instance s)
+theorem constructorApp_restorable_iff {s : InductiveSignature} (g : Instance s)
     {r : Restoration} (ctor : Constructor s.families.size) (extra below : Nat) :
     Restorable r (g.constructorApp ctor extra below) 0 ↔
       Restorable r (.const ctor.name g.levels) (s.params.length + ctor.fields.length) := by
   unfold Instance.constructorApp
-  rw [restoreOK_mkApps]
+  rw [restorable_mkApps]
   constructor
   · intro h
     simpa [vars] using h.2
   · intro h
     refine ⟨fun a ha => ?_, by simpa [vars] using h⟩
-    rcases List.mem_append.mp ha with ha | ha <;> exact restoreOK_vars r _ _ a ha
+    rcases List.mem_append.mp ha with ha | ha <;> exact restorable_vars r _ _ a ha
 
 /-- **Restoration succeeds on the generated equations of a constructor without recursive
 fields** (in abstract head mode) whenever it succeeds on a generated recursor type: the
 equations are built from the parameters, motives and minor premises of the recursor type and
 the field types, indices and constructor application of the constructor's minor premise. -/
-theorem equation_restoreOK_of_recursorType {s : InductiveSignature} (g : Instance s)
+theorem equation_restorable_of_recursorType {s : InductiveSignature} (g : Instance s)
     {r : Restoration} (owner : Fin s.families.size)
     (h : Restorable r (g.recursorType owner) 0) (index : Fin s.constructors.size)
     (hrec : Instance.recursiveFields s.constructors[index] = []) (block : Name) (first : Nat) :
@@ -59,7 +59,7 @@ theorem equation_restoreOK_of_recursorType {s : InductiveSignature} (g : Instanc
       Restorable r (g.equation index (.elim block first)).rhs 0 ∧
       Restorable r (g.equation index (.elim block first)).type 0 := by
   unfold Instance.recursorType at h
-  rw [restoreOK_wrapForalls] at h
+  rw [restorable_wrapForalls] at h
   obtain ⟨hdoms, -⟩ := h
   have hparams : ∀ p ∈ g.params, Restorable r p 0 := fun p hp => hdoms p (by simp [hp])
   have hmotives : ∀ m ∈ g.motives, Restorable r m 0 := fun m hm => hdoms m (by simp [hm])
@@ -70,21 +70,21 @@ theorem equation_restoreOK_of_recursorType {s : InductiveSignature} (g : Instanc
   have hminor : Restorable r (g.minor s.constructors[index] index.val) 0 :=
     hminors _ (List.mem_map.2 ⟨_, hmem, rfl⟩)
   simp only [Instance.minor] at hminor
-  rw [restoreOK_wrapForalls, restoreOK_mkApps] at hminor
+  rw [restorable_wrapForalls, restorable_mkApps] at hminor
   obtain ⟨hfdoms, hargs, -⟩ := hminor
   have hfields : ∀ d ∈ insertBinders ((s.fieldTypes s.constructors[index]).map
       (·.instL g.levels)) (s.families.size + s.constructors.size), Restorable r d 0 := by
-    refine restoreOK_insertBinders.mpr fun x hx => ?_
-    have := restoreOK_insertBinders.mp
+    refine restorable_insertBinders.mpr fun x hx => ?_
+    have := restorable_insertBinders.mp
       (fun d hd => hfdoms d (List.mem_append_left _ hd)) x hx
     exact this
   have hindices : ∀ e ∈ s.constructors[index].indices, Restorable r (e.instL g.levels) 0 := by
     intro e he
     have := hargs _ (List.mem_append_left _ (List.mem_map.mpr ⟨e, he, rfl⟩))
-    rwa [restoreOK_liftN, restoreOK_liftN] at this
+    rwa [restorable_liftN, restorable_liftN] at this
   have hctor : Restorable r (.const s.constructors[index].name g.levels)
       (s.params.length + s.constructors[index].fields.length) :=
-    (constructorApp_restoreOK_iff g _ _ _).mp
+    (constructorApp_restorable_iff g _ _ _).mp
       (hargs _ (List.mem_append_right _ (List.mem_singleton_self _)))
   have hdomains : ∀ d ∈ g.params ++ g.motives ++ g.minors ++
       insertBinders ((s.fieldTypes s.constructors[index]).map (·.instL g.levels))
@@ -101,24 +101,24 @@ theorem equation_restoreOK_of_recursorType {s : InductiveSignature} (g : Instanc
         s.constructors[index].fields.length, Restorable r a 0 := by
     intro a ha
     obtain ⟨e, he, rfl⟩ := List.mem_map.mp ha
-    rw [restoreOK_liftN]
+    rw [restorable_liftN]
     exact hindices e he
   have hmajor : Restorable r (g.constructorApp s.constructors[index]
       (s.families.size + s.constructors.size) 0) 0 :=
-    (constructorApp_restoreOK_iff g _ _ _).mpr hctor
+    (constructorApp_restorable_iff g _ _ _).mpr hctor
   unfold Instance.equation
   simp only [hrec, List.map_nil, List.append_nil]
   refine ⟨?_, ?_, ?_⟩
-  · rw [restoreOK_wrapLams, restoreOK_mkApps]
+  · rw [restorable_wrapLams, restorable_mkApps]
     refine ⟨hdomains, fun a ha => ?_, trivial⟩
     simp only [List.mem_append, List.mem_singleton] at ha
     rcases ha with (ha | ha) | rfl
-    · exact restoreOK_vars r _ _ a ha
+    · exact restorable_vars r _ _ a ha
     · exact hidx a ha
     · exact hmajor
-  · rw [restoreOK_wrapLams, restoreOK_mkApps]
-    exact ⟨hdomains, fun a ha => restoreOK_vars r _ _ a ha, trivial⟩
-  · rw [restoreOK_wrapForalls, restoreOK_mkApps]
+  · rw [restorable_wrapLams, restorable_mkApps]
+    exact ⟨hdomains, fun a ha => restorable_vars r _ _ a ha, trivial⟩
+  · rw [restorable_wrapForalls, restorable_mkApps]
     refine ⟨hdomains, fun a ha => ?_, trivial⟩
     simp only [List.mem_append, List.mem_singleton] at ha
     rcases ha with ha | rfl
@@ -168,7 +168,7 @@ theorem genericEquations_restorable {schema : CaseSchema} (h0 : schema.restorati
     obtain ⟨c, -, -, hc⟩ := view_constructors_mem hmemc
     rw [hc]
     exact EnvTables.caseConstructor_recursiveFields schema owner c
-  obtain ⟨hl, hr, hty⟩ := equation_restoreOK_of_recursorType _ _ hOK index hrec
+  obtain ⟨hl, hr, hty⟩ := equation_restorable_of_recursorType _ _ hOK index hrec
     block owner.val
   have hl' := (restore_go_isSome r _ []).mpr (by simpa using hl)
   have hr' := (restore_go_isSome r _ []).mpr (by simpa using hr)

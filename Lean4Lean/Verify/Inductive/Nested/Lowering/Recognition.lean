@@ -23,9 +23,9 @@ def MentionsQueuedFamily
     | .const name _ => newTypes.any fun type => name == type.name
     | _ => false) = true
 
-theorem mentionsNestedNewType_iff
+theorem mentionsQueuedFamily_iff
     (newTypes : Array InductiveType) (e : Expr) :
-    Lean4Lean.ElimNestedInductive.mentionsNestedNewType newTypes e = true ↔
+    Lean4Lean.ElimNestedInductive.mentionsQueuedFamily newTypes e = true ↔
       MentionsQueuedFamily newTypes e := by
   rfl
 
@@ -37,7 +37,7 @@ theorem nestedParamFlags_fst
   | zero => simp [Lean4Lean.ElimNestedInductive.nestedParamFlags]
   | succ n ih =>
     rw [Lean4Lean.ElimNestedInductive.nestedParamFlags]
-    simp only [Bool.or_eq_true, ih, mentionsNestedNewType_iff]
+    simp only [Bool.or_eq_true, ih, mentionsQueuedFamily_iff]
     constructor
     · rintro (⟨i, hi, hmentions⟩ | hmentions)
       · exact ⟨i, by omega, hmentions⟩

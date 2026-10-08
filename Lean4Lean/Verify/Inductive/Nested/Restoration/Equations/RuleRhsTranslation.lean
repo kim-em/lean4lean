@@ -241,7 +241,7 @@ theorem NestedRun.restoredHeadsTranslate
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv auxRec lparams)
     (HauxSpec : ∀ a ∈ auxiliaries, ∃ nested,
       result.aux2nested.find? a.auxiliary = some nested ∧
-      AuxNestedSpecAt envTypes E.lowered.headers.commonParameterContext result lparams
+      AuxiliaryContainerAppAt envTypes E.lowered.headers.commonParameterContext result lparams
         nested a)
     {envT : VEnv} (hT : envT.WF) (hle : envTypes ≤ envT)
     {ats : List FVarId} (hnodup : ats.Nodup) (hlen : ats.length = result.nparams)
@@ -502,7 +502,7 @@ theorem NestedRun.restoredRuleRhs_translates
 without the rule validator: the right-hand side of the executable restored
 rule translates (`restoredRuleRhs_translates`) to the restored generated
 right-hand side. -/
-theorem NestedRun.restoredRuleRealization_base
+theorem NestedRun.trRestoredRecursorRule_base
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}

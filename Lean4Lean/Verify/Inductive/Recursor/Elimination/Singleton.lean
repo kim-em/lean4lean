@@ -228,7 +228,7 @@ theorem LargeEliminationCheck.singletonTelescope
           Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-        obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
+        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hc Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
         have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
           Hdom Hdom₀ hdomNarrow hdomType hdeps
@@ -278,7 +278,7 @@ theorem LargeEliminationCheck.singletonTelescope
           Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-        obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
+        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hc Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
         have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
           Hdom Hdom₀ hdomNarrow hdomType hdeps
@@ -334,7 +334,7 @@ theorem LargeEliminationCheck.singletonTelescope
           Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-        obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
+        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hc Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
         have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
           Hdom Hdom₀ hdomNarrow hdomType hdeps

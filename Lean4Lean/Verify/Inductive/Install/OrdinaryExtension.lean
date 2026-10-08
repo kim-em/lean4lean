@@ -130,7 +130,7 @@ theorem OrdinaryInstallation.extendSafeExact
       (wf.ctorParamsAgree (safety := .safe)) T.rules
   have horigins :
       InductInfosFromDecl c.env.constants outEnv.constants decl :=
-    Hrecursors.productionInductiveOrigins
+    Hrecursors.inductInfosFromDecl
   have howners : ConstructorOwnersPresent outEnv :=
     Hrecursors.constructorOwnersPresent wf.constructorOwners
   rcases B.extendSafeExact wf htels hdecl hcompile horigins T.recursorProvenance
@@ -198,7 +198,7 @@ theorem OrdinaryInstallation.extendUnsafeExact
       (wf.ctorParamsAgree (safety := .unsafe)) T.rules
   have horigins :
       InductInfosFromDecl c.env.constants outEnv.constants decl :=
-    Hrecursors.productionInductiveOrigins
+    Hrecursors.inductInfosFromDecl
   have howners : ConstructorOwnersPresent outEnv :=
     Hrecursors.constructorOwnersPresent wf.constructorOwners
   have hentries : ∀ entry ∈
@@ -341,7 +341,7 @@ theorem AddInductive.run.semanticFinalSpecificationModelWF
       ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         VEnvs.CtorTelescopesPreserved c.env outEnv ves ves' ∧
-        Nonempty (OrdinaryInductiveSpecificationResult Hc.venv c.lparams
+        Nonempty (OrdinarySourceAddInduct Hc.venv c.lparams
           nparams types (c.safety != .safe)
           (ves'.venv (if c.safety != .safe then .unsafe else .safe))) := by
   have hsize : 0 < types.toArray.size := by
@@ -349,7 +349,7 @@ theorem AddInductive.run.semanticFinalSpecificationModelWF
     | nil => simp [htypes] at hnonempty
     | cons _ _ => simp [htypes]
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
-    Hclosed wf.envGF hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
+    Hclosed wf.envGhostFree hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
       exact Hrun.extendWithSpecification wf htels hsource HnotPartial hnonempty
 
 end VerifyInductive

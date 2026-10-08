@@ -2185,7 +2185,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
           have hdeps : (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn htypeFVars.1)).1
-          rcases Hruntime.recursorConsumedDomain R Hdom hdomNarrow with
+          rcases Hruntime.recursorUnannotatedDomain R Hdom hdomNarrow with
             ⟨_domainLevel, hdomain⟩
           let Hruntime' :
               checkInductiveTypes.loopType.FrontScopeEmbedding

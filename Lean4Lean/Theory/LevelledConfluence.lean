@@ -86,7 +86,7 @@ theorem NLe.ofOptLo (H : OptLo R n a b) : NLe R n a b 1 := by
   · exact (NLe.ofLoStar h2).mono (Nat.zero_le _)
   · exact ⟨1, Nat.le_refl _, .hi h1 (.ofLoStar h2)⟩
 
-theorem NLe.ofMac (H : LoOptLo R n a b) : NLe R n a b 1 := by
+theorem NLe.ofLoOptLo (H : LoOptLo R n a b) : NLe R n a b 1 := by
   obtain ⟨b₁, c, h1, h2, h3⟩ := H
   simpa using (NLe.ofLoStar h1).append (NLe.ofOptLo ⟨c, h2, h3⟩)
 
@@ -192,8 +192,8 @@ theorem claim : ∀ s k₁ k₂, k₁ + k₂ ≤ s → NPath R n a b k₁ → NP
           · obtain ⟨z, h1, h2⟩ := small he₂v₂ (NLe.ofOptLo ⟨e₁, .inr he₁, he₁v₁⟩)
             exact ⟨z, h2.mono (Nat.zero_le _), h1⟩
           · obtain ⟨g, hg₁, hg₂⟩ := peak₁ _ _ _ he₁ he₂
-            obtain ⟨z₁, h1, h2⟩ := small he₁v₁ (NLe.ofMac hg₁)
-            obtain ⟨z₂, h3, h4⟩ := small he₂v₂ (NLe.ofMac hg₂)
+            obtain ⟨z₁, h1, h2⟩ := small he₁v₁ (NLe.ofLoOptLo hg₁)
+            obtain ⟨z₂, h3, h4⟩ := small he₂v₂ (NLe.ofLoOptLo hg₂)
             obtain ⟨z, h5, h6⟩ := conf _ _ _ h2.zero h4.zero
             exact ⟨z, by simpa using h1.append (NLe.ofLoStar h5),
               by simpa using h3.append (NLe.ofLoStar h6)⟩

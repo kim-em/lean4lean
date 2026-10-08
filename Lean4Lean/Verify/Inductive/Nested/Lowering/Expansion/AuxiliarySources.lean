@@ -70,7 +70,7 @@ cache key close the same source container application, up to Lean expression
 equivalence.  The proof cancels the two concrete parameter openings using the
 producer-retained selections and scope evidence. -/
 theorem LoweredOccurrenceSpine.cachedSourceApplicationEqv
-    {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
+    {Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result traceFinalState}
     {Hselection : CDeclArray lctx As}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
@@ -149,7 +149,7 @@ theorem LoweredOccurrenceSpine.cachedSourceApplicationEqv
 
 /-- Head and ordered parameter-spine consequences of the cache alpha law. -/
 theorem LoweredOccurrenceSpine.cachedSourceSpines
-    {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
+    {Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result traceFinalState}
     {Hselection : CDeclArray lctx As}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
@@ -729,7 +729,7 @@ selected parameters are closed and the live constructor fields are opened.
 The proof uses a leaf-free expansion; projection nodes are justified only by
 their environment-indexed support certificates. -/
 theorem AuxiliaryFamilySourceData.baseExpansionsAtReplacement
-    {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
+    {Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result traceFinalState}
     {Hselection : CDeclArray lctx As}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
@@ -874,7 +874,7 @@ The canonical specialization arguments may have a different certified
 projection normal form from the hit's source translation, so their exact
 structural expansion is retained separately from the trailing lowering
 expansion. -/
-theorem AuxiliaryFamilySourceData.nestedAuxiliarySource
+theorem AuxiliaryFamilySourceData.nestedOccurrenceReplacement
     (N : AuxiliaryFamilySourceData H baseVEnv sourceTypesVEnv
       lparams target)
     (sourceDecl : VInductDecl) (generated : List VInductiveType)
@@ -1002,7 +1002,7 @@ theorem AuxiliaryFamilyContainer.nativeGeneratedFamilySource
           targetCtor.type = VExpr.wrapForalls sourceParams
             (VExpr.instantiateForallPrefix instCtorType baseArgs) := by
     intro i hi
-    rcases C.builtConstructorTranslation wf i hi with ⟨Bbase⟩
+    rcases C.auxiliaryConstructorTranslation wf i hi with ⟨Bbase⟩
     let B : Ctypes.AuxiliaryConstructorTranslation (ves := largerVes) i hi := by
       simpa [Ctypes, largerVes] using
         (Bbase.mono (largerVes := largerVes) (by
@@ -1880,7 +1880,7 @@ theorem AuxiliaryFamilySources.sourceForReplacement
       lparams loweredDecl)
     (Htarget : TrInductDeclCore baseVEnv lparams nparams result.types
       isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
-    {Htrace : NestedReplacementFinalTrace prodEnv lctx result.params As input
+    {Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
       state output nextState result traceFinalState}
     {Hselection : CDeclArray lctx As}
     {HtargetExpr : TrExprS targetEnvTypes lparams targetCtx output targetValue}
@@ -2121,7 +2121,7 @@ theorem AuxiliaryFamilySources.replacementCompat
           (sourceDecl.paramVars fieldDepth ++ T.trailing))
         (congrArg (fun name => VExpr.const name T.auxiliaryLevels)
           (Nsource.sourceName.trans Ocanonical.auxName_eq).symm)
-  have Hrelative := Nsource.nestedAuxiliarySource sourceDecl N.generated
+  have Hrelative := Nsource.nestedOccurrenceReplacement sourceDecl N.generated
     hsourceTypes huvars (hnparams.trans Nsource.sourceParamsLength.symm)
       hfamily S.baseArgsAtDepth
       S.trailing T.trailing T.auxiliaryLevels hauxiliaryLevels HbaseWF

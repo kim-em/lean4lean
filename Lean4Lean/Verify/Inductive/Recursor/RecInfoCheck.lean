@@ -22,7 +22,7 @@ def ConstructorCheck.checkedRecursorConstructorTailAt
 
 /-- Select a mutual-family header after transporting its translation and
 materialized certificate through either ordinary or atomic installation. -/
-def ConstructorCheck.checkedRecursorHeaderAt
+def ConstructorCheck.motivePassHeaderAt
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
@@ -38,7 +38,7 @@ def ConstructorCheck.checkedRecursorHeaderAt
     R.installation.headerLE.trans (R.installation.constructorLE.trans R.ctorLE)
   have Hsource := Htype.header.mono hsourceLE
   have HsourceUses :=
-    (Htype.header.type.usesOnly_of_constants
+    (Htype.header.type.avoids_of_constants
       (fun {_name _ci} hlookup =>
         Lean4Lean.VerifyInductive.TrInductDeclCore.headerBaseAvoidsSourceNames
           R.core hlookup)).mono hsourceLE
@@ -62,7 +62,7 @@ def ConstructorCheck.checkedRecursorHeaderAt
             R.sourceContext.checking.tr.wf
         have Hshifted := Htype.header.type.prependLevelParam hsourceWF
           (by trivial) Helim
-        have HshiftedUses := Hshifted.usesOnly_of_constants
+        have HshiftedUses := Hshifted.avoids_of_constants
           (fun {_name _ci} hlookup =>
             Lean4Lean.VerifyInductive.TrInductDeclCore.headerBaseAvoidsSourceNames
               R.core hlookup)
@@ -396,7 +396,7 @@ theorem ConstructorCheck.loopInd1SemanticWF
   let Hheaders : forall i (hi : i < indTypes.size),
       mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl depth
         indTypes[i] i := fun i hi =>
-    R.checkedRecursorHeaderAt i hi hlparams
+    R.motivePassHeaderAt i hi hlparams
   have HparamsCtx : forall i (hi : i < indTypes.size),
       VEnv.IsDefEqCtx Rbase.venv
         (AddInductive.getRecLevelParams elimLevel c.lparams).length []

@@ -204,7 +204,7 @@ theorem RestoredBlockCertificate.declWF
 exact restoration fold determine the source-family production origins.  The
 equalities are only the indices erased when the executable semantic run is
 unpacked; no independent origin witness remains. -/
-theorem RestoredBlockCertificate.productionInductiveOrigins
+theorem RestoredBlockCertificate.inductInfosFromDecl
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -246,7 +246,7 @@ theorem RestoredBlockCertificate.productionInductiveOrigins
       c.env auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
       ((), outEnv) := by
     simpa only [henv, hnames] using H
-  have Horigins := Hrestored.productionInductiveOrigins Hlower Hc Hprod
+  have Horigins := Hrestored.inductInfosFromDecl Hlower Hc Hprod
     Hsource Hmetadata Hsources Harity Howners hempty
   simpa only [henv] using Horigins
 
@@ -460,7 +460,7 @@ private theorem RestoredBlockCertificate.extendSafe
     exact (B.typesLe htypesH).trans (outputLE .safe)
 
 /-- Declaration-dispatch form of the safe exact-restoration replay theorem. -/
-private theorem RestoredBlockCertificate.safeInductiveFinalResult
+private theorem RestoredBlockCertificate.safeInductiveExtension
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -500,7 +500,7 @@ private theorem RestoredBlockCertificate.safeInductiveFinalResult
 
 /-- Safe final-model assembly with production origins discharged from the
 exact closed lowering, ordinary production, and restoration traces. -/
-theorem RestoredBlockCertificate.safeInductiveFinalResultOfProduction
+theorem RestoredBlockCertificate.safeInductiveExtensionOfProduction
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -542,8 +542,8 @@ theorem RestoredBlockCertificate.safeInductiveFinalResultOfProduction
   have Howners : ConstructorOwnersPresent c.env := by
     rw [henv]
     exact wf.constructorOwners
-  exact C.safeInductiveFinalResult wf htels
-    (C.productionInductiveOrigins Hlower Hc Hprod Hmetadata Hsources Harity
+  exact C.safeInductiveExtension wf htels
+    (C.inductInfosFromDecl Hlower Hc Hprod Hmetadata Hsources Harity
       Howners hempty henv hlparams hnames)
     hclosed
     (C.constructorOwnersPresent Hlower Hc Hprod Howners hempty henv hnames)
@@ -553,7 +553,7 @@ theorem RestoredBlockCertificate.safeInductiveFinalResultOfProduction
 The premise is indexed by every exact fresh restoration trace, ruling out an
 unrelated list of production constants; it is precisely the production
 metadata fact needed to justify `TrEnv'.ignore` at partial and safe. -/
-private theorem RestoredBlockCertificate.unsafeInductiveFinalResult
+private theorem RestoredBlockCertificate.unsafeInductiveExtension
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -658,7 +658,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveFinalResult
           C.recursorEntries).map Prod.fst :=
       List.mem_map.mpr ⟨entry, hentry, rfl⟩
     exact hactualUnsafe entry.1 (hperm.mem_iff.mpr hcanonical)
-  have hheadersCanonical := B.installedInductiveHeadersUnsafe
+  have hheadersCanonical := B.newFamiliesUnsafe
     Hvalid.tr.map_wf hcanonicalUnsafe
   have hheadersActual : NewFamiliesUnsafe sourceProdEnv
       outEnv := by
@@ -749,7 +749,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveFinalResult
 
 /-- Unsafe final-model assembly with production origins discharged from the
 exact closed lowering, ordinary production, and restoration traces. -/
-theorem RestoredBlockCertificate.unsafeInductiveFinalResultOfProduction
+theorem RestoredBlockCertificate.unsafeInductiveExtensionOfProduction
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -794,8 +794,8 @@ theorem RestoredBlockCertificate.unsafeInductiveFinalResultOfProduction
   have Howners : ConstructorOwnersPresent c.env := by
     rw [henv]
     exact wf.constructorOwners
-  exact C.unsafeInductiveFinalResult wf htels
-    (C.productionInductiveOrigins Hlower Hc Hprod Hmetadata Hsources Harity
+  exact C.unsafeInductiveExtension wf htels
+    (C.inductInfosFromDecl Hlower Hc Hprod Hmetadata Hsources Harity
       Howners hempty henv hlparams hnames)
     hentriesUnsafe hclosed
     (C.constructorOwnersPresent Hlower Hc Hprod Howners hempty henv hnames)

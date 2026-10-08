@@ -2369,7 +2369,7 @@ theorem ParRedS.mkApps_head (hf : ReflTransGen (ParRed Γ) f f') (args : List VE
   | rfl => exact .rfl
   | tail _ h ih => exact ih.tail (ParRed.mkApps_head h args)
 
-theorem prefixProgram_supply_many {data : InductiveSignature.RecursorData}
+theorem prefixUnfolding_supply_many {data : InductiveSignature.RecursorData}
     {packed : List VLevel} (hr : RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero) :
     ∀ (more : List VExpr) {xs : List VExpr} {p q : InductiveSignature.RecursorData.PrefixUnfolding},
@@ -2400,7 +2400,7 @@ theorem prefixProgram_supply_many {data : InductiveSignature.RecursorData}
       rw [hspec₁.2.2.2.2.2.2, ← hbody, ← hspec.2.2.2.2.2.2]; exact hclosed
     have hq' : data.singletonUnfolding env univs levels ((xs ++ [m]) ++ rest) = some q := by
       simpa using hq
-    have ih := prefixProgram_supply_many (Γ := Γ) hr hlarge hzero rest hp₁ hq' hclosed₁
+    have ih := prefixUnfolding_supply_many (Γ := Γ) hr hlarge hzero rest hp₁ hq' hclosed₁
     refine ReflTransGen.trans (.tail .rfl ?_) ih
     show ParRed Γ (VExpr.mkApps (.app p.rhs m) rest) _
     rw [he, ← hb]
@@ -2415,7 +2415,7 @@ theorem PrefixUnfold.supply_many
     cases H₂ with
     | @intro data' q hl' _ _ _ _ _ hq _ =>
       cases hl.symm.trans hl'
-      exact prefixProgram_supply_many hr hlarge hz more hp hq (replay.templateScope henv).2.1
+      exact prefixUnfolding_supply_many hr hlarge hz more hp hq (replay.templateScope henv).2.1
 
 theorem quot_supply_many {levels : List VLevel} :
     ∀ (more : List VExpr) {xs : List VExpr} {p q : InductiveSignature.RecursorData.PrefixUnfolding},
@@ -4445,7 +4445,7 @@ theorem EtaPar.deltaPar_peak (hΓ : OnCtx Γ (env.IsType univs))
 
 /-! ### Assembly -/
 
-theorem levelled_mac (hΓ : OnCtx Γ (env.IsType univs)) (hb : Γ ⊢ b : A)
+theorem levelled_loOptLo (hΓ : OnCtx Γ (env.IsType univs)) (hb : Γ ⊢ b : A)
     (H1 : LevelStep Γ n b b₁) (H2 : ReflTransGen (Below Γ n) b₁ d) :
     Levelled.LoOptLo (LevelRel Γ) n b d :=
   ⟨b, b₁, .rfl, .inr ⟨⟨_, hb⟩, H1⟩, Below.loStar hΓ H2 (H1.hasType hΓ hb)⟩
@@ -4464,14 +4464,14 @@ theorem levelled_peak₁ (hΓ : OnCtx Γ (env.IsType univs)) :
   match n, H1, H2 with
   | 1, H1, H2 =>
     obtain ⟨b₁, c₁, h1, h2, h3⟩ := ParRed.church_rosser (η := false) hΓ ha H1 H2
-    exact ⟨b₁, levelled_mac hΓ hb (n := 1) h1 .rfl,
-      levelled_mac hΓ hc (n := 1) h2 (Below.single (k := 0) (by decide) (h3.symm hΓ))⟩
+    exact ⟨b₁, levelled_loOptLo hΓ hb (n := 1) h1 .rfl,
+      levelled_loOptLo hΓ hc (n := 1) h2 (Below.single (k := 0) (by decide) (h3.symm hΓ))⟩
   | 2, H1, H2 =>
     obtain ⟨d, ⟨b₁, h1, h2⟩, ⟨c₁, h3, h4⟩⟩ := DeltaPar.peak hΓ H1 H2 ha
-    exact ⟨d, levelled_mac hΓ hb (n := 2) h1 h2, levelled_mac hΓ hc (n := 2) h3 h4⟩
+    exact ⟨d, levelled_loOptLo hΓ hb (n := 2) h1 h2, levelled_loOptLo hΓ hc (n := 2) h3 h4⟩
   | 3, H1, H2 =>
     obtain ⟨d, ⟨b₁, h1, h2⟩, ⟨c₁, h3, h4⟩⟩ := EtaPar.peak hΓ H1 H2 ha
-    exact ⟨d, levelled_mac hΓ hb (n := 3) h1 h2, levelled_mac hΓ hc (n := 3) h3 h4⟩
+    exact ⟨d, levelled_loOptLo hΓ hb (n := 3) h1 h2, levelled_loOptLo hΓ hc (n := 3) h3 h4⟩
   | n + 4, H1, _ => exact H1.elim
 
 theorem levelled_peak₂ (hΓ : OnCtx Γ (env.IsType univs)) :

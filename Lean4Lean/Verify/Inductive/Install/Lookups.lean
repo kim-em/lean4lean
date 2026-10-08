@@ -586,7 +586,7 @@ Unlike `restoredPrimaryRecursorSemantics`, this theorem does not transport a
 shape from the expanded abstract declaration.  It derives the source shape
 from the generated concrete binder selections, operational restoration, and
 translation of the restored type in the canonical source environment. -/
-def RecursorCheck.restoredSourcePrimaryRecursorRealization
+def RecursorCheck.restoredTrSourceRecursor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}

@@ -361,7 +361,7 @@ theorem NestedRun.hprovenance_of
     have Hrules' := E.restoredRuleRealizations D hctorNames Hdata.recursorNames
       Hdata.heads_not_recursors hfreshFinal (E.auxRecName_not_renamed wf Hsources D)
       Hdata.equations HCrules owner Hstep hinstalled head Hctor
-    refine E.restoredRecursorRealization_of_step D hnames owner Hstep hle hrec Hw
+    refine E.trRestoredRecursorVal_of_step D hnames owner Hstep hle hrec Hw
       ⟨head, hhead, ?_, hlevels, hargs, happ, Hrules'⟩
     rw [E.restoredMajorInduct wf Hsources Haux Hexpansion hnodup hparamsSize D hscoped
       owner Hstep, hheadName]

@@ -35,7 +35,7 @@ theorem
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
     (B : A.FieldFrame :=
-      Classical.choice A.narrowFieldRuntimeFrame) :
+      Classical.choice A.fieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let parameterDecls := H.parameterSuffix.parameterDecls
@@ -759,7 +759,7 @@ theorem
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
     (B : A.FieldFrame :=
-      Classical.choice A.narrowFieldRuntimeFrame) :
+      Classical.choice A.fieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ (equationDomains localDomains : List VExpr)
         (prefixTarget : VExpr) (indexTargets : List VExpr)

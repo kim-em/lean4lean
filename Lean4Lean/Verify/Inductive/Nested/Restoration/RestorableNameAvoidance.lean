@@ -709,7 +709,7 @@ theorem NestedRun.envParamUniform_auxRecNames
 
 /-- **The trailing-provenance inputs at the lowered recursor names**, at any
 level list. -/
-theorem NestedRun.trailInputs_auxRecNames
+theorem NestedRun.trailingArgDeclarations_auxRecNames
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
@@ -819,11 +819,11 @@ theorem NestedRun.loweredRulesAvoid_auxRecNames
     rw [E.recursorPassEnv]
     exact E.envParamUniform_auxRecNames wf Hsources ls
   obtain ⟨HT, HL⟩ := C.toRecursorConstruction.ruleRhsTrail
-    (E.trailInputs_auxRecNames wf Hsources (foreignLevels lparams)) (W _)
+    (E.trailingArgDeclarations_auxRecNames wf Hsources (foreignLevels lparams)) (W _)
     heads result.nparams owner.val howner
     (AddInductive.getRecLevels C.elimLevel E.lowered.stats.levels) blueprint hmem
   obtain ⟨HT', -⟩ := C.toRecursorConstruction.ruleRhsTrail
-    (E.trailInputs_auxRecNames wf Hsources (badLevels₂ lparams)) (W _)
+    (E.trailingArgDeclarations_auxRecNames wf Hsources (badLevels₂ lparams)) (W _)
     heads result.nparams owner.val howner
     (AddInductive.getRecLevels C.elimLevel E.lowered.stats.levels) blueprint hmem
   have hsize : E.lowered.stats.params.size = result.nparams := E.statsParamsSize

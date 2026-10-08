@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.Coverage
 
 /-! # Delta rules of a well-formed environment
 
-`VEnv.WF.defRules`: every installed rule whose left-hand side is a bare constant is the
+`VEnv.WF.deltaRules`: every installed rule whose left-hand side is a bare constant is the
 delta rule of a definition: its levels are the rule's level parameters, the constant is
 declared with the rule's level count and type, and no other rule (of any shape) is headed
 by that constant. Proved by induction on the declaration history: every new rule is headed
@@ -70,7 +70,7 @@ theorem quotDefEq_lhs_ne_const : quotDefEq.lhs ≠ .const n ls := by
 theorem defeqs_addDefEq {env : VEnv} : (env.addDefEq d).defeqs df ↔ df ∈ [d] ∨ env.defeqs df := by
   simp [VEnv.addDefEq]
 
-theorem WF'.defRules {env : VEnv} (H : env.WF' ds) : env.DeltaRules := by
+theorem WF'.deltaRules {env : VEnv} (H : env.WF' ds) : env.DeltaRules := by
   induction H with
   | empty => exact ⟨nofun, nofun⟩
   | @decl d env' ds env hdecl hbase ih =>
@@ -196,8 +196,8 @@ theorem WF'.defRules {env : VEnv} (H : env.WF' ds) : env.DeltaRules := by
     exact ⟨fun df hdf n ls h => by simpa using ih.const df (by simpa using hdf) n ls h,
       fun df df' hdf hdf' => ih.excl df df' (by simpa using hdf) (by simpa using hdf')⟩
 
-theorem WF.defRules {env : VEnv} (H : env.WF) : env.DeltaRules :=
-  let ⟨_, H⟩ := H; H.defRules
+theorem WF.deltaRules {env : VEnv} (H : env.WF) : env.DeltaRules :=
+  let ⟨_, H⟩ := H; H.deltaRules
 
 end VEnv
 end Lean4Lean

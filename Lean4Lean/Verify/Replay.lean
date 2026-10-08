@@ -188,7 +188,7 @@ theorem isRec_spec {ci : ConstantInfo} (h : isRec ci = true) : IsPreludeEqRec ci
 
 end PreludeEq
 
-theorem hasProductionEq_spec {env : Environment} (h : hasPreludeEq env = true) :
+theorem hasPreludeEq_spec {env : Environment} (h : hasPreludeEq env = true) :
     HasPreludeEq env := by
   unfold hasPreludeEq at h
   split at h
@@ -227,7 +227,7 @@ theorem Replayed.replay {start env : Environment} (h : Replayed {} (· = start) 
     by_cases hd : d = .quotDecl
     · subst hd
       cases hi : env.quotInit
-      · exact ⟨_, H.snoc hadd fun _ => hasProductionEq_spec (hq rfl hi)⟩
+      · exact ⟨_, H.snoc hadd fun _ => hasPreludeEq_spec (hq rfl hi)⟩
       · exact ⟨ds, addDecl_quotDecl_of_quotInit hi hadd ▸ H⟩
     · exact ⟨_, H.snoc hadd fun h => absurd h hd⟩
 

@@ -133,7 +133,7 @@ theorem ConstHeaded.varN (h : ConstHeaded p) : ConstHeaded (p.varN n) := by
   | zero => exact h
   | succ _ ih => exact ih
 
-theorem Params.nativeHeads (h : Pat p r) : ConstHeaded p := by
+theorem Params.constHeaded (h : Pat p r) : ConstHeaded p := by
   obtain ⟨sp, rfl⟩ := pat_simple h
   cases sp with
   | defn => trivial
@@ -1449,7 +1449,7 @@ theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e
       (∃ p₁ e₁' e₁ m1₁ m2₁, Subpattern p₁ p ∧ (p₁ = p → e₁ = e ∧ e₁' = e' ∧ m1₁ ≍ m1 ∧ m2₁ ≍ m2) ∧
         p₁.Matches e₁ m1₁ m2₁ ∧ ∃ p' r m1 m2 m2',
         Pat p' r ∧ p'.Matches e₁ m1 m2 ∧ (∀ a, Γ ⊢ m2 a ≫ m2' a) ∧ e₁' = r.1.apply m1 m2') := by
-      have hnative := Params.nativeHeads l1
+      have hnative := Params.constHeaded l1
       clear l1 l3 l4 r
       induction H generalizing p m1 A with
       | schema hm =>

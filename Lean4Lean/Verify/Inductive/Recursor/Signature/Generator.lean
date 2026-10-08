@@ -136,7 +136,7 @@ noncomputable def RecursorConstruction.generatorOf
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
     H.GeneratedBy := by
-  have D := H.consumedSignatureData HU
+  have D := H.signatureSpec HU
   have hfamCount : (H.signature HU).families.size = indTypes.size := by
     simp [H.consumedFamilies_size, H.sourceFamilyCount]
   refine {
@@ -195,12 +195,12 @@ noncomputable def RecursorConstruction.generatorOf
 (not a choice from `canonicalConsumedGeneration`), so that its signature is
 definitionally `H.consumedSignature H.argumentUniverses` and the facts
 retained by the construction (for instance
-`consumedGeneration_shapeTranslations`) are available about it. -/
+`generatedBy_shapeTranslations`) are available about it. -/
 noncomputable def RecursorConstruction.generator
     (H : RecursorConstruction R) : H.GeneratedBy :=
   H.generatorOf H.argumentUniverses
 
-theorem RecursorConstruction.consumedGeneration_signature
+theorem RecursorConstruction.generatedBy_signature
     (H : RecursorConstruction R) :
     H.generator.signature = H.signature H.argumentUniverses := rfl
 

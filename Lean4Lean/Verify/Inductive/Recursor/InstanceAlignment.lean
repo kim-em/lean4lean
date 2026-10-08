@@ -255,7 +255,7 @@ theorem RecursorCheck.familyInfo
   rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?, hname, hinfo] at hlookup
   have hfresh := ha.entryFresh hwf (info := entry.1) (value := entry.2) hall
   rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, hname] at hfresh
-  rcases H.productionInductiveOrigins family.name info hlookup with hold |
+  rcases H.inductInfosFromDecl family.name info hlookup with hold |
       ⟨familyIdx, hinfoName, ⟨A⟩⟩
   · rw [hfresh] at hold
     cases hold
