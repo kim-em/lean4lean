@@ -857,7 +857,7 @@ theorem NestedValidatedRunResult.restoredEquationGaps
   · exact E.projectionAuxiliaryOnCtx_of wf Hsources auxiliaries D B hB hV entry hentry hTN
   · exact E.projectionPrimaryOnCtx_of wf Hsources auxiliaries D B hB hV entry hentry hTN
 
-/-- **`HrestoredWF` of `NestedValidatedRunResult.hruleShape_of`**: every
+/-- **`HrestoredWF` of `NestedValidatedRunResult.hruleShape_of_base`**: every
 restored generated equation is well formed in the final abstract environment
 of a final assembly base in which the stripped output environment is valid.
 This is `hrestoredWF_of_gaps` with the gaps of `restoredEquationGaps`. -/

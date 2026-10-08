@@ -8,7 +8,7 @@ import Lean4Lean.Theory.Inductive.BetaSubjectReduction
 import Lean4Lean.Verify.Inductive.Nested.RestoredEliminatorFacts
 
 /-! The restored-equation well-formedness hypothesis `HrestoredWF` of
-`NestedValidatedRunResult.hruleShape_of` (`Nested/RuleShape.lean`).
+`NestedValidatedRunResult.hruleShape_of_base` (`Nested/RuleShapeBase.lean`).
 
 Route. Every generated equation of the lowered production is well formed in
 the lowered recursor environment (`loweredEquationWF`, from
@@ -602,7 +602,7 @@ theorem NestedValidatedRunResult.restoredEquationSubstitution
     E.production.production.installed S₁ hrecs
   exact RenamingRestorationSubstitutionOnCtx.of_lambda S₂ hnp
 
-/-- **`HrestoredWF` of `NestedValidatedRunResult.hruleShape_of`**: every
+/-- **`HrestoredWF` of `NestedValidatedRunResult.hruleShape_of_base`**: every
 restored generated equation is well formed in the final abstract environment
 of a final assembly base in which the stripped output environment is valid,
 modulo `NestedRestoredEquationGaps` (the hypothesis-free form is

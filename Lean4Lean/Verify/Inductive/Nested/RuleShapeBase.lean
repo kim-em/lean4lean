@@ -8,12 +8,12 @@ source-family trace `sourceSemantics` and its rule-free auxiliary recursor
 trace `auxiliaryRecursorTrace`. The underlying base is the given one
 definitionally.
 
-`NestedValidatedRunResult.hruleShape_of_base` then proves the conclusion of
-`NestedValidatedRunResult.hruleShape_of` from `assemblyBaseNativeValid`,
-without the rule validator: the realization, nested-iota shape
-and well-formedness of the restored generated equations are hypotheses stated
-over every base of the run. Family counts, rule counts and block names are
-read off the base's traces and `stepRules_length`. -/
+`NestedValidatedRunResult.hruleShape_of_base` then extends the base of
+`assemblyBaseNativeValid` by the restored generated equations: their
+realization comes from the right-hand-side type check of the restored rules,
+their nested-iota shape from the generator, and their well-formedness is the
+hypothesis `HrestoredWF`. Family counts, rule counts and block names are read
+off the base's traces and `stepRules_length`. -/
 
 namespace Lean4Lean
 
