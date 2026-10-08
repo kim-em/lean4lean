@@ -21,7 +21,7 @@ as independently typed reference applications in that environment.
 LHS application.  The producer retains only same-domain telescope relations
 and independently typed reference applications; the dependent argument
 typings consumed by `LhsApplicationCertificate` are derived below. -/
-structure RecursorPhasesResult.GeneratedNestedIotaSource.RestoredPrimaryLhsSpineAlignment
+structure CompletedRecursorPhasesResult.GeneratedNestedIotaSource.RestoredPrimaryLhsSpineAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {initialEnv : VEnv} {indTypes : Array InductiveType}
@@ -29,7 +29,7 @@ structure RecursorPhasesResult.GeneratedNestedIotaSource.RestoredPrimaryLhsSpine
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {generatedOwner : Nat}
     {howner : generatedOwner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[generatedOwner]!.ctors.length}
@@ -84,7 +84,7 @@ structure RecursorPhasesResult.GeneratedNestedIotaSource.RestoredPrimaryLhsSpine
 
 /-- Same-domain operational alignment reconstructs the exact dependent
 application certificate; no typing judgment crosses environments. -/
-noncomputable def RecursorPhasesResult.GeneratedNestedIotaSource.RestoredPrimaryLhsSpineAlignment.certificate
+noncomputable def CompletedRecursorPhasesResult.GeneratedNestedIotaSource.RestoredPrimaryLhsSpineAlignment.certificate
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {initialEnv : VEnv} {indTypes : Array InductiveType}
@@ -92,7 +92,7 @@ noncomputable def RecursorPhasesResult.GeneratedNestedIotaSource.RestoredPrimary
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {generatedOwner : Nat}
     {howner : generatedOwner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[generatedOwner]!.ctors.length}

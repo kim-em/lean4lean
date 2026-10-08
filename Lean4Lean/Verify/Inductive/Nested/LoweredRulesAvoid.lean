@@ -1363,13 +1363,13 @@ theorem NestedValidatedRunResult.trailInputs_of
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    E.production.production.completed.toCompletedRecursorConstruction.TrailInputs
+    E.production.production.toCompletedRecursorConstruction.TrailInputs
       E.auxCtorNames (badLevels lparams) := by
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
   have hfresh : ∀ n ∈ E.auxCtorNames, sourceProdEnv.find? n = none :=
     fun n hn => E.hitHeads_fresh wf n (E.auxCtorNames_hitHeads n hn)
   have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
-      E.production.production.completed.toCompletedRecursorConstruction.localContext.env.find?
+      E.production.production.toCompletedRecursorConstruction.localContext.env.find?
         n = some ci := by
     intro n ci h
     have := E.ctorEnv_preserves wf h
@@ -1393,7 +1393,7 @@ theorem NestedValidatedRunResult.trailInputs_of
     rw [getElem!_pos E.production.indTypes i hi]
     exact Array.getElem_mem_toList hi
   refine ⟨?_, ?_, ?_, ?_, ?_⟩
-  · refine E.production.production.completed.toCompletedRecursorConstruction.paramDecls_trail
+  · refine E.production.production.toCompletedRecursorConstruction.paramDecls_trail
       (fun n hn => ?_) (fun s info h => ?_)
     · rw [E.production_initialEnv]
       cases hc : (ves.venv sf).constants n with
@@ -1418,9 +1418,9 @@ theorem NestedValidatedRunResult.trailInputs_of
     obtain ⟨body, hl, -⟩ := E.ctorTypes_headType wf Hsources _ (hmem i hi) ctor hctor
     rw [E.statsParamsSize, hnp]
     exact ⟨body, hl.leadingBinders⟩
-  · exact E.production.production.completed.toCompletedRecursorConstruction.recursorNames_not_mem
+  · exact E.production.production.toCompletedRecursorConstruction.recursorNames_not_mem
       (fun _ hh => E.hitHeads_subset (E.auxCtorNames_hitHeads _ hh)) hnodup
-  · refine E.production.production.completed.toCompletedRecursorConstruction.familyNames_not_mem
+  · refine E.production.production.toCompletedRecursorConstruction.familyNames_not_mem
       (fun n hn => ?_) (List.nodup_append.1 hnodup).1
     obtain ⟨t, ht, hn⟩ := List.mem_flatMap.1 hn
     exact List.mem_flatMap.2 ⟨t, List.mem_of_mem_drop ht, hn⟩
@@ -1504,17 +1504,17 @@ theorem NestedValidatedRunResult.generatedEntryOfFind
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (owner : Fin E.production.production.generationSignature.families.size)
     {rec : RecursorVal}
     (hfind : E.loweredEnv.find?
-        (E.production.production.completed.canonicalGeneration.recursorName owner) =
+        (E.production.production.canonicalGeneration.recursorName owner) =
       some (.recInfo rec)) :
-    ∃ hi : owner.val < E.production.production.completed.entries.length,
-      (E.production.production.completed.generated.entry owner.val hi).info = rec := by
-  rcases E.production.production.completed.metadataRealization owner with
+    ∃ hi : owner.val < E.production.production.entries.length,
+      (E.production.production.generated.entry owner.val hi).info = rec := by
+  rcases E.production.production.metadataRealization owner with
     ⟨rec', hrec, _, M⟩
-  have hlen : owner.val < E.production.production.completed.entries.length := by
-    rw [E.production.production.completed.entries_length_eq]
+  have hlen : owner.val < E.production.production.entries.length := by
+    rw [E.production.production.entries_length_eq]
     exact owner.isLt
   refine ⟨hlen, ?_⟩
   have hmem := List.getElem_mem (l := E.production.production.entries)
@@ -1530,7 +1530,7 @@ theorem NestedValidatedRunResult.generatedEntryOfFind
   have heq : rec' = rec := by
     injection h2 with h
     injection h
-  have hG := (E.production.production.completed.generated.entry owner.val hlen).source_eq
+  have hG := (E.production.production.generated.entry owner.val hlen).source_eq
   rw [hrec] at hG
   injection hG with hG
   rw [← heq, hG]
@@ -1559,7 +1559,7 @@ theorem NestedValidatedRunResult.loweredRulesAvoid_auxCtorNames
     E.LoweredRulesAvoid heads E.auxCtorNames := by
   intro owner rec hfind rule hrule
   obtain ⟨hi, hinfo⟩ := E.generatedEntryOfFind owner hfind
-  let C := E.production.production.completed
+  let C := E.production.production
   have howner : owner.val < C.recInfos.size := by rw [← C.generated.length]; exact hi
   have hrule' : rule ∈ (C.generated.entry owner.val hi).info.rules := by rw [hinfo]; exact hrule
   -- the declaration-level hit shape

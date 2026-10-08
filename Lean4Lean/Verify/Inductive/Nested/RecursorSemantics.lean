@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Equation.Setup
+import Lean4Lean.Verify.Inductive.CompletedEquationSetup
 
 namespace Lean4Lean
 
@@ -36,7 +36,7 @@ flattened minor array.  It combines the row inverse with the independent
 constructor/traversal alignment and the semantic first-pass witness.  In
 particular, callers no longer need to reconstruct a potentially different
 `RecInfoMinorTypeShape` by replaying the `flatMap` bookkeeping. -/
-structure RecursorPhasesResult.FlatMinorSemanticSource
+structure CompletedRecursorPhasesResult.FlatMinorSemanticSource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -44,7 +44,7 @@ structure RecursorPhasesResult.FlatMinorSemanticSource
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : RecursorPhasesResult R outEnv)
+    (H : CompletedRecursorPhasesResult R.completed outEnv)
     {minorIdx : Nat}
     (D : BoundFVarDeclarationAt H.localContext
       (H.recInfos.flatMap (·.minors)) minorIdx)
@@ -83,7 +83,7 @@ structure RecursorPhasesResult.FlatMinorSemanticSource
 
 /-- The source-shape package identifies the exact constructor selected by
 the flattened row, not only its containing constructor list. -/
-theorem RecursorPhasesResult.FlatMinorSemanticSource.constructorAt
+theorem CompletedRecursorPhasesResult.FlatMinorSemanticSource.constructorAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -91,12 +91,12 @@ theorem RecursorPhasesResult.FlatMinorSemanticSource.constructorAt
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv}
+    {H : CompletedRecursorPhasesResult R.completed outEnv}
     {minorIdx : Nat}
     {D : BoundFVarDeclarationAt H.localContext
       (H.recInfos.flatMap (·.minors)) minorIdx}
     {O : H.origins.FlatMinorOrigin D}
-    (P : RecursorPhasesResult.FlatMinorSemanticSource H D O) :
+    (P : CompletedRecursorPhasesResult.FlatMinorSemanticSource H D O) :
     indTypes[O.owner]!.ctors[O.localIndex]? = some O.shape.constructor := by
   have hconstructor := O.shape.sourceConstructor
   rw [P.sourceConstructors_eq, P.localIndex_eq] at hconstructor
@@ -107,7 +107,7 @@ completed recursor phases.  This is the stable end-to-end entry point for a
 minor-domain proof: all facts come from `minorSources` and `minorSemantics`,
 while the flattened declaration is related back to the same origin by the
 supplied `FlatMinorOrigin`. -/
-theorem RecursorPhasesResult.minorSemanticSourceOfFlatOrigin
+theorem CompletedRecursorPhasesResult.minorSemanticSourceOfFlatOrigin
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -115,12 +115,12 @@ theorem RecursorPhasesResult.minorSemanticSourceOfFlatOrigin
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : RecursorPhasesResult R outEnv)
+    (H : CompletedRecursorPhasesResult R.completed outEnv)
     (D : BoundFVarDeclarationAt H.localContext
       (H.recInfos.flatMap (·.minors)) minorIdx)
     (O : H.origins.FlatMinorOrigin D)
     (hsourceOwner : O.owner < indTypes.size) :
-    RecursorPhasesResult.FlatMinorSemanticSource H D O := by
+    CompletedRecursorPhasesResult.FlatMinorSemanticSource H D O := by
   let S := O.shape
   have Hsource := H.minorSources.rows O.owner O.owner_lt hsourceOwner O.localIndex
     O.shapeBound

@@ -100,7 +100,7 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringPrimitiveSafeWF
       sourceEnv res.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hc : ContextWF c) (H : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hlower : NestedLoweringResult c.env loweringFuel nparams
       sourceTypes
       { initialState with newTypes := sourceTypes.toArray } res)

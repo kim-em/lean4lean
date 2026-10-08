@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Equation.Setup
+import Lean4Lean.Verify.Inductive.DeclaredRecursorPhases
 
 namespace Lean4Lean
 

@@ -36,7 +36,7 @@ namespace VerifyInductive
 /-- Transport a generated source equation without reopening its ordinary
 equation proof.  The retained translation-body equalities are definitionally
 unchanged by `reblock`. -/
-def RecursorPhasesResult.GeneratedNestedIotaSource.reblock
+def CompletedRecursorPhasesResult.GeneratedNestedIotaSource.reblock
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {initialEnv : VEnv} {indTypes : Array InductiveType}
@@ -44,7 +44,7 @@ def RecursorPhasesResult.GeneratedNestedIotaSource.reblock
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {generatedRule : VDefEq}

@@ -333,5 +333,24 @@ theorem CompletedConstructorPhases.recursorPhasesWF
         rw [Htargets i hi]
         exact ((construction T).nativeTarget_eq i hbound).symm }⟩
 
+/-- The production universe-parameter guard succeeds only for a duplicate-free
+parameter list. -/
+theorem Kernel.Environment.checkDuplicatedUnivParams.WF
+    (lparams : List Name) :
+    (Kernel.Environment.checkDuplicatedUnivParams lparams).WF
+      (fun _ => lparams.Nodup) := by
+  induction lparams with
+  | nil =>
+    intro out hout
+    cases hout
+    trivial
+  | cons param lparams ih =>
+    by_cases hmem : param ∈ lparams
+    · rw [Kernel.Environment.checkDuplicatedUnivParams]
+      simp only [hmem, if_pos, Except.bind]
+      exact Except.WF.throw
+    · simpa [Kernel.Environment.checkDuplicatedUnivParams, hmem] using
+        ih.mono fun _ htail => List.nodup_cons.mpr ⟨hmem, htail⟩
+
 end VerifyInductive
 end Lean4Lean

@@ -75,7 +75,7 @@ restored target environment.
 This theorem is useful when that judgment is reconstructed from the restored
 recursor and constructor certificates: the caller need not separately prove
 context well-formedness or repeat any body-alignment rewrites. -/
-theorem RecursorPhasesResult.GeneratedNestedIotaSource.sourceTypingOfTargetLhs
+theorem CompletedRecursorPhasesResult.GeneratedNestedIotaSource.sourceTypingOfTargetLhs
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {initialEnv : VEnv} {indTypes : Array InductiveType}
@@ -83,7 +83,7 @@ theorem RecursorPhasesResult.GeneratedNestedIotaSource.sourceTypingOfTargetLhs
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {generatedOwner : Nat}
     {howner : generatedOwner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[generatedOwner]!.ctors.length}
@@ -114,7 +114,7 @@ typing derivations never inspect a changed lookup.
 This is the strongest valid generic transport theorem for a generated nested
 iota source.  Plain body equality cannot change the environment indexing a
 typing judgment. -/
-theorem RecursorPhasesResult.GeneratedNestedIotaSource.sourceTypingOfRebase
+theorem CompletedRecursorPhasesResult.GeneratedNestedIotaSource.sourceTypingOfRebase
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {initialEnv : VEnv} {indTypes : Array InductiveType}
@@ -122,7 +122,7 @@ theorem RecursorPhasesResult.GeneratedNestedIotaSource.sourceTypingOfRebase
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {generatedOwner : Nat}
     {howner : generatedOwner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[generatedOwner]!.ctors.length}
@@ -150,7 +150,7 @@ theorem RecursorPhasesResult.GeneratedNestedIotaSource.sourceTypingOfRebase
 derivation-scoped generated LHS transport.  This version does not ask for a
 dependency certificate for the generated context, because the target trace
 has already checked that context in the correct restored environment. -/
-theorem RecursorPhasesResult.GeneratedNestedIotaSource.sourceTypingOfTargetScope
+theorem CompletedRecursorPhasesResult.GeneratedNestedIotaSource.sourceTypingOfTargetScope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {initialEnv : VEnv} {indTypes : Array InductiveType}
@@ -158,7 +158,7 @@ theorem RecursorPhasesResult.GeneratedNestedIotaSource.sourceTypingOfTargetScope
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth initialEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {H : CompletedRecursorPhasesResult R.completed outEnv} {Us : List Name}
     {generatedOwner : Nat}
     {howner : generatedOwner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[generatedOwner]!.ctors.length}

@@ -247,7 +247,7 @@ theorem RestoredInductiveStep.restoredHeaderTranslationAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -600,7 +600,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactCanonicalPrimaryReplay
       sourceVEnv envTypes envCtors Htrace owners primaryRecursors)
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
@@ -769,7 +769,7 @@ recursor batch determines its generated owner and complete restoration
 telescope alignment.  No semantic recursor payload is selected here: the
 installed entry position and the concrete restoration lookup force the
 owner and old `RecursorVal`. -/
-theorem RecursorPhasesResult.restoredTelescopeAlignmentOfGeneratedName
+theorem CompletedRecursorPhasesResult.restoredTelescopeAlignmentOfGeneratedName
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
@@ -777,7 +777,7 @@ theorem RecursorPhasesResult.restoredTelescopeAlignmentOfGeneratedName
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)
     (hgenerated : oldRecName ∈
@@ -821,7 +821,7 @@ structure RestoredAuxiliaryGeneratedStepAlignment
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv) where
   ownerIdx : Nat
@@ -845,7 +845,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.recursorStepOfSuffix
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {Hprod : RecursorPhasesResult R loweredEnv}
+    {Hprod : CompletedRecursorPhasesResult R.completed loweredEnv}
     {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv}
     (A : RestoredAuxiliaryGeneratedStepAlignment Hprod Hstep)
@@ -893,7 +893,7 @@ inductive RestoredAuxiliaryGeneratedAlignmentTrace
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     {result : Lean4Lean.ElimNestedInductive.Result}
     {auxRec : NameMap Name} {allIndNames : List Name} :
     ∀ {names : List Name} {sourceEnv targetEnv : Environment},
@@ -920,7 +920,7 @@ theorem StateForMTrace.generatedAlignmentTrace
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     {result : Lean4Lean.ElimNestedInductive.Result}
     {auxRec : NameMap Name} {allIndNames : List Name}
     {names : List Name} {sourceEnv targetEnv : Environment}
@@ -959,7 +959,7 @@ theorem NestedLoweringResultClosed.auxRecNameGeneratedAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (hrecName : recName ∈
       (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).1) :
@@ -1013,7 +1013,7 @@ theorem RestoredNestedDeclarationsResult.generatedAlignmentTraceOfProduction
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
       (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).2
@@ -1070,7 +1070,7 @@ theorem RestoredAuxiliaryGeneratedAlignmentTrace.recursorTrace
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {Hprod : RecursorPhasesResult R loweredEnv}
+    {Hprod : CompletedRecursorPhasesResult R.completed loweredEnv}
     {result : Lean4Lean.ElimNestedInductive.Result}
     {auxRec : NameMap Name} {allIndNames : List Name}
     {names : List Name} {sourceProdEnv targetProdEnv : Environment}
@@ -1115,7 +1115,7 @@ theorem RestoredAuxiliaryGeneratedAlignmentTrace.recursorTraceOfSuffixes
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {Hprod : RecursorPhasesResult R loweredEnv}
+    {Hprod : CompletedRecursorPhasesResult R.completed loweredEnv}
     {names : List Name} {sourceProdEnv targetProdEnv : Environment}
     {Htrace : StateForMTrace
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
@@ -1597,7 +1597,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
       auxiliaryRecursors)
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hcore : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe decl envTypes envCtors)
     (Hparams : decl.SourceParameterWF sourceVEnv)
@@ -1737,7 +1737,7 @@ theorem RestoredSourceInductiveSemanticTrace.exactHeaderConstructorEntries
       sourceVEnv envTypes envCtors Htrace owners recursors)
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
@@ -1779,7 +1779,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactCanonicalReplay
       sourceVEnv envTypes envCtors Htrace owners recursors)
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
