@@ -272,6 +272,42 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   `lean4lean-e3` from its uncommitted `HTS.proj` extension. Both agents
   may spawn their own helper subagents on `-<topic>` branches; scratch
   worktrees now live under `~/worktrees/lean4lean/`, not `/tmp`.
+  **MILESTONE (2026-10-08): `VEnv.WF.headInversion` PROVED with no sorry
+  (branch `agent/verify-inductives-headinj` efdca175, merged into the mainline
+  as e65b044c, pushed).** `#print axioms` for `headInversion` and
+  `headInjectivity`: `propext`, `Classical.choice`, `Quot.sound` only.
+  Stage C closed: `Model.sound` proves `projDF`, `projIota`, `structEta`,
+  `unitLike` (HeadInjectivity/Model/ProjSound.lean, main lemma
+  `ctor_field_obs` in Model/ProjCtorField.lean); recursor rules whose major
+  is a constructor of a registered structure bind fields through projections
+  of the major or as proofs (Model/EtaBind.lean); the history induction also
+  proves validity of every projection entry (`Model.ProjValid`), gives
+  `WF.soundEnv` for every WF environment, and from it `headInjectivity`;
+  `ProjFree` is gone. No new hypothesis on `headInversion` (in particular no
+  canonical-`Eq` hypothesis was needed) and nothing in Theory/Inductive/*
+  changed. Decisions D15 to D17 in docs/inductives/PHASE1_NOTES.md; details
+  in docs/inductives/PHASE1B_NOTES.md §10.7 to 10.8. `TypeChain`/
+  `SpineArgsEq` now live in Theory/Typing/TypeChain.lean. Mainline checks
+  after the merge, all run by the lead: `lake build` 858 jobs with the single
+  sorry warning UniqueTyping.lean:230 (`strengthening_of_canonicalEq`);
+  `lake build Lean4Lean.Tests` 473 jobs; `lake build Lean4Lean.Experimental`
+  262 jobs; `--fresh Init.Prelude` 1975; `--fresh Init.Core` 3953; audit
+  `--self-test` passes; `--require-complete` fails only on
+  `strengthening_of_canonicalEq` (inventory lists it as the one open proof).
+  The mainline's sole remaining obligation is therefore the one E1 removes.
+  **Decision (2026-10-08) on goal item (1) and `Lean4Lean/Experimental/`:**
+  `lake build` (default targets) has no sorry warning besides
+  `strengthening_of_canonicalEq`; the separate `Lean4Lean.Experimental`
+  library still has 58 `sorry` declarations, all in Mario's upstream
+  prototype files (Thierry.lean 14, Thierry2.lean 26, SExpr.lean 7,
+  LogRel.lean 5, DomainTheory, MoreStepIndexed, ParallelReduction,
+  Stratified, StratifiedUntyped, Stronger.lean 1 each), every one of which
+  exists on `master` with at least as many sorries (the branch reduced
+  SExpr.lean from 30 to 7 and added none). These are exploratory prototypes,
+  not obligations of this branch's theorem, so they are left as on master
+  and listed here; the goal's "no `sorry` outside comments" is read as
+  applying to the branch's own development (Theory, Verify, Tests, and the
+  Experimental files it ported). Kim may override this reading.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: **Phase 1a
   COMPLETE (84bf90d3; merged into the mainline):** `lake build
   Lean4Lean.Experimental` passes (NormalEq, ParallelReduction, Stratified,
