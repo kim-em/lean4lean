@@ -368,13 +368,20 @@ run, under the same key, restored by the nested compilation's restoration
 (`Nested/CaseEliminators.lean`), certified from the validated run.
 
 The executable validates the restoration before installing it: restored constructor
-parameter prefixes, restored recursor types, and restored rules, each rule as a closed
+types, restored recursor types, and restored rules, each rule as a closed
 equation whose two sides are type checked and compared, together with a structural check that
 the rule is guarded (`validateRestoredRecursorRules`, `guardedIotaCheck`). Rules are
 validated in a copy of the restored environment in which every restored recursor has no rules
 (`stripRecursorRules`), because the abstract iota equations are only added once the rules
 are known to be well formed. The proof consumes these checks as evidence
 (`Nested/StrippedValidity.lean`, `Nested/CheckedGuardedIota.lean`).
+
+The common-parameter prefix of a source constructor is not re-checked. Lowering keeps it
+verbatim, the ordinary pipeline checks it for the lowered constructor in the lowered header
+environment, and the header stage of the restoration substitution
+(`Nested/HeaderRenaming.lean`), which replaces each auxiliary header by its restoration
+lambda, transports that check to the source header environment, where it fixes the
+parameters and the prefix (`NestedValidatedRunResult.nativeSourceParameterWF`).
 
 The parametric nested applications `I Ds` (leanprover/lean4#14577) are type-checked
 (`validateNestedAuxiliaries`), as in the C++ kernel. For a nested occurrence of a family with
@@ -391,7 +398,7 @@ execution: the `VInductDecl` (by translating the submitted syntax), the normaliz
 and instance, the restoration tables, the case schemas and their certificates. Three kinds of
 typing facts are not proved from the generator but read off runtime checks that the
 executable performs: the type of each generated recursor (`checkRecursorType`), the restored
-nested recursor types and constructor parameters, and the restored nested rules. On every
+nested constructor and recursor types, and the restored nested rules. On every
 declaration the checker accepts these checks succeed; they turn a generic generator
 correctness theorem, which would need strengthening and uniqueness at arbitrary generated
 syntax, into a type check of a closed term.
@@ -667,8 +674,8 @@ wrapper name. The other changes cannot change a decision except through checker 
   of the pinned toolchain does not do this, upstream does since leanprover/lean4#14808, which
   also checks rule type preservation, which lean4lean proves instead. Nested auxiliary types
   are named `_nested.i` rather than `_nested.J_i` (internal names only). The nested
-  restoration validation of section 3.3 re-checks restored declarations in side environments,
-  additionally re-checks constructor parameter prefixes, and validates restored rules in the
+  restoration validation of section 3.3 re-checks restored declarations in side environments
+  and validates restored rules in the
   stripped environment with guardedness, shape and equation-type checks, all stricter than the
   C++ kernel's revalidation (leanprover/lean4#14621). The nested applications `I Ds`
   themselves are only type-checked, as in the C++ kernel.

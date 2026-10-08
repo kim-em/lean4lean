@@ -9,6 +9,7 @@ import Lean4Lean.Verify.Inductive.Nested.ValidationEnvironmentRegistry
 import Lean4Lean.Verify.Inductive.Nested.FinalShapes
 import Lean4Lean.Verify.Inductive.Nested.CaseEliminators
 import Lean4Lean.Verify.Inductive.Nested.ConstructorTelescopes
+import Lean4Lean.Verify.Inductive.Nested.HeaderRenaming
 
 namespace Lean4Lean
 
@@ -1728,10 +1729,12 @@ retains literal header values, while materialization retains the separately
 checked index count and result universe. -/
 theorem NestedValidatedRunResult.nativeSourceTypeShapes
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv) :
+      sourceDecl lparams nparams isUnsafe safety outEnv)
+    {params : List VExpr}
+    (Hshapes : ∀ target ∈ E.production.loweredDecl.types,
+      E.production.loweredDecl.TypeShape E.production.initialEnv params target) :
     ∀ target ∈ sourceDecl.types,
-      sourceDecl.TypeShape sourceVEnv
-        E.production.headers.sourceMaterialized.headers.params target := by
+      sourceDecl.TypeShape sourceVEnv params target := by
   let P := E.production
   have hinitial : P.initialEnv = sourceVEnv := E.production_initialEnv
   have Hsource : TrInductDeclCore sourceVEnv lparams nparams sourceTypes
@@ -1796,11 +1799,11 @@ theorem NestedValidatedRunResult.nativeSourceTypeShapes
     Hmetadata.numIndices hprefix i hi hiExpanded
   have hresultLevel : sourceTarget.resultLevel = expandedTarget.resultLevel :=
     Hmetadata.resultLevel hprefix i hi hiExpanded
-  have Hshape : P.loweredDecl.TypeShape sourceVEnv
-      P.headers.sourceMaterialized.headers.params expandedTarget := by
-    have H := P.headers.sourceMaterialized.headers.typeShapes expandedTarget
-      (List.getElem_mem hiExpanded)
-    simpa only [P.headers.sourceContextVEnv, hinitial] using H
+  have Hshape : P.loweredDecl.TypeShape sourceVEnv params expandedTarget := by
+    have H : P.loweredDecl.TypeShape P.initialEnv params expandedTarget :=
+      Hshapes expandedTarget (List.getElem_mem hiExpanded)
+    rw [hinitial] at H
+    exact H
   rcases Hshape with
     ⟨normalized, ownParams, afterParams, indices, resultType, exprType,
       Hnormalized, Hparams, Hindices, HparamsDefEq, Hresult⟩
@@ -1813,143 +1816,174 @@ theorem NestedValidatedRunResult.nativeSourceTypeShapes
     by simpa only [sourceTarget, expandedTarget, huvarsEq, hresultLevel] using
       Hresult⟩
 
-/-- The literal restored-constructor parameter validator supplies the raw
-common-parameter shape of every reconstructed source constructor.  The
-family header shape above identifies the validator's opened domains with the
-single parameter telescope retained by ordinary header production. -/
+/-- Source parameter formation of a nested run, without a source-side
+re-check. Lowering keeps the common-parameter prefix of every source
+constructor verbatim (`LoweredConstructorMapping.sourceTargetSameForallPrefix`),
+so the translated prefix of a source constructor is the one of its lowered
+constructor, whose parameter shape the ordinary pipeline certified in the
+lowered header environment. The header-stage renaming replacement
+(`headerRenamingReplacement`) transports that certificate to the source header
+environment: the parameters and the prefix mention no auxiliary family, so the
+replacement fixes them. -/
 theorem NestedValidatedRunResult.nativeSourceParameterWF
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+    {ves : VEnvs}
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (Hraw : ∀ type ∈ sourceDecl.types, ∀ ctor ∈ type.ctors,
       sourceDecl.RawCtorShape type ctor) :
-    sourceDecl.SourceParameterWF sourceVEnv := by
+    sourceDecl.SourceParameterWF (ves.venv (if isUnsafe then .unsafe else .safe)) := by
   let P := E.production
-  let params := P.headers.sourceMaterialized.headers.params
-  have Hsource : TrInductDeclCore sourceVEnv lparams nparams sourceTypes
-      isUnsafe sourceDecl E.nativeSource.envTypes E.nativeSource.envCtors := by
+  have hinitial : P.initialEnv = ves.venv (if isUnsafe then .unsafe else .safe) :=
+    E.production_initialEnv
+  obtain ⟨paramsL, envTypesL, haddedL, HtypeShapesL, HctorsL, -⟩ :=
+    P.constructors.formation.formationWF.sourceParameterWF
+  have hheaderL : envTypesL = P.constructors.completed.headerVEnv := by
+    have h := P.constructors.completed.core.typesAdded
+    rw [haddedL] at h
+    exact Option.some.inj h
+  rcases E.restorationTablesRestoringAll wf Hsources with
+    ⟨envTypes, generated, auxiliaries, hadded, henvTypes, Haux, Hexpansion, -, D,
+      -, -⟩
+  have hnodup : (InductiveSignature.familyNames P.loweredDecl.types ++
+      P.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
+    rcases E.containerSpecializations wf Hsources with
+      ⟨_, _, _, _, _, _, _, h, _⟩
+    exact h
+  have S := E.headerRenamingReplacement wf hadded henvTypes Haux Hexpansion hnodup
+    henvTypes.ordered VEnv.LE.rfl (E.eliminatorProjNames_of wf Hsources auxiliaries D)
+  have hfresh := E.restorableNames_fresh hadded Haux Hexpansion hnodup
+  have hbaseWF : (ves.venv (if isUnsafe then .unsafe else .safe)).WF := TrEnv'.wf wf.tr
+  have hbaseFresh : ∀ n ∈ (InductiveSignature.compilationRestoration sourceDecl auxiliaries).restorableNames,
+      (ves.venv (if isUnsafe then .unsafe else .safe)).constants n = none :=
+    fun n hn => (VEnv.addConstVals_le hadded).constants_eq_none_left (hfresh n hn)
+  have Hsource : TrInductDeclCore (ves.venv (if isUnsafe then .unsafe else .safe))
+      lparams nparams sourceTypes isUnsafe sourceDecl E.nativeSource.envTypes
+        E.nativeSource.envCtors := by
     simpa only [E.nativeSourceDecl_eq] using E.nativeSource.core
-  have hsourceWF : sourceVEnv.WF := by
-    have Hwf := E.productionContextWF.checking.tr.wf
-    rw [E.productionContext_venv] at Hwf
-    exact Hwf
-  have htypesWF : E.nativeSource.envTypes.WF :=
-    Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource hsourceWF
-  have hsourceLE : sourceVEnv ≤ E.nativeSource.envTypes :=
-    VEnv.addConstVals_le Hsource.typesAdded
-  have HtypeShapesBase : ∀ target ∈ sourceDecl.types,
-      sourceDecl.TypeShape sourceVEnv params target :=
-    E.nativeSourceTypeShapes
-  have HtypeShapes : ∀ target ∈ sourceDecl.types,
-      sourceDecl.TypeShape E.nativeSource.envTypes params target := by
-    intro target htarget
-    exact (HtypeShapesBase target htarget).mono hsourceLE
-  let initialState : Lean4Lean.ElimNestedInductive.State :=
-    { lvls := lparams.map .param, newTypes := #[] }
-  have Hlower : NestedLoweringResultClosed sourceProdEnv
-      E.validationFuel.inductiveFuel nparams sourceTypes
-      { initialState with newTypes := sourceTypes.toArray } result := by
-    simpa only [initialState] using E.lowering
-  rcases Hlower with ⟨finalState, Hrun, Hcache, HparamsNodup⟩
-  rcases Hrun.source with
-    ⟨first, rest, sourceTail, paramsState, sourceLCtx, sourceParams,
-      hsourceTypes, Hopening, _hnewTypes, _hnestedAux, _hnextIdx,
-      _hprefix, _Hbinding, _Hselection, Hqueue⟩
-  have hfirstSource : 0 < sourceTypes.length := by
-    rw [hsourceTypes]
-    simp
-  have hfirstTarget : 0 < sourceDecl.types.length := by
-    rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource]
-    exact hfirstSource
-  have HfirstType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hsource
-    0 hfirstSource hfirstTarget
-  have HfirstTranslation : TrExprS E.nativeSource.envTypes lparams []
-      first.type sourceDecl.types[0].toVConstVal.type := by
-    simpa [hsourceTypes] using HfirstType.header.type.mono hsourceLE
-  have HopeningResult : NestedParamOpening {} #[] first.type nparams
-      result.lctx sourceTail result.params := by
-    rcases Hqueue.resultContext with ⟨hlctx, hparams⟩
-    rw [hlctx, hparams]
-    exact Hopening
-  have hresultLCtxWF : result.lctx.WF := Hrun.resultContextWF
-  have hresultFresh : ∀ fv ∈ result.lctx.fvars,
-      ({} : TypeChecker.State).ngen.Reserves fv :=
-    Hrun.resultContextKernelFresh rfl
-  refine ⟨params, E.nativeSource.envTypes, Hsource.typesAdded,
-    HtypeShapesBase, ?_, Hraw⟩
+  have hnativeTypes : E.nativeSource.envTypes = envTypes := by
+    have h := Hsource.typesAdded
+    rw [hadded] at h
+    exact (Option.some.inj h).symm
+  have HtypeShapes := E.nativeSourceTypeShapes HtypeShapesL
+  refine ⟨paramsL, envTypes, hadded, HtypeShapes, ?_, Hraw⟩
   intro target htarget ctor hctor
   rcases List.mem_iff_getElem.1 htarget with ⟨familyIdx, hfamily, rfl⟩
   rcases List.mem_iff_getElem.1 hctor with ⟨ctorIdx, hctorTarget, rfl⟩
   have hsourceFamily : familyIdx < sourceTypes.length := by
-    rw [Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource]
+    rw [TrInductDeclCore.types_length Hsource]
     exact hfamily
-  have Htype := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hsource
-    familyIdx hsourceFamily hfamily
+  have HsourceType := TrInductDeclCore.typeAt Hsource familyIdx hsourceFamily hfamily
   have hsourceCtor : ctorIdx < sourceTypes[familyIdx].ctors.length := by
-    rw [Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Htype]
+    rw [TrInductiveType.ctors_length HsourceType]
     exact hctorTarget
-  have HsourceCtor := Lean4Lean.VerifyInductive.TrInductiveType.ctorAt Htype
-    ctorIdx hsourceCtor hctorTarget
-  have hparameterRun :=
-    validateRestoredConstructorParameters.loop_eq_ok_of_run
-      E.parameterValidation (List.getElem_mem hsourceFamily)
-        (List.getElem_mem hsourceCtor)
-  have HprefixZero : CheckedConstructorParameterPrefix
-      E.nativeSource.envTypes lparams
-      { P.stats with params := result.params }
-      sourceTypes[familyIdx].ctors[ctorIdx].type 0
-      sourceTypes[familyIdx].ctors[ctorIdx].type [] [] := .zero
-  rcases HopeningResult.validateRestoredConstructorPrefix P.stats
-      E.nativeSource.headerValidationValid
-      hresultLCtxWF hresultFresh .nil rfl
-      trivial nofun HfirstTranslation HsourceCtor.type HprefixZero
-      hparameterRun with
-    ⟨parameterMLCtx, constructorTail, constructorSourceDomains,
-      familyDomains, familyTail, hparameterLCtx, hparameterWF,
-      hfamilyTarget, hfamilyLength, hparameterContext, Hchecked⟩
-  have Hchecked' : CheckedConstructorParameterPrefix
-      E.nativeSource.envTypes lparams
-      { P.stats with params := result.params }
-      sourceTypes[familyIdx].ctors[ctorIdx].type sourceDecl.nparams
-      constructorTail parameterMLCtx.vlctx constructorSourceDomains := by
-    simpa only [Array.size_empty, Nat.zero_add, Hsource.nparams] using Hchecked
-  have HfamilyShape := HtypeShapes sourceDecl.types[0]
-    (List.getElem_mem hfirstTarget)
-  rcases HfamilyShape with
-    ⟨normalized, ownParams, afterParams, indices, resultType, exprType,
-      Hnormalized, HparamsTake, _HindicesTake, HcanonicalOwn, _Hresult⟩
-  rcases VExpr.takeForalls_rebuild HparamsTake with
-    ⟨hnormalized, hownLength⟩
-  have HfamilyOwn : E.nativeSource.envTypes.IsDefEqU sourceDecl.uvars []
-      (VExpr.wrapForalls familyDomains familyTail)
-      (VExpr.wrapForalls ownParams afterParams) := by
-    rw [← hfamilyTarget, ← hnormalized]
-    exact ⟨exprType, Hnormalized⟩
-  have hdomainLength : familyDomains.length = ownParams.length := by
-    calc
-      familyDomains.length = nparams := hfamilyLength
-      _ = sourceDecl.nparams := Hsource.nparams.symm
-      _ = ownParams.length := hownLength.symm
-  have HfamilyOwnCtx : E.nativeSource.envTypes.IsDefEqCtx
-      sourceDecl.uvars [] familyDomains.reverse ownParams.reverse :=
-    by
-      simpa using VEnv.IsDefEqU.wrapForalls_context htypesWF
-        (VEnv.IsDefEqCtx.refl (by trivial)) hdomainLength HfamilyOwn
-  have HcanonicalFamily : E.nativeSource.envTypes.IsDefEqCtx
-      sourceDecl.uvars [] params.reverse familyDomains.reverse := by
-    have HcanonicalOwn' : E.nativeSource.envTypes.IsDefEqCtx
-        sourceDecl.uvars [] params.reverse ownParams.reverse := by
-      simpa [VInductDecl.ParamsDefEq] using HcanonicalOwn
-    exact VEnv.IsDefEqCtx.transEmpty htypesWF HcanonicalOwn'
-      (HfamilyOwnCtx.symm htypesWF.ordered)
-  have HcanonicalScope : E.nativeSource.envTypes.IsDefEqCtx lparams.length []
-      params.reverse parameterMLCtx.vlctx.toCtx := by
-    have hparameterContext' : parameterMLCtx.vlctx.toCtx =
-        familyDomains.reverse := by
-      simpa [VLCtx.toCtx] using hparameterContext
-    rw [hparameterContext']
-    simpa only [Hsource.uvars] using HcanonicalFamily
-  exact Hchecked'.ctorParameterShape htypesWF hparameterWF.tr.wf
-    HsourceCtor.type Hsource.uvars HcanonicalScope
+  have HsourceCtor := TrInductiveType.ctorAt HsourceType ctorIdx hsourceCtor hctorTarget
+  -- The lowered constructor at the same position.
+  rcases E.lowering.sourceFinalMappingAtFreshAligned (initialState :=
+      { lvls := lparams.map .param, newTypes := #[] }) rfl hsourceFamily with
+    ⟨_, _, loweredType, _, _, _, _, Hmapping, hloweredType⟩
+  rcases Hmapping.constructors.mappingAt ctorIdx hsourceCtor with
+    ⟨sourceCtor, loweredCtor, _, _, hsourceCtorEq, hloweredCtorEq, HctorMapping⟩
+  have hsourceCtorEq' : sourceCtor = sourceTypes[familyIdx].ctors[ctorIdx] := by
+    rw [List.getElem?_eq_getElem hsourceCtor] at hsourceCtorEq
+    exact (Option.some.inj hsourceCtorEq).symm
+  subst hsourceCtorEq'
+  have Hsame := HctorMapping.sourceTargetSameForallPrefix
+    (by simpa using HsourceCtor.type.fvarsIn) HsourceCtor.type.closed
+  -- Its translation in the lowered header environment.
+  have hindTypes : P.indTypes.toList = result.types := by
+    have harray := congrArg Array.toList E.production_indTypes
+    simpa using harray
+  have Hlowered := P.constructors.core
+  have hloweredFamily : familyIdx < result.types.length := by
+    rcases List.getElem?_eq_some_iff.1 hloweredType with ⟨h, _⟩
+    exact h
+  have hloweredFamily' : familyIdx < P.indTypes.toList.length := by
+    rw [hindTypes]; exact hloweredFamily
+  have hloweredDeclFamily : familyIdx < P.loweredDecl.types.length := by
+    rw [← TrInductDeclCore.types_length Hlowered]; exact hloweredFamily'
+  have HloweredType := TrInductDeclCore.typeAt Hlowered familyIdx hloweredFamily'
+    hloweredDeclFamily
+  have hloweredTypeEq : P.indTypes.toList[familyIdx] = loweredType := by
+    have h : P.indTypes.toList[familyIdx]? = some loweredType := by
+      rw [hindTypes]; exact hloweredType
+    rw [List.getElem?_eq_getElem hloweredFamily'] at h
+    exact Option.some.inj h
+  have hloweredCtorIdx : ctorIdx < loweredType.ctors.length := by
+    rcases List.getElem?_eq_some_iff.1 hloweredCtorEq with ⟨h, _⟩
+    exact h
+  have hloweredCtorIdx' : ctorIdx < P.indTypes.toList[familyIdx].ctors.length := by
+    rw [hloweredTypeEq]; exact hloweredCtorIdx
+  have hloweredDeclCtor : ctorIdx < P.loweredDecl.types[familyIdx].ctors.length := by
+    rw [← TrInductiveType.ctors_length HloweredType]; exact hloweredCtorIdx'
+  have HloweredCtor := TrInductiveType.ctorAt HloweredType ctorIdx hloweredCtorIdx'
+    hloweredDeclCtor
+  have hloweredCtorEq' : P.indTypes.toList[familyIdx].ctors[ctorIdx] = loweredCtor := by
+    have h : loweredType.ctors[ctorIdx]? = some loweredCtor := hloweredCtorEq
+    rw [List.getElem?_eq_getElem hloweredCtorIdx] at h
+    simp only [hloweredTypeEq]
+    exact Option.some.inj h
+  have HloweredCtorType : TrExprS P.headers.context.venv P.c.lparams []
+      loweredCtor.type P.loweredDecl.types[familyIdx].ctors[ctorIdx].type := by
+    have h := HloweredCtor.type
+    rw [hloweredCtorEq'] at h
+    exact h
+  -- The certified parameter shape of the lowered constructor.
+  rcases HctorsL _ (List.getElem_mem hloweredDeclFamily) _
+      (List.getElem_mem hloweredDeclCtor) with ⟨own, tail, htake, hdefeq⟩
+  have hlparams : P.c.lparams = lparams :=
+    (congrArg AddInductive.Context.lparams E.production_c).trans
+      E.productionContext_lparams
+  have hnparamsEq : P.loweredDecl.nparams = sourceDecl.nparams :=
+    P.constructors.core.nparams.trans (E.production_nparams.trans Hsource.nparams.symm)
+  rw [hnparamsEq] at htake
+  have hnparams : sourceDecl.nparams = nparams := Hsource.nparams
+  rw [hnparams] at htake
+  obtain ⟨tail', htake'⟩ := Hsame.takeForalls_of_trExprS .base
+    (by simpa only [hlparams] using HsourceCtor.type)
+    (by simpa only [hlparams] using HloweredCtorType) htake
+  refine ⟨own, tail', by rw [hnparams]; exact htake', ?_⟩
+  -- The prefix mentions no restorable name.
+  have hownClean : ∀ A ∈ own,
+      A.containsAnyConst (InductiveSignature.compilationRestoration sourceDecl auxiliaries).restorableNames =
+        false := by
+    have hwf := HsourceCtor.wf
+    rw [hnativeTypes] at hwf
+    obtain ⟨u, hu⟩ := hwf
+    have hclean := (hu.noFreshConsts henvTypes.ordered hfresh
+      (fun _ h => by simp at h)).1
+    rw [(VExpr.takeForalls_eq_wrapForalls htake').1] at hclean
+    exact (VExpr.containsAnyConst_wrapForalls_inv hclean).1
+  have huvars : P.loweredDecl.uvars = sourceDecl.uvars :=
+    P.constructors.core.uvars.trans (by rw [hlparams, Hsource.uvars])
+  have hdefeq' : P.constructors.completed.headerVEnv.IsDefEqCtx sourceDecl.uvars []
+      paramsL.reverse own.reverse := by
+    rw [← hheaderL, ← huvars]; exact hdefeq
+  have Htransported := S.isDefEqCtx hdefeq'
+  -- The parameters and the prefix mention no restorable name.
+  have hparamsClean : ∀ A ∈ paramsL,
+      A.containsAnyConst (InductiveSignature.compilationRestoration sourceDecl auxiliaries).restorableNames =
+        false := by
+    rcases HtypeShapes _ htarget with ⟨_, _, _, _, _, _, _, _, _, hshape, _⟩
+    have hctx := VEnv.Ordered.ctxNoFreshConsts hbaseWF.ordered hbaseFresh hshape.isType
+    intro A hA
+    exact hctx A (List.mem_reverse.mpr hA)
+  have hmapParams : paramsL.reverse.map (fun A => A.replaceRen
+      ((InductiveSignature.compilationRestoration sourceDecl auxiliaries).lambdaReplacement
+        fun _ => P.compilationSignature.params)
+      (InductiveSignature.compilationRestoration sourceDecl auxiliaries).renaming) = paramsL.reverse := by
+    rw [List.map_congr_left (fun A hA => InductiveSignature.Restoration.replaceRen_eq_self
+      (hparamsClean A (List.mem_reverse.mp hA))), List.map_id']
+  have hmapOwn : own.reverse.map (fun A => A.replaceRen
+      ((InductiveSignature.compilationRestoration sourceDecl auxiliaries).lambdaReplacement
+        fun _ => P.compilationSignature.params)
+      (InductiveSignature.compilationRestoration sourceDecl auxiliaries).renaming) = own.reverse := by
+    rw [List.map_congr_left (fun A hA => InductiveSignature.Restoration.replaceRen_eq_self
+      (hownClean A (List.mem_reverse.mp hA))), List.map_id']
+  have Htransported' := Htransported
+  rw [hmapParams, hmapOwn, List.map_nil] at Htransported'
+  exact Htransported'
 
 /-- Assemble a validated execution in the production record's native
 dependent indices, then transport the completed certificate once to the
@@ -2387,7 +2421,7 @@ theorem NestedValidatedRunResult.assemblyShapeNativeValid
       R.formation.formationWF.sourceParameterWF.rawCtorShape huvars hdeclParams
       hloweredNodup
   have Hparameters : sourceDecl.SourceParameterWF P.initialEnv := by
-    simpa only [hinitial, safety] using E.nativeSourceParameterWF Hraw
+    simpa only [hinitial, safety] using E.nativeSourceParameterWF wf Hsources Hraw
   have hdeclUnsafe : P.loweredDecl.isUnsafe = sourceDecl.isUnsafe := by
     calc
       P.loweredDecl.isUnsafe = P.isUnsafe := R.core.isUnsafe

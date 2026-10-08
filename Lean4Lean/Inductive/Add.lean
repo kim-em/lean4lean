@@ -1383,48 +1383,11 @@ def restoreNestedDeclarations (res : ElimNestedInductive.Result)
 
 namespace validateRestoredConstructorParameters
 
-/-- Recheck exactly the common-parameter prefix of one original constructor
-against the parameter free variables retained by nested lowering.  This pass
-deliberately stops before constructor fields: those may contain the nested
-occurrences handled by lowering and must not be sent back through the ordinary
-positivity checker. -/
-def loop (env : Environment) (lparams : List Name)
-    (safety : DefinitionSafety) (typeCheckerFuel : FuelConfig)
-    (fullLCtx currentLCtx : LocalContext) (ctorName : Name)
-    (params : Array Expr) (type : Expr)
-    (i fuel : Nat) : Except Exception Unit :=
-  match fuel with
-  | 0 => throw .deepRecursion
-  | fuel + 1 => do
-    if hi : i < params.size then
-      let .forallE _ dom body _ := type
-        | throw <| .other s!"number of parameters mismatch in constructor '{ctorName}'"
-      let .cdecl _ fv paramName paramType bi kind :=
-          fullLCtx.get! params[i].fvarId!
-        | throw <| .other s!"invalid retained parameter context for '{ctorName}'"
-      unless ← TypeChecker.M.run env (safety := safety)
-          (lctx := currentLCtx) (lparams := lparams)
-          (fuel := typeCheckerFuel) (TypeChecker.isDefEq dom paramType) do
-        throw <| .other
-          s!"arg #{i + 1} of '{ctorName}' does not match inductive datatype parameters"
-      loop env lparams safety typeCheckerFuel fullLCtx
-        (currentLCtx.mkLocalDecl fv paramName paramType bi kind)
-        ctorName params (body.instantiate1 params[i]) (i + 1) fuel
-    else
-      pure ()
-
-/-- Recheck every original constructor type and its common-parameter prefix
-in the source-shaped restored environment.  The local context and parameter
-free variables are exact producer data retained by nested lowering, so this
-does not reconstruct them in an environment already containing the restored
-declarations.
-
-This is an intentionally conservative post-restoration validation pass: it
-can reject through the type-checker's ordinary recursion fuel in addition to
-the lowering/production checks that have already succeeded. -/
+/-- Recheck every original constructor type in the source-shaped
+environment of the restored headers. -/
 def run (env : Environment) (lparams : List Name) (safety : DefinitionSafety)
     (fuel : FuelConfig) (types : List InductiveType)
-    (res : ElimNestedInductive.Result) : Except Exception Unit := do
+    (_res : ElimNestedInductive.Result) : Except Exception Unit := do
   types.forM fun type =>
     type.ctors.forM fun ctor => do
       _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
@@ -1432,8 +1395,6 @@ def run (env : Environment) (lparams : List Name) (safety : DefinitionSafety)
         (do
           let type ← TypeChecker.checkType ctor.type
           TypeChecker.ensureSort type ctor.type)
-      loop env lparams safety fuel res.lctx {} ctor.name res.params
-        ctor.type 0 fuel.inductiveFuel
 
 end validateRestoredConstructorParameters
 
