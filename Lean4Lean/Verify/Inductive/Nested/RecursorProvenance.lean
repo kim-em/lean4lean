@@ -247,14 +247,6 @@ namespace VerifyInductive
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
-private theorem forall₂_imp_mem_right' {R S : α → β → Prop} :
-    ∀ {l₁ : List α} {l₂ : List β}, List.Forall₂ R l₁ l₂ →
-      (∀ a b, b ∈ l₂ → R a b → S a b) → List.Forall₂ S l₁ l₂
-  | _, _, .nil, _ => .nil
-  | _, _, .cons h t, H =>
-    .cons (H _ _ List.mem_cons_self h)
-      (forall₂_imp_mem_right' t fun a b hb h => H a b (List.mem_cons_of_mem _ hb) h)
-
 private theorem names_of_trTypes' {env envTypes : VEnv} {lparams : List Name} :
     ∀ {types : List InductiveType} {decls : List VInductiveType},
       List.Forall₂ (TrInductiveType env envTypes lparams) types decls →

@@ -216,14 +216,4 @@ theorem MatchedCaseStep.result_prop_of_target_zero (henv : env.WF)
     apply hendpoint.1.defeqU_l henv hΓ
     simpa only [hpacked] using Hsaved.guard.symm
 
-/-- The proposition conclusion also holds for any type obtained by
-conversion when typing the matched application. -/
-theorem MatchedCaseStep.result_type_prop_of_target_zero {type : VExpr} (henv : env.WF)
-    (hΓ : OnCtx Γ (env.IsType U)) (H : MatchedCaseStep env U Γ rule actual)
-    (htarget : actual.levels.head?.getD .zero ≈ .zero)
-    (htype : env.HasType U Γ actual.expr type) :
-    env.HasType U Γ type (.sort .zero) := by
-  obtain ⟨resultType, hprop, hresult⟩ := H.result_prop_of_target_zero henv hΓ htarget
-  exact hprop.defeqU_l henv hΓ (hresult.uniqU henv hΓ htype)
-
 end Lean4Lean.VEnv

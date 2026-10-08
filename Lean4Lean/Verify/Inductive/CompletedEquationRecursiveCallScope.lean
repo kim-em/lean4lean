@@ -32,30 +32,6 @@ structure FVarNarrowCore (env : VEnv) (Us : List Name)
     scope.fvars scope
   wf : scope.WF env Us.length
 
-def FVarNarrowCore.mono {env env' : VEnv} (henv : env ≤ env')
-    (H : FVarNarrowCore env Us scope runtime) :
-    FVarNarrowCore env' Us scope runtime where
-  expanded := H.expanded
-  shift := H.shift
-  lift := H.lift
-  context := H.context.mono henv
-  upset := H.upset
-  noBV := H.noBV
-  declarations := H.declarations
-  wf := H.wf.mono henv
-
-def FVarNarrowScope.toCore
-    (H : FVarNarrowScope env Us scope runtime) :
-    FVarNarrowCore env Us scope runtime where
-  expanded := H.expanded
-  shift := H.shift
-  lift := H.lift
-  context := H.context
-  upset := H.upset
-  noBV := H.noBV
-  declarations := H.declarations
-  wf := H.wf
-
 def FVarNarrowCore.retargetRuntime
     (H : FVarNarrowCore env Us scope runtime) (h : runtime = runtime') :
     FVarNarrowCore env Us scope runtime' where
@@ -71,11 +47,6 @@ def FVarNarrowCore.retargetRuntime
 theorem FVarNarrowCore.scopeWF
     (H : FVarNarrowCore env Us scope runtime) (_henv : env.WF) :
     scope.WF env Us.length := H.wf
-
-theorem FVarNarrowCore.fvars_length
-    (H : FVarNarrowCore env Us scope runtime) :
-    scope.fvars.length = scope.length :=
-  Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.declarations
 
 private theorem coreDeclarations_toCtx_length
     {fvars : List FVarId} {scope : VLCtx}
@@ -157,19 +128,6 @@ theorem FVarNarrowCore.abstractPrefix
   have Habstract := TrExprS.abstractFVarLambdaPrefix
     (domains := []) Hprefix hnodup Htr'
   simpa [scopePrefix, tail, hprefixFVars, hbase] using Habstract
-
-theorem FVarNarrowCore.abstractAll
-    (H : FVarNarrowCore env Us scope runtime) (henv : env.WF)
-    (Htr : TrExprS env Us scope source target) :
-    TrExprS env Us
-      (abstractForallContext scope.toCtx.reverse [])
-      (source.abstractList scope.fvars.reverse) target := by
-  have Htr' : TrExprS env Us
-      (abstractForallContext [] scope) source target := by
-    simpa [abstractForallContext] using Htr
-  have hnodup := (H.scopeWF henv).fvars_nodup
-  simpa using TrExprS.abstractFVarLambdaSuffix
-    H.declarations hnodup Htr'
 
 def FVarNarrowCore.withIndex
     (H : FVarNarrowCore env Us scope runtime)
@@ -409,95 +367,6 @@ theorem MLCtxLamPrefix.extendFVarNarrowCoreEmbedded
         VExpr.wrapForalls] using Hclosed
     · exact hembTail.cons henv hfreshScope Htype₀ HnarrowType HnarrowIsType
 
-/-- Skip a producer-retained hypothesis suffix above an exact target scope.
-The target declarations are preserved definitionally; only the executable
-weakening records the skipped hypotheses. -/
-theorem RecursorRecentBoundFVarArray.skipFVarNarrowCore
-    {root current : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {Rcurrent : RecursorContextWF current recLparams}
-    {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot Rcurrent xs)
-    (Hbase : Nonempty
-      (checkInductiveTypes.loopType.FVarNarrowCore
-        Rroot.venv recLparams baseScope Rroot.mlctx.vlctx))
-    (hbase : baseScope.fvars ⊆ Rroot.mlctx.vlctx.fvars) :
-    Nonempty (checkInductiveTypes.loopType.FVarNarrowCore
-      Rcurrent.venv recLparams baseScope Rcurrent.mlctx.vlctx) := by
-  rcases Rcurrent.onlyLams.lamPrefix xs.size H.size_le with
-    ⟨_domains, Hprefix⟩
-  have Hbase' : Nonempty
-      (checkInductiveTypes.loopType.FVarNarrowCore
-        Rcurrent.venv recLparams baseScope
-          (Rcurrent.mlctx.dropN xs.size Hprefix.le).vlctx) := by
-    have hle : Hprefix.le = H.size_le := Subsingleton.elim _ _
-    rw [hle, H.drop_eq]
-    simpa only [H.venv_eq] using Hbase
-  have hskip : ∀ fv ∈
-      Rcurrent.mlctx.fvarRevList xs.size Hprefix.le,
-      fv ∉ baseScope.fvars := by
-    intro fv hfv hselected
-    have hle : Hprefix.le = H.size_le := Subsingleton.elim _ _
-    rw [hle, H.fvarRevList_eq] at hfv
-    exact H.fresh fv (List.mem_reverse.mp hfv) (by
-      rw [← Rroot.lctx_eq, Rroot.mlctx_wf.tr.fvars_eq]
-      exact hbase hselected)
-  exact Hprefix.skipFVarNarrowCore Rcurrent.checking.tr.wf
-    Rcurrent.mlctx_wf Hbase' hskip
-
-/-- The motive application checked while producing this exact recursive
-call, transported across the final constant-environment extension. -/
-theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.producerMotiveApplication
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
-    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    let selectedOwner := F.semantic.generated.ownerIdx
-    let sourceIndices :=
-      F.semantic.generated.exposedType.getAppArgs[stats.params.size:]
-    let sourceMajor := mkAppN A.rule.recursiveArgs[j]
-      F.semantic.generated.localArgs
-    ∃ target,
-      TrExprS H.outVEnv Us F.semantic.current_context.mlctx.vlctx
-        (Expr.app
-          (mkAppN H.recInfos[selectedOwner]!.motive sourceIndices)
-          sourceMajor) target ∧
-      H.outVEnv.IsType Us.length
-        F.semantic.current_context.mlctx.vlctx.toCtx target := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  let selectedOwner := F.semantic.generated.ownerIdx
-  let sourceIndices :=
-    F.semantic.generated.exposedType.getAppArgs[stats.params.size:]
-  let sourceMajor := mkAppN A.rule.recursiveArgs[j]
-    F.semantic.generated.localArgs
-  rcases F.motiveApplication with ⟨M⟩
-  have hselectedOwner : selectedOwner < H.recInfos.size := by
-    simpa [selectedOwner, H.generated.length] using F.entry_lt
-  have hsemantic : F.semantic.current_context.venv =
-      R.context.venv :=
-    F.semantic.recent.venv_eq.trans <|
-      F.originRecent.venv_eq.trans <|
-        A.semantics.context_venv.trans <|
-          H.recursorEnv
-  have Htr := M.translation
-  have Htype := M.typing
-  rw [hsemantic] at Htr Htype
-  refine ⟨M.target, ?_, Htype.mono
-    (H.installed.le)⟩
-  simpa [selectedOwner, sourceIndices, sourceMajor,
-    Array.getElem!_eq_getD, Array.getD, hselectedOwner] using
-      Htr.mono (H.installed.le)
-
 /-- Recover the selected mutual family's canonical motive telescope in the
 exact recursive-call context.  Both the motive binding and telescope lookup
 come from the first-pass producer certificate retained by the rule; the only
@@ -633,101 +502,6 @@ theorem
   exact ⟨fieldScope, HfieldScope, by simpa [hfieldRev] using
     hfieldScopeFVars, hbase, ⟨fieldDomains, hfieldDomains, hfront⟩,
     fun hpos => by rw [hchkM hpos]; exact halign⟩
-
-/-- Every field-or-parameter variable selected by a generated recursive
-call belongs to the completed rule-semantic context. -/
-theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.rootScopeInContext
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
-    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
-    ∀ fv,
-      (fv ∈ A.semantics.fieldOpening.fvars ∨
-        fv ∈ ExprArrayFVarIds stats.params) →
-      fv ∈ A.semantics.context.mlctx.vlctx.fvars := by
-  intro fv hfv
-  rw [A.semantics.fieldsRecent.contextFVars]
-  rcases hfv with hfield | hparam
-  · apply List.mem_append_left
-    rw [A.semantics.fieldOpening.fvars_eq_bound
-      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
-      at hfield
-    exact List.mem_reverse.mpr hfield
-  · apply List.mem_append_right
-    rw [A.semantics.parameterSuffix.context, VLCtx.fvars_append]
-    apply List.mem_append_right
-    rw [A.semantics.parameterSuffix.parameterDecls_fvars]
-    exact List.mem_reverse.mpr hparam
-
-/-- The field/parameter selection remains dependency-closed at the literal
-producer origin after all earlier recursive hypotheses allocated before this
-call.  This is precisely where the retained `originRecent` trace is used. -/
-theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.originRootUp
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
-    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
-    IsFVarUpSet
-      (fun fv => fv ∈ A.semantics.fieldOpening.fvars ∨
-        fv ∈ ExprArrayFVarIds stats.params)
-      F.originContext.mlctx.vlctx := by
-  apply F.originRecent.upsetRoot F.rootScopeInContext
-  simpa only [A.semantics.fieldOpening.fvars_eq_bound
-    A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] using
-      A.semantics.fieldParameterUp
-
-/-- Filtering the literal producer origin by the recursive call's declared
-field/parameter scope removes every earlier generated hypothesis and retains
-exactly the completed rule context's corresponding selection. -/
-theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.originRootFilter_eq_rule
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
-    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
-    F.originContext.mlctx.vlctx.fvars.filter
-        (fun fv => fv ∈ A.semantics.fieldOpening.fvars ∨
-          fv ∈ ExprArrayFVarIds stats.params) =
-      A.semantics.context.mlctx.vlctx.fvars.filter
-        (fun fv => fv ∈ A.semantics.fieldOpening.fvars ∨
-          fv ∈ ExprArrayFVarIds stats.params) := by
-  let P := fun fv => fv ∈ A.semantics.fieldOpening.fvars ∨
-    fv ∈ ExprArrayFVarIds stats.params
-  rw [F.originRecent.contextFVars, List.filter_append]
-  have hprior : F.originRecent.fvars.reverse.filter P = [] := by
-    apply List.filter_eq_nil_iff.2
-    intro fv hfv hp
-    apply F.originRecent.fresh fv (List.mem_reverse.mp hfv)
-    rw [← A.semantics.context.lctx_eq,
-      A.semantics.context.mlctx_wf.tr.fvars_eq]
-    exact F.rootScopeInContext fv (by simpa [P] using hp)
-  rw [hprior, List.nil_append]
 
 end VerifyInductive
 

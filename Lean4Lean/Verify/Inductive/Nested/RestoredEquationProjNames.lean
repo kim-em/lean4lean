@@ -202,13 +202,6 @@ theorem mkForall' {lctx : LocalContext} {xs : Array Expr} {ys : List FVarId} {b 
   subst hxs
   simpa [LocalContext.mkForall] using H.mkBinding' (isLambda := false) (lctx := lctx) hdecl
 
-theorem mkLambda' {lctx : LocalContext} {xs : Array Expr} {ys : List FVarId} {b : Expr}
-    (hxs : xs = (ys.map Expr.fvar).toArray) (H : ProjsOK ok b)
-    (hdecl : ∀ y ∈ ys, ∃ d, lctx.find? y = some d ∧ d.DeclProjsOK ok) :
-    ProjsOK ok (lctx.mkLambda xs b) := by
-  subst hxs
-  simpa [LocalContext.mkLambda] using H.mkBinding' (isLambda := true) (lctx := lctx) hdecl
-
 theorem mkAppN' {f : Expr} {args : Array Expr} (hf : ProjsOK ok f)
     (hargs : ∀ a ∈ args.toList, ProjsOK ok a) : ProjsOK ok (Lean.mkAppN f args) := by
   rw [Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList]

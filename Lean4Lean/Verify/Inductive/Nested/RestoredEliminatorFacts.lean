@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Inductive.RestorationRenamingOnCtx
-import Lean4Lean.Theory.Typing.ShapeModel.EnvSchemaTypes
+import Lean4Lean.Theory.Typing.EnvTables.EnvSchemaTypes
 
 /-! Generic facts used to match the case eliminator of a nested declaration's lowered window
 with the restored schema registered by the source block (`VEnv.RestoredEliminator`):
@@ -12,7 +12,7 @@ with the restored schema registered by the source block (`VEnv.RestoredEliminato
 
 namespace Lean4Lean
 
-namespace ShapeModel
+namespace EnvTables
 open InductiveSignature VExpr
 
 theorem restoreOK_wrapLams (r : Restoration) (doms : List VExpr) (body : VExpr) :
@@ -125,10 +125,10 @@ theorem equation_restoreOK_of_recursorType {s : InductiveSignature} (g : Instanc
     · exact hidx a ha
     · exact hmajor
 
-end ShapeModel
+end EnvTables
 
 namespace InductiveSignature.CaseSchema
-open ShapeModel
+open EnvTables
 
 /-- **Restoration succeeds on the generic case equations of a restoration-free schema whose
 generic case type it restores.** -/
@@ -167,7 +167,7 @@ theorem genericEquations_restorable {schema : CaseSchema} (h0 : schema.restorati
         (schema.view owner).constructors.toList := Array.getElem_mem_toList _
     obtain ⟨c, -, -, hc⟩ := view_constructors_mem hmemc
     rw [hc]
-    exact ShapeModel.caseConstructor_recursiveFields schema owner c
+    exact EnvTables.caseConstructor_recursiveFields schema owner c
   obtain ⟨hl, hr, hty⟩ := equation_restoreOK_of_recursorType _ _ hOK index hrec
     block owner.val
   have hl' := (restore_go_isSome r _ []).mpr (by simpa using hl)

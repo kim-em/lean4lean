@@ -190,7 +190,7 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
   have hlenL : infoL.length = lead.length := by
     have := List.Forall₂.length_eq hinfoL; simpa using this
   obtain ⟨u, hind⟩ := major_indicator_gen (dsH := dsH) (RH := RH) henv hΔ hThcl hHT W0 tv0
-    (by rw [eH, instL_wrapForalls'']) hlenH hkH hIrig
+    (by rw [eH, VExpr.instL_wrapForalls]) hlenH hkH hIrig
     (keys := (infoL ++ [kaM]).map (·.1)) (by simp [hlenL]) hτ₀ hty₀
   rw [show ((infoL ++ [kaM]).map (·.1)).take lead.length = infoL.map (·.1) by
     simp [List.map_append, hlenL]] at hind

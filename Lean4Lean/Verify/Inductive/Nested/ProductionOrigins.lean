@@ -64,25 +64,6 @@ private theorem NestedExprMapping.constructorArity_eq
   | proj Hnode Hbody ihBody =>
       simp [AddInductive.constructorArity, Expr.updateProj!]
 
-private theorem Expr.constructorArity_abstract1
-    (e : Expr) (fv : FVarId) (k : Nat := 0) :
-    AddInductive.constructorArity (e.abstract1 fv k) =
-      AddInductive.constructorArity e := by
-  induction e generalizing k <;>
-    simp [Expr.abstract1, AddInductive.constructorArity, *]
-  all_goals split <;> simp [AddInductive.constructorArity]
-
-private theorem Expr.constructorArity_abstractList
-    (e : Expr) (fvars : List FVarId) (k : Nat := 0) :
-    AddInductive.constructorArity (e.abstractList fvars k) =
-      AddInductive.constructorArity e := by
-  induction fvars generalizing e k with
-  | nil => rfl
-  | cons fv fvars ih =>
-      simp only [Expr.abstractList]
-      exact (ih (e.abstract1 fv k) k).trans
-        (Expr.constructorArity_abstract1 e fv k)
-
 private theorem Expr.constructorArity_abstractN
     (e : Expr) (fvars : List FVarId) (k : Nat := 0) :
     AddInductive.constructorArity (e.abstractN fvars k) =
@@ -270,30 +251,6 @@ theorem StateForMTrace.constructorInductiveFindSource
       · rcases hnew with ⟨_hname, hinfo⟩
         simp [ci] at hinfo
       · exact hold
-
-/-- The semantic constructor trace retains all source lookups while threading
-the exact constructor-restoration fold. -/
-theorem RestoredSourceConstructorTrace.preservesSourceFind
-    (H : RestoredSourceConstructorTrace result loweredEnv lparams safety canonicalEnv names
-      sourceEnv targetEnv sources constructors)
-    (hsourceWF : sourceEnv.constants.WF)
-    (hfind : sourceEnv.find? name = some found) :
-    targetEnv.find? name = some found := by
-  induction H with
-  | nil => exact hfind
-  | cons Hstep Hsemantic Hrest ih =>
-      rename_i ctorName sourceProdEnv middleProdEnv source names targetProdEnv
-        sources constructors
-      let ci : ConstantInfo := .ctorInfo Hstep.restored.newInfo
-      have hfresh : sourceProdEnv.find? ci.name = none :=
-        find?_none_of_contains_false hsourceWF Hstep.restored.fresh
-      have hmiddle : middleProdEnv = sourceProdEnv.add ci :=
-        congrArg Prod.snd Hstep.restored.output
-      have hmiddleWF : middleProdEnv.constants.WF :=
-        hmiddle.symm ▸ constantsWF_add_checked hsourceWF hfresh
-      apply ih hmiddleWF
-      rw [hmiddle]
-      exact Environment.find?_freshAdd_preserves hsourceWF ci hfresh hfind
 
 /-- Positional production provenance for one operationally restored source
 constructor.  It exposes the exact lowered lookup and restoration metadata,

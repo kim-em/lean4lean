@@ -141,40 +141,6 @@ theorem assembleInductiveSkeletonTypes_headers
           rw [ih constructors hlen']
   exact go headers constructors hlength
 
-/-- The two skeleton-free executable accumulators determine the complete
-metadata-free declaration translation.  The only remaining input is the
-successful abstract header installation, which belongs to the declaration
-boundary rather than either syntax traversal. -/
-theorem TrInductDeclSkeletonHeaders.ofExistentialTargets
-    {sources : List InductiveType}
-    (Hheaders : MaterializedSourceHeaderAccumulator env Us sources)
-    (Hconstructors : CheckedSourceConstructorRows envTypes Us sources)
-    (nparams : Nat) (isUnsafe : Bool)
-    (htypesAdded : env.addConstVals Hheaders.targets = some envTypes) :
-    ∃ skeleton : VInductDeclSkeleton,
-      TrInductDeclSkeletonHeaders env Us nparams sources isUnsafe skeleton
-        envTypes := by
-  let skeleton : VInductDeclSkeleton := {
-    uvars := Us.length
-    nparams := nparams
-    types := assembleInductiveSkeletonTypes Hheaders.targets
-      Hconstructors.targets
-    isUnsafe := isUnsafe }
-  refine ⟨skeleton, {
-    uvars := rfl
-    nparams := rfl
-    isUnsafe := rfl
-    typesAdded := ?_
-    types := assembleInductiveSkeletonTypes_translated
-      Hheaders.translations Hconstructors.translations }⟩
-  change env.addConstVals
-    ((assembleInductiveSkeletonTypes Hheaders.targets
-      Hconstructors.targets).map
-        VInductiveTypeSkeleton.toVConstVal) = some envTypes
-  rw [assembleInductiveSkeletonTypes_headers Hheaders.translations
-    Hconstructors.translations]
-  exact htypesAdded
-
 namespace checkConstructors.loopCtors
 
 /-- One constructor iteration extends an existentially built raw-target row.

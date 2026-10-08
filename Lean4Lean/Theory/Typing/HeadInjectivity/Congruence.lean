@@ -111,18 +111,6 @@ theorem instL_self {ls₁ ls₂ : List VLevel} (h : List.Forall₂ (· ≈ ·) l
   | lam _ _ ih1 ih2 => exact .lam ih1 ih2
   | forallE _ _ ih1 ih2 => exact .forallE ih1 ih2
 
-/-- Every term with well-formed levels is related to itself. -/
-theorem refl {T : VExpr} (hT : T.LevelWF U) : CongrUB env U Γ₀ k T T := by
-  induction T generalizing k with
-  | bvar => exact .bvar
-  | sort u => exact .sort hT rfl
-  | const c us => exact .const hT (.rfl fun _ _ => rfl)
-  | elim b o us => exact .elim hT (.rfl fun _ _ => rfl)
-  | app _ _ ih1 ih2 => exact .app (ih1 hT.1) (ih2 hT.2)
-  | proj _ _ _ ih => exact .proj (ih hT)
-  | lam _ _ ih1 ih2 => exact .lam (ih1 hT.1) (ih2 hT.2)
-  | forallE _ _ ih1 ih2 => exact .forallE (ih1 hT.1) (ih2 hT.2)
-
 end CongrUB
 
 end VEnv

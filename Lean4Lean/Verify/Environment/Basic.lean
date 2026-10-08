@@ -61,19 +61,6 @@ def ConstructorOwnersPresent (env : Environment) : Prop :=
   ∀ name info, env.find? name = some (.ctorInfo info) →
     ∃ owner, env.find? info.induct = some (.inductInfo owner)
 
-/-- Constructor-owner presence depends only on production constant lookup. -/
-theorem ConstructorOwnersPresent.mapEnvironmentEq
-    {source target : Environment}
-    (H : ConstructorOwnersPresent source)
-    (heq : ∀ name, source.find? name = target.find? name) :
-    ConstructorOwnersPresent target := by
-  intro name info hctor
-  have hsource : source.find? name = some (.ctorInfo info) := by
-    rw [heq name]
-    exact hctor
-  rcases H name info hsource with ⟨owner, howner⟩
-  exact ⟨owner, by rw [← heq info.induct]; exact howner⟩
-
 /-- Mutual-member evidence depends only on production constant lookup. -/
 theorem InductiveMemberInfos.mapEnvironmentEq
     {source targetEnv : Environment}
@@ -227,32 +214,6 @@ structure TypeAnnotationWrappers (env : Environment) (ok : Name → Bool) : Prop
   autoParam : ok ``autoParam = true → BinaryTypeAnnotationWrapper env ``autoParam
   outParam : ok ``outParam = true → UnaryTypeAnnotationWrapper env ``outParam
   semiOutParam : ok ``semiOutParam = true → UnaryTypeAnnotationWrapper env ``semiOutParam
-
-theorem UnaryTypeAnnotationWrapper.rebase
-    (H : UnaryTypeAnnotationWrapper source name)
-    (hpreserves : ∀ {n ci}, source.find? n = some ci →
-      target.find? n = some ci) :
-    UnaryTypeAnnotationWrapper target name := by
-  rcases H.operational with ⟨info, value, hlookup, hsafe, hdelta, hreduces⟩
-  exact ⟨⟨info, value, hpreserves hlookup, hsafe, hdelta, hreduces⟩⟩
-
-theorem BinaryTypeAnnotationWrapper.rebase
-    (H : BinaryTypeAnnotationWrapper source name)
-    (hpreserves : ∀ {n ci}, source.find? n = some ci →
-      target.find? n = some ci) :
-    BinaryTypeAnnotationWrapper target name := by
-  rcases H.operational with ⟨info, value, hlookup, hsafe, hdelta, hreduces⟩
-  exact ⟨⟨info, value, hpreserves hlookup, hsafe, hdelta, hreduces⟩⟩
-
-theorem TypeAnnotationWrappers.rebase
-    (H : TypeAnnotationWrappers source ok)
-    (hpreserves : ∀ {n ci}, source.find? n = some ci →
-      target.find? n = some ci) :
-    TypeAnnotationWrappers target ok where
-  optParam h := (H.optParam h).rebase hpreserves
-  autoParam h := (H.autoParam h).rebase hpreserves
-  outParam h := (H.outParam h).rebase hpreserves
-  semiOutParam h := (H.semiOutParam h).rebase hpreserves
 
 private theorem binaryWrapperBody {value : Expr} {n₁ n₂ : Name} {t₁ t₂ : Expr}
     {bi₁ bi₂ : BinderInfo} (hvalue : value = .lam n₁ t₁ (.lam n₂ t₂ (.bvar 1) bi₂) bi₁)
@@ -444,19 +405,6 @@ def VInductDeclSkeleton.materialize (decl : VInductDeclSkeleton)
   cases type
   rfl
 
-@[simp] theorem VInductiveType.toSkeleton_toVInductiveType
-    (type : VInductiveType) :
-    type.toSkeleton.toVInductiveType type.numIndices type.resultLevel = type := by
-  cases type
-  rfl
-
-@[simp] theorem VInductDeclSkeleton.materialize_erased
-    (decl : VInductDecl) :
-    decl.toSkeleton.materialize
-      (decl.types.map fun type => (type.numIndices, type.resultLevel)) =
-      some decl := by
-  simp [VInductDecl.toSkeleton, VInductDeclSkeleton.materialize]
-
 theorem VInductDeclSkeleton.materialize_length
     {decl : VInductDeclSkeleton} {metadata : List (Nat × VLevel)}
     {materialized : VInductDecl}
@@ -567,11 +515,6 @@ def VInductDeclSkeleton.constructorConstants
     (decl : VInductDeclSkeleton) : List VConstVal :=
   decl.types.flatMap VInductiveTypeSkeleton.ctors
 
-def VInductDeclSkeleton.sourceNames
-    (decl : VInductDeclSkeleton) : List Name :=
-  decl.typeConstants.map VConstVal.name ++
-    decl.constructorConstants.map VConstVal.name
-
 @[simp] theorem VInductDecl.toSkeleton_typeConstants
     (decl : VInductDecl) :
     decl.toSkeleton.typeConstants = decl.typeConstants := by
@@ -596,30 +539,6 @@ def VInductDeclSkeleton.sourceNames
       simp [VInductDecl.toSkeleton,
         VInductDeclSkeleton.constructorConstants,
         VInductDecl.constructorConstants, VInductiveType.toSkeleton, ih']
-
-/-- Source well-formedness is metadata-parametric: every exact materialization
-has the same translated constants, hence the same source typing obligations.
-This formulation keeps recovered header metadata out of the source relation. -/
-def VInductDeclSkeleton.SourceWF
-    (env : VEnv) (decl : VInductDeclSkeleton) : Prop :=
-  ∀ metadata materialized,
-    decl.materialize metadata = some materialized →
-    materialized.SourceWF env
-
-/-- Translation of the original declaration without presupposing the two
-semantic header fields recovered by the executable checker. -/
-def TrInductDeclSkeleton (env : VEnv) (lparams : List Name) (nparams : Nat)
-    (types : List InductiveType) (isUnsafe : Bool)
-    (decl : VInductDeclSkeleton) : Prop :=
-  decl.SourceWF env ∧
-  decl.uvars = lparams.length ∧
-  decl.nparams = nparams ∧
-  decl.isUnsafe = isUnsafe ∧
-  ∃ envTypes envCtors,
-    env.addConstVals decl.typeConstants = some envTypes ∧
-    envTypes.addConstVals decl.constructorConstants = some envCtors ∧
-    List.Forall₂ (TrInductiveTypeSkeleton env envTypes lparams)
-      types decl.types
 
 /-- Metadata-free source translation before aggregate block checks have been
 recovered. As in `TrInductDeclCore`, all pointwise source typing is retained;
@@ -647,16 +566,6 @@ structure TrInductDeclSkeletonHeaders (env : VEnv) (lparams : List Name)
   types : List.Forall₂
     (TrInductiveTypeSkeletonHeaders env envTypes lparams) types decl.types
 
-theorem TrInductDeclSkeleton.core
-    (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl) :
-    ∃ envTypes envCtors,
-      TrInductDeclSkeletonCore env lparams nparams types isUnsafe decl
-        envTypes envCtors := by
-  rcases H with ⟨_, huvars, hnparams, hunsafe, envTypes, envCtors,
-    htypes, hctors, Htypes⟩
-  exact ⟨envTypes, envCtors, huvars, hnparams, hunsafe, htypes, hctors,
-    Htypes⟩
-
 structure TrInductiveType (env envTypes : VEnv) (lparams : List Name)
     (type : InductiveType) (type' : VInductiveType) : Prop where
   header : TrSourceConst env lparams type.name type.type type'.toVConstVal
@@ -671,12 +580,6 @@ structure TrInductiveTypeHeaders (env envTypes : VEnv) (lparams : List Name)
     (fun ctor ctor' =>
       TrSourceConstRaw envTypes lparams ctor.name ctor.type ctor')
     type.ctors type'.ctors
-
-theorem TrInductiveType.toSkeleton
-    (H : TrInductiveType env envTypes lparams type type') :
-    TrInductiveTypeSkeleton env envTypes lparams type type'.toSkeleton where
-  header := H.header
-  ctors := H.ctors
 
 /-- Translation of the original, pre-lowering inductive declaration. The
 constructor relation deliberately uses `envTypes`, obtained by installing all
@@ -734,16 +637,6 @@ structure TrInductDeclConstructors (envTypes : VEnv) (lparams : List Name)
         TrSourceConst envTypes lparams ctor.name ctor.type ctor')
       source.ctors target.ctors)
     types decl.types
-
-theorem TrInductDecl.core
-    (H : TrInductDecl env lparams nparams types isUnsafe decl) :
-    ∃ envTypes envCtors,
-      TrInductDeclCore env lparams nparams types isUnsafe decl
-        envTypes envCtors := by
-  rcases H with ⟨_, huvars, hnparams, hunsafe, envTypes, envCtors,
-    htypes, hctors, Htypes⟩
-  exact ⟨envTypes, envCtors, huvars, hnparams, hunsafe, htypes, hctors,
-    Htypes⟩
 
 theorem TrInductDecl.sourceWF
     (H : TrInductDecl env lparams nparams types isUnsafe decl) : decl.SourceWF env :=
@@ -951,12 +844,6 @@ theorem AddInduct.preservesSourceFind
   cases H with
   | intro _ _ _ _ _ _ hpreserves => exact hpreserves hfind
 
-theorem AddInduct.aligned
-    (H : AddInduct safety m₁ env₁ decl m₂ env₂)
-    (haligned : Aligned safety m₁ env₁) : Aligned safety m₂ env₂ := by
-  cases H with
-  | intro _ _ _ _ _ _ _ hpreserves => exact hpreserves haligned
-
 theorem AddInduct.recursorProvenance
     (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
     InductiveRecursorProvenance safety m₁ env₁ m₂ env₂ := by
@@ -1161,19 +1048,6 @@ theorem ProjectionRegistryCoherent.monoEnv
     hsingle hconstructor hinduct with ⟨P⟩
   exact ⟨P.monoEnv henv⟩
 
-/-- Registry coherence depends on the production constant map only through
-lookup. -/
-theorem ProjectionRegistryCoherent.mapExt
-    (H : ProjectionRegistryCoherent safety source env)
-    (heq : ∀ name, source.find? name = target.find? name) :
-    ProjectionRegistryCoherent safety target env := by
-  intro familyName familyInfo constructorName constructorInfo hfind hvisible
-    hsingle hconstructor hinduct
-  rw [← heq] at hfind hconstructor
-  rcases H familyName familyInfo constructorName constructorInfo hfind hvisible
-    hsingle hconstructor hinduct with ⟨P⟩
-  exact ⟨P.rebase (fun {name ci} h => by rw [← heq]; exact h) .rfl⟩
-
 /-- Constructor-owner presence stated on a production constant map. -/
 def ConstructorOwnersPresentMap (C : ConstMap) : Prop :=
   ∀ name info, C.find? name = some (.ctorInfo info) →
@@ -1191,17 +1065,6 @@ def ProjectionRegistryStep (C : ConstMap) (env' : VEnv) : ConstantInfo → Prop
       Nonempty (ProjectionRegistryAlignmentAt
         (C.insert info.name (.ctorInfo info)) env' info.induct owner info.name)
   | _ => True
-
-theorem ProjectionRegistryStep.monoEnv
-    (H : ProjectionRegistryStep C env ci) (henv : env ≤ env') :
-    ProjectionRegistryStep C env' ci := by
-  cases ci with
-  | ctorInfo info =>
-    rcases H with ⟨howner, halign⟩
-    refine ⟨howner, fun owner hfind hsingle => ?_⟩
-    rcases halign owner hfind hsingle with ⟨P⟩
-    exact ⟨P.monoEnv henv⟩
-  | _ => trivial
 
 theorem ProjectionRegistryStep.of_not_ctor
     (hnctor : ∀ info, ci ≠ .ctorInfo info) :
@@ -1340,42 +1203,6 @@ theorem ProjectionRegistryCoherent.insertConstructor
     rcases H familyName familyInfo constructorName foundConstructor holdFamily
         hvisible hsingle hconstructor hinduct with ⟨P⟩
     exact ⟨P.rebase hpreserves henv⟩
-
-/-- Inserting a constant into a map with present constructor owners keeps
-owners present, provided a constructor names a present owner. -/
-theorem ConstructorOwnersPresentMap.insert
-    (H : ConstructorOwnersPresentMap C) (hwf : C.WF)
-    (hfresh : C.find? ci.name = none)
-    (howner : ∀ info, ci = .ctorInfo info →
-      ∃ owner, C.find? info.induct = some (.inductInfo owner)) :
-    ConstructorOwnersPresentMap (C.insert ci.name ci) := by
-  have hpreserves : ∀ {name found}, C.find? name = some found →
-      (C.insert ci.name ci).find? name = some found := by
-    intro name found hfind
-    rw [hwf.find?_insert]
-    split
-    · rename_i heq
-      have hname : ci.name = name := LawfulBEq.eq_of_beq heq
-      subst name
-      rw [hfind] at hfresh
-      contradiction
-    · exact hfind
-  intro name info hfind
-  rw [hwf.find?_insert] at hfind
-  split at hfind
-  · rcases howner info (Option.some.inj hfind) with ⟨owner, howner⟩
-    exact ⟨owner, hpreserves howner⟩
-  · rcases H name info hfind with ⟨owner, howner⟩
-    exact ⟨owner, hpreserves howner⟩
-
-theorem ConstructorOwnersPresentMap.mapExt
-    (H : ConstructorOwnersPresentMap source)
-    (heq : ∀ name, source.find? name = target.find? name) :
-    ConstructorOwnersPresentMap target := by
-  intro name info hfind
-  rw [← heq] at hfind
-  rcases H name info hfind with ⟨owner, howner⟩
-  exact ⟨owner, by rw [← heq]; exact howner⟩
 
 /-- Registry coherence survives a batch that adds no singleton family: every
 new family has a constructor count other than one, and every new constructor

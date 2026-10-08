@@ -701,38 +701,6 @@ theorem NestedLoweringRun.finalCachedGeneratedFamilyOriginOfLookup
   H.finalCachedGeneratedFamilyOrigin Henv hclosures Hsources hinitialTypes hempty
     (H.finalCacheEntryOfResultLookup hlookup)
 
-/-- Every successful expression-lowering hit in an exact run rejoins the
-generated queue at one concrete suffix slot.  This packages the operational
-application data together with the derived queue origin, so subsequent
-formation projection never has to assume a cache/generated correspondence. -/
-theorem NestedReplacementFinalTrace.finalGeneratedFamilyOrigin
-    (H : NestedReplacementFinalTrace env lctx result.params As input state
-      lowered nextState result traceFinalState)
-    (Hrun : NestedLoweringRun env fuel nparams types initialState
-      (result, runFinalState))
-    (Henv : EnvironmentTypesClosed env)
-    (hclosures : MutualInductivesClosed env)
-    (Hsources : SourceSyntaxChecks types)
-    (hinitialTypes : initialState.newTypes = types.toArray)
-    (hempty : initialState.nestedAux = #[]) :
-    ∃ value targetName levels auxName auxLevels nested,
-      NestedAppCandidate env state input value ∧
-      input.getAppFn = .const targetName levels ∧
-      lowered = mkAppRange (mkAppN (.const auxName auxLevels) As)
-        value.numParams input.getAppArgs.size input.getAppArgs ∧
-      (nested ==
-        ((mkAppRange (.const targetName levels) 0 value.numParams
-          input.getAppArgs).abstract As).instantiateRev result.params) = true ∧
-      Nonempty (FinalCachedGeneratedFamilyOrigin env result.params nparams
-        initialState.newTypes.size runFinalState nested auxName) := by
-  rcases H.mapping with
-    ⟨value, targetName, levels, auxName, auxLevels, nested, Hcandidate,
-      _hauxLevels, hhead, hlowered, hnested, hlookup⟩
-  exact ⟨value, targetName, levels, auxName, auxLevels, nested, Hcandidate,
-    hhead, hlowered, hnested,
-    Hrun.finalCachedGeneratedFamilyOriginOfLookup Henv hclosures Hsources hinitialTypes
-      hempty hlookup⟩
-
 theorem FinalLoweredGeneratedFamilyOrigin.finalMapping
     (H : FinalLoweredGeneratedFamilyOrigin env params nparams finalState
       target)

@@ -163,26 +163,6 @@ theorem LocalContext.forallDomainsOnly_foldN
       congrArg (fun e => Expr.forallE name (type.abstractN []) (e.abstractN [fv]) bi)
         (ih (fun other hother => hdecl other (by simp [hother])))
 
-theorem LocalContext.forallDomainsOnly_fold
-    {lctx : LocalContext} {fvars : List FVarId}
-    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
-      lctx.find? fv = some (.cdecl index fv name type bi kind))
-    (body : Expr) :
-    Expr.forallDomainsOnly fvars.length
-      (fvars.foldr (fun fv result => LocalContext.mkBindingList1 false lctx [] fv
-        (result.abstract1 fv)) body) =
-      fvars.foldr (fun fv result => LocalContext.mkBindingList1 false lctx [] fv
-        (result.abstract1 fv)) (.sort .zero) := by
-  induction fvars with
-  | nil => rfl
-  | cons fv fvars ih =>
-    obtain ⟨index, name, type, bi, kind, hfind⟩ := hdecl fv (by simp)
-    simp only [List.foldr_cons, List.length_cons, LocalContext.mkBindingList1, hfind, Bool.false_eq_true, ↓reduceIte,
-      Expr.forallDomainsOnly, Expr.forallDomainsOnly_abstract1]
-    simpa only [LocalContext.mkBindingList1, Bool.false_eq_true, ↓reduceIte] using
-      congrArg (fun e => Expr.forallE name (type.abstractList []) (e.abstract1 fv) bi)
-        (ih (fun other hother => hdecl other (by simp [hother])))
-
 theorem BoundFVarArray.forallDomainsOnly
     (H : BoundFVarArray c xs) (Hc : BindingContextWF c)
     (hnodup : H.fvars.Nodup) (body : Expr) :

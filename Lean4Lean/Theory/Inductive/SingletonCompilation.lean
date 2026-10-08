@@ -49,14 +49,4 @@ theorem CompilationData.typeConstants_of_singleton
   simpa only [VInductDecl.typeConstants, List.length_map] using
     (show expanded.types.length ≤ source.types.length by omega)
 
-theorem CompilationData.admissible_source_of_singleton
-    (compilation : CompilationData env source expanded s g auxiliaries block)
-    (singleton : s.families.size = 1)
-    (installed : env.addConstVals source.typeConstants = some sourceTypes) :
-    g.Admissible sourceTypes := by
-  obtain ⟨expandedTypes, added, admissible⟩ := compilation.admissible
-  rw [← compilation.typeConstants_of_singleton singleton, installed] at added
-  cases added
-  exact admissible
-
 end Lean4Lean.InductiveSignature

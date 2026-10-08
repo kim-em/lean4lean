@@ -76,11 +76,6 @@ theorem liftLooseBVars'_lower {e : Expr} {k : Nat} (h : e.hasLooseBVar' k = fals
 theorem eq_liftLooseBVars'_lower {e : Expr} {k : Nat} (h : e.hasLooseBVar' k = false) :
     e = liftLooseBVars' (lowerLooseBVars' e (k + 1) 1) k 1 := (liftLooseBVars'_lower h).symm
 
-theorem exists_liftLooseBVars'_iff {e : Expr} {k : Nat} :
-    (∃ e₀, e = liftLooseBVars' e₀ k 1) ↔ e.hasLooseBVar' k = false :=
-  ⟨fun ⟨_, h⟩ => h ▸ hasLooseBVar'_liftLooseBVars'_self,
-   fun h => ⟨_, eq_liftLooseBVars'_lower h⟩⟩
-
 theorem hasLooseBVar'_instantiate1'_of_le {e a : Expr} {i k : Nat} (hi : i ≤ k) :
     (e.instantiate1' a (k + 1)).hasLooseBVar' i = e.hasLooseBVar' i := by
   induction e generalizing i k with
@@ -303,12 +298,6 @@ namespace TelTrN
 
 theorem toTrExprS : TelTrN env Us n Δ e e' → TrExprS env Us Δ e e'
   | .zero h | .succ h .. => h
-
-theorem le : ∀ {m n}, m ≤ n → TelTrN env Us n Δ e e' → TelTrN env Us m Δ e e'
-  | 0, _, _, H => .zero H.toTrExprS
-  | _ + 1, 0, h, _ => absurd h (by omega)
-  | m + 1, n + 1, h, .succ h1 h2 h3 h4 =>
-    .succ h1 (le (by omega) h2) h3 fun _ _ hb hb' => le (by omega) (h4 _ _ hb hb')
 
 theorem mono (henv : env ≤ env') (H : TelTrN env Us n Δ e e') : TelTrN env' Us n Δ e e' := by
   induction H with

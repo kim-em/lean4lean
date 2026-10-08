@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Header.SemanticAssembly
-import Lean4Lean.Verify.Inductive.Header.SemanticCompletion
+import Lean4Lean.Verify.Inductive.Header.SemanticFold
+import Lean4Lean.Verify.Inductive.Header.SemanticResult
 import Lean4Lean.Verify.Inductive.Recursor.Structure
 
 namespace Lean4Lean

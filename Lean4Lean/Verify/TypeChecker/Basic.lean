@@ -209,40 +209,6 @@ def MLCtx.prependLevelParam (c : MLCtx) (oldUvars : Nat) : MLCtx :=
   induction c <;> simp [MLCtx.prependLevelParam, MLCtx.vlctx,
     VLCtx.instL, VLocalDecl.instL, *]
 
-@[simp] theorem MLCtx.prependLevelParam_fvarRevList
-    {c : MLCtx} {oldUvars n : Nat}
-    (hn : n ≤ c.length) :
-    (c.prependLevelParam oldUvars).fvarRevList n (by simpa) =
-      c.fvarRevList n hn := by
-  induction n generalizing c with
-  | zero => simp
-  | succ n ih =>
-    cases c with
-    | nil => simp at hn
-    | vlam id name ty ty' bi tail =>
-      simp only [MLCtx.prependLevelParam, MLCtx.fvarRevList]
-      exact congrArg (List.cons id) (ih (Nat.le_of_succ_le_succ hn))
-    | vlet id name ty value ty' value' tail =>
-      simp only [MLCtx.prependLevelParam, MLCtx.fvarRevList]
-      exact congrArg (List.cons id) (ih (Nat.le_of_succ_le_succ hn))
-
-@[simp] theorem MLCtx.prependLevelParam_dropN
-    {c : MLCtx} {oldUvars n : Nat}
-    (hn : n ≤ c.length) :
-    (c.prependLevelParam oldUvars).dropN n (by simpa) =
-      (c.dropN n hn).prependLevelParam oldUvars := by
-  induction n generalizing c with
-  | zero => simp
-  | succ n ih =>
-    cases c with
-    | nil => simp at hn
-    | vlam id name ty ty' bi tail =>
-      simp only [MLCtx.prependLevelParam, MLCtx.dropN]
-      exact ih (Nat.le_of_succ_le_succ hn)
-    | vlet id name ty value ty' value' tail =>
-      simp only [MLCtx.prependLevelParam, MLCtx.dropN]
-      exact ih (Nat.le_of_succ_le_succ hn)
-
 theorem MLCtx.WF.mono {env env' : VEnv} (henv : env ≤ env') :
     ∀ {c : MLCtx}, c.WF env Us → c.WF env' Us
   | .nil, _ => trivial
@@ -339,10 +305,6 @@ structure VContext extends Context where
   mlctx : MLCtx
   mlctx_wf : mlctx.WF venv lparams
   lctx_eq : mlctx.lctx = lctx
-
-theorem VContext.projectable (c : VContext) :
-    ProjectionRegistryCoherent c.safety c.env.constants c.venv :=
-  c.projectionRegistry
 
 @[simp] abbrev VContext.lctx' (c : VContext) := c.mlctx.lctx
 @[simp] abbrev VContext.vlctx (c : VContext) := c.mlctx.vlctx
@@ -944,11 +906,6 @@ def RecM.Post (c : VContext) (s : VState) (x : RecM α) (Q : α → Prop) : Prop
 def RecM.Res (x : RecM α) (Q : α → Prop) : Prop :=
   ∀ m ctx st a st', x m ctx st = .ok (a, st') → Q a
 
-theorem RecM.WF.post {c : VContext} {s : VState} {x : RecM α} {Q : α → Prop}
-    (H : x.WF c s fun a _ => Q a) : x.Post c s Q := by
-  intro m mwf wf a s' e
-  obtain ⟨_, _, _, _, h⟩ := H m mwf wf a s' e; exact h
-
 theorem RecM.Res.post {c : VContext} {s : VState} {x : RecM α} {Q : α → Prop}
     (H : x.Res Q) : x.Post c s Q := fun m _ _ a s' e => H m _ _ a s' e
 
@@ -975,23 +932,11 @@ theorem RecM.Res.pure {Q : α → Prop} (h : Q a) : (pure a : RecM α).Res Q := 
 theorem RecM.Post.pure {c : VContext} {s : VState} {Q : α → Prop} (h : Q a) :
     (pure a : RecM α).Post c s Q := (RecM.Res.pure h).post
 
-theorem RecM.Post.mono {c : VContext} {s : VState} {x : RecM α} {Q R : α → Prop}
-    (H : x.Post c s Q) (h : ∀ a, Q a → R a) : x.Post c s R :=
-  fun m mwf wf a s' e => h _ (H m mwf wf a s' e)
-
-theorem RecM.Res.mono {x : RecM α} {Q R : α → Prop}
-    (H : x.Res Q) (h : ∀ a, Q a → R a) : x.Res R :=
-  fun m ctx st a s' e => h _ (H m ctx st a s' e)
-
 theorem RecM.WF.and_post {c : VContext} {s : VState} {x : RecM α} {Q R}
     (h1 : x.WF c s Q) (h2 : x.Post c s R) : x.WF c s fun a s => Q a s ∧ R a := by
   intro m mwf wf a s' e
   obtain ⟨vs, h3, le, wf', q⟩ := h1 m mwf wf a s' e
   exact ⟨vs, h3, le, wf', q, h2 m mwf wf a s' e⟩
-
-theorem RecM.Post.stateWF {c : VContext} {s : VState} {x : RecM α} {Q}
-    (H : s.WF c → x.Post c s Q) : x.Post c s Q :=
-  fun m mwf wf => H wf m mwf wf
 
 @[simp] theorem toLBool_true {b : Bool} : b.toLBool = .true ↔ b = true := by
   cases b <;> simp [Bool.toLBool]
@@ -1126,14 +1071,6 @@ theorem VState.LE.namePrefix {s₁ s₂ : VState} (h : s₁ ≤ s₂) :
     s₁.ngen.namePrefix = s₂.ngen.namePrefix := by
   obtain ⟨⟨p, i⟩⟩ := s₁; obtain ⟨⟨p', j⟩⟩ := s₂; cases h; rfl
 
-/-- A fresh name of the checker's name generator is never a hit parameter. -/
-theorem HitParams.not_mem_of_not_reserves {ngen : NameGenerator} {id : FVarId}
-    (H : HitParams ngen.namePrefix As) (h : ¬ngen.Reserves id) : ∀ a ∈ As, a ≠ .fvar id := by
-  intro a ha eq
-  obtain ⟨fv, rfl, hfv⟩ := H a ha
-  cases eq
-  exact h fun i hi => absurd hi (hfv i)
-
 theorem HitParams.ne_of_not_reserves {ngen : NameGenerator} {id : FVarId}
     (H : HitParams pfx As) (hp : ngen.namePrefix = pfx) (h : ¬ngen.Reserves id) :
     ∀ a ∈ As, ∃ fv, a = .fvar fv ∧ fv ≠ id := by
@@ -1184,18 +1121,6 @@ theorem VContext.HitScope.tail {c c' : VContext} (henv : c'.env = c.env)
   have h1 := H.up; rw [hΔ] at h1
   refine ⟨henv ▸ H.env, H.params, h1.1, fun fv decl hP hd => henv ▸ H.decls fv decl hP ?_⟩
   rw [hfind fv (by rintro rfl; simp [hnone] at hd)]; exact hd
-
-/-- A hit scope of a context, cut down to the variables of the context, is a hit scope of the
-context extended by one fresh declaration. -/
-theorem VContext.HitScope.cons_restrict {c c' : VContext} (henv : c'.env = c.env)
-    (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
-    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
-    (hid : x ∉ c.vlctx.fvars)
-    (H : c.HitScope pfx heads As ls P) :
-    c'.HitScope pfx heads As ls (fun fv => P fv ∧ fv ∈ c.vlctx.fvars) := by
-  refine ⟨henv ▸ H.env, H.params, ?_, fun fv decl hP hd => henv ▸ H.decls fv decl hP.1 ?_⟩
-  · rw [hΔ]; exact ⟨(IsFVarUpSet.and_fvars c.Δwf.fvwf).1 H.up, fun h => (hid h.2).elim⟩
-  · rwa [← hfind fv (by rintro rfl; exact hid hP.2)]
 
 /-- Extending a hit scope by one declaration in scope, keeping the predicate. -/
 theorem VContext.HitScope.cons_same {c c' : VContext} (henv : c'.env = c.env)
@@ -1862,20 +1787,6 @@ theorem MLCtx.WF.mkLambda_eq {c : MLCtx} (wf : c.WF env Us) (n hn)
 
 theorem MLCtx.WF.mkForall_closed {c : MLCtx} (wf : c.WF env Us) (n hn) (he : Closed e) :
     Closed (c.mkForall n hn e) := by
-  induction n generalizing c e with
-  | zero => exact he
-  | succ n ih =>
-    match c with
-    | .vlam .. =>
-      have hty := wf.2.2.1.closed; simp only [MLCtx.noBV] at hty
-      exact ih wf.1 _ ⟨hty, he.abstract1⟩
-    | .vlet .. =>
-      have hty := wf.2.2.1.closed; simp only [MLCtx.noBV] at hty
-      have hv := wf.2.2.2.1.closed; simp only [MLCtx.noBV] at hv
-      exact ih wf.1 _ (letStep_closed hty hv he)
-
-theorem MLCtx.WF.mkLambda_closed {c : MLCtx} (wf : c.WF env Us) (n hn) (he : Closed e) :
-    Closed (c.mkLambda n hn e) := by
   induction n generalizing c e with
   | zero => exact he
   | succ n ih =>

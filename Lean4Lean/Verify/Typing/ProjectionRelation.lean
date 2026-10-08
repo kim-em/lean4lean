@@ -22,21 +22,6 @@ theorem mono
   | direct majorWF targetWF =>
       exact .direct (majorWF.mono Henv) (targetWF.mono Henv)
 
-theorem defeqCtx
-    (H : EnvTrProj env U GammaOne structName index major target)
-    (Henv : VEnv.Ordered env)
-    (Hctx : env.IsDefEqCtx U base GammaOne GammaTwo) :
-    EnvTrProj env U GammaTwo structName index major target := by
-  cases H with
-  | direct majorWF targetWF =>
-      exact .direct (majorWF.defeqDFC Henv Hctx) (targetWF.defeqDFC Henv Hctx)
-
-theorem sourceWF
-    (H : EnvTrProj env U Gamma structName index major target) :
-    VExpr.WF env U Gamma major := by
-  cases H
-  assumption
-
 theorem targetWF
     (H : EnvTrProj env U Gamma structName index major target) :
     VExpr.WF env U Gamma target := by
@@ -47,14 +32,6 @@ theorem wf
     (H : EnvTrProj env U Gamma structName index major target) :
     VExpr.WF env U Gamma target :=
   H.targetWF
-
-theorem noFreshConsts
-    (H : EnvTrProj env U Gamma structName index major target)
-    (Henv : VEnv.Ordered env)
-    (Hfresh : ∀ name ∈ names, env.constants name = none)
-    (Hctx : OnCtx Gamma (env.IsType U)) :
-    target.containsAnyConst names = false :=
-  H.targetWF.noFreshConsts Henv Hfresh Hctx
 
 theorem instL
     (H : EnvTrProj env U Gamma structName index major target)

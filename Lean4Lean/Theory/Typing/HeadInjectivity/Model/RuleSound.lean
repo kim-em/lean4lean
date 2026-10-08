@@ -22,14 +22,6 @@ variable {env : VEnv} {U : Nat} {Δ : List VExpr}
 
 local notation "Obs'" => Obs env U Δ
 
-/-- The family of the major domain of the head's type (section 10.2): the head's type is a
-telescope of `k+1` domains whose last is an application of a rigid family `I`, which the
-constructor `ctor` returns. -/
-def HeadFam (env : VEnv) (n : Name) (k : Nat) (ctor : Name) : Prop :=
-  ∃ ci dsH RH I lsI iargs, env.constants n = some ci ∧
-    ci.type = .wrapForalls dsH RH ∧ dsH.length = k + 1 ∧
-    dsH[k]? = some (.mkApps (.const I lsI) iargs) ∧ env.Rigid I ∧ CtorFam env ctor I
-
 theorem wrapForalls_append (a b : List VExpr) (R : VExpr) :
     VExpr.wrapForalls (a ++ b) R = VExpr.wrapForalls a (VExpr.wrapForalls b R) := by
   simp [VExpr.wrapForalls, List.foldr_append]
@@ -199,7 +191,7 @@ theorem major_indicator {ci : VConstant} {ls : List VLevel} {uH : VLevel}
     ∃ u : VLevel, Obs' .id .empty (ci.type.instL ls) (piCodChain (keys.take k)
       (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval))) := by
   have eT : ci.type.instL ls = .wrapForalls (dsH.map (·.instL ls)) (RH.instL ls) := by
-    rw [eH, instL_wrapForalls'']
+    rw [eH, VExpr.instL_wrapForalls]
   have hk' : k < dsH.length := by omega
   have hsplit : dsH.map (·.instL ls) =
       (dsH.take k).map (·.instL ls) ++ [(VExpr.mkApps (.const I lsI) iargs).instL ls] := by

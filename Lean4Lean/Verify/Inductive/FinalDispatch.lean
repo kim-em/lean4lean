@@ -10,12 +10,6 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The safety flag the executable passes to the post-lowering run agrees with
-the source `isUnsafe` flag. -/
-theorem inductiveSafety_ne_safe (isUnsafe : Bool) :
-    ((if isUnsafe then DefinitionSafety.unsafe else .safe) != .safe) = isUnsafe := by
-  cases isUnsafe <;> rfl
-
 /-- Uniform final result for the ordinary, non-nested post-lowering branch. -/
 theorem Environment.addInductiveAfterLowering.ordinaryInductiveFinalResultWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
@@ -36,34 +30,6 @@ theorem Environment.addInductiveAfterLowering.ordinaryInductiveFinalResultWF
     Hlower haux).mono
       fun _ ⟨ves', wf', hle, ⟨Hspec⟩, hcert⟩ =>
         ⟨InductiveFinalResult.ofModel ves' wf' hle Hspec hcert⟩
-
-/-- Uniform final result for the canonical primitive Bool/Nat post-lowering
-branch, valid both before and after the bootstrap `Eq` declaration. -/
-theorem Environment.addInductiveAfterLowering.primitiveInductiveFinalResultWF
-    (env : Environment) (lparams : List Name) (nparams : Nat)
-    (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (res : ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
-    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
-    (htypes : res.types = types)
-    (haux : res.aux2nested.size = 0) :
-    (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
-      true fuel res).WF fun outEnv =>
-        Nonempty (InductiveFinalResult env outEnv ves lparams nparams types
-          isUnsafe) := by
-  have hisUnsafe : isUnsafe = false := Hshape.2.2.1
-  subst isUnsafe
-  exact
-    (Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
-      env lparams nparams types false fuel res ves wf hcorner Hshape
-      htypes haux).mono
-      fun _ ⟨ves', wf', hle, hcert, ⟨Hspec⟩⟩ =>
-        ⟨{
-          targetModels := ves'
-          wf := wf'
-          mono := hle
-          specification := Hspec
-          certPres := hcert }⟩
 
 /-- Uniform `Environment.addInductive` result for canonical primitive
 Bool/Nat declarations. -/

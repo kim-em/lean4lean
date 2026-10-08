@@ -389,14 +389,6 @@ protected theorem WF.mkLetDecl
     .ldecl lctx.decls.size fv name ty val bi kind :: lctx.toList := by
   simp [mkLetDecl, toList]
 
-theorem LctxClosed.mkLocalDecl (h : LctxClosed lctx) (hwf : lctx.WF) (hfresh : lctx.find? fv = none)
-    (hty : Closed ty) : LctxClosed (lctx.mkLocalDecl fv name ty bi kind) := by
-  intro fv' d hd
-  rw [(hwf.mkLocalDecl hfresh).find?_eq_find?_toList, mkLocalDecl_toList, List.find?_cons] at hd
-  split at hd
-  · cases hd; exact hty
-  · exact h fv' d (by rwa [hwf.find?_eq_find?_toList])
-
 end Lean.LocalContext
 
 namespace Lean4Lean

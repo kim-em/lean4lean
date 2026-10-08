@@ -163,68 +163,11 @@ structure HeaderPrefixCertificate (env : VEnv) (decl : VInductDecl)
   typeShapes : ∀ i, i < done → (hi : i < decl.types.length) →
     decl.TypeShape env params decl.types[i]
 
-/-- The prefix evidence together with the translation of the concrete common
-result level retained in `InductiveStats`. -/
-structure HeaderLoopCertificate (env : VEnv) (lparams : List Name)
-    (decl : VInductDecl) (params : List VExpr)
-    (stats : AddInductive.InductiveStats) (done : Nat) where
-  resultLevel : VLevel
-  commonLevel : VLevel.ofLevel lparams stats.resultLevel = some resultLevel
-  headerPrefix : HeaderPrefixCertificate env decl params resultLevel done
-
 theorem HeaderPrefixCertificate.empty (env : VEnv) (decl : VInductDecl)
     (params : List VExpr) (resultLevel : VLevel) :
     HeaderPrefixCertificate env decl params resultLevel 0 where
   commonLevels _ h := by omega
   typeShapes _ h := by omega
-
-theorem HeaderPrefixCertificate.push
-    (H : HeaderPrefixCertificate env decl params resultLevel done)
-    (hindex : done < decl.types.length)
-    (hlevel : decl.types[done].resultLevel ≈ resultLevel)
-    (hshape : decl.TypeShape env params decl.types[done]) :
-    HeaderPrefixCertificate env decl params resultLevel (done + 1) where
-  commonLevels i hidone hi := by
-    by_cases h : i = done
-    · subst i; exact hlevel
-    · exact H.commonLevels i (by omega) hi
-  typeShapes i hidone hi := by
-    by_cases h : i = done
-    · subst i; exact hshape
-    · exact H.typeShapes i (by omega) hi
-
-/-- Initialize the accumulator with the first checked mutual header. -/
-theorem HeaderPrefixCertificate.first
-    (hindex : 0 < decl.types.length)
-    (hshape : decl.TypeShape env params decl.types[0]) :
-    HeaderPrefixCertificate env decl params decl.types[0].resultLevel 1 := by
-  exact (HeaderPrefixCertificate.empty env decl params
-    decl.types[0].resultLevel).push hindex (by rfl) hshape
-
-/-- Convert the executable common-universe guard into the abstract level
-equivalence stored by the header-prefix invariant. -/
-theorem HeaderPrefixCertificate.pushOfIsEquiv
-    (H : HeaderPrefixCertificate env decl params resultLevel done)
-    (hindex : done < decl.types.length)
-    (hguard : currentLevel.isEquiv commonLevel = true)
-    (hcurrent : VLevel.ofLevel lparams currentLevel =
-      some decl.types[done].resultLevel)
-    (hcommon : VLevel.ofLevel lparams commonLevel = some resultLevel)
-    (hshape : decl.TypeShape env params decl.types[done]) :
-    HeaderPrefixCertificate env decl params resultLevel (done + 1) :=
-  H.push hindex (Level.isEquiv_wf hguard hcurrent hcommon) hshape
-
-def HeaderPrefixCertificate.complete
-    (H : HeaderPrefixCertificate env decl params resultLevel decl.types.length) :
-    HeaderCertificate env decl where
-  params := params
-  resultLevel := resultLevel
-  commonLevels type htype := by
-    rcases List.mem_iff_getElem.1 htype with ⟨i, hi, rfl⟩
-    exact H.commonLevels i hi hi
-  typeShapes type htype := by
-    rcases List.mem_iff_getElem.1 htype with ⟨i, hi, rfl⟩
-    exact H.typeShapes i hi hi
 
 /-- Completed output of the flattened constructor traversal. -/
 structure ConstructorCertificate (env : VEnv) (decl : VInductDecl)
@@ -275,25 +218,6 @@ theorem ConstructorPrefixCertificate.empty (env : VEnv)
     (decl : VInductDecl) (envTypes : VEnv) (params : List VExpr) :
     ConstructorPrefixCertificate env decl envTypes params 0 where
   shapes _ h := by omega
-
-theorem ConstructorPrefixCertificate.push
-    (H : ConstructorPrefixCertificate env decl envTypes params done)
-    (hindex : done < decl.ownedConstructors.length)
-    (hshape : decl.CtorShape envTypes params
-      decl.ownedConstructors[done].1 decl.ownedConstructors[done].2) :
-    ConstructorPrefixCertificate env decl envTypes params (done + 1) where
-  shapes i hidone hi := by
-    by_cases h : i = done
-    · subst i; exact hshape
-    · exact H.shapes i (by omega) hi
-
-theorem ConstructorPrefixCertificate.complete
-    (H : ConstructorPrefixCertificate env decl envTypes params
-      decl.ownedConstructors.length) :
-    ConstructorCertificate env decl envTypes params where
-  shapes owned howned := by
-    rcases List.mem_iff_getElem.1 howned with ⟨i, hi, rfl⟩
-    exact H.shapes i hi hi
 
 theorem ConstructorCertificate.ctorShape
     (H : ConstructorCertificate env decl envTypes params)
@@ -428,24 +352,6 @@ theorem FormationCertificate.declWF
     (H : FormationCertificate env decl) (hsource : decl.SourceWF env) :
     decl.WF env :=
   ⟨hsource, .ordinary H.formationWF⟩
-
-def FormationCertificate.ofPrefixes
-    (Hheaders : HeaderLoopCertificate env lparams decl params stats
-      decl.types.length)
-    (envTypes : VEnv)
-    (htypes : env.addConstVals decl.typeConstants = some envTypes)
-    (HctorParameters : ConstructorParameterCertificate envTypes decl params)
-    (Hctors : ConstructorPrefixCertificate env decl envTypes params
-      decl.ownedConstructors.length)
-    (Hraw : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
-      decl.RawCtorShape type ctor) :
-    FormationCertificate env decl where
-  headers := Hheaders.headerPrefix.complete
-  envTypes := envTypes
-  typesInstalled := htypes
-  constructorParameters := HctorParameters
-  constructors := Hctors.complete
-  rawShapes := Hraw
 
 /-- Build ordered relational coverage from equal lengths and pointwise array-
 style evidence. This is the common bridge used by recursor and rule loops. -/
@@ -664,53 +570,6 @@ theorem VEnv.IsDefEqCtx.closeHeads
       simpa [VExpr.wrapForalls, List.take_succ_cons,
         List.reverse_cons, VExpr.wrapForalls_append] using Hclosed
 
-/-- A converted installed telescope can be consumed by independently typed
-closed arguments once its context is identified with `liftClosedDomains`.
-Closing the context conversion around the retained residual turns it into a
-whole-type equality; the generic closed-domain spine then performs every
-dependent substitution. -/
-theorem VEnv.HasType.mkApps_of_defeqLiftClosedDomains
-    (henv : env.WF) (Hctx : OnCtx ctx (env.IsType uvars))
-    (Hfn : env.HasType uvars ctx fn
-      (VExpr.wrapForalls installedDomains resultType))
-    (Hdomains : VEnv.IsDefEqCtx env uvars []
-      (installedDomains.reverse ++ ctx)
-      ((VExpr.liftClosedDomains types 0).reverse ++ ctx))
-    (Hargs : List.Forall₂
-      (env.HasType uvars ctx) args types) :
-    ∃ finalType, env.HasType uvars ctx
-      (VExpr.mkApps fn args) finalType := by
-  have hlength : installedDomains.length = types.length := by
-    have hcontexts := Hdomains.length_eq
-    simp only [List.length_append, List.length_reverse,
-      VExpr.liftClosedDomains_length] at hcontexts
-    omega
-  have HtelescopeType : env.IsType uvars ctx
-      (VExpr.wrapForalls installedDomains resultType) :=
-    Hfn.isType henv Hctx
-  have Hopened := VEnv.IsType.wrapForalls_inv henv.ordered Hctx
-    HtelescopeType
-  have HresultType : env.IsType uvars
-      (installedDomains.reverse ++ ctx) resultType := Hopened.2
-  rcases HresultType with ⟨resultLevel, HresultType⟩
-  have Hclosed :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.closeHeads Hdomains
-      installedDomains.length (by simp) HresultType
-  rcases Hclosed with ⟨closedLevel, Hclosed⟩
-  have Hwhole : env.IsDefEqU uvars ctx
-      (VExpr.wrapForalls installedDomains resultType)
-      (VExpr.wrapForalls (VExpr.liftClosedDomains types 0)
-        resultType) := by
-    refine ⟨.sort closedLevel, ?_⟩
-    simpa [hlength] using Hclosed
-  have HfnCanonical : env.HasType uvars ctx fn
-      (VExpr.wrapForalls (VExpr.liftClosedDomains types 0)
-        resultType) :=
-    Hfn.defeqU_r henv Hctx Hwhole
-  rcases VEnv.TypedApplicationSpine.liftClosedDomains
-      henv.ordered HfnCanonical Hargs with ⟨finalType, Hspine⟩
-  exact ⟨finalType, Hspine.hasType⟩
-
 /-- Exact-result form of `mkApps_of_defeqLiftClosedDomains`.  Context
 conversion changes the telescope domains but retains the installed residual;
 the resulting application therefore has the explicit type obtained by
@@ -797,111 +656,6 @@ theorem VEnv.IsDefEqCtx.getElemRight
       simpa only [List.length_cons, List.getElem_cons_succ,
         List.drop_succ_cons, Nat.succ_eq_add_one] using ih hi'
 
-/-- Select a declaration by its chronological telescope position when the
-context is represented as a reversed recent prefix followed by an older
-base.  The resulting equality lives over exactly the preceding declarations
-and the corresponding left base.  This is the indexing form used by the
-minor-hypothesis application fold. -/
-theorem VEnv.IsDefEqCtx.getElemAppendReverse
-    {domains₁ domains₂ base₁ base₂ : List VExpr}
-    (H : VEnv.IsDefEqCtx env U []
-      (domains₁.reverse ++ base₁) (domains₂.reverse ++ base₂))
-    (hi : i < domains₁.length)
-    (hlength : domains₁.length = domains₂.length) :
-    ∃ u, env.IsDefEq U ((domains₁.take i).reverse ++ base₁)
-      domains₁[i] (domains₂[i]'(hlength ▸ hi)) (.sort u) := by
-  let j := domains₁.length - 1 - i
-  have hj : j < (domains₁.reverse ++ base₁).length := by
-    simp only [j, List.length_append, List.length_reverse]
-    omega
-  rcases Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.getElem H hj with
-    ⟨u, Hentry⟩
-  have hjDomains : j < domains₁.reverse.length := by
-    simp only [List.length_reverse, j]
-    omega
-  have hrightLength :
-      (domains₁.reverse ++ base₁).length =
-        (domains₂.reverse ++ base₂).length := H.length_eq
-  have hjRight : j < domains₂.reverse.length := by
-    simp only [List.length_reverse, j, hlength]
-    omega
-  have hdropLeft :
-      (domains₁.reverse ++ base₁).drop (j + 1) =
-        (domains₁.take i).reverse ++ base₁ := by
-    rw [List.drop_append_of_le_length (by
-      simp only [List.length_reverse, j]
-      omega)]
-    simp only [List.drop_reverse]
-    have hcount : domains₁.length - (j + 1) = i := by
-      dsimp only [j]
-      omega
-    rw [hcount]
-  have hleftGet :
-      (domains₁.reverse ++ base₁)[j] = domains₁[i] := by
-    rw [List.getElem_append_left hjDomains, List.getElem_reverse]
-    congr 1
-    omega
-  have hrightGet :
-      (domains₂.reverse ++ base₂)[j]'(hrightLength ▸ hj) =
-        domains₂[i]'(hlength ▸ hi) := by
-    rw [List.getElem_append_left hjRight, List.getElem_reverse]
-    congr 1
-    omega
-  rw [hdropLeft, hleftGet, hrightGet] at Hentry
-  exact ⟨u, Hentry⟩
-
-/-- Right-base counterpart of `getElemAppendReverse`.  It transports the
-selected domain equality into the converted telescope prefix, which is the
-ambient context in which the canonical recursive-result argument is typed. -/
-theorem VEnv.IsDefEqCtx.getElemAppendReverseRight
-    {domains₁ domains₂ base₁ base₂ : List VExpr}
-    (henv : VEnv.Ordered env)
-    (H : VEnv.IsDefEqCtx env U []
-      (domains₁.reverse ++ base₁) (domains₂.reverse ++ base₂))
-    (hi : i < domains₁.length)
-    (hlength : domains₁.length = domains₂.length) :
-    ∃ u, env.IsDefEq U ((domains₂.take i).reverse ++ base₂)
-      domains₁[i] (domains₂[i]'(hlength ▸ hi)) (.sort u) := by
-  let j := domains₁.length - 1 - i
-  have hj : j < (domains₁.reverse ++ base₁).length := by
-    simp only [j, List.length_append, List.length_reverse]
-    omega
-  rcases Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.getElemRight henv H hj with
-    ⟨u, Hentry⟩
-  have hrightLength :
-      (domains₁.reverse ++ base₁).length =
-        (domains₂.reverse ++ base₂).length := H.length_eq
-  have hjRight : j < domains₂.reverse.length := by
-    simp only [List.length_reverse, j, hlength]
-    omega
-  have hdropRight :
-      (domains₂.reverse ++ base₂).drop (j + 1) =
-        (domains₂.take i).reverse ++ base₂ := by
-    rw [List.drop_append_of_le_length (by
-      simp only [List.length_reverse, j, hlength]
-      omega)]
-    simp only [List.drop_reverse]
-    have hcount : domains₂.length - (j + 1) = i := by
-      dsimp only [j]
-      omega
-    rw [hcount]
-  have hleftGet :
-      (domains₁.reverse ++ base₁)[j] = domains₁[i] := by
-    have hjDomains : j < domains₁.reverse.length := by
-      simp only [List.length_reverse, j]
-      omega
-    rw [List.getElem_append_left hjDomains, List.getElem_reverse]
-    congr 1
-    omega
-  have hrightGet :
-      (domains₂.reverse ++ base₂)[j]'(hrightLength ▸ hj) =
-        domains₂[i]'(hlength ▸ hi) := by
-    rw [List.getElem_append_left hjRight, List.getElem_reverse]
-    congr 1
-    omega
-  rw [hdropRight, hleftGet, hrightGet] at Hentry
-  exact ⟨u, Hentry⟩
-
 /-- Pointwise form of `ParamsDefEq`.  Parameter `i` is compared with the
 corresponding family-local parameter in precisely the context of the earlier
 parameters, matching the order in which cached headers are replayed. -/
@@ -921,31 +675,6 @@ theorem VInductDecl.ParamsDefEq.getElem
     simp
     omega
   have hentry := VEnv.IsDefEqCtx.getElem H hrev
-  have htake :
-      params.length - (params.length - (1 + i) + 1) = i := by omega
-  have hindex :
-      params.length - (1 + (params.length - (1 + i))) = i := by omega
-  simpa [List.getElem_reverse, List.drop_reverse, hlen.symm, Nat.sub_sub,
-    htake, hindex] using hentry
-
-/-- Family-local-context form of `ParamsDefEq.getElem`. -/
-theorem VInductDecl.ParamsDefEq.getElemRight
-    {decl : VInductDecl} {env : VEnv} {params ownParams : List VExpr}
-    {i : Nat}
-    (henv : VEnv.Ordered env)
-    (H : decl.ParamsDefEq env params ownParams)
-    (hi : i < params.length) :
-    ∃ u, env.IsDefEq decl.uvars (ownParams.take i).reverse
-      params[i] (ownParams[i]'(by
-        have hlen : params.length = ownParams.length := by
-          simpa using H.length_eq
-        omega)) (.sort u) := by
-  have hlen : params.length = ownParams.length := by
-    simpa using H.length_eq
-  have hrev : params.length - 1 - i < params.reverse.length := by
-    simp
-    omega
-  have hentry := VEnv.IsDefEqCtx.getElemRight henv H hrev
   have htake :
       params.length - (params.length - (1 + i) + 1) = i := by omega
   have hindex :
@@ -976,15 +705,6 @@ theorem TrInductDeclSkeletonCore.typeAt
   Lean4Lean.VerifyInductive.List.Forall₂.getElem H.types i
     hsource htarget
 
-theorem TrInductDeclSkeletonCore.typeNameAt
-    (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe decl
-      envTypes envCtors)
-    (i : Nat) (hsource : i < types.length)
-    (htarget : i < decl.types.length) :
-    types[i].name = decl.types[i].name :=
-  (Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.typeAt
-    H i hsource htarget).header.name.symm
-
 theorem TrInductDeclSkeletonHeaders.types_length
     (H : TrInductDeclSkeletonHeaders env lparams nparams types isUnsafe decl
       envTypes) :
@@ -1000,93 +720,12 @@ theorem TrInductDeclSkeletonHeaders.typeAt
       types[i] decl.types[i] :=
   Lean4Lean.VerifyInductive.List.Forall₂.getElem H.types i hsource htarget
 
-theorem TrInductDeclSkeletonHeaders.typeNameAt
-    (H : TrInductDeclSkeletonHeaders env lparams nparams types isUnsafe decl
-      envTypes)
-    (i : Nat) (hsource : i < types.length)
-    (htarget : i < decl.types.length) :
-    types[i].name = decl.types[i].name :=
-  (Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.typeAt
-    H i hsource htarget).header.name.symm
-
-theorem TrInductDeclSkeleton.types_length
-    (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl) :
-    types.length = decl.types.length := by
-  rcases H with ⟨_, _, _, _, _, _, _, _, htypes⟩
-  exact Lean4Lean.VerifyInductive.List.Forall₂.length_eq' htypes
-
-theorem TrInductDeclSkeleton.typeAt
-    (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl)
-    (i : Nat) (hsource : i < types.length)
-    (htarget : i < decl.types.length) :
-    ∃ envTypes, env.addConstVals decl.typeConstants = some envTypes ∧
-      TrInductiveTypeSkeleton env envTypes lparams
-        types[i] decl.types[i] := by
-  rcases H with ⟨_, _, _, _, envTypes, envCtors, htypesAdded,
-    hctorsAdded, htypes⟩
-  exact ⟨envTypes, htypesAdded,
-    Lean4Lean.VerifyInductive.List.Forall₂.getElem htypes i
-      hsource htarget⟩
-
-theorem TrInductDeclSkeleton.typeNameAt
-    (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl)
-    (i : Nat) (hsource : i < types.length)
-    (htarget : i < decl.types.length) :
-    types[i].name = decl.types[i].name := by
-  rcases Lean4Lean.VerifyInductive.TrInductDeclSkeleton.typeAt
-    H i hsource htarget with ⟨_, _, Htype⟩
-  exact Htype.header.name.symm
-
 theorem TrInductiveTypeSkeleton.materialized
     (H : TrInductiveTypeSkeleton env envTypes lparams type target) :
     TrInductiveType env envTypes lparams type
       (target.toVInductiveType numIndices resultLevel) where
   header := H.header
   ctors := H.ctors
-
-/-- Once the executable header metadata has been collected, the metadata-free
-source translation becomes the ordinary declaration translation expected by
-the later constructor, compilation, and environment-extension layers. -/
-theorem TrInductDeclSkeleton.materialized
-    (H : TrInductDeclSkeleton env lparams nparams types isUnsafe skeleton)
-    (Hmaterialize : skeleton.materialize metadata = some decl) :
-    TrInductDecl env lparams nparams types isUnsafe decl := by
-  rcases H with ⟨hsource, huvars, hnparams, hunsafe,
-    envTypes, envCtors, htypesAdded, hctorsAdded, htypes⟩
-  have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
-  have herase := VInductDeclSkeleton.materialize_toSkeleton Hmaterialize
-  have htypeConstants : decl.typeConstants = skeleton.typeConstants := by
-    rw [← VInductDecl.toSkeleton_typeConstants decl, herase]
-  have hconstructorConstants :
-      decl.constructorConstants = skeleton.constructorConstants := by
-    rw [← VInductDecl.toSkeleton_constructorConstants decl, herase]
-  refine ⟨hsource metadata decl Hmaterialize,
-    hfields.1.trans huvars,
-    hfields.2.1.trans hnparams,
-    hfields.2.2.1.trans hunsafe,
-    envTypes, envCtors, ?_, ?_, ?_⟩
-  · simpa [htypeConstants] using htypesAdded
-  · simpa [hconstructorConstants] using hctorsAdded
-  · have hlength : types.length = decl.types.length := by
-      calc
-        types.length = skeleton.types.length :=
-          Lean4Lean.VerifyInductive.List.Forall₂.length_eq' htypes
-        _ = decl.types.length := hfields.2.2.2.symm
-    apply List.forall₂_of_getElem hlength
-    intro i hsourceIdx htargetIdx
-    have hskeletonIdx : i < skeleton.types.length := by
-      rw [← Lean4Lean.VerifyInductive.List.Forall₂.length_eq' htypes]
-      exact hsourceIdx
-    have htranslated := Lean4Lean.VerifyInductive.List.Forall₂.getElem
-      htypes i hsourceIdx hskeletonIdx
-    rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize
-        hskeletonIdx with ⟨data, hdata, htarget⟩
-    have htarget' : decl.types[i] =
-        skeleton.types[i].toVInductiveType data.1 data.2 := by
-      simpa [List.getElem?_eq_getElem htargetIdx] using htarget
-    rw [htarget']
-    exact Lean4Lean.VerifyInductive.TrInductiveTypeSkeleton.materialized
-      htranslated
 
 /-- Recovering arity metadata changes neither translated source constants nor
 their staging environments, so skeleton-core translation materializes to the
@@ -1133,40 +772,6 @@ theorem TrInductDeclSkeletonCore.materialized
   exact Lean4Lean.VerifyInductive.TrInductiveTypeSkeleton.materialized
     htranslated
 
-/-- Materialize the original source skeleton with the metadata prefix of an
-expanded nested-lowering declaration, simultaneously obtaining the ordinary
-source translation and the arity-alignment certificate consumed by restored
-recursor verification. -/
-theorem TrInductDeclSkeletonCore.materializeExpandedPrefix
-    (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe skeleton
-      envTypes envCtors)
-    (expanded : VInductDecl)
-    (hle : skeleton.types.length ≤ expanded.types.length) :
-    ∃ source,
-      TrInductDeclCore env lparams nparams types isUnsafe source
-        envTypes envCtors ∧
-      MaterializedInductivePrefix source expanded := by
-  rcases VInductDeclSkeleton.materializeExpandedPrefix skeleton expanded hle with
-    ⟨source, Hmaterialize, Hprefix⟩
-  exact ⟨source,
-    Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.materialized
-      H Hmaterialize,
-    Hprefix⟩
-
-theorem TrInductDeclSkeleton.materializeExpandedPrefix
-    (H : TrInductDeclSkeleton env lparams nparams types isUnsafe skeleton)
-    (expanded : VInductDecl)
-    (hle : skeleton.types.length ≤ expanded.types.length) :
-    ∃ source,
-      TrInductDecl env lparams nparams types isUnsafe source ∧
-      MaterializedInductivePrefix source expanded := by
-  rcases VInductDeclSkeleton.materializeExpandedPrefix skeleton expanded hle with
-    ⟨source, Hmaterialize, Hprefix⟩
-  exact ⟨source,
-    Lean4Lean.VerifyInductive.TrInductDeclSkeleton.materialized
-      H Hmaterialize,
-    Hprefix⟩
-
 /-- Materialization preserves the header-only translation while filling the
 semantic arity metadata recovered by the executable header checker. -/
 theorem TrInductDeclSkeletonHeaders.materialized
@@ -1204,12 +809,6 @@ theorem TrInductDeclSkeletonHeaders.materialized
     simpa [List.getElem?_eq_getElem htargetIdx] using htarget
   rw [htarget']
   exact ⟨htranslated.header, htranslated.ctors⟩
-
-theorem TrInductDecl.types_length
-    (H : TrInductDecl env lparams nparams types isUnsafe decl) :
-    types.length = decl.types.length := by
-  rcases H with ⟨_, _, _, _, _, _, _, _, htypes⟩
-  exact Lean4Lean.VerifyInductive.List.Forall₂.length_eq' htypes
 
 theorem VEnv.addConstVals_append
     {env middle out : VEnv} {xs ys : List VConstVal}
@@ -1552,17 +1151,6 @@ theorem TrInductDeclCore.typeAt
     TrInductiveType env envTypes lparams types[i] decl.types[i] :=
   Lean4Lean.VerifyInductive.List.Forall₂.getElem H.types i hsource htarget
 
-theorem TrInductDecl.typeAt
-    (H : TrInductDecl env lparams nparams types isUnsafe decl)
-    (i : Nat) (hsource : i < types.length)
-    (htarget : i < decl.types.length) :
-    ∃ envTypes, env.addConstVals decl.typeConstants = some envTypes ∧
-      TrInductiveType env envTypes lparams types[i] decl.types[i] := by
-  rcases H with ⟨_, _, _, _, envTypes, envCtors, htypesAdded,
-    hctorsAdded, htypes⟩
-  exact ⟨envTypes, htypesAdded,
-    Lean4Lean.VerifyInductive.List.Forall₂.getElem htypes i hsource htarget⟩
-
 theorem TrInductiveType.ctors_length
     (H : TrInductiveType env envTypes lparams type target) :
     type.ctors.length = target.ctors.length :=
@@ -1685,46 +1273,6 @@ theorem TrSourceConst.ctorInfo
       H.uvars.symm, H.type⟩
   · exact H.name.symm
 
-/-- The complete metadata-enriched production header array still translates
-pointwise to the abstract mutual type constants. -/
-theorem AddInductive.inductiveTypeInfos.translated
-    {decl : VInductDecl}
-    (Htypes : List.Forall₂
-      (TrInductiveTypeHeaders env envTypes lparams)
-      indTypes.toList decl.types)
-    (hindices : stats.nindices.toList = decl.types.map (·.numIndices))
-    (hvisible : safety ≤
-      (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
-    List.Forall₂
-      (fun info (type : VInductiveType) =>
-        TrConstVal safety env (.inductInfo info) type.toVConstVal ∧
-          type.toVConstant.WF env)
-      (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
-        isUnsafe lparams).toList
-      decl.types := by
-  have htypesLength : indTypes.size = decl.types.length := by
-    simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
-  have hindicesLength : stats.nindices.size = indTypes.size := by
-    rw [Array.size_eq_length_toList, hindices, List.length_map]
-    simpa using htypesLength.symm
-  have hinfosLength :
-      (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
-        isUnsafe lparams).toList.length = decl.types.length := by
-    simp [AddInductive.inductiveTypeInfos, hindicesLength, htypesLength]
-  apply List.forall₂_of_getElem hinfosLength
-  intro i hiInfo hiTarget
-  have hiSource : i < indTypes.toList.length := by
-    simpa [htypesLength] using hiTarget
-  have Htype := Lean4Lean.VerifyInductive.List.Forall₂.getElem Htypes i
-    hiSource hiTarget
-  constructor
-  · apply Lean4Lean.VerifyInductive.TrSourceConst.inductInfo Htype.header
-    · simp [AddInductive.inductiveTypeInfos]
-    · simp [AddInductive.inductiveTypeInfos]
-    · simp [AddInductive.inductiveTypeInfos]
-    · simpa [AddInductive.inductiveTypeInfos, hindicesLength] using hvisible
-  · exact Htype.header.wf
-
 def ownedConstructors
     (types : List InductiveType) : List (InductiveType × Constructor) :=
   types.flatMap fun type => type.ctors.map (type, ·)
@@ -1751,30 +1299,6 @@ theorem TrInductiveType.ownedConstructors
     | nil => exact .nil
     | cons h _ ih => exact .cons ⟨H, h⟩ ih
   exact aux H.ctors
-
-theorem TrInductDecl.ownedConstructors
-    (H : TrInductDecl env lparams nparams types isUnsafe decl) :
-    ∃ envTypes,
-      env.addConstVals decl.typeConstants = some envTypes ∧
-      List.Forall₂ (TrOwnedConstructor env envTypes lparams)
-        (Lean4Lean.VerifyInductive.ownedConstructors types)
-        decl.ownedConstructors := by
-  rcases H with ⟨_, _, _, _, envTypes, envCtors, htypesAdded,
-    hctorsAdded, htypes⟩
-  refine ⟨envTypes, htypesAdded, ?_⟩
-  have aux : ∀ {types targets},
-      List.Forall₂ (TrInductiveType env envTypes lparams) types targets →
-      List.Forall₂ (TrOwnedConstructor env envTypes lparams)
-        (Lean4Lean.VerifyInductive.ownedConstructors types)
-        (targets.flatMap fun target => target.ctors.map (target, ·)) := by
-    intro types targets htypes
-    induction htypes with
-    | nil => exact .nil
-    | cons h _ ih =>
-      simpa [Lean4Lean.VerifyInductive.ownedConstructors] using
-        Lean4Lean.VerifyInductive.List.Forall₂.append'
-          (Lean4Lean.VerifyInductive.TrInductiveType.ownedConstructors h) ih
-  simpa [VInductDecl.ownedConstructors] using aux htypes
 
 theorem TrInductDeclCore.ownedConstructors
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
@@ -1803,28 +1327,6 @@ theorem TrInductDeclCore.ownedConstructors_length
       decl.ownedConstructors.length :=
   Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
     (Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructors H)
-
-theorem TrInductDecl.ownedConstructors_length
-    (H : TrInductDecl env lparams nparams types isUnsafe decl) :
-    (Lean4Lean.VerifyInductive.ownedConstructors types).length =
-      decl.ownedConstructors.length := by
-  rcases Lean4Lean.VerifyInductive.TrInductDecl.ownedConstructors H with
-    ⟨_, _, hctors⟩
-  exact Lean4Lean.VerifyInductive.List.Forall₂.length_eq' hctors
-
-theorem TrInductDecl.ownedConstructorAt
-    (H : TrInductDecl env lparams nparams types isUnsafe decl)
-    (i : Nat)
-    (hsource : i < (Lean4Lean.VerifyInductive.ownedConstructors types).length)
-    (htarget : i < decl.ownedConstructors.length) :
-    ∃ envTypes, env.addConstVals decl.typeConstants = some envTypes ∧
-      TrOwnedConstructor env envTypes lparams
-        (Lean4Lean.VerifyInductive.ownedConstructors types)[i]
-        decl.ownedConstructors[i] := by
-  rcases Lean4Lean.VerifyInductive.TrInductDecl.ownedConstructors H with
-    ⟨envTypes, htypes, hctors⟩
-  exact ⟨envTypes, htypes,
-    Lean4Lean.VerifyInductive.List.Forall₂.getElem hctors i hsource htarget⟩
 
 end VerifyInductive
 end Lean4Lean

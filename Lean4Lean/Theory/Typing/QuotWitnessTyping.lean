@@ -95,29 +95,4 @@ theorem QuotRegistered.witness_app {env : VEnv} (H : QuotRegistered env)
   have h3 := HasType.app h2 hq
   simpa [mkApps, inst_lift] using h3
 
-/-- The actual Quot.mk reconstruction is definitionally equal to its major. -/
-theorem QuotRegistered.reconstruct_major {env : VEnv} (H : QuotRegistered env)
-    (hu : u.WF U) (hz : u ≈ .zero)
-    (ha : env.HasType U Γ alpha (.sort u))
-    (hr : env.HasType U Γ relation (.forallE alpha (.forallE alpha.lift (.sort .zero))))
-    (hq : env.HasType U Γ major (mkApps (.const ``Quot [u]) [alpha, relation])) :
-    env.IsDefEq U Γ major
-      (mkApps (.const ``Quot.mk [u])
-        [alpha, relation, mkApps (QuotPrefixProgram.witness u) [alpha, relation, major]])
-      (mkApps (.const ``Quot [u]) [alpha, relation]) := by
-  have hw := H.witness_app hu hz ha hr hq
-  have hc := HasType.const (Γ := Γ) H.constructor (ls := [u]) (by simpa using hu) rfl
-  have h1 := HasType.app hc ha
-  simp [inst, instL] at h1
-  have h2 := HasType.app h1 hr
-  simp [inst, inst_lift, ← lift_instN_lo] at h2
-  have h3 := HasType.app h2 hw
-  have hq1 := HasType.app (HasType.const (Γ := Γ) H.quotient
-    (ls := [u]) (by simpa using hu) rfl) ha
-  simp [inst, instL] at hq1
-  have hq2 := HasType.app hq1 hr
-  simp [inst] at hq2
-  apply IsDefEq.proofIrrel (IsDefEq.defeq (IsDefEq.sortDF (l' := .zero) hu trivial hz) hq2) hq
-  change env.HasType U Γ _ _
-  simpa only [mkApps, List.foldl_cons, List.foldl_nil, inst, inst_lift, VLevel.inst, List.getD_cons_zero] using h3
 end Lean4Lean.VEnv

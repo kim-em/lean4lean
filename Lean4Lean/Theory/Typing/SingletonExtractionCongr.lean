@@ -117,18 +117,6 @@ theorem typeCast (hu : RL u u') (hX : R X X') (hY : R Y Y') (he : R e e') (hx : 
 end SynRel
 
 
-theorem forall₂_instL {l l' : List VExpr} {ls : List VLevel}
-    (h : List.Forall₂ (fun x y => y = x.instL ls) l l') : l' = l.map (·.instL ls) := by
-  induction h with
-  | nil => rfl
-  | cons h _ ih => simp [h, ih]
-
-theorem forall₂_instL_of {l : List VExpr} {ls : List VLevel} :
-    List.Forall₂ (fun x y => y = x.instL ls) l (l.map (·.instL ls)) := by
-  induction l with
-  | nil => exact .nil
-  | cons _ _ ih => exact .cons rfl ih
-
 theorem forall₂_getElem {R : α → β → Prop} :
     ∀ {l l'}, List.Forall₂ R l l' → ∀ i (h : i < l.length) (h' : i < l'.length), R l[i] l'[i]
   | _, _, .cons h _, 0, _, _ => h
@@ -141,31 +129,6 @@ theorem forall₂_levels {U : Nat} :
   | _, _, .cons h t => by
     obtain ⟨h1, h2, h3⟩ := forall₂_levels t
     exact ⟨List.forall_mem_cons.2 ⟨h.1, h1⟩, List.forall_mem_cons.2 ⟨h.2.1, h2⟩, .cons h.2.2 h3⟩
-
-/-- Universe instantiation as a syntactic congruence. -/
-theorem SynRel.instL (ls : List VLevel) :
-    SynRel (fun x y => y = x.instL ls) (fun u v => v = u.inst ls) where
-  bvar _ := rfl
-  sort h := by subst h; rfl
-  const h := by
-    have : _ = _ := forall₂_map_iff_aux h
-    subst this; rfl
-  app h1 h2 := by subst h1 h2; rfl
-  lam h1 h2 := by subst h1 h2; rfl
-  forallE h1 h2 := by subst h1 h2; rfl
-  liftN n k h := by subst h; simp
-  instOuter h ha := by
-    have ha := forall₂_instL ha
-    subst h ha
-    exact (VExpr.instL_instOuter ..).symm
-  zero := rfl
-  succ h := by subst h; rfl
-where
-  forall₂_map_iff_aux {l l' : List VLevel} {ls : List VLevel}
-      (h : List.Forall₂ (fun u v => v = u.inst ls) l l') : l' = l.map (·.inst ls) := by
-    induction h with
-    | nil => rfl
-    | cons h _ ih => simp [h, ih]
 
 /-- Equality up to equivalent well-formed universe levels as a syntactic congruence. -/
 theorem SynRel.levels (U : Nat) :

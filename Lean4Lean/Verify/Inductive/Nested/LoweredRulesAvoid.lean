@@ -104,8 +104,6 @@ theorem consumeTypeAnnotationsVerified {e : Expr} (H : HitTrailWith heads np Q e
   case case4 => exact H
   case case5 => exact H
 
-private theorem getAppFn_app' (f a : Expr) : (Expr.app f a).getAppFn = f.getAppFn := rfl
-
 /-- An application whose function is not headed by a constant (a variable, say). -/
 theorem app_of_not_const {f a : Expr} (hf : HitTrailWith heads np Q f)
     (ha : HitTrailWith heads np Q a) (hfn : ∀ c us, f.getAppFn ≠ .const c us) :

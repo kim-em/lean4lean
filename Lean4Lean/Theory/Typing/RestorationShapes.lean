@@ -27,12 +27,6 @@ theorem Restoration.expr_mkApps (r : Restoration) (f : VExpr) (args : List VExpr
       (args.mapM r.expr).bind fun args' => Restoration.expr.go r f args' := by
   simp [Restoration.expr_eq_go, Restoration.go_mkApps]
 
-@[simp] theorem Restoration.expr_bvar (r : Restoration) (i : Nat) :
-    r.expr (.bvar i) = some (.bvar i) := rfl
-
-@[simp] theorem Restoration.expr_sort (r : Restoration) (u : VLevel) :
-    r.expr (.sort u) = some (.sort u) := rfl
-
 theorem Restoration.mapM_expr_bvars (r : Restoration) (l : List VExpr)
     (hl : ∀ e ∈ l, ∃ i, e = .bvar i) : l.mapM r.expr = some l := by
   induction l with

@@ -3,8 +3,8 @@ import Lean4Lean.Theory.Typing.ProjectionCornerWalk
 /-!
 # Projections of an arbitrary major of an indexed structure as constructor fields
 
-The index-general forms of `VProjectionInfo.proofField_transfer` and
-`VProjectionInfo.field_of_walk`: the major may carry index arguments. The constructor
+`VProjectionInfo.proofField_transfer` and `VProjectionInfo.field_of_walk`: the major may carry
+index arguments. The constructor
 application and the major need not agree on their indices, since only the parameters enter the
 field telescope.
 -/
@@ -14,7 +14,7 @@ open VExpr
 
 variable {env : VEnv} {U : Nat}
 
-theorem VProjectionInfo.proofField_transfer_idx {decl : VInductDecl}
+theorem VProjectionInfo.proofField_transfer {decl : VInductDecl}
     (henv : VEnv.WF env)
     (hinfo : env.projections S info)
     (hwf : env.IsType info.uvars [] info.ctorType)
@@ -192,7 +192,7 @@ theorem VProjectionInfo.proofField_transfer_idx {decl : VInductDecl}
 walking the constructor telescope over the parameters `PA` and the projections of a major `M` is
 well formed, then the corresponding field argument of a typed constructor application has that
 type: every projection it uses is a proof field. -/
-theorem VProjectionInfo.field_of_walk_idx {decl : VInductDecl}
+theorem VProjectionInfo.field_of_walk {decl : VInductDecl}
     (henv : VEnv.WF env)
     (hinfo : env.projections S info)
     (hwf : env.IsType info.uvars [] info.ctorType)
@@ -245,7 +245,7 @@ theorem VProjectionInfo.field_of_walk_idx {decl : VInductDecl}
       obtain ⟨Δ', hΓΔ', hwfΔ'⟩ := VExpr.WF.of_occurs_lift henv [] hocc'' hΓ ⟨_, hDt⟩
       have hXΔ : env.IsDefEqU U (Δ' ++ Γ) (M.liftN Δ'.length) (M.liftN Δ'.length) :=
         ⟨_, hM.weakN henv.ordered (.zero Δ' rfl)⟩
-      have := VProjectionInfo.proofField_transfer_idx henv hinfo hwf hctor hshape hvalid hhead hdn hdu
+      have := VProjectionInfo.proofField_transfer henv hinfo hwf hctor hshape hvalid hhead hdn hdu
         hle hΓ hc' hlen hls hlsE hnz hPA hIA hM k Δ' hΓΔ' (by omega) hXΔ
         (by simpa [VExpr.liftN] using hwfΔ') [] (Y := M) (by simpa using hΓ)
         (by simpa using IsDefEqU.refl ⟨_, hM⟩)

@@ -1,4 +1,5 @@
-import Lean4Lean.Verify.Inductive.Nested.HitShape
+import Lean4Lean.Verify.Inductive.Constructor.Positivity
+import Lean4Lean.Verify.ExprHitShape
 import Lean4Lean.Verify.Inductive.Recursor.FieldDeclarationTypes
 import Lean4Lean.Verify.Inductive.Recursor.ArgumentUniverses
 import Lean4Lean.Verify.Inductive.Nested.FinalAssembly
@@ -59,15 +60,6 @@ namespace Lean.Expr
 open Lean4Lean
 
 /-! ### Generic hit-shape lemmas -/
-
-private theorem getAppFn_mkAppList'' (f : Expr) (l : List Expr) :
-    (f.mkAppList l).getAppFn = f.getAppFn := by
-  induction l generalizing f with
-  | nil => rfl
-  | cons a l ih => simp only [mkAppList]; rw [ih]; rfl
-
-private theorem getAppFn_getAppFn (e : Expr) : e.getAppFn.getAppFn = e.getAppFn := by
-  induction e <;> simp_all [getAppFn]
 
 namespace HitShape
 
@@ -1224,29 +1216,6 @@ theorem minorDeclHitShape (I : H.HitShapeInputs heads)
   rw [← hsrc.1]
   exact (H.minorHitShape I W Fm.owner howner Fm.localIndex hlocal).2.1
 
-/-- **Declarations of the recursor-construction context.** Every outer binder
-of the generated recursors (parameters, motives, minor premises, indices and
-major premises) is declared in the recursor context with a type in hit shape. -/
-theorem outerDeclHitShape (I : H.HitShapeInputs heads)
-    (W : WhnfHitOKFacts heads stats.params.toList stats.levels H.localContext.env) :
-    ∀ fv ∈ H.bindings.allFvars H.params, ∃ d, H.localContext.lctx.find? fv = some d ∧
-      d.HitShape heads stats.params.toList stats.levels := by
-  intro fv hfv
-  rw [H.bindings.allFvars_eq H.params] at hfv
-  simp only [List.mem_append] at hfv
-  rcases hfv with hp | hm | hmi | hi | hma
-  · obtain ⟨index, name, type, bi, kind, hfind⟩ :=
-      H.localWF.findCDecl fv (H.params.members fv hp)
-    exact ⟨_, hfind, (I.paramDecls fv hp _ hfind).hitShape⟩
-  · exact H.motiveDeclHitShape I W (H.bindings.motives.mem_fvars_iff.1 hm)
-  · exact H.minorDeclHitShape I W (H.bindings.flatMinors.mem_fvars_iff.1 hmi)
-  · have h := H.bindings.flatIndices.mem_fvars_iff.1 hi
-    obtain ⟨info, hinfo, hmem⟩ := Array.mem_flatMap.1 h
-    obtain ⟨k, hk, rfl⟩ := Array.mem_iff_getElem.1 hinfo
-    refine H.indexDeclHitShape I W hk ?_
-    rw [getElem!_pos H.recInfos k hk]; exact hmem
-  · exact H.majorDeclHitShape (H.bindings.majors.mem_fvars_iff.1 hma)
-
 end Outer
 
 /-- **Generated recursor types are parameter telescopes in hit shape.** For
@@ -1512,37 +1481,6 @@ theorem NestedValidatedRunResult.recursorHitShape
   rw [hinfo] at H
   exact H
 
-/-- `recursorHitShape`, type component. -/
-theorem NestedValidatedRunResult.recursorTypeHitShape
-    {heads : List Name}
-    (I : E.production.production.toCompletedRecursorConstruction.HitShapeInputs heads)
-    (W : WhnfHitOKFacts heads E.production.stats.params.toList (lparams.map Level.param)
-      E.production.production.localContext.env)
-    (owner : Fin E.production.production.generationSignature.families.size)
-    {auxRec : NameMap Name} {allIndNames : List Name}
-    {stepSource stepTarget : Environment}
-    (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.canonicalGeneration.recursorName owner)
-      stepSource stepTarget) :
-    Expr.HitShapeTele heads result.nparams (lparams.map Level.param) Hstep.oldInfo.type :=
-  (E.recursorHitShape I W owner Hstep).1
-
-/-- `recursorHitShape`, rule component. -/
-theorem NestedValidatedRunResult.ruleRhsHitShape
-    {heads : List Name}
-    (I : E.production.production.toCompletedRecursorConstruction.HitShapeInputs heads)
-    (W : WhnfHitOKFacts heads E.production.stats.params.toList (lparams.map Level.param)
-      E.production.production.localContext.env)
-    (owner : Fin E.production.production.generationSignature.families.size)
-    {auxRec : NameMap Name} {allIndNames : List Name}
-    {stepSource stepTarget : Environment}
-    (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.canonicalGeneration.recursorName owner)
-      stepSource stepTarget) :
-    ∀ rule ∈ Hstep.oldInfo.rules,
-      Expr.HitShapeTele heads result.nparams (lparams.map Level.param) rule.rhs :=
-  (E.recursorHitShape I W owner Hstep).2
-
 end Run
 
 /-! ### Lowered constructor types -/
@@ -1716,42 +1654,6 @@ theorem avoidsConsts_lit_of_reserved {heads : List Name}
         (.const _ _ (not_mem_of_not_reserved hheads (by decide)))
         (.const _ _ (not_mem_of_not_reserved hheads (by decide))))
         (.app _ _ (.const _ _ (not_mem_of_not_reserved hheads (by decide))) (hnat _))) ih
-
-/-- Source syntax that mentions no constant of the reserved `_nested` namespace
-avoids every head in that namespace. -/
-theorem NoNestedAux.avoidsConsts {heads : List Name}
-    (hheads : ∀ h ∈ heads, (`_nested).isPrefixOf h = true) :
-    ∀ {e : Expr}, NoNestedAux e → e.AvoidsConsts heads
-  | .bvar _, _ => .bvar _
-  | .fvar _, _ => .fvar _
-  | .mvar _, _ => .mvar _
-  | .sort _, _ => .sort _
-  | .lit l, _ => avoidsConsts_lit_of_reserved hheads l
-  | .const c _, H => by
-    refine .const _ _ fun hc => ?_
-    have := hheads c hc
-    simp [NoNestedAux, Expr.findAny, this] at H
-  | .app f a, H => by
-    simp only [NoNestedAux, Expr.findAny, Bool.or_eq_false_iff] at H
-    exact .app _ _ (NoNestedAux.avoidsConsts hheads H.1.2) (NoNestedAux.avoidsConsts hheads H.2)
-  | .lam _ t b _, H => by
-    simp only [NoNestedAux, Expr.findAny, Bool.or_eq_false_iff] at H
-    exact .lam _ _ _ _ (NoNestedAux.avoidsConsts hheads H.1.2)
-      (NoNestedAux.avoidsConsts hheads H.2)
-  | .forallE _ t b _, H => by
-    simp only [NoNestedAux, Expr.findAny, Bool.or_eq_false_iff] at H
-    exact .forallE _ _ _ _ (NoNestedAux.avoidsConsts hheads H.1.2)
-      (NoNestedAux.avoidsConsts hheads H.2)
-  | .letE _ t v b _, H => by
-    simp only [NoNestedAux, Expr.findAny, Bool.or_eq_false_iff] at H
-    exact .letE _ _ _ _ _ (NoNestedAux.avoidsConsts hheads H.1.1.2)
-      (NoNestedAux.avoidsConsts hheads H.1.2) (NoNestedAux.avoidsConsts hheads H.2)
-  | .mdata _ e, H => by
-    simp only [NoNestedAux, Expr.findAny, Bool.or_eq_false_iff] at H
-    exact .mdata _ _ (NoNestedAux.avoidsConsts hheads H.2)
-  | .proj _ _ e, H => by
-    simp only [NoNestedAux, Expr.findAny, Bool.or_eq_false_iff] at H
-    exact .proj _ _ _ (NoNestedAux.avoidsConsts hheads H.2)
 
 end VerifyInductive
 end Lean4Lean

@@ -66,11 +66,3 @@ theorem IsDefEqU.rigidApp_ne (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U)
     (h2 : env.HasType U Γ (VExpr.mkApps (.const c ls) args) (.sort u)) :
     ¬env.IsDefEqU U Γ (VExpr.mkApps (.const c ls) args) (VExpr.mkApps (.const c' ls') args') :=
   fun h1 => hne (henv.headInversion.rigid_rigid hΓ hc hc' (h1.typeChain henv hΓ h2)).1
-
-/-- A sort is not definitionally equal to a type headed by a rigid constant. -/
-theorem IsDefEqU.sort_rigidApp_inv (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
-    (hrigid : env.Rigid c) : ¬env.IsDefEqU U Γ (.sort u) (VExpr.mkApps (.const c ls) args) :=
-  fun h1 =>
-  have ⟨_, h⟩ := h1
-  henv.headInversion.sort_rigid hΓ hrigid
-    (h1.typeChain henv hΓ (.sort (h.sort_inv_l henv.ordered)))

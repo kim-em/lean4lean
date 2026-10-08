@@ -1,15 +1,14 @@
 import Lean4Lean.Theory.Typing.ProjectionCornerIndexedCase
 import Lean4Lean.Theory.Typing.ProjectionCornerIndexedTele
 
-/-! # The case type of a registered indexed structure is a type
+/-! # The case type of a registered structure is a type
 
-The index-general form of `caseView_recursorType_isType`. The parameter part of the family
-telescope is related to the registered constructor's parameters as in the non-indexed case.
+The parameter part of the family telescope is related to the registered constructor's parameters.
 The index part is related to the declared family type by an explicit header-agreement
 hypothesis: the declared type of the family is definitionally the normalized family type
-`∀ params indices, Sort r`. The certified compilation data does not provide this agreement
-(`InductiveSignature.FamilyTypesWF` only types the family application under all the index
-binders). -/
+`∀ params indices, Sort r`. `InductiveSignature.FamilyTypesWF` alone does not give this (it only
+types the family application under all the index binders); the header-agreement clause of the
+case certificate does (`VEnv.WF.corner_header`). -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -19,41 +18,41 @@ variable {env : VEnv} {U : Nat}
 /-- The recursor type into `Prop` of the case view of a registered indexed structure is a type,
 given that the view's constructor type is the registered constructor type and that the declared
 family type is the normalized one. Also returns the constructor's field count. -/
-theorem caseViewI_recursorType_isType (henv : env.WF)
+theorem caseView_recursorType_isType (henv : env.WF)
     {S : Name} {info : VProjectionInfo} (hinfo : env.projections S info)
     {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U) (hlslen : ls.length = info.uvars)
     {uvars : Nat} {isUnsafe : Bool} {fam : Family} {RP RF RCI : List VExpr}
     (hfam : fam.name = S) (huv : uvars = info.uvars)
     (hnp : RP.length = info.nparams) (hCIlen : RCI.length = fam.indices.length)
     (hdef : env.IsDefEqU info.uvars []
-      ((caseViewI uvars isUnsafe fam info.ctorName RP RF RCI).constructorType
-        ⟨info.ctorName, ⟨0, by simp [caseViewI]⟩, RF.map Field.external, RCI⟩) info.ctorType)
+      ((caseView uvars isUnsafe fam info.ctorName RP RF RCI).constructorType
+        ⟨info.ctorName, ⟨0, by simp [caseView]⟩, RF.map Field.external, RCI⟩) info.ctorType)
     (hhdr : ∃ tc, env.constants S = some tc ∧ env.IsDefEqU info.uvars [] tc.type
       (VExpr.wrapForalls (RP ++ fam.indices) (.sort fam.resultLevel))) :
     env.IsType U []
-      ((⟨U, ls, .zero, fun _ => default⟩ : Instance (caseViewI uvars isUnsafe fam info.ctorName
-        RP RF RCI)).recursorType ⟨0, by simp [caseViewI]⟩) ∧
+      ((⟨U, ls, .zero, fun _ => default⟩ : Instance (caseView uvars isUnsafe fam info.ctorName
+        RP RF RCI)).recursorType ⟨0, by simp [caseView]⟩) ∧
     info.nparams + RF.length = info.ctorType.forallArity := by
-  let sv := caseViewI uvars isUnsafe fam info.ctorName RP RF RCI
+  let sv := caseView uvars isUnsafe fam info.ctorName RP RF RCI
   let gp : Instance sv := ⟨U, ls, .zero, fun _ => default⟩
   let c' : Constructor sv.families.size :=
-    ⟨info.ctorName, ⟨0, by simp [sv, caseViewI]⟩, RF.map Field.external, RCI⟩
-  have hrec := gp.recursorType_shape rfl rfl ⟨0, by simp [sv, caseViewI]⟩
-    ⟨0, by simp [sv, caseViewI]⟩
-  have hc0 : sv.constructors[(⟨0, by simp [sv, caseViewI]⟩ : Fin sv.constructors.size)] = c' :=
+    ⟨info.ctorName, ⟨0, by simp [sv, caseView]⟩, RF.map Field.external, RCI⟩
+  have hrec := gp.recursorType_shape rfl rfl ⟨0, by simp [sv, caseView]⟩
+    ⟨0, by simp [sv, caseView]⟩
+  have hc0 : sv.constructors[(⟨0, by simp [sv, caseView]⟩ : Fin sv.constructors.size)] = c' :=
     rfl
   rw [hc0, gp.motive_shape _ rfl, gp.minor_shape rfl c' rfl, gp.major_lift,
     gp.constructorApp_shape] at hrec
   have hsH : gp.sHyps c' = [] := by
-    unfold Instance.sHyps; rw [caseViewI_recursiveFields]; rfl
+    unfold Instance.sHyps; rw [caseView_recursiveFields]; rfl
   simp only [hsH, List.append_nil, List.length_nil, Nat.add_zero, VExpr.liftN_zero] at hrec
-  change env.IsType U [] (gp.recursorType ⟨0, by simp [sv, caseViewI]⟩) ∧ _
+  change env.IsType U [] (gp.recursorType ⟨0, by simp [sv, caseView]⟩) ∧ _
   rw [hrec]
   -- notation
   have hF : sv.fieldTypes c' = RF := fieldTypes_external _ rfl
   have hsF : gp.sFields c' = RF.map (·.instL ls) := by simp only [Instance.sFields, hF]; rfl
   have hP : gp.params = RP.map (·.instL ls) := rfl
-  have hsI : gp.sIndices ⟨0, by simp [sv, caseViewI]⟩ = fam.indices.map (·.instL ls) := rfl
+  have hsI : gp.sIndices ⟨0, by simp [sv, caseView]⟩ = fam.indices.map (·.instL ls) := rfl
   have hsCI : gp.sCtorIndices c' = RCI.map (·.instL ls) := rfl
   have hlsU : ls.length = uvars := hlslen.trans huv.symm
   rw [hsF, hP, hsI, hsCI]
@@ -71,7 +70,7 @@ theorem caseViewI_recursorType_isType (henv : env.WF)
     simp only [InductiveSignature.constructorType, hF, InductiveSignature.familyApp,
       VExpr.instL_wrapForalls, List.map_append, VExpr.instL_mkApps, VExpr.instL, R,
       ← hPdef, ← hFdef, ← hCIdef]
-    simp only [sv, caseViewI, hfam, VLevel.inst_map_id hlsU]
+    simp only [sv, caseView, hfam, VLevel.inst_map_id hlsU]
     congr 2
     · exact congrArg (VExpr.const · ls) hfam
     · simp [c', InductiveSignature.Instance.instL_vars, vars, VExpr.instL]
@@ -117,13 +116,13 @@ theorem caseViewI_recursorType_isType (henv : env.WF)
   simp only [List.append_nil] at hPI
   obtain ⟨hctxPI, -⟩ := hPI
   -- the major domain
-  have hsM : gp.sMajor ⟨0, by simp [sv, caseViewI]⟩ =
+  have hsM : gp.sMajor ⟨0, by simp [sv, caseView]⟩ =
       VExpr.mkApps (.const S ls) (bvarRange (P.length + I.length) (P.length + I.length)) := by
     simp only [Instance.sMajor]
-    have e2 : (sv.families[(⟨0, by simp [sv, caseViewI]⟩ : Fin sv.families.size)]).name = S := hfam
+    have e2 : (sv.families[(⟨0, by simp [sv, caseView]⟩ : Fin sv.families.size)]).name = S := hfam
     rw [e2]
-    have hPv : sv.params.length = P.length := by rw [← hPdef]; simp [sv, caseViewI]
-    have hIv : (sv.families[(⟨0, by simp [sv, caseViewI]⟩ : Fin sv.families.size)]).indices.length =
+    have hPv : sv.params.length = P.length := by rw [← hPdef]; simp [sv, caseView]
+    have hIv : (sv.families[(⟨0, by simp [sv, caseView]⟩ : Fin sv.families.size)]).indices.length =
         I.length := hIl.symm
     rw [hPv, hIv, vars_eq_bvarRange, vars_eq_bvarRange, Nat.add_zero, ← CastSpec.bvarRange_split]
   rw [hsM]
@@ -241,7 +240,7 @@ theorem caseViewI_recursorType_isType (henv : env.WF)
   have hbody := HasType.mkApps_of_tel henv hCm' hmot hU
   have hsC : gp.sCtorApp c' = Ctor := by
     simp only [Instance.sCtorApp, hsF, ← hFdef]
-    simp [sv, caseViewI, c', gp, Ctor, ← hPdef, hFl]
+    simp [sv, caseView, c', gp, Ctor, ← hPdef, hFl]
   rw [hsC]
   refine IsType.recursorShape henv hidx (IsType.wrapForalls_of
     (by simpa [List.reverse_append, List.append_assoc] using hCm') ⟨.zero, ?_⟩)

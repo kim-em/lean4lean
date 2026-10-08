@@ -72,27 +72,6 @@ inductive HitArity (heads : List Name) (n k : Nat) : Expr → Prop
   | proj {s : Name} {i : Nat} {e : Expr} : HitArity heads n k e →
       HitArity heads n k (.proj s i e)
 
-theorem HitShapeB.hitArity {heads : List Name} {n : Nat} {ls : List Level} {d : Nat}
-    {e : Expr} (H : HitShapeB heads n ls d e) : HitArity heads n ls.length e := by
-  induction H with
-  | hitHead hc =>
-    refine .hit hc rfl (by simp) fun a ha => ?_
-    simp only [hitParamBVars, List.mem_map] at ha
-    obtain ⟨_, _, rfl⟩ := ha
-    exact .bvar _
-  | app _ _ ihf iha => exact .app ihf iha
-  | const hc => exact .const hc
-  | bvar => exact .bvar _
-  | fvar => exact .fvar _
-  | mvar => exact .mvar _
-  | sort => exact .sort _
-  | lit => exact .lit _
-  | lam _ _ iht ihb => exact .lam iht ihb
-  | forallE _ _ iht ihb => exact .forallE iht ihb
-  | letE _ _ _ iht ihv ihb => exact .letE iht ihv ihb
-  | mdata _ ih => exact .mdata ih
-  | proj _ ih => exact .proj ih
-
 theorem HitShape.hitArity {heads : List Name} {params : List Expr} {ls : List Level}
     {e : Expr} (H : HitShape heads params ls e)
     (hp : ∀ p ∈ params, HitArity heads params.length ls.length p) :
@@ -607,19 +586,6 @@ theorem namePrefix_of_isPrefixOf {P : Name} :
 
 /-! ### Run-level facts about the auxiliary heads -/
 
-/-- Membership in the auxiliary heads of a run. -/
-theorem NestedValidatedRunResult.mem_auxHeads
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
-    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv) {name : Name} :
-    name ∈ E.auxHeads ↔
-      name ∈ familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) :=
-  Iff.rfl
-
 /-- **The auxiliary heads of an exact validated nested run** are fresh in the
 source environment (and in the environment extended by the source family
 headers), lie in the reserved `_nested` namespace, and contain every key of
@@ -767,34 +733,6 @@ theorem ContextWF.declAvoids {c : AddInductive.Context} (Hc : ContextWF c)
     ⟨valueTarget, typeTarget, -, -, -, hvalueTr, htypeTr⟩
   exact ⟨checkPositivityStep.TrExprS.sourceAvoidsFresh hfresh htypeTr,
     checkPositivityStep.TrExprS.sourceAvoidsFresh hfresh hvalueTr⟩
-
-/-- **Parameter declarations are shaped**: they are the source parameter
-declarations of the header check, translated before any family of the block
-is installed, so they mention no head fresh in the source environment. -/
-theorem CompletedRecursorConstruction.paramDecls_of_fresh
-    (H : CompletedRecursorConstruction R) {heads : List Name}
-    (hfresh : ∀ name ∈ heads, sourceEnv.constants name = none) :
-    ∀ fv ∈ H.params.fvars, ∀ d, H.localContext.lctx.find? fv = some d →
-      d.HitShape heads stats.params.toList stats.levels := by
-  intro fv hfv d hfind
-  have hparam : Expr.fvar fv ∈ stats.params := H.params.mem_fvars_iff.1 hfv
-  have hc : fv ∈ c.lctx.fvars := by
-    obtain ⟨fvars, hparams, hdecls⟩ :=
-      cachedParameterDecls_fvars R.sourceMaterialized.cachedScope
-    have hmem : Expr.fvar fv ∈ stats.params.toList.reverse := by simpa using hparam
-    rw [hparams] at hmem
-    simp only [List.mem_map, Expr.fvar.injEq, exists_eq_right] at hmem
-    rw [← R.sourceContext.lctx_eq, R.sourceContext.mlctx_wf.tr.fvars_eq,
-      R.sourceMaterialized.scopeDecomposition, VLCtx.fvars_append, hdecls]
-    exact List.mem_append_right _ hmem
-  have hfind' : c.lctx.find? fv = some d := by
-    rw [← hfind]; exact (H.localExtends.declarations fv hc).symm
-  have hfresh' : ∀ name ∈ heads, R.sourceContext.venv.constants name = none := by
-    rw [R.sourceContextVEnv]; exact hfresh
-  obtain ⟨htype, hvalue⟩ := R.sourceContext.declAvoids hfresh' hfind'
-  cases d with
-  | cdecl => exact Expr.HitShape.of_avoidsConsts htype
-  | ldecl => exact ⟨Expr.HitShape.of_avoidsConsts htype, Expr.HitShape.of_avoidsConsts hvalue⟩
 
 /-- Every declaration of a well-formed source context projects only out of
 structures registered in its environment. -/
@@ -1221,35 +1159,6 @@ theorem NestedValidatedRunResult.constructorTypesHitShape
   obtain ⟨src, hsrc, before, after, hbefore, Mc⟩ := M.constructors.forall_mem ctor hctor
   exact Mc.hitShapeTele hkeys (havoid src hsrc) (hbefore.trans hlv)
 
-/-- **Family headers of an exact validated nested run avoid the auxiliary
-heads.** The lowering leaves every header unchanged
-(`LoweredInductiveMapping.type`): source headers are translated in the source
-environment, and an auxiliary header (`buildAuxiliary`: the parameter
-telescope over the container type instantiated at the raw nested arguments)
-is translated there too (`FinalLoweredGeneratedFamilySource.translation`), and
-the auxiliary names are fresh in that environment. -/
-theorem NestedValidatedRunResult.familyHeadersAvoid
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    ∀ i, i < E.production.indTypes.size →
-      (E.production.indTypes[i]!.type).AvoidsConsts E.auxHeads := by
-  have hmaps := E.loweredFamilyMappings wf Hsources
-  rw [E.production_indTypes]
-  intro i hi
-  have hi' : i < result.types.length := by simpa using hi
-  have hget : result.types.toArray[i]! = result.types[i] := by
-    simp [getElem!_pos result.types.toArray i hi]
-  rw [hget]
-  obtain ⟨source, st, ls, -, havoid, -, M⟩ := hmaps i hi'
-  rw [M.type]
-  exact havoid
-
 /-! ### Totality of restoration on the normalized constructor types -/
 
 /-- **Restoration is total on the normalized constructor types of an exact
@@ -1302,68 +1211,6 @@ theorem NestedValidatedRunResult.normalizedTotal_of
   have hA := hN normalized hn ctor hc
   rw [hnp, hlv] at hA
   exact hA.restorationExpr _ hheads
-
-/-- `compilationData_of_pending'` with the totality premise discharged by
-`normalizedTotal_of`: `CompilationData` of a validated nested run modulo the
-restored recursor and equation lists. -/
-theorem NestedValidatedRunResult.compilationData_of_pendingTotal
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (C : NestedFinalAssemblyShape E.restoration
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hC : C.production = E.production) :
-    ∃ (envTypes : VEnv) (auxiliaries : List ContainerSpecialization),
-      (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
-        sourceDecl.typeConstants = some envTypes ∧
-      envTypes.WF ∧
-      auxiliaries.map (·.auxiliary) =
-        (E.production.loweredDecl.types.drop sourceDecl.types.length).map
-          (·.name) ∧
-      auxiliaries.flatMap (·.headNames) =
-        familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
-      CertifiedSpecializations (ves.venv (if isUnsafe then .unsafe else .safe))
-        auxiliaries ∧
-      (∀ params : List VExpr,
-        VEnv.IsDefEqCtx envTypes sourceDecl.uvars [] params.reverse
-          E.production.headers.commonParameterContext →
-        ∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl params) ∧
-      (∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl
-        E.production.constructors.completed.parameterScope.toCtx.reverse) ∧
-      (compilationRestoration sourceDecl auxiliaries).Scoped ∧
-      (∀ (U : Nat) (params : List VExpr), ∃ direct,
-        auxiliaries.mapM (fun a => a.directFamily U params) = some direct ∧
-        List.Forall₂ (DirectFamilyShape U) auxiliaries direct) ∧
-      (∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors,
-        result.restoreCtorName E.loweredEnv (a.constructorName ctor) =
-          (compilationRestoration sourceDecl auxiliaries).restoredHeadName
-            (a.constructorName ctor)) ∧
-      (∀ name, (compilationRestoration sourceDecl auxiliaries).recursorName name =
-        ((Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.find? name).getD
-          name) ∧
-      (E.production.compilationInstance.restoredRecursors
-            (compilationRestoration sourceDecl auxiliaries) =
-          some (canonicalRestoredBlock sourceDecl C.primaryRecursors
-            C.auxiliaryRecursors C.primaryRules C.auxiliaryRules).recursors →
-        E.production.compilationInstance.restoredEquations
-            (compilationRestoration sourceDecl auxiliaries) =
-          some (canonicalRestoredBlock sourceDecl C.primaryRecursors
-            C.auxiliaryRecursors C.primaryRules C.auxiliaryRules).rules →
-        Nonempty (CompilationData (ves.venv (if isUnsafe then .unsafe else .safe))
-          sourceDecl E.production.loweredDecl E.production.compilationSignature
-          E.production.compilationInstance auxiliaries
-          (canonicalRestoredBlock sourceDecl C.primaryRecursors
-            C.auxiliaryRecursors C.primaryRules C.auxiliaryRules))) := by
-  rcases E.compilationData_of_pending' wf Hsources C hC with
-    ⟨envTypes, auxiliaries, h1, h2, h3, hheadNames, h5, h6, h7, h8, h9, h10, h11, hlast⟩
-  exact ⟨envTypes, auxiliaries, h1, h2, h3, hheadNames, h5, h6, h7, h8, h9, h10, h11,
-    hlast (E.normalizedTotal_of wf Hsources hheadNames)⟩
 
 end VerifyInductive
 

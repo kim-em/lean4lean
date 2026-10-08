@@ -74,26 +74,6 @@ theorem RestoredRecursorRealization.k_eq_false {s : InductiveSignature} {g : Ins
   | false => rfl
   | true => have := (H.k hk).1; omega
 
-/-- The realization of a restored recursor supplies the shape inputs, given its
-installed abstract constant and the absence of K. -/
-theorem RestoredRecursorRealization.shapeInputs {s : InductiveSignature} {g : Instance s}
-    {r : Restoration} {sourceNames : List Name} {venv : VEnv}
-    {owner : Fin s.families.size} {rec : Lean.RecursorVal}
-    (H : RestoredRecursorRealization g r sourceNames venv owner rec)
-    (hconst : ∃ type, r.expr (g.recursorType owner) = some type ∧
-      venv.constants rec.name = some ⟨rec.levelParams.length, type⟩)
-    (hk : rec.k = false) :
-    RestoredRecursorShapeInputs g r venv owner rec where
-  type := hconst
-  numParams := H.numParams
-  numIndices := H.numIndices
-  numMotives := H.numMotives
-  numMinors := H.numMinors
-  k := hk
-  specialization := by
-    rcases H.specialization with ⟨head, _, hmajor, _, hargs, happ, _⟩
-    exact ⟨head, hmajor, hargs, happ⟩
-
 /-- The restored recursor's stored type has the recursor shape, with the
 restored family head's arguments as constructor parameters. -/
 theorem RestoredRecursorShapeInputs.shape {s : InductiveSignature} {g : Instance s}
@@ -147,13 +127,3 @@ theorem RestoredRecursorShapeInputs.kLike {s : InductiveSignature} {g : Instance
   have : rec.k = true := hk
   rw [H.k] at this
   cases this
-
-/-- The recursor-shape and K clauses of `finalValidOfStaged_of_shapes`'s
-`Hshapes` for a restored recursor's rule-free copy. -/
-theorem RestoredRecursorShapeInputs.strippedShapes {s : InductiveSignature} {g : Instance s}
-    {r : Restoration} {venv : VEnv} {owner : Fin s.families.size}
-    {rec : Lean.RecursorVal} (H : RestoredRecursorShapeInputs g r venv owner rec)
-    (C : Lean.ConstMap) :
-    RecursorAlignmentCore venv { rec with rules := [] } ∧
-      KLikeRecursor C venv { rec with rules := [] } :=
-  ⟨H.alignmentCore, H.kLike C⟩

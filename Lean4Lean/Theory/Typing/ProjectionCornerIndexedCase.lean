@@ -3,17 +3,17 @@ import Lean4Lean.Theory.Typing.ProjectionCornerIndexedWalk
 
 /-! # The case eliminator of a registered indexed structure, in ordinary form
 
-The index-general form of `CaseSchema.restored_structure_recursorType`: a registered case schema
+`CaseSchema.restored_structure_recursorType`: a registered case schema
 types `.elim key owner (target :: levels)` at the restoration of the recursor type of its
-one-family view. For the family of an indexed structure (one constructor), this restored type
-is the ordinary recursor type of the one-constructor signature `caseViewI`, whose parameter,
+one-family view. For the family of a structure (one constructor, possibly indexed), this restored type
+is the ordinary recursor type of the one-constructor signature `caseView`, whose parameter,
 index, field and constructor-index expressions are the restored ones. -/
 
 namespace Lean4Lean
 namespace InductiveSignature
 
 /-- The one-family, one-constructor signature of an indexed structure case view. -/
-def caseViewI (uvars : Nat) (isUnsafe : Bool) (fam : Family) (name : Name)
+def caseView (uvars : Nat) (isUnsafe : Bool) (fam : Family) (name : Name)
     (params fields cidx : List VExpr) : InductiveSignature where
   uvars := uvars
   params := params
@@ -21,9 +21,9 @@ def caseViewI (uvars : Nat) (isUnsafe : Bool) (fam : Family) (name : Name)
   constructors := #[⟨name, ⟨0, by simp⟩, fields.map Field.external, cidx⟩]
   isUnsafe := isUnsafe
 
-theorem caseViewI_recursiveFields {uvars isUnsafe fam name params fields cidx} :
-    Instance.recursiveFields (s := caseViewI uvars isUnsafe fam name params fields cidx)
-      ⟨name, ⟨0, by simp [caseViewI]⟩, fields.map Field.external, cidx⟩ = [] := by
+theorem caseView_recursiveFields {uvars isUnsafe fam name params fields cidx} :
+    Instance.recursiveFields (s := caseView uvars isUnsafe fam name params fields cidx)
+      ⟨name, ⟨0, by simp [caseView]⟩, fields.map Field.external, cidx⟩ = [] := by
   unfold Instance.recursiveFields
   apply List.filterMap_eq_nil_iff.mpr
   intro pair hpair
@@ -50,7 +50,7 @@ theorem Restoration.mapM_expr_map_liftN (r : Restoration)
 
 /-- The restored case type of an indexed structure family is the ordinary recursor type of its
 restored one-constructor view. -/
-theorem CaseSchema.restored_structure_recursorType_idx {schema : CaseSchema}
+theorem CaseSchema.restored_structure_recursorType {schema : CaseSchema}
     {owner : Fin schema.signature.families.size}
     {c : Constructor schema.signature.families.size}
     (hview : (schema.view owner).constructors = #[schema.caseConstructor c])
@@ -69,15 +69,15 @@ theorem CaseSchema.restored_structure_recursorType_idx {schema : CaseSchema}
     (U : Nat) (ls : List VLevel) (target : VLevel) :
     schema.restoration.expr
         ((schema.specialize owner U ls target).recursorType (schema.viewOwner owner)) =
-      some ((⟨U, ls, target, fun _ => default⟩ : Instance (caseViewI schema.signature.uvars
+      some ((⟨U, ls, target, fun _ => default⟩ : Instance (caseView schema.signature.uvars
         schema.signature.isUnsafe ⟨schema.signature.families[owner].name, RI,
           schema.signature.families[owner].resultLevel⟩ c.name RP RF RCI)).recursorType
-          ⟨0, by simp [caseViewI]⟩) := by
+          ⟨0, by simp [caseView]⟩) := by
   let r := schema.restoration
   let gv := schema.specialize owner U ls target
   let fam' : Family := ⟨schema.signature.families[owner].name, RI,
     schema.signature.families[owner].resultLevel⟩
-  let sv := caseViewI schema.signature.uvars schema.signature.isUnsafe fam' c.name RP RF RCI
+  let sv := caseView schema.signature.uvars schema.signature.isUnsafe fam' c.name RP RF RCI
   let gp : Instance sv := ⟨U, ls, target, fun _ => default⟩
   have hRPlen : RP.length = schema.signature.params.length :=
     (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.mp hRP)).symm
@@ -95,31 +95,31 @@ theorem CaseSchema.restored_structure_recursorType_idx {schema : CaseSchema}
       intro a ha i; subst ha; obtain ⟨i, hi⟩ := i; simp at hi; subst hi; rfl
     exact key _ hview i0
   rw [gv.recursorType_shape rfl hcs (schema.viewOwner owner) i0,
-    gp.recursorType_shape rfl rfl ⟨0, by simp [sv, caseViewI]⟩ ⟨0, by simp [sv, caseViewI]⟩]
+    gp.recursorType_shape rfl rfl ⟨0, by simp [sv, caseView]⟩ ⟨0, by simp [sv, caseView]⟩]
   rw [hc0, r.expr_wrapForalls]
   -- the pieces
   have hbv : ∀ (n k : Nat), ∀ e ∈ vars n k, ∃ i, e = VExpr.bvar i := by
     intro n k e he; simp only [vars, List.mem_map] at he; obtain ⟨_, _, rfl⟩ := he; exact ⟨_, rfl⟩
   have hfam : (schema.view owner).families[schema.viewOwner owner] =
       schema.signature.families[owner] := rfl
-  have hfam' : sv.families[(⟨0, by simp [sv, caseViewI]⟩ : Fin sv.families.size)] = fam' := rfl
+  have hfam' : sv.families[(⟨0, by simp [sv, caseView]⟩ : Fin sv.families.size)] = fam' := rfl
   have hsI : gv.sIndices (schema.viewOwner owner) =
       schema.signature.families[owner].indices.map (·.instL ls) := by
     unfold Instance.sIndices; rw [hfam]; rfl
-  have hsI' : gp.sIndices ⟨0, by simp [sv, caseViewI]⟩ = RI.map (·.instL ls) := by
+  have hsI' : gp.sIndices ⟨0, by simp [sv, caseView]⟩ = RI.map (·.instL ls) := by
     unfold Instance.sIndices; rw [hfam']
   have hplen : (schema.view owner).params.length = sv.params.length := by
-    simp [sv, caseViewI, CaseSchema.view, hRPlen]
+    simp [sv, caseView, CaseSchema.view, hRPlen]
   have hparams : gv.params.mapM r.expr = some gp.params :=
     Restoration.mapM_expr_instL r hRP ls
   have hidxs : (gv.sIndices (schema.viewOwner owner)).mapM r.expr =
-      some (gp.sIndices ⟨0, by simp [sv, caseViewI]⟩) := by
+      some (gp.sIndices ⟨0, by simp [sv, caseView]⟩) := by
     rw [hsI, hsI']; exact Restoration.mapM_expr_instL r hRI ls
   have hsIl : (gv.sIndices (schema.viewOwner owner)).length =
-      (gp.sIndices ⟨0, by simp [sv, caseViewI]⟩).length := by
+      (gp.sIndices ⟨0, by simp [sv, caseView]⟩).length := by
     rw [hsI, hsI']; simp [hRIlen]
   have hmotive : r.expr (gv.motive (schema.view owner).families[schema.viewOwner owner] 0) =
-      some (gp.motive sv.families[(⟨0, by simp [sv, caseViewI]⟩ : Fin sv.families.size)] 0) := by
+      some (gp.motive sv.families[(⟨0, by simp [sv, caseView]⟩ : Fin sv.families.size)] 0) := by
     rw [hfam, hfam']
     simp only [Instance.motive]
     rw [r.expr_wrapForalls, List.mapM_append,
@@ -130,13 +130,13 @@ theorem CaseSchema.restored_structure_recursorType_idx {schema : CaseSchema}
       rcases he with he | he <;> exact hbv _ _ e he)]
     simp only [Restoration.expr_sort, hplen, List.length_map, Instance.length_insertBinders, ← hRIlen]
     rfl
-  let c' : Constructor sv.families.size := sv.constructors[(⟨0, by simp [sv, caseViewI]⟩ :
+  let c' : Constructor sv.families.size := sv.constructors[(⟨0, by simp [sv, caseView]⟩ :
     Fin sv.constructors.size)]
-  have hc' : c' = ⟨c.name, ⟨0, by simp [sv, caseViewI]⟩, RF.map Field.external, RCI⟩ := rfl
+  have hc' : c' = ⟨c.name, ⟨0, by simp [sv, caseView]⟩, RF.map Field.external, RCI⟩ := rfl
   have hsH : gv.sHyps (schema.caseConstructor c) = [] := by
     unfold Instance.sHyps; rw [CaseSchema.caseConstructor_recursiveFields]; rfl
   have hsH' : gp.sHyps c' = [] := by
-    unfold Instance.sHyps; rw [hc', caseViewI_recursiveFields]; rfl
+    unfold Instance.sHyps; rw [hc', caseView_recursiveFields]; rfl
   have hsCI : gv.sCtorIndices (schema.caseConstructor c) = c.indices.map (·.instL ls) := by
     simp [Instance.sCtorIndices, CaseSchema.caseConstructor, gv, CaseSchema.specialize]
   have hsCI' : gp.sCtorIndices c' = RCI.map (·.instL ls) := by
@@ -176,9 +176,9 @@ theorem CaseSchema.restored_structure_recursorType_idx {schema : CaseSchema}
   have hmajor : r.expr (gv.familyApp (schema.viewOwner owner)
       (vars (schema.view owner).params.length (2 + (gv.sIndices (schema.viewOwner owner)).length))
       (vars (gv.sIndices (schema.viewOwner owner)).length 0)) =
-      some (gp.familyApp ⟨0, by simp [sv, caseViewI]⟩
-        (vars sv.params.length (2 + (gp.sIndices ⟨0, by simp [sv, caseViewI]⟩).length))
-        (vars (gp.sIndices ⟨0, by simp [sv, caseViewI]⟩).length 0)) := by
+      some (gp.familyApp ⟨0, by simp [sv, caseView]⟩
+        (vars sv.params.length (2 + (gp.sIndices ⟨0, by simp [sv, caseView]⟩).length))
+        (vars (gp.sIndices ⟨0, by simp [sv, caseView]⟩).length 0)) := by
     simp only [Instance.familyApp, InductiveSignature.familyApp]
     rw [show (schema.view owner).families[schema.viewOwner owner].name =
       schema.signature.families[owner].name from rfl]
@@ -189,8 +189,8 @@ theorem CaseSchema.restored_structure_recursorType_idx {schema : CaseSchema}
     rfl
   have hbody : r.expr (VExpr.mkApps (.bvar ((gv.sIndices (schema.viewOwner owner)).length + 2))
       (vars (gv.sIndices (schema.viewOwner owner)).length 1 ++ [.bvar 0])) =
-      some (VExpr.mkApps (.bvar ((gp.sIndices ⟨0, by simp [sv, caseViewI]⟩).length + 2))
-        (vars (gp.sIndices ⟨0, by simp [sv, caseViewI]⟩).length 1 ++ [.bvar 0])) := by
+      some (VExpr.mkApps (.bvar ((gp.sIndices ⟨0, by simp [sv, caseView]⟩).length + 2))
+        (vars (gp.sIndices ⟨0, by simp [sv, caseView]⟩).length 1 ++ [.bvar 0])) := by
     rw [r.expr_mkApps_bvar, r.mapM_expr_bvars _ (by
       intro e he; simp only [List.mem_append, List.mem_singleton] at he
       rcases he with he | rfl

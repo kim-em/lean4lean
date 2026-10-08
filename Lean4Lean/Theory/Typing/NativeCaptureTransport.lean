@@ -9,7 +9,7 @@ evidence, not inferred from two typings using uniqueness.
 The induction follows the DECLARED constructor telescope. In particular it
 does not assume that its domain instantiated with reconstructed index terms
 is well typed before substitution. That assumption fails for dependent
-singleton indices; see docs/inductives/DependentSingletonObstruction.lean.
+singleton indices; see docs/inductives/history/DependentSingletonObstruction.lean.
 
 This is a conditional transport theorem for the proposed witnessed replay.
 It does not construct the initial alignment paths, establish equation
@@ -37,11 +37,6 @@ theorem trans (h : TypeConversion env U Γ A B) (h' : TypeConversion env U Γ B 
   induction h' with
   | refl => exact h
   | tail _ edge ih => exact .tail ih edge
-
-theorem symm (h : TypeConversion env U Γ A B) : TypeConversion env U Γ B A := by
-  induction h with
-  | refl => exact .refl
-  | tail _ edge ih => exact (single edge.symm).trans ih
 
 theorem cast (h : TypeConversion env U Γ A B) (he : IsDefEq env U Γ e e' A) :
     IsDefEq env U Γ e e' B := by

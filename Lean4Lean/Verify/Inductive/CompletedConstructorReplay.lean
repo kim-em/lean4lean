@@ -7,15 +7,6 @@ open Kernel
 
 namespace VerifyInductive
 
-def CompletedConstructorPhases.checkedRecursorParameterPrefixAt
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv)
-    (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
-    (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
-    exists tail, RecursorParamPrefix stats 0
-      indTypes[familyIdx].ctors[ctorIdx].type tail :=
-  R.parameterPrefixes.replay familyIdx hfamily ctorIdx hctor
-
 def CompletedConstructorPhases.checkedRecursorConstructorTailAt
     (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)

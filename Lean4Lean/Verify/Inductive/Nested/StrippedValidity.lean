@@ -379,44 +379,6 @@ theorem stripLookup_not_mem {S O : ConstMap} {names : List Name}
     (hx : x ∉ names) : S.find? x = O.find? x := by
   rw [hspec, if_neg hx]
 
-/-- Every recursor stored at a stripped name has no rules. -/
-theorem stripLookup_rules {S O : ConstMap} {names : List Name}
-    (hspec : ∀ x, S.find? x = if x ∈ names then stripRulesOpt (O.find? x) else O.find? x)
-    (hx : x ∈ names) (h : S.find? x = some (.recInfo r)) : r.rules = [] := by
-  rw [hspec, if_pos hx] at h
-  rcases stripRulesOpt_eq_some h with h' | ⟨r', h', heq⟩
-  · rw [h'] at h
-    simp only [stripRulesOpt, Option.some.injEq, ConstantInfo.recInfo.injEq] at h
-    exact (congrArg RecursorVal.rules h).symm
-  · rw [ConstantInfo.recInfo.injEq] at heq
-    rw [heq]
-
-/-- Stripping leaves every lookup outside the stripped names unchanged. -/
-theorem stripRecursorRules_find?_of_not_mem
-    (hal : Aligned safety env.constants venv)
-    (hov : ∀ x ∈ names, SMapOverwritable env.constants x) (hx : x ∉ names) :
-    (stripRecursorRules env names).find? x = env.find? x := by
-  obtain ⟨hal', -, hspec⟩ := stripRecursorRules_spec names env hal hov
-  rw [Kernel.Environment.find?_eq_constants hal'.map_wf,
-    Kernel.Environment.find?_eq_constants hal.map_wf, hspec, if_neg hx]
-
-/-- Every recursor stored at a stripped name has no rules. -/
-theorem stripRecursorRules_rules_eq_nil
-    (hal : Aligned safety env.constants venv)
-    (hov : ∀ x ∈ names, SMapOverwritable env.constants x) (hx : x ∈ names)
-    (h : (stripRecursorRules env names).find? x = some (.recInfo r)) :
-    r.rules = [] := by
-  obtain ⟨hal', -, hspec⟩ := stripRecursorRules_spec names env hal hov
-  rw [Kernel.Environment.find?_eq_constants hal'.map_wf] at h
-  exact stripLookup_rules hspec hx h
-
-/-- A rule-free recursor is aligned as soon as its type has the recursor
-shape. -/
-theorem RecursorAlignmentCore.stripRules (H : RecursorAlignmentCore venv rec) :
-    RecursorAlignmentCore venv { rec with rules := [] } := by
-  obtain ⟨cnparams, indLevels, ctorParams, hshape, _⟩ := H
-  exact ⟨cnparams, indLevels, ctorParams, hshape, by simp⟩
-
 namespace VerifyInductive
 
 /-! ### Restored recursor names are fresh -/

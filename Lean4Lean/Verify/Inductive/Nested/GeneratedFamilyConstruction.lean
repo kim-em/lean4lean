@@ -144,75 +144,6 @@ def VInductiveType.directAuxiliary
     (VConstVal.directAuxiliary sourceParams baseArgs levels containerFamily
       auxName auxUvars)
 
-/-- The direct-constructor portion of `NestedAuxiliarySource` is true by
-construction for the canonical pre-lowering family.  No expression
-translation or final-lowering fact is hidden in this lemma. -/
-theorem VInductiveType.directAuxiliary_constructors
-    (containerFamily : VInductiveType)
-    (Htypes : ∀ source ∈ containerFamily.ctors,
-      (VConstVal.directAuxiliary sourceParams baseArgs levels
-        containerFamily auxName auxUvars source).type.WF env auxUvars []) :
-    List.Forall₂
-      (VInductDecl.DirectAuxConstructor env auxUvars sourceParams baseArgs
-        levels containerFamily
-        (VInductiveType.directAuxiliary sourceParams baseArgs levels
-          containerFamily auxName auxUvars numIndices resultLevel))
-      containerFamily.ctors
-      (VInductiveType.directAuxiliary sourceParams baseArgs levels
-        containerFamily auxName auxUvars numIndices resultLevel).ctors := by
-  let auxiliaryFamily := VInductiveType.directAuxiliary sourceParams
-    baseArgs levels containerFamily auxName auxUvars numIndices resultLevel
-  have go : ∀ sources,
-      (∀ source ∈ sources,
-        (VConstVal.directAuxiliary sourceParams baseArgs levels
-          containerFamily auxName auxUvars source).type.WF env auxUvars []) →
-      List.Forall₂
-        (VInductDecl.DirectAuxConstructor env auxUvars sourceParams baseArgs
-          levels containerFamily auxiliaryFamily)
-        sources
-        (sources.map (VConstVal.directAuxiliary sourceParams baseArgs levels
-          containerFamily auxName auxUvars)) := by
-    intro sources Htypes'
-    induction sources with
-    | nil => exact .nil
-    | cons source sources ih =>
-      exact .cons {
-        name := by rfl
-        uvars := by rfl
-        type := VEnv.IsDefEqU.refl (Htypes' source (by simp)) } (ih (by
-          intro source hsource
-          exact Htypes' source (by simp [hsource])))
-  simpa only [auxiliaryFamily, VInductiveType.directAuxiliary] using
-    go containerFamily.ctors Htypes
-
-/-- The installed-container witness selects the exact canonical family from
-which the concrete `BuiltAuxiliary` was generated.  This is the declaration
-and constructor-order half of the pre-lowering abstract source; only its
-translation from the concrete built syntax remains to be joined. -/
-theorem GeneratedFamilyInstalledContainer.directAuxiliaryEvidence
-    (C : GeneratedFamilyInstalledContainer prodEnv venv params nestedAux
-      concrete H)
-    (sourceParams baseArgs : List VExpr) (levels : List VLevel)
-    (auxUvars numIndices : Nat) (resultLevel : VLevel) :
-    (∀ source ∈
-      (C.container.types[C.familyIdx]'C.familyIdx_lt).ctors,
-      (VConstVal.directAuxiliary sourceParams baseArgs levels
-        (C.container.types[C.familyIdx]'C.familyIdx_lt) H.auxName auxUvars
-          source).type.WF venv auxUvars []) →
-    let containerFamily := C.container.types[C.familyIdx]'C.familyIdx_lt
-    let auxiliaryFamily := VInductiveType.directAuxiliary sourceParams
-      baseArgs levels containerFamily H.auxName auxUvars numIndices resultLevel
-    VEnv.InstalledInductCertificate venv C.container ∧
-      containerFamily ∈ C.container.types ∧
-      List.Forall₂
-        (VInductDecl.DirectAuxConstructor venv auxUvars sourceParams baseArgs
-          levels containerFamily auxiliaryFamily)
-        containerFamily.ctors auxiliaryFamily.ctors := by
-  intro Htypes
-  dsimp only
-  exact ⟨C.installed, List.getElem_mem C.familyIdx_lt,
-    VInductiveType.directAuxiliary_constructors _ Htypes⟩
-
 /-- Universe arity of the selected family, projected from the finite source
 derivation carried by its installation certificate. -/
 theorem GeneratedFamilyInstalledContainer.familyUvars
@@ -543,33 +474,6 @@ theorem GeneratedFamilyInstalledContainer.specializedConstructorApplicationHasTy
     (VExpr.mkApps (.const family.ctors[i].name levels) baseArgs)
     (VExpr.applyForallType (family.ctors[i].type.instL levels) baseArgs)
   simpa only [HconstructorType, VExpr.instL_wrapForalls] using Hraw
-
-/-- Well-formedness projection of the exact specialization theorem. -/
-theorem GeneratedFamilyInstalledContainer.specializedConstructorApplicationWF
-    (C : GeneratedFamilyInstalledContainer prodEnv venv params nestedAux
-      concrete H)
-    (henv : venv.WF)
-    (i : Nat)
-    (habstractCtor : i <
-      (C.container.types[C.familyIdx]'C.familyIdx_lt).ctors.length)
-    (levels : List VLevel)
-    (hlevelsWF : ∀ level ∈ levels, level.WF outerUvars)
-    (hlevelsLength : levels.length = C.container.uvars)
-    (ctx : List VExpr) (hctx : OnCtx ctx (venv.IsType outerUvars))
-    (baseArgs : List VExpr)
-    (hbaseLength : baseArgs.length = C.container.nparams)
-    (HfamilyApps : VExpr.WF venv outerUvars ctx
-      (VExpr.mkApps
-        (.const (C.container.types[C.familyIdx]'C.familyIdx_lt).name levels)
-        baseArgs)) :
-    VExpr.WF venv outerUvars ctx
-      (VExpr.mkApps
-        (.const
-          ((C.container.types[C.familyIdx]'C.familyIdx_lt).ctors[i]'habstractCtor).name
-          levels)
-        baseArgs) :=
-  ⟨_, C.specializedConstructorApplicationHasType henv i habstractCtor
-    levels hlevelsWF hlevelsLength ctx hctx baseArgs hbaseLength HfamilyApps⟩
 
 /-- Exact concrete/abstract source-constructor pair selected by one
 `BuiltAuxiliary` position.  This retains the source telescope used by the

@@ -130,25 +130,6 @@ theorem instantiateProjectionParameters.WF_all {c : VContext} {args : Array Expr
           (FVarsIn.instantiate1 (hbe P hsc.up hfvt).2 ha0.2)
           fun k hk a₁ h => hha (k + 1) (Nat.succ_lt_succ hk) a₁ (by rw [← h]; congr 1; omega)
 
-theorem instantiateProjectionParameters.WF {c : VContext} {args : Array Expr}
-    {remaining : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr} {position : Nat}
-    {xs' : List VExpr}
-    (hT : c.TrExprS type (VExpr.wrapForalls ds b)) (hle : remaining ≤ ds.length)
-    (hlen : xs'.length = remaining)
-    (hargs : ∀ k (_hk : k < remaining), ∃ a, args[position + k]? = some a ∧
-      c.TrExprS a (xs'[k]'(by omega)))
-    (hty : ∀ k (hk : k < remaining), ∃ D', VExpr.LEquiv c.lparams.length
-      ((ds[k]'(by omega)).instOuter (xs'.take k)) D' ∧ c.HasType (xs'[k]'(by omega)) D') :
-    (instantiateProjectionParameters type args position remaining).WF c s fun r _ =>
-      ∀ t, r = some t → (∃ R,
-        VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b) xs' = some R ∧
-        c.TrExprS t R) ∧
-      ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type →
-        (∀ k (hk : k < remaining) a, args[position + k]? = some a → FVarsIn P a) →
-        FVarsIn P t :=
-  (instantiateProjectionParameters.WF_all hT hle hlen hargs hty rfl).mono
-    fun _ _ _ H t ht => (H t ht).1.1
-
 /-- The projection telescope walk. The premise `hch` is the local form of the projection-walk
 corner (`projectionWalkCorner_choice`): a non-dependent field whose projection is not typable. -/
 theorem instantiateProjectionFields.WF_all {c : VContext} {G : VLevel → Prop}
@@ -319,30 +300,6 @@ theorem instantiateProjectionFields.WF_all {c : VContext} {G : VLevel → Prop}
           (body' := VExpr.wrapForalls ds' b) rfl hd
           (fun u hu hGu => hGd ⟨u, hu, hGu⟩) hbody hc
         rw [hWeq, VExpr.inst_lift]; exact hb₀
-
-theorem instantiateProjectionFields.WF {c : VContext} {G : VLevel → Prop}
-    (he : c.TrExprS struct e') (hmaj : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx e')
-    (hG0 : G .zero) (hG : maybePropType = false → ∀ u, G u)
-    {remaining : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr} {position : Nat}
-    (hT : c.TrExprS type (VExpr.wrapForalls ds b)) (hle : remaining ≤ ds.length)
-    (hproj : ∀ m (hm : m < remaining) u,
-      c.HasType ((ds[m]'(by omega)).instOuter (projs st e' position m)) (.sort u) → G u →
-      c.HasType (.proj st (position + m) e')
-        ((ds[m]'(by omega)).instOuter (projs st e' position m)))
-    (hch : maybePropType = true → ∀ m, m < remaining → ∀ {D body' : VExpr},
-      VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b)
-        (projs st e' position m) = some (.forallE D body') →
-      c.IsType D → (∀ u, c.HasType D (.sort u) → ¬ G u) →
-      ∀ {body : Expr}, TrExprS c.venv c.lparams ((none, .vlam D) :: c.vlctx) body body' →
-        Closed body → ∃ b₀, c.TrExprS body b₀ ∧ body' = b₀.lift) :
-    (instantiateProjectionFields st struct maybePropType type position remaining).WF c s
-      fun r _ => ∀ t, r = some t → (∃ R,
-        VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b)
-          (projs st e' position remaining) = some R ∧
-        c.TrExprS t R) ∧
-      ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type → FVarsIn P struct → FVarsIn P t :=
-  (instantiateProjectionFields.WF_all he hmaj hG0 hG hT hle hproj hch rfl).mono
-    fun _ _ _ H t ht => (H t ht).1.1
 
 /-! ### The walk over a telescope-closed constructor type
 

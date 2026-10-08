@@ -235,31 +235,6 @@ theorem BinaryTypeAnnotationWrapper.applicationDefEq
           rcases hfind with ⟨rfl, _⟩
           exact ⟨first', hfirst, hctxEq ▸ heq⟩
 
-theorem Expr.isAppOfArity_two_eq_true
-    {e : Expr} {name : Name}
-    (H : e.isAppOfArity name 2 = true) :
-    ∃ levels first second,
-      e = Expr.app (Expr.app (Expr.const name levels) first) second := by
-  cases e <;> simp [Expr.isAppOfArity] at H
-  case app fn second =>
-    cases fn <;> simp [Expr.isAppOfArity] at H
-    case app head first =>
-      cases head <;> simp [Expr.isAppOfArity] at H
-      case const found levels =>
-        subst found
-        exact ⟨levels, first, second, rfl⟩
-
-theorem Expr.isAppOfArity_one_eq_true
-    {e : Expr} {name : Name}
-    (H : e.isAppOfArity name 1 = true) :
-    ∃ levels arg, e = Expr.app (Expr.const name levels) arg := by
-  cases e <;> simp [Expr.isAppOfArity] at H
-  case app head arg =>
-    cases head <;> simp [Expr.isAppOfArity] at H
-    case const found levels =>
-      subst found
-      exact ⟨levels, arg, rfl⟩
-
 /-- Semantic annotation consumption in any well-formed, binder-only checker
 scope, including anonymous bound-variable contexts. The result is independent of inductive-specific context packaging, so
 the ordinary and generated-recursor callbacks are instances of one proof. -/

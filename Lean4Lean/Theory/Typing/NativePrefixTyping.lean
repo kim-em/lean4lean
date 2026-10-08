@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.CaseResult
+import Lean4Lean.Theory.Typing.CaseMajorDomain
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.NativeTelescope
 

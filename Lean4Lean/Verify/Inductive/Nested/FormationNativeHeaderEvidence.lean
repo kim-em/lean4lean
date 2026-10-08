@@ -1,4 +1,5 @@
-import Lean4Lean.Verify.Inductive.Nested.FamilyRealization
+import Lean4Lean.Verify.Inductive.Nested.Restoration
+import Lean4Lean.Verify.Inductive.Specification.Formation
 import Lean4Lean.Verify.Inductive.Nested.Mapping
 import Lean4Lean.Theory.Typing.Lemmas
 
@@ -25,23 +26,6 @@ structure GeneratedFamilyHeadRealization
     family familyType
   sourceTranslation : TrExprS env levelParams
     (abstractForallContext parameterDomains []) sourceFamily family
-
-/-- Transport an ordered concrete argument translation across a semantic
-local-context conversion.  The target expressions are reconstructed by the
-translation relation itself; no equality or global preservation principle is
-assumed. -/
-theorem TrExprS.forall₂DefEqDFC
-    (henv : env.WF)
-    (Hctx : VLCtx.IsDefEq env lparams.length sourceCtx targetCtx)
-    (H : List.Forall₂ (TrExprS env lparams sourceCtx) sources targets) :
-    ∃ targets', List.Forall₂
-      (TrExprS env lparams targetCtx) sources targets' := by
-  induction H with
-  | nil => exact ⟨[], .nil⟩
-  | cons Hhead Htail ih =>
-    rcases Hhead.defeqDFC henv Hctx with ⟨target, Htarget⟩
-    rcases ih with ⟨targets, Htargets⟩
-    exact ⟨target :: targets, .cons Htarget Htargets⟩
 
 /-- Context transport also retains the pointwise definitional equality to
 the original targets.  This is the bridge used when the cached application

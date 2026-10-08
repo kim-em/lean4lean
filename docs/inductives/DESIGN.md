@@ -418,8 +418,8 @@ uniqueness throughout.
 A logical relation with Coquand-Huber adequacy, as in the shape logical relation prototype in
 `Lean4Lean/Experimental/`, cannot deliver the injectivity half here: any sound compositional
 model must interpret an eliminator on a proof major by reading through to its iota result, and
-Pi adequacy then forces the iota check, which for `Eq.rec` is equality reflection (the
-evidence is in `Lean4Lean/Experimental/Spike/`). The proof uses soundness of a model only.
+Pi adequacy then forces the iota check, which for `Eq.rec` is equality reflection. The proof
+uses soundness of a model only.
 
 **The glued observation model** (`Lean4Lean/Theory/Typing/HeadInjectivity/Model/`, 15k). A
 term denotes a set of atomic observations, glued with declarative equivalence classes of
@@ -497,8 +497,8 @@ theorem WF.church_rosser {env : VEnv} (henv : env.WF) (heq : env.HasCanonicalEq)
 Canonical `Eq` is needed for equation coverage: a native singleton equation at a universe
 specialization whose source is `Prop` is joined by reconstructing the constructor, and its
 proof fields are extracted by the recursor into `Prop` with the earlier data fields cast
-along `Eq`. In the well-formed `Eq`-free environment of `Lean4Lean/Theory/Typing/Countermodel/`
-that equation is not joinable (argued, not checked in Lean). Coherence of eliminators with projections
+along `Eq`. In a well-formed `Eq`-free environment (the one of section 5.1) that equation is
+not joinable (argued, not checked in Lean). Coherence of eliminators with projections
 (`VEnv.WF.eliminatorsCoherent`) is also needed. Confluence is not in the dependency cone of
 the top-level theorem.
 
@@ -534,7 +534,7 @@ environment, is kept. `isDefEqLambda` and `isDefEqForall` always compare bodies 
 With this, the cache invariant is simply "every entry is derivable in the current context"
 (`VState.WF`, `VState.WF.leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean`).
 
-Without scoping no invariant of that form holds. `docs/inductives/CacheScopeExperiment.lean`
+Without scoping no invariant of that form holds. `Lean4Lean/Tests/CacheScope.lean`
 builds the countermodel environment above (no `Eq`) and a closed definition of type `SJ` with
 value `let seed := fun (q : P v) => ... ; (zz : SI)`, where the body of `seed` forces the
 comparisons `SI ≡ ... ≡ SJ` under `q`. The C++ kernel accepts this definition and rejects it
@@ -721,7 +721,7 @@ type, a definition, an inductive predicate and a theorem) from the empty environ
 the added declarations and the agreement of every source constant; corrupting a source
 constructor, recursor or inductive type is rejected by the corresponding check.
 
-`docs/inductives/CacheScopeExperiment.lean` is run with `lake env lean` (section 5.2).
+`Lean4Lean/Tests/CacheScope.lean` pins the output of the experiment of section 5.2.
 
 ## 9. Open
 
@@ -762,7 +762,7 @@ Suggested order, with sizes.
    `SchemaStructCompat.lean`, `Instance.FreeTarget` in `Signature.lean`.
 5. The checker changes: the diff of `Lean4Lean/TypeChecker.lean` (1k), `VState.WF` and
    `leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean` (2k), `divergences.md`,
-   `docs/inductives/CacheScopeExperiment.lean`.
+   `Lean4Lean/Tests/CacheScope.lean`.
 6. The corner: `Lean4Lean/Verify/Typing/ProjectionCorner.lean`,
    `Lean4Lean/Theory/Typing/ProjectionCornerChoice.lean`, then `ProjectionCorner*.lean` (4.4k).
 7. Head inversion: `HeadInversionDefs.lean`, `HeadInversion.lean`, then

@@ -646,15 +646,6 @@ theorem sourceSignatureConstructor_replay
   rw [sourceSignature_constructorType]
   exact htype
 
-theorem sourceSignature_replay
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length) :
-    ∃ production ∈ indTypes.toList.flatMap (·.ctors),
-      SourceConstructorReplay R.headerVEnv c.lparams R.parameterScope stats decl
-        decl.ownedConstructors[i].1 production decl.ownedConstructors[i].2
-        R.sourceSignature (R.sourceSignature.constructors[i.val]'(by
-          simp only [sourceSignature, Array.size_ofFn]; exact i.isLt)) := by
-  simpa [sourceSignature] using R.sourceSignatureConstructor_replay i
-
 /-- The selected replay belongs to the actual production constructor with
 this name. Global constructor freshness rules out a different source
 telescope hidden by the existential replay witness. -/

@@ -9,18 +9,6 @@ separate obligations against the finite source formation derivation. -/
 
 namespace Lean4Lean.InductiveSignature.CaseSchema
 
-/-- A closed singleton delta definition may quantify over arbitrary indices
-only when each result index is a distinct constructor field. Constants,
-parameter indices, compound expressions, and repeated fields constrain the
-index telescope and require occurrence-level reconstruction instead. In
-particular equality's reflexive constructor does not pass this check. -/
-def ProjectionData.unconstrainedIndices (data : ProjectionData) : Bool :=
-  match data.constructorIndices.mapM (fun index => match index with
-    | .bvar i => if i < data.fields.length then some i else none
-    | _ => none) with
-  | none => false
-  | some fields => decide fields.Nodup
-
 /-- Select the first index that is literally the chosen constructor field.
 An arbitrary equality between field and index terms is not a reconstruction
 program and is deliberately not searched for here. -/
@@ -106,12 +94,5 @@ def singletonReconstructAt (schema : CaseSchema) (block : Name)
   let fields ← data.reconstructionPrefix block owner.val levels data.fields fieldSorts []
   return instantiateParams data.constructor <|
     parameters ++ fields.map (fun field => VExpr.mkApps field.value (parameters ++ indices ++ [major]))
-
-/-- The generation relation has a unique output, including proof fields. -/
-theorem singletonReconstruction_unique {schema : CaseSchema}
-    {owner : Fin schema.signature.families.size}
-    (h : schema.singletonReconstruction block owner U levels sorts = some left)
-    (h' : schema.singletonReconstruction block owner U levels sorts = some right) :
-    left = right := Option.some.inj (h.symm.trans h')
 
 end Lean4Lean.InductiveSignature.CaseSchema

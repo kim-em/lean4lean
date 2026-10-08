@@ -118,52 +118,6 @@ theorem HitShapeB.grow {heads heads' extra : List Name} {n : Nat} {ls : List Lev
   | mdata _ ih => cases havoid; exact .mdata (ih ‹_›)
   | proj _ ih => cases havoid; exact .proj (ih ‹_›)
 
-/-- Adding heads that do not occur. -/
-theorem HitShape.grow {heads heads' extra : List Name} {params : List Expr} {ls : List Level}
-    {e : Expr} (H : HitShape heads params ls e) (hsub : ∀ c ∈ heads, c ∈ heads')
-    (hnew : ∀ c ∈ heads', c ∉ heads → c ∈ extra) (havoid : e.AvoidsConsts extra) :
-    HitShape heads' params ls e := by
-  induction H with
-  | hitHead hc => exact .hitHead (hsub _ hc)
-  | app _ _ ihf iha => cases havoid; exact .app (ihf ‹_›) (iha ‹_›)
-  | @const c _ hc =>
-    cases havoid with
-    | const _ _ fresh => exact .const fun h => fresh (hnew c h hc)
-  | bvar => exact .bvar _
-  | fvar => exact .fvar _
-  | mvar => exact .mvar _
-  | sort => exact .sort _
-  | lit => exact .lit _
-  | lam _ _ iht ihb => cases havoid; exact .lam (iht ‹_›) (ihb ‹_›)
-  | forallE _ _ iht ihb => cases havoid; exact .forallE (iht ‹_›) (ihb ‹_›)
-  | letE _ _ _ iht ihv ihb => cases havoid; exact .letE (iht ‹_›) (ihv ‹_›) (ihb ‹_›)
-  | mdata _ ih => cases havoid; exact .mdata (ih ‹_›)
-  | proj _ ih => cases havoid; exact .proj (ih ‹_›)
-
-/-- Dropping heads: a hit on a dropped head becomes an ordinary application of a
-non-head constant to the (free-variable) parameters. -/
-theorem HitShape.shrink {heads heads' : List Name} {params : List Expr} {ls : List Level}
-    {e : Expr} (H : HitShape heads' params ls e) (hsub : ∀ c ∈ heads, c ∈ heads')
-    (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) : HitShape heads params ls e := by
-  induction H with
-  | @hitHead c hc =>
-    by_cases hc' : c ∈ heads
-    · exact .hitHead hc'
-    · exact HitShape.mkAppList (.const hc') fun p hmem => by
-        obtain ⟨fv, rfl⟩ := hp p hmem; exact .fvar fv
-  | app _ _ ihf iha => exact .app ihf iha
-  | const hc => exact .const fun h => hc (hsub _ h)
-  | bvar => exact .bvar _
-  | fvar => exact .fvar _
-  | mvar => exact .mvar _
-  | sort => exact .sort _
-  | lit => exact .lit _
-  | lam _ _ iht ihb => exact .lam iht ihb
-  | forallE _ _ iht ihb => exact .forallE iht ihb
-  | letE _ _ _ iht ihv ihb => exact .letE iht ihv ihb
-  | mdata _ ih => exact .mdata ih
-  | proj _ ih => exact .proj ih
-
 private theorem hitShapeB_mkAppList {heads : List Name} {n : Nat} {ls : List Level} {d : Nat}
     {f : Expr} {args : List Expr} (hf : HitShapeB heads n ls d f)
     (hargs : ∀ a ∈ args, HitShapeB heads n ls d a) :
@@ -600,36 +554,6 @@ theorem hitPrimNames_primitive : ∀ n ∈ hitPrimNames, Kernel.Environment.prim
 /-! ### The head set of a nested run -/
 
 section Heads
-
-private theorem forall₂_take_exists {R : α → β → Prop} :
-    ∀ {l₁ : List α} {l₂ : List β}, List.Forall₂ R l₁ l₂ → ∀ k, ∀ a ∈ l₁.take k,
-      ∃ b ∈ l₂.take k, R a b
-  | _, _, .nil, _, _, h => by simp at h
-  | _, _, .cons hab H, k, x, h => by
-    cases k with
-    | zero => simp at h
-    | succ k =>
-      simp only [List.take_succ_cons, List.mem_cons] at h ⊢
-      rcases h with rfl | h
-      · exact ⟨_, .inl rfl, hab⟩
-      · obtain ⟨b, hb, hR⟩ := forall₂_take_exists H k x h
-        exact ⟨b, .inr hb, hR⟩
-
-private theorem forall₂_drop_exists {R : α → β → Prop} :
-    ∀ {l₁ : List α} {l₂ : List β}, List.Forall₂ R l₁ l₂ → ∀ k, ∀ a ∈ l₁.drop k,
-      ∃ b ∈ l₂.drop k, R a b
-  | _, _, .nil, _, _, h => by simp at h
-  | _, _, .cons hab H, k, x, h => by
-    cases k with
-    | zero =>
-      simp only [List.drop_zero, List.mem_cons] at h ⊢
-      rcases h with rfl | h
-      · exact ⟨_, .inl rfl, hab⟩
-      · obtain ⟨b, hb, hR⟩ := Lean4Lean.List.Forall₂.forall_exists_l H x h
-        exact ⟨b, .inr hb, hR⟩
-    | succ k =>
-      simp only [List.drop_succ_cons] at h ⊢
-      exact forall₂_drop_exists H k x h
 
 /-- In a duplicate-free list of family names, no family name is a constructor
 name. -/

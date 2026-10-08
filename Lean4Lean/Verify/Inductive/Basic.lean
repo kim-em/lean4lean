@@ -185,34 +185,6 @@ theorem VExpr.ForallAritySort.wrapForalls
   | cons domain domains ih =>
     simpa [VExpr.wrapForalls] using ForallAritySort.succ domain ih
 
-/-- Split one successful telescope decomposition at an arbitrary intermediate
-arity.  This lets a total translated recursor telescope be recovered as its
-parameter, motive, minor, index, and major groups without inspecting binder
-domains. -/
-theorem VExpr.takeForalls_split
-    {type result : VExpr} {domains : List VExpr}
-    {leftArity rightArity : Nat}
-    (H : type.takeForalls (leftArity + rightArity) =
-      some (domains, result)) :
-    ∃ left middle right,
-      domains = left ++ right ∧
-      type.takeForalls leftArity = some (left, middle) ∧
-      middle.takeForalls rightArity = some (right, result) := by
-  rcases VExpr.takeForalls_rebuild H with ⟨hrebuild, hlength⟩
-  let left := domains.take leftArity
-  let right := domains.drop leftArity
-  have hleft : left.length = leftArity := by
-    simp [left, hlength]
-  have hright : right.length = rightArity := by
-    simp [right, hlength]
-  have hdomains : domains = left ++ right := by
-    exact (List.take_append_drop leftArity domains).symm
-  refine ⟨left, VExpr.wrapForalls right result, right, hdomains, ?_, ?_⟩
-  · rw [hrebuild, hdomains, ← hleft]
-    exact VExpr.takeForalls_wrapForalls_append left right result
-  · rw [← hright]
-    exact VExpr.takeForalls_wrapForalls right result
-
 /-- The first `n` domains of a wrapped telescope are syntactically unique.
 The residual bodies may differ, and the longer presentation may retain an
 arbitrary suffix after the compared prefix. -/
@@ -385,144 +357,6 @@ theorem VExpr.lift'_wrapForalls_shape
             VExpr.forallE (domain.lift' shift)
               (VExpr.wrapForalls liftedDomains liftedBody)
           rw [hshape]⟩
-
-/-- The dependent domains produced by a free-variable lift.  Unlike the
-bound-variable `liftContextPrefix`, the shift changes beneath every binder. -/
-def liftForallDomains : List VExpr → Lift → List VExpr
-  | [], _ => []
-  | domain :: domains, shift =>
-      domain.lift' shift :: liftForallDomains domains shift.cons
-
-@[simp] theorem liftForallDomains_length
-    (domains : List VExpr) (shift : Lift) :
-    (liftForallDomains domains shift).length = domains.length := by
-  induction domains generalizing shift with
-  | nil => rfl
-  | cons _ domains ih => simp [liftForallDomains, ih]
-
-/-- Lifting a dependent forall telescope is prefix-stable: later domains do
-not affect the translated representatives of an earlier prefix. -/
-theorem liftForallDomains_append_take_left
-    (left right : List VExpr) (shift : Lift) :
-    (liftForallDomains (left ++ right) shift).take left.length =
-      liftForallDomains left shift := by
-  induction left generalizing shift with
-  | nil => rfl
-  | cons domain left ih =>
-    simp [liftForallDomains, ih]
-
-/-- Free-variable lifting of dependent domains distributes over telescope
-concatenation, with the right block translated below every binder in the
-left block. -/
-theorem liftForallDomains_append
-    (left right : List VExpr) (shift : Lift) :
-    liftForallDomains (left ++ right) shift =
-      liftForallDomains left shift ++
-        liftForallDomains right (shift.consN left.length) := by
-  induction left generalizing shift with
-  | nil => rfl
-  | cons domain left ih =>
-    simp only [List.cons_append, liftForallDomains, ih, List.cons.injEq,
-      true_and]
-    have hconsN : shift.cons.consN left.length =
-        (shift.consN left.length).cons := by
-      generalize left.length = n
-      induction n with
-      | zero => rfl
-      | succ n ihN => simpa [Lift.consN] using congrArg Lift.cons ihN
-    rw [hconsN]
-    simp [Lift.consN]
-
-/-- Successive free-variable weakenings of a dependent telescope are the
-single composite weakening.  The lift beneath each forall binder must be
-composed at the same binder depth; `Lift.consN_comp` supplies precisely that
-alignment. -/
-theorem liftForallDomains_comp
-    (domains : List VExpr) (first second : Lift) :
-    liftForallDomains (liftForallDomains domains first) second =
-      liftForallDomains domains (.comp first second) := by
-  induction domains generalizing first second with
-  | nil => rfl
-  | cons domain domains ih =>
-    simp only [liftForallDomains, VExpr.lift'_comp, ih]
-    have hcomp : Lift.comp first.cons second.cons =
-        (Lift.comp first second).cons := by
-      simpa [Lift.consN] using
-        (Lift.consN_comp (l₁ := first) (l₂ := second) (n := 1)).symm
-    rw [hcomp]
-
-/-- Retaining any finite source context and then inserting `inserted` newer
-declarations acts on expressions exactly like ordinary de Bruijn weakening
-at the corresponding cutoff.  The retained `cons` prefix has depth zero and
-therefore contributes no numerical shift. -/
-theorem VExpr.lift'_consN_skipN_consN_refl
-    (e : VExpr) (retained inserted cutoff : Nat) :
-    e.lift' ((Lift.skipN (Lift.consN .refl retained) inserted).consN cutoff) =
-      e.liftN inserted cutoff := by
-  have hshift : Lift.skipN (.consN .refl retained) inserted =
-      Lift.comp (.consN .refl retained) (.skipN .refl inserted) := by
-    simp [Lift.comp_skipN]
-  rw [hshift, Lift.consN_comp, VExpr.lift'_comp]
-  have hretained : e.lift' ((Lift.consN .refl retained).consN cutoff) =
-      e := VExpr.lift'_depth_zero (by simp)
-  rw [hretained]
-  exact VExpr.lift'_consN_skipN
-
-/-- Inserting a contiguous newer free-variable block into the scope of a
-dependent telescope is the same transform as lifting its recent context
-prefix over that block. -/
-theorem liftForallDomains_skipN_consN_refl
-    (domains : List VExpr) (retained inserted : Nat) :
-    liftForallDomains domains
-        (Lift.skipN (Lift.consN .refl retained) inserted) =
-      (liftContextPrefix inserted domains.reverse).reverse := by
-  have go : ∀ (domains : List VExpr) (cutoff : Nat),
-      liftForallDomains domains
-          ((Lift.skipN (Lift.consN .refl retained) inserted).consN cutoff) =
-        (liftContextPrefixAt inserted cutoff domains.reverse).reverse := by
-    intro telescope
-    induction telescope with
-    | nil => intro cutoff; rfl
-    | cons domain telescope ih =>
-      intro cutoff
-      simp only [liftForallDomains, List.reverse_cons,
-        liftContextPrefixAt_append_singleton, List.reverse_append,
-        List.reverse_singleton, List.singleton_append]
-      rw [VExpr.lift'_consN_skipN_consN_refl]
-      simpa [Lift.consN] using ih (cutoff + 1)
-  simpa [liftContextPrefix] using go domains 0
-
-/-- The suffix embedding used by a contiguous retained context is the same
-ordinary dependent-prefix weakening (the retained `cons` count is zero). -/
-theorem liftForallDomains_skipN_refl
-    (domains : List VExpr) (inserted : Nat) :
-    liftForallDomains domains (Lift.skipN .refl inserted) =
-      (liftContextPrefix inserted domains.reverse).reverse := by
-  simpa using liftForallDomains_skipN_consN_refl domains 0 inserted
-
-/-- Exact form of `VExpr.lift'_wrapForalls_shape`, with a domain transform
-independent of the residual.  This independence is what permits a context
-conversion extracted from one translated residual to be closed around a
-different (but equally shifted) residual. -/
-theorem VExpr.lift'_wrapForalls_exact
-    (domains : List VExpr) (body : VExpr) (shift : Lift) :
-    (VExpr.wrapForalls domains body).lift' shift =
-      VExpr.wrapForalls (liftForallDomains domains shift)
-        (body.lift' (shift.consN domains.length)) := by
-  induction domains generalizing shift with
-  | nil => simp [VExpr.wrapForalls, liftForallDomains]
-  | cons domain domains ih =>
-      change VExpr.forallE (domain.lift' shift)
-          ((VExpr.wrapForalls domains body).lift' shift.cons) = _
-      rw [ih]
-      have hconsN : shift.cons.consN domains.length =
-          (shift.consN domains.length).cons := by
-        generalize domains.length = n
-        induction n with
-        | zero => rfl
-        | succ n ihN => simpa [Lift.consN] using congrArg Lift.cons ihN
-      rw [hconsN]
-      rfl
 
 /-- Insert `inserted` below `prefix` and above `suffix`, lifting each
 dependent prefix declaration at its exact de Bruijn cutoff. -/
@@ -969,21 +803,6 @@ inductive VEnv.TypedApplicationSpine
       TypedApplicationSpine env uvars ctx fn (.forallE domain body)
         (arg :: args) resultType
 
-/-- Add one dependent application when the argument's retained type is only
-definitionally equal to the current forall domain.  Canonical recursive
-results are built independently from the installed minor telescope, so this
-is the application constructor used after their pointwise type alignment. -/
-theorem VEnv.TypedApplicationSpine.cons_defeq
-    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
-    (Hfn : env.HasType uvars ctx fn (.forallE domain body))
-    (Harg : env.HasType uvars ctx arg actualDomain)
-    (Hdomain : env.IsDefEqU uvars ctx actualDomain domain)
-    (Htail : VEnv.TypedApplicationSpine env uvars ctx
-      (.app fn arg) (body.inst arg) args resultType) :
-    VEnv.TypedApplicationSpine env uvars ctx fn (.forallE domain body)
-      (arg :: args) resultType := by
-  exact .cons Hfn (Harg.defeqU_r henv hctx Hdomain) Htail
-
 theorem VEnv.TypedApplicationSpine.hasType
     (H : VEnv.TypedApplicationSpine env uvars ctx fn fnType args resultType) :
     env.HasType uvars ctx (VExpr.mkApps fn args) resultType := by
@@ -991,82 +810,6 @@ theorem VEnv.TypedApplicationSpine.hasType
   | nil Hfn => simpa [VExpr.mkApps] using Hfn
   | cons Hfn Harg _ ih =>
       simpa [VExpr.mkApps] using ih
-
-theorem VEnv.TypedApplicationSpine.wf
-    (H : VEnv.TypedApplicationSpine env uvars ctx fn fnType args resultType) :
-    VExpr.WF env uvars ctx (VExpr.mkApps fn args) :=
-  ⟨resultType, H.hasType⟩
-
-/-- Concatenate two dependent application phases.  The second phase starts at
-the exact residual term and type produced by the first. -/
-theorem VEnv.TypedApplicationSpine.append
-    (Hinitial : VEnv.TypedApplicationSpine env uvars ctx
-      fn fnType initial middleType)
-    (Hsuffix : VEnv.TypedApplicationSpine env uvars ctx
-      (VExpr.mkApps fn initial) middleType suffix resultType) :
-    VEnv.TypedApplicationSpine env uvars ctx
-      fn fnType (initial ++ suffix) resultType := by
-  induction Hinitial with
-  | nil Hfn => simpa [VExpr.mkApps] using Hsuffix
-  | @cons fn domain body arg args resultType Hfn Harg Htail ih =>
-      apply VEnv.TypedApplicationSpine.cons Hfn Harg
-      apply ih
-      simpa [VExpr.mkApps] using Hsuffix
-
-/-- Extend an already checked dependent application prefix by one argument.
-This is the left-to-right constructor used by executable argument folds. -/
-theorem VEnv.TypedApplicationSpine.snoc
-    (Hprefix : VEnv.TypedApplicationSpine env uvars ctx
-      fn fnType args (.forallE domain body))
-    (Harg : env.HasType uvars ctx arg domain) :
-    VEnv.TypedApplicationSpine env uvars ctx fn fnType
-      (args ++ [arg]) (body.inst arg) := by
-  have Happ : env.HasType uvars ctx
-      (.app (VExpr.mkApps fn args) arg) (body.inst arg) :=
-    Hprefix.hasType.app Harg
-  exact Hprefix.append <|
-    .cons Hprefix.hasType Harg (.nil Happ)
-
-/-- Left-to-right extension when the retained argument type is convertible
-to the current dependent domain. -/
-theorem VEnv.TypedApplicationSpine.snoc_defeq
-    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
-    (Hprefix : VEnv.TypedApplicationSpine env uvars ctx
-      fn fnType args (.forallE domain body))
-    (Harg : env.HasType uvars ctx arg actualDomain)
-    (Hdomain : env.IsDefEqU uvars ctx actualDomain domain) :
-    VEnv.TypedApplicationSpine env uvars ctx fn fnType
-      (args ++ [arg]) (body.inst arg) := by
-  exact Hprefix.snoc (Harg.defeqU_r henv hctx Hdomain)
-
-/-- Transport an entire dependent application spine across a definitionally
-equal ambient context.  Every term and every successive instantiated type is
-preserved literally; only the context in each typing derivation changes. -/
-theorem VEnv.TypedApplicationSpine.defeqDFC
-    (henv : env.Ordered)
-    (Hctx : VEnv.IsDefEqCtx env uvars [] leftCtx rightCtx)
-    (H : VEnv.TypedApplicationSpine env uvars leftCtx
-      fn fnType args resultType) :
-    VEnv.TypedApplicationSpine env uvars rightCtx
-      fn fnType args resultType := by
-  induction H with
-  | nil Hfn =>
-      exact .nil (Hfn.defeqDFC henv Hctx)
-  | cons Hfn Harg _ ih =>
-      exact .cons (Hfn.defeqDFC henv Hctx)
-        (Harg.defeqDFC henv Hctx) ih
-
-/-- Context conversion is reversible for dependent application spines. -/
-theorem VEnv.TypedApplicationSpine.defeqDFC_iff
-    (henv : env.Ordered)
-    (Hctx : VEnv.IsDefEqCtx env uvars [] leftCtx rightCtx) :
-    VEnv.TypedApplicationSpine env uvars leftCtx
-        fn fnType args resultType ↔
-      VEnv.TypedApplicationSpine env uvars rightCtx
-        fn fnType args resultType := by
-  constructor
-  · exact VEnv.TypedApplicationSpine.defeqDFC henv Hctx
-  · exact VEnv.TypedApplicationSpine.defeqDFC henv (Hctx.symm henv)
 
 /-- Canonical variables for a telescope, in source binder order. -/
 def recursorCanonicalVars (n : Nat) : List VExpr :=
@@ -1179,26 +922,6 @@ theorem VEnv.HasType.mkApps_wrapForalls_prefix_canonical
       (VExpr.wrapForalls suffix body) := by
   rw [VExpr.wrapForalls_append] at H
   exact VEnv.HasType.mkApps_wrapForalls_canonical henv H
-
-/-- Apply an initial forall prefix canonically and immediately transport the
-result across the caller's ambient context conversion.  This is the exact
-handoff used by generated minor applications: telescope inversion naturally
-types the application in the installed field context, while the equation is
-assembled in an independently checked field context. -/
-theorem VEnv.HasType.mkApps_wrapForalls_prefix_canonical_defeqCtx
-    {env : VEnv} {uvars : Nat} {outer actual : List VExpr} {fn : VExpr}
-    {initial suffix : List VExpr} {body : VExpr}
-    (henv : VEnv.Ordered env)
-    (H : VEnv.HasType env uvars outer fn
-      (VExpr.wrapForalls (initial ++ suffix) body))
-    (Hctx : VEnv.IsDefEqCtx env uvars []
-      (initial.reverse ++ outer) actual) :
-    VEnv.HasType env uvars actual
-      (VExpr.mkApps (fn.liftN initial.length 0)
-        (recursorCanonicalVars initial.length))
-      (VExpr.wrapForalls suffix body) := by
-  exact (VEnv.HasType.mkApps_wrapForalls_prefix_canonical henv H).defeqDFC
-    henv Hctx
 
 /-- Transport a canonical application from an independently reconstructed
 argument context before inverting its declared forall telescope.  Keeping
@@ -1440,17 +1163,6 @@ def VExpr.instForallDomains : List VExpr → VExpr → Nat → List VExpr
   | cons domain domains ih =>
     simp [VExpr.instForallDomains, ih]
 
-theorem VExpr.instForallDomains_append
-    (left right : List VExpr) (arg : VExpr) (k : Nat) :
-    VExpr.instForallDomains (left ++ right) arg k =
-      VExpr.instForallDomains left arg k ++
-        VExpr.instForallDomains right arg (k + left.length) := by
-  induction left generalizing k with
-  | nil => rfl
-  | cons domain left ih =>
-    simp [VExpr.instForallDomains, ih, Nat.add_assoc, Nat.add_comm,
-      Nat.add_left_comm]
-
 theorem VExpr.inst_wrapForalls
     (domains : List VExpr) (body arg : VExpr) (k : Nat) :
     (VExpr.wrapForalls domains body).inst arg k =
@@ -1497,18 +1209,6 @@ theorem VExpr.liftClosedDomains_getElem
       have hi' : i < domains.length := by simpa using hi
       simpa [VExpr.liftClosedDomains, Nat.add_assoc, Nat.add_comm,
         Nat.add_left_comm] using ih (depth + 1) i hi'
-
-theorem VExpr.liftClosedDomains_take
-    (domains : List VExpr) (depth count : Nat) :
-    (VExpr.liftClosedDomains domains depth).take count =
-      VExpr.liftClosedDomains (domains.take count) depth := by
-  induction domains generalizing depth count with
-  | nil => simp [VExpr.liftClosedDomains]
-  | cons domain domains ih =>
-    cases count with
-    | zero => simp [VExpr.liftClosedDomains]
-    | succ count =>
-      simp [VExpr.liftClosedDomains, ih]
 
 /-- Instantiating the next binder cancels one layer of the systematic
 weakening in every later independent domain. -/
@@ -1669,37 +1369,6 @@ theorem VExpr.applyForallType_wrapForalls_canonical
             (VExpr.app fn arg) (by simpa using hdomainsTail) hargsTail
   exact go domains.length domains args fn rfl hlength
 
-/-- A well-typed complete application of the right-hand function supplies
-all dependent argument premises for the left-hand function when their types
-have the same telescope domains.  No equality between the two residual
-result types is required. -/
-theorem VEnv.HasType.mkApps_sameTelescopeDomains
-    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
-    (Hdomains : SameTelescopeDomains args.length leftType rightType)
-    (Hleft : env.HasType uvars ctx left leftType)
-    (Hright : env.HasType uvars ctx right rightType)
-    (HrightApps : VExpr.WF env uvars ctx (VExpr.mkApps right args)) :
-    VExpr.WF env uvars ctx (VExpr.mkApps left args) := by
-  induction args generalizing left right leftType rightType with
-  | nil =>
-    cases Hdomains with
-    | zero =>
-      refine ⟨leftType, ?_⟩
-      change env.IsDefEq uvars ctx left left leftType
-      exact Hleft
-  | cons arg args ih =>
-    cases Hdomains with
-    | @succ domain leftBody rightBody arity Htail =>
-      have Harg := VEnv.HasType.mkApps_head henv hctx Hright HrightApps
-      have HleftApp := Hleft.app Harg
-      have HrightApp := Hright.app Harg
-      have Htail' := Htail.instN arg 0
-      have HrightRest : VExpr.WF env uvars ctx
-          (VExpr.mkApps (.app right arg) args) := by
-        simpa [VExpr.mkApps] using HrightApps
-      simpa [VExpr.mkApps] using
-        ih Htail' HleftApp HrightApp HrightRest
-
 /-- Exact-result strengthening of `mkApps_sameTelescopeDomains`.  Besides
 recovering each argument from the independently typed right application, it
 records the residual type obtained by instantiating the left forall
@@ -1812,19 +1481,6 @@ theorem RecursorMotiveTelescope.instN
       simpa [VExpr.inst, VExpr.lift, VExpr.lift_instN_lo] using
         ih (k + 1)
 
-/-- Consuming the outer shared domain advances a parallel telescope to the
-family application at that argument. -/
-theorem RecursorMotiveTelescope.consume
-    (H : RecursorMotiveTelescope resultLevel (arity + 1) family
-      (.forallE domain familyType) (.forallE domain motiveType))
-    (arg : VExpr) :
-    RecursorMotiveTelescope resultLevel arity (.app family arg)
-      (familyType.inst arg) (motiveType.inst arg) := by
-  cases H with
-  | @succ _ _ _ _ _ Htail =>
-      simpa [VExpr.inst, VExpr.instN_bvar0, VExpr.inst_liftN] using
-        RecursorMotiveTelescope.instN Htail arg 0
-
 /-- Apply a family and a parallel motive to the same argument spine, then
 apply the resulting motive to a major premise of the family application.
 Typing of the shared arguments is recovered from the independently typed
@@ -1877,20 +1533,6 @@ theorem RecursorMotiveTelescope.applyMajorTyped
           simpa [VExpr.inst, VExpr.instN_bvar0, VExpr.inst_liftN] using Htail'
         exact ih Htail'' Hfamily' Hmotive' Hmajor
 
-/-- Typehood wrapper around `applyMajorTyped`. -/
-theorem RecursorMotiveTelescope.applyMajor
-    {args : List VExpr} {env : VEnv} {uvars : Nat} {ctx : List VExpr}
-    {motive major : VExpr}
-    (H : RecursorMotiveTelescope resultLevel args.length family
-      familyType motiveType)
-    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
-    (Hfamily : env.HasType uvars ctx family familyType)
-    (Hmotive : env.HasType uvars ctx motive motiveType)
-    (Hmajor : env.HasType uvars ctx major (VExpr.mkApps family args)) :
-    env.IsType uvars ctx
-      (.app (VExpr.mkApps motive args) major) :=
-  ⟨resultLevel, H.applyMajorTyped henv hctx Hfamily Hmotive Hmajor⟩
-
 @[simp] theorem VExpr.getAppFnArgs_mkApps_bvar
     (index : Nat) (args : List VExpr) :
     (VExpr.mkApps (.bvar index) args).getAppFnArgs = (.bvar index, args) := by
@@ -1935,60 +1577,6 @@ theorem VExpr.IsFieldApp.appendApps
   refine ⟨field, hfield, args ++ more, ?_⟩
   simpa [hspine] using VExpr.getAppFnArgs_mkApps e more
 
-theorem VExpr.bvarHead?_eq_some
-    {e : VExpr} {field : Nat}
-    (h : e.bvarHead? = some field) :
-    ∃ args, e.getAppFnArgs = (.bvar field, args) := by
-  unfold VExpr.bvarHead? at h
-  cases hspine : e.getAppFnArgs with
-  | mk head args =>
-    rw [hspine] at h
-    cases head <;> simp at h
-    rename_i index
-    cases h
-    exact ⟨args, rfl⟩
-
-/-- Every recursive argument whose application head is a de Bruijn variable
-is, by construction, designated by `IotaRule.fieldVars`. -/
-theorem VExpr.IsFieldApp.ofRecursiveArg
-    {arg : VExpr} {recursiveArgs : List VExpr} {field : Nat}
-    (harg : arg ∈ recursiveArgs)
-    (hhead : arg.bvarHead? = some field) :
-    arg.IsFieldApp (recursiveArgs.filterMap VExpr.bvarHead?) 0 := by
-  rcases VExpr.bvarHead?_eq_some hhead with ⟨args, hspine⟩
-  refine ⟨field, ?_, args, by simpa using hspine⟩
-  exact List.mem_filterMap.mpr ⟨arg, harg, hhead⟩
-
-/-- Expressions containing none of the installed recursor names satisfy the
-iota guard structurally. This is the ordinary-expression half of the guard;
-actual recursive calls are introduced only through `GuardedIota.recCall`. -/
-theorem VExpr.GuardedIota.ofContainsAnyConstFalse
-    {e : VExpr} {recursors : List Name} {fieldVars : List Nat}
-    {depth : Nat}
-    (h : e.containsAnyConst recursors = false) :
-    e.GuardedIota recursors fieldVars depth := by
-  induction e generalizing depth with
-  | bvar => exact .bvar
-  | sort => exact .sort
-  | elim => exact .elim
-  | const name levels =>
-      apply VExpr.GuardedIota.const
-      intro hmem
-      simp [VExpr.containsAnyConst] at h
-      exact h hmem
-  | app fn arg ihFn ihArg =>
-      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at h
-      exact .app (ihFn h.1) (ihArg h.2)
-  | proj typeName index major ihMajor =>
-      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at h
-      exact .proj (ihMajor h.2)
-  | lam dom body ihDom ihBody =>
-      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at h
-      exact .lam (ihDom h.1) (ihBody h.2)
-  | forallE dom body ihDom ihBody =>
-      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at h
-      exact .forallE (ihDom h.1) (ihBody h.2)
-
 /-- The guarded-iota judgment follows source-visible constant support.
 Primitive projection nodes contribute the support of their source major. -/
 theorem VExpr.SourceConstFree.guardedIota
@@ -2026,26 +1614,6 @@ theorem VExpr.GuardedIota.wrapLams
         · intro inner hinner
           exact hdomains inner (by simp [hinner])
         · simpa [Nat.add_assoc, Nat.add_comm 1 domains.length] using hbody
-
-/-- If a lambda telescope contains none of the selected constants, neither
-its binder domains nor its residual body contain one. -/
-theorem VExpr.containsAnyConst_wrapLams_false
-    {domains : List VExpr} {body : VExpr} {names : List Name}
-    (hfree : (VExpr.wrapLams domains body).containsAnyConst names = false) :
-    (∀ dom ∈ domains, dom.containsAnyConst names = false) ∧
-      body.containsAnyConst names = false := by
-  induction domains with
-  | nil => simpa [VExpr.wrapLams] using hfree
-  | cons dom domains ih =>
-    simp only [VExpr.wrapLams, List.foldr_cons, VExpr.containsAnyConst,
-      Bool.or_eq_false_iff] at hfree
-    rcases ih hfree.2 with ⟨hdomains, hbody⟩
-    exact ⟨by
-      intro current hmem
-      simp only [List.mem_cons] at hmem
-      rcases hmem with rfl | hmem
-      · exact hfree.1
-      · exact hdomains current hmem, hbody⟩
 
 theorem VExpr.GuardedIota.mkApps
     {recursors : List Name} {fieldVars : List Nat} {depth : Nat}
@@ -2210,12 +1778,6 @@ theorem IotaRhsCertificate.rhs_spine
     (.bvar minorVar, fieldArgs ++ results)
   rw [hrhs]
   exact VExpr.getAppFnArgs_mkApps_bvar _ _
-
-theorem IotaRhsCertificate.field_args
-    (H : IotaRhsCertificate recursors domains fieldArgs recursiveArgs
-      rhsBody) :
-    (fieldArgs ++ H.recursiveResults).take fieldArgs.length = fieldArgs := by
-  simp
 
 theorem IotaRhsCertificate.results_length
     (H : IotaRhsCertificate recursors domains fieldArgs recursiveArgs

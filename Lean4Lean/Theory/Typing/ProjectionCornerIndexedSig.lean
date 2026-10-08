@@ -2,8 +2,7 @@ import Lean4Lean.Theory.Typing.ProjectionCornerIndexedSubst
 
 /-! # The projection-walk corner at an indexed structure, from a typed eliminator of its view
 
-The index-general form of `corner_inhabit_sig`, for the one-constructor view `caseViewI` of a
-registered indexed structure: a closed term `h` typed at the view's recursor type into `Prop`
+For the one-constructor view `caseView` of a registered structure, possibly indexed: a closed term `h` typed at the view's recursor type into `Prop`
 inhabits the projection-walk binder. The motive is the constant `fun idx _ => Nonempty X`;
 the major's index arguments are typed along the view's index telescope by the header-agreement
 hypothesis. -/
@@ -13,11 +12,7 @@ namespace VEnv
 open InductiveSignature VExpr
 variable {env : VEnv} {U : Nat}
 
-theorem forall₂_equiv_refl_idx : ∀ l : List VLevel, List.Forall₂ (· ≈ ·) l l
-  | [] => .nil
-  | _ :: l => .cons (VLevel.equiv_def'.mpr rfl) (forall₂_equiv_refl_idx l)
-
-theorem corner_inhabit_view_idx (henv : env.WF) (hch : env.HasCanonicalChoice)
+theorem corner_inhabit_view (henv : env.WF) (hch : env.HasCanonicalChoice)
     {Δ : List VExpr} (hΔ : OnCtx Δ (env.IsType U))
     {S : Name} {info : VProjectionInfo} (hinfo : env.projections S info)
     {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U) (hlslen : ls.length = info.uvars)
@@ -35,33 +30,33 @@ theorem corner_inhabit_view_idx (henv : env.WF) (hch : env.HasCanonicalChoice)
     (hnp : RP.length = info.nparams) (hCIlen : RCI.length = fam.indices.length)
     (hIlen : fam.indices.length = info.nindices)
     (hdef : env.IsDefEqU info.uvars []
-      ((caseViewI uvars isUnsafe fam info.ctorName RP RF RCI).constructorType
-        ⟨info.ctorName, ⟨0, by simp [caseViewI]⟩, RF.map Field.external, RCI⟩) info.ctorType)
+      ((caseView uvars isUnsafe fam info.ctorName RP RF RCI).constructorType
+        ⟨info.ctorName, ⟨0, by simp [caseView]⟩, RF.map Field.external, RCI⟩) info.ctorType)
     (hhdr : ∃ tc, env.constants S = some tc ∧ env.IsDefEqU info.uvars [] tc.type
       (VExpr.wrapForalls (RP ++ fam.indices) (.sort fam.resultLevel)))
     {h : VExpr}
     (hhead : env.HasType U [] h
-      ((⟨U, ls, .zero, fun _ => default⟩ : Instance (caseViewI uvars isUnsafe fam info.ctorName
-        RP RF RCI)).recursorType ⟨0, by simp [caseViewI]⟩)) :
+      ((⟨U, ls, .zero, fun _ => default⟩ : Instance (caseView uvars isUnsafe fam info.ctorName
+        RP RF RCI)).recursorType ⟨0, by simp [caseView]⟩)) :
     ∃ d, env.HasType U Δ d D := by
-  let sv := caseViewI uvars isUnsafe fam info.ctorName RP RF RCI
+  let sv := caseView uvars isUnsafe fam info.ctorName RP RF RCI
   let gp : Instance sv := ⟨U, ls, .zero, fun _ => default⟩
   let c' : Constructor sv.families.size :=
-    ⟨info.ctorName, ⟨0, by simp [sv, caseViewI]⟩, RF.map Field.external, RCI⟩
-  have hrec := gp.recursorType_shape rfl rfl ⟨0, by simp [sv, caseViewI]⟩
-    ⟨0, by simp [sv, caseViewI]⟩
-  have hc0 : sv.constructors[(⟨0, by simp [sv, caseViewI]⟩ : Fin sv.constructors.size)] = c' :=
+    ⟨info.ctorName, ⟨0, by simp [sv, caseView]⟩, RF.map Field.external, RCI⟩
+  have hrec := gp.recursorType_shape rfl rfl ⟨0, by simp [sv, caseView]⟩
+    ⟨0, by simp [sv, caseView]⟩
+  have hc0 : sv.constructors[(⟨0, by simp [sv, caseView]⟩ : Fin sv.constructors.size)] = c' :=
     rfl
   rw [hc0, gp.motive_shape _ rfl, gp.minor_shape rfl c' rfl, gp.major_lift,
     gp.constructorApp_shape] at hrec
   have hsH : gp.sHyps c' = [] := by
-    unfold Instance.sHyps; rw [caseViewI_recursiveFields]; rfl
+    unfold Instance.sHyps; rw [caseView_recursiveFields]; rfl
   simp only [hsH, List.append_nil, List.length_nil, Nat.add_zero, VExpr.liftN_zero] at hrec
   -- notation
   have hF : sv.fieldTypes c' = RF := fieldTypes_external _ rfl
   have hsF : gp.sFields c' = RF.map (·.instL ls) := by simp only [Instance.sFields, hF]; rfl
   have hP : gp.params = RP.map (·.instL ls) := rfl
-  have hsI : gp.sIndices ⟨0, by simp [sv, caseViewI]⟩ = fam.indices.map (·.instL ls) := rfl
+  have hsI : gp.sIndices ⟨0, by simp [sv, caseView]⟩ = fam.indices.map (·.instL ls) := rfl
   have hsCI : gp.sCtorIndices c' = RCI.map (·.instL ls) := rfl
   have hlsU : ls.length = uvars := hlslen.trans huv.symm
   rw [hsF, hP, hsI, hsCI] at hrec
@@ -79,7 +74,7 @@ theorem corner_inhabit_view_idx (henv : env.WF) (hch : env.HasCanonicalChoice)
     simp only [InductiveSignature.constructorType, hF, InductiveSignature.familyApp,
       VExpr.instL_wrapForalls, List.map_append, VExpr.instL_mkApps, VExpr.instL, R,
       ← hPdef, ← hFdef, ← hCIdef]
-    simp only [sv, caseViewI, hfam, VLevel.inst_map_id hlsU]
+    simp only [sv, caseView, hfam, VLevel.inst_map_id hlsU]
     congr 2
     · exact congrArg (VExpr.const · ls) hfam
     · simp [c', InductiveSignature.Instance.instL_vars, vars, VExpr.instL]
@@ -125,13 +120,13 @@ theorem corner_inhabit_view_idx (henv : env.WF) (hch : env.HasCanonicalChoice)
   simp only [List.append_nil] at hPI
   obtain ⟨hctxPI, -⟩ := hPI
   -- the major domain
-  have hsM : gp.sMajor ⟨0, by simp [sv, caseViewI]⟩ =
+  have hsM : gp.sMajor ⟨0, by simp [sv, caseView]⟩ =
       VExpr.mkApps (.const S ls) (bvarRange (P.length + I.length) (P.length + I.length)) := by
     simp only [Instance.sMajor]
-    have e2 : (sv.families[(⟨0, by simp [sv, caseViewI]⟩ : Fin sv.families.size)]).name = S := hfam
+    have e2 : (sv.families[(⟨0, by simp [sv, caseView]⟩ : Fin sv.families.size)]).name = S := hfam
     rw [e2]
-    have hPv : sv.params.length = P.length := by rw [← hPdef]; simp [sv, caseViewI]
-    have hIv : (sv.families[(⟨0, by simp [sv, caseViewI]⟩ : Fin sv.families.size)]).indices.length =
+    have hPv : sv.params.length = P.length := by rw [← hPdef]; simp [sv, caseView]
+    have hIv : (sv.families[(⟨0, by simp [sv, caseView]⟩ : Fin sv.families.size)]).indices.length =
         I.length := hIl.symm
     rw [hPv, hIv, vars_eq_bvarRange, vars_eq_bvarRange, Nat.add_zero, ← CastSpec.bvarRange_split]
   rw [hsM] at hrec
@@ -184,12 +179,12 @@ theorem corner_inhabit_view_idx (henv : env.WF) (hch : env.HasCanonicalChoice)
     rw [← h]; simp [hPl, hFl]
   have hsC : gp.sCtorApp c' = Ctor := by
     simp only [Instance.sCtorApp, hsF, ← hFdef]
-    simp [sv, caseViewI, c', gp, Ctor, ← hPdef, hFl]
+    simp [sv, caseView, c', gp, Ctor, ← hPdef, hFl]
   rw [hsC] at hrec
   generalize hMindef : VExpr.wrapForalls (insertBinders F 1) (VExpr.mkApps (.bvar F.length)
     (CI.map (fun e => e.liftN 1 F.length) ++ [Ctor.liftN 1 F.length])) = Min at hrec
   -- the eliminator's telescope
-  have HR : env.IsType U [] (gp.recursorType ⟨0, by simp [sv, caseViewI]⟩) :=
+  have HR : env.IsType U [] (gp.recursorType ⟨0, by simp [sv, caseView]⟩) :=
     hhead.isType henv.ordered trivial
   rw [hrec] at HR
   have hpeel := (IsType.wrapForalls_inv henv (Γ := []) trivial HR).1
@@ -247,7 +242,7 @@ theorem corner_inhabit_view_idx (henv : env.WF) (hch : env.HasCanonicalChoice)
       (fun j hj _ hd => hTelP.2 j hj hd)
     rw [VExpr.instOuter_sort] at this
     exact ⟨w, this⟩
-  rw [VExpr.motive_instOuter_idx] at hMotI
+  rw [VExpr.motive_instOuter] at hMotI
   generalize hDdef : (I ++ [Maj]).mapIdx (fun k d => d.subst ((Subst.ofList ps).liftN k)) = Doms'
     at hMotI
   have hDl : Doms'.length = I.length + 1 := by rw [← hDdef]; simp
@@ -260,7 +255,7 @@ theorem corner_inhabit_view_idx (henv : env.WF) (hch : env.HasCanonicalChoice)
   generalize hMdef : VExpr.wrapLams Doms' ((VExpr.app (.const ``Nonempty [u]) X).liftN
       Doms'.length) = M at hM
   have hM' : env.HasType U Δ M ((VExpr.wrapForalls (I ++ [Maj]) (.sort .zero)).instOuter ps) := by
-    rw [VExpr.motive_instOuter_idx, hDdef]; exact hM
+    rw [VExpr.motive_instOuter, hDdef]; exact hM
   -- the instantiated minor premise and its fields
   have hTelPMot := TelInst.append_one hTelP hM'
   obtain ⟨w, hMinw⟩ := hMinT
@@ -272,7 +267,7 @@ theorem corner_inhabit_view_idx (henv : env.WF) (hch : env.HasCanonicalChoice)
           List.singleton_append]; exact hMinw) hTelPMot.1 hTelPMot.1
     (fun j hj _ hd => hTelPMot.2 j hj hd)
   simp only [VExpr.instOuter_sort] at hMinI
-  rw [← hMindef, VExpr.minor_instOuter_idx] at hMinI
+  rw [← hMindef, VExpr.minor_instOuter] at hMinI
   generalize hF'def : F.mapIdx (fun i d => d.subst ((Subst.ofList ps).liftN i)) = F' at hMinI
   have hF'l : F'.length = F.length := by rw [← hF'def]; simp
   obtain ⟨hFctx, hBody⟩ := IsType.wrapForalls_inv henv hΔ ⟨_, hMinI⟩
@@ -352,8 +347,8 @@ theorem corner_inhabit_view_idx (henv : env.WF) (hch : env.HasCanonicalChoice)
     rw [← hXdef, VExpr.liftN_instOuter _ _ (by simpa [hpl] using hdcl)]
     simp [List.map_append, VExpr.liftN, Function.comp_def]
   have hXuL := hXu.weakN henv.ordered (Ctx.LiftN.zero F'.reverse (Γ := Δ) hΓ'len)
-  have hlsE : List.Forall₂ (· ≈ ·) ls ls := forall₂_equiv_refl_idx ls
-  have hfield := VProjectionInfo.field_of_walk_idx (decl := decl) henv hinfo hwf' hctorC hshape0
+  have hlsE : List.Forall₂ (· ≈ ·) ls ls := VLevel.forall₂_equiv_refl ls
+  have hfield := VProjectionInfo.field_of_walk (decl := decl) henv hinfo hwf' hctorC hshape0
     hvalid0 hhead0 hdn hdu hle hFctx hc' hlenA' hls hlsE hnz hPA hIA he'L hmd
     (by rw [← hXlift]; exact ⟨_, hXuL⟩)
   rw [← hXlift, List.getElem_append_right (by simp [hpl])] at hfield
@@ -413,7 +408,7 @@ theorem corner_inhabit_view_idx (henv : env.WF) (hch : env.HasCanonicalChoice)
       (VExpr.wrapLams F' (.app (.app (.const ``Nonempty.intro [u]) (X.liftN F.length))
         (.bvar (F.length - 1 - j))))
       (Min.instOuter (ps ++ [M])) := by
-    rw [← hMindef, VExpr.minor_instOuter_idx, hF'def]
+    rw [← hMindef, VExpr.minor_instOuter, hF'def]
     exact HasType.wrapLams_of hFctx hbM
   generalize hmdef : VExpr.wrapLams F' (.app (.app (.const ``Nonempty.intro [u])
     (X.liftN F.length)) (.bvar (F.length - 1 - j))) = mm at hm

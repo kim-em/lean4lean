@@ -54,17 +54,4 @@ theorem TrExprS.consumeForallTypes_of_wrappers
   | _ => exact ⟨target, H, Htype, _, Htype.choose_spec⟩
 
 
-theorem TrExprS.consumeForallTypes
-    {env : Environment} {venv : VEnv} {safety : DefinitionSafety}
-    {Us : List Name} {Δ : VLCtx}
-    (Hchecking : CheckingEnv.Valid safety env venv)
-    (hΔ : Δ.WF venv Us.length)
-    (H : TrExprS venv Us Δ source target)
-    (Htype : venv.IsType Us.length Δ.toCtx target) :
-    ∃ consumed,
-      TrExprS venv Us Δ (Expr.consumeForallTypes env.isTypeAnnotationWrapper source) consumed ∧
-      venv.IsType Us.length Δ.toCtx consumed ∧
-      venv.IsDefEqU Us.length Δ.toCtx target consumed :=
-  H.consumeForallTypes_of_wrappers Hchecking.tr (.of_env env) hΔ Htype
-
 end Lean4Lean

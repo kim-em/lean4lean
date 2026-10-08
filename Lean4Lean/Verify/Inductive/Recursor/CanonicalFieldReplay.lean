@@ -1,4 +1,7 @@
-import Lean4Lean.Verify.Inductive.Recursor.CanonicalFieldUniverses
+import Lean4Lean.Verify.Typing.UniverseSupport
+import Lean4Lean.Verify.Inductive.Recursor.SourceReplay
+import Lean4Lean.Verify.Inductive.Recursor.SourceUniverses
+import Lean4Lean.Verify.Inductive.Recursor.LoopUniverses
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalFieldConsumption
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalMotiveGroup
 namespace Lean4Lean.VerifyInductive
@@ -41,113 +44,6 @@ theorem MLCtxOnlyLams.mkForall_fvarsIn_upset
       · apply FVarsIn.abstract1_of
         simpa [TypeChecker.MLCtx.fvarRevList, Q, List.mem_cons, or_assoc] using Hbody
 
-theorem RecInfoMinorSemanticSource.fieldSourceFVars
-    {root : AddInductive.Context} {Rroot : RecursorContextWF root recLparams}
-    {S : RecInfoMinorTypeShape} (HS : RecInfoMinorSemanticSource Rroot S) :
-    (HS.traversal.terminalContext.lctx.mkForall S.fields (.sort .zero)).FVarsIn
-      (· ∈ HS.parameterSuffix.parameterDecls.fvars) := by
-  rw [← HS.terminalWF.lctx_eq,
-    HS.terminalWF.mlctx_wf.mkForall_eq (e := .sort .zero) S.fields.size HS.fieldsRecent.size_le
-      HS.fieldsRecent.reverse_eq trivial]
-  have Hup : IsFVarUpSet
-      (fun fv => fv ∈ HS.terminalWF.mlctx.fvarRevList S.fields.size HS.fieldsRecent.size_le ∨
-        fv ∈ ExprArrayFVarIds HS.traversal.stats.params) HS.terminalWF.mlctx.vlctx := by
-    simpa [HS.fieldsRecent.fvarRevList_eq] using HS.fieldParameterUp
-  have Hfv := HS.terminalWF.onlyLams.mkForall_fvarsIn_upset HS.terminalWF.mlctx_wf
-    S.fields.size HS.fieldsRecent.size_le (.sort .zero) Hup (by trivial)
-  simpa [HS.parameterSuffix.parameterDecls_fvars] using Hfv
-
-theorem TrExprS.isType_forallSort
-    (Htel : Expr.ForallTelescope source n (.sort level))
-    (Htr : TrExprS env Us Δ source target) : env.IsType Us.length Δ.toCtx target := by
-  cases Htel with
-  | nil => cases Htr with | sort hu => exact ⟨_, .sort (VLevel.WF.of_ofLevel hu)⟩
-  | cons Htel => cases Htr with | forallE Hdom Hbody _ _ => exact .forallE Hdom Hbody
-
-theorem Expr.ForallTelescope.forallDomainsOnly_eq
-    (H : Expr.ForallTelescope source n (.sort .zero)) :
-    Expr.forallDomainsOnly n source = source := by
-  induction n generalizing source with
-  | zero => cases H; rfl
-  | succ n ih =>
-    cases H with
-    | cons Htail => simp [Expr.forallDomainsOnly, ih Htail]
-
-private theorem recursorLevels_zero
-    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .zero) :
-    recursorDeclarationAbstractLevels Us ha = VLevel.params Us.length := by
-  subst elim
-  rfl
-
-private theorem recursorLevels_param
-    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .param fresh) :
-    recursorDeclarationAbstractLevels Us ha = VLevel.prependShift Us.length := by
-  subst elim
-  simp only [recursorDeclarationAbstractLevels]
-  exact VLevel.inst_map_id VLevel.prependShift_length
-
-/-- A supported consumed telescope can be chosen at source universes and
-replayed exactly in the recursor universe context. -/
-theorem CompletedRecursorConstruction.chooseOriginalSupportedDomains
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
-    (Htel : Expr.ForallTelescope source n (.sort .zero))
-    (hsource : source.levelParamsIn c.lparams = true)
-    (hdomains : domains.length = n)
-    (Htr : TrExprS H.recursorWF.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse []) source
-      (VExpr.wrapForalls domains (.sort .zero))) :
-    ∃ sourceDomains, sourceDomains.length = n ∧
-      TrExprS R.context.venv c.lparams (abstractForallContext R.parameterScope.toCtx.reverse [])
-        source (VExpr.wrapForalls sourceDomains (.sort .zero)) ∧
-      R.context.venv.IsType c.lparams.length R.parameterScope.toCtx
-        (VExpr.wrapForalls sourceDomains (.sort .zero)) ∧
-      TrExprS H.recursorWF.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-        (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse []) source
-        (VExpr.wrapForalls
-          (sourceDomains.map (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
-          (.sort .zero)) := by
-  have hsplit : H.elimLevel = .zero ∨ ∃ fresh, H.elimLevel = .param fresh := by
-    have ha := H.elimLevelAdmissible
-    cases helim : H.elimLevel <;> simp_all [AddInductive.AdmissibleElimLevel]
-  rcases hsplit with helim | ⟨fresh, helim⟩
-  · have Hctx := H.parameterAnonymousContext
-    rw [recursorLevels_zero H.elimLevelAdmissible helim, R.sourceAnonymousParameterWF.instL_id] at Hctx
-    have Hsource : TrExprS R.context.venv c.lparams
-        (abstractForallContext R.parameterScope.toCtx.reverse []) source
-        (VExpr.wrapForalls domains (.sort .zero)) := by
-      simpa [Hctx, H.recursorEnv, helim, AddInductive.getRecLevelParams] using Htr
-    refine ⟨domains, hdomains, Hsource, ?_, ?_⟩
-    · simpa [abstractForallContext_toCtx, VLCtx.toCtx] using TrExprS.isType_forallSort Htel Hsource
-    · have Hidentity := Hsource.substLevelParamsCore
-        (Us := c.lparams) (F := Level.param) (ls := VLevel.params c.lparams.length)
-        R.sourceAnonymousParameterWF
-        (fun level hlevel => VLevel.params_wf hlevel)
-        (fun u u' hu => by
-          simpa [Level.substParams_id, VLevel.inst_id (VLevel.WF.of_ofLevel hu)] using hu)
-      rw [Expr.instantiateLevelParamsCore_id, R.sourceAnonymousParameterWF.instL_id] at Hidentity
-      rw [Hctx, H.recursorEnv, recursorLevels_zero H.elimLevelAdmissible helim]
-      simpa [helim, AddInductive.getRecLevelParams, VExpr.instL_wrapForalls, VExpr.instL, VLevel.inst]
-        using Hidentity
-  · have hfresh : fresh ∉ c.lparams := by
-      simpa [helim, AddInductive.AdmissibleElimLevel] using H.elimLevelAdmissible
-    have Hctx := H.parameterAnonymousContext
-    rw [recursorLevels_param H.elimLevelAdmissible helim] at Hctx
-    have Htr' : TrExprS R.context.venv (fresh :: c.lparams)
-        ((abstractForallContext R.parameterScope.toCtx.reverse []).instL (VLevel.prependShift c.lparams.length))
-        source (VExpr.wrapForalls domains (.sort .zero)) := by
-      simpa [Hctx, H.recursorEnv, helim, AddInductive.getRecLevelParams] using Htr
-    obtain ⟨sourceDomains, hlength, Hsource, Htype, Hrec⟩ :=
-      TrExprS.chooseOriginalForallDomains R.context.checking.tr.wf R.sourceAnonymousParameterWF
-        hfresh Htel hdomains Htr' (by
-          rw [Htel.forallDomainsOnly_eq]
-          exact levelParamsIn_fixed_dropFresh hsource hfresh)
-    rw [Htel.forallDomainsOnly_eq] at Hsource Hrec
-    refine ⟨sourceDomains, hlength, Hsource, ?_, ?_⟩
-    · simpa [abstractForallContext_toCtx, VLCtx.toCtx] using Htype
-    · rw [Hctx, H.recursorEnv, recursorLevels_param H.elimLevelAdmissible helim]
-      simpa [helim, AddInductive.getRecLevelParams] using Hrec
-
 /-- Lift a previously selected original-universe translation into the actual
 recursor context without making another target choice. -/
 theorem CompletedRecursorConstruction.liftOriginalType
@@ -168,12 +64,12 @@ theorem CompletedRecursorConstruction.liftOriginalType
       (fun u u' hu => by
         simpa [Level.substParams_id, VLevel.inst_id (VLevel.WF.of_ofLevel hu)] using hu)
     rw [Expr.instantiateLevelParamsCore_id] at Hidentity
-    rw [H.parameterAnonymousContext, H.recursorEnv, recursorLevels_zero H.elimLevelAdmissible helim]
+    rw [H.parameterAnonymousContext, H.recursorEnv, recursorDeclarationAbstractLevels_zero H.elimLevelAdmissible helim]
     simpa [helim, AddInductive.getRecLevelParams] using Hidentity
   · have hfresh : fresh ∉ c.lparams := by
       simpa [helim, AddInductive.AdmissibleElimLevel] using H.elimLevelAdmissible
     have Hrec := Hsource.prependLevelParam R.context.checking.tr.wf R.sourceAnonymousParameterWF hfresh
-    rw [H.parameterAnonymousContext, H.recursorEnv, recursorLevels_param H.elimLevelAdmissible helim]
+    rw [H.parameterAnonymousContext, H.recursorEnv, recursorDeclarationAbstractLevels_param H.elimLevelAdmissible helim]
     simpa [helim, AddInductive.getRecLevelParams] using Hrec
 
 /-- Select the field telescope in the header environment, before any current

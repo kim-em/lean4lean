@@ -1115,9 +1115,6 @@ theorem TypedAt.merge {K : List Ob} (h : ∀ k ∈ K, TypedAt env U Δ cv σ S T
       let ⟨τs, h1, h2⟩ := h k hk; ⟨τs, h1, h2⟩
   exact ⟨τs, h1, h2⟩
 
-theorem TypedAt.of_list (h1 : ∀ τ ∈ τs, Obs' σ S T τ) (h2 : TypedOb env U Δ cv o τs) :
-    TypedAt env U Δ cv σ S T o := ⟨τs, h1, h2⟩
-
 theorem TypedAt.lift_cons {T : VExpr} (h : TypedAt env U Δ cv σ S T o) :
     TypedAt env U Δ cv (σ.cons x) (S.cons X) T.lift o :=
   let ⟨τs, h1, h2⟩ := h; ⟨τs, fun τ hτ => Obs.lift_cons_iff.2 (h1 τ hτ), h2⟩

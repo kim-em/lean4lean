@@ -344,11 +344,6 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.family_indices
   rw [Fin.getElem_fin, D.family_getElem]
   exact H.consumedFamilies_indices ⟨i.val, howner⟩
 
-theorem CompletedRecursorConstruction.ConsumedSignatureData.params_length
-    {H : CompletedRecursorConstruction R} {s : InductiveSignature}
-    (D : H.ConsumedSignatureData s) : s.params.length = stats.params.size := by
-  rw [D.params, List.length_reverse, H.sourceParameterCount]
-
 /-- The closed type of each consumed constructor is definitionally the
 source constructor at the same flattened position, in the header
 environment. -/
@@ -490,21 +485,6 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.fieldPositive
   rw [hget, hfields, D.params, List.reverse_reverse, R.core.uvars]
   exact hres
 
-/-- Superseded: this was the family-header obligation of `Models` for the
-consumed family table (each consumed index telescope, closed over the cached
-parameters and ending in the family's result sort, is the declared family
-type in the source environment).  `Models` no longer compares family types;
-the generated motive types need `InductiveSignature.FamilyTypesWF` instead
-(see `CompletedRecursorConstruction.consumedFamilyTypesWF`).  Retained so
-that dependent work keeps compiling. -/
-def CompletedRecursorConstruction.ConsumedFamilyTypes
-    (H : CompletedRecursorConstruction R) : Prop :=
-  ∀ owner (howner : owner < H.recInfos.size),
-    sourceEnv.IsDefEqU decl.uvars []
-      (VExpr.wrapForalls (R.parameterScope.toCtx.reverse ++ H.sourceIndices ⟨owner, howner⟩)
-        (.sort (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).resultLevel))
-      (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).type
-
 /-- The consumed constructor at a flattened position names the source
 constructor's family and constructor at that position. -/
 theorem CompletedRecursorConstruction.ConsumedSignatureData.constructorNames
@@ -626,69 +606,5 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.models
     H.consumedFamilies_level ⟨i, howner⟩]
   refine ⟨rfl, ?_, rfl⟩
   rw [H.sourceIndices_length, H.cardinality.indices i howner]
-
-/-- Superseded by `ConsumedSignatureData.models`, which no longer needs the
-consumed family types; the hypothesis is unused. -/
-theorem CompletedRecursorConstruction.ConsumedSignatureData.models_of_familyTypes
-    {H : CompletedRecursorConstruction R} {s : InductiveSignature}
-    (D : H.ConsumedSignatureData s) (_HF : H.ConsumedFamilyTypes) :
-    s.Models sourceEnv decl :=
-  D.models
-
-/-- Superseded (see `ConsumedFamilyTypes`): the former remaining family
-obligation, stated over the cached parameter context: each consumed index
-telescope agrees with the header's index telescope for the same family, in
-the source environment. The consumed indices are only translated in the
-completed constructor environment, so this comparison needs strengthening
-back to `sourceEnv`. -/
-def CompletedRecursorConstruction.ConsumedIndexTelescopes
-    (H : CompletedRecursorConstruction R) : Prop :=
-  ∀ owner (howner : owner < H.recInfos.size) (hheader : owner < R.sourceSignatureHeader.families.size),
-    ∃ u, sourceEnv.IsDefEq decl.uvars R.parameterScope.toCtx
-      (VExpr.wrapForalls R.sourceSignatureHeader.families[owner].indices
-        (.sort (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).resultLevel))
-      (VExpr.wrapForalls (H.sourceIndices ⟨owner, howner⟩)
-        (.sort (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).resultLevel))
-      (.sort u)
-
-theorem CompletedRecursorConstruction.consumedFamilyTypes_of_indexTelescopes
-    (H : CompletedRecursorConstruction R) (HI : H.ConsumedIndexTelescopes) :
-    H.ConsumedFamilyTypes := by
-  intro owner howner
-  have hdeclOwner : owner < decl.types.length := by rw [← H.cardinality.records]; exact howner
-  have hheader : owner < R.sourceSignatureHeader.families.size := by
-    have hsize : R.sourceSignatureHeader.families.size = decl.types.length :=
-      R.sourceMaterialized.signatureFamilies_size
-    omega
-  have henv : sourceEnv.WF := by
-    simpa only [R.sourceContextVEnv] using R.sourceContext.checking.tr.wf
-  have hfamily := Lean4Lean.List.forall₂_getElem R.sourceSignatureHeader_families owner
-    (by simpa using hheader) hdeclOwner
-  simp only [Array.getElem_toList] at hfamily
-  obtain ⟨_, _, hlevel, htype⟩ := hfamily
-  obtain ⟨u, hI⟩ := HI owner howner hheader
-  have hctx := R.sourceParameterContext
-  have hctxS := hctx.symm henv.ordered
-  have hY : sourceEnv.IsType decl.uvars R.params.reverse
-      (VExpr.wrapForalls R.sourceSignatureHeader.families[owner].indices
-        (.sort (decl.types[owner]'hdeclOwner).resultLevel)) :=
-    ⟨u, hI.hasType.1.defeqDFC henv.ordered hctxS⟩
-  have hXY : sourceEnv.IsDefEqU decl.uvars R.params.reverse
-      (VExpr.wrapForalls (H.sourceIndices ⟨owner, howner⟩)
-        (.sort (decl.types[owner]'hdeclOwner).resultLevel))
-      (VExpr.wrapForalls R.sourceSignatureHeader.families[owner].indices
-        (.sort (decl.types[owner]'hdeclOwner).resultLevel)) :=
-    ⟨_, hI.symm.defeqDFC henv.ordered hctxS⟩
-  have hmain := VExpr.wrapForalls_defeqCtx henv (P := R.parameterScope.toCtx.reverse)
-    (Q := R.params) (by simpa using hctxS) hY hXY
-  rw [VExpr.wrapForalls_append]
-  rw [VExpr.wrapForalls_append, R.sourceSignatureHeader_params, hlevel] at htype
-  exact hmain.trans henv trivial htype
-
-theorem CompletedRecursorConstruction.ConsumedSignatureData.models_of_indexTelescopes
-    {H : CompletedRecursorConstruction R} {s : InductiveSignature}
-    (D : H.ConsumedSignatureData s) (_HI : H.ConsumedIndexTelescopes) :
-    s.Models sourceEnv decl :=
-  D.models
 
 end Lean4Lean.VerifyInductive

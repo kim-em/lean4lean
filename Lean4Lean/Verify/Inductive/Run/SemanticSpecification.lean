@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Run.SemanticAddInduct
+import Lean4Lean.Verify.Inductive.Run.SemanticRun
 
 namespace Lean4Lean
 
@@ -26,41 +26,6 @@ structure InductiveSpecificationResult
 /-- Ordinary runs and primitive-bootstrap runs share the same independent
 source judgment; this alias documents the ordinary use site. -/
 abbrev OrdinaryInductiveSpecificationResult := InductiveSpecificationResult
-
-/-- A completed ordinary semantic run refines the independent source
-translation and environment-extension judgments simultaneously. -/
-theorem SemanticRunWithStatsResult.independentSpecification
-    (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
-      isUnsafe sourceEnv outEnv)
-    (hnonempty : indTypes.toList ≠ []) :
-    ∃ finalVEnv, Nonempty (OrdinaryInductiveSpecificationResult sourceEnv
-      c.lparams nparams indTypes.toList isUnsafe finalVEnv) := by
-  rcases Hrun with
-    ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
-  rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
-  exact ⟨(Hrecursors.blockCertificate T.rules T.rulesWF).finalVEnv, ⟨{
-    decl := decl
-    envTypes := Hheaders.context.venv
-    envCtors := R.declared.venvCtors
-    source := R.core
-    extension := Hrecursors.addInductOfOrdinaryCompilation T.rules
-      T.rulesWF hnonempty (T.compilation hnonempty) }⟩⟩
-
-/-- Declaration-facing source alignment retains the exact original syntax in
-the independent specification result. -/
-theorem VerifiedSemanticInductiveRunResultSourceAligned.independentSpecification
-    (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
-      nparams types numNested outEnv)
-    (hnonempty : types ≠ []) :
-    ∃ finalVEnv, Nonempty (OrdinaryInductiveSpecificationResult sourceEnv
-      source.lparams nparams types (source.safety != .safe) finalVEnv) := by
-  rcases Hrun with
-    ⟨c', stats, depth, commonParams, commonLevel, Hc', _henv, _hsafety,
-      hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hphases⟩
-  have hnonempty' : types.toArray.toList ≠ [] := by
-    simpa using hnonempty
-  have Hspec := Hphases.independentSpecification hnonempty'
-  simpa only [hlparams, hvenv] using Hspec
 
 end VerifyInductive
 end Lean4Lean

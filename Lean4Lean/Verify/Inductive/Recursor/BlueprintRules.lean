@@ -293,32 +293,6 @@ theorem RecInfoRuleBlueprintOrigins.ownerRowSize
       (Horigins.minors owner howner).size_eq
     _ = indTypes[owner]!.ctors.length := hcounts owner howner
 
-/-- At a valid owner-local position, the retained blueprint origin names the
-literal constructor at that same position in the source owner row. -/
-theorem RecInfoRuleBlueprintOrigins.entryConstructor
-    {stats : AddInductive.InductiveStats}
-    {recInfos : Array AddInductive.RecInfo}
-    {Horigins : RecInfoTypeOrigins c recInfos}
-    (H : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
-    (Hsources : RecInfoMinorSourceAlignment stats indTypes Horigins)
-    (owner : Nat) (howner : owner < recInfos.size)
-    (hsourceOwner : owner < indTypes.size)
-    (localIndex : Nat)
-    (hlocal : localIndex < Horigins.minorTypes[owner]!.size) :
-    let S := Horigins.minorShapes owner howner localIndex hlocal
-    let B := recInfos[owner]!.ruleBlueprints[localIndex]!
-    ∃ ctor, indTypes[owner]!.ctors[localIndex]? = some ctor ∧
-      B.ctor = ctor.name := by
-  have Hentry := H.entry owner howner localIndex hlocal
-  have Hsource := Hsources.rows owner howner hsourceOwner localIndex hlocal
-  dsimp only
-  refine ⟨Horigins.minorShapes owner howner localIndex hlocal |>.constructor,
-    ?_, Hentry.1⟩
-  have hconstructor :=
-    (Horigins.minorShapes owner howner localIndex hlocal).sourceConstructor
-  rw [Hsource.2.1, Hsource.2.2.1] at hconstructor
-  exact hconstructor
-
 /-- Per-owner minor cardinalities identify the flattened minor prefix with
 the constructor prefix consumed by recursor installation. -/
 theorem recInfoMinorPrefixLength_eq
@@ -773,35 +747,6 @@ inductive SemanticBoundGeneratedRecursorRules.ProducerMotiveEvidence
       ProducerMotiveEvidence recInfos elimLevel
         (.cons Hrule ⟨S⟩ Htail)
 
-theorem SemanticBoundGeneratedRecursorRules.ProducerMotiveEvidence.entry
-    {ctors : List Constructor} {start : Nat} {rules : List RecursorRule}
-    {H : SemanticBoundGeneratedRecursorRules indTypes stats
-      (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
-      Rroot decl ownerIdx ctors start rules}
-    (M : SemanticBoundGeneratedRecursorRules.ProducerMotiveEvidence
-      recInfos elimLevel H) :
-    ∀ i (hctor : i < ctors.length) (hrule : i < rules.length),
-      ∃ Hrule : BoundGeneratedRecursorRule indTypes stats
-          (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
-          (ctors[i]'hctor) (start + i) (rules[i]'hrule),
-        ∃ S : Hrule.Semantics Rroot decl ownerIdx,
-          Nonempty (Hrule.ProducerMotiveEvidence S recInfos elimLevel) := by
-  induction M with
-  | nil =>
-      intro i hctor
-      simp at hctor
-  | @cons ctor branchStart rule _ _ _ _ _ ctors rules Hrule S
-      Hmotive Htail HtailMotive ih =>
-      intro i hctor hrule
-      cases i with
-      | zero => exact ⟨Hrule, S, Hmotive⟩
-      | succ i =>
-        have h := ih i (by simpa using hctor) (by simpa using hrule)
-        have hoffset : branchStart + 1 + i = branchStart + (i + 1) := by
-          omega
-        rw [hoffset] at h
-        exact h
-
 /-- The producer evidence for one rule, tied to the exact persistent origin
 row and local constructor slot from which its blueprint was emitted. -/
 structure BoundGeneratedRecursorRule.ProducerOriginEvidence
@@ -832,39 +777,6 @@ theorem RecInfoTypeOrigins.minorShapes_congr
   subst owner'
   subst localIndex'
   rfl
-
-/-- Row-wise origin alignment for the exact semantic batch.  The local slot
-advances with the constructor/rule batch, so consumers recover the same
-`H.origins` shape without any alpha replay. -/
-inductive SemanticBoundGeneratedRecursorRules.ProducerOriginEvidence
-    (recInfos : Array AddInductive.RecInfo) (elimLevel : Level)
-    (Horigins : RecInfoTypeOrigins semanticRoot recInfos)
-    {recLparams : List Name}
-    (Rroot : RecursorContextWF semanticRoot recLparams) :
-    (localStart : Nat) →
-    {ctors : List Constructor} → {start : Nat} →
-    {rules : List RecursorRule} →
-    SemanticBoundGeneratedRecursorRules indTypes stats
-      (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
-      Rroot decl ownerIdx ctors start rules → Prop
-  | nil : ProducerOriginEvidence recInfos elimLevel Horigins Rroot localStart
-      (.nil : SemanticBoundGeneratedRecursorRules indTypes stats
-        (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
-        Rroot decl ownerIdx [] start [])
-  | cons
-      (Hrule : BoundGeneratedRecursorRule indTypes stats
-        (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
-        ctor start rule)
-      (S : Hrule.Semantics Rroot decl ownerIdx)
-      (Horigin : Nonempty (Hrule.ProducerOriginEvidence S recInfos
-        elimLevel Horigins ownerIdx localStart))
-      (Htail : SemanticBoundGeneratedRecursorRules indTypes stats
-        (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
-        Rroot decl ownerIdx ctors (start + 1) rules)
-      (HtailOrigin : ProducerOriginEvidence recInfos elimLevel Horigins Rroot
-        (localStart + 1) Htail) :
-      ProducerOriginEvidence recInfos elimLevel Horigins Rroot localStart
-        (.cons Hrule ⟨S⟩ Htail)
 
 /-- Assemble the semantic certificate for the exact retained blueprint rule.
 Every field comes from first-pass producer evidence; no constructor traversal,
@@ -1126,62 +1038,6 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
     motiveLookup := Hlookup' }
   exact ⟨Ssemantic, producer, rfl, hsemanticParameterDecls⟩
 
-/-- Pointwise retained-blueprint certificates assemble into the ordered rule
-batch consumed by recursor installation.  The index in the pointwise premise
-is relative to this owner row; the generated minor ordinal advances from the
-supplied flattened-row offset. -/
-theorem BoundGeneratedRecursorRules.ofEntries
-    {ctors : List Constructor} {rules : List RecursorRule} {start : Nat}
-    (hsize : ctors.length = rules.length)
-    (H : ∀ i (hi : i < ctors.length),
-      Nonempty (BoundGeneratedRecursorRule indTypes stats motives minors lvls
-        ctors[i] (start + i) rules[i])) :
-    BoundGeneratedRecursorRules indTypes stats motives minors lvls
-      ctors start rules := by
-  induction ctors generalizing rules start with
-  | nil =>
-    cases rules with
-    | nil => exact .nil
-    | cons rule rules => simp at hsize
-  | cons ctor ctors ih =>
-    cases rules with
-    | nil => simp at hsize
-    | cons rule rules =>
-      have hhead := H 0 (by simp)
-      have htailSize : ctors.length = rules.length := by simpa using hsize
-      refine .cons (by simpa using hhead) (ih htailSize ?_)
-      intro i hi
-      have hentry := H (i + 1) (by simp; omega)
-      simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hentry
-
-theorem SemanticBoundGeneratedRecursorRules.ofEntries
-    {ctors : List Constructor} {rules : List RecursorRule} {start : Nat}
-    (hsize : ctors.length = rules.length)
-    (H : ∀ i (hi : i < ctors.length),
-      ∃ Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
-          ctors[i] (start + i) rules[i],
-        Nonempty (Hrule.Semantics Rroot decl ownerIdx)) :
-    SemanticBoundGeneratedRecursorRules indTypes stats motives minors lvls
-      Rroot decl ownerIdx ctors start rules := by
-  induction ctors generalizing rules start with
-  | nil =>
-    cases rules with
-    | nil => exact .nil
-    | cons rule rules => simp at hsize
-  | cons ctor ctors ih =>
-    cases rules with
-    | nil => simp at hsize
-    | cons rule rules =>
-      rcases H 0 (by simp) with ⟨Hhead, HheadSemantics⟩
-      have htailSize : ctors.length = rules.length := by simpa using hsize
-      refine .cons (by simpa using Hhead) HheadSemantics
-        (ih htailSize ?_)
-      intro i hi
-      have Hentry := H (i + 1) (by simp; omega)
-      have hoffset : start + (i + 1) = start + 1 + i := by omega
-      rw [hoffset] at Hentry
-      simpa using Hentry
-
 theorem SemanticBoundGeneratedRecursorRules.ofEntriesWithProducer
     {ctors : List Constructor} {rules : List RecursorRule} {start : Nat}
     (hsize : ctors.length = rules.length)
@@ -1213,132 +1069,6 @@ theorem SemanticBoundGeneratedRecursorRules.ofEntriesWithProducer
         simpa using Hentry) with ⟨Htail, ⟨HtailMotive⟩⟩
       exact ⟨.cons Hhead ⟨Shead⟩ Htail,
         ⟨.cons Hhead Shead HheadMotive Htail HtailMotive⟩⟩
-
-/-- Assemble the exact retained blueprint row for one mutual-family owner.
-All rule syntax comes from the production blueprints; source alignment,
-minor ordinals, field freshness, and recursive-call binding are supplied by
-the certificates accumulated while producing those blueprints. -/
-theorem RecInfoRuleBlueprintOrigins.boundGeneratedRules
-    {indTypes : Array InductiveType}
-    {stats : AddInductive.InductiveStats}
-    {recInfos : Array AddInductive.RecInfo}
-    {c : AddInductive.Context}
-    {Horigins : RecInfoTypeOrigins c recInfos}
-    (H : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
-    (Hsources : RecInfoMinorSourceAlignment stats indTypes Horigins)
-    {recLparams : List Name} {R : RecursorContextWF c recLparams}
-    (Hsemantics : RecInfoMinorSemanticAlignment R Horigins parameterDecls)
-    (Hbindings : RecInfoBindings c recInfos)
-    (Hparams : BoundFVarArray c stats.params)
-    (hnoalias : Hbindings.NoAlias Hparams)
-    (hsize : recInfos.size = indTypes.size)
-    (hcounts : ∀ i, i < recInfos.size →
-      recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
-    (elimLevel : Level) (owner : Nat) (howner : owner < indTypes.size) :
-    let rules := recInfos[owner]!.ruleBlueprints.toList.map fun blueprint =>
-      blueprint.build indTypes stats (recInfos.map (·.motive))
-        (recInfos.flatMap (·.minors))
-        (AddInductive.getRecLevels elimLevel stats.levels) c.lctx
-    BoundGeneratedRecursorRules indTypes stats
-      (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
-      (AddInductive.getRecLevels elimLevel stats.levels)
-      indTypes[owner]!.ctors (recursorMinorOffset indTypes owner) rules := by
-  dsimp only
-  have hownerRec : owner < recInfos.size := by omega
-  have hrowSize := H.ownerRowSize hcounts owner hownerRec
-  apply BoundGeneratedRecursorRules.ofEntries (by simpa using hrowSize.symm)
-  intro localIndex hlocal
-  have hshapeLocal : localIndex < Horigins.minorTypes[owner]!.size := by
-    rw [← H.rows_size owner hownerRec]
-    rw [hrowSize]
-    exact hlocal
-  let S := Horigins.minorShapes owner hownerRec localIndex hshapeLocal
-  let B := recInfos[owner]!.ruleBlueprints[localIndex]!
-  have Horigin : RecInfoRuleBlueprintOriginAt stats S
-      recInfos[owner]!.minors[localIndex]! B :=
-    H.entry owner hownerRec localIndex hshapeLocal
-  have Hsource := Hsources.rows owner hownerRec howner localIndex hshapeLocal
-  have hlocalMinor : localIndex < recInfos[owner]!.minors.size := by
-    rw [← (Horigins.minors owner hownerRec).size_eq]
-    exact hshapeLocal
-  rcases Hsemantics owner hownerRec localIndex hshapeLocal with ⟨HSat⟩
-  let HS := HSat.semantic
-  have hminorEq := recInfoFlatMinorAtOffset recInfos indTypes hsize hcounts
-    owner hownerRec localIndex hlocalMinor
-  have hminorValid : recursorMinorOffset indTypes owner + localIndex <
-      (recInfos.flatMap (·.minors)).size := by
-    have htotal := mkRecInfos.flatMinors_size hsize hcounts
-    have hroom := recursorMinorOffset_room indTypes owner howner
-    have htotalList : (recInfos.flatMap (·.minors)).size =
-        (indTypes.toList.flatMap (fun type => type.ctors)).length := by
-      calc
-        (recInfos.flatMap (·.minors)).size =
-            (indTypes.flatMap fun type => type.ctors.toArray).size := htotal
-        _ = (indTypes.toList.flatMap (fun type => type.ctors)).length := by
-          simpa [ownedConstructors] using
-            (ownedConstructors_length_eq_flattened_size indTypes).symm
-    rw [htotalList]
-    omega
-  have hfieldsFresh : ∀ fv ∈
-      HS.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.fvars,
-      fv ∉ (Hparams.fvars ++ Hbindings.motives.fvars) ++
-        Hbindings.flatMinors.fvars := by
-    intro fv hfv
-    have hshapeFields :
-        HS.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.fvars =
-          S.fields_bound.fvars := by
-      exact HS.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
-        |>.exprArrayFVarIds.symm.trans S.fields_bound.exprArrayFVarIds
-    rw [hshapeFields] at hfv
-    have hfresh := H.fields_outer_fresh owner hownerRec localIndex
-      hshapeLocal fv hfv
-    simpa only [Hparams.exprArrayFVarIds,
-      Hbindings.motives.exprArrayFVarIds,
-      Hbindings.flatMinors.exprArrayFVarIds] using hfresh
-  let T := Hsource.2.2.2.2.choose
-  have htraversal : HS.traversal = T := by
-    have hT := Hsource.2.2.2.2.choose_spec.1
-    exact Option.some.inj (HS.traversal_eq.symm.trans hT)
-  have hrecursive : HS.traversal.recursiveFields = S.recursiveFields := by
-    rw [htraversal]
-    exact Hsource.2.2.2.2.choose_spec.2.2.2.1
-  have Hrule := Horigin.boundGeneratedRuleOfSemanticSource HS
-    Hsource.2.2.2.1 hrecursive
-    indTypes (AddInductive.getRecLevels elimLevel stats.levels)
-    (recursorMinorOffset indTypes owner + localIndex) Hparams Hbindings
-    (Hbindings.outerNodup Hparams hnoalias) hminorValid hminorEq
-    hfieldsFresh
-  have hctor : indTypes[owner]!.ctors[localIndex] = S.constructor := by
-    have hget := S.sourceConstructor
-    rw [Hsource.2.1, Hsource.2.2.1] at hget
-    have hlist : indTypes[owner]!.ctors[localIndex]? =
-        some indTypes[owner]!.ctors[localIndex] := by
-      exact List.getElem?_eq_getElem hlocal
-    rw [hlist] at hget
-    exact Option.some.inj hget
-  have hblueLocal : localIndex <
-      recInfos[owner]!.ruleBlueprints.size := by
-    rw [hrowSize]
-    exact hlocal
-  let built := recInfos[owner]!.ruleBlueprints.toList.map fun blueprint =>
-    blueprint.build indTypes stats (recInfos.map (·.motive))
-      (recInfos.flatMap (·.minors))
-      (AddInductive.getRecLevels elimLevel stats.levels) c.lctx
-  have hbuilt : localIndex < built.length := by
-    simpa [built] using hblueLocal
-  have hruleBang : built[localIndex]! =
-      B.build indTypes stats (recInfos.map (·.motive))
-        (recInfos.flatMap (·.minors))
-        (AddInductive.getRecLevels elimLevel stats.levels) c.lctx := by
-    simp [built, B, hblueLocal]
-  change Nonempty (BoundGeneratedRecursorRule indTypes stats
-    (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
-    (AddInductive.getRecLevels elimLevel stats.levels)
-    indTypes[owner]!.ctors[localIndex]
-    (recursorMinorOffset indTypes owner + localIndex) built[localIndex])
-  rw [hctor, (getElem!_pos built localIndex hbuilt).symm, hruleBang]
-  rcases Hrule with ⟨Hrule⟩
-  exact ⟨Hrule.certificate⟩
 
 /-- Semantic owner row assembled from the exact retained blueprint and the
 semantic-origin row produced by the same second-pass iteration. -/

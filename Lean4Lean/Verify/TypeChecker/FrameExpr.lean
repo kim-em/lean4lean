@@ -34,11 +34,6 @@ theorem GFArr.getElem? {arr : Array Expr} (h : GFArr G arr) {i : Nat} {a : Expr}
 theorem GFArr.getElem {arr : Array Expr} (h : GFArr G arr) {i : Nat} (hi : i < arr.size) :
     GF G arr[i] := h _ (Array.getElem_mem _)
 
-theorem GFArr.push {arr : Array Expr} (h : GFArr G arr) (ha : GF G a) : GFArr G (arr.push a) := by
-  intro x hx; rcases Array.mem_push.1 hx with hx | rfl
-  · exact h _ hx
-  · exact ha
-
 theorem GFArr.empty : GFArr G #[] := nofun
 
 theorem GFArr.reverse {arr : Array Expr} (h : GFArr G arr) : GFArr G arr.reverse :=
@@ -86,12 +81,6 @@ theorem GF.getAppRevArgs (h : GF G e) : GFArr G e.getAppRevArgs := by
   rw [Expr.getAppRevArgs_eq]; intro a ha
   exact GF.getAppArgsRevList h a (by simpa using ha)
 
-theorem GF.appFn! : ∀ {e : Expr}, GF G e → GF G e.appFn!
-  | .app .., h => h.1
-  | .bvar .., _ | .fvar .., _ | .mvar .., _ | .sort .., _ | .const .., _
-  | .lam .., _ | .forallE .., _ | .letE .., _ | .lit .., _ | .mdata .., _ | .proj .., _ => by
-    simpa [Expr.appFn!] using GF.default
-
 theorem GF.appArg! : ∀ {e : Expr}, GF G e → GF G e.appArg!
   | .app .., h => h.2
   | .bvar .., _ | .fvar .., _ | .mvar .., _ | .sort .., _ | .const .., _
@@ -136,9 +125,6 @@ theorem GF.abstractN (h : GF G e) : GF G (e.abstractN xs k) := by
 theorem GF.lowerLooseBVars' (h : GF G e) : GF G (e.lowerLooseBVars' s d) := by
   induction e generalizing s <;> rw [Expr.lowerLooseBVars'] <;> split <;> simp_all [FVarsIn]
 
-theorem GF.lowerLooseBVars (h : GF G e) : GF G (e.lowerLooseBVars s d) := by
-  rw [Expr.lowerLooseBVars_eq]; exact h.lowerLooseBVars'
-
 theorem GF.instantiateLevelParams (h : GF G e) (hl : ∀ l ∈ ls, l.hasMVar' = false) :
     GF G (e.instantiateLevelParams ps ls) := FVarsIn.instantiateLevelParams h hl
 
@@ -149,14 +135,6 @@ theorem GF.sortLevel! : ∀ {e : Expr}, GF G e → e.sortLevel!.hasMVar' = false
   | .bvar .., _ | .fvar .., _ | .mvar .., _ | .app .., _ | .const .., _
   | .lam .., _ | .forallE .., _ | .letE .., _ | .lit .., _ | .mdata .., _ | .proj .., _ => by
     simp [Expr.sortLevel!]; rfl
-
-theorem GF.const_levels (h : GF G (.const n ls)) : ∀ l ∈ ls, l.hasMVar' = false := h
-
-theorem GF.constLevels! : ∀ {e : Expr}, GF G e → ∀ l ∈ e.constLevels!, l.hasMVar' = false
-  | .const .., h => h
-  | .bvar .., _ | .fvar .., _ | .mvar .., _ | .app .., _ | .sort .., _
-  | .lam .., _ | .forallE .., _ | .letE .., _ | .lit .., _ | .mdata .., _ | .proj .., _ => by
-    simp [Expr.constLevels!]; exact fun _ h => by cases h
 
 /-! ### `cheapBetaReduce` -/
 
@@ -268,9 +246,5 @@ theorem M.Framed.getLCtx_mkBinding {arr : Array Expr} (hfv : FVArr G arr) (hb : 
 theorem RecM.Framed.getLCtx_mkForall {arr : Array Expr} (hfv : FVArr G arr) (hb : GF G b) :
     RecM.Framed G (getLCtx >>= fun l => Pure.pure (l.mkForall arr b)) (GF G) :=
   fun _ _ => M.Framed.getLCtx_mkBinding (isLambda := false) hfv hb
-
-theorem M.Framed.getLCtx_mkLambda {arr : Array Expr} (hfv : FVArr G arr) (hb : GF G b) :
-    M.Framed G (getLCtx >>= fun l => Pure.pure (l.mkLambda arr b)) (GF G) :=
-  M.Framed.getLCtx_mkBinding (isLambda := true) hfv hb
 
 end Lean4Lean.TypeChecker

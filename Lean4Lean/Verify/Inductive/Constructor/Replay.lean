@@ -341,18 +341,6 @@ theorem AddInductive.getRecLevelParams_length :
   | param u => simp [AddInductive.getRecLevelParams]
   | _ => simp [AddInductive.getRecLevelParams]
 
-theorem AddInductive.getRecLevelParams_length_of_param
-    (h : elimLevel.isParam = true) :
-    (AddInductive.getRecLevelParams elimLevel lparams).length =
-      lparams.length + 1 := by
-  cases elimLevel <;> simp_all [AddInductive.getRecLevelParams, Level.isParam]
-
-theorem AddInductive.getRecLevelParams_length_of_not_param
-    (h : elimLevel.isParam = false) :
-    (AddInductive.getRecLevelParams elimLevel lparams).length =
-      lparams.length := by
-  cases elimLevel <;> simp_all [AddInductive.getRecLevelParams, Level.isParam]
-
 /-- Universe-level side condition required by recursor-frame semantics.  A
 small eliminator uses `0`; a large eliminator uses a parameter fresh for the
 inductive declaration.  Other level syntax is never produced by
@@ -426,35 +414,6 @@ theorem AddInductive.AdmissibleElimLevel.ofLevel
   | param name =>
     exact ⟨.param 0, by
       simp [AddInductive.getRecLevelParams, VLevel.ofLevel]⟩
-  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
-    simp [AddInductive.AdmissibleElimLevel] at H
-
-/-- Adding the fresh large-elimination parameter preserves the kernel's
-no-duplicate universe-parameter invariant.  The small-elimination case leaves
-the declaration's universe list unchanged. -/
-theorem AddInductive.AdmissibleElimLevel.recLevelParamsNodup
-    (H : AddInductive.AdmissibleElimLevel lparams elimLevel)
-    (hlparams : lparams.Nodup) :
-    (AddInductive.getRecLevelParams elimLevel lparams).Nodup := by
-  cases elimLevel with
-  | zero => simpa [AddInductive.getRecLevelParams] using hlparams
-  | param name =>
-    simpa [AddInductive.getRecLevelParams] using List.nodup_cons.mpr
-      ⟨H, hlparams⟩
-  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
-    simp [AddInductive.AdmissibleElimLevel] at H
-
-/-- The recursor universe list is obtained by prepending at most the one fresh
-large-elimination parameter.  This positional fact is kept explicit because
-old declaration levels must later be reinterpreted beneath that prefix. -/
-theorem AddInductive.AdmissibleElimLevel.recLevelParamsDecomposition
-    (H : AddInductive.AdmissibleElimLevel lparams elimLevel) :
-    ∃ pre : List Name, pre.length ≤ 1 ∧
-      AddInductive.getRecLevelParams elimLevel lparams = pre ++ lparams := by
-  cases elimLevel with
-  | zero => exact ⟨[], by simp [AddInductive.getRecLevelParams]⟩
-  | param name =>
-    exact ⟨[name], by simp [AddInductive.getRecLevelParams]⟩
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at H
 
@@ -788,6 +747,19 @@ def recursorDeclarationAbstractLevels
   | .param _ => (VLevel.params lparams.length).map
       (VLevel.inst (VLevel.prependShift lparams.length))
   | .succ _ | .max _ _ | .imax _ _ | .mvar _ => False.elim Helim
+
+theorem recursorDeclarationAbstractLevels_zero
+    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .zero) :
+    recursorDeclarationAbstractLevels Us ha = VLevel.params Us.length := by
+  subst elim
+  rfl
+
+theorem recursorDeclarationAbstractLevels_param
+    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .param fresh) :
+    recursorDeclarationAbstractLevels Us ha = VLevel.prependShift Us.length := by
+  subst elim
+  simp only [recursorDeclarationAbstractLevels]
+  exact VLevel.inst_map_id VLevel.prependShift_length
 
 theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.recursorLevelTranslation
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -2157,20 +2129,6 @@ theorem RecursorValidAppStatsWF.validIndAppAtTarget
     hvalidIdx hargs hlit hctx
     (by rw [H.params_size]; omega) (by simpa [Nat.add_comm] using hj)
 
-theorem RecursorValidAppStatsWF.validIndAppAt
-    (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
-    (htr : TrExprS env recLparams scope type type')
-    (hvalid : AddInductive.isValidIndApp? stats type = some typeIdx)
-    (hlit : checkPositivityStep.AvailableLiteralDisjoint env stats.indConsts)
-    (hctx : checkPositivityStep.VLCtx.NoIndConsts
-      (decl.types.map (·.name)) scope) :
-    decl.ValidIndAppAt none depth type' := by
-  have hi : typeIdx < decl.types.length := by
-    have hsourceBound := (checkPositivityStep.isValidIndApp?_some hvalid).1
-    rw [← H.types_size]
-    exact hsourceBound
-  exact (H.validIndAppAtTarget htr hvalid hi hlit hctx).forgetTarget
-
 /-- The concrete suffix consumed by motive application translates exactly to
 the abstract index suffix of a validated mutual-family application. -/
 theorem RecursorValidAppStatsWF.translatedIndices
@@ -2682,23 +2640,6 @@ theorem RecursorFieldSelectionsAt.positions_lt
     · simp only [Array.size_push, hindex]
       omega
 
-theorem RecursorFieldSelectionsAt.positions_ordered
-    (H : RecursorFieldSelectionsAt env decl uvars bu u fields) :
-    (fields.map (·.fieldIndex)).Pairwise (· < ·) := by
-  induction H with
-  | nil => simp
-  | nonrecursive _ ih => exact ih
-  | @recursive bu u fields arg cert H hindex ih =>
-    simp only [List.map_append, List.map_singleton]
-    rw [List.pairwise_append]
-    refine ⟨ih, by simp, ?_⟩
-    intro old hold _ hnew
-    simp only [List.mem_singleton] at hnew
-    subst hnew
-    rw [hindex]
-    rcases List.mem_map.mp hold with ⟨oldCert, hmem, rfl⟩
-    exact H.positions_lt oldCert hmem
-
 /-- The target-indexed recursor trace retains the same pointwise alignment
 between selected recursive fields and the complete constructor-field array
 as its declaration-universe counterpart. -/
@@ -2740,30 +2681,6 @@ theorem RecursorFieldSelectionsAt.arguments_at_positions
     · refine ⟨by simp [hindex], ?_⟩
       simpa [hindex] using (@Array.getElem_push_eq Expr bu arg).symm
     · exact .nil
-
-/-- Replace every semantic certificate in a field-selection trace while
-preserving its recorded concrete field ordinal.  The operational selection
-arrays are unchanged; this is the bridge used to substitute the stronger
-call-time recursive-domain certificates for the earlier classifier trace. -/
-theorem RecursorFieldSelectionsAt.replace
-    (H : RecursorFieldSelectionsAt env decl uvars bu u fields)
-    (Haligned : List.Forall₂
-      (fun old replacement =>
-        old.fieldIndex = replacement.fieldIndex)
-      fields replacements) :
-    RecursorFieldSelectionsAt env decl uvars bu u replacements := by
-  induction H generalizing replacements with
-  | nil =>
-    cases Haligned
-    exact .nil
-  | nonrecursive _ ih =>
-    exact .nonrecursive (ih Haligned)
-  | @recursive bu u fields arg cert H hindex ih =>
-    rcases Lean4Lean.VerifyInductive.List.Forall₂.unsnoc Haligned with
-      ⟨replacementPrefix, replacement, rfl, Hprefix, Hlast⟩
-    apply RecursorFieldSelectionsAt.recursive (cert := replacement)
-      (ih Hprefix)
-    exact Hlast ▸ hindex
 
 /-- Specialize a recursor-universe recursive-domain witness to the declaration
 universe arity.  Zero is a valid specialization for every recursor universe;

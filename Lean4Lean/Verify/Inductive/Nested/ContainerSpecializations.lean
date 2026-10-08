@@ -115,18 +115,6 @@ theorem ContainerSpecialization.mem_heads {a : ContainerSpecialization}
   simp only [ContainerSpecialization.heads, List.mem_cons, List.mem_map] at h
   rcases h with rfl | ⟨_, _, rfl⟩ <;> exact ⟨rfl, rfl, rfl, rfl⟩
 
-theorem auxiliary_nodup_of_headNames {auxiliaries : List ContainerSpecialization}
-    (H : (auxiliaries.flatMap (·.headNames)).Nodup) :
-    (auxiliaries.map (·.auxiliary)).Nodup := by
-  refine List.Nodup.sublist ?_ H
-  clear H
-  induction auxiliaries with
-  | nil => exact .slnil
-  | cons a rest ih =>
-    simp only [List.map_cons, List.flatMap_cons, ContainerSpecialization.headNames,
-      List.cons_append]
-    exact (ih.trans (List.sublist_append_right _ _)).cons_cons _
-
 /-- `compilationRestoration` is scoped once its head and recursor names are
 jointly distinct and every specialisation argument is in scope. -/
 theorem compilationRestoration_scoped (source : VInductDecl)
@@ -180,19 +168,6 @@ theorem compilationRestoration_restoredHeadName_of_mem
   unfold Restoration.restoredHeadName
   rw [find?_key_of_nodup (·.auxiliary) hnodup hhead]
 
-/-- An auxiliary family name restores to its container family. -/
-theorem compilationRestoration_restoredHeadName_auxiliary
-    {source : VInductDecl} {auxiliaries : List ContainerSpecialization}
-    (hnodup : (auxiliaries.flatMap (·.headNames)).Nodup)
-    {a : ContainerSpecialization} (ha : a ∈ auxiliaries) :
-    (compilationRestoration source auxiliaries).restoredHeadName a.auxiliary =
-      a.source.name := by
-  have hhead : HeadSpecialization.mk a.auxiliary source.uvars source.nparams
-      a.source.name a.levels a.arguments ∈
-      (compilationRestoration source auxiliaries).heads :=
-    List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_self⟩
-  exact compilationRestoration_restoredHeadName_of_mem hnodup hhead
-
 /-- An auxiliary constructor name restores to its container constructor. -/
 theorem compilationRestoration_restoredHeadName_constructor
     {source : VInductDecl} {auxiliaries : List ContainerSpecialization}
@@ -207,22 +182,6 @@ theorem compilationRestoration_restoredHeadName_constructor
     List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_of_mem _
       (List.mem_map.mpr ⟨ctor, hctor, rfl⟩)⟩
   exact compilationRestoration_restoredHeadName_of_mem hnodup hhead
-
-/-- Names outside the specialisation table are not restored. -/
-theorem compilationRestoration_restoredHeadName_of_not_mem
-    {source : VInductDecl} {auxiliaries : List ContainerSpecialization}
-    (hname : name ∉ auxiliaries.flatMap (·.headNames)) :
-    (compilationRestoration source auxiliaries).restoredHeadName name = name := by
-  rw [← compilationRestoration_heads_auxiliary source auxiliaries] at hname
-  unfold Restoration.restoredHeadName
-  split
-  · rename_i head hfind
-    have hmem := List.mem_of_find?_eq_some hfind
-    have heq := List.find?_some hfind
-    simp only [beq_iff_eq] at heq
-    exact absurd (List.mem_map.mpr ⟨head, hmem, heq⟩) hname
-  · rfl
-
 
 /-- A syntactic forall telescope covering at least `n` binders. -/
 def HasForallPrefix (type : VExpr) (n : Nat) : Prop :=
@@ -648,14 +607,6 @@ theorem auxiliarySpecializations_names
     cases Hexpansion with
     | cons hexp htail =>
       simp only [List.map_cons, ih htail, h.auxiliary, hexp.name]
-
-theorem auxiliarySpecializations_length
-    (H : List.Forall₂ (AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl)
-      auxiliaries generated)
-    (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion env decl leaf)
-      generated targets) :
-    auxiliaries.length = targets.length := by
-  simpa using congrArg List.length (auxiliarySpecializations_names H Hexpansion)
 
 /-- The restoration heads claim exactly the names of the lowered auxiliary
 families and their constructors. -/
@@ -1445,78 +1396,6 @@ theorem NestedValidatedRunResult.commonParameterContext_refl
     rw [h, E.production_c, E.productionContext_lparams]
   rw [huvars]
   exact VEnv.IsDefEqCtx.refl (hctx.symm henv.ordered).isType
-
-/-- The conjuncts of `CompilationData`/`RestoredCompilationRealization` that
-concern the auxiliary specialisations, for the exact validated nested run.
-The lowered auxiliary suffix is `E.production.loweredDecl.types.drop
-sourceDecl.types.length`.  `WellFormed` holds for every parameter list whose
-context is definitionally the common parameter context of the lowered
-header phase, `E.production.headers.commonParameterContext`. -/
-theorem NestedValidatedRunResult.containerSpecializationFacts
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    ∃ (envTypes : VEnv) (auxiliaries : List ContainerSpecialization),
-      (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
-        sourceDecl.typeConstants = some envTypes ∧
-      envTypes.WF ∧
-      auxiliaries.map (·.auxiliary) =
-        (E.production.loweredDecl.types.drop sourceDecl.types.length).map
-          (·.name) ∧
-      auxiliaries.flatMap (·.headNames) =
-        familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
-      CertifiedSpecializations (ves.venv (if isUnsafe then .unsafe else .safe))
-        auxiliaries ∧
-      (∀ params : List VExpr,
-        VEnv.IsDefEqCtx envTypes sourceDecl.uvars [] params.reverse
-          E.production.headers.commonParameterContext →
-        ∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl params) ∧
-      VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
-        (E.production.constructors.completed.parameterScope.toCtx.reverse).reverse
-        E.production.headers.commonParameterContext ∧
-      (∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl
-        E.production.constructors.completed.parameterScope.toCtx.reverse) ∧
-      (compilationRestoration sourceDecl auxiliaries).Scoped ∧
-      (∀ (U : Nat) (params : List VExpr), ∃ direct,
-        auxiliaries.mapM (fun a => a.directFamily U params) = some direct ∧
-        List.Forall₂ (DirectFamilyShape U) auxiliaries direct) ∧
-      (∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors,
-        result.restoreCtorName E.loweredEnv (a.constructorName ctor) =
-          (compilationRestoration sourceDecl auxiliaries).restoredHeadName
-            (a.constructorName ctor)) ∧
-      (∀ name, (compilationRestoration sourceDecl auxiliaries).recursorName name =
-        ((Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.find? name).getD
-          name) := by
-  rcases E.containerSpecializations wf Hsources with
-    ⟨envTypes, generated, auxiliaries, hadded, henvTypes, Haux, Hexpansion,
-      hnodup, hctorNames, hrecursors⟩
-  have hsuffixNodup :
-      (familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) ++
-        (E.production.loweredDecl.types.drop sourceDecl.types.length).map
-          (fun t => t.name.str "rec")).Nodup :=
-    hnodup.sublist ((familyNames_drop_sublist _ _).append
-      ((List.drop_sublist _ _).map _))
-  have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
-      (E.production.constructors.completed.parameterScope.toCtx.reverse).reverse
-      E.production.headers.commonParameterContext := by
-    rw [List.reverse_reverse,
-      ConstructorPhasesResult.completed_parameterScope_toCtx]
-    exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
-      (E.commonParameterContext_refl wf)
-  exact ⟨envTypes, auxiliaries, hadded, henvTypes,
-    auxiliarySpecializations_names Haux Hexpansion,
-    auxiliarySpecializations_headNames Haux Hexpansion,
-    auxiliarySpecializations_certified Haux,
-    fun params hparams => auxiliarySpecializations_wellFormed Haux henvTypes params hparams,
-    hlink, auxiliarySpecializations_wellFormed Haux henvTypes _ hlink,
-    auxiliarySpecializations_scoped Haux Hexpansion hsuffixNodup,
-    fun U params => auxiliarySpecializations_directFamilies Haux U params,
-    hctorNames, hrecursors⟩
 
 end VerifyInductive
 end Lean4Lean

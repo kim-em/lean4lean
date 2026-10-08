@@ -1,6 +1,8 @@
 import Lean4Lean.Verify.TypeChecker.Reduce
+import Lean4Lean.Theory.Typing.ProjectionFamilyArity
 import Lean4Lean.Verify.EquivManager
 import Lean4Lean.Verify.Environment.Recursors
+import Lean4Lean.Std.List
 
 /-!
 # Recursor reduction
@@ -99,15 +101,6 @@ theorem _root_.Lean4Lean.FVarsIn.of_mem_getAppArgsList {P} {e a : Expr} (h : FVa
   rw [← e.mkAppList_getAppArgsList, FVarsIn.mkAppList] at h
   exact h.2 a ha
 
-/-- The translated arguments of the argument-list suffix. -/
-theorem forall₂_drop {R : α → β → Prop} {l₁ : List α} {l₂ : List β} (h : List.Forall₂ R l₁ l₂)
-    (n : Nat) : List.Forall₂ R (l₁.drop n) (l₂.drop n) := by
-  induction h generalizing n with
-  | nil => simp
-  | cons h _ ih => cases n with
-    | zero => exact .cons h (by simpa using ih 0)
-    | succ n => exact ih n
-
 /-- Inversion of the translation of a constant applied to three arguments. -/
 theorem TrExprS.app3_inv {n : Name} {ls : List Level} {a1 a2 a3 : Expr} {e' : VExpr}
     (H : c.TrExprS (.app (.app (.app (.const n ls) a1) a2) a3) e') :
@@ -193,7 +186,7 @@ theorem quotReduceRecCont.lift.WF (he : c.TrExprS e e') {ls : List Level}
   have hr : c.TrExprS ((Expr.app e.getAppArgs[3] a3).mkAppList (e.getAppArgsList.drop 6))
       (VExpr.mkApps (.app args'[3] a3') (args'.drop 6)) :=
     TrExprS.mkAppList_of_wf (TrExprS.app_of_wf (hget 3 (by omega)) ha3
-      (VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx hrwf)) (forall₂_drop hargs 6) hrwf
+      (VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx hrwf)) (Lean4Lean.List.forall₂_drop hargs 6) hrwf
   have hfv : c.FVarsBelow e ((Expr.app e.getAppArgs[3] a3).mkAppList (e.getAppArgsList.drop 6)) := by
     intro P hP hfe
     rw [FVarsIn.mkAppList]
@@ -282,7 +275,7 @@ theorem quotReduceRecCont.ind.WF (he : c.TrExprS e e') {ls : List Level}
   have hr : c.TrExprS ((Expr.app e.getAppArgs[3] a3).mkAppList (e.getAppArgsList.drop 5))
       (VExpr.mkApps (.app args'[3] a3') (args'.drop 5)) :=
     TrExprS.mkAppList_of_wf (TrExprS.app_of_wf (hget 3 (by omega)) ha3
-      (VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx hrwf)) (forall₂_drop hargs 5) hrwf
+      (VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx hrwf)) (Lean4Lean.List.forall₂_drop hargs 5) hrwf
   have hfv : c.FVarsBelow e ((Expr.app e.getAppArgs[3] a3).mkAppList (e.getAppArgsList.drop 5)) := by
     intro P hP hfe
     rw [FVarsIn.mkAppList]
@@ -448,7 +441,7 @@ theorem inductiveReduceRecTail.WF {info : RecursorVal} {recFn : Name} {ls : List
     args'.drop (info.getMajorIdx + 1) = A'
   have hAtr : List.Forall₂ c.TrExprS A A' := by
     rw [← hA, ← hA']
-    exact ((forall₂_take hargs _).append' (forall₂_drop hMargs _)).append' (forall₂_drop hargs _)
+    exact ((forall₂_take hargs _).append' (Lean4Lean.List.forall₂_drop hMargs _)).append' (Lean4Lean.List.forall₂_drop hargs _)
   rw [hA'] at hiota
   have hdefeq : c.IsDefEqU e' (VExpr.mkApps r₀' A') := by
     refine hceq.trans c.Ewf c.Δwf (hiota.trans c.Ewf c.Δwf ?_)
@@ -689,14 +682,6 @@ theorem toCtorWhenK.WF_all {info : RecursorVal} {major : Expr} {m' : VExpr} (hk 
     have := Expr.levelParamsIn_getAppFn hA
     rw [hAfn] at this; simpa [Expr.levelParamsIn] using this
 
-theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : info.k = true)
-    (hK : ∃ ind ctorName, c.env.constants.find? info.getMajorInduct = some (.inductInfo ind) ∧
-      ind.ctors = [ctorName] ∧ KLikeAlignment c.venv info ctorName)
-    (he : c.TrExprS major m') :
-    RecM.WF c s (toCtorWhenK c.env whnf inferType isDefEq info major) fun r _ =>
-      c.FVarsBelow major r ∧ c.TrExpr r m' :=
-  (toCtorWhenK.WF_all hk hK he).mono fun _ _ _ h => h.1
-
 theorem _root_.Lean.Expr.isConstOf_eq_true {e : Expr} {n : Name} (h : e.isConstOf n = true) :
     ∃ ls, e = .const n ls := by
   cases e <;> simp [Expr.isConstOf] at h
@@ -723,30 +708,8 @@ theorem _root_.Lean4Lean.TypeChecker.VContext.projectionTypeArity (c : VContext)
     {info : VProjectionInfo} (hinfo : c.venv.projections n info) {T : VExpr}
     (hfam : c.venv.constants n = some ⟨info.uvars, T⟩) {ls : List VLevel} {args : List VExpr}
     {u : VLevel} (h : c.HasType (VExpr.mkApps (.const n ls) args) (.sort u)) :
-    args.length = info.nparams + info.nindices := by
-  obtain ⟨typeConst, normalized, ownParams, rest, exprType, -, -, hlookup, hnorm, hown, -, -,
-    indices, result, hidx, hres⟩ := VEnv.Ordered.projectionShape_params c.Ewf hinfo
-  have hownLen := VExpr.takeForalls_domains_length hown
-  have hidxLen := VExpr.takeForalls_domains_length hidx
-  have hnormEq : normalized = VExpr.wrapForalls (ownParams ++ indices) result := by
-    rw [VExpr.eq_wrapForalls_of_takeForalls hown, VExpr.eq_wrapForalls_of_takeForalls hidx,
-      VExpr.wrapForalls_append]
-  have hwfApp : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx
-      (VExpr.mkApps (.const n ls) args) := ⟨_, h⟩
-  have ⟨_, hcw⟩ := VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx hwfApp
-  have ⟨ci, hci, hlsw, hlen⟩ := VEnv.HasType.const_inv c.Ewf.ordered c.Δwf.toCtx hcw
-  rw [hlookup] at hci; cases hci
-  rw [hfam] at hlookup; cases hlookup
-  have hT : c.venv.IsType info.uvars [] T := c.Ewf.ordered.constWF hfam
-  rw [hnormEq] at hnorm
-  have hclose := VEnv.IsDefEq.close_sort_header c.Ewf hT hnorm
-    (by rw [List.reverse_append]; exact hres)
-  have hc := VEnv.HasType.const (Γ := c.vlctx.toCtx) hfam hlsw hlen
-  have hc' := hc.defeqU_r c.Ewf c.Δwf
-    (((hclose.instL hlsw).weak0 c.Ewf.ordered (Γ := c.vlctx.toCtx)))
-  simp only [VExpr.instL_wrapForalls, VExpr.instL] at hc'
-  have := VEnv.HasType.mkApps_sort_arity c.Ewf c.Δwf.toCtx hc' h
-  simpa [hownLen, hidxLen] using this
+    args.length = info.nparams + info.nindices :=
+  VEnv.HasType.projectionFamily_arity c.Ewf c.Δwf.toCtx hinfo hfam h
 
 /-- The type of a well-typed term whose head is a structure (a single-constructor family without
 indices) applies the structure to exactly the parameters of its constructor. This is what makes
@@ -980,11 +943,6 @@ theorem toCtorWhenStruct.WF_all {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
       rcases ha with ha | ⟨i, -, rfl⟩
       · exact Expr.levelParamsIn_of_mem_getAppArgsList hA ha
       · exact hl
-
-theorem toCtorWhenStruct.WF {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
-    RecM.WF c s (toCtorWhenStruct c.env whnf inferType n w) fun r _ =>
-      c.FVarsBelow w r ∧ c.TrExpr r w' :=
-  (toCtorWhenStruct.WF_all he).mono fun _ _ _ h => h.1
 
 /-- Inductive recursor reduction refines the stored rules. -/
 theorem inductiveReduceRec.WF_all (he : c.TrExprS e e') :

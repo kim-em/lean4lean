@@ -184,8 +184,6 @@ theorem _root_.Lean4Lean.VEnv.Model.Covers.refl : Covers K K := fun k hk => ⟨k
 theorem _root_.Lean4Lean.VEnv.Model.Covers.trans (h1 : Covers K₃ K₂) (h2 : Covers K₂ K₁) : Covers K₃ K₁ := fun k hk =>
   let ⟨k₂, hk₂, l₂⟩ := h2 k hk; let ⟨k₃, hk₃, l₃⟩ := h1 k₂ hk₂; ⟨k₃, hk₃, l₃.trans l₂⟩
 
-theorem _root_.Lean4Lean.VEnv.Model.Covers.nil : Covers K [] := nofun
-
 theorem _root_.Lean4Lean.VEnv.Model.Covers.of_subset (h : ∀ k ∈ K, k ∈ K') : Covers K' K := fun k hk => ⟨k, h k hk, .refl⟩
 
 theorem Sub.refl : Sub X X := fun o h => ⟨o, h, .refl⟩
@@ -204,11 +202,6 @@ theorem Le.rigid_inv (h : o ≼ .rigid n ℓs m s) : o = .rigid n ℓs m s := by
 theorem Le.rigidArg_inv (h : o ≼ .rigidArg i c) : o = .rigidArg i c := by cases h; rfl
 theorem Le.ctorHead_inv (h : o ≼ .ctorHead c ℓs n) : o = .ctorHead c ℓs n := by cases h; rfl
 theorem Le.ctorArg_inv (h : o ≼ .ctorArg i c) : o = .ctorArg i c := by cases h; rfl
-
-theorem Le.rigidArgOb_inv (h : o ≼ .rigidArgOb i x) : ∃ y, o = .rigidArgOb i y ∧ y ≼ x := by
-  cases h with
-  | refl => exact ⟨_, rfl, .refl⟩
-  | rigidArgOb h => exact ⟨_, rfl, h⟩
 
 theorem Le.ctorArgOb_inv (h : o ≼ .ctorArgOb i pre x) :
     ∃ y, o = .ctorArgOb i pre y ∧ y ≼ x := by

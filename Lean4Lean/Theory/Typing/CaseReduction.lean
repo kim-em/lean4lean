@@ -3,7 +3,10 @@ import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Inductive.CaseRegistration
 import Lean4Lean.Theory.Inductive.CaseCapture
 import Lean4Lean.Theory.Inductive.CaseRuleUniqueness
-import Lean4Lean.Theory.Typing.CaseRhsTyping
+import Lean4Lean.Theory.Typing.NativeTelescope
+import Lean4Lean.Theory.Typing.Strong
+import Lean4Lean.Theory.Inductive.CaseReductionLemmas
+import Lean4Lean.Theory.Inductive.RestorationNaturality
 
 /-! Concrete applied reduction from declaration-generated abstract case rules.
 Its endpoints are the exact restored templates specialized at one full typed
@@ -85,30 +88,6 @@ inductive CaseStep (env : VEnv) (U : Nat) (Γ : List VExpr) :
       (rule.equation.type.instL (target :: levels)) →
     CaseArguments env U Γ rule (target :: levels) arguments →
     CaseStep env U Γ rule (target :: levels) arguments
-
-/-- Construct the applied case rule using its original eliminator-type
-formation. The registered compilation supplies restoration scope, and the
-generated minor telescope supplies the exact right-side typing. -/
-theorem CaseStep.of_type (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
-    {schema : CaseSchema} {owner : Fin schema.signature.families.size} {caseType : VExpr}
-    (hlookup : env.eliminators block schema)
-    (hgen : schema.Generates block owner rule)
-    (htype : schema.genericType owner = some caseType)
-    (hclosed : RuleClosed rule.equation)
-    (hpermission : schema.Permission U owner levels target)
-    (hformation : env.IsType U Γ (caseType.instL (target :: levels)))
-    (hleft : env.HasType U Γ (rule.equation.lhs.instL (target :: levels))
-      (rule.equation.type.instL (target :: levels)))
-    (hargs : CaseArguments env U Γ rule (target :: levels) arguments) :
-    CaseStep env U Γ rule (target :: levels) arguments := by
-  obtain ⟨base, source, compiled, _, _, hcert, _, _⟩ :=
-    henv.eliminator_origin hlookup
-  obtain ⟨expanded, auxiliaries, hdata, _, hrestoration, _⟩ := hcert
-  have hscope : schema.restoration.Scoped := by
-    simpa only [hrestoration] using hdata.restorationScoped
-  obtain ⟨level, hformation⟩ := hformation
-  exact .iota hlookup hgen hclosed hpermission hleft
-    (hgen.rhs_hasType htype hscope henv.ordered hΓ hformation) hargs
 
 theorem CaseStep.generates (H : CaseStep env U Γ rule levels arguments) :
     ∃ (schema : CaseSchema) (block : Name) (owner : Fin schema.signature.families.size),
@@ -241,16 +220,6 @@ private theorem spine_go_mkApps (fn : VExpr) (args rest : List VExpr) :
   | nil => rfl
   | cons arg args ih => exact ih (.app fn arg)
 
-private theorem spine_liftN (e : VExpr) :
-    (e.liftN n k).getAppFnArgs =
-      (e.getAppFnArgs.1.liftN n k, e.getAppFnArgs.2.map fun e => e.liftN n k) := by
-  suffices ∀ args, VExpr.getAppFnArgs.go (e.liftN n k) (args.map fun e => e.liftN n k) =
-      ((VExpr.getAppFnArgs.go e args).1.liftN n k,
-        (VExpr.getAppFnArgs.go e args).2.map fun e => e.liftN n k) from this []
-  induction e with
-  | app fn arg ih _ => intro args; exact ih (arg :: args)
-  | _ => intro args; rfl
-
 private theorem spine_lift' (e : VExpr) :
     (e.lift' ρ).getAppFnArgs =
       (e.getAppFnArgs.1.lift' ρ, e.getAppFnArgs.2.map fun e => e.lift' ρ) := by
@@ -266,48 +235,6 @@ private theorem case_application_extract (actual : Application) :
   cases actual
   simp [Application.extract, Application.expr, VExpr.getAppFnArgs,
     spine_go_mkApps, VExpr.getAppFnArgs.go]
-
-/-- Lifting cannot create an abstract or constructor head, and all arguments
-of a lifted case spine come from the original spine. -/
-theorem case_application_liftN_inv {actual : Application} {e : VExpr}
-    (h : actual.expr = e.liftN n k) :
-    ∃ original, original.expr = e ∧ CaseApplicationMap original (fun e => e.liftN n k) = actual := by
-  have hextract : Application.extract (e.liftN n k) = some actual := by
-    rw [← h]
-    exact case_application_extract actual
-  cases e <;> simp only [VExpr.liftN, Application.extract] at hextract <;> try contradiction
-  rename_i fn major
-  rw [spine_liftN, spine_liftN] at hextract
-  cases hf : fn.getAppFnArgs.1 <;> cases hm : major.getAppFnArgs.1 <;>
-    simp only [hf, hm, VExpr.liftN] at hextract <;> try contradiction
-  cases hextract
-  refine ⟨{ block := _, owner := _, levels := _, arguments := fn.getAppFnArgs.2, ctorName := _, ctorLevels := _, ctorArguments := major.getAppFnArgs.2 }, ?_, rfl⟩
-  apply Application.extract_sound
-  simp only [Application.extract]
-  cases hf' : fn.getAppFnArgs with | mk f args =>
-    cases hm' : major.getAppFnArgs with | mk c fields =>
-      simp only [hf', hm'] at hf hm
-      simp [hf, hm]
-
-theorem case_application_lift'_inv {actual : Application} {e : VExpr}
-    (h : actual.expr = e.lift' ρ) :
-    ∃ original, original.expr = e ∧ CaseApplicationMap original (fun e => e.lift' ρ) = actual := by
-  have hextract : Application.extract (e.lift' ρ) = some actual := by
-    rw [← h]
-    exact case_application_extract actual
-  cases e <;> simp only [VExpr.lift', Application.extract] at hextract <;> try contradiction
-  rename_i fn major
-  rw [spine_lift', spine_lift'] at hextract
-  cases hf : fn.getAppFnArgs.1 <;> cases hm : major.getAppFnArgs.1 <;>
-    simp only [hf, hm, VExpr.lift'] at hextract <;> try contradiction
-  cases hextract
-  refine ⟨{ block := _, owner := _, levels := _, arguments := fn.getAppFnArgs.2, ctorName := _, ctorLevels := _, ctorArguments := major.getAppFnArgs.2 }, ?_, rfl⟩
-  apply Application.extract_sound
-  simp only [Application.extract]
-  cases hf' : fn.getAppFnArgs with | mk f args =>
-    cases hm' : major.getAppFnArgs with | mk c fields =>
-      simp only [hf', hm'] at hf hm
-      simp [hf, hm]
 
 private theorem case_rebuild_spine (e : VExpr) :
     VExpr.mkApps e.getAppFnArgs.1 e.getAppFnArgs.2 = e := by
@@ -363,32 +290,6 @@ theorem CaseStep.weakN (henv : env.WF) (W : Ctx.LiftN n k Γ Γ')
     rw [instantiateParams_liftN hcl] at hty
     simpa only [List.getElem_map, List.map_take] using hty
 
-theorem CaseStep.weakN_inv (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (IsType env U))
-    (W : Ctx.LiftN n k Γ Γ')
-    (H : CaseStep env U Γ' rule levels (arguments.map fun e => e.liftN n k)) :
-    CaseStep env U Γ rule levels arguments := by
-  have hdomains : ∀ i (hi : i < rule.body.domains.length), rule.body.domains[i].ClosedN i :=
-    fun _ hi => H.domains_closed hi
-  cases H with
-  | @iota block levels target _ schema owner rule hl hg hc hp ht hr ha =>
-    have ht' := (HasType.weakN_iff henv hs hΓ W (e := rule.equation.lhs.instL (target :: levels))
-      (A := rule.equation.type.instL (target :: levels))).1
-      (by simpa only [hc.1.instL.liftN_eq (Nat.zero_le _),
-        hc.2.2.instL.liftN_eq (Nat.zero_le _)] using ht)
-    have hr' := (HasType.weakN_iff henv hs hΓ W (e := rule.equation.rhs.instL (target :: levels))
-      (A := rule.equation.type.instL (target :: levels))).1
-      (by simpa only [hc.2.1.instL.liftN_eq (Nat.zero_le _),
-        hc.2.2.instL.liftN_eq (Nat.zero_le _)] using hr)
-    refine .iota hl hg hc hp ht' hr' ⟨by simpa using ha.1, ?_⟩
-    intro i hi hd
-    have hcl : (rule.body.domains[i].instL (target :: levels)).ClosedN (arguments.take i).length := by
-      simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hi)] using (hdomains i hd).instL
-    apply (HasType.weakN_iff henv hs hΓ W).1
-    rw [instantiateParams_liftN hcl]
-    have hty := ha.2 i (by simpa using hi) hd
-    rw [List.getElem_map] at hty
-    simpa only [List.map_take] using hty
-
 theorem CaseStep.weak' (henv : env.WF) (W : Ctx.Lift' ρ Γ Γ')
     (H : CaseStep env U Γ rule levels arguments) :
     CaseStep env U Γ' rule levels (arguments.map fun e => e.lift' ρ) := by
@@ -408,32 +309,6 @@ theorem CaseStep.weak' (henv : env.WF) (W : Ctx.Lift' ρ Γ Γ')
     have hty := (ha.2 i hi' hd).weak' henv.ordered W
     rw [instantiateParams_lift' hcl ρ] at hty
     simpa only [List.getElem_map, List.map_take] using hty
-
-theorem CaseStep.weak'_inv (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (IsType env U))
-    (W : Ctx.Lift' ρ Γ Γ')
-    (H : CaseStep env U Γ' rule levels (arguments.map fun e => e.lift' ρ)) :
-    CaseStep env U Γ rule levels arguments := by
-  have hdomains : ∀ i (hi : i < rule.body.domains.length), rule.body.domains[i].ClosedN i :=
-    fun _ hi => H.domains_closed hi
-  cases H with
-  | @iota block levels target _ schema owner rule hl hg hc hp ht hr ha =>
-    have ht' := (HasType.weak'_iff henv hs hΓ W (e := rule.equation.lhs.instL (target :: levels))
-      (A := rule.equation.type.instL (target :: levels))).1
-      (by simpa only [hc.1.instL.lift'_eq .zero,
-        hc.2.2.instL.lift'_eq .zero] using ht)
-    have hr' := (HasType.weak'_iff henv hs hΓ W (e := rule.equation.rhs.instL (target :: levels))
-      (A := rule.equation.type.instL (target :: levels))).1
-      (by simpa only [hc.2.1.instL.lift'_eq .zero,
-        hc.2.2.instL.lift'_eq .zero] using hr)
-    refine .iota hl hg hc hp ht' hr' ⟨by simpa using ha.1, ?_⟩
-    intro i hi hd
-    have hcl : (rule.body.domains[i].instL (target :: levels)).ClosedN (arguments.take i).length := by
-      simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hi)] using (hdomains i hd).instL
-    apply (HasType.weak'_iff henv hs hΓ W).1
-    rw [instantiateParams_lift' hcl ρ]
-    have hty := ha.2 i (by simpa using hi) hd
-    rw [List.getElem_map] at hty
-    simpa only [List.map_take] using hty
 
 theorem CaseStep.instN (henv : env.WF) (hvalue : env.HasType U Γ₀ value valueType)
     (W : Ctx.InstN Γ₀ value valueType k Γ Γ') (H : CaseStep env U Γ rule levels arguments) :
@@ -542,27 +417,6 @@ theorem MatchedCaseStep.weakN (henv : env.WF) (W : Ctx.LiftN n k Γ Γ')
     simpa only [case_application_liftN, case_capture_map, case_application_map_levels, AppliedRule.lhs,
       instantiateParams_liftN H.source.closed.1.instL] using h
 
-theorem MatchedCaseStep.weakN_inv (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (IsType env U))
-    (W : Ctx.LiftN n k Γ Γ')
-    (H : MatchedCaseStep env U Γ' rule (CaseApplicationMap actual fun e => e.liftN n k)) :
-    MatchedCaseStep env U Γ rule actual where
-  source := by
-    apply CaseStep.weakN_inv henv hs hΓ W
-    simpa only [case_capture_map, case_application_map_levels] using H.source
-  block_eq := H.block_eq
-  owner_eq := H.owner_eq
-  ctor_eq := H.ctor_eq
-  arguments_length := by simpa [CaseApplicationMap] using H.arguments_length
-  ctorArguments_length := by simpa [CaseApplicationMap] using H.ctorArguments_length
-  levels_eq := H.levels_eq
-  ctorLevels_eq := H.ctorLevels_eq
-  guard := by
-    have hc : rule.body.lhs.ClosedN (rule.capture actual).length := by
-      simpa only [case_capture_map, List.length_map] using H.source.closed.1
-    apply (IsDefEqU.weakN_iff henv hs hΓ W).1
-    simpa only [case_application_liftN, case_capture_map, case_application_map_levels, AppliedRule.lhs,
-      instantiateParams_liftN hc.instL] using H.guard
-
 theorem MatchedCaseStep.weak' (henv : env.WF) (W : Ctx.Lift' ρ Γ Γ')
     (H : MatchedCaseStep env U Γ rule actual) :
     MatchedCaseStep env U Γ' rule (CaseApplicationMap actual fun e => e.lift' ρ) where
@@ -578,27 +432,6 @@ theorem MatchedCaseStep.weak' (henv : env.WF) (W : Ctx.Lift' ρ Γ Γ')
     have h := H.guard.weak' henv.ordered W
     simpa only [case_application_lift', case_capture_map, case_application_map_levels, AppliedRule.lhs,
       instantiateParams_lift' H.source.closed.1.instL ρ] using h
-
-theorem MatchedCaseStep.weak'_inv (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (IsType env U))
-    (W : Ctx.Lift' ρ Γ Γ')
-    (H : MatchedCaseStep env U Γ' rule (CaseApplicationMap actual fun e => e.lift' ρ)) :
-    MatchedCaseStep env U Γ rule actual where
-  source := by
-    apply CaseStep.weak'_inv henv hs hΓ W
-    simpa only [case_capture_map, case_application_map_levels] using H.source
-  block_eq := H.block_eq
-  owner_eq := H.owner_eq
-  ctor_eq := H.ctor_eq
-  arguments_length := by simpa [CaseApplicationMap] using H.arguments_length
-  ctorArguments_length := by simpa [CaseApplicationMap] using H.ctorArguments_length
-  levels_eq := H.levels_eq
-  ctorLevels_eq := H.ctorLevels_eq
-  guard := by
-    have hc : rule.body.lhs.ClosedN (rule.capture actual).length := by
-      simpa only [case_capture_map, List.length_map] using H.source.closed.1
-    apply (IsDefEqU.weak'_iff henv hs hΓ W).1
-    simpa only [case_application_lift', case_capture_map, case_application_map_levels, AppliedRule.lhs,
-      instantiateParams_lift' hc.instL ρ] using H.guard
 
 theorem MatchedCaseStep.instN (henv : env.WF) (hvalue : env.HasType U Γ₀ value valueType)
     (W : Ctx.InstN Γ₀ value valueType k Γ Γ') (H : MatchedCaseStep env U Γ rule actual) :
@@ -1005,18 +838,6 @@ theorem AppliedSchemaReduction.weak' (henv : env.WF) (W : Ctx.Lift' ρ Γ Γ')
     simpa only [case_application_lift', case_capture_map, case_application_map_levels,
       AppliedRule.rhs, instantiateParams_lift' hm.source.closed.2.1.instL ρ] using h
 
-theorem AppliedSchemaReduction.weak'_inv (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U))
-    (W : Ctx.Lift' ρ Γ Γ') (H : AppliedSchemaReduction env U Γ' (lhs.lift' ρ) rhs') :
-    ∃ rhs, AppliedSchemaReduction env U Γ lhs rhs ∧ rhs' = rhs.lift' ρ := by
-  generalize he : lhs.lift' ρ = source at H
-  cases H with
-  | iota hm =>
-    obtain ⟨actual, rfl, rfl⟩ := case_application_lift'_inv he.symm
-    have hm' := hm.weak'_inv henv hs hΓ W
-    refine ⟨_, .iota hm', ?_⟩
-    simp only [case_capture_map, case_application_map_levels, AppliedRule.rhs,
-      instantiateParams_lift' hm'.source.closed.2.1.instL ρ]
-
 theorem AppliedSchemaReduction.instN (henv : env.WF)
     (hvalue : env.HasType U Γ₀ value valueType) (W : Ctx.InstN Γ₀ value valueType k Γ Γ')
     (H : AppliedSchemaReduction env U Γ lhs rhs) :
@@ -1136,9 +957,6 @@ theorem MatchedCaseStep.majorPremise (henv : env.WF)
   · rw [H.block_eq, H.owner_eq, hb, ho]
   · exact H.arguments_length.trans (hcert.arguments_length hbase hg)
 
-theorem IsCaseMajorPremise.not_reduction (henv : env.WF) (hm : IsCaseMajorPremise env e)
-    (H : AppliedSchemaReduction env U Γ e out) : False := hm.toPrefix.not_reduction henv H
-
 theorem AppliedSchemaReduction.determ (henv : env.WF)
     (H : AppliedSchemaReduction env U Γ lhs rhs) (H' : AppliedSchemaReduction env U Γ lhs rhs') :
     rhs = rhs' := by
@@ -1151,25 +969,9 @@ theorem AppliedSchemaReduction.determ (henv : env.WF)
       cases hm.rule_unique henv hm'
       rfl
 
-/-- Every concrete case reduction starts at its registered abstract family
-slot, even after open argument substitution. -/
-theorem CaseStep.head (H : CaseStep env U Γ rule levels arguments) :
-    ∃ block owner universes,
-      (rule.lhs levels arguments).getAppFnArgs.1 = .elim block owner universes := by
-  cases H with
-  | iota _ hgen => exact ⟨_, _, _, hgen.head⟩
-
 theorem AppliedSchemaReduction.head (H : AppliedSchemaReduction env U Γ lhs rhs) :
     ∃ block owner levels, lhs.getAppFnArgs.1 = .elim block owner levels := by
   cases H with | iota h => exact ⟨_, _, _, Application.head _⟩
-
-/-- Native simple rules cannot reduce the head of a concrete case redex. -/
-theorem CaseStep.not_native_match
-    (H : CaseStep env U Γ rule levels arguments) {pattern : SimplePattern}
-    {values : pattern.toPattern.Path → VExpr}
-    (hm : pattern.toPattern.Matches (rule.lhs levels arguments) ls values) : False := by
-  cases H with
-  | iota _ hgen => exact hgen.not_native_match hm
 
 theorem AppliedSchemaReduction.not_native_match
     (H : AppliedSchemaReduction env U Γ lhs rhs) {pattern : SimplePattern}

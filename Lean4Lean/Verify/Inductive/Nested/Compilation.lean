@@ -133,22 +133,6 @@ theorem RestoredAuxiliaryShapeTrace.prefix
   | cons Hstep Htail Hsemantic Hrest ih =>
     exact ih (Hsemantic.advance Hprefix)
 
-theorem RestoredAuxiliaryShapeTrace.recursorsLength
-    {names : List Name} {sourceEnv targetEnv : Environment}
-    {Htrace : StateForMTrace
-      (RestoredRecursorStep result loweredEnv auxRec allIndNames)
-      names sourceEnv targetEnv}
-    (H : RestoredAuxiliaryShapeTrace decl block main safety trEnv Htrace
-      priorRecursors priorRules finalRecursors finalRules) :
-    finalRecursors.length = priorRecursors.length + names.length := by
-  induction H with
-  | nil => simp
-  | cons Hstep Htail Hsemantic Hrest ih =>
-    simp only [List.length_cons]
-    rw [ih]
-    simp
-    omega
-
 /-- Semantic payload for one restored primary recursor. -/
 structure RestoredPrimaryRecursorSemantics
     (decl : VInductDecl) (owner : VInductiveType)
@@ -164,17 +148,6 @@ structure RestoredPrimaryRecursorSemantics
   name : recursor.name = Hstep.restored.newRecName
   wf : recursor.toVConstant.WF sourceVEnv
   shape : Nonempty (decl.NestedRecursorShape owner recursor)
-
-/-- The genuinely canonical-environment obligations left after a restored
-primary recursor has been matched to its generated production entry. -/
-structure RestoredPrimaryRecursorCanonicalInputs
-    (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
-      oldRecName sourceProdEnv targetProdEnv)
-    (recursor : VConstVal) (canonicalEnv : VEnv) : Prop where
-  type : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
-    Hstep.restored.newInfo.type recursor.type
-  name : recursor.name = Hstep.restored.newRecName
-  wf : recursor.toVConstant.WF canonicalEnv
 
 /-- Independent source-level meaning of one primary recursor.  In particular,
 this object mentions neither the lowered declaration nor any production
@@ -211,102 +184,6 @@ structure SourcePrimaryRecursorRealization
   source : SourcePrimaryRecursorSemantics sourceDecl sourceOwner canonicalEnv
   recursor_eq : source.recursor = recursor
   refinement : RestoredPrimaryRecursorRefinement Hstep canonicalEnv recursor
-
-/-- A joint source realization supplies the specification, canonical typing,
-and executable refinement needed by the restored installation layer. -/
-def SourcePrimaryRecursorRealization.toRestoredSemantics
-    (H : SourcePrimaryRecursorRealization sourceDecl sourceOwner Hstep
-      canonicalEnv recursor)
-    (safety_le : safety ≤ (ConstantInfo.recInfo Hstep.oldInfo).safety)
-    (hname : recursor.name = Hstep.restored.newRecName) :
-    RestoredPrimaryRecursorSemantics sourceDecl sourceOwner safety Hstep
-      canonicalEnv where
-  recursor := recursor
-  safety_le := safety_le
-  uvars := H.refinement.uvars
-  type := H.refinement.type
-  name := hname
-  wf := by
-    rw [← H.recursor_eq]
-    exact H.source.isType
-  shape := by
-    rw [← H.recursor_eq]
-    exact H.source.shape
-
-def RestoredPrimaryRecursorCanonicalInputs.sourceSemanticsOfCompatible
-    {loweredDecl sourceDecl : VInductDecl}
-    {loweredOwner sourceOwner : VInductiveType}
-    {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
-      oldRecName sourceProdEnv targetProdEnv}
-    {recursor : VConstVal} {canonicalEnv : VEnv}
-    (Hcanonical : RestoredPrimaryRecursorCanonicalInputs Hstep recursor
-      canonicalEnv)
-    (Hshape : loweredDecl.NestedRecursorShape loweredOwner recursor)
-    (howner : Hshape.ownerIdx < sourceDecl.types.length)
-    (hownerEq : sourceDecl.types[Hshape.ownerIdx] = sourceOwner)
-    (hsourceName : Hstep.restored.newRecName =
-      sourceDecl.recursorName sourceOwner)
-    (hsourceUvars : recursor.uvars = sourceDecl.uvars ∨
-      recursor.uvars = sourceDecl.uvars + 1)
-    (holdUvars : Hstep.oldInfo.levelParams.length = recursor.uvars)
-    (hnparams : sourceDecl.nparams = loweredDecl.nparams)
-    (hmotives : sourceDecl.types.length ≤ Hshape.motives.length)
-    (hminors : sourceDecl.ownedConstructors.length ≤ Hshape.minors.length)
-    (hindices : sourceOwner.numIndices = loweredOwner.numIndices) :
-    SourcePrimaryRecursorRealization sourceDecl sourceOwner Hstep canonicalEnv
-      recursor where
-  source := ⟨recursor, Hcanonical.name.trans hsourceName, Hcanonical.wf,
-    ⟨Hshape.ofCompatible howner hownerEq
-      (Hcanonical.name.trans hsourceName) hsourceUvars hnparams hmotives
-      hminors hindices⟩⟩
-  recursor_eq := rfl
-  refinement := ⟨holdUvars, Hcanonical.type⟩
-
-/-- For an ordinary block, the verified production recursor certificate
-already supplies the independent source-level recursor semantics.  Nested
-lowering cannot use this theorem directly for an original source family,
-because its generated entries are indexed by the expanded lowered
-declaration; that remaining distinction is intentional. -/
-theorem GeneratedRecursors.sourcePrimaryRecursorSemantics
-    (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
-      recInfos entries)
-    (Hc : BindingContextWF c)
-    (Hbindings : RecInfoBindings c recInfos)
-    (Hparams : BoundFVarArray c stats.params)
-    (hnoalias : Hbindings.NoAlias Hparams)
-    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    {sourceEnv envTypes envCtors : VEnv}
-    (Hdecl : TrInductDeclCore sourceEnv lparams nparams
-      indTypes.toList isUnsafe decl envTypes envCtors)
-    (ownerIdx : Nat) (hentry : ownerIdx < entries.length) :
-    Nonempty (SourcePrimaryRecursorSemantics decl
-      (decl.types[ownerIdx]'(by
-        have howner : ownerIdx < recInfos.size := by
-          simpa [H.length] using hentry
-        simpa [Hcard.records] using howner)) env) := by
-  have howner : ownerIdx < recInfos.size := by
-    simpa [H.length] using hentry
-  have hdeclOwner : ownerIdx < decl.types.length := by
-    simpa [Hcard.records] using howner
-  let recursor := entries[ownerIdx].2
-  have hrecursor : recursor ∈ entries.map Prod.snd := by
-    rw [List.mem_iff_getElem]
-    refine ⟨ownerIdx, ?_, ?_⟩
-    · simpa using hentry
-    · simp [recursor]
-  have Hshape :=
-    (H.recursorCertificate Hc Hbindings Hparams hnoalias Hcard Hdecl).shapes
-      ownerIdx hdeclOwner (by simpa using hentry)
-  rw [List.getElem_map] at Hshape
-  change Nonempty (decl.RecursorShape
-    (decl.types[ownerIdx]'hdeclOwner) recursor) at Hshape
-  rcases Hshape with ⟨Hshape⟩
-  refine ⟨{
-    recursor := recursor
-    name := Hshape.name
-    isType := ?_
-    shape := ⟨Hshape.toNested⟩ }⟩
-  exact H.recursorsWF Hc Hbindings Hparams recursor hrecursor
 
 inductive RestoredPrimaryRecursorSemanticTrace
     (decl : VInductDecl) (safety : DefinitionSafety)
@@ -409,31 +286,6 @@ structure RestoredSourceInductiveSemantics
       Hstep.restored.constructorEnv indType.ctors owner.ctors
   recursor : RestoredPrimaryRecursorSemantics decl owner safety
     Hstep.restored.recursor envCtors
-
-/-- Assemble per-family semantic payloads over the exact executable mutual
-restoration trace.  This discharges all ordering and state-threading work and
-returns the source owners and primary recursors selected by those payloads. -/
-theorem StateForMTrace.sourceInductiveSemanticTrace
-    (Htrace : StateForMTrace
-      (RestoredInductiveStep result loweredEnv auxRec allIndNames)
-      types sourceProdEnv targetProdEnv)
-    (Hsemantics : ∀ indType stepSource stepTarget
-      (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
-        indType stepSource stepTarget), indType ∈ types →
-      Nonempty (RestoredSourceInductiveSemantics decl lparams safety
-        sourceVEnv envTypes envCtors Hstep)) :
-    ∃ owners recursors,
-      RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
-        envTypes envCtors Htrace owners recursors := by
-  induction Htrace with
-  | nil => exact ⟨[], [], .nil _⟩
-  | cons Hstep Htail ih =>
-    rcases Hsemantics _ _ _ Hstep (by simp) with ⟨Hhead⟩
-    rcases ih (fun indType stepSource stepTarget Hstep hmem =>
-      Hsemantics indType stepSource stepTarget Hstep (by simp [hmem])) with
-      ⟨owners, recursors, Hrest⟩
-    exact ⟨Hhead.owner :: owners, Hhead.recursor.recursor :: recursors,
-      .cons Hstep Htail Hhead.header Hhead.constructors Hhead.recursor Hrest⟩
 
 theorem RestoredSourceInductiveSemanticTrace.types
     {sourceTypes : List InductiveType}
@@ -542,13 +394,6 @@ theorem RestoredSourceInductiveSemanticTrace.core
     types := ?_ }
   rw [htypes]
   exact H.types
-
-theorem RestoredSourceInductiveSemanticTrace.recursorCertificate
-    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
-      envTypes envCtors Htrace owners recursors)
-    (htypes : decl.types = owners) :
-    NestedRecursorCertificate decl recursors :=
-  H.primaryRecursors.recursorCertificate htypes
 
 /-- Installation semantics for one complete restored source family: header,
 its exact constructor fold, and its primary recursor. -/
@@ -894,61 +739,6 @@ theorem GeneratedRecursors.closesMutuals
   rcases entry with ⟨info, value⟩
   exact H.nonInductive info value hmem inductiveValue
 
-/-- Add the lookup invariant to an already verified constructor phase without
-replaying either executable fold. -/
-theorem constructorPhasesAndClosure
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv : Environment}
-    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
-      indTypes headerEnv}
-    (Hphases :
-      ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
-        AddInductive.declareConstructors stats indTypes isUnsafe)
-        { c with env := headerEnv }).WF fun outEnv =>
-          ∃ _ : ConstructorPhasesResult H outEnv, True)
-    (hclosed : MutualInductivesClosed headerEnv) :
-    ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
-      AddInductive.declareConstructors stats indTypes isUnsafe)
-      { c with env := headerEnv }).WF fun outEnv =>
-        ∃ _ : ConstructorPhasesResult H outEnv,
-          MutualInductivesClosed outEnv := by
-  intro outEnv hout
-  rcases Hphases outEnv hout with ⟨R, _⟩
-  exact ⟨R, R.declared.closesMutuals hclosed⟩
-
-/-- Add the lookup invariant to the public recursor-installation refinement.
-The generated-recursors certificate supplies the required non-inductive
-shape of every installed production entry. -/
-theorem declareRecursorsAndClosure
-    (k : Bool)
-    (Hrecursors :
-      (AddInductive.declareRecursors stats indTypes elimLevel recInfos k
-        c.lparams c).WF
-        fun outEnv =>
-          ∃ outVEnv : VEnv,
-          ∃ entries : List (ConstantInfo × VConstVal),
-            Nonempty (GeneratedRecursors c.safety venv c.lparams elimLevel c
-              stats indTypes recInfos entries) ∧
-            AddConstants c.safety c.env venv entries outEnv outVEnv)
-    (hwf : c.env.constants.WF)
-    (hclosed : MutualInductivesClosed c.env) :
-    (AddInductive.declareRecursors stats indTypes elimLevel recInfos k
-      c.lparams c).WF
-      fun outEnv =>
-        ∃ outVEnv : VEnv,
-        ∃ entries : List (ConstantInfo × VConstVal),
-          Nonempty (GeneratedRecursors c.safety venv c.lparams elimLevel c
-            stats indTypes recInfos entries) ∧
-          AddConstants c.safety c.env venv entries outEnv outVEnv ∧
-          MutualInductivesClosed outEnv := by
-  intro outEnv hout
-  rcases Hrecursors outEnv hout with
-    ⟨outVEnv, entries, ⟨Hgenerated⟩, Hinstalled⟩
-  exact ⟨outVEnv, entries, ⟨Hgenerated⟩, Hinstalled,
-    Hgenerated.closesMutuals Hinstalled hwf hclosed⟩
-
 theorem DeclaredInductiveInfos.closesMutuals
     (H : DeclaredInductiveInfos source infos target)
     (hold : MutualInductivesClosed source)
@@ -1116,89 +906,6 @@ theorem inductiveTypeInfos_source_mem
   · simp [info, AddInductive.inductiveTypeInfos, hsize]
   · simp [info, AddInductive.inductiveTypeInfos, hsize]
   · simp [info, AddInductive.inductiveTypeInfos, hsize]
-
-/-- Installing the production metadata headers closes every new mutual block
-and preserves closure of the inductive blocks already present. -/
-theorem declareInductiveTypes_closesMutuals
-    (stats : AddInductive.InductiveStats) (numParams : Nat)
-    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
-    (c : AddInductive.Context)
-    (hwf : c.env.constants.WF)
-    (hold : MutualInductivesClosed c.env)
-    (hsize : stats.nindices.size = indTypes.size) :
-    (AddInductive.declareInductiveTypes stats numParams indTypes numNested
-      isUnsafe c).WF MutualInductivesClosed := by
-  unfold AddInductive.declareInductiveTypes
-  exact (declareInductiveTypeInfos_refines c.allowPrimitive
-    (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
-      isUnsafe c.lparams).toList c.env hwf).mono fun _ Hdeclared =>
-        Hdeclared.closesMutuals hold
-          (inductiveTypeInfos_uniformAll stats numParams indTypes numNested
-            isUnsafe c.lparams hsize)
-          (inductiveTypeInfos_uniformNumParams stats numParams indTypes
-            numNested isUnsafe c.lparams hsize)
-
-/-- Pair the existing semantic header refinement with the independently
-proved production lookup invariant for the very same executable result. -/
-theorem declareInductiveTypes_headersAndClosure
-    (stats : AddInductive.InductiveStats) (numParams : Nat)
-    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
-    (c : AddInductive.Context)
-    (Hheaders :
-      (AddInductive.declareInductiveTypes stats numParams indTypes numNested
-        isUnsafe c).WF fun outEnv =>
-          ∃ _ : DeclaredHeadersResult c stats decl numParams isUnsafe depth
-            sourceEnv indTypes outEnv, True)
-    (hwf : c.env.constants.WF)
-    (hold : MutualInductivesClosed c.env)
-    (hsize : stats.nindices.size = indTypes.size) :
-    (AddInductive.declareInductiveTypes stats numParams indTypes numNested
-      isUnsafe c).WF fun outEnv =>
-        ∃ _ : DeclaredHeadersResult c stats decl numParams isUnsafe depth
-          sourceEnv indTypes outEnv,
-          MutualInductivesClosed outEnv := by
-  intro outEnv hout
-  rcases Hheaders outEnv hout with ⟨Hresult, _⟩
-  exact ⟨Hresult,
-    declareInductiveTypes_closesMutuals stats numParams indTypes numNested
-      isUnsafe c hwf hold hsize outEnv hout⟩
-
-/-- Compositional form of the executable header/constructor prefix carrying
-the mutual-lookup invariant across both environment-changing phases. -/
-theorem formationCoreAndClosure
-    (stats : AddInductive.InductiveStats) (numParams : Nat)
-    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
-    (c : AddInductive.Context)
-    (Htypes :
-      (AddInductive.declareInductiveTypes stats numParams indTypes numNested
-        isUnsafe c).WF fun headerEnv =>
-          ∃ Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe
-            depth sourceEnv indTypes headerEnv,
-            MutualInductivesClosed headerEnv)
-    (Hphases : ∀ headerEnv
-      (Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe depth
-        sourceEnv indTypes headerEnv),
-      ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
-        AddInductive.declareConstructors stats indTypes isUnsafe)
-        { c with env := headerEnv }).WF fun outEnv =>
-          ∃ _ : ConstructorPhasesResult Hheaders outEnv, True) :
-    ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
-      isUnsafe >>= fun headerEnv =>
-        AddInductive.withEnv headerEnv do
-          AddInductive.checkConstructors indTypes stats isUnsafe
-          AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
-      fun outEnv =>
-        ∃ headerEnv : Environment,
-        ∃ Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe
-          depth sourceEnv indTypes headerEnv,
-        ∃ _ : ConstructorPhasesResult Hheaders outEnv,
-          MutualInductivesClosed outEnv := by
-  exact Htypes.bind fun headerEnv Hheader => by
-    rcases Hheader with ⟨Hheaders, hclosed⟩
-    exact (constructorPhasesAndClosure (Hphases headerEnv Hheaders)
-      hclosed).mono fun outEnv Hresult => by
-        rcases Hresult with ⟨R, hclosedOut⟩
-        exact ⟨headerEnv, Hheaders, R, hclosedOut⟩
 
 end VerifyInductive
 end Lean4Lean

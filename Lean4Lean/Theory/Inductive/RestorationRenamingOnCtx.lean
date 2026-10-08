@@ -2,6 +2,7 @@ import Lean4Lean.Theory.Inductive.RestorationRenaming
 import Lean4Lean.Theory.Inductive.RestorationNaturality
 import Lean4Lean.Theory.Inductive.BetaSubjectReduction
 import Lean4Lean.Theory.Typing.CanonicalDataRegistryScope
+import Lean4Lean.Theory.Typing.EnvTables.EnvSchemaTypes
 
 /-! Context-carrying renaming replacement.
 
@@ -134,15 +135,6 @@ structure RestoredEliminator (envS : VEnv) (ρ : Name → Option VExpr) (σ : Na
     ∀ df ∈ rules, df.lhs.ProjNamesFixed σ ∧ df.rhs.ProjNamesFixed σ ∧
       df.type.ProjNamesFixed σ ∧ (r.equation df).isSome
 
-theorem RestoredEliminator.mono_envS {envS envS' : VEnv} {ρ : Name → Option VExpr}
-    {σ : Name → Name} {block : Name} {schema : InductiveSignature.CaseSchema}
-    {families : List Name} {r : InductiveSignature.Restoration}
-    (R : RestoredEliminator envS ρ σ block schema families r)
-    (heq : envS'.eliminators = envS.eliminators)
-    (hβ : ∀ U, envS'.BetaSubjectReduction U) :
-    RestoredEliminator envS' ρ σ block schema families r :=
-  { R with registered := heq ▸ R.registered, betaSubjectReduction := hβ }
-
 /-- A schema with the same signature as `schema` is `schema` with its original
 families and restoration replaced. -/
 theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.eq_with_of_signature
@@ -204,7 +196,7 @@ theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.Permission.withRestoratio
 
 private theorem restoredEliminator_closedN {r : InductiveSignature.Restoration}
     (hr : r.Scoped) {e e' : VExpr} (he : e.Closed) (h : r.expr e = some e') : e'.Closed :=
-  ShapeModel.restore_go_closedN r (fun h hh a ha => (hr.2.2.1 h hh).2 a ha) e [] 0 e' he
+  EnvTables.restore_go_closedN r (fun h hh a ha => (hr.2.2.1 h hh).2 a ha) e [] 0 e' he
     (by simp) h
 
 private theorem restoredEliminator_instL {r : InductiveSignature.Restoration} {e e' : VExpr}
@@ -439,13 +431,6 @@ theorem RenamingReplacementOnCtx.isDefEq (S : RenamingReplacementOnCtx envS envL
     simp only [VExpr.replaceRen_instL, ← hl, ← hr, ← ht]
     exact .extra hS h2 (h3.trans hu.symm)
 
-/-- The transport of a well-formed context of `envL` is well formed. -/
-theorem RenamingReplacementOnCtx.onCtx (S : RenamingReplacementOnCtx envS envL ρ σ)
-    {U : Nat} : ∀ {Γ : List VExpr}, OnCtx Γ (envL.IsType U) →
-      OnCtx (Γ.map (·.replaceRen ρ σ)) (envS.IsType U)
-  | [], _ => trivial
-  | _ :: _, ⟨hΓ, _, hA⟩ => ⟨S.onCtx hΓ, _, S.isDefEq hA (S.onCtx hΓ)⟩
-
 /-- Extend a context-carrying renaming replacement by one constant. -/
 theorem RenamingReplacementOnCtx.addConst {env env' : VEnv} {n : Name} {ci : VConstant}
     (S : RenamingReplacementOnCtx envS env ρ σ) (h : env.addConst n ci = some env')
@@ -492,18 +477,6 @@ theorem RenamingReplacementOnCtx.addProjections {env : VEnv}
     · exact hp entry hmem
     · exact S.projections typeName info h
 
-/-- A context-carrying renaming replacement restricts to every smaller lowered
-environment. -/
-theorem RenamingReplacementOnCtx.mono {envL₀ : VEnv} (S : RenamingReplacementOnCtx envS envL ρ σ)
-    (hle : envL₀ ≤ envL) : RenamingReplacementOnCtx envS envL₀ ρ σ where
-  closed := S.closed
-  ordered := S.ordered
-  replaced c ci t h := S.replaced c ci t (hle.constants h)
-  kept c ci h := S.kept c ci (hle.constants h)
-  defeqs df h := S.defeqs df (hle.defeqs h)
-  eliminators block schema h := S.eliminators block schema (hle.eliminators h)
-  projections typeName info h := S.projections typeName info (hle.projections h)
-
 /-- Extend a context-carrying renaming replacement by restoration-free lowered
 eliminators, each matched by a registered restored schema of `envS`. -/
 theorem RenamingReplacementOnCtx.addEliminators {env : VEnv}
@@ -522,21 +495,6 @@ theorem RenamingReplacementOnCtx.addEliminators {env : VEnv}
     · exact S.eliminators block schema hs
   projections typeName info hp :=
     S.projections typeName info (by rwa [VEnv.addEliminators_projections] at hp)
-
-/-- Extend a context-carrying renaming replacement by one restoration-free
-lowered eliminator `(block, schema)` (the lowered window's case eliminator),
-matched by the registered restored schema
-`{ schema with originalFamilies := families, restoration := r }` of `envS`. -/
-theorem RenamingReplacementOnCtx.addEliminator {env : VEnv}
-    (S : RenamingReplacementOnCtx envS env ρ σ) {block : Name}
-    {schema : InductiveSignature.CaseSchema} {families : List Name}
-    {r : InductiveSignature.Restoration}
-    (R : RestoredEliminator envS ρ σ block schema families r) :
-    RenamingReplacementOnCtx envS (env.addEliminators [(block, schema)]) ρ σ :=
-  S.addEliminators fun e he => by
-    rw [List.mem_singleton] at he
-    subst he
-    exact ⟨families, r, R⟩
 
 /-- A restored eliminator in a well-formed source environment: beta subject
 reduction, the scope of the restoration and the restorability of the generic
@@ -559,7 +517,7 @@ theorem RestoredEliminator.of_wf {block : Name} {schema : InductiveSignature.Cas
   betaSubjectReduction _ := hS.betaSubjectReduction
   genericType owner type h := by
     refine ⟨htype owner type h, ?_⟩
-    obtain ⟨type', h', -⟩ := ShapeModel.VEnv.WF.eliminator_genericType_closed hS hreg owner
+    obtain ⟨type', h', -⟩ := EnvTables.VEnv.WF.eliminator_genericType_closed hS hreg owner
     rw [InductiveSignature.CaseSchema.genericType_withRestoration h0 h families r] at h'
     rw [h']
     rfl

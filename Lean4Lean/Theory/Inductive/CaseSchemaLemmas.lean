@@ -27,30 +27,6 @@ private theorem stripLams_of_head_elim {e : VExpr}
 end VExpr
 namespace InductiveSignature
 
-/-- Both endpoints of every generated equation have a nonempty common lambda
-telescope, including in abstract head mode. -/
-theorem Instance.equation_outer_lambdas {s : InductiveSignature} (g : Instance s)
-    (index : Fin s.constructors.size) (mode : HeadMode) :
-    ∃ domain lhsBody rhsBody, (g.equation index mode).lhs = .lam domain lhsBody ∧
-      (g.equation index mode).rhs = .lam domain rhsBody := by
-  let domains := g.params ++ g.motives ++ g.minors ++
-    insertBinders ((s.fieldTypes s.constructors[index]).map (·.instL g.levels))
-      (s.families.size + s.constructors.size)
-  have hlength : g.minors.length = s.constructors.size := by simp [Instance.minors]
-  have hnonempty : domains ≠ [] := by
-    intro hempty
-    have hzero := congrArg List.length hempty
-    simp only [domains, List.length_append, List.length_nil] at hzero
-    have := index.isLt
-    omega
-  unfold Instance.equation
-  change ∃ domain lhsBody rhsBody,
-    VExpr.wrapLams domains _ = .lam domain lhsBody ∧
-    VExpr.wrapLams domains _ = .lam domain rhsBody
-  cases hd : domains with
-  | nil => exact (hnonempty hd).elim
-  | cons domain domains => exact ⟨domain, _, _, rfl, rfl⟩
-
 theorem Restoration.equation_parts {r : Restoration} {source restored : VDefEq}
     (h : r.equation source = some restored) :
     r.expr source.lhs = some restored.lhs ∧ r.expr source.rhs = some restored.rhs ∧
@@ -121,19 +97,6 @@ theorem Instance.restored_abstract_equation_head {s : InductiveSignature} (g : I
   apply Restoration.wrapLams_head_elim (h := hl)
   exact VExpr.spine_head_mkApps _ _
 
-theorem Instance.restored_equation_outer_lambdas {s : InductiveSignature} (g : Instance s)
-    (index : Fin s.constructors.size) (mode : HeadMode) {r : Restoration} {equation : VDefEq}
-    (h : r.equation (g.equation index mode) = some equation) :
-    (∃ domain body, equation.lhs = .lam domain body) ∧
-      (∃ domain body, equation.rhs = .lam domain body) := by
-  obtain ⟨domain, lhsBody, rhsBody, hl, hr⟩ := g.equation_outer_lambdas index mode
-  have ⟨hleft, hright, _⟩ := Restoration.equation_parts h
-  rw [hl] at hleft
-  rw [hr] at hright
-  obtain ⟨domain', body', _, _, hleft⟩ := Restoration.expr_lam_parts hleft
-  obtain ⟨domain'', body'', _, _, hright⟩ := Restoration.expr_lam_parts hright
-  exact ⟨⟨_, _, hleft⟩, ⟨_, _, hright⟩⟩
-
 namespace CaseSchema
 
 /-- Every case-view constructor is the selected owner's original constructor,
@@ -192,14 +155,6 @@ theorem genericEquation_head {schema : CaseSchema}
     simp only [view_familyCount] at this
     omega
   simpa [specialize, hzero] using hhead
-
-theorem genericEquation_outer_lambdas {schema : CaseSchema}
-    {owner : Fin schema.signature.families.size}
-    (h : schema.genericEquations block owner = some rules) (hmem : rule ∈ rules) :
-    (∃ domain body, rule.lhs = .lam domain body) ∧
-      (∃ domain body, rule.rhs = .lam domain body) := by
-  obtain ⟨index, hrestore⟩ := equation_origin h hmem
-  exact Instance.restored_equation_outer_lambdas _ index _ hrestore
 
 end CaseSchema
 end InductiveSignature

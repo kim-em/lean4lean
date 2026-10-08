@@ -1331,18 +1331,6 @@ def restoreInductiveDecl (res : ElimNestedInductive.Result)
   restoreRecursorDecl res loweredEnv recNameMap allIndNames allowPrimitive
     (mkRecName indType.name)
 
-/-- Restore only the source family headers and constructors.  This side
-environment is used to validate original constructor parameters at the exact
-post-constructor boundary, before restored recursors can become dependencies. -/
-def restoreInductiveConstructors (res : ElimNestedInductive.Result)
-    (loweredEnv : Environment) (allIndNames : List Name)
-    (allowPrimitive : Bool) (indType : InductiveType) :
-    StateT Environment (Except Exception) Unit := do
-  let some (.inductInfo ind) := loweredEnv.find? indType.name | unreachable!
-  restoreInductiveHeaderDecl loweredEnv allIndNames allowPrimitive indType.name
-  ind.ctors.forM fun ctorName =>
-    restoreConstructorDecl res loweredEnv allowPrimitive ctorName
-
 /-- Restore the constructors of one source family after every mutual header
 has already been installed in the side validation environment. -/
 def restoreInductiveConstructorsOnly (res : ElimNestedInductive.Result)

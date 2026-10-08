@@ -110,20 +110,5 @@ theorem checkPrimitiveInductive_eq_true_iff
       change Except.ok true = Except.ok true
       rfl
 
-/-- Every successful primitive precheck is either the ordinary path or one of
-the two canonical bootstrap declarations. -/
-theorem checkPrimitiveInductive_result
-    (env : Environment) (lparams : List Name) (nparams : Nat)
-    (types : List InductiveType) (isUnsafe allowPrimitive : Bool)
-    (hresult : Primitive.checkInductive env lparams nparams types
-      isUnsafe = .ok allowPrimitive) :
-    allowPrimitive = false ∨
-      PrimitiveInductiveShape lparams nparams types isUnsafe := by
-  cases allowPrimitive with
-  | false => exact Or.inl rfl
-  | true =>
-    exact Or.inr ((checkPrimitiveInductive_eq_true_iff env lparams nparams
-      types isUnsafe).mp hresult)
-
 end VerifyInductive
 end Lean4Lean

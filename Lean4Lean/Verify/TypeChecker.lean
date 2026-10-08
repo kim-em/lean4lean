@@ -40,13 +40,6 @@ theorem VEnvs.WFCore.projectionRegistryCoherent
     ProjectionRegistryCoherent safety env.constants (ves.venv safety) :=
   wf.inductiveProvenance.projectionRegistryCoherent
 
-theorem VEnvs.WFCore.toCheckingValid
-    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (safety : DefinitionSafety) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) :
-    CheckingEnv.Valid safety env (ves.venv safety) :=
-  wf.tr.toCheckingValid wf.hasPrimitives wf.safePrimitives
-    wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
-
 /-- Every visible constructor of `env` carries a telescope certificate at every safety level
 (`CtorTelescopes`). This is the environment invariant that replaces canonical choice at the
 projection-walk corner of `inferProj`. -/
@@ -289,14 +282,6 @@ theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
   whnfCore_hit := .empty
   whnf_hit := .empty
   inferTypeI_hit := .empty
-
-theorem VState.WF.emptyCheckingValid {env : Environment} {venv : VEnv}
-    {wf : CheckingEnv.Valid safety env venv}
-    {lparams : List Name} {fuel : FuelConfig} :
-    VState.WF (.mkCheckingValid wf lparams fuel) {} :=
-  VState.WF.emptyChecking (trenv := wf.tr) (hasPrimitives := wf.hasPrimitives)
-    (safePrimitives := wf.safePrimitives) (projectionRegistry := wf.projectionRegistry)
-    (recursors := wf.recursors) (quot := wf.quot) (corner := wf.corner)
 
 theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}

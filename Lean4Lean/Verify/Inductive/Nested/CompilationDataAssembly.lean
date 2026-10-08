@@ -3,6 +3,7 @@ import Lean4Lean.Verify.Inductive.Nested.FinalAssembly
 import Lean4Lean.Verify.Inductive.Nested.RestoredRecursorShape
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalConstruction
 import Lean4Lean.Verify.Inductive.CompletedRecursorPhases
+import Lean4Lean.Std.List
 
 /-! `CompilationData` for the lowered declaration of a validated nested run.
 
@@ -35,21 +36,12 @@ private theorem forall₂_take {R : α → β → Prop} :
     simp only [List.take_succ_cons]
     exact .cons h (forall₂_take t k)
 
-private theorem forall₂_drop {R : α → β → Prop} :
-    ∀ {l : List α} {r : List β} (_ : List.Forall₂ R l r) (k : Nat),
-      List.Forall₂ R (l.drop k) (r.drop k)
-  | _, _, .nil, _ => by simp
-  | _, _, .cons h t, 0 => by simpa using List.Forall₂.cons h t
-  | _, _, .cons _ t, k + 1 => by
-    simp only [List.drop_succ_cons]
-    exact forall₂_drop t k
-
 private theorem forall₂_append_left_split {R : α → β → Prop}
     {l₁ l₂ : List α} {r : List β} (H : List.Forall₂ R (l₁ ++ l₂) r) :
     List.Forall₂ R l₁ (r.take l₁.length) ∧
       List.Forall₂ R l₂ (r.drop l₁.length) := by
   have h₁ := forall₂_take H l₁.length
-  have h₂ := forall₂_drop H l₁.length
+  have h₂ := Lean4Lean.List.forall₂_drop H l₁.length
   simp only [List.take_left', List.drop_left'] at h₁ h₂
   exact ⟨h₁, h₂⟩
 
@@ -294,7 +286,7 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
         rw [E.production.compilationSignature.declaration_ctor_uvars a
           (List.mem_of_mem_take ha) n hn, Hmodels.uvars, hloweredUvars,
           HsourceWF.2.2.2.1 c (List.mem_flatMap.mpr ⟨src, hsrc, hc⟩)]
-      · have HMd := forall₂_drop HM sourceDecl.types.length
+      · have HMd := Lean4Lean.List.forall₂_drop HM sourceDecl.types.length
         have HP := Hpending.auxiliaryFamilies envTypes direct htypes hmapM
         have Hnames := forall₂_of_map_eq (f := ContainerSpecialization.auxiliary)
           (g := fun t : VInductiveType => t.name) hnames
@@ -369,74 +361,6 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
         rw [C.typeValues, C.constructorValues, C.recursorValues]
       rw [← hvalues]
       exact VEnv.addConstVals_names_nodup C.canonical.productionTrace.abstract }
-
-/-- `CompilationData` for the lowered declaration of a validated nested run,
-with the container specializations of `containerSpecializationFacts`,
-modulo `NestedCompilationPending`.  The facts about the specializations are
-returned alongside, for discharging the pending fields. -/
-theorem NestedValidatedRunResult.compilationData_of
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (C : NestedFinalAssemblyShape E.restoration
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hC : C.production = E.production) :
-    ∃ (envTypes : VEnv) (auxiliaries : List ContainerSpecialization),
-      (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
-        sourceDecl.typeConstants = some envTypes ∧
-      envTypes.WF ∧
-      auxiliaries.map (·.auxiliary) =
-        (E.production.loweredDecl.types.drop sourceDecl.types.length).map
-          (·.name) ∧
-      auxiliaries.flatMap (·.headNames) =
-        familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
-      CertifiedSpecializations (ves.venv (if isUnsafe then .unsafe else .safe))
-        auxiliaries ∧
-      (∀ params : List VExpr,
-        VEnv.IsDefEqCtx envTypes sourceDecl.uvars [] params.reverse
-          E.production.headers.commonParameterContext →
-        ∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl params) ∧
-      (∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl
-        E.production.compilationSignature.params) ∧
-      (compilationRestoration sourceDecl auxiliaries).Scoped ∧
-      (∀ (U : Nat) (params : List VExpr), ∃ direct,
-        auxiliaries.mapM (fun a => a.directFamily U params) = some direct ∧
-        List.Forall₂ (DirectFamilyShape U) auxiliaries direct) ∧
-      (∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors,
-        result.restoreCtorName E.loweredEnv (a.constructorName ctor) =
-          (compilationRestoration sourceDecl auxiliaries).restoredHeadName
-            (a.constructorName ctor)) ∧
-      (∀ name, (compilationRestoration sourceDecl auxiliaries).recursorName name =
-        ((Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.find? name).getD
-          name) ∧
-      (NestedCompilationPending
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-          E.production.compilationSignature E.production.compilationInstance
-          auxiliaries
-          (canonicalRestoredBlock sourceDecl C.primaryRecursors
-            C.auxiliaryRecursors C.primaryRules C.auxiliaryRules) →
-        CompilationData (ves.venv (if isUnsafe then .unsafe else .safe))
-          sourceDecl E.production.loweredDecl E.production.compilationSignature
-          E.production.compilationInstance auxiliaries
-          (canonicalRestoredBlock sourceDecl C.primaryRecursors
-            C.auxiliaryRecursors C.primaryRules C.auxiliaryRules)) := by
-  obtain ⟨envTypes, auxiliaries, htypes, henvTypes, hnames, hheadNames,
-    hcertified, hwellFormedAll, _hlink, hwellFormed, hscoped, hdirect,
-    hctorNames, hrecursorNames⟩ := E.containerSpecializationFacts wf Hsources
-  have hparams : E.production.compilationSignature.params =
-      E.production.constructors.completed.parameterScope.toCtx.reverse :=
-    E.production.loweredConstruction.consumedGeneration.params
-  exact ⟨envTypes, auxiliaries, htypes, henvTypes, hnames, hheadNames,
-    hcertified, hwellFormedAll, hparams ▸ hwellFormed, hscoped, hdirect,
-    hctorNames, hrecursorNames,
-    E.compilationData_of_specializations C hC htypes hnames hwellFormed hscoped
-      hdirect⟩
 
 end VerifyInductive
 end Lean4Lean

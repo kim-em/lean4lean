@@ -151,58 +151,6 @@ private theorem restoreConstructorDecl_validationWF
         output := rfl }⟩⟩
   next other hlookup => simp at hout
 
-structure ConstructorValidationFamilyStep
-    (result : Lean4Lean.ElimNestedInductive.Result)
-    (loweredEnv : Environment) (allIndNames : List Name)
-    (allowPrimitive : Bool) (indType : InductiveType)
-    (sourceEnv targetEnv : Environment) where
-  headerEnv : Environment
-  header : ConstructorValidationHeaderStep loweredEnv allIndNames indType.name
-    sourceEnv headerEnv
-  constructors : ConstructorValidationStateTrace
-    (ConstructorValidationConstructorStep result loweredEnv allowPrimitive)
-    header.oldInfo.ctors headerEnv targetEnv
-
-private theorem restoreInductiveConstructors_validationWF
-    (result : Lean4Lean.ElimNestedInductive.Result)
-    (loweredEnv sourceEnv : Environment) (allIndNames : List Name)
-    (allowPrimitive : Bool) (indType : InductiveType)
-    (oldInfo : InductiveVal)
-    (hlookup : loweredEnv.find? indType.name = some (.inductInfo oldInfo)) :
-    (Lean4Lean.restoreInductiveConstructors result loweredEnv allIndNames
-      allowPrimitive indType sourceEnv).WF fun out =>
-        out.1 = () ∧ Nonempty (ConstructorValidationFamilyStep result
-          loweredEnv allIndNames allowPrimitive indType sourceEnv out.2) := by
-  unfold Lean4Lean.restoreInductiveConstructors
-  simp only [hlookup]
-  exact (restoreInductiveHeaderDecl_validationWF loweredEnv sourceEnv
-    allIndNames allowPrimitive indType.name).bind fun out Hout => by
-        rcases out with ⟨unit, headerEnv⟩
-        rcases unit with ⟨⟩
-        rcases Hout with ⟨_, ⟨Hheader⟩⟩
-        have holdInfo : Hheader.oldInfo = oldInfo := by
-          have hci := Option.some.inj (Hheader.lookup.symm.trans hlookup)
-          exact ConstantInfo.inductInfo.inj hci
-        cases holdInfo
-        have Hctors := constructorValidationForM_refines
-          (fun ctorName => Lean4Lean.restoreConstructorDecl result loweredEnv
-            allowPrimitive ctorName)
-          (ConstructorValidationConstructorStep result loweredEnv
-            allowPrimitive)
-          Hheader.oldInfo.ctors
-          (fun ctorName _ currentEnv =>
-            restoreConstructorDecl_validationWF result loweredEnv currentEnv
-              allowPrimitive ctorName)
-          headerEnv
-        exact Hctors.mono fun out Hout => by
-          rcases out with ⟨unit, targetEnv⟩
-          rcases unit with ⟨⟩
-          rcases Hout with ⟨_, ⟨Hconstructors⟩⟩
-          exact ⟨trivial, ⟨{
-            headerEnv := headerEnv
-            header := Hheader
-            constructors := Hconstructors }⟩⟩
-
 structure ConstructorValidationConstructorFamilyStep
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv : Environment) (allowPrimitive : Bool)

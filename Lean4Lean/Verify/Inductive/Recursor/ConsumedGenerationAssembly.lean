@@ -939,16 +939,6 @@ theorem VExpr.liftN_liftN_comm (e : VExpr) (n m k j : Nat) (h : j ≤ k) :
     rw [Nat.add_right_comm]
 
 
-theorem VExpr.wrapForalls_inj_of_length {l₁ l₂ : List VExpr} {a b : VExpr}
-    (hlen : l₁.length = l₂.length) (h : VExpr.wrapForalls l₁ a = VExpr.wrapForalls l₂ b) :
-    l₁ = l₂ ∧ a = b := by
-  have h1 := VExpr.takeForalls_wrapForalls l₁ a
-  have h2 := VExpr.takeForalls_wrapForalls l₂ b
-  rw [h, hlen] at h1
-  have := h1.symm.trans h2
-  simp only [Option.some.injEq, Prod.mk.injEq] at this
-  exact ⟨this.1, this.2⟩
-
 theorem VExpr.forallArity_app (f a : VExpr) : (VExpr.app f a).forallArity = 0 := rfl
 
 theorem hypothesisForm_app (levels : List VLevel) (nf nfam prior j pos target : Nat)

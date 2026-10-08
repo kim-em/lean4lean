@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.PrimitiveFormation
+import Lean4Lean.Verify.Inductive.CompletedRecursorSetup
 
 namespace Lean4Lean
 

@@ -1,4 +1,5 @@
-import Lean4Lean.Verify.Inductive.PrimitiveAddInduct
+import Lean4Lean.Verify.Inductive.PrimitiveRunWithStats
+import Lean4Lean.Verify.Inductive.CompletedRuleTranslation
 
 namespace Lean4Lean
 

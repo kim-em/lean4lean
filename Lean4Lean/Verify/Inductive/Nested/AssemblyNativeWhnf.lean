@@ -32,23 +32,6 @@ namespace InductiveSignature
 
 
 
-theorem Restoration.recursorName_ne_of_mem {r : Restoration}
-    (hne : ∀ p ∈ r.recursors, p.2 ≠ p.1) {name : Name}
-    (h : name ∈ r.recursors.map Prod.fst) : r.recursorName name ≠ name := by
-  unfold Restoration.recursorName
-  split
-  · next pair hfind =>
-    have hmem := List.mem_of_find?_eq_some hfind
-    have heq := List.find?_some hfind
-    simp only [beq_iff_eq] at heq
-    rw [← heq]
-    exact hne pair hmem
-  · next hfind =>
-    obtain ⟨pair, hpair, rfl⟩ := List.mem_map.mp h
-    have := List.find?_eq_none.mp hfind pair hpair
-    simp at this
-
-
 end InductiveSignature
 
 namespace VerifyInductive

@@ -65,18 +65,6 @@ open InductiveSignature
 
 namespace VExpr
 
-theorem projNamesAvoid_of_containsAnyConst {names : List Name} :
-    ∀ {e : VExpr}, e.containsAnyConst names = false → e.projNamesAvoid names = true
-  | .bvar _, _ | .sort _, _ | .elim .., _ | .const .., _ => rfl
-  | .app f a, h | .lam f a, h | .forallE f a, h => by
-    simp only [containsAnyConst, Bool.or_eq_false_iff] at h
-    simp [projNamesAvoid, projNamesAvoid_of_containsAnyConst h.1,
-      projNamesAvoid_of_containsAnyConst h.2]
-  | .proj n i e, h => by
-    simp only [containsAnyConst, Bool.or_eq_false_iff] at h
-    simp only [projNamesAvoid, Bool.and_eq_true, Bool.not_eq_true']
-    exact ⟨h.1, projNamesAvoid_of_containsAnyConst h.2⟩
-
 end VExpr
 
 namespace InductiveSignature
@@ -94,18 +82,11 @@ theorem Restoration.renaming_of_find_none {r : Restoration} {n : Name}
     r.renaming n = r.recursorName n := by
   simp [Restoration.renaming, h]
 
-theorem Restoration.find?_none_of_not_mem {r : Restoration} {n : Name}
-    (h : n ∉ r.heads.map (·.auxiliary)) :
-    r.heads.find? (fun h => h.auxiliary == n) = none := by
-  apply List.find?_eq_none.mpr
-  intro head hmem heq
-  exact h (List.mem_map.mpr ⟨head, hmem, by simpa using heq⟩)
-
 theorem Restoration.renaming_eq_self {r : Restoration} {n : Name}
     (h : n ∉ r.restorableNames) : r.renaming n = n := by
   have h1 : n ∉ r.heads.map (·.auxiliary) := fun hm => h (List.mem_append_left _ hm)
   have h2 : n ∉ r.recursors.map Prod.fst := fun hm => h (List.mem_append_right _ hm)
-  rw [Restoration.renaming_of_find_none (Restoration.find?_none_of_not_mem h1),
+  rw [Restoration.renaming_of_find_none (Restoration.heads_find?_eq_none h1),
     Restoration.recursorName_of_not_mem h2]
 
 theorem Restoration.lambdaReplacement_eq_none_of_not_restorable {r : Restoration}
@@ -1014,7 +995,7 @@ theorem NestedValidatedRunResult.restoredEliminators
   refine ⟨Restoration.projNamesFixed_of_avoid hl, Restoration.projNamesFixed_of_avoid hr,
     Restoration.projNamesFixed_of_avoid ht, ?_⟩
   refine CaseSchema.genericEquations_restorable rfl key owner (fun type htype => ?_) h df hdf
-  obtain ⟨type', h', -⟩ := ShapeModel.VEnv.WF.eliminator_genericType_closed hSwf hreg owner
+  obtain ⟨type', h', -⟩ := EnvTables.VEnv.WF.eliminator_genericType_closed hSwf hreg owner
   have := CaseSchema.genericType_withRestoration (schema :=
     CaseSchema.ofCompilation E.production.loweredDecl sL []) rfl htype
     (sourceDecl.types.map fun t : VInductiveType => t.name)
@@ -1151,61 +1132,6 @@ theorem NestedValidatedRunResult.restoredEquationSubstitution
   have S₂ := RenamingReplacement.ofAddConstants_recursors hSwf hnp
     E.production.production.installed S₁ hrecs
   exact RenamingRestorationSubstitutionOnCtx.of_lambda S₂ hnp
-
-/-- `HrestoredWF` from a renaming restoration substitution from the lowered
-recursor environment to the final abstract environment of each shape, under
-which the projection names of the generated equations are fixed. -/
-theorem NestedValidatedRunResult.hrestoredWF_of_substitution
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (HS : ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ C : NestedFinalAssemblyShape E.restoration
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        C.production = E.production →
-        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
-          (Lean4Lean.stripRecursorRules outEnv
-            (Lean4Lean.restoredRecursorNames
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
-        ∃ ρ σ, RenamingRestorationSubstitution C.finalBaseVEnv
-            E.production.production.outVEnv
-            (compilationRestoration sourceDecl auxiliaries) ρ σ ∧
-          ∀ k : Fin E.production.production.generationSignature.constructors.size,
-            (E.production.production.canonicalGeneration.equation k).lhs.ProjNamesFixed σ ∧
-            (E.production.production.canonicalGeneration.equation k).rhs.ProjNamesFixed σ ∧
-            (E.production.production.canonicalGeneration.equation k).type.ProjNamesFixed
-              σ) :
-    ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ C : NestedFinalAssemblyShape E.restoration
-          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        C.production = E.production →
-        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
-          (Lean4Lean.stripRecursorRules outEnv
-            (Lean4Lean.restoredRecursorNames
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
-        ∀ (k : Fin E.production.production.generationSignature.constructors.size)
-          (rule : VDefEq),
-          (compilationRestoration sourceDecl auxiliaries).equation
-              (E.production.production.canonicalGeneration.equation k) =
-            some rule →
-          rule.WF C.finalBaseVEnv := by
-  intro auxiliaries D C hC hV k rule hrule
-  obtain ⟨ρ, σ, S, hfix⟩ := HS auxiliaries D C hC hV
-  obtain ⟨hl, hr, ht⟩ := hfix k
-  exact Restoration.equation_wf' S hV.tr.wf.betaSubjectReduction (E.loweredEquationWF k)
-    hl hr ht hrule
 
 /-- **`HrestoredWF` of `NestedValidatedRunResult.hruleShape_of`**: every
 restored generated equation is well formed in the final abstract environment

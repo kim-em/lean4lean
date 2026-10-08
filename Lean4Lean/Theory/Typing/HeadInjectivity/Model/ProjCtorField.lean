@@ -193,25 +193,6 @@ theorem ArgsTyped.of_substEq {D : List VExpr} {R0 : VExpr} :
 
 /-! ## The family header at a given origin -/
 
-theorem takeForalls_eq_wrapForalls'' :
-    ∀ {n : Nat} {type result : VExpr} {domains : List VExpr},
-      type.takeForalls n = some (domains, result) →
-      type = VExpr.wrapForalls domains result ∧ domains.length = n
-  | 0, type, result, domains, H => by
-    cases Option.some.inj H
-    exact ⟨rfl, rfl⟩
-  | n + 1, type, result, domains, H => by
-    cases type with
-    | forallE domain body =>
-      cases htail : body.takeForalls n with
-      | none => simp [VExpr.takeForalls, htail] at H
-      | some out =>
-        rw [VExpr.takeForalls, htail] at H
-        cases Option.some.inj H
-        have ih := takeForalls_eq_wrapForalls'' htail
-        exact ⟨congrArg (VExpr.forallE domain) ih.1, by simp [ih.2]⟩
-    | bvar | sort | const | elim | app | lam | proj => simp [VExpr.takeForalls] at H
-
 /-- `VEnv.ProjOrigin.familyTele_data` at the types environment of a given origin. -/
 theorem _root_.Lean4Lean.VEnv.ProjOriginAt.familyTele_data {envTypes : VEnv} {S : Name}
     {info : VProjectionInfo} (h : env.ProjOriginAt envTypes S info) :
@@ -239,8 +220,8 @@ theorem _root_.Lean4Lean.VEnv.ProjOriginAt.familyTele_data {envTypes : VEnv} {S 
   cases htypes0.symm.trans htypes
   obtain ⟨normalized, ownParams, afterParams, indices, result, exprType, hT, hP, hI, hPD,
     hres⟩ := HT type htype
-  obtain ⟨hn1, hn2⟩ := takeForalls_eq_wrapForalls'' hP
-  obtain ⟨ha1, ha2⟩ := takeForalls_eq_wrapForalls'' hI
+  obtain ⟨hn1, hn2⟩ := VExpr.takeForalls_eq_wrapForalls hP
+  obtain ⟨ha1, ha2⟩ := VExpr.takeForalls_eq_wrapForalls hI
   obtain ⟨ctorParams, tail, htake, hCPD⟩ := HC type htype ctor (by rw [hctors]; simp)
   have hsplit : doms = doms.take info.nparams ++ doms.drop info.nparams :=
     (List.take_append_drop _ _).symm
@@ -407,12 +388,12 @@ theorem ProjValid.ctx (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U)) {S : 
   obtain ⟨wc, hct⟩ := IsType.instL hls hwfT
   simp only [List.map_nil] at hct
   have hctS := hsE (IsDefEq.strong hord (show OnCtx [] (envTypes.IsType U) from trivial) hct)
-  rw [hshape', VExpr.instL_wrapForalls_pt] at hct hctS
+  rw [hshape', VExpr.instL_wrapForalls] at hct hctS
   -- the family header at `ls`
   have hsortL : ∀ l : VLevel, (VExpr.sort l).instL ls = .sort (l.inst ls) := fun _ => rfl
   have hT' := hT.instL hls
   have hconv' := hconv.instL hls
-  simp only [List.map_nil, VExpr.instL_wrapForalls_pt, List.map_append, hsortL] at hT' hconv'
+  simp only [List.map_nil, VExpr.instL_wrapForalls, List.map_append, hsortL] at hT' hconv'
   have sT := (hsE (IsDefEq.strong hord (show OnCtx [] (envTypes.IsType U) from trivial)
     hT')).1 .id .id .empty .nil TV.empty TV.empty
   have sC := (hsE (IsDefEq.strong hord (show OnCtx [] (envTypes.IsType U) from trivial)
@@ -439,7 +420,7 @@ theorem ProjValid.ctx (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U)) {S : 
       famPi := piSD_of hord hle hsE' trivial hfamTy
       famClosed := fun i hi => closed_doms_of_isType henv hfamTy' i (by simpa using hi)
       ctorClosed := fun i hi => closed_doms_of_isType henv
-        (by rw [← VExpr.instL_wrapForalls_pt, ← hshape']; exact IsType.instL hls hwf) i
+        (by rw [← VExpr.instL_wrapForalls, ← hshape']; exact IsType.instL hls hwf) i
           (by simpa using hi)
       bridge := ?_ }⟩
   · obtain ⟨v, h⟩ := HTS.wrapForalls_body hctS.2.1

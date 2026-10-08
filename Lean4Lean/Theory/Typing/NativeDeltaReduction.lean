@@ -70,42 +70,6 @@ theorem NativeDeltaRule.unique
       cases NativeRecursorData.singletonProgram_unique hg hg'
       rfl
 
-/-- Construct a checked delta occurrence from its substantive typing checks.
-The generator proves all arities/parser facts, and registration supplies the
-actual installed equation. These are not extra producer assumptions. -/
-theorem NativeDeltaRule.ofGenerated {data : NativeRecursorData}
-    {program : NativeRecursorData.PrefixProgram}
-    (hlookup : registry name = some data) (hregistered : NativeRecursorRegistered env data)
-    (hname : data.name = name) (hlarge : data.largeTarget = true)
-    (hlevels : ∀ level ∈ levels, level.WF U) (hprop : data.sourceLevel levels ≈ .zero)
-    (hgen : data.singletonProgram env U levels arguments = some program)
-    (hsource : HasType env U Γ (VExpr.mkApps (.const name levels) arguments) program.type)
-    (hcaptures : ∀ j (hj : j < program.captures.length)
-        (hd : j < program.equationBody.domains.length),
-      HasType env U (program.domains.reverse ++ Γ) program.captures[j]
-        ((program.equationBody.domains[j].instL program.levels).instOuter (program.captures.take j)))
-    (hmajor : ∃ majorType,
-      HasType env U (program.domains.reverse ++ Γ) majorType (.sort .zero) ∧
-      HasType env U (program.domains.reverse ++ Γ) (.bvar 0) majorType ∧
-      HasType env U (program.domains.reverse ++ Γ) program.constructor majorType)
-    (hmatch : NativeSpineMatch env U (program.domains.reverse ++ Γ)
-      (.app (nativeEtaBody (program.domains.length - 1)
-        (VExpr.mkApps (.const name levels) arguments)).lift program.constructor)
-      ((program.equationBody.lhs.instL program.levels).instOuter program.captures)) :
-    NativeDeltaRule env U registry Γ name levels arguments program.rhs := by
-  obtain ⟨_, hn, hls, hlen, heq, hbody, hargs⟩ := NativeRecursorData.singletonProgram_spec hgen
-  exact .intro hlookup hregistered hname hlarge hlevels hprop hgen {
-    source_typed := hsource
-    remaining_nonempty := hn
-    equation_present := hregistered.singletonEquation heq
-    equation_body := hbody
-    levels_wf := hls ▸ hlevels
-    levels_length := hlen
-    captures_length := hargs
-    captures_typed := hcaptures
-    major_prop := hmajor
-    native_lhs := hmatch }
-
 /-- Replaying the installed equation under the fresh telescope is sound.
 The proof uses only ordinary equation application, beta, eta, and proof
 irrelevance at the explicitly checked major proposition. -/
@@ -196,25 +160,5 @@ theorem NativePrefixReplay.templateScope (henv : env.WF)
     by simpa only [Nat.zero_add, H.captures_length] using closed_wrapLams_body hr,
     fun j hj => by simpa only [Nat.zero_add] using closed_wrapForalls_domain ht hj⟩
 
-
-theorem NativePrefixReplay.major_prop_at_last (henv : env.WF)
-    (hΓ : OnCtx Γ (env.IsType U))
-    (H : NativePrefixReplay env U Γ source program)
-    (hlast : program.domains.getLast? = some domain) :
-    env.HasType U (program.domains.reverse ++ Γ) domain.lift (.sort .zero) ∧
-    env.HasType U (program.domains.reverse ++ Γ) (.bvar 0) domain.lift ∧
-    env.HasType U (program.domains.reverse ++ Γ) program.constructor domain.lift := by
-  have hctx := (H.source_typed.native_open henv.ordered hΓ).1
-  have hb : env.HasType U (program.domains.reverse ++ Γ) (.bvar 0) domain.lift := by
-    rw [List.getLast?_eq_head?_reverse] at hlast
-    cases he : program.domains.reverse with
-    | nil => simp [he] at hlast
-    | cons d ds =>
-      simp only [he, List.head?_cons, Option.some.injEq] at hlast
-      subst d
-      exact .bvar .zero
-  obtain ⟨majorType, hp, hm, hc⟩ := H.major_prop
-  have heq := hm.uniqU henv hctx hb
-  exact ⟨hp.defeqU_l henv hctx heq, hb, hc.defeqU_r henv hctx heq⟩
 
 end Lean4Lean.VEnv

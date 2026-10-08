@@ -7,6 +7,7 @@ import Lean4Lean.Verify.Inductive.Nested.AuxiliaryConstructorRestoration
 import Lean4Lean.Verify.Inductive.Nested.RestorationAgreement
 import Lean4Lean.Verify.Inductive.Nested.FinalShapes
 import Lean4Lean.Verify.Inductive.Nested.WhnfHitShape
+import Lean4Lean.Std.List
 
 /-! # Certified case eliminators of a nested declaration
 
@@ -25,15 +26,6 @@ namespace Lean4Lean.VerifyInductive
 
 open Lean hiding Environment Exception
 open Lean.Kernel
-
-private theorem forall₂_drop' {R : α → β → Prop} :
-    ∀ {l : List α} {r : List β} (_ : List.Forall₂ R l r) (k : Nat),
-      List.Forall₂ R (l.drop k) (r.drop k)
-  | _, _, .nil, _ => by simp
-  | _, _, .cons h t, 0 => by simpa using List.Forall₂.cons h t
-  | _, _, .cons _ t, k + 1 => by
-    simp only [List.drop_succ_cons]
-    exact forall₂_drop' t k
 
 /-- Constants with distinct names that are fresh in an environment can be installed in it. -/
 theorem VEnv.addConstVals_exists_of_fresh :
@@ -136,7 +128,7 @@ private theorem forall₂_append_left_split' {R : α → β → Prop}
     List.Forall₂ R l₁ (r.take l₁.length) ∧
       List.Forall₂ R l₂ (r.drop l₁.length) := by
   have h₁ := forall₂_take' H l₁.length
-  have h₂ := forall₂_drop' H l₁.length
+  have h₂ := Lean4Lean.List.forall₂_drop H l₁.length
   simp only [List.take_left', List.drop_left'] at h₁ h₂
   exact ⟨h₁, h₂⟩
 
@@ -327,7 +319,7 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
             normalized.ctors family.ctors)
         (B.sourceSignature.declaration.types.drop sourceDecl.types.length) direct :=
     fun direct hmapM => sourceConstructors_of_substitution S henvTypes.betaSubjectReduction
-      (forall₂_drop' Hdefeq sourceDecl.types.length)
+      (Lean4Lean.List.forall₂_drop Hdefeq sourceDecl.types.length)
       (auxiliaryLoweredConstructors_restore henvTypes Haux HauxRestoring hPL hfreshAll
         hlevelsAux hmapM)
       (fun n hn => htotal n (List.mem_of_mem_drop hn))
@@ -357,7 +349,7 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
       henvTypes (VEnv.addConstVals_le hadded) Haux Hexpansion ?_ ?_ hloweredUvars
       hloweredNparams hPL ?_ hmapM (HauxRestore direct hmapM)
     · exact Lean4Lean.List.Forall₂.imp (fun _ _ h => ⟨h.2.2.1, h.2.2.2.1, h.2.2.2.2⟩)
-        (forall₂_drop' HmodelsL.families sourceDecl.types.length)
+        (Lean4Lean.List.forall₂_drop HmodelsL.families sourceDecl.types.length)
     · intro t ht
       have h := E.production.headers.headers.typeShapes t (List.mem_of_mem_drop ht)
       generalize E.production.headers.headers.params = hp at h ⊢
@@ -421,7 +413,7 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
       rw [B.sourceSignature.declaration_ctor_uvars a
         (List.mem_of_mem_take ha) n hn, HmodelsL.uvars, hloweredUvars,
         HsourceWF.2.2.2.1 c (List.mem_flatMap.mpr ⟨src, hsrc, hc⟩)]
-    · have HMd := forall₂_drop' HM sourceDecl.types.length
+    · have HMd := Lean4Lean.List.forall₂_drop HM sourceDecl.types.length
       have HP := HauxFamilies direct hmapM
       have Hnames := forall₂_of_map_eq' (f := ContainerSpecialization.auxiliary)
         (g := fun t : VInductiveType => t.name) hnames

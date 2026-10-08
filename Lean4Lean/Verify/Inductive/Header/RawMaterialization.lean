@@ -60,27 +60,6 @@ def empty (env : VEnv) (Us : List Name) (indTypes : Array InductiveType) :
     MaterializedSourceHeaderTraversal env Us indTypes 0 where
   accumulator := MaterializedSourceHeaderAccumulator.empty env Us
 
-def next (H : MaterializedSourceHeaderTraversal env Us indTypes dIdx)
-    (hidx : dIdx < indTypes.size) (target : VConstVal)
-    (Htarget : TrSourceConst env Us indTypes[dIdx].name
-      indTypes[dIdx].type target) :
-    MaterializedSourceHeaderTraversal env Us indTypes (dIdx + 1) where
-  accumulator := by
-    rw [List.take_succ_eq_append_getElem (by simpa using hidx)]
-    exact H.accumulator.snoc indTypes[dIdx] target Htarget
-
-def complete (H : MaterializedSourceHeaderTraversal env Us indTypes dIdx)
-    (hdone : indTypes.size ≤ dIdx) :
-    MaterializedSourceHeaderAccumulator env Us indTypes.toList := by
-  have htake : indTypes.toList.take dIdx = indTypes.toList :=
-    List.take_of_length_le (by simpa using hdone)
-  rw [← htake]
-  exact H.accumulator
-
-def raw (H : MaterializedSourceHeaderTraversal env Us indTypes dIdx) :
-    CheckedSourceHeaderTraversal env Us indTypes dIdx where
-  accumulator := H.accumulator.raw
-
 end MaterializedSourceHeaderTraversal
 
 namespace TrSourceConstRaw
@@ -119,69 +98,6 @@ theorem checkedOfForallTranslation
 end TrSourceConstRaw
 
 namespace checkInductiveTypes.loopType
-
-/-- The source-only telescope accumulated by `loopType` is sufficient to
-recover well-formedness of the original abstract header once `ensureSort`
-has checked its terminal result.  In particular, this step needs no
-caller-provided well-formed header skeleton. -/
-theorem HeaderTelescopeLoopCertificate.checkedSource
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {source : InductiveType} {target : VInductiveTypeSkeleton}
-    {root current exprType : VExpr} {i nindices : Nat}
-    (H : HeaderTelescopeLoopCertificate Hc root current i nindices)
-    (Hsource : TrSourceConstRaw Hc.venv c.lparams source.name source.type
-      target.toVConstVal)
-    (hheader : Hc.venv.IsDefEq c.lparams.length []
-      target.type root exprType)
-    (hcurrent : Hc.venv.IsType c.lparams.length
-      Hc.mlctx.vlctx.toCtx current) :
-    TrSourceConst Hc.venv c.lparams source.name source.type
-      target.toVConstVal := by
-  have hsemanticCurrent : Hc.venv.IsType c.lparams.length
-      (H.indices.reverse ++ H.params.reverse) current :=
-    hcurrent.defeqDFC Hc.checking.tr.wf.ordered
-      (H.telescope.context.symm Hc.checking.tr.wf.ordered)
-  have hwrapped : Hc.venv.IsType c.lparams.length []
-      (VExpr.wrapForalls (H.params ++ H.indices) current) :=
-    VEnv.IsType.wrapForalls (by
-      simpa [List.reverse_append] using H.telescope.context.isType)
-      (by simpa [List.reverse_append] using hsemanticCurrent)
-  have hroot : Hc.venv.IsType c.lparams.length [] root := by
-    simpa [H.telescope.rebuild] using hwrapped
-  have htarget : Hc.venv.IsType c.lparams.length [] target.type :=
-    hroot.defeqU_l Hc.checking.tr.wf (by trivial) hheader.toU.symm
-  exact {
-    uvars := Hsource.uvars
-    name := Hsource.name
-    type := Hsource.type
-    wf := by
-      change Hc.venv.IsType target.uvars [] target.type
-      rw [Hsource.uvars]
-      exact htarget }
-
-/-- `ensureSort` supplies the terminal `IsType` premise needed by
-`checkedSource`; the translated result universe remains available to the
-outer header fold as semantic metadata. -/
-theorem HeaderTelescopeLoopCertificate.checkedSourceOfSort
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {source : InductiveType} {target : VInductiveTypeSkeleton}
-    {root current exprType : VExpr} {i nindices : Nat}
-    (H : HeaderTelescopeLoopCertificate Hc root current i nindices)
-    (Hsource : TrSourceConstRaw Hc.venv c.lparams source.name source.type
-      target.toVConstVal)
-    (hheader : Hc.venv.IsDefEq c.lparams.length []
-      target.type root exprType)
-    (hsort : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
-      (.sort resultSort) current) :
-    ∃ resultLevel,
-      VLevel.ofLevel c.lparams resultSort = some resultLevel ∧
-      TrSourceConst Hc.venv c.lparams source.name source.type
-        target.toVConstVal := by
-  rcases TrExpr.sort_result Hc.checking.tr.wf
-      Hc.mlctx_wf.tr.wf.toCtx hsort with
-    ⟨resultLevel, hofLevel, hcurrent⟩
-  exact ⟨resultLevel, hofLevel,
-    H.checkedSource Hsource hheader ⟨_, hcurrent.hasType.1⟩⟩
 
 end checkInductiveTypes.loopType
 

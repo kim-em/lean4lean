@@ -604,53 +604,6 @@ theorem RestorationSubstitution.expr_simAt {envS envL : VEnv} {r : Restoration}
     (h : r.expr e = some e') : envS.SimAt U Γ (e.replaceConsts ρ) e' :=
   S.go_simAt hβ e (as := []) hΓ .nil h
 
-theorem RestorationSubstitution.onCtx {envS envL : VEnv} {r : Restoration}
-    {ρ : Name → Option VExpr} (S : RestorationSubstitution envS envL r ρ) :
-    ∀ {Γ : List VExpr}, OnCtx Γ (envL.IsType U) →
-      OnCtx (Γ.map (·.replaceConsts ρ)) (envS.IsType U)
-  | [], _ => trivial
-  | _ :: _, ⟨hΓ, _, hA⟩ => ⟨S.onCtx hΓ, _, S.isDefEq hA⟩
-
-/-- Restoration of a derivation of the lowered environment, in an arbitrary
-well-formed context whose entries are restored pointwise. -/
-theorem Restoration.expr_isDefEq {envS envL : VEnv} {r : Restoration}
-    {ρ : Name → Option VExpr} (S : RestorationSubstitution envS envL r ρ)
-    (hβ : envS.BetaSubjectReduction U) {Γ Γ' : List VExpr}
-    (hΓ : OnCtx Γ (envL.IsType U))
-    (H : envL.IsDefEq U Γ e₁ e₂ A) (he₁ : r.expr e₁ = some e₁')
-    (he₂ : r.expr e₂ = some e₂') (hA : r.expr A = some A')
-    (hΓ' : List.Forall₂ (fun d d' => r.expr d = some d') Γ Γ') :
-    envS.IsDefEq U Γ' e₁' e₂' A' := by
-  have henv := S.ordered
-  have hΓσ := S.onCtx hΓ
-  have Hσ := S.isDefEq H
-  have h1 := S.expr_simAt hβ hΓσ he₁ _ Hσ.hasType.1
-  have h2 := S.expr_simAt hβ hΓσ he₂ _ Hσ.hasType.2
-  obtain ⟨u, hAσ⟩ := Hσ.isType henv hΓσ
-  have h3 := S.expr_simAt hβ hΓσ hA _ hAσ
-  have Heq : envS.IsDefEq U (Γ.map (·.replaceConsts ρ)) e₁' e₂' A' :=
-    .defeqDF h3 (h1.symm.trans (Hσ.trans h2))
-  have hctx : ∀ {Γ Γ'}, OnCtx Γ (envL.IsType U) →
-      List.Forall₂ (fun d d' => r.expr d = some d') Γ Γ' →
-      IsDefEqCtx envS U [] (Γ.map (·.replaceConsts ρ)) Γ' := by
-    intro Γ Γ' hΓ hΓ'
-    induction hΓ' with
-    | nil => exact .zero
-    | cons hd _ ih =>
-      obtain ⟨hΓ, _, hA⟩ := hΓ
-      have hAσ := S.isDefEq hA
-      exact .succ (ih hΓ) (S.expr_simAt hβ (S.onCtx hΓ) hd _ hAσ)
-  exact Heq.defeqDFC henv (hctx hΓ hΓ')
-
-theorem Restoration.expr_hasType {envS envL : VEnv} {r : Restoration}
-    {ρ : Name → Option VExpr} (S : RestorationSubstitution envS envL r ρ)
-    (hβ : envS.BetaSubjectReduction U) {Γ Γ' : List VExpr}
-    (hΓ : OnCtx Γ (envL.IsType U))
-    (H : envL.HasType U Γ e A) (he : r.expr e = some e') (hA : r.expr A = some A')
-    (hΓ' : List.Forall₂ (fun d d' => r.expr d = some d') Γ Γ') :
-    envS.HasType U Γ' e' A' :=
-  Restoration.expr_isDefEq S hβ hΓ H he he hA hΓ'
-
 /-- The closed-context form, which needs no restoration of the type. -/
 theorem Restoration.expr_isDefEqU {envS envL : VEnv} {r : Restoration}
     {ρ : Name → Option VExpr} (S : RestorationSubstitution envS envL r ρ)
@@ -663,19 +616,6 @@ theorem Restoration.expr_isDefEqU {envS envL : VEnv} {r : Restoration}
   have h1 := S.expr_simAt hβ (Γ := []) trivial he₁ _ Hσ.hasType.1
   have h2 := S.expr_simAt hβ (Γ := []) trivial he₂ _ Hσ.hasType.2
   exact ⟨_, h1.symm.trans (Hσ.trans h2)⟩
-
-/-- The nested constructor correspondence: a normalized constructor type that
-is definitionally equal in the lowered environment to the expanded constructor
-type restores to the restoration of the expanded type. -/
-theorem RestoresType.of_models_constructor {envS envL : VEnv} {r : Restoration}
-    {ρ : Name → Option VExpr} {uvars : Nat} (S : RestorationSubstitution envS envL r ρ)
-    (hβ : envS.BetaSubjectReduction uvars)
-    (hdefeq : envL.IsDefEqU uvars [] normalized expandedType)
-    (hrestored : r.expr expandedType = some sourceType)
-    (hnorm : ∃ restored, r.expr normalized = some restored) :
-    RestoresType r envS uvars normalized sourceType := by
-  obtain ⟨restored, hn⟩ := hnorm
-  exact ⟨restored, hn, Restoration.expr_isDefEqU S hβ hdefeq hn hrestored⟩
 
 /-- Variant in which the source type is only definitionally equal (at every
 type of it) to the restoration of the expanded type. -/

@@ -86,20 +86,6 @@ private theorem InductiveConstructorsSemanticallyCoherent.mapProduction
   rcases H familyName familyInfo hfamily' hvisible i hi with ⟨C⟩
   exact ⟨C.mapProduction heq⟩
 
-/-- Forget the exact production alignment while retaining the independent
-source declaration and abstract extension specification. -/
-def NestedFinalEnvironmentResult.independentSpecification
-    (H : NestedFinalEnvironmentResult sourceEnv decl lparams nparams
-      sourceTypes isUnsafe safety outEnv) :
-    InductiveSpecificationResult sourceEnv lparams nparams sourceTypes
-      isUnsafe (H.baseVEnv.addDefEqRules
-        H.rules) where
-  decl := decl
-  envTypes := H.envTypes
-  envCtors := H.envCtors
-  source := H.sourceCore
-  extension := H.addInduct
-
 /-- Recover the replayable staged block before `NestedFinalEnvironmentResult`
 projects it to the independent `VEnv.AddInduct` judgment.  This is the exact
 canonical production batch retained by the nested final assembly certificate;

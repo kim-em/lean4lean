@@ -396,17 +396,6 @@ theorem validateRestoredRecursorRules.exactLambdaArity_sound
       rcases ih hcheck with ⟨residual, Htel, hresidual⟩
       exact ⟨residual, .cons Htel, hresidual⟩
 
-/-- A complete lambda telescope ending in a non-lambda computes back to its
-retained arity. -/
-theorem Expr.LambdaTelescope.getNumHeadLambdas_eq
-    (H : Expr.LambdaTelescope expression arity residual)
-    (hresidual : residual.getNumHeadLambdas = 0) :
-    expression.getNumHeadLambdas = arity := by
-  induction H with
-  | nil => exact hresidual
-  | cons H ih =>
-    simp [Expr.getNumHeadLambdas, ih hresidual]
-
 /-- A successful arity-indexed guard check retains both of its executable
 components: exact telescope cardinality and exact-field guardedness. -/
 theorem validateRestoredRecursorRules.of_checkGuardedWithFieldsAtArity
@@ -531,21 +520,6 @@ private theorem except_bind_success
   | ok intermediate =>
       simp only [hfirst, bind, Except.bind] at H
       exact ⟨intermediate, rfl, H⟩
-
-/-- A successful LHS reconstruction exposes the exact executable plan and
-the final prefix-preserving body replacement. -/
-theorem validateRestoredRecursorRules.buildEquationLhs_success
-    (H : Lean4Lean.validateRestoredRecursorRules.buildEquationLhs env recInfo
-      rule = .ok lhs) :
-    ∃ plan,
-      Lean4Lean.validateRestoredRecursorRules.buildEquationLhsPlan env recInfo
-          rule = .ok plan ∧
-      Lean4Lean.validateRestoredRecursorRules.replaceEquationBody rule.ctor
-        (recInfo.numParams + recInfo.numMotives + recInfo.numMinors +
-          rule.nfields)
-        rule.rhs (plan.body recInfo rule) = .ok lhs := by
-  unfold Lean4Lean.validateRestoredRecursorRules.buildEquationLhs at H
-  exact except_bind_success H
 
 /-- A successful canonical primary LHS reconstruction exposes the actual
 inferred plan together with the source-facing parameter canonicalization and

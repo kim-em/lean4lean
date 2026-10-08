@@ -45,17 +45,6 @@ theorem RestoreParamOpening.params_size
   | forallE _ ih | lam _ ih =>
     simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih
 
-theorem RestoreParamOpening.params_extension
-    (H : RestoreParamOpening lctx As e n outLctx outAs tail) :
-    ∃ suffix, outAs.toList = As.toList ++ suffix ∧ suffix.length = n := by
-  induction H with
-  | done => exact ⟨[], by simp⟩
-  | forallE H ih | lam H ih =>
-    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
-    rcases ih with ⟨suffix, heq, hlength⟩
-    refine ⟨(.fvar id) :: suffix, ?_, by simp [hlength]⟩
-    simpa [heq, List.append_assoc]
-
 /-- The free-variable-ID fragment of `FVarsIn`.  Unlike `FVarsIn`, this
 predicate intentionally says nothing about universe or expression
 metavariables; binder opening/closing cancellation depends only on free
@@ -129,21 +118,6 @@ theorem _root_.Lean.Expr.FVarIdsIn.abstractN_instantiate1
   rw [Expr.abstractN_singleton (hc.instantiate1 (a := Expr.fvar fv) trivial).looseBVarRange_le]
   exact H.abstract_instantiate1
 
-theorem _root_.Lean.Expr.FVarIdsIn.abstract1_of
-    {e : Expr} {selected : FVarId} {P : FVarId → Prop} {k : Nat}
-    (H : e.FVarIdsIn (fun fv => fv = selected ∨ P fv)) :
-    (e.abstract1 selected k).FVarIdsIn P := by
-  induction e generalizing k <;>
-    simp_all [Expr.FVarIdsIn, Expr.abstract1]
-  case fvar fv =>
-    split
-    next => trivial
-    next hne =>
-      rcases H with heq | hP
-      · subst fv
-        simp at hne
-      · exact hP
-
 theorem _root_.Lean.Expr.FVarIdsIn.abstractN_of
     {e : Expr} {selected : FVarId} {P : FVarId → Prop} {k : Nat}
     (H : e.FVarIdsIn (fun fv => fv = selected ∨ P fv)) :
@@ -208,50 +182,6 @@ theorem BoundFVarDeclarationAt.declaration_eq_of_mem
   rw [hfv] at hfind
   exact Option.some.inj (hfind.symm.trans D.declaration)
 
-/-- Every declaration recorded in restoration's extension certificate is
-the exact declaration visible to the final local-context lookup. -/
-theorem RestoreParamOpening.context_extension_find
-    (Hopen : RestoreParamOpening lctx As e n outLctx outAs tail)
-    (Hwf : outLctx.WF) :
-    ∃ decls : List LocalDecl,
-      outLctx.toList = decls.reverse ++ lctx.toList ∧
-      outAs.toList = As.toList ++ decls.map (fun d => .fvar d.fvarId) ∧
-      decls.length = n ∧
-      ∀ d ∈ decls, outLctx.find? d.fvarId = some d := by
-  rcases Hopen.context_extension with ⟨decls, hlctx, hparams, hlength⟩
-  refine ⟨decls, hlctx, hparams, hlength, ?_⟩
-  intro d hd
-  apply LocalContextWF_find?_eq_some_of_mem Hwf
-  rw [hlctx]
-  exact List.mem_append_left _ (List.mem_reverse.mpr hd)
-
-/-- Root opening data in the exact representation consumed by
-`LocalContext.mkBindingList`: binder-order identifiers, duplicate-freedom,
-and exact declaration lookup. -/
-theorem RestoreParamOpening.root_binding_data
-    (Hopen : RestoreParamOpening {} #[] e n outLctx outAs tail)
-    (Hwf : outLctx.WF) :
-    ∃ decls : List LocalDecl,
-      outAs = (decls.map (fun d => Expr.fvar d.fvarId)).toArray ∧
-      decls.length = n ∧
-      (decls.map (fun d => d.fvarId)).Nodup ∧
-      ∀ d ∈ decls, outLctx.find? d.fvarId = some d := by
-  rcases Hopen.context_extension_find Hwf with
-    ⟨decls, hlctx, hparams, hlength, hfind⟩
-  have harray :
-      outAs = (decls.map (fun d => Expr.fvar d.fvarId)).toArray := by
-    apply Array.toList_inj.mp
-    simpa using hparams
-  have hrevNodup :
-      (decls.reverse.map (fun d => d.fvarId)).Nodup := by
-    have hall := Hwf.nodup
-    rw [hlctx, List.map_append] at hall
-    exact (List.nodup_append.mp hall).1
-  have hnodup : (decls.map (fun d => d.fvarId)).Nodup := by
-    rw [List.map_reverse] at hrevNodup
-    exact List.nodup_reverse.mp hrevNodup
-  exact ⟨decls, harray, hlength, hnodup, hfind⟩
-
 /-- At a root opening, the parameter array is in binder order while the
 local-context free-variable list is in the reverse (most-recent-first) order.
 This is the ordering convention required by `MLCtx.mkForall`. -/
@@ -268,32 +198,6 @@ theorem RestoreParamOpening.root_params_reverse_fvars
     simpa using hlctx
   rw [hparams', LocalContext.fvars, hlctx']
   simp [Function.comp_def]
-
-/-- `mkForall` after root restoration is exactly the binder-order fold over
-the declarations recorded by `root_binding_data`. -/
-theorem RestoreParamOpening.root_mkForall_eq_fold
-    (Hopen : RestoreParamOpening {} #[] e n outLctx outAs tail)
-    (Hwf : outLctx.WF) (body : Expr) :
-    ∃ decls : List LocalDecl,
-      decls.length = n ∧
-      (∀ d ∈ decls, outLctx.find? d.fvarId = some d) ∧
-      outLctx.mkForall outAs body =
-        (decls.map (fun d => d.fvarId)).foldr
-          (fun fv result =>
-            LocalContext.mkBindingList1N false outLctx [] fv
-              (result.abstractN [fv])) body := by
-  rcases Hopen.root_binding_data Hwf with
-    ⟨decls, harray, hlength, hnodup, hfind⟩
-  refine ⟨decls, hlength, hfind, ?_⟩
-  rw [harray, LocalContext.mkForall]
-  rw [show decls.map (fun d => Expr.fvar d.fvarId) =
-      (decls.map (fun d => d.fvarId)).map Expr.fvar by simp]
-  rw [LocalContext.mkBinding_eqN]
-  apply LocalContext.mkBindingListN_eq_fold
-  · intro fv hfv
-    rcases List.mem_map.mp hfv with ⟨d, hd, rfl⟩
-    exact ⟨d, hfind d hd⟩
-  · exact hnodup
 
 /-- A forall-only restoration opening records enough information to cancel
 its substitutions binder by binder.  The freshness hypothesis is deliberately
@@ -825,13 +729,6 @@ inductive Expr.SameForallPrefix : Nat → Expr → Expr → Prop
       Expr.SameForallPrefix (n + 1)
         (.forallE name dom left bi) (.forallE name dom right bi)
 
-theorem Expr.SameForallPrefix.sameForallDomains
-    (H : Expr.SameForallPrefix n left right) :
-    Expr.SameForallDomains n left right := by
-  induction H with
-  | nil => exact .nil
-  | cons _ ih => exact .cons ih
-
 theorem Expr.SameForallPrefix.symm
     (H : Expr.SameForallPrefix n left right) :
     Expr.SameForallPrefix n right left := by
@@ -914,25 +811,6 @@ theorem Expr.SameForallPrefix.eq_of_residual_eq
           (fun body => Expr.forallE _ _ body _)
           (ih Hleft Hright hresidual)
 
-/-- Translation uniqueness for sources whose complete equality is obtained
-from a shared forall prefix and equal residuals.  This is the whole-domain
-comparison used when extending the recursive-hypothesis context by one
-canonical recursive result. -/
-theorem Expr.SameForallPrefix.translatedTargets
-    (H : Expr.SameForallPrefix n left right)
-    (henv : VEnv.WF env)
-    (hctx : VLCtx.IsDefEq env Us.length leftCtx rightCtx)
-    (HleftTelescope : Expr.ForallTelescope left n leftResidual)
-    (HrightTelescope : Expr.ForallTelescope right n rightResidual)
-    (hresidual : leftResidual = rightResidual)
-    (Hleft : TrExprS env Us leftCtx left leftTarget)
-    (Hright : TrExprS env Us rightCtx right rightTarget) :
-    env.IsDefEqU Us.length leftCtx.toCtx leftTarget rightTarget := by
-  have hsource := H.eq_of_residual_eq HleftTelescope HrightTelescope
-    hresidual
-  subst right
-  exact Hleft.uniq henv hctx Hright
-
 /-- Reuse the binder-domain part of one translated forall telescope with a
 different residual.  This is the dependent-type counterpart of
 `SameLambdaPrefix.replaceTranslatedResidual`: the template supplies the
@@ -999,95 +877,6 @@ theorem Expr.SameForallPrefix.replaceTranslatedResidual
                 (by simpa [abstractForallContext, List.map_append,
                     List.append_assoc] using HreplacementResidualType)
 
-/-- Binder-annotation-insensitive form of `replaceTranslatedResidual`.
-Production's `inferImplicit` is allowed to inspect the residual when choosing
-annotations, so an independent dummy residual need not produce literally the
-same prefix.  Since annotations are erased by `TrExprS`, equality of the
-concrete names and domains is sufficient to reuse the translated telescope. -/
-theorem _root_.Lean.Expr.SameForallDomains.replaceTranslatedResidual
-    (Hsame : Expr.SameForallDomains n template replacement)
-    (HtemplateTelescope : Expr.ForallTelescope template n templateResidual)
-    (HreplacementTelescope :
-      Expr.ForallTelescope replacement n replacementResidual)
-    (henv : VEnv.Ordered env)
-    (Hctx : OnCtx Delta.toCtx (env.IsType Us.length))
-    (hdomains : domains.length = n)
-    (Htemplate : TrExprS env Us Delta template
-      (VExpr.wrapForalls domains templateTarget))
-    (HreplacementResidual :
-      TrExprS env Us (abstractForallContext domains Delta)
-        replacementResidual replacementTarget)
-    (HreplacementResidualType : env.IsType Us.length
-      (abstractForallContext domains Delta).toCtx replacementTarget) :
-    TrExprS env Us Delta replacement
-      (VExpr.wrapForalls domains replacementTarget) := by
-  induction Hsame generalizing domains Delta templateResidual
-      replacementResidual templateTarget replacementTarget with
-  | nil =>
-    cases HtemplateTelescope
-    cases HreplacementTelescope
-    have hnil : domains = [] := List.eq_nil_of_length_eq_zero hdomains
-    subst domains
-    simpa [abstractForallContext, VExpr.wrapForalls] using
-      HreplacementResidual
-  | @cons n left right name dom leftBi rightBi Hsame ih =>
-    cases HtemplateTelescope with
-    | cons HtemplateTail =>
-      cases HreplacementTelescope with
-      | cons HreplacementTail =>
-        cases domains with
-        | nil => simp at hdomains
-        | cons domain domains =>
-          cases Htemplate with
-          | forallE HdomainType HtemplateBodyType HdomainTr HtemplateBody =>
-            have htail : domains.length = n := by simpa using hdomains
-            have Hctx' : OnCtx (domain :: Delta.toCtx)
-                (env.IsType Us.length) := ⟨Hctx, HdomainType⟩
-            have Hopened := VEnv.IsType.wrapForalls_inv henv Hctx'
-              HtemplateBodyType
-            have HreplacementResidualType' : env.IsType Us.length
-                (domains.reverse ++ domain :: Delta.toCtx)
-                replacementTarget := by
-              rw [abstractForallContext_toCtx] at HreplacementResidualType
-              simpa [VLCtx.toCtx] using HreplacementResidualType
-            have HreplacementBodyType : env.IsType Us.length
-                (domain :: Delta.toCtx)
-                (VExpr.wrapForalls domains replacementTarget) :=
-              VEnv.IsType.wrapForalls Hopened.1
-                HreplacementResidualType'
-            apply TrExprS.forallE HdomainType HreplacementBodyType HdomainTr
-            simpa [abstractForallContext, List.map_append,
-              List.append_assoc] using
-              ih HtemplateTail HreplacementTail
-                (by simpa [VLCtx.toCtx] using Hctx') htail HtemplateBody
-                (by simpa [abstractForallContext, List.map_append,
-                    List.append_assoc] using HreplacementResidual)
-                (by simpa [abstractForallContext, List.map_append,
-                    List.append_assoc] using HreplacementResidualType)
-
-/-- One dependent-context induction step for two independently translated
-forall domains.  A converted prior context, the alpha-independent common
-prefix, and equality of the normalized residual sources suffice to extend
-the conversion by the complete translated domain. -/
-theorem Expr.SameForallPrefix.extendTranslatedContext
-    (H : Expr.SameForallPrefix n left right)
-    (henv : VEnv.WF env)
-    (hctx : VLCtx.IsDefEq env Us.length leftCtx rightCtx)
-    (HleftTelescope : Expr.ForallTelescope left n leftResidual)
-    (HrightTelescope : Expr.ForallTelescope right n rightResidual)
-    (hresidual : leftResidual = rightResidual)
-    (Hleft : TrExprS env Us leftCtx left leftTarget)
-    (Hright : TrExprS env Us rightCtx right rightTarget)
-    (HleftType : env.IsType Us.length leftCtx.toCtx leftTarget) :
-    VLCtx.IsDefEq env Us.length
-      ((none, .vlam leftTarget) :: leftCtx)
-      ((none, .vlam rightTarget) :: rightCtx) := by
-  have Htarget := H.translatedTargets henv hctx HleftTelescope
-    HrightTelescope hresidual Hleft Hright
-  rcases HleftType with ⟨level, HleftTyping⟩
-  have Hdomain := Htarget.of_l henv hctx.wf.toCtx HleftTyping
-  exact .cons hctx nofun (.vlam Hdomain)
-
 theorem Expr.SameForallPrefix.instantiate1'
     (H : Expr.SameForallPrefix n left right) (arg : Expr) (k : Nat := 0) :
     Expr.SameForallPrefix n
@@ -1117,27 +906,6 @@ theorem Expr.SameForallPrefix.abstractN
   | cons H ih =>
     simp only [Expr.abstractN]
     exact .cons (ih (k + 1))
-
-/-- Closing the same dependency-selected named context around two bodies
-preserves their common forall prefix, adding one shared outer binder for
-each retained declaration.  This is the source-side bridge from narrowing
-closures to anonymous dependent-telescope comparison. -/
-theorem
-    checkInductiveTypes.loopType.FVarNarrowSources.closeSource_sameForallPrefix
-    (S : checkInductiveTypes.loopType.FVarNarrowSources env Us scope)
-    (H : Expr.SameForallPrefix n left right) :
-    Expr.SameForallPrefix (scope.length + n)
-      (S.closeSource left) (S.closeSource right) := by
-  induction S generalizing n left right with
-  | nil => simpa using H
-  | @cons scope domainTarget fv deps tail name binderInfo domain Hdomain ih =>
-      have Hinner : Expr.SameForallPrefix (n + 1)
-          (.forallE name domain (left.abstractN [fv]) binderInfo)
-          (.forallE name domain (right.abstractN [fv]) binderInfo) :=
-        .cons (H.abstractN [fv])
-      have Hclosed := ih Hinner
-      simpa [FVarNarrowSources.closeSource, Nat.add_assoc,
-        Nat.add_comm, Nat.add_left_comm] using Hclosed
 
 theorem Expr.SameForallPrefix.abstractList
     (H : Expr.SameForallPrefix n left right)
@@ -1249,151 +1017,6 @@ theorem Expr.SameForallPrefix.translatedContextsExact
   subst actualRightDomains
   exact Hcontexts
 
-/-- A complete dependent-telescope alignment step.  The shared concrete
-forall prefix aligns the exact translated binder contexts, while equality of
-the concrete residuals makes the two complete translated domain types
-definitionally equal in the prior context.  These are the two invariants
-advanced together when consuming one recursive hypothesis. -/
-theorem Expr.SameForallPrefix.translatedTelescopeAlignment
-    (H : Expr.SameForallPrefix n left right)
-    (henv : VEnv.WF env)
-    (hctx : VLCtx.IsDefEq env Us.length leftCtx rightCtx)
-    (HleftTelescope : Expr.ForallTelescope left n leftResidual)
-    (HrightTelescope : Expr.ForallTelescope right n rightResidual)
-    (hresidual : leftResidual = rightResidual)
-    (Hleft : TrExprS env Us leftCtx left
-      (VExpr.wrapForalls leftDomains leftTarget))
-    (Hright : TrExprS env Us rightCtx right
-      (VExpr.wrapForalls rightDomains rightTarget))
-    (hleftLength : leftDomains.length = n)
-    (hrightLength : rightDomains.length = n) :
-    VEnv.IsDefEqCtx env Us.length []
-        (leftDomains.reverse ++ leftCtx.toCtx)
-        (rightDomains.reverse ++ rightCtx.toCtx) ∧
-      env.IsDefEqU Us.length leftCtx.toCtx
-        (VExpr.wrapForalls leftDomains leftTarget)
-        (VExpr.wrapForalls rightDomains rightTarget) := by
-  exact ⟨H.translatedContextsExact henv hctx Hleft Hright
-      hleftLength hrightLength,
-    H.translatedTargets henv hctx HleftTelescope HrightTelescope
-      hresidual Hleft Hright⟩
-
-/-- Close a translated common forall prefix after comparing its residuals
-through one shared source expression.  This is the target-side shape of one
-recursive-hypothesis alignment step: prefix translation aligns dependent
-local domains, residual translation aligns the selected motive application,
-and `closeHeads` packages both into equality of the complete domain types. -/
-theorem Expr.SameForallPrefix.translatedWholeTargetsOfResidual
-    (H : Expr.SameForallPrefix n leftSource rightSource)
-    (henv : VEnv.WF env)
-    (Hbase : VEnv.IsDefEqCtx env Us.length []
-      baseLeft.reverse baseRight.reverse)
-    (Hleft : TrExprS env Us
-      (abstractForallContext baseLeft []) leftSource
-      (VExpr.wrapForalls leftDomains leftTarget))
-    (Hright : TrExprS env Us
-      (abstractForallContext baseRight []) rightSource
-      (VExpr.wrapForalls rightDomains rightTarget))
-    (hleftLength : leftDomains.length = n)
-    (hrightLength : rightDomains.length = n)
-    (HleftResidual : TrExprS env Us
-      (abstractForallContext (baseLeft ++ leftDomains) []) residualSource
-      leftTarget)
-    (HrightResidual : TrExprS env Us
-      (abstractForallContext (baseRight ++ rightDomains) []) residualSource
-      rightTarget)
-    (HleftResidualType : env.IsType Us.length
-      (abstractForallContext (baseLeft ++ leftDomains) []).toCtx
-      leftTarget) :
-    env.IsDefEqU Us.length baseLeft.reverse
-      (VExpr.wrapForalls leftDomains leftTarget)
-      (VExpr.wrapForalls rightDomains rightTarget) := by
-  have HbaseV := abstractForallContext.isDefEq Hbase
-  have Hlocals := H.translatedContextsExact henv HbaseV Hleft Hright
-    hleftLength hrightLength
-  have Hlocals' : VEnv.IsDefEqCtx env Us.length []
-      (baseLeft ++ leftDomains).reverse
-      (baseRight ++ rightDomains).reverse := by
-    simpa [List.reverse_append, VLCtx.toCtx] using Hlocals
-  have HresidualU := TrExprS.uniqAbstractForallContext
-    HleftResidual HrightResidual henv Hlocals'
-  rcases HleftResidualType with ⟨residualLevel, HleftResidualType⟩
-  have HleftResidualType' : env.HasType Us.length
-      (baseLeft ++ leftDomains).reverse leftTarget
-      (.sort residualLevel) := by
-    simpa [abstractForallContext_toCtx, VLCtx.toCtx] using
-      HleftResidualType
-  have Hresidual : env.IsDefEq Us.length
-      (baseLeft ++ leftDomains).reverse leftTarget rightTarget
-      (.sort residualLevel) :=
-    HresidualU.of_l henv Hlocals'.isType HleftResidualType'
-  have Hclosed :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.closeHeads Hlocals'
-      n (by simp [hleftLength]) Hresidual
-  rcases Hclosed with ⟨closedLevel, Hclosed⟩
-  refine ⟨.sort closedLevel, ?_⟩
-  simpa [hleftLength, hrightLength] using Hclosed
-
-/-- Right-typed variant of `translatedWholeTargetsOfResidual`.  The two
-residual translations still have one common source; this formulation is
-convenient when the canonical (right-hand) telescope already carries its
-type derivation. -/
-theorem Expr.SameForallPrefix.translatedWholeTargetsOfResidualRight
-    (H : Expr.SameForallPrefix n leftSource rightSource)
-    (henv : VEnv.WF env)
-    (Hbase : VEnv.IsDefEqCtx env Us.length []
-      baseLeft.reverse baseRight.reverse)
-    (Hleft : TrExprS env Us
-      (abstractForallContext baseLeft []) leftSource
-      (VExpr.wrapForalls leftDomains leftTarget))
-    (Hright : TrExprS env Us
-      (abstractForallContext baseRight []) rightSource
-      (VExpr.wrapForalls rightDomains rightTarget))
-    (hleftLength : leftDomains.length = n)
-    (hrightLength : rightDomains.length = n)
-    (HleftResidual : TrExprS env Us
-      (abstractForallContext (baseLeft ++ leftDomains) []) residualSource
-      leftTarget)
-    (HrightResidual : TrExprS env Us
-      (abstractForallContext (baseRight ++ rightDomains) []) residualSource
-      rightTarget)
-    (HrightResidualType : env.IsType Us.length
-      (abstractForallContext (baseRight ++ rightDomains) []).toCtx
-      rightTarget) :
-    env.IsDefEqU Us.length baseLeft.reverse
-      (VExpr.wrapForalls leftDomains leftTarget)
-      (VExpr.wrapForalls rightDomains rightTarget) := by
-  have HbaseV := abstractForallContext.isDefEq Hbase
-  have Hlocals := H.translatedContextsExact henv HbaseV Hleft Hright
-    hleftLength hrightLength
-  have Hlocals' : VEnv.IsDefEqCtx env Us.length []
-      (baseLeft ++ leftDomains).reverse
-      (baseRight ++ rightDomains).reverse := by
-    simpa [List.reverse_append, VLCtx.toCtx] using Hlocals
-  have HresidualU := TrExprS.uniqAbstractForallContext
-    HleftResidual HrightResidual henv Hlocals'
-  rcases HrightResidualType with ⟨residualLevel, HrightResidualType⟩
-  have HrightResidualType' : env.HasType Us.length
-      (baseRight ++ rightDomains).reverse rightTarget
-      (.sort residualLevel) := by
-    simpa [abstractForallContext_toCtx, VLCtx.toCtx] using
-      HrightResidualType
-  have HrightResidualTypeLeft : env.HasType Us.length
-      (baseLeft ++ leftDomains).reverse rightTarget
-      (.sort residualLevel) :=
-    HrightResidualType'.defeqDFC henv.ordered
-      (Hlocals'.symm henv.ordered)
-  have Hresidual : env.IsDefEq Us.length
-      (baseLeft ++ leftDomains).reverse leftTarget rightTarget
-      (.sort residualLevel) :=
-    HresidualU.of_r henv Hlocals'.isType HrightResidualTypeLeft
-  have Hclosed :=
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.closeHeads Hlocals'
-      n (by simp [hleftLength]) Hresidual
-  rcases Hclosed with ⟨closedLevel, Hclosed⟩
-  refine ⟨.sort closedLevel, ?_⟩
-  simpa [hleftLength, hrightLength] using Hclosed
-
 /-- Sort-indexed form of `translatedWholeTargetsOfResidualRight`, suitable
 for extending a dependent context conversion by the resulting domain. -/
 theorem Expr.SameForallPrefix.translatedWholeTargetsOfResidualRightSort
@@ -1451,31 +1074,6 @@ theorem Expr.SameForallPrefix.translatedWholeTargetsOfResidualRightSort
   rcases Hclosed with ⟨closedLevel, Hclosed⟩
   exact ⟨closedLevel, by
     simpa [hleftLength, hrightLength] using Hclosed⟩
-
-/-- Closing two residual bodies with the same ordinary declarations creates
-the same concrete forall prefix around both. -/
-theorem LocalContext.sameForallPrefix_fold
-    {lctx : LocalContext} {fvars : List FVarId}
-    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
-      lctx.find? fv = some (.cdecl index fv name type bi kind))
-    (left right : Expr) :
-    Expr.SameForallPrefix fvars.length
-      (fvars.foldr
-        (fun fv result =>
-          LocalContext.mkBindingList1 false lctx [] fv
-            (result.abstract1 fv)) left)
-      (fvars.foldr
-        (fun fv result =>
-          LocalContext.mkBindingList1 false lctx [] fv
-            (result.abstract1 fv)) right) := by
-  induction fvars with
-  | nil => exact .nil
-  | cons fv fvars ih =>
-    rcases hdecl fv (by simp) with ⟨index, name, type, bi, kind, hfind⟩
-    simp only [List.foldr_cons, List.length_cons]
-    simp only [LocalContext.mkBindingList1, hfind]
-    exact Expr.SameForallPrefix.cons
-      ((ih (fun other hother => hdecl other (by simp [hother]))).abstract1 fv)
 
 /-- Closing two residual bodies with the same ordinary declarations creates
 the same concrete forall prefix around both. -/
@@ -1651,52 +1249,6 @@ theorem RestoreParamOpening.lambdaResidualData
         rw [hlength] at hcomm
         simpa using hcomm
 
-/-- Split a complete lambda telescope at any retained prefix length. -/
-theorem Expr.LambdaTelescope.splitAt
-    (H : Expr.LambdaTelescope outer arity residual)
-    (hn : n ≤ arity) :
-    ∃ middle,
-      Expr.LambdaTelescope outer n middle ∧
-      Expr.LambdaTelescope middle (arity - n) residual := by
-  induction n generalizing outer arity with
-  | zero => exact ⟨outer, .nil _, by simpa using H⟩
-  | succ n ih =>
-    cases H with
-    | nil => simp at hn
-    | @cons body arity residual name dom bi Htail =>
-      rcases ih Htail (by omega) with ⟨middle, Hprefix, Hsuffix⟩
-      refine ⟨middle, ?_, ?_⟩
-      · exact .cons Hprefix
-      · simpa using Hsuffix
-
-/-- Substitution outside a concrete lambda telescope preserves its exact
-arity and substitutes below the complete prefix. -/
-theorem Expr.LambdaTelescope.instantiateRevList
-    (H : Expr.LambdaTelescope outer arity residual)
-    (values : List Expr) (k : Nat := 0) :
-    Expr.LambdaTelescope (outer.instantiateRevList values k) arity
-      (residual.instantiateRevList values (k + arity)) := by
-  induction H generalizing k with
-  | nil => exact .nil _
-  | cons H ih =>
-    simp only [Expr.instantiateRevList_lam]
-    apply Expr.LambdaTelescope.cons
-    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
-
-/-- Lowering's source traversal exposes an ordinary residual telescope and
-substitutes exactly the free variables appended to its parameter array. -/
-theorem NestedParamOpening.sourceResidualData
-    (H : NestedParamOpening lctx As outer n outLctx tail outAs) :
-    ∃ residual, ∃ fvars : List FVarId,
-      Expr.ForallTelescope outer n residual ∧
-      outAs.toList = As.toList ++ fvars.map Expr.fvar ∧
-      fvars.length = n ∧
-      tail = residual.instantiateRevList (fvars.map Expr.fvar) := by
-  rcases H.forallTelescope with ⟨residual, Htel⟩
-  rcases H.toRestoreParamOpening.forallResidualData Htel with
-    ⟨fvars, hparams, hlength, htail⟩
-  exact ⟨residual, fvars, Htel, hparams, hlength, htail⟩
-
 /-- Root specialization of `forallResidualData`, stated using Lean's
 production array primitive. -/
 theorem RestoreParamOpening.forallResidual
@@ -1710,52 +1262,6 @@ theorem RestoreParamOpening.forallResidual
     simpa using hAs
   rw [htail, Expr.instantiateRev_eq, Expr.instantiate_eq, hAs']
   simp [Expr.instantiateList_reverse]
-
-/-- Opening an initial parameter prefix of a longer forall telescope leaves
-the exact suffix arity intact in the opened body. -/
-theorem RestoreParamOpening.forallSuffix
-    (Hopen : RestoreParamOpening lctx As outer n outLctx outAs tail)
-    (Htelescope : Expr.ForallTelescope outer (n + suffixArity) residual) :
-    ∃ tailResidual,
-      Expr.ForallTelescope tail suffixArity tailResidual := by
-  induction Hopen generalizing suffixArity residual with
-  | done =>
-    exact ⟨residual, by simpa using Htelescope⟩
-  | forallE Hnext ih =>
-    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
-    rw [show (n' + 1) + suffixArity = (n' + suffixArity) + 1 by omega]
-      at Htelescope
-    cases Htelescope with
-    | cons Hbody =>
-      have Hbody' := Hbody.instantiate1' (.fvar id) 0
-      exact ih (by simpa [Expr.instantiate1_eq] using Hbody')
-  | lam Hnext ih =>
-    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
-    rw [show (n' + 1) + suffixArity = (n' + suffixArity) + 1 by omega]
-      at Htelescope
-    cases Htelescope
-
-/-- Conversely, a forall telescope visible after an exact forall-only
-opening was already present below the opened prefix.  Substitution by the
-recorded free variables cannot manufacture a forall, so the two arities add
-without any closedness or freshness premise. -/
-theorem NestedParamOpening.reflectForallTelescope
-    (Hopen : NestedParamOpening lctx As outer n outLctx tail outAs)
-    (Htail : Expr.ForallTelescope tail suffixArity residual) :
-    ∃ sourceResidual,
-      Expr.ForallTelescope outer (n + suffixArity) sourceResidual := by
-  induction Hopen generalizing suffixArity residual with
-  | done => exact ⟨residual, by simpa using Htail⟩
-  | step Hnext ih =>
-    rename_i n' outLctx' tail' outAs' lctx' As' id name dom body bi
-    rcases ih Htail with ⟨openedResidual, Hopened⟩
-    rw [Expr.instantiate1_eq] at Hopened
-    rcases Hopened.reflect_instantiate1'_fvar with
-      ⟨sourceResidual, Hsource⟩
-    refine ⟨sourceResidual, ?_⟩
-    have Hcons := Expr.ForallTelescope.cons
-      (name := name) (dom := dom) (bi := bi) Hsource
-    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hcons
 
 /-- If the residual refers only to the unopened suffix, opening an outer
 prefix preserves that residual literally.  Generated recursor results have
@@ -1790,36 +1296,6 @@ theorem RestoreParamOpening.initial_size
     (H : RestoreParamOpening {} #[] e n outLctx outAs tail) :
     outAs.size = n := by
   simpa using H.params_size
-
-theorem openRestoreParams_refines
-    (H : RestoreTelescope e n) (lctx : LocalContext) (As : Array Expr)
-    (ngen : NameGenerator) :
-    ∀ (out : LocalContext × Array Expr × Expr) outNgen,
-      Lean4Lean.ElimNestedInductive.Result.openRestoreParams n lctx As e ngen =
-        (out, outNgen) →
-      RestoreParamOpening lctx As e n out.1 out.2.1 out.2.2 := by
-  induction n generalizing e lctx As ngen with
-  | zero =>
-    intro out outNgen hout
-    simp [Lean4Lean.ElimNestedInductive.Result.openRestoreParams] at hout
-    cases hout
-    exact .done
-  | succ n ih =>
-    cases H with
-    | @forallE body _ name dom bi Hbody =>
-      intro out outNgen hout
-      simp only [Lean4Lean.ElimNestedInductive.Result.openRestoreParams,
-        mkFreshId, getNGen, setNGen, StateT.get, StateT.set,
-        StateT.modifyGet, bind, StateT.bind, pure, StateT.pure] at hout
-      exact .forallE (ih (Hbody.instantiate1 (.fvar ⟨ngen.curr⟩))
-        _ _ _ out outNgen hout)
-    | @lam body _ name dom bi Hbody =>
-      intro out outNgen hout
-      simp only [Lean4Lean.ElimNestedInductive.Result.openRestoreParams,
-        mkFreshId, getNGen, setNGen, StateT.get, StateT.set,
-        StateT.modifyGet, bind, StateT.bind, pure, StateT.pure] at hout
-      exact .lam (ih (Hbody.instantiate1 (.fvar ⟨ngen.curr⟩))
-        _ _ _ out outNgen hout)
 
 /-- Restoration opening together with the duplicate-free local-variable
 selection produced by its concrete name generator. -/
@@ -2089,22 +1565,6 @@ theorem ExprReplacement.restoreNested_bvarApps
   exact go args (.bvar root) root rfl <|
     .bvar (restoreNestedNode_of_bvar_head result env As auxRec rfl)
 
-theorem Expr.looseBVarRange_foldl_bvarApps
-    {fn : Expr} {args : List Nat} {arity : Nat}
-    (Hfn : fn.looseBVarRange' ≤ arity)
-    (Hargs : ∀ index ∈ args, index < arity) :
-    (args.foldl (fun fn index => .app fn (.bvar index)) fn
-      ).looseBVarRange' ≤ arity := by
-  induction args generalizing fn with
-  | nil => exact Hfn
-  | cons index args ih =>
-    simp only [List.foldl_cons]
-    apply ih
-    · exact Nat.max_le.mpr ⟨Hfn,
-        Nat.succ_le_iff.mpr (Hargs index (by simp))⟩
-    · intro other hother
-      exact Hargs other (by simp [hother])
-
 theorem Closed.foldl_bvarApps
     {fn : Expr} {args : List Nat} {arity : Nat}
     (Hfn : Closed fn arity)
@@ -2240,33 +1700,6 @@ theorem concreteRecursorResult_looseBVarRange
       ).looseBVarRange' ≤
       numMotives + numMinors + numIndices + 1 :=
   (concreteRecursorResult_closed howner).looseBVarRange_le
-
-/-- Restoring nested occurrences below the retained parameter prefix cannot
-change the arity of a generated recursor telescope.  The replacement callback
-does not rewrite forall nodes, while rebuilding the opened prefix restores
-exactly `result.nparams` outer binders. -/
-theorem NestedRestoration.forallTelescope
-    (H : NestedRestoration result env auxRec input output)
-    (Htelescope : Expr.ForallTelescope input
-      (result.nparams + suffixArity) residual)
-    (hsuffix : 0 < suffixArity) :
-    ∃ restoredResidual,
-      Expr.ForallTelescope output (result.nparams + suffixArity)
-        restoredResidual := by
-  rcases H with ⟨lctx, As, body, restoredBody,
-    ⟨Hopening, _Hlctx, Hselection, _Hnodup⟩, Hreplacement, houtput⟩
-  rcases Hopening.forallSuffix Htelescope with
-    ⟨bodyResidual, Hbody⟩
-  rcases Hreplacement.forallTelescope
-      (fun name dom body bi => restoreNestedNode_forall
-        (result := result) (env := env) (As := As) (auxRec := auxRec))
-      Hbody with ⟨restoredResidual, Hrestored⟩
-  have hfor : input.isForall = true :=
-    Htelescope.isForall_of_pos (by omega)
-  rw [houtput, hfor]
-  have Hcombined := Hselection.prependTelescope Hrestored
-  rw [Hopening.initial_size] at Hcombined
-  exact ⟨_, Hcombined⟩
 
 /-- Strong recursor specialization: restoration preserves not only the total
 telescope arity but its canonical de Bruijn result expression. -/

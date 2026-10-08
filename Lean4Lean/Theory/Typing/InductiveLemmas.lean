@@ -153,23 +153,6 @@ theorem Ordered.projectionShape {env : VEnv} (H : Ordered env)
         hindices, hlevel, hctorName, hctorType, hle.constants hlookup,
         hwf.mono hle, ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw, hnodup⟩
 
-/-- The field count recorded by a projection entry is the syntactic arity of
-its constructor type beyond the common parameters. -/
-theorem Ordered.projectionShape_numFields {env : VEnv} (H : Ordered env)
-    {typeName : Name} {info : VProjectionInfo}
-    (hproj : env.projections typeName info) :
-    ∃ doms result,
-      info.ctorType = VExpr.wrapForalls doms result ∧
-      info.nparams ≤ doms.length ∧
-      info.numFields = doms.length - info.nparams := by
-  rcases H.projectionShape hproj with ⟨decl, type, ctor, _, _, _, _, _, hnparams,
-    _, _, _, hctorType, _, _, _, Hraw, _⟩
-  rcases Hraw.forallArity with ⟨doms, result, heq, hle, _, _, harity⟩
-  refine ⟨doms, result, ?_, ?_, ?_⟩
-  · rw [← hctorType, heq]
-  · rw [← hnparams]; exact hle
-  · rw [VProjectionInfo.numFields, ← hctorType, harity]
-
 theorem addInduct_WF (henv : Ordered env) (hdecl : VInductDecl.WF env decl)
     (henv' : VEnv.AddInduct env decl env') : Ordered env' := by
   cases henv' with

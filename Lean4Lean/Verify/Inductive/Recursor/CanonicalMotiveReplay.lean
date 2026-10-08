@@ -468,37 +468,4 @@ theorem CompletedRecursorConstruction.consumedMotiveMajor
 
 
 
-/-- The complete consumed motive is reconstructed from its actual index
-translations. The major application is derived, not chosen independently. -/
-theorem CompletedRecursorConstruction.consumedMotive
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
-    ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner H.recInfos[owner]! H.elimLevel,
-      ∃ indices level,
-        indices.length = H.recInfos[owner]!.indices.size ∧
-        VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams) H.elimLevel = some level ∧
-        let motive := VExpr.wrapForalls indices (.forallE
-          (VExpr.mkApps (.const (decl.types[owner]'(by simpa [H.cardinality.records] using howner)).name
-            S.canonical.levels)
-            (recursorCanonicalVars (stats.params.size + H.recInfos[owner]!.indices.size)))
-          (.sort level))
-        TrExprS H.recursorWF.venv
-          (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-          (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse [])
-          ((H.localContext.lctx.mkForall H.recInfos[owner]!.indices
-            (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] (.sort H.elimLevel))).abstractList
-            H.params.fvars) motive ∧
-        H.recursorWF.venv.IsType
-          (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
-          H.parameterSuffix.parameterDecls.toCtx motive ∧
-        H.recursorWF.venv.IsDefEqU
-          (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
-          H.parameterSuffix.parameterDecls.toCtx motive S.canonical.motiveType := by
-  obtain ⟨S, indices, major, level, hindices, hlevel, Htr, Htype, Heq⟩ :=
-    H.consumedMotiveDomains owner howner
-  have hmajor := H.consumedMotiveMajor owner howner hindices
-    S.canonical.levels_translation Htr
-  rw [hmajor] at Htr Htype Heq
-  exact ⟨S, indices, level, hindices, hlevel, Htr, Htype, Heq⟩
-
 end Lean4Lean.VerifyInductive

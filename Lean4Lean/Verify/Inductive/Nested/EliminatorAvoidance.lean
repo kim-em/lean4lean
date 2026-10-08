@@ -38,17 +38,10 @@ open InductiveSignature
 
 namespace InductiveSignature
 
-private theorem heads_find?_eq_none' {r : Restoration} {name : Name}
-    (h : name ∉ r.heads.map (·.auxiliary)) :
-    r.heads.find? (fun h => h.auxiliary == name) = none := by
-  apply List.find?_eq_none.mpr
-  intro head hmem heq
-  exact h (List.mem_map.mpr ⟨head, hmem, by simpa using heq⟩)
-
 theorem Restoration.lambdaReplacement_eq_none {r : Restoration}
     {domains : HeadSpecialization → List VExpr} {c : Name}
     (h : c ∉ r.heads.map (·.auxiliary)) : r.lambdaReplacement domains c = none := by
-  simp [Restoration.lambdaReplacement, heads_find?_eq_none' h]
+  simp [Restoration.lambdaReplacement, Restoration.heads_find?_eq_none h]
 
 end InductiveSignature
 
@@ -518,16 +511,6 @@ theorem mem_familyNames_of_type {types : List VInductiveType} {t : VInductiveTyp
 theorem mem_familyNames_of_ctor {types : List VInductiveType} {t : VInductiveType}
     {c : VConstVal} (ht : t ∈ types) (hc : c ∈ t.ctors) : c.name ∈ familyNames types :=
   List.mem_flatMap.mpr ⟨t, ht, List.mem_cons_of_mem _ (List.mem_map_of_mem hc)⟩
-
-theorem familyNames_mem_cases {types : List VInductiveType} {n : Name}
-    (h : n ∈ familyNames types) :
-    n ∈ (VInductDecl.typeConstants ⟨0, 0, types, false⟩).map (·.name) ∨
-      n ∈ (VInductDecl.constructorConstants ⟨0, 0, types, false⟩).map (·.name) := by
-  obtain ⟨t, ht, hn⟩ := List.mem_flatMap.mp h
-  rcases List.mem_cons.mp hn with rfl | hn
-  · exact Or.inl (List.mem_map.mpr ⟨t.toVConstVal, List.mem_map_of_mem ht, rfl⟩)
-  · obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hn
-    exact Or.inr (List.mem_map.mpr ⟨c, List.mem_flatMap.mpr ⟨t, ht, hc⟩, rfl⟩)
 
 theorem caseConstructor_recursiveFields {schema : CaseSchema}
     (ctor : Constructor schema.signature.families.size)

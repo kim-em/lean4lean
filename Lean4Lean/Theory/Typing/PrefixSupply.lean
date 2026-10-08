@@ -11,68 +11,6 @@ reduces to the program generated at the longer prefix.
 namespace Lean4Lean.InductiveSignature.NativeRecursorData
 open VExpr
 
-/-- Changing the number of supplied terms within the recursor arity cannot
-change prefix-generation success. -/
-theorem prefixProgram_anyArity {data : NativeRecursorData} {levels : List VLevel}
-    (H : data.prefixProgram U levels args = some program)
-    (hargs : args'.length ≤ data.majorOffset) :
-    ∃ program', data.prefixProgram U levels args' = some program' := by
-  have hbound := (prefixProgram_spec H).1
-  unfold prefixProgram at H ⊢
-  split at H <;> try contradiction
-  rename_i hguard
-  have hguard' : ¬((levels.length != data.uvars || args'.length > data.majorOffset) = true) := by
-    simp at hguard ⊢; exact ⟨hguard.1, hargs⟩
-  rw [if_neg hguard']
-  simp only [bind, Option.bind_eq_some_iff] at H
-  obtain ⟨nativeType, htype, residual, hsupply, ⟨domains, result⟩, htake,
-    constructor, hconstructor, source, hsource, fields, hfields,
-    equation, hequation, body, hbody, H⟩ := H
-  split at H <;> try contradiction
-  rename_i hcaptures
-  obtain ⟨doms, tail, hshape, hlen⟩ := recursorType_telescope htype
-  have hbound' : args'.length ≤ (doms.map (VExpr.instL levels)).length := by simp; omega
-  obtain ⟨residual', domains', result', hsupply', hshape', hlen'⟩ :=
-    supplyType_wrapForalls_exists (body := tail.instL levels) hbound'
-  simp only [bind, htype, Option.bind_some]
-  rw [hshape, VExpr.instL_wrapForalls]
-  simp only [hsupply', Option.bind_some, hshape']
-  have hlen'' : domains'.length = data.majorOffset + 1 - args'.length := by
-    simpa only [List.length_map, hlen] using hlen'
-  have htake' := takeForalls_wrapForalls domains' result'
-  rw [hlen''] at htake'
-  have hconstructor' : ∃ ctor', data.reconstructCanonical U levels
-      (args'.map (·.liftN (data.majorOffset + 1 - args'.length)) ++
-        vars (data.majorOffset + 1 - args'.length) 0) = some ctor' := by
-    have h := reconstructCanonical_isSome (data := data) (U := U) (levels := levels)
-      (args := args.map (·.liftN (data.majorOffset + 1 - args.length)) ++
-        vars (data.majorOffset + 1 - args.length) 0)
-      (args' := args'.map (·.liftN (data.majorOffset + 1 - args'.length)) ++
-        vars (data.majorOffset + 1 - args'.length) 0)
-      (by simp only [List.length_append, List.length_map, vars, List.length_reverse,
-        List.length_range]; omega)
-    rw [hconstructor] at h
-    cases hg : data.reconstructCanonical U levels
-        (args'.map (·.liftN (data.majorOffset + 1 - args'.length)) ++
-          vars (data.majorOffset + 1 - args'.length) 0) with
-    | none => simp [hg] at h
-    | some ctor => exact ⟨ctor, rfl⟩
-  obtain ⟨ctor', hconstructor'⟩ := hconstructor'
-  simp only [bind, htype, Option.bind_some, hsupply', hshape', htake', hconstructor', hsource,
-    hfields, hequation, hbody]
-  have hl1 : (args.map (·.liftN (data.majorOffset + 1 - args.length)) ++
-      vars (data.majorOffset + 1 - args.length) 0).length = data.majorOffset + 1 := by
-    simp only [List.length_append, List.length_map, vars, List.length_reverse, List.length_range]
-    omega
-  have hl2 : (args'.map (·.liftN (data.majorOffset + 1 - args'.length)) ++
-      vars (data.majorOffset + 1 - args'.length) 0).length = data.majorOffset + 1 := by
-    simp only [List.length_append, List.length_map, vars, List.length_reverse, List.length_range]
-    omega
-  simp only [List.length_append, List.length_map, List.length_take, hl1] at hcaptures
-  simp only [List.length_append, List.length_map, List.length_take, hl2]
-  rw [if_neg hcaptures]
-  exact ⟨_, rfl⟩
-
 theorem singletonProgram_anyArity {data : NativeRecursorData} {levels : List VLevel} {env : VEnv}
     (H : data.singletonProgram env U levels args = some program)
     (hargs : args'.length ≤ data.majorOffset) :

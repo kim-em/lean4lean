@@ -8,14 +8,6 @@ projection witnesses select syntactically different case programs. -/
 namespace Lean4Lean
 open Lean
 
-theorem ProjectionDesugaring.rawShape
-    (H1 : ProjectionDesugaring env U Γ name index major target)
-    (H2 : ProjectionDesugaring env' U' Γ' name' index' major' target') :
-    VExpr.RawShapeRel target target' := by
-  obtain ⟨_, _, _, rfl⟩ := H1.target_lamApp
-  obtain ⟨_, _, _, rfl⟩ := H2.target_lamApp
-  exact .lamApp
-
 /-- Projection expansions have opaque heads for constructor skeletons. -/
 theorem TrProj.rawShape (H1 : TrProj (env := env) (U := U) Γ name index major target)
     (H2 : TrProj (env := env') (U := U') Γ' name' index' major' target') :

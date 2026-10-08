@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalConstructorIndices
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalFieldConsumption
-import Lean4Lean.Verify.Inductive.Recursor.CanonicalUniversePair
+import Lean4Lean.Verify.Inductive.Recursor.CanonicalConstructorReplay
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel

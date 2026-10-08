@@ -170,35 +170,6 @@ theorem mkAuxRecNameMap_recMap_find_none
     change ({} : NameMap Name).find? query = none
     rfl
 
-/-- Every key returned by the production auxiliary-recursor map also occurs
-in its first component.  The executable builds the list and map in the same
-fold; this theorem exposes that shared domain without unfolding the fold at
-later restoration call sites. -/
-theorem mkAuxRecNameMap_recMap_find_mem
-    (main : InductiveType) (rest : List InductiveType)
-    (env : Environment) (info : InductiveVal)
-    (hfind : env.find? main.name = some (.inductInfo info))
-    (hmap : (Lean4Lean.mkAuxRecNameMap env (main :: rest)).2.find? query =
-      some mapped) :
-    query ∈ (Lean4Lean.mkAuxRecNameMap env (main :: rest)).1 := by
-  by_cases hlength : (main :: rest).length < info.all.length
-  · rw [mkAuxRecNameMap_recNames main rest env info hfind hlength]
-    by_contra hnot
-    have hnone := mkAuxRecNameMap_recMap_find_none main rest env info hfind hnot
-    rw [hnone] at hmap
-    cases hmap
-  · have hsuffix : info.all.drop (main :: rest).length = [] :=
-      List.drop_eq_nil_iff.mpr (Nat.le_of_not_gt hlength)
-    have hsuffix' : info.all.drop (rest.length + 1) = [] := by
-      simpa using hsuffix
-    have hnone := mkAuxRecNameMap_recMap_find_none (query := query)
-      main rest env info hfind
-      (by
-        intro hmem
-        simpa [hsuffix'] using hmem)
-    rw [hnone] at hmap
-    cases hmap
-
 theorem mkRecName_injective : Function.Injective Lean.mkRecName := by
   intro left right heq
   simpa [Lean.mkRecName, Lean.Name.getPrefix] using
@@ -474,41 +445,6 @@ theorem CompletedRecursorPhasesResult.restorationSources
     rw [hbang] at hrecursor
     exact hrecursor
 
-/-- The operational primary-restoration lookup identifies its old universe
-parameter list with the exact generated recursor entry. -/
-theorem CompletedRecursorPhasesResult.restoredPrimaryRecursorLevelParams
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
-    (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length)
-    (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
-      oldRecName sourceProdEnv targetProdEnv)
-    (holdRecName : oldRecName = Lean.mkRecName indTypes[ownerIdx]!.name) :
-    Hstep.oldInfo.levelParams =
-      (H.generated.entry ownerIdx hentry).info.levelParams := by
-  let E := H.generated.entry ownerIdx hentry
-  have hlookup := H.findRecursorOfMem (List.getElem_mem hentry)
-  have hlookupE : outEnv.find? (Lean.mkRecName indTypes[ownerIdx]!.name) =
-      some (.recInfo E.info) := by
-    change outEnv.find? H.entries[ownerIdx].1.name =
-      some H.entries[ownerIdx].1 at hlookup
-    rw [E.source_eq] at hlookup
-    change outEnv.find? E.info.name = some (.recInfo E.info) at hlookup
-    rwa [E.name] at hlookup
-  have holdInfo : Hstep.oldInfo = E.info := by
-    have hstepLookup : outEnv.find?
-        (Lean.mkRecName indTypes[ownerIdx]!.name) =
-          some (.recInfo Hstep.oldInfo) := by
-      simpa [holdRecName] using Hstep.lookup
-    exact ConstantInfo.recInfo.inj (Option.some.inj
-      (hstepLookup.symm.trans hlookupE))
-  exact congrArg (fun info : RecursorVal => info.levelParams) holdInfo
-
 /-- The installed generated entry fixes the universe arity of the old
 recursor metadata read by primary restoration. -/
 theorem CompletedRecursorPhasesResult.restoredPrimaryRecursorMetadata
@@ -644,37 +580,6 @@ theorem CompletedRecursorPhasesResult.restoredPrimaryRecursorUvars
   rw [holdInfo, E.levels, H.localExtends.lparams_eq]
   rw [hsourceUvars]
   exact AddInductive.getRecLevelParams_length
-
-/-- The installed ordinary recursor phase already realizes the independent
-source-recursion specification for the declaration it compiled.  This is the
-pointwise form useful to later restoration proofs; for a genuinely nested
-source declaration, that declaration is still the expanded lowered one. -/
-theorem CompletedRecursorPhasesResult.sourcePrimaryRecursorSemantics
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
-    (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length) :
-    Nonempty (SourcePrimaryRecursorSemantics decl
-      (decl.types[ownerIdx]'(by
-        have howner : ownerIdx < H.recInfos.size := by
-          simpa [H.generated.length] using hentry
-        simpa [H.cardinality.records] using howner))
-      ((R.declared.venvCtors.addEliminators R.declared.eliminators).addProjections decl.projectionEntries)) := by
-  have Hcore : TrInductDeclCore sourceEnv H.localContext.lparams nparams
-      indTypes.toList isUnsafe decl Hheaders.context.venv
-      R.declared.venvCtors := by
-    rw [H.localExtends.lparams_eq]
-    exact R.core
-  have Hsemantics := H.generated.sourcePrimaryRecursorSemantics H.localWF
-    H.bindings H.params H.noAlias H.cardinality Hcore ownerIdx hentry
-  change Nonempty (SourcePrimaryRecursorSemantics decl _
-    R.declared.context.venv) at Hsemantics
-  rwa [R.declared.contextVEnv] at Hsemantics
 
 /-- Direct executable-to-source realization for a restored primary recursor.
 Unlike `restoredPrimaryRecursorSemantics`, this theorem does not transport a

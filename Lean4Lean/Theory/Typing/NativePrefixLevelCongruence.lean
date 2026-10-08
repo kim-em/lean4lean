@@ -5,17 +5,6 @@ import Lean4Lean.Theory.Typing.LevelEquiv
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature InductiveSignature.NativeRecursorData
 
-theorem EqUpToLevels.symm (H : EqUpToLevels U e e') : EqUpToLevels U e' e := by
-  induction H with
-  | bvar => exact .bvar
-  | const hl hr he => exact .const hr hl (Lean4Lean.List.Forall₂.imp (fun _ _ h => h.symm) (Lean4Lean.List.Forall₂.flip he))
-  | elim hl hr he => exact .elim hr hl (Lean4Lean.List.Forall₂.imp (fun _ _ h => h.symm) (Lean4Lean.List.Forall₂.flip he))
-  | sort hl hr he => exact .sort hr hl he.symm
-  | app _ _ ihf iha => exact .app ihf iha
-  | proj _ ih => exact .proj ih
-  | lam _ _ ihd ihb => exact .lam ihd ihb
-  | forallE _ _ ihd ihb => exact .forallE ihd ihb
-
 theorem EqUpToLevels.wrapForalls (hd : List.Forall₂ (EqUpToLevels U) ds ds')
     (hb : EqUpToLevels U body body') :
     EqUpToLevels U (VExpr.wrapForalls ds body) (VExpr.wrapForalls ds' body') := by

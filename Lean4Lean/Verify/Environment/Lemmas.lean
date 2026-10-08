@@ -125,15 +125,6 @@ theorem _root_.Lean4Lean.ProjectionCorner.ofCtors {source target : Environment}
     ProjectionCorner safety target venv :=
   H.imp id fun h _ _ hfind hvis => h (hctors hfind) hvis
 
-theorem _root_.Lean4Lean.ProjectionCorner.mapExt {source target : Environment}
-    (H : ProjectionCorner safety source venv) (hs : source.constants.WF)
-    (ht : target.constants.WF)
-    (heq : ∀ name, source.constants.find? name = target.constants.find? name) :
-    ProjectionCorner safety target venv :=
-  H.ofCtors fun hfind => by
-    rw [Lean.Kernel.Environment.find?, hs.find?'_eq_find?, heq, ← ht.find?'_eq_find?]
-    exact hfind
-
 theorem _root_.Lean4Lean.ProjectionCorner.addNonCtor {env : Environment}
     (H : ProjectionCorner safety env venv) (hwf : env.constants.WF)
     (hn : env.find? ci.name = none) (hle : venv ≤ venv')
@@ -318,28 +309,6 @@ theorem MutualInductivesClosed.addDefinitions
         exact hfresh w (by simp [hw])
       · exact hnodup.2
 
-theorem InductiveConstructorsCoherent.constructorAt
-    (H : InductiveConstructorsCoherent env)
-    (hfamily : env.find? familyName = some (.inductInfo familyInfo))
-    (hi : i < familyInfo.ctors.length) :
-    Nonempty (InductiveConstructorCoherenceAt env familyName familyInfo i hi) :=
-  H familyName familyInfo hfamily i hi
-
-theorem InductiveConstructorsCoherent.constructorLookup
-    (H : InductiveConstructorsCoherent env)
-    (hfamily : env.find? familyName = some (.inductInfo familyInfo))
-    (hi : i < familyInfo.ctors.length) :
-    ∃ info : ConstructorVal,
-      env.find? familyInfo.ctors[i] = some (.ctorInfo info) ∧
-      info.induct = familyName ∧
-      info.cidx = i ∧
-      info.numParams = familyInfo.numParams ∧
-      info.levelParams = familyInfo.levelParams ∧
-      info.isUnsafe = familyInfo.isUnsafe := by
-  rcases H.constructorAt hfamily hi with ⟨C⟩
-  exact ⟨C.info, C.lookup, C.induct, C.cidx, C.numParams,
-    C.levelParams, C.isUnsafe⟩
-
 def InductiveConstructorCoherenceAt.addConstant
     {ci : ConstantInfo}
     (H : InductiveConstructorCoherenceAt env familyName familyInfo i hi)
@@ -351,51 +320,6 @@ def InductiveConstructorCoherenceAt.addConstant
     contradiction
   exact { H with lookup :=
     (find?_add_of_ne hwf ci hfresh hne).trans H.lookup }
-
-/-- Adding a fresh constant which is not an inductive header preserves all
-previous constructor/header coherence. -/
-theorem InductiveConstructorsCoherent.addNonInductive
-    {ci : ConstantInfo}
-    (H : InductiveConstructorsCoherent env)
-    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
-    (hnind : ∀ value, ci ≠ .inductInfo value) :
-    InductiveConstructorsCoherent (env.add ci) := by
-  intro familyName familyInfo hfamily i hi
-  rcases find?_add_cases hwf ci hfresh hfamily with
-    ⟨_, hvalue⟩ | hold
-  · exact False.elim (hnind familyInfo hvalue.symm)
-  · rcases H.constructorAt hold hi with ⟨C⟩
-    exact ⟨C.addConstant hwf hfresh⟩
-
-/-- A fresh mutual-definition fold contains no inductive headers and hence
-preserves constructor/header coherence. -/
-theorem InductiveConstructorsCoherent.addDefinitions
-    (H : InductiveConstructorsCoherent env) (hwf : env.constants.WF) :
-    ∀ (vs : List DefinitionVal),
-      (∀ v ∈ vs, env.find? v.name = none) →
-      (vs.map (·.name)).Nodup →
-      InductiveConstructorsCoherent
-        (vs.foldl (fun env v => env.add (.defnInfo v)) env)
-  | [], _, _ => H
-  | v :: vs, hfresh, hnodup => by
-      simp only [List.map_cons, List.nodup_cons] at hnodup
-      have hvfresh := hfresh v (by simp)
-      have hvfreshMap : env.constants.find? v.name = none := by
-        rwa [← hwf.find?'_eq_find?]
-      have hwf' : (env.add (.defnInfo v)).constants.WF := by
-        change (env.constants.insert v.name (.defnInfo v)).WF
-        exact hwf.insert v.name (.defnInfo v) hvfreshMap
-      have H' : InductiveConstructorsCoherent
-          (env.add (.defnInfo v)) :=
-        H.addNonInductive hwf hvfresh (by intro _ h; cases h)
-      apply H'.addDefinitions hwf' vs
-      · intro w hw
-        have hne : v.name ≠ w.name := by
-          intro heq
-          exact hnodup.1 (List.mem_map.mpr ⟨w, hw, heq.symm⟩)
-        rw [find?_add_of_ne hwf (.defnInfo v) hvfresh hne]
-        exact hfresh w (by simp [hw])
-      · exact hnodup.2
 
 def InductiveConstructorSemanticCoherenceAt.mono
     (H : InductiveConstructorSemanticCoherenceAt
@@ -494,34 +418,6 @@ theorem InductiveConstructorsSemanticallyCoherent.addDefinitions
         exact hfresh w (by simp [hw])
       · exact hnodup.2
       · exact VEnv.LE.rfl
-
-/-- An entry hidden from the current safety observer cannot introduce a
-visible inductive family, even if another observer installed it. -/
-theorem InstalledInductiveProvenance.insertInvisible
-    (H : InstalledInductiveProvenance safety C env)
-    (hwf : C.WF) (hfresh : C.find? ci.name = none)
-    (hhidden : ¬ safety ≤ ci.safety) :
-    InstalledInductiveProvenance safety (C.insert ci.name ci) env := by
-  have hpreserves : ∀ {name found}, C.find? name = some found →
-      (C.insert ci.name ci).find? name = some found := by
-    intro name found hfind
-    rw [hwf.find?_insert]
-    split
-    · rename_i heq
-      have hname : ci.name = name := LawfulBEq.eq_of_beq heq
-      subst name
-      rw [hfind] at hfresh
-      contradiction
-    · exact hfind
-  intro familyName familyInfo hfind hvisible
-  have hold : C.find? familyName = some (.inductInfo familyInfo) := by
-    rw [hwf.find?_insert] at hfind
-    split at hfind
-    · have heq : ci = .inductInfo familyInfo := Option.some.inj hfind
-      exact False.elim (hhidden (by simpa [heq] using hvisible))
-    · exact hfind
-  rcases H familyName familyInfo hold hvisible with ⟨P⟩
-  exact ⟨P.mono (by simpa [P.name] using hfind) hpreserves VEnv.LE.rfl⟩
 
 /-- Rebase an observer across a production extension whose genuinely new
 inductive headers are all hidden at that observer's safety. -/
@@ -1237,14 +1133,6 @@ structure CheckingEnv.Valid (safety : DefinitionSafety)
   (`TelTrN.delete_closed`). Constructor installations supply it through `CtorCornerStep`. -/
   corner : ProjectionCorner safety env venv
 
-theorem TrEnv.toCheckingValidCore (H : TrEnv safety env venv)
-    (hprims : venv.HasPrimitives)
-    (hsafe : ∀ {n ci}, env.find? n = some ci →
-      Kernel.Environment.primitives.contains n →
-      ci.safety = .safe ∧ ci.levelParams = []) :
-    CheckingEnv.ValidCore safety env venv :=
-  ⟨H.toChecking, hprims, hsafe⟩
-
 theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
     (hprims : venv.HasPrimitives)
     (hsafe : ∀ {n ci}, env.find? n = some ci →
@@ -1347,39 +1235,6 @@ theorem CheckingEnv.addProjections
   of_value := fun hfind hvisible hvalue =>
     (H.of_value hfind hvisible hvalue).mono VEnv.addProjections_le
 
-theorem CheckingEnv.addEliminator
-    (H : CheckingEnv safety env venv)
-    (hwf : (venv.addEliminator block schema).WF) :
-    CheckingEnv safety env (venv.addEliminator block schema) where
-  aligned := .eliminators H.aligned
-  wf := hwf
-  of_value := fun hfind hvisible hvalue =>
-    (H.of_value hfind hvisible hvalue).mono VEnv.addEliminator_le
-
-theorem CheckingEnv.ValidCore.addEliminator
-    (H : CheckingEnv.ValidCore safety env venv)
-    (hwf : (venv.addEliminator block schema).WF) :
-    CheckingEnv.ValidCore safety env (venv.addEliminator block schema) where
-  tr := H.tr.addEliminator hwf
-  hasPrimitives := H.hasPrimitives.addEliminator
-  safePrimitives := H.safePrimitives
-
-/-- Certified abstract schemas are available to checking before native
-recursor installation, while every concrete metadata invariant is preserved. -/
-theorem CheckingEnv.Valid.addEliminator
-    (H : CheckingEnv.Valid safety env venv)
-    (hwf : (venv.addEliminator block schema).WF) :
-    CheckingEnv.Valid safety env (venv.addEliminator block schema) where
-  toValidCore := H.toValidCore.addEliminator hwf
-  constructorOwners := H.constructorOwners
-  projectionRegistry := H.projectionRegistry.monoEnv VEnv.addEliminator_le
-  recursors := H.recursors.extendSimple (fun h => h) (fun h _ => h)
-    VEnv.addEliminator_le (fun _ h => h)
-  quot hq := (H.quot hq).extend (fun h => h) VEnv.addEliminator_le
-    (H.recursors.extendSimple (fun h => h) (fun h _ => h)
-      VEnv.addEliminator_le (fun _ h => h)).heads
-  corner := H.corner.mono VEnv.addEliminator_le
-
 theorem Aligned.addEliminators {C : ConstMap} :
     ∀ {venv : VEnv} {es : List (Name × InductiveSignature.CaseSchema)}, Aligned safety C venv →
       Aligned safety C (venv.addEliminators es)
@@ -1463,26 +1318,3 @@ theorem CheckingEnv.ValidCore.toValid
     recursors := hrecursors
     quot := hquot
     corner := hcorner }
-
-/-- Resolve the exact projection alignment selected by successful concrete
-family and constructor lookups. -/
-theorem CheckingEnv.Valid.projectionAlignment
-    (H : CheckingEnv.Valid safety env venv)
-    (hfamily : env.find? familyName = some (.inductInfo familyInfo))
-    (habstract : venv.constants familyName = some familyConstant)
-    (hsingle : familyInfo.ctors = [constructorName])
-    (hconstructor : env.find? constructorName =
-      some (.ctorInfo constructorInfo))
-    (hinduct : constructorInfo.induct = familyName) :
-    Nonempty (ProjectionRegistryAlignmentAt env.constants venv familyName
-      familyInfo constructorName) := by
-  have hfamilyMap : env.constants.find? familyName =
-      some (.inductInfo familyInfo) := by
-    rwa [← H.tr.map_wf.find?'_eq_find?]
-  have hconstructorMap : env.constants.find? constructorName =
-      some (.ctorInfo constructorInfo) := by
-    rwa [← H.tr.map_wf.find?'_eq_find?]
-  have hvisible : safety ≤ (ConstantInfo.inductInfo familyInfo).safety :=
-    (H.tr.find?_uniq hfamily habstract).2.1
-  exact H.projectionRegistry familyName familyInfo constructorName
-    constructorInfo hfamilyMap hvisible hsingle hconstructorMap hinduct

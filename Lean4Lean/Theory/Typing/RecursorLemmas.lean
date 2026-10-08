@@ -511,16 +511,6 @@ theorem VConstructorShape.saturated_of_hasType (henv : VEnv.WF env)
   rw [H.type_eq, VExpr.instL_wrapForalls, VExpr.instL_mkApps] at hc
   simpa [H.doms_length] using VEnv.HasType.mkApps_rigid_arity henv hΓ hrigid hc ht
 
-/-- Telescopes of the same length are equal only if their domains and bodies are. -/
-theorem VExpr.wrapForalls_inj_of_length :
-    ∀ {ds ds' : List VExpr} {b b' : VExpr}, ds.length = ds'.length →
-      VExpr.wrapForalls ds b = VExpr.wrapForalls ds' b' → ds = ds' ∧ b = b'
-  | [], [], _, _, _, h => ⟨rfl, h⟩
-  | _ :: _, _ :: _, _, _, hl, h => by
-    injection h with h1 h2
-    have := VExpr.wrapForalls_inj_of_length (by simpa using hl) h2
-    exact ⟨by rw [h1, this.1], this.2⟩
-
 /-- Universe instantiation commutes with outer instantiation. -/
 theorem VExpr.instL_instOuter (e : VExpr) (args : List VExpr) (ls : List VLevel) :
     (e.instOuter args).instL ls = (e.instL ls).instOuter (args.map (·.instL ls)) := by

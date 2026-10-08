@@ -1,6 +1,8 @@
 import Lean4Lean.Verify.Inductive.Nested.RestoringExpansion
-import Lean4Lean.Verify.Inductive.Nested.HitShape
+import Lean4Lean.Verify.Inductive.Constructor.Positivity
+import Lean4Lean.Verify.ExprHitShape
 import Lean4Lean.Verify.Inductive.RuleTranslation
+import Lean4Lean.Std.Basic
 
 /-! Commutation of executable nested restoration with `Restoration.expr`,
 under the hit-shape side condition.
@@ -101,12 +103,6 @@ theorem RestoreCtxRel.find? {r : Restoration}
         show r.expr (e.liftN 0) = _
         rw [← InductiveSignature.Restoration.expr_liftN r hc, hr]
         rfl
-
-theorem restoration_expr_bvar (r : Restoration) (i : Nat) : r.expr (.bvar i) = some (.bvar i) :=
-  rfl
-
-theorem restoration_expr_sort (r : Restoration) (u : VLevel) :
-    r.expr (.sort u) = some (.sort u) := rfl
 
 theorem restoration_expr_app {r : Restoration} {f a f' a' : VExpr}
     (hf : r.expr f = some f') (ha : r.expr a = some a') :
@@ -232,11 +228,6 @@ private theorem forall₂_append {R : α → β → Prop} :
   | _, _, _, _, .nil, h => h
   | _, _, _, _, .cons h t, h₂ => .cons h (forall₂_append t h₂)
 
-private theorem forall₂_length {R : α → β → Prop} :
-    ∀ {l₁ : List α} {l₂ : List β}, List.Forall₂ R l₁ l₂ → l₁.length = l₂.length
-  | _, _, .nil => rfl
-  | _, _, .cons _ t => by simp [forall₂_length t]
-
 /-- The opened parameters (free variables) translate in the restored context
 to the restorations of their source translations. -/
 theorem RestoreCtxRel.translate_fvars {r : Restoration}
@@ -330,7 +321,7 @@ theorem restorationCommutes'_hit
     exact checkPositivityStep.TrExprS.sourceAvoidsFresh Hfresh hab
   have hRr := Hctx.translate_avoids_forall₂ hc hrest hR'' hR'
   have hPTlen : PT.length = result.nparams := by
-    rw [← forall₂_length hPT, hAsLen]
+    rw [← Lean4Lean.List.Forall₂.length_eq hPT, hAsLen]
   simp only [Restoration.expr]
   rw [Restoration.expr.go_mkApps r (forall₂_append hPr hRr), List.append_nil]
   have hle : h.nparams ≤ (PT ++ R').length := by simp [hnparams, hPTlen]
@@ -657,62 +648,6 @@ theorem RecursorRestoration.typeRestorationCommutes'
     Hs Ht
 
 /-! ### Whole rule right-hand sides -/
-
-/-- The production rule RHS restoration commutes with `Restoration.expr`
-under the hit-shape condition on the opened body. The parameter lambda
-domains (the target scope's, on both sides) are unchanged by both. -/
-theorem RestoredRuleRhsTranslation.restorationCommutes'
-    {r : Restoration} {auxLevels : List Level}
-    (H : RestoredRuleRhsTranslation result prodEnv auxRec oldRecName
-      newRecName oldRule newRule Hrule sourceEnv targetEnv Us)
-    (A : RestorationMapAgreement r result prodEnv auxRec targetEnv Us auxLevels)
-    (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
-    (Hfresh : ∀ n ∈ r.restorableNames, targetEnv.constants n = none)
-    (Hshape : H.opening.body.HitShape (r.heads.map (·.auxiliary))
-      H.opening.params.toList auxLevels)
-    (hsize : H.opening.params.size = result.nparams)
-    (Hctx : VLCtx.VLamShape H.sourceScope H.targetScope)
-    (Hdomains : ∀ d ∈ H.targetScope.toCtx,
-      d.containsAnyConst r.restorableNames = false) :
-    r.expr (VExpr.wrapLams H.targetScope.toCtx.reverse H.sourceBody) =
-      some (VExpr.wrapLams H.targetScope.toCtx.reverse H.targetBody) := by
-  have HAs : ∀ a ∈ H.opening.params.toList, ∃ fv, a = .fvar fv := by
-    intro a ha
-    rw [H.opening.selection.expressions] at ha
-    simp at ha
-    rcases ha with ⟨fv, _, rfl⟩
-    exact ⟨fv, rfl⟩
-  have Hctx' : RestoreCtxRel r (abstractForallContext [] H.sourceScope)
-      (abstractForallContext [] H.targetScope) := by
-    simpa [abstractForallContext] using Hctx.restoreCtxRel (r := r)
-  have Ht := H.body.targetTranslation
-  rw [H.opening.replacement.eq_replace] at Ht
-  have Hbody := _root_.Lean4Lean.VerifyInductive.restorationCommutes' A hc HAs hsize Hfresh Hshape Hctx'
-    H.body.sourceTranslation Ht
-  exact Restoration.expr_wrapLams r (fun d hd => Hdomains d (by simpa using hd)) Hbody
-
-/-- Item for `RestoredRuleRealization.equation`: any translation of the old
-(lowered) RHS restores to a translation of the restored RHS. Translation is
-syntactic, so the lowered translation is the recorded one. -/
-theorem RestoredRuleRhsTranslation.restoredRhs'
-    {r : Restoration} {auxLevels : List Level} {loweredEnv : VEnv}
-    (H : RestoredRuleRhsTranslation result prodEnv auxRec oldRecName
-      newRecName oldRule newRule Hrule sourceEnv targetEnv Us)
-    (A : RestorationMapAgreement r result prodEnv auxRec targetEnv Us auxLevels)
-    (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
-    (Hfresh : ∀ n ∈ r.restorableNames, targetEnv.constants n = none)
-    (Hshape : H.opening.body.HitShape (r.heads.map (·.auxiliary))
-      H.opening.params.toList auxLevels)
-    (hsize : H.opening.params.size = result.nparams)
-    (Hctx : VLCtx.VLamShape H.sourceScope H.targetScope)
-    (Hdomains : ∀ d ∈ H.targetScope.toCtx,
-      d.containsAnyConst r.restorableNames = false)
-    (Hlowered : TrExprS loweredEnv Us [] oldRule.rhs rhs) :
-    ∃ rhs', r.expr rhs = some rhs' ∧ TrExprS targetEnv Us [] newRule.rhs rhs' := by
-  have heq := Hlowered.toSyn.unique H.sourceTranslation.toSyn
-  subst heq
-  exact ⟨_, H.restorationCommutes' A hc Hfresh Hshape hsize Hctx Hdomains,
-    H.restoredTranslation⟩
 
 end VerifyInductive
 end Lean4Lean

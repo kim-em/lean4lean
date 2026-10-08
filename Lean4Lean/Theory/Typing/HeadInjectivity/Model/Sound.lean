@@ -36,41 +36,6 @@ constant is unique and its type is the constant's). The projection rules (`projD
 namespace Lean4Lean
 namespace VEnv
 
-/-- An environment without definitional rules, projections or eliminators: the
-milestone-M2 setting, in which every constant is rigid. -/
-structure NoRules (env : VEnv) : Prop where
-  defeqs : ∀ df, ¬ env.defeqs df
-  projections : ∀ n p, ¬ env.projections n p
-  eliminators : ∀ b s, ¬ env.eliminators b s
-
-/-- Stage A1 (`docs/inductives/PHASE1B_NOTES.md`, section 10.2): every rule is the delta
-rule of a definition (its left-hand side is a bare constant), and there are no
-projections or eliminators. -/
-structure DefsOnly (env : VEnv) : Prop where
-  defeqs : ∀ df, env.defeqs df → ∃ n ls, df.lhs = .const n ls
-  projections : ∀ n p, ¬ env.projections n p
-  eliminators : ∀ b s, ¬ env.eliminators b s
-
-theorem NoRules.defsOnly {env : VEnv} (h : env.NoRules) : env.DefsOnly :=
-  ⟨fun df hdf => absurd hdf (h.defeqs df), h.projections, h.eliminators⟩
-
-/-- Stage A2 (`docs/inductives/PHASE1B_NOTES.md`, section 10.2): every rule is the delta rule
-of a definition or the quotient rule, the latter with the quotient constants installed by
-`addQuot`, and there are no projections or eliminators. -/
-structure DefsQuot (env : VEnv) : Prop where
-  defeqs : ∀ df, env.defeqs df → (∃ n ls, df.lhs = .const n ls) ∨ df = quotDefEq
-  quot : env.defeqs quotDefEq → Model.QuotConsts env
-  projections : ∀ n p, ¬ env.projections n p
-  eliminators : ∀ b s, ¬ env.eliminators b s
-
-theorem DefsOnly.defsQuot {env : VEnv} (h : env.DefsOnly) : env.DefsQuot where
-  defeqs df hdf := .inl (h.defeqs df hdf)
-  quot hq := by
-    obtain ⟨_, _, e⟩ := h.defeqs _ hq
-    exact absurd (Model.quotDefEq_lhs.symm.trans e) VExpr.wrapLams_mkApps_snoc_ne_const
-  projections := h.projections
-  eliminators := h.eliminators
-
 namespace Model
 
 
@@ -177,10 +142,6 @@ theorem app_typed (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
     exact ⟨τc', h1, hoty.strengthen h2⟩
 
 /-! ## Soundness -/
-
-theorem SoundAt.sub_A (ih : SoundAt env U Δ Γ A A' T) (W : Ctx.SubstEq env U Δ σ σ' Γ)
-    (tv : TV env U Δ Γ σ S) (tv' : TV env U Δ Γ σ' S) :
-    Ob.Sub (Obs' σ S A) (Obs' σ' S A') := (ih σ σ' S W tv tv').1
 
 /-- **Validity of a rule** (decision D11 of the notes, section 10.3): the `extra` case of
 soundness for `df` in the model of `env`, given the soundness and semantic typing of its typing
@@ -459,10 +420,6 @@ theorem ElimsValid.mono {env E E' : VEnv} (H : ElimsValid env E) (h : E' ≤ E) 
 theorem ElimsValid.of_elims {env E E' : VEnv} (H : ElimsValid env E)
     (h : ∀ b s, E'.eliminators b s → E.eliminators b s) : ElimsValid env E' :=
   ⟨H.uniq, fun b schema owner rules df hb => H.valid b schema owner rules df (h _ _ hb)⟩
-
-theorem ElimsValid.of_none {env E : VEnv} (hne : ∀ b s, ¬ env.eliminators b s) (h : E ≤ env) :
-    ElimsValid env E :=
-  ⟨fun b s _ hs => absurd hs (hne b s), fun b s _ _ _ hb => absurd (h.eliminators hb) (hne b s)⟩
 
 theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.Permission.wf_cons
     {schema : InductiveSignature.CaseSchema} {owner : Fin schema.signature.families.size}
@@ -849,9 +806,6 @@ theorem EnvValid.of_sub {env E E' : VEnv} (V : EnvValid env E)
     (hdf : ∀ df, E'.defeqs df → E.defeqs df) (hp : ∀ n p, E'.projections n p → E.projections n p)
     (he : ∀ b s, E'.eliminators b s → E.eliminators b s) : EnvValid env E' :=
   ⟨fun df h => V.rule df (hdf df h), fun n p h => V.proj n p (hp n p h), V.elim.of_elims he⟩
-
-theorem EnvValid.mono {env E E' : VEnv} (V : EnvValid env E) (h : E' ≤ E) : EnvValid env E' :=
-  V.of_sub (fun _ => h.defeqs) (fun _ _ => h.projections) (fun _ _ => h.eliminators)
 
 /-- Soundness for an environment that is valid in the model of `env`. -/
 theorem EnvValid.soundAtH {env E : VEnv} (henv : env.Ordered) (hle : E ≤ env) (V : EnvValid env E)

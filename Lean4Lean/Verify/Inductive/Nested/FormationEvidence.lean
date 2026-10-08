@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Nested.ExpansionProjection
+import Lean4Lean.Verify.Inductive.Nested.Mapping
 import Lean4Lean.Verify.TypeChecker
 
 namespace Lean4Lean
@@ -68,64 +68,6 @@ structure GeneratedFamilyInstalledContainer
     (.inductInfo H.sourceInfo) container.types[familyIdx].toVConstant
   /-- The concrete family's safety flag is the container declaration's. -/
   containerUnsafe : H.sourceInfo.isUnsafe = container.isUnsafe
-
-/-- Persistent installed-inductive provenance turns every generated-family
-lookup made by nested lowering into an exact prior-container certificate.
-This discharges the soundness-critical first premise of
-`NestedAuxiliarySource`; the remaining premises describe the concrete
-parameter specialization and its translation to the generated abstract
-family. -/
-theorem GeneratedFamilyWitness.installedContainer
-    {ves : VEnvs}
-    (H : GeneratedFamilyWitness prodEnv params nestedAux family)
-    (wf : ves.WFCore prodEnv) :
-    Nonempty (GeneratedFamilyInstalledContainer prodEnv (ves.venv .unsafe)
-      params nestedAux family H) := by
-  have hfind : prodEnv.constants.find? H.sourceName =
-      some (.inductInfo H.sourceInfo) := by
-    have hlookup := H.built.lookup
-    rw [Lean.Kernel.Environment.find?,
-      (wf.tr (safety := .unsafe)).map_wf.find?'_eq_find?] at hlookup
-    exact hlookup
-  rcases wf.inductiveProvenance H.sourceName H.sourceInfo hfind
-      DefinitionSafety.unsafe_le with ⟨P⟩
-  have hfamily := P.alignment.familyIdx_lt
-  have habstractLookup : (ves.venv .unsafe).constants H.sourceName =
-      some (P.decl.types[P.familyIdx]'hfamily).toVConstant := by
-    calc
-      (ves.venv .unsafe).constants H.sourceName =
-          (ves.venv .unsafe).constants H.sourceInfo.name :=
-        congrArg (ves.venv .unsafe).constants P.name
-      _ = (ves.venv .unsafe).constants
-          (P.decl.types[P.familyIdx]'hfamily).name :=
-        congrArg (ves.venv .unsafe).constants P.alignment.name
-      _ = some (P.decl.types[P.familyIdx]'hfamily).toVConstant :=
-        installedInductCertificate_familyLookup P.installed P.familyIdx
-          hfamily
-  refine ⟨{
-    container := P.decl
-    familyIdx := P.familyIdx
-    familyIdx_lt := P.alignment.familyIdx_lt
-    installed := P.installed
-    lookupName := P.name
-    familyName := ?_
-    numParams := P.alignment.numParams
-    levelParams := P.alignment.levelParams
-    constructors := P.alignment.constructors
-    constructorName := ?_
-    familyLookup := ?_
-    familyTranslation := ?_
-    containerUnsafe := P.alignment.isUnsafe }⟩
-  exact P.alignment.name
-  intro i hi
-  have hfamily := P.alignment.familyIdx_lt
-  have htarget : i < (P.decl.types[P.familyIdx]'hfamily).ctors.length := by
-    simpa [P.alignment.constructors] using hi
-  rcases P.alignment.constructor i htarget with ⟨C⟩
-  exact C.name
-  · exact habstractLookup
-  · exact (wf.tr (safety := .unsafe)).find?_uniq H.built.lookup
-      habstractLookup |>.2
 
 /-- Recover the installed container in the exact abstract observer that
 translated the recognized family.  Visibility is derived from the concrete
@@ -311,18 +253,6 @@ theorem NestedFormationAssembly.constructorArityPrefix
     simpa [VInductDecl.typeConstants, VInductiveType.toVConstVal,
       Function.comp_def] using h
   exact VInductDecl.constructorArityPrefixOfNestedExpansions H.types
-    H.expandedFormation.sourceParameterWF.rawCtorShape H.uvars H.nparams hnodup
-
-/-- Raw constructor shapes of the original families, transported through the
-ordered nested expansion. -/
-theorem NestedFormationAssembly.rawShapes
-    (H : NestedFormationAssembly env source) :
-    ∀ type ∈ source.types, ∀ ctor ∈ type.ctors, source.RawCtorShape type ctor := by
-  have hnodup : (H.expanded.types.map (·.name)).Nodup := by
-    have h := (List.nodup_append.mp H.expandedSource.2.1).1
-    simpa [VInductDecl.typeConstants, VInductiveType.toVConstVal,
-      Function.comp_def] using h
-  exact VInductDecl.rawShapesOfNestedExpansions H.types
     H.expandedFormation.sourceParameterWF.rawCtorShape H.uvars H.nparams hnodup
 
 /-- A successful ordinary header/constructor run supplies both independent

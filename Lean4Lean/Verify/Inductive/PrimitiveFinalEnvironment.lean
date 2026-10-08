@@ -1,4 +1,6 @@
-import Lean4Lean.Verify.Inductive.PrimitiveSemanticAddInduct
+import Lean4Lean.Verify.Inductive.PrimitiveSemanticRun
+import Lean4Lean.Verify.Inductive.CompletedRuleTranslation
+import Lean4Lean.Verify.Inductive.Run.EqCanonical
 
 namespace Lean4Lean
 
@@ -280,46 +282,6 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
   · exact .inl h
   · refine .inr ⟨?_, hc⟩
     rw [hu, hsafety]; rfl
-
-/-- The executable primitive checker reaches the final safety-indexed model
-without an equality-bootstrap premise. -/
-theorem AddInductive.run.primitiveFinalEnvironmentModelWF
-    {ves : VEnvs}
-    (nparams numNested : Nat)
-    (Hc : ContextWF c)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
-    (hsource : Hc.venv = ves.venv .safe)
-    (Hshape : PrimitiveInductiveShape c.lparams nparams
-      types.toArray.toList (c.safety != .safe))
-    (hctx : Hc.mlctx.vlctx = [])
-    (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial) :
-    (AddInductive.run nparams types numNested c).WF fun outEnv =>
-      exists decl : VInductDecl, exists ves' : VEnvs,
-        ves'.WFCore outEnv /\
-        forall safety, ves.venv safety <= ves'.venv safety := by
-  have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
-    nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty HnotPartial
-  exact Hrun.mono fun outEnv Hresult => by
-    have Hresult' : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned
-        c (ves.venv .safe) nparams types numNested outEnv := by
-      simpa [hsource] using Hresult
-    rcases Hresult' with
-      ⟨c', stats, depth, _commonParams, _commonLevel, _Hc', henv, hsafety,
-        _hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hshape',
-        Hphases⟩
-    have wf' : ves.WFCore c'.env := by simpa [henv] using wf
-    have hcorner' : ∀ safety, ProjectionCorner safety c'.env (ves.venv safety) := by
-      rw [henv]; exact hcorner
-    have Hshape'' : PrimitiveInductiveShape c'.lparams nparams
-        types.toArray.toList (c'.safety != .safe) := by
-      simpa [hsafety] using Hshape'
-    have Hphases' : SemanticPrimitiveRunWithStatsResult c' stats nparams depth
-        (ves.venv .safe) types.toArray (c'.safety != .safe) outEnv := by
-      simpa [hvenv, hsafety] using Hphases
-    rcases Hphases'.extendSafeExact wf' hcorner' Hshape'' with
-      ⟨ves', decl, _envTypes, _envCtors, wf'', hle, _source, _hadd⟩
-    exact ⟨decl, ves', wf'', hle⟩
 
 end VerifyInductive
 end Lean4Lean

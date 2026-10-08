@@ -59,27 +59,6 @@ theorem CompletedStagedBlock.abstract_recursors
       (recursors.map Prod.snd) = some outVEnv :=
   H.recursorsAdded.abstract
 
-theorem CompletedStagedBlock.valid
-    (H : CompletedStagedBlock safety env venv types ctors recursors
-      projections outEnv outVEnv)
-    (hvalidCtors : CheckingEnv.ValidCore safety H.envCtors
-      ((H.venvCtors.addEliminators H.eliminators).addProjections projections))
-    (howners : ConstructorOwnersPresent outEnv)
-    (hregistry : ProjectionRegistryCoherent safety outEnv.constants outVEnv)
-    (hrecursors : RecursorEnvCoherent safety outEnv.constants outVEnv)
-    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv)
-    (hcorner : ProjectionCorner safety outEnv outVEnv) :
-    CheckingEnv.Valid safety outEnv outVEnv :=
-  (H.recursorsAdded.validCore hvalidCtors).toValid howners hregistry hrecursors hquot hcorner
-
-theorem CompletedStagedBlock.validCore
-    (H : CompletedStagedBlock safety env venv types ctors recursors
-      projections outEnv outVEnv)
-    (hvalidCtors : CheckingEnv.ValidCore safety H.envCtors
-      ((H.venvCtors.addEliminators H.eliminators).addProjections projections)) :
-    CheckingEnv.ValidCore safety outEnv outVEnv :=
-  H.recursorsAdded.validCore hvalidCtors
-
 /-- Collapse the completed formation prefix and ordinary recursor suffix into
 one atomic trace. This exposes whole-block provenance without manufacturing
 a validity judgment for a primitive header prefix. -/
@@ -298,18 +277,6 @@ theorem CompletedBlockCertificate.rebaseCertificate
     rulesWF := fun df hdf => (H.rulesWF df hdf).mono hout }
   exact ⟨largerOutBase, Hlarger, hout, rfl, rfl⟩
 
-/-- The abstract inductive extension depends only on the completed block's
-well-formedness and installation equations, not on whether the formation
-prefix was installed ordinarily or as one atomic primitive batch. -/
-theorem CompletedBlockCertificate.addInductAbstract
-    (H : CompletedBlockCertificate safety env venv types ctors recursors
-      rules outEnv outVEnv)
-    (Hdecl : decl.WF venv)
-    (Hcompile : decl.CompilesTo venv H.block)
-    (Helim : VInductBlock.EliminatorsWF venv decl H.block) :
-    VEnv.AddInduct venv decl H.finalVEnv :=
-  .intro Hdecl Hcompile H.wf Helim H.install
-
 /-- Concrete executable-to-specification boundary for a completed block.
 Whole-block alignment and delta conservation use the atomic trace, which is
 valid for ordinary and primitive formation alike. -/
@@ -393,56 +360,6 @@ theorem CompletedBlockCertificate.rebaseAddInductSafe
         helimLarger
   exact ⟨largerOutBase, Hlarger, hadd,
     VEnv.addDefEqRules_mono houtBase, hprojections, heliminators⟩
-
-theorem CompletedBlockCertificate.addInductOfFormation
-    (H : CompletedBlockCertificate safety env venv types ctors recursors
-      rules outEnv outVEnv)
-    (Hformation : FormationCertificate venv decl)
-    (Hsource : decl.SourceWF venv)
-    (Hcompile : decl.CompilesTo venv H.block)
-    (Helim : VInductBlock.EliminatorsWF venv decl H.block) :
-    VEnv.AddInduct venv decl H.finalVEnv :=
-  H.addInductAbstract (Hformation.declWF Hsource) Hcompile Helim
-
-/-- Ordinary compilation closes a completed formation prefix, including the
-atomic primitive prefix, once source translation supplies the independent
-source well-formedness judgment. -/
-theorem CompletedBlockCertificate.addInductOfOrdinaryCompilation
-    (H : CompletedBlockCertificate safety env venv blockTypes blockCtors
-      blockRecursors rules outEnv outVEnv)
-    (Hformation : FormationCertificate venv decl)
-    (Hsource : TrInductDeclCore venv lparams nparams sourceTypes isUnsafe decl
-      sourceEnvTypes sourceEnvCtors)
-    (hnonempty : sourceTypes ≠ [])
-    (Hcompile : OrdinaryCompilationCertificate venv decl H.block)
-    (Helim : VInductBlock.EliminatorsWF venv decl H.block) :
-    VEnv.AddInduct venv decl H.finalVEnv := by
-  have Htranslated :=
-    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
-      Hsource
-      (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty Hsource hnonempty)
-  exact H.addInductOfFormation Hformation
-    (Lean4Lean.TrInductDecl.sourceWF Htranslated)
-    Hcompile.compilesTo Helim
-
-/-- Nested compilation closes against the same completed formation boundary. -/
-theorem CompletedBlockCertificate.addInductOfNestedCompilation
-    (H : CompletedBlockCertificate safety env venv blockTypes blockCtors
-      blockRecursors rules outEnv outVEnv)
-    (Hformation : FormationCertificate venv decl)
-    (Hsource : TrInductDeclCore venv lparams nparams sourceTypes isUnsafe decl
-      sourceEnvTypes sourceEnvCtors)
-    (hnonempty : sourceTypes ≠ [])
-    (Hcompile : NestedCompilationCertificate venv decl H.block)
-    (Helim : VInductBlock.EliminatorsWF venv decl H.block) :
-    VEnv.AddInduct venv decl H.finalVEnv := by
-  have Htranslated :=
-    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
-      Hsource
-      (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty Hsource hnonempty)
-  exact H.addInductOfFormation Hformation
-    (Lean4Lean.TrInductDecl.sourceWF Htranslated)
-    Hcompile.compilesTo Helim
 
 def GeneratedRecursors.toCompletedBlockCertificate
     (projections : List VProjectionEntry)
@@ -537,16 +454,6 @@ def CompletedRecursorPhasesResult.blockCertificate
     (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
     (H.blockCertificate rules hrules).projections = decl.projectionEntries := by
   rfl
-
-/-- The completed block registers the declaration's certified case eliminators. -/
-theorem CompletedRecursorPhasesResult.blockEliminatorsWF
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
-    (rules : List VDefEq)
-    (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
-    VInductBlock.EliminatorsWF sourceEnv decl (H.blockCertificate rules hrules).block :=
-  R.eliminatorsWF.congr_block R.headerValues R.constructorValues rfl rfl
 
 /-- The completed block's case eliminators are certified over every larger environment in
 which its families and constructors install. -/

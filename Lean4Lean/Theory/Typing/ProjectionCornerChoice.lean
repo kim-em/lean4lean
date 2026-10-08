@@ -10,7 +10,7 @@ original families (`VEnv.WF.projections_eliminated`), whose certificate includes
 agreement of its original families (`VEnv.WF.eliminator_headerAgreement`). Under canonical choice
 the binder reached by a projection walk past a field whose projection fails the universe guard is
 therefore inhabited, for structures with and without indices
-(`VEnv.corner_inhabit_elim_indexed`). -/
+(`VEnv.corner_inhabit_elim`). -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -68,7 +68,7 @@ theorem WF.corner_inhabit_choice (henv : env.WF) (hch : env.HasCanonicalChoice)
       ¬ ((info.resultLevel.inst ls).IsNeverZero ∨ u ≈ .zero)) :
     ∃ d, env.HasType U Δ d D := by
   obtain ⟨key, schema, hel, hS⟩ := henv.projections_eliminated hinfo
-  exact corner_inhabit_elim_indexed henv hch hΔ hinfo hls hlslen hT₀ hpl he' hwalk hD hguard
+  exact corner_inhabit_elim henv hch hΔ hinfo hls hlslen hT₀ hpl he' hwalk hD hguard
     hel hS (henv.corner_header hel hS)
 
 end VEnv

@@ -934,59 +934,6 @@ theorem checkInductiveTypes.accumulatesSemanticHeadersSourceAligned
   · rfl
   · rfl
 
-/-- Project header accumulation to its semantic result. -/
-theorem checkInductiveTypes.accumulatesSemanticHeaders
-    {c : AddInductive.Context} {indTypes : Array InductiveType}
-    {nparams : Nat} {alpha : Type}
-    (k : AddInductive.InductiveStats → AddInductive.M alpha)
-    (Q : alpha → Prop)
-    (Hc : ContextWF c)
-    (hctx : Hc.mlctx.vlctx = [])
-    (hnonempty : 0 < indTypes.size)
-    (hconsume : ConsumeTypeAnnotationsCompat)
-    (Hfinish : ∀ {c' : AddInductive.Context}
-      {stats' : AddInductive.InductiveStats} {depth : Nat}
-      {commonParams : List VExpr} {commonLevel : VLevel},
-      (Hc' : ContextWF c') →
-      c'.env = c.env →
-      c'.safety = c.safety →
-      c'.lparams = c.lparams →
-      (Hsemantic' :
-        checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
-          Hc'.venv c'.lparams nparams commonParams commonLevel
-            indTypes.toList) →
-      stats'.levels.length = c'.lparams.length →
-      stats'.levels = c'.lparams.map .param →
-      stats'.nindices.size = indTypes.size →
-      stats'.nindices.toList = Hsemantic'.metadata.map Prod.fst →
-      stats'.indConsts.size = indTypes.size →
-      stats'.indConsts =
-        (indTypes.toList.map fun source =>
-          .const source.name stats'.levels).toArray →
-      stats'.indConsts.isEmpty = false →
-      stats'.params.size = nparams →
-      commonParams.length = nparams →
-      checkInductiveTypes.loopType.ParameterCachePrefix
-        Hc'.venv c'.lparams Hc'.mlctx.vlctx stats'
-          nparams depth →
-      checkInductiveTypes.loopType.ParameterContextSuffix
-        Hc' stats' depth →
-      checkInductiveTypes.loopType.AmbientParamContext
-        Hc' commonParams depth →
-      VLevel.ofLevel c'.lparams stats'.resultLevel = some commonLevel →
-      stats'.isNotZero = stats'.resultLevel.isNeverZero →
-      (k stats' c').WF Q) :
-    (AddInductive.checkInductiveTypes nparams indTypes k c).WF Q := by
-  apply checkInductiveTypes.accumulatesSemanticHeadersSourceAligned
-    k Q Hc hctx hnonempty hconsume
-  intro c' stats' depth commonParams commonLevel Hc' henv hsafety
-    hlparams _hallowPrimitive _hfuel _hvenv Hsemantic hlevels hlevelParams
-    hindicesSize hindices hconstsSize hconsts hnonempty' hparams
-    hcommonParams Hcache Hsuffix Hambient hcommon hnotzero
-  exact Hfinish Hc' henv hsafety hlparams Hsemantic hlevels hlevelParams
-    hindicesSize hindices hconstsSize hconsts hnonempty' hparams
-    hcommonParams Hcache Hsuffix Hambient hcommon hnotzero
-
 end checkInductiveTypes.loopInd
 end VerifyInductive
 end Lean4Lean

@@ -115,8 +115,7 @@ constant's applications, and `pat` shapes by an actual reduction step.
 **It is false for registered patterns with checks** (`Pattern.Check.defeq`):
 `LE_Interp.Const.pat` ignores the checks, so a checked pattern is read through by the model,
 while the relation at a Pi-shaped type demands a weak-head reduction that only fires once the
-check is derivable (`docs/inductives/PHASE1_SPIKE.md`, section 3, and
-`Lean4Lean/Experimental/Spike/ReadThrough.lean`). We also expect it to fail for unchecked
+check is derivable (`docs/inductives/history/PHASE1_SPIKE.md`, section 3). We also expect it to fail for unchecked
 patterns that match a constructor argument at a type-valued motive, because `LE_Interp.Matches`
 matches argument *shapes* while `WHRed.extra` matches argument *syntax*, and the relation at an
 inductive type shape (`indTy`) is `True`: a variable with a constructor shape is related to

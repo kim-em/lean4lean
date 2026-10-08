@@ -87,32 +87,6 @@ structure CompletedRecursorConstruction.ConsumedGeneration
       Nonempty (ConsumedConstructorOrigins signature (H.origins.minorShapes owner howner localIndex hlocal)
         signature.constructors[index])
 
-/-- The common parameter translation follows from its retained source choice;
-it is already proved before the remaining motive/minor construction. -/
-theorem CompletedRecursorConstruction.ConsumedGeneration.parameterTranslation
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorConstruction R} (G : H.ConsumedGeneration) :
-    TrExprS R.context.venv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
-      (H.localContext.lctx.mkForall stats.params (.sort .zero))
-      (VExpr.wrapForalls G.generation.params (.sort .zero)) := by
-  simpa only [InductiveSignature.Instance.params, G.params, G.levels] using
-    H.sourceParameterTranslation
-
-/-- The fixed family table and parameter choice determine every motive
-binder. This translation is reconstructed from the actual first-pass origins. -/
-theorem CompletedRecursorConstruction.ConsumedGeneration.motiveTranslation
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorConstruction R} (G : H.ConsumedGeneration) :
-    TrExprS R.context.venv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
-      (H.localContext.lctx.mkForall stats.params <|
-        H.localContext.lctx.mkForall (H.recInfos.map (·.motive)) (.sort .zero))
-      (VExpr.wrapForalls (G.generation.params ++ G.generation.motives) (.sort .zero)) :=
-  H.generatedParametersMotivesTranslation G.generation G.params G.families G.levels G.target
-
 /-- The consumed signature's constructors carry the retained source origins
 of their minors. -/
 theorem CompletedRecursorConstruction.consumedSignature_origins
@@ -217,23 +191,6 @@ noncomputable def CompletedRecursorConstruction.consumedGenerationOf
     rw [H.consumedSignature_constructor HU owner howner localIndex hlocal hk]
     exact H.consumedSignature_origins HU owner howner localIndex hlocal
 
-/-- Construct the joint witness from actual parameter, motive, constructor,
-and loopU traces. Annotation consumption uses the retained source expression
-at each binder; recursive WHNF domain choices are made here, once, rather
-than recovered from an independently chosen raw formation normal form. -/
-theorem CompletedRecursorConstruction.canonicalConsumedGeneration
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) : Nonempty H.ConsumedGeneration :=
-  ⟨H.consumedGenerationOf H.argumentUniverses⟩
-
-theorem CompletedRecursorConstruction.consumedGeneration_of
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses) :
-    Nonempty H.ConsumedGeneration :=
-  ⟨H.consumedGenerationOf HU⟩
-
 /-- The generation witness: the explicit construction `consumedGenerationOf`
 (not a choice from `canonicalConsumedGeneration`), so that its signature is
 definitionally `H.consumedSignature H.argumentUniverses` and the facts
@@ -246,11 +203,6 @@ noncomputable def CompletedRecursorConstruction.consumedGeneration
 theorem CompletedRecursorConstruction.consumedGeneration_signature
     (H : CompletedRecursorConstruction R) :
     H.consumedGeneration.signature = H.consumedSignature H.argumentUniverses := rfl
-
-theorem CompletedRecursorConstruction.consumedGeneration_generation
-    (H : CompletedRecursorConstruction R) :
-    H.consumedGeneration.generation =
-      H.consumedInstance (H.consumedSignature H.argumentUniverses) := rfl
 
 noncomputable def CompletedRecursorConstruction.generationSignature
     (H : CompletedRecursorConstruction R) : InductiveSignature := H.consumedGeneration.signature

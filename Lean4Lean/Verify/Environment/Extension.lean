@@ -447,42 +447,6 @@ theorem VEnvs.WFCore.extendUnsafeExact
     | «partial» => exact VEnv.LE.rfl
     | safe => exact VEnv.LE.rfl
 
-/-- Environment-preservation projection of `extendUnsafeExact`. -/
-theorem VEnvs.WFCore.extendUnsafe
-    {ves : VEnvs} {env env' : Environment} (wf : ves.WFCore env)
-    (unsafeEnv : VEnv)
-    (htrUnsafe : TrEnv' .unsafe env'.constants env'.quotInit unsafeEnv)
-    (htrPartial : TrEnv' .partial env'.constants env'.quotInit
-      (ves.venv .partial))
-    (htrSafe : TrEnv' .safe env'.constants env'.quotInit
-      (ves.venv .safe))
-    (hunsafePrimitives : unsafeEnv.HasPrimitives)
-    (hsafePrimitives : ∀ {n ci}, env'.find? n = some ci →
-      Environment.primitives.contains n →
-      ci.safety = .safe ∧ ci.levelParams = [])
-    (hinductivesClosed : VerifyInductive.MutualInductivesClosed env')
-    (hconstructorOwners : VerifyInductive.ConstructorOwnersPresent env')
-    (hconstructorSemantics : ∀ safety,
-      VerifyInductive.InductiveConstructorsSemanticallyCoherent safety env'
-        (match safety with
-        | .unsafe => unsafeEnv
-        | .partial => ves.venv .partial
-        | .safe => ves.venv .safe))
-    (hinductiveProvenance : ∀ safety,
-      InstalledInductiveProvenance safety env'.constants
-        (match safety with
-        | .unsafe => unsafeEnv
-        | .partial => ves.venv .partial
-        | .safe => ves.venv .safe))
-    (hleUnsafe : ves.venv .unsafe ≤ unsafeEnv) :
-    ∃ ves' : VEnvs, ves'.WFCore env' ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases wf.extendUnsafeExact unsafeEnv htrUnsafe htrPartial htrSafe
-      hunsafePrimitives hsafePrimitives
-      hinductivesClosed hconstructorOwners hconstructorSemantics
-      hinductiveProvenance hleUnsafe with ⟨ves', wf', hle, _⟩
-  exact ⟨ves', wf', hle⟩
-
 /-- Assemble the three safety-indexed results of one concrete inductive
 extension.  All implementation-specific work is isolated in the pointwise
 `AddInduct` witnesses; this theorem supplies the `TrEnv'` constructors,
@@ -537,32 +501,6 @@ theorem VEnvs.WFCore.extendInductExact
     exact (hadd safety).le
   · intro safety
     rfl
-
-/-- Environment-preservation projection of `extendInductExact`. -/
-theorem VEnvs.WFCore.extendInduct
-    {ves : VEnvs} {env env' : Environment} (wf : ves.WFCore env)
-    (decl : VInductDecl) (next : DefinitionSafety → VEnv)
-    (hadd : ∀ safety,
-      AddInduct safety env.constants (ves.venv safety) decl
-        env'.constants (next safety))
-    (hquot : env'.quotInit = env.quotInit)
-    (hprimitives : ∀ safety, (next safety).HasPrimitives)
-    (hsafePrimitives : ∀ {n ci}, env'.find? n = some ci →
-      Environment.primitives.contains n →
-      ci.safety = .safe ∧ ci.levelParams = [])
-    (hinductivesClosed : VerifyInductive.MutualInductivesClosed env')
-    (hconstructorOwners : VerifyInductive.ConstructorOwnersPresent env')
-    (hconstructorSemantics : ∀ safety,
-      VerifyInductive.InductiveConstructorsSemanticallyCoherent safety env'
-        (next safety))
-    (hmono : ∀ {safety safety'}, safety ≤ safety' →
-      next safety' ≤ next safety) :
-    ∃ ves' : VEnvs, ves'.WFCore env' ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases wf.extendInductExact decl next hadd hquot hprimitives
-      hsafePrimitives hinductivesClosed hconstructorOwners
-      hconstructorSemantics hmono with ⟨ves', wf', hle, _hexact⟩
-  exact ⟨ves', wf', hle⟩
 
 theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (ci : ConstantInfo) (ci' : VConstVal) (checkSafety : DefinitionSafety)

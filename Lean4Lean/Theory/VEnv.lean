@@ -158,9 +158,6 @@ theorem VEnv.LE.rfl {env : VEnv} : env ≤ env := ⟨id, id, id, id⟩
 theorem VEnv.LE.trans {a b c : VEnv} (h1 : a ≤ b) (h2 : b ≤ c) : a ≤ c :=
   ⟨h2.1 ∘ h1.1, h2.2 ∘ h1.2, h2.3 ∘ h1.3, h2.4 ∘ h1.4⟩
 
-theorem VEnv.empty_le (env : VEnv) : VEnv.empty ≤ env :=
-  ⟨by simp [empty], False.elim, False.elim, False.elim⟩
-
 theorem VEnv.addEliminator_le {env : VEnv} : env ≤ env.addEliminator block schema :=
   ⟨id, id, id, Or.inr⟩
 
@@ -174,13 +171,6 @@ theorem VEnv.addEliminators_mono {env₁ env₂ : VEnv} {es} (H : env₁ ≤ env
   projections h := by simpa using H.projections (by simpa using h)
   eliminators := fun h => VEnv.addEliminators_iff.mpr
     ((VEnv.addEliminators_iff.mp h).imp_right H.eliminators)
-
-theorem VEnv.addEliminator_mono {env₁ env₂ : VEnv} (H : env₁ ≤ env₂) :
-    env₁.addEliminator block schema ≤ env₂.addEliminator block schema where
-  constants := H.constants
-  defeqs := H.defeqs
-  projections := H.projections
-  eliminators := fun h => h.elim Or.inl (Or.inr ∘ H.eliminators)
 
 theorem VEnv.addConst_le {env env' : VEnv}
     (h : env.addConst n ci = some env') : env ≤ env' := by

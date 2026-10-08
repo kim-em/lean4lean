@@ -1,12 +1,12 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjValid
-import Lean4Lean.Theory.Typing.ShapeModel.EnvSigOrigin
-import Lean4Lean.Theory.Typing.ShapeModel.RuleValidInstSyntax
+import Lean4Lean.Theory.Typing.EnvTables.EnvSigCtor
+import Lean4Lean.Theory.Typing.EnvTables.RuleValidInstSyntax
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.NativeNested
 
 /-! # Static facts about projection entries of well-formed environments
 
-The constructor and family tables of the shape model (`ShapeModel.ctorOf`, `ShapeModel.famOf`,
-`Theory/Typing/ShapeModel/EnvTables.lean`) record every registered structure with its
+The constructor and family tables (`EnvTables.ctorOf`, `EnvTables.famOf`,
+`Theory/Typing/EnvTables/EnvTables.lean`) record every registered structure with its
 constructor, every native constructor major, and every generic case major of a registered
 schema whose view is the recorded one. A family is never a constructor of the tables, and table
 entries are rigid. -/
@@ -29,77 +29,60 @@ theorem Model.generates_major {schema : CaseSchema} {owner : Fin schema.signatur
   refine ⟨VExpr.mkApps (.elim rule.application.block rule.application.owner
     rule.application.levels) rule.application.arguments, rule.application.ctorLevels,
     rule.application.ctorArguments, ?_⟩
-  rw [← hb, ShapeModel.stripLams_wrapLams', ← ha]
+  rw [← hb, EnvTables.stripLams_wrapLams', ← ha]
   rfl
 
 /-- A native constructor is a constructor of the table. -/
 theorem WF.ctorOf_of_nativeCtor (henv : env.WF) (h : Model.IsNativeCtor env c) :
-    ShapeModel.ctorOf env c ≠ none := by
+    EnvTables.ctorOf env c ≠ none := by
   obtain ⟨df, hdf, fn, ls, args, hm⟩ := h
-  obtain ⟨k, _, _, hk, _⟩ := ShapeModel.defeq_major henv hdf hm
+  obtain ⟨k, _, _, hk, _⟩ := EnvTables.defeq_major henv hdf hm
   simp [hk]
 
 /-- A case constructor is a constructor of the table, or a constructor, in the schema's view, of
 an original family of the schema which is its syntactic family. -/
 theorem WF.caseCtor_origin (henv : env.WF) (h : Model.IsCaseCtor env c) :
-    ShapeModel.ctorOf env c ≠ none ∨ ∃ (key : Name) (schema : CaseSchema)
+    EnvTables.ctorOf env c ≠ none ∨ ∃ (key : Name) (schema : CaseSchema)
       (owner : Fin schema.signature.families.size), env.eliminators key schema ∧
-      schema.originalFamilies[owner.val]? = ShapeModel.ctorFamily env c ∧
+      schema.originalFamilies[owner.val]? = EnvTables.ctorFamily env c ∧
       c ∈ (schema.view owner).constructors.toList.map (·.name) := by
   obtain ⟨key, schema, owner, rule, hreg, hgen, rfl⟩ := h
   obtain ⟨fn, ls, args, hm⟩ := Model.generates_major hgen
   obtain ⟨rules, hrules, hmem, -⟩ := hgen
-  rcases ShapeModel.generic_major_origin henv hreg hrules hmem hm with h | ⟨ho, hc⟩
+  rcases EnvTables.generic_major_origin henv hreg hrules hmem hm with h | ⟨ho, hc⟩
   · exact .inl h
   · exact .inr ⟨key, schema, owner, hreg, ho, hc⟩
 
 theorem Model.ctorFamily_of_ctorFam (h : Model.CtorFam env c I) :
-    ShapeModel.ctorFamily env c = some I := by
+    EnvTables.ctorFamily env c = some I := by
   obtain ⟨ci, ls, hci, hres⟩ := h
-  simp [ShapeModel.ctorFamily, hci, ShapeModel.familyOfType, hres]
+  simp [EnvTables.ctorFamily, hci, EnvTables.familyOfType, hres]
 
 /-- **The constructor of a registered structure is rigid.** -/
 theorem WF.projCtor_rigid (henv : env.WF) : Model.IsProjCtor env c → env.Rigid c := by
   rintro ⟨fam, info, hp, rfl⟩
-  exact (ShapeModel.ctorOf_rigid henv (ShapeModel.ctorOf_projection henv hp)).1
+  exact (EnvTables.ctorOf_rigid henv (EnvTables.ctorOf_projection henv hp)).1
 
 /-- A registered structure is not the constructor of a registered structure. -/
 theorem WF.projFamily_not_projCtor (henv : env.WF) (hp : env.projections S info) :
     ¬ Model.IsProjCtor env S := by
   rintro ⟨fam, info', hp', hn⟩
-  have h1 := (ShapeModel.ctorOf_rigid henv (ShapeModel.ctorOf_projection henv hp)).2.2
-  rw [← hn, ShapeModel.ctorOf_projection henv hp'] at h1
+  have h1 := (EnvTables.ctorOf_rigid henv (EnvTables.ctorOf_projection henv hp)).2.2
+  rw [← hn, EnvTables.ctorOf_projection henv hp'] at h1
   cases h1
 
 /-- A registered structure is not a native constructor. -/
 theorem WF.projFamily_not_nativeCtor (henv : env.WF) (hp : env.projections S info) :
     ¬ Model.IsNativeCtor env S := fun h => henv.ctorOf_of_nativeCtor h
-  (ShapeModel.ctorOf_rigid henv (ShapeModel.ctorOf_projection henv hp)).2.2
-
-/-- **The only way a registered structure `S` can be a case constructor**: some registered
-schema lists `S` among the constructors, in its own view, of a slot whose original family is the
-family `ShapeModel.ctorFamily env S` that the declared type of `S` literally returns. This cannot
-happen in a consistent environment (the declared type of `S` is definitionally a telescope ending
-in a sort), but excluding it needs head inversion for earlier environments, not only the
-declaration history: the schema may be registered after the structure, and its certification
-base need not contain `S`. -/
-theorem WF.projFamily_caseCtor (henv : env.WF) (hp : env.projections S info)
-    (h : Model.IsCaseCtor env S) :
-    ∃ (key : Name) (schema : CaseSchema) (owner : Fin schema.signature.families.size),
-      env.eliminators key schema ∧
-      schema.originalFamilies[owner.val]? = ShapeModel.ctorFamily env S ∧
-      S ∈ (schema.view owner).constructors.toList.map (·.name) := by
-  rcases henv.caseCtor_origin h with h | h
-  · exact absurd (ShapeModel.ctorOf_rigid henv (ShapeModel.ctorOf_projection henv hp)).2.2 h
-  · exact h
+  (EnvTables.ctorOf_rigid henv (EnvTables.ctorOf_projection henv hp)).2.2
 
 /-- **Static facts of a projection entry** (`Model.ProjStatic`) of a well-formed environment,
 given that its family is not a case constructor (`WF.projFamily_caseCtor` describes the only
 remaining corner). -/
 theorem WF.projStatic (henv : env.WF) (hp : env.projections S info) :
     Model.ProjStatic env S info := by
-  have hk := ShapeModel.ctorOf_projection henv hp
-  have hr := ShapeModel.ctorOf_rigid henv hk
+  have hk := EnvTables.ctorOf_projection henv hp
+  have hr := EnvTables.ctorOf_rigid henv hk
   exact ⟨hr.2.1, hr.1, henv.projFamily_not_nativeCtor hp, henv.projFamily_not_projCtor hp,
     henv.ordered.closedC (henv.ordered.projectionConstructor hp)⟩
 
@@ -107,7 +90,7 @@ theorem WF.projStatic (henv : env.WF) (hp : env.projections S info) :
 theorem WF.projCtor_family (henv : env.WF) (hpc : Model.IsProjCtor env c)
     (hcf : Model.CtorFam env c I) : ∃ info, env.projections I info ∧ info.ctorName = c := by
   obtain ⟨fam, info, hp, rfl⟩ := hpc
-  have h1 := (ShapeModel.ctorOf_shape' henv (ShapeModel.ctorOf_projection henv hp)).family
+  have h1 := (EnvTables.ctorOf_shape' henv (EnvTables.ctorOf_projection henv hp)).family
   rw [Model.ctorFamily_of_ctorFam hcf] at h1
   cases h1
   exact ⟨info, hp, rfl⟩
@@ -117,13 +100,13 @@ theorem WF.projCtor_family (henv : env.WF) (hpc : Model.IsProjCtor env c)
 theorem WF.ctor_of_projFamily (henv : env.WF) (hp : env.projections I info)
     (hc : Model.IsCtor env c) (hcf : Model.CtorFam env c I) : c = info.ctorName := by
   have hf := Model.ctorFamily_of_ctorFam hcf
-  have fromTable : ShapeModel.ctorOf env c ≠ none → c = info.ctorName := by
+  have fromTable : EnvTables.ctorOf env c ≠ none → c = info.ctorName := by
     intro h
     obtain ⟨k, hk⟩ := Option.ne_none_iff_exists'.mp h
-    have hfam := (ShapeModel.ctorOf_shape' henv hk).family
+    have hfam := (EnvTables.ctorOf_shape' henv hk).family
     rw [hf] at hfam
     cases hfam
-    have hmem := (ShapeModel.famOf_mem_ctors henv (ShapeModel.famOf_projection henv hp)).mpr
+    have hmem := (EnvTables.famOf_mem_ctors henv (EnvTables.famOf_projection henv hp)).mpr
       ⟨k, hk, rfl⟩
     simpa using hmem
   rcases hc with h | h
@@ -161,8 +144,8 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursor_forallResul
   obtain ⟨-, -, ht⟩ := Restoration.recursor_parts hr
   change Restoration.expr _ (g.recursorType o) = _ at ht
   unfold Instance.recursorType at ht
-  obtain ⟨D', B', heq, -, hb⟩ := ShapeModel.restoration_wrapForalls_forall₂ ht
-  obtain ⟨args', hargs, rfl⟩ := ShapeModel.restoration_bvar_mkApps hb
+  obtain ⟨D', B', heq, -, hb⟩ := EnvTables.restoration_wrapForalls_forall₂ ht
+  obtain ⟨args', hargs, rfl⟩ := EnvTables.restoration_bvar_mkApps hb
   rw [heq, VExpr.forallResult_wrapForalls]
   have hlen := Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.mp hargs)
   obtain ⟨f, x, e⟩ := VExpr.mkApps_ne_nil_app (args := args') (.bvar _) (by
@@ -375,119 +358,6 @@ theorem WF.quot_not_projection (henv : env.WF) (hq : env.defeqs quotDefEq)
   exact ⟨fun info hp => (h _ info hp).1 rfl, fun ⟨S, info, hp, hn⟩ => (h S info hp).2 hn⟩
 
 /-! ## Native rules whose owner family is projection-registered -/
-
-open private defeqs_addRules from Lean4Lean.Theory.Typing.NativeConstructorRigidity in
-/-- The constructor of an ordinary native recursor equation whose owner family is
-projection-registered is the registered constructor. -/
-theorem WF.native_projFamily_ctor {s : InductiveSignature} {g : Instance s}
-    {base' installed : VEnv} (henv : env.WF)
-    (C : CompilationData base source expanded s g [] block)
-    (hinst : block.install base' = some installed) (hle : installed ≤ env)
-    (index : Fin s.constructors.size)
-    (hp : env.projections s.families[s.constructors[index].owner].name info) :
-    info.ctorName = s.constructors[index].name := by
-  have hmem : g.equation index ∈ block.rules := by
-    rw [C.ordinary_rules]; exact List.mem_map.2 ⟨_, List.mem_finRange _, rfl⟩
-  have hdf : env.defeqs (g.equation index) := by
-    refine hle.defeqs ?_
-    have hinst' := hinst
-    simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.pure_def, Option.some.injEq] at hinst'
-    obtain ⟨_, _, _, _, _, _, rfl⟩ := hinst'
-    exact defeqs_addRules.2 (.inl hmem)
-  have hcisN : Model.IsNativeCtor env s.constructors[index].name :=
-    ⟨_, hdf, _, _, _, by rw [g.equation_lhs_eq, VExpr.stripLams_wrapLams, Model.mkApps_concat]; rfl⟩
-  obtain ⟨fc, hfc, hfcn, lsc, hfch⟩ := C.ordinary_ctor index
-  have hfc' := hle.constants (VInductBlock.install_ctor_lookup hinst (by rw [C.ctors]; exact hfc))
-  rw [hfcn] at hfc'
-  exact (henv.ctor_of_projFamily hp (.inl hcisN) ⟨_, _, hfc', hfch⟩).symm
-
-/-- **The major of a stored equation whose constructor is projection-registered** splits after
-exactly `info.nparams` arguments into the innermost bound variables: every major position
-`q ≥ info.nparams` holds a bare variable. -/
-theorem WF.defeq_major_projCtor (henv : env.WF) (hdf : env.defeqs df)
-    (hm : df.lhs.stripLams = .app fn (VExpr.mkApps (.const c ls) args))
-    (hp : env.projections S info) (hc : info.ctorName = c) :
-    ∃ ps nf, args = ps ++ vars nf 0 ∧ ps.length = info.nparams := by
-  obtain ⟨k, ps, nf, hk, hargs, hlen, -⟩ := ShapeModel.defeq_major henv hdf hm
-  rw [← hc, ShapeModel.ctorOf_projection henv hp] at hk
-  cases hk
-  exact ⟨ps, nf, hargs, hlen⟩
-
-theorem vars_getElem?' {count below i : Nat} (h : i < count) :
-    (vars count below)[i]? = some (.bvar (below + (count - 1 - i))) := by
-  simp [vars, h]
-
-/-- A list of the form `vars P (E + F) ++ vars F 0` with `E ≥ 1` splits as `ps ++ vars nf 0`
-only after at least `P` elements. -/
-theorem vars_split_le {P E F : Nat} {ps : List VExpr} {nf : Nat} (hE : 1 ≤ E)
-    (h : vars P (E + F) ++ vars F 0 = ps ++ vars nf 0) : P ≤ ps.length := by
-  refine Nat.le_of_not_lt fun hlt => ?_
-  have hl := congrArg List.length h
-  simp only [List.length_append, vars_length_hi] at hl
-  have h1 : (vars P (E + F) ++ vars F 0)[P - 1]? = some (.bvar (E + F)) := by
-    rw [List.getElem?_append_left (by simp; omega), vars_getElem?' (by omega)]
-    congr 2; omega
-  have h2 : (ps ++ vars nf 0)[P - 1]? = some (.bvar F) := by
-    rw [List.getElem?_append_right (by omega), vars_getElem?' (by omega)]
-    congr 2; omega
-  rw [h, h2] at h1
-  have := VExpr.bvar.inj (Option.some.inj h1)
-  omega
-
-/-- For an ordinary native equation whose owner family is projection-registered, the
-registered parameter count is at least the number of non-field arguments of the major
-(`(eqMs index).length = s.params.length`), and the major's arguments from position
-`info.nparams` on are the innermost bound variables. -/
-theorem WF.native_projFamily_nparams {s : InductiveSignature} {g : Instance s}
-    {base' installed : VEnv} (henv : env.WF)
-    (C : CompilationData base source expanded s g [] block)
-    (hinst : block.install base' = some installed) (hle : installed ≤ env)
-    (index : Fin s.constructors.size) (hdf : env.defeqs (g.equation index))
-    (hp : env.projections s.families[s.constructors[index].owner].name info) :
-    (eqMs index).length ≤ info.nparams ∧
-      ∃ ps nf, eqMs index ++ (eqFs index).map .bvar = ps ++ vars nf 0 ∧
-        ps.length = info.nparams := by
-  have hc := henv.native_projFamily_ctor C hinst hle index hp
-  obtain ⟨ps, nf, hargs, hlen⟩ := henv.defeq_major_projCtor hdf
-    (by rw [g.equation_lhs_eq, VExpr.stripLams_wrapLams, Model.mkApps_concat]; rfl) hp hc
-  refine ⟨?_, ps, nf, hargs, hlen⟩
-  rw [← hlen]
-  have hE : 1 ≤ s.families.size + s.constructors.size := by
-    have := s.constructors[index].owner.isLt; omega
-  have hfs : (eqFs index).map VExpr.bvar = vars s.constructors[index].fields.length 0 := by
-    simp [eqFs, vars]
-  simp only [eqMs, Nat.add_zero, hfs] at hargs ⊢
-  simpa using vars_split_le hE hargs
-
-/-- **The major of a generic case equation whose constructor is projection-registered**: it
-splits after `info.nparams` arguments into the innermost bound variables, or the schema's own
-view `kS` of the constructor (a constructor shape returning the same structure `S`, an original
-family of the schema) has a different parameter count and the major splits after `kS.nparams`
-arguments (the situation of the counterexample in `ShapeModel/EnvTables.lean`). -/
-theorem WF.generic_major_projCtor (henv : env.WF) {schema : CaseSchema}
-    (hreg : env.eliminators key schema) {owner : Fin schema.signature.families.size}
-    {rules : List VDefEq} (hgen : schema.genericEquations key owner = some rules)
-    (hdf : df ∈ rules) (hm : df.lhs.stripLams = .app fn (VExpr.mkApps (.const c ls) args))
-    (hp : env.projections S info) (hc : info.ctorName = c) :
-    (∃ ps nf, args = ps ++ vars nf 0 ∧ ps.length = info.nparams) ∨
-      ∃ kS ps nf, args = ps ++ vars nf 0 ∧ ps.length = kS.nparams ∧
-        ShapeModel.CtorShape env c kS ∧ kS.family = S ∧ kS.nparams ≠ info.nparams ∧
-        S ∈ schema.originalFamilies := by
-  obtain ⟨kS, ps, nf, hargs, hlen, hshape, -, hor⟩ := ShapeModel.schema_major henv hreg hgen hdf hm
-  have hk := ShapeModel.ctorOf_projection henv hp
-  rw [hc] at hk
-  rcases hor with h | ⟨hmem, hall⟩
-  · rw [hk] at h
-    cases h
-    exact .inl ⟨ps, nf, hargs, hlen⟩
-  · have hf1 := hshape.family
-    have hf2 := (ShapeModel.ctorOf_shape' henv hk).family
-    rw [hf1] at hf2
-    cases hf2
-    rcases hall _ (ShapeModel.famOf_projection henv hp) with h | h
-    · exact .inr ⟨kS, ps, nf, hargs, hlen, hshape, rfl, h, hmem⟩
-    · exact absurd (by rw [← hc]; simp) h
 
 end VEnv
 end Lean4Lean

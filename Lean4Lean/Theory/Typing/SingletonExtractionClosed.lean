@@ -34,9 +34,6 @@ theorem closed_getD {l : List VExpr} (h : ∀ a ∈ l, a.ClosedN m) (i : Nat) :
   | none => exact trivial
   | some a => exact h a (List.mem_of_getElem? hl)
 
-theorem closed_mono {l : List VExpr} (h : ∀ a ∈ l, a.ClosedN m) (hm : m ≤ m') :
-    ∀ a ∈ l, a.ClosedN m' := fun a ha => (h a ha).mono hm
-
 theorem closed_map_liftN {l : List VExpr} (h : ∀ a ∈ l, a.ClosedN m) (r : Nat) :
     ∀ a ∈ l.map (·.liftN r), a.ClosedN (m + r) := by
   intro a ha

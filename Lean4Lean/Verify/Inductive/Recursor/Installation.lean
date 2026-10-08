@@ -25,21 +25,6 @@ theorem MLCtxLamPrefix.le
   | nil => simp
   | cons _ ih => simpa using Nat.succ_le_succ ih
 
-theorem MLCtxLamPrefix.forallDomains
-    (H : MLCtxLamPrefix c n domains) :
-    MLCtxForallDomains c n H.le = domains := by
-  induction H with
-  | nil => simp [MLCtxForallDomains]
-  | cons H ih =>
-    simp only [MLCtxForallDomains]
-    change MLCtxForallDomains _ _ H.le ++ [_] = _
-    rw [ih]
-
-theorem MLCtxLamPrefix.mkForall'
-    (H : MLCtxLamPrefix c n domains) (body : VExpr) :
-    c.mkForall' n H.le body = VExpr.wrapForalls domains body := by
-  rw [TypeChecker.MLCtx.mkForall'_eq_wrapForalls, H.forallDomains]
-
 /-- Every bounded prefix of an all-lambda checker context has an exact
 `MLCtxLamPrefix` certificate.  This packages the structural induction needed
 when a later proof must replay a retained recent suffix one declaration at a
@@ -58,108 +43,6 @@ theorem MLCtxOnlyLams.lamPrefix
       exact ⟨domains ++ [type'], Hprefix.cons⟩
     | vlet fv name type value type' value' tail =>
       exact H.vlet_false.elim
-
-/-- Replace the selected base of an up-set beneath an exact recent lambda
-prefix.  Every recent declaration is already selected by `Q`; if `Q` is
-contained in the enlarged predicate `P`, the dependency obligations for the
-recent prefix can be reused while the dropped suffix is discharged by an
-independent `P` up-set. -/
-theorem MLCtxLamPrefix.isFVarUpSet_of_base
-    (H : MLCtxLamPrefix runtime n domains)
-    (Hfull : IsFVarUpSet Q runtime.vlctx)
-    (Hbase : IsFVarUpSet P (runtime.dropN n H.le).vlctx)
-    (hrecent : ∀ fv ∈ runtime.fvarRevList n H.le, Q fv)
-    (hmono : ∀ fv, Q fv → P fv) :
-    IsFVarUpSet P runtime.vlctx := by
-  induction H with
-  | nil runtime => simpa using Hbase
-  | @cons tail n domains fv name type type' bi Hprefix ih =>
-    refine ⟨ih Hfull.1 Hbase ?_, ?_⟩
-    · intro other hother
-      apply hrecent other
-      exact List.mem_cons_of_mem _ hother
-    · intro _ dep hdep
-      apply hmono dep
-      exact Hfull.2 (hrecent fv (by simp
-        [TypeChecker.MLCtx.fvarRevList])) dep hdep
-
-/-- Dropping an exact lambda prefix preserves an up-set on the remaining
-runtime context.  This is the converse structural projection used when a
-generated recursive call has fresh call-local arguments above its retained
-producer origin: the origin may contain earlier induction hypotheses, but
-the call-local suffix itself can be removed without identifying either
-context with the common constructor-field context. -/
-theorem MLCtxLamPrefix.dropN_isFVarUpSet
-    (H : MLCtxLamPrefix runtime n domains)
-    (hup : IsFVarUpSet P runtime.vlctx) :
-    IsFVarUpSet P (runtime.dropN n H.le).vlctx := by
-  induction H with
-  | nil => simpa using hup
-  | cons H ih => exact ih hup.1
-
-/-- Skip an exact recent lambda prefix while preserving an independently
-selected older scope.  The skipped declarations remain only in the runtime
-comparison context; no source declaration or semantic domain is added to the
-narrow scope. -/
-theorem MLCtxLamPrefix.skipFVarNarrowScope
-    (H : MLCtxLamPrefix runtime n domains)
-    (henv : env.WF)
-    (Hwf : runtime.WF env Us)
-    (Hbase : Nonempty (checkInductiveTypes.loopType.FVarNarrowScope env Us
-      baseScope (runtime.dropN n H.le).vlctx))
-    (hskip : ∀ fv ∈ runtime.fvarRevList n H.le,
-      fv ∉ baseScope.fvars) :
-    Nonempty (checkInductiveTypes.loopType.FVarNarrowScope env Us
-      baseScope runtime.vlctx) := by
-  induction H with
-  | nil runtime => exact Hbase
-  | @cons tail n domains fv name type type' bi Hprefix ih =>
-    have HruntimeWF := Hwf.tr.wf
-    rcases Hwf with ⟨HtailWF, _hfresh, _Htype, _HtypeType⟩
-    have htailSkip : ∀ other ∈ tail.fvarRevList n Hprefix.le,
-        other ∉ baseScope.fvars := by
-      intro other hother
-      exact hskip other (by simp [TypeChecker.MLCtx.fvarRevList, hother])
-    rcases ih HtailWF Hbase htailSkip with ⟨Htail⟩
-    have hhead : fv ∉ baseScope.fvars :=
-      hskip fv (by simp [TypeChecker.MLCtx.fvarRevList])
-    exact ⟨Htail.skipIndex henv HruntimeWF hhead⟩
-
-/-- Skip the literal producer-retained hypothesis suffix above a selected
-scope in its common root.  Freshness of the recent suffix discharges every
-skip internally. -/
-theorem RecursorRecentBoundFVarArray.skipFVarNarrowScope
-    {root current : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {Rcurrent : RecursorContextWF current recLparams}
-    {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot Rcurrent xs)
-    (Hbase : Nonempty (checkInductiveTypes.loopType.FVarNarrowScope
-      Rroot.venv recLparams baseScope Rroot.mlctx.vlctx))
-    (hbase : baseScope.fvars ⊆ Rroot.mlctx.vlctx.fvars) :
-    Nonempty (checkInductiveTypes.loopType.FVarNarrowScope
-      Rcurrent.venv recLparams baseScope Rcurrent.mlctx.vlctx) := by
-  rcases Rcurrent.onlyLams.lamPrefix xs.size H.size_le with
-    ⟨domains, Hprefix⟩
-  have Hbase' : Nonempty (checkInductiveTypes.loopType.FVarNarrowScope
-      Rcurrent.venv recLparams baseScope
-        (Rcurrent.mlctx.dropN xs.size Hprefix.le).vlctx) := by
-    have hle : Hprefix.le = H.size_le := Subsingleton.elim _ _
-    rw [hle, H.drop_eq]
-    simpa only [H.venv_eq] using Hbase
-  have hskip : ∀ fv ∈
-      Rcurrent.mlctx.fvarRevList xs.size Hprefix.le,
-      fv ∉ baseScope.fvars := by
-    intro fv hfv hselected
-    have hle : Hprefix.le = H.size_le := Subsingleton.elim _ _
-    rw [hle, H.fvarRevList_eq] at hfv
-    exact H.fresh fv (List.mem_reverse.mp hfv) (by
-      rw [← Rroot.lctx_eq, Rroot.mlctx_wf.tr.fvars_eq]
-      exact hbase hselected)
-  have Hwf : Rcurrent.mlctx.WF Rcurrent.venv recLparams :=
-    Rcurrent.mlctx_wf
-  exact Hprefix.skipFVarNarrowScope Rcurrent.checking.tr.wf Hwf
-    Hbase' hskip
 
 /-- `extendNarrowRuntimeScope` when the recent prefix was also opened in a
 checker context aligned with the base scope.  Each retained domain is the
@@ -267,13 +150,6 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScopeAligned
       simp [List.append_assoc]
     · exact halignTail.consAligned hfreshScope hdeps
         (hNU'.of_l henv halignTail.wf.toCtx hv)
-
-/-- Production-side installation of a list of kernel constants. This small
-reference function is used only to state the staging invariant; the executable
-inductive checker continues to build the same environments directly. -/
-def addConstants : Environment → List ConstantInfo → Environment
-  | env, [] => env
-  | env, ci :: cis => addConstants (env.add ci) cis
 
 /-- A certificate that a list of production constants and abstract constants
 are installed in lockstep. Each translation and typing premise is stated in
@@ -433,48 +309,12 @@ def AddConstants.sf_mono
     exact .cons hn hnprim ⟨htr.1.sf_mono hsafety, htr.2⟩ hwf hadd
       hdelta ih
 
-theorem AddConstants.prod_eq
-    (H₁ : AddConstants safety₁ prodEnv venv₁ entries outEnv₁ outVEnv₁)
-    (H₂ : AddConstants safety₂ prodEnv venv₂ entries outEnv₂ outVEnv₂) :
-    outEnv₁ = outEnv₂ := by
-  induction H₁ generalizing venv₂ outEnv₂ outVEnv₂ with
-  | nil =>
-    cases H₂
-    rfl
-  | cons _hn _hnprim _htr _hwf _hadd _hdelta _Htail ih =>
-    cases H₂ with
-    | cons _ _ _ _ _ _ Htail₂ => exact ih Htail₂
-
 theorem AddConstants.quotInit_eq
     (H : AddConstants safety prodEnv venv entries outEnv outVEnv) :
     outEnv.quotInit = prodEnv.quotInit := by
   induction H with
   | nil => rfl
   | cons _ _ _ _ _ _ _ ih => exact ih
-
-/-- Combine translations from an original strong-safety trace with the
-freshness/install equations of a replayed trace.  This permits the replayed
-abstract target to be viewed at any observer safety supported by the
-original trace, even when that observer is stronger than the safety index at
-which the replay itself was constructed. -/
-theorem AddConstants.reindex
-    (H : AddConstants checkSafety prodEnv base entries outEnv outBase)
-    (Hlarger : AddConstants targetSafety prodEnv largerBase entries
-      outEnv largerOut)
-    (hsafety : safety ≤ checkSafety)
-    (hbase : base ≤ largerBase) :
-    AddConstants safety prodEnv largerBase entries outEnv largerOut := by
-  induction H generalizing largerBase largerOut with
-  | nil =>
-    cases Hlarger
-    exact .nil
-  | cons hn hnprim htr hwf hadd hdelta _Htail ih =>
-    cases Hlarger with
-    | cons hnL hnprimL _htrL _hwfL haddL hdeltaL HtailL =>
-      exact .cons hnL hnprimL
-        ⟨(htr.1.sf_mono hsafety).mono hbase, htr.2⟩
-        (hwf.mono hbase) haddL hdeltaL
-        (ih HtailL (VEnv.addConst_mono hbase hadd haddL))
 
 /-- Lockstep installation preserves concrete/abstract alignment.  This is
 the production-map component of `AddInduct`; it follows from the executable
@@ -567,70 +407,6 @@ theorem CheckingEnv.exists_addConst
     rw [hn] at hsource
     contradiction
 
-/-- A successful executable installation fold yields the lockstep production
-/ abstract staging certificate. Translation and typing may be proved in an
-earlier environment and are transported through the already installed
-prefix. -/
-theorem AddConstants.ofDeclareInductiveTypeInfos
-    (Hvalid : CheckingEnv.Valid safety env venv)
-    (Hentries : List.Forall₂
-      (fun info ci' =>
-        TrConstVal safety sourceEnv (.inductInfo info) ci' ∧
-          ci'.toVConstant.WF sourceEnv)
-      infos values)
-    (hle : sourceEnv ≤ venv)
-    (hadd : venv.addConstVals values = some outVEnv)
-    (hnprim : allowPrimitive = true → ∀ info ∈ infos,
-      ¬ Kernel.Environment.primitives.contains info.name) :
-    (AddInductive.declareInductiveTypeInfos allowPrimitive infos env).WF
-      fun outEnv =>
-        AddConstants safety env venv
-          (List.zip (infos.map (fun info => .inductInfo info)) values)
-          outEnv outVEnv := by
-  induction Hentries generalizing env venv with
-  | nil =>
-    simp [AddInductive.declareInductiveTypeInfos, VEnv.addConstVals] at hadd ⊢
-    subst outVEnv
-    exact Except.WF.pure .nil
-  | @cons info ci' infos values Hentry _ ih =>
-    have hname : info.name = ci'.name := Hentry.1.2
-    cases hnext : venv.addConst ci'.name ci'.toVConstant with
-    | none => simp [VEnv.addConstVals, hnext] at hadd
-    | some nextVEnv =>
-      have hrest : nextVEnv.addConstVals values = some outVEnv := by
-        simpa [VEnv.addConstVals, hnext] using hadd
-      rw [AddInductive.declareInductiveTypeInfos]
-      exact (checkName.WF Hvalid.tr.map_wf info.name allowPrimitive).bind
-        fun _ hchecked => by
-          have hnprimHead :
-              ¬ Kernel.Environment.primitives.contains info.name := by
-            cases hallow : allowPrimitive with
-            | false =>
-              intro hp
-              have := hchecked.2 hp
-              simp [hallow] at this
-            | true => exact hnprim hallow info (by simp)
-          have hnprimTail : allowPrimitive = true → ∀ info ∈ infos,
-              ¬ Kernel.Environment.primitives.contains info.name := by
-            intro hallow info hinfo
-            exact hnprim hallow info (by simp [hinfo])
-          have hn : env.find? info.name = none := hchecked.1
-          have htr : TrConstVal safety venv (.inductInfo info) ci' :=
-            Hentry.1.mono hle
-          have hwf : ci'.toVConstant.WF venv := Hentry.2.mono hle
-          have haddHead :
-              venv.addConst info.name ci'.toVConstant = some nextVEnv := by
-            simpa [hname] using hnext
-          have HnextValid : CheckingEnv.Valid safety
-              (env.add (.inductInfo info)) nextVEnv :=
-            Hvalid.add (ci := .inductInfo info) hn hnprimHead htr.1 hwf haddHead
-              rfl trivial (RecursorInstallStep.of_not_rec nofun) (.of_not_ctor nofun)
-          have hnextLe : sourceEnv ≤ nextVEnv :=
-            hle.trans (VEnv.addConst_le haddHead)
-          exact (ih HnextValid hnextLe hrest hnprimTail).mono fun outEnv Hrest => by
-            simpa using AddConstants.cons (ci := .inductInfo info)
-              (ci' := ci') hn hnprimHead htr hwf haddHead rfl Hrest
-
 /-- The inner production constructor fold installs a translated constructor
 list in lockstep with its abstract constants.  Constructor metadata is kept
 parametric because only the source name, type, level parameters, and safety
@@ -659,10 +435,6 @@ def SourceCtorsCertified (venv : VEnv) (lparams : List Name) (owners : List Indu
     Prop :=
   ∀ owner ∈ owners, ∀ ctor ∈ owner.ctors,
     ∃ T, TelTrN venv lparams (AddInductive.constructorArity ctor.type) [] ctor.type T
-
-theorem SourceCtorsCertified.mono (H : SourceCtorsCertified venv lparams owners)
-    (hle : venv ≤ venv') : SourceCtorsCertified venv' lparams owners :=
-  fun o ho c hc => let ⟨T, h⟩ := H o ho c hc; ⟨T, h.mono hle⟩
 
 theorem SourceCtorsCertified.ofTranslated {owners : List InductiveType}
     {targets : List VInductiveType}
@@ -1067,15 +839,6 @@ theorem AddConstants.corner
       (hcorner.add hchecking.map_wf hn (VEnv.addConst_le hadd) (hsteps _ List.mem_cons_self))
       fun e he => (hsteps e (List.mem_cons_of_mem _ he)).mono (VEnv.addConst_le hadd)
 
-/-- An installation of no constructor needs no constructor step. -/
-theorem AddConstants.corner_of_noCtor
-    (H : AddConstants safety env venv entries outEnv outVEnv)
-    (hchecking : CheckingEnv safety env venv)
-    (hcorner : ProjectionCorner safety env venv)
-    (hkinds : ∀ entry ∈ entries, ∀ info : ConstructorVal, entry.1 ≠ .ctorInfo info) :
-    ProjectionCorner safety outEnv outVEnv :=
-  H.corner hchecking hcorner fun e he => .of_not_ctor (hkinds e he)
-
 /-- A lockstep installation preserves the local checking invariants. -/
 theorem AddConstants.validCore
     (H : AddConstants safety env venv entries outEnv outVEnv)
@@ -1123,27 +886,6 @@ theorem AddConstants.validHeaders {infos : List InductiveVal} {values : List VCo
     rcases List.mem_map.mp (List.of_mem_zip hentry).1 with ⟨_, _, hfst⟩
     rw [← hfst] at heq
     cases heq
-
-/-- Promote a lockstep installation to the full checking invariant from
-independently established constructor-owner presence and projection-registry
-coherence at its endpoint. -/
-theorem AddConstants.validOfCoherent
-    (H : AddConstants safety env venv entries outEnv outVEnv)
-    (hvalid : CheckingEnv.ValidCore safety env venv)
-    (howners : ConstructorOwnersPresent outEnv)
-    (hregistry : ProjectionRegistryCoherent safety outEnv.constants outVEnv)
-    (hrecursors : RecursorEnvCoherent safety outEnv.constants outVEnv)
-    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv)
-    (hcorner : ProjectionCorner safety outEnv outVEnv) :
-    CheckingEnv.Valid safety outEnv outVEnv :=
-  (H.validCore hvalid).toValid howners hregistry hrecursors hquot hcorner
-
-theorem AddConstants.production
-    (H : AddConstants safety env venv entries outEnv outVEnv) :
-    addConstants env (entries.map Prod.fst) = outEnv := by
-  induction H with
-  | nil => rfl
-  | cons _ _ _ _ _ _ _ ih => simpa [addConstants] using ih
 
 theorem AddConstants.abstract
     (H : AddConstants safety env venv entries outEnv outVEnv) :
@@ -1352,18 +1094,6 @@ theorem AddConstants.quotEnvCoherent
   rw [H.quotInit_eq] at hq
   exact (hquot hq).extend (H.preservesMapFind hwf) H.le hheads
 
-/-- Promote a lockstep installation without constructors or recursors to the
-full checking invariant. -/
-theorem AddConstants.validOfSimple
-    (H : AddConstants safety env venv entries outEnv outVEnv)
-    (hvalid : CheckingEnv.Valid safety env venv)
-    (hkinds : ∀ entry ∈ entries, ∀ info : ConstructorVal,
-      entry.1 ≠ .ctorInfo info)
-    (hrecs : ∀ entry ∈ entries, ∀ rec : RecursorVal,
-      entry.1 ≠ .recInfo rec) :
-    CheckingEnv.Valid safety outEnv outVEnv :=
-  H.valid hvalid hkinds hrecs
-
 /-- Every entry of a lockstep fold is fresh in the fold's source
 environment. -/
 theorem AddConstants.entryFresh
@@ -1503,210 +1233,6 @@ theorem AddConstants.preservesConstructorSemantics
     exact ⟨C.rebaseProduction (H.preservesSourceFind hwf C.lookup) H.le⟩
   · rcases hnew with ⟨entry, hentry, _hname, hinfo⟩
     exact False.elim (hnind entry.1 entry.2 hentry familyInfo hinfo.symm)
-
-/-- Refinement of the explicit production recursor loop, parameterized only
-by translation of each generated recursor telescope. Everything else—rule
-coverage and state, source name checking, abstract extension, installation
-order, and owner indexing—is discharged by the loop induction. -/
-theorem AddInductive.declareRecursors.loop.WF
-    {sourceVEnv currentVEnv envTypes envCtors : VEnv}
-    {decl : VInductDecl}
-    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    (Hdecl : TrInductDeclCore sourceEnv lparams nparams
-      indTypes.toList sourceIsUnsafe decl envTypes envCtors)
-    (c : AddInductive.Context) (Hc : BindingContextWF c)
-    {recLparamsOwners : List Name}
-    (Rowners : RecursorContextWF c recLparamsOwners)
-    (Hbindings : RecInfoBindings c recInfos)
-    (Horigins : RecInfoTypeOrigins c recInfos)
-    (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
-    (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
-    (HminorSemantics : RecInfoMinorSemanticAlignment Rowners Horigins
-      parameterDecls)
-    (Hparams : BoundFVarArray c stats.params)
-    (hnoalias : Hbindings.NoAlias Hparams)
-    (hcounts : ∀ i, i < recInfos.size →
-      recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
-    (numMinors numMotives : Nat) (all : List Name)
-    (hnumMinors : numMinors = (recInfos.flatMap (·.minors)).size)
-    (hnumMotives : numMotives = (recInfos.map (·.motive)).size)
-    (k isUnsafe : Bool) (allowPrimitive : Bool)
-    (hisUnsafe : isUnsafe = (c.safety != .safe))
-    (hall : all = (indTypes.map (·.name)).toList)
-    (hk : KTargetCheck stats indTypes k)
-    (dIdx : Nat) (hdone : dIdx ≤ indTypes.size)
-    (env : Environment)
-    (Hvalid : CheckingEnv.ValidCore c.safety env currentVEnv)
-    (hle : sourceVEnv ≤ currentVEnv)
-    (Htranslate : ∀ owner (howner : owner < indTypes.size)
-      (rules : List RecursorRule),
-      ∃ recursor : VConstVal,
-        TrConstVal c.safety sourceVEnv
-          (.recInfo (AddInductive.declareRecursors.recursorInfo stats
-            indTypes elimLevel recInfos numMinors numMotives all c.lctx k
-            isUnsafe lparams owner rules)) recursor ∧
-        recursor.toVConstant.WF sourceVEnv)
-    (hnprim : allowPrimitive = true →
-      ∀ owner (howner : owner < indTypes.size),
-      ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
-    (AddInductive.declareRecursors.loop stats indTypes elimLevel recInfos
-      (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) numMinors
-      numMotives all c.lctx k isUnsafe lparams allowPrimitive dIdx env
-      (recursorMinorOffset indTypes dIdx) c).WF fun out =>
-        ∃ outVEnv : VEnv,
-        ∃ entries : List (ConstantInfo × VConstVal),
-          out.2 = recursorMinorOffset indTypes indTypes.size ∧
-          Nonempty (GeneratedRecursorsRange c.safety sourceVEnv lparams
-            elimLevel c stats indTypes recInfos dIdx entries) ∧
-          AddConstants c.safety env currentVEnv entries out.1 outVEnv := by
-  rw [AddInductive.declareRecursors.loop]
-  by_cases hidx : dIdx < indTypes.size
-  · rw [dif_pos hidx]
-    have Hrules := AddInductive.mkRecRulesFromBlueprints.WF indTypes
-      elimLevel stats recInfos dIdx (recInfos.map (·.motive))
-      (recInfos.flatMap (·.minors)) c
-    have HrulesState :
-        ((liftM (AddInductive.mkRecRulesFromBlueprints indTypes elimLevel
-          stats recInfos dIdx (recInfos.map (·.motive))
-          (recInfos.flatMap (·.minors))) :
-            StateT Nat AddInductive.M (List RecursorRule))
-          (recursorMinorOffset indTypes dIdx) c).WF fun out =>
-            (out.1 = recInfos[dIdx]!.ruleBlueprints.toList.map fun blueprint =>
-              blueprint.build indTypes stats (recInfos.map (·.motive))
-                (recInfos.flatMap (·.minors))
-                (AddInductive.getRecLevels elimLevel stats.levels) c.lctx) ∧
-            out.2 = recursorMinorOffset indTypes dIdx := by
-      change (((fun rules => (rules, recursorMinorOffset indTypes dIdx)) <$>
-        AddInductive.mkRecRulesFromBlueprints indTypes elimLevel stats
-          recInfos dIdx (recInfos.map (·.motive))
-          (recInfos.flatMap (·.minors)) c).WF _)
-      exact Hrules.map fun _ hrules => ⟨hrules, rfl⟩
-    simp only [liftM, MonadLiftT.monadLift, MonadLift.monadLift,
-      StateT.instMonadLift, ReaderT.instMonadLift, StateT.lift, bind,
-      StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure,
-      _root_.modify, modifyGetThe, MonadState.modifyGet,
-      MonadStateOf.modifyGet, StateT.modifyGet]
-    exact HrulesState.bind fun generated hrules => by
-      have hsize : recInfos.size = indTypes.size := by
-        rw [Hcard.records]
-        simpa using
-          (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl).symm
-      have Hgenerated := Hblueprints.boundGeneratedRules HminorSources
-        HminorSemantics Hbindings Hparams hnoalias hsize hcounts elimLevel
-        dIdx hidx
-      rw [← hrules.1] at Hgenerated
-      let info := AddInductive.declareRecursors.recursorInfo stats indTypes
-        elimLevel recInfos numMinors numMotives all c.lctx k isUnsafe
-        lparams dIdx generated.1
-      have hinfoName : info.name = Lean.mkRecName indTypes[dIdx]!.name := rfl
-      have hstateNext : generated.2 + indTypes[dIdx]!.ctors.length =
-          recursorMinorOffset indTypes (dIdx + 1) := by
-        rw [hrules.2, recursorMinorOffset_step indTypes dIdx hidx]
-      have hnormalize :
-          ((env.checkName info.name allowPrimitive).bind fun a =>
-            Except.pure (a, generated.2 + indTypes[dIdx]!.ctors.length)).bind (fun checked =>
-              AddInductive.declareRecursors.loop stats indTypes elimLevel
-                recInfos (recInfos.map (·.motive))
-                (recInfos.flatMap (·.minors)) numMinors numMotives all c.lctx
-                k isUnsafe lparams allowPrimitive (dIdx + 1)
-                (AddInductive.addConstant env (.recInfo info)) checked.2 c) =
-          (env.checkName info.name allowPrimitive).bind (fun _ =>
-              AddInductive.declareRecursors.loop stats indTypes elimLevel
-                recInfos (recInfos.map (·.motive))
-                (recInfos.flatMap (·.minors)) numMinors numMotives all c.lctx
-                k isUnsafe lparams allowPrimitive (dIdx + 1)
-                (AddInductive.addConstant env (.recInfo info))
-                  (recursorMinorOffset indTypes (dIdx + 1)) c) := by
-        rw [hstateNext]
-        cases env.checkName info.name allowPrimitive <;> rfl
-      refine Except.WF.pureBind ?_
-      rw [hnormalize]
-      have Hname := checkName.WF Hvalid.tr.map_wf info.name allowPrimitive
-      exact Hname.bind fun _ Hchecked => by
-          rcases Htranslate dIdx hidx generated.1 with
-            ⟨recursor, HtrSource, HwfSource⟩
-          rcases CheckingEnv.exists_addConst Hvalid.tr Hchecked.1
-              recursor.toVConstant with ⟨nextVEnv, hadd⟩
-          have Htr : TrConstVal c.safety currentVEnv (.recInfo info) recursor :=
-            HtrSource.mono hle
-          have Hwf : recursor.toVConstant.WF currentVEnv :=
-            HwfSource.mono hle
-          have hname : info.name = recursor.name := Htr.2
-          have haddInfo :
-              currentVEnv.addConst info.name recursor.toVConstant =
-                some nextVEnv := by
-            simpa [hname] using hadd
-          have hnprimInfo :
-              ¬ Kernel.Environment.primitives.contains
-                (ConstantInfo.recInfo info).name := by
-            change ¬ Kernel.Environment.primitives.contains info.name
-            cases hallow : allowPrimitive with
-            | false =>
-              intro hp
-              have := Hchecked.2 hp
-              simp [hallow] at this
-            | true =>
-              simpa [ConstantInfo.name, ConstantInfo.toConstantVal, info,
-                AddInductive.declareRecursors.recursorInfo] using
-                hnprim hallow dIdx hidx
-          have HnextValid : CheckingEnv.ValidCore c.safety
-              (env.add (.recInfo info)) nextVEnv :=
-            Hvalid.add (ci := .recInfo info) Hchecked.1 hnprimInfo Htr.1 Hwf
-              haddInfo rfl
-          have hnextLe : sourceVEnv ≤ nextVEnv :=
-            hle.trans (VEnv.addConst_le haddInfo)
-          have Htail := AddInductive.declareRecursors.loop.WF Hcard Hdecl c Hc
-            Rowners Hbindings Horigins Hblueprints HminorSources HminorSemantics
-            Hparams hnoalias hcounts numMinors numMotives all hnumMinors
-            hnumMotives k
-            isUnsafe allowPrimitive hisUnsafe hall hk (dIdx + 1) (by omega)
-            (env.add (.recInfo info)) HnextValid hnextLe Htranslate hnprim
-          exact Htail.mono fun out Hout => by
-            rcases Hout with
-              ⟨outVEnv, entries, hstate, ⟨Hrange⟩, Hinstalled⟩
-            let entry : ConstantInfo × VConstVal := (.recInfo info, recursor)
-            have Hentry : GeneratedRecursorEntry c.safety sourceVEnv lparams
-                elimLevel c stats indTypes recInfos dIdx entry := by
-              exact GeneratedRecursorEntry.ofRecursorInfo c.safety sourceVEnv
-                lparams elimLevel c stats indTypes recInfos numMinors
-                numMotives all hnumMinors hnumMotives k isUnsafe dIdx
-                generated.1 recursor hisUnsafe hall hk
-                HtrSource
-                Hgenerated hrules.1
-            have Hrange' : GeneratedRecursorsRange c.safety sourceVEnv
-                lparams elimLevel c stats indTypes recInfos dIdx
-                (entry :: entries) := by
-              refine {
-                covered := by
-                  simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
-                    Hrange.covered
-                entry := ?_ }
-              intro i hi
-              cases i with
-              | zero => simpa [entry] using Hentry
-              | succ i =>
-                have hi' : i < entries.length := by simpa using hi
-                simpa [Nat.add_assoc, Nat.add_comm 1 i] using Hrange.entry i hi'
-            have Hinstalled' : AddConstants c.safety env currentVEnv
-                (entry :: entries) out.1 outVEnv := by
-              exact AddConstants.cons Hchecked.1
-                hnprimInfo Htr Hwf haddInfo rfl Hinstalled
-            exact ⟨outVEnv, entry :: entries, hstate, ⟨Hrange'⟩, Hinstalled'⟩
-  · rw [dif_neg hidx]
-    have heq : dIdx = indTypes.size := by omega
-    subst dIdx
-    exact Except.WF.pure ⟨currentVEnv, [], rfl, ⟨
-      { covered := by simpa [Hcard.records] using
-          (show indTypes.size = recInfos.size from by
-            have htypes := Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
-              Hdecl
-            have hsize : indTypes.size = decl.types.length := by
-              simpa using htypes
-            rw [hsize, ← Hcard.records])
-        entry := by intro i hi; simp at hi }⟩,
-      .nil⟩
-termination_by indTypes.size - dIdx
 
 /-- Semantic refinement of the production recursor loop.  In addition to
 the ordinary generated-entry and installation certificates, every recursor
@@ -1984,84 +1510,6 @@ theorem AddInductive.declareRecursors.loop.semanticWF
       .nil, by intro i hi; simp at hi⟩
 termination_by indTypes.size - dIdx
 
-/-- Public recursor-declaration boundary. The executable setup is reduced to
-the verified indexed loop, yielding both the complete generated-recursors
-certificate and lockstep production/abstract installation. -/
-theorem AddInductive.declareRecursors.bindingWF
-    {envTypes envCtors : VEnv} {decl : VInductDecl}
-    {currentVEnv : VEnv}
-    (k : Bool)
-    (hk : KTargetCheck stats indTypes k)
-    (Hvalid : CheckingEnv.Valid c.safety c.env currentVEnv)
-    (Hcontext : BindingContextWF c)
-    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    (Hdecl : TrInductDeclCore sourceEnv c.lparams nparams
-      indTypes.toList sourceIsUnsafe decl envTypes envCtors)
-    {recLparamsOwners : List Name}
-    (Rowners : RecursorContextWF c recLparamsOwners)
-    (Hbindings : RecInfoBindings c recInfos)
-    (Horigins : RecInfoTypeOrigins c recInfos)
-    (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
-    (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
-    (HminorSemantics : RecInfoMinorSemanticAlignment Rowners Horigins
-      parameterDecls)
-    (Hparams : BoundFVarArray c stats.params)
-    (hnoalias : Hbindings.NoAlias Hparams)
-    (hcounts : ∀ i, i < recInfos.size →
-      recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
-    (hnotPartial : c.safety ≠ .partial)
-    (hnprim : c.allowPrimitive = true →
-      ∀ owner (howner : owner < indTypes.size),
-      ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
-    (AddInductive.declareRecursors stats indTypes elimLevel recInfos k
-      c.lparams c).WF
-      fun outEnv =>
-        ∃ outVEnv : VEnv,
-        ∃ entries : List (ConstantInfo × VConstVal),
-          Nonempty (GeneratedRecursors c.safety currentVEnv c.lparams
-            elimLevel c stats indTypes recInfos entries) ∧
-          AddConstants c.safety c.env currentVEnv entries outEnv
-            outVEnv := by
-  unfold AddInductive.declareRecursors
-  simp only [getLCtx, readThe, read, ReaderT.read]
-  simp only [readThe, read, ReaderT.read, bind, ReaderT.bind]
-  have Hcheck :
-      (AddInductive.declareRecursors.checkRecursorTypes stats indTypes
-        elimLevel recInfos (recInfos.flatMap (·.minors)).size
-        (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList
-        c.lctx k (c.safety != .safe) c.lparams 0 c).WF fun _ =>
-          RecursorTypeTranslations currentVEnv c.lparams elimLevel c
-            stats indTypes recInfos := by
-    simpa using
-      (AddInductive.declareRecursors.checkRecursorTypes.recursorTypeTranslationsWF
-        Hvalid hnotPartial stats indTypes elimLevel recInfos
-        (recInfos.flatMap (·.minors)).size
-        (recInfos.map (·.motive)).size
-        (indTypes.map (·.name)).toList c.lctx k (c.safety != .safe)
-        c.lparams)
-  refine Hcheck.bind fun _ Htypes => ?_
-  have Hloop := AddInductive.declareRecursors.loop.WF (elimLevel := elimLevel)
-    Hcard Hdecl c
-    Hcontext Rowners Hbindings Horigins Hblueprints HminorSources
-    HminorSemantics Hparams hnoalias hcounts
-    (recInfos.flatMap (·.minors)).size
-    (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList rfl rfl k
-    (c.safety != .safe) c.allowPrimitive rfl rfl hk 0 (by omega) c.env
-    Hvalid.toValidCore VEnv.LE.rfl
-    (Htypes.recursorInfoTranslation k) hnprim
-  change ((Prod.fst <$> AddInductive.declareRecursors.loop stats indTypes
-    elimLevel recInfos (recInfos.map (·.motive))
-    (recInfos.flatMap (·.minors)) (recInfos.flatMap (·.minors)).size
-    (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList c.lctx
-    k (c.safety != .safe) c.lparams c.allowPrimitive 0 c.env 0 c).WF _)
-  exact Hloop.map fun out Hout => by
-    rcases Hout with
-      ⟨outVEnv, entries, _hstate, ⟨Hrange⟩, Hinstalled⟩
-    have hsize : entries.length = recInfos.size := by
-      simpa using Hrange.covered
-    exact ⟨outVEnv, entries, ⟨Hrange.atZero hsize⟩, Hinstalled⟩
-
 /-- Install the selected source-generator targets through the actual
 recursor declaration pass. The checker supplies their typing; the result
 retains exact target equality alongside constructor-rule semantics. -/
@@ -2181,49 +1629,6 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
       simpa using Hrange.covered
     exact ⟨outVEnv, entries, ⟨Hrange.atZero hsize⟩, ⟨HsemRange⟩,
       Hinstalled, Htypes, by simpa using Htargets⟩
-
-/-- Full-context wrapper for callers that have semantic local-context typing,
-retaining the original public interface. -/
-theorem AddInductive.declareRecursors.WF
-    {envTypes envCtors : VEnv} {decl : VInductDecl}
-    (k : Bool)
-    (hk : KTargetCheck stats indTypes k)
-    (Hcontext : ContextWF c)
-    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    (Hdecl : TrInductDeclCore sourceEnv c.lparams nparams
-      indTypes.toList sourceIsUnsafe decl envTypes envCtors)
-    {recLparamsOwners : List Name}
-    (Rowners : RecursorContextWF c recLparamsOwners)
-    (Hbindings : RecInfoBindings c recInfos)
-    (Horigins : RecInfoTypeOrigins c recInfos)
-    (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
-    (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
-    (HminorSemantics : RecInfoMinorSemanticAlignment Rowners Horigins
-      parameterDecls)
-    (Hparams : BoundFVarArray c stats.params)
-    (hnoalias : Hbindings.NoAlias Hparams)
-    (hcounts : ∀ i, i < recInfos.size →
-      recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
-    (hnotPartial : c.safety ≠ .partial)
-    (hnprim : c.allowPrimitive = true →
-      ∀ owner (howner : owner < indTypes.size),
-      ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
-    (AddInductive.declareRecursors stats indTypes elimLevel recInfos k
-      c.lparams c).WF
-      fun outEnv =>
-        ∃ outVEnv : VEnv,
-        ∃ entries : List (ConstantInfo × VConstVal),
-          Nonempty (GeneratedRecursors c.safety Hcontext.venv c.lparams
-            elimLevel c stats indTypes recInfos entries) ∧
-          AddConstants c.safety c.env Hcontext.venv entries outEnv
-            outVEnv :=
-  AddInductive.declareRecursors.bindingWF k hk Hcontext.checking
-    Hcontext.toBindingContextWF Hcard Hdecl Rowners Hbindings Horigins
-    Hblueprints HminorSources HminorSemantics Hparams hnoalias hcounts
-    hnotPartial
-    hnprim
-
 
 end VerifyInductive
 end Lean4Lean

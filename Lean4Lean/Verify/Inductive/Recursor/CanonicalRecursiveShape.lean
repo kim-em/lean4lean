@@ -1,4 +1,6 @@
-import Lean4Lean.Verify.Inductive.Recursor.RecursiveShapeRow
+import Lean4Lean.Verify.Inductive.Recursor.TelescopeUniqueness
+import Lean4Lean.Verify.Inductive.Recursor.SecondPass
+import Lean4Lean.Verify.Inductive.Recursor.FieldTypeScope
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalRecursorTelescope
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalFieldDefEq
 
@@ -292,13 +294,6 @@ theorem Expr.forallDomainList_fvarsIn {P : FVarId → Prop} :
 theorem InductiveSignature.insertBinders_take (l : List VExpr) (n k : Nat) :
     (InductiveSignature.insertBinders l n).take k =
       InductiveSignature.insertBinders (l.take k) n := by
-  apply List.ext_getElem
-  · simp [InductiveSignature.insertBinders]
-  · intro i _ _
-    simp [InductiveSignature.insertBinders]
-
-@[simp] theorem InductiveSignature.insertBinders_zero (l : List VExpr) :
-    InductiveSignature.insertBinders l 0 = l := by
   apply List.ext_getElem
   · simp [InductiveSignature.insertBinders]
   · intro i _ _
