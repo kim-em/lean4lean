@@ -1,14 +1,14 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Tele
 import Lean4Lean.Theory.Typing.HeadInjectivity.Projections.Declaration
 
-/-! # Semantic facts about projection-registered constructor types (stage C)
+/-! # Soundness of telescopes typed in an earlier environment
 
 A constructor type registered by a projection entry is well formed in an earlier environment
 `E` of the declaration history (`VEnv.ProjDecl`). Given soundness of `E`'s derivations in the
-model of the final environment, which the D11 induction provides, the constructor type at any
-universe levels is soundly a type (`Model.ctorTypeSound`). Its telescope of binder domains is
-sound domain by domain (`Model.ctorTypePiSD`). These lemmas depend only on `SoundAt`,
-`SD` and `PiSD`, not on the observation clauses. -/
+model of the final environment (`SoundIn`, which the history induction of
+`Model/EnvValid.lean` provides), a Pi telescope typed in `E`, such as that constructor type, is
+sound domain by domain (`piSD_of`). This depends only on `SoundAt`, `SD` and `PiSD`, not on
+the observation clauses. -/
 
 namespace Lean4Lean
 namespace VEnv

@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjValid
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.CommonParams
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.TeleWind
 
-/-! # Field observations of constructor spines, and inversions (stage C)
+/-! # Field observations of constructor spines, and inversions
 
 * `Model.ctor_field_obs`: a semantically typed constructor spine `mk ps fs` of a projection
   entry that is never zero at the constructor's levels has, for every observation `k` of the field
@@ -17,10 +17,10 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.TeleWind
   such a family are field observations (`typed_fam_fieldOb`); the field observations of a
   constructor spine come from its keys (`Obs.ctorSpine_fieldOb_inv`); `HTS.proj_inv`.
 * Constructor spines typed at a family application have the constructor's arity, and the
-  levels of the family application agree with the constructor's up to evaluation
-  (`ctor_spine_arity`, `ctor_spine_levels`), through the codomain lemma `HTS.spineCod`. -/
+  entry is never zero at the constructor's levels (`ctor_spine_fam`), through the codomain
+  lemma `HTS.spineCod`. -/
 
-/-! # Constructing field observations of constructor spines (stage C)
+/-! # Constructing field observations of constructor spines
 
 `ctor_field_obs`: a constructor spine `mk ps fs` of a never-zero projection-registered family
 has, for each observation `k` of the field `fs[j]` and finite demands on the earlier fields, a
@@ -282,9 +282,10 @@ theorem ArgsTyped.of_substEq {D : List VExpr} {R0 : VExpr} :
       (by simpa using W)
     simpa using this
 
-/-! ## The family header at a given origin -/
+/-! ## The family header at a given declaration -/
 
-/-- `VEnv.ProjDecl.familyTele_data` at the types environment of a given origin. -/
+/-- `VEnv.ProjDecl.familyTele_data` at the header environment of a given declaration
+(`VEnv.ProjDeclAt`). -/
 theorem _root_.Lean4Lean.VEnv.ProjDeclAt.familyTele_data {envTypes : VEnv} {S : Name}
     {info : VProjectionInfo} (h : env.ProjDeclAt envTypes S info) :
     ∃ (famType : VExpr) (params ownParams pdoms fdoms idoms idx : List VExpr)
@@ -887,7 +888,7 @@ theorem fam_keys {S : Name} {info : VProjectionInfo} {ls : List VLevel}
         famArgs_subst_take hyl hn (by omega)
       rw [hys, htk]
       congr 1
-      -- the bridge between the header's and the constructor's parameter domains
+      -- the link between the header's and the constructor's parameter domains
       have W3 := substEq_take (Ds := hdoms.map (·.instL ls))
         ((famArgs info doms.length idx ls).map (·.subst (VExpr.argSubst ys)))
         ((famArgs info doms.length idx ls).map (·.subst (VExpr.argSubst ys))) rfl

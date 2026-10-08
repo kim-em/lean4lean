@@ -1,14 +1,14 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Sound
 
-/-! # Semantic facts for native recursor rules (stage B)
+/-! # Rules with an empty right-hand side
 
-Generic observation-level lemmas used to discharge the mode hypotheses of `sound_pat` at
-native recursor equations (`docs/inductives/PHASE1B_NOTES.md`, section 10.3, D11):
+Observation-level lemmas for rules that eliminate into `Prop`, used at recursor and generic
+case equations whose target is `≈ 0`:
 
-* `typed_wrap_rigid`: the type observations at which a rigid spine observation is typed
-  contain a chain ending in its sort;
-* `family_sort`: if a closed type `T` is soundly equal to a telescope ending in `Sort l`,
-  every sort at the end of a chain observation of `T` is `l`;
+* `motive_tele_empty`, `motive_tele_empty_ctx`: nothing is typed at the observations of a Pi
+  telescope whose codomain applies a motive into `Prop`;
+* `rhs_empty_motive`, `rhs_empty_motive_ctx`: hence the right-hand side of such a rule has no
+  observations at typed valuations;
 * `sound_pat_empty`: soundness of a pattern rule whose right-hand side has no observations
   (small elimination). -/
 

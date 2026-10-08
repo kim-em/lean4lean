@@ -1,17 +1,16 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Obs
 import Lean4Lean.Theory.Typing.HeadInjectivity.Projections.Typing
 
-/-! # The observation interpretation (milestone M2, structural part)
+/-! # The observation interpretation
 
 `Obs env U Δ σ S t o`: under the valuation `(σ, S)` the term `t` (in a source context `Γ`)
-has the observation `o` (`docs/inductives/PHASE1B_NOTES.md`, section 9.1). The valuation
+has the observation `o` (section 4.1 of `docs/inductives/DESIGN.md`). The valuation
 consists of an *anchor* substitution `σ` from `Γ` into the target context `Δ`, from which
 all classes are computed (`TyCls Δ (A.subst σ)`, `ElCls Δ D (a.subst σ)`), and observation
 sets `S i` for the variables (the semantic part).
 
-Deviation from section 9.1 (recorded in section 10 of the notes): valuations are pairs of
-an anchor substitution and observation sets instead of lists of (class, observation set);
-a key `(c, K)` extends the anchor by a representative `x` of `c`. With anchors the
+Valuations are pairs of an anchor substitution and observation sets, not lists of
+(class, observation set); a key `(c, K)` extends the anchor by a representative `x` of `c`. With anchors the
 substitution lemma (`Obs.subst_iff`) is purely syntactic, needing no typing; the price is
 that a key's representative is chosen, so representative invariance becomes part of
 soundness (its motive relates two definitionally equal anchors).
@@ -31,9 +30,16 @@ Clauses (every occurrence of `Obs` strictly positive, key typing inlined):
   observation `rigidArg i cᵢ`), **filtered**: kept only when typed at observations of
   `ci.type.instL ls`, read at the fixed valuation `(id, ∅)` (the type is closed;
   `Obs.closed_iff` shows the valuation is irrelevant there);
-* `const n ls`, `n` defined (stage A1, section 10.2 of the notes): the observations of the
-  value `df.rhs.instL ls` of its delta rule `df`, with the same filter;
-* `elim` and `proj` have no observations in this milestone.
+* `const n ls`, `n` defined: the observations of the value `df.rhs.instL ls` of its delta
+  rule `df`, with the same filter;
+* constructors: constructor spine observations (`ctorHead`, `ctorArg`, `ctorArgOb`), or, for
+  the constructor of a projection-registered family, only field observations (`projCtor`);
+  applications of a projection-registered family also have the type observations `fieldTy`
+  and `fieldDom` (`famTy`, `famDom`);
+* `rule` and `elimRule`: a spine headed by the head of a stored rule or by a case eliminator
+  has the observations of the rule's right-hand side at the binding of its variables read
+  from the keys (`RuleBind`), filtered by typing at the head's type;
+* `proj fam j e`: the inner observations of the field observations of `e` at field `j`.
 
 Classes are saturated by level variants (`LvEq`), so `Obs.lvEq` shows that the
 observations of a term are those of its level variants. Structural lemmas: inversion (`*_iff`), weakening (`Obs.lift'_iff`), substitution
@@ -83,7 +89,7 @@ def listSet (K : List Ob) : Ob → Prop := fun k => k ∈ K
 
 /-! ## Constructors and rules -/
 
-/-- `c` is a native constructor: the major premise of an installed rule is headed by `c`. -/
+/-- `c` is an installed constructor: the major premise of a stored rule is headed by `c`. -/
 def IsInstalledCtor (env : VEnv) (c : Name) : Prop := ∃ df, env.defeqs df ∧ df.HasConstructorMajor c
 
 /-- `c` is a case constructor: the constructor of a generated case rule of a registered
@@ -94,7 +100,7 @@ def IsCaseCtor (env : VEnv) (c : Name) : Prop :=
     (rule : InductiveSignature.CaseSchema.AppliedRule),
     env.eliminators b schema ∧ schema.Generates b owner rule ∧ rule.application.ctorName = c
 
-/-- `c` is a constructor: of a native rule or of a generated case rule. -/
+/-- `c` is a constructor: of a stored rule or of a generated case rule. -/
 def IsCtor (env : VEnv) (c : Name) : Prop := IsInstalledCtor env c ∨ IsCaseCtor env c
 
 /-- The innermost observations of a constructor spine after the keys `keys`: the head, an
@@ -112,7 +118,7 @@ def IsProjCtor (env : VEnv) (n : Name) : Prop :=
 def KeysBacked (keys : List Key) : Prop := ∀ k ∈ keys, Backed (fun o => o ∈ k.2.2)
 
 /-- The innermost observations of a constructor spine of the projection-registered family
-`fam` (decision D12): a field observation of field `j` with the observation lists of the
+`fam`: a field observation of field `j` with the observation lists of the
 earlier field keys as context. -/
 def PCtorEnd (fam : Name) (info : VProjectionInfo) (keys : List Key) (r : Ob) : Prop :=
   ∃ j L k, r = .fieldOb fam j L k ∧ j < info.numFields ∧ L.length = j ∧
@@ -154,12 +160,12 @@ def binderTy (doms : List VExpr) (ls : List VLevel) (x : Nat) : VExpr :=
 section
 variable (env : VEnv) (U : Nat) (Δ : List VExpr)
 
-/-- The binding of a rule's variables from the keys of a head chain (section 10.2 of the
-notes): a variable occurring bare among the leading arguments takes the key at its first
+/-- The binding of a rule's variables from the keys of a head chain: a variable occurring
+bare among the leading arguments takes the key at its first
 occurrence; otherwise it is the `j`-th field of the major and is
 * (AB) read, in mode AB, from the constructor observations `Km` of the major key;
 * (proof) in any mode, any term of its type, which is a proposition, with no observations;
-* (eta, decision D16) in mode AB, when the major's constructor `ctor` is the constructor of the
+* (eta) in mode AB, when the major's constructor `ctor` is the constructor of the
   projection-registered family `I` and the entry is never zero at the constructor's levels
   `lsC` (instantiated at `ls`), a member of the class of the projections of the major key's
   class `cm` onto the field, with the observations of the field recorded in the field
@@ -193,7 +199,7 @@ def RuleBind (doms : List VExpr) (ls : List VLevel) (lead : List VExpr) (msLen :
           S' x = fun k => ∃ L, .fieldOb I (msLen + j - info.nparams) L k ∈ Km)))
 
 /-- The head type identifies the major family `I` of a rule as a projection-registered family
-whose constructor is `ctor` (decision D16): the head type is a telescope of `k+1` domains whose
+whose constructor is `ctor`: the head type is a telescope of `k+1` domains whose
 last is an application of `I`. This replaces the `ctorHead` observation of the major, which
 constructor spines of projection-registered families never have. -/
 def EtaHead (I ctor : Name) (headType : VExpr) (k : Nat) : Prop :=
@@ -239,7 +245,7 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
     TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (ci.type.instL ls)) (.const n ls)) (wrap keys r) τs → CtorEnd n (ls.map (·.eval)) keys r →
     KeysBacked keys → Obs σ S (.const n ls) (wrap keys r)
   /-- The constructor of a projection-registered family has only field observations
-  (decision D12), filtered by typing. -/
+  filtered by typing. -/
   | projCtor : env.projections fam info → info.ctorName = n → env.constants n = some ci →
     (∀ τ ∈ τs, Obs .id .empty (ci.type.instL ls) τ) →
     TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (ci.type.instL ls)) (.const n ls)) (wrap keys r) τs →
@@ -272,7 +278,7 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
     ChainOK env U Δ Dc as (keys.take info.nparams ++ FL) →
     D = TyCls env U Δ ((Dc.getD (info.nparams + j) (.sort .zero)).subst (VExpr.argSubst as)) →
     Obs σ S (.const n ls) (wrap keys (.fieldDom n j FL D))
-  /-- The rule clause (section 10.2 of the notes): a head chain whose keys bind the rule's
+  /-- The rule clause: a head chain whose keys bind the rule's
   variables has the observations of the rule's right-hand side body at that binding,
   filtered by typing at the head's type. -/
   | rule : env.defeqs df →
@@ -290,7 +296,7 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
     RuleBind env U Δ doms ls lead ms.length fs mC I ctor lsC lkeys cm Km τ S' →
     KeysBacked (lkeys ++ [(Dm, cm, Km)]) → Obs τ S' (body.instL ls) o →
     Obs σ S (.const n ls) (wrap (lkeys ++ [(Dm, cm, Km)]) o)
-  /-- The eliminator rule clause (stage E): the rule clause for a generic case equation of a
+  /-- The eliminator rule clause: the rule clause for a generic case equation of a
   registered schema, in mode AB only (case schemas have no singleton elimination), the major
   identified by a `ctorHead` observation or, for projection-registered families, by the
   generic type (`EtaHead`). -/
@@ -307,14 +313,14 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
     RuleBind env U Δ doms ls lead ms.length fs false I ctor lsC lkeys cm Km τ S' →
     KeysBacked (lkeys ++ [(Dm, cm, Km)]) → Obs τ S' (body.instL ls) o →
     Obs σ S (.elim b owner.val ls) (wrap (lkeys ++ [(Dm, cm, Km)]) o)
-  /-- A projection observes the field observations of its major (decision D12). -/
+  /-- A projection observes the field observations of its major. -/
   | proj : Obs σ S e (.fieldOb fam j L o) → Obs σ S (.proj fam j e) o
 
 /-- `o`, an observation of a value of class `cv`, is typed at a list of observations of `T`. -/
 def TypedAt (cv : VExpr → Prop) (σ : VExpr.Subst) (S : ObSets) (T : VExpr) (o : Ob) : Prop :=
   ∃ τs, (∀ τ ∈ τs, Obs env U Δ σ S T τ) ∧ TypedOb env U Δ cv o τs
 
-/-- The value class of `t : T` at the anchor `σ` (decision D12 of the notes). -/
+/-- The value class of `t : T` at the anchor `σ`. -/
 def vcls (σ : VExpr.Subst) (t T : VExpr) : VExpr → Prop :=
   ElCls env U Δ (TyCls env U Δ (T.subst σ)) (t.subst σ)
 

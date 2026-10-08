@@ -12,7 +12,8 @@ telescope (`VEnv.ProjDecl.familyTele_data`).
 Composing the header conversion and the two parameter conversions into a single
 definitional equality at a sort needs uniqueness of types: `TypeShape` types the header
 conversion at an arbitrary `exprType`, and the two context conversions are typed at possibly
-different sorts per domain. This file imports only the uniqueness-free base (D7). -/
+different sorts per domain, so the conversions are kept separate (type classes of the model
+absorb them, `Model/CommonParams.lean`). This file imports only the uniqueness-free base. -/
 
 namespace Lean4Lean
 namespace VEnv

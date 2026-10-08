@@ -1,12 +1,12 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.RecursorRule
 
-/-! # Proof binders of singleton eliminators (stage D)
+/-! # Proof binders of singleton eliminators
 
 `proofBinder_of`: a binder of a rule telescope whose type is, in an earlier environment `E`
 whose rules are valid in the model of `envF`, typed at `Sort 0` in the telescope's own context,
 is a proof binder in the model of `envF` (`ProofBinder`): the soundness of that typing
-derivation (D11) types every observation of the binder type at `Sort 0`, and its substitution
-instance makes the binder type a proposition.
+derivation (by the history induction of `Model/EnvValid.lean`) types every observation of the
+binder type at `Sort 0`, and its substitution instance makes the binder type a proposition.
 
 `Ctx.liftN_ins`, `onCtx_wrapForalls` and the prefix restrictions of valuations are the typing
 infrastructure used to place the field typings of `InductiveSignature.SingletonElimination`

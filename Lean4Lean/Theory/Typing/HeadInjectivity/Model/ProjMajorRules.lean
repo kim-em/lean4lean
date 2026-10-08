@@ -6,7 +6,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.CaseRule
 projection-registered and the constructor is not a projection constructor, or the family's entry
 is valid, has the major's constructor, parameter count and field count, and the family's result
 level. The parameter count is fixed by the declaration that registered the entry, which is the
-declaration of the rule (`projMajor_of_entry`): for a native rule the installing block's own
+declaration of the rule (`projMajor_of_entry`): for a recursor rule the installing block's own
 entry (`projMajor_source`), for a generic case equation the certified declaration's entry
 (`ProjectionsCoherent`), for a container constructor the container's entry
 (`projMajor_container`). The field count is the syntactic arity of the constructor, from
@@ -174,7 +174,7 @@ theorem projMajor_source {envF env0 installed base E : VEnv} {source expanded : 
   have hlev : s.families[s.constructors[index].owner].resultLevel ≈
       source.types[s.constructors[index].owner.val].resultLevel := hrel.resultLevel
   refine ProjMajor.congr_level ?_ (Eq.symm hlev : _ ≈ _)
-  -- the native constructor
+  -- the installed constructor
   obtain ⟨ρ, hρmem, hρ⟩ := Lean4Lean.List.Forall₂.forall_exists_l
     (List.mapM_eq_some.mp C.equations) (g.equation index)
     (List.mem_map.mpr ⟨index, List.mem_finRange _, rfl⟩)
@@ -227,7 +227,7 @@ theorem projMajor_container {envF env0 base : VEnv} {aux : List ContainerSpecial
   · exact .inl ⟨fun info h => hex ⟨info, h⟩, fun hpc' =>
       let ⟨info, h, _⟩ := hF.projCtor_family hpc' hcf; hex ⟨info, h⟩⟩
 
-/-- **`ProjMajor` at a restored native equation** (ordinary or nested), in the form taken by
+/-- **`ProjMajor` at a restored recursor equation** (ordinary or nested), in the form taken by
 `RuleValid.nested`. -/
 theorem projMajor_restored {envF env0 installed base E : VEnv} {source expanded : VInductDecl}
     {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}

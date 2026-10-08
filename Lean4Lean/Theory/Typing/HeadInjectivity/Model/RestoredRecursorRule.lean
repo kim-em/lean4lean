@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.FamSort
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.RestoredRecursorEquations
 
-/-! # Validity of restored native recursor rules (nested compilations)
+/-! # Validity of restored recursor rules (nested compilations)
 
 `RuleValid.nested`: a restored equation of a compilation with container specializations is
 valid in the model of a well-formed environment, given uniqueness per head (`HeadExcl`) and
@@ -66,7 +66,7 @@ namespace Model
 variable {env : VEnv}
 
 set_option maxHeartbeats 400000 in
-/-- **Validity of a restored native recursor rule** of a nested compilation. -/
+/-- **Validity of a restored recursor rule** of a nested compilation. -/
 theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
     {base' installed : VEnv} {df : VDefEq} {L : VLevel}
     (henv : env.Ordered) (hdr : env.DeltaRules)

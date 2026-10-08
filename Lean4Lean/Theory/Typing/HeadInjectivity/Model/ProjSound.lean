@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.CtorFieldObs
 
-/-! # Soundness of the projection rules (stage C)
+/-! # Soundness of the projection rules
 
 The cases `projDF`, `projIota`, `structEta` and `unitLike` of `Model.sound`, for a projection
 entry that is valid in the model (`ProjValid`). Each lemma takes the premises of the rule (in the

@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Singleton
 
-/-! # The semantic sort of a family (D11)
+/-! # The semantic sort of a family
 
 `Model.famSort_of`: a constant whose type is, in an earlier environment `E` with valid rules,
 definitionally a telescope whose body is definitionally `Sort level` has only `level` at the
@@ -17,7 +17,8 @@ variable {env : VEnv} {U : Nat} {Δ : List VExpr}
 
 local notation "Obs'" => Obs env U Δ
 
-/-- `family_sort` through an intermediate type. -/
+/-- If a closed type `T` is soundly equal, through an intermediate type `M`, to a telescope
+ending in `Sort l`, every sort at the end of a codomain chain observation of `T` is `l`. -/
 theorem family_sort₂ {T M X₁ X₂ : VExpr} {ds : List VExpr} {ks : List Key}
     (H1 : SoundAt env U Δ [] T M X₁) (H2 : SoundAt env U Δ [] M (.wrapForalls ds (.sort l)) X₂)
     (h : Obs' .id .empty T (piCodChain ks (.sort z))) : z = l.eval := by

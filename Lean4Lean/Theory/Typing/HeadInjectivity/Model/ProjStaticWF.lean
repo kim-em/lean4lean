@@ -11,23 +11,15 @@ import Lean4Lean.Theory.Typing.ConstructorRigidity
 
 The constructor and family tables (`EnvTables.ctorOf`, `EnvTables.famOf`,
 `Theory/Typing/EnvTables/OfWF.lean`) record every registered structure with its
-constructor, every native constructor major, and every generic case major of a registered
+constructor, every constructor major of a stored rule, and every generic case major of a registered
 schema whose view is the recorded one. A family is never a constructor of the tables, and table
 entries are rigid. -/
 
 /-!
-# Syntax of restored generated equations and recursor types
+# Restoration of Pi telescopes
 
-The generated equation of a constructor (`Instance.equation`, native or abstract head) and the
-generated recursor type (`Instance.recursorType`), after restoration:
-
-* `restored_equation_syntax`: the left side is a lambda telescope `Ds` over the head applied to the
-  prefix variables, the restored indices and the restored major; the right side is a lambda
-  telescope over the same `Ds`; the type is the Pi telescope over `Ds` of the owner's motive
-  applied to the same indices and major; the motive's binder domain is a telescope ending in the
-  target sort.
-* `restored_recursorType_syntax`: the recursor type is a Pi telescope whose last domain is the
-  restored owner family applied to the parameters and the index variables.
+`restoration_wrapForalls_forall₂`: restoring a Pi telescope restores each domain and the body
+separately and gives a Pi telescope of the same length.
 -/
 
 namespace Lean4Lean.EnvTables
@@ -72,7 +64,7 @@ theorem Model.generates_major {schema : CaseSchema} {owner : Fin schema.signatur
   rw [← hb, VExpr.stripLams_wrapLams, ← ha]
   rfl
 
-/-- A native constructor is a constructor of the table. -/
+/-- An installed constructor (the major of a stored rule) is a constructor of the table. -/
 theorem WF.ctorOf_of_installedCtor (henv : env.WF) (h : Model.IsInstalledCtor env c) :
     EnvTables.ctorOf env c ≠ none := by
   obtain ⟨df, hdf, fn, ls, args, hm⟩ := h
@@ -80,7 +72,7 @@ theorem WF.ctorOf_of_installedCtor (henv : env.WF) (h : Model.IsInstalledCtor en
   simp [hk]
 
 /-- A case constructor is a constructor of the table, or a constructor, in the schema's view, of
-an original family of the schema which is its syntactic family. -/
+a source family of the schema which is its syntactic family. -/
 theorem WF.caseCtor_cases (henv : env.WF) (h : Model.IsCaseCtor env c) :
     EnvTables.ctorOf env c ≠ none ∨ ∃ (key : Name) (schema : CaseSchema)
       (owner : Fin schema.signature.families.size), env.eliminators key schema ∧
@@ -111,14 +103,12 @@ theorem WF.projFamily_not_projCtor (henv : env.WF) (hp : env.projections S info)
   rw [← hn, EnvTables.ctorOf_projection henv hp'] at h1
   cases h1
 
-/-- A registered structure is not a native constructor. -/
+/-- A registered structure is not an installed constructor. -/
 theorem WF.projFamily_not_installedCtor (henv : env.WF) (hp : env.projections S info) :
     ¬ Model.IsInstalledCtor env S := fun h => henv.ctorOf_of_installedCtor h
   (EnvTables.ctorOf_rigid henv (EnvTables.ctorOf_projection henv hp)).2.2
 
-/-- **Static facts of a projection entry** (`Model.ProjStatic`) of a well-formed environment,
-given that its family is not a case constructor (`WF.projFamily_caseCtor` describes the only
-remaining corner). -/
+/-- **Static facts of a projection entry** (`Model.ProjStatic`) of a well-formed environment. -/
 theorem WF.projStatic (henv : env.WF) (hp : env.projections S info) :
     Model.ProjStatic env S info := by
   have hk := EnvTables.ctorOf_projection henv hp
@@ -136,7 +126,7 @@ theorem WF.projCtor_family (henv : env.WF) (hpc : Model.IsProjCtor env c)
   exact ⟨info, hp, rfl⟩
 
 /-- **A registered structure has exactly its registered constructor** among the constructors
-(native or case) whose type returns it. -/
+(installed or case) whose type returns it. -/
 theorem WF.ctor_of_projFamily (henv : env.WF) (hp : env.projections I info)
     (hc : Model.IsCtor env c) (hcf : Model.CtorFam env c I) : c = info.ctorName := by
   have hf := Model.ctorFamily_of_ctorFam hcf
@@ -389,7 +379,7 @@ theorem WF.quot_not_projection (henv : env.WF) (hq : env.defeqs quotDefEq)
   obtain ⟨-, -, h⟩ := H.quot_projections hq hlift
   exact ⟨fun info hp => (h _ info hp).1 rfl, fun ⟨S, info, hp, hn⟩ => (h S info hp).2 hn⟩
 
-/-! ## Native rules whose owner family is projection-registered -/
+/-! ## Recursor rules whose owner family is projection-registered -/
 
 end VEnv
 end Lean4Lean

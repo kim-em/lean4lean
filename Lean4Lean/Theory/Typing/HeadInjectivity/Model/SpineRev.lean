@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.HTS
 
-/-! # The reverse spine lemma (stage C)
+/-! # The reverse spine lemma
 
 `HTS.spineRev`: for a constant or eliminator spine `mkApps hd args` semantically typed at `T`
 and a typed valuation, each argument has a domain type `A` in the typing derivation, and the

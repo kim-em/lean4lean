@@ -1,28 +1,29 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Classes
 import Lean4Lean.Theory.Typing.ConstructorRigidity
 
-/-! # Observations, subsumption and observation typing (milestone M1)
+/-! # Observations, subsumption and observation typing
 
-Atomic observations of the glued model (`docs/inductives/PHASE1B_NOTES.md`, section 9.1):
-a term denotes the *set* of its observations, so joins are unions and the typing filter is
-a property of single observations.
+Atomic observations of the glued observation model (section 4.1 of
+`docs/inductives/DESIGN.md`): a term denotes the *set* of its observations, so joins are
+unions and the typing filter is a property of single observations.
 
 * `Ob`: the observations. `sort ℓ` (the value is a sort of level `ℓ`, the evaluation of the
   level); `piDom D`, `piDomOb o`, `piCod c C`, `piCodOb c K o` (a Pi type with domain type
   class `D`, a domain with observation `o`, a codomain instance at argument class `c` with
   type class `C`, a codomain instance at an argument of class `c` with observations `K`
   having observation `o`); `app D c K o` (a function with domain class `D` which, applied to
-  an argument of class `c` with observations covering `K`, has observation `o`); `rigid n ℓs
-  m` and `rigidArg i c` (an application of the rigid constant `n` at levels `ℓs` to `m`
-  arguments, the `i`-th of class `c`). The notes' `rigidArgOb` is not needed by the
-  rule-free milestone M2 and is omitted.
+  an argument of class `c` with observations covering `K`, has observation `o`);
+  `rigid n ℓs m s`, `rigidArg i c` and `rigidArgOb i o` (an application of the rigid constant
+  `n` at levels `ℓs` to `m` arguments, of sort `s`, the `i`-th of class `c` or with
+  observation `o`); `ctorHead`, `ctorArg`, `ctorArgOb` (the same for constructor applications);
+  `fieldOb n j L o` (field `j` of a value of the projection-registered family `n` has
+  observation `o`) and the type observations `fieldTy`, `fieldDom` of such a family.
 * `Ob.Le o o'` (`o ≼ o'`, "`o'` is weaker"): structural, with key lists compared
   contravariantly: `app D c K o ≼ app D c K' o'` when `K'` covers `K` (`Covers K' K`: every
   key of `K` is subsumed by one of `K'`) and `o ≼ o'`. Reflexive and transitive.
-* `TypedOb o τs` ("`o`, an observation of a value, is typed at the observations `τs` of its
-  type"), an inductive predicate. The value's class is not a parameter (deviation from the
-  notes, recorded in section 10: it was only needed for typed key observations of the
-  omitted `rigidArgOb`).
+* `TypedOb cv o τs` ("`o`, an observation of a value of class `cv`, is typed at the
+  observations `τs` of its type"), an inductive predicate. The value class is read by the
+  typing of `app` results (`appCls`) and of field observations (`projCls`).
 
 `TypedOb.strengthen`: typing is stable under replacing the type observations by stronger
 ones (this is what transfers typing along `defeqDF`). `TypedOb.not_prop`: nothing is
@@ -41,8 +42,7 @@ inductive Ob where
   | piCod (c C : VExpr → Prop)
   | piCodOb (c : VExpr → Prop) (K : List Ob) (o : Ob)
   | app (D c : VExpr → Prop) (K : List Ob) (o : Ob)
-  /-- A rigid spine of the constant `n` at levels `ℓs` with `nargs` arguments, of sort `s`
-  (decision D10 of the notes, section 10.3). -/
+  /-- A rigid spine of the constant `n` at levels `ℓs` with `nargs` arguments, of sort `s`. -/
   | rigid (n : Name) (ℓs : List (List Nat → Nat)) (nargs : Nat) (s : List Nat → Nat)
   | rigidArg (i : Nat) (c : VExpr → Prop)
   /-- The `i`-th argument of a rigid spine has the observation `o`. -/
@@ -55,8 +55,7 @@ inductive Ob where
   the earlier arguments (an annotation for typing). -/
   | ctorArgOb (i : Nat) (pre : List ((VExpr → Prop) × (VExpr → Prop) × List Ob)) (o : Ob)
   /-- Field `j` of a value of the projection-registered family `n` has `o`; `L` lists
-  observations of the earlier fields (the typing context, an annotation ignored by `≼`;
-  decision D12). -/
+  observations of the earlier fields (the typing context, an annotation ignored by `≼`). -/
   | fieldOb (n : Name) (j : Nat) (L : List (List Ob)) (o : Ob)
   /-- A type observation of an application of the projection-registered family `n`: the
   domain of field `j`, at earlier fields with keys `FL`, has the observation `o`. -/
@@ -299,7 +298,7 @@ theorem wrap_inj {ks ks' : List Key} (h : wrap ks o = wrap ks' o') (ho : o.NotAp
       have := ih h4
       exact ⟨by rw [← this.1]; obtain ⟨_, _, _⟩ := k; obtain ⟨_, _, _⟩ := k'; simp_all, this.2⟩
 
-/-! ## Backing (decision D12)
+/-! ## Backing
 
 A field observation records the observations of the earlier fields (its context `L`); in an
 observation set of one value these are *backed*: the set contains the canonical witnesses
@@ -456,12 +455,12 @@ variable (env : VEnv) (U : Nat) (Δ : List VExpr)
 
 /-- The applications of members of `cv` to members of `c`, closed in the element class at
 `C`: the value class of the result of applying a value of class `cv` to an argument of class
-`c`, when the codomain at that argument has type class `C` (decision D12 of the notes). -/
+`c`, when the codomain at that argument has type class `C`. -/
 def appCls (cv c C : VExpr → Prop) : VExpr → Prop :=
   fun z => ∃ w y, cv w ∧ c y ∧ ElCls env U Δ C (.app w y) z
 
 /-- The projections of members of `cv` onto field `j` of `n`, closed in the element class at
-`D`: the value class of field `j` of a value of class `cv` (decision D12). -/
+`D`: the value class of field `j` of a value of class `cv`. -/
 def projCls (n : Name) (j : Nat) (cv D : VExpr → Prop) : VExpr → Prop :=
   fun z => ∃ w, cv w ∧ ElCls env U Δ D (.proj n j w) z
 
@@ -479,7 +478,7 @@ observations of propositions are typed at `sort 0` only); an `app` observation n
 domain class, its keys typed (at their own class) at observations of the domain, its argument
 class typed, and its result typed, at the class of the applications (`appCls`, the codomain
 class read from `piCod`), at observations of the codomain instance at a key list it covers.
-The value class is used by field observations (stage C, decision D12). -/
+The value class is also used by field observations. -/
 inductive TypedOb : (VExpr → Prop) → Ob → List Ob → Prop
   | sort : .sort (fun ns => ℓ ns + 1) ∈ τs → TypedOb cv (.sort ℓ) τs
   | piDom : .sort ℓ ∈ τs → TypedOb cv (.piDom D) τs

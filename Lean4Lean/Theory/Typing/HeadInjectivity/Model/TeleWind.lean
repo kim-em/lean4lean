@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.SpineTele
 
-/-! # Field observations of constructor spines of projection-registered families (stage C)
+/-! # Field observations of constructor spines of projection-registered families
 
 The construction of the field observations of a constructor spine `mk ps fs` (needed by
 `projIota`, and by the eta binding mode of rules on projection-registered families) works in the
@@ -110,9 +110,9 @@ theorem tele_wind (h : TeleKeys env U Δ σ S ds keys σ' S') :
       appCls_eq henv hΔ hf' hyA, VExpr.subst_lift_inst]
     exact h2
 
-/-- **The field classes of a constructor spine** (by L3): the projections onto field `i` of
-the class of a constructor spine of a never-zero projection-registered structure form the
-class of the field. -/
+/-- **The field classes of a constructor spine** (by `VEnv.proj_spine`): the projections onto
+field `i` of the class of a constructor spine of a never-zero projection-registered structure
+form the class of the field. -/
 theorem ctor_projCls {S : Name} {info : VProjectionInfo} (hp : env.projections S info)
     (hcl : info.ctorType.Closed) {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U)
     (hlen : ls.length = info.uvars) (hnz : (info.resultLevel.inst ls).IsNeverZero)
