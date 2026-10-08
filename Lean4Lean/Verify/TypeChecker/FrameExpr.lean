@@ -235,16 +235,16 @@ theorem GhostRel.mkBinding {c₁ c₂ : Context} (hr : GhostRel G c₁ c₂) {ar
   exact ⟨LocalContext.mkBindingListN_congr_setIndex fun x hx => hr.find? (hxs x hx),
     GhostFree.mkBindingListN hb fun x _ _ hd => hr.decls hd⟩
 
-theorem M.Framed.getLCtx_mkBinding {arr : Array Expr} (hfv : NonGhostFVars G arr) (hb : GhostFree G b) :
-    M.Framed G (getLCtx >>= fun l => Pure.pure (l.mkBinding isLambda arr b)) (GhostFree G) := by
+theorem M.PreservesGhostRestriction.getLCtx_mkBinding {arr : Array Expr} (hfv : NonGhostFVars G arr) (hb : GhostFree G b) :
+    M.PreservesGhostRestriction G (getLCtx >>= fun l => Pure.pure (l.mkBinding isLambda arr b)) (GhostFree G) := by
   intro c₁ c₂ s a s' hr hs e
   have := hr.mkBinding (isLambda := isLambda) hfv hb
   change Except.ok (c₁.lctx.mkBinding isLambda arr b, s) = _ at e
   rw [this.1] at e; cases e
   exact ⟨rfl, this.2, hs, .rfl⟩
 
-theorem RecM.Framed.getLCtx_mkForall {arr : Array Expr} (hfv : NonGhostFVars G arr) (hb : GhostFree G b) :
-    RecM.Framed G (getLCtx >>= fun l => Pure.pure (l.mkForall arr b)) (GhostFree G) :=
-  fun _ _ => M.Framed.getLCtx_mkBinding (isLambda := false) hfv hb
+theorem RecM.PreservesGhostRestriction.getLCtx_mkForall {arr : Array Expr} (hfv : NonGhostFVars G arr) (hb : GhostFree G b) :
+    RecM.PreservesGhostRestriction G (getLCtx >>= fun l => Pure.pure (l.mkForall arr b)) (GhostFree G) :=
+  fun _ _ => M.PreservesGhostRestriction.getLCtx_mkBinding (isLambda := false) hfv hb
 
 end Lean4Lean.TypeChecker

@@ -12,7 +12,7 @@ of `docs/inductives/DESIGN.md`).
 `inferForall.loop` opens one free variable per binder of the `forallE` spine. The proof reads the
 one actual run in every *view*: an `MLCtx` holding the binders that are kept, and a set `G` of
 *ghosts*, binders of the run that the view deletes. Each domain and result check of the run is
-replayed by the frame lemma (`Methods.withFuel_framed`) in the local context of the view, where
+replayed by the frame lemma (`Methods.withFuel_locality`) in the local context of the view, where
 the existing verification (`inferType.WF'`, `ensureSortCore.WF`) translates it. The state stays
 well formed for the view throughout: at a kept binder it is extended as by
 `RecM.WF.withLocalDecl`, at a ghost binder only the name generator advances. The keep and delete
@@ -232,7 +232,7 @@ theorem check_sort {c : VContext} {m} [c.MLCWF m] {G : FVarId → Prop} {ctx₁ 
     ∃ e', (c.withMLC m).TrExprS E e' ∧ (c.withMLC m).IsType e' ∧
       GhostFreeState G s₂ ∧ State.WF (c.withMLC m) s₂ := by
   have hGF : GhostFree G E := hE.mono hG
-  have F := Methods.withFuel_framed G k
+  have F := Methods.withFuel_locality G k
   obtain ⟨h1', gT, gs1, -⟩ := F.inferType false hGF hR hS h1
   obtain ⟨⟨s₁'⟩, eq, -, wf1, e', T', -, he', hT', hty⟩ :=
     Inner.inferType.WF' (c := c.withMLC m) (s := s) (inferOnly := false) hE nofun _
@@ -444,7 +444,7 @@ open GhostTel in
 /-- A successful checking run of `e` yields a telescope-closed translation of `e`: the translation
 of `e`, together with the translations of the leading `forallE` spine with any subset of its
 unused binders deleted. The deleted forms are derived by the verified checker itself, from the
-same run read in the local context without the deleted binders (`Methods.withFuel_framed`).
+same run read in the local context without the deleted binders (`Methods.withFuel_locality`).
 
 `henv`: no constant of the environment mentions a free variable (every environment built by the
 checker satisfies this; the frame lemma needs it for the ghosts). `hunf`, `hcache`: the start

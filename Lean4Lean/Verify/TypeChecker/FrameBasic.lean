@@ -4,8 +4,9 @@ import Lean4Lean.Verify.LocalContext
 /-!
 # Frame lemma: combinators
 
-Monadic combinators for `M.Framed` and `RecM.Framed` (see `FrameDefs.lean`): bind, pure, throw,
-state access, reads of the context, local-context lookups at non-ghosts, binders.
+Monadic combinators for `M.PreservesGhostRestriction` and `RecM.PreservesGhostRestriction` (see
+`FrameDefs.lean`): bind, pure, throw, state access, reads of the context, local-context lookups at
+non-ghosts, binders.
 -/
 
 namespace Lean4Lean.TypeChecker
@@ -86,10 +87,10 @@ theorem GhostRel.eager {c₁ c₂ : Context} (h : GhostRel G c₁ c₂) :
   wf₂ := h.wf₂
   env := h.env
 
-/-! ### `M.Framed` -/
+/-! ### `M.PreservesGhostRestriction` -/
 
-theorem M.Framed.bind {x : M α} {f : α → M β} {P Q}
-    (h1 : M.Framed G x P) (h2 : ∀ a, P a → M.Framed G (f a) Q) : M.Framed G (x >>= f) Q := by
+theorem M.PreservesGhostRestriction.bind {x : M α} {f : α → M β} {P Q}
+    (h1 : M.PreservesGhostRestriction G x P) (h2 : ∀ a, P a → M.PreservesGhostRestriction G (f a) Q) : M.PreservesGhostRestriction G (x >>= f) Q := by
   intro c₁ c₂ s b s' hr hs e
   simp only [(· >>= ·), ReaderT.bind, StateT.bind, Except.bind] at e ⊢
   cases ex : x c₁ s with
@@ -102,58 +103,58 @@ theorem M.Framed.bind {x : M α} {f : α → M β} {P Q}
     obtain ⟨h2a, h2b, h2c, h2d⟩ := h2 a h1b hr h1c e
     exact ⟨h2a, h2b, h2c, h1d.trans h2d⟩
 
-theorem M.Framed.pure {a : α} {R} (h : R a) : M.Framed G (pure a) R := by
+theorem M.PreservesGhostRestriction.pure {a : α} {R} (h : R a) : M.PreservesGhostRestriction G (pure a) R := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨rfl, h, hs, .rfl⟩
 
-theorem M.Framed.throw {R} : M.Framed G (throw e : M α) R := by
+theorem M.PreservesGhostRestriction.throw {R} : M.PreservesGhostRestriction G (throw e : M α) R := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩
 
-theorem M.Framed.getEnv : M.Framed G TypeChecker.getEnv fun _ => True := by
+theorem M.PreservesGhostRestriction.getEnv : M.PreservesGhostRestriction G TypeChecker.getEnv fun _ => True := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨by rw [hr.env_eq]; rfl, trivial, hs, .rfl⟩
 
-theorem M.Framed.getEnv_ghostFree : M.Framed G TypeChecker.getEnv (EnvGhostFree G) := by
+theorem M.PreservesGhostRestriction.getEnv_ghostFree : M.PreservesGhostRestriction G TypeChecker.getEnv (EnvGhostFree G) := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨by rw [hr.env_eq]; rfl, hr.env_eq ▸ hr.env, hs, .rfl⟩
 
 /-- A read of the context whose continuation does not depend on the local context. -/
-theorem M.Framed.read {f : Context → M α} {R}
+theorem M.PreservesGhostRestriction.read {f : Context → M α} {R}
     (hf : ∀ ⦃c₁ c₂⦄, GhostRel G c₁ c₂ → f c₁ = f c₂)
-    (H : ∀ ⦃c₁ c₂⦄, GhostRel G c₁ c₂ → M.Framed G (f c₂) R) :
-    M.Framed G (MonadReader.read >>= f) R := by
+    (H : ∀ ⦃c₁ c₂⦄, GhostRel G c₁ c₂ → M.PreservesGhostRestriction G (f c₂) R) :
+    M.PreservesGhostRestriction G (MonadReader.read >>= f) R := by
   intro c₁ c₂ s b s' hr hs e
   change f c₁ c₁ s = _ at e
   have : (MonadReader.read >>= f) c₂ s = f c₂ c₂ s := rfl
   rw [this]; rw [hf hr] at e; exact H hr hr hs e
 
-theorem M.Framed.get : M.Framed G (MonadState.get : M State) (GhostFreeState G) := by
+theorem M.PreservesGhostRestriction.get : M.PreservesGhostRestriction G (MonadState.get : M State) (GhostFreeState G) := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨rfl, hs, hs, .rfl⟩
 
-theorem M.Framed.modify {f : State → State}
+theorem M.PreservesGhostRestriction.modify {f : State → State}
     (hf : ∀ s, GhostFreeState G s → GhostFreeState G (f s) ∧ s.ngen ≤ (f s).ngen) :
-    M.Framed G (modify f : M Unit) fun _ => True := by
+    M.PreservesGhostRestriction G (modify f : M Unit) fun _ => True := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨rfl, trivial, (hf s hs).1, (hf s hs).2⟩
 
-theorem M.Framed.modifyGet {f : State → β × State}
+theorem M.PreservesGhostRestriction.modifyGet {f : State → β × State}
     (hf : ∀ s, GhostFreeState G s → GhostFreeState G (f s).2 ∧ s.ngen ≤ (f s).2.ngen) :
-    M.Framed G (modifyGet f : M β) fun _ => True := by
+    M.PreservesGhostRestriction G (modifyGet f : M β) fun _ => True := by
   intro c₁ c₂ s b s' hr hs e
   have h1 : f s = (b, s') := Except.ok.inj e
   have h2 : (f s).2 = s' := by rw [h1]
   exact ⟨e, trivial, h2 ▸ (hf s hs).1, h2 ▸ (hf s hs).2⟩
 
-theorem M.Framed.liftExcept {x : Except Exception α} {R} (h : ∀ a, x = .ok a → R a) :
-    M.Framed G (liftM x : M α) R := by
+theorem M.PreservesGhostRestriction.liftExcept {x : Except Exception α} {R} (h : ∀ a, x = .ok a → R a) :
+    M.PreservesGhostRestriction G (liftM x : M α) R := by
   intro c₁ c₂ s b s' hr hs e
   cases x with
   | error => cases e
   | ok a => cases e; exact ⟨rfl, h _ rfl, hs, .rfl⟩
 
 /-- A read of the local context at a non-ghost. -/
-theorem M.Framed.getLCtx_find {id : FVarId} (hid : ¬ G id) {f : LocalContext → M α} {R}
+theorem M.PreservesGhostRestriction.getLCtx_find {id : FVarId} (hid : ¬ G id) {f : LocalContext → M α} {R}
     (hf : ∀ ⦃l₁ l₂ : LocalContext⦄,
       (l₁.find? id).map (·.setIndex 0) = (l₂.find? id).map (·.setIndex 0) → f l₁ = f l₂)
     (H : ∀ l : LocalContext, (∀ ⦃d⦄, l.find? id = some d →
-      GhostFree G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GhostFree G v) → M.Framed G (f l) R) :
-    M.Framed G (getLCtx >>= f) R := by
+      GhostFree G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GhostFree G v) → M.PreservesGhostRestriction G (f l) R) :
+    M.PreservesGhostRestriction G (getLCtx >>= f) R := by
   intro c₁ c₂ s b s' hr hs e
   change f c₁.lctx c₁ s = _ at e
   have : (getLCtx >>= f) c₂ s = f c₂.lctx c₂ s := rfl
@@ -170,11 +171,11 @@ theorem GhostFreeState.leaveScope {saved s : State} (h₁ : GhostFreeState G sav
     GhostFreeState G (saved.leaveScope s) :=
   { h₁ with unfold := h₂.unfold, reserved := h₂.reserved }
 
-theorem M.Framed.withFreshId {x : Name → M α} {R}
+theorem M.PreservesGhostRestriction.withFreshId {x : Name → M α} {R}
     (H : ∀ (n : Name) (s : State) (c₁ c₂ : Context), GhostRel G c₁ c₂ → GhostFreeState G s →
       ¬ G ⟨n⟩ → ∀ a s', x n c₁ s = .ok (a, s') →
         x n c₂ s = .ok (a, s') ∧ R a ∧ GhostFreeState G s' ∧ s.ngen ≤ s'.ngen) :
-    M.Framed G (withFreshId x) R := by
+    M.PreservesGhostRestriction G (withFreshId x) R := by
   intro c₁ c₂ s b s' hr hs e
   rw [withFreshId_eq] at e ⊢
   have hfresh : ¬ G ⟨s.ngen.curr⟩ := fun hg =>
@@ -188,131 +189,131 @@ theorem M.Framed.withFreshId {x : Name → M α} {R}
     rw [h1]
     exact ⟨rfl, h2, hs.leaveScope h3, NameGenerator.LE.next.trans h4⟩
 
-theorem M.Framed.withLocalDecl {f : Expr → M α} {R} (hty : GhostFree G ty)
-    (H : ∀ id, ¬ G id → M.Framed G (f (.fvar id)) R) :
-    M.Framed G (withLocalDecl name bi ty f) R := by
+theorem M.PreservesGhostRestriction.withLocalDecl {f : Expr → M α} {R} (hty : GhostFree G ty)
+    (H : ∀ id, ¬ G id → M.PreservesGhostRestriction G (f (.fvar id)) R) :
+    M.PreservesGhostRestriction G (withLocalDecl name bi ty f) R := by
   refine .withFreshId fun n s c₁ c₂ hr hs hn a s' e => ?_
   exact H _ hn (hr.mkLocalDecl hty) hs e
 
-theorem M.Framed.withLetDecl {f : Expr → M α} {R} (hty : GhostFree G ty) (hval : GhostFree G val)
-    (H : ∀ id, ¬ G id → M.Framed G (f (.fvar id)) R) :
-    M.Framed G (withLetDecl name ty val f) R := by
+theorem M.PreservesGhostRestriction.withLetDecl {f : Expr → M α} {R} (hty : GhostFree G ty) (hval : GhostFree G val)
+    (H : ∀ id, ¬ G id → M.PreservesGhostRestriction G (f (.fvar id)) R) :
+    M.PreservesGhostRestriction G (withLetDecl name ty val f) R := by
   refine .withFreshId fun n s c₁ c₂ hr hs hn a s' e => ?_
   exact H _ hn (hr.mkLetDecl hty hval) hs e
 
-theorem M.Framed.withEager {x : M α} {R} (h : M.Framed G x R) :
-    M.Framed G (withTheReader Context (fun s => { s with eagerReduce := true }) x) R :=
+theorem M.PreservesGhostRestriction.withEager {x : M α} {R} (h : M.PreservesGhostRestriction G x R) :
+    M.PreservesGhostRestriction G (withTheReader Context (fun s => { s with eagerReduce := true }) x) R :=
   fun _ _ _ _ _ hr hs e => h hr.eager hs e
 
-/-! ### `RecM.Framed` -/
+/-! ### `RecM.PreservesGhostRestriction` -/
 
-theorem RecM.Framed.bind {x : RecM α} {f : α → RecM β} {P Q}
-    (h1 : RecM.Framed G x P) (h2 : ∀ a, P a → RecM.Framed G (f a) Q) :
-    RecM.Framed G (x >>= f) Q :=
-  fun _ hm => M.Framed.bind (h1 hm) fun a ha => h2 a ha hm
+theorem RecM.PreservesGhostRestriction.bind {x : RecM α} {f : α → RecM β} {P Q}
+    (h1 : RecM.PreservesGhostRestriction G x P) (h2 : ∀ a, P a → RecM.PreservesGhostRestriction G (f a) Q) :
+    RecM.PreservesGhostRestriction G (x >>= f) Q :=
+  fun _ hm => M.PreservesGhostRestriction.bind (h1 hm) fun a ha => h2 a ha hm
 
-theorem RecM.Framed.pure {a : α} {R} (h : R a) : RecM.Framed G (pure a) R :=
+theorem RecM.PreservesGhostRestriction.pure {a : α} {R} (h : R a) : RecM.PreservesGhostRestriction G (pure a) R :=
   fun _ _ => .pure h
 
-theorem RecM.Framed.throw {R} : RecM.Framed G (throw e : RecM α) R := fun _ _ => .throw
+theorem RecM.PreservesGhostRestriction.throw {R} : RecM.PreservesGhostRestriction G (throw e : RecM α) R := fun _ _ => .throw
 
-theorem RecM.Framed.throw_bind {f : α → RecM β} {R} :
-    RecM.Framed G (MonadExcept.throw e >>= f) R :=
-  RecM.Framed.bind (P := fun _ => False) .throw nofun
+theorem RecM.PreservesGhostRestriction.throw_bind {f : α → RecM β} {R} :
+    RecM.PreservesGhostRestriction G (MonadExcept.throw e >>= f) R :=
+  RecM.PreservesGhostRestriction.bind (P := fun _ => False) .throw nofun
 
-theorem RecM.Framed.panic [Inhabited α] {R : α → Prop} (h : R default) :
-    RecM.Framed G (panicWithPosWithDecl m d l c msg : RecM α) R := by
-  simp only [panicWithPosWithDecl]; exact RecM.Framed.pure h
+theorem RecM.PreservesGhostRestriction.panic [Inhabited α] {R : α → Prop} (h : R default) :
+    RecM.PreservesGhostRestriction G (panicWithPosWithDecl m d l c msg : RecM α) R := by
+  simp only [panicWithPosWithDecl]; exact RecM.PreservesGhostRestriction.pure h
 
-theorem RecM.Framed.ite {c : Prop} [Decidable c] {x y : RecM α} {R}
-    (h1 : RecM.Framed G x R) (h2 : RecM.Framed G y R) :
-    RecM.Framed G (if c then x else y) R := by
+theorem RecM.PreservesGhostRestriction.ite {c : Prop} [Decidable c] {x y : RecM α} {R}
+    (h1 : RecM.PreservesGhostRestriction G x R) (h2 : RecM.PreservesGhostRestriction G y R) :
+    RecM.PreservesGhostRestriction G (if c then x else y) R := by
   split
   · exact h1
   · exact h2
 
-theorem RecM.Framed.lift {x : M α} {R} (h : M.Framed G x R) : RecM.Framed G (liftM x) R :=
+theorem RecM.PreservesGhostRestriction.lift {x : M α} {R} (h : M.PreservesGhostRestriction G x R) : RecM.PreservesGhostRestriction G (liftM x) R :=
   fun _ _ => h
 
-theorem RecM.Framed.getEnv : RecM.Framed G (liftM TypeChecker.getEnv) fun _ => True := .lift .getEnv
+theorem RecM.PreservesGhostRestriction.getEnv : RecM.PreservesGhostRestriction G (liftM TypeChecker.getEnv) fun _ => True := .lift .getEnv
 
-theorem RecM.Framed.getEnv_ghostFree : RecM.Framed G (liftM TypeChecker.getEnv) (EnvGhostFree G) := .lift .getEnv_ghostFree
+theorem RecM.PreservesGhostRestriction.getEnv_ghostFree : RecM.PreservesGhostRestriction G (liftM TypeChecker.getEnv) (EnvGhostFree G) := .lift .getEnv_ghostFree
 
-theorem RecM.Framed.getLCtx_throw {f : LocalContext → Exception} {R} :
-    RecM.Framed G (getLCtx >>= fun l => (MonadExcept.throw (f l) : RecM α)) R := by
+theorem RecM.PreservesGhostRestriction.getLCtx_throw {f : LocalContext → Exception} {R} :
+    RecM.PreservesGhostRestriction G (getLCtx >>= fun l => (MonadExcept.throw (f l) : RecM α)) R := by
   rintro _ _ c₁ c₂ s b s' hr hs ⟨⟩
 
-theorem RecM.Framed.getLCtx_throw_bind {f : LocalContext → Exception}
+theorem RecM.PreservesGhostRestriction.getLCtx_throw_bind {f : LocalContext → Exception}
     {g : LocalContext → α → RecM β} {R} :
-    RecM.Framed G (getLCtx >>= fun l => (MonadExcept.throw (f l) : RecM α) >>= g l) R := by
+    RecM.PreservesGhostRestriction G (getLCtx >>= fun l => (MonadExcept.throw (f l) : RecM α) >>= g l) R := by
   rintro _ _ c₁ c₂ s b s' hr hs ⟨⟩
 
-theorem RecM.Framed.read {f : Context → RecM α} {R}
+theorem RecM.PreservesGhostRestriction.read {f : Context → RecM α} {R}
     (hf : ∀ ⦃c₁ c₂⦄, GhostRel G c₁ c₂ → f c₁ = f c₂)
-    (H : ∀ ⦃c₁ c₂⦄, GhostRel G c₁ c₂ → RecM.Framed G (f c₂) R) :
-    RecM.Framed G (readThe Context >>= f) R :=
-  fun m hm => M.Framed.read (f := fun c => f c m) (fun _ _ h => by rw [hf h])
+    (H : ∀ ⦃c₁ c₂⦄, GhostRel G c₁ c₂ → RecM.PreservesGhostRestriction G (f c₂) R) :
+    RecM.PreservesGhostRestriction G (readThe Context >>= f) R :=
+  fun m hm => M.PreservesGhostRestriction.read (f := fun c => f c m) (fun _ _ h => by rw [hf h])
     fun _ _ hc => H hc hm
 
-theorem RecM.Framed.get : RecM.Framed G (MonadState.get : RecM State) (GhostFreeState G) :=
+theorem RecM.PreservesGhostRestriction.get : RecM.PreservesGhostRestriction G (MonadState.get : RecM State) (GhostFreeState G) :=
   fun _ _ => .get
 
-theorem RecM.Framed.modify {f : State → State}
+theorem RecM.PreservesGhostRestriction.modify {f : State → State}
     (hf : ∀ s, GhostFreeState G s → GhostFreeState G (f s) ∧ s.ngen ≤ (f s).ngen) :
-    RecM.Framed G (modify f : RecM Unit) fun _ => True := fun _ _ => .modify hf
+    RecM.PreservesGhostRestriction G (modify f : RecM Unit) fun _ => True := fun _ _ => .modify hf
 
-theorem RecM.Framed.modifyGet {f : State → β × State}
+theorem RecM.PreservesGhostRestriction.modifyGet {f : State → β × State}
     (hf : ∀ s, GhostFreeState G s → GhostFreeState G (f s).2 ∧ s.ngen ≤ (f s).2.ngen) :
-    RecM.Framed G (modifyGet f : RecM β) fun _ => True := fun _ _ => .modifyGet hf
+    RecM.PreservesGhostRestriction G (modifyGet f : RecM β) fun _ => True := fun _ _ => .modifyGet hf
 
-theorem RecM.Framed.liftExcept {x : Except Exception α} {R} (h : ∀ a, x = .ok a → R a) :
-    RecM.Framed G (liftM x : RecM α) R := fun _ _ => .liftExcept h
+theorem RecM.PreservesGhostRestriction.liftExcept {x : Except Exception α} {R} (h : ∀ a, x = .ok a → R a) :
+    RecM.PreservesGhostRestriction G (liftM x : RecM α) R := fun _ _ => .liftExcept h
 
-theorem RecM.Framed.getLCtx_find {id : FVarId} (hid : ¬ G id) {f : LocalContext → RecM α} {R}
+theorem RecM.PreservesGhostRestriction.getLCtx_find {id : FVarId} (hid : ¬ G id) {f : LocalContext → RecM α} {R}
     (hf : ∀ ⦃l₁ l₂ : LocalContext⦄,
       (l₁.find? id).map (·.setIndex 0) = (l₂.find? id).map (·.setIndex 0) → f l₁ = f l₂)
     (H : ∀ l : LocalContext, (∀ ⦃d⦄, l.find? id = some d →
-      GhostFree G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GhostFree G v) → RecM.Framed G (f l) R) :
-    RecM.Framed G (getLCtx >>= f) R :=
-  fun m hm => M.Framed.getLCtx_find (f := fun l => f l m) hid
+      GhostFree G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GhostFree G v) → RecM.PreservesGhostRestriction G (f l) R) :
+    RecM.PreservesGhostRestriction G (getLCtx >>= f) R :=
+  fun m hm => M.PreservesGhostRestriction.getLCtx_find (f := fun l => f l m) hid
     (fun _ _ h => by rw [hf h]) fun l hl => H l hl hm
 
-theorem RecM.Framed.withLocalDecl {f : Expr → RecM α} {R} (hty : GhostFree G ty)
-    (H : ∀ id, ¬ G id → RecM.Framed G (f (.fvar id)) R) :
-    RecM.Framed G (withLocalDecl name bi ty f) R :=
-  fun m hm => M.Framed.withLocalDecl (f := fun e => f e m) hty fun id hid => H id hid hm
+theorem RecM.PreservesGhostRestriction.withLocalDecl {f : Expr → RecM α} {R} (hty : GhostFree G ty)
+    (H : ∀ id, ¬ G id → RecM.PreservesGhostRestriction G (f (.fvar id)) R) :
+    RecM.PreservesGhostRestriction G (withLocalDecl name bi ty f) R :=
+  fun m hm => M.PreservesGhostRestriction.withLocalDecl (f := fun e => f e m) hty fun id hid => H id hid hm
 
-theorem RecM.Framed.withLetDecl {f : Expr → RecM α} {R} (hty : GhostFree G ty) (hval : GhostFree G val)
-    (H : ∀ id, ¬ G id → RecM.Framed G (f (.fvar id)) R) :
-    RecM.Framed G (withLetDecl name ty val f) R :=
-  fun m hm => M.Framed.withLetDecl (f := fun e => f e m) hty hval fun id hid => H id hid hm
+theorem RecM.PreservesGhostRestriction.withLetDecl {f : Expr → RecM α} {R} (hty : GhostFree G ty) (hval : GhostFree G val)
+    (H : ∀ id, ¬ G id → RecM.PreservesGhostRestriction G (f (.fvar id)) R) :
+    RecM.PreservesGhostRestriction G (withLetDecl name ty val f) R :=
+  fun m hm => M.PreservesGhostRestriction.withLetDecl (f := fun e => f e m) hty hval fun id hid => H id hid hm
 
-theorem RecM.Framed.withEager {x : RecM α} {R} (h : RecM.Framed G x R) :
-    RecM.Framed G (withTheReader Context (fun s => { s with eagerReduce := true }) x) R :=
+theorem RecM.PreservesGhostRestriction.withEager {x : RecM α} {R} (h : RecM.PreservesGhostRestriction G x R) :
+    RecM.PreservesGhostRestriction G (withTheReader Context (fun s => { s with eagerReduce := true }) x) R :=
   fun _ hm => (h hm).withEager
 
 /-! ### Methods -/
 
-theorem RecM.Framed.whnf (h : GhostFree G e) : RecM.Framed G (Inner.whnf e) (GhostFree G) :=
+theorem RecM.PreservesGhostRestriction.whnf (h : GhostFree G e) : RecM.PreservesGhostRestriction G (Inner.whnf e) (GhostFree G) :=
   fun _ hm => hm.whnf h
 
-theorem RecM.Framed.whnfCore (h : GhostFree G e) : RecM.Framed G (Inner.whnfCore e cheapProj) (GhostFree G) :=
+theorem RecM.PreservesGhostRestriction.whnfCore (h : GhostFree G e) : RecM.PreservesGhostRestriction G (Inner.whnfCore e cheapProj) (GhostFree G) :=
   fun _ hm => hm.whnfCore cheapProj h
 
-theorem RecM.Framed.inferType (h : GhostFree G e) :
-    RecM.Framed G (Inner.inferType e inferOnly) (GhostFree G) :=
+theorem RecM.PreservesGhostRestriction.inferType (h : GhostFree G e) :
+    RecM.PreservesGhostRestriction G (Inner.inferType e inferOnly) (GhostFree G) :=
   fun _ hm => hm.inferType inferOnly h
 
-theorem RecM.Framed.isDefEqCore (h₁ : GhostFree G t) (h₂ : GhostFree G s) :
-    RecM.Framed G (Inner.isDefEqCore t s) fun _ => True :=
+theorem RecM.PreservesGhostRestriction.isDefEqCore (h₁ : GhostFree G t) (h₂ : GhostFree G s) :
+    RecM.PreservesGhostRestriction G (Inner.isDefEqCore t s) fun _ => True :=
   fun _ hm => hm.isDefEqCore h₁ h₂
 
-theorem RecM.Framed.isDefEq (h₁ : GhostFree G t) (h₂ : GhostFree G s) :
-    RecM.Framed G (Inner.isDefEq t s) fun _ => True := by
+theorem RecM.PreservesGhostRestriction.isDefEq (h₁ : GhostFree G t) (h₂ : GhostFree G s) :
+    RecM.PreservesGhostRestriction G (Inner.isDefEq t s) fun _ => True := by
   unfold Inner.isDefEq
-  refine (RecM.Framed.isDefEqCore h₁ h₂).bind fun r _ => ?_
+  refine (RecM.PreservesGhostRestriction.isDefEqCore h₁ h₂).bind fun r _ => ?_
   split
-  · refine RecM.Framed.bind (RecM.Framed.modify ?_) fun _ _ => .pure trivial
+  · refine RecM.PreservesGhostRestriction.bind (RecM.PreservesGhostRestriction.modify ?_) fun _ _ => .pure trivial
     intro s hs
     exact ⟨⟨hs.1, hs.2, hs.3, hs.4, hs.5, hs.6⟩, .rfl⟩
   · exact .pure trivial
