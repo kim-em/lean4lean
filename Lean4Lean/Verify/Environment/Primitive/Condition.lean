@@ -2101,11 +2101,11 @@ theorem Condition.check.gadget_types {c : VContext}
     e = fun x y : Nat => (fun (p : Prop) (b : Bool) (H : type p b) => toDec p b H)
           (prop x y) (asBool x y) (proof x y)
 
-together with the separate checks at `[]` of the closed pieces other than `prop`.
+together with the separate checks at `[]` of the closed pieces other than `prop` and `asBool`.
 
 *Their readings* are `[]` readings: a closed, projection-free term is read the same way in every
 context (`TrExprS.of_nil_unique`), so the gadget's readings of the pieces under its binders are the
-`[]` readings, once there is one. For `prop` it comes from instantiating the gadget's two `Nat`
+`[]` readings, once there is one. For `prop` and `asBool` it comes from instantiating the gadget's two `Nat`
 binders with `Nat.zero` (`TrExprS.peel_outer`), which leaves the closed piece alone; the others
 come from their separate checks. A typing found under a binder need not hold in the smaller
 context in general, even of a term that does not mention the binder; an inhabited binder can be
@@ -2131,9 +2131,7 @@ theorem Condition.check.gadget_pieces {c : VContext} {prop asBool proof : Expr} 
         (mkApp2 prop (.bvar 1) (.bvar 0)) (mkApp2 asBool (.bvar 1) (.bvar 0))
         (mkApp2 proof (.bvar 1) (.bvar 0))))) e')
     (hT : c.venv.HasType c.lparams.length [] e' eTy')
-    {asBool₀ proof₀ toDec₀ asBoolT₀ proofT₀ toDecT₀ : VExpr}
-    (hasBool₀ : TrExprS c.venv c.lparams [] asBool asBool₀)
-    (hasBool₀T : c.venv.HasType c.lparams.length [] asBool₀ asBoolT₀)
+    {proof₀ toDec₀ proofT₀ toDecT₀ : VExpr}
     (hproof₀ : TrExprS c.venv c.lparams [] proof proof₀)
     (hproof₀T : c.venv.HasType c.lparams.length [] proof₀ proofT₀)
     (htoDec₀ : TrExprS c.venv c.lparams [] r.toDec toDec₀)
@@ -2236,7 +2234,7 @@ theorem Condition.check.gadget_pieces {c : VContext} {prop asBool proof : Expr} 
   obtain ⟨rfl, -⟩ := h4; obtain ⟨rfl, -⟩ := h5; obtain ⟨rfl, -⟩ := h6
   -- every piece, brought down to `[]`
   obtain ⟨hpropC, hpropTr⟩ := descNat hpropOK hprc
-  obtain ⟨habC, habTr⟩ := desc hasBoolOK habc hasBool₀ hasBool₀T
+  obtain ⟨habC, habTr⟩ := descNat hasBoolOK habc
   obtain ⟨hpfC, hpfTr⟩ := desc hproofOK hpfc hproof₀ hproof₀T
   obtain ⟨htoDecC, htoDecTr⟩ := desc htoDecOK htd htoDec₀ htoDec₀T
   exact ⟨_, _, _, _, hpropTr, habTr, hpfTr, htoDecTr, hpropC, habC, hpfC, htoDecC,
@@ -2889,8 +2887,6 @@ theorem Condition.check.WF {c : VContext} {s : VState} {cond : Condition}
     refine .bind (Reflection.check.WF hbool hnil htypeOK hfail) fun _ _ _ hw => ?_
     obtain ⟨w⟩ := hw
     -- the other closed pieces, each read on its own at `[]`
-    refine .bind (checkType.WF (CondOK.fvarsIn hasBoolOK))
-      fun _ _ _ ⟨_, _, _, hasBool₀, _, hasBool₀T⟩ => ?_
     refine .bind (checkType.WF (CondOK.fvarsIn hproofOK))
       fun _ _ _ ⟨_, _, _, hproof₀, _, hproof₀T⟩ => ?_
     refine .bind (checkType.WF (CondOK.fvarsIn htoDecOK))
@@ -2915,7 +2911,6 @@ theorem Condition.check.WF {c : VContext} {s : VState} {cond : Condition}
         hpropC, habC, hpfC, htoDecC, hgadget⟩ :=
       Condition.check.gadget_pieces w hnil hnat hok.prop hasBoolOK hproofOK htypeOK htoDecOK
         (by rw [← hnil]; exact heTr) (by rw [← hnil']; exact heT)
-        (at0 hasBool₀) (at0T hasBool₀T)
         (at0 hproof₀) (at0T hproof₀T) (at0 htoDec₀) (at0T htoDec₀T)
     have htoDecTr' : c.TrExprS reflect.toDec toDec' := by
       show TrExprS c.venv c.lparams c.vlctx reflect.toDec toDec'; rw [hnil]; exact htoDecTr
