@@ -638,7 +638,7 @@ theorem mono_le (h : Obs' σ S t o) (hS : ∀ i o, S i o → ∃ o', S' i o' ∧
       | zero => exact ⟨o, h, .refl⟩
       | succ i => exact hS i o h
     exact ⟨_, .piCodOb h1 hτ1 (fun k hk => (h3 k hk).strengthen hτ2) hb h4 ho1,
-      .piCodOb' .refl ho2⟩
+      .piCodOb_of_covers .refl ho2⟩
   | @lam _ τs _ _ _ K _ _ _ h1 _ h3 hb h4 _ ih2 ih5 =>
     have ⟨τs', hτ1, hτ2⟩ := exists_list_cover (L := τs) (R := fun y x => y ≼ x)
       fun τ hτ => ih2 τ hτ hS

@@ -37,7 +37,7 @@ theorem ContainerSpecialization.directFamily_fields
 
 /-! ### Installed containers -/
 
-private theorem install_type_lookup' {base installed : VEnv} {block : VInductBlock}
+private theorem install_type_lookup {base installed : VEnv} {block : VInductBlock}
     {value : VConstVal}
     (H : VInductBlock.install base block = some installed)
     (hvalue : value ∈ block.types) :
@@ -73,7 +73,7 @@ theorem _root_.Lean4Lean.VEnv.InstalledBelow.familyFacts {env : VEnv} {decl : VI
     refine ⟨params, fun type htype => ⟨?_, huvars type htype,
       (hheaders type htype).mono hbase, typeShape_mono hbase' (hshapes type htype)⟩⟩
     apply hle.constants
-    apply install_type_lookup' hinstall
+    apply install_type_lookup hinstall
     rw [hcompile.compiled.types_eq]
     exact List.mem_map.mpr ⟨type, htype, rfl⟩
 

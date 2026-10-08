@@ -424,7 +424,7 @@ theorem installEntries_some {old : Name → Option RecursorData}
     simp [hn] at this
 
 /-- Native installation with the chosen compilation data (`Tables.Inv.install` chooses it). -/
-theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
+theorem Tables.Inv.install {decl : VInductDecl} {block : VInductBlock}
     (H : T.Inv env) (henv : env.WF)
     (hcomp : decl.CompilesTo env block) (hblock : VInductBlock.WF env block)
     (hinstall : block.install env = some env')

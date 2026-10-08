@@ -800,7 +800,7 @@ private def nameDepth : Name → Nat
   | .str p _ => nameDepth p + 1
   | .num p _ => nameDepth p + 1
 
-theorem Name.replacePrefix_self' (A P : Name) : A.replacePrefix A P = P := by
+theorem Name.replacePrefix_self (A P : Name) : A.replacePrefix A P = P := by
   cases A <;> simp [Name.replacePrefix]
 
 private theorem NamePrefix.depth_le (H : NamePrefix P x) : nameDepth P ≤ nameDepth x := by
@@ -813,7 +813,7 @@ theorem NamePrefix.replacePrefix_nameDepth (H : NamePrefix P x) (A : Name) :
     nameDepth A ≤ nameDepth (x.replacePrefix P A) ∧
       (x ≠ P → nameDepth A < nameDepth (x.replacePrefix P A)) := by
   induction H with
-  | refl => simp [Name.replacePrefix_self']
+  | refl => simp [Name.replacePrefix_self]
   | @str p s H ih =>
     have hne : Name.str p s ≠ P := by
       intro h; have := H.depth_le; rw [← h] at this; simp [nameDepth] at this; omega
@@ -828,7 +828,7 @@ theorem NamePrefix.replacePrefix_nameDepth (H : NamePrefix P x) (A : Name) :
 theorem NamePrefix.replacePrefix_replacePrefix (H : NamePrefix P x) (A : Name) :
     (x.replacePrefix P A).replacePrefix A P = x := by
   induction H with
-  | refl => simp [Name.replacePrefix_self']
+  | refl => simp [Name.replacePrefix_self]
   | @str p s H ih =>
     have hne : Name.str p s ≠ P := by
       intro h; have := H.depth_le; rw [← h] at this; simp [nameDepth] at this; omega

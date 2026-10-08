@@ -367,7 +367,7 @@ theorem RuleValid.recursor {s : InductiveSignature} {g : Instance s} {base' inst
     refine sound_pat_empty henv hΔ hdf hl hr hlsP hcl.1.1 hcl.2.1 (hctor _ hcis) hctor hpctor hdr
       huniq hci eH hlenH hkH hpm.weak ihL.1 ihR fun σ S W tv o => ?_
     refine rhs_empty_motive henv hΔ (doms := (g.eqDoms index).map (·.instL ls))
-      (by rw [g.equation_type_eq, VExpr.instL_wrapForalls]) (by rw [hr, instL_wrapLams'])
+      (by rw [g.equation_type_eq, VExpr.instL_wrapForalls]) (by rw [hr, instL_wrapLams])
       hcl' ihT.2 (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl)
       (by have := lookup_binderTy (Γ := []) (ls := ls) (doms := g.eqDoms index)
             (x := s.constructors[index].fields.length + s.constructors.size +

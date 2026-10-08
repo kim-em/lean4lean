@@ -1168,7 +1168,7 @@ theorem Reflection.WF.genPH (w : Reflection.WF c r) (E : c.Ext)
     rw [VExpr.Subst.tail_cons,
       show ((w.type'.app (VExpr.bvar 0)).app (VExpr.boolLit b)).subst
         (VExpr.Subst.id.cons p) = (w.type'.app p).app (VExpr.boolLit b) from by
-      simp [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, hclosed.subst_eq', hbc.subst_eq']]
+      simp [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, hclosed.subst_eq_of_closed, hbc.subst_eq_of_closed]]
     exact hH
 
 /-- What one of `checkITE`'s two equation checks says, generalized away from the binders it was
@@ -1310,9 +1310,9 @@ theorem Reflection.checkITE.WF {fail : ∀ {α}, M α}
     have hiteT'' := VEnv.HasType.weak0 (Γ := (c.withMLC _ (wf := cwfH)).vlctx.toCtx)
       c.Ewf hiteT'
     rw [hshape] at hiteTrH hiteT'' ⊢
-    obtain ⟨hΓ1, hb1⟩ := VExpr.WF.lam_inv' c.Ewf.ordered hΓH ⟨_, hiteT''⟩
-    obtain ⟨hΓ2, hb2⟩ := VExpr.WF.lam_inv' c.Ewf hΓ1 hb1
-    obtain ⟨hΓ3, hb3⟩ := VExpr.WF.lam_inv' c.Ewf hΓ2 hb2
+    obtain ⟨hΓ1, hb1⟩ := VExpr.WF.lam_inv_onCtx c.Ewf.ordered hΓH ⟨_, hiteT''⟩
+    obtain ⟨hΓ2, hb2⟩ := VExpr.WF.lam_inv_onCtx c.Ewf hΓ1 hb1
+    obtain ⟨hΓ3, hb3⟩ := VExpr.WF.lam_inv_onCtx c.Ewf hΓ2 hb2
     have hargs : VExpr.ArgsTyped c.venv c.lparams.length (c.withMLC _ (wf := cwfH)).vlctx.toCtx
         [.sort .zero, .bool, (w.type'.app (.bvar 1)).app (.bvar 0)] .id
         [.bvar 1, .boolLit b, .bvar 0] := by
@@ -1325,7 +1325,7 @@ theorem Reflection.checkITE.WF {fail : ∀ {α}, M α}
       have hbc : (VExpr.boolLit b).ClosedN := by cases b <;> trivial
       simpa [VExpr.lift, VExpr.liftN, liftVar, VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id,
         hc.liftN_eq (Nat.zero_le _), hbc.liftN_eq (Nat.zero_le _),
-        hc.subst_eq', hbc.subst_eq'] using h
+        hc.subst_eq_of_closed, hbc.subst_eq_of_closed] using h
     have hwf := (VExpr.lams_appN' c.Ewf hΓH (by simpa using hΓ3) (.id c.Ewf hΓH) hargs hb3).1
     simp only [VExpr.subst_id, VExpr.appN] at hwf
     exact TrExprS.appN c.Ewf.ordered hΓH hiteTrH
@@ -1353,7 +1353,7 @@ theorem Reflection.checkITE.WF {fail : ∀ {α}, M α}
         (.lam (.bvar 0) (.lam (.bvar 1) (.bvar (if b then 1 else 0))))).ClosedN := by
       cases b <;> simp [VExpr.ClosedN]
     simp only [VExpr.subst_app] at h
-    rw [hiteC.subst_eq', hbc.subst_eq', hprojC.subst_eq'] at h
+    rw [hiteC.subst_eq_of_closed, hbc.subst_eq_of_closed, hprojC.subst_eq_of_closed] at h
     simpa [VExpr.Subst.cons, VExpr.Subst.id] using h
   -- the two blocks, then the reflection's `ite` equation at every argument
   refine .bind (Q := fun _ _ => w.IteEq ite₀ true) ?_ fun _ _ _ hTrue => ?_
@@ -1375,17 +1375,17 @@ theorem Reflection.checkITE.WF {fail : ∀ {α}, M α}
     intro E Γ p H bb α hΓ hp hbb hH hα
     have hiteTΓ := (E.monoT hiteT').weak0 (Γ := Γ) E.wf.ordered
     rw [hshape] at hiteTΓ
-    obtain ⟨hΓ1, hb1'⟩ := VExpr.WF.lam_inv' E.wf hΓ ⟨_, hiteTΓ⟩
-    obtain ⟨hΓ2, hb2'⟩ := VExpr.WF.lam_inv' E.wf hΓ1 hb1'
-    obtain ⟨hΓ3, hb3'⟩ := VExpr.WF.lam_inv' E.wf hΓ2 hb2'
-    obtain ⟨hΓ4, hb4'⟩ := VExpr.WF.lam_inv' E.wf hΓ3 hb3'
+    obtain ⟨hΓ1, hb1'⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ ⟨_, hiteTΓ⟩
+    obtain ⟨hΓ2, hb2'⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ1 hb1'
+    obtain ⟨hΓ3, hb3'⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ2 hb2'
+    obtain ⟨hΓ4, hb4'⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ3 hb3'
     have htc : w.type'.ClosedN := (htypeT.closedN' c.Ewf.ordered.closed trivial).1
     have hargs4 : VExpr.ArgsTyped E.venv c.lparams.length Γ
         [vexpr(Prop), .bool, (w.type'.app (.bvar 1)).app (.bvar 0), vexpr(Type)] .id
         [p, bb, H, α] := by
       refine .cons (by simpa using hp) (.cons (by simpa using hbb) (.cons ?_
         (.cons (by simpa using hα) .nil)))
-      simpa [VExpr.Subst.cons, VExpr.Subst.id, htc.subst_eq'] using hH
+      simpa [VExpr.Subst.cons, VExpr.Subst.id, htc.subst_eq_of_closed] using hH
     have h4 := VEnv.HasType.appN_forallEs hargs4
       (by simpa using VEnv.HasType.weak0 (Γ := Γ) E.wf (E.monoT hiteT'))
     have hbeta := (VExpr.lams_appN' E.wf hΓ (by simpa using hΓ4) (.id E.wf hΓ) hargs4 hb4').2
@@ -1393,7 +1393,7 @@ theorem Reflection.checkITE.WF {fail : ∀ {α}, M α}
     rw [← hshape] at hbeta
     have h5 := VEnv.HasType.defeqU_l E.wf hΓ hbeta h4
     simp only [VExpr.subst_app, VExpr.subst_const] at h5
-    rw [htoDecC.subst_eq'] at h5
+    rw [htoDecC.subst_eq_of_closed] at h5
     simpa [VExpr.Subst.consN, VExpr.Subst.cons, VExpr.Subst.id, VExpr.subst,
       VExpr.Subst.lift] using h5
   intro E Γ p H α t e b hΓ hp hH hα ht he
@@ -1412,10 +1412,10 @@ theorem Reflection.checkITE.WF {fail : ∀ {α}, M α}
   · -- the conditional, beta-reduced at all four of its binders
     have hiteTΓ := VEnv.HasType.weak0 (Γ := Γ) E.wf (E.monoT hiteT')
     rw [hshape] at hiteTΓ
-    obtain ⟨hΓ1, hb1⟩ := VExpr.WF.lam_inv' E.wf hΓ ⟨_, hiteTΓ⟩
-    obtain ⟨hΓ2, hb2⟩ := VExpr.WF.lam_inv' E.wf hΓ1 hb1
-    obtain ⟨hΓ3, hb3⟩ := VExpr.WF.lam_inv' E.wf hΓ2 hb2
-    obtain ⟨hΓ4, hb4⟩ := VExpr.WF.lam_inv' E.wf hΓ3 hb3
+    obtain ⟨hΓ1, hb1⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ ⟨_, hiteTΓ⟩
+    obtain ⟨hΓ2, hb2⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ1 hb1
+    obtain ⟨hΓ3, hb3⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ2 hb2
+    obtain ⟨hΓ4, hb4⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ3 hb3
     have hbc : (VExpr.boolLit b).ClosedN := by cases b <;> trivial
     have htc : w.type'.ClosedN := (htypeT.closedN' c.Ewf.ordered.closed trivial).1
     have hargs : VExpr.ArgsTyped E.venv c.lparams.length Γ
@@ -1423,7 +1423,7 @@ theorem Reflection.checkITE.WF {fail : ∀ {α}, M α}
         [p, .boolLit b, H, α] :=
       .cons (by simpa using hp) <|
       .cons (by simpa using E.monoT (TrExprS.boolLit (Δ := .ofCtx Γ) c.hasPrimitives hbool b).2) <|
-      .cons (by simpa [VExpr.Subst.cons, VExpr.Subst.id, htc.subst_eq', hbc.subst_eq'] using hH) <|
+      .cons (by simpa [VExpr.Subst.cons, VExpr.Subst.id, htc.subst_eq_of_closed, hbc.subst_eq_of_closed] using hH) <|
       .cons (by simpa using hα) .nil
     have hbeta := (VExpr.lams_appN' E.wf hΓ (by simpa using hΓ4) (.id E.wf hΓ) hargs hb4).2
     simp only [VExpr.subst_id] at hbeta
@@ -1437,7 +1437,7 @@ theorem Reflection.checkITE.WF {fail : ∀ {α}, M α}
     refine ⟨A, ?_⟩
     have h2 := hA.hasType.2
     simp [VExpr.appN, iteApp, VExpr.Subst.consN, VExpr.Subst.cons, VExpr.Subst.id,
-      htoDecC.subst_eq'] at h2 ⊢
+      htoDecC.subst_eq_of_closed] at h2 ⊢
     exact h2
   · simpa [VExpr.appN] using hproj
 
@@ -1645,7 +1645,7 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : VState} {r : Reflection}
         have hbc : (VExpr.boolLit bb).ClosedN := by cases bb <;> trivial
         simpa [VExpr.lift, VExpr.liftN, liftVar, VExpr.Subst.cons, VExpr.Subst.id,
           htc.liftN_eq (Nat.zero_le _), hbc.liftN_eq (Nat.zero_le _),
-          htc.subst_eq', hbc.subst_eq'] using h
+          htc.subst_eq_of_closed, hbc.subst_eq_of_closed] using h
       · have h : c.venv.HasType c.lparams.length (c.withMLC _ (wf := cwfH)).vlctx.toCtx
             (.bvar 2) (VExpr.forallE (.bvar 3) .nat) := .bvar (.succ (.succ .zero))
         simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, VExpr.Subst.lift] using h
@@ -1708,7 +1708,7 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : VState} {r : Reflection}
           (.bvar 0) (((w.type'.app (.bvar 2)).app (.boolLit bb)).lift) := .bvar .zero
       simpa [VExpr.lift, VExpr.liftN, liftVar, VExpr.Subst.cons, VExpr.Subst.id,
         htc.liftN_eq (Nat.zero_le _), hbc.liftN_eq (Nat.zero_le _),
-        htc.subst_eq', hbc.subst_eq'] using h
+        htc.subst_eq_of_closed, hbc.subst_eq_of_closed] using h
     have hofTH := hofT.weak0 (Γ := (c.withMLC _ (wf := cwfH)).vlctx.toCtx) c.Ewf
     have hap := VEnv.HasType.appN_forallEs hargs2 (by simpa using hofTH)
     refine ⟨?_, hap⟩
@@ -1743,7 +1743,7 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : VState} {r : Reflection}
       refine .cons (by simpa using hp) (.cons ?_ (.cons ?_ (.cons ?_ .nil)))
       · simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, VExpr.Subst.lift] using ht
       · simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, VExpr.Subst.lift] using he
-      · simpa [VExpr.Subst.cons, VExpr.Subst.id, htc.subst_eq', hbc.subst_eq'] using hH
+      · simpa [VExpr.Subst.cons, VExpr.Subst.id, htc.subst_eq_of_closed, hbc.subst_eq_of_closed] using hH
     have h := Reflection.WF.genTele (c := c) E
       (As := [.sort .zero, .forallE (.bvar 0) .nat,
         .forallE (vexpr(Not).app (.bvar 1)) .nat,
@@ -1753,7 +1753,7 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : VState} {r : Reflection}
       (by cases bb <;> simp [VExpr.ClosedN, hofC.mono (Nat.zero_le 4)])
       hΓ hargs
     simp only [VExpr.appN, VExpr.subst_app] at h
-    rw [hdC.subst_eq', hbc.subst_eq', hofC.subst_eq'] at h
+    rw [hdC.subst_eq_of_closed, hbc.subst_eq_of_closed, hofC.subst_eq_of_closed] at h
     cases bb <;>
       simpa [VExpr.appN, VExpr.Subst.consN, VExpr.Subst.cons, VExpr.Subst.id] using h
   have hoTC : oT.ClosedN := (hoT'.closedN' c.Ewf.ordered.closed trivial).1
@@ -1790,14 +1790,14 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : VState} {r : Reflection}
     -- the gadget is well typed at *any* boolean, which a consumer needs to build it
     have hdTΓ := (E.monoT hdT').weak0 (Γ := Γ) E.wf.ordered
     rw [hshape] at hdTΓ
-    obtain ⟨hΓ1, hb1⟩ := VExpr.WF.lam_inv' E.wf hΓ ⟨_, hdTΓ⟩
-    obtain ⟨hΓ2, hb2⟩ := VExpr.WF.lam_inv' E.wf hΓ1 hb1
-    obtain ⟨hΓ3, hb3⟩ := VExpr.WF.lam_inv' E.wf hΓ2 hb2
+    obtain ⟨hΓ1, hb1⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ ⟨_, hdTΓ⟩
+    obtain ⟨hΓ2, hb2⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ1 hb1
+    obtain ⟨hΓ3, hb3⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ2 hb2
     have htc : w.type'.ClosedN := (htypeT.closedN' c.Ewf.ordered.closed trivial).1
     have hargs3 : VExpr.ArgsTyped E.venv c.lparams.length Γ
         [.sort .zero, .bool, (w.type'.app (.bvar 1)).app (.bvar 0)] .id [p, bb, H] := by
       refine .cons (by simpa using hp) (.cons (by simpa using hbb) (.cons ?_ .nil))
-      simpa [VExpr.Subst.cons, VExpr.Subst.id, htc.subst_eq'] using hH
+      simpa [VExpr.Subst.cons, VExpr.Subst.id, htc.subst_eq_of_closed] using hH
     have h3 := VEnv.HasType.appN_forallEs hargs3
       (by simpa using VEnv.HasType.weak0 (Γ := Γ) E.wf (E.monoT hdT'))
     have hbeta := (VExpr.lams_appN' E.wf hΓ (by simpa using hΓ3) (.id E.wf hΓ) hargs3 hb3).2
@@ -1805,7 +1805,7 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : VState} {r : Reflection}
     rw [← hshape] at hbeta
     have h5 := VEnv.HasType.defeqU_l E.wf hΓ hbeta h3
     simp only [VExpr.subst_app, VExpr.subst_const] at h5
-    rw [htoDecC.subst_eq'] at h5
+    rw [htoDecC.subst_eq_of_closed] at h5
     simpa [VExpr.Subst.consN, VExpr.Subst.cons, VExpr.Subst.id, VExpr.subst,
       VExpr.Subst.lift, VExpr.lift, VExpr.nat, VExpr.liftN, liftVar] using h5
   intro E Γ p H t e bb hΓ hp hH ht he
@@ -1818,7 +1818,7 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : VState} {r : Reflection}
       [p, .boolLit bb, H, t, e] := by
     refine .cons (by simpa using hp) (.cons (by simpa using E.monoT (hblitΓ bb)) (.cons ?_ (.cons ?_
       (.cons ?_ .nil))))
-    · simpa [VExpr.Subst.cons, VExpr.Subst.id, htc.subst_eq', hbc.subst_eq'] using hH
+    · simpa [VExpr.Subst.cons, VExpr.Subst.id, htc.subst_eq_of_closed, hbc.subst_eq_of_closed] using hH
     · simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, VExpr.Subst.lift] using ht
     · simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, VExpr.Subst.lift] using he
   have hd5 := VEnv.HasType.appN_forallEs hargs5
@@ -1827,12 +1827,12 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : VState} {r : Reflection}
   have hargs3 : VExpr.ArgsTyped E.venv c.lparams.length Γ
       [.sort .zero, .bool, (w.type'.app (.bvar 1)).app (.bvar 0)] .id [p, .boolLit bb, H] := by
     refine .cons (by simpa using hp) (.cons (by simpa using E.monoT (hblitΓ bb)) (.cons ?_ .nil))
-    simpa [VExpr.Subst.cons, VExpr.Subst.id, htc.subst_eq', hbc.subst_eq'] using hH
+    simpa [VExpr.Subst.cons, VExpr.Subst.id, htc.subst_eq_of_closed, hbc.subst_eq_of_closed] using hH
   have hdTΓ := VEnv.HasType.weak0 (Γ := Γ) E.wf (E.monoT hdT')
   rw [hshape] at hdTΓ
-  obtain ⟨hΓ1, hb1'⟩ := VExpr.WF.lam_inv' E.wf hΓ ⟨_, hdTΓ⟩
-  obtain ⟨hΓ2, hb2'⟩ := VExpr.WF.lam_inv' E.wf hΓ1 hb1'
-  obtain ⟨hΓ3, hb3'⟩ := VExpr.WF.lam_inv' E.wf hΓ2 hb2'
+  obtain ⟨hΓ1, hb1'⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ ⟨_, hdTΓ⟩
+  obtain ⟨hΓ2, hb2'⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ1 hb1'
+  obtain ⟨hΓ3, hb3'⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ2 hb2'
   have hbeta := (VExpr.lams_appN' E.wf hΓ (by simpa using hΓ3) (.id E.wf hΓ) hargs3 hb3').2
   simp only [VExpr.subst_id] at hbeta
   have hwf5 : VExpr.WF E.venv c.lparams.length Γ
@@ -1851,7 +1851,7 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : VState} {r : Reflection}
   refine ⟨A, ?_⟩
   have h2 := hA.hasType.2
   simp [VExpr.appN, diteApp, VExpr.Subst.consN, VExpr.Subst.cons, VExpr.Subst.id,
-    htoDecC.subst_eq'] at h2 ⊢
+    htoDecC.subst_eq_of_closed] at h2 ⊢
   exact h2
 
 /-- `Condition.WF.WF_dite` for a `reflectNatNat`, from the reflection's own `WF_dite`. Same
@@ -2015,8 +2015,8 @@ theorem Condition.check.gadget_types {c : VContext}
   -- the gadget's typing, under its two `Nat` binders
   have hΓ0 : OnCtx ([] : List VExpr) (c.venv.IsType c.lparams.length) := trivial
   rw [Condition.check.gadgetV, VExpr.lams, VExpr.lams] at hT
-  obtain ⟨hΓ1, hb1⟩ := VExpr.WF.lam_inv' c.Ewf hΓ0 ⟨_, hT⟩
-  obtain ⟨hΓ2, hb2⟩ := VExpr.WF.lam_inv' c.Ewf hΓ1 hb1
+  obtain ⟨hΓ1, hb1⟩ := VExpr.WF.lam_inv_onCtx c.Ewf hΓ0 ⟨_, hT⟩
+  obtain ⟨hΓ2, hb2⟩ := VExpr.WF.lam_inv_onCtx c.Ewf hΓ1 hb1
   simp only [VExpr.lams_nil, VExpr.appN] at hb2
   -- the redex's own type: its binders are what the arguments are checked against
   obtain ⟨_, _, hf₃, ha₃⟩ := VExpr.WF.app_inv c.Ewf hΓ2 hb2
@@ -2060,12 +2060,12 @@ theorem Condition.check.gadget_types {c : VContext}
         (A.subst ((VExpr.Subst.id.cons x).cons y)) :=
     Reflection.WF.genTeleT E (As := [.nat, .nat]) (by simpa using hAs) hX hXc hAc hΓ hargs2
   refine ⟨?_, ?_, ?_, fun htoDecC => ?_⟩
-  · simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, hpropC.subst_eq'] using
+  · simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, hpropC.subst_eq_of_closed] using
       gen hpT (hcl2 hpc) trivial
-  · simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, habC.subst_eq'] using
+  · simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, habC.subst_eq_of_closed] using
       gen hbT (hcl2 hac) trivial
-  · simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, hpfC.subst_eq', hpropC.subst_eq',
-      habC.subst_eq', htypeC.subst_eq'] using
+  · simpa [VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id, hpfC.subst_eq_of_closed, hpropC.subst_eq_of_closed,
+      habC.subst_eq_of_closed, htypeC.subst_eq_of_closed] using
       gen hpfT (hcl2 hfc) ⟨⟨htc 2, hcl2 hpc⟩, hcl2 hac⟩
   have htdc k : toDec'.ClosedN k := htoDecC.mono (Nat.zero_le _)
   -- the inner beta step, where the redex lives
@@ -2074,15 +2074,15 @@ theorem Condition.check.gadget_types {c : VContext}
       [(prop'.app (.bvar 1)).app (.bvar 0), (asBool'.app (.bvar 1)).app (.bvar 0),
         (proof'.app (.bvar 1)).app (.bvar 0)] := by
     refine .cons (by simpa using hpT) (.cons (by simpa using hbT) (.cons ?_ .nil))
-    simpa [VExpr.Subst.cons, VExpr.Subst.id, htypeC.subst_eq'] using hpfT
+    simpa [VExpr.Subst.cons, VExpr.Subst.id, htypeC.subst_eq_of_closed] using hpfT
   have hbetaIn := (VExpr.lams_appN' c.Ewf hΓ2 (by simpa using hΓH) (.id c.Ewf hΓ2) hargs3 ⟨_, hLb3⟩).2
   simp only [VExpr.subst_id] at hbetaIn
   simp only [VExpr.subst, VExpr.Subst.consN, VExpr.Subst.cons, VExpr.Subst.id,
-    htoDecC.subst_eq'] at hbetaIn
+    htoDecC.subst_eq_of_closed] at hbetaIn
   -- the outer beta step, then the inner one moved here by `genTele`
   have heTΓ : E.venv.HasType c.lparams.length Γ _ eTy' := (E.monoT hT).weak0 (Γ := Γ) E.wf.ordered
-  obtain ⟨hΓg1, hbg1⟩ := VExpr.WF.lam_inv' E.wf hΓ ⟨_, heTΓ⟩
-  obtain ⟨hΓg2, hbg2⟩ := VExpr.WF.lam_inv' E.wf hΓg1 hbg1
+  obtain ⟨hΓg1, hbg1⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓ ⟨_, heTΓ⟩
+  obtain ⟨hΓg2, hbg2⟩ := VExpr.WF.lam_inv_onCtx E.wf hΓg1 hbg1
   have hbetaOut := (VExpr.lams_appN' (As := [VExpr.nat, VExpr.nat]) E.wf hΓ
     (by simpa using hΓg2) (.id E.wf hΓ) hargs2 hbg2).2
   simp only [VExpr.subst_id] at hbetaOut
@@ -2092,8 +2092,8 @@ theorem Condition.check.gadget_types {c : VContext}
     (by simp [VExpr.ClosedN, htdc, hpc, hac, hfc]) hΓ hargs2
   rw [Condition.check.gadgetV]
   simp only [VExpr.subst, VExpr.appN, VExpr.lams, VExpr.Subst.consN,
-    VExpr.Subst.cons, VExpr.Subst.id, htypeC.subst_eq', htoDecC.subst_eq', hpropC.subst_eq',
-    habC.subst_eq', hpfC.subst_eq'] at hbetaOut hbetaIn' ⊢
+    VExpr.Subst.cons, VExpr.Subst.id, htypeC.subst_eq_of_closed, htoDecC.subst_eq_of_closed, hpropC.subst_eq_of_closed,
+    habC.subst_eq_of_closed, hpfC.subst_eq_of_closed] at hbetaOut hbetaIn' ⊢
   exact VEnv.IsDefEqU.trans E.wf hΓ hbetaOut hbetaIn'
 
 /-- The whole content of `checkType e`, for the gadget
@@ -2450,7 +2450,7 @@ theorem Condition.WF.natEq_decideTr {c : VContext} {w : Condition.WF c Condition
   obtain ⟨_, _, hA3, hB3, rfl⟩ := w.dec_app2_inv hD
   cases TrExprS.unique (noProj.isUnique hnpA) hA3 hA2
   cases TrExprS.unique (noProj.isUnique hnpB) hB3 hB2
-  simp only [iteApp, VExpr.subst, w.propC.subst_eq', w.decC.subst_eq', VExpr.subst_boolLit] at hwf ⊢
+  simp only [iteApp, VExpr.subst, w.propC.subst_eq_of_closed, w.decC.subst_eq_of_closed, VExpr.subst_boolLit] at hwf ⊢
   have pk {f a : VExpr} (h : E.WF₀ (f.app a)) : E.WF₀ f ∧ E.WF₀ a :=
     h.app_inv₂ E.wf trivial
   have hwfP := (pk (pk (pk (pk hwf).1).1).1).2

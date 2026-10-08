@@ -713,7 +713,7 @@ theorem NestedRestorationOpening.restorationCommutesLamTrail
     ⟨Ds, sR, hDs, rfl, HsR⟩
   have HbodyS := TrExprS.instantiateRevFVars Hopen.selection.fvars Ds [] suffix sR
     (hlen.trans hDs.symm) hnodup
-    (fvarIdsIn_of_trExprS_abstractForallContext' HsR _) HsR
+    (fvarIdsIn_of_trExprS_abstractForallContext HsR _) HsR
   rw [← hbody, List.append_nil] at HbodyS
   have houtput : output = Hopen.lctx.mkLambda Hopen.params Hopen.restoredBody := by
     simpa [hnotForall] using Hopen.output_eq
@@ -725,7 +725,7 @@ theorem NestedRestorationOpening.restorationCommutesLamTrail
   rcases TrExprS.lambdaTelescope_shape_with_context HoutTel Ht with ⟨Dt, tR, hDt, rfl, HtR⟩
   have HbodyT := TrExprS.instantiateRevFVars Hopen.selection.fvars Dt [] _ tR
     hDt.symm hnodup
-    (fvarIdsIn_of_trExprS_abstractForallContext' HtR _) HtR
+    (fvarIdsIn_of_trExprS_abstractForallContext HtR _) HtR
   rw [TypeChecker.Expr.abstractList_instantiateRevList_eq_self hnodup hrestored,
     List.append_nil, Hopen.replacement.eq_replace] at HbodyT
   have Hbody := restorationCommutesTrail A hc HAs hsize Hfresh Hshape HbodyTrail
@@ -737,7 +737,7 @@ theorem NestedRestorationOpening.restorationCommutesLamTrail
     have := Hopen.selection.sameLambdaPrefix hnodup Hopen.body Hopen.restoredBody
     rwa [hinput, ← houtput] at this
   rw [hsize] at Hsame
-  exact restoration_expr_wrapLams'
+  exact restoration_expr_wrapLams
     (Hsame.translatedDomains_restoreTrail hc Hfresh Hdom .nil Hs Ht hDs (hDt.trans hlen))
     Hbody
 
@@ -819,7 +819,7 @@ theorem NestedRun.restoredRuleRhs_of_trail
   have Hrule := Hstep.restored.restoration.rules.entry j hjOld hj
   rcases Hrule.rhs.opening hparamsSize with ⟨Hopen⟩
   -- the telescope
-  have Hshape := (E.recursorParamUniform' wf Hsources owner Hstep).2 _ (List.getElem_mem hjOld)
+  have Hshape := (E.recursorParamUniform_of_wfCore wf Hsources owner Hstep).2 _ (List.getElem_mem hjOld)
   rw [← hheads] at Hshape
   have hnp : result.nparams = P.generationSignature.params.length := by
     rw [← E.statsParamsSize]; exact P.params_size_eq
@@ -868,7 +868,7 @@ theorem NestedRun.restoredRuleRhs_of_trail
     Hs.fvarsIn.mono fun _ h => by simp [VLCtx.fvars] at h
   have HbodyShape := Hopen.paramUniform_of_lowered_lam Htel ⟨body, Hlead, HB⟩
   have hrestored := Hopen.restoredBody_closed_lam D Htel
-    (by simpa using Htel.closed_result' hclosed)
+    (by simpa using Htel.closed_result hclosed)
   have Ht' : TrExprS trEnv Hstep.oldInfo.levelParams []
       (Hstep.restored.newInfo.rules[j]'hj).rhs rhs := by
     rw [← Hstep.restored.restoration.levelParams]; exact Ht

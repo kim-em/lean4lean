@@ -287,12 +287,12 @@ end VExpr.HeadsApplied
 
 /-! ### Totality of restoration -/
 
-private theorem exists_forall₂_of_forall' {P : α → β → Prop} :
+private theorem exists_forall₂_of_forall {P : α → β → Prop} :
     ∀ {l : List α}, (∀ x ∈ l, ∃ y, P x y) → ∃ ys, List.Forall₂ P l ys
   | [], _ => ⟨[], .nil⟩
   | x :: l, H => by
     obtain ⟨y, hy⟩ := H x (by simp)
-    obtain ⟨ys, hys⟩ := exists_forall₂_of_forall' (l := l) fun z hz => H z (by simp [hz])
+    obtain ⟨ys, hys⟩ := exists_forall₂_of_forall (l := l) fun z hz => H z (by simp [hz])
     exact ⟨y :: ys, .cons hy hys⟩
 
 open InductiveSignature in
@@ -306,7 +306,7 @@ theorem VExpr.HeadsApplied.restorationGo {heads : List Name} {n k : Nat}
   induction H with
   | @occurrence c us xs hc hus hlen _ ih =>
     intro args
-    obtain ⟨ys, hys⟩ := exists_forall₂_of_forall'
+    obtain ⟨ys, hys⟩ := exists_forall₂_of_forall
       (P := fun x y => Restoration.expr.go r x [] = some y) fun x hx => ih x hx []
     rw [Restoration.expr.go_mkApps r hys]
     have hlenys : xs.length = ys.length := List.Forall₂.length_eq hys
@@ -378,11 +378,11 @@ theorem VLCtx.find?_headsApplied :
       obtain ⟨⟨e0, A0⟩, h0, rfl, -⟩ := h
       exact (VLCtx.find?_headsApplied (fun x hx => hΔ x (by simp [hx])) h0).liftN _ _
 
-private theorem forall₂_concat' {R : α → β → Prop} {a : α} {b : β} :
+private theorem forall₂_concat {R : α → β → Prop} {a : α} {b : β} :
     ∀ {l : List α} {r : List β}, List.Forall₂ R l r → R a b →
       List.Forall₂ R (l ++ [a]) (r ++ [b])
   | _, _, .nil, h => .cons h .nil
-  | _, _, .cons h t, hab => .cons h (forall₂_concat' t hab)
+  | _, _, .cons h t, hab => .cons h (forall₂_concat t hab)
 
 theorem TrExprS.mkAppList_const_inv {env : VEnv} {Us : List Name} {Δ : VLCtx}
     {c : Name} {us : List Level} :
@@ -406,7 +406,7 @@ theorem TrExprS.mkAppList_const_inv {env : VEnv} {Us : List Name} {Δ : VLCtx}
     | app _ _ Hf Ha =>
       obtain ⟨us', args', rfl, hus, Hargs⟩ := ih Hf
       refine ⟨us', args' ++ [_], ?_, hus,
-        by rw [List.reverse_cons]; exact forall₂_concat' Hargs Ha⟩
+        by rw [List.reverse_cons]; exact forall₂_concat Hargs Ha⟩
       simp [VExpr.mkApps]
 
 private theorem ctx_cons {Δ : VLCtx}
@@ -534,7 +534,7 @@ private theorem NamePrefix.depth_le' {P x : Name} (H : NamePrefix P x) :
   | str _ _ ih => simp only [nameDepth']; omega
   | num _ _ ih => simp only [nameDepth']; omega
 
-theorem NamePrefix.trans' {Q A B : Name} (h₁ : NamePrefix Q A) (h₂ : NamePrefix A B) :
+theorem NamePrefix.trans {Q A B : Name} (h₁ : NamePrefix Q A) (h₂ : NamePrefix A B) :
     NamePrefix Q B := by
   induction h₂ with
   | refl => exact h₁
@@ -545,7 +545,7 @@ theorem NamePrefix.trans' {Q A B : Name} (h₁ : NamePrefix Q A) (h₂ : NamePre
 theorem NamePrefix.replacePrefix_prefix {P x : Name} (H : NamePrefix P x) (A : Name) :
     NamePrefix A (x.replacePrefix P A) := by
   induction H with
-  | refl => rw [Name.replacePrefix_self']; exact .refl
+  | refl => rw [Name.replacePrefix_self]; exact .refl
   | @str p s H ih =>
     have hne : Name.str p s ≠ P := by
       intro h; have := H.depth_le'; rw [← h] at this; simp [nameDepth'] at this; omega
@@ -639,7 +639,7 @@ theorem NestedRun.auxHeadsFacts
     rcases hn with rfl | ⟨ctor, hctor, rfl⟩
     · exact hauxRes a ha
     · have hP := namePrefix_of_replacePrefix_ne (D.ctorRenamed a ha ctor hctor)
-      exact ((namePrefix_of_isPrefixOf (hauxRes a ha)).trans'
+      exact ((namePrefix_of_isPrefixOf (hauxRes a ha)).trans
         (hP.replacePrefix_prefix a.auxiliary)).isPrefixOf
   · intro c nested hfind
     obtain ⟨a, ha, rfl, -⟩ := D.familyKey c nested hfind

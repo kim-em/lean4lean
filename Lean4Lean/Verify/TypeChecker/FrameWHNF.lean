@@ -161,7 +161,7 @@ theorem inductiveReduceRec.framed (henv : EnvGhostFree G env) (he : GhostFree G 
 
 theorem reduceRecursor.framed (he : GhostFree G e) : RecM.Framed G (reduceRecursor e) (OptionGhostFree G) := by
   unfold reduceRecursor
-  refine RecM.Framed.getEnv'.bind fun env henv => ?_
+  refine RecM.Framed.getEnv_ghostFree.bind fun env henv => ?_
   have k := (inductiveReduceRec.framed henv he).bind fun o (ho : OptionGhostFree G o) =>
     (show RecM.Framed G (match o with | some r => pure (some r) | _ => pure none) (OptionGhostFree G) by
       split
@@ -326,7 +326,7 @@ theorem unfoldDefinitionCore.framed (he : GhostFree G e) :
   unfold unfoldDefinitionCore
   split <;> [skip; exact .pure OptionGhostFree.none]
   rename_i ls
-  refine RecM.Framed.getEnv'.bind fun env henv => ?_
+  refine RecM.Framed.getEnv_ghostFree.bind fun env henv => ?_
   split <;> [skip; exact .pure OptionGhostFree.none]
   rename_i d hd
   have hv := instantiateDeltaValue_gf (isDelta_gf henv hd) he

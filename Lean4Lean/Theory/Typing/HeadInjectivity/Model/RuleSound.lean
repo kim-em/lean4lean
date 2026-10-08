@@ -75,8 +75,8 @@ theorem pat_instL {df : VDefEq} {fs : List Nat}
       (lead.map (·.instL ls) ++ [.mkApps (.const ctor (lsC.map (·.inst ls)))
         (ms.map (·.instL ls) ++ fs.map .bvar)])) ∧
     df.rhs.instL ls = .wrapLams (doms.map (·.instL ls)) (body.instL ls) := by
-  refine ⟨?_, by rw [hr, instL_wrapLams']⟩
-  rw [hl, instL_wrapLams']
+  refine ⟨?_, by rw [hr, instL_wrapLams]⟩
+  rw [hl, instL_wrapLams]
   simp only [VExpr.instL_mkApps, VExpr.instL, List.map_append, List.map_cons, List.map_nil,
     List.map_map, Function.comp_def, hlsP]
 
@@ -201,7 +201,7 @@ theorem major_indicator_gen {Th : VExpr} {ls : List VLevel} {uH : VLevel} {Γ0 :
   rw [hkeys'] at hkH
   obtain ⟨σ₁, S₁, hk1, -⟩ := hkH.split (by simp; omega)
   have hpi' := hT.piSD
-  obtain ⟨W₁, tv₁⟩ := hk1.typed' henv hΔ (DomsSD.left hpi'.doms) W0 tv0
+  obtain ⟨W₁, tv₁⟩ := hk1.typed henv hΔ (DomsSD.left hpi'.doms) W0 tv0
   obtain ⟨u, hA, -⟩ := HTS.tele_dom (pre := (dsH.take k).map (·.instL ls)) (post := [])
     (by simpa using hT)
   simp only [VExpr.instL] at hA W₁ tv₁
@@ -348,7 +348,7 @@ theorem pat_rhs_sub_head {df : VDefEq} {hd type : VExpr} {doms lead ms : List VE
   obtain ⟨lk, v, vS, p, hk, rfl, hp⟩ := Obs.wrapLams_iff.1 ho
   rw [eL] at hL ⊢
   obtain ⟨T', hX, hdoms, τc, hτc, hpty⟩ := hL.lamSpine henv hΔ rfl W tv hk hτs hty
-  obtain ⟨Wv, tvv⟩ := hk.typed' henv hΔ hdoms W tv
+  obtain ⟨Wv, tvv⟩ := hk.typed henv hΔ hdoms W tv
   have hinner := hk.inner
   obtain ⟨Lx, hLx⟩ : ∃ Lx : Nat → List Ob, ∀ x < doms.length, vS x = listSet (Lx x) :=
     ⟨fun x => if h : x < doms.length then Classical.choose (hinner x (by simpa using h))
@@ -427,7 +427,7 @@ theorem pat_rhs_sub_head {df : VDefEq} {hd type : VExpr} {doms lead ms : List VE
   · -- mode C: the major is ignored, its only own fields are proofs
     rw [hm] at hind
     obtain ⟨hsingle, hpf⟩ := hC _ (by simp [hlenL]) hind
-    refine finish infoL kaM vS true τ₀ (forall₂_append_single' hinfoL hkaM) hτ₀ hty₀
+    refine finish infoL kaM vS true τ₀ (forall₂_append_single hinfoL hkaM) hτ₀ hty₀
       (fun _ => hsingle) (fun _ => hind) nofun ⟨tvv.1, ?_⟩ fun _ _ h => h
     intro x hx
     by_cases hb : ∃ i : Nat, lead[i]? = some (VExpr.bvar x)
@@ -474,7 +474,7 @@ theorem pat_rhs_sub_head {df : VDefEq} {hd type : VExpr} {doms lead ms : List VE
         obtain ⟨τ₀c, h1, h2⟩ := cP1 r hrty
         exact obs_mkApps_of_wrap (KeyData.forall₂_keys hcinfo)
           (.ctor hcis hcnp hcc h1 h2 hend (KeyData.forall₂_backed hcinfo))
-      have hKs2 := forall₂_append_single' (argDemand_ok (env := env) (U := U) (Δ := Δ)
+      have hKs2 := forall₂_append_single (argDemand_ok (env := env) (U := U) (Δ := Δ)
         (nd := doms.length) hLx v (lead.map (·.instL ls))) hcobs
       obtain ⟨Th2, info2, hTh2, -, -, hinfo2, hKsi2, P12, -, -⟩ :=
         hX.spineH henv hΔ rfl hhd Wv tvv _ hKs2 τc hτc
@@ -604,7 +604,7 @@ theorem pat_rhs_sub_head {df : VDefEq} {hd type : VExpr} {doms lead ms : List VE
             exact ⟨j, ⟨hjl, hnp, by rw [hfx]; exact hxd⟩, k, by rw [hfx]; exact hk, rfl⟩)
           exact ⟨L, ho⟩
         -- the second pass of the head spine, with the field observations of the major
-        have hKs2 := forall₂_append_single' (argDemand_ok (env := env) (U := U) (Δ := Δ)
+        have hKs2 := forall₂_append_single (argDemand_ok (env := env) (U := U) (Δ := Δ)
           (nd := doms.length) hLx v (lead.map (·.instL ls))) hKd
         obtain ⟨Th2, info2, hTh2, -, -, hinfo2, hKsi2, P12, -, -⟩ :=
           hX.spineH henv hΔ rfl hhd Wv tvv _ hKs2 τc hτc
@@ -665,7 +665,7 @@ theorem pat_rhs_sub_head {df : VDefEq} {hd type : VExpr} {doms lead ms : List VE
             exact ⟨L, hKsM2 _ hmem⟩
           · exact ho
       · -- the proof binding for every field not bound by the leading arguments
-        refine finish infoL kaM vS false τ₀ (forall₂_append_single' hinfoL hkaM) hτ₀ hty₀ nofun
+        refine finish infoL kaM vS false τ₀ (forall₂_append_single hinfoL hkaM) hτ₀ hty₀ nofun
           nofun (fun _ => .inr (hEH _ (by simp [hlenL]))) ⟨tvv.1, ?_⟩ fun _ _ h => h
         intro x hx
         by_cases hb : ∃ i : Nat, lead[i]? = some (VExpr.bvar x)
@@ -763,8 +763,8 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
   obtain ⟨lk, v, vS, p, hk, rfl, hp⟩ := Obs.wrapLams_iff.1 ho
   rw [eR] at hRH hR ⊢
   obtain ⟨B, hBs, hdomsR⟩ := HTS.wrapLams_body hRH hR
-  obtain ⟨Wv, tvv⟩ := hk.typed' henv hΔ hdomsR W tv
-  obtain ⟨keys, hkeys, hc⟩ := wrap_of_obs_mkApps' hp
+  obtain ⟨Wv, tvv⟩ := hk.typed henv hΔ hdomsR W tv
+  obtain ⟨keys, hkeys, hc⟩ := wrap_of_obs_mkApps_le hp
   have headOf : df.lhs.stripLams.getAppFnArgs.1 = .const n lsP := by
     rw [hl]; exact VExpr.stripLams_wrapLams_mkApps_head
   rcases Obs.const_iff.1 hc with ⟨_, _, _, _, _, hrig, _⟩ | ⟨df', _, _, hdf', hlhs', _⟩ |
@@ -957,8 +957,8 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     · -- proof binding: both are proofs of the proposition `P`
       have hτx : env.HasType U Δ (τ x) ((binderTy doms'' ls x).subst τ) :=
         TyCls.defeq henv hΔ hX hτX
-      have h1 := TyCls.defeq' henv hΔ hP hτx
-      have h2 := TyCls.defeq' henv hΔ hP hvx'
+      have h1 := TyCls.defeq_rev henv hΔ hP hτx
+      have h2 := TyCls.defeq_rev henv hΔ hP hvx'
       exact TyCls.defeq henv hΔ hP (.proofIrrel hPs h1 h2)
     · -- eta binding: the anchor is a projection of the major, whose field is `v x`
       refine eta_anchor_defeq henv hΔ hpi' hTE hpc (lsc := lsC''.map (·.inst ls))

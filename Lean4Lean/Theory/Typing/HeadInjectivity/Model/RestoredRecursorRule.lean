@@ -221,7 +221,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     refine sound_pat_empty henv hΔ hdf hl hr hlsP hcl.1.1 hcl.2.1 (hctor _ hcis) hctor hpctor hdr
       huniq hci eH hlenH hkH hpmL.weak ihL.1 ihR fun σ S W tv o => ?_
     refine rhs_empty_motive henv hΔ (doms := ds'.map (·.instL ls))
-      (by rw [ht, VExpr.instL_wrapForalls]) (by rw [hr, instL_wrapLams'])
+      (by rw [ht, VExpr.instL_wrapForalls]) (by rw [hr, instL_wrapLams])
       hcl' ihT.2 (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl)
       (by have hxlt := (List.getElem?_eq_some_iff.1 hxget).1
           rw [List.length_reverse] at hxlt

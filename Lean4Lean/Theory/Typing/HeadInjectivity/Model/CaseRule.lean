@@ -320,7 +320,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       htype eT hlenH hkH hpmL.weak ihL.1 ihR
       fun σ S W tv o => ?_
     refine rhs_empty_motive_ctx henv hΔ (doms := ds'.map (·.instL (target :: levels)))
-      (by rw [ht, VExpr.instL_wrapForalls]) (by rw [hr, instL_wrapLams'])
+      (by rw [ht, VExpr.instL_wrapForalls]) (by rw [hr, instL_wrapLams])
       ihT.2 (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl)
       (by have hxlt := (List.getElem?_eq_some_iff.1 hxget).1
           rw [List.length_reverse] at hxlt

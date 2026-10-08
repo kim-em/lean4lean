@@ -49,7 +49,7 @@ projection condition `ProjsOK (projAvoidsHeads env heads)`) rather than plain hi
 shape, since that is the invariant the type checker preserves; the head set is
 arbitrary here. For a nested run the chain is instantiated at the checker's
 head set `E.uniformHeads` (auxiliary heads and main constructors) and shrunk back
-to the auxiliary heads (`NestedRun.recursorParamUniform'` in
+to the auxiliary heads (`NestedRun.recursorParamUniform_of_wfCore` in
 `Nested/Restoration/Uniform/Whnf.lean`).
 
 Remaining hypotheses are collected in `RecursorConstruction.ParamUniformDeclarations`; see
@@ -1459,7 +1459,7 @@ Hypotheses: `W` (the `whnf` hit-shape preservation fact, see
 `WhnfPreservesParamUniform`) and `I` (the non-`whnf` provenance, see
 `RecursorConstruction.ParamUniformDeclarations`). Both are discharged at
 `heads := E.uniformHeads` in `Nested/Restoration/Uniform/Whnf.lean`
-(`NestedRun.recursorParamUniform'`). -/
+(`NestedRun.recursorParamUniform_of_wfCore`). -/
 theorem NestedRun.recursorParamUniform
     {heads : List Name}
     (I : E.lowered.recursors.toRecursorConstruction.ParamUniformDeclarations heads)

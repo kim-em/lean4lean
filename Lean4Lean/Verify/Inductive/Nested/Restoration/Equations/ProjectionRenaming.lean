@@ -7,7 +7,7 @@ The lowered constructor type of an original structure restores syntactically to 
 constructor type. The renaming replacement `replaceRen ρ σ` of the lowered constructor type beta
 reduces to its restoration (`Restoration.expr_betaRed`): each inserted restoration lambda
 `λ params, target levels args` meets a complete parameter spine. Field types commute with the
-replacement (`VProjectionInfo.fieldType_replaceRen'`), and field types computed from a beta
+replacement (`VProjectionInfo.fieldType_replaceRen_renamed`), and field types computed from a beta
 reduct of the constructor type are beta reducts of the field types
 (`VProjectionInfo.fieldType_betaRed`), as instantiating parameters and preceding fields is
 substitution. `ProjectionRulesRenamedOnCtx` receives the well-formedness of the image context in
@@ -180,7 +180,7 @@ theorem fieldType_betaRed {info : VProjectionInfo} {ctorType' : VExpr}
     obtain ⟨Y, hY, hXY⟩ := instantiateProjectionFields_betaRed _ hrel hX
     exact ⟨Y, ⟨tail', htail', hY⟩, hXY⟩
 
-theorem instantiateProjectionFields_replaceRen' {ρ : Name → Option VExpr} {σ : Name → Name}
+theorem instantiateProjectionFields_replaceRen_renamed {ρ : Name → Option VExpr} {σ : Name → Name}
     (hρ : VExpr.ReplacementsClosed ρ) (type : VExpr) :
     instantiateProjectionFields (σ typeName) (major.replaceRen ρ σ) wanted current fuel
         (type.replaceRen ρ σ) =
@@ -210,7 +210,7 @@ theorem instantiateProjectionFields_replaceRen' {ρ : Name → Option VExpr} {σ
 
 /-- Field types commute with a renaming replacement of the constructor type,
 the parameters, the major premise and the projection type name. -/
-theorem fieldType_replaceRen' {ρ : Name → Option VExpr} {σ : Name → Name}
+theorem fieldType_replaceRen_renamed {ρ : Name → Option VExpr} {σ : Name → Name}
     {typeName : Name} {levels : List VLevel} {params : List VExpr} {index : Nat}
     {major : VExpr} (hρ : VExpr.ReplacementsClosed ρ) (info : VProjectionInfo) :
     { info with ctorType := info.ctorType.replaceRen ρ σ }.fieldType (σ typeName) levels
@@ -221,7 +221,7 @@ theorem fieldType_replaceRen' {ρ : Name → Option VExpr} {σ : Name → Name}
   · rfl
   · rw [← VExpr.replaceRen_instL, instantiateProjectionParameters_replaceRen hρ]
     cases instantiateProjectionParameters (info.ctorType.instL levels) params <;>
-      simp [instantiateProjectionFields_replaceRen' hρ]
+      simp [instantiateProjectionFields_replaceRen_renamed hρ]
 
 end VProjectionInfo
 
@@ -368,7 +368,7 @@ theorem ProjectionRulesRenamedOnCtx.of_ctorType_betaRed {envS : VEnv}
   projDF := by
     intro U Γ levels params index sourceMajor fieldType fieldLevel major indexArgs major'
       hΓ hlevels huvars hparams hindices hfield _ hguard ihField ihLeft ihRight
-    have h1 := VProjectionInfo.fieldType_replaceRen' (typeName := typeName) (levels := levels)
+    have h1 := VProjectionInfo.fieldType_replaceRen_renamed (typeName := typeName) (levels := levels)
       (params := params) (index := index) (major := sourceMajor) (σ := σ) hρ info
     rw [hfield, hσtn] at h1
     obtain ⟨fieldType', hfield', hXY⟩ :=

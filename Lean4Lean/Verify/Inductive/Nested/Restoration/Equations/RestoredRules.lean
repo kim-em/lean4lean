@@ -408,7 +408,7 @@ theorem SourceFamilyTranslations.at
       obtain ⟨ho, hr, s, m, Hs, Hr, Hc, heq⟩ := ih f (by simpa using hf)
       exact ⟨by simpa using ho, by simpa using hr, s, m, Hs, Hr, Hc, heq⟩
 
-theorem RestoredRecursorStep.info_eq'
+theorem RestoredRecursorStep.info_eq_of_name_eq
     {result : Lean4Lean.ElimNestedInductive.Result} {loweredEnv : Environment}
     {auxRec : NameMap Name} {allIndNames : List Name} {n₁ n₂ : Name}
     {s₁ t₁ s₂ t₂ : Environment}
@@ -542,7 +542,7 @@ theorem NestedRun.sourceNestedIotaRule
     simp only [List.getElem_map, List.getElem_finRange, List.getElem_append_left
       (as := sourceTypes.map _) (by simpa using hf')] at h
     exact h.symm
-  obtain ⟨holdEq, hnewEq⟩ := RestoredRecursorStep.info_eq' Hstep.restored.recursor Hs'
+  obtain ⟨holdEq, hnewEq⟩ := RestoredRecursorStep.info_eq_of_name_eq Hstep.restored.recursor Hs'
     hprimName
   -- the rule validator at this rule
   have hjOld : j < Hstep.restored.recursor.oldInfo.rules.length := by

@@ -153,7 +153,7 @@ theorem forall₂_comp_cover {σ : VExpr.Subst} {S : ObSets} :
       obtain ⟨y₀, hy₀, l₀⟩ := h y₁ hy₁
       exact ⟨y₀, hy₀, l₀.trans l₁⟩) (forall₂_comp_cover h1 h2)
 
-theorem List.reverseRecOn' {α : Type} {motive : List α → Prop} (nil : motive [])
+theorem List.reverseRecOn {α : Type} {motive : List α → Prop} (nil : motive [])
     (snoc : ∀ l a, motive l → motive (l ++ [a])) : ∀ l, motive l := by
   intro l
   induction h : l.length generalizing l with
@@ -177,7 +177,7 @@ theorem extS_cover {σ : VExpr.Subst} {S : ObSets} :
     List.Forall₂ (fun (k : Key) a => ∀ y ∈ k.2.2, ∃ y₀, Obs' σ S a y₀ ∧ y₀ ≼ y) keys as →
     ∀ m o, extS .empty keys m o → ∃ o', argSets env U Δ σ S as m o' ∧ o' ≼ o := by
   intro keys
-  induction keys using List.reverseRecOn' with
+  induction keys using List.reverseRecOn with
   | nil => intro as h; cases h; intro m o h; exact absurd h (by simp [extS, ObSets.empty])
   | snoc keys k ih =>
     intro as h
@@ -280,7 +280,7 @@ theorem spine_tele_prefix (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
     have haσ : env.HasType U Δ (args[i].subst σ) (As[i].subst σ) :=
       hsa.1.defeq.hasType.1.substDF henv W.wf hΔ W
     have ha' : env.HasType U Δ (args[i].subst σ) (Dw[i].subst (VExpr.argSubst bs)) :=
-      TyCls.defeq' henv hΔ (hcls ▸ TyCls.self) haσ
+      TyCls.defeq_rev henv hΔ (hcls ▸ TyCls.self) haσ
     -- reshape the goal
     rw [List.take_succ_eq_append_getElem hia, List.take_succ_eq_append_getElem hiD,
       List.map_append, hbs, List.reverse_append, argSets_snoc]

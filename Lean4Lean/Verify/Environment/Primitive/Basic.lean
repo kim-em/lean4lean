@@ -166,7 +166,7 @@ theorem VEnv.HasPrimitives.natIsType' {env : VEnv} (henv : env.Ordered)
   VLCtx.toCtx_ofCtx Γ ▸ hprim.natIsType (Δ := VLCtx.ofCtx Γ) henv hnat (by simpa using hΓ)
 
 /-- A substitution does not touch a closed term, at the depth the recognizer works at. -/
-theorem _root_.Lean4Lean.VExpr.ClosedN.subst_eq' {e : VExpr} {σ : VExpr.Subst}
+theorem _root_.Lean4Lean.VExpr.ClosedN.subst_eq_of_closed {e : VExpr} {σ : VExpr.Subst}
     (h : e.ClosedN) : e.subst σ = e := h.subst_eq .zero
 
 /-- The context an all-`Nat` telescope opens is well formed. -/
@@ -981,7 +981,7 @@ namespace Primitive
 /-- Peel one argument off an application whose head has a known `forallE` type. `app_inv` only
 returns the domain up to defeq, so this is where `forallE_inv` moves the argument's typing onto
 the head's recorded domain -- which is what makes the argument usable in a substitution. -/
-theorem _root_.Lean4Lean.VExpr.WF.app_inv' {env : VEnv} {U Γ} (henv : env.WF)
+theorem _root_.Lean4Lean.VExpr.WF.app_inv_of_hasType {env : VEnv} {U Γ} (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U)) {f a A B : VExpr}
     (hf : env.HasType U Γ f (.forallE A B)) (H : VExpr.WF env U Γ (.app f a)) :
     env.HasType U Γ a A ∧ env.HasType U Γ (.app f a) (B.inst a) := by
@@ -992,7 +992,7 @@ theorem _root_.Lean4Lean.VExpr.WF.app_inv' {env : VEnv} {U Γ} (henv : env.WF)
 
 /-- Peeling one binder off a well formed lambda: the body, in the context the binder extends.
 A telescope is peeled by iterating this, which is what the conditional builders' shapes need. -/
-theorem _root_.Lean4Lean.VExpr.WF.lam_inv' {env : VEnv} (henv : env.Ordered)
+theorem _root_.Lean4Lean.VExpr.WF.lam_inv_onCtx {env : VEnv} (henv : env.Ordered)
     (hΓ : OnCtx Γ (env.IsType U)) (H : VExpr.WF env U Γ (.lam A body)) :
     OnCtx (A :: Γ) (env.IsType U) ∧ VExpr.WF env U (A :: Γ) body :=
   let ⟨hA, _, hb⟩ := VExpr.WF.lam_inv henv hΓ H; ⟨⟨hΓ, hA⟩, _, hb⟩
@@ -1333,18 +1333,18 @@ theorem goArgs {c : VContext} {go' le' : VExpr}
   obtain ⟨_, _, h3, -⟩ := VExpr.WF.app_inv c.Ewf.ordered trivial ⟨_, h4⟩
   obtain ⟨_, _, h2, -⟩ := VExpr.WF.app_inv c.Ewf.ordered trivial ⟨_, h3⟩
   obtain ⟨_, _, h1, -⟩ := VExpr.WF.app_inv c.Ewf.ordered trivial ⟨_, h2⟩
-  obtain ⟨hbbT, k1⟩ := VExpr.WF.app_inv' c.Ewf trivial (hgoT (Γ := [])) ⟨_, h1⟩
+  obtain ⟨hbbT, k1⟩ := VExpr.WF.app_inv_of_hasType c.Ewf trivial (hgoT (Γ := [])) ⟨_, h1⟩
   simp [VExpr.inst, VExpr.instVar, VExpr.natLit, VExpr.natSucc, VExpr.natZero,
     VExpr.nat, VExpr.liftN_zero,
     hleC.instN_eq (Nat.zero_le _)] at k1
-  obtain ⟨hpfT, k2⟩ := VExpr.WF.app_inv' c.Ewf trivial k1 ⟨_, h2⟩
+  obtain ⟨hpfT, k2⟩ := VExpr.WF.app_inv_of_hasType c.Ewf trivial k1 ⟨_, h2⟩
   simp [VExpr.inst, VExpr.instVar, hleC.instN_eq (Nat.zero_le _)] at k2
-  obtain ⟨hfT, k3⟩ := VExpr.WF.app_inv' c.Ewf trivial k2 ⟨_, h3⟩
+  obtain ⟨hfT, k3⟩ := VExpr.WF.app_inv_of_hasType c.Ewf trivial k2 ⟨_, h3⟩
   simp [VExpr.inst, VExpr.instVar, hleC.instN_eq (Nat.zero_le _)] at k3
-  obtain ⟨hxT, k4⟩ := VExpr.WF.app_inv' c.Ewf trivial k3 ⟨_, h4⟩
+  obtain ⟨hxT, k4⟩ := VExpr.WF.app_inv_of_hasType c.Ewf trivial k3 ⟨_, h4⟩
   simp [VExpr.inst, VExpr.instVar, VExpr.liftN_zero, VExpr.inst_lift,
     hleC.instN_eq (Nat.zero_le _)] at k4
-  obtain ⟨hpf'T, hcallT⟩ := VExpr.WF.app_inv' c.Ewf trivial k4 hwf
+  obtain ⟨hpf'T, hcallT⟩ := VExpr.WF.app_inv_of_hasType c.Ewf trivial k4 hwf
   simp [VExpr.inst] at hcallT
   exact ⟨hbbT, hpfT, hfT, hxT, hpf'T, hcallT⟩
 

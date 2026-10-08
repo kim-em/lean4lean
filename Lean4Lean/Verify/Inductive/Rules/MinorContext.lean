@@ -863,7 +863,7 @@ theorem VLCtx.keys_fvars_of_lams : ∀ {L : VLCtx},
     obtain ⟨k, d, rfl⟩ := h e (by simp)
     simp [VLCtx.keys_fvars_of_lams (L := L) (fun x hx => h x (by simp [hx]))]
 
-theorem namedLambdaDeclarations_fvars'
+theorem namedLambdaDeclarations_fvars
     {xs : List FVarId} {ys : VLCtx}
     (H : List.Forall₂
       (fun fv entry => ∃ deps type,
@@ -917,7 +917,7 @@ theorem TrExprS.instantiateFVarLambdaSuffix {env : VEnv} {Us : List Name}
     have Hhead := ih hnodup'.2 Htr'
     have W := abstractForallContext.abstractHead domains scope fv deps type
     have hfresh : fv ∉ VLCtx.fvars scope := by
-      rw [namedLambdaDeclarations_fvars' Htail]
+      rw [namedLambdaDeclarations_fvars Htail]
       exact hnodup'.1
     have Hinst := TrExprS.instantiateFVar W hfresh Hhead
     rwa [Expr.instantiate1'_abstract1_self] at Hinst

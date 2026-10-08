@@ -184,7 +184,7 @@ theorem NestedRun.restorableNames_reserved
     rcases hn with rfl | ⟨ctor, hctor, rfl⟩
     · exact (hauxRes a ha).isPrefixOf
     · have hP := namePrefix_of_replacePrefix_ne (D.ctorRenamed a ha ctor hctor)
-      exact ((hauxRes a ha).trans' (hP.replacePrefix_prefix a.auxiliary)).isPrefixOf
+      exact ((hauxRes a ha).trans (hP.replacePrefix_prefix a.auxiliary)).isPrefixOf
   · exact (NamePrefix.str "rec" (hauxRes a ha)).isPrefixOf
 
 /-- **No literal mentions a restorable name**: the constants of the

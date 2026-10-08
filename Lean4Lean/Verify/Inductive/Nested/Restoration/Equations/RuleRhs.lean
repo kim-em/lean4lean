@@ -9,10 +9,10 @@ produced by the executable (`restoreRule`, whose right-hand side is
 `restoreNested` of the lowered rule's right-hand side); this file proves that
 its translation is the abstract restoration of the generated equation's
 right-hand side, using the hit shape of the lowered right-hand sides
-(`NestedRun.recursorParamUniform'`, which needs nothing beyond the
+(`NestedRun.recursorParamUniform_of_wfCore`, which needs nothing beyond the
 run). The lowered right-hand side is a
 lambda telescope, so we first prove the lambda analogue of
-`NestedRestoration.restorationCommutes'`. -/
+`NestedRestoration.restorationCommutes`. -/
 
 namespace Lean4Lean
 
@@ -24,13 +24,13 @@ namespace VerifyInductive
 
 /-! ### Commutation for lambda telescopes -/
 
-theorem restoration_expr_wrapLams' {r : Restoration} :
+theorem restoration_expr_wrapLams {r : Restoration} :
     ∀ {D₁ D₂ : List VExpr}, List.Forall₂ (fun x y => r.expr x = some y) D₁ D₂ →
       ∀ {body body' : VExpr}, r.expr body = some body' →
         r.expr (VExpr.wrapLams D₁ body) = some (VExpr.wrapLams D₂ body')
   | _, _, .nil, _, _, h => by simpa [VExpr.wrapLams] using h
   | _, _, .cons hd t, _, _, h => by
-    have := restoration_expr_wrapLams' t h
+    have := restoration_expr_wrapLams t h
     simp only [VExpr.wrapLams, List.foldr_cons] at this ⊢
     exact restoration_expr_lam hd this
 
@@ -103,7 +103,7 @@ theorem NestedRestorationOpening.restoredBody_closed_lam {decl : VInductDecl}
 
 /-- A closed lambda telescope has a residual closed at the depth of its
 binders. -/
-theorem Expr.LambdaTelescope.closed_result' {outer result : Expr} {arity depth : Nat}
+theorem Expr.LambdaTelescope.closed_result {outer result : Expr} {arity depth : Nat}
     (H : Expr.LambdaTelescope outer arity result) (Houter : Closed outer depth) :
     Closed result (depth + arity) := by
   induction H generalizing depth with

@@ -370,7 +370,7 @@ open Lean hiding Environment Exception
 
 /-- The hit-shape clause of `whnfCore` together with the fact that a constant is returned
 unchanged. -/
-theorem whnfCore.WF_paramUniform' {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem whnfCore.WF_paramUniform_const {c : VContext} {s : VState} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ =>
       c.ParamUniformBelow pfx e e₁ ∧ ∀ n us, e = .const n us → e₁ = e := by

@@ -293,7 +293,7 @@ theorem _root_.Lean4Lean.VExpr.Occurs.instOuter (H : VExpr.Occurs b E 0) (args :
     exact ih (by simpa using H.inst a as.length)
 
 /-- A free variable occurs. -/
-theorem _root_.Lean4Lean.VExpr.Occurs.of_not_skips' :
+theorem _root_.Lean4Lean.VExpr.Occurs.of_not_skips :
     ∀ (E : VExpr) (d : Nat), ¬ E.Skips' 1 (k + d) → VExpr.Occurs (.bvar k) E d := by
   intro E
   induction E with
@@ -963,7 +963,7 @@ theorem VProjectionInfo.field_typing_aux {decl : VInductDecl}
         -- the projection occurs in the field type, hence is well formed under some binders
         have hocc' : VExpr.Occurs (.bvar (index - 1 - k))
             ((doms[info.nparams + index]'hmd).instL ls₀) 0 :=
-          VExpr.Occurs.of_not_skips' _ 0 (by simpa [← VExpr.skips_iff] using hsk)
+          VExpr.Occurs.of_not_skips _ 0 (by simpa [← VExpr.skips_iff] using hsk)
         have hocc'' := hocc'.instOuter
           (P₀ ++ (List.range index).map fun j => VExpr.proj S j sm)
         have hb : (VExpr.bvar (index - 1 - k)).instOuter
@@ -1023,7 +1023,7 @@ theorem VProjectionInfo.field_typing_aux {decl : VInductDecl}
         fun h => hsk h.of_instL.instL
       have hocc' : VExpr.Occurs (.bvar (index - 1 - k))
           ((doms[info.nparams + index]'hmd).instL L) 0 :=
-        VExpr.Occurs.of_not_skips' _ 0 (by simpa [← VExpr.skips_iff] using hsk')
+        VExpr.Occurs.of_not_skips _ 0 (by simpa [← VExpr.skips_iff] using hsk')
       have hFs := VProjectionInfo.fieldType_eq_instOuter info hshape hLlen hP hmd
         (typeName := S) (major := N)
       rw [hfield] at hFs

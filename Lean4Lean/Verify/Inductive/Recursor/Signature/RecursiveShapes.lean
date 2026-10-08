@@ -101,7 +101,7 @@ theorem Expr.abstractList_injective :
   | [], _, _, _, h => by simpa using h
   | _ :: _, _, _, _, h => Expr.abstract1_injective (Expr.abstractList_injective h)
 
-theorem insertBinders_append' (Fs B : List VExpr) (m : Nat) :
+theorem insertBinders_append (Fs B : List VExpr) (m : Nat) :
     InductiveSignature.insertBinders (Fs ++ B) m =
       InductiveSignature.insertBinders Fs m ++
         (B.zipIdx Fs.length).map fun (e, k) => e.liftN m k := by
@@ -139,7 +139,7 @@ theorem TrExprS.liftStep {env : VEnv} {Us : List Name} (henv : env.Ordered)
   have H₁ := TrExprS.insertBeforeInner henv (outer := PP) (inner := Fs ++ B0)
     (by simpa [List.append_assoc] using Ht) M
   dsimp only at H₁
-  rw [liftContextPrefix_reverse_reverse, insertBinders_append', List.length_append] at H₁
+  rw [liftContextPrefix_reverse_reverse, insertBinders_append, List.length_append] at H₁
   have H₂ := TrExprS.insertBeforeInner henv
     (outer := PP ++ M ++ InductiveSignature.insertBinders Fs M.length)
     (inner := (B0.zipIdx Fs.length).map fun (e, k) => e.liftN M.length k)

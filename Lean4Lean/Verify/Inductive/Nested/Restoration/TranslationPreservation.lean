@@ -21,7 +21,7 @@ translation contexts (`RestoreTypedCtx`).
 * `translate_avoids_exists`: syntax avoiding the restorable names translates in
   `envT` to the restoration of its lowered translation (the trailing arguments
   of a hit, which the executable copies verbatim, and literals).
-* `restorationTranslates'`: the opened body of a lowered term, traversed by
+* `restorationTranslates`: the opened body of a lowered term, traversed by
   `Expr.replace` with `restoreNestedNode`, translates in `envT` to the
   restoration of its lowered translation. At a hit, the executable replacement
   head is the container (or container constructor) applied to the parameter
@@ -196,7 +196,7 @@ theorem RestoreTypedCtx.hasType
   exact h1.hasType.2.defeqDFC S.ordered H.defeq
 
 /-- Transport of a typing judgment whose type also restores. -/
-theorem RestoreTypedCtx.hasType'
+theorem RestoreTypedCtx.hasType_restored
     (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
     (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT ρ σ U Δs Δt)
     {e A e' A' : VExpr} (He : envL.HasType U Δs.toCtx e A) (he : r.expr e = some e')
@@ -348,7 +348,7 @@ theorem translate_avoids_exists
       have hokty := hty.projNamesOK_of_source Hprojs.1 Hctx.projs
       have hokval := hval.projNamesOK_of_source Hprojs.2.1 Hctx.projs
       obtain ⟨tb, Htb, hrb⟩ := ihb Hb Hprojs.2.2 (Hctx.vlet (ty' := tty) h1 hrval hokval)
-      exact ⟨_, .letE (Hctx.hasType' S hβ h1 hrval hrty hokval hokty) Htty Htval Htb, hrb⟩
+      exact ⟨_, .letE (Hctx.hasType_restored S hβ h1 hrval hrty hokval hokty) Htty Htval Htb, hrb⟩
   | lit hcont _ ih =>
     cases Havoid with
     | lit _ Ha =>
@@ -390,7 +390,7 @@ def RestoreHeadsTranslate (r : Restoration) (result : Lean4Lean.ElimNestedInduct
       List.Forall₂ (TrExprS envT Us Δt) args
         (h.arguments.map fun arg => instantiateParams (arg.instL levels) PT)
 
-/-- The hit case of `restorationTranslates'`. -/
+/-- The hit case of `restorationTranslates`. -/
 theorem restorationTranslates'_paramUniform
     (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
@@ -481,7 +481,7 @@ theorem restorationTranslates'_paramUniform
 /-- **Restoration preserves translation** on an opened body traversed by
 `Expr.replace` with `restoreNestedNode`: the executable output translates in
 the target environment, to the restoration of the lowered translation. -/
-theorem restorationTranslates'
+theorem restorationTranslates
     (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us : List Name} {auxLevels : List Level} {As : Array Expr}
@@ -614,7 +614,7 @@ theorem restorationTranslates'
     have hokval := hval.projNamesOK_of_source Hprojs.2.1 Hctx.projs
     obtain ⟨tb, Htb, hrb⟩ := ihb Sb Tb Hprojs.2.2 (Hctx.vlet (ty' := tty) h1 hrval hokval)
       (hliftV _ Hlift)
-    exact ⟨_, .letE (Hctx.hasType' S hβ h1 hrval hrty hokval hokty) Htty Htval Htb, hrb⟩
+    exact ⟨_, .letE (Hctx.hasType_restored S hβ h1 hrval hrty hokval hokty) Htty Htval Htb, hrb⟩
   | lit hcont htc _ =>
     rw [Expr.replace_lit_of_none (hmiss _ (by simp) (by simp [Expr.getAppFn]))]
     obtain ⟨t, Ht, hr⟩ := translate_avoids_exists S hβ hc Hlits (Hlitnames _)
@@ -865,7 +865,7 @@ theorem ParamOpening.toMLCtxForall {env : VEnv} {Us : List Name}
 
 /-- Extend the invariant under a binder of any naming, given the
 well-formedness of the extended lowered context. -/
-theorem RestoreTypedCtx.vlam'
+theorem RestoreTypedCtx.vlam_wf
     (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
     (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT ρ σ U Δs Δt)
     {ofv : Option (FVarId × List FVarId)} {d d' : VExpr}
@@ -1026,7 +1026,7 @@ theorem MLCtx.restore
       by simp [MLCtx.fvarsOuter, hfvT], ?_⟩
     · have hwf' : (TypeChecker.MLCtx.vlam id name ty tyL bi c).WF envL Us :=
         ⟨hcwf, hfresh, Hty, HtyType⟩
-      exact Hctx.vlam' S hβ hwf'.tr.wf hr hok
+      exact Hctx.vlam_wf S hβ hwf'.tr.wf hr hok
     · intro n hn hn' X Y h
       cases n with
       | zero => simpa using h
@@ -1052,7 +1052,7 @@ theorem MLCtx.dropN_length_eq_nil (c : TypeChecker.MLCtx) (n : Nat) (h : n ≤ c
 
 /-- **Restoration of a closed forall telescope translates.** The lowered
 input is opened at restoration's parameters, its body restored by
-`restorationTranslates'`, and the output closed over the restored parameter
+`restorationTranslates`, and the output closed over the restored parameter
 domains (which the executable copies verbatim). -/
 theorem NestedRestorationOpening.translatesForall
     (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
@@ -1098,7 +1098,7 @@ theorem NestedRestorationOpening.translatesForall
     rcases ha with ⟨fv, _, rfl⟩
     exact ⟨fv, rfl⟩
   have hsize : Hopen.params.size = result.nparams := Hopen.opening.initial_size
-  rcases restorationTranslates' S hLwf.ordered hβ A hc HAs hsize Hlits Hlitnames
+  rcases restorationTranslates S hLwf.ordered hβ A hc HAs hsize Hlits Hlitnames
       (Hheads MT (hMT.trans hML) hMTwf) Hshape Htrail Hprojs Hctx ⟨0, 0, .refl⟩ HsR with
     ⟨tR, HtR, hr⟩
   rw [← Hopen.replacement.eq_replace] at HtR
@@ -1298,7 +1298,7 @@ theorem NestedRestorationOpening.translatesLambda
     rw [key]; omega
   have Hheads' := Hheads (MLCtx.types ML) (MLCtx.types MT) MT.vlctx sR hDs hDsLen htysMT
     (by rw [← hfvOuter]; exact MLCtx.sameUpToDeps_fvarScope MT havMT)
-  rcases restorationTranslates' S hLwf.ordered hβ A hc HAs hsize Hlits Hlitnames
+  rcases restorationTranslates S hLwf.ordered hβ A hc HAs hsize Hlits Hlitnames
       Hheads' Hshape Htrail Hprojs Hctx ⟨0, 0, .refl⟩ HsR with
     ⟨tR, HtR, hr⟩
   rw [← Hopen.replacement.eq_replace] at HtR

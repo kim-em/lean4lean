@@ -45,7 +45,7 @@ local notation "Obs'" => Obs env U Δ
 
 /-! ## Typing helpers -/
 
-theorem TypedElCls.eq_of_mem' (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
+theorem TypedElCls.eq_of_mem (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
     (hc : TypedElCls env U Δ (TyCls env U Δ X₀) c) (hy : c y) :
     c = ElCls env U Δ (TyCls env U Δ X₀) y :=
   let ⟨_, _, _, h⟩ := hc.mem henv hΔ hy; h
@@ -176,7 +176,7 @@ theorem keys_transfer {K : List Ob} (ih : SoundAt env U Δ Γ A A' T) (W : Ctx.S
   exact ⟨fun k hk => (hK k hk).mono_le h1, fun k hk => ((hK k hk).mono_le h1).mono_le h2⟩
 
 /-- Key typing transfers back from `A'` under `σ'` to `A` under `σ` and `σ'`. -/
-theorem keys_transfer' {K : List Ob} (ih : SoundAt env U Δ Γ A A' T) (W : Ctx.SubstEq env U Δ σ σ' Γ)
+theorem keys_transfer_symm {K : List Ob} (ih : SoundAt env U Δ Γ A A' T) (W : Ctx.SubstEq env U Δ σ σ' Γ)
     (tv : TV env U Δ Γ σ S) (tv' : TV env U Δ Γ σ' S)
     (hK : ∀ k ∈ K, TypedAt env U Δ cv σ' S A' k) :
     (∀ k ∈ K, TypedAt env U Δ cv σ S A k) ∧ (∀ k ∈ K, TypedAt env U Δ cv σ' S A k) := by
@@ -263,7 +263,7 @@ theorem sound_forallEDF (hAA : env.IsDefEqStrong U Γ A A' (.sort u))
         .cons W hA (hc.hasType henv hΔ hy)
       obtain ⟨p', hp', l⟩ := (ihB _ _ _ W' (tv.cons_cls henv hΔ hc hy hbK hKσ) (tv'.cons_cls henv hΔ (hc.congr_D eDA) hy hbK hK2)).1 p hp
       obtain ⟨τs', h1, h2⟩ := TypedAt.merge hK1
-      exact ⟨_, .piCodOb (hc.congr_D eD) h1 h2 hbK hy hp', .piCodOb' Covers.refl l⟩
+      exact ⟨_, .piCodOb (hc.congr_D eD) h1 h2 hbK hy hp', .piCodOb_of_covers Covers.refl l⟩
   · rcases Obs.forallE_iff.1 h with rfl | ⟨p, rfl, hp⟩ | ⟨c, y, rfl, hc, hy⟩ |
       ⟨c, K, y, τs, p, rfl, hc, hτ, hK, hbK, hy, hp⟩
     · exact ⟨_, by rw [← eD]; exact .piDom, .refl⟩
@@ -274,13 +274,13 @@ theorem sound_forallEDF (hAA : env.IsDefEqStrong U Γ A A' (.sort u))
       have eC := TyCls.eq_of_defeq (hBB.defeq.substDF henv W'.wf hΔ W')
       exact ⟨_, by rw [← eC]; exact .piCod hc' hy, .refl⟩
     · have hKσ' : ∀ k ∈ K, TypedAt env U Δ c σ' S A' k := fun k hk => ⟨τs, hτ, hK k hk⟩
-      have ⟨hK1, hK2⟩ := keys_transfer' henv hΔ ihA W tv tv' hKσ'
+      have ⟨hK1, hK2⟩ := keys_transfer_symm henv hΔ ihA W tv tv' hKσ'
       have hc' := hc.congr_D eD.symm
       have W' : Ctx.SubstEq env U Δ (σ.cons y) (σ'.cons y) (A::Γ) :=
         .cons W hA (hc'.hasType henv hΔ hy)
       obtain ⟨p', hp', l⟩ := (ihB _ _ _ W' (tv.cons_cls henv hΔ hc' hy hbK hK1) (tv'.cons_cls henv hΔ (hc'.congr_D eDA) hy hbK hK2)).2.1 p hp
       obtain ⟨τs', h1, h2⟩ := TypedAt.merge hK1
-      exact ⟨_, .piCodOb hc' h1 h2 hbK hy hp', .piCodOb' Covers.refl l⟩
+      exact ⟨_, .piCodOb hc' h1 h2 hbK hy hp', .piCodOb_of_covers Covers.refl l⟩
   · refine typedAt_sort_iff.2 ?_
     rcases Obs.forallE_iff.1 h with rfl | ⟨p, rfl, hp⟩ | ⟨c, y, rfl, hc, hy⟩ |
       ⟨c, K, y, τs, p, rfl, hc, hτ, hK, hbK, hy, hp⟩
@@ -300,7 +300,7 @@ theorem sound_forallEDF (hAA : env.IsDefEqStrong U Γ A A' (.sort u))
     · exact .piDomOb (List.mem_singleton_self _)
     · exact .piCod (List.mem_singleton_self _)
     · have hKσ' : ∀ k ∈ K, TypedAt env U Δ c σ' S A' k := fun k hk => ⟨τs, hτ, hK k hk⟩
-      have ⟨hK1, hK2⟩ := keys_transfer' henv hΔ ihA W tv tv' hKσ'
+      have ⟨hK1, hK2⟩ := keys_transfer_symm henv hΔ ihA W tv tv' hKσ'
       have hc' := hc.congr_D eD.symm
       have W' : Ctx.SubstEq env U Δ (σ.cons y) (σ'.cons y) (A::Γ) :=
         .cons W hA (hc'.hasType henv hΔ hy)
@@ -375,7 +375,7 @@ theorem RuleValid.quot (henv : env.Ordered) (hq : QuotConsts env)
   exact sound_pat henv hΔ hdf quotDefEq_lhs quotDefEq_rhs quot_cov
     (VLevel.inst_map_id hlen) hcl.1.1 hcl.2.1 hq.2.2 quotLiftConst_type rfl rfl hrigQ
     ⟨_, _, hq.2.1, rfl⟩ hcis (.inl ⟨hnpQ, hnpM⟩)
-    (hctor _ hcis) hctor hpctor hdr (quot_uniq' hqu)
+    (hctor _ hcis) hctor hpctor hdr (quot_uniq hqu)
     (fun keys hkl hobs => ⟨hqu,
       quot_pf hlw (quot_C_level hq hrigQ hkl hobs)⟩)
     ihL ihR (.extra hdf hlw hlen)
@@ -561,7 +561,7 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
       rw [eD]; exact .lam (hc.congr_D eD) h1 h2 hbK hy hp'
     · obtain ⟨c, K, y, τs, p, rfl, hc, hτ, hK, hbK, hy, hp⟩ := Obs.lam_iff.1 h
       have hKσ' : ∀ k ∈ K, TypedAt env U Δ c σ' S A' k := fun k hk => ⟨τs, hτ, hK k hk⟩
-      have ⟨hK1, hK2⟩ := keys_transfer' henv hΔ ihA W tv tv' hKσ'
+      have ⟨hK1, hK2⟩ := keys_transfer_symm henv hΔ ihA W tv tv' hKσ'
       have hc' := hc.congr_D eD.symm
       have W' : Ctx.SubstEq env U Δ (σ.cons y) (σ'.cons y) (A::Γ) :=
         .cons W hA (hc'.hasType henv hΔ hy)
@@ -577,7 +577,7 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
       exact lam_typed henv hΔ W.left hA hb.defeq.hasType.1 hc hKσ hbK hy ((ihb _ _ _ W' (tv.cons_cls henv hΔ hc hy hbK hKσ) (tv'.cons_cls henv hΔ (hc.congr_D eD') hy hbK hK2)).2.2.1 p hp)
     · obtain ⟨c, K, y, τs, p, rfl, hc, hτ, hK, hbK, hy, hp⟩ := Obs.lam_iff.1 h
       have hKσ' : ∀ k ∈ K, TypedAt env U Δ c σ' S A' k := fun k hk => ⟨τs, hτ, hK k hk⟩
-      have ⟨hK1, hK2⟩ := keys_transfer' henv hΔ ihA W tv tv' hKσ'
+      have ⟨hK1, hK2⟩ := keys_transfer_symm henv hΔ ihA W tv tv' hKσ'
       have hc' := hc.congr_D eD.symm
       have W' : Ctx.SubstEq env U Δ (σ.cons y) (σ'.cons y) (A::Γ) :=
         .cons W hA (hc'.hasType henv hΔ hy)
@@ -714,7 +714,7 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
       cases hty₁ with
       | app hD =>
         have eD := Obs.piDom_mem (hτs₁ _ hD); subst eD
-        have ec : c₁ = c := hc₁.trans (TypedElCls.eq_of_mem' henv hΔ hc hy).symm
+        have ec : c₁ = c := hc₁.trans (TypedElCls.eq_of_mem henv hΔ hc hy).symm
         subst ec
         obtain ⟨o₂, ho₂, l₂⟩ := IHe.1 _ he₁'
         refine ⟨o₂, ho₂, l₂.trans (Ob.Le.app' ?_ .refl)⟩
@@ -728,7 +728,7 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
         have hτd : ∀ x ∈ _, Obs' σ S A x := fun x hx => Obs.piDomOb_mem (hτs₁ _ (hd x hx))
         obtain ⟨y, hy⟩ := hc.nonempty
         refine ⟨_, .lam hc hτd hk hbK hy ?_, l₁⟩
-        refine .app (Obs.lift_cons_iff.2 ho₁) (TypedElCls.eq_of_mem' henv hΔ hc hy) (K' := K)
+        refine .app (Obs.lift_cons_iff.2 ho₁) (TypedElCls.eq_of_mem henv hΔ hc hy) (K' := K)
           (fun k hk => Obs.bvar_iff.2 hk) Covers.refl
     · obtain ⟨c, K, y, τs, p, rfl, hc, hτ, hK, hbK, hy, hp⟩ := Obs.lam_iff.1 h
       obtain ⟨D₁, c₁, K₁, K₁', he₁, hc₁, hK₁', hcov₁⟩ := Obs.app_iff.1 hp
@@ -738,7 +738,7 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
       cases hty₁ with
       | app hD =>
         have eD := Obs.piDom_mem (hτs₁ _ hD); subst eD
-        have ec : c₁ = c := hc₁.trans (TypedElCls.eq_of_mem' henv hΔ hc hy).symm
+        have ec : c₁ = c := hc₁.trans (TypedElCls.eq_of_mem henv hΔ hc hy).symm
         subst ec
         have hKK : Covers K K₁ :=
           Covers.trans (Covers.of_subset fun k hk => Obs.bvar_iff.1 (hK₁' k hk)) hcov₁

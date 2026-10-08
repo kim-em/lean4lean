@@ -1855,14 +1855,14 @@ theorem whnf.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (whnf e) fun e₁ _ => c.LevelsBelow e e₁ :=
   fun _ wf => wf.whnf_levels he
 
-theorem inferType.WF_levels' {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
+theorem inferType.WF_levels_of_fvarsIn {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
     (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
     RecM.WF c s (inferType e inferOnly) fun ty _ => c.LevelsBelow e ty :=
   fun _ wf => wf.inferType_levels h1 hinf
 
 theorem inferType.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (inferType e inferOnly) fun ty _ => c.LevelsBelow e ty :=
-  inferType.WF_levels' he.fvarsIn fun _ => ⟨_, he⟩
+  inferType.WF_levels_of_fvarsIn he.fvarsIn fun _ => ⟨_, he⟩
 
 /-- `whnfCore` with its universe-parameter support. -/
 theorem whnfCore.WF_below {c : VContext} {s : VState} (he : c.TrExprS e e') :
@@ -1871,7 +1871,7 @@ theorem whnfCore.WF_below {c : VContext} {s : VState} (he : c.TrExprS e e') :
   ((whnfCore.WF he).and (whnfCore.WF_levels he)).mono fun _ _ _ ⟨⟨h1, h2⟩, h3⟩ => ⟨h1, h3, h2⟩
 
 /-- All three `whnfCore` clauses with its universe-parameter support. -/
-theorem whnfCore.WF_below' {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnfCore.WF_below_of_fvarsIn {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ => (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧
       (∀ A B, e' = .forallE A B → c.TrExprS e₁ e')) ∧ c.LevelsBelow e e₁ :=
   (whnfCore.WF' he).and (whnfCore.WF_levels he)
@@ -1882,17 +1882,17 @@ theorem whnf.WF_below {c : VContext} {s : VState} (he : c.TrExprS e e') :
   ((whnf.WF he).and (whnf.WF_levels he)).mono fun _ _ _ ⟨⟨h1, h2⟩, h3⟩ => ⟨h1, h3, h2⟩
 
 /-- All three `whnf` clauses with its universe-parameter support. -/
-theorem whnf.WF_below' {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnf.WF_below_of_fvarsIn {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (whnf e) fun e₁ _ => (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧
       (∀ A B, e' = .forallE A B → c.TrExprS e₁ e')) ∧ c.LevelsBelow e e₁ :=
   (whnf.WF' he).and (whnf.WF_levels he)
 
 /-- `inferType` with its universe-parameter support. -/
-theorem inferType.WF_below' {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
+theorem inferType.WF_below_of_fvarsIn {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
     (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
     RecM.WF c s (inferType e inferOnly) fun ty _ =>
       (∃ e' ty', c.TrTyping e ty e' ty') ∧ c.LevelsBelow e ty :=
-  (inferType.WF' h1 hinf).and (inferType.WF_levels' h1 hinf)
+  (inferType.WF' h1 hinf).and (inferType.WF_levels_of_fvarsIn h1 hinf)
 
 /-- `inferType` with its universe-parameter support. -/
 theorem inferType.WF_below {c : VContext} {s : VState} (he : c.TrExprS e e') :

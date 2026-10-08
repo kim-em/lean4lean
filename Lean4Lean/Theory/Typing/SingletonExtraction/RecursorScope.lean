@@ -131,7 +131,7 @@ theorem propElim_closed (henv : env.WF) (H : RecursorRegistered env data)
       (data.recursorInstance.indicesAt data.owner).map (·.instL (ls.set k .zero)) :=
     Instance.sIndices_specialize _ _ _ _
   have hsP : gp.params = data.recursorInstance.params.map (·.instL (ls.set k .zero)) :=
-    Instance.params_specialize' _ _ _
+    Instance.specialize_params _ _ _
   have hlF : (gp.fieldsAt c).length = (data.recursorInstance.fieldsAt c).length := by simp [hsF]
   have hlI : (gp.indicesAt data.owner).length = (data.recursorInstance.indicesAt data.owner).length := by
     simp [hsI]

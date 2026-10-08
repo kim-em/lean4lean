@@ -98,7 +98,7 @@ theorem HeadsClosed.excl {envF env0 env' : VEnv} {new : List VDefEq} {n : Name}
   · obtain ⟨_, hc⟩ := (hord0.defEqWF ho).1.head_const_lookup hord0 (Γ := []) ⟨⟩ h'
     rw [hfresh] at hc; cases hc
 
-private theorem declaration_le' (H : VDecl.WF env decl env') : env ≤ env' := by
+private theorem declaration_le (H : VDecl.WF env decl env') : env ≤ env' := by
   cases H with
   | «axiom» _ h | «opaque» _ h => exact VEnv.addConst_le h
   | «def» _ h => exact (VEnv.addConst_le h).trans VEnv.addDefEq_le
@@ -121,7 +121,7 @@ private theorem declaration_le' (H : VDecl.WF env decl env') : env ≤ env' := b
 
 theorem HeadsClosed.of_decl {envF env0 env' : VEnv} (hdecl : VDecl.WF env0 d env')
     (hcl : HeadsClosed envF env') : HeadsClosed envF env0 := by
-  have h0le := declaration_le' hdecl
+  have h0le := declaration_le hdecl
   cases hdecl with
   | «axiom» _ hadd | «opaque» _ hadd =>
     exact hcl.down (new := []) h0le
@@ -514,7 +514,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
       ⟨hEu, fun _ _ _ _ _ h => (by cases h)⟩⟩
   | @decl d env' ds env0 hdecl hbase ih =>
     intro hle hcl hpc
-    have h0le := declaration_le' hdecl
+    have h0le := declaration_le hdecl
     have h0W : env0.WF := ⟨ds, hbase⟩
     have hpc0 : ProjsClosed envF env0 := hpc.down h0W (fun _ => h0le.defeqs)
       (fun _ _ => h0le.eliminators) (projections_of_decl hdecl)

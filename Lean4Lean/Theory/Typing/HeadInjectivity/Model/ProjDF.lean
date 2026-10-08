@@ -75,7 +75,7 @@ theorem famTy_inv {σ : VExpr.Subst} {S0 : ObSets} {S : Name} {ls : List VLevel}
           TypedOb env U Δ k.2.1 y (τk i)) ∧
         Obs' (VExpr.argSubst as) (keySets (keys.take info.nparams ++ FL))
           (Dc.getD (info.nparams + j) (.sort .zero)) x := by
-  obtain ⟨keys, hk, h'⟩ := wrap_of_obs_mkApps' h
+  obtain ⟨keys, hk, h'⟩ := wrap_of_obs_mkApps_le h
   refine ⟨keys, hk, ?_⟩
   rcases Obs.const_iff.1 h' with ⟨_, _, keys', r, he, _, _, _, _, hr⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, he, _, _, _, _, _, hr, _⟩ |
@@ -114,7 +114,7 @@ theorem famDom_inv {σ : VExpr.Subst} {S0 : ObSets} {S : Name} {ls : List VLevel
         ChainOK env U Δ Dc as (keys.take info.nparams ++ FL) ∧
         D = TyCls env U Δ ((Dc.getD (info.nparams + j) (.sort .zero)).subst
           (VExpr.argSubst as)) := by
-  obtain ⟨keys, hk, h'⟩ := wrap_of_obs_mkApps' h
+  obtain ⟨keys, hk, h'⟩ := wrap_of_obs_mkApps_le h
   refine ⟨keys, hk, ?_⟩
   rcases Obs.const_iff.1 h' with ⟨_, _, keys', r, he, _, _, _, _, hr⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, he, _, _, _, _, _, hr, _⟩ |

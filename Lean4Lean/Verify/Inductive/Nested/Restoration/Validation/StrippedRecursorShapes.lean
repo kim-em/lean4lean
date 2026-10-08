@@ -9,7 +9,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Recursors
 restoration environment from a premise `Hshapes` about every fresh recursor
 of that environment. This file discharges `Hshapes` for the exact nested run,
 from the hit shape of the lowered recursor types given by
-`NestedRun.recursorParamUniform'`, which needs nothing besides the
+`NestedRun.recursorParamUniform_of_wfCore`, which needs nothing besides the
 run.
 
 The fresh recursors of the stripped environment are exactly the rule-free
@@ -298,7 +298,7 @@ theorem NestedRun.restoredMajorHead {ves : VEnvs}
   by_cases hmem : fam ∈ r.heads.map (·.auxiliary)
   · obtain ⟨nested, hnested⟩ := hfamKey' hmem
     obtain ⟨I0, lsI, hnestedFn⟩ := hnestedHead fam nested hnested
-    have Hshape := (E.recursorParamUniform' wf Hsources owner Hstep).1
+    have Hshape := (E.recursorParamUniform_of_wfCore wf Hsources owner Hstep).1
     rw [← hheads] at Hshape
     obtain ⟨HbodyShape, hsize, -⟩ := Hopen.paramUniform_of_lowered Htel Hshape
     have HdomShape := HbodyShape.binderAt Hbody
@@ -747,7 +747,7 @@ theorem NestedRun.restoredRecursorEntries_of_steps
   rw [← E.recursorNames_order hnonempty, List.forall₂_map_left_iff] at Hall
   refine Lean4Lean.List.Forall₂.imp ?_ Hall
   rintro owner w ⟨s, t, Hstep, Hw⟩
-  have Hshape := (E.recursorParamUniform' wf Hsources owner Hstep).1
+  have Hshape := (E.recursorParamUniform_of_wfCore wf Hsources owner Hstep).1
   rw [← hheads] at Hshape
   exact ⟨E.restoredRecursor_of_step hparamsSize D hscoped owner Hstep rfl Hshape
     Hfresh Hw, s, t, Hstep, Hw⟩
@@ -976,7 +976,7 @@ theorem NestedExpansionData.sourceConstructorNames
 /-! ### Validity of the stripped environment of the exact run -/
 
 /-- **Validity of the stripped-rule restoration environment** of the exact
-nested run, from the hit shape of `recursorParamUniform'` and the
+nested run, from the hit shape of `recursorParamUniform_of_wfCore` and the
 executable fact that lowering recorded a nested occurrence (`hnested`, the
 condition under which `addInductiveAfterLowering` restores at all). The
 remaining arguments are those of `validOfInstallation_of_shapes`, together

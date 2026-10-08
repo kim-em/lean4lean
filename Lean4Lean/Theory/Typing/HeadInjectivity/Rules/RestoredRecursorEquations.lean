@@ -421,7 +421,7 @@ theorem CompilationData.nested_families {s : InductiveSignature} {g : Instance s
     2 ≤ s.families.size := by
   obtain ⟨envTypes, direct, _, hdirect, _, hfamilies⟩ := H.correspondence
   have h1 := Lean4Lean.List.Forall₂.length_eq hfamilies
-  have h2 := mapM_length' (List.mapM_eq_some.mp hdirect)
+  have h2 := mapM_length (List.mapM_eq_some.mp hdirect)
   have h3 : source.types ≠ [] := H.sourceWF.1
   simp only [declaration, List.length_map, List.length_zipIdx, Array.length_toList,
     List.length_append] at h1
@@ -429,7 +429,7 @@ theorem CompilationData.nested_families {s : InductiveSignature} {g : Instance s
   have := List.length_pos_iff.2 haux
   omega
 where
-  mapM_length' {α β : Type} {R : α → β → Prop} {l : List α} {l' : List β}
+  mapM_length {α β : Type} {R : α → β → Prop} {l : List α} {l' : List β}
       (h : List.Forall₂ R l l') : l'.length = l.length :=
     (Lean4Lean.List.Forall₂.length_eq h).symm
 

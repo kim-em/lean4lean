@@ -37,7 +37,7 @@ theorem GhostRel.withLCtx {c₁ c₂ : Context} (h : GhostRel G c₁ c₂) {l₁
   wf₂ := hw₂
   env := h.env
 
-theorem find?_mkLetDecl' {l : LocalContext} {fv fv' : FVarId} {name : Name} {ty val : Expr}
+theorem find?_mkLetDecl {l : LocalContext} {fv fv' : FVarId} {name : Name} {ty val : Expr}
     {nonDep : Bool} {kind : LocalDeclKind} (hwf : l.fvarIdToDecl.WF) :
     (l.mkLetDecl fv name ty val nonDep kind).find? fv' =
       if fv == fv' then some (.ldecl l.decls.size fv name ty val nonDep kind)
@@ -68,11 +68,11 @@ theorem GhostRel.mkLetDecl {c₁ c₂ : Context} {id : FVarId} (h : GhostRel G c
   refine h.withLCtx (fun fv hfv => ?_) (fun fv d hd => ?_)
     (by simp only [LocalContext.mkLetDecl]; exact h.wf₁.insert)
     (by simp only [LocalContext.mkLetDecl]; exact h.wf₂.insert)
-  · rw [find?_mkLetDecl' h.wf₁, find?_mkLetDecl' h.wf₂]
+  · rw [find?_mkLetDecl h.wf₁, find?_mkLetDecl h.wf₂]
     split
     · simp [LocalDecl.setIndex]
     · exact h.find? hfv
-  · rw [find?_mkLetDecl' h.wf₂] at hd
+  · rw [find?_mkLetDecl h.wf₂] at hd
     split at hd
     · cases hd; exact ⟨hty, by simp [LocalDecl.value?]; exact hval⟩
     · exact h.decls hd
@@ -111,7 +111,7 @@ theorem M.Framed.throw {R} : M.Framed G (throw e : M α) R := by
 theorem M.Framed.getEnv : M.Framed G TypeChecker.getEnv fun _ => True := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨by rw [hr.env_eq]; rfl, trivial, hs, .rfl⟩
 
-theorem M.Framed.getEnv' : M.Framed G TypeChecker.getEnv (EnvGhostFree G) := by
+theorem M.Framed.getEnv_ghostFree : M.Framed G TypeChecker.getEnv (EnvGhostFree G) := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨by rw [hr.env_eq]; rfl, hr.env_eq ▸ hr.env, hs, .rfl⟩
 
 /-- A read of the context whose continuation does not depend on the local context. -/
@@ -236,7 +236,7 @@ theorem RecM.Framed.lift {x : M α} {R} (h : M.Framed G x R) : RecM.Framed G (li
 
 theorem RecM.Framed.getEnv : RecM.Framed G (liftM TypeChecker.getEnv) fun _ => True := .lift .getEnv
 
-theorem RecM.Framed.getEnv' : RecM.Framed G (liftM TypeChecker.getEnv) (EnvGhostFree G) := .lift .getEnv'
+theorem RecM.Framed.getEnv_ghostFree : RecM.Framed G (liftM TypeChecker.getEnv) (EnvGhostFree G) := .lift .getEnv_ghostFree
 
 theorem RecM.Framed.getLCtx_throw {f : LocalContext → Exception} {R} :
     RecM.Framed G (getLCtx >>= fun l => (MonadExcept.throw (f l) : RecM α)) R := by

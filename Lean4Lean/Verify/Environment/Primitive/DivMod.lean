@@ -205,10 +205,10 @@ theorem checkNatFuelRec.WF {c : VContext} {ite : Bool}
       hyTy.hasType ?_) hnatTyΓ (hlitT f' [])) hhTy.hasType ?_
     · simp only [hyTy, leb2, oneb2, hy, TrTerm.natBinApp, TrTerm.app', TrTerm.of,
         TrTerm.natUnApp, TrTerm.natZero, TrTerm.natSucc, succb, zerob, TrTerm.fvar,
-        VExpr.subst, VExpr.Subst.id, VExpr.natSucc, VExpr.natZero, hleC.subst_eq']; exact hpfT
+        VExpr.subst, VExpr.Subst.id, VExpr.natSucc, VExpr.natZero, hleC.subst_eq_of_closed]; exact hpfT
     · simp only [hhTy, leb4, hx4, hx3, hx2, hx, hf, TrTerm.natBinApp, TrTerm.app', TrTerm.of,
         TrTerm.natUnApp, TrTerm.wk, TrTerm.natSucc, succb, TrTerm.fvar, VExpr.subst,
-        VExpr.Subst.id, VExpr.lift, VExpr.liftN, VExpr.natSucc, hleC.subst_eq']; exact hpf'T
+        VExpr.Subst.id, VExpr.lift, VExpr.liftN, VExpr.natSucc, hleC.subst_eq_of_closed]; exact hpf'T
   -- where the dividend lands under that closing, which is what the stopping value is read at
   have hx5s (xx bb f' : Nat) (pf pf' : VExpr) :
       hx5.tgt.subst (((((VExpr.Subst.id.cons (.natLit xx)).cons (.natLit bb)).cons pf).cons
@@ -231,7 +231,7 @@ theorem checkNatFuelRec.WF {c : VContext} {ite : Bool}
   rw [hshape2] at hc2 he2T
   have hwf2 := he2T.subst c.Ewf.ordered (hγ5 x bb f' pf pf' hpfT hpf'T)
   simp [diteApp, VExpr.subst, VExpr.Subst.cons, VExpr.Subst.lift, TrTerm.app,
-    hP2eq, hD2eq, hHsubst, hdecC'.subst_eq', hgoC.subst_eq', hpropC'.subst_eq',
+    hP2eq, hD2eq, hHsubst, hdecC'.subst_eq_of_closed, hgoC.subst_eq_of_closed, hpropC'.subst_eq_of_closed,
     hy5, hy4, hy3, hy, hx5, hx4, hx3, hx2, hx, hf5, hf, hhy5, hhy3, hhh5, gob5, lhs5,
     TrTerm.of, TrTerm.wk, TrTerm.fvar, VExpr.liftN] at hc2 hwf2
   -- evaluate it: at literals the decision is `Nat.ble bb x`
@@ -309,7 +309,7 @@ theorem checkNatMod.WF {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, 
     have hvalC : ci'.value.ClosedN := (P.hci.closedN' ctx.Ewf.ordered.closed trivial).1
     simpa [TrTerm.natBinApp, TrTerm.app', TrTerm.of, TrTerm.of_nil', TrTerm.wk, TrTerm.fvar,
       TrTerm.natZero, zerob, hx0, Data.hv, VExpr.subst, VExpr.Subst.cons, VExpr.Subst.id,
-      VExpr.instVar, VExpr.natLit, VExpr.natZero, hvalC.subst_eq'] using h
+      VExpr.instVar, VExpr.natLit, VExpr.natZero, hvalC.subst_eq_of_closed] using h
   -- the recursion itself, which `Nat.div` runs too
   refine checkNatFuelRec.WF (F := (· % ·)) (hF := id)
     (lhsB := .natUnApp (succb hnat)) (hHFV := id) (helsFV := id) (hHtr := (⟨_, ·, rfl⟩))
@@ -392,7 +392,7 @@ theorem checkNatMod.WF {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, 
   have hwf1 := he1T.subst ctx.Ewf.ordered (hγ2 k b)
   simp [iteApp, diteApp, VExpr.subst, VExpr.Subst.cons, VExpr.Subst.lift, TrTerm.app', TrTerm.of,
     TrTerm.natUnApp, TrTerm.of_nil', Data.hv, VExpr.liftN, sxb2, hxs, hys, hPi1eq, hDi1eq,
-    hP1eq, hD1eq, hdecC'.subst_eq', hgoC.subst_eq', hvalC.subst_eq', hpropC'.subst_eq'] at hc1 hwf1
+    hP1eq, hD1eq, hdecC'.subst_eq_of_closed, hgoC.subst_eq_of_closed, hvalC.subst_eq_of_closed, hpropC'.subst_eq_of_closed] at hc1 hwf1
   -- evaluate the outer conditional: at literals the decision is `Nat.ble b (succ k)`
   have hev1 := (hite rfl).2 ctx.self (Γ := []) (args' := [.natLit b, .natLit (k+1)])
     (Nat.ble b (k+1)) nofun trivial (.cons (hlitT b []) (.cons (hlitT (k+1) []) .nil)) rfl
@@ -520,7 +520,7 @@ theorem checkNatDiv.WF {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, 
   rw [hshape1] at hc1 he1T
   have hwf1 := he1T.subst ctx.Ewf.ordered (hγ2 a b)
   simp [diteApp, VExpr.subst, VExpr.Subst.cons, VExpr.Subst.lift,
-    hxs, hys, hP1eq, hD1eq, hdecC'.subst_eq', hgoC.subst_eq', hvalC.subst_eq', hpropC'.subst_eq',
+    hxs, hys, hP1eq, hD1eq, hdecC'.subst_eq_of_closed, hgoC.subst_eq_of_closed, hvalC.subst_eq_of_closed, hpropC'.subst_eq_of_closed,
     TrTerm.of, TrTerm.of_nil', VExpr.liftN, Data.hv, id] at hc1 hwf1
   -- evaluate it: at literals the decision is `Nat.ble 1 b`
   obtain ⟨pf1, hev1⟩ := hdite.2.1 ctx.self (Γ := []) (args' := [.natLit 1, .natLit b])

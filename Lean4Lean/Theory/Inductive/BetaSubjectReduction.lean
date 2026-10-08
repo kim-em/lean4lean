@@ -19,7 +19,7 @@ theorem WF.betaSubjectReduction (henv : VEnv.WF env) : env.BetaSubjectReduction 
   -- `T` agrees with the codomain of the application rule.
   have hT : env.IsDefEqU U Γ (B'.inst a) T :=
     let ⟨_, h⟩ := IsDefEq.uniq henv hΓ (.appDF hf ha) H; ⟨_, h⟩
-  obtain ⟨B, hB, hb⟩ := HasType.lam_inv' henv hΓ hf
+  obtain ⟨B, hB, hb⟩ := HasType.lam_inv_forallE henv hΓ hf
   obtain ⟨⟨_, hAA'⟩, _, hBB'⟩ := IsDefEqU.forallE_inv henv hΓ hB
   have ha' : env.HasType U Γ a A := .defeqDF hAA'.symm ha
   have hbeta : env.IsDefEq U Γ (.app (.lam A b) a) (b.inst a) (B.inst a) := .beta hb ha'

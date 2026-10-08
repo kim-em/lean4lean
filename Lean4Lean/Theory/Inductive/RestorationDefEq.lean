@@ -619,7 +619,7 @@ theorem Restoration.expr_isDefEqU {envS envL : VEnv} {r : Restoration}
 
 /-- Variant in which the source type is only definitionally equal (at every
 type of it) to the restoration of the expanded type. -/
-theorem RestoresType.of_models_constructor' {envS envL : VEnv} {r : Restoration}
+theorem RestoresType.of_models_constructor {envS envL : VEnv} {r : Restoration}
     {ρ : Name → Option VExpr} {uvars : Nat} (S : RestorationSubstitution envS envL r ρ)
     (hβ : envS.BetaSubjectReduction uvars)
     (hdefeq : envL.IsDefEqU uvars [] normalized expandedType)

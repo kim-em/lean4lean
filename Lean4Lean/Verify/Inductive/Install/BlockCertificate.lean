@@ -777,7 +777,7 @@ theorem BlockCertificate.extendSafeExact
 /-- Install a certified inductive block directly into the concrete
 environment-refinement judgment.  This is the abstract/executable seam used
 by the inductive branch of declaration verification. -/
-theorem BlockCertificate.trEnv'
+theorem BlockCertificate.trEnv
     {decl : VInductDecl}
     (H : BlockCertificate checkSafety prodEnv venv types ctors recursors
       rules outEnv outVEnv)
@@ -837,7 +837,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
   have htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
       H.installedVEnv := by
     rw [H.installation.quotInit_eq]
-    exact H.trEnv' hdecl hcompile horigins hprovenance
+    exact H.trEnv hdecl hcompile horigins hprovenance
       (wf.tr (safety := .unsafe)) helim
   have htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
       (ves.venv .partial) := by

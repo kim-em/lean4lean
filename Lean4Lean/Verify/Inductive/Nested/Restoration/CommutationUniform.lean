@@ -320,7 +320,7 @@ opened body `e`, under the hit-shape condition. `e` is traversed by
 translation `s` (in any environment) and any translation `t` of the
 executable output in an environment `targetEnv` lacking the restorable names
 are related by `r.expr s = some t`, in related contexts. -/
-theorem restorationCommutes'
+theorem restorationCommutes
     {r : Restoration} {result : Lean4Lean.ElimNestedInductive.Result}
     {env : Environment} {auxRec : NameMap Name} {sourceEnv targetEnv : VEnv}
     {Us : List Name} {auxLevels : List Level} {As : Array Expr}
@@ -486,7 +486,7 @@ theorem Expr.SameForallPrefix.translatedDomains_restore {r : Restoration}
         hd₁ hd₂)
       (ih Hctx.vlam hb₁ hb₂ (by simpa using h₁) (by simpa using h₂))
 
-theorem fvarIdsIn_of_trExprS_abstractForallContext'
+theorem fvarIdsIn_of_trExprS_abstractForallContext
     {env : VEnv} {Us : List Name} {domains : List VExpr} {e : Expr} {e' : VExpr}
     (H : TrExprS env Us (abstractForallContext domains []) e e') (P : FVarId → Prop) :
     e.FVarIdsIn P := by
@@ -531,7 +531,7 @@ theorem NestedRestorationOpening.paramUniform_of_lowered
 
 /-- **Closed-term commutation for forall telescopes** under the hit-shape
 condition (generated recursor and constructor types). -/
-theorem NestedRestorationOpening.restorationCommutes'
+theorem NestedRestorationOpening.restorationCommutes
     {r : Restoration} {result : Lean4Lean.ElimNestedInductive.Result}
     {env : Environment} {auxRec : NameMap Name} {sourceEnv targetEnv : VEnv}
     {Us : List Name} {auxLevels : List Level} {input output suffix : Expr}
@@ -569,25 +569,25 @@ theorem NestedRestorationOpening.restorationCommutes'
     ⟨Ds, sR, hDs, rfl, HsR⟩
   have HbodyS := TrExprS.instantiateRevFVars Hopen.selection.fvars Ds [] suffix sR
     (hlen.trans hDs.symm) hnodup
-    (fvarIdsIn_of_trExprS_abstractForallContext' HsR _) HsR
+    (fvarIdsIn_of_trExprS_abstractForallContext HsR _) HsR
   rw [← hbody, List.append_nil] at HbodyS
   rcases TrExprS.forallTelescope_shape_with_context
       (Hopen.outputPrefixTelescope Htel) Ht with ⟨Dt, tR, hDt, rfl, HtR⟩
   rw [Expr.abstractN_eq_abstractList_of_closed hnodup hrestored] at HtR
   have HbodyT := TrExprS.instantiateRevFVars Hopen.selection.fvars Dt [] _ tR
     (hlen.trans hDt.symm) hnodup
-    (fvarIdsIn_of_trExprS_abstractForallContext' HtR _) HtR
+    (fvarIdsIn_of_trExprS_abstractForallContext HtR _) HtR
   rw [TypeChecker.Expr.abstractList_instantiateRevList_eq_self hnodup hrestored,
     List.append_nil, Hopen.replacement.eq_replace] at HbodyT
-  have Hbody := _root_.Lean4Lean.VerifyInductive.restorationCommutes' A hc HAs hsize Hfresh Hshape
+  have Hbody := _root_.Lean4Lean.VerifyInductive.restorationCommutes A hc HAs hsize Hfresh Hshape
     (fvarScope_vlamShape _ Ds Dt (hDs.trans hDt.symm)).restoreCtxRel HbodyS HbodyT
   have Hsame := Hopen.sameForallPrefix Htel (FVarsIn_to_FVarIdsIn Hinput) hclosed
   exact restoration_expr_wrapForalls
     (Hsame.translatedDomains_restore hc Hfresh .nil Hs Ht hDs hDt) Hbody
 
-/-- `restoreNested` form of `NestedRestorationOpening.restorationCommutes'`,
+/-- `restoreNested` form of `NestedRestorationOpening.restorationCommutes`,
 from the bound-variable hit shape of the stored input. -/
-theorem NestedRestoration.restorationCommutes'
+theorem NestedRestoration.restorationCommutes
     {r : Restoration} {result : Lean4Lean.ElimNestedInductive.Result}
     {env : Environment} {auxRec : NameMap Name} {sourceEnv targetEnv : VEnv}
     {Us : List Name} {auxLevels : List Level} {input output suffix : Expr}
@@ -605,12 +605,12 @@ theorem NestedRestoration.restorationCommutes'
     (Hs : TrExprS sourceEnv Us [] input s) (Ht : TrExprS targetEnv Us [] output t) :
     r.expr s = some t := by
   rcases H.opening hparams with ⟨Hopen⟩
-  exact Hopen.restorationCommutes' A hc Hfresh (Hopen.paramUniform_of_lowered Htel Hshape).1
+  exact Hopen.restorationCommutes A hc Hfresh (Hopen.paramUniform_of_lowered Htel Hshape).1
     Htel Hinput hclosed (Hclosed Hopen) Hs Ht
 
 /-- The restored recursor type is the abstract restoration of the lowered
 recursor type, under the hit-shape condition. -/
-theorem RecursorRestoration.typeRestorationCommutes'
+theorem RecursorRestoration.typeRestorationCommutes
     {r : Restoration} {auxLevels : List Level} {sourceEnv targetEnv : VEnv}
     {suffix : Expr} {s t : VExpr}
     (H : RecursorRestoration result env auxRec allIndNames oldRecName newRecName
@@ -630,7 +630,7 @@ theorem RecursorRestoration.typeRestorationCommutes'
     (Ht : TrExprS targetEnv newInfo.levelParams [] newInfo.type t) :
     r.expr s = some t := by
   rw [H.levelParams] at Ht
-  exact H.type.restorationCommutes' hparams A hc Hfresh Hshape Hclosed Htel Hinput hclosed
+  exact H.type.restorationCommutes hparams A hc Hfresh Hshape Hclosed Htel Hinput hclosed
     Hs Ht
 
 /-! ### Whole rule right-hand sides -/

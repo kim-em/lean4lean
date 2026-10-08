@@ -262,7 +262,7 @@ theorem HasType.wrapLams_inv (henv : VEnv.WF env) :
   | cons d ds ih =>
     intro Γ body T hΓ H
     change env.HasType U Γ (.lam d (VExpr.wrapLams ds body)) (.forallE d (VExpr.wrapForalls ds T)) at H
-    have ⟨B, hB, hbody⟩ := H.lam_inv' henv hΓ
+    have ⟨B, hB, hbody⟩ := H.lam_inv_forallE henv hΓ
     have hd : env.IsType U Γ d := (IsType.forallE_inv henv.ordered (H.isType henv.ordered hΓ)).1
     have hΓ' : OnCtx (d :: Γ) (env.IsType U) := And.intro hΓ hd
     have ⟨_, _, hBT⟩ := hB.forallE_inv henv hΓ

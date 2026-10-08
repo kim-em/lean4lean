@@ -20,10 +20,10 @@ theorem boolOp2_apply (henv : env.WF) {g : Bool → Bool → Bool}
     (hb : env.IsDefEqU U [] b (.boolLit bb)) (hwf : VExpr.WF env U [] ((f.app a).app b)) :
     env.HasType U [] ((f.app a).app b) .bool ∧
     env.IsDefEqU U [] ((f.app a).app b) (.boolLit (g ba bb)) := by
-  obtain ⟨-, hfa⟩ := VExpr.WF.app_inv' henv trivial hfT (hwf.app_inv₂ henv trivial).1
+  obtain ⟨-, hfa⟩ := VExpr.WF.app_inv_of_hasType henv trivial hfT (hwf.app_inv₂ henv trivial).1
   have hfa : env.HasType U [] (f.app a) (.forallE .bool .bool) := by
     simpa [VExpr.inst, VExpr.bool] using hfa
-  obtain ⟨-, hab⟩ := VExpr.WF.app_inv' henv trivial hfa hwf
+  obtain ⟨-, hab⟩ := VExpr.WF.app_inv_of_hasType henv trivial hfa hwf
   refine ⟨by simpa [VExpr.inst, VExpr.bool] using hab, .trans henv trivial ?_ (hfg ba bb)⟩
   exact (VEnv.IsDefEqU.appN' henv trivial (xs := [a, b]) (ys := [VExpr.boolLit ba, .boolLit bb])
     ⟨_, hfT⟩ (.cons ha (.cons hb .nil)) (by simpa [VExpr.appN] using hwf) :)
@@ -159,7 +159,7 @@ theorem checkNatBitwise.WF {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safe
       have hfeq : (hfΔ.tgt.lift).subst ((γ.cons ih).cons pf) = γ 2 := by
         simp [hfΔ, hfb, TrTerm.wk, VExpr.lift, VExpr.liftN, liftVar, VExpr.Subst.cons]
       -- the conditional's own pieces are closed, so the closing only reaches the decision
-      simp only [iteApp, VExpr.subst, wb.propC.subst_eq', wb.decC.subst_eq', hfeq] at hwf ⊢
+      simp only [iteApp, VExpr.subst, wb.propC.subst_eq_of_closed, wb.decC.subst_eq_of_closed, hfeq] at hwf ⊢
       -- the decision: the operator at the two boolean values it is applied to
       obtain ⟨hbeT, hbeeq⟩ := boolOp2_apply E.wf hfgT hfgE hea heb
         (pk (pk (pk (pk (pk hwf).1).1).1).2).2
@@ -180,7 +180,7 @@ theorem checkNatBitwise.WF {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safe
     cases TrExprS.unique (by simp [TrExprS.IsUnique, zero]) hD0z (zerob hnat).trS
     subst hshape0
     have hwfr0 : E.WF₀ _ := E.monoW (hrhs.wf hE cwf2.wf.tr.wf) |>.subst E.wf hclS
-    simp only [diteApp, VExpr.subst, wc.propC.subst_eq', wc.decC.subst_eq', hxs, zerob,
+    simp only [diteApp, VExpr.subst, wc.propC.subst_eq_of_closed, wc.decC.subst_eq_of_closed, hxs, zerob,
       TrTerm.natZero, TrTerm.of] at hwfr0 ⊢
     obtain ⟨pf0, hev0⟩ := wc.natEq_diteEval (hcdite rfl).2.1 wf.hasPrimitives hnat E.cast
       (hlitR x) (hlitR 0) (by simpa [VExpr.WF, diteApp, VExpr.natLit] using hwfr0)
@@ -253,7 +253,7 @@ theorem checkNatBitwise.WF {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safe
         (TrExprS.natZero wf.hasPrimitives hnat).1
       cases TrExprS.unique (by simp [TrExprS.IsUnique]) hα2 trNatS
       simp only [iteApp, VExpr.subst, VExpr.lift_subst, VExpr.Subst.cons_tail,
-        wc.propC.subst_eq', wc.decC.subst_eq', hys, VExpr.natZero] at hwfe0 ⊢
+        wc.propC.subst_eq_of_closed, wc.decC.subst_eq_of_closed, hys, VExpr.natZero] at hwfe0 ⊢
       have hev2 := wc.natEq_iteEval (hcite rfl).2 wf.hasPrimitives hnat E.cast
         (hlitR y) (hlitR 0) (by simpa [VExpr.WF, iteApp, VExpr.natLit, VExpr.natZero] using hwfe0)
       refine hev2.trans E.wf trivial ?_
@@ -288,8 +288,8 @@ theorem checkNatBitwise.WF {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safe
             ⟨cwf2.wf.tr.wf, nofun, hYT⟩; ?_
         have hS1 := VEnv.Ctx.SubstEq.cons (σ := (γ.cons ih).cons pf0) (σ' := (γ.cons ih).cons pf0)
             hclS (E.monoT hYT.choose_spec) <| by
-          simpa only [VExpr.Subst.cons_tail, VExpr.Subst.cons_head, VExpr.subst, wc.propC.subst_eq',
-            wc.decC.subst_eq', hxs, zerob, TrTerm.natZero, TrTerm.of, VExpr.natZero,
+          simpa only [VExpr.Subst.cons_tail, VExpr.Subst.cons_head, VExpr.subst, wc.propC.subst_eq_of_closed,
+            wc.decC.subst_eq_of_closed, hxs, zerob, TrTerm.natZero, TrTerm.of, VExpr.natZero,
             VContext.withMLC, VEnv.HasType] using (VExpr.WF.betaU E.wf trivial hwfif).1
         -- the well-formedness of every piece, read off the conditional's own
         have hwfit := by
@@ -400,5 +400,5 @@ theorem checkNatBitwise.WF {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safe
         TrTerm.of, TrTerm.fvar, TrTerm.wk] using hlhs
     · exact IH (x'/2, y'/2) arg hy (Nat.div_lt_self (Nat.pos_of_ne_zero hx0) (by decide))
         (by simpa using harg) hwfa
-  simpa [VContext.Ext.IsDefEqU₀, VContext.withMLC, hlp, VExpr.appN, VExpr.subst, hvalC.subst_eq',
+  simpa [VContext.Ext.IsDefEqU₀, VContext.withMLC, hlp, VExpr.appN, VExpr.subst, hvalC.subst_eq_of_closed,
     VExpr.Subst.cons] using hdone ⟨env', hle, hwf''⟩ (.cons .id fv) hγ _ hDone (x, y)

@@ -349,15 +349,15 @@ theorem NestedRun.restoredEquationAuxiliaryConstructors_of
 
 /-! ### Projections with a registered constructor type -/
 
-theorem _root_.Lean4Lean.VExpr.forallArity_mkApps_of_zero' :
+theorem _root_.Lean4Lean.VExpr.forallArity_mkApps_of_zero :
     ∀ {f : VExpr} (xs : List VExpr), f.forallArity = 0 →
       (VExpr.mkApps f xs).forallArity = 0
   | _, [], h => h
-  | _, _ :: xs, _ => VExpr.forallArity_mkApps_of_zero' (f := .app _ _) xs rfl
+  | _, _ :: xs, _ => VExpr.forallArity_mkApps_of_zero (f := .app _ _) xs rfl
 
 private theorem forallArity_mkApps_cons (f x : VExpr) (xs : List VExpr) :
     (VExpr.mkApps f (x :: xs)).forallArity = 0 :=
-  VExpr.forallArity_mkApps_of_zero' (f := .app f x) xs rfl
+  VExpr.forallArity_mkApps_of_zero (f := .app f x) xs rfl
 
 private theorem Restoration.go_forallArity (r : Restoration) :
     ∀ (e : VExpr) (args : List VExpr) (out : VExpr), Restoration.expr.go r e args = some out →
@@ -382,10 +382,10 @@ private theorem Restoration.go_forallArity (r : Restoration) :
         · cases h
         · simp only [Option.pure_def, Option.some.injEq] at h
           subst h
-          exact VExpr.forallArity_mkApps_of_zero' _ rfl
+          exact VExpr.forallArity_mkApps_of_zero _ rfl
       · simp only [Option.some.injEq] at h
         subst h
-        exact VExpr.forallArity_mkApps_of_zero' _ rfl
+        exact VExpr.forallArity_mkApps_of_zero _ rfl
     rw [h0]; split <;> rfl
   | app fn arg ihf _ =>
     intro args out h
@@ -398,7 +398,7 @@ private theorem Restoration.go_forallArity (r : Restoration) :
     simp only [Restoration.expr.go, Option.bind_eq_bind, Option.bind_eq_some_iff,
       Option.pure_def, Option.some.injEq] at h
     obtain ⟨d', _, b', _, rfl⟩ := h
-    rw [VExpr.forallArity_mkApps_of_zero' _ rfl]
+    rw [VExpr.forallArity_mkApps_of_zero _ rfl]
     split <;> rfl
   | forallE d b _ ihb =>
     intro args out h
@@ -416,7 +416,7 @@ private theorem Restoration.go_forallArity (r : Restoration) :
     simp only [Restoration.expr.go, Option.bind_eq_bind, Option.bind_eq_some_iff,
       Option.pure_def, Option.some.injEq] at h
     obtain ⟨m', _, rfl⟩ := h
-    rw [VExpr.forallArity_mkApps_of_zero' _ rfl]
+    rw [VExpr.forallArity_mkApps_of_zero _ rfl]
     split <;> rfl
 
 /-- Restoration preserves the syntactic forall arity. -/

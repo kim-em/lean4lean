@@ -2810,7 +2810,7 @@ theorem MotivePassHeaderAt.startRecursorParameterTyping
       #[] fuel (by omega) Hscope hscopeEq hcompleteScope Hsynthesis
       hnormalizedNarrow
       (by simpa [VLCtx.fvars] using hnormalizedNoFVars) hnormalizedU
-      hnormalizedFull hnormalizedFullType rfl (.start (hcallHeader.mono (BindingContextLE.checkLCtx' current _) fun _ h => h))
+      hnormalizedFull hnormalizedFullType rfl (.start (hcallHeader.mono (BindingContextLE.checkLCtx_rev current _) fun _ h => h))
 
 /-- The index telescope opened by `loopArgs1` mentions only `Us` when its
 declarations lie in a universe scope of the narrow index scope. -/
@@ -2968,7 +2968,7 @@ theorem MotivePassHeaderAt.startRecursorTyping
     rfl rfl (FVarArrayBinderTypes.empty _)
     (TrBinderTypes.empty RL)
     (RecursorFVarSuffix.empty RL)
-    (Htrace.mono (BindingContextLE.checkLCtx' current _)) (by
+    (Htrace.mono (BindingContextLE.checkLCtx_rev current _)) (by
       intro fv hfv
       rw [Hsuffix.parameterDecls_fvars] at hfv
       exact .inl (List.mem_reverse.mp hfv))

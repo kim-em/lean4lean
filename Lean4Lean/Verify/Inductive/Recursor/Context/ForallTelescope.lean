@@ -3978,7 +3978,7 @@ theorem BindingContextLE.checkLCtx (c : AddInductive.Context) (l : LocalContext)
     BindingContextLE { c with checkLCtx := l } c :=
   ⟨fun _ => id, fun _ _ => rfl, rfl, rfl, rfl, rfl, rfl⟩
 
-theorem BindingContextLE.checkLCtx' (c : AddInductive.Context) (l : LocalContext) :
+theorem BindingContextLE.checkLCtx_rev (c : AddInductive.Context) (l : LocalContext) :
     BindingContextLE c { c with checkLCtx := l } :=
   ⟨fun _ => id, fun _ _ => rfl, rfl, rfl, rfl, rfl, rfl⟩
 

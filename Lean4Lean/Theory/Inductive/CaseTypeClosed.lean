@@ -276,7 +276,7 @@ theorem vars_closedN (count below : Nat) :
   show below + i < below + count
   omega
 
-theorem vars_closedN' {count below n : Nat} (h : below + count ≤ n) :
+theorem vars_closedN_of_le {count below n : Nat} (h : below + count ≤ n) :
     ∀ a ∈ vars count below, a.ClosedN n :=
   fun a ha => (vars_closedN count below a ha).mono h
 
@@ -420,7 +420,7 @@ theorem case_restorable (schema : CaseSchema) (owner : Fin schema.signature.fami
 
 /-! ## Closedness of the generated case type -/
 
-theorem ScopedDoms.append' {A B : List VExpr} (hA : ScopedDoms n A) (hlen : A.length = a)
+theorem ScopedDoms.append_of_length {A B : List VExpr} (hA : ScopedDoms n A) (hlen : A.length = a)
     (hB : ScopedDoms (n + a) B) : ScopedDoms n (A ++ B) :=
   hA.append (hlen ▸ hB)
 
@@ -440,12 +440,12 @@ theorem case_closedN (schema : CaseSchema) (owner : Fin schema.signature.familie
       schema.signature.families[owner] := rfl
   simp only [Instance.recursorType, hfam]
   apply ClosedN.wrapForalls_closed
-  · refine ScopedDoms.append' (a := schema.signature.params.length + 1 +
+  · refine ScopedDoms.append_of_length (a := schema.signature.params.length + 1 +
       (schema.view owner).constructors.size + schema.signature.families[owner].indices.length)
-      (ScopedDoms.append' (a := schema.signature.params.length + 1 +
+      (ScopedDoms.append_of_length (a := schema.signature.params.length + 1 +
         (schema.view owner).constructors.size)
-        (ScopedDoms.append' (a := schema.signature.params.length + 1)
-          (ScopedDoms.append' (a := schema.signature.params.length)
+        (ScopedDoms.append_of_length (a := schema.signature.params.length + 1)
+          (ScopedDoms.append_of_length (a := schema.signature.params.length)
             (hp.map_instL _) (by simp [Instance.params, CaseSchema.view]) ?motive)
           (by simp [Instance.params, Instance.motives, CaseSchema.view] <;> omega) ?minors)
         (by simp [Instance.params, Instance.motives, Instance.minors, CaseSchema.view] <;> omega)
@@ -457,13 +457,13 @@ theorem case_closedN (schema : CaseSchema) (owner : Fin schema.signature.familie
       apply ScopedDoms.singleton
       simp only [Instance.motive]
       apply ClosedN.wrapForalls_closed
-      · refine ScopedDoms.append' (a := schema.signature.families[owner].indices.length)
+      · refine ScopedDoms.append_of_length (a := schema.signature.families[owner].indices.length)
           (((hi.map_instL _).insertBinders 0).shift (by omega)) (by simp [insertBinders]) (ScopedDoms.singleton ?_)
         apply ClosedN.mkApps_closed (hconst _ _ _)
         intro a ha
         rcases List.mem_append.mp ha with ha | ha
-        · exact vars_closedN' (by simp [insertBinders, CaseSchema.view] <;> omega) a ha
-        · exact vars_closedN' (by simp [insertBinders, CaseSchema.view]) a ha
+        · exact vars_closedN_of_le (by simp [insertBinders, CaseSchema.view] <;> omega) a ha
+        · exact vars_closedN_of_le (by simp [insertBinders, CaseSchema.view]) a ha
       · trivial
     case minors =>
       intro i hi'
@@ -496,8 +496,8 @@ theorem case_closedN (schema : CaseSchema) (owner : Fin schema.signature.familie
           apply ClosedN.mkApps_closed (hconst _ _ _)
           intro a ha
           rcases List.mem_append.mp ha with ha | ha
-          · exact vars_closedN' (by simp [insertBinders, fieldTypes, hnf, CaseSchema.view] <;> omega) a ha
-          · exact vars_closedN' (by simp [insertBinders, fieldTypes, hnf, CaseSchema.view] <;> omega) a ha
+          · exact vars_closedN_of_le (by simp [insertBinders, fieldTypes, hnf, CaseSchema.view] <;> omega) a ha
+          · exact vars_closedN_of_le (by simp [insertBinders, fieldTypes, hnf, CaseSchema.view] <;> omega) a ha
     case indices =>
       exact ((hi.map_instL _).insertBinders _).shift (by simp [CaseSchema.view] <;> omega)
     case major =>
@@ -505,8 +505,8 @@ theorem case_closedN (schema : CaseSchema) (owner : Fin schema.signature.familie
       apply ClosedN.mkApps_closed (hconst _ _ _)
       intro a ha
       rcases List.mem_append.mp ha with ha | ha
-      · exact vars_closedN' (by simp [insertBinders, CaseSchema.view] <;> omega) a ha
-      · exact vars_closedN' (by simp [insertBinders, CaseSchema.view] <;> omega) a ha
+      · exact vars_closedN_of_le (by simp [insertBinders, CaseSchema.view] <;> omega) a ha
+      · exact vars_closedN_of_le (by simp [insertBinders, CaseSchema.view] <;> omega) a ha
   · apply ClosedN.mkApps_closed
     · show _ < _
       simp [insertBinders, Instance.params, Instance.motives, Instance.minors, CaseSchema.view]
@@ -514,7 +514,7 @@ theorem case_closedN (schema : CaseSchema) (owner : Fin schema.signature.familie
     intro a ha
     simp only [List.mem_append, List.mem_singleton] at ha
     rcases ha with ha | rfl
-    · exact vars_closedN' (by
+    · exact vars_closedN_of_le (by
         simp [insertBinders, Instance.params, Instance.motives, Instance.minors, CaseSchema.view]
         <;> omega) a ha
     · show 0 < _
@@ -533,13 +533,13 @@ theorem ScopedDoms.append_inv {A B : List VExpr} (h : ScopedDoms n (A ++ B)) :
     rw [List.getElem_append_right (by omega)] at this
     simpa [Nat.add_assoc] using this
 
-private theorem ctxClosed_of_onCtx' {env : VEnv} {U : Nat} (henv : env.Ordered) :
+private theorem ctxClosed_of_onCtx {env : VEnv} {U : Nat} (henv : env.Ordered) :
     ∀ {Γ : List VExpr}, OnCtx Γ (env.IsType U) → CtxClosed Γ
   | [], _ => trivial
   | _ :: _, ⟨h1, _, h2⟩ =>
-    ⟨ctxClosed_of_onCtx' henv h1, VExpr.WF.closedN henv ⟨_, h2⟩ (ctxClosed_of_onCtx' henv h1)⟩
+    ⟨ctxClosed_of_onCtx henv h1, VExpr.WF.closedN henv ⟨_, h2⟩ (ctxClosed_of_onCtx henv h1)⟩
 
-private theorem wrapForalls_sort_closedN' {level : VLevel} :
+private theorem wrapForalls_sort_closedN {level : VLevel} :
     ∀ {domains Γ : List VExpr}, CtxClosed (domains.reverse ++ Γ) →
       (wrapForalls domains (.sort level)).ClosedN Γ.length
   | [], _, _ => trivial
@@ -547,7 +547,7 @@ private theorem wrapForalls_sort_closedN' {level : VLevel} :
     have H' : CtxClosed (ds.reverse ++ d :: Γ) := by
       simpa [List.reverse_cons, List.append_assoc] using H
     have hd : CtxClosed (d :: Γ) := OnCtx.of_append H'
-    exact ⟨hd.2, wrapForalls_sort_closedN' (Γ := d :: Γ) H'⟩
+    exact ⟨hd.2, wrapForalls_sort_closedN (Γ := d :: Γ) H'⟩
 
 theorem CaseCompilationData.case_scoping
     {s : InductiveSignature}
@@ -576,9 +576,9 @@ theorem CaseCompilationData.case_scoping
       expanded.projectionEntries, []⟩)
     hbaseOrd hECOrd hnodup htWF hcu hcWF hdata.expandedFormation.sourceParameterWF hraw
     rfl rfl rfl hT hC
-  have hfamClosed := wrapForalls_sort_closedN' (level := s.families[owner].resultLevel) (Γ := [])
+  have hfamClosed := wrapForalls_sort_closedN (level := s.families[owner].resultLevel) (Γ := [])
     (domains := s.params ++ s.families[owner].indices)
-    (by simpa [List.reverse_append] using ctxClosed_of_onCtx' hfamOrd (hfamWF owner).1)
+    (by simpa [List.reverse_append] using ctxClosed_of_onCtx hfamOrd (hfamWF owner).1)
   obtain ⟨hfs, -⟩ := closedN_wrapForalls_inv hfamClosed
   obtain ⟨hp, hi⟩ := hfs.append_inv
   refine ⟨hp, fun c hc => ?_, by simpa using hi⟩

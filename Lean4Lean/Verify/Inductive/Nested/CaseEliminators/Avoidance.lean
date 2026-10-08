@@ -281,7 +281,7 @@ section
 variable {s : InductiveSignature} {L : List Name} (S : SigAvoids L s) (g : Instance s)
 include S
 
-theorem SigAvoids.params' : ∀ p ∈ g.params, p.containsAnyConst L = false := by
+theorem SigAvoids.instance_params : ∀ p ∈ g.params, p.containsAnyConst L = false := by
   intro p hp
   simp only [Instance.params, List.mem_map] at hp
   obtain ⟨p, hp, rfl⟩ := hp
@@ -357,7 +357,7 @@ theorem SigAvoids.recursorType (owner : Fin s.families.size) :
   · intro d hd
     simp only [List.mem_append, List.mem_singleton] at hd
     rcases hd with (((hd | hd) | hd) | hd) | rfl
-    · exact S.params' g d hd
+    · exact S.instance_params g d hd
     · exact S.motives g d hd
     · exact S.minors g d hd
     · exact insertBinders_avoids (by
@@ -388,7 +388,7 @@ theorem SigAvoids.equation (index : Fin s.constructors.size) (block : Name) (fir
     intro d hd
     simp only [List.mem_append] at hd
     rcases hd with ((hd | hd) | hd) | hd
-    · exact S.params' g d hd
+    · exact S.instance_params g d hd
     · exact S.motives g d hd
     · exact S.minors g d hd
     · exact S.fields g hc _ d hd

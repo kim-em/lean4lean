@@ -99,11 +99,11 @@ theorem TeleKeys.data (h : TeleKeys env U Δ σ S ds keys σ' S') :
       have := hd i k y' A' hk hy' hA
       simpa [List.take_succ_cons, List.foldl_cons, extS] using this
 
-theorem forall₂_take' {R : α → β → Prop} : ∀ (i : Nat) {l₁ : List α} {l₂ : List β},
+theorem forall₂_take {R : α → β → Prop} : ∀ (i : Nat) {l₁ : List α} {l₂ : List β},
     List.Forall₂ R l₁ l₂ → List.Forall₂ R (l₁.take i) (l₂.take i)
   | 0, _, _, _ => by simp
   | _ + 1, _, _, .nil => by simp
-  | i + 1, _, _, .cons h H => by simpa using List.Forall₂.cons h (forall₂_take' i H)
+  | i + 1, _, _, .cons h H => by simpa using List.Forall₂.cons h (forall₂_take i H)
 
 section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
@@ -227,7 +227,7 @@ theorem substEq_take {Ds : List VExpr} :
         Ctx.SubstEq env U Δ (VExpr.argSubst (as.take m)) (VExpr.argSubst (bs.take m))
           (Ds.take m).reverse := by
   intro as
-  induction as using List.reverseRecOn' with
+  induction as using List.reverseRecOn with
   | nil =>
     intro bs hl _ W m hm
     cases bs with
@@ -435,7 +435,7 @@ structure ProjCtx (env : VEnv) (U : Nat) (Δ : List VExpr) (S : Name) (info : VP
   famSub : Ob.Sub (Obs env U Δ .id .empty (famType.instL ls))
     (Obs env U Δ .id .empty
       (.wrapForalls (hdoms.map (fun d : VExpr => d.instL ls)) (.sort (info.resultLevel.inst ls))))
-  famSub' : Ob.Sub (Obs env U Δ .id .empty
+  famSub_symm : Ob.Sub (Obs env U Δ .id .empty
       (.wrapForalls (hdoms.map (fun d : VExpr => d.instL ls)) (.sort (info.resultLevel.inst ls))))
     (Obs env U Δ .id .empty (famType.instL ls))
   famPi : PiSD env U Δ [] (hdoms.map (fun d : VExpr => d.instL ls)) (.sort (info.resultLevel.inst ls))
@@ -507,7 +507,7 @@ theorem ProjValid.ctx (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U)) {S : 
       famConst := hle.constants hfc
       hdoms_len := by simp [hol, hil]
       famSub := ?_
-      famSub' := ?_
+      famSub_symm := ?_
       famPi := piSD_of hord hle hsE' trivial hfamTy
       famClosed := fun i hi => closed_doms_of_isType henv hfamTy' i (by simpa using hi)
       ctorClosed := fun i hi => closed_doms_of_isType henv
@@ -626,7 +626,7 @@ theorem Obs.ctorSpine_fieldOb_inv {S : Name} {info : VProjectionInfo}
     (h : Obs' σ S0 (.mkApps (.const info.ctorName ls) args) (.fieldOb S j L k)) :
     args.length = info.nparams + info.numFields ∧ j < info.numFields ∧
       ∃ a, args[info.nparams + j]? = some a ∧ ∃ k', Obs' σ S0 a k' ∧ k' ≼ k := by
-  obtain ⟨keys0, hk0, h'⟩ := wrap_of_obs_mkApps' h
+  obtain ⟨keys0, hk0, h'⟩ := wrap_of_obs_mkApps_le h
   generalize hw : wrap keys0 (Ob.fieldOb S j L k) = w at h'
   cases h' with
   | const _ _ _ _ hr =>
@@ -831,7 +831,7 @@ theorem fam_keys {S : Name} {info : VProjectionInfo} {ls : List VLevel}
     simp [famArgs_length, C.idx_len, C.hdoms_len]
   obtain ⟨v, hR⟩ := C.hts
   rw [ctorRes_instL hlen] at hR
-  obtain ⟨W', tv'⟩ := TeleKeys.typed' henv hΔ KD.tele C.piSD.doms .nil TV.empty
+  obtain ⟨W', tv'⟩ := TeleKeys.typed henv hΔ KD.tele C.piSD.doms .nil TV.empty
   simp only [List.append_nil] at W' tv'
   obtain ⟨W2, tv2⟩ := spine_tele henv hΔ hR W' tv' C.famConst C.famSub C.famPi (by omega)
   rw [hAl, List.take_length] at W2 tv2
@@ -1059,7 +1059,7 @@ theorem fam_field_obs {S : Name} {info : VProjectionInfo} (hp : env.projections 
       (τc := [.sort (info.resultLevel.inst ls).eval])
       (fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact .sort) hr
     obtain ⟨τs, h3, h4⟩ := exists_list_cover (R := fun y x => y ≼ x)
-      fun τ hτ => C.famSub' τ (h1 τ hτ)
+      fun τ hτ => C.famSub_symm τ (h1 τ hτ)
     exact ⟨τs, h3, fun cv => (h2 cv).strengthen h4⟩
   have hnz' : ∀ ns, (info.resultLevel.inst ls).eval ns ≠ 0 := hnz
   -- the chain of keys for the field domain
@@ -1142,7 +1142,7 @@ theorem fam_field_obs {S : Name} {info : VProjectionInfo} (hp : env.projections 
         obtain ⟨τi, h3, h4⟩ := TypedAt.merge (KD.typed i kd hkd)
         refine ⟨τi, fun k τ hk hτ => ?_, fun k y hk hy => ?_⟩
         · have e : keySets ((keysF.take info.nparams ++ FL).take i) = keySets (keysD.take i) := by
-            rw [keySets_congr (forall₂_take' i hFor), List.take_take, Nat.min_eq_left (by omega)]
+            rw [keySets_congr (forall₂_take i hFor), List.take_take, Nat.min_eq_left (by omega)]
           rw [List.take_take, Nat.min_eq_left (by omega), e]
           exact h3 τ hτ
         · rw [hKi, Option.some.injEq] at hk
@@ -1196,7 +1196,7 @@ theorem field_typed {S : Name} {info : VProjectionInfo} (hp : env.projections S 
   have hkl : keysD.length = doms.length := by simpa using KD.len
   have hDl : (doms.map (·.instL ls)).length = doms.length := by simp
   have hnf : info.numFields = doms.length - info.nparams := by rw [C.tele.numFields, hDl]
-  obtain ⟨W, -⟩ := TeleKeys.typed' henv hΔ KD.tele C.piSD.doms .nil TV.empty
+  obtain ⟨W, -⟩ := TeleKeys.typed henv hΔ KD.tele C.piSD.doms .nil TV.empty
   simp only [List.append_nil] at W
   have hcls := ctor_field_cls henv hΔ hp hst.ctorClosed C hls hlen hnz hyl W
   -- the class of a field key is the class of the projections
@@ -1401,7 +1401,7 @@ theorem fam_rigid_obs {S : Name} {info : VProjectionInfo} (hrig : env.Rigid S)
     (fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact .sort)
     (fun cv => .rigid (List.mem_singleton_self _))
   obtain ⟨τs, h3, h4⟩ := exists_list_cover (R := fun y x => y ≼ x)
-    fun τ hτ => C.famSub' τ (h1 τ hτ)
+    fun τ hτ => C.famSub_symm τ (h1 τ hτ)
   rw [← hkFl]
   exact obs_mkApps_of_wrap hargs (.const hrig C.famConst h3 ((h2 _).strengthen h4)
     (.inl ⟨_, rfl⟩))

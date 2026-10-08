@@ -42,7 +42,7 @@ theorem instantiateList_fvars_forallE {e : Expr} {as : List Expr} {k : Nat}
     exact instantiate1'_fvar_forallE h1
 
 /-- `instantiateList_instantiate1_comm` at an arbitrary depth. -/
-theorem instantiateList_instantiate1_comm' {e a : Expr} {as : List Expr} {k : Nat}
+theorem instantiateList_instantiate1_comm {e a : Expr} {as : List Expr} {k : Nat}
     (ha : a.looseBVarRange' = 0) (has : ∀ x ∈ as, x.looseBVarRange' = 0) :
     (e.instantiateList as (k + 1)).instantiate1' a k =
     (e.instantiate1' a k).instantiateList as k := by
@@ -58,7 +58,7 @@ theorem instantiateList_delete {b₀ g : Expr} {as : List Expr}
     (hg : g.looseBVarRange' = 0) (has : ∀ x ∈ as, x.looseBVarRange' = 0) :
     ((b₀.liftLooseBVars' 0 1).instantiateList as 1).instantiate1' g =
     b₀.instantiateList as := by
-  rw [instantiateList_instantiate1_comm' (k := 0) hg has, Expr.instantiate1'_liftLooseBVars_0]
+  rw [instantiateList_instantiate1_comm (k := 0) hg has, Expr.instantiate1'_liftLooseBVars_0]
 
 theorem FVarsIn.of_liftLooseBVars {P : FVarId → Prop} {e : Expr} {s d : Nat}
     (h : FVarsIn P (e.liftLooseBVars' s d)) : FVarsIn P e := by

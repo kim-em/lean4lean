@@ -18,7 +18,7 @@ over the common parameters (`Restoration.lambdaReplacement`) is a
 `RestorationSubstitution envTypes envL`; with beta subject reduction of the
 well-formed `envTypes` it transports the defeq of `Models.constructors`
 between a normalized and a lowered constructor type to the source
-environment (`RestoresType.of_models_constructor'`).
+environment (`RestoresType.of_models_constructor`).
 
 The facts not derived from the run are collected in
 `LoweredConstructorsRestore`. The specialization list and the freshness
@@ -212,14 +212,14 @@ theorem forall₂_ctors_split {R : VConstVal → VConstVal → Prop} :
     obtain ⟨h1, h2⟩ := (Lean4Lean.List.Forall₂.append_of_left hlen).mp H
     exact .cons h1 (forall₂_ctors_split hrest h2)
 
-theorem forall₂_take' {R : α → β → Prop} :
+theorem forall₂_take {R : α → β → Prop} :
     ∀ {l : List α} {r : List β} (_ : List.Forall₂ R l r) (k : Nat),
       List.Forall₂ R (l.take k) (r.take k)
   | _, _, .nil, _ => by simp
   | _, _, .cons _ _, 0 => by simp
   | _, _, .cons h t, k + 1 => by
     simp only [List.take_succ_cons]
-    exact .cons h (forall₂_take' t k)
+    exact .cons h (forall₂_take t k)
 
 /-- The constructor correspondence of the source families, from a restoration
 substitution, the defeq of normalized and lowered constructor types in the
@@ -246,7 +246,7 @@ theorem sourceConstructors_of_substitution {envS envL : VEnv} {r : Restoration}
     (Lean4Lean.List.Forall₂.and_mem hnl) hls
   obtain ⟨hd, hnc, -⟩ := hd
   obtain ⟨restored, hr, hsim⟩ := hl
-  exact RestoresType.of_models_constructor' S hβ hd hr hsim (Htotal n hn nc hnc)
+  exact RestoresType.of_models_constructor S hβ hd hr hsim (Htotal n hn nc hnc)
 
 end InductiveSignature
 
@@ -509,7 +509,7 @@ theorem NestedRun.sourceConstructors_of_lowering
       E.lowered.signature.declaration.types E.lowered.loweredDecl.types :=
     Lean4Lean.List.Forall₂.imp (fun _ _ h => by
       simpa using congrArg List.length h.2.2.2.2) Hmodels.families
-  have Hdefeq := forall₂_take' (forall₂_ctors_split (R := fun nc lc : VConstVal =>
+  have Hdefeq := forall₂_take (forall₂_ctors_split (R := fun nc lc : VConstVal =>
       E.lowered.constructors.toConstructorCheck.headerVEnv.IsDefEqU sourceDecl.uvars []
         nc.type lc.type) Hlengths
     (Lean4Lean.List.Forall₂.imp (fun _ _ h => by

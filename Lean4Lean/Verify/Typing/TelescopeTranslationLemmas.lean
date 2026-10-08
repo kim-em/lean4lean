@@ -452,7 +452,7 @@ theorem _root_.Lean4Lean.TelTr.toTelTrN :
 
 /-! ### Certificates of the primitive constructor types -/
 
-theorem lift_const' (c : Name) (ls : List VLevel) : (VExpr.const c ls).lift = .const c ls := rfl
+theorem lift_const (c : Name) (ls : List VLevel) : (VExpr.const c ls).lift = .const c ls := rfl
 
 theorem TrExprS.const_ctx {Δ Δ' : VLCtx}
     (H : TrExprS env Us Δ (.const c us) e) : TrExprS env Us Δ' (.const c us) e := by
@@ -472,7 +472,7 @@ theorem TelTrN.constArrow
   | forallE h1 h2 hd hb =>
     have hbc := hb
     cases hbc
-    refine .succ (.forallE h1 h2 hd hb) (.zero hb) (fun _ _ => ⟨_, (lift_const' ..).symm⟩) ?_
+    refine .succ (.forallE h1 h2 hd hb) (.zero hb) (fun _ _ => ⟨_, (lift_const ..).symm⟩) ?_
     intro b₀ b₀' e₀ e₀'
     have hb₀ : b₀ = .const c cs := by
       cases b₀ <;> simp [Expr.liftLooseBVars'] at e₀

@@ -79,7 +79,7 @@ theorem LEquiv.forallE_inv_l {U : Nat} {A b T : VExpr} (H : LEquiv U (.forallE A
   | forallE h1 h2 => cases hx; exact ⟨_, _, rfl, h1, h2⟩
   | _ => cases hx
 
-@[simp] theorem replaceRen_proj' {ρ : Name → Option VExpr} {σ : Name → Name}
+@[simp] theorem replaceRen_proj {ρ : Name → Option VExpr} {σ : Name → Name}
     {n : Name} {i : Nat} {e : VExpr} :
     (VExpr.proj n i e).replaceRen ρ σ = .proj (σ n) i (e.replaceRen ρ σ) := rfl
 
@@ -187,7 +187,7 @@ theorem fieldTransport_of_specialization {envS : VEnv} (henv : envS.WF)
           envS.IsDefEq U Γ (F.replaceRen ρ σ) F' (.sort ℓ) := by
   intro U Γ lv params index major F hΓ hlv hF
   obtain ⟨hlvLen, hparamsLen⟩ := VProjectionInfo.fieldType_lengths hF
-  have h1 := VProjectionInfo.fieldType_replaceRen' (typeName := typeName) (levels := lv)
+  have h1 := VProjectionInfo.fieldType_replaceRen_renamed (typeName := typeName) (levels := lv)
     (params := params) (index := index) (major := major) (σ := σ) hρ info
   rw [hF, hσtn] at h1
   obtain ⟨Y, hY, hFY⟩ := VProjectionInfo.fieldType_betaRed (ctorType' := G) hBR h1
@@ -297,14 +297,14 @@ theorem ProjectionRulesRenamedOnCtx.of_specialization {envS : VEnv} (henv : envS
       (by simp [hlsLen]) (by simp [hargsLen])
       (by simp [hindices, hnindices]) hF' hdefF.hasType.2 ihLeft' ihRight' hclosedJ
       (hguardA.imp (hguard lv) id)
-    simp only [VExpr.replaceRen_proj', hσtn]
+    simp only [VExpr.replaceRen_proj, hσtn]
     exact .defeqDF hdefF.symm hP'
   projIota := by
     intro U Γ index lv args field F hΓ ih1 h3 ih2
     have hlen : info.nparams ≤ args.length := by
       have := (List.getElem?_eq_some_iff.mp h3).1
       omega
-    simp only [VExpr.replaceRen_proj', VExpr.replaceRen_mkApps,
+    simp only [VExpr.replaceRen_proj, VExpr.replaceRen_mkApps,
       VExpr.replaceRen_const_some hctor, hσtn] at ih1 ⊢
     have hsplit : args.map (·.replaceRen ρ σ) =
         (args.map (·.replaceRen ρ σ)).take P.length ++
@@ -322,7 +322,7 @@ theorem ProjectionRulesRenamedOnCtx.of_specialization {envS : VEnv} (henv : envS
       List.getElem?_map, hP, h3, Option.map_some]
   structEta := by
     intro U Γ lv params e hΓ hparams hnidx ih1 ih2
-    simp only [VExpr.replaceRen_proj', VExpr.replaceRen_mkApps, List.map_append,
+    simp only [VExpr.replaceRen_proj, VExpr.replaceRen_mkApps, List.map_append,
       List.map_map, Function.comp_def, VExpr.replaceRen_const_some hctor,
       VExpr.replaceRen_const_some htn, hσtn] at ih1 ih2 ⊢
     have hBT := VExpr.BetaRed.mkApps_specialization (P := P) (J := J) (ls := ls) (lv := lv)
@@ -371,7 +371,7 @@ theorem forallArity_wrapForalls_mkApps_const_instOuter (c : Name) (ls : List VLe
         doms.length
   | [], doms, xs => by
     simp only [instOuter_nil, forallArity_wrapForalls]
-    rw [forallArity_mkApps_of_zero' _ rfl, Nat.add_zero]
+    rw [forallArity_mkApps_of_zero _ rfl, Nat.add_zero]
   | a :: as, doms, xs => by
     rw [instOuter_cons, VExpr.wrapForalls_inst, inst_mkApps]
     simp only [inst]

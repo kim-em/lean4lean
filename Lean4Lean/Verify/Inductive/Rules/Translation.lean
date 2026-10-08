@@ -216,7 +216,7 @@ theorem TrExprSyn.lambdaTelescope {Us : List Name} {n : Nat} {Fa L res : Lean.Ex
             List.map_append, List.append_assoc] using h
         · simpa [abstractForallContext, List.map_append, List.append_assoc] using Hres
 
-theorem Expr.abstractN_mkAppList' (fn : Lean.Expr) (args : List Lean.Expr) (xs : List FVarId)
+theorem Expr.abstractN_mkAppList (fn : Lean.Expr) (args : List Lean.Expr) (xs : List FVarId)
     (k : Nat) :
     (Lean.Expr.mkAppList fn args).abstractN xs k =
       Lean.Expr.mkAppList (fn.abstractN xs k) (args.map fun a => a.abstractN xs k) := by
@@ -378,7 +378,7 @@ theorem TrExprSyn.recursiveCall {Us : List Name}
         intro a ha; simp only [List.mem_map] at ha; obtain ⟨_, _, rfl⟩ := ha; trivial)
       exact this.looseBVarRange_zero
     have hrecF : recApp.abstractN F A.length = recApp := by
-      simp only [recApp, Expr.abstractN_mkAppList']
+      simp only [recApp, Expr.abstractN_mkAppList]
       congr 1
       rw [List.map_map]
       conv => rhs; rw [← List.map_id (List.map Lean.Expr.fvar PMN)]
@@ -395,7 +395,7 @@ theorem TrExprSyn.recursiveCall {Us : List Name}
               ((e.abstractN A).abstractN F A.length).abstractN PMN (F.length + A.length)))
           (Lean.Expr.mkAppList (.bvar (A.length + (F.length - 1 - pos)))
             ((List.range A.length).reverse.map fun i => .bvar (0 + i))) := by
-      simp only [T, Lean.Expr.mkAppN_eq_mkAppList, Expr.abstractN_app, Expr.abstractN_mkAppList',
+      simp only [T, Lean.Expr.mkAppN_eq_mkAppList, Expr.abstractN_app, Expr.abstractN_mkAppList,
         hargsA]
       have hb : ∀ (i : Nat) (xs : List FVarId) (k : Nat),
           (Lean.Expr.bvar i).abstractN xs k = .bvar i := fun _ _ _ => rfl
@@ -424,7 +424,7 @@ theorem TrExprSyn.recursiveCall {Us : List Name}
       have hrecPMN : recApp.abstractN PMN (F.length + A.length) =
           Lean.Expr.mkAppList (.const name lvls)
             ((List.range PMN.length).reverse.map fun i => .bvar (F.length + A.length + i)) := by
-        simp only [recApp, Expr.abstractN_mkAppList']
+        simp only [recApp, Expr.abstractN_mkAppList]
         rw [Expr.abstractN_fvars_spine hPMN]
         rfl
       have happI : ∀ (f a v : Lean.Expr) (k : Nat),
@@ -433,7 +433,7 @@ theorem TrExprSyn.recursiveCall {Us : List Name}
       have hfvI : ∀ (x : FVarId) (v : Lean.Expr) (k : Nat),
           (Lean.Expr.fvar x).instantiate1' v k = .fvar x := fun _ _ _ => rfl
       simp only [hb, hmaj, happI, hfvI, Expr.instantiate1'_mkAppList, hspineI, hidxI,
-        hheadI, Expr.abstractN_mkAppList', Expr.abstractN_app, hrecF, hmajF, hrecPMN,
+        hheadI, Expr.abstractN_mkAppList, Expr.abstractN_app, hrecF, hmajF, hrecPMN,
         List.map_map]
       rfl
     rw [hsrc]
@@ -476,7 +476,7 @@ theorem TrExprSyn.ruleBody {Us : List Name} {F PMN : List FVarId} {m : Nat}
       (fun a => a.abstractN PMN F.length) ∘ ((fun a => a.abstractN F) ∘ Lean.Expr.fvar) from rfl,
       ← List.map_map, h, List.map_map]
     rfl
-  simp only [Lean.Expr.mkAppN_eq_mkAppList, Expr.abstractN_mkAppList', hx, hx', List.map_map]
+  simp only [Lean.Expr.mkAppN_eq_mkAppList, Expr.abstractN_mkAppList, hx, hx', List.map_map]
   rw [hfields]
   have H1 := TrExprSyn.mkAppList (TrExprSyn.bvar_abstract (Us := Us) Γdoms []
       (F.length + (PMN.length - 1 - m)) (by omega))

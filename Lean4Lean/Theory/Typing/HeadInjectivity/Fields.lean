@@ -19,7 +19,7 @@ theorem ChainHeadInjectivity.toHeadInjectivity {env : VEnv} (henv : env.WF)
     have ⟨u, hAu⟩ := hAt
     have ⟨v, hBv⟩ := hBt
     have hΓ' : OnCtx (A :: Γ) (env.IsType U) := ⟨hΓ, hAt⟩
-    exact ⟨⟨u, hA.collapse' henv core hΓ hAu⟩, ⟨v, hB.collapse' henv core hΓ' hBv⟩⟩
+    exact ⟨⟨u, hA.collapse_of_chainHeadInjectivity henv core hΓ hAu⟩, ⟨v, hB.collapse_of_chainHeadInjectivity henv core hΓ' hBv⟩⟩
   rigid_args hΓ hc H := (core.rigid_rigid hΓ hc hc H).2.2
   former_args := core.former_args
   proj_fieldType {U Γ typeName info index

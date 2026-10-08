@@ -18,7 +18,7 @@ private theorem liftN_one_eq_bvar_one {e : VExpr} (h : e.liftN 1 0 = .bvar 1) :
     e = .bvar 0 := by
   cases e <;> simp_all [VExpr.liftN, liftVar]
 
-private theorem mkApps_append' (f : VExpr) (l₁ l₂ : List VExpr) :
+private theorem mkApps_append (f : VExpr) (l₁ l₂ : List VExpr) :
     VExpr.mkApps f (l₁ ++ l₂) = VExpr.mkApps (VExpr.mkApps f l₁) l₂ := by
   simp [VExpr.mkApps, List.foldl_append]
 
@@ -59,7 +59,7 @@ theorem Instance.eqRecEquations {s : InductiveSignature} (g : Instance s)
   · simp [VExpr.mkApps, List.range, List.range.loop] at hN
   rotate_left
   · rw [List.map_cons, List.map_cons, List.cons_append, List.cons_append,
-      ← List.cons_append, ← List.cons_append, mkApps_append'] at hN
+      ← List.cons_append, ← List.cons_append, mkApps_append] at hN
     simp only [VExpr.mkApps, List.foldl, VExpr.app.injEq] at hN
     exact absurd hN.1 (mkApps_app_app_ne _)
   simp [VExpr.mkApps, List.range, List.range.loop] at hN

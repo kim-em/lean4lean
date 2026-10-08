@@ -112,7 +112,7 @@ theorem NestedRestorationOpening.translatesLambdaTrail
   exact Hopen.translatesLambda S hLwf hTwf hβ (D.agreement envT Us) hc Hlits Hlitnames
     Hheads Htel Hdom.lamDomainsOnly (Expr.ProjsOK.lamDomainsOnly _ Hprojs)
     (Hopen.paramUniform_of_lowered_lam Htel Hshape) HbodyTrail HbodyProjs
-    (Hopen.restoredBody_closed_lam D Htel (by simpa using Htel.closed_result' hclosed)) Hs
+    (Hopen.restoredBody_closed_lam D Htel (by simpa using Htel.closed_result hclosed)) Hs
 
 end VerifyInductive
 end Lean4Lean

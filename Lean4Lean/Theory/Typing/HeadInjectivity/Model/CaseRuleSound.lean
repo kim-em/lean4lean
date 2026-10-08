@@ -73,8 +73,8 @@ theorem pat_instL_elim {df : VDefEq} {fs : List Nat}
       (lead.map (·.instL ls) ++ [.mkApps (.const ctor (lsC.map (·.inst ls)))
         (ms.map (·.instL ls) ++ fs.map .bvar)])) ∧
     df.rhs.instL ls = .wrapLams (doms.map (·.instL ls)) (body.instL ls) := by
-  refine ⟨?_, by rw [hr, instL_wrapLams']⟩
-  rw [hl, instL_wrapLams']
+  refine ⟨?_, by rw [hr, instL_wrapLams]⟩
+  rw [hl, instL_wrapLams]
   simp only [VExpr.instL_mkApps, VExpr.instL, List.map_append, List.map_cons, List.map_nil,
     List.map_map, Function.comp_def, hlsP]
 
@@ -151,8 +151,8 @@ theorem pat_lhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
   obtain ⟨lk, v, vS, p, hk, rfl, hp⟩ := Obs.wrapLams_iff.1 ho
   rw [eR] at hRH hR ⊢
   obtain ⟨B, hBs, hdomsR⟩ := HTS.wrapLams_body hRH hR
-  obtain ⟨Wv, tvv⟩ := hk.typed' henv hΔ hdomsR W tv
-  obtain ⟨keys, hkeys, hc⟩ := wrap_of_obs_mkApps' hp
+  obtain ⟨Wv, tvv⟩ := hk.typed henv hΔ hdomsR W tv
+  obtain ⟨keys, hkeys, hc⟩ := wrap_of_obs_mkApps_le hp
   obtain ⟨schema'', owner'', rules'', df'', doms'', lsP'', lead'', ctor'', lsC'', ms'', fs'',
     body'', type'', τs, lkeys, Dm, cm, Km, p'', τ, S'', I'', eo, e, hb'', hrules'', hmem'', hl'',
     hr'', htype'', -, -, hlen'', hhd, hbind, -, hbody⟩ := Obs.elim_iff.1 hc
@@ -332,8 +332,8 @@ theorem pat_lhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
     · -- proof binding: both are proofs of the proposition `P`
       have hτx : env.HasType U Δ (τ x) ((binderTy doms'' ls x).subst τ) :=
         TyCls.defeq henv hΔ hX hτX
-      have h1 := TyCls.defeq' henv hΔ hP hτx
-      have h2 := TyCls.defeq' henv hΔ hP hvx'
+      have h1 := TyCls.defeq_rev henv hΔ hP hτx
+      have h2 := TyCls.defeq_rev henv hΔ hP hvx'
       exact TyCls.defeq henv hΔ hP (.proofIrrel hPs h1 h2)
     · -- eta binding: the anchor is a projection of the major, whose field is `v x`
       refine eta_anchor_defeq henv hΔ hpi' hTE hpc (lsc := lsC''.map (·.inst ls))

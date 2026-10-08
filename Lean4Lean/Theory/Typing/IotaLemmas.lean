@@ -14,7 +14,7 @@ namespace VEnv
 variable {env : VEnv} {U : Nat}
 
 /-- Typing inversion for lambdas that retains the codomain. -/
-theorem HasType.lam_inv' (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+theorem HasType.lam_inv_forallE (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
     (H : env.HasType U Γ (.lam A body) V) :
     ∃ B, env.IsDefEqU U Γ (.forallE A B) V ∧ env.HasType U (A::Γ) body B := by
   replace H := (H.strong henv.ordered hΓ).hasType'.1
@@ -66,7 +66,7 @@ theorem IsDefEq.mkApps_wrapLams (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType
           (.forallE d (VExpr.wrapForalls ds T)) := hf
       have ha : env.HasType U Γ a d := hargs 0 (by simp) (by simp)
       -- the body of the lambda is typed at the wrapped telescope
-      obtain ⟨B', hB', hbody⟩ := HasType.lam_inv' henv hΓ hf'
+      obtain ⟨B', hB', hbody⟩ := HasType.lam_inv_forallE henv hΓ hf'
       have ⟨⟨_, hd⟩, _, hBB⟩ := hB'.forallE_inv henv hΓ
       have hΓ' : OnCtx (d :: Γ) (env.IsType U) := ⟨hΓ, _, hd.hasType.1⟩
       have hbody' : env.HasType U (d :: Γ) (VExpr.wrapLams ds body) (VExpr.wrapForalls ds T) :=

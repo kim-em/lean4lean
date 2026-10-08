@@ -107,7 +107,7 @@ theorem Tables.Inv.inductCases {decl : VInductDecl} {block : VInductBlock} {key 
       ((T.addRecursor decl (RecursorData.compilationEntries default decl s aux g)).addSchema
         env' decl).Inv env' := by
   classical
-  obtain ⟨hext, hinv⟩ := H.install' henv hcomp hblock hinstall hcle hdata hprior
+  obtain ⟨hext, hinv⟩ := H.install henv hcomp hblock hinstall hcle hdata hprior
   obtain ⟨_, _, _, _, hcase⟩ := helim
   rcases hcase with ⟨-, hE'⟩ | ⟨key', schema', hE', hreg', -⟩
   · rw [hE] at hE'; cases hE'
@@ -169,7 +169,7 @@ theorem Tables.OfHistory.inv (H : Tables.OfHistory env T) : T.Inv env ∧ env.WF
     exact ⟨ih.1.addQuot ⟨ds, hds⟩ henv' hadd, henv'⟩
   | induct _ henv hdecl hcomp hblock helim _ hinstall hcle hdata hprior ih =>
     obtain ⟨ds, hds⟩ := henv
-    exact ⟨(ih.1.install' ⟨ds, hds⟩ hcomp hblock hinstall hcle hdata hprior).2,
+    exact ⟨(ih.1.install ⟨ds, hds⟩ hcomp hblock hinstall hcle hdata hprior).2,
       ⟨_, .decl (.induct hdecl (.intro hdecl hcomp hblock helim hinstall)) hds⟩⟩
   | inductCases _ henv hdecl hcomp hblock helim hE hinstall hcle hdata hprior ih =>
     have henv' : VEnv.WF _ :=

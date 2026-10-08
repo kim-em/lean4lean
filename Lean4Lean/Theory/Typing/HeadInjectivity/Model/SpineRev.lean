@@ -28,7 +28,7 @@ def ChainArgs (env : VEnv) (U : Nat) (Δ : List VExpr) (σ : VExpr.Subst) (S : O
 theorem ChainArgs.append {k : Key} (h : ChainArgs env U Δ σ S keys args)
     (h1 : k.2.1 (a.subst σ)) (h2 : ∀ y ∈ k.2.2, ∃ y₀, Obs' σ S a y₀ ∧ y₀ ≼ y) :
     ChainArgs env U Δ σ S (keys ++ [k]) (args ++ [a]) :=
-  forall₂_append_single' h ⟨h1, h2⟩
+  forall₂_append_single h ⟨h1, h2⟩
 
 theorem ChainArgs.length (h : ChainArgs env U Δ σ S keys args) : keys.length = args.length :=
   List.Forall₂.length_eq h

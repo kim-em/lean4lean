@@ -158,7 +158,7 @@ theorem uninstantiate_vlctxBV {env : VEnv} {Us : List Name} :
   | .vlet a _ _ _ ty' _ m, n+1, hn, Γ, e, e', hΓ, hnd, he, H => by
     simp only [MLCtx.fvarRevList, List.map_cons, Expr.instantiateList, List.nodup_cons,
       List.mem_cons, not_or] at hnd he H ⊢
-    rw [← TelTrFVar.instantiateList_instantiate1_comm' (by rfl)
+    rw [← TelTrFVar.instantiateList_instantiate1_comm (by rfl)
       (by simp; intros; rfl)] at H
     obtain ⟨_, W⟩ := abstract_prefix (Δ₀ := m.vlctx) (v₀ := a) (deps := _) (d₀ := _) Γ hΓ
     have H := H.uninstantiateN W <| by
@@ -458,8 +458,8 @@ theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True)
           List.nil_append, List.cons_append, MLCtx.fvarRevList, List.map_cons]
         show (body.instantiate1' (.fvar a) 0).instantiateList _ =
           (b_low.instantiate1' (.fvar a) 0).instantiateList _
-        rw [← TelTrFVar.instantiateList_instantiate1_comm' (k := 0) rfl harr', hb,
-          TelTrFVar.instantiateList_instantiate1_comm' (k := 0) rfl hfvs])
+        rw [← TelTrFVar.instantiateList_instantiate1_comm (k := 0) rfl harr', hb,
+          TelTrFVar.instantiateList_instantiate1_comm (k := 0) rfl hfvs])
       hlow.2
       (by simp; exact ⟨hGa, hG⟩) hlwf'
       (by
@@ -493,7 +493,7 @@ theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True)
           simp only [Array.toList_push, List.reverse_append, List.reverse_cons, List.reverse_nil,
             List.nil_append, List.cons_append]
           show (body.instantiate1' (.fvar a) 0).instantiateList _ = _
-          rw [← TelTrFVar.instantiateList_instantiate1_comm' (k := 0) rfl harr', hb,
+          rw [← TelTrFVar.instantiateList_instantiate1_comm (k := 0) rfl harr', hb,
             TelTrFVar.instantiateList_delete rfl hfvs])
         (TelTrFVar.FVarsIn.of_liftLooseBVars hlow.2)
         (by rintro fv hfv (h | rfl); exacts [hG _ hfv h, ha_m hfv]) hlwf'

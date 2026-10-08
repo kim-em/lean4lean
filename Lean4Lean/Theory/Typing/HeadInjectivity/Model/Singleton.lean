@@ -49,7 +49,7 @@ namespace Model
 
 theorem TV.prefix {L : List VExpr} {σ : VExpr.Subst} {S : ObSets}
     (tv : TV env U Δ (L ++ Γ) σ S) : TV env U Δ L σ S :=
-  ⟨tv.1, fun i A hL o h => tv.2 i A (Lookup.append_left' hL) o h⟩
+  ⟨tv.1, fun i A hL o h => tv.2 i A (Lookup.append_left hL) o h⟩
 
 /-- **Proof binders** from typings at `Sort 0` in an earlier environment. -/
 theorem proofBinder_of {envF E : VEnv} {doms : List VExpr} {u0 x : Nat}

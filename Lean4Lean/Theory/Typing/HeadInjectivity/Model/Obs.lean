@@ -104,7 +104,7 @@ theorem _root_.Lean4Lean.VEnv.Model.Covers.choice {K K' : List Ob} (h : Covers K
 theorem Le.app' (h : Covers K' K) (ho : o ≼ o') : .app D c K o ≼ .app D c K' o' :=
   let ⟨f, h1, h2⟩ := Covers.choice h; .app f h1 h2 ho
 
-theorem Le.piCodOb' (h : Covers K' K) (ho : o ≼ o') : .piCodOb c K o ≼ .piCodOb c K' o' :=
+theorem Le.piCodOb_of_covers (h : Covers K' K) (ho : o ≼ o') : .piCodOb c K o ≼ .piCodOb c K' o' :=
   let ⟨f, h1, h2⟩ := Covers.choice h; .piCodOb f h1 h2 ho
 
 /-- Pre- and post-composition, proved together by induction on the middle derivation

@@ -7,7 +7,7 @@ import Lean4Lean.Theory.Typing.ProjectionRigidity
 From `ChainHeadInjectivity` (no `HeadInversion`), by one induction on the first strong
 typing, prove simultaneously
 
-* (i) uniqueness of types up to `TypeChain` (`HasTypeStrong.uniq_chain'`), and
+* (i) uniqueness of types up to `TypeChain` (`HasTypeStrong.uniq_chain_of_chainHeadInjectivity`), and
 * (ii) `CongrUB`-congruence: a typed term is definitionally equal, at its type, to every
   term `CongrUB`-related to it (`HasTypeStrong.congrUB_defeq`).
 
@@ -226,7 +226,7 @@ theorem HasTypeStrong.uniq_congr (henv : env.WF) (core : env.ChainHeadInjectivit
     | bvar | sort | const | elim | app | proj | lam => cases hx
 
 /-- Uniqueness of types up to a chain, from chain-level head injectivity. -/
-theorem HasTypeStrong.uniq_chain' (henv : env.WF) (core : env.ChainHeadInjectivity)
+theorem HasTypeStrong.uniq_chain_of_chainHeadInjectivity (henv : env.WF) (core : env.ChainHeadInjectivity)
     (hΓ : OnCtx Γ (env.IsType U))
     (h1 : env.HasTypeStrong U Γ e A b₁) (h2 : env.HasTypeStrong U Γ e B b₂) :
     env.TypeChain U Γ A B :=
@@ -240,15 +240,15 @@ theorem HasTypeStrong.congrUB_defeq (henv : env.WF) (core : env.ChainHeadInjecti
     env.IsDefEq U Γ e e' A :=
   (h1.uniq_congr henv core hΓ).2 W hc
 
-/-- Copy of `TypeChain.collapse` (`UniqueTyping.lean`) using `uniq_chain'`. -/
-theorem TypeChain.collapse' (henv : env.WF) (core : env.ChainHeadInjectivity)
+/-- Copy of `TypeChain.collapse` (`UniqueTyping.lean`) using `uniq_chain_of_chainHeadInjectivity`. -/
+theorem TypeChain.collapse_of_chainHeadInjectivity (henv : env.WF) (core : env.ChainHeadInjectivity)
     (hΓ : OnCtx Γ (env.IsType U)) (H : env.TypeChain U Γ A B)
     (hA : env.HasType U Γ A (.sort u)) : env.IsDefEq U Γ A B (.sort u) := by
   have retype {X Y w} (hX : env.HasType U Γ X (.sort u))
       (h : env.IsDefEq U Γ X Y (.sort w)) : env.IsDefEq U Γ X Y (.sort u) := by
     have s1 := (hX.strong henv.ordered hΓ).hasType'.1
     have s2 := (h.strong henv.ordered hΓ).hasType'.1
-    have e := core.sort_sort hΓ (s2.uniq_chain' henv core hΓ s1)
+    have e := core.sort_sort hΓ (s2.uniq_chain_of_chainHeadInjectivity henv core hΓ s1)
     exact .defeqDF (.sortDF (h.sort_r henv.ordered hΓ) (hX.sort_r henv.ordered hΓ) e) h
   induction H with
   | single h => let ⟨_, h⟩ := h; exact retype hA h

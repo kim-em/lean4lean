@@ -96,7 +96,7 @@ namespace VerifyInductive
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
-private theorem Restoration.recursor_name' {r : Restoration} {v w : VConstVal}
+private theorem Restoration.recursor_name {r : Restoration} {v w : VConstVal}
     (h : r.recursor v = some w) : w.name = r.recursorName v.name := by
   simp only [Restoration.recursor, Option.bind_eq_bind, Option.pure_def] at h
   cases ht : r.expr v.type with
@@ -553,7 +553,7 @@ theorem NestedRun.recursorsAligned_of
       Lean4Lean.List.Forall₂.forall_exists_l hinfos
         E.lowered.signature.constructors[index].owner (List.mem_finRange _)
     have hfindE := C.find_recursorEntry hwf entry hentry
-    rw [Restoration.recursor_name' hrec, hentry1,
+    rw [Restoration.recursor_name hrec, hentry1,
       Kernel.Environment.find?_eq_constants houtWF] at hfindE
     exact ⟨_, _, _, hhead, hfindE⟩
 

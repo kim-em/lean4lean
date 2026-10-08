@@ -197,13 +197,13 @@ theorem SubstEq.of_heads_ind : ∀ {L : List VExpr} {τ v : VExpr.Subst},
 
 /-- An observation of an application spine comes from a spine observation of its head, at
 keys whose observations are covered by observations of the arguments. -/
-theorem wrap_of_obs_mkApps' {σ : VExpr.Subst} {S : ObSets} :
+theorem wrap_of_obs_mkApps_le {σ : VExpr.Subst} {S : ObSets} :
     ∀ {args : List VExpr} {f : VExpr} {o : Ob}, Obs' σ S (VExpr.mkApps f args) o →
     ∃ keys : List Key, List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Δ k.1 (a.subst σ) ∧
       ∀ x ∈ k.2.2, ∃ x', Obs' σ S a x' ∧ x' ≼ x) keys args ∧ Obs' σ S f (wrap keys o)
   | [], _, _, h => ⟨[], .nil, h⟩
   | a :: as, f, o, h => by
-    obtain ⟨keys, hk, h'⟩ := wrap_of_obs_mkApps' (args := as) (f := .app f a) h
+    obtain ⟨keys, hk, h'⟩ := wrap_of_obs_mkApps_le (args := as) (f := .app f a) h
     obtain ⟨D, c, K, K', h1, h2, h3, h4⟩ := Obs.app_iff.1 h'
     exact ⟨(D, c, K) :: keys, .cons ⟨h2, fun x hx =>
       let ⟨x', hx', l⟩ := h4 x hx; ⟨x', h3 x' hx', l⟩⟩ hk, h1⟩
@@ -226,7 +226,7 @@ theorem ctor_spine_inv {σ : VExpr.Subst} {S : ObSets} (hrig : env.Rigid c)
     ∃ keys, List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Δ k.1 (a.subst σ) ∧
       ∀ x ∈ k.2.2, ∃ x', Obs' σ S a x' ∧ x' ≼ x) keys margs ∧
       CtorEnd c (lsc.map (·.eval)) keys r := by
-  obtain ⟨keys, hk, hw⟩ := wrap_of_obs_mkApps' h
+  obtain ⟨keys, hk, hw⟩ := wrap_of_obs_mkApps_le h
   have hna : r.NotApp := by
     rcases hr with ⟨_, _, _, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;> trivial
   refine ⟨keys, hk, ?_⟩
@@ -251,7 +251,7 @@ theorem ctor_spine_inv {σ : VExpr.Subst} {S : ObSets} (hrig : env.Rigid c)
   · obtain ⟨rfl, rfl⟩ := wrap_inj e hna trivial
     rcases hr with ⟨_, _, _, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ <;> cases h
 
-theorem instL_wrapLams' (ds : List VExpr) (body : VExpr) (ls : List VLevel) :
+theorem instL_wrapLams (ds : List VExpr) (body : VExpr) (ls : List VLevel) :
     (VExpr.wrapLams ds body).instL ls =
       VExpr.wrapLams (ds.map (·.instL ls)) (body.instL ls) := by
   induction ds with

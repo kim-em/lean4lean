@@ -195,7 +195,7 @@ theorem TyCls.eq_of_defeq (h : env.IsDefEq U Δ A B (.sort u)) :
 theorem TyCls.eq_of_lvEq (h : LvEq U A B) : TyCls env U Δ A = TyCls env U Δ B :=
   (TyCls.eq_of_mem (.inr (.single (.inr (.inl h))))).symm
 
-theorem TypeChain.of_lvEq' (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
+theorem TypeChain.of_lvEq (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
     (hA : env.IsType U Δ A) (h : LvEq U A B) : env.IsDefEq U Δ A B (.sort hA.choose) :=
   LvEq.defeq henv hΔ hA.choose_spec h
 
@@ -213,14 +213,14 @@ theorem TyCls.chain_of_isType (hA : env.IsType U Δ A) (h : TyCls env U Δ A B) 
   | single h =>
     rcases h with ⟨u, h⟩ | h | h
     · exact .single h
-    · exact .single (TypeChain.of_lvEq' henv hΔ hA h)
-    · exact .single (TypeChain.of_lvEq' henv hΔ hA h.symm)
+    · exact .single (TypeChain.of_lvEq henv hΔ hA h)
+    · exact .single (TypeChain.of_lvEq henv hΔ hA h.symm)
   | tail _ h ih =>
     have hB := ih.isType_r
     rcases h with ⟨u, h⟩ | h | h
     · exact ih.tail h
-    · exact ih.tail (TypeChain.of_lvEq' henv hΔ hB h)
-    · exact ih.tail (TypeChain.of_lvEq' henv hΔ hB h.symm)
+    · exact ih.tail (TypeChain.of_lvEq henv hΔ hB h)
+    · exact ih.tail (TypeChain.of_lvEq henv hΔ hB h.symm)
 
 /-- For a typed `A`, the type class is exactly the chain-related terms. -/
 theorem TyCls.mem_iff_chain (hA : env.HasType U Δ A (.sort u)) :
@@ -239,7 +239,7 @@ theorem TyCls.defeq (hX : TyCls env U Δ X₀ X) (h : env.IsDefEq U Δ e₁ e₂
   · exact hX.defeqDF h
 
 /-- Transport a definitional equality from the base of a type class to a member. -/
-theorem TyCls.defeq' (hX : TyCls env U Δ X₀ X) (h : env.IsDefEq U Δ e₁ e₂ X₀) :
+theorem TyCls.defeq_rev (hX : TyCls env U Δ X₀ X) (h : env.IsDefEq U Δ e₁ e₂ X₀) :
     env.IsDefEq U Δ e₁ e₂ X := by
   rcases TyCls.chain_of_isType henv hΔ (h.isType henv hΔ) hX with rfl | hX
   · exact h

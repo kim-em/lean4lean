@@ -418,7 +418,7 @@ theorem RecursorConstruction.recursorTelescope_minorFields
 
 /-- The executable's universe arguments translate to the recursor's abstract
 level list, for any materialized header over the same parameter names. -/
-theorem checkInductiveTypes.loopInd.HeaderStatsWF.recursorLevelTranslation'
+theorem checkInductiveTypes.loopInd.HeaderStatsWF.recursorLevelTranslation_general
     {env : VEnv} {Us : List Name} {Δ : VLCtx} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat}
     (H : checkInductiveTypes.loopInd.HeaderStatsWF env Us Δ stats decl depth)
@@ -442,7 +442,7 @@ theorem RecursorConstruction.statsLevelsTranslation
     (H : RecursorConstruction R) :
     stats.levels.mapM (VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)) =
       some (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) :=
-  R.statsWF.recursorLevelTranslation' H.lparamsNodup H.elimLevelAdmissible
+  R.statsWF.recursorLevelTranslation_general H.lparamsNodup H.elimLevelAdmissible
 
 /-- The source motive application of a minor, with the owner of its motive
 resolved through the validated terminal application. -/
@@ -782,7 +782,7 @@ theorem RecursorConstruction.recursorTelescope_minorResidual
       refine ⟨hyps, idx, hhyps, ?_, Hidx⟩
       rw [heq, hresEq, hf', ha', hm', hP, hF, hus, VExpr.mkApps_append]
 
-theorem Expr.abstractList_mkAppList' (head : Expr) (args : List Expr)
+theorem Expr.abstractList_mkAppList_depth (head : Expr) (args : List Expr)
     (fvars : List FVarId) (depth : Nat) :
     (Expr.mkAppList head args).abstractList fvars depth =
       Expr.mkAppList (head.abstractList fvars depth)
@@ -1019,7 +1019,7 @@ theorem RecursorConstruction.recursorTelescope_minorIndices
       0 := by
     rw [← hterminal]; exact hclosedT
   rw [hterminal, Expr.abstractN_eq_abstractList_of_closed S.fields_nodup hclosedApp] at Hhyp
-  simp only [Expr.abstractList_mkAppList', Expr.liftLooseBVars'_mkAppList, List.map_append,
+  simp only [Expr.abstractList_mkAppList_depth, Expr.liftLooseBVars'_mkAppList, List.map_append,
     List.map_map] at Hhyp
   obtain ⟨fn', left', right', _, Hleft, Hright, hout⟩ :=
     checkPositivityStep.TrExprS.mkAppList_append_inv Hhyp

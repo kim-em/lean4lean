@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 
 /-! # Translation of the executable replacement heads
 
-`restorationTranslates'` (`Nested/Restoration/TranslationPreservation.lean`) takes the
+`restorationTranslates` (`Nested/Restoration/TranslationPreservation.lean`) takes the
 hypothesis `RestoreHeadsTranslate`: at every context lifting the base context
 of the opened parameters by bound binders, each executable replacement head
 (`restoreHead`) is a constant applied to arguments that translate to the
@@ -27,7 +27,7 @@ open InductiveSignature (Restoration HeadSpecialization instantiateParams)
 
 namespace VerifyInductive
 
-private theorem find?_auxiliary_of_nodup' {l : List InductiveSignature.HeadSpecialization}
+private theorem find?_auxiliary_of_nodup {l : List InductiveSignature.HeadSpecialization}
     (hnodup : (l.map (·.auxiliary)).Nodup) {x : InductiveSignature.HeadSpecialization}
     (hx : x ∈ l) : l.find? (fun y => y.auxiliary == x.auxiliary) = some x := by
   induction l with
@@ -169,7 +169,7 @@ theorem RestorationTablesAgree.restoreHeadsTranslate
         decl.nparams a.source.name a.levels a.arguments ∈
         (compilationRestoration decl auxiliaries).heads :=
       List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_self⟩
-    rw [find?_auxiliary_of_nodup' hheadsNodup hmem] at hh
+    rw [find?_auxiliary_of_nodup hheadsNodup hmem] at hh
     cases hh
     obtain ⟨hfn, hargs⟩ := key a nested a.source.name envS domains lvls Ys hfind hdom hab
       hlvls hYs (Hconsts a ha).1
@@ -193,7 +193,7 @@ theorem RestorationTablesAgree.restoreHeadsTranslate
           (compilationRestoration decl auxiliaries).heads :=
         List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_of_mem _
           (List.mem_map.mpr ⟨ctor, hctor, rfl⟩)⟩
-      rw [find?_auxiliary_of_nodup' hheadsNodup hmem] at hh
+      rw [find?_auxiliary_of_nodup hheadsNodup hmem] at hh
       cases hh
       rw [← hauxEq] at hn
       obtain ⟨hfn, hargs⟩ := key a nested ctor.name envS domains lvls Ys hn hdom hab

@@ -130,7 +130,7 @@ theorem WF.projStatic (henv : env.WF) (hp : env.projections S info) :
 theorem WF.projCtor_family (henv : env.WF) (hpc : Model.IsProjCtor env c)
     (hcf : Model.CtorFam env c I) : ∃ info, env.projections I info ∧ info.ctorName = c := by
   obtain ⟨fam, info, hp, rfl⟩ := hpc
-  have h1 := (EnvTables.ctorOf_shape' henv (EnvTables.ctorOf_projection henv hp)).family
+  have h1 := (EnvTables.ctorOf_ctorShape henv (EnvTables.ctorOf_projection henv hp)).family
   rw [Model.ctorFamily_of_ctorFam hcf] at h1
   cases h1
   exact ⟨info, hp, rfl⟩
@@ -143,7 +143,7 @@ theorem WF.ctor_of_projFamily (henv : env.WF) (hp : env.projections I info)
   have fromTable : EnvTables.ctorOf env c ≠ none → c = info.ctorName := by
     intro h
     obtain ⟨k, hk⟩ := Option.ne_none_iff_exists'.mp h
-    have hfam := (EnvTables.ctorOf_shape' henv hk).family
+    have hfam := (EnvTables.ctorOf_ctorShape henv hk).family
     rw [hf] at hfam
     cases hfam
     have hmem := (EnvTables.famOf_mem_ctors henv (EnvTables.famOf_projection henv hp)).mpr

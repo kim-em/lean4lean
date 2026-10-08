@@ -507,7 +507,7 @@ theorem ParamOpening.forall_closing_data
 level metavariable freedom recorded by `FVarsIn`.  Folding the declarations copied by a forall opening removes exactly the
 new parameter IDs.  `P` describes the free variables allowed before the
 opening; the root specialization uses `P := False`. -/
-theorem ParamOpening.forall_closing_data'
+theorem ParamOpening.forall_closing_data_fvarsIn
     (Hopen : ParamOpening lctx As e n outLctx outAs tail)
     (Hwf : outLctx.WF)
     (Htel : Expr.ForallTelescope e n residual)
@@ -687,7 +687,7 @@ theorem ParamOpening.root_mkForall_fvarsClosed
     (Hselection : CDeclArray outLctx outAs)
     (Hbody : body.FVarsIn (· ∈ Hselection.fvars)) :
     (outLctx.mkForall outAs body).FVarsIn fun _ => False := by
-  rcases Hopen.forall_closing_data' Hwf Htel Hsource with
+  rcases Hopen.forall_closing_data_fvarsIn Hwf Htel Hsource with
     ⟨decls, _hlctx, hparams, _hlength, hnodup, hfind, hclose⟩
   have harray :
       outAs = (decls.map (fun d => Expr.fvar d.fvarId)).toArray := by

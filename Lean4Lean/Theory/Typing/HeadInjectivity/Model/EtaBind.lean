@@ -96,7 +96,7 @@ theorem projctor_spine_inv {σ : VExpr.Subst} {S : ObSets} (hrig : env.Rigid c)
     (h : Obs' σ S (.mkApps (.const c lsc) margs) (.fieldOb I i L k)) :
     ∃ info : VProjectionInfo, env.projections I info ∧ info.ctorName = c ∧
       ∃ a, margs[info.nparams + i]? = some a ∧ ∃ k', Obs' σ S a k' ∧ k' ≼ k := by
-  obtain ⟨keys, hk, hw⟩ := wrap_of_obs_mkApps' h
+  obtain ⟨keys, hk, hw⟩ := wrap_of_obs_mkApps_le h
   rcases Obs.const_iff.1 hw with ⟨_, _, keys', r', e, _, _, _, _, hr'⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r', e, _, _, _, _, _, hr', _⟩ |
     ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
@@ -321,7 +321,7 @@ theorem spine_res_cls {c : Name} {ls : List VLevel} {ci : VConstant} {Dw : List 
   have e0 : TyCls env U Δ (T.subst σ) = TyCls env U Δ ((B.inst a).subst σ) := by
     rcases hch with rfl | hch
     · rfl
-    · exact (TypeChain.tyCls_subst' henv hΔ W hch).symm
+    · exact (TypeChain.tyCls_subst_of_ctx henv hΔ W hch).symm
   rw [e0, VExpr.inst_subst_cons, hC, e1, List.map_append, List.map_singleton,
     VExpr.argSubst_append_one]
 
@@ -525,7 +525,7 @@ theorem eta_field_cls {I : Name} {info : VProjectionInfo} (hp : env.projections 
   have e1 : TyCls env U Δ (A.subst v) = TyCls env U Δ (Aq.subst v) := by
     rcases hch with rfl | hch
     · rfl
-    · exact TypeChain.tyCls_subst' henv hΔ Wv hch
+    · exact TypeChain.tyCls_subst_of_ctx henv hΔ Wv hch
   have e2 := spine_dom_cls henv hΔ hctor hTW hpi (by simp; omega) Wv tvv hfq
   have W0 := hpre' info.nparams (by omega)
   obtain ⟨d, u, hd, hconv⟩ := proj_fieldTy_conv henv hΔ hp hst.ctorClosed hls hlsl hnz

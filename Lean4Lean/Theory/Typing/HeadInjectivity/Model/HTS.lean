@@ -143,7 +143,7 @@ theorem SoundAt.refl_r (h : SoundAt env U Δ Γ t t' T) : SoundAt env U Δ Γ t'
   (h.symm henv hΔ).trans henv hΔ h
 
 /-- The extension of a typed valuation along typed keys over sound domains is typed. -/
-theorem TeleKeys.typed' (h : TeleKeys env U Δ σ S ds keys σ' S')
+theorem TeleKeys.typed (h : TeleKeys env U Δ σ S ds keys σ' S')
     (hds : DomsSD env U Δ Γ ds) (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) :
     Ctx.SubstEq env U Δ σ' σ' (ds.reverse ++ Γ) ∧ TV env U Δ (ds.reverse ++ Γ) σ' S' := by
   induction h generalizing Γ with
@@ -186,7 +186,7 @@ theorem vcls_app (W : Ctx.SubstEq env U Δ σ σ Γ) (hf : env.HasType U Γ f (.
     rw [ElCls.eq_of_defeq TyCls.self happ]; exact hz
 
 /-- Type classes along a type chain agree under a typed substitution. -/
-theorem TypeChain.tyCls_subst' (W : Ctx.SubstEq env U Δ v v Γ) (h : env.TypeChain U Γ X Y) :
+theorem TypeChain.tyCls_subst_of_ctx (W : Ctx.SubstEq env U Δ v v Γ) (h : env.TypeChain U Γ X Y) :
     TyCls env U Δ (X.subst v) = TyCls env U Δ (Y.subst v) := by
   induction h with
   | single h => let ⟨_, h⟩ := h; exact TyCls.eq_of_defeq (h.substDF henv W.wf hΔ W)
@@ -311,7 +311,7 @@ def KeyData (env : VEnv) (U : Nat) (Δ Γ : List VExpr) (σ : VExpr.Subst) (S : 
   Backed (fun o => o ∈ ka.1.2.2)
 
 omit henv hΔ in
-theorem forall₂_append_single' {R : α → β → Prop} (H : List.Forall₂ R l₁ l₂) (h : R a b) :
+theorem forall₂_append_single {R : α → β → Prop} (H : List.Forall₂ R l₁ l₂) (h : R a b) :
     List.Forall₂ R (l₁ ++ [a]) (l₂ ++ [b]) := by
   induction H with
   | nil => exact .cons h .nil
@@ -426,9 +426,9 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
       ihf hf W tv Ks₀ hKs₀ τPi hτPi
     let k : Key := (TyCls env U Δ (A.subst σ), ElCls env U Δ (TyCls env U Δ (A.subst σ))
       (a.subst σ), K)
-    refine ⟨Th, info ++ [(k, A)], hTh, hcl, hT, forall₂_append_single' hinfo
+    refine ⟨Th, info ++ [(k, A)], hTh, hcl, hT, forall₂_append_single hinfo
       ⟨rfl, hK, rfl, by assumption, hsa, hbK⟩,
-      forall₂_append_single' hKsi (fun x hx => hKK _ (List.mem_append_left _ hx)), fun o ho => ?_,
+      forall₂_append_single hKsi (fun x hx => hKK _ (List.mem_append_left _ hx)), fun o ho => ?_,
       fun x hx => ?_, fun pre ka post h => ?_⟩
     · rw [vcls_app henv hΔ W hfty hsa.1.defeq.hasType.1] at ho
       obtain ⟨τ₀, h1, h2⟩ := P1 _ (hwrap _ o ho)
@@ -533,7 +533,7 @@ theorem HTS.lamSpine {ds : List VExpr} :
           vcls env U Δ σ (.lam A (.wrapLams ds X)) (.forallE A B) := by
         rcases hch with rfl | hch
         · rfl
-        · unfold vcls; rw [← TypeChain.tyCls_subst' henv hΔ W hch]; rfl
+        · unfold vcls; rw [← TypeChain.tyCls_subst_of_ctx henv hΔ W hch]; rfl
       rw [ecls] at ho
       obtain ⟨-, -, -, -, τc, h3, h4⟩ :=
         pi_step henv hΔ hA.1.defeq.hasType.1 hB.1.defeq.hasType.1 hB.2 W tv (ho.strengthen h2)

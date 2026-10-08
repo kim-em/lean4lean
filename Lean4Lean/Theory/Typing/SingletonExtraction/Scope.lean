@@ -197,7 +197,7 @@ theorem value_closed (hC : Closed S params E) {j : Nat} (hj : j < S.fields.lengt
 
 /-- The reconstruction commutes with substitution of the occurrence, given closedness of the
 extraction functions it actually uses. -/
-theorem occ_subst' (hC : Closed S params E) (hsc : S.Scoped ps.length)
+theorem occ_subst (hC : Closed S params E) (hsc : S.Scoped ps.length)
     (hidxl : idx.length = S.indices.length) (τ : VExpr.Subst) :
     ∀ i, i ≤ S.fields.length →
       (occ S params E ps idx m i).1.map (·.subst τ) =

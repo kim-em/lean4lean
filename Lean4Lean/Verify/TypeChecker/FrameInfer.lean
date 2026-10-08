@@ -241,7 +241,7 @@ theorem inferProj.framed (hs : GhostFree G struct) (hst : GhostFree G structType
   refine (RecM.Framed.whnf hst).bind fun type htype => ?_
   rw [Expr.withApp_eq]
   have hargs := htype.getAppArgs
-  refine RecM.Framed.getEnv'.bind fun env henv => ?_
+  refine RecM.Framed.getEnv_ghostFree.bind fun env henv => ?_
   extract_lets fail
   have hfail {β} {R : β → Prop} : RecM.Framed G (@fail β) R := RecM.Framed.getLCtx_throw
   have hfailb {β γ} {f : β → RecM γ} {R} : RecM.Framed G (fail >>= f) R :=

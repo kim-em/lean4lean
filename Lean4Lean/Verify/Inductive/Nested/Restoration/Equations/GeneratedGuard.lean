@@ -727,7 +727,7 @@ def nestedIotaRuleOfGenerated
     recursor_levels := hrecLevels
     ctor_levels := hctorLevels
     leading_arity := by
-      simp only [List.length_append, vars_length', hidx, hextra]
+      simp only [List.length_append, vars_length, hidx, hextra]
       omega
     constructor_arity := by simp
     parameter_args := by

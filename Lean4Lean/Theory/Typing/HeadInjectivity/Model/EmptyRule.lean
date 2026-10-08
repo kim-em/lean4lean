@@ -14,10 +14,10 @@ native recursor equations (`docs/inductives/PHASE1B_NOTES.md`, section 10.3, D11
 
 namespace Lean4Lean
 
-theorem Lookup.append_left' : ∀ {L : List VExpr} {i : Nat} {A : VExpr},
+theorem Lookup.append_left : ∀ {L : List VExpr} {i : Nat} {A : VExpr},
     Lookup L i A → Lookup (L ++ Γ) i A
   | _, _, _, .zero => .zero
-  | _, _, _, .succ h => .succ (Lookup.append_left' h)
+  | _, _, _, .succ h => .succ (Lookup.append_left h)
 
 namespace VEnv
 namespace Model
@@ -41,7 +41,7 @@ theorem motive_tele_empty {doms args mds : List VExpr} {T X : VExpr} {m : Nat} {
     (ho : TypedOb env U Δ cv (wrap lk p) τs)
     (hτs : ∀ τ ∈ τs, Obs' .id .empty (.wrapForalls doms T) τ) : False := by
   obtain ⟨σ', S', hk, τc, _, hτc, hp⟩ := tele_unwind henv hΔ hT.piSD .nil TV.empty hlk ho hτs
-  obtain ⟨-, tv'⟩ := hk.typed' henv hΔ hT.piSD.doms .nil TV.empty
+  obtain ⟨-, tv'⟩ := hk.typed henv hΔ hT.piSD.doms .nil TV.empty
   rw [List.append_nil] at tv'
   refine hp.not_prop fun τ hτ => ?_
   have h := hτc τ hτ
@@ -63,12 +63,12 @@ theorem motive_tele_empty_ctx {doms args mds : List VExpr} {T X : VExpr} {m : Na
     (ho : TypedOb env U Δ cv (wrap lk p) τs)
     (hτs : ∀ τ ∈ τs, Obs' σ S (.wrapForalls doms T) τ) : False := by
   obtain ⟨σ', S', hk, τc, _, hτc, hp⟩ := tele_unwind henv hΔ hT.piSD W tv hlk ho hτs
-  obtain ⟨-, tv'⟩ := hk.typed' henv hΔ hT.piSD.doms W tv
+  obtain ⟨-, tv'⟩ := hk.typed henv hΔ hT.piSD.doms W tv
   refine hp.not_prop fun τ hτ => ?_
   have h := hτc τ hτ
   rw [eT] at h
   obtain ⟨keys, hkeys, hb⟩ := wrap_of_obs_mkApps h
-  obtain ⟨τs', h1, h2⟩ := tv'.2 m _ (Lookup.append_left' hm) _ (Obs.bvar_iff.1 hb)
+  obtain ⟨τs', h1, h2⟩ := tv'.2 m _ (Lookup.append_left hm) _ (Obs.bvar_iff.1 hb)
   obtain ⟨τc', _, h3, h4⟩ := chain_terminal_sort (env := env) (U := U) (Δ := Δ) (w := w)
     (by rw [hlen]; exact List.Forall₂.length_eq hkeys) h2 (fun τ hτ => ⟨_, _, h1 τ hτ⟩)
   refine ⟨_, h4.strengthen fun k hk => ⟨_, List.mem_singleton_self _, ?_⟩⟩

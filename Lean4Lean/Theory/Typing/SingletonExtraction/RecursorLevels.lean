@@ -31,7 +31,7 @@ theorem sHyps_specialize (c : Constructor s.families.size) (U ls) :
     (g.specialize U ls).hypotheses c = (g.hypotheses c).map (·.instL ls) := by
   simp [hypotheses, List.map_map, Function.comp_def, hypothesis_specialize g U ls]
 
-theorem params_specialize' (U ls) : (g.specialize U ls).params = g.params.map (·.instL ls) :=
+theorem specialize_params (U ls) : (g.specialize U ls).params = g.params.map (·.instL ls) :=
   (params_specialize g U ls).symm
 
 /-- Elimination at two lists of equivalent universes gives related eliminations. -/

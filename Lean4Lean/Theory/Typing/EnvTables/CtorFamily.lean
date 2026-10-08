@@ -118,7 +118,7 @@ open InductiveSignature
 
 variable {env : VEnv}
 
-theorem ctorOf_shape' (H : env.WF) (h : ctorOf env c = some k) : CtorShape env c k :=
+theorem ctorOf_ctorShape (H : env.WF) (h : ctorOf env c = some k) : CtorShape env c k :=
   ctorOf_shape H h
 
 /-! ## The constructor lists of families -/

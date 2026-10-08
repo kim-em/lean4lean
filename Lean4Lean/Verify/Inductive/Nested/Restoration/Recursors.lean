@@ -572,7 +572,7 @@ theorem NestedRun.restoredRecursor_of_step
   have htype : (compilationRestoration sourceDecl auxiliaries).expr
       (E.lowered.recursors.canonicalGeneration.recursorType owner) =
         some w.type :=
-    Hstep.restored.restoration.typeRestorationCommutes' hparamsSize
+    Hstep.restored.restoration.typeRestorationCommutes hparamsSize
       (D.agreement targetEnv _) hscoped.argumentsClosed Hfresh Hshape
       (fun Hopen => Hopen.restoredBody_closed D Htel hclosed) Htel Hinput hclosed Hs Ht
   have hrecName : (compilationRestoration sourceDecl auxiliaries).recursorName
@@ -893,7 +893,7 @@ theorem NestedRun.restoredRecursorEntries_of_paramUniform
   rw [List.forall₂_map_left_iff] at Hall
   refine Lean4Lean.List.Forall₂.imp ?_ Hall
   rintro owner w ⟨s, t, Hstep, Hw⟩
-  have Hshape := (E.recursorParamUniform' wf Hsources owner Hstep).1
+  have Hshape := (E.recursorParamUniform_of_wfCore wf Hsources owner Hstep).1
   rw [← hheads] at Hshape
   exact ⟨E.restoredRecursor_of_step hparamsSize D hscoped owner Hstep rfl Hshape
     Hfresh Hw, s, t, Hstep, Hw⟩
@@ -902,7 +902,7 @@ theorem NestedRun.restoredRecursorEntries_of_paramUniform
 
 /-- The restored generated recursor list of the lowered declaration is the
 recursor list of a final assembly base, for the specializations of
-`restorationTablesRestoringAll` (via `NestedRun.recursorParamUniform'`). -/
+`restorationTablesRestoringAll` (via `NestedRun.recursorParamUniform_of_wfCore`). -/
 theorem NestedRun.restoredRecursorList_of_paramUniform
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -948,7 +948,7 @@ theorem NestedRun.restoredRecursorList_of_paramUniform
 /-- **The `recursors` field of `NestedCompilationRestorationFacts`.** For the
 specializations of `restorationTablesRestoringAll`, the restored generated
 recursor list of the lowered declaration is exactly the recursor list of the
-canonical restored block (via `NestedRun.recursorParamUniform'`). -/
+canonical restored block (via `NestedRun.recursorParamUniform_of_wfCore`). -/
 theorem NestedRun.restoredRecursors_of_paramUniform
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}

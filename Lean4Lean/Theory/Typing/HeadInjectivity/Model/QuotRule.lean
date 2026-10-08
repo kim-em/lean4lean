@@ -169,7 +169,7 @@ theorem quot_pf (hlsw : ∀ l ∈ ls, l.WF U) (e0 : ((VLevel.param 0).inst ls).e
 
 /-- Uniqueness of the quotient rule for its head and constructor, from its uniqueness per
 head. -/
-theorem quot_uniq' (hqu : ∀ df' ls', env.defeqs df' →
+theorem quot_uniq (hqu : ∀ df' ls', env.defeqs df' →
       df'.lhs.stripLams.getAppFnArgs.1 = .const ``Quot.lift ls' → df' = quotDefEq) :
     ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
       (ctor' : Name) (lsC' : List VLevel) (ms' : List VExpr) (fs' : List Nat) (body' : VExpr),

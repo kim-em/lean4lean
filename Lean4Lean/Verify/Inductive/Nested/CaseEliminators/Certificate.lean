@@ -270,7 +270,7 @@ theorem NestedRun.boundaryCaseCompilationData
       exact h.2.2) Hctors)
   have hlevels := E.loweredConstructorLevels_heads wf Hsources hheadNames
   have HsrcRestore := sourceConstructors_of_substitution S henvTypes.betaSubjectReduction
-    (forall₂_take' Hdefeq sourceDecl.types.length)
+    (forall₂_take Hdefeq sourceDecl.types.length)
     (E.loweredConstructors_of_lowering hadded henvTypes hfreshAll Hrestoring hlevels)
     (fun n hn => htotal n (List.mem_of_mem_take hn))
   have hlevelsAux : ∀ t ∈ E.lowered.loweredDecl.types.drop sourceDecl.types.length,
@@ -355,10 +355,10 @@ theorem NestedRun.boundaryCaseCompilationData
     have hprefixLength :
         (B.sourceSignature.declaration.types.take sourceDecl.types.length).length =
           sourceDecl.types.length := by
-      rw [Lean4Lean.List.Forall₂.length_eq (forall₂_take' HM sourceDecl.types.length)]
+      rw [Lean4Lean.List.Forall₂.length_eq (forall₂_take HM sourceDecl.types.length)]
       exact (Lean4Lean.List.Forall₂.length_eq HTsource).symm
     refine (Lean4Lean.List.Forall₂.append_of_left hprefixLength).mpr ⟨?_, ?_⟩
-    · have HMp := forall₂_take' HM sourceDecl.types.length
+    · have HMp := forall₂_take HM sourceDecl.types.length
       obtain ⟨_, _, _, hheaders, _, _⟩ := Hformation.sourceParameters
       have H1 := forall₂_join HMp HTsource
       refine Lean4Lean.List.Forall₂.imp ?_ (Lean4Lean.List.Forall₂.and_mem

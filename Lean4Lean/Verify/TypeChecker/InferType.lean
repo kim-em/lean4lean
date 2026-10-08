@@ -703,7 +703,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
     rw [← VExpr.instOuter_eq_instOuterAt, hF₀]; exact hds i (by omega)
   generalize F₀.instOuterAt (projs st e' 0 i) 0 = F at hsel'' hFeq
   subst hFeq
-  refine ((whnf.WF_below' hsel'').and (whnf.WF_paramUniform hsel'' hpfx₅)).bind fun w _ _ Hw => ?_
+  refine ((whnf.WF_below_of_fvarsIn hsel'').and (whnf.WF_paramUniform hsel'' hpfx₅)).bind fun w _ _ Hw => ?_
   obtain ⟨⟨⟨hbw, -, hs⟩, hlw⟩, hhw⟩ := Hw
   have hw := hs _ _ rfl
   split <;> [rename_i n domain body bi; exact hfail']
@@ -918,7 +918,7 @@ theorem inferLambda.loop.WF_all {c : VContext} {e₀ : Expr}
   · subst ei
     have hd : FVarsIn (· ∈ (c.withMLC m).vlctx.fvars) (e.instantiateList fvs) := by
       apply hr.instantiateList; simp [← eqfvs]; exact m.fvarRevList_prefix.subset
-    refine ((inferType.WF_below' hd hinf).and_forall (ι := Unit) (H := fun _ => inferOnly = true)
+    refine ((inferType.WF_below_of_fvarsIn hd hinf).and_forall (ι := Unit) (H := fun _ => inferOnly = true)
       (R := fun _ ty => (c.withMLC m).ParamUniformTyBelow pfx (e.instantiateList fvs) ty) fun _ hio => ?_).bind
       fun ty _ _ ⟨⟨⟨e', ty', hb, h1, h2, h3⟩, hl⟩, hh⟩ => ?_
     · subst hio; let ⟨_, h⟩ := hinf rfl; exact inferType.WF_paramUniform h hpfx
@@ -1139,7 +1139,7 @@ theorem inferForall.loop.WF_all {c : VContext} {e₀ : Expr}
     rw [Expr.instantiateList_forallE] at hei; subst ei
     have hd : FVarsIn (· ∈ m.vlctx.fvars) (dom.instantiateList fvs) := by
       apply hr.1.instantiateList; simp [← eqfvs]; exact m.fvarRevList_prefix.subset
-    refine (inferType.WF_below' hd ?_).bind
+    refine (inferType.WF_below_of_fvarsIn hd ?_).bind
       fun uv _ le ⟨⟨dom', uv', hbu, h1, h2, h3⟩, hlu⟩ => ?_
     · intro h; let ⟨_, .forallE _ _ h _⟩ := hinf h; exact ⟨_, h⟩
     refine (ensureSortCore.WF_below h2).bind_le le fun _ _ le ⟨⟨h4, h5, hbs⟩, hls⟩ => ?_
@@ -1187,7 +1187,7 @@ theorem inferForall.loop.WF_all {c : VContext} {e₀ : Expr}
   · subst ei
     have hd : FVarsIn (· ∈ m.vlctx.fvars) (e.instantiateList fvs) := by
       apply hr.instantiateList; simp [← eqfvs]; exact m.fvarRevList_prefix.subset
-    refine (inferType.WF_below' hd hinf).bind
+    refine (inferType.WF_below_of_fvarsIn hd hinf).bind
       fun ty _ _ ⟨⟨e', ty', hbu, h1, h2, h3⟩, hlu⟩ => ?_
     refine (ensureSortCore.WF_below h2).bind fun _ _ le₂ ⟨⟨h4, h5, _⟩, hls⟩ => ?_
     obtain ⟨_, rfl⟩ := h4; let ⟨_, .sort (u' := u') h4, h5⟩ := h5
@@ -1336,7 +1336,7 @@ theorem inferLet.loop.WF_all {c : VContext} {e₀ : Expr}
   · subst ei
     have hd : FVarsIn (· ∈ (c.withMLC m).vlctx.fvars) (e.instantiateList fvs) := by
       apply hr.instantiateList; simp [← eqfvs]; exact m.fvarRevList_prefix.subset
-    refine ((inferType.WF_below' hd hinf).and_forall (ι := Unit) (H := fun _ => inferOnly = true)
+    refine ((inferType.WF_below_of_fvarsIn hd hinf).and_forall (ι := Unit) (H := fun _ => inferOnly = true)
       (R := fun _ ty => (c.withMLC m).ParamUniformTyBelow pfx (e.instantiateList fvs) ty)
       fun _ hio => ?_).bind fun ty _ _ ⟨⟨⟨e', ty', hb, h1, h2, h3⟩, hl⟩, hh⟩ => ?_
     · subst hio; let ⟨_, h⟩ := hinf rfl; exact inferType.WF_paramUniform h hpfx
@@ -1375,7 +1375,7 @@ theorem inferLet.WF_all
   · exact fun P hP he => ⟨(AllAbove.wf wf.trctx.wf.fvwf).2 hP, he.mono fun _ h _ => h, fun _ => id⟩
   · exact fun Us P hs hl _ => ⟨hs.allAbove, hl, fun _ => id⟩
   · exact fun _ heads As ls P hs hl _ => ⟨hs.allAbove, hl, fun _ => id⟩
-theorem RecM.Res.withLocalDecl' {f : Expr → RecM α} {Q : α → Prop}
+theorem RecM.Res.withLocalDecl {f : Expr → RecM α} {Q : α → Prop}
     (H : ∀ x, (f x).Res Q) : (withLocalDecl name bi ty f).Res Q := by
   intro m ctx st a st' e
   change (withFreshId _ : M α) ctx st = _ at e
@@ -1390,7 +1390,7 @@ theorem inferForall.loop.Res_sort :
   induction e generalizing fvars us with
   | forallE name dom body bi _ ih =>
     unfold inferForall.loop
-    exact RecM.Res.bind fun _ => RecM.Res.bind fun _ => RecM.Res.withLocalDecl' fun _ => ih
+    exact RecM.Res.bind fun _ => RecM.Res.bind fun _ => RecM.Res.withLocalDecl fun _ => ih
   | _ =>
     unfold inferForall.loop
     exact RecM.Res.bind fun _ => RecM.Res.bind fun _ => .pure ⟨_, rfl⟩

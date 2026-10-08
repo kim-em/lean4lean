@@ -28,7 +28,7 @@ exact validated nested run.
   (`Nested/Restoration/Uniform/Recursors.lean`).
 * `NestedRun.paramUniformDeclarations_of`: the non-`whnf` inputs
   `RecursorConstruction.ParamUniformDeclarations` at `E.uniformHeads`.
-* `NestedRun.recursorParamUniform'`: the hit shape of the lowered
+* `NestedRun.recursorParamUniform_of_wfCore`: the hit shape of the lowered
   recursor types and rule right-hand sides at the auxiliary heads, from the run
   alone.
 
@@ -1388,7 +1388,7 @@ bound-variable hit shape for the auxiliary heads at the levels
 The proof runs the provenance chain at the checker's head set `E.uniformHeads`
 (`recursorParamUniform_uniformHeads`) and drops the main constructors with
 `ParamUniformTele.shrink`. -/
-theorem NestedRun.recursorParamUniform'
+theorem NestedRun.recursorParamUniform_of_wfCore
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
