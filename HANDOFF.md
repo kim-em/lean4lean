@@ -1,8 +1,101 @@
 # Inductive verification: status, evidence, and remaining work
 
-Current account, 2026-10-05, branch `agent/verify-inductives`.
+Current account, 2026-10-08, branch `agent/verify-inductives`.
 This is the single maintained handoff. Update it in place. The source and the
 checked theorem types take precedence over this account.
+
+## Final state (2026-10-08, mainline 862202a2 plus this entry)
+
+The goal of `docs/inductives/GOAL.md` is met as amended (item (3) gained
+canonical `Nonempty`/`Classical.choice`; decision of 2026-10-06 below). The
+branch is buildable with no hypotheses beyond those in the statement:
+
+```lean
+theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (_heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
+    (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety
+```
+(`Lean4Lean/Verify/Environment.lean`). `HasCanonicalEq` and
+`HasCanonicalChoice` (Theory/CanonicalEq.lean, Theory/CanonicalChoice.lean)
+assert only that the prelude constants are present with their stored types;
+both are monotone and realized by the replay of `Init.Prelude`
+(`Verify/CanonicalEqRealization.lean`, `Verify/CanonicalChoiceRealization.lean`,
+Tests/CanonicalEq.lean, Tests/CanonicalChoice.lean). `IsModelled` excludes
+only `quotDecl` (unchanged scope). The canonical-`Eq` hypothesis is not used
+by the proof: `addDecl.WF (wf) (hch) (decl) (hdecl)` is the underlying
+theorem; `heq` is kept so the statement matches the goal, and
+`addDecl.WFHasCanonicalEq` is the iterable form returning both invariants.
+
+Verification run by the lead on this worktree after the fast-forward to E1:
+
+| check | result |
+|---|---|
+| `lake build` | 881 jobs, 0 "declaration uses sorry" |
+| `lake build Lean4Lean.Tests` | 556 jobs, green |
+| `lake build Lean4Lean.Experimental` | 263 jobs, green (58 inherited prototype sorries, see below) |
+| `lake exe lean4lean --fresh Init.Prelude` | checked 1975 declarations |
+| `lake exe lean4lean --fresh Init.Core` | checked 3953 declarations |
+| `scripts/check-inductive-audit.py --self-test` | passed |
+| `scripts/check-inductive-audit.py --require-complete` | "No sorry dependencies; all remaining axioms are listed." |
+| `#print axioms addDecl.WF_of_canonicalEq` | 32 axioms = `standardAxioms` (3) + `implementationAxioms` (29) of `scripts/inductive-audit-inventory.json`; no `sorryAx` |
+| `grep -rn sorry Lean4Lean` outside `Experimental/` | only doc-comment mentions |
+
+The 29 implementation axioms are 25 in `Verify/Axioms.lean`, the two
+pointer-equality axioms of `PtrEq.lean` and the two native `bv_decide`
+certificates of `Verify/Expr.lean`; all existed on `master` (the branch
+replaced the false `Lean.Expr.abstract_eq` by the exact model
+`abstractN_eq`). The 58 `sorry` declarations under `Lean4Lean/Experimental/`
+are Mario's upstream prototypes, present on `master` with at least as many
+sorries (decision recorded below under "Decision (2026-10-08) on goal item
+(1)"); the branch added none.
+
+How the three obligations of GOAL.md closed:
+- (a) `VEnv.WF.headInversion`: proved for every WF environment (no
+  canonical-`Eq` hypothesis) by Mario's plan: the sound shape model
+  `Theory/Typing/ShapeModel/` (separation half, Phase 1a) and the
+  observation model `Theory/Typing/HeadInjectivity/` (injectivity half,
+  Phase 1b; history induction `WF.soundEnv`; projections through
+  `Model/ProjSound.lean`, `ctor_field_obs`, `EtaBind`). Decisions D1 to D17
+  in docs/inductives/PHASE1_NOTES.md; narrative in PHASE1B_NOTES.md.
+- (b) `strengthening_of_canonicalEq`: not proved; it no longer exists. The
+  E1 route makes the checker's caches scope-local (`State.leaveScope`,
+  `checkLCtx`), so no strengthening theorem is needed, except at the
+  projection-walk corner, which is proved by substitution from canonical
+  choice (`Theory/Typing/ProjectionCornerChoice.lean`,
+  `projectionWalkCorner_choice`), using the case eliminator that every
+  inductive block now registers before its projections (certified at the
+  constructor boundary, `Verify/Inductive/ConstructorBoundary.lean`; nested
+  blocks `Verify/Inductive/Nested/CaseEliminators.lean`). Declarative
+  strengthening with canonical `Eq` remains an open research problem
+  (docs/inductives/STRENGTHENING*.md, base branch) and is irrelevant to the
+  theorem. `VEnv.Strengthening` survives only as a definition used by the
+  parked countermodel.
+- (c) `FullStep.strip`: proved (`Theory/Typing/LevelledReduction.lean`);
+  `WF.church_rosser (henv) (heq)` needs canonical `Eq`; not in the cone of
+  the top-level theorem.
+
+Spec changes relative to the branch's own earlier specification, all
+restricting it to what Lean produces or restructuring the installation
+order, none weakening a theorem: `Instance.FreeTarget`; `StructCompat` (D10);
+`ProjectionsCoherent`/`ProjNamesRegistered` in `inductEliminators`; the
+case-only certificate with header agreement and index restoration; case
+eliminators installed between constructors and projections
+(`VInductBlock.WF`/`install`/`AddInduct`); `EliminatorsWF` admits a block
+with neither eliminators nor projections (only when there are no families);
+window typings stated in the window environment (`∃ es, OwnCaseEliminators`);
+the `RestoredEliminator` alternative of `RenamingReplacementOnCtx`
+(docs/inductives/E1_INDUCTIVE_DESIGN.md §5.4). The executable differs from
+the C++ kernel only by the scoped caches of E1
+(docs/inductives/CacheScopeExperiment.lean records why the unscoped
+executable is not local).
+
+Branches: `agent/verify-inductives` is the result; `-e1` equals it;
+`-headinj`, `-headinv`, `-cr`, `-base`, `-corner-indexed` and the helper
+`-headinj-*`/`-e1-*` branches are merged or superseded and kept for history.
+Everything below this section is the chronological record that led here.
 
 ## Standing goal (2026-10-06)
 

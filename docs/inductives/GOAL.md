@@ -4,6 +4,13 @@ Paste the block below into `/goal`. It is the standing instruction for every
 session on this branch (Kim, 2026-10-06: "Don't stop to ask me questions, get
 the entire thing done. We're following Mario's plan.").
 
+Item (3) was amended on 2026-10-08 under the decision recorded in HANDOFF.md
+(2026-10-06): the E1 route replaces declarative strengthening by the
+projection-walk corner, which is proved from canonical `Nonempty` and
+`Classical.choice`; both are installed by `Init.Prelude`, and their
+realizability is `VEnvs.WF.hasCanonicalChoice`. Obligations (a) to (c) below
+are the ones that were open when the statement was written.
+
 ```text
 Finish branch agent/verify-inductives of lean4lean (worktree
 ~/worktrees/lean4lean/lean4lean-agent-verify-inductives; push to remote kim-em).
@@ -13,8 +20,11 @@ DONE means all of: (1) `lake build` of the whole project reports zero
 comments; (2) no axioms beyond those already in Verify/Axioms.lean; (3) the
 top-level theorem `addDecl.WF_of_canonicalEq` (Lean4Lean/Verify/Environment.lean)
 holds with exactly the hypotheses `ves.WF env`, canonical `Eq` present
-(`VEnv.HasCanonicalEq` at each safety level) and `decl.IsModelled env ves`, with
-no proofs hidden in hypotheses, structure fields or certificates;
+(`VEnv.HasCanonicalEq` at each safety level), canonical `Nonempty`/
+`Classical.choice` present (`VEnv.HasCanonicalChoice` at each safety level;
+added by the recorded decision of 2026-10-06, HANDOFF.md) and
+`decl.IsModelled env ves`, with no proofs hidden in hypotheses, structure
+fields or certificates;
 (4) `lake build Lean4Lean.Tests`, `lake build Lean4Lean.Experimental`, the fresh
 replays (`lean4lean --fresh Init.Prelude` = 1975, `--fresh Init.Core` = 3953) and
 `scripts/check-inductive-audit.py --self-test` and `--require-complete` all pass;
