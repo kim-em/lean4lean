@@ -5,7 +5,7 @@ import Lean4Lean.Verify.Inductive.Install.LiteralNames
 
 /-! Translations of the executable nested restoration folds: the source family
 translations (`SourceFamilyTranslations`: header, constructors and source recursor of
-each source family) and the auxiliary recursor fold (`AuxiliaryRecursorsGuardedRules`),
+each source family) and the auxiliary recursor fold (`AuxiliaryRecursorRuleBatches`),
 the restored block `restoredBlock`, and lookup lemmas for `AddConstants`
 installations. Section 3.3 of `docs/inductives/DESIGN.md`. -/
 
@@ -23,12 +23,10 @@ namespace VerifyInductive
 recursor constant and the abstract rule batch of the step, of the restored
 length. The record fixes no equation syntax; the rules are fixed by the
 compilation of the nested installation. -/
-structure AuxiliaryRecursorGuardedRules
-    (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
+structure AuxiliaryRecursorRuleBatch
     (safety : DefinitionSafety) (trEnv : VEnv)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
-      oldRecName sourceEnv targetEnv)
-    (priorRecursors : List VConstVal) where
+      oldRecName sourceEnv targetEnv) where
   recursor : VConstVal
   rules : List VDefEq
   translated : TrConstVal safety trEnv
@@ -36,10 +34,9 @@ structure AuxiliaryRecursorGuardedRules
   rulesLength : rules.length = Hstep.restored.newInfo.rules.length
 
 /-- The steps of an auxiliary restoration fold, each with an
-`AuxiliaryRecursorGuardedRules`. The rule batches are recorded explicitly, but this
+`AuxiliaryRecursorRuleBatch`. The rule batches are recorded explicitly, but this
 judgment alone does not constrain their left-hand sides or their translation. -/
-inductive AuxiliaryRecursorsGuardedRules
-    (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
+inductive AuxiliaryRecursorRuleBatches
     (safety : DefinitionSafety) (trEnv : VEnv) :
     ∀ {names sourceEnv targetEnv},
       FoldSteps
@@ -48,7 +45,7 @@ inductive AuxiliaryRecursorsGuardedRules
       List VConstVal → List VDefEq →
       List VConstVal → List VDefEq → Prop
   | nil (sourceEnv) (recursors rules) :
-      AuxiliaryRecursorsGuardedRules decl block main safety trEnv
+      AuxiliaryRecursorRuleBatches safety trEnv
         (FoldSteps.nil (P :=
           RestoredRecursorStep result loweredEnv auxRec allIndNames)
           (source := sourceEnv)) recursors rules recursors rules
@@ -58,12 +55,12 @@ inductive AuxiliaryRecursorsGuardedRules
       (Htail : FoldSteps
         (RestoredRecursorStep result loweredEnv auxRec allIndNames)
         names middleEnv targetEnv)
-      (Hsemantic : AuxiliaryRecursorGuardedRules decl block main safety trEnv
-        Hstep priorRecursors)
-      (Hrest : AuxiliaryRecursorsGuardedRules decl block main safety trEnv
+      (Hsemantic : AuxiliaryRecursorRuleBatch safety trEnv
+        Hstep)
+      (Hrest : AuxiliaryRecursorRuleBatches safety trEnv
         Htail (priorRecursors ++ [Hsemantic.recursor])
           (priorRules ++ Hsemantic.rules) finalRecursors finalRules) :
-      AuxiliaryRecursorsGuardedRules decl block main safety trEnv
+      AuxiliaryRecursorRuleBatches safety trEnv
         (.cons Hstep Htail) priorRecursors priorRules
           finalRecursors finalRules
 
