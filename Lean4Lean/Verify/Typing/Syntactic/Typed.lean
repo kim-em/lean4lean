@@ -128,29 +128,36 @@ theorem TrExprS.iff_typed (henv : env.Ordered) (hΔ : Δ.WF env Us.length) :
 
 /-! ### The residual on simple syntax -/
 
-/-- Let-free syntax without literals: the residual obligations are vacuous on it. -/
-def Expr.LetLitFree : Expr → Prop
-  | .bvar _ | .fvar _ | .sort _ | .const .. | .mvar _ => True
-  | .lit _ | .letE .. => False
-  | .app f a | .lam _ f a _ | .forallE _ f a _ => LetLitFree f ∧ LetLitFree a
-  | .mdata _ e | .proj _ _ e => LetLitFree e
+/-- Let-free syntax without literals and metavariables: the residual obligations are vacuous
+on it. -/
+def _root_.Lean.Expr.letLitFree : Expr → Bool
+  | .bvar _ | .fvar _ | .sort _ | .const .. => true
+  | .lit _ | .letE .. | .mvar _ => false
+  | .app f a | .lam _ f a _ | .forallE _ f a _ => letLitFree f && letLitFree a
+  | .mdata _ e | .proj _ _ e => letLitFree e
 
 theorem TrResidual.of_simple : ∀ {Δ : VLCtx} {e : Expr} {e' : VExpr},
-    Expr.LetLitFree e → TrSyn Us Δ e e' → TrResidual env Us Δ e
+    Expr.letLitFree e = true → TrSyn Us Δ e e' → TrResidual env Us Δ e
   | _, .bvar _, _, _, _ => .bvar
   | _, .fvar _, _, _, _ => .fvar
   | _, .sort _, _, _, _ => .sort
   | _, .const .., _, _, _ => .const
-  | _, .app .., _, h, .app s1 s2 => .app (of_simple h.1 s1) (of_simple h.2 s2)
-  | _, .lam .., _, h, .lam s1 s2 => .lam s1 (of_simple h.1 s1) (of_simple h.2 s2)
-  | _, .forallE .., _, h, .forallE s1 s2 => .forallE s1 (of_simple h.1 s1) (of_simple h.2 s2)
+  | _, .app .., _, h, .app s1 s2 => by
+    simp only [Expr.letLitFree, Bool.and_eq_true] at h
+    exact .app (of_simple h.1 s1) (of_simple h.2 s2)
+  | _, .lam .., _, h, .lam s1 s2 => by
+    simp only [Expr.letLitFree, Bool.and_eq_true] at h
+    exact .lam s1 (of_simple h.1 s1) (of_simple h.2 s2)
+  | _, .forallE .., _, h, .forallE s1 s2 => by
+    simp only [Expr.letLitFree, Bool.and_eq_true] at h
+    exact .forallE s1 (of_simple h.1 s1) (of_simple h.2 s2)
   | _, .mdata .., _, h, .mdata s => .mdata (of_simple h s)
   | _, .proj .., _, h, .proj s => .proj (of_simple h s)
 
 /-- On let-free syntax without literals, a typed translation is a syntactic translation with a
 well-typed result. -/
 theorem TrExprS.iff_syn_wf (henv : env.Ordered) (hΔ : Δ.WF env Us.length)
-    (hs : Expr.LetLitFree e) :
+    (hs : Expr.letLitFree e = true) :
     TrExprS env Us Δ e e' ↔ TrSyn Us Δ e e' ∧ VExpr.WF env Us.length Δ.toCtx e' :=
   ⟨fun H => ⟨H.toTrSyn, H.wf henv hΔ⟩,
    fun ⟨H, hwf⟩ => H.toTrExprS henv hΔ hwf (.of_simple hs H)⟩
