@@ -645,7 +645,7 @@ theorem TrExprS.abstractSelectedExpansion
           have HscopeBody : body.FVarsIn (· ∈ fvars) := by
             simpa only [Lean4Lean.FVarsIn] using Hscope
           simpa using ih Hbridge HclosedBody HscopeBody HcanonicalBody
-  | @proj currentCtx body currentBody structName index currentTarget
+  | @proj currentCtx body currentBody structName index
       HcurrentBody HcurrentProj ih =>
       rw [Expr.abstractList_proj] at Hcanonical
       cases Hcanonical with
@@ -656,8 +656,6 @@ theorem TrExprS.abstractSelectedExpansion
           have HscopeBody : body.FVarsIn (· ∈ fvars) := by
             simpa only [Lean4Lean.FVarsIn] using Hscope
           have Hmajor := ih Hbridge HclosedBody HscopeBody HcanonicalBody
-          cases HcanonicalProj
-          cases HcurrentProj
           exact .proj Hmajor
 
 /-- Pre-lowering source of one auxiliary family of the queue.  It is

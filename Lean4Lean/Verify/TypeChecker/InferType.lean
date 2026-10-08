@@ -632,7 +632,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
     refine (instantiateProjectionFields.WF_ctorTelescopes (st := st) (G := G)
       (m := AddInductive.constructorArity c_val.type - I_val.numParams)
       (b := result₀.instOuterAt (List.take info.nparams args') (doms₀.length - info.nparams))
-      he ⟨_, hety⟩ (.inr rfl) hG (Nat.le_refl _)
+      he (.inr rfl) hG (Nat.le_refl _)
       (fun m hm u hu hGu => by simpa using hproj m (by omega) u (by simpa using hu) hGu)
       ?cert ?bound hpfx₄).bind fun o _ _ H => ?_
     case cert =>
@@ -675,7 +675,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
   cases hR
   rw [hP'len, hds_def] at hRT
   refine (instantiateProjectionFields.WF_ctorTelescopes (st := st) (G := G)
-    (m := AddInductive.constructorArity c_val.type - I_val.numParams) he ⟨_, hety⟩ (.inr rfl) hG
+    (m := AddInductive.constructorArity c_val.type - I_val.numParams) he (.inr rfl) hG
     hile (fun m hm u hu hGu => by simpa using hproj m (by omega) u (by simpa using hu) hGu)
     hRT (by omega) hpfx₄).bind fun r _ le₅ H => ?_
   have hpfx₅ := VState.LE.namePrefix_eq hpfx₄ le₅
@@ -739,7 +739,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
     have hfvT₀ {P} : FVarsIn P
         ((ConstantInfo.ctorInfo c_val).instantiateTypeLevelParams I_levels) :=
       hT₀nil.fvarsIn.mono fun _ h => absurd h (by simp)
-    refine .pure ⟨⟨⟨.proj st i e', _, ?_, .proj he (.direct ⟨_, hety⟩ ⟨_, hpF⟩), hdom, hpF⟩, ?_⟩,
+    refine .pure ⟨⟨⟨.proj st i e', _, ?_, .proj he ⟨_, hpF⟩, hdom, hpF⟩, ?_⟩,
       ?_⟩
     · intro P hP hfv
       have hfve : FVarsIn P e := hfv

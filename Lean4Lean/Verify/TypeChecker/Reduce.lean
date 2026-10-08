@@ -241,7 +241,7 @@ theorem reduceProjCore.WF (he : c.TrExprS (.proj n i e) e') :
     RecM.WF c s (reduceProjCore n i e) fun oe _ =>
       ∀ e₁, oe = some e₁ → c.FVarsBelow (.proj n i e) e₁ ∧ c.TrExpr e₁ e' := by
   have .proj (e' := s') hs' hproj := he
-  cases hproj with | direct majorWF targetWF
+  have targetWF := hproj
   obtain ⟨F, hF⟩ := targetWF
   -- retype the projection at the reduced structure
   obtain ⟨info, ls₀, P₀, idx₀, sm, F', fl, hinfo, hls₀, huv₀, hP₀, hidx₀, hfield, hFty, hsm,

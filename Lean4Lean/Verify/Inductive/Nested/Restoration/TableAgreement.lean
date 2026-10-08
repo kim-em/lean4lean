@@ -386,7 +386,7 @@ theorem TrExprS.instantiateRevList_inv {env₁ env₂ : VEnv} {Us₀ Us : List N
     rw [Expr.instantiateRevList_proj] at H
     cases H with
     | proj h hp' =>
-      rw [hp'.target_eq, hp.target_eq, ih W h]
+      rw [ih W h]
       rfl
 
 theorem instantiateRevList_mkAppList (As : List Expr) (dk : Nat) :
@@ -821,10 +821,7 @@ theorem TrExprS.uniqueCtxEnv {env₁ env₂ : VEnv} {Us : List Name} {Δ₁ Δ�
   | letE _ _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 (hΔ.cons .vlet) ‹_›; rfl
   | lit _ _ ih => exact ih hΔ ‹_›
   | mdata _ ih => exact ih hΔ ‹_›
-  | proj _ hp ih =>
-    rename_i h2 hp2
-    cases ih hΔ h2
-    rw [hp.target_eq, hp2.target_eq]
+  | proj _ _ ih => cases ih hΔ ‹_›; rfl
 
 private theorem forall₂_trExprS_uniqueCtxEnv {env₁ env₂ : VEnv} {Us : List Name}
     {Δ₁ Δ₂ : VLCtx} (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂) :

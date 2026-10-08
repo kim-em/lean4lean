@@ -365,11 +365,9 @@ theorem translate_avoids_exists
     | proj _ _ _ Ha =>
       obtain ⟨te, Hte, hre⟩ := ih Ha Hprojs.2 Hctx
       have hok := he.projNamesOK_of_source Hprojs.2 Hctx.projs
-      cases hp with
-      | direct hmajor htarget =>
-        refine ⟨_, .proj Hte (.direct (Hctx.wf S hβ hmajor hre hok)
-          (Hctx.wf S hβ htarget (restoration_expr_proj hre) ⟨Hprojs.1, hok⟩)),
-          restoration_expr_proj hre⟩
+      refine ⟨_, .proj Hte
+        (Hctx.wf S hβ hp (restoration_expr_proj hre) ⟨Hprojs.1, hok⟩),
+        restoration_expr_proj hre⟩
 
 
 /-! ### Restoration of opened bodies -/
@@ -635,11 +633,9 @@ theorem restorationTranslates
     | proj Te =>
     obtain ⟨te, Hte, hre⟩ := ih He Te Hprojs.2 Hctx Hlift
     have hok := he.projNamesOK_of_source Hprojs.2 Hctx.projs
-    cases hp with
-    | direct hmajor htarget =>
-      exact ⟨_, .proj Hte (.direct (Hctx.wf S hβ hmajor hre hok)
-        (Hctx.wf S hβ htarget (restoration_expr_proj hre) ⟨Hprojs.1, hok⟩)),
-        restoration_expr_proj hre⟩
+    exact ⟨_, .proj Hte
+      (Hctx.wf S hβ hp (restoration_expr_proj hre) ⟨Hprojs.1, hok⟩),
+      restoration_expr_proj hre⟩
 
 
 /-! ### Closing the opened parameters -/

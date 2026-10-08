@@ -455,7 +455,6 @@ theorem TrExprS.headsApplied_of_avoids {env : VEnv} {Us : List Name} {Δ : VLCtx
     cases hav with | mdata _ _ h => exact ih h hΔ
   | proj _ hproj ih =>
     intro hav hΔ
-    rw [hproj.target_eq]
     cases hav with | proj _ _ _ h => exact .proj (ih h hΔ)
 
 /-- **Transport of head arity along the expression translation.** -/
@@ -509,7 +508,7 @@ theorem _root_.Lean.Expr.HeadsApplied.trExprS {env : VEnv} {Us : List Name}
   | proj _ ih =>
     intro Δ e' hΔ Htr
     cases Htr with
-    | proj He Hp => rw [Hp.target_eq]; exact .proj (ih hΔ He)
+    | proj He => exact .proj (ih hΔ He)
 
 end Transport
 
@@ -663,11 +662,9 @@ theorem _root_.Lean4Lean.TrExprS.projsRegistered {env : VEnv} {Us : List Name} {
   | mdata _ ih => exact ih hΔ
   | proj _ hproj ih =>
     refine ⟨?_, ih hΔ⟩
-    cases hproj with
-    | direct _ hwf =>
-      obtain ⟨_, hty⟩ := hwf
-      obtain ⟨info, -, -, -, -, -, -, hinfo, -⟩ := VEnv.HasType.proj_inv henv hΔ.toCtx hty
-      exact ⟨info, hinfo⟩
+    obtain ⟨_, hty⟩ := hproj
+    obtain ⟨info, -, -, -, -, -, -, hinfo, -⟩ := VEnv.HasType.proj_inv henv hΔ.toCtx hty
+    exact ⟨info, hinfo⟩
 
 
 

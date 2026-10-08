@@ -280,29 +280,27 @@ end VEnv
 
 /-- A finite environment anchor for one verified projection.  Restriction
 replay does not need every constant of the ambient source environment: it only
-needs an earlier environment in which the same projection derivation was
-already valid and whose constants all avoid `changed`.
+needs an earlier environment in which the same primitive projection was
+already well formed and whose constants all avoid `changed`.
 
 The explicit anchor keeps the restriction fact stable when the translation is
 subsequently weakened to a larger environment. -/
-structure TrProj.RestrictionSupport
+structure TrExprS.ProjRestrictionSupport
     {env : VEnv} {U : Nat} {Gamma : List VExpr}
-    {structName : Name} {index : Nat} {major projected : VExpr}
+    {structName : Name} {index : Nat} {major : VExpr}
     (changed : Name → Prop)
-    (H : TrProj (env := env) (U := U) Gamma structName index major projected) where
+    (_H : VExpr.WF env U Gamma (.proj structName index major)) where
   anchor : VEnv
   anchor_le : anchor ≤ env
-  projection : TrProj (env := anchor) (U := U) Gamma
-    structName index major projected
+  projection : VExpr.WF anchor U Gamma (.proj structName index major)
   constants : ∀ {name ci}, anchor.constants name = some ci →
     ¬ changed name
 
-def TrProj.RestrictionSupport.mono
+def TrExprS.ProjRestrictionSupport.mono
     {env env' : VEnv} (henv : env ≤ env')
-    {H : TrProj (env := env) (U := U) Gamma
-      structName index major projected}
-    (S : H.RestrictionSupport changed) :
-    (H.mono henv).RestrictionSupport changed where
+    {H : VExpr.WF env U Gamma (.proj structName index major)}
+    (S : TrExprS.ProjRestrictionSupport changed H) :
+    TrExprS.ProjRestrictionSupport changed (H.mono henv) where
   anchor := S.anchor
   anchor_le := S.anchor_le.trans henv
   projection := S.projection
@@ -361,11 +359,11 @@ inductive TrExprS.Avoids {env : VEnv} {levelParams : List Name}
   | mdata (Huses : Avoids changed H) :
       Avoids changed (.mdata H)
   | proj (ctx : VLCtx) (source : Expr) (target : VExpr)
-      (structName : Name) (index : Nat) (projected : VExpr)
+      (structName : Name) (index : Nat)
       (H : TrExprS env levelParams ctx source target)
-      (Hproj : TrProj ctx.toCtx structName index target projected)
+      (Hproj : VExpr.WF env levelParams.length ctx.toCtx (.proj structName index target))
       (Huses : Avoids changed H)
-      (HprojUses : Hproj.RestrictionSupport changed) :
+      (HprojUses : TrExprS.ProjRestrictionSupport changed Hproj) :
       Avoids changed (.proj H Hproj)
 
 theorem TrExprS.avoids_of_constants
@@ -397,7 +395,7 @@ theorem TrExprS.avoids_of_constants
     exact .lit Hcontains (Hcontains.avoids_of_constants Hconstants) IH
   | mdata H IH => exact .mdata IH
   | proj H Hproj IH =>
-    exact .proj _ _ _ _ _ _ H Hproj IH {
+    exact .proj _ _ _ _ _ H Hproj IH {
       anchor := env
       anchor_le := VEnv.LE.rfl
       projection := Hproj
@@ -434,9 +432,9 @@ theorem TrExprS.Avoids.mono
   | lit Hcontains Hliteral HconstructorUses IH =>
     exact .lit (Hcontains.mono henv) Hliteral IH
   | mdata Huses IH => exact .mdata IH
-  | proj ctx source target structName index projected H Hproj Huses
+  | proj ctx source target structName index H Hproj Huses
       HprojUses IH =>
-    exact .proj ctx source target structName index projected
+    exact .proj ctx source target structName index
       (H.mono henv) (Hproj.mono henv) IH (HprojUses.mono henv)
 
 end Lean4Lean

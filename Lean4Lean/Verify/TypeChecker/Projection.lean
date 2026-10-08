@@ -209,7 +209,7 @@ theorem instantiateProjectionParameters.WF_tel {c : VContext} {args : Array Expr
       exact hR
 
 theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
-    (he : c.TrExprS struct e') (hmaj : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx e')
+    (he : c.TrExprS struct e')
     (hG0 : G .zero) (hG : maybePropType = false → ∀ u, G u) :
     ∀ {remaining m : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr}
       {position : Nat},
@@ -334,7 +334,7 @@ theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
                 FVarsIn P type → struct.ParamUniformIn c.env heads As ls → FVarsIn P struct →
                 projAvoidsHeads c.env heads st → t.ParamUniformIn c.env heads As ls := by
         have hp_tr : c.TrExprS (.proj st position struct) (.proj st position e') :=
-          .proj he (.direct hmaj ⟨_, hp⟩)
+          .proj he ⟨_, hp⟩
         rw [Expr.instantiate1_eq]
         exact cont _ hps (hkeep.inst c.Ewf.ordered hp hp_tr)
           (fun P hP hfvt hfvs => FVarsIn.instantiate1 (hbe P hP hfvt).2 hfvs)
@@ -404,7 +404,7 @@ theorem instantiateProjectionParameters.WF_cert {c : VContext} {args : Array Exp
 /-- The field walk, with the non-dependent fields covered by a telescope certificate of the
 current type. -/
 theorem instantiateProjectionFields.WF_ctorTelescopes {c : VContext} {G : VLevel → Prop}
-    (he : c.TrExprS struct e') (hmaj : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx e')
+    (he : c.TrExprS struct e')
     (hG0 : G .zero) (hG : maybePropType = false → ∀ u, G u)
     {remaining m : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr}
     {position : Nat} (hle : remaining ≤ ds.length)
@@ -426,7 +426,7 @@ theorem instantiateProjectionFields.WF_ctorTelescopes {c : VContext} {G : VLevel
       ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P → type.ParamUniformIn c.env heads As ls →
         FVarsIn P type → struct.ParamUniformIn c.env heads As ls → FVarsIn P struct →
         projAvoidsHeads c.env heads st → t.ParamUniformIn c.env heads As ls :=
-  (instantiateProjectionFields.WF_tel he hmaj hG0 hG hcert hm hle hproj hpfx).mono
+  (instantiateProjectionFields.WF_tel he hG0 hG hcert hm hle hproj hpfx).mono
     fun _ _ _ H t ht =>
       let ⟨⟨⟨⟨R, hR, hR'⟩, h1⟩, h2⟩, h3⟩ := H t ht
       ⟨⟨⟨⟨R, hR, hR'.toTrExprS⟩, h1⟩, h2⟩, h3⟩

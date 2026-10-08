@@ -624,7 +624,6 @@ theorem restorationCommutesTrail
     rw [Expr.replace_proj_of_none (hmiss _ (by simp) (by simp [Expr.getAppFn]))] at Ht
     cases Ht with
     | proj ht hp' =>
-      rw [hp.target_eq, hp'.target_eq]
       exact restoration_expr_proj (ih He Te Hctx ht)
 
 /-- The unchanged parameter prefix of a lambda restoration, with input-side
