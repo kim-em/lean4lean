@@ -710,8 +710,8 @@ theorem CaseStep.arity_eq (henv : env.WF)
       cases henv.eliminators_unique hl hl'
       have hslot : owner = owner' := Fin.ext (ho.symm.trans (howner.trans ho'))
       cases hslot
-      obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ := henv.eliminator_installed hl
-      exact hcert.arguments_length_eq hbase hg hg'
+      obtain ⟨base, source, sourceBlock, _, _, hcert, _, _⟩ := henv.eliminator_installed hl
+      exact hcert.arguments_length_eq hg hg'
 
 theorem CaseRedex.not_elim_prefix (henv : env.WF)
     (H : CaseStep env U Γ rule levels arguments)
@@ -913,8 +913,8 @@ theorem IsCasePrefix.not_reduction (henv : env.WF) (hm : IsCasePrefix env e)
     cases henv.eliminators_unique hlookup hl
     have hslot : owner' = owner := Fin.ext (hgo.symm.trans (hmatch.owner_eq.symm.trans ho))
     cases hslot
-    obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ := henv.eliminator_installed hlookup
-    have hn := hcert.arguments_length hbase hg
+    obtain ⟨base, source, sourceBlock, _, _, hcert, _, _⟩ := henv.eliminator_installed hlookup
+    have hn := hcert.arguments_length hg
     have hargs := congrArg (fun p : VExpr × List VExpr => p.2.length) hs
     simp only [List.length_append, List.length_singleton] at hargs
     unfold caseMajorArity at hlen
@@ -925,10 +925,10 @@ theorem CaseRedex.majorPremise (henv : env.WF)
     IsCaseMajorPremise env (VExpr.mkApps (.elim actual.block actual.owner actual.levels) actual.arguments) := by
   obtain ⟨schema, block, owner, hl, hg⟩ := H.source.generates
   obtain ⟨hb, ho⟩ := hg.owned
-  obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ := henv.eliminator_installed hl
+  obtain ⟨base, source, sourceBlock, _, _, hcert, _, _⟩ := henv.eliminator_installed hl
   refine ⟨schema, block, owner, actual.levels, actual.arguments, hl, ?_, ?_⟩
   · rw [H.block_eq, H.owner_eq, hb, ho]
-  · exact H.arguments_length.trans (hcert.arguments_length hbase hg)
+  · exact H.arguments_length.trans (hcert.arguments_length hg)
 
 theorem CaseIota.determ (henv : env.WF)
     (H : CaseIota env U Γ lhs rhs) (H' : CaseIota env U Γ lhs rhs') :

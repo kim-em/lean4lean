@@ -37,17 +37,3 @@ theorem HasType.mkApps_sort_arity (henv : env.WF)
       simpa [VExpr.instDomains] using hlen
 
 end Lean4Lean.VEnv
-
-namespace Lean4Lean.InductiveSignature
-
-/-- The checked normalization retains the constructor's literal index count.
-The compatibility arguments remain for existing callers, but neither typing
-uniqueness nor sort/Pi separation is used. -/
-theorem Models.constructor_indices_length {s : InductiveSignature}
-    (hm : s.Models env decl) (_henv : env.WF) (_hsource : decl.SourceWF env)
-    (index : Fin s.constructors.size) :
-    s.constructors[index].indices.length =
-      s.families[s.constructors[index].owner].indices.length :=
-  hm.constructorArity _ (by simpa using Array.getElem_mem index.isLt)
-
-end Lean4Lean.InductiveSignature

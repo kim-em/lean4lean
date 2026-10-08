@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.CaseReduction
+import Lean4Lean.Theory.Typing.SignatureArity
 
 /-! The result universe of a declaration-generated case equation is fixed
 by its actual motive binder, including after restoration. -/
