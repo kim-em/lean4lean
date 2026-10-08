@@ -595,8 +595,9 @@ remainder in the smaller context is needed, and general strengthening is not ava
 (section 5.1).
 
 The proof re-derives the smaller-context translation from the checker's own acceptance of the
-constructor type. A frame lemma for the executable
-(`Lean4Lean/Verify/TypeChecker/Frame*.lean`: a successful run in a local context with extra
+constructor type. A locality theorem for the executable
+(`Methods.withFuel_locality`, stated with `M.PreservesGhostRestriction` in
+`Lean4Lean/Verify/TypeChecker/Frame*.lean`: a successful run in a local context with extra
 declarations that never occur in its inputs, caches or environment is the same run without
 them) and a ghost-telescope verification (`Verify/TypeChecker/GhostTelescope.lean`) show that
 when a constructor type is checked, every unused binder of its telescope can be deleted from

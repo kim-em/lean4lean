@@ -10,16 +10,16 @@ open Kernel
 
 variable {G : FVarId → Prop}
 
-theorem RecM.Framed.orM {x y : RecM Bool} (hx : RecM.Framed G x fun _ => True)
-    (hy : RecM.Framed G y fun _ => True) : RecM.Framed G (x <||> y) fun _ => True := by
+theorem RecM.PreservesGhostRestriction.orM {x y : RecM Bool} (hx : RecM.PreservesGhostRestriction G x fun _ => True)
+    (hy : RecM.PreservesGhostRestriction G y fun _ => True) : RecM.PreservesGhostRestriction G (x <||> y) fun _ => True := by
   unfold _root_.orM
   refine hx.bind fun b _ => ?_
   split
   · exact .pure trivial
   · exact hy
 
-theorem RecM.Framed.toLBoolM {x : RecM Bool} (hx : RecM.Framed G x fun _ => True) :
-    RecM.Framed G (toLBoolM x) fun _ => True := by
+theorem RecM.PreservesGhostRestriction.toLBoolM {x : RecM Bool} (hx : RecM.PreservesGhostRestriction G x fun _ => True) :
+    RecM.PreservesGhostRestriction G (toLBoolM x) fun _ => True := by
   unfold Lean.toLBoolM
   exact hx.bind fun _ _ => .pure trivial
 
@@ -36,13 +36,13 @@ def ReductionStatusGhostFree (G : FVarId → Prop) : ReductionStatus → Prop
 namespace Inner
 
 theorem isDefEqLambda.framed : ∀ {t s : Expr} {subst : Array Expr}, GhostFree G t → GhostFree G s →
-    NonGhostFVars G subst → RecM.Framed G (isDefEqLambda t s subst) fun _ => True
+    NonGhostFVars G subst → RecM.PreservesGhostRestriction G (isDefEqLambda t s subst) fun _ => True
   | t, s, subst, ht, hs, hsub => by
     unfold isDefEqLambda
     split
     · rename_i tDom tBody _ name sDom sBody bi
       have hsT : GhostFree G (sDom.instantiateRev subst) := hs.1.instantiateRev hsub.gfArr
-      have k : ∀ o : Option Expr, OptionGhostFree G o → RecM.Framed G
+      have k : ∀ o : Option Expr, OptionGhostFree G o → RecM.PreservesGhostRestriction G
           (withLocalDecl name bi (o.getD (sDom.instantiateRev subst)) fun fv =>
             isDefEqLambda tBody sBody (subst.push fv)) fun _ => True := by
         intro o ho
@@ -51,21 +51,21 @@ theorem isDefEqLambda.framed : ∀ {t s : Expr} {subst : Array Expr}, GhostFree 
         | none => exact hsT
         | some x => exact ho rfl
       split
-      · exact (RecM.Framed.pure OptionGhostFree.none).bind k
-      · refine (RecM.Framed.isDefEq (ht.1.instantiateRev hsub.gfArr) hsT).bind fun _ _ => ?_
+      · exact (RecM.PreservesGhostRestriction.pure OptionGhostFree.none).bind k
+      · refine (RecM.PreservesGhostRestriction.isDefEq (ht.1.instantiateRev hsub.gfArr) hsT).bind fun _ _ => ?_
         split
         · exact .pure trivial
-        · exact (RecM.Framed.pure (OptionGhostFree.some hsT)).bind k
-    · exact RecM.Framed.isDefEq (ht.instantiateRev hsub.gfArr) (hs.instantiateRev hsub.gfArr)
+        · exact (RecM.PreservesGhostRestriction.pure (OptionGhostFree.some hsT)).bind k
+    · exact RecM.PreservesGhostRestriction.isDefEq (ht.instantiateRev hsub.gfArr) (hs.instantiateRev hsub.gfArr)
 
 theorem isDefEqForall.framed : ∀ {t s : Expr} {subst : Array Expr}, GhostFree G t → GhostFree G s →
-    NonGhostFVars G subst → RecM.Framed G (isDefEqForall t s subst) fun _ => True
+    NonGhostFVars G subst → RecM.PreservesGhostRestriction G (isDefEqForall t s subst) fun _ => True
   | t, s, subst, ht, hs, hsub => by
     unfold isDefEqForall
     split
     · rename_i tDom tBody _ name sDom sBody bi
       have hsT : GhostFree G (sDom.instantiateRev subst) := hs.1.instantiateRev hsub.gfArr
-      have k : ∀ o : Option Expr, OptionGhostFree G o → RecM.Framed G
+      have k : ∀ o : Option Expr, OptionGhostFree G o → RecM.PreservesGhostRestriction G
           (withLocalDecl name bi (o.getD (sDom.instantiateRev subst)) fun fv =>
             isDefEqForall tBody sBody (subst.push fv)) fun _ => True := by
         intro o ho
@@ -74,17 +74,17 @@ theorem isDefEqForall.framed : ∀ {t s : Expr} {subst : Array Expr}, GhostFree 
         | none => exact hsT
         | some x => exact ho rfl
       split
-      · exact (RecM.Framed.pure OptionGhostFree.none).bind k
-      · refine (RecM.Framed.isDefEq (ht.1.instantiateRev hsub.gfArr) hsT).bind fun _ _ => ?_
+      · exact (RecM.PreservesGhostRestriction.pure OptionGhostFree.none).bind k
+      · refine (RecM.PreservesGhostRestriction.isDefEq (ht.1.instantiateRev hsub.gfArr) hsT).bind fun _ _ => ?_
         split
         · exact .pure trivial
-        · exact (RecM.Framed.pure (OptionGhostFree.some hsT)).bind k
-    · exact RecM.Framed.isDefEq (ht.instantiateRev hsub.gfArr) (hs.instantiateRev hsub.gfArr)
+        · exact (RecM.PreservesGhostRestriction.pure (OptionGhostFree.some hsT)).bind k
+    · exact RecM.PreservesGhostRestriction.isDefEq (ht.instantiateRev hsub.gfArr) (hs.instantiateRev hsub.gfArr)
 
 theorem quickIsDefEq.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (quickIsDefEq t s useHash) fun _ => True := by
+    RecM.PreservesGhostRestriction G (quickIsDefEq t s useHash) fun _ => True := by
   unfold quickIsDefEq
-  refine RecM.Framed.bind (RecM.Framed.modifyGet ?_) fun b _ => ?_
+  refine RecM.PreservesGhostRestriction.bind (RecM.PreservesGhostRestriction.modifyGet ?_) fun b _ => ?_
   · intro st hst
     obtain ⟨⟩ := st
     exact ⟨⟨hst.1, hst.2, hst.3, hst.4, hst.5, hst.6⟩, .rfl⟩
@@ -94,52 +94,52 @@ theorem quickIsDefEq.framed (ht : GhostFree G t) (hs : GhostFree G s) :
   · exact .toLBoolM (isDefEqLambda.framed ht hs NonGhostFVars.empty)
   · exact .toLBoolM (isDefEqForall.framed ht hs NonGhostFVars.empty)
   · exact .pure trivial
-  · exact .toLBoolM (RecM.Framed.isDefEq ht hs)
+  · exact .toLBoolM (RecM.PreservesGhostRestriction.isDefEq ht hs)
   · exact .panic trivial
   · exact .pure trivial
   · exact .pure trivial
 
 theorem isDefEqArgs.framed : ∀ {t s : Expr}, GhostFree G t → GhostFree G s →
-    RecM.Framed G (isDefEqArgs t s) fun _ => True
+    RecM.PreservesGhostRestriction G (isDefEqArgs t s) fun _ => True
   | t, s, ht, hs => by
     unfold isDefEqArgs
     split
     · rename_i tf ta sf sa
-      refine (RecM.Framed.isDefEq ht.2 hs.2).bind fun _ _ => ?_
+      refine (RecM.PreservesGhostRestriction.isDefEq ht.2 hs.2).bind fun _ _ => ?_
       split
       · exact .pure trivial
       · exact isDefEqArgs.framed (t := tf) (s := sf) ht.1 hs.1
     all_goals exact .pure trivial
 
 theorem tryEtaExpansionCore.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (tryEtaExpansionCore t s) fun _ => True := by
+    RecM.PreservesGhostRestriction G (tryEtaExpansionCore t s) fun _ => True := by
   unfold tryEtaExpansionCore
   split
-  · refine (RecM.Framed.inferType hs).bind fun _ h => (RecM.Framed.whnf h).bind fun _ h => ?_
+  · refine (RecM.PreservesGhostRestriction.inferType hs).bind fun _ h => (RecM.PreservesGhostRestriction.whnf h).bind fun _ h => ?_
     split
-    · exact RecM.Framed.isDefEq ht ⟨h.1, hs, trivial⟩
+    · exact RecM.PreservesGhostRestriction.isDefEq ht ⟨h.1, hs, trivial⟩
     · exact .pure trivial
   · exact .pure trivial
 
 theorem tryEtaExpansion.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (tryEtaExpansion t s) fun _ => True :=
+    RecM.PreservesGhostRestriction G (tryEtaExpansion t s) fun _ => True :=
   .orM (tryEtaExpansionCore.framed ht hs) (tryEtaExpansionCore.framed hs ht)
 
 theorem tryEtaStructCore.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (tryEtaStructCore t s) fun _ => True := by
+    RecM.PreservesGhostRestriction G (tryEtaStructCore t s) fun _ => True := by
   unfold tryEtaStructCore
   split <;> try exact .pure trivial
-  refine RecM.Framed.getEnv.bind fun env _ => ?_
-  refine (RecM.Framed.liftExcept (R := fun _ => True) fun _ _ => trivial).bind fun _ _ => ?_
+  refine RecM.PreservesGhostRestriction.getEnv.bind fun env _ => ?_
+  refine (RecM.PreservesGhostRestriction.liftExcept (R := fun _ => True) fun _ _ => trivial).bind fun _ _ => ?_
   split <;> try exact .pure trivial
   rename_i fInfo
   split <;> try exact .pure trivial
   split <;> try exact .pure trivial
-  refine (RecM.Framed.inferType ht).bind fun tType htT => ?_
-  refine (RecM.Framed.inferType hs).bind fun _ hsT => ?_
-  refine (RecM.Framed.isDefEq htT hsT).bind fun _ _ => ?_
+  refine (RecM.PreservesGhostRestriction.inferType ht).bind fun tType htT => ?_
+  refine (RecM.PreservesGhostRestriction.inferType hs).bind fun _ hsT => ?_
+  refine (RecM.PreservesGhostRestriction.isDefEq htT hsT).bind fun _ _ => ?_
   split <;> try exact .pure trivial
-  refine (RecM.Framed.inferType htT).bind fun _ h => (RecM.Framed.whnf h).bind fun _ _ => ?_
+  refine (RecM.PreservesGhostRestriction.inferType htT).bind fun _ h => (RecM.PreservesGhostRestriction.whnf h).bind fun _ _ => ?_
   split <;> try exact .pure trivial
   split <;> try exact .pure trivial
   have hargs := hs.getAppArgs
@@ -148,16 +148,16 @@ theorem tryEtaStructCore.framed (ht : GhostFree G t) (hs : GhostFree G s) :
   induction i using tryEtaStructCore.loop.induct (args := s.getAppArgs) with
   | case1 i h ih =>
     unfold tryEtaStructCore.loop; rw [dif_pos h]
-    refine (RecM.Framed.isDefEq (t := .proj _ _ t) ht (hargs.getElem h)).bind fun _ _ => ?_
+    refine (RecM.PreservesGhostRestriction.isDefEq (t := .proj _ _ t) ht (hargs.getElem h)).bind fun _ _ => ?_
     split <;> first | exact .pure trivial | exact ih
   | case2 i h => unfold tryEtaStructCore.loop; rw [dif_neg h]; exact .pure trivial
 
 theorem tryEtaStruct.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (tryEtaStruct t s) fun _ => True :=
+    RecM.PreservesGhostRestriction G (tryEtaStruct t s) fun _ => True :=
   .orM (tryEtaStructCore.framed ht hs) (tryEtaStructCore.framed hs ht)
 
 theorem isDefEqApp.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (isDefEqApp t s) fun _ => True := by
+    RecM.PreservesGhostRestriction G (isDefEqApp t s) fun _ => True := by
   unfold isDefEqApp
   split <;> try exact .pure trivial
   rw [Expr.withApp_eq, Expr.withApp_eq]
@@ -165,46 +165,46 @@ theorem isDefEqApp.framed (ht : GhostFree G t) (hs : GhostFree G s) :
   have hsA := hs.getAppArgs
   split <;> try exact .pure trivial
   rename_i hsz
-  refine (RecM.Framed.isDefEq ht.getAppFn hs.getAppFn).bind fun _ _ => ?_
+  refine (RecM.PreservesGhostRestriction.isDefEq ht.getAppFn hs.getAppFn).bind fun _ _ => ?_
   split <;> try exact .pure trivial
   generalize 0 = i
   induction i using isDefEqApp.loop.induct (tArgs := t.getAppArgs) (sArgs := s.getAppArgs) (_h := hsz) with
   | case1 i h ih =>
     unfold isDefEqApp.loop; rw [dif_pos h]
-    refine (RecM.Framed.isDefEq (htA.getElem h) (hsA.getElem (hsz ▸ h))).bind fun _ _ => ?_
+    refine (RecM.PreservesGhostRestriction.isDefEq (htA.getElem h) (hsA.getElem (hsz ▸ h))).bind fun _ _ => ?_
     split <;> first | exact .pure trivial | exact ih
   | case2 i h => unfold isDefEqApp.loop; rw [dif_neg h]; exact .pure trivial
 
 theorem isDefEqProofIrrel.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (isDefEqProofIrrel t s) fun _ => True := by
+    RecM.PreservesGhostRestriction G (isDefEqProofIrrel t s) fun _ => True := by
   unfold isDefEqProofIrrel
-  refine (RecM.Framed.inferType ht).bind fun _ htT => (isProp.framed htT).bind fun _ _ => ?_
+  refine (RecM.PreservesGhostRestriction.inferType ht).bind fun _ htT => (isProp.framed htT).bind fun _ _ => ?_
   split <;> first
     | exact .pure trivial
-    | exact (RecM.Framed.inferType hs).bind fun _ h => .toLBoolM (RecM.Framed.isDefEq htT h)
+    | exact (RecM.PreservesGhostRestriction.inferType hs).bind fun _ h => .toLBoolM (RecM.PreservesGhostRestriction.isDefEq htT h)
 
-theorem cacheFailure.framed : M.Framed G (cacheFailure t s) fun _ => True := by
+theorem cacheFailure.framed : M.PreservesGhostRestriction G (cacheFailure t s) fun _ => True := by
   unfold cacheFailure
-  refine M.Framed.modify fun st hst => ⟨⟨hst.1, hst.2, hst.3, hst.4, hst.5, hst.6⟩, .rfl⟩
+  refine M.PreservesGhostRestriction.modify fun st hst => ⟨⟨hst.1, hst.2, hst.3, hst.4, hst.5, hst.6⟩, .rfl⟩
 
 theorem tryUnfoldProjApp.framed (he : GhostFree G e) :
-    RecM.Framed G (tryUnfoldProjApp e) (OptionGhostFree G) := by
+    RecM.PreservesGhostRestriction G (tryUnfoldProjApp e) (OptionGhostFree G) := by
   unfold tryUnfoldProjApp; dsimp only
   split
   · exact .pure OptionGhostFree.none
-  · refine (RecM.Framed.whnfCore he).bind fun _ h => .pure ?_
+  · refine (RecM.PreservesGhostRestriction.whnfCore he).bind fun _ h => .pure ?_
     split
     · exact OptionGhostFree.some h
     · exact OptionGhostFree.none
 
 theorem lazyDeltaReductionStep.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (lazyDeltaReductionStep t s) (ReductionStatusGhostFree G) := by
+    RecM.PreservesGhostRestriction G (lazyDeltaReductionStep t s) (ReductionStatusGhostFree G) := by
   unfold lazyDeltaReductionStep
-  refine RecM.Framed.getEnv.bind fun env _ => ?_
+  refine RecM.PreservesGhostRestriction.getEnv.bind fun env _ => ?_
   extract_lets delta cont
-  have hdelta : ∀ e, GhostFree G e → RecM.Framed G (delta e) (GhostFree G) := fun e he =>
-    (unfoldDefinition.framed he).bind fun _ h => RecM.Framed.whnfCore h.get!
-  have hcont : ∀ tn sn, GhostFree G tn → GhostFree G sn → RecM.Framed G (cont tn sn) (ReductionStatusGhostFree G) :=
+  have hdelta : ∀ e, GhostFree G e → RecM.PreservesGhostRestriction G (delta e) (GhostFree G) := fun e he =>
+    (unfoldDefinition.framed he).bind fun _ h => RecM.PreservesGhostRestriction.whnfCore h.get!
+  have hcont : ∀ tn sn, GhostFree G tn → GhostFree G sn → RecM.PreservesGhostRestriction G (cont tn sn) (ReductionStatusGhostFree G) :=
     fun tn sn htn hsn => (quickIsDefEq.framed htn hsn).bind fun _ _ => .pure (by
       split
       · exact ⟨htn, hsn⟩
@@ -225,9 +225,9 @@ theorem lazyDeltaReductionStep.framed (ht : GhostFree G t) (hs : GhostFree G s) 
     · exact (hdelta _ hs).bind fun _ h => hcont _ _ ht h
     split
     · exact (hdelta _ ht).bind fun _ h => hcont _ _ h hs
-    refine RecM.Framed.get.bind fun _ _ => ?_
+    refine RecM.PreservesGhostRestriction.get.bind fun _ _ => ?_
     have hjp := (hdelta _ ht).bind fun _ h1 => (hdelta _ hs).bind fun _ h2 => hcont _ _ h1 h2
-    have hjp' := (RecM.Framed.lift (cacheFailure.framed (G := G) (t := t) (s := s))).bind
+    have hjp' := (RecM.PreservesGhostRestriction.lift (cacheFailure.framed (G := G) (t := t) (s := s))).bind
       fun _ _ => hjp
     split
     · split
@@ -237,7 +237,7 @@ theorem lazyDeltaReductionStep.framed (ht : GhostFree G t) (hs : GhostFree G s) 
     · exact hjp
 
 theorem isDefEqOffset.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (isDefEqOffset t s) fun _ => True := by
+    RecM.PreservesGhostRestriction G (isDefEqOffset t s) fun _ => True := by
   unfold isDefEqOffset
   split
   · exact .pure trivial
@@ -250,7 +250,7 @@ theorem isDefEqOffset.framed (ht : GhostFree G t) (hs : GhostFree G s) :
       · cases h; trivial
       · cases h; exact he.2
       · cases h
-    exact .toLBoolM (RecM.Framed.isDefEqCore (gf ht h1) (gf hs h2))
+    exact .toLBoolM (RecM.PreservesGhostRestriction.isDefEqCore (gf ht h1) (gf hs h2))
   · exact .pure trivial
 
 theorem _root_.Lean4Lean.TypeChecker.ReductionStatusGhostFree.bool (ht : GhostFree G t) (hs : GhostFree G s) :
@@ -260,7 +260,7 @@ theorem _root_.Lean4Lean.TypeChecker.ReductionStatusGhostFree.bool (ht : GhostFr
   · trivial
 
 theorem lazyDeltaReduction.loop.framed : ∀ (fuel : Nat) {t s : Expr}, GhostFree G t → GhostFree G s →
-    RecM.Framed G (lazyDeltaReduction.loop t s fuel) (ReductionStatusGhostFree G) := by
+    RecM.PreservesGhostRestriction G (lazyDeltaReduction.loop t s fuel) (ReductionStatusGhostFree G) := by
   intro fuel
   induction fuel with
   | zero => intro t s _ _; unfold lazyDeltaReduction.loop; exact .throw
@@ -270,8 +270,8 @@ theorem lazyDeltaReduction.loop.framed : ∀ (fuel : Nat) {t s : Expr}, GhostFre
     refine (isDefEqOffset.framed ht hs).bind fun r _ => ?_
     split
     · exact .pure (.bool ht hs)
-    refine RecM.Framed.read (fun c₁ c₂ h => by simp only [h.ctx_eq.2.2.1]) fun _ _ _ => ?_
-    have hjp : RecM.Framed G (do
+    refine RecM.PreservesGhostRestriction.read (fun c₁ c₂ h => by simp only [h.ctx_eq.2.2.1]) fun _ _ _ => ?_
+    have hjp : RecM.PreservesGhostRestriction G (do
         let env ← liftM getEnv
         let __do_lift ← liftM (reduceNative env t)
         match __do_lift with
@@ -289,13 +289,13 @@ theorem lazyDeltaReduction.loop.framed : ∀ (fuel : Nat) {t s : Expr}, GhostFre
                 match __do_lift with
                   | ReductionStatus.continue tn sn => lazyDeltaReduction.loop tn sn fuel
                   | r => pure r) (ReductionStatusGhostFree G) := by
-      refine RecM.Framed.getEnv.bind fun env _ => ?_
-      refine (RecM.Framed.liftExcept (reduceNative_gf (G := G))).bind fun o ho => ?_
+      refine RecM.PreservesGhostRestriction.getEnv.bind fun env _ => ?_
+      refine (RecM.PreservesGhostRestriction.liftExcept (reduceNative_gf (G := G))).bind fun o ho => ?_
       split
-      · exact (RecM.Framed.isDefEqCore (ho rfl) hs).bind fun _ _ => .pure (.bool (ho rfl) hs)
-      refine (RecM.Framed.liftExcept (reduceNative_gf (G := G))).bind fun o ho => ?_
+      · exact (RecM.PreservesGhostRestriction.isDefEqCore (ho rfl) hs).bind fun _ _ => .pure (.bool (ho rfl) hs)
+      refine (RecM.PreservesGhostRestriction.liftExcept (reduceNative_gf (G := G))).bind fun o ho => ?_
       split
-      · exact (RecM.Framed.isDefEqCore ht (ho rfl)).bind fun _ _ => .pure (.bool ht (ho rfl))
+      · exact (RecM.PreservesGhostRestriction.isDefEqCore ht (ho rfl)).bind fun _ _ => .pure (.bool ht (ho rfl))
       refine (lazyDeltaReductionStep.framed ht hs).bind fun r hr => ?_
       split
       · exact ih hr.1 hr.2
@@ -303,33 +303,33 @@ theorem lazyDeltaReduction.loop.framed : ∀ (fuel : Nat) {t s : Expr}, GhostFre
     split
     · refine (reduceNat.framed ht).bind fun o ho => ?_
       split
-      · exact (RecM.Framed.isDefEqCore (ho rfl) hs).bind fun _ _ => .pure (.bool (ho rfl) hs)
+      · exact (RecM.PreservesGhostRestriction.isDefEqCore (ho rfl) hs).bind fun _ _ => .pure (.bool (ho rfl) hs)
       refine (reduceNat.framed hs).bind fun o ho => ?_
       split
-      · exact (RecM.Framed.isDefEqCore ht (ho rfl)).bind fun _ _ => .pure (.bool ht (ho rfl))
+      · exact (RecM.PreservesGhostRestriction.isDefEqCore ht (ho rfl)).bind fun _ _ => .pure (.bool ht (ho rfl))
       · exact hjp
     · exact hjp
 
 theorem lazyDeltaReduction.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (lazyDeltaReduction t s) (ReductionStatusGhostFree G) := by
+    RecM.PreservesGhostRestriction G (lazyDeltaReduction t s) (ReductionStatusGhostFree G) := by
   unfold lazyDeltaReduction
-  exact RecM.Framed.read (fun c₁ c₂ h => by simp only [h.ctx_eq.2.2.2.2]) fun _ _ _ =>
+  exact RecM.PreservesGhostRestriction.read (fun c₁ c₂ h => by simp only [h.ctx_eq.2.2.2.2]) fun _ _ _ =>
     lazyDeltaReduction.loop.framed _ ht hs
 
 theorem lazyDeltaProjReduction.finish.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (lazyDeltaProjReduction.finish structName idx t s) fun _ => True := by
+    RecM.PreservesGhostRestriction G (lazyDeltaProjReduction.finish structName idx t s) fun _ => True := by
   unfold lazyDeltaProjReduction.finish
   refine (reduceProjCore.framed ht).bind fun o ho => ?_
-  have k := RecM.Framed.isDefEqCore (G := G) ht hs
+  have k := RecM.PreservesGhostRestriction.isDefEqCore (G := G) ht hs
   split
   · refine (reduceProjCore.framed hs).bind fun o' ho' => ?_
     split
-    · exact RecM.Framed.isDefEqCore (ho rfl) (ho' rfl)
+    · exact RecM.PreservesGhostRestriction.isDefEqCore (ho rfl) (ho' rfl)
     · exact k
   · exact k
 
 theorem lazyDeltaProjReduction.loop.framed : ∀ (fuel : Nat) {t s : Expr}, GhostFree G t → GhostFree G s →
-    RecM.Framed G (lazyDeltaProjReduction.loop structName idx t s fuel) fun _ => True := by
+    RecM.PreservesGhostRestriction G (lazyDeltaProjReduction.loop structName idx t s fuel) fun _ => True := by
   intro fuel
   induction fuel with
   | zero => intro t s _ _; unfold lazyDeltaProjReduction.loop; exact .throw
@@ -344,21 +344,21 @@ theorem lazyDeltaProjReduction.loop.framed : ∀ (fuel : Nat) {t s : Expr}, Ghos
     · exact finish.framed hr.1 hr.2
 
 theorem lazyDeltaProjReduction.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (lazyDeltaProjReduction structName t s idx) fun _ => True := by
+    RecM.PreservesGhostRestriction G (lazyDeltaProjReduction structName t s idx) fun _ => True := by
   unfold lazyDeltaProjReduction
-  exact RecM.Framed.read (fun c₁ c₂ h => by simp only [h.ctx_eq.2.2.2.2]) fun _ _ _ =>
+  exact RecM.PreservesGhostRestriction.read (fun c₁ c₂ h => by simp only [h.ctx_eq.2.2.2.2]) fun _ _ _ =>
     lazyDeltaProjReduction.loop.framed _ ht hs
 
 theorem tryStringLitExpansionCore.framed (hs : GhostFree G s) :
-    RecM.Framed G (tryStringLitExpansionCore t s) fun _ => True := by
+    RecM.PreservesGhostRestriction G (tryStringLitExpansionCore t s) fun _ => True := by
   unfold tryStringLitExpansionCore
   split <;> try exact .pure trivial
   split <;> try exact .pure trivial
   split <;> try exact .pure trivial
-  exact .toLBoolM (RecM.Framed.isDefEqCore FVarsIn.strLitToConstructor hs)
+  exact .toLBoolM (RecM.PreservesGhostRestriction.isDefEqCore FVarsIn.strLitToConstructor hs)
 
 theorem tryStringLitExpansion.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (tryStringLitExpansion t s) fun _ => True := by
+    RecM.PreservesGhostRestriction G (tryStringLitExpansion t s) fun _ => True := by
   unfold tryStringLitExpansion
   refine (tryStringLitExpansionCore.framed hs).bind fun _ _ => ?_
   split
@@ -366,31 +366,31 @@ theorem tryStringLitExpansion.framed (ht : GhostFree G t) (hs : GhostFree G s) :
   · exact .pure trivial
 
 theorem isDefEqUnitLike.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (isDefEqUnitLike t s) fun _ => True := by
+    RecM.PreservesGhostRestriction G (isDefEqUnitLike t s) fun _ => True := by
   unfold isDefEqUnitLike
-  refine (RecM.Framed.inferType ht).bind fun _ h => (RecM.Framed.whnf h).bind fun tType htT => ?_
+  refine (RecM.PreservesGhostRestriction.inferType ht).bind fun _ h => (RecM.PreservesGhostRestriction.whnf h).bind fun tType htT => ?_
   split <;> try exact .pure trivial
-  refine RecM.Framed.getEnv.bind fun env _ => ?_
-  refine (RecM.Framed.liftExcept (R := fun _ => True) fun _ _ => trivial).bind fun _ _ => ?_
+  refine RecM.PreservesGhostRestriction.getEnv.bind fun env _ => ?_
+  refine (RecM.PreservesGhostRestriction.liftExcept (R := fun _ => True) fun _ _ => trivial).bind fun _ _ => ?_
   split <;> try exact .pure trivial
-  refine (RecM.Framed.liftExcept (R := fun _ => True) fun _ _ => trivial).bind fun _ _ => ?_
+  refine (RecM.PreservesGhostRestriction.liftExcept (R := fun _ => True) fun _ _ => trivial).bind fun _ _ => ?_
   repeat (split <;> [skip; exact .pure trivial])
-  exact (RecM.Framed.inferType hs).bind fun _ h => RecM.Framed.isDefEqCore htT h
+  exact (RecM.PreservesGhostRestriction.inferType hs).bind fun _ h => RecM.PreservesGhostRestriction.isDefEqCore htT h
 
 theorem isDefEqCore'.framed (ht : GhostFree G t) (hs : GhostFree G s) :
-    RecM.Framed G (isDefEqCore' t s) fun _ => True := by
+    RecM.PreservesGhostRestriction G (isDefEqCore' t s) fun _ => True := by
   unfold isDefEqCore'
   refine (quickIsDefEq.framed ht hs).bind fun _ _ => ?_
   split
   · exact .pure trivial
-  refine RecM.Framed.read (fun c₁ c₂ h => by simp only [h.ctx_eq.2.2.1]) fun _ _ _ => ?_
+  refine RecM.PreservesGhostRestriction.read (fun c₁ c₂ h => by simp only [h.ctx_eq.2.2.1]) fun _ _ _ => ?_
   extract_lets jp1
-  have hjp1 : RecM.Framed G (jp1 ()) fun _ => True := by
+  have hjp1 : RecM.PreservesGhostRestriction G (jp1 ()) fun _ => True := by
     dsimp (config := {zeta := false}) only [jp1]
-    refine (RecM.Framed.whnfCore ht).bind fun tn htn =>
-      (RecM.Framed.whnfCore hs).bind fun sn hsn => ?_
+    refine (RecM.PreservesGhostRestriction.whnfCore ht).bind fun tn htn =>
+      (RecM.PreservesGhostRestriction.whnfCore hs).bind fun sn hsn => ?_
     extract_lets jp2
-    have hjp2 : RecM.Framed G (jp2 ()) fun _ => True := by
+    have hjp2 : RecM.PreservesGhostRestriction G (jp2 ()) fun _ => True := by
       dsimp (config := {zeta := false}) only [jp2]
       refine (isDefEqProofIrrel.framed htn hsn).bind fun _ _ => ?_
       split
@@ -404,12 +404,12 @@ theorem isDefEqCore'.framed (ht : GhostFree G t) (hs : GhostFree G s) :
       have htn : GhostFree G tn := hr.1
       have hsn : GhostFree G sn := hr.2
       extract_lets jp3
-      have hjp3 : RecM.Framed G (jp3 ()) fun _ => True := by
+      have hjp3 : RecM.PreservesGhostRestriction G (jp3 ()) fun _ => True := by
         dsimp (config := {zeta := false}) only [jp3]
-        refine (RecM.Framed.whnfCore htn).bind fun _ htnn =>
-          (RecM.Framed.whnfCore hsn).bind fun _ hsnn => ?_
+        refine (RecM.PreservesGhostRestriction.whnfCore htn).bind fun _ htnn =>
+          (RecM.PreservesGhostRestriction.whnfCore hsn).bind fun _ hsnn => ?_
         split
-        · exact RecM.Framed.isDefEqCore htnn hsnn
+        · exact RecM.PreservesGhostRestriction.isDefEqCore htnn hsnn
         refine (isDefEqApp.framed htn hsn).bind fun _ _ => ?_
         split; · exact .pure trivial
         refine (tryEtaExpansion.framed htn hsn).bind fun _ _ => ?_
@@ -442,7 +442,7 @@ theorem isDefEqCore'.framed (ht : GhostFree G t) (hs : GhostFree G s) :
       · exact hjp2
     · exact hjp2
   split
-  · refine (RecM.Framed.whnf ht).bind fun _ _ => ?_
+  · refine (RecM.PreservesGhostRestriction.whnf ht).bind fun _ _ => ?_
     split
     · exact .pure trivial
     · exact hjp1

@@ -26,7 +26,7 @@ Three details of `GhostRel` are forced by the executable:
   recursor rule right-hand sides as results; a ghost in one of them would be looked up in the
   local context later.
 
-`M.Framed` also records that the name generator only advances (`s.ngen ≤ s'.ngen`), so a caller
+`M.PreservesGhostRestriction` also records that the name generator only advances (`s.ngen ≤ s'.ngen`), so a caller
 can tell that an id generated after the run is fresh for the state before it.
 
 The statement is extensional in the repository's model of the executable: pointer-equality tests
@@ -77,23 +77,27 @@ structure GhostRel (G : FVarId → Prop) (c₁ c₂ : Context) : Prop where
   wf₂ : c₂.lctx.fvarIdToDecl.WF
   env : EnvGhostFree G c₂.env
 
-/-- A computation of the checker is *framed* for the ghosts `G` (with result invariant `R`): a
-successful run in a ghost-extended context is the same successful run in the smaller context,
+/-- A computation of the checker *preserves the ghost restriction* `G` (with result invariant
+`R`): starting from the same ghost-free state, a successful run in a ghost-extended context is the same successful run in the smaller context,
 the result and final state are ghost-free, and the name generator has only advanced. -/
-def M.Framed (G : FVarId → Prop) (x : M α) (R : α → Prop) : Prop :=
+def M.PreservesGhostRestriction (G : FVarId → Prop) (x : M α) (R : α → Prop) : Prop :=
   ∀ ⦃c₁ c₂ : Context⦄ ⦃s : State⦄ ⦃a : α⦄ ⦃s' : State⦄, GhostRel G c₁ c₂ → GhostFreeState G s →
     x c₁ s = .ok (a, s') → x c₂ s = .ok (a, s') ∧ R a ∧ GhostFreeState G s' ∧ s.ngen ≤ s'.ngen
 
-/-- The methods of a recursive checker run are framed on ghost-free inputs. -/
-structure Methods.Framed (G : FVarId → Prop) (m : Methods) : Prop where
-  isDefEqCore : ∀ ⦃t s⦄, GhostFree G t → GhostFree G s → M.Framed G (m.isDefEqCore t s) fun _ => True
-  whnfCore : ∀ ⦃e⦄ cheapProj, GhostFree G e → M.Framed G (m.whnfCore e cheapProj) (GhostFree G)
-  whnf : ∀ ⦃e⦄, GhostFree G e → M.Framed G (m.whnf e) (GhostFree G)
-  inferType : ∀ ⦃e⦄ inferOnly, GhostFree G e → M.Framed G (m.inferType e inferOnly) (GhostFree G)
+/-- The methods of a recursive checker run preserve the ghost restriction on ghost-free inputs. -/
+structure Methods.PreservesGhostRestriction (G : FVarId → Prop) (m : Methods) : Prop where
+  isDefEqCore : ∀ ⦃t s⦄, GhostFree G t → GhostFree G s →
+    M.PreservesGhostRestriction G (m.isDefEqCore t s) fun _ => True
+  whnfCore : ∀ ⦃e⦄ cheapProj, GhostFree G e →
+    M.PreservesGhostRestriction G (m.whnfCore e cheapProj) (GhostFree G)
+  whnf : ∀ ⦃e⦄, GhostFree G e → M.PreservesGhostRestriction G (m.whnf e) (GhostFree G)
+  inferType : ∀ ⦃e⦄ inferOnly, GhostFree G e →
+    M.PreservesGhostRestriction G (m.inferType e inferOnly) (GhostFree G)
 
-/-- A `RecM` computation is framed when it is framed for all framed methods. -/
-def RecM.Framed (G : FVarId → Prop) (x : RecM α) (R : α → Prop) : Prop :=
-  ∀ ⦃m : Methods⦄, m.Framed G → M.Framed G (x m) R
+/-- A `RecM` computation preserves the ghost restriction when it does so for all methods that
+preserve it. -/
+def RecM.PreservesGhostRestriction (G : FVarId → Prop) (x : RecM α) (R : α → Prop) : Prop :=
+  ∀ ⦃m : Methods⦄, m.PreservesGhostRestriction G → M.PreservesGhostRestriction G (x m) R
 
 /-- The executable's `withFreshId`, unfolded: run the body on the current name and a state
 whose generator has advanced, then leave the scope. -/
