@@ -310,10 +310,10 @@ theorem FoldSteps.inductiveFindCases
 
 /-! ### Lookups in the constructor validation environment -/
 
-theorem ConstructorValidationSteps.headersFreshExtension
+theorem FoldSteps.headersFreshExtension
     {loweredEnv : Environment} {allIndNames : List Name}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationSteps
+    (H : FoldSteps
       (fun indType source target => ValidationHeaderStep loweredEnv
         allIndNames indType.name source target) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
@@ -335,10 +335,10 @@ theorem ConstructorValidationSteps.headersFreshExtension
     rw [← hmiddle]
     exact Htail'
 
-theorem ConstructorValidationSteps.headerFind
+theorem FoldSteps.headerFind
     {loweredEnv : Environment} {allIndNames : List Name}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationSteps
+    (H : FoldSteps
       (fun indType source target => ValidationHeaderStep loweredEnv
         allIndNames indType.name source target) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) (hmem : indType ∈ types) :
@@ -369,10 +369,10 @@ theorem ConstructorValidationSteps.headerFind
       simpa [ci, ConstantInfo.name, ConstantInfo.toConstantVal] using this
     · exact ih hmiddleWF hmem
 
-theorem ConstructorValidationSteps.headerFindCases
+theorem FoldSteps.headerFindCases
     {loweredEnv : Environment} {allIndNames : List Name}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationSteps
+    (H : FoldSteps
       (fun indType source target => ValidationHeaderStep loweredEnv
         allIndNames indType.name source target) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF)
@@ -406,11 +406,11 @@ theorem ConstructorValidationSteps.headerFindCases
     · right
       exact ⟨indType, by simp [hmem], oldInfo, hlookup, hn, hci⟩
 
-theorem ConstructorValidationSteps.constructorsFreshExtension
+theorem FoldSteps.constructorsFreshExtension
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {names : List Name} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationSteps
+    (H : FoldSteps
       (ValidationConstructorStep result loweredEnv allowPrimitive)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
@@ -433,11 +433,11 @@ theorem ConstructorValidationSteps.constructorsFreshExtension
     rw [← hmiddle]
     exact Htail'
 
-theorem ConstructorValidationSteps.constructorFindCases
+theorem FoldSteps.validationConstructorFindCases
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {names : List Name} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationSteps
+    (H : FoldSteps
       (ValidationConstructorStep result loweredEnv allowPrimitive)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF)
@@ -473,11 +473,11 @@ theorem ConstructorValidationSteps.constructorFindCases
     · right
       exact ⟨cn, by simp [hmem], ctorOld, hlookup, hn, hci⟩
 
-theorem ConstructorValidationSteps.familiesFreshExtension
+theorem FoldSteps.familiesFreshExtension
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationSteps
+    (H : FoldSteps
       (ValidationFamilyStep result loweredEnv
         allowPrimitive) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
@@ -490,11 +490,11 @@ theorem ConstructorValidationSteps.familiesFreshExtension
     rcases ih hmiddleWF with ⟨entries', Htail'⟩
     exact ⟨entries ++ entries', Hhead.append Htail'⟩
 
-theorem ConstructorValidationSteps.familiesFindCases
+theorem FoldSteps.familiesFindCases
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationSteps
+    (H : FoldSteps
       (ValidationFamilyStep result loweredEnv
         allowPrimitive) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF)
@@ -514,7 +514,7 @@ theorem ConstructorValidationSteps.familiesFindCases
     have hmiddleWF : middle.constants.WF := Hhead.targetWF hwf
     rcases ih hmiddleWF hfind with hmid |
         ⟨indType, hmem, oldInfo, hlookup, cn, hcn, ctorOld, hctor, hn, hci⟩
-    · rcases Hstep.constructors.constructorFindCases hwf hmid with hsrc |
+    · rcases Hstep.constructors.validationConstructorFindCases hwf hmid with hsrc |
           ⟨cn, hcn, ctorOld, hctor, hn, hci⟩
       · exact Or.inl hsrc
       · right

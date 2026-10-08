@@ -122,10 +122,10 @@ theorem RecursorCheck.find?_name
 
 /-- Each source header restored into a header-only side environment was absent from the
 environment the side environment extends. -/
-theorem ConstructorValidationSteps.headerFresh
+theorem FoldSteps.headerFresh
     {loweredEnv : Environment} {allIndNames : List Name}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationSteps
+    (H : FoldSteps
       (fun indType source target => ValidationHeaderStep loweredEnv
         allIndNames indType.name source target) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) (hmem : indType ∈ types)
@@ -172,7 +172,7 @@ private theorem restoredHeaderValidationValidAux
     {remainingTargets : List VInductiveType}
     {currentProdEnv targetProdEnv : Environment}
     {currentVEnv targetVEnv : VEnv}
-    (Hvalidation : ConstructorValidationSteps
+    (Hvalidation : FoldSteps
       (fun indType source target => ValidationHeaderStep loweredEnv
         (sourceTypes.map (fun type => type.name)) indType.name source target)
       remainingSources currentProdEnv targetProdEnv)
