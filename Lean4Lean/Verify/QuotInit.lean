@@ -466,8 +466,8 @@ structure QuotEnvInv (env : Environment) (V : DefinitionSafety → VEnv) : Prop 
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   inductivesClosed : VerifyInductive.MutualInductivesClosed env
   constructorOwners : VerifyInductive.ConstructorOwnersPresent env
-  ctorParamsAgree : ∀ safety,
-    VerifyInductive.CtorParamsAgree safety env (V safety)
+  constructorParameterAlignment : ∀ safety,
+    VerifyInductive.ConstructorParameterAlignment safety env (V safety)
   inductFamiliesInstalled : ∀ safety, InductFamiliesInstalled safety env.constants (V safety)
 
 theorem QuotEnvInv.add {env : Environment} {V V'} (H : QuotEnvInv env V) (ci : QuotVal)
@@ -482,8 +482,8 @@ theorem QuotEnvInv.add {env : Environment} {V V'} (H : QuotEnvInv env V) (ci : Q
       cases h)
   inductivesClosed := H.inductivesClosed.addNonInductive H.mapWF hn nofun
   constructorOwners := H.constructorOwners.addNonConstructor H.mapWF hn nofun
-  ctorParamsAgree s :=
-    (H.ctorParamsAgree s).addNonInductive H.mapWF hn nofun (hle s)
+  constructorParameterAlignment s :=
+    (H.constructorParameterAlignment s).addNonInductive H.mapWF hn nofun (hle s)
   inductFamiliesInstalled s :=
     (H.inductFamiliesInstalled s).insertNonInductive H.mapWF
       (by rwa [← H.mapWF.find?'_eq_find?]) nofun (hle s)
@@ -496,8 +496,8 @@ theorem QuotEnvInv.markQuotInit {env : Environment} {V} (H : QuotEnvInv env V) :
   safePrimitives := H.safePrimitives
   inductivesClosed := H.inductivesClosed.mapEnvironmentEq fun _ => rfl
   constructorOwners := H.constructorOwners
-  ctorParamsAgree s familyName familyInfo hfamily hvisible i hi :=
-    have ⟨C⟩ := H.ctorParamsAgree s familyName familyInfo hfamily hvisible i hi
+  constructorParameterAlignment s familyName familyInfo hfamily hvisible i hi :=
+    have ⟨C⟩ := H.constructorParameterAlignment s familyName familyInfo hfamily hvisible i hi
     ⟨{ C with
       toCtorInfoCoherentAt :=
         { C.toCtorInfoCoherentAt with lookup := C.lookup } }⟩
@@ -544,7 +544,7 @@ theorem VEnvs.WFCore.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WFCore 
       safePrimitives := wf.safePrimitives
       inductivesClosed := wf.inductivesClosed
       constructorOwners := wf.constructorOwners
-      ctorParamsAgree := fun _ => wf.ctorParamsAgree
+      constructorParameterAlignment := fun _ => wf.constructorParameterAlignment
       inductFamiliesInstalled := fun _ => wf.inductFamiliesInstalled }
   have I1 : QuotEnvInv (env.add ciQuot) ves'.venv :=
     I0.add { name := ``Quot, kind := .type, levelParams := [`u], type := tQuotC } n1 p1 hle
@@ -594,7 +594,7 @@ theorem VEnvs.WFCore.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WFCore 
     safePrimitives := I5.safePrimitives
     inductivesClosed := I5.inductivesClosed
     constructorOwners := I5.constructorOwners
-    ctorParamsAgree {safety} := I5.ctorParamsAgree safety
+    constructorParameterAlignment {safety} := I5.constructorParameterAlignment safety
     inductFamiliesInstalled {safety} := I5.inductFamiliesInstalled safety
     mono {safety safety'} h := VEnv.addQuot_mono (wf.mono h) (hsome safety') (hsome safety) }
 

@@ -28,7 +28,7 @@ internal safe/unsafe assembly split. -/
 def NestedInstalledConstructorsCoherent
     (E : NestedInstalledRun result sourceProdEnv sourceTypes sourceEnv
       decl lparams nparams isUnsafe safety outEnv) : Prop :=
-  CtorParamsAgree safety outEnv
+  ConstructorParameterAlignment safety outEnv
     (E.assembly.recursorVEnv.addDefEqRules
       (E.assembly.sourceRules ++ E.assembly.auxiliaryRules))
 

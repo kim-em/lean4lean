@@ -166,7 +166,7 @@ theorem InductiveConstructorsCoherent.present {env : Environment}
 constructor.  Concrete parameter domains need only be definitionally equal;
 the independently translated family and constructor types are normalized in
 the shared abstract environment before their parameter contexts are compared. -/
-structure CtorParamsAgreeAt
+structure ConstructorParameterAlignmentAt
     (env : Environment) (venv : VEnv)
     (familyName : Name) (familyInfo : InductiveVal)
     (i : Nat) (hi : i < familyInfo.ctors.length)
@@ -198,13 +198,13 @@ structure CtorParamsAgreeAt
 
 /-- Every constructor visible in one safety-indexed abstract environment has
 kernel metadata and definitionally equal translated common parameters. -/
-def CtorParamsAgree
+def ConstructorParameterAlignment
     (safety : DefinitionSafety) (env : Environment) (venv : VEnv) : Prop :=
   ∀ familyName familyInfo,
     env.find? familyName = some (.inductInfo familyInfo) →
     safety ≤ (if familyInfo.isUnsafe then .unsafe else .safe) →
     ∀ i (hi : i < familyInfo.ctors.length),
-      Nonempty (CtorParamsAgreeAt
+      Nonempty (ConstructorParameterAlignmentAt
         env venv familyName familyInfo i hi)
 
 end VerifyInductive

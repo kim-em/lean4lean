@@ -37,11 +37,11 @@ theorem typeShape_mono {env env' : VEnv} (henv : env ≤ env')
     hnormalized.mono henv, hparamsTake, hindicesTake,
     hparams.mono henv, hresult.mono henv⟩
 
-/-- Common-parameter agreement `CtorParamsAgreeAt` of one constructor, from the
+/-- Common-parameter agreement `ConstructorParameterAlignmentAt` of one constructor, from the
 family and constructor shape judgments.  The two concrete parameter
 telescopes may differ syntactically; both are compared to the declaration's
 parameter context `params` in a common environment `finalEnv` extending both. -/
-theorem CtorParamsAgreeAt.ofShapes
+theorem ConstructorParameterAlignmentAt.ofShapes
     {decl : VInductDecl}
     (C : CtorInfoCoherentAt
       prodEnv familyName familyInfo i hi)
@@ -59,7 +59,7 @@ theorem CtorParamsAgreeAt.ofShapes
     (Hctor : decl.CtorShape ctorEnv params family ctor)
     (hfamilyLE : familyEnv ≤ finalEnv)
     (hctorLE : ctorEnv ≤ finalEnv) :
-    Nonempty (CtorParamsAgreeAt
+    Nonempty (ConstructorParameterAlignmentAt
       prodEnv finalEnv familyName familyInfo i hi) := by
   rcases Hfamily with
     ⟨familyNormalized, familyDomains, familyAfterParams, familyIndices,

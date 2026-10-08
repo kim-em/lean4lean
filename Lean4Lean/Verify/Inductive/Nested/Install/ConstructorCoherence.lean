@@ -715,7 +715,7 @@ theorem RestoredBlockCertificate.safeInductiveExtensionOfKernelClosed
     (henv : c.env = sourceProdEnv) (hlparams : c.lparams = lparams)
     (hnames : allIndNames = sourceTypes.map (fun type => type.name))
     (hconstructorSemantics :
-      CtorParamsAgree .safe outEnv
+      ConstructorParameterAlignment .safe outEnv
         (C.recursorVEnv.addDefEqRules
           (C.sourceRules ++ C.auxiliaryRules)))
     {venvH : VEnv}
@@ -771,7 +771,7 @@ theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernelClosed
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1)
     (hsafety : c.safety = .unsafe)
     (hconstructorSemantics :
-      CtorParamsAgree .unsafe outEnv
+      ConstructorParameterAlignment .unsafe outEnv
         (C.recursorVEnv.addDefEqRules
           (C.sourceRules ++ C.auxiliaryRules)))
     {venvH : VEnv}
@@ -824,7 +824,7 @@ theorem NestedInstalledRun.safeInductiveExtension
     (Hsources : SourceSyntaxChecks sourceTypes)
     (hempty : initialState.nestedAux = #[])
     (hconstructorSemantics :
-      CtorParamsAgree .safe outEnv
+      ConstructorParameterAlignment .safe outEnv
       (E.assembly.recursorVEnv.addDefEqRules
           (E.assembly.sourceRules ++ E.assembly.auxiliaryRules)))
     {venvH : VEnv}
@@ -863,7 +863,7 @@ theorem NestedInstalledRun.unsafeInductiveExtension
     (Hsources : SourceSyntaxChecks sourceTypes)
     (hempty : initialState.nestedAux = #[])
     (hconstructorSemantics :
-      CtorParamsAgree .unsafe outEnv
+      ConstructorParameterAlignment .unsafe outEnv
       (E.assembly.recursorVEnv.addDefEqRules
           (E.assembly.sourceRules ++ E.assembly.auxiliaryRules)))
     {venvH : VEnv}
@@ -1001,7 +1001,7 @@ theorem CtorInfoAlignment.coherenceOfParameterDomains
     (Hparams : ConstructorParameterDomainsDefEq venv
       familyInfo.levelParams familyInfo.numParams familyTarget
       constructorTarget) :
-    Nonempty (CtorParamsAgreeAt prodEnv venv
+    Nonempty (ConstructorParameterAlignmentAt prodEnv venv
       familyInfo.name familyInfo ctorIdx Hctor.familyInfo_ctorIdx_lt) := by
   rcases hfamilyWF with ⟨familyLevel, HfamilyType⟩
   rcases hconstructorWF with ⟨constructorLevel, HconstructorType⟩
@@ -1079,7 +1079,7 @@ theorem RestoredBlockCertificate.constructorTypingOfParameterDomains
     (Horigins : InductInfosFromDecl sourceProdEnv.constants
       outEnv.constants decl)
     (Hparams : NestedConstructorParameterDomainsDefEq C) :
-    CtorParamsAgree safety outEnv
+    ConstructorParameterAlignment safety outEnv
       (C.recursorVEnv.addDefEqRules
         (C.sourceRules ++ C.auxiliaryRules)) := by
   let installedVEnv := C.recursorVEnv.addDefEqRules
@@ -1108,7 +1108,7 @@ theorem RestoredBlockCertificate.constructorTypingOfParameterDomains
       at hfamily
     rwa [houtMapWF.find?'_eq_find?] at hfamily
   rcases Horigins familyName familyInfo hfamilyMap with hold | hnew
-  · rcases wf.ctorParamsAgree familyName familyInfo (by
+  · rcases wf.constructorParameterAlignment familyName familyInfo (by
         change sourceProdEnv.constants.find?' familyName =
           some (.inductInfo familyInfo)
         rw [hsourceMapWF.find?'_eq_find?]
@@ -1210,7 +1210,7 @@ theorem NestedInstalledRun.safeConstructorTypingOfParameterDomains
     (Howners : ConstructorOwnersPresent E.context.env)
     (hempty : initialState.nestedAux = #[])
     (Hparams : NestedConstructorParameterDomainsDefEq E.assembly) :
-    CtorParamsAgree .safe outEnv
+    ConstructorParameterAlignment .safe outEnv
       (E.assembly.recursorVEnv.addDefEqRules
         (E.assembly.sourceRules ++ E.assembly.auxiliaryRules)) := by
   have hisUnsafe : E.lowered.isUnsafe = false := by
@@ -1244,7 +1244,7 @@ theorem NestedInstalledRun.unsafeConstructorTypingOfParameterDomains
     (Howners : ConstructorOwnersPresent E.context.env)
     (hempty : initialState.nestedAux = #[])
     (Hparams : NestedConstructorParameterDomainsDefEq E.assembly) :
-    CtorParamsAgree .unsafe outEnv
+    ConstructorParameterAlignment .unsafe outEnv
       (E.assembly.recursorVEnv.addDefEqRules
         (E.assembly.sourceRules ++ E.assembly.auxiliaryRules)) := by
   have hisUnsafe : E.lowered.isUnsafe = true := by

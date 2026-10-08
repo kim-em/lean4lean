@@ -18,7 +18,7 @@ structure VEnvs.WFCore (env : Environment) (ves : VEnvs) where
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   inductivesClosed : VerifyInductive.MutualInductivesClosed env
   constructorOwners : VerifyInductive.ConstructorOwnersPresent env
-  ctorParamsAgree : VerifyInductive.CtorParamsAgree
+  constructorParameterAlignment : VerifyInductive.ConstructorParameterAlignment
     safety env (ves.venv safety)
   inductFamiliesInstalled : InductFamiliesInstalled
     safety env.constants (ves.venv safety)
@@ -31,7 +31,7 @@ theorem VEnvs.WFCore.inductiveConstructorsCoherent
     {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
     VerifyInductive.InductiveConstructorsCoherent env := by
   intro familyName familyInfo hfamily i hi
-  rcases wf.ctorParamsAgree (safety := .unsafe)
+  rcases wf.constructorParameterAlignment (safety := .unsafe)
       familyName familyInfo hfamily DefinitionSafety.unsafe_le i hi with ⟨C⟩
   exact ⟨C.toCtorInfoCoherentAt⟩
 

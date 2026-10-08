@@ -333,9 +333,9 @@ structure ConstructorCheck (c : AddInductive.Context)
     headerEntries headerEnv headerVEnv constructorEntries ctorEnv ctorVEnv
   inductInfosFromDecl :
     InductInfosFromDecl c.env.constants ctorEnv.constants decl
-  ctorParamsAgree : forall {safety},
-    CtorParamsAgree safety c.env sourceEnv ->
-    CtorParamsAgree safety ctorEnv ctorVEnv
+  constructorParameterAlignment : forall {safety},
+    ConstructorParameterAlignment safety c.env sourceEnv ->
+    ConstructorParameterAlignment safety ctorEnv ctorVEnv
 
 /-- Every constructor of the constructor environment is a base constant, or a new constructor of
 the declaration, with the declaration's safety flag and a certified type. -/
@@ -518,7 +518,7 @@ def OrdinaryConstructorCheck.toConstructorCheck
   formation := R.formation
   core := R.core
   inductInfosFromDecl := R.inductInfosFromDecl
-  ctorParamsAgree := fun Hsource => R.ctorParamsAgree Hsource
+  constructorParameterAlignment := fun Hsource => R.constructorParameterAlignment Hsource
 
 /-- The checked formation of a primitive formation run. -/
 noncomputable def PrimitiveConstructorCheck.toCheckedFormation
@@ -624,7 +624,7 @@ noncomputable def PrimitiveConstructorCheck.toConstructorCheck
   formation := R.formation
   core := R.core
   inductInfosFromDecl := R.inductInfosFromDecl
-  ctorParamsAgree := fun Hsource => R.ctorParamsAgree Hsource
+  constructorParameterAlignment := fun Hsource => R.constructorParameterAlignment Hsource
 
 end VerifyInductive
 end Lean4Lean

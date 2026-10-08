@@ -422,11 +422,11 @@ def CtorInfoCoherentAt.addConstant
   exact { H with lookup :=
     (find?_add_of_ne hwf ci hfresh hne).trans H.lookup }
 
-def CtorParamsAgreeAt.mono
-    (H : CtorParamsAgreeAt
+def ConstructorParameterAlignmentAt.mono
+    (H : ConstructorParameterAlignmentAt
       env venv familyName familyInfo i hi)
     (hle : venv ≤ venv') :
-    CtorParamsAgreeAt
+    ConstructorParameterAlignmentAt
       env venv' familyName familyInfo i hi :=
   { H with
     familyLookup := hle.constants H.familyLookup
@@ -435,50 +435,50 @@ def CtorParamsAgreeAt.mono
     constructorDefEq := H.constructorDefEq.mono hle
     parameterDomains := H.parameterDomains.mono hle }
 
-def CtorParamsAgreeAt.addConstant
+def ConstructorParameterAlignmentAt.addConstant
     {ci : ConstantInfo}
-    (H : CtorParamsAgreeAt
+    (H : ConstructorParameterAlignmentAt
       env venv familyName familyInfo i hi)
     (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
     (hle : venv ≤ venv') :
-    CtorParamsAgreeAt
+    ConstructorParameterAlignmentAt
       (env.add ci) venv' familyName familyInfo i hi :=
   { H.mono hle with
     toCtorInfoCoherentAt :=
       H.toCtorInfoCoherentAt.addConstant hwf hfresh }
 
-/-- Transport `CtorParamsAgreeAt` across an arbitrary
+/-- Transport `ConstructorParameterAlignmentAt` across an arbitrary
 kernel-environment extension once the exact constructor lookup has been
 shown to survive.  All semantic fields only require monotonicity of the
 abstract environment. -/
-def CtorParamsAgreeAt.rebaseKernel
-    (H : CtorParamsAgreeAt
+def ConstructorParameterAlignmentAt.rebaseKernel
+    (H : ConstructorParameterAlignmentAt
       env venv familyName familyInfo i hi)
     (hlookup : env'.find? familyInfo.ctors[i] = some (.ctorInfo H.info))
     (hle : venv ≤ venv') :
-    CtorParamsAgreeAt
+    ConstructorParameterAlignmentAt
       env' venv' familyName familyInfo i hi :=
   { H.mono hle with
     toCtorInfoCoherentAt :=
       { H.toCtorInfoCoherentAt with lookup := hlookup } }
 
-theorem CtorParamsAgree.mono
-    (H : CtorParamsAgree safety env venv)
+theorem ConstructorParameterAlignment.mono
+    (H : ConstructorParameterAlignment safety env venv)
     (hle : venv ≤ venv') :
-    CtorParamsAgree safety env venv' := by
+    ConstructorParameterAlignment safety env venv' := by
   intro familyName familyInfo hfamily hvisible i hi
   rcases H familyName familyInfo hfamily hvisible i hi with ⟨C⟩
   exact ⟨C.mono hle⟩
 
 /-- A fresh non-inductive kernel constant and any monotone abstract
 extension preserve visible constructor semantics. -/
-theorem CtorParamsAgree.addNonInductive
+theorem ConstructorParameterAlignment.addNonInductive
     {ci : ConstantInfo}
-    (H : CtorParamsAgree safety env venv)
+    (H : ConstructorParameterAlignment safety env venv)
     (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
     (hnind : ∀ value, ci ≠ .inductInfo value)
     (hle : venv ≤ venv') :
-    CtorParamsAgree safety (env.add ci) venv' := by
+    ConstructorParameterAlignment safety (env.add ci) venv' := by
   intro familyName familyInfo hfamily hvisible i hi
   rcases find?_add_cases hwf ci hfresh hfamily with
     ⟨_, hvalue⟩ | hold
@@ -487,16 +487,16 @@ theorem CtorParamsAgree.addNonInductive
     exact ⟨C.addConstant hwf hfresh hle⟩
 
 /-- A fresh mutual-definition fold changes no inductive metadata.  All existing
-`CtorParamsAgreeAt` facts may be transported directly to the last abstract environment,
+`ConstructorParameterAlignmentAt` facts may be transported directly to the last abstract environment,
 then retained while the remaining kernel definitions are inserted. -/
-theorem CtorParamsAgree.addDefinitions
-    (H : CtorParamsAgree safety env venv)
+theorem ConstructorParameterAlignment.addDefinitions
+    (H : ConstructorParameterAlignment safety env venv)
     (hwf : env.constants.WF) :
     ∀ (vs : List DefinitionVal),
       (∀ v ∈ vs, env.find? v.name = none) →
       (vs.map (·.name)).Nodup →
       venv ≤ venv' →
-      CtorParamsAgree safety
+      ConstructorParameterAlignment safety
         (vs.foldl (fun env v => env.add (.defnInfo v)) env) venv'
   | [], _, _, hle => H.mono hle
   | v :: vs, hfresh, hnodup, hle => by
@@ -507,7 +507,7 @@ theorem CtorParamsAgree.addDefinitions
       have hwf' : (env.add (.defnInfo v)).constants.WF := by
         change (env.constants.insert v.name (.defnInfo v)).WF
         exact hwf.insert v.name (.defnInfo v) hvfreshMap
-      have H' : CtorParamsAgree safety
+      have H' : ConstructorParameterAlignment safety
           (env.add (.defnInfo v)) venv' :=
         H.addNonInductive hwf hvfresh (by intro _ h; cases h) hle
       apply H'.addDefinitions hwf' vs

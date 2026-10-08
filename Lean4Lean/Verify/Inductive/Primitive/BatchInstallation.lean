@@ -1008,9 +1008,9 @@ structure PrimitiveConstructorCheck
     isUnsafe decl H.context.venv declared.venvCtors
   inductInfosFromDecl :
     InductInfosFromDecl c.env.constants outEnv.constants decl
-  ctorParamsAgree : forall {safety},
-    CtorParamsAgree safety c.env sourceEnv ->
-    CtorParamsAgree safety outEnv
+  constructorParameterAlignment : forall {safety},
+    ConstructorParameterAlignment safety c.env sourceEnv ->
+    ConstructorParameterAlignment safety outEnv
       declared.venvCtors
 
 end VerifyInductive
