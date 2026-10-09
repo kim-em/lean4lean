@@ -19,6 +19,8 @@ the recursive-call analysis are recorded in `docs/inductives/STRENGTHENING_A_LOG
 * `CComplete`: completeness of the pilot for typing and conversion; `Cancel.of_cComplete`:
   completeness gives `Cancel` (the theorem announced in `Pilot.lean`), by `IsDefEqU.lam_body`,
   completeness in the extended context, `Cert.descend` and `Cert.sound`.
+* `Cert.instN`: exact substitution of a term whose synthesised type is exactly the binder
+  type, for every kind of certificate (the inhabited-binder case in certificate form).
 * The strip lemma `CConv.trans_of`: transitivity follows from three stated obligations,
   confluence of certified reduction modulo normal equality (`RedConfluent`), transport of
   normal equality along certified reduction (`NormTransport`) and transitivity of normal
@@ -294,32 +296,35 @@ theorem CRed.lam_inv (hex : ConstHeadedEquations env) (H : CRed env U Γ (.lam A
 
 /-! ## Reflexivity -/
 
-/-- Reflexivity of normal equality and conversion for certified-typed terms. -/
+/-- Reflexivity of normal equality, conversion and the trivial step for certified-typed
+terms. -/
 def Cert.ReflShape (env : VEnv) (U : Nat) : CKind → List VExpr → VExpr → VExpr → Prop
-  | .ty, Γ, e, _ => CNorm env U Γ e e ∧ CConv env U Γ e e
+  | .ty, Γ, e, _ => CNorm env U Γ e e ∧ CConv env U Γ e e ∧ CStep env U Γ e e
   | _, _, _, _ => True
 
 theorem Cert.reflShape (H : Cert env U k Γ a b) : Cert.ReflShape env U k Γ a b := by
   induction H with
-  | ty_bvar => exact ⟨.norm_bvar, .conv_mk .red_refl .red_refl .norm_bvar⟩
+  | ty_bvar => exact ⟨.norm_bvar, .conv_mk .red_refl .red_refl .norm_bvar, .step_bvar⟩
   | ty_sort h =>
-    exact ⟨.norm_sort h h rfl, .conv_mk .red_refl .red_refl (.norm_sort h h rfl)⟩
+    exact ⟨.norm_sort h h rfl, .conv_mk .red_refl .red_refl (.norm_sort h h rfl), .step_sort⟩
   | ty_const h1 h2 h3 =>
     exact ⟨.norm_const h1 h2 h2 h3 (VLevel.forall₂_equiv_refl _),
-      .conv_mk .red_refl .red_refl (.norm_const h1 h2 h2 h3 (VLevel.forall₂_equiv_refl _))⟩
+      .conv_mk .red_refl .red_refl (.norm_const h1 h2 h2 h3 (VLevel.forall₂_equiv_refl _)),
+      .step_const⟩
   | ty_app _ _ _ _ ihf _ iha =>
     have := Cert.norm_app ihf.1 iha.1
-    exact ⟨this, .conv_mk .red_refl .red_refl this⟩
+    exact ⟨this, .conv_mk .red_refl .red_refl this, .step_app ihf.2.2 iha.2.2⟩
   | ty_lam _ _ _ ihA _ ihb =>
-    have := Cert.norm_lam ihA.2 ihb.1
-    exact ⟨this, .conv_mk .red_refl .red_refl this⟩
+    have := Cert.norm_lam ihA.2.1 ihb.1
+    exact ⟨this, .conv_mk .red_refl .red_refl this, .step_lam ihA.2.2 ihb.2.2⟩
   | ty_forallE _ _ _ _ ihA _ ihB _ =>
-    have := Cert.norm_forallE ihA.2 ihB.1
-    exact ⟨this, .conv_mk .red_refl .red_refl this⟩
+    have := Cert.norm_forallE ihA.2.1 ihB.1
+    exact ⟨this, .conv_mk .red_refl .red_refl this, .step_forallE ihA.2.2 ihB.2.2⟩
   | _ => trivial
 
 theorem Cert.norm_refl_of_ty (H : CTy env U Γ e T) : CNorm env U Γ e e := H.reflShape.1
-theorem Cert.conv_refl_of_ty (H : CTy env U Γ e T) : CConv env U Γ e e := H.reflShape.2
+theorem Cert.conv_refl_of_ty (H : CTy env U Γ e T) : CConv env U Γ e e := H.reflShape.2.1
+theorem Cert.step_refl_of_ty (H : CTy env U Γ e T) : CStep env U Γ e e := H.reflShape.2.2
 
 /-! ## Completeness and `Cancel` -/
 
@@ -406,6 +411,123 @@ theorem CConv.trans_of (henv : env.WF) (hconf : RedConfluent env U)
   have hC'' := (CRed.defeq henv hΓ hc'' hc').hasType.2
   exact .conv_mk (CRed.trans ra ha'') (CRed.trans rc hc'')
     (hnt hΓ hA'' hD' hC'' (hnt hΓ hA'' hD hD' n1' nd) n2')
+
+/-! ## Exact substitution -/
+
+theorem _root_.Lean4Lean.VExpr.inst_etaBody (e a : VExpr) (k : Nat) :
+    (VExpr.app e.lift (.bvar 0)).inst a (k+1) = .app (e.inst a k).lift (.bvar 0) := by
+  simp [inst, lift_instN_lo]
+
+theorem _root_.Lean4Lean.VExpr.inst_etaExpand (e A a : VExpr) (k : Nat) :
+    (VExpr.lam A (.app e.lift (.bvar 0))).inst a k =
+      .lam (A.inst a k) (.app (e.inst a k).lift (.bvar 0)) := by
+  simp [inst, lift_instN_lo]
+
+/-- The substitution statement, exact: every kind substitutes to the same kind with both
+endpoints instantiated. -/
+def Cert.InstShape (env : VEnv) (U : Nat) (Γ₀ : List VExpr) (e₀ A₀ : VExpr) :
+    CKind → List VExpr → VExpr → VExpr → Prop
+  | k, Γ₁, a, b => ∀ {j Γ}, Ctx.InstN Γ₀ e₀ A₀ j Γ₁ Γ → Cert env U k Γ (a.inst e₀ j) (b.inst e₀ j)
+
+/-- **Exact substitution.** A term whose synthesised type is exactly the binder type
+substitutes into every certificate, giving a certificate of the same kind between the
+instantiated endpoints. This is the certificate form of the inhabited-binder case
+(`Cancel.inhabited`); the general case, where the substituend's type is only *convertible* to
+the binder type, is where the recursion of `docs/inductives/STRENGTHENING_A_LOG.md` begins. -/
+theorem Cert.instN (henv : env.WF) (h₀ : CTy env U Γ₀ e₀ A₀) (H : Cert env U k Γ₁ a b) :
+    Cert.InstShape env U Γ₀ e₀ A₀ k Γ₁ a b := by
+  induction H with
+  | @ty_bvar _ i ty h =>
+    intro j Γ W
+    dsimp [inst]
+    induction W generalizing i ty with
+    | zero =>
+      cases h with simp [inst_lift]
+      | zero => exact h₀
+      | succ h => exact .ty_bvar h
+    | succ _ ih =>
+      cases h with (simp; rw [Nat.add_comm, ← VExpr.liftN_instN_lo (hj := Nat.zero_le _)])
+      | zero => exact .ty_bvar .zero
+      | succ h => exact (ih h).weakN henv .one
+  | ty_sort h => exact fun _ => .ty_sort h
+  | ty_const h1 h2 h3 =>
+    intro j Γ W
+    rw [(henv.ordered.closedC h1).instL.instN_eq (Nat.zero_le _)]
+    exact .ty_const h1 h2 h3
+  | ty_app _ _ _ _ ihf ihF iha ihA =>
+    intro j Γ W
+    exact VExpr.inst_inst_hi .. ▸ .ty_app (ihf W) (ihF W) (iha W) (ihA W)
+  | ty_lam _ _ _ ihA ihS ihb => exact fun W => .ty_lam (ihA W) (ihS W) (ihb W.succ)
+  | ty_forallE _ _ _ _ ihA ihS ihB ihS' =>
+    exact fun W => .ty_forallE (ihA W) (ihS W) (ihB W.succ) (ihS' W.succ)
+  | @step_bvar _ i =>
+    intro j Γ W
+    dsimp [inst]
+    induction W generalizing i with
+    | zero =>
+      cases i with simp
+      | zero => exact h₀.step_refl_of_ty
+      | succ h => exact .step_bvar
+    | succ _ ih =>
+      cases i with simp
+      | zero => exact .step_bvar
+      | succ h => exact (ih (i := h)).weakN henv .one
+  | step_sort => exact fun _ => .step_sort
+  | step_const => exact fun _ => .step_const
+  | step_app _ _ ihf iha => exact fun W => .step_app (ihf W) (iha W)
+  | step_lam _ _ ihA ihb => exact fun W => .step_lam (ihA W) (ihb W.succ)
+  | step_forallE _ _ ihA ihB => exact fun W => .step_forallE (ihA W) (ihB W.succ)
+  | step_beta _ _ ihb iha =>
+    intro j Γ W
+    simp only [inst, inst0_inst_hi]
+    exact .step_beta (ihb W.succ) (iha W)
+  | step_extra h1 h2 h3 =>
+    intro j Γ W
+    have ⟨hl, hr⟩ := henv.ordered.defEqWF h1
+    rw [((hl.closedN henv.ordered ⟨⟩).instL).instN_eq (Nat.zero_le _),
+      ((hr.closedN henv.ordered ⟨⟩).instL).instN_eq (Nat.zero_le _)]
+    exact .step_extra h1 h2 h3
+  | step_eta _ _ ihe ihF =>
+    intro j Γ W
+    rw [inst_etaExpand]
+    exact .step_eta (ihe W) (ihF W)
+  | red_refl => exact fun _ => .red_refl
+  | red_step _ _ ih1 ih2 => exact fun W => .red_step (ih1 W) (ih2 W)
+  | @norm_bvar _ i =>
+    intro j Γ W
+    dsimp [inst]
+    induction W generalizing i with
+    | zero =>
+      cases i with simp
+      | zero => exact h₀.norm_refl_of_ty
+      | succ h => exact .norm_bvar
+    | succ _ ih =>
+      cases i with simp
+      | zero => exact .norm_bvar
+      | succ h => exact (ih (i := h)).weakN henv .one
+  | norm_sort h1 h2 h3 => exact fun _ => .norm_sort h1 h2 h3
+  | norm_const h1 h2 h3 h4 h5 => exact fun _ => .norm_const h1 h2 h3 h4 h5
+  | norm_app _ _ ihf iha => exact fun W => .norm_app (ihf W) (iha W)
+  | norm_lam _ _ ihA ihb => exact fun W => .norm_lam (ihA W) (ihb W.succ)
+  | norm_forallE _ _ ihA ihB => exact fun W => .norm_forallE (ihA W) (ihB W.succ)
+  | norm_etaL _ _ _ _ ihe ihF ihA ihb =>
+    intro j Γ W
+    have hb := ihb W.succ
+    rw [inst_etaBody] at hb
+    exact .norm_etaL (ihe W) (ihF W) (ihA W) hb
+  | norm_etaR _ _ _ _ ihe ihF ihA ihb =>
+    intro j Γ W
+    have hb := ihb W.succ
+    rw [inst_etaBody] at hb
+    exact .norm_etaR (ihe W) (ihF W) (ihA W) hb
+  | norm_etaBoth _ _ _ _ _ _ ihe ihF ihe' ihF' ihA ihb =>
+    intro j Γ W
+    have hb := ihb W.succ
+    simp only [inst_etaBody] at hb
+    exact .norm_etaBoth (ihe W) (ihF W) (ihe' W) (ihF' W) (ihA W) hb
+  | norm_proofIrrel _ _ _ _ _ ih1 ih2 ih3 ih4 ih5 =>
+    exact fun W => .norm_proofIrrel (ih1 W) (ih2 W) (ih3 W) (ih4 W) (ih5 W)
+  | conv_mk _ _ _ ih1 ih2 ih3 => exact fun W => .conv_mk (ih1 W) (ih2 W) (ih3 W)
 
 end VEnv
 end Lean4Lean
