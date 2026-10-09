@@ -139,3 +139,14 @@ posts to GitHub or Zulip.
   reified derivations; rigidity of `Q` does not block `q`-dependence (`f q` is a proof when
   `f : Q → P`, `derived_proof_irrel`), so the two-base regress of section 2 is not
   exhaustive as stated. Course corrections sent to A, B, C.
+* 2026-10-09: direction C finished (c2ae9e60, merged as abd190e4): `Candidates.lean` (Astra's
+  round 7 ledger) and `Hunt.lean`. No counterexample. New ledger rows: a gap at a fixed
+  lifted type is a type-level `Cancel` failure between types typed below
+  (`typing_gap_is_type_cancel`, `typing_gap_cases`); a cast into `Q` along an equation typed
+  below inhabits `Q` (`cast_into_binder_inhabits`); an application-node gap forces domain
+  alignment above (`app_gap`); the extra-index singleton variant joins above through a
+  derived proof `f' q` and below through any inhabitant of the field proposition
+  (`derived_field_join`). The rigid-`Q` partial result does not help: `RigidCancel.prop_to_pi`
+  turns every `Prop`-binder instance into a `(Q → P)`-binder instance (`prop_binder_transfer`
+  substitutes the proof variable by `g q`), so the rigid case contains the derived-proof
+  mechanism, and `derived_proof_irrel` is the rule that breaks any rule-by-rule mapping.
