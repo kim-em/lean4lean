@@ -8,7 +8,7 @@ import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Typing.ConstructorCaptureTransport
 import Lean4Lean.Theory.Typing.Injectivity
 import Lean4Lean.Instantiate
-import Lean4Lean.Verify.Typing.Syntactic.Typed
+import Lean4Lean.Verify.Typing.Syntactic.TypedAPI
 
 namespace Lean4Lean
 open Lean4Lean VEnv Lean
