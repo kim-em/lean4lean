@@ -5,12 +5,15 @@ import Lean4Lean.Verify.Inductive.Rules.RuleTranslations
 import Lean4Lean.Verify.Inductive.Constructor.LiteralDisjoint
 
 /-!
-# Completing the primitive constructor check
+# The primitive constructor check
 
-Adds to the primitive constructor facts the invariants of the kernel environment that the
-shared recursor phase needs: lookup of the installed families (`InductInfosFromDecl`),
-constructor-parameter agreement (`ConstructorParameterAlignment`) and mutual-family closure, yielding
-`PrimitiveConstructorCheck` (`AddInductive.primitiveConstructorPhases.WF`).
+The primitive constructor check `PrimitiveConstructorCheck`, established by the executable
+constructor phase (`AddInductive.primitiveConstructorPhases.WF`), and the invariants of the
+kernel environment that the shared recursor phase needs, derived from it: lookup of the
+installed families (`PrimitiveConstructorCheck.inductInfosFromDecl`) and constructor-parameter
+agreement (`PrimitiveConstructorCheck.constructorParameterAlignment`).  It embeds into the
+shared checked formation and constructor check (`PrimitiveConstructorCheck.toCheckedFormation`,
+`PrimitiveConstructorCheck.toConstructorCheck`).
 -/
 
 namespace Lean4Lean
@@ -20,9 +23,13 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The primitive constructor check without the kernel-environment lookup and
-constructor-parameter agreement fields of `PrimitiveConstructorCheck`. -/
-structure PrimitiveConstructorCoreCheck
+/-- The primitive constructor check: the same semantic data needed by recursor
+generation as the ordinary constructor check, with the atomic installation
+kept separate.  The kernel-environment lookup (`PrimitiveConstructorCheck.inductInfosFromDecl`)
+and constructor-parameter agreement (`PrimitiveConstructorCheck.constructorParameterAlignment`)
+are derived from these fields, and `PrimitiveConstructorCheck.toCheckedFormation` turns it
+into the shared checked formation without a valid header-only context. -/
+structure PrimitiveConstructorCheck
     (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (outEnv : Environment) where
@@ -45,14 +52,14 @@ its family's kernel entry and constructor-parameter agreement
 (`ConstructorParameterAlignmentAt`).  This is the primitive counterpart of
 `OrdinaryConstructorCheck.installedConstructorCoherenceAt`; it never asserts a
 valid header-only context. -/
-theorem PrimitiveConstructorCoreCheck.installedConstructorCoherenceAt
+theorem PrimitiveConstructorCheck.installedConstructorCoherenceAt
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
     {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    (R : PrimitiveConstructorCoreCheck H outEnv)
+    (R : PrimitiveConstructorCheck H outEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
     ∃ familyInfo : InductiveVal,
@@ -179,14 +186,14 @@ theorem PrimitiveConstructorCoreCheck.installedConstructorCoherenceAt
 
 /-- The two atomic primitive installation stages identify every newly visible
 inductive family of the kernel environment with its exact source declaration position. -/
-theorem PrimitiveConstructorCoreCheck.inductInfosFromDecl
+theorem PrimitiveConstructorCheck.inductInfosFromDecl
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
     {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    (R : PrimitiveConstructorCoreCheck H outEnv) :
+    (R : PrimitiveConstructorCheck H outEnv) :
     InductInfosFromDecl c.env.constants outEnv.constants decl := by
   intro familyName familyInfo hfamily
   have hsourceWF := H.sourceContext.checking.tr.map_wf
@@ -425,14 +432,14 @@ theorem PrimitiveConstructorCoreCheck.inductInfosFromDecl
 /-- Atomic primitive header and constructor installation preserves
 constructor-parameter agreement (`ConstructorParameterAlignment`) for the base families and
 establishes it positionally for the newly installed canonical family. -/
-theorem PrimitiveConstructorCoreCheck.constructorParameterAlignment
+theorem PrimitiveConstructorCheck.constructorParameterAlignment
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
     {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    (R : PrimitiveConstructorCoreCheck H outEnv)
+    (R : PrimitiveConstructorCheck H outEnv)
     (Hsource : ConstructorParameterAlignment
       safety c.env sourceEnv) :
     ConstructorParameterAlignment
@@ -514,33 +521,10 @@ theorem PrimitiveConstructorCoreCheck.constructorParameterAlignment
     exact False.elim (R.declared.nonInductive entry hentry familyInfo
       hvalue.symm)
 
-/-- Package the finite facts accumulated here as the primitive constructor
-check (`PrimitiveConstructorCheck`) used by the shared recursor phase. -/
-def PrimitiveConstructorCoreCheck.complete
-    {c : AddInductive.Context}
-    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
-    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
-    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
-    {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv}
-    (R : PrimitiveConstructorCoreCheck H outEnv) :
-    PrimitiveConstructorCheck H outEnv where
-  checked := R.checked
-  parameterPrefixes := R.parameterPrefixes
-  classes := R.classes
-  constructorTails := R.constructorTails
-  ownerNormalForms := R.ownerNormalForms
-  telescopes := R.telescopes
-  declared := R.declared
-  formation := R.formation
-  core := R.core
-  inductInfosFromDecl := R.inductInfosFromDecl
-  constructorParameterAlignment := R.constructorParameterAlignment
-
 /-- The successful executable check is followed by the exact atomic
 constructor fold.  Validity is regained only at the end of the fold, once the
 Bool/Nat batch is complete. -/
-theorem AddInductive.primitiveConstructorCorePhases.WF
+theorem AddInductive.primitiveConstructorPhases.WF
     (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
@@ -551,7 +535,7 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
       AddInductive.declareConstructors stats indTypes isUnsafe >>= fun ctorEnv =>
         pure (ctorEnv, positivity))
       { c with env := headerEnv }).WF fun out =>
-        ∃ R : PrimitiveConstructorCoreCheck H out.1, R.classes = out.2 := by
+        ∃ R : PrimitiveConstructorCheck H out.1, R.classes = out.2 := by
   exact (AddInductive.checkConstructors.primitiveCoreWF H Hshape).bind
     fun positivity Hchecked =>
       (AddInductive.declareConstructors.primitiveWF H Hshape
@@ -588,25 +572,180 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
             core := Lean4Lean.VerifyInductive.TrInductDeclCore.ofPhases
               H.translation Hdeclared.translation }, rfl⟩
 
-/-- The complete executable primitive constructor prefix, including the
-kernel-environment lookup (`InductInfosFromDecl`) and constructor-parameter
-agreement invariants. -/
-theorem AddInductive.primitiveConstructorPhases.WF
-    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv)
-    (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
-      isUnsafe)
-    (hvisible : c.safety ≤
-      (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
-    ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun positivity =>
-      AddInductive.declareConstructors stats indTypes isUnsafe >>= fun ctorEnv =>
-        pure (ctorEnv, positivity))
-      { c with env := headerEnv }).WF fun out =>
-        ∃ R : PrimitiveConstructorCheck H out.1, R.classes = out.2 := by
-  exact (AddInductive.primitiveConstructorCorePhases.WF H Hshape hvisible).mono
-    fun _ Hcore => by
-      rcases Hcore with ⟨R, hclasses⟩
-      exact ⟨R.complete, hclasses⟩
+/-- The checked formation of a primitive formation run. -/
+noncomputable def PrimitiveConstructorCheck.toCheckedFormation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv : Environment}
+    {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    (R : PrimitiveConstructorCheck H ctorEnv) :
+    CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes where
+  headerVEnv := H.context.venv
+  sourceContext := H.sourceContext
+  sourceContextVEnv := H.sourceContextVEnv
+  sourceStatsWF := H.sourceStatsWF
+  headerMLCtx := H.context.mlctx
+  headers := H.headers
+  params := H.headers.params
+  headerParams := rfl
+  sourceHeaderParams := H.sourceHeaderParams
+  parameterScope := H.statsWF.parameterScope
+  sourceParameterScope := H.parameterScopeEq.symm
+  statsWF := H.statsWF
+  checkedParams := H.headerParams
+  checkedParameterScope := rfl
+  classes := R.classes
+  constructorTails := R.constructorTails
+  ctorVEnv := R.declared.venvCtors
+  formation := R.formation
+  core := R.core
+
+/-- The primitive constructor context, with the declaration's case eliminators and
+projections. -/
+theorem PrimitiveConstructorCheck.projectedChecking
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv : Environment}
+    {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    (R : PrimitiveConstructorCheck H ctorEnv) :
+    CheckingEnv.Valid c.safety ctorEnv
+      ((R.declared.venvCtors.addEliminators R.toCheckedFormation.caseEliminators).addProjections
+        decl.projectionEntries) := by
+  let B := R.toCheckedFormation
+  have hsourceMapWF := H.sourceContext.checking.tr.map_wf
+  have Hcombined := H.installed.append R.declared.installed
+  have hcore' := (R.declared.validCore.addEliminators B.casesWF).addProjections B.projectedWF
+  have hle : R.declared.venvCtors ≤
+      (R.declared.venvCtors.addEliminators B.caseEliminators).addProjections
+        decl.projectionEntries := VEnv.addEliminators_addProjections_le
+  have hsourceBlocks : InstalledBlocks c.safety c.env sourceEnv .headers := by
+    rw [← H.sourceContextVEnv]; exact H.sourceContext.checking.blocks
+  have htelsCtors : CtorTelescopes c.safety ctorEnv R.declared.venvCtors := by
+    rw [← R.declared.contextVEnv]; exact R.declared.context.ctorTelescopes
+  obtain ⟨numNested, Hheaders⟩ := H.sourceAligned
+  refine hcore'.toValid (hsourceBlocks.addCtorStage H.sourcePresent hsourceMapWF hcore'.tr
+    (fun h => Hcombined.preservesSourceFind hsourceMapWF h) (Hcombined.le.trans hle)
+    R.inductInfosFromDecl ?_ ?_ R.declared.owners [] ?_ (by simp) (by simp) (by simp)
+    B.caseEliminators ?_ ?_ (htelsCtors.mono hle))
+    (R.declared.equationHeads.mono id fun df hdf => by simpa using hdf)
+    (fun hq => (R.declared.quot hq).extend id hle
+      (R.declared.equationHeads.mono id fun df hdf => by simpa using hdf))
+  · intro T hT
+    have hmem : T.toVConstVal ∈ H.entries.map Prod.snd := by
+      rw [H.values]; exact List.mem_map_of_mem hT
+    obtain ⟨⟨ci, val⟩, he, hval⟩ := List.mem_map.mp hmem
+    obtain ⟨info, -, hci⟩ := Hheaders.originInfo he
+    simp only at hci hval
+    subst hci
+    have hname : info.name = T.name := by
+      have := H.installed.entryNames he
+      simp only [ConstantInfo.name, ConstantInfo.toConstantVal] at this
+      rw [this, hval]
+    refine ⟨info, ?_, ?_⟩
+    · rw [← hname]; exact Hcombined.findEntry hsourceMapWF (List.mem_append_left _ he)
+    · rw [← hname]; exact H.installed.entryFresh hsourceMapWF he
+  · have := VEnv.addConstVals_names_nodup R.core.typesAdded
+    simpa [VInductDecl.typeConstants, Function.comp_def] using this
+  · intro n r hf hnone
+    rcases Hcombined.entryOrigin hsourceMapWF hf with hold | ⟨entry, hentry, -, hvalue⟩
+    · rw [hold] at hnone; cases hnone
+    · rcases List.mem_append.mp hentry with hheader | hctor
+      · obtain ⟨info, -, hinfo⟩ := Hheaders.originInfo hheader
+        rw [hinfo] at hvalue; cases hvalue
+      · obtain ⟨info, hinfo⟩ := R.declared.infos entry hctor
+        rw [hinfo] at hvalue; cases hvalue
+  · exact {
+      typeUvars := by
+        intro T hT
+        obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hT
+        have hsource : i < indTypes.toList.length := by
+          rw [Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core]; exact hi
+        exact (Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt R.core i hsource
+          hi).header.uvars.trans R.core.uvars.symm
+      constructorUvars := Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars R.core
+      family := fun i hi => ((VEnv.addConstVals_le R.core.ctorsAdded).trans hle).constants
+        (VEnv.addConstVals_get R.core.typesAdded
+          (List.mem_map.mpr ⟨decl.types[i], List.getElem_mem hi, rfl⟩))
+      ctor := fun i k hi hk => hle.constants
+        (VEnv.addConstVals_get R.core.ctorsAdded (by
+          simp only [VInductDecl.constructorConstants, List.mem_flatMap]
+          exact ⟨_, List.getElem_mem hi, List.getElem_mem hk⟩))
+      projections := fun e he =>
+        VEnv.addProjections_iff.mpr (.inl ⟨e, he, rfl, rfl⟩)
+      eliminators := fun e he => VEnv.addProjections_le.eliminators
+        (VEnv.addEliminators_iff.mpr (.inl he)) }
+  · intro S info hp
+    rcases VEnv.addProjections_iff.mp hp with ⟨e, he, rfl, rfl⟩ | hold
+    · exact .inr he
+    · left
+      rw [VEnv.addEliminators_projections, VEnv.addConstVals_projections R.core.ctorsAdded,
+        VEnv.addConstVals_projections R.core.typesAdded] at hold
+      exact hold
+
+/-- The primitive constructor check, with its atomic formation batch, embeds
+into the same `ConstructorCheck`. -/
+noncomputable def PrimitiveConstructorCheck.toConstructorCheck
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv : Environment}
+    {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    (R : PrimitiveConstructorCheck H ctorEnv) :
+    ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
+      indTypes ctorEnv where
+  headerEnv := headerEnv
+  headerVEnv := H.context.venv
+  headerEntries := H.entries
+  constructorEntries := R.declared.entries
+  headerValues := H.values
+  constructorValues := R.declared.values
+  sourceContext := H.sourceContext
+  sourceContextVEnv := H.sourceContextVEnv
+  sourceStatsWF := H.sourceStatsWF
+  context := (R.declared.context.withEnv R.projectedChecking.tr (by
+    rw [R.declared.contextVEnv]
+    exact VEnv.addEliminators_addProjections_le)
+    (R.projectedChecking.ctorTelescopes)).toContextWF R.projectedChecking
+  headerMLCtx := H.context.mlctx
+  contextMLCtx := R.declared.contextMLCtx
+  headers := H.headers
+  params := H.headers.params
+  headerParams := rfl
+  sourceHeaderParams := H.sourceHeaderParams
+  parameterScope := H.statsWF.parameterScope
+  sourceParameterScope := H.parameterScopeEq.symm
+  statsWF := H.statsWF
+  checkedParams := H.headerParams
+  checkedParameterScope := rfl
+  checked := R.checked
+  parameterPrefixes := R.parameterPrefixes
+  classes := R.classes
+  constructorTails := R.constructorTails
+  ownerNormalForms := R.ownerNormalForms
+  telescopes := R.telescopes
+  headerSourceAligned := H.sourceAligned
+  constructorSourceAligned := R.declared.sourceAligned
+  constructorKernel := R.declared.infos
+  constructorNonInductive := R.declared.nonInductive
+  ctorVEnv := R.declared.venvCtors
+  eliminators := R.toCheckedFormation.caseEliminators
+  eliminatorsWF := R.toCheckedFormation.caseEliminatorsWF
+  eliminatorsCertified := R.toCheckedFormation.caseEliminatorsCertified
+  eliminatorsOwn := R.toCheckedFormation.caseEliminatorsOwn
+  eliminatorsBoundary := ⟨R.toCheckedFormation, rfl, rfl, rfl⟩
+  contextVEnv := rfl
+  installation := .primitive H.installed R.declared.installed
+    (by simpa [H.values, R.declared.values] using R.declared.primitiveConstants)
+    R.declared.safeEntries
+  formation := R.formation
+  core := R.core
+  inductInfosFromDecl := R.inductInfosFromDecl
+  constructorParameterAlignment := fun Hsource => R.constructorParameterAlignment Hsource
 
 end VerifyInductive
 end Lean4Lean
