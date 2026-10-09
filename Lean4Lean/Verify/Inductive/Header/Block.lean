@@ -110,7 +110,7 @@ noncomputable def initialReusedParameterScope
       Hsuffix 0 normalized := by
   have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
     Htarget.type.fvarsIn.mono fun fv hfv => by
-      simpa [VLCtx.fvars] using hfv
+      simp [VLCtx.fvars] at hfv
   have hfalseUpSet : IsFVarUpSet (fun _ => False) Hc.mlctx.vlctx := by
     have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
       Hc.mlctx.vlctx (by simpa using Hc.mlctx_wf.tr.wf)
@@ -483,7 +483,7 @@ theorem HeaderStatsWF.universeBound
         (by simpa [Expr.sortLevel!] using hfield) hgeq
     exact .inr (VLevel.le_trans hle (VLevel.le_antisymm_iff.mp htarget).2)
 
-def _root_.Lean4Lean.TrSourceConst.mono {env env' : VEnv} (henv : env ≤ env')
+theorem _root_.Lean4Lean.TrSourceConst.mono {env env' : VEnv} (henv : env ≤ env')
     (H : TrSourceConst env Us name type value) :
     TrSourceConst env' Us name type value where
   uvars := H.uvars
@@ -565,7 +565,7 @@ namespace checkInductiveTypes.loopType
 
 /-- The executable per-header statistics update leaves the cached common
 parameters untouched, so the semantic cache transports unchanged. -/
-def ParameterCachePrefix.reindexUpdatedStats
+theorem ParameterCachePrefix.reindexUpdatedStats
     (H : ParameterCachePrefix
       env Us scope stats done depth)
     (lctx : LocalContext) (resultLevel : Level) (first : Bool)

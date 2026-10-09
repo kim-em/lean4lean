@@ -739,7 +739,7 @@ def RecursorParameterContextSuffix.weakenRecent
 /-- The cached parameters stay translated after a recursor suffix is opened (for example
 the arguments of a recursive field opened by `loopUArgs`): their abstract variables are
 lifted by the suffix length. -/
-def RecursorValidAppStatsWF.weakenRecent
+theorem RecursorValidAppStatsWF.weakenRecent
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
@@ -1238,14 +1238,14 @@ structure ConstructorOwnerNormalFormRow
   entries : ∀ i, i < done → (hi : i < ctors.length) →
     ConstructorOwnerNormalFormAt stats targetIdx ctors[i]
 
-def ConstructorOwnerNormalFormRow.empty
+theorem ConstructorOwnerNormalFormRow.empty
     (stats : AddInductive.InductiveStats) (targetIdx : Nat)
     (ctors : List Constructor) :
     ConstructorOwnerNormalFormRow stats targetIdx ctors 0 where
   covered := Nat.zero_le _
   entries _ hi := by omega
 
-def ConstructorOwnerNormalFormRow.push
+theorem ConstructorOwnerNormalFormRow.push
     (H : ConstructorOwnerNormalFormRow stats targetIdx ctors done)
     (hi : done < ctors.length)
     (Hentry : ConstructorOwnerNormalFormAt stats targetIdx ctors[done]) :
@@ -1265,14 +1265,14 @@ structure ConstructorOwnerNormalFormRows
     ConstructorOwnerNormalFormRow stats i indTypes[i].ctors
       indTypes[i].ctors.length
 
-def ConstructorOwnerNormalFormRows.empty
+theorem ConstructorOwnerNormalFormRows.empty
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) :
     ConstructorOwnerNormalFormRows stats indTypes 0 where
   covered := Nat.zero_le _
   rows _ hi := by omega
 
-def ConstructorOwnerNormalFormRows.push
+theorem ConstructorOwnerNormalFormRows.push
     (H : ConstructorOwnerNormalFormRows stats indTypes done)
     (hi : done < indTypes.size)
     (Hrow : ConstructorOwnerNormalFormRow stats done
@@ -1295,7 +1295,7 @@ structure ConstructorOwnerNormalForms
     ConstructorOwnerNormalFormAt stats familyIdx
       indTypes[familyIdx].ctors[ctorIdx]
 
-def ConstructorOwnerNormalFormRows.complete
+theorem ConstructorOwnerNormalFormRows.complete
     (H : ConstructorOwnerNormalFormRows stats indTypes indTypes.size) :
     ConstructorOwnerNormalForms stats indTypes where
   replay familyIdx hfamily ctorIdx hctor :=

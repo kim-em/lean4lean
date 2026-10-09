@@ -36,7 +36,7 @@ def indexBVarSpine (n : Nat) : List VExpr :=
     rw [show indexBVarSpine (n + 1) =
         .bvar n :: indexBVarSpine n by
       simp [indexBVarSpine, List.range_succ]]
-    simp only [List.map_cons, VExpr.liftN, Nat.zero_le, ↓reduceIte,
+    simp only [List.map_cons, VExpr.liftN,
       List.cons_append]
     rw [ih]
     simp [indexBVarSpine, List.range_succ]
@@ -50,7 +50,7 @@ theorem VInductDecl.paramVars_append_indexBVarSpine
   unfold VInductDecl.paramVars indexBVarSpine
   rw [Nat.add_comm decl.nparams n, List.range_add,
     List.reverse_append, List.map_append]
-  simp [Function.comp_def, Nat.add_comm]
+  simp [Function.comp_def]
 
 /-- Abstract header selected by the recursor universe policy, factored out
 so that the header phase can record a dependency fact for the
@@ -253,7 +253,7 @@ theorem _root_.Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.HeaderStats
         simpa [VExpr.instL_wrapForalls, H.uvars, shift] using hnormalized'⟩
     have HdomainsOwn := VEnv.IsDefEqU.wrapForalls_context
       Hc.checking.tr.wf (VEnv.IsDefEqCtx.refl (by trivial))
-      (by simpa [hdomainsLength, hownLength]) Htarget
+      (by simp [hdomainsLength, hownLength]) Htarget
     have Hparams' :=
       Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.instL hshift hparams
     have HownCommon := Hparams'.symm Hc.checking.tr.wf.ordered
@@ -555,7 +555,7 @@ theorem MotivePassHeaderAt.startRecursorHeaderTyping
   have hnormalize := whnfInRecursorContext.dualWF R hsource hsource₀
   have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
     htarget.fvarsIn.mono fun fv hfv => by
-      simpa [VLCtx.fvars] using hfv
+      simp [VLCtx.fvars] at hfv
   have hfalseUpSet : IsFVarUpSet (fun _ => False) R.mlctx.vlctx := by
     have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
       R.mlctx.vlctx (by simpa using R.mlctx_wf.tr.wf)
@@ -605,7 +605,7 @@ theorem MotivePassHeaderAt.headerWhnfCall
     R.mlctx_wf.tr.wf
   have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
     htarget.fvarsIn.mono fun fv hfv => by
-      simpa [VLCtx.fvars] using hfv
+      simp [VLCtx.fvars] at hfv
   have hfalseUpSet : IsFVarUpSet (fun _ => False) R.mlctx.vlctx := by
     have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
       R.mlctx.vlctx (by simpa using R.mlctx_wf.tr.wf)
@@ -1218,9 +1218,8 @@ theorem MotivePassHeaderAt.recursorCanonicalMotiveFrame
       VExpr.mkApps
         (.const H.target.name (H.recursorAbstractLevels Helim))
         (decl.paramVars nindices) := by
-    simp [familyBase, bvarSpine, VInductDecl.paramVars,
-      VExpr.liftN_mkApps, VExpr.liftN, hparameterCount,
-      ← List.map_reverse, Function.comp_def, Nat.add_comm]
+    simp [familyBase, bvarSpine, VInductDecl.paramVars, VExpr.liftN,
+      hparameterCount, Function.comp_def, Nat.add_comm]
   have hfamily := H.recursorFamilyPrefixEq Helim R Hsynthesis
     Hstats Hruntime henv Hframe
   have hfamilyFull :
@@ -1344,9 +1343,8 @@ theorem MotivePassHeaderAt.recursorMotiveTypeDefEq
       VExpr.mkApps
         (.const H.target.name (H.recursorAbstractLevels Helim))
         (decl.paramVars nindices) := by
-    simp [familyBase, bvarSpine, VInductDecl.paramVars,
-      VExpr.liftN_mkApps, VExpr.liftN, hparameterCount,
-      ← List.map_reverse, Function.comp_def, Nat.add_comm]
+    simp [familyBase, bvarSpine, VInductDecl.paramVars, VExpr.liftN,
+      hparameterCount, Function.comp_def, Nat.add_comm]
   have hfamily := H.recursorFamilyPrefixEq Helim R Hsynthesis
     Hstats Hruntime henv Hframe
   have hfamilyFull :
@@ -2446,8 +2444,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
               ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
               hconsumedBodyType Hindices' HnarrowIndices'
               (by simp [hindexCount])
-              (by simpa [hcanonical] using
-                canonicalIndexVars_succ nindices)
+              (by simp [hcanonical])
               (Horigins.pushCurrentChecked R.toBindingContextWF name
                 (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper) bi)
               (HoriginTypes.pushChecked (name := name) (bi := bi)
@@ -2465,8 +2462,8 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
               HnarrowIndices hindexCount hcanonical Horigins HoriginTypes Hrecent
               Htrace
 termination_by
-  current runtimeDepth R henv Hsuffix hparameterDecls type fullTarget narrowTarget scope
-    nindices indices originTypes indexTargets fuel => fuel
+  current runtimeDepth R _henv Hsuffix _hparameterDecls _type _fullTarget _narrowTarget _scope
+    _nindices _indices _originTypes _indexTargets fuel => fuel
 
 /-- Walk the cached common-parameter prefix directly in a universe-rebased
 recursor context.  The terminal continuation begins at the index
@@ -2526,7 +2523,7 @@ theorem continueRecursorParameterTyping {alpha : Type}
           indices fuel k current).WF Q) :
     ∀ type fullTarget narrowTarget scope i indices fuel,
       i ≤ stats.params.size →
-      (Hscope : ∀ hi : i < stats.params.size,
+      (Hscope : ∀ _hi : i < stats.params.size,
         RecursorReusedParameterScope Hsuffix i type) →
       (∀ hi : i < stats.params.size, scope = (Hscope hi).older) →
       (i = stats.params.size → scope = Hsuffix.parameterDecls) →
@@ -2689,7 +2686,7 @@ theorem continueRecursorParameterTyping {alpha : Type}
             simp only [AddInductive.mkRecInfos.loopArgs1, hi, if_pos]
             exact Except.WF.throw
 termination_by
-  type fullTarget narrowTarget scope i indices fuel => fuel
+  _type _fullTarget _narrowTarget _scope _i _indices fuel => fuel
 
 /-- Start the universe-rebased cached-parameter walk from the executable
 `whnf` call.  This wrapper is valid after arbitrary earlier mutual
@@ -2771,7 +2768,7 @@ theorem MotivePassHeaderAt.startRecursorParameterTyping
       ⟨narrowTarget, hnormalizedNarrow, ⟨Hsynthesis⟩⟩
     have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
       (H.recursorSourceTranslation Helim).fvarsIn.mono fun fv hfv => by
-        simpa [VLCtx.fvars] using hfv
+        simp [VLCtx.fvars] at hfv
     have hfalseUpSet : IsFVarUpSet (fun _ => False) R.mlctx.vlctx := by
       have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
         R.mlctx.vlctx (by simpa using R.mlctx_wf.tr.wf)

@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Inductive.Nested.Install.RunView
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Recursors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.CompilationDataConstructors
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Levels
@@ -990,44 +991,28 @@ theorem NestedRun.loweredFamilyMappings
     _hnodup⟩ := E.auxHeadsFacts wf Hsources
   let safety := if isUnsafe then DefinitionSafety.unsafe else .safe
   let P := E.lowered
-  have hc : P.c = E.context := E.lowered_c
-  have henv : P.c.env = sourceProdEnv :=
-    (congrArg AddInductive.Context.env hc).trans E.context_env
-  have hlparams : P.c.lparams = lparams :=
-    (congrArg AddInductive.Context.lparams hc).trans
-      E.context_lparams
+  have henv : P.c.env = sourceProdEnv := E.lowered_env
+  have hlparams : P.c.lparams = lparams := E.lowered_lparams
   have hnparams : P.nparams = nparams := E.lowered_nparams
   have hinitial : P.initialEnv = ves.venv safety := by
     simpa only [safety] using E.lowered_initialEnv
-  have hindTypes : P.indTypes = result.types.toArray := E.lowered_indTypes
   have hisUnsafe : P.isUnsafe = isUnsafe := E.lowered_isUnsafe_source
-  have HcP : ContextWF P.c := by
-    rw [hc]
-    exact E.contextWF
-  let initialState : Lean4Lean.ElimNestedInductive.State :=
-    { lvls := P.c.lparams.map .param, newTypes := #[] }
+  have HcP : ContextWF P.c := E.loweredContextWF
+  let initialState := E.initialState
   have Hlower : NestedLoweringOutputClosed P.c.env
       E.validationFuel.inductiveFuel P.nparams sourceTypes
-      { initialState with newTypes := sourceTypes.toArray } result := by
-    simpa only [henv, hnparams, hlparams, initialState] using E.lowering
+      { initialState with newTypes := sourceTypes.toArray } result := E.loweringAtContext
   rcases Hlower with ⟨finalState, Hrun, Hcache, Hparams⟩
-  let PhasePack := fun indTypes =>
-    Sigma fun Hheaders : HeaderEnvironment P.c P.stats P.loweredDecl
-        P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
-      Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
-        RecursorCheck R.toConstructorCheck E.loweredEnv
-  let Hpack : PhasePack result.types.toArray :=
-    Eq.mp (congrArg PhasePack hindTypes)
-      (⟨P.headers, P.constructors, P.recursors⟩ : PhasePack P.indTypes)
-  let R := Hpack.2.1
-  let Hprod := Hpack.2.2
+  let Hpack := E.phases
+  let R := Hpack.constructors
+  let Hprod := Hpack.recursors
   have Hsource : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
       E.sourceCoreDecl_eq] using E.sourceCore.core
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
-      result.types P.isUnsafe P.loweredDecl Hpack.1.context.venv
+      result.types P.isUnsafe P.loweredDecl Hpack.headers.context.venv
         R.declared.venvCtors := R.core
   have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
@@ -1061,7 +1046,7 @@ theorem NestedRun.loweredFamilyMappings
   have hloweredLength : result.types.length = P.loweredDecl.types.length :=
     TrInductDeclCore.types_length Htarget
   have hinitLvls : initialState.lvls = lparams.map Level.param := by
-    simp only [initialState, hlparams]
+    simp only [initialState, NestedRun.initialState, E.lowered_lparams]
   have hfreshInit : ∀ name ∈ E.auxHeads, P.initialEnv.constants name = none := by
     rw [hinitial]; exact hfreshSrc
   suffices key : ∀ i (hi : i < result.types.length), ∃ source stepState loweredState,

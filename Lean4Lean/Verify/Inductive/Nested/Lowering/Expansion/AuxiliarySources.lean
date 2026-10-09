@@ -184,7 +184,7 @@ theorem LoweredOccurrenceSpine.cachedSourceSpines
         ((input.getAppArgsList.take T.value.numParams).map
           (fun arg => arg.abstractList Hselection.fvars)) := by
     rw [Expr.mkAppRange_from_zero _ _ _ T.candidate.parameters.arity]
-    simpa only [Expr.abstractList_mkAppList, Expr.abstractList_const,
+    simp only [Expr.abstractList_mkAppList, Expr.abstractList_const,
       Expr.getAppArgs_toList]
   have hgenerated :
       (mkAppRange
@@ -198,7 +198,7 @@ theorem LoweredOccurrenceSpine.cachedSourceSpines
             (fun arg =>
               arg.abstractList O.origin.generated.selection.fvars)) := by
     rw [Expr.mkAppRange_from_zero _ _ _ O.origin.generated.argsArity]
-    simpa only [Expr.abstractList_mkAppList, Expr.abstractList_const]
+    simp only [Expr.abstractList_mkAppList, Expr.abstractList_const]
   dsimp only at Halpha
   rw [hcurrent, hgenerated] at Halpha
   have Halpha' :
@@ -240,7 +240,7 @@ structure ParameterExpansionCtx
     VExpr.NestedExprExpansion leaf
       (fvars.length + fieldDepth + targetDepth)
       (canonicalValue.liftN fieldDepth targetDepth) currentValue
-  localLookup : ∀ (i : Nat) (hi : i < abstractDepth)
+  localLookup : ∀ (i : Nat) (_hi : i < abstractDepth)
       {canonicalValue canonicalType currentValue currentType : VExpr},
     canonicalCtx.find? (.inl i) =
         some (canonicalValue, canonicalType) →
@@ -309,7 +309,7 @@ theorem ParameterExpansionCtx.vlam
         (abstractDepth + (fvars.length - 1 - i))) with
     | none =>
         have : False := by
-          simpa [VLCtx.find?, VLCtx.next, hcanonicalOld] using Hcanonical
+          simp [VLCtx.find?, VLCtx.next, hcanonicalOld] at Hcanonical
         exact this.elim
     | some canonicalPair =>
       rcases canonicalPair with ⟨canonicalOld, canonicalOldType⟩
@@ -415,7 +415,7 @@ theorem ParameterExpansionCtx.vlet
         (abstractDepth + (fvars.length - 1 - i))) with
     | none =>
         have : False := by
-          simpa [VLCtx.find?, VLCtx.next, hcanonicalOld] using Hcanonical
+          simp [VLCtx.find?, VLCtx.next, hcanonicalOld] at Hcanonical
         exact this.elim
     | some canonicalPair =>
       rcases canonicalPair with ⟨canonicalOld, canonicalOldType⟩
@@ -1716,7 +1716,7 @@ theorem LoweredAuxiliaryFamily.auxiliaryFamilySource
       simpa [abstractForallContext_toCtx, VLCtx.toCtx] using hsourceParamWF
     have HargWF := Harg.wf HsourceTypesWF.ordered
       (by simpa [abstractForallContext_toCtx, VLCtx.toCtx] using
-        (abstractForallContext.isDefEq HcontextTypes).wf) 
+        (abstractForallContext.isDefEq HcontextTypes).wf)
     have hctxClosed : CtxClosed
         (abstractForallContext sourceDomains []).toCtx :=
       VEnv.CtxWF.closed HsourceTypesWF.ordered hctx
@@ -1940,10 +1940,10 @@ theorem AuxiliaryFamilySources.sourceForReplacement
       (fun xs : Array InductiveType => xs[O.j]!) hresultArray
     have hleft : result.types.toArray[O.j]! =
         getElem result.types O.j hjResult := by
-      simp [Array.getElem!_eq_getD, Array.getD, hjResult]
+      simp [hjResult]
     have hright : finalState.newTypes[O.j]! =
         finalTarget := by
-      simp [finalTarget, Array.getElem!_eq_getD, Array.getD, O.hj]
+      simp [finalTarget, O.hj]
     have hresultGet : getElem result.types O.j hjResult = finalTarget :=
       hleft.symm.trans (hget.trans hright)
     simpa only [hindex] using hresultGet

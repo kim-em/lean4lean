@@ -487,7 +487,7 @@ theorem InductionHypothesisType.argDomains_levelParamsIn
       Expr.levelParamsIn_mkAppList rfl ?_⟩
     intro a ha
     rw [O.arguments_bound.expressions] at ha
-    simp only [List.toList_toArray, List.mem_map] at ha
+    simp only [List.mem_map] at ha
     obtain ⟨y, _, rfl⟩ := ha
     rfl
   have htypeU : type.levelParamsIn Us = true := by
@@ -1303,7 +1303,6 @@ theorem RecursorConstruction.recursorTelescope_minor_eq
     rw [hihs, hhyps]
   rw [hminorEq]
   unfold InductiveSignature.Instance.minor
-  simp only []
   rw [hihs, hft, hidx]
   have hlev : (H.generatedInstance (H.signature HU)).levels =
       recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible := rfl

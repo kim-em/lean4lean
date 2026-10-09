@@ -563,7 +563,7 @@ theorem sourceSignatureHeader_constructor
   exact ⟨ctor, by simpa only [hctorOwner] using howner,
     hname.trans hsourceName.symm, htype, hfields,
     indTypes[i].ctors[j], List.mem_flatMap.mpr
-      ⟨indTypes[i], by simpa using Array.getElem_mem hip, List.getElem_mem hjp⟩, hreplay⟩
+      ⟨indTypes[i], by simp, List.getElem_mem hjp⟩, hreplay⟩
 
 theorem sourceSignatureHeader_ownedConstructor
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
@@ -620,7 +620,7 @@ theorem sourceSignatureConstructor_owner
     have := ctor.owner.isLt
     omega
   have hf := Lean4Lean.List.forall₂_getElem R.sourceSignatureHeader_families
-    ctor.owner.val (by simpa using ctor.owner.isLt) hc
+    ctor.owner.val (by simp) hc
   have hname : decl.types[ctor.owner.val].name = decl.types[owner].name := by
     have hm : R.sourceSignatureHeader.families[ctor.owner].name =
         decl.ownedConstructors[i].1.name := hmodel.1
@@ -723,7 +723,7 @@ theorem sourceSignature_constructorArity
       checkInductiveTypes.loopInd.HeaderStatsWF.signatureFamilies_size] using bound
   have family := Lean4Lean.List.forall₂_getElem R.sourceSignatureHeader_families
     (R.sourceSignatureConstructor position).owner.val
-    (by simpa using (R.sourceSignatureConstructor position).owner.isLt) ownerBound
+    (by simp) ownerBound
   have same : decl.types[(R.sourceSignatureConstructor position).owner.val] =
       decl.ownedConstructors[i].1 :=
     List.eq_of_mem_of_nodup_map names (List.getElem_mem ownerBound) targetMember

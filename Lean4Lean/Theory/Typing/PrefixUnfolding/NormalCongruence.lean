@@ -19,7 +19,7 @@ theorem etaOpen_spine (n : Nat) (fn : VExpr) :
       simp only [vars, List.range_succ, List.reverse_append, List.reverse_singleton,
         List.singleton_append, List.map_cons, Nat.zero_add]
     rw [hv]
-    simp only [lift, liftN, liftN_liftN, Nat.zero_add, Nat.add_comm 1]
+    simp only [lift, liftN, liftN_liftN, Nat.add_comm 1]
     rfl
 
 omit [Params] in
@@ -68,7 +68,7 @@ theorem ConstSpineDefEq.instOuter_normal {name : Name} {levels : List VLevel} (h
   simpa only [instantiateParams_eq_instOuter] using (NormalEqF.instantiateParams_args hΓ hc hA).defeq hΓ
 
 
-private theorem etaOpen_match {domains : List VExpr} (hpos : 0 < domains.length) (hΓ : OnCtx Γ (env.IsType univs))
+private theorem etaOpen_match {domains : List VExpr} (hpos : 0 < domains.length) (_hΓ : OnCtx Γ (env.IsType univs))
     {name : Name} {levels : List VLevel}
     (hlevels : ∀ l ∈ levels, l.WF univs)
     (hargs : List.Forall₂ (NormalEqF η Γ) args args')
@@ -78,7 +78,7 @@ private theorem etaOpen_match {domains : List VExpr} (hpos : 0 < domains.length)
       (.app (etaOpen (domains.length - 1) (mkApps (.const name levels) args)).lift ctor)
       (.app (etaOpen (domains.length - 1) (mkApps (.const name levels) args')).lift ctor') := by
   rw [etaOpen_spine, etaOpen_spine]
-  simp only [lift, liftN_mkApps, liftN, List.map_append]
+  simp only [lift, liftN_mkApps, liftN]
   refine ⟨name, levels, levels,
     (args.map (·.liftN (domains.length - 1)) |>.map (·.liftN 1)) ++
       (vars (domains.length - 1) 0).map (·.liftN 1) ++ [ctor],

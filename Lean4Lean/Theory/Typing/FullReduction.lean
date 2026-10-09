@@ -1212,7 +1212,7 @@ theorem SpineTransport.stored_defn {r : (Pattern.const c).RHS × (Pattern.const 
   | sortDF | elimDF | appDF | projDF | lamDF | forallEDF | etaR => cases hRR
 
 omit [Params] in
-private theorem forall₂_map_lift_lift' {l₁ : List VExpr} (vs : List VExpr) :
+private theorem forall₂_map_lift_lift' (vs : List VExpr) :
     (vs.map (·.lift' ρ)).map VExpr.lift = vs.map (·.lift' (.skip ρ)) := by
   simp [List.map_map, Function.comp_def, lift_lift'_skip]
 
@@ -1280,7 +1280,7 @@ theorem SpineTransport.redex {hd : List VLevel → VExpr} (hhd : ∀ ls, RigidHe
           M).lift' (.skip ρ) : Tℓ.lift := by
       refine ⟨⟨hΓ, _, hA⟩, ?_, ?_, ?_⟩
       · have := NormalEq.forall₂_weak (A := A) hvs
-        rwa [forall₂_map_lift_lift' (l₁ := vs₁)] at this
+        rwa [forall₂_map_lift_lift'] at this
       · rw [← lift_lift'_skip]; exact hMr.weakN .one
       · rw [← lift_lift'_skip]; exact hEt.weakN henv .one
     generalize hRR : VExpr.mkApps (.app (VExpr.mkApps (hd ls₁) vs₁) M₁) bs = R at H

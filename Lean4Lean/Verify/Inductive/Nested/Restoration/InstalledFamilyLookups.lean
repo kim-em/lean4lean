@@ -63,7 +63,7 @@ private theorem ExprLowering.Resolved.constructorArity_eq
   | forallE Hnode Hdom Hbody ihDom ihBody =>
       simp [AddInductive.constructorArity, Expr.updateForallE!, ihBody]
   | letE Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
-      simp [AddInductive.constructorArity, Expr.updateLet!, ihBody]
+      simp [AddInductive.constructorArity, Expr.updateLet!]
   | mdata Hnode Hbody ihBody =>
       simp [AddInductive.constructorArity, Expr.updateMData!]
   | proj Hnode Hbody ihBody =>
@@ -512,7 +512,7 @@ theorem RecursorCheck.findSourceHeaderAt
   let info := infos[familyIdx]
   have hinfoMem : info ∈ infos.toList := by
     apply Array.mem_toList_iff.mpr
-    simpa [info] using Array.getElem_mem hinfoIdx
+    simp [info]
   rcases Haligned.findInfo hinfoMem with ⟨familyValue, hfamilyEntry⟩
   have hheader : headerEnv.find? info.name = some (.inductInfo info) :=
     Hheaders.installed.findEntry
@@ -525,7 +525,7 @@ theorem RecursorCheck.findSourceHeaderAt
       exact R.declared.installed.preservesSourceFind
         Hheaders.context.checking.tr.map_wf hheader
   refine ⟨info, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
-    simp [info, infos, AddInductive.inductiveTypeInfos, hindicesSize] at hout ⊢
+    simp [info, infos, AddInductive.inductiveTypeInfos] at hout ⊢
   exact hout
 
 /-- The source-position header lookup also gives the executable index count.
@@ -564,7 +564,7 @@ theorem RecursorCheck.findSourceHeaderNumIndicesAt
   let expected := infos[familyIdx]
   have hexpectedMem : expected ∈ infos.toList := by
     apply Array.mem_toList_iff.mpr
-    simpa [expected] using Array.getElem_mem hinfoIdx
+    simp [expected]
   rcases Haligned.findInfo hexpectedMem with ⟨_familyValue, hfamilyEntry⟩
   have hheader : headerEnv.find? expected.name =
       some (.inductInfo expected) :=
@@ -851,7 +851,7 @@ theorem RestoredInductiveStep.inductInfoAlignmentAt
     simpa using htargetEq
   have htargetMem : target ∈ result.types.toArray.toList := by
     rw [← htargetArrayEq]
-    simpa using Array.getElem_mem hresultArray
+    simp
   rcases Hprod.findSourceHeaderAt Hc familyIdx hresultArray with
     ⟨installedInfo, hinstalledLookup, hinstalledName, hinstalledType,
       hinstalledCtors, hinstalledAll, hinstalledLevels, hinstalledParams,

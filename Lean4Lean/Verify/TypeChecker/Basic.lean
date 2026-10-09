@@ -992,11 +992,11 @@ untouched, so judgements stated at `c` and at `c.withMLC m` are interchangeable.
 
 theorem MLCtx.WF.find?_vlam {m : MLCtx} (wf : (m.vlam x name ty ty' bi).WF env Us)
     (h : fv ≠ x) : (m.vlam x name ty ty' bi).lctx.find? fv = m.lctx.find? fv := by
-  rw [wf.find?_eq, wf.1.find?_eq]; simp [decls, List.find?_cons, LocalDecl.fvarId, h]
+  rw [wf.find?_eq, wf.1.find?_eq]; simp [decls, LocalDecl.fvarId, h]
 
 theorem MLCtx.WF.find?_vlet {m : MLCtx} (wf : (m.vlet x name ty v ty' v').WF env Us)
     (h : fv ≠ x) : (m.vlet x name ty v ty' v').lctx.find? fv = m.lctx.find? fv := by
-  rw [wf.find?_eq, wf.1.find?_eq]; simp [decls, List.find?_cons, LocalDecl.fvarId, h]
+  rw [wf.find?_eq, wf.1.find?_eq]; simp [decls, LocalDecl.fvarId, h]
 
 @[simp] theorem _root_.Lean.LocalDecl.value?_ldecl_true :
     (LocalDecl.ldecl i fv n t v nd k).value? true = some v := by
@@ -1004,12 +1004,12 @@ theorem MLCtx.WF.find?_vlet {m : MLCtx} (wf : (m.vlet x name ty v ty' v').WF env
 
 theorem MLCtx.WF.find?_vlam_self {m : MLCtx} (wf : (m.vlam x name ty ty' bi).WF env Us) :
     (m.vlam x name ty ty' bi).lctx.find? x = some (.cdecl m.length x name ty bi .default) := by
-  rw [wf.find?_eq]; simp [decls, List.find?_cons, LocalDecl.fvarId]
+  rw [wf.find?_eq]; simp [decls, LocalDecl.fvarId]
 
 theorem MLCtx.WF.find?_vlet_self {m : MLCtx} (wf : (m.vlet x name ty v ty' v').WF env Us) :
     (m.vlet x name ty v ty' v').lctx.find? x =
       some (.ldecl m.length x name ty v false default) := by
-  rw [wf.find?_eq]; simp [decls, List.find?_cons, LocalDecl.fvarId]
+  rw [wf.find?_eq]; simp [decls, LocalDecl.fvarId]
 
 /-- Extending a universe scope by one declaration in scope, keeping the predicate. -/
 theorem VContext.UniverseScope.cons_same {c c' : VContext}

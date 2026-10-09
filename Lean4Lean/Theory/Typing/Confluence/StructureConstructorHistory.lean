@@ -233,7 +233,7 @@ private theorem StructureCtorCoherent.addInduct (H : StructureCtorCoherent env)
 private theorem StructureCtorCoherent.addQuot (H : StructureCtorCoherent env)
     (henv : env.Ordered) (hadd : env.addQuot = some env') : StructureCtorCoherent env' := by
   simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at hadd
+    Option.some.injEq] at hadd
   obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := hadd
   have hle : env ≤ d.addDefEq quotDefEq :=
     ((((VEnv.addConst_le ha).trans (VEnv.addConst_le hb)).trans

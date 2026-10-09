@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Inductive.Nested.Install.RunView
 import Lean4Lean.Verify.Inductive.Nested.Restoration.CommutationUniform
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ContainerSpecializations
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ExpansionInverse
@@ -1252,44 +1253,28 @@ theorem NestedRun.restorationTablesRestoringAllSpec
     exact h
   let safety := if isUnsafe then DefinitionSafety.unsafe else .safe
   let P := E.lowered
-  have hc : P.c = E.context := E.lowered_c
-  have henv : P.c.env = sourceProdEnv :=
-    (congrArg AddInductive.Context.env hc).trans E.context_env
-  have hlparams : P.c.lparams = lparams :=
-    (congrArg AddInductive.Context.lparams hc).trans
-      E.context_lparams
+  have henv : P.c.env = sourceProdEnv := E.lowered_env
+  have hlparams : P.c.lparams = lparams := E.lowered_lparams
   have hnparams : P.nparams = nparams := E.lowered_nparams
   have hinitial : P.initialEnv = ves.venv safety := by
     simpa only [safety] using E.lowered_initialEnv
-  have hindTypes : P.indTypes = result.types.toArray := E.lowered_indTypes
   have hisUnsafe : P.isUnsafe = isUnsafe := E.lowered_isUnsafe_source
-  have HcP : ContextWF P.c := by
-    rw [hc]
-    exact E.contextWF
-  let initialState : Lean4Lean.ElimNestedInductive.State :=
-    { lvls := P.c.lparams.map .param, newTypes := #[] }
+  have HcP : ContextWF P.c := E.loweredContextWF
+  let initialState := E.initialState
   have Hlower : NestedLoweringOutputClosed P.c.env
       E.validationFuel.inductiveFuel P.nparams sourceTypes
-      { initialState with newTypes := sourceTypes.toArray } result := by
-    simpa only [henv, hnparams, hlparams, initialState] using E.lowering
+      { initialState with newTypes := sourceTypes.toArray } result := E.loweringAtContext
   rcases Hlower with ⟨finalState, Hrun, Hcache, Hparams⟩
-  let PhasePack := fun indTypes =>
-    Sigma fun Hheaders : HeaderEnvironment P.c P.stats P.loweredDecl
-        P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
-      Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
-        RecursorCheck R.toConstructorCheck E.loweredEnv
-  let Hpack : PhasePack result.types.toArray :=
-    Eq.mp (congrArg PhasePack hindTypes)
-      (⟨P.headers, P.constructors, P.recursors⟩ : PhasePack P.indTypes)
-  let R := Hpack.2.1
-  let Hprod := Hpack.2.2
+  let Hpack := E.phases
+  let R := Hpack.constructors
+  let Hprod := Hpack.recursors
   have Hsource : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
       E.sourceCoreDecl_eq] using E.sourceCore.core
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
-      result.types P.isUnsafe P.loweredDecl Hpack.1.context.venv
+      result.types P.isUnsafe P.loweredDecl Hpack.headers.context.venv
         R.declared.venvCtors := by
     exact R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
@@ -1319,14 +1304,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
       hinitial HcP Hprod Hsources HsourceHeaders HsourceAdded HsourceTypesWF
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N, hNctx⟩
   have hctxEq : N.parameterContext = P.headers.commonParameterContext := by
-    have key : ∀ (i : Array InductiveType) (h : P.indTypes = i),
-        (Eq.mp (congrArg PhasePack h)
-          (⟨P.headers, P.constructors, P.recursors⟩ : PhasePack P.indTypes)).1.commonParameterContext =
-          P.headers.commonParameterContext := by
-      intro i h
-      subst h
-      rfl
-    exact hNctx.trans (key _ hindTypes)
+    exact hNctx.trans E.phases_commonParameterContext
   have Htypes := Hrun.allExpansionsOfSources Hcache Hparams Hsource
     Htarget Hmetadata Hsources
       (VEnvs.WFCore.environmentTypesClosed wfP) wfP.inductivesClosed
@@ -1648,7 +1626,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
   -- the restoring expansion of the auxiliary families
   have hbaseWF : P.initialEnv.WF := by
     simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf
-  have HtargetTypesWF : Hpack.1.context.venv.WF :=
+  have HtargetTypesWF : Hpack.headers.context.venv.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Htarget hbaseWF
   have Hall : List.Forall₂ (VInductDecl.NestedTypeExpansion P.initialEnv sourceDecl
       (r.RestoringLeaf (VLevel.params sourceDecl.uvars)))

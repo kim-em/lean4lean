@@ -353,7 +353,7 @@ theorem
     rw [T.minors_length]
     exact A.rule.minor_valid
   have hremaining : remaining = T.minors[minorIdx] :: later := by
-    simpa [remaining, later] using List.drop_eq_getElem_cons hminor
+    simp [remaining, later]
   have hremainingLength : remaining.length = later.length + 1 := by
     simp [hremaining]
   have hremainingSourceLength :
@@ -668,7 +668,7 @@ theorem
     rw [T.minors_length]
     exact A.rule.minor_valid
   have hremaining : remaining = T.minors[minorIdx] :: later := by
-    simpa [remaining, later] using List.drop_eq_getElem_cons hminor
+    simp [remaining, later]
   have hremainingLength : remaining.length = later.length + 1 := by
     simp [hremaining]
   have hremainingSourceLength :

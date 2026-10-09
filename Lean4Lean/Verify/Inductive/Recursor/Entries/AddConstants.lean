@@ -139,7 +139,7 @@ theorem MLCtxLamPrefix.extendFrontScopeEmbeddingAligned
     have hNU' := hNU.symm.defeqDFC henv.ordered halignTailSymm.defeqCtx
     obtain ⟨v, hv⟩ := HnarrowIsType
     refine ⟨_, Hnext, ?_, ?_, ⟨tailDomains ++ [narrowType], ?_, ?_⟩, ?_⟩
-    · simp [Hnext, htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
+    · simp [htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
     · dsimp [Hnext, checkInductiveTypes.loopType.FrontScopeEmbedding.withIndex]
       simpa only [List.length_append, List.length_singleton,
         List.drop_succ_cons] using htailBase
@@ -258,7 +258,7 @@ theorem AddConstants.rebase
 /-- A lockstep installation checked at a stronger visibility level is also a
 valid installation for every weaker observer. The installed abstract
 constants and all freshness/typing facts are unchanged. -/
-def AddConstants.sf_mono
+theorem AddConstants.sf_mono
     (hsafety : safety ≤ checkSafety)
     (H : AddConstants checkSafety prodEnv venv entries outEnv outVEnv) :
     AddConstants safety prodEnv venv entries outEnv outVEnv := by
@@ -974,10 +974,8 @@ theorem inductiveTypeInfos_owner
   let info := (AddInductive.inductiveTypeInfos stats numParams indTypes
     numNested isUnsafe lparams)[i]'(by simpa [hinfosSize] using hi)
   refine ⟨info, ?_, ?_⟩
-  · simpa [info] using Array.getElem_mem (xs :=
-      AddInductive.inductiveTypeInfos stats numParams indTypes numNested
-        isUnsafe lparams) (by simpa [hinfosSize] using hi)
-  · simp [info, AddInductive.inductiveTypeInfos, hsize]
+  · simp [info]
+  · simp [info, AddInductive.inductiveTypeInfos]
 
 theorem AddConstants.le
     (H : AddConstants safety env venv entries outEnv outVEnv) :
@@ -1391,7 +1389,7 @@ theorem AddInductive.declareRecursors.loop.typingWF
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
     (hparameterUp : IsFVarUpSet
       (fun fv => fv ∈ ExprArrayFVarIds stats.params) R.mlctx.vlctx)
-    (Hseed : ∀ owner (howner : owner < indTypes.size),
+    (Hseed : ∀ owner (_howner : owner < indTypes.size),
       ∀ ctor, ctor ∈ indTypes[owner]!.ctors →
         ∃ tail tailTarget introTarget,
           ParameterPrefix stats 0 ctor.type tail ∧
@@ -1416,7 +1414,7 @@ theorem AddInductive.declareRecursors.loop.typingWF
     (env : Environment)
     (Hvalid : CheckingEnv.ValidCore c.safety env currentVEnv)
     (hle : sourceVEnv ≤ currentVEnv)
-    (Htranslate : ∀ owner (howner : owner < indTypes.size)
+    (Htranslate : ∀ owner (_howner : owner < indTypes.size)
       (rules : List RecursorRule),
       TrConstVal c.safety sourceVEnv
           (.recInfo (AddInductive.declareRecursors.recursorInfo stats
@@ -1424,7 +1422,7 @@ theorem AddInductive.declareRecursors.loop.typingWF
             isUnsafe lparams owner rules)) (recursors owner) ∧
         (recursors owner).toVConstant.WF sourceVEnv)
     (hnprim : allowPrimitive = true →
-      ∀ owner (howner : owner < indTypes.size),
+      ∀ owner (_howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     (AddInductive.declareRecursors.loop stats indTypes elimLevel recInfos
@@ -1462,10 +1460,9 @@ theorem AddInductive.declareRecursors.loop.typingWF
           recInfos dIdx (recInfos.map (·.motive))
           (recInfos.flatMap (·.minors)) c).WF _)
       exact Hrules.map fun _ hrules => ⟨hrules, rfl⟩
-    simp only [liftM, MonadLiftT.monadLift, MonadLift.monadLift,
-      StateT.instMonadLift, ReaderT.instMonadLift, StateT.lift, bind,
-      StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure,
-      _root_.modify, modifyGetThe, MonadState.modifyGet,
+    simp only [liftM, MonadLiftT.monadLift, MonadLift.monadLift, StateT.lift, bind,
+      StateT.bind, ReaderT.bind, pure, ReaderT.pure,
+      _root_.modify, MonadState.modifyGet,
       MonadStateOf.modifyGet, StateT.modifyGet]
     exact HrulesState.bind fun generated hrules => by
       have hsize : recInfos.size = indTypes.size := by
@@ -1669,7 +1666,7 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
     (hparameterUp : IsFVarUpSet
       (fun fv => fv ∈ ExprArrayFVarIds stats.params) R.mlctx.vlctx)
-    (Hseed : ∀ owner (howner : owner < indTypes.size),
+    (Hseed : ∀ owner (_howner : owner < indTypes.size),
       ∀ ctor, ctor ∈ indTypes[owner]!.ctors →
         ∃ tail tailTarget introTarget,
           ParameterPrefix stats 0 ctor.type tail ∧
@@ -1692,7 +1689,7 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
         (targets T owner))
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
-      ∀ owner (howner : owner < indTypes.size),
+      ∀ owner (_howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     (AddInductive.declareRecursors stats indTypes elimLevel recInfos k
@@ -1713,8 +1710,8 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
             uvars := (AddInductive.getRecLevelParams elimLevel c.lparams).length
             type := targets T i } := by
   unfold AddInductive.declareRecursors
-  simp only [getLCtx, readThe, read, ReaderT.read]
-  simp only [readThe, read, ReaderT.read, bind, ReaderT.bind]
+  simp only [getLCtx, readThe, read]
+  simp only [bind, ReaderT.bind]
   have Hcheck :
         (AddInductive.declareRecursors.checkRecursorTypes stats indTypes
           elimLevel recInfos (recInfos.flatMap (·.minors)).size

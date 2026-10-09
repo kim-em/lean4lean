@@ -200,7 +200,7 @@ theorem Expr.levelParamsIn_mkAppRange {f : Expr} {args : Array Expr}
   | succ k ih =>
     intro i f h hf; rw [mkAppRangeAux.eq_def]; split <;> [skip; exact hf]
     refine ih _ _ (by omega) ?_
-    simp [mkApp, Expr.levelParamsIn, hf, Expr.levelParamsIn_getElem!_of_forall ha]
+    simp [Expr.levelParamsIn, hf, Expr.levelParamsIn_getElem!_of_forall ha]
 
 theorem Expr.levelParamsIn_natLitToConstructor :
     (Expr.natLitToConstructor n).levelParamsIn params = true := by

@@ -441,7 +441,7 @@ theorem RecursorCheck.restorationSources
     exact HctorTelescope _ (List.getElem_mem hownerIdx) ctor hctor
   · have hbang : indTypes[ownerIdx]! = indTypes[ownerIdx] := by
       have hownerArray : ownerIdx < indTypes.size := by simpa using hownerIdx
-      simp [Array.getElem!_eq_getD, Array.getD, hownerArray]
+      simp [hownerArray]
     rw [hbang] at hrecursor
     exact hrecursor
 
