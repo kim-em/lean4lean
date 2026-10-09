@@ -150,3 +150,22 @@ posts to GitHub or Zulip.
   turns every `Prop`-binder instance into a `(Q → P)`-binder instance (`prop_binder_transfer`
   substitutes the proof variable by `g q`), so the rigid case contains the derived-proof
   mechanism, and `derived_proof_irrel` is the rule that breaks any rule-by-rule mapping.
+* 2026-10-09: direction B finished (b47bb3eb, merged as f4a356f7): `TermModel.lean` (Astra's
+  `TermEq`, `Reflection ↔ Cancel`, opaque and looping constants separated by name) and
+  `TypingFront.lean`. Exact reduction, all checked: `TypingFrontN ↔ Cancel`;
+  `TypingFrontN ↔ AppFrontN ∧ TypeFrontN ∧ ProjFrontN ∧ ElimFrontN` (structural induction on
+  the term, in `Ctx.LiftN 1 k` form because binders move the removed variable to depth
+  `k+1`); `AppFrontN` follows from `PiExposureN ∧ TypeFrontN`; `PiExposureN` follows from its
+  reduction form `PiExposureRedN` (a lifted type that `FullReduction`-exposes to a `Π` above
+  exposes to some `Π` below) by `exposure_reduces` (new `Π`-stability lemmas for
+  `ParRed`/`FullStep`/`NormalEqN`); `TypeFront ↔ StrengtheningKripke.TypedFront`. So the
+  problem is exactly two obligations: (i) `PiExposureRedN`, the one genuinely new statement,
+  and (ii) `TypedFront`, `Cancel` for types typed below. Structural induction closes
+  `bvar`/`sort`/`const` and a sort skeleton fragment with no hypothesis on `env`
+  (`typingFrontN_skeletonFragment`); `λ`/`Π` already need (ii) for the sort exposure of the
+  domain's type. For (i): a `DescendingStep` path exposes below
+  (`piExposure_of_descending`), the `headSource` path is not descending for any `Q`
+  (`headSource_path_not_descending`), the first step's guards are on lifts of subterms of
+  the original type but from the second step on they are on subterms of reducts, and
+  `exposure_reduces` restarts the path with uncontrolled length, so neither size nor path
+  induction closes. Stuck heads never expose a `Π` (`rigid_type_not_pi`, `loop_not_pi`).
