@@ -185,6 +185,32 @@ generator definitions of section 2, a few foundational lemmas, and the confluenc
 `WF.singletonCoverage`) may depend only on the three standard axioms. The self-test checks that the walker finds a `sorry` behind an opaque body and
 an axiom used only in a type.
 
+Timing against `master` (merge base `8223d223`, same toolchain, same machine;
+`lake exe lean4lean --fresh M`, median of three runs, wall time and peak RSS from GNU `time -v`;
+the branch in its default scoped cache mode):
+
+| replay | `master` | branch |
+|---|---|---|
+| `--fresh Init.Prelude` (1975 declarations) | 0.45 s, 124 MiB | 0.55 s, 130 MiB |
+| `--fresh Init.Core` (3953 declarations) | 0.62 s, 124 MiB | 0.75 s, 132 MiB |
+| `--fresh Init.System.IO` (43609 declarations) | 31.2 s, 362 MiB | 55.9 s, 333 MiB |
+
+On the two small replays most of the difference is driver startup, not checking: the same binary
+run directly on a nonexistent module (which scans the search path for `.olean` files, more of them
+in the branch's build directory) takes 0.20 s on `master` and 0.29 s on the branch. The slowdown on
+`Init.System.IO` is the scoped caches (section 5.2). The global mode cannot be selected in the
+executable (it needs a `GlobalCacheLicense`), so it has no row; an uncommitted build of the branch
+whose configuration parser accepted the global mode with a `sorry` license, for timing only,
+replayed `Init.System.IO` in 29.2 s (median of three), below `master`, and `Init.Prelude` and
+`Init.Core` in 0.52 s and 0.71 s. The extra checks of the branch (`checkRecursorTypes`, the
+side-environment re-checks of section 3.3) therefore cost nothing measurable on this corpus. A
+`perf` profile agrees: the branch's flat profile has the same functions in the same proportions
+as `master`'s (`whnfCore'`, `inferType'`, `EquivManager.isEquiv`, `reduceRecursor`, instantiation
+and reference counting), with 1.8 times as many samples, i.e. the same work repeated after the
+caches are restored at binder exits rather than a new hot spot. No declaration of these replays
+takes lean4lean over a second on `master`; on the branch two do (`Array.extract_append` proof
+terms, 1.5 to 1.8 s).
+
 ## 2. The generative specification of inductive types
 
 ### 2.1 The calculus
