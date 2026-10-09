@@ -216,8 +216,8 @@ theorem RecursorConstruction.flatMinorIndex_unique
     (by rw [← H.minorTypes_size owner howner]; exact hlocal)
     (by rw [← H.minorTypes_size owner' howner']; exact hlocal') heq
 
-/-- `sourceModelsOfTables` with the per-field obligation reduced to the
-classification-independent positivity clause of `Models`. -/
+/-- `sourceModelsOfTables` with the per-field obligation reduced to the classified
+positivity clause of `Models`. -/
 theorem sourceModelsOfTablesPositive {s : InductiveSignature} {decl : VInductDecl}
     (Hsource : decl.SourceWF env)
     (hadd : env.addConstVals decl.typeConstants = some envTypes)
@@ -236,7 +236,8 @@ theorem sourceModelsOfTablesPositive {s : InductiveSignature} {decl : VInductDec
         ∃ normalized,
           envTypes.IsDefEqU decl.uvars (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse)
             (s.fieldType i ctor.fields[i]) normalized ∧
-          decl.UniformFieldNormalForm (VLevel.params decl.uvars) i normalized)
+          decl.ClassifiedFieldNormalForm (VLevel.params decl.uvars) i ctor.fields[i].isRecursive
+            normalized)
     (Harity : ∀ ctor ∈ s.constructors.toList,
       ctor.indices.length = s.families[ctor.owner].indices.length) :
     s.Models env decl := by
@@ -319,6 +320,13 @@ structure RecursorConstruction.SignatureSpec
       s.constructors[k].owner.val = owner ∧
       s.fieldTypes s.constructors[k] = H.declFieldDomains owner howner localIndex hlocal ∧
       s.constructors[k].indices = H.declConstructorIndices owner howner localIndex hlocal
+  /-- For a safe declaration, the fields marked recursive are those the constructor phase's
+  positivity check classified as recursive. -/
+  classified : decl.isUnsafe ≠ true → ∀ owner (howner : owner < H.recInfos.size) localIndex
+      (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
+      (hk : recursorMinorOffset indTypes owner + localIndex < s.constructors.size),
+    s.constructors[recursorMinorOffset indTypes owner + localIndex].fields.map
+      InductiveSignature.Field.isRecursive = R.classes[owner]![localIndex]!
 
 theorem RecursorConstruction.SignatureSpec.family_getElem
     {H : RecursorConstruction R} {s : InductiveSignature}
@@ -416,9 +424,40 @@ theorem RecursorConstruction.SignatureSpec.constructorType_defeq
   rw [← R.core.uvars] at hmain
   exact hmain.symm.trans henv trivial hhdrType
 
+/-- For a safe declaration, the source signature classifies the fields of each constructor as
+the positivity check did. -/
+theorem RecursorConstruction.sourceClasses
+    (H : RecursorConstruction R)
+    (owner : Nat) (howner : owner < H.recInfos.size)
+    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
+    (hsafe : decl.isUnsafe ≠ true) :
+    (R.sourceSignatureConstructor ⟨recursorMinorOffset indTypes owner + localIndex,
+        H.sourceMinorOffsetBound owner howner localIndex hlocal⟩).fields.map
+      InductiveSignature.Field.isRecursive = R.classes[owner]![localIndex]! := by
+  have bound := H.sourceMinorOffsetBound owner howner localIndex hlocal
+  have hmodel := Classical.choose_spec
+    (R.sourceSignatureHeader_ownedConstructor _ (List.getElem_mem bound))
+  have hsourceOwner : owner < indTypes.size := by rwa [← H.sourceFamilyCount]
+  have habstractOwner : owner < decl.types.length := by
+    rw [← H.cardinality.records]; exact howner
+  have hctor : localIndex < indTypes[owner]!.ctors.length := by
+    rw [← H.minorTypes_size owner howner]; exact hlocal
+  have habstractCtor : localIndex < (decl.types[owner]'habstractOwner).ctors.length := by
+    have hownerTr := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt R.core
+      owner (by simpa using hsourceOwner) habstractOwner
+    simp only [Array.getElem_toList] at hownerTr
+    have hlength := Lean4Lean.List.Forall₂.length_eq hownerTr.ctors
+    have hbang : indTypes[owner]! = indTypes[owner] := by simp [hsourceOwner]
+    rw [hbang] at hctor
+    omega
+  have hpair := Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructorAtMinorOffset
+    R.core owner localIndex hsourceOwner hctor habstractOwner habstractCtor bound
+  exact (hmodel.2.2.2.1 owner habstractOwner localIndex habstractCtor hpair).resolve_left
+    hsafe
+
 /-- For a safe declaration, every field of such a signature is, in its own prefix scope,
 definitionally equal to a strictly positive normal form: the checked formation's normal form
-for the same field. -/
+for the same field, in the branch its classification names. -/
 theorem RecursorConstruction.SignatureSpec.fieldPositive
     {H : RecursorConstruction R} {s : InductiveSignature}
     (D : H.SignatureSpec s)
@@ -433,7 +472,11 @@ theorem RecursorConstruction.SignatureSpec.fieldPositive
           s.params.reverse)
         (s.fieldType i (s.constructors[recursorMinorOffset indTypes owner + localIndex]).fields[i])
         normalized ∧
-      decl.UniformFieldNormalForm (VLevel.params decl.uvars) i normalized := by
+      decl.ClassifiedFieldNormalForm (VLevel.params decl.uvars) i
+        (s.constructors[recursorMinorOffset indTypes owner + localIndex]).fields[i].isRecursive
+        normalized := by
+  have hgenClasses := D.classified hsafe owner howner localIndex hlocal hk
+  have hsrcClasses := H.sourceClasses owner howner localIndex hlocal hsafe
   obtain ⟨_, _, _, hfields, _⟩ := D.constructor owner howner localIndex hlocal
   have bound := H.sourceMinorOffsetBound owner howner localIndex hlocal
   have hmodel := Classical.choose_spec
@@ -447,7 +490,7 @@ theorem RecursorConstruction.SignatureSpec.fieldPositive
         (((R.sourceSignatureHeader.fieldTypes hdr).take k).reverse ++
           R.sourceSignatureHeader.params.reverse) k hdr.fields[k] := by
     rw [← hhdr]
-    exact hmodel.2.2.2.1
+    exact hmodel.2.2.2.2.1
   have hconsLen : (H.declFieldDomains owner howner localIndex hlocal).length =
       (s.constructors[recursorMinorOffset indTypes owner + localIndex]).fields.length := by
     rw [← hfields, InductiveSignature.fieldTypes_length]
@@ -476,6 +519,12 @@ theorem RecursorConstruction.SignatureSpec.fieldPositive
   have hN' := hN.defeqDFC henv.ordered hctxI
   have hcd := (HD.2 i hiC hiA).1
   have hres := hcd.trans henv (hctxI.symm henv.ordered).isType hN'
+  have hclass : hdr.fields[i].isRecursive =
+      (s.constructors[recursorMinorOffset indTypes owner + localIndex]).fields[i].isRecursive := by
+    rw [hhdr] at hsrcClasses
+    have h1 := congrArg (fun l : List Bool => l[i]?) (hsrcClasses.trans hgenClasses.symm)
+    simpa [List.getElem?_map, hiF, hi] using h1
+  rw [hclass] at hshape
   refine ⟨normalized, ?_, hshape⟩
   have hget : s.fieldType i (s.constructors[recursorMinorOffset indTypes owner + localIndex]).fields[i] =
       (H.declFieldDomains owner howner localIndex hlocal)[i] := by
@@ -562,7 +611,8 @@ theorem RecursorConstruction.SignatureSpec.models
         ∃ normalized,
           R.headerVEnv.IsDefEqU decl.uvars (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse)
             (s.fieldType i ctor.fields[i]) normalized ∧
-          decl.UniformFieldNormalForm (VLevel.params decl.uvars) i normalized := by
+          decl.ClassifiedFieldNormalForm (VLevel.params decl.uvars) i ctor.fields[i].isRecursive
+            normalized := by
     by_cases hunsafe : decl.isUnsafe = true
     · exact Or.inl (D.safety.trans hunsafe)
     refine Or.inr fun ctor hctor i hi => ?_

@@ -35,27 +35,50 @@ structure Models (s : InductiveSignature) (env : VEnv) (decl : VInductDecl) : Pr
       s.declaration.constructorConstants decl.constructorConstants
   /-- Every field type is, in its own scope (the parameters and the earlier
   fields), definitionally a strictly positive normal form at the source
-  universes: either free of the families being defined, or a telescope over
-  family-free domains ending in a family applied to the parameters and
-  family-free indices (`VInductDecl.UniformFieldNormalForm`).  This is what
-  the constructor phase's positivity check establishes.  It is stated for every
-  field regardless of the generator's `external`/`recursive` classification:
-  the generator's classification and recursive shapes are constrained only
-  by the well-formedness of the generated recursor (`Instance.GeneratedIHsWellTyped`);
-  tying them to the header's classification would need agreement between two
-  normalisation passes, which the checker does not establish. -/
-  positiveFields : s.isUnsafe = true ∨ ∃ envTypes,
+  universes, in the branch its classification names
+  (`VInductDecl.ClassifiedFieldNormalForm`): an `external` field is
+  definitionally a type free of the families being defined, a `recursive` field
+  is definitionally a telescope over family-free domains ending in a family
+  applied to the parameters and family-free indices.  So the generator gives an
+  induction hypothesis exactly to the fields whose positive normal form ends in a
+  family: a recursive field cannot be declared `external`, and a family-free field
+  cannot be declared `recursive`.  The recorded shape of a recursive field (its
+  binders, target family and indices) is constrained by the typing of its generated
+  induction hypothesis (`Instance.GeneratedIHsWellTyped`): together with this clause, it
+  has the target family and the number of binders of the normal form, and binders and
+  indices definitionally equal to the normal form's, compared under the hypothesis binders
+  (`Instance.recursiveShape_correspondence`).  Unsafe declarations, which are not checked
+  for positivity, are exempt. -/
+  classifiedFields : s.isUnsafe = true ∨ ∃ envTypes,
     env.addConstVals decl.typeConstants = some envTypes ∧
     ∀ ctor ∈ s.constructors.toList, ∀ i (hi : i < ctor.fields.length),
       ∃ normalized,
         envTypes.IsDefEqU decl.uvars (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse)
           (s.fieldType i ctor.fields[i]) normalized ∧
-        decl.UniformFieldNormalForm (VLevel.params decl.uvars) i normalized
+        decl.ClassifiedFieldNormalForm (VLevel.params decl.uvars) i ctor.fields[i].isRecursive
+          normalized
   /-- The checked constructor result has the owning family's exact index
   count. Normalization retains this finite syntactic fact independently of
   the typed correspondence between the selected and source telescopes. -/
   constructorArity : ∀ ctor ∈ s.constructors.toList,
     ctor.indices.length = s.families[ctor.owner].indices.length
+
+/-- Every field type is, in its own scope, definitionally a strictly positive normal form
+(`VInductDecl.UniformFieldNormalForm`), forgetting which branch. -/
+theorem Models.positiveFields {s : InductiveSignature} {env : VEnv} {decl : VInductDecl}
+    (H : s.Models env decl) :
+    s.isUnsafe = true ∨ ∃ envTypes,
+      env.addConstVals decl.typeConstants = some envTypes ∧
+      ∀ ctor ∈ s.constructors.toList, ∀ i (hi : i < ctor.fields.length),
+        ∃ normalized,
+          envTypes.IsDefEqU decl.uvars (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse)
+            (s.fieldType i ctor.fields[i]) normalized ∧
+          decl.UniformFieldNormalForm (VLevel.params decl.uvars) i normalized := by
+  rcases H.classifiedFields with hunsafe | ⟨envTypes, htypes, hfields⟩
+  · exact .inl hunsafe
+  · refine .inr ⟨envTypes, htypes, fun ctor hctor i hi => ?_⟩
+    obtain ⟨normalized, hdefeq, hshape⟩ := hfields ctor hctor i hi
+    exact ⟨normalized, hdefeq, hshape.uniform⟩
 
 /-- Singleton elimination is certified from the constructor fields. A field
 is either a proof or is determined by an index of the constructor's result.
@@ -102,9 +125,8 @@ structure Instance.Admissible {s : InductiveSignature} (g : Instance s)
 /-- Each generated induction hypothesis is a well-formed type in the context in
 which the generated minor premise binds it: parameters, motives, earlier
 minors, the constructor's fields and the earlier hypotheses.  This is the
-typing fact the generated recursor needs from the recursive shapes.  It
-concerns only the hypotheses the generator produces, not the correctness or
-completeness of the external/recursive field classification.  It is
+typing fact the generated recursor needs from the recursive shapes.  Which
+fields get a hypothesis is fixed by `Models.classifiedFields`.  It is
 stated in the recursor-checking environment, that is after the family headers, the
 constructors, the declaration's own case eliminators and its projection entries,
 since that is where the executable checks the generated types.  A

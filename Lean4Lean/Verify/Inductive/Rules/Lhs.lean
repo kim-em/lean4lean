@@ -388,20 +388,10 @@ theorem
         (bvarSpine
           (T.params ++ T.motives ++ T.minors).length)).liftN
       fieldDomains.length 0
-  have HprefixUnique : TrExprS.IsUnique prefixSource := by
-    exact TrExprS.IsUnique.mkAppN
-      (TrExprS.IsUnique.mkAppN
-        (TrExprS.IsUnique.mkAppN (by trivial)
-          (fun arg harg => A.rule.abstractedParamsUnique arg
-            (Array.mem_toList_iff.mpr harg)))
-        (fun arg harg => A.rule.abstractedMotivesUnique arg
-          (Array.mem_toList_iff.mpr harg)))
-      (fun arg harg => A.rule.abstractedMinorsUnique arg
-        (Array.mem_toList_iff.mpr harg))
   rcases HprefixTr.defeqDFC H.outVEnvWF Hvlctx with
     ⟨prefixTarget', HprefixTr'⟩
   have hprefixTarget : prefixTarget = prefixTarget' :=
-    TrExprS.unique' HuniqueCtx HprefixUnique HprefixTr HprefixTr'
+    HprefixTr.uniqueCtx HuniqueCtx HprefixTr'
   rw [← hprefixTarget] at HprefixTr'
   let majorSource :=
     mkAppN
@@ -418,17 +408,10 @@ theorem
         (introTarget.liftN A.rule.allArgs.size 0)
         (bvarSpine A.rule.allArgs.size)).liftN
       (T.motives ++ T.minors).length A.rule.allArgs.size
-  have HmajorUnique : TrExprS.IsUnique majorSource := by
-    exact TrExprS.IsUnique.mkAppN
-      (TrExprS.IsUnique.mkAppN (by trivial)
-        (fun arg harg => A.rule.abstractedParamsUnique arg
-          (Array.mem_toList_iff.mpr harg)))
-      (fun arg harg => A.rule.abstractedAllArgsUnique arg
-        (Array.mem_toList_iff.mpr harg))
   rcases HmajorTr.defeqDFC H.outVEnvWF Hvlctx with
     ⟨majorTarget', HmajorTr'⟩
   have hmajorTarget : majorTarget = majorTarget' :=
-    TrExprS.unique' HuniqueCtx HmajorUnique HmajorTr HmajorTr'
+    HmajorTr.uniqueCtx HuniqueCtx HmajorTr'
   rw [← hmajorTarget] at HmajorTr'
   rcases A.cachedConstructorIndexSpineOfTarget
       T fieldDomains fieldResult hfields Htarget with
@@ -459,25 +442,13 @@ theorem
         (A.rule.params_bound.fvars.length + owner))) := by
     simpa [canonicalDomains, List.append_assoc, hownerBang] using
       HownerMotive
-  have HownerMotiveUnique : TrExprS.IsUnique
-      (H.recInfos[owner]!.motive.abstractList A.rule.binders) := by
-    apply A.rule.abstractedMotivesUnique
-    have hownerAbstract : owner <
-        ((H.recInfos.map (·.motive)).map fun arg =>
-          arg.abstractList A.rule.binders).size := by
-      simpa using hownerMotive
-    have hmem := Array.getElem_mem
-      (xs := (H.recInfos.map (·.motive)).map fun arg =>
-        arg.abstractList A.rule.binders) hownerAbstract
-    simpa [hownerBang] using hmem
   rcases HownerMotiveCanonical.defeqDFC H.outVEnvWF Hvlctx with
     ⟨ownerMotiveTarget, HownerMotiveCached⟩
   have hownerMotiveTarget :
       VExpr.bvar (A.rule.binders.length - 1 -
           (A.rule.params_bound.fvars.length + owner)) =
         ownerMotiveTarget :=
-    TrExprS.unique' HuniqueCtx HownerMotiveUnique
-      HownerMotiveCanonical HownerMotiveCached
+    HownerMotiveCanonical.uniqueCtx HuniqueCtx HownerMotiveCached
   rw [← hownerMotiveTarget] at HownerMotiveCached
   rw [A.ownerMotiveBvarIndex T fieldDomains hfields] at HownerMotiveCached
   have HownerMotive' : TrExprS H.outVEnv Us
@@ -490,7 +461,7 @@ theorem
       (List.ofFn fun i : Fin stats.params.size =>
         VExpr.bvar (A.rule.binders.length - 1 - i)) := by
     exact (Lean4Lean.VerifyInductive.TrExprS.forall₂_unique HuniqueCtx
-      A.rule.abstractedParamsUnique HcanonicalParameters
+      HcanonicalParameters
       HparameterTargets).symm
   let familyTarget := VExpr.mkApps
     (.const (decl.types[owner]'A.abstractOwner_lt).name levels)

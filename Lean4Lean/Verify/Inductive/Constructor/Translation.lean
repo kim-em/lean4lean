@@ -43,7 +43,7 @@ theorem accumulatesTargets
       Hheader.venv stats.indConsts)
     (hlparams : c.lparams.Nodup)
     (Hfinish : RawBlockCtorTranslations Hheader.venv
-      c.lparams indTypes.toList → Q ()) :
+      c.lparams indTypes.toList → ∀ out, Q out) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
       { c with env := headerEnv }).WF Q := by
   let HmaterializedMono :=
@@ -118,7 +118,7 @@ theorem accumulatesTargets
         using h)
       (Hmaterialized'.universeBound familyIdx htarget)
       (Hmaterialized'.levelParamsTranslation hlparams)
-    exact HcheckedSemantic.mono fun _ _ => hR
+    exact HcheckedSemantic.mono fun fields _ => hR fields
   · exact Hfinish
 
 /-- The constructor traversal determines the constructor-bearing
@@ -159,7 +159,7 @@ theorem assemblesHeadersExact
         commonParams commonLevel Hsemantic))
     Hheader hmlctx htypesAdded Hmaterialized hheaderParams halign
     hconsume hlit hlparams
-  intro Hrows
+  intro Hrows _
   exact HeaderDeclaration.ofTargetsExact Hsemantic Hrows hcommonParams
     (by simpa using htypesAdded)
 

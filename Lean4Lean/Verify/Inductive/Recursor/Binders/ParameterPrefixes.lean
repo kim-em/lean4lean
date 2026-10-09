@@ -131,7 +131,7 @@ theorem checkConstructors.loopCtor.parameterTelescopeWF
     (Hc : ContextWF c)
     {Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       Hc stats depth}
-    (Q : Unit → Prop)
+    (Q : List Bool → Prop)
     (Hresult : ∀ {source' : Expr}
         {current' fullCurrent' : VExpr} {fuel' : Nat}
         {sourceDomains : List VExpr},
@@ -596,8 +596,8 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
     (htrFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       type i fuel c).WF
-      (fun _ => ConstructorTailCertificate Hc.venv decl target
-        scope.toCtx depth narrowType ∧ ∃ k, Expr.ForallSpine type k) := by
+      (fun classes => ConstructorTailCertificate Hc.venv decl target
+        scope.toCtx depth narrowType classes ∧ ∃ k, Expr.ForallSpine type k) := by
   induction fuel generalizing c type scope narrowType fullType depth i with
   | zero => exact checkConstructors.loopCtor.zero.WF
   | succ fuel ih =>
@@ -637,18 +637,19 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
               hconsume hlit hdomNarrow
               (hdomFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
             have Hboth : (AddInductive.checkPositivity stats dom ctor i c).WF
-                (fun _ => decl.Positive Hc.venv scope.toCtx depth narrowDom ∧
+                (fun recursive => decl.Positive Hc.venv scope.toCtx depth narrowDom ∧
                   ∃ normalized, Hc.venv.IsDefEqU decl.uvars scope.toCtx narrowDom normalized ∧
-                    decl.UniformFieldNormalForm (VLevel.params decl.uvars) depth normalized) :=
+                    decl.ClassifiedFieldNormalForm (VLevel.params decl.uvars) depth recursive
+                      normalized) :=
               fun value hrun => ⟨Hpos value hrun, Huniform value hrun⟩
             refine checkConstructors.loopCtor.safeField.sourceWF
-              (Q := fun _ => ConstructorTailCertificate Hc.venv decl target
-                scope.toCtx depth (.forallE narrowDom narrowBody) ∧
+              (Q := fun classes => ConstructorTailCertificate Hc.venv decl target
+                scope.toCtx depth (.forallE narrowDom narrowBody) classes ∧
                 ∃ k, Expr.ForallSpine (.forallE name dom body bi) k)
               Hc hparamAt Hdom hbodyFull Hdom₀ hbody₀ Hboth ?_
             intro fieldType' fieldLevel fieldLevel' hfield hlevel htyped
               fieldType₀ hfield₀ htyped₀
-              hfieldBound hpositive bodyFull' _hbodyFullEq body₀' _hbody₀Eq
+              hfieldBound recursive hpositive bodyFull' _hbodyFullEq body₀' _hbody₀Eq
               hopenedFull _hopened₀
             let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
               Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
@@ -685,10 +686,10 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
               hparamNext hlit hbound hlevels
               hopenedNarrow
               (hopenedFull.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
-            exact Htail.mono fun _ htail => by
+            exact Htail.mono fun rest htail => by
               rcases htail with ⟨htail, kspine, hspine⟩
               change ConstructorTailCertificate Hc.venv decl target
-                (narrowDom :: scope.toCtx) (depth + 1) narrowBody at htail
+                (narrowDom :: scope.toCtx) (depth + 1) narrowBody rest at htail
               have hspine' : Expr.ForallSpine
                   (Expr.forallE name dom body bi) (kspine + 1) := by
                 rw [Expr.instantiate1_eq] at hspine
@@ -720,7 +721,7 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
                 (narrowDom :: scope.toCtx) narrowBody narrowBody
                 (.sort bodyLevel) at hbodyTyped
               have this : ConstructorTailCertificate Hc.venv decl target
-                  scope.toCtx depth (.forallE narrowDom narrowBody) := {
+                  scope.toCtx depth (.forallE narrowDom narrowBody) (recursive :: rest) := {
                 shape := .field
                   (by simpa [Hstats.uvars] using hfieldNarrow)
                   (hbound fieldLevel fieldLevel' hlevel hfieldBound)
@@ -737,8 +738,8 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
               exact ⟨this, kspine + 1, hspine'⟩
           | true =>
             refine checkConstructors.loopCtor.unsafeField.sourceWF
-              (Q := fun _ => ConstructorTailCertificate Hc.venv decl target
-                scope.toCtx depth (.forallE narrowDom narrowBody) ∧
+              (Q := fun classes => ConstructorTailCertificate Hc.venv decl target
+                scope.toCtx depth (.forallE narrowDom narrowBody) classes ∧
                 ∃ k, Expr.ForallSpine (.forallE name dom body bi) k)
               Hc hparamAt Hdom hbodyFull Hdom₀ hbody₀ ?_
             intro fieldType' fieldLevel fieldLevel' hfield hlevel htyped
@@ -780,10 +781,10 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
               hparamNext hlit hbound hlevels
               hopenedNarrow
               (hopenedFull.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
-            exact Htail.mono fun _ htail => by
+            exact Htail.mono fun rest htail => by
               rcases htail with ⟨htail, kspine, hspine⟩
               change ConstructorTailCertificate Hc.venv decl target
-                (narrowDom :: scope.toCtx) (depth + 1) narrowBody at htail
+                (narrowDom :: scope.toCtx) (depth + 1) narrowBody rest at htail
               have hspine' : Expr.ForallSpine
                   (Expr.forallE name dom body bi) (kspine + 1) := by
                 rw [Expr.instantiate1_eq] at hspine
@@ -815,7 +816,7 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
                 (narrowDom :: scope.toCtx) narrowBody narrowBody
                 (.sort bodyLevel) at hbodyTyped
               have this : ConstructorTailCertificate Hc.venv decl target
-                  scope.toCtx depth (.forallE narrowDom narrowBody) := {
+                  scope.toCtx depth (.forallE narrowDom narrowBody) (false :: rest) := {
                 shape := .field
                   (by simpa [Hstats.uvars] using hfieldNarrow)
                   (hbound fieldLevel fieldLevel' hlevel hfieldBound)
@@ -840,15 +841,12 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
           (by simpa [htarget] using htargetWF)
           (by simpa [htarget] using htargetShape)
           Hc.checking.tr.wf halign.wf
-        have Hshape := checkConstructors.loopCtor.result.refines
-          (c := c) (fuel := fuel) (i := i) (ctor := ctor)
-          (isUnsafe := isUnsafe) Hstats hi htrNarrow
-          hforall hvalid hlit
-          (Hruntime.noIndConsts (decl.types.map (·.name)))
-          (by simpa [Hstats.uvars] using htype)
         have hvalidAt := checkPositivityStep.isValidIndAppIdx.validIndAppAt
           Hstats hi htrNarrow hvalid (Or.inr rfl) hlit
           (Hruntime.noIndConsts (decl.types.map (·.name)))
+        have hshape : decl.CtorTailWF Hc.venv decl.types[targetIdx]
+            scope.toCtx depth narrowType :=
+          .result hvalidAt (by simpa [Hstats.uvars] using htype)
         have hhead := checkPositivityStep.isValidIndAppIdx.constHead hvalid
           (Hstats.indConstAt hi)
         rcases checkPositivityStep.TrExprS.constAppSpine htrNarrow hhead with
@@ -856,7 +854,7 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
         have hlevelsEq : levels' = VLevel.params decl.uvars :=
           Option.some.inj (hlevels'.symm.trans hlevels)
         subst target
-        exact Hshape.mono fun _ hshape =>
+        exact checkConstructors.loopCtor.result.WF hforall hvalid
           ⟨⟨hshape, by simpa [Hstats.uvars] using hisType,
             ⟨[], narrowType, by simp [VExpr.wrapForalls],
               by simpa using hvalidAt, by rw [hspine, hlevelsEq]⟩,
@@ -1041,14 +1039,14 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       some (VLevel.params decl.uvars)) :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       source 0 fuel c).WF
-      (fun _ => ∃ tail tailTarget,
+      (fun classes => ∃ tail tailTarget,
         ParameterPrefix stats 0 source tail ∧
         ∃ sourceDomains,
         CheckedConstructorParameterPrefix Hc.venv c.lparams stats source
           decl.nparams tail Hsuffix.parameterDecls sourceDomains ∧
         TrExprS Hc.venv c.lparams Hsuffix.parameterDecls tail tailTarget ∧
         ConstructorTailCertificate Hc.venv decl target
-          Hsuffix.parameterDecls.toCtx 0 tailTarget ∧
+          Hsuffix.parameterDecls.toCtx 0 tailTarget classes ∧
         Nonempty
           (checkInductiveTypes.loopType.ScopedHeaderTelescope
             Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
@@ -1140,7 +1138,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
     let Hinitial := ConstructorSynthesisState.initial Hctor htype
     apply checkConstructors.loopCtor.parameterTelescopeWF
       (decl := decl) (ctorVal := ctorVal) Hc
-      (Q := fun _ => ∃ tail,
+      (Q := fun classes => ∃ tail,
         ∃ tailTarget,
         ParameterPrefix stats 0 (.forallE name dom body bi) tail ∧
         ∃ sourceDomains,
@@ -1149,7 +1147,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
           Hsuffix.parameterDecls sourceDomains ∧
         TrExprS Hc.venv c.lparams Hsuffix.parameterDecls tail tailTarget ∧
         ConstructorTailCertificate Hc.venv decl target
-          Hsuffix.parameterDecls.toCtx 0 tailTarget ∧
+          Hsuffix.parameterDecls.toCtx 0 tailTarget classes ∧
         Nonempty
           (checkInductiveTypes.loopType.ScopedHeaderTelescope
             Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
@@ -1334,11 +1332,23 @@ theorem ConstructorParamPrefixRows.complete
   spines familyIdx hfamily ctorIdx hctor :=
     (H.rows familyIdx hfamily hfamily).spines ctorIdx hctor hctor
 
-/-- The checked parameter prefix and tail of one executable constructor. -/
+theorem getElem!_append_singleton_self {α : Type} [Inhabited α] {l : List α} {x : α} {n : Nat}
+    (h : l.length = n) : (l ++ [x])[n]! = x := by
+  subst h
+  rw [getElem!_pos (l ++ [x]) l.length (by simp)]
+  simp
+
+theorem getElem!_append_singleton_lt {α : Type} [Inhabited α] {l : List α} {x : α} {i : Nat}
+    (h : i < l.length) : (l ++ [x])[i]! = l[i]! := by
+  rw [getElem!_pos (l ++ [x]) i (by simp; omega), getElem!_pos l i h]
+  exact List.getElem_append_left h
+
+/-- The checked parameter prefix and tail of one executable constructor, with the field
+classification `classes` its positivity check returned. -/
 def CheckedConstructorTailAt
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
-    (target : VInductiveType) (source : Constructor) : Prop :=
+    (target : VInductiveType) (source : Constructor) (classes : List Bool) : Prop :=
   ∃ ctorVal tail tailTarget sourceDomains,
     ctorVal ∈ target.ctors ∧
     TrSourceConstRaw env Us source.name source.type ctorVal ∧
@@ -1346,96 +1356,120 @@ def CheckedConstructorTailAt
     CheckedConstructorParameterPrefix env Us stats source.type
       stats.params.size tail scope sourceDomains ∧
     TrExprS env Us scope tail tailTarget ∧
-    ConstructorTailCertificate env decl target scope.toCtx 0 tailTarget ∧
+    ConstructorTailCertificate env decl target scope.toCtx 0 tailTarget classes ∧
     Nonempty
       (checkInductiveTypes.loopType.ScopedHeaderTelescope
         env Us (constructorTelescopeTarget ctorVal) scope tailTarget
         stats.params.size 0)
 
 /-- The constructors among the first `done` of `ctors` whose checked parameter prefix
-and tail are known (`CheckedConstructorTailAt`). -/
+and tail are known (`CheckedConstructorTailAt`), with their field classifications. -/
 structure ConstructorTailPrefixRow
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (target : VInductiveType) (ctors : List Constructor)
-    (done : Nat) : Prop where
+    (classes : List (List Bool)) (done : Nat) : Prop where
   covered : done ≤ ctors.length
+  classes_length : classes.length = done
   tails : ∀ i, i < done → (hi : i < ctors.length) →
-    CheckedConstructorTailAt env Us scope stats decl target ctors[i]
+    CheckedConstructorTailAt env Us scope stats decl target ctors[i] classes[i]!
 
 theorem ConstructorTailPrefixRow.empty
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (target : VInductiveType) (ctors : List Constructor) :
-    ConstructorTailPrefixRow env Us scope stats decl target ctors 0 where
+    ConstructorTailPrefixRow env Us scope stats decl target ctors [] 0 where
   covered := Nat.zero_le _
+  classes_length := rfl
   tails _ hi := by omega
 
 theorem ConstructorTailPrefixRow.push
-    (H : ConstructorTailPrefixRow env Us scope stats decl target ctors done)
+    (H : ConstructorTailPrefixRow env Us scope stats decl target ctors classes done)
     (hi : done < ctors.length)
     (Hreplay : CheckedConstructorTailAt env Us scope stats decl target
-      ctors[done]) :
-    ConstructorTailPrefixRow env Us scope stats decl target ctors (done + 1) where
+      ctors[done] fields) :
+    ConstructorTailPrefixRow env Us scope stats decl target ctors (classes ++ [fields])
+      (done + 1) where
   covered := by omega
+  classes_length := by simp [H.classes_length]
   tails i hidone hi' := by
     by_cases hlast : i = done
     · subst i
+      rw [getElem!_append_singleton_self H.classes_length]
       exact Hreplay
-    · exact H.tails i (by omega) hi'
+    · have hlt : i < classes.length := by rw [H.classes_length]; omega
+      rw [getElem!_append_singleton_lt hlt]
+      exact H.tails i (by omega) hi'
 
 /-- The families among the first `done` of `indTypes` all of whose constructors
-have a known checked parameter prefix and tail. -/
+have a known checked parameter prefix and tail, with their field classifications. -/
 structure ConstructorTailPrefixRows
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
-    (indTypes : Array InductiveType) (done : Nat) : Prop where
+    (indTypes : Array InductiveType) (classes : List (List (List Bool)))
+    (done : Nat) : Prop where
   size_eq : indTypes.size = decl.types.length
   covered : done ≤ indTypes.size
+  classes_length : classes.length = done
   rows : ∀ i, i < done → (hi : i < indTypes.size) →
     ConstructorTailPrefixRow env Us scope stats decl decl.types[i]
-      indTypes[i].ctors indTypes[i].ctors.length
+      indTypes[i].ctors classes[i]! indTypes[i].ctors.length
 
 theorem ConstructorTailPrefixRows.empty
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (indTypes : Array InductiveType)
     (hsize : indTypes.size = decl.types.length) :
-    ConstructorTailPrefixRows env Us scope stats decl indTypes 0 where
+    ConstructorTailPrefixRows env Us scope stats decl indTypes [] 0 where
   size_eq := hsize
   covered := Nat.zero_le _
+  classes_length := rfl
   rows _ hi := by omega
 
 theorem ConstructorTailPrefixRows.push
-    (H : ConstructorTailPrefixRows env Us scope stats decl indTypes done)
+    (H : ConstructorTailPrefixRows env Us scope stats decl indTypes classes done)
     (hi : done < indTypes.size)
     (Hrow : ConstructorTailPrefixRow env Us scope stats decl
       (decl.types[done]'(by rw [← H.size_eq]; exact hi))
-      indTypes[done].ctors indTypes[done].ctors.length) :
-    ConstructorTailPrefixRows env Us scope stats decl indTypes (done + 1) where
+      indTypes[done].ctors fields indTypes[done].ctors.length) :
+    ConstructorTailPrefixRows env Us scope stats decl indTypes (classes ++ [fields])
+      (done + 1) where
   size_eq := H.size_eq
   covered := by omega
+  classes_length := by simp [H.classes_length]
   rows i hidone hi' := by
     by_cases hlast : i = done
     · subst i
+      rw [getElem!_append_singleton_self H.classes_length]
       exact Hrow
-    · exact H.rows i (by omega) hi'
+    · have hlt : i < classes.length := by rw [H.classes_length]; omega
+      rw [getElem!_append_singleton_lt hlt]
+      exact H.rows i (by omega) hi'
 
+/-- The checked tail of every constructor, by family and constructor position, with the
+field classifications `classes` returned by the executable constructor check. -/
 structure ConstructorTails
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
-    (indTypes : Array InductiveType) : Prop where
+    (indTypes : Array InductiveType) (classes : List (List (List Bool))) : Prop where
   size_eq : indTypes.size = decl.types.length
+  classes_length : classes.length = indTypes.size
+  row_length : ∀ (familyIdx : Nat), familyIdx < indTypes.size →
+    classes[familyIdx]!.length = indTypes[familyIdx]!.ctors.length
   replay : ∀ (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
       (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length),
     CheckedConstructorTailAt env Us scope stats decl
-      decl.types[familyIdx] indTypes[familyIdx].ctors[ctorIdx]
+      decl.types[familyIdx] indTypes[familyIdx].ctors[ctorIdx] classes[familyIdx]![ctorIdx]!
 
 theorem ConstructorTailPrefixRows.complete
-    (H : ConstructorTailPrefixRows env Us scope stats decl indTypes
+    (H : ConstructorTailPrefixRows env Us scope stats decl indTypes classes
       indTypes.size) :
-    ConstructorTails env Us scope stats decl indTypes where
+    ConstructorTails env Us scope stats decl indTypes classes where
   size_eq := H.size_eq
+  classes_length := H.classes_length
+  row_length familyIdx hfamily := by
+    rw [getElem!_pos indTypes familyIdx hfamily]
+    exact (H.rows familyIdx hfamily hfamily).classes_length
   replay familyIdx hfamily ctorIdx hctor :=
     (H.rows familyIdx hfamily hfamily).tails ctorIdx hctor hctor
 

@@ -8,3 +8,4 @@ import Lean4Lean.Theory.Typing.ChurchRosser
 import Lean4Lean.Theory.Typing.HeadReduction
 import Lean4Lean.Theory.Inductive.Signature
 import Lean4Lean.Theory.Inductive.CompilationLemmas
+import Lean4Lean.Theory.Inductive.RecursiveShapeCorrespondence
