@@ -165,71 +165,14 @@ open Lean VEnv
 
 theorem TrExprS.uniqueS {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Lean.Expr}
     {e₁ e₂ : VExpr} (H1 : TrExprS env Us Δ e e₁) (H2 : TrExprS env Us Δ e e₂) : e₁ = e₂ :=
-  H1.uniqueCtx .base H2
-
+  H1.unique_of_syn H2
 
 /-- The translation of a source that does not mention an inserted binder is a lift. This is the
 structural half of strengthening: it needs no typing, only that translation is syntactic. -/
 theorem TrExprS.liftN_inv (W : VLCtx.BVLift Δ Δ' 1 dk 1 k)
     (H : TrExprS env Us Δ' (Expr.liftLooseBVars' e₀ dk 1) e') :
-    ∃ e₀' : VExpr, e' = e₀'.liftN 1 k := by
-  generalize he : Expr.liftLooseBVars' e₀ dk 1 = e at H
-  induction H generalizing e₀ Δ dk k with
-  | bvar h1 =>
-    cases e₀ <;> simp [Expr.liftLooseBVars'] at he
-    subst he
-    rename_i j
-    have hv : VLCtx.liftVar 1 dk (.inl j) = .inl (if j < dk then j else j + 1) := rfl
-    obtain ⟨⟨x, A⟩, hx⟩ := W.find?_lift_inv (v := .inl j) (by rw [hv]; exact h1)
-    have := W.find? hx
-    rw [hv, h1] at this
-    cases this; exact ⟨_, rfl⟩
-  | fvar h1 =>
-    cases e₀ <;> simp [Expr.liftLooseBVars'] at he
-    subst he
-    obtain ⟨⟨x, A⟩, hx⟩ := W.find?_lift_inv (v := .inr _) h1
-    have := W.find? hx
-    rw [show VLCtx.liftVar 1 dk (.inr _) = .inr _ from rfl, h1] at this
-    cases this; exact ⟨_, rfl⟩
-  | sort => exact ⟨.sort _, rfl⟩
-  | const => exact ⟨.const _ _, rfl⟩
-  | app _ _ _ _ ih1 ih2 =>
-    cases e₀ <;> simp [Expr.liftLooseBVars'] at he
-    obtain ⟨rfl, rfl⟩ := he
-    obtain ⟨f₀, rfl⟩ := ih1 W rfl
-    obtain ⟨a₀, rfl⟩ := ih2 W rfl
-    exact ⟨.app f₀ a₀, rfl⟩
-  | lam _ _ _ ih1 ih2 =>
-    cases e₀ <;> simp [Expr.liftLooseBVars'] at he
-    obtain ⟨rfl, rfl, rfl, rfl⟩ := he
-    obtain ⟨t₀, rfl⟩ := ih1 W rfl
-    obtain ⟨b₀, rfl⟩ := ih2 (W.cons (.vlam t₀)) rfl
-    exact ⟨.lam t₀ b₀, rfl⟩
-  | forallE _ _ _ _ ih1 ih2 =>
-    cases e₀ <;> simp [Expr.liftLooseBVars'] at he
-    obtain ⟨rfl, rfl, rfl, rfl⟩ := he
-    obtain ⟨t₀, rfl⟩ := ih1 W rfl
-    obtain ⟨b₀, rfl⟩ := ih2 (W.cons (.vlam t₀)) rfl
-    exact ⟨.forallE t₀ b₀, rfl⟩
-  | letE _ _ _ _ ih1 ih2 ih3 =>
-    cases e₀ <;> simp [Expr.liftLooseBVars'] at he
-    obtain ⟨rfl, rfl, rfl, rfl, rfl⟩ := he
-    obtain ⟨t₀, rfl⟩ := ih1 W rfl
-    obtain ⟨v₀, rfl⟩ := ih2 W rfl
-    exact ih3 (W.cons (.vlet t₀ v₀)) rfl
-  | lit _ _ ih =>
-    cases e₀ <;> simp [Expr.liftLooseBVars'] at he
-    subst he
-    exact ih W (Expr.liftLooseBVars_eq_self Closed.toConstructor.looseBVarRange_le)
-  | mdata _ ih =>
-    cases e₀ <;> simp [Expr.liftLooseBVars'] at he
-    obtain ⟨rfl, rfl⟩ := he
-    exact ih W rfl
-  | proj _ hp ih =>
-    cases e₀ <;> simp [Expr.liftLooseBVars'] at he
-    obtain ⟨rfl, rfl, rfl⟩ := he
-    obtain ⟨x₀, rfl⟩ := ih W rfl
-    exact ⟨.proj _ _ x₀, rfl⟩
+    ∃ e₀' : VExpr, e' = e₀'.liftN 1 k :=
+  let ⟨e₀', _, h⟩ := H.toTrSyn.lowerBV W; ⟨e₀', h⟩
 
 theorem TrExprS.lift_inv
     (H : TrExprS env Us ((none, .vlam D) :: Δ) (Expr.liftLooseBVars' e₀ 0 1) e') :

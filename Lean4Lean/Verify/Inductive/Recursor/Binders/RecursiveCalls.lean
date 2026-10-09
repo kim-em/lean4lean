@@ -1113,7 +1113,6 @@ theorem motiveDecl
               (HmotiveExtension.shift.consN 0)
     motiveTypeCanonicalEq := by
       rw [hcanonicalMotiveReopen]
-    familyUnique := HnarrowStats.familyPrefixUnique dIdx htargetLt
     familyTr := HmotiveExtension.weakTrExprS
       (HmajorExtension.weakTrExprS Hframe.familyTr)
     familyTyping := HmotiveExtension.weakHasType

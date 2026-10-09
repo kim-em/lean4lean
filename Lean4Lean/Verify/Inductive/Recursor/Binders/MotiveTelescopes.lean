@@ -498,8 +498,6 @@ checker context in which its indices were opened. -/
     motiveClosedScope.toCtx motiveClosedTarget motiveClosedCanonicalTarget
   motiveReopenedCanonicalTarget : VExpr
   motiveTypeCanonicalEq : motiveType = motiveReopenedCanonicalTarget
-  familyUnique : TrExprS.IsUnique
-    (mkAppN stats.indConsts[target]! stats.params)
   familyTr : TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
     (mkAppN stats.indConsts[target]! stats.params) family
   familyTyping : Rroot.venv.HasType recLparams.length
@@ -615,7 +613,6 @@ def MotiveDecl.mono
     motiveTypeCanonicalEq := congrArg
       (fun target => target.lift' (Hext.shift.consN 0))
       H.motiveTypeCanonicalEq
-    familyUnique := H.familyUnique
     familyTr := Hext.weakTrExprS H.familyTr
     familyTyping := Hext.weakHasType H.familyTyping
     familyTypeDefEq := Hext.weakDefEqU H.familyTypeDefEq
@@ -673,7 +670,6 @@ def MotiveDecl.congrInfo
   motiveClosedCanonicalDefEq := H.motiveClosedCanonicalDefEq
   motiveReopenedCanonicalTarget := H.motiveReopenedCanonicalTarget
   motiveTypeCanonicalEq := H.motiveTypeCanonicalEq
-  familyUnique := H.familyUnique
   familyTr := H.familyTr
   familyTyping := H.familyTyping
   familyTypeDefEq := H.familyTypeDefEq
@@ -705,7 +701,7 @@ theorem MotiveDecl.toTelescopeAt
           (.const (decl.types[target]'Hvalidated.target_lt).name levels)
           params =
         H.family.lift' (Hext.shift.consN 0) :=
-    TrExprS.unique H.familyUnique HfamilyPayload HfamilyWeak
+    HfamilyPayload.unique_of_syn HfamilyWeak
   have HfamilyTyping := Hext.weakHasType H.familyTyping
   have HfamilyTyping' : R.venv.HasType recLparams.length
       R.mlctx.vlctx.toCtx

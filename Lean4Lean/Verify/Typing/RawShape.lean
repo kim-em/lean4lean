@@ -1,5 +1,4 @@
 import Lean4Lean.Verify.Typing.Lemmas
-import Lean4Lean.Verify.Typing.Syntactic.Basic
 import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Inductive.RawShape
 
@@ -45,26 +44,8 @@ theorem TrExprS.IsUniqueCtx.rawShape (H : IsUniqueCtx Δ₁ Δ₂) : RawShapeCtx
     | vlam => exact .cons ih .vlam
     | vlet => exact .cons ih (.vlet (.refl _))
 
-/-- Two translations agree on their constructor skeleton. The context
+/-- Two syntactic translations agree on their constructor skeleton. The context
 relation permits different translated values in preceding let declarations. -/
-theorem TrExprS.rawShape (hΔ : RawShapeCtx Δ₁ Δ₂)
-    (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ₂ e e₂) :
-    VExpr.RawShapeRel e₁ e₂ := by
-  induction H1 generalizing Δ₂ e₂ with cases H2
-  | bvar => exact hΔ.find?_rel ‹_› ‹_›
-  | fvar => exact hΔ.find?_rel ‹_› ‹_›
-  | sort => exact .sort
-  | const _ h => cases h.symm.trans ‹_›; exact .const
-  | app _ _ _ _ ih1 ih2 => exact .app (ih1 hΔ ‹_›) (ih2 hΔ ‹_›)
-  | lam => exact .lam
-  | forallE _ _ _ _ _ ih => exact .forallE (ih (hΔ.cons .vlam) ‹_›)
-  | letE _ _ _ _ _ ih1 ih2 =>
-    exact ih2 (hΔ.cons (.vlet (ih1 hΔ ‹_›))) ‹_›
-  | lit _ _ ih => exact ih hΔ ‹_›
-  | mdata _ ih => exact ih hΔ ‹_›
-  | proj => exact .proj
-
-/-- Two translations agree on their constructor skeleton. -/
 theorem TrSyn.rawShape {Us : List Name} (hΔ : TrExprS.RawShapeCtx Δ₁ Δ₂)
     (H1 : TrSyn Us Δ₁ e e₁) (H2 : TrSyn Us Δ₂ e e₂) : VExpr.RawShapeRel e₁ e₂ := by
   induction H1 generalizing Δ₂ e₂ with
@@ -80,5 +61,11 @@ theorem TrSyn.rawShape {Us : List Name} (hΔ : TrExprS.RawShapeCtx Δ₁ Δ₂)
   | lit _ ih => cases H2 with | lit h => exact ih hΔ h
   | mdata _ ih => cases H2 with | mdata h => exact ih hΔ h
   | proj => cases H2; exact .proj
+
+/-- Two translations agree on their constructor skeleton. -/
+theorem TrExprS.rawShape (hΔ : TrExprS.RawShapeCtx Δ₁ Δ₂)
+    (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ₂ e e₂) :
+    VExpr.RawShapeRel e₁ e₂ :=
+  H1.toTrSyn.rawShape hΔ H2.toTrSyn
 
 end Lean4Lean

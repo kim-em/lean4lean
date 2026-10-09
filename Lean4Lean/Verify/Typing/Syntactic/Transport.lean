@@ -266,7 +266,7 @@ theorem TrSyn.inst_fvar {Us : List Name} {Δ : VLCtx}
 
 /-! ### Level instantiation -/
 
-theorem TrSyn.instL_same {Us Us' : List Name} {ls : List VLevel} {Δ : VLCtx} {e : Lean.Expr}
+theorem TrSyn.instL {Us Us' : List Name} {ls : List VLevel} {Δ : VLCtx} {e : Lean.Expr}
     {e' : VExpr}
     (hlev : ∀ u u', VLevel.ofLevel Us u = some u' → VLevel.ofLevel Us' u = some (u'.inst ls))
     (H : TrSyn Us Δ e e') : TrSyn Us' (Δ.instL ls) e (e'.instL ls) := by

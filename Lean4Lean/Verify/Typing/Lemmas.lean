@@ -8,7 +8,7 @@ import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Typing.ConstructorCaptureTransport
 import Lean4Lean.Theory.Typing.Injectivity
 import Lean4Lean.Instantiate
-import Lean4Lean.Verify.Typing.Syntactic.Levels
+import Lean4Lean.Verify.Typing.Syntactic.Transport
 
 namespace Lean4Lean
 open Lean4Lean VEnv Lean
@@ -242,46 +242,10 @@ theorem VLCtx.IsDefEq.find?_defeqDFC (hΔ : VLCtx.IsDefEq env U Δ₁ Δ₂)
     obtain ⟨_, _, H⟩ := find?_defeqDFC hΔ H
     exact ⟨_, _, _, _, H, rfl, rfl⟩
 
-theorem TrExprS.closed (H : TrExprS env Us Δ e e') : Closed e Δ.bvars := by
-  induction H with
-  | @bvar e A Δ i h1 =>
-    simp [Closed]
-    induction Δ generalizing i e A with
-    | nil => cases h1
-    | cons d Δ ih =>
-      match d, i with
-      | (none, _), 0 => exact Nat.succ_pos _
-      | (none, _), _ + 1 =>
-        simp [VLCtx.find?, VLCtx.next, bind] at h1
-        obtain ⟨_, _, h1, rfl, rfl⟩ := h1
-        exact Nat.succ_lt_succ (ih h1)
-      | (some _, _), _ =>
-        simp [VLCtx.find?, VLCtx.next, bind] at h1
-        obtain ⟨_, _, h1, rfl, rfl⟩ := h1
-        exact ih h1
-  | fvar | sort | const | lit | mdata => trivial
-  | app _ _ _ _ ih1 ih2
-  | lam _ _ _ ih1 ih2
-  | forallE _ _ _ _ ih1 ih2 => exact ⟨ih1, ih2⟩
-  | letE _ _ _ _ ih1 ih2 ih3 => exact ⟨ih1, ih2, ih3⟩
-  | proj _ _ ih => exact ih
+theorem TrExprS.closed (H : TrExprS env Us Δ e e') : Closed e Δ.bvars := H.toTrSyn.closed
 
-
-theorem TrExprS.fvarsIn (H : TrExprS env Us Δ e e') : FVarsIn (· ∈ Δ.fvars) e := by
-  induction H with
-  | fvar h1 => exact VLCtx.find?_eq_some.1 ⟨_, h1⟩
-  | sort h => exact ofLevel_hasMVar h
-  | const _ h =>
-    rw [List.mapM_eq_some] at h
-    intro _ hl
-    have ⟨_, _, h⟩ := h.forall_exists_l _ hl
-    exact ofLevel_hasMVar h
-  | bvar | lit | mdata => trivial
-  | app _ _ _ _ ih1 ih2
-  | lam _ _ _ ih1 ih2
-  | forallE _ _ _ _ ih1 ih2 => exact ⟨ih1, ih2⟩
-  | letE _ _ _ _ ih1 ih2 ih3 => exact ⟨ih1, ih2, ih3⟩
-  | proj _ _ ih => exact ih
+theorem TrExprS.fvarsIn (H : TrExprS env Us Δ e e') : FVarsIn (· ∈ Δ.fvars) e :=
+  H.toTrSyn.fvarsIn
 
 theorem TrExprS.fvarsList (H : TrExprS env Us Δ e e') : e.fvarsList ⊆ Δ.fvars :=
   (fvarsIn_iff.1 H.fvarsIn).1
@@ -837,8 +801,9 @@ theorem TrExpr.abstract (W : VLCtx.Abstract Δ₀ v₀ d₀ dk k Δ₁ Δ) (H : 
     TrExpr env Us Δ (e.abstract1 v₀ dk) e' :=
   let ⟨_, s, h⟩ := H; ⟨_, s.abstract W, W.toCtx ▸ h⟩
 
-/-- The projection-free source syntax, on which `TrExprS.unique'` gives syntactic uniqueness.
-`TrExprS.uniqueCtx` covers projections as well. -/
+/-- The projection-free source syntax. Obsolete: translation is unique on all syntax
+(`TrExprS.unique_of_syn`, `TrExprS.uniqueCtx`); kept only for the primitive recognizers
+(`Verify/Environment/Primitive/*`, `noProj`), which still produce it. -/
 def TrExprS.IsUnique : Expr → Prop
   | .bvar _
   | .fvar _
@@ -867,43 +832,21 @@ theorem TrExprS.IsUnique.toConstructor : ∀ {l : Literal}, IsUnique l.toConstru
   | .natVal _ => .natLitToConstructor
   | .strVal _ => .strLitToConstructor
 
-theorem TrExprS.unique' (hΔ : IsUniqueCtx Δ₁ Δ₂) (H : IsUnique e)
-    (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ₂ e e₂) : e₁ = e₂ := by
-  induction H1 generalizing Δ₂ e₂ with cases H2
-  | bvar => exact hΔ.find?_uniq ‹_› ‹_›
-  | fvar => exact hΔ.find?_uniq ‹_› ‹_›
-  | sort h1
-  | const _ h1 => cases h1.symm.trans ‹_›; rfl
-  | app _ _ _ _ ih1 ih2 => cases ih1 hΔ H.1 ‹_›; cases ih2 hΔ H.2 ‹_›; rfl
-  | lam _ _ _ ih1 ih2
-  | forallE _ _ _ _ ih1 ih2 => cases ih1 hΔ H.1 ‹_›; cases ih2 (hΔ.cons .vlam) H.2 ‹_›; rfl
-  | letE _ _ _ _ _ ih1 ih2 => cases ih1 hΔ H.1 ‹_›; cases ih2 (hΔ.cons .vlet) H.2 ‹_›; rfl
-  | lit _ _ ih => exact ih hΔ .toConstructor ‹_›
-  | mdata _ ih => exact ih hΔ H ‹_›
-  | proj => exact H.elim
+/-- Kept for the primitive recognizers; `TrExprS.uniqueCtx` needs no `IsUnique`. -/
+theorem TrExprS.unique' (hΔ : IsUniqueCtx Δ₁ Δ₂) (_ : IsUnique e)
+    (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ₂ e e₂) : e₁ = e₂ :=
+  H1.toTrSyn.uniqueCtx hΔ H2.toTrSyn
 
-theorem TrExprS.unique (H : IsUnique e)
-    (H1 : TrExprS env Us Δ e e₁) (H2 : TrExprS env Us Δ e e₂) : e₁ = e₂ := H1.unique' .base H H2
+/-- Kept for the primitive recognizers; `TrExprS.unique_of_syn` needs no `IsUnique`. -/
+theorem TrExprS.unique (_ : IsUnique e)
+    (H1 : TrExprS env Us Δ e e₁) (H2 : TrExprS env Us Δ e e₂) : e₁ = e₂ := H1.unique_of_syn H2
 
 /-- Translation is syntactically unique: every constructor of `TrExprS` is
-determined by the source syntax and the context, including projections
-(the target of `TrExprS.proj` is the primitive projection of the translated major).  This strengthens `TrExprS.unique'`, whose `IsUnique`
-hypothesis excludes projections. -/
+determined by the source syntax and the context, including projections. -/
 theorem TrExprS.uniqueCtx {env : VEnv} {Us : List Name} {Δ₁ Δ₂ : VLCtx} {e : Expr}
     {e₁ e₂ : VExpr} (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂)
-    (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ₂ e e₂) : e₁ = e₂ := by
-  induction H1 generalizing Δ₂ e₂ with cases H2
-  | bvar => exact hΔ.find?_uniq ‹_› ‹_›
-  | fvar => exact hΔ.find?_uniq ‹_› ‹_›
-  | sort h1
-  | const _ h1 => cases h1.symm.trans ‹_›; rfl
-  | app _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 hΔ ‹_›; rfl
-  | lam _ _ _ ih1 ih2
-  | forallE _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 (hΔ.cons .vlam) ‹_›; rfl
-  | letE _ _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 (hΔ.cons .vlet) ‹_›; rfl
-  | lit _ _ ih => exact ih hΔ ‹_›
-  | mdata _ ih => exact ih hΔ ‹_›
-  | proj _ _ ih => cases ih hΔ ‹_›; rfl
+    (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ₂ e e₂) : e₁ = e₂ :=
+  H1.toTrSyn.uniqueCtx hΔ H2.toTrSyn
 
 theorem TrExprS.boolFalse (henv : env.HasPrimitives) (H : env.contains ``Bool) :
     TrExprS env Us Δ (toExpr false) .boolFalse ∧
