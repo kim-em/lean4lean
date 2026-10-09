@@ -117,14 +117,71 @@ theorem UpStepF.instN {Γ₀ Γ₁ Γ : List VExpr} {a₁ A₀ e e' T : VExpr} {
 The one eta step that an eta-free step above may force on the source: a neutral major of
 structure type is expanded and the parallel core step (an iota) consumes the expansion. -/
 
-/-- A composite left step: structure eta at the major of an application, then a parallel core
-step on the result. -/
+/-- A redex fired at the root with its arguments left in place: a stored rule (`ParRed.extra`
+with the identity on the values) or a case step (`ParRed.schema` with the identity on the
+captures). Recording the shape of the step (rather than an arbitrary `ParRed`) is what makes the
+descent of the composite step below (`MajorEtaDescends`) plausible: the right-hand side of an
+iota at a structure constructor does not read the parameters of the constructor spine
+(`pat_iota_params`, `schema_struct_major`). -/
+def RootFire (Γ : List VExpr) (X c : VExpr) : Prop :=
+  (∃ (p : Pattern) (r : p.RHS × p.Check) (m1 : List VLevel) (m2 : p.Path → VExpr),
+    Pat p r ∧ p.Matches X m1 m2 ∧ r.2.OK (IsDefEqU Params.env univs Γ) m1 m2 ∧
+    c = r.1.apply m1 m2) ∨
+  (∃ (rule : InductiveSignature.CaseSchema.AppliedRule)
+    (actual : InductiveSignature.CaseSchema.Application),
+    CaseRedex Params.env univs Γ rule actual ∧ X = actual.expr ∧
+    c = rule.rhs actual.levels (rule.capture actual))
+
+theorem RootFire.parRed {Γ : List VExpr} {X c : VExpr} (h : RootFire Γ X c) : ParRed Γ X c := by
+  rcases h with ⟨p, r, m1, m2, hp, hm, hck, rfl⟩ | ⟨rule, actual, hm, rfl, rfl⟩
+  · exact .extra hp hm hck fun _ => .rfl
+  · exact .schema hm rfl fun _ _ => .rfl
+
+theorem RootFire.weakN {Γ Γ' : List VExpr} {n k : Nat} {X c : VExpr} (W : Ctx.LiftN n k Γ Γ')
+    (h : RootFire Γ X c) : RootFire Γ' (X.liftN n k) (c.liftN n k) := by
+  rcases h with ⟨p, r, m1, m2, hp, hm, hck, rfl⟩ | ⟨rule, actual, hm, rfl, rfl⟩
+  · exact .inl ⟨p, r, m1, fun a => (m2 a).liftN n k, hp,
+      Pattern.matches_liftN.2 ⟨_, hm, fun _ => rfl⟩, hck.weakN W, Pattern.RHS.liftN_apply r.1⟩
+  · have hc : (rule.body.rhs.instL actual.levels).ClosedN (rule.capture actual).length :=
+      hm.source.closed.2.1.instL
+    refine .inr ⟨rule, CaseApplicationMap actual fun e => e.liftN n k, hm.weakN henv W,
+      (case_application_liftN actual).symm, ?_⟩
+    show (rule.rhs actual.levels (rule.capture actual)).liftN n k =
+      rule.rhs actual.levels (rule.capture (CaseApplicationMap actual fun e => e.liftN n k))
+    rw [case_capture_map]
+    simp only [InductiveSignature.CaseSchema.AppliedRule.rhs]
+    exact instantiateParams_liftN hc
+
+theorem RootFire.instN {Γ₀ Γ₁ Γ : List VExpr} {a₁ A₀ X c : VExpr} {k : Nat}
+    (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (h₀ : Γ₀ ⊢ a₁ : A₀) (h : RootFire Γ₁ X c) :
+    RootFire Γ (X.inst a₁ k) (c.inst a₁ k) := by
+  rcases h with ⟨p, r, m1, m2, hp, hm, hck, rfl⟩ | ⟨rule, actual, hm, rfl, rfl⟩
+  · exact .inl ⟨p, r, m1, fun a => (m2 a).inst a₁ k, hp, Pattern.matches_instN hm,
+      hck.instN W h₀, Pattern.RHS.instN_apply r.1⟩
+  · have hc : (rule.body.rhs.instL actual.levels).ClosedN (rule.capture actual).length :=
+      hm.source.closed.2.1.instL
+    refine .inr ⟨rule, CaseApplicationMap actual fun e => e.inst a₁ k, hm.instN henv h₀ W,
+      (case_application_instN actual).symm, ?_⟩
+    show (rule.rhs actual.levels (rule.capture actual)).inst a₁ k =
+      rule.rhs actual.levels (rule.capture (CaseApplicationMap actual fun e => e.inst a₁ k))
+    rw [case_capture_map]
+    simp only [InductiveSignature.CaseSchema.AppliedRule.rhs]
+    exact instantiateParams_instN hc
+
+theorem RootFire.defeqDFC {Γ₀ Γ₁ Γ₂ : List VExpr} {X c : VExpr}
+    (W : IsDefEqCtx Params.env univs Γ₀ Γ₁ Γ₂) (h : RootFire Γ₁ X c) : RootFire Γ₂ X c := by
+  rcases h with ⟨p, r, m1, m2, hp, hm, hck, rfl⟩ | ⟨rule, actual, hm, rfl, rfl⟩
+  · exact .inl ⟨p, r, m1, m2, hp, hm, hck.map fun a b h => h.defeqDFC henv W, rfl⟩
+  · exact .inr ⟨rule, actual, hm.defeqDFC henv W, rfl, rfl⟩
+
+/-- A composite left step: structure eta at the major of an application, then a redex fired at
+the root of the result (an iota or a case step consuming the expansion). -/
 def MajorEtaIota (Γ : List VExpr) (s c : VExpr) : Prop :=
   ∃ f m family info levels params, s = .app f m ∧ Params.env.projections family info ∧
     params.length = info.nparams ∧ info.nindices = 0 ∧
     Γ ⊢ m : mkApps (.const family levels) params ∧
     Γ ⊢ structExpand family info levels params m : mkApps (.const family levels) params ∧
-    ParRed Γ (.app f (structExpand family info levels params m)) c
+    RootFire Γ (.app f (structExpand family info levels params m)) c
 
 /-- The congruence closure (one position) of the composite step. -/
 inductive MajorEtaIotaC : List VExpr → VExpr → VExpr → Prop where
@@ -158,7 +215,7 @@ theorem MajorEtaIota.defeq {Γ : List VExpr} {s c A : VExpr} (hΓ : OnCtx Γ (Pa
   have hconv := (hm.uniqU henv hΓ ha).of_l henv hΓ hmT
   have h1 : Γ ⊢ .app f m ≡ .app f (structExpand family info levels params m) : A :=
     .trans_l henv hΓ hs (.appDF hf (.defeqDF hconv hexp'.symm))
-  exact h1.trans (hstep.defeq hΓ h1.hasType.2)
+  exact h1.trans ((RootFire.parRed hstep).defeq hΓ h1.hasType.2)
 
 theorem MajorEtaIota.weakN {Γ Γ' : List VExpr} {n k : Nat} {s c : VExpr} (W : Ctx.LiftN n k Γ Γ')
     (h : MajorEtaIota Γ s c) : MajorEtaIota Γ' (s.liftN n k) (c.liftN n k) := by
@@ -167,7 +224,7 @@ theorem MajorEtaIota.weakN {Γ Γ' : List VExpr} {n k : Nat} {s c : VExpr} (W : 
     by simpa using hp, hi, ?_, ?_, ?_⟩
   · simpa [VExpr.liftN_mkApps, liftN] using hm.weakN henv W
   · simpa [VExpr.liftN_mkApps, structExpand_liftN, liftN] using hexp.weakN henv W
-  · simpa [liftN, structExpand_liftN] using hstep.weakN W
+  · simpa [liftN, structExpand_liftN] using RootFire.weakN W hstep
 
 theorem MajorEtaIota.defeqDFC {Γ₀ Γ₁ Γ₂ : List VExpr} {s c A : VExpr}
     (hΓ : OnCtx Γ₀ (Params.env.IsType univs)) (W : IsDefEqCtx Params.env univs Γ₀ Γ₁ Γ₂)
@@ -182,7 +239,7 @@ theorem MajorEtaIota.defeqDFC {Γ₀ Γ₁ Γ₂ : List VExpr} {s c A : VExpr}
   have h1 : Γ₁ ⊢ .app f m ≡ .app f (structExpand family info levels params m) : A :=
     .trans_l henv hΓ₁ hs (.appDF hf (.defeqDF hconv hexp'.symm))
   exact ⟨f, m, family, info, levels, params, rfl, hl, hp, hi, hm.defeqDFC henv.ordered W,
-    hexp.defeqDFC henv.ordered W, hstep.defeqDFC hΓ W h1.hasType.2⟩
+    hexp.defeqDFC henv.ordered W, RootFire.defeqDFC W hstep⟩
 
 theorem MajorEtaIota.instN {Γ₀ Γ₁ Γ : List VExpr} {a₁ A₀ s c T : VExpr} {k : Nat}
     (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx Γ₁ (Params.env.IsType univs))
@@ -193,7 +250,7 @@ theorem MajorEtaIota.instN {Γ₀ Γ₁ Γ : List VExpr} {a₁ A₀ s c T : VExp
     by simpa using hp, hi, ?_, ?_, ?_⟩
   · simpa [VExpr.inst_mkApps, inst] using hm.instN henv W h₀
   · simpa [VExpr.inst_mkApps, structExpand_inst, inst] using hexp.instN henv W h₀
-  · simpa [inst, structExpand_inst] using ParRed.instN (H₀ := ParRed.rfl) (H₀' := h₀) W hstep
+  · simpa [inst, structExpand_inst] using RootFire.instN W h₀ hstep
 
 theorem MajorEtaIotaC.defeq {Γ : List VExpr} {s c A : VExpr}
     (hΓ : OnCtx Γ (Params.env.IsType univs)) (h : MajorEtaIotaC Γ s c) (hs : Γ ⊢ s : A) :

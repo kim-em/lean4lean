@@ -381,7 +381,7 @@ theorem EtaNE.schema_fire {Γ : List VExpr} (hΓ : OnCtx Γ (Params.env.IsType u
       (mkApps (.const cn actual.ctorLevels) Cs) : T)
     (hdef : Γ ⊢ actual.expr ≡ .app (mkApps (.elim actual.block actual.owner actual.levels) As)
       (mkApps (.const cn actual.ctorLevels) Cs)) :
-    ∃ R, ParRed Γ (.app (mkApps (.elim actual.block actual.owner actual.levels) As)
+    ∃ R, RootFire Γ (.app (mkApps (.elim actual.block actual.owner actual.levels) As)
       (mkApps (.const cn actual.ctorLevels) Cs)) R ∧
       EtaNE Γ R (rule.rhs actual.levels arguments) := by
   let actual_s : InductiveSignature.CaseSchema.Application :=
@@ -415,7 +415,7 @@ theorem EtaNE.schema_fire {Γ : List VExpr} (hΓ : OnCtx Γ (Params.env.IsType u
     exact d1.trans henv hΓ d2.symm
   have hm_s := hm.transport hΓ (actual' := actual_s) rfl rfl rfl hcn
     (VLevel.forall₂_equiv_refl _) hlAs hlCs hcapdef hdef
-  refine ⟨_, .schema hm_s rfl fun i hi => .rfl, ?_⟩
+  refine ⟨_, .inr ⟨rule, actual_s, hm_s, rfl, rfl⟩, ?_⟩
   simp only [InductiveSignature.CaseSchema.AppliedRule.rhs]
   exact EtaNE.congrRel.instantiateParams_args hcapη
 
@@ -519,7 +519,11 @@ theorem EtaNE.parRed_r {Γ : List VExpr} (hΓ : OnCtx Γ (Params.env.IsType univ
             have e1 : Γ ⊢ Sum.elim g1 g2 a ≡ m2' a := ⟨_, (hargs a).defeq hΓ ht⟩
             have e2 := (hrel a).defeq hΓ hts
             exact e1.trans henv hΓ e2.symm
-          have hfire := ParRed.extra hp hm_s hck_s (fun _ => .rfl)
+          have hfire : RootFire Γ (.app (mkApps (.const rc m1) vs_s)
+              (structExpand family info f2 params s₂'))
+              (Pattern.RHS.apply (p := .app ((Pattern.const rc).varN mr)
+                ((Pattern.const info.ctorName).varN kc)) m1 (Sum.elim g1s g2s) r.1) :=
+            .inl ⟨_, r, m1, Sum.elim g1s g2s, hp, hm_s, hck_s, rfl⟩
           exact EtaNE.redL_chain hch (.redL (.inr (.root ⟨_, _, family, info, f2, params, rfl, hl,
             hp', hi, hs₂', hexp, hfire⟩)) (EtaNE.congrRel.apply_rhs r.1 hrel))
     | @schema _ arguments rule actual hm hl hr =>
@@ -541,7 +545,7 @@ theorem EtaNE.parRed_r {Γ : List VExpr} (hΓ : OnCtx Γ (Params.env.IsType univ
         ⟨family, info, params, hl', hcc, hp', hi, hs₂', hexp, hlen, hargs₂⟩
       · obtain ⟨R, hfire, hR⟩ :=
           EtaNE.schema_fire hΓ hm hl hr rfl hcapD hlA hlC hAs hCs hs' hdef₀
-        exact EtaNE.redL_chain hch (.redL (.inl (.inl hfire)) hR)
+        exact EtaNE.redL_chain hch (.redL (.inl (.inl hfire.parRed)) hR)
       · have hCs : List.Forall₂ (EtaNE Γ) (structArgs family info params s₂') C' :=
           List.forall₂_of_getElem hlen hargs₂
         have hexp' : Γ ⊢ structExpand family info actual.ctorLevels params s₂' ≡ s₂' :

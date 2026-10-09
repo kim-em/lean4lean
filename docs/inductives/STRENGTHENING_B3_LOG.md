@@ -231,3 +231,31 @@ composite step "structure eta at a neutral major, then one `ParRed` step", that 
 with `FullReduction Γ e e'`. Note that `params` are terms above, not necessarily lifts; the
 descent needs the structure type of `m₀` below (a typing descent at a structure-typed term,
 of the kind `ProjFrontN` gives for projections) and then `ParRed.descend` (B2).
+
+## Step 7: the composite step records the shape of the fired redex (checked)
+
+`MajorEtaDescends` with an arbitrary `ParRed` after the expansion is false in any environment
+with a structure of at least one parameter: the parameters `params` of the major's type above are
+arbitrary terms convertible to lifts (for instance `(fun x => (fun y => P₀.liftN) x) (bvar k)`),
+and a `ParRed` congruence step may reduce them partially (to `(fun y => P₀.liftN) (bvar k)`),
+so that the result is not a lift. The hypothesis of `cancel_iff_typedFront_of_closure` would
+then be unsatisfiable. Fix (`EtaNormal.lean`): `RootFire Γ X c`, a stored rule or a case step
+fired at the root of `X` with its values/captures left in place (`RootFire.parRed`, `weakN`,
+`instN`, `defeqDFC`), and `MajorEtaIota` now ends with
+`RootFire Γ (.app f (structExpand family info levels params m)) c`. The closure produces exactly
+this shape at its two firing sites (`EtaNE.parRed_r`, struct-major sub-cases of `extra` and
+`schema`; `EtaNE.schema_fire` now returns a `RootFire`). All statements downstream are unchanged
+in form; `cancel_iff_typedFront_B3` is re-verified (axioms `propext`, `Classical.choice`,
+`Quot.sound`).
+
+What `MajorEtaDescends` now asks (not proved here): below, `e = .app f₀ m₀`; the right-hand
+side of the fired rule reads the recursor spine (a lift) and the fields `proj i m` (lifts), not
+the parameters (`pat_iota_params` for stored iota rules, `schema_struct_major` for case steps:
+the capture is `arguments.take numPrefix ++ ctorArguments.drop (len - numFields)` with
+`numFields ≤ info.numFields`), so `c` is a lift as soon as the rule's right-hand side is
+instantiated at lifts; the structure eta step below needs `m₀` typed below at a structure type
+`mkApps (.const family levels₀) params₀` (a typing descent for structure-typed terms; from
+`ProjFrontN` via `.proj family 0 m` when `info.numFields > 0`, and `levels₀ ≈ levels` by
+`IsDefEqU.structApp_inv`, which `CaseRedex.transport`/`Check.OK.defeq_values` absorb), and then
+`ParRed.descend` (B2) on the fired step, whose guards descend by `CaseRedexDescends` and
+`CheckVars`.
