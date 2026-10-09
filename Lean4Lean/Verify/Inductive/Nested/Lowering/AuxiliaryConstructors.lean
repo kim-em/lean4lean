@@ -71,10 +71,6 @@ theorem _root_.Lean4Lean.Closed.instantiate1'_le {a : Expr} :
         exact ha.mono (Nat.zero_le _)
       · simp [Closed]
         omega
-  all_goals first
-    | exact ⟨by assumption, by assumption⟩
-    | exact ⟨by assumption, by assumption, by assumption⟩
-    | assumption
 
 /-- Reverse-list instantiation with closed arguments consumes one closedness
 bound per argument. -/
@@ -309,8 +305,7 @@ theorem AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.sourceResidual
       Expr.instantiate_eq, Array.toList_reverse,
       Expr.instantiateList_reverse]
     congr 1
-    simp [rawArgs, Array.toList_extract, List.extract_eq_take_drop,
-      Nat.min_eq_left H.argsArity]
+    simp [rawArgs, Array.toList_extract, List.extract_eq_take_drop]
   rw [Hrange, ← Hspecialize,
     Expr.abstractList_instantiateForallBody, HtailAbstract]
 /-- The reopened constructor residual has no loose bound variables. -/
@@ -368,8 +363,7 @@ theorem AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.sourceResidualC
       Expr.instantiate_eq, Array.toList_reverse,
       Expr.instantiateList_reverse]
     congr 1
-    simp [rawArgs, Array.toList_extract, List.extract_eq_take_drop,
-      Nat.min_eq_left H.argsArity]
+    simp [rawArgs, Array.toList_extract, List.extract_eq_take_drop]
   rw [Hrange]
   apply Closed.instantiateRevList (Nat.le_refl 0) _ HrawClosed
   rw [Nat.zero_add, hrawLength]
@@ -446,8 +440,7 @@ theorem AuxiliaryFamilyContainer.familySourceResidual
       Expr.instantiate_eq, Array.toList_reverse,
       Expr.instantiateList_reverse]
     congr 1
-    simp [rawArgs, Array.toList_extract, List.extract_eq_take_drop,
-      Nat.min_eq_left H.argsArity]
+    simp [rawArgs, Array.toList_extract, List.extract_eq_take_drop]
   rw [Hrange, ← Hspecialize,
     Expr.abstractList_instantiateForallBody, HtailAbstract]
 /-- The reopened family residual has no loose bound variables. -/
@@ -507,8 +500,7 @@ theorem AuxiliaryFamilyContainer.familySourceResidualClosed
       Expr.instantiate_eq, Array.toList_reverse,
       Expr.instantiateList_reverse]
     congr 1
-    simp [rawArgs, Array.toList_extract, List.extract_eq_take_drop,
-      Nat.min_eq_left H.argsArity]
+    simp [rawArgs, Array.toList_extract, List.extract_eq_take_drop]
   rw [Hrange]
   apply Closed.instantiateRevList (Nat.le_refl 0) _ HrawClosed
   rw [Nat.zero_add, hrawLength]
@@ -558,8 +550,7 @@ theorem AuxiliaryFamilySpecialization.residualClosed
       Expr.instantiate_eq, Array.toList_reverse,
       Expr.instantiateList_reverse]
     congr 1
-    simp [rawArgs, Array.toList_extract, List.extract_eq_take_drop,
-      Nat.min_eq_left H.argsArity]
+    simp [rawArgs, Array.toList_extract, List.extract_eq_take_drop]
   rw [Hrange]
   apply Closed.instantiateRevList (Nat.le_refl 0) _ HrawClosed
   rw [Nat.zero_add, hrawLength]
@@ -804,7 +795,7 @@ theorem AuxiliaryFamilyContainer.directAuxiliaryFamilyType
         parameterDomains.reverse := by
       simpa using (List.take_length (l := parameterDomains.reverse))
     have hdrop : parameterDomains.reverse.drop parameterDomains.length = [] := by
-      simpa using (List.drop_length (l := parameterDomains.reverse))
+      simp
     refine ⟨.sort wholeLevel, ?_⟩
     rw [hdrop, htake, List.reverse_reverse] at HclosedEq
     exact HclosedEq
@@ -1080,7 +1071,7 @@ theorem AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.directAuxiliary
         parameterDomains.reverse := by
       simpa using (List.take_length (l := parameterDomains.reverse))
     have hdrop : parameterDomains.reverse.drop parameterDomains.length = [] := by
-      simpa using (List.drop_length (l := parameterDomains.reverse))
+      simp
     refine ⟨.sort wholeLevel, ?_⟩
     rw [hdrop, htake, List.reverse_reverse] at HwholeEq
     exact HwholeEq

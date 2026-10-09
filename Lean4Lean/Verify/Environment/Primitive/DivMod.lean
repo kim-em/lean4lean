@@ -153,7 +153,7 @@ theorem checkNatFuelRec.WF {c : VContext} {ite : Bool}
     simp [hyTy, leb2, oneb2, hy5, hy4, hy3, hhTy, leb4, hx5, hx4, hx3, hf5,
       TrTerm.natBinApp, TrTerm.app', TrTerm.of, TrTerm.natUnApp, TrTerm.wk, TrTerm.natZero,
       TrTerm.natSucc, succb, zerob, VExpr.inst, VExpr.instVar, VExpr.lift, VExpr.liftN,
-      VExpr.natLit, VExpr.inst_lift, hleC.liftN_eq (Nat.zero_le _), hleC.instN_eq (Nat.zero_le _)]
+      VExpr.natLit, hleC.liftN_eq (Nat.zero_le _), hleC.instN_eq (Nat.zero_le _)]
   refine .bind (checkType.WF ?_) fun _ _ _ ⟨e2', e2Ty', _, he2Tr, _, he2T⟩ => ?_
   · have hxf : Expr.FVarsIn (· ∈ _) (.fvar idx) := hx5.trS.fvarsIn
     have hyf : Expr.FVarsIn (· ∈ _) (.fvar idy) := hy5.trS.fvarsIn

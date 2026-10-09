@@ -649,8 +649,8 @@ theorem stateForM_refines
     intro source
     rw [List.forM]
     exact (Hstep head (by simp) source).bind fun out Hout => by
-      rcases out with ⟨unit, middle⟩
-      rcases unit with ⟨⟩
+      rcases out with ⟨done, middle⟩
+      rcases done with ⟨⟩
       rcases Hout with ⟨_, ⟨Hhead⟩⟩
       have Htail : ∀ item, item ∈ tail → ∀ source,
           (step item source).WF fun out =>
@@ -795,8 +795,8 @@ theorem restoreConstructorDecls_refines
   rcases Hsources ctorName hctor with ⟨oldInfo, hlookup, Htelescope⟩
   exact (restoreConstructorDecl_refines result loweredEnv sourceEnv
     allowPrimitive ctorName oldInfo hlookup Htelescope).mono fun out Hout => by
-      rcases out with ⟨unit, targetEnv⟩
-      rcases unit with ⟨⟩
+      rcases out with ⟨done, targetEnv⟩
+      rcases done with ⟨⟩
       rcases Hout with ⟨Hrestored⟩
       exact ⟨rfl, ⟨{
         oldInfo := oldInfo
@@ -908,8 +908,8 @@ theorem restoreRecursorDecls_refines
   exact (restoreRecursorDecl_refines result loweredEnv sourceEnv auxRec
     allIndNames allowPrimitive recName oldInfo hlookup Htype Hrules).mono
       fun out Hout => by
-        rcases out with ⟨unit, targetEnv⟩
-        rcases unit with ⟨⟩
+        rcases out with ⟨done, targetEnv⟩
+        rcases done with ⟨⟩
         rcases Hout with ⟨Hrestored⟩
         exact ⟨rfl, ⟨{
           oldInfo := oldInfo
@@ -969,21 +969,21 @@ theorem restoreInductiveDecl_refines
         fun out => Nonempty (SourceFamilyRestoration result loweredEnv
           sourceEnv auxRec allIndNames indType oldInfo out) :=
     Hheader.bind fun headerOut HheaderOut => by
-    rcases headerOut with ⟨unit, headerEnv⟩
-    rcases unit with ⟨⟩
+    rcases headerOut with ⟨done, headerEnv⟩
+    rcases done with ⟨⟩
     rcases HheaderOut with ⟨HheaderResult⟩
     have HconstructorFold := restoreConstructorDecls_refines result loweredEnv
       allowPrimitive oldInfo.ctors Hctors headerEnv
     exact HconstructorFold.bind fun constructorOut HconstructorOut => by
-      rcases constructorOut with ⟨unit, constructorEnv⟩
-      rcases unit with ⟨⟩
+      rcases constructorOut with ⟨done, constructorEnv⟩
+      rcases done with ⟨⟩
       rcases HconstructorOut with ⟨_, ⟨HconstructorTrace⟩⟩
       have Hrecursor := restoreRecursorDecl_refines result loweredEnv
         constructorEnv auxRec allIndNames allowPrimitive
         (Lean.mkRecName indType.name) recInfo hrecLookup HrecType HrecRules
       exact Hrecursor.mono fun recursorOut HrecursorOut => by
-        rcases recursorOut with ⟨unit, targetEnv⟩
-        rcases unit with ⟨⟩
+        rcases recursorOut with ⟨done, targetEnv⟩
+        rcases done with ⟨⟩
         rcases HrecursorOut with ⟨HrecursorResult⟩
         exact ⟨{
           headerEnv := headerEnv
@@ -1043,8 +1043,8 @@ theorem restoreInductiveDecls_refines
   exact (restoreInductiveDecl_refines result loweredEnv sourceEnv auxRec
     allIndNames allowPrimitive indType oldInfo hlookup Hctors recInfo
     hrecLookup HrecType HrecRules).mono fun out Hout => by
-      rcases out with ⟨unit, targetEnv⟩
-      rcases unit with ⟨⟩
+      rcases out with ⟨done, targetEnv⟩
+      rcases done with ⟨⟩
       rcases Hout with ⟨Hrestored⟩
       exact ⟨rfl, ⟨{
         oldInfo := oldInfo
@@ -1205,8 +1205,8 @@ theorem restoreNestedDeclarations_refines
               Nonempty (NestedRestorationFolds result loweredEnv
                 sourceEnv auxRec allIndNames types auxRecNames out) :=
     Hinductives.bind fun primaryOut Hprimary => by
-      rcases primaryOut with ⟨unit, primaryEnv⟩
-      rcases unit with ⟨⟩
+      rcases primaryOut with ⟨done, primaryEnv⟩
+      rcases done with ⟨⟩
       rcases Hprimary with ⟨_, ⟨HinductiveTrace⟩⟩
       have Hauxiliaries := restoreRecursorDecls_refines result loweredEnv
         auxRec allIndNames allowPrimitive auxRecNames Haux primaryEnv

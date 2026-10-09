@@ -11,7 +11,7 @@ arguments are the field variables. Restoration may specialize the constructor's 
 -/
 
 namespace Lean4Lean.EnvTables
-open VEnv InductiveSignature
+open _root_.Lean4Lean.EnvTables.VEnv InductiveSignature
 
 /-- Restoration of a constructor application with parameter and field variables. -/
 theorem restored_ctorApp {r : Restoration} {np e nf : Nat}
@@ -120,7 +120,7 @@ theorem CompilationData.rule_shape
   refine ⟨Ds, idx', rBody, major', ?_, her, ?_, hidx, ?_, hmaj⟩
   · rw [hel, ← Option.some.inj hout]
   · rw [hlen]
-    simp [Instance.equation, Instance.params, Instance.motives, Instance.minors,
+    simp [Instance.params, Instance.motives, Instance.minors,
       insertBinders, fieldTypes]
     omega
   · simp only [Restoration.equation, bind, Option.bind_eq_some_iff] at hrestore

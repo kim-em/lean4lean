@@ -1342,8 +1342,7 @@ theorem goArgs {c : VContext} {go' le' : VExpr}
   obtain ⟨hfT, k3⟩ := VExpr.WF.app_inv_of_hasType c.Ewf trivial k2 ⟨_, h3⟩
   simp [VExpr.inst, VExpr.instVar, hleC.instN_eq (Nat.zero_le _)] at k3
   obtain ⟨hxT, k4⟩ := VExpr.WF.app_inv_of_hasType c.Ewf trivial k3 ⟨_, h4⟩
-  simp [VExpr.inst, VExpr.instVar, VExpr.liftN_zero, VExpr.inst_lift,
-    hleC.instN_eq (Nat.zero_le _)] at k4
+  simp [VExpr.inst, VExpr.instVar, VExpr.liftN_zero, hleC.instN_eq (Nat.zero_le _)] at k4
   obtain ⟨hpf'T, hcallT⟩ := VExpr.WF.app_inv_of_hasType c.Ewf trivial k4 hwf
   simp [VExpr.inst] at hcallT
   exact ⟨hbbT, hpfT, hfT, hxT, hpf'T, hcallT⟩

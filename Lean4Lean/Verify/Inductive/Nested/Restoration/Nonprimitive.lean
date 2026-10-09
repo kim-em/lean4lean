@@ -55,7 +55,7 @@ theorem FreshNonprimitiveExtension.nonprimitive
   | cons _ hnprim _ ih =>
     intro ci hci
     rcases List.mem_cons.mp hci with rfl | htail
-    · simpa [hnprim rfl]
+    · simp [hnprim rfl]
     · exact ih ci htail
 
 /-- The header restoration step retains both results of its successful
@@ -156,8 +156,8 @@ theorem stateForM_primitiveSafe
   | cons head tail ih =>
     rw [List.forM]
     exact (Hstep head (by simp) source hsourceWF).bind fun headOut Hhead => by
-      rcases headOut with ⟨unit, middle⟩
-      rcases unit with ⟨⟩
+      rcases headOut with ⟨done, middle⟩
+      rcases done with ⟨⟩
       rcases Hhead with ⟨headEntries, Hhead⟩
       have hmiddleWF : middle.constants.WF :=
         Hhead.fresh.targetWF hsourceWF
@@ -245,15 +245,15 @@ theorem restoreInductiveDecl_primitiveSafe
           ∃ entries, FreshNonprimitiveExtension allowPrimitive sourceEnv
             entries out.2 :=
     Hheader.bind fun headerOut HheaderOut => by
-    rcases headerOut with ⟨unit, headerEnv⟩
-    rcases unit with ⟨⟩
+    rcases headerOut with ⟨done, headerEnv⟩
+    rcases done with ⟨⟩
     rcases HheaderOut with ⟨headerEntries, HheaderTrace⟩
     have hheaderWF := HheaderTrace.fresh.targetWF hsourceWF
     have HconstructorFold := restoreConstructorDecls_primitiveSafe result
       loweredEnv headerEnv allowPrimitive oldInfo.ctors Hctors hheaderWF
     exact HconstructorFold.bind fun constructorOut HconstructorOut => by
-      rcases constructorOut with ⟨unit, constructorEnv⟩
-      rcases unit with ⟨⟩
+      rcases constructorOut with ⟨done, constructorEnv⟩
+      rcases done with ⟨⟩
       rcases HconstructorOut with
         ⟨constructorEntries, HconstructorTrace⟩
       have hconstructorWF := HconstructorTrace.fresh.targetWF hheaderWF
@@ -332,8 +332,8 @@ theorem restoreNestedDeclarations_primitiveSafe
               ∃ entries, FreshNonprimitiveExtension allowPrimitive
                 sourceEnv entries out.2 :=
     Hprimary.bind fun primaryOut HprimaryOut => by
-    rcases primaryOut with ⟨unit, primaryEnv⟩
-    rcases unit with ⟨⟩
+    rcases primaryOut with ⟨done, primaryEnv⟩
+    rcases done with ⟨⟩
     rcases HprimaryOut with ⟨primaryEntries, HprimaryTrace⟩
     have hprimaryWF := HprimaryTrace.fresh.targetWF hsourceWF
     have Hauxiliary := restoreRecursorDecls_primitiveSafe result loweredEnv

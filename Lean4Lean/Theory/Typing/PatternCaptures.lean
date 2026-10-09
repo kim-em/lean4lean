@@ -39,7 +39,7 @@ theorem Pattern.Matches.const_arguments
       rw [ih hp]
       simp only [Pattern.argumentRHS, List.map_append, List.map_map,
         List.map_cons, List.map_nil, Pattern.RHS.apply,
-        Function.comp_def, Option.elim_some, Option.elim_none]
+        Function.comp_def, Option.elim_none]
       simp only [VExpr.mkApps, List.foldl_append, List.foldl_cons, List.foldl_nil]
       congr 2
       apply List.map_congr_left

@@ -357,7 +357,7 @@ theorem tryEtaStructCore.WF {c : VContext} {s : State}
         simp only [List.getElem_map, List.getElem_range, List.length_take]
         have hjn' : info.nparams + (j - min info.nparams args'.length) = j := by omega
         have := (hinv (j - min info.nparams args'.length) (by omega) (by omega)).symm
-        simp only [hjn', List.getElem_map] at this ⊢
+        simp only [hjn'] at this ⊢
         exact this
   rw [hresEq, List.append_nil] at hcongr
   have heta := VEnv.IsDefEq.structEta hinfo hP'len hnindices htS hcongr.hasType.2

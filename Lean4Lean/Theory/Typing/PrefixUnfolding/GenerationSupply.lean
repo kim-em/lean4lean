@@ -56,7 +56,7 @@ theorem singletonUnfolding_anyArity {data : RecursorData} {levels : List VLevel}
   obtain ⟨S1, hS1, hf1⟩ := singletonReconstruction_fields_length hrecon
   obtain ⟨S2, hS2, hf2⟩ := singletonReconstruction_fields_length hrecon'
   cases hS1.symm.trans hS2
-  simp only [bind, htype, Option.bind_some, hsupply', hshape', htake', hrecon',
+  simp only [Option.bind_some, htake', hrecon',
     hequation, hbody]
   have hl1 : (args.map (·.liftN (data.majorOffset + 1 - args.length)) ++
       vars (data.majorOffset + 1 - args.length) 0).length = data.majorOffset + 1 := by
@@ -66,8 +66,8 @@ theorem singletonUnfolding_anyArity {data : RecursorData} {levels : List VLevel}
       vars (data.majorOffset + 1 - args'.length) 0).length = data.majorOffset + 1 := by
     simp only [List.length_append, List.length_map, vars, List.length_reverse, List.length_range]
     omega
-  simp only [List.length_append, List.length_map, List.length_take, hl1, hf1] at hcaptures
-  simp only [List.length_append, List.length_map, List.length_take, hl2, hf2]
+  simp only [List.length_append, List.length_take, hl1, hf1] at hcaptures
+  simp only [List.length_append, List.length_take, hl2, hf2]
   rw [if_neg hcaptures]
   exact ⟨_, rfl⟩
 
@@ -134,7 +134,7 @@ theorem generate_supply_one {levels : List VLevel} {args : List VExpr}
   have htake' := takeForalls_instDomains (arg := arg) (k := 0) htake
   simp only [Nat.zero_add] at htake'
   simp only [bind, supplyType_append, hsupply, supplyType, hlateLen, htake',
-    Option.bind_eq_some_iff, hbody, Option.bind_some] at hLate
+    hbody, Option.bind_some] at hLate
   cases hLate
   refine ⟨domain, _, rfl, ?_⟩
   change (wrapLams ds _).inst arg = wrapLams (instDomains ds arg 0) _

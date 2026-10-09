@@ -51,15 +51,15 @@ theorem instantiateProjectionParameters.WF_all {c : VContext} {args : Array Expr
         VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b) xs' = some R ∧
         c.TrExprS t R) ∧
       ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type →
-        (∀ k (hk : k < remaining) a, args[position + k]? = some a → FVarsIn P a) →
+        (∀ k (_hk : k < remaining) a, args[position + k]? = some a → FVarsIn P a) →
         FVarsIn P t) ∧
       ∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
-        (∀ k (hk : k < remaining) a, args[position + k]? = some a →
+        (∀ k (_hk : k < remaining) a, args[position + k]? = some a →
           a.levelParamsIn Us = true ∧ FVarsIn P a) →
         t.levelParamsIn Us = true) ∧
       ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P → type.ParamUniformIn c.env heads As ls →
         FVarsIn P type →
-        (∀ k (hk : k < remaining) a, args[position + k]? = some a →
+        (∀ k (_hk : k < remaining) a, args[position + k]? = some a →
           a.ParamUniformIn c.env heads As ls ∧ FVarsIn P a) →
         t.ParamUniformIn c.env heads As ls := by
   intro remaining
@@ -380,15 +380,15 @@ theorem instantiateProjectionParameters.WF_cert {c : VContext} {args : Array Exp
         VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b) xs' = some R ∧
         c.TrExprS t R) ∧
       ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type →
-        (∀ k (hk : k < remaining) a, args[position + k]? = some a → FVarsIn P a) →
+        (∀ k (_hk : k < remaining) a, args[position + k]? = some a → FVarsIn P a) →
         FVarsIn P t) ∧
       ∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
-        (∀ k (hk : k < remaining) a, args[position + k]? = some a →
+        (∀ k (_hk : k < remaining) a, args[position + k]? = some a →
           a.levelParamsIn Us = true ∧ FVarsIn P a) →
         t.levelParamsIn Us = true) ∧
       ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P → type.ParamUniformIn c.env heads As ls →
         FVarsIn P type →
-        (∀ k (hk : k < remaining) a, args[position + k]? = some a →
+        (∀ k (_hk : k < remaining) a, args[position + k]? = some a →
           a.ParamUniformIn c.env heads As ls ∧ FVarsIn P a) →
         t.ParamUniformIn c.env heads As ls) ∧
       (Cert → ∃ R,

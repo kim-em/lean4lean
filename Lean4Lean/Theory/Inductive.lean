@@ -80,10 +80,7 @@ theorem VInductDecl.CompilesTo.sourceNames
   have hprefix : ((block.types ++ block.ctors).map (·.name)).Nodup := by
     apply List.Nodup.sublist (l₂ :=
       (block.types ++ block.ctors ++ block.recursors).map (·.name))
-    · simpa [List.map_append, List.append_assoc] using
-      (List.prefix_append
-        ((block.types ++ block.ctors).map (·.name))
-        (block.recursors.map (·.name))).sublist
+    · simp [List.map_append, List.append_assoc]
     · exact H.names
   simpa [VInductDecl.sourceNames, H.types, H.ctors, List.map_append]
     using hprefix

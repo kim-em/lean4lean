@@ -49,10 +49,10 @@ theorem checkConstructors.loopCtors.telTrWF
   · rw [AddInductive.checkConstructors.loopCtors, dif_pos hidx]
     cases hfresh : foundCtors.contains ctors[ctorIdx].name with
     | true =>
-        simp only [hfresh, ↓reduceIte]
+        simp only [↓reduceIte]
         exact Except.WF.throw
     | false =>
-        rw [if_neg (by simpa using hfresh)]
+        rw [if_neg (by simp)]
         change (AddInductive.checkClosedType ctors[ctorIdx].name
           ctors[ctorIdx].type c >>= fun _ => ((do
             let _ ← readThe AddInductive.Context

@@ -84,7 +84,7 @@ theorem singletonReconstruction_subst {σ : VExpr.Subst} (henv : env.WF) (hr : R
   have hsub := PropElim.occ_subst (m := .bvar 0) hC (hps ▸ hC.scope) hidx σ S.fields.length (Nat.le_refl _)
   simp only [hS, hE]
   obtain ⟨cn, cls, hct⟩ := propElim_ctor hE
-  simp only [VExpr.subst_bvar, hσ, ← List.map_take, ← List.map_drop] at hsub
+  simp only [VExpr.subst_bvar, hσ] at hsub
   simp only [← List.map_take, ← List.map_drop, bind, Option.bind_some, pure]
   rw [← hsub.2]
   simp only [VExpr.subst_mkApps, hct, VExpr.subst_const, List.map_append]

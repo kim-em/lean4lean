@@ -40,7 +40,7 @@ theorem restore_go_isSome (r : Restoration) (e : VExpr) (args : List VExpr) :
     simp only [Restoration.expr.go, Restorable]
     split
     · rename_i h hh
-      simp only [HeadSpecialization.apply, bind, pure]
+      simp only [HeadSpecialization.apply, pure]
       constructor
       · intro hs h' hh'
         rw [hh] at hh'
@@ -472,7 +472,7 @@ theorem case_closedN (schema : CaseSchema) (owner : Fin schema.signature.familie
           have := (he'.instL (ls := schema.genericLevels)).liftN
             (n := (schema.view owner).families.size + i) (j := (schema.caseConstructor c).fields.length + 0)
           refine this.mono ?_
-          simp [insertBinders, fieldTypes, hnf, CaseSchema.view] <;> omega
+          simp [insertBinders, fieldTypes, CaseSchema.view] <;> omega
         · simp only [List.mem_singleton] at ha
           subst ha
           simp only [Instance.constructorApp]

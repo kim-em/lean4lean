@@ -10,7 +10,7 @@ parameter count or without the constructor.
 -/
 
 namespace Lean4Lean.EnvTables
-open VEnv InductiveSignature
+open _root_.Lean4Lean.EnvTables.VEnv InductiveSignature
 
 /-- Restoration of the constructor application of a signature constructor. -/
 theorem CaseCompilationData.ctorApp_cases {base : VEnv} {src exp : VInductDecl}

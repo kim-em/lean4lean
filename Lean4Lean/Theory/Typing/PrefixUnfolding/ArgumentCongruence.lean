@@ -169,17 +169,17 @@ theorem ConstSpineDefEq.instOuter_defeq {name : Name} {levels : List VLevel}
   exact hc hA.hasType.1
 
 private theorem rel_eta_match {domains : List VExpr} (hpos : 0 < domains.length)
-    (hΓ : OnCtx Γ (env.IsType univs))
+    (_hΓ : OnCtx Γ (env.IsType univs))
     {name : Name} {levels : List VLevel}
     (hlevels : ∀ l ∈ levels, l.WF univs)
     (hargs : List.Forall₂ (IsDefEqU env univs Γ) args args')
     (hctor : IsDefEqU env univs (domains.reverse ++ Γ) ctor ctor')
-    (hctx : OnCtx (domains.reverse ++ Γ) (env.IsType univs)) :
+    (_hctx : OnCtx (domains.reverse ++ Γ) (env.IsType univs)) :
     ConstSpineDefEq env univs (domains.reverse ++ Γ)
       (.app (etaOpen (domains.length - 1) (mkApps (.const name levels) args)).lift ctor)
       (.app (etaOpen (domains.length - 1) (mkApps (.const name levels) args')).lift ctor') := by
   rw [etaOpen_spine, etaOpen_spine]
-  simp only [lift, liftN_mkApps, liftN, List.map_append]
+  simp only [lift, liftN_mkApps, liftN]
   refine ⟨name, levels, levels,
     (args.map (·.liftN (domains.length - 1)) |>.map (·.liftN 1)) ++
       (vars (domains.length - 1) 0).map (·.liftN 1) ++ [ctor],

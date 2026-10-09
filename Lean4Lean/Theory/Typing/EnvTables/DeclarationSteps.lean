@@ -253,7 +253,7 @@ theorem addQuot_parts (h : env.addQuot = some env') :
     env.constants ``Quot.lift = none ∧ env.constants ``Quot.ind = none := by
   have h' := h
   simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at h'
+    Option.some.injEq] at h'
   obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := h'
   have l1 := VEnv.addConst_le ha
   have l2 := VEnv.addConst_le hb
@@ -376,7 +376,7 @@ theorem Tables.Inv.addQuot (H : T.Inv env) (henv : env.WF) (henv' : env'.WF)
 def selCtors (t : VInductiveType) : Bool := !t.ctors.isEmpty
 
 theorem selCtors_iff {t : VInductiveType} : selCtors t = true ↔ t.ctors ≠ [] := by
-  simp [selCtors, List.isEmpty_iff]
+  simp [selCtors]
 
 /-- Record a block installation: the views of the families with constructors and the recursor
 entries. -/

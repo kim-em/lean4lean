@@ -195,10 +195,10 @@ def MLCtxOnlyLams.sources
     (Hwf : m.WF env Us) : SourceTelescope env Us m.vlctx :=
   match m with
   | .nil => .nil
-  | .vlam fv name type type' bi tail =>
+  | .vlam _fv name type _type' bi _tail =>
     .cons (MLCtxOnlyLams.sources H.tail_vlam Hwf.1)
       name bi type Hwf.2.2.1
-  | .vlet fv name type value type' value' tail =>
+  | .vlet _fv _name _type _value _type' _value' _tail =>
     False.elim H.vlet_false
 
 /-- Local invariant for the first header's common-parameter branch. -/
@@ -259,7 +259,7 @@ structure ParameterContextSuffix (Hc : ContextWF c)
 
 /-- Reindex a parameter cache across statistics updates that leave the
 cached parameter array unchanged. -/
-def ParameterCachePrefix.reindex
+theorem ParameterCachePrefix.reindex
     (H : ParameterCachePrefix env Us Δ stats done depth)
     (hparams : stats'.params = stats.params) :
     ParameterCachePrefix env Us Δ stats' done depth where
@@ -515,12 +515,12 @@ theorem Lift.closeReopen_cons (shift : Lift) (n : Nat) :
     Lift.comp (Lift.comp (Lift.skipN .refl n) shift) (.skip .refl) =
       Lift.comp (Lift.skipN .refl (n + 1)) (.cons shift) := by
   induction shift generalizing n with
-  | refl => simp [Lift.skipN_skipN]
-  | skip shift ih => simp [ih, Lift.skipN_skipN]
+  | refl => simp
+  | skip shift ih => simp
   | cons shift ih =>
     cases n with
     | zero => rfl
-    | succ n => simp [ih, Lift.skipN_skipN, Nat.add_assoc]
+    | succ n => simp
 
 theorem VExpr.liftN_lift'_liftN_one (body : VExpr)
     (shift : Lift) (n : Nat) :
@@ -1156,7 +1156,7 @@ theorem List.filter_mem_eq_of_sublist_nodup
         exact ha hx
       simp [hxa]
     simp only [List.filter_cons, List.mem_cons, true_or, decide_true,
-      Bool.true_eq, ↓reduceIte, htail]
+      ↓reduceIte, htail]
     rw [ih (List.nodup_cons.mp hnodup).2]
 
 /-- The declarations of an all-lambda context are named lambdas. -/

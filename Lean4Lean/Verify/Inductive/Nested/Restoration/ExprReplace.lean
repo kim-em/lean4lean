@@ -546,18 +546,18 @@ theorem RecursorTypeTelescope.commonPrefixDefEqCtx
   let full₂ := outer₂ ++ T₂.indices ++ T₂.major
   have houter₁ : outer₁.length = common := by
     simp [outer₁, common, T₁.params_length, T₁.motives_length,
-      T₁.minors_length] <;> omega
+      T₁.minors_length] ; omega
   have houter₂ : outer₂.length = common := by
     simp [outer₂, common, T₂.params_length, T₂.motives_length,
-      T₂.minors_length] <;> omega
+      T₂.minors_length] ; omega
   have hfull₁ : full₁.length =
       numParams + numMotives + numMinors + numIndices₁ + 1 := by
     simp [full₁, outer₁, T₁.params_length, T₁.motives_length,
-      T₁.minors_length, T₁.indices_length, T₁.major_length] <;> omega
+      T₁.minors_length, T₁.indices_length, T₁.major_length] ; omega
   have hfull₂ : full₂.length =
       numParams + numMotives + numMinors + numIndices₂ + 1 := by
     simp [full₂, outer₂, T₂.params_length, T₂.motives_length,
-      T₂.minors_length, T₂.indices_length, T₂.major_length] <;> omega
+      T₂.minors_length, T₂.indices_length, T₂.major_length] ; omega
   have Hprefix := T₁.typed.commonPrefixDefEqCtx Henv T₂.typed
     full₁ full₂ T₁.result T₂.result
     (by simpa [full₁, outer₁, List.append_assoc] using T₁.target_eq)
@@ -586,7 +586,7 @@ theorem RecursorTypeTelescope.ownerMotiveBinder
     (howner : ownerIdx < T.motives.length) :
     ∃ (suffixSource : Expr) (name : Name)
       (sourceDomain sourceBody : Expr) (bi : BinderInfo)
-      (bodyTarget : VExpr),
+      (_bodyTarget : VExpr),
       Expr.ForallTelescope source (T.params.length + ownerIdx) suffixSource ∧
       suffixSource = .forallE name sourceDomain sourceBody bi ∧
       TrExprS env Us
@@ -641,7 +641,7 @@ theorem RecursorTypeTelescope.minorBinder
     (minorIdx : Nat) (hminor : minorIdx < T.minors.length) :
     ∃ (suffixSource : Expr) (name : Name)
       (sourceDomain sourceBody : Expr) (bi : BinderInfo)
-      (bodyTarget : VExpr),
+      (_bodyTarget : VExpr),
       Expr.ForallTelescope source
         (T.params.length + T.motives.length + minorIdx) suffixSource ∧
       suffixSource = .forallE name sourceDomain sourceBody bi ∧
@@ -820,7 +820,7 @@ theorem RecursorTypeTelescope.ownerMotiveOuterBvarTyping
         rw [List.take_append_getElem howner]
       _ = T.motives.take ownerIdx ++ T.motives[ownerIdx] ::
           T.motives.drop (ownerIdx + 1) := by
-        simp [List.append_assoc]
+        simp
   have hlookup : Lookup
       (later.reverse ++ T.motives[ownerIdx] :: older)
       later.length
@@ -830,8 +830,7 @@ theorem RecursorTypeTelescope.ownerMotiveOuterBvarTyping
   have hmotivesReverse : T.motives.reverse =
       (T.motives.drop (ownerIdx + 1)).reverse ++
         T.motives[ownerIdx] :: (T.motives.take ownerIdx).reverse := by
-    simpa [List.reverse_append, List.append_assoc] using
-      congrArg List.reverse hsplit
+    simp
   have hcontext : outer.reverse =
       later.reverse ++ T.motives[ownerIdx] :: older := by
     dsimp [outer, later, older]

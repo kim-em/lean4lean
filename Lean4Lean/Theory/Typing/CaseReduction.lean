@@ -341,7 +341,7 @@ structure CaseApplicationRelated (R : VExpr → VExpr → Prop) (a b : Applicati
 private theorem case_forall₂_take (h : List.Forall₂ R xs ys) :
     List.Forall₂ R (xs.take n) (ys.take n) := by
   induction h generalizing n with
-  | nil => simpa using (List.Forall₂.nil : List.Forall₂ R [] [])
+  | nil => simp
   | cons h _ ih => cases n with
     | zero => exact .nil
     | succ n => exact .cons h (ih (n := n))
@@ -349,7 +349,7 @@ private theorem case_forall₂_take (h : List.Forall₂ R xs ys) :
 private theorem case_forall₂_drop (h : List.Forall₂ R xs ys) :
     List.Forall₂ R (xs.drop n) (ys.drop n) := by
   induction h generalizing n with
-  | nil => simpa using (List.Forall₂.nil : List.Forall₂ R [] [])
+  | nil => simp
   | cons h ht ih => cases n with
     | zero => exact .cons h ht
     | succ n => exact ih (n := n)

@@ -143,7 +143,7 @@ theorem singleton_shape (H : RecursorRegistered env data)
     rw [← hFeq, ← hCIeq, List.length_map]
     congr 1; funext j; exact (fieldSlot_instL _ _ _ _).symm
   · simp only [propElim, htp, hsc, Option.bind_eq_bind, Option.bind_some, Option.pure_def]
-  · simp [gp, propParams, Instance.params, Instance.specialize, recursorInstance, List.map_map,
+  · simp [propParams, Instance.params, Instance.specialize, recursorInstance, List.map_map,
       Function.comp_def, VExpr.instL_instL, hlev]
   · unfold singletonEquation RecursorData.equation
     have hfr : (List.finRange data.schema.signature.constructors.size).filter
@@ -216,11 +216,11 @@ theorem singleton_equation_syntax (H : RecursorRegistered env data)
           ((data.genericSorts env data.schema.signature.constructors[index]).map (·.inst ls))).fields 2 := by
       rw [hextra]
       simp only [insertBinders, Instance.singletonCast, Instance.fieldsAt, List.map_map,
-        Function.comp_def, VExpr.instL_liftN, VExpr.instL_instL, hgl, List.zipIdx_map]
-      simp [g, recursorInstance, c, s, Function.comp_def, VExpr.instL_instL, hgl, Instance.specialize]
+        Function.comp_def, VExpr.instL_liftN, hgl, List.zipIdx_map]
+      simp [g, recursorInstance, c, s, VExpr.instL_instL]
     rw [hP]
     simp only [List.map_append, List.append_assoc, hpar, hins]
-  case h5 => simp [Instance.motives, Instance.minors, s, hfam, hcs]
+  case h5 => simp [Instance.motives, Instance.minors, hfam, hcs]
   case h7 =>
     rw [hP]; simp [indexOffset, numParams, Instance.params, Instance.specialize, hfam, hcs]
   case h8 =>
