@@ -1,8 +1,9 @@
 import Lean4Lean.Verify.Typing.Syntactic.Typed
-import Lean4Lean.Verify.Typing.TelescopeTranslationLemmas
+import Lean4Lean.Verify.Typing.Lemmas
+import Lean4Lean.Theory.Typing.Strengthening.Lift
 
 /-!
-# The strengthening boundary, and constructor telescopes
+# The strengthening boundary
 
 With translation split into syntax and typing, strengthening splits the same way:
 
@@ -13,10 +14,9 @@ With translation split into syntax and typing, strengthening splits the same way
   typed translation in the smaller context is exactly the typing of the restricted result and the
   residual of the restricted source (`TrExprS.lowerBV_iff`).
 
-The projection walk's certificate `TelTrN` is then a syntactic translation together with a
-typing-only certificate `TelWF` (`TelTrN.iff_syn_telWF`): the existence of the lowered
-translation at a deleted binder, which `TelTrN` records as a premise, is a theorem, and what the
-certificate genuinely carries is the typing of the residual telescope in the smaller context.
+The projection walk's certificate (`TelTrN`, `Verify/Typing/TelescopeTranslation.lean`) is built
+the same way: a syntactic translation together with the typing-only certificate `TelWF`, which
+records the typing of each residual telescope in its smaller context.
 -/
 
 namespace Lean4Lean
@@ -44,57 +44,74 @@ theorem TrExprS.restrictFV_iff (henv : env.Ordered) (W : VLCtx.FVLift Δ Δ' dk 
   obtain ⟨e₀', s, rfl⟩ := H.toTrSyn.restrictFV W hΔ'.fvars_nodup hfv
   exact ⟨e₀', rfl, s, fun h => ⟨h.wf henv hΔ, h.residual⟩, fun ⟨h1, h2⟩ => s.toTrExprS henv hΔ h1 h2⟩
 
-/-! ### Constructor telescopes -/
+/-! ### Under a strengthening hypothesis
 
-variable (env : VEnv) (Us : List Name) in
-/-- The typing content of a depth-bounded telescope certificate: the typing of the translated
-telescope and of every residual telescope obtained by deleting unused binders, each in its own
-context, with the residual obligations of the source. The syntactic content of `TelTrN` (that
-the deleted telescopes translate, to the lowered terms) is not part of it: it is
-`TrSyn.lower`. -/
-inductive TelWF : Nat → VLCtx → Expr → VExpr → Prop
-  | zero {Δ : VLCtx} {e : Expr} {e' : VExpr} :
-    VExpr.WF env Us.length Δ.toCtx e' → TrResidual env Us Δ e → TelWF 0 Δ e e'
-  | succ {k : Nat} {Δ : VLCtx} {n d b bi d' b'} :
-    VExpr.WF env Us.length Δ.toCtx (.forallE d' b') →
-    TrResidual env Us Δ (.forallE n d b bi) →
-    TelWF k ((none, .vlam d') :: Δ) b b' →
-    (∀ b₀ b₀', b = Expr.liftLooseBVars' b₀ 0 1 → b' = VExpr.lift b₀' → TelWF k Δ b₀ b₀') →
-    TelWF (k + 1) Δ (.forallE n d b bi) (.forallE d' b')
+When the environment satisfies `VEnv.Strengthening` the typing part of the boundary can be
+crossed as well. These are used only by the verification of the checker's global cache mode,
+where the hypothesis comes from a `GlobalCacheLicense`. -/
 
-theorem TelTrN.toTelWF (henv : env.Ordered) (H : TelTrN env Us n Δ e e')
-    (hΔ : Δ.WF env Us.length) : TelWF env Us n Δ e e' := by
-  induction H with
-  | zero h => exact .zero (h.wf henv hΔ) h.residual
-  | succ h1 _ _ _ ih2 ih4 =>
-    let .forallE hd _ _ _ := h1
-    exact .succ (h1.wf henv hΔ) h1.residual (ih2 ⟨hΔ, nofun, hd⟩)
-      fun b₀ b₀' hb hb' => ih4 b₀ b₀' hb hb' hΔ
+theorem VLCtx.FVLift'.cons_vlam (W : VLCtx.FVLift' Δ Δ' dk l k)
+    (h : ty₀.lift' (l.consN k) = ty') :
+    VLCtx.FVLift' ((none, .vlam ty₀) :: Δ) ((none, .vlam ty') :: Δ') (dk + 1) l (k + 1) := by
+  subst h; exact W.cons_bvar (.vlam ty₀)
 
-/-- **`TelTrN` is syntax plus typing.** The bounded certificate is a syntactic translation
-together with the typing-only certificate `TelWF`. -/
-theorem TelTrN.of_syn_telWF (henv : env.Ordered) (hΔ : Δ.WF env Us.length)
-    (S : TrSyn Us Δ e e') (H : TelWF env Us n Δ e e') : TelTrN env Us n Δ e e' := by
-  induction H with
-  | zero hwf hr => exact .zero (S.toTrExprS henv hΔ hwf hr)
-  | @succ k Δ nm d b bi d' b' hwf hr _ _ ih3 ih4 =>
-    have hTop := S.toTrExprS henv hΔ hwf hr
-    let .forallE hd _ _ _ := hTop
-    let .forallE _ sb := S
-    refine .succ hTop (ih3 ⟨hΔ, nofun, hd⟩ sb) ?_ ?_
-    · intro b₀ hb
-      subst hb
-      obtain ⟨b₀', _, rfl⟩ := sb.lower
-      exact ⟨b₀', rfl⟩
-    · intro b₀ b₀' hb hb'
-      subst hb
-      obtain ⟨x, sx, hx⟩ := sb.lower
-      have : x = b₀' := VExpr.liftN_inj.1 (hx.symm.trans hb')
-      subst this
-      exact ih4 _ _ rfl hb' hΔ sx
+theorem VLCtx.FVLift'.cons_vlet (W : VLCtx.FVLift' Δ Δ' dk l k)
+    (h1 : ty₀.lift' (l.consN k) = ty') (h2 : val₀.lift' (l.consN k) = val') :
+    VLCtx.FVLift' ((none, .vlet ty₀ val₀) :: Δ) ((none, .vlet ty' val') :: Δ') (dk + 1) l k := by
+  subst h1 h2; exact W.cons_bvar (.vlet ty₀ val₀)
 
-theorem TelTrN.iff_syn_telWF (henv : env.Ordered) (hΔ : Δ.WF env Us.length) :
-    TelTrN env Us n Δ e e' ↔ TrSyn Us Δ e e' ∧ TelWF env Us n Δ e e' :=
-  ⟨fun H => ⟨H.toTrExprS.toTrSyn, H.toTelWF henv hΔ⟩, fun ⟨S, H⟩ => .of_syn_telWF henv hΔ S H⟩
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
+/-- The residual obligations of a typed translation in an extension `Δ'` of `Δ` by free
+variables hold in `Δ`, for a source scoped by `Δ`. -/
+theorem TrExprS.residual_restrictFV' {Us : List Name}
+    (W : VLCtx.FVLift' Δ Δ' dk l k) (hΔ' : Δ'.WF env Us.length)
+    (H : TrExprS env Us Δ' e e') (hsyn : TrSyn Us Δ e e₀) : TrResidual env Us Δ e := by
+  induction H generalizing Δ dk k e₀ with
+  | bvar => exact .bvar
+  | fvar => exact .fvar
+  | sort => exact .sort
+  | const => exact .const
+  | app _ _ _ _ ih1 ih2 => let .app s1 s2 := hsyn; exact .app (ih1 W hΔ' s1) (ih2 W hΔ' s2)
+  | lam h1 a1 _ ih1 ih2 =>
+    let .lam s1 s2 := hsyn
+    have W' := W.cons_vlam ((s1.weakFV' W hΔ'.fvars_nodup).unique a1.toTrSyn)
+    exact .lam s1 (ih1 W hΔ' s1) (ih2 W' ⟨hΔ', nofun, h1⟩ s2)
+  | forallE h1 _ a1 _ ih1 ih2 =>
+    let .forallE s1 s2 := hsyn
+    have W' := W.cons_vlam ((s1.weakFV' W hΔ'.fvars_nodup).unique a1.toTrSyn)
+    exact .forallE s1 (ih1 W hΔ' s1) (ih2 W' ⟨hΔ', nofun, h1⟩ s2)
+  | letE h1 a1 a2 _ ih1 ih2 ih3 =>
+    let .letE s1 s2 s3 := hsyn
+    have e1 := (s1.weakFV' W hΔ'.fvars_nodup).unique a1.toTrSyn
+    have e2 := (s2.weakFV' W hΔ'.fvars_nodup).unique a2.toTrSyn
+    have W' := W.cons_vlet e1 e2
+    have h1' := (HasType.weak'_iff henv hs hΔ'.toCtx W.toCtx).1 (by rw [← e1, ← e2] at h1; exact h1)
+    exact .letE s1 s2 h1' (ih1 W hΔ' s1) (ih2 W hΔ' s2) (ih3 W' ⟨hΔ', nofun, h1⟩ s3)
+  | lit h1 _ ih => let .lit s := hsyn; exact .lit h1 (ih W hΔ' s)
+  | mdata _ ih => let .mdata s := hsyn; exact .mdata (ih W hΔ' s)
+  | proj _ _ ih => let .proj s := hsyn; exact .proj (ih W hΔ' s)
+
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
+/-- **Strengthening of a typed translation**: a source scoped by `Δ` that has a typed translation
+in an extension `Δ'` of `Δ` by free variables has one in `Δ`, of which the larger one is the lift.
+The syntax is `TrSyn.restrictFV'`-style restriction; the typing is `VExpr.WF.weak'_iff`. -/
+theorem TrExprS.restrictFV'_inv {Us : List Name}
+    (W : VLCtx.FVLift' Δ Δ' dk l k) (hΔ' : Δ'.WF env Us.length) (hΔ : Δ.WF env Us.length)
+    (H : TrExprS env Us Δ' e e') (hfv : FVarsIn (· ∈ Δ.fvars) e) :
+    ∃ e₀, TrExprS env Us Δ e e₀ ∧ e' = e₀.lift' (l.consN k) := by
+  have hc : Closed e Δ.bvars := W.bvars_eq ▸ H.closed
+  obtain ⟨e₀, s⟩ := TrSyn.exists_of_scoped hc hfv H.toTrSyn.levelParamsIn
+  have heq : e' = e₀.lift' (l.consN k) := H.toTrSyn.unique (s.weakFV' W hΔ'.fvars_nodup)
+  refine ⟨e₀, s.toTrExprS henv.ordered hΔ ?_ (H.residual_restrictFV' henv hs W hΔ' s), heq⟩
+  exact (VExpr.WF.weak'_iff henv hs hΔ'.toCtx W.toCtx).1 (heq ▸ H.wf henv.ordered hΔ')
+
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
+/-- `TrExprS.restrictFV'_inv` for the removal of free variables only. -/
+theorem TrExprS.restrictFV_inv {Us : List Name}
+    (W : VLCtx.FVLift Δ Δ' 0 n 0) (hΔ' : Δ'.WF env Us.length)
+    (H : TrExprS env Us Δ' e e') (hfv : FVarsIn (· ∈ Δ.fvars) e) :
+    ∃ e₀, TrExprS env Us Δ e e₀ ∧ e' = e₀.liftN n := by
+  obtain ⟨e₀, h, rfl⟩ := H.restrictFV'_inv henv hs W.toFVLift' hΔ' (W.wf henv hΔ') hfv
+  exact ⟨e₀, h, by simpa using VExpr.lift'_consN_skipN (e := e₀) (n := n) (k := 0)⟩
 
 end Lean4Lean

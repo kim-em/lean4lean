@@ -56,7 +56,7 @@ theorem NestedRun.boundarySignatureFacts
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (B : CheckedFormation E.lowered.c E.lowered.stats E.lowered.loweredDecl
       E.lowered.nparams E.lowered.isUnsafe E.lowered.depth E.lowered.initialEnv
       E.lowered.indTypes)
@@ -193,7 +193,7 @@ theorem NestedRun.boundaryCaseCompilationData
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (Hformation : NestedExpansionData (ves.venv (if isUnsafe then .unsafe else .safe))
       sourceDecl)
     (hformationExpanded : Hformation.expanded = E.lowered.loweredDecl)
@@ -423,7 +423,7 @@ theorem NestedRun.restorationRecursorNames
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (Hformation : NestedExpansionData (ves.venv (if isUnsafe then .unsafe else .safe))
       sourceDecl)
     (hformationExpanded : Hformation.expanded = E.lowered.loweredDecl)
@@ -512,7 +512,7 @@ theorem NestedRun.loweredRecursorNames_fresh
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) :
+    (wf : ves.WF sourceProdEnv) :
     ∀ n ∈ E.lowered.loweredDecl.types.map (fun t => t.name.str "rec"),
       sourceProdEnv.find? n = none := by
   intro n hn
@@ -552,7 +552,7 @@ theorem NestedRun.loweredRecursorNames_fresh
     E.lowered.recursors.recursors
   rw [← hrecursorValues] at hmem
   have Hinst := E.lowered.recursors.installed
-  obtain ⟨info, hentry⟩ := Hinst.existsEntryOfValue hmem
+  obtain ⟨info, hentry⟩ := AddConstants.existsEntryOfValue hmem
   have hlocal : E.lowered.recursors.localContext.env = E.lowered.ctorEnv :=
     E.lowered.recursors.localExtends.env_eq
   have hwfLocal : E.lowered.recursors.localContext.env.constants.WF := by
@@ -583,7 +583,7 @@ theorem NestedRun.caseEliminators
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (_Howners : ConstructorOwnersPresent sourceProdEnv)
     (Hformation : NestedExpansionData (ves.venv (if isUnsafe then .unsafe else .safe))
       sourceDecl)

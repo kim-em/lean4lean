@@ -36,6 +36,12 @@ theorem GhostFreeArr.getElem {arr : Array Expr} (h : GhostFreeArr G arr) {i : Na
 
 theorem GhostFreeArr.empty : GhostFreeArr G #[] := nofun
 
+theorem GhostFreeArr.push {arr : Array Expr} (h : GhostFreeArr G arr) (ha : GhostFree G a) :
+    GhostFreeArr G (arr.push a) := by
+  intro x hx; rcases Array.mem_push.1 hx with hx | rfl
+  · exact h _ hx
+  · exact ha
+
 theorem GhostFreeArr.reverse {arr : Array Expr} (h : GhostFreeArr G arr) : GhostFreeArr G arr.reverse :=
   fun _ hx => h _ (Array.mem_reverse.1 hx)
 

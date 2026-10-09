@@ -171,6 +171,10 @@ theorem GhostFreeState.leaveScope {saved s : State} (h₁ : GhostFreeState G sav
     GhostFreeState G (saved.leaveScope s) :=
   { h₁ with unfold := h₂.unfold, reserved := h₂.reserved }
 
+theorem GhostFreeState.exitScope {saved s : State} (h₁ : GhostFreeState G saved)
+    (h₂ : GhostFreeState G s) : GhostFreeState G (saved.exitScope mode s) := by
+  cases mode <;> [exact h₁.leaveScope h₂; exact h₂]
+
 theorem M.PreservesGhostRestriction.withFreshId {x : Name → M α} {R}
     (H : ∀ (n : Name) (s : State) (c₁ c₂ : Context), GhostRel G c₁ c₂ → GhostFreeState G s →
       ¬ G ⟨n⟩ → ∀ a s', x n c₁ s = .ok (a, s') →
@@ -186,8 +190,8 @@ theorem M.PreservesGhostRestriction.withFreshId {x : Name → M α} {R}
     obtain ⟨a, s1⟩ := p
     rw [ex] at e; cases e
     obtain ⟨h1, h2, h3, h4⟩ := H _ _ _ _ hr hs.next hfresh _ _ ex
-    rw [h1]
-    exact ⟨rfl, h2, hs.leaveScope h3, NameGenerator.LE.next.trans h4⟩
+    rw [h1, hr.ctx_eq.2.2.2.2]
+    exact ⟨rfl, h2, hs.exitScope h3, by rw [State.exitScope_ngen]; exact NameGenerator.LE.next.trans h4⟩
 
 theorem M.PreservesGhostRestriction.withLocalDecl {f : Expr → M α} {R} (hty : GhostFree G ty)
     (H : ∀ id, ¬ G id → M.PreservesGhostRestriction G (f (.fvar id)) R) :

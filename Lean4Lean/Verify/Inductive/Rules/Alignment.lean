@@ -317,25 +317,6 @@ theorem RecursorCheck.installedRecursorCommonPrefixContextAt
   exact H.generatedRecursorCommonPrefixBinderDomainAt
     owner₁ howner₁ owner₂ howner₂ i hi Hbinder₁ Hbinder₂
 
-theorem RecursorCheck.RuleAlignment.installedRecursorTelescopeTranslation
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorCheck R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.RuleAlignment owner howner i hctor) :
-    Nonempty (RecursorTypeTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) := by
-  exact H.installedRecursorTelescopeTranslationAt owner howner
-
 /-- The parameter domains recovered from the installed generated recursor
 are definitionally equal to the independently checked cached parameter
 scope.  This is the connecting lemma for the equation context: it compares contexts,
@@ -927,7 +908,6 @@ theorem
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
     (fieldDomains : List VExpr) (fieldResult : VExpr)
-    (hfields : fieldDomains.length = A.rule.allArgs.size)
     (Htarget :
       let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
       let parameterDecls :=

@@ -153,7 +153,7 @@ theorem NestedRun.loweredConstructorLevelsAll
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∀ lowered ∈ E.lowered.loweredDecl.types, ∀ lc ∈ lowered.ctors,
       lc.type.ConstLevelsAt
         (familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
@@ -212,7 +212,7 @@ theorem NestedRun.loweredConstructorLevelsAll
         R.declared.venvCtors := R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
     simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked
-  have wfP : ves.WFCore P.c.env := by
+  have wfP : ves.WF P.c.env := by
     simpa only [henv] using wf
   have HbaseWF : P.initialEnv.WF := by
     simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf
@@ -325,7 +325,7 @@ theorem NestedRun.loweredConstructorLevels
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∀ lowered ∈ E.lowered.loweredDecl.types.take sourceDecl.types.length,
       ∀ lc ∈ lowered.ctors,
         lc.type.ConstLevelsAt
@@ -343,7 +343,7 @@ theorem NestedRun.loweredAuxiliaryConstructorLevels
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∀ lowered ∈ E.lowered.loweredDecl.types.drop sourceDecl.types.length,
       ∀ lc ∈ lowered.ctors,
         lc.type.ConstLevelsAt
@@ -364,7 +364,7 @@ theorem NestedRun.loweredConstructorLevels_heads
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheadNames : auxiliaries.flatMap (·.headNames) =
       familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length)) :

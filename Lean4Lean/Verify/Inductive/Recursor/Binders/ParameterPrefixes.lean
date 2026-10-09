@@ -26,7 +26,6 @@ def constructorTelescopeTarget (ctorVal : VConstVal) :
 /-- Initialize the constructor telescope from the
 translated source constant. -/
 noncomputable def ConstructorSynthesisState.initial
-    (Hctor : TrSourceConstRaw env Us ctor type ctorVal)
     (htype : env.IsType Us.length [] ctorVal.type) :
     checkInductiveTypes.loopType.ScopedHeaderTelescope
       env Us (constructorTelescopeTarget ctorVal) [] ctorVal.type 0 0 := by
@@ -1113,8 +1112,8 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       intro out hout
       have Hchecked := Hshape out hout
       have Htail' := Htail out hout
-      let Hinitial := ConstructorSynthesisState.initial Hctor
-        (by simpa [Hstats.uvars] using Hchecked.2)
+      let Hinitial := ConstructorSynthesisState.initial (env := Hc.venv) (Us := c.lparams)
+        (ctorVal := ctorVal) (by simpa [Hstats.uvars] using Hchecked.2)
       exact ⟨source, ctorVal.type,
         .done (by rw [Hstats.params_size, hzero]),
         [], by simpa [hzero, hscope] using
@@ -1135,7 +1134,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         ⟨dom', body', _hdom, _hbody, hdomType, hbodyType, heq⟩
       exact (VEnv.IsType.forallE hdomType hbodyType).defeqU_l
         Hc.checking.tr.wf (by trivial) heq
-    let Hinitial := ConstructorSynthesisState.initial Hctor htype
+    let Hinitial := ConstructorSynthesisState.initial htype
     apply checkConstructors.loopCtor.parameterTelescopeWF
       (decl := decl) (ctorVal := ctorVal) Hc
       (Q := fun classes => ∃ tail,

@@ -103,7 +103,6 @@ theorem TypedCallTemplates.pushCurrent
     {calls : Array AddInductive.RecCallTemplate}
     (Hsem : TypedCallTemplates Rroot decl depth stats
       motives rootScope fields hypotheses calls)
-    (hnext : hypotheses.size < fields.size)
     (Hrecent : RecursorFVarSuffix Rroot R hypotheses)
     (hchk : R.chk = Rroot.chk)
     (call : AddInductive.RecCallTemplate)
@@ -258,7 +257,6 @@ theorem TypedCallTemplatesAt.pushCurrent
     {calls : Array AddInductive.RecCallTemplate}
     (Hsem : TypedCallTemplatesAt Rroot decl depth stats
       motives fieldScope fields hypotheses calls)
-    (hnext : hypotheses.size < fields.size)
     (Hrecent : RecursorFVarSuffix Rroot R hypotheses)
     (hchk : R.chk = Rroot.chk)
     (call : AddInductive.RecCallTemplate)
@@ -385,7 +383,7 @@ structure MotiveTelescopesAt
   appliesTo : ∀ target (_htarget : target < recInfos.size)
       {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
-      (Hext : RecursorContextExtension Rroot Rcurrent)
+      (_Hext : RecursorContextExtension Rroot Rcurrent)
       {depth : Nat} {exposedType : Expr} {syntaxTarget : VExpr},
     TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         exposedType syntaxTarget →
@@ -612,8 +610,8 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     (Hvi : ∀ {next : AddInductive.Context}
       (Rnext : RecursorContextWF next recLparams)
       {prior : Array Expr}
-      (Hprior : RecursorFVarSuffix Rroot Rnext prior)
-      (hcheckNext : next.checkLCtx = root.checkLCtx)
+      (_Hprior : RecursorFVarSuffix Rroot Rnext prior)
+      (_hcheckNext : next.checkLCtx = root.checkLCtx)
       (j : Nat) (hj : j < u.size),
       ((AddInductive.mkRecInfos.loopUArgs
           (AddInductive.mkRecInfos.fieldsBefore stats bu u[j]) u[j] fun uiTy xs => do
@@ -707,9 +705,9 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
       (HcallOrigins.pushCurrent R.toBindingContextWF vName viTy .default
         hnext Hrecent.contextLE R (Hrecent.upsetRoot rootScopeInContext hrootUp)
         O call hcall)
-      (HcallSemantics.pushCurrent hnext Hrecent hchkR call HcallSemantic)
+      (HcallSemantics.pushCurrent Hrecent hchkR call HcallSemantic)
       fieldScope
-      (HsharpSemantics.pushCurrent hnext Hrecent hchkR call HsharpSemantic)
+      (HsharpSemantics.pushCurrent Hrecent hchkR call HsharpSemantic)
       (by simp) (by simp [hcalls]) hcheck hchkR Hvi ?_
     intro out Rout values outCalls Hvalues HvalueOrigins HvalueCallOrigins
       HvalueCallSemantics HvalueSharpSemantics hsize hcallSize
@@ -1596,13 +1594,10 @@ theorem RecInfoBindings.rebaseCore_flatMinors_fvars
     _ = B.flatMinors.fvars := B.flatMinors.exprArrayFVarIds
 
 theorem RecInfoBindings.NoAlias.rebaseCore
-    {stats : AddInductive.InductiveStats}
-    (B : RecInfoBindings c left) (params : FVarArrayIn c stats.params)
-    (N : RecInfoBindings.NoAlias B params)
+    (N : RecInfoBindings.NoAlias params left)
     (H : RecInfoEqExceptRules left right) :
-    RecInfoBindings.NoAlias (B.rebaseCore H) params := by
-  unfold RecInfoBindings.NoAlias at N ⊢
-  unfold RecInfoBindings.allFvars at N ⊢
+    RecInfoBindings.NoAlias params right := by
+  unfold RecInfoBindings.NoAlias RecInfoBindings.allFvars at N ⊢
   rw [← H.map_motive, ← H.map_major, ← H.flatMap_minors,
     ← H.flatMap_indices]
   exact N
@@ -1844,9 +1839,6 @@ theorem continueMinor_rowsSize
     (Horigins : RecInfoBinderTypes c recInfos)
     (hidx : dIdx < recInfos.size)
     (HminorShape : MinorPremiseType)
-    (HminorShapePosition :
-      HminorShape.localIndex = Horigins.minorTypes[dIdx]!.size ∧
-      HminorShape.origin = minorTy)
     (Hrows : ∀ owner, owner < recInfos.size →
       recInfos[owner]!.ruleTemplates.size =
         Horigins.minorTypes[owner]!.size) :
@@ -1862,7 +1854,7 @@ theorem continueMinor_rowsSize
       (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
     let HoriginsMinor := Horigins.addMinor dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
-      .default HminorShape HminorShapePosition
+      .default HminorShape
     let HoriginsNext : RecInfoBinderTypes cMinor next :=
       HoriginsMinor.rebaseCore Hcore
     ∀ owner, owner < next.size →
@@ -1913,9 +1905,6 @@ theorem continueMinor_fieldsOuterFresh
     (Horigins : RecInfoBinderTypes c recInfos)
     (hidx : dIdx < recInfos.size)
     (HminorShape : MinorPremiseType)
-    (HminorShapePosition :
-      HminorShape.localIndex = Horigins.minorTypes[dIdx]!.size ∧
-      HminorShape.origin = minorTy)
     (Hbindings : RecInfoBindings c recInfos)
     (Hparams : FVarArrayIn c stats.params)
     (Hlater : ∀ i, dIdx < i → i < recInfos.size →
@@ -1947,7 +1936,7 @@ theorem continueMinor_fieldsOuterFresh
       (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
     let HoriginsMinor := Horigins.addMinor dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
-      .default HminorShape HminorShapePosition
+      .default HminorShape
     let HoriginsNext : RecInfoBinderTypes cMinor next :=
       HoriginsMinor.rebaseCore Hcore
     ∀ owner (howner : owner < next.size) (localIndex : Nat)
@@ -2118,9 +2107,6 @@ theorem continueMinor_templateOrigins
     (Horigins : RecInfoBinderTypes c recInfos)
     (hidx : dIdx < recInfos.size)
     (HminorShape : MinorPremiseType)
-    (HminorShapePosition :
-      HminorShape.localIndex = Horigins.minorTypes[dIdx]!.size ∧
-      HminorShape.origin = minorTy)
     (Hbindings : RecInfoBindings c recInfos)
     (Hparams : FVarArrayIn c stats.params)
     (Hlater : ∀ i, dIdx < i → i < recInfos.size →
@@ -2149,18 +2135,18 @@ theorem continueMinor_templateOrigins
       (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
     let HoriginsMinor := Horigins.addMinor dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
-      .default HminorShape HminorShapePosition
+      .default HminorShape
     let HoriginsNext : RecInfoBinderTypes cMinor next :=
       HoriginsMinor.rebaseCore Hcore
     RuleTemplatesMatch stats next HoriginsNext := by
   intro cMinor next Hcore HoriginsMinor HoriginsNext
   refine {
     rows_size := continueMinor_rowsSize R dIdx recInfos minorName minorTy
-      mkTemplate Horigins hidx HminorShape HminorShapePosition
+      mkTemplate Horigins hidx HminorShape
       Hblueprints.rows_size
     entry := ?_
     fields_outer_fresh := continueMinor_fieldsOuterFresh stats R dIdx recInfos minorName minorTy
-      mkTemplate Horigins hidx HminorShape HminorShapePosition Hbindings Hparams
+      mkTemplate Horigins hidx HminorShape Hbindings Hparams
       Hlater HminorSemantics HminorSemantic HminorFieldsFresh
       Hblueprints.fields_outer_fresh }
   intro owner howner localIndex hlocal
@@ -2287,9 +2273,6 @@ theorem continueMinor_templateSemanticOrigins
     (Horigins : RecInfoBinderTypes c recInfos)
     (hidx : dIdx < recInfos.size)
     (HminorShape : MinorPremiseType)
-    (HminorShapePosition :
-      HminorShape.localIndex = Horigins.minorTypes[dIdx]!.size ∧
-      HminorShape.origin = minorTy)
     (Hbindings : RecInfoBindings c recInfos)
     (Hparams : FVarArrayIn c stats.params)
     (Hlater : ∀ i, dIdx < i → i < recInfos.size →
@@ -2324,7 +2307,7 @@ theorem continueMinor_templateSemanticOrigins
       (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
     let HoriginsMinor := Horigins.addMinor dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
-      .default HminorShape HminorShapePosition
+      .default HminorShape
     let HoriginsNext : RecInfoBinderTypes cMinor next :=
       HoriginsMinor.rebaseCore Hcore
     let Rminor := R.withLocalDecl (name := minorName) (bi := .default)
@@ -2345,11 +2328,11 @@ theorem continueMinor_templateSemanticOrigins
       split <;> rfl
   refine {
     rows_size := continueMinor_rowsSize R dIdx recInfos minorName minorTy
-      mkTemplate Horigins hidx HminorShape HminorShapePosition
+      mkTemplate Horigins hidx HminorShape
       HblueprintSemantics.rows_size
     entry := ?_
     fields_outer_fresh := continueMinor_fieldsOuterFresh stats R dIdx recInfos minorName minorTy
-      mkTemplate Horigins hidx HminorShape HminorShapePosition Hbindings Hparams
+      mkTemplate Horigins hidx HminorShape Hbindings Hparams
       Hlater HminorSemantics HminorSemantic HminorFieldsFresh
       HblueprintSemantics.fields_outer_fresh }
   intro owner howner localIndex hlocal
@@ -2474,7 +2457,7 @@ theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
       elimLevel)
     (HindexRows : TrBinderTypesPerFamily R Horigins.indexTypes)
     (Hparams : FVarArrayIn c stats.params)
-    (HnoAlias : Hbindings.NoAlias Hparams)
+    (HnoAlias : RecInfoBindings.NoAlias stats.params recInfos)
     (Horder : RecInfoOuterOrder R Hparams Hbindings)
     (Hroot : BindingContextLE root c)
     (hidx : dIdx < recInfos.size)
@@ -2531,13 +2514,13 @@ theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
-      (henvOut : Rout.venv = R.venv)
+      (_henvOut : Rout.venv = R.venv)
       (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
-      (hparameterDeclsOut :
+      (_hparameterDeclsOut :
         HsuffixOut.parameterDecls = Hsuffix.parameterDecls)
-      (HstatsOut : RecursorValidAppStatsWF Rout.venv recLparams
+      (_HstatsOut : RecursorValidAppStatsWF Rout.venv recLparams
         Rout.mlctx.vlctx stats decl outDepth)
-      (hctxOut : VLCtx.NoIndConsts
+      (_hctxOut : VLCtx.NoIndConsts
         (decl.types.map (·.name)) Rout.mlctx.vlctx)
       (HbindingsOut : RecInfoBindings outCtx out)
       (HoriginsOut : RecInfoBinderTypes outCtx out),
@@ -2559,7 +2542,7 @@ theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
       RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →
       TrBinderTypesPerFamily Rout HoriginsOut.indexTypes →
       (HparamsOut : FVarArrayIn outCtx stats.params) →
-      HbindingsOut.NoAlias HparamsOut →
+      RecInfoBindings.NoAlias stats.params out →
       RecInfoOuterOrder Rout HparamsOut HbindingsOut →
       RecInfoArities stats out →
       BindingContextLE root outCtx →
@@ -2592,7 +2575,6 @@ theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
   let HoriginsMinor := Horigins.addMinor dIdx hidx
     (BindingContextLE.refl c) R.toBindingContextWF minorName
       (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default HminorShape
-      HminorShapePosition
   let HminorSourcesMinor := HminorSources.addMinor dIdx hidx hsourceIdx
     (BindingContextLE.refl c) R.toBindingContextWF minorName
     (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default HminorShape
@@ -2600,7 +2582,7 @@ theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
   let HminorSemanticsMinor := HminorSemantics.addMinor
     (RecursorContextExtension.refl R) dIdx hidx minorName
     (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default Hminor HminorType HminorShape
-    HminorShapePosition HminorSemantic
+    HminorSemantic
   let Hcore := modifyMinorAndTemplate_coreEq recInfos dIdx hidx
     (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
   let HbindingsNext : RecInfoBindings cMinor next :=
@@ -2611,14 +2593,14 @@ theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
   have HblueprintsNext :
       RuleTemplatesMatch stats next HoriginsNext :=
     continueMinor_templateOrigins stats R dIdx recInfos minorName
-      _ mkTemplate Horigins hidx HminorShape HminorShapePosition Hbindings
+      _ mkTemplate Horigins hidx HminorShape Hbindings
       Hparams Hlater HminorSemantics HminorSemantic HminorFieldsFresh
       Hblueprints HminorTemplate
   have HblueprintSemanticsNext :
       TypedRuleTemplates Rminor decl stats next elimLevel
         Hsuffix.parameterDecls HoriginsNext :=
     continueMinor_templateSemanticOrigins stats R dIdx recInfos minorName
-      _ mkTemplate Horigins hidx HminorShape HminorShapePosition Hbindings
+      _ mkTemplate Horigins hidx HminorShape Hbindings
       Hparams Hlater HminorSemantics HminorSemantic HminorFieldsFresh
       Hminor HminorType HblueprintSemantics HminorTemplateTyped
   have HminorSourcesNext :
@@ -2670,10 +2652,8 @@ theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
   · change TrBinderTypesPerFamily Rminor Horigins.indexTypes
     simpa [Rminor] using HindexRows.mono Hstep
   · exact RecInfoBindings.NoAlias.rebaseCore
-      HbindingsMinor HparamsMinor
       (Hbindings.addMinor_noAlias Hparams HnoAlias dIdx hidx
-      (BindingContextLE.refl c) R.toBindingContextWF minorName
-        (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default) Hcore
+        (BindingContextLE.refl c) R.toBindingContextWF) Hcore
   · exact HorderNext
   · exact (Harities.modifyMinors dIdx
       (fun minors => minors.push (.fvar ⟨c.ngen.curr⟩))).rebaseCore Hcore
@@ -2925,7 +2905,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
       elimLevel)
     (HindexRows : TrBinderTypesPerFamily R Horigins.indexTypes)
     (Hparams : FVarArrayIn c stats.params)
-    (HnoAlias : Hbindings.NoAlias Hparams)
+    (HnoAlias : RecInfoBindings.NoAlias stats.params recInfos)
     (Horder : RecInfoOuterOrder R Hparams Hbindings)
     (Hroot : BindingContextLE root c)
     (hidx : dIdx < recInfos.size)
@@ -2965,7 +2945,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
       RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →
       TrBinderTypesPerFamily Rout HoriginsOut.indexTypes →
       (HparamsOut : FVarArrayIn outCtx stats.params) →
-      HbindingsOut.NoAlias HparamsOut →
+      RecInfoBindings.NoAlias stats.params out →
       RecInfoOuterOrder Rout HparamsOut HbindingsOut →
       RecInfoArities stats out →
       BindingContextLE root outCtx →
@@ -3200,7 +3180,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
       (HmotiveShapes.mono Hbindings HextAll.contextLE)
       (Htelescopes.mono HextAll) (HindexRows.mono HextAll)
       HparamsOut
-      (Hbindings.mono_noAlias Hparams HextAll.contextLE HnoAlias)
+      HnoAlias
       HorderOut (Hroot.trans HextAll.contextLE) hidx hsourceIdx Harities
       Hlater Hconsumed.unannotated
       Hconsumed.isType {
@@ -3425,7 +3405,7 @@ theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
       elimLevel)
     (HindexRows : TrBinderTypesPerFamily R Horigins.indexTypes)
     (Hparams : FVarArrayIn c stats.params)
-    (HnoAlias : Hbindings.NoAlias Hparams)
+    (HnoAlias : RecInfoBindings.NoAlias stats.params recInfos)
     (Horder : RecInfoOuterOrder R Hparams Hbindings)
     (Hroot : BindingContextLE root c)
     (hidx : dIdx < recInfos.size)
@@ -3440,13 +3420,13 @@ theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
-      (henvOut : Rout.venv = R.venv)
+      (_henvOut : Rout.venv = R.venv)
       (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
-      (hparameterDeclsOut :
+      (_hparameterDeclsOut :
         HsuffixOut.parameterDecls = Hsuffix.parameterDecls)
-      (HstatsOut : RecursorValidAppStatsWF Rout.venv recLparams
+      (_HstatsOut : RecursorValidAppStatsWF Rout.venv recLparams
         Rout.mlctx.vlctx stats decl outDepth)
-      (hctxOut : VLCtx.NoIndConsts
+      (_hctxOut : VLCtx.NoIndConsts
         (decl.types.map (·.name)) Rout.mlctx.vlctx)
       (HbindingsOut : RecInfoBindings outCtx out)
       (HoriginsOut : RecInfoBinderTypes outCtx out),
@@ -3468,7 +3448,7 @@ theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
       RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →
       TrBinderTypesPerFamily Rout HoriginsOut.indexTypes →
       (HparamsOut : FVarArrayIn outCtx stats.params) →
-      HbindingsOut.NoAlias HparamsOut →
+      RecInfoBindings.NoAlias stats.params out →
       RecInfoOuterOrder Rout HparamsOut HbindingsOut →
       RecInfoArities stats out →
       BindingContextLE root outCtx →
@@ -3548,7 +3528,7 @@ theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
   have hdidxConst := Hstats.indConstAt hdidxDecl
   rcases Hnormal with ⟨Hnormal⟩
   have hdidxValid := Hnormal.validOfOpening Hopening Hparams
-    HfieldsRecent.toFVarArrayAfter hdidxConst HterminalNonforall
+    hdidxConst HterminalNonforall
   rcases checkPositivityStep.isValidIndApp?_exists_of_valid
       hdidxValid hdidxConst with
     ⟨ownerIdx, hownerValid⟩
@@ -3815,7 +3795,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
       elimLevel)
     (HindexRows : TrBinderTypesPerFamily R Horigins.indexTypes)
     (Hparams : FVarArrayIn c stats.params)
-    (HnoAlias : Hbindings.NoAlias Hparams)
+    (HnoAlias : RecInfoBindings.NoAlias stats.params recInfos)
     (Horder : RecInfoOuterOrder R Hparams Hbindings)
     (Hroot : BindingContextLE root c)
     (hparamUniverses : ParameterUniverseSupport c stats.params)
@@ -3883,7 +3863,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
       RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →
       TrBinderTypesPerFamily Rout HoriginsOut.indexTypes →
       (HparamsOut : FVarArrayIn outCtx stats.params) →
-      HbindingsOut.NoAlias HparamsOut →
+      RecInfoBindings.NoAlias stats.params out →
       RecInfoOuterOrder Rout HparamsOut HbindingsOut →
       RecInfoArities stats out →
       BindingContextLE root outCtx →
@@ -4028,7 +4008,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
       elimLevel)
     (HindexRows : TrBinderTypesPerFamily R Horigins.indexTypes)
     (Hparams : FVarArrayIn c stats.params)
-    (HnoAlias : Hbindings.NoAlias Hparams)
+    (HnoAlias : RecInfoBindings.NoAlias stats.params recInfos)
     (Horder : RecInfoOuterOrder R Hparams Hbindings)
     (Hroot : BindingContextLE root c)
     (hparamUniverses : ParameterUniverseSupport c stats.params)
@@ -4097,7 +4077,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
       RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →
       TrBinderTypesPerFamily Rout HoriginsOut.indexTypes →
       (HparamsOut : FVarArrayIn outCtx stats.params) →
-      HbindingsOut.NoAlias HparamsOut →
+      RecInfoBindings.NoAlias stats.params out →
       RecInfoOuterOrder Rout HparamsOut HbindingsOut →
       RecInfoArities stats out →
       BindingContextLE root outCtx →

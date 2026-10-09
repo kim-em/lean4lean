@@ -310,7 +310,6 @@ variable {registry : Registry} {declarations : List VDecl}
 /-- A recursor or quotient iota major of structure type is a saturated
 application of the structure's constructor. -/
 theorem ConcretePattern.struct_major (henv : env.WF)
-    (contract : registry.EnvironmentContract env declarations)
     (H : ConcretePattern registry env (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r)
     (hΓ : OnCtx Γ (env.IsType U)) (hl : env.projections family info)
     (hs : env.HasType U Γ (VExpr.mkApps (.const cc lsc) fs) (VExpr.mkApps (.const family ls) ps))

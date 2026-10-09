@@ -84,7 +84,7 @@ theorem generic_major_cases {env : VEnv} (H : env.WF) {schema : CaseSchema}
   obtain ⟨base, source, block, _, hle, hcert, _, hconsts⟩ := H.eliminator_installed hreg
   have hcert' := hcert
   obtain ⟨expanded, aux, hdata, hprior, hr, hnames, hrfresh⟩ := hcert'
-  obtain ⟨j, hown, e, _, hrestore⟩ := Certified.generic_major hcert hgen hdf hm
+  obtain ⟨j, hown, e, _, hrestore⟩ := generic_major hgen hdf hm
   rw [hr] at hrestore
   rcases CaseCompilationData.ctorApp_cases hdata hrfresh j hrestore with
     ⟨F, hF, hFget, c', hc', hcn, hmaj⟩ | ⟨a, ha, hge, haget, c', hc', _, hmaj⟩

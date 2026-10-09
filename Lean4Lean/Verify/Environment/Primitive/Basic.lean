@@ -67,7 +67,7 @@ theorem TypeChecker.M.WF.withNatProbe {c : VContext} {m : MLCtx} [cwf : c.MLCWF 
       ∀ cwf' s', s₀ ≤ s' → ¬s.ngen.Reserves id →
         let : TrTerm c.venv c.lparams m'.vlctx (.fvar id) .nat :=
           .fvar (VLCtx.find?_vlam_self (ty := .nat)) (.bvar .zero)
-        M.WF (c.withMLC m' (wf := cwf')) s' (f (.fvar id)) fun a s'' => Q a (s.leaveScope s'')) :
+        M.WF (c.withMLC m' (wf := cwf')) s' (f (.fvar id)) fun a s'' => Q a (s.exitScope c.fuel.cacheMode s'')) :
     (withLocalDecl name .default q(Nat) f).WF (c.withMLC m) s Q :=
   .withLocalDecl (hprim.trNat c.Ewf.ordered hnat)
     (hprim.natIsType c.Ewf.ordered hnat (c.withMLC m).Δwf.toCtx) hs H
@@ -80,7 +80,7 @@ theorem TypeChecker.M.WF.withBoolProbe {c : VContext} {m : MLCtx} [cwf : c.MLCWF
       ∀ cwf' s', s₀ ≤ s' → ¬s.ngen.Reserves id →
         let : TrTerm c.venv c.lparams m'.vlctx (.fvar id) .bool :=
           .fvar (VLCtx.find?_vlam_self (ty := .bool)) (.bvar .zero)
-        M.WF (c.withMLC m' (wf := cwf')) s' (f (.fvar id)) fun a s'' => Q a (s.leaveScope s'')) :
+        M.WF (c.withMLC m' (wf := cwf')) s' (f (.fvar id)) fun a s'' => Q a (s.exitScope c.fuel.cacheMode s'')) :
     (withLocalDecl name .default q(Bool) f).WF (c.withMLC m) s Q :=
   .withLocalDecl (hprim.trBool c.Ewf.ordered hbool)
     (hprim.boolIsType c.Ewf.ordered hbool (c.withMLC m).Δwf.toCtx) hs H
@@ -897,7 +897,7 @@ theorem lambdaTelescope.loop.WF {c : VContext} {α} {k : Array Expr → Expr →
       fvs.toList.reverse = (m'.fvarRevList n hn).map .fvar → e₀ = m'.mkLambda n hn body →
       lambdaTelescope.Inv c m₀ m' fvs n hn As e₀' body' → e₀.lambdaArity = n →
       (c.withMLC m').TrExprS body body' → (k fvs body).WF (c.withMLC m') s' Q)
-    (hQ : ∀ a (saved s' : State), Q a s' → Q a (saved.leaveScope s'))
+    (hQ : ∀ a (saved s' : State), Q a s' → Q a (saved.exitScope c.fuel.cacheMode s'))
     (e : Expr) (arr : Array Expr) (m : MLCtx) [c.MLCWF m] (s : State) (e' : VExpr)
     {n} (hn : n ≤ m.length) (harity : e₀.lambdaArity = n + e.lambdaArity)
     (hdrop : m.dropN n hn = m₀)
@@ -970,7 +970,7 @@ theorem lambdaTelescope.WF {c : VContext} {α} {k : Array Expr → Expr → M α
       e = m'.mkLambda n hn body → lambdaTelescope.Inv c m m' fvs n hn As e' body' →
       e.lambdaArity = n →
       (c.withMLC m').TrExprS body body' → (k fvs body).WF (c.withMLC m') s' Q)
-    (hQ : ∀ a (saved s' : State), Q a s' → Q a (saved.leaveScope s') := by
+    (hQ : ∀ a (saved s' : State), Q a s' → Q a (saved.exitScope c.fuel.cacheMode s') := by
       intros; assumption) :
     (lambdaTelescope e k).WF (c.withMLC m) s Q :=
   lambdaTelescope.loop.WF H hQ e #[] m s e' (n := 0) (Nat.zero_le _) (by simp) rfl (by simp) (by simp)
@@ -1162,7 +1162,7 @@ theorem Data.mkTyEqBitwise (P : Data v ci' c) (hnat : c.venv.contains ``Nat)
     (hb : c.venv.contains ``Bool)
     (h2 : v.type == q((Bool → Bool → Bool) → Nat → Nat → Nat)) :
     ci'.type = .forallE .boolOp2 .natOp2 :=
-  (P.htype.eqv h2).unique (by simp [TrExprS.IsUnique]) (bitwiseTy hnat hb).trS
+  (P.htype.eqv h2).unique (bitwiseTy hnat hb).trS
 
 /-- The definition's value as a bundle, at whatever local context the probes have built up. -/
 def Data.hv (P : Data v ci' c) {T} (eq : ci'.type = T) (m : MLCtx) [cwf : c.MLCWF m] :
@@ -1173,23 +1173,21 @@ def Data.hv (P : Data v ci' c) {T} (eq : ci'.type = T) (m : MLCtx) [cwf : c.MLCW
 checker compared against, and `unique` quotes determinism against the arrow `natArrow2` builds.
 Generic in the codomain, so `Nat.beq`/`Nat.ble` pass a `Bool` bundle instead. -/
 theorem Data.mkTyEq (P : Data v ci' c) (hnat : c.venv.contains ``Nat) {codSrc : Expr}
-    (hcodU : TrExprS.IsUnique codSrc)
     (hcod : TrTy c.venv c.lparams [(none, .vlam .nat), (none, .vlam .nat)] codSrc)
     {n₁ n₂ : Name} {d₁ d₂ : MData} {bi₁ bi₂ : BinderInfo}
     (h2 : v.type == Expr.forallE n₁ (.mdata d₁ q(Nat))
       (.forallE n₂ (.mdata d₂ q(Nat)) codSrc bi₂) bi₁) :
     ci'.type = .forallE .nat (.forallE .nat hcod.tgt) :=
-  (P.htype.eqv h2).unique (by simp [TrExprS.IsUnique, hcodU])
+  (P.htype.eqv h2).unique
     (.natArrow2 c.Ewf.ordered c.hasPrimitives hnat hcod)
 
 /-- The unary version, for `Nat.pred`. -/
 theorem Data.mkTyEq1 (P : Data v ci' c) (hnat : c.venv.contains ``Nat) {codSrc : Expr}
-    (hcodU : TrExprS.IsUnique codSrc)
     (hcod : TrTy c.venv c.lparams [(none, .vlam .nat)] codSrc)
     {n₁ : Name} {d₁ : MData} {bi₁ : BinderInfo}
     (h2 : v.type == Expr.forallE n₁ (.mdata d₁ q(Nat)) codSrc bi₁) :
     ci'.type = .forallE .nat hcod.tgt :=
-  (P.htype.eqv h2).unique (by simp [TrExprS.IsUnique, hcodU])
+  (P.htype.eqv h2).unique
     (.natArrow1 c.Ewf.ordered c.hasPrimitives hnat hcod)
 
 theorem Data.uvars_eq (P : Data v ci' c) (hok' : v.safety = .safe ∧ v.levelParams = []) :

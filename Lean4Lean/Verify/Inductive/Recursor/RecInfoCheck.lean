@@ -347,12 +347,12 @@ theorem ConstructorCheck.loopInd1WF
       (recInfos : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF cOut
         (AddInductive.getRecLevelParams elimLevel c.lparams))
-      (henvOut : Rout.venv = R.context.venv)
+      (_henvOut : Rout.venv = R.context.venv)
       (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
-      (hparameterDeclsOut : HsuffixOut.parameterDecls =
+      (_hparameterDeclsOut : HsuffixOut.parameterDecls =
         (R.recursorHeaders.parameterSuffix.toRecursorContext
           Helim).parameterDecls)
-      (HstatsOut : RecursorValidAppStatsWF Rout.venv
+      (_HstatsOut : RecursorValidAppStatsWF Rout.venv
         (AddInductive.getRecLevelParams elimLevel c.lparams)
         Rout.mlctx.vlctx stats decl outDepth)
       (Hbindings : RecInfoBindings cOut recInfos)
@@ -367,7 +367,7 @@ theorem ConstructorCheck.loopInd1WF
           Helim).parameterDecls.toCtx recInfos elimLevel ->
       TrBinderTypesPerFamily Rout Horigins.indexTypes ->
       (Hparams : FVarArrayIn cOut stats.params) ->
-      Hbindings.NoAlias Hparams ->
+      RecInfoBindings.NoAlias stats.params recInfos ->
       RecInfoOuterOrder Rout Hparams Hbindings ->
       RecInfoArities stats recInfos ->
       RecInfoMinorsEmpty recInfos ->
@@ -501,7 +501,7 @@ theorem ConstructorCheck.mkRecInfosWF
           Helim).parameterDecls.toCtx recInfos elimLevel ->
       TrBinderTypesPerFamily Rout Horigins.indexTypes ->
       (Hparams : FVarArrayIn cOut stats.params) ->
-      Hbindings.NoAlias Hparams ->
+      RecInfoBindings.NoAlias stats.params recInfos ->
       RecInfoOuterOrder Rout Hparams Hbindings ->
       RecInfoArities stats recInfos ->
       (forall i, i < recInfos.size ->
@@ -647,7 +647,7 @@ theorem ConstructorCheck.getElimLevelMkRecInfosWF
           Helim).parameterDecls.toCtx recInfos elimLevel ->
       TrBinderTypesPerFamily Rout Horigins.indexTypes ->
       (Hparams : FVarArrayIn cOut stats.params) ->
-      Hbindings.NoAlias Hparams ->
+      RecInfoBindings.NoAlias stats.params recInfos ->
       RecInfoOuterOrder Rout Hparams Hbindings ->
       RecInfoArities stats recInfos ->
       (forall i, i < recInfos.size ->

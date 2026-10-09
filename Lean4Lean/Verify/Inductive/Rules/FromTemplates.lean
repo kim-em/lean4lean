@@ -1092,7 +1092,7 @@ theorem RuleTemplatesMatch.boundGeneratedRules
     (Hsemantics : TypedMinors R Horigins parameterDecls)
     (Hbindings : RecInfoBindings c recInfos)
     (Hparams : FVarArrayIn c stats.params)
-    (hnoalias : Hbindings.NoAlias Hparams)
+    (hnoalias : RecInfoBindings.NoAlias stats.params recInfos)
     (hsize : recInfos.size = indTypes.size)
     (hcounts : ∀ i, i < recInfos.size →
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)

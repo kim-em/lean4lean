@@ -7,6 +7,36 @@ open Lean4Lean
 namespace Lean4Lean.TypeChecker.Inner
 open Lean hiding Environment Exception
 
+/-- A body that mentions no bound variable, translated under a binder, is translated outside it,
+to a term whose lift is its translation under the binder. This is strengthening of the binder; it
+is used only in the global cache mode, where `isDefEqLambda` and `isDefEqForall` compare such
+bodies outside the binder, as the C++ kernel does. -/
+theorem lowerClosedBody {c : VContext} {s : State} {m} [mwf : c.MLCWF m]
+    (wf : s.WF (c.withMLC m)) (hs : c.venv.Strengthening)
+    (b1 : c.venv.IsType c.lparams.length (c.withMLC m).vlctx.toCtx t₂') {fvs : List Expr}
+    {bᵢ : Expr} {bᵢ'} (h : bᵢ.looseBVarRange' = 0)
+    (a3 : TrExprS c.venv c.lparams ((none, .vlam t₂') :: (c.withMLC m).vlctx)
+      (bᵢ.instantiateList fvs 1) bᵢ') :
+    ∃ e', (c.withMLC m).TrExprS (bᵢ.instantiateList (default :: fvs)) e' ∧
+      c.venv.IsDefEqU c.lparams.length (t₂' :: (c.withMLC m).vlctx.toCtx) bᵢ' e'.lift := by
+  have e1 : bᵢ.instantiateList fvs 1 = bᵢ :=
+    Expr.instantiateList'_eq_self (by rw [h]; exact Nat.zero_le _)
+  have e2 : bᵢ.instantiateList (default :: fvs) = bᵢ :=
+    Expr.instantiateList'_eq_self (by rw [h]; exact Nat.zero_le _)
+  rw [e1] at a3; rw [e2]
+  let v : FVarId := ⟨s.ngen.curr⟩
+  have hΔ : VLCtx.WF c.venv c.lparams.length ((some (v, []), .vlam t₂') :: m.vlctx) := by
+    refine ⟨mwf.1.tr.wf, ?_, b1⟩
+    rintro _ _ ⟨⟩; simp; exact fun h => s.ngen.not_reserves_self (wf.ngen_wf _ h)
+  have hw := a3.wf c.Ewf.ordered
+    (show VLCtx.WF c.venv c.lparams.length ((none, .vlam t₂') :: m.vlctx) from
+      ⟨mwf.1.tr.wf, nofun, b1⟩)
+  have := a3.inst_fvar c.Ewf.ordered hΔ
+  rw [Expr.instantiate1'_eq_self (by rw [h]; exact Nat.zero_le _)] at this
+  obtain ⟨e₀, he, rfl⟩ := this.restrictFV_inv c.Ewf hs (.skip_fvar _ _ .refl) hΔ
+    (by simpa using a3.fvarsIn)
+  exact ⟨e₀, he, hw⟩
+
 theorem isDefEqLambda.WF {c : VContext} {s : State}
     {m} [mwf : c.MLCWF m]
     {fvs : List Expr} (hsubst : subst.toList.reverse = fvs)
@@ -37,6 +67,21 @@ theorem isDefEqLambda.WF {c : VContext} {s : State}
   have tt' := tt.of_l c'.Ewf c'.Δwf a1
   have ⟨b₁'', a3', eq⟩ := a3.defeqDFC' c'.Ewf <| .cons (.refl c'.Ewf c'.Δwf) (by nofun) (.vlam tt')
   unfold F
+  refine RecM.WF.readThe ?_
+  split <;> rename_i hg
+  · simp only [Bool.and_eq_true, Bool.not_eq_true', Expr.hasLooseBVars] at hg
+    obtain ⟨⟨hgl, h1⟩, h2⟩ := hg
+    simp at h1 h2
+    refine .stateWF fun wf => ?_
+    have hs := wf.strengthening_of_isGlobal hgl
+    let ⟨_, a4, a5⟩ := lowerClosedBody wf hs b1 h1 a3'
+    let ⟨_, b4, b5⟩ := lowerClosedBody wf hs b1 h2 b3
+    exact isDefEqLambda.WF (fvs := default :: fvs) (by simp [hsubst]) a4 b4
+      |>.mono fun _ _ _ h hb =>
+      have hΓ := ⟨c'.Δwf, b1⟩
+      have ⟨_, bb⟩ := eq.symm.trans c'.Ewf hΓ a5
+        |>.trans c'.Ewf hΓ ((h hb).weak c'.Ewf (B := t₂')) |>.trans c'.Ewf hΓ b5.symm
+      ⟨_, .symm <| .lamDF tt'.symm bb.symm⟩
   extract_lets d₂'
   have : d₂' = d₂.instantiateList fvs := by split at hx <;> [simp [d₂', hsubst]; exact hx]
   clear_value d₂'; subst this
@@ -79,6 +124,21 @@ theorem isDefEqForall.WF {c : VContext} {s : State}
   have tt' := tt.of_l c'.Ewf c'.Δwf a1
   have ⟨b₁'', a3', eq⟩ := a3.defeqDFC' c'.Ewf <| .cons (.refl c'.Ewf c'.Δwf) (by nofun) (.vlam tt')
   unfold F
+  refine RecM.WF.readThe ?_
+  split <;> rename_i hg
+  · simp only [Bool.and_eq_true, Bool.not_eq_true', Expr.hasLooseBVars] at hg
+    obtain ⟨⟨hgl, h1⟩, h2⟩ := hg
+    simp at h1 h2
+    refine .stateWF fun wf => ?_
+    have hs := wf.strengthening_of_isGlobal hgl
+    let ⟨_, a4, a5⟩ := lowerClosedBody wf hs b1 h1 a3'
+    let ⟨_, b4, b5⟩ := lowerClosedBody wf hs b1 h2 b3
+    exact isDefEqForall.WF (fvs := default :: fvs) (by simp [hsubst]) a4 b4
+      |>.mono fun _ _ _ h hb =>
+      have hΓ := ⟨c'.Δwf, b1⟩
+      have bb := eq.symm.trans c'.Ewf hΓ a5 |>.trans c'.Ewf hΓ ((h hb).weak c'.Ewf (B := t₂'))
+        |>.trans c'.Ewf hΓ b5.symm |>.of_r c'.Ewf hΓ bT
+      ⟨_, .symm <| .forallEDF tt'.symm bb.symm⟩
   extract_lets d₂'
   have : d₂' = d₂.instantiateList fvs := by split at hx <;> [simp [d₂', hsubst]; exact hx]
   clear_value d₂'; subst this
@@ -102,9 +162,10 @@ theorem quickIsDefEq.WF {c : VContext} {s : State}
     split at eq; rename_i b _ b' m hm
     change let s' := _; (_, s') = _ at eq; extract_lets s' at eq
     injection eq; subst b' s₁
-    have ⟨ewf, _, h1⟩ := EquivManager.isEquiv.WF wf.ectx hm
-    refine let vs' := s'; ⟨vs', rfl, .rfl, { wf with ectx := ewf }, ?_⟩
-    exact fun h => (h1 h).uniq c.Ewf c.mlctx.noBV c.Δwf he₁ he₂
+    obtain ⟨Δ', hΔ', hm'⟩ := wf.ectx
+    have ⟨ewf, _, h1⟩ := EquivManager.isEquiv.WF hm' hm
+    refine let vs' := s'; ⟨vs', rfl, .rfl, { wf with ectx := ⟨Δ', hΔ', ewf⟩ }, ?_⟩
+    exact fun h => wf.eqv_uniq hΔ' (h1 h) he₁ he₂
   split <;> [exact .pure fun _ => h ‹_›; split]
   · exact .toLBoolM <| c.withMLC_self ▸
       isDefEqLambda.WF (subst := #[]) (fvs := []) rfl (c.withMLC_self ▸ he₁) (c.withMLC_self ▸ he₂)
@@ -346,7 +407,7 @@ theorem tryEtaStructCore.WF {c : VContext} {s : State}
   have hinv := H hb
   -- congruence along the constructor spine: the arguments are the projections of `t`
   have hnumF : info.numFields = args'.length - info.nparams := by rw [hnf', hnf, hlenArgs]
-  have hcongr := VEnv.IsDefEq.mkApps_congr c.Ewf c.Δwf.toCtx (args := args')
+  have hcongr := VEnv.IsDefEq.mkApps_congr (args := args')
     (args' := args'.take info.nparams ++
       (List.range info.numFields).map fun j => VExpr.proj fInfo.induct j e₁') hf'
     (by simp [hlenArgs]) (by simp [hnumF]; omega) fun j hj hj' hj'' => by
@@ -543,7 +604,7 @@ theorem isNatZero_wf {c : VContext} (H : isNatZero e) (h : c.TrExprS e e') : e' 
     · have := h.eqv H; exact .lit (this.nat_of_natZero c.Ewf c.hasPrimitives) this
     · split at H <;> [exact h; cases H]
   have := TrExprS.lit_has_type (l := .natVal 0) h1
-  exact h1.unique (by trivial) (TrExprS.natLit c.hasPrimitives this 0).1
+  exact h1.unique (TrExprS.natLit c.hasPrimitives this 0).1
 
 theorem isNatSuccOf?_wf {c : VContext} (H : isNatSuccOf? e = some e₁)
     (h : c.TrExprS e e') : ∃ x, c.TrExprS e₁ x ∧ e' = .app .natSucc x := by
@@ -551,7 +612,7 @@ theorem isNatSuccOf?_wf {c : VContext} (H : isNatSuccOf? e = some e₁)
   · rename_i n
     have := TrExprS.lit_has_type (l := .natVal (n+1)) h
     refine ⟨_, (TrExprS.natLit c.hasPrimitives this n).1, ?_⟩
-    exact h.unique (by trivial) (TrExprS.natLit c.hasPrimitives this (n+1)).1
+    exact h.unique (TrExprS.natLit c.hasPrimitives this (n+1)).1
   · let .app a1 a2 a3 a4 := h
     let .const b1 b2 b3 := a3
     cases c.hasPrimitives.natSucc b1

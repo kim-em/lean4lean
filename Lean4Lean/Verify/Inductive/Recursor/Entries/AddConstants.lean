@@ -426,7 +426,8 @@ theorem ConstructorListEntries.ctorTelescopeSteps
     rcases hentry with rfl | htail
     · intro info e _
       cases e
-      exact hcert ctor List.mem_cons_self
+      obtain ⟨T, hT⟩ := hcert ctor List.mem_cons_self
+      exact .of_telTrN hT
     · exact ih (fun c hc => hcert c (List.mem_cons_of_mem _ hc)) entry htail
 
 theorem ConstructorTypeEntries.ctorTelescopeSteps
@@ -864,7 +865,7 @@ theorem AddConstants.abstract
     exact ih
 
 theorem AddConstants.existsEntryOfValue
-    (H : AddConstants safety env venv entries outEnv outVEnv)
+    {entries : List (ConstantInfo × VConstVal)}
     (hvalue : value ∈ entries.map Prod.snd) :
     ∃ info, (info, value) ∈ entries := by
   rcases List.mem_map.mp hvalue with ⟨⟨info, entryValue⟩, hentry, heq⟩
@@ -1235,12 +1236,6 @@ theorem AddConstants.valid
       change (env.constants.insert ci.name ci).find?' ci.name = some ci
       rw [(hmapWF.insert ci.name ci hnMap).find?'_eq_find?, hmapWF.find?_insert]
       simp
-    have hstep : ProjectionRegistryStep env.constants venv' ci :=
-      ProjectionRegistryStep.of_not_ctor fun info =>
-        hkinds (ci, ci') (by simp) info
-    have hrec : RecursorInstallStep safety env.constants venv' ci :=
-      RecursorInstallStep.of_not_rec fun rec =>
-        hrecs (ci, ci') (by simp) rec
     have hlisted : ListedConstructorsCoherent (env.add ci) := by
       apply hvalid.listedConstructors.add hmapWF hn
       · intro familyName familyInfo hfamily hmem
@@ -1257,8 +1252,9 @@ theorem AddConstants.valid
           have hout := Htail.preservesSourceFind hnextWF hfind
           rw [hheaders (ci, ci') (by simp) familyInfo hci name hname] at hout
           cases hout
-    refine ih (hvalid.add hn hnprim htr.1 hwf hadd hdelta hstep hrec
-      (.of_not_ctor fun info => hkinds (ci, ci') (by simp) info) hlisted)
+    refine ih (hvalid.add hn hnprim htr.1 hwf hadd hdelta
+      (fun info => hkinds (ci, ci') (by simp) info)
+      (fun rec => hrecs (ci, ci') (by simp) rec) hlisted)
       (fun entry hentry => hkinds entry (by simp [hentry]))
       (fun entry hentry => hrecs entry (by simp [hentry])) ?_
       (fun entry hentry => hheaders entry (by simp [hentry]))
@@ -1297,49 +1293,6 @@ theorem AddConstants.validHeaders {infos : List InductiveVal} {values : List VCo
     rw [← hfst] at heq
     cases heq
     exact habsent _ hinfo name hname
-
-/-- After the headers and then the constructors of a declaration are installed on an
-environment whose listed constructors are present and coherent, every listed constructor is
-coherent: the old headers list only old constants, and each new header lists exactly the
-constructors installed for its family. -/
-theorem AddConstants.listedConstructorsOfDeclaration
-    (Hheaders : AddConstants safety env venv headerEntries headerEnv headerVEnv)
-    (Hctors : AddConstants safety' headerEnv venv' ctorEntries outEnv outVEnv)
-    (hwf : env.constants.WF)
-    (hlisted : ListedConstructorsCoherent env) (hpresent : ListedConstructorsPresent env)
-    (hinfos : ∀ entry ∈ headerEntries, ∃ numNested, ∃ info ∈ (AddInductive.inductiveTypeInfos
-      stats nparams indTypes numNested isUnsafe lparams).toList, entry.1 = .inductInfo info)
-    (hentries : ConstructorTypeEntries (AddInductive.constructorInfo stats lparams isUnsafe)
-      indTypes.toList ctorEntries) :
-    ListedConstructorsCoherent outEnv := by
-  have hheaderWF := Hheaders.targetMapWF hwf
-  intro familyName familyInfo hfamily name hname found hfound
-  rcases Hctors.entryOrigin hheaderWF hfamily with hfamilyHeader | ⟨entry, hentry, -, hentryEq⟩
-  · rcases Hheaders.entryOrigin hwf hfamilyHeader with hold | ⟨entry, hentry, hentryName, hentryEq⟩
-    · rcases hpresent familyName familyInfo hold name hname with ⟨old, hold'⟩
-      have hout := Hctors.preservesSourceFind hheaderWF (Hheaders.preservesSourceFind hwf hold')
-      rw [hfound] at hout
-      cases hout
-      exact hlisted familyName familyInfo hold name hname _ hold'
-    · rcases hinfos entry hentry with ⟨numNested, info, hinfo, hfst⟩
-      rw [hfst] at hentryEq hentryName
-      cases hentryEq
-      rcases inductiveTypeInfos_ctors stats nparams indTypes numNested isUnsafe lparams hinfo
-        with ⟨owner, howner, hownerName, hctors, hunsafe⟩
-      rw [hctors] at hname
-      obtain ⟨ctor, hctor, rfl⟩ := List.mem_map.mp hname
-      rcases hentries.findSourceInduct howner hctor with
-        ⟨ctorInfo, value, hmem, hctorName, hinduct, hctorUnsafe⟩
-      have hctorFind : outEnv.find? ctorInfo.name = some (.ctorInfo ctorInfo) :=
-        Hctors.findEntry hheaderWF hmem
-      rw [hctorName, hfound] at hctorFind
-      cases hctorFind
-      refine ⟨ctorInfo, rfl, ?_, hctorUnsafe.trans hunsafe.symm⟩
-      rw [hinduct, hentryName, ← hownerName]
-      rfl
-  · rcases hentries.ownerOfEntry hentry with ⟨_, _, _, hctorEq, -⟩
-    rw [hctorEq] at hentryEq
-    cases hentryEq
 
 /-- Installing a batch containing no inductive headers preserves the
 constructor-parameter agreement `ConstructorParameterAlignment`. Exact kernel-environment lookups are
@@ -1389,7 +1342,7 @@ theorem AddInductive.declareRecursors.loop.typingWF
     (HminorSemantics : TypedMinors R Horigins
       parameterDecls)
     (Hparams : FVarArrayIn c stats.params)
-    (hnoalias : Hbindings.NoAlias Hparams)
+    (hnoalias : RecInfoBindings.NoAlias stats.params recInfos)
     (hcounts : ∀ i, i < recInfos.size →
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
     (hparameterUp : IsFVarUpSet
@@ -1647,7 +1600,6 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
     (k : Bool)
     (hk : KEligible stats indTypes k)
     (Hvalid : CheckingEnv.Valid c.safety c.env currentVEnv)
-    (Hcontext : BindingContextWF c)
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams R.mlctx.vlctx
       stats decl depth)
@@ -1666,7 +1618,7 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
     (HminorSemantics : TypedMinors R Horigins
       parameterDecls)
     (Hparams : FVarArrayIn c stats.params)
-    (hnoalias : Hbindings.NoAlias Hparams)
+    (hnoalias : RecInfoBindings.NoAlias stats.params recInfos)
     (hcounts : ∀ i, i < recInfos.size →
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
     (hparameterUp : IsFVarUpSet
@@ -1688,11 +1640,12 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
     (targets : TrRecursorTypes currentVEnv c.lparams elimLevel c
       stats indTypes recInfos → Nat → VExpr)
     (Hcanonical : ∀ (T : TrRecursorTypes currentVEnv c.lparams elimLevel c
-      stats indTypes recInfos) owner (howner : owner < indTypes.size),
+      stats indTypes recInfos) owner (_howner : owner < indTypes.size),
       TrExprS currentVEnv (AddInductive.getRecLevelParams elimLevel c.lparams) []
         (AddInductive.declareRecursors.recursorType stats recInfos c.lctx owner)
         (targets T owner))
     (hnotPartial : c.safety ≠ .partial)
+    (hmode : c.fuel.cacheMode.Sound currentVEnv)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (_howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
@@ -1726,7 +1679,7 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
               stats indTypes recInfos := by
       simpa using
         (AddInductive.declareRecursors.checkRecursorTypes.trRecursorTypesWF
-          Hvalid hnotPartial stats indTypes elimLevel recInfos
+          Hvalid hmode hnotPartial stats indTypes elimLevel recInfos
           (recInfos.flatMap (·.minors)).size
           (recInfos.map (·.motive)).size
           (indTypes.map (·.name)).toList c.lctx k (c.safety != .safe)

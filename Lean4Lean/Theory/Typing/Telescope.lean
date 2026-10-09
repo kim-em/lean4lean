@@ -574,7 +574,6 @@ arguments.  This packages the substitution bookkeeping needed by generated
 minor hypotheses: after each application, `liftClosedDomains` and
 `instForallDomains` reduce the remaining domains back to the same invariant. -/
 theorem VEnv.TypedApplicationSpine.liftClosedDomains
-    (henv : env.Ordered)
     (Hfn : env.HasType uvars ctx fn
       (VExpr.wrapForalls (VExpr.liftClosedDomains types 0) resultType))
     (Hargs : List.Forall₂

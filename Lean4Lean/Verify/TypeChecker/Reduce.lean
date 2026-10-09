@@ -17,7 +17,7 @@ theorem rawNatLitExt?.WF {c : VContext} (H : rawNatLitExt? e = some n) (he : c.T
     · cases H; have := he.eqv h; exact .lit (this.nat_of_natZero c.Ewf c.hasPrimitives) this
     · unfold Expr.rawNatLit? at H; split at H <;> cases H; exact he
   have hn := this.lit_has_type
-  exact ⟨hn, this.unique (by trivial) (TrExprS.natLit c.hasPrimitives hn n).1⟩
+  exact ⟨hn, this.unique (TrExprS.natLit c.hasPrimitives hn n).1⟩
 
 def reduceBinNatOpG (guard : Nat → Nat → Prop) [DecidableRel guard]
     (f : Nat → Nat → Nat) (a b : Expr) : RecM (Option Expr) := do
@@ -176,11 +176,8 @@ theorem reduceProjCoreCont.WF (hc : c.TrExprS c₁ c')
   split <;> [rename_i mkC ls hmk; exact .pure nofun]
   refine .getEnv <| (M.WF.liftExcept envGet.WF).lift.bind fun ci _ _ hci => ?_
   split <;> [rename_i mkInfo; exact .pure nofun]
-  split <;> [rename_i structInfo hfind; exact .pure nofun]
-  split <;> [rename_i hsingle; exact .pure nofun]
   split <;> [rename_i hinduct; exact .pure nofun]
   refine .pure fun e₁ heq => ?_
-  have hsingle := beq_iff_eq.1 hsingle
   have hinduct := beq_iff_eq.1 hinduct
   -- the constructor application spine
   have hc₁ : c.TrExprS ((Expr.const mkC ls).mkAppList c₁.getAppArgsList) c' := by
@@ -199,6 +196,14 @@ theorem reduceProjCoreCont.WF (hc : c.TrExprS c₁ c')
   -- the structure is registered, so its type constant is visible
   obtain ⟨-, type, -, -, -, -, -, -, -, -, -, -, -, habstract, -⟩ :=
     c.Ewf.ordered.projectionShape hinfo
+  -- and it is a header listing exactly the registered constructor, which is the head `mkC`
+  obtain ⟨structInfo, hfind, hctors, -, -⟩ := c.blocks.projectionHeader hinfo
+  have hsingle : structInfo.ctors = [mkC] := by
+    obtain ⟨owner, howner, hmem, -⟩ := c.constructorOwners mkC mkInfo hci
+    rw [hinduct, hfind] at howner
+    cases howner
+    rw [hctors] at hmem ⊢
+    rw [List.mem_singleton.mp hmem]
   have ⟨info', hinfo', hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
     hnp, hnf, _⟩ := VContext.registryShape hfind habstract hsingle hci hinduct
   obtain rfl := c.Ewf.ordered.projections_unique hinfo hinfo'

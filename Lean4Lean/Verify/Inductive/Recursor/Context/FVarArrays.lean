@@ -895,20 +895,13 @@ def ConstructorOwnerNormalForm.ofOpening
 /-- Reopening a constructor telescope with any fresh field array gives a valid
 application of the owner family. -/
 theorem ConstructorOwnerNormalForm.validOfOpening
-    {root current : AddInductive.Context}
+    {root : AddInductive.Context}
     (H : ConstructorOwnerNormalForm stats targetIdx source)
     (Hopening : ConstructorFieldOpening source terminal fields)
     (Hparams : FVarArrayIn root stats.params)
-    (Hfields : FVarArrayAfter root current fields)
     (hconst : stats.indConsts[targetIdx]? = some (.const name levels))
     (hterminal : terminal.isForall = false) :
     AddInductive.isValidIndAppIdx stats terminal targetIdx = true := by
-  have hopenFvars : Hopening.fvars = Hfields.toFVarArrayIn.fvars :=
-    Hopening.fvars_eq_bound Hfields.toFVarArrayIn
-  have hdisjoint : ∀ fv, fv ∈ Hparams.fvars → fv ∉ Hopening.fvars := by
-    intro fv hparam hfield
-    rw [hopenFvars] at hfield
-    exact Hfields.fresh fv hfield (Hparams.members fv hparam)
   have hopenTerminal : Hopening.residual.isForall = false := by
     rw [← Hopening.closed, Expr.abstractList_isForall, hterminal]
   have hresidual : H.residual = Hopening.residual :=
@@ -920,7 +913,7 @@ theorem ConstructorOwnerNormalForm.validOfOpening
     exact H.valid
   exact checkPositivityStep.isValidIndAppIdx.of_abstractList
     Hparams.fvars Hopening.fvars 0 hclosedValid hconst
-    Hparams.expressions hdisjoint
+    Hparams.expressions
 
 /-- A successful run of the constructor check `loopCtor` yields the owner normal form of
 the constructor type. This is separate from `CtorTailWF`: both read the same run, but this
@@ -1114,8 +1107,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
       source checkedType fullType checkedType')
     (hi : targetIdx < decl.types.length)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
-    :
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts) :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       source 0 fuel c).WF
       (fun _ => ∃ tail,
@@ -1159,7 +1151,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
         ⟨dom', body', _hdom, _hbody, hdomType, hbodyType, heq⟩
       exact (VEnv.IsType.forallE hdomType hbodyType).defeqU_l
         Hc.checking.tr.wf (by trivial) heq
-    let Hinitial := ConstructorSynthesisState.initial Hctor htype
+    let Hinitial := ConstructorSynthesisState.initial htype
     apply checkConstructors.loopCtor.parameterTelescopeWF
       (decl := decl) (ctorVal := ctorVal) Hc
       (Q := fun _ => ∃ tail,
@@ -1429,7 +1421,7 @@ def RecursorParameterContextSuffix.fieldBase
     (H : RecursorParameterContextSuffix R stats depth) :
     R.Base (ctorFieldCheck c stats #[]) :=
   (R.baseMain depth H.depth_le).cast
-    (((R.baseMain depth H.depth_le).restrictTo_eq R.lctxWF).symm.trans
+    (((R.baseMain depth H.depth_le).restrictTo_eq).symm.trans
       (congrArg c.lctx.restrictTo H.fieldFVars))
 
 theorem RecursorParameterContextSuffix.fieldBase_fvarList
@@ -1470,7 +1462,7 @@ def RecursorContextWF.fieldBaseNext
           name ty bi } stats (bu.push (.fvar ⟨c.ngen.curr⟩))) :=
   let R' := R.withCheckedLocalDeclOn (name := name) (bi := bi) _ B
     htr hty htr₀ hty₀
-  R'.check.cast ((R'.check.restrictTo_eq R'.lctxWF).symm.trans
+  R'.check.cast ((R'.check.restrictTo_eq).symm.trans
     (congrArg (c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi).restrictTo (by
       change B.m.fvarList ++ [⟨c.ngen.curr⟩] = _
       rw [hB]

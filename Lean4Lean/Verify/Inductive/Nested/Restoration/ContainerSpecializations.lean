@@ -692,7 +692,7 @@ theorem AuxiliaryFamilySourceData.auxiliarySpecialization
     (N : AuxiliaryFamilySourceData H baseVEnv sourceTypesVEnv
       lparams target)
     (hbase : baseVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
-    (wf : ves.WFCore prodEnv) (decl : VInductDecl)
+    (wf : ves.WF prodEnv) (decl : VInductDecl)
     (huvars : decl.uvars = lparams.length) (hnparams : decl.nparams = nparams)
     (hunsafe : decl.isUnsafe = isUnsafe)
     (hle : baseVEnv ≤ sourceTypesVEnv) {paramCtx : List VExpr}
@@ -1085,7 +1085,7 @@ theorem NestedRun.containerSpecializations
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∃ (envTypes : VEnv) (generated : List VInductiveType)
         (auxiliaries : List ContainerSpecialization),
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -1137,7 +1137,7 @@ theorem NestedRun.containerSpecializations
     exact R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
     simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked
-  have wfP : ves.WFCore P.c.env := by
+  have wfP : ves.WF P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
@@ -1165,7 +1165,7 @@ theorem NestedRun.containerSpecializations
     exact hNctx.trans E.phases_commonParameterContext
   have Htypes := Hrun.allExpansionsOfSources Hcache Hparams Hsource
     Htarget Hmetadata Hsources
-      (VEnvs.WFCore.environmentTypesClosed wfP) wfP.inductivesClosed
+      (VEnvs.WF.environmentTypesClosed wfP) wfP.inductivesClosed
       (by simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf)
       hempty N E.auxiliarySelection
   have hsourceLength : sourceTypes.length = sourceDecl.types.length :=
@@ -1309,7 +1309,7 @@ theorem NestedRun.commonParameterContext_refl
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) :
+    (wf : ves.WF sourceProdEnv) :
     VEnv.IsDefEqCtx (ves.venv (if isUnsafe then .unsafe else .safe))
       sourceDecl.uvars [] E.lowered.headers.commonParameterContext
       E.lowered.headers.commonParameterContext := by

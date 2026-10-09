@@ -66,15 +66,25 @@ mention the bound variable. -/
 def State.leaveScope (saved s : State) : State :=
   { saved with ngen := s.ngen, unfold := s.unfold }
 
-/-- Runs `x` with a fresh free variable, scoped so that no conversion fact outlives its binder
-(see `State.leaveScope`). Every binder of the checker (`withLocalDecl`, `withLetDecl`) opens its
-scope through this. -/
+/-- The state on leaving a binder scope entered from `saved`, in cache mode `mode`: in the scoped
+mode `State.leaveScope`, in the global mode the state of the body unchanged. -/
+def State.exitScope : CacheMode → State → State → State
+  | .scoped, saved, s => saved.leaveScope s
+  | .global _, _, s => s
+
+/-- Runs `x` with a fresh free variable. In the scoped cache mode (the default) the scope is
+closed with `State.leaveScope`, so that no conversion fact outlives its binder. In the global cache
+mode nothing is restored, as in the C++ kernel, whose caches belong to the whole run. Every binder
+of the checker (`withLocalDecl`, `withLetDecl`) opens its scope through this. -/
 instance : MonadLocalNameGenerator M where
   withFreshId x := do
-    let saved ← get
-    let r ← x (← mkFreshId)
-    modify saved.leaveScope
-    pure r
+    match (← read).fuel.cacheMode with
+    | .scoped =>
+      let saved ← get
+      let r ← x (← mkFreshId)
+      modify saved.leaveScope
+      pure r
+    | .global _ => x (← mkFreshId)
 
 instance (priority := low) : MonadWithReaderOf LocalContext M where
   withReader f := withReader fun s => { s with lctx := f s.lctx }
@@ -379,16 +389,13 @@ def whnfFVar (e : Expr) (cheapProj : Bool) : RecM Expr := do
 /-- Reduce a projection whose structure argument has already been reduced to a constructor
 application.
 
-The constructor at the head of the reduced structure must be the unique constructor of
-`structName`; this is redundant on well-typed input (see `divergences.md`). As in
-`type_checker::reduce_proj_core`, the selected argument need only be present. -/
+As in `type_checker::reduce_proj_core`, the head must be a constructor of `structName`, and the
+selected argument need only be present. -/
 def reduceProjCoreCont (structName : Name) (idx : Nat) (c : Expr) : RecM (Option Expr) :=
   c.withApp fun mk args => do
   let .const mkC _ := mk | return none
   let env ← getEnv
   let .ctorInfo mkInfo ← env.get mkC | return none
-  let some (.inductInfo structInfo) := env.find? structName | return none
-  unless structInfo.ctors == [mkC] do return none
   unless mkInfo.induct == structName do return none
   return args[mkInfo.numParams + idx]?
 
@@ -598,12 +605,16 @@ def isDefEqLambda (t s : Expr) (subst : Array Expr := #[]) : RecM Bool :=
       let tType := tDom.instantiateRev subst
       if !(← isDefEq tType sType) then return false
       pure (some sType)
-    -- The bodies are always compared under a binder, even when neither mentions it, so that
-    -- the comparison happens in the context where it is meaningful (scoped so that no conversion
-    -- fact outlives its binder).
-    let sType := sType.getD (sDom.instantiateRev subst)
-    withLocalDecl name bi sType fun fv =>
-      isDefEqLambda tBody sBody (subst.push fv)
+    -- In the scoped cache mode the bodies are always compared under a binder, even when
+    -- neither mentions it, so that the comparison happens in the context where it is meaningful.
+    -- In the global cache mode a binder is opened only when a body mentions it, as in the C++
+    -- kernel's `is_def_eq_binding`.
+    if (← readThe Context).fuel.cacheMode.isGlobal && !tBody.hasLooseBVars && !sBody.hasLooseBVars then
+      isDefEqLambda tBody sBody (subst.push default)
+    else
+      let sType := sType.getD (sDom.instantiateRev subst)
+      withLocalDecl name bi sType fun fv =>
+        isDefEqLambda tBody sBody (subst.push fv)
   | t, s => isDefEq (t.instantiateRev subst) (s.instantiateRev subst)
 
 /-- If `t` and `s` are for-all expressions, checks that their domains are defeq and recurses on the
@@ -617,12 +628,16 @@ def isDefEqForall (t s : Expr) (subst : Array Expr := #[]) : RecM Bool :=
       let tType := tDom.instantiateRev subst
       if !(← isDefEq tType sType) then return false
       pure (some sType)
-    -- The bodies are always compared under a binder, even when neither mentions it, so that
-    -- the comparison happens in the context where it is meaningful (scoped so that no conversion
-    -- fact outlives its binder).
-    let sType := sType.getD (sDom.instantiateRev subst)
-    withLocalDecl name bi sType fun fv =>
-      isDefEqForall tBody sBody (subst.push fv)
+    -- In the scoped cache mode the bodies are always compared under a binder, even when
+    -- neither mentions it, so that the comparison happens in the context where it is meaningful.
+    -- In the global cache mode a binder is opened only when a body mentions it, as in the C++
+    -- kernel's `is_def_eq_binding`.
+    if (← readThe Context).fuel.cacheMode.isGlobal && !tBody.hasLooseBVars && !sBody.hasLooseBVars then
+      isDefEqForall tBody sBody (subst.push default)
+    else
+      let sType := sType.getD (sDom.instantiateRev subst)
+      withLocalDecl name bi sType fun fv =>
+        isDefEqForall tBody sBody (subst.push fv)
   | t, s => isDefEq (t.instantiateRev subst) (s.instantiateRev subst)
 
 /-- Decides definitional equality of `t` and `s` in the cases that can be settled without

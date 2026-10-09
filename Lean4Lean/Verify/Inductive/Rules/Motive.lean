@@ -394,8 +394,6 @@ theorem
       sourceEnv indTypes ctorEnv}
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.RuleAlignment owner howner i hctor)
     (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -447,8 +445,6 @@ theorem
       sourceEnv indTypes ctorEnv}
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.RuleAlignment owner howner i hctor)
     (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -481,7 +477,7 @@ theorem
           (liftContextPrefix fieldDomains.length expected.reverse ++
             fieldDomains.reverse ++ outer.reverse) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.installedOwnerMotiveSuffixContextAlignmentFor T with
+  rcases RecursorCheck.RuleAlignment.installedOwnerMotiveSuffixContextAlignmentFor (H := H) T with
     ⟨S, hparameters, motiveDomains, resultLevel,
       hdomainLength, hmotive, Hsuffix⟩
   let outer := T.params ++ T.motives ++ T.minors
@@ -523,8 +519,6 @@ theorem
       sourceEnv indTypes ctorEnv}
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.RuleAlignment owner howner i hctor)
     (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -561,7 +555,8 @@ theorem
           ((liftContextPrefix fieldDomains.length expected.reverse).reverse)
           (T.result.liftN fieldDomains.length suffix.length)) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.installedOwnerMotiveSuffixAlignmentUnderFields T fieldDomains hctx with
+  rcases RecursorCheck.RuleAlignment.installedOwnerMotiveSuffixAlignmentUnderFields
+    (H := H) (owner := owner) (howner := howner) T fieldDomains hctx with
     ⟨_S, _hparameters, motiveDomains, resultLevel,
       hdomainLength, hmotive, Haligned⟩
   let outer := T.params ++ T.motives ++ T.minors
@@ -643,8 +638,6 @@ theorem
       sourceEnv indTypes ctorEnv}
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.RuleAlignment owner howner i hctor)
     (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -710,8 +703,6 @@ theorem
       sourceEnv indTypes ctorEnv}
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.RuleAlignment owner howner i hctor)
     (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -760,7 +751,8 @@ theorem
   let cachedDomains :=
     (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
       fieldDomains
-  rcases A.installedOwnerMotiveFieldWitnessTyping T fieldDomains with
+  rcases RecursorCheck.RuleAlignment.installedOwnerMotiveFieldWitnessTyping
+    (H := H) T fieldDomains with
     ⟨motiveDomains, resultLevel, hdomainLength, hmotive, Hmotive⟩
   have HmotiveCanonical : H.outVEnv.HasType Us.length
       canonicalDomains.reverse
@@ -795,8 +787,6 @@ theorem
       sourceEnv indTypes ctorEnv}
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.RuleAlignment owner howner i hctor)
     (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -884,12 +874,14 @@ theorem
         fieldDomains.length 0) :=
     HprefixCached.defeqDFC H.outVEnvWF.ordered
       (Hfull.symm H.outVEnvWF.ordered)
-  rcases A.installedOwnerMotiveSuffixTypeAlignment T fieldDomains prefixTarget
+  rcases RecursorCheck.RuleAlignment.installedOwnerMotiveSuffixTypeAlignment
+    (H := H) T fieldDomains prefixTarget
       (by simpa [canonicalDomains] using HcanonicalCtx)
       (by simpa [canonicalDomains] using HprefixCanonical) with
     ⟨alignedDomains, alignedLevel, halignedLength, halignedMotive,
       Haligned⟩
-  rcases A.installedCachedOwnerMotiveWitnessTyping T fieldDomains Hfull with
+  rcases RecursorCheck.RuleAlignment.installedCachedOwnerMotiveWitnessTyping
+    (H := H) (owner := owner) (howner := howner) T fieldDomains Hfull with
     ⟨motiveDomains, resultLevel, hdomainLength, hmotive, Hmotive⟩
   have hdomains : motiveDomains = alignedDomains := by
     apply VExpr.wrapForalls_prefix_domains_eq hdomainLength halignedLength
@@ -1379,7 +1371,6 @@ theorem RecursorCheck.RuleAlignment.recursorTyping
     H.outVEnv.HasType recursor.uvars []
       (.const recursor.name (VLevel.params recursor.uvars)) recursor.type := by
   exact H.recursorTypingAt owner howner
-
 
 end VerifyInductive
 end Lean4Lean

@@ -561,7 +561,7 @@ noncomputable def RestoredBlockCertificate.extension
     checking := HrestoredValid.tr
     valid := HrestoredValid
     addInduct := ?_ }
-  exact H.addInductOfInstallation
+  exact addInductOfRestoredInstallation
     C.install.venvTypes C.install.venvCtors
     C.sourceRecursors C.auxiliaryRecursors
     C.sourceRules C.auxiliaryRules C.install.eliminators
@@ -632,8 +632,7 @@ structure NestedRun
     ValidationEnvironment res loweredEnv sourceProdEnv
       (sourceTypes.map (·.name)) false sourceTypes validationEnv
   recursorTypeValidation :
-    Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
-      lparams safety validationFuel res
+    Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv safety validationFuel res
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
       (sourceTypes.map (·.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok ()
@@ -643,7 +642,7 @@ structure NestedRun
         (Lean4Lean.restoredRecursorNames
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 sourceTypes
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1))
-      loweredEnv lparams safety validationFuel res
+      loweredEnv safety validationFuel res
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
       (sourceTypes.map (·.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok ()
@@ -653,7 +652,7 @@ structure NestedRun
       (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv
   parameterValidation :
     Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
-      lparams safety validationFuel sourceTypes res = .ok ()
+      lparams safety validationFuel sourceTypes = .ok ()
   auxiliaryVEnv : VEnv
   auxiliaryMLCtx : TypeChecker.MLCtx
   auxiliaryMLCtx_lctx : auxiliaryMLCtx.lctx = res.lctx
@@ -708,8 +707,7 @@ structure NestedInstalledRun
       (sourceTypes.map (·.name)) context.allowPrimitive sourceTypes
       validationEnv
   recursorTypeValidation :
-    Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
-      lparams safety validationFuel res
+    Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv safety validationFuel res
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
       (sourceTypes.map (·.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok ()
@@ -719,7 +717,7 @@ structure NestedInstalledRun
         (Lean4Lean.restoredRecursorNames
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 sourceTypes
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1))
-      loweredEnv lparams safety validationFuel res
+      loweredEnv safety validationFuel res
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
       (sourceTypes.map (·.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok ()
@@ -729,7 +727,7 @@ structure NestedInstalledRun
       (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv
   parameterValidation :
     Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
-      lparams safety validationFuel sourceTypes res = .ok ()
+      lparams safety validationFuel sourceTypes = .ok ()
   auxiliaryVEnv : VEnv
   auxiliaryMLCtx : TypeChecker.MLCtx
   auxiliaryMLCtx_lctx : auxiliaryMLCtx.lctx = res.lctx
@@ -926,6 +924,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
       sourceTypesVEnv HheaderValid auxiliaryMLCtx
       (by simpa only [hlparams'] using hauxiliaryWF)
       hauxiliaryLctx hauxiliaryFresh
+      (hfuel' ▸ Hc'.cacheSound.mono (VEnv.addConstVals_le HsourceTypesAdded))
     have Hrestore :
         (Environment.restoreNestedAfterInstall env loweredEnv lparams
           sourceTypes (if isUnsafe then .unsafe else .safe) allowPrimitive
@@ -968,7 +967,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
         simpa only [henv'] using HheaderValidation
       have Hparameters' :
           Lean4Lean.validateSourceConstructorTypes.run
-            auxiliaryHeaderEnv c'.lparams c'.safety fuel sourceTypes res =
+            auxiliaryHeaderEnv c'.lparams c'.safety fuel sourceTypes =
               .ok () := by
         simpa only [hlparams', hsafety', c, nestedAddInductiveContext] using
           Hparameters
@@ -977,7 +976,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
         cases isUnsafe <;> decide
       have Hnative := HlowerInitial'.sourceCore Hc' Hprod Hsources
         Howners' rfl Htrace' Hvalidation' HheaderValidation' Hparameters'
-        hvisible
+        (hfuel' ▸ Hc'.cacheSound) hvisible
       have Hnative' : Nonempty (NestedSourceDeclaration Hc'.venv lparams
           nparams sourceTypes isUnsafe loweredDecl
           (if isUnsafe then .unsafe else .safe) validationEnv

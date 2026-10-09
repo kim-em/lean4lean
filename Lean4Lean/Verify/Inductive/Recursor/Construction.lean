@@ -100,7 +100,7 @@ structure RecursorConstruction
       elimLevelAdmissible).parameterDecls.toCtx recInfos elimLevel
   indexRows : TrBinderTypesPerFamily recursorWF origins.indexTypes
   params : FVarArrayIn localContext stats.params
-  noAlias : bindings.NoAlias params
+  noAlias : RecInfoBindings.NoAlias stats.params recInfos
   outerOrder : RecInfoOuterOrder recursorWF params bindings
   arities : RecInfoArities stats recInfos
   minorCounts : forall i, i < recInfos.size ->

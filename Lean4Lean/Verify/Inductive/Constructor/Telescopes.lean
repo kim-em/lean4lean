@@ -21,7 +21,7 @@ environment must be ghost-free: no constant mentions a free variable. -/
 theorem checkClosedType.telTrWF (Hc : ContextWF c)
     (henv : TypeChecker.EnvGhostFree (fun _ => True) c.env) :
     (AddInductive.checkClosedType name type c).WF fun _ =>
-      ∃ T, TelTr Hc.venv c.lparams [] type T := by
+      ∃ T, TelTrN Hc.venv c.lparams (AddInductive.constructorArity type) [] type T := by
   change (c.env.checkNoMVarNoFVar name type >>= fun _ =>
     (monadLift (TypeChecker.checkType type) : AddInductive.M Expr)
       { c with checkLCtx := {} }).WF _
@@ -43,7 +43,7 @@ theorem checkConstructors.loopCtors.telTrWF
     (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
       ctors ctorIdx foundCtors c).WF fun _ =>
         ∀ i, ctorIdx ≤ i → ∀ (h : i < ctors.length),
-          ∃ T, TelTr Hc.venv c.lparams [] ctors[i].type T := by
+          ∃ T, TelTrN Hc.venv c.lparams (AddInductive.constructorArity ctors[i].type) [] ctors[i].type T := by
   intro ctorIdx foundCtors
   by_cases hidx : ctorIdx < ctors.length
   · rw [AddInductive.checkConstructors.loopCtors, dif_pos hidx]
@@ -102,7 +102,7 @@ theorem checkConstructors.loopTypes.telTrWF
     ∀ (targetIdx : Nat),
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe targetIdx c).WF
       fun _ => ∀ i, targetIdx ≤ i → ∀ (h : i < indTypes.size), ∀ ctor ∈ indTypes[i].ctors,
-        ∃ T, TelTr Hc.venv c.lparams [] ctor.type T := by
+        ∃ T, TelTrN Hc.venv c.lparams (AddInductive.constructorArity ctor.type) [] ctor.type T := by
   intro targetIdx
   by_cases hidx : targetIdx < indTypes.size
   · rw [AddInductive.checkConstructors.loopTypes, dif_pos hidx]
@@ -126,7 +126,7 @@ theorem _root_.Lean4Lean.TrExprS.envGhostFree {e : Expr} (H : TrExprS venv Us []
 
 /-- No constant of a well-formed environment mentions a free variable: the unsafe observer
 translates every constant type, delta value and recursor rule in the empty context. -/
-theorem _root_.Lean4Lean.VEnvs.WFCore.envGhostFree {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
+theorem _root_.Lean4Lean.VEnvs.WF.envGhostFree {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
     TypeChecker.EnvGhostFree (fun _ => True) env := by
   intro n ci hfind
   have htr := wf.tr (safety := .unsafe)

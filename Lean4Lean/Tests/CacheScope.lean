@@ -15,8 +15,12 @@ theory cannot derive `SI ≡ SJ`. The closed definition
 (with `zz : SI` an axiom) has a `seed` body that forces the comparisons `SI ≡ … ≡ SJ` inside
 the scope of `q`. The C++ kernel, whose caches and equivalence manager persist across scopes,
 then answers `SI ≡ SJ` outside that scope and accepts `result`, while it rejects the same
-definition without `seed`. Lean4Lean restores its caches and equivalence manager when a binder
-is closed, so it rejects `result`.
+definition without `seed`. Lean4Lean, in its default scoped cache mode
+(`Lean4Lean.CacheMode.scoped`), restores its caches and equivalence manager when a binder is
+closed, so it rejects `result`. Its global cache mode keeps them as the C++ kernel does and would
+accept `result`, but that mode needs a `GlobalCacheLicense` (a proof of context strengthening for
+environments with canonical `Eq`; this environment has no `Eq`), of which no inhabitant is known,
+so it is not exercised here.
 
 The last check runs the comparisons directly: before the binder `SI ≡ SJ` fails, under it
 each link succeeds, and after it `SI ≡ SJ` fails again, both before and after restoring the
@@ -127,6 +131,8 @@ info: small environment checked by C++: Eq present = false
 ---
 info: L4L whole term rejected
 ---
+info: L4L whole term rejected in the explicitly scoped cache mode
+---
 info: C++ unseeded declaration rejected
 ---
 info: C++ whole declaration accepted
@@ -184,6 +190,11 @@ run_elab do
   match l4l with
   | .ok _ => logInfo "L4L whole term accepted"
   | .error _ => logInfo "L4L whole term rejected"
+  let l4lScoped := Lean4Lean.TypeChecker.M.run smallEnv .safe {} [] { cacheMode := .scoped }
+    (Lean4Lean.TypeChecker.checkType term)
+  match l4lScoped with
+  | .ok _ => logInfo "L4L whole term accepted in the explicitly scoped cache mode"
+  | .error _ => logInfo "L4L whole term rejected in the explicitly scoped cache mode"
   let unseeded := Kernel.Environment.addDeclCore smallEnv 0 50000
     (.defnDecl { name := Name.str `Lean4Lean.Tests.CacheScope "unseeded", levelParams := [], type := sj, value := finalBody, hints := .opaque, safety := .safe }) none
   match unseeded with

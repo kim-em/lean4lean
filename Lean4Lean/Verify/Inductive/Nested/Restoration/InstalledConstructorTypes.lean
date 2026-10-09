@@ -58,7 +58,7 @@ alignment with the source declaration (`numParams`, `numFields`, `induct`,
 `SourceSyntaxChecks sourceTypes` is supplied to the continuation of
 `addInductiveDeclaration.checkedLoweringClosedWF` (from
 `checkInductiveSources`); `ConstructorOwnersPresent sourceProdEnv` is
-`VEnvs.WFCore.constructorOwners`.
+`VEnvs.WF.constructorOwners`.
 
 The core per-constructor inverse is
 `ConstructorRestorationInverse.restoredType_eqv_source`; the lemmas here

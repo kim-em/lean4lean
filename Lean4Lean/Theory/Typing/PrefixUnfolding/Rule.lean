@@ -99,7 +99,7 @@ theorem UnfoldingCheck.defeq (henv : env.WF)
     ((IsDefEqU.trans henv hctx ⟨_, hreplace⟩ halign).trans henv hctx ⟨_, hiota⟩) hopen
   rw [← hetaBody] at hbody
   simpa only [RecursorData.PrefixUnfolding.rhs, RecursorData.PrefixUnfolding.type, instantiateParams_eq_instOuter] using
-    heta.trans (hbody.etaOpen_wrapLams henv hΓ hctx)
+    heta.trans (hbody.etaOpen_wrapLams hΓ hctx)
 
 theorem PrefixUnfold.defeq (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U))

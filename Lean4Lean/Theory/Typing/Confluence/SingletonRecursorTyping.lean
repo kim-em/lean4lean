@@ -554,7 +554,7 @@ theorem HasType.elimApp (henv : env.WF) {P I : List VExpr} {Maj Min h M m : VExp
     simp [insertBinders, List.zipIdx_append]
   rw [← insertBinders_eq_mapIdx, hins] at htel
   rw [← List.append_assoc] at htel
-  have happ := HasType.mkApps_of_tel henv hΓe (hhead.weak0 henv.ordered) htel
+  have happ := HasType.mkApps_of_tel (hhead.weak0 henv.ordered) htel
   have hargs : (bvarRange P.length (P.length + I.length + 1) ++
       [M.liftN (I.length + 1), m.liftN (I.length + 1)] ++
       bvarRange (I.length + 1) (I.length + 1)) =
@@ -640,8 +640,7 @@ theorem singleton_fieldsCtx {env : VEnv} (henv : env.WF) (hfam : s.families.size
     (index : Fin s.constructors.size) {c : Constructor s.families.size}
     (hc : s.constructors[index] = c) (hown : c.owner = owner)
     (htarget : g.targetLevel = .zero)
-    {h : VExpr} (hhead : env.HasType g.uvars [] h (g.recursorType owner))
-    (harity : (g.ctorIndicesAt c).length = (g.indicesAt owner).length) :
+    {h : VExpr} (hhead : env.HasType g.uvars [] h (g.recursorType owner)) :
     ∀ i, i ≤ (g.fieldsAt c).length →
       OnCtx (g.params ++ (g.fieldsAt c).take i).reverse (env.IsType g.uvars) := by
   have hPlen : g.params.length = s.params.length := by simp [params]

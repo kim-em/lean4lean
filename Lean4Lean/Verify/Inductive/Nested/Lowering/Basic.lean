@@ -222,7 +222,8 @@ theorem validateNestedAuxiliaries.WF
     (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
       ({} : TypeChecker.State).ngen.Reserves fv)
     (hfvars : ∀ name e, res.aux2nested.find? name = some e →
-      e.FVarsIn (· ∈ mlctx.vlctx.fvars)) :
+      e.FVarsIn (· ∈ mlctx.vlctx.fvars))
+    (hmode : fuel.cacheMode.Sound venv) :
     (Lean4Lean.validateNestedAuxiliaries env lparams safety fuel res).WF
       fun _ => NestedOccurrencesTyped venv lparams mlctx.vlctx res := by
   unfold Lean4Lean.validateNestedAuxiliaries
@@ -233,7 +234,7 @@ theorem validateNestedAuxiliaries.WF
         _ ← TypeChecker.checkType e)).WF _
   rw [Std.TreeMap.forM_eq_forM, Std.TreeMap.forM_eq_forM_toList]
   refine TypeChecker.M.WF.runCheckingValidMLC
-    (wf := hvalid) (mlctx_wf := hmlctx) hfresh ?_
+    (wf := hvalid) (mlctx_wf := hmlctx) hfresh ?_ hmode
   refine (checkNestedAuxiliaryList.WF
     (c := TypeChecker.VContext.mkCheckingValidMLC hvalid mlctx hmlctx fuel)
     (s := {}) res.aux2nested.toList ?_).mono ?_
@@ -857,25 +858,25 @@ private theorem environmentGet_refines (env : Environment) (name : Name) :
   next => exact Except.WF.throw
 
 /-- Every declared type of `env` has no free variables; this holds in every
-environment modelled by `VEnvs.WFCore` (`VEnvs.WFCore.environmentTypesClosed`). -/
+environment modelled by `VEnvs.WF` (`VEnvs.WF.environmentTypesClosed`). -/
 def EnvironmentTypesClosed (env : Environment) : Prop :=
   ∀ name info, env.find? name = some info →
     info.type.FVarsIn fun _ => False
 
-theorem VEnvs.WFCore.environmentTypesClosed
-    (H : VEnvs.WFCore env ves) : EnvironmentTypesClosed env := by
+theorem VEnvs.WF.environmentTypesClosed
+    (H : VEnvs.WF env ves) : EnvironmentTypesClosed env := by
   intro name info hfind
   rcases (H.tr (safety := .unsafe)).find? hfind
       DefinitionSafety.unsafe_le with ⟨vinfo, _hvfind, Htr⟩
   exact Htr.2.2.fvarsIn.mono fun fv hfv => by simp at hfv
 
 /-- Every declared type of `env` has no loose bound variables; this holds in every
-environment modelled by `VEnvs.WFCore` (`VEnvs.WFCore.environmentTypesBVarClosed`). -/
+environment modelled by `VEnvs.WF` (`VEnvs.WF.environmentTypesBVarClosed`). -/
 def EnvironmentTypesBVarClosed (env : Environment) : Prop :=
   ∀ name info, env.find? name = some info → Closed info.type
 
-theorem VEnvs.WFCore.environmentTypesBVarClosed
-    (H : VEnvs.WFCore env ves) : EnvironmentTypesBVarClosed env := by
+theorem VEnvs.WF.environmentTypesBVarClosed
+    (H : VEnvs.WF env ves) : EnvironmentTypesBVarClosed env := by
   intro name info hfind
   rcases (H.tr (safety := .unsafe)).find? hfind
       DefinitionSafety.unsafe_le with ⟨vinfo, _hvfind, Htr⟩

@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Environment.Lemmas
+import Lean4Lean.Verify.Environment.Blocks
 import Lean4Lean.Verify.Typing.ConditionallyTyped
 import Lean4Lean.Theory.Typing.ProjectionLemmas
 import Lean4Lean.Theory.Typing.RecursorLemmas
@@ -282,33 +282,35 @@ theorem MLCtx.WF.find?_eq {c : MLCtx} (wf : c.WF env Us) :
     c.lctx.find? x = c.decls.find? (x == ·.fvarId) := by
   simp [wf.tr.1.find?_eq_find?_toList, wf.toList_eq]
 
+/-- What a cache mode needs of the abstract environment: nothing in the scoped mode; canonical
+`Eq` in the global mode, from which the mode's `GlobalCacheLicense` gives context strengthening
+(`VContext.strengthening`). -/
+def _root_.Lean4Lean.CacheMode.Sound : CacheMode → VEnv → Prop
+  | .scoped, _ => True
+  | .global _, venv => venv.HasCanonicalEq
+
+theorem _root_.Lean4Lean.CacheMode.Sound.mono {mode : CacheMode} {venv venv' : VEnv}
+    (h : mode.Sound venv) (hle : venv ≤ venv') : mode.Sound venv' := by
+  cases mode <;> [trivial; exact VEnv.HasCanonicalEq.mono hle h]
+
+@[simp] theorem _root_.Lean4Lean.CacheMode.sound_scoped : CacheMode.scoped.Sound venv := trivial
+
 structure VContext extends Context where
   venv : VEnv
   hasPrimitives : VEnv.HasPrimitives venv
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   trenv : CheckingEnv safety env venv
-  /-- Every present constructor is listed by its present owner, with the owner's `isUnsafe`.
-  This is what identifies a constructor at the head of a term with the constructor of its
-  structure in structure eta. -/
-  constructorOwners : VerifyInductive.ConstructorOwnersPresent env
-  /-- Every constructor name a present header lists is, if present, a constructor of that
-  header, with its `isUnsafe`. This is what identifies the constant a structure lists with the
-  constructor of its projection registry entry. -/
-  listedConstructors : VerifyInductive.ListedConstructorsCoherent env
-  /-- Every visible singleton family whose constructor is present aligns with
-  the abstract projection registry.  This is what projection inference reads. -/
-  projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
-  /-- Every visible recursor is aligned with the stored iota equations, and every
-  stored equation is headed by a non-inductive constant.  This is what recursor
-  reduction reads. -/
-  recursors : RecursorEnvCoherent safety env.constants venv
+  /-- Every inductive header, constructor and recursor belongs to an installed block, and
+  every projection-registry entry was registered by one (`InstalledBlocks`).  Every lookup
+  fact the checker reads about inductives is a projection of this. -/
+  blocks : InstalledBlocks safety env venv .headers
+  /-- Every stored equation is headed by a non-inductive constant, which keeps inductive type
+  constants rigid. -/
+  equationHeads : EquationHeadsCoherent env.constants venv
   /-- Once quotients are initialized, the quotient constants and the `Quot.lift`
   equation are present.  This is what quotient reduction reads. -/
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
-  /-- A telescope certificate of every visible constructor, used by the projection walk at a
-  non-dependent field (`TelTrN.delete_closed`). -/
-  ctorTelescopes : CtorTelescopes safety env venv
   mlctx : MLCtx
   mlctx_wf : mlctx.WF venv lparams
   lctx_eq : mlctx.lctx = lctx
@@ -318,7 +320,36 @@ structure VContext extends Context where
 
 theorem VContext.trlctx (c : VContext) : TrLCtx c.venv c.lparams c.lctx' c.vlctx := c.mlctx_wf.tr
 theorem VContext.Ewf (c : VContext) : VEnv.WF c.venv := c.trenv.wf
+
 theorem VContext.Δwf (c : VContext) : c.vlctx.WF c.venv c.lparams.length := c.trlctx.wf
+
+/-- Every present constructor is listed by its present owner, with the owner's `isUnsafe`.
+This is what identifies a constructor at the head of a term with the constructor of its
+structure in structure eta. -/
+theorem VContext.constructorOwners (c : VContext) :
+    VerifyInductive.ConstructorOwnersPresent c.env := c.blocks.constructorOwnersPresent
+
+/-- Every constructor name a present header lists is, if present, a constructor of that
+header, with its `isUnsafe`. -/
+theorem VContext.listedConstructors (c : VContext) :
+    VerifyInductive.ListedConstructorsCoherent c.env := c.blocks.listedConstructorsCoherent
+
+/-- Every visible singleton family whose constructor is present aligns with the abstract
+projection registry.  This is what projection inference reads. -/
+theorem VContext.projectionRegistry (c : VContext) :
+    ProjectionRegistryCoherent c.safety c.env.constants c.venv :=
+  c.blocks.projectionRegistryCoherent c.trenv.map_wf
+
+/-- Every visible recursor is aligned with the stored iota equations.  This is what recursor
+reduction reads. -/
+theorem VContext.recursors (c : VContext) :
+    RecursorEnvCoherent c.safety c.env.constants c.venv :=
+  c.blocks.recursorEnvCoherent c.trenv.map_wf c.equationHeads
+
+/-- A telescope certificate of every visible constructor, used by the projection walk at a
+non-dependent field (`TelTrN.delete_closed`). -/
+theorem VContext.ctorTelescopes (c : VContext) : CtorTelescopes c.safety c.env c.venv :=
+  c.blocks.ctorTelescopes
 
 /-- Resolve the exact projection alignment selected by successful concrete
 family and constructor lookups in a checking context. -/
@@ -529,7 +560,7 @@ theorem VContext.registryShape {c : VContext} {n mkC : Name} {structInfo : Induc
     have hΔ₀ : OnCtx (indices.reverse ++ ownParams.reverse) (c.venv.IsType decl.uvars) := by
       rwa [List.reverse_append] at hΓtel
     have e : (indices.reverse ++ ownParams.reverse).reverse = ownParams ++ indices := by simp
-    have hconv := VEnv.IsDefEqU.closed_telescope_instOuter c.Ewf c.Δwf.toCtx hΔ₀ ⟨_, hres⟩ hlsw
+    have hconv := VEnv.IsDefEqU.closed_telescope_instOuter c.Ewf hΔ₀ ⟨_, hres⟩ hlsw
       (args := args) (by simp [hargs, hownLen, hidxLen, hnparams, hindices]; omega) (by
         intro k hk hk'
         simp only [e] at hk' ⊢
@@ -548,7 +579,7 @@ theorem VContext.registryShape {c : VContext} {n mkC : Name} {structInfo : Induc
         rw [List.append_assoc, ← List.reverse_append, List.take_append_drop, List.reverse_append]
       rw [this] at hΓtel
       exact hΓtel.of_append
-    have hconv := VEnv.IsDefEqU.closed_telescope_instOuter c.Ewf c.Δwf.toCtx hΔ₀ ⟨_, hdk⟩ hlsw
+    have hconv := VEnv.IsDefEqU.closed_telescope_instOuter c.Ewf hΔ₀ ⟨_, hdk⟩ hlsw
       (args := args.take k) (by simp; omega) (by
         intro j hj hj'
         simp only [List.length_take] at hj
@@ -672,12 +703,28 @@ def ParamUniformTyCache.WF (c : VContext) (pfx : Name) (m : InferCache) : Prop :
 theorem ParamUniformCache.WF.empty : ParamUniformCache.WF c pfx {} := fun _ => by simp
 theorem ParamUniformTyCache.WF.empty : ParamUniformTyCache.WF c pfx {} := fun _ => by simp
 
+/-- The context `Δ'` in which the facts of the equivalence manager hold. In the scoped cache mode
+binder scopes restore the manager on exit (`State.leaveScope`), so it is the current context. In
+the global cache mode the manager keeps facts found under closed binders, which may mention their
+variables, and `Δ'` is an extension of the current context by such variables, all reserved by the
+name generator; this is used only when the environment admits strengthening. -/
+def EqvScope (c : VContext) (ngen : NameGenerator) (Δ' : VLCtx) : Prop :=
+  Δ' = c.vlctx ∨ c.venv.Strengthening ∧ Δ'.WF c.venv c.lparams.length ∧
+    (∃ l, c.vlctx.FVLift' Δ' 0 l 0) ∧ ∀ fv ∈ Δ'.fvars, ngen.Reserves fv
+
+theorem EqvScope.mono {c : VContext} (le : ngen ≤ ngen') :
+    EqvScope c ngen Δ' → EqvScope c ngen' Δ'
+  | .inl h => .inl h
+  | .inr ⟨h1, h2, h3, h4⟩ => .inr ⟨h1, h2, h3, fun fv h => (h4 fv h).mono le⟩
+
 class State.WF (c : VContext) (s : State) where
   trctx : c.TrLCtx
   ngen_wf : ∀ fv ∈ c.vlctx.fvars, s.ngen.Reserves fv
-  /-- Every equivalence the manager records holds in the current context. Binder scopes restore
-  the manager on exit (`State.leaveScope`), so no recorded fact outlives its binder. -/
-  ectx : s.eqvManager.WF c.venv c.lparams c.vlctx
+  /-- Every equivalence the manager records holds in the context `Δ'` of `EqvScope`: the current
+  one, or in the global cache mode an extension of it by variables of closed binders. -/
+  ectx : ∃ Δ', EqvScope c s.ngen Δ' ∧ s.eqvManager.WF c.venv c.lparams Δ'
+  /-- The run's cache mode is sound for the environment (`CacheMode.Sound`). -/
+  cacheSound : c.fuel.cacheMode.Sound c.venv
   inferTypeI_wf : s.inferTypeI.WF c s
   inferTypeC_wf : s.inferTypeC.WF c s
   whnfCore_wf : WHNFCache.WF c s s.whnfCoreCache
@@ -690,6 +737,18 @@ class State.WF (c : VContext) (s : State) where
   whnfCore_paramUniform : ParamUniformCache.WF c s.ngen.namePrefix s.whnfCoreCache
   whnf_paramUniform : ParamUniformCache.WF c s.ngen.namePrefix s.whnfCache
   inferTypeI_paramUniform : ParamUniformTyCache.WF c s.ngen.namePrefix s.inferTypeI
+
+/-- In the global cache mode the environment admits context strengthening: the mode's license
+applied to the well-formed environment with canonical `Eq`. -/
+theorem State.WF.strengthening {c : VContext} {s : State} (wf : s.WF c) {lic : GlobalCacheLicense}
+    (h : c.fuel.cacheMode = .global lic) : c.venv.Strengthening := by
+  have := wf.cacheSound; rw [h] at this; exact lic.ok _ c.Ewf this
+
+theorem State.WF.strengthening_of_isGlobal {c : VContext} {s : State} (wf : s.WF c)
+    (h : c.fuel.cacheMode.isGlobal = true) : c.venv.Strengthening := by
+  rcases hm : c.fuel.cacheMode with _ | lic
+  · rw [hm] at h; cases h
+  · exact wf.strengthening hm
 
 theorem State.WF.find?_eq_none {id}
     (wf : State.WF c s) (H : ¬s.ngen.Reserves id) : c.lctx'.find? id = none :=
@@ -712,6 +771,20 @@ theorem State.LE.reservesV {s₁ s₂ : State} (h : s₁ ≤ s₂) {{fv}} :
 theorem State.LE.reserves {s₁ s₂ : State} (h : s₁ ≤ s₂) {{e}} :
     FVarsIn s₁.ngen.Reserves e → FVarsIn s₂.ngen.Reserves e :=
   (·.mono h.reservesV)
+
+/-- A definitional equality found in the current context is a fact of the equivalence manager's
+context. -/
+theorem State.WF.eqv_defeq {c : VContext} {s : State}
+    (hΔ' : EqvScope c s.ngen Δ') (he₁ : c.TrExprS e₁ e') (he₂ : c.TrExpr e₂ e') :
+    EquivManager.IsDefEqE c.venv c.lparams Δ' e₁ e₂ := by
+  rcases hΔ' with rfl | ⟨-, hwf, ⟨l, W⟩, -⟩
+  · exact .defeq he₁ he₂
+  · exact .defeq (he₁.weakFV' c.Ewf.ordered W hwf) (he₂.weakFV' c.Ewf W hwf)
+
+nonrec theorem _root_.Lean4Lean.VLocalDecl.WF.weak' {env : VEnv} (henv : env.Ordered)
+    (W : Ctx.Lift' l Γ Γ') : ∀ {d}, VLocalDecl.WF env U Γ d → VLocalDecl.WF env U Γ' (d.lift' l)
+  | .vlam _, H => H.weak' henv W
+  | .vlet .., H => H.weak' henv W
 
 def M.WF (c : VContext) (vs : State) (x : M α) (Q : α → State → Prop) : Prop :=
   vs.WF c → ∀ a s', x c.toContext vs = .ok (a, s') →
@@ -970,10 +1043,6 @@ untouched, so judgements stated at `c` and at `c.withMLC m` are interchangeable.
 @[simp] theorem VContext.withMLC_mlctx (c : VContext) (m) [c.MLCWF m] :
     (c.withMLC m).mlctx = m := rfl
 
-@[simp] theorem VContext.withMLC_projectionRegistry (c : VContext) (m) [c.MLCWF m] :
-    (c.withMLC m).projectionRegistry = c.projectionRegistry := rfl
-@[simp] theorem VContext.withMLC_recursors (c : VContext) (m) [c.MLCWF m] :
-    (c.withMLC m).recursors = c.recursors := rfl
 @[simp] theorem VContext.withMLC_quot (c : VContext) (m) [c.MLCWF m] :
     (c.withMLC m).quot = c.quot := rfl
 
@@ -1170,6 +1239,116 @@ theorem ParamUniformTyCache.WF.fresh {c c' : VContext} (henv : c'.env = c.env)
   refine ⟨fun heads As ls P hs hl hP => ?_, fun heads As ls P hs n hn he => ?_⟩
   · rw [henv] at hl ⊢; exact H'.1 heads As ls P (hs.tail henv hΔ hfind hnone) hl hP
   · rw [henv]; exact H'.2 heads As ls P (hs.tail henv hΔ hfind hnone) n hn he
+/-! ### Leaving a binder in the global cache mode
+
+In the global cache mode the state of the body is kept when a binder is closed. Its conditional
+cache entries are restricted to the smaller context with strengthening (the
+`ConditionallyHasType.weakN_inv` family), the syntactic universe and parameter-uniformity
+invariants are restricted without it, and the equivalence manager's context grows by the closed
+binder (`EqvScope`). -/
+
+/-- A universe scope of a context, cut down to the variables of the context, is a universe scope
+of the context extended by one fresh declaration. -/
+theorem VContext.UniverseScope.cons_restrict {c c' : VContext}
+    (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
+    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
+    (hid : x ∉ c.vlctx.fvars)
+    (H : c.UniverseScope Us P) :
+    c'.UniverseScope Us (fun fv => P fv ∧ fv ∈ c.vlctx.fvars) := by
+  refine ⟨?_, fun fv decl hP hd => H.2 fv decl hP.1 ?_⟩
+  · rw [hΔ]; exact ⟨(IsFVarUpSet.and_fvars c.Δwf.fvwf).1 H.1, fun h => (hid h.2).elim⟩
+  · rwa [← hfind fv (by rintro rfl; exact hid hP.2)]
+
+theorem LevelsCache.WF.weakN_inv {c c' : VContext}
+    (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
+    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
+    (hid : x ∉ c.vlctx.fvars)
+    (H : LevelsCache.WF c' m) : LevelsCache.WF c m := by
+  intro e e₁ h hf Us P hs hl hP
+  refine H h (hf.mono fun fv h => ?_) Us _ (hs.cons_restrict hΔ hfind hid) hl
+    (hP.mp (fun _ a b => ⟨a, b⟩) hf)
+  rw [hΔ]; simp [h]
+
+/-- A parameter-uniform scope of a context, cut down to the variables of the context, is one of
+the context extended by one fresh declaration. -/
+theorem VContext.ParamUniformScope.cons_restrict {c c' : VContext} (henv : c'.env = c.env)
+    (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
+    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
+    (hid : x ∉ c.vlctx.fvars)
+    (H : c.ParamUniformScope pfx heads As ls P) :
+    c'.ParamUniformScope pfx heads As ls (fun fv => P fv ∧ fv ∈ c.vlctx.fvars) := by
+  refine ⟨henv ▸ H.env, H.params, ?_, fun fv decl hP hd => henv ▸ H.decls fv decl hP.1 ?_⟩
+  · rw [hΔ]; exact ⟨(IsFVarUpSet.and_fvars c.Δwf.fvwf).1 H.up, fun h => (hid h.2).elim⟩
+  · rwa [← hfind fv (by rintro rfl; exact hid hP.2)]
+
+theorem ParamUniformCache.WF.weakN_inv {c c' : VContext} (henv : c'.env = c.env)
+    (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
+    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
+    (hid : x ∉ c.vlctx.fvars)
+    (H : ParamUniformCache.WF c' pfx m) : ParamUniformCache.WF c pfx m := by
+  intro e e₁ h hf heads As ls P hs hl hP
+  have hf' : FVarsIn (· ∈ c'.vlctx.fvars) e := hf.mono fun fv h => by rw [hΔ]; simp [h]
+  have := H h hf' heads As ls _ (hs.cons_restrict henv hΔ hfind hid) (henv ▸ hl)
+    (hP.mp (fun _ a b => ⟨a, b⟩) hf)
+  rwa [henv] at this
+
+theorem ParamUniformTyCache.WF.weakN_inv {c c' : VContext} (henv : c'.env = c.env)
+    (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
+    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
+    (hid : x ∉ c.vlctx.fvars)
+    (H : ParamUniformTyCache.WF c' pfx m) : ParamUniformTyCache.WF c pfx m := by
+  intro e e₁ h hf
+  have hf' : FVarsIn (· ∈ c'.vlctx.fvars) e := hf.mono fun fv h => by rw [hΔ]; simp [h]
+  have H' := H h hf'
+  refine ⟨fun heads As ls P hs hl hP => ?_, fun heads As ls P hs n hn he => ?_⟩
+  · have := H'.1 heads As ls _ (hs.cons_restrict henv hΔ hfind hid) (henv ▸ hl)
+      (hP.mp (fun _ a b => ⟨a, b⟩) hf)
+    rwa [henv] at this
+  · have := H'.2 heads As ls _ (hs.cons_restrict henv hΔ hfind hid) n hn he
+    rwa [henv] at this
+
+/-- Leaving a binder without restoring the state, given strengthening: the state of the body is
+well formed in the context without the binder. -/
+theorem State.WF.restrict {c : VContext} {m m'} [cwf : c.MLCWF m] [cwf' : c.MLCWF m']
+    {s : State} (hs : c.venv.Strengthening)
+    (hΔ : m'.vlctx = (some (x, deps), d) :: m.vlctx)
+    (hfind : ∀ fv, fv ≠ x → m'.lctx.find? fv = m.lctx.find? fv)
+    (hid : x ∉ m.vlctx.fvars)
+    (wf' : s.WF (c.withMLC m')) : s.WF (c.withMLC m) := by
+  have trwf : VLCtx.WF c.venv c.lparams.length ((some (x, deps), d) :: m.vlctx) :=
+    hΔ ▸ cwf'.1.tr.wf
+  have hΔ' : (c.withMLC m').vlctx = (some (x, deps), d) :: (c.withMLC m).vlctx := hΔ
+  have hic {ic} (H : InferCache.WF (c.withMLC m') s ic) : InferCache.WF (c.withMLC m) s ic :=
+    fun _ _ h => by
+      have : ConditionallyHasType s.ngen c.venv c.lparams m'.vlctx _ _ := H h
+      rw [hΔ] at this; exact this.weakN_inv c.Ewf hs trwf
+  have hwc {wc} (H : WHNFCache.WF (c.withMLC m') s wc) : WHNFCache.WF (c.withMLC m) s wc :=
+    fun _ _ h => by
+      have : ConditionallyWHNF s.ngen c.venv c.lparams m'.vlctx _ _ := H h
+      rw [hΔ] at this; exact this.weakN_inv c.Ewf hs trwf
+  have hfind' : ∀ fv, fv ≠ x → (c.withMLC m').lctx'.find? fv = (c.withMLC m).lctx'.find? fv :=
+    hfind
+  exact
+  { trctx := cwf.1.tr
+    ngen_wf := fun fv h => wf'.ngen_wf fv (by rw [hΔ']; exact List.mem_cons_of_mem _ h)
+    ectx := by
+      have Wx : VLCtx.FVLift' (c.withMLC m).vlctx (c.withMLC m').vlctx 0
+          (Lift.refl.skipN d.depth) 0 := by rw [hΔ']; exact .skip_fvar _ _ .refl
+      obtain ⟨Δ', h | ⟨-, hwf, ⟨l, W⟩, hres⟩, hm⟩ := wf'.ectx
+      · subst h
+        exact ⟨_, .inr ⟨hs, cwf'.1.tr.wf, ⟨_, Wx⟩, wf'.ngen_wf⟩, hm⟩
+      · exact ⟨_, .inr ⟨hs, hwf, ⟨_, Wx.comp W⟩, hres⟩, hm⟩
+    inferTypeI_wf := hic wf'.inferTypeI_wf, inferTypeC_wf := hic wf'.inferTypeC_wf
+    whnfCore_wf := hwc wf'.whnfCore_wf, whnf_wf := hwc wf'.whnf_wf, unfold_wf := wf'.unfold_wf
+    inferTypeI_levels := wf'.inferTypeI_levels.weakN_inv (c' := c.withMLC m') hΔ' hfind' hid
+    inferTypeC_levels := wf'.inferTypeC_levels.weakN_inv (c' := c.withMLC m') hΔ' hfind' hid
+    whnfCore_levels := wf'.whnfCore_levels.weakN_inv (c' := c.withMLC m') hΔ' hfind' hid
+    whnf_levels := wf'.whnf_levels.weakN_inv (c' := c.withMLC m') hΔ' hfind' hid
+    whnfCore_paramUniform := wf'.whnfCore_paramUniform.weakN_inv (c' := c.withMLC m') rfl hΔ' hfind' hid
+    whnf_paramUniform := wf'.whnf_paramUniform.weakN_inv (c' := c.withMLC m') rfl hΔ' hfind' hid
+    inferTypeI_paramUniform := wf'.inferTypeI_paramUniform.weakN_inv (c' := c.withMLC m') rfl hΔ' hfind' hid
+    cacheSound := wf'.cacheSound }
+
 def State.next (s : State) : State := { s with ngen := s.ngen.next }
 
 
@@ -1181,7 +1360,7 @@ theorem State.WF.leaveScope {c : VContext} {saved s : State} (wf : saved.WF c) (
     (hu : UnfoldCache.WF c s.unfold) : (saved.leaveScope s).WF c where
   trctx := wf.trctx
   ngen_wf _ h := le.reservesV (wf.ngen_wf _ h)
-  ectx := wf.ectx
+  ectx := let ⟨Δ', h1, h2⟩ := wf.ectx; ⟨Δ', h1.mono le, h2⟩
   inferTypeI_wf _ _ h := (wf.inferTypeI_wf h).mono le
   inferTypeC_wf _ _ h := (wf.inferTypeC_wf h).mono le
   whnfCore_wf _ _ h := (wf.whnfCore_wf h).mono le
@@ -1194,15 +1373,27 @@ theorem State.WF.leaveScope {c : VContext} {saved s : State} (wf : saved.WF c) (
   whnfCore_paramUniform := le.namePrefix ▸ wf.whnfCore_paramUniform
   whnf_paramUniform := le.namePrefix ▸ wf.whnf_paramUniform
   inferTypeI_paramUniform := le.namePrefix ▸ wf.inferTypeI_paramUniform
+  cacheSound := wf.cacheSound
+
+/-- Leaving a binder scope in the run's cache mode gives back a well-formed state: in the scoped
+mode by `State.WF.leaveScope`, in the global mode by `State.WF.restrict`, with the strengthening
+that the mode's license provides (`VContext.strengthening`). -/
+theorem State.WF.exitScope {c : VContext} {m m'} [cwf : c.MLCWF m] [cwf' : c.MLCWF m']
+    {saved s : State} (wf : saved.WF (c.withMLC m)) (le : saved ≤ s)
+    (hΔ : m'.vlctx = (some (x, deps), d) :: m.vlctx)
+    (hfind : ∀ fv, fv ≠ x → m'.lctx.find? fv = m.lctx.find? fv)
+    (hid : x ∉ m.vlctx.fvars)
+    (wf' : s.WF (c.withMLC m')) : (saved.exitScope c.fuel.cacheMode s).WF (c.withMLC m) := by
+  rcases h : c.fuel.cacheMode with _ | lic
+  · exact wf.leaveScope le wf'.unfold_wf
+  · exact wf'.restrict (wf.strengthening h) hΔ hfind hid
 
 /-- A binder scope of the checker: the body runs from the state with the name generator advanced,
-and the result state is the pre-scope state with only the name generator and the `unfold` cache
-taken from the body (`State.leaveScope`). -/
+and the result state is the body's state after `State.exitScope` in the run's cache mode. -/
 theorem M.WF.withFreshId {c : VContext} {s : State} {x : Name → M α} {Q : α → State → Prop}
-    (wf : s.WF c)
     (H : ∀ a s', x s.ngen.curr c.toContext s.next = .ok (a, s') →
-      ∃ vs', vs' = s' ∧ s.next ≤ vs' ∧ UnfoldCache.WF c vs'.unfold ∧
-        Q a (s.leaveScope vs')) :
+      ∃ vs', vs' = s' ∧ s.next ≤ vs' ∧ (s.exitScope c.fuel.cacheMode vs').WF c ∧
+        Q a (s.exitScope c.fuel.cacheMode vs')) :
     ∀ a s', (withFreshId x : M α) c.toContext s = .ok (a, s') →
       ∃ vs', vs' = s' ∧ s ≤ vs' ∧ vs'.WF c ∧ Q a vs' := by
   intro a s' e
@@ -1212,9 +1403,41 @@ theorem M.WF.withFreshId {c : VContext} {s : State} {x : Name → M α} {Q : α 
   | ok p =>
     obtain ⟨a', s''⟩ := p
     rw [e'] at e; cases e
-    obtain ⟨vs', rfl, le, hu, hQ⟩ := H _ _ e'
-    have le' : s ≤ vs' := State.LE.trans .next le
-    exact ⟨s.leaveScope vs', rfl, le', wf.leaveScope le' hu, hQ⟩
+    obtain ⟨vs', rfl, le, hwf, hQ⟩ := H _ _ e'
+    have le' : s ≤ s.exitScope c.fuel.cacheMode vs' := by
+      show s.ngen ≤ _; rw [State.exitScope_ngen]; exact State.LE.trans .next le
+    exact ⟨_, rfl, le', hwf, hQ⟩
+
+/-- Entering a binder: the equivalence manager's facts hold in the extended context, or in the
+global cache mode in the extension of their context by the new variable. -/
+theorem State.WF.ectx_fresh {c : VContext} {m m'} [cwf : c.MLCWF m] [cwf' : c.MLCWF m']
+    {s : State} (wf : s.WF (c.withMLC m))
+    (hΔ : m'.vlctx = (some (⟨s.ngen.curr⟩, deps), d) :: m.vlctx)
+    (hdeps : deps ⊆ m.vlctx.fvars)
+    (hd : VLocalDecl.WF c.venv c.lparams.length m.vlctx.toCtx d) :
+    ∃ Δ', EqvScope (c.withMLC m') s.next.ngen Δ' ∧ s.eqvManager.WF c.venv c.lparams Δ' := by
+  have h0 := s.ngen.next_reserves_self
+  have h1 := s.ngen.not_reserves_self
+  have le : s ≤ s.next := .next
+  have trwf : m'.vlctx.WF c.venv c.lparams.length := cwf'.1.tr.wf
+  obtain ⟨Δ', h | ⟨hs, hwf, ⟨l, W⟩, hres⟩, hm⟩ := wf.ectx
+  · subst h
+    refine ⟨_, .inl rfl, ?_⟩
+    show EquivManager.WF _ _ m'.vlctx _
+    rw [hΔ] at trwf ⊢
+    exact hm.weak' c.Ewf (.skip_fvar _ _ .refl) trwf
+  · have hwf' : VLCtx.WF c.venv c.lparams.length
+        ((some (⟨s.ngen.curr⟩, deps), d.lift' l) :: Δ') := by
+      refine ⟨hwf, ?_, hd.weak' c.Ewf.ordered W.toCtx⟩
+      rintro _ _ ⟨⟩
+      exact ⟨mt (hres _) h1, hdeps.trans W.fvars_sublist.subset⟩
+    refine ⟨_, .inr ⟨hs, hwf', ⟨l.consN d.depth, ?_⟩, ?_⟩, hm.weak' c.Ewf (.skip_fvar _ _ .refl) hwf'⟩
+    · show VLCtx.FVLift' m'.vlctx _ _ _ _
+      rw [hΔ]; exact W.cons_fvar (⟨s.ngen.curr⟩, deps) d hdeps
+    · intro fv h
+      obtain _ | ⟨_, h⟩ := h
+      · exact h0
+      · exact (hres _ h).mono le
 
 /-- Entering a binder keeps the state well formed: the name generator advances past the fresh
 variable and every cache is weakened to the extended context. This is the well-formedness part of
@@ -1253,7 +1476,7 @@ theorem State.WF.vlam {c : VContext} {m} [cwf : c.MLCWF m] {s : State}
   exact
   { ngen_wf := by
       simp [VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
-    ectx := wf.ectx.weak' c.Ewf (.skip_fvar _ _ .refl) trctx.wf
+    ectx := wf.ectx_fresh (cwf' := cwf') rfl hty.fvarsList hty'
     trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
     whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
     inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
@@ -1262,7 +1485,8 @@ theorem State.WF.vlam {c : VContext} {m} [cwf : c.MLCWF m] {s : State}
     whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels
     whnfCore_paramUniform := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_paramUniform
     whnf_paramUniform := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_paramUniform
-    inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
+    inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform
+    cacheSound := wf.cacheSound }
 
 protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
     {s : State} {f : Expr → RecM α} {Q name ty ty' bi}
@@ -1271,7 +1495,7 @@ protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
     (hs : s₀ ≤ s)
     (H : ∀ id cwf' s', s₀ ≤ s' → ¬s.ngen.Reserves id →
       WF (c.withMLC (.vlam id name ty ty' bi m) (wf := cwf')) s' (f (.fvar id))
-        fun a s'' => Q a (s.leaveScope s'')) :
+        fun a s'' => Q a (s.exitScope c.fuel.cacheMode s'')) :
     (withLocalDecl name bi ty f).WF (c.withMLC m) s Q := by
   intro _ mwf wf
   let id := s.ngen.curr
@@ -1282,9 +1506,10 @@ protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
   let m' := m.vlam ⟨id⟩ name ty ty' bi
   have cwf' : c.MLCWF m' := ⟨cwf.1, h1', hty, hty'⟩
   have : State.WF (c.withMLC m') s.next := State.WF.vlam (cwf' := cwf') wf hty hty'
-  refine M.WF.withFreshId wf fun a s' e => ?_
+  refine M.WF.withFreshId fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
-  exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
+  exact ⟨s', hs1, hs2, wf.exitScope (cwf' := cwf') (le.trans hs2) rfl
+    (fun _ h => cwf'.1.find?_vlam h) (fun h => h1 (wf.ngen_wf _ h)) wf', hs4⟩
 
 protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
     {s : State} {f : Expr → M α} {Q name ty ty' bi}
@@ -1293,7 +1518,7 @@ protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
     (hs : s₀ ≤ s)
     (H : ∀ id cwf' s', s₀ ≤ s' → ¬s.ngen.Reserves id →
       WF (c.withMLC (.vlam id name ty ty' bi m) (wf := cwf')) s' (f (.fvar id))
-        fun a s'' => Q a (s.leaveScope s'')) :
+        fun a s'' => Q a (s.exitScope c.fuel.cacheMode s'')) :
     (withLocalDecl name bi ty f).WF (c.withMLC m) s Q := by
   intro wf
   let id := s.ngen.curr
@@ -1304,9 +1529,10 @@ protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
   let m' := m.vlam ⟨id⟩ name ty ty' bi
   have cwf' : c.MLCWF m' := ⟨cwf.1, h1', hty, hty'⟩
   have : State.WF (c.withMLC m') s.next := State.WF.vlam (cwf' := cwf') wf hty hty'
-  refine M.WF.withFreshId wf fun a s' e => ?_
+  refine M.WF.withFreshId fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 this a s' e
-  exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
+  exact ⟨s', hs1, hs2, wf.exitScope (cwf' := cwf') (le.trans hs2) rfl
+    (fun _ h => cwf'.1.find?_vlam h) (fun h => h1 (wf.ngen_wf _ h)) wf', hs4⟩
 
 /-- Entering a `let` binder keeps the state well formed, as `State.WF.vlam` for a local
 definition. -/
@@ -1345,7 +1571,8 @@ theorem State.WF.vlet {c : VContext} {m} [cwf : c.MLCWF m] {s : State}
   exact
   { ngen_wf := by
       simp [VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
-    ectx := wf.ectx.weak' c.Ewf (.skip_fvar _ _ .refl) trctx.wf
+    ectx := wf.ectx_fresh (cwf' := cwf') rfl
+      (List.append_subset.2 ⟨hty.fvarsList, hval.fvarsList⟩) hval'
     trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
     whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
     inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
@@ -1354,7 +1581,8 @@ theorem State.WF.vlet {c : VContext} {m} [cwf : c.MLCWF m] {s : State}
     whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels
     whnfCore_paramUniform := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_paramUniform
     whnf_paramUniform := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_paramUniform
-    inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
+    inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform
+    cacheSound := wf.cacheSound }
 
 protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
     {s : State} {f : Expr → RecM α} {Q name ty ty'}
@@ -1364,7 +1592,7 @@ protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
     (hs : s₀ ≤ s)
     (H : ∀ id cwf' s', s₀ ≤ s' → ¬s.ngen.Reserves id →
       WF (c.withMLC (.vlet id name ty val ty' val' m) (wf := cwf')) s' (f (.fvar id))
-        fun a s'' => Q a (s.leaveScope s'')) :
+        fun a s'' => Q a (s.exitScope c.fuel.cacheMode s'')) :
     (withLetDecl name ty val f).WF (c.withMLC m) s Q := by
   intro _ mwf wf
   let id := s.ngen.curr
@@ -1375,9 +1603,10 @@ protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
   let m' := m.vlet ⟨id⟩ name ty val ty' val'
   have cwf' : c.MLCWF m' := ⟨cwf.1, h1', hty, hval, hval'⟩
   have : State.WF (c.withMLC m') s.next := State.WF.vlet (cwf' := cwf') wf hty hval hval'
-  refine M.WF.withFreshId wf fun a s' e => ?_
+  refine M.WF.withFreshId fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
-  exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
+  exact ⟨s', hs1, hs2, wf.exitScope (cwf' := cwf') (le.trans hs2) rfl
+    (fun _ h => cwf'.1.find?_vlet h) (fun h => h1 (wf.ngen_wf _ h)) wf', hs4⟩
 
 @[simp] def MLCtx.mkForall (c : MLCtx) (n) (hn : n ≤ c.length) (e : Expr) : Expr :=
   match n, c, hn with

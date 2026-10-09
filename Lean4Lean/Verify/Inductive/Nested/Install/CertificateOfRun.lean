@@ -35,7 +35,7 @@ theorem NestedRun.hrules_of
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (HruleShape : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
@@ -83,7 +83,7 @@ theorem NestedRun.assemblyOfRun_of_run
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (Hrules : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
@@ -231,8 +231,8 @@ theorem NestedRun.assemblyOfRun_of_restoredWF
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hnested : result.aux2nested.size ≠ 0) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (hnested : result.aux2nested.size ≠ 0)
     (HrestoredWF : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
@@ -257,7 +257,7 @@ theorem NestedRun.assemblyOfRun_of_restoredWF
       C.lowered = E.lowered } :=
   E.assemblyOfRun_of_run wf Hsources
     (E.hrules_of wf Hsources (E.hruleShape_of_base wf Hsources hnested HrestoredWF))
-    (E.recursorsAligned_of wf Hsources hnested htels)
+    (E.recursorsAligned_of wf Hsources hnested)
 
 /-- The restored equations and the concrete recursor alignment are selected
 from this complete successful run. This theorem does not accept arbitrary
@@ -273,13 +273,13 @@ theorem NestedRun.assemblyOfRun
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hnested : result.aux2nested.size ≠ 0) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety)) :
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (hnested : result.aux2nested.size ≠ 0) :
     Nonempty { C : RestoredBlockCertificate E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) //
       C.lowered = E.lowered } :=
-  E.assemblyOfRun_of_restoredWF wf Hsources hnested htels (E.hrestoredWF_of wf Hsources)
+  E.assemblyOfRun_of_restoredWF wf Hsources hnested (E.hrestoredWF_of wf Hsources)
 
 end VerifyInductive
 

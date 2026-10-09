@@ -94,7 +94,8 @@ theorem
   dsimp only
   rcases A.installedSelectedMinorDomain with
     ⟨T, D, O, _discardedShape, Hdomain, HdomainType⟩
-  have hposition := A.selectedMinorOriginPosition O
+  have hposition := RecursorCheck.RuleAlignment.selectedMinorOriginPosition
+    (H := H) (howner := howner) (hctor := hctor) O
   have hsourceOwner : O.owner < indTypes.size := by
     rw [hposition.1]
     exact A.sourceOwner_lt
@@ -222,7 +223,8 @@ theorem
           A.typing.parameterTail := by
   rcases A.installedSelectedMinorDomain with
     ⟨_T, _D, O, _discardedShape, _Hdomain, _HdomainType⟩
-  have hposition := A.selectedMinorOriginPosition O
+  have hposition := RecursorCheck.RuleAlignment.selectedMinorOriginPosition
+    (H := H) (howner := howner) (hctor := hctor) O
   have hsourceOwner : O.owner < indTypes.size := by
     rw [hposition.1]
     exact A.sourceOwner_lt
@@ -1043,23 +1045,6 @@ theorem
     hmotiveApp', hsourceFields, hsourceHypotheses,
     hfields, hhypotheses, htarget, Hresidual, HresidualType⟩
 
-/-- Specialization of `installedSelectedMinorAlignedResidual` for
-callers that have already split off the positive-arity case. -/
-def
-    RecursorCheck.RuleAlignment.installedSelectedMinorPositiveAlignedResidual
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorCheck R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.RuleAlignment owner howner i hctor)
-    (_hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :=
-  A.installedSelectedMinorAlignedResidual
-
 /-- After each constructor pass closes its own fresh field identifiers, the
 minor result retained by the minor pass of `mkRecInfos` is literally the constructor-motive
 application reconstructed for the generated iota rule.  The proof compares
@@ -1079,8 +1064,6 @@ theorem
     (A : H.RuleAlignment owner howner i hctor)
     (S : MinorPremiseType) (traversal : ConstructorFieldTraversal)
     (hconstructor : S.constructor = indTypes[owner]!.ctors[i])
-    (htraversalFields : traversal.fields = S.fields)
-    (hfieldFVars : traversal.fieldFVars = S.fields_bound.fvars)
     (hclosedTargets :
       traversal.terminal.abstractList S.fields_bound.fvars =
         A.rule.target.abstractList A.typing.fieldOpening.fvars)

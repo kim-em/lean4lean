@@ -40,10 +40,10 @@ inductive RecursorCheck.IotaEquationTranslations
         decl.ownedConstructors.length)
       (equations : ∀ i
         (hctor : i < indTypes[owner]!.ctors.length)
-        (hsource : i <
+        (_hsource : i <
           (H.generated.entry owner howner).info.rules.length)
         (habstract : i < batch.length)
-        (hindex : prior.length + i < decl.ownedConstructors.length),
+        (_hindex : prior.length + i < decl.ownedConstructors.length),
         ∃ A : H.RuleAlignment owner howner i hctor,
           Nonempty (A.rule.EquationTranslation H.outVEnv Us Delta batch[i]) ∧
           batch[i].uvars = H.entries[owner].2.uvars) :
@@ -849,7 +849,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   dsimp only
-  have Hhead := A.installedRecursorHeadTranslation
+  have Hhead := H.installedRecursorHeadTranslationAt owner howner
     (abstractForallContext domains [])
   have Hargs := A.recursorPrefixTranslation T fieldDomains hfields
   have htoCtx : ∀ types : List VExpr,
@@ -2158,9 +2158,7 @@ theorem
   have HouterParameters :=
     F.semantic.generated.outerAbstractedBoundArray_eq_lift_of_fresh
       A.rule.params_bound F.parameterFVarsFresh
-      A.rule.binders_nodup (by
-        intro fv hfv
-        simp [hfv])
+      A.rule.binders_nodup
   have hparameterSources :
       ((stats.params.map fun param =>
         (param.abstractList
@@ -2333,7 +2331,6 @@ theorem
     rw [hfieldEq]
   simpa [htranslatedArgs] using hspine
   simpa [parameterSources] using HparametersOriginal
-
 
 end VerifyInductive
 end Lean4Lean

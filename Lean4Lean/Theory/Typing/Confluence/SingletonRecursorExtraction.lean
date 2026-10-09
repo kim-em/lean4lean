@@ -196,10 +196,7 @@ theorem propElim_wf (henv : env.WF) (H : RecursorRegistered env data)
     simp only [Instance.fieldsAt, hgGl]; rfl
   have hPG : gG.params = data.recursorInstance.params := by
     simp only [Instance.params, hgGl]; rfl
-  have harityG : (gG.ctorIndicesAt c).length = (gG.indicesAt data.owner).length := by
-    have := F.arity c hmem
-    simp [Instance.ctorIndicesAt, Instance.indicesAt, this, hown]
-  have hctxG := gG.singleton_fieldsCtx henv hfam hcs data.owner i hc hown htargetG hheadG harityG
+  have hctxG := gG.singleton_fieldsCtx henv hfam hcs data.owner i hc hown htargetG hheadG
   rw [hFG, hPG] at hctxG
   have hspec : ∀ j (hj : j < (data.recursorInstance.fieldsAt c).length) k',
       fieldSlot (data.recursorInstance.ctorIndicesAt c) (data.recursorInstance.fieldsAt c).length j =

@@ -159,7 +159,7 @@ verification environment from which header checking began. -/
 def OrdinaryRunResult
     (source : AddInductive.Context) (sourceEnv : VEnv) (nparams : Nat)
     (types : List InductiveType)
-    (numNested : Nat) (outEnv : Environment) : Prop :=
+    (outEnv : Environment) : Prop :=
   ∃ c' stats depth commonParams commonLevel,
     ∃ Hc' : ContextWF c',
     c'.env = source.env ∧
@@ -202,7 +202,7 @@ theorem AddInductive.run.sourceAlignedWF
         types.toArray (c.safety != .safe) Hc') :
     (AddInductive.run nparams types numNested c).WF
       (OrdinaryRunResult c Hc.venv nparams
-        types numNested) := by
+        types) := by
   have Hduplicates :
       (Kernel.Environment.checkDuplicatedUnivParams c.lparams).WF
         fun _ => c.lparams.Nodup :=
@@ -212,7 +212,7 @@ theorem AddInductive.run.sourceAlignedWF
       (fun stats => AddInductive.runWithStats stats nparams
         types.toArray numNested (c.safety != .safe))
       (OrdinaryRunResult c Hc.venv nparams
-        types numNested)
+        types)
       Hc hctx hnonempty Lean4Lean.consumeTypeAnnotationsCompat
     intro c' stats depth commonParams commonLevel Hc' henv hsafety
       hlparams hallowPrimitive hfuel hvenv Hsemantic

@@ -60,8 +60,9 @@ theorem NestedLoweringOutputClosed.restoredSourceTelescopeAtFreshOfValidation
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hvalid : CheckingEnv.Valid validationSafety validationEnv envCtors)
+    (hmode : validationFuel.cacheMode.Sound envCtors)
     (Hrun : Lean4Lean.validateRestoredRecursorTypes.run validationEnv
-      loweredEnv validationLparams validationSafety validationFuel result
+      loweredEnv validationSafety validationFuel result
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
       (sourceTypes.map (·.name)) sourceTypes auxRecNames = .ok ())
     (hempty : initialState.nestedAux = #[])
@@ -82,7 +83,7 @@ theorem NestedLoweringOutputClosed.restoredSourceTelescopeAtFreshOfValidation
   rcases H.sourceOperationalFamilyAlignmentAtFresh Hc Hprod hempty
       familyIdx hfamily hentry Hstep with ⟨A⟩
   have Htel := A.recursor.restoredForallTelescope
-  rcases validateRestoredRecursorTypes.translation_of_run Hvalid Hrun
+  rcases validateRestoredRecursorTypes.translation_of_run Hvalid hmode Hrun
       (List.getElem_mem hfamily)
       Hstep.restored.recursor.lookup with ⟨targetType, Htr, Htype⟩
   rw [← Hstep.restored.recursor.restored.produced] at Htr Htype
@@ -106,13 +107,14 @@ theorem AuxiliaryRecursorGeneratedAlignment.recursorStepOfValidation
       oldRecName stepSource stepTarget}
     (A : AuxiliaryRecursorGeneratedAlignment Hprod Hstep)
     (Hvalid : CheckingEnv.Valid c.safety validationEnv envCtors)
+    (hmode : validationFuel.cacheMode.Sound envCtors)
     (Hrun : Lean4Lean.validateRestoredRecursorTypes.run validationEnv
-      loweredEnv validationLparams c.safety validationFuel result auxRec
+      loweredEnv c.safety validationFuel result auxRec
       allIndNames validationTypes auxRecNames = .ok ())
     (hrec : oldRecName ∈ auxRecNames) :
     Nonempty (AuxiliaryRecursorTranslation c.safety envCtors envCtors
       Hstep) := by
-  rcases validateRestoredRecursorTypes.auxiliaryTranslation_of_run Hvalid Hrun
+  rcases validateRestoredRecursorTypes.auxiliaryTranslation_of_run Hvalid hmode Hrun
       hrec Hstep.lookup with ⟨targetType, Htranslation, Htype⟩
   rw [← Hstep.restored.produced] at Htranslation Htype
   have Hmetadata := Hprod.restoredSourceRecursorMetadata A.ownerIdx
@@ -141,8 +143,9 @@ theorem AuxiliaryRecursorGeneratedAlignments.recursorTraceOfValidation
       names sourceProdEnv targetProdEnv}
     (H : AuxiliaryRecursorGeneratedAlignments Hprod Htrace)
     (Hvalid : CheckingEnv.Valid c.safety validationEnv envCtors)
+    (hmode : validationFuel.cacheMode.Sound envCtors)
     (Hrun : Lean4Lean.validateRestoredRecursorTypes.run validationEnv
-      loweredEnv validationLparams c.safety validationFuel result auxRec
+      loweredEnv c.safety validationFuel result auxRec
       allIndNames validationTypes auxRecNames = .ok ())
     (Hnames : ∀ name ∈ names, name ∈ auxRecNames)
     (priorRecursors : List VConstVal) :
@@ -151,7 +154,7 @@ theorem AuxiliaryRecursorGeneratedAlignments.recursorTraceOfValidation
   induction H generalizing priorRecursors with
   | nil sourceEnv => exact ⟨priorRecursors, .nil sourceEnv priorRecursors⟩
   | @cons oldRecName stepSource middleEnv tail targetEnv Hstep Htail A Hrest ih =>
-      rcases A.recursorStepOfValidation Hvalid Hrun
+      rcases A.recursorStepOfValidation Hvalid hmode Hrun
           (Hnames oldRecName (by simp)) with ⟨Hhead⟩
       have HtailNames : ∀ name ∈ tail, name ∈ auxRecNames := by
         intro name hname
@@ -217,7 +220,7 @@ theorem NestedLoweringOutputClosed.existsValidatedExactRestoration
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
-    {headerEnv ctorEnv validationEnv primaryProdEnv outProdEnv : Environment}
+    {headerEnv ctorEnv validationEnv outProdEnv : Environment}
     {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
@@ -238,9 +241,9 @@ theorem NestedLoweringOutputClosed.existsValidatedExactRestoration
       Hrestored.inductives decl.types primaryRecursors)
     (HvalidationValid : CheckingEnv.Valid c.safety validationEnv
       ((envCtors.addEliminators es).addProjections decl.projectionEntries))
+    (hmode : validationFuel.cacheMode.Sound ((envCtors.addEliminators es).addProjections decl.projectionEntries))
     (HrecursorValidation :
-      Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
-        validationLparams c.safety validationFuel result
+      Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv c.safety validationFuel result
         (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).2
         ((main :: rest).map (·.name)) (main :: rest)
         (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).1 = .ok ())
@@ -267,7 +270,7 @@ theorem NestedLoweringOutputClosed.existsValidatedExactRestoration
             canonicalProdEnv.constants.find? name := by
   have Halignment := Hrestored.generatedAlignmentTraceOfKernel Hlower Hc
     Hprod hempty
-  rcases Halignment.recursorTraceOfValidation HvalidationValid HrecursorValidation (fun _ h => h) [] with
+  rcases Halignment.recursorTraceOfValidation HvalidationValid hmode HrecursorValidation (fun _ h => h) [] with
     ⟨auxiliaryRecursors, Hauxiliary⟩
   rcases Hrestored.freshExtensionNondelta Hc.checking.tr.map_wf with
     ⟨nondeltaEntries, Hnondelta, hnondelta⟩
@@ -509,7 +512,7 @@ theorem NestedRun.sourceCoreParameterWF
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (Hraw : ∀ type ∈ sourceDecl.types, ∀ ctor ∈ type.ctors,
       sourceDecl.RawCtorShape type ctor) :
     sourceDecl.SourceParameterWF (ves.venv (if isUnsafe then .unsafe else .safe)) := by
@@ -670,7 +673,7 @@ private theorem NestedRun.assemblyBaseOfFormation
     {ves : VEnvs} {sourceVEnv : VEnv} {safety : DefinitionSafety}
     (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (wf : ves.WFCore sourceProdEnv)
+    (wf : ves.WF sourceProdEnv)
     (hsourceVEnv : sourceVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
     (hsafetyEq : safety = if isUnsafe then .unsafe else .safe)
     (hnested : result.aux2nested.size ≠ 0)
@@ -802,11 +805,10 @@ private theorem NestedRun.assemblyBaseOfFormation
       exact E.validationEnvironment
     obtain ⟨hcasesWF, hprojectedWF⟩ := HcasesP.recursorCheckingEnvWF HbaseValid.tr.wf Hcore Hparams
     exact HV.validProjected Hlower HcP Hprod Hcore Hmetadata Hsources Harity
-      hempty Hrestored hvalidCore HbaseValid.projectionRegistry
-      HbaseValid.recursors HbaseValid.quot hcasesWF hprojectedWF
+      hempty Hrestored hvalidCore HbaseValid hcasesWF hprojectedWF
       (hcornerAt (VEnv.addConstVals_le Hcore.ctorsAdded)).2
   have HtypeRun : Lean4Lean.validateRestoredRecursorTypes.run
-      E.validationEnv E.loweredEnv P.c.lparams P.c.safety
+      E.validationEnv E.loweredEnv P.c.safety
       E.validationFuel result
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2
       ((main :: rest).map (fun type => type.name)) (main :: rest)
@@ -817,7 +819,8 @@ private theorem NestedRun.assemblyBaseOfFormation
       Hsources Hcore Hmetadata Hfamilies Hconstructors hempty Hrestored (by
         intro familyIdx hfamily _hdecl hentry stepSource stepTarget Hstep
         exact Hlower.restoredSourceTelescopeAtFreshOfValidation HcP
-          Hprod HtypeValid HtypeRun hempty familyIdx hfamily hentry
+          Hprod HtypeValid (E.cacheSound.mono ((VEnv.addConstVals_le E.sourceCore.core.ctorsAdded).trans
+            VEnv.addEliminators_addProjections_le)) HtypeRun hempty familyIdx hfamily hentry
             stepSource stepTarget Hstep)
   rcases HexactSource with ⟨primaryRecursors, Hsource⟩
   rcases E.primitiveSafe with ⟨primitiveEntries, HprimitiveRaw⟩
@@ -828,8 +831,10 @@ private theorem NestedRun.assemblyBaseOfFormation
       (if P.isUnsafe then DefinitionSafety.unsafe else .safe) := by
     simpa only [hsafety, hisUnsafe] using hvisible
   rcases Hlower.existsValidatedExactRestoration
-      (primaryProdEnv := Hrestored.sourceFamiliesEnv) HcP Hprod Hcore
-      Hrestored Hsource HtypeValid HtypeRun Hparams hempty hvisibleP Hprimitive HcasesP
+      HcP Hprod Hcore
+      Hrestored Hsource HtypeValid
+      (E.cacheSound.mono ((VEnv.addConstVals_le E.sourceCore.core.ctorsAdded).trans
+        VEnv.addEliminators_addProjections_le)) HtypeRun Hparams hempty hvisibleP Hprimitive HcasesP
       with
     ⟨auxiliaryRecursors, HauxiliaryRecursors, replay, canonicalProdEnv,
       finalBaseVEnv, ⟨⟨canonical, hcanonicalElims⟩⟩, _hlookup⟩
@@ -929,7 +934,7 @@ theorem NestedRun.assemblyBaseValid
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (hnested : result.aux2nested.size ≠ 0) :
     Nonempty { B : RestoredBlockBase E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
@@ -974,7 +979,7 @@ theorem NestedRun.assemblyBaseValid
     exact R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
     simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked
-  have wfP : ves.WFCore P.c.env := by
+  have wfP : ves.WF P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
@@ -1000,7 +1005,7 @@ theorem NestedRun.assemblyBaseValid
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N⟩
   have Htypes := Hrun.allExpansionsOfSources Hcache Hparams Hsource
     Htarget Hmetadata Hsources
-      (VEnvs.WFCore.environmentTypesClosed wfP) wfP.inductivesClosed
+      (VEnvs.WF.environmentTypesClosed wfP) wfP.inductivesClosed
       (by simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf)
       hempty N E.auxiliarySelection
   have hnonempty : result.types ≠ [] := by

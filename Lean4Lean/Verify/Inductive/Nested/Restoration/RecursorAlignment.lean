@@ -117,7 +117,7 @@ theorem NestedRun.restoredMajorFound
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (Haux : List.Forall₂ (SpecializationGenerates
@@ -256,8 +256,8 @@ theorem NestedRun.recursorsAligned_of
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hnested : result.aux2nested.size ≠ 0) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety)) :
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (hnested : result.aux2nested.size ≠ 0) :
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
@@ -369,10 +369,7 @@ theorem NestedRun.recursorsAligned_of
   -- the source environment and the recursor environment
   have Hvalid : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe) sourceProdEnv
       (ves.venv (if isUnsafe then .unsafe else .safe)) :=
-    (wf.tr (safety := if isUnsafe then .unsafe else .safe)).toCheckingValid
-      (wf.hasPrimitives (safety := if isUnsafe then .unsafe else .safe))
-      wf.safePrimitives wf.constructorOwners wf.inductiveConstructorsCoherent.listed
-      wf.projectionRegistryCoherent ((htels _))
+    wf.toCheckingValid (if isUnsafe then .unsafe else .safe)
   have hheadsSrc := Hvalid.recursors.heads
   have hsrcWF : sourceProdEnv.constants.WF := Hvalid.tr.map_wf
   have hfinalWF : C.recursorVEnv.WF := (C.install.validCore Hvalid.toValidCore).tr.wf

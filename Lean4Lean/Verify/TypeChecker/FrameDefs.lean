@@ -99,15 +99,23 @@ preserve it. -/
 def RecM.PreservesGhostRestriction (G : FVarId → Prop) (x : RecM α) (R : α → Prop) : Prop :=
   ∀ ⦃m : Methods⦄, m.PreservesGhostRestriction G → M.PreservesGhostRestriction G (x m) R
 
+theorem State.exitScope_ngen {saved s : State} : (saved.exitScope mode s).ngen = s.ngen := by
+  cases mode <;> rfl
+
 /-- The executable's `withFreshId`, unfolded: run the body on the current name and a state
-whose generator has advanced, then leave the scope. -/
+whose generator has advanced, then leave the scope as the cache mode says (`State.exitScope`). -/
 theorem withFreshId_eq {α} (x : Name → M α) (c : Context) (s : State) :
     (withFreshId x : M α) c s =
-      (x s.ngen.curr c { s with ngen := s.ngen.next }).map fun p => (p.1, s.leaveScope p.2) := by
+      (x s.ngen.curr c { s with ngen := s.ngen.next }).map
+        fun p => (p.1, s.exitScope c.fuel.cacheMode p.2) := by
   unfold withFreshId instMonadLocalNameGeneratorM
   simp only [bind, ReaderT.bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get, liftM,
     monadLift, MonadLift.monadLift, Except.bind, pure, Except.pure, ReaderT.pure, StateT.pure,
-    modify, modifyGet, MonadStateOf.modifyGet, StateT.modifyGet, mkFreshId, getNGen, setNGen]
+    modify, modifyGet, MonadStateOf.modifyGet, StateT.modifyGet, mkFreshId, getNGen, setNGen,
+    read, readThe, MonadReaderOf.read, ReaderT.read]
+  cases c.fuel.cacheMode <;>
+  simp only [State.exitScope, bind, ReaderT.bind, StateT.bind, StateT.get, Except.bind, pure,
+    Except.pure, ReaderT.pure, StateT.pure, StateT.modifyGet] <;>
   cases x s.ngen.curr c { s with ngen := s.ngen.next } <;> rfl
 
 end Lean4Lean.TypeChecker

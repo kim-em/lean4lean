@@ -483,7 +483,7 @@ theorem RecursorCheck.findSourceHeaderAt
     {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
-    (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv)
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size) :
     ∃ info : InductiveVal,
       outEnv.find? indTypes[familyIdx].name = some (.inductInfo info) ∧
@@ -601,7 +601,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerUnsafeAt
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -624,7 +624,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerUnsafeAt
     simpa using hresultFamily
   have htargetArrayEq : result.types.toArray[familyIdx] = target := by
     simpa using htargetEq
-  rcases Hprod.findSourceHeaderAt Hc familyIdx hresultArray with
+  rcases Hprod.findSourceHeaderAt familyIdx hresultArray with
     ⟨installedInfo, hinstalledLookup, hinstalledName, _hinstalledType,
       hinstalledCtors, _hinstalledAll, _hinstalledLevels,
       _hinstalledParams, _hinstalledUnsafe⟩
@@ -727,7 +727,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerAt
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -739,7 +739,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerAt
     (Hctor : RestoredConstructorStep result loweredEnv
       Hstep.oldInfo.ctors[ctorIdx] ctorSource ctorTarget) :
     Hctor.restored.newInfo.induct = Hstep.restored.header.newInfo.name :=
-  (Hstep.restoredConstructorOwnerUnsafeAt Hlower Hc Hprod hempty familyIdx hfamily
+  (Hstep.restoredConstructorOwnerUnsafeAt Hlower Hprod hempty familyIdx hfamily
     ctorIdx hctor Hctor).1
 
 /-- Restoring one source family preserves constructor-owner presence.  Old
@@ -756,7 +756,7 @@ theorem RestoredInductiveStep.constructorOwnersPresent
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -803,7 +803,7 @@ theorem RestoredInductiveStep.constructorOwnersPresent
     · rcases hrestored with
         ⟨ctorIdx, hidx, ctorSource, ctorTarget, Hctor, hname, hinfo⟩
       subst info
-      have ⟨howner, hunsafe, hctorName⟩ := Hstep.restoredConstructorOwnerUnsafeAt Hlower Hc
+      have ⟨howner, hunsafe, hctorName⟩ := Hstep.restoredConstructorOwnerUnsafeAt Hlower
         Hprod hempty familyIdx hfamily ctorIdx hidx Hctor
       refine ⟨Hstep.restored.header.newInfo, ?_, ?_, hunsafe⟩
       · rw [howner]
@@ -852,7 +852,7 @@ theorem RestoredInductiveStep.inductInfoAlignmentAt
   have htargetMem : target ∈ result.types.toArray.toList := by
     rw [← htargetArrayEq]
     simp
-  rcases Hprod.findSourceHeaderAt Hc familyIdx hresultArray with
+  rcases Hprod.findSourceHeaderAt familyIdx hresultArray with
     ⟨installedInfo, hinstalledLookup, hinstalledName, hinstalledType,
       hinstalledCtors, hinstalledAll, hinstalledLevels, hinstalledParams,
       hinstalledUnsafe⟩
@@ -1308,7 +1308,7 @@ theorem FoldSteps.sourceFamiliesConstructorOwnersPresent
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec
@@ -1331,7 +1331,7 @@ theorem FoldSteps.sourceFamiliesConstructorOwnersPresent
           (sourceTypes.map (fun type => type.name)) sourceTypes[familyIdx]
           stepSource middle := by
         simpa [hfamilyEq] using Hstep
-      have Hnext := Hstep'.constructorOwnersPresent Hlower Hc Hprod hempty
+      have Hnext := Hstep'.constructorOwnersPresent Hlower Hprod hempty
         familyIdx hfamily hsourceWF Howners
       obtain ⟨entries, Hfresh⟩ := Hstep'.restored.freshExtension hsourceWF
       have hmiddleWF : middle.constants.WF := Hfresh.targetWF hsourceWF
@@ -1361,7 +1361,7 @@ theorem NestedRestorationFolds.constructorOwnersPresent
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   have Hprimary : ConstructorOwnersPresent Hrestored.sourceFamiliesEnv := by
     apply Hrestored.inductives.sourceFamiliesConstructorOwnersPresent
-      Hlower Hc Hprod hempty [] (by simp) hsourceWF Howners
+      Hlower Hprod hempty [] (by simp) hsourceWF Howners
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
     Hrestored.inductives.inductiveFreshExtension hsourceWF
   have hprimaryWF : Hrestored.sourceFamiliesEnv.constants.WF :=
@@ -1423,6 +1423,125 @@ theorem FoldSteps.sourceFamiliesInductInfosFromDecl
       apply ih (processed := processed ++ [head])
         (hsplit := by simpa [List.append_assoc] using hsplit)
         hmiddleWF Hnext
+
+/-- Every family of the source declaration is a restored kernel header, fresh in the
+environment the restoration starts from: the positional cover of the source-family fold. -/
+theorem FoldSteps.sourceFamiliesCover
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
+    {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv loweredEnv : Environment}
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
+      depth sourceVEnv result.types.toArray headerEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
+    (Howners : ConstructorOwnersPresent c.env)
+    (hempty : initialState.nestedAux = #[])
+    (Htrace : FoldSteps
+      (RestoredInductiveStep result loweredEnv auxRec
+        (sourceTypes.map (fun type => type.name)))
+      remaining sourceEnv targetEnv)
+    (processed : List InductiveType)
+    (hsplit : sourceTypes = processed ++ remaining)
+    (hsourceWF : sourceEnv.constants.WF)
+    (hbase : ∀ {n ci}, c.env.find? n = some ci → sourceEnv.find? n = some ci)
+    (Hdone : ∀ i (hi : i < sourceDecl.types.length), i < processed.length →
+      ∃ v, sourceEnv.find? sourceDecl.types[i].name = some (.inductInfo v) ∧
+        c.env.find? sourceDecl.types[i].name = none) :
+    ∀ i (hi : i < sourceDecl.types.length),
+      ∃ v, targetEnv.find? sourceDecl.types[i].name = some (.inductInfo v) ∧
+        c.env.find? sourceDecl.types[i].name = none := by
+  induction Htrace generalizing processed with
+  | nil =>
+    intro i hi
+    apply Hdone i hi
+    have := Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource
+    rw [hsplit, List.append_nil] at this
+    omega
+  | @cons head stepSource middle tail target Hstep Htail ih =>
+    let familyIdx := processed.length
+    have hfamily : familyIdx < sourceTypes.length := by
+      simp [familyIdx, hsplit]
+    have hfamilyEq : sourceTypes[familyIdx] = head := by
+      simp [familyIdx, hsplit]
+    have Hstep' : RestoredInductiveStep result loweredEnv auxRec
+        (sourceTypes.map (fun type => type.name)) sourceTypes[familyIdx]
+        stepSource middle := by
+      simpa [hfamilyEq] using Hstep
+    have Halign := Hstep'.inductInfoAlignmentAt Hlower Hc Hprod
+      Hsource Hmetadata Hsources Harity Howners hempty familyIdx hfamily
+      hsourceWF
+    obtain ⟨entries, Hfresh⟩ := Hstep'.restored.freshExtension hsourceWF
+    have hmiddleWF : middle.constants.WF := Hfresh.targetWF hsourceWF
+    have hheaderFresh : stepSource.find? Hstep'.restored.header.newInfo.name = none :=
+      find?_none_of_contains_false hsourceWF Hstep'.restored.header.fresh
+    have hheaderFind := Hstep'.restored.headerFind hsourceWF
+    apply ih (processed := processed ++ [head])
+      (hsplit := by simpa [List.append_assoc] using hsplit) hmiddleWF
+      (fun h => Hfresh.preservesSourceFind hsourceWF (hbase h))
+    intro i hi hlt
+    rw [List.length_append, List.length_singleton] at hlt
+    rcases Nat.lt_succ_iff_lt_or_eq.mp hlt with hlt | heq
+    · obtain ⟨v, hv, hnone⟩ := Hdone i hi hlt
+      exact ⟨v, Hfresh.preservesSourceFind hsourceWF hv, hnone⟩
+    · subst heq
+      have hname : Hstep'.restored.header.newInfo.name =
+          sourceDecl.types[processed.length].name := Halign.name
+      refine ⟨Hstep'.restored.header.newInfo, by rw [← hname]; exact hheaderFind, ?_⟩
+      cases h : c.env.find? sourceDecl.types[processed.length].name with
+      | none => rfl
+      | some ci =>
+        have := hbase h
+        rw [← hname, hheaderFresh] at this
+        cases this
+
+/-- Every family of the source declaration is a restored kernel header of the environment
+the restoration folds produce, fresh in the environment they start from. -/
+theorem NestedRestorationFolds.cover
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
+    {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv loweredEnv : Environment}
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
+      depth sourceVEnv result.types.toArray headerEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
+    (Howners : ConstructorOwnersPresent c.env)
+    (hempty : initialState.nestedAux = #[])
+    (Hrestored : NestedRestorationFolds result loweredEnv c.env
+      auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
+      ((), outEnv)) :
+    ∀ T ∈ sourceDecl.types, ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧
+      c.env.find? T.name = none := by
+  have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
+  have Hprimary := FoldSteps.sourceFamiliesCover Hlower Hc Hprod Hsource Hmetadata
+    Hsources Harity Howners hempty Hrestored.inductives [] (by simp) hsourceWF id
+    (fun _ _ h => by simp at h)
+  obtain ⟨primaryEntries, HprimaryFresh⟩ :=
+    Hrestored.inductives.inductiveFreshExtension hsourceWF
+  have hprimaryWF := HprimaryFresh.targetWF hsourceWF
+  obtain ⟨auxiliaryEntries, HauxiliaryFresh⟩ :=
+    Hrestored.auxiliaries.recursorFreshExtension hprimaryWF
+  intro T hT
+  obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hT
+  obtain ⟨v, hv, hnone⟩ := Hprimary i hi
+  exact ⟨v, HauxiliaryFresh.preservesSourceFind hprimaryWF hv, hnone⟩
 
 /-- After the nested restoration folds, every visible inductive family is a base
 constant or a family of the source declaration (`InductInfosFromDecl`). Source

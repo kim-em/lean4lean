@@ -954,7 +954,7 @@ theorem
   have HprefixSelected := HprefixT'.defeqDFC H.outVEnvWF.ordered
     HTToSelected
   rcases F.cachedPrefixOwnerTelescopeUnderFront
-      frontDomains cachedBase prefixTarget HselectedToCached HcachedFull
+      frontDomains cachedBase prefixTarget HselectedToCached
       (by simpa [suffix, selectedOuter] using HprefixSelected) with
     ⟨motiveDomains, resultLevel, hdomainLength, _hmotive,
       HprefixExpected, HownerExpected, Hsame⟩
@@ -1065,12 +1065,9 @@ theorem
     exact hscope
   have hselectedMotiveRoot : motiveFVar ∈ F.originRoot.lctx.fvars :=
     F.originExtension.contextLE.fvars hselectedMotiveRuleRoot
-  have hselectedMotiveBinder : motiveFVar ∈ A.rule.binders := by
-    simp [RecursorRuleSyntax.binders, motiveFVar,
-      List.getElem_mem hselectedMotiveFVars]
   have hsourceMotiveHead :=
     F.semantic.generated.outerAbstractedRootFVar_eq_lift
-      hselectedMotiveRoot A.rule.binders_nodup hselectedMotiveBinder
+      hselectedMotiveRoot A.rule.binders_nodup
   have hsourceMotiveHead' :
       (F.semantic.generated.replayTrace A.rule.binders).motive =
         (((H.recInfos.map
@@ -1263,7 +1260,6 @@ theorem
     Hctx, HlocalTemplate, Hcall', Hmajor, HmotiveApplication, Hleft,
     Hclosed',
     HleftWF⟩
-
 
 end VerifyInductive
 end Lean4Lean

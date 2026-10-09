@@ -715,7 +715,7 @@ theorem projField_of_neverZero (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
         rw [← List.reverse_append, List.take_append_drop]
       rw [this] at hOwnCtx
       exact OnCtx.of_append hOwnCtx
-    have hconv := IsDefEqU.closed_telescope_instOuter henv hΓ hΔ₀ ⟨_, hu⟩ hlsWF
+    have hconv := IsDefEqU.closed_telescope_instOuter henv hΔ₀ ⟨_, hu⟩ hlsWF
       (args := ps.take k) (by simp only [List.length_take, List.length_reverse]; omega)
       (by
         intro k' hk1 hk2

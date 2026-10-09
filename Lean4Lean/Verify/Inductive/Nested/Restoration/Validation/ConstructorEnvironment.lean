@@ -37,7 +37,7 @@ theorem RestoredInductiveStep.constructorInductFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -83,7 +83,7 @@ theorem RestoredInductiveStep.constructorInductFresh
     · rcases hrestored with
         ⟨ctorIdx, hidx, ctorSource, ctorTarget, Hctor, _hname, hinfo⟩
       right
-      rw [hinfo, Hstep.restoredConstructorOwnerAt Hlower Hc Hprod hempty
+      rw [hinfo, Hstep.restoredConstructorOwnerAt Hlower Hprod hempty
         familyIdx hfamily ctorIdx hidx Hctor]
       simpa [header, ConstantInfo.name, ConstantInfo.toConstantVal] using
         hheaderFresh
@@ -98,7 +98,7 @@ theorem FoldSteps.sourceFamiliesConstructorInductFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec
@@ -128,7 +128,7 @@ theorem FoldSteps.sourceFamiliesConstructorInductFresh
       rcases ih (processed := processed ++ [head])
           (hsplit := by simpa [List.append_assoc] using hsplit)
           hmiddleWF name info hfind with hmid | hnone
-      · exact Hstep'.constructorInductFresh Hlower Hc Hprod hempty familyIdx
+      · exact Hstep'.constructorInductFresh Hlower Hprod hempty familyIdx
           hfamily hsourceWF name info hmid
       · right
         cases hsrc : stepSource.find? info.induct with
@@ -188,7 +188,7 @@ theorem NestedRestorationFolds.constructorInductFresh
     Hrestored.inductives.inductiveFreshExtension hsourceWF
   have hprimaryWF : Hrestored.sourceFamiliesEnv.constants.WF :=
     HprimaryFresh.targetWF hsourceWF
-  exact Hrestored.inductives.sourceFamiliesConstructorInductFresh Hlower Hc Hprod
+  exact Hrestored.inductives.sourceFamiliesConstructorInductFresh Hlower Hprod
     hempty [] (by simp) hsourceWF name info
     (Hrestored.auxiliaries.recursorConstructorFind hprimaryWF hfind)
 
@@ -688,11 +688,7 @@ theorem ValidationEnvironment.validProjected
       (sourceTypes.map (fun type => type.name)) allowPrimitive sourceTypes
       validationEnv)
     (hvalid : CheckingEnv.ValidCore c.safety validationEnv envCtors)
-    (hsourceRegistry : ProjectionRegistryCoherent c.safety c.env.constants
-      sourceVEnv)
-    (hsourceRecursors : RecursorEnvCoherent c.safety c.env.constants sourceVEnv)
-    (hsourceQuot : c.env.quotInit = true →
-      QuotEnvCoherent c.env.constants sourceVEnv)
+    (hsourceValid : CheckingEnv.Valid c.safety c.env sourceVEnv)
     (hcasesWF : (envCtors.addEliminators es).WF)
     (hprojectedWF : ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries).WF)
     (htels : CtorTelescopes c.safety validationEnv envCtors) :
@@ -709,10 +705,10 @@ theorem ValidationEnvironment.validProjected
       Hprod Hsource Hmetadata Hsources Harity Howners hempty [] (by simp)
       hsourceWF Hinitial
   have HprimaryOwners : ConstructorOwnersPresent Hrestored.sourceFamiliesEnv :=
-    Hrestored.inductives.sourceFamiliesConstructorOwnersPresent Hlower Hc Hprod
+    Hrestored.inductives.sourceFamiliesConstructorOwnersPresent Hlower Hprod
       hempty [] (by simp) hsourceWF Howners
   have HprimaryInduct :=
-    Hrestored.inductives.sourceFamiliesConstructorInductFresh Hlower Hc Hprod
+    Hrestored.inductives.sourceFamiliesConstructorInductFresh Hlower Hprod
       hempty [] (by simp) hsourceWF
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
     Hrestored.inductives.inductiveFreshExtension hsourceWF
@@ -765,51 +761,29 @@ theorem ValidationEnvironment.validProjected
           (Option.some.inj (hlookup'.symm.trans hlookup''))
         subst hownerEq
         exact ⟨_, by rw [hF]; exact hheader, hrest⟩
-  have hregistry : ProjectionRegistryCoherent c.safety validationEnv.constants
-      ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) := by
-    apply hsourceRegistry.extendInductive (envTypes := envTypes)
-      (envCtors := envCtors)
-    · apply InductInfosFromDecl.restrict Hprimary
-      · intro name ci h
-        exact Environment.mapFind_of_find hvalidWF (hsourceSub (hfindS h))
-      · intro name ci h
-        exact Environment.mapFind_of_find hprimaryWF (hsubset (hfindV h))
-      · intro familyName familyInfo familyIdx hfind _hnone A ctorIdx hctor
-        have hctorDecl :
-            ctorIdx < (sourceDecl.types[familyIdx]'A.familyIdx_lt).ctors.length := by
-          rw [← A.constructors]
-          exact hctor
-        rcases A.constructor ctorIdx hctorDecl with ⟨C⟩
-        have hname : familyInfo.ctors[ctorIdx]'hctor =
-            ((sourceDecl.types[familyIdx]'A.familyIdx_lt).ctors[ctorIdx]'hctorDecl).name :=
-          C.name
-        have hmem : ((sourceDecl.types[familyIdx]'A.familyIdx_lt).ctors[ctorIdx]'hctorDecl) ∈
-            sourceDecl.constructorConstants := by
-          simp only [VInductDecl.constructorConstants, List.mem_flatMap]
-          exact ⟨_, List.getElem_mem _, List.getElem_mem _⟩
-        have habstract := VEnv.addConstVals_get Hsource.ctorsAdded hmem
-        rw [← hname] at habstract
-        rcases hvalid.tr.aligned.find?_iff.mpr ⟨_, habstract⟩ with ⟨ci, hci, _⟩
-        exact ⟨ci, hci⟩
+  have horiginsV : InductInfosFromDecl c.env.constants validationEnv.constants sourceDecl := by
+    apply InductInfosFromDecl.restrict Hprimary
     · intro name ci h
       exact Environment.mapFind_of_find hvalidWF (hsourceSub (hfindS h))
-    · intro name info h
-      rcases HprimaryInduct name info (hsubset (hfindV h)) with hold | hnone
-      · exact Or.inl (Environment.mapFind_of_find hsourceWF hold)
-      · right
-        rw [Lean.Kernel.Environment.find?, hsourceWF.find?'_eq_find?] at hnone
-        exact hnone
-    · intro type htype
-      rcases Lean4Lean.List.Forall₂.forall_exists_r Hsource.types type htype with
-        ⟨_, _, Htype⟩
-      have huvars : type.uvars = c.lparams.length := Htype.header.uvars
-      rw [huvars, Hsource.uvars]
-    · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hsource
-    · exact Hsource.typesAdded
-    · exact Hsource.ctorsAdded
-    · exact VEnv.addEliminators_addProjections_le
-    · intro entry hentry
-      exact VEnv.addProjections_iff.mpr (Or.inl ⟨entry, hentry, rfl, rfl⟩)
+    · intro name ci h
+      exact Environment.mapFind_of_find hprimaryWF (hsubset (hfindV h))
+    · intro familyName familyInfo familyIdx hfind _hnone A ctorIdx hctor
+      have hctorDecl :
+          ctorIdx < (sourceDecl.types[familyIdx]'A.familyIdx_lt).ctors.length := by
+        rw [← A.constructors]
+        exact hctor
+      rcases A.constructor ctorIdx hctorDecl with ⟨C⟩
+      have hname : familyInfo.ctors[ctorIdx]'hctor =
+          ((sourceDecl.types[familyIdx]'A.familyIdx_lt).ctors[ctorIdx]'hctorDecl).name :=
+        C.name
+      have hmem : ((sourceDecl.types[familyIdx]'A.familyIdx_lt).ctors[ctorIdx]'hctorDecl) ∈
+          sourceDecl.constructorConstants := by
+        simp only [VInductDecl.constructorConstants, List.mem_flatMap]
+        exact ⟨_, List.getElem_mem _, List.getElem_mem _⟩
+      have habstract := VEnv.addConstVals_get Hsource.ctorsAdded hmem
+      rw [← hname] at habstract
+      rcases hvalid.tr.aligned.find?_iff.mpr ⟨_, habstract⟩ with ⟨ci, hci, _⟩
+      exact ⟨ci, hci⟩
   have hle : sourceVEnv ≤ (envCtors.addEliminators es).addProjections sourceDecl.projectionEntries :=
     (VEnv.addConstVals_le Hsource.typesAdded).trans
       ((VEnv.addConstVals_le Hsource.ctorsAdded).trans VEnv.addEliminators_addProjections_le)
@@ -823,7 +797,7 @@ theorem ValidationEnvironment.validProjected
     rwa [Lean.Kernel.Environment.find?, hvalidWF.find?'_eq_find?] at hout
   have hrecursors : RecursorEnvCoherent c.safety validationEnv.constants
       ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) := by
-    refine hsourceRecursors.extendSimple hpres ?_ hle ?_
+    refine hsourceValid.recursors.extendSimple hpres ?_ hle ?_
     · intro n rec hfind _
       have hfind' : validationEnv.find? n = some (.recInfo rec) := by
         rw [Lean.Kernel.Environment.find?, hvalidWF.find?'_eq_find?]
@@ -843,22 +817,76 @@ theorem ValidationEnvironment.validProjected
         ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) := by
     intro hq
     rw [H.quotInit_eq hsourceWF] at hq
-    exact (hsourceQuot hq).extend hpres hle hrecursors.heads
-  have hlisted : ListedConstructorsCoherent validationEnv :=
-    (ListedConstructorsCoherent.ofInductInfosFromDecl hsourceWF hprimaryWF
-      Hc.checking.listedConstructors Hheaders.sourcePresent
-      (fun h => HprimaryFresh.preservesSourceFind hsourceWF h) Hprimary).ofSub hsubset
-  exact ((hvalid.addEliminators hcasesWF).addProjections hprojectedWF).toValid howners hlisted
-    hregistry hrecursors hquot (htels.mono (VEnv.addEliminators_le.trans VEnv.addProjections_le))
+    exact (hsourceValid.quot hq).extend hpres hle hrecursors.heads
+  have hcore' := (hvalid.addEliminators hcasesWF).addProjections hprojectedWF
+  have hpresV : ∀ {n ci}, c.env.find? n = some ci → validationEnv.find? n = some ci :=
+    fun h => hsourceSub h
+  have hkindsV : ∀ {n ci}, validationEnv.find? n = some ci → c.env.find? n = none →
+      (∃ v, ci = .inductInfo v) ∨ (∃ v, ci = .ctorInfo v) := by
+    intro n ci hfind hnone
+    rcases H.findCases hsourceWF hfind with hold | ⟨_, _, _, _, _, rfl⟩ |
+        ⟨_, _, _, _, _, _, _, _, _, rfl⟩
+    · rw [hold] at hnone; cases hnone
+    · exact .inl ⟨_, rfl⟩
+    · exact .inr ⟨_, rfl⟩
+  have hsourceNames : sourceDecl.sourceNames.Nodup := by
+    have := VEnv.addConstVals_names_nodup
+      (VEnv.addConstVals_append Hsource.typesAdded Hsource.ctorsAdded)
+    simpa [VInductDecl.sourceNames, List.map_append] using this
+  have hreg : InstalledBlocks.DeclRegistered ((envCtors.addEliminators es).addProjections
+      sourceDecl.projectionEntries) sourceDecl es := {
+    typeUvars := by
+      intro type htype
+      rcases Lean4Lean.List.Forall₂.forall_exists_r Hsource.types type htype with
+        ⟨_, _, Htype⟩
+      rw [Htype.header.uvars, Hsource.uvars]
+    constructorUvars := Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hsource
+    family := fun i hi => ((VEnv.addConstVals_le Hsource.ctorsAdded).trans
+        VEnv.addEliminators_addProjections_le).constants
+      (VEnv.addConstVals_get Hsource.typesAdded
+        (List.mem_map.mpr ⟨sourceDecl.types[i], List.getElem_mem hi, rfl⟩))
+    ctor := fun i k hi hk => VEnv.addEliminators_addProjections_le.constants
+      (VEnv.addConstVals_get Hsource.ctorsAdded (by
+        simp only [VInductDecl.constructorConstants, List.mem_flatMap]
+        exact ⟨_, List.getElem_mem hi, List.getElem_mem hk⟩))
+    projections := fun e he => VEnv.addProjections_iff.mpr (.inl ⟨e, he, rfl, rfl⟩)
+    eliminators := fun e he => VEnv.addProjections_le.eliminators
+      (VEnv.addEliminators_iff.mpr (.inl he)) }
+  have hcover := InductInfosFromDecl.cover hsourceValid.tr hcore'.tr Hheaders.sourcePresent
+    hpresV horiginsV howners
+    (fun T hT => (VEnv.addConstVals_names_fresh Hsource.typesAdded).2 _
+      (List.mem_map.mpr ⟨T, hT, rfl⟩))
+    (fun T hT => by
+      obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hT
+      exact ⟨_, hreg.family i hi⟩)
+    hsourceNames hkindsV
+  have hblocks := hsourceValid.blocks.addCtorStage Hheaders.sourcePresent hsourceWF hcore'.tr
+    hpresV hle horiginsV hcover
+    (by
+      have := VEnv.addConstVals_names_nodup Hsource.typesAdded
+      simpa [VInductDecl.typeConstants, Function.comp_def] using this)
+    howners []
+    (fun hf hnone => by
+      rcases hkindsV hf hnone with ⟨_, h⟩ | ⟨_, h⟩ <;> cases h)
+    (by simp) (by simp) (by simp)
+    es hreg
+    (fun hp => by
+      rcases VEnv.addProjections_iff.mp hp with ⟨e, he, rfl, rfl⟩ | hold
+      · exact .inr he
+      · left
+        rw [VEnv.addEliminators_projections, VEnv.addConstVals_projections Hsource.ctorsAdded,
+          VEnv.addConstVals_projections Hsource.typesAdded] at hold
+        exact hold)
+    (htels.mono (VEnv.addEliminators_le.trans VEnv.addProjections_le))
+  exact hcore'.toValid hblocks hrecursors.heads hquot
 
 
 /-! ### The restored environment -/
 
 /-- Local checking facts for the restored environment: core invariants
 come from the block installation `canonical` of a permutation of the installed
-entries, owners from the restoration fold steps, and projection metadata from
-the restored source families. These facts do not supply
-recursor semantics. -/
+entries, owners from the restoration fold steps, and the alignment of the restored source
+families with the source declaration. These facts do not supply recursor semantics. -/
 theorem NestedRestorationFolds.localValidOfInstallation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
@@ -884,13 +912,10 @@ theorem NestedRestorationFolds.localValidOfInstallation
     (canonical : BlockInstallation c.safety c.env sourceVEnv types ctors recursors
       sourceDecl.projectionEntries canonicalProdEnv installedVEnv)
     (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
-    (htypeValues : types.map Prod.snd = sourceDecl.typeConstants)
-    (hctorValues : ctors.map Prod.snd = sourceDecl.constructorConstants)
     (hvalidSource : CheckingEnv.Valid c.safety c.env sourceVEnv) :
     CheckingEnv.ValidCore c.safety outEnv installedVEnv ∧
       ConstructorOwnersPresent outEnv ∧
-      ProjectionRegistryCoherent c.safety outEnv.constants installedVEnv ∧
-      ListedConstructorsCoherent outEnv := by
+      InductInfosFromDecl c.env.constants outEnv.constants sourceDecl := by
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   have Howners : ConstructorOwnersPresent c.env := Hc.checking.constructorOwners
   have houtWF : outEnv.constants.WF := Hactual.targetWF hsourceWF
@@ -900,53 +925,8 @@ theorem NestedRestorationFolds.localValidOfInstallation
       sourceDecl :=
     Hrestored.inductInfosFromDecl Hlower Hc Hprod Hsource Hmetadata
       Hsources Harity Howners hempty
-  have hinduct := Hrestored.constructorInductFresh Hlower Hc Hprod hempty
-  have hvenvTypes : canonical.venvTypes = envTypes := by
-    have h := canonical.abstract_types
-    rw [htypeValues] at h
-    exact Option.some.inj (h.symm.trans Hsource.typesAdded)
-  have hvenvCtors : canonical.venvCtors = envCtors := by
-    have h := canonical.abstract_ctors
-    rw [hctorValues, hvenvTypes] at h
-    exact Option.some.inj (h.symm.trans Hsource.ctorsAdded)
-  have hle : envCtors.addProjections sourceDecl.projectionEntries ≤ installedVEnv := by
-    rw [← hvenvCtors]
-    exact (VEnv.addProjections_mono VEnv.addEliminators_le).trans canonical.recursorsAdded.le
-  have hregistry : ProjectionRegistryCoherent c.safety outEnv.constants
-      installedVEnv := by
-    apply hvalidSource.projectionRegistry.extendInductive (envTypes := envTypes)
-      (envCtors := envCtors) horigins
-    · intro name ci h
-      exact Environment.mapFind_of_find houtWF
-        (Hactual.preservesSourceFind hsourceWF (by
-          rw [Lean.Kernel.Environment.find?, hsourceWF.find?'_eq_find?]
-          exact h))
-    · intro name info h
-      have h' : outEnv.find? name = some (.ctorInfo info) := by
-        rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]
-        exact h
-      rcases hinduct name info h' with hold | hnone
-      · exact Or.inl (Environment.mapFind_of_find hsourceWF hold)
-      · right
-        rw [Lean.Kernel.Environment.find?, hsourceWF.find?'_eq_find?] at hnone
-        exact hnone
-    · intro type htype
-      rcases Lean4Lean.List.Forall₂.forall_exists_r Hsource.types type htype with
-        ⟨_, _, Htype⟩
-      have huvars : type.uvars = c.lparams.length := Htype.header.uvars
-      rw [huvars, Hsource.uvars]
-    · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hsource
-    · exact Hsource.typesAdded
-    · exact Hsource.ctorsAdded
-    · exact (VEnv.addProjections_le).trans hle
-    · intro entry hentry
-      exact hle.projections
-        (VEnv.addProjections_iff.mpr (Or.inl ⟨entry, hentry, rfl, rfl⟩))
   exact ⟨canonical.validCoreOfFreshPermutation Hactual hperm hvalidSource.toValidCore,
-    howners, hregistry,
-    ListedConstructorsCoherent.ofInductInfosFromDecl hsourceWF houtWF
-      Hc.checking.listedConstructors Hheaders.sourcePresent
-      (fun h => Hactual.preservesSourceFind hsourceWF h) horigins⟩
+    howners, horigins⟩
 
 end VerifyInductive
 end Lean4Lean

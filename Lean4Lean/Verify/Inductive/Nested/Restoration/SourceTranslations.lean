@@ -170,12 +170,13 @@ theorem NestedLoweringOutputClosed.validateNestedAuxiliariesWF
     (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
     (hlctx : mlctx.lctx = res.lctx)
     (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
-      ({} : TypeChecker.State).ngen.Reserves fv) :
+      ({} : TypeChecker.State).ngen.Reserves fv)
+    (hmode : fuel.cacheMode.Sound venv) :
     (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
       res).WF fun _ =>
         NestedOccurrencesTyped venv lparams mlctx.vlctx res := by
   rcases H with ⟨finalState, Hrun, Hcache, _Hparams⟩
-  apply Hrun.validateNestedAuxiliariesWF hvalid mlctx hmlctx hlctx hfresh
+  refine Hrun.validateNestedAuxiliariesWF hvalid mlctx hmlctx hlctx hfresh ?_ hmode
   have hfvars : res.lctx.fvars = mlctx.vlctx.fvars := by
     rw [← hlctx, hmlctx.tr.fvars_eq]
   intro nested name hentry
@@ -692,9 +693,10 @@ theorem NestedLoweringOutputClosed.sourceConstructorTypingAtFreshOfValidation
         VInductiveType.toVConstVal) = some sourceTypesVEnv)
     (HvalidationValid : CheckingEnv.Valid c.safety validationEnv
       sourceTypesVEnv)
+    (hmode : validationFuel.cacheMode.Sound sourceTypesVEnv)
     (HparameterRun :
       Lean4Lean.validateSourceConstructorTypes.run validationEnv
-        c.lparams c.safety validationFuel sourceTypes result = .ok ())
+        c.lparams c.safety validationFuel sourceTypes = .ok ())
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
@@ -705,7 +707,7 @@ theorem NestedLoweringOutputClosed.sourceConstructorTypingAtFreshOfValidation
           Hstep.restored.constructorEnv sourceTypes[familyIdx].ctors
             constructors := by
   rcases validateSourceConstructorTypes.sourceConsts_of_run
-      HvalidationValid Hsources HparameterRun (List.getElem_mem hfamily) with
+      HvalidationValid hmode Hsources HparameterRun (List.getElem_mem hfamily) with
     ⟨constructors, Htranslations⟩
   have Hfamilies : ∀ name nested,
       result.aux2nested.find? name = some nested →
@@ -1267,9 +1269,8 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringWF
       Nonempty (ValidationHeaderEnvironment loweredEnv sourceProdEnv
         (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv) →
       Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
-        lparams safety fuel sourceTypes res = .ok () →
-      Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
-        lparams safety fuel res
+        lparams safety fuel sourceTypes = .ok () →
+      Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv safety fuel res
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
           (sourceTypes.map (·.name)) sourceTypes
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok () →
@@ -1278,7 +1279,7 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringWF
           (Lean4Lean.restoredRecursorNames
             (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 sourceTypes
             (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1))
-        loweredEnv lparams safety fuel res
+        loweredEnv safety fuel res
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
           (sourceTypes.map (·.name)) sourceTypes
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok () →
@@ -1333,7 +1334,8 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
     (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
     (hlctx : mlctx.lctx = res.lctx)
     (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
-      ({} : TypeChecker.State).ngen.Reserves fv) :
+      ({} : TypeChecker.State).ngen.Reserves fv)
+    (hmode : fuel.cacheMode.Sound venv) :
     (Environment.restoreNestedAfterInstall sourceProdEnv loweredEnv lparams
       sourceTypes safety allowPrimitive fuel res).WF fun outEnv =>
         ValidatedRestoration res sourceProdEnv loweredEnv
@@ -1357,7 +1359,7 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
     _HrecursorRules
   have Hvalid := hvalid auxiliaryHeaderEnv HheaderValidation
   refine (Hlower.validateNestedAuxiliariesWF Hvalid mlctx hmlctx hlctx
-    hfresh).mono fun _ Hvalidated => ⟨Hvalidated, ?_⟩
+    hfresh hmode).mono fun _ Hvalidated => ⟨Hvalidated, ?_⟩
   rcases Hlower with ⟨finalState, Hrun, _Hcache, _Hparams⟩
   exact Hrun.validatedAuxiliaryResidualTranslations Hvalid.tr.wf
     mlctx hmlctx hlctx Hvalidated

@@ -29,21 +29,44 @@ declarations and quotient initialization. The dependency cone has no `sorry`. Th
 a thin wrapper around
 
 ```lean
-theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (hq : ∀ safety, (ves.venv safety).QuotReady)
     (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-        VEnvs.CtorTelescopesPreserved env env' ves ves'
+      ∃ ves' : VEnvs, ves'.WF env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety)
 ```
 
-`VEnvs.WF` is the core invariant `VEnvs.WFCore` together with the constructor-telescope
-certificates `VEnvs.AllCtorTelescopes` (section 5.3); the wrapper discharges `htels` from the
-certificates, derives `hq` from `heq` (`VEnv.HasCanonicalEq.quotReady`), and carries the
-certificates to the output through `CtorTelescopesPreserved`. The iterable form `addDecl.WFHasCanonicalEq`
+The wrapper derives `hq` from `heq` (`VEnv.HasCanonicalEq.quotReady`). The constructor-telescope
+certificates (section 5.3) are not a separate hypothesis: they follow from the installed blocks
+recorded in `VEnvs.WF` (`VEnvs.WF.ctorTelescopes`). The iterable form `addDecl.WFHasCanonicalEq`
 also returns `HasCanonicalEq` for `ves'` (monotone along `≤`), so the theorem applies again
 to the next declaration of a replay.
+
+The checker has two cache modes (`Lean4Lean/CacheMode.lean`), a runtime tag in the `cacheMode`
+field of `FuelConfig`:
+
+```lean
+structure GlobalCacheLicense : Type where
+  ok : ∀ env : VEnv, env.WF → env.HasCanonicalEq → env.Strengthening
+inductive CacheMode where
+  | scoped
+  | global (license : GlobalCacheLicense)
+```
+
+The default `.scoped` restores the context-relative caches when a binder is closed; `.global`
+keeps them for the whole run as the C++ kernel does, and can be selected only with a license, a
+proof of context strengthening (section 5.1) of which no inhabitant is known. The theorem holds in
+both modes:
+
+```lean
+theorem addDecl.WF_of_canonicalEq_mode {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (decl : Declaration) (mode : CacheMode) :
+    (addDecl env decl (check := true) (fuel := { cacheMode := mode })).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety
+```
+
+and `addDecl.WF_of_canonicalEq` is its instance at `.scoped`, since `{}` is `{ cacheMode := .scoped }`
+(section 5.2).
 
 "Sound" means refinement: whenever the executable `addDecl` returns an environment, that
 environment is modelled, at every safety level, by an abstract environment that is well formed
@@ -77,7 +100,8 @@ into an `AddDeclChain` from `Kernel.Environment.empty` (`AddDeclChain.WF_empty`)
 compares the type of `Eq` with the prelude's up to `Expr.eqv` but does not look at its safety, so
 before the step that initializes the quotient module the driver also checks that `Eq` is safe,
 with one universe parameter and a type `==` to the prelude's (`hasCanonicalEqType`, sound for
-`HasCanonicalEqType`: every translation of the type is the canonical one, by `TrExprS.eqv`). This
+`HasCanonicalEqType`: every translation of the type is the canonical one, since `TrExprS.eqv`
+moves it to the prelude's syntax, whose syntactic translation `TrSyn` is the canonical type). This
 is exactly what the abstract model of `quotDecl` consumes (`QuotReady`); nothing is required of
 `Eq.refl` or `Eq.rec`. `replayPure.WF_fromImports` states the same for the
 pure replay `replayPure` on top of imports whose well-formedness and canonical `Eq` are assumed:
@@ -91,15 +115,12 @@ the source constant. Which constants make up the dependency cone of `d` is not c
 ### 1.3 The hypotheses
 
 - `wf : ves.WF env` is the invariant being preserved. `VEnvs.WF`
-  (`Lean4Lean/Verify/TypeChecker.lean`) is the core invariant `VEnvs.WFCore` together with
-  the constructor telescope certificates (`VEnvs.AllCtorTelescopes`). The core gains fields in this pull
-  request: closure of mutual inductives, presence of constructor owners that list their
-  constructors, agreement of the
-  installed constructors with the abstract model, and the record of installed inductive
-  families (which carries projection-registry coherence). It holds for the empty environment the executable replays
-  from (`VEnvs.WF.empty`, `Lean4Lean/Verify/Environment.lean`): every field is vacuous there
-  except the translation, and an environment without constructors carries the certificates
-  vacuously (`VEnvs.WF.ofNoCtors`). There is no invariant about the type-annotation wrappers:
+  (`Lean4Lean/Verify/Environment/Model.lean`) is one abstract environment per safety level,
+  related to the kernel environment by the translation `TrEnv`, with the primitives, and with
+  every inductive constant accounted for by an installed block (`InstalledBlocks`, section
+  3.4). It holds for the empty environment the executable replays from (`VEnvs.WF.empty`,
+  `Lean4Lean/Verify/Environment.lean`): there are no blocks, and only the translation is not
+  vacuous. There is no invariant about the type-annotation wrappers:
   the inductive checker strips `optParam`, `autoParam`, `outParam` and `semiOutParam` from
   binder domains only when the environment at that point declares the name as the prelude's
   definition (`Kernel.Environment.isTypeAnnotationWrapper`), and each strip is justified from
@@ -111,7 +132,7 @@ the source constant. Which constants make up the dependency cone of `d` is not c
   It is used only in the quotient case (section 6); `addDecl.WF_quotReadyAt` assumes quotient
   readiness only for `quotDecl`.
 - There is no hypothesis about the constructor telescopes walked by projection inference:
-  the constructor certificates of `VEnvs.WF` cover them (section 5.3).
+  the installed blocks of `VEnvs.WF` carry a certificate for every constructor (section 5.3).
 
 A replay from the empty environment is covered by `AddDeclChain.WF_empty`
 (`Lean4Lean/Verify/Replay.lean`): every environment reached by adding a list
@@ -127,6 +148,12 @@ takes as hypothesis that the executable installs `Eq.rec` with the prelude's typ
 `Lean4Lean/Tests/PreludeEq.lean` checks. The honest reading of the theorem is therefore:
 `addDecl` is sound for environments that contain the prelude's `Eq`, and every declaration of
 a replay from the empty environment is sound (`AddDeclChain.WF_empty`).
+
+- The cache mode: in the default scoped mode nothing is assumed. The mode-parametric forms
+  (`addDecl.WF_mode`, section 5.2) assume the mode is sound for the input models
+  (`CacheMode.Sound`), which in the global mode is canonical `Eq`; `WF_of_canonicalEq_mode` has it
+  from `heq`. The fuel-generic inductive dispatch theorems carry the same assumption as `hmode`,
+  true for every scoped configuration.
 
 No hypothesis names the declaration being checked or supplies a semantic fact about it.
 Inductive declarations carry no premise at all: their abstract declaration, normalized
@@ -147,7 +174,7 @@ signature, compilation certificate and case eliminators are reconstructed from t
 
 The audit (`scripts/InductiveAudit.lean`, driven by `scripts/check-inductive-audit.py`) walks
 the transitive dependency closure of a fixed list of roots, including opaque theorem bodies and
-the types of dependencies. The roots are the top-level theorems, the replay theorems of section
+the types of dependencies. The roots are the top-level theorems (in both cache modes), the replay theorems of section
 1.2, the three inductive dispatch theorems, `addQuot.WF`, the checker's `whnf` and recursor
 reduction theorems, the prefix-unfolding and quotient theorems (`PrefixUnfold.defeq`,
 `QuotPrefixUnfold.defeq`, `QuotRegistered.propInhabitant_app`), `NormalEq.parRed`,
@@ -423,10 +450,14 @@ ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
   and the environment with the constructors); `checkRecursiveFields` requires, for a safe
   declaration, that the fields given induction hypotheses are exactly those the positivity
   check classified as recursive. The two classifications are `whnf` runs on the same field
-  types in different environments, universe parameters and free variables, and no theorem
-  relates two such runs, so the agreement is checked rather than proved
-  (`RecursorConstruction.recursiveFieldsChecked`). With it the classification of the generation
-  signature is that of the checked formation (`SignatureSpec.classified`, `sourceClasses`), and
+  types in different environments and universe parameters, and with the fields opened as
+  different free variables. That renaming is what prevents a proof: `whnf` asks `isDefEq`
+  for K-like iota, and `isDefEq` decides through the equivalence manager's hash test and
+  pointer-equality tests, which are not invariant under renaming in the model
+  (`Tests/FVarRenamingEquivManager.lean`), while a definitional argument cannot recover the
+  syntactic parameter test of `isValidIndApp?`. So the agreement is checked rather than proved
+  (`RecursorConstruction.recursiveFieldsChecked`; `divergences.md` gives the details). With
+  it the classification of the generation signature is that of the checked formation (`SignatureSpec.classified`, `sourceClasses`), and
   its fields inherit the classified normal forms of the source fields. On the primitive path the
   classifications are computed from the run (`PrimitiveHeaderEnvironment.checkedClasses`), using
   that `whnf` returns an inductive constant unchanged
@@ -522,12 +553,49 @@ declaration the checker accepts these checks succeed; they turn a generic genera
 correctness theorem, which would need strengthening and uniqueness at arbitrary generated
 syntax, into a type check of a closed term.
 
+What an installation leaves behind is recorded once, as a descriptor of the installed block
+(`InstalledBlock`, `Lean4Lean/Verify/Environment/Blocks.lean`): its kernel headers,
+constructors and recursors, the abstract declaration with the abstract family and
+constructor of each kernel header and constructor, the case eliminators and projections it
+registers, the telescope certificate of each constructor, and the stage reached. The stages
+follow the executable: at `.headers` the headers are installed and the constructors they list
+are absent, which is how their types are checked; at `.constructors` the constructors are
+installed and the block's case eliminators and projections registered (the
+recursor-checking environment, and the side environments of nested restoration, where the
+recursors may already be present); at `.complete` the abstract block is installed
+(`VEnv.InstalledBelow`) and every constructor agrees with its family on the common
+parameters. A descriptor has a kernel side, which every observer sees, and an abstract side
+for the observers that see the block; recursor alignment is required for the recursors the
+observer sees.
+
+The environment invariant `InstalledBlocks safety env venv stage` says that every inductive
+header, constructor and recursor of `env` belongs to a well-formed descriptor of at least
+`stage`, and that every projection entry registered in `venv` was registered by a visible
+descriptor. `VEnvs.WF` and `VEnvAt` carry it at `.complete`; the checking invariant
+`CheckingEnv.Valid`, and the checker context `VContext`, at `.headers`, since a staged
+environment carries partial descriptors. Every lookup the checker reads is a projection of it:
+mutual closure, constructor owners, listed constructors (and their presence when every block
+has its constructors), the projection registry in both directions
+(`InstalledBlocks.projectionRegistryCoherent`, and `InstalledBlocks.projectionHeader`: a
+structure with a registry entry is a visible header listing exactly the registered
+constructor), recursor alignment (`InstalledBlocks.recursorEnvCoherent`), the presence of the
+constructors of every recursor's major inductive (`InstalledBlocks.recursorMajorCtors`), the
+constructor telescopes, constructor parameter agreement and the installed families. Each
+installation step extends the invariant once: an unrelated constant keeps every descriptor
+(`InstalledBlocks.addFresh`, `addDefinitions`), a header installed on its own is its own
+descriptor at `.headers` (`addFreshListed`), and the installation of a declaration up to the
+constructor stage or completely adds the descriptor read off it (`addCtorStage`,
+`addInduct`, both instances of `addBlock`), on the ordinary, primitive, prelude and nested
+paths alike. A primitive batch installs atomically and has no checking invariant between its
+header and its constructors (`AtomicAddConstants`, `LocalContextWF`); the invariant is
+re-established at the end of the batch.
+
 ### 3.5 Shared proof infrastructure
 
 The phase certificates remain in the inductive checker, while generic expression, context and
-abstract typing facts live below it. The original qualified declaration names and theorem
-contracts are retained, including the older `VerifyInductive` names of abstract calculus facts.
-Importing the old adapter modules still exposes those declarations.
+abstract typing facts live below it. Adapters import these shared facts and connect them to
+the phase certificates. Theorem interfaces carry the hypotheses needed by their conclusions;
+redundant arguments are removed together with their caller arguments.
 
 | Responsibility | Modules |
 | --- | --- |
@@ -536,12 +604,15 @@ Importing the old adapter modules still exposes those declarations.
 | Guarded iota closure and abstract case certificates | `Theory/Inductive/GuardedIotaLemmas.lean`, `Theory/Inductive/CaseEliminators.lean` |
 | Source expression telescope shapes and typed transport | `Verify/Expr/Telescope.lean`, `Verify/Typing/Telescope.lean` |
 | Concrete local-context inclusion | `Verify/LocalContext/SubContext.lean` |
+| Syntactic translation (`TrSyn`, `trSyn?`) and the typed layer (`TrResidual`, `TrTyped`) | `Verify/Typing/Syntactic/{Context,Levels,Basic,Transport,Typed,TypedAPI}.lean` |
+| Constructor telescope certificates (`TelWF`, `TelTrN`, `CtorTelescopeAt`, section 5.3) | `Verify/Typing/TelescopeTranslation.lean`, `Verify/Typing/TelescopeTranslationLemmas.lean` |
 | Checker context structure and semantic embeddings | `Verify/TypeChecker/MLCtxLemmas.lean`, `Verify/TypeChecker/CheckingContext.lean`, `Verify/Typing/CheckingContext.lean` |
 | Semantics shared by ordinary and recursor frames | `Verify/Inductive/Context/Semantics.lean` |
 | Installation lookup effects and matched family/constructor indices | `Verify/Inductive/Install/Metadata.lean`, `Verify/Inductive/SourceAlignment.lean` |
 
-`ContextWF` and `RecursorContextWF` keep their original public record layouts. Their operations
-use `ContextSemantics c Us` for the shared context proofs. Ordinary frames retain
+`ContextWF` and `RecursorContextWF` separately certify the ordinary and recursor universe
+contracts. Their operations use `ContextSemantics c Us` for the shared context proofs.
+Ordinary frames retain
 `typeCheckerLParams = none`; recursor frames retain `some recLparams` and the explicit
 `RecursorLParams` origin certificate. `BindingContextWF` remains the separate operational
 certificate. The existing projection equalities still hold by reduction.
@@ -556,7 +627,7 @@ The selected induction-hypothesis comparison in `Rules/RecursiveResults.lean` se
 provenance (`HypothesisSource`), exact replay equations (`HypothesisReplay`), translation and
 closed typing (`HypothesisTyping`), and the opened residual comparison (`HypothesisResidual`).
 `HypothesisFrame` and `HypothesisDomainFrame` carry these obligations to the RHS proof through
-named fields. The original existential theorems remain compatibility views. Translation and
+named fields, which consumers use directly. Translation and
 typing after inserting earlier hypotheses use one shared proof, so the domain comparison and
 RHS consumer no longer reconstruct that context transport independently.
 
@@ -698,7 +769,7 @@ Lean).
 the standard axioms. Confluence is not in the dependency cone of the top-level theorem of
 section 1.1.
 
-## 5. Strengthening, scoped caches and constructor telescopes
+## 5. Strengthening, cache modes and constructor telescopes
 
 ### 5.1 Why declarative strengthening is not used
 
@@ -716,38 +787,67 @@ The environment and the larger-context derivation were checked in Lean while thi
 studied; the separation itself is argued on paper, not formalised. With canonical `Eq` this countermodel disappears, since
 `P v` can be extracted from `p`, but no proof of strengthening is known: every organisation
 of the needed conversion-elimination theorem for typed eta and definitional proof
-irrelevance is circular, and the calculus does not normalize. The verification is
-organised so that it never
-moves a typing fact to a smaller context.
+irrelevance is circular, and the calculus does not normalize. In the default cache mode the
+verification is organised so that it never moves a typing fact to a smaller context; the global
+cache mode, which does, takes strengthening as the content of its license (section 5.2).
 
 The second attempt (`STRENGTHENING_ATTEMPT_2026-10-09b.md`, `Theory/Typing/Strengthening/`)
 reduces the statement, with every step checked, to `TypedFront` (strengthening for endpoints
-typed below at a common type) given eta postponement above (`EtaReplay`) and two closures
-(`ProjFrontN`, `ElimFrontN`); every guard of every non-eta reduction rule descends under
-`TypedFront`, and the certificate route is closed for syntactic ranks. Still no proof and no
-counterexample.
+typed below at a common type) plus a short list of named obligations, each a `def` with its
+implication checked (descent of the case and unfolding guards, descent of the composite
+structure-eta-then-iota step, and two environment lemmas that are themselves closed-telescope
+strengthenings); the eta-chain closure under all eta-free steps is proved, every guard of every
+non-eta reduction rule descends under `TypedFront`, and the certificate route is closed for
+syntactic ranks. Still no proof and no counterexample.
 
-### 5.2 Scoped caches
+### 5.2 Cache modes
 
-Every binder of the checker saves and restores the context-relative state
-(`TypeChecker.State.leaveScope`, `Lean4Lean/TypeChecker.lean`): the inference caches, the
-`whnf` caches, the equivalence manager and the failure cache are put back on leaving the
+The checker's cache mode (`CacheMode`, a field of `FuelConfig`) decides what happens to the
+context-relative state when a binder is closed (`State.exitScope`, `Lean4Lean/TypeChecker.lean`).
+
+In the default scoped mode every binder saves and restores it (`State.leaveScope`): the inference
+caches, the `whnf` caches, the equivalence manager and the failure cache are put back on leaving the
 binder; the name generator stays advanced and the `unfold` cache, which depends only on the
 environment, is kept. `isDefEqLambda` and `isDefEqForall` always compare bodies under a binder.
-With this, the cache invariant is simply "every entry is derivable in the current context"
-(`State.WF`, `State.WF.leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean`).
+Every cache entry is then derivable in the current context, and the binder exit needs nothing
+(`State.WF.leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean`).
 
-Without scoping no invariant of that form holds. `Lean4Lean/Tests/CacheScope.lean`
+In the global mode the state of the body is kept, as in the C++ kernel, whose caches belong to the
+whole run, and `isDefEqLambda`/`isDefEqForall` open a binder only when a body has loose bound
+variables, as `is_def_eq_binding` does. The cache invariants are conditional
+(`Lean4Lean/Verify/Typing/ConditionallyTyped.lean`): an entry whose key mentions only variables of
+the current context is derivable in it. The equivalence manager's facts hold in the current
+context extended by variables of closed binders (`EqvScope`). Closing a binder
+(`State.WF.restrict`) moves the entries whose keys avoid the binder out of it by strengthening
+(`ConditionallyHasType.weakN_inv` and `ConditionallyWHNF.weakN_inv`, through
+`TrExprS.restrictFV'_inv`); using a fact of the equivalence manager (`State.WF.eqv_uniq`) and
+comparing closed bodies outside their binder (`lowerClosedBody`) strengthen in the same way. The
+strengthening is `license.ok venv wf heq`, for the checker's environment `venv`, which has
+canonical `Eq` whenever the input models do (`CacheMode.Sound`, recorded in `State.WF`). These are
+the only uses of the license. The universe-support and parameter-uniformity cache invariants are
+syntactic and are restricted without it. The frame lemma and the constructor-telescope
+certificates of section 5.3 serve both modes unchanged.
+
+The mode-parametric statements are `addDecl.WF_of_canonicalEq_mode`, `addDecl.WFHasCanonicalEq_mode`,
+`addDecl.WF_mode` (with `hmode : ∀ safety, mode.Sound (ves.venv safety)`) and
+`replayPure.WF_fromImports_mode`; the statements at `fuel := {}` are their scoped instances. There
+is no global-mode form of `replayFresh.WF`: a fresh replay checks the prelude's declarations before
+`Eq` exists, where the license gives no strengthening, and the countermodel of section 5.1 shows
+that none holds in general there. What a global-mode fresh replay would need is strengthening for
+the environments of the prelude before canonical `Eq`, which is false in some well-formed
+environments.
+
+Without restoring, no invariant of the scoped form holds. `Lean4Lean/Tests/CacheScope.lean`
 builds the countermodel environment above (no `Eq`) and a closed definition of type `SJ` with
 value `let seed := fun (q : P v) => ... ; (zz : SI)`, where the body of `seed` forces the
 comparisons `SI ≡ ... ≡ SJ` under `q`. The C++ kernel accepts this definition and rejects it
-without `seed`; the unscoped lean4lean checker accepted it too; the scoped checker rejects
-it. So the scoped checker can reject a declaration the C++ kernel accepts. Such a declaration
-relies on a conversion fact outside the scope where it holds: `SI ≡ SJ` is derivable under `q`
-but not in the outer context, so it is the C++ acceptance that is non-local. Both fresh replays
-of `Init.Prelude` and `Init.Core` are unaffected. This is one of several divergences of the
-executable; `divergences.md` lists all of them, with an audit table of every executable change
-(section 7.2).
+without `seed`; the scoped mode rejects it (the global mode would accept it). So the executable as
+run can reject a declaration the C++ kernel accepts. Such a declaration relies on a conversion
+fact outside the scope where it holds: `SI ≡ SJ` is derivable under `q` but not in the outer
+context, so it is the C++ acceptance that is non-local. Both fresh replays of `Init.Prelude` and
+`Init.Core` are unaffected, and `Lean4Lean/Tests/CacheMode.lean` checks that the mode plumbing is
+the identity in the scoped mode. This is one of several divergences of the executable;
+`divergences.md` lists all of them, with an audit table of every executable change (section 7.2).
 
 The primitive recognizer (`Lean4Lean/Primitive.lean`) reads the closed pieces of a
 `reflectNatNat` condition, and the functional of a well-founded definition, only under binders
@@ -766,22 +866,47 @@ structure that may be a proposition, which the kernel still walks past) a transl
 remainder in the smaller context is needed, and general strengthening is not available
 (section 5.1).
 
-The proof re-derives the smaller-context translation from the checker's own acceptance of the
-constructor type. A locality theorem for the executable
-(`Methods.withFuel_locality`, stated with `M.PreservesGhostRestriction` in
-`Lean4Lean/Verify/TypeChecker/Frame*.lean`: a successful run in a local context with extra
-declarations that never occur in its inputs, caches or environment is the same run without
-them) and a ghost-telescope verification (`Verify/TypeChecker/GhostTelescope.lean`) show that
-when a constructor type is checked, every unused binder of its telescope can be deleted from
-the translation. The result is recorded as a depth-bounded certificate `TelTrN`
-(`Verify/Typing/TelescopeTranslation.lean`), one per visible constructor at every safety
-level (`VEnvs.AllCtorTelescopes`); the bound is the constructor's own arity, which is what the walk
-consumes. The certificates hold vacuously for an environment without constructors, are
-preserved by every declaration (`VEnvs.CtorTelescopesPreserved`), and the walk uses the delete branch of the
-certificate at each non-dependent field. Nested declarations need the stored constructor type
-to agree with the checked source type up to binder names
-(`Verify/Inductive/Nested/Restoration/InstalledConstructorTypes.lean`), because reusing an auxiliary
-renames binders inside reused occurrences, as in the C++ kernel.
+The syntax of that translation is free: translation is a function of the source syntax and the
+context (`TrSyn`, computed by `trSyn?`, `Verify/Typing/Syntactic/Basic.lean`), and a source that
+does not mention a binder translates without it, to the lowered result (`TrSyn.lower`). A typed
+translation is exactly a syntactic translation whose result is well typed, together with the
+typing of dead let values and the presence of literal types (`TrResidual`;
+`TrExprS.iff_typed`, `Verify/Typing/Syntactic/Typed.lean`). What remains to be supplied at a
+deleted binder is therefore one typing judgment: the residual telescope is well typed in the
+context without the binder.
+
+The certificate of a constructor `ci` is
+
+```
+def CtorTelescopeAt (venv : VEnv) (ci : ConstructorVal) : Prop :=
+  ∃ T, trSyn? ci.levelParams [] ci.type = some T ∧
+    TelWF venv ci.levelParams (AddInductive.constructorArity ci.type) [] ci.type T
+```
+
+the computed translation of the stored type with `TelWF`
+(`Verify/Typing/TelescopeTranslation.lean`): the typing of the translation and of every residual
+telescope obtained by deleting unused binders of the leading `forallE` spine, each in its own
+context, with the residual obligations of the source. The depth is the constructor's own arity,
+which is what the walk consumes. There is one certificate per visible constructor at every safety
+level (`CtorTelescopes`, derived from the installed blocks of `VEnvs.WF` by
+`VEnvs.WF.ctorTelescopes`). The walk (`instantiateProjectionParameters.WF_tel`,
+`instantiateProjectionFields.WF_tel` in `Verify/TypeChecker/Projection.lean`) carries the pair
+`TelTrN` of the syntactic translation and `TelWF`, substitutes at parameters and dependent fields
+(`TelTrN.inst`) and deletes at non-dependent fields (`TelTrN.delete_closed`); the transports
+(`Verify/Typing/TelescopeTranslationLemmas.lean`) are each a `TrSyn` lemma for the syntax and a
+typing lemma for `TelWF`.
+
+The typing at deleted binders is re-derived from the checker's own acceptance of the constructor
+type. A locality theorem for the executable (`Methods.withFuel_locality`, stated with
+`M.PreservesGhostRestriction` in `Lean4Lean/Verify/TypeChecker/Frame*.lean`: a successful run in
+a local context with extra declarations that never occur in its inputs, caches or environment is
+the same run without them) and a ghost-telescope verification
+(`Verify/TypeChecker/GhostTelescope.lean`, `checkType.WF_telTr`) show that when a constructor
+type is checked, the run read in the local context without the deleted binders types every
+residual telescope. Nested declarations need the stored constructor type to agree with the
+checked source type up to binder names (`Verify/Inductive/Nested/Restoration/InstalledConstructorTypes.lean`,
+`TelTrN.eqv`), because reusing an auxiliary renames binders inside reused occurrences, as in the
+C++ kernel.
 
 ## 6. The quotient declaration
 
@@ -828,29 +953,33 @@ the two agree. No axiom is added.
 
 Every behavioural change to the executable is classified in the audit table at the end of
 `divergences.md`: a refactor with the C++ kernel's decisions, a divergence documented there, or
-(with an entry) a divergence found by the audit. Scoped caches (section 5.2) are not the only
-divergence, but they are the only one that can change a decision against the C++ kernel on an
-environment whose type-annotation wrappers are the prelude's: they reject a term whose
-acceptance needs a conversion fact outside its scope. The wrapper stripping below can change a decision only on an environment that redefines a
+(with an entry) a divergence found by the audit. The default scoped cache mode (section 5.2) is not the only
+divergence, but it is the only one that can change a decision against the C++ kernel on an
+environment whose type-annotation wrappers are the prelude's: it rejects a term whose
+acceptance needs a conversion fact outside its scope. The executable also implements the C++
+behaviour, the global cache mode, which is selected only with a `GlobalCacheLicense`; no
+inhabitant of it exists, so the global mode is verified but cannot be run. The wrapper stripping below can change a decision only on an environment that redefines a
 wrapper name. The other changes cannot change a decision except through checker fuel, as follows.
 
-- **Redundant guards**, each listed in `divergences.md`: `reduceProjCore` requires the
-  constructor to be the structure's unique constructor; `tryEtaStructCore` applies
-  structure eta only at never-zero sorts; `toCtorWhenStruct` and `expandEtaStruct` return
-  the term unchanged where the C++ kernel throws on an absent constructor, and when the type
-  of the major premise's type does not reduce to a sort. The checking context carries the
-  constructor listing in both directions: every present constructor is listed by its present
-  owner with the owner's `isUnsafe` (`ConstructorOwnersPresent`), and every name a present
-  header lists is, if present, a constructor of that header with its `isUnsafe`
-  (`ListedConstructorsCoherent`). With it, `inferProj`, `tryEtaStructCore`,
+- **Redundant guards**, each listed in `divergences.md`: `tryEtaStructCore` applies
+  structure eta only at never-zero sorts; `toCtorWhenStruct` returns the term unchanged when
+  the type of the major premise's type does not reduce to a sort. `expandEtaStruct` also
+  returns it unchanged where the C++ kernel throws on an absent constructor, a branch that is
+  unreachable: the major inductive of every present recursor has its constructors present
+  (`VContext.expandEtaStruct_ctor`). The checking context carries, as
+  projections of its installed blocks (section 3.4), the constructor listing in both
+  directions: every present constructor is listed by its present owner with the owner's
+  `isUnsafe` (`ConstructorOwnersPresent`), and every name a present header lists is, if
+  present, a constructor of that header with its `isUnsafe` (`ListedConstructorsCoherent`). With it, `inferProj`, `tryEtaStructCore`,
   `isDefEqUnitLike` and `expandEtaStruct` read structures and constructors as the C++ kernel
   does. The listing holds in the staged environments of an inductive declaration because
   the declaration's constructor names are absent from the environment in which their types
   are checked; the executable checks that only when it declares the constructors, and the
   proof takes it from the success of that later step (`declareConstructors.namesAbsent`).
-  What remains for `reduceProjCore` is the converse of projection-registry coherence: that a
-  structure with an abstract registry entry is a concrete header listing exactly the
-  registered constructor. All the guards are redundant on well-formed environments and
+  The registry is read in both directions too: a structure with an abstract projection
+  registry entry is a visible header listing exactly the registered constructor
+  (`InstalledBlocks.projectionHeader`), so `reduceProjCore` checks, like `reduce_proj_core`,
+  only that the head constructor belongs to the structure. All the guards are redundant on well-formed environments and
   well-typed terms with one exception: structure eta is not applied to a structure whose
   universe is neither always nor never zero (`Sort u`), so a conversion that needs it there
   is rejected.
@@ -858,7 +987,9 @@ wrapper name. The other changes cannot change a decision except through checker 
   with total fresh-name searches, narrow checker contexts (section 3.2), unreachable arity
   and result-type guards in recursor construction (kept: the verification cannot show that
   two `whnf` runs agree), the comparison of the minor pass's field classification with the
-  positivity check's (`checkRecursiveFields`, for the same reason), and recursor rules built from
+  positivity check's (`checkRecursiveFields`: the two runs differ by a renaming of free
+  variables, under which the decisions of `isDefEq` are not provably invariant), and recursor
+  rules built from
   the first constructor traversal. Each generated recursor type is type-checked (`checkRecursorTypes`); the kernel
   of the pinned toolchain does not do this, upstream does since leanprover/lean4#14808, which
   also checks rule type preservation, which lean4lean proves instead. Nested auxiliary types
@@ -903,7 +1034,10 @@ wrapper name. The other changes cannot change a decision except through checker 
 - negative tests: `SortEquationRejection.lean`, `CorruptRecursorMetadata.lean`,
   `CorruptRestoredRecursorMetadata.lean` (corrupted metadata admits no certificate),
   `RecursiveFieldClassification.lean` (a signature marking a recursive field `external` does
-  not model its declaration).
+  not model its declaration);
+- name dependence of the checker: `FVarRenamingEquivManager.lean` (the equivalence manager's
+  hash test answers differently on a renaming of two free variables, which is why the two
+  field classifications are compared rather than proved equal).
 - nested indexed families: `NestedIndexedFamily.lean` (nested occurrences of indexed families,
   and indexed families with parameters inside nested blocks; the generated types,
   constructors and recursors are compared with the kernel's).
@@ -913,7 +1047,10 @@ type, a definition, an inductive predicate and a theorem) from the empty environ
 the added declarations and the agreement of every source constant; corrupting a source
 constructor, recursor or inductive type is rejected by the corresponding check.
 
-`Lean4Lean/Tests/CacheScope.lean` pins the output of the experiment of section 5.2.
+`Lean4Lean/Tests/CacheScope.lean` pins the output of the experiment of section 5.2, and
+`Lean4Lean/Tests/CacheMode.lean` checks that the cache-mode plumbing is the identity in the scoped
+mode (the default configuration is the scoped one, and replays of oracle dependency cones agree
+between the default and the explicitly scoped configuration).
 
 ## 9. Open
 
@@ -932,13 +1069,6 @@ constructor, recursor or inductive type is rejected by the corresponding check.
   The ported files (`SExpr`, `NormalEq`, `ParallelReduction`, `Stratified`,
   `StratifiedUntyped`, the shape logical relation) build against the extended `VExpr`; the
   global axiom `Params.extra_pat` of `SExpr.lean` is now a hypothesis class.
-- **Projection registry reflection.** `reduceProjCore` keeps its check that the constructor
-  is the structure's unique constructor (section 7.2). Removing it needs an invariant of the
-  checking context that a structure with an abstract projection registry entry is a concrete
-  header listing exactly the registered constructor, maintained wherever projection entries
-  are added. Likewise `expandEtaStruct` keeps its fallback for an absent constructor, which
-  would need every recursor of a checking environment to have the constructors of its major
-  inductive present.
 - **Executable cost.** Replay performance relative to `master` has not been profiled.
 
 ## 10. Reading guide
@@ -946,7 +1076,8 @@ constructor, recursor or inductive type is rejected by the corresponding check.
 Suggested order, with sizes.
 
 1. The statements: `Lean4Lean/Verify/Environment.lean` (440 lines), `Lean4Lean/Theory/CanonicalEq.lean`,
-   `VEnvs.WF` in `Lean4Lean/Verify/TypeChecker.lean`.
+   `VEnvs.WF` in `Lean4Lean/Verify/Environment/Model.lean`, and `InstalledBlocks` in
+   `Lean4Lean/Verify/Environment/Blocks.lean`.
 2. The calculus: `Lean4Lean/Theory/VExpr.lean`, `Lean4Lean/Theory/Typing/Basic.lean` (150),
    `Lean4Lean/Theory/VEnv.lean`, `Lean4Lean/Theory/Typing/Env.lean` (`VEnv.WF'`).
 3. The specification: `Lean4Lean/Theory/DeclarationData.lean`, `Lean4Lean/Theory/InductBlock.lean`,
@@ -955,11 +1086,12 @@ Suggested order, with sizes.
    (1.3k together), then `Formation.lean` (1.6k).
 4. The corrections: `Lean4Lean/Theory/Typing/EliminatorCoherence.lean`,
    `SchemaStructCompat.lean`, `Instance.FreeTarget` in `Signature.lean`.
-5. The checker changes: the diff of `Lean4Lean/TypeChecker.lean` (1k), `State.WF` and
-   `leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean` (2k), `divergences.md`,
-   `Lean4Lean/Tests/CacheScope.lean`.
-6. Constructor telescopes: `Lean4Lean/Verify/Typing/TelescopeTranslation.lean` (`TelTrN`),
-   `CtorTelescopes` in `TelescopeTranslationLemmas.lean`, `instantiateProjectionFields.WF_tel` in
+5. The checker changes: `Lean4Lean/CacheMode.lean`, the diff of `Lean4Lean/TypeChecker.lean`
+   (1k), `State.WF`, `State.WF.leaveScope`, `State.WF.restrict` and `State.WF.exitScope` in
+   `Lean4Lean/Verify/TypeChecker/Basic.lean` (2k), `divergences.md`,
+   `Lean4Lean/Tests/CacheScope.lean`, `Lean4Lean/Tests/CacheMode.lean`.
+6. Constructor telescopes: `Lean4Lean/Verify/Typing/TelescopeTranslation.lean` (`TelWF`,
+   `TelTrN`), `CtorTelescopeAt` in `TelescopeTranslationLemmas.lean`, `instantiateProjectionFields.WF_tel` in
    `Lean4Lean/Verify/TypeChecker/Projection.lean`, then `Verify/TypeChecker/GhostTelescope.lean`.
 7. Head inversion: `HeadInversionDefs.lean`, `HeadInversion.lean`, then
    `HeadInjectivity/Model/{Classes,Obs,Interp,Sound}.lean` (3k), `RuleSound.lean`,

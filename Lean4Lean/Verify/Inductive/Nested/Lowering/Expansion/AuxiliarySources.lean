@@ -924,7 +924,7 @@ theorem AuxiliaryFamilyContainer.auxiliaryFamilySource
       finalState targetConcrete)
     (C : AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params finalState.nestedAux Horigin.source Horigin.generated)
-    (wf : ves.WFCore prodEnv)
+    (wf : ves.WF prodEnv)
     (henv : (ves.venv safety).WF)
     (sourceTypesVEnv : VEnv)
     (hbaseLE : ves.venv safety ≤ sourceTypesVEnv)
@@ -1206,15 +1206,14 @@ absent from its source kernel environment.  This is the
 freshness companion to `RecursorCheck.findSourceHeader`: it retains the exact header entry
 selected by the declaration's family list and reads freshness off the
 lockstep installation. -/
-theorem RecursorCheck.sourceHeaderFresh
+theorem HeaderEnvironment.sourceHeaderFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv}
-    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
-    (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv)
+    {headerEnv : Environment}
+    (Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv)
+    (Hc : ContextWF c)
     (howner : owner ∈ indTypes.toList) :
     c.env.find? owner.name = none := by
   rcases Hheaders.sourceAligned with ⟨numNested, Haligned⟩
@@ -1245,18 +1244,17 @@ theorem LoweredAuxiliaryFamily.installedContainerBeforeHeaders
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv}
-    {headerEnv ctorEnv loweredEnv : Environment}
+    {headerEnv : Environment}
     {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
     {ves : VEnvs}
-    (wf : ves.WFCore c.env)
+    (wf : ves.WF c.env)
     (hsourceVEnv : sourceVEnv = ves.venv safety)
     (Hrun : NestedLowering c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
       (result, finalState))
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hc : ContextWF c)
     (HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst sourceVEnv c.lparams source.name
         source.type target.toVConstVal)
@@ -1287,7 +1285,7 @@ theorem LoweredAuxiliaryFamily.installedContainerBeforeHeaders
     rcases Hrun.preservesInitialTypeName
         ⟨sourceType, by simpa using hsourceType, rfl⟩ with
       ⟨loweredType, hloweredType, hloweredName⟩
-    have hfresh := Hprod.sourceHeaderFresh Hc (by simpa using hloweredType)
+    have hfresh := Hheaders.sourceHeaderFresh Hc (by simpa using hloweredType)
     intro htargetName
     have hsourceName : sourceType.name = Horigin.generated.sourceName :=
       Hheader.name.symm.trans (by simpa using htargetName)
@@ -1394,7 +1392,6 @@ theorem NestedLoweringOutputClosed.auxiliaryFormationParameterContext
       ((loweredDecl.types.take sourceTypes.length).map
         VInductiveType.toVConstVal) = some sourceTypesVEnv)
     (HsourceTypesWF : sourceTypesVEnv.WF)
-    (hempty : initialState.nestedAux = #[])
     (selection : CDeclArray result.lctx result.params)
     (Haux : ClosedNestedOccurrenceTyping sourceTypesVEnv c.lparams
       result selection e) :
@@ -1550,7 +1547,7 @@ theorem LoweredAuxiliaryFamily.abstractContainerApplication
         Haux.domains.reverse := by
     intro Haux
     exact Hclosed.auxiliaryFormationParameterContext (R := R) Hsources
-      HsourceHeaders HsourceAdded HsourceTypesWF hempty selection Haux
+      HsourceHeaders HsourceAdded HsourceTypesWF selection Haux
   rcases Horigin.generated.cachedAuxiliaryHeadTyping Hmap
       hselectionNodup Htranslations henvTypesWF
       ((Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
@@ -1584,14 +1581,14 @@ all derived here. -/
 theorem LoweredAuxiliaryFamily.auxiliaryFamilySource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv sourceTypesVEnv targetTypesVEnv targetCtorsVEnv : VEnv}
+    {sourceVEnv sourceTypesVEnv targetTypesVEnv : VEnv}
     {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
     {ves : VEnvs}
-    (wf : ves.WFCore c.env)
+    (wf : ves.WF c.env)
     (hsourceVEnv : sourceVEnv = ves.venv safety)
     (Hrun : NestedLowering c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
@@ -1632,10 +1629,10 @@ theorem LoweredAuxiliaryFamily.auxiliaryFamilySource
       with
     ⟨realization, abstractLevels, baseArgs, Hlevels, _hbaseLength, Hbase,
       _HbaseClosed, hfamily⟩
-  rcases H.installedContainerBeforeHeaders wf rfl Hrun Hc Hprod
+  rcases H.installedContainerBeforeHeaders (Hheaders := Hheaders) wf rfl Hrun Hc
       HsourceHeaders HsourceAdded realization with ⟨C⟩
   rcases H.formationHeaderParameterDomains Htarget htarget hparamsSize
-      (VEnvs.WFCore.environmentTypesBVarClosed wf) with
+      (VEnvs.WF.environmentTypesBVarClosed wf) with
     ⟨sourceDomains, familyTarget, hsourceDomains, Hfamily, Hcontext⟩
   have henv : (ves.venv safety).WF := wf.tr.wf
   have hbaseLE : ves.venv safety ≤ sourceTypesVEnv :=
@@ -1772,7 +1769,7 @@ theorem NestedLowering.auxiliaryFamilySources
       (result, finalState))
     (Hcache : NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState)
     (Hparams : NestedResultParamsNodup result)
-    (wf : ves.WFCore c.env)
+    (wf : ves.WF c.env)
     (hsourceVEnv : sourceVEnv = ves.venv safety)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
@@ -1826,11 +1823,11 @@ theorem NestedLowering.auxiliaryFamilySources
     have hresult := hresultAt i
     have htarget := htargetAt i
     rcases Hrun.resolvedAuxiliaryFamilyAt
-        (VerifyInductive.VEnvs.WFCore.environmentTypesClosed wf)
+        (VerifyInductive.VEnvs.WF.environmentTypesClosed wf)
         wf.inductivesClosed Hsources (by simp) (by simp) hresult with
       ⟨Horigin⟩
     rcases Horigin.auxiliaryFamilySource
-        (targetCtorsVEnv := targetCtorsVEnv) wf rfl Hrun
+        wf rfl Hrun
         Hcache Hparams Hc Hprod Hsources HsourceHeaders
         HsourceAdded HsourceTypesWF hempty selection Htranslations
         (Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Htarget

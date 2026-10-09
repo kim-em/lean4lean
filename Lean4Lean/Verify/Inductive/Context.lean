@@ -35,11 +35,13 @@ structure ContextWF (c : AddInductive.Context) where
   indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
   kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
     ({} : TypeChecker.State).ngen.Reserves fv
+  /-- The cache mode of the embedded checker runs is sound for the environment. -/
+  cacheSound : c.fuel.cacheMode.Sound venv
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv c.lparams mlctx c.lctx c.checkLCtx
 
 /-- The shared semantic view, preserving the concrete frame data by reduction. -/
-def ContextWF.toSemantics (H : ContextWF c) : ContextSemantics c c.lparams where
+abbrev ContextWF.toSemantics (H : ContextWF c) : ContextSemantics c c.lparams where
   venv := H.venv
   checking := H.checking
   mlctx := H.mlctx
@@ -49,10 +51,11 @@ def ContextWF.toSemantics (H : ContextWF c) : ContextSemantics c c.lparams where
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound
   check := H.check
 
 /-- Restore the public frame with its explicit universe contract. -/
-def ContextWF.ofSemantics (H : ContextSemantics c c.lparams)
+abbrev ContextWF.ofSemantics (H : ContextSemantics c c.lparams)
     (hparams : c.typeCheckerLParams = none) :
     ContextWF c where
   venv := H.venv
@@ -64,6 +67,7 @@ def ContextWF.ofSemantics (H : ContextSemantics c c.lparams)
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound
   check := H.check
   typeCheckerLParams_eq := hparams
 
@@ -72,15 +76,13 @@ def initialContext (env : Environment) (lparams : List Name)
     AddInductive.Context where
   env; lparams; safety; allowPrimitive; fuel
 
-def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety) (lparams : List Name)
     (allowPrimitive : Bool) (fuel : FuelConfig)
-    (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety)) :
+    (hmode : fuel.cacheMode.Sound (ves.venv safety)) :
     ContextWF (initialContext env lparams safety allowPrimitive fuel) where
   venv := ves.venv safety
-  checking := (wf.tr (safety := safety)).toCheckingValid
-    (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-    wf.constructorOwners wf.inductiveConstructorsCoherent.listed wf.projectionRegistryCoherent ((htels _))
+  checking := wf.toCheckingValid (safety)
   mlctx := .nil
   mlctx_wf := trivial
   typeCheckerLParams_eq := rfl
@@ -89,6 +91,7 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
   ngen_prefix := rfl
   indFresh := nofun
   kernelFresh := nofun
+  cacheSound := hmode
   check := { m := .nil, wf := trivial, onlyLams := .nil, lctx_eq := rfl,
              embed := ⟨[], _, .refl, .nil⟩, sub := .empty }
 
@@ -222,7 +225,7 @@ def ContextWF.baseParams (Hc : ContextWF c) (stats : AddInductive.InductiveStats
     (n : Nat) (j : Nat) (hj : j ≤ Hc.mlctx.length)
     (hfv : paramCheckFVars stats n = (Hc.mlctx.dropN j hj).fvarList) :
     Hc.Base (c.lctx.restrictTo (paramCheckFVars stats n)) :=
-  (Hc.baseMain j hj).cast (by rw [hfv]; exact ((Hc.baseMain j hj).restrictTo_eq Hc.lctxWF).symm)
+  (Hc.baseMain j hj).cast (by rw [hfv]; exact ((Hc.baseMain j hj).restrictTo_eq).symm)
 
 /-- The context of a run under the parameter snapshot `n`. -/
 def ContextWF.paramCheck (Hc : ContextWF c) (stats : AddInductive.InductiveStats)
@@ -337,11 +340,13 @@ structure RecursorContextWF (c : AddInductive.Context)
   indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
   kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
     ({} : TypeChecker.State).ngen.Reserves fv
+  /-- The cache mode of the embedded checker runs is sound for the environment. -/
+  cacheSound : c.fuel.cacheMode.Sound venv
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv recLparams mlctx c.lctx c.checkLCtx
 
 /-- The shared semantic view, preserving the concrete frame data by reduction. -/
-def RecursorContextWF.toSemantics (H : RecursorContextWF c recLparams) :
+abbrev RecursorContextWF.toSemantics (H : RecursorContextWF c recLparams) :
     ContextSemantics c recLparams where
   venv := H.venv
   checking := H.checking
@@ -352,10 +357,11 @@ def RecursorContextWF.toSemantics (H : RecursorContextWF c recLparams) :
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound
   check := H.check
 
 /-- Restore the public frame with its explicit universe contract. -/
-def RecursorContextWF.ofSemantics (H : ContextSemantics c recLparams)
+abbrev RecursorContextWF.ofSemantics (H : ContextSemantics c recLparams)
     (hparams : c.typeCheckerLParams = some recLparams)
     (horigin : RecursorLParams c.lparams recLparams) :
     RecursorContextWF c recLparams where
@@ -368,6 +374,7 @@ def RecursorContextWF.ofSemantics (H : ContextSemantics c recLparams)
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound
   check := H.check
   typeCheckerLParams_eq := hparams
   lparams_origin := horigin
@@ -388,6 +395,7 @@ def ContextWF.toRecursorContextWF (H : ContextWF c) :
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound
   check := H.check
 
 /-- Reinterpret an already verified executable local context after prepending
@@ -419,6 +427,7 @@ def ContextWF.prependRecursorLevelParam
     indFresh := by
       intro fv hmem
       exact H.indFresh fv (hfv ▸ hmem)
+    cacheSound := H.cacheSound
     kernelFresh := by
       intro fv hmem
       exact H.kernelFresh fv (hfv ▸ hmem)
@@ -535,7 +544,7 @@ def RecursorContextWF.baseParams (Hc : RecursorContextWF c recLparams)
     (stats : AddInductive.InductiveStats) (n : Nat) (j : Nat) (hj : j ≤ Hc.mlctx.length)
     (hfv : paramCheckFVars stats n = (Hc.mlctx.dropN j hj).fvarList) :
     Hc.Base (c.lctx.restrictTo (paramCheckFVars stats n)) :=
-  (Hc.baseMain j hj).cast (by rw [hfv]; exact ((Hc.baseMain j hj).restrictTo_eq Hc.lctxWF).symm)
+  (Hc.baseMain j hj).cast (by rw [hfv]; exact ((Hc.baseMain j hj).restrictTo_eq).symm)
 
 def RecursorContextWF.paramCheck (Hc : RecursorContextWF c recLparams)
     (stats : AddInductive.InductiveStats) (n : Nat) (j : Nat) (hj : j ≤ Hc.mlctx.length)
@@ -1626,7 +1635,7 @@ theorem liftTypeChecker.WF {x : TypeChecker.M α} (Hc : ContextWF c)
   rw [Hc.typeCheckerLParams_eq]
   simp only [Option.getD_none]
   rw [← Hc.check.lctx_eq]
-  exact TypeChecker.M.WF.runCheckingValidMLC Hc.chkKernelFresh Hx
+  exact TypeChecker.M.WF.runCheckingValidMLC Hc.chkKernelFresh Hx Hc.cacheSound
 
 theorem checkTypeInContext.checkingWF (Hc : ContextWF c)
     (hfvars : e.FVarsIn (· ∈ Hc.chk.vlctx.fvars)) :
@@ -1712,7 +1721,7 @@ theorem liftTypeChecker.recursorWF {x : TypeChecker.M α}
   simp only [Option.getD_some]
   rw [← Hc.check.lctx_eq]
   exact TypeChecker.M.WF.runCheckingValidMLC (lparams := recLparams) (fuel := c.fuel)
-    Hc.chkKernelFresh Hx
+    Hc.chkKernelFresh Hx Hc.cacheSound
 
 theorem whnfInRecursorContext.checkingScopeWF
     (Hc : RecursorContextWF c recLparams)
@@ -1890,7 +1899,7 @@ translates to an abstract type at the recursor's universe parameters. Unlike
 possibly extended universe-parameter list. -/
 theorem AddInductive.declareRecursors.checkRecursorType.WF
     (Hvalid : CheckingEnv.Valid c.safety c.env venv)
-    (info : RecursorVal) :
+    (info : RecursorVal) (hmode : c.fuel.cacheMode.Sound venv) :
     (AddInductive.declareRecursors.checkRecursorType info c).WF fun _ty =>
       ∃ type', TrExprS venv info.levelParams [] info.type type' ∧
         venv.IsType info.levelParams.length [] type' := by
@@ -1923,7 +1932,7 @@ theorem AddInductive.declareRecursors.checkRecursorType.WF
       | sort hu =>
         exact ⟨type', htype,
           ⟨_, hhasType.defeqU_r Hvalid.tr.wf (by trivial) hdefeq.symm⟩⟩
-    exact TypeChecker.M.WF.runCheckingValid Hcheck
+    exact TypeChecker.M.WF.runCheckingValid Hcheck hmode
 
 /-- Definitionally equal translation contexts backed by lambda-only
 `MLCtx`s retain the same declaration spine and free-variable identities.

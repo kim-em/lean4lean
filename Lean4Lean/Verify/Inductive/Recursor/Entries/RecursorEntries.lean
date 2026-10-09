@@ -1010,7 +1010,6 @@ theorem RecursorBinderGroups.majorBinderAt
 constant is well formed. -/
 theorem RecursorBinderGroups.recursorWF_of_recInfo
     (H : RecursorBinderGroups c stats recInfos ownerIdx)
-    (howner : ownerIdx < recInfos.size)
     (info : RecursorVal) (recursor : VConstVal)
     (Hinfo : TrConstVal safety env (.recInfo info) recursor)
     (htype : info.type =
@@ -1067,6 +1066,7 @@ recursor's exact universe parameters; erasing `inferImplicit` recovers the
 pre-annotation telescope used by `TrRecursorTypes`. -/
 theorem AddInductive.declareRecursors.checkRecursorTypes.translationsWF
     (Hvalid : CheckingEnv.Valid c.safety c.env venv)
+    (hmode : c.fuel.cacheMode.Sound venv)
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) (elimLevel : Level)
     (recInfos : Array AddInductive.RecInfo) (numMinors numMotives : Nat)
@@ -1089,7 +1089,7 @@ theorem AddInductive.declareRecursors.checkRecursorTypes.translationsWF
     let info := AddInductive.declareRecursors.recursorInfo stats indTypes
       elimLevel recInfos numMinors numMotives all lctx k isUnsafe lparams
       dIdx []
-    refine (AddInductive.declareRecursors.checkRecursorType.WF Hvalid info).bind
+    refine (AddInductive.declareRecursors.checkRecursorType.WF Hvalid info hmode).bind
       fun _ ⟨type, Htype, HisType⟩ => ?_
     have Htype' : TrExprS venv
         (AddInductive.getRecLevelParams elimLevel lparams) []
@@ -1102,7 +1102,7 @@ theorem AddInductive.declareRecursors.checkRecursorTypes.translationsWF
         (AddInductive.getRecLevelParams elimLevel lparams).length [] type := by
       simpa [info, AddInductive.declareRecursors.recursorInfo] using HisType
     refine (AddInductive.declareRecursors.checkRecursorTypes.translationsWF
-      Hvalid stats indTypes elimLevel recInfos numMinors numMotives
+      Hvalid hmode stats indTypes elimLevel recInfos numMinors numMotives
       all lctx k isUnsafe lparams (dIdx + 1)).mono
         fun _ Htail owner hdone howner => ?_
     by_cases heq : owner = dIdx
@@ -1120,6 +1120,7 @@ checking environment excludes `.partial`, which inductive checking never uses an
 visibility order is incompatible with the generated `isUnsafe` bit. -/
 theorem AddInductive.declareRecursors.checkRecursorTypes.trRecursorTypesWF
     (Hvalid : CheckingEnv.Valid c.safety c.env venv)
+    (hmode : c.fuel.cacheMode.Sound venv)
     (hnotPartial : c.safety ≠ .partial)
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) (elimLevel : Level)
@@ -1131,7 +1132,7 @@ theorem AddInductive.declareRecursors.checkRecursorTypes.trRecursorTypesWF
       fun _ => TrRecursorTypes venv lparams elimLevel
         { c with lctx := lctx } stats indTypes recInfos := by
   refine (AddInductive.declareRecursors.checkRecursorTypes.translationsWF
-    Hvalid stats indTypes elimLevel recInfos numMinors numMotives
+    Hvalid hmode stats indTypes elimLevel recInfos numMinors numMotives
     all lctx k isUnsafe lparams 0).mono fun _ Hall => ?_
   exact {
     notPartial := hnotPartial
@@ -1504,7 +1505,7 @@ theorem GeneratedRecursors.recursorsWF
   have howner : i < recInfos.size := by simpa [H.length] using hentry
   let Hlocal := Hbindings.toRecursorBinderGroups Hc Hparams i howner
   let E := H.entry i hentry
-  have hwf := Hlocal.recursorWF_of_recInfo howner E.info entries[i].2
+  have hwf := Hlocal.recursorWF_of_recInfo E.info entries[i].2
     E.translated E.type
   simpa using hwf
 

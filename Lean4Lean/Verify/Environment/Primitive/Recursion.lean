@@ -813,7 +813,7 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
     -- `f` has a pi type -- that `checkType (f.app a)` succeeded is how we know -- and its domain
     -- is the binder's type, so `f` also applies to the packed argument
     let .app hfT haT hfS haS := hfaS
-    cases TrExprS.unique (by simp [TrExprS.IsUnique]) haS hida
+    cases TrExprS.unique haS hida
     have hdom := (VEnv.HasType.bvar .zero).uniqU c.Ewf
       (c.withMLC _ (wf := cwfa)).Δwf.toCtx haT
     have ha₀T := VEnv.HasType.defeqU_r c.Ewf (c.withMLC _ (wf := cwfa)).Δwf.toCtx hdom

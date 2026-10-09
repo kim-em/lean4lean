@@ -34,19 +34,18 @@ structure ValidatedRestoration
     Nonempty (ValidationHeaderEnvironment loweredEnv sourceEnv
       allIndNames types auxiliaryHeaderEnv) ∧
     Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
-      lparams safety fuel types res = .ok () ∧
+      lparams safety fuel types = .ok () ∧
     Lean4Lean.validateNestedAuxiliaries auxiliaryHeaderEnv lparams safety
       fuel res = .ok ()
   recursorTypeValidation : ∃ validationEnv,
     Nonempty (ValidationEnvironment res loweredEnv
       sourceEnv allIndNames allowPrimitive types validationEnv) ∧
-    Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
-      lparams safety fuel res recNameMap allIndNames types auxRecNames = .ok ()
+    Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv safety fuel res recNameMap allIndNames types auxRecNames = .ok ()
   recursorRuleValidation :
     Lean4Lean.validateRestoredRecursorRules.run
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames recNameMap types auxRecNames))
-      loweredEnv lparams safety fuel res recNameMap allIndNames types auxRecNames = .ok ()
+      loweredEnv safety fuel res recNameMap allIndNames types auxRecNames = .ok ()
   validated : Validated outEnv
 
 /-- The verified restoration folds composed with the constructor-parameter,
@@ -88,9 +87,8 @@ theorem Environment.restoreNestedAfterInstall.WF
       Nonempty (ValidationHeaderEnvironment loweredEnv env
         (types.map (·.name)) types auxiliaryHeaderEnv) →
       Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
-        lparams safety fuel types res = .ok () →
-      Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
-        lparams safety fuel res (Lean4Lean.mkAuxRecNameMap loweredEnv types).2
+        lparams safety fuel types = .ok () →
+      Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv safety fuel res (Lean4Lean.mkAuxRecNameMap loweredEnv types).2
           (types.map (·.name)) types
           (Lean4Lean.mkAuxRecNameMap loweredEnv types).1 = .ok () →
       Lean4Lean.validateRestoredRecursorRules.run
@@ -98,7 +96,7 @@ theorem Environment.restoreNestedAfterInstall.WF
           (Lean4Lean.restoredRecursorNames
             (Lean4Lean.mkAuxRecNameMap loweredEnv types).2 types
             (Lean4Lean.mkAuxRecNameMap loweredEnv types).1))
-        loweredEnv lparams safety fuel res
+        loweredEnv safety fuel res
           (Lean4Lean.mkAuxRecNameMap loweredEnv types).2
           (types.map (·.name)) types
           (Lean4Lean.mkAuxRecNameMap loweredEnv types).1 = .ok () →
@@ -163,14 +161,13 @@ theorem Environment.restoreNestedAfterInstall.WF
           ((·.2) <$> Lean4Lean.restoreNestedHeaders loweredEnv allIndNames
             allowPrimitive types env).bind fun auxiliaryHeaderEnv =>
           (Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
-            lparams safety fuel types res).bind fun _ =>
-          (Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
-            lparams safety fuel res recNameMap allIndNames types recNames).bind
+            lparams safety fuel types).bind fun _ =>
+          (Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv safety fuel res recNameMap allIndNames types recNames).bind
             fun _ =>
           (Lean4Lean.validateRestoredRecursorRules.run
             (Lean4Lean.stripRecursorRules restoredEnv
               (Lean4Lean.restoredRecursorNames recNameMap types recNames))
-            loweredEnv lparams safety fuel res recNameMap allIndNames types recNames).bind
+            loweredEnv safety fuel res recNameMap allIndNames types recNames).bind
             fun _ =>
           (Lean4Lean.validateNestedAuxiliaries auxiliaryHeaderEnv lparams
             safety fuel res).bind fun _ => Except.pure restoredEnv).WF
@@ -183,19 +180,19 @@ theorem Environment.restoreNestedAfterInstall.WF
             HauxiliaryHeaderEnv => by
           have Hparameter :
             (Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
-              lparams safety fuel types res).WF fun _ =>
+              lparams safety fuel types).WF fun _ =>
                 Lean4Lean.validateSourceConstructorTypes.run
-                  auxiliaryHeaderEnv lparams safety fuel types res = .ok () := by
+                  auxiliaryHeaderEnv lparams safety fuel types = .ok () := by
             intro done hrun
             rcases done with ⟨⟩
             exact hrun
           exact Hparameter.bind fun _ Hparameter => by
             have HrecursorTypes :
                 (Lean4Lean.validateRestoredRecursorTypes.run validationEnv
-                  loweredEnv lparams safety fuel res recNameMap allIndNames
+                  loweredEnv safety fuel res recNameMap allIndNames
                     types recNames).WF fun _ =>
                   Lean4Lean.validateRestoredRecursorTypes.run validationEnv
-                    loweredEnv lparams safety fuel res recNameMap allIndNames
+                    loweredEnv safety fuel res recNameMap allIndNames
                       types recNames = .ok () := by
               intro done hrun
               rcases done with ⟨⟩
@@ -205,12 +202,12 @@ theorem Environment.restoreNestedAfterInstall.WF
                   (Lean4Lean.validateRestoredRecursorRules.run
                     (Lean4Lean.stripRecursorRules restoredEnv
                       (Lean4Lean.restoredRecursorNames recNameMap types recNames))
-                    loweredEnv lparams safety fuel res recNameMap allIndNames
+                    loweredEnv safety fuel res recNameMap allIndNames
                       types recNames).WF fun _ =>
                     Lean4Lean.validateRestoredRecursorRules.run
                       (Lean4Lean.stripRecursorRules restoredEnv
                         (Lean4Lean.restoredRecursorNames recNameMap types recNames))
-                      loweredEnv lparams safety fuel res recNameMap allIndNames
+                      loweredEnv safety fuel res recNameMap allIndNames
                         types recNames = .ok () := by
                 intro done hrun
                 rcases done with ⟨⟩
