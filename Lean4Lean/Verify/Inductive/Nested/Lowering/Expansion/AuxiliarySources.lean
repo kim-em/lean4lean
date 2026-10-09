@@ -15,7 +15,7 @@ namespace VerifyInductive
 This module joins the concrete auxiliary builder to the independently
 validated, closed translation of each cached nested application.  For every auxiliary slot
 of the lowering queue it constructs the pre-lowering auxiliary family as a specialization of
-its installed container (`AuxiliaryFamilySourceData`, `AuxiliaryFamilySources`), interprets
+its installed container (`AuxiliaryFamilySource`, `AuxiliaryFamilySources`), interprets
 every replaced occurrence by that source (`AuxiliaryFamilySources.replacementCompat`), and
 assembles the ordered nested expansion of the whole lowered queue
 (`NestedLowering.allExpansionsOfSources`) required by `NestedFormationWF`.  The results are
@@ -660,15 +660,21 @@ theorem TrExprS.abstractSelectedExpansion
 
 /-- Pre-lowering source of one auxiliary family of the queue.  It is
 constructed by `AuxiliaryFamilyContainer.auxiliaryFamilySource` below, not supplied by a
-caller: it records the same constructor list both as a
-raw source translation and as the exact installed-container specialization. -/
-structure AuxiliaryFamilySourceData
+caller.  It contains no final expansion judgment: it records the exact
+pre-lowering family `source` with its independent translation and the two
+metadata fields not represented by `TrInductiveType`, together with the same
+constructor list both as a raw source translation and as the exact
+installed-container specialization. -/
+structure AuxiliaryFamilySource
     (H : LoweredAuxiliaryFamily prodEnv params nparams finalState
       targetConcrete)
     (baseVEnv sourceTypesVEnv : VEnv) (lparams : List Name)
     (target : VInductiveType) where
-  payload : AuxiliaryFamilySource H baseVEnv sourceTypesVEnv
-    lparams target
+  source : VInductiveType
+  translation : TrInductiveTypeHeaders baseVEnv sourceTypesVEnv lparams H.source
+    source
+  numIndices : target.numIndices = source.numIndices
+  resultLevel : target.resultLevel = source.resultLevel
   container : VInductDecl
   containerFamily : VInductiveType
   sourceParams : List VExpr
@@ -697,11 +703,11 @@ structure AuxiliaryFamilySourceData
     some levels
   levelsLength : levels.length = container.uvars
   levelsWF : ∀ level ∈ levels, level.WF lparams.length
-  sourceUvars : payload.source.uvars = lparams.length
-  sourceName : payload.source.name = H.generated.auxName
+  sourceUvars : source.uvars = lparams.length
+  sourceName : source.name = H.generated.auxName
   targetType : sourceTypesVEnv.IsDefEqU lparams.length [] target.type
-    payload.source.type
-  familyType : sourceTypesVEnv.IsDefEqU lparams.length [] payload.source.type
+    source.type
+  familyType : sourceTypesVEnv.IsDefEqU lparams.length [] source.type
     (VExpr.wrapForalls sourceParams
       (VExpr.instantiateForallPrefix (containerFamily.type.instL levels)
         baseArgs))
@@ -712,8 +718,8 @@ structure AuxiliaryFamilySourceData
       baseArgs)
   constructors : List.Forall₂
     (VInductDecl.SpecializedAuxConstructor sourceTypesVEnv lparams.length sourceParams
-      baseArgs levels containerFamily payload.source)
-    containerFamily.ctors payload.source.ctors
+      baseArgs levels containerFamily source)
+    containerFamily.ctors source.ctors
   /-- Each generated constructor type is syntactically the parameter closure
   of the container constructor type instantiated at the specialization
   arguments, up to the level equivalence (`VExpr.LEquiv`) between the
@@ -724,14 +730,63 @@ structure AuxiliaryFamilySourceData
       VExpr.LEquiv lparams.length instCtorType (ctor.type.instL levels) ∧
       target.type = VExpr.wrapForalls sourceParams
         (VExpr.instantiateForallPrefix instCtorType baseArgs))
-    containerFamily.ctors payload.source.ctors
+    containerFamily.ctors source.ctors
+
+/-- Once the pre-lowering source data is available, the final
+queue mapping yields the complete abstract expansion of the auxiliary family. -/
+theorem LoweredAuxiliaryFamily.abstractExpansion
+    (H : LoweredAuxiliaryFamily prodEnv params nparams finalState
+      targetConcrete)
+    (Hsource : AuxiliaryFamilySource H baseVEnv sourceTypesVEnv
+      lparams target)
+    (Htarget : TrInductiveType baseVEnv targetTypesVEnv lparams targetConcrete
+      target)
+    (Hmap : NestedAuxMapModels result finalState)
+    (henv : baseVEnv.WF)
+    (huvars : decl.uvars = lparams.length)
+    (HsourceTypesWF : sourceTypesVEnv.WF)
+    (HtargetTypesWF : targetTypesVEnv.WF)
+    (hparamsSize : params.size = nparams)
+    (hnparams : nparams = decl.nparams)
+    (generated : List VInductiveType)
+    (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
+        {input state output nextState finalState depth fieldDepth sourceValue
+          targetValue sourceCtx targetCtx},
+      NodeReplacementResolved prodEnv lctx params As input state output
+        nextState result finalState →
+      NestedExpansionLookupCtx
+        (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv decl generated)
+        depth sourceCtx targetCtx →
+      (selection : CDeclArray lctx As) →
+      selection.fvars.Nodup →
+      As.size = params.size →
+      depth = selection.fvars.length + fieldDepth →
+      SelectedParameterTargets selection.fvars fieldDepth sourceCtx →
+      SelectedParameterTargets selection.fvars fieldDepth targetCtx →
+      input.FVarsIn (· ∈ selection.fvars) →
+      TrExprS sourceTypesVEnv lparams sourceCtx input sourceValue →
+      TrExprS targetTypesVEnv lparams targetCtx output targetValue →
+      VInductDecl.NestedOccurrenceReplacementAbs baseVEnv decl generated depth
+        sourceValue targetValue)
+    :
+    VInductDecl.NestedTypeExpansion baseVEnv decl
+      (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv decl generated)
+      Hsource.source target := by
+  have Hmapping := H.resolvedMapping Hmap
+  have Hheader : NestedTypeExpansionHeader baseVEnv decl Hsource.source target :=
+    Hmapping.abstractHeaderExpansion Hsource.translation Htarget henv huvars
+      Hsource.numIndices Hsource.resultLevel
+  exact Hmapping.abstractExpansion Hsource.translation Htarget Hheader
+    (Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.constructorsClosed
+      Hsource.translation)
+    HsourceTypesWF HtargetTypesWF hparamsSize hnparams Hhit
 
 /-- The base arguments retained by an auxiliary family source and
 the live base arguments at a reused replacement are structurally identical after the
 selected parameters are closed and the live constructor fields are opened.
 The proof uses a leaf-free expansion; projection nodes are justified only by
 their environment-indexed support certificates. -/
-theorem AuxiliaryFamilySourceData.baseExpansionsAtReplacement
+theorem AuxiliaryFamilySource.baseExpansionsAtReplacement
     {Htrace : NodeReplacementResolved prodEnv lctx result.params As input
       state output nextState result traceFinalState}
     {Hselection : CDeclArray lctx As}
@@ -744,7 +799,7 @@ theorem AuxiliaryFamilySourceData.baseExpansionsAtReplacement
       T.targetName T.levels T.value Hsource)
     (O : CachedAuxiliaryFamily prodEnv result.params nparams
       initialSize runFinalState T.nested T.auxName)
-    (N : AuxiliaryFamilySourceData O.origin baseVEnv
+    (N : AuxiliaryFamilySource O.origin baseVEnv
       sourceTypesVEnv lparams target)
     (resultSelection : CDeclArray result.lctx result.params)
     (hresultNodup : resultSelection.fvars.Nodup)
@@ -842,10 +897,10 @@ structure AuxiliaryFamilySources
       (htarget : sourceTypes.length + i < loweredDecl.types.length),
     ∃ Horigin : LoweredAuxiliaryFamily prodEnv result.params
         nparams finalState result.types[sourceTypes.length + i],
-      ∃ N : AuxiliaryFamilySourceData Horigin baseVEnv
+      ∃ N : AuxiliaryFamilySource Horigin baseVEnv
         sourceTypesVEnv lparams
           loweredDecl.types[sourceTypes.length + i],
-        N.payload.source = generated[i]
+        N.source = generated[i]
   /-- The common parameter context of the header phase. -/
   parameterContext : List VExpr
   /-- Every slot has a source whose parameter telescope is
@@ -855,10 +910,10 @@ structure AuxiliaryFamilySources
       (htarget : sourceTypes.length + i < loweredDecl.types.length),
     ∃ Horigin : LoweredAuxiliaryFamily prodEnv result.params
         nparams finalState result.types[sourceTypes.length + i],
-      ∃ N : AuxiliaryFamilySourceData Horigin baseVEnv
+      ∃ N : AuxiliaryFamilySource Horigin baseVEnv
         sourceTypesVEnv lparams
           loweredDecl.types[sourceTypes.length + i],
-        N.payload.source = generated[i] ∧
+        N.source = generated[i] ∧
         VEnv.IsDefEqCtx baseVEnv lparams.length [] N.sourceParams.reverse
           parameterContext
 
@@ -877,15 +932,15 @@ The specialization arguments may have a different certified
 projection normal form from the occurrence's source translation, so their exact
 structural expansion is retained separately from the trailing lowering
 expansion. -/
-theorem AuxiliaryFamilySourceData.nestedOccurrenceReplacement
-    (N : AuxiliaryFamilySourceData H baseVEnv sourceTypesVEnv
+theorem AuxiliaryFamilySource.nestedOccurrenceReplacement
+    (N : AuxiliaryFamilySource H baseVEnv sourceTypesVEnv
       lparams target)
     (sourceDecl : VInductDecl) (generated : List VInductiveType)
     (hsourceTypes : baseVEnv.addConstVals sourceDecl.typeConstants =
       some sourceTypesVEnv)
     (huvars : sourceDecl.uvars = lparams.length)
     (hnparams : sourceDecl.nparams = N.sourceParams.length)
-    (hfamily : N.payload.source ∈ generated)
+    (hfamily : N.source ∈ generated)
     (inputBaseArgs sourceTrailing targetTrailing : List VExpr)
     (auxiliaryLevels : List VLevel)
     (hauxiliaryLevels : auxiliaryLevels.length = sourceDecl.uvars)
@@ -901,7 +956,7 @@ theorem AuxiliaryFamilySourceData.nestedOccurrenceReplacement
     (hinput : input = VExpr.mkApps (.const N.containerFamily.name N.levels)
       (inputBaseArgs ++ sourceTrailing))
     (houtput : output = VExpr.mkApps
-      (.const N.payload.source.name auxiliaryLevels)
+      (.const N.source.name auxiliaryLevels)
       (sourceDecl.paramVars depth ++ targetTrailing)) :
     VInductDecl.NestedOccurrenceReplacement baseVEnv sourceDecl generated depth
       input output := by
@@ -960,7 +1015,7 @@ theorem AuxiliaryFamilyContainer.auxiliaryFamilySource
     (hsourceParamsLength : sourceParams.length = nparams)
     (hbaseClosed : ∀ arg ∈ baseArgs, arg.ClosedN sourceParams.length)
     (hlevelsLength : levels.length = C.container.uvars) :
-    ∃ N : AuxiliaryFamilySourceData Horigin
+    ∃ N : AuxiliaryFamilySource Horigin
       (ves.venv safety) sourceTypesVEnv lparams target,
       N.sourceParams = sourceParams := by
   let containerFamily := C.container.types[C.familyIdx]'C.familyIdx_lt
@@ -1141,16 +1196,13 @@ theorem AuxiliaryFamilyContainer.auxiliaryFamilySource
       simpa only [auxiliaryFamily, containerFamily, Ctypes,
         AuxiliaryFamilyContainer.mono]
         using HdirectConstructors)
-  let payload : AuxiliaryFamilySource Horigin
-      (ves.venv safety) sourceTypesVEnv lparams target := {
+  exact ⟨{
     source := source
     translation := {
       header := HsourceHeader
       ctors := by simpa [source] using HconstructorTranslations' }
     numIndices := by simp [source]
-    resultLevel := by simp [source] }
-  exact ⟨{
-    payload := payload
+    resultLevel := by simp [source]
     container := C.container
     containerFamily := containerFamily
     sourceParams := sourceParams
@@ -1181,24 +1233,24 @@ theorem AuxiliaryFamilyContainer.auxiliaryFamilySource
     levelsTranslation := Hlevels
     levelsLength := hlevelsLength
     levelsWF := VLevel.WF.of_mapM_ofLevel Hlevels
-    sourceUvars := by simp [payload, source]
-    sourceName := by simp [payload, source]
+    sourceUvars := by simp [source]
+    sourceName := by simp [source]
     targetType := by
       have Htarget := HcheckedHeader.type.mono hbaseLE
       have Hsource := HsourceHeader.type.mono hbaseLE
-      simpa [payload, source, VLCtx.toCtx] using
+      simpa [source, VLCtx.toCtx] using
         Htarget.uniq henvTypes (.refl henvTypes (by trivial)) Hsource
     familyType := by
-      simpa only [payload, source, containerFamily, Ctypes,
+      simpa only [source, containerFamily, Ctypes,
         AuxiliaryFamilyContainer.mono]
         using HfamilyDefEq
     familyApplicationTyping := by
       simpa only [containerFamily, Ctypes,
         AuxiliaryFamilyContainer.mono] using HfamilyData.2
     constructors := by
-      simpa [payload, source, containerFamily] using HdirectConstructors'
+      simpa [source, containerFamily] using HdirectConstructors'
     constructorShapes := by
-      simpa only [payload, source, containerFamily, Ctypes,
+      simpa only [source, containerFamily, Ctypes,
         AuxiliaryFamilyContainer.mono] using HconstructorShapes }, rfl⟩
 
 /-- Every family header installed by the ordinary run was
@@ -1615,7 +1667,7 @@ theorem LoweredAuxiliaryFamily.auxiliaryFamilySource
       targetConcrete targetAbstract)
     (htarget : targetAbstract ∈ loweredDecl.types)
     (hparamsSize : result.params.size = nparams) :
-    ∃ N : AuxiliaryFamilySourceData H sourceVEnv
+    ∃ N : AuxiliaryFamilySource H sourceVEnv
       sourceTypesVEnv c.lparams targetAbstract,
       VEnv.IsDefEqCtx sourceVEnv c.lparams.length [] N.sourceParams.reverse
         (Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
@@ -1813,7 +1865,7 @@ theorem NestedLowering.auxiliaryFamilySources
     Σ Horigin : LoweredAuxiliaryFamily c.env result.params
       nparams finalState
         (getElem result.types (sourceTypes.length + i.1) (hresultAt i)),
-      { N : AuxiliaryFamilySourceData Horigin (ves.venv safety)
+      { N : AuxiliaryFamilySource Horigin (ves.venv safety)
           sourceTypesVEnv c.lparams
             (getElem loweredDecl.types (sourceTypes.length + i.1) (htargetAt i)) //
         VEnv.IsDefEqCtx (ves.venv safety) c.lparams.length []
@@ -1837,7 +1889,7 @@ theorem NestedLowering.auxiliaryFamilySources
     exact ⟨⟨Horigin, N, hN⟩⟩
   let auxiliarySourceAt (i : Fin count) : AuxiliarySourceAt i := Classical.choice (Hpoint i)
   let generated : List VInductiveType :=
-    List.ofFn fun i : Fin count => (auxiliarySourceAt i).2.1.payload.source
+    List.ofFn fun i : Fin count => (auxiliarySourceAt i).2.1.source
   refine ⟨{
     generated := generated
     length := ?_
@@ -1895,10 +1947,10 @@ theorem AuxiliaryFamilySources.sourceForReplacement
           nparams sourceTypes.toArray.size finalState T.nested T.auxName,
         result.types[sourceTypes.length + i]'hresult =
           finalState.newTypes[Ocanonical.j]'Ocanonical.hj ∧
-        ∃ Nsource : AuxiliaryFamilySourceData
+        ∃ Nsource : AuxiliaryFamilySource
             Ocanonical.origin baseVEnv sourceTypesVEnv lparams
               loweredDecl.types[sourceTypes.length + i],
-          Nsource.payload.source = N.generated[i] := by
+          Nsource.source = N.generated[i] := by
   have hresultArray : result.types.toArray = finalState.newTypes := by
     rcases Hrun.source with
       ⟨_first, _rest, _tail, _paramsState, _lctx, _params, _htypes,
@@ -1947,10 +1999,10 @@ theorem AuxiliaryFamilySources.sourceForReplacement
   let canonicalFinal :
       Σ Horigin : LoweredAuxiliaryFamily prodEnv result.params
           nparams finalState finalTarget,
-        { Nsource : AuxiliaryFamilySourceData Horigin baseVEnv
+        { Nsource : AuxiliaryFamilySource Horigin baseVEnv
             sourceTypesVEnv lparams
               loweredDecl.types[sourceTypes.length + i] //
-          Nsource.payload.source = N.generated[i] } := by
+          Nsource.source = N.generated[i] } := by
     rw [← hfamily]
     exact ⟨Hcanonical, Ncanonical, hsource⟩
   let HcanonicalFinal := canonicalFinal.1
@@ -2096,7 +2148,7 @@ theorem AuxiliaryFamilySources.replacementCompat
     rw [T.auxiliaryConcreteArity, hauxInfo] at htranslatedLength
     exact htranslatedLength.symm.trans
       (HtargetType.header.uvars.trans huvars.symm)
-  have hfamily : Nsource.payload.source ∈ N.generated := by
+  have hfamily : Nsource.source ∈ N.generated := by
     rw [hsourceEq]
     exact List.getElem_mem hi
   have hinput : sourceValue = VExpr.mkApps
@@ -2110,7 +2162,7 @@ theorem AuxiliaryFamilySources.replacementCompat
         ((congrArg (fun name => VExpr.const name S.sourceLevels) hinputName).trans
           (congrArg (VExpr.const Nsource.containerFamily.name) hinputLevels))
   have houtput : targetValue = VExpr.mkApps
-      (.const Nsource.payload.source.name T.auxiliaryLevels)
+      (.const Nsource.source.name T.auxiliaryLevels)
       (sourceDecl.paramVars fieldDepth ++ T.trailing) := by
     calc
       targetValue = VExpr.mkApps (.const T.auxName T.auxiliaryLevels)
@@ -2180,7 +2232,7 @@ theorem NestedLowering.auxiliaryExpansionsOfSources
       sourceTypesVEnv targetEnvTypes lparams sourceDecl N.generated :=
     N.replacementCompat Htarget Henv hclosures Hsources hsourceTypes
       resultSelection hresultNodup hempty huvars hnparams
-  have Hexpansion := Horigin.abstractExpansion Nsource.payload HtargetType
+  have Hexpansion := Horigin.abstractExpansion Nsource HtargetType
     Hmap henv huvars HsourceTypesWF HtargetTypesWF Hrun.resultParamsSize
       hnparams.symm N.generated Hhit
   have hdropGet :

@@ -680,7 +680,7 @@ theorem sameTelescopeArity_hasForallPrefix
     rcases ih with ⟨domains, body, rfl, hn⟩
     exact ⟨leftDomain :: domains, body, rfl, Nat.succ_le_succ hn⟩
 
-theorem AuxiliaryFamilySourceData.auxiliarySpecialization
+theorem AuxiliaryFamilySource.auxiliarySpecialization
     {ves : VEnvs} {isUnsafe : Bool} {prodEnv : Environment}
     {params : Array Expr} {nparams : Nat}
     {finalState : Lean4Lean.ElimNestedInductive.State}
@@ -689,7 +689,7 @@ theorem AuxiliaryFamilySourceData.auxiliarySpecialization
       targetConcrete}
     {sourceTypesVEnv : VEnv} {lparams : List Name} {target : VInductiveType}
     {baseVEnv : VEnv}
-    (N : AuxiliaryFamilySourceData H baseVEnv sourceTypesVEnv
+    (N : AuxiliaryFamilySource H baseVEnv sourceTypesVEnv
       lparams target)
     (hbase : baseVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
     (wf : ves.WF prodEnv) (decl : VInductDecl)
@@ -701,14 +701,14 @@ theorem AuxiliaryFamilySourceData.auxiliarySpecialization
     ∃ a : ContainerSpecialization,
       SpecializationGenerates
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceTypesVEnv paramCtx
-        decl a N.payload.source ∧
-      a.auxiliary = N.payload.source.name ∧ a.source = N.containerFamily := by
+        decl a N.source ∧
+      a.auxiliary = N.source.name ∧ a.source = N.containerFamily := by
   subst hbase
   rcases List.mem_iff_getElem.mp N.familyMember with ⟨idx, hidx, hfamily⟩
   let a : ContainerSpecialization := {
     container := N.container
     family := ⟨idx, hidx⟩
-    auxiliary := N.payload.source.name
+    auxiliary := N.source.name
     levels := N.levels
     arguments := N.baseArgs }
   have hsource : a.source = N.containerFamily := hfamily
