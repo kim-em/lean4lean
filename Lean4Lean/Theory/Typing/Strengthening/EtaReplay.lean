@@ -94,4 +94,87 @@ theorem DeltaPar.descend' (hTF : TypedFrontN Params.env) (hunfold : UnfoldingChe
 
 end
 
+/-! ## Renaming a bound variable to an inserted variable
+
+Dissolving the administrative redex `(λ D. t)↑ v` where `v` is an eta variable: the contractum is
+`t` renamed by the lift that sends the bound variable to `v` and the free variables as before.
+This is a lift (`Lift.insVar`) when `v` is below every image of the lift. -/
+
+end Lean4Lean.VEnv.StrengtheningEtaReplay
+
+namespace Lean4Lean.Lift
+
+/-- The lift sending `0` to `v` and `i+1` to `l.liftVar i`, defined when `v < l.liftVar 0`. -/
+def insVar : Lift → Nat → Lift
+  | .skip l, 0 => .cons l
+  | .skip l, v+1 => .skip (insVar l v)
+  | l, _ => l
+
+theorem liftVar_insVar_zero : ∀ {l : Lift} {v : Nat}, v < l.liftVar 0 →
+    (l.insVar v).liftVar 0 = v
+  | .refl, _, h => by simp at h
+  | .cons _, _, h => by simp at h
+  | .skip l, 0, _ => by simp [insVar]
+  | .skip l, v+1, h => by
+    simp only [Lift.liftVar] at h
+    simp [insVar, liftVar_insVar_zero (Nat.lt_of_succ_lt_succ h)]
+
+theorem liftVar_insVar_succ : ∀ {l : Lift} {v i : Nat}, v < l.liftVar 0 →
+    (l.insVar v).liftVar (i+1) = l.liftVar i
+  | .refl, _, _, h => by simp at h
+  | .cons _, _, _, h => by simp at h
+  | .skip l, 0, i, _ => by simp [insVar]
+  | .skip l, v+1, i, h => by
+    simp only [Lift.liftVar] at h
+    simp [insVar, liftVar_insVar_succ (Nat.lt_of_succ_lt_succ h)]
+
+theorem liftVar_consN : ∀ (l : Lift) (k i : Nat),
+    (l.consN k).liftVar i = if i < k then i else l.liftVar (i - k) + k
+  | l, 0, i => by simp
+  | l, k+1, 0 => by simp
+  | l, k+1, i+1 => by
+    simp only [Lift.consN, Lift.liftVar, liftVar_consN l k i, Nat.add_sub_add_right]
+    split <;> split <;> omega
+
+end Lean4Lean.Lift
+
+namespace Lean4Lean.VEnv.StrengtheningEtaReplay
+open VExpr
+
+/-- Substituting an inserted variable for the bound variable of a renamed body is a renaming. -/
+theorem lift'_cons_inst_bvar {l : Lift} {v : Nat} (h : v < l.liftVar 0) :
+    ∀ (t : VExpr) (k : Nat), (t.lift' ((Lift.cons l).consN k)).inst (.bvar v) k =
+      t.lift' ((l.insVar v).consN k) := by
+  intro t
+  induction t with
+  | bvar i =>
+    intro k
+    simp only [lift', inst, instVar, Lift.liftVar_consN, liftN]
+    by_cases hik : i < k
+    · simp [hik]
+    · simp only [hik, if_false]
+      obtain ⟨j, rfl⟩ : ∃ j, i = j + k := ⟨i - k, by omega⟩
+      cases j with
+      | zero =>
+        simp [Lift.liftVar, Lift.liftVar_insVar_zero h, liftVar, Nat.add_comm]
+      | succ j =>
+        have h1 : ¬ (l.liftVar j + 1 + k < k) := by omega
+        have h2 : ¬ (l.liftVar j + 1 + k = k) := by omega
+        simp only [Nat.add_sub_cancel, Lift.liftVar, h1, h2, if_false, Lift.liftVar_insVar_succ h]
+        congr 1
+        omega
+  | sort | const | elim => intro k; rfl
+  | app f a ihf iha => intro k; simp [lift', inst, ihf, iha]
+  | proj _ _ m ih => intro k; simp [lift', inst, ih]
+  | lam A b ihA ihb =>
+    intro k
+    simp only [lift', inst, ihA]
+    have := ihb (k+1)
+    simpa [Lift.consN] using this
+  | forallE A B ihA ihB =>
+    intro k
+    simp only [lift', inst, ihA]
+    have := ihB (k+1)
+    simpa [Lift.consN] using this
+
 end Lean4Lean.VEnv.StrengtheningEtaReplay
