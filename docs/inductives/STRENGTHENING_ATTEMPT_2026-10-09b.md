@@ -184,3 +184,21 @@ posts to GitHub or Zulip.
   the guards of a replayed step are conversions between subterms typed below, i.e.
   `TypedFront` instances, so `TypedFront → PiExposureN` and hence `Cancel ↔ TypedFront` is
   the next target (direction B2).
+* 2026-10-09: direction A finished (acfc788b, merged as f9e22a1e): `ProofAware.lean` (fused
+  proof leaves `ProofLeaf`/`ProofApp` sound, descending, weakening; `no_phase_order`,
+  `no_layer_universe_rank`, erasure refutations), `PilotTrans.lean` and `PilotRank.lean`.
+  Proved: `Cancel.of_cComplete` (completeness of the pilot calculus gives `Cancel`, the
+  theorem `Pilot.lean` announced), the strip lemma `CConv.trans_of` (transitivity from the
+  three obligations `RedConfluent`, `NormTransport`, `NormTrans`), `Cert.instN` (exact
+  substitution when the substituend synthesises exactly the binder type: the certificate form
+  of the inhabited case), `PStep.diamond`/`PRed.confluent` for the eta-free equation-free
+  fragment. Obstruction (with a size-indexed `CertN`, since `Cert` is `Prop`-valued):
+  `transport_output_exceeds_inputs` and `substitution_call_not_decreasing`: in
+  `NormTransport`'s beta case the call to heterogeneous substitution receives inputs of size
+  at least 99 from an instance of size 83, because the argument comparison is duplicated once
+  per occurrence of the bound variable, and `norm_tower_ge` bounds every certificate for the
+  contractum from below; `no_monotone_size_rank`: no monotone function of certificate size
+  decreases on that call. The fragment is normalising, so this obstructs syntactic ranks, not
+  the truth of the obligations. Reorganisations tried: zigzag guards (break descent),
+  dropping `step_eta`, typing premises on `norm_app`, exactly typed substituends, depth,
+  universe and term-size ranks (`STRENGTHENING_A_LOG.md`).
