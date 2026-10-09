@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Inductive.CompilationNames
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TrRestoredRecursorVal
 import Lean4Lean.Verify.Inductive.Rules.Alignment
-import Lean4Lean.Verify.Inductive.Nested.Install.Certificate
+import Lean4Lean.Verify.Inductive.Nested.Install.RunView
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.AuxiliarySources
 
 /-! Container specialisations of a nested declaration.
@@ -933,40 +933,6 @@ theorem AuxiliaryFamilySpec.nested_getAppFn
   apply Expr.getAppFn_abstractN_const
   rw [Expr.mkAppRange_from_zero _ _ _ harity, Expr.getAppFn_mkAppList]
   rfl
-/-- The common parameter context recorded by the header phase of a block
-(in context order).  Every generated auxiliary's parameter telescope
-is definitionally this context. -/
-def HeaderEnvironment.commonParameterContext
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType} {outEnv : Environment}
-    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
-      indTypes outEnv) : List VExpr :=
-  (H.sourceStatsWF.parameterSuffix.toRecursorContext
-    (elimLevel := .zero) (by trivial)).parameterDecls.toCtx
-
-theorem HeaderEnvironment.commonParameterContext_eq
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType} {outEnv : Environment}
-    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
-      indTypes outEnv) :
-    H.commonParameterContext = H.statsWF.parameterScope.toCtx := by
-  rw [H.parameterScopeEq]
-  rfl
-
-/-- The parameter scope of an ordinary constructor check is the header
-phase's common parameter context. -/
-theorem OrdinaryConstructorCheck.parameterScope_toCtx
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv : Environment}
-    {H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
-      indTypes headerEnv} (R : OrdinaryConstructorCheck H ctorEnv) :
-    R.toConstructorCheck.parameterScope.toCtx = H.commonParameterContext :=
-  H.commonParameterContext_eq.symm
-
 private theorem constructorListEntries_findInduct
     {stats : AddInductive.InductiveStats} {lparams : List Name}
     {isUnsafe : Bool} {owner : InductiveType} {ctors : List Constructor}
@@ -1145,44 +1111,28 @@ theorem NestedRun.containerSpecializations
           name) := by
   let safety := if isUnsafe then DefinitionSafety.unsafe else .safe
   let P := E.lowered
-  have hc : P.c = E.context := E.lowered_c
-  have henv : P.c.env = sourceProdEnv :=
-    (congrArg AddInductive.Context.env hc).trans E.context_env
-  have hlparams : P.c.lparams = lparams :=
-    (congrArg AddInductive.Context.lparams hc).trans
-      E.context_lparams
+  have henv : P.c.env = sourceProdEnv := E.lowered_env
+  have hlparams : P.c.lparams = lparams := E.lowered_lparams
   have hnparams : P.nparams = nparams := E.lowered_nparams
   have hinitial : P.initialEnv = ves.venv safety := by
     simpa only [safety] using E.lowered_initialEnv
-  have hindTypes : P.indTypes = result.types.toArray := E.lowered_indTypes
   have hisUnsafe : P.isUnsafe = isUnsafe := E.lowered_isUnsafe_source
-  have HcP : ContextWF P.c := by
-    rw [hc]
-    exact E.contextWF
-  let initialState : Lean4Lean.ElimNestedInductive.State :=
-    { lvls := P.c.lparams.map .param, newTypes := #[] }
+  have HcP : ContextWF P.c := E.loweredContextWF
+  let initialState := E.initialState
   have Hlower : NestedLoweringOutputClosed P.c.env
       E.validationFuel.inductiveFuel P.nparams sourceTypes
-      { initialState with newTypes := sourceTypes.toArray } result := by
-    simpa only [henv, hnparams, hlparams, initialState] using E.lowering
+      { initialState with newTypes := sourceTypes.toArray } result := E.loweringAtContext
   rcases Hlower with ⟨finalState, Hrun, Hcache, Hparams⟩
-  let PhasePack := fun indTypes =>
-    Sigma fun Hheaders : HeaderEnvironment P.c P.stats P.loweredDecl
-        P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
-      Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
-        RecursorCheck R.toConstructorCheck E.loweredEnv
-  let Hpack : PhasePack result.types.toArray :=
-    Eq.mp (congrArg PhasePack hindTypes)
-      (⟨P.headers, P.constructors, P.recursors⟩ : PhasePack P.indTypes)
-  let R := Hpack.2.1
-  let Hprod := Hpack.2.2
+  let Hpack := E.phases
+  let R := Hpack.constructors
+  let Hprod := Hpack.recursors
   have Hsource : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
       E.sourceCoreDecl_eq] using E.sourceCore.core
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
-      result.types P.isUnsafe P.loweredDecl Hpack.1.context.venv
+      result.types P.isUnsafe P.loweredDecl Hpack.headers.context.venv
         R.declared.venvCtors := by
     exact R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
@@ -1212,14 +1162,7 @@ theorem NestedRun.containerSpecializations
       hinitial HcP Hprod Hsources HsourceHeaders HsourceAdded HsourceTypesWF
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N, hNctx⟩
   have hctxEq : N.parameterContext = P.headers.commonParameterContext := by
-    have key : ∀ (i : Array InductiveType) (h : P.indTypes = i),
-        (Eq.mp (congrArg PhasePack h)
-          (⟨P.headers, P.constructors, P.recursors⟩ : PhasePack P.indTypes)).1.commonParameterContext =
-          P.headers.commonParameterContext := by
-      intro i h
-      subst h
-      rfl
-    exact hNctx.trans (key _ hindTypes)
+    exact hNctx.trans E.phases_commonParameterContext
   have Htypes := Hrun.allExpansionsOfSources Hcache Hparams Hsource
     Htarget Hmetadata Hsources
       (VEnvs.WFCore.environmentTypesClosed wfP) wfP.inductivesClosed
