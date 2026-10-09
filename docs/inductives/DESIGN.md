@@ -74,7 +74,8 @@ into an `AddDeclChain` from `Kernel.Environment.empty` (`AddDeclChain.WF_empty`)
 compares the type of `Eq` with the prelude's up to `Expr.eqv` but does not look at its safety, so
 before the step that initializes the quotient module the driver also checks that `Eq` is safe,
 with one universe parameter and a type `==` to the prelude's (`hasCanonicalEqType`, sound for
-`HasCanonicalEqType`: every translation of the type is the canonical one, by `TrExprS.eqv`). This
+`HasCanonicalEqType`: every translation of the type is the canonical one, since `TrExprS.eqv`
+moves it to the prelude's syntax, whose syntactic translation `TrSyn` is the canonical type). This
 is exactly what the abstract model of `quotDecl` consumes (`QuotReady`); nothing is required of
 `Eq.refl` or `Eq.rec`. `replayPure.WF_fromImports` states the same for the
 pure replay `replayPure` on top of imports whose well-formedness and canonical `Eq` are assumed:
@@ -556,9 +557,9 @@ re-established at the end of the batch.
 ### 3.5 Shared proof infrastructure
 
 The phase certificates remain in the inductive checker, while generic expression, context and
-abstract typing facts live below it. The original qualified declaration names and theorem
-contracts are retained, including the older `VerifyInductive` names of abstract calculus facts.
-Importing the old adapter modules still exposes those declarations.
+abstract typing facts live below it. Adapters import these shared facts and connect them to
+the phase certificates. Theorem interfaces carry the hypotheses needed by their conclusions;
+redundant arguments are removed together with their caller arguments.
 
 | Responsibility | Modules |
 | --- | --- |
@@ -567,12 +568,15 @@ Importing the old adapter modules still exposes those declarations.
 | Guarded iota closure and abstract case certificates | `Theory/Inductive/GuardedIotaLemmas.lean`, `Theory/Inductive/CaseEliminators.lean` |
 | Source expression telescope shapes and typed transport | `Verify/Expr/Telescope.lean`, `Verify/Typing/Telescope.lean` |
 | Concrete local-context inclusion | `Verify/LocalContext/SubContext.lean` |
+| Syntactic translation (`TrSyn`, `trSyn?`) and the typed layer (`TrResidual`, `TrTyped`) | `Verify/Typing/Syntactic/{Context,Levels,Basic,Transport,Typed,TypedAPI}.lean` |
+| Constructor telescope certificates (`TelWF`, `TelTrN`, `CtorTelescopeAt`, section 5.3) | `Verify/Typing/TelescopeTranslation.lean`, `Verify/Typing/TelescopeTranslationLemmas.lean` |
 | Checker context structure and semantic embeddings | `Verify/TypeChecker/MLCtxLemmas.lean`, `Verify/TypeChecker/CheckingContext.lean`, `Verify/Typing/CheckingContext.lean` |
 | Semantics shared by ordinary and recursor frames | `Verify/Inductive/Context/Semantics.lean` |
 | Installation lookup effects and matched family/constructor indices | `Verify/Inductive/Install/Metadata.lean`, `Verify/Inductive/SourceAlignment.lean` |
 
-`ContextWF` and `RecursorContextWF` keep their original public record layouts. Their operations
-use `ContextSemantics c Us` for the shared context proofs. Ordinary frames retain
+`ContextWF` and `RecursorContextWF` separately certify the ordinary and recursor universe
+contracts. Their operations use `ContextSemantics c Us` for the shared context proofs.
+Ordinary frames retain
 `typeCheckerLParams = none`; recursor frames retain `some recLparams` and the explicit
 `RecursorLParams` origin certificate. `BindingContextWF` remains the separate operational
 certificate. The existing projection equalities still hold by reduction.
@@ -587,7 +591,7 @@ The selected induction-hypothesis comparison in `Rules/RecursiveResults.lean` se
 provenance (`HypothesisSource`), exact replay equations (`HypothesisReplay`), translation and
 closed typing (`HypothesisTyping`), and the opened residual comparison (`HypothesisResidual`).
 `HypothesisFrame` and `HypothesisDomainFrame` carry these obligations to the RHS proof through
-named fields. The original existential theorems remain compatibility views. Translation and
+named fields, which consumers use directly. Translation and
 typing after inserting earlier hypotheses use one shared proof, so the domain comparison and
 RHS consumer no longer reconstruct that context transport independently.
 
@@ -793,22 +797,47 @@ structure that may be a proposition, which the kernel still walks past) a transl
 remainder in the smaller context is needed, and general strengthening is not available
 (section 5.1).
 
-The proof re-derives the smaller-context translation from the checker's own acceptance of the
-constructor type. A locality theorem for the executable
-(`Methods.withFuel_locality`, stated with `M.PreservesGhostRestriction` in
-`Lean4Lean/Verify/TypeChecker/Frame*.lean`: a successful run in a local context with extra
-declarations that never occur in its inputs, caches or environment is the same run without
-them) and a ghost-telescope verification (`Verify/TypeChecker/GhostTelescope.lean`) show that
-when a constructor type is checked, every unused binder of its telescope can be deleted from
-the translation. The result is recorded as a depth-bounded certificate `TelTrN`
-(`Verify/Typing/TelescopeTranslation.lean`), one per visible constructor at every safety
+The syntax of that translation is free: translation is a function of the source syntax and the
+context (`TrSyn`, computed by `trSyn?`, `Verify/Typing/Syntactic/Basic.lean`), and a source that
+does not mention a binder translates without it, to the lowered result (`TrSyn.lower`). A typed
+translation is exactly a syntactic translation whose result is well typed, together with the
+typing of dead let values and the presence of literal types (`TrResidual`;
+`TrExprS.iff_typed`, `Verify/Typing/Syntactic/Typed.lean`). What remains to be supplied at a
+deleted binder is therefore one typing judgment: the residual telescope is well typed in the
+context without the binder.
+
+The certificate of a constructor `ci` is
+
+```
+def CtorTelescopeAt (venv : VEnv) (ci : ConstructorVal) : Prop :=
+  ∃ T, trSyn? ci.levelParams [] ci.type = some T ∧
+    TelWF venv ci.levelParams (AddInductive.constructorArity ci.type) [] ci.type T
+```
+
+the computed translation of the stored type with `TelWF`
+(`Verify/Typing/TelescopeTranslation.lean`): the typing of the translation and of every residual
+telescope obtained by deleting unused binders of the leading `forallE` spine, each in its own
+context, with the residual obligations of the source. The depth is the constructor's own arity,
+which is what the walk consumes. There is one certificate per visible constructor at every safety
 level (`CtorTelescopes`, derived from the installed blocks of `VEnvs.WF` by
-`VEnvs.WF.ctorTelescopes`); the bound is the constructor's own arity, which is what the walk
-consumes. The walk uses the delete branch of the
-certificate at each non-dependent field. Nested declarations need the stored constructor type
-to agree with the checked source type up to binder names
-(`Verify/Inductive/Nested/Restoration/InstalledConstructorTypes.lean`), because reusing an auxiliary
-renames binders inside reused occurrences, as in the C++ kernel.
+`VEnvs.WF.ctorTelescopes`). The walk (`instantiateProjectionParameters.WF_tel`,
+`instantiateProjectionFields.WF_tel` in `Verify/TypeChecker/Projection.lean`) carries the pair
+`TelTrN` of the syntactic translation and `TelWF`, substitutes at parameters and dependent fields
+(`TelTrN.inst`) and deletes at non-dependent fields (`TelTrN.delete_closed`); the transports
+(`Verify/Typing/TelescopeTranslationLemmas.lean`) are each a `TrSyn` lemma for the syntax and a
+typing lemma for `TelWF`.
+
+The typing at deleted binders is re-derived from the checker's own acceptance of the constructor
+type. A locality theorem for the executable (`Methods.withFuel_locality`, stated with
+`M.PreservesGhostRestriction` in `Lean4Lean/Verify/TypeChecker/Frame*.lean`: a successful run in
+a local context with extra declarations that never occur in its inputs, caches or environment is
+the same run without them) and a ghost-telescope verification
+(`Verify/TypeChecker/GhostTelescope.lean`, `checkType.WF_telTr`) show that when a constructor
+type is checked, the run read in the local context without the deleted binders types every
+residual telescope. Nested declarations need the stored constructor type to agree with the
+checked source type up to binder names (`Verify/Inductive/Nested/Restoration/InstalledConstructorTypes.lean`,
+`TelTrN.eqv`), because reusing an auxiliary renames binders inside reused occurrences, as in the
+C++ kernel.
 
 ## 6. The quotient declaration
 
@@ -981,8 +1010,8 @@ Suggested order, with sizes.
 5. The checker changes: the diff of `Lean4Lean/TypeChecker.lean` (1k), `State.WF` and
    `leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean` (2k), `divergences.md`,
    `Lean4Lean/Tests/CacheScope.lean`.
-6. Constructor telescopes: `Lean4Lean/Verify/Typing/TelescopeTranslation.lean` (`TelTrN`),
-   `CtorTelescopes` in `TelescopeTranslationLemmas.lean`, `instantiateProjectionFields.WF_tel` in
+6. Constructor telescopes: `Lean4Lean/Verify/Typing/TelescopeTranslation.lean` (`TelWF`,
+   `TelTrN`), `CtorTelescopeAt` in `TelescopeTranslationLemmas.lean`, `instantiateProjectionFields.WF_tel` in
    `Lean4Lean/Verify/TypeChecker/Projection.lean`, then `Verify/TypeChecker/GhostTelescope.lean`.
 7. Head inversion: `HeadInversionDefs.lean`, `HeadInversion.lean`, then
    `HeadInjectivity/Model/{Classes,Obs,Interp,Sound}.lean` (3k), `RuleSound.lean`,

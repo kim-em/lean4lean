@@ -5,9 +5,9 @@ import Lean4Lean.Verify.Typing.TelescopeTranslationFVar
 /-!
 # Ghost verification of the telescope check
 
-`checkType.WF_telTr`: a successful checking run of an expression yields a telescope-closed
-translation (`TelTr`), from which the constructor telescope certificates are built (section 5.3
-of `docs/inductives/DESIGN.md`).
+`checkType.WF_telTr`: a successful checking run of an expression yields a telescope certificate
+(`TelTrN` along the whole syntactic `forallE` spine), from which the constructor telescope
+certificates are built (section 5.3 of `docs/inductives/DESIGN.md`).
 
 `inferForall.loop` opens one free variable per binder of the `forallE` spine. The proof reads the
 one actual run in every *view*: an `MLCtx` holding the binders that are kept, and a set `G` of
@@ -16,7 +16,9 @@ replayed by the frame lemma (`Methods.withFuel_locality`) in the local context o
 the existing verification (`inferType.WF'`, `ensureSortCore.WF`) translates it. The state stays
 well formed for the view throughout: at a kept binder it is extended as by
 `RecM.WF.withLocalDecl`, at a ghost binder only the name generator advances. The keep and delete
-branches of `TelTr` at a binder are the two views extending the current one by that binder.
+branches of the certificate at a binder are the two views extending the current one by that
+binder; the lowered translation of the delete branch is `TrSyn.lower`, and what the run supplies
+there is the typing of the residual telescope (`TelWF`).
 -/
 
 namespace Lean4Lean.TypeChecker
@@ -293,7 +295,7 @@ theorem loop_base {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True) 
     (hS : GhostFreeState G s) (wf : State.WF (c.withMLC m) s)
     (hrun : inferForall.loop false arr us e (Methods.withFuel k) { c.toContext with lctx := L } s =
       .ok (r, s')) :
-    ∃ e', TelTr c.venv c.lparams (vlctxBV m n hn) e_low e' ∧
+    ∃ e', TelTrN c.venv c.lparams (AddInductive.constructorArity e_low) (vlctxBV m n hn) e_low e' ∧
       c.venv.IsType c.lparams.length (vlctxBV m n hn).toCtx e' := by
   obtain ⟨T, s₁, t, s₂, h1, h2⟩ := loop_other_run hne hrun
   rw [Expr.instantiateRev_eq_instantiateList, hei] at h1
@@ -305,14 +307,18 @@ theorem loop_base {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True) 
     obtain ⟨_, _, rfl⟩ := TelTrFVar.instantiateList_fvars_forallE
       (fun x hx => harr x (List.mem_reverse.1 hx)) hei
     exact hne _ _ _ _ rfl
-  refine ⟨e', ⟨uninst_view hdrop hlow he', ?_, ?_⟩, vlctxBV_toCtx .. ▸ hty⟩
-  · intro _ _ _ _ _ _ h; exact (H h).elim
-  · intro _ _ _ _ _ _ _ _ h; exact (H h).elim
+  have h0 : AddInductive.constructorArity e_low = 0 := by
+    cases e_low <;> first | rfl | exact (H rfl).elim
+  have hty' : c.venv.IsType c.lparams.length (vlctxBV m n hn).toCtx e' := vlctxBV_toCtx .. ▸ hty
+  have S := uninst_view hdrop hlow he'
+  rw [h0]
+  exact ⟨e', ⟨S.toTrSyn, .zero (let ⟨_, h⟩ := hty'; ⟨_, h⟩) S.residual⟩, hty'⟩
 
 /-- The loop of `inferForall`, read in every *view*: an `MLCtx` `m` holding the kept binders (its
 top `n` entries) and a set `G` of ghosts (binders of the actual run that are absent from `m`).
 The remaining telescope `e` of the run and its ghost-free form `e_low` agree after instantiation.
-The conclusion is the telescope-closed translation of `e_low` in the bound-variable form of `m`. -/
+The conclusion is the telescope certificate of `e_low`, along its whole syntactic spine, in the
+bound-variable form of `m`. -/
 theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True) c.env) :
     ∀ (e : Expr) {m : MLCtx} [c.MLCWF m] {n : Nat} (hn : n ≤ m.length)
       {arr : Array Expr} {us : Array Level} {G : FVarId → Prop} {L : LocalContext}
@@ -329,7 +335,7 @@ theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True)
     State.WF (c.withMLC m) s →
     inferForall.loop false arr us e (Methods.withFuel k) { c.toContext with lctx := L } s =
       .ok (r, s') →
-    ∃ e', TelTr c.venv c.lparams (vlctxBV m n hn) e_low e' ∧
+    ∃ e', TelTrN c.venv c.lparams (AddInductive.constructorArity e_low) (vlctxBV m n hn) e_low e' ∧
       c.venv.IsType c.lparams.length (vlctxBV m n hn).toCtx e' := by
   intro e
   induction e with
@@ -393,11 +399,11 @@ theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True)
         · exact hfind hfv)
       (GhostFreeState.next gs2) wf' hrun'
     have hIb' : c.venv.IsType c.lparams.length (d' :: (vlctxBV m n hn).toCtx) b' := hIb
-    refine ⟨.forallE d' b', ⟨.forallE domty' hIb' hdlow hTb.toTrExprS, ?_, ?_⟩, domty'.forallE hIb'⟩
-    · intro _ _ _ _ _ _ h h'
-      cases h; cases h'; exact hTb
-    · intro _ _ _ _ _ _ b₀ b₀' h h' hb0 hb0'
-      cases h; cases h'
+    have hFT := domty'.forallE hIb'
+    refine ⟨.forallE d' b', ⟨.forallE hdlow.toTrSyn hTb.syn,
+      .succ (let ⟨_, h⟩ := hFT; ⟨_, h⟩) (.forallE hdlow.toTrSyn hdlow.residual hTb.tel.residual)
+        hTb.tel ?_⟩, hFT⟩
+    · intro b₀ b₀' hb0 hb0'
       subst hb0
       -- the ghosted binder: same actual run, the fresh variable joins the ghosts
       have wfg : State.WF (c.withMLC m) { s₂ with ngen := s₂.ngen.next } :=
@@ -425,11 +431,13 @@ theorem loop_telTr {c : VContext} {k : Nat} (henv : EnvGhostFree (fun _ => True)
           rw [find?_mkLocalDecl hlwf, if_neg (by simpa using Ne.symm hfv.2)]
           exact hfind hfv.1)
         gsg wfg hrun'
-      have W := hT0.toTrExprS.weakBV c.Ewf (.skip (.vlam d') .refl)
-      have := TrExprS.uniqueCtx .base hTb.toTrExprS W
-      rw [hb0'] at this
-      cases VExpr.liftN_inj.1 this
-      exact hT0
+      obtain ⟨x, sx, hx⟩ := hTb.syn.lower
+      change _ = VExpr.lift x at hx
+      cases sx.unique hT0.syn
+      rw [hb0'] at hx
+      cases VExpr.liftN_inj.1 hx
+      rw [AddInductive.constructorArity_liftLooseBVars']
+      exact hT0.tel
   | _ =>
     intro m cwf n hn arr us G L s s' r e_low hdrop harr hei hlow hG hlwf hfind hS wf hrun
     exact loop_base henv (fun _ _ _ _ h => by cases h) hdrop harr hei hlow hG hlwf hfind hS wf hrun
@@ -441,9 +449,9 @@ theorem checkType_run {e : Expr} {ctx : Context} {s : State} :
 end GhostTel
 
 open GhostTel in
-/-- A successful checking run of `e` yields a telescope-closed translation of `e`: the translation
-of `e`, together with the translations of the leading `forallE` spine with any subset of its
-unused binders deleted. The deleted forms are derived by the verified checker itself, from the
+/-- A successful checking run of `e` yields a telescope certificate of `e`: its syntactic
+translation, with the typing of the translation and of every residual telescope obtained by
+deleting any subset of the unused binders of its leading `forallE` spine. The deleted forms are derived by the verified checker itself, from the
 same run read in the local context without the deleted binders (`Methods.withFuel_locality`).
 
 `henv`: no constant of the environment mentions a free variable (every environment built by the
@@ -454,14 +462,17 @@ theorem checkType.WF_telTr {c : VContext} {s : State} {e : Expr}
     (henv : EnvGhostFree (fun _ => True) c.env)
     (hunf : ∀ ⦃k r : Expr⦄, s.unfold[k]? = some r → FVarsIn (fun _ => True) r)
     (h1 : e.FVarsIn (· ∈ c.vlctx.fvars)) (hcache : s.inferTypeC[e]? = none) :
-    M.WF c s (checkType e) fun _ _ => ∃ e', TelTr c.venv c.lparams c.vlctx e e' := by
+    M.WF c s (checkType e) fun _ _ =>
+      ∃ e', TelTrN c.venv c.lparams (AddInductive.constructorArity e) c.vlctx e e' := by
   intro wf a s' hrun
   obtain ⟨vs', h1', h2', h3', e', ty', htyping⟩ := checkType.WF h1 wf a s' hrun
   refine ⟨vs', h1', h2', h3', ?_⟩
   by_cases hfa : ∃ n d b bi, e = .forallE n d b bi
   case neg =>
-    refine ⟨e', htyping.2.1, ?_, ?_⟩ <;>
-      intros <;> exact (hfa ⟨_, _, _, _, ‹_›⟩).elim
+    have h0 : AddInductive.constructorArity e = 0 := by
+      cases e <;> first | rfl | exact (hfa ⟨_, _, _, _, rfl⟩).elim
+    rw [h0]
+    exact ⟨e', .zero c.Ewf.ordered c.Δwf htyping.2.1⟩
   obtain ⟨name, dom, body, bi, rfl⟩ := hfa
   rw [checkType_run] at hrun
   generalize c.fuel.recDepth = N at hrun

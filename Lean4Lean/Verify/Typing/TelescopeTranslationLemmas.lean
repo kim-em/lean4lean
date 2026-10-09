@@ -3,16 +3,14 @@ import Lean4Lean.Verify.Typing.LevelEquiv
 import Lean4Lean.Verify.Environment.RecursorAlignment
 
 /-!
-# Transport lemmas for telescope-closed translations
+# Transport lemmas for telescope certificates
 
 Syntactic facts about binders that a source body does not mention, and the transport of the
 depth-bounded certificate `TelTrN` along environment extension (`TelTrN.mono`), level instantiation
-(`TelTrN.instL_lequiv`), free-variable weakening (`TelTrN.weakFV`) and substitution of a typed
-term (`TelTrN.instN`, `TelTrN.inst`). Each transport moves only the binders already present in the
-certified spine: the delete branch of a binder commutes with the operation at the other binders.
-
-`TelTr.toTelTrN` reads a depth-bounded certificate off the unbounded `TelTr` for a source whose
-syntactic `forallE` spine is long enough.
+(`TelTrN.instL_lequiv`), free-variable weakening (`TelTrN.weakFV`), substitution of a typed term
+(`TelTrN.instN`, `TelTrN.inst`) and `Expr.eqv` (`TelTrN.eqv`). Each is the `TrSyn` lemma for the
+syntax and a `TelWF` lemma for the typing; the delete branch of a binder is `TrSyn.lower` and
+commutes with the operation at the other binders.
 -/
 
 namespace Lean.Expr
@@ -161,99 +159,140 @@ end Lean.Expr
 namespace Lean4Lean
 open Lean VEnv
 
-/-! ### Translations of bodies that do not use an inserted binder -/
-
 theorem TrExprS.uniqueS {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Lean.Expr}
     {e₁ e₂ : VExpr} (H1 : TrExprS env Us Δ e e₁) (H2 : TrExprS env Us Δ e e₂) : e₁ = e₂ :=
   H1.unique_of_syn H2
 
-/-- The translation of a source that does not mention an inserted binder is a lift. This is the
-structural half of strengthening: it needs no typing, only that translation is syntactic. -/
-theorem TrExprS.liftN_inv (W : VLCtx.BVLift Δ Δ' 1 dk 1 k)
-    (H : TrExprS env Us Δ' (Expr.liftLooseBVars' e₀ dk 1) e') :
-    ∃ e₀' : VExpr, e' = e₀'.liftN 1 k :=
-  let ⟨e₀', _, h⟩ := H.toTrSyn.lowerBV W; ⟨e₀', h⟩
+/-! ### The typing certificate -/
 
-theorem TrExprS.lift_inv
-    (H : TrExprS env Us ((none, .vlam D) :: Δ) (Expr.liftLooseBVars' e₀ 0 1) e') :
-    ∃ e₀' : VExpr, e' = e₀'.lift :=
-  H.liftN_inv (.skip (.vlam D) .refl)
+namespace TelWF
+
+theorem wf : TelWF env Us n Δ e e' → VExpr.WF env Us.length Δ.toCtx e'
+  | .zero h _ | .succ h .. => h
+
+theorem residual : TelWF env Us n Δ e e' → TrResidual env Us Δ e
+  | .zero _ h | .succ _ h .. => h
+
+theorem mono (henv : env ≤ env') (H : TelWF env Us n Δ e e') : TelWF env' Us n Δ e e' := by
+  induction H with
+  | zero h1 h2 => exact .zero (h1.mono henv) (h2.mono henv)
+  | succ h1 h2 _ _ ih3 ih4 =>
+    exact .succ (h1.mono henv) (h2.mono henv) ih3 fun _ _ hb hb' => ih4 _ _ hb hb'
+
+/-- Free-variable weakening: the typing of each residual telescope is weakened, its syntax is
+`TrSyn.weakFV`. No well-formed context is needed. -/
+theorem weakFV (henv : env.Ordered) :
+    TelWF env Us m Δ e e' → ∀ {Δ' : VLCtx} {dk n k}, VLCtx.FVLift Δ Δ' dk n k →
+      Δ'.fvars.Nodup → TrSyn Us Δ e e' → TelWF env Us m Δ' e (e'.liftN n k) := by
+  intro T
+  induction T with
+  | zero h1 h2 =>
+    intro Δ' dk n k W hnd _
+    exact .zero (let ⟨_, h⟩ := h1; ⟨_, h.weakN henv W.toCtx⟩) (h2.weakFV henv W hnd)
+  | succ h1 h2 _ _ ih3 ih4 =>
+    intro Δ' dk n k W hnd S
+    let .forallE _ sb := S
+    refine .succ (let ⟨_, h⟩ := h1; ⟨_, h.weakN henv W.toCtx⟩) (h2.weakFV henv W hnd)
+      (ih3 (W.cons_bvar (.vlam _)) hnd sb) ?_
+    intro c c' hc hc'
+    subst hc
+    obtain ⟨b₀', s, hb'⟩ := sb.lower
+    change _ = VExpr.lift b₀' at hb'
+    subst hb'
+    rw [← VExpr.lift_liftN'] at hc'
+    cases VExpr.liftN_inj.1 hc'
+    exact ih4 _ _ rfl rfl W hnd s
+
+/-- Substitution of a typed term for a variable of the context. The certified binders of the
+spine are those of `e`; deletion at a binder commutes with substitution at the others. -/
+theorem instN (henv : env.Ordered) (s₀ : TrSyn Us Δ₀ e₀ e₀') (r₀ : TrResidual env Us Δ₀ e₀)
+    (t₀ : env.HasType Us.length Δ₀.toCtx e₀' A₀) :
+    TelWF env Us m Δ₁ e e' → ∀ {Δ : VLCtx} {dk k}, VLCtx.InstN Δ₀ e₀' A₀ dk k Δ₁ Δ →
+      TrSyn Us Δ₁ e e' → TelWF env Us m Δ (Expr.instantiate1' e e₀ dk) (e'.inst e₀' k) := by
+  intro T
+  induction T with
+  | zero h1 h2 =>
+    intro Δ dk k W _
+    exact .zero (let ⟨_, h⟩ := h1; ⟨_, HasType.instN henv W.toCtx h t₀⟩) (TrResidual.instN s₀ r₀ henv t₀ W h2)
+  | succ h1 h2 _ _ ih3 ih4 =>
+    intro Δ dk k W S
+    let .forallE _ sb := S
+    refine .succ (let ⟨_, h⟩ := h1; ⟨_, HasType.instN henv W.toCtx h t₀⟩) (TrResidual.instN s₀ r₀ henv t₀ W h2)
+      (ih3 (W.succ (d := .vlam _)) sb) ?_
+    intro c c' hc hc'
+    obtain ⟨b₀, hb, rfl⟩ := Expr.instantiate1'_eq_liftLooseBVars' hc
+    subst hb
+    obtain ⟨b₀', s, hb'⟩ := sb.lower
+    change _ = VExpr.lift b₀' at hb'
+    subst hb'
+    rw [← VExpr.lift_instN_lo] at hc'
+    cases VExpr.liftN_inj.1 hc'
+    exact ih4 _ _ rfl rfl W s
+
+end TelWF
 
 /-! ### The depth-bounded certificate -/
 
 namespace TelTrN
 
-theorem toTrExprS : TelTrN env Us n Δ e e' → TrExprS env Us Δ e e'
-  | .zero h | .succ h .. => h
+theorem toTrTyped (H : TelTrN env Us n Δ e e') : TrTyped env Us Δ e e' :=
+  ⟨H.syn, H.tel.wf, H.tel.residual⟩
 
-theorem mono (henv : env ≤ env') (H : TelTrN env Us n Δ e e') : TelTrN env' Us n Δ e e' := by
-  induction H with
-  | zero h => exact .zero (h.mono henv)
-  | succ h1 _ h3 _ ih2 ih4 => exact .succ (h1.mono henv) ih2 h3 fun _ _ hb hb' => ih4 _ _ hb hb'
+theorem toTrExprS (henv : env.Ordered) (hΔ : Δ.WF env Us.length) (H : TelTrN env Us n Δ e e') :
+    TrExprS env Us Δ e e' :=
+  H.toTrTyped.toTrExprS henv hΔ
+
+/-- At depth zero the certificate is a typed translation. -/
+theorem zero (henv : env.Ordered) (hΔ : Δ.WF env Us.length) (H : TrExprS env Us Δ e e') :
+    TelTrN env Us 0 Δ e e' :=
+  ⟨H.toTrSyn, .zero (H.wf henv hΔ) H.residual⟩
+
+theorem mono (henv : env ≤ env') (H : TelTrN env Us n Δ e e') : TelTrN env' Us n Δ e e' :=
+  ⟨H.syn, H.tel.mono henv⟩
 
 /-- A positive-depth certificate is a syntactic `forallE`. -/
 theorem forallE_of_succ (H : TelTrN env Us (n + 1) Δ e e') :
     ∃ nm d b bi d' b', e = .forallE nm d b bi ∧ e' = .forallE d' b' := by
-  cases H; exact ⟨_, _, _, _, _, _, rfl, rfl⟩
+  cases H.tel; exact ⟨_, _, _, _, _, _, rfl, rfl⟩
 
 theorem keep (H : TelTrN env Us (n + 1) Δ (.forallE nm d b bi) (.forallE d' b')) :
     TelTrN env Us n ((none, .vlam d') :: Δ) b b' := by
-  cases H; assumption
+  obtain ⟨S, T⟩ := H
+  let .forallE _ sb := S
+  cases T with | succ _ _ h3 _ => exact ⟨sb, h3⟩
 
 /-- The delete branch at the head binder, for a body without loose bound variables (the form in
-which the executable meets it). -/
+which the executable meets it): the lowered translation and its relation to the body are
+syntactic (`TrSyn.lower`), the certificate supplies the typing of the lowered telescope in the
+smaller context. -/
 theorem delete_closed (H : TelTrN env Us (n + 1) Δ (.forallE nm d b bi) (.forallE d' b'))
     (hb : b.looseBVarRange' ≤ 0) : ∃ b₀', b' = VExpr.lift b₀' ∧ TelTrN env Us n Δ b b₀' := by
-  cases H with
-  | succ _ _ h3 h4 =>
-    have e : b = Expr.liftLooseBVars' b 0 1 := (Expr.liftLooseBVars_eq_self hb).symm
-    obtain ⟨b₀', hb'⟩ := h3 _ e
-    exact ⟨_, hb', h4 _ _ e hb'⟩
+  obtain ⟨S, T⟩ := H
+  have e : b = Expr.liftLooseBVars' b 0 1 := (Expr.liftLooseBVars_eq_self hb).symm
+  let .forallE _ sb := S
+  rw [e] at sb
+  obtain ⟨b₀', s, hb'⟩ := sb.lower
+  cases T with
+  | succ _ _ _ h4 => exact ⟨b₀', hb', s, h4 _ _ e hb'⟩
 
-variable! (henv : Ordered env) in
-theorem weakFV (W : VLCtx.FVLift Δ Δ' dk n k) (hΔ' : Δ'.WF env Us.length)
-    (H : TelTrN env Us m Δ e e') : TelTrN env Us m Δ' e (e'.liftN n k) := by
-  induction H generalizing Δ' dk k with
-  | zero h => exact .zero (h.weakFV henv W hΔ')
-  | succ h1 _ h3 _ ih2 ih4 =>
-    have h1' := h1.weakFV henv W hΔ'
-    let .forallE hd _ _ _ := h1'
-    refine .succ h1' (ih2 (W.cons_bvar (.vlam _)) ⟨hΔ', nofun, hd⟩) ?_ ?_
-    · intro b₀ hb
-      obtain ⟨b₀', rfl⟩ := h3 _ hb
-      exact ⟨b₀'.liftN n k, (VExpr.lift_liftN' ..).symm⟩
-    · intro b₀ c' hb hc'
-      obtain ⟨b₀', rfl⟩ := h3 _ hb
-      rw [← VExpr.lift_liftN'] at hc'
-      cases VExpr.liftN_inj.1 hc'
-      exact ih4 _ _ hb rfl W hΔ'
+theorem weakFV (henv : env.Ordered) (W : VLCtx.FVLift Δ Δ' dk n k) (hnd : Δ'.fvars.Nodup)
+    (H : TelTrN env Us m Δ e e') : TelTrN env Us m Δ' e (e'.liftN n k) :=
+  ⟨H.syn.weakFV W hnd, H.tel.weakFV henv W hnd H.syn⟩
 
 variable! (henv : Ordered env) (h₀ : TrExprS env Us Δ₀ e₀ e₀')
   (t₀ : env.HasType Us.length Δ₀.toCtx e₀' A₀) in
-/-- Substitution of a typed term for a variable of the context. The certified binders of the
-spine are those of `e`; deletion at a binder commutes with substitution at the others. -/
+/-- Substitution of a typed term for a variable of the context. -/
 theorem instN (W : VLCtx.InstN Δ₀ e₀' A₀ dk k Δ₁ Δ) (H : TelTrN env Us m Δ₁ e e') :
-    TelTrN env Us m Δ (Expr.instantiate1' e e₀ dk) (e'.inst e₀' k) := by
-  induction H generalizing Δ dk k with
-  | zero h => exact .zero (h₀.instN henv t₀ W h)
-  | succ h1 _ h3 h4 ih2 ih4 =>
-    refine .succ (h₀.instN henv t₀ W h1) (ih2 (W.succ (d := .vlam _))) ?_ ?_
-    · intro c hc
-      obtain ⟨b₀, hb, -⟩ := Expr.instantiate1'_eq_liftLooseBVars' hc
-      obtain ⟨b₀', rfl⟩ := h3 _ hb
-      exact ⟨_, (VExpr.lift_instN_lo ..).symm⟩
-    · intro c c' hc hc'
-      obtain ⟨b₀, hb, rfl⟩ := Expr.instantiate1'_eq_liftLooseBVars' hc
-      obtain ⟨b₀', rfl⟩ := h3 _ hb
-      rw [← VExpr.lift_instN_lo] at hc'
-      cases VExpr.liftN_inj.1 hc'
-      exact ih4 _ _ hb rfl W
+    TelTrN env Us m Δ (Expr.instantiate1' e e₀ dk) (e'.inst e₀' k) :=
+  ⟨h₀.toTrSyn.instN W H.syn, H.tel.instN henv h₀.toTrSyn h₀.residual t₀ W H.syn⟩
 
 variable! (henv : Ordered env) in
 theorem inst {Δ : VLCtx} (t₀ : env.HasType Us.length Δ.toCtx e₀' A₀)
     (H : TelTrN env Us m ((none, .vlam A₀) :: Δ) e e') (h₀ : TrExprS env Us Δ e₀ e₀') :
     TelTrN env Us m Δ (e.instantiate1' e₀) (e'.inst e₀') :=
   H.instN henv h₀ t₀ .zero
+
+end TelTrN
 
 theorem _root_.Lean.Expr.instantiateLevelParams_forallE {n : Name} {d b : Expr} {bi} {ps ls} :
     (Expr.forallE n d b bi).instantiateLevelParams ps ls =
@@ -267,27 +306,47 @@ variable {Us ps : List Name} {ls : List Level} {ls' : List VLevel}
   (eq : ps.length = ls.length)
 
 include henv Hls eq in
-/-- Level instantiation, into any context definitionally equal to the instantiated one: every
-translation of the instantiated source is certified. The keep branch follows the actual translated
-domain of the instantiated binder; the delete branch identifies the translation of the lowered
-body syntactically. -/
-theorem instL_core (H : TelTrN env ps m Δ e e') (hΔ : VLCtx.WF env ps.length Δ) :
+/-- Level instantiation, into any context definitionally equal to the instantiated one: the
+syntactic translation of the instantiated source is certified. The typing at each node comes
+from the typed translation of the source (`TrExprS.instL`); the keep branch follows the actual
+translated domain of the instantiated binder; the delete branch is `TrSyn.lower`. -/
+theorem TelWF.instL_core :
+    TelWF env ps m Δ e e' → TrSyn ps Δ e e' → VLCtx.WF env ps.length Δ →
     ∀ {Δ₂ e₁}, VLCtx.IsDefEq env Us.length (Δ.instL ls') Δ₂ →
-      TrExprS env Us Δ₂ (e.instantiateLevelParams ps ls) e₁ →
-      TelTrN env Us m Δ₂ (e.instantiateLevelParams ps ls) e₁ := by
+      TrSyn Us Δ₂ (e.instantiateLevelParams ps ls) e₁ →
+      TelWF env Us m Δ₂ (e.instantiateLevelParams ps ls) e₁ := by
   have hlen : ls'.length = ps.length := by
     rw [eq]; exact (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 Hls)).symm
-  induction H with
-  | zero => intro _ _ _ H₂; exact .zero H₂
-  | @succ k Δ n d b bi d' b' h1 _ h3 h4 ih2 ih4 =>
-    intro Δ₂ e₁ hΔ₂ H₂
-    rw [Expr.instantiateLevelParams_forallE] at H₂ ⊢
+  have top : ∀ {Δ e e' Δ₂ e₁}, TrExprS env ps Δ e e' → VLCtx.WF env ps.length Δ →
+      VLCtx.IsDefEq env Us.length (Δ.instL ls') Δ₂ →
+      TrSyn Us Δ₂ (e.instantiateLevelParams ps ls) e₁ →
+      TrExprS env Us Δ₂ (e.instantiateLevelParams ps ls) e₁ := by
+    intro Δ e e' Δ₂ e₁ h hΔ hΔ₂ s
+    obtain ⟨X, hX, -⟩ := h.instL henv (hlen ▸ hΔ) Hls eq
+    obtain ⟨Y, hY⟩ := hX.defeqDFC henv hΔ₂
+    cases hY.toTrSyn.unique s
+    exact hY
+  intro T
+  induction T with
+  | zero h1 h2 =>
+    intro S hΔ Δ₂ e₁ hΔ₂ s
+    have H₂ := top (TrTyped.toTrExprS henv.ordered hΔ ⟨S, h1, h2⟩) hΔ hΔ₂ s
+    exact .zero (H₂.wf henv.ordered (hΔ₂.symm henv.ordered).wf) H₂.residual
+  | @succ k Δ n d b bi d' b' h1 h2 _ _ ih3 ih4 =>
+    intro S hΔ Δ₂ e₁ hΔ₂ s
+    have h1' := TrTyped.toTrExprS henv.ordered hΔ ⟨S, h1, h2⟩
+    have H₂ := top h1' hΔ hΔ₂ s
+    have hΔ₂wf := (hΔ₂.symm henv.ordered).wf
+    have hwf₂ := H₂.wf henv.ordered hΔ₂wf
+    have hr₂ := H₂.residual
+    rw [Expr.instantiateLevelParams_forallE] at H₂ hr₂ ⊢
     obtain ⟨d₁, b₁, rfl, hd₁T, hd₁, hb₁⟩ : ∃ d₁ b₁, e₁ = .forallE d₁ b₁ ∧
         env.IsType Us.length Δ₂.toCtx d₁ ∧
         TrExprS env Us Δ₂ (d.instantiateLevelParams ps ls) d₁ ∧
         TrExprS env Us ((none, .vlam d₁) :: Δ₂) (b.instantiateLevelParams ps ls) b₁ := by
       cases H₂ with | forallE h1 _ h3 h4 => exact ⟨_, _, rfl, h1, h3, h4⟩
-    let .forallE hd'T _ hd _ := h1
+    let .forallE hd'T _ hd _ := h1'
+    let .forallE _ sb := S
     have hΔ' : VLCtx.WF env ls'.length Δ := hlen ▸ hΔ
     have hΓ := hΔ₂.wf.toCtx
     have hΓ₂ := (hΔ₂.symm henv.ordered).defeqCtx
@@ -300,79 +359,48 @@ theorem instL_core (H : TelTrN env ps m Δ e e') (hΔ : VLCtx.WF env ps.length �
     have hΔ₂' : VLCtx.IsDefEq env Us.length
         (VLCtx.instL ((none, .vlam d') :: Δ) ls') ((none, .vlam d₁) :: Δ₂) :=
       .cons hΔ₂ (fun _ _ h => by cases h) (.vlam hdd)
-    -- the translation of a lowered body in `Δ₂`, and its lift
-    have low : ∀ c, b.instantiateLevelParams ps ls = Expr.liftLooseBVars' c 0 1 →
-        ∃ b₀ b₀', b = Expr.liftLooseBVars' b₀ 0 1 ∧ b' = VExpr.lift b₀' ∧
-          c = b₀.instantiateLevelParams ps ls ∧ ∃ c₂, TrExprS env Us Δ₂ c c₂ ∧ b₁ = c₂.lift := by
-      intro c hc
-      obtain ⟨b₀, hb, rfl⟩ := Expr.instantiateLevelParams_eq_liftLooseBVars' hc
-      obtain ⟨b₀', hb'⟩ := h3 _ hb
-      obtain ⟨Y, hY, -⟩ := (h4 _ _ hb hb').toTrExprS.instL henv hΔ' Hls eq
-      obtain ⟨c₂, hc₂⟩ := hY.defeqDFC henv hΔ₂
-      have hw := hc₂.weakBV henv.ordered (.skip (.vlam d₁) .refl)
-      rw [← hc] at hw
-      exact ⟨_, _, hb, hb', rfl, _, hc₂, hb₁.uniqueCtx .base hw⟩
-    refine .succ H₂ (ih2 ⟨hΔ, nofun, hd'T⟩ hΔ₂' hb₁) ?_ ?_
-    · intro c hc
-      obtain ⟨-, -, -, -, -, c₂, -, e⟩ := low c hc
-      exact ⟨c₂, e⟩
-    · intro c c' hc hc'
-      obtain ⟨b₀, b₀', hb, hb', rfl, c₂, hc₂, e⟩ := low c hc
-      rw [hc'] at e
-      cases VExpr.liftN_inj.1 e
-      exact ih4 _ _ hb hb' hΔ hΔ₂ hc₂
+    refine .succ hwf₂ hr₂ (ih3 sb ⟨hΔ, nofun, hd'T⟩ hΔ₂' hb₁.toTrSyn) ?_
+    intro c c' hc hc'
+    obtain ⟨b₀, hb, rfl⟩ := Expr.instantiateLevelParams_eq_liftLooseBVars' hc
+    subst hb
+    obtain ⟨b₀', s₀, hb'⟩ := sb.lower
+    change _ = VExpr.lift b₀' at hb'
+    subst hb'
+    have sb₁ := hb₁.toTrSyn
+    rw [hc] at sb₁
+    obtain ⟨c₂, s₂, hc₂⟩ := sb₁.lower
+    change _ = VExpr.lift c₂ at hc₂
+    rw [hc₂] at hc'
+    cases VExpr.liftN_inj.1 hc'
+    exact ih4 _ _ rfl rfl s₀ hΔ hΔ₂ s₂
 
 include henv Hls eq in
 /-- Level instantiation of a closed certificate (mirrors `TrExprS.instL_lequiv`). -/
-theorem instL_lequiv (H : TelTrN env ps m [] e e') :
+theorem TelTrN.instL_lequiv (H : TelTrN env ps m [] e e') :
     ∃ e₁, TelTrN env Us m [] (e.instantiateLevelParams ps ls) e₁ ∧
       VExpr.LEquiv Us.length e₁ (e'.instL ls') := by
-  have hlen : ls'.length = ps.length := by
-    rw [eq]; exact (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 Hls)).symm
-  obtain ⟨e₁, h1, h2⟩ := H.toTrExprS.instL_lequiv Hls eq henv (Δ := []) trivial
-  exact ⟨e₁, H.instL_core henv Hls eq trivial .nil h1, h2⟩
+  obtain ⟨e₁, h1, h2⟩ :=
+    (H.toTrExprS henv.ordered (show VLCtx.WF env _ [] from trivial)).instL_lequiv Hls eq henv (Δ := []) trivial
+  exact ⟨e₁, ⟨h1.toTrSyn, H.tel.instL_core henv Hls eq H.syn trivial .nil h1.toTrSyn⟩, h2⟩
 
 end
-
-end TelTrN
 
 theorem _root_.Lean4Lean.AddInductive.constructorArity_liftLooseBVars' {e : Expr} {s d : Nat} :
     AddInductive.constructorArity (Expr.liftLooseBVars' e s d) = AddInductive.constructorArity e := by
   induction e generalizing s <;> simp_all [Expr.liftLooseBVars', AddInductive.constructorArity]
 
-/-- The unbounded certificate gives the bounded one along the syntactic `forallE` spine. -/
-theorem _root_.Lean4Lean.TelTr.toTelTrN :
-    ∀ {n : Nat} {Δ : VLCtx} {e : Expr} {e' : VExpr},
-    TelTr env Us Δ e e' → n ≤ AddInductive.constructorArity e → TelTrN env Us n Δ e e'
-  | 0, _, _, _, H, _ => .zero H.toTrExprS
-  | n + 1, Δ, e, e', H, hn => by
-    cases e with
-    | forallE nm d b bi =>
-      simp only [AddInductive.constructorArity] at hn
-      have h1 := H.toTrExprS
-      obtain ⟨d', b', rfl⟩ : ∃ d' b', e' = .forallE d' b' := by
-        cases h1 with | forallE => exact ⟨_, _, rfl⟩
-      have hb := h1
-      cases hb with | forallE _ _ _ hb =>
-      refine .succ h1 (H.keep.toTelTrN (by omega)) ?_ ?_
-      · intro b₀ e; subst e; exact hb.lift_inv
-      · intro b₀ b₀' e e'
-        refine (H.delete e e').toTelTrN ?_
-        rw [e, AddInductive.constructorArity_liftLooseBVars'] at hn; omega
-    | _ => simp [AddInductive.constructorArity] at hn
-
 /-! ### Certificates of the primitive constructor types -/
 
-theorem lift_const (c : Name) (ls : List VLevel) : (VExpr.const c ls).lift = .const c ls := rfl
-
-theorem TrExprS.const_ctx {Δ Δ' : VLCtx}
-    (H : TrExprS env Us Δ (.const c us) e) : TrExprS env Us Δ' (.const c us) e := by
-  cases H with | const h1 h2 h3 => exact .const h1 h2 h3
+theorem TrExprS.const_wf {Γ : List VExpr} (H : TrExprS env Us Δ (.const c us) e) :
+    VExpr.WF env Us.length Γ e := by
+  cases H with
+  | const h1 h2 h3 =>
+    exact ⟨_, VEnv.HasType.const h1 (.of_mapM_ofLevel h2) ((Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 h2)).symm.trans h3)⟩
 
 /-- A constant needs no certificate beyond its translation. -/
 theorem TelTrN.const (H : TrExprS env Us Δ (.const c us) e) :
     TelTrN env Us (AddInductive.constructorArity (.const c us)) Δ (.const c us) e :=
-  .zero H
+  ⟨H.toTrSyn, .zero H.const_wf .const⟩
 
 /-- A non-dependent arrow between constants (`Nat → Nat`) is certified along its spine. -/
 theorem TelTrN.constArrow
@@ -383,7 +411,9 @@ theorem TelTrN.constArrow
   | forallE h1 h2 hd hb =>
     have hbc := hb
     cases hbc
-    refine .succ (.forallE h1 h2 hd hb) (.zero hb) (fun _ _ => ⟨_, (lift_const ..).symm⟩) ?_
+    have ⟨_, hT⟩ := VEnv.IsType.forallE h1 h2
+    refine ⟨.forallE hd.toTrSyn hb.toTrSyn,
+      .succ ⟨_, hT⟩ (.forallE hd.toTrSyn .const .const) (.zero hb.const_wf .const) ?_⟩
     intro b₀ b₀' e₀ e₀'
     have hb₀ : b₀ = .const c cs := by
       cases b₀ <;> simp [Expr.liftLooseBVars'] at e₀
@@ -391,18 +421,29 @@ theorem TelTrN.constArrow
     subst hb₀
     cases b₀' <;> simp [VExpr.lift, VExpr.liftN] at e₀'
     obtain ⟨rfl, rfl⟩ := e₀'
-    exact .zero hb.const_ctx
+    exact .zero hb.const_wf .const
 
 /-! ### The environment invariant -/
 
-/-- The certificate of one constructor: its stored type carries a telescope certificate along its
-whole syntactic `forallE` spine. -/
+/-- The certificate of one constructor: the computed syntactic translation of its stored type,
+with the typing-only certificate `TelWF` along its whole syntactic `forallE` spine. -/
 def CtorTelescopeAt (venv : VEnv) (ci : ConstructorVal) : Prop :=
-  ∃ T, TelTrN venv ci.levelParams (AddInductive.constructorArity ci.type) [] ci.type T
+  ∃ T, trSyn? ci.levelParams [] ci.type = some T ∧
+    TelWF venv ci.levelParams (AddInductive.constructorArity ci.type) [] ci.type T
+
+theorem CtorTelescopeAt.iff_telTrN {venv : VEnv} {ci : ConstructorVal} :
+    CtorTelescopeAt venv ci ↔
+      ∃ T, TelTrN venv ci.levelParams (AddInductive.constructorArity ci.type) [] ci.type T :=
+  ⟨fun ⟨T, h1, h2⟩ => ⟨T, .of_eval h1, h2⟩, fun ⟨T, H⟩ => ⟨T, H.syn.eval, H.tel⟩⟩
+
+theorem CtorTelescopeAt.of_telTrN {venv : VEnv} {ci : ConstructorVal}
+    (H : TelTrN venv ci.levelParams (AddInductive.constructorArity ci.type) [] ci.type T) :
+    CtorTelescopeAt venv ci :=
+  iff_telTrN.2 ⟨T, H⟩
 
 theorem CtorTelescopeAt.mono (henv : venv ≤ venv') :
     CtorTelescopeAt venv ci → CtorTelescopeAt venv' ci
-  | ⟨T, h⟩ => ⟨T, h.mono henv⟩
+  | ⟨T, h1, h2⟩ => ⟨T, h1, h2.mono henv⟩
 
 /-- Every constructor of the kernel environment `env` visible at `safety` is certified. This is
 the environment invariant that the projection walk of `inferProj` reads at its non-dependent
@@ -446,31 +487,46 @@ theorem Lean4Lean.AddInductive.constructorArity_eqv {e₁ e₂ : Lean.Expr} :
 namespace Lean4Lean
 open Lean
 
-theorem TelTrN.eqv {e₁ e₂ : Expr} (H : TelTrN env Us n Δ e₁ e') (heq : e₁ == e₂) :
-    TelTrN env Us n Δ e₂ e' := by
-  induction H generalizing e₂ with
-  | zero h => exact .zero (h.eqv heq)
-  | @succ k Δ nm d b bi d' b' h1 _ h3 _ ih2 ih4 =>
+theorem TelWF.eqv (henv : env.Ordered) :
+    TelWF env Us n Δ e₁ e' → TrSyn Us Δ e₁ e' → Δ.WF env Us.length →
+      ∀ {e₂ : Expr}, e₁ == e₂ → TelWF env Us n Δ e₂ e' := by
+  intro T
+  induction T with
+  | zero h1 h2 =>
+    intro S hΔ e₂ heq
+    exact .zero h1 ((TrTyped.toTrExprS henv hΔ ⟨S, h1, h2⟩).eqv heq).residual
+  | @succ k Δ nm d b bi d' b' h1 h2 _ _ ih3 ih4 =>
+    intro S hΔ e₂ heq
+    have hTop := TrTyped.toTrExprS henv hΔ ⟨S, h1, h2⟩
+    let .forallE hd _ _ _ := hTop
+    let .forallE _ sb := S
     cases e₂ with
     | forallE nm₂ d₂ b₂ bi₂ =>
       have hb : b == b₂ := by
         simp only [(· == ·)] at heq ⊢
         simp [Expr.eqv'] at heq ⊢; exact heq.2
-      refine .succ (h1.eqv heq) (ih2 hb) ?_ ?_
-      · intro c hc
-        have h0 : b.hasLooseBVar' 0 = false := by
-          rw [Expr.hasLooseBVar'_eqv hb, hc]; exact Expr.hasLooseBVar'_liftLooseBVars'_self
-        exact h3 _ (Expr.eq_liftLooseBVars'_lower h0)
-      · intro c c' hc hc'
-        have h0 : b.hasLooseBVar' 0 = false := by
-          rw [Expr.hasLooseBVar'_eqv hb, hc]; exact Expr.hasLooseBVar'_liftLooseBVars'_self
-        have hb0 := Expr.eq_liftLooseBVars'_lower h0
-        refine ih4 _ _ hb0 hc' (Expr.liftLooseBVars'_eqv_inv (k := 0) (d := 1) ?_)
-        rw [← hb0, ← hc]; exact hb
+      refine .succ h1 (hTop.eqv heq).residual (ih3 sb ⟨hΔ, nofun, hd⟩ hb) ?_
+      intro c c' hc hc'
+      have h0 : b.hasLooseBVar' 0 = false := by
+        rw [Expr.hasLooseBVar'_eqv hb, hc]; exact Expr.hasLooseBVar'_liftLooseBVars'_self
+      have hb0 := Expr.eq_liftLooseBVars'_lower h0
+      have sb' : TrSyn Us ((none, .vlam d') :: Δ)
+          (Expr.liftLooseBVars' (b.lowerLooseBVars' 1 1) 0 1) b' := by rw [← hb0]; exact sb
+      obtain ⟨b₀', s₀, hb'⟩ := sb'.lower
+      change _ = VExpr.lift b₀' at hb'
+      cases VExpr.liftN_inj.1 (hc'.symm.trans hb')
+      refine ih4 _ _ hb0 hb' s₀ hΔ (Expr.liftLooseBVars'_eqv_inv (k := 0) (d := 1) ?_)
+      rw [← hb0, ← hc]; exact hb
     | _ => simp [(· == ·), Expr.eqv'] at heq
 
-theorem TelTr.eqv_toTelTrN {e₁ e₂ : Expr} (H : TelTr env Us Δ e₁ e') (heq : e₁ == e₂) :
-    TelTrN env Us (AddInductive.constructorArity e₂) Δ e₂ e' :=
-  (H.toTelTrN (Nat.le_of_eq (AddInductive.constructorArity_eqv heq).symm)).eqv heq
+theorem TelTrN.eqv (henv : env.Ordered) (hΔ : Δ.WF env Us.length) {e₁ e₂ : Expr}
+    (H : TelTrN env Us n Δ e₁ e') (heq : e₁ == e₂) : TelTrN env Us n Δ e₂ e' :=
+  ⟨H.syn.eqv heq, H.tel.eqv henv H.syn hΔ heq⟩
+
+/-- A closed constructor certificate moves along `Expr.eqv` with its depth. -/
+theorem TelTrN.eqv_arity (henv : env.Ordered) {e₁ e₂ : Expr}
+    (H : TelTrN env Us (AddInductive.constructorArity e₁) [] e₁ e') (heq : e₁ == e₂) :
+    TelTrN env Us (AddInductive.constructorArity e₂) [] e₂ e' :=
+  AddInductive.constructorArity_eqv heq ▸ H.eqv henv (show VLCtx.WF env _ [] from trivial) heq
 
 end Lean4Lean

@@ -543,7 +543,7 @@ theorem isNatZero_wf {c : VContext} (H : isNatZero e) (h : c.TrExprS e e') : e' 
     · have := h.eqv H; exact .lit (this.nat_of_natZero c.Ewf c.hasPrimitives) this
     · split at H <;> [exact h; cases H]
   have := TrExprS.lit_has_type (l := .natVal 0) h1
-  exact h1.unique (by trivial) (TrExprS.natLit c.hasPrimitives this 0).1
+  exact h1.unique (TrExprS.natLit c.hasPrimitives this 0).1
 
 theorem isNatSuccOf?_wf {c : VContext} (H : isNatSuccOf? e = some e₁)
     (h : c.TrExprS e e') : ∃ x, c.TrExprS e₁ x ∧ e' = .app .natSucc x := by
@@ -551,7 +551,7 @@ theorem isNatSuccOf?_wf {c : VContext} (H : isNatSuccOf? e = some e₁)
   · rename_i n
     have := TrExprS.lit_has_type (l := .natVal (n+1)) h
     refine ⟨_, (TrExprS.natLit c.hasPrimitives this n).1, ?_⟩
-    exact h.unique (by trivial) (TrExprS.natLit c.hasPrimitives this (n+1)).1
+    exact h.unique (TrExprS.natLit c.hasPrimitives this (n+1)).1
   · let .app a1 a2 a3 a4 := h
     let .const b1 b2 b3 := a3
     cases c.hasPrimitives.natSucc b1

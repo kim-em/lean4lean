@@ -186,8 +186,7 @@ def prependLevelParam {l : LocalContext} {fresh : Name} (B : CheckBase venv Us m
 
 /-- The free variables of the checker context, in order, restrict the main
 local context to the checker context. -/
-theorem restrictTo_eq {l : LocalContext} (B : CheckBase venv Us main lctx l)
-    (hlctx : lctx.WF) : lctx.restrictTo B.m.fvarList = l := by
+theorem restrictTo_eq {l : LocalContext} (B : CheckBase venv Us main lctx l) : lctx.restrictTo B.m.fvarList = l := by
   have hsub : B.m.lctx.SubContextOf lctx := by rw [B.lctx_eq]; exact B.sub
   rw [LocalContext.restrictTo_mlctx B.onlyLams B.wf hsub, B.lctx_eq]
 

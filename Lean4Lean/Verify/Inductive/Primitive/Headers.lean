@@ -158,7 +158,7 @@ theorem PrimitiveInductiveShape.checkedConstructorRows
     have htargetType : target.type = .sort (.succ .zero) := by
       have hcanonical : TrExprS env [] [] (.sort (.succ .zero))
           (.sort (.succ .zero)) := TrExprS.sort rfl
-      exact TrExprS.unique (by trivial) Htarget.type hcanonical
+      exact TrExprS.unique Htarget.type hcanonical
     have hconst (Delta : VLCtx) : TrExprS envTypes [] Delta
         (.const ``Nat []) (.const target.name []) := by
       simpa [Htarget.name] using

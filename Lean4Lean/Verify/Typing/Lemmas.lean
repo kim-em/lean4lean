@@ -751,45 +751,9 @@ theorem TrExpr.abstract (W : VLCtx.Abstract Δ₀ v₀ d₀ dk k Δ₁ Δ) (H : 
     TrExpr env Us Δ (e.abstract1 v₀ dk) e' :=
   let ⟨_, s, h⟩ := H; ⟨_, s.abstract W, W.toCtx ▸ h⟩
 
-/-- The projection-free source syntax. Obsolete: translation is unique on all syntax
-(`TrExprS.unique_of_syn`, `TrExprS.uniqueCtx`); kept only for the primitive recognizers
-(`Verify/Environment/Primitive/*`, `noProj`), which still produce it. -/
-def TrExprS.IsUnique : Expr → Prop
-  | .bvar _
-  | .fvar _
-  | .sort _
-  | .const ..
-  | .mvar ..
-  | .lit _ => True
-  | .app f a => IsUnique f ∧ IsUnique a
-  | .lam _ t b _ => IsUnique t ∧ IsUnique b
-  | .forallE _ t b _ => IsUnique t ∧ IsUnique b
-  | .letE _ _ v b _ => IsUnique v ∧ IsUnique b
-  | .mdata _ e => IsUnique e
-  | .proj .. => False
-
-theorem TrExprS.IsUnique.natLitToConstructor : ∀ {n : Nat}, IsUnique (.natLitToConstructor n)
-  | 0 => ⟨⟩
-  | _+1 => ⟨⟨⟩, ⟨⟩⟩
-
-theorem TrExprS.IsUnique.strLitToConstructor {s : String} : IsUnique (.strLitToConstructor s) := by
-  refine ⟨⟨⟩, ?_⟩
-  induction s.toList with simp
-  | nil => exact ⟨⟨⟩, ⟨⟩⟩
-  | cons _ _ ih => exact ⟨⟨⟨⟨⟩, ⟨⟩⟩, ⟨⟨⟩, ⟨⟩⟩⟩, ih⟩
-
-theorem TrExprS.IsUnique.toConstructor : ∀ {l : Literal}, IsUnique l.toConstructor
-  | .natVal _ => .natLitToConstructor
-  | .strVal _ => .strLitToConstructor
-
-/-- Kept for the primitive recognizers; `TrExprS.uniqueCtx` needs no `IsUnique`. -/
-theorem TrExprS.unique' (hΔ : IsUniqueCtx Δ₁ Δ₂) (_ : IsUnique e)
-    (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ₂ e e₂) : e₁ = e₂ :=
-  H1.toTrSyn.uniqueCtx hΔ H2.toTrSyn
-
-/-- Kept for the primitive recognizers; `TrExprS.unique_of_syn` needs no `IsUnique`. -/
-theorem TrExprS.unique (_ : IsUnique e)
-    (H1 : TrExprS env Us Δ e e₁) (H2 : TrExprS env Us Δ e e₂) : e₁ = e₂ := H1.unique_of_syn H2
+/-- Translation is unique (`TrExprS.unique_of_syn`). -/
+theorem TrExprS.unique (H1 : TrExprS env Us Δ e e₁) (H2 : TrExprS env Us Δ e e₂) : e₁ = e₂ :=
+  H1.unique_of_syn H2
 
 /-- Translation is syntactically unique: every constructor of `TrExprS` is
 determined by the source syntax and the context, including projections. -/

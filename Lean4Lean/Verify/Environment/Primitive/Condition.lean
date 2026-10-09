@@ -301,21 +301,6 @@ def Condition.WF.DecT {cnd : Condition} (w : Condition.WF c cnd) : Prop :=
     List.Forall₂ (E.venv.HasType c.lparams.length Γ) args' cnd.impl.domain →
     VExpr.WF E.venv c.lparams.length Γ (w.dec'.appN args')
 
-/-- No projections, which is what `TrExprS.IsUnique` amounts to and what makes the above usable.
-Decidable, so every `Condition` in the checker discharges it by computation like the rest of
-`CondOK`. -/
-def noProj : Expr → Bool
-  | .app f a => noProj f && noProj a
-  | .lam _ t b _ => noProj t && noProj b
-  | .forallE _ t b _ => noProj t && noProj b
-  | .letE _ t v b _ => noProj t && noProj v && noProj b
-  | .mdata _ e => noProj e
-  | .proj .. => false
-  | _ => true
-
-theorem noProj.isUnique {e : Expr} : noProj e → TrExprS.IsUnique e := by
-  induction e <;> simp_all [noProj, TrExprS.IsUnique]
-
 /-- The side conditions the checks carry on every piece of the condition: no free variables
 outside the context, which is what `checkType` demands, and no loose bound variables.
 
@@ -325,7 +310,7 @@ as at `[]` (`TrExprS.of_nil_unique`), and substituting an inhabitant for a binde
 alone (`TrExprS.peel_outer`), which is how the gadget's readings become `[]` readings. Every `Condition` the checker uses is a closed constant, so both are
 discharged by computation at each call site. -/
 def CondOK (e : Expr) : Bool :=
-  !e.hasFVar' && !e.hasLevelMVar' && !e.hasExprMVar' && e.looseBVarRange' == 0 && noProj e
+  !e.hasFVar' && !e.hasLevelMVar' && !e.hasExprMVar' && e.looseBVarRange' == 0
 
 def ConditionImpl.OK : ConditionImpl → Bool
   | .bool => true
@@ -348,20 +333,14 @@ theorem ConditionImpl.OK.reflect {asBool proof : Expr} {reflect : Reflection}
 
 theorem CondOK.fvarsIn {P} {e : Expr} (h : CondOK e) : FVarsIn P e := by
   simp only [CondOK, Bool.and_eq_true, Bool.not_eq_true', beq_iff_eq] at h
-  exact .of_hasFVar h.1.1.1.1 h.1.1.1.2 h.1.1.2
+  exact .of_hasFVar h.1.1.1 h.1.1.2 h.1.2
 
 theorem CondOK.closed {e : Expr} (h : CondOK e) : Closed e := by
   simp only [CondOK, Bool.and_eq_true, Bool.not_eq_true', beq_iff_eq] at h
-  exact .of_looseBVarRange_zero h.1.1.2 h.1.2
+  exact .of_looseBVarRange_zero h.1.2 h.2
 
 theorem CondOK.looseBVarRange {e : Expr} (h : CondOK e) : e.looseBVarRange' = 0 := by
-  simp only [CondOK, Bool.and_eq_true, beq_iff_eq] at h; exact h.1.2
-
-theorem CondOK.noProj {e : Expr} (h : CondOK e) : noProj e := by
-  simp only [CondOK, Bool.and_eq_true] at h; exact h.2
-
-theorem CondOK.isUnique {e : Expr} (h : CondOK e) : TrExprS.IsUnique e :=
-  noProj.isUnique (CondOK.noProj h)
+  simp only [CondOK, Bool.and_eq_true, beq_iff_eq] at h; exact h.2
 
 /-- What `WF_ite` and `WF_dite` need at literal arguments: the decision value they quantify over
 is the condition's `asBool` at those literals, so a reflected `asBool` evaluates it.
@@ -472,20 +451,10 @@ theorem VLCtx.find?_append : ∀ {Δ Δ' : VLCtx} {v r}, Δ.find? v = some r →
     | none => simp
     | some p => simp [VLCtx.find?_append hf]
 
-/-- Literals unfold to constructor applications, which have no projections either. -/
-theorem noProj_toConstructor : ∀ {l : Literal}, noProj l.toConstructor
-  | .natVal n => by cases n <;> rfl
-  | .strVal s => by
-    simp only [Literal.toConstructor, Expr.strLitToConstructor, noProj]
-    induction s.toList <;> simp [noProj, *]
-
-/-- A translation survives binders appended on the right. `noProj` only to sidestep `proj`, whose
-well-formedness premise would have to be transported too; every closed piece a `Condition` carries
-is projection-free by `CondOK`. -/
+/-- A translation survives binders appended on the right. -/
 theorem TrExprS.weakR {env : VEnv} {Us : List Name} (henv : env.Ordered) {Δ' : VLCtx} :
     ∀ {Δ : VLCtx} {e : Expr} {e' : VExpr}, TrExprS env Us Δ e e' →
-      OnCtx Δ.toCtx (env.IsType Us.length) → noProj e →
-      TrExprS env Us (Δ ++ Δ') e e' := by
+      OnCtx Δ.toCtx (env.IsType Us.length) → TrExprS env Us (Δ ++ Δ') e e' := by
   have weakT : ∀ {Δ : VLCtx} {x A}, OnCtx Δ.toCtx (env.IsType Us.length) →
       env.HasType Us.length Δ.toCtx x A → env.HasType Us.length (Δ ++ Δ').toCtx x A := by
     intro Δ x A hΔ h
@@ -497,65 +466,57 @@ theorem TrExprS.weakR {env : VEnv} {Us : List Name} (henv : env.Ordered) {Δ' : 
     fun hΔ ⟨_, h⟩ => ⟨_, weakT hΔ h⟩
   intro Δ e e' H
   induction H with
-  | bvar h => intro _ _; exact .bvar (VLCtx.find?_append h)
-  | fvar h => intro _ _; exact .fvar (VLCtx.find?_append h)
-  | sort h => intro _ _; exact .sort h
-  | const h1 h2 h3 => intro _ _; exact .const h1 h2 h3
+  | bvar h => intro _; exact .bvar (VLCtx.find?_append h)
+  | fvar h => intro _; exact .fvar (VLCtx.find?_append h)
+  | sort h => intro _; exact .sort h
+  | const h1 h2 h3 => intro _; exact .const h1 h2 h3
   | app h1 h2 _ _ ih1 ih2 =>
-    intro hΔ hu
-    simp only [noProj, Bool.and_eq_true] at hu
-    exact .app (weakT hΔ h1) (weakT hΔ h2) (ih1 hΔ hu.1) (ih2 hΔ hu.2)
+    intro hΔ; exact .app (weakT hΔ h1) (weakT hΔ h2) (ih1 hΔ) (ih2 hΔ)
   | lam h1 _ _ ih1 ih2 =>
-    intro hΔ hu
-    simp only [noProj, Bool.and_eq_true] at hu
-    exact .lam (weakI hΔ h1) (ih1 hΔ hu.1)
-      (ih2 (show OnCtx (_ :: _) _ from ⟨hΔ, h1⟩) hu.2)
+    intro hΔ
+    exact .lam (weakI hΔ h1) (ih1 hΔ) (ih2 (show OnCtx (_ :: _) _ from ⟨hΔ, h1⟩))
   | forallE h1 h2 _ _ ih1 ih2 =>
-    intro hΔ hu
-    simp only [noProj, Bool.and_eq_true] at hu
+    intro hΔ
     have hΔ1 : OnCtx (_ :: _) (env.IsType Us.length) := ⟨hΔ, h1⟩
-    exact .forallE (weakI hΔ h1) (weakI (Δ := (none, .vlam _) :: _) hΔ1 h2)
-      (ih1 hΔ hu.1) (ih2 hΔ1 hu.2)
+    exact .forallE (weakI hΔ h1) (weakI (Δ := (none, .vlam _) :: _) hΔ1 h2) (ih1 hΔ) (ih2 hΔ1)
   | letE h1 _ _ _ ih1 ih2 ih3 =>
-    intro hΔ hu
-    simp only [noProj, Bool.and_eq_true] at hu
-    exact .letE (weakT hΔ h1) (ih1 hΔ hu.1.1) (ih2 hΔ hu.1.2) (ih3 hΔ hu.2)
-  | lit h1 _ ih => intro hΔ _; exact .lit h1 (ih hΔ noProj_toConstructor)
-  | mdata _ ih => intro hΔ hu; exact .mdata (ih hΔ (by simpa [noProj] using hu))
-  | proj _ _ _ => intro _ hu; simp [noProj] at hu
+    intro hΔ; exact .letE (weakT hΔ h1) (ih1 hΔ) (ih2 hΔ) (ih3 hΔ)
+  | lit h1 _ ih => intro hΔ; exact .lit h1 (ih hΔ)
+  | mdata _ ih => intro hΔ; exact .mdata (ih hΔ)
+  | proj _ h2 ih => intro hΔ; obtain ⟨_, h2⟩ := h2; exact .proj (ih hΔ) ⟨_, weakT hΔ h2⟩
 
 /-- A `[]`-level translation is *the* translation, at every context at once. This is what
 identifies the readings of a closed piece that different checks produce at their own depths. -/
 theorem TrExprS.of_nil_any {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr} {e' : VExpr}
-    (henv : env.Ordered) (hu : noProj e) (H₀ : TrExprS env Us [] e e') :
-    TrExprS env Us Δ e e' := by simpa using TrExprS.weakR henv H₀ trivial hu
+    (henv : env.Ordered) (H₀ : TrExprS env Us [] e e') :
+    TrExprS env Us Δ e e' := by simpa using TrExprS.weakR henv H₀ trivial
 
 theorem TrExprS.of_nil_unique {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr} {e₁ e₂ : VExpr}
-    (henv : env.Ordered) (hu : noProj e)
+    (henv : env.Ordered)
     (H₀ : TrExprS env Us [] e e₁) (H : TrExprS env Us Δ e e₂) : e₂ = e₁ :=
-  TrExprS.unique' .base (noProj.isUnique hu) H (TrExprS.of_nil_any henv hu H₀)
+  H.unique_of_syn (TrExprS.of_nil_any henv H₀)
 
 /-- A closed head at two arguments: the head translates the one way it can, so what is left of
 the translation is the arguments'. This is how a condition's `prop` or `dec` is recognised
 wherever a checked conditional has been carried to. -/
 theorem TrExprS.app2_nil_inv {env : VEnv} {Us : List Name} {Δ : VLCtx} {hd A B : Expr}
-    {hd' P : VExpr} (henv : env.Ordered) (hu : noProj hd) (H₀ : TrExprS env Us [] hd hd')
+    {hd' P : VExpr} (henv : env.Ordered) (H₀ : TrExprS env Us [] hd hd')
     (H : TrExprS env Us Δ (mkAppN hd #[A, B]) P) :
     ∃ a' b', TrExprS env Us Δ A a' ∧ TrExprS env Us Δ B b' ∧ P = (hd'.app a').app b' := by
   rw [Expr.mkAppN_eq] at H
   cases (by simpa [Expr.appN] using H : TrExprS env Us Δ ((hd.app A).app B) P) with | app _ _ hf hB
   cases hf with | app _ _ hhd hA
-  cases TrExprS.of_nil_unique henv hu H₀ hhd
+  cases TrExprS.of_nil_unique henv H₀ hhd
   exact ⟨_, _, hA, hB, rfl⟩
 
 /-- The same at one argument, which is the arity of the `bool` condition. -/
 theorem TrExprS.app1_nil_inv {env : VEnv} {Us : List Name} {Δ : VLCtx} {hd A : Expr}
-    {hd' P : VExpr} (henv : env.Ordered) (hu : noProj hd) (H₀ : TrExprS env Us [] hd hd')
+    {hd' P : VExpr} (henv : env.Ordered) (H₀ : TrExprS env Us [] hd hd')
     (H : TrExprS env Us Δ (mkAppN hd #[A]) P) :
     ∃ a', TrExprS env Us Δ A a' ∧ P = hd'.app a' := by
   rw [Expr.mkAppN_eq] at H
   cases (by simpa [Expr.appN] using H : TrExprS env Us Δ (hd.app A) P) with | app _ _ hhd hA
-  cases TrExprS.of_nil_unique henv hu H₀ hhd
+  cases TrExprS.of_nil_unique henv H₀ hhd
   exact ⟨_, hA, rfl⟩
 
 /-- The predicate of a condition, at the two arguments every use of one applies it to. -/
@@ -563,14 +524,14 @@ theorem Condition.WF.prop_app2_inv (w : Condition.WF c cnd) [hOK : cnd.OK]
     (H : TrExprS c.venv c.lparams Δ (mkAppN cnd.prop #[A, B]) P) :
     ∃ a' b', TrExprS c.venv c.lparams Δ A a' ∧ TrExprS c.venv c.lparams Δ B b' ∧
       P = (w.prop'.app a').app b' :=
-  TrExprS.app2_nil_inv c.Ewf (CondOK.noProj hOK.prop) w.hprop0 H
+  TrExprS.app2_nil_inv c.Ewf w.hprop0 H
 
 /-- The decision procedure, likewise. -/
 theorem Condition.WF.dec_app2_inv (w : Condition.WF c cnd) [hOK : cnd.OK]
     (H : TrExprS c.venv c.lparams Δ (mkAppN cnd.dec #[A, B]) D) :
     ∃ a' b', TrExprS c.venv c.lparams Δ A a' ∧ TrExprS c.venv c.lparams Δ B b' ∧
       D = (w.dec'.app a').app b' :=
-  TrExprS.app2_nil_inv c.Ewf (CondOK.noProj hOK.dec) w.hdec0 H
+  TrExprS.app2_nil_inv c.Ewf w.hdec0 H
 
 /-! Bound variables of a `vlam` telescope translate to themselves. The reflection's checks are
 run at terms with binders four deep, so these are the leaves of every translation below. -/
@@ -785,11 +746,9 @@ theorem Reflection.ite_tr {c : VContext} {r : Reflection} (w : Reflection.WF c r
   have hty0 : c.venv.contains ``Nat → True := fun _ => trivial
   have htypeTr : ∀ {Δ : VLCtx} {x}, TrExprS c.venv c.lparams Δ r.type x → x = w.type' :=
     fun h => TrExprS.of_nil_unique c.Ewf.ordered
-      (CondOK.noProj htypeOK)
       (by rw [← hnil]; exact w.htype) h
   have htoDecTr : ∀ {Δ : VLCtx} {x}, TrExprS c.venv c.lparams Δ r.toDec x → x = toDec' :=
-    fun h => TrExprS.of_nil_unique c.Ewf.ordered
-      (CondOK.noProj htoDecOK) (by rw [← hnil]; exact htoDec) h
+    fun h => TrExprS.of_nil_unique c.Ewf.ordered (by rw [← hnil]; exact htoDec) h
   unfold Reflection.ite at H
   simp only [Expr.lam0, mkApp3, mkApp2, mkApp] at H
   -- peel the four binders, then the application spine of the body
@@ -916,7 +875,7 @@ theorem TrExprS.reflIteType (w : Reflection.WF c r)
       ((w.type'.app (.bvar 1)).app (.bvar 0)) (.sort .zero) := .app (.app htw hpT) hbT
   have htypeTr : TrExprS c.venv c.lparams
       ((none, .vlam .bool) :: (none, .vlam (.sort .zero)) :: Δ) r.type w.type' :=
-    TrExprS.of_nil_any c.Ewf (CondOK.noProj htypeOK) (by rw [← hnil]; exact w.htype)
+    TrExprS.of_nil_any c.Ewf (by rw [← hnil]; exact w.htype)
   exact (TrTy.forallE (.of (.sort rfl) ⟨_, .sort (l := .zero) trivial⟩)
     (TrTy.forallE (.of (c.hasPrimitives.trBool c.Ewf hbool) hΔ2.2)
       (TrTy.forallE (.of (.app (.app htw hpT) hbT (.app htw hpT htypeTr .bvar1) .bvar0)
@@ -953,7 +912,7 @@ theorem TrExprS.reflOfType (w : Reflection.WF c r)
       (VEnv.HasType.weak0 c.Ewf.ordered
         (TrExprS.boolLit (Us := c.lparams) (Δ := []) c.hasPrimitives hbool b).2)
   have htypeTr : TrExprS c.venv c.lparams ((none, .vlam vexpr(Prop)) :: Δ) r.type w.type' :=
-    TrExprS.of_nil_any c.Ewf (CondOK.noProj htypeOK) (by rw [← hnil]; exact w.htype)
+    TrExprS.of_nil_any c.Ewf (by rw [← hnil]; exact w.htype)
   exact (TrTy.forallE (.of (.sort rfl) ⟨_, .sort (l := .zero) trivial⟩)
     (TrTy.forallE
       (.of (.app (.app (.weak0 c.Ewf htypeT) (.bvar .zero))
@@ -986,7 +945,6 @@ theorem TrExprS.reflDiteType (w : Reflection.WF c r)
   have htw {Γ} : c.venv.HasType _ Γ .. := .weak0 c.Ewf htypeT
   have htypeTr : ∀ {Δ : VLCtx}, TrExprS c.venv c.lparams Δ r.type w.type' := fun {_} =>
     TrExprS.of_nil_any c.Ewf.ordered
-      (CondOK.noProj htypeOK)
       (by rw [← hnil]; exact w.htype)
   have hnatT {Γ : List VExpr} (h : OnCtx Γ (c.venv.IsType c.lparams.length)) :
       c.venv.IsType c.lparams.length Γ VExpr.nat := c.hasPrimitives.natIsType' c.Ewf hnat h
@@ -1042,9 +1000,9 @@ theorem Reflection.natDITE_tr {c : VContext} {r : Reflection} (w : Reflection.WF
       ((vexpr(@dite.{1} Nat).app (.bvar 2)).app
         (((toDec'.app (.bvar 2)).app (.bvar 1)).app (.bvar 0))) := by
   have htypeTr {Δ x} (h : TrExprS c.venv c.lparams Δ r.type x) : x = w.type' :=
-    TrExprS.of_nil_unique c.Ewf (CondOK.noProj htypeOK) (by rw [← hnil]; exact w.htype) h
+    TrExprS.of_nil_unique c.Ewf (by rw [← hnil]; exact w.htype) h
   have htoDecTr {Δ x} (h : TrExprS c.venv c.lparams Δ r.toDec x) : x = toDec' :=
-    TrExprS.of_nil_unique c.Ewf (CondOK.noProj htoDecOK) (by rw [← hnil]; exact htoDec) h
+    TrExprS.of_nil_unique c.Ewf (by rw [← hnil]; exact htoDec) h
   unfold Reflection.natDITE at H
   simp only [Expr.lam0, mkApp3, mkApp2, mkApp] at H
   cases H with | lam _ hd1 H
@@ -1203,7 +1161,6 @@ theorem Reflection.check.WF {c : VContext} {s : State} {r : Reflection} {fail : 
     VEnv.HasType.weak0 c.Ewf (by rw [← hnil']; exact htypeT')
   have htypeTrΓ : ∀ {Δ : VLCtx}, TrExprS c.venv c.lparams Δ r.type type' := fun {_} =>
     TrExprS.of_nil_any c.Ewf.ordered
-      (CondOK.noProj htypeOK)
       (by rw [← hnil]; exact htypeTr)
   exact .pure ⟨{ type' := type', htype := htypeTr, typeT := htypeT' }⟩
 
@@ -1278,7 +1235,7 @@ theorem Reflection.checkITE.WF {fail : ∀ {α}, M α}
       c.venv.HasType c.lparams.length Δ.toCtx (.boolLit b) .bool :=
     TrExprS.boolLit c.hasPrimitives hbool b
   have htypeTrp {Δ : VLCtx} : TrExprS c.venv c.lparams Δ r.type w.type' :=
-    TrExprS.of_nil_any c.Ewf (CondOK.noProj htypeOK) (by rw [← hnil]; exact w.htype)
+    TrExprS.of_nil_any c.Ewf (by rw [← hnil]; exact w.htype)
   have htwp {Γ : List VExpr} : c.venv.HasType c.lparams.length Γ w.type'
       vexpr(Prop → Bool → Prop) := .weak0 c.Ewf htypeT
   have hHtyT (b : Bool) : (c.withMLC _ (wf := cwfp)).HasType
@@ -1304,7 +1261,6 @@ theorem Reflection.checkITE.WF {fail : ∀ {α}, M α}
       .fvar VLCtx.find?_vlam_self
     have hiteTrH : (c.withMLC _ (wf := cwfH)).TrExprS r.ite _ :=
       TrExprS.of_nil_any c.Ewf.ordered
-        (CondOK.noProj hiteOK)
         (by rw [← hnil]; exact hiteTr)
     -- the application is well typed: peel the conditional's three outer binders off its own type
     have hiteT'' := VEnv.HasType.weak0 (Γ := (c.withMLC _ (wf := cwfH)).vlctx.toCtx)
@@ -1599,7 +1555,7 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : State} {r : Reflection}
   have hblitΓ {Γ} bb : c.venv.HasType c.lparams.length Γ (VExpr.boolLit bb) .bool :=
     .weak0 c.Ewf (TrExprS.boolLit (Us := c.lparams) (Δ := []) c.hasPrimitives hbool bb).2
   have htypeTrb {Δ} : TrExprS c.venv c.lparams Δ r.type w.type' :=
-    TrExprS.of_nil_any c.Ewf (CondOK.noProj htypeOK) (by rw [← hnil]; exact w.htype)
+    TrExprS.of_nil_any c.Ewf (by rw [← hnil]; exact w.htype)
   have hHtyT bb : (c.withMLC _ (wf := cwfb)).HasType
       ((w.type'.app (.bvar 2)).app (.boolLit bb)) (.sort .zero) :=
     .app (.app htw hp2T) (hlit bb).2
@@ -1627,7 +1583,6 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : State} {r : Reflection}
       .fvar VLCtx.find?_vlam_self
     have hdTrH : (c.withMLC _ (wf := cwfH)).TrExprS r.natDITE d₀ :=
       TrExprS.of_nil_any c.Ewf.ordered
-        (CondOK.noProj hditeOK)
         (by rw [← hnil]; exact hdTr)
     have hdTH := VEnv.HasType.weak0 (Γ := (c.withMLC _ (wf := cwfH)).vlctx.toCtx)
       c.Ewf hdT'
@@ -1685,7 +1640,7 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : State} {r : Reflection}
           (.vlam ida `a (.arrow (.fvar idp) (.const ``Nat []))
             (.forallE (.bvar 0) .nat) .default
             (.vlam idp `p (Expr.sort Level.zero) (VExpr.sort .zero) .default c.mlctx)))))
-      (hofTr : TrExprS c.venv c.lparams c.vlctx ofSrc of') (hofOK : noProj ofSrc)
+      (hofTr : TrExprS c.venv c.lparams c.vlctx ofSrc of')
       (hofT : c.venv.HasType c.lparams.length [] of'
         (.forallE (.sort .zero) (.forallE ((w.type'.app (.bvar 0)).app (.boolLit bb)) cod))) :
       (c.withMLC _ (wf := cwfH)).TrExprS (mkApp2 ofSrc (.fvar idp) (.fvar idH))
@@ -1713,7 +1668,7 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : State} {r : Reflection}
     have hap := VEnv.HasType.appN_forallEs hargs2 (by simpa using hofTH)
     refine ⟨?_, hap⟩
     exact TrExprS.appN c.Ewf.ordered hΓH
-      (TrExprS.of_nil_any c.Ewf.ordered hofOK (by rw [← hnil]; exact hofTr))
+      (TrExprS.of_nil_any c.Ewf.ordered (by rw [← hnil]; exact hofTr))
       (.cons hp3 (.cons hH0 .nil)) ⟨_, hap⟩
   -- each check, generalized away from the four binders it was run under
   have hgen (bb : Bool) (of' : VExpr) (idH : FVarId)
@@ -1762,8 +1717,7 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : State} {r : Reflection}
   refine .bind (Q := fun _ _ => w.DiteEq d₀ oT true) ?_ fun _ _ _ hTrue => ?_
   · refine M.WF.withLocalDecl (hHtyTr true) ⟨_, hHtyT true⟩ .rfl ?_
     intro idH cwfH s5 hs5 hres5
-    obtain ⟨hrhsTr, hrhsT⟩ := rhs true oT r.ofTrue (.bvar 1) idH cwfH hoTTr
-      (CondOK.noProj hofTrueOK) hoT'
+    obtain ⟨hrhsTr, hrhsT⟩ := rhs true oT r.ofTrue (.bvar 1) idH cwfH hoTTr hoT'
     have hrhsT' : c.venv.HasType c.lparams.length (c.withMLC _ (wf := cwfH)).vlctx.toCtx
         ((oT.app (.bvar 3)).app (.bvar 0)) (.bvar 3) := by
       simpa [VExpr.Subst.cons, VExpr.Subst.id, VLCtx.toCtx] using hrhsT
@@ -1775,8 +1729,7 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : State} {r : Reflection}
   refine M.WF.withLocalDecl (hHtyTr false) ⟨_, hHtyT false⟩ .rfl ?_
   intro idH cwfH s5 hs5 hres5
   obtain ⟨hrhsTr, hrhsT⟩ := rhs false oF r.ofFalse (vexpr(Not).app (.bvar 1))
-    idH cwfH hoFTr
-    (CondOK.noProj hofFalseOK) hoF'
+    idH cwfH hoFTr hoF'
   have hrhsT' : c.venv.HasType c.lparams.length (c.withMLC _ (wf := cwfH)).vlctx.toCtx
       ((oF.app (.bvar 3)).app (.bvar 0)) (vexpr(Not).app (.bvar 3)) := by
     simpa [VExpr.Subst.cons, VExpr.Subst.id, VLCtx.toCtx] using hrhsT
@@ -2146,7 +2099,7 @@ theorem Condition.check.gadget_pieces {c : VContext} {prop asBool proof : Expr} 
   have uniq : ∀ {x : Expr} {v : VExpr}, CondOK x → c.TrExprS x v →
       ∀ {Δ : VLCtx} {u}, TrExprS c.venv c.lparams Δ x u → u = v := by
     intro x v hx hv Δ u hu
-    exact TrExprS.of_nil_unique c.Ewf (CondOK.noProj hx) (by rw [← hnil]; exact hv) hu
+    exact TrExprS.of_nil_unique c.Ewf (by rw [← hnil]; exact hv) hu
   have htypeT : c.venv.HasType c.lparams.length [] w.type'
       vexpr(Prop → Bool → Prop) := by
     have h : c.venv.HasType c.lparams.length c.vlctx.toCtx w.type' _ := w.typeT
@@ -2162,7 +2115,7 @@ theorem Condition.check.gadget_pieces {c : VContext} {prop asBool proof : Expr} 
       (.succ (d := .vlam .nat) .zero) hu
     simp only [VLocalDecl.inst, VLocalDecl.depth, VExpr.inst, VExpr.nat, Nat.zero_add] at h1
     have h2 := TrExprS.peel_outer c.Ewf.ordered (CondOK.looseBVarRange hx) hz hzT .zero h1
-    rw [← TrExprS.of_nil_unique c.Ewf.ordered (CondOK.noProj hx) h2 hu] at h2
+    rw [← TrExprS.of_nil_unique c.Ewf.ordered h2 hu] at h2
     exact ⟨TrExprS.closedN_nil c.Ewf.ordered h2, h2⟩
   -- the gadget's translation, piece by piece
   simp only [Expr.lam0, mkApp3, mkApp2, mkApp] at H
@@ -2257,7 +2210,7 @@ theorem Condition.check.gadget_pieces {c : VContext} {prop asBool proof : Expr} 
     habC.liftN_eq (Nat.zero_le _)] at hz3
   have hz4 := TrExprS.peel_outer c.Ewf.ordered (CondOK.looseBVarRange htoDecOK)
     (tr2 hpfTr hHT) hHT .zero hz3
-  rw [← TrExprS.of_nil_unique c.Ewf.ordered (CondOK.noProj htoDecOK) hz4 htd] at hz4
+  rw [← TrExprS.of_nil_unique c.Ewf.ordered hz4 htd] at hz4
   have htoDecC := TrExprS.closedN_nil c.Ewf.ordered hz4
   exact ⟨_, _, _, _, hpropTr, habTr, hpfTr, hz4, hpropC, habC, hpfC, htoDecC,
     fun E Γ hΓ x y hx hy =>
@@ -2308,7 +2261,6 @@ the translation and wants the pieces.
 At an arbitrary `VLCtx`, for the reason `ite_tr_inv'` is. -/
 theorem Condition.dite_tr_inv' {env : VEnv} {Us : List Name} {Δ : VLCtx} {cnd : Condition}
     {args : Array Expr} {t e : Expr} {r : VExpr}
-    (hu : noProj (mkAppN cnd.prop args))
     (H : TrExprS env Us Δ (cnd.dite args t e) r) :
     ∃ P D t' e',
       TrExprS env Us Δ (mkAppN cnd.prop args) P ∧
@@ -2329,15 +2281,14 @@ theorem Condition.dite_tr_inv' {env : VEnv} {Us : List Name} {Δ : VLCtx} {cnd :
   -- the two branches, and their binder types
   cases htlam with | lam _ hty ht
   cases helam with | lam _ hnty he
-  cases TrExprS.unique (noProj.isUnique hu) hty hprop
+  cases TrExprS.unique hty hprop
   cases hnty with | app _ _ hnc hnp
-  cases TrExprS.unique (noProj.isUnique hu) hnp hprop
+  cases TrExprS.unique hnp hprop
   obtain ⟨rfl, -⟩ := hnc.const0_inv (Us' := Us) (Δ' := Δ)
   exact ⟨_, _, _, _, hprop, hdec, ht, he, rfl⟩
 
 theorem Condition.dite_tr_inv {c : VContext} {cnd : Condition} {m : MLCtx} [c.MLCWF m]
     {args : Array Expr} {t e : Expr} {r : VExpr}
-    (hu : noProj (mkAppN cnd.prop args))
     (H : (c.withMLC m).TrExprS (cnd.dite args t e) r) :
     ∃ P D t' e',
       (c.withMLC m).TrExprS (mkAppN cnd.prop args) P ∧
@@ -2346,7 +2297,7 @@ theorem Condition.dite_tr_inv {c : VContext} {cnd : Condition} {m : MLCtx} [c.ML
       TrExprS c.venv c.lparams
         ((none, .vlam (vexpr(Not).app P)) :: (c.withMLC m).vlctx) e e' ∧
       r = diteApp P D (.lam P t') (.lam (vexpr(Not).app P) e') :=
-  Condition.dite_tr_inv' hu H
+  Condition.dite_tr_inv' H
 
 /-! What a conditional mentions: its arguments and its branches, the rest being closed. This is
 the side condition `checkType` asks of every equation body a recognizer builds. -/
@@ -2382,8 +2333,8 @@ theorem Condition.decide_tr_inv' {env : VEnv} {Us : List Name} {Δ : VLCtx} {cnd
       TrExprS env Us Δ (mkAppN cnd.dec args) D ∧
       r = iteApp α' P D (.boolLit true) (.boolLit false) := by
   obtain ⟨_, _, _, _, _, -, hP, hD, ht, he, rfl⟩ := Condition.ite_tr_inv' H
-  cases TrExprS.unique (by simp [TrExprS.IsUnique]) ht (TrExprS.boolLit hprim hbool true).1
-  cases TrExprS.unique (by simp [TrExprS.IsUnique]) he (TrExprS.boolLit hprim hbool false).1
+  cases TrExprS.unique ht (TrExprS.boolLit hprim hbool true).1
+  cases TrExprS.unique he (TrExprS.boolLit hprim hbool false).1
   exact ⟨_, _, _, hP, hD, rfl⟩
 
 /-- What a closed-off use of `natEq` has to say about its two arguments: they are `Nat`s, and the
@@ -2438,7 +2389,7 @@ itself a reflected primitive at a probe variable. -/
 theorem Condition.WF.natEq_decideTr {c : VContext} {w : Condition.WF c Condition.natEq}
     (hite : w.IteEval) (hprim : c.venv.HasPrimitives) (hnat : c.venv.contains ``Nat)
     (hbool : c.venv.contains ``Bool) (E : c.Ext) {Δ : VLCtx} {σ : VExpr.Subst}
-    {A B : Expr} {r : VExpr} (x y : Nat) (hnpA : noProj A) (hnpB : noProj B)
+    {A B : Expr} {r : VExpr} (x y : Nat)
     (hA : ∀ {A' : VExpr}, TrExprS c.venv c.lparams Δ A A' → E.WF₀ (A'.subst σ) →
       E.IsDefEqU₀ (A'.subst σ) (.natLit x))
     (hB : ∀ {B' : VExpr}, TrExprS c.venv c.lparams Δ B B' → E.WF₀ (B'.subst σ) →
@@ -2448,8 +2399,8 @@ theorem Condition.WF.natEq_decideTr {c : VContext} {w : Condition.WF c Condition
   obtain ⟨_, _, _, hP, hD, rfl⟩ := Condition.decide_tr_inv' hprim hbool hr
   obtain ⟨_, _, hA2, hB2, rfl⟩ := w.prop_app2_inv hP
   obtain ⟨_, _, hA3, hB3, rfl⟩ := w.dec_app2_inv hD
-  cases TrExprS.unique (noProj.isUnique hnpA) hA3 hA2
-  cases TrExprS.unique (noProj.isUnique hnpB) hB3 hB2
+  cases TrExprS.unique hA3 hA2
+  cases TrExprS.unique hB3 hB2
   simp only [iteApp, VExpr.subst, w.propC.subst_eq_of_closed, w.decC.subst_eq_of_closed, VExpr.subst_boolLit] at hwf ⊢
   have pk {f a : VExpr} (h : E.WF₀ (f.app a)) : E.WF₀ f ∧ E.WF₀ a :=
     h.app_inv₂ E.wf trivial
@@ -2762,7 +2713,7 @@ theorem Condition.check.WF {c : VContext} {s : State} {cond : Condition}
       -- has since been carried to rather than only in the one it was built in.
       have huniq {x : Expr} {u : VExpr} {Δ : VLCtx} {v : VExpr} (hx : CondOK x)
           (hu : c.TrExprS x u) (hv : TrExprS c.venv c.lparams Δ x v) : v = u :=
-        TrExprS.of_nil_unique c.Ewf (CondOK.noProj hx) (by rw [← hnil]; exact hu) hv
+        TrExprS.of_nil_unique c.Ewf (by rw [← hnil]; exact hu) hv
       have hshape : nite' = .lam .bool
           ((vexpr(@_root_.ite Nat).app (prop'.app (.bvar 0))).app (dec'.app (.bvar 0))) := by
         cases hniteTr with | lam _ hty hbody
@@ -2946,11 +2897,11 @@ theorem Condition.check.WF {c : VContext} {s : State} {cond : Condition}
         vexpr(Prop → Bool → Prop) :=
       VEnv.HasType.weak0 E.wf (E.monoT (by rw [← hnil']; exact w.typeT))
     have hpropTrΓ {Δ : VLCtx} : TrExprS c.venv c.lparams Δ prop prop' :=
-      TrExprS.of_nil_any c.Ewf (CondOK.noProj hok.prop) hpropTr
+      TrExprS.of_nil_any c.Ewf hpropTr
     have habTrΓ {Δ : VLCtx} : TrExprS c.venv c.lparams Δ asBool asBool' :=
-      TrExprS.of_nil_any c.Ewf (CondOK.noProj hasBoolOK) habTr
+      TrExprS.of_nil_any c.Ewf habTr
     have hdecTrΓ {Δ : VLCtx} : TrExprS c.venv c.lparams Δ dec dec' :=
-      TrExprS.of_nil_any c.Ewf (CondOK.noProj hok.dec) (by rw [← hnil]; exact hdecTr)
+      TrExprS.of_nil_any c.Ewf (by rw [← hnil]; exact hdecTr)
     have hclosed {v A : VExpr} (h : c.venv.HasType c.lparams.length c.vlctx.toCtx v A) :
         v.ClosedN := by
       rw [hnil'] at h; exact (h.closedN' c.Ewf.ordered.closed trivial).1

@@ -167,7 +167,7 @@ theorem _root_.Lean4Lean.TrInductDeclHeaders.primitiveAbstractConstants
     have htargetType : TrExprS env lparams []
         (.sort (.succ .zero)) (.sort (.succ .zero)) :=
       TrExprS.sort (by rw [hlparams]; rfl)
-    have htypeEq := TrExprS.unique (by trivial)
+    have htypeEq := TrExprS.unique
       Htarget.header.type htargetType
     have htargetLookup : envTypes.constants target.name =
         some target.toVConstant := by
@@ -179,9 +179,9 @@ theorem _root_.Lean4Lean.TrInductDeclHeaders.primitiveAbstractConstants
       · simpa [Htarget.header.name] using htargetLookup
       · simp [hlparams]
       · simp [Htarget.header.uvars, hlparams]
-    have hfalseType := TrExprS.unique (by trivial)
+    have hfalseType := TrExprS.unique
       Hfalse.type hfalseCanonical
-    have htrueType := TrExprS.unique (by trivial)
+    have htrueType := TrExprS.unique
       Htrue.type hfalseCanonical
     left
     simp [primitiveBoolConstants, primitiveBoolType,
@@ -215,7 +215,7 @@ theorem _root_.Lean4Lean.TrInductDeclHeaders.primitiveAbstractConstants
     have htargetType : TrExprS env lparams []
         (.sort (.succ .zero)) (.sort (.succ .zero)) :=
       TrExprS.sort (by rw [hlparams]; rfl)
-    have htypeEq := TrExprS.unique (by trivial)
+    have htypeEq := TrExprS.unique
       Htarget.header.type htargetType
     have htargetLookup : envTypes.constants target.name =
         some target.toVConstant := by
@@ -227,7 +227,7 @@ theorem _root_.Lean4Lean.TrInductDeclHeaders.primitiveAbstractConstants
       · simpa [Htarget.header.name] using htargetLookup
       · simp [hlparams]
       · simp [Htarget.header.uvars, hlparams]
-    have hzeroType := TrExprS.unique (by trivial)
+    have hzeroType := TrExprS.unique
       Hzero.type hnatCanonical
     have htargetConstant : target.toVConstant =
         ({ uvars := 0, type := .sort (.succ .zero) } : VConstant) := by
@@ -252,7 +252,7 @@ theorem _root_.Lean4Lean.TrInductDeclHeaders.primitiveAbstractConstants
         · simpa [Htarget.header.name] using htargetLookup
         · simp [hlparams]
         · simp [Htarget.header.uvars, hlparams]
-    have hsuccType := TrExprS.unique (by trivial)
+    have hsuccType := TrExprS.unique
       Hsucc.type hsuccCanonical
     right
     simp [primitiveNatConstants, primitiveNatType,
