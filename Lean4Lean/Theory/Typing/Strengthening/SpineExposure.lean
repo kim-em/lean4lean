@@ -797,7 +797,22 @@ theorem projField_of_neverZero (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
   exact ⟨_, l, VProjectionInfo.fieldType_eq_instOuter info hshape' hls hps hltD, hFs⟩
 
 /-- The field-type closure at structures whose sort at the given levels is not never-zero:
-the exact remaining content of `ProjFieldFrontN`. -/
+the exact remaining content of `ProjFieldFrontN`. For a major typed below at a structure type
+whose projection `i` is typable above, the field type `fieldType S ls ps i m` (the constructor's
+field domain instantiated at the parameters and the earlier projections,
+`fieldType_eq_instOuter`) is typed at a sort below, with `projDF`'s universe guard. Outside
+`Prop` this is a library fact (`projField_of_neverZero`: every earlier projection is typable
+and the closed constructor telescope instantiates, `IsType.closed_telescope_instOuter`). For a
+`Prop` structure with a data field `j < i` the projection `proj j m` is not typable, so if the
+field domain does not mention binder `j` its instance is typed only by thinning binder `j` out
+of the closed constructor telescope: a closed-telescope strengthening instance with an
+uninhabited removed binder. It is used twice in `Final.lean`: for `ProjFrontN` (through spine
+exposure) and for the descent of the composite major-eta step (`majorEtaDescends`), whose
+structure eta step below needs the projections of the major typed below. `Cancel` implies it
+up to the congruence of `fieldType` along convertible data (`structApp_inv` relates the given
+`(ls, ps, m)` to the data of the typing derivation below), which needs a substitution congruence
+through unmentioned, possibly unprojectable binders that the library does not provide
+(`proj_fieldType` compares two field types that are both already typed). -/
 def ProjFieldFrontPropN (env : VEnv) : Prop :=
   ∀ ⦃U k Γ Γ' S info ls ps idx m i T⦄, Ctx.LiftN 1 k Γ Γ' → OnCtx Γ (env.IsType U) →
     OnCtx Γ' (env.IsType U) → env.projections S info → ls.length = info.uvars →

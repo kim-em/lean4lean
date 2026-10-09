@@ -29,7 +29,15 @@ variable {env : VEnv} {U : Nat} {block : Name} {levels : List VLevel} {target : 
 /-- OPEN (environment lemma): the generic type of every registered case schema, at every owner
 slot, is typed at a sort in the empty context at the generic universes. The registration
 certificate records closedness (`WF.eliminator_genericType_closed`) and the formation data of
-the compilation, not this typing. -/
+the compilation, not this typing. It is a statement about closed, environment-determined terms:
+the generic case type is the installed recursor's type with the other families' motives and all
+induction hypotheses removed, so deriving it from the typed recursor is the thinning of unused
+binders out of a closed telescope, a closed-telescope strengthening instance (direction E's log,
+step 0). It is sufficient for `Cancel` through `ElimFrontN` (`ElimFrontN.of_generic`) but not
+implied by `Cancel`: `elimDF` takes the generic type's sort typing as a premise, so in an
+environment where it fails no eliminator symbol is typable and `Cancel` holds vacuously for
+eliminators; the exact component is `ElimFrontN` (`Final.lean`,
+`cancel_iff_typedFront_and_elim`). -/
 def GenericTypesTyped₀ (env : VEnv) : Prop :=
   ∀ ⦃block : Name⦄ ⦃schema : CaseSchema⦄ ⦃owner : Fin schema.signature.families.size⦄ ⦃type⦄,
     env.eliminators block schema → schema.genericType owner = some type →
@@ -47,7 +55,14 @@ theorem ElimFrontN.of_generic (henv : env.WF) (H : GenericTypesTyped₀ env) : E
   ElimFrontN.of_genericTyped henv (GenericTypesTyped.of_generic H)
 
 /-- OPEN (environment lemma): the generic case equations of every registered schema are typed
-in the empty context at the generic universes. -/
+in the empty context at the generic universes. These are the closed typing premises
+`lhs/rhs : type` of `CaseStep.iota` and `IsDefEq.elimIota`, specialized by `instL` and weakened
+to any context (`caseStep_premises`); with `TypedFront` they give the descent of the case-iota
+guard (`caseRedexDescends`, `Descents.lean`). Like `GenericTypesTyped₀` it is a closed-telescope
+statement about environment-determined terms, derivable from the certificate only by re-proving
+the formation of the case telescope; it is not implied by `Cancel`, since a case step above
+already carries these typings in its own context and `Cancel` says nothing about environments in
+which no case step is ever typable. -/
 def GenericRulesTyped₀ (env : VEnv) : Prop :=
   ∀ ⦃block : Name⦄ ⦃schema : CaseSchema⦄ ⦃owner : Fin schema.signature.families.size⦄ ⦃rules df⦄,
     env.eliminators block schema → schema.genericEquations block owner = some rules →

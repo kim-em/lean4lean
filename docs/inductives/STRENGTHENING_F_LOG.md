@@ -183,3 +183,56 @@ Cancel env ↔ TypedFront env`, `strengthening_iff_typedFront_final` (via
 `EtaNE.const_spine_inv_lift'` from step 1), `ProjFrontN.of_spineExposure` (E),
 `cancel_of_piExposureRed` (B). The intermediate theorems with `UnfoldingCheckDescends` as a
 hypothesis (first assembly above) are superseded and removed.
+
+## Converses and the exact statement
+
+* `Cancel → ElimFrontN`: proved (`cancel_iff_typedFront_and_closures`), so
+  `cancel_iff_typedFront_and_elim : Cancel ↔ TypedFront ∧ ElimFrontN` is exact in that component
+  given `GenericRulesTyped₀` and `ProjFieldFrontPropN`.
+* `Cancel → GenericTypesTyped₀`, `Cancel → GenericRulesTyped₀`: not implied. Both are typings of
+  closed, environment-determined terms that `elimDF` and `CaseStep.iota` take as *premises*; in
+  an environment where they fail, no eliminator symbol (respectively no case step) is typable at
+  all, and `Cancel`, a statement about conversions between typed terms, holds vacuously for
+  them. They are the closed-telescope strengthenings E identified (thinning the unused binders of
+  the installed recursor's type, re-proving the case telescope's formation), sufficient but not
+  necessary; the necessary form is `ElimFrontN` (for types) and the descent `CaseRedexDescends`
+  (for rules), which `Cancel` implies through `TypingFrontN`.
+* `Cancel → ProjFieldFrontPropN`: believed true, not proved. From `Cancel`, `ProjFrontN` types
+  `proj S i m` below; `proj_inv` of that typing gives a field type `F'` at the derivation's data
+  `(levels', params', sourceMajor)`, typed at a sort, with `ls ≈ levels'`, `ps ≡ params'`,
+  `m ≡ sourceMajor` (`structApp_inv`). The required `F = fieldType S ls ps i m` is the same
+  closed constructor domain instantiated at the given data; `F ≡ F'` needs a congruence of
+  `instOuter` along convertible arguments *restricted to the mentioned binders* (an unmentioned
+  data-field position may be unprojectable, hence untypable, below). The library's
+  `IsDefEq.closed_instOuter_congr'` requires every position typed, and
+  `HeadInversion.proj_fieldType` compares two field types that are both already typed, so this
+  converse is itself a closed-telescope lemma not yet in the library. The exact failing point:
+  typing `(D.instL ls).instOuter (ps ++ projs)` from the typing of
+  `(D.instL levels').instOuter (params' ++ projs')` when `D` omits some binder `j`.
+
+## Final state
+
+HEAD of `agent/verify-inductives-strengthening3-F`. Under `env.WF` and `env.HasCanonicalEq`:
+
+```
+Strengthening ⇔ Cancel ⇔ TypedFront    given GenericTypesTyped₀, GenericRulesTyped₀, ProjFieldFrontPropN
+Cancel ⇔ TypedFront ∧ ElimFrontN      given GenericRulesTyped₀, ProjFieldFrontPropN
+```
+
+(`Final.lean`: `cancel_iff_typedFront_final`, `strengthening_iff_typedFront_final`,
+`cancel_iff_typedFront_and_elim`; axioms `propext`, `Classical.choice`, `Quot.sound`.) The five
+obligations of the brief: (1) `UnfoldingCheckDescends` as stated is not a `TypedFront` instance
+(arbitrary programs), but the descent of prefix unfolding for the generated programs is proved
+(`DeltaPar.descend'`, `Unfolding.lean`); (2) `CaseRedexDescends` from `TypedFrontN` and
+`GenericRulesTyped₀` (`caseRedexDescends`, `Descents.lean`); (3) spine exposure over `EtaNE`
+(`SpineClosure.lean`, superseded in the final assembly by `spineExposureRed_final`); (4)
+`MajorEtaDescends` from `TypedFrontN`, `CaseRedexDescends`, `CheckVars` and `ProjFieldFrontN`
+(`majorEtaDescends`, `MajorEta.lean`), with no `numFields = 0` special case; (5) the assembly.
+
+Files (all under `Lean4Lean/Theory/Typing/Strengthening/`, zero `sorry`, warning-free):
+`Descents.lean`, `SpineClosure.lean`, `MajorEta.lean`, `Unfolding.lean`, `Final.lean`; the
+docstrings of `GenericTypesTyped₀`, `GenericRulesTyped₀` (`Closures.lean`) and
+`ProjFieldFrontPropN` (`SpineExposure.lean`) were expanded. No existing statement changed; no
+test deleted; nothing outside `Strengthening/` and `docs/inductives/` touched. Integration:
+`lake build Lean4Lean.Theory` succeeds at every commit; the new modules are imported by nothing
+outside `Strengthening/`.
