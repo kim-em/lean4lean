@@ -217,7 +217,11 @@ telescope over family-free domains ending in a family applied to the parameters 
 indices. The generator therefore gives an induction hypothesis to exactly the fields whose
 positive normal form ends in a family. The recorded shape of a recursive field (binders, target
 family, indices) is constrained by the typing of its generated induction hypothesis
-(`Instance.GeneratedIHsWellTyped`).
+(`Instance.GeneratedIHsWellTyped`): in a well-formed recursor-checking environment in which the
+families are rigid, it has the target family and binder count of the field's normal form, and
+binders and indices definitionally equal to the normal form's, compared in the context of the
+induction hypothesis (`Instance.recursiveShape_correspondence`,
+`Lean4Lean/Theory/Inductive/RecursiveShapeCorrespondence.lean`).
 `Instance.Admissible` fixes the elimination universe: every family is never zero, or the
 target is `≈ 0`, or singleton elimination holds and the target is a free universe parameter.
 

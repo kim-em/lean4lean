@@ -44,8 +44,11 @@ structure Models (s : InductiveSignature) (env : VEnv) (decl : VInductDecl) : Pr
   family: a recursive field cannot be declared `external`, and a family-free field
   cannot be declared `recursive`.  The recorded shape of a recursive field (its
   binders, target family and indices) is constrained by the typing of its generated
-  induction hypothesis (`Instance.GeneratedIHsWellTyped`).  Unsafe declarations, which
-  are not checked for positivity, are exempt. -/
+  induction hypothesis (`Instance.GeneratedIHsWellTyped`): together with this clause, it
+  has the target family and the number of binders of the normal form, and binders and
+  indices definitionally equal to the normal form's, compared under the hypothesis binders
+  (`Instance.recursiveShape_correspondence`).  Unsafe declarations, which are not checked
+  for positivity, are exempt. -/
   classifiedFields : s.isUnsafe = true ∨ ∃ envTypes,
     env.addConstVals decl.typeConstants = some envTypes ∧
     ∀ ctor ∈ s.constructors.toList, ∀ i (hi : i < ctor.fields.length),
