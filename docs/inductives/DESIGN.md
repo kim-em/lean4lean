@@ -720,6 +720,13 @@ irrelevance is circular, and the calculus does not normalize. The verification i
 organised so that it never
 moves a typing fact to a smaller context.
 
+The second attempt (`STRENGTHENING_ATTEMPT_2026-10-09b.md`, `Theory/Typing/Strengthening/`)
+reduces the statement, with every step checked, to `TypedFront` (strengthening for endpoints
+typed below at a common type) given eta postponement above (`EtaReplay`) and two closures
+(`ProjFrontN`, `ElimFrontN`); every guard of every non-eta reduction rule descends under
+`TypedFront`, and the certificate route is closed for syntactic ranks. Still no proof and no
+counterexample.
+
 ### 5.2 Scoped caches
 
 Every binder of the checker saves and restores the context-relative state

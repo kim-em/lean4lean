@@ -116,6 +116,40 @@ why it fails. Also attempt the positive partial result the regress argument offe
 for `Q : Sort u` with `u ≉ 0` and `Q` a rigid non-structure type (so `q` is never a proof,
 a major or an eta subject).
 
+## 6. Status after directions A, B, B2, C (interim)
+
+**No proof, no counterexample; the open statement is reduced, with every step checked, to a
+single reduction-system obligation and two environment closures.** Under `env.WF` and
+`env.HasCanonicalEq`:
+
+```text
+Strengthening ⇔ Front ⇔ Cancel ⇔ UninhabitedCancel ⇔ Reflection (TermEq)
+              ⇔ UninhabitedTypingFront ⇔ TypingFrontN
+              ⇔ TypedFront ∧ AppFrontN ∧ ProjFrontN ∧ ElimFrontN          (Replay.lean)
+TypedFront ⇔ TypeFront ⇔ TypeFrontN ⇔ KeyFaithful
+PiExposureRedN ⇔ PiExposureN;   PiExposureN ∧ TypeFrontN ⇒ AppFrontN
+(∀ U, EtaReplay) ⇒ PiExposureRedN                                         (Exposure.lean)
+(∀ U, EtaReplay) ∧ ProjFrontN ∧ ElimFrontN ⇒ (Cancel ⇔ TypedFront)        (cancel_iff_typedFront_of)
+```
+
+So the whole problem is `TypedFront` (`Front` for endpoints typed below at a common type) once
+`EtaReplay` (eta postponement above, simulated below: direction B3) and the two closures
+(`ProjFrontN` by spine exposure, `ElimFrontN` by `GenericTypesTyped` from the registration
+certificate: direction E) are discharged. Every guard of every non-eta reduction rule descends
+under `TypedFront` (`ParRed.descend`, `DeltaPar.descend`); eta steps are the only source of
+reducts that are not lifts, and the measure that survives them is "the reduct is an eta chain
+of a lift" (`path_replay`, induction on the above path with no size component).
+
+The certificate route (direction A) is closed for syntactic ranks: in the pilot calculus the
+strip lemma `CConv.trans_of` is proved from three obligations, and the transport obligation's
+beta case duplicates the argument comparison per occurrence of the bound variable
+(`transport_output_exceeds_inputs`, `no_monotone_size_rank`), while the pilot fragment is
+normalising, so the obligations are true but not provable by any monotone size rank.
+
+The counterexample route (direction C) is closed for every mechanism tried: a typing gap at a
+fixed type is a type-level `Cancel` failure between types typed below, casts into `Q` inhabit
+`Q`, derived proofs `f q` make rigidity of `Q` irrelevant (`RigidCancel.prop_to_pi`).
+
 ## 4. Rules in force
 
 Zero `sorry` on every pushed commit (every file under `Lean4Lean/` is a library target;
