@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.VExpr.TelescopeLemmas
 import Lean4Lean.Theory.Inductive
 import Lean4Lean.Theory.Inductive.BetaSubjectReduction
 import Lean4Lean.Theory.Inductive.CaseRegistration
@@ -173,24 +174,6 @@ theorem ContainerSpecialization.directFamily_ctors
   simp only [Option.bind_eq_some_iff, pure, Option.some.injEq] at h
   obtain ⟨spec, hspec, rfl⟩ := h
   rw [specializeType_eq_instantiateForallPrefix hspec]
-end VerifyInductive
-end Lean4Lean
-
-namespace Lean4Lean
-namespace VerifyInductive
-open InductiveSignature
-
-theorem VExpr.getAppFnArgs_mkApps
-    (fn : VExpr) (args : List VExpr) :
-    (VExpr.mkApps fn args).getAppFnArgs =
-      let (head, prior) := fn.getAppFnArgs
-      (head, prior ++ args) := by
-  induction args generalizing fn with
-  | nil => simp [VExpr.mkApps]
-  | cons arg args ih =>
-      rw [show VExpr.mkApps fn (arg :: args) =
-        VExpr.mkApps (.app fn arg) args from rfl, ih]
-      simp [List.append_assoc]
 end VerifyInductive
 end Lean4Lean
 
