@@ -145,3 +145,46 @@ the recursor telescope and the unfolding below); (K) iota above whose major is a
 convertible by proof irrelevance to the source's major (mirrored below by singleton prefix
 unfolding); (H) iota above whose major is the junk structure eta expansion of a neutral source
 (mirrored below by structure eta at the major, `major_type`, then iota).
+
+## Step 5: redesign, eta-free steps recorded on the source side (checked)
+
+The lifted-source plan of step 4 has a fatal duplication problem: a structure eta expansion
+above duplicates the source into one copy per field, and a parallel step may reduce the copies
+differently; no single reduction below mirrors all copies (checked thought experiment: the iota
+fired in one copy only has no mirror, since neither `EtaNE` nor its transposition can relate a
+redex to its reduct). The fix is to record eta-free steps *above*, on the source side of the
+relation, and to descend them only at the root of the lift at the very end:
+
+* `EtaNE` (redefined, `EtaNormal.lean`): untyped congruences (`bvar`, `sort`, `const`, `elim`,
+  `app`, `proj`, `lamC`, `forallEC`), `funEta` (any source of function type), `structEta`,
+  `betaR` (administrative redex on the reduct side, for junk expansions of partial applications),
+  and `redL : UpStepF Γ s c → EtaNE Γ c X → EtaNE Γ s X` (an eta-free parallel step on the
+  source side). The typed annotation conversions, proof irrelevance and the left administrative
+  redexes of the previous version are gone (`redL` subsumes the latter); the counterexample's
+  annotation change is `funEta` followed by `redL` with the beta inside.
+* Checked: `defeq`, `hasType`, `weakN`, `defeqDFC`, `rfl`, `congrRel`, `inst_r`, `instN`
+  (two-sided), `of_etaPar`, `root_funEta`, `root_structEta`, `Wrap`, `spine_inv`, `wrap_r`,
+  `root_decomp`, `rootChain_spine_r`, `etaPar_r` (closure under eta steps on the right),
+  `of_etaChain`, and the end lemma `forallE_inv_lift`: a lift related to a `Π` reduces below to
+  a `Π`, descending each `redL` step at the root by `ParRed.descend`/`DeltaPar.descend`
+  (hypotheses `TypedFrontN`, `CaseRedexDescends`, `UnfoldingCheckDescends`, `CheckVars`); the
+  root eta expansions are excluded by typing.
+* `EtaPostponement.lean`: `UpStepFClosure` (closure of `EtaNE` under eta-free steps on the right,
+  a statement purely above), `etaReplayNE_of_closure : UpStepFClosure → EtaReplayNE` (with no
+  reduction below at all), `piExposureRed_of_etaReplayNE`, `cancel_iff_typedFront_ofNE`,
+  `cancel_iff_typedFront_of_closure : Cancel ↔ TypedFront` given `∀ U, UpStepFClosure`,
+  `CaseRedexDescends`, `UnfoldingCheckDescends`, `ProjFrontN`, `ElimFrontN`.
+
+So the whole replay problem is now the single above-only statement `UpStepFClosure`: push one
+eta-free parallel step through the `EtaNE` constructors. Its cases: congruences by induction;
+`funEta`/`structEta` bodies by induction (the duplication is harmless since nothing moves below);
+`betaR` by transporting the step to the contractum (`ParRed.instN`, `DeltaPar.instN`); `redL` by
+passing through; the redex cases on the reduct: beta of a related lambda (two-sided `instN`;
+the collapse of a junk expansion), iota and prefix unfolding on a spine whose source has the same
+spine shape (fire the same redex on the source by `redL`, with the guards transported along
+conversion), and iota whose major is a junk structure eta expansion of a neutral source (fire
+structure eta then iota on the source: an eta step on the source side, so either a composite left
+step is added to `redL` with its descent at the root isolated as an obligation, or it is the one
+remaining obligation of the closure).
+
+`EtaReplay.lean` keeps the general-lift descent and `Lift.insVar` (not used by this route).

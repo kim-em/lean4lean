@@ -2,9 +2,11 @@ import Lean4Lean.Theory.Typing.Strengthening.EtaPostponement
 
 /-! # Replay through eta-normal expansions
 
-Direction B3 (`docs/inductives/STRENGTHENING_B3_LOG.md`), step 4: the infrastructure for the proof
-of `EtaReplayNE`. Descent of eta-free parallel steps along any lift (`Ctx.Lift'`), peeling one
-insertion at a time with well-formed intermediate contexts. -/
+Direction B3 (`docs/inductives/STRENGTHENING_B3_LOG.md`). General infrastructure: descent of
+eta-free parallel steps along any lift (`Ctx.Lift'`), peeling one insertion at a time with
+well-formed intermediate contexts, and the renaming `Lift.insVar` of a bound variable to an
+inserted variable. Not used by the current proof route (`EtaClosure.lean`), kept for the
+lifted formulation of sources. -/
 
 namespace Lean4Lean.VEnv.StrengtheningEtaReplay
 open VExpr VEnv.StrengtheningTypingFront VEnv.StrengtheningReplay VEnv.StrengtheningExposure
@@ -139,7 +141,8 @@ theorem liftVar_consN : ∀ (l : Lift) (k i : Nat),
 end Lean4Lean.Lift
 
 namespace Lean4Lean.VEnv.StrengtheningEtaReplay
-open VExpr
+open VExpr VEnv.StrengtheningTypingFront VEnv.StrengtheningReplay VEnv.StrengtheningExposure
+  VEnv.StrengtheningEtaNormal VEnv.StrengtheningEtaPostponement
 
 /-- Substituting an inserted variable for the bound variable of a renamed body is a renaming. -/
 theorem lift'_cons_inst_bvar {l : Lift} {v : Nat} (h : v < l.liftVar 0) :
