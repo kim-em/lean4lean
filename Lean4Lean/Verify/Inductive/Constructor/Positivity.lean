@@ -654,7 +654,7 @@ theorem IndConstArray.ofExact
 
 /-- Promote the exact traversal-facing statistics into the positivity-facing
 application invariant. -/
-def ValidAppStatsWF.ofHeaderStats
+theorem ValidAppStatsWF.ofHeaderStats
     (H : checkInductiveTypes.loopInd.HeaderStatsWF
       env Us Δ stats decl depth) :
     ValidAppStatsWF env Us Δ stats decl depth where
@@ -666,7 +666,7 @@ def ValidAppStatsWF.ofHeaderStats
   params := H.params
   paramFVars := H.paramFVars
 
-def ValidAppStatsWF.ofHeaderStatsScoped
+theorem ValidAppStatsWF.ofHeaderStatsScoped
     (H : checkInductiveTypes.loopInd.HeaderStatsWF
       env Us Δ stats decl depth) :
     ValidAppStatsWF env Us H.parameterScope stats decl 0 where
@@ -967,7 +967,7 @@ theorem isValidIndAppIdx.intro
     rw [← harity]
     exact hindices
   simp only [AddInductive.isValidIndAppIdx, Expr.withApp_eq, hhead, harity,
-    beq_self_eq_true, Bool.true_and, hparamsBeq, hindices', Bool.not_false,
+    beq_self_eq_true, Bool.true_and, hparamsBeq, hindices',
     ↓reduceIte]
   rfl
 
@@ -1088,7 +1088,7 @@ structure GeneratedRecursiveCalls
     GeneratedRecursiveCall indTypes stats motives minors lvls u[i]
       v[i]!
 
-def GeneratedRecursiveCalls.empty
+theorem GeneratedRecursiveCalls.empty
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level) (u : Array Expr) :
     GeneratedRecursiveCalls indTypes stats motives minors lvls u #[] 0 where
