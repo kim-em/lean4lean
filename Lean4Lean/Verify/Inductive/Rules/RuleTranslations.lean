@@ -273,7 +273,7 @@ theorem RecursorCheck.trEntries
     have h := hsource.symm.trans (H.generated.entry j hj').source_eq
     exact ConstantInfo.recInfo.inj h
   subst hrec
-  exact ⟨_, hsource, hvalue, M.toTrRecursorVal (H.trRules Hrhs ⟨j, hjf⟩ hj')⟩
+  exact ⟨_, hsource, hvalue, { M with rules := H.trRules Hrhs ⟨j, hjf⟩ hj' }⟩
 
 /-- Given the closed RHS translations, the recursor check determines the full
 rule translation result, with the generated instance's equations

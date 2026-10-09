@@ -3,7 +3,8 @@ import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 
 /-! Recursor metadata of a recursor check.
 
-Every field of `TrRecursorVal` except the rule list is established for each installed
+`InductiveSignature.RecursorMetadata` (defined in `Entries/TrRecursorVal.lean`, as the
+base that `TrRecursorVal` extends with rule coverage) is established for each installed
 recursor entry of a `RecursorCheck`, against the one instance of the construction's signature
 (`RecursorCheck.canonicalGeneration`). Together with the rule translations of `Rules/` this
 shows that the executable's recursors are the translations of the generated ones (section 3.2
@@ -11,41 +12,6 @@ of `docs/inductives/DESIGN.md`).
 -/
 
 namespace Lean4Lean
-namespace InductiveSignature
-
-/-- `TrRecursorVal` without its rule coverage: the name, universe arity,
-translated type, cardinalities, major premise, mutual block, safety, and K
-metadata of one concrete recursor. -/
-structure RecursorMetadata {s : InductiveSignature} (g : Instance s)
-    (venv : VEnv) (owner : Fin s.families.size) (rec : Lean.RecursorVal) : Prop where
-  name : rec.name = g.recursorName owner
-  uvars : rec.levelParams.length = g.uvars
-  type : TrExprS venv rec.levelParams [] rec.type (g.recursorType owner)
-  numParams : rec.numParams = s.params.length
-  numIndices : rec.numIndices = s.families[owner].indices.length
-  numMotives : rec.numMotives = s.families.size
-  numMinors : rec.numMinors = s.constructors.size
-  major : rec.getMajorInduct = s.families[owner].name
-  all : rec.all = s.families.toList.map (·.name)
-  isUnsafe : rec.isUnsafe = s.isUnsafe
-  k : rec.k = true →
-    s.families.size = 1 ∧ s.constructors.size = 1 ∧
-    s.families[owner].resultLevel ≈ .zero ∧
-    ∀ ctor ∈ s.constructors.toList, ctor.fields = []
-
-/-- Metadata together with rule coverage gives `TrRecursorVal`. -/
-theorem RecursorMetadata.toTrRecursorVal
-    {s : InductiveSignature} {g : Instance s} {venv : VEnv}
-    {owner : Fin s.families.size} {rec : Lean.RecursorVal}
-    (H : RecursorMetadata g venv owner rec)
-    (rules : List.Forall₂ (TrRecursorRule g venv rec.levelParams)
-      (s.ownedConstructors owner) rec.rules) :
-    TrRecursorVal g venv owner rec :=
-  ⟨H.name, H.uvars, H.type, H.numParams, H.numIndices, H.numMotives,
-    H.numMinors, H.major, H.all, H.isUnsafe, rules, H.k⟩
-
-end InductiveSignature
-
 namespace VerifyInductive
 
 open Lean hiding Environment Exception
