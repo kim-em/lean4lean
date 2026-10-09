@@ -24,7 +24,26 @@ Candidates.lean` (the checked ledger, namespace `VEnv.StrengtheningCandidates`),
 All theorems check with axioms among `propext`, `Classical.choice`, `Quot.sound`
 (`scratch/CandidatesAxioms.lean`).
 
-## 2. Log
+## 2. The typing gap and the rigid binder (`Hunt.lean`, namespace `VEnv.StrengtheningHunt`)
+
+Organising statement (Astra, round 8, `not_cancel_iff_typing_gap`): `Cancel` fails iff some
+`q`-free term is typable in `Q :: Γ` and at no type in `Γ`, with `Q` uninhabited in `Γ`.
+
+| mechanism | theorem | verdict |
+|---|---|---|
+| `q`-free `t` typed above at a lifted type `A↑`, typed below at `T` | `retyping_gap`, `typing_gap_is_type_cancel`, `typing_gap_cases` | `T↑ ≡ A↑` above; if `t` is not typed below at `A`, `(T, A)` is a type-level `Cancel` failure between types typed below; so a gap at `Q↑` is an inhabitant of `Q`, a term typable at no type below, or a type-level failure |
+| cast into `Q` along `e : M = Q` | `cast_into_binder_inhabits`, `cast_source_cancel` | inhabits `Q` below; the instance is the inhabited one |
+| `q` as a proof | `binder_proof_iff_level` | iff the sort level of `Q` is `≈ 0`; `¬ u ≈ 0` is not `IsNeverZero` (`param_nonzero_not_neverzero`), but `≈ 0` is what `proofIrrel` needs at the given parameters |
+| rigid binder, bare `q` | `rigid_binder_not_proof`, `rigid_binder_not_function`, `rigid_binder_not_struct` | never a proof, a function, or a structure inhabitant |
+| rigid binder, derived proof `f q` | `derived_proof_irrel` (Astra), `derived_proof_typed`, `prop_binder_transfer` | every Prop-binder instance `P :: Γ ⊢ a↑ ≡ b↑` is a `Q`-binder instance over `(Q → P) :: Γ`, for any `Q` |
+| `RigidCancel` as a partial result | `RigidCancel.prop_to_pi`, `Cancel.rigidCancel` | `RigidCancel` turns every Prop-binder instance into a `Π`-binder instance in the same context; the rigid case contains the derived-proof mechanism of the Prop case; harmless exactly when `P` is inhabited below (`transfer_inhabited`) |
+| fresh axiom types | `axiomEnv_exists`, `AxiomEnv.wf`, `AxiomEnv.canonicalEq`, `AxiomEnv.rigid`, `AxiomEnv.no_projections` | rigid non-proposition binders exist in every extension |
+
+## 3. Log
 
 * 2026-10-09: worktree read; `Candidates.lean` created from the round 7 ledger, built, axioms
   checked.
+* 2026-10-09: designer's course correction (Astra review 6, round 8): the search target is the
+  typing gap at any type, not at `Q↑`; derived proofs `f q` are a third base of `q`-dependence;
+  `¬ u ≈ 0` versus `IsNeverZero`. `Hunt.lean` written: typing-gap reduction, binder sort,
+  rigid-binder facts, the transfer theorem and `RigidCancel.prop_to_pi`, fresh axiom types.
