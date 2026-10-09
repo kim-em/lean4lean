@@ -188,3 +188,46 @@ step is added to `redL` with its descent at the root isolated as an obligation, 
 remaining obligation of the closure).
 
 `EtaReplay.lean` keeps the general-lift descent and `Lift.insVar` (not used by this route).
+
+## Step 6: the closure `UpStepFClosure` is proved (checked, `EtaClosure.lean`)
+
+`Lean4Lean/Theory/Typing/Strengthening/EtaClosure.lean` (zero sorry; axioms `propext`,
+`Classical.choice`, `Quot.sound` only):
+
+* `EtaNE.parRed_r : EtaNE Γ s X → Γ ⊢ s : T → ParRed Γ X Y → EtaNE Γ s Y` and
+  `EtaNE.deltaPar_r` (the same for `DeltaPar`), both by induction on the `EtaNE` derivation with
+  the step generalized; `upStepFClosure : UpStepFClosure`.
+* The spine of the source is exposed by `EtaNE.const_spine_inv` (a constant-headed reduct comes
+  from a source that is, after recorded `LStep`s, the same spine argument-wise related, or a
+  neutral of structure type whose junk expansion is the constructor spine) and
+  `EtaNE.elim_spine_inv`.
+* Redexes on the reduct are fired on the source as recorded steps: beta via `EtaNE.app_lam_inst`
+  (the related lambda's body instantiated; a `funEta` source is handled by `instN`), stored rules
+  via `Pattern.Matches.constVarN_transport` and `Check.OK.defeq_values`, case steps via
+  `EtaNE.schema_fire` (`CaseRedex.transport` to the source spines, `capture_replace` for the
+  captured positions), projections of constructor spines via `DeltaPar.projIota` at the source
+  (the field is typed by uniqueness of the projection's type), and prefix unfoldings via
+  `EtaNE.unfold_r`: the source spine unfolds at convertible arguments
+  (`PrefixUnfold.congr_defeq`); the two right-hand sides differ by the related bodies and a change
+  of the binder domains (`PrefixUnfold.congr_rel` with `EtaNE.argRel`), absorbed by `lamD`
+  (`EtaNE.wrapLams_defeq`); `PrefixUnfold.unique` identifies the reduct. The quotient case is the
+  same with `QuotPrefixUnfold`.
+* When the reduct's major is the junk expansion of a neutral source (iota or case step), the
+  source fires the composite step `MajorEtaIota` (`redL (.inr (.root _))`); when the major of a
+  projection is such an expansion, the projection of the source is already the related field
+  (`structArgs` at the field index, after `struct_family_eq`).
+* The binder cases use `DeltaPar.lam_inv`/`forallE_inv`/`spine_lamHead`, `defeqDFC` for the
+  context change, and `instN` for `betaR`; `structEta` re-chooses the parameters as the reduced
+  parameter arguments (`EtaNE.structEta_args`, shared logic of the two closures).
+
+End-to-end result: `cancel_iff_typedFront_B3 (henv : env.WF) (heq : env.HasCanonicalEq)
+(hcase : ∀ U, CaseRedexDescends) (hunfold : ∀ U, UnfoldingCheckDescends)
+(hmajor : ∀ U, MajorEtaDescends) (hProj : ProjFrontN env) (hElim : ElimFrontN env) :
+Cancel env ↔ TypedFront env`. Compared with the brief, the only hypothesis outside the allowed
+list is `MajorEtaDescends` (`EtaNormal.lean`): the descent at the root of the lift of the
+composite step "structure eta at a neutral major, then one `ParRed` step", that is: if
+`e.liftN 1 k = .app f m`, `m` typed above at a structure type with `params`, and
+`ParRed Γ' (.app f (structExpand family info ls params m)) c`, then `c` is a lift of an `e'`
+with `FullReduction Γ e e'`. Note that `params` are terms above, not necessarily lifts; the
+descent needs the structure type of `m₀` below (a typing descent at a structure-typed term,
+of the kind `ProjFrontN` gives for projections) and then `ParRed.descend` (B2).

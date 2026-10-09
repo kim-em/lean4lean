@@ -763,6 +763,351 @@ theorem EtaNE.parRed_r {Γ : List VExpr} (hΓ : OnCtx Γ (Params.env.IsType univ
       exact ih hΓ hs hstep
   | redL h _ ih => intro hs HX; exact .redL h (ih hΓ (h.hasType hΓ hs) HX)
 
+/-! ## Closure under parallel unfolding steps -/
+
+omit [Params] in
+theorem forall₂_snoc_inv {α β : Type _} {R : α → β → Prop} {l : List α} {a : α} {l' : List β}
+    (h : List.Forall₂ R (l ++ [a]) l') : ∃ l₀ b, l' = l₀ ++ [b] ∧ List.Forall₂ R l l₀ ∧ R a b := by
+  induction l generalizing l' with
+  | nil =>
+    simp only [List.nil_append] at h
+    cases h with | cons hab hnil => cases hnil; exact ⟨[], _, rfl, .nil, hab⟩
+  | cons y l ih =>
+    cases h with | cons hy ht =>
+      obtain ⟨l₀, b, rfl, h1, h2⟩ := ih ht
+      exact ⟨_ :: l₀, b, rfl, .cons hy h1, h2⟩
+
+theorem LStep.chain_proj {Γ : List VExpr} {m m' : VExpr} {S : Name} {i : Nat}
+    (h : ReflTransGen (LStep Γ) m m') :
+    ReflTransGen (LStep Γ) (.proj S i m) (.proj S i m') := by
+  induction h with
+  | rfl => exact .rfl
+  | tail _ hstep ih => exact ih.tail (LStep.proj hstep)
+
+theorem EtaNE.argRel : ArgRel EtaNE :=
+  EtaNE.congrRel.argRel fun hΓ h ha => (h.defeq hΓ ha).of_l henv hΓ ha
+
+/-- A change of binder domains by typed conversion is absorbed by `lamD`. -/
+theorem EtaNE.wrapLams_defeq {Γ : List VExpr} (hΓ : OnCtx Γ (Params.env.IsType univs)) :
+    ∀ {ds ds' : List VExpr} {res res' body body' : VExpr}, ds.length = ds'.length →
+      Γ ⊢ VExpr.wrapForalls ds res ≡ VExpr.wrapForalls ds' res' →
+      EtaNE (ds.reverse ++ Γ) body body' →
+      EtaNE Γ (VExpr.wrapLams ds body) (VExpr.wrapLams ds' body') := by
+  intro ds
+  induction ds generalizing Γ with
+  | nil =>
+    intro ds' res res' body body' hlen hfa hb
+    cases ds' with
+    | nil => exact hb
+    | cons => simp at hlen
+  | cons d ds ih =>
+    intro ds' res res' body body' hlen hfa hb
+    cases ds' with
+    | nil => simp at hlen
+    | cons d' ds' =>
+      have hfa' : Γ ⊢ .forallE d (VExpr.wrapForalls ds res) ≡
+          .forallE d' (VExpr.wrapForalls ds' res') := hfa
+      obtain ⟨⟨u, hd⟩, _, hB⟩ := IsDefEqU.forallE_inv henv hΓ hfa'
+      have hΓ' : OnCtx (d :: Γ) (Params.env.IsType univs) := ⟨hΓ, _, hd.hasType.1⟩
+      have hb' : EtaNE (ds.reverse ++ (d :: Γ)) body body' := by
+        simpa only [List.reverse_cons, List.append_assoc, List.singleton_append] using hb
+      exact .lamD hd (ih hΓ' (by simpa using hlen) ⟨_, hB⟩ hb')
+
+/-- Replay a prefix unfolding (singleton or quotient) fired on the reduct at the source: the
+source spine unfolds at convertible arguments, and the two right-hand sides are related by
+congruence under a change of binder domains. -/
+theorem EtaNE.unfold_r {Γ : List VExpr} (hΓ : OnCtx Γ (Params.env.IsType univs))
+    {U : List VExpr → VExpr → Prop} {name : Name} {ls : List VLevel}
+    (huniq : ∀ {a r r'}, U a r → U a r' → r = r')
+    (hcongr : ∀ {a a' r}, U a r → List.Forall₂ (IsDefEqU Params.env univs Γ) a a' → ∃ r', U a' r')
+    (hrel : ∀ {a a' r}, U a r → List.Forall₂ (EtaNE Γ) a a' →
+      ∃ r', U a' r' ∧ ∃ ds ds' body body' res res', r = VExpr.wrapLams ds body ∧
+        r' = VExpr.wrapLams ds' body' ∧ ds.length = ds'.length ∧
+        IsDefEqU Params.env univs Γ (VExpr.wrapForalls ds res) (VExpr.wrapForalls ds' res') ∧
+        EtaNE (ds.reverse ++ Γ) body body')
+    (hstep : ∀ {a r}, U a r → DeltaPar Γ (mkApps (.const name ls) a) r)
+    (hrig : ∀ {a r}, U a r → ¬ Params.env.ConstHeadRigid name)
+    {s T : VExpr} {args' : List VExpr} {rhs : VExpr}
+    (H : EtaNE Γ s (mkApps (.const name ls) args')) (hs : Γ ⊢ s : T) (hr : U args' rhs) :
+    EtaNE Γ s rhs := by
+  obtain ⟨s', hch, hc⟩ := EtaNE.const_spine_inv hΓ H hs rfl
+  obtain ⟨args_s, rfl, hFs⟩ : ∃ args_s, s' = mkApps (.const name ls) args_s ∧
+      List.Forall₂ (EtaNE Γ) args_s args' := by
+    rcases hc with h | ⟨family, info, params, hl, hcc, -, -, -, -, -, -⟩
+    · exact h
+    · exact (hrig hr (hcc ▸ projection_ctor_rigid hl)).elim
+  have hs' := LStep.hasType_chain hΓ hch hs
+  have hdef : List.Forall₂ (IsDefEqU Params.env univs Γ) args' args_s := by
+    refine List.forall₂_of_getElem (Lean4Lean.List.Forall₂.length_eq hFs).symm fun i hi hi' => ?_
+    obtain ⟨_, ht⟩ := schema_mkApps_arg_type hΓ hs' (List.getElem_mem hi')
+    exact ((case_forall₂_get hFs hi' hi).defeq hΓ ht).symm
+  obtain ⟨rhs_s, hr_s⟩ := hcongr hr hdef
+  obtain ⟨rhs', hr', ds, ds', body, body', res, res', rfl, rfl, hlen, hfa, hb⟩ := hrel hr_s hFs
+  cases huniq hr hr'
+  exact EtaNE.redL_chain hch (.redL (.inl (.inr (hstep hr_s))) (EtaNE.wrapLams_defeq hΓ hlen hfa hb))
+
+/-- A parallel unfolding step on a spine with a `λ` head moves the head and the arguments
+separately. -/
+theorem DeltaPar.spine_lamHead {Γ : List VExpr} {A b a Y : VExpr} {args : List VExpr}
+    (H : DeltaPar Γ (mkApps (.app (.lam A b) a) args) Y) :
+    ∃ A' b' a' args', DeltaPar Γ A A' ∧ DeltaPar (A :: Γ) b b' ∧ DeltaPar Γ a a' ∧
+      List.Forall₂ (DeltaPar Γ) args args' ∧ Y = mkApps (.app (.lam A' b') a') args' := by
+  induction args using List.snoc_induction generalizing Y with
+  | nil =>
+    obtain ⟨f', a', rfl, hf, ha⟩ := DeltaPar.app_inv_head (h := .lam A b) (as := [])
+      (by intros; intro h; cases h) (by intros; intro h; cases h) H
+    obtain ⟨A', b', hA, hb, rfl⟩ := DeltaPar.lam_inv hf
+    exact ⟨A', b', a', [], hA, hb, ha, .nil, rfl⟩
+  | snoc args₀ x ih =>
+    rw [VExpr.mkApps_snoc] at H
+    obtain ⟨f', x', rfl, hf, hx⟩ := DeltaPar.app_inv_head (h := .lam A b) (as := a :: args₀)
+      (by intros; intro h; cases h) (by intros; intro h; cases h) H
+    obtain ⟨A', b', a', args₀', hA, hb, ha, hF, rfl⟩ := ih hf
+    exact ⟨A', b', a', args₀' ++ [x'], hA, hb, ha, List.Forall₂.append' hF (.cons hx .nil),
+      (VExpr.mkApps_snoc ..).symm⟩
+
+/-- The structure-eta case of the closures: the reduct's arguments move to convertible
+arguments, related to the expansion's arguments. -/
+theorem EtaNE.structEta_args {Γ : List VExpr} (hΓ : OnCtx Γ (Params.env.IsType univs))
+    {family : Name} {info : VProjectionInfo} {levels : List VLevel} {params args args' : List VExpr}
+    {e T : VExpr} (hl : Params.env.projections family info) (hp : params.length = info.nparams)
+    (hi : info.nindices = 0) (hs' : Γ ⊢ e : mkApps (.const family levels) params)
+    (hexp : Γ ⊢ structExpand family info levels params e : mkApps (.const family levels) params)
+    (hlen : (structArgs family info params e).length = args.length)
+    (hargs : ∀ i (hi : i < (structArgs family info params e).length) (hi' : i < args.length),
+      EtaNE Γ (structArgs family info params e)[i] args[i])
+    (hX : Γ ⊢ mkApps (.const info.ctorName levels) args : T)
+    (hF : List.Forall₂ (IsDefEqU Params.env univs Γ) args args')
+    (ih : ∀ i (hi : i < (structArgs family info params e).length) (hi' : i < args'.length),
+      EtaNE Γ (structArgs family info params e)[i] args'[i]) :
+    EtaNE Γ e (mkApps (.const info.ctorName levels) args') := by
+  have hlen₂ := Lean4Lean.List.Forall₂.length_eq hF
+  have hlenS : (structArgs family info params e).length = params.length + info.numFields := by
+    simp [structArgs]
+  have hargsT : ∀ i (hi : i < (structArgs family info params e).length),
+      ∃ A, Γ ⊢ (structArgs family info params e)[i] : A := fun i hi => by
+    rw [structExpand_eq] at hexp
+    exact schema_mkApps_arg_type hΓ hexp (List.getElem_mem hi)
+  let params' := args'.take info.nparams
+  have hp' : params'.length = info.nparams := by
+    simp only [params', List.length_take]; omega
+  have hparams : List.Forall₂ (Params.env.IsDefEqU univs Γ) params params' := by
+    refine List.forall₂_of_getElem (by omega) fun i hi hi' => ?_
+    have hi₁ : i < (structArgs family info params e).length := by omega
+    have hi₂ : i < args.length := by omega
+    obtain ⟨_, hT⟩ := hargsT i hi₁
+    have e1 := (hargs i hi₁ hi₂).defeq hΓ hT
+    have hget : (structArgs family info params e)[i] = params[i] := by
+      simp [structArgs, List.getElem_append_left hi]
+    rw [hget] at e1
+    have e2 : Γ ⊢ args[i] ≡ args'[i]'(by omega) := case_forall₂_get hF hi₂ (by omega)
+    have hget' : params'[i]'(by omega) = args'[i]'(by omega) := by simp [params']
+    rw [hget']
+    exact e1.trans henv hΓ e2
+  obtain ⟨_, hTy⟩ := hs'.isType henv hΓ
+  obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, hTy⟩
+  have hTyEq : Γ ⊢ mkApps (.const family levels) params ≡ mkApps (.const family levels) params' :=
+    IsDefEqU.mkApps_args hΓ ⟨_, hhead⟩ hparams hTy
+  have hs'' : Γ ⊢ e : mkApps (.const family levels) params' := hs'.defeqU_r henv hΓ hTyEq
+  have hexp' : Γ ⊢ structExpand family info levels params' e :
+      mkApps (.const family levels) params' := by
+    refine (hexp.defeqU_r henv hΓ hTyEq).defeqU_l henv hΓ ?_
+    simp only [structExpand_eq] at hexp ⊢
+    obtain ⟨_, hhead'⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, hexp⟩
+    refine IsDefEqU.mkApps_args hΓ ⟨_, hhead'⟩
+      (List.Forall₂.append' hparams (List.forall₂_of_getElem rfl fun j hj hj' => ?_)) hexp
+    have hjmem : j ∈ List.range info.numFields := by simpa using hj
+    obtain ⟨_, hpj⟩ := schema_mkApps_arg_type hΓ hexp
+      (List.mem_append_right _ (List.mem_map.mpr ⟨j, hjmem, rfl⟩))
+    simp only [List.getElem_map, List.getElem_range]
+    exact ⟨_, hpj⟩
+  refine .structEta hl hp' hi hs'' hexp' ?_ fun i hi hi' => ?_
+  · simp [structArgs, hp']; omega
+  · by_cases hlt : i < info.nparams
+    · have hget : (structArgs family info params' e)[i] = args'[i] := by
+        simp [structArgs, List.getElem_append_left (show i < params'.length by omega), params']
+      rw [hget]
+      exact EtaNE.rfl
+    · have hi₁ : i < (structArgs family info params e).length := by omega
+      have hget : (structArgs family info params' e)[i] = (structArgs family info params e)[i] := by
+        simp only [structArgs]
+        rw [List.getElem_append_right (by simp [params']; omega),
+          List.getElem_append_right (by omega)]
+        simp [hp', hp]
+      rw [hget]
+      exact ih i hi₁ hi'
+
+/-- Closure of the eta-normal relation under a parallel unfolding step on the right. -/
+theorem EtaNE.deltaPar_r {Γ : List VExpr} (hΓ : OnCtx Γ (Params.env.IsType univs)) :
+    ∀ {s X T Y : VExpr}, EtaNE Γ s X → Γ ⊢ s : T → DeltaPar Γ X Y → EtaNE Γ s Y := by
+  intro s X T Y H
+  induction H generalizing T Y with
+  | bvar | sort | const | elim => intro hs HX; exact .redL (.inl (.inr HX)) EtaNE.rfl
+  | @app Γ s₁ X₁ s₂ X₂ H₁ H₂ ih₁ ih₂ =>
+    intro hs HX
+    obtain ⟨A, B, hs₁, hs₂⟩ := hs.app_inv henv hΓ
+    generalize hE : VExpr.app X₁ X₂ = E at HX
+    cases HX with
+    | app h₁ h₂ => cases hE; exact .app (ih₁ hΓ hs₁ h₁) (ih₂ hΓ hs₂ h₂)
+    | @delta _ name ls rhs args args' hlen hd hr =>
+      rcases mkApps_const_eq_cases hE.symm with ⟨_, he⟩ | ⟨args₀, x, rfl, he⟩
+      · cases he
+      · cases he
+        obtain ⟨args₀', x', rfl, hF₀, hx⟩ :=
+          forall₂_snoc_inv (List.forall₂_of_getElem hlen hd)
+        have E : EtaNE Γ (.app s₁ s₂) (mkApps (.const name ls) (args₀' ++ [x'])) := by
+          rw [VExpr.mkApps_snoc]
+          exact .app (ih₁ hΓ hs₁ (DeltaPar.congrRel.mkApps .rfl hF₀)) (ih₂ hΓ hs₂ hx)
+        exact EtaNE.unfold_r hΓ (U := PrefixUnfold Params.env univs Params.recursorData Γ name ls)
+          PrefixUnfold.unique (fun h ha => PrefixUnfold.congr_defeq hΓ h ha)
+          (fun h ha => PrefixUnfold.congr_rel EtaNE.argRel hΓ h ha)
+          (fun h => .delta rfl (fun _ _ _ => .rfl) h) (fun h => h.not_rigid) E hs hr
+    | @quotDelta _ ls rhs args args' hlen hd hr =>
+      rcases mkApps_const_eq_cases hE.symm with ⟨_, he⟩ | ⟨args₀, x, rfl, he⟩
+      · cases he
+      · cases he
+        obtain ⟨args₀', x', rfl, hF₀, hx⟩ :=
+          forall₂_snoc_inv (List.forall₂_of_getElem hlen hd)
+        have E : EtaNE Γ (.app s₁ s₂) (mkApps (.const ``Quot.lift ls) (args₀' ++ [x'])) := by
+          rw [VExpr.mkApps_snoc]
+          exact .app (ih₁ hΓ hs₁ (DeltaPar.congrRel.mkApps .rfl hF₀)) (ih₂ hΓ hs₂ hx)
+        exact EtaNE.unfold_r hΓ (U := QuotPrefixUnfold Params.env univs Γ ls)
+          QuotPrefixUnfold.unique (fun h ha => QuotPrefixUnfold.congr_defeq hΓ h ha)
+          (fun h ha => QuotPrefixUnfold.congr_rel EtaNE.argRel hΓ h ha)
+          (fun h => .quotDelta rfl (fun _ _ _ => .rfl) h) (fun h => h.not_rigid) E hs hr
+    | _ => cases hE
+  | @proj Γ m m' S i H ih =>
+    intro hs HX
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := hs.proj_inv henv hΓ
+    have hX := (EtaNE.proj H).hasType hΓ hs
+    generalize hE : VExpr.proj S i m' = E at HX
+    cases HX with
+    | proj h => cases hE; exact .proj (ih hΓ hm.hasType.2 h)
+    | @projIota _ family info index ls fieldType field args args' hlen hd hl hsI hfi ht =>
+      injection hE with hf hidx hM
+      subst hf hidx hM
+      have hF : List.Forall₂ (DeltaPar Γ) args args' := List.forall₂_of_getElem hlen hd
+      have hstep : DeltaPar Γ (mkApps (.const info.ctorName ls) args)
+          (mkApps (.const info.ctorName ls) args') := DeltaPar.congrRel.mkApps .rfl hF
+      have E := ih hΓ hm.hasType.2 hstep
+      have hX' : Γ ⊢ .proj S i (mkApps (.const info.ctorName ls) args') : T :=
+        (DeltaPar.full (.proj hstep)).hasType hΓ hX
+      have hTfield : Γ ⊢ Y : T :=
+        ht.defeqU_r henv hΓ (hsI.uniqU henv hΓ hX')
+      obtain ⟨m_s, hch, hc⟩ := EtaNE.const_spine_inv hΓ E hm.hasType.2 rfl
+      have hchP : ReflTransGen (LStep Γ) (.proj S i m) (.proj S i m_s) := LStep.chain_proj hch
+      have hsP := LStep.hasType_chain hΓ hchP hs
+      rcases hc with ⟨args_s, rfl, hFs⟩ |
+        ⟨family', info', params, hl', hcc, hp', hi', hs_m, hexp, hlenS, hargsS⟩
+      · obtain ⟨field_s, hfs, hrel⟩ := forall₂_getElem?_right hFs hfi
+        obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm_s, _, _⟩ := hsP.proj_inv henv hΓ
+        obtain ⟨_, hts⟩ := schema_mkApps_arg_type hΓ hm_s.hasType.2 (List.mem_of_getElem? hfs)
+        have hTfield_s : Γ ⊢ field_s : T :=
+          hTfield.defeqU_l henv hΓ (hrel.defeq hΓ hts).symm
+        have hδ : DeltaPar Γ (.proj S i (mkApps (.const info.ctorName ls) args_s)) field_s :=
+          .projIota rfl (fun _ _ _ => .rfl) hl hsP hfs hTfield_s
+        exact EtaNE.redL_chain hchP (.redL (.inl (.inr hδ)) hrel)
+      · obtain ⟨rfl, hl''⟩ := struct_family_eq hΓ hl' hs_m hsP
+        cases henv.ordered.projections_unique hl hl''
+        obtain ⟨hlt, hget⟩ := List.getElem?_eq_some_iff.1 hfi
+        have hlt' : info.nparams + i < (structArgs family' info params m_s).length := by omega
+        have hgetS : (structArgs family' info params m_s)[info.nparams + i] = .proj family' i m_s := by
+          simp only [structArgs]
+          rw [List.getElem_append_right (by omega)]
+          simp [hp']
+        have := hargsS (info.nparams + i) hlt' hlt
+        rw [hgetS, hget] at this
+        exact EtaNE.redL_chain hchP this
+    | delta => exact absurd hE.symm mkApps_const_ne_proj
+    | quotDelta => exact absurd hE.symm mkApps_const_ne_proj
+    | _ => cases hE
+  | @lamC Γ A A' b b' HA Hb ihA ihb =>
+    intro hs HX
+    obtain ⟨⟨u, hd⟩, _, hb⟩ := hs.lam_inv henv hΓ
+    have hΓ' : OnCtx (A :: Γ) (Params.env.IsType univs) := ⟨hΓ, _, hd⟩
+    have hAA' : Γ ⊢ A ≡ A' : .sort u := (HA.defeq hΓ hd).of_l henv hΓ hd
+    have hX := (EtaNE.lamC HA Hb).hasType hΓ hs
+    obtain ⟨-, _, hb'⟩ := hX.lam_inv henv hΓ
+    obtain ⟨A₂, b₂, h₁, h₂, rfl⟩ := DeltaPar.lam_inv HX
+    exact .lamC (ihA hΓ hd h₁) (ihb hΓ' hb (h₂.defeqDFC hΓ (.succ .zero hAA'.symm) hb'))
+  | @lamD Γ A A' b b' u hA Hb ih =>
+    intro hs HX
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.lam_inv henv hΓ
+    have hΓ' : OnCtx (A :: Γ) (Params.env.IsType univs) := ⟨hΓ, _, hd⟩
+    have hX := (EtaNE.lamD hA Hb).hasType hΓ hs
+    obtain ⟨-, _, hb'⟩ := hX.lam_inv henv hΓ
+    obtain ⟨A₂, b₂, h₁, h₂, rfl⟩ := DeltaPar.lam_inv HX
+    exact .lamD (hA.trans ((DeltaPar.full h₁).defeq hΓ hA.hasType.2))
+      (ih hΓ' hb (h₂.defeqDFC hΓ (.succ .zero hA.symm) hb'))
+  | @forallEC Γ A A' B B' HA HB ihA ihB =>
+    intro hs HX
+    obtain ⟨⟨u, hd⟩, _, hb⟩ := hs.forallE_inv henv.ordered
+    have hΓ' : OnCtx (A :: Γ) (Params.env.IsType univs) := ⟨hΓ, _, hd⟩
+    have hAA' : Γ ⊢ A ≡ A' : .sort u := (HA.defeq hΓ hd).of_l henv hΓ hd
+    have hX := (EtaNE.forallEC HA HB).hasType hΓ hs
+    obtain ⟨-, _, hb'⟩ := hX.forallE_inv henv.ordered
+    obtain ⟨A₂, B₂, h₁, h₂, rfl⟩ := DeltaPar.forallE_inv HX
+    exact .forallEC (ihA hΓ hd h₁) (ihB hΓ' hb (h₂.defeqDFC hΓ (.succ .zero hAA'.symm) hb'))
+  | @funEta Γ e A B A' body u hPi hA Hb ih =>
+    intro hs HX
+    have hΓ' : OnCtx (A' :: Γ) (Params.env.IsType univs) := ⟨hΓ, _, hA.hasType.2⟩
+    have hbody : A' :: Γ ⊢ .app e.lift (.bvar 0) : B := by
+      have h1 : A' :: Γ ⊢ e.lift : .forallE A.lift (B.liftN 1 1) := hPi.weak henv.ordered
+      have h0 : A' :: Γ ⊢ .bvar 0 : A.lift := (hA.weak henv.ordered (B := A')).defeq' (.bvar .zero)
+      simpa [VExpr.inst_liftN_bvar] using HasType.app h1 h0
+    obtain ⟨A₂, body₂, h₁, h₂, rfl⟩ := DeltaPar.lam_inv HX
+    have hA'' : Γ ⊢ A' ≡ A₂ : .sort u := (DeltaPar.full h₁).defeq hΓ hA.hasType.2
+    exact .funEta hPi (hA.trans hA'') ((ih hΓ' hbody h₂).defeqDFC hΓ (.succ .zero hA'') hbody)
+  | @structEta Γ family info levels params args e hl hp hi hs' hexp hlen hargs ih =>
+    intro hs HX
+    obtain ⟨args', rfl, hF⟩ := DeltaPar.rigid_spine (projection_ctor_rigid hl) HX
+    have hX := (EtaNE.structEta hl hp hi hs' hexp hlen hargs).hasType hΓ hs
+    have hargsX : ∀ x ∈ args, ∃ A, Γ ⊢ x : A := fun x hx => schema_mkApps_arg_type hΓ hX hx
+    have hFd : List.Forall₂ (IsDefEqU Params.env univs Γ) args args' :=
+      List.forall₂_of_getElem (Lean4Lean.List.Forall₂.length_eq hF) fun i hi hi' =>
+        ⟨_, (DeltaPar.full (case_forall₂_get hF hi hi')).defeq hΓ
+          (hargsX _ (List.getElem_mem hi)).choose_spec⟩
+    refine EtaNE.structEta_args hΓ hl hp hi hs' hexp hlen hargs hX hFd fun i hi₁ hi' => ?_
+    have hi₂ : i < args.length := by omega
+    have hT : ∃ A, Γ ⊢ (structArgs family info params e)[i] : A := by
+      rw [structExpand_eq] at hexp
+      exact schema_mkApps_arg_type hΓ hexp (List.getElem_mem hi₁)
+    exact ih i hi₁ hi₂ hΓ hT.choose_spec (case_forall₂_get hF hi₂ hi')
+  | @betaR Γ A b a s' T' args hT Hc ih =>
+    intro hs HX
+    have hY := (DeltaPar.full HX).hasType hΓ hT
+    obtain ⟨A', b', a', args', hA, hb', ha', hF, rfl⟩ := DeltaPar.spine_lamHead HX
+    obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, hT⟩
+    have hhead' : Γ ⊢ .app (.lam A b) a : _ := hhead
+    obtain ⟨A₁, B₁, hlam, ha₁⟩ := hhead'.app_inv henv hΓ
+    obtain ⟨B, hPi, hb⟩ := hlam.lam_inv_forallE henv hΓ
+    obtain ⟨⟨_, hAA₁⟩, -⟩ := IsDefEqU.forallE_inv henv hΓ hPi
+    have ha : Γ ⊢ a : A := hAA₁.defeq' ha₁
+    have hΓ' : OnCtx (A :: Γ) (Params.env.IsType univs) := ⟨hΓ, _, hAA₁.hasType.1⟩
+    have hstep : DeltaPar Γ (mkApps (b.inst a) args) (mkApps (b'.inst a') args') :=
+      DeltaPar.congrRel.mkApps (DeltaPar.instN .zero hΓ' ha' ha hb' hb) hF
+    exact .betaR hY (ih hΓ hs hstep)
+  | redL h _ ih => intro hs HX; exact .redL h (ih hΓ (h.hasType hΓ hs) HX)
+
+/-- The closure of the eta-normal relation under eta-free parallel steps on the right. -/
+theorem upStepFClosure : UpStepFClosure := by
+  intro Γ s X Y T hΓ hs H HX
+  rcases HX with h | h
+  · exact EtaNE.parRed_r hΓ H hs h
+  · exact EtaNE.deltaPar_r hΓ H hs h
+
 end
+
+/-- `Cancel ↔ TypedFront`, with the replay obligation discharged: the remaining hypotheses are
+the three guard descents (`CaseRedexDescends`, `UnfoldingCheckDescends`, `MajorEtaDescends`) and
+the projection and eliminator closures (`ProjFrontN`, `ElimFrontN`). -/
+theorem cancel_iff_typedFront_B3 {env : VEnv} (henv : env.WF) (heq : env.HasCanonicalEq)
+    (hcase : ∀ U, @CaseRedexDescends (henv.params U))
+    (hunfold : ∀ U, @UnfoldingCheckDescends (henv.params U))
+    (hmajor : ∀ U, @MajorEtaDescends (henv.params U))
+    (hProj : ProjFrontN env) (hElim : ElimFrontN env) :
+    Cancel env ↔ StrengtheningKripke.TypedFront env :=
+  cancel_iff_typedFront_of_closure henv heq hcase hunfold hmajor
+    (fun U => @upStepFClosure (henv.params U)) hProj hElim
 
 end Lean4Lean.VEnv.StrengtheningEtaClosure
