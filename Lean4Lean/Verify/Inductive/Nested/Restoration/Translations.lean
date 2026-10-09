@@ -660,7 +660,7 @@ private theorem zipWith_left_projection
     (hlength : bs.length = as.length) :
     List.zipWith (fun a _ => g a) as bs = as.map g := by
   induction as generalizing bs with
-  | nil => simpa using hlength
+  | nil => simp
   | cons a as ih =>
     cases bs with
     | nil => simp at hlength
@@ -681,7 +681,7 @@ theorem inductiveTypeInfos_uniformAll
         (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
           isUnsafe lparams).toList.map (fun member => member.name) := by
   intro info hinfo
-  simp [AddInductive.inductiveTypeInfos, hsize] at hinfo ⊢
+  simp [AddInductive.inductiveTypeInfos] at hinfo ⊢
   have hall := List.property_of_mem_zipWith
     (fun (indType : InductiveType) (numIndices : Nat) =>
       show InductiveVal from {
@@ -715,7 +715,7 @@ theorem inductiveTypeInfos_uniformNumParams
       numNested isUnsafe lparams).toList,
       info.numParams = numParams := by
   intro info hinfo
-  simp [AddInductive.inductiveTypeInfos, hsize] at hinfo ⊢
+  simp [AddInductive.inductiveTypeInfos] at hinfo ⊢
   exact List.property_of_mem_zipWith
     (fun (indType : InductiveType) (numIndices : Nat) =>
       show InductiveVal from {
@@ -752,12 +752,10 @@ theorem inductiveTypeInfos_source_mem
   let info := (AddInductive.inductiveTypeInfos stats numParams indTypes
     numNested isUnsafe lparams)[i]'(by simpa [hinfosSize] using hi)
   refine ⟨info, ?_, ?_, ?_, ?_⟩
-  · simpa [info] using Array.getElem_mem (xs :=
-      AddInductive.inductiveTypeInfos stats numParams indTypes numNested
-        isUnsafe lparams) (by simpa [hinfosSize] using hi)
-  · simp [info, AddInductive.inductiveTypeInfos, hsize]
-  · simp [info, AddInductive.inductiveTypeInfos, hsize]
-  · simp [info, AddInductive.inductiveTypeInfos, hsize]
+  · simp [info]
+  · simp [info, AddInductive.inductiveTypeInfos]
+  · simp [info, AddInductive.inductiveTypeInfos]
+  · simp [info, AddInductive.inductiveTypeInfos]
 
 end VerifyInductive
 end Lean4Lean

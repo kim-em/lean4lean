@@ -293,9 +293,7 @@ def HeaderDeclarationOf.toHeaderEnvironment
     headerParams := by
       calc
         materialized.headers.params = materializedMono.headers.params := by
-          simpa [materialized] using
-            checkInductiveTypes.loopInd.HeaderStatsWF.retargetScope_headers_params
-              materializedMono hscope
+          simp [materialized]
         _ = sourceMaterialized.headers.params :=
           checkInductiveTypes.loopInd.HeaderStatsWF.mono_headers_params
             sourceMaterialized hle
@@ -304,13 +302,9 @@ def HeaderDeclarationOf.toHeaderEnvironment
     parameterScopeEq := by
       calc
         materialized.parameterScope = materializedMono.parameterScope := by
-          simpa [materialized] using
-            checkInductiveTypes.loopInd.HeaderStatsWF.retargetScope_parameterScope
-              materializedMono hscope
+          simp [materialized]
         _ = sourceMaterialized.parameterScope := by
-          simpa [materializedMono] using
-            checkInductiveTypes.loopInd.HeaderStatsWF.mono_parameterScope
-              sourceMaterialized hle }
+          simp [materializedMono] }
 
 /-- Execute the header installation and constructor-type fold of the
 executable, then return the `HeaderEnvironment` of the declaration those

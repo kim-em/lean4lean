@@ -125,8 +125,8 @@ theorem Environment.restoreNestedAfterInstall.WF
             ∃ entries, FreshNonprimitiveExtension allowPrimitive env
               entries restoredEnv := by
     exact Hdeclarations.map fun restored Hrestored => by
-      rcases restored with ⟨unit, restoredEnv⟩
-      rcases unit with ⟨⟩
+      rcases restored with ⟨done, restoredEnv⟩
+      rcases done with ⟨⟩
       exact Hrestored
   have HvalidationEnvironment :=
     restoreNestedConstructors_validationWF res loweredEnv env allIndNames
@@ -139,8 +139,8 @@ theorem Environment.restoreNestedAfterInstall.WF
           Nonempty (ValidationEnvironment res loweredEnv
             env allIndNames allowPrimitive types validationEnv) := by
     exact HvalidationEnvironment.map fun restored Hrestored => by
-      rcases restored with ⟨unit, validationEnv⟩
-      rcases unit with ⟨⟩
+      rcases restored with ⟨done, validationEnv⟩
+      rcases done with ⟨⟩
       exact Hrestored.2
   have HauxiliaryHeaderEnvironment :=
     restoreNestedHeaders_validationWF loweredEnv env allIndNames
@@ -186,8 +186,8 @@ theorem Environment.restoreNestedAfterInstall.WF
               lparams safety fuel types res).WF fun _ =>
                 Lean4Lean.validateSourceConstructorTypes.run
                   auxiliaryHeaderEnv lparams safety fuel types res = .ok () := by
-            intro unit hrun
-            rcases unit with ⟨⟩
+            intro done hrun
+            rcases done with ⟨⟩
             exact hrun
           exact Hparameter.bind fun _ Hparameter => by
             have HrecursorTypes :
@@ -197,8 +197,8 @@ theorem Environment.restoreNestedAfterInstall.WF
                   Lean4Lean.validateRestoredRecursorTypes.run validationEnv
                     loweredEnv lparams safety fuel res recNameMap allIndNames
                       types recNames = .ok () := by
-              intro unit hrun
-              rcases unit with ⟨⟩
+              intro done hrun
+              rcases done with ⟨⟩
               exact hrun
             exact HrecursorTypes.bind fun _ HrecursorTypes => by
               have HrecursorRules :
@@ -212,8 +212,8 @@ theorem Environment.restoreNestedAfterInstall.WF
                         (Lean4Lean.restoredRecursorNames recNameMap types recNames))
                       loweredEnv lparams safety fuel res recNameMap allIndNames
                         types recNames = .ok () := by
-                intro unit hrun
-                rcases unit with ⟨⟩
+                intro done hrun
+                rcases done with ⟨⟩
                 exact hrun
               exact HrecursorRules.bind fun _ HrecursorRules => by
                 have Hvalidated := Hvalidate restoredEnv validationEnv
@@ -232,8 +232,8 @@ theorem Environment.restoreNestedAfterInstall.WF
                       Validated restoredEnv ∧
                       Lean4Lean.validateNestedAuxiliaries auxiliaryHeaderEnv
                         lparams safety fuel res = .ok () := by
-                  intro unit hrun
-                  exact ⟨Hvalidated unit hrun, by simpa using hrun⟩
+                  intro done hrun
+                  exact ⟨Hvalidated done hrun, by simpa using hrun⟩
                 exact HvalidatedRun.bind fun _ Hresult =>
                   Except.WF.pure (show
                     ValidatedRestoration res env loweredEnv recNameMap

@@ -315,18 +315,14 @@ def HeaderDeclarationOf.toPrimitiveHeaderEnvironment
     headerParams := by
       calc
         materialized.headers.params = materializedMono.headers.params := by
-          simpa [materialized] using
-            checkInductiveTypes.loopInd.HeaderStatsWF.retargetScope_headers_params
-              materializedMono hscope
+          simp [materialized]
         _ = sourceMaterialized.headers.params :=
           checkInductiveTypes.loopInd.HeaderStatsWF.mono_headers_params
             sourceMaterialized hle
         _ = H.headers.params := congrArg (fun headers => headers.params)
           hsourceHeaders
     parameterScopeEq := by
-      simpa [materialized, materializedMono] using
-        checkInductiveTypes.loopInd.HeaderStatsWF.retargetScope_parameterScope
-          materializedMono hscope }
+      simp [materialized, materializedMono] }
 
 /-- Primitive header installation with the declaration synthesized from the
 successful semantic header fold and the finite canonical constructor rows.
@@ -364,8 +360,8 @@ theorem AddInductive.declareInductiveTypes.primitiveHeadersWF
     (hpresent : ListedConstructorsPresent c.env) :
     (AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe c).WF fun outEnv =>
-        ∃ decl, ∃ envTypes : VEnv,
-          ∃ Hheaders : PrimitiveHeaderEnvironment c stats decl nparams
+        ∃ decl, ∃ _envTypes : VEnv,
+          ∃ _Hheaders : PrimitiveHeaderEnvironment c stats decl nparams
             isUnsafe depth Hc.venv indTypes outEnv, True := by
   have Hinstall :=
     AddInductive.declareInductiveTypes.installsHeadersAtomicWF

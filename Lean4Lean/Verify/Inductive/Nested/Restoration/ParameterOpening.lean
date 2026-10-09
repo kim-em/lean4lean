@@ -1190,7 +1190,7 @@ theorem ParamOpening.params_fvars_extension
     rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
     rcases ih with ⟨fvars, heq, hlength⟩
     refine ⟨id :: fvars, ?_, by simp [hlength]⟩
-    simpa [heq, List.append_assoc]
+    simp [heq, List.append_assoc]
 
 /-- Jointly opening a generated forall telescope substitutes precisely the
 fresh restoration variables into its residual body. -/
@@ -1214,7 +1214,7 @@ theorem ParamOpening.forallResidualData
         (by simpa [Expr.instantiate1_eq] using Hbody') with
         ⟨fvars, heq, hlength, htail⟩
       refine ⟨id :: fvars, ?_, by simp [hlength], ?_⟩
-      · simpa [heq, List.append_assoc]
+      · simp [heq, List.append_assoc]
       · rw [htail]
         have hcomm := Expr.instantiateRevList_instantiate1'_fvars
           residual id fvars 0 0
@@ -1246,7 +1246,7 @@ theorem ParamOpening.lambdaResidualData
         (by simpa [Expr.instantiate1_eq] using Hbody') with
         ⟨fvars, heq, hlength, htail⟩
       refine ⟨id :: fvars, ?_, by simp [hlength], ?_⟩
-      · simpa [heq, List.append_assoc]
+      · simp [heq, List.append_assoc]
       · rw [htail]
         have hcomm := Expr.instantiateRevList_instantiate1'_fvars
           residual id fvars 0 0
@@ -1331,8 +1331,8 @@ theorem openRestoreParams_refinesSelected
     | @forallE body _ name dom bi Hbody =>
       intro out outNgen hout
       simp only [Lean4Lean.ElimNestedInductive.Result.openRestoreParams,
-        mkFreshId, getNGen, setNGen, StateT.get, StateT.set,
-        StateT.modifyGet, bind, StateT.bind, pure, StateT.pure] at hout
+        mkFreshId, getNGen, setNGen,
+        bind, StateT.bind, pure, StateT.pure] at hout
       have Hnext := ih (Hbody.instantiate1 (.fvar ⟨ngen.curr⟩))
         (Hctx := Hctx.withLocalDecl name dom bi)
         (Hparams := Hparams.push Hctx name dom bi) out outNgen hout
@@ -1340,8 +1340,8 @@ theorem openRestoreParams_refinesSelected
     | @lam body _ name dom bi Hbody =>
       intro out outNgen hout
       simp only [Lean4Lean.ElimNestedInductive.Result.openRestoreParams,
-        mkFreshId, getNGen, setNGen, StateT.get, StateT.set,
-        StateT.modifyGet, bind, StateT.bind, pure, StateT.pure] at hout
+        mkFreshId, getNGen, setNGen,
+        bind, StateT.bind, pure, StateT.pure] at hout
       have Hnext := ih (Hbody.instantiate1 (.fvar ⟨ngen.curr⟩))
         (Hctx := Hctx.withLocalDecl name dom bi)
         (Hparams := Hparams.push Hctx name dom bi) out outNgen hout
@@ -1767,7 +1767,7 @@ theorem restoreNested_refines
     (NestedBindingContextWF.empty
       ({ namePrefix := `_nested_fresh } : NameGenerator))
     NestedBoundParams.empty (lctx, As, body) outNGen hopen
-  simp [hopen]
+  simp
   exact ⟨lctx, As, body,
     body.replace (result.restoreNestedNode env As auxRec),
     Hopening, restoreNested_body result env As auxRec body,

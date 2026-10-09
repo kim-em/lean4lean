@@ -676,7 +676,7 @@ theorem NestedNewTypesLE.getElem
     omega
   refine ⟨htarget, ?_⟩
   have hlist : target.newTypes.toList[i] = source.newTypes.toList[i] := by
-    simpa [hsuffix, List.getElem_append, hi]
+    simp [hsuffix, hi]
   simpa using hlist
 
 theorem AuxiliaryGenerationStep.newTypesLE
@@ -914,7 +914,7 @@ theorem OccurrenceReplacement.resolvedMapping
       with ⟨stepState, sourceInfo, auxName, data, Hbuilt, hlevels, hresult,
         hlookup⟩
     refine ⟨auxName, state.lvls, data.nested, _, rfl, hresult, ?_, ?_, hlookup⟩
-    · simpa [hlevels]
+    · simp [hlevels]
     rw [Hbuilt.nested]
     simp
 

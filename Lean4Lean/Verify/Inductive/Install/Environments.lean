@@ -380,12 +380,12 @@ theorem ConstructorEnvironment.installedConstructorCoherenceAt
   let familyInfo := infos[familyIdx]
   have hfamilyInfoMem : familyInfo ∈ infos.toList := by
     apply Array.mem_toList_iff.mpr
-    simpa [familyInfo] using Array.getElem_mem hinfoIdx
+    simp [familyInfo]
   have hfamilyName : familyInfo.name = indTypes[familyIdx].name := by
-    simp [familyInfo, infos, AddInductive.inductiveTypeInfos, hindicesSize]
+    simp [familyInfo, infos, AddInductive.inductiveTypeInfos]
   have hfamilyCtors : familyInfo.ctors =
       indTypes[familyIdx].ctors.map (fun ctor => ctor.name) := by
-    simp [familyInfo, infos, AddInductive.inductiveTypeInfos, hindicesSize]
+    simp [familyInfo, infos, AddInductive.inductiveTypeInfos]
   have hi : ctorIdx < familyInfo.ctors.length := by
     simpa [hfamilyCtors] using hctor
   rcases Haligned.findInfo hfamilyInfoMem with ⟨familyValue, hfamilyEntry⟩
@@ -454,13 +454,13 @@ theorem ConstructorEnvironment.installedConstructorCoherenceAt
     cidx := by simp [ctorInfo, AddInductive.constructorInfo]
     numParams := by
       simp [ctorInfo, familyInfo, infos, AddInductive.inductiveTypeInfos,
-        AddInductive.constructorInfo, hindicesSize, hparamsSize, core.nparams]
+        AddInductive.constructorInfo, hparamsSize, core.nparams]
     levelParams := by
       simp [ctorInfo, familyInfo, infos, AddInductive.inductiveTypeInfos,
-        AddInductive.constructorInfo, hindicesSize]
+        AddInductive.constructorInfo]
     isUnsafe := by
       simp [ctorInfo, familyInfo, infos, AddInductive.inductiveTypeInfos,
-        AddInductive.constructorInfo, hindicesSize] }
+        AddInductive.constructorInfo] }
   refine ⟨familyInfo, hi, hfamilyName, hfamilyCtors, hfamilyLookup, ?_⟩
   apply ConstructorParameterAlignmentAt.ofShapes C hfinalWF
     decl.types[familyIdx] decl.types[familyIdx].ctors[ctorIdx]
@@ -468,9 +468,9 @@ theorem ConstructorEnvironment.installedConstructorCoherenceAt
   · exact Htype.header.uvars.trans core.uvars.symm
   · exact Hctor.uvars.trans core.uvars.symm
   · simp [familyInfo, infos, AddInductive.inductiveTypeInfos,
-      hindicesSize, core.uvars]
+      core.uvars]
   · simp [familyInfo, infos, AddInductive.inductiveTypeInfos,
-      hindicesSize, core.nparams]
+      core.nparams]
   · exact H.headers.typeShapes _ (List.getElem_mem htargetFamily)
   · exact Hchecked.checked.formation.ctorShape
       (List.getElem_mem htargetFamily) (List.getElem_mem htargetCtor)

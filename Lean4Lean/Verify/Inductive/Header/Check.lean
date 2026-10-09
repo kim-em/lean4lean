@@ -375,7 +375,7 @@ theorem laterStep.extendsAccumulator
     have hsourceNoFVars : FVarsIn (fun _ => False)
         indTypes[dIdx].type :=
       Hchecked.source.type.fvarsIn.mono fun fv hfv => by
-        simpa [VLCtx.fvars] using hfv
+        simp [VLCtx.fvars] at hfv
     have hfalseUpSet : IsFVarUpSet (fun _ => False)
         Hc.mlctx.vlctx := by
       have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
