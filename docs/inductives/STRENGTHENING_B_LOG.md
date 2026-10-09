@@ -111,3 +111,64 @@ Build clean; axiom audit of all 57 declarations: no `sorryAx`.
   plausibly provable from `RegistrationCertificate` and is recorded as a side obligation.
 
 Build clean; axiom audit of all 63 declarations: no `sorryAx`.
+
+### 2.4 Statement (ii) pinned (part 4)
+
+`TypeFront` (front form of `TypeFrontN`) ↔ Kripke's `TypedFront` under canonical `Eq`
+(`typeFront_iff_typedFront`): types-to-terms by encoding `a ≡ b : T` as the pair of types
+`Eq T a a`, `Eq T a b` (both typable below, lifts convertible above through `IsDefEq.eqApp_r`,
+read back by `eqApp_injective`); terms-to-types by aligning the two sorts with `sort_inv`. So the
+domain-agreement obligation (ii) is exactly `TypedFront`, i.e. `KeyFaithful`
+(`keyFaithful_iff_typedFront`), the statement the observation models could not deliver.
+
+### 2.5 Attacks on (i) and (ii), and where each fails
+
+(i) `PiExposureRedN`: `f : F` and `F : sort u` below, `F↑ →* Π A B` above; wanted `F →* Π _ _`
+below.
+
+* Induction on the path with the invariant "the current term is a lift": the base case closes
+  (`piExposure_of_descending`), the step fails at the first non-descending step. Checked
+  instance: `headSource_path_not_descending` (Astra's `headSource`, a type typable below, whose
+  lift reaches `headTypeBad Q` by one eta step inside an argument and one beta step; the eta
+  annotation `badDomain Q = (λ z : Q↑. Prop) q` mentions the inserted variable). This holds for
+  every `Q`, so uninhabitedness does not repair the invariant.
+* Weakened invariant "the current term is convertible above to the lift of a type typable
+  below": the step case would need, for a step `X → X'` with `X ≡ G↑`, a `G'` with `G →* G'`
+  below and `X' ≡ G'↑`; the guards of that step are conversions and typings of subterms of `X`,
+  which are arbitrary terms (not lifts, not subterms of `F`), so nothing is known about them
+  below. And even granting such a one-step repair, the continuation `X' →* Π` cannot be replayed
+  from `G'↑`: `exposure_reduces` produces a new path from `G'↑` whose length is unrelated to the
+  remaining length, so no induction measure decreases. (A strip lemma with length control is
+  not available for `FullStep`: `join_trans` and `WF.church_rosser` give joins without bounds,
+  and eta/delta steps have no one-step diamond.) Conclusion: there is no single-step lemma whose
+  composition gives (i); the obligation is global, the same shape as `JoinRepair`
+  (`reflection_iff_supportedRepair`).
+* Which guards: `ParRed.extra` compares matched subterms by `IsDefEqU Γ'` (`r.2.OK`), i.e.
+  `Front` instances for lifted subterms of the current term; `ParRed.schema` has
+  `CaseRedex.guard : IsDefEqU Γ' actual.expr (rule.lhs ..)`; `FullStep.delta` carries
+  `UnfoldingCheck` (`source_typed`, `captures_typed` in the context extended by the opened
+  binders, `major_prop`, `recursor_lhs : ConstSpineDefEq`); `projIota`, `structEta`, `funEta`
+  carry typings at types above (`funEta` chooses the annotation from that type: the
+  `headTypeBad` mechanism). For the *first* step from `F↑` every guard is on lifts of subterms
+  of `F` (so a size induction on `F` could handle the first step); for later steps the guards
+  are on subterms of reducts, which need not be smaller than `F` (beta duplicates, delta unfolds
+  the stored value). So "every premise is on a lift of a subterm of the original term" is FALSE
+  beyond the first step; the size induction does not close.
+* Induction on the `IsDefEq` derivation of the typing judgment above, generalised to equations
+  whose endpoints are lifts: fails at `trans` (the middle term is arbitrary) and at `defeqDF`
+  (the type is arbitrary); the strong judgment `IsDefEqStrong` has the same `trans`. Not written
+  in Lean: the failing case is immediate from `IsDefEq.trans`.
+
+(ii) `TypeFrontN` ↔ `TypedFront` (section 2.4): `A↑ ≡ B↑` above for types `A B` of `Γ`. Via
+Church-Rosser this is a join of two lifts above, i.e. `JoinRepair` restricted to types; the same
+non-descending paths occur (`headSource` is a type). No new attack succeeded; the skeleton case
+closes (`typeFrontN_skeleton`) because skeletons are stationary up to congruence and their
+inversions (`sort_inv`, `forallE_inv`) are context-free.
+
+Net result of step 2: `Cancel ↔ UninhabitedTypingFront ↔ TypingFrontN ↔ (AppFrontN ∧ TypeFrontN
+∧ ProjFrontN ∧ ElimFrontN)`, with `AppFrontN ⇐ PiExposureN ∧ TypeFrontN`, `PiExposureN ⇐
+PiExposureRedN`, `TypeFront ↔ TypedFront`, and `ElimFrontN ⇐ GenericTypesTyped`. The problem is
+not solved; it is now stated as two obligations about *types of Γ* with lifts convertible above:
+existential `Π` exposure (open, no reduction to anything known) and the fixed-type front
+(`TypedFront`, known equivalent to `KeyFaithful`), plus the projection closure and an
+environment lemma on generic eliminator types.

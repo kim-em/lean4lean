@@ -806,4 +806,61 @@ theorem ElimFrontN.of_genericTyped (henv : env.WF) (H : GenericTypesTyped env) :
   exact ⟨_, .elimDF hl ht hc hp hp.packedWF (hrefl _) (hgen.weak0 henv.ordered)⟩
 
 
+/-! ## Part 4: statement (ii) is `TypedFront`
+
+`TypeFront` (the type front at the front of the context) is implied by `TypeFrontN` and by
+`Cancel`; under canonical `Eq` it is equivalent to Kripke's `TypedFront`
+(`typeFront_iff_typedFront`), hence to `KeyFaithful` (`keyFaithful_iff_typedFront`). So the
+domain-agreement obligation of the application case is exactly the fixed-type front for terms
+typable below, which the observation model of `Kripke.lean` could not deliver. -/
+
+/-! ## Statement (ii) is `TypedFront` -/
+
+/-- The type front at the front of the context. -/
+def TypeFront (env : VEnv) : Prop :=
+  ∀ ⦃U Γ Q A B u v⦄, OnCtx (Q :: Γ) (env.IsType U) →
+    env.HasType U Γ A (.sort u) → env.HasType U Γ B (.sort v) →
+    env.IsDefEqU U (Q :: Γ) A.lift B.lift → env.IsDefEqU U Γ A B
+
+theorem TypeFront.of_typeFrontN (H : TypeFrontN env) : TypeFront env :=
+  fun _ _ _ _ _ _ _ hΓ hA hB hAB => H Ctx.LiftN.one hΓ.1 hΓ hA hB hAB
+
+theorem typeFrontN_of_cancel (henv : env.WF) (hc : Cancel env) : TypeFrontN env :=
+  TypeFrontN.of_typingFrontN henv (typingFrontN_of_cancel henv hc)
+
+/-- Domain agreement (ii) gives Kripke's fixed-type front for terms: an equation between terms
+typable below at a common type is encoded as the `Eq` types `Eq T a a` and `Eq T a b`, which are
+types below with convertible lifts above; their agreement below gives `a ≡ b` by injectivity of
+the rigid head `Eq`. -/
+theorem typedFront_of_typeFront (henv : env.WF) (heq : env.HasCanonicalEq) (H : TypeFront env) :
+    StrengtheningKripke.TypedFront env := by
+  intro U Γ Q a b T hΓ hQ ha hb hab
+  obtain ⟨u, hT⟩ := ha.isType henv.ordered hΓ
+  have hu := hT.sort_r henv.ordered hΓ
+  have hΓ' : OnCtx (Q :: Γ) (env.IsType U) := ⟨hΓ, hQ⟩
+  have e1 := IsDefEq.eqApp_r heq hu (hT.weak henv.ordered (B := Q)) (ha.weak henv.ordered (B := Q)) hab
+  have e2 : env.IsDefEqU U (Q :: Γ) (eqApp u T a a).lift (eqApp u T a b).lift :=
+    ⟨_, by simpa only [eqApp, lift, liftN] using e1⟩
+  have h := H hΓ' (HasType.eqApp heq hu hT ha ha) (HasType.eqApp heq hu hT ha hb) e2
+  exact (eqApp_injective henv heq hΓ hT ha hu h).of_l henv hΓ ha
+
+theorem typeFront_of_typedFront (henv : env.WF) (H : StrengtheningKripke.TypedFront env) :
+    TypeFront env := by
+  intro U Γ Q A B u v hΓ hA hB hAB
+  have hA' := hA.weak henv.ordered (B := Q)
+  have hB' := hB.weak henv.ordered (B := Q)
+  have hd := hAB.of_l henv hΓ hA'
+  have huv := (hd.uniqU henv hΓ hB').sort_inv henv hΓ
+  have hBu : env.HasType U Γ B (.sort u) :=
+    (IsDefEq.sortDF (hB.sort_r henv.ordered hΓ.1) (hA.sort_r henv.ordered hΓ.1)
+      (Eq.symm huv)).defeq hB
+  exact ⟨_, H hΓ.1 hΓ.2 hA hBu hd⟩
+
+/-- Under canonical `Eq`, statement (ii) at the front is exactly `TypedFront`, hence
+`KeyFaithful` (`keyFaithful_iff_typedFront`). -/
+theorem typeFront_iff_typedFront (henv : env.WF) (heq : env.HasCanonicalEq) :
+    TypeFront env ↔ StrengtheningKripke.TypedFront env :=
+  ⟨typedFront_of_typeFront henv heq, typeFront_of_typedFront henv⟩
+
+
 end Lean4Lean.VEnv.StrengtheningTypingFront
