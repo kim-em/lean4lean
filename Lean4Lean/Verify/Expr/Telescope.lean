@@ -18,6 +18,50 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
+theorem Expr.lastRevIdx?_append (v : FVarId) : ∀ (ys zs : List FVarId),
+    Expr.lastRevIdx? v (ys ++ zs) =
+      match Expr.lastRevIdx? v zs with
+      | some r => some r
+      | none => (Expr.lastRevIdx? v ys).map (· + zs.length)
+  | [], zs => by cases h : Expr.lastRevIdx? v zs <;> simp [Expr.lastRevIdx?, h]
+  | y :: ys, zs => by
+    simp only [List.cons_append, Expr.lastRevIdx?, Expr.lastRevIdx?_append v ys zs]
+    cases hz : Expr.lastRevIdx? v zs with
+    | some r => simp
+    | none =>
+      cases hy : Expr.lastRevIdx? v ys with
+      | some r => simp
+      | none => by_cases hyv : (y == v) = true <;> simp [hyv, List.length_append]
+
+/-- Abstracting a concatenation is abstracting the suffix first, then the prefix below the
+suffix's binders. -/
+theorem Expr.abstractN_append (ys zs : List FVarId) : ∀ (e : Expr) (d : Nat),
+    e.abstractN (ys ++ zs) d = (e.abstractN zs d).abstractN ys (d + zs.length)
+  | .bvar _, _ => rfl
+  | .fvar v, d => by
+    simp only [Expr.abstractN, Expr.lastRevIdx?_append]
+    cases hz : Expr.lastRevIdx? v zs with
+    | some r => simp [Expr.abstractN]
+    | none =>
+      cases hy : Expr.lastRevIdx? v ys with
+      | some r => simp [Expr.abstractN, hy, Nat.add_comm, Nat.add_left_comm]
+      | none => simp [Expr.abstractN, hy]
+  | .mdata _ e, d => by simp [Expr.abstractN, Expr.abstractN_append ys zs e d]
+  | .proj _ _ e, d => by simp [Expr.abstractN, Expr.abstractN_append ys zs e d]
+  | .app f a, d => by
+    simp [Expr.abstractN, Expr.abstractN_append ys zs f d, Expr.abstractN_append ys zs a d]
+  | .lam _ t b _, d => by
+    simp [Expr.abstractN, Expr.abstractN_append ys zs t d, Expr.abstractN_append ys zs b (d+1),
+      Nat.add_right_comm]
+  | .forallE _ t b _, d => by
+    simp [Expr.abstractN, Expr.abstractN_append ys zs t d, Expr.abstractN_append ys zs b (d+1),
+      Nat.add_right_comm]
+  | .letE _ t v b _, d => by
+    simp [Expr.abstractN, Expr.abstractN_append ys zs t d, Expr.abstractN_append ys zs v d,
+      Expr.abstractN_append ys zs b (d+1), Nat.add_right_comm]
+  | .const .., _ | .sort _, _ | .mvar _, _ | .lit _, _ => rfl
+
+
 /-- An expression consists of `arity` leading forall binders and the residual body
 `result`. Binder domains are not recorded: `VInductDecl.RecursorShape` records them
 existentially and constrains only their number. -/
