@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.Exposure
+import Lean4Lean.Theory.Typing.Strengthening.EtaNormal
 
 /-! # Typing strengthening: eta postponement
 
@@ -26,6 +26,7 @@ eta step and the empty-chain descent go through unchanged (`etaReplayN_eta`,
 
 namespace Lean4Lean.VEnv.StrengtheningEtaPostponement
 open VExpr VEnv.StrengtheningTypingFront VEnv.StrengtheningReplay VEnv.StrengtheningExposure
+  VEnv.StrengtheningEtaNormal
 variable {env : VEnv} {U k : Nat} {Γ Γ' : List VExpr} {A B F T e : VExpr}
 
 theorem mkApps_const_ne_bvar {c : Name} {ls : List VLevel} (args : List VExpr) {i : Nat} :
@@ -299,6 +300,104 @@ theorem etaReplay₀_empty_chain (henv : env.WF) (heq : env.HasCanonicalEq)
     ∃ e' Z, FullReduction Γ e e' ∧ EtaChain Γ' (e'.liftN 1 k) Z ∧ NormalEq₀ Γ' Z Y := by
   letI := henv.params U
   exact etaReplay₀_of_descent ((typedFrontN_iff_typedFront henv heq).mpr hTF) hcase hunfold
+    (fun hp => Params.checkVars henv U hp) W hΓ hΓ' he hY
+
+/-! ## The obligation in eta-normal form
+
+`EtaNE` (`EtaNormal.lean`) contains every eta chain of a typed term and is closed under eta steps
+on the right, so the invariant "the reduct is an eta-normal expansion of a lift" absorbs the eta
+steps of the path above and the annotation changes; the obligation `EtaReplayNE` is its
+preservation under one eta-free parallel step, and the end lemma `EtaNE.forallE_inv_lift` gives
+the exposure below (modulo the administrative redexes of the lift, which reduce below). -/
+
+section
+open VEnv.Params
+variable [VEnv.Params]
+
+/-- The replay obligation in eta-normal form: an eta-normal expansion above of the lift of a
+term typed below, followed by one `UpStep`, is simulated by a reduction below, up to eta-normal
+expansion. -/
+def EtaReplayNE : Prop :=
+  ∀ ⦃k Γ Γ' e T X Y⦄, Ctx.LiftN 1 k Γ Γ' → OnCtx Γ (Params.env.IsType univs) →
+    OnCtx Γ' (Params.env.IsType univs) → Params.env.HasType univs Γ e T →
+    EtaNE Γ' (e.liftN 1 k) X → UpStep Γ' X Y →
+    ∃ e', FullReduction Γ e e' ∧ EtaNE Γ' (e'.liftN 1 k) Y
+
+/-- The eta case of `EtaReplayNE` is the closure of `EtaNE` under eta steps on the right. -/
+theorem etaReplayNE_eta (W : Ctx.LiftN 1 k Γ Γ') (hΓ' : OnCtx Γ' (Params.env.IsType univs))
+    (he : Params.env.HasType univs Γ e T) (hX : EtaNE Γ' (e.liftN 1 k) X) (hY : EtaPar Γ' X Y) :
+    ∃ e', FullReduction Γ e e' ∧ EtaNE Γ' (e'.liftN 1 k) Y :=
+  ⟨e, .rfl, hX.etaPar_r hΓ' (he.weakN henv.ordered W) hY⟩
+
+/-- On the lift itself, `EtaReplayNE` is the descent of `Replay.lean`. -/
+theorem etaReplayNE_of_descent (hTF : TypedFrontN Params.env) (hcase : CaseRedexDescends)
+    (hunfold : UnfoldingCheckDescends)
+    (hcv : ∀ {p : Pattern} {r : p.RHS × p.Check}, Pat p r → CheckVars r.2)
+    (W : Ctx.LiftN 1 k Γ Γ') (hΓ : OnCtx Γ (Params.env.IsType univs))
+    (hΓ' : OnCtx Γ' (Params.env.IsType univs)) (he : Params.env.HasType univs Γ e T)
+    (hY : UpStep Γ' (e.liftN 1 k) Y) :
+    ∃ e', FullReduction Γ e e' ∧ EtaNE Γ' (e'.liftN 1 k) Y := by
+  have hX := he.weakN henv.ordered W
+  have hY' := UpStep.hasType hΓ' hY hX
+  rcases hY with h | h | h
+  · obtain ⟨e', rfl, h'⟩ := ParRed.descend hTF hcase hcv W hΓ hΓ' he h
+    exact ⟨e', .tail .rfl (.core h'), .refl hY'⟩
+  · obtain ⟨e', rfl, h'⟩ := DeltaPar.descend hTF hunfold W hΓ hΓ' he h
+    exact ⟨e', h'.full, .refl hY'⟩
+  · exact etaReplayNE_eta W hΓ' he (.refl hX) h
+
+/-- Path replay with the eta-normal invariant: induction on the above `UpStep` path. -/
+theorem path_replayNE (H : EtaReplayNE) (W : Ctx.LiftN 1 k Γ Γ')
+    (hΓ : OnCtx Γ (Params.env.IsType univs)) (hΓ' : OnCtx Γ' (Params.env.IsType univs))
+    (he : Params.env.HasType univs Γ e T)
+    (hr : ReflTransGen (UpStep Γ') (e.liftN 1 k) X) :
+    ∃ e', FullReduction Γ e e' ∧ EtaNE Γ' (e'.liftN 1 k) X := by
+  induction hr with
+  | rfl => exact ⟨e, .rfl, .refl (he.weakN henv.ordered W)⟩
+  | tail _ step ih =>
+    obtain ⟨e₁, hred, hne⟩ := ih
+    obtain ⟨e₂, hred₂, hne₂⟩ := H W hΓ hΓ' (hred.hasType hΓ he) hne step
+    exact ⟨e₂, hred.trans hred₂, hne₂⟩
+
+end
+
+/-- Reduction-form exposure from the typed front and the eta-normal replay obligation. -/
+theorem piExposureRed_of_etaReplayNE (henv : env.WF) (heq : env.HasCanonicalEq)
+    (hTF : StrengtheningKripke.TypedFront env)
+    (H : ∀ U, @EtaReplayNE (henv.params U)) : PiExposureRedN henv := by
+  intro U k Γ Γ' f F u A B W hΓ hΓ' _ hF hr
+  letI := henv.params U
+  obtain ⟨F', hred, hne⟩ := path_replayNE (H U) W hΓ hΓ' hF (FullReduction.upSteps hr)
+  obtain ⟨A₀, B₀, hred'⟩ := EtaNE.forallE_inv_lift ((typedFrontN_iff_typedFront henv heq).mpr hTF)
+    W hΓ hΓ' (hred.hasType hΓ hF) hne
+  exact ⟨A₀, B₀, hred.trans hred'⟩
+
+/-- `TypedFront → Cancel`, given the eta-normal replay obligation and the projection and
+eliminator closures. -/
+theorem cancel_of_typedFront_ofNE (henv : env.WF) (heq : env.HasCanonicalEq)
+    (hTF : StrengtheningKripke.TypedFront env) (H : ∀ U, @EtaReplayNE (henv.params U))
+    (hProj : ProjFrontN env) (hElim : ElimFrontN env) : Cancel env :=
+  cancel_of_piExposureRed henv heq (piExposureRed_of_etaReplayNE henv heq hTF H)
+    ((typeFrontN_iff_typedFront henv heq).mpr hTF) hProj hElim
+
+theorem cancel_iff_typedFront_ofNE (henv : env.WF) (heq : env.HasCanonicalEq)
+    (H : ∀ U, @EtaReplayNE (henv.params U)) (hProj : ProjFrontN env) (hElim : ElimFrontN env) :
+    Cancel env ↔ StrengtheningKripke.TypedFront env :=
+  ⟨fun hc => ((cancel_iff_typedFront_and_closures henv heq).mp hc).1,
+    fun hTF => cancel_of_typedFront_ofNE henv heq hTF H hProj hElim⟩
+
+/-- The eta-normal obligation holds on the lift itself from the typed front and the two guard
+descents, in every well-formed environment. -/
+theorem etaReplayNE_empty_chain (henv : env.WF) (heq : env.HasCanonicalEq)
+    (hTF : StrengtheningKripke.TypedFront env) (U : Nat)
+    (hcase : @CaseRedexDescends (henv.params U)) (hunfold : @UnfoldingCheckDescends (henv.params U))
+    {k : Nat} {Γ Γ' : List VExpr} {e T Y : VExpr}
+    (W : Ctx.LiftN 1 k Γ Γ') (hΓ : OnCtx Γ (env.IsType U)) (hΓ' : OnCtx Γ' (env.IsType U))
+    (he : env.HasType U Γ e T) (hY : @UpStep (henv.params U) Γ' (e.liftN 1 k) Y) :
+    letI := henv.params U
+    ∃ e', FullReduction Γ e e' ∧ EtaNE Γ' (e'.liftN 1 k) Y := by
+  letI := henv.params U
+  exact etaReplayNE_of_descent ((typedFrontN_iff_typedFront henv heq).mpr hTF) hcase hunfold
     (fun hp => Params.checkVars henv U hp) W hΓ hΓ' he hY
 
 end Lean4Lean.VEnv.StrengtheningEtaPostponement
