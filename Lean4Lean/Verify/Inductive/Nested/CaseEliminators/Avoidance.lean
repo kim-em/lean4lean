@@ -478,7 +478,7 @@ theorem VEnv.IsDefEq.noFreshConsts_addProjections {env : VEnv}
   have hon := Henv.onTypes_noFreshConsts Hfresh
   apply H.noConsts ⟨fun h => hon.1 (by simpa using h), fun h => hon.2 (by simpa using h)⟩
   · intro name ci hlookup hname
-    simp only [VEnv.addEliminators_constants, VEnv.addProjections_constants] at hlookup
+    simp only [VEnv.addProjections_constants] at hlookup
     rw [Hfresh name hname] at hlookup
     contradiction
   · exact Hctx

@@ -67,8 +67,8 @@ theorem constructor_model_in_family
       have he' : ctor.owner = owner := Fin.ext he
       exact hn.symm.trans ((congrArg (fun i : Fin s.families.size => s.families[i].name) he').trans hname)
     · intro he
-      apply (List.getElem_inj (h₀ := by simpa using ctor.owner.isLt)
-        (h₁ := by simpa using owner.isLt) hnd).mp
+      apply (List.getElem_inj (h₀ := by simp)
+        (h₁ := by simp) hnd).mp
       simpa only [List.getElem_map, Array.getElem_toList, Fin.getElem_fin] using
         hn.trans (he.trans hname.symm)
   have hfiltered := forall2_filterMap (f := fun ctor : Constructor s.families.size =>

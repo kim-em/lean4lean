@@ -5,7 +5,7 @@ import Lean4Lean.Theory.Typing.EnvTables.Container
 -/
 
 namespace Lean4Lean.EnvTables
-open VEnv InductiveSignature
+open _root_.Lean4Lean.EnvTables.VEnv InductiveSignature
 
 /-- The major of a restored recursor equation is a source constructor applied to the parameter
 variables, or a container constructor applied to the specialized container parameters; in both

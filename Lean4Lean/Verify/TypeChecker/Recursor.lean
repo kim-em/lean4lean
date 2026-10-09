@@ -170,10 +170,10 @@ theorem quotReduceRecCont.lift.WF (he : c.TrExprS e e') {ls : List Level}
     show ((VExpr.app (.bvar 2) (.bvar 0)).instL ls').instOuter _ = _
     rw [List.take_take, Nat.min_self]
     simp only [VExpr.instL]
-    rw [VExpr.instOuter_app_bvar _ _ _ (by simp <;> omega) (by simp <;> omega)]
+    rw [VExpr.instOuter_app_bvar _ _ _ (by simp; omega) (by simp)]
     simp only [List.length_append, List.length_take, List.length_singleton]
-    rw [List.getElem_append_left (by simp <;> omega), List.getElem_take,
-      List.getElem_append_right (by simp <;> omega)]
+    rw [List.getElem_append_left (by simp; omega), List.getElem_take,
+      List.getElem_append_right (by simp)]
     simp only [List.length_take, List.getElem_singleton]
     have h3 : min 5 args'.length + 1 - 1 - 2 = 3 := by omega
     simp only [h3]

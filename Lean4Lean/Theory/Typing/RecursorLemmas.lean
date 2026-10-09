@@ -1133,7 +1133,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota_of_args (henv : VEnv.WF env) (hΓ :
           List.getElem_append_right (by simp [Hrule.indexArgs_length]; omega)]
         simp only [Nat.sub_self, List.getElem_singleton, List.length_append, List.length_take,
           List.length_map, Hrule.indexArgs_length,
-          Nat.min_eq_left (show m ≤ pre.length by omega), hpre, List.getElem_singleton]
+          hpre, List.getElem_singleton]
         simp only [hpre] at hmajT'
         exact hmajL.of_l henv hΓ hmajT')
   have hty : ∀ j (hj : j < A.length) (hj' : j < Hrule.doms.length),

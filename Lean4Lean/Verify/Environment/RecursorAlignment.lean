@@ -331,13 +331,13 @@ def EquationHeadOf (C : ConstMap) (df : VDefEq) : Prop :=
 theorem EquationHeadOf.ofRecursor {C : ConstMap} {df : VDefEq}
     (h : ∃ head ls rec, df.lhs.stripLams.getAppFnArgs.1 = .const head ls ∧
       C.find? head = some (.recInfo rec)) : EquationHeadOf C df :=
-  let ⟨head, ls, rec, hhead, hfind⟩ := h
+  let ⟨head, ls, _, hhead, hfind⟩ := h
   ⟨head, ls, _, hhead, hfind, nofun, nofun⟩
 
 theorem EquationHeadOf.ofDefn {C : ConstMap} {df : VDefEq}
     (h : ∃ head ls d, df.lhs.stripLams.getAppFnArgs.1 = .const head ls ∧
       C.find? head = some (.defnInfo d)) : EquationHeadOf C df :=
-  let ⟨head, ls, d, hhead, hfind⟩ := h
+  let ⟨head, ls, _, hhead, hfind⟩ := h
   ⟨head, ls, _, hhead, hfind, nofun, nofun⟩
 
 /-- The head of a definition's delta rule is the definition constant. -/

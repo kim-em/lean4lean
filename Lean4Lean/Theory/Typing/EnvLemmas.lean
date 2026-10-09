@@ -118,7 +118,7 @@ theorem VEnv.addQuot_projections {env env' : VEnv}
 theorem VEnv.addQuot_eliminators {env env' : VEnv}
     (H : env.addQuot = some env') : env'.eliminators = env.eliminators := by
   simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at H
+    Option.some.injEq] at H
   obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := H
   exact (VEnv.addConst_eliminators hd).trans <|
     (VEnv.addConst_eliminators hc).trans <|

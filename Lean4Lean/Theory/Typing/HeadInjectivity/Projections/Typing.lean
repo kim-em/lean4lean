@@ -167,7 +167,7 @@ theorem ArgsTyped.substEq {Δ D : List VExpr} {R0 : VExpr}
         have := ArgsTyped.substEq hD hR0 as (pre ++ [a]) W' (by simp; omega)
           (by simpa using H')
         simp only [List.append_assoc, List.singleton_append, List.length_append,
-          List.length_singleton, List.length_cons] at this ⊢
+          List.length_cons] at this ⊢
         exact ⟨by omega, this.2.1, this.2.2⟩
     · have hD0 : D.drop pre.length = [] := List.drop_eq_nil_of_le (by omega)
       rw [hD0] at H
@@ -237,7 +237,7 @@ theorem ProjTele.fieldType {S : Name} {info : VProjectionInfo} {ls : List VLevel
     (ps.foldl VExpr.Subst.cons (VExpr.argSubst [])) 0 (j + 1) (by simp; omega) (by omega)
   simp only [Nat.zero_add] at this
   rw [this, List.getElem_drop]
-  simp only [hpl, Nat.zero_add, VExpr.argSubst, List.foldl_append, List.foldl_nil, projsOf]
+  simp only [hpl, VExpr.argSubst, List.foldl_append, List.foldl_nil, projsOf]
 
 /-- **Projections of a typed major.** For a structure whose result sort is never zero at
 `ls`, every projection of a major typed at `S ls (ps ++ idx')` is typed at its field type, and
@@ -421,7 +421,7 @@ theorem proj_spine (henv : env.Ordered) {Δ : List VExpr} (hΔ : OnCtx Δ (env.I
   have hps' := hps
   rw [hT] at hps'
   obtain ⟨-, W0, -⟩ := ArgsTyped.substEq T.doms hR0' ps [] .nil (by simp) hps'
-  simp only [List.nil_append, List.length_nil] at W0
+  simp only [List.nil_append] at W0
   have helems := ArgsTyped.elems hR0' (ps ++ fs) [] hargs'
   simp only [List.length_nil, Nat.zero_add, List.nil_append] at helems
   -- the fields, one at a time, with the pair of substitutions
