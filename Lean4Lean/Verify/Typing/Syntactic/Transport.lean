@@ -1,13 +1,10 @@
 import Lean4Lean.Verify.Typing.Syntactic.Basic
-import Lean4Lean.Verify.Typing.LevelEquiv
-import Lean4Lean.Verify.Typing.RawShape
-import Lean4Lean.Verify.Typing.TelescopeTranslationLemmas
 
 /-!
 # Syntactic transport of the translation
 
 Each lemma here is the typing-free core of a `TrExprS` lemma of `Verify/Typing/Lemmas.lean`,
-`Verify/Typing/LevelEquiv.lean` or `Verify/Typing/RawShape.lean`, stated for `TrSyn` and proved
+or `Verify/Typing/LevelEquiv.lean`, stated for `TrSyn` and proved
 without `HasType`, without an environment and without a well-formed context:
 
 * weakening by free variables (`TrSyn.weakFV'`, `TrSyn.weakFV`; the context only needs distinct
@@ -17,8 +14,8 @@ without `HasType`, without an environment and without a well-formed context:
 * abstraction of a free variable (`TrSyn.abstract`, `TrSyn.uninstantiate`);
 * level instantiation, up to level equivalence (`TrSyn.instL_lequiv`), and prepending a fresh
   level parameter (`TrSyn.prependLevelParam`);
-* equality up to binder names (`TrSyn.eqv`), translation in a context differing in its binder
-  domains (`TrSyn.transport`), and constructor skeletons (`TrSyn.rawShape`);
+* equality up to binder names (`TrSyn.eqv`) and translation in a context differing in its binder
+  domains (`TrSyn.transport`);
 * restriction: deleting binders the source does not use (`TrSyn.lowerBV`) and free variables
   the source does not mention (`TrSyn.restrictFV`).
 
@@ -32,59 +29,11 @@ open Lean
 
 /-! ### Weakening -/
 
-theorem VLCtx.fvars_nodup_tail {ofv : Option (FVarId × List FVarId)} {d : VLocalDecl}
-    {Δ : VLCtx} (h : (VLCtx.fvars ((ofv, d) :: Δ)).Nodup) : Δ.fvars.Nodup := by
-  cases ofv with
-  | none => exact h
-  | some fv => exact (List.nodup_cons.1 h).2
-
-/-- `VLCtx.FVLift'.find?` with distinct free variables in place of a well-formed context. -/
-protected theorem VLCtx.FVLift'.find?_nodup (W : VLCtx.FVLift' Δ Δ' dk n k)
-    (hnd : Δ'.fvars.Nodup) (H : VLCtx.find? Δ v = some (e, A)) :
-    VLCtx.find? Δ' v = some (e.lift' (n.consN k), A.lift' (n.consN k)) := by
-  induction W generalizing v e A with
-  | refl => simp [H]
-  | skip_fvar fv' _ W ih =>
-    let (fv', deps) := fv'; simp [VLCtx.find?]
-    cases v with simp [VLCtx.next]
-    | inl =>
-      refine ⟨_, _, ih (VLCtx.fvars_nodup_tail hnd) H, ?_⟩
-      simp [← VExpr.lift'_consN_skipN, ← VExpr.lift'_comp, Lift.comp_skipN]
-    | inr fv =>
-      cases eq : fv' == fv <;> simp
-      · refine ⟨_, _, ih (VLCtx.fvars_nodup_tail hnd) H, ?_⟩
-        simp [← VExpr.lift'_consN_skipN, ← VExpr.lift'_comp, Lift.comp_skipN]
-      · refine ((List.pairwise_cons.1 hnd).1 fv' ?_ rfl).elim
-        exact W.fvars_sublist.subset ((beq_iff_eq ..).1 eq ▸ VLCtx.find?_eq_some.1 ⟨_, H⟩)
-  | cons_fvar fv' d _ W ih =>
-    let (fv', deps) := fv'; revert H; simp [VLCtx.find?]
-    have hnd' := VLCtx.fvars_nodup_tail hnd
-    obtain i | fv := v <;> simp [VLCtx.next] <;>
-      [skip; cases eq : fv' == fv <;> simp] <;>
-      [(rintro _ _ H rfl rfl; refine ⟨_, _, ih hnd' H, ?_⟩);
-       (rintro _ _ H rfl rfl; refine ⟨_, _, ih (v := .inr fv) hnd' H, ?_⟩);
-       rintro rfl rfl] <;>
-      open VLocalDecl in
-      cases d <;> simp [value, type, depth, lift', VExpr.lift,
-        ← VExpr.lift'_consN_skipN, ← VExpr.lift'_comp]
-  | cons_bvar d _ ih =>
-    simp [VLCtx.find?] at H ⊢
-    have hnd' := VLCtx.fvars_nodup_tail hnd
-    obtain ⟨_|i⟩ | fv := v <;> simp [VLCtx.next] at H ⊢ <;>
-      [(obtain ⟨rfl, rfl⟩ := H);
-       (obtain ⟨e, A, H, rfl, rfl⟩ := H
-        refine ⟨_, _, ih (v := .inl i) hnd' H, ?_⟩);
-       (obtain ⟨e, A, H, rfl, rfl⟩ := H
-        refine ⟨_, _, ih (v := .inr fv) hnd' H, ?_⟩)] <;>
-      open VLocalDecl in
-      cases d <;> simp [value, type, depth, lift', VExpr.lift,
-        ← VExpr.lift'_consN_skipN, ← VExpr.lift'_comp]
-
 theorem TrSyn.weakFV' {Us : List Name} (W : VLCtx.FVLift' Δ Δ' dk n k) (hnd : Δ'.fvars.Nodup)
     (H : TrSyn Us Δ e e') : TrSyn Us Δ' e (e'.lift' (n.consN k)) := by
   induction H generalizing Δ' dk k with
-  | bvar h1 => exact .bvar (W.find?_nodup hnd h1)
-  | fvar h1 => exact .fvar (W.find?_nodup hnd h1)
+  | bvar h1 => exact .bvar (W.find? hnd h1)
+  | fvar h1 => exact .fvar (W.find? hnd h1)
   | sort h1 => exact .sort h1
   | const h1 => exact .const h1
   | app _ _ ih1 ih2 => exact .app (ih1 W hnd) (ih2 W hnd)
@@ -448,18 +397,6 @@ theorem TrSyn.eqv {Us : List Name} (H : TrSyn Us Δ e₁ e') : e₁ == e₂ → 
   induction H generalizing e₂ <;> (cases e₂ <;> try change false = _ → _; rintro ⟨⟩)
   all_goals simp [Expr.eqv']; grind [TrSyn]
 
-theorem TrExprS.IsUniqueCtx.find?_exists {Δ₁ Δ₂ : VLCtx} (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂)
-    (H : Δ₁.find? v = some (e, A)) : ∃ A', Δ₂.find? v = some (e, A') := by
-  induction hΔ generalizing v e A with
-  | base => exact ⟨A, H⟩
-  | @cons _ _ _ _ ofv _ hd ih =>
-    revert H; simp [VLCtx.find?]; split
-    · intro h; cases h; cases hd <;> exact ⟨_, rfl⟩
-    · simp; rintro _ _ h1 rfl rfl
-      obtain ⟨A', h2⟩ := ih h1
-      refine ⟨_, _, _, h2, ?_, rfl⟩
-      cases hd <;> rfl
-
 /-- Syntactic translation ignores the domains recorded in the context. -/
 theorem TrSyn.transport {Us : List Name} {Δ₁ Δ₂ : VLCtx} {e : Lean.Expr} {e' : VExpr}
     (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂) (H : TrSyn Us Δ₁ e e') : TrSyn Us Δ₂ e e' := by
@@ -475,23 +412,6 @@ theorem TrSyn.transport {Us : List Name} {Δ₁ Δ₂ : VLCtx} {e : Lean.Expr} {
   | lit _ ih => exact .lit (ih hΔ)
   | mdata _ ih => exact .mdata (ih hΔ)
   | proj _ ih => exact .proj (ih hΔ)
-
-/-- Two translations agree on their constructor skeleton. -/
-theorem TrSyn.rawShape {Us : List Name} (hΔ : TrExprS.RawShapeCtx Δ₁ Δ₂)
-    (H1 : TrSyn Us Δ₁ e e₁) (H2 : TrSyn Us Δ₂ e e₂) : VExpr.RawShapeRel e₁ e₂ := by
-  induction H1 generalizing Δ₂ e₂ with
-  | bvar h => cases H2 with | bvar h' => exact hΔ.find?_rel h h'
-  | fvar h => cases H2 with | fvar h' => exact hΔ.find?_rel h h'
-  | sort => cases H2; exact .sort
-  | const h => cases H2 with | const h' => cases h.symm.trans h'; exact .const
-  | app _ _ ih1 ih2 => cases H2 with | app h1 h2 => exact .app (ih1 hΔ h1) (ih2 hΔ h2)
-  | lam => cases H2; exact .lam
-  | forallE _ _ _ ih => cases H2 with | forallE _ h2 => exact .forallE (ih (hΔ.cons .vlam) h2)
-  | letE _ _ _ _ ih2 ih3 =>
-    cases H2 with | letE _ hv hb => exact ih3 (hΔ.cons (.vlet (ih2 hΔ hv))) hb
-  | lit _ ih => cases H2 with | lit h => exact ih hΔ h
-  | mdata _ ih => cases H2 with | mdata h => exact ih hΔ h
-  | proj => cases H2; exact .proj
 
 /-! ### Restriction: the syntactic half of strengthening -/
 

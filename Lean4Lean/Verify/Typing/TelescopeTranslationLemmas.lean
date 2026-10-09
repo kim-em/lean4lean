@@ -168,37 +168,6 @@ theorem TrExprS.uniqueS {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Lean.Exp
   H1.uniqueCtx .base H2
 
 
-theorem VLCtx.BVLift.find?_lift_inv (W : VLCtx.BVLift Δ Δ' dn dk n k)
-    (h : Δ'.find? (VLCtx.liftVar dn dk v) = some p) : ∃ x, Δ.find? v = some x := by
-  induction W generalizing v p with
-  | refl => simp [VLCtx.liftVar_zero] at h; exact ⟨_, h⟩
-  | skip d _ ih =>
-    obtain i | fv := v
-    · simp only [VLCtx.liftVar, Nat.not_lt_zero, if_false, ← Nat.add_assoc, VLCtx.find?,
-        VLCtx.next, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
-      obtain ⟨_, h, -⟩ := h
-      exact ih (v := .inl i) (by simpa [VLCtx.liftVar] using h)
-    · simp only [VLCtx.liftVar, VLCtx.find?, VLCtx.next, Option.bind_eq_bind,
-        Option.bind_eq_some_iff] at h
-      obtain ⟨_, h, -⟩ := h
-      exact ih (v := .inr fv) (by simpa [VLCtx.liftVar] using h)
-  | @cons _ _ dn' dk' _ _ d _ ih =>
-    obtain (_ | i) | fv := v
-    · exact ⟨_, rfl⟩
-    · have e : VLCtx.liftVar dn' (dk' + 1) (.inl (i + 1)) =
-          .inl ((if i < dk' then i else i + dn') + 1) := by
-        simp only [VLCtx.liftVar]; congr 1; split <;> split <;> omega
-      rw [e] at h
-      simp only [VLCtx.find?, VLCtx.next, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
-      obtain ⟨_, h, -⟩ := h
-      obtain ⟨⟨e, A⟩, h'⟩ := ih (v := .inl i) (by simpa [VLCtx.liftVar] using h)
-      exact ⟨(e.liftN d.depth, A.liftN d.depth), by simp [VLCtx.find?, VLCtx.next, h']⟩
-    · simp only [VLCtx.liftVar, VLCtx.find?, VLCtx.next, Option.bind_eq_bind,
-        Option.bind_eq_some_iff] at h
-      obtain ⟨_, h, -⟩ := h
-      obtain ⟨⟨e, A⟩, h'⟩ := ih (v := .inr fv) (by simpa [VLCtx.liftVar] using h)
-      exact ⟨(e.liftN d.depth, A.liftN d.depth), by simp [VLCtx.find?, VLCtx.next, h']⟩
-
 /-- The translation of a source that does not mention an inserted binder is a lift. This is the
 structural half of strengthening: it needs no typing, only that translation is syntactic. -/
 theorem TrExprS.liftN_inv (W : VLCtx.BVLift Δ Δ' 1 dk 1 k)

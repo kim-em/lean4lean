@@ -7,17 +7,6 @@ import Lean4Lean.Std.Basic
 namespace Lean4Lean
 open Lean
 
-theorem VLevel.ofLevel_paramsIn (H : VLevel.ofLevel Us level = some target) :
-    level.paramsIn Us = true := by
-  induction level generalizing target with simp [VLevel.ofLevel, bind] at H
-  | zero => rfl
-  | succ _ ih => obtain ⟨target, h, _⟩ := H; exact ih h
-  | max _ _ ih₁ ih₂ | imax _ _ ih₁ ih₂ =>
-    obtain ⟨_, h₁, _, h₂, _⟩ := H
-    simp [Level.paramsIn, ih₁ h₁, ih₂ h₂]
-  | param name =>
-    simpa [Level.paramsIn] using List.idxOf_lt_length_iff.mp H.1
-
 theorem TrExprS.levelParamsIn (H : TrExprS env Us Δ e e') : e.levelParamsIn Us = true := by
   induction H with
   | sort hu => exact VLevel.ofLevel_paramsIn hu

@@ -11,48 +11,6 @@ import Lean4Lean.Verify.Typing.Lemmas
 namespace Lean4Lean
 open VEnv Lean
 
-/-! ### Level-equivalent contexts -/
-
-inductive VLocalDecl.LEquiv (U : Nat) : VLocalDecl → VLocalDecl → Prop
-  | vlam : VExpr.LEquiv U A A' → VLocalDecl.LEquiv U (.vlam A) (.vlam A')
-  | vlet : VExpr.LEquiv U A A' → VExpr.LEquiv U v v' →
-    VLocalDecl.LEquiv U (.vlet A v) (.vlet A' v')
-
-inductive VLCtx.LEquiv (U : Nat) : VLCtx → VLCtx → Prop
-  | nil : VLCtx.LEquiv U [] []
-  | cons : VLCtx.LEquiv U Δ₁ Δ₂ → VLocalDecl.LEquiv U d₁ d₂ →
-    VLCtx.LEquiv U ((ofv, d₁) :: Δ₁) ((ofv, d₂) :: Δ₂)
-
-theorem VLocalDecl.LEquiv.refl : ∀ d, VLocalDecl.LEquiv U d d
-  | .vlam _ => .vlam .refl
-  | .vlet .. => .vlet .refl .refl
-
-theorem VLCtx.LEquiv.refl : ∀ Δ, VLCtx.LEquiv U Δ Δ
-  | [] => .nil
-  | (_, d) :: Δ => .cons (.refl Δ) (.refl d)
-
-theorem VLocalDecl.LEquiv.depth : VLocalDecl.LEquiv U d₁ d₂ → d₁.depth = d₂.depth
-  | .vlam _ | .vlet .. => rfl
-
-theorem VLocalDecl.LEquiv.value : VLocalDecl.LEquiv U d₁ d₂ → VExpr.LEquiv U d₁.value d₂.value
-  | .vlam _ => .refl
-  | .vlet _ h => h
-
-theorem VLocalDecl.LEquiv.type : VLocalDecl.LEquiv U d₁ d₂ → VExpr.LEquiv U d₁.type d₂.type
-  | .vlam h => h.liftN
-  | .vlet h _ => h
-
-theorem VLCtx.LEquiv.find? (H : VLCtx.LEquiv U Δ₁ Δ₂) (h : Δ₂.find? v = some (e, A)) :
-    ∃ e₁ A₁, Δ₁.find? v = some (e₁, A₁) ∧ VExpr.LEquiv U e₁ e ∧ VExpr.LEquiv U A₁ A := by
-  induction H generalizing v e A with
-  | nil => cases h
-  | cons _ hd ih =>
-    revert h; unfold VLCtx.find?; split
-    · rintro ⟨⟩; exact ⟨_, _, rfl, hd.value, hd.type⟩
-    · simp; rintro e A h rfl rfl
-      obtain ⟨e₁, A₁, h1, l1, l2⟩ := ih h
-      exact ⟨_, _, ⟨_, _, h1, rfl, rfl⟩, hd.depth ▸ l1.liftN, hd.depth ▸ l2.liftN⟩
-
 /-! ### Level instantiation -/
 
 section

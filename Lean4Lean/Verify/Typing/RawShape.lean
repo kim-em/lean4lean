@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Typing.Lemmas
+import Lean4Lean.Verify.Typing.Syntactic.Basic
 import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Inductive.RawShape
 
@@ -62,5 +63,22 @@ theorem TrExprS.rawShape (hΔ : RawShapeCtx Δ₁ Δ₂)
   | lit _ _ ih => exact ih hΔ ‹_›
   | mdata _ ih => exact ih hΔ ‹_›
   | proj => exact .proj
+
+/-- Two translations agree on their constructor skeleton. -/
+theorem TrSyn.rawShape {Us : List Name} (hΔ : TrExprS.RawShapeCtx Δ₁ Δ₂)
+    (H1 : TrSyn Us Δ₁ e e₁) (H2 : TrSyn Us Δ₂ e e₂) : VExpr.RawShapeRel e₁ e₂ := by
+  induction H1 generalizing Δ₂ e₂ with
+  | bvar h => cases H2 with | bvar h' => exact hΔ.find?_rel h h'
+  | fvar h => cases H2 with | fvar h' => exact hΔ.find?_rel h h'
+  | sort => cases H2; exact .sort
+  | const h => cases H2 with | const h' => cases h.symm.trans h'; exact .const
+  | app _ _ ih1 ih2 => cases H2 with | app h1 h2 => exact .app (ih1 hΔ h1) (ih2 hΔ h2)
+  | lam => cases H2; exact .lam
+  | forallE _ _ _ ih => cases H2 with | forallE _ h2 => exact .forallE (ih (hΔ.cons .vlam) h2)
+  | letE _ _ _ _ ih2 ih3 =>
+    cases H2 with | letE _ hv hb => exact ih3 (hΔ.cons (.vlet (ih2 hΔ hv))) hb
+  | lit _ ih => cases H2 with | lit h => exact ih hΔ h
+  | mdata _ ih => cases H2 with | mdata h => exact ih hΔ h
+  | proj => cases H2; exact .proj
 
 end Lean4Lean

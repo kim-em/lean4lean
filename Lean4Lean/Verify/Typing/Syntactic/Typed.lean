@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Typing.Syntactic.Transport
+import Lean4Lean.Verify.Typing.Lemmas
 
 /-!
 # Typed translation as syntactic translation plus typing

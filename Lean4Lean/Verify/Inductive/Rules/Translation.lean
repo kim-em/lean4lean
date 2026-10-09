@@ -86,24 +86,12 @@ theorem TrExprS.of_syn {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr} {e�
     (H : TrExprS env Us Δ e e₁) (S : TrExprSyn Us Δ e e₂) : TrExprS env Us Δ e e₂ := by
   rw [← H.toSyn.unique S]; exact H
 
-theorem TrExprS.IsUniqueCtx.find?_some {Δ₁ Δ₂ : VLCtx} (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂)
-    (H : Δ₁.find? v = some (e, A)) : ∃ A', Δ₂.find? v = some (e, A') := by
-  induction hΔ generalizing v e A with
-  | base => exact ⟨A, H⟩
-  | @cons _ _ _ _ ofv _ hd ih =>
-    revert H; simp [VLCtx.find?]; split
-    · intro h; cases h; cases hd <;> exact ⟨_, rfl⟩
-    · simp; rintro _ _ h1 rfl rfl
-      obtain ⟨A', h2⟩ := ih h1
-      refine ⟨_, _, _, h2, ?_, rfl⟩
-      cases hd <;> rfl
-
 /-- Syntactic translation ignores the domains recorded in the context. -/
 theorem TrExprSyn.transport {Us : List Name} {Δ₁ Δ₂ : VLCtx} {e : Lean.Expr} {e' : VExpr}
     (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂) (H : TrExprSyn Us Δ₁ e e') : TrExprSyn Us Δ₂ e e' := by
   induction H generalizing Δ₂ with
-  | bvar h => obtain ⟨_, h⟩ := hΔ.find?_some h; exact .bvar h
-  | fvar h => obtain ⟨_, h⟩ := hΔ.find?_some h; exact .fvar h
+  | bvar h => obtain ⟨_, h⟩ := hΔ.find?_exists h; exact .bvar h
+  | fvar h => obtain ⟨_, h⟩ := hΔ.find?_exists h; exact .fvar h
   | sort h => exact .sort h
   | const h => exact .const h
   | app _ _ ih1 ih2 => exact .app (ih1 hΔ) (ih2 hΔ)
