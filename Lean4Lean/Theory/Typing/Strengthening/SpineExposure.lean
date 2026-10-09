@@ -580,4 +580,228 @@ theorem ProjFrontN.of_etaReplay (henv : env.WF) (heq : env.HasCanonicalEq)
     (H : ∀ U, @EtaReplay (henv.params U)) (hField : ProjFieldFrontN env) : ProjFrontN env :=
   ProjFrontN.of_spineExposure henv heq (spineExposureRed_of_etaReplay henv H) hField
 
+
+/-! ## The field-type closure outside `Prop`
+
+When the structure's sort at the given levels is never zero, every projection of a typed major is
+typable (the guard of `projDF` holds by its left disjunct), so the field type of field `i` is
+typed by the typed substitution of the constructor telescope: the parameters are typed at the
+constructor's parameter domains (convertible to the type former's, `CtorParameterShape` and
+`TypeShape` through the common `params`), and the earlier projections at their own field types,
+by induction on the field index. No information from above is used. The field-type closure is
+therefore exactly its instances at structures whose sort is not never-zero
+(`ProjFieldFrontN.of_notNeverZero`). -/
+
+variable {U₀ : Nat}
+
+/-- A closed telescope domain instantiated at arguments typed along the telescope is a type in
+any context. -/
+theorem IsType.closed_telescope_instOuter (henv : env.WF) {Γ : List VExpr}
+    {Δ : List VExpr} {A : VExpr} (hΔ : OnCtx Δ.reverse (env.IsType U₀))
+    (hA : env.IsType U₀ Δ.reverse A) (hls : ∀ l ∈ ls, l.WF U) {args : List VExpr}
+    (hlen : args.length = Δ.length)
+    (hty : ∀ k (hk : k < args.length) (hk' : k < (Δ.map (VExpr.instL ls)).length),
+      env.HasType U Γ args[k] ((Δ.map (VExpr.instL ls))[k].instOuter (args.take k))) :
+    env.IsType U Γ ((A.instL ls).instOuter args) := by
+  have hA' := hA.instL hls
+  have hΔ' : OnCtx (Δ.reverse.map (VExpr.instL ls)) (env.IsType U) := hΔ.instL hls
+  have hclosed := CtxWF.closed henv.ordered hΔ'
+  obtain ⟨u, h⟩ := hA
+  have hAc : (A.instL ls).ClosedN Δ.length := by
+    have := (VExpr.WF.closedN henv.ordered ⟨_, h⟩ (CtxWF.closed henv.ordered hΔ)).instL (ls := ls)
+    simpa using this
+  have W := Ctx.LiftN.right hclosed Γ
+  have hA'' := hA'.weakN henv.ordered W
+  simp only [List.length_map, List.length_reverse] at hA''
+  rw [hAc.liftN_eq (Nat.le_refl _)] at hA''
+  exact IsType.instOuter_telescope henv (doms := Δ.map (VExpr.instL ls))
+    (by rw [← List.map_reverse]; exact hA'') (by simpa using hlen) hty
+
+/-- Outside `Prop`, the field type of every field of a typed major is typed, with no information
+from any other context. -/
+theorem projField_of_neverZero (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    {info : VProjectionInfo} {ps idx : List VExpr} {m : VExpr} {i : Nat}
+    (hinfo : env.projections S info) (hls : ls.length = info.uvars)
+    (hps : ps.length = info.nparams) (hidx : idx.length = info.nindices)
+    (hm : env.HasType U Γ m (mkApps (.const S ls) (ps ++ idx)))
+    (hnz : (info.resultLevel.inst ls).IsNeverZero) (hi : i < info.numFields) :
+    ∃ F l, info.fieldType S ls ps i m = some F ∧ env.HasType U Γ F (.sort l) := by
+  obtain ⟨decl, type, ctor, -, -, -, -, huvars, hnparams, hnidx, hlevel, -, hctorType, hlookup,
+    hwf, ⟨params, Hshape, Hparams⟩, Hraw, -⟩ := henv.ordered.projectionShape hinfo
+  obtain ⟨doms, result, hshape, hle, -, -, harity⟩ := Hraw.forallArity
+  -- the structure type is a sort; the levels are well formed
+  have hfamWF : VExpr.WF env U Γ (mkApps (.const S ls) (ps ++ idx)) :=
+    let ⟨_, h⟩ := hm.isType henv.ordered hΓ; ⟨_, h⟩
+  have hfam := HasType.projectionFamily_sort henv hΓ hinfo hls hps hidx hfamWF
+  obtain ⟨_, hhead⟩ := mkApps_head_typed henv.ordered hΓ hfam
+  obtain ⟨ci, hci, hlsWF, hlen⟩ := hhead.const_inv henv.ordered hΓ
+  rw [hlookup] at hci
+  cases Option.some.inj hci
+  have hfamU : type.uvars = decl.uvars := by
+    change ls.length = type.uvars at hlen
+    omega
+  have hnum : info.numFields = doms.length - info.nparams := by
+    rw [VProjectionInfo.numFields, ← hctorType, harity]
+  have hshape' : info.ctorType = wrapForalls doms result := by rw [← hctorType, hshape]
+  have hclosed : info.ctorType.Closed := by
+    rw [← hctorType]
+    obtain ⟨_, h⟩ := hwf
+    exact VExpr.WF.closedN henv.ordered ⟨_, h⟩ trivial
+  -- the normalized header of the type former
+  obtain ⟨normalized, ownParams, afterParams, indices, result', exprType, hnorm, hown, hidxT,
+    hPD, hresult⟩ := Hshape
+  obtain ⟨rfl, hownLen⟩ := VExpr.takeForalls_eq_wrapForalls hown
+  obtain ⟨rfl, hindLen⟩ := VExpr.takeForalls_eq_wrapForalls hidxT
+  rw [← wrapForalls_append] at hnorm
+  have hctx : env.IsDefEq decl.uvars ((ownParams ++ indices).reverse ++ []) result'
+      (.sort type.resultLevel) (.sort (.succ type.resultLevel)) := by
+    simpa only [List.reverse_append, List.append_nil] using hresult
+  obtain ⟨v, hcongr⟩ := wrapForalls_congr henv.ordered hnorm.hasType.2 hctx
+  have hty : env.IsDefEqU decl.uvars [] type.type
+      (wrapForalls (ownParams ++ indices) (.sort type.resultLevel)) :=
+    IsDefEqU.trans henv trivial ⟨_, hnorm⟩ ⟨_, hcongr⟩
+  rw [← hfamU] at hty
+  have hinst := hty.instL hlsWF
+  simp only [List.map_nil, instL_wrapForalls, VExpr.instL] at hinst
+  have hconst : env.HasType U Γ (.const S ls)
+      (wrapForalls ((ownParams ++ indices).map (VExpr.instL ls)) (.sort (type.resultLevel.inst ls))) := by
+    have hc0 : env.HasType U [] (.const S ls) (type.toVConstant.type.instL ls) :=
+      HasType.const hlookup hlsWF hlen
+    exact (hc0.defeqU_r henv (by trivial) hinst).weak0 henv.ordered
+  have hlenD : (ps ++ idx).length = ((ownParams ++ indices).map (VExpr.instL ls)).length := by
+    simp only [List.length_append, List.length_map]
+    omega
+  have hargsT := (HasType.mkApps_wrapForalls henv hΓ hconst hfamWF hlenD).1
+  -- the parameters are typed at the type former's parameter domains
+  have hpsOwn : ∀ k (hk : k < ps.length) (hk' : k < ownParams.length),
+      env.HasType U Γ ps[k] ((ownParams[k].instL ls).instOuter (ps.take k)) := by
+    intro k hk hk'
+    have h := hargsT k (by simp; omega) (by simp; omega)
+    rw [List.getElem_append_left hk, List.take_append_of_le_length (Nat.le_of_lt hk),
+      List.getElem_map, List.getElem_append_left hk'] at h
+    exact h
+  -- the constructor's parameter domains are the type former's, up to conversion
+  obtain ⟨ownParams', tail, htake, hPD'⟩ := Hparams
+  have hsplitTake := takeForalls_wrapForalls_append (doms.take decl.nparams)
+    (doms.drop decl.nparams) result
+  rw [List.take_append_drop, List.length_take_of_le hle] at hsplitTake
+  rw [hshape, hsplitTake] at htake
+  obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj htake)
+  have hOO : IsDefEqCtx env decl.uvars [] ownParams.reverse (doms.take decl.nparams).reverse :=
+    IsDefEqCtx.trans_empty henv (hPD.symm henv.ordered) hPD'
+  have hOwnCtx : OnCtx ownParams.reverse (env.IsType decl.uvars) :=
+    (hPD.symm henv.ordered).isType
+  have hpsCtor : ∀ k (hk : k < ps.length) (hk'' : k < (doms.take decl.nparams).length),
+      env.HasType U Γ ps[k] ((((doms.take decl.nparams)[k]).instL ls).instOuter (ps.take k)) := by
+    intro k hk hk''
+    have hk' : k < ownParams.length := by omega
+    obtain ⟨u, hu⟩ := hOO.reverse_getElem k hk' hk''
+    have hΔ₀ : OnCtx (ownParams.take k).reverse (env.IsType decl.uvars) := by
+      have : ownParams.reverse = (ownParams.drop k).reverse ++ (ownParams.take k).reverse := by
+        rw [← List.reverse_append, List.take_append_drop]
+      rw [this] at hOwnCtx
+      exact OnCtx.of_append hOwnCtx
+    have hconv := IsDefEqU.closed_telescope_instOuter henv hΓ hΔ₀ ⟨_, hu⟩ hlsWF
+      (args := ps.take k) (by simp only [List.length_take, List.length_reverse]; omega)
+      (by
+        intro k' hk1 hk2
+        simp only [List.length_take, List.reverse_reverse, List.length_map] at hk1 hk2
+        have hk1' : k' < ps.length := by omega
+        have h := hpsOwn k' hk1' (by omega)
+        simp only [List.reverse_reverse, List.getElem_map, List.getElem_take, List.take_take,
+          Nat.min_eq_left (Nat.le_of_lt (show k' < k by omega))]
+        exact h)
+    exact (hpsOwn k hk hk').defeqU_r henv hΓ hconv
+  -- the field domains are types in their closed telescopes
+  have hdomsCtx : OnCtx (doms.reverse ++ []) (env.IsType decl.uvars) := by
+    rw [hshape] at hwf
+    exact (IsType.wrapForalls_inv henv (by trivial) hwf).1
+  have hdom : ∀ n (hn : n < doms.length),
+      OnCtx (doms.take n).reverse (env.IsType decl.uvars) ∧
+        env.IsType decl.uvars (doms.take n).reverse doms[n] := by
+    intro n hn
+    have := OnCtx.getElem_reverse_append hdomsCtx n hn
+    simp only [List.append_nil] at this
+    exact ⟨this.1, this.2⟩
+  -- the field type of field `j`, given the earlier projections typed
+  let projs : Nat → List VExpr := fun j => (List.range j).map fun j' => VExpr.proj S j' m
+  have hprojsLen : ∀ j, (projs j).length = j := by intro j; simp [projs]
+  have isTypeF : ∀ j (hlt : info.nparams + j < doms.length),
+      (∀ j' (hj' : j' < j), env.HasType U Γ (.proj S j' m)
+        (((doms[info.nparams + j']'(by omega)).instL ls).instOuter (ps ++ projs j'))) →
+      env.IsType U Γ (((doms[info.nparams + j]'hlt).instL ls).instOuter (ps ++ projs j)) := by
+    intro j hlt hprojs
+    obtain ⟨hΔ, hA⟩ := hdom (info.nparams + j) hlt
+    refine IsType.closed_telescope_instOuter henv hΔ hA hlsWF
+      (by simp only [List.length_append, hprojsLen, hps, List.length_take_of_le (Nat.le_of_lt hlt)])
+      ?_
+    intro k hk hk'
+    simp only [List.length_append, hprojsLen, hps] at hk
+    rcases Nat.lt_or_ge k info.nparams with hkp | hkp
+    · have hkps : k < ps.length := by omega
+      have h := hpsCtor k hkps (by rw [List.length_take_of_le hle]; omega)
+      rw [List.getElem_append_left hkps, List.take_append_of_le_length (Nat.le_of_lt hkps),
+        List.getElem_map, List.getElem_take]
+      rw [List.getElem_take] at h
+      exact h
+    · obtain ⟨j', rfl⟩ : ∃ j', k = info.nparams + j' := ⟨k - info.nparams, by omega⟩
+      have hj' : j' < j := by omega
+      have h := hprojs j' hj'
+      have e1 : (ps ++ projs j)[info.nparams + j']'(by simp [hprojsLen, hps]; omega) =
+          VExpr.proj S j' m := by
+        rw [List.getElem_append_right (by omega)]
+        simp [projs, hps]
+      have e2 : (ps ++ projs j).take (info.nparams + j') = ps ++ projs j' := by
+        rw [← hps, List.take_append, List.take_of_length_le (by omega)]
+        simp only [Nat.add_sub_cancel_left, projs, ← List.map_take, List.take_range,
+          Nat.min_eq_left (Nat.le_of_lt hj')]
+      rw [e1, e2, List.getElem_map, List.getElem_take]
+      exact h
+  -- the earlier projections are typed, by induction on the field index
+  have hbound : ∀ j', j' ≤ i → info.nparams + j' < doms.length := by
+    intro j' hj'
+    rw [hnum] at hi
+    omega
+  have hQ : ∀ j (hji : j ≤ i) j' (hj' : j' < j), env.HasType U Γ (.proj S j' m)
+      (((doms[info.nparams + j']'(hbound j' (Nat.le_trans (Nat.le_of_lt hj') hji))).instL ls).instOuter
+        (ps ++ projs j')) := by
+    intro j
+    induction j with
+    | zero => intro _ j' hj'; cases hj'
+    | succ j ih =>
+      intro hji j' hj'
+      rcases Nat.lt_or_ge j' j with hlt | hge
+      · exact ih (Nat.le_of_succ_le hji) j' hlt
+      · obtain rfl : j = j' := by omega
+        have hltD : info.nparams + j < doms.length := hbound j (Nat.le_of_succ_le hji)
+        obtain ⟨l, hFs⟩ := isTypeF j hltD (ih (Nat.le_of_succ_le hji))
+        have hF := VProjectionInfo.fieldType_eq_instOuter info (typeName := S) (major := m)
+          hshape' hls hps hltD
+        exact .projDF hinfo hlsWF hls hps hidx hF hFs hm hm hclosed (Or.inl hnz)
+  have hltD : info.nparams + i < doms.length := hbound i (Nat.le_refl _)
+  obtain ⟨l, hFs⟩ := isTypeF i hltD (hQ i (Nat.le_refl _))
+  exact ⟨_, l, VProjectionInfo.fieldType_eq_instOuter info hshape' hls hps hltD, hFs⟩
+
+/-- The field-type closure at structures whose sort at the given levels is not never-zero:
+the exact remaining content of `ProjFieldFrontN`. -/
+def ProjFieldFrontPropN (env : VEnv) : Prop :=
+  ∀ ⦃U k Γ Γ' S info ls ps idx m i T⦄, Ctx.LiftN 1 k Γ Γ' → OnCtx Γ (env.IsType U) →
+    OnCtx Γ' (env.IsType U) → env.projections S info → ls.length = info.uvars →
+    ps.length = info.nparams → idx.length = info.nindices →
+    env.HasType U Γ m (mkApps (.const S ls) (ps ++ idx)) →
+    env.HasType U Γ' (.proj S i (m.liftN 1 k)) T →
+    ¬ (info.resultLevel.inst ls).IsNeverZero →
+    ∃ F l, info.fieldType S ls ps i m = some F ∧ env.HasType U Γ F (.sort l) ∧
+      ((info.resultLevel.inst ls).IsNeverZero ∨ l ≈ .zero)
+
+/-- The field-type closure reduces to its instances at structures in (or possibly in) `Prop`. -/
+theorem ProjFieldFrontN.of_notNeverZero (henv : env.WF) (H : ProjFieldFrontPropN env) :
+    ProjFieldFrontN env := by
+  intro U k Γ Γ' S info ls ps idx m i T W hΓ hΓ' hinfo hls hps hidx hm he
+  by_cases hnz : (info.resultLevel.inst ls).IsNeverZero
+  · obtain ⟨F, l, hF, hFs⟩ := projField_of_neverZero henv hΓ hinfo hls hps hidx hm hnz
+      (HasType.proj_index_lt henv hΓ' he hinfo)
+    exact ⟨F, l, hF, hFs, .inl hnz⟩
+  · exact H W hΓ hΓ' hinfo hls hps hidx hm he hnz
+
 end Lean4Lean.VEnv.StrengtheningSpineExposure

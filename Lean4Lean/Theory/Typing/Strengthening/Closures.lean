@@ -13,7 +13,8 @@ environment-level typing facts about closed, environment-determined terms
   nothing below without it). The closed rule typings of `CaseStep.iota` likewise follow from
   `GenericRulesTyped₀`.
 * `ProjFrontN` follows from `EtaReplay` (spine exposure of the major's type) and
-  `ProjFieldFrontN` (`SpineExposure.lean`).
+  `ProjFieldFrontN` (`SpineExposure.lean`), itself reduced to its instances at structures whose
+  sort is not never-zero (`ProjFieldFrontPropN`).
 
 `cancel_iff_typedFront_of_etaReplay` is the assembled biconditional. -/
 
@@ -85,10 +86,14 @@ theorem cancel_iff_typedFront_of_etaReplay (henv : env.WF) (heq : env.HasCanonic
   cancel_iff_typedFront_of henv heq H (ProjFrontN.of_etaReplay henv heq H hField)
     (ElimFrontN.of_genericTyped henv hGen)
 
+/-- The same with the two environment-level obligations in their sharpest form: the generic
+types typed at the generic universes, and the field-type closure at structures whose sort is not
+never-zero (outside `Prop` it is a library fact, `projField_of_neverZero`). -/
 theorem cancel_iff_typedFront_of_etaReplay₀ (henv : env.WF) (heq : env.HasCanonicalEq)
     (H : ∀ U, @EtaReplay (henv.params U)) (hGen : GenericTypesTyped₀ env)
-    (hField : ProjFieldFrontN env) :
+    (hField : ProjFieldFrontPropN env) :
     Cancel env ↔ StrengtheningKripke.TypedFront env :=
-  cancel_iff_typedFront_of_etaReplay henv heq H (GenericTypesTyped.of_generic hGen) hField
+  cancel_iff_typedFront_of_etaReplay henv heq H (GenericTypesTyped.of_generic hGen)
+    (ProjFieldFrontN.of_notNeverZero henv hField)
 
 end Lean4Lean.VEnv.StrengtheningClosures

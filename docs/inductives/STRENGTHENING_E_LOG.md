@@ -124,4 +124,51 @@ strengthening for `Prop` structures with data fields, the same shape as `Generic
 
 Build clean, zero `sorry`.
 
-(entries follow)
+## Step 4: the field-type closure outside `Prop` (`SpineExposure.lean`, part 4)
+
+`projField_of_neverZero`: for `m : mkApps (const S ls) (ps ++ idx)` in `Γ` with
+`(info.resultLevel.inst ls).IsNeverZero` and `i < info.numFields`, the field type
+`info.fieldType S ls ps i m` is `some F` with `F : sort l` in `Γ`. No information from any other
+context. Proof: `Ordered.projectionShape` gives the declaration, the constructor's raw telescope
+`ctor.type = wrapForalls doms result` (`RawCtorShape.forallArity`, `numFields = doms.length -
+nparams`), its well-formedness in `[]`, and the two parameter shapes (`TypeShape` for the type
+former, `CtorParameterShape` for the constructor) through the common `params`; the type former's
+header is `wrapForalls (P ++ I) (sort rl)` up to conversion (as in step 1), so
+`HasType.mkApps_wrapForalls` types `ps` at the type former's parameter domains; these are
+converted to the constructor's (`IsDefEqCtx.trans_empty`, `reverse_getElem`,
+`IsDefEqU.closed_telescope_instOuter`); the field domains are types in their closed telescopes
+(`IsType.wrapForalls_inv`, `OnCtx.getElem_reverse_append`) and
+`IsType.closed_telescope_instOuter` (new: closed-context weakening by `Ctx.LiftN.right` then
+`IsType.instOuter_telescope`) instantiates them at `ps ++ [proj 0 m, …, proj (j-1) m]`; the
+earlier projections are typed by induction on the field index with `projDF` and the guard's left
+disjunct. Hence `ProjFieldFrontN.of_notNeverZero : ProjFieldFrontPropN env → ProjFieldFrontN env`,
+where `ProjFieldFrontPropN` is `ProjFieldFrontN` with the extra hypothesis
+`¬ (info.resultLevel.inst ls).IsNeverZero` (the field index bound comes from
+`HasType.proj_index_lt` above). `Closures.lean`: `cancel_iff_typedFront_of_etaReplay₀` takes
+`GenericTypesTyped₀` and `ProjFieldFrontPropN`.
+
+Axiom audit (`scratch/SpineAxioms.lean`, all theorems of both files): `propext`,
+`Classical.choice`, `Quot.sound`; no `sorryAx`.
+
+## Final state
+
+Files: `Lean4Lean/Theory/Typing/Strengthening/SpineExposure.lean` (spine exposure, `EtaSpine`,
+the projection closure, the field-type closure outside `Prop`) and `Closures.lean` (the
+eliminator closure from `GenericTypesTyped₀`, the closed rule typings from `GenericRulesTyped₀`,
+the assembled biconditionals). Nothing outside `Strengthening/` and `docs/inductives/` changed;
+`Exposure.lean` and `EtaPostponement.lean` untouched; no statement changed; no test deleted.
+
+The exact missing environment lemmas, as `def`s with checked implications:
+
+* `GenericTypesTyped₀ env` ⟹ `GenericTypesTyped env` ⟹ `ElimFrontN env`. Content: formation of
+  the restored case type of every registered schema in `[]` at the generic universes. Not
+  derivable from the installed recursor's type without thinning (closed-telescope
+  strengthening), and registration precedes recursor installation anyway.
+* `GenericRulesTyped₀ env` ⟹ closed typing premises of `CaseStep.iota` in every context at every
+  permitted specialization (one of the two parts of `CaseRedexDescends`; the other is `TypedFront`
+  retyping of the captures and the alignment guard, B2 log).
+* `ProjFieldFrontPropN env` ⟹ `ProjFieldFrontN env` ⟹ (with `EtaReplay`) `ProjFrontN env`.
+  Content: typing below of the field type of a `Prop`-structure (or possibly-`Prop` at the given
+  levels) field whose projection is typable above; beyond library telescope facts this is the
+  thinning of unprojectable data-field binders out of the closed constructor telescope, i.e.
+  closed-telescope strengthening with an uninhabited removed binder.
