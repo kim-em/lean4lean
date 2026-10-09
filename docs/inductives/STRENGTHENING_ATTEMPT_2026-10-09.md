@@ -332,11 +332,153 @@ in this attempt. The remaining unexplored direction is an environment with non-t
 definitions whose unfolding is needed to expose a proof major: this adds no inhabitation
 sensitivity (definitions are closed) and is covered by the same argument.
 
-## 6. Log
+## 6. Second opinion (review 5) and the refutation of frozen checks
 
-* 2026-10-09: sections 1 to 5 written; `Strengthening/Cancel.lean` committed (fe0c738f).
-  Second opinion requested (`STRENGTHENING_ASTRA_REVIEW5.md`) on: (a) the frozen-check variant
-  of 3.3/3.4, specifically whether every `trans` call in the strip can be arranged on
-  sub-certificates of the diamond's inputs; (b) whether the certificate calculus of 2.1 is
-  the right shape for theorems 1 to 3 or whether a different shape (e.g. checking at a common
-  type) is needed for descent of `proofIrrel`; (c) anything in section 5.
+`STRENGTHENING_ASTRA_REVIEW5.md` (gpt-6-astra). Summary of the findings, all accepted:
+
+* Frozen checks fix one local problem (an alignment guard transported along a reduction of its
+  own arguments) and nothing else. Output compositions survive in certified substitution (the
+  exposure of a substituted function type starts at the substituted type, not at the synthesised
+  one: `d ; asConv(Rσ)` is a composition of outputs), in synthesis coherence for eta against a
+  reduction of the function (the output eta must use a domain exposed from a certificate for the
+  reduct), in projection overlaps (`structEta` against `projIota` types a projection of a fresh
+  expansion), and in normal-equality transport at proof-irrelevance leaves
+  (`S ~ p[n] ~ p'[n] ~ p'[n'] ~ S'`).
+* "Ancestors, hence still lifts" is false: `(λ z : Prop. Prop) q →β Prop` has a supported
+  reduct and an unsupported ancestor; a judgement that existentially admits ancestors cannot
+  infer their support from its endpoints.
+* The stated soundness theorem is false with untyped congruences (`app Prop Prop` is normally
+  equal to itself); soundness needs typed endpoints (section 8 does this). `major_prop` of
+  `UnfoldingCheck` existentially chooses a type and must be canonicalised; a `CCheck` of a
+  projection redex does not fix its type; `elimDF` must keep a certified sort premise.
+* No shortcut to `Cancel` through `IsDefEqStrong`: `trans` admits arbitrary intermediates.
+* Section 5's groupoid remark was overstated: a thin groupoid with coherent transport does
+  interpret the extraction motive; the correct statement is that the particular countermodel's
+  equality interpretation cannot satisfy all rules once `Eq.rec` with definitional proof
+  irrelevance is present.
+
+The author's own analysis of frozen checks, made before the review arrived and agreeing with
+it: the frozen variant removes the re-expression from the diamond, but completeness through
+`trans` crosses a normal-equality boundary (the join of `a` and `c` through the middle term
+`b`): a step transported from the `b`-world to the `a`-world carries a check whose ancestry
+starts at a subterm of `b`, which has no `a`-side mirror. Re-expressing it is a zigzag
+`x_a ≡ₚ x_b ⇐* x₀ ⇒* z ⇐* y₀ ⇒* y_b ≡ₚ y_a` through `b`-world terms, i.e. the support
+condition fails exactly there; and stratifying by nesting depth fails because re-expressing a
+check of depth `k-1` against a reduction of depth `k` produces a check of depth `k`, so the
+strip lemma at depth `k` needs the diamond at depth `k+1` on its own outputs.
+
+## 7. Results integrated from the parallel second-opinion attempts
+
+Astra's three checked files (`docs/inductives/history/Strengthening{Partial,Continuation,
+Kripke,Rank}_2026-10-08.lean`) are adapted into the library:
+
+* `Strengthening/Cancel.lean`: `Strengthening ↔ Front ↔ Cancel`, inhabited and retraction
+  cases, the former consumers.
+* `Strengthening/JoinRepair.lean`: under canonical `Eq`, `Cancel ↔ ∀ U, JoinRepair`, where
+  `JoinRepair` asks to replace a `FullReduction`/`NormalEq` join of lifted typed terms in
+  `Q :: Γ` by a typed join in `Γ`; substitution for every `FullStep` constructor
+  (`fullStep_instN`) repairs the witness for an inhabited binder; every installed equation has
+  a join of support-preserving paths.
+* `Strengthening/Obstructions.lean`: the eta-domain counterexample and its repair; the hidden
+  domain conversion of `NormalEqN.lamDF` and of a domain-counted fragment with admissible
+  transitivity (`alignment_can_be_hidden`: typing certificates must be structural and counted);
+  no source-only substitution bound for structural typing certificates
+  (`no_source_only_substitution_bound`; the rank file adds `no_additive_size_decrease`: for
+  `(λ S1. twice) (tower N)` the beta certificate has size `2N+5` and every typing certificate
+  of the contractum has size `4N+3`, so no rank with certificate size first decreases through
+  beta); non-reflection of the fixed-target observation model.
+* `Strengthening/Kripke.lean`: `KEq`, the all-target observation model; sound; separates the
+  two test cases; forgets proof types (`heterogeneous_reflection_false`); `FreshReflection`,
+  the common-type reflection statement, gives `Cancel` and `JoinRepair`;
+  `keyFaithful_iff_typedFront` (assuming lifted element classes reflect is already fixed-type
+  strengthening).
+
+## 8. The pilot certificate calculus (`Strengthening/Pilot.lean`)
+
+The fragment with sorts, variables, constants, `Π`, `λ`, application, beta, closed stored
+equations, typed eta and typed proof irrelevance, as one kind-indexed inductive family
+`Cert : CKind → List VExpr → VExpr → VExpr → Prop` (synthesis, step, reduction, normal
+equality, conversion), with the design of section 2.1: function types exposed to `Π` by
+certified reduction, eta at the exposed synthesised domain, `λ`/`Π` domains compared by
+certificates, proof irrelevance comparing synthesised propositions with a certified sort
+exposure. Proved:
+
+* `Cert.sound`: soundness into `IsDefEq` for typed endpoints (typing of both endpoints is a
+  hypothesis for normal equality and conversion, as review 5 requires);
+* `Cert.descend`: a certificate between lifts in a context with inserted binders is the lift of
+  a certificate in the smaller context, by one structural induction. This is the formal check
+  that the three obstructions of section 7 are passed by construction: no free eta domain, no
+  uncounted domain conversion, no freely chosen typing witness at proof irrelevance.
+
+Not proved: transitivity of `Cert .conv` (equivalently completeness, `IsDefEq ⊆ Cert .conv`).
+The fragment omits projections, eliminators and the singleton and quotient unfoldings, so its
+completeness fails in environments using them and the pilot is a template, not a reduction of
+the full problem.
+
+## 9. `FreshReflection` is false (`Strengthening/Kripke.lean`, `freshReflection_false`)
+
+The semantic route of section 7 cannot close as stated. Every well-formed environment with
+canonical `Eq` extends, by the mutual definition `L₁ : Type := L₁`, `L₂ : Type := L₂` of two
+fresh names (`VDecl.WF.mutualDef` admits it), to a well-formed environment with canonical `Eq`
+in which
+
+* `L₁` and `L₂` have no observation in any target context, at any typed anchor and any
+  observation assignment (`LoopEnv.no_observation`): the observations of a defined constant
+  are those of its value, which is the constant itself, so the least fixed point is empty; the
+  other clauses for a constant need it rigid, a constructor, a projection family or
+  constructor, or the head of a lambda-wrapped rule with arguments, each excluded by
+  freshness or by the self-loop; hence `KEq (Q :: Γ) L₁ L₂` for every `Q`, at the common
+  displayed type `Type`;
+* `L₁ ≢ L₂` (`LoopEnv.not_defeq`): every derivation of the looping environment is a derivation
+  of the environment in which `L₁`, `L₂` are axioms (their equations are reflexivities there,
+  `LoopEnv.toAxioms`), where both are rigid heads (`WF.rigid_of_fresh`: a fresh name heads no
+  stored equation, since stored equations are typed and the head of a typed spine is a
+  constant of the environment, `HasType.head_const_mem`) and head separation
+  (`HeadSeparation.rigid_heads`) keeps them apart.
+
+So the all-target observation model identifies definitionally distinct terms of a common type.
+The reason is general: the observation model is a least fixed point, so a non-terminating
+definition has no observations, while the declarative theory keeps distinct looping constants
+apart. Any reflection-based proof of `Cancel` must use a model that distinguishes stuck
+constants, i.e. a term model, whose "equality is an equivalence" is the completeness theorem
+of section 3. (The same construction shows that no model built as a least fixed point of
+finite observations can be complete for the theory with `VDecl.WF.mutualDef`.)
+
+## 10. Status and the precise obstruction
+
+**Outcome: obstruction, precisely documented and partly formalised; no proof, no
+counterexample.** The theorem `strengthening_of_canonicalEq` is reduced, with machine-checked
+equivalences, to any of:
+
+1. `Cancel env`: `Γ ⊢ λ Q. a↑ ≡ λ Q. b↑` implies `Γ ⊢ a ≡ b` (`strengthening_iff_cancel`);
+2. `∀ U, JoinRepair (henv.params U)`: repair of a lifted typed join (`cancel_iff_joinRepair`,
+   canonical `Eq` used through `WF.church_rosser`);
+
+and it follows from the completeness of a support-preserving certificate calculus for the full
+theory (section 2; the pilot of section 8 shows the shape), whose single missing theorem is
+admissible transitivity of certified conversion. The inhabited-binder case is fully solved
+(substitution, witness repair for every reduction rule). The uninhabited case is the whole
+problem.
+
+Why every organisation fails (sections 3.3 and 6): the diagram proof of transitivity must
+re-express side-condition certificates against reductions and across normal-equality
+boundaries; re-expression is a composition of certificates that are outputs of earlier diagram
+steps; no measure (certificate size, nesting depth, universe level, derivation height,
+beta-peak length, frozen ancestry, coinduction) orders those compositions; and the checked
+`no_additive_size_decrease` shows that certificate size cannot be the first component of any
+lexicographic rank. The semantic alternative (reflection of an observation model) is refuted
+for least-fixed-point models by section 9.
+
+What would be needed: either (a) a substitution-aware cut rank for certified conversion in a
+theory with typed eta and definitional proof irrelevance, with no normalisation (normalisation
+of Lean's theory is unprovable in Lean), or (b) a term model that distinguishes stuck
+constants and whose equality is proved to be an equivalence, which is (a) in disguise, or (c) a
+counterexample under canonical `Eq`, for which no mechanism is known (section 5) and whose
+separating model would have to be a syntactic invariant, since no set-theoretic model of the
+full theory can be built in Lean (`COUNTERMODEL_STATUS.md`).
+
+## 11. Log
+
+* 2026-10-09: sections 1 to 5; `Strengthening/Cancel.lean` (fe0c738f); review 5 requested and
+  received; `JoinRepair.lean`, `Obstructions.lean` (73efe826); `Pilot.lean` (ff6f9068);
+  `Kripke.lean` with `freshReflection_false` (33aebf92); sections 6 to 10.
