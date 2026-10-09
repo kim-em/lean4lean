@@ -885,6 +885,19 @@ def VInductDecl.SourceWF (env : VEnv) (decl : VInductDecl) : Prop :=
     (∀ type ∈ decl.types, type.toVConstant.WF env) ∧
     ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes
 
+theorem VInductDecl.SourceWF.mono_of_addConstVals {decl : VInductDecl} {env env' envTypes envCtors : VEnv}
+    (H : decl.SourceWF env) (hle : env ≤ env')
+    (htypes : env'.addConstVals decl.typeConstants = some envTypes)
+    (hctors : envTypes.addConstVals decl.constructorConstants = some envCtors) :
+    decl.SourceWF env' := by
+  rcases H with ⟨hnonempty, hnames, htypeUvars, hctorUvars, sourceTypes, sourceCtors,
+    hsourceTypes, _, hsourceTypesWF, hsourceCtorsWF⟩
+  have hsourceTypesLE : sourceTypes ≤ envTypes :=
+    VEnv.addConstVals_mono hle hsourceTypes htypes
+  exact ⟨hnonempty, hnames, htypeUvars, hctorUvars, envTypes, envCtors, htypes, hctors,
+    fun type htype => (hsourceTypesWF type htype).mono hle,
+    fun ctor hctor => (hsourceCtorsWF ctor hctor).mono hsourceTypesLE⟩
+
 /-- Formation conditions for ordinary and mutually recursive inductive blocks.
 Nested declarations use the same source judgment; their lowering must later
 produce these conditions for the expanded mutual family. -/
@@ -897,6 +910,20 @@ def VInductDecl.OrdinaryFormationWF (env : VEnv) (decl : VInductDecl) : Prop :=
       decl.CtorParameterShape envTypes params ctor ∧
       decl.CtorShape envTypes params type ctor) ∧
     ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor
+
+theorem VInductDecl.OrdinaryFormationWF.mono_of_addConstVals {decl : VInductDecl} {env env' envTypes : VEnv}
+    (H : decl.OrdinaryFormationWF env) (hle : env ≤ env')
+    (htypes : env'.addConstVals decl.typeConstants = some envTypes) :
+    decl.OrdinaryFormationWF env' := by
+  rcases H with ⟨params, resultLevel, formationTypes, hformationTypes, htypeShapes,
+    hctorShapes, hraw⟩
+  have hformationTypesLE : formationTypes ≤ envTypes :=
+    VEnv.addConstVals_mono hle hformationTypes htypes
+  exact ⟨params, resultLevel, envTypes, htypes,
+    fun type htype => ⟨(htypeShapes type htype).1, (htypeShapes type htype).2.mono hle⟩,
+    fun type htype ctor hctor =>
+      let Hctor := hctorShapes type htype ctor hctor
+      ⟨Hctor.1.mono hformationTypesLE, Hctor.2.mono hformationTypesLE⟩, hraw⟩
 
 theorem VInductDecl.OrdinaryFormationWF.sourceParameterWF
     {env : VEnv} {decl : VInductDecl}

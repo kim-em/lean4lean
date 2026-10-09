@@ -1401,6 +1401,32 @@ theorem IsDefEqCtx.reverse_getElem {l₁ l₂ : List VExpr}
   simp only [e1, e2, e3] at h
   exact h
 
+/-- A closed term typed at a telescope, applied to the telescope's own
+variables in the telescope's context, has the telescope's body type. -/
+theorem HasType.mkApps_bvarRange {env : VEnv} {U : Nat} (henv : env.WF)
+    {f B : VExpr} {doms : List VExpr}
+    (hf : env.HasType U [] f (VExpr.wrapForalls doms B))
+    (hctx : OnCtx doms.reverse (env.IsType U))
+    (hB : B.ClosedN doms.length) :
+    env.HasType U doms.reverse
+      (VExpr.mkApps f (VExpr.bvarRange doms.length doms.length)) B := by
+  have hf' : env.HasType U doms.reverse f (VExpr.wrapForalls doms B) :=
+    hf.weak0 henv.ordered
+  have h := HasType.mkApps_of_telescope henv hctx
+    (args := VExpr.bvarRange doms.length doms.length) hf' (by simp) ?_
+  · rwa [VExpr.instOuter_range_bvar' B _ _ hB (Nat.le_refl _), Nat.sub_self,
+      VExpr.liftN_zero] at h
+  · intro j hj hj'
+    simp only [VExpr.bvarRange_length] at hj
+    rw [VExpr.bvarRange_getElem _ _ _ hj, VExpr.bvarRange_take _ _ _ (Nat.le_of_lt hj)]
+    have hclosed : doms[j].ClosedN j := by
+      have := OnCtx.reverse_getElem_closedN henv (Γ := []) (by simpa using hctx) j hj'
+      simpa using this
+    rw [VExpr.instOuter_range_bvar' _ _ _ hclosed (by omega)]
+    have hl := Lookup.reverse_append doms [] j hj'
+    simp only [List.append_nil] at hl
+    exact .bvar hl
+
 end VEnv
 
 end Lean4Lean
