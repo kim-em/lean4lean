@@ -353,7 +353,7 @@ theorem AddInductive.run.extensionModelWF
   have hsize : 0 < types.toArray.size := by
     cases htypes : types with
     | nil => simp [htypes] at hnonempty
-    | cons _ _ => simp [htypes]
+    | cons _ _ => simp
   exact (AddInductive.run.sourceAlignedWF nparams numNested Hc
     Hclosed wf.envGhostFree wf.inductiveConstructorsCoherent.present hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
       exact Hrun.extendWithSpecification wf htels hsource HnotPartial hnonempty

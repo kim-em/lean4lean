@@ -171,8 +171,8 @@ private theorem validateRestoredRecursorTypes.sourceCheck_eq_ok_of_run
       rw [hprimary] at hrun
       simp only [bind, Except.bind] at hrun
       cases hrun
-  | ok unit =>
-      rcases unit with ⟨⟩
+  | ok done =>
+      rcases done with ⟨⟩
       exact listForM_eq_ok_of_mem
         (fun type : InductiveType =>
           Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv lparams
@@ -216,8 +216,8 @@ theorem validateRestoredRecursorTypes.typeCheck_eq_ok_of_run
       rw [hclosed] at hcheck
       simp only [bind, Except.bind] at hcheck
       cases hcheck
-  | ok unit =>
-      rcases unit with ⟨⟩
+  | ok done =>
+      rcases done with ⟨⟩
       cases htypecheck : TypeChecker.M.run env (safety := safety) (lctx := {})
           (lparams := (result.restoreRecursor loweredEnv recNameMap allIndNames
             (Lean.mkRecName indType.name)
@@ -238,7 +238,7 @@ theorem validateRestoredRecursorTypes.typeCheck_eq_ok_of_run
           rw [hclosed, htypecheck] at hcheck
           simp only [bind, Except.bind] at hcheck
           cases hcheck
-      | ok checked => exact ⟨checked, by simpa using hclosed, rfl⟩
+      | ok checked => exact ⟨checked, by simp, rfl⟩
 
 /-- The executable recursor-type pass gives a translation of the restored
 source recursor type, which is a type. -/
@@ -306,8 +306,8 @@ private theorem validateRestoredRecursorTypes.auxiliaryCheck_eq_ok_of_run
       rw [hprimary] at hrun
       simp only [bind, Except.bind] at hrun
       cases hrun
-  | ok unit =>
-      rcases unit with ⟨⟩
+  | ok done =>
+      rcases done with ⟨⟩
       rw [hprimary] at hrun
       simp only [bind, Except.bind] at hrun
       exact listForM_eq_ok_of_mem
@@ -339,9 +339,9 @@ theorem validateRestoredRecursorTypes.translation_of_check
         rw [hclosed] at hstep
         simp only [bind, Except.bind] at hstep
         cases hstep
-    | ok unit =>
-        rcases unit with ⟨⟩
-        simpa using hclosed
+    | ok done =>
+        rcases done with ⟨⟩
+        simp
   have hclosed : restored.type.FVarsIn fun _ => False :=
     checkNoMVarNoFVar.closed hclosedRun
   have hfvars : restored.type.FVarsIn fun fv => fv ∈
@@ -409,8 +409,8 @@ private theorem validateRestoredRecursorRules.sourceCheck_eq_ok_of_run
       rw [hprimary] at hrun
       simp only [bind, Except.bind] at hrun
       cases hrun
-  | ok unit =>
-      rcases unit with ⟨⟩
+  | ok done =>
+      rcases done with ⟨⟩
       exact listForM_eq_ok_of_mem
         (fun type : InductiveType =>
           Lean4Lean.validateRestoredRecursorRules.check env loweredEnv lparams
@@ -432,8 +432,8 @@ private theorem validateRestoredRecursorRules.auxiliaryCheck_eq_ok_of_run
       rw [hprimary] at hrun
       simp only [bind, Except.bind] at hrun
       cases hrun
-  | ok unit =>
-      rcases unit with ⟨⟩
+  | ok done =>
+      rcases done with ⟨⟩
       rw [hprimary] at hrun
       simp only [bind, Except.bind] at hrun
       exact listForM_eq_ok_of_mem
@@ -481,9 +481,9 @@ theorem validateRestoredRecursorRules.translation_of_check
         rw [hclosed] at hruleStep
         simp only [bind, Except.bind] at hruleStep
         cases hruleStep
-    | ok unit =>
-        rcases unit with ⟨⟩
-        simpa using hclosed
+    | ok done =>
+        rcases done with ⟨⟩
+        simp
   have hclosed : rule.rhs.FVarsIn fun _ => False :=
     checkNoMVarNoFVar.closed hclosedRun
   have hfvars : rule.rhs.FVarsIn fun fv => fv ∈

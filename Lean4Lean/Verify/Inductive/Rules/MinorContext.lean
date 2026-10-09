@@ -235,7 +235,7 @@ theorem MLCtxOnlyLams.closedTelescopeScope
       rw [List.take_succ_eq_append_getElem hmlt, hget]
       simp
     · rw [htgt]
-      simp [VLCtx.toCtx, VExpr.wrapForalls_append, VExpr.wrapForalls]
+      simp [VLCtx.toCtx, VExpr.wrapForalls]
   have hL : c.vlctx.fvars.filter (· ∈ outer) <:+ outer.reverse := by
     rw [hfilter]
     exact List.suffix_refl _
@@ -328,7 +328,7 @@ theorem
               (.sort H.elimLevel)) ∧
           ∃ (suffixSource : Expr) (name : Name)
             (sourceDomain sourceBody : Expr) (bi : BinderInfo)
-            (bodyTarget : VExpr),
+            (_bodyTarget : VExpr),
             Expr.ForallTelescope
               (H.generated.entry owner howner).info.type
               (T.params.length + owner) suffixSource ∧
@@ -463,8 +463,8 @@ theorem
         H.recInfos[owner]!.indices.size owner,
       ∃ D : FVarDeclAt H.localContext
           (H.recInfos.flatMap (·.minors)) minorIdx,
-        ∃ O : H.origins.FlatMinorBinderType D,
-          ∃ S : MinorPremiseType,
+        ∃ _O : H.origins.FlatMinorBinderType D,
+          ∃ _S : MinorPremiseType,
           let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
               H.bindings.flatMinors.fvars.take minorIdx
@@ -573,7 +573,7 @@ theorem
       (H.generated.entry owner howner).info.type.FVarsIn
         (fun _ => False) := by
     have Hscope := T.typed.translation.fvarsIn
-    exact Hscope.mono fun fv hfv => by simpa using hfv
+    exact Hscope.mono fun fv hfv => by simp at hfv
   have Hcontext := H.recursorWF.mlctx_wf.tr
   rw [H.recursorWF.lctx_eq] at Hcontext
   apply checkInductiveTypes.loopType.TrLCtx'.isFVarUpSet Hcontext.2
@@ -1173,7 +1173,7 @@ theorem
   have hcountK : outerBinders.length + (H.recInfos[owner]!.indices.size + 1) =
       (outerBinders.take k).length +
         (outerBinders.length - k + (H.recInfos[owner]!.indices.size + 1)) := by
-    simp only [List.length_take, Nat.min_eq_left hk]
+    simp only [List.length_take]
     omega
   rw [hcountK] at HT'
   obtain ⟨scope, Hscope, hscope, hshift, hclose, t', HE, _⟩ :=
@@ -1214,8 +1214,8 @@ theorem
         H.recInfos[owner]!.indices.size owner,
       ∃ D : FVarDeclAt H.localContext
           (H.recInfos.flatMap (·.minors)) minorIdx,
-      ∃ O : H.origins.FlatMinorBinderType D,
-      ∃ S : MinorPremiseType,
+      ∃ _O : H.origins.FlatMinorBinderType D,
+      ∃ _S : MinorPremiseType,
       ∃ scope,
       ∃ Hscope : checkInductiveTypes.loopType.ScopeEmbedding
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
@@ -1420,7 +1420,7 @@ theorem
     (hminorLimit : minorLimit ≤ H.bindings.flatMinors.fvars.length) :
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorLimit
-    ∀ position (hposition : position < sourceBinders.length)
+    ∀ position (_hposition : position < sourceBinders.length)
       {prefixDomain recursorDomain : Expr},
       Expr.ForallBinderAt
         (H.localContext.lctx.mkForall
@@ -1658,7 +1658,7 @@ theorem
     let minorIdx := recursorMinorOffset indTypes owner + i
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
-    ∀ position (hposition : position < sourceBinders.length)
+    ∀ position (_hposition : position < sourceBinders.length)
       {prefixDomain recursorDomain : Expr},
       Expr.ForallBinderAt
         (H.localContext.lctx.mkForall

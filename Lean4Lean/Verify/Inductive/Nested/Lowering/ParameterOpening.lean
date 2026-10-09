@@ -42,7 +42,7 @@ theorem LoweringParamOpening.params_extension
   | @step lctx params name dom body bi id n outLctx tail outParams H ih =>
     rcases ih with ⟨suffix, heq, hlength⟩
     refine ⟨(.fvar id) :: suffix, ?_, by simp [hlength]⟩
-    simpa [heq, List.append_assoc]
+    simp [heq, List.append_assoc]
 
 /-- Exact local-declaration extension performed by the forall-only nested
 parameter opening. Declarations are in binder order. -/

@@ -159,7 +159,7 @@ theorem Expr.abstractN_append (ys zs : List FVarId) : ∀ (e : Expr) (d : Nat),
     | some r => simp [Expr.abstractN]
     | none =>
       cases hy : Expr.lastRevIdx? v ys with
-      | some r => simp [Expr.abstractN, hy, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+      | some r => simp [Expr.abstractN, hy, Nat.add_comm, Nat.add_left_comm]
       | none => simp [Expr.abstractN, hy]
   | .mdata _ e, d => by simp [Expr.abstractN, Expr.abstractN_append ys zs e d]
   | .proj _ _ e, d => by simp [Expr.abstractN, Expr.abstractN_append ys zs e d]
@@ -924,7 +924,7 @@ theorem Expr.reopenParams_eq_reopenFVarsAt
   simp only [Expr.reopenParams, Expr.reopenFVarsAt,
     Expr.abstract_eq_of_closed e fvars hnd hlb,
     Expr.instantiateRev_eq, Expr.instantiate_eq, Array.toList_reverse,
-    Expr.instantiateList_reverse, List.toList_toArray, List.map_reverse]
+    Expr.instantiateList_reverse]
 
 /-- Reopening at the depth of a syntax traversal agrees with the operational
 depth-zero parameter reopening for expressions without loose bound
@@ -1200,7 +1200,7 @@ theorem Expr.abstract1_eq_fvar_of_ne
   | fvar other =>
     by_cases h : (fv == other) = true
     · simp [Expr.abstract1, h] at H
-    · simp only [Expr.abstract1, h, ↓reduceIte] at H
+    · simp only [Expr.abstract1, h] at H
       cases H
       rfl
   | mvar | sort | const | lit => simp [Expr.abstract1] at H
@@ -1793,8 +1793,7 @@ theorem checkInductiveTypes.loopType.FrontScopeEmbedding.abstractFront
   let scopePrefix := scope.take H.frontSourceDomains.length
   let tail := scope.drop H.frontSourceDomains.length
   have hscope : scopePrefix ++ tail = scope := by
-    simpa [scopePrefix, tail] using
-      (List.take_append_drop H.frontSourceDomains.length scope).symm
+    simp [scopePrefix, tail]
   have Htr' : TrExprS env Us
       (abstractForallContext [] (scopePrefix ++ tail)) source target := by
     simpa [abstractForallContext, hscope] using Htr
@@ -1937,7 +1936,7 @@ theorem FVarsIn.of_abstract1
     · simpa [FVarsIn, Expr.abstract1, h, Ne.symm h] using H
   | sort level => simpa [FVarsIn, Expr.abstract1] using H
   | const name levels => simpa [FVarsIn, Expr.abstract1] using H
-  | mvar id => simpa [FVarsIn, Expr.abstract1] using H
+  | mvar id => simp [FVarsIn, Expr.abstract1] at H
   | lit literal => trivial
   | app fn arg ihFn ihArg =>
     exact ⟨ihFn H.1, ihArg H.2⟩
@@ -2411,7 +2410,7 @@ theorem Expr.ForallTelescopeTypeTranslation.binderAt_target
       _ = (domains.take i ++ [domains[i]]) ++ domains.drop (i + 1) := by
         rw [List.take_append_getElem hidomains]
       _ = domains.take i ++ domains[i] :: domains.drop (i + 1) := by
-        simp [List.append_assoc]
+        simp
   have hprefix : prefixDomains = domains.take i := by
     apply VExpr.wrapForalls_prefix_domains_eq hprefixLength
       (by simp [List.length_take, Nat.min_eq_left (Nat.le_of_lt hidomains)])
@@ -2460,8 +2459,8 @@ theorem Expr.ForallTelescopeTypeTranslation.commonPrefixDefEqCtx
     (hlength₂ : domains₂.length = arity₂)
     (prefixLen : Nat) (hprefix₁ : prefixLen ≤ arity₁)
     (hprefix₂ : prefixLen ≤ arity₂)
-    (Hdomains : ∀ i (hiprefix : i < prefixLen)
-      (hi₁ : i < arity₁) (hi₂ : i < arity₂)
+    (Hdomains : ∀ i (_hiprefix : i < prefixLen)
+      (_hi₁ : i < arity₁) (_hi₂ : i < arity₂)
       {domain₁ domain₂ : Expr},
       Expr.ForallBinderAt source₁ i domain₁ →
       Expr.ForallBinderAt source₂ i domain₂ →
@@ -2480,8 +2479,8 @@ theorem Expr.ForallTelescopeTypeTranslation.commonPrefixDefEqCtx
   have habstractToCtx : ∀ types : List VExpr,
       (abstractForallContext types []).toCtx = types.reverse := by
     intro types
-    simpa [abstractForallContext, ← List.map_reverse] using
-      htoCtx types.reverse
+    simp only [abstractForallContext, List.append_nil]
+    exact htoCtx types.reverse
   induction prefixLen with
   | zero => exact .zero
   | succ prefixLen ih =>
@@ -2551,8 +2550,8 @@ theorem Expr.ForallTelescopeTypeTranslation.commonPrefixDefEqCtxOver
     (hlength₂ : domains₂.length = arity₂)
     (prefixLen : Nat) (hprefix₁ : prefixLen ≤ arity₁)
     (hprefix₂ : prefixLen ≤ arity₂)
-    (Hdomains : ∀ i (hiprefix : i < prefixLen)
-      (hi₁ : i < arity₁) (hi₂ : i < arity₂)
+    (Hdomains : ∀ i (_hiprefix : i < prefixLen)
+      (_hi₁ : i < arity₁) (_hi₂ : i < arity₂)
       {domain₁ domain₂ : Expr},
       Expr.ForallBinderAt source₁ i domain₁ →
       Expr.ForallBinderAt source₂ i domain₂ →
@@ -2829,7 +2828,7 @@ theorem List.exists_append_five_of_length_eq
     simp only [List.append_assoc]
     rw [List.take_append_drop d, List.take_append_drop c,
       List.take_append_drop b, List.take_append_drop a]
-  all_goals simp [as, bs, cs, ds, es, restA, restB, restC, h] <;> omega
+  all_goals (simp [as, bs, cs, ds, es, restA, restB, restC, h]; omega)
 
 private theorem vlamPrefix_find_bvar
     (pref : List VExpr) (Δ : VLCtx) (i : Nat) (hi : i < pref.length) :
@@ -3328,7 +3327,7 @@ theorem Expr.mkAppN_looseBVarRange_le
   induction list generalizing fn with
   | nil => rfl
   | cons arg rest ih =>
-      simp only [List.foldl_cons, List.map_cons, Expr.instantiate1']
+      simp only [List.foldl_cons, List.map_cons]
       exact ih (fn := fn.app arg)
 
 @[simp] theorem Expr.getAppFn_liftLooseBVars'
@@ -3800,7 +3799,6 @@ theorem RecursorParameterContextSuffix.closedSortTyped
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     (H : RecursorParameterContextSuffix R stats depth) :
-    let parameterMLCtx := R.mlctx.dropN depth H.depth_le
     TrExprS R.venv recLparams []
         (R.mlctx.lctx.mkForall stats.params
           (.sort (.zero : Level)))
@@ -3880,7 +3878,6 @@ theorem RecursorParameterContextSuffix.closedSortTranslation
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     (H : RecursorParameterContextSuffix R stats depth) :
-    let parameterMLCtx := R.mlctx.dropN depth H.depth_le
     TrExprS R.venv recLparams []
       (R.mlctx.lctx.mkForall stats.params
         (.sort (.zero : Level)))

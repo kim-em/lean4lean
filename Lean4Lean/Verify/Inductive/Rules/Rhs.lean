@@ -85,11 +85,6 @@ theorem
       let liftedHypothesisLocals :=
         (liftContextPrefixAt remaining.length position
           hypothesisLocalDomains.reverse).reverse
-      let equationDomains :=
-        H.parameterSuffix.parameterDecls.toCtx.reverse ++
-          T.motives ++ T.minors ++
-            (liftContextPrefix (T.motives ++ T.minors).length
-              B.fieldDomains.reverse).reverse
       let liftedCanonicalLocals :=
         (liftContextPrefix canonicalPrevious.length
           E.localDomains.reverse).reverse
@@ -102,14 +97,26 @@ theorem
           (E.resultType.liftN canonicalPrevious.length
             E.localDomains.length)) (.sort level) := by
   dsimp only at Hbase ⊢
-  rcases A.installedSelectedMinorHypothesisWholeDomains j hj B T E with
-    ⟨S, hypothesisOrigins, fieldDomains, hypothesisDomains,
-      targetResidual, D, originRoot, sourceType, O,
-      hypothesisLocalDomains, hypothesisResidual,
-      hfields, hhypotheses, htarget', hliftedPrior,
-      hlocal, hhypothesisDomain, Hinstalled, _HcanonicalInstalled,
-      Hprefix, HinstalledResidual, _HcanonicalResidualInstalled,
-      _HcanonicalResidualTypeInstalled⟩
+  rcases A.installedHypothesisDomains j hj B T E with ⟨C⟩
+  let F := C.frame
+  let fieldDomains := F.source.fieldDomains
+  let hypothesisDomains := F.source.hypothesisDomains
+  let hypothesisLocalDomains := F.residual.hypothesisLocalDomains
+  let hypothesisResidual := F.residual.hypothesisResidual
+  have hfields : fieldDomains.length = A.rule.allArgs.size := F.source.fields_length
+  have hhypotheses : hypothesisDomains.length = A.rule.recursiveArgs.size :=
+    F.source.hypotheses_length
+  have htarget' : T.minors[recursorMinorOffset indTypes owner + i]! =
+      VExpr.wrapForalls (fieldDomains ++ hypothesisDomains) F.source.targetResidual :=
+    F.source.selected_minor_eq
+  have hliftedPrior := C.prior_split
+  have hlocal : hypothesisLocalDomains.length = E.localDomains.length := C.local_length
+  have hhypothesisDomain : hypothesisDomains[j]! =
+      VExpr.wrapForalls hypothesisLocalDomains hypothesisResidual :=
+    F.residual.hypothesis_domain_eq
+  have Hinstalled := C.hypothesis_translation
+  have Hprefix := C.forall_prefix
+  have HinstalledResidual := C.hypothesis_residual_translation
   have hdomains : fieldDomains ++ hypothesisDomains =
       installedFieldDomains ++ installedHypothesisDomains := by
     apply VExpr.wrapForalls_prefix_domains_eq
@@ -122,13 +129,33 @@ theorem
     have Htake := congrArg
       (List.take A.rule.allArgs.size) hdomains
     simpa [hfields, hinstalledFields] using Htake
+  have hfieldSource : C.frame.source.fieldDomains = installedFieldDomains := hfieldDomains
   subst fieldDomains
   have hhypothesisDomains :
       hypothesisDomains = installedHypothesisDomains := by
     have Hdrop := congrArg
       (List.drop A.rule.allArgs.size) hdomains
     simpa [hfields, hinstalledFields] using Hdrop
+  have hhypothesisSource : C.frame.source.hypothesisDomains = installedHypothesisDomains :=
+    hhypothesisDomains
   subst hypothesisDomains
+  dsimp only [RecursorCheck.RuleAlignment.HypothesisFrame.liftedPrior,
+    RecursorCheck.RuleAlignment.HypothesisFrame.liftedPrevious,
+    RecursorCheck.RuleAlignment.HypothesisFrame.prior,
+    RecursorCheck.RuleAlignment.HypothesisFrame.previous,
+    RecursorCheck.RuleAlignment.HypothesisFrame.remaining,
+    RecursorCheck.RuleAlignment.HypothesisFrame.minorIndex,
+    RecursorCheck.RuleAlignment.HypothesisFrame.liftedHypothesisLocals,
+    RecursorCheck.RuleAlignment.HypothesisFrame.liftedCanonicalLocals,
+    RecursorCheck.RuleAlignment.HypothesisFrame.motiveApp,
+    RecursorCheck.RuleAlignment.HypothesisFrame.residualSource,
+    RecursorCheck.RuleAlignment.HypothesisFrame.equationDomains,
+    RecursorCheck.RuleAlignment.HypothesisSource.position] at Hinstalled Hprefix HinstalledResidual
+  rw [hfieldSource, hhypothesisSource] at Hinstalled HinstalledResidual
+  rw [hhypothesisSource] at Hprefix
+  have hhypothesisSourceF : F.source.hypothesisDomains = installedHypothesisDomains :=
+    hhypothesisSource
+  rw [hhypothesisSourceF] at hhypothesisDomain
   refine ⟨hypothesisLocalDomains, hypothesisResidual,
     hhypothesisDomain, ?_⟩
   let equationDomains :=
@@ -140,45 +167,12 @@ theorem
     (liftContextPrefix canonicalPrevious.length
       E.localDomains.reverse).reverse
   have Hcanonical := E.fullForallTranslationAfter canonicalPrevious
-  have HcanonicalResidual₀ : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (abstractForallContext (equationDomains ++ E.localDomains) [])
-      (E.frame.semantic.generated.outerAbstractedMotiveApp A.rule.binders)
-      E.resultType := by
-    simpa [equationDomains] using E.result_type_translation
-  have HcanonicalResidualInserted :=
-    Lean4Lean.VerifyInductive.TrExprS.insertBeforeInner
-      (outer := equationDomains) (inner := E.localDomains)
-      H.outVEnvWF.ordered HcanonicalResidual₀ canonicalPrevious
-  have HcanonicalResidual : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (abstractForallContext
-        (equationDomains ++ canonicalPrevious ++ liftedCanonicalLocals) [])
-      ((E.frame.semantic.generated.outerAbstractedMotiveApp
-        A.rule.binders).liftLooseBVars'
-          E.frame.semantic.generated.localArgs.size canonicalPrevious.length)
-      (E.resultType.liftN canonicalPrevious.length E.localDomains.length) := by
-    simpa [liftedCanonicalLocals, E.local_length,
-      List.append_assoc] using HcanonicalResidualInserted
-  have Wcanonical : Ctx.LiftN canonicalPrevious.length E.localDomains.length
-      (abstractForallContext
-        (equationDomains ++ E.localDomains) []).toCtx
-      (abstractForallContext
-        (equationDomains ++ canonicalPrevious ++ liftedCanonicalLocals) []).toCtx := by
-    have W := Ctx.LiftN.insertAfterPrefix E.localDomains.reverse
-      canonicalPrevious.reverse equationDomains.reverse
-    simpa [liftedCanonicalLocals, List.reverse_append,
-      abstractForallContext_toCtx, VLCtx.toCtx, List.append_assoc] using W
-  have HcanonicalResidualType : H.outVEnv.IsType
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
-      (abstractForallContext
-        (equationDomains ++ canonicalPrevious ++ liftedCanonicalLocals) []).toCtx
-      (E.resultType.liftN canonicalPrevious.length E.localDomains.length) :=
-    E.result_type_isType.weakN H.outVEnvWF.ordered Wcanonical
+  rcases A.recursiveResultResidualAfter j hj B T E canonicalPrevious with
+    ⟨HcanonicalResidual, HcanonicalResidualType⟩
   have Hprefix' := Hprefix
   simp only [List.length_reverse, liftContextPrefixAt_length,
     List.length_take, hinstalledHypotheses,
-    Nat.min_eq_left (Nat.le_of_lt hj), hcanonicalPreviousLength] at Hprefix'
+    Nat.min_eq_left (Nat.le_of_lt hj)] at Hprefix'
   exact Hprefix'.translatedWholeTargetsOfResidualRightSort
     H.outVEnvWF Hbase
       (by simpa using Hinstalled)
@@ -426,8 +420,7 @@ theorem
       VExpr.wrapForalls E.localDomains E.resultType := by
     simp [RecursiveResults.bodyTypes, E]
   rw [hbodyType, VExpr.liftN_wrapForalls]
-  simp [E, liftContextPrefix, liftContextPrefixAt, Nat.add_comm,
-    Nat.add_left_comm, Nat.add_assoc]
+  simp [E, liftContextPrefix, Nat.add_comm]
 
 /-- Inductively align the complete installed recursive-hypothesis telescope
 with the canonical closed result types.  At ordinal `j`, the induction
@@ -1193,7 +1186,7 @@ theorem
           stats.params.size (H.recInfos.map (·.motive)).size
           (H.recInfos.flatMap (·.minors)).size
           H.recInfos[owner]!.indices.size owner,
-      ∃ C : A.RecursiveResults T B,
+      ∃ _C : A.RecursiveResults T B,
       ∃ fieldDomains hypothesisDomains : List VExpr,
       ∃ targetResidual : VExpr,
         fieldDomains.length = A.rule.allArgs.size ∧
@@ -1308,7 +1301,7 @@ theorem
     simp only [remaining, base, List.reverse_append]
     rw [← List.append_assoc, hminorPrefix]
   have hdrop : T.minors.drop minorIdx = T.minors[minorIdx] :: later := by
-    simpa [later] using List.drop_eq_getElem_cons hminor
+    simp [later]
   have hremainingLength : remaining.length = later.length + 1 := by
     simp [remaining, hdrop]
   rw [liftContextPrefix_liftContextPrefix] at Hb
@@ -1473,7 +1466,7 @@ theorem
     rw [T.minors_length]
     exact A.rule.minor_valid
   have hremaining : remaining = T.minors[minorIdx] :: later := by
-    simpa [remaining, later] using List.drop_eq_getElem_cons hminor
+    simp [remaining, later]
   have hremainingLength : remaining.length = later.length + 1 := by
     simp [hremaining]
   have Hparams := H.installedRecursorParameterContextFor howner T

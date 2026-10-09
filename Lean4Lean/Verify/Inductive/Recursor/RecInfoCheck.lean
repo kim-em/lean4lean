@@ -7,7 +7,7 @@ open Kernel
 
 namespace VerifyInductive
 
-def ConstructorCheck.checkedRecursorConstructorTailAt
+theorem ConstructorCheck.checkedRecursorConstructorTailAt
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)

@@ -722,8 +722,7 @@ def pushSelectedForall (ctx : VLCtx) (binding : FVarId × VExpr) : VLCtx :=
     (ctx : VLCtx) (binding : FVarId × VExpr) :
     (pushSelectedForall ctx binding).find? (.inr binding.1) =
       some (.bvar 0, binding.2.lift) := by
-  simp [pushSelectedForall, VLCtx.find?, VLCtx.next, VLocalDecl.value,
-    VLocalDecl.type]
+  simp [pushSelectedForall]
 
 theorem pushSelectedForall_find_ne
     (hne : binding.1 ≠ fv) :
@@ -950,7 +949,7 @@ theorem SelectedParameterTargets.vlet
   intro i hi
   rcases H i hi with ⟨type, Hlookup⟩
   refine ⟨type, ?_⟩
-  simpa [VLCtx.find?, VLCtx.next, VLocalDecl.depth, Hlookup]
+  simp [VLCtx.find?, VLCtx.next, VLocalDecl.depth, Hlookup]
 
 /-- The executable opening selection, together with the retained target
 context lookups, determines the abstract translation of the complete selected
@@ -970,7 +969,7 @@ theorem SelectedParameterTargets.translatedSelection
   have htargetsLength : targets.length = As.size := by
     simpa using (Lean4Lean.List.Forall₂.length_eq Htargets).symm
   apply List.ext_getElem
-  · simpa [VInductDecl.paramVars, htargetsLength, ← harity]
+  · simp [VInductDecl.paramVars, htargetsLength, ← harity]
   · intro i hiTarget hiParam
     have hiAs : i < As.toList.length := by simpa [htargetsLength] using hiTarget
     have hiFVars : i < Hselection.fvars.length := by
@@ -1689,7 +1688,7 @@ theorem ConstructorLowering.Resolved.abstractExpansionAbove
       (targetTarget := Hopened.targetResidualTarget)
       (Hbody.lvls.symm.trans (Hmapping.lvls.trans hlvls))
       (NestedExpansionLookupCtx.ofFalse Hopened.contexts)
-      (by simpa [hnparams]) Hselection hnodup
+      (by simp [hnparams]) Hselection hnodup
       (hsize.trans hparamsSize.symm)
       (by have := Hselection.size; omega)
       (Hopened.selectedParameterSources hnodup)

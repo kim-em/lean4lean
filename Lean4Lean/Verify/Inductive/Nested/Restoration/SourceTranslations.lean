@@ -514,10 +514,10 @@ theorem NestedLoweringOutputClosed.sourceConstructorRestorationTraceAtFresh
       result.params.size = nparams ∧
       result.types[familyIdx]? = some target ∧
       Hstep.oldInfo.ctors = target.ctors.map (fun ctor => ctor.name) ∧
-      ∃ Hmappings : ConstructorLowerings.Resolved loweredSourceEnv result.params
+      ∃ _Hmappings : ConstructorLowerings.Resolved loweredSourceEnv result.params
           nparams result sourceTypes[familyIdx].ctors stepState
             (target.ctors, loweredState),
-        ∃ Htrace : FoldSteps
+        ∃ _Htrace : FoldSteps
           (RestoredConstructorStep result loweredEnv)
           (target.ctors.map (fun ctor => ctor.name))
           Hstep.restored.headerEnv Hstep.restored.constructorEnv,
@@ -775,7 +775,7 @@ theorem NestedLoweringOutputClosed.trSourceRecursorAtFresh
   have hsourceName : result.types.toArray[familyIdx]!.name =
       sourceTypes[familyIdx].name := by
     have harray : result.types.toArray[familyIdx]! = target := by
-      simp [Array.getElem!_eq_getD, Array.getD, howner, hresultIdx,
+      simp [hresultIdx,
         htargetEq]
     rw [harray, Hmapping.name]
   have holdRecName : Lean.mkRecName sourceTypes[familyIdx].name =
@@ -904,7 +904,7 @@ theorem NestedLoweringOutputClosed.sourceInductiveTypingAtFreshExactOwner
   have hsourceName : result.types.toArray[familyIdx]!.name =
       sourceTypes[familyIdx].name := by
     have harray : result.types.toArray[familyIdx]! = target := by
-      simp [Array.getElem!_eq_getD, Array.getD, howner, hresultIdx,
+      simp [hresultIdx,
         htargetEq]
     rw [harray, Hmapping.name]
   have HctorSemantics := H.sourceConstructorTypingAtFresh Hc Hprod
@@ -975,7 +975,7 @@ theorem FoldSteps.sourceInductiveTraceExactOwners
       stepSource stepTarget
       (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
         sourceTypes[i] stepSource stepTarget)
-      (Htype : TrInductiveType sourceVEnv envTypes lparams
+      (_Htype : TrInductiveType sourceVEnv envTypes lparams
         sourceTypes[i] owners[i]),
       Nonempty { S : SourceFamilyTranslation decl lparams safety
           sourceVEnv envTypes envCtors Hstep // S.owner = owners[i] }) :

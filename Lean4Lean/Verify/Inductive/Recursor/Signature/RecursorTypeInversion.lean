@@ -961,7 +961,7 @@ theorem RecursorConstruction.recursorTelescope_minorIndices
       abstractForallContext (H.parameterSuffix.parameterDecls.toCtx.reverse ++
         (H.declFieldDomains mowner hmowner localIndex hlocal).map
           (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))) [] := by
-    simp [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc]
+    simp [abstractForallContext, List.reverse_append, List.map_append]
   rw [hctx₁] at Hres
   -- Insert the motives and earlier minors, then the hypotheses.
   have Hins := TrExprS.insertBeforeInner H.recursorWF.checking.tr.wf.ordered Hres

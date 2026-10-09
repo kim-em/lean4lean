@@ -564,7 +564,7 @@ theorem
         bvarSpine T.params.length := by
     exact congrArg bvarSpine T.params_length.symm
   rw [HintroShape, hcanonicalVars, ← hfields]
-  simp only [VExpr.liftN_mkApps, VExpr.liftN, List.map_append,
+  simp only [VExpr.liftN_mkApps, VExpr.liftN,
     bvarSpine_liftN_at_length]
   rw [bvarSpine_liftN_comp]
   simp [VExpr.mkApps, List.foldl_append, Nat.add_comm]
@@ -1064,7 +1064,7 @@ theorem
       exact List.mem_of_mem_take (List.mem_of_mem_drop hsub)
     exact Expr.abstractN_eq_abstractList F.semantic.generated.arguments_bound.nodup index 0
       (hexposedClosed.getAppArgsList hmem').looseBVarRange_le
-  simp [AddInductive.getIIndices, List.map_map, Function.comp_def]
+  simp [AddInductive.getIIndices, Function.comp_def]
   congr 1
   exact List.map_congr_left fun index hmem => by rw [hidx index hmem]
 
@@ -2161,7 +2161,7 @@ theorem
       A.rule.params_bound F.parameterFVarsFresh
       A.rule.binders_nodup (by
         intro fv hfv
-        simp [RecursorRuleSyntax.binders, hfv])
+        simp [hfv])
   have hparameterSources :
       ((stats.params.map fun param =>
         (param.abstractList

@@ -88,7 +88,7 @@ theorem NestedLoweringOutputClosed.sourceOperationalFamilyAlignmentAtFresh
         _hsize, Hmapping, hmappedTarget⟩
     obtain ⟨hresult, hmappedEq⟩ := _root_.getElem?_eq_some_iff.mp hmappedTarget
     have harray : result.types.toArray[familyIdx]! = mappedTarget := by
-      simp [Array.getElem!_eq_getD, Array.getD, hresult, hmappedEq]
+      simp [hresult, hmappedEq]
     rw [harray, Hmapping.name]
   have hresultNparams : result.nparams = nparams :=
     H.toResult.resultNParams
@@ -230,7 +230,7 @@ theorem RestoredConstructorMappingTranslations.at
     (i : Nat) (hsource : i < sources.length)
     (htarget : i < targets.length) (hconstructor : i < constructors.length) :
     ∃ before after stepSource stepTarget,
-      ∃ Hmapping : ConstructorLowering.Resolved mappingEnv params nparams result
+      ∃ _Hmapping : ConstructorLowering.Resolved mappingEnv params nparams result
           sources[i] before (targets[i], after),
       ∃ Hstep : RestoredConstructorStep result loweredEnv targets[i].name
           stepSource stepTarget,

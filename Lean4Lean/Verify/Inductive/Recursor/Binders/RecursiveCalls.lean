@@ -988,8 +988,6 @@ theorem motiveDecl
     change majorBody = _
     rw [hmajorConcrete]
     simp [Rmajor, RecursorContextWF.withLocalDecl,
-      RecursorContextWF.withCheckedLocalDecl,
-      RecursorContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.mkForall, Expr.abstract1]
     try rfl
   have hmotiveSourceShape :
@@ -1374,7 +1372,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
               [(⟨cMajor.ngen.curr⟩ : FVarId)] := by
           rw [← Hbindings'.motives.exprArrayFVarIds,
             ← Hbindings.motives.exprArrayFVarIds]
-          simp [Hbindings', ExprArrayFVarIds, cMajor, recursorFVarId]
+          simp [ExprArrayFVarIds, cMajor, recursorFVarId]
         have hcontextFVars : Rmotive.mlctx.vlctx.fvars =
             (⟨cMajor.ngen.curr⟩ : FVarId) ::
               ((⟨cIndices.ngen.curr⟩ : FVarId) ::
@@ -1873,10 +1871,8 @@ theorem resultRecursiveDomain {alpha : Type}
       rcases htype with ⟨syntaxTarget, hsyntax, hdefeq⟩
       cases hvalid : AddInductive.isValidIndApp? stats _ with
       | none =>
-        simp only [hvalid, bind, Except.bind]
         exact Except.WF.throw
       | some target =>
-        simp only [hvalid, bind, Except.bind]
         have htargetStats : target < stats.indConsts.size :=
           (checkPositivityStep.isValidIndApp?_some hvalid).1
         have htarget : target < decl.types.length := by
@@ -2133,7 +2129,7 @@ structure InductionHypothesisTypesPrefix
     (fieldRoot c : AddInductive.Context)
     (fields hypotheses : Array Expr) where
   size_le : hypotheses.size ≤ fields.size
-  entry : ∀ j (hj : j < hypotheses.size),
+  entry : ∀ j (_hj : j < hypotheses.size),
     ∃ root sourceType,
       BindingContextLE fieldRoot root ∧
       Nonempty (InductionHypothesisTypeAt
@@ -2141,7 +2137,7 @@ structure InductionHypothesisTypesPrefix
       ∃ D : FVarDeclAt c hypotheses j,
         D.type = (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
 
-def InductionHypothesisTypesPrefix.empty
+theorem InductionHypothesisTypesPrefix.empty
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
     (c : AddInductive.Context) (fields : Array Expr) :
@@ -2149,7 +2145,7 @@ def InductionHypothesisTypesPrefix.empty
   size_le := by simp
   entry := by intro j hj; simp at hj
 
-def InductionHypothesisTypesPrefix.pushCurrent
+theorem InductionHypothesisTypesPrefix.pushCurrent
     (H : InductionHypothesisTypesPrefix stats recInfos fieldRoot c
       fields hypotheses)
     (Hc : BindingContextWF c)
@@ -2211,7 +2207,7 @@ structure CallTemplatesMatchPrefix
     (rootScope : FVarId → Prop)
     (calls : Array AddInductive.RecCallTemplate) : Prop where
   size_eq : calls.size = hypotheses.size
-  entry : ∀ j (hj : j < hypotheses.size),
+  entry : ∀ j (_hj : j < hypotheses.size),
     ∃ root sourceType,
       ∃ (O : InductionHypothesisType stats recInfos root
         fields[j]! sourceType),
@@ -2228,7 +2224,7 @@ structure CallTemplatesMatchPrefix
               (mkAppN (.bvar O.args.size)
                 O.exposedType.getAppArgs[stats.params.size:]).app
                   (mkAppN fields[j]! O.args) }
-  rooted : ∀ j (hj : j < hypotheses.size),
+  rooted : ∀ j (_hj : j < hypotheses.size),
     ∃ root sourceType,
       ∃ (recLparams : List Name) (Rroot : RecursorContextWF root recLparams)
         (O : InductionHypothesisType stats recInfos root
@@ -2972,9 +2968,8 @@ theorem RecursiveCall.outerAbstractedMotiveApp_eq
   unfold RecursiveCall.outerAbstractedMajor
   rw [H.abstractedMajor_eq_of_closed hfieldClosed,
     Expr.abstractN_eq_abstractList H.arguments_bound.nodup field 0 (Nat.le_of_eq hfieldClosed)]
-  simp [RecursiveCall.outerAbstractedMotiveApp,
+  simp [
     RecursiveCall.replayTrace,
-    RecursiveCall.outerAbstractedMajor,
     Expr.abstractList_mkAppN, Array.map_map, Array.map_ofFn, Function.comp_def]
 
 end VerifyInductive

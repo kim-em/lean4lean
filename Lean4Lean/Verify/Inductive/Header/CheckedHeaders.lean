@@ -252,7 +252,7 @@ theorem toFormationPrefix
     let payload := H.payloads[i]
     have htarget : skeleton.types[i].toVConstVal = payload.2.target := by
       have hget := congrArg (fun values => values[i]?) htypes
-      simp [VInductDeclSkeleton.typeConstants, headers, payload,
+      simp [VInductDeclSkeleton.typeConstants, headers,
         hiPayload] at hget
       rcases hget with ⟨target, htarget, hvalue⟩
       rw [List.getElem?_eq_getElem hiSkeleton] at htarget
@@ -261,7 +261,7 @@ theorem toFormationPrefix
       simpa [payload] using hvalue
     have hmetadata : H.metadata[i] =
         (payload.2.numIndices, payload.2.resultLevel) := by
-      simp [metadata, payload, hiPayload]
+      simp [metadata, payload]
     have Hheader := payload.2.formation.retarget htarget
     rw [hmetadata]
     exact {
@@ -363,7 +363,7 @@ theorem CheckedHeaders.normalizedShapeAt
   have htarget : (H.headerDecl isUnsafe).types[i] =
       payload.2.headerType := by
     simp [CheckedHeaders.headerDecl,
-      payload, hiPayload]
+      payload]
   rw [htarget]
   simpa [CheckedHeaders.headerDecl,
     CheckedHeader.headerType,
@@ -428,7 +428,7 @@ theorem CheckedHeaders.headerTranslationAt
   let payload := H.payloads[i]
   have hsource : payload.1 = sources[i] := by
     have hget := congrArg (fun ordered => ordered[i]?) H.sourceOrder
-    simp [payload, hiPayload, hi] at hget
+    simp [hiPayload, hi] at hget
     exact hget
   have htarget :
       ((H.headerDecl isUnsafe).types[i]'hiDecl).toVConstVal =
@@ -436,7 +436,7 @@ theorem CheckedHeaders.headerTranslationAt
     simp [CheckedHeaders.headerDecl,
       CheckedHeader.headerType,
       VInductiveTypeSkeleton.toVInductiveType, headerSkeleton,
-      payload, hiPayload]
+      payload]
   rw [← hsource, htarget]
   exact payload.2.translation
 

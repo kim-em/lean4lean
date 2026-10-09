@@ -76,7 +76,7 @@ structure TypedCallTemplates
     (fields hypotheses : Array Expr)
     (calls : Array AddInductive.RecCallTemplate) : Prop where
   size_eq : calls.size = hypotheses.size
-  entry : ∀ j (hj : j < hypotheses.size),
+  entry : ∀ j (_hj : j < hypotheses.size),
     ∃ originRoot,
       ∃ Rorigin : RecursorContextWF originRoot recLparams,
         ∃ priorHypotheses : Array Expr,
@@ -231,7 +231,7 @@ structure TypedCallTemplatesAt
     (fields hypotheses : Array Expr)
     (calls : Array AddInductive.RecCallTemplate) : Prop where
   size_eq : calls.size = hypotheses.size
-  entry : ∀ j (hj : j < hypotheses.size),
+  entry : ∀ j (_hj : j < hypotheses.size),
     ∃ originRoot,
       ∃ Rorigin : RecursorContextWF originRoot recLparams,
         ∃ priorHypotheses : Array Expr,
@@ -380,9 +380,9 @@ structure MotiveTelescopesAt
   /-- The motive binding already exists at the root.  Recording it
   spares later equation proofs from constructing a false extension
   between sibling constructor contexts merely to recover binder freshness. -/
-  rootBinding : ∀ target (htarget : target < recInfos.size),
+  rootBinding : ∀ target (_htarget : target < recInfos.size),
     Nonempty (MotiveBinding Rroot recInfos[target]! elimLevel)
-  appliesTo : ∀ target (htarget : target < recInfos.size)
+  appliesTo : ∀ target (_htarget : target < recInfos.size)
       {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
       (Hext : RecursorContextExtension Rroot Rcurrent)
@@ -397,7 +397,7 @@ structure MotiveTelescopesAt
       Nonempty (MotiveAppliesTo Rcurrent stats
         recInfos[target]! binding exposedType syntaxTarget)
 
-def MotiveTelescopesAt.of
+theorem MotiveTelescopesAt.of
     {root : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     (T : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
@@ -503,7 +503,7 @@ structure TypedRuleTemplates
     (recInfos : Array AddInductive.RecInfo)
     (elimLevel : Level) (parameterDecls : VLCtx)
     (Horigins : RecInfoBinderTypes c recInfos) : Prop where
-  rows_size : ∀ owner (howner : owner < recInfos.size),
+  rows_size : ∀ owner (_howner : owner < recInfos.size),
     recInfos[owner]!.ruleTemplates.size =
       Horigins.minorTypes[owner]!.size
   entry : ∀ owner (howner : owner < recInfos.size)
@@ -1032,7 +1032,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
       simpa [S, Hgenerated, targetIndices, Array.getElem!_eq_getD,
         Array.getD, htarget] using Hmotive
     · intro fieldBinders
-      simp [S, Hgenerated, call,
+      simp [S, Hgenerated,
         RecursiveCall.replayTrace,
         recCallTemplateShape,
         Hargs.toFVarArrayAfter.toFVarArrayIn.exprArrayFVarIds]
@@ -1395,13 +1395,13 @@ telescopes. -/
 structure RecInfoEqExceptRules (left right : Array AddInductive.RecInfo) : Prop where
   size_eq : left.size = right.size
   motive_eq_all : ∀ (i : Nat), left[i]!.motive = right[i]!.motive
-  motive_eq : ∀ i (hi : i < left.size),
+  motive_eq : ∀ i (_hi : i < left.size),
     left[i]!.motive = right[i]!.motive
-  minors_eq : ∀ i (hi : i < left.size),
+  minors_eq : ∀ i (_hi : i < left.size),
     left[i]!.minors = right[i]!.minors
-  indices_eq : ∀ i (hi : i < left.size),
+  indices_eq : ∀ i (_hi : i < left.size),
     left[i]!.indices = right[i]!.indices
-  major_eq : ∀ i (hi : i < left.size),
+  major_eq : ∀ i (_hi : i < left.size),
     left[i]!.major = right[i]!.major
 
 theorem RecInfoEqExceptRules.map_motive
@@ -1704,7 +1704,7 @@ theorem MinorPremiseType.HasInductionHypothesisTypes.rebaseCore
   cases hopt : S.hypothesis_type_origins with
   | none => simp [hopt] at P
   | some origins =>
-      simp only [hopt, Option.some.injEq] at P ⊢
+      simp only [hopt] at P ⊢
       exact ⟨P.1, P.2.trans H.map_motive⟩
 
 theorem TypedMinors.rebaseCore
@@ -1774,7 +1774,7 @@ theorem modifyMinorAndTemplate_coreEq
         rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
       · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hi hself]
         rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hi hself]
-    · simp [Array.getElem!_eq_getD, Array.getD, hi]
+    · simp [hi]
   all_goals
     intro i hi
     have hi' : i < recInfos.size := by simpa using hi
@@ -1812,14 +1812,14 @@ theorem modifyMinorAndTemplate_motiveCoreEq
           hself]
         simp
     · have hiNext : ¬ i < next.size := by simpa [next] using hi
-      simp [Array.getElem!_eq_getD, Array.getD, hi, hiNext]
+      simp [hi, hiNext]
   refine {
     map_motive := ?_
     motive_eq := fun i => (hfield i).1
     indices_eq := fun i => (hfield i).2.1
     major_eq := fun i => (hfield i).2.2 }
   apply Array.ext
-  · simp [next]
+  · simp
   · intro i hiLeft hiRight
     have hiLeft' : i < recInfos.size := by simpa using hiLeft
     have hiRight' : i < next.size := by
@@ -2228,13 +2228,13 @@ theorem continueMinor_templateOrigins
             (.fvar ⟨c.ngen.curr⟩))[localIndex]! =
             recInfos[dIdx]!.minors[localIndex]! := by
         simp [Array.getElem!_eq_getD, Array.getD, hidx, holdMinor',
-          Array.getElem_push_lt holdMinor'] <;> omega
+          Array.getElem_push_lt holdMinor']; omega
       have hblueprintGet :
           (recInfos[dIdx]!.ruleTemplates.push
             (mkTemplate (.fvar ⟨c.ngen.curr⟩)))[localIndex]! =
             recInfos[dIdx]!.ruleTemplates[localIndex]! := by
         simp [Array.getElem!_eq_getD, Array.getD, hidx, holdBlueprint',
-          Array.getElem_push_lt holdBlueprint'] <;> omega
+          Array.getElem_push_lt holdBlueprint']; omega
       have Hentry := Hblueprints.entry dIdx hidx localIndex hold
       have hshapeOld :
           HoriginsNext.minorShapes dIdx howner localIndex hlocal =
@@ -2403,7 +2403,7 @@ theorem continueMinor_templateSemanticOrigins
             (mkTemplate (.fvar ⟨c.ngen.curr⟩)))[localIndex]! =
             recInfos[dIdx]!.ruleTemplates[localIndex]! := by
         simp [Array.getElem!_eq_getD, Array.getD, hidx, holdBlueprint',
-          Array.getElem_push_lt holdBlueprint'] <;> omega
+          Array.getElem_push_lt holdBlueprint']; omega
       rcases HblueprintSemantics.entry dIdx hidx localIndex hold with ⟨Hentry⟩
       have Hentry := (Hentry.mono Hstep).rebaseMotiveCore HmotiveCore
       have hshapeOld :
@@ -4157,7 +4157,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
         · subst i
           rw [houtCount, HemptySuffix dIdx (Nat.le_refl _) (by
             simpa [houtSize] using hiOut)]
-          simp [Array.getElem!_eq_getD, Array.getD, hfamily]
+          simp [hfamily]
         · rw [houtOther i (by simpa [houtSize] using hiOut)
             (Ne.symm hieq)]
           exact Hprefix i (by omega) (by simpa [houtSize] using hiOut)

@@ -458,9 +458,9 @@ theorem AddInductive.declareConstructors.primitiveWF
             simpa [AddInductive.inductiveTypeInfos, hindicesSize] using hi
           have hctors : info.ctors = indTypes[i].ctors.map (·.name) := by
             rw [← hinfoAt]
-            simp [AddInductive.inductiveTypeInfos, hindicesSize]
+            simp [AddInductive.inductiveTypeInfos]
           have hmem : indTypes[i] ∈ indTypes.toList := by
-            simpa using Array.getElem_mem hiTypes
+            simp
           rw [hctors]
           rcases Hshape with ⟨_, _, _, htypes | ⟨_, _, htypes⟩⟩ <;>
             (rw [htypes] at hmem; simp at hmem; rw [hmem]; simp)

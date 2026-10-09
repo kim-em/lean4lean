@@ -67,8 +67,6 @@ structure RecursorMotiveFrameWF
     let majorTy :=
       ((mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
         indices).consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
-    let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
-      majorTr majorType
     let cMajor : AddInductive.Context := { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ `t majorTy .default }
