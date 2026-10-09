@@ -170,3 +170,16 @@ chain descents `LStep.chain_descend'`, `EtaNE.forallE_inv_lift'`, `EtaNE.const_s
 So the only content of B2's `UnfoldingCheckDescends` beyond `TypedFront` is the typing of the
 reconstructed fields below, which follows from the typing above by spine descent at closed
 telescopes; and the obligation as stated (for arbitrary programs) is not needed.
+
+## Step 5 (final): `Final.lean` without the unfolding obligation
+
+`cancel_iff_typedFront_final (henv : env.WF) (heq : env.HasCanonicalEq)
+(hGen : GenericTypesTyped₀ env) (hRules : GenericRulesTyped₀ env) (hField : ProjFieldFrontPropN env) :
+Cancel env ↔ TypedFront env`, `strengthening_iff_typedFront_final` (via
+`strengthening_iff_cancel`), and the exact variant `cancel_iff_typedFront_and_elim (hRules)
+(hField) : Cancel ↔ TypedFront ∧ ElimFrontN`. Axioms: `propext`, `Classical.choice`,
+`Quot.sound`. Assembly: `descents_of_typedFront` (steps 2 and 4), `piExposureRed_final` and
+`spineExposureRed_final` (path replay through `upStepFClosure`, then `EtaNE.forallE_inv_lift'` /
+`EtaNE.const_spine_inv_lift'` from step 1), `ProjFrontN.of_spineExposure` (E),
+`cancel_of_piExposureRed` (B). The intermediate theorems with `UnfoldingCheckDescends` as a
+hypothesis (first assembly above) are superseded and removed.
