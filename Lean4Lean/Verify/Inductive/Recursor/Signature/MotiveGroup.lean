@@ -44,7 +44,9 @@ theorem vars_lift_above (count n : Nat) :
     simp only [InductiveSignature.vars, List.getElem_map, List.getElem_reverse,
       List.length_range, List.getElem_range] at *
     simp only [VExpr.liftN, liftVar]
-    split <;> simp_all <;> omega
+    split
+    · simp_all
+    · omega
 
 theorem motive_eq_scalar_lift (g : InductiveSignature.Instance s)
     (family : InductiveSignature.Family) (prior : Nat) :

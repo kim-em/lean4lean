@@ -1821,7 +1821,7 @@ theorem
     ∃ targetResidual : VExpr,
     ∃ D : FVarDeclAt S.sourceFullContext S.hypotheses j,
     ∃ originRoot sourceType,
-    ∃ O : InductionHypothesisType
+    ∃ _O : InductionHypothesisType
         hypothesisOrigins.stats hypothesisOrigins.recInfos
         originRoot S.recursiveFields[j]! sourceType,
     ∃ hypothesisLocalDomains : List VExpr,

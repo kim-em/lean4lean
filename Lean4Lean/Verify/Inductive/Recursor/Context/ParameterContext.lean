@@ -345,7 +345,7 @@ def checkInductiveTypes.loopType.ParameterContextSuffix.toRecursorContext
         | @cons param entry params entries hentry _ ih =>
           rcases hentry with ⟨fv, deps, type, rfl, rfl⟩
           exact .cons ⟨fv, deps, type.instL shift, rfl, by
-            simp [VLCtx.instL, VLocalDecl.instL]⟩ ih
+            simp [VLocalDecl.instL]⟩ ih
       exact go H.cached
     have hnarrow : List.Forall₂
         (TrExprS Hc.venv (fresh :: c.lparams)
@@ -387,9 +387,7 @@ def checkInductiveTypes.loopType.ParameterContextSuffix.toRecursorContext
                   (fun target : VExpr =>
                     (target.instL shift).liftN 1 0) by
                 funext target
-                simpa [Function.comp_apply] using
-                  (VExpr.instL_liftN (e := target) (n := 1)
-                    (k := 0) (ls := shift))]
+                simp [Function.comp_apply]]
             simpa [List.map_map] using congrArg
               (List.map fun target : VExpr => target.liftN 1 0) ih
       rw [htargets] at hshifted

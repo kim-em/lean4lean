@@ -301,7 +301,7 @@ theorem
     have hownerTargetEq :
         (VExpr.bvar later.length).liftN frontDomains.length 0 =
           ownerTarget := by
-      simp [ownerTarget, VExpr.liftN, liftVar_base, Nat.add_comm]
+      simp [ownerTarget, VExpr.liftN, Nat.add_comm]
     have hownerGet :
         F.telescope.motives[selectedOwner]'hownerMotive =
           F.telescope.motives[selectedOwner]! :=
@@ -977,8 +977,7 @@ theorem
     (liftContextPrefix frontDomains.length expected.reverse).reverse
   have hexpectedLength : expectedDomains.length = indexTargets.length + 1 := by
     simp only [expectedDomains, List.length_reverse, liftContextPrefix_length,
-      expected, liftContextPrefixAt_length, hdomainLength,
-      F.telescope.indices_length]
+      expected, liftContextPrefixAt_length, hdomainLength]
     have hcanonicalLength := C.indices_length
     omega
   have HprefixExpected' : H.outVEnv.HasType Us.length
@@ -1192,9 +1191,8 @@ theorem
         omega
       rw [liftVar_le hcut]
       rw [liftVar_base]
-      simp only [suffix, later,
+      simp only [
         List.length_append, List.length_drop,
-        F.telescope.indices_length, F.telescope.major_length,
         F.telescope.minors_length, F.telescope.motives_length]
       omega
     · rw [hexpectedArity]

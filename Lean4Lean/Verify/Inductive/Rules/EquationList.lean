@@ -33,7 +33,7 @@ structure RecursorCheck.EquationPrefix
   equations : H.IotaEquationTranslations Us [] owner rules
   rulesWF : ∀ rule ∈ rules, rule.WF H.outVEnv
 
-def RecursorCheck.EquationPrefix.empty
+theorem RecursorCheck.EquationPrefix.empty
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}

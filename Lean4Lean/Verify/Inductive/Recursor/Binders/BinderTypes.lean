@@ -384,7 +384,7 @@ structure FVarArrayBinderTypes (c : AddInductive.Context)
     (xs origins : Array Expr) where
   bound : FVarArrayIn c xs
   size_eq : origins.size = xs.size
-  declaration : ∀ i (hi : i < xs.size),
+  declaration : ∀ i (_hi : i < xs.size),
     ∃ D : FVarDeclAt c xs i, D.type = origins[i]!
 
 /-- Translations of the declared binder types in
@@ -469,7 +469,7 @@ def FVarArrayBinderTypes.pushCurrent
   · subst i
     let D : FVarDeclAt c'
         (xs.push (.fvar ⟨c.ngen.curr⟩)) xs.size := {
-      inBounds := by simpa
+      inBounds := by simp
       fvar := ⟨c.ngen.curr⟩
       expression := by simp
       member := by
@@ -533,7 +533,7 @@ def FVarArrayBinderTypes.pushCurrentChecked
   · subst i
     let D : FVarDeclAt c'
         (xs.push (.fvar ⟨c.ngen.curr⟩)) xs.size := {
-      inBounds := by simpa
+      inBounds := by simp
       fvar := ⟨c.ngen.curr⟩
       expression := by simp
       member := by
@@ -722,9 +722,9 @@ structure RecInfoBindings (c : AddInductive.Context)
     (recInfos : Array AddInductive.RecInfo) where
   motives : FVarArrayIn c (recInfos.map (·.motive))
   majors : FVarArrayIn c (recInfos.map (·.major))
-  indices : ∀ i (hi : i < recInfos.size),
+  indices : ∀ i (_hi : i < recInfos.size),
     FVarArrayIn c recInfos[i]!.indices
-  minors : ∀ i (hi : i < recInfos.size),
+  minors : ∀ i (_hi : i < recInfos.size),
     FVarArrayIn c recInfos[i]!.minors
 
 /-- The constructor traversal which produced one minor.  It is optional in
@@ -781,7 +781,7 @@ theorem List.takeWhile_fvarId_prefix (fv : FVarId) :
   | [], ⟨_, h, _⟩ => by simp at h
   | x :: xs, hmem => by
     by_cases hx : x.fvarId! = fv
-    · simp [List.takeWhile_cons, hx]
+    · simp [hx]
     · obtain ⟨y, hy, hyfv⟩ := hmem
       have hy' : ∃ y ∈ xs, y.fvarId! = fv := by
         rcases List.mem_cons.mp hy with rfl | hy
