@@ -34,3 +34,25 @@ axioms `propext`, `Classical.choice`, `Quot.sound`). Contents, following B2's ta
   `CaseStep.defeq` of the descended step).
 
 So `CaseRedexDescends` is exactly `TypedFront` plus the closed rule typings, as B2 predicted.
+
+## Step 3: spine exposure over `EtaNE` (`SpineClosure.lean`)
+
+Direction E's `spineExposureRed_of_etaReplay` assumed `EtaReplay`, which is false
+(`not_etaReplay`). Restated over the proved closure, mirroring `piExposureRed_of_etaReplayNE`:
+
+* `LStep.chain_descend`: a `ReflTransGen (LStep Γ')` chain from the lift of a term typed below
+  descends step by step (`ParRed.descend`, `DeltaPar.descend`, `MajorEtaIotaC.descend`), the
+  same induction as the `redL` case of `EtaNE.forallE_inv_lift`.
+* `EtaNE.const_spine_inv_lift`: `EtaNE Γ' (F↑) (mkApps (const S ls) args)` with `F : sort u`
+  below gives `F →* mkApps (const S ls) args₀` below (`EtaNE.const_spine_inv`; the structure-eta
+  branch is excluded by `type_not_structure`).
+* `spineExposureRed_of_closure : TypedFront → (∀ U, CaseRedexDescends) →
+  (∀ U, UnfoldingCheckDescends) → (∀ U, MajorEtaDescends) → SpineExposureRedN henv` and
+  `ProjFrontN.of_closure` (plus `ProjFieldFrontN`). Axioms: `propext`, `Classical.choice`,
+  `Quot.sound`.
+
+Design note for step 4: `MajorEtaDescends` must not be derived from `ProjFrontN` (B3's log
+suggested it for `numFields > 0`), since spine exposure itself descends composite steps and so
+depends on `MajorEtaDescends`. The structure type of the major below is read instead from the
+head of the application typed below (`RecursorRegistered.major_type` for recursor iota,
+`CaseRedex.majorPremise` for case steps), which also removes the `numFields = 0` special case.
