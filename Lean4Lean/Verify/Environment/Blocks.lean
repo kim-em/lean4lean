@@ -71,9 +71,6 @@ theorem eq_complete {a : InstallStage} (h : complete ≤ a) : a = complete := by
 theorem ne_headers {a b : InstallStage} (h : constructors ≤ a) (hb : a ≤ b) : b ≠ headers := by
   rintro rfl; cases a <;> exact absurd (le_trans h hb) (by decide)
 
-theorem ne_headers_of_le {a : InstallStage} (h : constructors ≤ a) : a ≠ headers := by
-  rintro rfl; exact absurd h (by decide)
-
 end InstallStage
 
 /-- One family of an installed block: its kernel header, its kernel constructors (in the
@@ -127,8 +124,10 @@ structure InstalledFamily.CtorAt (env : Environment) (B : InstalledBlock)
 /-- The kernel side of a descriptor, which does not depend on the observer. -/
 structure InstalledBlock.Concrete (env : Environment) (B : InstalledBlock) : Prop where
   header : ∀ F ∈ B.families, env.find? F.header.name = some (.inductInfo F.header)
-  all : ∀ F ∈ B.families, F.header.all = B.names
-  nodup : B.names.Nodup
+  /-- Once the constructors are installed every header of the block is present, and the
+  headers list exactly the block's families. -/
+  all : B.stage ≠ .headers → ∀ F ∈ B.families, F.header.all = B.names
+  nodup : B.stage ≠ .headers → B.names.Nodup
   numParams : ∀ F ∈ B.families, F.header.numParams = B.numParams
   isUnsafe : ∀ F ∈ B.families, F.header.isUnsafe = B.isUnsafe
   /-- While only the headers are installed, the constructors they list are absent. -/
@@ -136,8 +135,7 @@ structure InstalledBlock.Concrete (env : Environment) (B : InstalledBlock) : Pro
   ctorNames : B.stage ≠ .headers → ∀ F ∈ B.families, F.ctors.map (·.name) = F.header.ctors
   ctor : B.stage ≠ .headers → ∀ F ∈ B.families, ∀ i (h : i < F.ctors.length),
     F.CtorAt env B i F.ctors[i]
-  recursor : ∀ r ∈ B.recursors,
-    env.find? r.name = some (.recInfo r) ∧ r.isUnsafe = B.isUnsafe
+  recursor : ∀ r ∈ B.recursors, env.find? r.name = some (.recInfo r) ∧ B.stage ≠ .headers
   /-- The major inductive of every recursor is a header whose constructors are present. -/
   recursorMajor : ∀ r ∈ B.recursors, ∃ info,
     env.find? r.getMajorInduct = some (.inductInfo info) ∧
@@ -197,15 +195,17 @@ structure InstalledBlock.Abstract (env : Environment) (venv : VEnv) (B : Install
     ∀ e ∈ B.decl.projectionEntries, venv.projections e.typeName e.info
   eliminators : B.stage ≠ .headers → ∀ e ∈ B.eliminators, venv.eliminators e.1 e.2
   installed : B.stage = .complete → VEnv.InstalledBelow venv B.decl
-  recursor : ∀ r ∈ B.recursors,
-    RecursorAlignmentCore venv r ∧ KLikeRecursor env.constants venv r
 
 /-- A well-formed descriptor: its kernel side, and its abstract side if the observer sees
-it. -/
+it.  A block with only its headers installed has no abstract side yet: the abstract
+declaration is fixed by the constructor check. -/
 structure InstalledBlock.WF (safety : DefinitionSafety) (env : Environment) (venv : VEnv)
     (B : InstalledBlock) : Prop where
   concrete : B.Concrete env
-  abstract : B.Visible safety → B.Abstract env venv
+  abstract : B.Visible safety → B.stage ≠ .headers → B.Abstract env venv
+  /-- Every recursor the observer sees is aligned with the stored iota equations. -/
+  recursor : ∀ r ∈ B.recursors, safety ≤ (ConstantInfo.recInfo r).safety →
+    RecursorAlignmentCore venv r ∧ KLikeRecursor env.constants venv r
 
 /-- The environment invariant: every inductive header, constructor and recursor of `env`
 belongs to a well-formed descriptor that has reached at least `stage`, and every projection
@@ -238,16 +238,8 @@ theorem safety_ctorInfo {B : InstalledBlock} {v : ConstructorVal} (h : v.isUnsaf
   simp [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, h,
     InstalledBlock.defSafety]
 
-theorem safety_recInfo {B : InstalledBlock} {v : RecursorVal} (h : v.isUnsafe = B.isUnsafe) :
-    (ConstantInfo.recInfo v).safety = B.defSafety := by
-  simp [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, h,
-    InstalledBlock.defSafety]
-
 theorem Visible.mono {B : InstalledBlock} (h : safety ≤ safety') (H : B.Visible safety') :
     B.Visible safety := DefinitionSafety.le_trans h H
-
-/-- An unsafe observer sees every block. -/
-theorem visible_unsafe (B : InstalledBlock) : B.Visible .unsafe := DefinitionSafety.unsafe_le
 
 theorem mem_names {B : InstalledBlock} {F : InstalledFamily} (h : F ∈ B.families) :
     F.header.name ∈ B.names := List.mem_map_of_mem h
@@ -264,15 +256,6 @@ theorem Concrete.memberInfos {env : Environment} {B : InstalledBlock} (H : B.Con
       exact .cons (H.header F (hL F (by simp)))
         (ih fun G hG => hL G (by simp [hG]))
   exact this B.families fun _ h => h
-
-/-- Two families of a block with the same header name are the same header. -/
-theorem Concrete.header_inj {env : Environment} {B : InstalledBlock} (H : B.Concrete env)
-    {F G : InstalledFamily} (hF : F ∈ B.families) (hG : G ∈ B.families)
-    (h : F.header.name = G.header.name) : F.header = G.header := by
-  have h1 := H.header F hF
-  have h2 := H.header G hG
-  rw [h, h2] at h1
-  exact (ConstantInfo.inductInfo.inj (Option.some.inj h1)).symm
 
 /-- The `i`th constructor of a family of a block at the constructor stage. -/
 theorem Concrete.ctor_getElem {env : Environment} {B : InstalledBlock} (H : B.Concrete env)
@@ -316,8 +299,8 @@ theorem InstalledBlock.WF.mono {B : InstalledBlock} (H : B.WF safety env venv)
         ⟨info, hpres hinfo, fun n hn =>
           let ⟨ci, hci⟩ := hctors n hn
           ⟨ci, hpres hci⟩⟩ }
-  abstract hvis := by
-    have A := H.abstract hvis
+  abstract hvis hst := by
+    have A := H.abstract hvis hst
     exact {
       uvars := A.uvars
       nparams := A.nparams
@@ -338,9 +321,9 @@ theorem InstalledBlock.WF.mono {B : InstalledBlock} (H : B.WF safety env venv)
           params := fun hst i h => (FA.params hst i h).mono hle }
       projections := fun hst e he => hle.projections (A.projections hst e he)
       eliminators := fun hst e he => hle.eliminators (A.eliminators hst e he)
-      installed := fun hst => (A.installed hst).mono hle
-      recursor := fun r hr =>
-        ⟨(A.recursor r hr).1.mono hle, (A.recursor r hr).2.mono hle hmap⟩ }
+      installed := fun hst => (A.installed hst).mono hle }
+  recursor r hr hvis :=
+    ⟨(H.recursor r hr hvis).1.mono hle, (H.recursor r hr hvis).2.mono hle hmap⟩
 
 /-- Lower the stage the invariant promises. -/
 theorem InstalledBlocks.weaken (H : InstalledBlocks safety env venv st) (h : st' ≤ st) :
@@ -428,17 +411,18 @@ namespace InstalledBlocks
 variable {safety : DefinitionSafety} {env : Environment} {venv : VEnv} {st : InstallStage}
 
 /-- Every kernel inductive header has complete mutual-family metadata. -/
-theorem mutualInductivesClosed (H : InstalledBlocks safety env venv st) :
-    VerifyInductive.MutualInductivesClosed env := by
+theorem mutualInductivesClosed (H : InstalledBlocks safety env venv st)
+    (hst : .constructors ≤ st) : VerifyInductive.MutualInductivesClosed env := by
   intro targetName value hfind
-  obtain ⟨hn, B, -, hB, F, hF, rfl⟩ := H.header hfind
+  obtain ⟨hn, B, hstB, hB, F, hF, rfl⟩ := H.header hfind
   have C := hB.concrete
+  have hne := InstallStage.ne_headers hst hstB
   refine ⟨?_, ?_, ?_, ?_⟩
-  · rw [C.all F hF]; exact C.memberInfos
-  · rw [C.all F hF, hn]; exact InstalledBlock.mem_names hF
-  · rw [C.all F hF]; exact C.nodup
+  · rw [C.all hne F hF]; exact C.memberInfos
+  · rw [C.all hne F hF, hn]; exact InstalledBlock.mem_names hF
+  · rw [C.all hne F hF]; exact C.nodup hne
   · intro member info hmember hfind'
-    rw [C.all F hF] at hmember
+    rw [C.all hne F hF] at hmember
     obtain ⟨G, hG, rfl⟩ := List.mem_map.mp hmember
     rw [C.header G hG] at hfind'
     cases Option.some.inj hfind'
@@ -512,7 +496,7 @@ theorem ctorTelescopes (H : InstalledBlocks safety env venv st) :
   have hvis' : B.Visible safety := by
     rw [InstalledBlock.safety_ctorInfo D.isUnsafe] at hvis
     exact hvis
-  have FA := (hB.abstract hvis').family F hF
+  have FA := (hB.abstract hvis' hne).family F hF
   exact (FA.ctor hne i hi (FA.ctorsLength hne ▸ hi)).telescope
 
 /-- A family of a visible block at the constructor stage with a single constructor `c`
@@ -552,7 +536,7 @@ theorem projectionRegistryCoherent (H : InstalledBlocks safety env venv st)
   have hvis : B.Visible safety := by
     rw [InstalledBlock.safety_inductInfo (C.isUnsafe F hF)] at hvisible
     exact hvisible
-  have A := hB.abstract hvis
+  have A := hB.abstract hvis hst
   have FA := A.family F hF
   have hnames := C.ctorNames hst F hF
   rw [hsingle] at hnames
@@ -612,7 +596,7 @@ theorem projectionHeader (H : InstalledBlocks safety env venv st)
       safety ≤ (ConstantInfo.inductInfo v).safety ∧
       ∃ c : ConstructorVal, env.find? info.ctorName = some (.ctorInfo c) ∧ c.induct = S := by
   obtain ⟨B, -, hst, hvis, hB, hentry⟩ := H.projection hproj
-  have A := hB.abstract hvis
+  have A := hB.abstract hvis hst
   have C := hB.concrete
   rw [VInductDecl.projectionEntries, List.mem_filterMap] at hentry
   obtain ⟨T, hT, hentry⟩ := hentry
@@ -652,10 +636,7 @@ theorem recursorEnvCoherent (H : InstalledBlocks safety env venv st)
   refine ⟨?_, ?_, hheads⟩
   · intro name r hrec hvisible
     obtain ⟨-, B, -, hB, hmem⟩ := H.recursor (hfind hrec)
-    have hvis : B.Visible safety := by
-      rw [InstalledBlock.safety_recInfo (hB.concrete.recursor r hmem).2] at hvisible
-      exact hvisible
-    obtain ⟨hcore, hk⟩ := (hB.abstract hvis).recursor r hmem
+    obtain ⟨hcore, hk⟩ := hB.recursor r hmem hvisible
     obtain ⟨info, hmajor, -⟩ := hB.concrete.recursorMajor r hmem
     exact ⟨hcore.toAlignment (hheads.rigid (hmap hmajor)), hk⟩
   · intro name r hrec _
@@ -685,7 +666,7 @@ theorem constructorParameterAlignment (H : InstalledBlocks safety env venv .comp
     unfold InstalledBlock.Visible InstalledBlock.defSafety
     rw [← C.isUnsafe F hF]
     exact hvisible
-  have A := hB.abstract hvis
+  have A := hB.abstract hvis hne
   have FA := A.family F hF
   obtain ⟨hi', hname⟩ := C.ctor_getElem hne hF hi
   have D := C.ctor hne F hF i hi'
@@ -786,34 +767,52 @@ theorem mem_newRecursors {env env' : Environment} (hwf : env'.constants.WF) :
 
 variable {safety : DefinitionSafety} {env env' : Environment} {venv venv' : VEnv}
 
-/-- Installing a complete inductive declaration extends the invariant by one complete
-descriptor, read off the installation: its families are the declaration's (each a new
-kernel header aligned with it), its constructors those the headers list, and its recursors
-the new kernel recursors.  The abstract side is the installation `AddInduct`, at observers
-that see the declaration; observers that do not see it keep their abstract environment. -/
-theorem addInduct {decl : VInductDecl}
-    (H : InstalledBlocks safety env venv .complete)
+/-- The abstract registrations of a declaration at a stage at least `.constructors`: its
+family and constructor constants, its projection entries and its case eliminators. -/
+structure DeclRegistered (venv : VEnv) (decl : VInductDecl)
+    (es : List (Name × InductiveSignature.CaseSchema)) : Prop where
+  typeUvars : ∀ T ∈ decl.types, T.uvars = decl.uvars
+  constructorUvars : ∀ c ∈ decl.constructorConstants, c.uvars = decl.uvars
+  family : ∀ i (hi : i < decl.types.length),
+    venv.constants decl.types[i].name = some decl.types[i].toVConstant
+  ctor : ∀ i k (hi : i < decl.types.length) (hk : k < decl.types[i].ctors.length),
+    venv.constants decl.types[i].ctors[k].name = some decl.types[i].ctors[k].toVConstant
+  projections : ∀ e ∈ decl.projectionEntries, venv.projections e.typeName e.info
+  eliminators : ∀ e ∈ es, venv.eliminators e.1 e.2
+
+/-- Installing an inductive declaration up to `stage` (`.constructors` or `.complete`)
+extends the invariant by one descriptor, read off the installation: its families are the
+declaration's (each a new kernel header aligned with it), its constructors those the headers
+list, and its recursors the given new kernel recursors.  The abstract side is supplied at
+observers that see the declaration. -/
+theorem addBlock {decl : VInductDecl} (stage : InstallStage) (hstage : stage ≠ .headers)
+    (H : InstalledBlocks safety env venv st) (hst' : st' ≤ st) (hstage' : st' ≤ stage)
+    (hpresent : VerifyInductive.ListedConstructorsPresent env)
     (hwf : env.constants.WF) (hchk' : CheckingEnv safety env' venv')
     (hpres : ∀ {n ci}, env.find? n = some ci → env'.find? n = some ci)
     (hle : venv ≤ venv')
     (horigins : InductInfosFromDecl env.constants env'.constants decl)
     (hcover : ∀ T ∈ decl.types,
       ∃ v, env'.find? T.name = some (.inductInfo v) ∧ env.find? T.name = none)
-    (hclosed : VerifyInductive.MutualInductivesClosed env')
+    (hnodup : (decl.types.map (·.name)).Nodup)
     (howners : VerifyInductive.ConstructorOwnersPresent env')
-    (hrecUnsafe : ∀ {n r}, env'.find? n = some (.recInfo r) → env.find? n = none →
-      r.isUnsafe = decl.isUnsafe)
-    (hrecMajor : ∀ {n r}, env'.find? n = some (.recInfo r) → env.find? n = none →
-      ∃ info, env'.find? r.getMajorInduct = some (.inductInfo info))
-    (hadd : safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
-      AddInduct safety env.constants venv decl env'.constants venv')
-    (hhidden : ¬ safety ≤ (if decl.isUnsafe then .unsafe else .safe) → venv' = venv)
-    (hparams : safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
-      VerifyInductive.ConstructorParameterAlignment safety env' venv')
-    (htels : safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
-      ∀ {n c}, env'.find? n = some (.ctorInfo c) → env.find? n = none →
-        CtorTelescopeAt venv' c) :
-    InstalledBlocks safety env' venv' .complete := by
+    (recs : List RecursorVal)
+    (hrecs : ∀ {n r}, env'.find? n = some (.recInfo r) → env.find? n = none → r ∈ recs)
+    (hrecFind : ∀ r ∈ recs, env'.find? r.name = some (.recInfo r) ∧ env.find? r.name = none)
+    (hrecMajor : ∀ r ∈ recs, ∃ info, env'.find? r.getMajorInduct = some (.inductInfo info))
+    (es : List (Name × InductiveSignature.CaseSchema))
+    (hreg : safety ≤ (if decl.isUnsafe then .unsafe else .safe) → DeclRegistered venv' decl es)
+    (hrecAlign : ∀ r ∈ recs, safety ≤ (ConstantInfo.recInfo r).safety →
+      RecursorAlignmentCore venv' r ∧ KLikeRecursor env'.constants venv' r)
+    (hcomplete : safety ≤ (if decl.isUnsafe then .unsafe else .safe) → stage = .complete →
+      VEnv.InstalledBelow venv' decl ∧
+        VerifyInductive.ConstructorParameterAlignment safety env' venv')
+    (hproj : ∀ {S info}, venv'.projections S info → venv.projections S info ∨
+      (safety ≤ (if decl.isUnsafe then .unsafe else .safe) ∧
+        ⟨S, info⟩ ∈ decl.projectionEntries))
+    (htels : ∀ {n c}, env'.find? n = some (.ctorInfo c) → env.find? n = none →
+      safety ≤ (ConstantInfo.ctorInfo c).safety → CtorTelescopeAt venv' c) :
+    InstalledBlocks safety env' venv' st' := by
   have hwf' : env'.constants.WF := hchk'.map_wf
   have toEnv' : ∀ {n ci}, env'.constants.find? n = some ci → env'.find? n = some ci := by
     intro n ci h; rwa [Lean.Kernel.Environment.find?, hwf'.find?'_eq_find?]
@@ -825,7 +824,6 @@ theorem addInduct {decl : VInductDecl}
     intro n ci h; rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at h
   have hmap : ∀ {n ci}, env.constants.find? n = some ci → env'.constants.find? n = some ci :=
     fun h => toMap' (hpres (toEnv h))
-  have hpresent := H.listedConstructorsPresent (by decide)
   -- the declaration's families are exactly aligned new headers
   have hfam : ∀ j (hj : j < decl.types.length),
       env'.find? decl.types[j].name =
@@ -840,10 +838,7 @@ theorem addInduct {decl : VInductDecl}
     refine ⟨hv, hfresh, hvname, ?_⟩
     rcases horigins _ v (toMap' hv) with hold | ⟨i, hname, ⟨A⟩⟩
     · rw [toEnv hold] at hfresh; cases hfresh
-    · have hnodup : (decl.types.map (·.name)).Nodup := by
-        rw [← A.all]
-        exact (hclosed _ v hv).names
-      have hi : i = j := by
+    · have hi : i = j := by
         have heq : (decl.types.map (·.name))[i]'(by simpa using A.familyIdx_lt) =
             (decl.types.map (·.name))[j]'(by simpa using hj) := by
           simp only [List.getElem_map]
@@ -851,14 +846,6 @@ theorem addInduct {decl : VInductDecl}
         exact (List.getElem_inj hnodup).mp heq
       subst hi
       exact A
-  have hnodup : (decl.types.map (·.name)).Nodup := by
-    cases hts : decl.types with
-    | nil => simp
-    | cons T ts =>
-      have h0 : 0 < decl.types.length := by simp [hts]
-      obtain ⟨hv, -, -, A⟩ := hfam 0 h0
-      rw [← hts, ← A.all]
-      exact (hclosed _ _ hv).names
   -- the members of the block
   have hmemFam : ∀ {F}, F ∈ decl.types.map (familyAt env') →
       ∃ j, ∃ hj : j < decl.types.length, F = familyAt env' decl.types[j] := by
@@ -897,37 +884,12 @@ theorem addInduct {decl : VInductDecl}
     simp only [List.getElem_map, Function.comp]
     obtain ⟨C, h1, h2⟩ := hctor j hj k (by simpa using hk)
     rw [h1, h2]
-  -- abstract installation facts, at observers that see the declaration
-  obtain ⟨es, hes, hproj⟩ : ∃ es : List (Name × InductiveSignature.CaseSchema),
-      (safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
-        ∀ e ∈ es, venv'.eliminators e.1 e.2) ∧
-      ∀ {S info}, venv'.projections S info → venv.projections S info ∨
-        (safety ≤ (if decl.isUnsafe then .unsafe else .safe) ∧
-          ⟨S, info⟩ ∈ decl.projectionEntries) := by
-    by_cases hv : safety ≤ (if decl.isUnsafe then .unsafe else .safe)
-    · have := (hadd hv).toVEnv
-      cases this with
-      | @intro block _ hdecl hcompile hblock helim hinstall =>
-        refine ⟨block.eliminators, fun _ e he =>
-          (VInductBlock.install_eliminators_iff hinstall).mpr (.inl he), ?_⟩
-        intro S info hp
-        rcases (VInductBlock.install_projections_iff hinstall).mp hp with
-          ⟨entry, hentry, rfl, rfl⟩ | hold
-        · right
-          refine ⟨hv, ?_⟩
-          rw [← hcompile.projections]
-          exact hentry
-        · exact .inl hold
-    · refine ⟨[], fun h => absurd h hv, ?_⟩
-      intro S info hp
-      rw [hhidden hv] at hp
-      exact .inl hp
   let B : InstalledBlock := {
-    stage := .complete
+    stage := stage
     numParams := decl.nparams
     isUnsafe := decl.isUnsafe
     families := decl.types.map (familyAt env')
-    recursors := newRecursors env env'
+    recursors := recs
     eliminators := es
     decl := decl }
   have hBnames : B.names = decl.types.map (·.name) := hnames
@@ -941,11 +903,11 @@ theorem addInduct {decl : VInductDecl}
       show env'.find? (headerAt env' decl.types[j].name).name = _
       rw [hname]; exact hv
     all := by
-      intro F hF
+      intro _ F hF
       obtain ⟨j, hj, rfl⟩ := hmemFam hF
       rw [hBnames]
       exact (hfam j hj).2.2.2.all
-    nodup := by rw [hBnames]; exact hnodup
+    nodup := fun _ => by rw [hBnames]; exact hnodup
     numParams := by
       intro F hF
       obtain ⟨j, hj, rfl⟩ := hmemFam hF
@@ -954,7 +916,7 @@ theorem addInduct {decl : VInductDecl}
       intro F hF
       obtain ⟨j, hj, rfl⟩ := hmemFam hF
       exact (hfam j hj).2.2.2.isUnsafe
-    pending := fun h => by cases h
+    pending := fun h => absurd h hstage
     ctorNames := by
       intro _ F hF
       obtain ⟨j, hj, rfl⟩ := hmemFam hF
@@ -977,16 +939,10 @@ theorem addInduct {decl : VInductDecl}
         levelParams := C.levelParamsExact
         isUnsafe := C.isUnsafe
         numFields := C.numFields }
-    recursor := by
-      intro r hr
-      obtain ⟨n, h1, h2⟩ := (mem_newRecursors hwf').mp hr
-      have hn : r.name = n := hchk'.find?_name h1
-      rw [hn]
-      exact ⟨h1, hrecUnsafe h1 h2⟩
+    recursor := fun r hr => ⟨(hrecFind r hr).1, hstage⟩
     recursorMajor := by
       intro r hr
-      obtain ⟨n, h1, h2⟩ := (mem_newRecursors hwf').mp hr
-      obtain ⟨info, hinfo⟩ := hrecMajor h1 h2
+      obtain ⟨info, hinfo⟩ := hrecMajor r hr
       refine ⟨info, hinfo, fun m hm => ?_⟩
       cases hold : env.find? r.getMajorInduct with
       | some ci =>
@@ -1003,8 +959,7 @@ theorem addInduct {decl : VInductDecl}
           exact ⟨_, toEnv' C.lookup⟩ }
   have hBA : B.Visible safety → B.Abstract env' venv' := by
     intro hvis
-    have hadd' := hadd hvis
-    have hinst := hadd'.installedCertificate
+    have hinst := hreg hvis
     exact {
       uvars := by
         intro F hF
@@ -1025,7 +980,7 @@ theorem addInduct {decl : VInductDecl}
           name := hname
           numIndices := A.numIndices
           uvars := hinst.typeUvars _ hTmem
-          lookup := hinst.familyConstant j hj
+          lookup := hinst.family j hj
           ctorsLength := fun _ => by simpa [familyAt] using A.constructors
           ctor := by
             intro _ k h₁ h₂
@@ -1054,23 +1009,27 @@ theorem addInduct {decl : VInductDecl}
             exact {
               name := h2.trans C.name
               uvars := hinst.constructorUvars _ hCmem
-              lookup := hinst.constructorConstant j k hj h₂
+              lookup := hinst.ctor j k hj h₂
               numFields := by rw [C.numFields_forallArity]; rfl
-              telescope := htels hvis (by rw [h2]; exact toEnv' C.lookup) hfresh }
+              telescope := htels (by rw [h2]; exact toEnv' C.lookup) hfresh (by
+                simp only [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial,
+                  C.isUnsafe]
+                exact hvis) }
           params := by
-            intro _ k hk
+            intro hc k hk
+            obtain ⟨-, hparamsAll⟩ := hcomplete hvis hc
             have hk' : k < (headerAt env' decl.types[j].name).ctors.length := by
               rw [A.constructors]; exact hk
-            obtain ⟨P⟩ := hparams hvis _ _ hv (by rw [A.isUnsafe]; exact hvis) k hk'
+            obtain ⟨P⟩ := hparamsAll _ _ hv (by rw [A.isUnsafe]; exact hvis) k hk'
             have hft : P.familyTarget = decl.types[j].toVConstant := by
               exact Option.some.inj (P.familyLookup.symm.trans
-                (hinst.familyConstant j hj))
+                (hinst.family j hj))
             have hct : P.constructorTarget = decl.types[j].ctors[k].toVConstant := by
               have h1 := P.constructorLookup
               obtain ⟨C, -, -⟩ := hctor j hj k hk'
               rw [C.name] at h1
               exact Option.some.inj (h1.symm.trans
-                (hinst.constructorConstant j k hj hk))
+                (hinst.ctor j k hj hk))
             have huv : (headerAt env' decl.types[j].name).levelParams.length = decl.uvars :=
               A.levelParams
             have hnp : (headerAt env' decl.types[j].name).numParams = decl.nparams :=
@@ -1083,38 +1042,27 @@ theorem addInduct {decl : VInductDecl}
             · have := P.familyParams; rw [hnp] at this; exact this
             · have := P.constructorParams; rw [hnp] at this; exact this
             · have := P.parameterDomains; rw [huv] at this; exact this }
-      projections := fun _ e he => hinst.projection he
-      eliminators := fun _ => hes hvis
-      installed := fun _ => hinst
-      recursor := by
-        intro r hr
-        obtain ⟨n, h1, h2⟩ := (mem_newRecursors hwf').mp hr
-        rcases hadd'.newRecursorsAligned.recursor (toMap' h1) with hold | hnew
-        · rw [toEnv hold] at h2; cases h2
-        · have hrvis : safety ≤ (ConstantInfo.recInfo r).safety := by
-            rw [InstalledBlock.safety_recInfo (B := B) (hrecUnsafe h1 h2)]
-            exact hvis
-          obtain ⟨hcore, hk, -⟩ := hnew hrvis
-          exact ⟨hcore, hk⟩ }
-  have hB : B.WF safety env' venv' := ⟨hBC, hBA⟩
+      projections := fun _ e he => hinst.projections e he
+      eliminators := fun _ => hinst.eliminators
+      installed := fun hc => (hcomplete hvis hc).1 }
+  have hB : B.WF safety env' venv' := ⟨hBC, fun h _ => hBA h, hrecAlign⟩
   have hBmem : ∀ j (hj : j < decl.types.length),
       ∃ F ∈ B.families, F.header = headerAt env' decl.types[j].name :=
     fun j hj => ⟨_, hfamMem j hj, rfl⟩
-  refine H.extend hpres hmap ?_ hle (InstallStage.le_refl _) ?_ ?_ ?_ ?_
+  refine H.extend hpres hmap ?_ hle hst' ?_ ?_ ?_ ?_
   · intro fn fi n hfi hn hnone
     obtain ⟨ci, hci⟩ := hpresent fn fi hfi n hn
     rw [hci] at hnone; cases hnone
   · intro n v hf hnone
     have hn : n = v.name := (hchk'.find?_name hf).symm
-    refine ⟨hn, B, InstallStage.le_refl _, hB, ?_⟩
+    refine ⟨hn, B, hstage', hB, ?_⟩
     rcases horigins n v (toMap' hf) with hold | ⟨j, -, ⟨A⟩⟩
     · rw [toEnv hold] at hnone; cases hnone
     · obtain ⟨F, hF, hFh⟩ := hBmem j A.familyIdx_lt
       exact ⟨F, hF, hFh.trans (headerAt_eq (by rw [← A.name, ← hn]; exact hf))⟩
   · intro n v hf hnone
     have hn : n = v.name := (hchk'.find?_name hf).symm
-    refine ⟨hn, B, InstallStage.le_refl _,
-      (show InstallStage.complete ≠ InstallStage.headers by decide), hB, ?_⟩
+    refine ⟨hn, B, hstage', hstage, hB, ?_⟩
     obtain ⟨owner, howner, hmem, -⟩ := howners n v hf
     have hownerNew : env.find? v.induct = none := by
       cases hold : env.find? v.induct with
@@ -1138,12 +1086,168 @@ theorem addInduct {decl : VInductDecl}
       exact List.mem_map.mpr ⟨n, hmem, ctorAt_eq hf⟩
   · intro n v hf hnone
     have hn : n = v.name := (hchk'.find?_name hf).symm
-    exact ⟨hn, B, InstallStage.le_refl _, hB, (mem_newRecursors hwf').mpr ⟨n, hf, hnone⟩⟩
+    exact ⟨hn, B, hstage', hB, hrecs hf hnone⟩
   · intro S info hp
     rcases hproj hp with hold | ⟨hvis, hentry⟩
     · exact .inl hold
-    · exact .inr ⟨B, InstallStage.le_refl _,
-        (show InstallStage.complete ≠ InstallStage.headers by decide), hvis, hB, hentry⟩
+    · exact .inr ⟨B, hstage', hstage, hvis, hB, hentry⟩
+
+/-- Installing a complete inductive declaration extends the invariant by one complete
+descriptor (`addBlock`), whose recursors are the new kernel recursors and whose abstract side
+is the installation `AddInduct`, at observers that see the declaration; observers that do
+not see it keep their abstract environment. -/
+theorem addInduct {decl : VInductDecl}
+    (H : InstalledBlocks safety env venv .complete)
+    (hwf : env.constants.WF) (hchk' : CheckingEnv safety env' venv')
+    (hpres : ∀ {n ci}, env.find? n = some ci → env'.find? n = some ci)
+    (hle : venv ≤ venv')
+    (horigins : InductInfosFromDecl env.constants env'.constants decl)
+    (hcover : ∀ T ∈ decl.types,
+      ∃ v, env'.find? T.name = some (.inductInfo v) ∧ env.find? T.name = none)
+    (hclosed : VerifyInductive.MutualInductivesClosed env')
+    (howners : VerifyInductive.ConstructorOwnersPresent env')
+    (hrecMajor : ∀ {n r}, env'.find? n = some (.recInfo r) → env.find? n = none →
+      ∃ info, env'.find? r.getMajorInduct = some (.inductInfo info))
+    (hadd : safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
+      AddInduct safety env.constants venv decl env'.constants venv')
+    (hhidden : ¬ safety ≤ (if decl.isUnsafe then .unsafe else .safe) → venv' = venv)
+    (hparams : safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
+      VerifyInductive.ConstructorParameterAlignment safety env' venv')
+    (htels : safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
+      ∀ {n c}, env'.find? n = some (.ctorInfo c) → env.find? n = none →
+        CtorTelescopeAt venv' c)
+    (hrecAlign : ∀ {n r}, env'.find? n = some (.recInfo r) → env.find? n = none →
+      safety ≤ (ConstantInfo.recInfo r).safety →
+      RecursorAlignmentCore venv' r ∧ KLikeRecursor env'.constants venv' r) :
+    InstalledBlocks safety env' venv' .complete := by
+  have hwf' : env'.constants.WF := hchk'.map_wf
+  have toMap' : ∀ {n ci}, env'.find? n = some ci → env'.constants.find? n = some ci := by
+    intro n ci h; rwa [Lean.Kernel.Environment.find?, hwf'.find?'_eq_find?] at h
+  have toEnv : ∀ {n ci}, env.constants.find? n = some ci → env.find? n = some ci := by
+    intro n ci h; rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
+  have hnodup : (decl.types.map (·.name)).Nodup := by
+    cases hts : decl.types with
+    | nil => simp
+    | cons T ts =>
+      obtain ⟨v, hv, hfresh⟩ := hcover T (by simp [hts])
+      rcases horigins _ v (toMap' hv) with hold | ⟨i, -, ⟨A⟩⟩
+      · rw [toEnv hold] at hfresh; cases hfresh
+      · rw [← hts, ← A.all]
+        exact (hclosed _ v hv).names
+  obtain ⟨es, hes, hproj⟩ : ∃ es : List (Name × InductiveSignature.CaseSchema),
+      (safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
+        ∀ e ∈ es, venv'.eliminators e.1 e.2) ∧
+      ∀ {S info}, venv'.projections S info → venv.projections S info ∨
+        (safety ≤ (if decl.isUnsafe then .unsafe else .safe) ∧
+          ⟨S, info⟩ ∈ decl.projectionEntries) := by
+    by_cases hv : safety ≤ (if decl.isUnsafe then .unsafe else .safe)
+    · have := (hadd hv).toVEnv
+      cases this with
+      | @intro block _ hdecl hcompile hblock helim hinstall =>
+        refine ⟨block.eliminators, fun _ e he =>
+          (VInductBlock.install_eliminators_iff hinstall).mpr (.inl he), ?_⟩
+        intro S info hp
+        rcases (VInductBlock.install_projections_iff hinstall).mp hp with
+          ⟨entry, hentry, rfl, rfl⟩ | hold
+        · right
+          refine ⟨hv, ?_⟩
+          rw [← hcompile.projections]
+          exact hentry
+        · exact .inl hold
+    · refine ⟨[], fun h => absurd h hv, ?_⟩
+      intro S info hp
+      rw [hhidden hv] at hp
+      exact .inl hp
+  refine H.addBlock .complete (by decide) (InstallStage.le_refl _) (InstallStage.le_refl _)
+    (H.listedConstructorsPresent (by decide)) hwf hchk' hpres hle horigins hcover hnodup
+    howners (newRecursors env env') (fun hf hnone => (mem_newRecursors hwf').mpr ⟨_, hf, hnone⟩)
+    ?_ ?_ es ?_ ?_ (fun hvis _ => ⟨(hadd hvis).installedCertificate, hparams hvis⟩) hproj ?_
+  · intro r hr
+    obtain ⟨n, h1, h2⟩ := (mem_newRecursors hwf').mp hr
+    have hn : r.name = n := hchk'.find?_name h1
+    rw [hn]; exact ⟨h1, h2⟩
+  · intro r hr
+    obtain ⟨n, h1, h2⟩ := (mem_newRecursors hwf').mp hr
+    exact hrecMajor h1 h2
+  · intro hvis
+    have hinst := (hadd hvis).installedCertificate
+    exact {
+      typeUvars := hinst.typeUvars
+      constructorUvars := hinst.constructorUvars
+      family := hinst.familyConstant
+      ctor := hinst.constructorConstant
+      projections := fun _ he => hinst.projection he
+      eliminators := hes hvis }
+  · intro r hr hrvis
+    obtain ⟨n, h1, h2⟩ := (mem_newRecursors hwf').mp hr
+    exact hrecAlign h1 h2 hrvis
+  · intro n c hf hnone hcvis
+    refine htels ?_ hf hnone
+    obtain ⟨owner, howner, hmem, hunsafe⟩ := howners n c hf
+    have hpresent := H.listedConstructorsPresent (by decide)
+    have hownerNew : env.find? c.induct = none := by
+      cases hold : env.find? c.induct with
+      | none => rfl
+      | some ci =>
+        have := hpres hold
+        rw [howner] at this
+        cases this
+        obtain ⟨ci', hci'⟩ := hpresent _ owner hold n hmem
+        rw [hci'] at hnone; cases hnone
+    rcases horigins _ owner (toMap' howner) with hold | ⟨j, -, ⟨A⟩⟩
+    · rw [toEnv hold] at hownerNew; cases hownerNew
+    · simpa [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, hunsafe,
+        A.isUnsafe] using hcvis
+
+/-- Installing the headers and constructors of an inductive declaration, with its case
+eliminators and projections registered, extends the invariant by a descriptor at stage
+`.constructors`. -/
+theorem addCtorStage {decl : VInductDecl}
+    (H : InstalledBlocks safety env venv st)
+    (hpresent : VerifyInductive.ListedConstructorsPresent env)
+    (hwf : env.constants.WF) (hchk' : CheckingEnv safety env' venv')
+    (hpres : ∀ {n ci}, env.find? n = some ci → env'.find? n = some ci)
+    (hle : venv ≤ venv')
+    (horigins : InductInfosFromDecl env.constants env'.constants decl)
+    (hcover : ∀ T ∈ decl.types,
+      ∃ v, env'.find? T.name = some (.inductInfo v) ∧ env.find? T.name = none)
+    (hnodup : (decl.types.map (·.name)).Nodup)
+    (howners : VerifyInductive.ConstructorOwnersPresent env')
+    (recs : List RecursorVal)
+    (hrecs : ∀ {n r}, env'.find? n = some (.recInfo r) → env.find? n = none → r ∈ recs)
+    (hrecFind : ∀ r ∈ recs, env'.find? r.name = some (.recInfo r) ∧ env.find? r.name = none)
+    (hrecMajor : ∀ r ∈ recs, ∃ info, env'.find? r.getMajorInduct = some (.inductInfo info))
+    (hrecAlign : ∀ r ∈ recs, safety ≤ (ConstantInfo.recInfo r).safety →
+      RecursorAlignmentCore venv' r ∧ KLikeRecursor env'.constants venv' r)
+    (es : List (Name × InductiveSignature.CaseSchema))
+    (hreg : DeclRegistered venv' decl es)
+    (hproj : ∀ {S info}, venv'.projections S info → venv.projections S info ∨
+      ⟨S, info⟩ ∈ decl.projectionEntries)
+    (htels : CtorTelescopes safety env' venv') :
+    InstalledBlocks safety env' venv' .headers := by
+  have hwf' : env'.constants.WF := hchk'.map_wf
+  refine H.addBlock .constructors (by decide) (InstallStage.headers_le _)
+    (InstallStage.headers_le _) hpresent hwf hchk' hpres hle horigins hcover hnodup howners recs
+    hrecs hrecFind hrecMajor es (fun _ => hreg)
+    hrecAlign (fun _ h => absurd h (by decide)) ?_ (fun hf _ hvis => htels hf hvis)
+  intro S info hp
+  rcases hproj hp with hold | hentry
+  · exact .inl hold
+  · right
+    refine ⟨?_, hentry⟩
+    rw [VInductDecl.projectionEntries, List.mem_filterMap] at hentry
+    obtain ⟨T, hT, -⟩ := hentry
+    obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hT
+    obtain ⟨ci, hci, hvis⟩ := hchk'.find?_iff.mpr ⟨_, hreg.family i hi⟩
+    obtain ⟨v, hv, hnone⟩ := hcover _ hT
+    rw [hv] at hci
+    cases hci
+    have hvMap : env'.constants.find? decl.types[i].name = some (.inductInfo v) := by
+      rwa [Lean.Kernel.Environment.find?, hwf'.find?'_eq_find?] at hv
+    rcases horigins _ v hvMap with hold | ⟨j, -, ⟨A⟩⟩
+    · rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, hold] at hnone; cases hnone
+    · simpa [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, A.isUnsafe]
+        using hvis
 
 /-- Adding constants that are neither inductive headers, constructors nor recursors, and
 growing the abstract environment without registering projections, keeps every descriptor. -/
@@ -1238,6 +1342,107 @@ theorem addDefinitions (vs : List DefinitionVal) (H : InstalledBlocks safety env
       · exact absurd heq.symm hne
       · rw [hfresh w (by simp [hw])] at hold; cases hold
 
+open private Lean.Kernel.Environment.add from Lean.Environment in
+/-- Adding one fresh constant that is neither a constructor nor a recursor, while every
+name a header lists stays a constructor of that header if present.  A new header is its own
+descriptor at stage `.headers`: the constructors it lists are absent. -/
+theorem addFreshListed (H : InstalledBlocks safety env venv st) (hwf : env.constants.WF)
+    {ci : ConstantInfo} (hn : env.find? ci.name = none)
+    (hnctor : ∀ v, ci ≠ .ctorInfo v) (hnrec : ∀ v, ci ≠ .recInfo v)
+    (howners : VerifyInductive.ConstructorOwnersPresent env)
+    (hlisted : VerifyInductive.ListedConstructorsCoherent (env.add ci))
+    (hle : venv ≤ venv')
+    (hproj : ∀ {S info}, venv'.projections S info → venv.projections S info) :
+    InstalledBlocks safety (env.add ci) venv' .headers := by
+  have hnMap : env.constants.find? ci.name = none := by
+    rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
+  have hwf' : (env.add ci).constants.WF := hwf.insert ci.name ci hnMap
+  have hpres : ∀ {n c}, env.find? n = some c → (env.add ci).find? n = some c :=
+    fun h => VerifyInductive.findAddFresh_of_find hwf ci hn h
+  have hself : (env.add ci).find? ci.name = some ci := by
+    change (env.constants.insert ci.name ci).find?' ci.name = some ci
+    rw [(hwf.insert ci.name ci hnMap).find?'_eq_find?, hwf.find?_insert]
+    simp
+  -- a name listed by a present header is not the new constant
+  have hnotListed : ∀ {fn fi n}, (env.add ci).find? fn = some (.inductInfo fi) →
+      n ∈ fi.ctors → n ≠ ci.name := by
+    intro fn fi n hfi hmem heq
+    subst heq
+    obtain ⟨info, hinfo, -⟩ := hlisted fn fi hfi _ hmem ci hself
+    exact hnctor info hinfo
+  refine H.extend hpres ?_ ?_ hle (InstallStage.headers_le _) ?_ ?_ ?_ ?_
+  · intro n c h
+    change (env.constants.insert ci.name ci).find? n = some c
+    rw [hwf.find?_insert]
+    split
+    · rename_i heq
+      rw [← LawfulBEq.eq_of_beq heq, hnMap] at h
+      cases h
+    · exact h
+  · intro fn fi n hfi hmem hnone
+    cases h : (env.add ci).find? n with
+    | none => rfl
+    | some c =>
+      rcases VerifyInductive.findAddFresh_cases hwf ci hn h with ⟨heq, -⟩ | hold
+      · exact absurd heq (hnotListed (hpres hfi) hmem)
+      · rw [hold] at hnone; cases hnone
+  · intro n v hf hnone
+    rcases VerifyInductive.findAddFresh_cases hwf ci hn hf with ⟨rfl, hci⟩ | hold
+    · subst hci
+      have hvname : (ConstantInfo.inductInfo v).name = v.name := rfl
+      let T : VInductiveType := {
+        name := v.name
+        uvars := v.levelParams.length
+        type := VExpr.sort .zero
+        numIndices := v.numIndices
+        resultLevel := VLevel.zero
+        ctors := [] }
+      let D : VInductDecl := {
+        uvars := v.levelParams.length
+        nparams := v.numParams
+        types := [T]
+        isUnsafe := v.isUnsafe }
+      refine ⟨hvname, ⟨.headers, v.numParams, v.isUnsafe, [⟨v, [], T⟩], [], [], D⟩,
+        InstallStage.le_refl _, ⟨?_, fun _ h => absurd rfl h, by simp⟩, ⟨v, [], T⟩, by simp, rfl⟩
+      exact {
+        header := by
+          intro F hF
+          simp only [List.mem_singleton] at hF
+          subst hF
+          exact hself
+        all := fun h => absurd rfl h
+        nodup := fun h => absurd rfl h
+        numParams := by intro F hF; simp only [List.mem_singleton] at hF; subst hF; rfl
+        isUnsafe := by intro F hF; simp only [List.mem_singleton] at hF; subst hF; rfl
+        pending := by
+          intro _ F hF m hm
+          simp only [List.mem_singleton] at hF
+          subst hF
+          cases h : (env.add (.inductInfo v)).find? m with
+          | none => rfl
+          | some c =>
+            obtain ⟨info, rfl, hinduct, -⟩ := hlisted _ v hself m hm c h
+            rcases VerifyInductive.findAddFresh_cases hwf _ hn h with ⟨-, hc⟩ | hold
+            · cases hc
+            · obtain ⟨owner, howner, -⟩ := howners m info hold
+              rw [hinduct] at howner
+              rw [howner] at hn
+              cases hn
+        ctorNames := fun h => absurd rfl h
+        ctor := fun h => absurd rfl h
+        recursor := by simp
+        recursorMajor := by simp }
+    · rw [hold] at hnone; cases hnone
+  · intro n v hf hnone
+    rcases VerifyInductive.findAddFresh_cases hwf ci hn hf with ⟨-, rfl⟩ | hold
+    · exact absurd rfl (hnctor v)
+    · rw [hold] at hnone; cases hnone
+  · intro n v hf hnone
+    rcases VerifyInductive.findAddFresh_cases hwf ci hn hf with ⟨-, rfl⟩ | hold
+    · exact absurd rfl (hnrec v)
+    · rw [hold] at hnone; cases hnone
+  · intro S info hp; exact .inl (hproj hp)
+
 end InstalledBlocks
 
 /-- The declaration of an inductive installation has the `isUnsafe` of its new headers. -/
@@ -1256,6 +1461,88 @@ theorem InductInfosFromDecl.declUnsafe {env env' : Environment} {decl : VInductD
   rcases horigins _ v hvMap with hold | ⟨i, -, ⟨A⟩⟩
   · rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, hold] at hnone; cases hnone
   · rw [← A.isUnsafe]; exact hnew hv hnone
+
+/-- Every family of an installed declaration is a new kernel header, read off the abstract
+side: the family constant is registered, so some visible kernel constant carries its name; it
+is new because the name was fresh in the source model, and it is a header because the only new
+constants are headers and constructors, and a constructor name is not a family name. -/
+theorem InductInfosFromDecl.cover {env env' : Environment} {venv venv' : VEnv}
+    {decl : VInductDecl}
+    (hchk : CheckingEnv safety env venv) (hchk' : CheckingEnv safety env' venv')
+    (hpresent : VerifyInductive.ListedConstructorsPresent env)
+    (hpres : ∀ {n ci}, env.find? n = some ci → env'.find? n = some ci)
+    (horigins : InductInfosFromDecl env.constants env'.constants decl)
+    (howners : VerifyInductive.ConstructorOwnersPresent env')
+    (hfresh : ∀ T ∈ decl.types, venv.constants T.name = none)
+    (hfamily : ∀ T ∈ decl.types, ∃ c, venv'.constants T.name = some c)
+    (hnodup : decl.sourceNames.Nodup)
+    (hkinds : ∀ {n ci}, env'.find? n = some ci → env.find? n = none →
+      (∃ v, ci = .inductInfo v) ∨ (∃ v, ci = .ctorInfo v)) :
+    ∀ T ∈ decl.types, ∃ v, env'.find? T.name = some (.inductInfo v) ∧
+      env.find? T.name = none := by
+  have hwf' := hchk'.map_wf
+  intro T hT
+  obtain ⟨c, hc⟩ := hfamily T hT
+  obtain ⟨ci, hci, hvis⟩ := hchk'.find?_iff.mpr ⟨c, hc⟩
+  have hnone : env.find? T.name = none := by
+    cases h : env.find? T.name with
+    | none => rfl
+    | some c0 =>
+      have := hpres h
+      rw [hci] at this
+      cases this
+      obtain ⟨c', hc'⟩ := hchk.find?_iff.mp ⟨ci, h, hvis⟩
+      rw [hfresh T hT] at hc'
+      cases hc'
+  have hind : ∃ v, ci = .inductInfo v := by
+    rcases hkinds hci hnone with h | ⟨v, rfl⟩
+    · exact h
+    · exfalso
+      obtain ⟨o, ho, hmem, -⟩ := howners _ v hci
+      have hoNew : env.find? v.induct = none := by
+        cases h : env.find? v.induct with
+        | none => rfl
+        | some c0 =>
+          have := hpres h
+          rw [ho] at this
+          cases this
+          obtain ⟨c1, hc1⟩ := hpresent _ o h _ hmem
+          rw [hc1] at hnone; cases hnone
+      have hoMap : env'.constants.find? v.induct = some (.inductInfo o) := by
+        rwa [Lean.Kernel.Environment.find?, hwf'.find?'_eq_find?] at ho
+      rcases horigins _ o hoMap with hold | ⟨j, -, ⟨A⟩⟩
+      · rw [Lean.Kernel.Environment.find?, hchk.map_wf.find?'_eq_find?, hold] at hoNew
+        cases hoNew
+      · obtain ⟨k, hk, hkEq⟩ := List.mem_iff_getElem.mp hmem
+        obtain ⟨C⟩ := A.constructor k (A.constructors ▸ hk)
+        have hctorName : T.name ∈ decl.constructorConstants.map VConstVal.name := by
+          rw [← hkEq, C.name]
+          apply List.mem_map_of_mem
+          simp only [VInductDecl.constructorConstants, List.mem_flatMap]
+          exact ⟨_, List.getElem_mem A.familyIdx_lt, List.getElem_mem _⟩
+        have htypeName : T.name ∈ decl.typeConstants.map VConstVal.name := by
+          simp only [VInductDecl.typeConstants, List.map_map]
+          exact List.mem_map_of_mem hT
+        exact (List.nodup_append.mp hnodup).2.2 _ htypeName _ hctorName rfl
+  obtain ⟨v, rfl⟩ := hind
+  exact ⟨v, hci, hnone⟩
+
+/-- Declaration alignment transfers to a constant map with the same headers and
+constructors. -/
+theorem InductInfosFromDecl.transfer {C₀ C C' : ConstMap} {decl : VInductDecl}
+    (H : InductInfosFromDecl C₀ C decl)
+    (hind : ∀ {n v}, C'.find? n = some (.inductInfo v) → C.find? n = some (.inductInfo v))
+    (hfam : ∀ {n v}, C.find? n = some (.inductInfo v) → C'.find? n = some (.inductInfo v))
+    (hctor : ∀ {n v}, C.find? n = some (.ctorInfo v) → C'.find? n = some (.ctorInfo v)) :
+    InductInfosFromDecl C₀ C' decl := by
+  intro familyName familyInfo hfind
+  rcases H familyName familyInfo (hind hfind) with hold | ⟨i, hname, ⟨A⟩⟩
+  · exact .inl hold
+  · refine .inr ⟨i, hname, ⟨{ A with
+      lookup := hfam A.lookup
+      constructor := fun k hk => ?_ }⟩⟩
+    obtain ⟨Ck⟩ := A.constructor k hk
+    exact ⟨{ Ck with lookup := hctor Ck.lookup }⟩
 
 /-! ## Installed families -/
 
@@ -1290,7 +1577,7 @@ theorem InstalledBlocks.familyInstalled (H : InstalledBlocks safety env venv .co
   have hvis : B.Visible safety := by
     rw [InstalledBlock.safety_inductInfo (C.isUnsafe F hF)] at hvisible
     exact hvisible
-  have A := hB.abstract hvis
+  have A := hB.abstract hvis hne
   have FA := A.family F hF
   obtain ⟨j, hj, hFj⟩ := List.mem_iff_getElem.mp hF
   have hj' : j < B.decl.types.length := by rw [A.types]; simpa using hj
@@ -1316,5 +1603,141 @@ theorem InstalledBlocks.familyInstalled (H : InstalledBlocks safety env venv .co
       rw [DA.name]
       simp only [hT]
     isUnsafe := (C.isUnsafe F hF).trans A.isUnsafe.symm }⟩
+
+/-! ## The checking invariant -/
+
+/-- Stored-equation heads survive an extension that preserves lookups and adds no
+equation. -/
+theorem EquationHeadsCoherent.mono {C C' : ConstMap} {venv venv' : VEnv}
+    (H : EquationHeadsCoherent C venv)
+    (hpres : ∀ {n ci}, C.find? n = some ci → C'.find? n = some ci)
+    (hdefeq : ∀ df, venv'.defeqs df → venv.defeqs df) : EquationHeadsCoherent C' venv' := by
+  intro df hdf
+  obtain ⟨head, ls, ci, hhead, hci, hne, hq⟩ := H df (hdefeq df hdf)
+  exact ⟨head, ls, ci, hhead, hpres hci, hne, hq⟩
+
+/-- Everything the verified type checker needs of its environment, which may be one an
+inductive declaration builds while it is checked: the local invariants (`ValidCore`), the
+installed blocks of every inductive constant (`InstalledBlocks`, at any stage, so that a
+block may still await its constructors), the heads of the stored equations, and the quotient
+facts.  Every lookup fact the checker reads is a projection of these. -/
+structure CheckingEnv.Valid (safety : DefinitionSafety)
+    (env : Environment) (venv : VEnv) : Prop extends
+    CheckingEnv.ValidCore safety env venv where
+  blocks : InstalledBlocks safety env venv .headers
+  /-- Every stored equation is headed by a non-inductive constant of the environment, which
+  keeps every inductive type constant rigid. -/
+  equationHeads : EquationHeadsCoherent env.constants venv
+  /-- Once quotients are initialized, the quotient constants and the `Quot.lift` equation are
+  present. This is what quotient reduction reads. -/
+  quot : env.quotInit = true → QuotEnvCoherent env.constants venv
+
+namespace CheckingEnv.Valid
+variable {safety : DefinitionSafety} {env : Environment} {venv : VEnv}
+
+/-- Every present constructor is listed by its present owner, with its `isUnsafe`. -/
+theorem constructorOwners (H : Valid safety env venv) :
+    VerifyInductive.ConstructorOwnersPresent env := H.blocks.constructorOwnersPresent
+
+/-- Every constructor name a present header lists is, if present, a constructor of that
+header. -/
+theorem listedConstructors (H : Valid safety env venv) :
+    VerifyInductive.ListedConstructorsCoherent env := H.blocks.listedConstructorsCoherent
+
+/-- Every visible singleton family whose constructor is present aligns with the abstract
+projection registry. -/
+theorem projectionRegistry (H : Valid safety env venv) :
+    ProjectionRegistryCoherent safety env.constants venv :=
+  H.blocks.projectionRegistryCoherent H.tr.map_wf
+
+/-- A structure with an abstract registry entry is a visible header listing exactly the
+registered constructor. -/
+theorem projectionHeader (H : Valid safety env venv) (hproj : venv.projections S info) :
+    ∃ v : InductiveVal, env.find? S = some (.inductInfo v) ∧ v.ctors = [info.ctorName] ∧
+      safety ≤ (ConstantInfo.inductInfo v).safety ∧
+      ∃ c : ConstructorVal, env.find? info.ctorName = some (.ctorInfo c) ∧ c.induct = S :=
+  H.blocks.projectionHeader hproj
+
+/-- Every visible recursor is aligned with the stored iota equations. -/
+theorem recursors (H : Valid safety env venv) :
+    RecursorEnvCoherent safety env.constants venv :=
+  H.blocks.recursorEnvCoherent H.tr.map_wf H.equationHeads
+
+/-- Every visible constructor carries its telescope certificate. -/
+theorem ctorTelescopes (H : Valid safety env venv) : CtorTelescopes safety env venv :=
+  H.blocks.ctorTelescopes
+
+end CheckingEnv.Valid
+
+theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
+    (hprims : venv.HasPrimitives)
+    (hsafe : ∀ {n ci}, env.find? n = some ci →
+      Kernel.Environment.primitives.contains n →
+      ci.safety = .safe ∧ ci.levelParams = [])
+    (hblocks : InstalledBlocks safety env venv st) :
+    CheckingEnv.Valid safety env venv :=
+  ⟨⟨H.toChecking, hprims, hsafe⟩, hblocks.weaken (InstallStage.headers_le _),
+    H.recursorEnvCoherent.heads, H.quotEnvCoherent⟩
+
+/-- Promote the local invariants to the full checking invariant. -/
+theorem CheckingEnv.ValidCore.toValid
+    (H : CheckingEnv.ValidCore safety env venv)
+    (hblocks : InstalledBlocks safety env venv st)
+    (hheads : EquationHeadsCoherent env.constants venv)
+    (hquot : env.quotInit = true → QuotEnvCoherent env.constants venv) :
+    CheckingEnv.Valid safety env venv :=
+  { H with
+    blocks := hblocks.weaken (InstallStage.headers_le _)
+    equationHeads := hheads
+    quot := hquot }
+
+open private Lean.Kernel.Environment.add from Lean.Environment in
+/-- Extend a valid environment by a fresh, typed, non-delta, nonprimitive constant that is
+neither a constructor nor a recursor (an inductive header is its own descriptor awaiting its
+constructors), given the listed-constructor coherence of the extended environment. -/
+theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
+    (hn : env.find? ci.name = none)
+    (hnprim : ¬ Kernel.Environment.primitives.contains ci.name)
+    (htr : TrConstant safety venv ci ci')
+    (hci : ci'.WF venv)
+    (hadd : venv.addConst ci.name ci' = some venv')
+    (hdelta : ci.deltaValue? = none)
+    (hnctor : ∀ info, ci ≠ .ctorInfo info) (hnrec : ∀ rec, ci ≠ .recInfo rec)
+    (hlisted : VerifyInductive.ListedConstructorsCoherent (env.add ci)) :
+    CheckingEnv.Valid safety (env.add ci) venv' := by
+  have hcore := H.toValidCore.add hn hnprim htr hci hadd hdelta
+  have hfresh : env.constants.find? ci.name = none := by
+    rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at hn
+    exact hn
+  have hle : venv ≤ venv' := VEnv.addConst_le hadd
+  have hpres : ∀ {n c}, env.constants.find? n = some c → (env.add ci).constants.find? n = some c := by
+    intro n c h
+    show (env.constants.insert ci.name ci).find? n = some c
+    rw [H.tr.map_wf.find?_insert]
+    split
+    · rename_i hb; rw [beq_iff_eq] at hb; subst hb; rw [hfresh] at h; cases h
+    · exact h
+  have hheads : EquationHeadsCoherent (env.add ci).constants venv' :=
+    H.equationHeads.mono hpres fun df hdf => by rwa [VEnv.addConst_defeqs hadd] at hdf
+  refine hcore.toValid (H.blocks.addFreshListed H.tr.map_wf hn hnctor hnrec
+    H.constructorOwners hlisted hle fun hp => by rwa [VEnv.addConst_projections hadd] at hp)
+    hheads fun hq => (H.quot hq).extend hpres hle hheads
+
+/-- Adding well-formed case eliminators to the abstract environment keeps the
+checking invariant; the kernel environment is unchanged. -/
+theorem CheckingEnv.Valid.addEliminators
+    (H : CheckingEnv.Valid safety env venv)
+    (hwf : (venv.addEliminators es).WF) :
+    CheckingEnv.Valid safety env (venv.addEliminators es) := by
+  have hheads : EquationHeadsCoherent env.constants (venv.addEliminators es) :=
+    H.equationHeads.mono id fun df hdf => by simpa using hdf
+  refine (H.toValidCore.addEliminators hwf).toValid (st := .headers) ?_ hheads
+    fun hq => (H.quot hq).extend id VEnv.addEliminators_le hheads
+  refine H.blocks.extend id id (fun _ _ h => h) VEnv.addEliminators_le (InstallStage.le_refl _)
+    ?_ ?_ ?_ ?_
+  · intro n v hf hnone; rw [hf] at hnone; cases hnone
+  · intro n v hf hnone; rw [hf] at hnone; cases hnone
+  · intro n v hf hnone; rw [hf] at hnone; cases hnone
+  · intro S info hp; exact .inl (by simpa using hp)
 
 end Lean4Lean

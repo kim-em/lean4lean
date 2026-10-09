@@ -1001,18 +1001,6 @@ theorem AddInductive.declareConstructors.WF
         exact hi
       exact (Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt core i hsource
         hi).header.uvars.trans core.uvars.symm
-    have hregistry : ProjectionRegistryCoherent c.safety outEnv.constants
-        (venvCtors.addProjections decl.projectionEntries) :=
-      ProjectionRegistryCoherent.extendInductive
-        (by
-          rw [← H.sourceContextVEnv]
-          exact H.sourceContext.checking.projectionRegistry)
-        (D.inductInfosFromDecl core Hchecked)
-        hpreserves hreflect htypeUvars
-        (Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars core)
-        core.typesAdded core.ctorsAdded VEnv.addProjections_le
-        (fun entry hmem => VEnv.addProjections_iff.mpr
-          (Or.inl ⟨entry, hmem, rfl, rfl⟩))
     have hsourceRecursors : RecursorEnvCoherent c.safety c.env.constants sourceEnv := by
       rw [← H.sourceContextVEnv]
       exact H.sourceContext.checking.recursors
@@ -1048,24 +1036,81 @@ theorem AddInductive.declareConstructors.WF
       VEnv.addProjections_mono VEnv.addEliminators_le
     have hrecursors' := hrecursors.extendSimple (fun h => h) (fun h _ => h) hle
       (fun _ h => by simpa using h)
-    have hvalid : CheckingEnv.Valid c.safety outEnv
-        ((venvCtors.addEliminators B.caseEliminators).addProjections decl.projectionEntries) :=
-      ((hvalidCore.addEliminators helimWF).addProjections hprojectedWF).toValid howners
-        (H.installed.listedConstructorsOfDeclaration Hinstalled hsourceMapWF
-          H.sourceContext.checking.listedConstructors H.sourcePresent
-          (by
-            intro entry hentry
-            rcases H.infos with ⟨numNested, hinfos⟩
-            have : entry.1 ∈ H.entries.map Prod.fst := List.mem_map_of_mem hentry
-            rw [hinfos] at this
-            rcases List.mem_map.mp this with ⟨info, hinfo, heq⟩
-            exact ⟨numNested, info, hinfo, heq.symm⟩)
-          Haligned)
-        (hregistry.monoEnv hle) hrecursors'
+    let venv' := (venvCtors.addEliminators B.caseEliminators).addProjections decl.projectionEntries
+    have hcore' := (hvalidCore.addEliminators helimWF).addProjections hprojectedWF
+    have houtWF : outEnv.constants.WF := hcore'.tr.map_wf
+    have htelsAll : CtorTelescopes c.safety outEnv venv' :=
+      (Hinstalled.ctorTelescopes H.context.checking.tr H.context.checking.ctorTelescopes
+        (Haligned.ctorTelescopeSteps htele)).mono
+        (VEnv.addEliminators_le.trans VEnv.addProjections_le)
+    have hsourceLE : sourceEnv ≤ venv' :=
+      (VEnv.addConstVals_le core.typesAdded).trans
+        ((VEnv.addConstVals_le core.ctorsAdded).trans VEnv.addEliminators_addProjections_le)
+    have hctorsLE : venvCtors ≤ venv' := VEnv.addEliminators_addProjections_le
+    have hsourceBlocks : InstalledBlocks c.safety c.env sourceEnv .headers := by
+      rw [← H.sourceContextVEnv]; exact H.sourceContext.checking.blocks
+    have hblocks : InstalledBlocks c.safety outEnv venv' .headers := by
+      refine hsourceBlocks.addCtorStage H.sourcePresent hsourceMapWF hcore'.tr
+        (fun {n ci} h => by
+          have h' := hpreserves (by rwa [Lean.Kernel.Environment.find?,
+            hsourceMapWF.find?'_eq_find?] at h)
+          rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?])
+        hsourceLE (D.inductInfosFromDecl core Hchecked) ?_ ?_ howners [] ?_ (by simp) (by simp)
+        (by simp) B.caseEliminators ?_ ?_ htelsAll
+      · intro T hT
+        have hmem : T.toVConstVal ∈ H.entries.map Prod.snd := by
+          rw [H.values]; exact List.mem_map_of_mem hT
+        obtain ⟨⟨ci, val⟩, he, hval⟩ := List.mem_map.mp hmem
+        obtain ⟨numNested, Hheaders⟩ := H.sourceAligned
+        obtain ⟨info, -, hci⟩ := Hheaders.originInfo he
+        simp only at hci hval
+        subst hci
+        have hname : info.name = T.name := by
+          obtain ⟨⟨_, htr⟩, -⟩ := H.installed.entryTr _ he
+          have := htr.2
+          simp only [ConstantInfo.name, ConstantInfo.toConstantVal] at this
+          rw [this, hval]
+        refine ⟨info, ?_, ?_⟩
+        · rw [← hname]
+          exact Hinstalled.preservesSourceFind hheaderWF (H.installed.findEntry hsourceMapWF he)
+        · rw [← hname]; exact H.installed.entryFresh hsourceMapWF he
+      · have := VEnv.addConstVals_names_nodup core.typesAdded
+        simpa [VInductDecl.typeConstants, Function.comp_def] using this
+      · intro n r hf hnone
+        exfalso
+        rcases Hinstalled.entryOrigin hheaderWF hf with hheader | ⟨entry, hentry, -, hvalue⟩
+        · rcases H.installed.entryOrigin hsourceMapWF hheader with hold | ⟨entry, hentry, -, hvalue⟩
+          · rw [hold] at hnone; cases hnone
+          · obtain ⟨numNested, Hheaders⟩ := H.sourceAligned
+            obtain ⟨info, -, hinfo⟩ := Hheaders.originInfo hentry
+            rw [hinfo] at hvalue; cases hvalue
+        · obtain ⟨info, hinfo⟩ := D.infos entry hentry
+          rw [hinfo] at hvalue; cases hvalue
+      · exact {
+          typeUvars := htypeUvars
+          constructorUvars :=
+            Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars core
+          family := fun i hi => (VEnv.addConstVals_le core.ctorsAdded).trans hctorsLE |>.constants
+            (VEnv.addConstVals_get core.typesAdded
+              (List.mem_map.mpr ⟨decl.types[i], List.getElem_mem hi, rfl⟩))
+          ctor := fun i k hi hk => hctorsLE.constants
+            (VEnv.addConstVals_get core.ctorsAdded (by
+              simp only [VInductDecl.constructorConstants, List.mem_flatMap]
+              exact ⟨_, List.getElem_mem hi, List.getElem_mem hk⟩))
+          projections := fun e he =>
+            VEnv.addProjections_iff.mpr (.inl ⟨e, he, rfl, rfl⟩)
+          eliminators := fun e he => VEnv.addProjections_le.eliminators
+            (VEnv.addEliminators_iff.mpr (.inl he)) }
+      · intro S info hp
+        rcases VEnv.addProjections_iff.mp hp with ⟨e, he, rfl, rfl⟩ | hold
+        · exact .inr he
+        · left
+          rw [VEnv.addEliminators_projections, VEnv.addConstVals_projections core.ctorsAdded,
+            VEnv.addConstVals_projections core.typesAdded] at hold
+          exact hold
+    have hvalid : CheckingEnv.Valid c.safety outEnv venv' :=
+      hcore'.toValid hblocks hrecursors'.heads
         (fun hq => (hquot hq).extend (fun h => h) hle hrecursors'.heads)
-        ((Hinstalled.ctorTelescopes H.context.checking.tr H.context.checking.ctorTelescopes
-          (Haligned.ctorTelescopeSteps htele)).mono
-          (VEnv.addEliminators_le.trans VEnv.addProjections_le))
     exact ⟨{
       toConstructorEnvironment := D
       eliminators := B.caseEliminators

@@ -1044,7 +1044,7 @@ theorem NestedRun.validOfInstallation_of_paramUniform
       installedVEnv := by
   refine Hrestored.validOfInstallation_of_shapes Hlower Hc Hprod Hsource Hmetadata Hsources
     Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource ?_ htels
-  intro name rec hfind _hs hnone
+  intro name rec hfind hnone
   -- the restoration tables of the run
   have hnodup : (familyNames E.lowered.loweredDecl.types ++
       E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by

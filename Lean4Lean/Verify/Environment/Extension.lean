@@ -231,21 +231,12 @@ theorem VEnvAt.addAxioms {env : Environment} {venv : VEnv} {bs : DefinitionSafet
         (by rw [← wf.tr.map_wf.find?'_eq_find?]; exact hd.2.2.1) hd.2.1 h₁' wf.tr
     have wf₁ : VEnvAt (env.add (.axiomInfo { v with isUnsafe := bs == .unsafe })) bs venv₁ :=
       { tr := htr
-        constructorOwners := wf.constructorOwners.addNonConstructor wf.tr.map_wf
-          hd.2.2.1 nofun
-        listedConstructors := wf.listedConstructors.addOfPresent wf.listedPresent
-          wf.tr.map_wf hd.2.2.1 nofun
-        listedPresent := wf.listedPresent.add wf.tr.map_wf hd.2.2.1 nofun
         hasPrimitives := wf.hasPrimitives.addConst hd.2.2.2 h₁'
         safePrimitives := wf.safePrimitives_add _ (hax ▸ hd.2.2.1)
           (by rw [hax]; simp [hd.2.2.2])
-        projectionRegistry := by
-          apply wf.projectionRegistry.insertNonInductive wf.tr.map_wf hconstFresh
-          · intro familyInfo h
-            cases h
-          · intro constructorInfo h
-            cases h
-          · exact hle }
+        blocks := wf.blocks.addFresh wf.tr.map_wf (ci := .axiomInfo { v with isUnsafe := bs == .unsafe })
+          (hax ▸ hd.2.2.1) nofun nofun nofun hle fun hp => by
+            rwa [VEnv.addConst_projections h₁'] at hp }
     show VEnvAt (vs.foldl (fun e v => e.add (.axiomInfo { v with isUnsafe := bs == .unsafe }))
       (env.add (.axiomInfo { v with isUnsafe := bs == .unsafe }))) bs venv'
     refine VEnvAt.addAxioms hsf wf₁ ?_ hnd.2 h₂

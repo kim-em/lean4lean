@@ -861,8 +861,7 @@ private theorem NestedRun.assemblyBaseOfFormation
       exact E.validationEnvironment
     obtain ⟨hcasesWF, hprojectedWF⟩ := HcasesP.recursorCheckingEnvWF HbaseValid.tr.wf Hcore Hparams
     exact HV.validProjected Hlower HcP Hprod Hcore Hmetadata Hsources Harity
-      hempty Hrestored hvalidCore HbaseValid.projectionRegistry
-      HbaseValid.recursors HbaseValid.quot hcasesWF hprojectedWF
+      hempty Hrestored hvalidCore HbaseValid hcasesWF hprojectedWF
       (hcornerAt (VEnv.addConstVals_le Hcore.ctorsAdded)).2
   have HtypeRun : Lean4Lean.validateRestoredRecursorTypes.run
       E.validationEnv E.loweredEnv P.c.lparams P.c.safety

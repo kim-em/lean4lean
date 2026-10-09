@@ -289,8 +289,7 @@ private theorem restoredHeaderValidationValidAux
                   all := sourceTypes.map (fun type => type.name) })
                 (ci' := target.toVConstVal.toVConstant) hfresh hnprim
                 HheadTr'.1 (Hheader.wf.mono Hle)
-                (by simpa [HheadTr'.2] using hadd) rfl trivial
-                (RecursorInstallStep.of_not_rec nofun) (.of_not_ctor nofun) HnextListed
+                (by simpa [HheadTr'.2] using hadd) rfl nofun nofun HnextListed
             apply ih HvalidationTail
             · intro nextSource hmem
               exact HsourceMem nextSource (by simp [hmem])

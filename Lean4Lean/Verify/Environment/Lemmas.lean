@@ -272,18 +272,6 @@ theorem ListedConstructorsPresent.unlisted
   rw [hfresh] at hci
   cases hci
 
-/-- Adding a fresh constant that is not an inductive header to an environment whose listed
-constructors are all present preserves listed-constructor coherence. -/
-theorem ListedConstructorsCoherent.addOfPresent
-    {ci : ConstantInfo}
-    (H : ListedConstructorsCoherent env) (hpresent : ListedConstructorsPresent env)
-    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
-    (hnotHeader : ∀ familyInfo, ci ≠ .inductInfo familyInfo) :
-    ListedConstructorsCoherent (env.add ci) :=
-  H.add hwf hfresh
-    (fun _ _ hfamily hmem => absurd hmem (hpresent.unlisted hfresh hfamily))
-    (fun familyInfo h => absurd h (hnotHeader familyInfo))
-
 /-- Adding a fresh constant that is not an inductive header preserves the presence of listed
 constructors. -/
 theorem ListedConstructorsPresent.add
@@ -1080,46 +1068,6 @@ structure CheckingEnv.ValidCore (safety : DefinitionSafety)
     Kernel.Environment.primitives.contains n →
     ci.safety = .safe ∧ ci.levelParams = []
 
-/-- Everything the verified type checker needs of its environment, which may be
-one an inductive declaration builds while it is checked.  Beyond
-`ValidCore`: every present constructor is listed by its present owner, every
-listed constructor that is present is a constructor of its header, every
-visible singleton family whose constructor is present aligns with the
-abstract projection registry, and the recursor, quotient and
-constructor-telescope facts that reduction and projection inference read. -/
-structure CheckingEnv.Valid (safety : DefinitionSafety)
-    (env : Environment) (venv : VEnv) : Prop extends
-    CheckingEnv.ValidCore safety env venv where
-  constructorOwners : VerifyInductive.ConstructorOwnersPresent env
-  /-- Every constructor name a present header lists is, if present, a constructor of that
-  header. This is what identifies the constant a structure lists with its registered
-  constructor. -/
-  listedConstructors : VerifyInductive.ListedConstructorsCoherent env
-  projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
-  /-- Every visible recursor is aligned with the stored iota equations, and every stored
-  equation is headed by a non-inductive constant. This is what recursor reduction reads. -/
-  recursors : RecursorEnvCoherent safety env.constants venv
-  /-- Once quotients are initialized, the quotient constants and the `Quot.lift` equation are
-  present. This is what quotient reduction reads. -/
-  quot : env.quotInit = true → QuotEnvCoherent env.constants venv
-  /-- A telescope certificate of every visible constructor (`TelTrN.delete_closed`), which
-  `inferProj` needs where its walk passes a field the rest of the type does not depend on.
-  Constructor installations supply it through `CtorTelescopeStep`. -/
-  ctorTelescopes : CtorTelescopes safety env venv
-
-theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
-    (hprims : venv.HasPrimitives)
-    (hsafe : ∀ {n ci}, env.find? n = some ci →
-      Kernel.Environment.primitives.contains n →
-      ci.safety = .safe ∧ ci.levelParams = [])
-    (howners : VerifyInductive.ConstructorOwnersPresent env)
-    (hlisted : VerifyInductive.ListedConstructorsCoherent env)
-    (hregistry : ProjectionRegistryCoherent safety env.constants venv)
-    (htels : CtorTelescopes safety env venv) :
-    CheckingEnv.Valid safety env venv :=
-  ⟨⟨H.toChecking, hprims, hsafe⟩, howners, hlisted, hregistry,
-    H.recursorEnvCoherent, H.quotEnvCoherent, htels⟩
-
 theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
     (hn : env.find? ci.name = none)
     (hnprim : ¬ Kernel.Environment.primitives.contains ci.name)
@@ -1131,78 +1079,6 @@ theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
   tr := H.tr.add hn htr hci hadd hdelta
   hasPrimitives := H.hasPrimitives.addConst_of_not_primitive hadd hnprim
   safePrimitives := H.tr.safePrimitives_add hn hnprim H.safePrimitives
-
-/-- Constructor-owner presence of a valid environment, stated on its
-constant map. -/
-theorem CheckingEnv.Valid.constructorOwnersMap
-    (H : CheckingEnv.Valid safety env venv) :
-    ConstructorOwnersPresentMap env.constants := by
-  intro name info hfind
-  have hfind' : env.find? name = some (.ctorInfo info) := by
-    rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?]
-    exact hfind
-  rcases H.constructorOwners name info hfind' with ⟨owner, howner, -⟩
-  refine ⟨owner, ?_⟩
-  rwa [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at howner
-
-/-- Extend a valid environment by a fresh, typed, non-delta, nonprimitive
-constant.  A constructor supplies its owner, which lists it, and, for a
-singleton family, the projection alignment through `ProjectionRegistryStep`;
-every constant supplies the listed-constructor coherence of the extended
-environment. -/
-theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
-    (hn : env.find? ci.name = none)
-    (hnprim : ¬ Kernel.Environment.primitives.contains ci.name)
-    (htr : TrConstant safety venv ci ci')
-    (hci : ci'.WF venv)
-    (hadd : venv.addConst ci.name ci' = some venv')
-    (hdelta : ci.deltaValue? = none)
-    (hstep : ProjectionRegistryStep env.constants venv' ci)
-    (hrec : RecursorInstallStep safety env.constants venv' ci)
-    (hcstep : CtorTelescopeStep safety venv ci)
-    (hlisted : VerifyInductive.ListedConstructorsCoherent (env.add ci)) :
-    CheckingEnv.Valid safety (env.add ci) venv' := by
-  have hcore := H.toValidCore.add hn hnprim htr hci hadd hdelta
-  have hfresh : env.constants.find? ci.name = none := by
-    rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at hn
-    exact hn
-  have hle : venv ≤ venv' := VEnv.addConst_le hadd
-  have hrecursors : RecursorEnvCoherent safety (env.add ci).constants venv' :=
-    H.recursors.insert H.tr.map_wf hfresh hrec hle fun df hdf => by
-      rwa [VEnv.addConst_defeqs hadd] at hdf
-  have hquot : (env.add ci).quotInit = true → QuotEnvCoherent (env.add ci).constants venv' := by
-    intro hq
-    refine (H.quot hq).extend ?_ hle hrecursors.heads
-    intro n ci' h
-    show (env.constants.insert ci.name ci).find? n = some ci'
-    rw [H.tr.map_wf.find?_insert]
-    split
-    · rename_i hb; rw [beq_iff_eq] at hb; subst hb; rw [hfresh] at h; cases h
-    · exact h
-  refine { hcore with
-    constructorOwners := ?_
-    listedConstructors := hlisted
-    projectionRegistry := ?_
-    recursors := hrecursors
-    quot := hquot
-    ctorTelescopes := H.ctorTelescopes.add H.tr.map_wf hn hle hcstep }
-  · cases ci with
-    | ctorInfo info =>
-      rcases hstep.1 with ⟨owner, howner, hmem, hunsafe⟩
-      have howner' : env.find? info.induct = some (.inductInfo owner) := by
-        rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?]
-        exact howner
-      exact H.constructorOwners.addConstructor H.tr.map_wf info hn howner' hmem hunsafe
-    | _ => exact H.constructorOwners.addNonConstructor H.tr.map_wf hn nofun
-  · cases ci with
-    | ctorInfo info =>
-      exact H.projectionRegistry.insertConstructor H.tr.map_wf hfresh hle hstep
-    | inductInfo info =>
-      exact H.projectionRegistry.insertInductiveHeader H.tr.map_wf
-        H.constructorOwnersMap hfresh hle
-    | _ =>
-      exact H.projectionRegistry.insertNonInductive H.tr.map_wf hfresh nofun
-        nofun hle
 
 theorem CheckingEnv.addProjections
     (H : CheckingEnv safety env venv)
@@ -1251,55 +1127,3 @@ theorem CheckingEnv.ValidCore.addProjections
   tr := H.tr.addProjections hwf
   hasPrimitives := H.hasPrimitives.addProjections
   safePrimitives := H.safePrimitives
-
-/-- Adding well-formed case eliminators to the abstract environment keeps the
-checking invariant; the kernel environment is unchanged. -/
-theorem CheckingEnv.Valid.addEliminators
-    (H : CheckingEnv.Valid safety env venv)
-    (hwf : (venv.addEliminators es).WF) :
-    CheckingEnv.Valid safety env (venv.addEliminators es) where
-  toValidCore := H.toValidCore.addEliminators hwf
-  constructorOwners := H.constructorOwners
-  listedConstructors := H.listedConstructors
-  projectionRegistry := H.projectionRegistry.monoEnv VEnv.addEliminators_le
-  recursors := H.recursors.extendSimple (fun h => h) (fun h _ => h)
-    VEnv.addEliminators_le (fun _ h => by simpa using h)
-  quot hq := (H.quot hq).extend (fun h => h) VEnv.addEliminators_le
-    (H.recursors.extendSimple (fun h => h) (fun h _ => h)
-      VEnv.addEliminators_le (fun _ h => by simpa using h)).heads
-  ctorTelescopes := H.ctorTelescopes.mono VEnv.addEliminators_le
-
-/-- Adding a well-formed projection table to the abstract environment keeps the
-checking invariant; the kernel environment is unchanged. -/
-theorem CheckingEnv.Valid.addProjections
-    (H : CheckingEnv.Valid safety env venv)
-    (hwf : (venv.addProjections entries).WF) :
-    CheckingEnv.Valid safety env (venv.addProjections entries) where
-  toValidCore := H.toValidCore.addProjections hwf
-  constructorOwners := H.constructorOwners
-  listedConstructors := H.listedConstructors
-  projectionRegistry := H.projectionRegistry.monoEnv VEnv.addProjections_le
-  recursors := H.recursors.addProjections entries
-  quot hq := (H.quot hq).extend (fun h => h) VEnv.addProjections_le
-    (H.recursors.addProjections entries).heads
-  ctorTelescopes := H.ctorTelescopes.mono VEnv.addProjections_le
-
-/-- Promote the local invariants to the full checking invariant once the
-constructor listing, registry coherence, the recursor and quotient facts and
-the constructor telescopes are known. -/
-theorem CheckingEnv.ValidCore.toValid
-    (H : CheckingEnv.ValidCore safety env venv)
-    (howners : VerifyInductive.ConstructorOwnersPresent env)
-    (hlisted : VerifyInductive.ListedConstructorsCoherent env)
-    (hregistry : ProjectionRegistryCoherent safety env.constants venv)
-    (hrecursors : RecursorEnvCoherent safety env.constants venv)
-    (hquot : env.quotInit = true → QuotEnvCoherent env.constants venv)
-    (htels : CtorTelescopes safety env venv) :
-    CheckingEnv.Valid safety env venv :=
-  { H with
-    constructorOwners := howners
-    listedConstructors := hlisted
-    projectionRegistry := hregistry
-    recursors := hrecursors
-    quot := hquot
-    ctorTelescopes := htels }

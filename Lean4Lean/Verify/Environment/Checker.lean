@@ -67,7 +67,7 @@ theorem checkConstantValBody.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCo
     (checkNoMVarNoFVar.WF env ci.name ci.type)).bind fun _ _ _ hclosed => ?_
   have hclosed' : ci.type.FVarsIn
       (· ∈ (VContext.mk' wf htels safety ci.levelParams).vlctx.fvars) := by
-    simpa [VContext.mk', VContext.mk1] using hclosed
+    simpa [VContext.mk', VContext.mk1, VContext.mkCheckingValid, VContext.mkChecking] using hclosed
   refine (checkType.WF hclosed').bind fun _ _ _ ⟨type', sort', _, htype, hsort, hhasType⟩ => ?_
   refine (ensureSort.WF hsort).bind fun _ _ _ ⟨⟨_, hsort', hdefeq⟩, hsortEq⟩ => .pure ?_
   obtain ⟨u, rfl⟩ := hsortEq
@@ -121,7 +121,7 @@ theorem checkBodyCore.WF {env : Environment} {venv : VEnv} (wf : VEnvAt env safe
       ∃ value', TrExprS venv levelParams [] value value' ∧
         venv.HasType levelParams.length [] value' type' := by
   have hclosed' : value.FVarsIn (· ∈ (VContext.mk1 wf htels levelParams).vlctx.fvars) := by
-    simpa [VContext.mk1] using hclosed
+    simpa [VContext.mk1, VContext.mkCheckingValid, VContext.mkChecking] using hclosed
   refine (checkType.WF hclosed').bind
     fun valueType _ _ ⟨value', _, _, hvalue, hvalueType, hhasType⟩ => ?_
   refine (isDefEq.WF hvalueType hdeclType).bind fun equal _ _ hequal => ?_

@@ -233,85 +233,6 @@ theorem RestoredBlockCertificate.inductInfosFromDecl
     Hsource Hmetadata Hsources Harity Howners hempty
   simpa only [henv] using Horigins
 
-/-- Every family of the source declaration is a restored kernel header, fresh in the
-environment the restoration starts from: the positional cover of the source-family fold. -/
-private theorem FoldSteps.sourceFamiliesCover
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
-    {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
-    {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
-      depth sourceVEnv result.types.toArray headerEnv}
-    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
-    {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
-      { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
-    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
-      isUnsafe sourceDecl envTypes envCtors)
-    (Hmetadata : SourcePrefixOfLowered sourceDecl loweredDecl)
-    (Hsources : SourceSyntaxChecks sourceTypes)
-    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
-    (Howners : ConstructorOwnersPresent c.env)
-    (hempty : initialState.nestedAux = #[])
-    (Htrace : FoldSteps
-      (RestoredInductiveStep result loweredEnv auxRec
-        (sourceTypes.map (fun type => type.name)))
-      remaining sourceEnv targetEnv)
-    (processed : List InductiveType)
-    (hsplit : sourceTypes = processed ++ remaining)
-    (hsourceWF : sourceEnv.constants.WF)
-    (hbase : ∀ {n ci}, c.env.find? n = some ci → sourceEnv.find? n = some ci)
-    (Hdone : ∀ i (hi : i < sourceDecl.types.length), i < processed.length →
-      ∃ v, sourceEnv.find? sourceDecl.types[i].name = some (.inductInfo v) ∧
-        c.env.find? sourceDecl.types[i].name = none) :
-    ∀ i (hi : i < sourceDecl.types.length),
-      ∃ v, targetEnv.find? sourceDecl.types[i].name = some (.inductInfo v) ∧
-        c.env.find? sourceDecl.types[i].name = none := by
-  induction Htrace generalizing processed with
-  | nil =>
-    intro i hi
-    apply Hdone i hi
-    have := Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource
-    rw [hsplit, List.append_nil] at this
-    omega
-  | @cons head stepSource middle tail target Hstep Htail ih =>
-    let familyIdx := processed.length
-    have hfamily : familyIdx < sourceTypes.length := by
-      simp [familyIdx, hsplit]
-    have hfamilyEq : sourceTypes[familyIdx] = head := by
-      simp [familyIdx, hsplit]
-    have Hstep' : RestoredInductiveStep result loweredEnv auxRec
-        (sourceTypes.map (fun type => type.name)) sourceTypes[familyIdx]
-        stepSource middle := by
-      simpa [hfamilyEq] using Hstep
-    have Halign := Hstep'.inductInfoAlignmentAt Hlower Hc Hprod
-      Hsource Hmetadata Hsources Harity Howners hempty familyIdx hfamily
-      hsourceWF
-    obtain ⟨entries, Hfresh⟩ := Hstep'.restored.freshExtension hsourceWF
-    have hmiddleWF : middle.constants.WF := Hfresh.targetWF hsourceWF
-    have hheaderFresh : stepSource.find? Hstep'.restored.header.newInfo.name = none :=
-      find?_none_of_contains_false hsourceWF Hstep'.restored.header.fresh
-    have hheaderFind := Hstep'.restored.headerFind hsourceWF
-    apply ih (processed := processed ++ [head])
-      (hsplit := by simpa [List.append_assoc] using hsplit) hmiddleWF
-      (fun h => Hfresh.preservesSourceFind hsourceWF (hbase h))
-    intro i hi hlt
-    rw [List.length_append, List.length_singleton] at hlt
-    rcases Nat.lt_succ_iff_lt_or_eq.mp hlt with hlt | heq
-    · obtain ⟨v, hv, hnone⟩ := Hdone i hi hlt
-      exact ⟨v, Hfresh.preservesSourceFind hsourceWF hv, hnone⟩
-    · subst heq
-      have hname : Hstep'.restored.header.newInfo.name =
-          sourceDecl.types[processed.length].name := Halign.name
-      refine ⟨Hstep'.restored.header.newInfo, by rw [← hname]; exact hheaderFind, ?_⟩
-      cases h : c.env.find? sourceDecl.types[processed.length].name with
-      | none => rfl
-      | some ci =>
-        have := hbase h
-        rw [← hname, hheaderFresh] at this
-        cases this
-
 /-- Every family of a restored source declaration is a new kernel header of the restored
 environment. -/
 theorem RestoredBlockCertificate.cover
@@ -356,20 +277,10 @@ theorem RestoredBlockCertificate.cover
       c.env auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
       ((), outEnv) := by
     simpa only [henv, hnames] using H
-  have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
-  have Hprimary := FoldSteps.sourceFamiliesCover Hlower Hc Hprod Hsource Hmetadata
-    Hsources Harity Howners hempty Hrestored.inductives [] (by simp) hsourceWF id
-    (fun _ _ h => by simp at h)
-  obtain ⟨primaryEntries, HprimaryFresh⟩ :=
-    Hrestored.inductives.inductiveFreshExtension hsourceWF
-  have hprimaryWF := HprimaryFresh.targetWF hsourceWF
-  obtain ⟨auxiliaryEntries, HauxiliaryFresh⟩ :=
-    Hrestored.auxiliaries.recursorFreshExtension hprimaryWF
   intro T hT
-  obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hT
-  obtain ⟨v, hv, hnone⟩ := Hprimary i hi
-  refine ⟨v, HauxiliaryFresh.preservesSourceFind hprimaryWF hv, ?_⟩
-  rw [← henv]; exact hnone
+  obtain ⟨v, hv, hnone⟩ := Hrestored.cover Hlower Hc Hprod Hsource Hmetadata Hsources Harity
+    Howners hempty T hT
+  exact ⟨v, hv, henv ▸ hnone⟩
 
 /-- The restoration folds, reindexed to the context of the lowered run
 retained by the restored block certificate, preserve the constructor owner
@@ -447,9 +358,7 @@ private theorem RestoredBlockCertificate.extendSafe
         venvH ≤ ves'.venv .safe := by
   let B := C.blockCertificate
   have Hvalid : CheckingEnv.Valid .safe sourceProdEnv (ves.venv .safe) :=
-    (wf.tr (safety := .safe)).toCheckingValid
-      (wf.hasPrimitives (safety := .safe)) wf.safePrimitives
-      wf.constructorOwners wf.inductiveConstructorsCoherent.listed wf.projectionRegistryCoherent ((htels _))
+    wf.toCheckingValid (.safe)
   let HactualExists : Nonempty { entries : List ConstantInfo //
       FreshExtension sourceProdEnv entries outEnv } := by
     rcases H.freshExtension Hvalid.tr.map_wf with ⟨entries, Hentries⟩
@@ -469,9 +378,7 @@ private theorem RestoredBlockCertificate.extendSafe
     exact hlookup name
   have valid (observer : DefinitionSafety) :
       CheckingEnv.Valid observer sourceProdEnv (ves.venv observer) :=
-    (wf.tr (safety := observer)).toCheckingValid
-      (wf.hasPrimitives (safety := observer)) wf.safePrimitives
-      wf.constructorOwners wf.inductiveConstructorsCoherent.listed wf.projectionRegistryCoherent ((htels _))
+    wf.toCheckingValid (observer)
   have replay (observer : DefinitionSafety) :
       ∃ replayBase,
         ∃ Breplay : BlockCertificate observer sourceProdEnv
@@ -580,12 +487,8 @@ private theorem RestoredBlockCertificate.extendSafe
           have := (adds observer).preservesSourceFind
             (by rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at h)
           rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?])
-        (adds observer).le Horigins hcover hclosed hconstructorOwners ?_ ?_
-        (fun _ => adds observer) (fun h => absurd hvis h) ?_ ?_
-      · intro n r hf hnone
-        rw [hlookupEnv] at hf
-        rw [hdeclSafe]
-        simpa [ConstantInfo.isUnsafe] using B.newUnsafe hwf B.entriesSafe hf hnone
+        (adds observer).le Horigins hcover hclosed hconstructorOwners ?_
+        (fun _ => adds observer) (fun h => absurd hvis h) ?_ ?_ ?_
       · intro n r hf hnone
         have hfMap : outEnv.constants.find? n = some (.recInfo r) := by
           rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at hf
@@ -603,6 +506,13 @@ private theorem RestoredBlockCertificate.extendSafe
         rcases hctorOrigin hf with hold | ⟨-, htel⟩
         · rw [hold] at hnone; cases hnone
         · exact htel.mono hHle
+      · intro n r hf hnone hrvis
+        have hfMap : outEnv.constants.find? n = some (.recInfo r) := by
+          rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at hf
+        rcases (adds observer).newRecursorsAligned.recursor hfMap with hold | hnew
+        · rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, hold] at hnone; cases hnone
+        · obtain ⟨hcore, hk, -⟩ := hnew hrvis
+          exact ⟨hcore, hk⟩
     · intro observer observer' hle
       have hblock : (cert observer').block = (cert observer).block :=
         (cert observer').block_eq_of_projections_eq (cert observer)
@@ -752,9 +662,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
       true) := by
   let B := C.blockCertificate
   have Hvalid : CheckingEnv.Valid .unsafe sourceProdEnv (ves.venv .unsafe) :=
-    (wf.tr (safety := .unsafe)).toCheckingValid
-      (wf.hasPrimitives (safety := .unsafe)) wf.safePrimitives
-      wf.constructorOwners wf.inductiveConstructorsCoherent.listed wf.projectionRegistryCoherent ((htels _))
+    wf.toCheckingValid (.unsafe)
   let HactualExists : Nonempty { entries : List ConstantInfo //
       FreshExtension sourceProdEnv entries outEnv } := by
     rcases H.freshExtension Hvalid.tr.map_wf with ⟨entries, Hentries⟩
@@ -879,21 +787,35 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
       | .safe => ves.venv .safe) .complete
     | .unsafe => (wf.blocks (safety := .unsafe)).addInduct hwf
         (show TrEnv .unsafe outEnv _ from htrUnsafe).toChecking hpres Hadd.le Horigins
-        hcover hclosed hconstructorOwners hrecUnsafe hrecMajor (fun _ => Hadd)
+        hcover hclosed hconstructorOwners hrecMajor (fun _ => Hadd)
         (fun h => absurd DefinitionSafety.unsafe_le h) (fun _ => hconstructorSemantics)
-        (fun _ => htelsNew hHle)
+        (fun _ => htelsNew hHle) (fun {n r} hf hnone hrvis => by
+          have hfMap : outEnv.constants.find? n = some (.recInfo r) := by
+            rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at hf
+          rcases Hadd.newRecursorsAligned.recursor hfMap with hold | hnew
+          · rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, hold] at hnone; cases hnone
+          · obtain ⟨hcore, hk, -⟩ := hnew hrvis
+            exact ⟨hcore, hk⟩)
     | .partial => (wf.blocks (safety := .partial)).addInduct hwf
         (show TrEnv .partial outEnv _ from htrPartial).toChecking hpres VEnv.LE.rfl
-        Horigins hcover hclosed hconstructorOwners hrecUnsafe hrecMajor
+        Horigins hcover hclosed hconstructorOwners hrecMajor
         (fun h => absurd h (hhidden .partial (by decide))) (fun _ => rfl)
         (fun h => absurd h (hhidden .partial (by decide)))
         (fun h => absurd h (hhidden .partial (by decide)))
+        (fun hf hnone hrvis => absurd (by
+          have := hrecUnsafe hf hnone
+          simpa [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, this,
+            hdeclUnsafe] using hrvis) (hhidden .partial (by decide)))
     | .safe => (wf.blocks (safety := .safe)).addInduct hwf
         (show TrEnv .safe outEnv _ from htrSafe).toChecking hpres VEnv.LE.rfl
-        Horigins hcover hclosed hconstructorOwners hrecUnsafe hrecMajor
+        Horigins hcover hclosed hconstructorOwners hrecMajor
         (fun h => absurd h (hhidden .safe (by decide))) (fun _ => rfl)
         (fun h => absurd h (hhidden .safe (by decide)))
         (fun h => absurd h (hhidden .safe (by decide)))
+        (fun hf hnone hrvis => absurd (by
+          have := hrecUnsafe hf hnone
+          simpa [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, this,
+            hdeclUnsafe] using hrvis) (hhidden .safe (by decide)))
   have hsafePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
       Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [] := by

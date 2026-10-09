@@ -138,7 +138,7 @@ theorem PrimitiveConstructorCoreCheck.installedConstructorCoherenceAt
     simpa [hfamilyCtors, sourceFamily, Hctor.name] using hlookup
   have hfinalWF : R.declared.venvCtors.WF := by
     rw [← R.declared.contextVEnv]
-    exact R.declared.context.checking.tr.wf
+    exact R.declared.context.checking.wf
   have hparamsSize : stats.params.size = decl.nparams := by
     have hlength := List.Forall₂.length_eq
       H.statsWF.params

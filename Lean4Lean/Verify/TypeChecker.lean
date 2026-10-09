@@ -25,7 +25,7 @@ namespace VEnvs.WFCore
 variable {env : Environment} {ves : VEnvs}
 
 theorem inductivesClosed (wf : ves.WFCore env) : VerifyInductive.MutualInductivesClosed env :=
-  (wf.blocks (safety := .unsafe)).mutualInductivesClosed
+  (wf.blocks (safety := .unsafe)).mutualInductivesClosed (by decide)
 
 theorem constructorOwners (wf : ves.WFCore env) :
     VerifyInductive.ConstructorOwnersPresent env :=
@@ -119,39 +119,41 @@ theorem VEnvs.ofPointwiseExists {P : DefinitionSafety → VEnv → Prop}
   have ⟨x1, _⟩ := H .safe; have ⟨x2, _⟩ := H .partial; have ⟨x3, _⟩ := H .unsafe
   exact ⟨⟨fun | .safe => x1 | .partial => x2 | .unsafe => x3⟩, by rintro ⟨⟩ <;> assumption⟩
 
-/-- The type checker's model of `env` at one safety level.  Checking a declaration
-only requires the active safety level, together with projection-registry
-coherence for every visible singleton family whose constructor is present, and
-recursor and quotient coherence. -/
+/-- The type checker's model of `env` at one safety level: the translation, the primitives,
+and the installed blocks of every inductive constant (all complete). -/
 structure VEnvAt (env : Environment) (safety : DefinitionSafety) (venv : VEnv) : Prop where
   tr : TrEnv safety env venv
   hasPrimitives : VEnv.HasPrimitives venv
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
-  projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
-  constructorOwners : VerifyInductive.ConstructorOwnersPresent env
-  listedConstructors : VerifyInductive.ListedConstructorsCoherent env
-  listedPresent : VerifyInductive.ListedConstructorsPresent env
+  blocks : InstalledBlocks safety env venv .complete
 
-/-- Recursor coherence of a single-level model, derived from its translation. -/
+/-- Recursor coherence of a single-level model. -/
 theorem VEnvAt.recursors (wf : VEnvAt env safety venv) :
     RecursorEnvCoherent safety env.constants venv :=
-  wf.tr.recursorEnvCoherent
+  wf.blocks.recursorEnvCoherent wf.tr.map_wf wf.tr.recursorEnvCoherent.heads
 
 /-- Quotient coherence of a single-level model, derived from its translation. -/
 theorem VEnvAt.quot (wf : VEnvAt env safety venv) (hq : env.quotInit = true) :
     QuotEnvCoherent env.constants venv :=
   wf.tr.quotEnvCoherent hq
 
+/-- The checking invariant of a single-level model. -/
+theorem VEnvAt.toCheckingValid (wf : VEnvAt env safety venv) :
+    CheckingEnv.Valid safety env venv :=
+  wf.tr.toCheckingValid wf.hasPrimitives wf.safePrimitives wf.blocks
+
 theorem VEnvs.WFCore.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (safety : DefinitionSafety) : VEnvAt env safety (ves.venv safety) where
   tr := wf.tr
   hasPrimitives := wf.hasPrimitives
   safePrimitives := wf.safePrimitives
-  constructorOwners := wf.constructorOwners
-  listedConstructors := wf.inductiveConstructorsCoherent.listed
-  listedPresent := wf.inductiveConstructorsCoherent.present
-  projectionRegistry := wf.projectionRegistryCoherent
+  blocks := wf.blocks
+
+/-- The checking invariant at one safety level of a well-formed model. -/
+theorem VEnvs.WFCore.toCheckingValid {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+    (safety : DefinitionSafety) : CheckingEnv.Valid safety env (ves.venv safety) :=
+  (wf.toVEnvAt safety).toCheckingValid
 
 namespace TypeChecker
 open Inner
@@ -196,24 +198,18 @@ def VContext.mkChecking {env : Environment} {venv : VEnv}
     (trenv : CheckingEnv safety env venv) (hasPrimitives : venv.HasPrimitives)
     (safePrimitives : ∀ {n ci}, env.find? n = some ci → Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
-    (projectionRegistry : ProjectionRegistryCoherent safety env.constants venv)
-    (recursors : RecursorEnvCoherent safety env.constants venv)
+    (blocks : InstalledBlocks safety env venv .headers)
+    (equationHeads : EquationHeadsCoherent env.constants venv)
     (quot : env.quotInit = true → QuotEnvCoherent env.constants venv)
-    (ctorTelescopes : CtorTelescopes safety env venv)
-    (constructorOwners : VerifyInductive.ConstructorOwnersPresent env)
-    (listedConstructors : VerifyInductive.ListedConstructorsCoherent env)
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext where
   env; safety; lparams; fuel
   venv
   hasPrimitives
   safePrimitives
   trenv
-  constructorOwners
-  listedConstructors
-  projectionRegistry
-  recursors
+  blocks
+  equationHeads
   quot
-  ctorTelescopes
   mlctx := .nil
   mlctx_wf := trivial
   lctx_eq := rfl
@@ -221,8 +217,8 @@ def VContext.mkChecking {env : Environment} {venv : VEnv}
 def VContext.mkCheckingValid {env : Environment} {venv : VEnv}
     (wf : CheckingEnv.Valid safety env venv)
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext :=
-  .mkChecking wf.tr wf.hasPrimitives wf.safePrimitives wf.projectionRegistry
-    wf.recursors wf.quot wf.ctorTelescopes wf.constructorOwners wf.listedConstructors lparams fuel
+  .mkChecking wf.tr wf.hasPrimitives wf.safePrimitives wf.blocks wf.equationHeads wf.quot
+    lparams fuel
 
 def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
     (wf : CheckingEnv.Valid safety env venv)
@@ -233,33 +229,18 @@ def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
   hasPrimitives := wf.hasPrimitives
   safePrimitives := wf.safePrimitives
   trenv := wf.tr
-  constructorOwners := wf.constructorOwners
-  listedConstructors := wf.listedConstructors
-  projectionRegistry := wf.projectionRegistry
-  recursors := wf.recursors
+  blocks := wf.blocks
+  equationHeads := wf.equationHeads
   quot := wf.quot
-  ctorTelescopes := wf.ctorTelescopes
   mlctx
   mlctx_wf
   lctx := mlctx.lctx
   lctx_eq := rfl
 
 def VContext.mk1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
-    (wf : VEnvAt env safety venv) (htels : CtorTelescopes safety env venv) (lparams : List Name := [])
-    (fuel : FuelConfig := {}) : VContext where
-  env; safety; lparams; fuel; venv
-  hasPrimitives := wf.hasPrimitives
-  safePrimitives := wf.safePrimitives
-  trenv := wf.tr.toChecking
-  constructorOwners := wf.constructorOwners
-  listedConstructors := wf.listedConstructors
-  projectionRegistry := wf.projectionRegistry
-  recursors := wf.recursors
-  quot := wf.quot
-  ctorTelescopes := htels
-  mlctx := .nil
-  mlctx_wf := trivial
-  lctx_eq := rfl
+    (wf : VEnvAt env safety venv) (_htels : CtorTelescopes safety env venv)
+    (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext :=
+  .mkCheckingValid wf.toCheckingValid lparams fuel
 
 def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
@@ -290,15 +271,12 @@ theorem State.WF.emptyChecking {env : Environment} {venv : VEnv}
     {trenv : CheckingEnv safety env venv} {hasPrimitives : venv.HasPrimitives}
     {safePrimitives : ∀ {n ci}, env.find? n = some ci →
       Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []}
-    {projectionRegistry : ProjectionRegistryCoherent safety env.constants venv}
-    {recursors : RecursorEnvCoherent safety env.constants venv}
+    {blocks : InstalledBlocks safety env venv .headers}
+    {equationHeads : EquationHeadsCoherent env.constants venv}
     {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
-    {ctorTelescopes : CtorTelescopes safety env venv}
-    {constructorOwners : VerifyInductive.ConstructorOwnersPresent env}
-    {listedConstructors : VerifyInductive.ListedConstructorsCoherent env}
     {lparams : List Name} {fuel : FuelConfig} :
-    State.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
-      recursors quot ctorTelescopes constructorOwners listedConstructors lparams fuel) {} where
+    State.WF (.mkChecking trenv hasPrimitives safePrimitives blocks equationHeads quot
+      lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
   ectx := .empty
@@ -358,15 +336,12 @@ theorem M.WF.runChecking {env : Environment} {venv : VEnv}
     {trenv : CheckingEnv safety env venv} {hasPrimitives : venv.HasPrimitives}
     {safePrimitives : ∀ {n ci}, env.find? n = some ci → Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = []}
-    {projectionRegistry : ProjectionRegistryCoherent safety env.constants venv}
-    {recursors : RecursorEnvCoherent safety env.constants venv}
+    {blocks : InstalledBlocks safety env venv .headers}
+    {equationHeads : EquationHeadsCoherent env.constants venv}
     {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
-    {ctorTelescopes : CtorTelescopes safety env venv}
-    {constructorOwners : VerifyInductive.ConstructorOwnersPresent env}
-    {listedConstructors : VerifyInductive.ListedConstructorsCoherent env}
     {x : M α} {Q}
-    (H : x.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
-      recursors quot ctorTelescopes constructorOwners listedConstructors lparams fuel) {} fun a _ => Q a) :
+    (H : x.WF (.mkChecking trenv hasPrimitives safePrimitives blocks equationHeads quot
+      lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
   intro a eq
   simp [M.run, Functor.map, Except.map] at eq
@@ -380,11 +355,7 @@ theorem M.WF.runCheckingValid {env : Environment} {venv : VEnv}
     {x : M α} {Q}
     (H : x.WF (.mkCheckingValid wf lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q :=
-  M.WF.runChecking (trenv := wf.tr) (hasPrimitives := wf.hasPrimitives)
-    (safePrimitives := wf.safePrimitives) (projectionRegistry := wf.projectionRegistry)
-    (recursors := wf.recursors) (quot := wf.quot) (ctorTelescopes := wf.ctorTelescopes)
-    (constructorOwners := wf.constructorOwners)
-    (listedConstructors := wf.listedConstructors) H
+  M.WF.runChecking (safePrimitives := wf.safePrimitives) H
 
 theorem M.WF.runCheckingValidMLC {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}

@@ -144,10 +144,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
     have Hvalid : CheckingEnv.Valid
         (if isUnsafe then .unsafe else .safe) env
           (ves.venv (if isUnsafe then .unsafe else .safe)) :=
-      (wf.tr (safety := if isUnsafe then .unsafe else .safe)).toCheckingValid
-        (wf.hasPrimitives (safety := if isUnsafe then .unsafe else .safe))
-        wf.safePrimitives wf.constructorOwners wf.inductiveConstructorsCoherent.listed
-        wf.projectionRegistryCoherent ((htels _))
+      wf.toCheckingValid (if isUnsafe then .unsafe else .safe)
     let E' : NestedInstalledRun res env sourceTypes
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv := {

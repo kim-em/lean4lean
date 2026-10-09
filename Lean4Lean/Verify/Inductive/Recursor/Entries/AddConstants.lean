@@ -1237,12 +1237,6 @@ theorem AddConstants.valid
       change (env.constants.insert ci.name ci).find?' ci.name = some ci
       rw [(hmapWF.insert ci.name ci hnMap).find?'_eq_find?, hmapWF.find?_insert]
       simp
-    have hstep : ProjectionRegistryStep env.constants venv' ci :=
-      ProjectionRegistryStep.of_not_ctor fun info =>
-        hkinds (ci, ci') (by simp) info
-    have hrec : RecursorInstallStep safety env.constants venv' ci :=
-      RecursorInstallStep.of_not_rec fun rec =>
-        hrecs (ci, ci') (by simp) rec
     have hlisted : ListedConstructorsCoherent (env.add ci) := by
       apply hvalid.listedConstructors.add hmapWF hn
       · intro familyName familyInfo hfamily hmem
@@ -1259,8 +1253,9 @@ theorem AddConstants.valid
           have hout := Htail.preservesSourceFind hnextWF hfind
           rw [hheaders (ci, ci') (by simp) familyInfo hci name hname] at hout
           cases hout
-    refine ih (hvalid.add hn hnprim htr.1 hwf hadd hdelta hstep hrec
-      (.of_not_ctor fun info => hkinds (ci, ci') (by simp) info) hlisted)
+    refine ih (hvalid.add hn hnprim htr.1 hwf hadd hdelta
+      (fun info => hkinds (ci, ci') (by simp) info)
+      (fun rec => hrecs (ci, ci') (by simp) rec) hlisted)
       (fun entry hentry => hkinds entry (by simp [hentry]))
       (fun entry hentry => hrecs entry (by simp [hentry])) ?_
       (fun entry hentry => hheaders entry (by simp [hentry]))

@@ -369,10 +369,7 @@ theorem NestedRun.recursorsAligned_of
   -- the source environment and the recursor environment
   have Hvalid : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe) sourceProdEnv
       (ves.venv (if isUnsafe then .unsafe else .safe)) :=
-    (wf.tr (safety := if isUnsafe then .unsafe else .safe)).toCheckingValid
-      (wf.hasPrimitives (safety := if isUnsafe then .unsafe else .safe))
-      wf.safePrimitives wf.constructorOwners wf.inductiveConstructorsCoherent.listed
-      wf.projectionRegistryCoherent ((htels _))
+    wf.toCheckingValid (if isUnsafe then .unsafe else .safe)
   have hheadsSrc := Hvalid.recursors.heads
   have hsrcWF : sourceProdEnv.constants.WF := Hvalid.tr.map_wf
   have hfinalWF : C.recursorVEnv.WF := (C.install.validCore Hvalid.toValidCore).tr.wf
