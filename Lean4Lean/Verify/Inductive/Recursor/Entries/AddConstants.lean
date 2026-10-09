@@ -426,7 +426,8 @@ theorem ConstructorListEntries.ctorTelescopeSteps
     rcases hentry with rfl | htail
     · intro info e _
       cases e
-      exact hcert ctor List.mem_cons_self
+      obtain ⟨T, hT⟩ := hcert ctor List.mem_cons_self
+      exact .of_telTrN hT
     · exact ih (fun c hc => hcert c (List.mem_cons_of_mem _ hc)) entry htail
 
 theorem ConstructorTypeEntries.ctorTelescopeSteps

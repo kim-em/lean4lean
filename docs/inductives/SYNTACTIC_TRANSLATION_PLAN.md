@@ -4,8 +4,9 @@ This is the migration plan for replacing the typed translation relation `TrExprS
 (`Lean4Lean/Verify/Typing/Expr.lean`) by a syntactic translation plus a typed layer, following
 BIG IDEA 2 of the checker review. Step 0 (the prototype) was done on
 `agent/verify-inductives-syntr`; steps 1 to 4 (the foundation) are done on
-`agent/verify-inductives-trsyn` (section 3 records what each did and where it departed from the
-plan); steps 5 to 7 are not started. Sections 1 and 2 describe the prototype as it was written
+`agent/verify-inductives-trsyn`, steps 5 and 6 on `agent/verify-inductives-trsyn2` (section 3
+records what each did and where it departed from the plan); step 7 is not recommended and not
+done. Sections 1 and 2 describe the prototype as it was written
 (base `b8fb81be`); current numbers are in section 3.
 
 ## 1. What the prototype establishes
@@ -233,53 +234,73 @@ not an `@[induction_eliminator]`: it needs `henv` and `hΔ`, which such an elimi
 so a consumer writes `TrTyped.induction henv (motive := ...) ... hΔ H` (the test rebuilds
 `TrExprS` with it) or `induction H.toTrExprS henv hΔ`.
 
-**Step 5. Migrate consumers that use only syntax.** Where a proof uses a `TrExprS` hypothesis
-only to locate a target, compare targets, or move a source between contexts, replace it by
-`TrSyn`. Candidates by grep: the 71 `induction` proofs over `TrExprS` (18 files), most of which
-never use the typing arms (`Nested/Restoration/*` 6 files, `ProjNames.lean`,
-`TableAgreement.lean`, `RecursorRenaming.lean`, `CommutationUniform.lean`,
-`Declarations.lean`, `TranslationPreservation.lean`, `DeclarationUniverses.lean`,
-`Assembly.lean`, `EquivManager.lean`), and the context movers in the primitive files
-(`TrExprS.peel_outer`, `MLCtx.trExprS_dropN_nat`: 14 references; their syntactic half is
-`TrSyn.lowerBV`, the typed half stays a substitution argument because it is typing
-strengthening). Order: `Verify/Typing` (210 occurrences), `Verify/Environment` (533),
-`Verify/TypeChecker` (291), then `Verify/Inductive` (2,010) bottom-up along imports. Size:
-estimated a quarter of the 3,116 occurrences change, about 750 lines touched, mostly in
-statements of auxiliary lemmas. Risk: medium; each file is independent, but the inductive
-pipeline's frame records (`Inductive/Context.lean`, 141 occurrences) are shared by many files
-and should be migrated in one step.
+**Step 5. Migrate consumers that use only syntax. Done** (commit `refactor: retire IsUnique,
+noProj and TrExprSyn`). The deferred step-2 items: `Inductive/Prelude/EqSyntax.lean` builds `TrSyn`
+derivations directly, and the `TrExprSyn` abbreviation with its constructor aliases is deleted.
+`TrExprS.IsUnique` (with its three literal lemmas) and `TrExprS.unique'` are deleted;
+`TrExprS.unique` lost its `IsUnique` argument (it is `unique_of_syn`), and its 76 callers in
+`Verify/Environment/Primitive/*`, `Inductive/Primitive/*`, `Inductive/Prelude/Eq.lean`,
+`TypeChecker/{Reduce,IsDefEq}.lean` dropped the argument. `noProj` is deleted: it was only needed
+because `TrExprS.weakR` did not transport the typing premise of `proj`, which it now does like the
+other premises (weakening of the projection's typing), so `weakR`, `of_nil_any`,
+`of_nil_unique`, `app1_nil_inv`, `app2_nil_inv`, `Condition.dite_tr_inv`/`dite_tr_inv'` and
+`Condition.WF.natEq_decideTr` lost their `noProj` hypotheses, `CondOK` lost its `noProj`
+conjunct (so `Condition.OK` is weaker and every theorem assuming it stronger), and
+`Data.mkTyEq`/`mkTyEq1` lost `hcodU`. Induction proofs over `TrExprS` that never use the typing
+arms moved to `TrSyn`, with the `TrExprS` statements kept as one-line corollaries:
+`TrSyn.projNamesOK_of_source`, `TrSyn.headsApplied_of_avoids`, `Expr.HeadsApplied.trSyn` (with
+`TrSyn.mkAppList_const_inv`, replacing the `TrExprS` version, which had no other user).
+**Departures.** The other `induction` proofs over `TrExprS` listed in section 2 use the typing
+arms (`TrExprS.mono`, `instL`, `substLevelParamsCore*`, `prependLevelParam_of_fresh`,
+`avoids_of_constants`, `RelevantEq.uniq`, `targetProjsRegistered`, `projsRegistered`) or are
+inductions over other relations that the grep counted; they stay. The context movers
+`peel_outer`/`trExprS_dropN_nat` stay typed: their syntactic half is already a one-liner and the
+typed half is the substitution argument of section 4. `Recursor/Context/ForallTelescope.lean` and
+the frame records (`Inductive/Context.lean`) were left alone (concurrently refactored on the
+mainline; section 5). Net: 20 files, -102 lines.
 
-Refined after steps 1 to 4 (counts on `agent/verify-inductives-trsyn`): 3,266 `TrExprS`
-occurrences in 171 files, of which 1,038 are in the files of the `-descriptor` rewrite
-(`Verify/Environment/**`, `Verify/TypeChecker*`, `Inductive/{Install,Nested/Install,Primitive,
-Prelude}/**`), so step 5 is best done after it lands, starting with the deferred step-2 items
-(`noProj`/`IsUnique` in the primitive files: callers switch to `unique_of_syn`/`uniqueCtx` and
-drop the argument; `EqSyntax.lean` to `TrSyn`, then delete the `TrExprSyn` abbreviation). Two
-lessons from step 2 lower the estimate: most "syntax-only" uses are uniqueness or scoping
-arguments, which are already one-liners through `toTrSyn` without changing the hypothesis to
-`TrSyn` (the `IsUnique` retirement touched 10 files for -248 lines that way); and a migration
-pays off only where it removes a typing *argument* (`henv`, `hΔ`), which the `TrTyped`
-transports now offer only when the consumer can produce `Δ.WF` to enter `TrTyped`. Revised
-size: about 400 lines touched (not 750), concentrated in the `induction` proofs that never use
-the typing arms; the frame records stay on `TrExprS`, since their contexts are built before
-their well-formedness is known (section 5).
+**Step 6. Telescope certificates on `TelWF`. Done** (commit `refactor: state constructor
+telescope certificates as syntax plus typing`). `TelWF` moved from the prototype into
+`Typing/TelescopeTranslation.lean`, and the certificate is now
 
-**Step 6. Telescope certificates on `TelWF`.** Restate `CtorTelescopeAt` as
-`∃ T, trSyn? ci.levelParams [] ci.type = some T ∧ TelWF ...` (`CtorTelescopeAt.iff_trSyn`
-shows the equivalence), the walk in `Projection.lean`
-(`instantiateProjectionParameters.WF_tel`, `instantiateProjectionFields.WF_tel`, `WF_cert`,
-`WF_ctorTelescopes`) on `TrSyn` + `TelWF` (the delete step is `TelWF.delete_closed`), and the
-ghost-telescope verification (`GhostTelescope.lean`, `loop_base`, `loop_telTr`,
-`checkType.WF_telTr`) to produce `TelWF` (one `IsType` per residual) instead of `TelTr`.
-`CtorTelescopes` keeps its shape; its preservation proofs (`CtorTelescopesPreserved`, 211
-`CtorTelescope*` references, mostly passing the invariant through) are unaffected except at
-the producers (`Install/Environments.lean`, `Primitive/Constructors.lean`,
-`Nested/Restoration/ConstructorTelescopes.lean`, `Recursor/Entries/AddConstants.lean`). `TelTr`
-(29 references) is deleted. Size: about 400 lines changed in `Projection.lean`,
-`GhostTelescope.lean`, `TelescopeTranslation*.lean`; `TelescopeTranslationLemmas.lean` (564
-lines) shrinks by about 250, since `TelTrN.weakFV`/`instN`/`instL_core`/`eqv` become `TelWF`
-transport (typing only) plus `TrSyn` lemmas. Risk: medium; `TelTrN.instL_core` interacts with
-level normalization (`LEquiv`), where `TelWF` must be stated up to `LEquiv` of the residual.
+```
+def CtorTelescopeAt (venv : VEnv) (ci : ConstructorVal) : Prop :=
+  ∃ T, trSyn? ci.levelParams [] ci.type = some T ∧
+    TelWF venv ci.levelParams (AddInductive.constructorArity ci.type) [] ci.type T
+```
+
+`TelTrN` is restated as the pair `structure TelTrN ... where syn : TrSyn Us Δ e e'; tel : TelWF env
+Us n Δ e e'` (the inductive with a `TrExprS` at each node and the existence premise at the delete
+branch is gone; `CtorTelescopeAt.iff_telTrN` relates the two forms). Its transports are each the
+`TrSyn` lemma and a `TelWF` lemma: `TelWF.weakFV` (now with `Δ'.fvars.Nodup` in place of
+`Δ'.WF`), `TelWF.instN` (through `TrResidual.instN`), `TelWF.instL_core`, `TelWF.eqv`,
+`TelWF.mono`; the delete branch in each is `TrSyn.lower`. The walk in `Projection.lean` and
+`InferType.lean` consumes `TelTrN` unchanged in shape (`toTrExprS` takes `henv`/`hΔ`, which the
+checking context supplies; `TelTrN.zero` builds the depth-zero certificate from a typed
+translation). The ghost-telescope proof (`loop_base`, `loop_telTr`, `checkType.WF_telTr`) produces
+`TelTrN` at the depth of the constructor arity directly: one `IsType` per kept and per deleted
+residual, the residual from the run's typed translations, and the syntactic match at the delete
+branch by `TrSyn.lower` and `TrSyn.unique` in place of `weakBV` and `uniqueCtx`. `TelTr` (the
+unbounded certificate), `TelTr.toTelTrN`, `TelTr.eqv_toTelTrN`, `TrExprS.liftN_inv`/`lift_inv`,
+`lift_const`, `TrExprS.const_ctx` and the prototype's `TelTrN.iff_syn_telWF`,
+`CtorTelescopeAt.iff_trSyn`, `TelWF.delete_closed` (now `TelTrN.delete_closed`) are deleted.
+The producers (`Constructor/Telescopes.lean`, `Constructor/Check.lean`,
+`Primitive/Constructors.lean`, `Recursor/Entries/AddConstants.lean`, `Install/Environments.lean`,
+`Nested/Restoration/ConstructorTelescopes.lean`) state `TelTrN` at the arity and build
+`CtorTelescopeAt` by `CtorTelescopeAt.of_telTrN`; `CtorTelescopes` and its preservation proofs
+are unchanged.
+**Departures.** `TelescopeTranslationLemmas.lean` did not shrink by 250 lines (476 to 532, 13
+files -34 lines overall): every transport keeps its induction over the spine, because the delete
+branch must be commuted with the operation at every binder whether the certificate carries a
+`TrExprS` or a typing judgment, and the file now also holds `TelWF`'s own lemmas and the
+`TelTrN` wrappers that the prototype kept in `Strengthening.lean`. `TelWF.instL_core` reads the
+typing at each node through `TrExprS.instL` (via `TrTyped.toTrExprS`, which needs the context to
+be well formed), as section 5 anticipated: there is still no `VLCtx.LEquiv`-to-`IsDefEqCtx` lemma
+to move the let residual between level-equivalent contexts directly. `TelWF.eqv` likewise
+recovers the residual of the renamed source through `TrExprS.eqv` and so takes `Δ.WF`
+(`TelTrN.eqv_arity` supplies it for closed certificates). The gain is in the statements: the
+certificate is the computed translation plus typing judgments, and weakening no longer needs a
+well-formed target context.
 
 **Step 7 (optional). Replace the definition.** Define `TrExprS := TrTyped` (or rename
 consumers to `TrTyped`). With step 4's eliminator and smart constructors, the 172 inversion

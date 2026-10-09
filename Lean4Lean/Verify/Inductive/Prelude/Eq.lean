@@ -99,7 +99,7 @@ theorem TrInductDeclHeaders.preludeEqConstant
   refine ⟨target, hdecl, Htarget.header.name, ?_⟩
   apply vconstant_eq_of_fields
   · simpa [eqConst] using Htarget.header.uvars
-  · apply TrExprS.unique (by trivial) Htarget.header.type
+  · apply TrExprS.unique Htarget.header.type
     exact preludeEqType_translation env u alphaName lhsName rhsName
 
 /-- The header environment of the exact prelude `Eq` declaration contains one installed

@@ -180,7 +180,7 @@ theorem instantiateProjectionParameters.WF_tel {c : VContext} {args : Array Expr
     rw [ha] at ha₀; cases ha₀
     have ⟨D', hL, hD'⟩ := hty 0 (Nat.succ_pos _)
     simp only [List.take_zero, VExpr.instOuter_nil, List.getElem_cons_zero] at hL hD'
-    let .forallE ⟨_, hd'⟩ _ _ _ := hT'.toTrExprS
+    let .forallE ⟨_, hd'⟩ _ _ _ := (hT'.toTrExprS c.Ewf.ordered c.Δwf)
     have hda : c.HasType a' d :=
       hD'.defeqU_r c.Ewf c.Δwf (hL.defeq c.Ewf c.Δwf.toCtx ⟨_, hd'⟩).symm
     have hinst := hkeep.inst c.Ewf.ordered hda ha₀'
@@ -245,7 +245,7 @@ theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
     have hT' : TelTrN c.venv c.lparams (m + 1) c.vlctx type
         (.forallE d (VExpr.wrapForalls ds' b)) := hT
     obtain ⟨_, _, _, _, _, _, htype, -⟩ := hT'.forallE_of_succ
-    have hTS := hT'.toTrExprS
+    have hTS := (hT'.toTrExprS c.Ewf.ordered c.Δwf)
     have hwf : RecM.WF c s (whnf type) fun e₁ _ => e₁ = type := by
       rw [htype]; exact whnf.WF_forall
     unfold instantiateProjectionFields
@@ -429,7 +429,7 @@ theorem instantiateProjectionFields.WF_ctorTelescopes {c : VContext} {G : VLevel
   (instantiateProjectionFields.WF_tel he hG0 hG hcert hm hle hproj hpfx).mono
     fun _ _ _ H t ht =>
       let ⟨⟨⟨⟨R, hR, hR'⟩, h1⟩, h2⟩, h3⟩ := H t ht
-      ⟨⟨⟨⟨R, hR, hR'.toTrExprS⟩, h1⟩, h2⟩, h3⟩
+      ⟨⟨⟨⟨R, hR, (hR'.toTrExprS c.Ewf.ordered c.Δwf)⟩, h1⟩, h2⟩, h3⟩
 
 
 /-! ### The walk past the fields

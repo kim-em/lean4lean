@@ -3,8 +3,8 @@ import Lean4Lean.Verify.Typing.TelescopeTranslation
 /-!
 # Telescope translations: free-variable lemmas
 
-Auxiliary lemmas for producing `TelTr` from a run of the checker, which opens one free variable
-per binder: instantiation by free variables, deletion of an unused binder under instantiation,
+Auxiliary lemmas for producing the telescope certificate `TelTrN` from a run of the checker,
+which opens one free variable per binder: instantiation by free variables, deletion of an unused binder under instantiation,
 and syntactic uniqueness of translations.
 -/
 

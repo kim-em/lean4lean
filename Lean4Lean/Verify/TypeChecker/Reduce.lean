@@ -17,7 +17,7 @@ theorem rawNatLitExt?.WF {c : VContext} (H : rawNatLitExt? e = some n) (he : c.T
     · cases H; have := he.eqv h; exact .lit (this.nat_of_natZero c.Ewf c.hasPrimitives) this
     · unfold Expr.rawNatLit? at H; split at H <;> cases H; exact he
   have hn := this.lit_has_type
-  exact ⟨hn, this.unique (by trivial) (TrExprS.natLit c.hasPrimitives hn n).1⟩
+  exact ⟨hn, this.unique (TrExprS.natLit c.hasPrimitives hn n).1⟩
 
 def reduceBinNatOpG (guard : Nat → Nat → Prop) [DecidableRel guard]
     (f : Nat → Nat → Nat) (a b : Expr) : RecM (Option Expr) := do
