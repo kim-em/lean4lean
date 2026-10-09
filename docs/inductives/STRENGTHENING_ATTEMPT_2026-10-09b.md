@@ -116,39 +116,59 @@ why it fails. Also attempt the positive partial result the regress argument offe
 for `Q : Sort u` with `u ≉ 0` and `Q` a rigid non-structure type (so `q` is never a proof,
 a major or an eta subject).
 
-## 6. Status after directions A, B, B2, C (interim)
+* 2026-10-09: direction B3 finished (16157a9a, merged as 2b9d57df): `EtaPostponement.lean`,
+  `EtaNormal.lean`, `EtaReplay.lean`, `EtaClosure.lean`. `EtaReplay` is FALSE as stated
+  (`not_etaReplay`, every `[Params]`): a `funEta` above at a converted domain followed by a
+  beta inside has a reduct whose annotation is not a lift, and no reduction below plus eta
+  chain above reaches it exactly; the first weakening (`NormalEq₀` at the end) also fails
+  under struct-eta duplication (`counterexample_etaReplay₀`). The relation that works is
+  `EtaNE Γ s X` (eta expansions on the reduct side, eta-free steps and composite
+  major-eta-then-root-fire steps recorded on the source side); its closure under `ParRed` and
+  `DeltaPar` is proved (`EtaNE.parRed_r`, `EtaNE.deltaPar_r`, `upStepFClosure`, about 1100
+  lines: spine inversions, case step transport to the source spines, prefix unfolding
+  replayed at the source with `PrefixUnfold.congr_defeq`/`unique`), giving
+  `cancel_iff_typedFront_B3 : Cancel ↔ TypedFront` given `CaseRedexDescends`,
+  `UnfoldingCheckDescends`, `MajorEtaDescends` (descent at the root of the lift of the
+  composite step; with an arbitrary `ParRed` after the expansion it is false, so the composite
+  ends in a `RootFire`), `ProjFrontN`, `ElimFrontN`.
 
-**No proof, no counterexample; the open statement is reduced, with every step checked, to a
-single reduction-system obligation and two environment closures.** Under `env.WF` and
-`env.HasCanonicalEq`:
+## 6. Status after directions A, B, B2, B3, C, E
+
+**No proof, no counterexample; the open statement is reduced, with every step checked, to
+`TypedFront` plus a finite list of named obligations, each a `def` with its implication
+checked.** Under `env.WF` and `env.HasCanonicalEq`:
 
 ```text
 Strengthening ⇔ Front ⇔ Cancel ⇔ UninhabitedCancel ⇔ Reflection (TermEq)
               ⇔ UninhabitedTypingFront ⇔ TypingFrontN
-              ⇔ TypedFront ∧ AppFrontN ∧ ProjFrontN ∧ ElimFrontN          (Replay.lean)
+              ⇔ TypedFront ∧ AppFrontN ∧ ProjFrontN ∧ ElimFrontN           (Replay.lean)
 TypedFront ⇔ TypeFront ⇔ TypeFrontN ⇔ KeyFaithful
-PiExposureRedN ⇔ PiExposureN;   PiExposureN ∧ TypeFrontN ⇒ AppFrontN
-(∀ U, EtaReplay) ⇒ PiExposureRedN                                         (Exposure.lean)
-(∀ U, EtaReplay) ∧ ProjFrontN ∧ ElimFrontN ⇒ (Cancel ⇔ TypedFront)        (cancel_iff_typedFront_of)
+EtaNE closure (proved) ∧ CaseRedexDescends ∧ UnfoldingCheckDescends ∧ MajorEtaDescends
+   ∧ ProjFrontN ∧ ElimFrontN ⇒ (Cancel ⇔ TypedFront)                      (EtaClosure.lean)
+ProjFrontN ⇐ spine exposure (EtaReplay form; to be restated over EtaNE) ∧ ProjFieldFrontN
+ProjFieldFrontN ⇐ ProjFieldFrontPropN (free when the result level IsNeverZero)
+ElimFrontN ⇐ GenericTypesTyped₀                                           (Closures.lean)
 ```
 
-So the whole problem is `TypedFront` (`Front` for endpoints typed below at a common type) once
-`EtaReplay` (eta postponement above, simulated below: direction B3) and the two closures
-(`ProjFrontN` by spine exposure, `ElimFrontN` by `GenericTypesTyped` from the registration
-certificate: direction E) are discharged. Every guard of every non-eta reduction rule descends
-under `TypedFront` (`ParRed.descend`, `DeltaPar.descend`); eta steps are the only source of
-reducts that are not lifts, and the measure that survives them is "the reduct is an eta chain
-of a lift" (`path_replay`, induction on the above path with no size component).
+Of the remaining names, `UnfoldingCheckDescends` and the capture half of `CaseRedexDescends`
+are `TypedFront` instances (B2's table), `MajorEtaDescends` is descent of one composite step
+(B3 log, steps 6 and 7), and the two environment lemmas `GenericTypesTyped₀` and
+`ProjFieldFrontPropN` are closed-telescope strengthenings with an uninhabited removed binder,
+i.e. instances of the problem itself on closed terms. So the irreducible core is
+`TypedFront`: strengthening for endpoints typed below at a common type whose lift is the type
+above, equivalently `KeyFaithful`. Every guard of every non-eta reduction rule descends under
+it (`ParRed.descend`, `DeltaPar.descend`); eta is handled by `EtaNE`.
 
-The certificate route (direction A) is closed for syntactic ranks: in the pilot calculus the
-strip lemma `CConv.trans_of` is proved from three obligations, and the transport obligation's
-beta case duplicates the argument comparison per occurrence of the bound variable
-(`transport_output_exceeds_inputs`, `no_monotone_size_rank`), while the pilot fragment is
-normalising, so the obligations are true but not provable by any monotone size rank.
+The certificate route (direction A) is closed for syntactic ranks: the pilot strip lemma
+`CConv.trans_of` is proved from three obligations whose transport case duplicates the argument
+comparison per occurrence of the bound variable (`transport_output_exceeds_inputs`,
+`no_monotone_size_rank`), while the fragment is normalising, so the obligations are true but
+not provable by any monotone size rank.
 
 The counterexample route (direction C) is closed for every mechanism tried: a typing gap at a
 fixed type is a type-level `Cancel` failure between types typed below, casts into `Q` inhabit
-`Q`, derived proofs `f q` make rigidity of `Q` irrelevant (`RigidCancel.prop_to_pi`).
+`Q`, derived proofs `f q` make rigidity of `Q` irrelevant (`RigidCancel.prop_to_pi`), and the
+exact target is `not_cancel_iff_typing_gap`.
 
 ## 4. Rules in force
 
