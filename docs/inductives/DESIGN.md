@@ -442,7 +442,10 @@ ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
   construction (motive pass and minor pass over the fields, elimination level, motives, minors,
   induction hypotheses, rules) is shown to produce exactly the translation of the abstract
   generator's output for one `Instance`
-  (`Recursor/Entries/TrRecursorVal.lean`, `Recursor/Metadata.lean`). Typing of the generated
+  (`Recursor/Entries/TrRecursorVal.lean`, `Recursor/Metadata.lean`): `TrRecursorVal` extends
+  `RecursorMetadata` (name, universe arity, type, counts, major, mutual block, safety, K),
+  established per entry by `RecursorCheck.trMetadata`, with the rule coverage that `Rules/`
+  supplies. Typing of the generated
   recursor types is not derived from the generator: it is read off the executable's check of
   each generated recursor type (`checkRecursorTypes`), which supplies `GeneratedIHsWellTyped` in
   the recursor-checking environment; `FamilyTypesWF` likewise comes from checker runs there.
