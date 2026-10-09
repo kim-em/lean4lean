@@ -590,8 +590,8 @@ theorem CaseRedex.struct_major (henv : env.WF) (hcoh : env.EliminatorsCoherent)
       have hlookup' : env.constants ctor.name = some ctor.toVConstant :=
         hconst ctor (List.mem_append_right _ (by rw [hdata.ctors]; exact hmem))
       obtain ⟨lsF, hresF⟩ := hdata.ctor_result type htype ctor hctor
-      have hrigid : env.Rigid type.name := constHeadRigid_iff.mp
-        (henv.case_source_family_rigid hlookup (by rw [hfam]; exact List.mem_map.mpr ⟨type, htype, rfl⟩))
+      have hrigid : env.Rigid type.name :=
+        henv.case_source_family_rigid hlookup (by rw [hfam]; exact List.mem_map.mpr ⟨type, htype, rfl⟩)
       rw [hctorEq] at hs
       obtain ⟨harity, hF⟩ := HasType.const_spine_family henv hΓ hlookup' hresF hrigid
         (henv.projectionRigid hl) hs

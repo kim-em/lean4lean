@@ -132,8 +132,8 @@ theorem Tables.Inv.inductCases {decl : VInductDecl} {block : VInductBlock} {key 
   refine (fun h => ⟨hext.trans h.1, h.2⟩) (hinv.addSchema_registered hle hcert hreg hconsts ?_)
   intro t ht hs
   obtain ⟨_, _, _, _, _, hnames, _⟩ := hcert
-  refine ⟨VEnv.constHeadRigid_iff.mp (VEnv.WF.case_source_family_rigid henv' hreg
-    (by rw [hnames]; exact List.mem_map.mpr ⟨t, ht, rfl⟩)), fun c hc => ?_⟩
+  refine ⟨VEnv.WF.case_source_family_rigid henv' hreg
+    (by rw [hnames]; exact List.mem_map.mpr ⟨t, ht, rfl⟩), fun c hc => ?_⟩
   exfalso
   have hsel : selCtors t = true := selCtors_iff.mpr (List.ne_nil_of_mem hc)
   have hfree := selFree_of_selFreeIn hs

@@ -507,8 +507,8 @@ theorem WF'.envValid {envF : VEnv} (hF : envF.WF) :
   have hdr := hF.deltaRules
   have hctor : ∀ c, Model.IsCtor envF c → envF.Rigid c := by
     rintro _ (⟨_, hdf, hm⟩ | ⟨_, _, _, _, hb, hgen, rfl⟩)
-    · exact VEnv.constHeadRigid_iff.1 (hF.installed_constructor_rigid hdf hm)
-    · exact VEnv.constHeadRigid_iff.1 (hF.case_constructor_rigid hb hgen)
+    · exact hF.installed_constructor_rigid hdf hm
+    · exact hF.case_constructor_rigid hb hgen
   have hcres : ∀ c, Model.IsInstalledCtor envF c → envF.CtorResultRigid c :=
     fun _ ⟨_, hdf, hm⟩ => hF.installed_constructor_result_rigid hdf hm
   have hpctor : ∀ c, Model.IsProjCtor envF c → envF.Rigid c := fun _ h => hF.projCtor_rigid h

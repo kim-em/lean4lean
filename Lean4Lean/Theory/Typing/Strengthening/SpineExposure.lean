@@ -307,7 +307,7 @@ theorem EtaSpine.no_rigid_head {n : Nat}
   · rw [h] at hh; cases hh
 
 /-- `EtaSpine` is preserved by one full step. -/
-theorem EtaSpine.fullStep (hrig : Params.env.ConstHeadRigid S)
+theorem EtaSpine.fullStep (hrig : Params.env.Rigid S)
     (hS : TypeFormerHead Params.env univs S ls) :
     ∀ {n : Nat} {x : VExpr} {Γ : List VExpr} {y T : VExpr}, EtaSpine S ls n x →
       OnCtx Γ (Params.env.IsType univs) → Params.env.HasType univs Γ x T → FullStep Γ x y →
@@ -407,7 +407,7 @@ theorem EtaSpine.fullStep (hrig : Params.env.ConstHeadRigid S)
       exact ⟨_, .lam hm⟩
     | _ => cases he
 
-theorem EtaSpine.fullReduction (hrig : Params.env.ConstHeadRigid S)
+theorem EtaSpine.fullReduction (hrig : Params.env.Rigid S)
     (hS : TypeFormerHead Params.env univs S ls) (hΓ : OnCtx Γ (Params.env.IsType univs)) {n : Nat}
     (hx : EtaSpine S ls n x) (ht : Params.env.HasType univs Γ x T) (H : FullReduction Γ x y) :
     ∃ m, EtaSpine S ls m y := by
@@ -449,7 +449,7 @@ theorem EtaSpine.reduces_to_spine (hΓ : OnCtx Γ (Params.env.IsType univs)) :
 
 /-- Every reduct of a sort-typed rigid type-former spine reduces back to a spine with the same
 head and levels. -/
-theorem rigid_spine_reduct (hrig : Params.env.ConstHeadRigid S)
+theorem rigid_spine_reduct (hrig : Params.env.Rigid S)
     (hS : TypeFormerHead Params.env univs S ls) (hΓ : OnCtx Γ (Params.env.IsType univs))
     (ht : Params.env.HasType univs Γ (mkApps (.const S ls) args) (.sort u))
     (H : FullReduction Γ (mkApps (.const S ls) args) y) :
@@ -471,7 +471,7 @@ theorem spine_exposure_reduces {E : VEnv} (hE : E.WF) (hEq : E.HasCanonicalEq)
   have hd := H.of_l hE hΓ hT
   obtain ⟨x, y, hx, hy, hn⟩ := hE.church_rosser hEq hΓ hd
   have hsp : E.HasType U Γ (mkApps (.const S ls) args) (.sort u) := hd.hasType.2
-  obtain ⟨args', hy'⟩ := rigid_spine_reduct (constHeadRigid_iff.mpr hrig) hS hΓ hsp hy
+  obtain ⟨args', hy'⟩ := rigid_spine_reduct hrig hS hΓ hsp hy
   obtain ⟨x', hx', hn'⟩ := hn.fullReduction hΓ hy'
   have hxs : E.HasType U Γ x' (.sort u) := FullReduction.hasType hΓ (hx.trans hx') hT
   obtain ⟨n, hn'⟩ := hn'

@@ -73,9 +73,9 @@ class Params where
   recursorData_quot : QuotRegistered env → recursorData ``Quot.lift = none
   /-- The constructor of a recursor iota pattern carries no computation of its own. -/
   pat_ctor_rigid : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r →
-    env.ConstHeadRigid cc
+    env.Rigid cc
   /-- Structure constructors carry no computation of their own. -/
-  projection_ctor_rigid : env.projections family info → env.ConstHeadRigid info.ctorName
+  projection_ctor_rigid : env.projections family info → env.Rigid info.ctorName
   /-- A recursor iota major of structure type is a saturated application of the
   structure's constructor. -/
   pat_struct_major : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r →
@@ -176,13 +176,13 @@ theorem matches_constHead {p : Pattern} {e : VExpr} {levels : List VLevel} {valu
   | app _ _ ih _ => exact ih ((constSpine_go_head _ [_]).symm.trans hh)
   | var _ ih => exact ih ((constSpine_go_head _ [_]).symm.trans hh)
 
-theorem Params.not_rigid_match (h : env.ConstHeadRigid name) (hp : Pat p r)
+theorem Params.not_rigid_match (h : env.Rigid name) (hp : Pat p r)
     (hm : p.Matches e levels values) (hh : e.getAppFnArgs.1 = .const name us) : False := by
   obtain ⟨equation, originalName, originalLevels, hd, hn, he⟩ := pat_storedRule hp
   have hname := matches_constHead hm hh
   have heq : originalName = name := Option.some.inj (hn.symm.trans hname)
   subst originalName
-  exact h equation hd originalLevels he
+  exact h equation hd originalLevels ((VExpr.equationHead_eq _).symm.trans he)
 
 local notation:65 Γ " ⊢ " e " : " A:36 => HasType env univs Γ e A
 local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 " : " A:36 => IsDefEq env univs Γ e1 e2 A
@@ -890,7 +890,7 @@ theorem ParRed.elim_prefix
       cases hh
     | _ => cases hshape
 
-theorem ParRed.rigid_const_spine (hrigid : env.ConstHeadRigid name)
+theorem ParRed.rigid_const_spine (hrigid : env.Rigid name)
     (H : Γ ⊢ VExpr.mkApps (.const name levels) args ≫ out) :
     ∃ args', out = VExpr.mkApps (.const name levels) args' ∧
       List.Forall₂ (ParRed Γ) args args' := by
@@ -1259,7 +1259,7 @@ theorem CaseApplicationRelated.parRed_defeq
 /-- A structural parallel step keeps a registered case application's fixed
 heads and moves only its two argument spines. -/
 theorem ParRed.case_spines (hm : CaseRedex env univs Γ rule actual)
-    (hrigid : env.ConstHeadRigid actual.ctorName)
+    (hrigid : env.Rigid actual.ctorName)
     (hf : Γ ⊢ mkApps (.elim actual.block actual.owner actual.levels) actual.arguments ≫ fn')
     (ha : Γ ⊢ mkApps (.const actual.ctorName actual.ctorLevels) actual.ctorArguments ≫ major') :
     ∃ actual', actual'.expr = .app fn' major' ∧ CaseApplicationRelated (ParRed Γ) actual actual' := by
@@ -1272,7 +1272,7 @@ theorem ParRed.case_spines (hm : CaseRedex env univs Γ rule actual)
   simp only [InductiveSignature.CaseSchema.Application.expr, hefn, hemajor, hm.block_eq, hm.owner_eq]
 
 theorem CaseRedex.ctor_rigid (H : CaseRedex env univs Γ rule actual) :
-    env.ConstHeadRigid actual.ctorName := by
+    env.Rigid actual.ctorName := by
   obtain ⟨schema, block, owner, hl, hg⟩ := H.source.generates
   rw [H.ctor_eq]
   exact henv.case_constructor_rigid hl hg
@@ -1280,7 +1280,7 @@ theorem CaseRedex.ctor_rigid (H : CaseRedex env univs Γ rule actual) :
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRed.schema_app_triangle
     (hm : CaseRedex env univs Γ rule actual)
-    (hrigid : env.ConstHeadRigid actual.ctorName)
+    (hrigid : env.Rigid actual.ctorName)
     (hlen : args.length = (rule.capture actual).length)
     (hcomplete : ∀ i (hi : i < (rule.capture actual).length),
       Γ ⊢ (rule.capture actual)[i] ⋙ args[i]'(by omega))
