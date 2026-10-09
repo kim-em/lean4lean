@@ -42,7 +42,7 @@ theorem
         H.recInfos[owner]!.indices.size owner,
       ∃ D : FVarDeclAt H.localContext
           (H.recInfos.flatMap (·.minors)) minorIdx,
-        ∃ O : H.origins.FlatMinorBinderType D,
+        ∃ _O : H.origins.FlatMinorBinderType D,
           ∃ S : MinorPremiseType,
             S.origin = D.type ∧
             S.localIndex = i ∧
@@ -569,8 +569,6 @@ theorem
     let minorIdx := recursorMinorOffset indTypes owner + i
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
-    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
-      H.bindings.flatMinors.fvars.take minorIdx
     ∃ T : RecursorTypeTelescope H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
         stats.params.size (H.recInfos.map (·.motive)).size
@@ -837,7 +835,7 @@ theorem
         H.recInfos[owner]!.indices.size owner,
       ∃ S : MinorPremiseType,
       ∃ traversal : ConstructorFieldTraversal,
-      ∃ HS : TypedMinorTraversalAt H.recursorWF S
+      ∃ _HS : TypedMinorTraversalAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
       ∃ hypothesisOrigins : MinorInductionHypothesisTypes
           S.sourceFullContext S.recursiveFields S.hypotheses,
@@ -1003,7 +1001,7 @@ theorem
     have heq := congrArg Expr.getAppFn hclosedTargets
     rw [Expr.getAppFn_abstractList, hselectedHead,
       Expr.getAppFn_abstractList, htargetHead] at heq
-    simp [Expr.abstractList, Expr.abstract1] at heq
+    simp at heq
     exact heq
   have htypeNames : (decl.types.map (fun type => type.name)).Nodup := by
     have hprefix := (List.nodup_append.mp
@@ -1757,8 +1755,7 @@ theorem
       (fieldDomains ++ hypothesisDomains)[position] = hypothesisDomains[j]! := by
     dsimp only [position]
     rw [getElem!_pos hypothesisDomains j hjHypothesis]
-    simpa [hfields] using
-      List.getElem_append_right fieldDomains hypothesisDomains j hjHypothesis
+    simp [hfields]
   rw [hselected] at Hdomain HdomainType
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, sourceDomain,

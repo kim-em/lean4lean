@@ -291,11 +291,10 @@ theorem
                 familyTarget familyType) ∧
           indexTargets.length = T.indices.length ∧
           indexTargets.length = C.indices.length ∧
-          (let added := T.motives ++ T.minors ++ fieldDomains
-            let ownerTarget := .bvar
-              (fieldDomains.length +
-                (T.motives.drop (owner + 1) ++ T.minors).length)
-            H.outVEnv.HasType Us.length cachedDomains.reverse
+          (let ownerTarget := .bvar
+             (fieldDomains.length +
+               (T.motives.drop (owner + 1) ++ T.minors).length)
+           H.outVEnv.HasType Us.length cachedDomains.reverse
               (.app (VExpr.mkApps ownerTarget indexTargets) majorTarget)
               (.sort C.resultLevel)) ∧
           List.Forall₂
@@ -449,7 +448,7 @@ theorem
   have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
     simpa using hownerRecInfo
   have hownerBang : H.recInfos[owner]! = H.recInfos[owner] := by
-    simp [Array.getElem!_eq_getD, Array.getD, hownerRecInfo]
+    simp [hownerRecInfo]
   have HownerMotive :=
     List.forall₂_getElem HcanonicalMotives owner
       (by simpa using hownerMotive) (by simpa using hownerMotive)
@@ -503,7 +502,7 @@ theorem
       stats.params.size + added.length := by
     have hdomains := A.canonicalEquationDomains_length
       T fieldDomains hfields
-    simp only [canonicalDomains, added, List.length_append,
+    simp only [added, List.length_append,
       T.params_length] at hdomains ⊢
     omega
   have hparameterTargetsLifted : parameterTargets =
@@ -524,7 +523,7 @@ theorem
     rw [C.family_eq]
     simp only [C.params_length, VExpr.liftN_mkApps]
     rw [hcanonicalFamilyLevels, hparameterTargetsLifted]
-    simp [familyTarget, VExpr.liftN, VExpr.liftN_liftN]
+    simp [VExpr.liftN]
   have hfamilyApplication :
       (fieldResult.liftN
           (T.motives ++ T.minors).length A.rule.allArgs.size) =
@@ -821,7 +820,7 @@ theorem
       (VExpr.mkApps ownerTarget args) (.sort C.resultLevel)
     have hshape : VExpr.mkApps ownerTarget args =
         .app (VExpr.mkApps ownerTarget indexTargets) majorTarget := by
-      simp [args, VExpr.mkApps_append, VExpr.mkApps]
+      simp [args, VExpr.mkApps]
     rw [hshape]
     simpa only [Us, cachedDomains, parameterDecls, ownerTarget,
       majorTarget, List.reverse_append, List.reverse_reverse,
@@ -861,8 +860,8 @@ theorem
         omega
       rw [liftVar_le hcut]
       rw [liftVar_base]
-      simp only [suffix, later,
-        List.length_append, List.length_drop, T.indices_length, T.major_length,
+      simp only [
+        List.length_append, List.length_drop,
         T.minors_length, T.motives_length]
       omega
     · rw [hexpectedArity]

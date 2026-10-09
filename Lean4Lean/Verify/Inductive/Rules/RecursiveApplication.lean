@@ -818,9 +818,6 @@ theorem
     (Delta : VLCtx) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let recursor := H.entries[owner].2
-    let parameterDecls :=
-      (R.recursorHeaders.parameterSuffix.toRecursorContext
-        H.elimLevelAdmissible).parameterDecls
     TrExprS H.outVEnv Us Delta
       (.const (Lean.mkRecName indTypes[owner]!.name)
         (AddInductive.getRecLevels H.elimLevel stats.levels))
@@ -1133,7 +1130,7 @@ theorem
       motiveDomains.reverse).reverse
   have hsuffixLength : suffix.reverse.length = expected.reverse.length := by
     have htotal := Hsuffix.length_eq
-    simp [outer, suffix, later, expected] at htotal ⊢
+    simp [suffix, later, expected] at htotal ⊢
     omega
   have hfrontCtx : OnCtx (frontDomains.reverse ++ outer.reverse)
       (H.outVEnv.IsType Us.length) := by
