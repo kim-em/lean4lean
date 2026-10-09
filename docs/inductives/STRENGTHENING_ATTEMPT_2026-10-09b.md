@@ -128,3 +128,14 @@ posts to GitHub or Zulip.
 
 * 2026-10-09: worktree and branch created; Astra round 7 reports read
   (`astra/r7-{A,B,C}-answer.md`); sections 1 to 4 written; subagents A, B, C spawned.
+* 2026-10-09: Astra design check (`STRENGTHENING_ASTRA_REVIEW6.md`, checked file
+  `history/StrengtheningRound8_2026-10-09.lean`): `UninhabitedTypingFront ↔ Cancel` under
+  `WF` and canonical `Eq` (existential typing descent gives fixed-type descent through the
+  ascription `(λ x : A. x) e`, and `Eq.refl a↑ : Eq A↑ a↑ b↑` above descends to `a ≡ b`
+  below by unique typing and rigidity of `Eq`), so section 3.B's stepping stone is the whole
+  theorem and `¬ Cancel ↔ ∃ q-free e typable above and at no type below`
+  (`not_cancel_iff_typing_gap`); head exposure preserving the given `Π` is false
+  (`headType_bad_reduct`), existential exposure open; `Cert` is `Prop`-valued so ranks need
+  reified derivations; rigidity of `Q` does not block `q`-dependence (`f q` is a proof when
+  `f : Q → P`, `derived_proof_irrel`), so the two-base regress of section 2 is not
+  exhaustive as stated. Course corrections sent to A, B, C.
