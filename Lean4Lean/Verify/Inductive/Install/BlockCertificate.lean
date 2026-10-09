@@ -365,8 +365,6 @@ theorem BlockCertificate.addInduct
       recursors rules outEnv outVEnv)
     (hdecl : decl.WF venv)
     (hcompile : decl.CompilesTo venv H.block)
-    (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
-      decl)
     (hprovenance : NewRecursorsAligned .unsafe prodEnv.constants
       venv outEnv.constants H.installedVEnv)
     (hsourceAligned : Aligned checkSafety prodEnv.constants venv)
@@ -374,7 +372,6 @@ theorem BlockCertificate.addInduct
     AddInduct checkSafety prodEnv.constants venv decl outEnv.constants
       H.installedVEnv := by
   apply AddInduct.intro H.block hdecl hcompile H.wf H.install
-  · exact horigins
   · intro name ci hfind
     have hfindEnv : prodEnv.find? name = some ci := by
       rw [Lean.Kernel.Environment.find?,
@@ -403,8 +400,6 @@ theorem BlockCertificate.rebaseAddInductSafe
     (hbase : base <= largerBase)
     (hdecl : decl.WF base)
     (hcompile : decl.CompilesTo base H.block)
-    (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
-      decl)
     (hprovenance : NewRecursorsAligned .unsafe prodEnv.constants
       base outEnv.constants H.installedVEnv)
     (Hreplay : VInductBlock.EliminatorsReplay largerBase decl H.block) :
@@ -436,7 +431,7 @@ theorem BlockCertificate.rebaseAddInductSafe
       outEnv.constants
         (largerOutBase.addDefEqRules rules) := by
     simpa [BlockCertificate.installedVEnv, hprojections] using
-      Hlarger.addInduct hdeclLarger hcompileLarger horigins hprovenanceLarger Hvalid.tr.aligned
+      Hlarger.addInduct hdeclLarger hcompileLarger hprovenanceLarger Hvalid.tr.aligned
         helimLarger
   exact ⟨largerOutBase, Hlarger, hadd,
     VEnv.addDefEqRules_mono houtBase, hprojections, heliminators⟩
@@ -702,15 +697,15 @@ theorem BlockCertificate.extendSafeExact
       CheckingEnv.Valid safety prodEnv (ves.venv safety) :=
     wf.toCheckingValid (safety)
   rcases H.rebaseAddInductSafe (valid .unsafe)
-      (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins hprovenance
+      (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile hprovenance
       (Hreplay .unsafe) with
     ⟨unsafeBase, Hunsafe, HunsafeAdd, hunsafeLE, hunsafeProj, hunsafeElim⟩
   rcases H.rebaseAddInductSafe (valid .partial)
-      (wf.mono DefinitionSafety.le_safe) hdecl hcompile horigins hprovenance
+      (wf.mono DefinitionSafety.le_safe) hdecl hcompile hprovenance
       (Hreplay .partial) with
     ⟨partialBase, Hpartial, HpartialAdd, hpartialLE, hpartialProj, hpartialElim⟩
   rcases H.rebaseAddInductSafe (valid .safe) VEnv.LE.rfl
-      hdecl hcompile horigins hprovenance (Hreplay .safe) with
+      hdecl hcompile hprovenance (Hreplay .safe) with
     ⟨safeBase, Hsafe, HsafeAdd, hsafeLE, hsafeProj, hsafeElim⟩
   let pre : DefinitionSafety → VEnv
     | .unsafe => unsafeBase
@@ -813,8 +808,6 @@ theorem BlockCertificate.trEnv
       rules outEnv outVEnv)
     (hdecl : decl.WF venv)
     (hcompile : decl.CompilesTo venv H.block)
-    (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
-      decl)
     (hprovenance : NewRecursorsAligned .unsafe prodEnv.constants
       venv outEnv.constants H.installedVEnv)
     (hsource : TrEnv' checkSafety prodEnv.constants quotInit venv)
@@ -822,7 +815,7 @@ theorem BlockCertificate.trEnv
     TrEnv' checkSafety outEnv.constants quotInit
       H.installedVEnv :=
   .induct
-    (H.addInduct hdecl hcompile horigins hprovenance hsource.aligned helim) hsource
+    (H.addInduct hdecl hcompile hprovenance hsource.aligned helim) hsource
 
 /-- Unsafe inductives extend only the unsafe abstract model; partial and safe
 models replay the concrete additions through `TrEnv'.ignore`. -/
@@ -872,7 +865,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
   have htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
       H.installedVEnv := by
     rw [H.installation.quotInit_eq]
-    exact H.trEnv hdecl hcompile horigins hprovenance
+    exact H.trEnv hdecl hcompile hprovenance
       (wf.tr (safety := .unsafe)) helim
   have htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
       (ves.venv .partial) := by
@@ -899,7 +892,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
   have haddUnsafe : AddInduct .unsafe prodEnv.constants
       (ves.venv .unsafe) decl outEnv.constants
       H.installedVEnv :=
-    H.addInduct hdecl hcompile horigins hprovenance
+    H.addInduct hdecl hcompile hprovenance
       (wf.tr (safety := .unsafe)).aligned helim
   have hwf : prodEnv.constants.WF := (wf.tr (safety := .unsafe)).map_wf
   have hb : ∀ e ∈ types ++ ctors ++ recursors, e.1.isUnsafe = true := by

@@ -430,7 +430,7 @@ private theorem RestoredBlockCertificate.extendSafe
       (C.recursorsAligned.rebaseBlock (wf.mono DefinitionSafety.le_safe) hout
         B.install Breplay.install rfl).ofUnsafe
     have Hadd := H.addInductConcrete Habstract HcheckingRules Hprovenance
-      Hvalid.tr.map_wf Horigins
+      Hvalid.tr.map_wf
     exact ⟨replayBase, Breplay,
       hprojections.trans (by rfl), Hadd, hout, heliminators⟩
   let pre (observer : DefinitionSafety) :=
@@ -699,7 +699,6 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
         (C.recursorVEnv.addDefEqRules
           (C.sourceRules ++ C.auxiliaryRules)) :=
     H.addInductConcrete F.addInduct HcheckingRules C.recursorsAligned Hvalid.tr.map_wf
-      Horigins
   have htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
       (C.recursorVEnv.addDefEqRules
         (C.sourceRules ++ C.auxiliaryRules)) := by

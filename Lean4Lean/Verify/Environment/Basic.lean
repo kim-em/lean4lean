@@ -828,7 +828,6 @@ inductive AddInduct (safety : DefinitionSafety)
     VInductDecl.CompilesTo env₁ decl _block →
     VInductBlock.WF env₁ _block →
     VInductBlock.install env₁ _block = some env₂ →
-    InductInfosFromDecl m₁ m₂ decl →
     (∀ {name ci}, m₁.find? name = some ci → m₂.find? name = some ci) →
     (Aligned safety m₁ env₁ → Aligned safety m₂ env₂) →
     (∀ {name ci}, m₂.find? name = some ci → ci.deltaValue?.isSome →
@@ -841,7 +840,7 @@ theorem AddInduct.toVEnv
     (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
     VEnv.AddInduct env₁ decl env₂ :=
   match H with
-  | .intro _ hdecl hcompile hblock hinstall _ _ _ _ _ helim =>
+  | .intro _ hdecl hcompile hblock hinstall _ _ _ _ helim =>
     .intro hdecl hcompile hblock helim hinstall
 
 theorem AddInduct.declWF
@@ -858,13 +857,13 @@ theorem AddInduct.preservesSourceFind
     (H : AddInduct safety m₁ env₁ decl m₂ env₂)
     (hfind : m₁.find? name = some ci) : m₂.find? name = some ci := by
   cases H with
-  | intro _ _ _ _ _ _ hpreserves => exact hpreserves hfind
+  | intro _ _ _ _ _ hpreserves => exact hpreserves hfind
 
 theorem AddInduct.newRecursorsAligned
     (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
     NewRecursorsAligned safety m₁ env₁ m₂ env₂ := by
   cases H with
-  | intro _ _ _ _ _ _ _ _ _ hrecursors => exact hrecursors
+  | intro _ _ _ _ _ _ _ _ hrecursors => exact hrecursors
 
 def CtorInfoAlignment.rebase
     (H : CtorInfoAlignment source decl familyIdx ctorIdx

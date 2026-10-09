@@ -382,7 +382,7 @@ nonrec theorem Aligned.addQuot (H : AddQuot C₁ C₂ venv₁ venv₂)
 theorem Aligned.addInduct (H : AddInduct safety C₁ venv₁ decl C₂ venv₂) :
     Aligned safety C₁ venv₁ → Aligned safety C₂ venv₂ := by
   cases H with
-  | intro _ _ _ _ _ _ _ haligned _ => exact haligned
+  | intro _ _ _ _ _ _ haligned _ => exact haligned
 
 theorem Aligned.addDefEqs {C : ConstMap} : ∀ {cis' : List VDefVal} {venv},
     Aligned safety C venv → Aligned safety C (venv.addDefEqs cis')
@@ -606,7 +606,7 @@ theorem TrEnv'.of_value (H : TrEnv' safety C Q venv) (h : C.find? name = some ci
     · contradiction
   | induct h1 H ih =>
     cases h1 with
-    | intro block _ _ _ hinstall _ _ _ hdelta =>
+    | intro block _ _ _ hinstall _ _ hdelta =>
       exact (ih (hdelta h (by simp [hv]))).mono
         (VInductBlock.install_le hinstall)
 
