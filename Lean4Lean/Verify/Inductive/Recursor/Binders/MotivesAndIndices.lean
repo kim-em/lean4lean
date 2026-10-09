@@ -1105,12 +1105,10 @@ theorem MotivePassHeaderAt.recursorFamilyPrefixEq
         (decl.paramVars nindices)).lift' Hruntime.shift) := by
     simpa using Hfamily.weakFV' R.checking.tr.wf.ordered Hruntime.lift
       Hruntime.context.wf
-  exact TrExprS.unique'
+  exact HfamilyWeak.uniqueCtx
     (Lean4Lean.VerifyInductive.VLCtx.IsDefEq.toIsUniqueCtx_ofOnlyLams
       Hruntime.context R.onlyLams)
-    (Hstats.familyPrefixUnique familyIdx
-      (List.getElem?_eq_some_iff.mp H.targetAt).1)
-    HfamilyWeak Hframe.familyTr
+    Hframe.familyTr
 
 /-- The index arguments recovered from the executable major application are
 exactly the weakened index variables of the checking scope.
@@ -1137,7 +1135,7 @@ theorem MotivePassHeaderAt.recursorIndexTargetsEq
       (AddInductive.getRecLevelParams elimLevel c.lparams) scope)
       indices.toList indexTargets)
     (hcanonical : indexTargets = indexBVarSpine nindices)
-    (Hbound : FVarArrayIn current indices)
+    (_Hbound : FVarArrayIn current indices)
     (Hframe : RecursorMotiveFrameWF R stats familyIdx indices elimLevel) :
     (indexBVarSpine nindices).map (fun target =>
         target.lift' Hruntime.shift) = Hframe.familyIndexTargets := by
@@ -1149,18 +1147,10 @@ theorem MotivePassHeaderAt.recursorIndexTargetsEq
     intro source target Hsource
     simpa using Hsource.weakFV' R.checking.tr.wf.ordered Hruntime.lift
       Hruntime.context.wf
-  have hbound : indices.toList = Hbound.fvars.map Expr.fvar := by
-    simpa using congrArg Array.toList Hbound.expressions
-  have Hunique : ∀ source ∈ indices.toList,
-      TrExprS.IsUnique source := by
-    intro source hsource
-    rw [hbound] at hsource
-    rcases List.mem_map.mp hsource with ⟨fv, _hfv, rfl⟩
-    trivial
   have Heq := Lean4Lean.VerifyInductive.TrExprS.forall₂_unique
     (Lean4Lean.VerifyInductive.VLCtx.IsDefEq.toIsUniqueCtx_ofOnlyLams
       Hruntime.context R.onlyLams)
-    Hunique Hweak Hframe.familyIndicesTr
+    Hweak Hframe.familyIndicesTr
   simpa [hcanonical] using Heq
 
 /-- Instantiate the abstract parallel motive telescope from the

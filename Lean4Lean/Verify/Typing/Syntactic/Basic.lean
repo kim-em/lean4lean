@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Typing.UniverseSupport
+import Lean4Lean.Verify.Typing.Syntactic.Levels
 
 /-!
 # Syntactic translation

@@ -423,8 +423,7 @@ theorem
   have htargets : bvarSpine checkedEquationFieldDomains.length =
       targets :=
     Lean4Lean.VerifyInductive.TrExprS.forall₂_unique HuniqueCtx
-      (fun source hsource => A.rule.abstractedAllArgsUnique source
-        hsource) Hcanonical' Htargets
+      Hcanonical' Htargets
   rw [hfieldLength] at htargets
   rw [← htargets] at Htargets
   simpa only [Us, inserted, equationFieldDomains, equationDomains] using

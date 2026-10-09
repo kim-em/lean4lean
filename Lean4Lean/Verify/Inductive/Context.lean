@@ -2951,20 +2951,14 @@ theorem VLCtx.IsDefEq.toIsUniqueCtx_ofOnlyLams
 list of source expressions. -/
 theorem TrExprS.forall₂_unique
     (Hctx : TrExprS.IsUniqueCtx Δ₁ Δ₂)
-    (Hunique : ∀ source ∈ sources, TrExprS.IsUnique source)
     (H₁ : List.Forall₂ (TrExprS env Us Δ₁) sources targets₁)
     (H₂ : List.Forall₂ (TrExprS env Us Δ₂) sources targets₂) :
     targets₁ = targets₂ := by
   induction H₁ generalizing targets₂ with
   | nil => cases H₂; rfl
-  | @cons source target sources targets Hhead Htail ih =>
-    cases H₂ with
-    | cons Hhead₂ Htail₂ =>
-      congr
-      · exact TrExprS.unique' Hctx (Hunique source (by simp))
-          Hhead Hhead₂
-      · exact ih (fun later hlater => Hunique later (by simp [hlater]))
-          Htail₂
+  | cons Hhead _ ih =>
+    let .cons Hhead₂ Htail₂ := H₂
+    rw [Hhead.uniqueCtx Hctx Hhead₂, ih Htail₂]
 
 
 end VerifyInductive
