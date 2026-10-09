@@ -127,7 +127,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
     Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
       env lparams nparams sourceTypes isUnsafe false fuel res
       Hc' wf.inductivesClosed wf.envGhostFree wf.constructorOwners
-      wf.inductiveConstructorsCoherent.present hctx
+      wf.listedConstructorsPresent hctx
       hnonempty (inductiveSafety_notPartial isUnsafe)
       Hinputs Hsources rfl Hlower hnested
   exact Hrun.mono fun outEnv Hout => by

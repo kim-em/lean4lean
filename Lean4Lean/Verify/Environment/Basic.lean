@@ -145,23 +145,6 @@ def InductiveConstructorsCoherent (env : Environment) : Prop :=
     ∀ i (hi : i < familyInfo.ctors.length),
       Nonempty (CtorInfoCoherentAt env familyName familyInfo i hi)
 
-/-- On a complete environment every listed constructor is a coherent constructor. -/
-theorem InductiveConstructorsCoherent.listed {env : Environment}
-    (H : InductiveConstructorsCoherent env) : ListedConstructorsCoherent env := by
-  intro familyName familyInfo hfamily name hname ci hci
-  obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hname
-  rcases H familyName familyInfo hfamily i hi with ⟨C⟩
-  rw [C.lookup] at hci
-  exact ⟨C.info, (Option.some.inj hci).symm, C.induct, C.isUnsafe⟩
-
-/-- On a complete environment every listed constructor is present. -/
-theorem InductiveConstructorsCoherent.present {env : Environment}
-    (H : InductiveConstructorsCoherent env) : ListedConstructorsPresent env := by
-  intro familyName familyInfo hfamily name hname
-  obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hname
-  rcases H familyName familyInfo hfamily i hi with ⟨C⟩
-  exact ⟨_, C.lookup⟩
-
 /-- Semantic common-parameter coherence for one visible kernel
 constructor.  Concrete parameter domains need only be definitionally equal;
 the independently translated family and constructor types are normalized in
@@ -956,91 +939,6 @@ def ProjectionRegistryCoherent
     constructorInfo.induct = familyName →
     Nonempty (ProjectionRegistryAlignmentAt C env familyName familyInfo
       constructorName)
-
-/-- Projection-registry alignment is preserved by monotone abstract
-environment extension. -/
-def ProjectionRegistryAlignmentAt.monoEnv
-    (H : ProjectionRegistryAlignmentAt C env familyName familyInfo
-      constructorName)
-    (henv : env ≤ env') :
-    ProjectionRegistryAlignmentAt C env' familyName familyInfo
-      constructorName where
-  info := H.info
-  projection := henv.projections H.projection
-  ctorName := H.ctorName
-  uvars := H.uvars
-  nparams := H.nparams
-  nindices := H.nindices
-  constructorInfo := H.constructorInfo
-  constructor_lookup := H.constructor_lookup
-  constructor_induct := H.constructor_induct
-  constructor_levelParams := H.constructor_levelParams
-  constructor_numParams := H.constructor_numParams
-  constructor_isUnsafe := H.constructor_isUnsafe
-  constructor_numFields := H.constructor_numFields
-  constructor_arity := H.constructor_arity
-  familyType := H.familyType
-  family_lookup := henv.constants H.family_lookup
-  constructor_abstract := henv.constants H.constructor_abstract
-
-/-- Transport an alignment across a kernel constant map that preserves
-every existing lookup and a monotone abstract extension. -/
-def ProjectionRegistryAlignmentAt.rebase
-    (H : ProjectionRegistryAlignmentAt source env familyName familyInfo
-      constructorName)
-    (hpreserves : ∀ {name ci}, source.find? name = some ci →
-      target.find? name = some ci)
-    (henv : env ≤ env') :
-    ProjectionRegistryAlignmentAt target env' familyName familyInfo
-      constructorName where
-  info := H.info
-  projection := henv.projections H.projection
-  ctorName := H.ctorName
-  uvars := H.uvars
-  nparams := H.nparams
-  nindices := H.nindices
-  constructorInfo := H.constructorInfo
-  constructor_lookup := hpreserves H.constructor_lookup
-  constructor_induct := H.constructor_induct
-  constructor_levelParams := H.constructor_levelParams
-  constructor_numParams := H.constructor_numParams
-  constructor_isUnsafe := H.constructor_isUnsafe
-  constructor_numFields := H.constructor_numFields
-  constructor_arity := H.constructor_arity
-  familyType := H.familyType
-  family_lookup := henv.constants H.family_lookup
-  constructor_abstract := henv.constants H.constructor_abstract
-
-theorem ProjectionRegistryCoherent.monoEnv
-    (H : ProjectionRegistryCoherent safety C env)
-    (henv : env ≤ env') :
-    ProjectionRegistryCoherent safety C env' := by
-  intro familyName familyInfo constructorName constructorInfo hfind hvisible
-    hsingle hconstructor hinduct
-  rcases H familyName familyInfo constructorName constructorInfo hfind hvisible
-    hsingle hconstructor hinduct with ⟨P⟩
-  exact ⟨P.monoEnv henv⟩
-
-/-- Per-constant side condition under which inserting `ci` preserves
-projection-registry coherence.  Only constructors carry an obligation: their
-owner must already be present, and if they complete a singleton family the
-registry must align with that family in the extended abstract environment. -/
-def ProjectionRegistryStep (C : ConstMap) (env' : VEnv) : ConstantInfo → Prop
-  | .ctorInfo info =>
-    (∃ owner, C.find? info.induct = some (.inductInfo owner) ∧
-      info.name ∈ owner.ctors ∧ info.isUnsafe = owner.isUnsafe) ∧
-    ∀ owner, C.find? info.induct = some (.inductInfo owner) →
-      owner.ctors = [info.name] →
-      Nonempty (ProjectionRegistryAlignmentAt
-        (C.insert info.name (.ctorInfo info)) env' info.induct owner info.name)
-  | _ => True
-
-theorem ProjectionRegistryStep.of_not_ctor
-    (hnctor : ∀ info, ci ≠ .ctorInfo info) :
-    ProjectionRegistryStep C env ci := by
-  cases ci with
-  | ctorInfo info => exact absurd rfl (hnctor info)
-  | _ => trivial
 
 theorem AddInduct.installedCertificate
     (H : AddInduct safety source base decl target installed) :

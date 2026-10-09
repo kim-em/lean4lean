@@ -37,6 +37,11 @@ theorem constructorParameterAlignment (wf : ves.WF env) {safety : DefinitionSafe
     VerifyInductive.ConstructorParameterAlignment safety env (ves.venv safety) :=
   wf.blocks.constructorParameterAlignment
 
+/-- Every constructor a header lists is present. -/
+theorem listedConstructorsPresent (wf : ves.WF env) :
+    VerifyInductive.ListedConstructorsPresent env :=
+  (wf.blocks (safety := .unsafe)).listedConstructorsPresent (by decide)
+
 theorem inductiveConstructorsCoherent (wf : ves.WF env) :
     VerifyInductive.InductiveConstructorsCoherent env :=
   (wf.blocks (safety := .unsafe)).inductiveConstructorsCoherent (by decide)

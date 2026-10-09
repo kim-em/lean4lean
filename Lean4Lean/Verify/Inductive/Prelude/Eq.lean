@@ -631,7 +631,7 @@ theorem AddInductive.run.preludeEqInstalledWF
     change 0 < 1
     decide
   exact (AddInductive.run.sourceAlignedWF nparams numNested Hc
-    Hclosed wf.envGhostFree wf.inductiveConstructorsCoherent.present hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
+    Hclosed wf.envGhostFree wf.listedConstructorsPresent hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
       Hrun.extendPreludeEq wf hAbsent hsafety hsource Hshape
 
 /-- `addInductiveAfterLowering` on the exact prelude `Eq` declaration, after a lowering

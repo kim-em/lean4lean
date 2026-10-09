@@ -123,36 +123,6 @@ theorem ConstructorOwnersPresent.addNonConstructor
       contradiction
     exact ⟨owner, (find?_add_of_ne hwf ci hfresh hne).trans howner, hmem⟩
 
-/-- Adding a fresh constructor whose owner is already present, lists it and
-has its `isUnsafe` preserves constructor-owner presence. -/
-theorem ConstructorOwnersPresent.addConstructor
-    (H : ConstructorOwnersPresent env)
-    (hwf : env.constants.WF) (info : ConstructorVal)
-    (hfresh : env.find? info.name = none)
-    (howner : env.find? info.induct = some (.inductInfo owner))
-    (hmem : info.name ∈ owner.ctors) (hunsafe : info.isUnsafe = owner.isUnsafe) :
-    ConstructorOwnersPresent (env.add (.ctorInfo info)) := by
-  intro name found hfind
-  rcases find?_add_cases hwf (.ctorInfo info) hfresh hfind with
-    ⟨hname, hnew⟩ | hold
-  · have hfound : found = info :=
-      ConstantInfo.ctorInfo.inj hnew
-    subst found
-    have hne : info.name ≠ info.induct := by
-      intro heq
-      rw [← heq, hfresh] at howner
-      contradiction
-    exact ⟨owner,
-      (find?_add_of_ne hwf (.ctorInfo info) hfresh hne).trans howner,
-      by rw [hname]; exact hmem, hunsafe⟩
-  · rcases H name found hold with ⟨oldOwner, holdOwner, hmem'⟩
-    have hne : info.name ≠ found.induct := by
-      intro heq
-      rw [← heq, hfresh] at holdOwner
-      contradiction
-    exact ⟨oldOwner,
-      (find?_add_of_ne hwf (.ctorInfo info) hfresh hne).trans holdOwner, hmem'⟩
-
 /-- Lookup classification for one fresh addition (public form of `find?_add_cases`). -/
 theorem findAddFresh_cases {env : Environment} (hwf : env.constants.WF)
     (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
@@ -236,60 +206,6 @@ theorem ListedConstructorsCoherent.ofInductInfosFromDecl {source target : Enviro
     cases hfound
     exact ⟨C.info, rfl, C.induct.trans hfamilyName.symm, C.isUnsafe.trans A.isUnsafe.symm⟩
 
-/-- After a declaration's families are installed with their constructors, every listed
-constructor is present. -/
-theorem ListedConstructorsPresent.ofInductInfosFromDecl {source target : Environment}
-    (hsourceWF : source.constants.WF) (htargetWF : target.constants.WF)
-    (hpresent : ListedConstructorsPresent source)
-    (hsub : ∀ {name found}, source.find? name = some found → target.find? name = some found)
-    (H : InductInfosFromDecl source.constants target.constants decl) :
-    ListedConstructorsPresent target := by
-  intro familyName familyInfo hfamily name hname
-  have hfamilyMap : target.constants.find? familyName = some (.inductInfo familyInfo) := by
-    rwa [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?] at hfamily
-  rcases H familyName familyInfo hfamilyMap with hold | ⟨familyIdx, -, ⟨A⟩⟩
-  · have hold' : source.find? familyName = some (.inductInfo familyInfo) := by
-      rw [Lean.Kernel.Environment.find?, hsourceWF.find?'_eq_find?]
-      exact hold
-    rcases hpresent familyName familyInfo hold' name hname with ⟨old, hold''⟩
-    exact ⟨old, hsub hold''⟩
-  · obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hname
-    have hctor : i < (decl.types[familyIdx]'A.familyIdx_lt).ctors.length := by
-      rw [← A.constructors]; exact hi
-    rcases A.constructor i hctor with ⟨C⟩
-    refine ⟨.ctorInfo C.info, ?_⟩
-    rw [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?]
-    exact C.lookup
-
-/-- A fresh name is listed by no header of an environment whose listed constructors are all
-present. -/
-theorem ListedConstructorsPresent.unlisted
-    (H : ListedConstructorsPresent env) (hfresh : env.find? name = none)
-    (hfamily : env.find? familyName = some (.inductInfo familyInfo)) :
-    name ∉ familyInfo.ctors := by
-  intro hmem
-  rcases H familyName familyInfo hfamily name hmem with ⟨ci, hci⟩
-  rw [hfresh] at hci
-  cases hci
-
-/-- Adding a fresh constant that is not an inductive header preserves the presence of listed
-constructors. -/
-theorem ListedConstructorsPresent.add
-    {ci : ConstantInfo}
-    (H : ListedConstructorsPresent env)
-    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
-    (hnotHeader : ∀ familyInfo, ci ≠ .inductInfo familyInfo) :
-    ListedConstructorsPresent (env.add ci) := by
-  intro familyName familyInfo hfamily name hname
-  rcases find?_add_cases hwf ci hfresh hfamily with ⟨-, hheader⟩ | hfamilyOld
-  · exact absurd hheader.symm (hnotHeader familyInfo)
-  · rcases H familyName familyInfo hfamilyOld name hname with ⟨found, hfound⟩
-    by_cases hne : ci.name = name
-    · subst hne
-      rw [hfresh] at hfound
-      cases hfound
-    · exact ⟨found, (find?_add_of_ne hwf ci hfresh hne).trans hfound⟩
-
 theorem InductiveMemberInfos.addConstant
     {ci : ConstantInfo}
     (H : InductiveMemberInfos env names)
@@ -340,18 +256,6 @@ theorem MutualInductivesClosed.addNonInductive
   · exact False.elim (hnind value hvalue.symm)
   · exact (H targetName value hold).addConstant hwf hfresh
 
-def CtorInfoCoherentAt.addConstant
-    {ci : ConstantInfo}
-    (H : CtorInfoCoherentAt env familyName familyInfo i hi)
-    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none) :
-    CtorInfoCoherentAt (env.add ci) familyName familyInfo i hi := by
-  have hne : ci.name ≠ familyInfo.ctors[i] := by
-    intro heq
-    rw [heq, H.lookup] at hfresh
-    contradiction
-  exact { H with lookup :=
-    (find?_add_of_ne hwf ci hfresh hne).trans H.lookup }
-
 def ConstructorParameterAlignmentAt.mono
     (H : ConstructorParameterAlignmentAt
       env venv familyName familyInfo i hi)
@@ -364,18 +268,6 @@ def ConstructorParameterAlignmentAt.mono
     familyDefEq := H.familyDefEq.mono hle
     constructorDefEq := H.constructorDefEq.mono hle
     parameterDomains := H.parameterDomains.mono hle }
-
-def ConstructorParameterAlignmentAt.addConstant
-    {ci : ConstantInfo}
-    (H : ConstructorParameterAlignmentAt
-      env venv familyName familyInfo i hi)
-    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
-    (hle : venv ≤ venv') :
-    ConstructorParameterAlignmentAt
-      (env.add ci) venv' familyName familyInfo i hi :=
-  { H.mono hle with
-    toCtorInfoCoherentAt :=
-      H.toCtorInfoCoherentAt.addConstant hwf hfresh }
 
 /-- Transport `ConstructorParameterAlignmentAt` across an arbitrary
 kernel-environment extension once the exact constructor lookup has been

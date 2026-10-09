@@ -1293,49 +1293,6 @@ theorem AddConstants.validHeaders {infos : List InductiveVal} {values : List VCo
     cases heq
     exact habsent _ hinfo name hname
 
-/-- After the headers and then the constructors of a declaration are installed on an
-environment whose listed constructors are present and coherent, every listed constructor is
-coherent: the old headers list only old constants, and each new header lists exactly the
-constructors installed for its family. -/
-theorem AddConstants.listedConstructorsOfDeclaration
-    (Hheaders : AddConstants safety env venv headerEntries headerEnv headerVEnv)
-    (Hctors : AddConstants safety' headerEnv venv' ctorEntries outEnv outVEnv)
-    (hwf : env.constants.WF)
-    (hlisted : ListedConstructorsCoherent env) (hpresent : ListedConstructorsPresent env)
-    (hinfos : ∀ entry ∈ headerEntries, ∃ numNested, ∃ info ∈ (AddInductive.inductiveTypeInfos
-      stats nparams indTypes numNested isUnsafe lparams).toList, entry.1 = .inductInfo info)
-    (hentries : ConstructorTypeEntries (AddInductive.constructorInfo stats lparams isUnsafe)
-      indTypes.toList ctorEntries) :
-    ListedConstructorsCoherent outEnv := by
-  have hheaderWF := Hheaders.targetMapWF hwf
-  intro familyName familyInfo hfamily name hname found hfound
-  rcases Hctors.entryOrigin hheaderWF hfamily with hfamilyHeader | ⟨entry, hentry, -, hentryEq⟩
-  · rcases Hheaders.entryOrigin hwf hfamilyHeader with hold | ⟨entry, hentry, hentryName, hentryEq⟩
-    · rcases hpresent familyName familyInfo hold name hname with ⟨old, hold'⟩
-      have hout := Hctors.preservesSourceFind hheaderWF (Hheaders.preservesSourceFind hwf hold')
-      rw [hfound] at hout
-      cases hout
-      exact hlisted familyName familyInfo hold name hname _ hold'
-    · rcases hinfos entry hentry with ⟨numNested, info, hinfo, hfst⟩
-      rw [hfst] at hentryEq hentryName
-      cases hentryEq
-      rcases inductiveTypeInfos_ctors stats nparams indTypes numNested isUnsafe lparams hinfo
-        with ⟨owner, howner, hownerName, hctors, hunsafe⟩
-      rw [hctors] at hname
-      obtain ⟨ctor, hctor, rfl⟩ := List.mem_map.mp hname
-      rcases hentries.findSourceInduct howner hctor with
-        ⟨ctorInfo, value, hmem, hctorName, hinduct, hctorUnsafe⟩
-      have hctorFind : outEnv.find? ctorInfo.name = some (.ctorInfo ctorInfo) :=
-        Hctors.findEntry hheaderWF hmem
-      rw [hctorName, hfound] at hctorFind
-      cases hctorFind
-      refine ⟨ctorInfo, rfl, ?_, hctorUnsafe.trans hunsafe.symm⟩
-      rw [hinduct, hentryName, ← hownerName]
-      rfl
-  · rcases hentries.ownerOfEntry hentry with ⟨_, _, _, hctorEq, -⟩
-    rw [hctorEq] at hentryEq
-    cases hentryEq
-
 /-- Installing a batch containing no inductive headers preserves the
 constructor-parameter agreement `ConstructorParameterAlignment`. Exact kernel-environment lookups are
 transported through the lockstep fold; all abstract judgments use
