@@ -125,10 +125,10 @@ def redex (D : IotaRuleData) (us cus : List VLevel) (pre cargs : List VExpr) : V
 /-- The actual arguments of the rule's holes: the recursor's parameters/motives/minors and the
 constructor's fields. -/
 def args (D : IotaRuleData) (pre cargs : List VExpr) : List VExpr :=
-  pre.take D.k ++ cargs.drop D.np
+  pre.take D.k ++ cargs.drop D.cnp
 
 theorem args_length (D : IotaRuleData) {pre cargs : List VExpr}
-    (hpre : pre.length = D.k + D.nind) (hcargs : cargs.length = D.np + D.nf) :
+    (hpre : pre.length = D.k + D.nind) (hcargs : cargs.length = D.cnp + D.nf) :
     (D.args pre cargs).length = D.k + D.nf := by
   simp [args, hpre, hcargs]
 
@@ -164,13 +164,13 @@ Needs `Ordered env`, `OnTypes env (EnvStrong env)` and `StrongHeadInversion env`
 theorem align (_henv : Ordered env) (_hshi : StrongHeadInversion env)
     (_hstrong : OnTypes env (EnvStrong env)) (D : IotaRuleData) (_hsh : D.Shape env)
     {U : Nat} {doms idx cpar : List VExpr} {cls : List VLevel} {B : VExpr}
-    (_hdl : doms.length = D.k + D.nf) (_hil : idx.length = D.nind) (_hcl : cpar.length = D.np)
+    (_hdl : doms.length = D.k + D.nf) (_hil : idx.length = D.nind) (_hcl : cpar.length = D.cnp)
     (_hΓg : CtxStrong env U doms.reverse)
     (_heg : env.IsDefEqStrong U doms.reverse (D.genericRedex U idx cls cpar)
       (D.genericRedex U idx cls cpar) B)
     {U₀ : Nat} {Γ : List VExpr} (_hΓ : CtxStrong env U₀ Γ) {us cus : List VLevel}
     {pre cargs : List VExpr} {A : VExpr}
-    (_hpre : pre.length = D.k + D.nind) (_hcargs : cargs.length = D.np + D.nf)
+    (_hpre : pre.length = D.k + D.nind) (_hcargs : cargs.length = D.cnp + D.nf)
     (_he : env.IsDefEqStrong U₀ Γ (D.redex us cus pre cargs) (D.redex us cus pre cargs) A) :
     Aligned env U₀ Γ us (D.args pre cargs) U doms B A := sorry
 
@@ -179,12 +179,12 @@ theorem align (_henv : Ordered env) (_hshi : StrongHeadInversion env)
 /-- The reduct `addRecRule` registers, applied to a match, is the template at `us` applied to
 the actual arguments. -/
 theorem rhsR_apply (D : IotaRuleData) {us : List VLevel} {pre cargs : List VExpr}
-    (hpre : pre.length = D.np + D.nm + D.nmin + D.nind) (hcargs : cargs.length = D.np + D.nf)
+    (hpre : pre.length = D.np + D.nm + D.nmin + D.nind) (hcargs : cargs.length = D.cnp + D.nf)
     {g1 : ((Pattern.const D.recName).varN (D.np + D.nm + D.nmin + D.nind)).Path → VExpr}
-    {g2 : ((Pattern.const D.ctorName).varN (D.np + D.nf)).Path → VExpr}
+    {g2 : ((Pattern.const D.ctorName).varN (D.cnp + D.nf)).Path → VExpr}
     (hg1 : ∀ i (hi : i < D.np + D.nm + D.nmin + D.nind),
       g1 (Pattern.varN_pathOf _ i hi) = pre[i]'(hpre ▸ hi))
-    (hg2 : ∀ i (hi : i < D.np + D.nf), g2 (Pattern.varN_pathOf _ i hi) = cargs[i]'(hcargs ▸ hi)) :
+    (hg2 : ∀ i (hi : i < D.cnp + D.nf), g2 (Pattern.varN_pathOf _ i hi) = cargs[i]'(hcargs ▸ hi)) :
     Pattern.RHS.apply (p := D.pattern) us (Sum.elim g1 g2) D.rhsR.1 =
       (D.rhs.instL us).mkApps (D.args pre cargs) := by
   simp only [rhsR, SimplePattern.iotaRHS]
@@ -245,7 +245,7 @@ theorem patStrong (henv : Ordered env) (hshi : StrongHeadInversion env)
   obtain ⟨pre, hpre, rfl, hg1⟩ := Pattern.matches_varN_const_inv hm1
   obtain ⟨cargs, hcargs, rfl, hg2⟩ := Pattern.matches_varN_const_inv hm2
   have hpre' : pre.length = D.k + D.nind := hpre
-  have hcargs' : cargs.length = D.np + D.nf := hcargs
+  have hcargs' : cargs.length = D.cnp + D.nf := hcargs
   rw [D.rhsR_apply hpre hcargs hg1 hg2]
   obtain ⟨cus, he'⟩ : ∃ cus, env.IsDefEqStrong U₀ Γ (D.redex m1 cus pre cargs) (D.redex m1 cus pre cargs) A :=
     ⟨_, by simp only [redex, VExpr.mkApps_append, VExpr.mkApps_cons, VExpr.mkApps_nil]; exact he⟩

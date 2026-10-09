@@ -101,9 +101,10 @@ structure StrongHeadInversion (env : VEnv) : Prop where
 
 /-! ## An ι rule and its generic typing -/
 
-/-- An ι rule as `addRecRule` registers it, for a direct block (`ctorParams = numParams`):
-recursor `rec` with `np` parameters, `nm` motives, `nmin` minors and `nind` indices, firing
-on `ctor` with `nf` fields, reduct template `rhs`. -/
+/-- An ι rule as `addRecRule` registers it: recursor `recName` with `np` parameters, `nm`
+motives, `nmin` minors and `nind` indices, firing on `ctorName` with `cnp` parameters and `nf`
+fields, reduct template `rhs`. For a direct block `cnp = np` (`SyntaxAt.ctor_params`); the
+field is separate so that `ofRule` is definitional and nested blocks fit. -/
 structure IotaRuleData where
   recName : Name
   np : Nat
@@ -111,6 +112,7 @@ structure IotaRuleData where
   nmin : Nat
   nind : Nat
   ctorName : Name
+  cnp : Nat
   nf : Nat
   rhs : VExpr
   hrhs : rhs.Closed
@@ -122,16 +124,16 @@ namespace IotaRuleData
 
 /-- The pattern `addRecRule` registers. -/
 @[reducible] def pattern (D : IotaRuleData) : Pattern :=
-  (SimplePattern.iota D.recName (D.np + D.nm + D.nmin + D.nind) D.ctorName (D.np + D.nf)).toPattern
+  (SimplePattern.iota D.recName (D.np + D.nm + D.nmin + D.nind) D.ctorName (D.cnp + D.nf)).toPattern
 
 /-- The reduct and check `addRecRule` registers. -/
 def rhsR (D : IotaRuleData) : D.pattern.RHS × D.pattern.Check :=
-  (SimplePattern.iotaRHS D.recName D.ctorName D.np D.nm D.nmin D.nind D.np D.nf D.rhs D.hrhs, .true)
+  (SimplePattern.iotaRHS D.recName D.ctorName D.np D.nm D.nmin D.nind D.cnp D.nf D.rhs D.hrhs, .true)
 
 /-- The rule of recursor `r` for rule `ru`, as `addRecRule` reads it. -/
-def ofRule (r : VRecursor) (ru : VRecRule) (hc : ru.rhs.Closed) (_hp : ru.ctorParams = r.numParams) :
-    IotaRuleData :=
-  ⟨r.name, r.numParams, r.numMotives, r.numMinors, r.numIndices, ru.ctor, ru.nfields, ru.rhs, hc⟩
+def ofRule (r : VRecursor) (ru : VRecRule) (hc : ru.rhs.Closed) : IotaRuleData :=
+  ⟨r.name, r.numParams, r.numMotives, r.numMinors, r.numIndices, ru.ctor, ru.ctorParams, ru.nfields,
+    ru.rhs, hc⟩
 
 /-- The generic redex: the recursor at the identity level instantiation applied to the
 telescope variables of its parameters, motives and minors, to index terms `idx`, and to the
@@ -153,7 +155,7 @@ def genericReduct (D : IotaRuleData) : VExpr :=
 (outermost domain first; `doms.reverse` is the de Bruijn context). -/
 def GenericStrong (env : VEnv) (D : IotaRuleData) : Prop :=
   ∃ (U : Nat) (doms idx cpar : List VExpr) (cls : List VLevel) (B : VExpr),
-    doms.length = D.k + D.nf ∧ idx.length = D.nind ∧ cpar.length = D.np ∧
+    doms.length = D.k + D.nf ∧ idx.length = D.nind ∧ cpar.length = D.cnp ∧
     CtxStrong env U doms.reverse ∧
     env.IsDefEqStrong U doms.reverse (D.genericRedex U idx cls cpar) (D.genericRedex U idx cls cpar) B ∧
     env.IsDefEqStrong U doms.reverse D.genericReduct D.genericReduct B
@@ -165,24 +167,29 @@ environment of the declaring block. It implies #43's `VEnv.PatTyped` (`GenericWe
 environment. -/
 def GenericWeak (env : VEnv) (D : IotaRuleData) : Prop :=
   ∃ (U : Nat) (doms idx cpar : List VExpr) (cls : List VLevel) (B : VExpr),
-    doms.length = D.k + D.nf ∧ idx.length = D.nind ∧ cpar.length = D.np ∧
+    doms.length = D.k + D.nf ∧ idx.length = D.nind ∧ cpar.length = D.cnp ∧
     OnCtx doms.reverse (env.IsType U) ∧
     env.HasType U doms.reverse (D.genericRedex U idx cls cpar) B ∧
     env.HasType U doms.reverse D.genericReduct B
 
-/-- The syntactic shape of the rule's constants in `env`: the recursor's type has the
-recursor telescope (`RecShape`) and eliminates the type former `T`; the constructor's type
-returns `T` applied to its parameters and `nind` indices (`CtorResult`); `T` is rigid. All of
-it is read off `VInductDecl.WF` at the declaring step (`rec_shape`, `rules_ctor`); constants
-never change afterwards, and rigidity of `T` is preserved by every later well-formed step
-(`Rigid.step`, `History.lean`). -/
-structure ShapeAt (env : VEnv) (D : IotaRuleData) (T : Name) : Prop where
+/-- The syntactic shape of the rule's constants in `env`: the type former `T` is a constant,
+the recursor's type has the recursor telescope (`RecShape`) and eliminates `T`
+(`majorFormer?`), the constructor's type returns `T` applied to its parameters and `nind`
+indices (`CtorResult`), and the constructor's parameters are the recursor's (a direct block).
+All of it is read off `VInductDecl.WF` at the declaring step (`rec_shape`, `rules_ctor`,
+`recs_over_block`); constants never change afterwards. -/
+structure SyntaxAt (env : VEnv) (D : IotaRuleData) (T : Name) : Prop where
   former_find : ∃ tc, env.constants T = some tc
   rec_find : ∃ recC, env.constants D.recName = some recC ∧
     recC.type.RecShape D.np D.nm D.nmin D.nind ∧
     recC.type.majorFormer? (D.np + D.nm + D.nmin + D.nind) = some T
   ctor_find : ∃ ctorC, env.constants D.ctorName = some ctorC ∧
     ctorC.type.CtorResult T D.np D.nf D.nind
+  ctor_params : D.cnp = D.np
+
+/-- `SyntaxAt` together with rigidity of the type former, which the history maintains
+(`History.lean`): no later rule is headed by `T`. -/
+structure ShapeAt (env : VEnv) (D : IotaRuleData) (T : Name) : Prop extends SyntaxAt env D T where
   rigid : env.Rigid T
 
 /-- `ShapeAt` for the type former the rule eliminates. -/
@@ -207,11 +214,12 @@ structure Stage (env : VEnv) : Prop where
   generic instance, and has its constants in shape. -/
   rules : ∀ {p : Pattern} {r : p.RHS × p.Check}, env.pats p r →
     ∃ D : IotaRuleData, ∃ e : p = D.pattern, e ▸ r = D.rhsR ∧ D.GenericStrong env ∧ D.Shape env
-  /-- Every definitional axiom is headed by a constant of `env` (a δ rule by its definition,
-  the quotient rule by `Quot.lift`): what keeps type formers rigid when later rules are
-  added, since those are headed by constants fresh at their declaration. -/
+  /-- A definitional axiom headed by a constant is headed by a constant of `env` (a δ rule by
+  its definition; the quotient rule's left-hand side is a λ-abstraction): what keeps type
+  formers rigid when later rules are added, since those are headed by constants fresh at
+  their declaration. -/
   defeq_heads : ∀ {df : VDefEq}, env.defeqs df →
-    ∃ c us, df.lhs.getAppFn = .const c us ∧ env.constants c ≠ none
+    ∀ c us, df.lhs.getAppFn = .const c us → env.constants c ≠ none
 
 /-- **The wave-1C obligation, as the history induction consumes it**: head inversion with
 strong conclusions in every `Stage` environment, from the `Stage` data alone — without
@@ -229,9 +237,9 @@ bijection of the holes) and `rec_shape`/`rules_ctor`; the port replaces `rules_w
 telescope-literal form the branch's `EquationWF.lean` produces, which is what is stated here. -/
 def RulesGenericTyped : Prop :=
   ∀ {env envR : VEnv} {decl : VInductDecl}, decl.WF env → decl.addTypesCtorsRecs env = some envR →
-    ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ∀ (hc : ru.rhs.Closed) (hp : ru.ctorParams = r.numParams),
-      (IotaRuleData.ofRule r ru hc hp).GenericWeak envR ∧
-      (IotaRuleData.ofRule r ru hc hp).Shape envR
+    ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ∀ (hc : ru.rhs.Closed),
+      (IotaRuleData.ofRule r ru hc).GenericWeak envR ∧
+      ∃ T, (IotaRuleData.ofRule r ru hc).SyntaxAt envR T
 
 end VEnv
 end Lean4Lean
