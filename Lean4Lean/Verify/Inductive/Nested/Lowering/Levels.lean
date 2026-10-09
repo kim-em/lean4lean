@@ -291,7 +291,7 @@ theorem NestedRun.loweredConstructorLevelsAll
     have HtargetType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt
       Htarget (sourceTypes.length + i) hresult htarget
     have Hmap := Hrun.resultAuxMapModelsFresh (by simpa using hempty)
-    have Hexpansion := Horigin.abstractExpansionAboveLvls HliftLv Nsource.payload
+    have Hexpansion := Horigin.abstractExpansionAboveLvls HliftLv Nsource
       HtargetType Hmap HbaseWF Hsource.uvars HsourceTypesWF HtargetTypesWF
       Hrun.resultParamsSize Hsource.nparams.symm
       (fun Htrace Hctx selection _ Harity Hdepth _ HtargetParams _ HsourceExpr
@@ -304,7 +304,7 @@ theorem NestedRun.loweredConstructorLevelsAll
       Lean4Lean.List.Forall₂.forall_exists_r Hexpansion.constructors lc hlc
     have hscFree : sc.type.containsAnyConst names = false := by
       obtain ⟨C, -, hC⟩ := Lean4Lean.List.Forall₂.forall_exists_r
-        Nsource.payload.translation.ctors sc hsc
+        Nsource.translation.ctors sc hsc
       have h := hC.type
       rw [htypesEq] at h
       exact checkPositivityStep.TrExprS.noFreshConstsAtCheckingEnv hordered hfresh

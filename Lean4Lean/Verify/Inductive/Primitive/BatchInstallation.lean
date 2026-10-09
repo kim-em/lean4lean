@@ -10,9 +10,10 @@ Between installing the `Bool` or `Nat` family and its constructors the invariant
 `LocalContextWF` (the local-context part of `ContextWF`), `AtomicAddConstants` (constants
 added in lockstep to the kernel and abstract environments, with validity checked only once
 the batch is complete), its preservation lemmas, the executable header and constructor folds
-as atomic batches, and the primitive header environment and constructor check
-(`PrimitiveHeaderEnvironment`, `PrimitiveConstructorEnvironment`,
-`PrimitiveConstructorCheck`).
+as atomic batches, and the primitive header and constructor environments
+(`PrimitiveHeaderEnvironment`, `PrimitiveConstructorEnvironment`).  The primitive
+constructor check built on them is `PrimitiveConstructorCheck`
+(`Primitive/ConstructorParams.lean`).
 -/
 
 namespace Lean4Lean
@@ -959,34 +960,6 @@ structure PrimitiveConstructorEnvironment
   owners : ConstructorOwnersPresent outEnv
   equationHeads : EquationHeadsCoherent outEnv.constants venvCtors
   quot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants venvCtors
-
-/-- The primitive constructor check: the same semantic data needed by recursor
-generation as the ordinary constructor check, with the atomic installation
-kept separate.  `PrimitiveConstructorCheck.toCheckedFormation` turns it into
-the shared checked formation without a valid header-only context. -/
-structure PrimitiveConstructorCheck
-    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv)
-    (outEnv : Environment) where
-  checked : CheckedConstructorCertificate sourceEnv decl H.context.venv
-    H.headers.params
-  parameterPrefixes : ConstructorParameterPrefixes stats indTypes
-  /-- The field classifications returned by the executable constructor check. -/
-  classes : List (List (List Bool))
-  constructorTails : ConstructorTails H.context.venv c.lparams
-    H.statsWF.parameterScope stats decl indTypes classes
-  ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
-  telescopes : SourceCtorsCertified H.context.venv c.lparams indTypes.toList
-  declared : PrimitiveConstructorEnvironment H outEnv
-  formation : FormationCertificate sourceEnv decl
-  core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
-    isUnsafe decl H.context.venv declared.venvCtors
-  inductInfosFromDecl :
-    InductInfosFromDecl c.env.constants outEnv.constants decl
-  constructorParameterAlignment : forall {safety},
-    ConstructorParameterAlignment safety c.env sourceEnv ->
-    ConstructorParameterAlignment safety outEnv
-      declared.venvCtors
 
 end VerifyInductive
 end Lean4Lean

@@ -15,25 +15,6 @@ exactly that soundness; it is not a hypothesis about the entry itself. -/
 
 namespace Lean4Lean
 
-/-- The declaration of a projection entry (`VEnv.ProjDecl`), at a given header environment. -/
-def VEnv.ProjDeclAt (env envTypes : VEnv) (S : Name) (info : VProjectionInfo) : Prop :=
-  ∃ (base : VEnv) (dsb : List VDecl) (decl : VInductDecl) (type : VInductiveType)
-    (ctor : VConstVal),
-    base.WF' dsb ∧ base.addConstVals decl.typeConstants = some envTypes ∧ envTypes ≤ env ∧
-    envTypes.Ordered ∧ type ∈ decl.types ∧ type.ctors = [ctor] ∧ type.name = S ∧
-    info.uvars = decl.uvars ∧ info.nparams = decl.nparams ∧ info.nindices = type.numIndices ∧
-    info.resultLevel = type.resultLevel ∧ info.ctorName = ctor.name ∧ info.ctorType = ctor.type ∧
-    ctor.uvars = decl.uvars ∧ envTypes.IsType decl.uvars [] ctor.type ∧
-    decl.RawCtorShape type ctor ∧ decl.sourceNames.Nodup ∧ decl.SourceParameterWF base
-
-theorem VEnv.projDecl_iff {env : VEnv} {S : Name} {info : VProjectionInfo} :
-    env.ProjDecl S info ↔ ∃ envTypes, env.ProjDeclAt envTypes S info :=
-  ⟨fun ⟨b, e, d, h⟩ => ⟨e, b, d, h⟩, fun ⟨e, b, d, h⟩ => ⟨b, e, d, h⟩⟩
-
-theorem VEnv.ProjDeclAt.origin {env envTypes : VEnv} {S : Name} {info : VProjectionInfo}
-    (h : env.ProjDeclAt envTypes S info) : env.ProjDecl S info :=
-  VEnv.projDecl_iff.2 ⟨_, h⟩
-
 namespace VEnv
 namespace Model
 

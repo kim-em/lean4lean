@@ -1107,10 +1107,10 @@ theorem NestedRun.loweredFamilyMappings
         Hrun.lvls).trans hinitLvls
     refine ⟨Horigin.source, Horigin.stepState, Horigin.loweredState, ?_,
       checkPositivityStep.TrExprS.sourceAvoidsFresh hfreshInit
-        Nsource.payload.translation.header.type, hlv, M⟩
+        Nsource.translation.header.type, hlv, M⟩
     intro ctor hctor
     obtain ⟨ctor', -, hC⟩ := Lean4Lean.List.Forall₂.forall_exists_l
-      Nsource.payload.translation.ctors ctor hctor
+      Nsource.translation.ctors ctor hctor
     exact checkPositivityStep.TrExprS.sourceAvoidsFresh hfreshN hC.type
 
 /-- **Lowered constructor types of a validated nested run are parameter-uniform

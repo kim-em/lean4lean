@@ -633,10 +633,10 @@ private theorem inductInfo_safety_of_visible' {info : InductiveVal} {isUnsafe : 
   · left; rfl
 
 open _root_.Lean4Lean.InductiveSignature in
-/-- `AuxiliaryFamilySourceData.auxiliarySpecialization`, also
+/-- `AuxiliaryFamilySource.auxiliarySpecialization`, also
 recording that the specialisation's universe and parameter arguments are those
 of the source data `N` (`N.levels`, `N.baseArgs`). -/
-theorem AuxiliaryFamilySourceData.linkedSpecialization
+theorem AuxiliaryFamilySource.linkedSpecialization
     {ves : VEnvs} {isUnsafe : Bool} {prodEnv : Environment}
     {params : Array Expr} {nparams : Nat}
     {finalState : Lean4Lean.ElimNestedInductive.State}
@@ -645,7 +645,7 @@ theorem AuxiliaryFamilySourceData.linkedSpecialization
       targetConcrete}
     {sourceTypesVEnv : VEnv} {lparams : List Name} {target : VInductiveType}
     {baseVEnv : VEnv}
-    (N : AuxiliaryFamilySourceData H baseVEnv sourceTypesVEnv
+    (N : AuxiliaryFamilySource H baseVEnv sourceTypesVEnv
       lparams target)
     (hbase : baseVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
     (wf : ves.WF prodEnv) (decl : VInductDecl)
@@ -657,15 +657,15 @@ theorem AuxiliaryFamilySourceData.linkedSpecialization
     ∃ a : ContainerSpecialization,
       SpecializationGenerates
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceTypesVEnv paramCtx
-        decl a N.payload.source ∧
-      a.auxiliary = N.payload.source.name ∧ a.source = N.containerFamily ∧
+        decl a N.source ∧
+      a.auxiliary = N.source.name ∧ a.source = N.containerFamily ∧
       a.levels = N.levels ∧ a.arguments = N.baseArgs := by
   subst hbase
   rcases List.mem_iff_getElem.mp N.familyMember with ⟨idx, hidx, hfamily⟩
   let a : ContainerSpecialization := {
     container := N.container
     family := ⟨idx, hidx⟩
-    auxiliary := N.payload.source.name
+    auxiliary := N.source.name
     levels := N.levels
     arguments := N.baseArgs }
   have hsource : a.source = N.containerFamily := hfamily
@@ -724,14 +724,14 @@ theorem AuxiliaryFamilySourceData.linkedSpecialization
 /-- The container application recorded for a generated family, abstracted
 over the final lowering parameters, is the container application of its source
 data. -/
-theorem AuxiliaryFamilySourceData.auxiliaryContainerApp
+theorem AuxiliaryFamilySource.auxiliaryContainerApp
     {prodEnv : Environment} {result : Lean4Lean.ElimNestedInductive.Result}
     {nparams : Nat} {finalState : Lean4Lean.ElimNestedInductive.State}
     {targetConcrete : InductiveType}
     {H : LoweredAuxiliaryFamily prodEnv result.params nparams finalState
       targetConcrete}
     {baseVEnv sourceTypesVEnv : VEnv} {lparams : List Name} {target : VInductiveType}
-    (N : AuxiliaryFamilySourceData H baseVEnv sourceTypesVEnv
+    (N : AuxiliaryFamilySource H baseVEnv sourceTypesVEnv
       lparams target)
     (a : InductiveSignature.ContainerSpecialization)
     (hsrcName : a.source.name = H.generated.sourceName)
@@ -760,17 +760,17 @@ theorem AuxiliaryFamilySourceData.auxiliaryContainerApp
   · rw [hlevels]; exact N.levelsTranslation
   · rw [hargs]; exact N.baseTranslations
 
-/-- `AuxiliaryFamilySourceData.auxiliaryContainerApp` in the source
+/-- `AuxiliaryFamilySource.auxiliaryContainerApp` in the source
 header environment, with the source-data parameters definitionally equal to
 a given context. -/
-theorem AuxiliaryFamilySourceData.auxiliaryContainerAppAt
+theorem AuxiliaryFamilySource.auxiliaryContainerAppAt
     {prodEnv : Environment} {result : Lean4Lean.ElimNestedInductive.Result}
     {nparams : Nat} {finalState : Lean4Lean.ElimNestedInductive.State}
     {targetConcrete : InductiveType}
     {H : LoweredAuxiliaryFamily prodEnv result.params nparams finalState
       targetConcrete}
     {baseVEnv sourceTypesVEnv : VEnv} {lparams : List Name} {target : VInductiveType}
-    (N : AuxiliaryFamilySourceData H baseVEnv sourceTypesVEnv
+    (N : AuxiliaryFamilySource H baseVEnv sourceTypesVEnv
       lparams target)
     (a : InductiveSignature.ContainerSpecialization)
     (hsrcName : a.source.name = H.generated.sourceName)
@@ -1645,15 +1645,15 @@ theorem NestedRun.restorationTablesRestoringAllSpec
       Htarget (sourceTypes.length + i) hresult htarget
     have Hmapping := Horigin.resolvedMapping Hmap
     have Hheader : NestedTypeExpansionHeader P.initialEnv sourceDecl
-        Nsource.payload.source P.loweredDecl.types[sourceTypes.length + i] :=
-      Hmapping.abstractHeaderExpansion Nsource.payload.translation HtargetType hbaseWF
-        Hsource.uvars Nsource.payload.numIndices Nsource.payload.resultLevel
+        Nsource.source P.loweredDecl.types[sourceTypes.length + i] :=
+      Hmapping.abstractHeaderExpansion Nsource.translation HtargetType hbaseWF
+        Hsource.uvars Nsource.numIndices Nsource.resultLevel
     have hstep : Horigin.stepState.lvls = finalState.lvls :=
       Horigin.lowered.nestedAuxLE.lvls.symm.trans Horigin.later.lvls.symm
-    have Hexp := Hmapping.abstractExpansionAbove Hlift hstep Nsource.payload.translation
+    have Hexp := Hmapping.abstractExpansionAbove Hlift hstep Nsource.translation
       HtargetType Hheader
       (Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.constructorsClosed
-        Nsource.payload.translation)
+        Nsource.translation)
       HsourceTypesWF HtargetTypesWF Hrun.resultParamsSize Hsource.nparams.symm
       (fun Htrace Hctx selection hnd Harity Hdepth hsp htp hscope hse hte _ =>
         N.restoringReplacement Htarget

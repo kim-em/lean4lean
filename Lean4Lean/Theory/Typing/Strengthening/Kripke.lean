@@ -556,8 +556,8 @@ theorem LoopEnv.no_observation (henv : env.WF) (H : LoopEnv env L₁ L₂ env₁
   | ctor hctor =>
     obtain ⟨rfl, rfl⟩ := VExpr.const.inj he.symm
     rcases hctor with ⟨df, hdf, hmajor⟩ | ⟨b, schema, owner, rule, hreg, hgen, hname⟩
-    · exact hnotRigid (constHeadRigid_iff.mp (henv'.installed_constructor_rigid hdf hmajor))
-    · exact hnotRigid (hname ▸ constHeadRigid_iff.mp (henv'.case_constructor_rigid hreg hgen))
+    · exact hnotRigid (henv'.installed_constructor_rigid hdf hmajor)
+    · exact hnotRigid (hname ▸ henv'.case_constructor_rigid hreg hgen)
   | projCtor hproj hname =>
     obtain ⟨rfl, rfl⟩ := VExpr.const.inj he.symm
     rw [H.projections', H.projections₁] at hproj

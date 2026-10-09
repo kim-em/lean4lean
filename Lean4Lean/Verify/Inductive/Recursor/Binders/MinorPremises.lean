@@ -406,15 +406,12 @@ theorem MotiveTelescopesAt.of
       elimLevel) :
     MotiveTelescopesAt Rroot stats decl recInfos elimLevel where
   rootBinding target htarget := by
-    rcases Hshapes.motiveBindingAtMono Hbindings Horigins
-        (RecursorContextExtension.refl Rroot).contextLE
-        target htarget with ⟨Hbinding⟩
-    exact ⟨Hbinding.toBinding⟩
+    exact Hshapes.motiveBindingMono Hbindings Horigins
+        (RecursorContextExtension.refl Rroot).contextLE target htarget
   appliesTo target htarget _current Rcurrent Hext _depth _exposedType
       _syntaxTarget Hexposed HsyntaxType Hvalidated := by
-    rcases Hshapes.motiveBindingAtMono (Rcurrent := Rcurrent)
-        Hbindings Horigins Hext.contextLE target htarget with ⟨Hbinding⟩
-    let binding := Hbinding.toBinding
+    rcases Hshapes.motiveBindingMono (Rcurrent := Rcurrent)
+        Hbindings Horigins Hext.contextLE target htarget with ⟨binding⟩
     exact ⟨binding, T.telescope target htarget Rcurrent Hext binding
       Hexposed HsyntaxType Hvalidated⟩
 
@@ -3551,9 +3548,8 @@ theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
   let Hvalidated := HstatsArgs.validatedIndAppAt Hterminal
     Happlication.owner_valid htargetDecl
       (by simpa only [HfieldsRecent.venv_eq] using hlit) hctxArgs
-  rcases HmotiveShapes.motiveBindingAtRecent Hbindings Horigins
-      HfieldsRecent Happlication.ownerIdx htarget with ⟨HbindingAt⟩
-  let Hbinding := HbindingAt.toBinding
+  rcases HmotiveShapes.motiveBindingRecent Hbindings Horigins
+      HfieldsRecent Happlication.ownerIdx htarget with ⟨Hbinding⟩
   have HmotiveEvidence := Htelescopes.telescope Happlication.ownerIdx
     htarget Rargs HextArgs Hbinding Hterminal HterminalType Hvalidated
   have HterminalWF : VExpr.WF Rargs.venv recLparams.length

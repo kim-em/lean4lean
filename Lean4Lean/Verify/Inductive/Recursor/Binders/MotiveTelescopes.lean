@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Recursor.Binders.InductionHypothesisTypes
 
 /-! Motive application properties used by the minor pass: the lookup of a generated
-motive (`MotiveBindingAt`, `MotiveBinding`), the shared family/motive telescope
+motive (`MotiveBinding`), the shared family/motive telescope
 (`MotiveAppliesTo`, `MotiveAppliesAbove`), the motive data recorded by the motive
 pass (`MotiveDecl`, `ClosedMotiveTelescope`), and their per-family arrays
 (`RecInfoMotiveTelescopes`, `RecInfoMotiveApplications`). -/
@@ -13,31 +13,9 @@ open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
-/-- Lookup data for one generated motive.  It connects the
-executable free variable to the index/major telescope recorded when the
-motive was introduced. -/
-structure MotiveBindingAt
-    {c : AddInductive.Context} {recLparams : List Name}
-    (R : RecursorContextWF c recLparams)
-    (recInfos : Array AddInductive.RecInfo) (target : Nat)
-    (elimLevel : Level) : Type where
-  target_lt : target < recInfos.size
-  motiveTarget : VExpr
-  motiveTypeTarget : VExpr
-  motive : TrExprS R.venv recLparams R.mlctx.vlctx
-    recInfos[target]!.motive motiveTarget
-  motiveType : TrExprS R.venv recLparams R.mlctx.vlctx
-    (c.lctx.mkForall recInfos[target]!.indices
-      (c.lctx.mkForall #[recInfos[target]!.major] (.sort elimLevel)))
-    motiveTypeTarget
-  typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
-    motiveTarget motiveTypeTarget
-  typeIsType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
-    motiveTypeTarget
-
-/-- Context-local data for a generated motive, stated directly
-against one `RecInfo`.  The indexed lookup data `MotiveBindingAt` is converted to this
-form before invoking the context-independent motive application invariant. -/
+/-- Lookup data for one generated motive, stated against its `RecInfo`: the
+translations of the executable motive free variable and of its type (the forall over the
+index/major telescope recorded when the motive was introduced), and their typing. -/
 structure MotiveBinding
     {c : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF c recLparams)
@@ -54,16 +32,6 @@ structure MotiveBinding
     motiveTarget motiveTypeTarget
   typeIsType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
     motiveTypeTarget
-
-def MotiveBindingAt.toBinding
-    (H : MotiveBindingAt R recInfos target elimLevel) :
-    MotiveBinding R recInfos[target]! elimLevel where
-  motiveTarget := H.motiveTarget
-  motiveTypeTarget := H.motiveTypeTarget
-  motive := H.motive
-  motiveType := H.motiveType
-  typing := H.typing
-  typeIsType := H.typeIsType
 
 /-- The typing property for applying one generated motive.  It is
 quantified over the later context in which it is used: the motive pass of
@@ -973,16 +941,16 @@ theorem RecInfoMotiveTelescopes.applications
   application target htarget :=
     MotiveAppliesAbove.toApplication (H.telescope target htarget)
 
-/-- Recover one motive's lookup data `MotiveBindingAt` from the binding,
+/-- Recover one motive's lookup data `MotiveBinding` from the binding,
 binder-type, and telescope-shape invariants established by the motive pass. -/
-theorem MotiveTypes.motiveBindingAt
+theorem MotiveTypes.motiveBinding
     (R : RecursorContextWF c recLparams)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoBinderTypes c recInfos)
     (Hshape : MotiveTypes c recInfos
       Horigins.motiveTypes elimLevel)
     (target : Nat) (htarget : target < recInfos.size) :
-    Nonempty (MotiveBindingAt R recInfos target elimLevel) := by
+    Nonempty (MotiveBinding R recInfos[target]! elimLevel) := by
   have htargetMap : target < (recInfos.map (·.motive)).size := by
     simpa using htarget
   rcases Hbindings.motives.declarationAt R.toBindingContextWF target
@@ -1009,7 +977,6 @@ theorem MotiveTypes.motiveBindingAt
   have hmotiveTyping := R.mlctx_wf.tr.wf.find?_wf
     R.checking.tr.wf.ordered hlookup
   refine ⟨{
-    target_lt := htarget
     motiveTarget := motiveTarget
     motiveTypeTarget := motiveTypeTarget
     motive := ?_

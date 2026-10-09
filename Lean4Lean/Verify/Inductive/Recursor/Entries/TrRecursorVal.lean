@@ -3,12 +3,13 @@ import Lean4Lean.Verify.Typing.Expr
 import Lean4Lean.Verify.Typing.Lemmas
 
 /-! Translation relations between the executable's recursor values and the generated
-recursors of a signature instance: `TrRecursorRule`, `TrRecursorVal`, `TrRecursorEntry` and
-`TrCompilation`.
+recursors of a signature instance: `TrRecursorRule`, `RecursorMetadata`, `TrRecursorVal`,
+`TrRecursorEntry` and `TrCompilation`.
 
 `TrConstVal` relates only a name, universe arity and type; it says nothing about rules,
 parameter counts or the K flag. `TrRecursorVal` records those facts explicitly against the
-signature generator (section 3.2 of `docs/inductives/DESIGN.md`).
+signature generator (section 3.2 of `docs/inductives/DESIGN.md`): it extends
+`RecursorMetadata`, the facts available before the rules exist, with the rule coverage.
 -/
 
 namespace Lean4Lean
@@ -28,10 +29,13 @@ structure TrRecursorRule {s : InductiveSignature} (g : Instance s)
   nfields : rule.nfields = s.constructors[index].fields.length
   rhs : TrExprS venv lparams [] rule.rhs (g.equation index).rhs
 
-/-- All metadata consulted by recursor reduction is justified by the same signature as its
-type and rules. `venv` is the abstract environment of the block in which the type and the
-rule right-hand sides are translated; the executable installation may still be in progress. -/
-structure TrRecursorVal {s : InductiveSignature} (g : Instance s)
+/-- The metadata of one concrete recursor, against the signature instance that generated
+it: the name, universe arity, translated type, cardinalities, major premise, mutual block,
+safety, and K flag. Everything recursor reduction consults except the rule list.
+`RecursorCheck.trMetadata` establishes it for each installed entry before any rule exists;
+`TrRecursorVal` adds the rule coverage. `venv` is the abstract environment of the block in
+which the type is translated; the executable installation may still be in progress. -/
+structure RecursorMetadata {s : InductiveSignature} (g : Instance s)
     (venv : VEnv) (owner : Fin s.families.size) (rec : Lean.RecursorVal) : Prop where
   name : rec.name = g.recursorName owner
   uvars : rec.levelParams.length = g.uvars
@@ -43,12 +47,20 @@ structure TrRecursorVal {s : InductiveSignature} (g : Instance s)
   major : rec.getMajorInduct = s.families[owner].name
   all : rec.all = s.families.toList.map (·.name)
   isUnsafe : rec.isUnsafe = s.isUnsafe
-  rules : List.Forall₂ (TrRecursorRule g venv rec.levelParams)
-    (s.ownedConstructors owner) rec.rules
   k : rec.k = true →
     s.families.size = 1 ∧ s.constructors.size = 1 ∧
     s.families[owner].resultLevel ≈ .zero ∧
     ∀ ctor ∈ s.constructors.toList, ctor.fields = []
+
+/-- All metadata consulted by recursor reduction is justified by the same signature as its
+type and rules: the `RecursorMetadata` of the recursor together with its rule coverage.
+`venv` is the abstract environment of the block in which the type and the rule right-hand
+sides are translated; the executable installation may still be in progress. -/
+structure TrRecursorVal {s : InductiveSignature} (g : Instance s)
+    (venv : VEnv) (owner : Fin s.families.size) (rec : Lean.RecursorVal) : Prop
+    extends RecursorMetadata g venv owner rec where
+  rules : List.Forall₂ (TrRecursorRule g venv rec.levelParams)
+    (s.ownedConstructors owner) rec.rules
 
 /-- An installed executable entry and its abstract constant are the executable and the
 generated recursor of the same owner. A type translation alone would lose the executable

@@ -1082,7 +1082,7 @@ theorem parRed_const_stable {Γ : List VExpr} {c : Name} {ls : List VLevel}
     rw [InductiveSignature.CaseSchema.Application.head] at hh
     cases hh
   | extra hp hm =>
-    exact False.elim (Params.not_rigid_match (constHeadRigid_iff.mpr hr) hp hm
+    exact False.elim (Params.not_rigid_match hr hp hm
       (by rw [← he]; rfl))
   | _ => cases he
 

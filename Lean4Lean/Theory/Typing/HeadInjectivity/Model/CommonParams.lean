@@ -5,7 +5,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Projections.FamilyHeader
 
 Two telescopes `own` and `pdoms` that are both context-convertible to a common telescope
 `params` (as the family header's and the constructor's parameter domains are, by
-`VEnv.ProjDecl.familyTele_data`) are instantiated by the same arguments: a substitution
+`VEnv.ProjDeclAt.familyTele_data`) are instantiated by the same arguments: a substitution
 typed along a prefix of `own` is typed along the same prefix of `pdoms`, and the
 instantiated domains have the same type class (`VEnv.Model.paramBridge`). Each domain is
 related by two sort-typed links at possibly different sorts, `own_i ~ params_i ~ pdoms_i`,

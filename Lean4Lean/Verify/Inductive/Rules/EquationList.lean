@@ -45,10 +45,10 @@ theorem RecursorCheck.EquationPrefix.empty
   equations := .nil
   rulesWF _ h := by simp at h
 
-/-- The installed rule list of an ordinary recursor run and its typing in the
-environment with the recursors. The `trCompilation` field of
-`RuleTranslations` fixes the list as the generated equations. -/
-structure RuleTranslationShape
+/-- The installed rule list of an ordinary recursor run, its typing in the environment
+with the recursors, and its translation of the generated equations (`trCompilation`, which
+fixes the list as those equations). -/
+structure RuleTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -58,15 +58,6 @@ structure RuleTranslationShape
     (H : RecursorCheck R outEnv) where
   rules : List VDefEq
   rulesWF : ∀ df ∈ rules, df.WF H.outVEnv
-
-structure RuleTranslations
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    (H : RecursorCheck R outEnv) extends RuleTranslationShape H where
   trCompilation : InductiveSignature.TrCompilation sourceEnv decl
     (H.blockCertificate rules rulesWF).block H.outVEnv H.entries
 

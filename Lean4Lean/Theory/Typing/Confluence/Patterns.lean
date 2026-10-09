@@ -52,7 +52,7 @@ theorem QuotRegistered.recursor_name_ne (hq : QuotRegistered env)
   simp [VExpr.mkApps, quotLiftConst, VExpr.forallResult] at ht
 
 theorem QuotRegistered.quotMk_rigid (henv : env.WF) (hq : QuotRegistered env) :
-    env.ConstHeadRigid ``Quot.mk :=
+    env.Rigid ``Quot.mk :=
   henv.installed_constructor_rigid hq.equation ⟨_, [.param 0], [.bvar 5, .bvar 4, .bvar 0], rfl⟩
 
 theorem QuotRegistered.lift_head (hq : QuotRegistered env) :
@@ -66,9 +66,8 @@ theorem RecursorRegistered.not_rigid_of_lookup
     (H : RecursorRegistered env data)
     {index : Fin data.schema.signature.constructors.size}
     (howner : data.schema.signature.constructors[index].owner = data.owner)
-    (hgen : data.equation index = some equation) : ¬env.ConstHeadRigid data.name := fun h =>
-  h equation (H.equation_present hgen) _
-    ((VExpr.equationHead_eq _).trans (H.equation_head howner hgen))
+    (hgen : data.equation index = some equation) : ¬env.Rigid data.name := fun h =>
+  h equation (H.equation_present hgen) _ (H.equation_head howner hgen)
 
 theorem _root_.Lean4Lean.SimplePattern.iota_toPattern_inj
     (H : (SimplePattern.iota a b c d).toPattern = (SimplePattern.iota a' b' c' d').toPattern) :
@@ -203,8 +202,8 @@ its constructor is neither the quotient lift nor the quotient constructor. -/
 theorem ConcretePattern.recursor_quot_names (hq : QuotRegistered env)
     (H : GeneratedIotaPattern env registry.recursors p rhs) :
     ∃ rc mr cc kc, p = (SimplePattern.iota rc mr cc kc).toPattern ∧
-      rc ≠ ``Quot.lift ∧ rc ≠ ``Quot.mk ∧ cc ≠ ``Quot.lift ∧ env.ConstHeadRigid cc ∧
-      ¬env.ConstHeadRigid rc := by
+      rc ≠ ``Quot.lift ∧ rc ≠ ``Quot.mk ∧ cc ≠ ``Quot.lift ∧ env.Rigid cc ∧
+      ¬env.Rigid rc := by
   cases H with
   | @intro data index equation _ hr hl ho hg =>
     have hrigid := henv.installed_constructor_rigid (hr.equation_present hg) (hr.equation_major hg)
@@ -213,7 +212,8 @@ theorem ConcretePattern.recursor_quot_names (hq : QuotRegistered env)
     · intro h; exact hnr (h ▸ hq.quotMk_rigid henv)
     · intro h
       obtain ⟨eq, lv, he, hh⟩ := hq.lift_head
-      exact hrigid eq he lv (by rw [hh]; exact congrArg (VExpr.const · lv) h.symm)
+      exact hrigid eq he lv
+        (by rw [← VExpr.equationHead_eq, hh]; exact congrArg (VExpr.const · lv) h.symm)
 
 theorem ConcretePattern.uniq (H : ConcretePattern registry env p rhs)
     (H' : ConcretePattern registry env q rhs')
@@ -306,7 +306,7 @@ theorem ConcretePattern.app_uniq (H : ConcretePattern registry env p rhs)
         apply SimplePattern.iota_app_uniq ?_ hl hr
         intro h
         obtain ⟨eq, lv, he, hh⟩ := hq.lift_head
-        exact hrigid eq he lv (by rw [hh, h]; rfl)
+        exact hrigid eq he lv (by rw [← VExpr.equationHead_eq, hh, h]; rfl)
   · rcases H' with H' | ⟨hen, H'⟩ | H'
     · exact (H'.no_app_subpattern hs').elim
     · have hq := contract.quotientRegistered hen
@@ -334,7 +334,7 @@ theorem ConcretePattern.const_not_unfolding (H : ConcretePattern registry env (.
 
 theorem ConcretePattern.ctor_rigid_aux {P : Pattern} {r : P.RHS × P.Check}
     (H : ConcretePattern registry env P r) (hp : (SimplePattern.iota rc mr cc kc).toPattern = P) :
-    env.ConstHeadRigid cc := by
+    env.Rigid cc := by
   rcases H with H | ⟨hen, H⟩ | H
   · cases H; cases hp
   · cases H
@@ -348,9 +348,9 @@ theorem ConcretePattern.ctor_rigid_aux {P : Pattern} {r : P.RHS × P.Check}
 
 theorem ConcretePattern.ctor_rigid
     (H : ConcretePattern registry env (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r) :
-    env.ConstHeadRigid cc := by
+    env.Rigid cc := by
   have key : ∀ {P r}, ConcretePattern registry env P r →
-      P = (SimplePattern.iota rc mr cc kc).toPattern → env.ConstHeadRigid cc := by
+      P = (SimplePattern.iota rc mr cc kc).toPattern → env.Rigid cc := by
     intro P r H hp
     exact ConcretePattern.ctor_rigid_aux henv contract H hp.symm
   exact key H rfl

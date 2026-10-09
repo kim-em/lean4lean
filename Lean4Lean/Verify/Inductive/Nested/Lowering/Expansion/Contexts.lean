@@ -16,7 +16,9 @@ The resolved lowering relations (`ExprLowering.Resolved`, `ConstructorLowering.R
 `FamilyLowering.Resolved`) are projected through the translation to the abstract nested
 expansion (`VExpr.NestedExprExpansion`) required by `NestedFormationWF`: the lowered
 translation of each source family and constructor is the nested expansion of its source
-translation (`NestedLoweringOutputClosed.sourceExpansions`, `LoweredAuxiliaryFamily.abstractExpansion`).
+translation (`NestedLoweringOutputClosed.sourceExpansions`; the auxiliary-family counterpart
+`LoweredAuxiliaryFamily.abstractExpansion` is stated in `Expansion/AuxiliarySources.lean`,
+next to `AuxiliaryFamilySource`).
 
 The ordinary expression translation erases concrete lets by interpreting
 their bodies in a `vlet` context.  Consequently the projection induction must
@@ -1982,73 +1984,6 @@ theorem TrInductiveTypeHeaders.constructorsClosed
   rcases Lean4Lean.List.Forall₂.forall_exists_l H.ctors ctor hctor with
     ⟨_target, _htarget, Hctor⟩
   simpa [Lean4Lean.FVarsIn] using Hctor.type.fvarsIn
-
-/-- Source-side data needed for one auxiliary family of the
-queue.  It contains no final expansion judgment: only the independent
-translation of the exact pre-lowering family, its executable closure fact,
-and the two metadata fields not represented by `TrInductiveType`.
-
-It is the `payload` of `AuxiliaryFamilySourceData`, built from `AuxiliaryFamilySpec` and the
-installed container before the lowering mapping is interpreted. -/
-structure AuxiliaryFamilySource
-    (H : LoweredAuxiliaryFamily prodEnv params nparams finalState
-      targetConcrete)
-    (baseVEnv sourceTypesVEnv : VEnv) (lparams : List Name)
-    (target : VInductiveType) where
-  source : VInductiveType
-  translation : TrInductiveTypeHeaders baseVEnv sourceTypesVEnv lparams H.source
-    source
-  numIndices : target.numIndices = source.numIndices
-  resultLevel : target.resultLevel = source.resultLevel
-
-/-- Once the pre-lowering source data is available, the final
-queue mapping yields the complete abstract expansion of the auxiliary family. -/
-theorem LoweredAuxiliaryFamily.abstractExpansion
-    (H : LoweredAuxiliaryFamily prodEnv params nparams finalState
-      targetConcrete)
-    (Hsource : AuxiliaryFamilySource H baseVEnv sourceTypesVEnv
-      lparams target)
-    (Htarget : TrInductiveType baseVEnv targetTypesVEnv lparams targetConcrete
-      target)
-    (Hmap : NestedAuxMapModels result finalState)
-    (henv : baseVEnv.WF)
-    (huvars : decl.uvars = lparams.length)
-    (HsourceTypesWF : sourceTypesVEnv.WF)
-    (HtargetTypesWF : targetTypesVEnv.WF)
-    (hparamsSize : params.size = nparams)
-    (hnparams : nparams = decl.nparams)
-    (generated : List VInductiveType)
-    (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
-        {input state output nextState finalState depth fieldDepth sourceValue
-          targetValue sourceCtx targetCtx},
-      NodeReplacementResolved prodEnv lctx params As input state output
-        nextState result finalState →
-      NestedExpansionLookupCtx
-        (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv decl generated)
-        depth sourceCtx targetCtx →
-      (selection : CDeclArray lctx As) →
-      selection.fvars.Nodup →
-      As.size = params.size →
-      depth = selection.fvars.length + fieldDepth →
-      SelectedParameterTargets selection.fvars fieldDepth sourceCtx →
-      SelectedParameterTargets selection.fvars fieldDepth targetCtx →
-      input.FVarsIn (· ∈ selection.fvars) →
-      TrExprS sourceTypesVEnv lparams sourceCtx input sourceValue →
-      TrExprS targetTypesVEnv lparams targetCtx output targetValue →
-      VInductDecl.NestedOccurrenceReplacementAbs baseVEnv decl generated depth
-        sourceValue targetValue)
-    :
-    VInductDecl.NestedTypeExpansion baseVEnv decl
-      (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv decl generated)
-      Hsource.source target := by
-  have Hmapping := H.resolvedMapping Hmap
-  have Hheader : NestedTypeExpansionHeader baseVEnv decl Hsource.source target :=
-    Hmapping.abstractHeaderExpansion Hsource.translation Htarget henv huvars
-      Hsource.numIndices Hsource.resultLevel
-  exact Hmapping.abstractExpansion Hsource.translation Htarget Hheader
-    (Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.constructorsClosed
-      Hsource.translation)
-    HsourceTypesWF HtargetTypesWF hparamsSize hnparams Hhit
 
 /-- Expansion of a source family and its constructors.  All family and constructor
 ordering is obtained from exact positional translations and the

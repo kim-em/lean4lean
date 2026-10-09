@@ -697,7 +697,7 @@ theorem RecInfoOuterOrder.monoRecent
 /-- Select a motive in any later executable binding context.  All binder
 types and the telescope shape are monotone; the abstract lookup is
 then reconstructed from the later context's own `RecursorContextWF`. -/
-theorem MotiveTypes.motiveBindingAtMono
+theorem MotiveTypes.motiveBindingMono
     {root current : AddInductive.Context} {recLparams : List Name}
     {Rcurrent : RecursorContextWF current recLparams}
     (Hbindings : RecInfoBindings root recInfos)
@@ -706,16 +706,16 @@ theorem MotiveTypes.motiveBindingAtMono
       Horigins.motiveTypes elimLevel)
     (Hle : BindingContextLE root current)
     (target : Nat) (htarget : target < recInfos.size) :
-    Nonempty (MotiveBindingAt Rcurrent recInfos target elimLevel) := by
+    Nonempty (MotiveBinding Rcurrent recInfos[target]! elimLevel) := by
   let HbindingsCurrent := Hbindings.mono Hle
   let HoriginsCurrent := Horigins.mono Hle
   let HshapeCurrent := Hshape.mono Hbindings Hle
-  exact HshapeCurrent.motiveBindingAt Rcurrent HbindingsCurrent
+  exact HshapeCurrent.motiveBinding Rcurrent HbindingsCurrent
     HoriginsCurrent target htarget
 
 /-- Consecutive higher-order suffix specialization of
-`motiveBindingAtMono`. -/
-theorem MotiveTypes.motiveBindingAtRecent
+`motiveBindingMono`. -/
+theorem MotiveTypes.motiveBindingRecent
     {root current : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {Rcurrent : RecursorContextWF current recLparams} {args : Array Expr}
@@ -725,8 +725,8 @@ theorem MotiveTypes.motiveBindingAtRecent
       Horigins.motiveTypes elimLevel)
     (Hrecent : RecursorFVarSuffix Rroot Rcurrent args)
     (target : Nat) (htarget : target < recInfos.size) :
-    Nonempty (MotiveBindingAt Rcurrent recInfos target elimLevel) :=
-  Hshape.motiveBindingAtMono Hbindings Horigins Hrecent.contextLE target
+    Nonempty (MotiveBinding Rcurrent recInfos[target]! elimLevel) :=
+  Hshape.motiveBindingMono Hbindings Horigins Hrecent.contextLE target
     htarget
 
 /-- Use the target-indexed motive applications `RecInfoMotiveApplications` after
@@ -768,7 +768,7 @@ theorem RecInfoMotiveApplications.applyAtMono
         motiveApp motiveTarget ∧
       Rcurrent.venv.IsType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx motiveTarget := by
-  rcases Hshape.motiveBindingAtMono Hbindings Horigins Hext.contextLE target
+  rcases Hshape.motiveBindingMono Hbindings Horigins Hext.contextLE target
       htarget with ⟨Hbinding⟩
   have HsyntaxType : Rcurrent.venv.IsType recLparams.length
       Rcurrent.mlctx.vlctx.toCtx syntaxTarget :=
@@ -779,7 +779,7 @@ theorem RecInfoMotiveApplications.applyAtMono
     HmajorType.defeqU_r Rcurrent.checking.tr.wf
       Rcurrent.mlctx_wf.tr.wf.toCtx Hdefeq.symm
   exact Happlications.application target htarget Rcurrent Hext
-    Hbinding.toBinding Hexposed HsyntaxType Hmajor HmajorType' Hvalidated
+    Hbinding Hexposed HsyntaxType Hmajor HmajorType' Hvalidated
 
 theorem RecInfoBindings.empty_noAlias
     {stats : AddInductive.InductiveStats}

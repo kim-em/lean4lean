@@ -216,18 +216,64 @@ structure ConstructorTailCertificate (env : VEnv) (decl : VInductDecl)
   normal forms checked before introducing the eliminator universe. -/
   uniform : decl.UniformCtorTail env target (VLevel.params decl.uvars) ctx depth tail classes
 
-/-- Prefix invariant for constructor checking in the exact flattened order
-used by recursor-minor and iota-rule generation. -/
-structure ConstructorPrefixCertificate (env : VEnv) (decl : VInductDecl)
-    (envTypes : VEnv) (params : List VExpr) (done : Nat) : Prop where
-  shapes : ∀ i, i < done → (hi : i < decl.ownedConstructors.length) →
-    decl.CtorShape envTypes params decl.ownedConstructors[i].1
-      decl.ownedConstructors[i].2
+structure CheckedConstructorCertificate (env : VEnv) (decl : VInductDecl)
+    (envTypes : VEnv) (params : List VExpr) : Prop where
+  formation : ConstructorCertificate env decl envTypes params
+  types : ∀ ctor ∈ decl.constructorConstants,
+    envTypes.IsType decl.uvars [] ctor.type
 
-theorem ConstructorPrefixCertificate.empty (env : VEnv)
-    (decl : VInductDecl) (envTypes : VEnv) (params : List VExpr) :
-    ConstructorPrefixCertificate env decl envTypes params 0 where
-  shapes _ h := by omega
+/-- The first `done` positions of a sequence of length `len` satisfy `P`: the invariant of a
+loop that has processed `done` entries. The constructor loops of `checkConstructors`
+instantiate it for the constructors of one family and for the families of a block. -/
+structure IndexedPrefix (len : Nat) (P : (i : Nat) → i < len → Prop) (done : Nat) : Prop where
+  covered : done ≤ len
+  holds : ∀ i, i < done → (hi : i < len) → P i hi
+
+theorem IndexedPrefix.empty {len : Nat} {P : (i : Nat) → i < len → Prop} :
+    IndexedPrefix len P 0 :=
+  ⟨Nat.zero_le _, fun _ h => absurd h (Nat.not_lt_zero _)⟩
+
+theorem IndexedPrefix.push {len : Nat} {P : (i : Nat) → i < len → Prop} {done : Nat}
+    (H : IndexedPrefix len P done) (hi : done < len) (h : P done hi) :
+    IndexedPrefix len P (done + 1) where
+  covered := hi
+  holds i hidone hi' := by
+    by_cases hlast : i = done
+    · subst i; exact h
+    · exact H.holds i (by omega) hi'
+
+/-- A complete prefix covers every position. -/
+theorem IndexedPrefix.all {len : Nat} {P : (i : Nat) → i < len → Prop}
+    (H : IndexedPrefix len P len) (i : Nat) (hi : i < len) : P i hi :=
+  H.holds i hi hi
+
+theorem getElem!_append_singleton_self {α : Type} [Inhabited α] {l : List α} {x : α} {n : Nat}
+    (h : l.length = n) : (l ++ [x])[n]! = x := by
+  subst h
+  rw [getElem!_pos (l ++ [x]) l.length (by simp)]
+  simp
+
+theorem getElem!_append_singleton_lt {α : Type} [Inhabited α] {l : List α} {x : α} {i : Nat}
+    (h : i < l.length) : (l ++ [x])[i]! = l[i]! := by
+  rw [getElem!_pos (l ++ [x]) i (by simp; omega), getElem!_pos l i h]
+  exact List.getElem_append_left h
+
+/-- `push` for a prefix whose positions also read an output list `out` recorded by the loop,
+one entry per processed position. -/
+theorem IndexedPrefix.snoc {α : Type} [Inhabited α] {len : Nat}
+    {P : (i : Nat) → i < len → α → Prop} {out : List α} {x : α} {done : Nat}
+    (H : IndexedPrefix len (fun i hi => P i hi out[i]!) done) (hout : out.length = done)
+    (hi : done < len) (h : P done hi x) :
+    IndexedPrefix len (fun i hi => P i hi (out ++ [x])[i]!) (done + 1) where
+  covered := hi
+  holds i hidone hi' := by
+    by_cases hlast : i = done
+    · subst i
+      rw [getElem!_append_singleton_self hout]
+      exact h
+    · have hlt : i < out.length := by omega
+      rw [getElem!_append_singleton_lt hlt]
+      exact H.holds i (by omega) hi'
 
 theorem ConstructorCertificate.ctorShape
     (H : ConstructorCertificate env decl envTypes params)
@@ -236,80 +282,15 @@ theorem ConstructorCertificate.ctorShape
   apply H.shapes (type, ctor)
   simp [VInductDecl.ownedConstructors, htype, hctor]
 
-/-- Shapes accumulated by the inner constructor loop for one family. -/
-structure ConstructorTypePrefix (envTypes : VEnv) (decl : VInductDecl)
-    (params : List VExpr) (target : VInductiveType) (done : Nat) : Prop where
-  covered : done ≤ target.ctors.length
-  shapes : ∀ i, i < done → (hi : i < target.ctors.length) →
-    decl.CtorShape envTypes params target target.ctors[i]
-  types : ∀ i, i < done → (hi : i < target.ctors.length) →
-    envTypes.IsType decl.uvars [] target.ctors[i].type
+/-- What the constructor loop establishes for one constructor `ctor` of `target`: its shape
+and the typing of its type in the header environment. -/
+def CtorTypeChecked (envTypes : VEnv) (decl : VInductDecl) (params : List VExpr)
+    (target : VInductiveType) (ctor : VConstVal) : Prop :=
+  decl.CtorShape envTypes params target ctor ∧ envTypes.IsType decl.uvars [] ctor.type
 
-theorem ConstructorTypePrefix.empty (envTypes : VEnv) (decl : VInductDecl)
-    (params : List VExpr) (target : VInductiveType) :
-    ConstructorTypePrefix envTypes decl params target 0 where
-  covered := Nat.zero_le _
-  shapes _ h := by omega
-  types _ h := by omega
-
-theorem ConstructorTypePrefix.push
-    (H : ConstructorTypePrefix envTypes decl params target done)
-    (hi : done < target.ctors.length)
-    (hshape : decl.CtorShape envTypes params target target.ctors[done])
-    (htype : envTypes.IsType decl.uvars [] target.ctors[done].type) :
-    ConstructorTypePrefix envTypes decl params target (done + 1) where
-  covered := by omega
-  shapes i hidone hi' := by
-    by_cases h : i = done
-    · subst i; exact hshape
-    · exact H.shapes i (by omega) hi'
-  types i hidone hi' := by
-    by_cases h : i = done
-    · subst i; exact htype
-    · exact H.types i (by omega) hi'
-
-/-- Shapes accumulated by the outer family loop. -/
-structure ConstructorTypesPrefix (envTypes : VEnv) (decl : VInductDecl)
-    (params : List VExpr) (done : Nat) : Prop where
-  covered : done ≤ decl.types.length
-  shapes : ∀ i, i < done → (hi : i < decl.types.length) →
-    ∀ j (hj : j < decl.types[i].ctors.length),
-      decl.CtorShape envTypes params decl.types[i] decl.types[i].ctors[j]
-  types : ∀ i, i < done → (hi : i < decl.types.length) →
-    ∀ j (hj : j < decl.types[i].ctors.length),
-      envTypes.IsType decl.uvars [] decl.types[i].ctors[j].type
-
-theorem ConstructorTypesPrefix.empty (envTypes : VEnv)
-    (decl : VInductDecl) (params : List VExpr) :
-    ConstructorTypesPrefix envTypes decl params 0 where
-  covered := Nat.zero_le _
-  shapes _ h := by omega
-  types _ h := by omega
-
-theorem ConstructorTypesPrefix.push
-    (H : ConstructorTypesPrefix envTypes decl params done)
-    (hi : done < decl.types.length)
-    (Htype : ConstructorTypePrefix envTypes decl params decl.types[done]
-      decl.types[done].ctors.length) :
-    ConstructorTypesPrefix envTypes decl params (done + 1) where
-  covered := by omega
-  shapes i hidone hi' j hj := by
-    by_cases h : i = done
-    · subst i; exact Htype.shapes j hj hj
-    · exact H.shapes i (by omega) hi' j hj
-  types i hidone hi' j hj := by
-    by_cases h : i = done
-    · subst i; exact Htype.types j hj hj
-    · exact H.types i (by omega) hi' j hj
-
-structure CheckedConstructorCertificate (env : VEnv) (decl : VInductDecl)
-    (envTypes : VEnv) (params : List VExpr) : Prop where
-  formation : ConstructorCertificate env decl envTypes params
-  types : ∀ ctor ∈ decl.constructorConstants,
-    envTypes.IsType decl.uvars [] ctor.type
-
-theorem ConstructorTypesPrefix.complete
-    (H : ConstructorTypesPrefix envTypes decl params decl.types.length) :
+theorem ConstructorCertificate.ofCtorTypesChecked
+    (H : ∀ i (hi : i < decl.types.length) j (hj : j < decl.types[i].ctors.length),
+      CtorTypeChecked envTypes decl params decl.types[i] decl.types[i].ctors[j]) :
     ConstructorCertificate env decl envTypes params where
   shapes owned howned := by
     rcases List.mem_flatMap.1 howned with ⟨target, htarget, hctor⟩
@@ -319,18 +300,19 @@ theorem ConstructorTypesPrefix.complete
     cases hpair
     rcases List.mem_iff_getElem.1 hctor with ⟨j, hj, hctorEq⟩
     cases hctorEq
-    simpa using H.shapes i hi hi j hj
+    simpa using (H i hi j hj).1
 
-theorem ConstructorTypesPrefix.checkedComplete
-    (H : ConstructorTypesPrefix envTypes decl params decl.types.length) :
+theorem CheckedConstructorCertificate.ofCtorTypesChecked
+    (H : ∀ i (hi : i < decl.types.length) j (hj : j < decl.types[i].ctors.length),
+      CtorTypeChecked envTypes decl params decl.types[i] decl.types[i].ctors[j]) :
     CheckedConstructorCertificate env decl envTypes params where
-  formation := H.complete
+  formation := .ofCtorTypesChecked H
   types ctor hctor := by
     simp only [VInductDecl.constructorConstants] at hctor
     rcases List.mem_flatMap.mp hctor with ⟨target, htarget, hctor⟩
     rcases List.mem_iff_getElem.1 htarget with ⟨i, hi, rfl⟩
     rcases List.mem_iff_getElem.1 hctor with ⟨j, hj, rfl⟩
-    exact H.types i hi hi j hj
+    exact (H i hi j hj).2
 
 /-- Fielded aggregation target for the executable header and constructor
 traversals. The public specification remains `VInductDecl.OrdinaryFormationWF`; this
@@ -624,127 +606,6 @@ theorem VInductDecl.paramsDefEq_reflOfAppend
       (env.IsType decl.uvars)) :
     decl.ParamsDefEq env params params := by
   exact VEnv.IsDefEqCtx.refl (OnCtx.of_append H)
-
-theorem TrInductDeclSkeletonCore.types_length
-    (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe decl
-      envTypes envCtors) :
-    types.length = decl.types.length :=
-  List.Forall₂.length_eq H.types
-
-theorem TrInductDeclSkeletonCore.typeAt
-    (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe decl
-      envTypes envCtors)
-    (i : Nat) (hsource : i < types.length)
-    (htarget : i < decl.types.length) :
-    TrInductiveTypeSkeleton env envTypes lparams
-      types[i] decl.types[i] :=
-  List.forall₂_getElem H.types i
-    hsource htarget
-
-theorem TrInductDeclSkeletonHeaders.types_length
-    (H : TrInductDeclSkeletonHeaders env lparams nparams types isUnsafe decl
-      envTypes) :
-    types.length = decl.types.length :=
-  List.Forall₂.length_eq H.types
-
-theorem TrInductDeclSkeletonHeaders.typeAt
-    (H : TrInductDeclSkeletonHeaders env lparams nparams types isUnsafe decl
-      envTypes)
-    (i : Nat) (hsource : i < types.length)
-    (htarget : i < decl.types.length) :
-    TrInductiveTypeSkeletonHeaders env envTypes lparams
-      types[i] decl.types[i] :=
-  List.forall₂_getElem H.types i hsource htarget
-
-theorem TrInductiveTypeSkeleton.checked
-    (H : TrInductiveTypeSkeleton env envTypes lparams type target) :
-    TrInductiveType env envTypes lparams type
-      (target.toVInductiveType numIndices resultLevel) where
-  header := H.header
-  ctors := H.ctors
-
-/-- Recovering arity metadata changes neither translated source constants nor
-the header and constructor environments, so the skeleton-core translation becomes the
-declaration-core translation `TrInductDeclCore` without using `SourceWF`. -/
-theorem TrInductDeclSkeletonCore.checked
-    (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe skeleton
-      envTypes envCtors)
-    (Hmaterialize : skeleton.withMetadata metadata = some decl) :
-    TrInductDeclCore env lparams nparams types isUnsafe decl
-      envTypes envCtors := by
-  have hfields := VInductDeclSkeleton.withMetadata_fields Hmaterialize
-  have herase := VInductDeclSkeleton.withMetadata_toSkeleton Hmaterialize
-  have htypeConstants : decl.typeConstants = skeleton.typeConstants := by
-    rw [← VInductDecl.toSkeleton_typeConstants decl, herase]
-  have hconstructorConstants :
-      decl.constructorConstants = skeleton.constructorConstants := by
-    rw [← VInductDecl.toSkeleton_constructorConstants decl, herase]
-  refine {
-    uvars := hfields.1.trans H.uvars
-    nparams := hfields.2.1.trans H.nparams
-    isUnsafe := hfields.2.2.1.trans H.isUnsafe
-    typesAdded := by simpa [htypeConstants] using H.typesAdded
-    ctorsAdded := by simpa [hconstructorConstants] using H.ctorsAdded
-    types := ?_ }
-  have hlength : types.length = decl.types.length := by
-    calc
-      types.length = skeleton.types.length :=
-        Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.types_length H
-      _ = decl.types.length := hfields.2.2.2.symm
-  apply List.forall₂_of_getElem hlength
-  intro i hsourceIdx htargetIdx
-  have hskeletonIdx : i < skeleton.types.length := by
-    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.types_length H]
-    exact hsourceIdx
-  have htranslated :=
-    Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.typeAt
-      H i hsourceIdx hskeletonIdx
-  rcases VInductDeclSkeleton.withMetadata_typeAt Hmaterialize
-      hskeletonIdx with ⟨data, hdata, htarget⟩
-  have htarget' : decl.types[i] =
-      skeleton.types[i].toVInductiveType data.1 data.2 := by
-    simpa [List.getElem?_eq_getElem htargetIdx] using htarget
-  rw [htarget']
-  exact Lean4Lean.VerifyInductive.TrInductiveTypeSkeleton.checked
-    htranslated
-
-/-- Filling in the arity metadata recovered by the executable header checker
-(`VInductDeclSkeleton.withMetadata`) preserves the header-only translation. -/
-theorem TrInductDeclSkeletonHeaders.checked
-    (H : TrInductDeclSkeletonHeaders env lparams nparams types isUnsafe
-      skeleton envTypes)
-    (Hmaterialize : skeleton.withMetadata metadata = some decl) :
-    TrInductDeclHeaders env lparams nparams types isUnsafe decl envTypes := by
-  have hfields := VInductDeclSkeleton.withMetadata_fields Hmaterialize
-  have herase := VInductDeclSkeleton.withMetadata_toSkeleton Hmaterialize
-  have htypeConstants : decl.typeConstants = skeleton.typeConstants := by
-    rw [← VInductDecl.toSkeleton_typeConstants decl, herase]
-  refine {
-    uvars := hfields.1.trans H.uvars
-    nparams := hfields.2.1.trans H.nparams
-    isUnsafe := hfields.2.2.1.trans H.isUnsafe
-    typesAdded := by simpa [htypeConstants] using H.typesAdded
-    types := ?_ }
-  have hlength : types.length = decl.types.length := by
-    calc
-      types.length = skeleton.types.length :=
-        Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.types_length H
-      _ = decl.types.length := hfields.2.2.2.symm
-  apply List.forall₂_of_getElem hlength
-  intro i hsourceIdx htargetIdx
-  have hskeletonIdx : i < skeleton.types.length := by
-    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.types_length H]
-    exact hsourceIdx
-  have htranslated :=
-    Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.typeAt H i
-      hsourceIdx hskeletonIdx
-  rcases VInductDeclSkeleton.withMetadata_typeAt Hmaterialize
-      hskeletonIdx with ⟨data, hdata, htarget⟩
-  have htarget' : decl.types[i] =
-      skeleton.types[i].toVInductiveType data.1 data.2 := by
-    simpa [List.getElem?_eq_getElem htargetIdx] using htarget
-  rw [htarget']
-  exact ⟨htranslated.header, htranslated.ctors⟩
 
 theorem VEnv.addConstVals_append
     {env middle out : VEnv} {xs ys : List VConstVal}

@@ -11,16 +11,6 @@ namespace Lean4Lean
 def VDefEq.HasConstructorMajor (equation : VDefEq) (name : Name) : Prop :=
   ∃ fn levels args, equation.lhs.stripLams = .app fn (VExpr.mkApps (.const name levels) args)
 
-theorem VExpr.equationHead_eq (e : VExpr) :
-    e.equationHead = e.stripLams.getAppFnArgs.1 := by
-  induction e with
-  | lam _ _ _ ih => exact ih
-  | _ => rfl
-
-theorem VEnv.constHeadRigid_iff {env : VEnv} {name : Name} :
-    env.ConstHeadRigid name ↔ env.Rigid name := by
-  simp only [ConstHeadRigid, Rigid, VExpr.equationHead_eq]
-
 theorem InductiveSignature.CompilationData.equation_major_cases
     {s : InductiveSignature} {g : s.Instance}
     (H : InductiveSignature.CompilationData env source expanded s g auxiliaries block)
@@ -568,16 +558,16 @@ theorem WF.case_constructor_rigid {env : VEnv} (H : env.WF)
     (hregistered : env.eliminators block schema)
     {owner : Fin schema.signature.families.size}
     (hgenerated : schema.Generates block owner rule) :
-    env.ConstHeadRigid rule.application.ctorName :=
-  constHeadRigid_iff.mpr ((H.constructorHeadsRigid.2.1 _ _ hregistered _ _ hgenerated).2)
+    env.Rigid rule.application.ctorName :=
+  (H.constructorHeadsRigid.2.1 _ _ hregistered _ _ hgenerated).2
 
 /-- The source family behind a registered projection or case program is
 rigid throughout declaration extension. This uses the registration certificate,
 not a primitive projection entry or a general monotonicity assumption. -/
 theorem WF.case_source_family_rigid {env : VEnv} (H : env.WF)
     (hregistered : env.eliminators key schema)
-    (hfamily : name ∈ schema.sourceFamilies) : env.ConstHeadRigid name :=
-  constHeadRigid_iff.mpr ((H.constructorHeadsRigid.2.2.1 _ _ hregistered _ hfamily).2)
+    (hfamily : name ∈ schema.sourceFamilies) : env.Rigid name :=
+  (H.constructorHeadsRigid.2.2.1 _ _ hregistered _ hfamily).2
 
 /-- The family head of every registered case owner that generates a rule is
 a rigid constant. -/
@@ -592,8 +582,8 @@ theorem WF.case_family_head_rigid {env : VEnv} (H : env.WF)
 rigid throughout all subsequent declarations. -/
 theorem WF.installed_constructor_rigid {env : VEnv} (H : env.WF)
     (hinstalled : env.defeqs equation) (hmajor : equation.HasConstructorMajor name) :
-    env.ConstHeadRigid name :=
-  constHeadRigid_iff.mpr ((H.constructorHeadsRigid.1 _ hinstalled _ hmajor).2.1)
+    env.Rigid name :=
+  (H.constructorHeadsRigid.1 _ hinstalled _ hmajor).2.1
 
 /-- The constructor major of every installed equation returns an application
 of a rigid family constant. -/

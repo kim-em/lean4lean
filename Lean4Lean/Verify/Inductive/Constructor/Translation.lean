@@ -150,11 +150,11 @@ theorem assemblesHeadersExact
     (hlparams : c.lparams.Nodup) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
       { c with env := headerEnv }).WF fun _ =>
-        Nonempty (HeaderDeclarationOf Hc.venv
+        Nonempty (HeaderDeclaration Hc.venv
           Hheader.venv c.lparams nparams indTypes.toList
             isUnsafe commonParams commonLevel Hsemantic) := by
   apply accumulatesTargets
-    (Q := fun _ => Nonempty (HeaderDeclarationOf Hc.venv
+    (Q := fun _ => Nonempty (HeaderDeclaration Hc.venv
       Hheader.venv c.lparams nparams indTypes.toList isUnsafe
         commonParams commonLevel Hsemantic))
     Hheader hmlctx htypesAdded Hmaterialized hheaderParams halign
