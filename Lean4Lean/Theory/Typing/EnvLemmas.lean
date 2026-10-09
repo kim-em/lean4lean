@@ -548,8 +548,6 @@ end VEnv.WF'
 
 /-! ### Projection and installation bookkeeping of the verified-inductives branch -/
 
-namespace Lean4Lean
-
 theorem VEnv.addConsts_projections {env env' : VEnv} :
     ∀ {cis}, env.addConsts cis = some env' → env'.projections = env.projections
   | [], h => by cases h; rfl
@@ -640,5 +638,3 @@ theorem VEnv.addConstVals_projections_eq
   VEnv.addConstVals_projections H
 
 end VerifyInductive
-
-end Lean4Lean

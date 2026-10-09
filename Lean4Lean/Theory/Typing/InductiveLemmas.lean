@@ -828,6 +828,109 @@ theorem addRecs_nodup {decl : VInductDecl} {env env' : VEnv}
     (h : decl.addRecs env = some env') : (decl.recs.map (·.name)).Nodup := by
   unfold VInductDecl.addRecs at h; exact addConst_foldlM_nodup h
 
+/-! ### The stages of `addInduct`, seen through `projections` -/
+
+/-- A `foldlM` whose every step preserves `projections` preserves `projections`. -/
+theorem foldlM_projections_preserved {α} {f : VEnv → α → Option VEnv}
+    (hf : ∀ {e a e'}, f e a = some e' → e'.projections = e.projections) :
+    ∀ {l : List α} {init env' : VEnv}, l.foldlM f init = some env' →
+      env'.projections = init.projections
+  | [], _, _, h => by simp [List.foldlM] at h; exact h ▸ rfl
+  | _ :: _, _, _, h => by
+    simp only [List.foldlM] at h
+    obtain ⟨e1, h1, h2⟩ := Option.bind_eq_some_iff.1 h
+    rw [foldlM_projections_preserved hf h2, hf h1]
+
+theorem addTypes_projections {decl : VInductDecl} {env env' : VEnv}
+    (h : decl.addTypes env = some env') : env'.projections = env.projections := by
+  unfold VInductDecl.addTypes at h
+  exact foldlM_projections_preserved (fun hh => addConst_projections hh) h
+
+theorem addCtors_projections {decl : VInductDecl} {env env' : VEnv}
+    (h : decl.addCtors env = some env') : env'.projections = env.projections := by
+  unfold VInductDecl.addCtors at h
+  exact foldlM_projections_preserved (fun hh => addConst_projections hh) h
+
+theorem addRecs_projections {decl : VInductDecl} {env env' : VEnv}
+    (h : decl.addRecs env = some env') : env'.projections = env.projections := by
+  unfold VInductDecl.addRecs at h
+  exact foldlM_projections_preserved (fun hh => addConst_projections hh) h
+
+theorem addRecRule_projections {env env' : VEnv} {r ru}
+    (h : env.addRecRule r ru = some env') : env'.projections = env.projections := by
+  unfold addRecRule at h
+  split at h
+  · cases h; rfl
+  · cases h
+
+theorem addRules_projections {decl : VInductDecl} {env env' : VEnv}
+    (h : decl.addRules env = some env') : env'.projections = env.projections := by
+  unfold VInductDecl.addRules at h
+  exact foldlM_projections_preserved
+    (fun hh => foldlM_projections_preserved (fun hh2 => addRecRule_projections hh2) hh) h
+
+/-- The projection entries after `addInduct`: those of `decl` and the old ones. -/
+theorem addInduct_projections_iff {env env' : VEnv} {decl : VInductDecl}
+    (h : env.addInduct decl = some env') {name : Name} {info : VProjectionInfo} :
+    env'.projections name info ↔
+      (∃ entry ∈ decl.projectionEntries, name = entry.typeName ∧ info = entry.info) ∨
+        env.projections name info := by
+  obtain ⟨envT, envC, envR, hT, hC, hR, hP⟩ := addInduct_stages h
+  rw [addRules_projections hP, addRecs_projections hR, VInductDecl.addProjs,
+    VEnv.addProjections_iff, addCtors_projections hC, addTypes_projections hT]
+
+/-- A type former of `decl` is fresh w.r.t. the environment `addInduct` starts from. -/
+theorem addInduct_type_fresh {env env' : VEnv} {decl : VInductDecl} {t : VInductiveType}
+    (h : env.addInduct decl = some env') (ht : t ∈ decl.types) : env.constants t.name = none := by
+  obtain ⟨envT, envC, envR, hT, hC, hR, hP⟩ := addInduct_stages h
+  unfold VInductDecl.addTypes at hT
+  exact addConst_foldlM_fresh hT t ht
+
+/-- A constructor of `decl` is fresh w.r.t. the environment `addInduct` starts from. -/
+theorem addInduct_ctor_fresh {env env' : VEnv} {decl : VInductDecl} {t : VInductiveType}
+    {c : VConstVal} (h : env.addInduct decl = some env') (ht : t ∈ decl.types) (hc : c ∈ t.ctors) :
+    env.constants c.name = none := by
+  obtain ⟨envT, envC, envR, hT, hC, hR, hP⟩ := addInduct_stages h
+  exact (addTypes_le hT).constants_eq_none_left (addCtors_fresh hC t ht c hc)
+
+/-- A type former of `decl` is bound in the resulting environment. -/
+theorem addInduct_type_find {env env' : VEnv} {decl : VInductDecl} {t : VInductiveType}
+    (h : env.addInduct decl = some env') (ht : t ∈ decl.types) :
+    env'.constants t.name = some t.toVConstVal.toVConstant := by
+  obtain ⟨envT, envC, envR, hT, hC, hR, hP⟩ := addInduct_stages h
+  exact ((addCtors_le hC).trans (addProjs_le.trans ((addRecs_le hR).trans (addRules_le hP)))).constants
+    (addTypes_find hT t ht)
+
+/-- A constructor of `decl` is bound in the resulting environment. -/
+theorem addInduct_ctor_find {env env' : VEnv} {decl : VInductDecl} {t : VInductiveType}
+    {c : VConstVal} (h : env.addInduct decl = some env') (ht : t ∈ decl.types) (hc : c ∈ t.ctors) :
+    env'.constants c.name = some c.toVConstant := by
+  obtain ⟨envT, envC, envR, hT, hC, hR, hP⟩ := addInduct_stages h
+  exact (addProjs_le.trans ((addRecs_le hR).trans (addRules_le hP))).constants
+    (addCtors_find hC t ht c hc)
+
+/-- A recursor name of `decl` differs from every type former name of `decl`: the recursor is
+fresh in the recursor-stage environment, where the type formers are already bound. -/
+theorem addInduct_rec_ne_type {env env' : VEnv} {decl : VInductDecl} {rec : VRecursor}
+    {t : VInductiveType} (h : env.addInduct decl = some env') (hrec : rec ∈ decl.recs)
+    (ht : t ∈ decl.types) : rec.name ≠ t.name := by
+  obtain ⟨envT, envC, envR, hT, hC, hR, hP⟩ := addInduct_stages h
+  intro heq
+  have hfresh := addRecs_fresh hR rec hrec
+  have hbound := ((addCtors_le hC).trans (addProjs_le (decl := decl))).constants
+    (addTypes_find hT t ht)
+  rw [heq, hbound] at hfresh; cases hfresh
+
+/-- A recursor name of `decl` differs from every constructor name of `decl`. -/
+theorem addInduct_rec_ne_ctor {env env' : VEnv} {decl : VInductDecl} {rec : VRecursor}
+    {t : VInductiveType} {c : VConstVal} (h : env.addInduct decl = some env')
+    (hrec : rec ∈ decl.recs) (ht : t ∈ decl.types) (hc : c ∈ t.ctors) : rec.name ≠ c.name := by
+  obtain ⟨envT, envC, envR, hT, hC, hR, hP⟩ := addInduct_stages h
+  intro heq
+  have hfresh := addRecs_fresh hR rec hrec
+  have hbound := (addProjs_le (decl := decl)).constants (addCtors_find hC t ht c hc)
+  rw [heq, hbound] at hfresh; cases hfresh
+
 /-! ### Lemmas of the verified-inductives branch: `addDefEqRules`, `addConstVals`, blocks -/
 
 theorem addDefEqRules_le {env : VEnv} {dfs : List VDefEq} : env ≤ env.addDefEqRules dfs := by
