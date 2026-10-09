@@ -509,25 +509,44 @@ theorem VInductDeclSkeleton.withMetadata_typeAt
     simp [hi, himetadata]
   · contradiction
 
-structure TrInductiveTypeSkeleton (env envTypes : VEnv)
-    (lparams : List Name) (type : InductiveType)
-    (type' : VInductiveTypeSkeleton) : Prop where
-  header : TrSourceConst env lparams type.name type.type type'.toVConstVal
-  ctors : List.Forall₂
-    (fun ctor ctor' => TrSourceConst envTypes lparams ctor.name ctor.type ctor')
-    type.ctors type'.ctors
-
-/-- Header checking retains raw constructor correspondence, but deliberately
-does not claim constructor well-formedness before the mutual headers have
-been installed. -/
-structure TrInductiveTypeSkeletonHeaders (env envTypes : VEnv)
-    (lparams : List Name) (type : InductiveType)
-    (type' : VInductiveTypeSkeleton) : Prop where
-  header : TrSourceConst env lparams type.name type.type type'.toVConstVal
-  ctors : List.Forall₂
-    (fun ctor ctor' =>
-      TrSourceConstRaw envTypes lparams ctor.name ctor.type ctor')
-    type.ctors type'.ctors
+/-- Transport a per-family relation along `withMetadata`.  A translation
+that holds for a skeleton family at every choice of arity metadata holds for
+the materialized family.  This is how metadata-free translations are stated:
+`TrInductiveType` and `TrInductiveTypeHeaders` read only the header constant
+and the constructor list, so a skeleton translation is the relation at
+`target.toVInductiveType numIndices resultLevel` for all metadata. -/
+theorem VInductDeclSkeleton.withMetadata_forall₂
+    {α : Type _} {R : α → VInductiveType → Prop} {sources : List α}
+    {decl : VInductDeclSkeleton} {metadata : List (Nat × VLevel)}
+    {materialized : VInductDecl}
+    (Hmaterialize : decl.withMetadata metadata = some materialized)
+    (H : List.Forall₂ (fun source target => ∀ numIndices resultLevel,
+      R source (target.toVInductiveType numIndices resultLevel))
+      sources decl.types) :
+    List.Forall₂ R sources materialized.types := by
+  have go : ∀ {sources : List α} {types : List VInductiveTypeSkeleton}
+      (metadata : List (Nat × VLevel)), metadata.length = types.length →
+      List.Forall₂ (fun source target => ∀ numIndices resultLevel,
+        R source (target.toVInductiveType numIndices resultLevel))
+        sources types →
+      List.Forall₂ R sources (List.zipWith (fun type data =>
+        type.toVInductiveType data.1 data.2) types metadata) := by
+    intro sources types metadata hlength H
+    induction H generalizing metadata with
+    | nil => exact .nil
+    | cons Hhead _ ih =>
+      cases metadata with
+      | nil => simp at hlength
+      | cons data metadata =>
+        simp only [List.length_cons] at hlength
+        exact .cons (Hhead data.1 data.2) (ih metadata (by omega))
+  have hlength := VInductDeclSkeleton.withMetadata_length Hmaterialize
+  simp only [VInductDeclSkeleton.withMetadata] at Hmaterialize
+  split at Hmaterialize
+  · simp only [Option.some.injEq] at Hmaterialize
+    subst materialized
+    exact go metadata hlength H
+  · contradiction
 
 def VInductDeclSkeleton.typeConstants
     (decl : VInductDeclSkeleton) : List VConstVal :=
@@ -562,32 +581,12 @@ def VInductDeclSkeleton.constructorConstants
         VInductDeclSkeleton.constructorConstants,
         VInductDecl.constructorConstants, VInductiveType.toSkeleton, ih']
 
-/-- Metadata-free source translation before aggregate block checks have been
-recovered. As in `TrInductDeclCore`, all pointwise source typing is retained;
-only nonemptiness and global source-name uniqueness are omitted. -/
-structure TrInductDeclSkeletonCore (env : VEnv) (lparams : List Name)
-    (nparams : Nat) (types : List InductiveType) (isUnsafe : Bool)
-    (decl : VInductDeclSkeleton) (envTypes envCtors : VEnv) : Prop where
-  uvars : decl.uvars = lparams.length
-  nparams : decl.nparams = nparams
-  isUnsafe : decl.isUnsafe = isUnsafe
-  typesAdded : env.addConstVals decl.typeConstants = some envTypes
-  ctorsAdded : envTypes.addConstVals decl.constructorConstants = some envCtors
-  types : List.Forall₂ (TrInductiveTypeSkeleton env envTypes lparams)
-    types decl.types
-
-/-- Metadata-free header translation used while `checkInductiveTypes` is
-still recovering index counts and result universes. -/
-structure TrInductDeclSkeletonHeaders (env : VEnv) (lparams : List Name)
-    (nparams : Nat) (types : List InductiveType) (isUnsafe : Bool)
-    (decl : VInductDeclSkeleton) (envTypes : VEnv) : Prop where
-  uvars : decl.uvars = lparams.length
-  nparams : decl.nparams = nparams
-  isUnsafe : decl.isUnsafe = isUnsafe
-  typesAdded : env.addConstVals decl.typeConstants = some envTypes
-  types : List.Forall₂
-    (TrInductiveTypeSkeletonHeaders env envTypes lparams) types decl.types
-
+/-- Source translation of one inductive family: its header and constructor
+types.  Only the header constant and the constructor list are read, so a
+metadata-free family `target : VInductiveTypeSkeleton` is translated by
+`∀ numIndices resultLevel, TrInductiveType env envTypes lparams type
+(target.toVInductiveType numIndices resultLevel)`; see
+`VInductDeclSkeleton.withMetadata_forall₂`. -/
 structure TrInductiveType (env envTypes : VEnv) (lparams : List Name)
     (type : InductiveType) (type' : VInductiveType) : Prop where
   header : TrSourceConst env lparams type.name type.type type'.toVConstVal
@@ -595,6 +594,10 @@ structure TrInductiveType (env envTypes : VEnv) (lparams : List Name)
     (fun ctor ctor' => TrSourceConst envTypes lparams ctor.name ctor.type ctor')
     type.ctors type'.ctors
 
+/-- Header checking retains raw constructor correspondence, but deliberately
+does not claim constructor well-formedness before the mutual headers have
+been installed.  Metadata-free families are handled as for
+`TrInductiveType`. -/
 structure TrInductiveTypeHeaders (env envTypes : VEnv) (lparams : List Name)
     (type : InductiveType) (type' : VInductiveType) : Prop where
   header : TrSourceConst env lparams type.name type.type type'.toVConstVal

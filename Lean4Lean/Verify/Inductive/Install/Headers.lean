@@ -228,9 +228,10 @@ def HeaderDeclarationOf.toHeaderEnvironment
     calc
       H.metadata.length = H.skeleton.types.length :=
         VInductDeclSkeleton.withMetadata_length H.checked
+      _ = H.decl.types.length :=
+        (VInductDeclSkeleton.withMetadata_fields H.checked).2.2.2.symm
       _ = indTypes.toList.length :=
-        (Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.types_length
-          H.skeletonTranslation).symm
+        (List.Forall₂.length_eq H.translation.types).symm
   have hindicesSize : stats.nindices.size = indTypes.size := by
     calc
       stats.nindices.size = stats.nindices.toList.length := by simp
