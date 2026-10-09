@@ -169,3 +169,18 @@ posts to GitHub or Zulip.
   the original type but from the second step on they are on subterms of reducts, and
   `exposure_reduces` restarts the path with uncontrolled length, so neither size nor path
   induction closes. Stuck heads never expose a `Π` (`rigid_type_not_pi`, `loop_not_pi`).
+* 2026-10-09: Astra round 9 (`STRENGTHENING_ASTRA_REVIEW7.md`, checked files
+  `history/StrengtheningRound9_2026-10-09.lean`, `...Round9Regression...`): the exact
+  formulation is `Cancel ↔ TypedFront ∧ AppFrontN ∧ ProjFrontN ∧ ElimFrontN`;
+  `PiExposureRedN ↔ PiExposureN`; `TypeFrontN ↔ TypeFront ↔ TypedFront ↔ KeyFaithful`. Core
+  standardisation (`ParRedS.standard`) gives head exposure for `ParRedS` but not for
+  `FullReduction` (prefix unfolding and projection iota are outside `WHRed`), and a neutral
+  structure major needs structure eta before iota, so a head strategy is not eta-free. The
+  useful interface is local replay: `HasType Γ e T → HeadStep Γ' e↑ out → ∃ e', out = e'↑ ∧
+  FullStep Γ e e'`; given it, induction on the above path proves exposure
+  (`head_path_replay`) with no size component. The regression `F = (λ X : Type. R X) D` with
+  `R X = Eq.rec (M X) D (b X) (Eq.refl X)` has a second-step singleton guard `b D ≡ D` on
+  terms occurring in no subterm of `F`, defeating subterm/size induction. Design consequence:
+  the guards of a replayed step are conversions between subterms typed below, i.e.
+  `TypedFront` instances, so `TypedFront → PiExposureN` and hence `Cancel ↔ TypedFront` is
+  the next target (direction B2).
