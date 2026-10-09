@@ -596,8 +596,9 @@ theorem CheckedConstructorTailAt.toRecursorContext
     (Hmaterialized :
       checkInductiveTypes.loopInd.HeaderStatsWF
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
+    {classes : List Bool}
     (H : CheckedConstructorTailAt sourceEnv c.lparams
-      Hmaterialized.parameterScope stats decl target source)
+      Hmaterialized.parameterScope stats decl target source classes)
     (henv : sourceEnv ≤ Hc.venv)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     let R := Hc.toAdmissibleRecursorContextWF Helim

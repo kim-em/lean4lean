@@ -337,9 +337,13 @@ where
     withUnannotatedCheckedLocalDecl name bi dom fun arg => do
     loop (body.instantiate1 arg) fuel
 
+/-- One step of the positivity check on a field type in weak head normal form. The result
+records whether the field is recursive: `false` when the type does not mention the families
+being declared, `true` when it is a telescope over family-free domains ending in a valid
+application of one of them. -/
 def checkPositivityStep (stats : InductiveStats) (t : Expr)
-    (ctor : Name) (idx : Nat) (recur : Expr → M Unit) : M Unit := do
-  if !hasIndOcc stats.indConsts t then return
+    (ctor : Name) (idx : Nat) (recur : Expr → M Bool) : M Bool := do
+  if !hasIndOcc stats.indConsts t then return false
   if let .forallE name dom body bi := t then
     if hasIndOcc stats.indConsts dom then
       throw <| .other s!"arg #{idx + 1} of '{ctor}' \
@@ -350,9 +354,13 @@ def checkPositivityStep (stats : InductiveStats) (t : Expr)
   else if let none := isValidIndApp? stats t then
     throw <| .other s!"arg #{idx + 1} of '{ctor}' \
       has a non valid occurrence of the datatypes being declared"
+  else
+    return true
 
+/-- Check that a field type is strictly positive and report whether it is recursive (see
+`checkPositivityStep`). -/
 def checkPositivity (stats : InductiveStats) (t : Expr) (ctor : Name) (idx : Nat) :
-    M Unit := do loop t (← readThe Context).fuel.inductiveFuel where
+    M Bool := do loop t (← readThe Context).fuel.inductiveFuel where
   loop t
   | 0 => throw .deepRecursion
   | fuel+1 => do
@@ -361,8 +369,11 @@ def checkPositivity (stats : InductiveStats) (t : Expr) (ctor : Name) (idx : Nat
 
 namespace checkConstructors
 
+/-- Check one constructor telescope. The result lists, for each field in order, whether the
+positivity check found it recursive (always `false` for an unsafe declaration, whose fields
+are not checked for positivity). -/
 def loopCtor (stats : InductiveStats) (isUnsafe : Bool) (ctor : Name)
-    (targetIdx : Nat) (t : Expr) (i fuel : Nat) : M Unit :=
+    (targetIdx : Nat) (t : Expr) (i fuel : Nat) : M (List Bool) :=
   match fuel with
   | 0 => throw .deepRecursion
   | fuel+1 => do
@@ -380,22 +391,25 @@ def loopCtor (stats : InductiveStats) (isUnsafe : Bool) (ctor : Name)
         unless stats.resultLevel.isAlwaysZero || stats.resultLevel.geq' s.sortLevel! do
           throw <| .other s!"universe level of type_of(arg #{i + 1}) of '{ctor}' \
             is too big for the corresponding inductive datatype"
-        if !isUnsafe then
-          checkPositivity stats dom ctor i
+        let recursive ← if !isUnsafe then checkPositivity stats dom ctor i else pure false
         -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
         withUnannotatedCheckedLocalDecl name bi dom fun arg => do
-          loopCtor stats isUnsafe ctor targetIdx
-            (body.instantiate1 arg) (i + 1) fuel
+          return recursive :: (← loopCtor stats isUnsafe ctor targetIdx
+            (body.instantiate1 arg) (i + 1) fuel)
     else if !isValidIndAppIdx stats t targetIdx then
       throw <| .other s!"invalid return type for '{ctor}'"
+    else
+      return []
 
 end checkConstructors
 
 namespace checkConstructors
 
+/-- Check the constructors of one family, from position `ctorIdx`, returning their field
+classifications (`loopCtor`) in order. -/
 def loopCtors (stats : InductiveStats) (isUnsafe : Bool)
     (targetIdx : Nat) (ctors : List Constructor) (ctorIdx : Nat)
-    (foundCtors : NameSet) : M Unit := do
+    (foundCtors : NameSet) : M (List (List Bool)) := do
   if h : ctorIdx < ctors.length then
     let ctor := ctors[ctorIdx]
     let n := ctor.name
@@ -404,26 +418,32 @@ def loopCtors (stats : InductiveStats) (isUnsafe : Bool)
     let foundCtors := foundCtors.insert n
     let t := ctor.type
     _ ← checkClosedType n t
-    checkConstructors.loopCtor stats isUnsafe n targetIdx t 0
+    let fields ← checkConstructors.loopCtor stats isUnsafe n targetIdx t 0
       (← readThe Context).fuel.inductiveFuel
-    loopCtors stats isUnsafe targetIdx ctors (ctorIdx + 1) foundCtors
+    return fields :: (← loopCtors stats isUnsafe targetIdx ctors (ctorIdx + 1) foundCtors)
   else
-    pure ()
+    pure []
 termination_by ctors.length - ctorIdx
 
+/-- Check the constructors of the families from `targetIdx`, returning their field
+classifications, family by family. -/
 def loopTypes (indTypes : Array InductiveType)
-    (stats : InductiveStats) (isUnsafe : Bool) (targetIdx : Nat) : M Unit := do
+    (stats : InductiveStats) (isUnsafe : Bool) (targetIdx : Nat) :
+    M (List (List (List Bool))) := do
   if h : targetIdx < indTypes.size then
-    loopCtors stats isUnsafe targetIdx indTypes[targetIdx].ctors 0 {}
-    loopTypes indTypes stats isUnsafe (targetIdx + 1)
+    let fields ← loopCtors stats isUnsafe targetIdx indTypes[targetIdx].ctors 0 {}
+    return fields :: (← loopTypes indTypes stats isUnsafe (targetIdx + 1))
   else
-    pure ()
+    pure []
 termination_by indTypes.size - targetIdx
 
 end checkConstructors
 
+/-- Check every constructor of the block. The result lists, family by family and
+constructor by constructor, whether the positivity check found each field recursive; the
+recursor construction is required to agree with it (`checkRecursiveFields`). -/
 def checkConstructors (indTypes : Array InductiveType)
-    (stats : InductiveStats) (isUnsafe : Bool) : M Unit := do
+    (stats : InductiveStats) (isUnsafe : Bool) : M (List (List (List Bool))) := do
   let _ ← getEnv
   -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
   withCheckLCtx (← paramCheckLCtx stats stats.params.size) do
@@ -694,6 +714,23 @@ def mkRecInfos (stats : InductiveStats) (indTypes : Array InductiveType)
   mkRecInfos.loopInd1 stats indTypes elimLevel 0 #[] fun recInfos =>
   mkRecInfos.loopInd2 stats indTypes 0 recInfos k
 
+/-- The fields of a rule template that receive an induction hypothesis, in field order. -/
+def RecRuleTemplate.recursiveMask (blueprint : RecRuleTemplate) : List Bool :=
+  blueprint.fields.toList.map fun field =>
+    blueprint.recursiveCalls.any fun call => call.major == field
+
+/-- The minor pass decides which fields are recursive by normalizing each field type in the
+recursor's checking context (`isRecArg`); the constructor phase decided it with the positivity
+check, in the environment with the family headers (`checkConstructors`). For a safe
+declaration the two must agree, so that a field gets an induction hypothesis exactly when its
+strictly positive normal form ends in one of the families being declared. -/
+def checkRecursiveFields (isUnsafe : Bool) (positivity : List (List (List Bool)))
+    (recInfos : Array RecInfo) : M Unit := do
+  unless isUnsafe do
+    unless (recInfos.toList.map fun info =>
+        info.ruleTemplates.toList.map (·.recursiveMask)) == positivity do
+      throw <| .other "recursive constructor fields disagree with the positivity check"
+
 def getRecLevels (elimLevel : Level) (levels : List Level) : List Level :=
   if elimLevel.isParam then elimLevel :: levels else levels
 
@@ -833,19 +870,27 @@ def declareRecursors (stats : InductiveStats)
     numMinors numMotives all lctx k isUnsafe declarationLParams
       allowPrimitive 0 env
 
+/-- Declare the families, check the constructors in the environment with the family
+headers, and declare the constructors. Returns the constructor environment and the field
+classifications of the constructor check. -/
+def constructorPhase (stats : InductiveStats) (nparams : Nat)
+    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool) :
+    M (Environment × List (List (List Bool))) :=
+  declareInductiveTypes stats nparams indTypes numNested isUnsafe >>= fun headerEnv =>
+    withEnv headerEnv do
+      let positivity ← checkConstructors indTypes stats isUnsafe
+      return (← declareConstructors stats indTypes isUnsafe, positivity)
+
 def runWithStats (stats : InductiveStats) (nparams : Nat)
     (indTypes : Array InductiveType) (numNested : Nat)
     (isUnsafe : Bool) : M Environment := do
-  let ctorEnv ←
-    declareInductiveTypes stats nparams indTypes numNested isUnsafe >>= fun headerEnv =>
-      withEnv headerEnv do
-        checkConstructors indTypes stats isUnsafe
-        declareConstructors stats indTypes isUnsafe
+  let (ctorEnv, positivity) ← constructorPhase stats nparams indTypes numNested isUnsafe
   fun c =>
     (getElimLevel stats indTypes >>= fun elimLevel =>
       withTypeCheckerLParams (getRecLevelParams elimLevel c.lparams) do
         let k ← isKTarget stats indTypes
-        mkRecInfos stats indTypes elimLevel fun recInfos =>
+        mkRecInfos stats indTypes elimLevel fun recInfos => do
+          checkRecursiveFields isUnsafe positivity recInfos
           declareRecursors stats indTypes elimLevel recInfos k c.lparams)
       { c with env := ctorEnv }
 

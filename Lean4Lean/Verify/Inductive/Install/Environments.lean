@@ -156,7 +156,7 @@ def HeaderEnvironment.formation
       indTypes outEnv)
     (Hchecked : CheckedConstructors sourceEnv decl H.context.venv
       H.headers.params stats indTypes c.lparams
-      H.statsWF.parameterScope) :
+      H.statsWF.parameterScope classes) :
     FormationCertificate sourceEnv decl where
   headers := H.headers
   envTypes := H.context.venv
@@ -236,10 +236,10 @@ theorem AddInductive.checkConstructors.checkedWF
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hlparams : c.lparams.Nodup) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
-      { c with env := outEnv }).WF fun _ =>
+      { c with env := outEnv }).WF fun classes =>
         CheckedConstructors sourceEnv decl H.context.venv
           H.headers.params stats indTypes c.lparams
-          H.statsWF.parameterScope := by
+          H.statsWF.parameterScope classes := by
   have Hloops := checkConstructors.loopTypes.refinesChecked
     H.statsWF.parameterSuffix.headerCheck H.translation.types
     H.translation.typesAdded H.statsWF
@@ -280,7 +280,7 @@ theorem AddInductive.checkConstructors.ownerNormalFormsWF
     (ConstructorOwnerNormalFormRows.empty stats indTypes)
     Hsuffix Hstats H.statsWF.parameterSuffix.headerCheck_paramAligned
     hconsume hlit
-    (fun Hrows => Hrows.complete)
+    (fun Hrows _ => Hrows.complete)
   rw [AddInductive.checkConstructors]
   refine AddInductive.M.WF_bind (P := fun _ => True) (fun _ _ => trivial)
     fun _ _ => ?_
@@ -353,7 +353,7 @@ theorem ConstructorEnvironment.installedConstructorCoherenceAt
     (core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
       isUnsafe decl H.context.venv D.venvCtors)
     (Hchecked : CheckedConstructors sourceEnv decl H.context.venv
-      H.headers.params stats indTypes c.lparams H.statsWF.parameterScope)
+      H.headers.params stats indTypes c.lparams H.statsWF.parameterScope classes)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
     ∃ familyInfo : InductiveVal,
@@ -491,7 +491,7 @@ theorem ConstructorEnvironment.inductInfosFromDecl
     (core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
       isUnsafe decl H.context.venv D.venvCtors)
     (Hchecked : CheckedConstructors sourceEnv decl H.context.venv
-      H.headers.params stats indTypes c.lparams H.statsWF.parameterScope) :
+      H.headers.params stats indTypes c.lparams H.statsWF.parameterScope classes) :
     InductInfosFromDecl c.env.constants outEnv.constants decl := by
   intro familyName familyInfo hfamily
   have hsourceWF := H.sourceContext.checking.tr.map_wf
@@ -742,7 +742,7 @@ theorem ConstructorEnvironment.constructorParameterAlignment
     (core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
       isUnsafe decl H.context.venv D.venvCtors)
     (Hchecked : CheckedConstructors sourceEnv decl H.context.venv
-      H.headers.params stats indTypes c.lparams H.statsWF.parameterScope)
+      H.headers.params stats indTypes c.lparams H.statsWF.parameterScope classes)
     (Hsource : ConstructorParameterAlignment
       safety c.env sourceEnv) :
     ConstructorParameterAlignment
@@ -829,7 +829,7 @@ whose constructors are declared. -/
 noncomputable def HeaderEnvironment.toCheckedFormation
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv)
     (Hchecked : CheckedConstructors sourceEnv decl H.context.venv
-      H.headers.params stats indTypes c.lparams H.statsWF.parameterScope)
+      H.headers.params stats indTypes c.lparams H.statsWF.parameterScope classes)
     (venvCtors : VEnv)
     (core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList isUnsafe decl
       H.context.venv venvCtors) :
@@ -848,6 +848,7 @@ noncomputable def HeaderEnvironment.toCheckedFormation
   statsWF := H.statsWF
   checkedParams := H.headerParams
   checkedParameterScope := rfl
+  classes := classes
   constructorTails := Hchecked.constructorTails
   ctorVEnv := venvCtors
   formation := H.formation Hchecked
@@ -857,7 +858,7 @@ theorem AddInductive.declareConstructors.WF
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv)
     (Hchecked : CheckedConstructors sourceEnv decl H.context.venv
-      H.headers.params stats indTypes c.lparams H.statsWF.parameterScope)
+      H.headers.params stats indTypes c.lparams H.statsWF.parameterScope classes)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hnprim : c.allowPrimitive = true →
@@ -1085,8 +1086,10 @@ structure OrdinaryConstructorCheck
   checked : CheckedConstructorCertificate sourceEnv decl H.context.venv
     H.headers.params
   parameterPrefixes : ConstructorParameterPrefixes stats indTypes
+  /-- The field classifications returned by the executable constructor check. -/
+  classes : List (List (List Bool))
   constructorTails : ConstructorTails H.context.venv c.lparams
-    H.statsWF.parameterScope stats decl indTypes
+    H.statsWF.parameterScope stats decl indTypes classes
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
   /-- The telescope certificates of the source constructor types, read off their checks. -/
   telescopes : SourceCtorsCertified H.context.venv c.lparams indTypes.toList

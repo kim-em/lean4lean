@@ -19,7 +19,7 @@ namespace VerifyInductive
 namespace checkConstructors.loopCtors
 
 theorem result.WF
-    (hidx : ¬ ctorIdx < ctors.length) (hQ : Q ()) :
+    (hidx : ¬ ctorIdx < ctors.length) (hQ : Q []) :
     (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
       ctors ctorIdx foundCtors c).WF Q := by
   rw [AddInductive.checkConstructors.loopCtors, dif_neg hidx]
@@ -36,10 +36,11 @@ theorem stepPrefix.WF
         ctors[ctorIdx].type checkedType type' checkedType' →
       (AddInductive.checkConstructors.loopCtor stats isUnsafe
         ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
-        c.fuel.inductiveFuel c).WF fun _ =>
+        c.fuel.inductiveFuel c).WF fun fields =>
       (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
         ctors (ctorIdx + 1)
-        (foundCtors.insert ctors[ctorIdx].name) c).WF Q) :
+        (foundCtors.insert ctors[ctorIdx].name) c).WF fun rest =>
+          Q (fields :: rest)) :
     (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
       ctors ctorIdx foundCtors c).WF Q := by
   rw [AddInductive.checkConstructors.loopCtors, dif_pos hidx]
@@ -49,10 +50,10 @@ theorem stepPrefix.WF
     change ((read : AddInductive.M AddInductive.Context) c >>= fun c' =>
       ((AddInductive.checkConstructors.loopCtor stats isUnsafe
           ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
-          c'.fuel.inductiveFuel >>= fun _ =>
-        AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+          c'.fuel.inductiveFuel >>= fun fields => do
+        return fields :: (← AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
         ctors (ctorIdx + 1)
-          (foundCtors.insert ctors[ctorIdx].name)) : AddInductive.M Unit) c).WF Q
+          (foundCtors.insert ctors[ctorIdx].name))) : AddInductive.M (List (List Bool))) c).WF Q
     have hread : ((read : AddInductive.M AddInductive.Context) c).WF
         (fun c' => c' = c) := by
       intro c' h
@@ -60,7 +61,8 @@ theorem stepPrefix.WF
       rfl
     refine hread.bind fun c' hc' => ?_
     subst c'
-    exact (Hloop _ type' checkedType' hchecked).bind fun _ hnext => hnext
+    exact (Hloop _ type' checkedType' hchecked).bind fun fields hnext =>
+      hnext.bind fun rest hrest => Except.WF.pure hrest
 
 /-- One constructor-loop iteration, including the executable's duplicate-name
 guard.  A duplicate takes the executable error branch; only the successful
@@ -72,10 +74,11 @@ theorem stepPrefix.checkedWF
         ctors[ctorIdx].type checkedType type' checkedType' →
       (AddInductive.checkConstructors.loopCtor stats isUnsafe
         ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
-        c.fuel.inductiveFuel c).WF fun _ =>
+        c.fuel.inductiveFuel c).WF fun fields =>
       (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
         ctors (ctorIdx + 1)
-        (foundCtors.insert ctors[ctorIdx].name) c).WF Q) :
+        (foundCtors.insert ctors[ctorIdx].name) c).WF fun rest =>
+          Q (fields :: rest)) :
     (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
       ctors ctorIdx foundCtors c).WF Q := by
   cases hfresh : foundCtors.contains ctors[ctorIdx].name with
@@ -90,7 +93,7 @@ end checkConstructors.loopCtors
 namespace checkConstructors.loopTypes
 
 theorem result.WF
-    (hidx : ¬ targetIdx < indTypes.size) (hQ : Q ()) :
+    (hidx : ¬ targetIdx < indTypes.size) (hQ : Q []) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
       targetIdx c).WF Q := by
   rw [AddInductive.checkConstructors.loopTypes, dif_neg hidx]
@@ -100,13 +103,13 @@ theorem step.WF
     (hidx : targetIdx < indTypes.size)
     (Hctors :
       (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
-        indTypes[targetIdx].ctors 0 {} c).WF fun _ =>
+        indTypes[targetIdx].ctors 0 {} c).WF fun fields =>
       (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
-        (targetIdx + 1) c).WF Q) :
+        (targetIdx + 1) c).WF fun rest => Q (fields :: rest)) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
       targetIdx c).WF Q := by
   rw [AddInductive.checkConstructors.loopTypes, dif_pos hidx]
-  exact Hctors.bind fun _ hnext => hnext
+  exact Hctors.bind fun _ hnext => hnext.bind fun _ hrest => Except.WF.pure hrest
 
 end checkConstructors.loopTypes
 
@@ -124,7 +127,7 @@ success.  This theorem does not relate `isValidIndAppIdx` to
 theorem result.WF
     (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
     (hvalid : AddInductive.isValidIndAppIdx stats type targetIdx = true)
-    (hQ : Q ()) :
+    (hQ : Q []) :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       type i (fuel + 1) c).WF Q := by
   cases type <;>
@@ -201,7 +204,7 @@ theorem parameter.sourceWF
 universe bound, positivity, annotation transport, and fresh body opening are
 all delivered to the recursive continuation. -/
 theorem safeField.sourceWF
-    {Pos : Prop}
+    {Pos : Bool → Prop}
     (Hc : ContextWF c) (hparamAt : stats.params[i]? = none)
     (Hdom : Hc.UnannotatedDomain dom sourceDom' consumedDom')
     (hbody : TrExprS Hc.venv c.lparams
@@ -209,7 +212,7 @@ theorem safeField.sourceWF
     (Hdom₀ : Hc.atCheckLCtx.UnannotatedDomain dom sourceDom₀ consumedDom₀)
     (hbody₀ : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom₀) :: Hc.chk.vlctx) body sourceBody₀)
-    (Hpos : (AddInductive.checkPositivity stats dom ctor i c).WF (fun _ => Pos))
+    (Hpos : (AddInductive.checkPositivity stats dom ctor i c).WF Pos)
     (Hrec : ∀ fieldType' fieldLevel fieldLevel',
       TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom fieldType' →
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
@@ -220,7 +223,7 @@ theorem safeField.sourceWF
         fieldType₀ (.sort fieldLevel') →
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      Pos →
+      ∀ recursive, Pos recursive →
       ∀ body'',
         Hc.venv.IsDefEqU c.lparams.length
           (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
@@ -242,7 +245,8 @@ theorem safeField.sourceWF
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
               (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
             checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF Q) :
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF
+          fun rest => Q (recursive :: rest)) :
     (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
       (.forallE name dom body bi) i (fuel + 1) c).WF Q := by
   rw [AddInductive.checkConstructors.loopCtor]
@@ -256,30 +260,31 @@ theorem safeField.sourceWF
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel! do
       throw <| .other s!"universe level of type_of(arg #{i + 1}) of '{ctor}' \
         is too big for the corresponding inductive datatype"
-    if !false then
-      AddInductive.checkPositivity stats dom ctor i
-    AddInductive.withUnannotatedCheckedLocalDecl name bi dom fun arg =>
-      AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
-        (body.instantiate1 arg) (i + 1) fuel) : AddInductive.M Unit) c |>.WF Q
+    let recursive ← if !false then AddInductive.checkPositivity stats dom ctor i
+      else pure false
+    AddInductive.withUnannotatedCheckedLocalDecl name bi dom fun arg => do
+      return recursive :: (← AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
+        (body.instantiate1 arg) (i + 1) fuel)) : AddInductive.M (List Bool)) c |>.WF Q
   by_cases hbound :
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true
   · rw [if_pos hbound]
-    refine Hpos.bind fun _ hpos => ?_
+    refine Hpos.bind fun recursive hpos => ?_
     rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
     rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
     refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
-      (k := fun arg =>
-        AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
-          (body.instantiate1 arg) (i + 1) fuel)
+      (k := fun arg => do
+        return recursive :: (← AddInductive.checkConstructors.loopCtor stats false ctor
+          targetIdx (body.instantiate1 arg) (i + 1) fuel))
       Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
       Hdom.unannotated Hdom.isType hbody''
     have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
       Hdom₀.unannotated Hdom₀.isType hbody₀''
-    exact Hrec _ fieldLevel fieldLevel' Hdom.source hfieldLevel
-      hfieldHasType fieldType₀ hfieldType₀ hfieldHasType₀ hbound hpos body'' hbodyEq
-      body₀'' hbodyEq₀ hopened hopened₀
+    exact (Hrec _ fieldLevel fieldLevel' Hdom.source hfieldLevel
+      hfieldHasType fieldType₀ hfieldType₀ hfieldHasType₀ hbound recursive hpos body''
+      hbodyEq body₀'' hbodyEq₀ hopened hopened₀).bind fun _ hrest =>
+        Except.WF.pure hrest
   · rw [if_neg hbound]
     change (Except.error _).WF Q
     exact Except.WF.throw
@@ -325,7 +330,8 @@ theorem unsafeField.sourceWF
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
               (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
             checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF Q) :
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF
+          fun rest => Q (false :: rest)) :
     (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
       (.forallE name dom body bi) i (fuel + 1) c).WF Q := by
   rw [AddInductive.checkConstructors.loopCtor]
@@ -339,11 +345,11 @@ theorem unsafeField.sourceWF
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel! do
       throw <| .other s!"universe level of type_of(arg #{i + 1}) of '{ctor}' \
         is too big for the corresponding inductive datatype"
-    if !true then
-      AddInductive.checkPositivity stats dom ctor i
-    AddInductive.withUnannotatedCheckedLocalDecl name bi dom fun arg =>
-      AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
-        (body.instantiate1 arg) (i + 1) fuel) : AddInductive.M Unit) c |>.WF Q
+    let recursive ← if !true then AddInductive.checkPositivity stats dom ctor i
+      else pure false
+    AddInductive.withUnannotatedCheckedLocalDecl name bi dom fun arg => do
+      return recursive :: (← AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
+        (body.instantiate1 arg) (i + 1) fuel)) : AddInductive.M (List Bool)) c |>.WF Q
   by_cases hbound :
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true
@@ -351,17 +357,17 @@ theorem unsafeField.sourceWF
     rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
     rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
     refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
-      (k := fun arg =>
-        AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
-          (body.instantiate1 arg) (i + 1) fuel)
+      (k := fun arg => do
+        return false :: (← AddInductive.checkConstructors.loopCtor stats true ctor
+          targetIdx (body.instantiate1 arg) (i + 1) fuel))
       Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
       Hdom.unannotated Hdom.isType hbody''
     have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
       Hdom₀.unannotated Hdom₀.isType hbody₀''
-    exact Hrec _ fieldLevel fieldLevel' Hdom.source hfieldLevel
+    exact (Hrec _ fieldLevel fieldLevel' Hdom.source hfieldLevel
       hfieldHasType fieldType₀ hfieldType₀ hfieldHasType₀ hbound body'' hbodyEq
-      body₀'' hbodyEq₀ hopened hopened₀
+      body₀'' hbodyEq₀ hopened hopened₀).bind fun _ hrest => Except.WF.pure hrest
   · rw [if_neg hbound]
     change (Except.error _).WF Q
     exact Except.WF.throw
@@ -1476,12 +1482,12 @@ theorem isValidIndApp?.validIndAppAt
     (Or.inl rfl) hlit hctx
 
 theorem noOccurrence.WF
-    {type : Expr} {Q : Unit → Prop}
+    {type : Expr} {Q : Bool → Prop}
     (hocc : AddInductive.hasIndOcc stats.indConsts type = false)
-    (hQ : Q ()) :
+    (hQ : Q false) :
     (AddInductive.checkPositivityStep stats type ctor idx recur c).WF Q := by
   simp [AddInductive.checkPositivityStep, hocc]
-  change (Except.ok ()).WF Q
+  change (Except.ok false).WF Q
   exact Except.WF.pure hQ
 
 /-- The successful fast path of executable positivity establishes the
@@ -1508,7 +1514,7 @@ theorem validApplication.WF
     (hocc : AddInductive.hasIndOcc stats.indConsts type = true)
     (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
     (hvalid : AddInductive.isValidIndApp? stats type = some target)
-    (hQ : Q ()) :
+    (hQ : Q true) :
     (AddInductive.checkPositivityStep stats type ctor idx recur c).WF Q := by
   cases type <;>
     simp_all [AddInductive.checkPositivityStep]

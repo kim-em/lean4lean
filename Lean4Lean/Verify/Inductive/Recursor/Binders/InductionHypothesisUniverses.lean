@@ -226,7 +226,7 @@ theorem LoopUArgsRun.universeSupport
 /-- Checked constructor tails are translated at the declaration's universe
 parameters. -/
 theorem ConstructorTails.levelParamsIn
-    (H : ConstructorTails env Us scope stats decl indTypes)
+    (H : ConstructorTails env Us scope stats decl indTypes classes)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (ctor : Constructor) (hctor : ctor ∈ indTypes[familyIdx].ctors)
     (tail : Expr) (Hprefix : ParameterPrefix stats 0 ctor.type tail) :

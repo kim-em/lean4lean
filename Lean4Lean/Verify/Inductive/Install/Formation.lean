@@ -57,120 +57,83 @@ theorem AddInductive.formationCoreWF
     (hlparams : c.lparams.Nodup)
     (henv : TypeChecker.EnvGhostFree (fun _ => True) c.env)
     (hpresent : ListedConstructorsPresent c.env) :
-    ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
-      isUnsafe >>= fun headerEnv =>
-        AddInductive.withEnv headerEnv do
-          AddInductive.checkConstructors indTypes stats isUnsafe
-          AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
-      fun outEnv => ∃ decl headerEnv,
+    (AddInductive.constructorPhase stats nparams indTypes numNested isUnsafe c).WF
+      fun out => ∃ decl headerEnv,
         ∃ Hheaders : HeaderEnvironment c stats decl nparams
           isUnsafe depth Hc.venv indTypes headerEnv,
-        ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True := by
+        ∃ R : OrdinaryConstructorCheck Hheaders out.1, R.classes = out.2 := by
   have HheadersAndLoop :=
     AddInductive.declareInductiveTypes.constructorsWF
       Hsemantic hlevels hlevelParams hindicesSize hindices hconsts hparams
       hcommonParams Hcache Hsuffix Hambient hcommon hnotzero hvisible hnprimTypes
       hconsume hlparams hpresent
-  have Hcombined :
-      ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
-        isUnsafe >>= fun headerEnv =>
-          AddInductive.withEnv headerEnv do
-            AddInductive.checkConstructors indTypes stats isUnsafe
-            AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
-        fun outEnv =>
-        ∃ decl headerEnv,
-          ∃ Hheaders : HeaderEnvironment c stats decl nparams
-            isUnsafe depth Hc.venv indTypes headerEnv,
-          ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True :=
-    HheadersAndLoop.bind fun headerEnv ⟨hheaderWF, Hloop⟩ => by
-    change ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
-      AddInductive.declareConstructors stats indTypes isUnsafe)
-        { c with env := headerEnv }).WF _
-    intro outEnvFinal houtFinal
-    -- The constructor names are checked fresh only when the constructors are declared, after
-    -- their types are checked; that check succeeding is what makes the header environment,
-    -- in which the types are checked, list no present constant.
-    have hfresh : ConstructorNamesAbsent indTypes headerEnv := by
-      change (AddInductive.checkConstructors indTypes stats isUnsafe
-        { c with env := headerEnv } >>= fun _ =>
-          AddInductive.declareConstructors stats indTypes isUnsafe
-            { c with env := headerEnv }) = .ok outEnvFinal at houtFinal
-      cases hcheck : AddInductive.checkConstructors indTypes stats isUnsafe
-          { c with env := headerEnv } with
-      | error e => rw [hcheck] at houtFinal; cases houtFinal
-      | ok u =>
-        rw [hcheck] at houtFinal
-        exact AddInductive.declareConstructors.namesAbsent
-          (c := { c with env := headerEnv }) hheaderWF outEnvFinal houtFinal
-    have Hloop := Hloop hfresh
-    have Hcheck :
-        (AddInductive.checkConstructors indTypes stats isUnsafe
-          { c with env := headerEnv }).WF fun _ =>
-            ∃ decl,
-            ∃ Hheaders : HeaderEnvironment c stats decl nparams
-              isUnsafe depth Hc.venv indTypes headerEnv,
-              CheckedConstructors Hc.venv decl Hheaders.context.venv
-                  Hheaders.headers.params stats indTypes c.lparams
-                  Hheaders.statsWF.parameterScope /\
-                ConstructorOwnerNormalForms stats indTypes ∧
-                SourceCtorsCertified Hheaders.context.venv c.lparams indTypes.toList := by
-      intro checkedOut hfull
-      have hcheckedOut : AddInductive.checkConstructors.loopTypes indTypes stats
-          isUnsafe 0 { headerCheckContext c stats with env := headerEnv } = .ok checkedOut :=
-        hfull
-      rcases Hloop checkedOut hcheckedOut with ⟨decl, ⟨Hheaders⟩⟩
-      have hlitInstalled := Hheaders.checkedAvailableLiteralDisjoint
-      have Hchecked := AddInductive.checkConstructors.checkedWF Hheaders
-        hconsume hlitInstalled
-        (fun h => Hheaders.translation.isUnsafe.trans h) hlparams
-        checkedOut hfull
-      have Howners :=
-        AddInductive.checkConstructors.ownerNormalFormsWF Hheaders
-          hconsume hlitInstalled
-          checkedOut hfull
-      have Htele := AddInductive.checkConstructors.telescopesWF Hheaders
-        (Hheaders.installed.envGhostFree Hc.checking.tr.map_wf henv
-          (Hheaders.entriesNoRecursor))
-        checkedOut hfull
-      exact ⟨decl, Hheaders, Hchecked, Howners, Htele⟩
-    have Hphases :
-        ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
-          AddInductive.declareConstructors stats indTypes isUnsafe)
-            { c with env := headerEnv }).WF fun outEnv =>
-              ∃ decl,
-              ∃ Hheaders : HeaderEnvironment c stats decl nparams
-                isUnsafe depth Hc.venv indTypes headerEnv,
-              ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True :=
-      Hcheck.bind fun _ Hchecked => by
-      rcases Hchecked with ⟨decl, Hheaders, Hchecked, Howners, Htele⟩
-      exact (AddInductive.declareConstructors.WF Hheaders
-        Hchecked hvisible hnprimCtors Htele).mono fun outEnv Hdeclared => by
-          rcases Hdeclared with ⟨Hdeclared, _⟩
-          let R : OrdinaryConstructorCheck Hheaders outEnv := {
-            checked := Hchecked.checked
-            parameterPrefixes := Hchecked.parameterPrefixes
-            constructorTails := Hchecked.constructorTails
-            ownerNormalForms := Howners
-            telescopes := Htele
-            declared := Hdeclared
-            formation := Hheaders.formation Hchecked
-            core := Lean4Lean.VerifyInductive.TrInductDeclCore.ofPhases
-              Hheaders.translation Hdeclared.translation }
-          exact ⟨decl, Hheaders, R, trivial⟩
-    have Hphases' :
-        ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
-          AddInductive.declareConstructors stats indTypes isUnsafe)
-            { c with env := headerEnv }).WF fun outEnv =>
-          ∃ decl headerEnv',
-            ∃ Hheaders : HeaderEnvironment c stats decl nparams
-              isUnsafe depth Hc.venv indTypes headerEnv',
-            ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True := by
-      intro outEnv hout
-      have Hresult := Hphases outEnv hout
-      rcases Hresult with ⟨decl, Hheaders, R, _⟩
-      exact ⟨decl, headerEnv, Hheaders, R, trivial⟩
-    exact Hphases' outEnvFinal houtFinal
-  exact Hcombined
+  unfold AddInductive.constructorPhase
+  refine HheadersAndLoop.bind fun headerEnv ⟨hheaderWF, Hloop⟩ => ?_
+  change ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun positivity =>
+    AddInductive.declareConstructors stats indTypes isUnsafe >>= fun ctorEnv =>
+      pure (ctorEnv, positivity))
+      { c with env := headerEnv }).WF _
+  intro outFinal houtFinal
+  -- The constructor names are checked fresh only when the constructors are declared, after
+  -- their types are checked; that check succeeding is what makes the header environment,
+  -- in which the types are checked, list no present constant.
+  cases hcheck : AddInductive.checkConstructors indTypes stats isUnsafe
+      { c with env := headerEnv } with
+  | error e =>
+    change (AddInductive.checkConstructors indTypes stats isUnsafe
+      { c with env := headerEnv } >>= fun positivity =>
+        (AddInductive.declareConstructors stats indTypes isUnsafe >>= fun ctorEnv =>
+          pure (ctorEnv, positivity)) { c with env := headerEnv }) = .ok outFinal at houtFinal
+    rw [hcheck] at houtFinal; cases houtFinal
+  | ok positivity =>
+  change (AddInductive.checkConstructors indTypes stats isUnsafe
+    { c with env := headerEnv } >>= fun positivity =>
+      (AddInductive.declareConstructors stats indTypes isUnsafe >>= fun ctorEnv =>
+        pure (ctorEnv, positivity)) { c with env := headerEnv }) = .ok outFinal at houtFinal
+  rw [hcheck] at houtFinal
+  change (AddInductive.declareConstructors stats indTypes isUnsafe
+    { c with env := headerEnv } >>= fun ctorEnv =>
+      (pure (ctorEnv, positivity) : Except Exception _)) = .ok outFinal at houtFinal
+  cases hdeclare : AddInductive.declareConstructors stats indTypes isUnsafe
+      { c with env := headerEnv } with
+  | error e => rw [hdeclare] at houtFinal; cases houtFinal
+  | ok ctorEnv =>
+  rw [hdeclare] at houtFinal
+  cases houtFinal
+  have hfresh : ConstructorNamesAbsent indTypes headerEnv :=
+    AddInductive.declareConstructors.namesAbsent
+      (c := { c with env := headerEnv }) hheaderWF ctorEnv hdeclare
+  have Hloop := Hloop hfresh
+  have hcheckedOut : AddInductive.checkConstructors.loopTypes indTypes stats
+      isUnsafe 0 { headerCheckContext c stats with env := headerEnv } = .ok positivity :=
+    hcheck
+  rcases Hloop positivity hcheckedOut with ⟨decl, ⟨Hheaders⟩⟩
+  have hlitInstalled := Hheaders.checkedAvailableLiteralDisjoint
+  have Hchecked := AddInductive.checkConstructors.checkedWF Hheaders
+    hconsume hlitInstalled
+    (fun h => Hheaders.translation.isUnsafe.trans h) hlparams
+    positivity hcheck
+  have Howners :=
+    AddInductive.checkConstructors.ownerNormalFormsWF Hheaders
+      hconsume hlitInstalled positivity hcheck
+  have Htele := AddInductive.checkConstructors.telescopesWF Hheaders
+    (Hheaders.installed.envGhostFree Hc.checking.tr.map_wf henv
+      (Hheaders.entriesNoRecursor))
+    positivity hcheck
+  rcases (AddInductive.declareConstructors.WF Hheaders
+    Hchecked hvisible hnprimCtors Htele) ctorEnv hdeclare with ⟨Hdeclared, _⟩
+  let R : OrdinaryConstructorCheck Hheaders ctorEnv := {
+    checked := Hchecked.checked
+    parameterPrefixes := Hchecked.parameterPrefixes
+    classes := positivity
+    constructorTails := Hchecked.constructorTails
+    ownerNormalForms := Howners
+    telescopes := Htele
+    declared := Hdeclared
+    formation := Hheaders.formation Hchecked
+    core := Lean4Lean.VerifyInductive.TrInductDeclCore.ofPhases
+      Hheaders.translation Hdeclared.translation }
+  exact ⟨decl, headerEnv, Hheaders, R, rfl⟩
 
 end VerifyInductive
 end Lean4Lean
@@ -361,24 +324,20 @@ theorem AddInductive.formationCoreClosedWF
     (hlparams : c.lparams.Nodup)
     (henv : TypeChecker.EnvGhostFree (fun _ => True) c.env)
     (hpresent : ListedConstructorsPresent c.env) :
-    ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
-      isUnsafe >>= fun headerEnv =>
-        AddInductive.withEnv headerEnv do
-          AddInductive.checkConstructors indTypes stats isUnsafe
-          AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
-      fun outEnv => ∃ decl headerEnv,
+    (AddInductive.constructorPhase stats nparams indTypes numNested isUnsafe c).WF
+      fun out => ∃ decl headerEnv,
         ∃ Hheaders : HeaderEnvironment c stats decl nparams
           isUnsafe depth Hc.venv indTypes headerEnv,
-        ∃ _ : OrdinaryConstructorCheck Hheaders outEnv,
-          MutualInductivesClosed outEnv := by
+        ∃ R : OrdinaryConstructorCheck Hheaders out.1,
+          R.classes = out.2 ∧ MutualInductivesClosed out.1 := by
   have Hformation := AddInductive.formationCoreWF Hsemantic
     hlevels hlevelParams hindicesSize hindices hconsts hparams
     hcommonParams Hcache Hsuffix Hambient hcommon hnotzero hvisible hnprimTypes
     hconsume hnprimCtors hlparams henv hpresent
   intro outEnv hout
-  rcases Hformation outEnv hout with ⟨decl, headerEnv, Hheaders, R, _⟩
+  rcases Hformation outEnv hout with ⟨decl, headerEnv, Hheaders, R, hclasses⟩
   have hclosedHeaders := Hheaders.closesMutuals Hclosed
-  exact ⟨decl, headerEnv, Hheaders, R,
+  exact ⟨decl, headerEnv, Hheaders, R, hclasses,
     R.declared.closesMutuals hclosedHeaders⟩
 
 end VerifyInductive

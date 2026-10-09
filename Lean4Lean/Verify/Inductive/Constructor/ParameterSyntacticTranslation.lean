@@ -125,7 +125,7 @@ theorem CheckedConstructorParameterPrefix.rawCtorShape
     (Horiginal : TrExprS env Us [] original ctor.type)
     (Htail : TrExprS env Us scope tail tailTarget)
     (Hcert : ConstructorTailCertificate env decl target scope.toCtx 0
-      tailTarget) :
+      tailTarget classes) :
     decl.RawCtorShape target ctor := by
   rcases H.rawTranslation henv hscope Horiginal with
     ⟨rawScope, domains, residual, htarget, hlength, _, _, Hunique, Hresidual⟩
@@ -146,7 +146,7 @@ theorem CheckedConstructorParameterPrefix.rawCtorShape
 source constructor, positionally aligned with the declaration. -/
 theorem CheckedConstructors.rawShapes
     (H : CheckedConstructors sourceEnv decl env params stats indTypes
-      Us scope)
+      Us scope classes)
     (henv : env.WF)
     (Htypes : List.Forall₂
       (TrInductiveTypeHeaders sourceEnv env Us)
@@ -189,7 +189,7 @@ family/constructor indices to obtain the independent raw shape judgment,
 without changing the executable loop or adding a semantic callback. -/
 theorem CheckedConstructors.parameterShapes
     (H : CheckedConstructors sourceEnv decl env params stats indTypes
-      Us scope)
+      Us scope classes)
     (henv : env.WF)
     (Htypes : List.Forall₂
       (TrInductiveTypeHeaders sourceEnv env Us)
