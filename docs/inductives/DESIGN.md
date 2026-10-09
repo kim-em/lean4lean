@@ -169,6 +169,7 @@ signature, compilation certificate and case eliminators are reconstructed from t
 | `lake exe lean4lean --fresh Init.Prelude` | 1975 declarations checked |
 | `lake exe lean4lean --fresh Init.Core` | 3953 declarations checked |
 | `lake exe lean4lean Init.Core` | 1035 declarations checked |
+| `scripts/differential-replay.sh` | 64963 declarations checked, 64963 agreements with the C++ kernel, no disagreement (`divergences.md`, end of the audit) |
 | `python3 scripts/check-inductive-audit.py --self-test` | passes |
 | `python3 scripts/check-inductive-audit.py --require-complete` | "No sorry dependencies; all remaining axioms are listed." |
 
@@ -979,7 +980,10 @@ the two agree. No axiom is added.
 
 Every behavioural change to the executable is classified in the audit table at the end of
 `divergences.md`: a refactor with the C++ kernel's decisions, a divergence documented there, or
-(with an entry) a divergence found by the audit. The default scoped cache mode (section 5.2) is not the only
+(with an entry) a divergence found by the audit. The class (i) claims are also tested
+differentially: the CI replay of section 1.4 (`scripts/differential-replay.sh`) sends every
+declaration of `Init` and of the tests to both kernels and compares the decisions and the
+generated constants (the end of `divergences.md` says what this does and does not establish). The default scoped cache mode (section 5.2) is not the only
 divergence, but it is the only one that can change a decision against the C++ kernel on an
 environment whose type-annotation wrappers are the prelude's: it rejects a term whose
 acceptance needs a conversion fact outside its scope. The executable also implements the C++
