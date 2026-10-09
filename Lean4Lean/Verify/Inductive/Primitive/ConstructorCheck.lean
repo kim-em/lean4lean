@@ -916,9 +916,9 @@ theorem PrimitiveHeaderEnvironment.headerFamilyFind
   let familyInfo := infos[familyIdx]
   have hfamilyInfoMem : familyInfo ∈ infos.toList := by
     apply Array.mem_toList_iff.mpr
-    simpa [familyInfo] using Array.getElem_mem hinfoIdx
+    simp [familyInfo]
   have hfamilyName : familyInfo.name = indTypes[familyIdx].name := by
-    simp [familyInfo, infos, AddInductive.inductiveTypeInfos, hindicesSize]
+    simp [familyInfo, infos, AddInductive.inductiveTypeInfos]
   rcases Haligned.findInfo hfamilyInfoMem with ⟨_, hfamilyEntry⟩
   exact ⟨familyInfo, hfamilyName ▸
     H.installed.findEntry H.sourceContext.checking.tr.map_wf hfamilyEntry⟩
