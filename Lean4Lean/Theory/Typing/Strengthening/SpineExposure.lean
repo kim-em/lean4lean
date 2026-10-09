@@ -474,4 +474,110 @@ theorem spine_exposure_reduces {E : VEnv} (hE : E.WF) (hEq : E.HasCanonicalEq)
     obtain ⟨⟨v, hA⟩, _, hg⟩ := hl.lam_inv hE.ordered hΓ
     exact type_not_function hΓ hl (.lam hA hg)
 
+
+/-! ## Projection structures are type formers -/
+
+theorem typeFormerHead_of_projections (henv : env.WF) {info : VProjectionInfo}
+    (hinfo : env.projections S info) (hls : ls.length = info.uvars) :
+    TypeFormerHead env U S ls := by
+  intro Γ args T hΓ ht
+  obtain ⟨decl, familyType, ctor, _, _, _, _, huvars, _, _, _, _, _, hlookup, _,
+    ⟨common, Hshape, _⟩, _, _⟩ := henv.ordered.projectionShape hinfo
+  obtain ⟨normalized, ownParams, afterParams, indices, result, exprType,
+    hnorm, hown, hidx, _, hresult⟩ := Hshape
+  have hnormEq : normalized = wrapForalls (ownParams ++ indices) result := by
+    rw [VExpr.eq_wrapForalls_of_takeForalls hown, VExpr.eq_wrapForalls_of_takeForalls hidx,
+      wrapForalls_append]
+  subst hnormEq
+  have hctx : env.IsDefEq decl.uvars ((ownParams ++ indices).reverse ++ []) result
+      (.sort familyType.resultLevel) (.sort (.succ familyType.resultLevel)) := by
+    simpa only [List.reverse_append, List.append_nil] using hresult
+  obtain ⟨v, hcongr⟩ := wrapForalls_congr henv.ordered hnorm.hasType.2 hctx
+  have hty : env.IsDefEqU decl.uvars [] familyType.type
+      (wrapForalls (ownParams ++ indices) (.sort familyType.resultLevel)) :=
+    IsDefEqU.trans henv trivial ⟨_, hnorm⟩ ⟨_, hcongr⟩
+  obtain ⟨_, hhead⟩ := mkApps_head_typed henv.ordered hΓ ht
+  obtain ⟨ci, hci, hlsWF, hlen⟩ := hhead.const_inv henv.ordered hΓ
+  rw [hlookup] at hci
+  cases Option.some.inj hci
+  have hfam : familyType.uvars = decl.uvars := by
+    change ls.length = familyType.uvars at hlen
+    omega
+  rw [← hfam] at hty
+  have hinst := hty.instL hlsWF
+  simp only [List.map_nil, instL_wrapForalls, VExpr.instL] at hinst
+  have hconst : env.HasType U [] (.const S ls) (familyType.type.instL ls) :=
+    HasType.const hlookup hlsWF hlen
+  exact TypeFormerHead.of_telescope henv (hconst.defeqU_r henv trivial hinst) hΓ ht
+
+/-! ## The projection closure
+
+`ProjFrontN` splits into the exposure of the major's type below (spine exposure, from
+`EtaReplay`) and the typing of the field type below (`ProjFieldFrontN`, the exact remaining
+obligation of the projection case, see the log). -/
+
+/-- OPEN: the field-type closure. For a major typed below at a structure type whose projection
+is typable above, the field type computed from the data below is typed at a sort below, with
+the universe guard of `projDF`. -/
+def ProjFieldFrontN (env : VEnv) : Prop :=
+  ∀ ⦃U k Γ Γ' S info ls ps idx m i T⦄, Ctx.LiftN 1 k Γ Γ' → OnCtx Γ (env.IsType U) →
+    OnCtx Γ' (env.IsType U) → env.projections S info → ls.length = info.uvars →
+    ps.length = info.nparams → idx.length = info.nindices →
+    env.HasType U Γ m (mkApps (.const S ls) (ps ++ idx)) →
+    env.HasType U Γ' (.proj S i (m.liftN 1 k)) T →
+    ∃ F l, info.fieldType S ls ps i m = some F ∧ env.HasType U Γ F (.sort l) ∧
+      ((info.resultLevel.inst ls).IsNeverZero ∨ l ≈ .zero)
+
+/-- The projection closure from spine exposure and the field-type closure. The major's type
+below is convertible, above, to the structure type of the typing above, so it exposes below to
+a spine of the same structure (`spine_exposure_reduces` above, then `SpineExposureRedN`); the
+field type for the data below is typed by `ProjFieldFrontN`; `projDF` closes. -/
+theorem ProjFrontN.of_spineExposure (henv : env.WF) (heq : env.HasCanonicalEq)
+    (hSpine : SpineExposureRedN henv) (hField : ProjFieldFrontN env) : ProjFrontN env := by
+  intro U k Γ Γ' S i m M T W hΓ hΓ' hm he
+  obtain ⟨info, levels, params, indexArgs, sourceMajor, Fa, fl, hinfo, hlevels, hlen, hparams,
+    hidx, -, -, hmajor, hclosed, -⟩ := he.proj_inv henv.ordered hΓ'
+  have hm' : env.HasType U Γ' (m.liftN 1 k) (mkApps (.const S levels) (params ++ indexArgs)) :=
+    hmajor.hasType.2
+  have hM : env.IsDefEqU U Γ' (M.liftN 1 k) (mkApps (.const S levels) (params ++ indexArgs)) :=
+    (hm.weakN henv.ordered W).uniqU henv hΓ' hm'
+  obtain ⟨u, hMs⟩ := hm.isType henv.ordered hΓ
+  letI := henv.params U
+  obtain ⟨ls', args', hred'⟩ := spine_exposure_reduces henv heq hΓ' (hMs.weakN henv.ordered W)
+    (henv.projectionRigid hinfo) (typeFormerHead_of_projections henv hinfo hlen) hM
+  obtain ⟨args₀, hred⟩ := hSpine W hΓ hΓ' hm hMs hred'
+  have hMdef : env.IsDefEq U Γ M (mkApps (.const S ls') args₀) (.sort u) :=
+    FullReduction.defeq hΓ hred hMs
+  have hm₀ : env.HasType U Γ m (mkApps (.const S ls') args₀) := hm.defeqU_r henv hΓ ⟨_, hMdef⟩
+  have hsp : env.HasType U Γ (mkApps (.const S ls') args₀) (.sort u) := hMdef.hasType.2
+  have hsp' : env.HasType U Γ' (mkApps (.const S ls') (args₀.map (·.liftN 1 k))) (.sort u) := by
+    simpa only [liftN_mkApps, liftN] using hsp.weakN henv.ordered W
+  have hrel : env.IsDefEqU U Γ' (mkApps (.const S ls') (args₀.map (·.liftN 1 k)))
+      (mkApps (.const S levels) (params ++ indexArgs)) := by
+    have := hMdef.weakN henv.ordered W
+    simp only [liftN_mkApps, liftN] at this
+    exact IsDefEqU.trans henv hΓ' (IsDefEqU.symm ⟨_, this⟩) hM
+  obtain ⟨hls, hargs⟩ := IsDefEqU.rigidApp_inv henv hΓ' (henv.projectionRigid hinfo) hrel hsp'
+  have hls'len : ls'.length = info.uvars := by rw [Lean4Lean.List.Forall₂.length_eq hls, hlen]
+  have hargslen : args₀.length = info.nparams + info.nindices := by
+    have := Lean4Lean.List.Forall₂.length_eq hargs
+    simp only [List.length_map, List.length_append] at this
+    omega
+  have hsplit : args₀ = args₀.take info.nparams ++ args₀.drop info.nparams :=
+    (List.take_append_drop _ _).symm
+  have hps : (args₀.take info.nparams).length = info.nparams :=
+    List.length_take_of_le (by omega)
+  have hidx' : (args₀.drop info.nparams).length = info.nindices := by
+    simp only [List.length_drop]; omega
+  rw [hsplit] at hm₀
+  obtain ⟨F, l, hF, hFs, hguard⟩ := hField W hΓ hΓ' hinfo hls'len hps hidx' hm₀ he
+  obtain ⟨_, hhead⟩ := mkApps_head_typed henv.ordered hΓ hsp
+  obtain ⟨_, _, hlsWF, _⟩ := hhead.const_inv henv.ordered hΓ
+  exact ⟨_, .projDF hinfo hlsWF hls'len hps hidx' hF hFs hm₀ hm₀ hclosed hguard⟩
+
+/-- The projection closure from the replay obligation and the field-type closure. -/
+theorem ProjFrontN.of_etaReplay (henv : env.WF) (heq : env.HasCanonicalEq)
+    (H : ∀ U, @EtaReplay (henv.params U)) (hField : ProjFieldFrontN env) : ProjFrontN env :=
+  ProjFrontN.of_spineExposure henv heq (spineExposureRed_of_etaReplay henv H) hField
+
 end Lean4Lean.VEnv.StrengtheningSpineExposure
