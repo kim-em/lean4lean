@@ -33,6 +33,22 @@ inductive IsDefEq : List VExpr → VExpr → VExpr → VExpr → Prop where
     Γ ⊢ f ≡ f' : .forallE A B →
     Γ ⊢ a ≡ a' : A →
     Γ ⊢ .app f a ≡ .app f' a' : B.inst a
+  | projDF :
+    env.projections typeName info →
+    (∀ l ∈ levels, l.WF uvars) →
+    levels.length = info.uvars →
+    params.length = info.nparams →
+    indexArgs.length = info.nindices →
+    info.fieldType typeName levels params index sourceMajor = some fieldType →
+    Γ ⊢ fieldType : .sort fieldLevel →
+    Γ ⊢ sourceMajor ≡ major :
+      VExpr.mkApps (.const typeName levels) (params ++ indexArgs) →
+    Γ ⊢ sourceMajor ≡ major' :
+      VExpr.mkApps (.const typeName levels) (params ++ indexArgs) →
+    info.ctorType.Closed →
+    (info.resultLevel.inst levels).IsNeverZero ∨ fieldLevel ≈ .zero →
+    Γ ⊢ .proj typeName index major ≡
+      .proj typeName index major' : fieldType
   | lamDF :
     Γ ⊢ A ≡ A' : .sort u →
     A::Γ ⊢ body ≡ body' : B →
@@ -62,6 +78,32 @@ inductive IsDefEq : List VExpr → VExpr → VExpr → VExpr → Prop where
     r.2.Realizes m1 m2 chk →
     (∀ t ∈ chk, Γ ⊢ t.1 ≡ t.2.1 : t.2.2) →
     Γ ⊢ e ≡ r.1.apply m1 m2 : A
+  | projIota :
+    env.projections typeName info →
+    Γ ⊢ .proj typeName index (VExpr.mkApps (.const info.ctorName levels) args) : fieldType →
+    args[info.nparams + index]? = some field →
+    Γ ⊢ field : fieldType →
+    Γ ⊢ .proj typeName index (VExpr.mkApps (.const info.ctorName levels) args) ≡ field :
+      fieldType
+  | structEta :
+    env.projections typeName info →
+    params.length = info.nparams →
+    info.nindices = 0 →
+    Γ ⊢ e : VExpr.mkApps (.const typeName levels) params →
+    Γ ⊢ VExpr.mkApps (.const info.ctorName levels)
+        (params ++ (List.range info.numFields).map fun index => .proj typeName index e) :
+      VExpr.mkApps (.const typeName levels) params →
+    Γ ⊢ VExpr.mkApps (.const info.ctorName levels)
+        (params ++ (List.range info.numFields).map fun index => .proj typeName index e) ≡ e :
+      VExpr.mkApps (.const typeName levels) params
+  | unitLike :
+    env.projections typeName info →
+    params.length = info.nparams →
+    info.nindices = 0 →
+    info.numFields = 0 →
+    Γ ⊢ e : VExpr.mkApps (.const typeName levels) params →
+    Γ ⊢ e' : VExpr.mkApps (.const typeName levels) params →
+    Γ ⊢ e ≡ e' : VExpr.mkApps (.const typeName levels) params
 
 end
 
@@ -73,6 +115,13 @@ def IsType (env : VEnv) (U : Nat) (Γ : List VExpr) (A : VExpr) : Prop :=
 
 def IsDefEqU (env : VEnv) (U : Nat) (Γ : List VExpr) (e₁ e₂ : VExpr) :=
   ∃ A, env.IsDefEq U Γ e₁ e₂ A
+
+variable (env : VEnv) (U : Nat) (Γ₀ : List VExpr) in
+/-- Pointwise definitional equality of two local contexts over a common
+base `Γ₀`. -/
+inductive IsDefEqCtx : List VExpr → List VExpr → Prop
+  | zero : IsDefEqCtx Γ₀ Γ₀
+  | succ :  IsDefEqCtx Γ₁ Γ₂ → env.IsDefEq U Γ₁ A₁ A₂ (.sort u) → IsDefEqCtx (A₁ :: Γ₁) (A₂ :: Γ₂)
 
 end VEnv
 
