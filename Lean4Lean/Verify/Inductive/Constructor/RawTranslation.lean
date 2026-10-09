@@ -92,7 +92,9 @@ theorem assembleInductiveSkeletonTypes_translated
           TrSourceConstRaw envTypes Us ctor.name ctor.type target)
         source.ctors targets)
       sources constructors) :
-    List.Forall₂ (TrInductiveTypeSkeletonHeaders env envTypes Us)
+    List.Forall₂ (fun source target => ∀ numIndices resultLevel,
+        TrInductiveTypeHeaders env envTypes Us source
+          (target.toVInductiveType numIndices resultLevel))
       sources (assembleInductiveSkeletonTypes headers constructors) := by
   induction Hheaders generalizing constructors with
   | nil =>
@@ -101,7 +103,7 @@ theorem assembleInductiveSkeletonTypes_translated
   | cons Hheader Hheaders ih =>
       cases Hconstructors with
       | cons Hctors Hconstructors =>
-        exact .cons ⟨Hheader, Hctors⟩ (ih Hconstructors)
+        exact .cons (fun _ _ => ⟨Hheader, Hctors⟩) (ih Hconstructors)
 
 theorem assembleInductiveSkeletonTypes_headers
     {sources : List InductiveType} {headers : List VConstVal}

@@ -166,8 +166,9 @@ private theorem installRestoredSourceFamilies
       currentVEnv.addConstVals
         (owners.flatMap VInductiveTypeSkeleton.ctors) = some targetVEnv ∧
       CheckingEnv.ValidCore c.safety targetProdEnv targetVEnv ∧
-      List.Forall₂
-        (TrInductiveTypeSkeleton sourceVEnv sourceTypesVEnv c.lparams)
+      List.Forall₂ (fun source owner => ∀ numIndices resultLevel,
+          TrInductiveType sourceVEnv sourceTypesVEnv c.lparams source
+            (owner.toVInductiveType numIndices resultLevel))
         remainingSources owners := by
   induction Hrestoration generalizing currentProdEnv currentVEnv
       targetProdEnv remainingTargets with
@@ -207,9 +208,11 @@ private theorem installRestoredSourceFamilies
           let owner' : VInductiveTypeSkeleton := {
             toVConstVal := target.toVConstVal
             ctors := constructors }
-          have Howner : TrInductiveTypeSkeleton sourceVEnv sourceTypesVEnv
-              c.lparams sourceTypes[familyIdx] owner' := by
-            exact ⟨Hheader, Hconstructors.forall₂⟩
+          have Howner : ∀ numIndices resultLevel,
+              TrInductiveType sourceVEnv sourceTypesVEnv c.lparams
+                sourceTypes[familyIdx]
+                (owner'.toVInductiveType numIndices resultLevel) :=
+            fun _ _ => ⟨Hheader, Hconstructors.forall₂⟩
           refine ⟨owner' :: owners, targetVEnv, ?_, ?_, HtargetValid,
             .cons Howner Htypes⟩
           · simp [owner', HownerHeaders]
@@ -301,22 +304,6 @@ theorem NestedLoweringOutputClosed.sourceCore
     nparams := nparams
     types := owners
     isUnsafe := isUnsafe }
-  have HtypesAdded : sourceVEnv.addConstVals skeleton.typeConstants =
-      some sourceTypesVEnv := by
-    change sourceVEnv.addConstVals
-      (owners.map VInductiveTypeSkeleton.toVConstVal) = some sourceTypesVEnv
-    rw [HownerHeaders]
-    exact HsourceAdded
-  have Hcore : TrInductDeclSkeletonCore sourceVEnv c.lparams nparams
-      sourceTypes isUnsafe skeleton sourceTypesVEnv envCtors := {
-    uvars := rfl
-    nparams := rfl
-    isUnsafe := rfl
-    typesAdded := HtypesAdded
-    ctorsAdded := by
-      simpa [skeleton, VInductDeclSkeleton.constructorConstants] using
-        HconstructorsAdded
-    types := Htypes }
   have hsourceLength : skeleton.types.length ≤ loweredDecl.types.length := by
     have hownersLength : owners.length = sourceTypes.length :=
       (Lean4Lean.List.Forall₂.length_eq Htypes).symm
@@ -328,9 +315,6 @@ theorem NestedLoweringOutputClosed.sourceCore
         Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
   rcases VInductDeclSkeleton.withMetadataExpandedPrefix skeleton loweredDecl
       hsourceLength with ⟨sourceDecl, Hmaterialize, Hmaterialized⟩
-  have HsourceCore :=
-    Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.checked Hcore
-      Hmaterialize
   have hsourceTypeValues : sourceDecl.typeConstants =
       (loweredDecl.types.take sourceTypes.length).map
         VInductiveType.toVConstVal := by
@@ -340,6 +324,19 @@ theorem NestedLoweringOutputClosed.sourceCore
           VInductDeclSkeleton.withMetadata_toSkeleton Hmaterialize]
       _ = owners.map VInductiveTypeSkeleton.toVConstVal := rfl
       _ = _ := HownerHeaders
+  have hfields := VInductDeclSkeleton.withMetadata_fields Hmaterialize
+  have HsourceCore : TrInductDeclCore sourceVEnv c.lparams nparams
+      sourceTypes isUnsafe sourceDecl sourceTypesVEnv envCtors := {
+    uvars := hfields.1
+    nparams := hfields.2.1
+    isUnsafe := hfields.2.2.1
+    typesAdded := by rw [hsourceTypeValues]; exact HsourceAdded
+    ctorsAdded := by
+      rw [← VInductDecl.toSkeleton_constructorConstants sourceDecl,
+        VInductDeclSkeleton.withMetadata_toSkeleton Hmaterialize]
+      simpa [skeleton, VInductDeclSkeleton.constructorConstants] using
+        HconstructorsAdded
+    types := VInductDeclSkeleton.withMetadata_forall₂ Hmaterialize Htypes }
   exact ⟨{
     sourceDecl := sourceDecl
     envTypes := sourceTypesVEnv

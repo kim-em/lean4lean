@@ -30,8 +30,6 @@ structure HeaderDeclaration
     (params : List VExpr) (commonLevel : VLevel) where
   skeleton : VInductDeclSkeleton
   decl : VInductDecl
-  skeletonTranslation : TrInductDeclSkeletonHeaders env Us nparams sources
-    isUnsafe skeleton envTypes
   metadata : List (Nat × VLevel)
   checked : skeleton.withMetadata metadata = some decl
   formations : checkInductiveTypes.loopType.HeaderFormations
@@ -82,14 +80,6 @@ theorem HeaderDeclaration.ofTargetsExact
         VInductiveTypeSkeleton.toVConstVal = Hsemantic.headers.targets
     exact assembleInductiveSkeletonTypes_headers
       Hsemantic.headers.translations Hconstructors.translations
-  have Hskeleton : TrInductDeclSkeletonHeaders env Us nparams sources
-      isUnsafe skeleton envTypes := {
-    uvars := rfl
-    nparams := rfl
-    isUnsafe := rfl
-    typesAdded := by simpa [htypeConstants] using htypesAdded
-    types := assembleInductiveSkeletonTypes_translated
-      Hsemantic.headers.translations Hconstructors.translations }
   have Hprefix := Hsemantic.toFormationPrefix skeleton rfl rfl
     (by simpa [skeleton] using hparams) htypeConstants
   have hmetadataLength : Hsemantic.metadata.length =
@@ -114,28 +104,32 @@ theorem HeaderDeclaration.ofTargetsExact
   have Hmaterialized : skeleton.withMetadata Hsemantic.metadata =
       some decl := by
     simp [VInductDeclSkeleton.withMetadata, hmetadataLength, decl]
+  have hdeclTypeConstants : decl.typeConstants =
+      Hsemantic.headers.targets := by
+    rw [← VInductDecl.toSkeleton_typeConstants decl,
+      VInductDeclSkeleton.withMetadata_toSkeleton Hmaterialized]
+    exact htypeConstants
   let A : HeaderDeclaration env envTypes Us nparams sources isUnsafe
       params commonLevel := {
     skeleton := skeleton
     decl := decl
-    skeletonTranslation := Hskeleton
     metadata := Hsemantic.metadata
     checked := Hmaterialized
     formations := Hprefix
-    translation :=
-      Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.checked
-        Hskeleton Hmaterialized
+    translation := {
+      uvars := rfl
+      nparams := rfl
+      isUnsafe := rfl
+      typesAdded := by rw [hdeclTypeConstants]; exact htypesAdded
+      types := VInductDeclSkeleton.withMetadata_forall₂ Hmaterialized
+        (assembleInductiveSkeletonTypes_translated
+          Hsemantic.headers.translations Hconstructors.translations) }
     headers := Hprefix.complete Hmaterialized
     headers_eq := rfl }
-  refine ⟨{
+  exact ⟨{
     toHeaderDeclaration := A
-    typeConstants := ?_
+    typeConstants := hdeclTypeConstants
     metadata_eq := rfl }⟩
-  calc
-      A.decl.typeConstants = A.skeleton.typeConstants := by
-        rw [← VInductDecl.toSkeleton_typeConstants A.decl,
-          VInductDeclSkeleton.withMetadata_toSkeleton A.checked]
-      _ = Hsemantic.headers.targets := htypeConstants
 
 /-- The metadata passed to `withMetadata` is exactly the per-family
 index-count vector of the resulting declaration.  This is the
@@ -173,15 +167,14 @@ theorem VInductDeclSkeleton.withMetadata_numIndices
     exact (zipIndices skeleton.types metadata hlength).symm
   · contradiction
 
-/-- A translated declaration skeleton preserves family names in source
+/-- A header-translated declaration preserves family names in source
 order, independently of its constructor rows. -/
-theorem TrInductDeclSkeletonHeaders.typeNames
-    (H : TrInductDeclSkeletonHeaders env Us nparams sources isUnsafe
-      skeleton envTypes) :
-    skeleton.types.map (·.name) = sources.map (·.name) := by
+theorem TrInductDeclHeaders.typeNames
+    (H : TrInductDeclHeaders env Us nparams sources isUnsafe decl envTypes) :
+    decl.types.map (·.name) = sources.map (·.name) := by
   have go : ∀ {sourceTypes : List InductiveType}
-      {targetTypes : List VInductiveTypeSkeleton},
-      List.Forall₂ (TrInductiveTypeSkeletonHeaders env envTypes Us)
+      {targetTypes : List VInductiveType},
+      List.Forall₂ (TrInductiveTypeHeaders env envTypes Us)
         sourceTypes targetTypes →
       targetTypes.map (·.name) = sourceTypes.map (·.name) := by
     intro sourceTypes targetTypes Htypes
@@ -220,7 +213,6 @@ def HeaderDeclaration.checkedResult
       Hc.venv c.lparams Hc.mlctx.vlctx
       stats H.decl depth := by
   have hfields := VInductDeclSkeleton.withMetadata_fields H.checked
-  have herase := VInductDeclSkeleton.withMetadata_toSkeleton H.checked
   refine {
     headers := H.formations.complete H.checked
     normalizedSources :=
@@ -247,44 +239,32 @@ def HeaderDeclaration.checkedResult
         Hc Hsuffix
     paramsContext := ?_
     suffixParams := ?_ }
-  · exact hlevels.trans
-      (H.skeletonTranslation.uvars.symm.trans hfields.1.symm)
-  · exact H.skeletonTranslation.uvars.symm.trans hfields.1.symm
-  · have hconstMap :
-        (H.decl.types.map fun type => Expr.const type.name stats.levels) =
-          (H.skeleton.types.map fun type =>
-            Expr.const type.name stats.levels) := by
-      have h := congrArg (fun d : VInductDeclSkeleton =>
-        d.types.map fun type => Expr.const type.name stats.levels) herase
-      simpa [VInductDecl.toSkeleton, VInductiveType.toSkeleton,
-        Function.comp_def] using h
-    calc
+  · exact hlevels.trans H.translation.uvars.symm
+  · exact H.translation.uvars.symm
+  · calc
       stats.indConsts =
           (sources.map fun source =>
             .const source.name stats.levels).toArray := hconsts
-      _ = (H.skeleton.types.map fun type =>
+      _ = (H.decl.types.map fun type =>
             .const type.name stats.levels).toArray := by
         have hnames :=
-          Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.typeNames
-            H.skeletonTranslation
+          Lean4Lean.VerifyInductive.TrInductDeclHeaders.typeNames
+            H.translation
         have h := congrArg (fun names =>
           (names.map fun name => Expr.const name stats.levels).toArray)
           hnames.symm
         simpa [List.map_map, Function.comp_def] using h
-      _ = (H.decl.types.map fun type =>
-            .const type.name stats.levels).toArray := by rw [hconstMap]
   · have Hcache' : checkInductiveTypes.loopType.ParameterCachePrefix
         Hc.venv c.lparams Hc.mlctx.vlctx stats H.decl.nparams depth := by
-      rw [hfields.2.1, H.skeletonTranslation.nparams]
+      rw [H.translation.nparams]
       exact Hcache
     exact Hcache'.complete
   · apply Hsuffix.paramsDefEq Hambient
     exact H.formations.parameterCount.trans
-      (H.skeletonTranslation.nparams.trans hparams.symm)
+      (hfields.2.1.symm.trans (H.translation.nparams.trans hparams.symm))
   · rw [← checkInductiveTypes.loopType.cachedParamVars_eq_paramVars H.decl]
     have hsize : stats.params.size = H.decl.nparams :=
-      hparams.trans
-        (H.skeletonTranslation.nparams.symm.trans hfields.2.1.symm)
+      hparams.trans H.translation.nparams.symm
     simpa [hsize] using Hsuffix.suffixParams
 
 end VerifyInductive
