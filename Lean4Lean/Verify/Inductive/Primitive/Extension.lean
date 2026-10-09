@@ -61,12 +61,10 @@ theorem PrimitiveInstallation.extendSafeExact
       BlockCertificate.block] using
       (T.compilation hnonempty).compilesTo
   have Hsemantics : ConstructorParameterAlignment .safe outEnv
-      Hcert.installedVEnv := by
-    simpa [Hcert, Hcert0, BlockCertificate.sf_mono, BlockInstallation.sf_mono,
-      BlockCertificate.installedVEnv] using
-    Hrecursors.constructorTyping
+      (Hrecursors.outVEnv.addDefEqRules T.rules) := by
+    exact Hrecursors.constructorTyping
       (wf.constructorParameterAlignment (safety := .safe)) T.rules
-  have hHcert : R.headerVEnv ≤ Hcert.installedVEnv := by
+  have hHcert : R.headerVEnv ≤ (Hrecursors.outVEnv.addDefEqRules T.rules) := by
     refine Hcert.typesLe ?_
     rw [R.headerValues]
     exact R.core.typesAdded

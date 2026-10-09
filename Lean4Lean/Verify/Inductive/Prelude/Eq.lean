@@ -299,7 +299,7 @@ theorem OrdinaryInstallation.extendSafePreludeEq
       ⟨family, refl, hdeclTypes, hfamilyName, hfamilyConst, hfamilyCtors, hreflName,
         hreflConst, hdeclParams⟩
     -- The generated rule is the stored rule.
-    have hinstall : B.block.install (ves.venv .safe) = some B.installedVEnv := B.install
+    have hinstall : B.block.install (ves.venv .safe) = some (Hrecursors.outVEnv.addDefEqRules T.rules) := B.install
     have hrules : B.block.rules = [canonicalEqRecRule] := by
       have Hcompiles : InductiveSignature.Compiles (ves.venv .safe) decl B.block := by
         simpa [B, B0, BlockCertificate.sf_mono, BlockInstallation.sf_mono,

@@ -384,8 +384,9 @@ private theorem RestoredBlockCertificate.extendSafe
           C.installedEnv replayBase,
         Breplay.projections = decl.projectionEntries ∧
         AddInduct observer sourceProdEnv.constants (ves.venv observer) decl
-          outEnv.constants Breplay.installedVEnv ∧
-        B.installedVEnv ≤ Breplay.installedVEnv ∧
+          outEnv.constants (replayBase.addDefEqRules (C.sourceRules ++ C.auxiliaryRules)) ∧
+        (C.recursorVEnv.addDefEqRules (C.sourceRules ++ C.auxiliaryRules)) ≤
+          (replayBase.addDefEqRules (C.sourceRules ++ C.auxiliaryRules)) ∧
         Breplay.installation.eliminators = B.installation.eliminators := by
     have hB : B.block = _ := C.block_eq_restoredBlock
     have Hreplay : VInductBlock.EliminatorsReplay (ves.venv observer) decl B.block :=
@@ -407,9 +408,9 @@ private theorem RestoredBlockCertificate.extendSafe
       CheckingEnv.mapExt HcheckingCanonical
         (actual.property.targetWF Hvalid.tr.map_wf)
         (fun name => (hlookup name).symm)
-    have HcheckingRules : CheckingEnv observer outEnv Breplay.installedVEnv := {
+    have HcheckingRules : CheckingEnv observer outEnv
+        (replayBase.addDefEqRules (C.sourceRules ++ C.auxiliaryRules)) := {
       aligned := by
-        rw [BlockCertificate.installedVEnv]
         exact aligned_addDefEqs Hchecking.aligned
           (C.sourceRules ++ C.auxiliaryRules)
       wf := by
@@ -423,7 +424,7 @@ private theorem RestoredBlockCertificate.extendSafe
     }
     have Hprovenance : NewRecursorsAligned observer
         sourceProdEnv.constants (ves.venv observer) outEnv.constants
-        Breplay.installedVEnv :=
+        (replayBase.addDefEqRules (C.sourceRules ++ C.auxiliaryRules)) :=
       (C.recursorsAligned.rebaseBlock (wf.mono DefinitionSafety.le_safe) hout
         B.install Breplay.install rfl).ofUnsafe
     have Hadd := H.addInductConcrete Habstract HcheckingRules Hprovenance
@@ -441,7 +442,7 @@ private theorem RestoredBlockCertificate.extendSafe
   let adds (observer : DefinitionSafety) := (certSpec observer).2.1
   let outputLE (observer : DefinitionSafety) := (certSpec observer).2.2.1
   let next (observer : DefinitionSafety) :=
-    (cert observer).installedVEnv
+    (pre observer).addDefEqRules (C.sourceRules ++ C.auxiliaryRules)
   have hcompletedCanonical :
       ConstructorParameterAlignment .safe C.installedEnv
         (C.recursorVEnv.addDefEqRules
