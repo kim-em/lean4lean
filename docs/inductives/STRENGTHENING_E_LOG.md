@@ -39,4 +39,89 @@ or state the exact missing environment lemma as a `def` with checked implication
   through the semantic model (a data field of a `Prop` structure is unprojectable, so the
   substitution instance of the constructor telescope cannot be typed by substitution).
 
+## Step 1: spine exposure (`Strengthening/SpineExposure.lean`)
+
+Namespace `VEnv.StrengtheningSpineExposure`, imports `Exposure`. Mirrors `Exposure.lean` for a
+constant spine in place of a `Π`:
+
+* `EtaPar.const_spine_inv_r`, `EtaChain.const_spine_inv`: an eta chain above from the lift of a
+  type into `mkApps (const S ls) args` starts at `mkApps (const S ls) args₀` (at every node on the
+  spine of a type, `funEta` produces a lambda and `structEta` needs a structure-typed subject,
+  `TypeLike.not_struct`). The head and the levels are preserved exactly.
+* `SpineExposureRedN hE` (reduction form: a type typed below whose lift reduces above to a
+  constant spine reduces below to a spine with the same head and levels) and
+  `spineExposureRed_of_etaReplay : (∀ U, EtaReplay) → SpineExposureRedN henv` by `path_replay`.
+* Above, conversion to reduction: `spine_exposure_reduces` (canonical `Eq`): `T : sort u`,
+  `T ≡ mkApps (const S ls) args`, `S` rigid and a type former ⟹ `T →* mkApps (const S ls') args'`.
+  Through `WF.church_rosser`, both sides reduce to normally equal reducts. The reduct of the spine
+  is not a spine in general (inner `funEta`: `S a b →* (λ x. S a x) b`), so the `Π`-stability
+  argument of `exposure_reduces` does not transfer. Instead `EtaSpine S ls n` (head, applications,
+  lambdas; `n` counts nodes) is preserved by `FullStep` when `S` is rigid (`ConstHeadRigid`, from
+  `Rigid` by `constHeadRigid_iff`; stored rules, case rules and prefix unfolding are excluded by
+  `ParRed.rigid_const_spine`, `Params.not_rigid_match`, `PrefixUnfold.not_rigid`,
+  `QuotPrefixUnfold.not_rigid` and the head shape `EtaSpine.head_cases`) and a type former
+  (`TypeFormerHead`: every node is typed at a `Π`-telescope ending in a sort,
+  `EtaSpine.typeFormer`, so `structEta` applies to none, `EtaSpine.not_struct`); a sort-typed eta
+  spine beta-reduces back to a syntactic spine (`EtaSpine.reduces_to_spine`, induction on `n`
+  with the extra arguments generalized, substitution preserving `n`). Then
+  `NormalEq.fullReduction` transports the join and `NormalEqN.spine_expose` (library) exposes the
+  type's reduct: the proof and lambda alternatives are excluded by its sort typing.
+* `TypeFormerHead.of_telescope` (a constant typed at `wrapForalls D (sort w)` in `[]` is a type
+  former: partial applications by `HasType.mkApps_wrapForalls` and `instOuter_wrapForalls_sort`,
+  over-applications contradict `sort_forallE_inv`) and `typeFormerHead_of_projections` (from
+  `Ordered.projectionShape`: `TypeShape` gives the normalized header `wrapForalls (P ++ I) result`
+  with `result ≡ sort rl`, closed by `wrapForalls_congr`).
+
+Build clean, zero `sorry`.
+
+## Step 2: the projection closure reduced (`SpineExposure.lean`, part 3)
+
+`ProjFrontN.of_spineExposure : SpineExposureRedN henv → ProjFieldFrontN env → ProjFrontN env`
+and `ProjFrontN.of_etaReplay`. From `proj_inv` above, `m↑ : S levels (params ++ indexArgs)`,
+so `M↑ ≡ S levels …` for the type `M` of `m` below; `spine_exposure_reduces` and
+`SpineExposureRedN` give `M →* S ls' args₀` below, `m : S ls' args₀`; `rigidApp_inv` above (the
+lifted reduct against the structure type above) gives `ls' ≈ levels` pointwise and
+`args₀.length = nparams + nindices`; `projDF` closes with the field type typed below by
+`ProjFieldFrontN`:
+
+```
+ProjFieldFrontN env := ∀ U k Γ Γ' S info ls ps idx m i T, Ctx.LiftN 1 k Γ Γ' → OnCtx Γ → OnCtx Γ' →
+  env.projections S info → ls.length = info.uvars → ps.length = info.nparams → idx.length = info.nindices →
+  m : mkApps (const S ls) (ps ++ idx) below → proj S i m↑ : T above →
+  ∃ F l, info.fieldType S ls ps i m = some F ∧ F : sort l below ∧ ((info.resultLevel.inst ls).IsNeverZero ∨ l ≈ 0)
+```
+
+This is the exact remaining obligation of the projection case. Analysis (see step 4 for what is
+proved): `F = (doms[nparams + i].instL ls).instOuter (ps ++ [proj 0 m, …, proj (i-1) m])`
+(`fieldType_eq_instOuter`). When `(resultLevel.inst ls).IsNeverZero`, every earlier projection is
+typable (the guard's left disjunct) and `F` is typed by the typed telescope substitution
+`IsType.instOuter_telescope`, with no information from above: a library fact. When the structure
+is in `Prop` at these levels, an earlier data field `j` (field type not a proposition) has an
+untypable projection; if `doms[nparams+i]` mentions binder `j` then the field type above mentions
+`proj j sourceMajor`, itself untypable, so the typing above excludes this case; if it does not
+mention `j`, `F` is typed only by thinning binder `j` out of the closed constructor telescope,
+i.e. a `TypingFrontN` instance on an environment-determined closed term with an uninhabited
+removed binder (`Cancel.inhabited` does not apply: no term of the data field's type is available
+below). So the content of `ProjFieldFrontN` beyond library telescope facts is closed-telescope
+strengthening for `Prop` structures with data fields, the same shape as `GenericTypesTyped₀`.
+
+## Step 3: the eliminator closure and the assembly (`Strengthening/Closures.lean`)
+
+* `GenericTypesTyped₀ env` (generic type typed at a sort in `[]` at `schema.genericUvars`) ⟹
+  `GenericTypesTyped env` (`GenericTypesTyped.of_generic`, by `HasType.instL` with
+  `Permission.packedWF`) ⟹ `ElimFrontN env` (`ElimFrontN.of_generic`). The quantification over
+  all permitted specializations in `GenericTypesTyped` is therefore free; the generic typing is
+  the missing environment lemma. Why it is not in the library: step 0.
+* `GenericRulesTyped₀ env` (generic equations typed in `[]`) ⟹ the closed typing premises of
+  `CaseStep.iota` at every permitted specialization in every context
+  (`GenericRulesTyped₀.caseStep_premises`, `instL` then `weak0`). These are the closed typings
+  `CaseRedexDescends` needs; the remaining content of `CaseRedexDescends` (captures typed at
+  their domains, the alignment guard) is `TypedFront` retyping (B2 log, step 4), not attempted
+  here.
+* `cancel_iff_typedFront_of_etaReplay (henv) (heq) (H : ∀ U, EtaReplay) (hGen : GenericTypesTyped
+  env) (hField : ProjFieldFrontN env) : Cancel env ↔ TypedFront env`, and the `₀` variant with
+  `GenericTypesTyped₀`.
+
+Build clean, zero `sorry`.
+
 (entries follow)
