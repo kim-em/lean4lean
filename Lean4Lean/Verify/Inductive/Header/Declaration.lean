@@ -20,14 +20,19 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- Final declaration assembled after the installed header environment has
-made it possible to translate constructor types.  The semantic prefix is
-retained alongside the ordinary header translation so nested lowering can
-still project each exact normalized source telescope. -/
+/-- Final declaration assembled from the checked headers `Hsemantic` after the installed
+header environment has made it possible to translate constructor types.  The semantic prefix
+is retained alongside the ordinary header translation so nested lowering can still project
+each exact normalized source telescope, and the exact header target list and metadata it was
+built from are recorded (`typeConstants`, `metadata_eq`) so the header installation proofs
+can be reused without reconstructing target uniqueness. -/
 structure HeaderDeclaration
     (env envTypes : VEnv) (Us : List Name) (nparams : Nat)
     (sources : List InductiveType) (isUnsafe : Bool)
-    (params : List VExpr) (commonLevel : VLevel) where
+    (params : List VExpr) (commonLevel : VLevel)
+    (Hsemantic :
+      checkInductiveTypes.loopType.CheckedHeaders
+        env Us nparams params commonLevel sources) where
   skeleton : VInductDeclSkeleton
   decl : VInductDecl
   metadata : List (Nat × VLevel)
@@ -38,19 +43,6 @@ structure HeaderDeclaration
     envTypes
   headers : HeaderCertificate env decl
   headers_eq : headers = formations.complete checked
-
-/-- Final semantic assembly together with the exact header target list from
-which it was built.  Keeping this equality at the assembly boundary lets the
-header installation proofs be reused without reconstructing target uniqueness. -/
-structure HeaderDeclarationOf
-    (env envTypes : VEnv) (Us : List Name) (nparams : Nat)
-    (sources : List InductiveType) (isUnsafe : Bool)
-    (params : List VExpr) (commonLevel : VLevel)
-    (Hsemantic :
-      checkInductiveTypes.loopType.CheckedHeaders
-        env Us nparams params commonLevel sources)
-    extends HeaderDeclaration env envTypes Us nparams sources isUnsafe
-      params commonLevel where
   typeConstants : decl.typeConstants = Hsemantic.headers.targets
   metadata_eq : metadata = Hsemantic.metadata
 
@@ -65,7 +57,7 @@ theorem HeaderDeclaration.ofTargetsExact
     (hparams : params.length = nparams)
     (htypesAdded : env.addConstVals Hsemantic.headers.targets =
       some envTypes) :
-    Nonempty (HeaderDeclarationOf env envTypes Us nparams sources
+    Nonempty (HeaderDeclaration env envTypes Us nparams sources
       isUnsafe params commonLevel Hsemantic) := by
   let skeleton : VInductDeclSkeleton := {
     uvars := Us.length
@@ -109,8 +101,7 @@ theorem HeaderDeclaration.ofTargetsExact
     rw [← VInductDecl.toSkeleton_typeConstants decl,
       VInductDeclSkeleton.withMetadata_toSkeleton Hmaterialized]
     exact htypeConstants
-  let A : HeaderDeclaration env envTypes Us nparams sources isUnsafe
-      params commonLevel := {
+  exact ⟨{
     skeleton := skeleton
     decl := decl
     metadata := Hsemantic.metadata
@@ -125,9 +116,7 @@ theorem HeaderDeclaration.ofTargetsExact
         (assembleInductiveSkeletonTypes_translated
           Hsemantic.headers.translations Hconstructors.translations) }
     headers := Hprefix.complete Hmaterialized
-    headers_eq := rfl }
-  exact ⟨{
-    toHeaderDeclaration := A
+    headers_eq := rfl
     typeConstants := hdeclTypeConstants
     metadata_eq := rfl }⟩
 
@@ -184,15 +173,17 @@ theorem TrInductDeclHeaders.typeNames
       simp [Htype.header.name, ih]
   exact go H.types
 
-/-- Repackage a skeleton-free header declaration (`HeaderDeclaration`) in the
+/-- Repackage a header declaration (`HeaderDeclaration`) in the
 `HeaderStatsWF` interface.  All executable statistics and context
 facts are supplied by the outer fold; the declaration, header certificate and
 normalized source telescopes come solely from semantic assembly. -/
 def HeaderDeclaration.checkedResult
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth : Nat}
+    {Hsemantic : checkInductiveTypes.loopType.CheckedHeaders
+      Hc.venv c.lparams nparams params commonLevel sources}
     (H : HeaderDeclaration Hc.venv envTypes c.lparams nparams
-      sources isUnsafe params commonLevel)
+      sources isUnsafe params commonLevel Hsemantic)
     (hlevels : stats.levels.length = c.lparams.length)
     (hlevelParams : stats.levels = c.lparams.map .param)
     (hindices : stats.nindices.toList = H.metadata.map Prod.fst)

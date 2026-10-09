@@ -186,7 +186,7 @@ theorem InstalledHeaders.checkedAvailableLiteralDisjoint
 translation and header certificate are all synthesized; the remaining inputs
 are exactly the executable statistics and scope invariants retained by the
 outer header fold. -/
-def HeaderDeclarationOf.toHeaderEnvironment
+def HeaderDeclaration.toHeaderEnvironment
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
@@ -197,7 +197,7 @@ def HeaderDeclarationOf.toHeaderEnvironment
     {outEnv : Environment}
     (Hinstalled : InstalledHeaders c Hc stats nparams indTypes
       numNested isUnsafe commonParams commonLevel Hsemantic outEnv)
-    (H : HeaderDeclarationOf Hc.venv Hinstalled.context.venv
+    (H : HeaderDeclaration Hc.venv Hinstalled.context.venv
       c.lparams nparams indTypes.toList isUnsafe commonParams commonLevel
       Hsemantic)
     (hlevels : stats.levels.length = c.lparams.length)
@@ -260,7 +260,7 @@ def HeaderDeclarationOf.toHeaderEnvironment
     apply List.map_snd_zip
     simpa using Nat.le_of_eq hinfosLength.symm
   let sourceMaterialized :=
-    H.toHeaderDeclaration.checkedResult hlevels hlevelParams
+    H.checkedResult hlevels hlevelParams
       hindices hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
   have hsourceHeaders : sourceMaterialized.headers = H.headers := by
     change H.formations.complete H.checked = H.headers

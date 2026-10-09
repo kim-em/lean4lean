@@ -204,7 +204,7 @@ namespace VerifyInductive
 /-- Package skeleton-free semantic assembly against an atomic primitive
 header installation.  The resulting context is only a `LocalContextWF` until
 constructor installation completes the batch of Bool or Nat constants. -/
-def HeaderDeclarationOf.toPrimitiveHeaderEnvironment
+def HeaderDeclaration.toPrimitiveHeaderEnvironment
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
@@ -219,7 +219,7 @@ def HeaderDeclarationOf.toPrimitiveHeaderEnvironment
           isUnsafe c.lparams).toList.map (fun info => .inductInfo info))
         Hsemantic.headers.targets)
       outEnv envTypes)
-    (H : HeaderDeclarationOf Hc.venv envTypes c.lparams nparams
+    (H : HeaderDeclaration Hc.venv envTypes c.lparams nparams
       indTypes.toList isUnsafe commonParams commonLevel Hsemantic)
     (hlevels : stats.levels.length = c.lparams.length)
     (hlevelParams : stats.levels = c.lparams.map .param)
@@ -280,7 +280,7 @@ def HeaderDeclarationOf.toPrimitiveHeaderEnvironment
     apply List.map_snd_zip
     simpa using Nat.le_of_eq hinfosLength.symm
   let sourceMaterialized :=
-    H.toHeaderDeclaration.checkedResult hlevels hlevelParams
+    H.checkedResult hlevels hlevelParams
       hindices hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
   have hsourceHeaders : sourceMaterialized.headers = H.headers := by
     change H.formations.complete H.checked = H.headers
