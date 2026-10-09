@@ -556,9 +556,9 @@ re-established at the end of the batch.
 ### 3.5 Shared proof infrastructure
 
 The phase certificates remain in the inductive checker, while generic expression, context and
-abstract typing facts live below it. The original qualified declaration names and theorem
-contracts are retained, including the older `VerifyInductive` names of abstract calculus facts.
-Importing the old adapter modules still exposes those declarations.
+abstract typing facts live below it. Adapters import these shared facts and connect them to
+the phase certificates. Theorem interfaces carry the hypotheses needed by their conclusions;
+redundant arguments are removed together with their caller arguments.
 
 | Responsibility | Modules |
 | --- | --- |
@@ -571,8 +571,9 @@ Importing the old adapter modules still exposes those declarations.
 | Semantics shared by ordinary and recursor frames | `Verify/Inductive/Context/Semantics.lean` |
 | Installation lookup effects and matched family/constructor indices | `Verify/Inductive/Install/Metadata.lean`, `Verify/Inductive/SourceAlignment.lean` |
 
-`ContextWF` and `RecursorContextWF` keep their original public record layouts. Their operations
-use `ContextSemantics c Us` for the shared context proofs. Ordinary frames retain
+`ContextWF` and `RecursorContextWF` separately certify the ordinary and recursor universe
+contracts. Their operations use `ContextSemantics c Us` for the shared context proofs.
+Ordinary frames retain
 `typeCheckerLParams = none`; recursor frames retain `some recLparams` and the explicit
 `RecursorLParams` origin certificate. `BindingContextWF` remains the separate operational
 certificate. The existing projection equalities still hold by reduction.
@@ -587,7 +588,7 @@ The selected induction-hypothesis comparison in `Rules/RecursiveResults.lean` se
 provenance (`HypothesisSource`), exact replay equations (`HypothesisReplay`), translation and
 closed typing (`HypothesisTyping`), and the opened residual comparison (`HypothesisResidual`).
 `HypothesisFrame` and `HypothesisDomainFrame` carry these obligations to the RHS proof through
-named fields. The original existential theorems remain compatibility views. Translation and
+named fields, which consumers use directly. Translation and
 typing after inserting earlier hypotheses use one shared proof, so the domain comparison and
 RHS consumer no longer reconstruct that context transport independently.
 
