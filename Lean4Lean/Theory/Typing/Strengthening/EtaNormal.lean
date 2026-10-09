@@ -45,6 +45,11 @@ theorem structExpand_eq (family : Name) (info : VProjectionInfo) (levels : List 
 /-- The eta-normal relation (see the module docstring). -/
 inductive EtaNE : List VExpr → VExpr → VExpr → Prop where
   | refl {Γ : List VExpr} {e A : VExpr} : Γ ⊢ e : A → EtaNE Γ e e
+  | bvar {Γ : List VExpr} {i : Nat} : EtaNE Γ (.bvar i) (.bvar i)
+  | sort {Γ : List VExpr} {u : VLevel} : EtaNE Γ (.sort u) (.sort u)
+  | const {Γ : List VExpr} {c : Name} {ls : List VLevel} : EtaNE Γ (.const c ls) (.const c ls)
+  | elim {Γ : List VExpr} {block : Name} {owner : Nat} {ls : List VLevel} :
+      EtaNE Γ (.elim block owner ls) (.elim block owner ls)
   | sortDF {Γ : List VExpr} {l₁ l₂ : VLevel} : l₁.WF univs → l₂.WF univs → l₁ ≈ l₂ → EtaNE Γ (.sort l₁) (.sort l₂)
   | constDF {Γ : List VExpr} {c : Name} {ci : VConstant} {ls ls' : List VLevel} :
       Params.env.constants c = some ci → (∀ l ∈ ls, l.WF univs) →
@@ -62,9 +67,14 @@ inductive EtaNE : List VExpr → VExpr → VExpr → Prop where
       Γ ⊢ A ≡ A' : .sort u → EtaNE (A :: Γ) b b' → EtaNE Γ (.lam A b) (.lam A' b')
   | forallE {Γ : List VExpr} {A A' B B' : VExpr} {u : VLevel} :
       Γ ⊢ A ≡ A' : .sort u → EtaNE (A :: Γ) B B' → EtaNE Γ (.forallE A B) (.forallE A' B')
+  | lamC {Γ : List VExpr} {A A' b b' : VExpr} :
+      EtaNE Γ A A' → EtaNE (A :: Γ) b b' → EtaNE Γ (.lam A b) (.lam A' b')
+  | forallEC {Γ : List VExpr} {A A' B B' : VExpr} :
+      EtaNE Γ A A' → EtaNE (A :: Γ) B B' → EtaNE Γ (.forallE A B) (.forallE A' B')
   | proofIrrel {Γ : List VExpr} {p h h' : VExpr} : Γ ⊢ p : .sort .zero → Γ ⊢ h : p → Γ ⊢ h' : p → EtaNE Γ h h'
-  | funEta {Γ : List VExpr} {e A B A' body : VExpr} {u : VLevel} : (∀ D t, e ≠ .lam D t) → Γ ⊢ e : .forallE A B → Γ ⊢ A ≡ A' : .sort u →
-      EtaNE (A' :: Γ) (.app e.lift (.bvar 0)) body → EtaNE Γ e (.lam A' body)
+  | funEta {Γ : List VExpr} {e A B A' body : VExpr} {u : VLevel} : Γ ⊢ e : .forallE A B →
+      Γ ⊢ A ≡ A' : .sort u → EtaNE (A' :: Γ) (.app e.lift (.bvar 0)) body →
+      EtaNE Γ e (.lam A' body)
   | structEta {Γ : List VExpr} {family : Name} {info : VProjectionInfo} {levels : List VLevel}
       {params args : List VExpr} {e : VExpr} : Params.env.projections family info → params.length = info.nparams →
       info.nindices = 0 → Γ ⊢ e : mkApps (.const family levels) params →
@@ -76,12 +86,16 @@ inductive EtaNE : List VExpr → VExpr → VExpr → Prop where
   | betaR {Γ : List VExpr} {A b a s T : VExpr} {args : List VExpr} :
       Γ ⊢ mkApps (.app (.lam A b) a) args : T →
       EtaNE Γ s (mkApps (b.inst a) args) → EtaNE Γ s (mkApps (.app (.lam A b) a) args)
-  | betaL {Γ : List VExpr} {A b a T X : VExpr} : Γ ⊢ .app (.lam A b) a : T → EtaNE Γ (b.inst a) X → EtaNE Γ (.app (.lam A b) a) X
+  | betaL {Γ : List VExpr} {A b a T X : VExpr} {args : List VExpr} :
+      Γ ⊢ mkApps (.app (.lam A b) a) args : T → EtaNE Γ (mkApps (b.inst a) args) X →
+      EtaNE Γ (mkApps (.app (.lam A b) a) args) X
   | projIotaL {Γ : List VExpr} {S : Name} {info : VProjectionInfo} {i : Nat} {ls : List VLevel}
-      {args : List VExpr} {T field X : VExpr} : Params.env.projections S info →
-      Γ ⊢ .proj S i (mkApps (.const info.ctorName ls) args) : T →
-      args[info.nparams + i]? = some field → Γ ⊢ field : T →
-      EtaNE Γ field X → EtaNE Γ (.proj S i (mkApps (.const info.ctorName ls) args)) X
+      {args rest : List VExpr} {T₀ T field X : VExpr} : Params.env.projections S info →
+      Γ ⊢ .proj S i (mkApps (.const info.ctorName ls) args) : T₀ →
+      args[info.nparams + i]? = some field → Γ ⊢ field : T₀ →
+      Γ ⊢ mkApps (.proj S i (mkApps (.const info.ctorName ls) args)) rest : T →
+      EtaNE Γ (mkApps field rest) X →
+      EtaNE Γ (mkApps (.proj S i (mkApps (.const info.ctorName ls) args)) rest) X
 
 /-- A typed beta redex is convertible to its contractum. -/
 theorem beta_defeqU {Γ : List VExpr} {A b a T : VExpr} (hΓ : OnCtx Γ (Params.env.IsType univs))
@@ -91,14 +105,51 @@ theorem beta_defeqU {Γ : List VExpr} {A b a T : VExpr} (hΓ : OnCtx Γ (Params.
   obtain ⟨⟨u, hA⟩, -⟩ := IsDefEqU.forallE_inv henv hΓ hPi
   exact ⟨_, .beta hb (hA.defeq' ha)⟩
 
+/-- A typed beta redex applied to arguments is convertible to its contractum applied to them. -/
+theorem beta_spine_defeqU {Γ : List VExpr} {A b a T : VExpr} {args : List VExpr}
+    (hΓ : OnCtx Γ (Params.env.IsType univs)) (hT : Γ ⊢ mkApps (.app (.lam A b) a) args : T) :
+    Γ ⊢ mkApps (.app (.lam A b) a) args ≡ mkApps (b.inst a) args := by
+  obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, hT⟩
+  have hhead' : Γ ⊢ .app (.lam A b) a : _ := hhead
+  refine IsDefEqU.mkApps_args hΓ (beta_defeqU hΓ hhead')
+    (List.forall₂_of_getElem rfl fun i hi hi' => ?_) hT
+  obtain ⟨_, hx⟩ := schema_mkApps_arg_type hΓ hT (List.getElem_mem hi)
+  exact ⟨_, hx⟩
+
+/-- A typed projection redex applied to arguments is convertible to its field applied to them. -/
+theorem projIota_spine_defeqU {Γ : List VExpr} {S : Name} {info : VProjectionInfo} {i : Nat}
+    {ls : List VLevel} {args rest : List VExpr} {T₀ T field : VExpr}
+    (hΓ : OnCtx Γ (Params.env.IsType univs)) (hl : Params.env.projections S info)
+    (hT : Γ ⊢ .proj S i (mkApps (.const info.ctorName ls) args) : T₀)
+    (hi : args[info.nparams + i]? = some field) (hf : Γ ⊢ field : T₀)
+    (hrest : Γ ⊢ mkApps (.proj S i (mkApps (.const info.ctorName ls) args)) rest : T) :
+    Γ ⊢ mkApps (.proj S i (mkApps (.const info.ctorName ls) args)) rest ≡ mkApps field rest := by
+  have h1 : Γ ⊢ .proj S i (mkApps (.const info.ctorName ls) args) ≡ field :=
+    ⟨_, IsDefEq.projIota hl hT hi hf⟩
+  refine IsDefEqU.mkApps_args hΓ h1 (List.forall₂_of_getElem rfl fun i hi hi' => ?_) hrest
+  obtain ⟨_, hx⟩ := schema_mkApps_arg_type hΓ hrest (List.getElem_mem hi)
+  exact ⟨_, hx⟩
+
 /-- Soundness: a source and its expansion are convertible. -/
 theorem EtaNE.defeq {Γ : List VExpr} {e e' T : VExpr} (hΓ : OnCtx Γ (Params.env.IsType univs))
     (H : EtaNE Γ e e') (he : Γ ⊢ e : T) : Γ ⊢ e ≡ e' := by
   induction H generalizing T with
   | refl h => exact ⟨_, h⟩
+  | bvar | sort | const | elim => exact ⟨_, he⟩
   | sortDF h1 h2 h3 => exact ⟨_, .sortDF h1 h2 h3⟩
   | constDF h1 h2 h3 h4 h5 => exact ⟨_, .constDF h1 h2 h3 h4 h5⟩
   | elimDF h _ => exact ⟨_, h⟩
+  | lamC _ _ ih1 ih2 =>
+    obtain ⟨⟨_, hA₀⟩, _, hb⟩ := he.lam_inv henv hΓ
+    have hAA := (ih1 hΓ hA₀).of_l henv hΓ hA₀
+    have ⟨_, hB⟩ := ih2 ⟨hΓ, _, hA₀⟩ hb
+    exact ⟨_, .lamDF hAA hB⟩
+  | forallEC _ _ ih1 ih2 =>
+    obtain ⟨⟨_, hA₀⟩, _, hb⟩ := he.forallE_inv henv
+    have hΓ' : OnCtx (_ :: _) (Params.env.IsType univs) := ⟨hΓ, _, hA₀⟩
+    have hAA := (ih1 hΓ hA₀).of_l henv hΓ hA₀
+    have hB := (ih2 hΓ' hb).of_l henv hΓ' hb
+    exact ⟨_, .forallEDF hAA hB⟩
   | app _ _ ih1 ih2 =>
     obtain ⟨_, _, hf, ha⟩ := he.app_inv henv hΓ
     exact ⟨_, .appDF ((ih1 hΓ hf).of_l henv hΓ hf) ((ih2 hΓ ha).of_l henv hΓ ha)⟩
@@ -119,7 +170,7 @@ theorem EtaNE.defeq {Γ : List VExpr} {e e' T : VExpr} (hΓ : OnCtx Γ (Params.e
     have hB := (ih hΓ' hb).of_l henv hΓ' hb
     exact ⟨_, .forallEDF hA hB⟩
   | proofIrrel h1 h2 h3 => exact ⟨_, .proofIrrel h1 h2 h3⟩
-  | @funEta Γ₀ e A B A' body u _ hPi hA _ ih =>
+  | @funEta Γ₀ e A B A' body u hPi hA _ ih =>
     obtain ⟨_, hPiT⟩ := hPi.isType henv hΓ
     obtain ⟨⟨_, hA₀⟩, _, hB⟩ := hPiT.forallE_inv henv
     have hΓ' : OnCtx (A' :: Γ₀) (Params.env.IsType univs) := ⟨hΓ, _, hA.hasType.2⟩
@@ -154,11 +205,11 @@ theorem EtaNE.defeq {Γ : List VExpr} {e e' T : VExpr} (hΓ : OnCtx Γ (Params.e
       exact ⟨_, hx⟩
     exact (ih hΓ he).trans henv hΓ hred.symm
   | betaL hT _ ih =>
-    have hred := beta_defeqU hΓ hT
+    have hred := beta_spine_defeqU hΓ hT
     exact hred.trans henv hΓ (ih hΓ (hT.defeqU_l henv hΓ hred))
-  | projIotaL hl hT hi hf _ ih =>
-    have h1 : _ ⊢ _ ≡ _ := ⟨_, IsDefEq.projIota hl hT hi hf⟩
-    exact h1.trans henv hΓ (ih hΓ hf)
+  | projIotaL hl hT hi hf hrest _ ih =>
+    have hred := projIota_spine_defeqU hΓ hl hT hi hf hrest
+    exact hred.trans henv hΓ (ih hΓ (hrest.defeqU_l henv hΓ hred))
 
 theorem EtaNE.hasType {Γ : List VExpr} {e e' T : VExpr} (hΓ : OnCtx Γ (Params.env.IsType univs))
     (H : EtaNE Γ e e') (he : Γ ⊢ e : T) : Γ ⊢ e' : T :=
@@ -191,11 +242,24 @@ theorem structArgs_lift' (family : Name) (info : VProjectionInfo) (params : List
       (structArgs family info params e).map (·.lift' l) := by
   simp [structArgs, List.map_append, List.map_map, Function.comp_def]
 
+omit [Params] in
+theorem structArgs_inst (family : Name) (info : VProjectionInfo) (params : List VExpr)
+    (e a : VExpr) (k : Nat) :
+    structArgs family info (params.map (·.inst a k)) (e.inst a k) =
+      (structArgs family info params e).map (·.inst a k) := by
+  simp [structArgs, List.map_append, List.map_map, Function.comp_def, inst]
+
 /-- Weakening along any lift. -/
 theorem EtaNE.weak' {Γ Γ' : List VExpr} {l : Lift} {e e' : VExpr} (W : Ctx.Lift' l Γ Γ')
     (H : EtaNE Γ e e') : EtaNE Γ' (e.lift' l) (e'.lift' l) := by
   induction H generalizing l Γ' with
   | refl h => exact .refl (h.weak' henv.ordered W)
+  | bvar => exact .bvar
+  | sort => exact .sort
+  | const => exact .const
+  | elim => exact .elim
+  | lamC _ _ ih1 ih2 => exact .lamC (ih1 W) (ih2 W.cons)
+  | forallEC _ _ ih1 ih2 => exact .forallEC (ih1 W) (ih2 W.cons)
   | sortDF h1 h2 h3 => exact .sortDF h1 h2 h3
   | constDF h1 h2 h3 h4 h5 => exact .constDF h1 h2 h3 h4 h5
   | elimDF h heq => exact .elimDF (h.weak' henv.ordered W) heq
@@ -205,8 +269,8 @@ theorem EtaNE.weak' {Γ Γ' : List VExpr} {l : Lift} {e e' : VExpr} (W : Ctx.Lif
   | forallE hA _ ih => exact .forallE (hA.weak' henv.ordered W) (ih W.cons)
   | proofIrrel h1 h2 h3 =>
     exact .proofIrrel (h1.weak' henv.ordered W) (h2.weak' henv.ordered W) (h3.weak' henv.ordered W)
-  | funEta hne hPi hA _ ih =>
-    refine .funEta (lift'_ne_lam hne) (hPi.weak' henv.ordered W) (hA.weak' henv.ordered W) ?_
+  | funEta hPi hA _ ih =>
+    refine .funEta (hPi.weak' henv.ordered W) (hA.weak' henv.ordered W) ?_
     have := ih W.cons
     simpa [lift_lift'_cons] using this
   | @structEta Γ₀ family info levels params args e hl hp hi hs ht hlen hargs ih =>
@@ -225,13 +289,17 @@ theorem EtaNE.weak' {Γ Γ' : List VExpr} {l : Lift} {e e' : VExpr} (W : Ctx.Lif
     simp only [lift'_mkApps, lift'] at hT' ⊢
     exact .betaR hT' this
   | betaL hT _ ih =>
-    have := ih W
-    rw [lift'_inst_hi] at this
-    exact .betaL (hT.weak' henv.ordered W) this
-  | projIotaL hl hT hi hf _ ih =>
     have hT' := hT.weak' henv.ordered W
-    simp only [lift', lift'_mkApps] at hT' ⊢
-    refine .projIotaL hl hT' ?_ (hf.weak' henv.ordered W) (ih W)
+    have := ih W
+    rw [lift'_mkApps, lift'_inst_hi] at this
+    simp only [lift'_mkApps, lift'] at hT' ⊢
+    exact .betaL hT' this
+  | projIotaL hl hT hi hf hrest _ ih =>
+    have hT' := hT.weak' henv.ordered W
+    have hrest' := hrest.weak' henv.ordered W
+    have := ih W
+    simp only [lift', lift'_mkApps] at hT' hrest' this ⊢
+    refine .projIotaL hl hT' ?_ (hf.weak' henv.ordered W) hrest' this
     simp [hi]
 
 theorem EtaNE.weakN {Γ Γ' : List VExpr} {n k : Nat} {e e' : VExpr} (W : Ctx.LiftN n k Γ Γ')
@@ -248,6 +316,16 @@ theorem EtaNE.defeqDFC {Γ₀ Γ₁ Γ₂ : List VExpr} {e e' T : VExpr}
     (he : Γ₁ ⊢ e : T) (H : EtaNE Γ₁ e e') : EtaNE Γ₂ e e' := by
   induction H generalizing Γ₂ T with
   | refl h => exact .refl (h.defeqDFC henv.ordered W)
+  | bvar => exact .bvar
+  | sort => exact .sort
+  | const => exact .const
+  | elim => exact .elim
+  | lamC _ _ ih1 ih2 =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.lam_inv henv (W.isType' hΓ)
+    exact .lamC (ih1 W hd) (ih2 (.succ W hd) hb)
+  | forallEC _ _ ih1 ih2 =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.forallE_inv henv.ordered
+    exact .forallEC (ih1 W hd) (ih2 (.succ W hd) hb)
   | sortDF h1 h2 h3 => exact .sortDF h1 h2 h3
   | constDF h1 h2 h3 h4 h5 => exact .constDF h1 h2 h3 h4 h5
   | elimDF h heq => exact .elimDF (h.defeqDFC henv.ordered W) heq
@@ -266,7 +344,7 @@ theorem EtaNE.defeqDFC {Γ₀ Γ₁ Γ₂ : List VExpr} {e e' T : VExpr}
   | proofIrrel h1 h2 h3 =>
     exact .proofIrrel (h1.defeqDFC henv.ordered W) (h2.defeqDFC henv.ordered W)
       (h3.defeqDFC henv.ordered W)
-  | @funEta Γ₁ e A B A' body u hne hPi hA _ ih =>
+  | @funEta Γ₁ e A B A' body u hPi hA _ ih =>
     have hΓ₁ := W.isType' hΓ
     have hΓ' : OnCtx (A' :: Γ₁) (Params.env.IsType univs) := ⟨hΓ₁, _, hA.hasType.2⟩
     have hbody : A' :: Γ₁ ⊢ .app e.lift (.bvar 0) : B := by
@@ -274,7 +352,7 @@ theorem EtaNE.defeqDFC {Γ₀ Γ₁ Γ₂ : List VExpr} {e e' T : VExpr}
       have h0 : A' :: Γ₁ ⊢ .bvar 0 : A.lift :=
         (hA.weak henv.ordered (B := A')).defeq' (.bvar .zero)
       simpa [VExpr.inst_liftN_bvar] using HasType.app h1 h0
-    exact .funEta hne (hPi.defeqDFC henv.ordered W) (hA.defeqDFC henv.ordered W)
+    exact .funEta (hPi.defeqDFC henv.ordered W) (hA.defeqDFC henv.ordered W)
       (ih (.succ W hA.hasType.2) hbody)
   | structEta hl hp hi hs ht hlen _ ih =>
     refine .structEta hl hp hi (hs.defeqDFC henv.ordered W) (ht.defeqDFC henv.ordered W) hlen
@@ -284,141 +362,51 @@ theorem EtaNE.defeqDFC {Γ₀ Γ₁ Γ₂ : List VExpr} {e e' T : VExpr}
     exact ih i hi hi' W hx
   | betaR hT _ ih => exact .betaR (hT.defeqDFC henv.ordered W) (ih W he)
   | betaL hT _ ih =>
-    have hred := beta_defeqU (W.isType' hΓ) hT
-    exact .betaL (hT.defeqDFC henv.ordered W) (ih W (hT.defeqU_l henv (W.isType' hΓ) hred))
-  | projIotaL hl hT hi hf _ ih =>
-    exact .projIotaL hl (hT.defeqDFC henv.ordered W) hi (hf.defeqDFC henv.ordered W) (ih W hf)
+    have hΓ₁ := W.isType' hΓ
+    exact .betaL (hT.defeqDFC henv.ordered W)
+      (ih W (hT.defeqU_l henv hΓ₁ (beta_spine_defeqU hΓ₁ hT)))
+  | projIotaL hl hT hi hf hrest _ ih =>
+    have hΓ₁ := W.isType' hΓ
+    exact .projIotaL hl (hT.defeqDFC henv.ordered W) hi (hf.defeqDFC henv.ordered W)
+      (hrest.defeqDFC henv.ordered W)
+      (ih W (hrest.defeqU_l henv hΓ₁ (projIota_spine_defeqU hΓ₁ hl hT hi hf hrest)))
 
-/-- The body of a lambda typed at a proposition is a proof. -/
-theorem lam_prop_body {Γ : List VExpr} {D t p : VExpr} (hΓ : OnCtx Γ (Params.env.IsType univs))
-    (hp : Γ ⊢ p : .sort .zero) (hl : Γ ⊢ .lam D t : p) :
-    ∃ B, D :: Γ ⊢ t : B ∧ D :: Γ ⊢ B : .sort .zero ∧ Γ ⊢ .forallE D B ≡ p := by
-  obtain ⟨B, hPi, ht⟩ := hl.lam_inv_forallE henv hΓ
-  obtain ⟨⟨u, hD⟩, hb⟩ := hl.lam_inv henv hΓ
-  have hΓ' : OnCtx (D :: Γ) (Params.env.IsType univs) := ⟨hΓ, _, hD⟩
-  obtain ⟨v, hB⟩ := ht.isType henv hΓ'
-  have hsort : Γ ⊢ .forallE D B : .sort (.imax u v) := .forallE hD hB
-  have h1 := (hPi.of_l henv hΓ hsort).hasType.2
-  have h2 : Γ ⊢ .sort (.imax u v) ≡ .sort .zero := h1.uniqU henv hΓ hp
-  have h3 : v ≈ .zero := VLevel.imax_eq_zero.mp (IsDefEqU.sort_inv henv hΓ h2)
-  refine ⟨B, ht, ?_, hPi⟩
-  exact (IsDefEq.sortDF (l' := .zero) (hB.sort_r henv.ordered hΓ')
-    (show VLevel.WF univs .zero from trivial) h3).defeq hB
-
-/-- Inversion of a relation between two lambdas. -/
-theorem EtaNE.lam_inv {Γ : List VExpr} {D D' t t' T : VExpr}
-    (hΓ : OnCtx Γ (Params.env.IsType univs)) (hl : Γ ⊢ .lam D t : T)
-    (H : EtaNE Γ (.lam D t) (.lam D' t')) : EtaNE (D :: Γ) t t' := by
-  generalize hs : VExpr.lam D t = s at H hl
-  generalize hr : VExpr.lam D' t' = r at H
-  cases H with
-  | refl h =>
-    cases hs; cases hr
-    obtain ⟨_, _, hb⟩ := h.lam_inv henv hΓ
-    exact .refl hb
-  | lam _ hb => cases hs; cases hr; exact hb
-  | proofIrrel hp h1 h2 =>
-    cases hs; cases hr
-    obtain ⟨B, ht, hB, hPi⟩ := lam_prop_body hΓ hp h1
-    obtain ⟨B', ht', hB', hPi'⟩ := lam_prop_body hΓ hp h2
-    obtain ⟨⟨_, hDD⟩, _, hBB⟩ := IsDefEqU.forallE_inv henv hΓ (hPi.trans henv hΓ hPi'.symm)
-    have ht'' : D :: Γ ⊢ t' : B := by
-      have := ht'.defeqDFC henv.ordered (.succ .zero hDD.symm)
-      exact this.defeqU_r henv ⟨hΓ, _, hDD.hasType.1⟩ ⟨_, hBB.symm⟩
-    exact .proofIrrel hB ht ht''
-  | funEta hne => cases hs; exact (hne _ _ rfl).elim
-  | structEta hl' _ _ hs' =>
-    cases hs
-    obtain ⟨B, hPi, -⟩ := hl.lam_inv_forallE henv hΓ
-    exact (pi_not_struct hΓ hl' (hl.defeqU_r henv hΓ hPi.symm) hs').elim
-  | betaR =>
-    exact (VExpr.mkApps_ne_lam (by intros; intro h; cases h) _ hr.symm).elim
-  | sortDF | constDF | elimDF | app | proj | forallE | betaL | projIotaL => cases hs
-
-/-- A parallel eta step from a typed term is an eta-normal expansion; for a lambda source, the
-body is related to the expansion applied to the new variable. -/
-theorem EtaNE.of_etaPar_aux {Γ : List VExpr} {e e' T : VExpr}
+/-- A parallel eta step from a typed term is an eta-normal expansion. -/
+theorem EtaNE.of_etaPar {Γ : List VExpr} {e e' T : VExpr}
     (hΓ : OnCtx Γ (Params.env.IsType univs)) (H : EtaPar Γ e e') (he : Γ ⊢ e : T) :
-    EtaNE Γ e e' ∧ ∀ D t, e = .lam D t → EtaNE (D :: Γ) t (.app e'.lift (.bvar 0)) := by
+    EtaNE Γ e e' := by
   induction H generalizing T with
-  | bvar | sort | const | elim => exact ⟨.refl he, fun _ _ h => by cases h⟩
+  | bvar | sort | const | elim => exact .refl he
   | app _ _ ih1 ih2 =>
     obtain ⟨_, _, hf, ha⟩ := he.app_inv henv hΓ
-    exact ⟨.app (ih1 hΓ hf).1 (ih2 hΓ ha).1, fun _ _ h => by cases h⟩
+    exact .app (ih1 hΓ hf) (ih2 hΓ ha)
   | proj _ ih =>
     obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := he.proj_inv henv hΓ
-    exact ⟨.proj (ih hΓ hm.hasType.2).1, fun _ _ h => by cases h⟩
-  | @lam Γ D D' t t' hD ht ih1 ih2 =>
+    exact .proj (ih hΓ hm.hasType.2)
+  | lam hA _ ih1 ih2 =>
     obtain ⟨⟨_, hd⟩, _, hb⟩ := he.lam_inv henv hΓ
-    have hΓ' : OnCtx (D :: Γ) (Params.env.IsType univs) := ⟨hΓ, _, hd⟩
-    have hbody := (ih2 hΓ' hb).1
-    refine ⟨.lam ((EtaPar.full hΓ hD hd).defeq hΓ hd) hbody, fun D₀ t₀ h => ?_⟩
-    cases h
-    obtain ⟨B, hPi, -⟩ := he.lam_inv_forallE henv hΓ
-    have he' : Γ ⊢ .lam D' t' : .forallE D B :=
-      ((EtaPar.full hΓ (.lam hD ht) he).hasType hΓ he).defeqU_r henv hΓ hPi.symm
-    have hT : D :: Γ ⊢ .app (VExpr.lam D' t').lift (.bvar 0) : _ :=
-      HasType.app (he'.weak henv.ordered) (.bvar .zero)
-    refine .betaR (args := []) (by simpa [mkApps, lift, liftN] using hT) ?_
-    simpa [mkApps, lift, liftN, inst, instVar, VExpr.inst_liftN_bvar] using hbody
+    exact .lam ((EtaPar.full hΓ hA hd).defeq hΓ hd) (ih2 ⟨hΓ, _, hd⟩ hb)
   | forallE hA _ ih1 ih2 =>
     obtain ⟨⟨_, hd⟩, _, hb⟩ := he.forallE_inv henv.ordered
-    exact ⟨.forallE ((EtaPar.full hΓ hA hd).defeq hΓ hd) (ih2 ⟨hΓ, _, hd⟩ hb).1,
-      fun _ _ h => by cases h⟩
+    exact .forallE ((EtaPar.full hΓ hA hd).defeq hΓ hd) (ih2 ⟨hΓ, _, hd⟩ hb)
   | @funEta Γ e e' A A' B H₀ HA hPi ih _ =>
     obtain ⟨_, hPiT⟩ := hPi.isType henv hΓ
     obtain ⟨⟨u, hA₀⟩, _, hB⟩ := hPiT.forallE_inv henv.ordered
     have hAA : Γ ⊢ A ≡ A' : .sort u := (EtaPar.full hΓ HA hA₀).defeq hΓ hA₀
-    obtain ⟨hee', hlamBody⟩ := ih hΓ hPi
-    have he' : Γ ⊢ e' : .forallE A B := hee'.hasType hΓ hPi
-    have hbody : A' :: Γ ⊢ .app e'.lift (.bvar 0) : B := by
-      have h1 : A' :: Γ ⊢ e'.lift : .forallE A.lift (B.liftN 1 1) := he'.weak henv.ordered
-      have h0 : A' :: Γ ⊢ .bvar 0 : A.lift :=
-        (hAA.weak henv.ordered (B := A')).defeq' (.bvar .zero)
-      simpa [VExpr.inst_liftN_bvar] using HasType.app h1 h0
-    have hX : Γ ⊢ .lam A' (.app e'.lift (.bvar 0)) : .forallE A B :=
-      (EtaPar.full hΓ (.funEta H₀ HA hPi) hPi).hasType hΓ hPi
-    refine ⟨?_, fun D t h => ?_⟩
-    · by_cases hlam : ∃ D t, e = .lam D t
-      · obtain ⟨D, t, rfl⟩ := hlam
-        obtain ⟨B₀, hPi₀, ht⟩ := hPi.lam_inv_forallE henv hΓ
-        obtain ⟨⟨u₀, hD⟩, -⟩ := hPi.lam_inv henv hΓ
-        obtain ⟨⟨w, hDA⟩, -⟩ := IsDefEqU.forallE_inv henv hΓ hPi₀
-        have hwu : Γ ⊢ .sort w ≡ .sort u := hDA.hasType.2.uniqU henv hΓ hA₀
-        have hDA' : Γ ⊢ D ≡ A' : .sort u :=
-          .trans (.defeqDF (hwu.of_l henv hΓ (HasType.sort (hDA.sort_r henv.ordered hΓ))) hDA) hAA
-        exact .lam hDA' (hlamBody D t rfl)
-      · have hne : ∀ D t, e ≠ .lam D t := fun D t h => hlam ⟨D, t, h⟩
-        exact .funEta hne hPi hAA (.app hee'.weak (.refl (.bvar .zero)))
-    · subst h
-      have hinner := hlamBody _ _ rfl
-      obtain ⟨B₀, hPi₀, -⟩ := hPi.lam_inv_forallE henv hΓ
-      obtain ⟨⟨w, hDA⟩, -⟩ := IsDefEqU.forallE_inv henv hΓ hPi₀
-      have h0 : D :: Γ ⊢ .bvar 0 : A.lift := (hDA.weak henv.ordered (B := D)).defeq (.bvar .zero)
-      have hT : D :: Γ ⊢ .app (VExpr.lam A' (.app e'.lift (.bvar 0))).lift (.bvar 0) : _ :=
-        HasType.app (hX.weak henv.ordered) h0
-      refine .betaR (args := []) (by simpa [mkApps, lift, liftN] using hT) ?_
-      simpa [mkApps, lift, liftN, inst, instVar, VExpr.inst_liftN_bvar] using hinner
+    exact .funEta hPi hAA (.app (ih hΓ hPi).weak (.refl (.bvar .zero)))
   | @structEta Γ e e' family info levels params params' H₀ hlen hps hl hp hi hs hexp ih ihp =>
-    have hee' := (ih hΓ hs).1
+    have hee' := ih hΓ hs
     obtain ⟨_, hT⟩ := hs.isType henv hΓ
     have hF : List.Forall₂ (EtaNE Γ) (structArgs family info params e)
         (structArgs family info params' e') := by
       refine List.Forall₂.append' (List.forall₂_of_getElem hlen fun i hi hi' => ?_)
         (List.forall₂_of_getElem (by simp) fun j hj hj' => ?_)
       · obtain ⟨_, hpT⟩ := schema_mkApps_arg_type hΓ hT (List.getElem_mem hi)
-        exact (ihp i hi hi' hΓ hpT).1
+        exact ihp i hi hi' hΓ hpT
       · simp only [List.getElem_map, List.getElem_range]
         exact .proj hee'
     obtain ⟨hlen', hargs'⟩ := getElem_of_forall₂ hF
-    refine ⟨.structEta hl hp hi hs hexp hlen' hargs', fun D t h => ?_⟩
-    subst h
-    obtain ⟨B, hPi, -⟩ := hs.lam_inv_forallE henv hΓ
-    exact (pi_not_struct hΓ hl (hs.defeqU_r henv hΓ hPi.symm) hs).elim
-
-theorem EtaNE.of_etaPar {Γ : List VExpr} {e e' T : VExpr}
-    (hΓ : OnCtx Γ (Params.env.IsType univs)) (H : EtaPar Γ e e') (he : Γ ⊢ e : T) :
-    EtaNE Γ e e' := (EtaNE.of_etaPar_aux hΓ H he).1
+    exact .structEta hl hp hi hs hexp hlen' hargs'
 
 /-- The structure expansion of a term convertible to `X` is typed like the expansion of `X`. -/
 theorem structExpand_typed_of_defeqU {Γ : List VExpr} {s X T : VExpr} {family : Name}
@@ -445,69 +433,13 @@ theorem eta_body_typed {Γ : List VExpr} {X A B : VExpr} (hX : Γ ⊢ X : .foral
   have := HasType.app (hX.weak henv.ordered (B := A)) (.bvar .zero)
   simpa [VExpr.inst_liftN_bvar] using this
 
-/-- A lambda source is related to the body of any expansion applied to the new variable. -/
-theorem EtaNE.lam_body {Γ : List VExpr} {D t X B : VExpr} (hΓ : OnCtx Γ (Params.env.IsType univs))
-    (hl : Γ ⊢ .lam D t : .forallE D B) (H : EtaNE Γ (.lam D t) X) :
-    EtaNE (D :: Γ) t (.app X.lift (.bvar 0)) := by
-  obtain ⟨B₀, hPi, ht⟩ := hl.lam_inv_forallE henv hΓ
-  obtain ⟨⟨u, hD⟩, -⟩ := hl.lam_inv henv hΓ
-  have hΓ' : OnCtx (D :: Γ) (Params.env.IsType univs) := ⟨hΓ, _, hD⟩
-  obtain ⟨-, _, hBB⟩ := IsDefEqU.forallE_inv henv hΓ hPi
-  replace ht : D :: Γ ⊢ t : B := ht.defeqU_r henv hΓ' ⟨_, hBB⟩
-  clear hBB hPi B₀
-  generalize hs : VExpr.lam D t = s at H hl
-  induction H generalizing D t with
-  | refl h =>
-    subst hs
-    exact .betaR (args := []) (by simpa [mkApps, lift, liftN] using eta_body_typed hl)
-      (by simpa [mkApps, lift, liftN, inst, instVar, VExpr.inst_liftN_bvar] using EtaNE.refl ht)
-  | lam hA hb =>
-    cases hs
-    have hX := (EtaNE.lam hA hb).hasType hΓ hl
-    exact .betaR (args := []) (by simpa [mkApps, lift, liftN] using eta_body_typed hX)
-      (by simpa [mkApps, lift, liftN, inst, instVar, VExpr.inst_liftN_bvar] using hb)
-  | proofIrrel hp h1 h2 =>
-    subst hs
-    obtain ⟨B', ht', hB', hPi'⟩ := lam_prop_body hΓ hp h1
-    have h3 : _ ⊢ .forallE D B ≡ _ := hl.uniqU henv hΓ h1
-    obtain ⟨-, _, hBB⟩ := IsDefEqU.forallE_inv henv hΓ (h3.trans henv hΓ hPi'.symm)
-    have hBB' : _ ⊢ B ≡ B' := ⟨_, hBB⟩
-    have hX := (EtaNE.proofIrrel hp h1 h2).hasType hΓ hl
-    exact .proofIrrel hB' (ht.defeqU_r henv hΓ' hBB') ((eta_body_typed hX).defeqU_r henv hΓ' hBB')
-  | @betaR Γ A b a s T' args hT hrel ih =>
-    subst hs
-    have hX := (EtaNE.betaR hT hrel).hasType hΓ hl
-    have hbody := eta_body_typed hX
-    have := ih hΓ hD hΓ' ht rfl hl
-    simp only [lift, liftN_mkApps, liftN] at this hbody ⊢
-    rw [← VExpr.mkApps_snoc] at this hbody ⊢
-    refine .betaR hbody ?_
-    have h := lift_inst_hi b a
-    simp only [lift] at h
-    rwa [h] at this
-  | funEta hne => cases hs; exact (hne _ _ rfl).elim
-  | structEta hl' _ _ hs' =>
-    subst hs
-    exact (pi_not_struct hΓ hl' hl hs').elim
-  | sortDF | constDF | elimDF | app | proj | forallE | betaL | projIotaL => cases hs
-
 /-- A root function eta expansion of the right side. -/
 theorem EtaNE.root_funEta {Γ : List VExpr} {s X A A' B T : VExpr} {u : VLevel}
     (hΓ : OnCtx Γ (Params.env.IsType univs)) (hs : Γ ⊢ s : T) (H : EtaNE Γ s X)
     (hX : Γ ⊢ X : .forallE A B) (hA : Γ ⊢ A ≡ A' : .sort u) :
     EtaNE Γ s (.lam A' (.app X.lift (.bvar 0))) := by
   have hsPi : Γ ⊢ s : .forallE A B := hX.defeqU_l henv hΓ (H.defeq hΓ hs).symm
-  by_cases hlam : ∃ D t, s = .lam D t
-  · obtain ⟨D, t, rfl⟩ := hlam
-    obtain ⟨B₀, hPi₀, ht⟩ := hsPi.lam_inv_forallE henv hΓ
-    obtain ⟨⟨u₀, hD⟩, -⟩ := hsPi.lam_inv henv hΓ
-    obtain ⟨⟨w, hDA⟩, -⟩ := IsDefEqU.forallE_inv henv hΓ hPi₀
-    have hwu : Γ ⊢ .sort w ≡ .sort u := hDA.hasType.2.uniqU henv hΓ hA.hasType.1
-    have hDA' : Γ ⊢ D ≡ A' : .sort u :=
-      .trans (.defeqDF (hwu.of_l henv hΓ (HasType.sort (hDA.sort_r henv.ordered hΓ))) hDA) hA
-    exact .lam hDA' (EtaNE.lam_body hΓ (HasType.lam hD ht) H)
-  · have hne : ∀ D t, s ≠ .lam D t := fun D t h => hlam ⟨D, t, h⟩
-    exact .funEta hne hsPi hA (.app H.weak (.refl (.bvar .zero)))
+  exact .funEta hsPi hA (.app H.weak (.refl (.bvar .zero)))
 
 /-- A root structure eta expansion of the right side. -/
 theorem EtaNE.root_structEta {Γ : List VExpr} {s X T : VExpr} {family : Name}
@@ -789,6 +721,44 @@ theorem EtaNE.etaPar_r {Γ : List VExpr} {s X X' T : VExpr}
     (HX : EtaPar Γ X X') : EtaNE Γ s X' := by
   induction H generalizing X' T with
   | refl h => exact EtaNE.of_etaPar hΓ HX hs
+  | bvar =>
+    obtain ⟨X₀, hc, hchain⟩ := EtaPar.root_decomp hΓ HX hs
+    cases hc
+    exact EtaNE.rootChain_spine_r hΓ hs hchain (as := []) EtaNE.bvar
+  | sort =>
+    obtain ⟨X₀, hc, hchain⟩ := EtaPar.root_decomp hΓ HX hs
+    cases hc
+    exact EtaNE.rootChain_spine_r hΓ hs hchain (as := []) EtaNE.sort
+  | const =>
+    obtain ⟨X₀, hc, hchain⟩ := EtaPar.root_decomp hΓ HX hs
+    cases hc
+    exact EtaNE.rootChain_spine_r hΓ hs hchain (as := []) EtaNE.const
+  | elim =>
+    obtain ⟨X₀, hc, hchain⟩ := EtaPar.root_decomp hΓ HX hs
+    cases hc
+    exact EtaNE.rootChain_spine_r hΓ hs hchain (as := []) EtaNE.elim
+  | @lamC Γ A A' b b' HA Hb ih1 ih2 =>
+    obtain ⟨⟨u, hd⟩, _, hb⟩ := hs.lam_inv henv hΓ
+    have hΓ' : OnCtx (A :: Γ) (Params.env.IsType univs) := ⟨hΓ, _, hd⟩
+    have hX := (EtaNE.lamC HA Hb).hasType hΓ hs
+    have hAA' : Γ ⊢ A ≡ A' : .sort u := (HA.defeq hΓ hd).of_l henv hΓ hd
+    obtain ⟨X₀, hc, hchain⟩ := EtaPar.root_decomp hΓ HX hX
+    refine EtaNE.rootChain_spine_r hΓ hs hchain (as := []) ?_
+    cases hc with
+    | lam h1 h2 =>
+      obtain ⟨-, _, hb'⟩ := hX.lam_inv henv hΓ
+      exact .lamC (ih1 hΓ hd h1) (ih2 hΓ' hb (EtaPar.body_transport hΓ hAA' hb' h2))
+  | @forallEC Γ A A' B B' HA HB ih1 ih2 =>
+    obtain ⟨⟨u, hd⟩, _, hb⟩ := hs.forallE_inv henv.ordered
+    have hΓ' : OnCtx (A :: Γ) (Params.env.IsType univs) := ⟨hΓ, _, hd⟩
+    have hX := (EtaNE.forallEC HA HB).hasType hΓ hs
+    have hAA' : Γ ⊢ A ≡ A' : .sort u := (HA.defeq hΓ hd).of_l henv hΓ hd
+    obtain ⟨X₀, hc, hchain⟩ := EtaPar.root_decomp hΓ HX hX
+    refine EtaNE.rootChain_spine_r hΓ hs hchain (as := []) ?_
+    cases hc with
+    | forallE h1 h2 =>
+      obtain ⟨-, _, hb'⟩ := hX.forallE_inv henv.ordered
+      exact .forallEC (ih1 hΓ hd h1) (ih2 hΓ' hb (EtaPar.body_transport hΓ hAA' hb' h2))
   | sortDF h1 h2 h3 =>
     obtain ⟨X₀, hc, hchain⟩ := EtaPar.root_decomp hΓ HX ((EtaNE.sortDF h1 h2 h3).hasType hΓ hs)
     cases hc
@@ -841,8 +811,8 @@ theorem EtaNE.etaPar_r {Γ : List VExpr} {s X X' T : VExpr}
       exact .forallE hAA (ih hΓ' hb (EtaPar.body_transport hΓ hA hb' h2))
   | proofIrrel hp h1 h2 =>
     exact .proofIrrel hp h1 ((EtaPar.full hΓ HX h2).hasType hΓ h2)
-  | @funEta Γ e A B A' body u hne hPi hA Hb ih =>
-    have hX := (EtaNE.funEta hne hPi hA Hb).hasType hΓ hs
+  | @funEta Γ e A B A' body u hPi hA Hb ih =>
+    have hX := (EtaNE.funEta hPi hA Hb).hasType hΓ hs
     obtain ⟨X₀, hc, hchain⟩ := EtaPar.root_decomp hΓ HX hX
     refine EtaNE.rootChain_spine_r hΓ hs hchain (as := []) ?_
     cases hc with
@@ -854,7 +824,7 @@ theorem EtaNE.etaPar_r {Γ : List VExpr} {s X X' T : VExpr}
       have hbody := eta_body_typed hPi'
       have hA'A'' : Γ ⊢ A' ≡ _ : .sort u := (EtaPar.full hΓ h1 hA.hasType.2).defeq hΓ hA.hasType.2
       have inner := ih hΓ' hbody h2
-      exact .funEta hne hPi (hA.trans hA'A'') (inner.defeqDFC hΓ (.succ .zero hA'A'') hbody)
+      exact .funEta hPi (hA.trans hA'A'') (inner.defeqDFC hΓ (.succ .zero hA'A'') hbody)
   | @structEta Γ family info levels params args e hl hp hi hs' hexp hlen hargs ih =>
     have hX := (EtaNE.structEta hl hp hi hs' hexp hlen hargs).hasType hΓ hs
     obtain ⟨X₀, hc, hchain⟩ := EtaPar.root_decomp hΓ HX hX
@@ -902,8 +872,146 @@ theorem EtaNE.etaPar_r {Γ : List VExpr} {s X X' T : VExpr}
         have h2' := EtaNE.betaR ((EtaPar.full hΓ hred hT).hasType hΓ hT) h1'
         exact EtaNE.wrap_r hΓ hs hW (as := [])
           (EtaNE.rootChain_spine_r hΓ hs hchain' (as := _ :: _) h2')
-  | betaL hT Hc ih => exact .betaL hT (ih hΓ (hT.defeqU_l henv hΓ (beta_defeqU hΓ hT)) HX)
-  | projIotaL hl hT hi hf Hc ih => exact .projIotaL hl hT hi hf (ih hΓ hf HX)
+  | betaL hT Hc ih => exact .betaL hT (ih hΓ (hT.defeqU_l henv hΓ (beta_spine_defeqU hΓ hT)) HX)
+  | projIotaL hl hT hi hf hrest Hc ih =>
+    exact .projIotaL hl hT hi hf hrest
+      (ih hΓ (hrest.defeqU_l henv hΓ (projIota_spine_defeqU hΓ hl hT hi hf hrest)) HX)
+
+/-- Reflexivity (untyped). -/
+protected theorem EtaNE.rfl {Γ : List VExpr} : ∀ {e : VExpr}, EtaNE Γ e e
+  | .bvar .. => .bvar
+  | .sort .. => .sort
+  | .const .. => .const
+  | .elim .. => .elim
+  | .app .. => .app EtaNE.rfl EtaNE.rfl
+  | .proj .. => .proj EtaNE.rfl
+  | .lam .. => .lamC EtaNE.rfl EtaNE.rfl
+  | .forallE .. => .forallEC EtaNE.rfl EtaNE.rfl
+
+theorem EtaNE.congrRel : CongrRel EtaNE where
+  rfl := EtaNE.rfl
+  app := .app
+  proj := .proj
+  lam := .lamC
+  forallE := .forallEC
+  weakN W h := h.weakN W
+
+/-- Substituting related terms for a variable. -/
+theorem EtaNE.inst_r {Γ₀ : List VExpr} {a₁ a₂ A₀ : VExpr} (H₀ : EtaNE Γ₀ a₁ a₂) :
+    ∀ (e : VExpr) {k : Nat} {Γ₁ Γ : List VExpr}, Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ →
+      EtaNE Γ (e.inst a₁ k) (e.inst a₂ k)
+  | .bvar i, k, Γ₁, Γ, W => by
+    dsimp [inst]
+    induction W generalizing i with
+    | zero =>
+      cases i with simp
+      | zero => exact H₀
+      | succ h => exact .bvar
+    | succ _ ih =>
+      cases i with simp
+      | zero => exact .bvar
+      | succ h => exact (ih ..).weakN .one
+  | .sort .., _, _, _, _ => .sort
+  | .const .., _, _, _, _ => .const
+  | .elim .., _, _, _, _ => .elim
+  | .app f a, _, _, _, W => .app (EtaNE.inst_r H₀ f W) (EtaNE.inst_r H₀ a W)
+  | .proj _ _ m, _, _, _, W => .proj (EtaNE.inst_r H₀ m W)
+  | .lam A b, _, _, _, W => .lamC (EtaNE.inst_r H₀ A W) (EtaNE.inst_r H₀ b W.succ)
+  | .forallE A B, _, _, _, W => .forallEC (EtaNE.inst_r H₀ A W) (EtaNE.inst_r H₀ B W.succ)
+
+/-- Two-sided substitution: related terms substituted into related terms. -/
+theorem EtaNE.instN {Γ₀ Γ₁ Γ : List VExpr} {a₁ a₂ A₀ e e' T : VExpr} {k : Nat}
+    (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx Γ₁ (Params.env.IsType univs))
+    (H₀ : EtaNE Γ₀ a₁ a₂) (h₀ : Γ₀ ⊢ a₁ : A₀) (H : EtaNE Γ₁ e e') (he : Γ₁ ⊢ e : T) :
+    EtaNE Γ (e.inst a₁ k) (e'.inst a₂ k) := by
+  have hΓ₀ := (W.wf henv.ordered h₀ hΓ₁).1
+  have ha : Γ₀ ⊢ a₁ ≡ a₂ : A₀ := (H₀.defeq hΓ₀ h₀).of_l henv hΓ₀ h₀
+  induction H generalizing Γ k T with
+  | refl h => exact EtaNE.inst_r H₀ _ W
+  | bvar => exact EtaNE.inst_r H₀ _ W
+  | sort | const | elim => exact EtaNE.rfl
+  | sortDF h1 h2 h3 => exact .sortDF h1 h2 h3
+  | constDF h1 h2 h3 h4 h5 => exact .constDF h1 h2 h3 h4 h5
+  | elimDF h heq => exact .elimDF (h.instN henv h₀ W) heq
+  | app _ _ ih1 ih2 =>
+    obtain ⟨_, _, hf, ha'⟩ := he.app_inv henv hΓ₁
+    exact .app (ih1 W hΓ₁ hf) (ih2 W hΓ₁ ha')
+  | proj _ ih =>
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := he.proj_inv henv hΓ₁
+    exact .proj (ih W hΓ₁ hm.hasType.2)
+  | lam hA _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.lam_inv henv hΓ₁
+    exact .lam ((hA.instN henv h₀ W).trans (HasType.instN_DF W hΓ₁ ha hA.hasType.2))
+      (ih W.succ ⟨hΓ₁, _, hd⟩ hb)
+  | forallE hA _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.forallE_inv henv.ordered
+    exact .forallE ((hA.instN henv h₀ W).trans (HasType.instN_DF W hΓ₁ ha hA.hasType.2))
+      (ih W.succ ⟨hΓ₁, _, hd⟩ hb)
+  | lamC _ _ ih1 ih2 =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.lam_inv henv hΓ₁
+    exact .lamC (ih1 W hΓ₁ hd) (ih2 W.succ ⟨hΓ₁, _, hd⟩ hb)
+  | forallEC _ _ ih1 ih2 =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.forallE_inv henv.ordered
+    exact .forallEC (ih1 W hΓ₁ hd) (ih2 W.succ ⟨hΓ₁, _, hd⟩ hb)
+  | proofIrrel h1 h2 h3 =>
+    exact .proofIrrel (h1.instN henv W h₀) (h2.instN henv W h₀)
+      (HasType.instN_DF W hΓ₁ ha h3).hasType.2
+  | @funEta Γ₁ e A B A' body u hPi hA _ ih =>
+    have hΓ' : OnCtx (A' :: Γ₁) (Params.env.IsType univs) := ⟨hΓ₁, _, hA.hasType.2⟩
+    have hbody : A' :: Γ₁ ⊢ .app e.lift (.bvar 0) : B := by
+      have h1 : A' :: Γ₁ ⊢ e.lift : .forallE A.lift (B.liftN 1 1) := hPi.weak henv.ordered
+      have h0 : A' :: Γ₁ ⊢ .bvar 0 : A.lift :=
+        (hA.weak henv.ordered (B := A')).defeq' (.bvar .zero)
+      simpa [VExpr.inst_liftN_bvar] using HasType.app h1 h0
+    have := ih W.succ hΓ' hbody
+    simp only [VExpr.inst, ← VExpr.lift_instN_lo, instVar, if_pos (Nat.zero_lt_succ k)] at this
+    have hΓ := (W.wf henv.ordered h₀ hΓ₁).2
+    have hA'' : Γ ⊢ A'.inst a₁ k ≡ A'.inst a₂ k : .sort u := HasType.instN_DF W hΓ₁ ha hA.hasType.2
+    have hbody' := hbody.instN henv W.succ h₀
+    simp only [VExpr.inst, ← VExpr.lift_instN_lo, instVar, if_pos (Nat.zero_lt_succ k)] at hbody'
+    exact .funEta (hPi.instN henv W h₀)
+      ((hA.instN henv h₀ W).trans hA'') (this.defeqDFC hΓ (.succ .zero hA'') hbody')
+  | @structEta Γ₁ family info levels params args e hl hp hi hs hexp hlen hargs ih =>
+    obtain ⟨_, hT⟩ := hs.isType henv hΓ₁
+    have hs' := hs.instN henv W h₀
+    have hexp' := hexp.instN henv W h₀
+    simp only [VExpr.inst_mkApps, VExpr.inst, structExpand_inst] at hs' hexp' ⊢
+    have hargsT : ∀ i (hi : i < (structArgs family info params e).length),
+        ∃ T, Γ₁ ⊢ (structArgs family info params e)[i] : T := fun i hi => by
+      rw [structExpand_eq] at hexp
+      exact schema_mkApps_arg_type hΓ₁ hexp (List.getElem_mem hi)
+    refine .structEta hl (by simpa using hp) hi hs' hexp' ?_ ?_
+    · simpa [structArgs] using hlen
+    · intro i hi hi'
+      have hi₀ : i < (structArgs family info params e).length := by
+        simpa [structArgs] using hi
+      obtain ⟨_, hiT⟩ := hargsT i hi₀
+      have := ih i hi₀ (by simpa using hi') W hΓ₁ hiT
+      simpa only [structArgs_inst, List.getElem_map] using this
+  | @betaR Γ₁ A b a s T' args hT _ ih =>
+    have := ih W hΓ₁ he
+    have hT' := (HasType.instN_DF W hΓ₁ ha hT).hasType.2
+    simp only [VExpr.inst_mkApps, VExpr.inst] at hT' this ⊢
+    have h := inst_inst_hi b a a₂ 0 k
+    simp only [Nat.add_zero] at h
+    rw [h] at this
+    exact .betaR hT' this
+  | @betaL Γ₁ A b a T' X args hT _ ih =>
+    have := ih W hΓ₁ (hT.defeqU_l henv hΓ₁ (beta_spine_defeqU hΓ₁ hT))
+    have hT' := hT.instN henv W h₀
+    simp only [VExpr.inst_mkApps, VExpr.inst] at hT' this ⊢
+    have h := inst_inst_hi b a a₁ 0 k
+    simp only [Nat.add_zero] at h
+    rw [h] at this
+    exact .betaL hT' this
+  | @projIotaL Γ₁ S info i ls args rest T₀ T' field X hl hT hi hf hrest _ ih =>
+    have := ih W hΓ₁ (hrest.defeqU_l henv hΓ₁ (projIota_spine_defeqU hΓ₁ hl hT hi hf hrest))
+    have hT' := hT.instN henv W h₀
+    have hrest' := hrest.instN henv W h₀
+    have hf' := hf.instN henv W h₀
+    simp only [VExpr.inst_mkApps, VExpr.inst] at hT' hrest' this ⊢
+    refine .projIotaL hl hT' ?_ hf' hrest' this
+    simp [hi]
 
 /-- Every eta chain from a typed term is an eta-normal expansion. -/
 theorem EtaNE.of_etaChain {Γ : List VExpr} {e X T : VExpr}
@@ -930,6 +1038,10 @@ theorem EtaNE.forallE_inv_lift (hTF : TypedFrontN Params.env) {k : Nat} {Γ Γ' 
     cases hr
     obtain ⟨A₀, B₀, rfl, -, -⟩ := liftN_eq_forallE_inv hs
     exact ⟨A₀, B₀, .rfl⟩
+  | forallEC =>
+    cases hr
+    obtain ⟨A₀, B₀, rfl, -, -⟩ := liftN_eq_forallE_inv hs
+    exact ⟨A₀, B₀, .rfl⟩
   | proofIrrel hp h1 h2 =>
     subst hr hs
     have hF' := hF.weakN henv.ordered W
@@ -937,7 +1049,7 @@ theorem EtaNE.forallE_inv_lift (hTF : TypedFrontN Params.env) {k : Nat} {Γ Γ' 
     have h4 := IsDefEq.uniqU henv hΓ' (HasType.sort (hF'.sort_r henv.ordered hΓ')) h3.hasType.1
     have h5 := congrFun (h4.sort_inv henv hΓ') []
     simp [VLevel.eval] at h5
-  | funEta _ hPi =>
+  | funEta hPi =>
     subst hs
     exact (type_not_function hΓ' (hF.weakN henv.ordered W) hPi).elim
   | structEta hl _ _ hs' =>
@@ -945,38 +1057,45 @@ theorem EtaNE.forallE_inv_lift (hTF : TypedFrontN Params.env) {k : Nat} {Γ Γ' 
     exact (type_not_structure hΓ' (hF.weakN henv.ordered W) hl hs').elim
   | betaR hT =>
     exact (VExpr.mkApps_ne_forallE (by intros; intro h; cases h) _ hr.symm).elim
-  | @betaL Γ' A₁ b a T X hT _ ih =>
+  | @betaL Γ' A₁ b a T X args hT _ ih =>
     subst hr
-    obtain ⟨f₀, a₀, rfl, hf, rfl⟩ := liftN_eq_app_inv hs
-    obtain ⟨A₀, b₀, rfl, rfl, rfl⟩ := liftN_eq_lam_inv hf.symm
-    have hstep : FullStep Γ (.app (.lam A₀ b₀) a₀) (b₀.inst a₀) := .core (.beta .rfl .rfl)
+    obtain ⟨f₀, args₀, rfl, hf, rfl⟩ := liftN_eq_mkApps_inv hs
+    obtain ⟨g₀, a₀, rfl, hg, rfl⟩ := liftN_eq_app_inv hf.symm
+    obtain ⟨A₀, b₀, rfl, rfl, rfl⟩ := liftN_eq_lam_inv hg.symm
+    have hstep : FullStep Γ (mkApps (.app (.lam A₀ b₀) a₀) args₀) (mkApps (b₀.inst a₀) args₀) :=
+      .core (ParRed.congrRel.mkApps (.beta .rfl .rfl) (List.Forall₂.rfl fun _ _ => .rfl))
     have hF' := hstep.hasType hΓ hF
-    obtain ⟨A₂, B₂, hred⟩ := ih W hΓ' hF' (by rw [VExpr.liftN_inst_hi]) rfl
+    obtain ⟨A₂, B₂, hred⟩ := ih W hΓ' hF' (by rw [VExpr.liftN_mkApps, VExpr.liftN_inst_hi]) rfl
     exact ⟨A₂, B₂, (ReflTransGen.tail .rfl hstep).trans hred⟩
-  | @projIotaL Γ' S info i ls args T field X hl hT hi hf _ ih =>
+  | @projIotaL Γ' S info i ls args rest T₀ T field X hl hT hi hf hrest _ ih =>
     subst hr
-    obtain ⟨m₀, rfl, hm⟩ := liftN_eq_proj_inv hs
-    obtain ⟨args₀, rfl, rfl⟩ := liftN_eq_mkApps_const_inv hm.symm
+    obtain ⟨m₀, rest₀, rfl, hm, rfl⟩ := liftN_eq_mkApps_inv hs
+    obtain ⟨m₁, rfl, hm₁⟩ := liftN_eq_proj_inv hm.symm
+    obtain ⟨args₀, rfl, rfl⟩ := liftN_eq_mkApps_const_inv hm₁.symm
     obtain ⟨field₀, hget, rfl⟩ : ∃ field₀, args₀[info.nparams + i]? = some field₀ ∧
         field = field₀.liftN 1 k := by
       rw [List.getElem?_map] at hi
       obtain ⟨f₀, hf₀, rfl⟩ := Option.map_eq_some_iff.mp hi
       exact ⟨f₀, hf₀, rfl⟩
     -- the field is typed below at the projection's type
-    have hF' := hF.weakN henv.ordered W
-    simp only [liftN, VExpr.liftN_mkApps] at hF'
-    have hTu : _ ⊢ T ≡ .sort u := hT.uniqU henv hΓ' hF'
-    have hfu : _ ⊢ field₀.liftN 1 k : .sort u := hf.defeqU_r henv hΓ' hTu
-    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ := hF.proj_inv henv hΓ
+    obtain ⟨T₁, hproj₀⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, hF⟩
+    have hproj₀' : Γ ⊢ .proj S i (mkApps (.const info.ctorName ls) args₀) : T₁ := hproj₀
+    have hproj₁ := hproj₀'.weakN henv.ordered W
+    simp only [liftN, VExpr.liftN_mkApps] at hproj₁
+    have hT₁ : _ ⊢ T₀ ≡ T₁.liftN 1 k := hT.uniqU henv hΓ' hproj₁
+    have hfu : _ ⊢ field₀.liftN 1 k : T₁.liftN 1 k := hf.defeqU_r henv hΓ' hT₁
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ := hproj₀'.proj_inv henv hΓ
     obtain ⟨_, hfield₀⟩ := HasType.mkApps_args_typed hΓ hmajor.hasType.2 field₀
       (List.mem_of_getElem? hget)
-    have hf₀ : Γ ⊢ field₀ : .sort u :=
-      hTF.retype henv W hΓ hΓ' hfield₀ (HasType.sort (hF.sort_r henv.ordered hΓ)) hfu
-    have hstep : FullStep Γ (.proj S i (mkApps (.const info.ctorName ls) args₀)) field₀ :=
-      .projIota hl hF hget hf₀
-    obtain ⟨A₂, B₂, hred⟩ := ih W hΓ' hf₀ rfl rfl
-    exact ⟨A₂, B₂, (ReflTransGen.tail .rfl hstep).trans hred⟩
-  | sortDF | constDF | elimDF | app | proj | lam => cases hr
+    obtain ⟨_, hT₁s⟩ := hproj₀'.isType henv hΓ
+    have hf₀ : Γ ⊢ field₀ : T₁ := hTF.retype henv W hΓ hΓ' hfield₀ hT₁s hfu
+    have hstep : FullReduction Γ (mkApps (.proj S i (mkApps (.const info.ctorName ls) args₀)) rest₀)
+        (mkApps field₀ rest₀) :=
+      FullReduction.mkApps (.tail .rfl (.projIota hl hproj₀' hget hf₀)) (List.Forall₂.rfl fun _ _ => .rfl)
+    have hF' := hstep.hasType hΓ hF
+    obtain ⟨A₂, B₂, hred⟩ := ih W hΓ' hF' (by rw [VExpr.liftN_mkApps]) rfl
+    exact ⟨A₂, B₂, hstep.trans hred⟩
+  | bvar | sort | const | elim | lamC | sortDF | constDF | elimDF | app | proj | lam => cases hr
 
 end
 

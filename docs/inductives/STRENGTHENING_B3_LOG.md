@@ -117,3 +117,31 @@ descent (`etaReplayNE_of_descent`, `etaReplayNE_empty_chain`), `path_replayNE`,
 `cancel_iff_typedFront_ofNE : Cancel ↔ TypedFront` given `∀ U, EtaReplayNE`, `ProjFrontN`,
 `ElimFrontN`. So the content of `EtaReplayNE` is exactly the eta-free step cases (`ParRed`,
 `DeltaPar`) pushed through the `EtaNE` constructors; the next step is that induction.
+
+## Step 4 (in progress): the proof of `EtaReplayNE`
+
+Design. The induction is on the `EtaNE` derivation `H : EtaNE Γ₁ S X` with the eta-free step
+`UpStep Γ₁ X Y` as hypothesis, for sources `S` of the generalized form "a below term renamed into
+`Γ₁` along a lift `l` (`Ctx.Lift' l Γ₀ Γ₁'`, `Γ₁'` convertible to `Γ₁`), then applied to eta
+variables and projected" (an elimination spine); the conclusion is a reduction below and the
+relation for the same spine over the reduct. Sub-derivations inside `funEta` apply the source to
+the new variable, inside `structEta` project it, inside `app`/`proj` decompose the spine, and the
+`betaL`/`projIotaL` cases dissolve the administrative redex (a below redex, reduced below; or a
+lambda applied to an eta variable, which is a renaming of the body into an extended below context).
+
+Changes to `EtaNE` for this: `funEta` for every source (the inner source may carry the
+administrative redex), `betaL`/`projIotaL` on spines (`mkApps (redex) args`), untyped atoms and
+untyped `lamC`/`forallEC` congruences (so that `EtaNE` is reflexive and a `CongrRel`, needed for
+the rhs congruence of stored rules). New lemmas: `EtaNE.rfl`, `EtaNE.congrRel`, `EtaNE.inst_r`,
+`EtaNE.instN` (two-sided substitution, the collapse of a junk expansion in function position).
+
+`EtaReplay.lean`: descent of eta-free parallel steps along any lift (`ParRed.descend'`,
+`DeltaPar.descend'`), peeling one insertion at a time (`Ctx.Lift'.peel` keeps the intermediate
+context well-formed).
+
+Hard cases identified (to be isolated as named obligations if not proved): (B) singleton or
+quotient prefix unfolding on a spine applied to eta variables (mirrored below by eta expansions at
+the recursor telescope and the unfolding below); (K) iota above whose major is a proof term
+convertible by proof irrelevance to the source's major (mirrored below by singleton prefix
+unfolding); (H) iota above whose major is the junk structure eta expansion of a neutral source
+(mirrored below by structure eta at the major, `major_type`, then iota).
