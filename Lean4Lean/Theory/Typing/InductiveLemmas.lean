@@ -11,7 +11,7 @@ namespace VEnv
 
 `addInduct_le` (adding an inductive only grows the environment) and `addInduct_pat` (every
 recursor rule's ι rule ends up in `pats`), threaded through the stages `addTypes`/`addCtors`/
-`addRecs`/`addRules` (`addInduct_stages`); `addInduct_WF` (adding a well-formed inductive
+`addProjs`/`addRecs`/`addRules` (`addInduct_stages`); `addInduct_WF` (adding a well-formed inductive
 keeps the environment `Ordered`), proved stage by stage from `VInductDecl.WF`; and the
 population lemmas saying what each stage binds in `constants` and registers in `pats`.
 Subject reduction of the registered ι rules is the open `VEnv.WF.patsStrong` (`EnvLemmas.lean`).
@@ -62,6 +62,10 @@ theorem addCtors_le {decl : VInductDecl} {env env' : VEnv}
     (h : decl.addCtors env = some env') : env ≤ env' :=
   foldlM_le (fun hh => addConst_le hh) h
 
+/-- Registering the projection entries only grows the environment. -/
+theorem addProjs_le {decl : VInductDecl} {env : VEnv} : env ≤ decl.addProjs env :=
+  addProjections_le
+
 /-- Adding the recursors only grows the environment. -/
 theorem addRecs_le {decl : VInductDecl} {env env' : VEnv}
     (h : decl.addRecs env = some env') : env ≤ env' :=
@@ -72,24 +76,34 @@ theorem addRules_le {decl : VInductDecl} {env env' : VEnv}
     (h : decl.addRules env = some env') : env ≤ env' :=
   foldlM_le (fun hh => foldlM_le (fun hh2 => addRecRule_le hh2) hh) h
 
-/-- A successful `addInduct` decomposes into its four successful stages. -/
+/-- A successful `addInduct` decomposes into its successful stages; the projection stage
+(`addProjs`) is total and appears inline. -/
 theorem addInduct_stages {env env' : VEnv} {decl : VInductDecl}
     (h : env.addInduct decl = some env') :
     ∃ envT envC envR, decl.addTypes env = some envT ∧ decl.addCtors envT = some envC ∧
-      decl.addRecs envC = some envR ∧ decl.addRules envR = some env' := by
+      decl.addRecs (decl.addProjs envC) = some envR ∧ decl.addRules envR = some env' := by
   unfold addInduct at h
   obtain ⟨envR, hR, hP⟩ := Option.bind_eq_some_iff.1 h
-  unfold VInductDecl.addTypesCtorsRecs at hR
-  obtain ⟨envC, hC', hRec⟩ := Option.bind_eq_some_iff.1 hR
+  unfold VInductDecl.addTypesCtorsProjsRecs at hR
+  obtain ⟨envP, hP', hRec⟩ := Option.bind_eq_some_iff.1 hR
+  unfold VInductDecl.addTypesCtorsProjs at hP'
+  obtain ⟨envC, hC', rfl⟩ := Option.map_eq_some_iff.1 hP'
   unfold VInductDecl.addTypesCtors at hC'
   obtain ⟨envT, hT, hC⟩ := Option.bind_eq_some_iff.1 hC'
   exact ⟨envT, envC, envR, hT, hC, hRec, hP⟩
+
+/-- Stages 0–2 as a chain. -/
+theorem addTypesCtorsProjs_eq_some {env envC : VEnv} {decl : VInductDecl}
+    (h : decl.addTypesCtors env = some envC) :
+    decl.addTypesCtorsProjs env = some (decl.addProjs envC) := by
+  unfold VInductDecl.addTypesCtorsProjs; rw [h]; rfl
 
 /-- Adding an inductive declaration only grows the environment. -/
 theorem addInduct_le {env env' : VEnv} {decl} (h : env.addInduct decl = some env') :
     env ≤ env' := by
   obtain ⟨envT, envC, envR, hT, hC, hR, hP⟩ := addInduct_stages h
-  exact (addTypes_le hT).trans <| (addCtors_le hC).trans <| (addRecs_le hR).trans (addRules_le hP)
+  exact (addTypes_le hT).trans <| (addCtors_le hC).trans <| addProjs_le.trans <|
+    (addRecs_le hR).trans (addRules_le hP)
 
 /-- If some `x ∈ l` yields a `P` under a successful step, `P` is `≤`-monotone, and
 every step only grows the environment, then the fold result satisfies `P`. Used to
@@ -181,12 +195,6 @@ theorem addCtors_ordered {env envT envC : VEnv} {decl : VInductDecl}
     obtain ⟨t, ht, hc⟩ := List.mem_flatMap.1 hc
     exact hdecl.ctors_wf envT hT t ht c hc) hC
 
-/-- Stage 2 keeps the environment `Ordered` (`recs_wf`, in the stage-1 environment). -/
-theorem addRecs_ordered {env envC envR : VEnv} {decl : VInductDecl}
-    (hdecl : decl.WF env) (hC : decl.addTypesCtors env = some envC) (hordC : Ordered envC)
-    (hR : decl.addRecs envC = some envR) : Ordered envR :=
-  foldlM_addConst_ordered hordC (hdecl.recs_wf envC hC) hR
-
 /-- Stages 0–1 keep the environment `Ordered`. -/
 theorem addTypesCtors_ordered {env envC : VEnv} {decl : VInductDecl}
     (henv : Ordered env) (hdecl : decl.WF env) (h : decl.addTypesCtors env = some envC) :
@@ -194,21 +202,51 @@ theorem addTypesCtors_ordered {env envC : VEnv} {decl : VInductDecl}
   obtain ⟨envT, hT, hC⟩ := Option.bind_eq_some_iff.1 h
   exact addCtors_ordered hdecl hT (addTypes_ordered henv hdecl hT) hC
 
-/-- Stages 0–2 keep the environment `Ordered`. -/
-theorem addTypesCtorsRecs_ordered {env envR : VEnv} {decl : VInductDecl}
-    (henv : Ordered env) (hdecl : decl.WF env) (h : decl.addTypesCtorsRecs env = some envR) :
-    Ordered envR := by
-  obtain ⟨envC, hC, hR⟩ := Option.bind_eq_some_iff.1 h
-  exact addRecs_ordered hdecl hC (addTypesCtors_ordered henv hdecl hC) hR
+/-- Stage 2 keeps the environment `Ordered`: the projection entries of a well-formed
+declaration are registered once its type formers and constructors are present
+(`Ordered.inductProjections`, whose declaration-level premises are read off `SourceWF` and
+`FormationWF`). -/
+theorem addProjs_ordered {env envC : VEnv} {decl : VInductDecl}
+    (henv : Ordered env) (hdecl : decl.WF env) (hC : decl.addTypesCtors env = some envC)
+    (hordC : Ordered envC) : Ordered (decl.addProjs envC) := by
+  obtain ⟨envT, hT, hC'⟩ := Option.bind_eq_some_iff.1 hC
+  rw [VInductDecl.addTypes_eq_addConstVals] at hT
+  rw [VInductDecl.addCtors_eq_addConstVals] at hC'
+  have hparams := hdecl.sourceParameterWF hT
+  exact Ordered.inductProjections
+    (block := ⟨decl.typeConstants, decl.constructorConstants, [], [], decl.projectionEntries⟩)
+    henv hordC hdecl.source.2.1 hdecl.source.sourceTypes hdecl.source.2.2.2.1
+    (hdecl.source.constructorsWF_at hT) hparams hparams.rawCtorShape rfl rfl rfl hT hC'
 
-/-- Stage 3 keeps the environment `Ordered`: every registration is an `Ordered.pat`
+/-- Stages 0–2 keep the environment `Ordered`. -/
+theorem addTypesCtorsProjs_ordered {env envP : VEnv} {decl : VInductDecl}
+    (henv : Ordered env) (hdecl : decl.WF env) (h : decl.addTypesCtorsProjs env = some envP) :
+    Ordered envP := by
+  unfold VInductDecl.addTypesCtorsProjs at h
+  obtain ⟨envC, hC, rfl⟩ := Option.map_eq_some_iff.1 h
+  exact addProjs_ordered henv hdecl hC (addTypesCtors_ordered henv hdecl hC)
+
+/-- Stage 3 keeps the environment `Ordered` (`recs_wf`, in the stage-2 environment). -/
+theorem addRecs_ordered {env envP envR : VEnv} {decl : VInductDecl}
+    (hdecl : decl.WF env) (hP : decl.addTypesCtorsProjs env = some envP) (hordP : Ordered envP)
+    (hR : decl.addRecs envP = some envR) : Ordered envR :=
+  foldlM_addConst_ordered hordP (hdecl.recs_wf envP hP) hR
+
+/-- Stages 0–3 keep the environment `Ordered`. -/
+theorem addTypesCtorsProjsRecs_ordered {env envR : VEnv} {decl : VInductDecl}
+    (henv : Ordered env) (hdecl : decl.WF env)
+    (h : decl.addTypesCtorsProjsRecs env = some envR) : Ordered envR := by
+  obtain ⟨envP, hP, hR⟩ := Option.bind_eq_some_iff.1 h
+  exact addRecs_ordered hdecl hP (addTypesCtorsProjs_ordered henv hdecl hP) hR
+
+/-- Stage 4 keeps the environment `Ordered`: every registration is an `Ordered.pat`
 step, whose `VEnv.PatWF` is `VInductDecl.WF.rules_wf` (the typing, stated at `envR` and
 carried to the environment reached so far by `PatTyped.mono`) together with the template
 shape of the reduct (`rule_shape`: the template is a λ-abstraction, so `iotaRHS` is
 `TemplateHeaded`). -/
 theorem addRules_ordered {env envR env' : VEnv} {decl : VInductDecl}
-    (hdecl : decl.WF env) (hR : decl.addTypesCtorsRecs env = some envR) (hordR : Ordered envR)
-    (hP : decl.addRules envR = some env') : Ordered env' := by
+    (hdecl : decl.WF env) (hR : decl.addTypesCtorsProjsRecs env = some envR)
+    (hordR : Ordered envR) (hP : decl.addRules envR = some env') : Ordered env' := by
   unfold VInductDecl.addRules at hP
   refine (foldlM_inv (P := fun e => Ordered e ∧ envR ≤ e) (fun r hr _ _ hPe hfold => ?_)
     ⟨hordR, .rfl⟩ hP).1
@@ -224,12 +262,12 @@ theorem addRules_ordered {env envR env' : VEnv} {decl : VInductDecl}
 
 /-- Soundness of `addInduct`: extending an `Ordered` environment with a well-formed
 inductive declaration keeps it `Ordered`. The constant stages follow from the staged
-`VInductDecl.WF` (`types_wf`/`ctors_wf`/`recs_wf`); the ι-rule stage from `Ordered.pat`
-and `rules_wf`. -/
+`VInductDecl.WF` (`types_wf`/`ctors_wf`/`recs_wf`), the projection stage from
+`Ordered.inductProjections`, the ι-rule stage from `Ordered.pat` and `rules_wf`. -/
 theorem addInduct_WF (henv : Ordered env) (hdecl : decl.WF env)
     (henv' : addInduct env decl = some env') : Ordered env' := by
   obtain ⟨envR, hR, hP⟩ := Option.bind_eq_some_iff.1 henv'
-  exact addRules_ordered hdecl hR (addTypesCtorsRecs_ordered henv hdecl hR) hP
+  exact addRules_ordered hdecl hR (addTypesCtorsProjsRecs_ordered henv hdecl hR) hP
 
 /-! ## Environment-population lemmas
 
@@ -241,23 +279,6 @@ duplicates), and the origin of every registered pattern entry
 (`addInduct_pats_origin'`: an old one, or exactly the ι entry of one recursor rule).
 These are the facts the front-end refinement (`Verify/Environment`) derives its
 `AddInduct` theorems from, so they live here rather than in `InductiveParams`. -/
-
-/-- `addConst` leaves `pats` unchanged. -/
-theorem addConst_pats {env env' : VEnv} {n ci} (h : env.addConst n ci = some env') :
-    env'.pats = env.pats := by
-  rw [VEnv.addConst] at h; split at h
-  · simp at h
-  · injection h with h; subst h; rfl
-
-/-- `addConst` leaves `defeqs` unchanged. -/
-theorem addConst_defeqs {env env' : VEnv} {n ci} (h : env.addConst n ci = some env') :
-    env'.defeqs = env.defeqs := by
-  rw [VEnv.addConst] at h; split at h
-  · simp at h
-  · injection h with h; subst h; rfl
-
-/-- `addDefEq` leaves `pats` unchanged. -/
-theorem addDefEq_pats {env : VEnv} {df} : (env.addDefEq df).pats = env.pats := rfl
 
 /-- `addConsts` (a block of `addConst`s) leaves `pats` unchanged. -/
 theorem addConsts_pats {env env' : VEnv} : ∀ {cis},
@@ -362,7 +383,7 @@ theorem addConst_comm {env e₁ e₂ : VEnv} {n₁ n₂ : Name} {c₁ c₂ : VCo
   rw [hf₂']
   refine ⟨_, rfl, ?_⟩
   simp only [if_neg hne.symm, hf₁, Option.some.injEq]
-  refine VEnv.ext (funext fun n => ?_) rfl rfl
+  refine VEnv.ext (funext fun n => ?_) rfl rfl rfl
   simp only
   by_cases e₁ : n₁ = n <;> by_cases e₂ : n₂ = n <;> simp [e₁, e₂]
   exact absurd (e₁.trans e₂.symm) hne
@@ -406,13 +427,38 @@ theorem addConst_foldlM_constants_inv {α} {nm : α → Name} {ci : α → VCons
       · rw [ho n hnb] at hc1; exact .inl hc1
     · exact .inr ⟨a, .tail _ ha, hn, hca⟩
 
-/-- Stages 0–2 are one `addConst` fold over `VInductDecl.consts`. -/
-theorem _root_.Lean4Lean.VInductDecl.addTypesCtorsRecs_eq (decl : VInductDecl) (env : VEnv) :
-    decl.addTypesCtorsRecs env =
-      decl.consts.foldlM (fun (e : VEnv) b => e.addConst b.1 b.2) env := by
-  simp only [VInductDecl.addTypesCtorsRecs, VInductDecl.addTypesCtors, VInductDecl.addTypes,
-    VInductDecl.consts, List.foldlM_append, List.foldlM_map]
-  rfl
+/-- Stage 3 is `addConstVals` over the recursor constants. -/
+theorem _root_.Lean4Lean.VInductDecl.addRecs_eq_addConstVals (decl : VInductDecl) (env : VEnv) :
+    decl.addRecs env = env.addConstVals (decl.recs.map (·.toVConstVal)) := by
+  unfold VInductDecl.addRecs
+  induction decl.recs generalizing env with
+  | nil => rfl
+  | cons r rs ih =>
+    simp only [List.foldlM_cons, List.map_cons, VEnv.addConstVals]
+    cases env.addConst r.name r.toVConstVal.toVConstant <;> simp [ih]
+
+/-- The projection stage commutes with the recursor stage: registering projections neither
+adds nor blocks a constant. -/
+theorem _root_.Lean4Lean.VInductDecl.addRecs_addProjs (decl : VInductDecl) (env : VEnv) :
+    decl.addRecs (decl.addProjs env) = (decl.addRecs env).map decl.addProjs := by
+  rw [VInductDecl.addRecs_eq_addConstVals, VInductDecl.addRecs_eq_addConstVals]
+  exact VEnv.addProjections_addConstVals _ _ _
+
+/-- The constant stages are one `addConst` fold over `VInductDecl.consts`, with the
+projection stage commuted to the end. -/
+theorem _root_.Lean4Lean.VInductDecl.addTypesCtorsProjsRecs_eq (decl : VInductDecl) (env : VEnv) :
+    decl.addTypesCtorsProjsRecs env =
+      (decl.consts.foldlM (fun (e : VEnv) b => e.addConst b.1 b.2) env).map decl.addProjs := by
+  have hconsts : decl.consts.foldlM (fun (e : VEnv) b => e.addConst b.1 b.2) env =
+      decl.addTypesCtors env >>= decl.addRecs := by
+    simp only [VInductDecl.addTypesCtors, VInductDecl.addTypes, VInductDecl.consts,
+      List.foldlM_append, List.foldlM_map]
+    rfl
+  rw [hconsts]
+  unfold VInductDecl.addTypesCtorsProjsRecs VInductDecl.addTypesCtorsProjs
+  cases decl.addTypesCtors env with
+  | none => rfl
+  | some envC => simp [VInductDecl.addRecs_addProjs]
 
 /-- In a successful `addConst` fold, every registered name is bound, in the result,
 to exactly the constant it was registered with. -/
@@ -483,6 +529,20 @@ theorem addCtors_pats {decl : VInductDecl} {env env' : VEnv}
     (h : decl.addCtors env = some env') : env'.pats = env.pats := by
   unfold VInductDecl.addCtors at h; exact foldlM_pats_preserved (fun hh => addConst_pats hh) h
 
+/-- `addProjs` leaves `pats` unchanged. -/
+theorem addProjs_pats {decl : VInductDecl} {env : VEnv} : (decl.addProjs env).pats = env.pats :=
+  addProjections_pats _ _
+
+/-- `addProjs` leaves `defeqs` unchanged. -/
+theorem addProjs_defeqs {decl : VInductDecl} {env : VEnv} :
+    (decl.addProjs env).defeqs = env.defeqs :=
+  addProjections_defeqs _ _
+
+/-- `addProjs` leaves `constants` unchanged. -/
+theorem addProjs_constants {decl : VInductDecl} {env : VEnv} :
+    (decl.addProjs env).constants = env.constants :=
+  addProjections_constants _ _
+
 /-- `addRecs` leaves `pats` unchanged. -/
 theorem addRecs_pats {decl : VInductDecl} {env env' : VEnv}
     (h : decl.addRecs env = some env') : env'.pats = env.pats := by
@@ -526,7 +586,8 @@ rules, never a definitional axiom. -/
 theorem addInduct_defeqs {env env' : VEnv} {decl : VInductDecl}
     (h : env.addInduct decl = some env') : env'.defeqs = env.defeqs := by
   obtain ⟨_, _, _, hT, hC, hR, hP⟩ := addInduct_stages h
-  rw [addRules_defeqs hP, addRecs_defeqs hR, addCtors_defeqs hC, addTypes_defeqs hT]
+  rw [addRules_defeqs hP, addRecs_defeqs hR, addProjs_defeqs, addCtors_defeqs hC,
+    addTypes_defeqs hT]
 
 /-- After `addTypes`, every type former of `decl` is bound to its constant. -/
 theorem addTypes_find {decl : VInductDecl} {env env' : VEnv}
@@ -639,7 +700,7 @@ theorem addInduct_pats_origin' {env env' : VEnv} {decl : VInductDecl} {p rr}
                 ru.ctorParams ru.nfields ru.rhs hc, .true))
           (fun {e2 ru e2'} _ hstep2 hpp2 => addRecRule_pats_inv' hstep2 hpp2) hstep hpp)
       s4 hp with hk | horigin
-  · rw [addRecs_pats s3, addCtors_pats s2, addTypes_pats s1] at hk; exact .inl hk
+  · rw [addRecs_pats s3, addProjs_pats, addCtors_pats s2, addTypes_pats s1] at hk; exact .inl hk
   · exact .inr horigin
 
 /-- Origin of a pattern after `addInduct`: it is either old, or the ι redex of some
@@ -661,8 +722,8 @@ theorem addInduct_rec_fresh {env env' : VEnv} {decl : VInductDecl} {rec}
     (h : env.addInduct decl = some env') (hrec : rec ∈ decl.recs) :
     env.constants rec.name = none := by
   obtain ⟨env1, env2, env3, s1, s2, s3, s4⟩ := addInduct_stages h
-  have hfresh : env2.constants rec.name = none := addRecs_fresh s3 rec hrec
-  have hle : env ≤ env2 := (addTypes_le s1).trans (addCtors_le s2)
+  have hfresh : (decl.addProjs env2).constants rec.name = none := addRecs_fresh s3 rec hrec
+  have hle : env ≤ decl.addProjs env2 := (addTypes_le s1).trans ((addCtors_le s2).trans addProjs_le)
   cases hnn : env.constants rec.name with
   | none => rfl
   | some c => rw [hle.constants hnn] at hfresh; simp at hfresh
@@ -681,20 +742,6 @@ theorem addInduct_recs_name_inj {env env' : VEnv} {decl : VInductDecl} {ra rb}
   obtain ⟨env1, env2, env3, s1, s2, s3, s4⟩ := addInduct_stages h
   exact addRecs_name_inj s3 ra hra rb hrb hname
 
-/-- The constructor a rule of a well-formed `decl` fires on is one of the block's own
-(`VInductDecl.WF.rules_ctor`), hence registered in the stage-1 environment with a type of
-`CtorShape (ru.ctorParams + ru.nfields)`. -/
-theorem _root_.Lean4Lean.VInductDecl.WF.rules_ctor_shape {env : VEnv} {decl : VInductDecl}
-    (hwf : decl.WF env) : ∀ envC, decl.addTypesCtors env = some envC →
-      ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ∃ ci, envC.constants ru.ctor = some ci ∧
-        ci.type.CtorShape (ru.ctorParams + ru.nfields) := by
-  intro envC hC r hr ru hru
-  obtain ⟨env1, s1, s2⟩ := Option.bind_eq_some_iff.1 hC
-  obtain ⟨t, ht, -, c, hc, hname, hnp, hres⟩ := hwf.rules_ctor r hr ru hru
-  refine ⟨c.toVConstant, ?_, ?_⟩
-  · rw [hname]; exact addCtors_find s2 t ht c hc
-  · rw [hnp]; exact hres.ctorShape
-
 /-- The constructor a rule of a well-formed `decl` fires on is registered in the
 resulting environment, with a type of `CtorShape (ru.ctorParams + ru.nfields)`
 (`VInductDecl.WF.rules_ctor_shape`, carried forward from the stage-1 environment). -/
@@ -705,7 +752,7 @@ theorem addInduct_rule_ctor {env env' : VEnv} {decl : VInductDecl} {rec ru}
   obtain ⟨env1, env2, env3, s1, s2, s3, s4⟩ := addInduct_stages h
   have hC : decl.addTypesCtors env = some env2 := Option.bind_eq_some_iff.2 ⟨env1, s1, s2⟩
   obtain ⟨ci, hci, hcs⟩ := hwf.rules_ctor_shape env2 hC rec hrec ru hru
-  exact ⟨ci, ((addRecs_le s3).trans (addRules_le s4)).constants hci, hcs⟩
+  exact ⟨ci, (addProjs_le.trans ((addRecs_le s3).trans (addRules_le s4))).constants hci, hcs⟩
 
 /-! ### Combinatorics of ι redexes -/
 
@@ -780,6 +827,199 @@ theorem addCtors_nodup {decl : VInductDecl} {env env' : VEnv}
 theorem addRecs_nodup {decl : VInductDecl} {env env' : VEnv}
     (h : decl.addRecs env = some env') : (decl.recs.map (·.name)).Nodup := by
   unfold VInductDecl.addRecs at h; exact addConst_foldlM_nodup h
+
+/-! ### Lemmas of the verified-inductives branch: `addDefEqRules`, `addConstVals`, blocks -/
+
+theorem addDefEqRules_le {env : VEnv} {dfs : List VDefEq} : env ≤ env.addDefEqRules dfs := by
+  induction dfs generalizing env with
+  | nil => exact .rfl
+  | cons df dfs ih =>
+      exact VEnv.addDefEq_le.trans ih
+
+theorem addDefEqRules_defeqs_iff_mem_or {env : VEnv} {rules : List VDefEq} :
+    (env.addDefEqRules rules).defeqs df ↔ df ∈ rules ∨ env.defeqs df := by
+  induction rules generalizing env with
+  | nil => simp [VEnv.addDefEqRules]
+  | cons rule rules ih =>
+    simp only [VEnv.addDefEqRules, ih, VEnv.addDefEq, List.mem_cons]
+    constructor
+    · rintro (h | h | h)
+      · exact .inl (.inr h)
+      · exact .inl (.inl h)
+      · exact .inr h
+    · rintro ((h | h) | h)
+      · exact .inr (.inl h)
+      · exact .inl h
+      · exact .inr (.inr h)
+
+theorem addConsts_eq_addConstVals {env : VEnv} {cis : List VDefVal} :
+    env.addConsts cis = env.addConstVals (cis.map (·.toVConstVal)) := by
+  induction cis generalizing env with
+  | nil => rfl
+  | cons ci cis ih =>
+    simp only [VEnv.addConsts, List.foldlM_cons, List.map_cons, VEnv.addConstVals]
+    cases env.addConst ci.name ci.toVConstant with
+    | none => rfl
+    | some middle => exact ih (env := middle)
+
+theorem addDefEqs_eq_addDefEqRules {env : VEnv} {cis : List VDefVal} :
+    env.addDefEqs cis = env.addDefEqRules (cis.map (·.toDefEq)) := by
+  induction cis generalizing env with
+  | nil => rfl
+  | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
+
+theorem _root_.Lean4Lean.VInductBlock.install_type_lookup
+    (H : VInductBlock.install base block = some installed)
+    (hvalue : value ∈ block.types) : installed.constants value.name = some value.toVConstant := by
+  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+    Option.pure_def, Option.some.injEq] at H
+  obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
+  exact ((VEnv.addConstVals_le hc).trans <| VEnv.addProjections_le.trans <|
+    (VEnv.addConstVals_le hr).trans addDefEqRules_le).constants (VEnv.addConstVals_get ht hvalue)
+
+theorem Ordered.addConstVals {env env' : VEnv} {cis : List VConstVal} (H : Ordered env)
+    (hwf : ∀ ci ∈ cis, ci.toVConstant.WF env)
+    (hadd : env.addConstVals cis = some env') : Ordered env' := by
+  induction cis generalizing env with
+  | nil => simp [VEnv.addConstVals] at hadd; subst env'; exact H
+  | cons ci cis ih =>
+    cases hci : env.addConst ci.name ci.toVConstant with
+    | none => simp [VEnv.addConstVals, hci] at hadd
+    | some env₁ =>
+      simp [VEnv.addConstVals, hci] at hadd
+      have hle := VEnv.addConst_le hci
+      exact ih (.const H (hwf ci (by simp)) hci)
+        (fun ci' hmem => (hwf ci' (by simp [hmem])).mono hle) hadd
+
+theorem Ordered.addDefEqRules {env : VEnv} {dfs : List VDefEq} (H : Ordered env)
+    (hwf : ∀ df ∈ dfs, df.WF env) : Ordered (env.addDefEqRules dfs) := by
+  induction dfs generalizing env with
+  | nil => exact H
+  | cons df dfs ih =>
+    exact ih (.defeq H (hwf df (by simp)))
+      (fun df' hmem => (hwf df' (by simp [hmem])).mono VEnv.addDefEq_le)
+
+/-- A well-formed compiled block of a well-formed declaration installs into an `Ordered`
+environment (`VInductBlock.install`, the branch's installation order, with the projection
+stage justified by `Ordered.inductProjections`). -/
+theorem _root_.Lean4Lean.VInductBlock.WF.ordered (H : VInductBlock.WF env block)
+    (hdecl : VInductDecl.WF env decl)
+    (hcompile : VInductDecl.CompilesTo env decl block)
+    (henv : Ordered env) (hinstall : VInductBlock.install env block = some env') :
+    Ordered env' := by
+  rcases H with
+    ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs,
+      htypesWF, hctorsWF, hrecsWF, hrulesWF⟩
+  have h1 := henv.addConstVals htypesWF htypes
+  have h2 := h1.addConstVals hctorsWF hctors
+  have htypes' : env.addConstVals decl.typeConstants = some envTypes := by
+    rwa [hcompile.types] at htypes
+  have hparams := hdecl.sourceParameterWF htypes'
+  have h3 := Ordered.inductProjections henv h2 hcompile.sourceNames hdecl.source.sourceTypes
+    hdecl.source.2.2.2.1 (hdecl.source.constructorsWF_at htypes') hparams
+    hparams.rawCtorShape
+    hcompile.types hcompile.ctors
+    hcompile.projections htypes hctors
+  have h4 := h3.addConstVals hrecsWF hrecs
+  have h5 := h4.addDefEqRules hrulesWF
+  simp [VInductBlock.install, htypes, hctors, hrecs] at hinstall
+  cases hinstall
+  exact h5
+
+/-- Declaration-level facts recoverable from a registered projection entry
+alone.  Every entry originates from an exact source declaration whose family
+and constructor constants are installed, whose constructor type is well
+formed, whose header and raw constructor prefix agree with a common parameter
+telescope, and whose constructor type is a raw syntactic telescope ending in a
+valid application of the family. -/
+theorem Ordered.projectionShape {env : VEnv} (H : Ordered env)
+    {typeName : Name} {info : VProjectionInfo}
+    (hproj : env.projections typeName info) :
+    ∃ (decl : VInductDecl) (type : VInductiveType) (ctor : VConstVal),
+      type ∈ decl.types ∧ ctor ∈ type.ctors ∧
+      type.name = typeName ∧ ctor.uvars = decl.uvars ∧
+      decl.uvars = info.uvars ∧ decl.nparams = info.nparams ∧
+      type.numIndices = info.nindices ∧ type.resultLevel = info.resultLevel ∧
+      ctor.name = info.ctorName ∧ ctor.type = info.ctorType ∧
+      env.constants typeName = some type.toVConstant ∧
+      env.IsType decl.uvars [] ctor.type ∧
+      (∃ params, decl.TypeShape env params type ∧
+        decl.CtorParameterShape env params ctor) ∧
+      decl.RawCtorShape type ctor ∧ decl.sourceNames.Nodup := by
+  induction H with
+  | empty => cases hproj
+  | const _ _ hadd ih =>
+    rw [VEnv.addConst_projections hadd] at hproj
+    rcases ih hproj with ⟨decl, type, ctor, htype, hctor, hname, hctorUvars,
+      huvars, hnparams, hindices, hlevel, hctorName, hctorType, hlookup, hwf,
+      ⟨params, Hshape, Hparams⟩, Hraw, hnodup⟩
+    have hle := VEnv.addConst_le hadd
+    exact ⟨decl, type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
+      hindices, hlevel, hctorName, hctorType, hle.constants hlookup, hwf.mono hle,
+      ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw, hnodup⟩
+  | @defeq env' df' _ _ ih =>
+    rcases ih hproj with ⟨decl, type, ctor, htype, hctor, hname, hctorUvars,
+      huvars, hnparams, hindices, hlevel, hctorName, hctorType, hlookup, hwf,
+      ⟨params, Hshape, Hparams⟩, Hraw, hnodup⟩
+    have hle : env' ≤ env'.addDefEq df' := VEnv.addDefEq_le
+    exact ⟨decl, type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
+      hindices, hlevel, hctorName, hctorType, hle.constants hlookup, hwf.mono hle,
+      ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw, hnodup⟩
+  | @pat env' p r _ _ ih =>
+    rcases ih hproj with ⟨decl, type, ctor, htype, hctor, hname, hctorUvars,
+      huvars, hnparams, hindices, hlevel, hctorName, hctorType, hlookup, hwf,
+      ⟨params, Hshape, Hparams⟩, Hraw, hnodup⟩
+    have hle : env' ≤ env'.addPat p r := VEnv.addPat_le
+    exact ⟨decl, type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
+      hindices, hlevel, hctorName, hctorType, hle.constants hlookup, hwf.mono hle,
+      ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw, hnodup⟩
+  | @inductProjections base envTypes envCtors decl block
+      hbase hctorsOrdered hsource htypesWF hconstructorUvars hctorsWF hparams hshape
+      htypesSource hctorsSource hprojections htypes hctors ihBase ihCtors =>
+    rw [VEnv.addProjections_iff] at hproj
+    rcases hproj with hnew | hold
+    · rcases hnew with ⟨entry, hentry, rfl, rfl⟩
+      rw [hprojections] at hentry
+      rcases VInductDecl.projectionEntries_origin hentry with
+        ⟨type, htype, ctor, hctorsType, rfl⟩
+      have hctorMem : ctor ∈ type.ctors := by
+        rw [hctorsType]
+        simp
+      have hctorConst : ctor ∈ decl.constructorConstants := by
+        simp only [VInductDecl.constructorConstants, List.mem_flatMap]
+        exact ⟨type, htype, hctorMem⟩
+      have hle : envTypes ≤ envCtors.addProjections block.projections :=
+        (VEnv.addConstVals_le hctors).trans VEnv.addProjections_le
+      have hbaseLe : base ≤ envCtors.addProjections block.projections :=
+        (VEnv.addConstVals_le htypes).trans hle
+      have htypeValue : type.toVConstVal ∈ block.types := by
+        rw [htypesSource]
+        exact List.mem_map.mpr ⟨type, htype, rfl⟩
+      have hlookup := hle.constants (VEnv.addConstVals_get htypes htypeValue)
+      have huvars := hconstructorUvars ctor hctorConst
+      have hwf : (envCtors.addProjections block.projections).IsType
+          decl.uvars [] ctor.type := by
+        have := (hctorsWF ctor hctorConst).mono hle
+        change (envCtors.addProjections block.projections).IsType
+          ctor.uvars [] ctor.type at this
+        rwa [huvars] at this
+      have htypes' : base.addConstVals decl.typeConstants = some envTypes := by
+        rwa [htypesSource] at htypes
+      rcases hparams with ⟨params, envTypes', htypes'', Htypes, Hctors, _⟩
+      cases Option.some.inj (htypes''.symm.trans htypes')
+      exact ⟨decl, type, ctor, htype, hctorMem, rfl, huvars, rfl, rfl, rfl, rfl,
+        rfl, rfl, hlookup, hwf,
+        ⟨params, (Htypes type htype).mono hbaseLe,
+          (Hctors type htype ctor hctorMem).mono hle⟩,
+        hshape type htype ctor hctorMem, hsource⟩
+    · rcases ihCtors hold with ⟨decl', type, ctor, htype, hctor, hname, hctorUvars,
+        huvars, hnparams, hindices, hlevel, hctorName, hctorType, hlookup, hwf,
+        ⟨params, Hshape, Hparams⟩, Hraw, hnodup⟩
+      have hle : envCtors ≤ envCtors.addProjections block.projections :=
+        VEnv.addProjections_le
+      exact ⟨decl', type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
+        hindices, hlevel, hctorName, hctorType, hle.constants hlookup,
+        hwf.mono hle, ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw, hnodup⟩
 
 end VEnv
 end Lean4Lean

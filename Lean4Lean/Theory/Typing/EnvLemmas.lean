@@ -86,22 +86,56 @@ theorem VEnv.addDefEqs_ordered : ∀ {env : VEnv} {cis}, Ordered env →
 
 theorem VEnv.WF.ordered : WF env → Ordered env
   | ⟨ds, H⟩ => by
-    induction H with | empty => exact .empty | decl h _ ih
-    cases h with
-    | «axiom» h1 h2 => exact .const ih h1 h2
-    | @«def» env env' ci h1 h2 =>
-      refine .defeq (.const ih (h1.isType ih ⟨⟩) h2) ⟨?_, ?_⟩
-      · simp [VDefVal.toDefEq]
-        rw [← (h1.levelWF ⟨⟩).2.2.instL_id]
-        exact .const (addConst_self h2) VLevel.id_WF (by simp)
-      · exact h1.mono (addConst_le h2)
-    | mutualDef h0 h1 h2 =>
-      exact VEnv.addDefEqs_ordered (VEnv.addConsts_ordered ih h0 h1)
-        (VEnv.addConsts_constants h1) h2
-    | «opaque» h1 h2 => exact .const ih (h1.isType ih ⟨⟩) h2
-    | «example» _ => exact ih
-    | quot h1 h2 => exact addQuot_WF ih h1 h2
-    | induct h1 h2 => exact addInduct_WF ih h1 h2
+    induction H with
+    | empty => exact .empty
+    | decl h _ ih =>
+      cases h with
+      | «axiom» h1 h2 => exact .const ih h1 h2
+      | @«def» env env' ci h1 h2 =>
+        refine .defeq (.const ih (h1.isType ih ⟨⟩) h2) ⟨?_, ?_⟩
+        · simp [VDefVal.toDefEq]
+          rw [← (h1.levelWF ⟨⟩).2.2.instL_id]
+          exact .const (addConst_self h2) VLevel.id_WF (by simp)
+        · exact h1.mono (addConst_le h2)
+      | mutualDef h0 h1 h2 =>
+        exact VEnv.addDefEqs_ordered (VEnv.addConsts_ordered ih h0 h1)
+          (VEnv.addConsts_constants h1) h2
+      | «opaque» h1 h2 => exact .const ih (h1.isType ih ⟨⟩) h2
+      | «example» _ => exact ih
+      | quot h1 h2 => exact addQuot_WF ih h1 h2
+      | induct h1 h2 => exact addInduct_WF ih h1 h2
+    | inductProjections _ _ hsource htypesWF hconstructorUvars hctorsWF hparams hshape
+        htypesSource hctorsSource hprojections htypes hctors ihBase ihCtors =>
+      exact .inductProjections ihBase ihCtors hsource htypesWF hconstructorUvars hctorsWF hparams
+        hshape htypesSource hctorsSource hprojections htypes hctors
+
+/-- A dependency-ordered list of well-formed constants may be viewed as a
+sequence of abstract axioms extending a well-formed environment.  Stating
+the input typing in the starting environment is sufficient because each
+constant can be weakened through the preceding fresh additions. -/
+theorem VEnv.WF.addConstVals
+    {env env' : VEnv} {cis : List VConstVal}
+    (Henv : env.WF)
+    (Hwf : ∀ ci ∈ cis, ci.toVConstant.WF env)
+    (Hadd : env.addConstVals cis = some env') : env'.WF := by
+  induction cis generalizing env env' with
+  | nil =>
+    simp [VEnv.addConstVals] at Hadd
+    subst env'
+    exact Henv
+  | cons ci cis ih =>
+    cases hci : env.addConst ci.name ci.toVConstant with
+    | none => simp [VEnv.addConstVals, hci] at Hadd
+    | some next =>
+      simp [VEnv.addConstVals, hci] at Hadd
+      have hhead : ci.toVConstant.WF env := Hwf ci (by simp)
+      have Hnext : next.WF := by
+        rcases Henv with ⟨ds, Hds⟩
+        exact ⟨.axiom ci :: ds, .decl (.axiom hhead hci) Hds⟩
+      apply ih Hnext (env' := env')
+      · intro ci' hmem
+        exact (Hwf ci' (by simp [hmem])).mono (VEnv.addConst_le hci)
+      · exact Hadd
 
 instance : CoeOut (VEnv.WF env) env.Ordered := ⟨(·.ordered)⟩
 
@@ -121,6 +155,7 @@ theorem VEnv.WFPrefix.le {env env₀ : VEnv} (h : env.WFPrefix env₀) : env₀ 
   induction h with
   | rfl => exact .rfl
   | decl hd _ ih => exact ih.trans hd.le
+  | projs _ ih => exact ih.trans addProjections_le
 
 /-- Subject reduction of the registered ι rules in every environment the strengthening
 argument types a constant or a definitional axiom in (`VEnv.WF.strong`): a well-formed
@@ -228,16 +263,23 @@ theorem VEnv.addInduct_strong {env env' : VEnv} {decl : VInductDecl}
   obtain ⟨envT, envC, envR, hT, hC, hR, hP⟩ := addInduct_stages h
   have hTC : decl.addTypesCtors env = some envC := by
     unfold VInductDecl.addTypesCtors; rw [hT]; exact hC
+  have hTCP : decl.addTypesCtorsProjs env = some (decl.addProjs envC) :=
+    addTypesCtorsProjs_eq_some hTC
   have leT := addTypes_le hT; have leC := addCtors_le hC
+  have leP' : envC ≤ decl.addProjs envC := addProjs_le
   have leR := addRecs_le hR; have leP := addRules_le hP
   have dT := addTypes_defeqs hT; have dC := addCtors_defeqs hC
+  have dP : (decl.addProjs envC).defeqs = envC.defeqs := addProjs_defeqs
   have pT := addTypes_pats hT; have pC := addCtors_pats hC
+  have pP : (decl.addProjs envC).pats = envC.pats := addProjs_pats
   have hordT := addTypes_ordered hord hdecl hT
   have hordC := addCtors_ordered hdecl hT hordT hC
+  have hordP := addProjs_ordered hord hdecl hTC hordC
   have IHT : OnTypes envT (EnvStrong envT) := by
     unfold VInductDecl.addTypes at hT
     exact foldlM_addConst_strong
-      (fun hl hl' hd hpt ho => hpats hl (hl'.trans (leC.trans (leR.trans leP))) hd hpt ho)
+      (fun hl hl' hd hpt ho =>
+        hpats hl (hl'.trans (leC.trans (leP'.trans (leR.trans leP)))) hd hpt ho)
       hord IH hdecl.types_wf hT
   have IHC : OnTypes envC (EnvStrong envC) := by
     have hcw : ∀ c ∈ decl.types.flatMap (·.ctors), c.toVConstant.WF envT := fun c hc => by
@@ -245,16 +287,18 @@ theorem VEnv.addInduct_strong {env env' : VEnv} {decl : VInductDecl}
       exact hdecl.ctors_wf envT hT t ht c hc
     unfold VInductDecl.addCtors at hC
     exact foldlM_addConst_strong
-      (fun hl hl' hd hpt ho => hpats (leT.trans hl) (hl'.trans (leR.trans leP))
+      (fun hl hl' hd hpt ho => hpats (leT.trans hl) (hl'.trans (leP'.trans (leR.trans leP)))
         (hd.trans dT) (hpt.trans pT) ho)
       hordT IHT hcw hC
+  have IHP : OnTypes (decl.addProjs envC) (EnvStrong (decl.addProjs envC)) :=
+    OnTypes.addProjections IHC
   have IHR : OnTypes envR (EnvStrong envR) := by
-    have hrw := hdecl.recs_wf envC hTC
+    have hrw := hdecl.recs_wf _ hTCP
     unfold VInductDecl.addRecs at hR
     exact foldlM_addConst_strong
-      (fun hl hl' hd hpt ho => hpats ((leT.trans leC).trans hl) (hl'.trans leP)
-        (hd.trans (dC.trans dT)) (hpt.trans (pC.trans pT)) ho)
-      hordC IHC hrw hR
+      (fun hl hl' hd hpt ho => hpats ((leT.trans (leC.trans leP')).trans hl) (hl'.trans leP)
+        (hd.trans (dP.trans (dC.trans dT))) (hpt.trans (pP.trans (pC.trans pT))) ho)
+      hordP IHP hrw hR
   exact addRules_strong IHR hP
 
 /-- Every constant and definitional axiom of a well-formed environment is strongly typed:
@@ -266,6 +310,9 @@ theorem VEnv.WF.strong {env : VEnv} (H : env.WF) (hp : env.PatsStrong) :
     intro ds e H
     induction H with
     | empty => exact fun _ => ⟨nofun, nofun⟩
+    | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+      intro hpre
+      exact OnTypes.addProjections (ihCtors (hpre.trans (.projs .rfl)))
     | decl hd hwf ih =>
       intro hpre
       have hpre₀ := hpre.trans (.decl hd .rfl)
@@ -359,6 +406,9 @@ theorem step_of_mem {ds : List VDecl} {env : VEnv} (H : env.WF' ds) {d : VDecl}
     · exact ⟨_, _, _, List.suffix_refl _, H, hwf, .rfl⟩
     · obtain ⟨ds₀, env₀, env₁, hs, h₀, h₁, hp⟩ := ih hd'
       exact ⟨ds₀, env₀, env₁, hs.trans (List.suffix_cons _ _), h₀, h₁, .decl hwf hp⟩
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+    obtain ⟨ds₀, env₀, env₁, hs, h₀, h₁, hp⟩ := ihCtors hd
+    exact ⟨ds₀, env₀, env₁, hs, h₀, h₁, .projs hp⟩
 
 /-- An inductive block of a well-formed list was added by a well-formed `addInduct` step,
 whose result is a sub-environment of `env`. -/
@@ -385,6 +435,9 @@ theorem consts_origin {ds : List VDecl} {env : VEnv} (H : env.WF' ds) {c : Name}
       obtain ⟨d₁, ds₀, env₀, env₁, hs, h₁, h₂, hle, h₃, h₄⟩ := ih h₀
       exact ⟨d₁, ds₀, env₀, env₁, hs.trans (List.suffix_cons _ _), h₁, h₂, hle.trans hwf.le,
         h₃, h₄⟩
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+    obtain ⟨d₁, ds₀, env₀, env₁, hs, h₁, h₂, hle, h₃, h₄⟩ := ihCtors (by simpa using hc)
+    exact ⟨d₁, ds₀, env₀, env₁, hs, h₁, h₂, hle.trans addProjections_le, h₃, h₄⟩
 
 /-- Every definitional axiom headed by a constant `c` has `c` declared, and is the only
 definitional axiom headed by `c`. -/
@@ -450,6 +503,8 @@ private theorem defEqsConst {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
     DefEqsConst env := by
   induction H with
   | empty => intro _ _ _ h; cases h
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+    exact ihCtors.mono addProjections_le (addProjections_defeqs _ _)
   | decl hwf _ ih =>
     cases hwf with
     | «axiom» _ h2 => exact ih.mono (addConst_le h2) (addConst_defeqs h2)
@@ -490,3 +545,100 @@ theorem defeqs_const_uniq {ds : List VDecl} {env : VEnv} (H : env.WF' ds)
   (defEqsConst H _ _ _ h hlhs).2 _ _ h' hlhs'
 
 end VEnv.WF'
+
+/-! ### Projection and installation bookkeeping of the verified-inductives branch -/
+
+namespace Lean4Lean
+
+theorem VEnv.addConsts_projections {env env' : VEnv} :
+    ∀ {cis}, env.addConsts cis = some env' → env'.projections = env.projections
+  | [], h => by cases h; rfl
+  | _ :: _, h => by
+    simp only [VEnv.addConsts, List.foldlM_cons, Option.bind_eq_bind,
+      Option.bind_eq_some_iff] at h
+    obtain ⟨middle, hfirst, hrest⟩ := h
+    exact (VEnv.addConsts_projections hrest).trans (VEnv.addConst_projections hfirst)
+
+@[simp] theorem VEnv.addDefEqs_projections (env : VEnv) (cis : List VDefVal) :
+    (env.addDefEqs cis).projections = env.projections := by
+  induction cis generalizing env with
+  | nil => rfl
+  | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
+
+theorem VEnv.addQuot_projections {env env' : VEnv}
+    (H : env.addQuot = some env') : env'.projections = env.projections := by
+  simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
+    Option.some.injEq] at H
+  obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := H
+  exact (VEnv.addConst_projections hd).trans <|
+    (VEnv.addConst_projections hc).trans <|
+      (VEnv.addConst_projections hb).trans (VEnv.addConst_projections ha)
+
+/-- The stages of an installed block. -/
+theorem VInductBlock.install_stages {env env' : VEnv}
+    (H : VInductBlock.install env block = some env') :
+    ∃ envTypes envCtors envRecursors, env.addConstVals block.types = some envTypes ∧
+      envTypes.addConstVals block.ctors = some envCtors ∧
+      (envCtors.addProjections block.projections).addConstVals
+        block.recursors = some envRecursors ∧
+      env' = envRecursors.addDefEqRules block.rules := by
+  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+    Option.pure_def, Option.some.injEq] at H
+  obtain ⟨types, ht, ctors, hc, recs, hr, rfl⟩ := H
+  exact ⟨types, ctors, recs, ht, hc, hr, rfl⟩
+
+theorem VInductBlock.install_base_le {env env' : VEnv}
+    (H : VInductBlock.install env block = some env') : env ≤ env' := by
+  obtain ⟨_, _, _, ht, hc, hr, rfl⟩ := VInductBlock.install_stages H
+  exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
+    VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hr).trans
+      VEnv.addDefEqRules_le
+
+/-- The constructor stage of an installed block is below the installed environment. -/
+theorem VInductBlock.install_ctors_le {env env' envTypes envCtors : VEnv}
+    (H : VInductBlock.install env block = some env')
+    (ht : env.addConstVals block.types = some envTypes)
+    (hc : envTypes.addConstVals block.ctors = some envCtors) : envCtors ≤ env' := by
+  obtain ⟨_, _, _, ht', hc', hr, rfl⟩ := VInductBlock.install_stages H
+  cases ht.symm.trans ht'
+  cases hc.symm.trans hc'
+  exact VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hr).trans
+      VEnv.addDefEqRules_le
+
+namespace VEnv
+
+/-- No lookup can appear except from the old environment or a literal
+member of the installed block. -/
+theorem addConstVals_lookup_cases {base extended : VEnv}
+    (installed : base.addConstVals values = some extended)
+    (lookup : extended.constants name = some value) :
+    base.constants name = some value ∨
+      ∃ entry ∈ values, entry.name = name ∧ entry.toVConstant = value := by
+  induction values generalizing base with
+  | nil => cases installed; exact Or.inl lookup
+  | cons entry entries ih =>
+    simp only [VEnv.addConstVals, Option.bind_eq_bind, Option.bind_eq_some_iff] at installed
+    obtain ⟨middle, first, rest⟩ := installed
+    rcases ih rest with old | added
+    · rw [VEnv.addConst_constants_eq first] at old
+      dsimp only at old
+      by_cases same : entry.name = name
+      · simp only [same, ite_true, Option.some.injEq] at old
+        exact Or.inr ⟨entry, List.mem_cons_self, same, old⟩
+      · exact Or.inl (by simpa only [same, ite_false] using old)
+    · obtain ⟨selected, member, sameName, sameValue⟩ := added
+      exact Or.inr ⟨selected, List.mem_cons_of_mem _ member, sameName, sameValue⟩
+
+end VEnv
+
+namespace VerifyInductive
+
+theorem VEnv.addConstVals_projections_eq
+    {base out : VEnv} {constants : List VConstVal}
+    (H : base.addConstVals constants = some out) :
+    out.projections = base.projections :=
+  VEnv.addConstVals_projections H
+
+end VerifyInductive
+
+end Lean4Lean

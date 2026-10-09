@@ -1,5 +1,4 @@
-import Lean4Lean.Theory.VDecl
-import Lean4Lean.Theory.Typing.Basic
+import Lean4Lean.Theory.Inductive.Compilation
 
 namespace Lean4Lean
 
@@ -11,8 +10,13 @@ The shapes of recursor types, constructor types and ι-rule reducts (`VExpr.RecS
 motive and minor premises), the strict-positivity and result-type conditions on
 constructors (`VExpr.CtorPositive`, `VExpr.CtorResult`), the large-elimination judgment
 (`VInductDecl.LargeElim`), the staged environment extension `VEnv.addInduct` (type formers,
-constructors, recursors, ι rules), and the declaration well-formedness predicate
-`VInductDecl.WF` it is checked against.
+constructors, projections, recursors, ι rules), and the declaration well-formedness
+predicate `VInductDecl.WF` it is checked against: the definitional source and formation
+judgments (`VInductDecl.SourceWF`, `VInductDecl.FormationWF`), the compiled-recursor
+certificate (`VInductDecl.RecsCompiled`) and the typing and shape of the recursors and
+their rules. The syntactic constructor predicates (`CtorPositive`, `CtorResult`,
+`LargeElim`) are no longer clauses of `WF`; `Tests/IotaShape.lean` decides them on the
+kernel's data.
 -/
 
 namespace VExpr
@@ -24,17 +28,20 @@ namespace VExpr
 def MentionsConst (cs : List Name) : VExpr → Prop
   | .bvar _ | .sort _ => False
   | .const c _ => c ∈ cs
+  | .proj _ _ e => MentionsConst cs e
   | .app e₁ e₂ | .lam e₁ e₂ | .forallE e₁ e₂ => MentionsConst cs e₁ ∨ MentionsConst cs e₂
 
 /-- The boolean decision procedure behind `VExpr.MentionsConst`. -/
 def mentionsConst (cs : List Name) : VExpr → Bool
   | .bvar _ | .sort _ => false
   | .const c _ => decide (c ∈ cs)
+  | .proj _ _ e => mentionsConst cs e
   | .app e₁ e₂ | .lam e₁ e₂ | .forallE e₁ e₂ => mentionsConst cs e₁ || mentionsConst cs e₂
 
 theorem mentionsConst_iff {cs : List Name} :
     ∀ {e : VExpr}, e.mentionsConst cs = true ↔ e.MentionsConst cs
   | .bvar _ | .sort _ | .const .. => by simp [mentionsConst, MentionsConst]
+  | .proj .. => by simp [mentionsConst, MentionsConst, mentionsConst_iff]
   | .app .. | .lam .. | .forallE .. => by
     simp [mentionsConst, MentionsConst, mentionsConst_iff]
 
@@ -270,9 +277,9 @@ The kernel (`Inductive/Add.lean`, `run`) declares all type formers, then all con
 (in block order), then each recursor *together with its rules* (`mkRecRules` inside the
 per-recursor loop, installed in one `recInfo`); for a nested block `Environment.addInductive`
 inserts type by type (`Verify/Environment/Basic.lean`, `AddInduct.consts`). The model
-re-groups this into four stages — all type formers, all constructors, all recursors, then
-all ι rules — which yields the same resulting environment as the kernel's interleaving,
-not its literal order. Each stage is
+re-groups this into five stages — all type formers, all constructors, the projection entries
+of the block's structures, all recursors, then all ι rules — which yields the same resulting
+environment as the kernel's interleaving, not its literal order. Each stage is
 named so that `VInductDecl.WF` can type each kind of constant in the environment the kernel
 checks it in. -/
 
@@ -284,121 +291,528 @@ def VInductDecl.addTypes (decl : VInductDecl) (env : VEnv) : Option VEnv :=
 def VInductDecl.addCtors (decl : VInductDecl) (env : VEnv) : Option VEnv :=
   (decl.types.flatMap (·.ctors)).foldlM (init := env) fun e c => e.addConst c.name c.toVConstant
 
-/-- Stage 2: add the recursors as constants. -/
+/-- Stage 2: register the projection entries of the declaration's structures
+(`VInductDecl.projectionEntries`). Total: projection registration cannot fail. The recursors
+are checked in the resulting environment, where the block's structures already have their
+projections (the checker may apply `structEta`, `unitLike` or project out of them while
+checking the generated recursor types). -/
+def VInductDecl.addProjs (decl : VInductDecl) (env : VEnv) : VEnv :=
+  env.addProjections decl.projectionEntries
+
+/-- Stage 3: add the recursors as constants. -/
 def VInductDecl.addRecs (decl : VInductDecl) (env : VEnv) : Option VEnv :=
   decl.recs.foldlM (init := env) fun e r => e.addConst r.name r.toVConstVal.toVConstant
 
-/-- Stage 3: register every recursor rule as an ι rule. -/
+/-- Stage 4: register every recursor rule as an ι rule. -/
 def VInductDecl.addRules (decl : VInductDecl) (env : VEnv) : Option VEnv :=
   decl.recs.foldlM (init := env) fun e r =>
     r.rules.foldlM (init := e) fun e ru => e.addRecRule r ru
 
-/-- Stages 0–1: the environment the recursors are checked in. -/
+/-- Stages 0–1: the constructor environment. -/
 def VInductDecl.addTypesCtors (decl : VInductDecl) (env : VEnv) : Option VEnv :=
   decl.addTypes env >>= decl.addCtors
 
-/-- Stages 0–2: the environment the ι rules are registered in. -/
-def VInductDecl.addTypesCtorsRecs (decl : VInductDecl) (env : VEnv) : Option VEnv :=
-  decl.addTypesCtors env >>= decl.addRecs
+/-- Stages 0–2: the environment the recursors are checked in. -/
+def VInductDecl.addTypesCtorsProjs (decl : VInductDecl) (env : VEnv) : Option VEnv :=
+  (decl.addTypesCtors env).map decl.addProjs
+
+/-- Stages 0–3: the environment the ι rules are registered in. -/
+def VInductDecl.addTypesCtorsProjsRecs (decl : VInductDecl) (env : VEnv) : Option VEnv :=
+  decl.addTypesCtorsProjs env >>= decl.addRecs
 
 /-- The constants of the declaration as `(name, constant)` pairs, in stage order (type
-formers, constructors, recursors): stages 0–2 are the `addConst` fold over this list
-(`VInductDecl.addTypesCtorsRecs_eq`). -/
+formers, constructors, recursors): the constant stages are the `addConst` fold over this list
+(`VInductDecl.addTypesCtorsProjsRecs_eq`). -/
 def VInductDecl.consts (decl : VInductDecl) : List (Name × VConstant) :=
   decl.types.map (fun t => (t.name, t.toVConstVal.toVConstant)) ++
   (decl.types.flatMap (·.ctors)).map (fun c => (c.name, c.toVConstant)) ++
   decl.recs.map (fun r => (r.name, r.toVConstVal.toVConstant))
 
 /-- Extend `env` with the type formers, constructors, and recursors of `decl` (as
-constants) and its ι-reduction rules (as `pats`), or `none` on a name clash or a
-non-closed rule reduct. The chain of `VInductDecl.addTypes`, `addCtors`, `addRecs`,
-`addRules`. -/
+constants), the projection entries of its structures (as `projections`) and its
+ι-reduction rules (as `pats`), or `none` on a name clash or a non-closed rule reduct. The
+chain of `VInductDecl.addTypes`, `addCtors`, `addProjs`, `addRecs`, `addRules`. -/
 def VEnv.addInduct (env : VEnv) (decl : VInductDecl) : Option VEnv :=
-  decl.addTypesCtorsRecs env >>= decl.addRules
+  decl.addTypesCtorsProjsRecs env >>= decl.addRules
 
-/-- Well-formedness of a **direct** mutual inductive block (thesis §2.6.1–2.6.4), staged
-like the kernel's checks: type formers typed in `env`, constructors after the type formers
-are declared, recursors after the constructors, ι rules after the recursors. Direct means
-every recursor eliminates one of the block's own type formers (`recs_over_block`) and every
-rule fires on one of that former's constructors (`rules_ctor`); a nested inductive — whose
-constructors mention the block inside another type former (`Tree.node : List Tree → Tree`)
-and whose auxiliary recursors eliminate that former — is therefore not well-formed here.
-The kernel compiles such a block to a direct one (`ElimNestedInductive`, `Inductive/Add.lean`)
-before checking it, and modelling that pass is future work. Typing checks the constants'
-types (`types_wf`, `ctors_wf`, `recs_wf`), the universe of every constructor field and the
-propositionality clause of large elimination (`universes`), and the ι rules (`rules_wf`);
-every other clause is syntactic.
 
-**Not modelled**: K-like reduction as a reduction rule (`addRecRule` installs only §2.6.4's
-constructor rule, and the recorded flag `k` is unused); structure η; the kernel's `whnf` on
-a field type, where `CtorPositive` and `universes` read the manifest binders. -/
+/-- Abstract compilation, separate from the executable compiler: the shared
+finite derivation `CompiledInductive` (ordinary compilation being its
+zero-specialization case) generates the block. That the block lays out the
+declaration's families, constructors and projections, and that its installed
+names are distinct, are consequences (`CompilesTo.types`, `.ctors`,
+`.projections`, `.names`). -/
+abbrev VInductDecl.CompilesTo
+    (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Prop :=
+  CompiledInductive env decl block
+
+theorem VInductDecl.CompilesTo.types {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (H : decl.CompilesTo env block) : block.types = decl.typeConstants :=
+  CompiledInductive.types_eq H
+
+theorem VInductDecl.CompilesTo.ctors {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (H : decl.CompilesTo env block) : block.ctors = decl.constructorConstants :=
+  CompiledInductive.ctors_eq H
+
+theorem VInductDecl.CompilesTo.projections {env : VEnv} {decl : VInductDecl}
+    {block : VInductBlock} (H : decl.CompilesTo env block) :
+    block.projections = decl.projectionEntries :=
+  CompiledInductive.projections_eq H
+
+theorem VInductDecl.CompilesTo.names {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (H : decl.CompilesTo env block) :
+    ((block.types ++ block.ctors ++ block.recursors).map (·.name)).Nodup :=
+  CompiledInductive.names_nodup H
+
+theorem InductiveSignature.FamilyTypesWF.mono {s : InductiveSignature}
+    {env env' : VEnv} {uvars : Nat}
+    (H : s.FamilyTypesWF env uvars) (hle : env ≤ env') :
+    s.FamilyTypesWF env' uvars :=
+  fun owner => ⟨(H owner).1.mono fun h => h.mono hle, (H owner).2.mono hle⟩
+
+theorem InductiveSignature.Models.mono
+    {s : InductiveSignature} {env env' envTypes' : VEnv} {decl : VInductDecl}
+    (H : s.Models env decl) (henv : env ≤ env')
+    (htypes : env'.addConstVals decl.typeConstants = some envTypes') :
+    s.Models env' decl := by
+  rcases H.constructors with ⟨envTypes, htypesOld, hctors⟩
+  have hle := VEnv.addConstVals_mono henv htypesOld htypes
+  refine { H with
+    families := ?_
+    constructors := ⟨envTypes', htypes, ?_⟩
+    classifiedFields := ?_ }
+  · exact Lean4Lean.List.Forall₂.imp
+      (fun _ _ h => h) H.families
+  · exact Lean4Lean.List.Forall₂.imp
+      (fun _ _ h => ⟨h.1, h.2.1, h.2.2.mono hle⟩) hctors
+  · rcases H.classifiedFields with hunsafe | ⟨envTypesPos, htypesPos, hpos⟩
+    · exact .inl hunsafe
+    · refine .inr ⟨envTypes', htypes, ?_⟩
+      intro ctor hc i hi
+      obtain ⟨normalized, hnormal, hshape⟩ := hpos ctor hc i hi
+      exact ⟨normalized,
+        hnormal.mono (VEnv.addConstVals_mono henv htypesPos htypes), hshape⟩
+
+theorem VInductDecl.CompilesTo.mono
+    {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (henv : env ≤ env')
+    (Hblock : block.WF env')
+    (H : decl.CompilesTo env block) : decl.CompilesTo env' block :=
+  CompiledInductive.mono H henv Hblock
+
+theorem VInductDecl.CompilesTo.sourceNames
+    {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (H : decl.CompilesTo env block) : decl.sourceNames.Nodup := by
+  have hprefix : ((block.types ++ block.ctors).map (·.name)).Nodup := by
+    apply List.Nodup.sublist (l₂ :=
+      (block.types ++ block.ctors ++ block.recursors).map (·.name))
+    · simp [List.map_append, List.append_assoc]
+    · exact H.names
+  simpa [VInductDecl.sourceNames, H.types, H.ctors, List.map_append]
+    using hprefix
+
+/-! ## Ordinary-or-nested formation derivations
+
+Nested formation refers only to prior, finitely derived installed inductive
+blocks. Defining the installation of prior containers (`VEnv.InstalledBelow`) in the same
+mutual induction as formation avoids both an uncheckable environment lookup and a definitional
+cycle through `AddInduct`. -/
+
+/-- Exact construction of one direct auxiliary constructor before its own
+body is recursively lowered. -/
+structure VInductDecl.SpecializedAuxConstructor
+    (env : VEnv) (U : Nat)
+    (sourceParams baseArgs : List VExpr) (levels : List VLevel)
+    (containerFamily auxiliaryFamily : VInductiveType)
+    (source target : VConstVal) : Prop where
+  name : target.name = source.name.replacePrefix containerFamily.name
+    auxiliaryFamily.name
+  uvars : target.uvars = auxiliaryFamily.uvars
+  type : env.IsDefEqU U [] target.type
+    (VExpr.wrapForalls sourceParams
+      (VExpr.instantiateForallPrefix (source.type.instL levels) baseArgs))
+
+/-- A rigid head used to package two corresponding argument lists as one
+expression relation.  Unlike a bound variable, it is stable when the
+surrounding constructor telescope is lifted. -/
+def VInductDecl.nestedTrailingMarker : VExpr :=
+  .const `_nested.trailing []
+
+mutual
+
+/-- Formation is either the ordinary judgment or a finite nested
+expansion into an independently ordinary well-formed declaration. -/
+inductive VInductDecl.FormationWF : VEnv → VInductDecl → Prop
+  | ordinary {env decl} : VInductDecl.OrdinaryFormationWF env decl →
+      VInductDecl.FormationWF env decl
+  | nested {base env decl} : VInductDecl.NestedFormationWF base decl →
+      base ≤ env →
+      VInductDecl.FormationWF env decl
+
+/-- A prior container declaration. It has its own finite source/formation derivation, compiles
+to the exact block, and that well-formed block is installed below the ambient environment. -/
+inductive VEnv.InstalledBelow : VEnv → VInductDecl → Prop
+  | intro {env container base block installed} :
+      VInductDecl.SourceWF base container →
+      VInductDecl.FormationWF base container →
+      container.CompilesTo base block →
+      block.WF base →
+      VInductBlock.install base block = some installed →
+      installed ≤ env →
+      VEnv.InstalledBelow env container
+
+/-- One legal replacement of a maximal nested occurrence. The auxiliary family
+is an exact parameter specialization of a family in a previously installed
+container block, and its direct constructors are the corresponding exact
+specializations with deterministic names.  The verification of the executable
+lowering separately records that some concrete parameter syntax
+mentions the finite lowering queue.  That occurrence is intentionally not a
+premise here: `TrExprS` erases metadata and let types/values and interprets
+projections opaquely, so a concrete occurrence need not survive in `VExpr`.
+Such an erased-only occurrence may generate a semantically unused auxiliary;
+this remains sound because the prior-container specialization is exact and
+ordinary formation checks the complete expanded finite block. -/
+inductive VInductDecl.NestedOccurrenceReplacement :
+    VEnv → VInductDecl → List VInductiveType →
+      Nat → VExpr → VExpr → Prop
+  | intro {env sourceTypesEnv source generated depth input output container
+      containerFamily auxiliaryFamily sourceParams baseArgs levels
+      auxiliaryLevels inputBaseArgs sourceTrailing targetTrailing} :
+      env.addConstVals source.typeConstants = some sourceTypesEnv →
+      VEnv.InstalledBelow sourceTypesEnv container →
+      containerFamily ∈ container.types →
+      auxiliaryFamily ∈ generated →
+      sourceParams.length = source.nparams →
+      baseArgs.length = container.nparams →
+      (∀ arg ∈ baseArgs, arg.ClosedN source.nparams) →
+      levels.length = container.uvars →
+      (∀ level ∈ levels, level.WF source.uvars) →
+      auxiliaryFamily.uvars = source.uvars →
+      sourceTypesEnv.IsDefEqU source.uvars [] auxiliaryFamily.type
+        (VExpr.wrapForalls sourceParams
+          (VExpr.instantiateForallPrefix
+            (containerFamily.type.instL levels) baseArgs)) →
+      List.Forall₂
+        (VInductDecl.SpecializedAuxConstructor sourceTypesEnv source.uvars sourceParams
+          baseArgs levels containerFamily auxiliaryFamily)
+        containerFamily.ctors auxiliaryFamily.ctors →
+      auxiliaryLevels.length = source.uvars →
+      VInductDecl.NestedExprWFExpansion env source generated
+        (source.nparams + depth)
+        (VExpr.mkApps VInductDecl.nestedTrailingMarker
+          (baseArgs.map (fun arg => arg.liftN depth 0)))
+        (VExpr.mkApps VInductDecl.nestedTrailingMarker inputBaseArgs) →
+      VInductDecl.NestedExprWFExpansion env source generated
+        (source.nparams + depth)
+        (VExpr.mkApps VInductDecl.nestedTrailingMarker sourceTrailing)
+        (VExpr.mkApps VInductDecl.nestedTrailingMarker targetTrailing) →
+      input = VExpr.mkApps (.const containerFamily.name levels)
+        (inputBaseArgs ++ sourceTrailing) →
+      output = VExpr.mkApps (.const auxiliaryFamily.name auxiliaryLevels)
+        (source.paramVars depth ++ targetTrailing) →
+      VInductDecl.NestedOccurrenceReplacement env source generated depth input output
+
+/-- Specialized structural expansion used inside the mutual formation
+derivation. It has a forgetful map to `VExpr.NestedExprExpansion`; spelling it
+out here is required by Lean's strict-positivity checker for the mutual leaf. -/
+inductive VInductDecl.NestedExprWFExpansion :
+    VEnv → VInductDecl → List VInductiveType →
+      Nat → VExpr → VExpr → Prop
+  | occurrence {env source generated depth relativeDepth input output} :
+      depth = source.nparams + relativeDepth →
+      VInductDecl.NestedOccurrenceReplacement env source generated relativeDepth
+        input output →
+      VInductDecl.NestedExprWFExpansion env source generated depth input output
+  | bvar {env source generated index depth} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.bvar index) (.bvar index)
+  | sort {env source generated level depth} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.sort level) (.sort level)
+  | const {env source generated name levels depth} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.const name levels) (.const name levels)
+  | proj {env source generated typeName index depth sourceMajor targetMajor} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceMajor targetMajor →
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.proj typeName index sourceMajor)
+        (.proj typeName index targetMajor)
+  | app {env source generated depth sourceFn targetFn sourceArg targetArg} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceFn targetFn →
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceArg targetArg →
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.app sourceFn sourceArg) (.app targetFn targetArg)
+  | lam {env source generated depth sourceDomain targetDomain sourceBody
+      targetBody} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceDomain targetDomain →
+      VInductDecl.NestedExprWFExpansion env source generated (depth + 1)
+        sourceBody targetBody →
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.lam sourceDomain sourceBody) (.lam targetDomain targetBody)
+  | forallE {env source generated depth sourceDomain targetDomain sourceBody
+      targetBody} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceDomain targetDomain →
+      VInductDecl.NestedExprWFExpansion env source generated (depth + 1)
+        sourceBody targetBody →
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.forallE sourceDomain sourceBody) (.forallE targetDomain targetBody)
+
+/-- Strictly-positive counterpart of `NestedForallPrefixExpansion` for the
+mutually defined nested-formation leaf. -/
+inductive VInductDecl.NestedForallPrefixWFExpansion :
+    VEnv → VInductDecl → List VInductiveType →
+      Nat → Nat → VExpr → VExpr → Prop
+  | nil
+      (Hbody : VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceBody targetBody) :
+      VInductDecl.NestedForallPrefixWFExpansion env source generated depth 0
+        sourceBody targetBody
+  | cons
+      (Hdomain : VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceDomain targetDomain)
+      (Hbody : VInductDecl.NestedForallPrefixWFExpansion env source generated
+        (depth + 1) arity sourceBody targetBody) :
+      VInductDecl.NestedForallPrefixWFExpansion env source generated depth
+        (arity + 1) (.forallE sourceDomain sourceBody)
+          (.forallE targetDomain targetBody)
+
+/-- Ordered constructor expansion without nesting the mutually defined leaf
+inside an external `List.Forall₂`. -/
+inductive VInductDecl.NestedConstructorWFExpansions :
+    VEnv → VInductDecl → List VInductiveType →
+      List VConstVal → List VConstVal → Prop
+  | nil {env source generated} :
+      VInductDecl.NestedConstructorWFExpansions env source generated [] []
+  | cons {env source generated sourceCtor targetCtor sourceCtors targetCtors} :
+      targetCtor.name = sourceCtor.name →
+      targetCtor.uvars = sourceCtor.uvars →
+      VInductDecl.NestedForallPrefixWFExpansion env source generated 0
+        source.nparams sourceCtor.type targetCtor.type →
+      VInductDecl.NestedConstructorWFExpansions env source generated
+        sourceCtors targetCtors →
+      VInductDecl.NestedConstructorWFExpansions env source generated
+        (sourceCtor :: sourceCtors) (targetCtor :: targetCtors)
+
+/-- Ordered family expansion for the initial mutual block followed by the
+direct, unlowered auxiliary queue. -/
+inductive VInductDecl.NestedTypeWFExpansions :
+    VEnv → VInductDecl → List VInductiveType →
+      List VInductiveType → List VInductiveType → Prop
+  | nil {env source generated} :
+      VInductDecl.NestedTypeWFExpansions env source generated [] []
+  | cons {env source generated sourceType targetType sourceTypes targetTypes} :
+      targetType.name = sourceType.name →
+      targetType.uvars = sourceType.uvars →
+      env.IsDefEqU source.uvars [] sourceType.type targetType.type →
+      targetType.numIndices = sourceType.numIndices →
+      targetType.resultLevel = sourceType.resultLevel →
+      VInductDecl.NestedConstructorWFExpansions env source generated
+        sourceType.ctors targetType.ctors →
+      VInductDecl.NestedTypeWFExpansions env source generated sourceTypes
+        targetTypes →
+      VInductDecl.NestedTypeWFExpansions env source generated
+        (sourceType :: sourceTypes) (targetType :: targetTypes)
+
+/-- A nested declaration is formed by expanding the source families and a
+finite queue of direct auxiliary sources into a declaration satisfying the
+ordinary source and formation judgments. -/
+inductive VInductDecl.NestedFormationWF : VEnv → VInductDecl → Prop
+  | intro {env source expanded generated} :
+      VInductDecl.SourceWF env expanded →
+      VInductDecl.OrdinaryFormationWF env expanded →
+      VInductDecl.SourceParameterWF env source →
+      expanded.uvars = source.uvars →
+      expanded.nparams = source.nparams →
+      expanded.isUnsafe = source.isUnsafe →
+      VInductDecl.NestedTypeWFExpansions env source generated
+        (source.types ++ generated) expanded.types →
+      VInductDecl.NestedFormationWF env source
+
+end
+
+/-- Constructor expressions count every enclosing forall binder, whereas
+`NestedOccurrenceReplacement` counts only constructor-field binders below the common
+parameter prefix.  This wrapper is the explicit boundary between those two
+depth conventions. -/
+def VInductDecl.NestedOccurrenceReplacementAbs
+    (env : VEnv) (source : VInductDecl)
+    (generated : List VInductiveType) (depth : Nat)
+    (input output : VExpr) : Prop :=
+  ∃ relativeDepth,
+    depth = source.nparams + relativeDepth ∧
+    VInductDecl.NestedOccurrenceReplacement env source generated relativeDepth
+      input output
+
+
+theorem VExpr.getAppFnArgs_mkApps_const (name : Name) (levels : List VLevel)
+    (args : List VExpr) :
+    (VExpr.mkApps (.const name levels) args).getAppFnArgs =
+      (.const name levels, args) := by
+  suffices h : ∀ (fn : VExpr) (pre : List VExpr),
+      fn.getAppFnArgs = (.const name levels, pre) →
+      (VExpr.mkApps fn args).getAppFnArgs = (.const name levels, pre ++ args) by
+    simpa using h (.const name levels) [] (by simp)
+  induction args with
+  | nil =>
+    intro fn pre h
+    simpa [VExpr.mkApps] using h
+  | cons arg args ih =>
+    intro fn pre h
+    have := ih (.app fn arg) (pre ++ [arg]) (by simp [VExpr.getAppFnArgs_app, h])
+    simpa [VExpr.mkApps, List.append_assoc] using this
+
+/-- Every auxiliary-family leaf replaces a source expression by an
+application headed by one of the auxiliary families. -/
+theorem VInductDecl.NestedOccurrenceReplacementAbs.headConst
+    {env : VEnv} {source : VInductDecl} {generated : List VInductiveType}
+    {depth : Nat} {input output : VExpr}
+    (H : VInductDecl.NestedOccurrenceReplacementAbs env source generated depth
+      input output) :
+    ∃ auxiliary ∈ generated, ∃ levels args,
+      output.getAppFnArgs = (.const auxiliary.name levels, args) := by
+  rcases H with ⟨relativeDepth, _hdepth, H⟩
+  cases H with
+  | intro _ _ _ hgen _ _ _ _ _ _ _ _ _ _ _ _ houtput =>
+    exact ⟨_, hgen, _, _, by rw [houtput]; exact VExpr.getAppFnArgs_mkApps_const _ _ _⟩
+
+theorem List.Forall₂.map_eq_of {α β γ : Type _} {R : α → β → Prop}
+    {l₁ : List α} {l₂ : List β} (H : List.Forall₂ R l₁ l₂)
+    (f : α → γ) (g : β → γ) (hf : ∀ a b, R a b → f a = g b) :
+    l₁.map f = l₂.map g := by
+  induction H with
+  | nil => rfl
+  | cons h _ ih => simp [hf _ _ h, ih]
+
+/-- Raw constructor shapes of the source families follow from the raw
+shapes of the expanded declaration through the ordered nested expansion. -/
+theorem VInductDecl.rawShapesOfNestedExpansions
+    {env : VEnv} {source expanded : VInductDecl}
+    {generated : List VInductiveType}
+    (Htypes : List.Forall₂
+      (VInductDecl.NestedTypeExpansion env source
+        (VInductDecl.NestedOccurrenceReplacementAbs env source generated))
+      (source.types ++ generated) expanded.types)
+    (Hraw : ∀ type ∈ expanded.types, ∀ ctor ∈ type.ctors,
+      expanded.RawCtorShape type ctor)
+    (huvars : expanded.uvars = source.uvars)
+    (hnparams : expanded.nparams = source.nparams)
+    (hnodup : (expanded.types.map (·.name)).Nodup) :
+    ∀ type ∈ source.types, ∀ ctor ∈ type.ctors, source.RawCtorShape type ctor := by
+  have hnames : expanded.types.map (·.name) =
+      (source.types ++ generated).map (·.name) :=
+    (Lean4Lean.List.Forall₂.map_eq_of Htypes (·.name) (·.name)
+      (fun _ _ h => h.name.symm)).symm
+  intro type htype ctor hctor
+  rcases Lean4Lean.List.Forall₂.forall_exists_l Htypes type
+      (List.mem_append_left _ htype) with ⟨target, htarget, Hexp⟩
+  rcases Lean4Lean.List.Forall₂.forall_exists_l Hexp.constructors ctor hctor with
+    ⟨targetCtor, htargetCtor, Hctor⟩
+  exact VInductDecl.RawCtorShape.ofNestedExpansion
+    (fun h => VInductDecl.NestedOccurrenceReplacementAbs.headConst h)
+    huvars hnparams hnames hnodup htype htarget Hexp.name Hexp.numIndices
+    Hctor.type (Hraw target htarget targetCtor htargetCtor)
+
+/-- Constructor telescope lengths agree positionally across the ordered
+nested expansion of the source families. -/
+theorem VInductDecl.constructorArityPrefixOfNestedExpansions
+    {env : VEnv} {source expanded : VInductDecl}
+    {generated : List VInductiveType}
+    (Htypes : List.Forall₂
+      (VInductDecl.NestedTypeExpansion env source
+        (VInductDecl.NestedOccurrenceReplacementAbs env source generated))
+      (source.types ++ generated) expanded.types)
+    (Hraw : ∀ type ∈ expanded.types, ∀ ctor ∈ type.ctors,
+      expanded.RawCtorShape type ctor)
+    (huvars : expanded.uvars = source.uvars)
+    (hnparams : expanded.nparams = source.nparams)
+    (hnodup : (expanded.types.map (·.name)).Nodup) :
+    source.ConstructorArityPrefix expanded := by
+  have hnames : expanded.types.map (·.name) =
+      (source.types ++ generated).map (·.name) :=
+    (Lean4Lean.List.Forall₂.map_eq_of Htypes (·.name) (·.name)
+      (fun _ _ h => h.name.symm)).symm
+  intro familyIdx hsource hexpanded ctorIdx hsourceCtor hexpandedCtor
+  have hprefix : familyIdx < (source.types ++ generated).length := by
+    simp only [List.length_append]
+    omega
+  have Hexp := Lean4Lean.List.Forall₂.getElem_of Htypes familyIdx hprefix hexpanded
+  have hget : (source.types ++ generated)[familyIdx] = source.types[familyIdx] :=
+    List.getElem_append_left hsource
+  rw [hget] at Hexp
+  have Hctor := Lean4Lean.List.Forall₂.getElem_of Hexp.constructors ctorIdx
+    hsourceCtor hexpandedCtor
+  exact (VInductDecl.RawCtorShape.ofNestedExpansion_core
+    (fun h => VInductDecl.NestedOccurrenceReplacementAbs.headConst h)
+    huvars hnparams hnames hnodup (List.getElem_mem hsource)
+    (List.getElem_mem hexpanded) Hexp.name Hexp.numIndices Hctor.type
+    (Hraw _ (List.getElem_mem hexpanded) _ (List.getElem_mem hexpandedCtor))).2
+
+/-- `decl.recs` is read off a compiled block: the recursor constants are the block's
+generated recursors, in order, and each recursor rule is the block's generated equation
+for that recursor and constructor, reduct for reduct (`VRecRule.OfEquation`). -/
+def VRecRule.OfEquation (r : VRecursor) (ru : VRecRule) (df : VDefEq) : Prop :=
+  df.rhs = ru.rhs ∧
+  df.lhs.lamBody.headConst? = some r.name ∧
+  df.lhs.lamBody.getAppArgs.length = r.getMajorIdx + 1 ∧
+  ∃ major, df.lhs.lamBody.getAppArgs.getLast? = some major ∧
+    major.headConst? = some ru.ctor ∧
+    major.getAppArgs.length = ru.ctorParams + ru.nfields
+
+/-- The recursor data of a declaration against a compiled block: the recursor constants are
+the block's, and the rules are in bijection with the block's generated equations. -/
+structure VInductDecl.RecsOf (decl : VInductDecl) (block : VInductBlock) : Prop where
+  recursors : decl.recs.map (·.toVConstVal) = block.recursors
+  rules : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ∃ df ∈ block.rules, VRecRule.OfEquation r ru df
+  rules_total : ∀ df ∈ block.rules, ∃ r ∈ decl.recs, ∃ ru ∈ r.rules, VRecRule.OfEquation r ru df
+
+/-- The recursors and rules of `decl` are those of a finite compilation of it
+(`VInductDecl.CompilesTo`): the generator fixes every recursor type and every equation, and
+`decl.recs` is read off that output (`VInductDecl.RecsOf`). Recursors and equations are never
+accepted as input on the strength of their typing alone. -/
+def VInductDecl.RecsCompiled (env : VEnv) (decl : VInductDecl) : Prop :=
+  ∃ block, decl.CompilesTo env block ∧ decl.RecsOf block
+
+/-- Well-formedness of an inductive declaration, staged like the kernel's checks and
+`VEnv.addInduct`. The source judgment (headers typed, a common parameter telescope, constructor
+types typed with the headers, raw constructor shapes) and formation (ordinary strict
+positivity and universe bounds, or a finite nested expansion into an ordinary well-formed
+declaration) are definitional (`SourceWF`, `FormationWF`, `Theory/Inductive/Formation.lean`),
+so that a constructor field typed through a reducible alias is admitted exactly when the
+kernel's `whnf`-based check admits it. The recursors are tied to the generator's output
+(`RecsCompiled`), typed in the projection-stage environment (`recs_wf`), and their rules are
+typed as schematic reduction rules in the recursor-stage environment (`rules_wf`,
+`VEnv.PatTyped`, the typing half of `VEnv.PatWF`; the template shape is `rule_shape`).
+The remaining clauses are the syntactic shapes of the kernel's recursor data: the telescope
+split (`rec_shape`), one rule per constructor (`rules_nodup`), each rule firing on a
+constructor constant of the right spine arity (`rules_ctor`, stated so that the auxiliary
+recursors of a nested block, which fire on the constructors of a previously declared
+container, are admissible) and the reduct shape (`rule_shape`). -/
 structure VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop where
-  /-- Type formers are typed in `env`. -/
-  types_wf : ∀ t ∈ decl.types, t.toVConstVal.toVConstant.WF env
-  /-- Constructors are typed once the type formers are declared. -/
-  ctors_wf : ∀ envT, decl.addTypes env = some envT →
-    ∀ t ∈ decl.types, ∀ c ∈ t.ctors, c.toVConstant.WF envT
-  /-- Recursors are typed once the constructors are declared. -/
-  recs_wf : ∀ envC, decl.addTypesCtors env = some envC →
-    ∀ r ∈ decl.recs, r.toVConstVal.toVConstant.WF envC
-  /-- Type formers share the declaration's universe parameters. -/
-  types_uvars : ∀ t ∈ decl.types, t.uvars = decl.uvars
-  /-- So do the constructors. -/
-  ctors_uvars : ∀ t ∈ decl.types, ∀ c ∈ t.ctors, c.uvars = decl.uvars
-  /-- §2.6.1–2.6.2: one result sort `ℓ` for the whole block, above the universe of every
-  constructor field (`imax(ℓ', ℓ) ≤ ℓ`), and large elimination whenever a recursor asks for
-  the extra universe parameter. -/
-  universes : ∀ envT, decl.addTypes env = some envT → ∃ ℓ,
-    (∀ t ∈ decl.types, t.type.piBody = .sort ℓ ∧ decl.nparams ≤ t.type.piArity) ∧
-    (∀ t ∈ decl.types, ∀ c ∈ t.ctors, ∀ i < c.type.piArity - decl.nparams,
-      ∃ F, c.type.piBinders[decl.nparams + i]? = some F ∧ ∃ u,
-        envT.HasType decl.uvars (c.type.fieldCtx decl.nparams i) F (.sort u) ∧
-        VLevel.imax u ℓ ≤ ℓ) ∧
-    ((∃ r ∈ decl.recs, r.uvars = decl.uvars + 1) → decl.LargeElim envT ℓ)
-  /-- §2.6.3, κ: a recursor has the block's universe parameters, plus one extra — the
-  first, `VLevel.param 0` — exactly when it eliminates into an arbitrary sort; every motive
-  then ends in `Sort (param 0)`, and otherwise in `Prop`. -/
-  recs_elim : ∀ r ∈ decl.recs, (r.uvars = decl.uvars ∨ r.uvars = decl.uvars + 1) ∧
-    ∀ i < r.numMotives, ∃ A, r.type.piBinders[r.numParams + i]? = some A ∧
-      A.piBody = .sort (if r.uvars = decl.uvars + 1 then .param 0 else .zero)
-  /-- Every recursor records the declaration's parameter count. -/
-  rec_params : ∀ r ∈ decl.recs, r.numParams = decl.nparams
-  /-- A constructor's parameter binders are its type former's. -/
-  ctors_params : ∀ t ∈ decl.types, ∀ c ∈ t.ctors,
-    c.type.piBinders.take decl.nparams = t.type.piBinders.take decl.nparams
-  /-- §2.6.1: a constructor returns its own type former applied to the parameter variables
-  and to as many index terms as the former has indices. -/
-  ctors_result : ∀ t ∈ decl.types, ∀ c ∈ t.ctors,
-    ∃ nf, c.type.CtorResult t.name decl.nparams nf (t.type.piArity - decl.nparams)
-  /-- §2.6.1: every constructor is strictly positive in the block's type formers. -/
-  ctors_positive : ∀ t ∈ decl.types, ∀ c ∈ t.ctors,
-    c.type.CtorPositive (decl.types.map (·.name)) decl.nparams
-  /-- The block is direct: every recursor eliminates one of its own type formers. -/
-  recs_over_block : ∀ r ∈ decl.recs,
-    ∃ t ∈ decl.types, r.type.majorFormer? r.getMajorIdx = some t.name
-  /-- §2.6.3: a recursor has one motive per type former, one minor per constructor of the
-  block, and as many indices as the type former it eliminates. -/
-  rec_counts : ∀ r ∈ decl.recs, r.numMotives = decl.types.length ∧
-    r.numMinors = (decl.types.flatMap (·.ctors)).length ∧
-    ∀ t ∈ decl.types, r.type.majorFormer? r.getMajorIdx = some t.name →
-      r.numIndices = t.type.piArity - decl.nparams
+  /-- The source judgment: headers and constructors typed, names distinct, universes shared. -/
+  source : decl.SourceWF env
+  /-- Ordinary formation, or a finite nested expansion into an ordinary well-formed block. -/
+  formation : decl.FormationWF env
+  /-- The recursors and rules are read off a compilation of the declaration. -/
+  recsCompiled : decl.RecsCompiled env
+  /-- Recursors are typed once the constructors and projections are declared. -/
+  recs_wf : ∀ envP, decl.addTypesCtorsProjs env = some envP →
+    ∀ r ∈ decl.recs, r.toVConstVal.toVConstant.WF envP
   /-- §2.6.3: the recursor telescope split and the shapes of its motives, minors and
   major premise. -/
   rec_shape : ∀ r ∈ decl.recs, r.type.RecShape r.numParams r.numMotives r.numMinors r.numIndices
   /-- A recursor has at most one rule per constructor. -/
   rules_nodup : ∀ r ∈ decl.recs, (r.rules.map (·.ctor)).Nodup
-  /-- §2.6.4: every rule fires on a constructor of the type former its recursor eliminates,
-  with the declaration's parameter count and the rule's declared field count. -/
-  rules_ctor : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ∃ t ∈ decl.types,
-    r.type.majorFormer? r.getMajorIdx = some t.name ∧ ∃ c ∈ t.ctors,
-      ru.ctor = c.name ∧ ru.ctorParams = decl.nparams ∧
-      c.type.CtorResult t.name decl.nparams ru.nfields (t.type.piArity - decl.nparams)
-  /-- Every type former of the block is eliminated by a recursor of the block. -/
-  types_have_rec : ∀ t ∈ decl.types, ∃ r ∈ decl.recs, r.type.majorFormer? r.getMajorIdx = some t.name
-  /-- §2.6.3/§2.6.4, `ε` has the length of `K`: a recursor has a rule for each constructor
-  of the type former it eliminates (exactly one, by `rules_nodup`). -/
-  rules_total : ∀ r ∈ decl.recs, ∀ t ∈ decl.types, r.type.majorFormer? r.getMajorIdx = some t.name →
-    ∀ c ∈ t.ctors, ∃ ru ∈ r.rules, ru.ctor = c.name
+  /-- §2.6.4: every rule fires on a constructor constant of the constructor-stage environment
+  whose type has `ctorParams + nfields` binders ending in a type-former application. For a
+  direct block it is one of the block's own constructors; for the auxiliary recursor of a
+  nested block it is a constructor of the container, declared earlier. -/
+  rules_ctor : ∀ envC, decl.addTypesCtors env = some envC → ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
+    ∃ ci, envC.constants ru.ctor = some ci ∧ ci.type.CtorShape (ru.ctorParams + ru.nfields)
   /-- §2.6.4, the reduct shape, tied to §2.6.3's constructor↔minor correspondence: the rule
   for `ru.ctor` reduces to minor `j`, a minor whose last argument is headed by `ru.ctor`,
   applied to the `nfields` fields and to exactly as many further arguments as the minor has
@@ -409,35 +823,216 @@ structure VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop where
     ru.nfields ≤ A.piArity ∧
     ru.rhs.RuleShape r.numParams r.numMotives r.numMinors ru.nfields (A.piArity - ru.nfields) j
   /-- §2.6.4 as a typing, the `VDefEq.WF` of an ι rule: as registered by `addRecRule`, in
-  the stage-2 environment, the rule is typed (`VEnv.PatTyped`, the typing half of
-  `VEnv.PatWF`; the other half, the template shape of the reduct, is `rule_shape`) — its
-  generic redex `rec params motives minors idx (c cargs fields)` and reduct
-  `rhs params motives minors fields` are typed at a common type in the context of the
-  parameters, motives, minors and fields. No kernel check performs it: it is the model's
-  admissibility condition for registering the rule, the analogue of the thesis's regularity
-  of reductions for the generic rule. -/
-  rules_wf : ∀ envR, decl.addTypesCtorsRecs env = some envR → ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
-    ∀ hc : ru.rhs.Closed,
+  the recursor-stage environment, the rule is typed (`VEnv.PatTyped`) — its generic redex
+  `rec params motives minors idx (c cargs fields)` and reduct `rhs params motives minors
+  fields` are typed at a common type in the context of the parameters, motives, minors and
+  fields. No kernel check performs it: it is the model's admissibility condition for
+  registering the rule, the analogue of the thesis's regularity of reductions for the
+  generic rule. -/
+  rules_wf : ∀ envR, decl.addTypesCtorsProjsRecs env = some envR →
+    ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ∀ hc : ru.rhs.Closed,
     envR.PatTyped
       (SimplePattern.iota r.name r.getMajorIdx ru.ctor (ru.ctorParams + ru.nfields)).toPattern
       (SimplePattern.iotaRHS r.name ru.ctor
         r.numParams r.numMotives r.numMinors r.numIndices ru.ctorParams ru.nfields ru.rhs hc,
         .true)
 
-/-- Every constructor of the block has a rule in some recursor of the block
-(`types_have_rec` and `rules_total`). -/
-theorem VInductDecl.WF.ctors_have_rules {env : VEnv} {decl : VInductDecl} (H : decl.WF env) :
-    ∀ t ∈ decl.types, ∀ c ∈ t.ctors, ∃ r ∈ decl.recs, ∃ ru ∈ r.rules, ru.ctor = c.name := by
-  intro t ht c hc
-  obtain ⟨r, hr, hmaj⟩ := H.types_have_rec t ht
-  obtain ⟨ru, hru, hctor⟩ := H.rules_total r hr t ht hmaj c hc
-  exact ⟨r, hr, ru, hru, hctor⟩
+/-- Stage 0 of `addInduct` is `addConstVals` over the type constants. -/
+theorem VInductDecl.addTypes_eq_addConstVals (decl : VInductDecl) (env : VEnv) :
+    decl.addTypes env = env.addConstVals decl.typeConstants := by
+  unfold VInductDecl.addTypes VInductDecl.typeConstants
+  induction decl.types generalizing env with
+  | nil => rfl
+  | cons t ts ih =>
+    simp only [List.foldlM_cons, List.map_cons, VEnv.addConstVals]
+    cases env.addConst t.name t.toVConstVal.toVConstant <;> simp [ih]
 
-/-- Every rule records its recursor's parameter count: its constructor is one of the block's
-own, so it has the declaration's parameters (`rules_ctor`), as does the recursor
-(`rec_params`). -/
-theorem VInductDecl.WF.rules_own_params {env : VEnv} {decl : VInductDecl} (H : decl.WF env) :
-    ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ru.ctorParams = r.numParams := by
-  intro r hr ru hru
-  obtain ⟨-, -, -, -, -, -, hnp, -⟩ := H.rules_ctor r hr ru hru
-  rw [hnp, H.rec_params r hr]
+/-- Stage 1 of `addInduct` is `addConstVals` over the constructor constants. -/
+theorem VInductDecl.addCtors_eq_addConstVals (decl : VInductDecl) (env : VEnv) :
+    decl.addCtors env = env.addConstVals decl.constructorConstants := by
+  unfold VInductDecl.addCtors VInductDecl.constructorConstants
+  generalize decl.types.flatMap (·.ctors) = cs
+  induction cs generalizing env with
+  | nil => rfl
+  | cons c cs ih =>
+    simp only [List.foldlM_cons, VEnv.addConstVals]
+    cases env.addConst c.name c.toVConstant <;> simp [ih]
+
+/-- Type formers are typed in `env` (`SourceWF`). -/
+theorem VInductDecl.WF.types_wf {env : VEnv} {decl : VInductDecl} (H : decl.WF env) :
+    ∀ t ∈ decl.types, t.toVConstVal.toVConstant.WF env :=
+  fun t ht => H.source.sourceTypes t ht
+
+/-- Constructors are typed once the type formers are declared (`SourceWF`). -/
+theorem VInductDecl.WF.ctors_wf {env : VEnv} {decl : VInductDecl} (H : decl.WF env) :
+    ∀ envT, decl.addTypes env = some envT →
+    ∀ t ∈ decl.types, ∀ c ∈ t.ctors, c.toVConstant.WF envT := by
+  intro envT hT t ht c hc
+  rw [VInductDecl.addTypes_eq_addConstVals] at hT
+  obtain ⟨envTypes', htypes', hwf⟩ := H.source.sourceConstructors
+  cases Option.some.inj (htypes'.symm.trans hT)
+  exact hwf c (List.mem_flatMap.2 ⟨t, ht, hc⟩)
+
+/-- Type formers share the declaration's universe parameters. -/
+theorem VInductDecl.WF.types_uvars {env : VEnv} {decl : VInductDecl} (H : decl.WF env) :
+    ∀ t ∈ decl.types, t.uvars = decl.uvars :=
+  H.source.2.2.1
+
+/-- So do the constructors. -/
+theorem VInductDecl.WF.ctors_uvars {env : VEnv} {decl : VInductDecl} (H : decl.WF env) :
+    ∀ t ∈ decl.types, ∀ c ∈ t.ctors, c.uvars = decl.uvars :=
+  fun t ht c hc => H.source.2.2.2.1 c (List.mem_flatMap.2 ⟨t, ht, hc⟩)
+
+/-- The constructor a rule of a well-formed `decl` fires on is registered in the
+constructor-stage environment with a type of `CtorShape (ru.ctorParams + ru.nfields)`
+(`VInductDecl.WF.rules_ctor`). -/
+theorem VInductDecl.WF.rules_ctor_shape {env : VEnv} {decl : VInductDecl}
+    (hwf : decl.WF env) : ∀ envC, decl.addTypesCtors env = some envC →
+      ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ∃ ci, envC.constants ru.ctor = some ci ∧
+        ci.type.CtorShape (ru.ctorParams + ru.nfields) :=
+  hwf.rules_ctor
+
+/-- Source constructor typing at the exact header environment named by an
+installation. -/
+theorem VInductDecl.SourceWF.constructorsWF_at
+    {env envTypes : VEnv} {decl : VInductDecl}
+    (H : decl.SourceWF env)
+    (htypes : env.addConstVals decl.typeConstants = some envTypes) :
+    ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes := by
+  rcases H.sourceConstructors with ⟨envTypes', htypes', hwf⟩
+  cases Option.some.inj (htypes'.symm.trans htypes)
+  exact hwf
+
+/-- Both ordinary and nested formation retain the source
+parameter judgment at any environment in which the headers install. -/
+theorem VInductDecl.FormationWF.sourceParameterWF
+    {env envTypes : VEnv} {decl : VInductDecl}
+    (H : decl.FormationWF env)
+    (htypes : env.addConstVals decl.typeConstants = some envTypes) :
+    decl.SourceParameterWF env := by
+  cases H with
+  | ordinary H => exact H.sourceParameterWF
+  | nested H hle =>
+    cases H with
+    | intro _ _ Hparams _ _ _ _ =>
+      exact Hparams.mono_of_addConstVals hle htypes
+
+theorem VInductDecl.WF.sourceParameterWF
+    {env envTypes : VEnv} {decl : VInductDecl}
+    (H : decl.WF env)
+    (htypes : env.addConstVals decl.typeConstants = some envTypes) :
+    decl.SourceParameterWF env :=
+  H.formation.sourceParameterWF htypes
+
+theorem VEnv.InstalledBelow.mono
+    {env env' : VEnv} {decl : VInductDecl}
+    (henv : env ≤ env')
+    (H : VEnv.InstalledBelow env decl) :
+    VEnv.InstalledBelow env' decl := by
+  cases H with
+  | intro hsource hformation hcompile hblock hinstall hle =>
+    exact .intro hsource hformation hcompile hblock hinstall (hle.trans henv)
+
+/-- Every projection entry derived from an installed declaration is present
+in the ambient projection registry.  This is the registry fact carried by an
+installation certificate; clients do not need to reconstruct the installation order
+of `VInductBlock.install`. -/
+theorem VEnv.InstalledBelow.projection
+    {env : VEnv} {decl : VInductDecl} {entry : VProjectionEntry}
+    (H : VEnv.InstalledBelow env decl)
+    (hentry : entry ∈ decl.projectionEntries) :
+    env.projections entry.typeName entry.info := by
+  cases H with
+  | intro hsource hformation hcompile hblock hinstall hle =>
+    unfold VInductBlock.install at hinstall
+    simp at hinstall
+    rcases hinstall with
+      ⟨envTypes, htypes, envCtors, hctors, envRecursors, hrecursors, rfl⟩
+    apply hle.projections
+    simp only [VEnv.addDefEqRules_projections]
+    rw [VEnv.addConstVals_projections hrecursors]
+    rw [VEnv.addProjections_iff]
+    exact Or.inl ⟨entry, hcompile.projections.symm ▸ hentry, rfl, rfl⟩
+
+/-- An installed declaration exposes each of its family constants at the
+exact abstract value recorded by the source declaration. -/
+theorem VEnv.InstalledBelow.familyConstant
+    {env : VEnv} {decl : VInductDecl}
+    (H : VEnv.InstalledBelow env decl)
+    (familyIdx : Nat) (hfamily : familyIdx < decl.types.length) :
+    env.constants decl.types[familyIdx].name =
+      some decl.types[familyIdx].toVConstant := by
+  cases H with
+  | @intro _ _ base block installed Hsource Hformation Hcompile Hblock
+      Hinstall hle =>
+    rcases Hblock with
+      ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecursors,
+        _htypesWF, _hctorsWF, _hrecursorsWF, _hrulesWF⟩
+    have hmember : decl.types[familyIdx].toVConstVal ∈ block.types := by
+      rw [Hcompile.types]
+      exact List.mem_map.mpr
+        ⟨decl.types[familyIdx], List.getElem_mem hfamily, rfl⟩
+    have hlookup := VEnv.addConstVals_get htypes hmember
+    have hcanonical : VInductBlock.install base block =
+        some (envRecursors.addDefEqRules block.rules) := by
+      simp [VInductBlock.install, htypes, hctors, hrecursors]
+    have hinstalled : installed = envRecursors.addDefEqRules block.rules :=
+      Option.some.inj (Hinstall.symm.trans hcanonical)
+    subst installed
+    apply hle.constants
+    simpa only [VEnv.addDefEqRules_constants] using
+      (VEnv.addConstVals_le hrecursors).constants
+        (VEnv.addProjections_le.constants
+          ((VEnv.addConstVals_le hctors).constants hlookup))
+
+/-- Every family of an installed declaration carries the declaration's
+universe arity. -/
+theorem VEnv.InstalledBelow.typeUvars
+    {env : VEnv} {decl : VInductDecl}
+    (H : VEnv.InstalledBelow env decl) :
+    ∀ type ∈ decl.types, type.uvars = decl.uvars := by
+  cases H with
+  | intro Hsource _ _ _ _ _ => exact Hsource.2.2.1
+
+/-- Every constructor of an installed declaration carries the declaration's
+universe arity. -/
+theorem VEnv.InstalledBelow.constructorUvars
+    {env : VEnv} {decl : VInductDecl}
+    (H : VEnv.InstalledBelow env decl) :
+    ∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars := by
+  cases H with
+  | intro Hsource _ _ _ _ _ => exact Hsource.2.2.2.1
+
+/-- An installed declaration exposes each of its constructor constants at
+the exact abstract value recorded by the source declaration. -/
+theorem VEnv.InstalledBelow.constructorConstant
+    {env : VEnv} {decl : VInductDecl}
+    (H : VEnv.InstalledBelow env decl)
+    (familyIdx ctorIdx : Nat) (hfamily : familyIdx < decl.types.length)
+    (hctor : ctorIdx < decl.types[familyIdx].ctors.length) :
+    env.constants decl.types[familyIdx].ctors[ctorIdx].name =
+      some decl.types[familyIdx].ctors[ctorIdx].toVConstant := by
+  cases H with
+  | @intro _ _ base block installed Hsource Hformation Hcompile Hblock
+      Hinstall hle =>
+    rcases Hblock with
+      ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecursors,
+        _htypesWF, _hctorsWF, _hrecursorsWF, _hrulesWF⟩
+    have hmember : decl.types[familyIdx].ctors[ctorIdx] ∈ block.ctors := by
+      rw [Hcompile.ctors]
+      simp only [VInductDecl.constructorConstants, List.mem_flatMap]
+      exact ⟨decl.types[familyIdx], List.getElem_mem hfamily,
+        List.getElem_mem hctor⟩
+    have hlookup := VEnv.addConstVals_get hctors hmember
+    have hcanonical : VInductBlock.install base block =
+        some (envRecursors.addDefEqRules block.rules) := by
+      simp [VInductBlock.install, htypes, hctors, hrecursors]
+    have hinstalled : installed = envRecursors.addDefEqRules block.rules :=
+      Option.some.inj (Hinstall.symm.trans hcanonical)
+    subst installed
+    apply hle.constants
+    simpa only [VEnv.addDefEqRules_constants] using
+      (VEnv.addConstVals_le hrecursors).constants
+        (VEnv.addProjections_le.constants hlookup)
+
+end Lean4Lean
