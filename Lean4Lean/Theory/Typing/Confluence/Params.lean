@@ -158,7 +158,7 @@ theorem equation_covered_of_registry {registry : Registry} {declarations : List 
   · by_cases hguard : data.largeTarget = true ∧
         (data.schema.sourceLevel data.owner data.levels).inst levels ≈ .zero
     · exact hzero hΓ lookup registered owner generated hw hl hguard.1 hguard.2
-    · refine registered.equation_join hΓ hnat (by rw [hdata]; exact lookup) owner generated hw hl ?_
+    · refine registered.equation_join hnat (by rw [hdata]; exact lookup) owner generated hw hl ?_
       exact fun h1 h2 => hguard ⟨h1, h2⟩
 
 end

@@ -155,6 +155,7 @@ theorem TeleKeys.typed (h : TeleKeys env U Δ σ S ds keys σ' S')
         (tv.cons_cls henv hΔ hc hy hb hK)
       simpa [List.reverse_cons, List.append_assoc] using this
 
+omit henv hΔ in
 /-- Type observations transfer along a sound type equality, at one valuation. -/
 theorem SD.sub (h : SD env U Δ Γ A B (.sort u)) (W : Ctx.SubstEq env U Δ σ σ Γ)
     (tv : TV env U Δ Γ σ S) :
@@ -236,6 +237,7 @@ theorem vcls_defeq (W : Ctx.SubstEq env U Δ σ σ Γ) (h : env.IsDefEq U Γ t t
     vcls env U Δ σ t T = vcls env U Δ σ t' T := by
   unfold vcls; exact ElCls.eq_of_defeq TyCls.self (h.substDF henv W.wf hΔ W)
 
+omit henv hΔ in
 theorem vcls_closed {e T : VExpr} (he : e.ClosedN) (hT : T.ClosedN) :
     vcls env U Δ σ e T = ElCls env U Δ (TyCls env U Δ T) e := by
   simp only [vcls, he.subst_eq .zero, hT.subst_eq .zero]
@@ -375,7 +377,7 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
         .inl ⟨_, hT, hsd⟩,
         .nil, .nil, fun o ho => ⟨τs, fun τ hτ =>
           (Obs.closed_iff_id (henv.closedC hci).instL).1 (hτs τ hτ),
-          vcls_closed henv hΔ (e := .const _ _) trivial (henv.closedC hci).instL ▸ ho⟩,
+          vcls_closed (e := .const _ _) trivial (henv.closedC hci).instL ▸ ho⟩,
         fun x hx => ⟨x, (Obs.closed_iff_id (henv.closedC hci).instL).2 hx, .refl⟩,
         fun pre ka post h => ?_⟩
       cases pre <;> cases h
@@ -387,7 +389,7 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
       refine ⟨_, [], .inr ⟨_, _, _, _, _, rfl, hb, htype, hcl0, hls, rfl⟩, hcl0.instL,
         .inr ⟨⟨_, _, _, rfl⟩, _, hT, hsd⟩, .nil, .nil,
         fun o ho => ⟨τs, fun τ hτ => (Obs.closed_iff_id hcl0.instL).1 (hτs τ hτ),
-          vcls_closed henv hΔ (e := .elim _ _ _) trivial hcl0.instL ▸ ho⟩,
+          vcls_closed (e := .elim _ _ _) trivial hcl0.instL ▸ ho⟩,
         fun x hx => ⟨x, (Obs.closed_iff_id hcl0.instL).2 hx, .refl⟩, fun pre ka post h => ?_⟩
       cases pre <;> cases h
     · cases he'
@@ -468,7 +470,7 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
         have e := List.append_inj' this rfl
         exact dP2 pre ka post' e.1 x hx
   | conv _ hAB ih =>
-    have hs := SD.sub henv hΔ hAB W tv
+    have hs := SD.sub hAB W tv
     obtain ⟨τs', h1, h2⟩ := exists_list_cover fun τ hτ => hs.2 τ (hτs τ hτ)
     obtain ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, P1, P2, dP2⟩ := ih he W tv Ks hKs τs' h1
     refine ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, fun o ho =>

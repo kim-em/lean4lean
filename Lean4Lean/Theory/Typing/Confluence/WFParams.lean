@@ -53,7 +53,7 @@ bound `U`. -/
   Params.ofRegistry henv henv.registry_contract U
     (fun hΓ h hm ht => GeneratedIotaPattern.sound henv hΓ
       (fun _ _ h => let ⟨a, b, _⟩ := henv.registry_contract.recursors _ _ h; ⟨a, b⟩) h hm ht)
-    (fun h hΓ hl hs hlen => ConcretePattern.struct_major henv henv.registry_contract h hΓ hl hs hlen)
+    (fun h hΓ hl hs hlen => ConcretePattern.struct_major henv h hΓ hl hs hlen)
     (fun h hl hcc hm hm' hps hps' =>
       ConcretePattern.iota_params henv henv.registry_contract h hl hcc hm hm' hps hps')
     (fun hm hΓ hl hs => CaseRedex.struct_major henv henv.eliminatorsCoherent hm hΓ hl hs)

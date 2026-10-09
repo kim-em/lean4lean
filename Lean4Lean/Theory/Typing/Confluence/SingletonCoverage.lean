@@ -90,7 +90,6 @@ variable {env : VEnv} {data : RecursorData} {ls : List VLevel}
 occurrence where its source is `Prop`. -/
 theorem singleton_shape (H : RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel ls ≈ .zero)
-    (hlen : ls.length = data.uvars)
     {index : Fin data.schema.signature.constructors.size}
     (howner : data.schema.signature.constructors[index].owner = data.owner) :
     ∃ k, data.target = .param k ∧
@@ -181,7 +180,7 @@ theorem singleton_equation_syntax (H : RecursorRegistered env data)
       data.indexOffset = (data.propParams ls).length + 2 ∧
       data.recursorType = some (data.recursorInstance.recursorType data.owner) := by
   obtain ⟨k, hk, hfam, hcs, hres, hS0, hE0, hP, hgl, hseq⟩ :=
-    singleton_shape H hlarge hzero hlen howner
+    singleton_shape H hlarge hzero howner
   rw [hS0] at hS; cases Option.some.inj hS
   rw [hE0] at hE; cases Option.some.inj hE
   have F := singletonSignature H hlarge hzero
@@ -251,12 +250,11 @@ theorem singleton_equation_syntax (H : RecursorRegistered env data)
 
 theorem singleton_slot_lt (H : RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel ls ≈ .zero)
-    (hlen : ls.length = data.uvars)
     {index : Fin data.schema.signature.constructors.size}
     (howner : data.schema.signature.constructors[index].owner = data.owner)
     {S : SingletonLayout} (hS : data.singletonLayout env ls = some S) :
     ∀ l k, S.slot.getD l none = some k → l < S.fields.length := by
-  obtain ⟨k, -, -, -, -, hS0, -⟩ := singleton_shape H hlarge hzero hlen howner
+  obtain ⟨k, -, -, -, -, hS0, -⟩ := singleton_shape H hlarge hzero howner
   rw [hS0] at hS; cases Option.some.inj hS
   intro l j h
   rw [Instance.singletonCast_slot] at h
@@ -367,7 +365,7 @@ end
 section Literal
 variable {env : VEnv} {U : Nat} {S : SingletonLayout} {P : List VExpr} {E : PropElim}
 
-theorem _root_.Lean4Lean.PropElim.WF.instOuter_branch (W : E.WF S P env U) {ps f : List VExpr}
+theorem _root_.Lean4Lean.PropElim.instOuter_branch {ps f : List VExpr}
     (hl : (ps ++ f).length = P.length + S.fields.length) (hpsl : ps.length = P.length) :
     (PropElim.branchPa S P).map (·.instOuter (ps ++ f)) = ps := by
   unfold PropElim.branchPa
@@ -388,7 +386,7 @@ theorem _root_.Lean4Lean.PropElim.WF.literal_args (henv : env.WF) (W : E.WF S P 
     simpa using T.fieldsCtx S.fields.length (Nat.le_refl _)
   have hclI := T.prefix_closed (rest := S.indices) fun i h => T.scope.indices i h
   have hci := TelInst.instOuter_args henv hctx hclI W.ctorIndices_typed hf
-  rw [List.map_append, W.instOuter_branch hl hpsl] at hci
+  rw [List.map_append, PropElim.instOuter_branch hl hpsl] at hci
   refine hci.append_one ?_
   have hM := HasType.closed_instOuter henv hctx W.ctor_typed hf
   have hctor : (PropElim.ctorApp S P E).instOuter (ps ++ f) = VExpr.mkApps E.ctor (ps ++ f) := by
@@ -399,11 +397,11 @@ theorem _root_.Lean4Lean.PropElim.WF.literal_args (henv : env.WF) (W : E.WF S P 
   have hmaj : (PropElim.majorTy S P E).instOuter (ps ++ E.ctorIndices.map (·.instOuter (ps ++ f))) =
       VExpr.mkApps E.family (ps ++ E.ctorIndices.map (·.instOuter (ps ++ f))) := by
     unfold PropElim.majorTy
-    exact PropElim.mkApps_instOuter_heads W.family_closed _ _ [] _ _ hpsl
+    exact PropElim.mkApps_instOuter_heads W.family_closed _ _ _ _ hpsl
       (by simp [W.ctorIndices_length])
   rw [hmaj]
   simpa only [VExpr.instOuter_mkApps, instOuter_closed0 W.family_closed, List.map_append,
-    W.instOuter_branch hl hpsl] using hM
+    PropElim.instOuter_branch hl hpsl] using hM
 
 theorem TelInst.getD_mid {Γ A B C a b c : List VExpr} (H : TelInst env U Γ (A ++ B ++ C) (a ++ b ++ c))
     (ha : a.length = A.length) (hb : b.length = B.length) {j : Nat} (hj : j < B.length) :
@@ -488,7 +486,7 @@ theorem _root_.Lean4Lean.PropElim.WF.majorTy_instOuter (W : E.WF S P env U) {ps 
     (hpsl : ps.length = P.length) (hidx : idx.length = S.indices.length) :
     (PropElim.majorTy S P E).instOuter (ps ++ idx) = VExpr.mkApps E.family (ps ++ idx) := by
   unfold PropElim.majorTy
-  exact PropElim.mkApps_instOuter_heads W.family_closed _ _ [] _ _ hpsl hidx
+  exact PropElim.mkApps_instOuter_heads W.family_closed _ _ _ _ hpsl hidx
 
 theorem TelInst.drop_mid {Γ A M B a m b : List VExpr}
     (H : TelInst env U Γ (A ++ M ++ B.mapIdx (fun l d => d.liftN M.length l)) (a ++ m ++ b))
@@ -680,7 +678,7 @@ theorem RecursorRegistered.zero_join (heq : env.HasCanonicalEq) {Γ : List VExpr
     have := hdF.weak henv.ordered (B := d)
     simpa [VExpr.liftN_mkApps, W.family_closed.liftN_eq (Nat.zero_le _), vars_map_lift, hidx1]
       using this
-  have hslot := RecursorData.singleton_slot_lt H hlarge hz hlen howner hS
+  have hslot := RecursorData.singleton_slot_lt H hlarge hz howner hS
   obtain ⟨hT1, hA1, hB1⟩ := W.literal_occ henv heq hslot hΔ' hpsl1 hf1 hm1
   generalize hidx1def : E.ctorIndices.map (·.instOuter (vars np (2 + nf + 1) ++ vars nf 1)) = idx1
     at hT1 hA1 hB1 hidx1

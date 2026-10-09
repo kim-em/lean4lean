@@ -948,6 +948,7 @@ local notation:65 Γ " ⊢ " e " : " A:36 => HasType env univs Γ e A
 local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 " : " A:36 => IsDefEq env univs Γ e1 e2 A
 local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 => IsDefEqU env univs Γ e1 e2
 
+omit [Params] in
 /-- The constructor major of a matched generated case redex is never a
 function: its type is an application of the registered family head, which is
 rigid. -/
@@ -1093,6 +1094,7 @@ theorem Params.major_proof (hΓ : OnCtx Γ (env.IsType univs)) (hp : Pat p r)
       have hzero := (hsortT.uniqU henv hΓ hP').sort_inv henv hΓ
       exact hc.1 hzero
 
+omit [Params] in
 /-- Transport a constant-spine match along a pointwise relation of arguments,
 at arbitrary head levels. -/
 theorem _root_.Lean4Lean.Pattern.Matches.constVarN_transport {R : VExpr → VExpr → Prop} :
@@ -1168,6 +1170,7 @@ theorem _root_.Lean4Lean.Pattern.Check.OK.weak' (W : Ctx.Lift' ρ Γ Γ') {p : P
   simp only [← Pattern.RHS.lift'_apply]
   exact h.weak' henv.ordered W
 
+omit [Params] in
 theorem _root_.Lean4Lean.Pattern.Check.OK.congr_values {df : VExpr → VExpr → Prop}
     {p : Pattern} {ck : p.Check} {m m' : p.Path → VExpr} (h : ∀ a, m a = m' a)
     (H : ck.OK df ls m) : ck.OK df ls m' := (funext h : m = m') ▸ H

@@ -550,7 +550,7 @@ theorem VEnv.HasType.mkApps_of_defeqLiftClosedDomains_exact
         resultType) :=
     Hfn.defeqU_r henv Hctx Hwhole
   rcases VEnv.TypedApplicationSpine.liftClosedDomains
-      henv.ordered HfnCanonical Hargs with ⟨finalType, Hspine⟩
+      HfnCanonical Hargs with ⟨finalType, Hspine⟩
   rw [← Hspine.result_eq_applyForallType]
   exact Hspine.hasType
 

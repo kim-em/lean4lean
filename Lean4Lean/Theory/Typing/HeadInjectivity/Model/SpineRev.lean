@@ -129,7 +129,7 @@ theorem HTS.spineRev (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd ar
   | conv _ hAB ih =>
     obtain ⟨Th, As, hTh, hcl, hlen, hdom, hrev⟩ := ih he W tv
     refine ⟨Th, As, hTh, hcl, hlen, hdom, fun y hy => ?_⟩
-    obtain ⟨y₁, hy₁, l₁⟩ := (SD.sub henv hΔ hAB W tv).2 y hy
+    obtain ⟨y₁, hy₁, l₁⟩ := (SD.sub hAB W tv).2 y hy
     obtain ⟨keys, y₂, hk, hy₂, l₂⟩ := hrev y₁ hy₁
     exact ⟨keys, y₂, hk, hy₂, l₂.trans l₁⟩
 
