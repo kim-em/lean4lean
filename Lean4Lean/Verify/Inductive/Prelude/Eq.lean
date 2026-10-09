@@ -199,15 +199,13 @@ theorem VInductBlock.install_rule {base env' : VEnv} {block : VInductBlock}
 
 /-- The safe ordinary installation of the prelude's `Eq` declaration yields models
 that contain canonical `Eq` at every safety level (`QuotReadyEnvs`).
-The theorem assumes only that `Eq` is absent from the kernel environment before the
-declaration; canonical equality is obtained from the header translation and the block
-installation of this block. -/
+Canonical equality follows from the header translation and the certified block
+installation. -/
 theorem OrdinaryInstallation.extendSafePreludeEq
     {ves : VEnvs}
     (Hrun : OrdinaryInstallation c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
     (wf : ves.WF c.env)
-    (_hAbsent : c.env.constants.find? ``Eq = none)
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
     (Hshape : PreludeEqShape c.lparams nparams indTypes.toList isUnsafe) :
@@ -555,7 +553,6 @@ theorem OrdinaryRunResult.extendPreludeEq
     (Hrun : OrdinaryRunResult source sourceEnv
       nparams types outEnv)
     (wf : ves.WF source.env)
-    (hAbsent : source.env.constants.find? ``Eq = none)
     (hsafety : source.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
     (Hshape : PreludeEqShape source.lparams nparams types
@@ -578,14 +575,12 @@ theorem OrdinaryRunResult.extendPreludeEq
   have wf' : ves.WF c'.env := by
     rw [henv]
     exact wf
-  have hAbsent' : c'.env.constants.find? ``Eq = none := by
-    rwa [henv]
   have hcSafety' : c'.safety = .safe := hcSafety.trans hsafety
   have hcVEnv : Hc'.venv = ves.venv .safe := hvenv.trans hsource
   have Hshape' : PreludeEqShape c'.lparams nparams
       types.toArray.toList (source.safety != .safe) := by
     simpa [hlparams] using Hshape
-  rcases Hphases.extendSafePreludeEq wf' hAbsent' hcSafety' hcVEnv
+  rcases Hphases.extendSafePreludeEq wf' hcSafety' hcVEnv
       Hshape' with ⟨ves', wf', hEq', hle, Hspec, hcanonical⟩
   refine ⟨ves', wf', hEq', hle, ?_, hcanonical⟩
   simpa only [hlparams, hsource] using Hspec
@@ -597,7 +592,6 @@ theorem AddInductive.run.preludeEqInstalledWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)
     (wf : ves.WF c.env)
-    (hAbsent : c.env.constants.find? ``Eq = none)
     (hsafety : c.safety = .safe)
     (hsource : Hc.venv = ves.venv .safe)
     (Hclosed : MutualInductivesClosed c.env)
@@ -632,7 +626,7 @@ theorem AddInductive.run.preludeEqInstalledWF
     decide
   exact (AddInductive.run.sourceAlignedWF nparams numNested Hc
     Hclosed wf.envGhostFree wf.listedConstructorsPresent hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
-      Hrun.extendPreludeEq wf hAbsent hsafety hsource Hshape
+      Hrun.extendPreludeEq wf hsafety hsource Hshape
 
 /-- `addInductiveAfterLowering` on the exact prelude `Eq` declaration, after a lowering
 that produced no auxiliary families, yields well-formed models of the output that extend
@@ -643,7 +637,6 @@ theorem Environment.addInductiveAfterLowering.preludeEqExtensionWF
     (types : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
     (ves : VEnvs) (wf : ves.WF env)
-    (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe)
     (htypes : res.types = types)
     (haux : res.aux2nested.size = 0) :
@@ -685,7 +678,7 @@ theorem Environment.addInductiveAfterLowering.preludeEqExtensionWF
     exact PrimitiveNamesFresh.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
   have Hrun := AddInductive.run.preludeEqInstalledWF
-    (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf hAbsent
+    (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf
     (by rfl) hsource wf.inductivesClosed (by rfl) Hshape' Hinputs
   unfold Environment.addInductiveAfterLowering
   rw [haux]
@@ -726,7 +719,7 @@ theorem Environment.addInductive.preludeEqExtensionWF
   have Hcombined := Hsources.bind fun _ _ =>
     Hlowering.bind fun res Hres =>
       Environment.addInductiveAfterLowering.preludeEqExtensionWF env
-        lparams nparams types isUnsafe fuel res ves wf hAbsent Hshape
+        lparams nparams types isUnsafe fuel res ves wf Hshape
         Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
