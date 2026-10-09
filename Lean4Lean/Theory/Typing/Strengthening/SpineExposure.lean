@@ -1,0 +1,477 @@
+import Lean4Lean.Theory.Typing.Strengthening.Exposure
+
+/-! # Typing strengthening: spine exposure and the projection closure
+
+The projection analogue of `Exposure.lean` (`docs/inductives/STRENGTHENING_E_LOG.md`). -/
+
+namespace Lean4Lean.VEnv.StrengtheningSpineExposure
+open VExpr VEnv.StrengtheningTypingFront VEnv.StrengtheningReplay VEnv.StrengtheningExposure
+variable {env : VEnv} {U k : Nat} {Γ Γ' : List VExpr} {A B F T e f a x : VExpr}
+  {S : Name} {ls : List VLevel} {args : List VExpr}
+
+section
+open VEnv.Params
+variable [VEnv.Params]
+
+/-- A term typed at a sort or at a `Π`: the typing status of every node on the spine of a
+type. -/
+def TypeLike (Γ : List VExpr) (x : VExpr) : Prop :=
+  (∃ u, Params.env.HasType univs Γ x (.sort u)) ∨
+    ∃ A B, Params.env.HasType univs Γ x (.forallE A B)
+
+theorem TypeLike.app_inv (hΓ : OnCtx Γ (Params.env.IsType univs)) (H : TypeLike Γ (.app f a)) :
+    TypeLike Γ f := by
+  rcases H with ⟨u, h⟩ | ⟨A, B, h⟩
+  · obtain ⟨A, B, hf, _⟩ := h.app_inv henv.ordered hΓ
+    exact .inr ⟨A, B, hf⟩
+  · obtain ⟨A, B, hf, _⟩ := h.app_inv henv.ordered hΓ
+    exact .inr ⟨A, B, hf⟩
+
+/-- A type-like term is not typed at a structure type. -/
+theorem TypeLike.not_struct (hΓ : OnCtx Γ (Params.env.IsType univs)) (H : TypeLike Γ x)
+    (hi : Params.env.projections family info)
+    (hs : Params.env.HasType univs Γ x (mkApps (.const family ls) args)) : False := by
+  rcases H with ⟨u, h⟩ | ⟨A, B, h⟩
+  · exact type_not_structure hΓ h hi hs
+  · obtain ⟨w, hw⟩ := hs.isType henv.ordered hΓ
+    exact IsDefEqU.rigidApp_forallE_inv henv hΓ (henv.projectionRigid hi) hw (hs.uniqU henv hΓ h)
+
+/-- A parallel eta expansion into a constant spine comes from a constant spine, at every
+type-like node: `funEta` produces a lambda and `structEta` needs a structure-typed subject. -/
+theorem EtaPar.const_spine_inv_r (hΓ : OnCtx Γ (Params.env.IsType univs)) :
+    ∀ {args : List VExpr} {x : VExpr}, EtaPar Γ x (mkApps (.const S ls) args) → TypeLike Γ x →
+      ∃ args₀, x = mkApps (.const S ls) args₀ := by
+  intro args
+  induction args using List.snoc_induction with
+  | nil =>
+    intro x H hx
+    generalize he : mkApps (.const S ls) [] = r at H
+    cases H with
+    | const => cases he; exact ⟨[], rfl⟩
+    | structEta _ _ _ hi _ _ hs _ => exact (hx.not_struct hΓ hi hs).elim
+    | _ => cases he
+  | snoc args a ih =>
+    intro x H hx
+    generalize he : mkApps (.const S ls) (args ++ [a]) = r at H
+    rw [mkApps_snoc] at he
+    cases H with
+    | app hf ha =>
+      cases he
+      obtain ⟨args₀, rfl⟩ := ih hf (hx.app_inv hΓ)
+      exact ⟨args₀ ++ [_], (mkApps_snoc ..).symm⟩
+    | structEta _ _ _ hi _ _ hs _ => exact (hx.not_struct hΓ hi hs).elim
+    | _ => cases he
+
+/-- An eta chain from a type into a constant spine starts at a constant spine with the same
+head and levels. -/
+theorem EtaChain.const_spine_inv (hΓ : OnCtx Γ (Params.env.IsType univs))
+    (H : EtaChain Γ x (mkApps (.const S ls) args))
+    (hx : Params.env.HasType univs Γ x (.sort u)) :
+    ∃ args₀, x = mkApps (.const S ls) args₀ := by
+  generalize hr : mkApps (.const S ls) args = r at H
+  induction H generalizing args with
+  | rfl => exact ⟨_, hr.symm⟩
+  | tail hchain hstep ih =>
+    subst hr
+    obtain ⟨args₁, rfl⟩ :=
+      EtaPar.const_spine_inv_r hΓ hstep (.inl ⟨_, EtaChain.hasType hΓ hchain hx⟩)
+    exact ih rfl
+
+end
+
+/-- Existential spine exposure in reduction form: a type of `Γ`, inhabited in `Γ`, whose lift
+reduces above to a constant spine, reduces below to a spine with the same head and levels. -/
+def SpineExposureRedN {E : VEnv} (hE : E.WF) : Prop :=
+  ∀ ⦃U k Γ Γ' f F u S ls args⦄, Ctx.LiftN 1 k Γ Γ' → OnCtx Γ (E.IsType U) →
+    OnCtx Γ' (E.IsType U) → E.HasType U Γ f F → E.HasType U Γ F (.sort u) →
+    (letI := hE.params U; FullReduction Γ' (F.liftN 1 k) (mkApps (.const S ls) args)) →
+    ∃ args₀, letI := hE.params U; FullReduction Γ F (mkApps (.const S ls) args₀)
+
+/-- Reduction-form spine exposure from the replay obligation (`piExposureRed_of_etaReplay` with
+the spine inversion of eta chains in place of the `Π` inversion). -/
+theorem spineExposureRed_of_etaReplay (henv : env.WF)
+    (H : ∀ U, @EtaReplay (henv.params U)) : SpineExposureRedN henv := by
+  intro U k Γ Γ' f F u S ls args W hΓ hΓ' _ hF hr
+  letI := henv.params U
+  obtain ⟨F', hred, hchain⟩ := path_replay (H U) W hΓ hΓ' hF (FullReduction.upSteps hr)
+  have hF' : env.HasType U Γ' (F'.liftN 1 k) (.sort u) :=
+    (hred.hasType hΓ hF).weakN henv.ordered W
+  obtain ⟨args₁, hsp⟩ := EtaChain.const_spine_inv hΓ' hchain hF'
+  obtain ⟨args₀, rfl, -⟩ := liftN_eq_mkApps_const_inv hsp
+  exact ⟨args₀, hred⟩
+
+
+/-! ## Rigid spines under reduction
+
+A sort-typed spine `S a₁ … aₙ` of a rigid constant `S` reduces only inside its arguments, by
+eta expansion of its partial applications (`S a ↦ λ x. S a x`) and by beta steps undoing them.
+`EtaSpine` is the closure of these shapes; it is preserved by `FullStep` when `S` is a type
+former (so `structEta` never applies to a node), and a sort-typed `EtaSpine` reduces back to a
+syntactic spine by beta. -/
+
+/-- The constant `S` at levels `ls` is a type former: every application of it is typed at a
+`Π`-telescope ending in a sort. -/
+def TypeFormerHead (E : VEnv) (U : Nat) (S : Name) (ls : List VLevel) : Prop :=
+  ∀ ⦃Γ args T⦄, OnCtx Γ (E.IsType U) → E.HasType U Γ (mkApps (.const S ls) args) T →
+    ∃ ds w, E.IsDefEqU U Γ T (wrapForalls ds (.sort w))
+
+theorem mkApps_head_typed (henv : env.Ordered) (hΓ : OnCtx Γ (env.IsType U)) :
+    ∀ {args : List VExpr} {fn T : VExpr}, env.HasType U Γ (mkApps fn args) T →
+      ∃ T', env.HasType U Γ fn T'
+  | [], _, _, h => ⟨_, h⟩
+  | _ :: _, fn, _, h => by
+    obtain ⟨_, h⟩ := mkApps_head_typed henv hΓ (fn := .app fn _) h
+    obtain ⟨_, _, hf, _⟩ := h.app_inv henv hΓ
+    exact ⟨_, hf⟩
+
+theorem mkApps_append' (fn : VExpr) (l₁ l₂ : List VExpr) :
+    mkApps fn (l₁ ++ l₂) = mkApps (mkApps fn l₁) l₂ := by
+  simp [mkApps, List.foldl_append]
+
+theorem instOuter_wrapForalls_sort (w : VLevel) :
+    ∀ (as ds : List VExpr), ∃ ds', (wrapForalls ds (.sort w)).instOuter as = wrapForalls ds' (.sort w)
+  | [], ds => ⟨ds, rfl⟩
+  | a :: as, ds => by
+    rw [instOuter_cons, wrapForalls_inst]
+    exact instOuter_wrapForalls_sort w as _
+
+/-- A constant whose type is a `Π`-telescope ending in a sort is a type former. -/
+theorem TypeFormerHead.of_telescope (henv : env.WF) {D : List VExpr} {w : VLevel}
+    (hconst : env.HasType U [] (.const S ls) (wrapForalls D (.sort w))) :
+    TypeFormerHead env U S ls := by
+  intro Γ args T hΓ ht
+  have hc : env.HasType U Γ (.const S ls) (wrapForalls D (.sort w)) := hconst.weak0 henv.ordered
+  rcases Nat.lt_or_ge D.length args.length with hlt | hle
+  · exfalso
+    obtain ⟨args₁, args₂, rfl, hlen⟩ : ∃ l₁ l₂, args = l₁ ++ l₂ ∧ l₁.length = D.length :=
+      ⟨args.take D.length, args.drop D.length, (List.take_append_drop _ _).symm,
+        List.length_take_of_le (Nat.le_of_lt hlt)⟩
+    rw [mkApps_append'] at ht
+    have hfull := (HasType.mkApps_wrapForalls henv hΓ hc
+      (mkApps_head_typed henv.ordered hΓ ht |>.elim fun _ h => ⟨_, h⟩) hlen).2
+    rw [instOuter_sort] at hfull
+    cases args₂ with
+    | nil => simp [hlen] at hlt
+    | cons a rest =>
+      obtain ⟨_, happ⟩ := mkApps_head_typed henv.ordered hΓ (fn := .app _ a) ht
+      obtain ⟨A, B, hf, _⟩ := happ.app_inv henv.ordered hΓ
+      exact IsDefEqU.sort_forallE_inv henv hΓ (hfull.uniqU henv hΓ hf)
+  · have hsplit : wrapForalls D (.sort w) =
+        wrapForalls (D.take args.length) (wrapForalls (D.drop args.length) (.sort w)) := by
+      rw [← wrapForalls_append, List.take_append_drop]
+    rw [hsplit] at hc
+    have hlen : args.length = (D.take args.length).length := by
+      rw [List.length_take_of_le hle]
+    have h := (HasType.mkApps_wrapForalls henv hΓ hc ⟨_, ht⟩ hlen).2
+    obtain ⟨ds', hds'⟩ := instOuter_wrapForalls_sort w args (D.drop args.length)
+    rw [hds'] at h
+    exact ⟨_, _, ht.uniqU henv hΓ h⟩
+
+section
+open VEnv.Params
+variable [VEnv.Params]
+
+/-- The shapes a constant spine takes under reduction: the head, applications and lambdas
+(eta expansions and their beta contractions). The index is the number of nodes above the
+head; substitution and lifting preserve it. -/
+inductive EtaSpine (S : Name) (ls : List VLevel) : Nat → VExpr → Prop where
+  | head : EtaSpine S ls 0 (.const S ls)
+  | app {n : Nat} {g b : VExpr} : EtaSpine S ls n g → EtaSpine S ls (n + 1) (.app g b)
+  | lam {n : Nat} {D b : VExpr} : EtaSpine S ls n b → EtaSpine S ls (n + 1) (.lam D b)
+
+omit [VEnv.Params] in
+theorem EtaSpine.of_spine :
+    ∀ args : List VExpr, EtaSpine S ls args.length (mkApps (.const S ls) args) := by
+  intro args
+  induction args using List.snoc_induction with
+  | nil => exact .head
+  | snoc args a ih => rw [mkApps_snoc]; simpa using ih.app (b := a)
+
+omit [VEnv.Params] in
+theorem EtaSpine.inst : ∀ {n : Nat} {x : VExpr}, EtaSpine S ls n x → ∀ (a : VExpr) (k : Nat),
+    EtaSpine S ls n (x.inst a k)
+  | _, _, .head, _, _ => .head
+  | _, _, .app h, a, k => .app (h.inst a k)
+  | _, _, .lam h, a, k => .lam (h.inst a (k + 1))
+
+omit [VEnv.Params] in
+theorem EtaSpine.liftN : ∀ {n : Nat} {x : VExpr}, EtaSpine S ls n x → ∀ (m k : Nat),
+    EtaSpine S ls n (x.liftN m k)
+  | _, _, .head, _, _ => .head
+  | _, _, .app h, m, k => .app (h.liftN m k)
+  | _, _, .lam h, m, k => .lam (h.liftN m (k + 1))
+
+omit [VEnv.Params] in
+theorem EtaSpine.lift {n : Nat} (H : EtaSpine S ls n x) : EtaSpine S ls n x.lift :=
+  H.liftN 1 0
+
+omit [VEnv.Params] in
+theorem EtaSpine.head_cases {n : Nat} (H : EtaSpine S ls n x) :
+    x.getAppFnArgs.1 = .const S ls ∨ ∃ A b, x.getAppFnArgs.1 = .lam A b := by
+  induction H with
+  | head => exact .inl rfl
+  | app _ ih => rwa [case_spine_app]
+  | lam => exact .inr ⟨_, _, rfl⟩
+
+omit [VEnv.Params] in
+theorem EtaSpine.lam_inv {n : Nat} (H : EtaSpine S ls n (.lam A b)) : ∃ m, EtaSpine S ls m b := by
+  cases H with
+  | lam h => exact ⟨_, h⟩
+
+/-- Every node of an eta spine of a type former is typed at a `Π`-telescope ending in a
+sort. -/
+theorem EtaSpine.typeFormer (hS : TypeFormerHead Params.env univs S ls) :
+    ∀ {n : Nat} {x : VExpr} {Γ : List VExpr} {T : VExpr}, EtaSpine S ls n x →
+      OnCtx Γ (Params.env.IsType univs) → Params.env.HasType univs Γ x T →
+      ∃ ds w, Params.env.IsDefEqU univs Γ T (wrapForalls ds (.sort w))
+  | _, _, _, _, .head, hΓ, hx => hS hΓ (args := []) hx
+  | _, _, Γ, T, .app hf, hΓ, hx => by
+    obtain ⟨A, B, hf', ha⟩ := hx.app_inv henv.ordered hΓ
+    obtain ⟨ds, w, hd⟩ := EtaSpine.typeFormer hS hf hΓ hf'
+    cases ds with
+    | nil => exact (IsDefEqU.sort_forallE_inv henv hΓ hd.symm).elim
+    | cons d ds =>
+      obtain ⟨-, v, hB⟩ := hd.forallE_inv henv hΓ
+      change Params.env.IsDefEq univs (A :: Γ) B (wrapForalls ds (.sort w)) (.sort v) at hB
+      have hBa := hB.instN henv.ordered ha .zero
+      rw [wrapForalls_inst] at hBa
+      exact ⟨_, w, ((hf'.app ha).uniqU henv hΓ hx).symm.trans henv hΓ ⟨_, hBa⟩⟩
+  | _, _, Γ, T, .lam hb, hΓ, hx => by
+    obtain ⟨B, hPi, hb'⟩ := hx.lam_inv_forallE henv hΓ
+    obtain ⟨⟨u, hA⟩, _⟩ := hx.lam_inv henv.ordered hΓ
+    have hΓA : OnCtx (_ :: Γ) (Params.env.IsType univs) := ⟨hΓ, u, hA⟩
+    obtain ⟨ds, w, hd⟩ := EtaSpine.typeFormer hS hb hΓA hb'
+    obtain ⟨v, hBs⟩ := hb'.isType henv.ordered hΓA
+    refine ⟨_ :: ds, w, hPi.symm.trans henv hΓ ⟨_, IsDefEq.forallEDF hA (hd.of_l henv hΓA hBs)⟩⟩
+
+/-- No node of an eta spine of a type former is structure-typed. -/
+theorem EtaSpine.not_struct (hS : TypeFormerHead Params.env univs S ls) {n : Nat}
+    (hx : EtaSpine S ls n x) (hΓ : OnCtx Γ (Params.env.IsType univs))
+    (hi : Params.env.projections family info)
+    (hs : Params.env.HasType univs Γ x (mkApps (.const family levels) params)) : False := by
+  obtain ⟨ds, w, hd⟩ := hx.typeFormer hS hΓ hs
+  obtain ⟨u, hsort⟩ := hs.isType henv.ordered hΓ
+  cases ds with
+  | nil =>
+    have hsw := (hd.of_l henv hΓ hsort).hasType.2
+    exact henv.headInversion.sort_rigid hΓ (henv.projectionRigid hi)
+      (hd.symm.typeChain henv hΓ hsw)
+  | cons d ds =>
+    exact IsDefEqU.rigidApp_forallE_inv henv hΓ (henv.projectionRigid hi) hsort hd
+
+omit [VEnv.Params] in
+theorem const_eq_mkApps_const {c : Name} {ls : List VLevel} {name : Name} {levels : List VLevel}
+    {arguments : List VExpr} (h : VExpr.const c ls = mkApps (.const name levels) arguments) :
+    c = name ∧ ls = levels ∧ arguments = [] := by
+  have := congrArg VExpr.getAppFnArgs h
+  rw [getAppFnArgs_mkApps_const] at this
+  simp only [getAppFnArgs, getAppFnArgs.go, Prod.mk.injEq, VExpr.const.injEq] at this
+  exact ⟨this.1.1, this.1.2, this.2.symm⟩
+
+omit [VEnv.Params] in
+theorem app_head_eq_mkApps_const {f a : VExpr} {name : Name} {levels : List VLevel}
+    {arguments : List VExpr} (h : VExpr.app f a = mkApps (.const name levels) arguments) :
+    f.getAppFnArgs.1 = .const name levels := by
+  have := congrArg (fun e : VExpr => e.getAppFnArgs.1) h
+  rw [getAppFnArgs_mkApps_const, case_spine_app] at this
+  exact this
+
+omit [VEnv.Params] in
+theorem lam_ne_mkApps_const {A b : VExpr} {name : Name} {levels : List VLevel}
+    {arguments : List VExpr} (h : VExpr.lam A b = mkApps (.const name levels) arguments) : False := by
+  have := congrArg (fun e : VExpr => e.getAppFnArgs.1) h
+  rw [getAppFnArgs_mkApps_const] at this
+  simp [getAppFnArgs, getAppFnArgs.go] at this
+
+omit [VEnv.Params] in
+/-- The head of an eta spine, when a constant, is `S`. -/
+theorem EtaSpine.no_rigid_head {n : Nat}
+    (hx : EtaSpine S ls n x) {name : Name} {levels : List VLevel}
+    (hh : x.getAppFnArgs.1 = .const name levels) : name = S := by
+  rcases hx.head_cases with h | ⟨A, b, h⟩
+  · rw [h] at hh; cases hh; rfl
+  · rw [h] at hh; cases hh
+
+/-- `EtaSpine` is preserved by one full step. -/
+theorem EtaSpine.fullStep (hrig : Params.env.ConstHeadRigid S)
+    (hS : TypeFormerHead Params.env univs S ls) :
+    ∀ {n : Nat} {x : VExpr} {Γ : List VExpr} {y T : VExpr}, EtaSpine S ls n x →
+      OnCtx Γ (Params.env.IsType univs) → Params.env.HasType univs Γ x T → FullStep Γ x y →
+      ∃ m, EtaSpine S ls m y := by
+  intro n x Γ y T hx hΓ ht hstep
+  induction hx generalizing Γ y T with
+  | head =>
+    generalize he : (VExpr.const S ls) = src at hstep
+    cases hstep with
+    | core h =>
+      subst he
+      obtain ⟨args', rfl, -⟩ := ParRed.rigid_const_spine hrig (args := []) h
+      exact ⟨_, EtaSpine.of_spine args'⟩
+    | delta h =>
+      obtain ⟨rfl, -, -⟩ := const_eq_mkApps_const he
+      exact (h.not_rigid hrig).elim
+    | quotDelta h =>
+      obtain ⟨rfl, -, -⟩ := const_eq_mkApps_const he
+      exact (h.not_rigid hrig).elim
+    | structEta hi _ _ hs _ => subst he; exact (EtaSpine.not_struct hS .head hΓ hi hs).elim
+    | funEta _ => subst he; exact ⟨_, .lam (.app .head)⟩
+    | _ => cases he
+  | @app n f a hf ih =>
+    obtain ⟨A, B, hf', ha⟩ := ht.app_inv henv.ordered hΓ
+    generalize he : (VExpr.app f a) = src at hstep
+    cases hstep with
+    | core h =>
+      generalize he' : src = src' at h
+      cases h with
+      | schema hm =>
+        exfalso
+        have hh := congrArg (fun e : VExpr => e.getAppFnArgs.1) (he.trans he')
+        rw [InductiveSignature.CaseSchema.Application.head, case_spine_app] at hh
+        rcases hf.head_cases with h | ⟨_, _, h⟩ <;> rw [h] at hh <;> cases hh
+      | app hf₀ ha₀ =>
+        cases he.trans he'
+        obtain ⟨m, hm⟩ := ih hΓ hf' (.core hf₀)
+        exact ⟨_, .app hm⟩
+      | beta hb ha₀ =>
+        cases he.trans he'
+        obtain ⟨m, hm⟩ := ih hΓ hf' (.core (.lam .rfl hb))
+        obtain ⟨m', hm'⟩ := hm.lam_inv
+        exact ⟨_, hm'.inst _ _⟩
+      | extra hp hm _ _ =>
+        exfalso
+        subst he'; subst he
+        obtain ⟨name, hh⟩ := (Params.constHeaded hp).matches_head hm
+        have := hf.no_rigid_head (by rwa [case_spine_app] at hh)
+        subst this
+        exact Params.not_rigid_match hrig hp hm hh
+      | _ => cases he.trans he'
+    | delta h =>
+      exfalso
+      cases hf.no_rigid_head (app_head_eq_mkApps_const he)
+      exact h.not_rigid hrig
+    | quotDelta h =>
+      exfalso
+      cases hf.no_rigid_head (app_head_eq_mkApps_const he)
+      exact h.not_rigid hrig
+    | structEta hi _ _ hs _ => subst he; exact (EtaSpine.not_struct hS (.app hf) hΓ hi hs).elim
+    | funEta _ => subst he; exact ⟨_, .lam (.app (EtaSpine.app hf).lift)⟩
+    | app hf₀ _ =>
+      cases he
+      obtain ⟨m, hm⟩ := ih hΓ hf' hf₀
+      exact ⟨_, .app hm⟩
+    | _ => cases he
+  | @lam n A b hb ih =>
+    obtain ⟨⟨u, hA⟩, _, hb'⟩ := ht.lam_inv henv.ordered hΓ
+    have hΓA : OnCtx (A :: Γ) (Params.env.IsType univs) := ⟨hΓ, u, hA⟩
+    generalize he : (VExpr.lam A b) = src at hstep
+    cases hstep with
+    | core h =>
+      generalize he' : src = src' at h
+      cases h with
+      | schema hm =>
+        exfalso
+        have hh := congrArg (fun e : VExpr => e.getAppFnArgs.1) (he.trans he')
+        rw [InductiveSignature.CaseSchema.Application.head] at hh
+        cases hh
+      | lam _ hb₀ =>
+        cases he.trans he'
+        obtain ⟨m, hm⟩ := ih hΓA hb' (.core hb₀)
+        exact ⟨_, .lam hm⟩
+      | extra hp hm _ _ =>
+        exfalso
+        subst he'; subst he
+        obtain ⟨name, hh⟩ := (Params.constHeaded hp).matches_head hm
+        cases hh
+      | _ => cases he.trans he'
+    | delta h => exact (lam_ne_mkApps_const he).elim
+    | quotDelta h => exact (lam_ne_mkApps_const he).elim
+    | structEta hi _ _ hs _ => subst he; exact (EtaSpine.not_struct hS (.lam hb) hΓ hi hs).elim
+    | funEta _ => subst he; exact ⟨_, .lam (.app (EtaSpine.lam hb).lift)⟩
+    | lam _ hb₀ =>
+      cases he
+      obtain ⟨m, hm⟩ := ih hΓA hb' hb₀
+      exact ⟨_, .lam hm⟩
+    | _ => cases he
+
+theorem EtaSpine.fullReduction (hrig : Params.env.ConstHeadRigid S)
+    (hS : TypeFormerHead Params.env univs S ls) (hΓ : OnCtx Γ (Params.env.IsType univs)) {n : Nat}
+    (hx : EtaSpine S ls n x) (ht : Params.env.HasType univs Γ x T) (H : FullReduction Γ x y) :
+    ∃ m, EtaSpine S ls m y := by
+  induction H with
+  | rfl => exact ⟨_, hx⟩
+  | tail hr hs ih =>
+    obtain ⟨m, hm⟩ := ih
+    exact EtaSpine.fullStep hrig hS hm hΓ (FullReduction.hasType hΓ hr ht) hs
+
+theorem forall₂_refl_full : ∀ (bs : List VExpr), List.Forall₂ (FullReduction Γ) bs bs
+  | [] => .nil
+  | _ :: bs => .cons .rfl (forall₂_refl_full bs)
+
+/-- A sort-typed eta spine reduces to a syntactic spine, by beta. -/
+theorem EtaSpine.reduces_to_spine (hΓ : OnCtx Γ (Params.env.IsType univs)) :
+    ∀ (n : Nat) {x : VExpr} {bs : List VExpr} {u : VLevel}, EtaSpine S ls n x →
+      Params.env.HasType univs Γ (mkApps x bs) (.sort u) →
+      ∃ args', FullReduction Γ (mkApps x bs) (mkApps (.const S ls) args') := by
+  intro n
+  induction n with
+  | zero =>
+    intro x bs u hx _
+    cases hx with
+    | head => exact ⟨bs, .rfl⟩
+  | succ n ih =>
+    intro x bs u hx ht
+    cases hx with
+    | @app _ g b hf => exact ih (bs := b :: bs) hf ht
+    | @lam _ A b hb =>
+      cases bs with
+      | nil =>
+        obtain ⟨B, hPi, _⟩ := ht.lam_inv_forallE henv hΓ
+        exact (IsDefEqU.sort_forallE_inv henv hΓ hPi.symm).elim
+      | cons b₀ bs =>
+        have hred : FullReduction Γ (mkApps (.app (.lam A b) b₀) bs) (mkApps (b.inst b₀) bs) :=
+          FullReduction.mkApps (.tail .rfl (.core (.beta .rfl .rfl))) (forall₂_refl_full bs)
+        obtain ⟨args', h⟩ := ih (hb.inst b₀ 0) (hred.hasType hΓ ht)
+        exact ⟨args', hred.trans h⟩
+
+/-- Every reduct of a sort-typed rigid type-former spine reduces back to a spine with the same
+head and levels. -/
+theorem rigid_spine_reduct (hrig : Params.env.ConstHeadRigid S)
+    (hS : TypeFormerHead Params.env univs S ls) (hΓ : OnCtx Γ (Params.env.IsType univs))
+    (ht : Params.env.HasType univs Γ (mkApps (.const S ls) args) (.sort u))
+    (H : FullReduction Γ (mkApps (.const S ls) args) y) :
+    ∃ args', FullReduction Γ y (mkApps (.const S ls) args') := by
+  obtain ⟨m, hm⟩ := EtaSpine.fullReduction hrig hS hΓ (EtaSpine.of_spine args) ht H
+  exact EtaSpine.reduces_to_spine hΓ m (bs := []) hm (H.hasType hΓ ht)
+
+end
+
+/-- A type convertible to a rigid type-former spine reduces to a spine with the same head
+(canonical `Eq`, through Church-Rosser, the stability of rigid spines and spine exposure of
+normal equality). -/
+theorem spine_exposure_reduces {E : VEnv} (hE : E.WF) (hEq : E.HasCanonicalEq)
+    (hΓ : OnCtx Γ (E.IsType U)) (hT : E.HasType U Γ T (.sort u)) (hrig : E.Rigid S)
+    (hS : TypeFormerHead E U S ls) (H : E.IsDefEqU U Γ T (mkApps (.const S ls) args)) :
+    letI := hE.params U
+    ∃ ls' args', FullReduction Γ T (mkApps (.const S ls') args') := by
+  letI := hE.params U
+  have hd := H.of_l hE hΓ hT
+  obtain ⟨x, y, hx, hy, hn⟩ := hE.church_rosser hEq hΓ hd
+  have hsp : E.HasType U Γ (mkApps (.const S ls) args) (.sort u) := hd.hasType.2
+  obtain ⟨args', hy'⟩ := rigid_spine_reduct (constHeadRigid_iff.mpr hrig) hS hΓ hsp hy
+  obtain ⟨x', hx', hn'⟩ := hn.fullReduction hΓ hy'
+  have hxs : E.HasType U Γ x' (.sort u) := FullReduction.hasType hΓ (hx.trans hx') hT
+  obtain ⟨n, hn'⟩ := hn'
+  rcases NormalEqN.spine_expose hΓ .const n hn' .nil hxs with hp | ⟨h', targs', he, hr, -⟩ |
+      ⟨A, g, m, targs₁, B, -, hr, -, -, -⟩
+  · exfalso
+    have h2 := ((HasType.sort (hxs.sort_r hE.ordered hΓ)).uniqU hE hΓ hp).sort_inv hE hΓ
+    have h3 := congrFun h2 []
+    simp [VLevel.eval] at h3
+  · cases he with
+    | const _ => exact ⟨_, _, (hx.trans hx').trans hr⟩
+  · exfalso
+    have hl := FullReduction.hasType hΓ hr hxs
+    obtain ⟨⟨v, hA⟩, _, hg⟩ := hl.lam_inv hE.ordered hΓ
+    exact type_not_function hΓ hl (.lam hA hg)
+
+end Lean4Lean.VEnv.StrengtheningSpineExposure
