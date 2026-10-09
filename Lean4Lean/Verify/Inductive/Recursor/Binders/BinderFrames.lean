@@ -13,7 +13,7 @@ open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
-def MotiveTypes.empty (c : AddInductive.Context)
+theorem MotiveTypes.empty (c : AddInductive.Context)
     (elimLevel : Level) :
     MotiveTypes c #[] #[] elimLevel where
   size_eq := rfl
@@ -51,7 +51,7 @@ theorem RecInfoBinderTypes.flatMinorBinderType
     ⟨localIndex, hlocal, hlocalEq⟩
   subst info
   have hinfoBang : recInfos[owner]! = recInfos[owner] := by
-    simp [Array.getElem!_eq_getD, Array.getD, howner]
+    simp [howner]
   have Hrow : FVarArrayBinderTypes c recInfos[owner].minors
       H.minorTypes[owner]! := by
     simpa only [hinfoBang] using H.minors owner howner
@@ -172,11 +172,7 @@ theorem RecInfoBindings.outerNodup
   have hsub : ((Hparams.fvars ++ H.motives.fvars) ++
       H.flatMinors.fvars) <+ H.allFvars Hparams := by
     rw [H.allFvars_eq Hparams]
-    simpa [List.append_assoc] using
-      ((List.Sublist.refl Hparams.fvars).append
-        ((List.Sublist.refl H.motives.fvars).append
-          ((List.Sublist.refl H.flatMinors.fvars).append
-            (List.nil_sublist _))))
+    simp [List.append_assoc]
   exact hnoalias.sublist hsub
 
 /-- The outer binders selected by the generated recursor telescope occur in
@@ -215,7 +211,7 @@ def RecInfoBindings.major
 /-- Motive telescope shapes are stable under verified local-context
 extension because all selected index and major declarations keep their
 declaration data. -/
-def MotiveTypes.mono
+theorem MotiveTypes.mono
     (H : MotiveTypes c recInfos motiveTypes elimLevel)
     (Hbindings : RecInfoBindings c recInfos)
     (hle : BindingContextLE c c') :
@@ -238,7 +234,7 @@ def MotiveTypes.mono
 
 /-- Append one newly constructed motive telescope while weakening every
 earlier family shape into the final frame context. -/
-def MotiveTypes.push
+theorem MotiveTypes.push
     (H : MotiveTypes c recInfos motiveTypes elimLevel)
     (Hbindings : RecInfoBindings c recInfos)
     (hle : BindingContextLE c c')
@@ -365,7 +361,7 @@ theorem RecInfoBindings.selectionNoAlias
     let Hget := H.majors.get ownerIdx himap
     have heq : #[recInfos[ownerIdx]!.major] =
         #[(recInfos.map (·.major))[ownerIdx]] := by
-      simp [Array.getElem!_eq_getD, Array.getD, howner]
+      simp [howner]
     rw [FVarArrayIn.fvars_eq (H.major ownerIdx howner) Hget heq]
     exact FVarArrayIn.get_fvars_sublist _ _ _
   have hsub :
@@ -604,8 +600,7 @@ theorem RecInfoOuterOrder.empty
     Hparams.exprArrayFVarIds] at hcontext
   unfold RecInfoOuterOrder
   rw [hmotives, hminors]
-  simp only [List.append_nil, List.reverse_append, List.reverse_nil,
-    List.nil_append]
+  simp only [List.append_nil]
   rw [hcontext]
   exact (List.nil_sublist Hsuffix.ambientDecls.fvars).append
     (List.Sublist.refl Hparams.fvars.reverse)
@@ -1078,7 +1073,7 @@ theorem RecInfoBindings.pushFrame_allFvars_perm
   dsimp only
   rw [← Hindices.exprArrayFVarIds]
   simp only [RecInfoBindings.allFvars, Array.map_push, Array.flatMap_push,
-    Array.flatMap_append, ExprArrayFVarIds, Array.toList_push,
+    ExprArrayFVarIds, Array.toList_push,
     Array.toList_append, List.map_append, List.map_cons, List.map_nil,
     recursorFVarId]
   simp only [List.nil_append, List.append_assoc]

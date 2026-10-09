@@ -689,9 +689,9 @@ theorem MinorsMatchConstructors.addMinor
       intro motiveOwner
       by_cases hi : motiveOwner < recInfos.size
       · by_cases hdi : dIdx = motiveOwner <;>
-          simp [nextRecInfos, Array.getElem!_eq_getD, Array.getD, hi,
+          simp [nextRecInfos, hi,
             Array.getElem_modify, hdi]
-      · simp [nextRecInfos, Array.getElem!_eq_getD, Array.getD, hi]
+      · simp [nextRecInfos, hi]
     rcases AddInductive.getIIndices stats traversal.terminal with
       ⟨motiveOwner, indices⟩
     simp only
@@ -931,8 +931,7 @@ private theorem recInfoMinorIds_modify_eq
         rw [getElem!_pos (info :: infos) (j + 1) (by simpa using hj)] at h
         simpa using h
       have htail := recInfoMinorIds_flatMap_eq_nil infos htailRows
-      simp [List.modify, recInfoMinorIds, ExprArrayFVarIds, htail,
-        List.append_assoc]
+      simp [List.modify, recInfoMinorIds, ExprArrayFVarIds, htail]
     | succ i =>
       have hi' : i < infos.length := by simpa using hi
       have hlater' : ∀ j, i < j → j < infos.length →
@@ -956,14 +955,9 @@ theorem RecInfoBindings.addMinor_flatMinors_fvars
     (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo)
     (hlater : ∀ i, dIdx < i → i < recInfos.size →
       recInfos[i]!.minors.size = 0) :
-    let cMinor : AddInductive.Context := { cMinorTy with
-      ngen := cMinorTy.ngen.next
-      lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩
-        minorName minorTy minorBi }
     (H.addMinor dIdx hidx hle HcMinorTy minorName minorTy minorBi
       ).flatMinors.fvars = H.flatMinors.fvars ++
         [(⟨cMinorTy.ngen.curr⟩ : FVarId)] := by
-  dsimp only
   let minor := Expr.fvar ⟨cMinorTy.ngen.curr⟩
   let next := recInfos.modify dIdx fun info =>
     { info with minors := info.minors.push minor }
@@ -995,13 +989,8 @@ theorem RecInfoBindings.addMinor_motives_fvars
     (hle : BindingContextLE c cMinorTy)
     (HcMinorTy : BindingContextWF cMinorTy)
     (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo) :
-    let cMinor : AddInductive.Context := { cMinorTy with
-      ngen := cMinorTy.ngen.next
-      lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩
-        minorName minorTy minorBi }
     (H.addMinor dIdx hidx hle HcMinorTy minorName minorTy minorBi
       ).motives.fvars = H.motives.fvars := by
-  dsimp only
   rw [← (H.addMinor dIdx hidx hle HcMinorTy minorName minorTy
       minorBi).motives.exprArrayFVarIds,
     ← H.motives.exprArrayFVarIds]

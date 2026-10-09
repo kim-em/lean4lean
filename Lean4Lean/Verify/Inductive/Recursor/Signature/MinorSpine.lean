@@ -69,7 +69,7 @@ theorem RecursorConstruction.minorSourceReplay
   rw [hlocalIndex, hsource] at hselected
   obtain ⟨hctor, hctorEq⟩ := List.getElem?_eq_some_iff.mp hselected
   have hsourceBang : indTypes[owner]! = indTypes[owner] := by
-    simp [Array.getElem!_eq_getD, Array.getD, hsourceOwner]
+    simp [hsourceOwner]
   have hctor' : localIndex < indTypes[owner].ctors.length := by
     simpa only [hsourceBang] using hctor
   have habstractOwner : owner < decl.types.length := by
@@ -89,7 +89,7 @@ theorem RecursorConstruction.minorSourceReplay
     simpa only [hsourceBang] using hctorEq
   have hmem : S.constructor ∈ indTypes.toList.flatMap (·.ctors) := by
     rw [← hctorEq']
-    exact List.mem_flatMap.mpr ⟨indTypes[owner], by simpa using Array.getElem_mem hsourceOwner,
+    exact List.mem_flatMap.mpr ⟨indTypes[owner], by simp,
       List.getElem_mem hctor'⟩
   have hname : S.constructor.name =
       decl.ownedConstructors[recursorMinorOffset indTypes owner + localIndex].2.name := by

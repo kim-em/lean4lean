@@ -55,8 +55,8 @@ theorem AddInductive.declareInductiveTypes.primitiveHeadersClosedWF
       (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
     (AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe c).WF fun outEnv =>
-        ∃ decl, ∃ envTypes : VEnv,
-        ∃ Hheaders : PrimitiveHeaderEnvironment c stats decl nparams
+        ∃ decl, ∃ _envTypes : VEnv,
+        ∃ _Hheaders : PrimitiveHeaderEnvironment c stats decl nparams
           isUnsafe depth Hc.venv indTypes outEnv,
           MutualInductivesClosed outEnv := by
   let infos := AddInductive.inductiveTypeInfos stats nparams indTypes
@@ -223,11 +223,11 @@ def PrimitiveRunResult
     c'.allowPrimitive = source.allowPrimitive ∧
     c'.fuel = source.fuel ∧
     Hc'.venv = sourceEnv ∧
-    ∃ Hsemantic :
+    ∃ _Hsemantic :
       checkInductiveTypes.loopType.CheckedHeaders
         Hc'.venv c'.lparams nparams commonParams commonLevel
           types.toArray.toList,
-    ∃ Hshape : PrimitiveInductiveShape c'.lparams nparams
+    ∃ _Hshape : PrimitiveInductiveShape c'.lparams nparams
       types.toArray.toList (source.safety != .safe),
       PrimitiveInstallation c' stats nparams depth Hc'.venv
         types.toArray (source.safety != .safe) outEnv
@@ -273,8 +273,8 @@ theorem AddInductive.run.primitiveSourceAlignedWF
         (if c.safety != .safe then DefinitionSafety.unsafe else .safe) := by
       rw [hsafety]
       cases h : c.safety with
-      | «unsafe» => simp [h]
-      | safe => simp [h]
+      | «unsafe» => simp
+      | safe => simp
       | «partial» => exact (HnotPartial h).elim
     have Hshape' : PrimitiveInductiveShape c'.lparams nparams
         types.toArray.toList (c.safety != .safe) := by

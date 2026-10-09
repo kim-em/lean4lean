@@ -273,7 +273,7 @@ theorem TypedRecursiveCall.abstractedRecursor_eq
           source.abstractN H.generated.arguments_bound.fvars) := by
     simpa [indices, recursor, Function.comp_def] using hindicesInst
   rw [hindicesInst']
-  simp [Expr.instantiate1', hsize, recursor, indices]
+  simp [Expr.instantiate1', hsize]
 
 /-- Prefix invariant for rule generation retaining both exact syntax and the
 binding facts needed to translate every higher-order recursive result. -/
@@ -390,7 +390,7 @@ theorem TypedRecursiveCallsAfterHypotheses.toAbove
     exact ⟨originRoot, Rorigin, Hrecent.contextExtension,
       callDepth, S, hscope⟩
 
-def TypedRecursiveCalls.empty
+theorem TypedRecursiveCalls.empty
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     {root : AddInductive.Context} {recLparams : List Name}
@@ -403,7 +403,7 @@ def TypedRecursiveCalls.empty
   size := rfl
   entries _ h := by omega
 
-def RecursiveCallsPrefix.empty
+theorem RecursiveCallsPrefix.empty
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     (root : AddInductive.Context) (u : Array Expr) :

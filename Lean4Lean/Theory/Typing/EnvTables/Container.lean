@@ -12,7 +12,7 @@ syntax pins down the actual recursor, its family, and its parameter count.
 -/
 
 namespace Lean4Lean.EnvTables
-open VEnv InductiveSignature
+open _root_.Lean4Lean.EnvTables.VEnv InductiveSignature
 
 /-! ## Variables -/
 
@@ -386,7 +386,7 @@ theorem container_ctor {T : Tables} {env base : VEnv} {aux : List ContainerSpeci
         have hs := (CaseCompilationData.source_slot hdataX.toCaseCompilationData o0 h0).1
         rw [hs, CaseCompilationData.source_recursorName hdataX.toCaseCompilationData (List.getElem_mem h0)]
         simp only [hts, List.head?_cons, Option.map_some, Option.getD_some] at hF0
-        simp [o0, hts, hF0]
+        simp [hts, hF0]
       have hnd := hdataX.recursorEntries_nodup (key := default)
       simp only [RecursorData.compilationEntries] at hnd
       have heq : (RecursorData.ofInstance default

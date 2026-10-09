@@ -788,7 +788,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
   obtain ⟨ekeys, rfl⟩ := wrap_inj_len (by simp [hklen, hlen'', hleadlen]) e
   subst ekeys
   obtain ⟨lkeys', mk, ekl, hkeysL, hkM⟩ := List.forall₂_snoc_right hkeys
-  obtain ⟨rfl, emk⟩ := List.append_inj' ekl (by simp [hlen'', hleadlen])
+  obtain ⟨rfl, emk⟩ := List.append_inj' ekl (by simp)
   cases emk
   obtain ⟨hcmM, hKmcov⟩ := hkM
   cases hci.symm.trans hci''

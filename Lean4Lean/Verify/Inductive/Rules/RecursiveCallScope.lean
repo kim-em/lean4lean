@@ -260,7 +260,7 @@ theorem FVarCheckingScopeCore.abstractPrefix
   let scopePrefix := scope.take n
   let tail := scope.drop n
   have hscope : scopePrefix ++ tail = scope := by
-    simpa [scopePrefix, tail] using (List.take_append_drop n scope).symm
+    simp [scopePrefix, tail]
   have Hprefix := List.forall₂_take H.declarations n
   have hprefixFVars : VLCtx.fvars scopePrefix = scope.fvars.take n :=
     coreNamedDeclarations_fvars Hprefix
@@ -480,7 +480,7 @@ theorem MLCtxLamPrefix.extendFVarCheckingScopeCoreEmbedded
     · simp [htailDomains]
     · change narrowType :: tailScope.toCtx = _
       rw [htailContext]
-      simp [List.reverse_append, List.append_assoc]
+      simp [List.reverse_append]
     · change HtailScope.shift.consN 1 = Hbase.shift.consN (n + 1)
       rw [htailShift]
       simp [Lift.consN]
@@ -619,7 +619,7 @@ theorem
       A.typing.fieldParameterUp
     intro fv _
     rw [hfieldRev, A.typing.parameterSuffix.parameterDecls_fvars]
-    simp [parameterDecls]
+    simp
   obtain ⟨M, hMwf, hchkM, hnM, hagree, hdrop, -⟩ := A.typing.fieldCheck
   have hMwf' : M.WF A.typing.fieldRootContext.venv Us := by
     simpa only [Us, A.typing.fieldsRecent.venv_eq] using hMwf

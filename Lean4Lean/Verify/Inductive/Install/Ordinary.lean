@@ -48,7 +48,7 @@ theorem AddInductive.runWithStats.typingWF
     {hsourceSafety : isUnsafe = (c.safety != .safe)}
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
-      ∀ owner (howner : owner < indTypes.size),
+      ∀ owner (_howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
@@ -117,7 +117,7 @@ theorem AddInductive.runWithStats.closedWF
     {hsourceSafety : isUnsafe = (c.safety != .safe)}
     (hnotPartial : c.safety ≠ .partial)
     (hnprimRecursors : c.allowPrimitive = true →
-      ∀ owner (howner : owner < indTypes.size),
+      ∀ owner (_howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
@@ -149,7 +149,7 @@ structure PrimitiveNamesFresh
     ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
     ¬ Kernel.Environment.primitives.contains ctor.name
   freshRecursors : c.allowPrimitive = true →
-    ∀ owner (howner : owner < indTypes.size),
+    ∀ owner (_howner : owner < indTypes.size),
     ¬ Kernel.Environment.primitives.contains
       (Lean.mkRecName indTypes[owner]!.name)
 
@@ -168,7 +168,7 @@ def OrdinaryRunResult
     c'.allowPrimitive = source.allowPrimitive ∧
     c'.fuel = source.fuel ∧
     Hc'.venv = sourceEnv ∧
-    ∃ Hsemantic :
+    ∃ _Hsemantic :
       checkInductiveTypes.loopType.CheckedHeaders
         Hc'.venv c'.lparams nparams commonParams commonLevel
           types.toArray.toList,
@@ -233,8 +233,8 @@ theorem AddInductive.run.sourceAlignedWF
         (if c.safety != .safe then DefinitionSafety.unsafe else .safe) := by
       rw [hsafety]
       cases h : c.safety with
-      | «unsafe» => simp [h]
-      | safe => simp [h]
+      | «unsafe» => simp
+      | safe => simp
       | «partial» => exact (HnotPartial h).elim
     have hlparamsNodup : c'.lparams.Nodup := by
       rw [hlparams]

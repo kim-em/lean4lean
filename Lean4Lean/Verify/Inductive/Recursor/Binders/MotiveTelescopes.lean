@@ -801,21 +801,21 @@ structure RecInfoMotiveTelescopes
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (parameterCtx : List VExpr)
     (recInfos : Array AddInductive.RecInfo) (elimLevel : Level) : Prop where
-  telescope : ∀ target (htarget : target < recInfos.size),
+  telescope : ∀ target (_htarget : target < recInfos.size),
     MotiveAppliesAbove Rroot stats decl target recInfos[target]!
       elimLevel
-  motiveDecls : ∀ target (htarget : target < recInfos.size),
+  motiveDecls : ∀ target (_htarget : target < recInfos.size),
     ∃ S : MotiveDecl Rroot stats decl target
         recInfos[target]! elimLevel,
       VEnv.IsDefEqCtx Rroot.venv recLparams.length []
         S.canonical.params.reverse parameterCtx
-  canonical : ∀ target (htarget : target < recInfos.size),
+  canonical : ∀ target (_htarget : target < recInfos.size),
     ∃ C : ClosedMotiveTelescope Rroot.venv recLparams stats
         decl target recInfos[target]! elimLevel,
       VEnv.IsDefEqCtx Rroot.venv recLparams.length []
         C.params.reverse parameterCtx
 
-def RecInfoMotiveTelescopes.empty
+theorem RecInfoMotiveTelescopes.empty
     (Rroot : RecursorContextWF root recLparams)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (parameterCtx : List VExpr)
@@ -825,7 +825,7 @@ def RecInfoMotiveTelescopes.empty
   motiveDecls target htarget := by simp at htarget
   canonical target htarget := by simp at htarget
 
-def RecInfoMotiveTelescopes.mono
+theorem RecInfoMotiveTelescopes.mono
     (H : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
       elimLevel)
     (Hext : RecursorContextExtension Rroot Rcurrent) :
@@ -842,7 +842,7 @@ def RecInfoMotiveTelescopes.mono
     rw [Hext.venv_eq]
     exact H.canonical target htarget
 
-def RecInfoMotiveTelescopes.push
+theorem RecInfoMotiveTelescopes.push
     {root : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     (H : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
@@ -910,7 +910,7 @@ def RecInfoMotiveTelescopes.push
 The executable minor pass updates `RecInfo.minors` in place; this
 lemma keeps the motive-pass property available after
 every constructor. -/
-def RecInfoMotiveTelescopes.modifyMinors
+theorem RecInfoMotiveTelescopes.modifyMinors
     (H : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
       elimLevel)
     (owner : Nat) (f : Array Expr → Array Expr) :
@@ -959,18 +959,18 @@ structure RecInfoMotiveApplications
     (Rroot : RecursorContextWF root recLparams)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (recInfos : Array AddInductive.RecInfo) (elimLevel : Level) : Prop where
-  application : ∀ target (htarget : target < recInfos.size),
+  application : ∀ target (_htarget : target < recInfos.size),
     MotiveApplicationAbove Rroot stats decl target recInfos[target]!
       elimLevel
 
-def RecInfoMotiveApplications.empty
+theorem RecInfoMotiveApplications.empty
     (Rroot : RecursorContextWF root recLparams)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (elimLevel : Level) :
     RecInfoMotiveApplications Rroot stats decl #[] elimLevel where
   application target htarget := by simp at htarget
 
-def RecInfoMotiveTelescopes.applications
+theorem RecInfoMotiveTelescopes.applications
     (H : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
       elimLevel) :
     RecInfoMotiveApplications Rroot stats decl recInfos elimLevel where

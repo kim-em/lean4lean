@@ -67,8 +67,7 @@ theorem Expr.SameForallPrefix.takeForalls_of_trExprS
     | forallE _ _ hdR hbR =>
     have hdom := TrExprS.uniqueCtxEnv hΔ hdL hdR
     subst hdom
-    simp only [VExpr.takeForalls, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.some.injEq] at h
+    simp only [VExpr.takeForalls, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨⟨ds, r⟩, hr, hds⟩ := h
     obtain ⟨tail', htail'⟩ := ih (hΔ.cons .vlam) hbL hbR hr
     refine ⟨tail', ?_⟩

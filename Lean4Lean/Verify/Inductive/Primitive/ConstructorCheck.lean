@@ -434,7 +434,7 @@ theorem PrimitiveHeaderEnvironment.checkedConstructors
       apply TrExprS.const
       · simpa [Htarget.header.name] using htargetLookup
       · simp [hlparams]
-      · simp [htargetUvars, hlparams]
+      · simp [htargetUvars]
     have hfalseType : falseVal.type = .const target.name [] := by
       simpa [VExpr.bool, Htarget.header.name] using
         TrExprS.unique (by trivial) Hfalse.type hcanonical
@@ -510,7 +510,7 @@ theorem PrimitiveHeaderEnvironment.checkedConstructors
       apply TrExprS.const
       · simpa [Htarget.header.name] using htargetLookup
       · simp [hlparams]
-      · simp [htargetUvars, hlparams]
+      · simp [htargetUvars]
     have hzeroType : zeroVal.type = .const target.name [] := by
       simpa [VExpr.nat, Htarget.header.name] using
         TrExprS.unique (by trivial) Hzero.type hnatCanonical
@@ -532,7 +532,7 @@ theorem PrimitiveHeaderEnvironment.checkedConstructors
       · apply TrExprS.const
         · simpa [Htarget.header.name] using htargetLookup
         · simp [hlparams]
-        · simp [htargetUvars, hlparams]
+        · simp [htargetUvars]
     have hsuccType : succVal.type = .forallE .nat .nat :=
       TrExprS.unique (by trivial) Hsucc.type hsuccCanonical
     have htargetShape := H.headers.typeShapes target (by simp [hdeclTypes])

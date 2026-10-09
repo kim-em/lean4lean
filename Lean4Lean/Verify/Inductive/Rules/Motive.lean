@@ -341,7 +341,7 @@ theorem RecursorCheck.ownerSuffix_eq_expected
   rw [hlater, hinsLen]
   congr 2
   rw [← majorDomain_lift, VExpr.liftN'_liftN_hi, hlater]
-  simp [hA₀len, hsrcLen]
+  simp [hsrcLen]
 
 /-- Complete dependent alignment of the generated owner index/major suffix
 with the owner motive's declared domains: the two telescopes coincide. -/
@@ -492,7 +492,7 @@ theorem
       motiveDomains.reverse).reverse
   have hsuffixLength : suffix.reverse.length = expected.reverse.length := by
     have htotal := Hsuffix.length_eq
-    simp [outer, suffix, later, expected] at htotal ⊢
+    simp [suffix, later, expected] at htotal ⊢
     omega
   have hfieldCtx : OnCtx (fieldDomains.reverse ++ outer.reverse)
       (H.outVEnv.IsType Us.length) := by
@@ -1241,7 +1241,7 @@ theorem
           abstractForallContext
             (T.params ++ T.motives.take owner) [] := by
       simp [abstractForallContext, List.reverse_append, List.map_append,
-        List.map_take, List.append_assoc]
+        List.map_take]
     rw [htakeT] at HparameterWeak
     rw [← habstractShape, htakeT, htakeSource, ← hweakContext]
     exact HparameterWeak
@@ -1282,14 +1282,13 @@ theorem
     have hmotivesReverse : T.motives.reverse =
         (T.motives.drop owner).reverse ++
           (T.motives.take owner).reverse := by
-      simpa [List.reverse_append] using
-        congrArg List.reverse (List.take_append_drop owner T.motives).symm
+      simp
     have hsplit : (T.params ++ T.motives ++ T.minors).reverse =
         (T.minors.reverse ++ (T.motives.drop owner).reverse) ++
           (T.params ++ T.motives.take owner).reverse := by
       rw [List.reverse_append, List.reverse_append, hmotivesReverse,
         List.reverse_append]
-      simp [List.reverse_append, List.append_assoc]
+      simp [List.append_assoc]
     rw [hsplit] at HprefixCtx
     have Hsuffix := OnCtx.of_append HprefixCtx
     have hearlierToCtx :

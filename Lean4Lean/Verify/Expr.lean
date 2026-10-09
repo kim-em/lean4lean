@@ -1464,7 +1464,7 @@ theorem abstractN_eqv {e₁ e₂ : Expr} :
   all_goals
     cases e₂ <;> try change false = _ → _; rintro ⟨⟩
     simp only [abstractN, eqv']
-    intros; simp_all [eqv']
+    intros; simp_all
   all_goals split <;> simp_all [eqv']
 
 end Expr

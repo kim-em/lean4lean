@@ -110,7 +110,7 @@ theorem propElim_wf (henv : env.WF) (H : RecursorRegistered env data)
   have htarget : gp.targetLevel = .zero := by
     show (data.target).inst (packed.set k .zero) = .zero
     rw [hk]
-    simp [VLevel.inst, List.getD_eq_getElem?_getD, List.getElem?_set_self, hlen, hkU]
+    simp [VLevel.inst, List.getD_eq_getElem?_getD, hlen, hkU]
   have hhead : env.HasType U [] (.const data.name (packed.set k .zero))
       (gp.recursorType data.owner) := by
     have := HasType.const (env := env) (Γ := []) F.recursor hls0 (by simp [hlen])

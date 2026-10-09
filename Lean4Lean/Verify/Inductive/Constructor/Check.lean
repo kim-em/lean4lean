@@ -44,7 +44,7 @@ inductive FormationInstallation (safety : DefinitionSafety)
     FormationInstallation safety sourceEnv sourceVEnv
       headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv
 
-def FormationInstallation.sf_mono
+theorem FormationInstallation.sf_mono
     (hsafety : safety ≤ checkSafety)
     (H : FormationInstallation checkSafety sourceEnv sourceVEnv
       headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv) :

@@ -26,7 +26,7 @@ equations whose family view is the recorded one (`EnvTables/CaseMajors.lean`).
 -/
 
 namespace Lean4Lean.EnvTables
-open VEnv InductiveSignature
+open _root_.Lean4Lean.EnvTables.VEnv InductiveSignature
 
 variable {env : VEnv}
 

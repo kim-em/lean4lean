@@ -47,8 +47,7 @@ theorem InductionHypothesisType.replayTrace_eq_template
   subst call
   simp [InductionHypothesisType.replayTrace,
     recCallTemplateShape,
-    O.arguments_bound.toFVarArrayIn.exprArrayFVarIds,
-    Array.getElem!_eq_getD, Array.getD, howner]
+    O.arguments_bound.toFVarArrayIn.exprArrayFVarIds, howner]
 
 /-- The rule builder from templates is a transparent read of the current
 local context followed by a pure map.  This is the executable boundary used
@@ -98,7 +97,7 @@ theorem TypedCallTemplates.retainedGeneratedCalls
       (calls.map fun call =>
         call.instantiate indTypes stats motives minors lvls)[i]! =
           calls[i]!.instantiate indTypes stats motives minors lvls := by
-    simp [Array.getElem!_eq_getD, Array.getD, hi, hiCalls]
+    simp [hiCalls]
   rw [hbuilt]
   rw [show fields[i] = fields[i]! from
     (getElem!_pos fields i hi).symm]

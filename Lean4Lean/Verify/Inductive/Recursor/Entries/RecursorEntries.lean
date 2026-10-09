@@ -415,17 +415,17 @@ theorem RecursorBinderGroups.residual_eq_concreteRecursorResult
     intro hmem
     exact parts.motives_later motiveFVars[ownerIdx]
       (List.getElem_mem hownerMotive) motiveFVars[ownerIdx]
-      (by simpa [minorFVars, indexFVars, majorFVars, hmem]) rfl
+      (by simp [majorFVars, hmem]) rfl
   have hmotiveIndices : motiveFVars[ownerIdx] ∉ indexFVars := by
     intro hmem
     exact parts.motives_later motiveFVars[ownerIdx]
       (List.getElem_mem hownerMotive) motiveFVars[ownerIdx]
-      (by simpa [minorFVars, indexFVars, majorFVars, hmem]) rfl
+      (by simp [indexFVars, hmem]) rfl
   have hmotiveMinors : motiveFVars[ownerIdx] ∉ minorFVars := by
     intro hmem
     exact parts.motives_later motiveFVars[ownerIdx]
       (List.getElem_mem hownerMotive) motiveFVars[ownerIdx]
-      (by simpa [minorFVars, indexFVars, majorFVars, hmem]) rfl
+      (by simp [minorFVars, hmem]) rfl
   have hindicesMajor : ∀ fv ∈ indexFVars, fv ∉ majorFVars := by
     intro fv hfv hmem
     exact parts.indices_major fv hfv fv hmem rfl
@@ -1053,7 +1053,7 @@ structure TrRecursorTypes
     (indTypes : Array InductiveType)
     (recInfos : Array AddInductive.RecInfo) : Prop where
   notPartial : c.safety ≠ .partial
-  typeAt : ∀ owner (howner : owner < indTypes.size),
+  typeAt : ∀ owner (_howner : owner < indTypes.size),
     ∃ type : VExpr,
       TrExprS env (AddInductive.getRecLevelParams elimLevel lparams) []
         (AddInductive.declareRecursors.recursorType stats recInfos c.lctx

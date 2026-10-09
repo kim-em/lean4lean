@@ -1159,7 +1159,7 @@ theorem LowerNextStep.preservesTypeName
     by_cases hji : j = i
     · subst j
       have hset : finalType = target := by
-        simp [finalType, Array.getElem_setIfInBounds, hjLowered]
+        simp [finalType]
       rw [hset, Hlowered.name]
       have hsource : state.newTypes[i] = type := by
         simpa using htypeEq
@@ -1224,7 +1224,7 @@ theorem LowerNextStep.getElem_selected
       simpa [Array.size_set!] using hiLowered
     refine ⟨target, loweredState, Hlowered, rfl, hiNext, ?_⟩
     change (loweredState.newTypes.set! i target)[i] = target
-    simp [Array.getElem_setIfInBounds, hiLowered]
+    simp
 
 theorem LowerNextStep.pendingNewTypesClosed
     (H : LowerNextStep env params nparams i state out)
@@ -1278,7 +1278,7 @@ theorem ElimNestedInductive.lowerNext.translationPending
         state.newTypes[i] env state hparams hclosures Henv
         (Hstate i (Nat.le_refl _) hidx) Hstate) ?_
     intro target loweredState Htarget
-    simp only [modify, StateT.modifyGet, pure, StateT.pure, ReaderT.pure,
+    simp only [modify, pure, StateT.pure, ReaderT.pure,
       bind, StateT.bind, ReaderT.bind]
     have HnextPending : PendingNewTypesClosed (i + 1)
         { loweredState with
@@ -1473,7 +1473,7 @@ private theorem loweringQueueLoop_refinesClosed
     rcases Hnext with ⟨Htranslation, HpendingNext⟩
     cases Htranslation with
     | done hbound =>
-      simp only [pure, ReaderT.pure, StateT.pure]
+      simp only [pure]
       exact Except.WF.pure ⟨.done hbound, Hcache⟩
     | step hidx Hlowered =>
       rename_i target loweredState
@@ -2024,7 +2024,7 @@ theorem ElimNestedInductive.run.translationClosed
       have hmember : state.newTypes[j] ∈ first :: rest := by
         have hmemState : state.newTypes[j] ∈ state.newTypes :=
           Array.getElem_mem hjState
-        simpa [hinitial] using hmemState
+        simp [hinitial]
       exact Hsources.constructorsClosed hmember
     have Hcache : NestedAuxFVarsIn (· ∈ lctx.fvars) paramsState := by
       intro nested name hentry

@@ -166,7 +166,7 @@ theorem AtomicAddConstants.addEliminators
       (hwf.mono VEnv.addEliminators_le)
       (by rw [VEnv.addEliminators_addConst, hadd]; rfl) hdelta ih
 
-def AtomicAddConstants.sf_mono
+theorem AtomicAddConstants.sf_mono
     (hsafety : safety ≤ checkSafety)
     (H : AtomicAddConstants checkSafety env venv entries outEnv outVEnv) :
     AtomicAddConstants safety env venv entries outEnv outVEnv := by
@@ -850,7 +850,7 @@ theorem AtomicAddConstants.ofConstructorTypes
 
 /-- Forget the per-step details only after the complete abstract batch has
 been identified.  This certificate still makes no validity claim. -/
-def AtomicAddConstants.toConstantsInstallation
+theorem AtomicAddConstants.toConstantsInstallation
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
     (hvalues : entries.map Prod.snd = constants) :
     PrimitiveConstantsInstallation venv outVEnv constants where

@@ -413,7 +413,7 @@ private theorem RestoredInductiveStep.unsafeFreshExtensionAt
     simpa using htargetEq
   have htargetMem : target ∈ result.types.toArray.toList := by
     rw [← htargetArrayEq]
-    simpa using Array.getElem_mem hresultArray
+    simp
   have Halign := Hstep.inductInfoAlignmentAt Hlower Hc Hprod Hsource
     Hmetadata Hsources Harity Howners hempty familyIdx hfamily hwf
   let header : ConstantInfo := .inductInfo Hstep.restored.header.newInfo

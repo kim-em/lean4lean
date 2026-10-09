@@ -166,7 +166,7 @@ theorem checkConstructors.loopCtor.parameterTelescopeWF
     (hparams : stats.params.size = decl.nparams)
     (hbound : i ≤ decl.nparams)
     (Hsegment : ParameterSegment stats 0 i original source)
-    (Hscope : ∀ h : i < stats.params.size,
+    (Hscope : ∀ _h : i < stats.params.size,
       checkInductiveTypes.loopType.ReusedParameterScope Hsuffix i source)
     (hscopeEq : ∀ h : i < stats.params.size,
       scope = (Hscope h).older)
@@ -208,7 +208,7 @@ theorem checkConstructors.loopCtor.parameterTelescopeWF
           obtain ⟨hb₀, hb₁, paramTy₀, hget₀, hparamTy₀, _hparamType₀⟩ :=
             Hcurrent.scopedTyping histats
           have hparamAt : stats.params[i]? = some stats.params[i]! := by
-            simp [Array.getElem!_eq_getD, histats]
+            simp [histats]
           have hj₀ : depth + (stats.params.size - i) ≤ Hc.mlctx.length := by
             rw [Hsuffix.mlctx_length]; omega
           have hj₁ : depth + (stats.params.size - (i + 1)) ≤ Hc.mlctx.length := by
@@ -479,12 +479,12 @@ theorem _root_.Lean4Lean.FVarsIn.instantiateLevelParams
         (.param name)).hasMVar' = false := by
     intro name
     cases hidx : levelParams.idxOf? name with
-    | none => simp [hidx, Lean.Level.hasMVar']
+    | none => simp [Lean.Level.hasMVar']
     | some i =>
       cases hget : levels[i]? with
-      | none => simp [hidx, hget, Lean.Level.hasMVar']
+      | none => simp [hget, Lean.Level.hasMVar']
       | some level =>
-        simp only [hidx, Option.bind_some, hget, Option.getD_some]
+        simp only [Option.bind_some, hget, Option.getD_some]
         have hi : i < levels.length := by
           by_contra hnot
           have hnone := List.getElem?_eq_none (Nat.le_of_not_gt hnot)
@@ -510,7 +510,7 @@ theorem _root_.Lean4Lean.FVarsIn.mkAppRange_zero
     apply Hargs arg
     apply Array.mem_toList_iff.mp
     exact List.mem_of_mem_take harg
-  · simpa using (List.take_append_drop n args.toList).symm
+  · simp
   · rfl
   · simp [List.length_take, Nat.min_eq_left (by simpa using hn)]
 
@@ -1254,14 +1254,14 @@ structure ConstructorParamPrefixRow
   spines : ∀ i, i < done → (hi : i < ctors.length) →
     ∃ k, Expr.ForallSpine ctors[i].type k
 
-def ConstructorParamPrefixRow.empty
+theorem ConstructorParamPrefixRow.empty
     (stats : AddInductive.InductiveStats) (ctors : List Constructor) :
     ConstructorParamPrefixRow stats ctors 0 where
   covered := Nat.zero_le _
   prefixes _ hi := by omega
   spines _ hi := by omega
 
-def ConstructorParamPrefixRow.push
+theorem ConstructorParamPrefixRow.push
     (H : ConstructorParamPrefixRow stats ctors done)
     (hi : done < ctors.length)
     (Hprefix : ParameterPrefix stats 0 ctors[done].type tail)
@@ -1289,14 +1289,14 @@ structure ConstructorParamPrefixRows
     ConstructorParamPrefixRow stats indTypes[i].ctors
       indTypes[i].ctors.length
 
-def ConstructorParamPrefixRows.empty
+theorem ConstructorParamPrefixRows.empty
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) :
     ConstructorParamPrefixRows stats indTypes 0 where
   covered := Nat.zero_le _
   rows _ hi := by omega
 
-def ConstructorParamPrefixRows.push
+theorem ConstructorParamPrefixRows.push
     (H : ConstructorParamPrefixRows stats indTypes done)
     (hi : done < indTypes.size)
     (Hrow : ConstructorParamPrefixRow stats indTypes[done].ctors
@@ -1324,7 +1324,7 @@ structure ConstructorParameterPrefixes
       (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length),
     ∃ k, Expr.ForallSpine indTypes[familyIdx].ctors[ctorIdx].type k
 
-def ConstructorParamPrefixRows.complete
+theorem ConstructorParamPrefixRows.complete
     (H : ConstructorParamPrefixRows stats indTypes indTypes.size) :
     ConstructorParameterPrefixes stats indTypes where
   replay familyIdx hfamily ctorIdx hctor :=
@@ -1374,7 +1374,7 @@ structure ConstructorTailPrefixRow
   tails : ∀ i, i < done → (hi : i < ctors.length) →
     CheckedConstructorTailAt env Us scope stats decl target ctors[i] classes[i]!
 
-def ConstructorTailPrefixRow.empty
+theorem ConstructorTailPrefixRow.empty
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (target : VInductiveType) (ctors : List Constructor) :
@@ -1383,7 +1383,7 @@ def ConstructorTailPrefixRow.empty
   classes_length := rfl
   tails _ hi := by omega
 
-def ConstructorTailPrefixRow.push
+theorem ConstructorTailPrefixRow.push
     (H : ConstructorTailPrefixRow env Us scope stats decl target ctors classes done)
     (hi : done < ctors.length)
     (Hreplay : CheckedConstructorTailAt env Us scope stats decl target
@@ -1415,7 +1415,7 @@ structure ConstructorTailPrefixRows
     ConstructorTailPrefixRow env Us scope stats decl decl.types[i]
       indTypes[i].ctors classes[i]! indTypes[i].ctors.length
 
-def ConstructorTailPrefixRows.empty
+theorem ConstructorTailPrefixRows.empty
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (indTypes : Array InductiveType)
@@ -1426,7 +1426,7 @@ def ConstructorTailPrefixRows.empty
   classes_length := rfl
   rows _ hi := by omega
 
-def ConstructorTailPrefixRows.push
+theorem ConstructorTailPrefixRows.push
     (H : ConstructorTailPrefixRows env Us scope stats decl indTypes classes done)
     (hi : done < indTypes.size)
     (Hrow : ConstructorTailPrefixRow env Us scope stats decl
@@ -1461,7 +1461,7 @@ structure ConstructorTails
     CheckedConstructorTailAt env Us scope stats decl
       decl.types[familyIdx] indTypes[familyIdx].ctors[ctorIdx] classes[familyIdx]![ctorIdx]!
 
-def ConstructorTailPrefixRows.complete
+theorem ConstructorTailPrefixRows.complete
     (H : ConstructorTailPrefixRows env Us scope stats decl indTypes classes
       indTypes.size) :
     ConstructorTails env Us scope stats decl indTypes classes where

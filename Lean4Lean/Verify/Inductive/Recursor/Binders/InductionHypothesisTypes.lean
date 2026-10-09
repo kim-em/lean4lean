@@ -263,8 +263,7 @@ theorem InductionHypothesisType.outerAbstractedField_eq_bvar
   apply Array.ext
   · simp
   · intro j hjLeft hjRight
-    simp only [Array.getElem_map, List.getElem_toArray,
-      List.getElem_map, List.getElem_ofFn]
+    simp only [Array.getElem_map, List.getElem_toArray, List.getElem_ofFn]
     apply Expr.abstractList_bvar_lt
     have hj : j < O.arguments_bound.fvars.length := by
       simpa [InductionHypothesisType.localIndices] using hjRight
@@ -344,7 +343,7 @@ structure MinorInductionHypothesisTypes
     fv ∈ ExprArrayFVarIds stats.params ++
         ExprArrayFVarIds (recInfos.map (·.motive)) →
       fv ∉ ExprArrayFVarIds hypotheses
-  entry : ∀ j (hj : j < hypotheses.size),
+  entry : ∀ j (_hj : j < hypotheses.size),
     ∃ root sourceType,
       BindingContextLE fieldRoot root ∧
       Nonempty (InductionHypothesisType
@@ -522,12 +521,12 @@ structure RecInfoBinderTypes (c : AddInductive.Context)
   minorTypes_size : minorTypes.size = recInfos.size
   motives : FVarArrayBinderTypes c (recInfos.map (·.motive)) motiveTypes
   majors : FVarArrayBinderTypes c (recInfos.map (·.major)) majorTypes
-  indices : ∀ i (hi : i < recInfos.size),
+  indices : ∀ i (_hi : i < recInfos.size),
     FVarArrayBinderTypes c recInfos[i]!.indices indexTypes[i]!
-  minors : ∀ i (hi : i < recInfos.size),
+  minors : ∀ i (_hi : i < recInfos.size),
     FVarArrayBinderTypes c recInfos[i]!.minors minorTypes[i]!
-  minorShapes : ∀ i (hi : i < recInfos.size) j
-    (hj : j < minorTypes[i]!.size),
+  minorShapes : ∀ i (_hi : i < recInfos.size) j
+    (_hj : j < minorTypes[i]!.size),
     MinorPremiseType
 
 /-- The recursive-call templates recorded in the minor pass, matched with the
@@ -541,7 +540,7 @@ structure CallTemplatesMatch
     (allFields : Array Expr)
     (calls : Array AddInductive.RecCallTemplate) : Prop where
   size_eq : calls.size = hypotheses.size
-  entry : ∀ j (hj : j < hypotheses.size),
+  entry : ∀ j (_hj : j < hypotheses.size),
     ∃ originRoot sourceType,
       ∃ (O : InductionHypothesisType origins.stats origins.recInfos
         originRoot fields[j]! sourceType),
@@ -565,7 +564,7 @@ structure CallTemplatesMatch
   up-set of the constructor fields (`allFields`) and common parameters in
   it.  These are what a per-call `whnf` fact needs along the
   `LoopUArgsRun`. -/
-  rooted : ∀ j (hj : j < hypotheses.size),
+  rooted : ∀ j (_hj : j < hypotheses.size),
     ∃ originRoot sourceType,
       ∃ (recLparams : List Name)
         (Rorigin : RecursorContextWF originRoot recLparams)
@@ -616,7 +615,7 @@ structure RuleTemplatesMatch
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
     (H : RecInfoBinderTypes c recInfos) : Prop where
-  rows_size : ∀ owner (howner : owner < recInfos.size),
+  rows_size : ∀ owner (_howner : owner < recInfos.size),
     recInfos[owner]!.ruleTemplates.size = H.minorTypes[owner]!.size
   entry : ∀ owner (howner : owner < recInfos.size)
     localIndex (hlocal : localIndex < H.minorTypes[owner]!.size),
@@ -641,18 +640,18 @@ structure MajorPremiseTypes (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo) (majorTypes : Array Expr)
     (ok : Name → Bool) : Prop where
   size_eq : majorTypes.size = recInfos.size
-  shape : ∀ i (hi : i < recInfos.size),
+  shape : ∀ i (_hi : i < recInfos.size),
     majorTypes[i]! =
       ((mkAppN (mkAppN stats.indConsts[i]! stats.params)
         recInfos[i]!.indices).consumeTypeAnnotationsVerified ok)
 
-def MajorPremiseTypes.empty (stats : AddInductive.InductiveStats) (ok : Name → Bool) :
+theorem MajorPremiseTypes.empty (stats : AddInductive.InductiveStats) (ok : Name → Bool) :
     MajorPremiseTypes stats #[] #[] ok where
   size_eq := rfl
   shape i hi := by simp at hi
 
 /-- Append one family frame to the positional major-domain shapes. -/
-def MajorPremiseTypes.push
+theorem MajorPremiseTypes.push
     (H : MajorPremiseTypes stats recInfos majorTypes ok)
     (info : AddInductive.RecInfo) (majorType : Expr)
     (hnew : majorType =
@@ -731,7 +730,7 @@ structure MotiveTypes (c : AddInductive.Context)
     (recInfos : Array AddInductive.RecInfo) (motiveTypes : Array Expr)
     (elimLevel : Level) : Prop where
   size_eq : motiveTypes.size = recInfos.size
-  shape : ∀ i (hi : i < recInfos.size),
+  shape : ∀ i (_hi : i < recInfos.size),
     motiveTypes[i]! =
       c.lctx.mkForall recInfos[i]!.indices
         (c.lctx.mkForall #[recInfos[i]!.major] (.sort elimLevel))
