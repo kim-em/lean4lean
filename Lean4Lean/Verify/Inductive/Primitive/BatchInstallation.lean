@@ -80,33 +80,13 @@ def LocalContextWF.withEnv (H : LocalContextWF c)
   kernelFresh := H.kernelFresh
   check := H.check.mono hle
 
-/-- Restore the ordinary checker context exactly at an atomic completion
-point.  Callers must provide the global facts that are deliberately absent
-from a partial primitive batch. -/
+/-- Restore the ordinary checker context exactly at an atomic completion point, given the
+checking invariant there. -/
 def LocalContextWF.toContextWF (H : LocalContextWF c)
-    (hprimitives : H.venv.HasPrimitives)
-    (hsafe : forall {n ci}, c.env.find? n = some ci ->
-      Kernel.Environment.primitives.contains n ->
-      ci.safety = .safe ∧ ci.levelParams = [])
-    (howners : ConstructorOwnersPresent c.env)
-    (hlisted : ListedConstructorsCoherent c.env)
-    (hregistry : ProjectionRegistryCoherent c.safety c.env.constants H.venv)
-    (hrecursors : RecursorEnvCoherent c.safety c.env.constants H.venv)
-    (hquot : c.env.quotInit = true → QuotEnvCoherent c.env.constants H.venv) :
+    (hvalid : CheckingEnv.Valid c.safety c.env H.venv) :
     ContextWF c where
   venv := H.venv
-  checking := {
-    tr := H.checking
-    hasPrimitives := hprimitives
-    safePrimitives := by
-      intro n ci hfind hprimitive
-      exact hsafe hfind hprimitive
-    ctorTelescopes := H.ctorTelescopes
-    constructorOwners := howners
-    listedConstructors := hlisted
-    projectionRegistry := hregistry
-    recursors := hrecursors
-    quot := hquot }
+  checking := hvalid
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
@@ -898,25 +878,6 @@ theorem AtomicAddConstants.listedConstructorsOfDeclaration
     rw [hctorEq] at hentryEq
     cases hentryEq
 
-/-- A complete atomic batch regains `ContextWF` in one step.  The three
-global premises are intentionally stated only for the final environment. -/
-def AtomicAddConstants.completeContext
-    (source : LocalContextWF c)
-    (H : AtomicAddConstants c.safety c.env source.venv entries outEnv outVEnv)
-    (hprimitives : outVEnv.HasPrimitives)
-    (hsafe : forall {n ci}, outEnv.find? n = some ci ->
-      Kernel.Environment.primitives.contains n ->
-      ci.safety = .safe ∧ ci.levelParams = [])
-    (howners : ConstructorOwnersPresent outEnv)
-    (hlisted : ListedConstructorsCoherent outEnv)
-    (hregistry : ProjectionRegistryCoherent c.safety outEnv.constants outVEnv)
-    (hrecursors : RecursorEnvCoherent c.safety outEnv.constants outVEnv)
-    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv)
-    (htels : CtorTelescopes c.safety outEnv outVEnv) :
-    ContextWF { c with env := outEnv } :=
-  (source.withEnv (H.checking source.checking) H.le htels).toContextWF
-    hprimitives hsafe howners hlisted hregistry hrecursors hquot
-
 /-- Header result for the primitive branch.  It mirrors the ordinary
 `HeaderEnvironment`, except that its checking context (`LocalContextWF`) and installation
 (`AtomicAddConstants`) do not claim `HasPrimitives`. -/
@@ -983,9 +944,16 @@ structure PrimitiveConstructorEnvironment
   safeEntries : ∀ entry ∈ H.entries ++ entries,
     Kernel.Environment.primitives.contains entry.1.name →
     entry.1.safety = .safe ∧ entry.1.levelParams = []
-  context : ContextWF { c with env := outEnv }
+  /-- The checking context over the constructor environment.  The full checking invariant
+  is only restored once the declaration's case eliminators and projections are registered
+  (`PrimitiveConstructorCheck.projectedChecking`). -/
+  context : LocalContextWF { c with env := outEnv }
   contextVEnv : context.venv = venvCtors
   contextMLCtx : context.mlctx = H.context.mlctx
+  validCore : CheckingEnv.ValidCore c.safety outEnv venvCtors
+  owners : ConstructorOwnersPresent outEnv
+  equationHeads : EquationHeadsCoherent outEnv.constants venvCtors
+  quot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants venvCtors
 
 /-- The primitive constructor check: the same semantic data needed by recursor
 generation as the ordinary constructor check, with the atomic installation

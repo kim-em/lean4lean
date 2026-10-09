@@ -379,16 +379,13 @@ def whnfFVar (e : Expr) (cheapProj : Bool) : RecM Expr := do
 /-- Reduce a projection whose structure argument has already been reduced to a constructor
 application.
 
-The constructor at the head of the reduced structure must be the unique constructor of
-`structName`; this is redundant on well-typed input (see `divergences.md`). As in
-`type_checker::reduce_proj_core`, the selected argument need only be present. -/
+As in `type_checker::reduce_proj_core`, the head must be a constructor of `structName`, and the
+selected argument need only be present. -/
 def reduceProjCoreCont (structName : Name) (idx : Nat) (c : Expr) : RecM (Option Expr) :=
   c.withApp fun mk args => do
   let .const mkC _ := mk | return none
   let env ← getEnv
   let .ctorInfo mkInfo ← env.get mkC | return none
-  let some (.inductInfo structInfo) := env.find? structName | return none
-  unless structInfo.ctors == [mkC] do return none
   unless mkInfo.induct == structName do return none
   return args[mkInfo.numParams + idx]?
 

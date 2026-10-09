@@ -40,7 +40,7 @@ theorem NestedInstalledRun.inductiveExtension
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) decl lparams nparams
       isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WF sourceProdEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed sourceProdEnv fuel nparams
@@ -64,10 +64,10 @@ theorem NestedInstalledRun.inductiveExtension
     simpa only [E.lowered_eq] using E.assembly.checked
   cases isUnsafe with
   | false =>
-      exact E.safeInductiveExtension wf htels Hlower' Hmetadata
+      exact E.safeInductiveExtension wf Hlower' Hmetadata
         Hsources hempty hconstructors htypesH hctorOrigin
   | true =>
-      exact E.unsafeInductiveExtension wf htels Hlower' Hmetadata
+      exact E.unsafeInductiveExtension wf Hlower' Hmetadata
         Hsources hempty hconstructors htypesH hctorOrigin
 
 /-- Inductive-extension refinement for the nested post-lowering branch.  The
@@ -78,7 +78,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : Lean4Lean.ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WF env)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hlower : NestedLoweringOutputClosed env fuel.inductiveFuel nparams
       sourceTypes
@@ -90,7 +90,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
           isUnsafe) := by
   let Hc' : ContextWF
       (nestedAddInductiveContext env lparams isUnsafe false fuel) :=
-    ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams false fuel htels
+    ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams false fuel
   have hctx : Hc'.mlctx.vlctx = [] := rfl
   have Hc'_venv : Hc'.venv =
       ves.venv (if isUnsafe then .unsafe else .safe) := rfl
@@ -127,7 +127,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
     Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
       env lparams nparams sourceTypes isUnsafe false fuel res
       Hc' wf.inductivesClosed wf.envGhostFree wf.constructorOwners
-      wf.inductiveConstructorsCoherent.present hctx
+      wf.listedConstructorsPresent hctx
       hnonempty (inductiveSafety_notPartial isUnsafe)
       Hinputs Hsources rfl Hlower hnested
   exact Hrun.mono fun outEnv Hout => by
@@ -140,14 +140,11 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv := by
       simpa only [hsource] using V
-    rcases V'.assemblyOfRun wf Hsources hnested htels with ⟨⟨C, hproduction⟩⟩
+    rcases V'.assemblyOfRun wf Hsources hnested with ⟨⟨C, hproduction⟩⟩
     have Hvalid : CheckingEnv.Valid
         (if isUnsafe then .unsafe else .safe) env
           (ves.venv (if isUnsafe then .unsafe else .safe)) :=
-      (wf.tr (safety := if isUnsafe then .unsafe else .safe)).toCheckingValid
-        (wf.hasPrimitives (safety := if isUnsafe then .unsafe else .safe))
-        wf.safePrimitives wf.constructorOwners wf.inductiveConstructorsCoherent.listed
-        wf.projectionRegistryCoherent ((htels _))
+      wf.toCheckingValid (if isUnsafe then .unsafe else .safe)
     let E' : NestedInstalledRun res env sourceTypes
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv := {
@@ -215,7 +212,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
       have h := V'.sourceCore.core.typesAdded
       rw [V'.sourceCoreDecl_eq] at h
       exact h
-    exact E'.inductiveExtension wf htels Hsources HlowerInitialClosed rfl
+    exact E'.inductiveExtension wf Hsources HlowerInitialClosed rfl
       hconstructors htypesH
       (V'.restoredCtorOrigin Hsources wf.constructorOwners wf.envGhostFree)
 

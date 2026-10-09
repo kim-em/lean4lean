@@ -86,9 +86,8 @@ namespace VerifyInductive
 /-- Turn an abstract `VEnv.AddInduct` obtained from nested restoration into the
 concrete `AddInduct`. Source lookup preservation, alignment of the kernel and
 abstract environments, and delta conservativity are consequences of the
-restoration folds. The caller supplies the family lookups
-(`InductInfosFromDecl`) and the recursor alignment (`NewRecursorsAligned`) for
-the same source and target. -/
+restoration folds. The caller supplies the recursor alignment (`NewRecursorsAligned`) for the same
+source and target. -/
 theorem NestedRestorationFolds.addInductConcrete
     (H : NestedRestorationFolds result loweredEnv sourceProdEnv
       auxRec allIndNames types auxRecNames out)
@@ -96,16 +95,14 @@ theorem NestedRestorationFolds.addInductConcrete
     (Hchecking : CheckingEnv safety out.2 targetVEnv)
     (Hprovenance : NewRecursorsAligned safety
       sourceProdEnv.constants sourceVEnv out.2.constants targetVEnv)
-    (hsourceWF : sourceProdEnv.constants.WF)
-    (Horigins : InductInfosFromDecl sourceProdEnv.constants
-      out.2.constants decl) :
+    (hsourceWF : sourceProdEnv.constants.WF) :
     AddInduct safety sourceProdEnv.constants sourceVEnv decl
       out.2.constants targetVEnv := by
   rcases H.freshExtensionNondelta hsourceWF with
     ⟨entries, Hfresh, hnondelta⟩
   cases Habstract with
   | intro Hdecl Hcompile Hblock Helim Hinstall =>
-      apply AddInduct.intro _ Hdecl Hcompile Hblock Hinstall Horigins
+      apply AddInduct.intro _ Hdecl Hcompile Hblock Hinstall
       · intro name ci hfind
         exact Hfresh.preservesSourceMapFind hsourceWF hfind
       · intro _HsourceAligned

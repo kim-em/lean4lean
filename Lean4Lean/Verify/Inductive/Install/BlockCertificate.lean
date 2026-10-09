@@ -365,8 +365,6 @@ theorem BlockCertificate.addInduct
       recursors rules outEnv outVEnv)
     (hdecl : decl.WF venv)
     (hcompile : decl.CompilesTo venv H.block)
-    (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
-      decl)
     (hprovenance : NewRecursorsAligned .unsafe prodEnv.constants
       venv outEnv.constants H.installedVEnv)
     (hsourceAligned : Aligned checkSafety prodEnv.constants venv)
@@ -374,7 +372,6 @@ theorem BlockCertificate.addInduct
     AddInduct checkSafety prodEnv.constants venv decl outEnv.constants
       H.installedVEnv := by
   apply AddInduct.intro H.block hdecl hcompile H.wf H.install
-  · exact horigins
   · intro name ci hfind
     have hfindEnv : prodEnv.find? name = some ci := by
       rw [Lean.Kernel.Environment.find?,
@@ -403,8 +400,6 @@ theorem BlockCertificate.rebaseAddInductSafe
     (hbase : base <= largerBase)
     (hdecl : decl.WF base)
     (hcompile : decl.CompilesTo base H.block)
-    (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
-      decl)
     (hprovenance : NewRecursorsAligned .unsafe prodEnv.constants
       base outEnv.constants H.installedVEnv)
     (Hreplay : VInductBlock.EliminatorsReplay largerBase decl H.block) :
@@ -436,7 +431,7 @@ theorem BlockCertificate.rebaseAddInductSafe
       outEnv.constants
         (largerOutBase.addDefEqRules rules) := by
     simpa [BlockCertificate.installedVEnv, hprojections] using
-      Hlarger.addInduct hdeclLarger hcompileLarger horigins hprovenanceLarger Hvalid.tr.aligned
+      Hlarger.addInduct hdeclLarger hcompileLarger hprovenanceLarger Hvalid.tr.aligned
         helimLarger
   exact ⟨largerOutBase, Hlarger, hadd,
     VEnv.addDefEqRules_mono houtBase, hprojections, heliminators⟩
@@ -498,77 +493,98 @@ theorem BlockCertificate.rebaseAddInduct
       VEnv.AddInduct.intro hdeclLarger hcompileLarger Hlarger.wf helimLarger Hlarger.install
   · exact VEnv.addDefEqRules_mono houtBase
 
-/-- A batch whose kernel entries are all tagged unsafe supplies the
-exact hidden-header certificate required by the safety-indexed extension. -/
-theorem BlockCertificate.newFamiliesUnsafe
-    (H : BlockCertificate .unsafe prodEnv unsafeBase types ctors recursors
-      rules outEnv outBase)
+/-- Every new constant of a certified block installation carries the batch's `isUnsafe`. -/
+theorem BlockCertificate.newUnsafe
+    (H : BlockCertificate checkSafety prodEnv base types ctors recursors rules outEnv outBase)
     (hwf : prodEnv.constants.WF)
-    (hunsafe : ∀ entry ∈ types ++ ctors ++ recursors,
-      entry.1.safety = .unsafe) :
-    NewFamiliesUnsafe prodEnv outEnv := by
-  intro familyName familyInfo hfamily hfresh
-  rcases H.installation.atomic.entryOrigin hwf hfamily with hold | hnew
-  · rw [hfresh] at hold
-    contradiction
-  · rcases hnew with ⟨entry, hentry, _hname, hinfo⟩
-    have hsafety : (ConstantInfo.inductInfo familyInfo).safety =
-        DefinitionSafety.unsafe := by
-      rw [hinfo]
-      exact hunsafe entry hentry
-    cases h : familyInfo.isUnsafe
-    · have heq : DefinitionSafety.safe = DefinitionSafety.unsafe := by
-        simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
-          ConstantInfo.isPartial, h] using hsafety
-      contradiction
-    · rfl
+    (hb : ∀ e ∈ types ++ ctors ++ recursors, e.1.isUnsafe = b)
+    (hfind : outEnv.find? n = some ci) (hnone : prodEnv.find? n = none) : ci.isUnsafe = b := by
+  rcases H.installation.atomic.entryOrigin hwf hfind with hold | ⟨e, he, -, rfl⟩
+  · rw [hold] at hnone; cases hnone
+  · exact hb e he
 
-/-- Constructor semantics for an unchanged observer of an unsafe block.
-Every visible base family is transported through the installation;
-a genuinely new family is unsafe and hence cannot be visible to a partial or
-safe observer. -/
-theorem BlockCertificate.hiddenUnsafeConstructorTyping
-    (H : BlockCertificate .unsafe prodEnv unsafeBase types ctors recursors
-      rules outEnv outBase)
-    (hwf : prodEnv.constants.WF)
-    (Hsource : ConstructorParameterAlignment
-      observer prodEnv observerBase)
-    (hobserver : observer ≠ .unsafe)
-    (Hhidden : NewFamiliesUnsafe prodEnv outEnv) :
-    ConstructorParameterAlignment observer outEnv observerBase := by
-  intro familyName familyInfo hfamily hvisible i hi
-  let Hinstall := H.installation.atomic
-  rcases Hinstall.entryOrigin hwf hfamily with hold | hnew
-  · rcases Hsource familyName familyInfo hold hvisible i hi with ⟨C⟩
-    exact ⟨C.rebaseKernel
-      (Hinstall.preservesSourceFind hwf C.lookup) VEnv.LE.rfl⟩
-  · rcases hnew with ⟨_entry, _hentry, _hname, _hinfo⟩
-    cases hold : prodEnv.find? familyName with
-    | some oldInfo =>
-      have hpreserved := Hinstall.preservesSourceFind hwf hold
-      rw [hfamily] at hpreserved
-      cases hpreserved
-      rcases Hsource familyName familyInfo hold hvisible i hi with ⟨C⟩
-      exact ⟨C.rebaseKernel
-        (Hinstall.preservesSourceFind hwf C.lookup) VEnv.LE.rfl⟩
-    | none =>
-      have hunsafe := Hhidden familyName familyInfo hfamily hold
-      have hobserverUnsafe : observer ≤ DefinitionSafety.unsafe := by
-        simpa [hunsafe] using hvisible
-      have heq : observer = DefinitionSafety.unsafe :=
-        DefinitionSafety.le_antisymm hobserverUnsafe
-          DefinitionSafety.unsafe_le
-      exact False.elim (hobserver heq)
+/-- Every entry of a block certified at `.safe` is safe. -/
+theorem BlockCertificate.entriesSafe
+    (H : BlockCertificate .safe prodEnv base types ctors recursors rules outEnv outBase) :
+    ∀ e ∈ types ++ ctors ++ recursors, e.1.isUnsafe = false := by
+  rintro ⟨info, value⟩ he
+  have hs := H.installation.atomic.entrySafety he
+  cases h : info.isUnsafe
+  · rfl
+  · simp [ConstantInfo.safety, h] at hs
+    exact absurd hs (by decide)
+
+/-- The declaration of a certified block has the `isUnsafe` of its new headers. -/
+theorem BlockCertificate.declUnsafe {decl : VInductDecl}
+    (H : BlockCertificate checkSafety prodEnv base types ctors recursors rules outEnv outBase)
+    (hwf : prodEnv.constants.WF) (houtWF : outEnv.constants.WF)
+    (hb : ∀ e ∈ types ++ ctors ++ recursors, e.1.isUnsafe = b)
+    (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants decl)
+    (hcover : ∀ T ∈ decl.types,
+      ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧ prodEnv.find? T.name = none)
+    (hnonempty : decl.types ≠ []) : decl.isUnsafe = b := by
+  exact horigins.declUnsafe hwf houtWF hcover hnonempty fun hv hnone => by
+    simpa [ConstantInfo.isUnsafe] using H.newUnsafe hwf hb hv hnone
+
+/-- The block invariant at one observer after the installation of a certified block: the
+source blocks, together with the complete descriptor of the new block
+(`InstalledBlocks.addInduct`). -/
+theorem BlockCertificate.installedBlocks {decl : VInductDecl} {venvH : VEnv}
+    (H : BlockCertificate checkSafety prodEnv base types ctors recursors rules outEnv outBase)
+    (Hsource : InstalledBlocks safety prodEnv venv .complete)
+    (hwf : prodEnv.constants.WF) (hchk' : CheckingEnv safety outEnv venv')
+    (hle : venv ≤ venv')
+    (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants decl)
+    (hcover : ∀ T ∈ decl.types,
+      ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧ prodEnv.find? T.name = none)
+    (hclosed : MutualInductivesClosed outEnv)
+    (howners : ConstructorOwnersPresent outEnv)
+    (hb : ∀ e ∈ types ++ ctors ++ recursors, e.1.isUnsafe = decl.isUnsafe)
+    (hprovenance : NewRecursorsAligned .unsafe prodEnv.constants b₁ outEnv.constants b₂)
+    (hadd : safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
+      AddInduct safety prodEnv.constants venv decl outEnv.constants venv')
+    (hhidden : ¬ safety ≤ (if decl.isUnsafe then .unsafe else .safe) → venv' = venv)
+    (hparams : safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
+      ConstructorParameterAlignment safety outEnv venv')
+    (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      prodEnv.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt venvH ci))
+    (hH : safety ≤ (if decl.isUnsafe then .unsafe else .safe) → venvH ≤ venv') :
+    InstalledBlocks safety outEnv venv' .complete := by
+  have houtWF : outEnv.constants.WF := hchk'.map_wf
+  refine Hsource.addInduct hwf hchk' (H.installation.atomic.preservesSourceFind hwf) hle
+    horigins hcover hclosed howners ?_ hadd hhidden hparams ?_ ?_
+  · intro n r hf hnone
+    have hfMap : outEnv.constants.find? n = some (.recInfo r) := by
+      rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at hf
+    rcases hprovenance.recursor hfMap with hold | hnew
+    · rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, hold] at hnone; cases hnone
+    · obtain ⟨-, -, info, hmajor⟩ := hnew DefinitionSafety.unsafe_le
+      exact ⟨info, by rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]⟩
+  · intro hvis n c hf hnone
+    rcases hctorOrigin hf with hold | ⟨-, htel⟩
+    · rw [hold] at hnone; cases hnone
+    · exact htel.mono (hH hvis)
+  · intro n r hf hnone hrvis
+    have hrU : r.isUnsafe = decl.isUnsafe := by
+      simpa [ConstantInfo.isUnsafe] using H.newUnsafe hwf hb hf hnone
+    have hvis : safety ≤ (if decl.isUnsafe then .unsafe else .safe) := by
+      simpa [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, hrU] using hrvis
+    have hfMap : outEnv.constants.find? n = some (.recInfo r) := by
+      rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at hf
+    rcases (hadd hvis).newRecursorsAligned.recursor hfMap with hold | hnew
+    · rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, hold] at hnone; cases hnone
+    · obtain ⟨hcore, hk, -⟩ := hnew hrvis
+      exact ⟨hcore, hk⟩
 
 /-- Lift one unsafe block installation to the three safety-indexed abstract
-environments.  The partial and safe translations normally come from
-ignoring the newly installed unsafe kernel constants; every other field
-is derived from the block certificate and the source `VEnvs.WFCore`. -/
+environments.  The partial and safe translations come from ignoring the newly
+installed unsafe kernel constants. -/
 theorem BlockCertificate.extendUnsafeExact
     {ves : VEnvs}
     (H : BlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
       recursors rules outEnv outVEnv)
-    (wf : ves.WFCore prodEnv)
+    (wf : ves.WF prodEnv)
     (htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
       H.installedVEnv)
     (htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
@@ -578,42 +594,20 @@ theorem BlockCertificate.extendUnsafeExact
     (hsafePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
       Kernel.Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
-    (hclosed : MutualInductivesClosed outEnv)
-    (hconstructorOwners : ConstructorOwnersPresent outEnv)
-    (hconstructorSemantics :
-      ConstructorParameterAlignment .unsafe outEnv
-        H.installedVEnv)
-    (hinductiveProvenance : ∀ safety,
-      InductFamiliesInstalled safety outEnv.constants
+    (hblocks : ∀ safety, InstalledBlocks safety outEnv
         (match safety with
         | .unsafe => H.installedVEnv
         | .partial => ves.venv .partial
-        | .safe => ves.venv .safe))
-    (hheadersUnsafe : NewFamiliesUnsafe prodEnv outEnv) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
+        | .safe => ves.venv .safe) .complete) :
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       ves'.venv .unsafe = H.installedVEnv := by
-  apply Lean4Lean.VEnvs.WFCore.extendUnsafeExact wf
+  apply Lean4Lean.VEnvs.WF.extendUnsafeExact wf
     H.installedVEnv
     htrUnsafe htrPartial htrSafe
   · exact H.hasPrimitives wf.hasPrimitives
   · exact hsafePrimitives
-  · exact hclosed
-  · exact hconstructorOwners
-  · intro safety
-    cases safety with
-    | «unsafe» => exact hconstructorSemantics
-    | «partial» =>
-      exact H.hiddenUnsafeConstructorTyping
-        (wf.tr (safety := .unsafe)).map_wf
-        (wf.constructorParameterAlignment (safety := .partial)) (by decide)
-        hheadersUnsafe
-    | safe =>
-      exact H.hiddenUnsafeConstructorTyping
-        (wf.tr (safety := .unsafe)).map_wf
-        (wf.constructorParameterAlignment (safety := .safe)) (by decide)
-        hheadersUnsafe
-  · exact hinductiveProvenance
+  · exact hblocks
   · exact VInductBlock.install_le H.install
 
 /-- Reconstruct constructor semantics for one replay of a safe block.  Base
@@ -675,7 +669,7 @@ theorem BlockCertificate.extendSafeExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : BlockCertificate .safe prodEnv (ves.venv .safe) types ctors
       recursors rules outEnv outBase)
-    (wf : ves.WFCore prodEnv) (htels : ∀ safety, CtorTelescopes safety prodEnv (ves.venv safety))
+    (wf : ves.WF prodEnv)
     (hdecl : decl.WF (ves.venv .safe))
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
     (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
@@ -687,26 +681,31 @@ theorem BlockCertificate.extendSafeExact
     (hconstructorSemantics :
       ConstructorParameterAlignment .safe outEnv
         H.installedVEnv)
-    (Hreplay : ∀ safety, VInductBlock.EliminatorsReplay (ves.venv safety) decl H.block) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
+    (Hreplay : ∀ safety, VInductBlock.EliminatorsReplay (ves.venv safety) decl H.block)
+    (hcover : ∀ T ∈ decl.types,
+      ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧ prodEnv.find? T.name = none)
+    {isUnsafe : Bool} {venvH : VEnv}
+    (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      prodEnv.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt venvH ci))
+    (hH : venvH ≤ H.installedVEnv) :
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) ∧
       H.installedVEnv ≤ ves'.venv .safe := by
   have valid (safety : DefinitionSafety) :
       CheckingEnv.Valid safety prodEnv (ves.venv safety) :=
-    (wf.tr (safety := safety)).toCheckingValid
-      (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-      wf.constructorOwners wf.inductiveConstructorsCoherent.listed wf.projectionRegistryCoherent ((htels _))
+    wf.toCheckingValid (safety)
   rcases H.rebaseAddInductSafe (valid .unsafe)
-      (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins hprovenance
+      (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile hprovenance
       (Hreplay .unsafe) with
     ⟨unsafeBase, Hunsafe, HunsafeAdd, hunsafeLE, hunsafeProj, hunsafeElim⟩
   rcases H.rebaseAddInductSafe (valid .partial)
-      (wf.mono DefinitionSafety.le_safe) hdecl hcompile horigins hprovenance
+      (wf.mono DefinitionSafety.le_safe) hdecl hcompile hprovenance
       (Hreplay .partial) with
     ⟨partialBase, Hpartial, HpartialAdd, hpartialLE, hpartialProj, hpartialElim⟩
   rcases H.rebaseAddInductSafe (valid .safe) VEnv.LE.rfl
-      hdecl hcompile horigins hprovenance (Hreplay .safe) with
+      hdecl hcompile hprovenance (Hreplay .safe) with
     ⟨safeBase, Hsafe, HsafeAdd, hsafeLE, hsafeProj, hsafeElim⟩
   let pre : DefinitionSafety → VEnv
     | .unsafe => unsafeBase
@@ -774,8 +773,25 @@ theorem BlockCertificate.extendSafeExact
         (cert safety).install
     exact VInductBlock.install_mono (wf.mono hle)
       hi' hi
+  have hwf : prodEnv.constants.WF := (wf.tr (safety := .safe)).map_wf
+  have hdeclSafe : decl.isUnsafe = false :=
+    H.declUnsafe hwf (H.installation.atomic.targetMapWF hwf) H.entriesSafe horigins hcover
+      hdecl.1.1
+  have hblocks : ∀ safety, InstalledBlocks safety outEnv (next safety) .complete := by
+    intro safety
+    have htrOut : TrEnv safety outEnv (next safety) := by
+      unfold TrEnv
+      rw [H.installation.quotInit_eq]
+      exact .induct (adds safety) (wf.tr (safety := safety))
+    have hvis : safety ≤ (if decl.isUnsafe then .unsafe else .safe) := by
+      rw [hdeclSafe]; exact DefinitionSafety.le_safe
+    exact H.installedBlocks (wf.blocks (safety := safety)) hwf htrOut.toChecking
+      (adds safety).le horigins hcover hclosed hconstructorOwners
+      (by rw [hdeclSafe]; exact H.entriesSafe) hprovenance (fun _ => adds safety)
+      (fun h => absurd hvis h) (fun _ => hsemantics safety) hctorOrigin
+      (fun _ => hH.trans (outputLE safety))
   rcases wf.extendInductExact decl next adds H.installation.quotInit_eq
-      hprimitives hsafePrimitives hclosed hconstructorOwners hsemantics hmono with
+      hprimitives hsafePrimitives hblocks hmono with
     ⟨ves', wf', hsourceLE, hexact⟩
   refine ⟨ves', wf', hsourceLE, ?_, ?_⟩
   rw [hexact .safe]
@@ -792,8 +808,6 @@ theorem BlockCertificate.trEnv
       rules outEnv outVEnv)
     (hdecl : decl.WF venv)
     (hcompile : decl.CompilesTo venv H.block)
-    (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
-      decl)
     (hprovenance : NewRecursorsAligned .unsafe prodEnv.constants
       venv outEnv.constants H.installedVEnv)
     (hsource : TrEnv' checkSafety prodEnv.constants quotInit venv)
@@ -801,7 +815,7 @@ theorem BlockCertificate.trEnv
     TrEnv' checkSafety outEnv.constants quotInit
       H.installedVEnv :=
   .induct
-    (H.addInduct hdecl hcompile horigins hprovenance hsource.aligned helim) hsource
+    (H.addInduct hdecl hcompile hprovenance hsource.aligned helim) hsource
 
 /-- Unsafe inductives extend only the unsafe abstract model; partial and safe
 models replay the concrete additions through `TrEnv'.ignore`. -/
@@ -809,7 +823,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : BlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
       recursors rules outEnv outVEnv)
-    (wf : ves.WFCore prodEnv) (htels : ∀ safety, CtorTelescopes safety prodEnv (ves.venv safety))
+    (wf : ves.WF prodEnv)
     (hdecl : decl.WF (ves.venv .unsafe))
     (hcompile : decl.CompilesTo (ves.venv .unsafe) H.block)
     (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
@@ -823,16 +837,21 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
     (hconstructorSemantics :
       ConstructorParameterAlignment .unsafe outEnv
         H.installedVEnv)
-    (helim : VInductBlock.EliminatorsWF (ves.venv .unsafe) decl H.block) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
+    (helim : VInductBlock.EliminatorsWF (ves.venv .unsafe) decl H.block)
+    (hcover : ∀ T ∈ decl.types,
+      ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧ prodEnv.find? T.name = none)
+    {isUnsafe : Bool} {venvH : VEnv}
+    (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      prodEnv.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt venvH ci))
+    (hH : venvH ≤ H.installedVEnv) :
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       VEnv.AddInduct (ves.venv .unsafe) decl (ves'.venv .unsafe) ∧
       H.installedVEnv ≤ ves'.venv .unsafe := by
   have validUnsafe : CheckingEnv.Valid .unsafe prodEnv
       (ves.venv .unsafe) :=
-    (wf.tr (safety := .unsafe)).toCheckingValid
-      (wf.hasPrimitives (safety := .unsafe)) wf.safePrimitives
-      wf.constructorOwners wf.inductiveConstructorsCoherent.listed wf.projectionRegistryCoherent ((htels _))
+    wf.toCheckingValid (.unsafe)
   have hiddenPartial : ∀ entry ∈ types ++ ctors ++ recursors,
       ¬ DefinitionSafety.partial ≤ entry.1.safety := by
     intro entry hentry
@@ -846,7 +865,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
   have htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
       H.installedVEnv := by
     rw [H.installation.quotInit_eq]
-    exact H.trEnv hdecl hcompile horigins hprovenance
+    exact H.trEnv hdecl hcompile hprovenance
       (wf.tr (safety := .unsafe)) helim
   have htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
       (ves.venv .partial) := by
@@ -870,52 +889,54 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
     · intro entry hentry
       exact hiddenSafe entry (by simp [hentry])
     · exact wf.tr (safety := .safe)
-  have hheadersUnsafe := H.newFamiliesUnsafe
-    (wf.tr (safety := .unsafe)).map_wf hunsafe
   have haddUnsafe : AddInduct .unsafe prodEnv.constants
       (ves.venv .unsafe) decl outEnv.constants
       H.installedVEnv :=
-    H.addInduct hdecl hcompile horigins hprovenance
+    H.addInduct hdecl hcompile hprovenance
       (wf.tr (safety := .unsafe)).aligned helim
-  have houtMapWF := H.installation.atomic.targetMapWF
-    (wf.tr (safety := .unsafe)).map_wf
-  have hiddenProvenance (observer : DefinitionSafety)
-      (hobserver : observer ≠ .unsafe) :
-      InductFamiliesInstalled observer outEnv.constants
-        (ves.venv observer) := by
-    apply VerifyInductive.InductFamiliesInstalled.rebaseHidden
-      (wf.inductFamiliesInstalled (safety := observer))
-      haddUnsafe.preservesSourceFind
-    intro familyName familyInfo hfamily hfresh
-    have hfamilyEnv : outEnv.find? familyName =
-        some (.inductInfo familyInfo) := by
-      rw [Lean.Kernel.Environment.find?, houtMapWF.find?'_eq_find?]
-      exact hfamily
-    have hfreshEnv : prodEnv.find? familyName = none := by
-      rw [Lean.Kernel.Environment.find?,
-        (wf.tr (safety := .unsafe)).map_wf.find?'_eq_find?]
-      exact hfresh
-    have hunsafeFamily := hheadersUnsafe familyName familyInfo
-      hfamilyEnv hfreshEnv
-    have hobserverNotLE : ¬ observer ≤ DefinitionSafety.unsafe := by
-      intro hle
-      exact hobserver (DefinitionSafety.le_antisymm hle
-        DefinitionSafety.unsafe_le)
-    simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
-      ConstantInfo.isPartial, hunsafeFamily] using hobserverNotLE
-  have hinductiveProvenance : ∀ safety,
-      InductFamiliesInstalled safety outEnv.constants
-        (match safety with
-        | .unsafe => H.installedVEnv
-        | .partial => ves.venv .partial
-        | .safe => ves.venv .safe)
-    | .unsafe => InductFamiliesInstalled.addInduct
-        (wf.inductFamiliesInstalled (safety := .unsafe)) haddUnsafe
-    | .partial => hiddenProvenance .partial (by decide)
-    | .safe => hiddenProvenance .safe (by decide)
+  have hwf : prodEnv.constants.WF := (wf.tr (safety := .unsafe)).map_wf
+  have hb : ∀ e ∈ types ++ ctors ++ recursors, e.1.isUnsafe = true := by
+    intro e he
+    have := hunsafe e he
+    cases h : e.1.isUnsafe
+    · revert this
+      simp only [ConstantInfo.safety, h, Bool.false_eq_true, ↓reduceIte]
+      split <;> exact nofun
+    · rfl
+  have hdeclUnsafe : decl.isUnsafe = true :=
+    H.declUnsafe hwf (H.installation.atomic.targetMapWF hwf) hb horigins hcover
+      hdecl.1.1
+  have hb' : ∀ e ∈ types ++ ctors ++ recursors, e.1.isUnsafe = decl.isUnsafe := by
+    rw [hdeclUnsafe]; exact hb
+  have hhidden (observer : DefinitionSafety) (hobserver : observer ≠ .unsafe) :
+      ¬ observer ≤ (if decl.isUnsafe then .unsafe else .safe) := by
+    rw [hdeclUnsafe]
+    intro hle
+    exact hobserver (DefinitionSafety.le_antisymm hle DefinitionSafety.unsafe_le)
+  have hblocks : ∀ safety, InstalledBlocks safety outEnv
+      (match safety with
+      | .unsafe => H.installedVEnv
+      | .partial => ves.venv .partial
+      | .safe => ves.venv .safe) .complete
+    | .unsafe => H.installedBlocks (wf.blocks (safety := .unsafe)) hwf
+        (show TrEnv .unsafe outEnv H.installedVEnv from htrUnsafe).toChecking
+        haddUnsafe.le horigins hcover hclosed hconstructorOwners hb' hprovenance
+        (fun _ => haddUnsafe) (fun h => absurd DefinitionSafety.unsafe_le h)
+        (fun _ => hconstructorSemantics) hctorOrigin (fun _ => hH)
+    | .partial => H.installedBlocks (wf.blocks (safety := .partial)) hwf
+        (show TrEnv .partial outEnv (ves.venv .partial) from htrPartial).toChecking
+        VEnv.LE.rfl horigins hcover hclosed hconstructorOwners hb' hprovenance
+        (fun h => absurd h (hhidden .partial (by decide))) (fun _ => rfl)
+        (fun h => absurd h (hhidden .partial (by decide))) hctorOrigin
+        (fun h => absurd h (hhidden .partial (by decide)))
+    | .safe => H.installedBlocks (wf.blocks (safety := .safe)) hwf
+        (show TrEnv .safe outEnv (ves.venv .safe) from htrSafe).toChecking
+        VEnv.LE.rfl horigins hcover hclosed hconstructorOwners hb' hprovenance
+        (fun h => absurd h (hhidden .safe (by decide))) (fun _ => rfl)
+        (fun h => absurd h (hhidden .safe (by decide))) hctorOrigin
+        (fun h => absurd h (hhidden .safe (by decide)))
   rcases H.extendUnsafeExact wf htrUnsafe htrPartial htrSafe
-      (H.validCore validUnsafe.toValidCore).safePrimitives hclosed hconstructorOwners
-      hconstructorSemantics hinductiveProvenance hheadersUnsafe with
+      (H.validCore validUnsafe.toValidCore).safePrimitives hblocks with
     ⟨ves', wf', hle, hexact⟩
   refine ⟨ves', wf', hle, ?_, hexact ▸ VEnv.LE.rfl⟩
   rw [hexact]
@@ -1100,6 +1121,37 @@ theorem RecursorCheck.constructorParameterAlignment
   · rw [H.localExtends.env_eq]
     exact (R.constructorParameterAlignment Hsource).mono R.ctorLE
   · exact H.generated.nonInductive
+
+/-- Every family of the declaration is a new kernel header of the output. -/
+theorem RecursorCheck.cover
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : RecursorCheck R outEnv) :
+    ∀ T ∈ decl.types,
+      ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧ c.env.find? T.name = none := by
+  intro T hT
+  have hwf := R.sourceContext.checking.tr.map_wf
+  have hmem : T.toVConstVal ∈ R.headerEntries.map Prod.snd := by
+    rw [R.headerValues]; exact List.mem_map_of_mem hT
+  obtain ⟨⟨ci, val⟩, he, hval⟩ := List.mem_map.mp hmem
+  obtain ⟨numNested, Hheaders⟩ := R.headerSourceAligned
+  obtain ⟨info, -, hci⟩ := Hheaders.originInfo he
+  have hname : ci.name = T.name := by
+    have := R.installation.atomic.entryNames (List.mem_append_left _ he)
+    simp only at this hval
+    rw [this, hval]
+  have hfind := R.installation.findHeaderEntry hwf he
+  have hfresh := R.installation.atomic.entryFresh hwf (List.mem_append_left _ he)
+  simp only at hci
+  subst hci
+  have hctorWF : H.localContext.env.constants.WF := by
+    rw [H.localExtends.env_eq]
+    exact R.context.checking.tr.map_wf
+  have hout := H.installed.preservesSourceFind hctorWF
+    (by rw [H.localExtends.env_eq]; exact hfind)
+  refine ⟨info, ?_, ?_⟩
+  · rw [← hname]; exact hout
+  · rw [← hname]; exact hfresh
 
 theorem RecursorCheck.inductInfosFromDecl
     {R : ConstructorCheck c stats decl nparams isUnsafe depth

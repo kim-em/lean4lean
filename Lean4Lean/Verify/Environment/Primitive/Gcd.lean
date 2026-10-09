@@ -10,9 +10,9 @@ namespace Primitive
 /-- `Nat.gcd`: a well-founded recursion, which the `eager` gadget packs into a form the
 recognizer can probe. The base probe is `gcd' 0 n ≡ n`; the step probe's right-hand side is the
 recursive call at `n % succ m`, which is what the branch's `Nat.mod` guard is for. -/
-theorem checkNatGcd.WF {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+theorem checkNatGcd.WF {ves : VEnvs} (wf : ves.WF env)
     (hname : v.name = ``Nat.gcd) :
-    let c := .mk' wf htels .safe v.levelParams; Data v ci' c →
+    let c := .mk' wf .safe v.levelParams; Data v ci' c →
     (checkNatGcd v).WF c state fun _ _ => PrimitiveResult (ves.venv .safe) v ci' := by
   intro ctx P; rw [← ctx.withMLC_self]; unfold checkNatGcd
   refine .getEnv <| elseFail fun h1 => elseFail fun h2 => ?_

@@ -420,77 +420,6 @@ theorem AddInductive.declareConstructors.primitiveWF
       rw [hownerName, ← hname]
       exact Hcombined.findEntry hsourceMapWF
         (List.mem_append_left _ hheaderEntry)
-    have hregistry : ProjectionRegistryCoherent c.safety outEnv.constants
-        venvCtors := by
-      have HsourceRegistry : ProjectionRegistryCoherent c.safety
-          c.env.constants sourceEnv := by
-        have h := H.sourceContext.checking.projectionRegistry
-        rwa [H.sourceContextVEnv] at h
-      have hfindOut : ∀ {name ci}, outEnv.constants.find? name = some ci →
-          outEnv.find? name = some ci := by
-        intro name ci hfind
-        rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]
-        exact hfind
-      have hfindSource : ∀ {name ci}, c.env.find? name = some ci →
-          c.env.constants.find? name = some ci := by
-        intro name ci hfind
-        rwa [Lean.Kernel.Environment.find?, hsourceMapWF.find?'_eq_find?] at hfind
-      apply HsourceRegistry.extendNonSingleton
-      · intro name ci hfind
-        have hfind' : c.env.find? name = some ci := by
-          rw [Lean.Kernel.Environment.find?, hsourceMapWF.find?'_eq_find?]
-          exact hfind
-        have := Hcombined.preservesSourceFind hsourceMapWF hfind'
-        rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at this
-      · intro name info hfind
-        rcases Hcombined.entryOrigin hsourceMapWF (hfindOut hfind) with
-          hold | ⟨entry, hentry, _, hentryEq⟩
-        · exact Or.inl (hfindSource hold)
-        right
-        rcases List.mem_append.mp hentry with hheader | hctor
-        · rcases Hheaders.originInfo hheader with ⟨hinfo, hinfoMem, hentryInfo⟩
-          have hinfoEq : info = hinfo := by
-            rw [hentryInfo] at hentryEq
-            exact ConstantInfo.inductInfo.inj hentryEq
-          subst hinfoEq
-          rcases List.mem_iff_getElem.mp hinfoMem with ⟨i, hi, hinfoAt⟩
-          have hiTypes : i < indTypes.size := by
-            simpa [AddInductive.inductiveTypeInfos, hindicesSize] using hi
-          have hctors : info.ctors = indTypes[i].ctors.map (·.name) := by
-            rw [← hinfoAt]
-            simp [AddInductive.inductiveTypeInfos]
-          have hmem : indTypes[i] ∈ indTypes.toList := by
-            simp
-          rw [hctors]
-          rcases Hshape with ⟨_, _, _, htypes | ⟨_, _, htypes⟩⟩ <;>
-            (rw [htypes] at hmem; simp at hmem; rw [hmem]; simp)
-        · rcases hproduction entry hctor with ⟨cinfo, hcinfo⟩
-          rw [hcinfo] at hentryEq
-          cases hentryEq
-      · intro name info hfind
-        rcases Hcombined.entryOrigin hsourceMapWF (hfindOut hfind) with
-          hold | ⟨entry, hentry, _, hentryEq⟩
-        · exact Or.inl (hfindSource hold)
-        right
-        rcases List.mem_append.mp hentry with hheader | hctor
-        · exact absurd hentryEq.symm (hheaderNotCtor entry hheader info)
-        rcases Haligned.ownerOfEntry hctor with
-          ⟨owner, howner, installedInfo, hentryInfo, hownerName, -⟩
-        have hinfoEq : info = installedInfo := by
-          rw [hentryInfo] at hentryEq
-          exact ConstantInfo.ctorInfo.inj hentryEq
-        subst hinfoEq
-        rcases inductiveTypeInfos_owner stats nparams indTypes numNested
-            isUnsafe c.lparams hindicesSize howner with
-          ⟨ownerInfo, hownerInfo, hname, -⟩
-        rcases Hheaders.findInfo hownerInfo with ⟨value, hheaderEntry⟩
-        have hfresh := H.installed.entryFresh hsourceMapWF hheaderEntry
-        have hfresh' : c.env.constants.find? ownerInfo.name = none := by
-          rw [Lean.Kernel.Environment.find?, hsourceMapWF.find?'_eq_find?] at hfresh
-          simpa [ConstantInfo.name, ConstantInfo.toConstantVal] using hfresh
-        rw [hownerName, ← hname]
-        exact hfresh'
-      · exact Hcombined.le
     have hrecursors : RecursorEnvCoherent c.safety outEnv.constants venvCtors := by
       apply Hcombined.recursorEnvCoherent hsourceMapWF
       · intro entry hentry rec heq
@@ -508,17 +437,7 @@ theorem AddInductive.declareConstructors.primitiveWF
       apply Hcombined.quotEnvCoherent hsourceMapWF hrecursors.heads
       have h := H.sourceContext.checking.quot
       rwa [H.sourceContextVEnv] at h
-    have hlisted : ListedConstructorsCoherent outEnv := by
-      refine H.installed.listedConstructorsOfDeclaration (nparams := nparams) Hinstalled hsourceMapWF
-        H.sourceContext.checking.listedConstructors H.sourcePresent ?_ Haligned
-      intro entry hentry
-      rcases H.infos with ⟨numNested, hinfos⟩
-      have : entry.1 ∈ H.entries.map Prod.fst := List.mem_map_of_mem hentry
-      rw [hinfos] at this
-      rcases List.mem_map.mp this with ⟨info, hinfo, heq⟩
-      exact ⟨numNested, info, hinfo, heq.symm⟩
-    let Hcontext := Hinstalled.completeContext H.context
-      hprimitives hsafe howners hlisted hregistry hrecursors hquot
+    let Hcontext := H.context.withEnv (Hinstalled.checking H.context.checking) Hinstalled.le
       (Hinstalled.ctorTelescopes H.context.checking H.context.ctorTelescopes (Haligned.ctorTelescopeSteps hctors))
     have hctorsAdded : H.context.venv.addConstVals
         decl.constructorConstants = some venvCtors := by
@@ -541,7 +460,12 @@ theorem AddInductive.declareConstructors.primitiveWF
       safeEntries := hsafeEntries
       context := Hcontext
       contextVEnv := rfl
-      contextMLCtx := rfl }, trivial⟩
+      contextMLCtx := rfl
+      validCore := ⟨Hcombined.checking (H.sourceContextVEnv ▸ H.sourceContext.checking.tr),
+        hprimitives, hsafe⟩
+      owners := howners
+      equationHeads := hrecursors.heads
+      quot := hquot }, trivial⟩
 
 end VerifyInductive
 end Lean4Lean

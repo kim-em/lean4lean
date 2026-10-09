@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Environment.Lemmas
+import Lean4Lean.Verify.Environment.Blocks
 import Lean4Lean.Verify.Typing.ConditionallyTyped
 import Lean4Lean.Theory.Typing.ProjectionLemmas
 import Lean4Lean.Theory.Typing.RecursorLemmas
@@ -288,27 +288,16 @@ structure VContext extends Context where
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   trenv : CheckingEnv safety env venv
-  /-- Every present constructor is listed by its present owner, with the owner's `isUnsafe`.
-  This is what identifies a constructor at the head of a term with the constructor of its
-  structure in structure eta. -/
-  constructorOwners : VerifyInductive.ConstructorOwnersPresent env
-  /-- Every constructor name a present header lists is, if present, a constructor of that
-  header, with its `isUnsafe`. This is what identifies the constant a structure lists with the
-  constructor of its projection registry entry. -/
-  listedConstructors : VerifyInductive.ListedConstructorsCoherent env
-  /-- Every visible singleton family whose constructor is present aligns with
-  the abstract projection registry.  This is what projection inference reads. -/
-  projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
-  /-- Every visible recursor is aligned with the stored iota equations, and every
-  stored equation is headed by a non-inductive constant.  This is what recursor
-  reduction reads. -/
-  recursors : RecursorEnvCoherent safety env.constants venv
+  /-- Every inductive header, constructor and recursor belongs to an installed block, and
+  every projection-registry entry was registered by one (`InstalledBlocks`).  Every lookup
+  fact the checker reads about inductives is a projection of this. -/
+  blocks : InstalledBlocks safety env venv .headers
+  /-- Every stored equation is headed by a non-inductive constant, which keeps inductive type
+  constants rigid. -/
+  equationHeads : EquationHeadsCoherent env.constants venv
   /-- Once quotients are initialized, the quotient constants and the `Quot.lift`
   equation are present.  This is what quotient reduction reads. -/
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
-  /-- A telescope certificate of every visible constructor, used by the projection walk at a
-  non-dependent field (`TelTrN.delete_closed`). -/
-  ctorTelescopes : CtorTelescopes safety env venv
   mlctx : MLCtx
   mlctx_wf : mlctx.WF venv lparams
   lctx_eq : mlctx.lctx = lctx
@@ -319,6 +308,34 @@ structure VContext extends Context where
 theorem VContext.trlctx (c : VContext) : TrLCtx c.venv c.lparams c.lctx' c.vlctx := c.mlctx_wf.tr
 theorem VContext.Ewf (c : VContext) : VEnv.WF c.venv := c.trenv.wf
 theorem VContext.Δwf (c : VContext) : c.vlctx.WF c.venv c.lparams.length := c.trlctx.wf
+
+/-- Every present constructor is listed by its present owner, with the owner's `isUnsafe`.
+This is what identifies a constructor at the head of a term with the constructor of its
+structure in structure eta. -/
+theorem VContext.constructorOwners (c : VContext) :
+    VerifyInductive.ConstructorOwnersPresent c.env := c.blocks.constructorOwnersPresent
+
+/-- Every constructor name a present header lists is, if present, a constructor of that
+header, with its `isUnsafe`. -/
+theorem VContext.listedConstructors (c : VContext) :
+    VerifyInductive.ListedConstructorsCoherent c.env := c.blocks.listedConstructorsCoherent
+
+/-- Every visible singleton family whose constructor is present aligns with the abstract
+projection registry.  This is what projection inference reads. -/
+theorem VContext.projectionRegistry (c : VContext) :
+    ProjectionRegistryCoherent c.safety c.env.constants c.venv :=
+  c.blocks.projectionRegistryCoherent c.trenv.map_wf
+
+/-- Every visible recursor is aligned with the stored iota equations.  This is what recursor
+reduction reads. -/
+theorem VContext.recursors (c : VContext) :
+    RecursorEnvCoherent c.safety c.env.constants c.venv :=
+  c.blocks.recursorEnvCoherent c.trenv.map_wf c.equationHeads
+
+/-- A telescope certificate of every visible constructor, used by the projection walk at a
+non-dependent field (`TelTrN.delete_closed`). -/
+theorem VContext.ctorTelescopes (c : VContext) : CtorTelescopes c.safety c.env c.venv :=
+  c.blocks.ctorTelescopes
 
 /-- Resolve the exact projection alignment selected by successful concrete
 family and constructor lookups in a checking context. -/
@@ -970,10 +987,6 @@ untouched, so judgements stated at `c` and at `c.withMLC m` are interchangeable.
 @[simp] theorem VContext.withMLC_mlctx (c : VContext) (m) [c.MLCWF m] :
     (c.withMLC m).mlctx = m := rfl
 
-@[simp] theorem VContext.withMLC_projectionRegistry (c : VContext) (m) [c.MLCWF m] :
-    (c.withMLC m).projectionRegistry = c.projectionRegistry := rfl
-@[simp] theorem VContext.withMLC_recursors (c : VContext) (m) [c.MLCWF m] :
-    (c.withMLC m).recursors = c.recursors := rfl
 @[simp] theorem VContext.withMLC_quot (c : VContext) (m) [c.MLCWF m] :
     (c.withMLC m).quot = c.quot := rfl
 

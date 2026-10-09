@@ -594,7 +594,7 @@ theorem NestedRun.auxHeadsFacts
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∃ envTypes : VEnv,
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
@@ -980,7 +980,7 @@ theorem NestedRun.loweredFamilyMappings
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∀ i (hi : i < result.types.length), ∃ source stepState loweredState,
       (∀ ctor ∈ source.ctors, ctor.type.AvoidsConsts E.auxHeads) ∧
       source.type.AvoidsConsts E.auxHeads ∧
@@ -1014,7 +1014,7 @@ theorem NestedRun.loweredFamilyMappings
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       result.types P.isUnsafe P.loweredDecl Hpack.headers.context.venv
         R.declared.venvCtors := R.core
-  have wfP : ves.WFCore P.c.env := by
+  have wfP : ves.WF P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
@@ -1112,7 +1112,7 @@ theorem NestedRun.constructorTypesParamUniform
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∀ i, i < E.lowered.indTypes.size → ∀ ctor ∈ E.lowered.indTypes[i]!.ctors,
       Expr.ParamUniformTele E.auxHeads E.lowered.stats.params.size
         E.lowered.stats.levels ctor.type := by
@@ -1146,7 +1146,7 @@ theorem NestedRun.normalizedTotal_of
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheadNames : auxiliaries.flatMap (·.headNames) =
       familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length)) :

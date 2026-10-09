@@ -539,7 +539,6 @@ theorem NestedRestorationFolds.validOfInstallation_of_shapes
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames)).constants.find?
           name = some (.recInfo rec) →
-      c.safety ≤ (ConstantInfo.recInfo rec).safety →
       c.env.constants.find? name = none →
       RecursorAlignmentCore installedVEnv rec ∧
       KLikeRecursor (Lean4Lean.stripRecursorRules outEnv
@@ -553,7 +552,7 @@ theorem NestedRestorationFolds.validOfInstallation_of_shapes
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames))
       installedVEnv := by
-  obtain ⟨hcore, howners, hregistry, hlisted⟩ :=
+  obtain ⟨hcore, howners, horigins⟩ :=
     Hrestored.localValidOfInstallation Hlower Hc Hprod Hsource Hmetadata Hsources
       Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
@@ -619,30 +618,12 @@ theorem NestedRestorationFolds.validOfInstallation_of_shapes
     · rcases howners name info h with ⟨owner, ho, hrest⟩
       exact ⟨owner, hnonrecE ho (fun _ h => by cases h), hrest⟩
     · cases hr
-  have hregistry' : ProjectionRegistryCoherent c.safety S.constants installedVEnv := by
-    intro familyName familyInfo constructorName constructorInfo hfam hvis hsingle
-      hctor hinduct
-    have hfam' : outEnv.constants.find? familyName =
-        some (.inductInfo familyInfo) := by
-      rcases stripLookup_cases hspec hfam with h | ⟨_, _, _, h⟩
-      · exact h
-      · cases h
-    have hctor' : outEnv.constants.find? constructorName =
-        some (.ctorInfo constructorInfo) := by
-      rcases stripLookup_cases hspec hctor with h | ⟨_, _, _, h⟩
-      · exact h
-      · cases h
-    rcases hregistry familyName familyInfo constructorName constructorInfo hfam'
-      hvis hsingle hctor' hinduct with ⟨P⟩
-    exact ⟨{ P with
-      constructor_lookup :=
-        stripLookup_nonrec hspec P.constructor_lookup (fun _ h => by cases h) }⟩
   have hrecursors : RecursorEnvCoherent c.safety S.constants installedVEnv := by
     refine hvalidSource.recursors.extend hpres ?_ canonical.le
       (fun df hdf => Or.inl (canonical.defeqs df hdf))
     intro n rec hfind hs
     cases hc : c.env.constants.find? n with
-    | none => exact Or.inr (Hshapes n rec hfind hs hc)
+    | none => exact Or.inr (Hshapes n rec hfind hc)
     | some ci =>
       have h := hpres hc
       rw [hfind] at h
@@ -652,21 +633,84 @@ theorem NestedRestorationFolds.validOfInstallation_of_shapes
     intro hq
     rw [hSquot, Hactual.quotInit_eq] at hq
     exact (hvalidSource.quot hq).extend hpres canonical.le hrecursors.heads
-  have hlisted' : ListedConstructorsCoherent S := by
-    intro familyName familyInfo hfamily name hname found hfound
-    have hfamilyOut : outEnv.find? familyName = some (.inductInfo familyInfo) := by
-      rcases hcasesE hfamily with h | ⟨r, _, hr⟩
-      · exact h
-      · cases hr
-    rcases hcasesE hfound with h | ⟨r, hr, -⟩
-    · exact hlisted familyName familyInfo hfamilyOut name hname found h
-    · rcases hlisted familyName familyInfo hfamilyOut name hname _ hr with ⟨_, hctor, -⟩
-      cases hctor
-  exact hvalidCore.toValid howners' hlisted' hregistry' hrecursors hquot
-    (htels.ofCtors fun h => by
-      rcases hcasesE h with h | ⟨r, _, he⟩
-      · exact h
-      · cases he)
+  have hpresEnv : ∀ {n ci}, c.env.find? n = some ci → S.find? n = some ci := by
+    intro n ci h
+    rw [hfindS]
+    exact hpres (by rwa [Kernel.Environment.find?_eq_constants hsourceWF] at h)
+  have horiginsS : InductInfosFromDecl c.env.constants S.constants sourceDecl :=
+    horigins.transfer
+      (fun h => by
+        rcases stripLookup_cases hspec h with h | ⟨_, _, _, h⟩
+        · exact h
+        · cases h)
+      (fun h => stripLookup_nonrec hspec h nofun)
+      (fun h => stripLookup_nonrec hspec h nofun)
+  have htypesAdded : sourceVEnv.addConstVals sourceDecl.typeConstants =
+      some canonical.venvTypes := by
+    rw [← htypeValues]; exact canonical.abstract_types
+  have hctorsAdded : canonical.venvTypes.addConstVals sourceDecl.constructorConstants =
+      some canonical.venvCtors := by
+    rw [← hctorValues]; exact canonical.abstract_ctors
+  have hctorsLE : canonical.venvCtors ≤ installedVEnv :=
+    VEnv.addEliminators_addProjections_le.trans (VEnv.addConstVals_le canonical.abstract_recursors)
+  have hreg : InstalledBlocks.DeclRegistered installedVEnv sourceDecl canonical.eliminators := {
+    typeUvars := by
+      intro type htype
+      rcases Lean4Lean.List.Forall₂.forall_exists_r Hsource.types type htype with
+        ⟨_, _, Htype⟩
+      rw [Htype.header.uvars, Hsource.uvars]
+    constructorUvars := Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hsource
+    family := fun i hi => ((VEnv.addConstVals_le hctorsAdded).trans hctorsLE).constants
+      (VEnv.addConstVals_get htypesAdded
+        (List.mem_map.mpr ⟨sourceDecl.types[i], List.getElem_mem hi, rfl⟩))
+    ctor := fun i k hi hk => hctorsLE.constants
+      (VEnv.addConstVals_get hctorsAdded (by
+        simp only [VInductDecl.constructorConstants, List.mem_flatMap]
+        exact ⟨_, List.getElem_mem hi, List.getElem_mem hk⟩))
+    projections := fun e he => (VEnv.addConstVals_le canonical.abstract_recursors).projections
+      (VEnv.addProjections_iff.mpr (.inl ⟨e, he, rfl, rfl⟩))
+    eliminators := fun e he => (VEnv.addConstVals_le canonical.abstract_recursors).eliminators
+      (VEnv.addProjections_le.eliminators (VEnv.addEliminators_iff.mpr (.inl he))) }
+  have hblocks : InstalledBlocks c.safety S installedVEnv .headers := by
+    refine hvalidSource.blocks.addCtorStage Hheaders.sourcePresent hsourceWF hvalidCore.tr
+      hpresEnv canonical.le horiginsS ?_ ?_ howners' (InstalledBlocks.newRecursors c.env S)
+      (fun hf hnone => (InstalledBlocks.mem_newRecursors hSwf).mpr ⟨_, hf, hnone⟩) ?_ ?_ ?_
+      canonical.eliminators hreg ?_
+      (htels.ofCtors fun h => by
+        rcases hcasesE h with h | ⟨r, _, he⟩
+        · exact h
+        · cases he)
+    · intro T hT
+      obtain ⟨v, hv, hnone⟩ := Hrestored.cover Hlower Hc Hprod Hsource Hmetadata Hsources Harity
+        Hc.checking.constructorOwners hempty T hT
+      refine ⟨v, ?_, hnone⟩
+      rw [hfindS]
+      exact stripLookup_nonrec hspec (by rwa [← hfindO]) nofun
+    · have := VEnv.addConstVals_names_nodup htypesAdded
+      simpa [VInductDecl.typeConstants, Function.comp_def] using this
+    · intro r hr
+      obtain ⟨n, h1, h2⟩ := (InstalledBlocks.mem_newRecursors hSwf).mp hr
+      have hn : r.name = n := hvalidCore.tr.find?_name h1
+      rw [hn]; exact ⟨h1, h2⟩
+    · intro r hr
+      obtain ⟨n, h1, h2⟩ := (InstalledBlocks.mem_newRecursors hSwf).mp hr
+      obtain ⟨-, -, info, hmajor⟩ := Hshapes n r (by rwa [← hfindS])
+        (by rwa [Kernel.Environment.find?_eq_constants hsourceWF] at h2)
+      exact ⟨info, by rw [hfindS]; exact hmajor⟩
+    · intro r hr _
+      obtain ⟨n, h1, h2⟩ := (InstalledBlocks.mem_newRecursors hSwf).mp hr
+      obtain ⟨hcore', hk, -⟩ := Hshapes n r (by rwa [← hfindS])
+        (by rwa [Kernel.Environment.find?_eq_constants hsourceWF] at h2)
+      exact ⟨hcore', hk⟩
+    · intro S' info hp
+      rw [VEnv.addConstVals_projections canonical.abstract_recursors] at hp
+      rcases VEnv.addProjections_iff.mp hp with ⟨e, he, rfl, rfl⟩ | hold
+      · exact .inr he
+      · left
+        rw [VEnv.addEliminators_projections, VEnv.addConstVals_projections hctorsAdded,
+          VEnv.addConstVals_projections htypesAdded] at hold
+        exact hold
+  exact hvalidCore.toValid hblocks hrecursors.heads hquot
 
 end VerifyInductive
 end Lean4Lean

@@ -23,10 +23,10 @@ declaration `Init.Prelude` submits.
   is not modelled syntactically, so this is a hypothesis on the output;
   `Lean4Lean/Tests/PreludeEq.lean` checks it for the declaration of
   `Init.Prelude`.
-* `VEnvs.WFCore.canonicalEq_constants` (below): in any well-formed model of an
+* `VEnvs.WF.canonicalEq_constants` (below): in any well-formed model of an
   environment whose `Eq`, `Eq.refl` and `Eq.rec` have the prelude's
   types, the three constant clauses of `HasCanonicalEq` hold at every safety.
-  `VEnvs.WFCore.quotReady_of_eqType` needs only `Eq` and concludes `QuotReady`.
+  `VEnvs.WF.quotReady_of_eqType` needs only `Eq` and concludes `QuotReady`.
 -/
 
 namespace Lean4Lean
@@ -40,8 +40,8 @@ private theorem vconstant_ext {a b : VConstant} (huvars : a.uvars = b.uvars)
 
 /-- The translated constant of a safe kernel constant whose type
 translates uniquely. -/
-private theorem VEnvs.WFCore.constant_of_kernel {env : Environment} {ves : VEnvs}
-    (wf : ves.WFCore env) {name : Name} {ci : ConstantInfo} {uvars : Nat} {type : VExpr}
+private theorem VEnvs.WF.constant_of_kernel {env : Environment} {ves : VEnvs}
+    (wf : ves.WF env) {name : Name} {ci : ConstantInfo} {uvars : Nat} {type : VExpr}
     (hfind : env.find? name = some ci) (hsafe : ci.safety = .safe)
     (huvars : ci.levelParams.length = uvars)
     (htype : ∀ {venv e}, TrExprS venv ci.levelParams [] ci.type e → e = type)
@@ -55,8 +55,8 @@ private theorem VEnvs.WFCore.constant_of_kernel {env : Environment} {ves : VEnvs
 
 /-- The constant clauses of `HasCanonicalEq` hold in every well-formed model of
 an environment containing the prelude's `Eq`, `Eq.refl` and `Eq.rec`. -/
-theorem VEnvs.WFCore.canonicalEq_constants {env : Environment} {ves : VEnvs}
-    (wf : ves.WFCore env) {eqInfo reflInfo recInfo : ConstantInfo}
+theorem VEnvs.WF.canonicalEq_constants {env : Environment} {ves : VEnvs}
+    (wf : ves.WF env) {eqInfo reflInfo recInfo : ConstantInfo}
     (hEq : env.find? ``Eq = some eqInfo) (hEqProd : IsPreludeEq eqInfo)
     (hRefl : env.find? ``Eq.refl = some reflInfo) (hReflProd : IsPreludeEqRefl reflInfo)
     (hRec : env.find? ``Eq.rec = some recInfo) (hRecProd : IsPreludeEqRec recInfo)
@@ -83,8 +83,8 @@ theorem VEnvs.WFCore.canonicalEq_constants {env : Environment} {ves : VEnvs}
 /-- Quotient readiness holds in every well-formed model of an environment whose `Eq` is a safe
 constant with one universe parameter and whose type translates only to the canonical type of
 `Eq`. This is the part of `canonicalEq_constants` that quotient initialization consumes. -/
-theorem VEnvs.WFCore.quotReady_of_eqType {env : Environment} {ves : VEnvs}
-    (wf : ves.WFCore env) {eqInfo : ConstantInfo} (hEq : env.find? ``Eq = some eqInfo)
+theorem VEnvs.WF.quotReady_of_eqType {env : Environment} {ves : VEnvs}
+    (wf : ves.WF env) {eqInfo : ConstantInfo} (hEq : env.find? ``Eq = some eqInfo)
     (hsafe : eqInfo.safety = .safe) {u : Name} (hlps : eqInfo.levelParams = [u])
     (htype : ∀ {venv e}, TrExprS venv [u] [] eqInfo.type e → e = canonicalEqType)
     (safety : DefinitionSafety) : (ves.venv safety).QuotReady :=
@@ -94,21 +94,20 @@ theorem VEnvs.WFCore.quotReady_of_eqType {env : Environment} {ves : VEnvs}
 equality: the output environment has well-formed abstract models extending the
 input ones, and these satisfy `HasCanonicalEq` (including the iota rule of
 `Eq.rec`) as soon as the executable has installed `Eq.rec` with the prelude's
-type.  Only the absence of `Eq` is assumed of the input, together with the constructor telescope
-certificates at every safety level. -/
+type.  Only the absence of `Eq` is assumed of the input. -/
 theorem addDecl.preludeEq_hasCanonicalEq {env : Environment} {ves : VEnvs}
-    (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (wf : ves.WF env)
     (hAbsent : env.constants.find? ``Eq = none)
     {lparams : List Name} {nparams : Nat} {types : List InductiveType} {isUnsafe : Bool}
     (Hshape : VerifyInductive.PreludeEqShape lparams nparams types isUnsafe)
     (fuel : FuelConfig := {}) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe) (check := true)
       (fuel := fuel)).WF fun outEnv =>
-      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+      ∃ ves' : VEnvs, ves'.WF outEnv ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         ∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
           ves'.HasCanonicalEq :=
   (VerifyInductive.addInductiveDeclaration.preludeEqExtensionWF env lparams
-      nparams types isUnsafe fuel ves wf htels hAbsent Hshape).mono
+      nparams types isUnsafe fuel ves wf hAbsent Hshape).mono
     fun _ ⟨ves', wf', _, hle, _, hcanonical⟩ => ⟨ves', wf', hle, hcanonical⟩
 
 end Lean4Lean

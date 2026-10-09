@@ -72,15 +72,12 @@ def initialContext (env : Environment) (lparams : List Name)
     AddInductive.Context where
   env; lparams; safety; allowPrimitive; fuel
 
-def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety) (lparams : List Name)
-    (allowPrimitive : Bool) (fuel : FuelConfig)
-    (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety)) :
+    (allowPrimitive : Bool) (fuel : FuelConfig) :
     ContextWF (initialContext env lparams safety allowPrimitive fuel) where
   venv := ves.venv safety
-  checking := (wf.tr (safety := safety)).toCheckingValid
-    (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-    wf.constructorOwners wf.inductiveConstructorsCoherent.listed wf.projectionRegistryCoherent ((htels _))
+  checking := wf.toCheckingValid (safety)
   mlctx := .nil
   mlctx_wf := trivial
   typeCheckerLParams_eq := rfl
