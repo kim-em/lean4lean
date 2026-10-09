@@ -69,7 +69,7 @@ theorem loopCtor_validConstField {stats : AddInductive.InductiveStats}
     subst hbt
     unfold AddInductive.withUnannotatedCheckedLocalDecl AddInductive.withCheckedLocalDecl at h
     simp only [withFreshId, MonadLocalNameGenerator.withFreshId, withReader, MonadWithReader.withReader,
-      MonadWithReaderOf.withReader, ReaderT.adapt, withTheReader, ReaderT.bind] at h
+      MonadWithReaderOf.withReader, withTheReader, ReaderT.bind] at h
     revert h
     generalize (AddInductive.Context.mk _ _ _ _ _ _ _ _ _ : AddInductive.Context) = c'
     intro h
@@ -78,7 +78,7 @@ theorem loopCtor_validConstField {stats : AddInductive.InductiveStats}
     | error e => rw [hrest] at h; cases h
     | ok rest =>
     rw [hrest] at h
-    have hnil := loopCtor_nonForall_nil (by simp [Expr.instantiate1', Expr.instantiate1]) hrest
+    have hnil := loopCtor_nonForall_nil (by simp [Expr.instantiate1']) hrest
     subst hnil
     change Except.ok (true :: []) = Except.ok out at h
     cases h
@@ -182,14 +182,14 @@ theorem checkConstructors_classes {stats : AddInductive.InductiveStats} {isUnsaf
     out = indTypes.toList.map (·.ctors.map f) := by
   unfold AddInductive.checkConstructors at h
   simp only [bind, ReaderT.bind, Except.bind, AddInductive.withCheckLCtx, withReader,
-    MonadWithReader.withReader, MonadWithReaderOf.withReader, ReaderT.adapt,
-    AddInductive.paramCheckLCtx, getEnv, pure, ReaderT.pure, Except.pure] at h
+    MonadWithReader.withReader,
+    AddInductive.paramCheckLCtx, pure, ReaderT.pure, Except.pure] at h
   split at h
   · cases h
   · split at h
     · cases h
     · rename_i v _
-      simp only [withTheReader, MonadWithReaderOf.withReader, ReaderT.adapt] at h
+      simp only [withTheReader, MonadWithReaderOf.withReader] at h
       simpa using loopTypes_classes (c := { c with checkLCtx := v }) f
         (hctor _ rfl) 0 out h
 
