@@ -21,17 +21,22 @@ namespace checkConstructors.loopCtors
 and types while accumulating the exact checked common-parameter prefix and
 tail of each constructor beside the abstract shape/type prefix. -/
 theorem refinesTypeWithReplay
+    {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {target : VInductiveType}
     {sourceEnv envTypes : VEnv} {params : List VExpr}
     {source : InductiveType}
     (Q : List (List Bool) → Prop)
     (Hc : ContextWF c)
     (Htarget : TrInductiveTypeHeaders sourceEnv envTypes c.lparams source target)
-    (Hprefix : ConstructorTypePrefix envTypes decl params target ctorIdx)
-    (Hreplay : ConstructorParamPrefixRow stats source.ctors ctorIdx)
+    (Hprefix : IndexedPrefix target.ctors.length
+      (fun i _ => CtorTypeChecked envTypes decl params target target.ctors[i]) ctorIdx)
+    (Hreplay : IndexedPrefix source.ctors.length
+      (fun i _ => ConstructorParamPrefixAt stats source.ctors[i]) ctorIdx)
     {tailScope : VLCtx} {classes : List (List Bool)}
-    (Htails : ConstructorTailPrefixRow Hc.venv c.lparams tailScope stats
-      decl target source.ctors classes ctorIdx)
+    (hclasses : classes.length = ctorIdx)
+    (Htails : IndexedPrefix source.ctors.length
+      (fun i _ => CheckedConstructorTailAt Hc.venv c.lparams tailScope stats decl target
+        source.ctors[i] classes[i]!) ctorIdx)
     (Hshape : ∀ i (hsource : i < source.ctors.length)
       (htarget : i < target.ctors.length),
       TrSourceConstRaw envTypes c.lparams source.ctors[i].name
@@ -60,11 +65,12 @@ theorem refinesTypeWithReplay
           decl.CtorShape envTypes params target target.ctors[i] ∧
           envTypes.IsType decl.uvars [] target.ctors[i].type ∧
           ∃ k, Expr.ForallSpine source.ctors[i].type k)
-    (Hfinish : ∀ classes', ConstructorTypePrefix envTypes decl params target
-        target.ctors.length →
-      ConstructorParamPrefixRow stats source.ctors source.ctors.length →
-      ConstructorTailPrefixRow Hc.venv c.lparams tailScope stats decl target
-        source.ctors classes' source.ctors.length →
+    (Hfinish : ∀ classes',
+      (∀ i (hi : i < target.ctors.length),
+        CtorTypeChecked envTypes decl params target target.ctors[i]) →
+      (∀ i (hi : i < source.ctors.length), ConstructorParamPrefixAt stats source.ctors[i]) →
+      FamilyConstructorTails Hc.venv c.lparams tailScope stats decl target
+        source.ctors classes' →
       Q classes') :
     (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
       source.ctors ctorIdx foundCtors c).WF fun rest => Q (classes ++ rest) := by
@@ -90,8 +96,11 @@ theorem refinesTypeWithReplay
           List.getElem_mem htarget, HctorNarrow, Hparam, Hcomparisons,
           Htranslated, Htail, Hsynthesis⟩
       exact (refinesTypeWithReplay Q Hc Htarget
-        (Hprefix.push htarget HctorShape HctorType)
-        (Hreplay.push hidx Hparam Hspine) (Htails.push hidx HtailReplay)
+        (Hprefix.push htarget ⟨HctorShape, HctorType⟩)
+        (Hreplay.push hidx ⟨⟨tail, Hparam⟩, Hspine⟩) (classes := classes ++ [fields])
+        (by simp [hclasses])
+        (Htails.snoc (P := fun i _ fields => CheckedConstructorTailAt Hc.venv c.lparams
+          tailScope stats decl target source.ctors[i] fields) hclasses hidx HtailReplay)
         Hshape Hfinish).mono fun rest h => by simpa using h
   · have heq : ctorIdx = source.ctors.length := by
       have := Hprefix.covered
@@ -100,17 +109,10 @@ theorem refinesTypeWithReplay
       omega
     apply result.WF (Q := fun rest => Q (classes ++ rest)) hidx
     rw [List.append_nil]
-    have Hcomplete : ConstructorTypePrefix envTypes decl params target
-        target.ctors.length := by
-      simpa [heq,
-        Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length Htarget] using
-          Hprefix
-    have HreplayComplete : ConstructorParamPrefixRow stats source.ctors
-        source.ctors.length := by simpa [heq] using Hreplay
-    have HtailsComplete : ConstructorTailPrefixRow Hc.venv c.lparams
-        tailScope stats decl target source.ctors classes source.ctors.length := by
-      simpa [heq] using Htails
-    exact Hfinish classes Hcomplete HreplayComplete HtailsComplete
+    have hlength := Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length Htarget
+    exact Hfinish classes (fun i hi => Hprefix.holds i (by omega) hi)
+      (fun i hi => Hreplay.holds i (by omega) hi)
+      ⟨by omega, fun i hi => Htails.holds i (by omega) hi⟩
 termination_by source.ctors.length - ctorIdx
 
 end checkConstructors.loopCtors
@@ -119,6 +121,7 @@ namespace checkConstructors.loopTypes
 
 /-- Mutual-family fold retaining every concrete constructor parameter replay. -/
 theorem refinesBlockWithReplay
+    {stats : AddInductive.InductiveStats} {indTypes : Array InductiveType}
     {decl : VInductDecl} {sourceEnv envTypes : VEnv}
     {params : List VExpr}
     (Q : List (List (List Bool)) → Prop)
@@ -126,11 +129,19 @@ theorem refinesBlockWithReplay
     (Htypes : List.Forall₂
       (TrInductiveTypeHeaders sourceEnv envTypes c.lparams)
       indTypes.toList decl.types)
-    (Hprefix : ConstructorTypesPrefix envTypes decl params targetIdx)
-    (Hreplays : ConstructorParamPrefixRows stats indTypes targetIdx)
+    (Hprefix : IndexedPrefix decl.types.length
+      (fun i hi => ∀ j (hj : j < (decl.types[i]'hi).ctors.length),
+        CtorTypeChecked envTypes decl params (decl.types[i]'hi)
+          ((decl.types[i]'hi).ctors[j]'hj)) targetIdx)
+    (Hreplays : IndexedPrefix indTypes.size
+      (fun i hi => ∀ j (hj : j < (indTypes[i]'hi).ctors.length),
+        ConstructorParamPrefixAt stats ((indTypes[i]'hi).ctors[j]'hj)) targetIdx)
     {tailScope : VLCtx} {classes : List (List (List Bool))}
-    (Htails : ConstructorTailPrefixRows Hc.venv c.lparams tailScope stats
-      decl indTypes classes targetIdx)
+    (hsize : indTypes.size = decl.types.length)
+    (hclasses : classes.length = targetIdx)
+    (Htails : IndexedPrefix indTypes.size
+      (fun i hi => FamilyConstructorTails Hc.venv c.lparams tailScope stats decl
+        (decl.types[i]'(hsize ▸ hi)) (indTypes[i]'hi).ctors classes[i]!) targetIdx)
     (Hshape : ∀ targetIdx (hsource : targetIdx < indTypes.size)
       (htarget : targetIdx < decl.types.length)
       i (hctorSource : i < indTypes[targetIdx].ctors.length)
@@ -166,11 +177,12 @@ theorem refinesBlockWithReplay
             decl.types[targetIdx].ctors[i] ∧
           envTypes.IsType decl.uvars [] decl.types[targetIdx].ctors[i].type ∧
           ∃ k, Expr.ForallSpine indTypes[targetIdx].ctors[i].type k)
-    (Hfinish : ∀ classes', ConstructorTypesPrefix envTypes decl params
-        decl.types.length →
-      ConstructorParamPrefixRows stats indTypes indTypes.size →
-      ConstructorTailPrefixRows Hc.venv c.lparams tailScope stats decl
-        indTypes classes' indTypes.size →
+    (Hfinish : ∀ classes',
+      (∀ i (hi : i < decl.types.length) j (hj : j < decl.types[i].ctors.length),
+        CtorTypeChecked envTypes decl params decl.types[i] decl.types[i].ctors[j]) →
+      (∀ i (hi : i < indTypes.size) j (hj : j < indTypes[i].ctors.length),
+        ConstructorParamPrefixAt stats indTypes[i].ctors[j]) →
+      ConstructorTails Hc.venv c.lparams tailScope stats decl indTypes classes' →
       Q classes') :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
       targetIdx c).WF fun rest => Q (classes ++ rest) := by
@@ -190,19 +202,19 @@ theorem refinesBlockWithReplay
       (Q := fun fields =>
         (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
           (targetIdx + 1) c).WF fun rest => Q (classes ++ fields :: rest))
-      Hc Htarget
-      (ConstructorTypePrefix.empty envTypes decl params decl.types[targetIdx])
-      (ConstructorParamPrefixRow.empty stats indTypes[targetIdx].ctors)
-      (ConstructorTailPrefixRow.empty Hc.venv c.lparams tailScope stats decl
-        decl.types[targetIdx] indTypes[targetIdx].ctors) ?_ ?_).mono
+      Hc Htarget (decl := decl) (params := params) (tailScope := tailScope)
+      .empty .empty (classes := []) rfl .empty ?_ ?_).mono
       fun fields h => by simpa using h
     · intro i hsource htarget' Hctor checkedType type' checkedType' hchecked
       exact Hshape targetIdx hidx htarget i hsource htarget' Hctor
         checkedType type' checkedType' hchecked
     · intro fields Htype Hrow HtailRow
       exact (refinesBlockWithReplay Q Hc Htypes
-        (Hprefix.push htarget Htype) (Hreplays.push hidx Hrow)
-        (Htails.push hidx HtailRow)
+        (Hprefix.push htarget Htype) (Hreplays.push hidx Hrow) hsize
+        (classes := classes ++ [fields]) (by simp [hclasses])
+        (Htails.snoc (P := fun i hi fields => FamilyConstructorTails Hc.venv c.lparams
+          tailScope stats decl (decl.types[i]'(hsize ▸ hi)) indTypes[i].ctors fields)
+          hclasses hidx HtailRow)
         Hshape Hfinish).mono fun rest h => by simpa using h
   · have heq : targetIdx = indTypes.size := by
       have hlength : indTypes.size = decl.types.length := by
@@ -211,12 +223,9 @@ theorem refinesBlockWithReplay
       omega
     apply result.WF (Q := fun rest => Q (classes ++ rest)) hidx
     rw [List.append_nil]
-    apply Hfinish
-    · have hlength : indTypes.size = decl.types.length := by
-        simpa using List.Forall₂.length_eq Htypes
-      simpa [heq, hlength] using Hprefix
-    · simpa [heq] using Hreplays
-    · simpa [heq] using Htails
+    exact Hfinish classes (fun i hi j hj => Hprefix.holds i (by omega) hi j hj)
+      (fun i hi j hj => Hreplays.holds i (by omega) hi j hj)
+      (.ofAll hsize (by omega) fun i hi => Htails.holds i (by omega) hi)
 termination_by indTypes.size - targetIdx
 
 end checkConstructors.loopTypes
@@ -285,10 +294,8 @@ theorem checkConstructors.loopTypes.refinesChecked
   refine (checkConstructors.loopTypes.refinesBlockWithReplay
     (Q := fun classes => CheckedConstructors sourceEnv decl Hc.venv
       params stats indTypes c.lparams Hmaterialized.parameterScope classes)
-    Hc Htypes (ConstructorTypesPrefix.empty Hc.venv decl params)
-    (ConstructorParamPrefixRows.empty stats indTypes)
-    (ConstructorTailPrefixRows.empty Hc.venv c.lparams
-      Hmaterialized.parameterScope stats decl indTypes hindTypesSize) ?_ ?_).mono
+    Hc Htypes (params := params) (tailScope := Hmaterialized.parameterScope)
+    .empty .empty hindTypesSize (classes := []) rfl .empty ?_ ?_).mono
     fun _ h => by simpa using h
   · intro targetIdx hsource htarget ctorIdx hctorSource hctorTarget
       Hctor checkedType fullType checkedType' hchecked
@@ -333,9 +340,9 @@ theorem checkConstructors.loopTypes.refinesChecked
         Hspine⟩
   · intro classes Hcomplete Hreplays Htails
     exact {
-      checked := Hcomplete.checkedComplete (env := sourceEnv)
-      parameterPrefixes := Hreplays.complete
-      constructorTails := Htails.complete }
+      checked := .ofCtorTypesChecked Hcomplete
+      parameterPrefixes := .ofAll Hreplays
+      constructorTails := Htails }
 
 end VerifyInductive
 end Lean4Lean

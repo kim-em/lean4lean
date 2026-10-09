@@ -1241,72 +1241,11 @@ theorem checkConstructors.loopCtor.refinesCtorShape
           (Hsuffix := Hsuffix) hiStats hnoFVars)
         (by omega) hforall
 
-/-- Parameter prefixes (`ParameterPrefix`) of the first `done` constructors
-of one executable constructor list. -/
-structure ConstructorParamPrefixRow
-    (stats : AddInductive.InductiveStats) (ctors : List Constructor)
-    (done : Nat) : Prop where
-  covered : done ≤ ctors.length
-  prefixes : ∀ i, i < done → (hi : i < ctors.length) →
-    ∃ tail, ParameterPrefix stats 0 ctors[i].type tail
-  /-- Every checked constructor type is a pure syntactic forall spine. -/
-  spines : ∀ i, i < done → (hi : i < ctors.length) →
-    ∃ k, Expr.ForallSpine ctors[i].type k
-
-theorem ConstructorParamPrefixRow.empty
-    (stats : AddInductive.InductiveStats) (ctors : List Constructor) :
-    ConstructorParamPrefixRow stats ctors 0 where
-  covered := Nat.zero_le _
-  prefixes _ hi := by omega
-  spines _ hi := by omega
-
-theorem ConstructorParamPrefixRow.push
-    (H : ConstructorParamPrefixRow stats ctors done)
-    (hi : done < ctors.length)
-    (Hprefix : ParameterPrefix stats 0 ctors[done].type tail)
-    (Hspine : ∃ k, Expr.ForallSpine ctors[done].type k) :
-    ConstructorParamPrefixRow stats ctors (done + 1) where
-  covered := by omega
-  prefixes i hidone hi' := by
-    by_cases hlast : i = done
-    · subst i
-      exact ⟨tail, Hprefix⟩
-    · exact H.prefixes i (by omega) hi'
-  spines i hidone hi' := by
-    by_cases hlast : i = done
-    · subst i
-      exact Hspine
-    · exact H.spines i (by omega) hi'
-
-/-- Constructor parameter-prefix rows of the first `done` families of the
-executable mutual-family array. -/
-structure ConstructorParamPrefixRows
-    (stats : AddInductive.InductiveStats)
-    (indTypes : Array InductiveType) (done : Nat) : Prop where
-  covered : done ≤ indTypes.size
-  rows : ∀ i, i < done → (hi : i < indTypes.size) →
-    ConstructorParamPrefixRow stats indTypes[i].ctors
-      indTypes[i].ctors.length
-
-theorem ConstructorParamPrefixRows.empty
-    (stats : AddInductive.InductiveStats)
-    (indTypes : Array InductiveType) :
-    ConstructorParamPrefixRows stats indTypes 0 where
-  covered := Nat.zero_le _
-  rows _ hi := by omega
-
-theorem ConstructorParamPrefixRows.push
-    (H : ConstructorParamPrefixRows stats indTypes done)
-    (hi : done < indTypes.size)
-    (Hrow : ConstructorParamPrefixRow stats indTypes[done].ctors
-      indTypes[done].ctors.length) :
-    ConstructorParamPrefixRows stats indTypes (done + 1) where
-  covered := by omega
-  rows i hidone hi' := by
-    by_cases hlast : i = done
-    · subst i
-      exact Hrow
-    · exact H.rows i (by omega) hi'
+/-- What the constructor loop establishes about the parameter prefix of one executable
+constructor: the prefix (`ParameterPrefix`) exists, and the checked type is a pure syntactic
+forall spine. -/
+def ConstructorParamPrefixAt (stats : AddInductive.InductiveStats) (ctor : Constructor) : Prop :=
+  (∃ tail, ParameterPrefix stats 0 ctor.type tail) ∧ ∃ k, Expr.ForallSpine ctor.type k
 
 /-- Parameter prefixes of every constructor, selected by family and
 constructor positions. -/
@@ -1323,24 +1262,14 @@ structure ConstructorParameterPrefixes
       (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length),
     ∃ k, Expr.ForallSpine indTypes[familyIdx].ctors[ctorIdx].type k
 
-theorem ConstructorParamPrefixRows.complete
-    (H : ConstructorParamPrefixRows stats indTypes indTypes.size) :
+theorem ConstructorParameterPrefixes.ofAll
+    {stats : AddInductive.InductiveStats} {indTypes : Array InductiveType}
+    (H : ∀ (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
+      (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length),
+      ConstructorParamPrefixAt stats indTypes[familyIdx].ctors[ctorIdx]) :
     ConstructorParameterPrefixes stats indTypes where
-  replay familyIdx hfamily ctorIdx hctor :=
-    (H.rows familyIdx hfamily hfamily).prefixes ctorIdx hctor hctor
-  spines familyIdx hfamily ctorIdx hctor :=
-    (H.rows familyIdx hfamily hfamily).spines ctorIdx hctor hctor
-
-theorem getElem!_append_singleton_self {α : Type} [Inhabited α] {l : List α} {x : α} {n : Nat}
-    (h : l.length = n) : (l ++ [x])[n]! = x := by
-  subst h
-  rw [getElem!_pos (l ++ [x]) l.length (by simp)]
-  simp
-
-theorem getElem!_append_singleton_lt {α : Type} [Inhabited α] {l : List α} {x : α} {i : Nat}
-    (h : i < l.length) : (l ++ [x])[i]! = l[i]! := by
-  rw [getElem!_pos (l ++ [x]) i (by simp; omega), getElem!_pos l i h]
-  exact List.getElem_append_left h
+  replay familyIdx hfamily ctorIdx hctor := (H familyIdx hfamily ctorIdx hctor).1
+  spines familyIdx hfamily ctorIdx hctor := (H familyIdx hfamily ctorIdx hctor).2
 
 /-- The checked parameter prefix and tail of one executable constructor, with the field
 classification `classes` its positivity check returned. -/
@@ -1361,89 +1290,16 @@ def CheckedConstructorTailAt
         env Us (constructorTelescopeTarget ctorVal) scope tailTarget
         stats.params.size 0)
 
-/-- The constructors among the first `done` of `ctors` whose checked parameter prefix
-and tail are known (`CheckedConstructorTailAt`), with their field classifications. -/
-structure ConstructorTailPrefixRow
+/-- The checked parameter prefixes and tails (`CheckedConstructorTailAt`) of all
+constructors `ctors` of one family, with their field classifications `classes`. -/
+def FamilyConstructorTails
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (target : VInductiveType) (ctors : List Constructor)
-    (classes : List (List Bool)) (done : Nat) : Prop where
-  covered : done ≤ ctors.length
-  classes_length : classes.length = done
-  tails : ∀ i, i < done → (hi : i < ctors.length) →
+    (classes : List (List Bool)) : Prop :=
+  classes.length = ctors.length ∧
+  ∀ i (hi : i < ctors.length),
     CheckedConstructorTailAt env Us scope stats decl target ctors[i] classes[i]!
-
-theorem ConstructorTailPrefixRow.empty
-    (env : VEnv) (Us : List Name) (scope : VLCtx)
-    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
-    (target : VInductiveType) (ctors : List Constructor) :
-    ConstructorTailPrefixRow env Us scope stats decl target ctors [] 0 where
-  covered := Nat.zero_le _
-  classes_length := rfl
-  tails _ hi := by omega
-
-theorem ConstructorTailPrefixRow.push
-    (H : ConstructorTailPrefixRow env Us scope stats decl target ctors classes done)
-    (hi : done < ctors.length)
-    (Hreplay : CheckedConstructorTailAt env Us scope stats decl target
-      ctors[done] fields) :
-    ConstructorTailPrefixRow env Us scope stats decl target ctors (classes ++ [fields])
-      (done + 1) where
-  covered := by omega
-  classes_length := by simp [H.classes_length]
-  tails i hidone hi' := by
-    by_cases hlast : i = done
-    · subst i
-      rw [getElem!_append_singleton_self H.classes_length]
-      exact Hreplay
-    · have hlt : i < classes.length := by rw [H.classes_length]; omega
-      rw [getElem!_append_singleton_lt hlt]
-      exact H.tails i (by omega) hi'
-
-/-- The families among the first `done` of `indTypes` all of whose constructors
-have a known checked parameter prefix and tail, with their field classifications. -/
-structure ConstructorTailPrefixRows
-    (env : VEnv) (Us : List Name) (scope : VLCtx)
-    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
-    (indTypes : Array InductiveType) (classes : List (List (List Bool)))
-    (done : Nat) : Prop where
-  size_eq : indTypes.size = decl.types.length
-  covered : done ≤ indTypes.size
-  classes_length : classes.length = done
-  rows : ∀ i, i < done → (hi : i < indTypes.size) →
-    ConstructorTailPrefixRow env Us scope stats decl decl.types[i]
-      indTypes[i].ctors classes[i]! indTypes[i].ctors.length
-
-theorem ConstructorTailPrefixRows.empty
-    (env : VEnv) (Us : List Name) (scope : VLCtx)
-    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
-    (indTypes : Array InductiveType)
-    (hsize : indTypes.size = decl.types.length) :
-    ConstructorTailPrefixRows env Us scope stats decl indTypes [] 0 where
-  size_eq := hsize
-  covered := Nat.zero_le _
-  classes_length := rfl
-  rows _ hi := by omega
-
-theorem ConstructorTailPrefixRows.push
-    (H : ConstructorTailPrefixRows env Us scope stats decl indTypes classes done)
-    (hi : done < indTypes.size)
-    (Hrow : ConstructorTailPrefixRow env Us scope stats decl
-      (decl.types[done]'(by rw [← H.size_eq]; exact hi))
-      indTypes[done].ctors fields indTypes[done].ctors.length) :
-    ConstructorTailPrefixRows env Us scope stats decl indTypes (classes ++ [fields])
-      (done + 1) where
-  size_eq := H.size_eq
-  covered := by omega
-  classes_length := by simp [H.classes_length]
-  rows i hidone hi' := by
-    by_cases hlast : i = done
-    · subst i
-      rw [getElem!_append_singleton_self H.classes_length]
-      exact Hrow
-    · have hlt : i < classes.length := by rw [H.classes_length]; omega
-      rw [getElem!_append_singleton_lt hlt]
-      exact H.rows i (by omega) hi'
 
 /-- The checked tail of every constructor, by family and constructor position, with the
 field classifications `classes` returned by the executable constructor check. -/
@@ -1460,17 +1316,23 @@ structure ConstructorTails
     CheckedConstructorTailAt env Us scope stats decl
       decl.types[familyIdx] indTypes[familyIdx].ctors[ctorIdx] classes[familyIdx]![ctorIdx]!
 
-theorem ConstructorTailPrefixRows.complete
-    (H : ConstructorTailPrefixRows env Us scope stats decl indTypes classes
-      indTypes.size) :
+theorem ConstructorTails.ofAll
+    {env : VEnv} {Us : List Name} {scope : VLCtx}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {indTypes : Array InductiveType} {classes : List (List (List Bool))}
+    (hsize : indTypes.size = decl.types.length)
+    (hclasses : classes.length = indTypes.size)
+    (H : ∀ (familyIdx : Nat) (hfamily : familyIdx < indTypes.size),
+      FamilyConstructorTails env Us scope stats decl
+        (decl.types[familyIdx]'(hsize ▸ hfamily)) indTypes[familyIdx].ctors
+        classes[familyIdx]!) :
     ConstructorTails env Us scope stats decl indTypes classes where
-  size_eq := H.size_eq
-  classes_length := H.classes_length
+  size_eq := hsize
+  classes_length := hclasses
   row_length familyIdx hfamily := by
     rw [getElem!_pos indTypes familyIdx hfamily]
-    exact (H.rows familyIdx hfamily hfamily).classes_length
-  replay familyIdx hfamily ctorIdx hctor :=
-    (H.rows familyIdx hfamily hfamily).tails ctorIdx hctor hctor
+    exact (H familyIdx hfamily).1
+  replay familyIdx hfamily ctorIdx hctor := (H familyIdx hfamily).2 ctorIdx hctor
 
 end VerifyInductive
 end Lean4Lean
