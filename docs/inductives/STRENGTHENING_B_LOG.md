@@ -46,3 +46,49 @@ section of Round8 (direction A material) is not adapted. Axiom audit of all 22 d
 
 Consequence for the plan: the designer's expected gap `G` ("join repair as well") is empty under
 canonical `Eq`; `UninhabitedTypingFront` IS `Cancel`. Step 2(b), proving it, is the whole problem.
+
+### 2.2 The structural induction and its exact residue (part 2 of `TypingFront.lean`)
+
+Decision: do the induction in the `Ctx.LiftN 1 k Γ Γ'` form (`TypingFrontN`), not the front form:
+the `λ`/`Π` body cases move the inserted binder to depth `k+1`, and no context-exchange lemma
+exists in the library. `TypingFrontN ↔ TypingFront ↔ Cancel` under canonical `Eq`
+(`typingFrontN_iff_cancel`; the converse direction is `Strengthening.of_cancel`).
+
+Checked (`typingFrontN_iff_closures`): `TypingFrontN ↔ AppFrontN ∧ TypeFrontN ∧ ProjFrontN ∧
+ElimFrontN`. The right-to-left direction is the structural induction on the term
+(`typingFrontN_of_closures`); each closure is necessary, the three application-shaped ones
+trivially and `TypeFrontN` through the ascription `(λ x : Π B. B↑. x) (λ x : A. x)`
+(`TypeFrontN.of_typingFrontN`). Per case:
+
+* `bvar`, `sort`, `const`: close unconditionally (`Lookup.of_liftN`, `sort_inv`, `const_inv`).
+* `lam A b`, `forallE A B`: the induction hypothesis types `A` below at some `T`; one needs
+  `A : sort u` below, i.e. `T ≡ sort u` below from `T↑ ≡ sort u` above. This is `TypeFrontN`
+  (a `Front` instance between two lifts, `T↑` and `(sort u)↑`), packaged as `TypeFrontN.sort`.
+  So even the application-free fragment is blocked, by the *type of the domain*, not by the body.
+* `app f a`: the induction hypotheses give `f : F`, `a : A₀` below; `F↑ ≡ Π A B` above. Needed:
+  (i) `F ≡ Π A₁ B₁` below for some `A₁ B₁` (`PiExposureN`) and (ii) `A₀ ≡ A₁` below from
+  `A₀↑ ≡ A₁↑` above (`TypeFrontN`). `AppFrontN.of_piExposure` checks (i) ∧ (ii) → `AppFrontN`.
+  (i) is not reducible to `TypingFrontN` by any encoding I can see: a lifted term whose
+  typability forces `F ≡ Π _ _` must apply something of type `F` to an argument typable below at
+  a type whose lift is convertible to the domain `A` above, which presupposes (i)
+  (`AppFrontN.piExposure` is exactly the restricted converse).
+* `proj`, `elim`: `ProjFrontN` (spine exposure of the major's type plus typing of the field type
+  below) and `ElimFrontN` (the closed generic type `type.instL ls` is typed above; it is a closed
+  term, not a subterm, so the induction gives nothing; the library has no lemma typing generic
+  types in `[]`, only `WF.eliminator_genericType_closed`).
+
+Reduction form: `exposure_reduces` (a type convertible to a `Π` reduces to a `Π`; needs the new
+`Π`-stability lemmas `parRed_forallE_inv`, `fullStep_forallE_inv`, `fullReduction_forallE_inv`
+and `normalEqN_forallE_inv_r`, the latter three using the sort typing of the `Π` to exclude
+`structEta`, `funEta`, `etaL`/`etaBoth` and `proofIrrel`), `PiExposureRedN` and
+`PiExposureN.of_red`, `cancel_of_piExposureRed`. `piExposure_of_descending`: a `DescendingStep`
+path exposes below; `headSource_path_not_descending`: Astra's path is not descending.
+
+Stuck heads (step 2(d)): `stationary_type_not_pi` (a stationary non-`Π` type is never
+convertible to a `Π`), `rigid_type_not_pi` (opaque types, `rigidApp_forallE_inv` with no
+arguments), `loop_not_pi` (the self-looping `L₁` of `LoopEnv`, through `toAxioms` and
+`rigid_of_fresh`, with `loopEnv_onCtx_toAxioms` transporting the context). So exposure never
+passes through an opaque constant or a self-loop; they enter the problem only through
+`TypeFrontN`/`TermEq` separation, not through exposure.
+
+Build clean; axiom audit of all 57 declarations: no `sorryAx`.
