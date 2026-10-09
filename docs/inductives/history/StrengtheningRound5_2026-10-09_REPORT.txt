@@ -1,0 +1,186 @@
+ROUND 5 — CHECKED PARTIAL RESULT, NOT COMPLETION
+
+File: Round5.lean
+Import: Lean4Lean.Theory.Typing.Strengthening.Pilot
+Namespace: Lean4Lean.Round5
+Checked from /home/kim/worktrees/lean4lean/lean4lean-agent-verify-inductives with:
+  lake env lean /home/kim/worktrees/lean4lean/strengthening-context/round5/Round5.lean
+Exit status: 0. No warnings, no sorryAx. All 43 new theorems print their axioms.
+The repository worktree is unchanged.
+
+REQUEST STATUS
+(1) NOT completed. Defined a syntactic depth/type-size rank and its attachment
+    to actual pilot certificates, not an annotation of every hidden premise.
+    The multiset version retains every syntactic beta redex. Its type label is
+    the beta BINDER type, not the common comparison type absent from Cert.
+    Only the lexicographic triple's well-foundedness is proved; the multiset
+    order is used for replacement/decrease tests, with no separate WF theorem.
+(2) Full pilot weakening proved, preserving the syntactic rank. Raw expression
+    substitution has explicit depth and size bounds. Certified substitution
+    with an all-premise rank is NOT proved. Exact CTy substitution is false;
+    the checked counterexample still admits a certified check at the required
+    type, so it does not refute the correct substitution theorem.
+(3) Both earlier examples decrease for the lexicographic rank AND the multiset
+    order. Actual pilot CStep witnesses are supplied for both, for every N.
+(4) NOT completed. Neither admissible transitivity nor the requested pair of
+    conversion certificates with no smaller composition is proved. The new
+    obstruction concerns principal beta contraction, not composition.
+    No extension to projections, prefix unfolding, structure/unit eta or
+    quotient has been attempted because the conditional prerequisite failed.
+
+NEW CHECKED OBSTRUCTION
+Let P = Prop, S1 = Type, a = (lambda x : Type. x) Prop, and
+  twice = forall X : bvar 0, bvar 1
+(the nondependent arrow from bvar 0 to itself).
+Then
+  (lambda X : Type. X -> X) a  -->beta  a -> a.
+The beta-cut multiset (binder depth, binder-type node count) is
+  [(0,1), (0,1)]  before,
+  [(0,1), (1,1)]  after.
+multiset_duplication_failure proves that the second multiset is not smaller
+by strict depth-first multiset replacement. duplicated_argument_increases
+proves a corresponding maximum-depth increase for every nested (N+1).
+duplication_pilot supplies actual CTy certificates for both endpoints at
+Sort (imax 1 1), and a CConv certificate for the contraction, in every WF env.
+no_smaller_pilot_contractum quantifies over all CTy witnesses, but ONLY for
+the explicitly endpoint-based sourceRank. It is not the requested theorem
+about composition and must not be reported as one.
+
+WHAT A REPLACEMENT RANK MUST ACCOUNT FOR
+This particular depth-first design would need to budget each argument copy
+at its future variable-occurrence depth before contracting beta. In twice,
+those depths are 0 and 1. General dependent substitution also changes cut
+types; measuring only their original size is insufficient. These are necessary
+repairs to this design, not a proof that any such repaired rank works.
+The remaining unproved task is to bound the new certified type alignments
+and exposures produced by substitution and normal-equality transport, including
+compositions whose inputs are outputs of previous diagram steps.
+
+VERBATIM DEFINITIONS (from the checked source)
+
+Rank definitions
+/-- Syntax size; universe-level syntax is deliberately not counted. -/
+def nodes : VExpr → Nat
+  | .app a b | .lam a b | .forallE a b => nodes a + nodes b + 1
+  | .proj _ _ e => nodes e + 1
+  | _ => 1
+
+/-- Maximum number of enclosing lambda/Pi binders. -/
+def binders : VExpr → Nat
+  | .app a b => max (binders a) (binders b)
+  | .lam a b | .forallE a b => max (binders a) (binders b + 1)
+  | .proj _ _ e => binders e
+  | _ => 0
+
+/-- Raising a nonempty cut profile by one binder. -/
+def under (n : Nat) : Nat := if n = 0 then 0 else n + 1
+
+/-- Maximum (one plus) binder depth of a syntactic beta redex, including hidden ones. -/
+def cutDepth : VExpr → Nat
+  | .app (.lam A b) a => max 1 (max (cutDepth A) (max (under (cutDepth b)) (cutDepth a)))
+  | .app f a => max (cutDepth f) (cutDepth a)
+  | .lam A b | .forallE A b => max (cutDepth A) (under (cutDepth b))
+  | .proj _ _ e => cutDepth e
+  | _ => 0
+
+/-- Maximum size of a beta binder type. This is the substitution cut type,
+not the absent common comparison type of a pilot conversion. -/
+def cutTypeSize : VExpr → Nat
+  | .app (.lam A b) a => max (nodes A) (max (cutTypeSize A) (max (cutTypeSize b) (cutTypeSize a)))
+  | .app f a => max (cutTypeSize f) (cutTypeSize a)
+  | .lam A b | .forallE A b => max (cutTypeSize A) (cutTypeSize b)
+  | .proj _ _ e => cutTypeSize e
+  | _ => 0
+
+/-- Lexicographic order: binder depth, binder-type size, syntax size. -/
+abbrev Rank := Nat × (Nat × Nat)
+def LT : Rank → Rank → Prop := Prod.Lex (· < ·) (Prod.Lex (· < ·) (· < ·))
+def rank (e : VExpr) : Rank := (cutDepth e, cutTypeSize e, nodes e)
+
+
+Certificate attachment
+/-- This attaches the endpoint diagnostic to an ACTUAL pilot certificate.
+It intentionally makes no claim to count the certificate's hidden premises. -/
+def sourceRank (_h : Cert env U j Γ a b) : Rank := rank a
+
+
+Substitution budget
+/-- A uniform substitution budget includes BOTH argument depth and argument size. -/
+def SubBudget (D S : Nat) (σ : Subst) : Prop :=
+  1 ≤ S ∧ ∀ i, binders (σ i) ≤ D ∧ nodes (σ i) ≤ S
+
+
+Test expressions
+abbrev P : VExpr := .sort .zero
+abbrev S1 : VExpr := .sort (.succ .zero)
+def arr (a b : VExpr) : VExpr := .forallE a b.lift
+def tower : Nat → VExpr | 0 => P | n+1 => arr P (tower n)
+def twice : VExpr := arr (.bvar 0) (.bvar 0)
+def nested : Nat → VExpr | 0 => P | n+1 => .app (.lam S1 (.bvar 0)) (nested n)
+
+
+Multiset definitions
+abbrev Label := Nat × Nat
+def LabelLT : Label → Label → Prop := Prod.Lex (· < ·) (· < ·)
+def profile (d : Nat) : VExpr → List Label
+  | .app (.lam A b) a => (d, nodes A) ::
+      (profile d A ++ profile (d+1) b ++ profile d a)
+  | .app f a => profile d f ++ profile d a
+  | .lam A b | .forallE A b => profile d A ++ profile (d+1) b
+  | .proj _ _ e => profile d e
+  | _ => []
+
+
+Multiset order
+/-- Standard strict multiset replacement, represented by lists modulo permutation. -/
+def MultiLT (xs ys : List Label) : Prop :=
+  ∃ keep removed added, ys.Perm (keep ++ removed) ∧ xs.Perm (keep ++ added) ∧
+    removed ≠ [] ∧ ∀ x ∈ added, ∃ y ∈ removed, LabelLT x y
+
+
+
+VERBATIM AXIOM OUTPUT
+
+'Lean4Lean.Round5.pilot_weakN' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.rank_wf' does not depend on any axioms
+'Lean4Lean.Round5.nodes_lift' depends on axioms: [propext]
+'Lean4Lean.Round5.binders_lift' depends on axioms: [propext]
+'Lean4Lean.Round5.cutDepth_lift' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.cutTypeSize_lift' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.rank_lift' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.pilot_weakN_rank' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.SubBudget.lift' depends on axioms: [propext]
+'Lean4Lean.Round5.nodes_subst' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.binders_subst' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.cutDepth_bound' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.nodes_pos' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.cutTypeSize_bound' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.rank_subst_bound' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.tower_depth' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.tower_cutType' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.nested_depth' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.nested_type' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.twice_inst' depends on axioms: [propext]
+'Lean4Lean.Round5.twice_tower_decreases' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.nested_decreases' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Lean4Lean.Round5.duplicated_argument_increases' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.no_exact_pi_synthesis' depends on axioms: [propext]
+'Lean4Lean.Round5.exact_synthesis_substitution_false' depends on axioms: [propext]
+'Lean4Lean.Round5.profile_lift' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.profile_nested' depends on axioms: [propext]
+'Lean4Lean.Round5.profile_tower' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.label_depth_mono' does not depend on any axioms
+'Lean4Lean.Round5.multilt_depth_bound' depends on axioms: [propext]
+'Lean4Lean.Round5.multiset_duplication_failure' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.multiset_old_tests' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.Core.weak' does not depend on any axioms
+'Lean4Lean.Round5.Core.refl' depends on axioms: [propext]
+'Lean4Lean.Round5.Core.convRefl' depends on axioms: [propext]
+'Lean4Lean.Round5.core_nested' does not depend on any axioms
+'Lean4Lean.Round5.core_tower' does not depend on any axioms
+'Lean4Lean.Round5.core_twice' does not depend on any axioms
+'Lean4Lean.Round5.nested_ty' depends on axioms: [propext]
+'Lean4Lean.Round5.twice_ty' depends on axioms: [propext]
+'Lean4Lean.Round5.old_tests_pilot' depends on axioms: [propext]
+'Lean4Lean.Round5.duplication_pilot' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round5.no_smaller_pilot_contractum' depends on axioms: [propext, Quot.sound]
