@@ -69,20 +69,18 @@ theorem canonicalFamilyOfTelescope
         (VExpr.wrapForalls indices (.sort resultLevel))) from
         ⟨.sort canonicalLevel, hcanonical⟩)
 
-/-- A retained uniform positive normal form determines exactly the recursive
-shape expected by the independent generator, using the shared family table. -/
-theorem _root_.Lean4Lean.VInductDecl.UniformFieldNormalForm.recursiveShape
+/-- A retained recursive normal form determines exactly the recursive shape expected by
+the independent generator, using the shared family table. -/
+theorem _root_.Lean4Lean.VInductDecl.RecursiveNormalForm.recursiveShape
     {decl : VInductDecl} {s : InductiveSignature}
     (huvars : s.uvars = decl.uvars) (hparams : s.params.length = decl.nparams)
     (hnames : s.families.toList.map (·.name) = decl.types.map (·.name))
-    (H : decl.UniformFieldNormalForm (VLevel.params decl.uvars) depth normalized) :
-    normalized.SourceConstFree (s.families.toList.map (·.name)) ∨
-      ∃ r : Recursive s.families.size,
-        normalized = s.recursiveType depth r ∧
-        (∀ domain ∈ r.binders, domain.SourceConstFree (s.families.toList.map (·.name))) ∧
-        (∀ index ∈ r.indices, index.SourceConstFree (s.families.toList.map (·.name))) := by
-  rcases H with hfree | ⟨domains, result, rfl, hdomains, hresult, sourceHead, hsourceHead, hhead⟩
-  · exact .inl (by simpa [hnames] using hfree)
+    (H : decl.RecursiveNormalForm (VLevel.params decl.uvars) depth normalized) :
+    ∃ r : Recursive s.families.size,
+      normalized = s.recursiveType depth r ∧
+      (∀ domain ∈ r.binders, domain.SourceConstFree (s.families.toList.map (·.name))) ∧
+      (∀ index ∈ r.indices, index.SourceConstFree (s.families.toList.map (·.name))) := by
+  rcases H with ⟨domains, result, rfl, hdomains, hresult, sourceHead, hsourceHead, hhead⟩
   rcases hresult with ⟨source, hsource, _, levels, hfn, hlevels, hargs, hparamsAt, hindices⟩
   have hlevelsEq : levels = VLevel.params decl.uvars :=
     (VExpr.const.inj (hfn.symm.trans hhead)).2
@@ -98,7 +96,7 @@ theorem _root_.Lean4Lean.VInductDecl.UniformFieldNormalForm.recursiveShape
     binders := domains
     target := ⟨owner, by simpa using howner⟩
     indices := result.getAppFnArgs.2.drop decl.nparams }
-  refine .inr ⟨r, ?_, ?_, ?_⟩
+  refine ⟨r, ?_, ?_, ?_⟩
   · unfold InductiveSignature.recursiveType InductiveSignature.familyApp
     dsimp only [r]
     have hname' : s.families[r.target].name = source.name := by simpa [r] using hname
@@ -116,6 +114,22 @@ theorem _root_.Lean4Lean.VInductDecl.UniformFieldNormalForm.recursiveShape
     simpa [hnames] using hdomains domain hdomain
   · intro index hindex
     simpa [hnames] using hindices index hindex
+
+/-- A retained uniform positive normal form is either family-free or determines the
+recursive shape expected by the independent generator (`RecursiveNormalForm.recursiveShape`). -/
+theorem _root_.Lean4Lean.VInductDecl.UniformFieldNormalForm.recursiveShape
+    {decl : VInductDecl} {s : InductiveSignature}
+    (huvars : s.uvars = decl.uvars) (hparams : s.params.length = decl.nparams)
+    (hnames : s.families.toList.map (·.name) = decl.types.map (·.name))
+    (H : decl.UniformFieldNormalForm (VLevel.params decl.uvars) depth normalized) :
+    normalized.SourceConstFree (s.families.toList.map (·.name)) ∨
+      ∃ r : Recursive s.families.size,
+        normalized = s.recursiveType depth r ∧
+        (∀ domain ∈ r.binders, domain.SourceConstFree (s.families.toList.map (·.name))) ∧
+        (∀ index ∈ r.indices, index.SourceConstFree (s.families.toList.map (·.name))) := by
+  rcases H with hfree | H
+  · exact .inl (by simpa [hnames] using hfree)
+  · exact .inr (VInductDecl.RecursiveNormalForm.recursiveShape huvars hparams hnames H)
 
 /-- Classification part of the per-field source signature model: an external
 field normalizes to a source-free type, and a recursive field is
@@ -135,16 +149,19 @@ def SignatureFieldClass (env : VEnv) (U : Nat) (s : InductiveSignature)
 /-- Per-field part of the source signature model, indexed by the real prefix
 context. Stored field domains remain exactly the source domains. Besides the
 classification, every field's domain is definitionally a uniform positive
-normal form at the source universes, independently of its classification. -/
+normal form at the source universes, in the branch its classification names
+(`ClassifiedFieldNormalForm`). -/
 def SignatureFieldModel (env : VEnv) (decl : VInductDecl) (s : InductiveSignature)
     (ctx : List VExpr) (depth : Nat) (field : Field s.families.size) : Prop :=
   SignatureFieldClass env decl.uvars s ctx depth field ∧
   (s.isUnsafe = true ∨ ∃ normalized,
     env.IsDefEqU decl.uvars ctx (s.fieldType depth field) normalized ∧
-    decl.UniformFieldNormalForm (VLevel.params decl.uvars) depth normalized)
+    decl.ClassifiedFieldNormalForm (VLevel.params decl.uvars) depth field.isRecursive
+      normalized)
 
 /-- Select the independent field classification from the successful source
-check, retaining the exact domain in both external and recursive cases. -/
+check, retaining the exact domain in both external and recursive cases. The
+classification is the one the positivity check returned. -/
 theorem signatureFieldOfUniform
     {decl : VInductDecl} {s : InductiveSignature}
     (huvars : s.uvars = decl.uvars) (hparams : s.params.length = decl.nparams)
@@ -152,21 +169,30 @@ theorem signatureFieldOfUniform
     (hsafety : s.isUnsafe = decl.isUnsafe)
     (H : decl.isUnsafe = true ∨ ∃ normalized,
       env.IsDefEqU decl.uvars ctx domain normalized ∧
-      decl.UniformFieldNormalForm (VLevel.params decl.uvars) depth normalized) :
+      decl.ClassifiedFieldNormalForm (VLevel.params decl.uvars) depth recursive normalized) :
     ∃ field : Field s.families.size, s.fieldType depth field = domain ∧
+      (s.isUnsafe = true ∨ field.isRecursive = recursive) ∧
       SignatureFieldModel env decl s ctx depth field := by
   rcases H with hunsafe | ⟨normalized, hnormal, hshape⟩
-  · exact ⟨.external domain, rfl, .inl (hsafety.trans hunsafe), .inl (hsafety.trans hunsafe)⟩
-  have hpositive : ∀ field : Field s.families.size, s.fieldType depth field = domain →
-      s.isUnsafe = true ∨ ∃ normalized,
-        env.IsDefEqU decl.uvars ctx (s.fieldType depth field) normalized ∧
-        decl.UniformFieldNormalForm (VLevel.params decl.uvars) depth normalized :=
-    fun _ hfield => .inr ⟨normalized, hfield ▸ hnormal, hshape⟩
-  rcases hshape.recursiveShape huvars hparams hnames with hfree | ⟨r, hr, hdomains, hindices⟩
-  · exact ⟨.external domain, rfl, .inr ⟨normalized, hnormal, hfree⟩, hpositive _ rfl⟩
-  · have hpos := hpositive (.recursive domain r) rfl
+  · exact ⟨.external domain, rfl, .inl (hsafety.trans hunsafe),
+      .inl (hsafety.trans hunsafe), .inl (hsafety.trans hunsafe)⟩
+  cases recursive with
+  | false =>
+    have hfree : normalized.SourceConstFree (decl.types.map (·.name)) := hshape
+    exact ⟨.external domain, rfl, .inr rfl,
+      .inr ⟨normalized, hnormal, by simpa [hnames] using hfree⟩,
+      .inr ⟨normalized, hnormal, hshape⟩⟩
+  | true =>
+    obtain ⟨r, hr, hdomains, hindices⟩ :=
+      VInductDecl.RecursiveNormalForm.recursiveShape huvars hparams hnames hshape
+    have hpos : s.isUnsafe = true ∨ ∃ normalized,
+        env.IsDefEqU decl.uvars ctx (s.fieldType depth (.recursive domain r)) normalized ∧
+        decl.ClassifiedFieldNormalForm (VLevel.params decl.uvars) depth
+          (Field.recursive domain r).isRecursive normalized :=
+      .inr ⟨normalized, hnormal, hshape⟩
     rw [hr] at hnormal
-    exact ⟨.recursive domain r, rfl, ⟨hnormal, .inr ⟨hdomains, hindices⟩⟩, hpos⟩
+    exact ⟨.recursive domain r, rfl, .inr rfl,
+      ⟨hnormal, .inr ⟨hdomains, hindices⟩⟩, hpos⟩
 
 /-- Fold the source telescope in binder order. Classification does not
 replace a domain, so every later field keeps exactly its source context. -/
@@ -175,37 +201,55 @@ theorem signatureFieldsOfUniform
     (huvars : s.uvars = decl.uvars) (hparams : s.params.length = decl.nparams)
     (hnames : s.families.toList.map (·.name) = decl.types.map (·.name))
     (hsafety : s.isUnsafe = decl.isUnsafe)
-    {domains : List VExpr}
-    (H : ∀ i (hi : i < domains.length),
+    {domains : List VExpr} {classes : List Bool}
+    (hlength : classes.length = domains.length)
+    (H : ∀ i (hi : i < domains.length) (hc : i < classes.length),
       decl.isUnsafe = true ∨ ∃ normalized,
         env.IsDefEqU decl.uvars ((domains.take i).reverse ++ ctx) domains[i] normalized ∧
-        decl.UniformFieldNormalForm (VLevel.params decl.uvars) (depth + i) normalized) :
+        decl.ClassifiedFieldNormalForm (VLevel.params decl.uvars) (depth + i) classes[i]
+          normalized) :
     ∃ fields : List (Field s.families.size),
       fields.map (s.fieldType 0) = domains ∧
+      (s.isUnsafe = true ∨ fields.map Field.isRecursive = classes) ∧
       ∀ i (hi : i < fields.length),
         SignatureFieldModel env decl s ((domains.take i).reverse ++ ctx)
           (depth + i) fields[i] := by
-  induction domains generalizing ctx depth with
-  | nil => exact ⟨[], rfl, by intro i hi; simp at hi⟩
+  induction domains generalizing ctx depth classes with
+  | nil =>
+    have : classes = [] := List.eq_nil_of_length_eq_zero (by simpa using hlength)
+    subst this
+    exact ⟨[], rfl, .inr rfl, by intro i hi; simp at hi⟩
   | cons domain domains ih =>
-    have hhead := H 0 (by simp)
+    obtain ⟨recursive, classes, rfl⟩ : ∃ recursive rest, classes = recursive :: rest := by
+      cases classes with
+      | nil => simp at hlength
+      | cons recursive rest => exact ⟨recursive, rest, rfl⟩
+    have hhead := H 0 (by simp) (by simp)
     simp only [List.take_zero, List.reverse_nil, List.nil_append, List.getElem_cons_zero,
       Nat.add_zero] at hhead
-    obtain ⟨field, hfield, hmodel⟩ := signatureFieldOfUniform huvars hparams hnames hsafety hhead
-    have htail : ∀ i (hi : i < domains.length),
+    obtain ⟨field, hfield, hclass, hmodel⟩ :=
+      signatureFieldOfUniform huvars hparams hnames hsafety hhead
+    have htail : ∀ i (hi : i < domains.length) (hc : i < classes.length),
         decl.isUnsafe = true ∨ ∃ normalized,
-          env.IsDefEqU decl.uvars ((domains.take i).reverse ++ (domain :: ctx)) domains[i] normalized ∧
-          decl.UniformFieldNormalForm (VLevel.params decl.uvars) (depth + 1 + i) normalized := by
-      intro i hi
-      have hnext := H (Nat.succ i) (by simpa using hi)
+          env.IsDefEqU decl.uvars ((domains.take i).reverse ++ (domain :: ctx)) domains[i]
+            normalized ∧
+          decl.ClassifiedFieldNormalForm (VLevel.params decl.uvars) (depth + 1 + i)
+            classes[i] normalized := by
+      intro i hi hc
+      have hnext := H (Nat.succ i) (by simpa using hi) (by simpa using hc)
       simp only [List.getElem_cons_succ] at hnext
       simpa [List.take_succ_cons, List.reverse_cons, List.append_assoc,
         Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hnext
-    obtain ⟨fields, hfields, hmodels⟩ := ih htail
-    refine ⟨field :: fields, ?_, ?_⟩
+    obtain ⟨fields, hfields, hclasses, hmodels⟩ := ih (by simpa using hlength) htail
+    refine ⟨field :: fields, ?_, ?_, ?_⟩
     · simp only [List.map_cons, hfields]
       change s.fieldType depth field :: domains = domain :: domains
       rw [hfield]
+    · rcases hclass with hunsafe | hclass
+      · exact .inl hunsafe
+      rcases hclasses with hunsafe | hclasses
+      · exact .inl hunsafe
+      exact .inr (by simp [hclass, hclasses])
     · intro i hi
       cases i with
       | zero => simpa using hmodel
@@ -215,9 +259,9 @@ theorem signatureFieldsOfUniform
           Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hmodels i hi'
 
 theorem _root_.Lean4Lean.VInductDecl.UniformCtorTail.defeqCtx
-    (H : VInductDecl.UniformCtorTail env decl target levels ctx₁ depth tail)
+    (H : VInductDecl.UniformCtorTail env decl target levels ctx₁ depth tail classes)
     (henv : env.Ordered) (hctx : env.IsDefEqCtx decl.uvars base ctx₁ ctx₂) :
-    decl.UniformCtorTail env target levels ctx₂ depth tail := by
+    decl.UniformCtorTail env target levels ctx₂ depth tail classes := by
   induction H generalizing ctx₂ with
   | result hresult hhead => exact .result hresult hhead
   | field htype hfield _ ih =>
@@ -245,16 +289,17 @@ theorem signatureConstructorOfUniform
     (owner : Fin s.families.size) (howner : s.families[owner].name = target.name)
     (ctorName : Name)
     (H : decl.UniformCtorTail env target (VLevel.params decl.uvars)
-      s.params.reverse 0 tail) :
+      s.params.reverse 0 tail classes) :
     ∃ ctor : Constructor s.families.size,
       ctor.name = ctorName ∧ ctor.owner = owner ∧
       VExpr.wrapForalls s.params tail = s.constructorType ctor ∧
+      (s.isUnsafe = true ∨ ctor.fields.map Field.isRecursive = classes) ∧
       ∀ i (hi : i < ctor.fields.length),
         SignatureFieldModel env decl s
           (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse) i ctor.fields[i] := by
-  obtain ⟨domains, result, rfl, hresult, hhead, hfields⟩ := H.telescope
-  obtain ⟨fields, hfieldsEq, hmodels⟩ := signatureFieldsOfUniform
-    huvars hparams hnames hsafety (fun i hi => (hfields i hi).2)
+  obtain ⟨domains, result, rfl, hclassesLength, hresult, hhead, hfields⟩ := H.telescope
+  obtain ⟨fields, hfieldsEq, hclasses, hmodels⟩ := signatureFieldsOfUniform
+    huvars hparams hnames hsafety hclassesLength (fun i hi hc => (hfields i hi hc).2)
   have hlength : fields.length = domains.length := by
     simpa using congrArg List.length hfieldsEq
   let ctor : Constructor s.families.size := {
@@ -265,7 +310,7 @@ theorem signatureConstructorOfUniform
   have hfieldTypes : s.fieldTypes ctor = domains := by
     rw [signatureFieldTypes_eq_map]
     exact hfieldsEq
-  refine ⟨ctor, rfl, rfl, ?_, ?_⟩
+  refine ⟨ctor, rfl, rfl, ?_, hclasses, ?_⟩
   · unfold InductiveSignature.constructorType
     rw [VExpr.wrapForalls_append, hfieldTypes]
     congr 2
@@ -446,6 +491,7 @@ theorem sourceModelsOfTables {s : InductiveSignature} {decl : VInductDecl}
     · exact Or.inl hunsafe
     · refine Or.inr ⟨envTypes, hadd, ?_⟩
       intro ctor hc i hi
-      exact (Hfields ctor hc i hi).2.resolve_left hunsafe
+      obtain ⟨normalized, hnormal, hshape⟩ := (Hfields ctor hc i hi).2.resolve_left hunsafe
+      exact ⟨normalized, hnormal, hshape.uniform⟩
 
 end Lean4Lean.VerifyInductive

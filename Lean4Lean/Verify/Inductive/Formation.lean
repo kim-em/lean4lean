@@ -198,10 +198,11 @@ theorem ConstructorParameterCertificate.ctorParameterShape
   H.shapes type htype ctor hctor
 
 /-- Constructor-tail formation together with the typing fact recovered by
-fully applying the checked inductive header. -/
+fully applying the checked inductive header. `classes` is the field
+classification returned by the executable's positivity check. -/
 structure ConstructorTailCertificate (env : VEnv) (decl : VInductDecl)
     (target : VInductiveType) (ctx : List VExpr) (depth : Nat)
-    (tail : VExpr) : Prop where
+    (tail : VExpr) (classes : List Bool) : Prop where
   shape : decl.CtorTailWF env target ctx depth tail
   isType : env.IsType decl.uvars ctx tail
   /-- The executable check walks syntactic binders and then requires a valid
@@ -213,7 +214,7 @@ structure ConstructorTailCertificate (env : VEnv) (decl : VInductDecl)
     result.getAppFnArgs.1 = .const target.name (VLevel.params decl.uvars)
   /-- Actual source-field domains and contexts carry the uniform recursive
   normal forms checked before introducing the eliminator universe. -/
-  uniform : decl.UniformCtorTail env target (VLevel.params decl.uvars) ctx depth tail
+  uniform : decl.UniformCtorTail env target (VLevel.params decl.uvars) ctx depth tail classes
 
 /-- Prefix invariant for constructor checking in the exact flattened order
 used by recursor-minor and iota-rule generation. -/

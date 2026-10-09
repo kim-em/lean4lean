@@ -998,8 +998,10 @@ structure PrimitiveConstructorCheck
   checked : CheckedConstructorCertificate sourceEnv decl H.context.venv
     H.headers.params
   parameterPrefixes : ConstructorParameterPrefixes stats indTypes
+  /-- The field classifications returned by the executable constructor check. -/
+  classes : List (List (List Bool))
   constructorTails : ConstructorTails H.context.venv c.lparams
-    H.statsWF.parameterScope stats decl indTypes
+    H.statsWF.parameterScope stats decl indTypes classes
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
   telescopes : SourceCtorsCertified H.context.venv c.lparams indTypes.toList
   declared : PrimitiveConstructorEnvironment H outEnv

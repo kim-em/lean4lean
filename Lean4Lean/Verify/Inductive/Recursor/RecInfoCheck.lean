@@ -17,7 +17,7 @@ def ConstructorCheck.checkedRecursorConstructorTailAt
       (decl.types[familyIdx]'(by
         rw [← R.constructorTails.size_eq]
         exact hfamily))
-      indTypes[familyIdx].ctors[ctorIdx] :=
+      indTypes[familyIdx].ctors[ctorIdx] R.classes[familyIdx]![ctorIdx]! :=
   R.constructorTails.replay familyIdx hfamily ctorIdx hctor
 
 /-- The motive-pass header of one family of the block, read off the constructor check: its
@@ -147,7 +147,7 @@ theorem ConstructorCheck.checkedConstructorPrefixAt
       (decl.types[familyIdx]'(by
         rw [← R.constructorTails.size_eq]
         exact hfamily))
-      indTypes[familyIdx].ctors[ctorIdx] := by
+      indTypes[familyIdx].ctors[ctorIdx] R.classes[familyIdx]![ctorIdx]! := by
     rw [R.recursorHeaders_parameterScope]
     exact Hreplay
   have Hrebased := Hreplay'.toRecursorContext

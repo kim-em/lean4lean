@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Primitive.Constructors
+import Lean4Lean.Verify.Inductive.Constructor.PrimitiveClasses
 
 /-!
 # The constructor check of a primitive declaration
@@ -120,7 +121,7 @@ private theorem primitiveResultTailCertificate
     (hlookup : env.constants target.name = some target.toVConstant)
     (htargetType : target.type = .sort (.succ .zero)) :
     ConstructorTailCertificate env decl target [] 0
-      (.const target.name []) := by
+      (.const target.name []) [] := by
   have htyped := primitiveTargetHasType huvars htargetUvars hlookup
     htargetType []
   exact {
@@ -143,7 +144,7 @@ private theorem primitiveNatSuccTailCertificate
     (hresultLevel : target.resultLevel ≈ .succ .zero)
     (hlookup : env.constants target.name = some target.toVConstant)
     (htargetType : target.type = .sort (.succ .zero)) :
-    ConstructorTailCertificate env decl target [] 0 (.forallE .nat .nat) := by
+    ConstructorTailCertificate env decl target [] 0 (.forallE .nat .nat) [true] := by
   have hdom : env.HasType decl.uvars [] .nat (.sort (.succ .zero)) := by
     simpa [VExpr.nat, hname] using
       primitiveTargetHasType huvars htargetUvars hlookup htargetType []
@@ -167,7 +168,7 @@ private theorem primitiveNatSuccTailCertificate
       by simpa [VExpr.nat, hname] using hvalid1,
       by simp [VExpr.nat, hname, huvars, VLevel.params]⟩
     uniform := .field ⟨_, hdom⟩
-      (.inr ⟨.nat, ⟨_, hdom⟩, .inr ⟨[], .nat, rfl, by simp,
+      (.inr ⟨.nat, ⟨_, hdom⟩, ⟨[], .nat, rfl, by simp,
         by simpa [VExpr.nat, hname] using hvalid0.forgetTarget,
         target, by simp [htypes], by simp [VExpr.nat, hname, huvars, VLevel.params]⟩⟩)
       (.result (by simpa [VExpr.nat, hname] using hvalid1)
@@ -180,8 +181,8 @@ private theorem primitiveTailReplay
     (hparams : stats.params.size = 0)
     (hmem : ctorVal ∈ target.ctors)
     (htr : TrSourceConstRaw env Us source.name source.type ctorVal)
-    (Htail : ConstructorTailCertificate env decl target [] 0 ctorVal.type) :
-    CheckedConstructorTailAt env Us [] stats decl target source := by
+    (Htail : ConstructorTailCertificate env decl target [] 0 ctorVal.type classes) :
+    CheckedConstructorTailAt env Us [] stats decl target source classes := by
   have htailType : env.IsType Us.length [] ctorVal.type := by
     simpa [huvars] using Htail.isType
   have htailType' := htailType
@@ -599,7 +600,7 @@ theorem PrimitiveHeaderEnvironment.constructorTails
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
     ConstructorTails H.context.venv c.lparams
-      H.statsWF.parameterScope stats decl indTypes := by
+      H.statsWF.parameterScope stats decl indTypes (primitiveFieldClasses indTypes) := by
   have hparams := H.params_size_eq_zero Hshape
   have hscope := H.parameterScope_eq_nil Hshape
   have hheaderParams := H.headerParams_eq_nil Hshape
@@ -660,7 +661,13 @@ theorem PrimitiveHeaderEnvironment.constructorTails
       hdeclUvars hdeclParams htargetUvars hnindices htargetLookup htargetType
     have HtrueTail := primitiveResultTailCertificate hdeclTypes
       hdeclUvars hdeclParams htargetUvars hnindices htargetLookup htargetType
-    refine { size_eq := by rw [hindTypes]; simp [hdeclTypes], replay := ?_ }
+    refine { size_eq := by rw [hindTypes]; simp [hdeclTypes],
+             classes_length := by rw [hindTypes]; simp [primitiveFieldClasses],
+             row_length := by
+               intro i hi; rw [hindTypes] at hi ⊢
+               have : i = 0 := by simpa using hi
+               subst this; simp [primitiveFieldClasses],
+             replay := ?_ }
     intro familyIdx hfamily ctorIdx hctor
     have hfamilyIdx : familyIdx = 0 := by
       have : familyIdx < (#[{
@@ -676,13 +683,13 @@ theorem PrimitiveHeaderEnvironment.constructorTails
     have hctorIdx : ctorIdx = 0 ∨ ctorIdx = 1 := by omega
     rcases hctorIdx with rfl | rfl
     · have HfalseTail' : ConstructorTailCertificate H.context.venv decl
-          target [] 0 falseVal.type := by simpa [hfalseType] using HfalseTail
-      simpa [hscope, hdeclTypes, hindTypes] using
+          target [] 0 falseVal.type [] := by simpa [hfalseType] using HfalseTail
+      simpa [hscope, hdeclTypes, hindTypes, primitiveFieldClasses, primitiveFieldClass] using
         primitiveTailReplay H.translation.uvars.symm hparams
           (by simp [htargetCtors]) Hfalse HfalseTail'
     · have HtrueTail' : ConstructorTailCertificate H.context.venv decl
-          target [] 0 trueVal.type := by simpa [htrueType] using HtrueTail
-      simpa [hscope, hdeclTypes, hindTypes] using
+          target [] 0 trueVal.type [] := by simpa [htrueType] using HtrueTail
+      simpa [hscope, hdeclTypes, hindTypes, primitiveFieldClasses, primitiveFieldClass] using
         primitiveTailReplay H.translation.uvars.symm hparams
           (by simp [htargetCtors]) Htrue HtrueTail'
   · have hindTypes : indTypes = #[{
@@ -751,7 +758,13 @@ theorem PrimitiveHeaderEnvironment.constructorTails
     have HsuccTail := primitiveNatSuccTailCertificate hdeclTypes
       Htarget.header.name hdeclUvars hdeclParams htargetUvars hnindices
       hresultLevel htargetLookup htargetType
-    refine { size_eq := by rw [hindTypes]; simp [hdeclTypes], replay := ?_ }
+    refine { size_eq := by rw [hindTypes]; simp [hdeclTypes],
+             classes_length := by rw [hindTypes]; simp [primitiveFieldClasses],
+             row_length := by
+               intro i hi; rw [hindTypes] at hi ⊢
+               have : i = 0 := by simpa using hi
+               subst this; simp [primitiveFieldClasses],
+             replay := ?_ }
     intro familyIdx hfamily ctorIdx hctor
     have hfamilyIdx : familyIdx = 0 := by
       have : familyIdx < (#[{
@@ -769,13 +782,13 @@ theorem PrimitiveHeaderEnvironment.constructorTails
     have hctorIdx : ctorIdx = 0 ∨ ctorIdx = 1 := by omega
     rcases hctorIdx with rfl | rfl
     · have HzeroTail' : ConstructorTailCertificate H.context.venv decl
-          target [] 0 zeroVal.type := by simpa [hzeroType] using HzeroTail
-      simpa [hscope, hdeclTypes, hindTypes] using
+          target [] 0 zeroVal.type [] := by simpa [hzeroType] using HzeroTail
+      simpa [hscope, hdeclTypes, hindTypes, primitiveFieldClasses, primitiveFieldClass] using
         primitiveTailReplay H.translation.uvars.symm hparams
           (by simp [htargetCtors]) Hzero HzeroTail'
     · have HsuccTail' : ConstructorTailCertificate H.context.venv decl
-          target [] 0 succVal.type := by simpa [hsuccType] using HsuccTail
-      simpa [hscope, hdeclTypes, hindTypes] using
+          target [] 0 succVal.type [true] := by simpa [hsuccType] using HsuccTail
+      simpa [hscope, hdeclTypes, hindTypes, primitiveFieldClasses, primitiveFieldClass] using
         primitiveTailReplay H.translation.uvars.symm hparams
           (by simp [htargetCtors]) Hsucc HsuccTail'
 
@@ -880,21 +893,148 @@ theorem PrimitiveHeaderEnvironment.ownerNormalForms
     · exact primitiveNatSuccOwnerNormalForm hparams hparamsArray
         hstatsConsts hstatsIndices
 
+/-- Each family of a primitive declaration is an inductive type of the header environment. -/
+theorem PrimitiveHeaderEnvironment.headerFamilyFind
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv)
+    (familyIdx : Nat) (hfamily : familyIdx < indTypes.size) :
+    ∃ v : InductiveVal, headerEnv.find? indTypes[familyIdx].name = some (.inductInfo v) := by
+  rcases H.sourceAligned with ⟨numNested, Haligned⟩
+  let infos := AddInductive.inductiveTypeInfos stats nparams indTypes
+    numNested isUnsafe c.lparams
+  have hindicesSize : stats.nindices.size = indTypes.size := by
+    calc
+      stats.nindices.size = decl.types.length := by
+        rw [Array.size_eq_length_toList, H.statsWF.indices, List.length_map]
+      _ = indTypes.toList.length := by
+        have := Lean4Lean.List.Forall₂.length_eq H.translation.types
+        exact this.symm
+      _ = indTypes.size := by simp
+  have hinfosSize : infos.size = indTypes.size := by
+    simp [infos, AddInductive.inductiveTypeInfos, hindicesSize]
+  have hinfoIdx : familyIdx < infos.size := by simpa [hinfosSize] using hfamily
+  let familyInfo := infos[familyIdx]
+  have hfamilyInfoMem : familyInfo ∈ infos.toList := by
+    apply Array.mem_toList_iff.mpr
+    simpa [familyInfo] using Array.getElem_mem hinfoIdx
+  have hfamilyName : familyInfo.name = indTypes[familyIdx].name := by
+    simp [familyInfo, infos, AddInductive.inductiveTypeInfos, hindicesSize]
+  rcases Haligned.findInfo hfamilyInfoMem with ⟨_, hfamilyEntry⟩
+  exact ⟨familyInfo, hfamilyName ▸
+    H.installed.findEntry H.sourceContext.checking.tr.map_wf hfamilyEntry⟩
+
+/-- The executable constructor check of a primitive declaration returns the canonical field
+classifications: `Nat.succ`'s field is recursive. -/
+theorem PrimitiveHeaderEnvironment.checkedClasses
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv)
+    (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
+      isUnsafe)
+    (classes : List (List (List Bool)))
+    (hrun : AddInductive.checkConstructors indTypes stats isUnsafe
+      { c with env := headerEnv } = .ok classes) :
+    classes = primitiveFieldClasses indTypes := by
+  have hparams := H.params_size_eq_zero Hshape
+  have hparamsArray : stats.params = #[] :=
+    Array.eq_empty_of_size_eq_zero hparams
+  have hheaderParams := H.headerParams_eq_nil Hshape
+  have Hshape' := Hshape
+  rcases Hshape with ⟨hlparams, hnparams, hunsafe, htypes⟩
+  subst hunsafe
+  have hdeclParams : decl.nparams = 0 := H.translation.nparams.trans hnparams
+  have hlevels : stats.levels = [] := by
+    rw [H.statsWF.levelParams, hlparams]
+    rfl
+  apply checkConstructors_classes primitiveFieldClass _ hrun
+  intro c' hc' t ht j hj out hout
+  rcases htypes with hbool | ⟨binderName, binderInfo, hnat⟩
+  · have hindTypes : indTypes = #[{
+        name := ``Bool
+        type := .sort (.succ .zero)
+        ctors := [
+          { name := ``Bool.false, type := .const ``Bool [] },
+          { name := ``Bool.true, type := .const ``Bool [] }] }] := by
+      apply Array.toList_inj.mp
+      simpa using hbool
+    subst hindTypes
+    have ht0 : t = 0 := by simpa using ht
+    subst ht0
+    have hj2 : j < 2 := by simpa using hj
+    have hjs : j = 0 ∨ j = 1 := by omega
+    rcases hjs with rfl | rfl <;>
+      exact (loopCtor_nonForall_nil (by simp) hout).trans (by simp [primitiveFieldClass])
+  · have hindTypes : indTypes = #[{
+        name := ``Nat
+        type := .sort (.succ .zero)
+        ctors := [
+          { name := ``Nat.zero, type := .const ``Nat [] },
+          { name := ``Nat.succ,
+            type := .forallE binderName (.const ``Nat [])
+              (.const ``Nat []) binderInfo }] }] := by
+      apply Array.toList_inj.mp
+      simpa using hnat
+    have Htypes := H.translation.types
+    rw [hnat] at Htypes
+    rcases List.Forall₂.leftSingleton Htypes with
+      ⟨target, hdeclTypes, Htarget⟩
+    have htargetType : target.type = .sort (.succ .zero) := by
+      apply TrExprS.unique (by trivial) Htarget.header.type
+      exact TrExprS.sort (by rw [hlparams]; rfl)
+    have hsourceWF : sourceEnv.WF := by
+      simpa [H.sourceContextVEnv] using H.sourceContext.checking.tr.wf
+    have hmetadata := primitiveTarget_metadata hsourceWF hdeclParams
+      htargetType (by
+        simpa [hheaderParams] using
+          H.headers.typeShapes target (by simp [hdeclTypes]))
+    rcases hmetadata with ⟨hnindices, _⟩
+    have hstatsIndices : stats.nindices = #[0] := by
+      apply Array.toList_inj.mp
+      simpa [hdeclTypes, hnindices] using H.statsWF.indices
+    have hstatsConsts : stats.indConsts = #[.const ``Nat []] := by
+      rw [H.statsWF.consts, hlevels, hdeclTypes]
+      simp [Htarget.header.name]
+    obtain ⟨v, hfind⟩ := H.headerFamilyFind 0 (by simp [hindTypes])
+    have hfind' : headerEnv.find? ``Nat = some (.inductInfo v) := by
+      simpa [hindTypes] using hfind
+    subst hindTypes
+    have ht0 : t = 0 := by simpa using ht
+    subst ht0
+    have hj2 : j < 2 := by simpa using hj
+    have hjs : j = 0 ∨ j = 1 := by omega
+    rcases hjs with rfl | rfl
+    · exact (loopCtor_nonForall_nil (by simp) hout).trans (by simp [primitiveFieldClass])
+    · have hparamAt : stats.params[0]? = none := by simp [hparamsArray]
+      have hres := loopCtor_validConstField (k := 0) (n := ``Nat) (us := []) hparamAt
+        (isDelta_inductInfo (by rw [hc']; exact hfind'))
+        (by simp [hstatsConsts, AddInductive.hasIndOcc, Expr.findAny, Expr.constName!])
+        (by
+          simp [AddInductive.isValidIndApp?, AddInductive.isValidIndAppFrom?,
+            AddInductive.isValidIndAppIdx, hstatsConsts, hstatsIndices, hparamsArray,
+            Expr.withApp, Expr.withAppAux]
+          have hn : (Expr.const ``Nat []).getAppNumArgs = 0 := rfl
+          simp [hn, pure, Id.run, Array.all]
+          rw [hn]; simp [Array.allM, Array.anyM]
+          rw [Array.anyM.loop]; simp; rfl)
+        (by simpa using hout)
+      exact hres.trans (by simp [primitiveFieldClass])
+
 /-- The executable constructor check is still run on the primitive branch;
 when it succeeds, the finite canonical argument above supplies its first two
-semantic products without requiring a valid header-only context. -/
+semantic products without requiring a valid header-only context. Its field
+classifications are the canonical ones (`checkedClasses`). -/
 theorem AddInductive.checkConstructors.primitiveCoreWF
     (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
-      { c with env := headerEnv }).WF fun _ =>
+      { c with env := headerEnv }).WF fun classes =>
         CheckedConstructors sourceEnv decl H.context.venv
             H.headers.params stats indTypes c.lparams
-            H.statsWF.parameterScope ∧
+            H.statsWF.parameterScope classes ∧
           ConstructorOwnerNormalForms stats indTypes := by
-  intro _ _
+  intro classes hrun
+  rw [H.checkedClasses Hshape classes hrun]
   exact ⟨{
     checked := H.checkedConstructors Hshape
     parameterPrefixes := H.parameterPrefixes Hshape

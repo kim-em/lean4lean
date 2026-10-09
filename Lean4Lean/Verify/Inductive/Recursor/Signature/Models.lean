@@ -447,7 +447,7 @@ theorem RecursorConstruction.SignatureSpec.fieldPositive
         (((R.sourceSignatureHeader.fieldTypes hdr).take k).reverse ++
           R.sourceSignatureHeader.params.reverse) k hdr.fields[k] := by
     rw [← hhdr]
-    exact hmodel.2.2.2.1
+    exact hmodel.2.2.2.2.1
   have hconsLen : (H.declFieldDomains owner howner localIndex hlocal).length =
       (s.constructors[recursorMinorOffset indTypes owner + localIndex]).fields.length := by
     rw [← hfields, InductiveSignature.fieldTypes_length]
@@ -476,7 +476,7 @@ theorem RecursorConstruction.SignatureSpec.fieldPositive
   have hN' := hN.defeqDFC henv.ordered hctxI
   have hcd := (HD.2 i hiC hiA).1
   have hres := hcd.trans henv (hctxI.symm henv.ordered).isType hN'
-  refine ⟨normalized, ?_, hshape⟩
+  refine ⟨normalized, ?_, hshape.uniform⟩
   have hget : s.fieldType i (s.constructors[recursorMinorOffset indTypes owner + localIndex]).fields[i] =
       (H.declFieldDomains owner howner localIndex hlocal)[i] := by
     rw [← InductiveSignature.fieldTypes_getElem _ _ i

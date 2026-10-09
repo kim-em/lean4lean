@@ -56,22 +56,22 @@ theorem checkConstructors.loopCtors.telTrWF
         change (AddInductive.checkClosedType ctors[ctorIdx].name
           ctors[ctorIdx].type c >>= fun _ => ((do
             let _ ← readThe AddInductive.Context
-            AddInductive.checkConstructors.loopCtor stats isUnsafe
+            let fields ← AddInductive.checkConstructors.loopCtor stats isUnsafe
               ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
               c.fuel.inductiveFuel
-            AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
-              ctors (ctorIdx + 1)
-              (foundCtors.insert ctors[ctorIdx].name)) :
-            AddInductive.M Unit) c).WF _
+            return fields :: (← AddInductive.checkConstructors.loopCtors stats isUnsafe
+              targetIdx ctors (ctorIdx + 1)
+              (foundCtors.insert ctors[ctorIdx].name))) :
+            AddInductive.M (List (List Bool))) c).WF _
         refine (checkClosedType.telTrWF Hc henv).bind fun _ hT => ?_
         change ((read : AddInductive.M AddInductive.Context) c >>= fun c' =>
           ((AddInductive.checkConstructors.loopCtor stats isUnsafe
               ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
-              c'.fuel.inductiveFuel >>= fun _ =>
-            AddInductive.checkConstructors.loopCtors stats isUnsafe
+              c'.fuel.inductiveFuel >>= fun fields => do
+            return fields :: (← AddInductive.checkConstructors.loopCtors stats isUnsafe
               targetIdx ctors (ctorIdx + 1)
-              (foundCtors.insert ctors[ctorIdx].name)) :
-            AddInductive.M Unit) c).WF _
+              (foundCtors.insert ctors[ctorIdx].name))) :
+            AddInductive.M (List (List Bool))) c).WF _
         have hread : ((read : AddInductive.M AddInductive.Context) c).WF
             (fun c' => c' = c) := by
           intro c' h
@@ -84,7 +84,8 @@ theorem checkConstructors.loopCtors.telTrWF
             c.fuel.inductiveFuel c).WF fun _ => True := fun _ _ => trivial
         refine hloop.bind fun _ _ => ?_
         refine (checkConstructors.loopCtors.telTrWF Hc henv (ctorIdx + 1)
-          (foundCtors.insert ctors[ctorIdx].name)).mono fun _ H i hi h => ?_
+          (foundCtors.insert ctors[ctorIdx].name)).bind fun _ H => ?_
+        refine Except.WF.pure fun i hi h => ?_
         rcases Nat.eq_or_lt_of_le hi with rfl | hlt
         · exact hT
         · exact H i hlt h
@@ -108,8 +109,8 @@ theorem checkConstructors.loopTypes.telTrWF
     refine (checkConstructors.loopCtors.telTrWF (ctors := indTypes[targetIdx].ctors)
       (stats := stats) (isUnsafe := isUnsafe) (targetIdx := targetIdx) Hc henv 0 {}).bind
       fun _ hhead => ?_
-    refine (checkConstructors.loopTypes.telTrWF Hc henv (targetIdx + 1)).mono
-      fun _ H i hi h ctor hctor => ?_
+    refine (checkConstructors.loopTypes.telTrWF Hc henv (targetIdx + 1)).bind
+      fun _ H => Except.WF.pure fun i hi h ctor hctor => ?_
     rcases Nat.eq_or_lt_of_le hi with rfl | hlt
     · obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hctor
       exact hhead j (Nat.zero_le _) hj

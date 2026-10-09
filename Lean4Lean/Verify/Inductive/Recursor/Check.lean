@@ -196,12 +196,14 @@ theorem ConstructorCheck.recursorPhasesWF
     (hnprim : c.allowPrimitive = true ->
       forall owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
+        (Lean.mkRecName indTypes[owner]!.name))
+    (hpositivity : positivity = R.classes) :
     ((AddInductive.getElimLevel stats indTypes >>= fun elimLevel =>
       AddInductive.withTypeCheckerLParams
         (AddInductive.getRecLevelParams elimLevel c.lparams) do
         let kTarget ← AddInductive.isKTarget stats indTypes
-        AddInductive.mkRecInfos stats indTypes elimLevel fun recInfos =>
+        AddInductive.mkRecInfos stats indTypes elimLevel fun recInfos => do
+          AddInductive.checkRecursiveFields isUnsafe positivity recInfos
           AddInductive.declareRecursors stats indTypes elimLevel recInfos
             kTarget c.lparams)
       { c with env := ctorEnv }).WF fun outEnv =>
@@ -209,7 +211,8 @@ theorem ConstructorCheck.recursorPhasesWF
   apply R.getElimLevelMkRecInfosWF hlparams
     Lean4Lean.recursorConsumeTypeAnnotationsCompat hlit
     (Q := fun outEnv => Nonempty (RecursorCheck R outEnv))
-    (k := fun elimLevel kTarget recInfos =>
+    (k := fun elimLevel kTarget recInfos => do
+      AddInductive.checkRecursiveFields isUnsafe positivity recInfos
       AddInductive.declareRecursors stats indTypes elimLevel recInfos kTarget
         c.lparams)
   intro elimLevel hElim hElimRun kTarget hkTarget localContext localDepth recInfos Rlocal henvLocal
@@ -217,6 +220,9 @@ theorem ConstructorCheck.recursorPhasesWF
     Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics HmajorTypes HmajorShapes
     HmotiveTypes HmotiveShapes Htelescopes HindexRows Hparams hnoalias
     houterOrder Harities HminorCounts Hcard Hle
+  refine (AddInductive.checkRecursiveFields.WF (c := localContext)).bind
+    fun _ hchecked => ?_
+  rw [hpositivity] at hchecked
   have Hvalid : CheckingEnv.Valid localContext.safety localContext.env
       R.context.venv := by
     rw [Hle.safety_eq, Hle.env_eq]
@@ -298,6 +304,7 @@ theorem ConstructorCheck.recursorPhasesWF
     arities := Harities
     minorCounts := HminorCounts
     cardinality := Hcard
+    recursiveFieldsChecked := hchecked
   }
   have Hrecursors := AddInductive.declareRecursors.bindingWFOfTargets
     (elimLevel := elimLevel) kTarget hkTarget Hvalid Rlocal.toBindingContextWF Rlocal

@@ -114,27 +114,24 @@ theorem AddInductive.formationCore.primitiveClosedWF
       isUnsafe)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
-    ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
-      isUnsafe >>= fun headerEnv =>
-        AddInductive.withEnv headerEnv do
-          AddInductive.checkConstructors indTypes stats isUnsafe
-          AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
-      fun outEnv => ∃ decl, ∃ headerEnv : Environment,
+    (AddInductive.constructorPhase stats nparams indTypes numNested isUnsafe c).WF
+      fun out => ∃ decl, ∃ headerEnv : Environment,
         ∃ Hheaders : PrimitiveHeaderEnvironment c stats decl nparams
           isUnsafe depth Hc.venv indTypes headerEnv,
-        ∃ R : PrimitiveConstructorCheck Hheaders outEnv,
-          MutualInductivesClosed outEnv := by
+        ∃ R : PrimitiveConstructorCheck Hheaders out.1,
+          R.classes = out.2 ∧ MutualInductivesClosed out.1 := by
   have Hheaders :=
     AddInductive.declareInductiveTypes.primitiveHeadersClosedWF
       (numNested := numNested) Hsemantic Hclosed Hpresent hlevels hlevelParams
       hindicesSize hindices hconsts hparams hcommonParams Hcache Hsuffix
       Hambient hcommon hnotzero Hshape hvisible
+  unfold AddInductive.constructorPhase
   exact Hheaders.bind fun headerEnv Hheader => by
     rcases Hheader with ⟨decl, _envTypes, Hheader, hclosedHeader⟩
     exact (AddInductive.primitiveConstructorPhases.WF Hheader Hshape
-      hvisible).mono fun outEnv Hresult => by
-        rcases Hresult with ⟨R, _⟩
-        exact ⟨decl, headerEnv, Hheader, R,
+      hvisible).mono fun out Hresult => by
+        rcases Hresult with ⟨R, hclasses⟩
+        exact ⟨decl, headerEnv, Hheader, R, hclasses,
           R.declared.closesMutuals hclosedHeader⟩
 
 /-- Complete primitive run-with-stats result with no caller-provided abstract
@@ -196,21 +193,21 @@ theorem AddInductive.runWithStats.primitiveWF
       hindicesSize hindices
       hconsts hparams hcommonParams Hcache Hsuffix Hambient hcommon hnotzero Hshape
       hvisible
-  have Hcombined := Hformation.bind fun ctorEnv Hresult => by
-    rcases Hresult with ⟨decl, _headerEnv, Hheaders, R, hclosed⟩
-    have Hmaterialized := Hheaders.sourceStatsWF
-    rw [Hheaders.sourceContextVEnv] at Hmaterialized
-    exact (R.toConstructorCheck.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams
-      (Hshape.checkedLiteralDisjoint Hheaders.translation
-        Hmaterialized).available
-      hnotPartial
-      (fun _hallow owner howner =>
-        Hshape.recursorsNonprimitive owner howner)).mono
-          fun outEnv Hrecursors =>
-            show PrimitiveInstallation c stats nparams depth
-                Hc.venv indTypes isUnsafe outEnv
-            from ⟨decl, ctorEnv, R.toConstructorCheck, Hrecursors⟩
-  simpa [AddInductive.withEnv, bind, ReaderT.bind] using Hcombined
+  refine Hformation.bind fun out Hresult => ?_
+  obtain ⟨ctorEnv, positivity⟩ := out
+  rcases Hresult with ⟨decl, _headerEnv, Hheaders, R, hclasses, hclosed⟩
+  have Hmaterialized := Hheaders.sourceStatsWF
+  rw [Hheaders.sourceContextVEnv] at Hmaterialized
+  exact (R.toConstructorCheck.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams
+    (Hshape.checkedLiteralDisjoint Hheaders.translation
+      Hmaterialized).available
+    hnotPartial
+    (fun _hallow owner howner =>
+      Hshape.recursorsNonprimitive owner howner) hclasses.symm).mono
+        fun outEnv Hrecursors =>
+          show PrimitiveInstallation c stats nparams depth
+              Hc.venv indTypes isUnsafe outEnv
+          from ⟨decl, ctorEnv, R.toConstructorCheck, Hrecursors⟩
 
 /-- Source-aligned primitive result, retaining the exact abstract model from
 which the executable header traversal began. -/

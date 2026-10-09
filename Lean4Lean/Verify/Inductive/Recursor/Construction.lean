@@ -11,6 +11,26 @@ open Lean hiding Environment Exception
 open Kernel
 namespace VerifyInductive
 
+/-- A successful `checkRecursiveFields` establishes, for a safe declaration, that the fields
+given induction hypotheses by the rule templates are those the positivity check marked. -/
+theorem AddInductive.checkRecursiveFields.WF
+    {isUnsafe : Bool} {positivity : List (List (List Bool))}
+    {recInfos : Array AddInductive.RecInfo} {c : AddInductive.Context} :
+    (AddInductive.checkRecursiveFields isUnsafe positivity recInfos c).WF fun _ =>
+      isUnsafe = false →
+        recInfos.toList.map (fun info => info.ruleTemplates.toList.map (·.recursiveMask)) =
+          positivity := by
+  intro u h hsafe
+  subst hsafe
+  unfold AddInductive.checkRecursiveFields at h
+  by_cases heq : (recInfos.toList.map fun info =>
+      info.ruleTemplates.toList.map (·.recursiveMask)) = positivity
+  · exact heq
+  · have hne : ((recInfos.toList.map fun info =>
+        info.ruleTemplates.toList.map (·.recursiveMask)) == positivity) = false := by
+      simpa using heq
+    simp [hne] at h
+
 /-- The recursor construction: the executable's elimination level and `mkRecInfos` result,
 run on top of a constructor check, with their translations, before the recursor entries are
 chosen and installed. The construction's signature and generator (`generator`) are derived
@@ -86,6 +106,11 @@ structure RecursorConstruction
   minorCounts : forall i, i < recInfos.size ->
     recInfos[i]!.minors.size = indTypes[i]!.ctors.length
   cardinality : RecursorCounts stats recInfos decl
+  /-- For a safe declaration the fields that receive an induction hypothesis are those the
+  constructor phase's positivity check classified as recursive (`checkRecursiveFields`). -/
+  recursiveFieldsChecked : isUnsafe = false →
+    recInfos.toList.map (fun info => info.ruleTemplates.toList.map (·.recursiveMask)) =
+      R.classes
 
 end VerifyInductive
 end Lean4Lean

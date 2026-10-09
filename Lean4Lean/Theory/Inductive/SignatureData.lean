@@ -30,6 +30,11 @@ inductive Field (families : Nat) where
   | external (type : VExpr)
   | recursive (type : VExpr) (shape : Recursive families)
 
+/-- Whether the generator gives the field an induction hypothesis. -/
+def Field.isRecursive : Field families → Bool
+  | .external _ => false
+  | .recursive _ _ => true
+
 structure Constructor (families : Nat) where
   name : Name
   owner : Fin families

@@ -29,8 +29,10 @@ structure PrimitiveConstructorCoreCheck
   checked : CheckedConstructorCertificate sourceEnv decl H.context.venv
     H.headers.params
   parameterPrefixes : ConstructorParameterPrefixes stats indTypes
+  /-- The field classifications returned by the executable constructor check. -/
+  classes : List (List (List Bool))
   constructorTails : ConstructorTails H.context.venv c.lparams
-    H.statsWF.parameterScope stats decl indTypes
+    H.statsWF.parameterScope stats decl indTypes classes
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
   telescopes : SourceCtorsCertified H.context.venv c.lparams indTypes.toList
   declared : PrimitiveConstructorEnvironment H outEnv
@@ -525,6 +527,7 @@ def PrimitiveConstructorCoreCheck.complete
     PrimitiveConstructorCheck H outEnv where
   checked := R.checked
   parameterPrefixes := R.parameterPrefixes
+  classes := R.classes
   constructorTails := R.constructorTails
   ownerNormalForms := R.ownerNormalForms
   telescopes := R.telescopes
@@ -544,14 +547,15 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
       isUnsafe)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
-    ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
-      AddInductive.declareConstructors stats indTypes isUnsafe)
-      { c with env := headerEnv }).WF fun outEnv =>
-        ∃ _ : PrimitiveConstructorCoreCheck H outEnv, True := by
+    ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun positivity =>
+      AddInductive.declareConstructors stats indTypes isUnsafe >>= fun ctorEnv =>
+        pure (ctorEnv, positivity))
+      { c with env := headerEnv }).WF fun out =>
+        ∃ R : PrimitiveConstructorCoreCheck H out.1, R.classes = out.2 := by
   exact (AddInductive.checkConstructors.primitiveCoreWF H Hshape).bind
-    fun _ Hchecked =>
+    fun positivity Hchecked =>
       (AddInductive.declareConstructors.primitiveWF H Hshape
-        Hchecked.1.checked hvisible).mono fun outEnv Hdeclared => by
+        Hchecked.1.checked hvisible).bind fun outEnv Hdeclared => Except.WF.pure <| by
           rcases Hdeclared with ⟨Hdeclared, _⟩
           let Hformation : FormationCertificate sourceEnv decl := {
             headers := H.headers
@@ -574,6 +578,7 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
           exact ⟨{
             checked := Hchecked.1.checked
             parameterPrefixes := Hchecked.1.parameterPrefixes
+            classes := positivity
             constructorTails := Hchecked.1.constructorTails
             ownerNormalForms := Hchecked.2
             telescopes := SourceCtorsCertified.ofPrimitiveShape Hshape
@@ -581,7 +586,7 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
             declared := Hdeclared
             formation := Hformation
             core := Lean4Lean.VerifyInductive.TrInductDeclCore.ofPhases
-              H.translation Hdeclared.translation }, trivial⟩
+              H.translation Hdeclared.translation }, rfl⟩
 
 /-- The complete executable primitive constructor prefix, including the
 kernel-environment lookup (`InductInfosFromDecl`) and constructor-parameter
@@ -593,14 +598,15 @@ theorem AddInductive.primitiveConstructorPhases.WF
       isUnsafe)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
-    ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
-      AddInductive.declareConstructors stats indTypes isUnsafe)
-      { c with env := headerEnv }).WF fun outEnv =>
-        ∃ _ : PrimitiveConstructorCheck H outEnv, True := by
+    ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun positivity =>
+      AddInductive.declareConstructors stats indTypes isUnsafe >>= fun ctorEnv =>
+        pure (ctorEnv, positivity))
+      { c with env := headerEnv }).WF fun out =>
+        ∃ R : PrimitiveConstructorCheck H out.1, R.classes = out.2 := by
   exact (AddInductive.primitiveConstructorCorePhases.WF H Hshape hvisible).mono
     fun _ Hcore => by
-      rcases Hcore with ⟨R, _⟩
-      exact ⟨R.complete, trivial⟩
+      rcases Hcore with ⟨R, hclasses⟩
+      exact ⟨R.complete, hclasses⟩
 
 end VerifyInductive
 end Lean4Lean
