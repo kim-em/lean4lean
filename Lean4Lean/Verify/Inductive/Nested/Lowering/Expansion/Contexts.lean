@@ -445,45 +445,20 @@ inductive TrExprS.ContextFree : Expr → Prop
   | lit : ContextFree literal.toConstructor → ContextFree (.lit literal)
   | mdata : ContextFree body → ContextFree (.mdata data body)
 
+/-- The syntactic translation of a context-free expression does not look at the context. -/
+theorem TrExprS.ContextFree.trSyn?_eq (Hfree : ContextFree expr) :
+    trSyn? lparams Δ₁ expr = trSyn? lparams Δ₂ expr := by
+  induction Hfree <;> simp_all [trSyn?]
+
 /-- Translation of a context-free expression is independent of the local
 context. -/
 theorem TrExprS.ContextFree.translation_unique
     (Hfree : ContextFree expr)
     (Hsource : TrExprS sourceVEnv lparams sourceCtx expr sourceTarget)
     (Htarget : TrExprS targetVEnv lparams targetCtx expr targetTarget) :
-    sourceTarget = targetTarget := by
-  induction Hfree generalizing sourceCtx targetCtx sourceTarget targetTarget with
-  | sort =>
-    cases Hsource with
-    | sort HsourceLevel =>
-      cases Htarget with
-      | sort HtargetLevel =>
-        cases Option.some.inj (HsourceLevel.symm.trans HtargetLevel)
-        rfl
-  | const =>
-    cases Hsource with
-    | const _ HsourceLevels _ =>
-      cases Htarget with
-      | const _ HtargetLevels _ =>
-        cases Option.some.inj (HsourceLevels.symm.trans HtargetLevels)
-        rfl
-  | app _ _ ihFn ihArg =>
-    cases Hsource with
-    | app _ _ HsourceFn HsourceArg =>
-      cases Htarget with
-      | app _ _ HtargetFn HtargetArg =>
-        rw [ihFn HsourceFn HtargetFn, ihArg HsourceArg HtargetArg]
-  | lit _ ih =>
-    cases Hsource with
-    | lit _ HsourceConstructor =>
-      cases Htarget with
-      | lit _ HtargetConstructor =>
-        exact ih HsourceConstructor HtargetConstructor
-  | mdata _ ih =>
-    cases Hsource with
-    | mdata HsourceBody =>
-      cases Htarget with
-      | mdata HtargetBody => exact ih HsourceBody HtargetBody
+    sourceTarget = targetTarget :=
+  Option.some.inj <| Hsource.toTrSyn.eval.symm.trans <|
+    Hfree.trSyn?_eq.trans Htarget.toTrSyn.eval
 
 theorem TrExprS.ContextFree.natLitToConstructor :
     ∀ n, ContextFree (.natLitToConstructor n)

@@ -18,8 +18,8 @@ verification; each section restates an existing consumer of `TrExprS` on top of 
    together with a typing-only certificate (`CtorTelescopeAt.iff_trSyn`): the syntax of every
    deleted telescope is a theorem, and what remains is the typing of the residual types in the
    smaller contexts (`TelWF`), which the executable's locality route supplies.
-3. **Iota rules.** `TrExprSyn` of `Inductive/Rules/Translation.lean` is `TrSyn`
-   (`TrExprSyn.iff_trSyn`), its lemmas are `TrSyn` lemmas, and the typed right-hand side of a
+3. **Iota rules.** `TrExprSyn` of `Inductive/Rules/Translation.lean` has been replaced by
+   `TrSyn`, its lemmas by the `TrSyn` lemmas, and the typed right-hand side of a
    rule follows from its syntactic translation and the typing of the generator's equation
    (`RecursorCheck.ruleRhsTranslation_of_wf`), instead of from a typed translation of the same
    source (`RecursorCheck.ruleRhsTranslation`).
@@ -130,48 +130,11 @@ theorem TelWF.delete_closed {env : VEnv} {Us : List Name} {Δ : VLCtx}
   cases H with
   | succ _ _ _ h4 => exact ⟨b₀', hb', s, h4 _ _ e hb'⟩
 
-/-! ### 3. The iota rules' syntactic translation -/
+/-! ### 3. The iota rules' syntactic translation
 
-theorem TrExprSyn.iff_trSyn {Us : List Name} {Δ : VLCtx} {e : Expr} {e' : VExpr} :
-    TrExprSyn Us Δ e e' ↔ TrSyn Us Δ e e' := by
-  constructor
-  · intro H
-    induction H with
-    | bvar h => exact .bvar h
-    | fvar h => exact .fvar h
-    | sort h => exact .sort h
-    | const h => exact .const h
-    | app _ _ ih1 ih2 => exact .app ih1 ih2
-    | lam _ _ ih1 ih2 => exact .lam ih1 ih2
-    | forallE _ _ ih1 ih2 => exact .forallE ih1 ih2
-    | letE _ _ _ ih1 ih2 ih3 => exact .letE ih1 ih2 ih3
-    | lit _ ih => exact .lit ih
-    | mdata _ ih => exact .mdata ih
-    | proj _ ih => exact .proj ih
-  · intro H
-    induction H with
-    | bvar h => exact .bvar h
-    | fvar h => exact .fvar h
-    | sort h => exact .sort h
-    | const h => exact .const h
-    | app _ _ ih1 ih2 => exact .app ih1 ih2
-    | lam _ _ ih1 ih2 => exact .lam ih1 ih2
-    | forallE _ _ ih1 ih2 => exact .forallE ih1 ih2
-    | letE _ _ _ ih1 ih2 ih3 => exact .letE ih1 ih2 ih3
-    | lit _ ih => exact .lit ih
-    | mdata _ ih => exact .mdata ih
-    | proj _ ih => exact .proj ih
-
-/-- `TrExprS.of_syn` is uniqueness of the syntactic translation. -/
-theorem TrExprS.of_syn' {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr} {e₁ e₂ : VExpr}
-    (H : TrExprS env Us Δ e e₁) (S : TrExprSyn Us Δ e e₂) : TrExprS env Us Δ e e₂ :=
-  H.toTrSyn.unique (TrExprSyn.iff_trSyn.1 S) ▸ H
-
-/-- `TrExprSyn.weakBV`, as the `TrSyn` lemma. -/
-theorem TrExprSyn.weakBV' {Us : List Name} {Δ Δ' : VLCtx} {e : Lean.Expr} {e' : VExpr}
-    (W : VLCtx.BVLift Δ Δ' dn dk n k) (H : TrExprSyn Us Δ e e') :
-    TrExprSyn Us Δ' (e.liftLooseBVars' dk dn) (e'.liftN n k) :=
-  TrExprSyn.iff_trSyn.2 ((TrExprSyn.iff_trSyn.1 H).weakBV W)
+`TrExprSyn` (`Inductive/Rules/Translation.lean`) is now `TrSyn` itself (an abbreviation kept for
+`Inductive/Prelude/EqSyntax.lean`), and its former lemmas are the `TrSyn` lemmas: the
+right-hand-side derivations `RecursorCheck.ruleRhsSyn` are `TrSyn` derivations. -/
 
 namespace VerifyInductive
 
@@ -196,8 +159,7 @@ theorem RecursorCheck.ruleRhsTranslation_of_wf {outEnv : Environment}
       TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
         ((H.generated.entry o ho).info.rules[i]).rhs
         (H.generator.generation.equation ⟨recursorMinorOffset indTypes o + i, hk⟩).rhs := by
-  obtain ⟨hk, Hsyn⟩ := H.ruleRhsSyn o ho i hi
-  have S := TrExprSyn.iff_trSyn.1 Hsyn
+  obtain ⟨hk, S⟩ := H.ruleRhsSyn o ho i hi
   exact ⟨hk, S.toTrExprS henv trivial (hwf hk) (.of_simple hs S)⟩
 
 end VerifyInductive

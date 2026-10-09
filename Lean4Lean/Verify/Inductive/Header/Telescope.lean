@@ -1767,7 +1767,7 @@ theorem ReusedParameterScope.typing
       ((some (H.fv, H.deps), .vlam H.paramType) :: H.older)
       (.inr H.fv) = some (.bvar 0, H.paramType.lift) := by
     simp [VLCtx.find?, VLCtx.next, VLocalDecl.value, VLocalDecl.type]
-  have hfull := H.lift.find? Hc.mlctx_wf.tr.wf hhead
+  have hfull := H.lift.find? Hc.mlctx_wf.tr.wf.fvars_nodup hhead
   rcases hfull with hfull
   let param' := (VExpr.bvar 0).liftN (VLCtx.toCtx H.added).length 0
   let paramTy' := H.paramType.lift.liftN

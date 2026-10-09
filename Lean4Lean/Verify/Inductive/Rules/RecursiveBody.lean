@@ -720,20 +720,10 @@ theorem
           arg.abstractList A.rule.binders))
       ((H.recInfos.flatMap (·.minors)).map fun arg =>
         arg.abstractList A.rule.binders)
-  have HsourceUnique : TrExprS.IsUnique source := by
-    exact TrExprS.IsUnique.mkAppN
-      (TrExprS.IsUnique.mkAppN
-        (TrExprS.IsUnique.mkAppN (by trivial)
-          (fun arg harg => A.rule.abstractedParamsUnique arg
-            (Array.mem_toList_iff.mpr harg)))
-        (fun arg harg => A.rule.abstractedMotivesUnique arg
-          (Array.mem_toList_iff.mpr harg)))
-      (fun arg harg => A.rule.abstractedMinorsUnique arg
-        (Array.mem_toList_iff.mpr harg))
   have hlength : canonicalDomains.length = cachedDomains.length := by
     simpa using Hfull.length_eq
   have HuniqueCtx := abstractForallContext.isUniqueCtx hlength
-  have htarget := TrExprS.unique' HuniqueCtx HsourceUnique
+  have htarget := TrExprS.uniqueCtx (e := source) HuniqueCtx
     (by simpa [source, canonicalDomains] using Hcanonical)
     (by simpa [source, cachedDomains] using Hcached)
   rw [← htarget] at Hcached

@@ -47,12 +47,12 @@ theorem InductiveSignature.Models.mono
   refine { H with
     families := ?_
     constructors := ⟨envTypes', htypes, ?_⟩
-    positiveFields := ?_ }
+    classifiedFields := ?_ }
   · exact Lean4Lean.List.Forall₂.imp
       (fun _ _ h => h) H.families
   · exact Lean4Lean.List.Forall₂.imp
       (fun _ _ h => ⟨h.1, h.2.1, h.2.2.mono hle⟩) hctors
-  · rcases H.positiveFields with hunsafe | ⟨envTypesPos, htypesPos, hpos⟩
+  · rcases H.classifiedFields with hunsafe | ⟨envTypesPos, htypesPos, hpos⟩
     · exact .inl hunsafe
     · refine .inr ⟨envTypes', htypes, ?_⟩
       intro ctor hc i hi
