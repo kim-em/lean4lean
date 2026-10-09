@@ -154,7 +154,7 @@ theorem stepPrefix.accumulatesRawTargets
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {isUnsafe : Bool} {targetIdx ctorIdx : Nat}
     {ctors : List Constructor} {foundCtors : NameSet}
-    {sources : List Constructor} {Q : Unit → Prop}
+    {sources : List Constructor} {Q : List (List Bool) → Prop}
     (Hc : ContextWF c)
     (Hprefix : RawCtorTranslations
       Hc.venv c.lparams sources)
@@ -166,10 +166,11 @@ theorem stepPrefix.accumulatesRawTargets
         (sources ++ [ctors[ctorIdx]]) →
       (AddInductive.checkConstructors.loopCtor stats isUnsafe
         ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
-        c.fuel.inductiveFuel c).WF fun _ =>
+        c.fuel.inductiveFuel c).WF fun fields =>
           (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
             ctors (ctorIdx + 1)
-            (foundCtors.insert ctors[ctorIdx].name) c).WF Q) :
+            (foundCtors.insert ctors[ctorIdx].name) c).WF fun rest =>
+              Q (fields :: rest)) :
     (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
       ctors ctorIdx foundCtors c).WF Q := by
   rw [AddInductive.checkConstructors.loopCtors, dif_pos hidx]
@@ -182,24 +183,24 @@ theorem stepPrefix.accumulatesRawTargets
       change (AddInductive.checkClosedType ctors[ctorIdx].name
         ctors[ctorIdx].type c >>= fun _ => ((do
           let _ ← readThe AddInductive.Context
-          AddInductive.checkConstructors.loopCtor stats isUnsafe
+          let fields ← AddInductive.checkConstructors.loopCtor stats isUnsafe
             ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
             c.fuel.inductiveFuel
-          AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
-            ctors (ctorIdx + 1)
-            (foundCtors.insert ctors[ctorIdx].name)) :
-          AddInductive.M Unit) c).WF Q
+          return fields :: (← AddInductive.checkConstructors.loopCtors stats isUnsafe
+            targetIdx ctors (ctorIdx + 1)
+            (foundCtors.insert ctors[ctorIdx].name))) :
+          AddInductive.M (List (List Bool))) c).WF Q
       exact (checkClosedType.rawSourceTranslationWF Hc).bind
         fun checkedType hchecked => by
           rcases hchecked with ⟨Hchecked⟩
           change ((read : AddInductive.M AddInductive.Context) c >>= fun c' =>
             ((AddInductive.checkConstructors.loopCtor stats isUnsafe
                 ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
-                c'.fuel.inductiveFuel >>= fun _ =>
-              AddInductive.checkConstructors.loopCtors stats isUnsafe
+                c'.fuel.inductiveFuel >>= fun fields => do
+              return fields :: (← AddInductive.checkConstructors.loopCtors stats isUnsafe
                 targetIdx ctors (ctorIdx + 1)
-                (foundCtors.insert ctors[ctorIdx].name)) :
-              AddInductive.M Unit) c).WF Q
+                (foundCtors.insert ctors[ctorIdx].name))) :
+              AddInductive.M (List (List Bool))) c).WF Q
           have hread : ((read : AddInductive.M AddInductive.Context) c).WF
               (fun c' => c' = c) := by
             intro c' h
@@ -209,7 +210,8 @@ theorem stepPrefix.accumulatesRawTargets
           subst c'
           exact (Hloop checkedType Hchecked
             (Hprefix.snoc ctors[ctorIdx] Hchecked.target
-              Hchecked.source)).bind fun _ hnext => hnext
+              Hchecked.source)).bind fun _ hnext =>
+                hnext.bind fun _ hrest => Except.WF.pure hrest
 
 /-- Traverse one complete constructor list while existentially retaining its
 raw abstract targets in exact source order. -/
@@ -217,19 +219,19 @@ theorem accumulatesRawTargets
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {isUnsafe : Bool} {targetIdx ctorIdx : Nat}
     {ctors : List Constructor} {foundCtors : NameSet}
-    {Q : Unit → Prop}
+    {Q : List (List Bool) → Prop}
     (Hc : ContextWF c)
     (Hprefix : RawCtorTranslations Hc.venv c.lparams
       (ctors.take ctorIdx))
     (Hcheck : ∀ i (hi : i < ctors.length) checkedType,
       (Hchecked : ClosedHeaderCheck Hc
         ctors[i].name ctors[i].type checkedType) →
-      ∀ (R : Unit → Prop), R () →
+      ∀ (R : List Bool → Prop), (∀ fields, R fields) →
       (AddInductive.checkConstructors.loopCtor stats isUnsafe
         ctors[i].name targetIdx ctors[i].type 0
         c.fuel.inductiveFuel c).WF R)
     (Hfinish : RawCtorTranslations Hc.venv c.lparams
-      ctors → Q ()) :
+      ctors → ∀ out, Q out) :
     (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
       ctors ctorIdx foundCtors c).WF Q := by
   by_cases hidx : ctorIdx < ctors.length
@@ -242,11 +244,13 @@ theorem accumulatesRawTargets
       rw [List.take_succ_eq_append_getElem hidx]
       exact Hprefix'
     apply Hcheck ctorIdx hidx checkedType Hchecked
-    exact accumulatesRawTargets Hc Hnext Hcheck Hfinish
+    intro fields
+    exact accumulatesRawTargets (Q := fun rest => Q (fields :: rest)) Hc Hnext Hcheck
+      (fun h rest => Hfinish h _)
   · apply result.WF (Q := Q) hidx
     have htake : ctors.take ctorIdx = ctors :=
       List.take_of_length_le (Nat.le_of_not_gt hidx)
-    exact Hfinish (by simpa [htake] using Hprefix)
+    exact Hfinish (by simpa [htake] using Hprefix) _
 termination_by ctors.length - ctorIdx
 
 end checkConstructors.loopCtors
@@ -260,7 +264,7 @@ constructor order exactly. -/
 theorem accumulatesRawTargets
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {isUnsafe : Bool} {indTypes : Array InductiveType}
-    {targetIdx : Nat} {Q : Unit → Prop}
+    {targetIdx : Nat} {Q : List (List (List Bool)) → Prop}
     (Hc : ContextWF c)
     (Hrows : RawBlockCtorTranslations Hc.venv c.lparams
       (indTypes.toList.take targetIdx))
@@ -270,13 +274,13 @@ theorem accumulatesRawTargets
       (Hchecked : ClosedHeaderCheck Hc
         indTypes[familyIdx].ctors[ctorIdx].name
         indTypes[familyIdx].ctors[ctorIdx].type checkedType) →
-      ∀ (R : Unit → Prop), R () →
+      ∀ (R : List Bool → Prop), (∀ fields, R fields) →
       (AddInductive.checkConstructors.loopCtor stats isUnsafe
         indTypes[familyIdx].ctors[ctorIdx].name familyIdx
         indTypes[familyIdx].ctors[ctorIdx].type 0
         c.fuel.inductiveFuel c).WF R)
     (Hfinish : RawBlockCtorTranslations Hc.venv c.lparams
-      indTypes.toList → Q ()) :
+      indTypes.toList → ∀ out, Q out) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
       targetIdx c).WF Q := by
   by_cases hidx : targetIdx < indTypes.size
@@ -285,24 +289,25 @@ theorem accumulatesRawTargets
       (stats := stats) (isUnsafe := isUnsafe) (targetIdx := targetIdx)
       (ctors := indTypes[targetIdx].ctors) (ctorIdx := 0)
       (foundCtors := {})
-      (Q := fun _ =>
+      (Q := fun fields =>
         (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
-          (targetIdx + 1) c).WF Q)
+          (targetIdx + 1) c).WF fun rest => Q (fields :: rest))
       Hc (by
         change RawCtorTranslations Hc.venv c.lparams []
         exact RawCtorTranslations.empty Hc.venv c.lparams)
     · intro ctorIdx hctor checkedType Hchecked R hR
       exact Hcheck targetIdx hidx ctorIdx hctor checkedType Hchecked R hR
-    · intro Hrow
+    · intro Hrow fields
       have Hrows' : RawBlockCtorTranslations Hc.venv c.lparams
           (indTypes.toList.take (targetIdx + 1)) := by
         rw [List.take_succ_eq_append_getElem (by simpa using hidx)]
         exact Hrows.snoc indTypes[targetIdx] Hrow
-      exact accumulatesRawTargets Hc Hrows' Hcheck Hfinish
+      exact accumulatesRawTargets (Q := fun rest => Q (fields :: rest)) Hc Hrows' Hcheck
+        (fun h rest => Hfinish h _)
   · apply result.WF (Q := Q) hidx
     have htake : indTypes.toList.take targetIdx = indTypes.toList :=
       List.take_of_length_le (by simpa using Nat.le_of_not_gt hidx)
-    exact Hfinish (by simpa [htake] using Hrows)
+    exact Hfinish (by simpa [htake] using Hrows) _
 termination_by indTypes.size - targetIdx
 
 end checkConstructors.loopTypes

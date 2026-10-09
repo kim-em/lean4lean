@@ -596,8 +596,9 @@ theorem CheckedConstructorTailAt.toRecursorContext
     (Hmaterialized :
       checkInductiveTypes.loopInd.HeaderStatsWF
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
+    {classes : List Bool}
     (H : CheckedConstructorTailAt sourceEnv c.lparams
-      Hmaterialized.parameterScope stats decl target source)
+      Hmaterialized.parameterScope stats decl target source classes)
     (henv : sourceEnv ≤ Hc.venv)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     let R := Hc.toAdmissibleRecursorContextWF Helim
@@ -1345,7 +1346,7 @@ theorem RecursorReusedParameterScope.typing
       ((some (H.fv, H.deps), .vlam H.paramType) :: H.older)
       (.inr H.fv) = some (.bvar 0, H.paramType.lift) := by
     simp [VLCtx.find?, VLCtx.next, VLocalDecl.value, VLocalDecl.type]
-  have hfull := H.lift.find? R.mlctx_wf.tr.wf hhead
+  have hfull := H.lift.find? R.mlctx_wf.tr.wf.fvars_nodup hhead
   let param' := (VExpr.bvar 0).liftN (VLCtx.toCtx H.added).length 0
   let paramTy' := H.paramType.lift.liftN
     (VLCtx.toCtx H.added).length 0

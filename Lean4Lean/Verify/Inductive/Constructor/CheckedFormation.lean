@@ -272,8 +272,11 @@ structure CheckedFormation (c : AddInductive.Context)
     headerVEnv c.lparams headerMLCtx.vlctx stats decl depth
   checkedParams : statsWF.headers.params = params
   checkedParameterScope : statsWF.parameterScope = parameterScope
+  /-- The field classifications returned by the executable constructor check, family by
+  family and constructor by constructor. -/
+  classes : List (List (List Bool))
   constructorTails : ConstructorTails headerVEnv c.lparams
-    parameterScope stats decl indTypes
+    parameterScope stats decl indTypes classes
   ctorVEnv : VEnv
   formation : FormationCertificate sourceEnv decl
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
@@ -328,7 +331,7 @@ def SourceConstructorTelescope (env : VEnv) (Us : List Name) (scope : VLCtx)
     ParameterPrefix stats 0 source.type tail ∧
     CheckedConstructorParameterPrefix env Us stats source.type stats.params.size tail scope sourceDomains ∧
     TrExprS env Us scope tail tailTarget ∧
-    ConstructorTailCertificate env decl target scope.toCtx 0 tailTarget ∧
+    (∃ classes, ConstructorTailCertificate env decl target scope.toCtx 0 tailTarget classes) ∧
     Nonempty (checkInductiveTypes.loopType.ScopedHeaderTelescope
       env Us (constructorTelescopeTarget sourceCtor) scope tailTarget stats.params.size 0) ∧
     VExpr.wrapForalls s.params tailTarget = s.constructorType ctor
@@ -359,7 +362,7 @@ theorem SourceConstructorTelescope.constructorArity
     (params : s.params.length = decl.nparams)
     (family : s.families[ctor.owner].indices.length = target.numIndices) :
     ctor.indices.length = s.families[ctor.owner].indices.length := by
-  obtain ⟨_, _, _, _, _, _, _, certificate, _, literal⟩ := H
+  obtain ⟨_, _, _, _, _, _, _, ⟨_, certificate⟩, _, literal⟩ := H
   obtain ⟨domains, result, same, application, head⟩ := certificate.raw
   exact constructor_indices_length_of_rawTail names targetMember params family
     ⟨domains, result, same, application.raw, head⟩ (sourceConstructor_tail_eq literal)
@@ -388,7 +391,7 @@ theorem CheckedConstructorTailAt.signatureConstructor
     {env : VEnv} {decl : VInductDecl} {s : InductiveSignature}
     {Us : List Name} {scope : VLCtx} {source : Constructor}
     {target : VInductiveType}
-    (H : CheckedConstructorTailAt env Us scope stats decl target source)
+    (H : CheckedConstructorTailAt env Us scope stats decl target source classes)
     (henv : env.WF) (hu : Us.length = decl.uvars)
     (huvars : s.uvars = decl.uvars) (hparams : s.params.length = decl.nparams)
     (hnames : s.families.toList.map (·.name) = decl.types.map (·.name))
@@ -398,6 +401,7 @@ theorem CheckedConstructorTailAt.signatureConstructor
     ∃ sourceCtor ∈ target.ctors, ∃ ctor : InductiveSignature.Constructor s.families.size,
       sourceCtor.name = source.name ∧ ctor.name = source.name ∧ ctor.owner = owner ∧
       env.IsDefEqU decl.uvars [] (s.constructorType ctor) sourceCtor.type ∧
+      (s.isUnsafe = true ∨ ctor.fields.map Field.isRecursive = classes) ∧
       (∀ i (hi : i < ctor.fields.length),
         SignatureFieldModel env decl s
           (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse) i ctor.fields[i]) ∧
@@ -409,7 +413,7 @@ theorem CheckedConstructorTailAt.signatureConstructor
   have hscope : scope.toCtx = hsynthesis.params.reverse := by
     simpa only [hindices, List.reverse_nil, List.nil_append] using hsynthesis.scopeCtx
   have huniform := htail.uniform.defeqCtx henv.ordered (hctx.symm henv.ordered)
-  obtain ⟨ctor, hname, hctorOwner, htype, hfields⟩ := signatureConstructorOfUniform
+  obtain ⟨ctor, hname, hctorOwner, htype, hclasses, hfields⟩ := signatureConstructorOfUniform
     huvars hparams hnames hsafety owner howner source.name huniform
   obtain ⟨level, htailType⟩ := htail.isType
   obtain ⟨closedLevel, hclosed⟩ := (hctx.symm henv.ordered).closeForalls htailType
@@ -426,8 +430,8 @@ theorem CheckedConstructorTailAt.signatureConstructor
       (show env.IsDefEqU Us.length [] sourceCtor.type
         (VExpr.wrapForalls (hsynthesis.params ++ hsynthesis.indices) tailTarget) from
         ⟨_, hsynthesis.header⟩)
-  refine ⟨sourceCtor, hmem, ctor, hraw.name, hname, hctorOwner, ?_, hfields,
-    tail, tailTarget, sourceDomains, hraw, hprefix, hcomparisons, htranslation, htail,
+  refine ⟨sourceCtor, hmem, ctor, hraw.name, hname, hctorOwner, ?_, hclasses, hfields,
+    tail, tailTarget, sourceDomains, hraw, hprefix, hcomparisons, htranslation, ⟨_, htail⟩,
     ⟨hsynthesis⟩, htype⟩
   rw [← htype]
   exact (hsource.trans henv trivial hclosed').symm
@@ -518,6 +522,8 @@ theorem sourceSignatureHeader_constructor
       ctor.name = decl.types[i].ctors[j].name ∧
       R.headerVEnv.IsDefEqU decl.uvars []
         (R.sourceSignatureHeader.constructorType ctor) decl.types[i].ctors[j].type ∧
+      (R.sourceSignatureHeader.isUnsafe = true ∨
+        ctor.fields.map Field.isRecursive = R.classes[i]![j]!) ∧
       (∀ k (hk : k < ctor.fields.length),
         SignatureFieldModel R.headerVEnv decl R.sourceSignatureHeader
           (((R.sourceSignatureHeader.fieldTypes ctor).take k).reverse ++
@@ -547,7 +553,8 @@ theorem sourceSignatureHeader_constructor
       checkInductiveTypes.loopInd.HeaderStatsWF.signatureHeader,
       checkInductiveTypes.loopInd.HeaderStatsWF.signatureFamilies,
       checkInductiveTypes.loopInd.HeaderStatsWF.signatureFamily]
-  obtain ⟨sourceCtor, hmem, ctor, hsourceName, hname, hctorOwner, htype, hfields, hreplay⟩ :=
+  obtain ⟨sourceCtor, hmem, ctor, hsourceName, hname, hctorOwner, htype, hclasses, hfields,
+      hreplay⟩ :=
     (R.constructorTails.replay i hip j hjp).signatureConstructor
       (Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF R.core henv) R.core.uvars.symm rfl
       R.sourceSignatureHeader_params_length R.sourceStatsWF.signatureFamilies_names
@@ -560,10 +567,38 @@ theorem sourceSignatureHeader_constructor
     List.eq_of_mem_of_nodup_map (VEnv.addConstVals_names_nodup R.core.ctorsAdded)
       hmem' hmemTarget (hsourceName.trans hctor.name.symm)
   cases hsame
+  have hijBang : R.classes[i]![j]! = R.classes[i]![j]! := rfl
+  have hjBang : indTypes[i]! = indTypes[i] := by simp [hip]
   exact ⟨ctor, by simpa only [hctorOwner] using howner,
-    hname.trans hsourceName.symm, htype, hfields,
+    hname.trans hsourceName.symm, htype, hclasses, hfields,
     indTypes[i].ctors[j], List.mem_flatMap.mpr
       ⟨indTypes[i], by simp, List.getElem_mem hjp⟩, hreplay⟩
+
+/-- An owned constructor determines its family and local positions: family and
+constructor names are distinct. -/
+theorem ownedConstructor_index_unique
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
+    {i i' j j' : Nat} (hi : i < decl.types.length) (hi' : i' < decl.types.length)
+    (hj : j < decl.types[i].ctors.length) (hj' : j' < decl.types[i'].ctors.length)
+    (hfamily : decl.types[i] = decl.types[i'])
+    (hctor : decl.types[i].ctors[j] = decl.types[i'].ctors[j']) :
+    i = i' ∧ j = j' := by
+  have hnames : (decl.types.map (fun family => family.name)).Nodup := by
+    simpa only [VInductDecl.typeConstants, List.map_map, Function.comp_def] using
+      VEnv.addConstVals_names_nodup R.core.typesAdded
+  have hii : i = i' := (List.getElem_inj (h₀ := by simpa using hi)
+    (h₁ := by simpa using hi') hnames).mp (by simp [hfamily])
+  subst hii
+  refine ⟨rfl, ?_⟩
+  have hctorNames : (decl.constructorConstants.map VConstVal.name).Nodup :=
+    VEnv.addConstVals_names_nodup R.core.ctorsAdded
+  have hsub : (decl.types[i].ctors.map VConstVal.name).Sublist
+      (decl.constructorConstants.map VConstVal.name) := by
+    apply List.Sublist.map
+    rw [VInductDecl.constructorConstants, List.flatMap_def]
+    exact List.sublist_flatten_of_mem (List.mem_map_of_mem (List.getElem_mem hi))
+  exact (List.getElem_inj (h₀ := by simpa using hj) (h₁ := by simpa using hj')
+    (hsub.nodup hctorNames)).mp (by simp [hctor])
 
 theorem sourceSignatureHeader_ownedConstructor
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
@@ -573,6 +608,10 @@ theorem sourceSignatureHeader_ownedConstructor
       ctor.name = pair.2.name ∧
       R.headerVEnv.IsDefEqU decl.uvars []
         (R.sourceSignatureHeader.constructorType ctor) pair.2.type ∧
+      (∀ i (hi : i < decl.types.length) j (hj : j < decl.types[i].ctors.length),
+        pair = (decl.types[i], decl.types[i].ctors[j]) →
+        R.sourceSignatureHeader.isUnsafe = true ∨
+          ctor.fields.map Field.isRecursive = R.classes[i]![j]!) ∧
       (∀ k (hk : k < ctor.fields.length),
         SignatureFieldModel R.headerVEnv decl R.sourceSignatureHeader
           (((R.sourceSignatureHeader.fieldTypes ctor).take k).reverse ++
@@ -584,7 +623,13 @@ theorem sourceSignatureHeader_ownedConstructor
   obtain ⟨ctor, hctor, rfl⟩ := List.mem_map.mp hmapped
   obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hfamily
   obtain ⟨j, hj, rfl⟩ := List.mem_iff_getElem.mp hctor
-  exact R.sourceSignatureHeader_constructor i hi j hj
+  obtain ⟨sig, hfamilyName, hname, htype, hclasses, hfields, hreplay⟩ :=
+    R.sourceSignatureHeader_constructor i hi j hj
+  refine ⟨sig, hfamilyName, hname, htype, ?_, hfields, hreplay⟩
+  intro i' hi' j' hj' hpair'
+  obtain ⟨hfam, hctor'⟩ := Prod.mk.inj hpair'
+  obtain ⟨rfl, rfl⟩ := R.ownedConstructor_index_unique hi hi' hj hj' hfam hctor'
+  exact hclasses
 
 /-- Choose each constructor once, in the declaration's exact flattened
 order. All later generation uses these same source-universe choices. -/
@@ -668,7 +713,7 @@ theorem sourceSignatureConstructor_replay
   have hmodel := Classical.choose_spec
     (R.sourceSignatureHeader_ownedConstructor _ (List.getElem_mem i.isLt))
   obtain ⟨production, hproduction, tail, tailTarget, sourceDomains,
-    hraw, hprefix, hcomparisons, htranslation, htail, hsynthesis, htype⟩ := hmodel.2.2.2.2
+    hraw, hprefix, hcomparisons, htranslation, htail, hsynthesis, htype⟩ := hmodel.2.2.2.2.2
   refine ⟨production, hproduction, tail, tailTarget, sourceDomains,
     hraw, hprefix, hcomparisons, htranslation, htail, hsynthesis, ?_⟩
   rw [sourceSignature_constructorType]
@@ -768,7 +813,7 @@ private theorem sourceSignature_models_of_nonempty
     have hf : SignatureFieldModel R.headerVEnv decl R.sourceSignatureHeader
         (((R.sourceSignatureHeader.fieldTypes (R.sourceSignatureConstructor ⟨i, hi'⟩)).take k).reverse ++
           R.sourceSignatureHeader.params.reverse) k
-        (R.sourceSignatureConstructor ⟨i, hi'⟩).fields[k] := hmodel.2.2.2.1 k hk
+        (R.sourceSignatureConstructor ⟨i, hi'⟩).fields[k] := hmodel.2.2.2.2.1 k hk
     apply (R.sourceSignature_fieldModel _).2
     rw [sourceSignature_fieldTypes]
     change SignatureFieldModel R.headerVEnv decl R.sourceSignatureHeader

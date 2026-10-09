@@ -2,13 +2,19 @@
 
 This is the migration plan for replacing the typed translation relation `TrExprS`
 (`Lean4Lean/Verify/Typing/Expr.lean`) by a syntactic translation plus a typed layer, following
-BIG IDEA 2 of the checker review. Step 0 (the prototype) is done on
-`agent/verify-inductives-syntr`; the remaining steps are not started. All numbers are from
-`grep -c`/`wc -l` on that branch (base `b8fb81be`).
+BIG IDEA 2 of the checker review. Step 0 (the prototype) was done on
+`agent/verify-inductives-syntr`; steps 1 to 4 (the foundation) are done on
+`agent/verify-inductives-trsyn` (section 3 records what each did and where it departed from the
+plan); steps 5 to 7 are not started. Sections 1 and 2 describe the prototype as it was written
+(base `b8fb81be`); current numbers are in section 3.
 
 ## 1. What the prototype establishes
 
-New files, none used by the verification (no audit roots change):
+New files, none used by the verification at the time (no audit roots change). After steps 1 to
+4 the layout is: `Syntactic/Context.lean` (847 lines) and `Syntactic/Levels.lean` (262) below
+`Basic.lean` (353), `Transport.lean` (506), `Typed.lean` (434) and `TypedAPI.lean` (238), all
+below `Typing/Lemmas.lean`, which imports them; `Strengthening.lean` and `Consumers.lean` are
+still demonstrations above the verification. At the prototype:
 
 | file | lines | content |
 |---|---|---|
@@ -117,7 +123,8 @@ residual. Nothing about translation is on the wrong side of it any more.
    (`GhostTelescope.lean`, `Frame*.lean`) remains the only source of it; it can now produce
    `TelWF` (an `IsType` per deleted residual) instead of `TelTr`, and its syntactic half
    (`GhostTelescope.lean` lines 149-150: `weakBV` + `uniqueCtx` to match lifts) is `TrSyn.lower`.
-3. Iota rules (`Inductive/Rules/Translation.lean`). `TrExprSyn` *is* `TrSyn`
+3. Iota rules (`Inductive/Rules/Translation.lean`). (Step 2 has since replaced `TrExprSyn` by
+   `TrSyn`.) `TrExprSyn` *is* `TrSyn`
    (`TrExprSyn.iff_trSyn`); `TrExprS.of_syn` is `TrSyn.unique` (`TrExprS.of_syn'`); each of
    `TrExprSyn.uniqueCtx`, `transport`, `weakBV`, `instL` is the `TrSyn` lemma (`weakBV'`
    shown). `RecursorCheck.ruleRhsTranslation_of_wf` derives the typed translation of a rule's
@@ -167,51 +174,64 @@ Every step keeps the statements of existing theorems unless it says otherwise, s
 mergeable on its own. Steps 1-3 edit `Typing/Lemmas.lean` and must wait for the three
 concurrent refactors (`-models`, `-descriptor`, `-restoration`) to land.
 
-**Step 1. Syntactic base below `Lemmas.lean`.** Move the syntactic infrastructure out of
-`Typing/Lemmas.lean` into `Typing/Syntactic/Context.lean`: `Closed`/`FVarsIn` lemmas (lines
-16-330) and the `VLCtx` relations `FVLift'`, `FVLift`, `BVLift`, `InstN`, `InstLet`, `Abstract`
-with their `find?` lemmas (lines 367-735). Weaken `FVLift'.find?`/`FVLift.find?` from
-`Δ'.WF env U` to `Δ'.fvars.Nodup` (the prototype's `find?_nodup`; 15 call sites, each given
-`hΔ'.fvars_nodup`). Rebase `Syntactic/Basic.lean` and `Transport.lean` onto it, so that they
-import only `Typing/Expr.lean`. Delete the duplicates (`TrExprSyn`'s copies of
-`IsUniqueCtx.find?_some`, `BVLift.find?_lift_inv`). Size: about 700 lines moved, 50 deleted,
-no proof changes. Risk: low.
+**Step 1. Syntactic base below `Lemmas.lean`. Done** (commit `refactor: move the syntactic
+translation infrastructure below Typing/Lemmas`). `Typing/Lemmas.lean` lost 932 lines to
+`Syntactic/Context.lean` (`Closed`/`FVarsIn`, `VLocalDecl` helpers, the `VLCtx` relations with
+their `find?`/`wf` lemmas, `TrExprS.IsUniqueCtx` with `find?_uniq`/`find?_exists`,
+`ofLevel_hasMVar`, `BVLift.find?_lift_inv` from `TelescopeTranslationLemmas.lean`) and
+`Syntactic/Levels.lean` (`ofLevel_mkLevelMax'`/`IMax'`, `substParams_wf`, and from other files
+`VLevel.ofLevel_paramsIn`, `VLocalDecl.LEquiv`/`VLCtx.LEquiv`). Names, namespaces and statements
+are kept, so no downstream file changed except for the weakening: `FVLift'.find?`/`FVLift.find?`
+take `Δ'.fvars.Nodup`, with 4 call sites (the "15" of the plan counted transitive users through
+`weakFV'`). `Basic.lean` and `Transport.lean` import only the new modules; `TrSyn.rawShape`
+moved to `RawShape.lean`. "Import only `Typing/Expr.lean`" was not literal: the context
+relations' `wf` lemmas need the typing theory, so `Context.lean` keeps `Lemmas.lean`'s imports.
 
-**Step 2. Syntactic `TrExprS` lemmas become corollaries.** Re-prove, with unchanged
-statements, by `H.toTrSyn.<lemma>`: `TrExprS.closed`, `fvarsIn`, `fvarsList`, `levelParamsIn`
-(`UniverseSupport.lean`), `unique'`, `unique`, `uniqueCtx`, `uniqueS`, `eqv` (and
-`TrExpr.eqv`), `rawShape` (`RawShape.lean`), `instL_lequiv_of` (`LevelEquiv.lean`), `liftN_inv`,
-`lift_inv` (`TelescopeTranslationLemmas.lean`), `toSyn`, `of_syn`; and in
-`Inductive/Nested/Lowering/Expansion/Contexts.lean`/`AuxiliarySources.lean`,
-`ContextFree.translation_unique`/`targetClosed`, and `Constructor/Positivity.lean`'s
-`mkAppList_inv`. Replace `TrExprSyn` by `TrSyn` (97 references, a mechanical rename: the constructors have the
-same names and arguments, `TrExprSyn.iff_trSyn`) and delete its lemmas. Then
-retire `TrExprS.IsUnique`: `TrSyn.unique` has no side condition, so `unique'` callers (11) move
-to `TrExprS.unique_of_syn`, and `noProj` with its 84 references in the primitive files
-(`Primitive/Condition.lean`, `DivMod.lean`, `Bitwise.lean`, `Clauses.lean`, `Gcd.lean`), which
-exists only to produce `IsUnique`, is deleted; `of_nil_unique` loses its `noProj` hypothesis.
-Size: about -400 lines in `Typing/*` and `Rules/Translation.lean`, about -250 in the primitive
-files; statement changes only where `IsUnique`/`noProj` hypotheses disappear (callers just drop
-an argument). Risk: low; the `noProj` deletion touches many proof scripts but only removes
-arguments.
+**Step 2. Syntactic `TrExprS` lemmas become corollaries. Done** (commit `refactor: derive the
+syntactic TrExprS lemmas from TrSyn`). One-line corollaries now: `TrExprS.closed`, `fvarsIn`,
+`unique'`, `unique`, `uniqueCtx`, `levelParamsIn`, `rawShape`, `instL_lequiv_of`, `uniqueS`,
+`liftN_inv` (from `TrSyn.lowerBV`), `toSyn`, `of_syn`, `ContextFree.translation_unique` (via
+`ContextFree.trSyn?_eq`). Not corollaries, contrary to the plan: `TrExprS.eqv` (it changes the
+source, so the typing premises must be re-established, which needs a well-formed context),
+`mkAppList_inv` (returns typed components), `ContextFree.targetClosed` (no `TrSyn` closedness
+lemma for results). `TrExprSyn` is replaced by `TrSyn` in `Rules/Translation.lean` (inductive and
+6 duplicated lemmas deleted, 4 renamed); the prototype's `TrSyn.instL_same` became `TrSyn.instL`.
+`IsUnique` is retired outside `Verify/Environment/Primitive/*`: `forall₂_unique` and
+`targets_eq_of_unique` lost the hypothesis, `MotiveDecl.familyUnique` and the 8 `IsUnique`
+producers are gone. **Deferred** (files owned by the concurrent `-descriptor` rewrite):
+`TrExprSyn` survives as an abbreviation with constructor aliases for
+`Inductive/Prelude/EqSyntax.lean` (11 references, its tactic names the constructors); `noProj`
+(85 references) and the remaining `IsUnique`/`unique'`/`unique` uses (76) are all in
+`Verify/Environment/Primitive/{Basic,Condition,Clauses,DivMod,Bitwise,Gcd,Recursion}.lean`, and
+`IsUnique`, `unique'`, `unique` stay (now proofs that ignore the hypothesis) until those files
+switch to `unique_of_syn`/`uniqueCtx`.
 
-**Step 3. Typed lemmas as products.** Prove the residual's transport lemmas (`TrResidual`
-under `weakFV'`, `weakBV`, `instN`, `instN_let`, `abstract`, `prependLevelParam`, `instL`, `mono`;
-`weakBV` is in the prototype). Only the `letE` case carries typing (the let value's
-`HasType`, transported by `HasType.weakN`/`instN`/`instL`); `instL` needs the value's type up to
-`LEquiv`, via `VExpr.LEquiv.defeq`. Then re-prove `TrExprS.weakFV'`, `weakFV`, `weakBV`, `instN`,
-`instN_let`, `inst`, `inst_let`, `inst_fvar`, `abstract`, `uninstantiate*`, `prependLevelParam`,
-`instL` (`TrExpr` result) and `mono` from `TrExprS.iff_typed` as syntax + `VExpr.WF` transport +
-residual transport, as `TrTyped.weakBV` does. Size: about 480 lines of `Lemmas.lean` replaced
-by about 300 (residual transport is 11-case boilerplate with one typed case). Gain: not lines;
-the syntactic lemmas stop requiring `henv`/`hΔ`, which is what downstream proofs pay for.
-Risk: medium; `inst_fvar` and `weakFV'` currently consume `Δ'.WF` for the new binder's typing,
-which moves into the residual/`WF` transport.
+**Step 3. Typed lemmas as products. Partly done** (commit `feat: transport the typed layer as
+syntax, typing and residual`). `Typed.lean` now sits below `Lemmas.lean` (`TrExprS.wf` and
+`VEnv.ContainsLits.mono` moved into it). Added: the residual transports (`TrResidual.weakFV'`,
+`weakFV`, `weakBV`, `instN`, `instN_let`, `abstract`, `uninstantiateN`, `inst_fvar`,
+`prependLevelParam`, `mono`) and the corresponding `TrTyped` transports, each the `TrSyn` lemma,
+the typing lemma and the residual lemma, none needing a well-formed context. Re-proved through
+`iff_typed` with unchanged statements: `TrExprS.prependLevelParam`, `TrExprS.inst_fvar`. **The
+plan's premise was wrong for the rest**: `iff_typed` needs `Δ.WF` in both directions (the typing
+of a looked-up let value, and the inversions that recover the typing premises), and
+`TrExprS.weakFV'`, `weakBV`, `instN`, `instN_let`, `abstract`, `mono`, `eqv` do not assume it
+(for `weakFV'` it is not even derivable: it would be strengthening). Routing them through
+`TrTyped` would add hypotheses, so they keep their direct inductions. `TrExprS.instL` (a
+`TrExpr` result) is also kept: its residual needs the let value's typing moved between
+level-equivalent contexts, and there is no `VLCtx.LEquiv`-to-`IsDefEqCtx` lemma. Net: the
+`Lemmas.lean` proofs did not shrink (about -70 lines), the gain is the context-free `TrTyped`
+API.
 
-**Step 4. `TrTyped` API.** Add smart constructors with the signatures of the `TrExprS`
-constructors (`TrTyped.app h1 h2 hf ha`, ...), the inversions (`TrTyped.app_inv`, ...), and an
-`@[induction_eliminator]` for `TrTyped` whose cases have exactly `TrExprS`'s premises (derived
-from `iff_typed`). Size: about 300 lines. Risk: low.
+**Step 4. `TrTyped` API. Done** (`Syntactic/TypedAPI.lean`, 238 lines). Smart constructors with
+the premises of the `TrExprS` constructors (`bvar`/`fvar` also take `henv` and `hΔ`, since the
+looked-up value's typing comes from the context); inversions `*_inv`, of which `bvar`, `fvar`,
+`sort`, `lit`, `mdata` need no hypothesis and the others take `henv`/`hΔ` to invert the typing
+of the result; `toTrExprS`/`TrExprS.toTrTyped`; and `TrTyped.induction`, with exactly
+`TrExprS`'s cases (subderivations as `TrTyped`, every context in the motive well formed). It is
+not an `@[induction_eliminator]`: it needs `henv` and `hΔ`, which such an eliminator cannot take,
+so a consumer writes `TrTyped.induction henv (motive := ...) ... hΔ H` (the test rebuilds
+`TrExprS` with it) or `induction H.toTrExprS henv hΔ`.
 
 **Step 5. Migrate consumers that use only syntax.** Where a proof uses a `TrExprS` hypothesis
 only to locate a target, compare targets, or move a source between contexts, replace it by
@@ -228,6 +248,21 @@ estimated a quarter of the 3,116 occurrences change, about 750 lines touched, mo
 statements of auxiliary lemmas. Risk: medium; each file is independent, but the inductive
 pipeline's frame records (`Inductive/Context.lean`, 141 occurrences) are shared by many files
 and should be migrated in one step.
+
+Refined after steps 1 to 4 (counts on `agent/verify-inductives-trsyn`): 3,266 `TrExprS`
+occurrences in 171 files, of which 1,038 are in the files of the `-descriptor` rewrite
+(`Verify/Environment/**`, `Verify/TypeChecker*`, `Inductive/{Install,Nested/Install,Primitive,
+Prelude}/**`), so step 5 is best done after it lands, starting with the deferred step-2 items
+(`noProj`/`IsUnique` in the primitive files: callers switch to `unique_of_syn`/`uniqueCtx` and
+drop the argument; `EqSyntax.lean` to `TrSyn`, then delete the `TrExprSyn` abbreviation). Two
+lessons from step 2 lower the estimate: most "syntax-only" uses are uniqueness or scoping
+arguments, which are already one-liners through `toTrSyn` without changing the hypothesis to
+`TrSyn` (the `IsUnique` retirement touched 10 files for -248 lines that way); and a migration
+pays off only where it removes a typing *argument* (`henv`, `hΔ`), which the `TrTyped`
+transports now offer only when the consumer can produce `Δ.WF` to enter `TrTyped`. Revised
+size: about 400 lines touched (not 750), concentrated in the `induction` proofs that never use
+the typing arms; the frame records stay on `TrExprS`, since their contexts are built before
+their well-formedness is known (section 5).
 
 **Step 6. Telescope certificates on `TelWF`.** Restate `CtorTelescopeAt` as
 `∃ T, trSyn? ci.levelParams [] ci.type = some T ∧ TelWF ...` (`CtorTelescopeAt.iff_trSyn`
@@ -253,6 +288,14 @@ patterns `let .app h1 h2 h3 h4 := H` are the only syntax that breaks; they becom
 custom eliminator, modulo argument order). Risk: medium-high for little gain once steps 2-6 are
 done; recommended only if the inductive `TrExprS` is in the way of a later refactor. Until
 then `TrExprS` and `TrTyped` coexist, related by `iff_typed`.
+
+Refined after step 4: harder than estimated, and not recommended. `TrTyped` is equivalent to
+`TrExprS` only given `henv` and `Δ.WF`, so replacing the definition changes the meaning of every
+`TrExprS` statement in a context not known to be well formed (the frame records, the
+`TrExprS.weakFV'`/`weakBV`/`instN` family). The inversions of the typed rules (`app`, `lam`,
+`forallE`, `letE`, `proj`, `const`) and the induction principle need `henv`/`hΔ`, so the 172
+inversion sites and the 71 `induction` proofs each gain those two arguments rather than being
+unchanged.
 
 ## 4. The strengthening boundary afterwards
 
@@ -285,6 +328,5 @@ prose.
 - **Merge order.** Steps 1-3 rewrite `Typing/Lemmas.lean` (3 concurrent refactors also touch
   the typing layer); do them after those land and in one short window.
 - **Renaming `TrExprSyn`.** `EqSyntax.lean`'s tactic (`apply TrExprSyn.forallE` ...) names
-  constructors, so `TrExprSyn` cannot simply become an abbreviation; the rename to `TrSyn` is
-  mechanical because the constructors agree name for name (`TrExprSyn.iff_trSyn` is proved
-  constructor for constructor).
+  constructors. Resolved in step 2 by `abbrev TrExprSyn := TrSyn` with constructor aliases,
+  which `apply` accepts; the rename of `EqSyntax.lean` itself is deferred to step 5.

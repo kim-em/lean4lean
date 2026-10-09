@@ -12,9 +12,9 @@ rule template (`RecursorCheck.rulesLiteral`).  Its
 translation target is determined syntactically: every constructor of
 `TrExprS` fixes its output from the source syntax and the context, and only
 the typing side conditions of `app`, `lam`, `forallE` and `letE` carry
-semantic content.  `TrExprSyn` is the typing-free shadow of `TrExprS`.  This
+semantic content.  `TrSyn` (`Verify/Typing/Syntactic/Basic.lean`) is the typing-free shadow of `TrExprS`.  This
 file builds, constructively from the shape translations of the generated
-instance, a `TrExprSyn` derivation of each rule's right-hand side whose
+instance, a `TrSyn` derivation of each rule's right-hand side whose
 target is the generator's `Instance.equation` right-hand side; the typed
 translation then follows from any typed translation of the same rule
 (`RecursorCheck.ruleRhsTranslations`). -/
@@ -23,174 +23,63 @@ namespace Lean4Lean
 open Lean hiding Environment Exception
 open VerifyInductive
 
-/-- Typing-free shadow of `TrExprS`: the same rules without the typing side
-conditions and without the environment.  Its target is unique, and every
-`TrExprS` derivation is one. -/
-inductive TrExprSyn (Us : List Name) : VLCtx → Expr → VExpr → Prop
-  | bvar : Δ.find? (.inl i) = some (e, A) → TrExprSyn Us Δ (.bvar i) e
-  | fvar : Δ.find? (.inr fv) = some (e, A) → TrExprSyn Us Δ (.fvar fv) e
-  | sort : VLevel.ofLevel Us u = some u' → TrExprSyn Us Δ (.sort u) (.sort u')
-  | const : us.mapM (VLevel.ofLevel Us) = some us' →
-    TrExprSyn Us Δ (.const c us) (.const c us')
-  | app : TrExprSyn Us Δ f f' → TrExprSyn Us Δ a a' →
-    TrExprSyn Us Δ (.app f a) (.app f' a')
-  | lam : TrExprSyn Us Δ ty ty' → TrExprSyn Us ((none, .vlam ty') :: Δ) body body' →
-    TrExprSyn Us Δ (.lam name ty body bi) (.lam ty' body')
-  | forallE : TrExprSyn Us Δ ty ty' → TrExprSyn Us ((none, .vlam ty') :: Δ) body body' →
-    TrExprSyn Us Δ (.forallE name ty body bi) (.forallE ty' body')
-  | letE : TrExprSyn Us Δ ty ty' → TrExprSyn Us Δ val val' →
-    TrExprSyn Us ((none, .vlet ty' val') :: Δ) body body' →
-    TrExprSyn Us Δ (.letE name ty val body nd) body'
-  | lit : TrExprSyn Us Δ l.toConstructor e → TrExprSyn Us Δ (.lit l) e
-  | mdata : TrExprSyn Us Δ e e' → TrExprSyn Us Δ (.mdata d e) e'
-  | proj : TrExprSyn Us Δ e e' → TrExprSyn Us Δ (.proj s i e) (.proj s i e')
+/-- The syntactic translation `TrSyn` under its former name, kept for
+`Inductive/Prelude/EqSyntax.lean`, whose tactic names the constructors. -/
+abbrev TrExprSyn := TrSyn
+
+alias TrExprSyn.bvar := TrSyn.bvar
+alias TrExprSyn.fvar := TrSyn.fvar
+alias TrExprSyn.sort := TrSyn.sort
+alias TrExprSyn.const := TrSyn.const
+alias TrExprSyn.app := TrSyn.app
+alias TrExprSyn.lam := TrSyn.lam
+alias TrExprSyn.forallE := TrSyn.forallE
+alias TrExprSyn.letE := TrSyn.letE
+alias TrExprSyn.lit := TrSyn.lit
+alias TrExprSyn.mdata := TrSyn.mdata
+alias TrExprSyn.proj := TrSyn.proj
 
 theorem TrExprS.toSyn {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr} {e' : VExpr}
-    (H : TrExprS env Us Δ e e') : TrExprSyn Us Δ e e' := by
-  induction H with
-  | bvar h => exact .bvar h
-  | fvar h => exact .fvar h
-  | sort h => exact .sort h
-  | const _ h _ => exact .const h
-  | app _ _ _ _ ih1 ih2 => exact .app ih1 ih2
-  | lam _ _ _ ih1 ih2 => exact .lam ih1 ih2
-  | forallE _ _ _ _ ih1 ih2 => exact .forallE ih1 ih2
-  | letE _ _ _ _ ih1 ih2 ih3 => exact .letE ih1 ih2 ih3
-  | lit _ _ ih => exact .lit ih
-  | mdata _ ih => exact .mdata ih
-  | proj _ _ ih => exact .proj ih
-
-theorem TrExprSyn.uniqueCtx {Us : List Name} {Δ₁ Δ₂ : VLCtx} {e : Lean.Expr}
-    {e₁ e₂ : VExpr} (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂)
-    (H1 : TrExprSyn Us Δ₁ e e₁) (H2 : TrExprSyn Us Δ₂ e e₂) : e₁ = e₂ := by
-  induction H1 generalizing Δ₂ e₂ with cases H2
-  | bvar => exact hΔ.find?_uniq ‹_› ‹_›
-  | fvar => exact hΔ.find?_uniq ‹_› ‹_›
-  | sort h1
-  | const h1 => cases h1.symm.trans ‹_›; rfl
-  | app _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 hΔ ‹_›; rfl
-  | lam _ _ ih1 ih2
-  | forallE _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 (hΔ.cons .vlam) ‹_›; rfl
-  | letE _ _ _ ih1 ih2 ih3 => cases ih1 hΔ ‹_›; cases ih2 hΔ ‹_›; exact ih3 (hΔ.cons .vlet) ‹_›
-  | lit _ ih => exact ih hΔ ‹_›
-  | mdata _ ih => exact ih hΔ ‹_›
-  | proj _ ih => cases ih hΔ ‹_›; rfl
-
-theorem TrExprSyn.unique {Us : List Name} {Δ : VLCtx} {e : Lean.Expr} {e₁ e₂ : VExpr}
-    (H1 : TrExprSyn Us Δ e e₁) (H2 : TrExprSyn Us Δ e e₂) : e₁ = e₂ :=
-  H1.uniqueCtx .base H2
+    (H : TrExprS env Us Δ e e') : TrSyn Us Δ e e' := H.toTrSyn
 
 /-- A typed translation of a source expression whose syntactic translation is
 known has exactly that target. -/
 theorem TrExprS.of_syn {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr} {e₁ e₂ : VExpr}
-    (H : TrExprS env Us Δ e e₁) (S : TrExprSyn Us Δ e e₂) : TrExprS env Us Δ e e₂ := by
-  rw [← H.toSyn.unique S]; exact H
+    (H : TrExprS env Us Δ e e₁) (S : TrSyn Us Δ e e₂) : TrExprS env Us Δ e e₂ :=
+  H.toTrSyn.unique S ▸ H
 
-theorem TrExprS.IsUniqueCtx.find?_some {Δ₁ Δ₂ : VLCtx} (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂)
-    (H : Δ₁.find? v = some (e, A)) : ∃ A', Δ₂.find? v = some (e, A') := by
-  induction hΔ generalizing v e A with
-  | base => exact ⟨A, H⟩
-  | @cons _ _ _ _ ofv _ hd ih =>
-    revert H; simp [VLCtx.find?]; split
-    · intro h; cases h; cases hd <;> exact ⟨_, rfl⟩
-    · simp; rintro _ _ h1 rfl rfl
-      obtain ⟨A', h2⟩ := ih h1
-      refine ⟨_, _, _, h2, ?_, rfl⟩
-      cases hd <;> rfl
-
-/-- Syntactic translation ignores the domains recorded in the context. -/
-theorem TrExprSyn.transport {Us : List Name} {Δ₁ Δ₂ : VLCtx} {e : Lean.Expr} {e' : VExpr}
-    (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂) (H : TrExprSyn Us Δ₁ e e') : TrExprSyn Us Δ₂ e e' := by
-  induction H generalizing Δ₂ with
-  | bvar h => obtain ⟨_, h⟩ := hΔ.find?_some h; exact .bvar h
-  | fvar h => obtain ⟨_, h⟩ := hΔ.find?_some h; exact .fvar h
-  | sort h => exact .sort h
-  | const h => exact .const h
-  | app _ _ ih1 ih2 => exact .app (ih1 hΔ) (ih2 hΔ)
-  | lam _ _ ih1 ih2 => exact .lam (ih1 hΔ) (ih2 (hΔ.cons .vlam))
-  | forallE _ _ ih1 ih2 => exact .forallE (ih1 hΔ) (ih2 (hΔ.cons .vlam))
-  | letE _ _ _ ih1 ih2 ih3 => exact .letE (ih1 hΔ) (ih2 hΔ) (ih3 (hΔ.cons .vlet))
-  | lit _ ih => exact .lit (ih hΔ)
-  | mdata _ ih => exact .mdata (ih hΔ)
-  | proj _ ih => exact .proj (ih hΔ)
-
-theorem TrExprSyn.transportAbstract {Us : List Name} {doms doms' : List VExpr} {e : Lean.Expr}
+theorem TrSyn.transportAbstract {Us : List Name} {doms doms' : List VExpr} {e : Lean.Expr}
     {e' : VExpr} (hlen : doms.length = doms'.length)
-    (H : TrExprSyn Us (abstractForallContext doms []) e e') :
-    TrExprSyn Us (abstractForallContext doms' []) e e' :=
+    (H : TrSyn Us (abstractForallContext doms []) e e') :
+    TrSyn Us (abstractForallContext doms' []) e e' :=
   H.transport (abstractForallContext.isUniqueCtx hlen)
 
-theorem TrExprSyn.weakBV {Us : List Name} {Δ Δ' : VLCtx} {e : Lean.Expr} {e' : VExpr}
-    (W : VLCtx.BVLift Δ Δ' dn dk n k) (H : TrExprSyn Us Δ e e') :
-    TrExprSyn Us Δ' (e.liftLooseBVars' dk dn) (e'.liftN n k) := by
-  induction H generalizing Δ' dk k with
-  | bvar h1 => exact .bvar (W.find? h1)
-  | fvar h1 => exact .fvar (W.find? h1)
-  | sort h1 => exact .sort h1
-  | const h1 => exact .const h1
-  | app _ _ ih1 ih2 => exact .app (ih1 W) (ih2 W)
-  | lam _ _ ih1 ih2 => exact .lam (ih1 W) (ih2 (W.cons _))
-  | forallE _ _ ih1 ih2 => exact .forallE (ih1 W) (ih2 (W.cons _))
-  | letE _ _ _ ih1 ih2 ih3 => exact .letE (ih1 W) (ih2 W) (ih3 (W.cons _))
-  | lit _ ih =>
-    refine .lit (Expr.liftLooseBVars_eq_self ?_ ▸ ih W :)
-    exact Closed.toConstructor.looseBVarRange_le
-  | mdata _ ih => exact .mdata (ih W)
-  | proj _ ih => exact .proj (ih W)
-
-theorem TrExprSyn.instL {Us Us' : List Name} {ls : List VLevel} {Δ : VLCtx} {e : Lean.Expr}
-    {e' : VExpr}
-    (hlev : ∀ u u', VLevel.ofLevel Us u = some u' → VLevel.ofLevel Us' u = some (u'.inst ls))
-    (H : TrExprSyn Us Δ e e') : TrExprSyn Us' (Δ.instL ls) e (e'.instL ls) := by
-  have hlevs : ∀ (us : List Level) us', us.mapM (VLevel.ofLevel Us) = some us' →
-      us.mapM (VLevel.ofLevel Us') = some (us'.map (VLevel.inst ls)) := by
-    intro us
-    induction us with
-    | nil => intro us' h; simp at h; subst h; rfl
-    | cons u us ih =>
-      intro us' h
-      simp [List.mapM_cons] at h ⊢
-      rcases h with ⟨u', hu, us'', hus, rfl⟩
-      exact ⟨_, hlev _ _ hu, _, ih _ hus, rfl⟩
-  induction H with
-  | bvar h1 => exact .bvar (VLCtx.find?_instL h1)
-  | fvar h1 => exact .fvar (VLCtx.find?_instL h1)
-  | sort h1 => exact .sort (hlev _ _ h1)
-  | const h1 => exact .const (hlevs _ _ h1)
-  | app _ _ ih1 ih2 => exact .app ih1 ih2
-  | lam _ _ ih1 ih2 => exact .lam ih1 ih2
-  | forallE _ _ ih1 ih2 => exact .forallE ih1 ih2
-  | letE _ _ _ ih1 ih2 ih3 => exact .letE ih1 ih2 ih3
-  | lit _ ih => exact .lit ih
-  | mdata _ ih => exact .mdata ih
-  | proj _ ih => exact .proj ih
-
-theorem TrExprSyn.mkAppList {Us : List Name} {Δ : VLCtx} {f : Lean.Expr} {f' : VExpr}
+theorem TrSyn.mkAppList {Us : List Name} {Δ : VLCtx} {f : Lean.Expr} {f' : VExpr}
     {args : List Lean.Expr} {args' : List VExpr}
-    (Hf : TrExprSyn Us Δ f f') (Hargs : List.Forall₂ (TrExprSyn Us Δ) args args') :
-    TrExprSyn Us Δ (Expr.mkAppList f args) (VExpr.mkApps f' args') := by
+    (Hf : TrSyn Us Δ f f') (Hargs : List.Forall₂ (TrSyn Us Δ) args args') :
+    TrSyn Us Δ (Expr.mkAppList f args) (VExpr.mkApps f' args') := by
   induction Hargs generalizing f f' with
   | nil => simpa [VExpr.mkApps] using Hf
   | cons ha _ ih =>
     simpa [VExpr.mkApps] using ih (Hf.app ha)
 
-theorem TrExprSyn.bvar_abstract {Us : List Name} (domains : List VExpr) (Δ : VLCtx) (i : Nat)
+theorem TrSyn.bvar_abstract {Us : List Name} (domains : List VExpr) (Δ : VLCtx) (i : Nat)
     (hi : i < domains.length) :
-    TrExprSyn Us (abstractForallContext domains Δ) (.bvar i) (.bvar i) := by
+    TrSyn Us (abstractForallContext domains Δ) (.bvar i) (.bvar i) := by
   rcases abstractForallContext.find?_bvar domains Δ i hi with ⟨type, hfind⟩
   exact .bvar hfind
 
 /-- Lambda telescope over the literal binder prefix of a forall telescope:
 the `i`-th lambda domain is the `i`-th literal forall domain. -/
-theorem TrExprSyn.lambdaTelescope {Us : List Name} {n : Nat} {Fa L res : Lean.Expr}
+theorem TrSyn.lambdaTelescope {Us : List Name} {n : Nat} {Fa L res : Lean.Expr}
     {doms : List VExpr} {Δ : VLCtx} {tgt : VExpr}
     (Hsame : Expr.SameForallLambdaPrefix n Fa L)
     (HL : Expr.LambdaTelescope L n res) (hlen : doms.length = n)
     (Hdoms : ∀ i (hi : i < doms.length),
-      TrExprSyn Us (abstractForallContext (doms.take i) Δ)
+      TrSyn Us (abstractForallContext (doms.take i) Δ)
         (Expr.forallDomainList n Fa)[i]! (doms[i]'hi))
-    (Hres : TrExprSyn Us (abstractForallContext doms Δ) res tgt) :
-    TrExprSyn Us Δ L (VExpr.wrapLams doms tgt) := by
+    (Hres : TrSyn Us (abstractForallContext doms Δ) res tgt) :
+    TrSyn Us Δ L (VExpr.wrapLams doms tgt) := by
   induction Hsame generalizing doms Δ res with
   | nil =>
     cases HL
@@ -206,7 +95,7 @@ theorem TrExprSyn.lambdaTelescope {Us : List Name} {n : Nat} {Fa L res : Lean.Ex
         have h0 := Hdoms 0 (by simp)
         simp only [List.take_zero, Expr.forallDomainList, List.getElem!_cons_zero,
           List.getElem_cons_zero] at h0
-        have h0' : TrExprSyn Us Δ dom d := by simpa [abstractForallContext] using h0
+        have h0' : TrSyn Us Δ dom d := by simpa [abstractForallContext] using h0
         simp only [VExpr.wrapLams, List.foldr_cons]
         refine .lam h0' ?_
         have := ih (doms := ds) (Δ := (none, .vlam d) :: Δ) HL (by simpa using hlen) ?_ ?_
@@ -253,16 +142,16 @@ theorem Expr.abstractN_fvars_spine {xs : List FVarId} (hnd : xs.Nodup) (k : Nat)
     simp only [List.length_map] at h1
     rw [Expr.abstractN_fvar_getElem hnd l h1]
 
-theorem TrExprSyn.bvarSpine {Us : List Name} (domains : List VExpr) (Δ : VLCtx) (count below : Nat)
+theorem TrSyn.bvarSpine {Us : List Name} (domains : List VExpr) (Δ : VLCtx) (count below : Nat)
     (h : count + below ≤ domains.length) :
-    List.Forall₂ (TrExprSyn Us (abstractForallContext domains Δ))
+    List.Forall₂ (TrSyn Us (abstractForallContext domains Δ))
       ((List.range count).reverse.map fun i => Lean.Expr.bvar (below + i))
       (InductiveSignature.vars count below) := by
   unfold InductiveSignature.vars
   apply List.forall₂_of_getElem (by simp)
   intro l h1 h2
   simp only [List.getElem_map]
-  apply TrExprSyn.bvar_abstract
+  apply TrSyn.bvar_abstract
   simp only [List.length_map, List.length_reverse, List.length_range] at h1
   simp only [List.getElem_reverse, List.getElem_range, List.length_range]
   omega
@@ -314,7 +203,7 @@ theorem VerifyInductive.Expr.ForallTelescope.closed_of_domains
 fields and the outer binders: a lambda telescope over the call's argument
 domains whose body applies the recursor to the outer binders, the translated
 target indices, and the recursive field applied to the arguments. -/
-theorem TrExprSyn.recursiveCall {Us : List Name}
+theorem TrSyn.recursiveCall {Us : List Name}
     {lctxC : LocalContext} {args : Array Lean.Expr} {A : List FVarId}
     (hargs : args = (A.map Lean.Expr.fvar).toArray)
     (hdecl : ∀ fv ∈ A, ∃ index name type bi kind,
@@ -329,15 +218,15 @@ theorem TrExprSyn.recursiveCall {Us : List Name}
     (hdomsLen : domsR.length = args.size)
     (hFa : Closed (lctxC.mkForall args (.sort .zero)))
     (Hdoms : ∀ i (hi : i < domsR.length),
-      TrExprSyn Us (abstractForallContext (Γdoms ++ domsR.take i) [])
+      TrSyn Us (abstractForallContext (Γdoms ++ domsR.take i) [])
         (((Expr.forallDomainList args.size (lctxC.mkForall args (.sort .zero)))[i]!.abstractN
           F i).abstractN PMN (F.length + i))
         (domsR[i]'hi))
     (hIclosed : ∀ e ∈ I.toList, Closed (e.abstractN A) args.size)
-    (Hidx : List.Forall₂ (TrExprSyn Us (abstractForallContext (Γdoms ++ domsR) []))
+    (Hidx : List.Forall₂ (TrSyn Us (abstractForallContext (Γdoms ++ domsR) []))
       (I.toList.map fun e =>
         ((e.abstractN A).abstractN F args.size).abstractN PMN (F.length + args.size)) idxG) :
-    TrExprSyn Us (abstractForallContext Γdoms [])
+    TrSyn Us (abstractForallContext Γdoms [])
       ((((lctxC.mkLambda args ((mkAppN (.bvar args.size) I).app
           (mkAppN (.fvar F[pos]) args))).instantiate1
           (Lean.Expr.mkAppList (.const name lvls) (PMN.map .fvar))).abstractN F).abstractN
@@ -367,7 +256,7 @@ theorem TrExprSyn.recursiveCall {Us : List Name}
   have HL2 := (HL1.abstractN F 0).abstractN PMN F.length
   have HFtel1 := HFtel.abstractN F 0
   rw [Lean.Expr.instantiate1_eq] at HL2 ⊢
-  refine TrExprSyn.lambdaTelescope Hsame2 HL2 hdomsLen ?_ ?_
+  refine TrSyn.lambdaTelescope Hsame2 HL2 hdomsLen ?_ ?_
   · intro i hi
     rw [Expr.ForallTelescope.forallDomainList_abstractN HFtel1 PMN F.length (by omega),
       Expr.ForallTelescope.forallDomainList_abstractN HFtel F 0 (by omega),
@@ -440,27 +329,27 @@ theorem TrExprSyn.recursiveCall {Us : List Name}
     rw [hsrc]
     have hlen : (Γdoms ++ domsR).length = PMN.length + F.length + A.length := by
       simp [hΓ, hdomsLen]
-    have Hhead := TrExprSyn.mkAppList (TrExprSyn.const (Δ := abstractForallContext (Γdoms ++ domsR) [])
+    have Hhead := TrSyn.mkAppList (TrSyn.const (Δ := abstractForallContext (Γdoms ++ domsR) [])
       (c := name) hlvls)
-      (TrExprSyn.bvarSpine (Us := Us) (Γdoms ++ domsR) [] PMN.length (F.length + A.length)
+      (TrSyn.bvarSpine (Us := Us) (Γdoms ++ domsR) [] PMN.length (F.length + A.length)
         (by omega))
-    have Hmaj := TrExprSyn.mkAppList (TrExprSyn.bvar_abstract (Us := Us) (Γdoms ++ domsR) []
+    have Hmaj := TrSyn.mkAppList (TrSyn.bvar_abstract (Us := Us) (Γdoms ++ domsR) []
       (A.length + (F.length - 1 - pos)) (by omega))
-      (TrExprSyn.bvarSpine (Us := Us) (Γdoms ++ domsR) [] A.length 0 (by omega))
-    have := TrExprSyn.app (TrExprSyn.mkAppList Hhead Hidx) Hmaj
+      (TrSyn.bvarSpine (Us := Us) (Γdoms ++ domsR) [] A.length 0 (by omega))
+    have := TrSyn.app (TrSyn.mkAppList Hhead Hidx) Hmaj
     simp only [VExpr.mkApps, List.foldl_append, List.foldl_cons, List.foldl_nil] at this ⊢
     rw [show F.length - 1 - pos + A.length = A.length + (F.length - 1 - pos) by omega]
     exact this
 
 /-- Syntactic translation of a rule body `minor fields calls`, closed over the
 fields and the outer binders. -/
-theorem TrExprSyn.ruleBody {Us : List Name} {F PMN : List FVarId} {m : Nat}
+theorem TrSyn.ruleBody {Us : List Name} {F PMN : List FVarId} {m : Nat}
     (hm : m < PMN.length) (hF : F.Nodup) (hPMN : PMN.Nodup) (hdisj : ∀ x ∈ PMN, x ∉ F)
     {Γdoms : List VExpr} (hΓ : Γdoms.length = PMN.length + F.length)
     {calls : Array Lean.Expr} {callsG : List VExpr}
-    (Hcalls : List.Forall₂ (TrExprSyn Us (abstractForallContext Γdoms []))
+    (Hcalls : List.Forall₂ (TrSyn Us (abstractForallContext Γdoms []))
       (calls.toList.map fun c => (c.abstractN F).abstractN PMN F.length) callsG) :
-    TrExprSyn Us (abstractForallContext Γdoms [])
+    TrSyn Us (abstractForallContext Γdoms [])
       (((mkAppN (mkAppN (.fvar PMN[m]) (F.map Lean.Expr.fvar).toArray) calls).abstractN F).abstractN
         PMN F.length)
       (VExpr.mkApps (.bvar (F.length + (PMN.length - 1 - m)))
@@ -479,19 +368,19 @@ theorem TrExprSyn.ruleBody {Us : List Name} {F PMN : List FVarId} {m : Nat}
     rfl
   simp only [Lean.Expr.mkAppN_eq_mkAppList, Expr.abstractN_mkAppList, hx, hx', List.map_map]
   rw [hfields]
-  have H1 := TrExprSyn.mkAppList (TrExprSyn.bvar_abstract (Us := Us) Γdoms []
+  have H1 := TrSyn.mkAppList (TrSyn.bvar_abstract (Us := Us) Γdoms []
       (F.length + (PMN.length - 1 - m)) (by omega))
-    (TrExprSyn.bvarSpine (Us := Us) Γdoms [] F.length 0 (by omega))
-  have H2 := TrExprSyn.mkAppList H1 Hcalls
+    (TrSyn.bvarSpine (Us := Us) Γdoms [] F.length 0 (by omega))
+  have H2 := TrSyn.mkAppList H1 Hcalls
   simpa [VExpr.mkApps, List.foldl_append, Function.comp_def] using H2
 
 /-- Inserting `c` anonymous binders between the outer `a` and inner `b`
 binders of an abstract context weakens a syntactic translation at the inner
 cutoff. -/
-theorem TrExprSyn.insertAbstract {Us : List Name} {doms doms' : List VExpr} {e : Lean.Expr}
+theorem TrSyn.insertAbstract {Us : List Name} {doms doms' : List VExpr} {e : Lean.Expr}
     {e' : VExpr} {a b c : Nat} (hdoms : doms.length = a + b) (hdoms' : doms'.length = a + c + b)
-    (H : TrExprSyn Us (abstractForallContext doms []) e e') :
-    TrExprSyn Us (abstractForallContext doms' []) (e.liftLooseBVars' b c) (e'.liftN c b) := by
+    (H : TrSyn Us (abstractForallContext doms []) e e') :
+    TrSyn Us (abstractForallContext doms' []) (e.liftLooseBVars' b c) (e'.liftN c b) := by
   have H1 := H.transportAbstract (doms' := List.replicate a (.sort .zero) ++
     List.replicate b (.sort .zero)) (by simp [hdoms])
   have W := abstractForallContext.bvInsertBeforeInner (List.replicate a (.sort .zero))
@@ -553,23 +442,23 @@ theorem Expr.closeShapeSource (e : Lean.Expr) (F P Q : List FVarId) (pos d : Nat
 earlier binders`, at the declaration universes, moves to the equation context
 `parameters ++ motives ++ minors ++ fields ++ earlier binders` at the recursor
 universes: its target becomes the generator's `underFields` embedding. -/
-theorem TrExprSyn.ofShape {env : VEnv} {Us Us' : List Name} {ls : List VLevel}
+theorem TrSyn.ofShape {env : VEnv} {Us Us' : List Name} {ls : List VLevel}
     (hlev : ∀ u u', VLevel.ofLevel Us u = some u' → VLevel.ofLevel Us' u = some (u'.inst ls))
     {sp sfT rbT Γ : List VExpr} {src : Lean.Expr} {t : VExpr} {pos nf extra : Nat}
     (hsfT : sfT.length = pos) (hpos : pos ≤ nf)
     (hΓ : Γ.length = sp.length + extra + nf + rbT.length)
     (H : TrExprS env Us (abstractForallContext (sp ++ sfT ++ rbT) []) src t) :
-    TrExprSyn Us' (abstractForallContext Γ [])
+    TrSyn Us' (abstractForallContext Γ [])
       ((src.liftLooseBVars' rbT.length (nf - pos)).liftLooseBVars' (nf + rbT.length) extra)
       (InductiveSignature.Instance.underFields (t.instL ls) pos nf 0 extra rbT.length) := by
   have H1 := H.toSyn.instL hlev
   simp only [VLCtx.instL_abstractForallContext] at H1
   have H2 := H1.transportAbstract (doms' := List.replicate (sp.length + pos + rbT.length)
     (.sort .zero)) (by simp [hsfT]; omega)
-  have H3 := TrExprSyn.insertAbstract (a := sp.length + pos) (b := rbT.length) (c := nf - pos)
+  have H3 := TrSyn.insertAbstract (a := sp.length + pos) (b := rbT.length) (c := nf - pos)
     (doms' := List.replicate (sp.length + (nf + rbT.length)) (.sort .zero)) (by simp)
     (by simp; omega) H2
-  have H4 := TrExprSyn.insertAbstract (a := sp.length) (b := nf + rbT.length) (c := extra)
+  have H4 := TrSyn.insertAbstract (a := sp.length) (b := nf + rbT.length) (c := extra)
     (doms' := Γ) (by simp) (by omega) H3
   simpa [InductiveSignature.Instance.underFields, Nat.add_assoc] using H4
 
@@ -600,7 +489,7 @@ theorem TrExprS.shapeSourceFacts {env : VEnv} {Us : List Name}
 /-- A shape source translated in the small context, closed over the earlier
 fields `F.take pos` and the parameters, translates in the equation context once
 closed over all fields and all outer binders. -/
-theorem TrExprSyn.shapeToEquation {env : VEnv} {Us Us' : List Name} {ls : List VLevel}
+theorem TrSyn.shapeToEquation {env : VEnv} {Us Us' : List Name} {ls : List VLevel}
     (hlev : ∀ u u', VLevel.ofLevel Us u = some u' → VLevel.ofLevel Us' u = some (u'.inst ls))
     {sp sfT rbT Γ : List VExpr} {e : Lean.Expr} {t : VExpr} {F P Q : List FVarId} {pos : Nat}
     (hpos : pos ≤ F.length) (hsp : sp.length = P.length) (hsfT : sfT.length = pos)
@@ -608,13 +497,13 @@ theorem TrExprSyn.shapeToEquation {env : VEnv} {Us Us' : List Name} {ls : List V
     (hΓ : Γ.length = (P ++ Q).length + F.length + rbT.length)
     (H : TrExprS env Us (abstractForallContext (sp ++ sfT ++ rbT) [])
       ((e.abstractList (F.take pos) rbT.length).abstractList P (pos + rbT.length)) t) :
-    TrExprSyn Us' (abstractForallContext Γ [])
+    TrSyn Us' (abstractForallContext Γ [])
       ((e.abstractN F rbT.length).abstractN (P ++ Q) (F.length + rbT.length))
       (InductiveSignature.Instance.underFields (t.instL ls) pos F.length 0 Q.length
         rbT.length) := by
   obtain ⟨hc2, hscope⟩ := TrExprS.shapeSourceFacts hpos hsp hsfT H
   rw [Expr.closeShapeSource e F P Q pos rbT.length hpos hc2 hF hPQ hdisj hscope]
-  exact TrExprSyn.ofShape hlev hsfT hpos (by simp at hΓ ⊢; omega) H
+  exact TrSyn.ofShape hlev hsfT hpos (by simp at hΓ ⊢; omega) H
 
 namespace VerifyInductive
 open Kernel
@@ -747,7 +636,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
     (j : Nat) (hj : j < (InductiveSignature.Instance.recursiveFields
       (s := H.generator.signature)
       H.generator.signature.constructors[recursorMinorOffset indTypes o + i]).length) :
-    TrExprSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams) (abstractForallContext Γdoms [])
+    TrSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams) (abstractForallContext Γdoms [])
       ((((H.recInfos[o]!.ruleTemplates[i]!).recursiveCalls[j]!).instantiate indTypes stats
         (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
         (AddInductive.getRecLevels H.elimLevel stats.levels)).abstractN
@@ -845,7 +734,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
       (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
         H.generator.signature.constructors[recursorMinorOffset indTypes o +
           i])[j].2.binders.zipIdx).length),
-      TrExprSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      TrSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams)
         (abstractForallContext (Γdoms ++ (List.map (fun x => InductiveSignature.Instance.underFields
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) x.fst)
       (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
@@ -876,7 +765,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
     have hlen' : ((InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
         H.generator.signature.constructors[recursorMinorOffset indTypes o + i])[j].2.binders.take
           i').length = i' := by simp; omega
-    have X := TrExprSyn.shapeToEquation hlev (Nat.le_of_lt hpos) hsp hsfT
+    have X := TrSyn.shapeToEquation hlev (Nat.le_of_lt hpos) hsp hsfT
       (H.origins.minorShapes o ho i hlocal).fields_nodup hPMN hdisj
       (Γ := Γdoms ++ (List.map (fun x => InductiveSignature.Instance.underFields
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) x.fst)
@@ -916,7 +805,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
     rwa [hbl] at this
   have Hidx' := Hidx
   rw [List.forall₂_map_left_iff] at Hidx'
-  have Hidx'' : List.Forall₂ (TrExprSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+  have Hidx'' : List.Forall₂ (TrSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (abstractForallContext (Γdoms ++ (List.map (fun x => InductiveSignature.Instance.underFields
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) x.fst)
       (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
@@ -941,7 +830,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
           (H.bindings.motives.fvars.length + H.bindings.flatMinors.fvars.length) O.args.size) := by
     rw [List.forall₂_map_left_iff, List.forall₂_map_right_iff]
     refine Lean4Lean.List.Forall₂.imp (fun e t he => ?_) Hidx'
-    have X := TrExprSyn.shapeToEquation hlev (Nat.le_of_lt hpos) hsp hsfT
+    have X := TrSyn.shapeToEquation hlev (Nat.le_of_lt hpos) hsp hsfT
       (H.origins.minorShapes o ho i hlocal).fields_nodup hPMN hdisj
       (Γ := Γdoms ++ (List.map (fun x => InductiveSignature.Instance.underFields
       (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) x.fst)
@@ -956,7 +845,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
       (by simp [hΓ, hbl]) (by rw [hbl]; exact he)
     rw [hbl] at X
     simpa using X
-  have key := TrExprSyn.recursiveCall (Us := AddInductive.getRecLevelParams H.elimLevel c.lparams)
+  have key := TrSyn.recursiveCall (Us := AddInductive.getRecLevelParams H.elimLevel c.lparams)
     (lctxC := O.current.lctx) (args := O.args) (A := O.arguments_bound.fvars)
     O.arguments_bound.expressions hdecl O.arguments_bound.nodup
     (I := (H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls[j]!).targetIndices)
@@ -1186,7 +1075,7 @@ offset. -/
 theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
     (o : Nat) (ho : o < H.recInfos.size) (i : Nat) (hlocal : i < H.origins.minorTypes[o]!.size) :
     ∃ hk : recursorMinorOffset indTypes o + i < H.generator.signature.constructors.size,
-      TrExprSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
+      TrSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
         ((H.recInfos[o]!.ruleTemplates[i]!).instantiate indTypes stats
           (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
           (AddInductive.getRecLevels H.elimLevel stats.levels) H.localContext.lctx).rhs
@@ -1287,7 +1176,7 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
             H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls))) hdeclPMN
   simp only [LocalContext.mkForall, LocalContext.mkLambda, List.size_toArray, List.length_map]
     at Hsame HL
-  refine TrExprSyn.lambdaTelescope Hsame HL hlenD Hdoms ?_
+  refine TrSyn.lambdaTelescope Hsame HL hlenD Hdoms ?_
   -- the field telescope
   have hsourceOwner : o < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hsourceLE⟩ :=
@@ -1335,7 +1224,7 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
           H.generator.signature.constructors.size)).length =
       (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length := by
     simp [InductiveSignature.insertBinders, InductiveSignature.fieldTypes_length, hnf]
-  refine TrExprSyn.lambdaTelescope HsameF HLF hlenF ?_ ?_
+  refine TrSyn.lambdaTelescope HsameF HLF hlenF ?_ ?_
   · have hins : (H.generator.generation.motives ++
         H.generator.generation.minors).length =
         (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars).length := by
@@ -1397,7 +1286,7 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
         (InductiveSignature.Instance.recursiveFields (s := H.generator.signature)
           H.generator.signature.constructors[recursorMinorOffset indTypes o + i]).length := by
       rw [Hcalls.size_eq, hrfLen]
-    have Hcalls' := TrExprSyn.ruleBody (Us := AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    have Hcalls' := TrSyn.ruleBody (Us := AddInductive.getRecLevelParams H.elimLevel c.lparams)
       hm (H.origins.minorShapes o ho i hlocal).fields_nodup hPMN hdisj hΓ
       (calls := H.recInfos[o]!.ruleTemplates[i]!.recursiveCalls.map fun call =>
         call.instantiate indTypes stats (Array.map (fun x => x.motive) H.recInfos)
@@ -1429,7 +1318,7 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
     exact Hcalls'
 
 /-- The right-hand side of every installed recursor rule translates
-syntactically (`TrExprSyn`, the typing-free shadow of `TrExprS`) to the
+syntactically (`TrSyn`, the typing-free shadow of `TrExprS`) to the
 right-hand side of the generator's equation for the constructor at
 the canonical minor offset. -/
 theorem RecursorCheck.ruleRhsSyn {outEnv : Environment}
@@ -1437,7 +1326,7 @@ theorem RecursorCheck.ruleRhsSyn {outEnv : Environment}
     (o : Nat) (ho : o < H.entries.length)
     (i : Nat) (hi : i < (H.generated.entry o ho).info.rules.length) :
     ∃ hk : recursorMinorOffset indTypes o + i < H.generator.signature.constructors.size,
-      TrExprSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
+      TrSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
         ((H.generated.entry o ho).info.rules[i]).rhs
         (H.generator.generation.equation ⟨recursorMinorOffset indTypes o + i, hk⟩).rhs := by
   have howner : o < H.recInfos.size := by simpa [H.generated.length] using ho

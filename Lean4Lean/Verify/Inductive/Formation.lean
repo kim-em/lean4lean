@@ -198,10 +198,11 @@ theorem ConstructorParameterCertificate.ctorParameterShape
   H.shapes type htype ctor hctor
 
 /-- Constructor-tail formation together with the typing fact recovered by
-fully applying the checked inductive header. -/
+fully applying the checked inductive header. `classes` is the field
+classification returned by the executable's positivity check. -/
 structure ConstructorTailCertificate (env : VEnv) (decl : VInductDecl)
     (target : VInductiveType) (ctx : List VExpr) (depth : Nat)
-    (tail : VExpr) : Prop where
+    (tail : VExpr) (classes : List Bool) : Prop where
   shape : decl.CtorTailWF env target ctx depth tail
   isType : env.IsType decl.uvars ctx tail
   /-- The executable check walks syntactic binders and then requires a valid
@@ -213,7 +214,7 @@ structure ConstructorTailCertificate (env : VEnv) (decl : VInductDecl)
     result.getAppFnArgs.1 = .const target.name (VLevel.params decl.uvars)
   /-- Actual source-field domains and contexts carry the uniform recursive
   normal forms checked before introducing the eliminator universe. -/
-  uniform : decl.UniformCtorTail env target (VLevel.params decl.uvars) ctx depth tail
+  uniform : decl.UniformCtorTail env target (VLevel.params decl.uvars) ctx depth tail classes
 
 /-- Prefix invariant for constructor checking in the exact flattened order
 used by recursor-minor and iota-rule generation. -/
@@ -387,23 +388,15 @@ theorem List.forall₂_of_getElem
       change R as[i] bs[i] at h
       exact h
 
-/-- Two pointwise translations of a syntactically unique source spine have
-the same target spine. -/
+/-- Two pointwise translations of a source spine have the same target spine. -/
 theorem List.Forall₂.targets_eq_of_unique
     (H₁ : List.Forall₂ (TrExprS env Us Δ) source target₁)
-    (H₂ : List.Forall₂ (TrExprS env Us Δ) source target₂)
-    (Hunique : ∀ e ∈ source, TrExprS.IsUnique e) : target₁ = target₂ := by
+    (H₂ : List.Forall₂ (TrExprS env Us Δ) source target₂) : target₁ = target₂ := by
   induction H₁ generalizing target₂ with
   | nil => cases H₂; rfl
-  | @cons sourceHead targetHead sourceTail targetTail Hhead Htail ih =>
-    cases H₂ with
-    | cons Hhead' Htail' =>
-      have hheadEq := TrExprS.unique
-        (Hunique sourceHead (by simp)) Hhead Hhead'
-      have htailEq := ih Htail' (by
-        intro e he
-        exact Hunique e (by simp [he]))
-      rw [hheadEq, htailEq]
+  | cons Hhead _ ih =>
+    let .cons Hhead' Htail' := H₂
+    rw [Hhead.unique_of_syn Hhead', ih Htail']
 
 theorem Expr.getAppFn_mkAppN (fn : Expr) (args : Array Expr) :
     (mkAppN fn args).getAppFn = fn.getAppFn := by
@@ -449,26 +442,6 @@ theorem Expr.getAppArgsList_mkAppN (fn : Expr) (args : Array Expr) :
   | cons arg args ih =>
     simp only [List.foldl_cons, Lean.mkApp]
     exact ih (.app fn arg)
-
-theorem TrExprS.IsUnique.mkAppList
-    (hfn : TrExprS.IsUnique fn)
-    (hargs : ∀ arg ∈ args, TrExprS.IsUnique arg) :
-    TrExprS.IsUnique (Expr.mkAppList fn args) := by
-  induction args generalizing fn with
-  | nil => exact hfn
-  | cons arg args ih =>
-    exact ih ⟨hfn, hargs arg (by simp)⟩ (by
-      intro later hlater
-      exact hargs later (by simp [hlater]))
-
-theorem TrExprS.IsUnique.mkAppN
-    (hfn : TrExprS.IsUnique fn)
-    (hargs : ∀ arg ∈ args, TrExprS.IsUnique arg) :
-    TrExprS.IsUnique (mkAppN fn args) := by
-  rw [Expr.mkAppN_eq_mkAppList]
-  exact Lean4Lean.VerifyInductive.TrExprS.IsUnique.mkAppList hfn
-    fun arg harg => hargs arg
-    (Array.mem_toList_iff.mp harg)
 
 /-- Remove equally long outer prefixes from a context conversion.  Since
 `IsDefEqCtx` is built from the shared innermost suffix outwards, the proof is
