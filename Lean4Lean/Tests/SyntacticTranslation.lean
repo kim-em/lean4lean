@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Typing.Syntactic.Consumers
+import Lean4Lean.Verify.Typing.Syntactic.TypedAPI
 
 /-! Syntactic translation (`Lean4Lean/Verify/Typing/Syntactic/`).
 
@@ -42,5 +43,17 @@ def zero : Expr := .const ``Nat.zero []
 -- the quotient types are computed
 example : trSyn? [`u] [] QuotInit.tQuotC = some quotConst.type := rfl
 example : trSyn? [`u, `v] [] QuotInit.tLiftC = some quotLiftConst.type := rfl
+
+-- the `TrTyped` induction principle has the cases of `TrExprS`: rebuilding `TrExprS` from it
+example {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr} {e' : VExpr}
+    (henv : env.Ordered) (hΔ : Δ.WF env Us.length) (H : TrTyped env Us Δ e e') :
+    TrExprS env Us Δ e e' :=
+  TrTyped.induction henv (motive := TrExprS env Us)
+    (fun _ h => .bvar h) (fun _ h => .fvar h) (fun _ h => .sort h)
+    (fun _ h1 h2 h3 => .const h1 h2 h3) (fun _ h1 h2 _ _ ih1 ih2 => .app h1 h2 ih1 ih2)
+    (fun _ h1 _ _ ih1 ih2 => .lam h1 ih1 ih2)
+    (fun _ h1 h2 _ _ ih1 ih2 => .forallE h1 h2 ih1 ih2)
+    (fun _ h1 _ _ _ ih1 ih2 ih3 => .letE h1 ih1 ih2 ih3) (fun _ h1 _ ih => .lit h1 ih)
+    (fun _ _ ih => .mdata ih) (fun _ _ h2 ih => .proj ih h2) hΔ H
 
 end Lean4Lean.Tests.SyntacticTranslation

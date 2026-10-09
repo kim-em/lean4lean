@@ -162,25 +162,6 @@ theorem RecursorValidAppStatsWF.indConstAt
   rw [H.consts.exact]
   simp [hi]
 
-theorem RecursorValidAppStatsWF.familyPrefixUnique
-    (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
-    (target : Nat) (htarget : target < decl.types.length) :
-    TrExprS.IsUnique
-      (mkAppN stats.indConsts[target]! stats.params) := by
-  have hstats : target < stats.indConsts.size := by
-    rw [H.types_size]
-    exact htarget
-  have hconst : stats.indConsts[target] =
-      .const decl.types[target].name stats.levels := by
-    exact Option.some.inj <|
-      (Array.getElem?_eq_getElem hstats).symm.trans (H.indConstAt htarget)
-  apply TrExprS.IsUnique.mkAppN (by
-    simpa [Array.getElem!_eq_getD, Array.getD, hstats] using
-      (show TrExprS.IsUnique stats.indConsts[target] by rw [hconst]; trivial))
-  intro param hparam
-  rcases H.paramFVars param hparam with ⟨fv, rfl⟩
-  trivial
-
 theorem RecursorValidAppStatsWF.nindicesAt
     (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
     (hi : i < decl.types.length) :
@@ -474,13 +455,7 @@ theorem RecursorValidAppStatsWF.translatedIndices
     simpa [Expr.getAppArgsList_mkAppN, hconstSource,
       Expr.getAppArgsList_const] using hfamilyParams
   have hfamilyParamsEq : familyParams = decl.paramVars depth := by
-    apply List.Forall₂.targets_eq_of_unique
-      hfamilyParams' H.params
-    intro param hparam
-    have hparamArray : param ∈ stats.params :=
-      Array.mem_toList_iff.mp hparam
-    rcases H.paramFVars param hparamArray with ⟨fv, rfl⟩
-    trivial
+    exact List.Forall₂.targets_eq_of_unique hfamilyParams' H.params
   have hfamilyLevelsEq : familyLevels = levels' := by
     exact Option.some.inj (hfamilyLevels.symm.trans _hlevels)
   have hfamilyTargetEq : familyTarget = VExpr.mkApps

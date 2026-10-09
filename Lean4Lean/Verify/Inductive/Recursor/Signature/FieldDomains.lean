@@ -239,7 +239,7 @@ theorem ConstructorCheck.sourceConstructorTailType
       (VExpr.wrapForalls (R.sourceSignature.fieldTypes ctor)
         (R.sourceSignature.familyApp ctor.owner (VLevel.params R.sourceSignature.uvars)
           (InductiveSignature.vars R.sourceSignature.params.length ctor.fields.length) ctor.indices)) := by
-  obtain ⟨_, _, _, tailTarget, _, _, _, _, _, htail, _, htype⟩ := R.sourceSignatureConstructor_replay index
+  obtain ⟨_, _, _, tailTarget, _, _, _, _, _, ⟨_, htail⟩, _, htype⟩ := R.sourceSignatureConstructor_replay index
   have Htype := htail.isType
   rw [sourceConstructor_tail_eq htype] at Htype
   exact Eq.mp (congrArg (fun u => R.headerVEnv.IsType u R.parameterScope.toCtx

@@ -2,8 +2,9 @@ import Lean4Lean.Verify.Inductive.Constructor.Positivity
 import Lean4Lean.Theory.Inductive.Normalization
 
 /-! Successful positivity determines the uniform strictly positive normal form of
-every field, including the universe spine checked at each recursive head (the
-`positiveFields` clause of `InductiveSignature.Models`). -/
+every field, including the universe spine checked at each recursive head, in the
+branch named by the classification the check returns (the `classifiedFields` clause
+of `InductiveSignature.Models`). -/
 
 namespace Lean4Lean
 
@@ -21,7 +22,7 @@ theorem checkPositivityStep.isValidIndApp?.uniformNormalForm
     (hlevels : stats.levels.mapM (VLevel.ofLevel Us) = some levels)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint env stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ) :
-    decl.UniformFieldNormalForm levels depth type' := by
+    decl.ClassifiedFieldNormalForm levels depth true type' := by
   rcases checkPositivityStep.isValidIndApp?_some hvalid with ⟨hi, hvalidIdx⟩
   have hi' : typeIdx < decl.types.length := by
     rw [← H.types_size]
@@ -31,13 +32,14 @@ theorem checkPositivityStep.isValidIndApp?.uniformNormalForm
     ⟨levels', args', hspine, hlevels', _⟩
   have heq : levels' = levels := Option.some.inj (hlevels'.symm.trans hlevels)
   subst levels'
-  refine .inr ⟨[], type', rfl, by simp, ?_,
+  refine ⟨[], type', rfl, by simp, ?_,
     decl.types[typeIdx], List.getElem_mem hi', ?_⟩
   · simpa using checkPositivityStep.isValidIndApp?.validIndAppAt H htr hvalid hlit hctx
   · exact congrArg Prod.fst hspine
 
 /-- Replay successful positivity in the checking scope, retaining every
-source-free binder and the exact universe spine checked at a recursive head. -/
+source-free binder and the exact universe spine checked at a recursive head. The
+returned classification names the branch of the normal form. -/
 theorem checkPositivity.loop.uniformNormalFormScoped
     {decl : VInductDecl} {depth : Nat} {scope : VLCtx}
     {narrowType fullType : VExpr}
@@ -53,9 +55,9 @@ theorem checkPositivity.loop.uniformNormalFormScoped
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
     (AddInductive.checkPositivity.loop stats ctor idx type fuel c).WF
-      (fun _ => ∃ normalized,
+      (fun recursive => ∃ normalized,
         Hc.venv.IsDefEqU decl.uvars scope.toCtx narrowType normalized ∧
-        decl.UniformFieldNormalForm levels depth normalized) := by
+        decl.ClassifiedFieldNormalForm levels depth recursive normalized) := by
   induction fuel generalizing c type scope narrowType fullType depth with
   | zero => exact checkPositivity.loop.zero.WF
   | succ fuel ih =>
@@ -75,14 +77,14 @@ theorem checkPositivity.loop.uniformNormalFormScoped
     have finish
         (Hstep : (AddInductive.checkPositivityStep stats normalized ctor idx
           (fun body => AddInductive.checkPositivity.loop stats ctor idx body fuel)
-          c).WF (fun _ => ∃ result,
+          c).WF (fun recursive => ∃ result,
             Hc.venv.IsDefEqU decl.uvars scope.toCtx exposed result ∧
-            decl.UniformFieldNormalForm levels depth result)) :
+            decl.ClassifiedFieldNormalForm levels depth recursive result)) :
         (AddInductive.checkPositivityStep stats normalized ctor idx
           (fun body => AddInductive.checkPositivity.loop stats ctor idx body fuel)
-          c).WF (fun _ => ∃ result,
+          c).WF (fun recursive => ∃ result,
             Hc.venv.IsDefEqU decl.uvars scope.toCtx narrowType result ∧
-            decl.UniformFieldNormalForm levels depth result) :=
+            decl.ClassifiedFieldNormalForm levels depth recursive result) :=
       Hstep.mono fun _ ⟨result, hresult, hshape⟩ =>
         ⟨result, VEnv.IsDefEqU.trans Hc.checking.tr.wf
           (by simpa [Hstats.uvars] using hscopeWF₀.toCtx)
@@ -94,8 +96,9 @@ theorem checkPositivity.loop.uniformNormalFormScoped
       exact checkPositivityStep.noOccurrence.WF hocc
         ⟨exposed, (by simpa [Hstats.uvars] using
           (VEnv.IsDefEqU.refl (TrExprS.wf Hc.checking.tr.wf.ordered hscopeWF₀ hexposed))),
-          .inl (checkPositivityStep.TrExprS.noIndOccAvailable Hstats.consts.names hlit
-            (Hruntime.noIndConsts (decl.types.map (·.name))) hexposed hocc)⟩
+          (checkPositivityStep.TrExprS.noIndOccAvailable Hstats.consts.names hlit
+            (Hruntime.noIndConsts (decl.types.map (·.name))) hexposed hocc :
+            decl.FamilyFreeNormalForm exposed)⟩
     have hocc' : AddInductive.hasIndOcc stats.indConsts normalized = true := by
       cases h : AddInductive.hasIndOcc stats.indConsts normalized
       · exact False.elim (hocc h)
@@ -122,9 +125,9 @@ theorem checkPositivity.loop.uniformNormalFormScoped
           rcases hconsume _ Hc.atCheckLCtx hdom₀ hdom₀Type with
             ⟨consumedDom₀, Hdom₀⟩
           refine finish <| checkPositivityStep.forallE.sourceWF
-            (Q := fun _ => ∃ result,
+            (Q := fun recursive => ∃ result,
               Hc.venv.IsDefEqU decl.uvars scope.toCtx (.forallE narrowDom narrowBody) result ∧
-              decl.UniformFieldNormalForm levels depth result)
+              decl.ClassifiedFieldNormalForm levels depth recursive result)
             (recur := fun body =>
               AddInductive.checkPositivity.loop stats ctor idx body fuel)
             Hc hocc' hdomOcc' Hdom hbodyFull Hdom₀ hbody₀ ?_
@@ -207,9 +210,9 @@ theorem checkPositivity.uniformNormalFormScoped
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
     (AddInductive.checkPositivity stats type ctor idx c).WF
-      (fun _ => ∃ normalized,
+      (fun recursive => ∃ normalized,
         Hc.venv.IsDefEqU decl.uvars scope.toCtx narrowType normalized ∧
-        decl.UniformFieldNormalForm levels depth normalized) := by
+        decl.ClassifiedFieldNormalForm levels depth recursive normalized) := by
   apply checkPositivity.WF
   exact checkPositivity.loop.uniformNormalFormScoped Hc Hruntime halign Hstats
     hlevels hconsume hlit htypeNarrow htypeFull

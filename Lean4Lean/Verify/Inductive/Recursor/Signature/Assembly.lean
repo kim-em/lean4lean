@@ -1230,6 +1230,93 @@ theorem RecursorConstruction.constructorAt_recursiveFields
     rw [H.sourceFields_length]
     exact this
 
+/-- The fields of a minor's constructor marked recursive are those whose rule-template entry
+receives a recursive call (`RecRuleTemplate.recursiveMask`). -/
+theorem RecursorConstruction.constructorAt_recursiveMask
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
+    (owner : Nat) (howner : owner < H.recInfos.size)
+    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
+    (H.constructorAt HU owner howner localIndex hlocal).fields.map
+        InductiveSignature.Field.isRecursive =
+      (H.recInfos[owner]!.ruleTemplates[localIndex]!).recursiveMask := by
+  let S := H.origins.minorShapes owner howner localIndex hlocal
+  have hspec := H.recursiveShapes_spec HU owner howner localIndex hlocal
+  obtain ⟨_, hfieldsB, _, _, _, _, _, _, _, _, hcalls⟩ :=
+    H.templates.entry owner howner localIndex hlocal
+  have hsizeCalls : (H.recInfos[owner]!.ruleTemplates[localIndex]!).recursiveCalls.size = (H.recursiveShapes HU owner howner localIndex hlocal).length := by
+    rw [hspec.2.1]
+    exact hcalls.size_eq
+  have hlenFields : (H.declFieldDomains owner howner localIndex hlocal).length = S.fields.size :=
+    H.sourceFields_length owner howner localIndex hlocal
+  apply List.ext_getElem
+  · simp [RecursorConstruction.constructorAt, AddInductive.RecRuleTemplate.recursiveMask,
+      hfieldsB, hlenFields, S]
+  intro i h1 h2
+  simp only [List.getElem_map, RecursorConstruction.constructorAt,
+    InductiveSignature.markFields, List.getElem_zipIdx, Nat.zero_add,
+    AddInductive.RecRuleTemplate.recursiveMask, Array.getElem_toList]
+  have hexpr := S.fields_bound.expressions
+  have hnodup := S.fields_nodup
+  have hiF : i < S.fields_bound.fvars.length := by
+    have : i < S.fields.size := by
+      simpa [AddInductive.RecRuleTemplate.recursiveMask, hfieldsB] using h2
+    simpa [hexpr] using this
+  have hBi : (H.recInfos[owner]!.ruleTemplates[localIndex]!).fields[i]'(by
+      simpa [AddInductive.RecRuleTemplate.recursiveMask] using h2) =
+      .fvar (S.fields_bound.fvars[i]'hiF) := by
+    have : (H.recInfos[owner]!.ruleTemplates[localIndex]!).fields = S.fields := hfieldsB
+    simp only [this, hexpr]
+    simp
+  have hmajor : ∀ j (hj : j < (H.recursiveShapes HU owner howner localIndex hlocal).length),
+      ∃ hpos : (H.recursiveShapes HU owner howner localIndex hlocal)[j].1 <
+          S.fields_bound.fvars.length,
+        ((H.recInfos[owner]!.ruleTemplates[localIndex]!).recursiveCalls[j]'(by omega)).major =
+          .fvar (S.fields_bound.fvars[(H.recursiveShapes HU owner howner localIndex hlocal)[j].1]'hpos) := by
+    intro j hj
+    obtain ⟨hpos, hrec, hdom⟩ := hspec.2.2.2.2 j hj
+    refine ⟨hpos, ?_⟩
+    have hmaj := hdom.2.2.2.1
+    have hbang : (H.recInfos[owner]!.ruleTemplates[localIndex]!).recursiveCalls[j]! = (H.recInfos[owner]!.ruleTemplates[localIndex]!).recursiveCalls[j]'(by omega) := by
+      simp [getElem!_pos (H.recInfos[owner]!.ruleTemplates[localIndex]!).recursiveCalls j (by omega)]
+    rw [← hbang]
+    exact hmaj.trans hrec
+  have hBi' : (H.recInfos[owner]!.ruleTemplates[localIndex]!).fields[i]'(by
+      simpa [AddInductive.RecRuleTemplate.recursiveMask] using h2) =
+      .fvar (S.fields_bound.fvars[i]'hiF) := hBi
+  rw [hBi']
+  apply Bool.eq_iff_iff.mpr
+  constructor
+  · intro hfind
+    cases hf : List.find? (fun p => p.fst == i) (H.recursiveShapes HU owner howner localIndex hlocal) with
+    | none => rw [hf] at hfind; simp [InductiveSignature.Field.isRecursive] at hfind
+    | some p =>
+      have hmem := List.mem_of_find?_eq_some hf
+      have hpi : p.1 = i := by simpa using List.find?_some hf
+      obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hmem
+      obtain ⟨hpos, hmaj⟩ := hmajor j hj
+      rw [Array.any_eq_true]
+      refine ⟨j, by omega, ?_⟩
+      rw [hmaj]
+      simp [hpi]
+  · intro hany
+    rw [Array.any_eq_true] at hany
+    obtain ⟨j, hj, hbeq⟩ := hany
+    have hj' : j < (H.recursiveShapes HU owner howner localIndex hlocal).length := by omega
+    obtain ⟨hpos, hmaj⟩ := hmajor j hj'
+    rw [hmaj] at hbeq
+    have hfv : S.fields_bound.fvars[(H.recursiveShapes HU owner howner localIndex hlocal)[j].1]'hpos =
+        S.fields_bound.fvars[i]'hiF := by
+      have := Expr.eqv_fvar_eq hbeq
+      simpa using this.symm
+    have hidx := (List.getElem_inj (h₀ := hpos) (h₁ := hiF) hnodup).mp hfv
+    have hsome : (List.find? (fun p => p.fst == i)
+        (H.recursiveShapes HU owner howner localIndex hlocal)).isSome := by
+      rw [List.find?_isSome]
+      exact ⟨_, List.getElem_mem hj', by simp [hidx]⟩
+    cases hf : List.find? (fun p => p.fst == i) (H.recursiveShapes HU owner howner localIndex hlocal) with
+    | none => rw [hf] at hsome; cases hsome
+    | some p => simp [InductiveSignature.Field.isRecursive]
+
 theorem RecursorConstruction.signatureSpec
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
     H.SignatureSpec (H.signature HU) where
@@ -1246,6 +1333,24 @@ theorem RecursorConstruction.signatureSpec
     refine ⟨hk, ?_⟩
     rw [H.signature_constructor HU owner howner localIndex hlocal hk]
     exact ⟨rfl, rfl, H.constructorAt_fieldTypes HU owner howner localIndex hlocal, rfl⟩
+  classified hsafe owner howner localIndex hlocal hk := by
+    rw [H.signature_constructor HU owner howner localIndex hlocal hk,
+      H.constructorAt_recursiveMask HU owner howner localIndex hlocal]
+    have hunsafe : isUnsafe = false := by
+      cases h : isUnsafe
+      · rfl
+      · exact absurd (R.core.isUnsafe.trans h) hsafe
+    have hchk := congrArg (fun l : List (List (List Bool)) => l[owner]![localIndex]!)
+      (H.recursiveFieldsChecked hunsafe)
+    have hrows := H.templates.rows_size owner howner
+    have hlocal' : localIndex < (H.recInfos[owner]!).ruleTemplates.size := by
+      rw [hrows]; exact hlocal
+    have hbang : H.recInfos[owner]! = H.recInfos[owner] := getElem!_pos H.recInfos owner howner
+    rw [hbang] at hlocal' ⊢
+    rw [← hchk, getElem!_pos (H.recInfos.toList.map _) owner (by simpa using howner),
+      List.getElem_map, getElem!_pos (List.map _ _) localIndex (by simpa using hlocal'),
+      List.getElem_map, getElem!_pos _ localIndex hlocal']
+    simp
 
 /-! ### The minor group of the checked recursor type -/
 

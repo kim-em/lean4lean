@@ -131,7 +131,7 @@ private theorem SourceConstructorTelescope.singletonFieldsInScope
   have Htail' := HrawTail'.defeqCtx Hc.checking.tr.wf.ordered
     (hcontexts.defeqCtx.mono hle)
   have HtailSmall := Htail'.of_mono hle henv Hc.checking.tr.wf hscope.toCtx
-    (by simpa [hu] using hcert.isType)
+    (by simpa [hu] using hcert.choose_spec.isType)
   rw [sourceConstructor_tail_eq hgenerator] at HtailSmall
   intro i hi
   have hlengthFields : (s.fieldTypes ctor).length = ctor.fields.length := by

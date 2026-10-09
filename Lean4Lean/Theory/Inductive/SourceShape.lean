@@ -78,6 +78,44 @@ def VInductDecl.UniformFieldNormalForm (decl : VInductDecl) (levels : List VLeve
     decl.ValidIndAppAt none (depth + domains.length) result ∧
     ∃ family ∈ decl.types, result.getAppFnArgs.1 = .const family.name levels
 
+/-- The family-free branch of `UniformFieldNormalForm`: the normal form of a field on which the
+recursor does not recurse. -/
+def VInductDecl.FamilyFreeNormalForm (decl : VInductDecl) (e : VExpr) : Prop :=
+  e.SourceConstFree (decl.types.map (·.name))
+
+/-- The recursive branch of `UniformFieldNormalForm`: a telescope over family-free domains ending
+in a valid application of one of the families, at the universes `levels`. -/
+def VInductDecl.RecursiveNormalForm (decl : VInductDecl) (levels : List VLevel)
+    (depth : Nat) (e : VExpr) : Prop :=
+  ∃ domains result, e = VExpr.wrapForalls domains result ∧
+    (∀ domain ∈ domains, domain.SourceConstFree (decl.types.map (·.name))) ∧
+    decl.ValidIndAppAt none (depth + domains.length) result ∧
+    ∃ family ∈ decl.types, result.getAppFnArgs.1 = .const family.name levels
+
+/-- The branch of `UniformFieldNormalForm` selected by a recursive/non-recursive
+classification: `true` selects `RecursiveNormalForm`, `false` selects
+`FamilyFreeNormalForm`. -/
+def VInductDecl.ClassifiedFieldNormalForm (decl : VInductDecl) (levels : List VLevel)
+    (depth : Nat) : Bool → VExpr → Prop
+  | false, e => decl.FamilyFreeNormalForm e
+  | true, e => decl.RecursiveNormalForm levels depth e
+
+theorem VInductDecl.ClassifiedFieldNormalForm.uniform {decl : VInductDecl}
+    {levels : List VLevel} {depth : Nat} {recursive : Bool} {e : VExpr}
+    (H : decl.ClassifiedFieldNormalForm levels depth recursive e) :
+    decl.UniformFieldNormalForm levels depth e := by
+  cases recursive
+  · exact .inl H
+  · exact .inr H
+
+theorem VInductDecl.UniformFieldNormalForm.classified {decl : VInductDecl}
+    {levels : List VLevel} {depth : Nat} {e : VExpr}
+    (H : decl.UniformFieldNormalForm levels depth e) :
+    ∃ recursive, decl.ClassifiedFieldNormalForm levels depth recursive e := by
+  rcases H with H | H
+  · exact ⟨false, H⟩
+  · exact ⟨true, H⟩
+
 /-- Shape of one inductive type after normalization: common parameters,
 exactly the recorded indices, and the recorded result sort. -/
 def VInductDecl.TypeShape (env : VEnv) (decl : VInductDecl)

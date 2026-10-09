@@ -500,6 +500,7 @@ def OrdinaryConstructorCheck.toConstructorCheck
   checkedParameterScope := rfl
   checked := R.checked
   parameterPrefixes := R.parameterPrefixes
+  classes := R.classes
   constructorTails := R.constructorTails
   ownerNormalForms := R.ownerNormalForms
   telescopes := R.telescopes
@@ -544,6 +545,7 @@ noncomputable def PrimitiveConstructorCheck.toCheckedFormation
   statsWF := H.statsWF
   checkedParams := H.headerParams
   checkedParameterScope := rfl
+  classes := R.classes
   constructorTails := R.constructorTails
   ctorVEnv := R.declared.venvCtors
   formation := R.formation
@@ -604,6 +606,7 @@ noncomputable def PrimitiveConstructorCheck.toConstructorCheck
   checkedParameterScope := rfl
   checked := R.checked
   parameterPrefixes := R.parameterPrefixes
+  classes := R.classes
   constructorTails := R.constructorTails
   ownerNormalForms := R.ownerNormalForms
   telescopes := R.telescopes

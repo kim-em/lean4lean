@@ -38,16 +38,12 @@ theorem AddInductive.runWithStats.typingWF
     (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
     (c : AddInductive.Context) (depth : Nat) (sourceEnv : VEnv)
     (Hformation :
-      ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
-        isUnsafe >>= fun headerEnv =>
-          AddInductive.withEnv headerEnv do
-            AddInductive.checkConstructors indTypes stats isUnsafe
-            AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
-        fun ctorEnv => ∃ decl headerEnv,
+      (AddInductive.constructorPhase stats nparams indTypes numNested isUnsafe c).WF
+        fun out => ∃ decl headerEnv,
           ∃ Hheaders : HeaderEnvironment c stats decl nparams isUnsafe
             depth sourceEnv indTypes headerEnv,
-          ∃ _ : OrdinaryConstructorCheck Hheaders ctorEnv,
-            MutualInductivesClosed ctorEnv)
+          ∃ R : OrdinaryConstructorCheck Hheaders out.1,
+            R.classes = out.2 ∧ MutualInductivesClosed out.1)
     (hlparams : c.lparams.Nodup)
     {hsourceSafety : isUnsafe = (c.safety != .safe)}
     (hnotPartial : c.safety ≠ .partial)
@@ -59,21 +55,22 @@ theorem AddInductive.runWithStats.typingWF
       (OrdinaryInstallation c stats nparams depth indTypes isUnsafe
         sourceEnv) := by
   unfold AddInductive.runWithStats
-  have Hcombined := Hformation.bind fun ctorEnv Hresult => by
-    rcases Hresult with ⟨decl, headerEnv, Hheaders, R, hclosed⟩
-    have hlitHeaders := Hheaders.checkedAvailableLiteralDisjoint
-    have hlitCtors :=
-      R.declared.installed.availableLiteralDisjoint hlitHeaders
-    have hlit : checkPositivityStep.AvailableLiteralDisjoint
-        R.declared.context.venv stats.indConsts := by
-      rw [R.declared.contextVEnv]
-      exact (hlitCtors.addEliminators _).addProjections _
-    exact (R.toConstructorCheck.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams hlit hnotPartial hnprim).mono
-        fun outEnv Hrecursors =>
-          show OrdinaryInstallation c stats nparams depth indTypes
-            isUnsafe sourceEnv outEnv
-          from ⟨decl, headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
-  simpa [AddInductive.withEnv, bind, ReaderT.bind] using Hcombined
+  refine Hformation.bind fun out Hresult => ?_
+  obtain ⟨ctorEnv, positivity⟩ := out
+  rcases Hresult with ⟨decl, headerEnv, Hheaders, R, hclasses, hclosed⟩
+  have hlitHeaders := Hheaders.checkedAvailableLiteralDisjoint
+  have hlitCtors :=
+    R.declared.installed.availableLiteralDisjoint hlitHeaders
+  have hlit : checkPositivityStep.AvailableLiteralDisjoint
+      R.declared.context.venv stats.indConsts := by
+    rw [R.declared.contextVEnv]
+    exact (hlitCtors.addEliminators _).addProjections _
+  exact (R.toConstructorCheck.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams
+    hlit hnotPartial hnprim hclasses.symm).mono
+      fun outEnv Hrecursors =>
+        show OrdinaryInstallation c stats nparams depth indTypes
+          isUnsafe sourceEnv outEnv
+        from ⟨decl, headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
 
 /-- One successful semantic header accumulation closes the complete ordinary
 post-analysis checker without any declaration, skeleton, or constructor

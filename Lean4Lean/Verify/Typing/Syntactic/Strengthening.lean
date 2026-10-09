@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Typing.Syntactic.Typed
+import Lean4Lean.Verify.Typing.TelescopeTranslationLemmas
 
 /-!
 # The strengthening boundary, and constructor telescopes

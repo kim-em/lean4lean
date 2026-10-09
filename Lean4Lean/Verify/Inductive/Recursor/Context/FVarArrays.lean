@@ -988,7 +988,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
                 (ConstructorOwnerNormalForm stats targetIdx source))
               Hc hparamAt Hdom hbodyFull Hdom₀ hbody₀ Hpos ?_
             intro _fieldType _fieldLevel _fieldLevel' _hfield _hlevel
-              _htyped _ _ _ _hfieldBound _hpositive bodyFull' _hbodyFullEq
+              _htyped _ _ _ _hfieldBound _recursive _hpositive bodyFull' _hbodyFullEq
               _ _ hopenedFull _
             let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
               Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
@@ -1323,7 +1323,7 @@ theorem ownerNormalFormsWF
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (Hfinish : ConstructorOwnerNormalFormRow stats targetIdx source.ctors
-        source.ctors.length → Q ()) :
+        source.ctors.length → ∀ out, Q out) :
     (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
       source.ctors ctorIdx foundCtors c).WF Q := by
   by_cases hidx : ctorIdx < source.ctors.length
@@ -1341,15 +1341,15 @@ theorem ownerNormalFormsWF
         (fuel := c.fuel.inductiveFuel) (isUnsafe := isUnsafe)
         Hc Hsuffix Hstats halign Hctor hchecked
         htargetIdx hconsume hlit
-    exact Hnormal.mono fun _ Hentry =>
-      ownerNormalFormsWF Hc Htarget
+    exact Hnormal.mono fun fields Hentry =>
+      ownerNormalFormsWF (Q := fun rest => Q (fields :: rest)) Hc Htarget
         (Hrow.push hidx Hentry) Hsuffix Hstats halign htargetIdx
-        hconsume hlit Hfinish
+        hconsume hlit (fun h _ => Hfinish h _)
   · have heq : ctorIdx = source.ctors.length := by
       have := Hrow.covered
       omega
     apply result.WF (Q := Q) hidx
-    exact Hfinish (by simpa [heq] using Hrow)
+    exact Hfinish (by simpa [heq] using Hrow) _
 termination_by source.ctors.length - ctorIdx
 
 end checkConstructors.loopCtors
@@ -1373,7 +1373,7 @@ theorem ownerNormalFormsWF
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (Hfinish : ConstructorOwnerNormalFormRows stats indTypes indTypes.size →
-      Q ()) :
+      ∀ out, Q out) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
       targetIdx c).WF Q := by
   by_cases hidx : targetIdx < indTypes.size
@@ -1389,21 +1389,22 @@ theorem ownerNormalFormsWF
       exact Htarget'
     apply step.WF (Q := Q) hidx
     apply checkConstructors.loopCtors.ownerNormalFormsWF
-      (Q := fun _ =>
+      (Q := fun fields =>
         (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
-          (targetIdx + 1) c).WF Q)
+          (targetIdx + 1) c).WF fun rest => Q (fields :: rest))
       Hc Htarget
       (ConstructorOwnerNormalFormRow.empty stats targetIdx
         indTypes[targetIdx].ctors)
       Hsuffix Hstats halign htarget hconsume hlit
-    intro Hrow
-    exact ownerNormalFormsWF Hc Htypes (Hrows.push hidx Hrow)
-      Hsuffix Hstats halign hconsume hlit Hfinish
+    intro Hrow fields
+    exact ownerNormalFormsWF (Q := fun rest => Q (fields :: rest)) Hc Htypes
+      (Hrows.push hidx Hrow)
+      Hsuffix Hstats halign hconsume hlit (fun h _ => Hfinish h _)
   · have heq : targetIdx = indTypes.size := by
       have := Hrows.covered
       omega
     apply result.WF (Q := Q) hidx
-    exact Hfinish (by simpa [heq] using Hrows)
+    exact Hfinish (by simpa [heq] using Hrows) _
 termination_by indTypes.size - targetIdx
 
 end checkConstructors.loopTypes
