@@ -1355,8 +1355,7 @@ namespace validateSourceConstructorTypes
 /-- Recheck every source constructor type in the environment of the restored source
 headers. -/
 def run (env : Environment) (lparams : List Name) (safety : DefinitionSafety)
-    (fuel : FuelConfig) (types : List InductiveType)
-    (_res : ElimNestedInductive.Result) : Except Exception Unit := do
+    (fuel : FuelConfig) (types : List InductiveType) : Except Exception Unit := do
   types.forM fun type =>
     type.ctors.forM fun ctor => do
       _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
@@ -1372,7 +1371,7 @@ namespace validateRestoredRecursorTypes
 /-- Recheck the type of one restored recursor. The side environment contains the restored
 source headers and constructors and no recursor; the recursor type is restored from the
 lowered recursor through the restoration map. -/
-def check (env loweredEnv : Environment) (lparams : List Name)
+def check (env loweredEnv : Environment)
     (safety : DefinitionSafety) (fuel : FuelConfig)
     (res : ElimNestedInductive.Result) (recNameMap : NameMap Name)
     (allIndNames : List Name) (recName : Name) : Except Exception Unit := do
@@ -1390,16 +1389,16 @@ def check (env loweredEnv : Environment) (lparams : List Name)
 /-- Recheck every restored source and auxiliary recursor type in the environment of the
 restored source headers and constructors. The rules are validated separately
 (`validateRestoredRecursorRules`). -/
-def run (env loweredEnv : Environment) (lparams : List Name)
+def run (env loweredEnv : Environment)
     (safety : DefinitionSafety) (fuel : FuelConfig)
     (res : ElimNestedInductive.Result) (recNameMap : NameMap Name)
     (allIndNames : List Name) (types : List InductiveType)
     (auxRecNames : List Name) : Except Exception Unit := do
   types.forM fun type =>
-    check env loweredEnv lparams safety fuel res recNameMap allIndNames
+    check env loweredEnv safety fuel res recNameMap allIndNames
       (mkRecName type.name)
   auxRecNames.forM fun recName =>
-    check env loweredEnv lparams safety fuel res recNameMap allIndNames recName
+    check env loweredEnv safety fuel res recNameMap allIndNames recName
 
 end validateRestoredRecursorTypes
 
@@ -1409,10 +1408,10 @@ namespace validateRestoredRecursorRules
 recursor, as the C++ kernel's revalidation of restored nested declarations
 ([leanprover/lean4#14621](https://github.com/leanprover/lean4/pull/14621))
 does. -/
-def check (env loweredEnv : Environment) (_lparams : List Name)
+def check (env loweredEnv : Environment)
     (safety : DefinitionSafety) (fuel : FuelConfig)
     (res : ElimNestedInductive.Result) (recNameMap : NameMap Name)
-    (allIndNames _auxRecNames : List Name) (recName : Name) :
+    (allIndNames : List Name) (recName : Name) :
     Except Exception Unit := do
   let some (.recInfo recInfo) := loweredEnv.find? recName
     | throw <| .other s!"missing lowered recursor '{recName}'"
@@ -1428,17 +1427,16 @@ def check (env loweredEnv : Environment) (_lparams : List Name)
 /-- Type-check the right-hand sides of the rules of every restored source and auxiliary
 recursor. The caller passes the restored environment with the rules of these recursors
 removed (`stripRecursorRules`). -/
-def run (env loweredEnv : Environment) (lparams : List Name)
+def run (env loweredEnv : Environment)
     (safety : DefinitionSafety) (fuel : FuelConfig)
     (res : ElimNestedInductive.Result) (recNameMap : NameMap Name)
     (allIndNames : List Name) (types : List InductiveType)
     (auxRecNames : List Name) : Except Exception Unit := do
   types.forM fun type =>
-    check env loweredEnv lparams safety fuel res recNameMap allIndNames
-      auxRecNames (mkRecName type.name)
+    check env loweredEnv safety fuel res recNameMap allIndNames
+      (mkRecName type.name)
   auxRecNames.forM fun recName =>
-    check env loweredEnv lparams safety fuel res recNameMap allIndNames
-      auxRecNames recName
+    check env loweredEnv safety fuel res recNameMap allIndNames recName
 
 end validateRestoredRecursorRules
 
@@ -1485,12 +1483,12 @@ def Environment.restoreNestedAfterInstall (env loweredEnv : Environment)
   let auxiliaryHeaderEnv ← (·.2) <$> StateT.run (s := env)
     (restoreNestedHeaders loweredEnv allIndNames allowPrimitive types)
   validateSourceConstructorTypes.run auxiliaryHeaderEnv lparams safety
-    fuel types res
-  validateRestoredRecursorTypes.run validationEnv loweredEnv lparams safety
+    fuel types
+  validateRestoredRecursorTypes.run validationEnv loweredEnv safety
     fuel res recNameMap' allIndNames types recNames'
   validateRestoredRecursorRules.run
     (stripRecursorRules restoredEnv (restoredRecursorNames recNameMap' types recNames'))
-    loweredEnv lparams safety fuel res recNameMap' allIndNames types recNames'
+    loweredEnv safety fuel res recNameMap' allIndNames types recNames'
   validateNestedAuxiliaries auxiliaryHeaderEnv lparams safety fuel res
   return restoredEnv
 
