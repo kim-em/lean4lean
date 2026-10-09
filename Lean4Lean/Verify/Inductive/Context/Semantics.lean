@@ -6,7 +6,8 @@ import Lean4Lean.Verify.TypeChecker.CheckingContext
 The active universe parameters index the main metacontext and its embedded checking
 context. Operations here preserve this parameter list. The public ordinary and recursor
 frames in `Context.lean` separately certify the executable universe selection and, for
-recursors, how it arose from the declaration parameters. -/
+recursors, how it arose from the declaration parameters. The data constructors are
+abbreviations so unfolding a public frame operation still exposes its record projections. -/
 
 namespace Lean4Lean
 
@@ -53,14 +54,14 @@ theorem ContextSemantics.checkSub (H : ContextSemantics c Us) : c.checkLCtx.SubC
 abbrev ContextSemantics.Base (H : ContextSemantics c Us) (l : LocalContext) : Type :=
   CheckBase H.venv Us H.mlctx c.lctx l
 
-def ContextSemantics.baseNil (H : ContextSemantics c Us) : H.Base {} :=
+abbrev ContextSemantics.baseNil (H : ContextSemantics c Us) : H.Base {} :=
   .nil H.checking.tr.wf.ordered H.mlctx_wf
 
-def ContextSemantics.baseMain (H : ContextSemantics c Us) (j : Nat) (hj : j ≤ H.mlctx.length) :
+abbrev ContextSemantics.baseMain (H : ContextSemantics c Us) (j : Nat) (hj : j ≤ H.mlctx.length) :
     H.Base (H.mlctx.dropN j hj).lctx :=
   .ofMain H.checking.tr.wf.ordered H.mlctx_wf H.onlyLams H.lctx_eq j hj
 
-def ContextSemantics.withEnv (H : ContextSemantics c Us)
+abbrev ContextSemantics.withEnv (H : ContextSemantics c Us)
     (hchecking : CheckingEnv.Valid c.safety env' venv')
     (hle : H.venv ≤ venv') :
     ContextSemantics { c with env := env' } Us where
@@ -76,7 +77,7 @@ def ContextSemantics.withEnv (H : ContextSemantics c Us)
   check := H.check.mono hle
 
 /-- Replace the checking context by a certified sub-context of the main context. -/
-def ContextSemantics.withCheckLCtx (H : ContextSemantics c Us) (l : LocalContext) (B : H.Base l) :
+abbrev ContextSemantics.withCheckLCtx (H : ContextSemantics c Us) (l : LocalContext) (B : H.Base l) :
     ContextSemantics { c with checkLCtx := l } Us where
   venv := H.venv
   checking := H.checking
@@ -107,7 +108,7 @@ abbrev ContextSemantics.atCheckLCtx (H : ContextSemantics c Us) :
              sub := .refl _ }
 
 /-- Open a fresh declaration in the main context, keeping the checking context. -/
-def ContextSemantics.withLocalDecl (H : ContextSemantics c Us)
+abbrev ContextSemantics.withLocalDecl (H : ContextSemantics c Us)
     (htr : TrExprS H.venv Us H.mlctx.vlctx ty ty')
     (hty : H.venv.IsType Us.length H.mlctx.vlctx.toCtx ty') :
     ContextSemantics { c with
@@ -145,7 +146,7 @@ def ContextSemantics.withLocalDecl (H : ContextSemantics c Us)
       (TypeChecker.MLCtx.vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx).WF H.venv Us)
 
 /-- Open the same source declaration in both contexts, with their respective translations. -/
-def ContextSemantics.withCheckedLocalDecl (H : ContextSemantics c Us)
+abbrev ContextSemantics.withCheckedLocalDecl (H : ContextSemantics c Us)
     (htr : TrExprS H.venv Us H.mlctx.vlctx ty ty')
     (hty : H.venv.IsType Us.length H.mlctx.vlctx.toCtx ty')
     (htr₀ : TrExprS H.venv Us H.chk.vlctx ty ty₀)
@@ -167,7 +168,7 @@ def ContextSemantics.withCheckedLocalDecl (H : ContextSemantics c Us)
     (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf htr₀ hty₀
 
 /-- Open a main declaration and the corresponding checking declaration above a chosen base. -/
-def ContextSemantics.withCheckedLocalDeclOn (H : ContextSemantics c Us) (base : LocalContext)
+abbrev ContextSemantics.withCheckedLocalDeclOn (H : ContextSemantics c Us) (base : LocalContext)
     (B : H.Base base)
     (htr : TrExprS H.venv Us H.mlctx.vlctx ty ty')
     (hty : H.venv.IsType Us.length H.mlctx.vlctx.toCtx ty')

@@ -39,7 +39,7 @@ structure ContextWF (c : AddInductive.Context) where
   check : CheckBase venv c.lparams mlctx c.lctx c.checkLCtx
 
 /-- The shared semantic view, preserving the concrete frame data by reduction. -/
-def ContextWF.toSemantics (H : ContextWF c) : ContextSemantics c c.lparams where
+abbrev ContextWF.toSemantics (H : ContextWF c) : ContextSemantics c c.lparams where
   venv := H.venv
   checking := H.checking
   mlctx := H.mlctx
@@ -52,7 +52,7 @@ def ContextWF.toSemantics (H : ContextWF c) : ContextSemantics c c.lparams where
   check := H.check
 
 /-- Restore the public frame with its explicit universe contract. -/
-def ContextWF.ofSemantics (H : ContextSemantics c c.lparams)
+abbrev ContextWF.ofSemantics (H : ContextSemantics c c.lparams)
     (hparams : c.typeCheckerLParams = none) :
     ContextWF c where
   venv := H.venv
@@ -341,7 +341,7 @@ structure RecursorContextWF (c : AddInductive.Context)
   check : CheckBase venv recLparams mlctx c.lctx c.checkLCtx
 
 /-- The shared semantic view, preserving the concrete frame data by reduction. -/
-def RecursorContextWF.toSemantics (H : RecursorContextWF c recLparams) :
+abbrev RecursorContextWF.toSemantics (H : RecursorContextWF c recLparams) :
     ContextSemantics c recLparams where
   venv := H.venv
   checking := H.checking
@@ -355,7 +355,7 @@ def RecursorContextWF.toSemantics (H : RecursorContextWF c recLparams) :
   check := H.check
 
 /-- Restore the public frame with its explicit universe contract. -/
-def RecursorContextWF.ofSemantics (H : ContextSemantics c recLparams)
+abbrev RecursorContextWF.ofSemantics (H : ContextSemantics c recLparams)
     (hparams : c.typeCheckerLParams = some recLparams)
     (horigin : RecursorLParams c.lparams recLparams) :
     RecursorContextWF c recLparams where
