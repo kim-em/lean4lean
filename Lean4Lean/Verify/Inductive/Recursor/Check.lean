@@ -316,7 +316,7 @@ theorem ConstructorCheck.recursorPhasesWF
       intro T owner howner
       simpa only [Hle.lparams_eq] using (construction T).typeTranslations owner howner) (by
       rw [Hle.safety_eq]
-      exact hnotPartial) (by
+      exact hnotPartial) (henvLocal ▸ Rlocal.cacheSound) (by
         intro hallow
         exact hnprim (Hle.allowPrimitive_eq ▸ hallow))
   have hclosedLocal : MutualInductivesClosed localContext.env := by

@@ -275,9 +275,9 @@ by the time the rest of the checks run; the top equation `mod (succ x) y ≡ if 
 `else succ x`, with a conditional inside its `then`; and `go`'s own equation, which is the shared
 recursion's business. The step does nothing to the recursive call, and the recursion returns the
 dividend when it stops. -/
-theorem checkNatMod.WF {ves : VEnvs} (wf : ves.WF env)
+theorem checkNatMod.WF {ves : VEnvs} {fuel : FuelConfig} (wf : ves.WF env)
     (hname : v.name = ``Nat.mod) :
-    let c := .mk' wf .safe v.levelParams; Data v ci' c →
+    let c := .mk' wf .safe v.levelParams fuel; Data v ci' c →
     (checkNatMod v).WF c state fun _ _ => PrimitiveResult (ves.venv .safe) v ci' := by
   intro ctx P; rw [← ctx.withMLC_self]
   refine elseFail fun h1 => elseFail fun h2 => ?_
@@ -438,9 +438,9 @@ theorem checkNatMod.WF {ves : VEnvs} (wf : ves.WF env)
 is covered by the top equation `div x y ≡ if 1 ≤ y then go y _ (succ x) x _ else 0`. The step
 counts, so the recursive call is wrapped in a `succ`, and the recursion returns `0` when it
 stops. -/
-theorem checkNatDiv.WF {ves : VEnvs} (wf : ves.WF env)
+theorem checkNatDiv.WF {ves : VEnvs} {fuel : FuelConfig} (wf : ves.WF env)
     (hname : v.name = ``Nat.div) :
-    let c := .mk' wf .safe v.levelParams; Data v ci' c →
+    let c := .mk' wf .safe v.levelParams fuel; Data v ci' c →
     (checkNatDiv v).WF c state fun _ _ => PrimitiveResult (ves.venv .safe) v ci' := by
   intro ctx P; rw [← ctx.withMLC_self]
   refine elseFail fun h1 => elseFail fun h2 => ?_

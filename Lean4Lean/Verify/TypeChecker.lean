@@ -101,11 +101,11 @@ def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WF env)
 
 theorem State.WF.empty1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
     {wf : VEnvAt env safety venv} {lparams : List Name}
-    {fuel : FuelConfig} :
+    {fuel : FuelConfig} (hc : fuel.cacheMode.Sound venv) :
     State.WF (.mk1 wf lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
-  ectx := .empty
+  ectx := ⟨_, .inl rfl, .empty⟩
   inferTypeI_wf := .empty
   inferTypeC_wf := .empty
   whnfCore_wf := .empty
@@ -118,6 +118,7 @@ theorem State.WF.empty1 {env : Environment} {safety : DefinitionSafety} {venv : 
   whnfCore_paramUniform := .empty
   whnf_paramUniform := .empty
   inferTypeI_paramUniform := .empty
+  cacheSound := hc
 
 theorem State.WF.emptyChecking {env : Environment} {venv : VEnv}
     {trenv : CheckingEnv safety env venv} {hasPrimitives : venv.HasPrimitives}
@@ -126,12 +127,12 @@ theorem State.WF.emptyChecking {env : Environment} {venv : VEnv}
     {blocks : InstalledBlocks safety env venv .headers}
     {equationHeads : EquationHeadsCoherent env.constants venv}
     {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
-    {lparams : List Name} {fuel : FuelConfig} :
+    {lparams : List Name} {fuel : FuelConfig} (hc : fuel.cacheMode.Sound venv) :
     State.WF (.mkChecking trenv hasPrimitives safePrimitives blocks equationHeads quot
       lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
-  ectx := .empty
+  ectx := ⟨_, .inl rfl, .empty⟩
   inferTypeI_wf := .empty
   inferTypeC_wf := .empty
   whnfCore_wf := .empty
@@ -144,17 +145,18 @@ theorem State.WF.emptyChecking {env : Environment} {venv : VEnv}
   whnfCore_paramUniform := .empty
   whnf_paramUniform := .empty
   inferTypeI_paramUniform := .empty
+  cacheSound := hc
 
 theorem State.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}
     {mlctx : MLCtx} {mlctx_wf : mlctx.WF venv lparams}
     {fuel : FuelConfig}
     (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
-      ({} : TypeChecker.State).ngen.Reserves fv) :
+      ({} : TypeChecker.State).ngen.Reserves fv) (hc : fuel.cacheMode.Sound venv) :
     State.WF (.mkCheckingValidMLC wf mlctx mlctx_wf fuel) {} where
   trctx := mlctx_wf.tr
   ngen_wf := hfresh
-  ectx := .empty
+  ectx := ⟨_, .inl rfl, .empty⟩
   inferTypeI_wf := .empty
   inferTypeC_wf := .empty
   whnfCore_wf := .empty
@@ -167,19 +169,22 @@ theorem State.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
   whnfCore_paramUniform := .empty
   whnf_paramUniform := .empty
   inferTypeI_paramUniform := .empty
+  cacheSound := hc
 
 theorem State.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WF env}
-    {safety : DefinitionSafety} {lparams : List Name} {fuel : FuelConfig} :
+    {safety : DefinitionSafety} {lparams : List Name} {fuel : FuelConfig}
+    (hc : fuel.cacheMode.Sound (ves.venv safety)) :
     State.WF (.mk' wf safety lparams fuel) {} := by
-  unfold VContext.mk'; exact .empty1
+  unfold VContext.mk'; exact .empty1 hc
 
 theorem M.WF.run1 {env : Environment} {venv : VEnv} (wf : VEnvAt env safety venv)
-    {x : M α} {Q} (H : x.WF (.mk1 wf lparams fuel) {} fun a _ => Q a) :
+    {x : M α} {Q} (H : x.WF (.mk1 wf lparams fuel) {} fun a _ => Q a)
+    (hc : fuel.cacheMode.Sound venv := by trivial) :
     (M.run env safety {} lparams fuel x).WF Q := by
   intro a eq
   simp [M.run, Functor.map, Except.map] at eq
   split at eq <;> cases eq; rename_i eq
-  let ⟨_, _, _, _, H⟩ := H .empty1 _ _ eq
+  let ⟨_, _, _, _, H⟩ := H (.empty1 hc) _ _ eq
   exact H
 
 theorem M.WF.runChecking {env : Environment} {venv : VEnv}
@@ -191,21 +196,23 @@ theorem M.WF.runChecking {env : Environment} {venv : VEnv}
     {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
     {x : M α} {Q}
     (H : x.WF (.mkChecking trenv hasPrimitives safePrimitives blocks equationHeads quot
-      lparams fuel) {} fun a _ => Q a) :
+      lparams fuel) {} fun a _ => Q a)
+    (hc : fuel.cacheMode.Sound venv := by trivial) :
     (M.run env safety {} lparams fuel x).WF Q := by
   intro a eq
   simp [M.run, Functor.map, Except.map] at eq
   split at eq <;> cases eq
   rename_i eq
-  let ⟨_, _, _, _, H⟩ := H .emptyChecking _ _ eq
+  let ⟨_, _, _, _, H⟩ := H (.emptyChecking hc) _ _ eq
   exact H
 
 theorem M.WF.runCheckingValid {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}
     {x : M α} {Q}
-    (H : x.WF (.mkCheckingValid wf lparams fuel) {} fun a _ => Q a) :
+    (H : x.WF (.mkCheckingValid wf lparams fuel) {} fun a _ => Q a)
+    (hc : fuel.cacheMode.Sound venv := by trivial) :
     (M.run env safety {} lparams fuel x).WF Q :=
-  M.WF.runChecking (safePrimitives := wf.safePrimitives) H
+  M.WF.runChecking (safePrimitives := wf.safePrimitives) H hc
 
 theorem M.WF.runCheckingValidMLC {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}
@@ -213,19 +220,21 @@ theorem M.WF.runCheckingValidMLC {env : Environment} {venv : VEnv}
     {x : M α} {Q}
     (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
       ({} : TypeChecker.State).ngen.Reserves fv)
-    (H : x.WF (.mkCheckingValidMLC wf mlctx mlctx_wf fuel) {} fun a _ => Q a) :
+    (H : x.WF (.mkCheckingValidMLC wf mlctx mlctx_wf fuel) {} fun a _ => Q a)
+    (hc : fuel.cacheMode.Sound venv := by trivial) :
     (M.run env safety mlctx.lctx lparams fuel x).WF Q := by
   intro a eq
   simp [M.run, Functor.map, Except.map] at eq
   split at eq <;> cases eq
   rename_i eq
-  let ⟨_, _, _, _, hQ⟩ := H (.emptyCheckingValidMLC hfresh) _ _ eq
+  let ⟨_, _, _, _, hQ⟩ := H (.emptyCheckingValidMLC hfresh hc) _ _ eq
   exact hQ
 
 theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    {x : M α} {Q} (H : x.WF (.mk' wf safety lparams fuel) {} fun a _ => Q a) :
+    {x : M α} {Q} (H : x.WF (.mk' wf safety lparams fuel) {} fun a _ => Q a)
+    (hc : fuel.cacheMode.Sound (ves.venv safety) := by trivial) :
     (M.run env safety {} lparams fuel x).WF Q := by
-  unfold VContext.mk' at H; exact M.WF.run1 _ H
+  unfold VContext.mk' at H; exact M.WF.run1 _ H hc
 
 /-- Loop invariant rule for `for x in xs do ...`. `Inv` is indexed by the list still to be
 processed, so the conclusion `Inv []` records that every element was handled. The body must

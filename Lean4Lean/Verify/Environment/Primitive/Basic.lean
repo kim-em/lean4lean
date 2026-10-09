@@ -67,7 +67,7 @@ theorem TypeChecker.M.WF.withNatProbe {c : VContext} {m : MLCtx} [cwf : c.MLCWF 
       ∀ cwf' s', s₀ ≤ s' → ¬s.ngen.Reserves id →
         let : TrTerm c.venv c.lparams m'.vlctx (.fvar id) .nat :=
           .fvar (VLCtx.find?_vlam_self (ty := .nat)) (.bvar .zero)
-        M.WF (c.withMLC m' (wf := cwf')) s' (f (.fvar id)) fun a s'' => Q a (s.leaveScope s'')) :
+        M.WF (c.withMLC m' (wf := cwf')) s' (f (.fvar id)) fun a s'' => Q a (s.exitScope c.fuel.cacheMode s'')) :
     (withLocalDecl name .default q(Nat) f).WF (c.withMLC m) s Q :=
   .withLocalDecl (hprim.trNat c.Ewf.ordered hnat)
     (hprim.natIsType c.Ewf.ordered hnat (c.withMLC m).Δwf.toCtx) hs H
@@ -80,7 +80,7 @@ theorem TypeChecker.M.WF.withBoolProbe {c : VContext} {m : MLCtx} [cwf : c.MLCWF
       ∀ cwf' s', s₀ ≤ s' → ¬s.ngen.Reserves id →
         let : TrTerm c.venv c.lparams m'.vlctx (.fvar id) .bool :=
           .fvar (VLCtx.find?_vlam_self (ty := .bool)) (.bvar .zero)
-        M.WF (c.withMLC m' (wf := cwf')) s' (f (.fvar id)) fun a s'' => Q a (s.leaveScope s'')) :
+        M.WF (c.withMLC m' (wf := cwf')) s' (f (.fvar id)) fun a s'' => Q a (s.exitScope c.fuel.cacheMode s'')) :
     (withLocalDecl name .default q(Bool) f).WF (c.withMLC m) s Q :=
   .withLocalDecl (hprim.trBool c.Ewf.ordered hbool)
     (hprim.boolIsType c.Ewf.ordered hbool (c.withMLC m).Δwf.toCtx) hs H
@@ -897,7 +897,7 @@ theorem lambdaTelescope.loop.WF {c : VContext} {α} {k : Array Expr → Expr →
       fvs.toList.reverse = (m'.fvarRevList n hn).map .fvar → e₀ = m'.mkLambda n hn body →
       lambdaTelescope.Inv c m₀ m' fvs n hn As e₀' body' → e₀.lambdaArity = n →
       (c.withMLC m').TrExprS body body' → (k fvs body).WF (c.withMLC m') s' Q)
-    (hQ : ∀ a (saved s' : State), Q a s' → Q a (saved.leaveScope s'))
+    (hQ : ∀ a (saved s' : State), Q a s' → Q a (saved.exitScope c.fuel.cacheMode s'))
     (e : Expr) (arr : Array Expr) (m : MLCtx) [c.MLCWF m] (s : State) (e' : VExpr)
     {n} (hn : n ≤ m.length) (harity : e₀.lambdaArity = n + e.lambdaArity)
     (hdrop : m.dropN n hn = m₀)
@@ -970,7 +970,7 @@ theorem lambdaTelescope.WF {c : VContext} {α} {k : Array Expr → Expr → M α
       e = m'.mkLambda n hn body → lambdaTelescope.Inv c m m' fvs n hn As e' body' →
       e.lambdaArity = n →
       (c.withMLC m').TrExprS body body' → (k fvs body).WF (c.withMLC m') s' Q)
-    (hQ : ∀ a (saved s' : State), Q a s' → Q a (saved.leaveScope s') := by
+    (hQ : ∀ a (saved s' : State), Q a s' → Q a (saved.exitScope c.fuel.cacheMode s') := by
       intros; assumption) :
     (lambdaTelescope e k).WF (c.withMLC m) s Q :=
   lambdaTelescope.loop.WF H hQ e #[] m s e' (n := 0) (Nat.zero_le _) (by simp) rfl (by simp) (by simp)

@@ -222,7 +222,8 @@ theorem validateNestedAuxiliaries.WF
     (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
       ({} : TypeChecker.State).ngen.Reserves fv)
     (hfvars : ∀ name e, res.aux2nested.find? name = some e →
-      e.FVarsIn (· ∈ mlctx.vlctx.fvars)) :
+      e.FVarsIn (· ∈ mlctx.vlctx.fvars))
+    (hmode : fuel.cacheMode.Sound venv) :
     (Lean4Lean.validateNestedAuxiliaries env lparams safety fuel res).WF
       fun _ => NestedOccurrencesTyped venv lparams mlctx.vlctx res := by
   unfold Lean4Lean.validateNestedAuxiliaries
@@ -233,7 +234,7 @@ theorem validateNestedAuxiliaries.WF
         _ ← TypeChecker.checkType e)).WF _
   rw [Std.TreeMap.forM_eq_forM, Std.TreeMap.forM_eq_forM_toList]
   refine TypeChecker.M.WF.runCheckingValidMLC
-    (wf := hvalid) (mlctx_wf := hmlctx) hfresh ?_
+    (wf := hvalid) (mlctx_wf := hmlctx) hfresh ?_ hmode
   refine (checkNestedAuxiliaryList.WF
     (c := TypeChecker.VContext.mkCheckingValidMLC hvalid mlctx hmlctx fuel)
     (s := {}) res.aux2nested.toList ?_).mono ?_

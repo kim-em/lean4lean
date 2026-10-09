@@ -36,50 +36,68 @@ def ReductionStatusGhostFree (G : FVarId → Prop) : ReductionStatus → Prop
 namespace Inner
 
 theorem isDefEqLambda.framed : ∀ {t s : Expr} {subst : Array Expr}, GhostFree G t → GhostFree G s →
-    NonGhostFVars G subst → RecM.PreservesGhostRestriction G (isDefEqLambda t s subst) fun _ => True
+    GhostFreeArr G subst → RecM.PreservesGhostRestriction G (isDefEqLambda t s subst) fun _ => True
   | t, s, subst, ht, hs, hsub => by
     unfold isDefEqLambda
     split
     · rename_i tDom tBody _ name sDom sBody bi
-      have hsT : GhostFree G (sDom.instantiateRev subst) := hs.1.instantiateRev hsub.gfArr
+      have hsT : GhostFree G (sDom.instantiateRev subst) := hs.1.instantiateRev hsub
       have k : ∀ o : Option Expr, OptionGhostFree G o → RecM.PreservesGhostRestriction G
-          (withLocalDecl name bi (o.getD (sDom.instantiateRev subst)) fun fv =>
-            isDefEqLambda tBody sBody (subst.push fv)) fun _ => True := by
+          (do
+            if (← readThe Context).fuel.cacheMode.isGlobal && !tBody.hasLooseBVars &&
+                !sBody.hasLooseBVars then
+              isDefEqLambda tBody sBody (subst.push default)
+            else
+              let sType := o.getD (sDom.instantiateRev subst)
+              withLocalDecl name bi sType fun fv => isDefEqLambda tBody sBody (subst.push fv)
+            : RecM Bool) fun _ => True := by
         intro o ho
-        refine .withLocalDecl ?_ fun id hid => isDefEqLambda.framed ht.2 hs.2 (hsub.push hid)
+        refine .read (fun _ _ h => by rw [h.ctx_eq.2.2.2.2]) fun _ _ _ => .ite ?_ ?_
+        · exact isDefEqLambda.framed ht.2 hs.2 (GhostFreeArr.push hsub GhostFree.default)
+        refine .withLocalDecl ?_ fun id hid =>
+          isDefEqLambda.framed ht.2 hs.2 (GhostFreeArr.push hsub (show GhostFree G (.fvar id) from hid))
         cases o with
         | none => exact hsT
         | some x => exact ho rfl
       split
       · exact (RecM.PreservesGhostRestriction.pure OptionGhostFree.none).bind k
-      · refine (RecM.PreservesGhostRestriction.isDefEq (ht.1.instantiateRev hsub.gfArr) hsT).bind fun _ _ => ?_
+      · refine (RecM.PreservesGhostRestriction.isDefEq (ht.1.instantiateRev hsub) hsT).bind fun _ _ => ?_
         split
         · exact .pure trivial
         · exact (RecM.PreservesGhostRestriction.pure (OptionGhostFree.some hsT)).bind k
-    · exact RecM.PreservesGhostRestriction.isDefEq (ht.instantiateRev hsub.gfArr) (hs.instantiateRev hsub.gfArr)
+    · exact RecM.PreservesGhostRestriction.isDefEq (ht.instantiateRev hsub) (hs.instantiateRev hsub)
 
 theorem isDefEqForall.framed : ∀ {t s : Expr} {subst : Array Expr}, GhostFree G t → GhostFree G s →
-    NonGhostFVars G subst → RecM.PreservesGhostRestriction G (isDefEqForall t s subst) fun _ => True
+    GhostFreeArr G subst → RecM.PreservesGhostRestriction G (isDefEqForall t s subst) fun _ => True
   | t, s, subst, ht, hs, hsub => by
     unfold isDefEqForall
     split
     · rename_i tDom tBody _ name sDom sBody bi
-      have hsT : GhostFree G (sDom.instantiateRev subst) := hs.1.instantiateRev hsub.gfArr
+      have hsT : GhostFree G (sDom.instantiateRev subst) := hs.1.instantiateRev hsub
       have k : ∀ o : Option Expr, OptionGhostFree G o → RecM.PreservesGhostRestriction G
-          (withLocalDecl name bi (o.getD (sDom.instantiateRev subst)) fun fv =>
-            isDefEqForall tBody sBody (subst.push fv)) fun _ => True := by
+          (do
+            if (← readThe Context).fuel.cacheMode.isGlobal && !tBody.hasLooseBVars &&
+                !sBody.hasLooseBVars then
+              isDefEqForall tBody sBody (subst.push default)
+            else
+              let sType := o.getD (sDom.instantiateRev subst)
+              withLocalDecl name bi sType fun fv => isDefEqForall tBody sBody (subst.push fv)
+            : RecM Bool) fun _ => True := by
         intro o ho
-        refine .withLocalDecl ?_ fun id hid => isDefEqForall.framed ht.2 hs.2 (hsub.push hid)
+        refine .read (fun _ _ h => by rw [h.ctx_eq.2.2.2.2]) fun _ _ _ => .ite ?_ ?_
+        · exact isDefEqForall.framed ht.2 hs.2 (GhostFreeArr.push hsub GhostFree.default)
+        refine .withLocalDecl ?_ fun id hid =>
+          isDefEqForall.framed ht.2 hs.2 (GhostFreeArr.push hsub (show GhostFree G (.fvar id) from hid))
         cases o with
         | none => exact hsT
         | some x => exact ho rfl
       split
       · exact (RecM.PreservesGhostRestriction.pure OptionGhostFree.none).bind k
-      · refine (RecM.PreservesGhostRestriction.isDefEq (ht.1.instantiateRev hsub.gfArr) hsT).bind fun _ _ => ?_
+      · refine (RecM.PreservesGhostRestriction.isDefEq (ht.1.instantiateRev hsub) hsT).bind fun _ _ => ?_
         split
         · exact .pure trivial
         · exact (RecM.PreservesGhostRestriction.pure (OptionGhostFree.some hsT)).bind k
-    · exact RecM.PreservesGhostRestriction.isDefEq (ht.instantiateRev hsub.gfArr) (hs.instantiateRev hsub.gfArr)
+    · exact RecM.PreservesGhostRestriction.isDefEq (ht.instantiateRev hsub) (hs.instantiateRev hsub)
 
 theorem quickIsDefEq.framed (ht : GhostFree G t) (hs : GhostFree G s) :
     RecM.PreservesGhostRestriction G (quickIsDefEq t s useHash) fun _ => True := by
@@ -91,8 +109,8 @@ theorem quickIsDefEq.framed (ht : GhostFree G t) (hs : GhostFree G s) :
   split
   · exact .pure trivial
   split
-  · exact .toLBoolM (isDefEqLambda.framed ht hs NonGhostFVars.empty)
-  · exact .toLBoolM (isDefEqForall.framed ht hs NonGhostFVars.empty)
+  · exact .toLBoolM (isDefEqLambda.framed ht hs GhostFreeArr.empty)
+  · exact .toLBoolM (isDefEqForall.framed ht hs GhostFreeArr.empty)
   · exact .pure trivial
   · exact .toLBoolM (RecM.PreservesGhostRestriction.isDefEq ht hs)
   · exact .panic trivial

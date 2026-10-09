@@ -9,15 +9,17 @@ open Kernel
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
-theorem addAxiom.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : AxiomVal) :
-    (addAxiom env v).WF fun env' =>
+theorem addAxiom.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : AxiomVal)
+    (fuel : FuelConfig := {})
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety) := by intro; trivial) :
+    (addAxiom env v (fuel := fuel)).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∃ ci' : VConstVal, ∀ safety,
         (ves.venv safety).AddConst safety (.axiomInfo v) ci'.toVConstant (ves'.venv safety) := by
   let checkSafety : DefinitionSafety := if v.isUnsafe then .unsafe else .safe
   have hsafety : checkSafety ≤ (ConstantInfo.axiomInfo v).safety := by
     cases v.isUnsafe <;> exact DefinitionSafety.le_rfl
   unfold addAxiom
-  refine (checkConstantVal.WF wf (.axiomInfo v) false hsafety).run wf
+  refine (checkConstantVal.WF wf (.axiomInfo v) false hsafety).run wf (hmode _)
     |>.bind fun _ ⟨ci', htr, hci, hn, hnonprim⟩ => ?_
   have hnonprim' :
       Environment.primitives.contains (ConstantInfo.axiomInfo v).name = false := by
@@ -34,14 +36,16 @@ theorem addAxiom.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : Axi
   · exact .axiom htr (by rwa [← old.map_wf.find?'_eq_find?]) hci hadd old
 
 theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (v : DefinitionVal) :
-    (addDefinition env v).WF fun env' =>
+    (v : DefinitionVal)
+    (fuel : FuelConfig := {})
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety) := by intro; trivial) :
+    (addDefinition env v (fuel := fuel)).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         (v.safety ≠ .unsafe → ∃ ci' : VDefVal, ∀ safety,
           (ves.venv safety).AddDef safety (.defnInfo v) ci' (ves'.venv safety)) := by
   unfold addDefinition; split
   · refine checkConstantVal.WF wf (.defnInfo v) false DefinitionSafety.unsafe_le
-      |>.run wf |>.bind fun _ ⟨ci0, htr, hwfc, hn, hnonprim⟩ => ?_; simp at hnonprim
+      |>.run wf (hmode _) |>.bind fun _ ⟨ci0, htr, hwfc, hn, hnonprim⟩ => ?_; simp at hnonprim
     refine (checkNoMVarNoFVar.WF _ _ _).bind fun _ h => ?_
     have ⟨vesA, wfA, hstepA⟩ := addConst.WF wf (.axiomInfo { v with isUnsafe := true }) ci0
       .unsafe (fun _ => id) ⟨⟨DefinitionSafety.unsafe_le, htr.1.2.1, htr.1.2.2⟩, htr.2⟩
@@ -51,7 +55,7 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     have hadd := (hstepA .unsafe).2.2
     refine checkBodyCore.WF (wfA.toVEnvAt .unsafe) (.defnDecl v)
       v.levelParams v.type v.value ci0.type (htr.1.2.2.mono (VEnv.addConst_le hadd)) h
-      |>.run1 _ |>.bind fun _ h3 => ?_
+      |>.run1 _ ((hmode .unsafe).mono (VEnv.addConst_le hadd)) |>.bind fun _ h3 => ?_
     obtain ⟨value', hvalue, hvalueType⟩ := h3
     have hciWF : (⟨ci0, value'⟩ : VDefVal).WF (vesA.venv .unsafe) := by
       show (vesA.venv .unsafe).HasType ci0.uvars [] value' ci0.type
@@ -59,7 +63,7 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     have ⟨ves', hwf', hmono'⟩ := addUnsafeDef.WF wf v ⟨ci0, value'⟩ (vesA.venv .unsafe)
       ‹_› htr hwfc hadd hvalue hciWF hn hnonprim
     exact .pure ⟨ves', hwf', hmono', (nomatch · ‹_›)⟩
-  refine (checkDefinition.WF wf v).run wf |>.bind
+  refine (checkDefinition.WF wf v).run wf (hmode _) |>.bind
     fun _ ⟨ci', hp, hu, ht, hname, hvalue, hci, hfresh⟩ => ?_
   have hle : v.safety ≤ .safe := DefinitionSafety.le_safe
   have hmono := wf.mono hle
@@ -82,11 +86,13 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     · exact (hp eq).preserves (wf.mono DefinitionSafety.le_safe) wf.tr.wf wf.hasPrimitives
         (hsf.mono (wf.mono hs)) (hci.mono (hmono.trans (wf.mono hs))) hadd
 
-theorem addTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : TheoremVal) :
-    (addTheorem env v).WF fun env' =>
+theorem addTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : TheoremVal)
+    (fuel : FuelConfig := {})
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety) := by intro; trivial) :
+    (addTheorem env v (fuel := fuel)).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∃ ci' : VConstVal, ∀ safety,
         (ves.venv safety).AddConst safety (.thmInfo v) ci'.toVConstant (ves'.venv safety) := by
-  refine (checkTheorem.WF wf v).run wf |>.bind fun _ h => ?_
+  refine (checkTheorem.WF wf v).run wf (hmode _) |>.bind fun _ h => ?_
   obtain ⟨ci', htr, hbody, hprop, hn, hnonprim⟩ := h
   have ⟨ves', hwf, hstep⟩ := addConst.WF wf (.thmInfo v) ci'.toVConstVal .safe
     (fun _ _ => DefinitionSafety.le_safe) htr.1 ⟨_, hprop⟩ hn
@@ -99,14 +105,16 @@ theorem addTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : T
   exact .thm htr' (by rwa [← old.map_wf.find?'_eq_find?]) (hbody.mono hle)
     (hprop.mono hle) hadd old
 
-theorem addOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : OpaqueVal) :
-    (addOpaque env v).WF fun env' =>
+theorem addOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : OpaqueVal)
+    (fuel : FuelConfig := {})
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety) := by intro; trivial) :
+    (addOpaque env v (fuel := fuel)).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∃ ci' : VConstVal, ∀ safety,
         (ves.venv safety).AddConst safety (.opaqueInfo v) ci'.toVConstant (ves'.venv safety) := by
   let checkSafety : DefinitionSafety := if v.isUnsafe then .unsafe else .safe
   have hsafety : (ConstantInfo.opaqueInfo v).safety = checkSafety := by
     cases v.isUnsafe <;> rfl
-  refine (checkOpaque.WF wf v).run wf |>.bind fun _ h => ?_
+  refine (checkOpaque.WF wf v).run wf (hmode _) |>.bind fun _ h => ?_
   obtain ⟨ci', hu, ht, hname, hvalue, hciC, hci, hfresh, hnonprim⟩ := h
   have hle : checkSafety ≤ .safe := DefinitionSafety.le_safe
   have hmono := wf.mono hle
@@ -163,6 +171,7 @@ theorem addInductiveDeclaration.WF_spec
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
     (isUnsafe : Bool) (fuel : FuelConfig)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
     (HsourcesB : VerifyInductive.SourceBVarClosed types) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
@@ -175,7 +184,7 @@ theorem addInductiveDeclaration.WF_spec
   cases allowPrimitive with
   | false =>
     exact VerifyInductive.Environment.addInductive.inductiveExtensionWF
-      env lparams nparams types isUnsafe fuel ves wf HsourcesB
+      env lparams nparams types isUnsafe fuel ves wf hmode HsourcesB
   | true =>
     have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
         nparams types isUnsafe :=
@@ -183,7 +192,7 @@ theorem addInductiveDeclaration.WF_spec
         nparams types isUnsafe).mp hallow
     exact
       VerifyInductive.Environment.addInductive.primitiveInductiveExtensionWF
-        env lparams nparams types isUnsafe fuel ves wf Hprimitive
+        env lparams nparams types isUnsafe fuel ves wf hmode Hprimitive
 
 /-- Environment preservation for the complete inductive declaration dispatch: the invariant
 and monotonicity of every safety-indexed model.  It has no hypothesis on the source declaration: it is derived from the
@@ -192,7 +201,8 @@ source-facing specification. -/
 theorem addInductiveDeclaration.WF_preserves
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
-    (isUnsafe : Bool) (fuel : FuelConfig) :
+    (isUnsafe : Bool) (fuel : FuelConfig)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety)) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧
@@ -209,10 +219,10 @@ theorem addInductiveDeclaration.WF_preserves
     intro res Hsources Hlower
     by_cases haux : res.aux2nested.size = 0
     · exact VerifyInductive.Environment.addInductiveAfterLowering.ordinaryInstalledModelWF
-        env lparams nparams types isUnsafe fuel res ves wf Hlower.toResult haux
+        env lparams nparams types isUnsafe fuel res ves wf hmode Hlower.toResult haux
     · exact
         (VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
-          env lparams nparams types isUnsafe fuel res ves wf Hsources Hlower
+          env lparams nparams types isUnsafe fuel res ves wf hmode Hsources Hlower
             haux).mono fun _ ⟨H⟩ => H.modelExtension
   | true =>
     have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
@@ -221,7 +231,7 @@ theorem addInductiveDeclaration.WF_preserves
         nparams types isUnsafe).mp hallow
     exact
       (VerifyInductive.Environment.addInductive.primitiveInductiveExtensionWF
-        env lparams nparams types isUnsafe fuel ves wf Hprimitive).mono
+        env lparams nparams types isUnsafe fuel ves wf hmode Hprimitive).mono
         fun _ ⟨H⟩ => H.modelExtension
 
 private theorem Except.WF.throw' {e : ε} {Q : α → Prop} : (throw e : Except ε α).WF Q :=
@@ -231,8 +241,10 @@ private theorem Except.WF.throwBind {e : ε} {f : α → Except ε β} {Q : β �
     ((throw e : Except ε α) >>= f).WF Q := fun _ h => nomatch h
 
 theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (vs : List DefinitionVal) :
-    (addMutual env vs).WF fun env' =>
+    (vs : List DefinitionVal)
+    (fuel : FuelConfig := {})
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety) := by intro; trivial) :
+    (addMutual env vs (fuel := fuel)).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   unfold addMutual
   simp only [reduceIte]
@@ -247,7 +259,7 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
       TrMutualHeader v₀.safety (ves.venv v₀.safety) env v ci ∧
       v.safety = v₀.safety ∧ v.levelParams = v₀.levelParams) cis) ∧
     (((v₀ :: rest).map (·.name)).Nodup ∧
-      ∀ v ∈ (v₀ :: rest), (∅ : NameSet).contains v.name = false)) wf ?_).bind
+      ∀ v ∈ (v₀ :: rest), (∅ : NameSet).contains v.name = false)) wf ?_ (hmode _)).bind
     fun _ h1 => ?_
   · refine (TypeChecker.M.WF.forInFresh fun v found s => ?_).bind fun _ _ _ h => .pure h
     split <;> [exact .bindThrow .throw; rename_i hsafety]
@@ -279,13 +291,13 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   refine (TypeChecker.M.WF.run1 (Q := fun _ => ∃ cis',
     cis0.Forall₂ (fun (ci ci' : VDefVal) => ci.toVConstVal = ci'.toVConstVal) cis' ∧
     (v₀ :: rest).Forall₂ (fun v ci' => TrExprS base v.levelParams [] v.value ci'.value ∧
-      ci'.WF base) cis') wfA ?_).bind fun _ h2 => ?_
+      ci'.WF base) cis') wfA ?_ ((hmode _).mono (VEnv.addConsts_le hbase0))).bind fun _ h2 => ?_
   · refine (TypeChecker.M.WF.forInForall₂ (fun v ci s hd => ?_) hQ0).bind fun _ _ _ h => .pure h
     have hdecl := hd.1.1.1.2.2.mono (VEnv.addConsts_le hbase0)
     refine (TypeChecker.M.WF.liftExcept
       (checkNoMVarNoFVar.WF _ v.name v.value)).bind fun _ _ _ hclosed => ?_
     have hclosed' : v.value.FVarsIn
-        (· ∈ (TypeChecker.VContext.mk1 wfA v.levelParams).vlctx.fvars) := by
+        (· ∈ (TypeChecker.VContext.mk1 wfA v.levelParams fuel).vlctx.fvars) := by
       simpa [TypeChecker.VContext.mk1, TypeChecker.VContext.mkCheckingValid, TypeChecker.VContext.mkChecking] using hclosed
     refine hd.2.2 ▸ (TypeChecker.checkType.WF hclosed').bind
       fun valType _ _ ⟨value', valType', _, hval, hvalTy, hhasType⟩ => ?_
@@ -309,6 +321,33 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     ((this.and hbody).imp (fun _ _ h => ⟨h.1.1, h.2.1⟩)) hciWF
   exact .pure ⟨ves', wf', hle'⟩
 
+/-- `addDecl.WF_quotReadyAt` for any configuration whose cache mode is sound for the input
+models (`CacheMode.Sound`: nothing in the scoped mode, canonical `Eq` in the global mode). -/
+theorem addDecl.WF_quotReadyAt_fuel {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (decl : Declaration)
+    (hq : decl = .quotDecl → ∀ safety, (ves.venv safety).QuotReady)
+    (fuel : FuelConfig) (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety)) :
+    (addDecl env decl (check := true) (fuel := fuel)).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) := by
+  cases decl with
+  | axiomDecl v =>
+    exact (addAxiom.WF wf v fuel hmode).mono fun _ ⟨ves', hwf, _, h⟩ =>
+      ⟨ves', hwf, (h · |>.le)⟩
+  | thmDecl v =>
+    exact (addTheorem.WF wf v fuel hmode).mono fun _ ⟨ves', hwf, _, h⟩ =>
+      ⟨ves', hwf, (h · |>.le)⟩
+  | defnDecl v =>
+    exact (addDefinition.WF wf v fuel hmode).mono fun _ ⟨ves', hwf, h, _⟩ => ⟨ves', hwf, h⟩
+  | opaqueDecl v =>
+    exact (addOpaque.WF wf v fuel hmode).mono fun _ ⟨ves', hwf, _, h⟩ =>
+      ⟨ves', hwf, (h · |>.le)⟩
+  | quotDecl => exact addQuot.WF wf (hq rfl)
+  | mutualDefnDecl vs =>
+    exact addMutual.WF wf vs fuel hmode
+  | inductDecl lparams nparams types isUnsafe =>
+    exact addInductiveDeclaration.WF_preserves wf
+      lparams nparams types isUnsafe fuel hmode
+
 /-- `addDecl.WF` with quotient readiness assumed only for `quotDecl`, the one form whose
 abstract rule needs it. This is the form a replay from the empty environment uses, since `Eq`
 does not exist before the prelude declares it. -/
@@ -316,35 +355,29 @@ theorem addDecl.WF_quotReadyAt {env : Environment} {ves : VEnvs} (wf : ves.WF en
     (decl : Declaration)
     (hq : decl = .quotDecl → ∀ safety, (ves.venv safety).QuotReady) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WF env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) := by
-  cases decl with
-  | axiomDecl v =>
-    exact (addAxiom.WF wf v).mono fun _ ⟨ves', hwf, _, h⟩ =>
-      ⟨ves', hwf, (h · |>.le)⟩
-  | thmDecl v =>
-    exact (addTheorem.WF wf v).mono fun _ ⟨ves', hwf, _, h⟩ =>
-      ⟨ves', hwf, (h · |>.le)⟩
-  | defnDecl v =>
-    exact (addDefinition.WF wf v).mono fun _ ⟨ves', hwf, h, _⟩ => ⟨ves', hwf, h⟩
-  | opaqueDecl v =>
-    exact (addOpaque.WF wf v).mono fun _ ⟨ves', hwf, _, h⟩ =>
-      ⟨ves', hwf, (h · |>.le)⟩
-  | quotDecl => exact addQuot.WF wf (hq rfl)
-  | mutualDefnDecl vs =>
-    exact addMutual.WF wf vs
-  | inductDecl lparams nparams types isUnsafe =>
-    exact addInductiveDeclaration.WF_preserves wf
-      lparams nparams types isUnsafe {}
+      ∃ ves' : VEnvs, ves'.WF env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) :=
+  addDecl.WF_quotReadyAt_fuel wf decl hq {} fun _ => trivial
+
+/-- `addDecl.WF` in either cache mode. In the global mode the hypothesis `hmode` is canonical
+`Eq` at every safety level, from which the mode's `GlobalCacheLicense` gives the strengthening the
+verification of global caches needs. -/
+theorem addDecl.WF_mode {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (hq : ∀ safety, (ves.venv safety).QuotReady)
+    (decl : Declaration) (mode : CacheMode)
+    (hmode : ∀ safety, mode.Sound (ves.venv safety)) :
+    (addDecl env decl (check := true) (fuel := { cacheMode := mode })).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) :=
+  addDecl.WF_quotReadyAt_fuel wf decl (fun _ => hq) _ hmode
 
 /-- Successful checked addition of a declaration preserves the invariant and extends every
 safety-indexed abstract environment. Quotient initialization needs the abstract `Eq` at every
-safety level (`hq`). -/
+safety level (`hq`). This is `addDecl.WF_mode` in the default, scoped cache mode. -/
 theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (hq : ∀ safety, (ves.venv safety).QuotReady)
     (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) :=
-  addDecl.WF_quotReadyAt wf decl fun _ => hq
+  addDecl.WF_mode wf hq decl .scoped fun _ => trivial
 
 /-! ### The empty environment -/
 
@@ -382,18 +415,46 @@ theorem VEnvs.HasCanonicalEq.mono {ves ves' : VEnvs} (h : ves.HasCanonicalEq)
     (hle : ∀ safety, ves.venv safety ≤ ves'.venv safety) : ves'.HasCanonicalEq :=
   fun safety => (h safety).mono (hle safety)
 
-/-- The top-level preservation theorem in the canonical-`Eq` formulation. Its hypotheses are the
-well-formedness of the current environment (`VEnvs.WF`) and canonical equality at every safety level; the output
-environment again satisfies `VEnvs.WF`. The checker runs in scoped contexts, so no
-strengthening hypothesis is needed, and the constructor telescope certificates cover the
-non-dependent fields walked by projection inference, so no choice hypothesis is needed either.
-Canonical equality is used only for quotient initialization, whose abstract rule types
-`Quot.lift` against `Eq` at every safety level (`VEnv.HasCanonicalEq.quotReady`). -/
+/-- With canonical `Eq` every cache mode is sound: the scoped mode needs nothing, the global
+mode needs exactly canonical `Eq` (`CacheMode.Sound`). -/
+theorem CacheMode.sound_of_canonicalEq (mode : CacheMode) {venv : VEnv}
+    (heq : venv.HasCanonicalEq) : mode.Sound venv := by
+  cases mode <;> [trivial; exact heq]
+
+/-- The top-level preservation theorem in the canonical-`Eq` formulation, for either cache mode
+of the checker (`CacheMode`). Its hypotheses are the well-formedness of the current environment
+(`VEnvs.WF`) and canonical equality at every safety level; the output environment again satisfies
+`VEnvs.WF`. In the scoped mode (the default) the checker restores its caches when a binder is
+closed, so no strengthening is needed. In the global mode the caches are kept across binders, as
+in the C++ kernel, and the verification moves cached facts out of binders with the strengthening
+that the mode's `GlobalCacheLicense` provides for the environment, which has canonical `Eq`. The
+constructor telescope certificates cover the non-dependent fields walked by projection inference
+in both modes. Canonical equality is otherwise used only for quotient initialization, whose
+abstract rule types `Quot.lift` against `Eq` at every safety level
+(`VEnv.HasCanonicalEq.quotReady`). -/
+theorem addDecl.WF_of_canonicalEq_mode {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (decl : Declaration) (mode : CacheMode) :
+    (addDecl env decl (check := true) (fuel := { cacheMode := mode })).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
+  addDecl.WF_mode wf (fun safety => (heq safety).quotReady) decl mode
+    fun safety => mode.sound_of_canonicalEq (heq safety)
+
+/-- The top-level preservation theorem in the canonical-`Eq` formulation: `WF_of_canonicalEq_mode`
+in the default, scoped cache mode. -/
 theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  addDecl.WF wf (fun safety => (heq safety).quotReady) decl
+  addDecl.WF_of_canonicalEq_mode wf heq decl .scoped
+
+/-- Iterable form of `addDecl.WF_of_canonicalEq_mode`. -/
+theorem addDecl.WFHasCanonicalEq_mode {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (heq : ves.HasCanonicalEq) (decl : Declaration) (mode : CacheMode) :
+    (addDecl env decl (check := true) (fuel := { cacheMode := mode })).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧ ves'.HasCanonicalEq ∧
+        ∀ safety, ves.venv safety ≤ ves'.venv safety :=
+  (addDecl.WF_of_canonicalEq_mode wf heq decl mode).mono fun _ ⟨ves', wf', hle⟩ =>
+    ⟨ves', wf', heq.mono hle, hle⟩
 
 /-- Iterable form of `addDecl.WF_of_canonicalEq`: `VEnvs.WF` and canonical equality are
 preserved by the output environments, so the theorem applies again to the next declaration of a

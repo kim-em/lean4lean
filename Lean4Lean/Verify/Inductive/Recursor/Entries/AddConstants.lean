@@ -1646,6 +1646,7 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
         (AddInductive.declareRecursors.recursorType stats recInfos c.lctx owner)
         (targets T owner))
     (hnotPartial : c.safety ≠ .partial)
+    (hmode : c.fuel.cacheMode.Sound currentVEnv)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (_howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
@@ -1679,7 +1680,7 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
               stats indTypes recInfos := by
       simpa using
         (AddInductive.declareRecursors.checkRecursorTypes.trRecursorTypesWF
-          Hvalid hnotPartial stats indTypes elimLevel recInfos
+          Hvalid hmode hnotPartial stats indTypes elimLevel recInfos
           (recInfos.flatMap (·.minors)).size
           (recInfos.map (·.motive)).size
           (indTypes.map (·.name)).toList c.lctx k (c.safety != .safe)

@@ -31,6 +31,8 @@ structure ContextSemantics (c : AddInductive.Context) (Us : List Name) where
   indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
   kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
     ({} : TypeChecker.State).ngen.Reserves fv
+  /-- The cache mode of the embedded checker runs is sound for the environment. -/
+  cacheSound : c.fuel.cacheMode.Sound venv
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv Us mlctx c.lctx c.checkLCtx
 
@@ -74,6 +76,7 @@ abbrev ContextSemantics.withEnv (H : ContextSemantics c Us)
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound.mono hle
   check := H.check.mono hle
 
 /-- Replace the checking context by a certified sub-context of the main context. -/
@@ -88,6 +91,7 @@ abbrev ContextSemantics.withCheckLCtx (H : ContextSemantics c Us) (l : LocalCont
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound
   check := B
 
 /-- View the embedded checking context as the main context of the same frame. -/
@@ -102,6 +106,7 @@ abbrev ContextSemantics.atCheckLCtx (H : ContextSemantics c Us) :
   ngen_prefix := H.ngen_prefix
   indFresh := fun fv h => H.indFresh fv (H.check.embed.fvars_subset h)
   kernelFresh := fun fv h => H.kernelFresh fv (H.check.embed.fvars_subset h)
+  cacheSound := H.cacheSound
   check := { m := H.chk, wf := H.check.wf, onlyLams := H.check.onlyLams,
              lctx_eq := H.check.lctx_eq,
              embed := .refl H.checking.tr.wf.ordered H.check.wf.tr.wf,
@@ -134,6 +139,7 @@ abbrev ContextSemantics.withLocalDecl (H : ContextSemantics c Us)
     rcases hmem with rfl | hmem
     · exact c.ngen.next_reserves_self
     · exact (H.indFresh _ hmem).mono NameGenerator.LE.next
+  cacheSound := H.cacheSound
   kernelFresh := by
     intro fv hmem
     simp only [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some,
@@ -164,6 +170,7 @@ abbrev ContextSemantics.withCheckedLocalDecl (H : ContextSemantics c Us)
   ngen_prefix := H.ngen_prefix
   indFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).indFresh
   kernelFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).kernelFresh
+  cacheSound := H.cacheSound
   check := H.check.cons H.checking.tr.wf H.lctx_eq
     (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf htr₀ hty₀
 
@@ -187,6 +194,7 @@ abbrev ContextSemantics.withCheckedLocalDeclOn (H : ContextSemantics c Us) (base
   ngen_prefix := H.ngen_prefix
   indFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).indFresh
   kernelFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).kernelFresh
+  cacheSound := H.cacheSound
   check := B.cons H.checking.tr.wf H.lctx_eq
     (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf htr₀ hty₀
 

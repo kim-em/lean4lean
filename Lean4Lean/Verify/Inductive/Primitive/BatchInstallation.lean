@@ -40,6 +40,8 @@ structure LocalContextWF (c : AddInductive.Context) where
   indFresh : forall fv, fv ∈ mlctx.vlctx.fvars -> c.ngen.Reserves fv
   kernelFresh : forall fv, fv ∈ mlctx.vlctx.fvars ->
     ({} : TypeChecker.State).ngen.Reserves fv
+  /-- The cache mode of the embedded checker runs is sound for the environment. -/
+  cacheSound : c.fuel.cacheMode.Sound venv
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv c.lparams mlctx c.lctx c.checkLCtx
   /-- The constructor telescope certificates, carried to the restored checker context. -/
@@ -57,6 +59,7 @@ def ContextWF.toLocal (H : ContextWF c) : LocalContextWF c where
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound
   check := H.check
 
 /-- Move a local-context invariant across an extension of the kernel and
@@ -78,6 +81,7 @@ def LocalContextWF.withEnv (H : LocalContextWF c)
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound.mono hle
   check := H.check.mono hle
 
 /-- Restore the ordinary checker context exactly at an atomic completion point, given the
@@ -95,6 +99,7 @@ def LocalContextWF.toContextWF (H : LocalContextWF c)
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound
   check := H.check
 
 /-- Kernel-environment and abstract constants installed in lockstep without

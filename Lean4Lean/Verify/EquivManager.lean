@@ -312,16 +312,31 @@ end EquivManager
 
 namespace TypeChecker.Inner
 
+/-- A fact recorded by the equivalence manager, between two terms translated in the current
+context, is a definitional equality there. In the global cache mode this is where strengthening
+is used: the fact holds in an extension of the current context by variables of closed binders. -/
+theorem _root_.Lean4Lean.TypeChecker.State.WF.eqv_uniq {c : VContext} {s : State} (wf : s.WF c)
+    (hΔ' : EqvScope c s.ngen Δ') (H : EquivManager.IsDefEqE c.venv c.lparams Δ' e₁ e₂)
+    (he₁ : c.TrExprS e₁ e₁') (he₂ : c.TrExprS e₂ e₂') : c.IsDefEqU e₁' e₂' := by
+  rcases hΔ' with rfl | ⟨hs, hwf, ⟨l, W⟩, -⟩
+  · exact H.uniq c.Ewf c.mlctx.noBV c.Δwf he₁ he₂
+  · have noBV : Δ'.NoBV := by
+      show Δ'.bvars = 0; rw [W.bvars_eq]; exact c.mlctx.noBV
+    have := H.uniq c.Ewf noBV hwf (he₁.weakFV' c.Ewf.ordered W hwf)
+      (he₂.weakFV' c.Ewf.ordered W hwf)
+    exact (VEnv.IsDefEqU.weak'_iff c.Ewf hs hwf.toCtx W.toCtx).1 this
+
 open EquivManager in
 theorem addEquiv.WF {c : VContext} {s : State} (he₁ : c.TrExprS e₁ e') (he₂ : c.TrExpr e₂ e') :
     RecM.WF c s (modify fun st => { st with eqvManager := st.eqvManager.addEquiv e₁ e₂ })
       fun _ _ => True := by
   rintro _ mwf wf _ _ ⟨⟩
-  refine ⟨_, rfl, .rfl, { wf with ectx := ?_ }, trivial⟩
+  obtain ⟨Δ', hΔ', hm⟩ := wf.ectx
+  refine ⟨_, rfl, .rfl, { wf with ectx := ⟨Δ', hΔ', ?_⟩ }, trivial⟩
   simp [addEquiv]; split; rename_i h1; split; rename_i h2
-  have ⟨ewf, b2, b3⟩ := toNode.WF wf.ectx h1
+  have ⟨ewf, b2, b3⟩ := toNode.WF hm h1
   have ⟨ewf, c2, c3⟩ := toNode.WF ewf h2
-  exact (merge.WF ewf (.defeq he₁ he₂) (c2.toNodeMap b3) c3).1
+  exact (merge.WF ewf (State.WF.eqv_defeq hΔ' he₁ he₂) (c2.toNodeMap b3) c3).1
 
 theorem isDefEq.WF {c : VContext} {s : State}
     (he₁ : c.TrExprS e₁ e₁') (he₂ : c.TrExprS e₂ e₂') :

@@ -180,9 +180,11 @@ theorem ReplayResult.wf_empty {cfg : Config} (hfuel : cfg.fuel = {}) {m : Name} 
   obtain ⟨ds, H⟩ := hr.replay
   exact H.WF_empty
 
-/-- A replay result from a well-formed start environment with canonical `Eq` is modelled by
-well-formed abstract environments with canonical `Eq` that extend the start's. -/
-theorem ReplayResult.wf_of_WF {cfg : Config} (hfuel : cfg.fuel = {}) {start : Environment}
+/-- A replay result from a well-formed start environment with canonical `Eq`, in either cache
+mode, is modelled by well-formed abstract environments with canonical `Eq` that extend the
+start's. -/
+theorem ReplayResult.wf_of_WF_mode {cfg : Config} {mode : CacheMode}
+    (hfuel : cfg.fuel = { cacheMode := mode }) {start : Environment}
     {decl : Option Name} (r : ReplayResult cfg start decl) {ves : VEnvs} (wf : ves.WF start)
     (heq : ves.HasCanonicalEq) :
     ∃ ves' : VEnvs, ves'.WF r.env ∧ ves'.HasCanonicalEq ∧
@@ -194,8 +196,17 @@ theorem ReplayResult.wf_of_WF {cfg : Config} (hfuel : cfg.fuel = {}) {start : En
   · rintro _ rfl
     exact ⟨ves, wf, heq, fun _ => VEnv.LE.rfl⟩
   · rintro env d env' ⟨ves₁, wf₁, heq₁, hle₁⟩ hadd _
-    obtain ⟨ves₂, wf₂, heq₂, hle₂⟩ := addDecl.WFHasCanonicalEq wf₁ heq₁ d env' hadd
+    obtain ⟨ves₂, wf₂, heq₂, hle₂⟩ := addDecl.WFHasCanonicalEq_mode wf₁ heq₁ d mode env' hadd
     exact ⟨ves₂, wf₂, heq₂, fun safety => (hle₁ safety).trans (hle₂ safety)⟩
+
+/-- A replay result from a well-formed start environment with canonical `Eq` is modelled by
+well-formed abstract environments with canonical `Eq` that extend the start's. -/
+theorem ReplayResult.wf_of_WF {cfg : Config} (hfuel : cfg.fuel = {}) {start : Environment}
+    {decl : Option Name} (r : ReplayResult cfg start decl) {ves : VEnvs} (wf : ves.WF start)
+    (heq : ves.HasCanonicalEq) :
+    ∃ ves' : VEnvs, ves'.WF r.env ∧ ves'.HasCanonicalEq ∧
+      ∀ safety, ves.venv safety ≤ ves'.venv safety :=
+  r.wf_of_WF_mode (mode := .scoped) hfuel wf heq
 
 /-- **Soundness of fresh replay.** If the pure replay of a source constant table `src` from the
 empty environment (`--fresh` mode, default fuel, all constants) succeeds, the environment it
@@ -249,6 +260,24 @@ theorem replayPure.WF_fromImports {src : Std.HashMap Name ConstantInfo} {checkQu
         ∃ ci', r.env.find? n = some ci' ∧ (ci' == ci) = true := by
   intro r _
   exact ⟨r.wf_of_WF rfl wf heq,
+    fun n ci hci hu hp => r.agree n (r.complete rfl n ci hci hu hp) ci hci⟩
+
+/-- `replayPure.WF_fromImports` in either cache mode of the checker. In the global mode
+(`CacheMode.global`, which needs a `GlobalCacheLicense`) the checker keeps its caches across
+binders as the C++ kernel does; the replay is still sound, because every environment it checks in
+extends the imports and so has canonical `Eq`, which is what the license needs. There is no
+global-mode form of `replayFresh.WF`: a fresh replay checks the prelude's declarations before
+`Eq` exists, where the license provides no strengthening. -/
+theorem replayPure.WF_fromImports_mode {src : Std.HashMap Name ConstantInfo} {checkQuot : Bool}
+    {env : Environment} {ves : VEnvs} (wf : ves.WF env) (heq : ves.HasCanonicalEq)
+    (mode : CacheMode) :
+    (replayPure { newConstants := src, checkQuot, fuel := { cacheMode := mode } } env).WF fun r =>
+      (∃ ves' : VEnvs, ves'.WF r.env ∧ ves'.HasCanonicalEq ∧
+        ∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+      ∀ n ci, src[n]? = some ci → ci.isUnsafe = false → ci.isPartial = false →
+        ∃ ci', r.env.find? n = some ci' ∧ (ci' == ci) = true := by
+  intro r _
+  exact ⟨r.wf_of_WF_mode rfl wf heq,
     fun n ci hci hu hp => r.agree n (r.complete rfl n ci hci hu hp) ci hci⟩
 
 end Lean4Lean.Replay

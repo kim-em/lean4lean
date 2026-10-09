@@ -79,6 +79,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : Lean4Lean.ElimNestedInductive.Result)
     (ves : VEnvs) (wf : ves.WF env)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hlower : NestedLoweringOutputClosed env fuel.inductiveFuel nparams
       sourceTypes
@@ -90,7 +91,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
           isUnsafe) := by
   let Hc' : ContextWF
       (nestedAddInductiveContext env lparams isUnsafe false fuel) :=
-    ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams false fuel
+    ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams false fuel (hmode _)
   have hctx : Hc'.mlctx.vlctx = [] := rfl
   have Hc'_venv : Hc'.venv =
       ves.venv (if isUnsafe then .unsafe else .safe) := rfl

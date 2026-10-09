@@ -666,6 +666,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryInstalledModelWF
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
     (ves : VEnvs) (wf : ves.WF env)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
     (Hlower : NestedLoweringOutput env fuel.inductiveFuel nparams sourceTypes
       { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res)
     (haux : res.aux2nested.size = 0) :
@@ -675,7 +676,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryInstalledModelWF
           (∀ safety, ves.venv safety ≤ ves'.venv safety) := by
   let safety : DefinitionSafety := if isUnsafe then .unsafe else .safe
   let c := initialContext env lparams safety false fuel
-  let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel
+  let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel (hmode _)
   have hsource : Hc.venv = ves.venv c.safety := by
     rfl
   have hctx : Hc.mlctx.vlctx = [] := by
@@ -721,6 +722,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryExtensionModelWF
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
     (ves : VEnvs) (wf : ves.WF env)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourcesB : SourceBVarClosed sourceTypes)
     (Hlower : NestedLoweringOutput env fuel.inductiveFuel nparams sourceTypes
@@ -736,7 +738,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryExtensionModelWF
             (ves'.venv (if isUnsafe then .unsafe else .safe))) := by
   let safety : DefinitionSafety := if isUnsafe then .unsafe else .safe
   let c := initialContext env lparams safety false fuel
-  let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel
+  let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel (hmode _)
   have hsource : Hc.venv = ves.venv c.safety := by
     rfl
   have hctx : Hc.mlctx.vlctx = [] := by

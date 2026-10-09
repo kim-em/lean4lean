@@ -926,6 +926,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
       sourceTypesVEnv HheaderValid auxiliaryMLCtx
       (by simpa only [hlparams'] using hauxiliaryWF)
       hauxiliaryLctx hauxiliaryFresh
+      (hfuel' ▸ Hc'.cacheSound.mono (VEnv.addConstVals_le HsourceTypesAdded))
     have Hrestore :
         (Environment.restoreNestedAfterInstall env loweredEnv lparams
           sourceTypes (if isUnsafe then .unsafe else .safe) allowPrimitive
@@ -977,7 +978,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
         cases isUnsafe <;> decide
       have Hnative := HlowerInitial'.sourceCore Hc' Hprod Hsources
         Howners' rfl Htrace' Hvalidation' HheaderValidation' Hparameters'
-        hvisible
+        (hfuel' ▸ Hc'.cacheSound) hvisible
       have Hnative' : Nonempty (NestedSourceDeclaration Hc'.venv lparams
           nparams sourceTypes isUnsafe loweredDecl
           (if isUnsafe then .unsafe else .safe) validationEnv

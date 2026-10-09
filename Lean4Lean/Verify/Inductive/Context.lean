@@ -35,6 +35,8 @@ structure ContextWF (c : AddInductive.Context) where
   indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
   kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
     ({} : TypeChecker.State).ngen.Reserves fv
+  /-- The cache mode of the embedded checker runs is sound for the environment. -/
+  cacheSound : c.fuel.cacheMode.Sound venv
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv c.lparams mlctx c.lctx c.checkLCtx
 
@@ -49,6 +51,7 @@ abbrev ContextWF.toSemantics (H : ContextWF c) : ContextSemantics c c.lparams wh
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound
   check := H.check
 
 /-- Restore the public frame with its explicit universe contract. -/
@@ -64,6 +67,7 @@ abbrev ContextWF.ofSemantics (H : ContextSemantics c c.lparams)
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound
   check := H.check
   typeCheckerLParams_eq := hparams
 
@@ -74,7 +78,8 @@ def initialContext (env : Environment) (lparams : List Name)
 
 def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety) (lparams : List Name)
-    (allowPrimitive : Bool) (fuel : FuelConfig) :
+    (allowPrimitive : Bool) (fuel : FuelConfig)
+    (hmode : fuel.cacheMode.Sound (ves.venv safety)) :
     ContextWF (initialContext env lparams safety allowPrimitive fuel) where
   venv := ves.venv safety
   checking := wf.toCheckingValid (safety)
@@ -86,6 +91,7 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   ngen_prefix := rfl
   indFresh := nofun
   kernelFresh := nofun
+  cacheSound := hmode
   check := { m := .nil, wf := trivial, onlyLams := .nil, lctx_eq := rfl,
              embed := ⟨[], _, .refl, .nil⟩, sub := .empty }
 
@@ -334,6 +340,8 @@ structure RecursorContextWF (c : AddInductive.Context)
   indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
   kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
     ({} : TypeChecker.State).ngen.Reserves fv
+  /-- The cache mode of the embedded checker runs is sound for the environment. -/
+  cacheSound : c.fuel.cacheMode.Sound venv
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv recLparams mlctx c.lctx c.checkLCtx
 
@@ -349,6 +357,7 @@ abbrev RecursorContextWF.toSemantics (H : RecursorContextWF c recLparams) :
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound
   check := H.check
 
 /-- Restore the public frame with its explicit universe contract. -/
@@ -365,6 +374,7 @@ abbrev RecursorContextWF.ofSemantics (H : ContextSemantics c recLparams)
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound
   check := H.check
   typeCheckerLParams_eq := hparams
   lparams_origin := horigin
@@ -385,6 +395,7 @@ def ContextWF.toRecursorContextWF (H : ContextWF c) :
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  cacheSound := H.cacheSound
   check := H.check
 
 /-- Reinterpret an already verified executable local context after prepending
@@ -416,6 +427,7 @@ def ContextWF.prependRecursorLevelParam
     indFresh := by
       intro fv hmem
       exact H.indFresh fv (hfv ▸ hmem)
+    cacheSound := H.cacheSound
     kernelFresh := by
       intro fv hmem
       exact H.kernelFresh fv (hfv ▸ hmem)
@@ -1623,7 +1635,7 @@ theorem liftTypeChecker.WF {x : TypeChecker.M α} (Hc : ContextWF c)
   rw [Hc.typeCheckerLParams_eq]
   simp only [Option.getD_none]
   rw [← Hc.check.lctx_eq]
-  exact TypeChecker.M.WF.runCheckingValidMLC Hc.chkKernelFresh Hx
+  exact TypeChecker.M.WF.runCheckingValidMLC Hc.chkKernelFresh Hx Hc.cacheSound
 
 theorem checkTypeInContext.checkingWF (Hc : ContextWF c)
     (hfvars : e.FVarsIn (· ∈ Hc.chk.vlctx.fvars)) :
@@ -1709,7 +1721,7 @@ theorem liftTypeChecker.recursorWF {x : TypeChecker.M α}
   simp only [Option.getD_some]
   rw [← Hc.check.lctx_eq]
   exact TypeChecker.M.WF.runCheckingValidMLC (lparams := recLparams) (fuel := c.fuel)
-    Hc.chkKernelFresh Hx
+    Hc.chkKernelFresh Hx Hc.cacheSound
 
 theorem whnfInRecursorContext.checkingScopeWF
     (Hc : RecursorContextWF c recLparams)
@@ -1887,7 +1899,7 @@ translates to an abstract type at the recursor's universe parameters. Unlike
 possibly extended universe-parameter list. -/
 theorem AddInductive.declareRecursors.checkRecursorType.WF
     (Hvalid : CheckingEnv.Valid c.safety c.env venv)
-    (info : RecursorVal) :
+    (info : RecursorVal) (hmode : c.fuel.cacheMode.Sound venv) :
     (AddInductive.declareRecursors.checkRecursorType info c).WF fun _ty =>
       ∃ type', TrExprS venv info.levelParams [] info.type type' ∧
         venv.IsType info.levelParams.length [] type' := by
@@ -1920,7 +1932,7 @@ theorem AddInductive.declareRecursors.checkRecursorType.WF
       | sort hu =>
         exact ⟨type', htype,
           ⟨_, hhasType.defeqU_r Hvalid.tr.wf (by trivial) hdefeq.symm⟩⟩
-    exact TypeChecker.M.WF.runCheckingValid Hcheck
+    exact TypeChecker.M.WF.runCheckingValid Hcheck hmode
 
 /-- Definitionally equal translation contexts backed by lambda-only
 `MLCtx`s retain the same declaration spine and free-variable identities.

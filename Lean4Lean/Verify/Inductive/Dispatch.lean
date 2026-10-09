@@ -23,6 +23,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryInductiveExtensionWF
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
     (ves : VEnvs) (wf : ves.WF env)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourcesB : SourceBVarClosed sourceTypes)
     (Hlower : NestedLoweringOutput env fuel.inductiveFuel nparams sourceTypes
@@ -33,7 +34,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryInductiveExtensionWF
         Nonempty (InductiveExtension env outEnv ves lparams nparams sourceTypes
           isUnsafe) := by
   exact (Environment.addInductiveAfterLowering.ordinaryExtensionModelWF
-    env lparams nparams sourceTypes isUnsafe fuel res ves wf Hsources HsourcesB
+    env lparams nparams sourceTypes isUnsafe fuel res ves wf hmode Hsources HsourcesB
     Hlower haux).mono
       fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
         ⟨InductiveExtension.ofModel ves' wf' hle Hspec⟩
@@ -44,6 +45,7 @@ theorem Environment.addInductive.primitiveInductiveExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe true
       fuel).WF fun outEnv =>
@@ -53,7 +55,7 @@ theorem Environment.addInductive.primitiveInductiveExtensionWF
   subst isUnsafe
   exact
     (Environment.addInductive.primitiveExtensionModelWF
-      env lparams nparams types false fuel ves wf Hshape).mono
+      env lparams nparams types false fuel ves wf hmode Hshape).mono
       fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
         ⟨{
           targetModels := ves'
@@ -67,6 +69,7 @@ theorem addInductiveDeclaration.primitiveInductiveExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
@@ -76,7 +79,7 @@ theorem addInductiveDeclaration.primitiveInductiveExtensionWF
   subst isUnsafe
   exact
     (addInductiveDeclaration.primitiveExtensionModelWF
-      env lparams nparams types false fuel ves wf Hshape).mono
+      env lparams nparams types false fuel ves wf hmode Hshape).mono
       fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
         ⟨{
           targetModels := ves'
@@ -95,6 +98,7 @@ theorem Environment.addInductive.inductiveExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
     (HsourcesB : SourceBVarClosed types) :
     (Environment.addInductive env lparams nparams types isUnsafe false
       fuel).WF fun outEnv =>
@@ -108,11 +112,11 @@ theorem Environment.addInductive.inductiveExtensionWF
   intro res Hsources Hlower
   by_cases haux : res.aux2nested.size = 0
   · exact Environment.addInductiveAfterLowering.ordinaryInductiveExtensionWF
-      env lparams nparams types isUnsafe fuel res ves wf Hsources HsourcesB
+      env lparams nparams types isUnsafe fuel res ves wf hmode Hsources HsourcesB
       Hlower.toResult haux
   · exact
       Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
-        env lparams nparams types isUnsafe fuel res ves wf Hsources Hlower haux
+        env lparams nparams types isUnsafe fuel res ves wf hmode Hsources Hlower haux
 
 /-- Checked `addDecl` for the non-primitive branch, given that the executable's primitive
 recognizer returns `false`; the choice between the ordinary and nested branches is made
@@ -121,6 +125,7 @@ theorem addInductiveDeclaration.inductiveExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
     (HsourcesB : SourceBVarClosed types)
     (hcheck : Primitive.checkInductive env lparams nparams types
       isUnsafe = .ok false) :
@@ -129,7 +134,7 @@ theorem addInductiveDeclaration.inductiveExtensionWF
         Nonempty (InductiveExtension env outEnv ves lparams nparams types
           isUnsafe) := by
   have Hrun := Environment.addInductive.inductiveExtensionWF env lparams
-    nparams types isUnsafe fuel ves wf HsourcesB
+    nparams types isUnsafe fuel ves wf hmode HsourcesB
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun
 
 end VerifyInductive

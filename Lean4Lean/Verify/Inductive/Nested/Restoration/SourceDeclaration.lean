@@ -142,6 +142,7 @@ private theorem installRestoredSourceFamilies
         VInductiveType.toVConstVal) = some sourceTypesVEnv)
     (HvalidationValid : CheckingEnv.Valid c.safety auxiliaryHeaderEnv
       sourceTypesVEnv)
+    (hmode : validationFuel.cacheMode.Sound sourceTypesVEnv)
     (HparameterRun :
       Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
         c.lparams c.safety validationFuel sourceTypes result = .ok ())
@@ -187,7 +188,7 @@ private theorem installRestoredSourceFamilies
           cases hsourceEq
           rcases Hlower.sourceConstructorTypingAtFreshOfValidation Hc
               Hprod Hsources Howners HsourceHeaders HsourceAdded
-              HvalidationValid HparameterRun hempty familyIdx hfamily
+              HvalidationValid hmode HparameterRun hempty familyIdx hfamily
               Hstep with ⟨constructors, Hconstructors⟩
           have holdInfo : HvalidationHead.oldInfo = Hstep.oldInfo := by
             have hci := Option.some.inj
@@ -270,6 +271,7 @@ theorem NestedLoweringOutputClosed.sourceCore
     (HparameterRun :
       Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
         c.lparams c.safety validationFuel sourceTypes result = .ok ())
+    (hmode : validationFuel.cacheMode.Sound sourceVEnv)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
     Nonempty (NestedSourceDeclaration sourceVEnv c.lparams nparams
@@ -288,7 +290,7 @@ theorem NestedLoweringOutputClosed.sourceCore
   have HconstructorTrace := HconstructorValidation.constructors
   rw [hheaderProdEnv] at HconstructorTrace
   rcases installRestoredSourceFamilies Hlower Hc Hprod Hsources Howners
-      HsourceHeaders HsourceAdded HheaderValid HparameterRun hempty
+      HsourceHeaders HsourceAdded HheaderValid (hmode.mono (VEnv.addConstVals_le HsourceAdded)) HparameterRun hempty
       Hrestoration.inductives HconstructorTrace
       HsourceHeaders (fun source hsource => hsource) HheaderValid.toValidCore
       VEnv.LE.rfl with

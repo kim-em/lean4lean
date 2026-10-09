@@ -26,6 +26,7 @@ namespace VerifyInductive
 telescope of every source constructor type in the validation environment. -/
 theorem validateSourceConstructorTypes.telTr_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
+    (hmode : fuel.cacheMode.Sound venv)
     (henv : TypeChecker.EnvGhostFree (fun _ => True) env)
     (Hsources : SourceSyntaxChecks types)
     (hrun : Lean4Lean.validateSourceConstructorTypes.run env lparams
@@ -48,7 +49,26 @@ theorem validateSourceConstructorTypes.telTr_of_run
       (TypeChecker.checkType.WF_telTr henv (by intro k r h; simp at h) hfvars
         (by simp))).bind fun _ _ _ ⟨⟨_, _, _, _, hsort, _⟩, htel⟩ => ?_
     exact (TypeChecker.ensureSort.WF hsort).mono fun _ _ _ _ => htel
-  exact TypeChecker.M.WF.runCheckingValid Hcheck checked hcheck
+  exact TypeChecker.M.WF.runCheckingValid Hcheck hmode checked hcheck
+
+/-- The validation runs of a nested declaration use a cache mode sound for its source-type
+environment, an extension of the checked context's. -/
+theorem NestedRun.cacheSound
+    (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
+      sourceDecl lparams nparams isUnsafe safety outEnv) :
+    E.validationFuel.cacheMode.Sound E.sourceCore.envTypes := by
+  have h := E.contextWF.cacheSound
+  rw [E.context_fuel, E.context_venv] at h
+  exact h.mono (VEnv.addConstVals_le E.sourceCore.sourceAdded)
+
+/-- The validation runs' cache mode is sound for every extension of the source environment. -/
+theorem NestedRun.cacheSound_of_le
+    (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
+      sourceDecl lparams nparams isUnsafe safety outEnv) (h : sourceVEnv ≤ venv) :
+    E.validationFuel.cacheMode.Sound venv := by
+  have hs := E.contextWF.cacheSound
+  rw [E.context_fuel, E.context_venv] at hs
+  exact hs.mono h
 
 /-- Every constructor visible after a successful validated nested run is old, or a new
 constructor carrying the declaration's safety flag and certified in the source header
@@ -125,7 +145,7 @@ theorem NestedRun.restoredCtorOrigin
       ∃ T, TelTrN E.sourceCore.envTypes lparams (AddInductive.constructorArity source.type) []
         source.type T :=
     fun _ htype _ hsource => validateSourceConstructorTypes.telTr_of_run
-      E.sourceCore.headerValidationValid hgf Hsources E.parameterValidation htype hsource
+      E.sourceCore.headerValidationValid E.cacheSound hgf Hsources E.parameterValidation htype hsource
   rcases E.installedConstructorSource Hsources Howners hfind with
     hold | ⟨type, htype, source, hsource, -, hlp, heqv, -, hu⟩
   · exact .inl hold

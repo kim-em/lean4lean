@@ -1754,11 +1754,12 @@ theorem NestedLowering.validateNestedAuxiliariesWF
     (hlctx : mlctx.lctx = res.lctx)
     (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
       ({} : TypeChecker.State).ngen.Reserves fv)
-    (Hcache : NestedAuxFVarsIn (· ∈ mlctx.vlctx.fvars) finalState) :
+    (Hcache : NestedAuxFVarsIn (· ∈ mlctx.vlctx.fvars) finalState)
+    (hmode : fuel.cacheMode.Sound venv) :
     (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
       res).WF fun _ =>
         NestedOccurrencesTyped venv lparams mlctx.vlctx res := by
-  apply validateNestedAuxiliaries.WF hvalid mlctx hmlctx hlctx hfresh
+  refine validateNestedAuxiliaries.WF hvalid mlctx hmlctx hlctx hfresh ?_ hmode
   intro name nested hfind
   exact H.resultAuxFVarsIn Hcache name nested hfind
 

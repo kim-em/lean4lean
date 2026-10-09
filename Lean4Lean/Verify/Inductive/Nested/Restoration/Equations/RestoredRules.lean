@@ -78,6 +78,7 @@ theorem NestedRun.restoredRuleRhs_translation
         (Lean4Lean.restoredRecursorNames
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) venv)
+    (hmode : E.validationFuel.cacheMode.Sound venv)
     {recName : Name}
     (hrecName : recName ∈ sourceTypes.map (fun t => Lean.mkRecName t.name) ++
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)
@@ -98,13 +99,13 @@ theorem NestedRun.restoredRuleRhs_translation
   · obtain ⟨indType, hind, hname⟩ := List.mem_map.mp hp
     subst hname
     obtain ⟨_, target, _, Hty⟩ :=
-      validateRestoredRecursorRules.sourceTranslation_of_run hvalid hrun hind Hstep.lookup hmem'
+      validateRestoredRecursorRules.sourceTranslation_of_run hvalid hmode hrun hind Hstep.lookup hmem'
     refine ⟨target, ?_⟩
     have h := Hty.2.1
     rw [← Hstep.restored.produced] at h
     exact h
   · obtain ⟨_, target, _, Hty⟩ :=
-      validateRestoredRecursorRules.auxiliaryTranslation_of_run hvalid hrun ha Hstep.lookup hmem'
+      validateRestoredRecursorRules.auxiliaryTranslation_of_run hvalid hmode hrun ha Hstep.lookup hmem'
     refine ⟨target, ?_⟩
     have h := Hty.2.1
     rw [← Hstep.restored.produced] at h
@@ -190,7 +191,7 @@ theorem NestedRun.trRestoredRecursorRule_of_equation
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1 := by
     rw [← hnames]
     exact List.mem_map_of_mem (List.mem_finRange owner)
-  obtain ⟨target, Ht⟩ := E.restoredRuleRhs_translation hvalid hn Hstep j hjNew
+  obtain ⟨target, Ht⟩ := E.restoredRuleRhs_translation hvalid (E.cacheSound_of_le C.install.le) hn Hstep j hjNew
   have hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
       E.auxHeads := by
     rw [compilationRestoration_heads_auxiliary]

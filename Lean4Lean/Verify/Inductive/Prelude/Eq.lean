@@ -643,6 +643,7 @@ theorem Environment.addInductiveAfterLowering.preludeEqExtensionWF
     (types : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
     (ves : VEnvs) (wf : ves.WF env)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe)
     (htypes : res.types = types)
@@ -664,7 +665,7 @@ theorem Environment.addInductiveAfterLowering.preludeEqExtensionWF
   let c := initialContext env lparams .safe false fuel
   let Hc : ContextWF c := by
     simpa [c, initialContext] using
-      ContextWF.initial wf .safe lparams false fuel
+      ContextWF.initial wf .safe lparams false fuel (hmode _)
   have hsource : Hc.venv = ves.venv .safe := rfl
   have Hshape' : PreludeEqShape c.lparams nparams res.types
       (c.safety != .safe) := by
@@ -704,6 +705,7 @@ theorem Environment.addInductive.preludeEqExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe false fuel).WF
@@ -726,7 +728,7 @@ theorem Environment.addInductive.preludeEqExtensionWF
   have Hcombined := Hsources.bind fun _ _ =>
     Hlowering.bind fun res Hres =>
       Environment.addInductiveAfterLowering.preludeEqExtensionWF env
-        lparams nparams types isUnsafe fuel res ves wf hAbsent Hshape
+        lparams nparams types isUnsafe fuel res ves wf hmode hAbsent Hshape
         Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
@@ -737,6 +739,7 @@ theorem addInductiveDeclaration.preludeEqExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
@@ -748,7 +751,7 @@ theorem addInductiveDeclaration.preludeEqExtensionWF
       (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have Hrun := Environment.addInductive.preludeEqExtensionWF env
-    lparams nparams types isUnsafe fuel ves wf hAbsent Hshape
+    lparams nparams types isUnsafe fuel ves wf hmode hAbsent Hshape
   have hcheck := checkPrimitiveInductive_eq_false_of_preludeEqShape env Hshape
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun
 

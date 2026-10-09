@@ -43,7 +43,7 @@ theorem bind_ok_rec {x : RecM α} {f : α → RecM β} {m : Methods} {c : Contex
 theorem withLocalDecl_run {f : Expr → RecM α} {m : Methods} {c : Context} {s : State} :
     (withLocalDecl name bi ty f : RecM α) m c s =
       (f (.fvar ⟨s.ngen.curr⟩) m { c with lctx := c.lctx.mkLocalDecl ⟨s.ngen.curr⟩ name ty bi }
-        { s with ngen := s.ngen.next }).map fun p => (p.1, s.leaveScope p.2) :=
+        { s with ngen := s.ngen.next }).map fun p => (p.1, s.exitScope c.fuel.cacheMode p.2) :=
   withFreshId_eq _ _ _
 
 theorem loop_forallE_run {m : Methods} {c : Context} {s s' : State}
