@@ -18,8 +18,8 @@ verification; each section restates an existing consumer of `TrExprS` on top of 
    together with a typing-only certificate (`CtorTelescopeAt.iff_trSyn`): the syntax of every
    deleted telescope is a theorem, and what remains is the typing of the residual types in the
    smaller contexts (`TelWF`), which the executable's locality route supplies.
-3. **Iota rules.** `TrExprSyn` of `Inductive/Rules/Translation.lean` has been replaced by
-   `TrSyn`, its lemmas by the `TrSyn` lemmas, and the typed right-hand side of a
+3. **Iota rules.** The right-hand-side derivations of `Inductive/Rules/Translation.lean` are
+   `TrSyn` derivations, and the typed right-hand side of a
    rule follows from its syntactic translation and the typing of the generator's equation
    (`RecursorCheck.ruleRhsTranslation_of_wf`), instead of from a typed translation of the same
    source (`RecursorCheck.ruleRhsTranslation`).
@@ -132,9 +132,8 @@ theorem TelWF.delete_closed {env : VEnv} {Us : List Name} {Δ : VLCtx}
 
 /-! ### 3. The iota rules' syntactic translation
 
-`TrExprSyn` (`Inductive/Rules/Translation.lean`) is now `TrSyn` itself (an abbreviation kept for
-`Inductive/Prelude/EqSyntax.lean`), and its former lemmas are the `TrSyn` lemmas: the
-right-hand-side derivations `RecursorCheck.ruleRhsSyn` are `TrSyn` derivations. -/
+The right-hand-side derivations `RecursorCheck.ruleRhsSyn` (`Inductive/Rules/Translation.lean`)
+are `TrSyn` derivations. -/
 
 namespace VerifyInductive
 

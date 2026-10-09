@@ -435,9 +435,9 @@ theorem NestedExpansionLookupCtx.ofFalse
       (fun _ _ Hfalse => False.elim Hfalse) Hctx Hsource Htarget
   exact Hfalse.map (fun Hfalse => False.elim Hfalse)
 
-/-- Expressions whose translation cannot inspect local declarations.  This
-is deliberately smaller than `TrExprS.IsUnique`: it excludes variables, so
-translations are unique even when their source and target contexts differ. -/
+/-- Expressions whose translation cannot inspect local declarations: no
+variables, so translations are unique even when their source and target
+contexts differ. -/
 inductive TrExprS.ContextFree : Expr → Prop
   | sort : ContextFree (.sort level)
   | const : ContextFree (.const name levels)

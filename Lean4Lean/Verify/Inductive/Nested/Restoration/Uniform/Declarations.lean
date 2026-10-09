@@ -385,26 +385,26 @@ private theorem forall₂_concat {R : α → β → Prop} {a : α} {b : β} :
   | _, _, .nil, h => .cons h .nil
   | _, _, .cons h t, hab => .cons h (forall₂_concat t hab)
 
-theorem TrExprS.mkAppList_const_inv {env : VEnv} {Us : List Name} {Δ : VLCtx}
+theorem TrSyn.mkAppList_const_inv {Us : List Name} {Δ : VLCtx}
     {c : Name} {us : List Level} :
     ∀ {args : List Expr} {e' : VExpr},
-      TrExprS env Us Δ (Expr.mkAppList (.const c us) args) e' →
+      TrSyn Us Δ (Expr.mkAppList (.const c us) args) e' →
       ∃ us' args', e' = VExpr.mkApps (.const c us') args' ∧ us'.length = us.length ∧
-        List.Forall₂ (TrExprS env Us Δ) args args' := by
+        List.Forall₂ (TrSyn Us Δ) args args' := by
   intro args
   obtain ⟨rargs, rfl⟩ : ∃ r : List Expr, args = r.reverse := ⟨args.reverse, by simp⟩
   induction rargs with
   | nil =>
     intro e' H
     cases H with
-    | const _ hus _ =>
+    | const hus =>
       exact ⟨_, [], rfl, (VerifyInductive.checkPositivityStep.List.mapM_some_length hus).symm, .nil⟩
   | cons a init ih =>
     intro e' H
     rw [List.reverse_cons, Expr.mkAppList_append] at H
     simp only [Expr.mkAppList] at H
     cases H with
-    | app _ _ Hf Ha =>
+    | app Hf Ha =>
       obtain ⟨us', args', rfl, hus, Hargs⟩ := ih Hf
       refine ⟨us', args' ++ [_], ?_, hus,
         by rw [List.reverse_cons]; exact forall₂_concat Hargs Ha⟩
@@ -422,8 +422,8 @@ private theorem ctx_cons {Δ : VLCtx}
 
 /-- Translation of head-free source syntax is head-applied (heads may still
 enter through let-bound values of the context, which are assumed applied). -/
-theorem TrExprS.headsApplied_of_avoids {env : VEnv} {Us : List Name} {Δ : VLCtx}
-    {e : Expr} {e' : VExpr} (H : TrExprS env Us Δ e e') :
+theorem TrSyn.headsApplied_of_avoids {Us : List Name} {Δ : VLCtx}
+    {e : Expr} {e' : VExpr} (H : TrSyn Us Δ e e') :
     e.AvoidsConsts heads → (∀ x ∈ Δ, VExpr.HeadsApplied heads n k x.2.value) →
       VExpr.HeadsApplied heads n k e' := by
   induction H with
@@ -433,48 +433,53 @@ theorem TrExprS.headsApplied_of_avoids {env : VEnv} {Us : List Name} {Δ : VLCtx
   | const =>
     intro hav _
     cases hav with | const _ _ h => exact .const h
-  | app _ _ _ _ ihf iha =>
+  | app _ _ ihf iha =>
     intro hav hΔ
     cases hav with | app _ _ hf ha => exact .app (ihf hf hΔ) (iha ha hΔ)
-  | lam _ _ _ iht ihb =>
+  | lam _ _ iht ihb =>
     intro hav hΔ
     cases hav with
     | lam _ _ _ _ ht hb => exact .lam (iht ht hΔ) (ihb hb (ctx_cons hΔ (.bvar 0)))
-  | forallE _ _ _ _ iht ihb =>
+  | forallE _ _ iht ihb =>
     intro hav hΔ
     cases hav with
     | forallE _ _ _ _ ht hb => exact .forallE (iht ht hΔ) (ihb hb (ctx_cons hΔ (.bvar 0)))
-  | letE _ _ _ _ _ ihv ihb =>
+  | letE _ _ _ _ ihv ihb =>
     intro hav hΔ
     cases hav with
     | letE _ _ _ _ _ _ hv hb => exact ihb hb (ctx_cons hΔ (ihv hv hΔ))
-  | lit _ _ ih =>
+  | lit _ ih =>
     intro hav hΔ
     cases hav with | lit _ h => exact ih h hΔ
   | mdata _ ih =>
     intro hav hΔ
     cases hav with | mdata _ _ h => exact ih h hΔ
-  | proj _ hproj ih =>
+  | proj _ ih =>
     intro hav hΔ
     cases hav with | proj _ _ _ h => exact .proj (ih h hΔ)
 
+theorem TrExprS.headsApplied_of_avoids {env : VEnv} {Us : List Name} {Δ : VLCtx}
+    {e : Expr} {e' : VExpr} (H : TrExprS env Us Δ e e') :
+    e.AvoidsConsts heads → (∀ x ∈ Δ, VExpr.HeadsApplied heads n k x.2.value) →
+      VExpr.HeadsApplied heads n k e' := H.toTrSyn.headsApplied_of_avoids
+
 /-- **Transport of head arity along the expression translation.** -/
-theorem _root_.Lean.Expr.HeadsApplied.trExprS {env : VEnv} {Us : List Name}
+theorem _root_.Lean.Expr.HeadsApplied.trSyn {Us : List Name}
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts heads)
     {e : Expr} (H : e.HeadsApplied heads n k) :
     ∀ {Δ : VLCtx} {e' : VExpr}, (∀ x ∈ Δ, VExpr.HeadsApplied heads n k x.2.value) →
-      TrExprS env Us Δ e e' → VExpr.HeadsApplied heads n k e' := by
+      TrSyn Us Δ e e' → VExpr.HeadsApplied heads n k e' := by
   induction H with
   | @occurrence c us args hc hus hlen _ ih =>
     intro Δ e' hΔ Htr
-    obtain ⟨us', args', rfl, hus', Hargs⟩ := TrExprS.mkAppList_const_inv Htr
+    obtain ⟨us', args', rfl, hus', Hargs⟩ := TrSyn.mkAppList_const_inv Htr
     refine .occurrence hc (hus'.trans hus) (by rw [← List.Forall₂.length_eq Hargs]; exact hlen)
       fun a' ha' => ?_
     obtain ⟨a, ha, Ha⟩ := Lean4Lean.List.Forall₂.forall_exists_r Hargs a' ha'
     exact ih a ha hΔ Ha
   | app _ _ ihf iha =>
     intro Δ e' hΔ Htr
-    cases Htr with | app _ _ Hf Ha => exact .app (ihf hΔ Hf) (iha hΔ Ha)
+    cases Htr with | app Hf Ha => exact .app (ihf hΔ Hf) (iha hΔ Ha)
   | const hc =>
     intro Δ e' hΔ Htr
     cases Htr with | const => exact .const hc
@@ -489,20 +494,20 @@ theorem _root_.Lean.Expr.HeadsApplied.trExprS {env : VEnv} {Us : List Name}
   | lit l =>
     intro Δ e' hΔ Htr
     cases Htr with
-    | lit _ Hl =>
-      cases hlit l with | lit _ h => exact TrExprS.headsApplied_of_avoids Hl h hΔ
+    | lit Hl =>
+      cases hlit l with | lit _ h => exact TrSyn.headsApplied_of_avoids Hl h hΔ
   | lam _ _ iht ihb =>
     intro Δ e' hΔ Htr
     cases Htr with
-    | lam _ Ht Hb => exact .lam (iht hΔ Ht) (ihb (ctx_cons hΔ (.bvar 0)) Hb)
+    | lam Ht Hb => exact .lam (iht hΔ Ht) (ihb (ctx_cons hΔ (.bvar 0)) Hb)
   | forallE _ _ iht ihb =>
     intro Δ e' hΔ Htr
     cases Htr with
-    | forallE _ _ Ht Hb => exact .forallE (iht hΔ Ht) (ihb (ctx_cons hΔ (.bvar 0)) Hb)
+    | forallE Ht Hb => exact .forallE (iht hΔ Ht) (ihb (ctx_cons hΔ (.bvar 0)) Hb)
   | letE _ _ _ _ ihv ihb =>
     intro Δ e' hΔ Htr
     cases Htr with
-    | letE _ _ Hv Hb => exact ihb (ctx_cons (d := .vlet _ _) hΔ (ihv hΔ Hv)) Hb
+    | letE _ Hv Hb => exact ihb (ctx_cons (d := .vlet _ _) hΔ (ihv hΔ Hv)) Hb
   | mdata _ ih =>
     intro Δ e' hΔ Htr
     cases Htr with | mdata He => exact ih hΔ He
@@ -510,6 +515,13 @@ theorem _root_.Lean.Expr.HeadsApplied.trExprS {env : VEnv} {Us : List Name}
     intro Δ e' hΔ Htr
     cases Htr with
     | proj He => exact .proj (ih hΔ He)
+
+theorem _root_.Lean.Expr.HeadsApplied.trExprS {env : VEnv} {Us : List Name}
+    (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts heads)
+    {e : Expr} (H : e.HeadsApplied heads n k) {Δ : VLCtx} {e' : VExpr}
+    (hΔ : ∀ x ∈ Δ, VExpr.HeadsApplied heads n k x.2.value)
+    (Htr : TrExprS env Us Δ e e') : VExpr.HeadsApplied heads n k e' :=
+  H.trSyn hlit hΔ Htr.toTrSyn
 
 end Transport
 

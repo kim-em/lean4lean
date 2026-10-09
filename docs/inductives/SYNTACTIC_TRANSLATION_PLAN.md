@@ -233,36 +233,30 @@ not an `@[induction_eliminator]`: it needs `henv` and `hΔ`, which such an elimi
 so a consumer writes `TrTyped.induction henv (motive := ...) ... hΔ H` (the test rebuilds
 `TrExprS` with it) or `induction H.toTrExprS henv hΔ`.
 
-**Step 5. Migrate consumers that use only syntax.** Where a proof uses a `TrExprS` hypothesis
-only to locate a target, compare targets, or move a source between contexts, replace it by
-`TrSyn`. Candidates by grep: the 71 `induction` proofs over `TrExprS` (18 files), most of which
-never use the typing arms (`Nested/Restoration/*` 6 files, `ProjNames.lean`,
-`TableAgreement.lean`, `RecursorRenaming.lean`, `CommutationUniform.lean`,
-`Declarations.lean`, `TranslationPreservation.lean`, `DeclarationUniverses.lean`,
-`Assembly.lean`, `EquivManager.lean`), and the context movers in the primitive files
-(`TrExprS.peel_outer`, `MLCtx.trExprS_dropN_nat`: 14 references; their syntactic half is
-`TrSyn.lowerBV`, the typed half stays a substitution argument because it is typing
-strengthening). Order: `Verify/Typing` (210 occurrences), `Verify/Environment` (533),
-`Verify/TypeChecker` (291), then `Verify/Inductive` (2,010) bottom-up along imports. Size:
-estimated a quarter of the 3,116 occurrences change, about 750 lines touched, mostly in
-statements of auxiliary lemmas. Risk: medium; each file is independent, but the inductive
-pipeline's frame records (`Inductive/Context.lean`, 141 occurrences) are shared by many files
-and should be migrated in one step.
-
-Refined after steps 1 to 4 (counts on `agent/verify-inductives-trsyn`): 3,266 `TrExprS`
-occurrences in 171 files, of which 1,038 are in the files of the `-descriptor` rewrite
-(`Verify/Environment/**`, `Verify/TypeChecker*`, `Inductive/{Install,Nested/Install,Primitive,
-Prelude}/**`), so step 5 is best done after it lands, starting with the deferred step-2 items
-(`noProj`/`IsUnique` in the primitive files: callers switch to `unique_of_syn`/`uniqueCtx` and
-drop the argument; `EqSyntax.lean` to `TrSyn`, then delete the `TrExprSyn` abbreviation). Two
-lessons from step 2 lower the estimate: most "syntax-only" uses are uniqueness or scoping
-arguments, which are already one-liners through `toTrSyn` without changing the hypothesis to
-`TrSyn` (the `IsUnique` retirement touched 10 files for -248 lines that way); and a migration
-pays off only where it removes a typing *argument* (`henv`, `hΔ`), which the `TrTyped`
-transports now offer only when the consumer can produce `Δ.WF` to enter `TrTyped`. Revised
-size: about 400 lines touched (not 750), concentrated in the `induction` proofs that never use
-the typing arms; the frame records stay on `TrExprS`, since their contexts are built before
-their well-formedness is known (section 5).
+**Step 5. Migrate consumers that use only syntax. Done** (commit `refactor: retire IsUnique,
+noProj and TrExprSyn`). The deferred step-2 items: `Inductive/Prelude/EqSyntax.lean` builds `TrSyn`
+derivations directly, and the `TrExprSyn` abbreviation with its constructor aliases is deleted.
+`TrExprS.IsUnique` (with its three literal lemmas) and `TrExprS.unique'` are deleted;
+`TrExprS.unique` lost its `IsUnique` argument (it is `unique_of_syn`), and its 76 callers in
+`Verify/Environment/Primitive/*`, `Inductive/Primitive/*`, `Inductive/Prelude/Eq.lean`,
+`TypeChecker/{Reduce,IsDefEq}.lean` dropped the argument. `noProj` is deleted: it was only needed
+because `TrExprS.weakR` did not transport the typing premise of `proj`, which it now does like the
+other premises (weakening of the projection's typing), so `weakR`, `of_nil_any`,
+`of_nil_unique`, `app1_nil_inv`, `app2_nil_inv`, `Condition.dite_tr_inv`/`dite_tr_inv'` and
+`Condition.WF.natEq_decideTr` lost their `noProj` hypotheses, `CondOK` lost its `noProj`
+conjunct (so `Condition.OK` is weaker and every theorem assuming it stronger), and
+`Data.mkTyEq`/`mkTyEq1` lost `hcodU`. Induction proofs over `TrExprS` that never use the typing
+arms moved to `TrSyn`, with the `TrExprS` statements kept as one-line corollaries:
+`TrSyn.projNamesOK_of_source`, `TrSyn.headsApplied_of_avoids`, `Expr.HeadsApplied.trSyn` (with
+`TrSyn.mkAppList_const_inv`, replacing the `TrExprS` version, which had no other user).
+**Departures.** The other `induction` proofs over `TrExprS` listed in section 2 use the typing
+arms (`TrExprS.mono`, `instL`, `substLevelParamsCore*`, `prependLevelParam_of_fresh`,
+`avoids_of_constants`, `RelevantEq.uniq`, `targetProjsRegistered`, `projsRegistered`) or are
+inductions over other relations that the grep counted; they stay. The context movers
+`peel_outer`/`trExprS_dropN_nat` stay typed: their syntactic half is already a one-liner and the
+typed half is the substitution argument of section 4. `Recursor/Context/ForallTelescope.lean` and
+the frame records (`Inductive/Context.lean`) were left alone (concurrently refactored on the
+mainline; section 5). Net: 20 files, about -150 lines.
 
 **Step 6. Telescope certificates on `TelWF`.** Restate `CtorTelescopeAt` as
 `∃ T, trSyn? ci.levelParams [] ci.type = some T ∧ TelWF ...` (`CtorTelescopeAt.iff_trSyn`

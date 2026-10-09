@@ -422,7 +422,7 @@ theorem PrimitiveHeaderEnvironment.checkedConstructors
         (.sort (.succ .zero)) (.sort (.succ .zero)) :=
       TrExprS.sort (by rw [hlparams]; rfl)
     have htargetType : target.type = .sort (.succ .zero) :=
-      TrExprS.unique (by trivial) Htarget.header.type htargetTypeTr
+      TrExprS.unique Htarget.header.type htargetTypeTr
     have htargetUvars : target.uvars = 0 := by
       simpa [hlparams] using Htarget.header.uvars
     have htargetLookup : H.context.venv.constants target.name =
@@ -437,10 +437,10 @@ theorem PrimitiveHeaderEnvironment.checkedConstructors
       · simp [htargetUvars]
     have hfalseType : falseVal.type = .const target.name [] := by
       simpa [VExpr.bool, Htarget.header.name] using
-        TrExprS.unique (by trivial) Hfalse.type hcanonical
+        TrExprS.unique Hfalse.type hcanonical
     have htrueType : trueVal.type = .const target.name [] := by
       simpa [VExpr.bool, Htarget.header.name] using
-        TrExprS.unique (by trivial) Htrue.type hcanonical
+        TrExprS.unique Htrue.type hcanonical
     have htargetShape := H.headers.typeShapes target (by simp [hdeclTypes])
     have hsourceWF : sourceEnv.WF := by
       simpa [H.sourceContextVEnv] using H.sourceContext.checking.tr.wf
@@ -498,7 +498,7 @@ theorem PrimitiveHeaderEnvironment.checkedConstructors
         (.sort (.succ .zero)) (.sort (.succ .zero)) :=
       TrExprS.sort (by rw [hlparams]; rfl)
     have htargetType : target.type = .sort (.succ .zero) :=
-      TrExprS.unique (by trivial) Htarget.header.type htargetTypeTr
+      TrExprS.unique Htarget.header.type htargetTypeTr
     have htargetUvars : target.uvars = 0 := by
       simpa [hlparams] using Htarget.header.uvars
     have htargetLookup : H.context.venv.constants target.name =
@@ -513,7 +513,7 @@ theorem PrimitiveHeaderEnvironment.checkedConstructors
       · simp [htargetUvars]
     have hzeroType : zeroVal.type = .const target.name [] := by
       simpa [VExpr.nat, Htarget.header.name] using
-        TrExprS.unique (by trivial) Hzero.type hnatCanonical
+        TrExprS.unique Hzero.type hnatCanonical
     have hsuccCanonical : TrExprS H.context.venv c.lparams []
         (.forallE binderName (.const ``Nat []) (.const ``Nat []) binderInfo)
         (.forallE .nat .nat) := by
@@ -534,7 +534,7 @@ theorem PrimitiveHeaderEnvironment.checkedConstructors
         · simp [hlparams]
         · simp [htargetUvars]
     have hsuccType : succVal.type = .forallE .nat .nat :=
-      TrExprS.unique (by trivial) Hsucc.type hsuccCanonical
+      TrExprS.unique Hsucc.type hsuccCanonical
     have htargetShape := H.headers.typeShapes target (by simp [hdeclTypes])
     have hsourceWF : sourceEnv.WF := by
       simpa [H.sourceContextVEnv] using H.sourceContext.checking.tr.wf
@@ -625,7 +625,7 @@ theorem PrimitiveHeaderEnvironment.constructorTails
     rcases List.Forall₂.leftPair Htarget.ctors with
       ⟨falseVal, trueVal, htargetCtors, Hfalse, Htrue⟩
     have htargetType : target.type = .sort (.succ .zero) := by
-      apply TrExprS.unique (by trivial) Htarget.header.type
+      apply TrExprS.unique Htarget.header.type
       exact TrExprS.sort (by rw [hlparams]; rfl)
     have htargetUvars : target.uvars = 0 := by
       simpa [hlparams] using Htarget.header.uvars
@@ -647,7 +647,7 @@ theorem PrimitiveHeaderEnvironment.constructorTails
         · simp [hlparams]
         · simp [htargetUvars]
       simpa [VExpr.bool, Htarget.header.name] using
-        TrExprS.unique (by trivial) Hfalse.type hcanonical
+        TrExprS.unique Hfalse.type hcanonical
     have htrueType : trueVal.type = .const target.name [] := by
       have hcanonical : TrExprS H.context.venv c.lparams []
           (.const ``Bool []) .bool := by
@@ -656,7 +656,7 @@ theorem PrimitiveHeaderEnvironment.constructorTails
         · simp [hlparams]
         · simp [htargetUvars]
       simpa [VExpr.bool, Htarget.header.name] using
-        TrExprS.unique (by trivial) Htrue.type hcanonical
+        TrExprS.unique Htrue.type hcanonical
     have HfalseTail := primitiveResultTailCertificate hdeclTypes
       hdeclUvars hdeclParams htargetUvars hnindices htargetLookup htargetType
     have HtrueTail := primitiveResultTailCertificate hdeclTypes
@@ -709,7 +709,7 @@ theorem PrimitiveHeaderEnvironment.constructorTails
     rcases List.Forall₂.leftPair Htarget.ctors with
       ⟨zeroVal, succVal, htargetCtors, Hzero, Hsucc⟩
     have htargetType : target.type = .sort (.succ .zero) := by
-      apply TrExprS.unique (by trivial) Htarget.header.type
+      apply TrExprS.unique Htarget.header.type
       exact TrExprS.sort (by rw [hlparams]; rfl)
     have htargetUvars : target.uvars = 0 := by
       simpa [hlparams] using Htarget.header.uvars
@@ -731,7 +731,7 @@ theorem PrimitiveHeaderEnvironment.constructorTails
       · simp [htargetUvars]
     have hzeroType : zeroVal.type = .const target.name [] := by
       simpa [VExpr.nat, Htarget.header.name] using
-        TrExprS.unique (by trivial) Hzero.type hnatCanonical
+        TrExprS.unique Hzero.type hnatCanonical
     have hsuccCanonical : TrExprS H.context.venv c.lparams []
         (.forallE binderName (.const ``Nat []) (.const ``Nat []) binderInfo)
         (.forallE .nat .nat) := by
@@ -752,7 +752,7 @@ theorem PrimitiveHeaderEnvironment.constructorTails
         · simp [hlparams]
         · simp [htargetUvars]
     have hsuccType : succVal.type = .forallE .nat .nat :=
-      TrExprS.unique (by trivial) Hsucc.type hsuccCanonical
+      TrExprS.unique Hsucc.type hsuccCanonical
     have HzeroTail := primitiveResultTailCertificate hdeclTypes
       hdeclUvars hdeclParams htargetUvars hnindices htargetLookup htargetType
     have HsuccTail := primitiveNatSuccTailCertificate hdeclTypes
@@ -823,7 +823,7 @@ theorem PrimitiveHeaderEnvironment.ownerNormalForms
     rcases List.Forall₂.leftSingleton Htypes with
       ⟨target, hdeclTypes, Htarget⟩
     have htargetType : target.type = .sort (.succ .zero) := by
-      apply TrExprS.unique (by trivial) Htarget.header.type
+      apply TrExprS.unique Htarget.header.type
       exact TrExprS.sort (by rw [hlparams]; rfl)
     have hsourceWF : sourceEnv.WF := by
       simpa [H.sourceContextVEnv] using H.sourceContext.checking.tr.wf
@@ -865,7 +865,7 @@ theorem PrimitiveHeaderEnvironment.ownerNormalForms
     rcases List.Forall₂.leftSingleton Htypes with
       ⟨target, hdeclTypes, Htarget⟩
     have htargetType : target.type = .sort (.succ .zero) := by
-      apply TrExprS.unique (by trivial) Htarget.header.type
+      apply TrExprS.unique Htarget.header.type
       exact TrExprS.sort (by rw [hlparams]; rfl)
     have hsourceWF : sourceEnv.WF := by
       simpa [H.sourceContextVEnv] using H.sourceContext.checking.tr.wf
@@ -978,7 +978,7 @@ theorem PrimitiveHeaderEnvironment.checkedClasses
     rcases List.Forall₂.leftSingleton Htypes with
       ⟨target, hdeclTypes, Htarget⟩
     have htargetType : target.type = .sort (.succ .zero) := by
-      apply TrExprS.unique (by trivial) Htarget.header.type
+      apply TrExprS.unique Htarget.header.type
       exact TrExprS.sort (by rw [hlparams]; rfl)
     have hsourceWF : sourceEnv.WF := by
       simpa [H.sourceContextVEnv] using H.sourceContext.checking.tr.wf

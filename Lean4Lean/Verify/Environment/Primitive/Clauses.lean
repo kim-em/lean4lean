@@ -34,7 +34,7 @@ theorem checkNatAdd.WF {ves : VEnvs} (wf : ves.WF env)
     P.contains (by simp [Environment.primitives, NameSet.contains, NameSet.ofList])
   refine .getEnv <| elseFail fun h1 => elseFail fun h2 => ?_
   simp at h1; specialize hnat h1.1
-  have tyeq := P.mkTyEq hnat (by simp [TrExprS.IsUnique]) (natCod hnat) h2
+  have tyeq := P.mkTyEq hnat (natCod hnat) h2
   refine .withNatProbe wf.hasPrimitives hnat .rfl ?_; intro idx m _ _ _ hres hx
   -- the first probe: `v.value x 0 ≡ x`
   refine .bind (isDefEq.WF (TrTerm.natBinApp (P.hv tyeq m) hx (zerob hnat)).trS hx.trS)
@@ -64,7 +64,7 @@ theorem checkNatPred.WF {ves : VEnvs} (wf : ves.WF env)
     P.contains (by simp [Environment.primitives, NameSet.contains, NameSet.ofList])
   refine .getEnv <| elseFail fun h1 => elseFail fun h2 => ?_
   simp at h1; specialize hnat h1.1
-  have tyeq := P.mkTyEq1 hnat (by simp [TrExprS.IsUnique]) (natCod1 hnat) h2
+  have tyeq := P.mkTyEq1 hnat (natCod1 hnat) h2
   -- the first probe: `v.value 0 ≡ 0`
   refine .bind (isDefEq.WF (TrTerm.natUnApp (P.hv tyeq ctx.mlctx) (zerob hnat)).trS
       (zerob hnat).trS) fun _ _ _ hb => elseFail ((fun hb' => ?_) ∘ hb)
@@ -87,7 +87,7 @@ theorem checkNatSub.WF {ves : VEnvs} (wf : ves.WF env)
   simp at h1
   have hpred := VContext.contains_primitive rfl h1.1
   have hnat := wf.hasPrimitives.natOfPred ctx.Ewf.ordered hpred
-  have tyeq := P.mkTyEq hnat (by simp [TrExprS.IsUnique]) (natCod hnat) h2
+  have tyeq := P.mkTyEq hnat (natCod hnat) h2
   refine .withNatProbe wf.hasPrimitives hnat .rfl ?_; intro idx m _ _ _ hres hx
   -- the first probe: `v.value x 0 ≡ x`
   refine .bind (isDefEq.WF (TrTerm.natBinApp (P.hv tyeq m) hx (zerob hnat)).trS hx.trS)
@@ -116,7 +116,7 @@ theorem checkNatMul.WF {ves : VEnvs} (wf : ves.WF env)
   simp at h1
   have hadd := VContext.contains_primitive rfl h1.1
   have hnat := wf.hasPrimitives.natOfAdd ctx.Ewf.ordered hadd
-  have tyeq := P.mkTyEq hnat (by simp [TrExprS.IsUnique]) (natCod hnat) h2
+  have tyeq := P.mkTyEq hnat (natCod hnat) h2
   refine .withNatProbe wf.hasPrimitives hnat .rfl ?_; intro idx m _ _ _ hres hx
   -- the first probe: `v.value x 0 ≡ 0` -- a literal base, not `x`
   refine .bind (isDefEq.WF (TrTerm.natBinApp (P.hv tyeq m) hx (zerob hnat)).trS (zerob hnat).trS)
@@ -146,7 +146,7 @@ theorem checkNatPow.WF {ves : VEnvs} (wf : ves.WF env)
   simp at h1
   have hmul := VContext.contains_primitive rfl h1.1
   have hnat := wf.hasPrimitives.natOfMul ctx.Ewf.ordered hmul
-  have tyeq := P.mkTyEq hnat (by simp [TrExprS.IsUnique]) (natCod hnat) h2
+  have tyeq := P.mkTyEq hnat (natCod hnat) h2
   refine .withNatProbe wf.hasPrimitives hnat .rfl ?_; intro idx m _ _ _ hres hx
   -- the first probe: `v.value x 0 ≡ succ 0`; the base is `one`, spelled as a constructor
   -- application rather than a numeral, which is `.natLit 1` on the model side
@@ -180,7 +180,7 @@ theorem checkNatBoolCases.WF {ves : VEnvs} (wf : ves.WF env) {F} (b0s : Bool)
   refine .getEnv <| elseFail fun h1 => elseFail fun h2 => ?_
   simp at h1; specialize hnat h1.1.1
   have hbool := VContext.contains_primitive rfl h1.1.2
-  have tyeq := P.mkTyEq hnat (by simp [TrExprS.IsUnique]) (boolCod hnat hbool) h2
+  have tyeq := P.mkTyEq hnat (boolCod hnat hbool) h2
   -- `v.value 0 0 ≡ true`
   refine .bind (isDefEq.WF
     (TrTerm.natBinApp (P.hv tyeq ctx.mlctx) (zerob hnat) (zerob hnat)).trS
@@ -231,7 +231,7 @@ theorem checkNatLAnd.WF {ves : VEnvs} (wf : ves.WF env)
   have hbw := VContext.contains_primitive rfl h1.1
   have hnat := TrExprS.contains_nat_of_natArrow2 (P.htype.eqv h2)
   have hbool := wf.hasPrimitives.boolOfBitwise ctx.Ewf.ordered hbw
-  have tyeq := P.mkTyEq hnat (by simp [TrExprS.IsUnique]) (natCod hnat) h2
+  have tyeq := P.mkTyEq hnat (natCod hnat) h2
   split <;> [rename_i opSrc heq; exact .throw]
   obtain ⟨op, hVeq, hop, hopT⟩ := TrExprS.bitwiseOperand ctx.Ewf wf.hasPrimitives (heq ▸ P.hvalue)
   let opb (m : MLCtx) [cwf : ctx.MLCWF m] := TrTerm.of_nil' ctx.Ewf m.noBV cwf.wf.tr.wf hop hopT
@@ -258,7 +258,7 @@ theorem checkNatLOr.WF {ves : VEnvs} (wf : ves.WF env)
   have hbw := VContext.contains_primitive rfl h1.1
   have hnat := TrExprS.contains_nat_of_natArrow2 (P.htype.eqv h2)
   have hbool := wf.hasPrimitives.boolOfBitwise ctx.Ewf.ordered hbw
-  have tyeq := P.mkTyEq hnat (by simp [TrExprS.IsUnique]) (natCod hnat) h2
+  have tyeq := P.mkTyEq hnat (natCod hnat) h2
   split <;> [rename_i opSrc heq; exact .throw]
   obtain ⟨op, hVeq, hop, hopT⟩ := (heq ▸ P.hvalue).bitwiseOperand ctx.Ewf wf.hasPrimitives
   let opb (m : MLCtx) [cwf : ctx.MLCWF m] := TrTerm.of_nil' ctx.Ewf m.noBV cwf.wf.tr.wf hop hopT
@@ -286,7 +286,7 @@ theorem checkNatXor.WF {ves : VEnvs} (wf : ves.WF env)
   have hbw := VContext.contains_primitive rfl h1.1
   have hnat := TrExprS.contains_nat_of_natArrow2 (P.htype.eqv h2)
   have hbool := wf.hasPrimitives.boolOfBitwise ctx.Ewf.ordered hbw
-  have tyeq := P.mkTyEq hnat (by simp [TrExprS.IsUnique]) (natCod hnat) h2
+  have tyeq := P.mkTyEq hnat (natCod hnat) h2
   split <;> [rename_i opSrc heq; exact .throw]
   obtain ⟨op, hVeq, hop, hopT⟩ := TrExprS.bitwiseOperand ctx.Ewf wf.hasPrimitives (heq ▸ P.hvalue)
   let opb (m : MLCtx) [cwf : ctx.MLCWF m] := TrTerm.of_nil' ctx.Ewf m.noBV cwf.wf.tr.wf hop hopT
@@ -319,7 +319,7 @@ theorem checkNatShiftLeft.WF {ves : VEnvs} (wf : ves.WF env)
   simp at h1
   have hmul := VContext.contains_primitive rfl h1.1
   have hnat := wf.hasPrimitives.natOfMul ctx.Ewf.ordered hmul
-  have tyeq := P.mkTyEq hnat (by simp [TrExprS.IsUnique]) (natCod hnat) h2
+  have tyeq := P.mkTyEq hnat (natCod hnat) h2
   refine .withNatProbe wf.hasPrimitives hnat .rfl ?_; intro idx m _ _ _ hres hx
   refine .bind (isDefEq.WF (TrTerm.natBinApp (P.hv tyeq m) hx (zerob hnat)).trS hx.trS)
     fun _ _ _ hb => elseFail ((fun hb' => ?_) ∘ hb)
@@ -347,7 +347,7 @@ theorem checkNatShiftRight.WF {ves : VEnvs} (wf : ves.WF env)
   simp at h1
   have hdiv := VContext.contains_primitive rfl h1.1
   have hnat := wf.hasPrimitives.natOfDiv ctx.Ewf.ordered hdiv
-  have tyeq := P.mkTyEq hnat (by simp [TrExprS.IsUnique]) (natCod hnat) h2
+  have tyeq := P.mkTyEq hnat (natCod hnat) h2
   refine .withNatProbe wf.hasPrimitives hnat .rfl ?_; intro idx m _ _ _ hres hx
   refine .bind (isDefEq.WF (TrTerm.natBinApp (P.hv tyeq m) hx (zerob hnat)).trS hx.trS)
     fun _ _ _ hb => elseFail ((fun hb' => ?_) ∘ hb)
@@ -384,7 +384,7 @@ theorem checkCharOfNat.WF {ves : VEnvs} (wf : ves.WF env)
   obtain ⟨rfl, hchAny⟩ := htels.const0_inv (Us' := v.levelParams) (Δ' := [(none, .vlam .nat)])
   refine elseFail fun h2 => .pure ?_
   refine P.mkResultTypeEq (T := .forallE .nat .char) (hok h1.2) (by simp [primSpecs, hname]) ?_
-  exact TrExprS.unique (by simp [TrExprS.IsUnique]) (P.htype.eqv h2)
+  exact TrExprS.unique (P.htype.eqv h2)
     (TrTy.forallE
       (.of (wf.hasPrimitives.trNat ctx.Ewf.ordered hnat) (hNatT hnat (Δ := []) trivial))
       (.of hchAny ⟨_, hchT.weak0 ctx.Ewf.ordered⟩)).trS
