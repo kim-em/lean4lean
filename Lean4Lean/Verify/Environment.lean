@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Environment.Extension
+import Lean4Lean.Verify.Inductive
 import Lean4Lean.Verify.QuotInit
 
 namespace Lean4Lean
@@ -155,20 +156,85 @@ theorem addInductiveDeclaration.WF
   have Hcombined := Hcheck.bind fun _ Hrun => Hrun
   simpa [addDecl] using Hcombined
 
-set_option linter.unusedVariables false in
-/-- LAYER HYPOTHESIS. Environment preservation for inductive declarations: the statement of
-`addInductiveDeclaration.WF_preserves`, which the installation layers of this branch prove
-(`Verify/Inductive/`). Until then the top-level theorems below take it as their first
-argument; the layer that adds the nested installation removes it. -/
-def InductiveDeclPreserves : Prop :=
-  ∀ {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+/-- Complete checked declaration dispatch across the primitive, ordinary,
+and nested execution paths, with the source-facing result: the output environment carries an
+`InductiveExtension` of the submitted declaration.  The executable primitive precheck selects the
+primitive branch; otherwise the verified lowering result selects the ordinary or the nested
+continuation.  Inductive soundness does not depend on the presence or interpretation of the
+prelude's `Eq`.
+The source specification additionally assumes that the source
+declaration has no loose bound variables; the executable only rejects
+metavariables and free variables, and nested lowering would silently repair
+loose bound variables while re-closing constructor types.  Environment
+preservation itself (`WF_preserves`) does not need this hypothesis. -/
+theorem addInductiveDeclaration.WF_spec
+    (hnested : VerifyInductive.NestedInductivePreserves)
+    {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
     (isUnsafe : Bool) (fuel : FuelConfig)
-    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety)),
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
+    (HsourcesB : VerifyInductive.SourceBVarClosed types) :
+    (addDecl env (.inductDecl lparams nparams types isUnsafe)
+      (check := true) (fuel := fuel)).WF fun outEnv =>
+        Nonempty (VerifyInductive.InductiveExtension env outEnv ves lparams
+          nparams types isUnsafe) := by
+  apply addInductiveDeclaration.WF env lparams nparams types isUnsafe fuel
+    (fun outEnv => Nonempty (VerifyInductive.InductiveExtension env outEnv ves
+      lparams nparams types isUnsafe))
+  intro allowPrimitive hallow
+  cases allowPrimitive with
+  | false =>
+    exact VerifyInductive.Environment.addInductive.inductiveExtensionWF hnested
+      env lparams nparams types isUnsafe fuel ves wf hmode HsourcesB
+  | true =>
+    have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
+        nparams types isUnsafe :=
+      (VerifyInductive.checkPrimitiveInductive_eq_true_iff env lparams
+        nparams types isUnsafe).mp hallow
+    exact
+      VerifyInductive.Environment.addInductive.primitiveInductiveExtensionWF
+        env lparams nparams types isUnsafe fuel ves wf hmode Hprimitive
+
+/-- Environment preservation for the complete inductive declaration dispatch: the invariant
+and monotonicity of every safety-indexed model.  It has no hypothesis on the source declaration: it is derived from the
+well-formedness halves of the three execution branches, not from the
+source-facing specification. -/
+theorem addInductiveDeclaration.WF_preserves
+    (hnested : VerifyInductive.NestedInductivePreserves)
+    {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (lparams : List Name) (nparams : Nat) (types : List InductiveType)
+    (isUnsafe : Bool) (fuel : FuelConfig)
+    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety)) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧
-          (∀ safety, ves.venv safety ≤ ves'.venv safety)
+          (∀ safety, ves.venv safety ≤ ves'.venv safety) := by
+  apply addInductiveDeclaration.WF env lparams nparams types isUnsafe fuel
+    (fun outEnv => ∃ ves' : VEnvs, ves'.WF outEnv ∧
+      (∀ safety, ves.venv safety ≤ ves'.venv safety))
+  intro allowPrimitive hallow
+  cases allowPrimitive with
+  | false =>
+    apply VerifyInductive.Environment.addInductive.checkedLoweringClosedWF
+      env lparams nparams types isUnsafe false fuel wf.inductivesClosed
+      (VerifyInductive.VEnvs.WF.environmentTypesClosed wf)
+    intro res Hsources Hlower
+    by_cases haux : res.aux2nested.size = 0
+    · exact VerifyInductive.Environment.addInductiveAfterLowering.ordinaryInstalledModelWF
+        env lparams nparams types isUnsafe fuel res ves wf hmode Hlower.toResult haux
+    · exact
+        (hnested
+          env lparams nparams types isUnsafe fuel res ves wf hmode Hsources Hlower
+            haux).mono fun _ ⟨H⟩ => H.modelExtension
+  | true =>
+    have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
+        nparams types isUnsafe :=
+      (VerifyInductive.checkPrimitiveInductive_eq_true_iff env lparams
+        nparams types isUnsafe).mp hallow
+    exact
+      (VerifyInductive.Environment.addInductive.primitiveInductiveExtensionWF
+        env lparams nparams types isUnsafe fuel ves wf hmode Hprimitive).mono
+        fun _ ⟨H⟩ => H.modelExtension
 
 private theorem Except.WF.throw' {e : ε} {Q : α → Prop} : (throw e : Except ε α).WF Q :=
   fun _ h => nomatch h
@@ -260,7 +326,7 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
 /-- `addDecl.WF_quotReadyAt` for any configuration whose cache mode is sound for the input
 models (`CacheMode.Sound`: nothing in the scoped mode, canonical `Eq` in the global mode). -/
 theorem addDecl.WF_quotReadyAt_fuel
-    (hind : InductiveDeclPreserves)
+    (hnested : VerifyInductive.NestedInductivePreserves)
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (decl : Declaration)
     (hq : decl = .quotDecl → ∀ safety, (ves.venv safety).QuotReady)
@@ -283,45 +349,45 @@ theorem addDecl.WF_quotReadyAt_fuel
   | mutualDefnDecl vs =>
     exact addMutual.WF wf vs fuel hmode
   | inductDecl lparams nparams types isUnsafe =>
-    exact hind wf
+    exact addInductiveDeclaration.WF_preserves hnested wf
       lparams nparams types isUnsafe fuel hmode
 
 /-- `addDecl.WF` with quotient readiness assumed only for `quotDecl`, the one form whose
 abstract rule needs it. This is the form a replay from the empty environment uses, since `Eq`
 does not exist before the prelude declares it. -/
 theorem addDecl.WF_quotReadyAt
-    (hind : InductiveDeclPreserves)
+    (hnested : VerifyInductive.NestedInductivePreserves)
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (decl : Declaration)
     (hq : decl = .quotDecl → ∀ safety, (ves.venv safety).QuotReady) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) :=
-  addDecl.WF_quotReadyAt_fuel hind wf decl hq {} fun _ => trivial
+  addDecl.WF_quotReadyAt_fuel hnested wf decl hq {} fun _ => trivial
 
 /-- `addDecl.WF` in either cache mode. In the global mode the hypothesis `hmode` is canonical
 `Eq` at every safety level, from which the mode's `GlobalCacheLicense` gives the strengthening the
 verification of global caches needs. -/
 theorem addDecl.WF_mode
-    (hind : InductiveDeclPreserves)
+    (hnested : VerifyInductive.NestedInductivePreserves)
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (hq : ∀ safety, (ves.venv safety).QuotReady)
     (decl : Declaration) (mode : CacheMode)
     (hmode : ∀ safety, mode.Sound (ves.venv safety)) :
     (addDecl env decl (check := true) (fuel := { cacheMode := mode })).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) :=
-  addDecl.WF_quotReadyAt_fuel hind wf decl (fun _ => hq) _ hmode
+  addDecl.WF_quotReadyAt_fuel hnested wf decl (fun _ => hq) _ hmode
 
 /-- Successful checked addition of a declaration preserves the invariant and extends every
 safety-indexed abstract environment. Quotient initialization needs the abstract `Eq` at every
 safety level (`hq`). This is `addDecl.WF_mode` in the default, scoped cache mode. -/
 theorem addDecl.WF
-    (hind : InductiveDeclPreserves)
+    (hnested : VerifyInductive.NestedInductivePreserves)
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (hq : ∀ safety, (ves.venv safety).QuotReady)
     (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) :=
-  addDecl.WF_mode hind wf hq decl .scoped fun _ => trivial
+  addDecl.WF_mode hnested wf hq decl .scoped fun _ => trivial
 
 /-! ### The empty environment -/
 
@@ -377,45 +443,45 @@ in both modes. Canonical equality is otherwise used only for quotient initializa
 abstract rule types `Quot.lift` against `Eq` at every safety level
 (`VEnv.HasCanonicalEq.quotReady`). -/
 theorem addDecl.WF_of_canonicalEq_mode
-    (hind : InductiveDeclPreserves)
+    (hnested : VerifyInductive.NestedInductivePreserves)
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (decl : Declaration) (mode : CacheMode) :
     (addDecl env decl (check := true) (fuel := { cacheMode := mode })).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  addDecl.WF_mode hind wf (fun safety => (heq safety).quotReady) decl mode
+  addDecl.WF_mode hnested wf (fun safety => (heq safety).quotReady) decl mode
     fun safety => mode.sound_of_canonicalEq (heq safety)
 
 /-- The top-level preservation theorem in the canonical-`Eq` formulation: `WF_of_canonicalEq_mode`
 in the default, scoped cache mode, in which the checker restores its caches when a binder is
 closed, so no strengthening is needed. -/
 theorem addDecl.WF_of_canonicalEq
-    (hind : InductiveDeclPreserves)
+    (hnested : VerifyInductive.NestedInductivePreserves)
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  addDecl.WF_of_canonicalEq_mode hind wf heq decl .scoped
+  addDecl.WF_of_canonicalEq_mode hnested wf heq decl .scoped
 
 /-- Iterable form of `addDecl.WF_of_canonicalEq_mode`. -/
 theorem addDecl.WFHasCanonicalEq_mode
-    (hind : InductiveDeclPreserves)
+    (hnested : VerifyInductive.NestedInductivePreserves)
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (heq : ves.HasCanonicalEq) (decl : Declaration) (mode : CacheMode) :
     (addDecl env decl (check := true) (fuel := { cacheMode := mode })).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ves'.HasCanonicalEq ∧
         ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF_of_canonicalEq_mode hind wf heq decl mode).mono fun _ ⟨ves', wf', hle⟩ =>
+  (addDecl.WF_of_canonicalEq_mode hnested wf heq decl mode).mono fun _ ⟨ves', wf', hle⟩ =>
     ⟨ves', wf', heq.mono hle, hle⟩
 
 /-- Iterable form of `addDecl.WF_of_canonicalEq`: `VEnvs.WF` and canonical equality are
 preserved by the output environments, so the theorem applies again to the next declaration of a
 replay. -/
 theorem addDecl.WFHasCanonicalEq
-    (hind : InductiveDeclPreserves)
+    (hnested : VerifyInductive.NestedInductivePreserves)
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (heq : ves.HasCanonicalEq) (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ves'.HasCanonicalEq ∧
         ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF_of_canonicalEq hind wf heq decl).mono fun _ ⟨ves', wf', hle⟩ =>
+  (addDecl.WF_of_canonicalEq hnested wf heq decl).mono fun _ ⟨ves', wf', hle⟩ =>
     ⟨ves', wf', heq.mono hle, hle⟩

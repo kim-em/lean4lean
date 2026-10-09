@@ -18,11 +18,15 @@ import Lean4Lean.Tests.NestedRecursorReduction
 import Lean4Lean.Tests.SpecializedRecursorShape
 import Lean4Lean.Tests.KNormalization
 import Lean4Lean.Tests.UnitLikeK
+import Lean4Lean.Tests.CorruptRecursorMetadata
 import Lean4Lean.Tests.KernelHardening
 import Lean4Lean.Tests.LevelStd
 import Lean4Lean.Tests.RecursorOracle
 import Lean4Lean.Tests.RecursiveFieldClassification
+import Lean4Lean.Tests.PreludeEq
 import Lean4Lean.Tests.DeclFVar
 import Lean4Lean.Tests.Level
+import Lean4Lean.Tests.TypeAnnotationWrappers
 import Lean4Lean.Tests.StructEtaIota
 import Lean4Lean.Tests.CacheScope
+import Lean4Lean.Tests.SyntacticTranslation
