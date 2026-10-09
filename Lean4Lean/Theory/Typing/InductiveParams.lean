@@ -201,8 +201,8 @@ discharged from `VEnv.PatsIota`; `pat_wf` is `IsDefEq.pat` (recovering a `Realiz
 witness from `Check.OK`); `pat_env` is the identity; `extra_pat` is the design hypothesis
 `hδ : env.DefEqsAsPats U` (see `DefEqsAsPats`). `inductParams` instantiates it, and
 `IsDefEq.crDefEq_of_induct` runs Church–Rosser through the result. -/
-@[reducible] def toParams (env : VEnv) (henv : env.WF) (U : Nat) (hδ : env.DefEqsAsPats U) :
-    Params where
+@[reducible] def toParams (env : VEnv) (henv : env.WF) (U : Nat) (hδ : env.DefEqsAsPats U)
+    (hproj : ∀ n info, ¬ env.projections n info) : Params where
   env := env
   henv := henv
   univs := U
@@ -217,6 +217,7 @@ witness from `Check.OK`); `pat_env` is the identity; `extra_pat` is the design h
   pat_app_uniq := fun hp hp' hs hs' h3 h3' => henv.pat_app_uniq hp hp' hs hs' h3 h3'
   extra_pat := fun h1 h2 h3 => hδ h1 h2 h3
   pat_env := id
+  no_projections := hproj
 
 /-! ### An environment the instance applies to -/
 
@@ -225,19 +226,27 @@ theorem DefEqsAsPats.of_no_defeqs {env : VEnv} {U : Nat} (h : ∀ df, ¬ env.def
     env.DefEqsAsPats U := fun hdf _ _ => absurd hdf (h _)
 
 /-- The `Params` instance for an environment consisting of a single well-formed inductive
-block: `addInduct` registers ι rules and no definitional axiom (`addInduct_defeqs`), so
-`DefEqsAsPats` holds vacuously and `toParams` applies. -/
+block without structures (`hp`: no projection entries, i.e. no family with exactly one
+constructor): `addInduct` registers ι rules and no definitional axiom (`addInduct_defeqs`), so
+`DefEqsAsPats` holds vacuously, and no projection, so `no_projections` holds, and `toParams`
+applies. -/
 @[reducible] def inductParams {decl : VInductDecl} {env : VEnv} (hdecl : decl.WF ∅)
-    (h : VEnv.addInduct ∅ decl = some env) (U : Nat) : Params :=
-  env.toParams ⟨[.induct decl], .decl (.induct hdecl h) .empty⟩ U <|
-    DefEqsAsPats.of_no_defeqs fun _ hdf => by rw [addInduct_defeqs h] at hdf; exact hdf
+    (h : VEnv.addInduct ∅ decl = some env) (hp : decl.projectionEntries = []) (U : Nat) :
+    Params :=
+  env.toParams ⟨[.induct decl], .decl (.induct hdecl h) .empty⟩ U
+    (DefEqsAsPats.of_no_defeqs fun _ hdf => by rw [addInduct_defeqs h] at hdf; exact hdf)
+    fun n info hi => by
+      rcases (addInduct_projections_iff h).1 hi with ⟨entry, he, -⟩ | h0
+      · rw [hp] at he; cases he
+      · exact h0.elim
 
 /-- Church–Rosser for such an environment: definitionally equal terms have parallel
 reduction sequences meeting at `NormalEq` terms. -/
 theorem IsDefEq.crDefEq_of_induct {decl : VInductDecl} {env : VEnv} (hdecl : decl.WF ∅)
-    (h : VEnv.addInduct ∅ decl = some env) {U Γ e₁ e₂ A} (hΓ : OnCtx Γ (env.IsType U))
-    (he : env.IsDefEq U Γ e₁ e₂ A) : @CRDefEq (inductParams hdecl h U) Γ e₁ e₂ :=
-  letI := inductParams hdecl h U
+    (h : VEnv.addInduct ∅ decl = some env) (hp : decl.projectionEntries = []) {U Γ e₁ e₂ A}
+    (hΓ : OnCtx Γ (env.IsType U)) (he : env.IsDefEq U Γ e₁ e₂ A) :
+    @CRDefEq (inductParams hdecl h hp U) Γ e₁ e₂ :=
+  letI := inductParams hdecl h hp U
   IsDefEq.church_rosser hΓ he
 
 end VEnv

@@ -32,7 +32,7 @@ theorem SimAt.refl : env.SimAt U Γ x x := fun _ h => h
 theorem SimAt.trans (h1 : env.SimAt U Γ x y) (h2 : env.SimAt U Γ y z) : env.SimAt U Γ x z :=
   fun _ h => let h1 := h1 _ h; h1.trans (h2 _ h1.hasType.2)
 
-theorem SimAt.app (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U))
+theorem SimAt.app (henv : env.OrderedStrong) (hΓ : OnCtx Γ (env.IsType U))
     (hf : env.SimAt U Γ f f') (ha : env.SimAt U Γ a a') :
     env.SimAt U Γ (.app f a) (.app f' a') := by
   intro T H
@@ -45,7 +45,7 @@ theorem SimAt.app (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U))
     let .app _ _ _ _ _ h1 h2 _ := H
     exact .appDF (hf _ h1.hasType) (ha _ h2.hasType)
 
-theorem SimAt.lam (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U))
+theorem SimAt.lam (henv : env.OrderedStrong) (hΓ : OnCtx Γ (env.IsType U))
     (hd : env.SimAt U Γ d d')
     (hb : OnCtx (d :: Γ) (env.IsType U) → env.SimAt U (d :: Γ) b b') :
     env.SimAt U Γ (.lam d b) (.lam d' b') := by
@@ -59,7 +59,7 @@ theorem SimAt.lam (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U))
     let .lam _ _ h1 _ h2 _ := H
     exact .lamDF (hd _ h1.hasType) (hb ⟨hΓ, _, h1.hasType⟩ _ h2.hasType)
 
-theorem SimAt.forallE (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U))
+theorem SimAt.forallE (henv : env.OrderedStrong) (hΓ : OnCtx Γ (env.IsType U))
     (hd : env.SimAt U Γ d d')
     (hb : OnCtx (d :: Γ) (env.IsType U) → env.SimAt U (d :: Γ) b b') :
     env.SimAt U Γ (.forallE d b) (.forallE d' b') := by
@@ -73,7 +73,7 @@ theorem SimAt.forallE (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U))
     let .forallE _ _ h1 h2 := H
     exact .forallEDF (hd _ h1.hasType) (hb ⟨hΓ, _, h1.hasType⟩ _ h2.hasType)
 
-theorem SimAt.proj (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U))
+theorem SimAt.proj (henv : env.OrderedStrong) (hΓ : OnCtx Γ (env.IsType U))
     (hm : env.SimAt U Γ m m') :
     env.SimAt U Γ (.proj typeName index m) (.proj typeName index m') := by
   intro T H
@@ -88,14 +88,14 @@ theorem SimAt.proj (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U))
     exact .projDF hinfo hlevels huvars hparams hindices hfield hfieldTyping.hasType
       hmajorEq.defeq (hmajorEq.defeq.trans (hm _ hmajor.hasType)) hclosed hguard
 
-theorem SimAt.mkApps (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U))
+theorem SimAt.mkApps (henv : env.OrderedStrong) (hΓ : OnCtx Γ (env.IsType U))
     (hf : env.SimAt U Γ f f') (has : List.Forall₂ (env.SimAt U Γ) as as') :
     env.SimAt U Γ (VExpr.mkApps f as) (VExpr.mkApps f' as') := by
   induction has generalizing f f' with
   | nil => exact hf
   | cons ha _ ih => exact ih (hf.app henv hΓ ha)
 
-theorem HasType.mkApps_head (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U)) :
+theorem HasType.mkApps_head (henv : env.OrderedStrong) (hΓ : OnCtx Γ (env.IsType U)) :
     ∀ {as : List VExpr} {f T : VExpr}, env.HasType U Γ (VExpr.mkApps f as) T →
       ∃ T', env.HasType U Γ f T'
   | [], _, _, h => ⟨_, h⟩
@@ -110,7 +110,7 @@ theorem SimAt.forall₂_refl : ∀ (as : List VExpr), List.Forall₂ (env.SimAt 
 
 theorem WF.betaSubjectReduction (henv : VEnv.WF env) : env.BetaSubjectReduction U := by
   intro Γ A b a hΓ T H
-  obtain ⟨A', B', hf, ha⟩ := H.app_inv henv.ordered hΓ
+  obtain ⟨A', B', hf, ha⟩ := H.app_inv henv hΓ
   -- `T` agrees with the codomain of the application rule.
   have hT : env.IsDefEqU U Γ (B'.inst a) T :=
     let ⟨_, h⟩ := IsDefEq.uniq henv hΓ (.appDF hf ha) H; ⟨_, h⟩
@@ -205,7 +205,7 @@ theorem mkApps_wrapLams :
 
 /-- In a well-formed context, beta reduction is a definitional equality at
 every type of the reduced term. -/
-theorem simAt {env : VEnv} {U : Nat} (henv : env.Ordered)
+theorem simAt {env : VEnv} {U : Nat} (henv : env.OrderedStrong)
     (hβ : env.BetaSubjectReduction U) {x x' : VExpr} (H : BetaRed x x') :
     ∀ {Γ : List VExpr}, OnCtx Γ (env.IsType U) → env.SimAt U Γ x x' := by
   induction H with

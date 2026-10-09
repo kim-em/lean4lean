@@ -99,8 +99,8 @@ theorem HasType.mkApps_rigid_arity₂ (henv : VEnv.WF env)
         (hf.uniqU henv hΓ ht).symm).elim
   | cons arg args ih =>
     have hfa : VExpr.WF env U Γ (.app f arg) :=
-      VExpr.WF.of_mkApps henv.ordered hΓ (f := .app f arg) ⟨_, ht⟩
-    rcases hfa.app_inv henv.ordered hΓ with ⟨A, B, hfun, harg⟩
+      VExpr.WF.of_mkApps henv hΓ (f := .app f arg) ⟨_, ht⟩
+    rcases hfa.app_inv henv hΓ with ⟨A, B, hfun, harg⟩
     cases domains with
     | nil =>
       have ⟨_, hT⟩ := hf.isType henv.ordered hΓ
