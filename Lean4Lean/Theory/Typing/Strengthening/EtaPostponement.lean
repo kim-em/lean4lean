@@ -366,12 +366,14 @@ theorem piExposureRed_of_etaReplayNE (henv : env.WF) (heq : env.HasCanonicalEq)
     (hTF : StrengtheningKripke.TypedFront env)
     (hcase : ∀ U, @CaseRedexDescends (henv.params U))
     (hunfold : ∀ U, @UnfoldingCheckDescends (henv.params U))
+    (hmajor : ∀ U, @MajorEtaDescends (henv.params U))
     (H : ∀ U, @EtaReplayNE (henv.params U)) : PiExposureRedN henv := by
   intro U k Γ Γ' f F u A B W hΓ hΓ' _ hF hr
   letI := henv.params U
   obtain ⟨F', hred, hne⟩ := path_replayNE (H U) W hΓ hΓ' hF (FullReduction.upSteps hr)
   obtain ⟨A₀, B₀, hred'⟩ := EtaNE.forallE_inv_lift ((typedFrontN_iff_typedFront henv heq).mpr hTF)
-    (hcase U) (hunfold U) (fun hp => Params.checkVars henv U hp) W hΓ hΓ' (hred.hasType hΓ hF) hne
+    (hcase U) (hunfold U) (fun hp => Params.checkVars henv U hp) (hmajor U) W hΓ hΓ'
+    (hred.hasType hΓ hF) hne
   exact ⟨A₀, B₀, hred.trans hred'⟩
 
 /-- `TypedFront → Cancel`, given the guard descents, the eta-normal replay obligation and the
@@ -380,27 +382,32 @@ theorem cancel_of_typedFront_ofNE (henv : env.WF) (heq : env.HasCanonicalEq)
     (hTF : StrengtheningKripke.TypedFront env)
     (hcase : ∀ U, @CaseRedexDescends (henv.params U))
     (hunfold : ∀ U, @UnfoldingCheckDescends (henv.params U))
+    (hmajor : ∀ U, @MajorEtaDescends (henv.params U))
     (H : ∀ U, @EtaReplayNE (henv.params U))
     (hProj : ProjFrontN env) (hElim : ElimFrontN env) : Cancel env :=
-  cancel_of_piExposureRed henv heq (piExposureRed_of_etaReplayNE henv heq hTF hcase hunfold H)
+  cancel_of_piExposureRed henv heq
+    (piExposureRed_of_etaReplayNE henv heq hTF hcase hunfold hmajor H)
     ((typeFrontN_iff_typedFront henv heq).mpr hTF) hProj hElim
 
 theorem cancel_iff_typedFront_ofNE (henv : env.WF) (heq : env.HasCanonicalEq)
     (hcase : ∀ U, @CaseRedexDescends (henv.params U))
     (hunfold : ∀ U, @UnfoldingCheckDescends (henv.params U))
+    (hmajor : ∀ U, @MajorEtaDescends (henv.params U))
     (H : ∀ U, @EtaReplayNE (henv.params U)) (hProj : ProjFrontN env) (hElim : ElimFrontN env) :
     Cancel env ↔ StrengtheningKripke.TypedFront env :=
   ⟨fun hc => ((cancel_iff_typedFront_and_closures henv heq).mp hc).1,
-    fun hTF => cancel_of_typedFront_ofNE henv heq hTF hcase hunfold H hProj hElim⟩
+    fun hTF => cancel_of_typedFront_ofNE henv heq hTF hcase hunfold hmajor H hProj hElim⟩
 
-/-- `Cancel ↔ TypedFront` given the closure of `EtaNE` under eta-free steps, the two guard
-descents, `ProjFrontN` and `ElimFrontN`. -/
+/-- `Cancel ↔ TypedFront` given the closure of `EtaNE` under eta-free steps, the three descents
+(`CaseRedexDescends`, `UnfoldingCheckDescends`, `MajorEtaDescends`), `ProjFrontN` and
+`ElimFrontN`. -/
 theorem cancel_iff_typedFront_of_closure (henv : env.WF) (heq : env.HasCanonicalEq)
     (hcase : ∀ U, @CaseRedexDescends (henv.params U))
     (hunfold : ∀ U, @UnfoldingCheckDescends (henv.params U))
+    (hmajor : ∀ U, @MajorEtaDescends (henv.params U))
     (H : ∀ U, @UpStepFClosure (henv.params U)) (hProj : ProjFrontN env) (hElim : ElimFrontN env) :
     Cancel env ↔ StrengtheningKripke.TypedFront env :=
-  cancel_iff_typedFront_ofNE henv heq hcase hunfold
+  cancel_iff_typedFront_ofNE henv heq hcase hunfold hmajor
     (fun U => letI := henv.params U; etaReplayNE_of_closure (H U)) hProj hElim
 
 end Lean4Lean.VEnv.StrengtheningEtaPostponement

@@ -14,7 +14,8 @@ steps produce above a lift, organised so that eta-free steps are recorded on the
   are related to the parameters and the projections of the source;
 * `betaR`: the reduct may carry the administrative redex left by a junk expansion of a lambda or
   of a partial application, when the source is related to its contractum;
-* `redL`: the source may take an eta-free parallel step (`UpStepF`: `ParRed` or `DeltaPar`).
+* `redL`: the source may take a step (`LStep`): an eta-free parallel step (`UpStepF`: `ParRed` or
+  `DeltaPar`), or structure eta at a firing major followed by the iota (`MajorEtaIota`).
 
 `EtaNE` is closed under eta steps on the right (`EtaNE.etaPar_r`), so it contains every eta chain
 (`EtaNE.of_etaChain`); its closure under eta-free steps on the right is the content of the replay
@@ -111,6 +112,205 @@ theorem UpStepF.instN {Γ₀ Γ₁ Γ : List VExpr} {a₁ A₀ e e' T : VExpr} {
   h.elim (fun h => .inl (ParRed.instN (H₀ := ParRed.rfl) (H₀' := h₀) W h))
     (fun h => .inr (DeltaPar.instN W hΓ₁ DeltaPar.rfl h₀ h he))
 
+/-! ## Structure eta at a firing major
+
+The one eta step that an eta-free step above may force on the source: a neutral major of
+structure type is expanded and the parallel core step (an iota) consumes the expansion. -/
+
+/-- A composite left step: structure eta at the major of an application, then a parallel core
+step on the result. -/
+def MajorEtaIota (Γ : List VExpr) (s c : VExpr) : Prop :=
+  ∃ f m family info levels params, s = .app f m ∧ Params.env.projections family info ∧
+    params.length = info.nparams ∧ info.nindices = 0 ∧
+    Γ ⊢ m : mkApps (.const family levels) params ∧
+    Γ ⊢ structExpand family info levels params m : mkApps (.const family levels) params ∧
+    ParRed Γ (.app f (structExpand family info levels params m)) c
+
+/-- The congruence closure (one position) of the composite step. -/
+inductive MajorEtaIotaC : List VExpr → VExpr → VExpr → Prop where
+  | root {Γ : List VExpr} {s c : VExpr} : MajorEtaIota Γ s c → MajorEtaIotaC Γ s c
+  | appL {Γ : List VExpr} {f f' a : VExpr} :
+      MajorEtaIotaC Γ f f' → MajorEtaIotaC Γ (.app f a) (.app f' a)
+  | appR {Γ : List VExpr} {f a a' : VExpr} :
+      MajorEtaIotaC Γ a a' → MajorEtaIotaC Γ (.app f a) (.app f a')
+  | proj {Γ : List VExpr} {m m' : VExpr} {S : Name} {i : Nat} :
+      MajorEtaIotaC Γ m m' → MajorEtaIotaC Γ (.proj S i m) (.proj S i m')
+  | lamA {Γ : List VExpr} {A A' b : VExpr} :
+      MajorEtaIotaC Γ A A' → MajorEtaIotaC Γ (.lam A b) (.lam A' b)
+  | lamB {Γ : List VExpr} {A b b' : VExpr} :
+      MajorEtaIotaC (A :: Γ) b b' → MajorEtaIotaC Γ (.lam A b) (.lam A b')
+  | forallEA {Γ : List VExpr} {A A' B : VExpr} :
+      MajorEtaIotaC Γ A A' → MajorEtaIotaC Γ (.forallE A B) (.forallE A' B)
+  | forallEB {Γ : List VExpr} {A B B' : VExpr} :
+      MajorEtaIotaC (A :: Γ) B B' → MajorEtaIotaC Γ (.forallE A B) (.forallE A B')
+
+/-- The steps recorded on the source side: an eta-free parallel step, or structure eta at a
+firing major followed by the iota, at one position. -/
+def LStep (Γ : List VExpr) (s c : VExpr) : Prop := UpStepF Γ s c ∨ MajorEtaIotaC Γ s c
+
+theorem MajorEtaIota.defeq {Γ : List VExpr} {s c A : VExpr} (hΓ : OnCtx Γ (Params.env.IsType univs))
+    (h : MajorEtaIota Γ s c) (hs : Γ ⊢ s : A) : Γ ⊢ s ≡ c : A := by
+  obtain ⟨f, m, family, info, levels, params, rfl, hl, hp, hi, hm, hexp, hstep⟩ := h
+  obtain ⟨_, _, hf, ha⟩ := hs.app_inv henv hΓ
+  have hexp' : Γ ⊢ structExpand family info levels params m ≡ m :
+      mkApps (.const family levels) params := IsDefEq.structEta hl hp hi hm hexp
+  obtain ⟨_, hmT⟩ := hm.isType henv hΓ
+  have hconv := (hm.uniqU henv hΓ ha).of_l henv hΓ hmT
+  have h1 : Γ ⊢ .app f m ≡ .app f (structExpand family info levels params m) : A :=
+    .trans_l henv hΓ hs (.appDF hf (.defeqDF hconv hexp'.symm))
+  exact h1.trans (hstep.defeq hΓ h1.hasType.2)
+
+theorem MajorEtaIota.weakN {Γ Γ' : List VExpr} {n k : Nat} {s c : VExpr} (W : Ctx.LiftN n k Γ Γ')
+    (h : MajorEtaIota Γ s c) : MajorEtaIota Γ' (s.liftN n k) (c.liftN n k) := by
+  obtain ⟨f, m, family, info, levels, params, rfl, hl, hp, hi, hm, hexp, hstep⟩ := h
+  refine ⟨f.liftN n k, m.liftN n k, family, info, levels, params.map (·.liftN n k), rfl, hl,
+    by simpa using hp, hi, ?_, ?_, ?_⟩
+  · simpa [VExpr.liftN_mkApps, liftN] using hm.weakN henv W
+  · simpa [VExpr.liftN_mkApps, structExpand_liftN, liftN] using hexp.weakN henv W
+  · simpa [liftN, structExpand_liftN] using hstep.weakN W
+
+theorem MajorEtaIota.defeqDFC {Γ₀ Γ₁ Γ₂ : List VExpr} {s c A : VExpr}
+    (hΓ : OnCtx Γ₀ (Params.env.IsType univs)) (W : IsDefEqCtx Params.env univs Γ₀ Γ₁ Γ₂)
+    (h : MajorEtaIota Γ₁ s c) (hs : Γ₁ ⊢ s : A) : MajorEtaIota Γ₂ s c := by
+  obtain ⟨f, m, family, info, levels, params, rfl, hl, hp, hi, hm, hexp, hstep⟩ := h
+  have hΓ₁ := W.isType' hΓ
+  obtain ⟨_, _, hf, ha⟩ := hs.app_inv henv hΓ₁
+  have hexp' : Γ₁ ⊢ structExpand family info levels params m ≡ m :
+      mkApps (.const family levels) params := IsDefEq.structEta hl hp hi hm hexp
+  obtain ⟨_, hmT⟩ := hm.isType henv hΓ₁
+  have hconv := (hm.uniqU henv hΓ₁ ha).of_l henv hΓ₁ hmT
+  have h1 : Γ₁ ⊢ .app f m ≡ .app f (structExpand family info levels params m) : A :=
+    .trans_l henv hΓ₁ hs (.appDF hf (.defeqDF hconv hexp'.symm))
+  exact ⟨f, m, family, info, levels, params, rfl, hl, hp, hi, hm.defeqDFC henv.ordered W,
+    hexp.defeqDFC henv.ordered W, hstep.defeqDFC hΓ W h1.hasType.2⟩
+
+theorem MajorEtaIota.instN {Γ₀ Γ₁ Γ : List VExpr} {a₁ A₀ s c T : VExpr} {k : Nat}
+    (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx Γ₁ (Params.env.IsType univs))
+    (h₀ : Γ₀ ⊢ a₁ : A₀) (h : MajorEtaIota Γ₁ s c) (hs : Γ₁ ⊢ s : T) :
+    MajorEtaIota Γ (s.inst a₁ k) (c.inst a₁ k) := by
+  obtain ⟨f, m, family, info, levels, params, rfl, hl, hp, hi, hm, hexp, hstep⟩ := h
+  refine ⟨f.inst a₁ k, m.inst a₁ k, family, info, levels, params.map (·.inst a₁ k), rfl, hl,
+    by simpa using hp, hi, ?_, ?_, ?_⟩
+  · simpa [VExpr.inst_mkApps, inst] using hm.instN henv W h₀
+  · simpa [VExpr.inst_mkApps, structExpand_inst, inst] using hexp.instN henv W h₀
+  · simpa [inst, structExpand_inst] using ParRed.instN (H₀ := ParRed.rfl) (H₀' := h₀) W hstep
+
+theorem MajorEtaIotaC.defeq {Γ : List VExpr} {s c A : VExpr}
+    (hΓ : OnCtx Γ (Params.env.IsType univs)) (h : MajorEtaIotaC Γ s c) (hs : Γ ⊢ s : A) :
+    Γ ⊢ s ≡ c : A := by
+  induction h generalizing A with
+  | root h => exact h.defeq hΓ hs
+  | appL _ ih =>
+    obtain ⟨_, _, hf, ha⟩ := hs.app_inv henv hΓ
+    exact .trans_l henv hΓ hs (.appDF (ih hΓ hf) ha)
+  | appR _ ih =>
+    obtain ⟨_, _, hf, ha⟩ := hs.app_inv henv hΓ
+    exact .trans_l henv hΓ hs (.appDF hf (ih hΓ ha))
+  | proj _ ih =>
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := hs.proj_inv henv hΓ
+    exact (IsDefEq.proj_congr hΓ hs ⟨_, ih hΓ hm.hasType.2⟩)
+  | lamA _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.lam_inv henv hΓ
+    exact .trans_l henv hΓ hs (.lamDF (ih hΓ hd) hb)
+  | lamB _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.lam_inv henv hΓ
+    exact .trans_l henv hΓ hs (.lamDF hd (ih ⟨hΓ, _, hd⟩ hb))
+  | forallEA _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.forallE_inv henv.ordered
+    exact .trans_l henv hΓ hs (.forallEDF (ih hΓ hd) hb)
+  | forallEB _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.forallE_inv henv.ordered
+    exact .trans_l henv hΓ hs (.forallEDF hd (ih ⟨hΓ, _, hd⟩ hb))
+
+theorem MajorEtaIotaC.weakN {Γ Γ' : List VExpr} {n k : Nat} {s c : VExpr} (W : Ctx.LiftN n k Γ Γ')
+    (h : MajorEtaIotaC Γ s c) : MajorEtaIotaC Γ' (s.liftN n k) (c.liftN n k) := by
+  induction h generalizing k Γ' with
+  | root h => exact .root (h.weakN W)
+  | appL _ ih => exact .appL (ih W)
+  | appR _ ih => exact .appR (ih W)
+  | proj _ ih => exact .proj (ih W)
+  | lamA _ ih => exact .lamA (ih W)
+  | lamB _ ih => exact .lamB (ih W.succ)
+  | forallEA _ ih => exact .forallEA (ih W)
+  | forallEB _ ih => exact .forallEB (ih W.succ)
+
+theorem MajorEtaIotaC.defeqDFC {Γ₀ Γ₁ Γ₂ : List VExpr} {s c A : VExpr}
+    (hΓ : OnCtx Γ₀ (Params.env.IsType univs)) (W : IsDefEqCtx Params.env univs Γ₀ Γ₁ Γ₂)
+    (h : MajorEtaIotaC Γ₁ s c) (hs : Γ₁ ⊢ s : A) : MajorEtaIotaC Γ₂ s c := by
+  induction h generalizing Γ₂ A with
+  | root h => exact .root (h.defeqDFC hΓ W hs)
+  | appL _ ih =>
+    obtain ⟨_, _, hf, ha⟩ := hs.app_inv henv (W.isType' hΓ)
+    exact .appL (ih W hf)
+  | appR _ ih =>
+    obtain ⟨_, _, hf, ha⟩ := hs.app_inv henv (W.isType' hΓ)
+    exact .appR (ih W ha)
+  | proj _ ih =>
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := hs.proj_inv henv (W.isType' hΓ)
+    exact .proj (ih W hm.hasType.2)
+  | lamA _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.lam_inv henv (W.isType' hΓ)
+    exact .lamA (ih W hd)
+  | lamB _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.lam_inv henv (W.isType' hΓ)
+    exact .lamB (ih (.succ W hd) hb)
+  | forallEA _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.forallE_inv henv.ordered
+    exact .forallEA (ih W hd)
+  | forallEB _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.forallE_inv henv.ordered
+    exact .forallEB (ih (.succ W hd) hb)
+
+theorem MajorEtaIotaC.instN {Γ₀ Γ₁ Γ : List VExpr} {a₁ A₀ s c T : VExpr} {k : Nat}
+    (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx Γ₁ (Params.env.IsType univs))
+    (h₀ : Γ₀ ⊢ a₁ : A₀) (h : MajorEtaIotaC Γ₁ s c) (hs : Γ₁ ⊢ s : T) :
+    MajorEtaIotaC Γ (s.inst a₁ k) (c.inst a₁ k) := by
+  induction h generalizing Γ k T with
+  | root h => exact .root (h.instN W hΓ₁ h₀ hs)
+  | appL _ ih =>
+    obtain ⟨_, _, hf, ha⟩ := hs.app_inv henv hΓ₁
+    exact .appL (ih W hΓ₁ hf)
+  | appR _ ih =>
+    obtain ⟨_, _, hf, ha⟩ := hs.app_inv henv hΓ₁
+    exact .appR (ih W hΓ₁ ha)
+  | proj _ ih =>
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := hs.proj_inv henv hΓ₁
+    exact .proj (ih W hΓ₁ hm.hasType.2)
+  | lamA _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.lam_inv henv hΓ₁
+    exact .lamA (ih W hΓ₁ hd)
+  | lamB _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.lam_inv henv hΓ₁
+    exact .lamB (ih W.succ ⟨hΓ₁, _, hd⟩ hb)
+  | forallEA _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.forallE_inv henv.ordered
+    exact .forallEA (ih W hΓ₁ hd)
+  | forallEB _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.forallE_inv henv.ordered
+    exact .forallEB (ih W.succ ⟨hΓ₁, _, hd⟩ hb)
+
+theorem LStep.defeq {Γ : List VExpr} {s c A : VExpr} (hΓ : OnCtx Γ (Params.env.IsType univs))
+    (h : LStep Γ s c) (hs : Γ ⊢ s : A) : Γ ⊢ s ≡ c : A :=
+  h.elim (fun h => h.defeq hΓ hs) (fun h => h.defeq hΓ hs)
+
+theorem LStep.hasType {Γ : List VExpr} {s c A : VExpr} (hΓ : OnCtx Γ (Params.env.IsType univs))
+    (h : LStep Γ s c) (hs : Γ ⊢ s : A) : Γ ⊢ c : A := (h.defeq hΓ hs).hasType.2
+
+theorem LStep.weakN {Γ Γ' : List VExpr} {n k : Nat} {s c : VExpr} (W : Ctx.LiftN n k Γ Γ')
+    (h : LStep Γ s c) : LStep Γ' (s.liftN n k) (c.liftN n k) :=
+  h.elim (fun h => .inl (h.weakN W)) (fun h => .inr (h.weakN W))
+
+theorem LStep.defeqDFC {Γ₀ Γ₁ Γ₂ : List VExpr} {s c A : VExpr}
+    (hΓ : OnCtx Γ₀ (Params.env.IsType univs)) (W : IsDefEqCtx Params.env univs Γ₀ Γ₁ Γ₂)
+    (h : LStep Γ₁ s c) (hs : Γ₁ ⊢ s : A) : LStep Γ₂ s c :=
+  h.elim (fun h => .inl (h.defeqDFC hΓ W hs)) (fun h => .inr (h.defeqDFC hΓ W hs))
+
+theorem LStep.instN {Γ₀ Γ₁ Γ : List VExpr} {a₁ A₀ s c T : VExpr} {k : Nat}
+    (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx Γ₁ (Params.env.IsType univs))
+    (h₀ : Γ₀ ⊢ a₁ : A₀) (h : LStep Γ₁ s c) (hs : Γ₁ ⊢ s : T) :
+    LStep Γ (s.inst a₁ k) (c.inst a₁ k) :=
+  h.elim (fun h => .inl (h.instN W hΓ₁ h₀ hs)) (fun h => .inr (h.instN W hΓ₁ h₀ hs))
+
 /-! ## The relation -/
 
 /-- The eta-normal relation (see the module docstring). -/
@@ -126,6 +326,8 @@ inductive EtaNE : List VExpr → VExpr → VExpr → Prop where
       EtaNE Γ m m' → EtaNE Γ (.proj S i m) (.proj S i m')
   | lamC {Γ : List VExpr} {A A' b b' : VExpr} :
       EtaNE Γ A A' → EtaNE (A :: Γ) b b' → EtaNE Γ (.lam A b) (.lam A' b')
+  | lamD {Γ : List VExpr} {A A' b b' : VExpr} {u : VLevel} :
+      Γ ⊢ A ≡ A' : .sort u → EtaNE (A :: Γ) b b' → EtaNE Γ (.lam A b) (.lam A' b')
   | forallEC {Γ : List VExpr} {A A' B B' : VExpr} :
       EtaNE Γ A A' → EtaNE (A :: Γ) B B' → EtaNE Γ (.forallE A B) (.forallE A' B')
   | funEta {Γ : List VExpr} {e A B A' body : VExpr} {u : VLevel} : Γ ⊢ e : .forallE A B →
@@ -143,7 +345,7 @@ inductive EtaNE : List VExpr → VExpr → VExpr → Prop where
   | betaR {Γ : List VExpr} {A b a s T : VExpr} {args : List VExpr} :
       Γ ⊢ mkApps (.app (.lam A b) a) args : T →
       EtaNE Γ s (mkApps (b.inst a) args) → EtaNE Γ s (mkApps (.app (.lam A b) a) args)
-  | redL {Γ : List VExpr} {s c X : VExpr} : UpStepF Γ s c → EtaNE Γ c X → EtaNE Γ s X
+  | redL {Γ : List VExpr} {s c X : VExpr} : LStep Γ s c → EtaNE Γ c X → EtaNE Γ s X
 
 /-- A typed beta redex is convertible to its contractum. -/
 theorem beta_defeqU {Γ : List VExpr} {A b a T : VExpr} (hΓ : OnCtx Γ (Params.env.IsType univs))
@@ -184,6 +386,10 @@ theorem EtaNE.defeq {Γ : List VExpr} {e e' T : VExpr} (hΓ : OnCtx Γ (Params.e
     have hAA := (ih1 hΓ hA₀).of_l henv hΓ hA₀
     have ⟨_, hB⟩ := ih2 ⟨hΓ, _, hA₀⟩ hb
     exact ⟨_, .lamDF hAA hB⟩
+  | lamD hA _ ih =>
+    obtain ⟨⟨_, hA₀⟩, _, hb⟩ := he.lam_inv henv hΓ
+    have ⟨_, hB⟩ := ih ⟨hΓ, _, hA₀⟩ hb
+    exact ⟨_, .lamDF hA hB⟩
   | forallEC _ _ ih1 ih2 =>
     obtain ⟨⟨_, hA₀⟩, _, hb⟩ := he.forallE_inv henv
     have hΓ' : OnCtx (_ :: _) (Params.env.IsType univs) := ⟨hΓ, _, hA₀⟩
@@ -237,6 +443,7 @@ theorem EtaNE.weakN {Γ Γ' : List VExpr} {n k : Nat} {e e' : VExpr} (W : Ctx.Li
   | app _ _ ih1 ih2 => exact .app (ih1 W) (ih2 W)
   | proj _ ih => exact .proj (ih W)
   | lamC _ _ ih1 ih2 => exact .lamC (ih1 W) (ih2 W.succ)
+  | lamD hA _ ih => exact .lamD (hA.weakN henv W) (ih W.succ)
   | forallEC _ _ ih1 ih2 => exact .forallEC (ih1 W) (ih2 W.succ)
   | funEta hPi hA _ ih =>
     refine .funEta (hPi.weakN henv W) (hA.weakN henv W) ?_
@@ -280,6 +487,9 @@ theorem EtaNE.defeqDFC {Γ₀ Γ₁ Γ₂ : List VExpr} {e e' T : VExpr}
   | lamC _ _ ih1 ih2 =>
     obtain ⟨⟨_, hd⟩, _, hb⟩ := he.lam_inv henv (W.isType' hΓ)
     exact .lamC (ih1 W hd) (ih2 (.succ W hd) hb)
+  | lamD hA _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.lam_inv henv (W.isType' hΓ)
+    exact .lamD (hA.defeqDFC henv.ordered W) (ih (.succ W hd) hb)
   | forallEC _ _ ih1 ih2 =>
     obtain ⟨⟨_, hd⟩, _, hb⟩ := he.forallE_inv henv.ordered
     exact .forallEC (ih1 W hd) (ih2 (.succ W hd) hb)
@@ -364,6 +574,10 @@ theorem EtaNE.instN {Γ₀ Γ₁ Γ : List VExpr} {a₁ a₂ A₀ e e' T : VExpr
   | lamC _ _ ih1 ih2 =>
     obtain ⟨⟨_, hd⟩, _, hb⟩ := he.lam_inv henv hΓ₁
     exact .lamC (ih1 W hΓ₁ hd) (ih2 W.succ ⟨hΓ₁, _, hd⟩ hb)
+  | lamD hA _ ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.lam_inv henv hΓ₁
+    exact .lamD ((hA.instN henv h₀ W).trans (HasType.instN_DF W hΓ₁ ha hA.hasType.2))
+      (ih W.succ ⟨hΓ₁, _, hd⟩ hb)
   | forallEC _ _ ih1 ih2 =>
     obtain ⟨⟨_, hd⟩, _, hb⟩ := he.forallE_inv henv.ordered
     exact .forallEC (ih1 W hΓ₁ hd) (ih2 W.succ ⟨hΓ₁, _, hd⟩ hb)
@@ -779,6 +993,18 @@ theorem EtaNE.etaPar_r {Γ : List VExpr} {s X X' T : VExpr}
     | lam h1 h2 =>
       obtain ⟨-, _, hb'⟩ := hX.lam_inv henv hΓ
       exact .lamC (ih1 hΓ hd h1) (ih2 hΓ' hb (EtaPar.body_transport hΓ hAA' hb' h2))
+  | @lamD Γ A A' b b' u hA Hb ih =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := hs.lam_inv henv hΓ
+    have hΓ' : OnCtx (A :: Γ) (Params.env.IsType univs) := ⟨hΓ, _, hd⟩
+    have hX := (EtaNE.lamD hA Hb).hasType hΓ hs
+    obtain ⟨X₀, hc, hchain⟩ := EtaPar.root_decomp hΓ HX hX
+    refine EtaNE.rootChain_spine_r hΓ hs hchain (as := []) ?_
+    cases hc with
+    | lam h1 h2 =>
+      obtain ⟨-, _, hb'⟩ := hX.lam_inv henv hΓ
+      have hAA : Γ ⊢ A ≡ _ : .sort u :=
+        hA.trans ((EtaPar.full hΓ h1 hA.hasType.2).defeq hΓ hA.hasType.2)
+      exact .lamD hAA (ih hΓ' hb (EtaPar.body_transport hΓ hA hb' h2))
   | @forallEC Γ A A' B B' HA HB ih1 ih2 =>
     obtain ⟨⟨u, hd⟩, _, hb⟩ := hs.forallE_inv henv.ordered
     have hΓ' : OnCtx (A :: Γ) (Params.env.IsType univs) := ⟨hΓ, _, hd⟩
@@ -875,11 +1101,65 @@ theorem EtaNE.of_etaChain {Γ : List VExpr} {e X T : VExpr}
   | rfl => exact EtaNE.rfl
   | tail _ step ih => exact ih.etaPar_r hΓ he step
 
-/-- A lift of a type related to a `Π` reduces below to a `Π`: the eta-free steps at the root of
-the lift descend (`Replay.lean`), the eta expansions at the root are excluded by typing. -/
+/-- OPEN: descent of the composite step (structure eta at a firing major, then the iota) on a
+lift of a term typed below: the enclosing application is typed below, so the major has its
+structure type below, and the iota discards the parameters (B2's analysis, not mechanised). -/
+def MajorEtaDescends : Prop :=
+  ∀ ⦃k Γ Γ' e T c⦄, Ctx.LiftN 1 k Γ Γ' → OnCtx Γ (Params.env.IsType univs) →
+    OnCtx Γ' (Params.env.IsType univs) → Γ ⊢ e : T → MajorEtaIota Γ' (e.liftN 1 k) c →
+    ∃ e', c = e'.liftN 1 k ∧ FullReduction Γ e e'
+
+/-- The descent of the composite step at any position follows from its descent at the root. -/
+theorem MajorEtaIotaC.descend (hmajor : MajorEtaDescends) {k : Nat} {Γ Γ' : List VExpr}
+    {e T c : VExpr} (W : Ctx.LiftN 1 k Γ Γ') (hΓ : OnCtx Γ (Params.env.IsType univs))
+    (hΓ' : OnCtx Γ' (Params.env.IsType univs)) (he : Γ ⊢ e : T)
+    (h : MajorEtaIotaC Γ' (e.liftN 1 k) c) : ∃ e', c = e'.liftN 1 k ∧ FullReduction Γ e e' := by
+  generalize hs : e.liftN 1 k = s at h
+  induction h generalizing e T k Γ with
+  | root h => subst hs; exact hmajor W hΓ hΓ' he h
+  | appL _ ih =>
+    obtain ⟨f₀, a₀, rfl, rfl, rfl⟩ := liftN_eq_app_inv hs
+    obtain ⟨_, _, hf, -⟩ := he.app_inv henv hΓ
+    obtain ⟨f₁, rfl, hred⟩ := ih W hΓ hΓ' hf rfl
+    exact ⟨.app f₁ a₀, rfl, hred.app .rfl⟩
+  | appR _ ih =>
+    obtain ⟨f₀, a₀, rfl, rfl, rfl⟩ := liftN_eq_app_inv hs
+    obtain ⟨_, _, -, ha⟩ := he.app_inv henv hΓ
+    obtain ⟨a₁, rfl, hred⟩ := ih W hΓ hΓ' ha rfl
+    exact ⟨.app f₀ a₁, rfl, FullReduction.app .rfl hred⟩
+  | proj _ ih =>
+    obtain ⟨m₀, rfl, rfl⟩ := liftN_eq_proj_inv hs
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := he.proj_inv henv hΓ
+    obtain ⟨m₁, rfl, hred⟩ := ih W hΓ hΓ' hm.hasType.2 rfl
+    exact ⟨_, rfl, hred.proj⟩
+  | lamA _ ih =>
+    obtain ⟨A₀, b₀, rfl, rfl, rfl⟩ := liftN_eq_lam_inv hs
+    obtain ⟨⟨_, hd⟩, _, -⟩ := he.lam_inv henv hΓ
+    obtain ⟨A₁, rfl, hred⟩ := ih W hΓ hΓ' hd rfl
+    exact ⟨.lam A₁ b₀, rfl, FullReduction.lam hred .rfl⟩
+  | lamB _ ih =>
+    obtain ⟨A₀, b₀, rfl, rfl, rfl⟩ := liftN_eq_lam_inv hs
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.lam_inv henv hΓ
+    obtain ⟨b₁, rfl, hred⟩ := ih W.succ ⟨hΓ, _, hd⟩ ⟨hΓ', _, hd.weakN henv W⟩ hb rfl
+    exact ⟨.lam A₀ b₁, rfl, FullReduction.lam .rfl hred⟩
+  | forallEA _ ih =>
+    obtain ⟨A₀, B₀, rfl, rfl, rfl⟩ := liftN_eq_forallE_inv hs
+    obtain ⟨⟨_, hd⟩, _, -⟩ := he.forallE_inv henv.ordered
+    obtain ⟨A₁, rfl, hred⟩ := ih W hΓ hΓ' hd rfl
+    exact ⟨.forallE A₁ B₀, rfl, FullReduction.forallE hred .rfl⟩
+  | forallEB _ ih =>
+    obtain ⟨A₀, B₀, rfl, rfl, rfl⟩ := liftN_eq_forallE_inv hs
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.forallE_inv henv.ordered
+    obtain ⟨B₁, rfl, hred⟩ := ih W.succ ⟨hΓ, _, hd⟩ ⟨hΓ', _, hd.weakN henv W⟩ hb rfl
+    exact ⟨.forallE A₀ B₁, rfl, FullReduction.forallE .rfl hred⟩
+
+/-- A lift of a type related to a `Π` reduces below to a `Π`: the steps at the root of the lift
+descend (`Replay.lean` and `MajorEtaDescends`), the eta expansions at the root are excluded by
+typing. -/
 theorem EtaNE.forallE_inv_lift (hTF : TypedFrontN Params.env) (hcase : CaseRedexDescends)
     (hunfold : UnfoldingCheckDescends)
     (hcv : ∀ {p : Pattern} {r : p.RHS × p.Check}, Pat p r → CheckVars r.2)
+    (hmajor : MajorEtaDescends)
     {k : Nat} {Γ Γ' : List VExpr} {F A B : VExpr} {u : VLevel} (W : Ctx.LiftN 1 k Γ Γ')
     (hΓ : OnCtx Γ (Params.env.IsType univs)) (hΓ' : OnCtx Γ' (Params.env.IsType univs))
     (hF : Γ ⊢ F : .sort u) (H : EtaNE Γ' (F.liftN 1 k) (.forallE A B)) :
@@ -901,14 +1181,17 @@ theorem EtaNE.forallE_inv_lift (hTF : TypedFrontN Params.env) (hcase : CaseRedex
     exact (VExpr.mkApps_ne_forallE (by intros; intro h; cases h) _ hr.symm).elim
   | redL h _ ih =>
     subst hs hr
-    rcases h with h | h
+    rcases h with (h | h) | h
     · obtain ⟨F₁, rfl, h'⟩ := ParRed.descend hTF hcase hcv W hΓ hΓ' hF h
       obtain ⟨A₂, B₂, hred⟩ := ih W hΓ' ((FullStep.core h').hasType hΓ hF) rfl rfl
       exact ⟨A₂, B₂, (ReflTransGen.tail .rfl (.core h')).trans hred⟩
     · obtain ⟨F₁, rfl, h'⟩ := DeltaPar.descend hTF hunfold W hΓ hΓ' hF h
       obtain ⟨A₂, B₂, hred⟩ := ih W hΓ' (h'.full.hasType hΓ hF) rfl rfl
       exact ⟨A₂, B₂, h'.full.trans hred⟩
-  | bvar | sort | const | elim | app | proj | lamC => cases hr
+    · obtain ⟨F₁, rfl, h'⟩ := MajorEtaIotaC.descend hmajor W hΓ hΓ' hF h
+      obtain ⟨A₂, B₂, hred⟩ := ih W hΓ' (h'.hasType hΓ hF) rfl rfl
+      exact ⟨A₂, B₂, h'.trans hred⟩
+  | bvar | sort | const | elim | app | proj | lamC | lamD => cases hr
 
 end
 
