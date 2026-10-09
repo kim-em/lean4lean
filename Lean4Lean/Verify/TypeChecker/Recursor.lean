@@ -736,6 +736,36 @@ theorem _root_.Lean4Lean.TypeChecker.VContext.structTypeArgs {c : VContext} {A :
   rw [← Array.length_toList, Expr.getAppArgs_toList, Lean4Lean.List.Forall₂.length_eq hPargs, hlen,
     hnp]
 
+/-- The absent-constructor fallback of `expandEtaStruct` is unreachable from recursor
+reduction: `inductiveReduceRec` calls `toCtorWhenStruct` with the major inductive of a present
+recursor, and the major inductive of every present recursor is a header whose listed
+constructors are present constructors of it (`InstalledBlocks.recursorMajorCtors`). -/
+theorem VContext.recursorMajorCtor (c : VContext)
+    (hrec : c.env.find? recFn = some (.recInfo info))
+    (hfind : c.env.find? info.getMajorInduct = some (.inductInfo sInfo))
+    (hctor : ctor ∈ sInfo.ctors) :
+    ∃ mkInfo, c.env.find? ctor = some (.ctorInfo mkInfo) ∧
+      mkInfo.induct = info.getMajorInduct := by
+  obtain ⟨info', hfind', hpresent⟩ := c.blocks.recursorMajorCtors hrec
+  rw [hfind] at hfind'
+  cases hfind'
+  obtain ⟨ci, hci⟩ := hpresent ctor hctor
+  obtain ⟨mkInfo, rfl, hinduct, -⟩ := c.listedConstructors _ sInfo hfind ctor hctor ci hci
+  exact ⟨mkInfo, hci, hinduct⟩
+
+/-- `expandEtaStruct` at the type of the major premise of a present recursor finds the
+structure's constructor: its absent-constructor fallback is never taken. -/
+theorem VContext.expandEtaStruct_ctor (c : VContext)
+    (hrec : c.env.find? recFn = some (.recInfo info))
+    (hnonrec : c.env.isNonRecStructure info.getMajorInduct = true) :
+    ∃ sInfo ctor mkInfo, c.env.find? info.getMajorInduct = some (.inductInfo sInfo) ∧
+      sInfo.ctors.head? = some ctor ∧ c.env.find? ctor = some (.ctorInfo mkInfo) := by
+  unfold Lean.Kernel.Environment.isNonRecStructure at hnonrec
+  split at hnonrec <;> [rename_i hfind; cases hnonrec]
+  rename_i ctor numNested isUnsafe isReflexive
+  obtain ⟨mkInfo, hmk, -⟩ := VContext.recursorMajorCtor (ctor := ctor) c hrec hfind (by simp)
+  exact ⟨_, ctor, mkInfo, hfind, rfl, hmk⟩
+
 /-- Converting a term of structure type to its constructor applied to its projections yields a
 definitionally equal term, by structure eta. -/
 theorem toCtorWhenStruct.WF_all {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :

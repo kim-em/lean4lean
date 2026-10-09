@@ -790,9 +790,11 @@ acceptance needs a conversion fact outside its scope. The wrapper stripping belo
 wrapper name. The other changes cannot change a decision except through checker fuel, as follows.
 
 - **Redundant guards**, each listed in `divergences.md`: `tryEtaStructCore` applies
-  structure eta only at never-zero sorts; `toCtorWhenStruct` and `expandEtaStruct` return
-  the term unchanged where the C++ kernel throws on an absent constructor, and when the type
-  of the major premise's type does not reduce to a sort. The checking context carries the
+  structure eta only at never-zero sorts; `toCtorWhenStruct` returns the term unchanged when
+  the type of the major premise's type does not reduce to a sort. `expandEtaStruct` also
+  returns it unchanged where the C++ kernel throws on an absent constructor, a branch that is
+  unreachable: the major inductive of every present recursor has its constructors present
+  (`VContext.expandEtaStruct_ctor`). The checking context carries the
   constructor listing in both directions: every present constructor is listed by its present
   owner with the owner's `isUnsafe` (`ConstructorOwnersPresent`), and every name a present
   header lists is, if present, a constructor of that header with its `isUnsafe`
@@ -887,9 +889,6 @@ constructor, recursor or inductive type is rejected by the corresponding check.
   The ported files (`SExpr`, `NormalEq`, `ParallelReduction`, `Stratified`,
   `StratifiedUntyped`, the shape logical relation) build against the extended `VExpr`; the
   global axiom `Params.extra_pat` of `SExpr.lean` is now a hypothesis class.
-- **Absent constructor in structure eta.** `expandEtaStruct` keeps its fallback for an absent
-  constructor, which would need every recursor of a checking environment to have the
-  constructors of its major inductive present.
 - **Executable cost.** Replay performance relative to `master` has not been profiled.
 
 ## 10. Reading guide
