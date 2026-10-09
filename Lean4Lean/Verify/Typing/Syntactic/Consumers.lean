@@ -14,10 +14,9 @@ verification; each section restates an existing consumer of `TrExprS` on top of 
    `TrExprS` by inversion, is the general `TrSyn.toTrExprS`. The quotient types are computed by
    `trSyn?` with `rfl` (`trSyn?_quot` and siblings), and `trConstant_quot_syn` is
    `trConstant_quot` with `plainTr` replaced by `trSyn?`.
-2. **Projection inference.** A constructor telescope certificate is a computed translation
-   together with a typing-only certificate (`CtorTelescopeAt.iff_trSyn`): the syntax of every
-   deleted telescope is a theorem, and what remains is the typing of the residual types in the
-   smaller contexts (`TelWF`), which the executable's locality route supplies.
+2. **Projection inference** is no longer a demonstration: the constructor certificate
+   `CtorTelescopeAt` is the computed translation `trSyn?` with the typing-only certificate
+   `TelWF` (`Verify/Typing/TelescopeTranslation.lean`).
 3. **Iota rules.** The right-hand-side derivations of `Inductive/Rules/Translation.lean` are
    `TrSyn` derivations, and the typed right-hand side of a
    rule follows from its syntactic translation and the typing of the generator's equation
@@ -99,36 +98,6 @@ theorem trConstant_quot_syn {venv : VEnv} (henv : venv.Ordered) {lps : List Name
       obtain ⟨_, h⟩ := hwf; exact ⟨_, hlen ▸ h⟩
     have H := TrSyn.of_eval hp
     exact H.toTrExprS henv trivial hwf' (.of_simple hs H)⟩
-
-/-! ### 2. Projection inference -/
-
-/-- The constructor telescope certificate read by `inferProj`: its translation is computed, and
-its content is the typing-only certificate `TelWF`. -/
-theorem CtorTelescopeAt.iff_trSyn {venv : VEnv} (henv : venv.Ordered) {ci : ConstructorVal} :
-    CtorTelescopeAt venv ci ↔ ∃ T, trSyn? ci.levelParams [] ci.type = some T ∧
-      TelWF venv ci.levelParams (AddInductive.constructorArity ci.type) [] ci.type T := by
-  constructor
-  · rintro ⟨T, H⟩
-    obtain ⟨S, W⟩ := (TelTrN.iff_syn_telWF henv (show VLCtx.WF venv _ [] from trivial)).1 H
-    exact ⟨T, S.eval, W⟩
-  · rintro ⟨T, hT, W⟩
-    exact ⟨T, (TelTrN.iff_syn_telWF henv (show VLCtx.WF venv _ [] from trivial)).2 ⟨.of_eval hT, W⟩⟩
-
-/-- The delete step of the projection walk (`TelTrN.delete_closed`), read through the
-decomposition: the lowered translation and its relation to the body are syntactic; the
-certificate's content at the deleted binder is the typing of the lowered residual telescope in
-the smaller context. -/
-theorem TelWF.delete_closed {env : VEnv} {Us : List Name} {Δ : VLCtx}
-    (S : TrSyn Us Δ (.forallE nm d b bi) (.forallE d' b'))
-    (H : TelWF env Us (n + 1) Δ (.forallE nm d b bi) (.forallE d' b'))
-    (hb : b.looseBVarRange' ≤ 0) :
-    ∃ b₀', b' = VExpr.lift b₀' ∧ TrSyn Us Δ b b₀' ∧ TelWF env Us n Δ b b₀' := by
-  have e : b = Expr.liftLooseBVars' b 0 1 := (Expr.liftLooseBVars_eq_self hb).symm
-  let .forallE _ sb := S
-  rw [e] at sb
-  obtain ⟨b₀', s, hb'⟩ := sb.lower
-  cases H with
-  | succ _ _ _ h4 => exact ⟨b₀', hb', s, h4 _ _ e hb'⟩
 
 /-! ### 3. The iota rules' syntactic translation
 

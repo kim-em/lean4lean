@@ -4,8 +4,9 @@ This is the migration plan for replacing the typed translation relation `TrExprS
 (`Lean4Lean/Verify/Typing/Expr.lean`) by a syntactic translation plus a typed layer, following
 BIG IDEA 2 of the checker review. Step 0 (the prototype) was done on
 `agent/verify-inductives-syntr`; steps 1 to 4 (the foundation) are done on
-`agent/verify-inductives-trsyn` (section 3 records what each did and where it departed from the
-plan); steps 5 to 7 are not started. Sections 1 and 2 describe the prototype as it was written
+`agent/verify-inductives-trsyn`, steps 5 and 6 on `agent/verify-inductives-trsyn2` (section 3
+records what each did and where it departed from the plan); step 7 is not recommended and not
+done. Sections 1 and 2 describe the prototype as it was written
 (base `b8fb81be`); current numbers are in section 3.
 
 ## 1. What the prototype establishes
@@ -256,24 +257,50 @@ inductions over other relations that the grep counted; they stay. The context mo
 `peel_outer`/`trExprS_dropN_nat` stay typed: their syntactic half is already a one-liner and the
 typed half is the substitution argument of section 4. `Recursor/Context/ForallTelescope.lean` and
 the frame records (`Inductive/Context.lean`) were left alone (concurrently refactored on the
-mainline; section 5). Net: 20 files, about -150 lines.
+mainline; section 5). Net: 20 files, -102 lines.
 
-**Step 6. Telescope certificates on `TelWF`.** Restate `CtorTelescopeAt` as
-`∃ T, trSyn? ci.levelParams [] ci.type = some T ∧ TelWF ...` (`CtorTelescopeAt.iff_trSyn`
-shows the equivalence), the walk in `Projection.lean`
-(`instantiateProjectionParameters.WF_tel`, `instantiateProjectionFields.WF_tel`, `WF_cert`,
-`WF_ctorTelescopes`) on `TrSyn` + `TelWF` (the delete step is `TelWF.delete_closed`), and the
-ghost-telescope verification (`GhostTelescope.lean`, `loop_base`, `loop_telTr`,
-`checkType.WF_telTr`) to produce `TelWF` (one `IsType` per residual) instead of `TelTr`.
-`CtorTelescopes` keeps its shape; its preservation proofs (`CtorTelescopesPreserved`, 211
-`CtorTelescope*` references, mostly passing the invariant through) are unaffected except at
-the producers (`Install/Environments.lean`, `Primitive/Constructors.lean`,
-`Nested/Restoration/ConstructorTelescopes.lean`, `Recursor/Entries/AddConstants.lean`). `TelTr`
-(29 references) is deleted. Size: about 400 lines changed in `Projection.lean`,
-`GhostTelescope.lean`, `TelescopeTranslation*.lean`; `TelescopeTranslationLemmas.lean` (564
-lines) shrinks by about 250, since `TelTrN.weakFV`/`instN`/`instL_core`/`eqv` become `TelWF`
-transport (typing only) plus `TrSyn` lemmas. Risk: medium; `TelTrN.instL_core` interacts with
-level normalization (`LEquiv`), where `TelWF` must be stated up to `LEquiv` of the residual.
+**Step 6. Telescope certificates on `TelWF`. Done** (commit `refactor: state constructor
+telescope certificates as syntax plus typing`). `TelWF` moved from the prototype into
+`Typing/TelescopeTranslation.lean`, and the certificate is now
+
+```
+def CtorTelescopeAt (venv : VEnv) (ci : ConstructorVal) : Prop :=
+  ∃ T, trSyn? ci.levelParams [] ci.type = some T ∧
+    TelWF venv ci.levelParams (AddInductive.constructorArity ci.type) [] ci.type T
+```
+
+`TelTrN` is restated as the pair `structure TelTrN ... where syn : TrSyn Us Δ e e'; tel : TelWF env
+Us n Δ e e'` (the inductive with a `TrExprS` at each node and the existence premise at the delete
+branch is gone; `CtorTelescopeAt.iff_telTrN` relates the two forms). Its transports are each the
+`TrSyn` lemma and a `TelWF` lemma: `TelWF.weakFV` (now with `Δ'.fvars.Nodup` in place of
+`Δ'.WF`), `TelWF.instN` (through `TrResidual.instN`), `TelWF.instL_core`, `TelWF.eqv`,
+`TelWF.mono`; the delete branch in each is `TrSyn.lower`. The walk in `Projection.lean` and
+`InferType.lean` consumes `TelTrN` unchanged in shape (`toTrExprS` takes `henv`/`hΔ`, which the
+checking context supplies; `TelTrN.zero` builds the depth-zero certificate from a typed
+translation). The ghost-telescope proof (`loop_base`, `loop_telTr`, `checkType.WF_telTr`) produces
+`TelTrN` at the depth of the constructor arity directly: one `IsType` per kept and per deleted
+residual, the residual from the run's typed translations, and the syntactic match at the delete
+branch by `TrSyn.lower` and `TrSyn.unique` in place of `weakBV` and `uniqueCtx`. `TelTr` (the
+unbounded certificate), `TelTr.toTelTrN`, `TelTr.eqv_toTelTrN`, `TrExprS.liftN_inv`/`lift_inv`,
+`lift_const`, `TrExprS.const_ctx` and the prototype's `TelTrN.iff_syn_telWF`,
+`CtorTelescopeAt.iff_trSyn`, `TelWF.delete_closed` (now `TelTrN.delete_closed`) are deleted.
+The producers (`Constructor/Telescopes.lean`, `Constructor/Check.lean`,
+`Primitive/Constructors.lean`, `Recursor/Entries/AddConstants.lean`, `Install/Environments.lean`,
+`Nested/Restoration/ConstructorTelescopes.lean`) state `TelTrN` at the arity and build
+`CtorTelescopeAt` by `CtorTelescopeAt.of_telTrN`; `CtorTelescopes` and its preservation proofs
+are unchanged.
+**Departures.** `TelescopeTranslationLemmas.lean` did not shrink by 250 lines (476 to 532, 13
+files -34 lines overall): every transport keeps its induction over the spine, because the delete
+branch must be commuted with the operation at every binder whether the certificate carries a
+`TrExprS` or a typing judgment, and the file now also holds `TelWF`'s own lemmas and the
+`TelTrN` wrappers that the prototype kept in `Strengthening.lean`. `TelWF.instL_core` reads the
+typing at each node through `TrExprS.instL` (via `TrTyped.toTrExprS`, which needs the context to
+be well formed), as section 5 anticipated: there is still no `VLCtx.LEquiv`-to-`IsDefEqCtx` lemma
+to move the let residual between level-equivalent contexts directly. `TelWF.eqv` likewise
+recovers the residual of the renamed source through `TrExprS.eqv` and so takes `Δ.WF`
+(`TelTrN.eqv_arity` supplies it for closed certificates). The gain is in the statements: the
+certificate is the computed translation plus typing judgments, and weakening no longer needs a
+well-formed target context.
 
 **Step 7 (optional). Replace the definition.** Define `TrExprS := TrTyped` (or rename
 consumers to `TrTyped`). With step 4's eliminator and smart constructors, the 172 inversion

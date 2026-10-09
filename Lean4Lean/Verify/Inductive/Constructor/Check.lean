@@ -356,7 +356,7 @@ theorem ConstructorCheck.ctorOrigin
     cases heq
     refine .inr ⟨by simp [AddInductive.constructorInfo], ?_⟩
     obtain ⟨T, hT⟩ := R.telescopes owner howner ctor hctor
-    exact ⟨T, by simpa [AddInductive.constructorInfo] using hT⟩
+    exact .of_telTrN (T := T) (by simpa [AddInductive.constructorInfo] using hT)
 
 /-- The abstract constructor environment with the declaration's case
 eliminators and projection entries is well formed. -/

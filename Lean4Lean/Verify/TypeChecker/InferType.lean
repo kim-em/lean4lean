@@ -524,11 +524,11 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
         ((ConstantInfo.ctorInfo c_val).instantiateTypeLevelParams I_levels) T₀ := by
     intro hcert
     have hnf := VContext.constructorArity hci hfc hsingle hcci hinduct'
-    obtain ⟨T, hT⟩ := hcert hcci (c.trenv.find?_uniq hcci hctor).2.1
+    obtain ⟨T, hT⟩ := CtorTelescopeAt.iff_telTrN.1 (hcert hcci (c.trenv.find?_uniq hcci hctor).2.1)
     obtain ⟨T₁, hT₁, -⟩ := hT.instL_lequiv c.Ewf hls (h5.trans hlen.symm)
-    cases hT₁.toTrExprS.uniqueS hT₀nil
+    cases hT₁.syn.unique hT₀nil.toTrSyn
     refine ⟨hnf, ?_⟩
-    have := hT₁.weakFV c.Ewf.ordered (.from_nil c.mlctx.noBV) c.Δwf
+    have := hT₁.weakFV c.Ewf.ordered (.from_nil c.mlctx.noBV) c.Δwf.fvars_nodup
     rwa [(VExpr.WF.closedN c.Ewf.ordered (hT₀nil.wf c.Ewf.ordered (by trivial)) trivial).liftN_eq
       (j := 0) (Nat.le_refl 0)] at this
   rw [hshape, VExpr.instL_wrapForalls] at L
@@ -645,7 +645,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
         rw [← hds_def]; exact hRT
       · -- no field at all: the walk has nothing to cross
         rw [show AddInductive.constructorArity c_val.type - I_val.numParams = 0 by omega]
-        exact .zero hafter'
+        exact .zero c.Ewf.ordered c.Δwf hafter'
     case bound => omega
     rcases o with _ | t
     · exact hfail'

@@ -74,7 +74,8 @@ into an `AddDeclChain` from `Kernel.Environment.empty` (`AddDeclChain.WF_empty`)
 compares the type of `Eq` with the prelude's up to `Expr.eqv` but does not look at its safety, so
 before the step that initializes the quotient module the driver also checks that `Eq` is safe,
 with one universe parameter and a type `==` to the prelude's (`hasCanonicalEqType`, sound for
-`HasCanonicalEqType`: every translation of the type is the canonical one, by `TrExprS.eqv`). This
+`HasCanonicalEqType`: every translation of the type is the canonical one, since `TrExprS.eqv`
+moves it to the prelude's syntax, whose syntactic translation `TrSyn` is the canonical type). This
 is exactly what the abstract model of `quotDecl` consumes (`QuotReady`); nothing is required of
 `Eq.refl` or `Eq.rec`. `replayPure.WF_fromImports` states the same for the
 pure replay `replayPure` on top of imports whose well-formedness and canonical `Eq` are assumed:
@@ -755,22 +756,47 @@ structure that may be a proposition, which the kernel still walks past) a transl
 remainder in the smaller context is needed, and general strengthening is not available
 (section 5.1).
 
-The proof re-derives the smaller-context translation from the checker's own acceptance of the
-constructor type. A locality theorem for the executable
-(`Methods.withFuel_locality`, stated with `M.PreservesGhostRestriction` in
-`Lean4Lean/Verify/TypeChecker/Frame*.lean`: a successful run in a local context with extra
-declarations that never occur in its inputs, caches or environment is the same run without
-them) and a ghost-telescope verification (`Verify/TypeChecker/GhostTelescope.lean`) show that
-when a constructor type is checked, every unused binder of its telescope can be deleted from
-the translation. The result is recorded as a depth-bounded certificate `TelTrN`
-(`Verify/Typing/TelescopeTranslation.lean`), one per visible constructor at every safety
+The syntax of that translation is free: translation is a function of the source syntax and the
+context (`TrSyn`, computed by `trSyn?`, `Verify/Typing/Syntactic/Basic.lean`), and a source that
+does not mention a binder translates without it, to the lowered result (`TrSyn.lower`). A typed
+translation is exactly a syntactic translation whose result is well typed, together with the
+typing of dead let values and the presence of literal types (`TrResidual`;
+`TrExprS.iff_typed`, `Verify/Typing/Syntactic/Typed.lean`). What remains to be supplied at a
+deleted binder is therefore one typing judgment: the residual telescope is well typed in the
+context without the binder.
+
+The certificate of a constructor `ci` is
+
+```
+def CtorTelescopeAt (venv : VEnv) (ci : ConstructorVal) : Prop :=
+  ∃ T, trSyn? ci.levelParams [] ci.type = some T ∧
+    TelWF venv ci.levelParams (AddInductive.constructorArity ci.type) [] ci.type T
+```
+
+the computed translation of the stored type with `TelWF`
+(`Verify/Typing/TelescopeTranslation.lean`): the typing of the translation and of every residual
+telescope obtained by deleting unused binders of the leading `forallE` spine, each in its own
+context, with the residual obligations of the source. The depth is the constructor's own arity,
+which is what the walk consumes. There is one certificate per visible constructor at every safety
 level (`CtorTelescopes`, derived from the installed blocks of `VEnvs.WF` by
-`VEnvs.WF.ctorTelescopes`); the bound is the constructor's own arity, which is what the walk
-consumes. The walk uses the delete branch of the
-certificate at each non-dependent field. Nested declarations need the stored constructor type
-to agree with the checked source type up to binder names
-(`Verify/Inductive/Nested/Restoration/InstalledConstructorTypes.lean`), because reusing an auxiliary
-renames binders inside reused occurrences, as in the C++ kernel.
+`VEnvs.WF.ctorTelescopes`). The walk (`instantiateProjectionParameters.WF_tel`,
+`instantiateProjectionFields.WF_tel` in `Verify/TypeChecker/Projection.lean`) carries the pair
+`TelTrN` of the syntactic translation and `TelWF`, substitutes at parameters and dependent fields
+(`TelTrN.inst`) and deletes at non-dependent fields (`TelTrN.delete_closed`); the transports
+(`Verify/Typing/TelescopeTranslationLemmas.lean`) are each a `TrSyn` lemma for the syntax and a
+typing lemma for `TelWF`.
+
+The typing at deleted binders is re-derived from the checker's own acceptance of the constructor
+type. A locality theorem for the executable (`Methods.withFuel_locality`, stated with
+`M.PreservesGhostRestriction` in `Lean4Lean/Verify/TypeChecker/Frame*.lean`: a successful run in
+a local context with extra declarations that never occur in its inputs, caches or environment is
+the same run without them) and a ghost-telescope verification
+(`Verify/TypeChecker/GhostTelescope.lean`, `checkType.WF_telTr`) show that when a constructor
+type is checked, the run read in the local context without the deleted binders types every
+residual telescope. Nested declarations need the stored constructor type to agree with the
+checked source type up to binder names (`Verify/Inductive/Nested/Restoration/InstalledConstructorTypes.lean`,
+`TelTrN.eqv`), because reusing an auxiliary renames binders inside reused occurrences, as in the
+C++ kernel.
 
 ## 6. The quotient declaration
 
@@ -943,8 +969,8 @@ Suggested order, with sizes.
 5. The checker changes: the diff of `Lean4Lean/TypeChecker.lean` (1k), `State.WF` and
    `leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean` (2k), `divergences.md`,
    `Lean4Lean/Tests/CacheScope.lean`.
-6. Constructor telescopes: `Lean4Lean/Verify/Typing/TelescopeTranslation.lean` (`TelTrN`),
-   `CtorTelescopes` in `TelescopeTranslationLemmas.lean`, `instantiateProjectionFields.WF_tel` in
+6. Constructor telescopes: `Lean4Lean/Verify/Typing/TelescopeTranslation.lean` (`TelWF`,
+   `TelTrN`), `CtorTelescopeAt` in `TelescopeTranslationLemmas.lean`, `instantiateProjectionFields.WF_tel` in
    `Lean4Lean/Verify/TypeChecker/Projection.lean`, then `Verify/TypeChecker/GhostTelescope.lean`.
 7. Head inversion: `HeadInversionDefs.lean`, `HeadInversion.lean`, then
    `HeadInjectivity/Model/{Classes,Obs,Interp,Sound}.lean` (3k), `RuleSound.lean`,
