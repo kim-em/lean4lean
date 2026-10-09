@@ -71,7 +71,7 @@ private theorem primitiveValidIndApp
 private theorem primitiveResultCtorShape
     {env : VEnv} {decl : VInductDecl} {target : VInductiveType}
     {ctor : VConstVal}
-    (henv : env.WF) (htypes : decl.types = [target])
+    (htypes : decl.types = [target])
     (huvars : decl.uvars = 0) (hnparams : decl.nparams = 0)
     (htargetUvars : target.uvars = 0)
     (hnindices : target.numIndices = 0)
@@ -243,7 +243,7 @@ private theorem primitiveNatSuccOwnerNormalForm
 private theorem primitiveNatSuccCtorShape
     {env : VEnv} {decl : VInductDecl} {target : VInductiveType}
     {ctor : VConstVal}
-    (henv : env.WF) (htypes : decl.types = [target])
+    (htypes : decl.types = [target])
     (hname : target.name = ``Nat)
     (huvars : decl.uvars = 0) (hnparams : decl.nparams = 0)
     (htargetUvars : target.uvars = 0)
@@ -447,10 +447,10 @@ theorem PrimitiveHeaderEnvironment.checkedConstructors
     have hmetadata := primitiveTarget_metadata hsourceWF
       hdeclParams htargetType (by simpa [hheaderParams] using htargetShape)
     rcases hmetadata with ⟨hnindices, _hresultLevel⟩
-    have hfalseShape := primitiveResultCtorShape H.context.checking.wf
+    have hfalseShape := primitiveResultCtorShape
       hdeclTypes hdeclUvars hdeclParams htargetUvars hnindices hfalseType
       htargetLookup htargetType
-    have htrueShape := primitiveResultCtorShape H.context.checking.wf
+    have htrueShape := primitiveResultCtorShape
       hdeclTypes hdeclUvars hdeclParams htargetUvars hnindices htrueType
       htargetLookup htargetType
     have hfalseIsType : H.context.venv.IsType decl.uvars [] falseVal.type := by
@@ -541,10 +541,10 @@ theorem PrimitiveHeaderEnvironment.checkedConstructors
     have hmetadata := primitiveTarget_metadata hsourceWF
       hdeclParams htargetType (by simpa [hheaderParams] using htargetShape)
     rcases hmetadata with ⟨hnindices, hresultLevel⟩
-    have hzeroShape := primitiveResultCtorShape H.context.checking.wf
+    have hzeroShape := primitiveResultCtorShape
       hdeclTypes hdeclUvars hdeclParams htargetUvars hnindices hzeroType
       htargetLookup htargetType
-    have hsuccShape := primitiveNatSuccCtorShape H.context.checking.wf
+    have hsuccShape := primitiveNatSuccCtorShape
       hdeclTypes Htarget.header.name hdeclUvars hdeclParams htargetUvars
       hnindices hresultLevel hsuccType htargetLookup htargetType
     have hzeroIsType : H.context.venv.IsType decl.uvars [] zeroVal.type := by

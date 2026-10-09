@@ -78,7 +78,7 @@ theorem AddInductive.declareInductiveTypes.primitiveHeadersClosedWF
       (inductiveTypeInfos_uniformAll stats nparams indTypes numNested
         isUnsafe c.lparams hindicesSize)
       (inductiveTypeInfos_uniformNumParams stats nparams indTypes numNested
-        isUnsafe c.lparams hindicesSize)⟩
+        isUnsafe c.lparams)⟩
 
 /-- The executable primitive header, check and constructor prefix, with its
 declaration synthesized from the successful semantic folds. -/

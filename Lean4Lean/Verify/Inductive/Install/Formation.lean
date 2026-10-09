@@ -274,10 +274,10 @@ theorem HeaderEnvironment.closesMutuals
       exact ConstantInfo.inductInfo.inj (Option.some.inj hcandidateLookup)
     subst memberInfo
     have hcandidateParams := inductiveTypeInfos_uniformNumParams stats
-      nparams indTypes numNested isUnsafe c.lparams hsize candidate (by
+      nparams indTypes numNested isUnsafe c.lparams candidate (by
         simpa [infos] using hcandidate)
     have hinfoParams := inductiveTypeInfos_uniformNumParams stats nparams
-      indTypes numNested isUnsafe c.lparams hsize info (by
+      indTypes numNested isUnsafe c.lparams info (by
         simpa [infos] using hinfo)
     exact hcandidateParams.trans hinfoParams.symm
 
