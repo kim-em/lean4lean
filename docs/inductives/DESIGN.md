@@ -522,6 +522,44 @@ declaration the checker accepts these checks succeed; they turn a generic genera
 correctness theorem, which would need strengthening and uniqueness at arbitrary generated
 syntax, into a type check of a closed term.
 
+### 3.5 Shared proof infrastructure
+
+The phase certificates remain in the inductive checker, while generic expression, context and
+abstract typing facts live below it. The original qualified declaration names and theorem
+contracts are retained, including the older `VerifyInductive` names of abstract calculus facts.
+Importing the old adapter modules still exposes those declarations.
+
+| Responsibility | Modules |
+| --- | --- |
+| Abstract telescope syntax, lifting and application spines | `Theory/VExpr/Telescope.lean`, `Theory/VExpr/TelescopeLemmas.lean` |
+| Abstract telescope typing and context conversion | `Theory/Typing/Telescope.lean` |
+| Guarded iota closure and abstract case certificates | `Theory/Inductive/GuardedIotaLemmas.lean`, `Theory/Inductive/CaseEliminators.lean` |
+| Source expression telescope shapes and typed transport | `Verify/Expr/Telescope.lean`, `Verify/Typing/Telescope.lean` |
+| Concrete local-context inclusion | `Verify/LocalContext/SubContext.lean` |
+| Checker context structure and semantic embeddings | `Verify/TypeChecker/MLCtxLemmas.lean`, `Verify/TypeChecker/CheckingContext.lean`, `Verify/Typing/CheckingContext.lean` |
+| Semantics shared by ordinary and recursor frames | `Verify/Inductive/Context/Semantics.lean` |
+| Installation lookup effects and matched family/constructor indices | `Verify/Inductive/Install/Metadata.lean`, `Verify/Inductive/SourceAlignment.lean` |
+
+`ContextWF` and `RecursorContextWF` keep their original public record layouts. Their operations
+use `ContextSemantics c Us` for the shared context proofs. Ordinary frames retain
+`typeCheckerLParams = none`; recursor frames retain `some recLparams` and the explicit
+`RecursorLParams` origin certificate. `BindingContextWF` remains the separate operational
+certificate. The existing projection equalities still hold by reduction.
+
+A lowered run's header, constructor and recursor certificates are transported together through
+`LoweredRun.Phases` (`Nested/Lowering/Phases.lean`). `NestedRun` exposes that package and its
+lowering context through `Nested/Install/RunView.lean`; consumers use these named views instead
+of rebuilding dependent sigma casts. The shared parameter context lives in
+`Install/ParameterContext.lean`.
+
+The selected induction-hypothesis comparison in `Rules/RecursiveResults.lean` separates source
+provenance (`HypothesisSource`), exact replay equations (`HypothesisReplay`), translation and
+closed typing (`HypothesisTyping`), and the opened residual comparison (`HypothesisResidual`).
+`HypothesisFrame` and `HypothesisDomainFrame` carry these obligations to the RHS proof through
+named fields. The original existential theorems remain compatibility views. Translation and
+typing after inserting earlier hypotheses use one shared proof, so the domain comparison and
+RHS consumer no longer reconstruct that context transport independently.
+
 ## 4. Metatheory
 
 ### 4.1 Head inversion
