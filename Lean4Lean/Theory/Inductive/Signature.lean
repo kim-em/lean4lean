@@ -122,9 +122,8 @@ structure Instance.Admissible {s : InductiveSignature} (g : Instance s)
 /-- Each generated induction hypothesis is a well-formed type in the context in
 which the generated minor premise binds it: parameters, motives, earlier
 minors, the constructor's fields and the earlier hypotheses.  This is the
-typing fact the generated recursor needs from the recursive shapes.  It
-concerns only the hypotheses the generator produces, not the correctness or
-completeness of the external/recursive field classification.  It is
+typing fact the generated recursor needs from the recursive shapes.  Which
+fields get a hypothesis is fixed by `Models.classifiedFields`.  It is
 stated in the recursor-checking environment, that is after the family headers, the
 constructors, the declaration's own case eliminators and its projection entries,
 since that is where the executable checks the generated types.  A

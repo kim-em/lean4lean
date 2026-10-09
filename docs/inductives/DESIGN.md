@@ -210,7 +210,14 @@ recursive. A pure generator produces from it, for an `Instance` (universe levels
 level, recursor names), every motive, minor premise, induction hypothesis, recursor type and
 iota equation. `InductiveSignature.Models` relates a signature to the source declaration: same names,
 arities and result levels, constructor types definitionally equal in the environment with the
-family headers, and every field definitionally a strictly positive normal form.
+family headers, and every field definitionally a strictly positive normal form in the branch its
+classification names (`classifiedFields`, `VInductDecl.ClassifiedFieldNormalForm`): an `external`
+field is definitionally a type that mentions no family of the block, a `recursive` field a
+telescope over family-free domains ending in a family applied to the parameters and family-free
+indices. The generator therefore gives an induction hypothesis to exactly the fields whose
+positive normal form ends in a family. The recorded shape of a recursive field (binders, target
+family, indices) is constrained by the typing of its generated induction hypothesis
+(`Instance.GeneratedIHsWellTyped`).
 `Instance.Admissible` fixes the elimination universe: every family is never zero, or the
 target is `≈ 0`, or singleton elimination holds and the target is a free universe parameter.
 
@@ -344,6 +351,14 @@ None weakens the top-level theorem.
   environment.
 - **Header agreement** (`CaseSchema.HeaderAgreement`). The restored normalized header of each
   source family is definitionally equal to its declared type.
+- **Fields are classified by their positive normal form** (`Models.classifiedFields`). Without
+  it a signature could mark a recursive field `external`: for `N | z | s : N → N` with the
+  argument of `s` external, the generated eliminator has a successor minor `∀ n, motive (s n)`
+  without induction hypothesis, a well-typed eliminator that is not Lean's recursor.
+  `Lean4Lean/Tests/RecursiveFieldClassification.lean` shows that this signature no longer models
+  `N`. The executable decides the classification twice, by the positivity check in the
+  environment with the headers and by `isRecArg` in the recursor's checking context; it checks
+  that the two agree (section 3.2).
 - **Recursor typings are stated in the recursor-checking environment.** `Instance.GeneratedIHsWellTyped` and
   `FamilyTypesWF` are required in the environment with constructors, the declaration's own
   case eliminators and its projection entries, because that is where the executable checks
@@ -376,8 +391,9 @@ ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
   universes. The proof materializes the abstract headers and their source translation.
 - **Constructors** (`Constructor/`, 5.5k). Each constructor type is checked in the environment
   with the headers; positivity, the universe bound on fields and the result shape are
-  verified, and each field is related to its strictly positive normal form (the
-  `positiveFields` clause of `Models`).
+  verified, and each field is related to its strictly positive normal form in the branch the
+  positivity check reports (`checkPositivity` returns whether the field is recursive, and
+  `checkConstructors` returns these classifications; the `classifiedFields` clause of `Models`).
 - **Checked formation** (`Constructor/CheckedFormation.lean`). From the data available once the
   constructors are declared, the proof computes the source signature
   (`CheckedFormation.sourceSignature`, with `sourceSignature_models`) and the
@@ -399,6 +415,18 @@ ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
   recursor types is not derived from the generator: it is read off the executable's check of
   each generated recursor type (`checkRecursorTypes`), which supplies `GeneratedIHsWellTyped` in
   the recursor-checking environment; `FamilyTypesWF` likewise comes from checker runs there.
+  The minor pass classifies each field again (`isRecArg`, in the recursor's checking context
+  and the environment with the constructors); `checkRecursiveFields` requires, for a safe
+  declaration, that the fields given induction hypotheses are exactly those the positivity
+  check classified as recursive. The two classifications are `whnf` runs on the same field
+  types in different environments, universe parameters and free variables, and no theorem
+  relates two such runs, so the agreement is checked rather than proved
+  (`RecursorConstruction.recursiveFieldsChecked`). With it the classification of the generation
+  signature is that of the checked formation (`SignatureSpec.classified`, `sourceClasses`), and
+  its fields inherit the classified normal forms of the source fields. On the primitive path the
+  classifications are computed from the run (`PrimitiveHeaderEnvironment.checkedClasses`), using
+  that `whnf` returns an inductive constant unchanged
+  (`Verify/Inductive/Constructor/PositivityConstant.lean`).
   Rules are proved well typed in the recursor
   environment (`Rules/EquationWF.lean`, `Rules/Translation.lean`, `Rules/RuleTranslations.lean`).
 - **Assembly** (`Install/BlockCertificate.lean`, `Install/`). The phases assemble into one
@@ -780,8 +808,9 @@ wrapper name. The other changes cannot change a decision except through checker 
 - **Inductive checker** (`Lean4Lean/Inductive/Add.lean`): restructured into explicit loops
   with total fresh-name searches, narrow checker contexts (section 3.2), unreachable arity
   and result-type guards in recursor construction (kept: the verification cannot show that
-  two `whnf` runs agree), and recursor rules built from the first constructor
-  traversal. Each generated recursor type is type-checked (`checkRecursorTypes`); the kernel
+  two `whnf` runs agree), the comparison of the minor pass's field classification with the
+  positivity check's (`checkRecursiveFields`, for the same reason), and recursor rules built from
+  the first constructor traversal. Each generated recursor type is type-checked (`checkRecursorTypes`); the kernel
   of the pinned toolchain does not do this, upstream does since leanprover/lean4#14808, which
   also checks rule type preservation, which lean4lean proves instead. Nested auxiliary types
   are named `_nested.i` rather than `_nested.J_i` (internal names only). The nested
@@ -823,7 +852,9 @@ wrapper name. The other changes cannot change a decision except through checker 
   `ProjectionSpecialization.lean` (a projection that becomes large after universe
   specialization while the recursor eliminates only into `Prop`);
 - negative tests: `SortEquationRejection.lean`, `CorruptRecursorMetadata.lean`,
-  `CorruptRestoredRecursorMetadata.lean` (corrupted metadata admits no certificate).
+  `CorruptRestoredRecursorMetadata.lean` (corrupted metadata admits no certificate),
+  `RecursiveFieldClassification.lean` (a signature marking a recursive field `external` does
+  not model its declaration).
 - nested indexed families: `NestedIndexedFamily.lean` (nested occurrences of indexed families,
   and indexed families with parameters inside nested blocks; the generated types,
   constructors and recursors are compared with the kernel's).
