@@ -56,3 +56,39 @@ suggested it for `numFields > 0`), since spine exposure itself descends composit
 depends on `MajorEtaDescends`. The structure type of the major below is read instead from the
 head of the application typed below (`RecursorRegistered.major_type` for recursor iota,
 `CaseRedex.majorPremise` for case steps), which also removes the `numFields = 0` special case.
+
+## Step 4: `MajorEtaDescends` (`MajorEta.lean`)
+
+`majorEtaDescends : TypedFrontN env → CaseRedexDescends → (∀ p r, Pat p r → CheckVars r.2) →
+ProjFieldFrontN env → MajorEtaDescends` (checked; axioms `propext`, `Classical.choice`,
+`Quot.sound`). Following B3's log steps 6 and 7, with two changes:
+
+* The structure type of the major below is not obtained from `ProjFrontN` (circular: spine
+  exposure, hence `ProjFrontN.of_closure`, descends composite steps). It is read from the head of
+  the application typed below: `RecursorRegistered.major_type` for a recursor iota pattern
+  (`pat_recursor` gives the registered data, `pat_simple` and `iota_matches_spine` the shape
+  `rc vs m₀` with `vs.length = majorOffset`), `QuotRegistered.major_type` for the quotient
+  pattern (`Quot.lift [u, v] [α, r, β, f, h] m₀`), `HasType.caseMajor_type` for a case step
+  (arity from `Certified.arguments_length`). In each case the head is rigid
+  (`family_head_rigid`, `quot_rigid`, `case_family_head_rigid`), and the structure is rigid
+  (`projectionRigid`), so `rigid_rigid` on the two types of `m₀↑` above identifies the family,
+  gives `lv ≈ levels` and `args↑ ≡ params`. No `numFields = 0` special case.
+* The structure eta step below needs the expansion `ctor lv args (proj i m₀)` typed below
+  (`FullStep.structEta`'s premise), hence each `proj i m₀` typed below. For `Prop` structures
+  with data fields this is exactly the field-type closure, so `ProjFieldFrontN` is a hypothesis
+  of the descent (free outside `Prop` by `projField_of_neverZero`; its `Prop` part
+  `ProjFieldFrontPropN` is a hypothesis of the final theorem anyway). `structExpand_descend`:
+  the projections above are arguments of the typed expansion above; `ProjFieldFrontN` and
+  `projDF` type them below; the lifted expansion at the data below is typed above by spine
+  congruence (`constDF`, `IsDefEqU.mkApps_args`) from the expansion above; the spine descends
+  at the constructor's closed telescope (`telInst_descend`: strong induction on the position,
+  each argument retyped at its domain, the domain a type below by `IsType.instOuter_telescope`;
+  the constructor constant and its telescope from `projectionConstructor`, `projectionShape`,
+  `RawCtorShape.forallArity`), and the result is retyped at the structure type.
+* The fire is transported from `.app f↑ (ctor levels params projs)` to
+  `.app f↑ (ctor lv args↑ projs)`: for a stored rule, a new match by `constVarN_transport`, the
+  same right-hand side and check by `pat_iota_params`; for a case step, `CaseRedex.transport`
+  with the same capture (`schema_struct_major`: `rule.numFields ≤ info.numFields`, so the drop
+  skips all parameters, `drop_append_eq_of_length`). The transported fire is a `ParRed` on the
+  lift of `.app f₀ (ctor lv args projs₀)`, typed below, and `ParRed.descend` (B2) descends it.
+  Below: `.app f₀ m₀ →structEta .app f₀ (expansion) →core c₀`.
