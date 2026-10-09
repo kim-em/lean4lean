@@ -534,11 +534,136 @@ def replay (ctx : Context) (env : Environment) (decl : Option Name := none) :
   | .ok r => return (r.numAdded, r.env)
   | .error e => throw (← e.toIOError)
 
+/-! ### Differential replay against the C++ kernel (`--differential`)
+
+With `--differential`, every declaration the replay sends to lean4lean is also sent to the C++
+kernel (`Kernel.Environment.addDecl`, with no heartbeat limit), on the same environment: the one
+lean4lean has built so far. The two answers are compared, and when both accept, the constants
+the declaration adds (the declared names, and for an inductive block its constructors, its
+recursors and the auxiliary recursors `rec_i` of a nested block) are compared under `==`, so the
+terms lean4lean constructs (recursor types and rules, constructor types, the quotient
+constants) are checked against the C++ kernel's. A lean4lean rejection stops the replay, as
+without the flag; it is then classified by running the C++ kernel on the rejected declaration.
+This does not change what lean4lean checks or the replay core; it only adds hooks. -/
+
+/-- The counts of a differential replay. -/
+structure DiffCounts where
+  /-- Declarations sent to both kernels. -/
+  checked := 0
+  /-- Both accept, and every constant the declaration adds is `==` in the two environments. -/
+  agreements := 0
+  /-- lean4lean rejects, the C++ kernel accepts. -/
+  lean4leanOnly := 0
+  /-- lean4lean accepts, the C++ kernel rejects. -/
+  kernelOnly := 0
+  /-- Both reject. -/
+  bothReject := 0
+  /-- Both accept, but some constant the declaration adds differs between the two. -/
+  termMismatches := 0
+  deriving Inhabited
+
+/-- The number of disagreements of a differential replay. -/
+def DiffCounts.disagreements (c : DiffCounts) : Nat :=
+  c.lean4leanOnly + c.kernelOnly + c.termMismatches
+
+instance : ToString DiffCounts where
+  toString c := s!"{c.checked} declarations checked, {c.agreements} agreements, \
+    {c.lean4leanOnly} lean4lean-only rejections, {c.kernelOnly} kernel-only rejections, \
+    {c.bothReject} rejected by both, {c.termMismatches} constructed-term mismatches"
+
+/-- The state of a differential replay: the counts, and the environment and declaration of the
+pending `addDecl`, to classify a lean4lean rejection. -/
+structure DiffState where
+  counts : DiffCounts := {}
+  lastEnv : Environment
+  lastDecl : Option Declaration := none
+
+/-- The options of the C++ kernel in a differential replay: no heartbeat limit, so that a
+declaration elaborated under a raised `maxHeartbeats` is not a spurious rejection. -/
+def diffOptions : Options := Options.empty.set `maxHeartbeats (0 : Nat)
+
+/-- The names of the constants a declaration adds, as far as both kernels are compared. For an
+inductive block: the types, their constructors and recursors, and the auxiliary recursors
+`rec_i` of a nested block (probed until absent from both environments). -/
+def addedNames (d : Declaration) (env₁ env₂ : Environment) : List Name :=
+  match d with
+  | .axiomDecl v => [v.name]
+  | .defnDecl v => [v.name]
+  | .thmDecl v => [v.name]
+  | .opaqueDecl v => [v.name]
+  | .mutualDefnDecl vs => vs.map (·.name)
+  | .quotDecl => [``Quot, ``Quot.mk, ``Quot.lift, ``Quot.ind]
+  | .inductDecl _ _ ts _ =>
+    let main := ts.flatMap fun t => t.name :: Name.str t.name "rec" :: t.ctors.map (·.name)
+    let aux := match ts with
+      | t :: _ => go t.name 1 1000
+      | [] => []
+    main ++ aux
+where
+  /-- `n.rec_i, n.rec_(i+1), …` while present in either environment. -/
+  go (n : Name) (i : Nat) : Nat → List Name
+    | 0 => []
+    | fuel + 1 =>
+      let r := Name.str n s!"rec_{i}"
+      if (env₁.find? r).isSome || (env₂.find? r).isSome then r :: go n (i + 1) fuel else []
+
+/-- The hooks of a differential replay: the IO hooks, and after each successful lean4lean
+`addDecl`, the same declaration sent to the C++ kernel on the environment lean4lean started
+from, with the added constants compared. -/
+def diffHooks (ctx : Context) (ref : IO.Ref DiffState) : Hooks (ExceptT ReplayError IO) where
+  beforeAdd d := do
+    ref.modify fun s => { s with lastDecl := some d }
+    (ioHooks ctx).beforeAdd d
+  afterAdd name d env env' t := do
+    (ioHooks ctx).afterAdd name d env env' t
+    let counts ← match env.addDecl diffOptions d with
+    | .error ex =>
+      let e ← (ReplayError.kernel name ex).toIOError
+      IO.eprintln s!"differential: kernel-only rejection of {d.name}: {e}"
+      pure fun (c : DiffCounts) => { c with kernelOnly := c.kernelOnly + 1 }
+    | .ok cenv =>
+      let bad := (addedNames d env' cenv).filter fun n => !(env'.find? n == cenv.find? n)
+      if bad.isEmpty then
+        pure fun (c : DiffCounts) => { c with agreements := c.agreements + 1 }
+      else
+        IO.eprintln s!"differential: constructed-term mismatch in {d.name}: {bad}"
+        pure fun (c : DiffCounts) => { c with termMismatches := c.termMismatches + 1 }
+    ref.modify fun s =>
+      { s with lastEnv := env', lastDecl := none,
+               counts := counts { s.counts with checked := s.counts.checked + 1 } }
+
+/-- `replay` with the differential hooks. A lean4lean rejection is classified by the C++ kernel
+and then reported as by `replay`. Returns the counts with the result. -/
+def replayDifferential (ctx : Context) (env : Environment) (decl : Option Name := none) :
+    IO (DiffCounts × Nat × Environment) := do
+  let ref ← IO.mkRef ({ lastEnv := env } : DiffState)
+  match ← (replayCore (diffHooks ctx ref) ctx.toConfig env decl).run with
+  | .ok r => return ((← ref.get).counts, r.numAdded, r.env)
+  | .error e =>
+    let s ← ref.get
+    if let (.kernel _ _, some d) := (e, s.lastDecl) then
+      let c := s.counts
+      let c := match s.lastEnv.addDecl diffOptions d with
+        | .ok _ =>
+          { c with checked := c.checked + 1, lean4leanOnly := c.lean4leanOnly + 1 }
+        | .error _ => { c with checked := c.checked + 1, bothReject := c.bothReject + 1 }
+      if c.lean4leanOnly > s.counts.lean4leanOnly then
+        IO.eprintln s!"differential: lean4lean-only rejection of {d.name}"
+      IO.println s!"differential: {c}"
+    throw (← e.toIOError)
+
+/-- Print the counts of a differential replay of `module`, and fail on a disagreement. -/
+def reportDifferential (module : Name) (c : DiffCounts) : IO Unit := do
+  IO.println s!"differential {module}: {c}"
+  if c.disagreements > 0 then
+    throw <| IO.userError s!"differential replay of {module}: {c.disagreements} disagreements \
+      with the C++ kernel"
+
 open private ImportedModule.mk from Lean.Environment in
 /-- Replay the constants of `module` into the environment of its imports. The imported
 environment is trusted. -/
 unsafe def replayFromImports (module : Name) (verbose := false) (compare := false)
-    (fuel : Lean4Lean.FuelConfig := {}) : IO Nat := do
+    (fuel : Lean4Lean.FuelConfig := {}) (differential := false) : IO Nat := do
   let mFile ← findOLean module
   unless (← mFile.pathExists) do
     throw <| IO.userError s!"object file '{mFile}' of module {module} does not exist"
@@ -558,7 +683,10 @@ unsafe def replayFromImports (module : Name) (verbose := false) (compare := fals
   let mut newConstants := {}
   for name in mod.constNames, ci in mod.constants do
     newConstants := newConstants.insert name ci
-  let (n, env') ← replay { newConstants, verbose, compare, fuel } env
+  let ctx : Context := { newConstants, verbose, compare, fuel }
+  let (counts?, n, env') ← if differential then
+      (fun (c, r) => (some c, r)) <$> replayDifferential ctx env
+    else (none, ·) <$> replay ctx env
   (Environment.ofKernelEnv env').freeRegions
   -- Project out the regions *before* freeing them: `CompactedRegion` is a `USize`, so the
   -- projected array holds no pointers into the regions, and `parts` -- whose `ModuleData`s
@@ -566,15 +694,22 @@ unsafe def replayFromImports (module : Name) (verbose := false) (compare := fals
   -- `parts` directly would leave this frame's own locals dangling, and the decrefs on
   -- return would segfault.
   parts.map (·.2) |>.forM CompactedRegion.free
+  if let some c := counts? then reportDifferential module c
   pure n
 
 /-- Replay all the constants of `module` (imported and defined in it) into the empty
-environment. This is `replayFresh` run with the IO hooks. -/
+environment. This is `replayFresh` run with the IO hooks (the differential hooks, with
+`differential`). -/
 unsafe def replayFromFresh (module : Name)
     (verbose := false) (compare := false) (decl : Option Name := none)
-    (fuel : Lean4Lean.FuelConfig := {}) : IO Nat := do
+    (fuel : Lean4Lean.FuelConfig := {}) (differential := false) : IO Nat := do
   Lean.withImportModules #[module] {} (trustLevel := 0) fun env => do
     let ctx := { freshConfig env.constants.map₁ fuel with verbose, compare }
-    Prod.fst <$> replay ctx (freshStart module) decl
+    if differential then
+      let (c, n, _) ← replayDifferential ctx (freshStart module) decl
+      reportDifferential module c
+      pure n
+    else
+      Prod.fst <$> replay ctx (freshStart module) decl
 
 end Lean4Lean.Replay
