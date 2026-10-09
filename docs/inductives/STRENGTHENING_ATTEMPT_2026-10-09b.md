@@ -256,3 +256,9 @@ posts to GitHub or Zulip.
   application forces the major's structure type below and iota discards the parameters);
   fun-eta and struct-eta elsewhere must be postponed, which is the content of `EtaReplay`.
 
+* 2026-10-09: integration check at 023958a5: `lake build Lean4Lean.Theory` succeeds with
+  all new modules; `scripts/check-inductive-audit.py` cannot run because the pushed mainline
+  (49bc3a67) fails in `Lean4Lean/Verify/Inductive/Header/Telescope.lean` (fixed by the
+  Verify agent in its unpushed 9c15b5c4); no module outside `Strengthening/` imports the new
+  files, so the audit cone is unchanged. Directions B3 (`EtaReplay`) and E (`ProjFrontN`,
+  `ElimFrontN`) spawned.
