@@ -880,7 +880,7 @@ theorem EtaNE.structEta_args {Γ : List VExpr} (hΓ : OnCtx Γ (Params.env.IsTyp
     (hlen : (structArgs family info params e).length = args.length)
     (hargs : ∀ i (hi : i < (structArgs family info params e).length) (hi' : i < args.length),
       EtaNE Γ (structArgs family info params e)[i] args[i])
-    (hX : Γ ⊢ mkApps (.const info.ctorName levels) args : T)
+    (_hX : Γ ⊢ mkApps (.const info.ctorName levels) args : T)
     (hF : List.Forall₂ (IsDefEqU Params.env univs Γ) args args')
     (ih : ∀ i (hi : i < (structArgs family info params e).length) (hi' : i < args'.length),
       EtaNE Γ (structArgs family info params e)[i] args'[i]) :
