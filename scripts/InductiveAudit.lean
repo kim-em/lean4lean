@@ -78,10 +78,13 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.addDecl.WF
 #inductive_audit Lean4Lean.addDecl.WF_of_canonicalEq
 #inductive_audit Lean4Lean.addDecl.WFHasCanonicalEq
+#inductive_audit Lean4Lean.addDecl.WF_of_canonicalEq_mode
+#inductive_audit Lean4Lean.addDecl.WF_mode
 #inductive_audit Lean4Lean.addQuot.WF
 #inductive_audit Lean4Lean.Replay.replayFresh.WF
 #inductive_audit Lean4Lean.Replay.replayFresh.WF_target
 #inductive_audit Lean4Lean.Replay.replayPure.WF_fromImports
+#inductive_audit Lean4Lean.Replay.replayPure.WF_fromImports_mode
 #inductive_audit Lean4Lean.Replay.Replayed.foldlM
 #inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveExtensionWF
 #inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.primitiveInductiveExtensionWF

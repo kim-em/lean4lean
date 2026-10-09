@@ -42,6 +42,32 @@ recorded in `VEnvs.WF` (`VEnvs.WF.ctorTelescopes`). The iterable form `addDecl.W
 also returns `HasCanonicalEq` for `ves'` (monotone along `≤`), so the theorem applies again
 to the next declaration of a replay.
 
+The checker has two cache modes (`Lean4Lean/CacheMode.lean`), a runtime tag in the `cacheMode`
+field of `FuelConfig`:
+
+```lean
+structure GlobalCacheLicense : Type where
+  ok : ∀ env : VEnv, env.WF → env.HasCanonicalEq → env.Strengthening
+inductive CacheMode where
+  | scoped
+  | global (license : GlobalCacheLicense)
+```
+
+The default `.scoped` restores the context-relative caches when a binder is closed; `.global`
+keeps them for the whole run as the C++ kernel does, and can be selected only with a license, a
+proof of context strengthening (section 5.1) of which no inhabitant is known. The theorem holds in
+both modes:
+
+```lean
+theorem addDecl.WF_of_canonicalEq_mode {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (decl : Declaration) (mode : CacheMode) :
+    (addDecl env decl (check := true) (fuel := { cacheMode := mode })).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety
+```
+
+and `addDecl.WF_of_canonicalEq` is its instance at `.scoped`, since `{}` is `{ cacheMode := .scoped }`
+(section 5.2).
+
 "Sound" means refinement: whenever the executable `addDecl` returns an environment, that
 environment is modelled, at every safety level, by an abstract environment that is well formed
 in the sense of `VEnv.WF` and extends the previous model. `VEnv.WF` is the generative
@@ -123,6 +149,12 @@ takes as hypothesis that the executable installs `Eq.rec` with the prelude's typ
 `addDecl` is sound for environments that contain the prelude's `Eq`, and every declaration of
 a replay from the empty environment is sound (`AddDeclChain.WF_empty`).
 
+- The cache mode: in the default scoped mode nothing is assumed. The mode-parametric forms
+  (`addDecl.WF_mode`, section 5.2) assume the mode is sound for the input models
+  (`CacheMode.Sound`), which in the global mode is canonical `Eq`; `WF_of_canonicalEq_mode` has it
+  from `heq`. The fuel-generic inductive dispatch theorems carry the same assumption as `hmode`,
+  true for every scoped configuration.
+
 No hypothesis names the declaration being checked or supplies a semantic fact about it.
 Inductive declarations carry no premise at all: their abstract declaration, normalized
 signature, compilation certificate and case eliminators are reconstructed from the execution.
@@ -142,7 +174,7 @@ signature, compilation certificate and case eliminators are reconstructed from t
 
 The audit (`scripts/InductiveAudit.lean`, driven by `scripts/check-inductive-audit.py`) walks
 the transitive dependency closure of a fixed list of roots, including opaque theorem bodies and
-the types of dependencies. The roots are the top-level theorems, the replay theorems of section
+the types of dependencies. The roots are the top-level theorems (in both cache modes), the replay theorems of section
 1.2, the three inductive dispatch theorems, `addQuot.WF`, the checker's `whnf` and recursor
 reduction theorems, the prefix-unfolding and quotient theorems (`PrefixUnfold.defeq`,
 `QuotPrefixUnfold.defeq`, `QuotRegistered.propInhabitant_app`), `NormalEq.parRed`,
@@ -732,7 +764,7 @@ Lean).
 the standard axioms. Confluence is not in the dependency cone of the top-level theorem of
 section 1.1.
 
-## 5. Strengthening, scoped caches and constructor telescopes
+## 5. Strengthening, cache modes and constructor telescopes
 
 ### 5.1 Why declarative strengthening is not used
 
@@ -750,34 +782,58 @@ The environment and the larger-context derivation were checked in Lean while thi
 studied; the separation itself is argued on paper, not formalised. With canonical `Eq` this countermodel disappears, since
 `P v` can be extracted from `p`, but no proof of strengthening is known: every organisation
 of the needed conversion-elimination theorem for typed eta and definitional proof
-irrelevance is circular, and the calculus does not normalize. The verification is
-organised so that it never
-moves a typing fact to a smaller context.
+irrelevance is circular, and the calculus does not normalize. In the default cache mode the
+verification is organised so that it never moves a typing fact to a smaller context; the global
+cache mode, which does, takes strengthening as the content of its license (section 5.2).
 
-### 5.2 Scoped caches
+### 5.2 Cache modes
 
-Every binder of the checker saves and restores the context-relative state
-(`TypeChecker.State.leaveScope`, `Lean4Lean/TypeChecker.lean`): the inference caches, the
-`whnf` caches, the equivalence manager and the failure cache are put back on leaving the
+The checker's cache mode (`CacheMode`, a field of `FuelConfig`) decides what happens to the
+context-relative state when a binder is closed (`State.exitScope`, `Lean4Lean/TypeChecker.lean`).
+
+In the default scoped mode every binder saves and restores it (`State.leaveScope`): the inference
+caches, the `whnf` caches, the equivalence manager and the failure cache are put back on leaving the
 binder; the name generator stays advanced and the `unfold` cache, which depends only on the
 environment, is kept. `isDefEqLambda` and `isDefEqForall` always compare bodies under a binder.
-With this, the cache invariant is simply "every entry is derivable in the current context"
-(`State.WF`, `State.WF.leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean`). The
-environment part of the checker context does not change under a binder: `VContext` carries
-the translation, the installed blocks (section 3.4), the stored-equation heads and the
-quotient facts, and the lookup facts it supplies are projections of them.
+Every cache entry is then derivable in the current context, and the binder exit needs nothing
+(`State.WF.leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean`).
 
-Without scoping no invariant of that form holds. `Lean4Lean/Tests/CacheScope.lean`
+In the global mode the state of the body is kept, as in the C++ kernel, whose caches belong to the
+whole run, and `isDefEqLambda`/`isDefEqForall` open a binder only when a body has loose bound
+variables, as `is_def_eq_binding` does. The cache invariants are conditional
+(`Lean4Lean/Verify/Typing/ConditionallyTyped.lean`): an entry whose key mentions only variables of
+the current context is derivable in it. The equivalence manager's facts hold in the current
+context extended by variables of closed binders (`EqvScope`). Closing a binder
+(`State.WF.restrict`) moves the entries whose keys avoid the binder out of it by strengthening
+(`ConditionallyHasType.weakN_inv` and `ConditionallyWHNF.weakN_inv`, through
+`TrExprS.restrictFV'_inv`); using a fact of the equivalence manager (`State.WF.eqv_uniq`) and
+comparing closed bodies outside their binder (`lowerClosedBody`) strengthen in the same way. The
+strengthening is `license.ok venv wf heq`, for the checker's environment `venv`, which has
+canonical `Eq` whenever the input models do (`CacheMode.Sound`, recorded in `State.WF`). These are
+the only uses of the license. The universe-support and parameter-uniformity cache invariants are
+syntactic and are restricted without it. The frame lemma and the constructor-telescope
+certificates of section 5.3 serve both modes unchanged.
+
+The mode-parametric statements are `addDecl.WF_of_canonicalEq_mode`, `addDecl.WFHasCanonicalEq_mode`,
+`addDecl.WF_mode` (with `hmode : ∀ safety, mode.Sound (ves.venv safety)`) and
+`replayPure.WF_fromImports_mode`; the statements at `fuel := {}` are their scoped instances. There
+is no global-mode form of `replayFresh.WF`: a fresh replay checks the prelude's declarations before
+`Eq` exists, where the license gives no strengthening, and the countermodel of section 5.1 shows
+that none holds in general there. What a global-mode fresh replay would need is strengthening for
+the environments of the prelude before canonical `Eq`, which is false in some well-formed
+environments.
+
+Without restoring, no invariant of the scoped form holds. `Lean4Lean/Tests/CacheScope.lean`
 builds the countermodel environment above (no `Eq`) and a closed definition of type `SJ` with
 value `let seed := fun (q : P v) => ... ; (zz : SI)`, where the body of `seed` forces the
 comparisons `SI ≡ ... ≡ SJ` under `q`. The C++ kernel accepts this definition and rejects it
-without `seed`; the unscoped lean4lean checker accepted it too; the scoped checker rejects
-it. So the scoped checker can reject a declaration the C++ kernel accepts. Such a declaration
-relies on a conversion fact outside the scope where it holds: `SI ≡ SJ` is derivable under `q`
-but not in the outer context, so it is the C++ acceptance that is non-local. Both fresh replays
-of `Init.Prelude` and `Init.Core` are unaffected. This is one of several divergences of the
-executable; `divergences.md` lists all of them, with an audit table of every executable change
-(section 7.2).
+without `seed`; the scoped mode rejects it (the global mode would accept it). So the executable as
+run can reject a declaration the C++ kernel accepts. Such a declaration relies on a conversion
+fact outside the scope where it holds: `SI ≡ SJ` is derivable under `q` but not in the outer
+context, so it is the C++ acceptance that is non-local. Both fresh replays of `Init.Prelude` and
+`Init.Core` are unaffected, and `Lean4Lean/Tests/CacheMode.lean` checks that the mode plumbing is
+the identity in the scoped mode. This is one of several divergences of the executable;
+`divergences.md` lists all of them, with an audit table of every executable change (section 7.2).
 
 The primitive recognizer (`Lean4Lean/Primitive.lean`) reads the closed pieces of a
 `reflectNatNat` condition, and the functional of a well-founded definition, only under binders
@@ -883,10 +939,12 @@ the two agree. No axiom is added.
 
 Every behavioural change to the executable is classified in the audit table at the end of
 `divergences.md`: a refactor with the C++ kernel's decisions, a divergence documented there, or
-(with an entry) a divergence found by the audit. Scoped caches (section 5.2) are not the only
-divergence, but they are the only one that can change a decision against the C++ kernel on an
-environment whose type-annotation wrappers are the prelude's: they reject a term whose
-acceptance needs a conversion fact outside its scope. The wrapper stripping below can change a decision only on an environment that redefines a
+(with an entry) a divergence found by the audit. The default scoped cache mode (section 5.2) is not the only
+divergence, but it is the only one that can change a decision against the C++ kernel on an
+environment whose type-annotation wrappers are the prelude's: it rejects a term whose
+acceptance needs a conversion fact outside its scope. The executable also implements the C++
+behaviour, the global cache mode, which is selected only with a `GlobalCacheLicense`; no
+inhabitant of it exists, so the global mode is verified but cannot be run. The wrapper stripping below can change a decision only on an environment that redefines a
 wrapper name. The other changes cannot change a decision except through checker fuel, as follows.
 
 - **Redundant guards**, each listed in `divergences.md`: `tryEtaStructCore` applies
@@ -970,7 +1028,10 @@ type, a definition, an inductive predicate and a theorem) from the empty environ
 the added declarations and the agreement of every source constant; corrupting a source
 constructor, recursor or inductive type is rejected by the corresponding check.
 
-`Lean4Lean/Tests/CacheScope.lean` pins the output of the experiment of section 5.2.
+`Lean4Lean/Tests/CacheScope.lean` pins the output of the experiment of section 5.2, and
+`Lean4Lean/Tests/CacheMode.lean` checks that the cache-mode plumbing is the identity in the scoped
+mode (the default configuration is the scoped one, and replays of oracle dependency cones agree
+between the default and the explicitly scoped configuration).
 
 ## 9. Open
 
@@ -1006,9 +1067,10 @@ Suggested order, with sizes.
    (1.3k together), then `Formation.lean` (1.6k).
 4. The corrections: `Lean4Lean/Theory/Typing/EliminatorCoherence.lean`,
    `SchemaStructCompat.lean`, `Instance.FreeTarget` in `Signature.lean`.
-5. The checker changes: the diff of `Lean4Lean/TypeChecker.lean` (1k), `State.WF` and
-   `leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean` (2k), `divergences.md`,
-   `Lean4Lean/Tests/CacheScope.lean`.
+5. The checker changes: `Lean4Lean/CacheMode.lean`, the diff of `Lean4Lean/TypeChecker.lean`
+   (1k), `State.WF`, `State.WF.leaveScope`, `State.WF.restrict` and `State.WF.exitScope` in
+   `Lean4Lean/Verify/TypeChecker/Basic.lean` (2k), `divergences.md`,
+   `Lean4Lean/Tests/CacheScope.lean`, `Lean4Lean/Tests/CacheMode.lean`.
 6. Constructor telescopes: `Lean4Lean/Verify/Typing/TelescopeTranslation.lean` (`TelWF`,
    `TelTrN`), `CtorTelescopeAt` in `TelescopeTranslationLemmas.lean`, `instantiateProjectionFields.WF_tel` in
    `Lean4Lean/Verify/TypeChecker/Projection.lean`, then `Verify/TypeChecker/GhostTelescope.lean`.

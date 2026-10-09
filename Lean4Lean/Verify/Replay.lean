@@ -23,8 +23,9 @@ Agreement is up to `==` on `ConstantInfo`: the derived equality, which compares 
 driver uses for constructors and recursors.
 
 The per-declaration theorems are stated for the default fuel `{}`, which is also the executable's
-configuration when no `--config` flag is given. The walk lemma `Replayed.foldlM` holds for any
-fuel.
+configuration when no `--config` flag is given, and whose cache mode is the scoped one
+(`Lean4Lean.CacheMode`). `replayPure.WF_fromImports_mode` covers either cache mode. The walk lemma
+`Replayed.foldlM` holds for any fuel.
 -/
 
 namespace Lean4Lean

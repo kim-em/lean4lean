@@ -440,7 +440,8 @@ theorem addDecl.WF_of_canonicalEq_mode {env : Environment} {ves : VEnvs} (wf : v
     fun safety => mode.sound_of_canonicalEq (heq safety)
 
 /-- The top-level preservation theorem in the canonical-`Eq` formulation: `WF_of_canonicalEq_mode`
-in the default, scoped cache mode. -/
+in the default, scoped cache mode, in which the checker restores its caches when a binder is
+closed, so no strengthening is needed. -/
 theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
