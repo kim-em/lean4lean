@@ -1,3 +1,5 @@
+import Lean4Lean.Theory.Typing.QuotPropInhabitant
+import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
 import Lean4Lean.Theory.Typing.DefinitionRegistryInstallation
 import Lean4Lean.Theory.Typing.RecursorRegistryInstallation
 import Lean4Lean.Verify.Inductive.Dispatch
@@ -7,12 +9,13 @@ import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TrRestoredRecursorVal
 import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Inductive.CaseRegistration
+import Lean4Lean.Theory.Typing.FullChurchRosser
+import Lean4Lean.Theory.Typing.Confluence.WFParams
+import Lean4Lean.Theory.Typing.PrefixUnfolding.Rule
 import Lean4Lean.Theory.Typing.ConstructorCaptureTransport
 import Lean4Lean.Theory.Typing.CaseReduction
+import Lean4Lean.Theory.Typing.ChurchRosser
 import Lean4Lean.Verify.Replay
-import Lean4Lean.Theory.Inductive.QuotPrefixUnfolding
-import Lean4Lean.Theory.Inductive.RecursorPrefixUnfolding
-import Lean4Lean.Theory.Typing.BVarConversion
 
 /-! Audit the transitive dependency closure, including opaque theorem bodies.
 Run through `scripts/check-inductive-audit.py`; this file emits one JSON record
@@ -102,17 +105,30 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.Generates
 #inductive_audit Lean4Lean.VEnv.CaseRedex
 
+#inductive_audit Lean4Lean.VEnv.NormalEq.parRed
+#inductive_audit Lean4Lean.VEnv.HeadParallelReduction
 #inductive_audit Lean4Lean.VerifyInductive.RecursorConstruction.typeTranslations
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.singletonReconstruction
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.singletonReconstructAt
 #inductive_audit Lean4Lean.InductiveSignature.RecursorData.singletonEquation
 #inductive_audit Lean4Lean.VEnv.RecursorRegistered
+#inductive_audit Lean4Lean.VEnv.PatternReductionTrace
+#inductive_audit Lean4Lean.VEnv.PrefixUnfold
+#inductive_audit Lean4Lean.VEnv.PrefixUnfold.defeq
 
 #inductive_audit Lean4Lean.InductiveSignature.RecursorData.prefixUnfolding
 
+#inductive_audit Lean4Lean.VEnv.FullStep
 
+#inductive_audit Lean4Lean.VEnv.FullReduction
 
+#inductive_audit Lean4Lean.VEnv.FullEquationCoverage
 
+#inductive_audit Lean4Lean.VEnv.IsDefEq.full_church_rosser
+#inductive_audit Lean4Lean.VEnv.WF.church_rosser
+#inductive_audit Lean4Lean.VEnv.WF.params
+#inductive_audit Lean4Lean.VEnv.WF.equationCoverage
+#inductive_audit Lean4Lean.VEnv.WF.singletonCoverage
 
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.structureEta
 
@@ -121,12 +137,16 @@ elab "#inductive_audit " ids:ident* : command => do
 
 #inductive_audit Lean4Lean.QuotPrefixUnfolding.propInhabitant
 #inductive_audit Lean4Lean.QuotPrefixUnfolding.generate
+#inductive_audit Lean4Lean.VEnv.QuotRegistered
+#inductive_audit Lean4Lean.VEnv.QuotPrefixUnfold
 #inductive_audit Lean4Lean.VEnv.DefinitionRegistered
 #inductive_audit Lean4Lean.VEnv.DefinitionPattern
 #inductive_audit Lean4Lean.VEnv.installDefinitions
 #inductive_audit Lean4Lean.InductiveSignature.RecursorData.compilationEntries
 #inductive_audit Lean4Lean.InductiveSignature.RecursorData.installEntries
+#inductive_audit Lean4Lean.VEnv.QuotPrefixUnfold.defeq
 
+#inductive_audit Lean4Lean.VEnv.QuotRegistered.propInhabitant_app
 
 -- Foundational lemmas: their proofs may use only the standard axioms and no open proof
 -- (`FOUNDATION_ROOTS` in `scripts/check-inductive-audit.py`).

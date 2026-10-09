@@ -27,16 +27,23 @@ ROOTS = {
     "Lean4Lean.Replay.replayPure.WF_fromImports",
     "Lean4Lean.Replay.replayPure.WF_fromImports_mode",
     "Lean4Lean.Replay.Replayed.foldlM",
+    "Lean4Lean.VEnv.QuotRegistered.propInhabitant_app",
+    "Lean4Lean.VEnv.QuotPrefixUnfold.defeq",
     "Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveExtensionWF",
     "Lean4Lean.VerifyInductive.addInductiveDeclaration.primitiveInductiveExtensionWF",
     "Lean4Lean.VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveExtensionWF",
     "Lean4Lean.TypeChecker.whnf.WF",
     "Lean4Lean.TypeChecker.Inner.reduceRecursor.WF",
+    "Lean4Lean.VEnv.NormalEq.parRed",
     "Lean4Lean.VerifyInductive.RecursorConstruction.typeTranslations",
+    "Lean4Lean.VEnv.PrefixUnfold.defeq",
+    "Lean4Lean.VEnv.IsDefEq.full_church_rosser",
 }
 DEFINITION_ROOTS = {
     "Lean4Lean.QuotPrefixUnfolding.propInhabitant",
     "Lean4Lean.QuotPrefixUnfolding.generate",
+    "Lean4Lean.VEnv.QuotRegistered",
+    "Lean4Lean.VEnv.QuotPrefixUnfold",
     "Lean4Lean.VEnv.DefinitionRegistered",
     "Lean4Lean.VEnv.DefinitionPattern",
     "Lean4Lean.VEnv.installDefinitions",
@@ -58,12 +65,19 @@ DEFINITION_ROOTS = {
     "Lean4Lean.InductiveSignature.CaseSchema.genericProjectionPrefix",
     "Lean4Lean.InductiveSignature.CaseSchema.Generates",
     "Lean4Lean.VEnv.CaseRedex",
+    "Lean4Lean.VEnv.HeadParallelReduction",
     "Lean4Lean.InductiveSignature.CaseSchema.singletonReconstruction",
     "Lean4Lean.InductiveSignature.CaseSchema.singletonReconstructAt",
     "Lean4Lean.InductiveSignature.RecursorData.singletonEquation",
     "Lean4Lean.VEnv.RecursorRegistered",
+    "Lean4Lean.VEnv.PatternReductionTrace",
+    "Lean4Lean.VEnv.PrefixUnfold",
+    "Lean4Lean.VEnv.FullStep",
+    "Lean4Lean.VEnv.FullReduction",
+    "Lean4Lean.VEnv.FullEquationCoverage",
     "Lean4Lean.InductiveSignature.CaseSchema.structureEta",
     "Lean4Lean.InductiveSignature.RecursorData.prefixUnfolding",
+    "Lean4Lean.VEnv.WF.params",
 }
 # Foundational lemmas whose proofs may use only the standard axioms and no open proof.
 FOUNDATION_ROOTS = {
@@ -76,6 +90,9 @@ FOUNDATION_ROOTS = {
     "Lean4Lean.VEnv.IsDefEq.etaOpen_wrapLams",
     # The confluence theorem for every well-formed environment with canonical `Eq`
     # (section 4.2 of the design notes) and its two coverage lemmas.
+    "Lean4Lean.VEnv.WF.church_rosser",
+    "Lean4Lean.VEnv.WF.equationCoverage",
+    "Lean4Lean.VEnv.WF.singletonCoverage",
 }
 STRICT_ROOTS = DEFINITION_ROOTS | FOUNDATION_ROOTS
 ROOTS |= STRICT_ROOTS
@@ -146,9 +163,15 @@ def main():
                         "Lean4Lean.Theory.Inductive.CaseRegistration",
                         "Lean4Lean.Theory.Inductive.CaseProjections",
                         "Lean4Lean.Theory.Typing.CaseReduction",
+                        "Lean4Lean.Theory.Typing.PrefixUnfolding.Rule",
+                        "Lean4Lean.Theory.Typing.FullChurchRosser",
+                        "Lean4Lean.Theory.Typing.Confluence.WFParams",
+                        "Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift",
+                        "Lean4Lean.Theory.Typing.QuotPropInhabitant",
                         "Lean4Lean.Theory.Typing.DefinitionRegistryInstallation",
                         "Lean4Lean.Theory.Typing.RecursorRegistryInstallation",
 
+                        "Lean4Lean.Theory.Typing.ChurchRosser",
                         "Lean4Lean.Verify.Replay"], cwd=ROOT, check=True)
     reports = run_audit(ROOT / "scripts/InductiveAudit.lean")
     if len(reports) != len(ROOTS) or {r["root"] for r in reports} != ROOTS:
